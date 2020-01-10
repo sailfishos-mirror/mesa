@@ -573,13 +573,36 @@ if with_egl
     _platforms += 'drm'
   endif
 
-  egl_native_platform = get_option('egl-native-platform')
-  if egl_native_platform.contains('auto')
-    egl_native_platform = _platforms[0]
-  endif
+  # All the other platforms can be detected and cannot reach the native platform code
+  _undetectable_platforms = ['x11', 'haiku', 'android', 'surfaceless']
 
-  if not _platforms.contains(egl_native_platform)
-    error('-Degl-native-platform does not specify an enabled platform')
+  # Don't enforce the native platform if none of the undetectable platforms are enabled
+  _undetectable_platforms_enabled = []
+  foreach _platform : _platforms
+    if _platform in _undetectable_platforms
+      _undetectable_platforms_enabled += _platform
+    endif
+  endforeach
+
+  egl_native_platform = ''
+
+  if _undetectable_platforms_enabled.length() > 0
+    egl_native_platform = get_option('egl-native-platform')
+
+    if egl_native_platform.contains('auto')
+      egl_native_platform = _undetectable_platforms_enabled[0]
+
+    # Since we always add surfaceless without the user's ability to
+    # enable/disable it, if this is the only undetectable platform enabled,
+    # silently select it as the native platform.
+    elif _undetectable_platforms_enabled == ['surfaceless']
+      _undetectable_platforms_enabled = []
+      egl_native_platform = 'surfaceless'
+
+    # Make sure the native platform is one of the ones that can't be detected
+    elif egl_native_platform not in _undetectable_platforms
+      error('`-D egl-native-platform=...` must be one of: ' + ', '.join(_undetectable_platforms_enabled))
+    endif
   endif
 endif
 
