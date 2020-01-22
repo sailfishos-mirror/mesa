@@ -1271,6 +1271,86 @@ namespace {
       return deps;
    }
 
+   std::vector<std::vector<dependency>>
+   trim_implicit_dependencies(const brw_shader *shader,
+                              const std::vector<std::vector<dependency>> &deps0)
+   {
+      const struct intel_device_info *devinfo = shader->devinfo;
+
+      struct resolved_id_state {
+         /* Indexed by exec_all.  Some IDs might been resolved for regular
+          * (masked) instructions but still not by exec_all.
+          */
+         tgl_sbid_mode mode[2] = {TGL_SBID_NULL, TGL_SBID_NULL};
+      };
+
+      std::vector<resolved_id_state> resolved_ids(num_instructions(shader));
+      unsigned ip = 0;
+
+      std::vector<std::vector<dependency>> deps1;
+      deps1.reserve(deps0.size());
+
+      foreach_block(block, shader->cfg) {
+         /* Reset the resolved ids, since this pass only trim based on
+          * block-local resolutions.
+          */
+         for (unsigned i = 0; i < resolved_ids.size(); i++)
+            resolved_ids[i] = {};
+
+         foreach_inst_in_block(brw_inst, inst, block) {
+            const bool exec_all = inst->force_writemask_all ||
+                                  !needs_nomask_workaround(devinfo);
+
+            const std::vector<dependency> &inst_deps0 = deps0[ip];
+            std::vector<dependency> inst_deps1;
+
+            if (inst->opcode != SHADER_OPCODE_UNDEF) {
+               /* First trim any dependencies that were already resolved. */
+               for (auto dep : inst_deps0) {
+                  if (dep.unordered & (TGL_SBID_DST | TGL_SBID_SRC)) {
+                     resolved_id_state &resolved = resolved_ids[dep.id];
+                     dep.unordered &= ~resolved.mode[exec_all];
+                  }
+
+                  if (is_valid(dep))
+                     inst_deps1.push_back(dep);
+               }
+
+               /* Then update new resolved dependencies.  This is done in
+                * a separate step to avoid an instruction resolving its own
+                * dependencies.
+                */
+               for (const auto &dep : inst_deps1) {
+                  if (!dep.unordered)
+                     continue;
+
+                  /* See other comments about Wa_1407528679. */
+                  if (exec_all < dep.exec_all)
+                     continue;
+
+                  resolved_id_state &resolved = resolved_ids[dep.id];
+
+                  for (int m = 0; m <= exec_all; m++) {
+                     if (dep.unordered & TGL_SBID_SET)
+                        resolved = {};
+                     else if (dep.unordered & TGL_SBID_DST)
+                        resolved.mode[m] |= TGL_SBID_DST | TGL_SBID_SRC;
+                     else if (dep.unordered & TGL_SBID_SRC)
+                        resolved.mode[m] |= TGL_SBID_SRC;
+                  }
+               }
+            } else {
+               inst_deps1 = inst_deps0;
+            }
+
+            deps1.push_back(inst_deps1);
+            ip++;
+         }
+      }
+
+      return deps1;
+   }
+
    /** @} */
 
    /**
@@ -1407,8 +1487,9 @@ brw_lower_scoreboard(brw_shader &s)
    if (s.devinfo->ver >= 12) {
       const std::vector<ordered_address> jps = ordered_inst_addresses(&s);
       const auto deps0 = gather_inst_dependencies(&s, jps);
-      const auto deps1 = allocate_inst_dependencies(&s, deps0);
-      progress = emit_inst_dependencies(&s, jps, deps1);
+      const auto deps1 = trim_implicit_dependencies(&s, deps0);
+      const auto deps2 = allocate_inst_dependencies(&s, deps1);
+      progress = emit_inst_dependencies(&s, jps, deps2);
    }
 
    return progress;

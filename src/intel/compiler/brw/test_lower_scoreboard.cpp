@@ -1216,7 +1216,7 @@ TEST_F(scoreboard_test, math_inv_with_mul_dependency)
    EXPECT_SHADERS_MATCH(bld, exp);
 }
 
-TEST_F(scoreboard_test, DISABLED_implicit_dependency_unordered_dst_then_src)
+TEST_F(scoreboard_test, implicit_dependency_unordered_dst_then_src)
 {
    brw_builder bld = make_shader();
    brw_builder exp = make_shader();
@@ -1258,7 +1258,7 @@ TEST_F(scoreboard_test, no_implicit_dependency_unordered_src_then_dst)
    EXPECT_SHADERS_MATCH(bld, exp);
 }
 
-TEST_F(scoreboard_test, DISABLED_implicit_dependency_inside_if)
+TEST_F(scoreboard_test, implicit_dependency_inside_if)
 {
    brw_builder bld = make_shader();
    brw_builder exp = make_shader();
