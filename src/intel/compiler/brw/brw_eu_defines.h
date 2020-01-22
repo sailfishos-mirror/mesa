@@ -899,12 +899,24 @@ operator&(tgl_sbid_mode x, tgl_sbid_mode y)
    return tgl_sbid_mode(unsigned(x) & unsigned(y));
 }
 
+inline tgl_sbid_mode
+operator~(tgl_sbid_mode x)
+{
+   const unsigned range = (unsigned(TGL_SBID_SET) << 1) - 1;
+   return tgl_sbid_mode(~unsigned(x) & range);
+}
+
 inline tgl_sbid_mode &
 operator|=(tgl_sbid_mode &x, tgl_sbid_mode y)
 {
    return x = x | y;
 }
 
+inline tgl_sbid_mode &
+operator&=(tgl_sbid_mode &x, tgl_sbid_mode y)
+{
+   return x = x & y;
+}
 #endif
 
 /**
