@@ -156,6 +156,7 @@ lima_program_optimize_vs_nir(struct nir_shader *s)
    NIR_PASS(_, s, nir_lower_bool_to_float, true);
 
    NIR_PASS(_, s, nir_opt_copy_prop);
+   NIR_PASS(_, s, nir_opt_algebraic_late);
    NIR_PASS(_, s, nir_opt_dce);
    NIR_PASS(_, s, lima_nir_split_loads);
    NIR_PASS(_, s, nir_convert_from_ssa, true, false);
