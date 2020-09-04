@@ -43,6 +43,10 @@ has_fmulz = '(options->has_fmulz || \
               (options->has_fmulz_no_denorms && \
                !nir_is_denorm_preserve(info->float_controls_execution_mode, 32)))'
 
+denorm_ftz_16 = 'nir_is_denorm_flush_to_zero(info->float_controls_execution_mode, 16)'
+denorm_ftz_32 = 'nir_is_denorm_flush_to_zero(info->float_controls_execution_mode, 32)'
+denorm_ftz_64 = 'nir_is_denorm_flush_to_zero(info->float_controls_execution_mode, 64)'
+
 ignore_exact = nir_algebraic.ignore_exact
 
 # Written in the form (<search>, <replace>) where <search> is an expression
@@ -146,6 +150,25 @@ def add_fabs_fneg(pattern, replacements, commutative = True):
         result.append(to_tuple(curr))
     return result
 
+optimize_fcanonicalize = [
+   # Eliminate all fcanonicalize if we are not required to flush denormals.
+   # Technically this is inexact for the case where we don't know the denorms
+   # are preserved - but so is any pattern where one float opcode is replaced by
+   # another, because we don't know if they flush the same way.
+   # Constant folding would also not flush, so there is already a lot of handwaving
+   # involved, and this mode is supposed to be fast, not 100% reproducible.
+   (('fcanonicalize', 'a@16'), a, '!'+denorm_ftz_16),
+   (('fcanonicalize', 'a@32'), a, '!'+denorm_ftz_32),
+   (('fcanonicalize', 'a@64'), a, '!'+denorm_ftz_64),
+
+   # If denormals are required to be flushed we can still
+   # eliminate it if any denormals are already flushed or will be flushed.
+   (('fcanonicalize(is_only_used_as_float)', a), a),
+   (('fcanonicalize', 'a(is_created_as_float)'), a, 'true', TestStatus.UNSUPPORTED),
+
+   # Integral numbers are not denormal.
+   (('fcanonicalize', 'a(is_integral)'), a),
+]
 
 optimizations = [
    # These will be recreated by late_algebraic if supported.
@@ -564,6 +587,8 @@ optimizations.extend([
    # (a << #b) * #c  =>  a * (#c << #b)
    (('imul', ('ishl', a, '#b'), '#c'), ('imul', a, ('ishl', c, b))),
 ])
+
+optimizations.extend(optimize_fcanonicalize)
 
 # Care must be taken here.  Shifts in NIR uses only the lower log2(bitsize)
 # bits of the second source.  These replacements must correctly handle the
@@ -3434,12 +3459,12 @@ for op in ['fpow']:
         (('bcsel', a, (op, b, c), (op + '(is_used_once)', d, c)), (op, ('bcsel', a, b, d), c)),
     ]
 
-for op in ['frcp', 'frsq', 'fsqrt', 'fexp2', 'flog2', 'fsign', 'fsin', 'fcos', 'fsin_amd', 'fcos_amd', 'fsin_mdg', 'fcos_mdg', 'fsin_agx', 'fneg', 'fabs', 'fsign']:
+for op in ['frcp', 'frsq', 'fsqrt', 'fexp2', 'flog2', 'fsign', 'fsin', 'fcos', 'fsin_amd', 'fcos_amd', 'fsin_mdg', 'fcos_mdg', 'fsin_agx', 'fneg', 'fabs', 'fsign', 'fcanonicalize']:
     optimizations += [
         (('bcsel', c, (op + '(is_used_once)', a), (op + '(is_used_once)', b)), (op, ('bcsel', c, a, b))),
     ]
 
-for op in ['ineg', 'iabs', 'inot', 'isign']:
+for op in ['ineg', 'iabs', 'inot', 'isign', 'fcanonicalize']:
     optimizations += [
         ((op, ('bcsel', c, '#a', '#b')), ('bcsel', c, (op, a), (op, b))),
     ]
@@ -4003,6 +4028,12 @@ late_optimizations.extend([
    (('bitnz', ('inot', a), b), ('bitz', a, b)),
    (('bitz', ('inot', a), b), ('bitnz', a, b)),
 ])
+
+late_optimizations += [
+   # If we can't eliminate it, lower it so that backends don't have to deal with
+   # it.
+   (('fcanonicalize', a), ('fmul', a, 1.0), '!options->has_fcanonicalize'),
+]
 
 # A few more extract cases we'd rather leave late
 for N in [16, 32]:

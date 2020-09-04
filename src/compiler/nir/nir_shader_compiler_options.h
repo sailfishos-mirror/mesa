@@ -649,6 +649,11 @@ typedef struct nir_shader_compiler_options {
     */
    bool has_fmulz_no_denorms;
 
+   /** Backend supports fcanonicalize, if not set fcanonicalize will be lowered
+    * to fmul(a, 1.0)
+    */
+   bool has_fcanonicalize;
+
    /** Backend supports 32bit ufind_msb_rev and ifind_msb_rev. */
    bool has_find_msb_rev;
 
