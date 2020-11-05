@@ -182,6 +182,9 @@ anv_shader_init_uuid(struct anv_physical_device *device)
    const bool lto_disable = device->instance->disable_lto;
    _mesa_blake3_update(&ctx, &lto_disable, sizeof(lto_disable));
 
+   const bool btp_bti_rcc = device->rt_change_needs_flush;
+   _mesa_blake3_update(&ctx, &btp_bti_rcc, sizeof(btp_bti_rcc));
+
    uint8_t blake3[BLAKE3_KEY_LEN];
    _mesa_blake3_final(&ctx, blake3);
    memcpy(device->shader_binary_uuid, blake3, sizeof(device->shader_binary_uuid));

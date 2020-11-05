@@ -11,6 +11,7 @@
 
 #include "common/intel_common.h"
 #include "common/intel_uuid.h"
+#include "common/xe/intel_queue.h"
 
 #include "perf/intel_perf.h"
 
@@ -2732,6 +2733,17 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    result = anv_physical_device_get_parameters(device);
    if (result != VK_SUCCESS)
       goto fail_base;
+
+   /* Avoid BTP+BTI RCC cache keying on non LSC platforms for now. On those
+    * not using the binding table is difficult.
+    */
+   const bool platform_supports_btp_bit_rcc =
+      devinfo.has_lsc &&
+      (device->info.kmd_type == INTEL_KMD_TYPE_I915 ||
+       device->info.xe_has_state_cache_perf_fix);
+
+   device->rt_change_needs_flush =
+      !instance->state_cache_perf_fix || !platform_supports_btp_bit_rcc;
 
    device->gtt_size = device->info.gtt_size ? device->info.gtt_size :
                                               device->info.aperture_bytes;

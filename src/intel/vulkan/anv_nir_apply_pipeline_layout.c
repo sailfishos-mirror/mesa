@@ -171,6 +171,12 @@ add_binding(struct apply_pipeline_layout_state *state,
        VK_DESCRIPTOR_SET_LAYOUT_CREATE_EMBEDDED_IMMUTABLE_SAMPLERS_BIT_EXT)
       state->set[set].binding[binding].properties |= BINDING_PROPERTY_EMBEDDED_SAMPLER;
 
+   /* Don't use the binding table if we can avoid RT flush between BTI
+    * changes.
+    */
+   if (!state->pdevice->rt_change_needs_flush)
+      state->set[set].binding[binding].properties |= BINDING_PROPERTY_NO_BINDING_TABLE;
+
    return &state->set[set].binding[binding];
 }
 

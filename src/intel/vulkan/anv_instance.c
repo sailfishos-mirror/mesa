@@ -29,6 +29,7 @@ static const driOptionDescription anv_dri_options[] = {
       DRI_CONF_ANV_FP64_WORKAROUND_ENABLED(false)
       DRI_CONF_ANV_GENERATED_INDIRECT_THRESHOLD(4)
       DRI_CONF_ANV_GENERATED_INDIRECT_RING_THRESHOLD(100)
+      DRI_CONF_ANV_STATE_CACHE_PERF_FIX(false)
       DRI_CONF_NO_16BIT(false)
       DRI_CONF_INTEL_BINDING_TABLE_BLOCK_SIZE(BINDING_TABLE_POOL_DEFAULT_BLOCK_SIZE,
                                               1024, 128 * 1024)
@@ -187,6 +188,8 @@ anv_init_dri_options(struct anv_instance *instance)
        driQueryOptionb(&instance->dri_options, "anv_sample_mask_out_opengl_behaviour");
     instance->force_filter_addr_rounding =
        driQueryOptionb(&instance->dri_options, "anv_force_filter_addr_rounding");
+    instance->state_cache_perf_fix =
+       driQueryOptionb(&instance->dri_options, "anv_state_cache_perf_fix");
     instance->lower_depth_range_rate =
        driQueryOptionf(&instance->dri_options, "lower_depth_range_rate");
     instance->no_16bit =
@@ -263,7 +266,7 @@ anv_init_dri_options(struct anv_instance *instance)
         instance->force_filter_addr_rounding &= !is_d3d9;
     }
 
-    instance->disable_lto = 
+    instance->disable_lto =
         driQueryOptionb(&instance->dri_options, "anv_disable_link_time_optimization");
 
     instance->stack_ids = driQueryOptioni(&instance->dri_options, "intel_stack_id");

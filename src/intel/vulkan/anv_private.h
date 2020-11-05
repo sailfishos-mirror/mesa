@@ -1593,6 +1593,11 @@ struct anv_physical_device {
     /** Can the platform support cooperative matrices and is it enabled? */
     bool                                        has_cooperative_matrix;
 
+    /** Whether changing render target entries to a different surface state
+     *  requires a render target cache flush
+     */
+    bool                                        rt_change_needs_flush;
+
     struct {
       uint32_t                                  family_count;
       struct anv_queue_family                   families[ANV_MAX_QUEUE_FAMILIES];
@@ -1832,6 +1837,7 @@ struct anv_instance {
     unsigned                                    binding_table_block_size;
     bool                                        barrier_post_typed_clear_shader;
     bool                                        barrier_post_untyped_clear_shader;
+    bool                                        state_cache_perf_fix;
 
     /* HW workarounds */
     bool                                        no_16bit;

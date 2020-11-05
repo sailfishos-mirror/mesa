@@ -322,7 +322,8 @@ blorp_exec_on_render(struct blorp_batch *batch,
     *     is set due to new association of BTI, PS Scoreboard Stall bit must
     *     be set in this packet."
     */
-   if (blorp_uses_bti_rt_writes(batch, params)) {
+   if (blorp_uses_bti_rt_writes(batch, params) &&
+       cmd_buffer->device->physical->rt_change_needs_flush) {
       anv_add_pending_pipe_bits(cmd_buffer,
                                 VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                                 VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
@@ -390,7 +391,8 @@ blorp_exec_on_render(struct blorp_batch *batch,
     *     is set due to new association of BTI, PS Scoreboard Stall bit must
     *     be set in this packet."
     */
-   if (blorp_uses_bti_rt_writes(batch, params)) {
+   if (blorp_uses_bti_rt_writes(batch, params) &&
+       cmd_buffer->device->physical->rt_change_needs_flush) {
       anv_add_pending_pipe_bits(cmd_buffer,
                                 VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                                 VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,

@@ -737,6 +737,27 @@ init_render_queue_state(struct anv_queue *queue, bool is_companion_rcs_batch)
    genX(emit_pipeline_select)(batch, _3D, device, false);
 #endif
 
+#if GFX_VER >= 11
+   if (device->info->kmd_type == INTEL_KMD_TYPE_I915 &&
+       !device->physical->rt_change_needs_flush) {
+      /* Bspec Register_ChickenbitforCommonSliceRegister3 section:
+       *
+       *    "If this bit is enabled, RCC uses BTP+BTI as address tag in its
+       *    state cache instead of BTI only."
+       *
+       * This helps to drop RT flush and PS Scoreboard stall due to new
+       * association of BTI.
+       *
+       * Only program the register on i915, Xe doesn't put the register on the
+       * allow list, instead we have a context/queue creation flag.
+       */
+      anv_batch_write_reg(batch, GENX(COMMON_SLICE_CHICKEN3), c3) {
+         c3.StateCachePerfFixDisabled = true;
+         c3.StateCachePerfFixDisabledMask = true;
+      }
+   }
+#endif
+
 #if GFX_VERx10 >= 125
    anv_batch_emit(batch, GENX(3DSTATE_3D_MODE), p) {
       if (device->info->verx10 > 125 ||
