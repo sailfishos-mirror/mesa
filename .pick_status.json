@@ -1164,7 +1164,7 @@
         "description": "nv30: Fix for loops in fragment shaders on nv40",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a2fc42b899de22273c1df96091bfb5c636075cb0",
         "notes": null
