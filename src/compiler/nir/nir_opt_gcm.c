@@ -87,6 +87,15 @@ struct gcm_state {
     */
    bool hoist_tex_from_loops;
 
+   bool second_early_run;
+
+   /* Whether the function contains any loop at all. The second early run only
+    * ever changes a block for instructions inside a loop, so when there are
+    * none it would recompute exactly what the first run produced and we can
+    * skip straight to a single run.
+    */
+   bool has_loop;
+
    /* The list of non-pinned instructions.  As we do the late scheduling,
     * we pull non-pinned instructions out of their blocks and place them in
     * this list.  This saves us from having linked-list problems when we go
@@ -160,6 +169,7 @@ gcm_build_block_info(struct exec_list *cf_list, struct gcm_state *state,
       case nir_cf_node_loop: {
          nir_loop *loop = nir_cf_node_as_loop(node);
          assert(!nir_loop_has_continue_construct(loop));
+         state->has_loop = true;
          gcm_build_block_info(&loop->body, state, loop, loop_depth + 1, if_depth,
                               get_loop_instr_count(&loop->body));
          break;
@@ -411,6 +421,372 @@ gcm_pin_instructions(nir_function_impl *impl, struct gcm_state *state)
    }
 }
 
+struct gcm_freed_srcs_state {
+   /* Block the instruction would move to, which decides which of its srcs
+    * stop being live.
+    */
+   unsigned block_idx;
+
+   /* Register pressure the srcs of the instruction would stop taking up after
+    * the block if we moved the instruction. Srcs that don't contribute to
+    * register pressure, constants for example, are not counted.
+    */
+   unsigned reg_size;
+
+   /* Set if anything else reads a src the move would free up. */
+   bool shared;
+
+   struct gcm_instr_info *instr_infos;
+
+   /* The instr we are checking if we should move */
+   nir_instr *instr;
+
+   /* The loop the instr is being moved out of */
+   nir_loop *loop;
+};
+
+static bool
+gcm_loop_contains_block(nir_loop *loop, nir_block *block)
+{
+   for (nir_cf_node *node = block->cf_node.parent; node; node = node->parent) {
+      if (node->type == nir_cf_node_loop && nir_cf_node_as_loop(node) == loop)
+         return true;
+   }
+
+   return false;
+}
+
+/* Rough estimate of how many registers a def occupies. */
+static unsigned
+gcm_def_reg_size(const nir_def *def)
+{
+   return def->num_components * DIV_ROUND_UP(def->bit_size, 32);
+}
+
+struct gcm_first_read_state {
+   const nir_def *def;
+   nir_src *first;
+};
+
+static bool
+gcm_find_first_read(nir_src *src, void *void_state)
+{
+   struct gcm_first_read_state *state = void_state;
+
+   if (src->ssa != state->def)
+      return true;
+
+   state->first = src;
+
+   return false;
+}
+
+/* An instruction can read the same def from more than one src e.g.
+ * fmul ssa_7.x, ssa_7.y. Comparing the src against the first one the
+ * instruction reads the def from lets us account for it exactly once.
+ */
+static bool
+gcm_is_first_read_of_def(nir_instr *instr, nir_src *src)
+{
+   struct gcm_first_read_state state = { .def = src->ssa };
+
+   nir_foreach_src(instr, gcm_find_first_read, &state);
+
+   return state.first == src;
+}
+
+/* Adds up the register pressure that moving the instruction to the state's
+ * block would free, by tallying the srcs that stop being live once they are no
+ * longer read from where the instruction sits now.  The answer accumulates
+ * into the state; the return value only tells nir_foreach_src to keep going.
+ */
+static bool
+gcm_add_freed_src_pressure(nir_src *src, void *void_state)
+{
+   struct gcm_freed_srcs_state *state = void_state;
+
+   /* Don't count sources that don't contribute to register pressure */
+   if (nir_def_instr(src->ssa)->type == nir_instr_type_load_const) {
+      return true;
+   }
+
+   if (!gcm_is_first_read_of_def(state->instr, src))
+      return true;
+
+   /* Register pressure of the defs of the users we would move along with the
+    * instruction. Their results have to live across the loop in place of the
+    * src, so this has to be paid for out of what the src frees up.
+    */
+   unsigned moveable_reg_size = 0;
+   bool shared = false;
+
+   nir_foreach_use_including_if(use_src, src->ssa) {
+      /* An if condition can't be moved anywhere, so the src stays live if the
+       * branch is at or after the block we are moving from.
+       */
+      if (nir_src_is_if(use_src)) {
+         nir_cf_node *prev =
+            nir_cf_node_prev(&nir_src_use_if(use_src)->cf_node);
+         shared = true;
+
+         if (gcm_loop_contains_block(state->loop, nir_cf_node_as_block(prev)) ||
+             nir_cf_node_as_block(prev)->index >= state->instr->block->index)
+            return true;
+         continue;
+      }
+
+      nir_instr *use_instr = nir_src_use_instr(use_src);
+
+      /* Skip dead instructions. These get cleaned up elsewhere */
+      if (use_instr->block == NULL) {
+         continue;
+      }
+
+      /* Skip if its used by the instruction were are trying to move */
+      if (use_instr == state->instr)
+         continue;
+
+      shared = true;
+
+      bool use_in_loop = gcm_loop_contains_block(state->loop, use_instr->block);
+
+      /* A read that happens before the loop is done with by the time we get
+       * here, so it says nothing about whether the src has to survive the
+       * block.
+       */
+      if (!use_in_loop && use_instr->block->index < state->instr->block->index)
+         continue;
+
+      /* Any user we leave behind keeps the whole src live. Registers are
+       * handed out a def at a time, so there is nothing to be gained from
+       * freeing up some of its components while a user of the rest stays put.
+       */
+      if (!use_in_loop || use_instr->block->index > state->instr->block->index)
+         return true;
+
+      /* What is left is a user inside the loop that isn't below us. Sitting
+       * above us in program order doesn't make it harmless, because the loop
+       * comes back around to it:
+       *
+       *    loop {
+       *       a = fadd ssa_7, x     <- reads ssa_7 again every iteration
+       *       ...
+       *       b = fmul ssa_7, y     <- the one we are thinking of moving out
+       *    }
+       *
+       * Taking b out of the loop doesn't stop ssa_7 being live across it,
+       * because a still wants it. Whether moving b frees anything comes down to
+       * whether a can come too, which is the same question we ask of a user
+       * sharing our block, so ask it the same way instead of letting program
+       * order answer it. These are ordinary instructions rather than phis, and
+       * there are a lot of them: on a Cyberpunk capture the users reaching this
+       * point are 97% ALU and under 1% phi.
+       *
+       * If they can be hoisted to the same place they stop keeping the src
+       * live, but their own results then live across the loop instead. For
+       * example all three of these users of ssa_7 can move together, so ssa_7
+       * stops being live and three scalars take its place:
+       *
+       *    vec1 32 ssa_430 = ffma ssa_7.x, ssa_23.x, ssa_4.x
+       *    vec1 32 ssa_433 = ffma ssa_7.y, ssa_23.x, ssa_4.y
+       *    vec1 32 ssa_436 = ffma ssa_7.z, ssa_23.x, ssa_4.z
+       *
+       * Placed instructions are not in gcm_state::instrs so they only get
+       * scheduled early if they are reached via the sources of an unplaced
+       * instruction. A phi that is only used by other phis or by an if
+       * condition never is, leaving it without an early block. It can't be
+       * moved anywhere anyway, so just use the block it's already in.
+       */
+      struct gcm_instr_info *info = &state->instr_infos[use_instr->index];
+      nir_block *use_early_block =
+         info->early_block ? info->early_block : use_instr->block;
+
+      if (use_early_block->index > state->block_idx)
+         return true;
+
+      nir_def *use_def = nir_instr_def(use_instr);
+      if (use_def && gcm_is_first_read_of_def(use_instr, use_src))
+         moveable_reg_size += gcm_def_reg_size(use_def);
+   }
+
+   /* If moving the other users costs more registers than the src frees up we
+    * are better off leaving everything where it is.
+    */
+   unsigned freed_reg_size = gcm_def_reg_size(src->ssa);
+   if (moveable_reg_size > freed_reg_size)
+      return true;
+
+   state->reg_size += freed_reg_size;
+
+   if (shared)
+      state->shared = true;
+
+   return true;
+}
+
+
+/* How much moving this instruction would free up over what it costs, weighed
+ * the same way the caller does so we can look at what moving one instruction
+ * would do for the next one along.
+ */
+static unsigned
+gcm_move_reg_surplus(struct gcm_state *state, nir_instr *instr,
+                     nir_block *block)
+{
+   nir_def *def = nir_instr_def(instr);
+   if (!def)
+      return 0;
+
+   struct gcm_freed_srcs_state freed_srcs = {0};
+   freed_srcs.block_idx = block->index;
+   freed_srcs.instr = instr;
+   freed_srcs.instr_infos = state->instr_infos;
+   freed_srcs.loop = state->blocks[instr->block->index].loop;
+   nir_foreach_src(instr, gcm_add_freed_src_pressure, &freed_srcs);
+
+   unsigned def_reg_size = gcm_def_reg_size(def);
+   if (freed_srcs.reg_size <= def_reg_size)
+      return 0;
+
+   return freed_srcs.reg_size - def_reg_size;
+}
+
+struct gcm_use_srcs_state {
+   struct gcm_state *state;
+
+   /* The value being moved out, which the reader gets to follow */
+   const nir_def *def;
+
+   nir_loop *loop;
+
+   bool can_leave;
+};
+
+static bool
+gcm_src_stuck_in_loop(nir_src *src, void *void_state)
+{
+   struct gcm_use_srcs_state *st = void_state;
+
+   /* This one is coming with us */
+   if (src->ssa == st->def)
+      return true;
+
+   nir_instr *src_instr = nir_def_instr(src->ssa);
+
+   /* Dead, cleaned up elsewhere */
+   if (!src_instr->block)
+      return true;
+
+   /* Judge the source by its early block, not by where it happens to be
+    * sitting right now. What really pins a use is a source that can never be
+    * outside: a phi, something pinned, or an instruction the early scheduling
+    * already decided to keep in the loop.
+    *
+    * Placed instructions that are only reachable through phis never get an
+    * early block; they cannot move, so where they sit is where they stay.
+    */
+   struct gcm_instr_info *info = &st->state->instr_infos[src_instr->index];
+   nir_block *highest = info->early_block ? info->early_block
+                                          : src_instr->block;
+
+   if (st->state->blocks[highest->index].loop == st->loop)
+      st->can_leave = false;
+
+   return st->can_leave;
+}
+
+/* Could this use actually follow us out of the loop?
+ *
+ * A use with another source that can never be outside the loop can never
+ * be outside it either.
+ */
+static bool
+gcm_use_can_leave_loop(struct gcm_state *state, nir_instr *use_instr,
+                       const nir_def *def, nir_loop *loop)
+{
+   struct gcm_use_srcs_state st = {
+      .state = state,
+      .def = def,
+      .loop = loop,
+      .can_leave = true,
+   };
+
+   nir_foreach_src(use_instr, gcm_src_stuck_in_loop, &st);
+
+   return st.can_leave;
+}
+
+/* Would moving this instruction out let something using it move also?
+ *
+ * An instruction that only breaks even is still worth moving when a use can
+ * follow it out of the loop and free up more than it costs, because the pair
+ * taken together comes out ahead even though the first half of it does not.
+ * The ones to leave behind are those that feed nothing, since all they do is
+ * swap one value the loop carries for another while giving the scheduler less
+ * to work with inside the loop.
+ */
+static bool
+gcm_move_frees_registers_for_use(struct gcm_state *state, nir_instr *instr,
+                                 nir_block *block)
+{
+   nir_def *def = nir_instr_def(instr);
+   if (!def)
+      return false;
+
+   nir_loop *loop = state->blocks[instr->block->index].loop;
+
+   unsigned best_surplus = 0;
+
+   nir_foreach_use_including_if(use_src, def) {
+      /* A branch reads it where it is, so it can't be the reason we move */
+      if (nir_src_is_if(use_src))
+         continue;
+
+      nir_instr *use_instr = nir_src_use_instr(use_src);
+
+      /* Skip dead instructions. These get cleaned up elsewhere */
+      if (!use_instr->block)
+         continue;
+
+      /* Read from outside the loop, so the value is carried across it either
+       * way and this reader is not going anywhere on our account.
+       */
+      if (state->blocks[use_instr->block->index].loop != loop)
+         continue;
+
+      if (use_instr->pass_flags & (GCM_INSTR_PINNED | GCM_INSTR_PLACED))
+         continue;
+
+      /* A use that has already been late scheduled and is still in the loop
+       * is not following anybody anywhere.
+       */
+      if (use_instr->pass_flags & GCM_INSTR_SCHEDULED_LATE)
+         continue;
+
+      /* It still keeps our result live wherever it ends up, it just cannot be
+       * the reason we move.
+       */
+      if (!gcm_use_can_leave_loop(state, use_instr, def, loop))
+         continue;
+
+      unsigned surplus = gcm_move_reg_surplus(state, use_instr, block);
+      best_surplus = MAX2(best_surplus, surplus);
+   }
+
+   /* What the reader frees has to be worth what we are taking out of the loop.
+    * A single reader really does carry the value out with it, so the loop is
+    * not left holding it -- but the ledger saying so counts values live across
+    * the loop and nothing else, and we are asking it about a difference of a
+    * register or two. Treating that as free is how a vec4 leaves a loop on the
+    * strength of one register's worth of gain, which is well inside what this
+    * ledger can actually tell apart. Ask for a gain worth the size of the thing
+    * being moved instead, whether or not the loop ends up holding it.
+    */
+   unsigned cost = gcm_def_reg_size(def);
+
+   return best_surplus && best_surplus >= cost;
+}
+
 static bool
 set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
                          nir_block *block)
@@ -455,9 +831,6 @@ set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
     * results' live ranges across the whole loop, which can raise register
     * pressure enough to lower dispatch width or occupancy. The
     * hoist_tex_from_loops parameter lets a caller keep them in the loop.
-    *
-    * TODO: figure out some more heuristics to allow more to be moved out of
-    * loops.
     */
    if (state->blocks[instr->block->index].loop_instr_count < MAX_LOOP_INSTRUCTIONS)
       return true;
@@ -468,7 +841,49 @@ set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
         nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_resource_intel))
       return true;
 
-   return false;
+   /* Move instructions outside the loop if doing so would free up at least as
+    * much register pressure as it costs. Hoisting the instruction extends the
+    * live range of its result across the loop, so the sources that stop being
+    * live after the block it would be moved to have to be worth at least as
+    * much as the result we are hoisting.
+    *
+    * This is what keeps wide results in the loop. A vec4 load_ubo built from a
+    * couple of scalar sources, for example, would trade two registers for four
+    * held across the whole loop, so it stays where it is unless it really does
+    * free up four components worth of sources.
+    */
+   nir_def *def = nir_instr_def(instr);
+   if (!def)
+      return false;
+
+   struct gcm_freed_srcs_state freed_srcs = {0};
+   freed_srcs.block_idx = block->index;
+   freed_srcs.instr = instr;
+   freed_srcs.instr_infos = state->instr_infos;
+   freed_srcs.loop = loop;
+   nir_foreach_src(instr, gcm_add_freed_src_pressure, &freed_srcs);
+
+   unsigned def_reg_size = gcm_def_reg_size(def);
+
+   if (freed_srcs.reg_size < def_reg_size)
+      return false;
+
+   /* Moving out something that frees up more than it costs always leaves the
+    * loop better off.
+    */
+   if (freed_srcs.reg_size > def_reg_size)
+      return true;
+
+   /* Nothing else uses what this frees up, so unlike a break even move in
+    * general it really does hand the loop back as much as it takes.
+    */
+   if (!freed_srcs.shared)
+      return true;
+
+   /* The rest only break even on their own, so they are worth moving out only
+    * when they let one of their uses out too.
+    */
+   return gcm_move_frees_registers_for_use(state, instr, block);
 }
 
 static void
@@ -545,6 +960,19 @@ gcm_schedule_early_instr(nir_instr *instr, struct gcm_state *state)
    state->instr = instr;
 
    nir_foreach_src(instr, gcm_schedule_early_src, state);
+
+   /* If we are not going to move an instruction out of a loop due to our
+    * heuristics we need to set the earlier block so that we don't end up trying
+    * to schedule its users outside of the loop.
+    */
+   if (state->second_early_run) {
+      struct gcm_instr_info *info = &state->instr_infos[instr->index];
+      if (state->blocks[instr->block->index].loop &&
+          info->early_block != instr->block &&
+          !set_block_for_loop_instr(state, instr, info->early_block)) {
+         info->early_block = instr->block;
+      }
+   }
 }
 
 static bool
@@ -569,7 +997,12 @@ static nir_block *
 gcm_choose_block_for_instr(nir_instr *instr, nir_block *early_block,
                            nir_block *late_block, struct gcm_state *state)
 {
-   assert(nir_block_dominates(early_block, late_block));
+   /* We might have tried to force the the instruction to stay inside a loop in
+    * gcm_schedule_early_instr() but if GVN has already moved the LCA higher
+    * then we need to fix it up here.
+    */
+   if (!nir_block_dominates(early_block, late_block))
+      early_block = nir_dominance_lca(early_block, late_block);
 
    bool block_set = false;
 
@@ -838,6 +1271,8 @@ opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number,
    state.instr = NULL;
    state.progress = false;
    state.hoist_tex_from_loops = hoist_tex_from_loops;
+   state.second_early_run = false;
+   state.has_loop = false;
    exec_list_make_empty(&state.instrs);
    state.blocks = rzalloc_array(NULL, struct gcm_block_info, impl->num_blocks);
 
@@ -872,6 +1307,21 @@ opt_gcm_impl(nir_shader *shader, nir_function_impl *impl, bool value_number,
       }
    }
    nir_instr_set_fini(&gvn_set);
+
+   /* The second early run needs every instruction to already have an early
+    * block so that it can look ahead at the users of an instruction's sources.
+    * That first run is pure overhead when the function has no loops, because
+    * then the second run can never move anything and just reproduces it.
+    */
+   if (state.has_loop) {
+      foreach_list_typed(nir_instr, instr, node, &state.instrs)
+         gcm_schedule_early_instr(instr, &state);
+
+      foreach_list_typed(nir_instr, instr, node, &state.instrs)
+         instr->pass_flags &= ~GCM_INSTR_SCHEDULED_EARLY;
+
+      state.second_early_run = true;
+   }
 
    foreach_list_typed(nir_instr, instr, node, &state.instrs)
       gcm_schedule_early_instr(instr, &state);
