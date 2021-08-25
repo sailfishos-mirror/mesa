@@ -411,6 +411,60 @@ gcm_pin_instructions(nir_function_impl *impl, struct gcm_state *state)
    }
 }
 
+static bool
+set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
+                         nir_block *block)
+{
+   /* If the instruction wasn't in a loop to begin with we don't want to push
+    * it down into one.
+    */
+   nir_loop *loop = state->blocks[instr->block->index].loop;
+   if (loop == NULL)
+      return true;
+
+   assert(!nir_loop_has_continue_construct(loop));
+   if (nir_block_dominates(instr->block, block))
+      return true;
+
+   /* If the loop only executes a single time i.e its wrapped in a:
+    *    do{ ... break; } while(true)
+    * Don't move the instruction as it will not help anything.
+    */
+   if (loop->info->limiting_terminator == NULL && !loop->info->complex_loop &&
+       nir_block_ends_in_break(nir_loop_last_block(loop)))
+      return false;
+
+   /* Being too aggressive with how we pull instructions out of loops can
+    * result in extra register pressure and spilling. For example its fairly
+    * common for loops in compute shaders to calculate SSBO offsets using
+    * the workgroup id, subgroup id and subgroup invocation, pulling all
+    * these calculations outside the loop causes register pressure.
+    *
+    * To work around these issues for now we only allow constant and texture
+    * instructions to be moved outside their original loops, or instructions
+    * where the total loop instruction count is less than
+    * MAX_LOOP_INSTRUCTIONS.
+    *
+    * Hoisting texture instructions out of a large loop extends the texel
+    * results' live ranges across the whole loop, which can raise register
+    * pressure enough to lower dispatch width or occupancy. The
+    * hoist_tex_from_loops parameter lets a caller keep them in the loop.
+    *
+    * TODO: figure out some more heuristics to allow more to be moved out of
+    * loops.
+    */
+   if (state->blocks[instr->block->index].loop_instr_count < MAX_LOOP_INSTRUCTIONS)
+      return true;
+
+   if (instr->type == nir_instr_type_load_const ||
+       (state->hoist_tex_from_loops && instr->type == nir_instr_type_tex) ||
+       (instr->type == nir_instr_type_intrinsic &&
+        nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_resource_intel))
+      return true;
+
+   return false;
+}
+
 static void
 gcm_schedule_early_instr(nir_instr *instr, struct gcm_state *state);
 
@@ -485,60 +539,6 @@ gcm_schedule_early_instr(nir_instr *instr, struct gcm_state *state)
    state->instr = instr;
 
    nir_foreach_src(instr, gcm_schedule_early_src, state);
-}
-
-static bool
-set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
-                         nir_block *block)
-{
-   /* If the instruction wasn't in a loop to begin with we don't want to push
-    * it down into one.
-    */
-   nir_loop *loop = state->blocks[instr->block->index].loop;
-   if (loop == NULL)
-      return true;
-
-   assert(!nir_loop_has_continue_construct(loop));
-   if (nir_block_dominates(instr->block, block))
-      return true;
-
-   /* If the loop only executes a single time i.e its wrapped in a:
-    *    do{ ... break; } while(true)
-    * Don't move the instruction as it will not help anything.
-    */
-   if (loop->info->limiting_terminator == NULL && !loop->info->complex_loop &&
-       nir_block_ends_in_break(nir_loop_last_block(loop)))
-      return false;
-
-   /* Being too aggressive with how we pull instructions out of loops can
-    * result in extra register pressure and spilling. For example its fairly
-    * common for loops in compute shaders to calculate SSBO offsets using
-    * the workgroup id, subgroup id and subgroup invocation, pulling all
-    * these calculations outside the loop causes register pressure.
-    *
-    * To work around these issues for now we only allow constant and texture
-    * instructions to be moved outside their original loops, or instructions
-    * where the total loop instruction count is less than
-    * MAX_LOOP_INSTRUCTIONS.
-    *
-    * Hoisting texture instructions out of a large loop extends the texel
-    * results' live ranges across the whole loop, which can raise register
-    * pressure enough to lower dispatch width or occupancy. The
-    * hoist_tex_from_loops parameter lets a caller keep them in the loop.
-    *
-    * TODO: figure out some more heuristics to allow more to be moved out of
-    * loops.
-    */
-   if (state->blocks[instr->block->index].loop_instr_count < MAX_LOOP_INSTRUCTIONS)
-      return true;
-
-   if (instr->type == nir_instr_type_load_const ||
-       (state->hoist_tex_from_loops && instr->type == nir_instr_type_tex) ||
-       (instr->type == nir_instr_type_intrinsic &&
-        nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_resource_intel))
-      return true;
-
-   return false;
 }
 
 static bool
