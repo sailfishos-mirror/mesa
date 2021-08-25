@@ -426,6 +426,12 @@ set_block_for_loop_instr(struct gcm_state *state, nir_instr *instr,
    if (nir_block_dominates(instr->block, block))
       return true;
 
+   /* If the instruction is in a block ending in a break don't bother trying to
+    * move it outside the loop.
+    */
+   if (nir_block_ends_in_break(instr->block))
+      return false;
+
    /* If the loop only executes a single time i.e its wrapped in a:
     *    do{ ... break; } while(true)
     * Don't move the instruction as it will not help anything.
