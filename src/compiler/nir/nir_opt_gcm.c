@@ -152,9 +152,9 @@ gcm_build_block_info(struct exec_list *cf_list, struct gcm_state *state,
       case nir_cf_node_if: {
          nir_if *if_stmt = nir_cf_node_as_if(node);
          gcm_build_block_info(&if_stmt->then_list, state, loop, loop_depth,
-                              if_depth + 1, ~0u);
+                              if_depth + 1, loop_instr_count);
          gcm_build_block_info(&if_stmt->else_list, state, loop, loop_depth,
-                              if_depth + 1, ~0u);
+                              if_depth + 1, loop_instr_count);
          break;
       }
       case nir_cf_node_loop: {
