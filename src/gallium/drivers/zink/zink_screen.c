@@ -1927,20 +1927,29 @@ update_queue_props(struct zink_screen *screen)
 
    bool found_gfx = false;
    uint32_t sparse_only = UINT32_MAX;
+   uint32_t video_only = UINT32_MAX;
    screen->sparse_queue = UINT32_MAX;
+   screen->video_decode_queue = UINT32_MAX;
    for (uint32_t i = 0; i < num_queues; i++) {
       if (props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
          if (found_gfx)
             continue;
          screen->sparse_queue = screen->gfx_queue = i;
+         screen->video_decode_queue = screen->gfx_queue = i;
          screen->max_queues = props[i].queueCount;
          screen->timestamp_valid_bits = props[i].timestampValidBits;
          found_gfx = true;
-      } else if (props[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT)
-         sparse_only = i;
+      } else {
+         if (props[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT)
+            sparse_only = i;
+         if (props[i].queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
+            video_only = i;
+      }
    }
    if (sparse_only != UINT32_MAX)
       screen->sparse_queue = sparse_only;
+   if (video_only != UINT32_MAX)
+      screen->video_decode_queue = video_only;
    free(props);
 }
 
@@ -1952,6 +1961,10 @@ init_queue(struct zink_screen *screen)
       VKSCR(GetDeviceQueue)(screen->dev, screen->sparse_queue, 0, &screen->queue_sparse);
    else
       screen->queue_sparse = screen->queue;
+   if (screen->video_decode_queue != screen->gfx_queue)
+      VKSCR(GetDeviceQueue)(screen->dev, screen->video_decode_queue, 0, &screen->queue_video_decode);
+   else
+      screen->queue_video_decode = screen->queue;
 }
 
 static void
@@ -2890,22 +2903,21 @@ get_device(struct zink_screen *screen, VkDeviceCreateInfo *dci)
 static struct zink_device*
 zink_create_logical_device(struct zink_screen *screen)
 {
-   VkDeviceQueueCreateInfo qci[2] = {0};
-   uint32_t queues[3] = {
-      screen->gfx_queue,
-      screen->sparse_queue,
-   };
+   VkDeviceQueueCreateInfo qci[3] = {0};
    float dummy = 0.0f;
    for (unsigned i = 0; i < ARRAY_SIZE(qci); i++) {
       qci[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-      qci[i].queueFamilyIndex = queues[i];
       qci[i].queueCount = 1;
       qci[i].pQueuePriorities = &dummy;
    }
 
-   unsigned num_queues = 1;
+   unsigned num_queues = 0;
+   qci[num_queues++].queueFamilyIndex = screen->gfx_queue;
    if (screen->sparse_queue != screen->gfx_queue)
-      num_queues++;
+      qci[num_queues++].queueFamilyIndex = screen->sparse_queue;
+   if (screen->video_decode_queue != screen->gfx_queue &&
+       screen->video_decode_queue != screen->sparse_queue)
+      qci[num_queues++].queueFamilyIndex = screen->video_decode_queue;
 
    VkDeviceCreateInfo dci = {0};
    dci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
