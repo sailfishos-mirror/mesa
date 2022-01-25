@@ -1815,8 +1815,6 @@ void st_init_extensions(struct pipe_screen *screen,
    extensions->OES_primitive_bounding_box =
       extensions->ARB_ES3_1_compatibility || ESSLVersion >= 310;
 
-   consts->NoPrimitiveBoundingBoxOutput = true;
-
    extensions->ANDROID_extension_pack_es31a =
       consts->Program[MESA_SHADER_FRAGMENT].MaxImageUniforms &&
       extensions->KHR_texture_compression_astc_ldr &&

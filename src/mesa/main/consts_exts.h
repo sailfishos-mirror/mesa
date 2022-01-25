@@ -877,9 +877,6 @@ struct gl_constants
    GLuint MaxTessControlTotalOutputComponents;
    bool PrimitiveRestartForPatches;
 
-   /** GL_OES_primitive_bounding_box */
-   bool NoPrimitiveBoundingBoxOutput;
-
    /** GL_ARB_sparse_buffer */
    GLuint SparseBufferPageSize;
 
