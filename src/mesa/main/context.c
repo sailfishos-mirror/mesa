@@ -390,7 +390,6 @@ _mesa_init_constants(struct gl_constants *consts, gl_api api)
    consts->MaxTextureLodBias = MAX_TEXTURE_LOD_BIAS;
    consts->MaxTextureBufferSize = 65536;
    consts->TextureBufferOffsetAlignment = 1;
-   consts->MaxArrayLockSize = MAX_ARRAY_LOCK_SIZE;
    consts->SubPixelBits = SUB_PIXEL_BITS;
    consts->MinPointSize = MIN_POINT_SIZE;
    consts->MaxPointSize = MAX_POINT_SIZE;
