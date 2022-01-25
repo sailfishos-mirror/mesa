@@ -440,8 +440,6 @@ struct gl_constants
    GLuint MaxWindowRectangles;               /**< GL_EXT_window_rectangles */
 
    struct gl_program_constants Program[MESA_SHADER_MESH_STAGES];
-   GLuint MaxProgramMatrices;
-   GLuint MaxProgramMatrixStackDepth;
 
    struct {
       GLuint SamplesPassed;

@@ -432,9 +432,6 @@ _mesa_init_constants(struct gl_constants *consts, gl_api api)
    for (i = 0; i < MESA_SHADER_MESH_STAGES; i++)
       init_program_limits(consts, i, &consts->Program[i]);
 
-   consts->MaxProgramMatrices = MAX_PROGRAM_MATRICES;
-   consts->MaxProgramMatrixStackDepth = MAX_PROGRAM_MATRIX_STACK_DEPTH;
-
    /* Set the absolute minimum possible GLSL version.  API_OPENGL_CORE can
     * mean an OpenGL 3.0 forward-compatible context, so that implies a minimum
     * possible version of 1.30.  Otherwise, the minimum possible version 1.20.

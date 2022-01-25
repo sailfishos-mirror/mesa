@@ -979,9 +979,9 @@ descriptor=[
 # == GL_VERTEX_PROGRAM_TWO_SIDE_NV
   [ "VERTEX_PROGRAM_TWO_SIDE_ARB", "CONTEXT_BOOL(VertexProgram.TwoSideEnabled), extra_ARB_vertex_program" ],
 # == GL_MAX_TRACK_MATRIX_STACK_DEPTH_NV
-  [ "MAX_PROGRAM_MATRIX_STACK_DEPTH_ARB", "CONTEXT_INT(Const.MaxProgramMatrixStackDepth), extra_ARB_vertex_program_ARB_fragment_program" ],
+  [ "MAX_PROGRAM_MATRIX_STACK_DEPTH_ARB", "CONST(MAX_PROGRAM_MATRIX_STACK_DEPTH), extra_ARB_vertex_program_ARB_fragment_program" ],
 # == GL_MAX_TRACK_MATRICES_NV
-  [ "MAX_PROGRAM_MATRICES_ARB", "CONTEXT_INT(Const.MaxProgramMatrices), extra_ARB_vertex_program_ARB_fragment_program" ],
+  [ "MAX_PROGRAM_MATRICES_ARB", "CONST(MAX_PROGRAM_MATRICES), extra_ARB_vertex_program_ARB_fragment_program" ],
 # == GL_CURRENT_MATRIX_STACK_DEPTH_NV
   [ "CURRENT_MATRIX_STACK_DEPTH_ARB", "LOC_CUSTOM, TYPE_INT, 0, extra_ARB_vertex_program_ARB_fragment_program" ],
 # == GL_CURRENT_MATRIX_NV

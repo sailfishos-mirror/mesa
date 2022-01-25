@@ -2576,7 +2576,7 @@ _mesa_parse_arb_program(struct gl_context *ctx, GLenum target, const GLubyte *st
    state->MaxTextureUnits = ctx->Const.MaxTextureUnits;
    state->MaxClipPlanes = ctx->Const.MaxClipPlanes;
    state->MaxLights = MAX_LIGHTS;
-   state->MaxProgramMatrices = ctx->Const.MaxProgramMatrices;
+   state->MaxProgramMatrices = MAX_PROGRAM_MATRICES;
    state->MaxDrawBuffers = ctx->Const.MaxDrawBuffers;
 
    state->state_param_enum_env = (target == GL_VERTEX_PROGRAM_ARB)
