@@ -1001,7 +1001,7 @@ builtin_variable_generator::generate_constants()
 
    if (state->has_tessellation_shader()) {
       add_const("gl_MaxPatchVertices", MAX_PATCH_VERTICES);
-      add_const("gl_MaxTessGenLevel", state->Const.MaxTessGenLevel);
+      add_const("gl_MaxTessGenLevel", MAX_TESS_GEN_LEVEL);
       add_const("gl_MaxTessControlInputComponents", state->Const.MaxTessControlInputComponents);
       add_const("gl_MaxTessControlOutputComponents", state->Const.MaxTessControlOutputComponents);
       add_const("gl_MaxTessControlTextureImageUnits", state->Const.MaxTessControlTextureImageUnits);

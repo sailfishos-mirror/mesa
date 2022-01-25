@@ -863,7 +863,6 @@ struct gl_constants
    GLboolean TESPositionAlwaysPrecise;
 
    /** GL_ARB_tessellation_shader */
-   GLuint MaxTessGenLevel;
    GLuint MaxTessPatchComponents;
    GLuint MaxTessControlTotalOutputComponents;
    bool PrimitiveRestartForPatches;

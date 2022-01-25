@@ -603,7 +603,6 @@ struct _mesa_glsl_parse_state {
       unsigned MaxViewports;
 
       /* ARB_tessellation_shader */
-      unsigned MaxTessGenLevel;
       unsigned MaxTessControlInputComponents;
       unsigned MaxTessControlOutputComponents;
       unsigned MaxTessControlTextureImageUnits;
