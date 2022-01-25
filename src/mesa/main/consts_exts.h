@@ -830,7 +830,6 @@ struct gl_constants
 
    /** GL_ARB_vertex_attrib_binding */
    GLint MaxVertexAttribRelativeOffset;
-   GLint MaxVertexAttribBindings;
 
    /* GL_ARB_shader_image_load_store */
    GLuint MaxImageUnits;

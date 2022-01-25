@@ -2749,10 +2749,10 @@ _mesa_GetVertexArrayIndexed64iv(GLuint vaobj, GLuint index,
     * limit must be MAX_VERTEX_ATTRIB_BINDINGS.  Both limits are currently
     * required to be the same, so in practice this doesn't matter.
     */
-   if (index >= ctx->Const.MaxVertexAttribBindings) {
+   if (index >= MAX_VERTEX_GENERIC_ATTRIBS) {
       _mesa_error(ctx, GL_INVALID_VALUE, "glGetVertexArrayIndexed64iv(index"
                   "%d >= the value of GL_MAX_VERTEX_ATTRIB_BINDINGS (%d))",
-                  index, ctx->Const.MaxVertexAttribBindings);
+                  index, MAX_VERTEX_GENERIC_ATTRIBS);
       return;
    }
 
@@ -3263,7 +3263,7 @@ vertex_array_vertex_buffer_err(struct gl_context *ctx,
     *    "An INVALID_VALUE error is generated if <bindingindex> is greater than
     *     the value of MAX_VERTEX_ATTRIB_BINDINGS."
     */
-   if (bindingIndex >= ctx->Const.MaxVertexAttribBindings) {
+   if (bindingIndex >= MAX_VERTEX_GENERIC_ATTRIBS) {
       _mesa_error(ctx, GL_INVALID_VALUE,
                   "%s(bindingindex=%u > "
                   "GL_MAX_VERTEX_ATTRIB_BINDINGS)",
@@ -3508,11 +3508,11 @@ vertex_array_vertex_buffers_err(struct gl_context *ctx,
     *    "An INVALID_OPERATION error is generated if <first> + <count>
     *     is greater than the value of MAX_VERTEX_ATTRIB_BINDINGS."
     */
-   if (first + count > ctx->Const.MaxVertexAttribBindings) {
+   if (first + count > MAX_VERTEX_GENERIC_ATTRIBS) {
       _mesa_error(ctx, GL_INVALID_OPERATION,
                   "%s(first=%u + count=%d > the value of "
                   "GL_MAX_VERTEX_ATTRIB_BINDINGS=%u)",
-                  func, first, count, ctx->Const.MaxVertexAttribBindings);
+                  func, first, count, MAX_VERTEX_GENERIC_ATTRIBS);
       return;
    }
 
@@ -3855,7 +3855,7 @@ vertex_array_attrib_binding(struct gl_context *ctx,
       return;
    }
 
-   if (bindingIndex >= ctx->Const.MaxVertexAttribBindings) {
+   if (bindingIndex >= MAX_VERTEX_GENERIC_ATTRIBS) {
       _mesa_error(ctx, GL_INVALID_VALUE,
                   "%s(bindingindex=%u >= "
                   "GL_MAX_VERTEX_ATTRIB_BINDINGS)",
@@ -3970,7 +3970,7 @@ vertex_array_binding_divisor(struct gl_context *ctx,
     *    "An INVALID_VALUE error is generated if <bindingindex> is greater
     *     than or equal to the value of MAX_VERTEX_ATTRIB_BINDINGS."
     */
-   if (bindingIndex >= ctx->Const.MaxVertexAttribBindings) {
+   if (bindingIndex >= MAX_VERTEX_GENERIC_ATTRIBS) {
       _mesa_error(ctx, GL_INVALID_VALUE,
                   "%s(bindingindex=%u > "
                   "GL_MAX_VERTEX_ATTRIB_BINDINGS)",

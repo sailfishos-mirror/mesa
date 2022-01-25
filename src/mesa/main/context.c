@@ -523,7 +523,6 @@ _mesa_init_constants(struct gl_constants *consts, gl_api api)
 
    /* GL_ARB_vertex_attrib_binding */
    consts->MaxVertexAttribRelativeOffset = 2047;
-   consts->MaxVertexAttribBindings = MAX_VERTEX_GENERIC_ATTRIBS;
 
    /* GL_ARB_compute_shader */
    consts->MaxComputeWorkGroupCount[0] = 65535;

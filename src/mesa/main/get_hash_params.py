@@ -587,7 +587,7 @@ descriptor=[
 
 # GL_ARB_vertex_attrib_binding / GLES 3.1
   [ "MAX_VERTEX_ATTRIB_RELATIVE_OFFSET", "CONTEXT_INT(Const.MaxVertexAttribRelativeOffset), NO_EXTRA" ],
-  [ "MAX_VERTEX_ATTRIB_BINDINGS", "CONTEXT_INT(Const.MaxVertexAttribBindings), NO_EXTRA" ],
+  [ "MAX_VERTEX_ATTRIB_BINDINGS", "CONST(MAX_VERTEX_GENERIC_ATTRIBS), NO_EXTRA" ],
 
 # GL 4.4 / GLES 3.1
   [ "MAX_VERTEX_ATTRIB_STRIDE", "CONTEXT_UINT(Const.MaxVertexAttribStride), NO_EXTRA" ],
