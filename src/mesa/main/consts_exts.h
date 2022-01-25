@@ -429,9 +429,6 @@ struct gl_constants
    GLfloat LineWidthGranularity;
 
    GLuint MaxClipPlanes;
-   GLuint MaxLights;
-   GLfloat MaxShininess;                     /**< GL_NV_light_max_exponent */
-   GLfloat MaxSpotExponent;                  /**< GL_NV_light_max_exponent */
 
    GLuint MaxViewportWidth, MaxViewportHeight;
    GLuint MaxViewports;                      /**< GL_ARB_viewport_array */

@@ -143,7 +143,7 @@ _mesa_PushAttrib(GLbitfield mask)
       attr->DepthTest = ctx->Depth.Test;
       attr->Dither = ctx->Color.DitherFlag;
       attr->Fog = ctx->Fog.Enabled;
-      for (i = 0; i < ctx->Const.MaxLights; i++) {
+      for (i = 0; i < MAX_LIGHTS; i++) {
          attr->Light[i] = ctx->Light.Light[i].Enabled;
       }
       attr->Lighting = ctx->Light.Enabled;
@@ -885,7 +885,7 @@ _mesa_PopAttrib(void)
       memcpy(&ctx->Light.Model, &attr->Light.Model,
              sizeof(attr->Light.Model));
 
-      for (i = 0; i < ctx->Const.MaxLights; i++) {
+      for (i = 0; i < MAX_LIGHTS; i++) {
          TEST_AND_UPDATE(ctx->Light.Light[i].Enabled,
                          attr->Light.Light[i].Enabled,
                          GL_LIGHT0 + i);

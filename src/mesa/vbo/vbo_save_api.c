@@ -1584,7 +1584,7 @@ _save_Materialfv(GLenum face, GLenum pname, const GLfloat *params)
       MAT(VBO_ATTRIB_MAT_FRONT_SPECULAR, 4, face, params);
       break;
    case GL_SHININESS:
-      if (*params < 0 || *params > ctx->Const.MaxShininess) {
+      if (*params < 0 || *params > MAX_SHININESS) {
          _mesa_compile_error(ctx, GL_INVALID_VALUE, "glMaterial(shininess)");
       }
       else {

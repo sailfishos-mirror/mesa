@@ -847,7 +847,7 @@ builtin_variable_generator::generate_constants()
        * for compatibility-mode uniforms) all the way up through GLSL 4.30, so
        * this seems like it was probably an oversight.
        */
-      add_const("gl_MaxLights", state->Const.MaxLights);
+      add_const("gl_MaxLights", MAX_LIGHTS);
 
       add_const("gl_MaxClipPlanes", state->Const.MaxClipPlanes);
 
@@ -1074,7 +1074,7 @@ builtin_variable_generator::generate_uniforms()
       add_uniform(material_parameters_type, "gl_BackMaterial");
 
       add_uniform(array(type("gl_LightSourceParameters"),
-                        state->Const.MaxLights),
+                        MAX_LIGHTS),
                   "gl_LightSource");
 
       const glsl_type *const light_model_products_type =
@@ -1083,7 +1083,7 @@ builtin_variable_generator::generate_uniforms()
       add_uniform(light_model_products_type, "gl_BackLightModelProduct");
 
       const glsl_type *const light_products_type =
-         array(type("gl_LightProducts"), state->Const.MaxLights);
+         array(type("gl_LightProducts"), MAX_LIGHTS);
       add_uniform(light_products_type, "gl_FrontLightProduct");
       add_uniform(light_products_type, "gl_BackLightProduct");
 

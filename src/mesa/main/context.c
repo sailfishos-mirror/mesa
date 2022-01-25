@@ -403,9 +403,6 @@ _mesa_init_constants(struct gl_constants *consts, gl_api api)
    consts->MaxLineWidthAA = MAX_LINE_WIDTH;
    consts->LineWidthGranularity = (GLfloat) LINE_WIDTH_GRANULARITY;
    consts->MaxClipPlanes = 6;
-   consts->MaxLights = MAX_LIGHTS;
-   consts->MaxShininess = 128.0;
-   consts->MaxSpotExponent = 128.0;
    consts->MaxViewportWidth = 16384;
    consts->MaxViewportHeight = 16384;
    consts->MinMapBufferAlignment = 64;

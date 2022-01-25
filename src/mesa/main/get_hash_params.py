@@ -146,7 +146,7 @@ descriptor=[
 
 # Enums in OpenGL and GLES1
 { "apis": ["GL", "GLES", "GL_CORE"], "params": [
-  [ "MAX_LIGHTS", "CONTEXT_INT(Const.MaxLights), NO_EXTRA" ],
+  [ "MAX_LIGHTS", "CONST(MAX_LIGHTS), NO_EXTRA" ],
   [ "LIGHT0", "CONTEXT_BOOL(Light.Light[0].Enabled), NO_EXTRA" ],
   [ "LIGHT1", "CONTEXT_BOOL(Light.Light[1].Enabled), NO_EXTRA" ],
   [ "LIGHT2", "CONTEXT_BOOL(Light.Light[2].Enabled), NO_EXTRA" ],
@@ -958,8 +958,8 @@ descriptor=[
   [ "ACTIVE_STENCIL_FACE_EXT", "LOC_CUSTOM, TYPE_ENUM16, NO_OFFSET, NO_EXTRA" ],
 
 # GL_NV_light_max_exponent
-  [ "MAX_SHININESS_NV", "CONTEXT_FLOAT(Const.MaxShininess), NO_EXTRA" ],
-  [ "MAX_SPOT_EXPONENT_NV", "CONTEXT_FLOAT(Const.MaxSpotExponent), NO_EXTRA" ],
+  [ "MAX_SHININESS_NV", "CONST(MAX_SHININESS), NO_EXTRA" ],
+  [ "MAX_SPOT_EXPONENT_NV", "CONST(MAX_SPOT_EXPONENT), NO_EXTRA" ],
 
 # GL_NV_primitive_restart
   [ "PRIMITIVE_RESTART_NV", "CONTEXT_BOOL(Array.PrimitiveRestart), extra_NV_primitive_restart" ],

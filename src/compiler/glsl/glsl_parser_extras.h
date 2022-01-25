@@ -523,7 +523,6 @@ struct _mesa_glsl_parse_state {
     */
    struct {
       /* 1.10 */
-      unsigned MaxLights;
       unsigned MaxClipPlanes;
       unsigned MaxTextureUnits;
       unsigned MaxTextureCoords;
