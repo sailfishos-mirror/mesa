@@ -193,7 +193,6 @@ _mesa_glsl_parse_state::_mesa_glsl_parse_state(struct gl_context *_ctx,
    this->Const.MaxTessEvaluationOutputComponents = ctx->Const.Program[MESA_SHADER_TESS_EVAL].MaxOutputComponents;
    this->Const.MaxTessEvaluationTextureImageUnits = ctx->Const.Program[MESA_SHADER_TESS_EVAL].MaxTextureImageUnits;
    this->Const.MaxTessPatchComponents = ctx->Const.MaxTessPatchComponents;
-   this->Const.MaxTessControlTotalOutputComponents = ctx->Const.MaxTessControlTotalOutputComponents;
    this->Const.MaxTessControlUniformComponents = ctx->Const.Program[MESA_SHADER_TESS_CTRL].MaxUniformComponents;
    this->Const.MaxTessEvaluationUniformComponents = ctx->Const.Program[MESA_SHADER_TESS_EVAL].MaxUniformComponents;
 

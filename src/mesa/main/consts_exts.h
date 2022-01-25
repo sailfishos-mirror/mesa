@@ -864,7 +864,6 @@ struct gl_constants
 
    /** GL_ARB_tessellation_shader */
    GLuint MaxTessPatchComponents;
-   GLuint MaxTessControlTotalOutputComponents;
    bool PrimitiveRestartForPatches;
 
    /** GL_ARB_sparse_buffer */

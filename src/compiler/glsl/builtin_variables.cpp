@@ -1009,7 +1009,7 @@ builtin_variable_generator::generate_constants()
       add_const("gl_MaxTessEvaluationOutputComponents", state->Const.MaxTessEvaluationOutputComponents);
       add_const("gl_MaxTessEvaluationTextureImageUnits", state->Const.MaxTessEvaluationTextureImageUnits);
       add_const("gl_MaxTessPatchComponents", state->Const.MaxTessPatchComponents);
-      add_const("gl_MaxTessControlTotalOutputComponents", state->Const.MaxTessControlTotalOutputComponents);
+      add_const("gl_MaxTessControlTotalOutputComponents", MAX_TESS_CONTROL_TOTAL_OUTPUT_COMPONENTS);
       add_const("gl_MaxTessControlUniformComponents", state->Const.MaxTessControlUniformComponents);
       add_const("gl_MaxTessEvaluationUniformComponents", state->Const.MaxTessEvaluationUniformComponents);
    }

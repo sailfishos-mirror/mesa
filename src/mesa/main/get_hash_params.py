@@ -641,7 +641,7 @@ descriptor=[
   [ "MAX_TESS_EVALUATION_TEXTURE_IMAGE_UNITS", "CONTEXT_INT(Const.Program[MESA_SHADER_TESS_EVAL].MaxTextureImageUnits), extra_ARB_tessellation_shader" ],
   [ "MAX_TESS_CONTROL_OUTPUT_COMPONENTS", "CONTEXT_INT(Const.Program[MESA_SHADER_TESS_CTRL].MaxOutputComponents), extra_ARB_tessellation_shader" ],
   [ "MAX_TESS_PATCH_COMPONENTS", "CONTEXT_INT(Const.MaxTessPatchComponents), extra_ARB_tessellation_shader" ],
-  [ "MAX_TESS_CONTROL_TOTAL_OUTPUT_COMPONENTS", "CONTEXT_INT(Const.MaxTessControlTotalOutputComponents), extra_ARB_tessellation_shader" ],
+  [ "MAX_TESS_CONTROL_TOTAL_OUTPUT_COMPONENTS", "CONST(MAX_TESS_CONTROL_TOTAL_OUTPUT_COMPONENTS), extra_ARB_tessellation_shader" ],
   [ "MAX_TESS_EVALUATION_OUTPUT_COMPONENTS", "CONTEXT_INT(Const.Program[MESA_SHADER_TESS_EVAL].MaxOutputComponents), extra_ARB_tessellation_shader" ],
   [ "MAX_TESS_CONTROL_INPUT_COMPONENTS", "CONTEXT_INT(Const.Program[MESA_SHADER_TESS_CTRL].MaxInputComponents), extra_ARB_tessellation_shader" ],
   [ "MAX_TESS_EVALUATION_INPUT_COMPONENTS", "CONTEXT_INT(Const.Program[MESA_SHADER_TESS_EVAL].MaxInputComponents), extra_ARB_tessellation_shader" ],
