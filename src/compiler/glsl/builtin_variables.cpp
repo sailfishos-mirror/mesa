@@ -1000,7 +1000,7 @@ builtin_variable_generator::generate_constants()
    }
 
    if (state->has_tessellation_shader()) {
-      add_const("gl_MaxPatchVertices", state->Const.MaxPatchVertices);
+      add_const("gl_MaxPatchVertices", MAX_PATCH_VERTICES);
       add_const("gl_MaxTessGenLevel", state->Const.MaxTessGenLevel);
       add_const("gl_MaxTessControlInputComponents", state->Const.MaxTessControlInputComponents);
       add_const("gl_MaxTessControlOutputComponents", state->Const.MaxTessControlOutputComponents);
@@ -1659,7 +1659,7 @@ builtin_variable_generator::generate_varyings()
        state->stage == MESA_SHADER_TESS_EVAL) {
       const glsl_type *per_vertex_in_type =
          this->per_vertex_in.construct_interface_instance();
-      add_variable("gl_in", array(per_vertex_in_type, state->Const.MaxPatchVertices),
+      add_variable("gl_in", array(per_vertex_in_type, MAX_PATCH_VERTICES),
                    GLSL_PRECISION_NONE, ir_var_shader_in, -1);
    }
    if (state->stage == MESA_SHADER_GEOMETRY) {
