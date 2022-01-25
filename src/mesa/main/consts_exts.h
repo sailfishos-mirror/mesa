@@ -441,24 +441,7 @@ struct gl_constants
 
    struct {
       GLuint SamplesPassed;
-      GLuint TimeElapsed;
       GLuint Timestamp;
-      GLuint PrimitivesGenerated;
-      GLuint PrimitivesWritten;
-      GLuint VerticesSubmitted;
-      GLuint PrimitivesSubmitted;
-      GLuint VsInvocations;
-      GLuint TessPatches;
-      GLuint TessInvocations;
-      GLuint GsInvocations;
-      GLuint GsPrimitives;
-      GLuint FsInvocations;
-      GLuint ComputeInvocations;
-      GLuint ClInPrimitives;
-      GLuint ClOutPrimitives;
-      GLuint TsInvocations;
-      GLuint MsInvocations;
-      GLuint MeshPrimitivesGenerated;
    } QueryCounterBits;
 
    GLuint MaxDrawBuffers;    /**< GL_ARB_draw_buffers */
