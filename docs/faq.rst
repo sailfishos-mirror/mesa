@@ -170,8 +170,7 @@ understanding of OpenGL, the Mesa code, and your target
 hardware/operating system. 3D graphics are not simple.
 
 The best way to get started is to use an existing driver as your
-starting point. For a classic hardware driver, the i965 driver is a good
-example. For a Gallium3D hardware driver, the r300g, r600g and the i915g
+starting point. For a Gallium3D hardware driver, the r300g, r600g and the i915g
 are good examples.
 
 The DRI website has more information about writing hardware drivers. The
