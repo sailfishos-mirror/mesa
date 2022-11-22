@@ -356,6 +356,7 @@ bool brw_opt_address_reg_load(brw_shader &s);
 bool brw_opt_algebraic(brw_shader &s);
 bool brw_opt_bank_conflicts(brw_shader &s);
 bool brw_opt_cmod_propagation(brw_shader &s);
+bool brw_opt_cmp_flag_destination(brw_shader &s, bool uses_kill);
 bool brw_opt_combine_constants(brw_shader &s);
 bool brw_opt_combine_convergent_txf(brw_shader &s);
 bool brw_opt_compact_virtual_grfs(brw_shader &s);

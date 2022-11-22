@@ -77,6 +77,7 @@ libintel_compiler_brw_files = files(
   'brw_opt_algebraic.cpp',
   'brw_opt_bank_conflicts.cpp',
   'brw_opt_cmod_propagation.cpp',
+  'brw_opt_cmp_flag_destination.cpp',
   'brw_opt_combine_constants.cpp',
   'brw_opt_copy_propagation.cpp',
   'brw_opt_cse.cpp',

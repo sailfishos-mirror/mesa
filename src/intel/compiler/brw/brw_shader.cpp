@@ -845,6 +845,17 @@ brw_allocate_registers(brw_shader &s, bool allow_spilling)
       if (OPT(brw_opt_cmod_propagation))
          OPT(brw_opt_dead_code_eliminate);
 
+      if (OPT(brw_opt_cmp_flag_destination,
+               /* We want something like
+                * brw_wm_prog_data(s.prog_data)->uses_kill, but there are
+                * other things that can cause the sample_mask_flag_subreg to
+                * be used.
+                */
+              s.stage == MESA_SHADER_FRAGMENT)) {
+         OPT(brw_opt_cmod_propagation);
+         OPT(brw_opt_dead_code_eliminate);
+      }
+
       allocated = brw_assign_regs(s, allow_spilling, spill_all);
    }
 
@@ -904,6 +915,15 @@ brw_allocate_registers(brw_shader &s, bool allow_spilling)
     * and final scheduling has already happend, this won't help.
     */
    OPT(brw_opt_cmod_propagation);
+
+   if (OPT(brw_opt_cmp_flag_destination,
+           /* We want something like brw_wm_prog_data(s.prog_data)->uses_kill,
+            * but there are other things that can cause the
+            * sample_mask_flag_subreg to be used.
+            */
+           s.stage == MESA_SHADER_FRAGMENT)) {
+      OPT(brw_opt_cmod_propagation);
+   }
 
    if (s.devinfo->ver >= 30)
       OPT(brw_lower_send_gather);
