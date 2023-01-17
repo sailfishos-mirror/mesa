@@ -148,8 +148,21 @@ struct vbo_exec_context
 #endif
 };
 
+/* Default size for the buffer holding the vertices and the indices.
+ * A bigger buffer helps reducing the number of draw calls but may
+ * waste memory.
+ * 1MB was picked because a lower value reduces viewperf snx tests
+ * performance but larger values cause high VRAM usage (because
+ * larger buffers will be shared by more display lists which reduces
+ * the likelyhood of freeing the buffer).
+ */
+#define VBO_SAVE_BUFFER_SIZE    (1024 * 1024)
+#define VBO_SAVE_BUFFER_PER_BIT    (1 * 1024)
+#define VBO_SAVE_BUFFER_N_BITS (VBO_SAVE_BUFFER_SIZE / VBO_SAVE_BUFFER_PER_BIT)
+#define VBO_SAVE_BUFFER_N_WORDS BITSET_WORDS(VBO_SAVE_BUFFER_N_BITS)
+
 struct free_bo_pool_entry {
-   GLuint bo_bytes_used;
+   BITSET_DECLARE(free_mask, VBO_SAVE_BUFFER_N_BITS);
    struct gl_buffer_object *bo;
    struct gl_vertex_array_object *VAO[VP_MODE_MAX];
 };
