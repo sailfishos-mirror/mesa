@@ -1543,7 +1543,7 @@ _mesa_test_framebuffer_completeness(struct gl_context *ctx,
                return;
             }
             /* check that all color buffers are the same format */
-            if (ctx->API != API_OPENGLES2 && intFormat != GL_NONE && f != intFormat) {
+            if (!_mesa_is_gles2(ctx) && intFormat != GL_NONE && f != intFormat) {
                fb->_Status = GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT;
                fbo_incomplete(ctx, "format mismatch", -1);
                return;

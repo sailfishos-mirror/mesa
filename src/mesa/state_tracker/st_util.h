@@ -85,7 +85,7 @@ st_point_size_per_vertex(struct gl_context *ctx)
             return true;
          }
       }
-      else if (ctx->API != API_OPENGLES2) {
+      else if (!_mesa_is_gles2(ctx)) {
          /* PointSizeEnabled is always set in ES2 contexts */
          return ctx->VertexProgram.PointSizeEnabled;
       }
