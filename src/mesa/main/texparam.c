@@ -2556,7 +2556,7 @@ get_tex_parameterfv(struct gl_context *ctx,
          break;
 
       case GL_TEXTURE_TARGET:
-         if (ctx->API != API_OPENGL_CORE)
+         if (!_mesa_is_desktop_gl_core(ctx))
             goto invalid_pname;
          *params = ENUM_TO_FLOAT(obj->Target);
          break;
@@ -2849,7 +2849,7 @@ get_tex_parameteriv(struct gl_context *ctx,
          break;
 
       case GL_TEXTURE_TARGET:
-         if (ctx->API != API_OPENGL_CORE)
+         if (!_mesa_is_desktop_gl_core(ctx))
             goto invalid_pname;
          *params = (GLint) obj->Target;
          break;

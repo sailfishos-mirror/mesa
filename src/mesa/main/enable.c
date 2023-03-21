@@ -1185,7 +1185,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
           * GLSL vertex shaders on desktop.
           */
          if (!_mesa_has_ARB_vertex_program(ctx) &&
-             ctx->API != API_OPENGL_CORE)
+             !_mesa_is_desktop_gl_core(ctx))
             goto invalid_enum_error;
          if (ctx->VertexProgram.PointSizeEnabled == state)
             return;
@@ -1970,7 +1970,7 @@ _mesa_IsEnabled( GLenum cap )
           * GLSL vertex shaders on desktop.
           */
          if (!_mesa_has_ARB_vertex_program(ctx) &&
-             ctx->API != API_OPENGL_CORE)
+             !_mesa_is_desktop_gl_core(ctx))
             goto invalid_enum_error;
          return ctx->VertexProgram.PointSizeEnabled;
       case GL_VERTEX_PROGRAM_TWO_SIDE_ARB:

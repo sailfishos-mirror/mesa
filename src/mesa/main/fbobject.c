@@ -5110,7 +5110,7 @@ get_framebuffer_attachment_parameter(struct gl_context *ctx,
    case GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE:
       if ((!_mesa_is_desktop_gl_compat(ctx) ||
            !ctx->Extensions.ARB_framebuffer_object)
-          && ctx->API != API_OPENGL_CORE
+          && !_mesa_is_desktop_gl_core(ctx)
           && !_mesa_is_gles3(ctx)) {
          goto invalid_pname_enum;
       }
