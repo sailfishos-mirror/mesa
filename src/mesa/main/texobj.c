@@ -1564,7 +1564,7 @@ _mesa_tex_target_to_index(const struct gl_context *ctx, GLenum target)
    case GL_TEXTURE_2D:
       return TEXTURE_2D_INDEX;
    case GL_TEXTURE_3D:
-      return (ctx->API != API_OPENGLES &&
+      return (!_mesa_is_gles1(ctx) &&
               !(_mesa_is_gles2(ctx) && !ctx->Extensions.OES_texture_3D))
          ? TEXTURE_3D_INDEX : -1;
    case GL_TEXTURE_CUBE_MAP:

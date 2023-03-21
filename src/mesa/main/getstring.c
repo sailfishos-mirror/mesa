@@ -254,17 +254,17 @@ _get_vao_pointerv(GLenum pname, struct gl_vertex_array_object* vao,
 
    switch (pname) {
       case GL_VERTEX_ARRAY_POINTER:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_pname;
          *params = (GLvoid *) vao->VertexAttrib[VERT_ATTRIB_POS].Ptr;
          break;
       case GL_NORMAL_ARRAY_POINTER:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_pname;
          *params = (GLvoid *) vao->VertexAttrib[VERT_ATTRIB_NORMAL].Ptr;
          break;
       case GL_COLOR_ARRAY_POINTER:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_pname;
          *params = (GLvoid *) vao->VertexAttrib[VERT_ATTRIB_COLOR0].Ptr;
          break;
@@ -284,7 +284,7 @@ _get_vao_pointerv(GLenum pname, struct gl_vertex_array_object* vao,
          *params = (GLvoid *) vao->VertexAttrib[VERT_ATTRIB_COLOR_INDEX].Ptr;
          break;
       case GL_TEXTURE_COORD_ARRAY_POINTER:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_pname;
          *params = (GLvoid *) vao->VertexAttrib[VERT_ATTRIB_TEX(clientUnit)].Ptr;
          break;
@@ -304,7 +304,7 @@ _get_vao_pointerv(GLenum pname, struct gl_vertex_array_object* vao,
          *params = ctx->Select.Buffer;
          break;
       case GL_POINT_SIZE_ARRAY_POINTER_OES:
-         if (ctx->API != API_OPENGLES)
+         if (!_mesa_is_gles1(ctx))
             goto invalid_pname;
          *params = (GLvoid *) vao->VertexAttrib[VERT_ATTRIB_POINT_SIZE].Ptr;
          break;

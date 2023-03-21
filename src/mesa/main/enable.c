@@ -491,7 +491,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
 
    switch (cap) {
       case GL_ALPHA_TEST:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Color.AlphaEnabled == state)
             return;
@@ -569,7 +569,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          }
          break;
       case GL_COLOR_MATERIAL:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Light.ColorMaterialEnabled == state)
             return;
@@ -614,7 +614,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          ctx->Color.DitherFlag = state;
          break;
       case GL_FOG:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Fog.Enabled == state)
             return;
@@ -631,7 +631,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
       case GL_LIGHT5:
       case GL_LIGHT6:
       case GL_LIGHT7:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Light.Light[cap-GL_LIGHT0].Enabled == state)
             return;
@@ -646,7 +646,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          }
          break;
       case GL_LIGHTING:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Light.Enabled == state)
             return;
@@ -656,7 +656,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          ctx->Light.Enabled = state;
          break;
       case GL_LINE_SMOOTH:
-         if (!_mesa_is_desktop_gl(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Line.SmoothFlag == state)
             return;
@@ -714,7 +714,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          ctx->RepresentativeFragmentTest = state;
          break;
       case GL_COLOR_LOGIC_OP:
-         if (!_mesa_is_desktop_gl(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Color.ColorLogicOpEnabled == state)
             return;
@@ -887,7 +887,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          ctx->Eval.Map2Vertex4 = state;
          break;
       case GL_NORMALIZE:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Transform.Normalize == state)
             return;
@@ -896,7 +896,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          ctx->Transform.Normalize = state;
          break;
       case GL_POINT_SMOOTH:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Point.SmoothFlag == state)
             return;
@@ -952,7 +952,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          ctx->Polygon.OffsetFill = state;
          break;
       case GL_RESCALE_NORMAL_EXT:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Transform.RescaleNormals == state)
             return;
@@ -990,14 +990,14 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          }
          break;
       case GL_TEXTURE_2D:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (!enable_texture(ctx, state, TEXTURE_2D_BIT)) {
             return;
          }
          break;
       case GL_TEXTURE_3D:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (!enable_texture(ctx, state, TEXTURE_3D_BIT)) {
             return;
@@ -1033,7 +1033,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          {
             struct gl_fixedfunc_texture_unit *texUnit = get_texcoord_unit(ctx);
 
-            if (ctx->API != API_OPENGLES)
+            if (!_mesa_is_gles1(ctx))
                goto invalid_enum_error;
 
             if (texUnit) {
@@ -1055,7 +1055,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
       case GL_NORMAL_ARRAY:
       case GL_COLOR_ARRAY:
       case GL_TEXTURE_COORD_ARRAY:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          client_state( ctx, ctx->Array.VAO, cap, state );
          return;
@@ -1068,14 +1068,14 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          client_state( ctx, ctx->Array.VAO, cap, state );
          return;
       case GL_POINT_SIZE_ARRAY_OES:
-         if (ctx->API != API_OPENGLES)
+         if (!_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          client_state( ctx, ctx->Array.VAO, cap, state );
          return;
 
       /* GL_ARB_texture_cube_map */
       case GL_TEXTURE_CUBE_MAP:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (!enable_texture(ctx, state, TEXTURE_CUBE_BIT)) {
             return;
@@ -1095,7 +1095,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
 
       /* GL_ARB_multisample */
       case GL_MULTISAMPLE_ARB:
-         if (!_mesa_is_desktop_gl(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          _mesa_set_multisample(ctx, state);
          return;
@@ -1108,7 +1108,7 @@ _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
          ctx->Multisample.SampleAlphaToCoverage = state;
          break;
       case GL_SAMPLE_ALPHA_TO_ONE_ARB:
-         if (!_mesa_is_desktop_gl(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          if (ctx->Multisample.SampleAlphaToOne == state)
             return;
@@ -1655,7 +1655,7 @@ _mesa_IsEnabled( GLenum cap )
 
    switch (cap) {
       case GL_ALPHA_TEST:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Color.AlphaEnabled;
       case GL_AUTO_NORMAL:
@@ -1680,7 +1680,7 @@ _mesa_IsEnabled( GLenum cap )
          return (ctx->Transform.ClipPlanesEnabled >> p) & 1;
       }
       case GL_COLOR_MATERIAL:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Light.ColorMaterialEnabled;
       case GL_CULL_FACE:
@@ -1693,11 +1693,11 @@ _mesa_IsEnabled( GLenum cap )
       case GL_DITHER:
          return ctx->Color.DitherFlag;
       case GL_FOG:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Fog.Enabled;
       case GL_LIGHTING:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Light.Enabled;
       case GL_LIGHT0:
@@ -1708,11 +1708,11 @@ _mesa_IsEnabled( GLenum cap )
       case GL_LIGHT5:
       case GL_LIGHT6:
       case GL_LIGHT7:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Light.Light[cap-GL_LIGHT0].Enabled;
       case GL_LINE_SMOOTH:
-         if (!_mesa_is_desktop_gl(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Line.SmoothFlag;
       case GL_LINE_STIPPLE:
@@ -1724,7 +1724,7 @@ _mesa_IsEnabled( GLenum cap )
             goto invalid_enum_error;
          return ctx->Color.IndexLogicOpEnabled;
       case GL_COLOR_LOGIC_OP:
-         if (!_mesa_is_desktop_gl(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Color.ColorLogicOpEnabled;
       case GL_MAP1_COLOR_4:
@@ -1800,11 +1800,11 @@ _mesa_IsEnabled( GLenum cap )
             goto invalid_enum_error;
          return ctx->Eval.Map2Vertex4;
       case GL_NORMALIZE:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Transform.Normalize;
       case GL_POINT_SMOOTH:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Point.SmoothFlag;
       case GL_POLYGON_SMOOTH:
@@ -1826,7 +1826,7 @@ _mesa_IsEnabled( GLenum cap )
       case GL_POLYGON_OFFSET_FILL:
          return ctx->Polygon.OffsetFill;
       case GL_RESCALE_NORMAL_EXT:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Transform.RescaleNormals;
       case GL_SCISSOR_TEST:
@@ -1838,11 +1838,11 @@ _mesa_IsEnabled( GLenum cap )
             goto invalid_enum_error;
          return is_texture_enabled(ctx, TEXTURE_1D_BIT);
       case GL_TEXTURE_2D:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return is_texture_enabled(ctx, TEXTURE_2D_BIT);
       case GL_TEXTURE_3D:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return is_texture_enabled(ctx, TEXTURE_3D_BIT);
       case GL_TEXTURE_GEN_S:
@@ -1867,7 +1867,7 @@ _mesa_IsEnabled( GLenum cap )
             const struct gl_fixedfunc_texture_unit *texUnit =
                get_texcoord_unit(ctx);
 
-            if (ctx->API != API_OPENGLES)
+            if (!_mesa_is_gles1(ctx))
                goto invalid_enum_error;
 
             if (texUnit) {
@@ -1880,15 +1880,15 @@ _mesa_IsEnabled( GLenum cap )
 
       /* client-side state */
       case GL_VERTEX_ARRAY:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return !!(ctx->Array.VAO->Enabled & VERT_BIT_POS);
       case GL_NORMAL_ARRAY:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return !!(ctx->Array.VAO->Enabled & VERT_BIT_NORMAL);
       case GL_COLOR_ARRAY:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return !!(ctx->Array.VAO->Enabled & VERT_BIT_COLOR0);
       case GL_INDEX_ARRAY:
@@ -1896,7 +1896,7 @@ _mesa_IsEnabled( GLenum cap )
             goto invalid_enum_error;
          return !!(ctx->Array.VAO->Enabled & VERT_BIT_COLOR_INDEX);
       case GL_TEXTURE_COORD_ARRAY:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return !!(ctx->Array.VAO->Enabled &
                    VERT_BIT_TEX(ctx->Array.ActiveTexture));
@@ -1913,13 +1913,13 @@ _mesa_IsEnabled( GLenum cap )
             goto invalid_enum_error;
          return !!(ctx->Array.VAO->Enabled & VERT_BIT_COLOR1);
       case GL_POINT_SIZE_ARRAY_OES:
-         if (ctx->API != API_OPENGLES)
+         if (!_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return !!(ctx->Array.VAO->Enabled & VERT_BIT_POINT_SIZE);
 
       /* GL_ARB_texture_cube_map */
       case GL_TEXTURE_CUBE_MAP:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return is_texture_enabled(ctx, TEXTURE_CUBE_BIT);
 
@@ -1931,13 +1931,13 @@ _mesa_IsEnabled( GLenum cap )
 
       /* GL_ARB_multisample */
       case GL_MULTISAMPLE_ARB:
-         if (!_mesa_is_desktop_gl(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Multisample.Enabled;
       case GL_SAMPLE_ALPHA_TO_COVERAGE_ARB:
          return ctx->Multisample.SampleAlphaToCoverage;
       case GL_SAMPLE_ALPHA_TO_ONE_ARB:
-         if (!_mesa_is_desktop_gl(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_enum_error;
          return ctx->Multisample.SampleAlphaToOne;
       case GL_SAMPLE_COVERAGE_ARB:

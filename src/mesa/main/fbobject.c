@@ -2490,7 +2490,7 @@ _mesa_base_fbo_format(const struct gl_context *ctx, GLenum internalFormat)
       return _mesa_has_ARB_texture_rg(ctx) || _mesa_has_EXT_texture_norm16(ctx)
          ? GL_RED : 0;
    case GL_R8:
-      return ctx->API != API_OPENGLES && ctx->Extensions.ARB_texture_rg
+      return !_mesa_is_gles1(ctx) && ctx->Extensions.ARB_texture_rg
          ? GL_RED : 0;
    case GL_RG:
       return _mesa_has_ARB_texture_rg(ctx) ? GL_RG : 0;
@@ -2498,7 +2498,7 @@ _mesa_base_fbo_format(const struct gl_context *ctx, GLenum internalFormat)
       return _mesa_has_ARB_texture_rg(ctx) || _mesa_has_EXT_texture_norm16(ctx)
          ? GL_RG : 0;
    case GL_RG8:
-      return ctx->API != API_OPENGLES && ctx->Extensions.ARB_texture_rg
+      return !_mesa_is_gles1(ctx) && ctx->Extensions.ARB_texture_rg
          ? GL_RG : 0;
    /* signed normalized texture formats */
    case GL_R8_SNORM:

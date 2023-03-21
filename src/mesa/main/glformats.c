@@ -2477,7 +2477,7 @@ _mesa_base_tex_format(const struct gl_context *ctx, GLint internalFormat)
       }
    }
 
-   if (ctx->API != API_OPENGLES) {
+   if (!_mesa_is_gles1(ctx)) {
       switch (internalFormat) {
       case GL_DEPTH_COMPONENT:
       case GL_DEPTH_COMPONENT16:

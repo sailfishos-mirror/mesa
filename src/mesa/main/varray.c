@@ -1803,7 +1803,7 @@ _mesa_PointSizePointerOES(GLenum type, GLsizei stride, const GLvoid *ptr)
    GET_CURRENT_CONTEXT(ctx);
 
    GLenum format = GL_RGBA;
-   if (ctx->API != API_OPENGLES) {
+   if (!_mesa_is_gles1(ctx)) {
       _mesa_error(ctx, GL_INVALID_OPERATION,
                   "glPointSizePointer(ES 1.x only)");
       return;
