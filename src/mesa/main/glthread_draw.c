@@ -1399,7 +1399,7 @@ lower_draw_elements_indirect(struct gl_context *ctx, GLenum mode, GLenum type,
 static inline bool
 draw_indirect_async_allowed(struct gl_context *ctx, unsigned user_buffer_mask)
 {
-   return ctx->API != API_OPENGL_COMPAT ||
+   return !_mesa_is_desktop_gl_compat(ctx) ||
           /* This will just generate GL_INVALID_OPERATION, as it should. */
           ctx->GLThread.inside_begin_end ||
           ctx->GLThread.ListMode ||

@@ -648,7 +648,7 @@ _mesa_Materialfv(GLenum face, GLenum pname, const GLfloat *params)
          MAT_ATTR(VBO_ATTRIB_MAT_BACK_SHININESS, 1, params);
       break;
    case GL_COLOR_INDEXES:
-      if (ctx->API != API_OPENGL_COMPAT) {
+      if (!_mesa_is_desktop_gl_compat(ctx)) {
          _mesa_error(ctx, GL_INVALID_ENUM, "glMaterialfv(pname)");
          return;
       }

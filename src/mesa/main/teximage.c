@@ -1916,7 +1916,7 @@ texture_error_check( struct gl_context *ctx,
 
    /* Check border */
    if (border < 0 || border > 1 ||
-       ((ctx->API != API_OPENGL_COMPAT ||
+       ((!_mesa_is_desktop_gl_compat(ctx) ||
          target == GL_TEXTURE_RECTANGLE_NV ||
          target == GL_PROXY_TEXTURE_RECTANGLE_NV) && border != 0)) {
       _mesa_error(ctx, GL_INVALID_VALUE,
@@ -2391,7 +2391,7 @@ copytexture_error_check( struct gl_context *ctx, GLuint dimensions,
 
    /* Check border */
    if (border < 0 || border > 1 ||
-       ((ctx->API != API_OPENGL_COMPAT ||
+       ((!_mesa_is_desktop_gl_compat(ctx) ||
          target == GL_TEXTURE_RECTANGLE_NV ||
          target == GL_PROXY_TEXTURE_RECTANGLE_NV) && border != 0)) {
       _mesa_error(ctx, GL_INVALID_VALUE,

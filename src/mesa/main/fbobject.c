@@ -5108,7 +5108,7 @@ get_framebuffer_attachment_parameter(struct gl_context *ctx,
       }
       return;
    case GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE:
-      if ((ctx->API != API_OPENGL_COMPAT ||
+      if ((!_mesa_is_desktop_gl_compat(ctx) ||
            !ctx->Extensions.ARB_framebuffer_object)
           && ctx->API != API_OPENGL_CORE
           && !_mesa_is_gles3(ctx)) {
@@ -5561,7 +5561,7 @@ invalidate_framebuffer_storage(struct gl_context *ctx,
             /* Accumulation buffers and auxilary buffers were removed in
              * OpenGL 3.1, and they never existed in OpenGL ES.
              */
-            if (ctx->API != API_OPENGL_COMPAT)
+            if (!_mesa_is_desktop_gl_compat(ctx))
                goto invalid_enum;
             break;
          case GL_COLOR:

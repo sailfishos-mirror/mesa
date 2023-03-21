@@ -191,7 +191,7 @@ update_attribute_map_mode(const struct gl_context *ctx,
     * There is no need to change the mapping away from the
     * identity mapping if we are not in compat mode.
     */
-   if (ctx->API != API_OPENGL_COMPAT)
+   if (!_mesa_is_desktop_gl_compat(ctx))
       return;
    /* The generic0 attribute superseeds the position attribute */
    const GLbitfield enabled = vao->Enabled;
@@ -2093,7 +2093,7 @@ void
 _mesa_update_edgeflag_state_explicit(struct gl_context *ctx,
                                      bool per_vertex_enable)
 {
-   if (ctx->API != API_OPENGL_COMPAT)
+   if (!_mesa_is_desktop_gl_compat(ctx))
       return;
 
    /* Edge flags take effect only if the polygon mode is not FILL on the side
