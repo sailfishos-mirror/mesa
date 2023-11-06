@@ -13,6 +13,7 @@
 #include "nvk_event.h"
 #include "nvk_mme.h"
 #include "nvk_physical_device.h"
+#include "nvk_rust.h"
 #include "nvk_shader.h"
 #include "nvkmd/nvkmd.h"
 
@@ -375,6 +376,11 @@ nvk_BeginCommandBuffer(VkCommandBuffer commandBuffer,
 
    if (queue_flags & VK_QUEUE_GRAPHICS_BIT)
       nvk_cmd_buffer_begin_graphics(cmd, pBeginInfo);
+
+   if (queue_flags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
+      nvk_cmd_buffer_begin_video_decode(cmd, pBeginInfo);
+
+   assert(!(queue_flags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR));
 
    return VK_SUCCESS;
 }

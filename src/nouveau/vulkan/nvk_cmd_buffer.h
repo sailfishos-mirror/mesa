@@ -224,6 +224,11 @@ struct nvk_compute_state {
    bool active_compute_invocations_query;
 };
 
+struct nvk_video_state {
+   struct nvk_video_session *vid;
+   struct vk_video_session_parameters *params;
+};
+
 struct nvk_cmd_push {
    void *map;
    uint64_t addr;
@@ -240,6 +245,7 @@ struct nvk_cmd_buffer {
       struct nvk_graphics_state gfx;
       struct nvk_compute_state cs;
       VkQueryPipelineStatisticFlags inherited_pipeline_statistics;
+      struct nvk_video_state video;
    } state;
 
    /** List of nvk_cmd_mem

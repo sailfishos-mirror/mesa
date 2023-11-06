@@ -8,6 +8,7 @@ mod ffi {
 }
 
 mod util;
+mod video;
 
 unsafe fn nv_push_append_push(p: *mut ffi::nv_push, push: Push) {
     let p = unsafe { p.as_mut() }.unwrap();

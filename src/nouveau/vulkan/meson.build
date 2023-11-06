@@ -31,6 +31,7 @@ nvk_files = files(
   'nvk_cmd_meta.c',
   'nvk_cmd_pool.c',
   'nvk_cmd_pool.h',
+  'nvk_cmd_video.c',
   'nvk_cubin.c',
   'nvk_cubin.h',
   'nvk_debug.h',
@@ -226,7 +227,9 @@ libnvk_rs = static_library(
   ],
   dependencies: [
     dep_paste,
+    dep_rustc_hash,
     idep_nv_push_rs,
+    idep_nvidia_headers_rs,
   ],
 )
 

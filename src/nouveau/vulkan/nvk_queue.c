@@ -9,6 +9,7 @@
 #include "nvk_device.h"
 #include "nvk_image.h"
 #include "nvk_physical_device.h"
+#include "nvk_rust.h"
 #include "nv_push.h"
 
 #include "nv_push_cl9039.h"
@@ -356,6 +357,12 @@ nvk_queue_init_context_state(struct nvk_queue *queue)
 
    if (queue->engines & NVKMD_ENGINE_COMPUTE) {
       result = nvk_push_dispatch_state_init(queue, p);
+      if (result != VK_SUCCESS)
+         return result;
+   }
+
+   if (queue->engines & NVKMD_ENGINE_VDEC) {
+      result = nvk_push_video_decode_state_init(queue, p);
       if (result != VK_SUCCESS)
          return result;
    }

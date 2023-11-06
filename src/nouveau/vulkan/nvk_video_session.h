@@ -14,15 +14,20 @@ struct nvk_vid_mem {
    uint64_t size_B;
    uint32_t align_B;
 
-   struct nvk_device_memory *mem;
-   VkDeviceSize offset;
-   VkDeviceSize size;
+   uint64_t addr;
 };
 
 struct nvk_video_session {
+   /** The parent object */
    struct vk_video_session vk;
-
+   /** Opaque memory objects needed by the GPU.
+    *
+    * We must ensure they're allocated and that the size is correctly computed
+    * from codec parameters.
+    */
    struct nvk_vid_mem mems[3];
+   /** Opaque pointer to data managed by the Rust side. */
+   void *rust;
 };
 
 VK_DEFINE_NONDISP_HANDLE_CASTS(nvk_video_session, vk.base, VkVideoSessionKHR,

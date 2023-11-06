@@ -8,6 +8,7 @@
 #include "nvk_device.h"
 #include "nvk_cmd_buffer.h"
 #include "nvk_physical_device.h"
+#include "nvk_rust.h"
 #include "nvk_entrypoints.h"
 
 VKAPI_ATTR VkResult VKAPI_CALL
@@ -61,6 +62,8 @@ nvk_CreateVideoSessionKHR(VkDevice _device,
       return vk_error(dev, VK_ERROR_VIDEO_PROFILE_OPERATION_NOT_SUPPORTED_KHR);
    }
 
+   nvk_video_create_video_session(vid);
+
    *pVideoSession = nvk_video_session_to_handle(vid);
 
    return VK_SUCCESS;
@@ -75,6 +78,8 @@ nvk_DestroyVideoSessionKHR(VkDevice _device, VkVideoSessionKHR videoSession,
 
    if (vid == NULL)
       return;
+
+   nvk_video_destroy_video_session(vid);
 
    vk_video_session_finish(&vid->vk);
    vk_free2(&dev->vk.alloc, pAllocator, vid);
@@ -109,14 +114,6 @@ nvk_GetVideoSessionMemoryRequirementsKHR(VkDevice _device,
    return vk_outarray_status(&out);
 }
 
-static void
-copy_bind(struct nvk_vid_mem *dst, const VkBindVideoSessionMemoryInfoKHR *src)
-{
-   dst->mem = nvk_device_memory_from_handle(src->memory);
-   dst->offset = src->memoryOffset;
-   dst->size = src->memorySize;
-}
-
 VKAPI_ATTR VkResult VKAPI_CALL
 nvk_BindVideoSessionMemoryKHR(VkDevice _device,
    VkVideoSessionKHR videoSession,
@@ -126,8 +123,11 @@ nvk_BindVideoSessionMemoryKHR(VkDevice _device,
    VK_FROM_HANDLE(nvk_video_session, vid, videoSession);
 
    for (unsigned i = 0; i < videoSessionBindMemoryCount; i++) {
-      copy_bind(&vid->mems[pBindSessionMemoryInfos[i].memoryBindIndex],
-                &pBindSessionMemoryInfos[i]);
+      const VkBindVideoSessionMemoryInfoKHR *info = &pBindSessionMemoryInfos[i];
+      VK_FROM_HANDLE(nvk_device_memory, mem, info->memory);
+
+      vid->mems[info->memoryBindIndex].addr =
+         mem->mem->va->addr + info->memoryOffset;
    }
    return VK_SUCCESS;
 }
