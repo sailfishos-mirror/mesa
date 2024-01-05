@@ -483,12 +483,6 @@ _mesa_set_framebuffer_srgb(struct gl_context *ctx, GLboolean state)
 void
 _mesa_set_enable(struct gl_context *ctx, GLenum cap, GLboolean state)
 {
-   if (MESA_VERBOSE & VERBOSE_API)
-      _mesa_debug(ctx, "%s %s (newstate is %x)\n",
-                  state ? "glEnable" : "glDisable",
-                  _mesa_enum_to_string(cap),
-                  ctx->NewState);
-
    switch (cap) {
       case GL_ALPHA_TEST:
          if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))

@@ -13170,10 +13170,6 @@ _mesa_NewList(GLuint name, GLenum mode)
    FLUSH_CURRENT(ctx, 0);       /* must be called before assert */
    ASSERT_OUTSIDE_BEGIN_END(ctx);
 
-   if (MESA_VERBOSE & VERBOSE_API)
-      _mesa_debug(ctx, "glNewList %u %s\n", name,
-                  _mesa_enum_to_string(mode));
-
    if (name == 0) {
       _mesa_error(ctx, GL_INVALID_VALUE, "glNewList");
       return;
@@ -13329,9 +13325,6 @@ _mesa_EndList(void)
    SAVE_FLUSH_VERTICES(ctx);
    FLUSH_VERTICES(ctx, 0, 0);
 
-   if (MESA_VERBOSE & VERBOSE_API)
-      _mesa_debug(ctx, "glEndList\n");
-
    if (ctx->ExecuteFlag && _mesa_inside_dlist_begin_end(ctx)) {
       _mesa_error(ctx, GL_INVALID_OPERATION,
                   "glEndList() called inside glBegin/End");
@@ -13443,9 +13436,6 @@ _mesa_CallList(GLuint list)
    GET_CURRENT_CONTEXT(ctx);
    FLUSH_CURRENT(ctx, 0);
 
-   if (MESA_VERBOSE & VERBOSE_API)
-      _mesa_debug(ctx, "glCallList %d\n", list);
-
    if (list == 0) {
       _mesa_error(ctx, GL_INVALID_VALUE, "glCallList(list==0)");
       return;
@@ -13486,9 +13476,6 @@ _mesa_CallLists(GLsizei n, GLenum type, const GLvoid * lists)
 {
    GET_CURRENT_CONTEXT(ctx);
    GLboolean save_compile_flag;
-
-   if (MESA_VERBOSE & VERBOSE_API)
-      _mesa_debug(ctx, "glCallLists %d\n", n);
 
    if (type < GL_BYTE || type > GL_4_BYTES) {
       _mesa_error(ctx, GL_INVALID_ENUM, "glCallLists(type)");

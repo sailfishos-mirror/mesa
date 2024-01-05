@@ -101,10 +101,8 @@ set_verbose_flags(const char *str)
       GLbitfield flag;
    };
    static const struct option opts[] = {
-      { "tex",       VERBOSE_TEXTURE },
       { "mat",       VERBOSE_MATERIAL },
       { "state",     VERBOSE_STATE },
-      { "api",       VERBOSE_API },
       { "list",      VERBOSE_DISPLAY_LIST },
    };
    GLuint i;

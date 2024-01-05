@@ -1431,9 +1431,6 @@ _mesa_make_current( struct gl_context *newCtx,
 {
    GET_CURRENT_CONTEXT(curCtx);
 
-   if (MESA_VERBOSE & VERBOSE_API)
-      _mesa_debug(newCtx, "_mesa_make_current()\n");
-
    /* Check that the context's and framebuffer's visuals are compatible.
     */
    if (newCtx && drawBuffer && newCtx->WinSysDrawBuffer != drawBuffer) {
