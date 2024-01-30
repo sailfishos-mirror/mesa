@@ -282,28 +282,49 @@ emit_blt_genmipmap(struct etna_cmd_stream *stream, const struct blt_genmipmap_op
 
 static inline bool
 etna_blt_will_fastclear(const struct etna_resource_level *level,
-                        const struct pipe_scissor_state *scissor_state)
+                        const struct pipe_scissor_state *scissor_state,
+                        unsigned clear_mask,
+                        unsigned full_mask)
 {
    if (!scissor_state)
-      return true;
+      return clear_mask == full_mask;
 
    return scissor_state->minx == 0 &&
           scissor_state->miny == 0 &&
           scissor_state->maxx >= level->width &&
-          scissor_state->maxy >= level->height;
+          scissor_state->maxy >= level->height &&
+          clear_mask == full_mask;
+}
+
+static inline uint64_t
+etna_calculate_clear_bits(enum pipe_format format, unsigned clear_mask)
+{
+   const struct util_format_description *desc = util_format_description(format);
+   uint64_t clear_bits = 0;
+
+   for (unsigned i = 0; i < desc->nr_channels; i++) {
+      if (clear_mask & (1 << desc->swizzle[i])) {
+         const unsigned mask = (1 << desc->channel[i].size) - 1;
+         clear_bits |= mask << desc->channel[i].shift;
+      }
+   }
+
+   return clear_bits;
 }
 
 static void
 etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
                       const union pipe_color_union *color,
-                      const struct pipe_scissor_state *scissor_state)
+                      const struct pipe_scissor_state *scissor_state,
+                      unsigned clear_mask)
 {
    struct etna_context *ctx = etna_context(pctx);
    struct pipe_surface *dst = &ctx->framebuffer_s.cbufs[idx];
    struct etna_resource *dst_res = etna_resource_get_render_compatible(pctx, dst->texture);
    struct etna_resource_level *dst_level = &dst_res->levels[dst->level];
    uint64_t new_clear_value = etna_clear_blit_pack_rgba(dst->format, color);
-   bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state);
+   const uint64_t clear_bits = etna_calculate_clear_bits(dst->format, clear_mask);
+   bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state, clear_mask, 0xf);
    int msaa_xscale = 1, msaa_yscale = 1;
    bool is_128bit_format = format_is_128bit(dst->format);
 
@@ -334,8 +355,8 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
 
    clr.clear_value[0] = new_clear_value;
    clr.clear_value[1] = new_clear_value >> 32;
-   clr.clear_bits[0] = 0xffffffff; /* TODO: Might want to clear only specific channels? */
-   clr.clear_bits[1] = 0xffffffff;
+   clr.clear_bits[0] = clear_bits;
+   clr.clear_bits[1] = clear_bits >> 32;
 
    if (scissor_state) {
       clr.rect_x = scissor_state->minx * msaa_xscale;
@@ -390,13 +411,14 @@ etna_blit_clear_color_blt(struct pipe_context *pctx, unsigned idx,
 static void
 etna_blit_clear_zs_blt(struct pipe_context *pctx, struct pipe_surface *dst,
                    unsigned buffers, double depth, unsigned stencil,
-                   const struct pipe_scissor_state *scissor_state)
+                   const struct pipe_scissor_state *scissor_state,
+                   unsigned clear_mask)
 {
    struct etna_context *ctx = etna_context(pctx);
    struct etna_resource *dst_res = etna_resource_get_render_compatible(pctx, dst->texture);
    struct etna_resource_level *dst_level = &dst_res->levels[dst->level];
    uint32_t new_clear_value = translate_clear_depth_stencil(dst->format, depth, stencil);
-   bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state);
+   bool fast_clear = etna_blt_will_fastclear(dst_level, scissor_state, clear_mask, 0xff);
    uint32_t new_clear_bits = 0, clear_bits_depth, clear_bits_stencil;
    int msaa_xscale = 1, msaa_yscale = 1;
 
@@ -412,7 +434,7 @@ etna_blit_clear_zs_blt(struct pipe_context *pctx, struct pipe_surface *dst,
       break;
    case PIPE_FORMAT_S8_UINT_Z24_UNORM:
       clear_bits_depth = 0xffffff00;
-      clear_bits_stencil = 0x000000ff;
+      clear_bits_stencil = clear_mask;
       break;
    default:
       clear_bits_depth = clear_bits_stencil = 0xffffffff;
@@ -478,6 +500,12 @@ etna_blit_clear_zs_blt(struct pipe_context *pctx, struct pipe_surface *dst,
    etna_resource_level_mark_changed(dst_level);
 }
 
+static inline unsigned
+color_mask_for_buffer(unsigned mask, unsigned buffer)
+{
+   return ((mask) >> (4 * (buffer))) & 0xf;
+}
+
 static void
 etna_clear_blt(struct pipe_context *pctx, unsigned buffers,
            uint32_t color_clear_mask, uint8_t stencil_clear_mask,
@@ -502,7 +530,8 @@ etna_clear_blt(struct pipe_context *pctx, unsigned buffers,
          if (!(buffers & (PIPE_CLEAR_COLOR0 << idx)))
             continue;
 
-         etna_blit_clear_color_blt(pctx, idx, color, scissor_state);
+         etna_blit_clear_color_blt(pctx, idx, color, scissor_state,
+                                   color_mask_for_buffer(color_clear_mask, idx));
 
          if (!etna_resource(psurf->texture)->explicit_flush)
             etna_context_add_flush_resource(ctx, psurf->texture);
@@ -510,7 +539,7 @@ etna_clear_blt(struct pipe_context *pctx, unsigned buffers,
    }
 
    if ((buffers & PIPE_CLEAR_DEPTHSTENCIL) && ctx->framebuffer_s.zsbuf.texture != NULL)
-      etna_blit_clear_zs_blt(pctx, &ctx->framebuffer_s.zsbuf, buffers, depth, stencil, scissor_state);
+      etna_blit_clear_zs_blt(pctx, &ctx->framebuffer_s.zsbuf, buffers, depth, stencil, scissor_state, stencil_clear_mask);
 
    etna_stall(ctx->stream, SYNC_RECIPIENT_RA, SYNC_RECIPIENT_BLT);
 

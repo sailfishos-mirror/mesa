@@ -234,6 +234,8 @@ etna_init_screen_caps(struct etna_screen *screen)
    caps->fs_point_is_sysval = false;
    caps->generate_mipmap =
    caps->clear_scissored = screen->specs.use_blt;
+   caps->clear_masked = screen->specs.use_blt &&
+                        VIV_FEATURE(screen, ETNA_FEATURE_BLT_64BPP_MASKED_CLEAR_FIX);
 
    /* Memory */
    caps->constant_buffer_offset_alignment = 256;
