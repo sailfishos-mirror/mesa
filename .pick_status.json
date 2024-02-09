@@ -524,7 +524,7 @@
         "description": "i915: fix emit_hw_vertex() unbounded memory access",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "247cee92df0eb12fe47881a50b58c892f9b1e8b8",
         "notes": null
