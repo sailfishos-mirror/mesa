@@ -117,6 +117,8 @@ typedef struct
    bool insert_layer_output;
    /* True if cull flags are used */
    bool uses_cull_flags;
+   /* True if the output vertex and primitive counts are workgroup-uniform. */
+   bool output_counts_workgroup_uniform;
 
    const uint8_t *vs_output_param_offset;
    bool has_param_exports;
@@ -453,6 +455,12 @@ lower_ms_set_vertex_and_primitive_count(nir_builder *b,
                                         nir_intrinsic_instr *intrin,
                                         lower_ngg_ms_state *s)
 {
+   /* Remember if the output vertex and primitive counts are both workgroup-uniform.
+    * This assumes that the divergence info contains workgroup divergence.
+    */
+   s->output_counts_workgroup_uniform =
+      !nir_src_is_divergent(&intrin->src[0]) && !nir_src_is_divergent(&intrin->src[1]);
+
    /* If either the number of vertices or primitives is zero, set both of them to zero. */
    nir_def *num_vtx = nir_read_first_invocation(b, intrin->src[0].ssa);
    nir_def *num_prm = nir_read_first_invocation(b, intrin->src[1].ssa);
@@ -660,22 +668,36 @@ set_ms_final_output_counts(nir_builder *b,
    nir_def *num_prm = nir_load_var(b, s->primitive_count_var);
    nir_def *num_vtx = nir_load_var(b, s->vertex_count_var);
 
+   *out_num_prm = num_prm;
+   *out_num_vtx = num_vtx;
+
    if (s->hw_workgroup_size <= s->wave_size) {
       /* Single-wave mesh shader workgroup. */
       ac_nir_ngg_alloc_vertices_and_primitives(b, num_vtx, num_prm, false);
-
-      *out_num_prm = num_prm;
-      *out_num_vtx = num_vtx;
       return;
    }
 
-   /* Multi-wave mesh shader workgroup:
+   if (s->output_counts_workgroup_uniform && !s->has_non_api_waves) {
+      /* Output counts are workgroup-uniform and all waves execute the API shader.
+       * All waves calculated the same output count values, so we don't
+       * have to distribute the value from the first active invocation.
+       *
+       * Note that this can't be done when there are non-API waves
+       * because those don't execute the API shader and therefore
+       * can't know the value of the output counts and must read it
+       * from LDS.
+       *
+       * We can simply use the values from the first wave when
+       * allocating space for vertices/primitives.
+       */
+      nir_if *if_wave_0 = nir_push_if(b, nir_ieq_imm(b, nir_load_subgroup_id(b), 0));
+      ac_nir_ngg_alloc_vertices_and_primitives(b, num_vtx, num_prm, false);
+      nir_pop_if(b, if_wave_0);
+      return;
+   }
+
+   /* Multi-wave mesh shader workgroup with workgroup-divergent output counts:
     * We need to use LDS to distribute the correct values to the other waves.
-    *
-    * TODO:
-    * If we can prove that the values are workgroup-uniform, we can skip this
-    * and just use whatever the current wave has. However, NIR divergence analysis
-    * currently doesn't support this.
     */
 
    nir_def *zero = nir_imm_int(b, 0);
@@ -1374,6 +1396,9 @@ ac_nir_lower_ngg_mesh(nir_shader *shader, const ac_nir_lower_ngg_options *option
    unsigned api_workgroup_size = shader->info.workgroup_size[0] *
                                  shader->info.workgroup_size[1] *
                                  shader->info.workgroup_size[2];
+
+   nir_custom_divergence_analysis(shader,
+      api_workgroup_size <= options->wave_size ? 0 : nir_divergence_across_subgroups);
 
    bool fast_launch_2 = options->compiler_info->gfx_level >= GFX11;
 
