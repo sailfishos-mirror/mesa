@@ -46,7 +46,7 @@ void vbo_save_init( struct gl_context *ctx )
 
    vbo_save_api_init( save );
 
-   save->no_current_update = false;
+   save->restore_attrib_after_draw = true;
 
    ctx->Driver.CurrentSavePrimitive = PRIM_OUTSIDE_BEGIN_END;
 

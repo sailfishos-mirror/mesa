@@ -190,7 +190,7 @@ struct vbo_save_context {
 
    GLboolean dangling_attr_ref;
    GLboolean out_of_memory;  /**< True if last VBO allocation failed */
-   bool no_current_update;
+   bool restore_attrib_after_draw;
 
    uint8_t free_bo_pool_n_entries;
    struct free_bo_pool_entry *free_bo_pool;
@@ -231,7 +231,7 @@ vbo_save_SaveFlushVertices(struct gl_context *ctx);
 
 void
 vbo_save_NotifyBegin(struct gl_context *ctx, GLenum mode,
-                     bool no_current_update);
+                     bool restore_attrib_after_draw);
 
 void
 vbo_save_NewList(struct gl_context *ctx, GLuint list, GLenum mode);
