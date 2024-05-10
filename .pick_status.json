@@ -1854,7 +1854,7 @@
         "description": "wsi/wayland: Use `wl_fixes` to destroy `wl_registry`",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
