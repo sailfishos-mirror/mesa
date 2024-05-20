@@ -172,6 +172,9 @@ i915_ioctl_gem_userptr(int fd, unsigned long request, void *arg)
    struct drm_i915_gem_userptr *userptr = arg;
    struct i915_bo *bo = calloc(1, sizeof(*bo));
 
+   if (!userptr->user_size)
+      return -EINVAL;
+
    drm_shim_bo_init(&bo->base, userptr->user_size);
 
    userptr->handle = drm_shim_bo_get_handle(shim_fd, &bo->base);
