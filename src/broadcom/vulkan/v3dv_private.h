@@ -226,6 +226,9 @@ bool v3dv_meta_can_use_tlb(struct v3dv_image *image,
 struct v3dv_instance {
    struct vk_instance vk;
 
+   struct driOptionCache dri_options;
+   struct driOptionCache available_dri_options;
+
    bool pipeline_cache_enabled;
    bool default_pipeline_cache_enabled;
    bool meta_cache_enabled;
