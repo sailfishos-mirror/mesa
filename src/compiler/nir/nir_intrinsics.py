@@ -1789,6 +1789,9 @@ intrinsic("unit_test_output", src_comp=[0], indices=[BASE])
 intrinsic("unit_test_uniform_input", dest_comp=0, indices=[BASE])
 intrinsic("unit_test_divergent_input", dest_comp=0, indices=[BASE])
 
+# Intrinsic used for nir_opt_algebraic_pattern_test
+intrinsic("unit_test_assert_eq", src_comp=[0, 0], flags=[])
+
 # Untyped buffer load/store instructions of arbitrary length.
 # src[] = { descriptor, vector byte offset, scalar byte offset, index offset }
 # The index offset is multiplied by the stride in the descriptor.
