@@ -1200,8 +1200,6 @@ for s in [16, 32, 64]:
          ('fneg', ('fexp2', ('fmul', ('flog2', ('fabs', a)), b))),
                   ('fexp2', ('fmul', ('flog2', ('fabs', a)), b)))),
 
-       (('bcsel', a, ('b2f(is_used_once)', 'b@{}'.format(s)), ('b2f', 'c@{}'.format(s))), ('b2f', ('bcsel', a, b, c))),
-
        # The C spec says, "If the value of the integral part cannot be represented
        # by the integer type, the behavior is undefined."  "Undefined" can mean
        # "the conversion doesn't happen at all."
@@ -1232,6 +1230,9 @@ for s in [16, 32, 64]:
        # HLSL's sign function returns an integer
        (('i2f{}'.format(s), ('f2i', ('fsign', 'a@{}'.format(s)))), ('fsign', a)),
     ])
+
+    if s < 64:
+        optimizations.extend([(('bcsel', a, ('b2f(is_used_once)', 'b@{}'.format(s)), ('b2f', 'c@{}'.format(s))), ('b2f', ('bcsel', a, b, c)))])
 
     for B in [32, 64]:
         if s < B:
@@ -1349,9 +1350,6 @@ for s in [8, 16, 32, 64]:
        (('bcsel', ('ige', 'a@{}'.format(s), b), b, a), ('imin', a, b), '!'+lower_imin),
        (('bcsel', ('ige', 'b@{}'.format(s), a), b, a), ('imax', a, b), '!'+lower_imax),
 
-       # True/False are ~0 and 0 in NIR.  b2i of True is 1, and -1 is ~0 (True).
-       (('ineg', ('b2i{}'.format(s), 'a@{}'.format(s))), a),
-
        # SM5 32-bit shifts are defined to use the 5 least significant bits (or 4 bits for 16 bits)
        (('ishl', 'a@{}'.format(s), ('iand', s - 1, b)), ('ishl', a, b)),
        (('ishr', 'a@{}'.format(s), ('iand', s - 1, b)), ('ishr', a, b)),
@@ -1376,6 +1374,11 @@ for s in [8, 16, 32, 64]:
        (('iand', ('uge(is_used_once)', f'a@{s}', b), ('uge', a, c)), ('uge', a, ('umax', b, c)), '!'+lower_umax),
        (('iand', ('uge(is_used_once)', f'a@{s}', c), ('uge', b, c)), ('uge', ('umin', a, b), c), '!'+lower_umin),
     ])
+
+    # There are no 64bit booleans in NIR
+    if s < 64:
+        # True/False are ~0 and 0 in NIR.  b2i of True is 1, and -1 is ~0 (True).
+        optimizations.extend([(('ineg', ('b2i{}'.format(s), 'a@{}'.format(s))), a)])
 
 optimizations.extend([
    # Common pattern like 'if (i == 0 || i == 1 || ...)'
