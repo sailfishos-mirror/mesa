@@ -179,6 +179,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_swapchain = PVR_USE_WSI_PLATFORM,
       .KHR_swapchain_maintenance1 = PVR_USE_WSI_PLATFORM,
       .KHR_swapchain_mutable_format = PVR_USE_WSI_PLATFORM,
+      .KHR_synchronization2 = true,
       .KHR_timeline_semaphore = true,
       .KHR_unified_image_layouts = true,
       .KHR_uniform_buffer_standard_layout = true,
@@ -496,6 +497,9 @@ static void pvr_physical_device_get_supported_features(
 
       /* VK_KHR_present_wait2 */
       .presentWait2 = PVR_USE_WSI_PLATFORM,
+
+      /* Vulkan 1.3 / VK_KHR_synchronization2 */
+      .synchronization2 = true,
 
       /* Vulkan 1.4 / VK_EXT_vertex_attribute_divisor /
          VK_KHR_vertex_attribute_divisor */

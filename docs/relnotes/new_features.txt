@@ -13,3 +13,4 @@ VK_ARM_shader_core_properties on panvk/v6-7
 VK_ARM_scheduling_controls on panvk/v6-7
 shaderCoreBuiltins on panvk/v6-7
 schedulingControls on panvk/v6-7
+VK_KHR_synchronization2 on pvr

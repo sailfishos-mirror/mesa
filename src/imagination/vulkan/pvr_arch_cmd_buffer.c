@@ -9675,8 +9675,8 @@ void PVR_PER_ARCH(CmdPipelineBarrier2)(VkCommandBuffer commandBuffer,
    struct pvr_cmd_buffer_state *const state = &cmd_buffer->state;
    const struct pvr_render_pass *const render_pass =
       state->render_pass_info.pass;
-   VkPipelineStageFlags vk_src_stage_mask = 0U;
-   VkPipelineStageFlags vk_dst_stage_mask = 0U;
+   VkPipelineStageFlags2 vk_src_stage_mask = 0U;
+   VkPipelineStageFlags2 vk_dst_stage_mask = 0U;
    bool is_stencil_store_load_needed;
    uint32_t required_stage_mask = 0U;
    uint32_t src_stage_mask;
