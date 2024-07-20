@@ -68,9 +68,6 @@ endif
 if with_any_vk or with_gallium_zink
   subdir('vulkan')
 endif
-if with_any_intel
-  subdir('intel')
-endif
 if with_virtio_vk
   subdir('virtio/vulkan')
 endif
@@ -91,6 +88,9 @@ if with_gallium_freedreno or with_freedreno_vk or with_tools.contains('freedreno
 endif
 if with_imagination_vk or with_tools.contains('imagination')
   subdir('imagination')
+endif
+if with_any_intel
+  subdir('intel')
 endif
 if with_gallium_panfrost or with_gallium_lima or with_panfrost_vk or with_tools.contains('panfrost')
   subdir('panfrost')

@@ -338,11 +338,17 @@ if host_machine.cpu_family() == 'x86' and with_glx_read_only_text
     pre_args += ['-DGLX_X86_READONLY_TEXT']
 endif
 
+with_intel_virtio = get_option('intel-virtio-experimental')
+if with_intel_virtio
+  pre_args += '-DHAVE_INTEL_VIRTIO'
+endif
+
 with_vdrm = [
   with_amdgpu_virtio,
   freedreno_kmds.contains('virtio'),
   with_gallium_asahi,
   with_asahi_vk,
+  with_intel_virtio,
 ].contains(true)
 
 with_dri = false
