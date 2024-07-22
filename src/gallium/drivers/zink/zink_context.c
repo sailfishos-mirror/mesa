@@ -36,6 +36,7 @@
 #include "zink_screen.h"
 #include "zink_state.h"
 #include "zink_surface.h"
+#include "zink_video.h"
 
 
 #include "nir/pipe_nir.h"
@@ -6119,6 +6120,8 @@ zink_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
       if (!zink_descriptors_init(ctx))
          goto fail;
    }
+
+   zink_video_init(ctx);
 
    if (!is_copy_only && !is_compute_only) {
       ctx->base.create_texture_handle = zink_create_texture_handle;

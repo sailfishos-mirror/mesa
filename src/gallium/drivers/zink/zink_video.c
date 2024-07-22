@@ -784,11 +784,7 @@ zink_video_buffer_create(struct pipe_context *pctx, const struct pipe_video_buff
       modifiers_count = MIN2(count, ARRAY_SIZE(mod));
    }
 
-   struct zink_video_caps_info caps_info = { 0 };
-   zink_video_fill_caps(screen, PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN,
-                        PIPE_VIDEO_ENTRYPOINT_BITSTREAM, false,
-                        &caps_info);
-   if (caps_info.dec_caps.flags & VK_VIDEO_DECODE_CAPABILITY_DPB_AND_OUTPUT_COINCIDE_BIT_KHR) {
+   if (screen->video_output_usage & VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR) {
       vidbuf.flags = ZINK_RESOURCE_FLAG_VIDEO_DPB | ZINK_RESOURCE_FLAG_VIDEO_OUTPUT;
    } else {
       vidbuf.flags = ZINK_RESOURCE_FLAG_VIDEO_OUTPUT;
@@ -919,4 +915,68 @@ zink_video_fill_caps(struct zink_screen *screen,
    caps_info->h264_dec_caps.sType = VK_STRUCTURE_TYPE_VIDEO_DECODE_H264_CAPABILITIES_KHR;
 
    return VKSCR(GetPhysicalDeviceVideoCapabilitiesKHR)(screen->pdev, &vk_profile.profile, &caps_info->caps) == VK_SUCCESS;
+}
+
+VkResult
+zink_fill_video_format_props(struct zink_screen *screen,
+                             VkImageUsageFlags usage,
+                             enum pipe_video_profile profile,
+                             uint32_t bit_depth,
+                             struct zink_video_format_prop *props)
+{
+   struct zink_video_profile_info profiles = {0};
+   zink_video_fill_profiles(screen, &profiles, profile, bit_depth);
+
+   VkPhysicalDeviceVideoFormatInfoKHR video_format_info = {};
+   video_format_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_FORMAT_INFO_KHR;
+   video_format_info.pNext = &profiles.list;
+   video_format_info.imageUsage = usage;
+
+   props->pVideoFormatProperties = NULL;
+   props->videoFormatPropertyCount = 0;
+   uint32_t count = 0;
+   VkResult ret = VKSCR(GetPhysicalDeviceVideoFormatPropertiesKHR)(screen->pdev, &video_format_info,
+                                                                   &count, NULL);
+   if (ret != VK_SUCCESS)
+      return ret;
+   VkVideoFormatPropertiesKHR *fprops = calloc(count, sizeof(VkVideoFormatPropertiesKHR));
+   if (!fprops)
+      return VK_ERROR_OUT_OF_HOST_MEMORY;
+   for (unsigned i = 0; i < count; i++)
+      fprops[i].sType = VK_STRUCTURE_TYPE_VIDEO_FORMAT_PROPERTIES_KHR;
+   ret = VKSCR(GetPhysicalDeviceVideoFormatPropertiesKHR)(screen->pdev, &video_format_info,
+                                                          &count, fprops);
+   if (ret != VK_SUCCESS) {
+      free(fprops);
+      return ret;
+   }
+   props->pVideoFormatProperties = fprops;
+   props->videoFormatPropertyCount = count;
+   return VK_SUCCESS;
+}
+
+void
+zink_video_init_format_props(struct zink_screen *screen)
+{
+   struct zink_video_caps_info caps_info = { 0 };
+   bool coincide = zink_video_fill_caps(screen, PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH,
+                                        PIPE_VIDEO_ENTRYPOINT_BITSTREAM, false, &caps_info) &&
+                   (caps_info.dec_caps.flags & VK_VIDEO_DECODE_CAPABILITY_DPB_AND_OUTPUT_COINCIDE_BIT_KHR);
+   screen->video_output_usage = VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR;
+   if (coincide)
+      screen->video_output_usage |= VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR;
+
+   for (unsigned i = 0; i < ARRAY_SIZE(screen->video_format_prop_dpb); i++) {
+      uint32_t bit_depth = i ? 10 : 8;
+      /* querying format properties for an unsupported profile is invalid */
+      if (!zink_video_fill_caps(screen, PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH,
+                                PIPE_VIDEO_ENTRYPOINT_BITSTREAM, bit_depth == 10, &caps_info))
+         continue;
+      zink_fill_video_format_props(screen, VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR,
+                                   PIPE_VIDEO_PROFILE_UNKNOWN, bit_depth,
+                                   &screen->video_format_prop_dpb[i]);
+      zink_fill_video_format_props(screen, screen->video_output_usage,
+                                   PIPE_VIDEO_PROFILE_UNKNOWN, bit_depth,
+                                   &screen->video_format_prop_output[i]);
+   }
 }

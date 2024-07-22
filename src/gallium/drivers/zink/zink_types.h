@@ -1432,6 +1432,11 @@ struct zink_format_props {
    VkFormatFeatureFlags2 bufferFeatures;
 };
 
+struct zink_video_format_prop {
+   uint32_t videoFormatPropertyCount;
+   VkVideoFormatPropertiesKHR *pVideoFormatProperties;
+};
+
 struct zink_screen {
    struct pipe_screen base;
 
@@ -1628,6 +1633,11 @@ struct zink_screen {
       /* intel driver is somehow broken for srgb-compatible dmabufs...but only in mesa CI */
       bool srgb_dmabufs;
    } driver_workarounds;
+
+   VkImageUsageFlags video_output_usage;
+   /* indexed by bit depth: 8, 10 */
+   struct zink_video_format_prop video_format_prop_dpb[2];
+   struct zink_video_format_prop video_format_prop_output[2];
 };
 
 static inline struct zink_screen *
