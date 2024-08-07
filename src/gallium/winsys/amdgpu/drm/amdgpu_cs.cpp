@@ -1628,6 +1628,18 @@ static int amdgpu_cs_submit_ib_userq(struct amdgpu_userq *userq,
    if (r)
       mesa_loge("amdgpu: getting wait fences failed\n");
 
+   if (aws->userq_job_log) {
+      for (unsigned i = 0; i < userq_wait_data.num_fences; i++) {
+         /* The uq_va memory is allocated in kernel from a memory chunk. This memory chunk is
+          * mapped to same address for all process/apps. Once uq_va is guess mapped to a
+          * given queue, cross process/queue fence dependency can be analyzed.
+          */
+         mesa_logi("amdgpu: uq_log: %s:  num_wait_fences=%d  uq_va=%llx  job=%llx\n",
+                   amdgpu_userq_str[acs->queue_index], userq_wait_data.num_fences, fence_info[i].va,
+                   fence_info[i].value);
+      }
+   }
+
    simple_mtx_lock(&userq->lock);
    amdgpu_cs_add_userq_packets(aws, userq, csc, userq_wait_data.num_fences, fence_info);
    struct drm_amdgpu_userq_signal userq_signal_data = {
@@ -1657,6 +1669,11 @@ static int amdgpu_cs_submit_ib_userq(struct amdgpu_userq *userq,
 #endif
    userq->doorbell_bo_map[AMDGPU_USERQ_DOORBELL_INDEX] = userq->next_wptr;
    r = ac_drm_userq_signal(aws->dev, &userq_signal_data);
+
+   if (aws->userq_job_log) {
+      mesa_logi("amdgpu: uq_log: %s:  submitted_job=%llx\n", amdgpu_userq_str[acs->queue_index],
+                (long long)*userq->wptr_bo_map);
+   }
 
    *seq_no = userq->user_fence_seq_num;
    simple_mtx_unlock(&userq->lock);

@@ -72,6 +72,41 @@ amdgpu_userq_ring_init(struct amdgpu_winsys *aws, struct amdgpu_userq *userq,
    return true;
 }
 
+static void *
+userq_job_log_thread(void *data)
+{
+   struct amdgpu_winsys *aws = data;
+   struct amdgpu_userq *userq;
+
+   while (aws->userq_job_log) {
+      os_time_sleep(1000 * 700);
+      for (unsigned i = 0; i < AMDGPU_MAX_QUEUES; i++) {
+         userq = &aws->queues[i].userq;
+         if (userq->userq_handle) {
+            uint64_t last_submitted_job = *userq->wptr_bo_map;
+            uint64_t last_completed_job = *userq->user_fence_ptr;
+
+            if (userq->last_submitted_job != last_submitted_job ||
+                userq->last_completed_job != last_completed_job) {
+               mesa_logi("amdgpu: uq_log: %s:  submitted_job=%llx  completed_job=%llx\n",
+                         amdgpu_userq_str[i], (long long)last_submitted_job,
+                         (long long)last_completed_job);
+               userq->last_submitted_job = last_submitted_job;
+               userq->last_completed_job = last_completed_job;
+            }
+         }
+      }
+   }
+
+   return NULL;
+}
+
+void
+amdgpu_userq_start_job_log_thread(struct amdgpu_winsys *aws)
+{
+   pthread_create(&aws->userq_job_log_thread, NULL, userq_job_log_thread, aws);
+}
+
 void
 amdgpu_userq_deinit(struct amdgpu_winsys *aws, struct amdgpu_userq *userq)
 {

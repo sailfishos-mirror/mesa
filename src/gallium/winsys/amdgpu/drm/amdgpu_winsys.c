@@ -25,6 +25,13 @@
 #include <fcntl.h>
 #include "sid.h"
 
+char amdgpu_userq_str[AMDGPU_MAX_QUEUES][8] = {
+   "gfx",
+   "gfx_hi",
+   "comp",
+   "sdma"
+};
+
 static struct hash_table *dev_tab = NULL;
 static simple_mtx_t dev_tab_mutex = SIMPLE_MTX_INITIALIZER;
 
@@ -59,6 +66,7 @@ static bool do_winsys_init(struct amdgpu_winsys *aws,
                       strstr(debug_get_option("AMD_DEBUG", ""), "sqtt") != NULL;
    aws->zero_all_vram_allocs = strstr(debug_get_option("R600_DEBUG", ""), "zerovram") != NULL ||
                               driQueryOptionb(config->options, "radeonsi_zerovram");
+   aws->userq_job_log = strstr(debug_get_option("AMD_DEBUG", ""), "userqjoblog") != NULL;
 
    for (unsigned i = 0; i < ARRAY_SIZE(aws->queues); i++)
       simple_mtx_init(&aws->queues[i].userq.lock, mtx_plain);
@@ -66,6 +74,9 @@ static bool do_winsys_init(struct amdgpu_winsys *aws,
    /* TODO: Enable this once the kernel handles it efficiently. */
    if (!aws->info.userq_ip_mask)
       aws->info.has_vm_always_valid = false;
+
+   if (aws->userq_job_log)
+      amdgpu_userq_start_job_log_thread(aws);
 
    return true;
 
@@ -79,6 +90,11 @@ static void do_winsys_deinit(struct amdgpu_winsys *aws)
 {
    if (aws->reserve_vmid)
       ac_drm_vm_unreserve_vmid(aws->dev, 0);
+
+   if (aws->userq_job_log) {
+      aws->userq_job_log = false;
+      pthread_join(aws->userq_job_log_thread, NULL);
+   }
 
    for (unsigned i = 0; i < ARRAY_SIZE(aws->queues); i++) {
       for (unsigned j = 0; j < ARRAY_SIZE(aws->queues[i].fences); j++)

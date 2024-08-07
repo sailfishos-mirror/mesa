@@ -99,7 +99,14 @@ struct amdgpu_userq {
       struct amdgpu_userq_compute_data compute_data;
       struct amdgpu_userq_sdma_data sdma_data;
    };
+
+   /* Used in userq job log thread to only print if data has changed */
+   uint64_t last_submitted_job;
+   uint64_t last_completed_job;
 };
+
+void
+amdgpu_userq_start_job_log_thread(struct amdgpu_winsys *aws);
 
 bool
 amdgpu_userq_init(struct amdgpu_winsys *aws, struct amdgpu_userq *userq, enum amd_ip_type ip_type,
