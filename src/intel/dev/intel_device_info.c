@@ -1268,6 +1268,11 @@ static const struct intel_device_info intel_device_info_nvl_u_h = {
    XE3P_PLACEHOLDER_THREADS_AND_URB,                            \
    .platform = INTEL_PLATFORM_ ## platform_suffix
 
+UNUSED static const struct intel_device_info intel_device_info_nvl_p = {
+   XE3P_CONFIG(NVL_P),
+   .has_local_mem = false,
+};
+
 void
 intel_device_info_topology_reset_masks(struct intel_device_info *devinfo)
 {
