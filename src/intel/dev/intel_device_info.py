@@ -137,6 +137,7 @@ Enum("intel_platform",
       "INTEL_PLATFORM_PTL",
       "INTEL_PLATFORM_WCL",
       "INTEL_PLATFORM_NVL_U",
+      "INTEL_PLATFORM_NVL_P",
       ])
 
 Struct("intel_memory_class_instance",
