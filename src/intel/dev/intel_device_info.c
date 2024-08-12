@@ -80,6 +80,7 @@ static const struct {
    { "bmg", 0xe202 },
    { "ptl", 0xb080 },
    { "nvl-u", 0xd740 },
+   { "nvl", 0xd750 },
 };
 
 /**
@@ -1268,7 +1269,7 @@ static const struct intel_device_info intel_device_info_nvl_u_h = {
    XE3P_PLACEHOLDER_THREADS_AND_URB,                            \
    .platform = INTEL_PLATFORM_ ## platform_suffix
 
-UNUSED static const struct intel_device_info intel_device_info_nvl_p = {
+static const struct intel_device_info intel_device_info_nvl_p = {
    XE3P_CONFIG(NVL_P),
    .has_local_mem = false,
 };
