@@ -55,7 +55,7 @@ files_libiris = files(
 )
 
 iris_per_hw_ver_libs = []
-foreach v : ['80', '90', '110', '120', '125', '200', '300']
+foreach v : ['80', '90', '110', '120', '125', '200', '300', '350']
   if v == '80' and not with_intel_elk
     continue
   endif

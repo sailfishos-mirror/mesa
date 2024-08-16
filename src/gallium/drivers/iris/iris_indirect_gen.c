@@ -58,6 +58,8 @@
 # include "intel_gfx200_shaders_binding.h"
 #elif GFX_VERx10 == 300
 # include "intel_gfx300_shaders_binding.h"
+#elif GFX_VERx10 == 350
+# include "intel_gfx350_shaders_binding.h"
 #else
 # error "Unsupported generation"
 #endif
