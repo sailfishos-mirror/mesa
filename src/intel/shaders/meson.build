@@ -33,7 +33,9 @@ intel_shaders_gens = [ [ 80,   8],
                        [120,  12],
                        [125, 125],
                        [200,  20],
-                       [300,  30] ]
+                       [300,  30],
+                       [350,  35],
+                     ]
 intel_shaders = []
 intel_shaders_headers = []
 foreach gen : intel_shaders_gens
