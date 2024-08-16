@@ -880,6 +880,7 @@ get_embedded_xml_data_by_name(const char *filename,
       { "gen125.xml",   125 },
       { "xe2.xml",      200 },
       { "xe3.xml",      300 },
+      { "xe3p.xml",     350 },
    };
 
    int num = -1;

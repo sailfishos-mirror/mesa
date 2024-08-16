@@ -54,6 +54,8 @@
 #  include "genxml/xe2_video_pack.h"
 #elif (GFX_VERx10 == 300)
 #  include "genxml/xe3_video_pack.h"
+#elif (GFX_VERx10 == 350)
+#  include "genxml/xe3p_video_pack.h"
 #else
 #  error "Need to add a pack header include for this gen"
 #endif

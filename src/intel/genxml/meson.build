@@ -15,12 +15,14 @@ gen_xml_files = [
   'gen125.xml',
   'xe2.xml',
   'xe3.xml',
+  'xe3p.xml',
 ]
 
 gen_xml_rt_files = [
   'gen125_rt.xml',
   'xe2_rt.xml',
   'xe3_rt.xml',
+  'xe3p_rt.xml',
 ]
 
 gen_pack_header_deps = files('intel_genxml.py', 'util.py')
