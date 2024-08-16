@@ -1594,6 +1594,7 @@ intel_device_info_init_common(int pci_id, bool building,
    case 12:
    case 20:
    case 30:
+   case 35:
       devinfo->max_wm_threads = 128 /* threads-per-PSD */
                               * devinfo->num_slices
                               * 8; /* subslices per slice */
