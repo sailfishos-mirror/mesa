@@ -987,7 +987,7 @@ cmd_buffer_emit_rt_dispatch_globals(struct anv_cmd_buffer *cmd_buffer,
          .bo = rt->scratch.bo,
          .offset = rt->scratch.layout.ray_stack_start,
       },
-#if GFX_VERx10 == 300
+#if GFX_VERx10 >= 300
       .CallStackHandler   = anv_shader_internal_get_handler(
          cmd_buffer->device->rt_trivial_return, 0),
 #else
@@ -1055,7 +1055,7 @@ cmd_buffer_emit_rt_dispatch_globals_indirect(struct anv_cmd_buffer *cmd_buffer,
          .bo = rt->scratch.bo,
          .offset = rt->scratch.layout.ray_stack_start,
       },
-#if GFX_VERx10 == 300
+#if GFX_VERx10 >= 300
       .CallStackHandler   = anv_shader_internal_get_handler(
          cmd_buffer->device->rt_trivial_return, 0),
 #else

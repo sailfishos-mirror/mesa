@@ -7062,6 +7062,9 @@ VK_DEFINE_NONDISP_HANDLE_CASTS(anv_video_session, vk.base,
    case 300:                                    \
       genX_thing = &gfx30_##thing;              \
       break;                                    \
+   case 350:                                    \
+      genX_thing = &gfx35_##thing;              \
+      break;                                    \
    default:                                     \
       UNREACHABLE("Unknown hardware generation"); \
    }                                            \
@@ -7088,6 +7091,9 @@ VK_DEFINE_NONDISP_HANDLE_CASTS(anv_video_session, vk.base,
 #  include "anv_genX.h"
 #  undef genX
 #  define genX(x) gfx30_##x
+#  include "anv_genX.h"
+#  undef genX
+#  define genX(x) gfx35_##x
 #  include "anv_genX.h"
 #  undef genX
 #endif
