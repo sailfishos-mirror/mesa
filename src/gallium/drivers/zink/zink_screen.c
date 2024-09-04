@@ -1382,6 +1382,9 @@ zink_is_format_supported(struct pipe_screen *pscreen,
          return false;
    }
 
+   if (format == PIPE_FORMAT_NV12 || format == PIPE_FORMAT_P010)
+      return false;
+
    /* always use superset to determine feature support */
    VkFormat vkformat = zink_get_format(screen, format == PIPE_FORMAT_A8_UNORM ? zink_format_get_emulated_alpha(format) : format);
    if (vkformat == VK_FORMAT_UNDEFINED)
@@ -2057,6 +2060,11 @@ zink_get_format(struct zink_screen *screen, enum pipe_format format)
 
    if (format == PIPE_FORMAT_R4A4_UNORM)
       return VK_FORMAT_R4G4_UNORM_PACK8;
+
+   if (format == PIPE_FORMAT_NV12)
+      return VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
+   if (format == PIPE_FORMAT_P010)
+      return VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16;
 
    return ret;
 }
