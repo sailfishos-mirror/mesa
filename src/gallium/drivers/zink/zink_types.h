@@ -1391,6 +1391,7 @@ struct zink_resource {
    bool subdata; //doing subdata call
    unsigned dt_stride;
 
+   uint8_t plane;
    uint8_t modifiers_count;
    uint64_t *modifiers;
 
