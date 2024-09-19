@@ -2052,6 +2052,7 @@ anv_layout_to_aux_usage(const struct intel_device_info * const devinfo,
 
    case ISL_AUX_STATE_COMPRESSED_CLEAR:
    case ISL_AUX_STATE_COMPRESSED_NO_CLEAR:
+   case ISL_AUX_STATE_COMPRESSED_HIER_DEPTH:
       return image->planes[plane].aux_usage;
 
    case ISL_AUX_STATE_RESOLVED:
@@ -2115,6 +2116,7 @@ anv_layout_to_fast_clear_type(const struct intel_device_info * const devinfo,
 
    switch (aux_state) {
    case ISL_AUX_STATE_CLEAR:
+   case ISL_AUX_STATE_COMPRESSED_HIER_DEPTH:
       UNREACHABLE("We never use this state");
 
    case ISL_AUX_STATE_PARTIAL_CLEAR:

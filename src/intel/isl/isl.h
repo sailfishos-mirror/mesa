@@ -985,6 +985,12 @@ enum isl_aux_state {
     * Since neither the primary surface nor the auxiliary surface contains the
     * clear value, the surface can be cleared to a different color by simply
     * changing the clear color without modifying either surface.
+    *
+    * Note that depth images that support HiZ CCS have two potential encodings
+    * of the clear state with inconsistent behavior depending on whether it is
+    * implied by the hierarchical depth surface (e.g. from a HiZ CCS fast
+    * clear) or by the CCS auxiliary surface (e.g. from a HiZ CCS WT clear),
+    * to avoid ambiguity this enum only denotes the former state.
     */
    ISL_AUX_STATE_CLEAR,
 
@@ -1005,6 +1011,11 @@ enum isl_aux_state {
     * primary surface may contain all, some, or none of the data required to
     * reconstruct the actual sample values.  Blocks may also be in the clear
     * state (see Clear) and have their value taken from outside the surface.
+    *
+    * In this state, all of the data required to reconstruct the final sample
+    * values is contained in the CCS/MCS auxiliary surfaces, primary surface
+    * and clear value, the hierarchical depth surface doesn't have to be
+    * considered if present.
     */
    ISL_AUX_STATE_COMPRESSED_CLEAR,
 
@@ -1012,10 +1023,24 @@ enum isl_aux_state {
     *
     * This state is identical to the state above except that no blocks are in
     * the clear state.  In this state, all of the data required to reconstruct
-    * the final sample values is contained in the auxiliary and primary
-    * surface and the clear value is not considered.
+    * the final sample values is contained in the CCS/MCS auxiliary surfaces
+    * and primary surface, the clear value and hierarchical depth surface
+    * don't have to be considered.
     */
    ISL_AUX_STATE_COMPRESSED_NO_CLEAR,
+
+   /** Compressed with hierarchical depth information
+    *
+    * In this state, neither the CCS surface (if present) nor the primary
+    * surface have a complete representation of the data.  Instead, they must
+    * be used together in combination with the hierarchical depth surface or
+    * else corruption may occur.  Depending on the auxiliary compression
+    * format and the CCS and hierarchical depth data, any given block in the
+    * primary surface may contain all, some, or none of the data required to
+    * reconstruct the actual sample values.  Blocks may also be in the clear
+    * state (see Clear) and have their value taken from outside the surface.
+    */
+   ISL_AUX_STATE_COMPRESSED_HIER_DEPTH,
 
    /** Resolved
     *
