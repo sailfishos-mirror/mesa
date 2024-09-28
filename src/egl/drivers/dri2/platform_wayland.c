@@ -1689,6 +1689,16 @@ create_wl_buffer(struct dri2_egl_display *dri2_dpy,
       if (dri2_surf)
          wl_proxy_set_queue((struct wl_proxy *)params, dri2_surf->wl_queue);
 
+      if (wl_proxy_get_version((struct wl_proxy *)dri2_dpy->wl_dmabuf) >=
+          ZWP_LINUX_BUFFER_PARAMS_V1_SET_SAMPLING_DEVICE_SINCE_VERSION) {
+          struct wl_array dev;
+          wl_array_init(&dev);
+          wl_array_add(&dev, sizeof(dev_t));
+          memcpy(dev.data, &dri2_dpy->display_device_dev, sizeof(dev_t));
+          zwp_linux_buffer_params_v1_set_sampling_device(params, &dev);
+          wl_array_release(&dev);
+      }
+
       for (i = 0; i < num_planes; i++) {
          struct dri_image *p_image;
          int stride, offset;
@@ -2158,6 +2168,7 @@ dri2_wl_init_display_dev(
       return;
    }
 
+   dri2_dpy->display_device_dev = dev;
    dri2_dpy->device_name = node;
    dri2_dpy->fd_render_gpu = fd;
 #ifdef HAVE_BIND_WL_DISPLAY
@@ -2250,8 +2261,7 @@ default_dmabuf_feedback_tranche_done(
    struct dmabuf_feedback *feedback = &dri2_dpy->dmabuf_feedback;
 
    /* Add tranche to array of tranches. */
-   util_dynarray_append(&feedback->tranches, struct dmabuf_feedback_tranche,
-                        feedback->pending_tranche);
+   util_dynarray_append(&feedback->tranches, feedback->pending_tranche);
 
    dmabuf_feedback_tranche_init(&feedback->pending_tranche);
 }
@@ -2310,7 +2320,7 @@ registry_handle_global_drm(void *data, struct wl_registry *registry,
               version >= 3) {
       dri2_dpy->wl_dmabuf = wl_registry_bind(
          registry, name, &zwp_linux_dmabuf_v1_interface,
-         MIN2(version, ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION));
+         MIN2(version, ZWP_LINUX_BUFFER_PARAMS_V1_SET_SAMPLING_DEVICE_SINCE_VERSION));
       zwp_linux_dmabuf_v1_add_listener(dri2_dpy->wl_dmabuf, &dmabuf_listener,
                                        dri2_dpy);
    } else if (strcmp(interface, wp_presentation_interface.name) == 0) {
@@ -2641,6 +2651,17 @@ dri2_initialize_wayland_drm_extensions(struct dri2_egl_display *dri2_dpy)
    if (dri2_dpy->wl_dmabuf_feedback) {
       zwp_linux_dmabuf_feedback_v1_destroy(dri2_dpy->wl_dmabuf_feedback);
       dri2_dpy->wl_dmabuf_feedback = NULL;
+
+      /* For dmabuf v6 we don't get a main device, use the first tranch suitable for sampling as default */
+      if (dri2_dpy->fd_render_gpu == -1) {
+         util_dynarray_foreach(&dri2_dpy->dmabuf_feedback.tranches,
+                               struct dmabuf_feedback_tranche, tranche) {
+            if ((tranche->flags & ZWP_LINUX_DMABUF_FEEDBACK_V1_TRANCHE_FLAGS_SAMPLING) != 0) {
+               dri2_wl_init_display_dev(dri2_dpy, tranche->target_device);
+               break;
+            }
+         }
+      }
    }
 
 #ifdef HAVE_BIND_WL_DISPLAY
@@ -2669,6 +2690,7 @@ static EGLBoolean
 dri2_initialize_wayland_drm(_EGLDisplay *disp)
 {
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
+   drmDevicePtr render_dev, preferred_dev, tranche_dev;
 
    if (dri2_wl_formats_init(&dri2_dpy->formats) < 0)
       goto cleanup;
@@ -2705,8 +2727,49 @@ dri2_initialize_wayland_drm(_EGLDisplay *disp)
    if (!dri2_initialize_wayland_drm_extensions(dri2_dpy))
       goto cleanup;
 
-   loader_get_user_preferred_fd(&dri2_dpy->fd_render_gpu,
-                                &dri2_dpy->fd_display_gpu);
+   if (drmGetDevice2(dri2_dpy->fd_render_gpu, 0, &render_dev) != 0)
+      goto cleanup;
+   if (drmGetDevice2(dri2_dpy->fd_render_gpu, 0, &preferred_dev) != 0) {
+      drmFreeDevice(&render_dev);
+      goto cleanup;
+   };
+
+   if (loader_get_user_preferred_device(render_dev, preferred_dev))
+   {
+      bool found_matching_tranche = false;
+
+      /* check if the compositor can sample from the new device */
+      util_dynarray_foreach(&dri2_dpy->dmabuf_feedback.tranches,
+                            struct dmabuf_feedback_tranche, tranche) {
+         if ((tranche->flags & ZWP_LINUX_DMABUF_FEEDBACK_V1_TRANCHE_FLAGS_SAMPLING) != 0) {
+            if (drmGetDeviceFromDevId(tranche->target_device,
+                                      0, &tranche_dev) < 0) {
+               continue;
+            }
+
+            if (!found_matching_tranche
+                && loader_drm_devices_match(preferred_dev, tranche_dev)) {
+               close(dri2_dpy->fd_render_gpu);
+               dri2_wl_init_display_dev(dri2_dpy, tranche->target_device);
+               found_matching_tranche = true;
+               drmFreeDevice(&tranche_dev);
+               break;
+            }
+
+            drmFreeDevice(&tranche_dev);
+         }
+      }
+
+      dri2_dpy->fd_display_gpu = dri2_dpy->fd_render_gpu;
+      if (!found_matching_tranche) {
+         // fallback to copying
+         dri2_dpy->fd_render_gpu = loader_open_device(preferred_dev->nodes[DRM_NODE_RENDER]);
+      }
+   } else {
+      dri2_dpy->fd_display_gpu = dri2_dpy->fd_render_gpu;
+   }
+   drmFreeDevice(&render_dev);
+   drmFreeDevice(&preferred_dev);
 
    if (dri2_dpy->fd_render_gpu != dri2_dpy->fd_display_gpu) {
       free(dri2_dpy->device_name);
