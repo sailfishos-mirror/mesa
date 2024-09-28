@@ -138,7 +138,7 @@ struct wsi_wl_display {
 
    bool sw;
 
-   dev_t main_device;
+   dev_t display_device_dev;
    bool same_gpu;
 
    clockid_t presentation_clock_id;
@@ -1512,7 +1512,7 @@ registry_handle_global(void *data, struct wl_registry *registry,
       if (strcmp(interface, zwp_linux_dmabuf_v1_interface.name) == 0 && version >= 3) {
          display->wl_dmabuf =
             wl_registry_bind(registry, name, &zwp_linux_dmabuf_v1_interface,
-                             MIN2(version, ZWP_LINUX_DMABUF_V1_GET_DEFAULT_FEEDBACK_SINCE_VERSION));
+                             MIN2(version, ZWP_LINUX_BUFFER_PARAMS_V1_SET_SAMPLING_DEVICE_SINCE_VERSION));
          zwp_linux_dmabuf_v1_add_listener(display->wl_dmabuf,
                                           &dmabuf_listener, display);
       } else if (strcmp(interface, wp_linux_drm_syncobj_manager_v1_interface.name) == 0) {
@@ -1690,13 +1690,44 @@ wsi_wl_display_init(struct wsi_wayland *wsi_wl,
             /* Apparently some wayland compositor do not send the render
              * device node but the primary, so test against both.
              */
-            display->same_gpu =
-               (wsi_wl->wsi->drm_info.hasRender &&
-                major(display->main_device) == wsi_wl->wsi->drm_info.renderMajor &&
-                minor(display->main_device) == wsi_wl->wsi->drm_info.renderMinor) ||
-               (wsi_wl->wsi->drm_info.hasPrimary &&
-                major(display->main_device) == wsi_wl->wsi->drm_info.primaryMajor &&
-                minor(display->main_device) == wsi_wl->wsi->drm_info.primaryMinor);
+            if (wl_proxy_get_version((struct wl_proxy *)display->wl_dmabuf) >=
+               ZWP_LINUX_BUFFER_PARAMS_V1_SET_SAMPLING_DEVICE_SINCE_VERSION)
+            {
+               /*
+                  For dmabuf v6 we don't get a main device, so we use the first one the compositor can sample from
+                  as default and then try to figure out, if we can use our gpu directly.
+               */
+               util_dynarray_foreach(&display->dmabuf_feedback.tranches,
+                                     struct dmabuf_feedback_tranche, tranche) {
+                  if ((tranche->flags & ZWP_LINUX_DMABUF_FEEDBACK_V1_TRANCHE_FLAGS_SAMPLING) != 0
+                      && !display->display_device_dev) {
+                     display->same_gpu = false; // if this actually is the same_gpu, we'll figure out in the next loop
+                     display->display_device_dev = tranche->target_device;
+                  }
+
+                  if ((tranche->flags & ZWP_LINUX_DMABUF_FEEDBACK_V1_TRANCHE_FLAGS_SAMPLING) != 0 &&
+                     ((wsi_wl->wsi->drm_info.hasRender &&
+                     major(tranche->target_device) == wsi_wl->wsi->drm_info.renderMajor &&
+                     minor(tranche->target_device) == wsi_wl->wsi->drm_info.renderMinor) ||
+                     (wsi_wl->wsi->drm_info.hasPrimary &&
+                     major(tranche->target_device) == wsi_wl->wsi->drm_info.primaryMajor &&
+                     minor(tranche->target_device) == wsi_wl->wsi->drm_info.primaryMinor)))
+                  {
+                     display->display_device_dev = tranche->target_device;
+                     display->same_gpu = true;
+                     break;
+                  }
+               }
+            } else {
+               display->same_gpu =
+                  (wsi_wl->wsi->drm_info.hasRender &&
+                  major(display->dmabuf_feedback.main_device) == wsi_wl->wsi->drm_info.renderMajor &&
+                  minor(display->dmabuf_feedback.main_device) == wsi_wl->wsi->drm_info.renderMinor) ||
+                  (wsi_wl->wsi->drm_info.hasPrimary &&
+                  major(display->dmabuf_feedback.main_device) == wsi_wl->wsi->drm_info.primaryMajor &&
+                  minor(display->dmabuf_feedback.main_device) == wsi_wl->wsi->drm_info.primaryMinor);
+               display->display_device_dev = display->dmabuf_feedback.main_device;
+            }
          }
    }
 
@@ -3634,6 +3665,17 @@ wsi_wl_image_init(struct wsi_wl_swapchain *chain,
          zwp_linux_dmabuf_v1_create_params(display->wl_dmabuf);
       if (!params)
          goto fail_image;
+
+      if (wl_proxy_get_version((struct wl_proxy *)display->wl_dmabuf) >=
+         ZWP_LINUX_BUFFER_PARAMS_V1_SET_SAMPLING_DEVICE_SINCE_VERSION)
+      {
+         struct wl_array dev;
+         wl_array_init(&dev);
+         wl_array_add(&dev, sizeof(dev_t));
+         memcpy(dev.data, &display->display_device_dev, sizeof(dev_t));
+         zwp_linux_buffer_params_v1_set_sampling_device(params, &dev);
+         wl_array_release(&dev);
+      }
 
       for (int i = 0; i < image->base.num_planes; i++) {
          zwp_linux_buffer_params_v1_add(params,
