@@ -116,7 +116,9 @@ apply_view_usage_for_format(struct zink_screen *screen, struct pipe_resource *pr
                                 zink_get_format_props(screen, format)->linearTilingFeatures :
                                 zink_get_format_props(screen, format)->optimalTilingFeatures;
    uint64_t attachment = (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
-   usage_info->usage = res->obj->vkusage & ~attachment;
+   uint64_t video = (VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR | VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR);
+   bool is_video_plane = (res->obj->vkusage & video) && util_format_get_num_planes(format) == 1;
+   usage_info->usage = res->obj->vkusage;
    if (res->obj->modifier_aspect) {
       feats = res->obj->vkfeats;
       /* intersect format features for current modifier */
@@ -126,12 +128,13 @@ apply_view_usage_for_format(struct zink_screen *screen, struct pipe_resource *pr
       }
    }
    /* if the format features don't support framebuffer attachment, use VkImageViewUsageCreateInfo to remove it */
-   if ((res->obj->vkusage & attachment) &&
-       !(feats & (VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT))) {
-      ivci->pNext = usage_info;
-   } else {
-      ivci->pNext = NULL;
-   }
+   bool no_attachment = (res->obj->vkusage & attachment) &&
+                        !(feats & (VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT));
+   if (no_attachment)
+      usage_info->usage &= ~attachment;
+   if (is_video_plane)
+      usage_info->usage &= ~video;
+   ivci->pNext = no_attachment || is_video_plane ? usage_info : NULL;
 }
 
 static struct zink_surface *
