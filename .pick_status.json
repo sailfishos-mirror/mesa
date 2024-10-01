@@ -8284,7 +8284,7 @@
         "description": "zink: only try DISJOINT for multi-planar formats in find_good_mod",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "59487e4a61e713107bfb62d5f8bd15137e0659fe",
         "notes": null
