@@ -630,6 +630,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_bind_memory2 = true,
       .KHR_buffer_device_address = true,
       .KHR_copy_commands2 = true,
+      .KHR_copy_memory_indirect = pdev->info.gfx_level >= GFX8,
       .KHR_create_renderpass2 = true,
       .KHR_dedicated_allocation = true,
       .KHR_deferred_host_operations = true,
@@ -1526,6 +1527,10 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .shaderMixedFloatDotProductFloat16AccFloat16 = pdev->info.gfx_level >= GFX11,
       .shaderMixedFloatDotProductBFloat16Acc = radv_bfloat16_enabled(pdev),
       .shaderMixedFloatDotProductFloat8AccFloat32 = pdev->info.gfx_level >= GFX12,
+
+      /* VK_KHR_copy_memory_indirect */
+      .indirectMemoryCopy = pdev->info.gfx_level >= GFX8,
+      .indirectMemoryToImageCopy = pdev->info.gfx_level >= GFX8,
    };
 }
 
@@ -1644,6 +1649,12 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
    os_get_page_size(&os_page_size);
 
    radv_init_image_properties(pdev);
+
+   VkQueueFlags copy_memory_indirect_queues = 0;
+   if (radv_graphics_queue_enabled(pdev))
+      copy_memory_indirect_queues |= VK_QUEUE_GRAPHICS_BIT;
+   if (radv_compute_queue_enabled(pdev))
+      copy_memory_indirect_queues |= VK_QUEUE_COMPUTE_BIT;
 
    pdev->vk.properties = (struct vk_properties){
 #ifdef ANDROID_STRICT
@@ -2210,6 +2221,9 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
       .rgba4OpaqueBlackSwizzled = true,
       .resolveSrgbFormatAppliesTransferFunction = true,
       .resolveSrgbFormatSupportsTransferFunctionControl = true,
+
+      /* VK_KHR_copy_memory_indirect */
+      .supportedQueues = copy_memory_indirect_queues,
    };
 
    struct vk_properties *p = &pdev->vk.properties;
