@@ -112,7 +112,7 @@ struct vl_screen *vl_kopper_screen_create_win32(LUID *adapter);
 #else
 /* Always enable the DRM vl winsys */
 struct vl_screen *
-vl_drm_screen_create(int fd, bool honor_dri_prime);
+vl_drm_screen_create(int fd, bool honor_dri_prime, bool zink);
 
 struct vl_screen *
 vl_vgem_drm_screen_create(int fd);
