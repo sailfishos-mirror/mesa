@@ -838,8 +838,8 @@ def image(name, src_comp=[], extra_indices=[], **kwargs):
 image("load", src_comp=[4, 1, 1], extra_indices=[DEST_TYPE], dest_comp=0, flags=[CAN_ELIMINATE])
 image("sparse_load", src_comp=[4, 1, 1], extra_indices=[DEST_TYPE], dest_comp=0, flags=[CAN_ELIMINATE])
 image("store", src_comp=[4, 1, 0, 1], extra_indices=[SRC_TYPE])
-image("atomic",  src_comp=[4, 1, 1], dest_comp=1, extra_indices=[ATOMIC_OP])
-image("atomic_swap", src_comp=[4, 1, 1, 1], dest_comp=1, extra_indices=[ATOMIC_OP])
+image("atomic",  src_comp=[4, 1, 0], dest_comp=0, extra_indices=[ATOMIC_OP])
+image("atomic_swap", src_comp=[4, 1, 0, 0], dest_comp=0, extra_indices=[ATOMIC_OP])
 image("size",    dest_comp=0, src_comp=[1], flags=[CAN_ELIMINATE, CAN_REORDER])
 image("levels",  dest_comp=1, flags=[CAN_ELIMINATE, CAN_REORDER])
 image("samples", dest_comp=1, flags=[CAN_ELIMINATE, CAN_REORDER])
@@ -943,30 +943,34 @@ intrinsic("load_vulkan_descriptor", src_comp=[-1], dest_comp=0,
 # PCO global variants use a vec3 for the memory address and data, where component X
 # has the low 32 address bits, component Y has the high 32 address bits, and component Z
 # has the data parameter.
+#
+# Note on vector atomics:
+# These work per component, not on the whole vector at once. Each component
+# is atomic by itself. This means other threads might see some components
+# updated while others are still old.
+intrinsic("deref_atomic",  src_comp=[-1, 0], dest_comp=0, indices=[ACCESS, ATOMIC_OP])
+intrinsic("ssbo_atomic",  src_comp=[-1, 1, 0], dest_comp=0, indices=[ACCESS, ATOMIC_OP, OFFSET_SHIFT])
+intrinsic("shared_atomic",  src_comp=[1, 0], dest_comp=0, indices=[BASE, ATOMIC_OP])
+intrinsic("shared_atomic_nv",  src_comp=[1, 1, 0], dest_comp=0, indices=[BASE, ATOMIC_OP, OFFSET_SHIFT_NV])
+intrinsic("task_payload_atomic",  src_comp=[1, 0], dest_comp=0, indices=[BASE, ATOMIC_OP])
+intrinsic("global_atomic",  src_comp=[1, 0], dest_comp=0, indices=[ATOMIC_OP])
+intrinsic("global_atomic_2x32",  src_comp=[2, 0], dest_comp=0, indices=[ATOMIC_OP])
+intrinsic("global_atomic_amd",  src_comp=[1, 1, 0], dest_comp=0, indices=[BASE, ATOMIC_OP])
+intrinsic("global_atomic_agx",  src_comp=[1, 1, 0], dest_comp=0, indices=[ATOMIC_OP, SIGN_EXTEND])
+intrinsic("global_atomic_nv",  src_comp=[1, 1, 0], dest_comp=0, indices=[BASE, ATOMIC_OP])
+intrinsic("global_atomic_pco",  src_comp=[3], dest_comp=0, indices=[ATOMIC_OP], bit_sizes=[32])
 
-intrinsic("deref_atomic",  src_comp=[-1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP])
-intrinsic("ssbo_atomic",  src_comp=[-1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP, OFFSET_SHIFT])
-intrinsic("shared_atomic",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("shared_atomic_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP, OFFSET_SHIFT_NV])
-intrinsic("task_payload_atomic",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("global_atomic",  src_comp=[1, 1], dest_comp=1, indices=[ATOMIC_OP])
-intrinsic("global_atomic_2x32",  src_comp=[2, 1], dest_comp=1, indices=[ATOMIC_OP])
-intrinsic("global_atomic_amd",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("global_atomic_agx",  src_comp=[1, 1, 1], dest_comp=1, indices=[ATOMIC_OP, SIGN_EXTEND])
-intrinsic("global_atomic_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("global_atomic_pco",  src_comp=[3], dest_comp=1, indices=[ATOMIC_OP], bit_sizes=[32])
-
-intrinsic("deref_atomic_swap",  src_comp=[-1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP])
-intrinsic("ssbo_atomic_swap",  src_comp=[-1, 1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP, OFFSET_SHIFT])
-intrinsic("shared_atomic_swap",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("shared_atomic_swap_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP, OFFSET_SHIFT_NV])
-intrinsic("task_payload_atomic_swap",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("global_atomic_swap",  src_comp=[1, 1, 1], dest_comp=1, indices=[ATOMIC_OP])
-intrinsic("global_atomic_swap_2x32",  src_comp=[2, 1, 1], dest_comp=1, indices=[ATOMIC_OP])
-intrinsic("global_atomic_swap_amd",  src_comp=[1, 1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("global_atomic_swap_agx",  src_comp=[1, 1, 1, 1], dest_comp=1, indices=[ATOMIC_OP, SIGN_EXTEND])
-intrinsic("global_atomic_swap_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("global_atomic_swap_pco",  src_comp=[4], dest_comp=1, indices=[ATOMIC_OP], bit_sizes=[32])
+intrinsic("deref_atomic_swap",  src_comp=[-1, 0, 0], dest_comp=0, indices=[ACCESS, ATOMIC_OP])
+intrinsic("ssbo_atomic_swap",  src_comp=[-1, 1, 0, 0], dest_comp=0, indices=[ACCESS, ATOMIC_OP, OFFSET_SHIFT])
+intrinsic("shared_atomic_swap",  src_comp=[1, 0, 0], dest_comp=0, indices=[BASE, ATOMIC_OP])
+intrinsic("shared_atomic_swap_nv",  src_comp=[1, 0, 0], dest_comp=0, indices=[BASE, ATOMIC_OP, OFFSET_SHIFT_NV])
+intrinsic("task_payload_atomic_swap",  src_comp=[1, 0, 0], dest_comp=0, indices=[BASE, ATOMIC_OP])
+intrinsic("global_atomic_swap",  src_comp=[1, 0, 0], dest_comp=0, indices=[ATOMIC_OP])
+intrinsic("global_atomic_swap_2x32",  src_comp=[2, 0, 0], dest_comp=0, indices=[ATOMIC_OP])
+intrinsic("global_atomic_swap_amd",  src_comp=[1, 1, 0, 0], dest_comp=0, indices=[BASE, ATOMIC_OP])
+intrinsic("global_atomic_swap_agx",  src_comp=[1, 0, 0, 1], dest_comp=0, indices=[ATOMIC_OP, SIGN_EXTEND])
+intrinsic("global_atomic_swap_nv",  src_comp=[1, 0, 0], dest_comp=0, indices=[BASE, ATOMIC_OP])
+intrinsic("global_atomic_swap_pco",  src_comp=[4], dest_comp=0, indices=[ATOMIC_OP], bit_sizes=[32])
 
 def system_value(name, dest_comp, indices=[], bit_sizes=[32], can_reorder=True):
     flags = [CAN_ELIMINATE, CAN_REORDER] if can_reorder else [CAN_ELIMINATE]

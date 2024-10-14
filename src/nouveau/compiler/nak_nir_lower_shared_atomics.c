@@ -141,7 +141,7 @@ build_mesh_atomic(nir_builder *b, nir_intrinsic_instr *intrin)
       nir_if *if_body =
          nir_push_if(b, nir_ieq(b, elected_thread, current_invocation));
       {
-         current_value = nir_load_shared(b, 1, intrin->def.bit_size, offset,
+         current_value = nir_load_shared(b, intrin->def.num_components, intrin->def.bit_size, offset,
                                          .base = nir_intrinsic_base(intrin));
          nir_def *new_value = lower_atomic_op(b, intrin, current_value);
          nir_store_shared(b, new_value, offset,

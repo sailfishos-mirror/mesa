@@ -1219,6 +1219,7 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
 
          nir_def *atomic_swap = nir_global_atomic_swap_pco(
             b,
+            intr->num_components,
             addr_data,
             .atomic_op = nir_intrinsic_atomic_op(intr));
          nir_def_rewrite_uses(&intr->def, atomic_swap);
@@ -1234,6 +1235,7 @@ lower_image(nir_builder *b, nir_intrinsic_instr *intr, void *cb_data)
 
       nir_def *atomic =
          nir_global_atomic_pco(b,
+                               intr->num_components,
                                addr_data,
                                .atomic_op = nir_intrinsic_atomic_op(intr));
       nir_def_rewrite_uses(&intr->def, atomic);
