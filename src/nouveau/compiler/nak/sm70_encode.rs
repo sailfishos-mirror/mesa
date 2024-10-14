@@ -3486,10 +3486,10 @@ impl SM70Encoder<'_> {
             self.set_field(
                 73..77,
                 match atom_type {
-                    AtomType::F16x2 => 0_u8,
+                    AtomType::F16v2 => 0_u8,
                     // f16x4 => 1
                     // f16x8 => 2
-                    // bf16x2 => 3
+                    // bf16v2 => 3
                     // bf16x4 => 4
                     // bf16x8 => 5
                     AtomType::F32 => 9_u8, // .ftz
@@ -3515,7 +3515,7 @@ impl SM70Encoder<'_> {
                     AtomType::I32 => 1_u8,
                     AtomType::U64 => 2_u8,
                     AtomType::F32 => 3_u8,
-                    AtomType::F16x2 => 4_u8,
+                    AtomType::F16v2 => 4_u8,
                     AtomType::I64 => 5_u8,
                     AtomType::F64 => 6_u8,
                 },
