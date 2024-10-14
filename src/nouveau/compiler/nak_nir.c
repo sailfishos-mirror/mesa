@@ -1167,12 +1167,16 @@ type_size_vec4(const struct glsl_type *type, bool bindless)
 static bool
 atomic_supported(const nir_instr *instr, const void *data)
 {
-   /* Shared atomics don't support 64-bit arithmetic */
+   /* Shared atomics don't support and need lowering for:
+    * - 64-bit arithmetic
+    * - float32 adds
+    * - f16vec2 */
    const nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
    nir_atomic_op atomic_op = nir_intrinsic_atomic_op(intr);
    return !(intr->intrinsic == nir_intrinsic_shared_atomic &&
             (intr->def.bit_size == 64 ||
-            (intr->def.bit_size == 32 && atomic_op == nir_atomic_op_fadd)));
+            (intr->def.bit_size == 32 && atomic_op == nir_atomic_op_fadd) ||
+            (intr->def.bit_size == 16 && intr->def.num_components == 2)));
 }
 
 static unsigned
