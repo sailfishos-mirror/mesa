@@ -47,6 +47,19 @@
 #define DRM_FORMAT_MOD_LINEAR 0
 #endif
 
+static unsigned
+get_zvc_bitstream_size(struct zink_video_codec *zvc)
+{
+   return zvc->base.width * zvc->base.height * (512 / (16 * 16));
+}
+
+/* most frames are far smaller than the worst case, and decode_bitstream grows the allocation for the rest */
+static unsigned
+get_zvc_bitstream_initial_size(struct zink_video_codec *zvc)
+{
+   return MAX2(get_zvc_bitstream_size(zvc) / 16, 64 * 1024);
+}
+
 /* also unwinds a partially created session */
 static void
 destroy_session(struct zink_video_codec *zvc)
@@ -75,8 +88,8 @@ zink_destroy_video_codec(struct pipe_video_codec *codec) {
    struct zink_video_codec *zvc = (struct zink_video_codec *)codec;
    struct zink_screen *screen = (struct zink_screen *)zvc->screen;
 
-   for (unsigned i = 0; i < NUM_BUFFERS; i++)
-      pipe_resource_reference(&zvc->bs[i], NULL);
+   u_upload_unmap(zvc->bitstream_mgr);
+   u_upload_destroy(zvc->bitstream_mgr);
 
    for (unsigned i = 0; i < 17; i++) {
       if (zvc->render_pic_list[i])
@@ -260,6 +273,7 @@ zink_video_create_session(struct zink_video_codec *zvc,
       goto fail;
 
    zvc->srcbuf_align = caps_info.caps.minBitstreamBufferSizeAlignment;
+   zvc->srcbuf_offset_align = caps_info.caps.minBitstreamBufferOffsetAlignment;
    return true;
 
 fail:
@@ -268,19 +282,63 @@ fail:
    return false;
 }
 
+static bool
+alloc_bitstream(struct zink_video_codec *zvc, unsigned size)
+{
+   struct zink_screen *screen = zink_screen(zvc->screen);
+   struct pipe_resource *pres = NULL;
+   void *ptr = NULL;
+   unsigned alignment = MAX2(screen->info.props.limits.minMemoryMapAlignment, zvc->srcbuf_offset_align);
+
+   u_upload_alloc_ref(zvc->bitstream_mgr, 0, size, alignment, &zvc->bs_offset, &pres, &ptr);
+   if (!pres)
+      return false;
+   zink_resource_reference(&zvc->bitstream_res, NULL);
+   zvc->bitstream_res = zink_resource(pres);
+   zvc->bs_ptr = ptr;
+   zvc->bs_alloc_size = size;
+   return true;
+}
+
+static bool
+grow_bitstream(struct zink_video_codec *zvc, uint64_t size)
+{
+   size = align64(MAX2(size, (uint64_t)zvc->bs_alloc_size * 2), zvc->srcbuf_align);
+   if (size > UINT32_MAX)
+      return false;
+
+   /* the old mapping goes away when the uploader replaces its buffer */
+   void *data = NULL;
+   if (zvc->bs_size) {
+      data = malloc(zvc->bs_size);
+      if (!data)
+         return false;
+      memcpy(data, zvc->bs_ptr, zvc->bs_size);
+   }
+   bool ret = alloc_bitstream(zvc, size);
+   if (ret && data)
+      memcpy(zvc->bs_ptr, data, zvc->bs_size);
+   free(data);
+   return ret;
+}
+
 static void
 zink_begin_frame(struct pipe_video_codec *codec,
                  struct pipe_video_buffer *target,
                  struct pipe_picture_desc *picture)
 {
    struct zink_video_codec *zvc = (struct zink_video_codec *)codec;
-   zvc->bs_size = 0;
-   zvc->bs_ptr = pipe_buffer_map(zvc->base.context, zvc->bs[zvc->cur_bs_buf], PIPE_MAP_WRITE, &zvc->bs_xfer);
+   struct zink_context *ctx = zink_context(codec->context);
 
+   zvc->bs_size = 0;
    zvc->error = !zvc->session &&
                 !zink_video_create_session(zvc, codec->width, codec->height,
                                            target->buffer_format,
                                            codec->profile, codec->entrypoint);
+   if (!zvc->error)
+      zvc->error = !alloc_bitstream(zvc, align64(get_zvc_bitstream_initial_size(zvc), zvc->srcbuf_align));
+   if (!zvc->error)
+      zink_batch_reference_resource_rw(ctx, zvc->bitstream_res, true);
 }
 
 static void
@@ -301,10 +359,22 @@ zink_decode_bitstream(struct pipe_video_codec *codec,
                         const unsigned *sizes)
 {
    struct zink_video_codec *zvc = (struct zink_video_codec *)codec;
+   if (zvc->error)
+      return;
+
+   uint64_t size = zvc->bs_size;
+   for (unsigned i = 0; i < num_buffers; ++i)
+      size += sizes[i];
+   if (align64(size, zvc->srcbuf_align) > zvc->bs_alloc_size &&
+       !grow_bitstream(zvc, size)) {
+      mesa_loge("ZINK: failed to grow the video bitstream buffer");
+      zvc->error = true;
+      return;
+   }
+
    for (unsigned i = 0; i < num_buffers; ++i) {
-      memcpy(zvc->bs_ptr, buffers[i], sizes[i]);
+      memcpy(zvc->bs_ptr + zvc->bs_size, buffers[i], sizes[i]);
       zvc->bs_size += sizes[i];
-      zvc->bs_ptr += sizes[i];
    }
 }
 
@@ -442,7 +512,7 @@ static void
 end_bitstream(struct zink_video_codec *zvc)
 {
    zvc->bs_ptr = NULL;
-   pipe_buffer_unmap(zvc->base.context, zvc->bs_xfer);
+   u_upload_unmap(zvc->bitstream_mgr);
 }
 
 static void
@@ -455,7 +525,7 @@ end_coding(struct zink_screen *screen,
 
    VKSCR(CmdEndVideoCodingKHR)(cmdbuf, &eci);
 
-   struct zink_resource *zbs = (struct zink_resource *)zvc->bs[zvc->cur_bs_buf];
+   struct zink_resource *zbs = zvc->bitstream_res;
    VkBufferMemoryBarrier2KHR bitstream_bmb;
    bitstream_bmb.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2_KHR;
    bitstream_bmb.pNext = NULL;
@@ -467,7 +537,7 @@ end_coding(struct zink_screen *screen,
    bitstream_bmb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
    bitstream_bmb.buffer = zbs->obj->buffer;
    bitstream_bmb.size = align64(zvc->bs_size, zvc->srcbuf_align);
-   bitstream_bmb.offset = 0;
+   bitstream_bmb.offset = zvc->bs_offset;
    zbs->queue = VK_QUEUE_FAMILY_IGNORED;
 
    VkDependencyInfoKHR di = { 0 };
@@ -499,8 +569,6 @@ end_coding(struct zink_screen *screen,
    VKSCR(DestroyVideoSessionParametersKHR)(screen->dev,
                                            zvc->params, NULL);
 
-   zvc->cur_bs_buf++;
-   zvc->cur_bs_buf %= NUM_BUFFERS;
 }
 
 static int
@@ -666,7 +734,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
       zvc->reset_sent = true;
    }
 
-   struct zink_resource *zbs = (struct zink_resource *)zvc->bs[zvc->cur_bs_buf];
+   struct zink_resource *zbs = zvc->bitstream_res;
    VkBufferMemoryBarrier2KHR bitstream_bmb;
    bitstream_bmb.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2_KHR;
    bitstream_bmb.pNext = NULL;
@@ -678,7 +746,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
    bitstream_bmb.dstQueueFamilyIndex = screen->video_decode_queue;
    bitstream_bmb.buffer = zbs->obj->buffer;
    bitstream_bmb.size = align64(zvc->bs_size, zvc->srcbuf_align);
-   bitstream_bmb.offset = 0;
+   bitstream_bmb.offset = zvc->bs_offset;
    zbs->queue = screen->video_decode_queue;
 
    VkDependencyInfoKHR di = { 0 };
@@ -719,7 +787,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
 
 
    vdi.srcBuffer = zbs->obj->buffer;
-   vdi.srcBufferOffset = 0;
+   vdi.srcBufferOffset = zvc->bs_offset;
    vdi.srcBufferRange = align64(zvc->bs_size, zvc->srcbuf_align);
    VKSCR(CmdDecodeVideoKHR)(cmdbuf, &vdi);
 
@@ -751,17 +819,13 @@ zink_create_video_codec(struct pipe_context *pctx, const struct pipe_video_codec
    zvc->base.context = pctx;
 
    zvc->screen = pctx->screen;
+   zvc->bitstream_mgr = u_upload_create(pctx, get_zvc_bitstream_size(zvc), ZINK_BIND_VIDEO, PIPE_USAGE_STAGING, 0);
 
    VkCommandPoolCreateInfo cpci = {0};
    cpci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
    cpci.queueFamilyIndex = screen->video_decode_queue;
    if (VKSCR(CreateCommandPool)(screen->dev, &cpci, NULL, &zvc->cmdpool) != VK_SUCCESS)
       return NULL;
-
-   for (unsigned i = 0; i < NUM_BUFFERS; i++) {
-      zvc->bs[i] = pipe_buffer_create(&screen->base, ZINK_BIND_VIDEO, PIPE_USAGE_STAGING,
-                                      zvc->base.width * zvc->base.height * (512 / (16 * 16)));
-   }
    return &zvc->base;
 }
 
