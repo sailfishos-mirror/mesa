@@ -38,7 +38,6 @@ struct zink_video_codec {
    struct pipe_screen *screen;
    uint8_t *bs_ptr;
    size_t bs_size;
-   VkCommandPool cmdpool;
    unsigned bs_alloc_size;
    unsigned bs_offset;
    bool error;

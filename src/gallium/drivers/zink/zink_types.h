@@ -643,6 +643,8 @@ struct zink_batch_state {
    VkSemaphore sparse_semaphore; //current sparse wait semaphore
    struct util_dynarray fences; //zink_tc_fence refs
 
+   VkVideoSessionParametersKHR video_params;
+
    VkSemaphore present;
    struct zink_resource *swapchain;
    struct util_dynarray acquires;
