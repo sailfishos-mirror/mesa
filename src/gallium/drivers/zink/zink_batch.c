@@ -312,9 +312,11 @@ create_batch_state(struct zink_context *ctx)
 {
    struct zink_screen *screen = zink_screen(ctx->base.screen);
    struct zink_batch_state *bs = rzalloc(NULL, struct zink_batch_state);
+   bs->ctx = ctx;
    VkCommandPoolCreateInfo cpci = {0};
    cpci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-   cpci.queueFamilyIndex = screen->gfx_queue;
+   bs->is_video = ctx->video_batch;
+   cpci.queueFamilyIndex = bs->is_video ? screen->video_decode_queue : screen->gfx_queue;
    VkResult result;
 
    VRAM_ALLOC_LOOP(result,
@@ -365,8 +367,6 @@ create_batch_state(struct zink_context *ctx)
 
 #define SET_CREATE(ptr) \
    _mesa_set_init(ptr, bs, _mesa_hash_pointer, _mesa_key_pointer_equal)
-
-   bs->ctx = ctx;
 
    SET_CREATE(&bs->programs);
    SET_CREATE(&bs->active_queries);
@@ -423,14 +423,22 @@ static struct zink_batch_state *
 find_screen_state(struct zink_screen *screen, struct zink_context *ctx)
 {
    struct zink_batch_state *bs = NULL;
+   struct zink_batch_state *prev = NULL;
+   bool is_video = ctx->video_batch;
    simple_mtx_lock(&screen->free_batch_states_lock);
-   if (screen->free_batch_states) {
-      bs = screen->free_batch_states;
+   for (bs = screen->free_batch_states; bs; prev = bs, bs = bs->next) {
+      if (bs->is_video == is_video)
+         break;
+   }
+   if (bs) {
       bs->ctx = ctx;
-      screen->free_batch_states = bs->next;
-      bs->next = NULL;
+      if (prev)
+         prev->next = bs->next;
+      else
+         screen->free_batch_states = bs->next;
       if (bs == screen->last_free_batch_state)
-         screen->last_free_batch_state = NULL;
+         screen->last_free_batch_state = prev;
+      bs->next = NULL;
    }
    simple_mtx_unlock(&screen->free_batch_states_lock);
    return bs;
@@ -478,11 +486,18 @@ get_batch_state(struct zink_context *ctx)
    struct zink_batch_state *bs = NULL;
 
    /* try from the ones that are known to be free first */
-   if (ctx->free_batch_states) {
-      bs = ctx->free_batch_states;
-      ctx->free_batch_states = bs->next;
+   struct zink_batch_state *prev = NULL;
+   for (bs = ctx->free_batch_states; bs; prev = bs, bs = bs->next) {
+      if (bs->is_video == ctx->video_batch)
+         break;
+   }
+   if (bs) {
+      if (prev)
+         prev->next = bs->next;
+      else
+         ctx->free_batch_states = bs->next;
       if (bs == ctx->last_free_batch_state)
-         ctx->last_free_batch_state = NULL;
+         ctx->last_free_batch_state = prev;
    }
    /* always try to recycle ctx states first */
    if (!bs)
@@ -601,15 +616,15 @@ zink_start_batch(struct zink_context *ctx)
 #endif
 
    /* descriptor buffers must always be bound at the start of a batch */
-   if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB && !(ctx->flags & ZINK_CONTEXT_COPY_ONLY))
+   if (zink_descriptor_mode == ZINK_DESCRIPTOR_MODE_DB && !(ctx->flags & ZINK_CONTEXT_COPY_ONLY) && !ctx->bs->is_video)
       zink_batch_bind_db(ctx);
    /* zero init for unordered blits */
-   if (screen->info.have_EXT_attachment_feedback_loop_dynamic_state) {
+   if (!ctx->bs->is_video && screen->info.have_EXT_attachment_feedback_loop_dynamic_state) {
       VKCTX(CmdSetAttachmentFeedbackLoopEnableEXT)(ctx->bs->cmdbuf, 0);
       VKCTX(CmdSetAttachmentFeedbackLoopEnableEXT)(ctx->bs->reordered_cmdbuf, 0);
       VKCTX(CmdSetAttachmentFeedbackLoopEnableEXT)(ctx->bs->unsynchronized_cmdbuf, 0);
    }
-   if (screen->info.dynamic_state3_feats.extendedDynamicState3RepresentativeFragmentTestEnable) {
+   if (!ctx->bs->is_video && screen->info.dynamic_state3_feats.extendedDynamicState3RepresentativeFragmentTestEnable) {
       VKCTX(CmdSetRepresentativeFragmentTestEnableNV)(ctx->bs->cmdbuf, 0);
       VKCTX(CmdSetRepresentativeFragmentTestEnableNV)(ctx->bs->reordered_cmdbuf, 0);
       VKCTX(CmdSetRepresentativeFragmentTestEnableNV)(ctx->bs->unsynchronized_cmdbuf, 0);
@@ -716,7 +731,7 @@ submit_queue(void *data, void *gdata, int thread_index)
                                                    bs->has_reordered_work ? bs->reordered_cmdbuf :
                                                                             bs->has_unsync ? bs->unsynchronized_cmdbuf :
                                                                                              VK_NULL_HANDLE;
-      if (sync_cmdbuf) {
+      if (sync_cmdbuf && !bs->is_video) {
          VkMemoryBarrier mb;
          mb.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
          mb.pNext = NULL;
@@ -738,6 +753,7 @@ submit_queue(void *data, void *gdata, int thread_index)
       cmdbufs[c++] = bs->cmdbuf;
    si[ZINK_SUBMIT_CMDBUF].pCommandBuffers = cmdbufs;
    si[ZINK_SUBMIT_CMDBUF].commandBufferCount = c;
+
    /* assorted signal submit from wsi/externals */
    si[ZINK_SUBMIT_CMDBUF].signalSemaphoreCount = util_dynarray_num_elements(&bs->signal_semaphores, VkSemaphore);
    si[ZINK_SUBMIT_CMDBUF].pSignalSemaphores = bs->signal_semaphores.data;
@@ -824,8 +840,24 @@ submit_queue(void *data, void *gdata, int thread_index)
    }
 
    simple_mtx_lock(screen->queue_lock);
+   /* wait for the other queue's last submission; this must happen under the lock so no submission can come in between */
+   if (screen->last_submit_id && screen->last_submit_is_video != bs->is_video) {
+      VkPipelineStageFlags flag = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+      uint64_t value = screen->last_submit_id;
+      util_dynarray_append(&bs->wait_semaphores, screen->sem);
+      util_dynarray_append(&bs->wait_semaphore_stages, flag);
+      util_dynarray_append(&bs->wait_semaphore_values, value);
+      si[ZINK_SUBMIT_CMDBUF].waitSemaphoreCount = util_dynarray_num_elements(&bs->wait_semaphores, VkSemaphore);
+      si[ZINK_SUBMIT_CMDBUF].pWaitSemaphores = bs->wait_semaphores.data;
+      si[ZINK_SUBMIT_CMDBUF].pWaitDstStageMask = bs->wait_semaphore_stages.data;
+      sem_submit.waitSemaphoreValueCount = si[ZINK_SUBMIT_CMDBUF].waitSemaphoreCount;
+      sem_submit.pWaitSemaphoreValues = bs->wait_semaphore_values.data;
+      si[ZINK_SUBMIT_CMDBUF].pNext = &sem_submit;
+   }
+   screen->last_submit_id = batch_id;
+   screen->last_submit_is_video = bs->is_video;
    VRAM_ALLOC_LOOP(result,
-      VKSCR(QueueSubmit)(screen->queue, num_si, submit, VK_NULL_HANDLE),
+      VKSCR(QueueSubmit)(bs->is_video ? screen->queue_video_decode : screen->queue, num_si, submit, VK_NULL_HANDLE),
       if (result != VK_SUCCESS) {
          mesa_loge("ZINK: vkQueueSubmit failed (%s)", vk_Result_to_str(result));
          bs->is_device_lost = true;
@@ -951,8 +983,12 @@ zink_end_batch(struct zink_context *ctx)
       if (screen->info.have_KHR_synchronization2) {
          VkImageMemoryBarrier2 imb;
          zink_resource_image_barrier2_init(&imb, res, res->layout, 0, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-         imb.srcQueueFamilyIndex = screen->gfx_queue;
+         imb.srcQueueFamilyIndex = bs->is_video ? screen->video_decode_queue : screen->gfx_queue;
          imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT;
+         if (bs->is_video) {
+            imb.srcStageMask = VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR;
+            imb.srcAccessMask = VK_ACCESS_2_VIDEO_DECODE_WRITE_BIT_KHR;
+         }
          VkDependencyInfo dep = {
             VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
             NULL,
@@ -968,7 +1004,7 @@ zink_end_batch(struct zink_context *ctx)
       } else {
          VkImageMemoryBarrier imb;
          zink_resource_image_barrier_init(&imb, res, res->layout, 0, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-         imb.srcQueueFamilyIndex = screen->gfx_queue;
+         imb.srcQueueFamilyIndex = bs->is_video ? screen->video_decode_queue : screen->gfx_queue;
          imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT;
          VKCTX(CmdPipelineBarrier)(
             bs->cmdbuf,

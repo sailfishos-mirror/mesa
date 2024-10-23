@@ -629,6 +629,7 @@ struct zink_batch_state {
    VkCommandBuffer reordered_cmdbuf;
    VkCommandPool unsynchronized_cmdpool;
    VkCommandBuffer unsynchronized_cmdbuf;
+   bool is_video;
    VkSemaphore signal_semaphore; //external signal semaphore
    struct util_dynarray signal_semaphores; //internal signal semaphores
    struct util_dynarray user_signal_semaphores; //api signal semaphores
@@ -1454,6 +1455,8 @@ struct zink_screen {
    bool frame_marker_emitted;
    bool driver_name_is_inferred;
    uint64_t curr_batch; //the current batch id
+   uint64_t last_submit_id;
+   bool last_submit_is_video;
    uint32_t last_finished;
    VkSemaphore sem;
    VkFence fence;
@@ -2084,6 +2087,7 @@ struct zink_context {
    bool is_device_lost;
    bool primitive_restart;
    bool blitting : 1;
+   bool video_batch : 1;
    bool blit_scissor : 1;
    bool blit_nearest : 1;
    bool unordered_blitting : 1;
