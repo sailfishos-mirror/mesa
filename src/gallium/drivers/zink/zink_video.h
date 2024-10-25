@@ -59,11 +59,6 @@ struct zink_video_codec {
    VkVideoPictureResourceInfoKHR dpb_resources[17];
 };
 
-struct zink_video_surf_data {
-   VkVideoPictureResourceInfoKHR resource;
-   struct zink_video_codec *codec;
-};
-
 struct zink_video_profile {
    VkVideoDecodeH264ProfileInfoKHR h264;
    VkVideoProfileInfoKHR profile;

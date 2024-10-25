@@ -103,31 +103,8 @@ zink_destroy_video_codec(struct pipe_video_codec *codec) {
    u_upload_unmap(zvc->bitstream_mgr);
    u_upload_destroy(zvc->bitstream_mgr);
    zink_resource_reference(&zvc->bitstream_res, NULL);
-
-   for (unsigned i = 0; i < 17; i++) {
-      if (zvc->render_pic_list[i])
-         vl_video_buffer_set_associated_data(zvc->render_pic_list[i], &zvc->base, NULL, NULL);
-   }
    destroy_session(zvc);
    free(zvc);
-}
-
-static void
-zink_destroy_associated_data(void *data)
-{
-   struct zink_video_surf_data *surf = data;
-   struct zink_video_codec *zvc = (struct zink_video_codec *)surf->codec;
-   struct zink_screen *screen = (struct zink_screen *)zvc->screen;
-   video_queue_wait_idle(screen);
-   VKSCR(DestroyImageView)(screen->dev, surf->resource.imageViewBinding, NULL);
-
-   for (unsigned i = 0; i < zvc->max_dpb_slots; i++) {
-      if (zvc->render_pic_list[i] == data) {
-         zvc->render_pic_list[i] = NULL;
-      }
-   }
-   /* destroy iv */
-   free(surf);
 }
 
 static VkImageViewUsageCreateInfo
@@ -494,50 +471,6 @@ convert_pps_sps(struct pipe_picture_desc *picture,
    vsps->pic_height_in_map_units_minus1 = sps->pic_height_in_mbs_minus1;
 }
 
-static struct zink_video_surf_data *
-create_surf(struct zink_video_codec *zvc,
-            struct pipe_video_buffer *target)
-{
-   struct zink_resource *luma = (struct zink_resource *)((struct vl_video_buffer *)target)->resources[0];
-   struct zink_screen *screen = (struct zink_screen *)zvc->screen;
-   struct zink_video_surf_data *surf = calloc(sizeof(*surf), 1);
-   if (!surf)
-      return NULL;
-
-   surf->codec = zvc;
-   surf->resource.sType = VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR;
-   surf->resource.pNext = NULL;
-   surf->resource.codedExtent.width = target->width;
-   surf->resource.codedExtent.height = target->height;
-   surf->resource.imageViewBinding = VK_NULL_HANDLE;
-
-   struct pipe_surface psurf = {};
-   psurf.format = target->buffer_format;
-   VkImageViewCreateInfo ivci = create_ivci(screen, luma, &psurf, PIPE_TEXTURE_2D);
-   ivci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-   VkImageViewUsageCreateInfo usage_info = video_view_usage(luma);
-   ivci.pNext = &usage_info;
-
-   if (VKSCR(CreateImageView)(screen->dev, &ivci, NULL, &surf->resource.imageViewBinding) != VK_SUCCESS) {
-      free(surf);
-      return NULL;
-   }
-
-   return surf;
-}
-
-static struct zink_video_surf_data *
-get_surf(struct zink_video_codec *zvc, struct pipe_video_buffer *buf)
-{
-   struct zink_video_surf_data *surf = vl_video_buffer_get_associated_data(buf, &zvc->base);
-   if (!surf) {
-      surf = create_surf(zvc, buf);
-      if (surf)
-         vl_video_buffer_set_associated_data(buf, &zvc->base, surf, &zink_destroy_associated_data);
-   }
-   return surf;
-}
-
 static void
 end_bitstream(struct zink_video_codec *zvc)
 {
@@ -642,6 +575,32 @@ video_buffer_resource(struct pipe_video_buffer *buf)
    return zink_resource(((struct vl_video_buffer *)buf)->resources[0]);
 }
 
+/* the view belongs to the image, so any codec decoding to or from this buffer can use it */
+static bool
+get_video_picture(struct zink_screen *screen, struct pipe_video_buffer *buf, VkVideoPictureResourceInfoKHR *pic)
+{
+   struct zink_resource *res = video_buffer_resource(buf);
+   simple_mtx_lock(&res->obj->surface_mtx);
+   if (!res->obj->video_view) {
+      struct pipe_surface psurf = {};
+      psurf.format = buf->buffer_format;
+      VkImageViewCreateInfo ivci = create_ivci(screen, res, &psurf, PIPE_TEXTURE_2D);
+      ivci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      VkImageViewUsageCreateInfo usage_info = video_view_usage(res);
+      ivci.pNext = &usage_info;
+      if (VKSCR(CreateImageView)(screen->dev, &ivci, NULL, &res->obj->video_view) != VK_SUCCESS)
+         res->obj->video_view = VK_NULL_HANDLE;
+   }
+   VkImageView view = res->obj->video_view;
+   simple_mtx_unlock(&res->obj->surface_mtx);
+
+   *pic = (VkVideoPictureResourceInfoKHR){ VK_STRUCTURE_TYPE_VIDEO_PICTURE_RESOURCE_INFO_KHR };
+   pic->codedExtent.width = buf->width;
+   pic->codedExtent.height = buf->height;
+   pic->imageViewBinding = view;
+   return view != VK_NULL_HANDLE;
+}
+
 static int
 zink_end_frame_h264(struct pipe_video_codec *codec,
                     struct pipe_video_buffer *target,
@@ -693,24 +652,24 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
          return -1;
    }
 
-   struct zink_video_surf_data *surf = get_surf(zvc, target);
-   if (!surf)
+   VkVideoPictureResourceInfoKHR dst_pic;
+   if (!get_video_picture(screen, target, &dst_pic))
       return -1;
 
    StdVideoDecodeH264ReferenceInfo h264_ref_info[17] = { 0 };
    VkVideoDecodeH264DpbSlotInfoKHR h264_dpb_info[17] = { 0 };
    VkVideoReferenceSlotInfoKHR ref_info[17] = { 0 };
+   VkVideoPictureResourceInfoKHR ref_pics[17];
    int num_ref_frames = 0;
    for (unsigned j = 0; j < ARRAY_SIZE(h264->ref); j++) {
       if (ref_slots[j] < 0)
          continue;
-      struct zink_video_surf_data *rsurf = vl_video_buffer_get_associated_data(h264->ref[j], &zvc->base);
-      if (zvc->coincide_dpb && !rsurf) {
+      unsigned n = num_ref_frames;
+      if (zvc->coincide_dpb && !get_video_picture(screen, h264->ref[j], &ref_pics[n])) {
          ref_slots[j] = -1;
          continue;
       }
-
-      unsigned n = num_ref_frames++;
+      num_ref_frames++;
       h264_ref_info[n].PicOrderCnt[0] = h264->field_order_cnt_list[j][0];
       h264_ref_info[n].PicOrderCnt[1] = h264->field_order_cnt_list[j][1];
       h264_ref_info[n].FrameNum = h264->frame_num_list[j];
@@ -723,7 +682,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
       ref_info[n].sType = VK_STRUCTURE_TYPE_VIDEO_REFERENCE_SLOT_INFO_KHR;
       ref_info[n].slotIndex = ref_slots[j];
       ref_info[n].pNext = &h264_dpb_info[n];
-      ref_info[n].pPictureResource = zvc->coincide_dpb ? &rsurf->resource : &zvc->dpb_resources[ref_slots[j]];
+      ref_info[n].pPictureResource = zvc->coincide_dpb ? &ref_pics[n] : &zvc->dpb_resources[ref_slots[j]];
    }
 
    StdVideoDecodeH264ReferenceInfo h264_setup_info = { 0 };
@@ -738,7 +697,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
 
    setup_info.sType = VK_STRUCTURE_TYPE_VIDEO_REFERENCE_SLOT_INFO_KHR;
    setup_info.slotIndex = cur_slot;
-   setup_info.pPictureResource = zvc->coincide_dpb ? &surf->resource : &zvc->dpb_resources[cur_slot];
+   setup_info.pPictureResource = zvc->coincide_dpb ? &dst_pic : &zvc->dpb_resources[cur_slot];
    setup_info.pNext = &h264_dpb_setup_info;
    /* this must be added to the list of 'bound resources' */
    ref_info[num_ref_frames] = setup_info;
@@ -866,7 +825,7 @@ zink_end_frame_h264(struct pipe_video_codec *codec,
    vdi.referenceSlotCount = num_ref_frames - 1;
    vdi.pReferenceSlots = ref_info;
    vdi.pSetupReferenceSlot = &setup_info;
-   vdi.dstPictureResource = surf->resource;
+   vdi.dstPictureResource = dst_pic;
 
 
    vdi.srcBuffer = zbs->obj->buffer;

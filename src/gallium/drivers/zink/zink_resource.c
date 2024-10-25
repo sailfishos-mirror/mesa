@@ -227,6 +227,7 @@ zink_destroy_resource_object(struct zink_screen *screen, struct zink_resource_ob
 {
    if (!obj->dt)
       zink_destroy_resource_surface_cache(screen, &obj->surface_cache, obj->is_buffer);
+   VKSCR(DestroyImageView)(screen->dev, obj->video_view, NULL);
    simple_mtx_destroy(&obj->surface_mtx);
    if (!obj->dt && zink_debug & ZINK_DEBUG_MEM)
       zink_debug_mem_del(screen, obj->bo);
