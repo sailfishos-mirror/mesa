@@ -999,8 +999,16 @@ lvp_graphics_pipeline_init(struct lvp_pipeline *pipeline,
       }
    }
 
-   if (!libstate && !pipeline->library)
+   if (!libstate && !pipeline->library) {
       lvp_pipeline_shaders_compile(pipeline, false);
+      if (pipeline->layout) {
+         for (unsigned i = 0; i < ARRAY_SIZE(pipeline->shaders); i++) {
+            VkShaderStageFlagBits stage = mesa_to_vk_shader_stage(i);
+            if (pipeline->layout->push_constant_stages & stage)
+               pipeline->shaders[i].push_constant_size = pipeline->layout->push_constant_size;
+         }
+      }
+   }
 
    return VK_SUCCESS;
 
