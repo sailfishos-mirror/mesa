@@ -1416,6 +1416,15 @@ struct cond_exec_skip_count {
    uint64_t start_wptr;
 };
 
+#define add_dbg_count_write_data_pkt(number) do { \
+   amdgpu_pkt_add_dw(PKT3(PKT3_WRITE_DATA, 4, 0)); \
+   amdgpu_pkt_add_dw(WRITE_DATA_DST_SEL(5) | WRITE_DATA_WR_CONFIRM | WRITE_DATA_CACHE_POLICY(3)); \
+   amdgpu_pkt_add_dw(userq->write_data_pkt_dbg_count_va); \
+   amdgpu_pkt_add_dw(userq->write_data_pkt_dbg_count_va >> 32); \
+   amdgpu_pkt_add_dw(number); \
+   amdgpu_pkt_add_dw((uint64_t)number >> 32); \
+} while (0)
+
 static void amdgpu_cs_add_userq_packets(struct amdgpu_winsys *aws,
                                         struct amdgpu_userq *userq,
                                         struct amdgpu_cs_context *csc,
@@ -1440,6 +1449,9 @@ static void amdgpu_cs_add_userq_packets(struct amdgpu_winsys *aws,
          cond_exec_skip_counts[0].count_dw_ptr = amdgpu_pkt_get_ptr_skip_dw();
          cond_exec_skip_counts[0].start_wptr = amdgpu_pkt_get_next_wptr();
       }
+
+      if (aws->userq_job_log)
+         add_dbg_count_write_data_pkt(1);
 
       if (num_fences) {
          unsigned max_num_fences_fwm;
@@ -1472,6 +1484,9 @@ static void amdgpu_cs_add_userq_packets(struct amdgpu_winsys *aws,
             }
          }
       }
+
+      if (aws->userq_job_log)
+         add_dbg_count_write_data_pkt(2);
 
       amdgpu_pkt_add_dw(PKT3(PKT3_HDP_FLUSH, 0, 0));
       amdgpu_pkt_add_dw(0x0);

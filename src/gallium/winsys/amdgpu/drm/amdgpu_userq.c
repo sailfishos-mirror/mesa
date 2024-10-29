@@ -29,7 +29,8 @@ static bool
 amdgpu_userq_ring_init(struct amdgpu_winsys *aws, struct amdgpu_userq *userq,
                        uint64_t *vm_timeline_point_to_wait)
 {
-   /* Allocate ring and user fence in one buffer. */
+   /* Allocate ring and user fence in one buffer. Also allocate for wait packet debug count
+    * variable. */
    uint32_t gtt_bo_size = AMDGPU_USERQ_RING_SIZE + aws->info.gart_page_size;
    userq->gtt_bo = amdgpu_bo_create(aws, gtt_bo_size, 256, RADEON_DOMAIN_GTT,
                                     RADEON_FLAG_GL2_BYPASS | RADEON_FLAG_NO_INTERPROCESS_SHARING);
@@ -59,6 +60,12 @@ amdgpu_userq_ring_init(struct amdgpu_winsys *aws, struct amdgpu_userq *userq,
    *userq->wptr_bo_map = 0;
    userq->next_wptr = 0;
 
+   userq->write_data_pkt_dbg_count_ptr = (uint64_t*)(userq->gtt_bo_map +
+                                                     AMDGPU_USERQ_RING_SIZE + 8);
+   userq->write_data_pkt_dbg_count_va = amdgpu_bo_get_va(userq->gtt_bo) +
+                                                     AMDGPU_USERQ_RING_SIZE + 8;
+   *userq->write_data_pkt_dbg_count_ptr = 0;
+
    /* Allocate memory for rptr. */
    userq->vram_bo = amdgpu_bo_create(aws, aws->info.gart_page_size, 256, RADEON_DOMAIN_VRAM,
                                      RADEON_FLAG_CLEAR_VRAM | RADEON_FLAG_GL2_BYPASS |
@@ -85,14 +92,18 @@ userq_job_log_thread(void *data)
          if (userq->userq_handle) {
             uint64_t last_submitted_job = *userq->wptr_bo_map;
             uint64_t last_completed_job = *userq->user_fence_ptr;
+            uint64_t last_write_data_pkt_dbg_count = *userq->write_data_pkt_dbg_count_ptr;
 
             if (userq->last_submitted_job != last_submitted_job ||
-                userq->last_completed_job != last_completed_job) {
-               mesa_logi("amdgpu: uq_log: %s:  submitted_job=%llx  completed_job=%llx\n",
-                         amdgpu_userq_str[i], (long long)last_submitted_job,
-                         (long long)last_completed_job);
+                userq->last_completed_job != last_completed_job ||
+                userq->last_write_data_pkt_dbg_count != last_write_data_pkt_dbg_count) {
+               mesa_logi("amdgpu: uq_log: %s:  submitted_job=%llx  completed_job=%llx"
+                         " write_data_pkt_dbg_count=%llx\n", amdgpu_userq_str[i],
+                         (long long)last_submitted_job, (long long)last_completed_job,
+                         (long long)last_write_data_pkt_dbg_count);
                userq->last_submitted_job = last_submitted_job;
                userq->last_completed_job = last_completed_job;
+               userq->last_write_data_pkt_dbg_count = last_write_data_pkt_dbg_count;
             }
          }
       }
