@@ -1011,6 +1011,12 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
                         bool will_full_fast_clear,
                         bool acquire_unmodified)
 {
+   /* If will_full_fast_clear is set, the caller promises to fast-clear the
+    * largest portion of the specified range as it can.
+    */
+   if (will_full_fast_clear)
+      return;
+
    struct anv_device *device = cmd_buffer->device;
    const struct intel_device_info *devinfo = device->info;
    /* Validate the inputs. */
@@ -1022,7 +1028,7 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
    /* Ensure the subresource range is valid. */
    UNUSED uint64_t last_level_num = base_level + level_count;
    const uint32_t max_depth = u_minify(image->vk.extent.depth, base_level);
-   UNUSED const uint32_t image_layers = MAX2(image->vk.array_layers, max_depth);
+   const uint32_t image_layers = MAX2(image->vk.array_layers, max_depth);
    assert((uint64_t)base_layer + layer_count  <= image_layers);
    assert(last_level_num <= image->vk.mip_levels);
    /* If there is a layout transfer, the final layout cannot be undefined or
@@ -1224,7 +1230,7 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
             image->planes[plane].primary_surface.isl.format;
          genX(set_fast_clear_state)(cmd_buffer, image, format,
                                     ISL_SWIZZLE_IDENTITY, color);
-      } else if (base_level == 0 && base_layer == 0) {
+      } else if (base_level == 0 && image_layers == layer_count) {
          /* Set the initial clear type to NONE to avoid redundant resolves.
           * Don't apply this optimization to FCV images as they may have other
           * levels/layers with fast-cleared blocks.
@@ -1282,17 +1288,6 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
                uint32_t level_layer_count =
                   MIN2(layer_count, aux_layers - base_layer);
 
-               /* If will_full_fast_clear is set, the caller promises to
-                * fast-clear the largest portion of the specified range as it can.
-                * For color images, that means only the first LOD and array slice.
-                */
-               if (level == 0 && base_layer == 0 && will_full_fast_clear) {
-                  base_layer++;
-                  level_layer_count--;
-                  if (level_layer_count == 0)
-                     continue;
-               }
-
                anv_image_ccs_op(cmd_buffer, image,
                                 image->planes[plane].primary_surface.isl.format,
                                 ISL_SWIZZLE_IDENTITY,
@@ -1304,12 +1299,6 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
             }
          }
       } else {
-         /* If will_full_fast_clear is set, the caller promises to fast-clear
-          * the largest portion of the specified range as it can.
-          */
-         if (will_full_fast_clear)
-            return;
-
          assert(base_level == 0 && level_count == 1);
          anv_blorp_require_rcs(cmd_buffer, NULL, image) {
             anv_image_mcs_op(cmd_buffer, image,
@@ -1365,16 +1354,9 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
          for (uint32_t a = 0; a < level_layer_count; a++) {
             uint32_t array_layer = base_layer + a;
 
-            /* If will_full_fast_clear is set, the caller promises to fast-clear
-             * the largest portion of the specified range as it can.  For color
-             * images, that means only the first LOD and array slice.
-             */
-            if (level == 0 && array_layer == 0 && will_full_fast_clear)
-               continue;
-
             anv_cmd_compute_resolve_predicate(cmd_buffer, image, aspect,
-                                              level, array_layer, resolve_op,
-                                              final_fast_clear);
+                                             level, array_layer, resolve_op,
+                                             final_fast_clear);
 
             if (image->vk.samples == 1) {
                anv_image_ccs_op(cmd_buffer, image,
@@ -1382,14 +1364,6 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
                                 ISL_SWIZZLE_IDENTITY, aspect, level,
                                 array_layer, 1, resolve_op, NULL, true);
             } else {
-               /* We only support fast-clear on the first layer so partial
-                * resolves should not be used on other layers as they will use
-                * the clear color stored in memory that is only valid for layer0.
-                */
-               if (resolve_op == ISL_AUX_OP_PARTIAL_RESOLVE &&
-                   array_layer != 0)
-                  continue;
-
                anv_image_mcs_op(cmd_buffer, image,
                                 image->planes[plane].primary_surface.isl.format,
                                 ISL_SWIZZLE_IDENTITY, aspect, array_layer, 1,
@@ -1404,7 +1378,7 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
     * levels/layers with fast-cleared blocks.
     */
    if (image->planes[plane].aux_usage != ISL_AUX_USAGE_FCV_CCS_E &&
-       base_level == 0 && base_layer == 0) {
+       base_level == 0 && image_layers == layer_count) {
       set_image_fast_clear_state(cmd_buffer, image, aspect,
                                  ANV_FAST_CLEAR_NONE, true);
    }
@@ -6074,8 +6048,7 @@ void genX(CmdBeginRendering)(
 
       if (att->loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR &&
           !(gfx->rendering_flags & VK_RENDERING_RESUMING_BIT)) {
-         uint32_t clear_view_mask = pRenderingInfo->viewMask;
-         VkClearRect clear_rect = {
+         const VkClearRect clear_rect = {
             .rect = render_area,
             .baseArrayLayer = iview->vk.base_array_layer,
             .layerCount = layers,
@@ -6084,9 +6057,7 @@ void genX(CmdBeginRendering)(
             vk_to_isl_color_with_format(att->clearValue.color,
                                         iview->planes[0].isl.format);
 
-         /* We only support fast-clears on the first layer */
-         const bool fast_clear =
-            (!is_multiview || (gfx->view_mask & 1)) &&
+         const bool fast_clear = gfx->view_mask <= 1 &&
             anv_can_fast_clear_color(cmd_buffer, iview->image,
                                      iview->vk.aspects,
                                      iview->vk.base_mip_level,
@@ -6127,9 +6098,8 @@ void genX(CmdBeginRendering)(
          }
 
          if (fast_clear) {
-            /* We only support fast-clears on the first layer */
-            assert(iview->vk.base_mip_level == 0 &&
-                   iview->vk.base_array_layer == 0);
+            /* We only support fast-clears on the first LOD */
+            assert(iview->vk.base_mip_level == 0);
 
             fast_clear_color = clear_color;
 
@@ -6137,8 +6107,10 @@ void genX(CmdBeginRendering)(
                anv_image_ccs_op(cmd_buffer, iview->image,
                                 iview->planes[0].isl.format,
                                 iview->planes[0].isl.swizzle,
-                                iview->vk.aspects,
-                                0, 0, 1, ISL_AUX_OP_FAST_CLEAR,
+                                iview->vk.aspects, 0,
+                                clear_rect.baseArrayLayer,
+                                clear_rect.layerCount,
+                                ISL_AUX_OP_FAST_CLEAR,
                                 &fast_clear_color,
                                 false);
             } else {
@@ -6146,25 +6118,24 @@ void genX(CmdBeginRendering)(
                                 iview->planes[0].isl.format,
                                 iview->planes[0].isl.swizzle,
                                 iview->vk.aspects,
-                                0, 1, ISL_AUX_OP_FAST_CLEAR,
+                                clear_rect.baseArrayLayer,
+                                clear_rect.layerCount,
+                                ISL_AUX_OP_FAST_CLEAR,
                                 &fast_clear_color,
                                 false);
             }
-            clear_view_mask &= ~1u;
-            clear_rect.baseArrayLayer++;
-            clear_rect.layerCount--;
 #if GFX_VER < 20
             set_image_compressed_bit(cmd_buffer, iview->image,
-                                     iview->vk.aspects, 0, 0, 1, true);
+                                     iview->vk.aspects, 0,
+                                     clear_rect.baseArrayLayer,
+                                     clear_rect.layerCount, true);
             genX(set_fast_clear_state)(cmd_buffer, iview->image,
                                        iview->planes[0].isl.format,
                                        iview->planes[0].isl.swizzle,
                                        clear_color);
 #endif
-         }
-
-         if (is_multiview) {
-            u_foreach_bit(view, clear_view_mask) {
+         } else if (is_multiview) {
+            u_foreach_bit(view, pRenderingInfo->viewMask) {
                anv_image_clear_color(cmd_buffer, iview->image,
                                      iview->vk.aspects,
                                      aux_usage,
@@ -6174,7 +6145,7 @@ void genX(CmdBeginRendering)(
                                      iview->vk.base_array_layer + view, 1,
                                      render_area, clear_color);
             }
-         } else if (clear_rect.layerCount > 0) {
+         } else {
             anv_image_clear_color(cmd_buffer, iview->image,
                                   iview->vk.aspects,
                                   aux_usage,
@@ -6216,8 +6187,7 @@ void genX(CmdBeginRendering)(
            render_area.extent.height != iview->vk.extent.height ||
            (gfx->rendering_flags & VK_RENDERING_RESUMING_BIT)) &&
           iview->image->planes[0].aux_usage != ISL_AUX_USAGE_NONE &&
-          iview->planes[0].isl.base_level == 0 &&
-          iview->planes[0].isl.base_array_layer == 0) {
+          iview->planes[0].isl.base_level == 0) {
          struct anv_state surf_state = gfx->color_att[i].surface_state.state;
          genX(cmd_buffer_load_clear_color)(cmd_buffer, surf_state, iview);
       }

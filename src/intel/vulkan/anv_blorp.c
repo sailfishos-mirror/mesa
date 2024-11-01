@@ -1537,17 +1537,20 @@ void anv_CmdClearColorImage(
                                                 src_format.swizzle,
                                                 clear_color)) {
                assert(level == 0);
-               assert(clear_rect.baseArrayLayer == 0);
                if (image->vk.samples == 1) {
                   exec_ccs_op(cmd_buffer, &batch, image,
                               src_format.isl_format, src_format.swizzle,
-                              VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1,
-                              ISL_AUX_OP_FAST_CLEAR, &clear_color);
+                              VK_IMAGE_ASPECT_COLOR_BIT, 0,
+                              clear_rect.baseArrayLayer,
+                              clear_rect.layerCount, ISL_AUX_OP_FAST_CLEAR,
+                              &clear_color);
                } else {
                   exec_mcs_op(cmd_buffer, &batch, image,
                               src_format.isl_format, src_format.swizzle,
-                              VK_IMAGE_ASPECT_COLOR_BIT, 0, 1,
-                              ISL_AUX_OP_FAST_CLEAR, &clear_color);
+                              VK_IMAGE_ASPECT_COLOR_BIT,
+                              clear_rect.baseArrayLayer,
+                              clear_rect.layerCount, ISL_AUX_OP_FAST_CLEAR,
+                              &clear_color);
                }
 
                if (cmd_buffer->device->info->ver < 20) {
@@ -1556,10 +1559,17 @@ void anv_CmdClearColorImage(
                                                          src_format.swizzle,
                                                          clear_color);
                }
-
-               clear_rect.baseArrayLayer++;
-               if (--clear_rect.layerCount == 0)
-                  continue;
+            } else {
+               blorp_clear(&batch, &surf,
+                           src_format.isl_format,
+                           src_format.swizzle, level,
+                           clear_rect.baseArrayLayer,
+                           clear_rect.layerCount,
+                           clear_rect.rect.offset.x,
+                           clear_rect.rect.offset.y,
+                           clear_rect.rect.extent.width,
+                           clear_rect.rect.extent.height,
+                           clear_color, 0 /* color_write_disable */);
             }
 
             anv_cmd_buffer_mark_image_written(cmd_buffer, image,
@@ -1567,16 +1577,6 @@ void anv_CmdClearColorImage(
                                               surf.aux_usage, level,
                                               clear_rect.baseArrayLayer,
                                               clear_rect.layerCount);
-
-            blorp_clear(&batch, &surf,
-                        src_format.isl_format, src_format.swizzle, level,
-                        clear_rect.baseArrayLayer,
-                        clear_rect.layerCount,
-                        clear_rect.rect.offset.x,
-                        clear_rect.rect.offset.y,
-                        clear_rect.rect.extent.width,
-                        clear_rect.rect.extent.height,
-                        clear_color, 0 /* color_write_disable */);
          }
       }
 
@@ -1745,10 +1745,6 @@ can_fast_clear_color_att(struct anv_cmd_buffer *cmd_buffer,
       return false;
    }
 
-   /* We only support fast-clearing a single layer */
-   if (pRects[0].layerCount > 1)
-      return false;
-
    if (att->iview->n_planes != 1) {
       anv_perf_warn(VK_LOG_OBJS(&cmd_buffer->device->vk.base),
                     "Fast clears for vkCmdClearAttachments not supported on "
@@ -1797,15 +1793,17 @@ clear_color_attachment(struct anv_cmd_buffer *cmd_buffer,
          exec_ccs_op(cmd_buffer, batch, iview->image,
                      iview->planes[0].isl.format,
                      iview->planes[0].isl.swizzle,
-                     VK_IMAGE_ASPECT_COLOR_BIT,
-                     0, 0, 1, ISL_AUX_OP_FAST_CLEAR,
+                     VK_IMAGE_ASPECT_COLOR_BIT, 0,
+                     pRects[0].baseArrayLayer + iview->vk.base_array_layer,
+                     pRects[0].layerCount, ISL_AUX_OP_FAST_CLEAR,
                      &clear_color);
       } else {
          exec_mcs_op(cmd_buffer, batch, iview->image,
                      iview->planes[0].isl.format,
                      iview->planes[0].isl.swizzle,
                      VK_IMAGE_ASPECT_COLOR_BIT,
-                     0, 1, ISL_AUX_OP_FAST_CLEAR,
+                     pRects[0].baseArrayLayer + iview->vk.base_array_layer,
+                     pRects[0].layerCount, ISL_AUX_OP_FAST_CLEAR,
                      &clear_color);
       }
 

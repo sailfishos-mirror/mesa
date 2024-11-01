@@ -554,12 +554,6 @@ anv_formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
  * fast-clear values in non-trivial cases (e.g., outside of a render pass in
  * which a fast clear has occurred).
  *
- * In order to avoid having multiple clear colors for a single plane of an
- * image (hence a single RENDER_SURFACE_STATE), we only allow fast-clears on
- * the first slice (level 0, layer 0).  At the time of our testing (Jan 17,
- * 2018), there were no known applications which would benefit from fast-
- * clearing more than just the first slice.
- *
  * The fast clear portion of the image is laid out in the following order:
  *
  *  * 1 clear color per view format used with the image (format depending on
@@ -3978,24 +3972,20 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
                     "level > 0.  Not fast clearing.");
       return false;
    }
+   /* For 3D images prior to Xe2, require all slices to be cleared at once. */
+   if (cmd_buffer->device->info->ver <= 12 &&
+       image->vk.extent.depth > 1 &&
+       clear_rect->layerCount != image->vk.extent.depth) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "layerCount != image depth. Slow clearing.");
+      return false;
+   }
    /* For 2D arrays either using CCS prior to Xe2 or using MCS surfaces on any
     * platform, we require that all layers agree on a clear color.
     */
    if ((cmd_buffer->device->info->ver <= 12 || image->vk.samples > 1) &&
        image->vk.array_layers > 1) {
       assert(fast_clear_type == ANV_FAST_CLEAR_DEFAULT_VALUE);
-   }
-
-   if (clear_rect->baseArrayLayer > 0) {
-      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
-                    "baseArrayLayer > 0.  Not fast clearing.");
-      return false;
-   }
-
-
-   if (clear_rect->layerCount > 1) {
-      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
-                    "layerCount > 1.  Only fast-clearing the first slice");
    }
 
    /* Wa_18020603990 - slow clear surfaces up to 256x256, 32bpp. */
