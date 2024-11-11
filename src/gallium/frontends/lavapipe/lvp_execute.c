@@ -240,6 +240,24 @@ struct rendering_state {
    struct lvp_shader *advanced_blend_fs_shader; /* shader used to build variant */
 };
 
+static void
+handle_set_stage_buffer(struct rendering_state *state,
+                        struct pipe_resource *bo,
+                        size_t offset,
+                        mesa_shader_stage stage,
+                        uint32_t index)
+{
+   state->const_buffer[stage][index].buffer = bo;
+   state->const_buffer[stage][index].buffer_offset = offset;
+   state->const_buffer[stage][index].buffer_size = bo->width0;
+   state->const_buffer[stage][index].user_buffer = NULL;
+
+   state->constbuf_dirty[stage] = true;
+
+   if (state->num_const_bufs[stage] <= index)
+      state->num_const_bufs[stage] = index + 1;
+}
+
 static struct pipe_resource *
 get_buffer_resource(struct pipe_context *ctx, void *mem)
 {
@@ -680,6 +698,9 @@ handle_compute_shader(struct rendering_state *state, struct lvp_shader *shader)
    state->dispatch_info.block[1] = shader->pipeline_nir->nir->info.workgroup_size[1];
    state->dispatch_info.block[2] = shader->pipeline_nir->nir->info.workgroup_size[2];
    state->compute_shader_dirty = true;
+
+   if (shader->heaps && shader->embedded_samplers)
+      handle_set_stage_buffer(state, shader->embedded_samplers, 0, MESA_SHADER_COMPUTE, LVP_DESCRIPTOR_HEAP_EMBEDDED);
 }
 
 static void handle_compute_pipeline(struct vk_cmd_queue_entry *cmd,
@@ -707,6 +728,9 @@ static void handle_ray_tracing_pipeline(struct vk_cmd_queue_entry *cmd,
    state->trace_rays_info.block[0] = shader->pipeline_nir->nir->info.workgroup_size[0];
    state->trace_rays_info.block[1] = shader->pipeline_nir->nir->info.workgroup_size[1];
    state->trace_rays_info.block[2] = shader->pipeline_nir->nir->info.workgroup_size[2];
+
+   if (shader->heaps && shader->embedded_samplers)
+      handle_set_stage_buffer(state, shader->embedded_samplers, 0, MESA_SHADER_RAYGEN, LVP_DESCRIPTOR_HEAP_EMBEDDED);
 }
 
 static void
@@ -809,6 +833,9 @@ handle_graphics_stages(struct rendering_state *state, VkShaderStageFlagBits shad
          assert(0);
          break;
       }
+      struct lvp_shader *shader = state->shaders[stage];
+      if (shader->heaps && shader->embedded_samplers)
+         handle_set_stage_buffer(state, shader->embedded_samplers, 0, stage, LVP_DESCRIPTOR_HEAP_EMBEDDED);
    }
 }
 
@@ -1233,15 +1260,13 @@ static void handle_pipeline(struct vk_cmd_queue_entry *cmd,
    } else if (pipeline->type == LVP_PIPELINE_EXEC_GRAPH) {
       state->exec_graph = pipeline;
    }
-   if (pipeline->layout) {
+
+   state->push_size[pipeline->type] = 0;
+   if (pipeline->layout)
       state->push_size[pipeline->type] = pipeline->layout->push_constant_size;
-   } else {
-      for (unsigned i = 0; i < ARRAY_SIZE(pipeline->shaders); i++)
-         if (pipeline->shaders[i].push_constant_size) {
-            state->push_size[pipeline->type] = pipeline->shaders[i].push_constant_size;
-            break;
-         }
-   }
+
+   for (unsigned i = 0; i < ARRAY_SIZE(pipeline->shaders); i++)
+      state->push_size[pipeline->type] = MAX2(state->push_size[pipeline->type], pipeline->shaders[i].push_constant_size);
 
    if (state->push_size[pipeline->type] != state->emitted_push_size[pipeline->type]) {
       for (unsigned i = 0; i < ARRAY_SIZE(pipeline->shaders); i++)
@@ -1317,24 +1342,6 @@ static void handle_vertex_buffers3(struct vk_cmd_queue_entry *cmd,
    if (vcb->first_binding + vcb->binding_count >= state->num_vb)
       state->num_vb = vcb->first_binding + vcb->binding_count;
    state->vb_dirty = true;
-}
-
-static void
-handle_set_stage_buffer(struct rendering_state *state,
-                        struct pipe_resource *bo,
-                        size_t offset,
-                        mesa_shader_stage stage,
-                        uint32_t index)
-{
-   state->const_buffer[stage][index].buffer = bo;
-   state->const_buffer[stage][index].buffer_offset = offset;
-   state->const_buffer[stage][index].buffer_size = bo->width0;
-   state->const_buffer[stage][index].user_buffer = NULL;
-
-   state->constbuf_dirty[stage] = true;
-
-   if (state->num_const_bufs[stage] <= index)
-      state->num_const_bufs[stage] = index + 1;
 }
 
 static void handle_set_stage(struct rendering_state *state,
@@ -4560,7 +4567,9 @@ process_sequence_ext(struct rendering_state *state,
          break;
       }
       case VK_INDIRECT_COMMANDS_TOKEN_TYPE_PUSH_CONSTANT_EXT:
-      case VK_INDIRECT_COMMANDS_TOKEN_TYPE_SEQUENCE_INDEX_EXT: {
+      case VK_INDIRECT_COMMANDS_TOKEN_TYPE_SEQUENCE_INDEX_EXT:
+      case VK_INDIRECT_COMMANDS_TOKEN_TYPE_PUSH_DATA_EXT:
+      case VK_INDIRECT_COMMANDS_TOKEN_TYPE_PUSH_DATA_SEQUENCE_INDEX_EXT: {
          uint32_t *data = input;
          const VkIndirectCommandsPushConstantTokenEXT *info = token->data.pPushConstant;
          cmd->u.push_constants2.push_constants_info = (void*)cmdptr;
@@ -4570,7 +4579,8 @@ process_sequence_ext(struct rendering_state *state,
          pci->offset = info->updateRange.offset;
          pci->size = info->updateRange.size;
          pci->pValues = (void*)((uint8_t*)cmdptr + sizeof(VkPushConstantsInfoKHR));
-         if (token->type == VK_INDIRECT_COMMANDS_TOKEN_TYPE_PUSH_CONSTANT_EXT)
+         if (token->type == VK_INDIRECT_COMMANDS_TOKEN_TYPE_PUSH_CONSTANT_EXT ||
+             token->type == VK_INDIRECT_COMMANDS_TOKEN_TYPE_PUSH_DATA_EXT)
             memcpy((void*)pci->pValues, data, info->updateRange.size);
          else
             memcpy((void*)pci->pValues, &seq, info->updateRange.size);
@@ -4865,6 +4875,42 @@ handle_descriptor_buffer_offsets(struct vk_cmd_queue_entry *cmd, struct renderin
          bind_db_samplers(state, pipeline_type, idx);
       }
    }
+}
+
+static void
+handle_heap(struct vk_cmd_queue_entry *cmd, struct rendering_state *state, enum lvp_descriptor_heap heap)
+{
+   VkBindHeapInfoEXT *bind = cmd->u.bind_sampler_heap_ext.bind_info;
+   pipe_resource_reference(&state->desc_buffers[heap], NULL);
+   state->desc_buffer_addrs[heap] = (void *)(uintptr_t)bind->heapRange.address;
+   state->desc_buffers[heap] = get_buffer_resource(state->pctx, state->desc_buffer_addrs[heap]);
+   for (unsigned i = 0; i < MESA_SHADER_RAYGEN + 1; i++)
+      if (state->desc_buffers[heap])
+         handle_set_stage_buffer(state, state->desc_buffers[heap], 0, i, heap);
+   memset(state->pcbuf_dirty, 1, sizeof(state->pcbuf_dirty));
+   memset(state->constbuf_dirty, 1, sizeof(state->constbuf_dirty));
+
+   // uint32_t *data = (uint32_t *)state->desc_buffer_addrs[heap];
+   // printf("heap[%u]:\n", heap);
+   // for (uint32_t i = 0; i < bind->heapRange.size / 4; i++)
+   //    printf("   %p(0x%x): 0x%x\n", data + i, i * 4, data[i]);
+}
+
+static void
+handle_push_data(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
+{
+   VkPushDataInfoEXT *push = cmd->u.push_data_ext.push_data_info;
+   memcpy(state->push_constants + push->offset, push->data.address, push->data.size);
+
+   state->pcbuf_dirty[MESA_SHADER_VERTEX] |= true;
+   state->pcbuf_dirty[MESA_SHADER_FRAGMENT] |= true;
+   state->pcbuf_dirty[MESA_SHADER_GEOMETRY] |= true;
+   state->pcbuf_dirty[MESA_SHADER_TESS_CTRL] |= true;
+   state->pcbuf_dirty[MESA_SHADER_TESS_EVAL] |= true;
+   state->pcbuf_dirty[MESA_SHADER_COMPUTE] |= true;
+   state->pcbuf_dirty[MESA_SHADER_TASK] |= true;
+   state->pcbuf_dirty[MESA_SHADER_MESH] |= true;
+   state->pcbuf_dirty[MESA_SHADER_RAYGEN] |= true;
 }
 
 static void *
@@ -5406,6 +5452,11 @@ void lvp_add_enqueue_cmd_entrypoints(struct vk_device_dispatch_table *disp)
    ENQUEUE_CMD(CmdSetColorBlendEquationEXT)
    ENQUEUE_CMD(CmdSetColorWriteMaskEXT)
 
+   /* VK_EXT_descriptor_heap */
+   ENQUEUE_CMD(CmdBindSamplerHeapEXT)
+   ENQUEUE_CMD(CmdBindResourceHeapEXT)
+   ENQUEUE_CMD(CmdPushDataEXT)
+
    ENQUEUE_CMD(CmdBindShadersEXT)
    /* required for EXT_shader_object */
    ENQUEUE_CMD(CmdSetCoverageModulationModeNV)
@@ -5912,6 +5963,15 @@ static void lvp_execute_cmd_buffer(struct list_head *cmds,
          break;
       case VK_CMD_BIND_DESCRIPTOR_BUFFER_EMBEDDED_SAMPLERS2_EXT:
          handle_descriptor_buffer_embedded_samplers(cmd, state);
+         break;
+      case VK_CMD_BIND_SAMPLER_HEAP_EXT:
+         handle_heap(cmd, state, LVP_DESCRIPTOR_HEAP_SAMPLER);
+         break;
+      case VK_CMD_BIND_RESOURCE_HEAP_EXT:
+         handle_heap(cmd, state, LVP_DESCRIPTOR_HEAP_RESOURCE);
+         break;
+      case VK_CMD_PUSH_DATA_EXT:
+         handle_push_data(cmd, state);
          break;
 #ifdef VK_ENABLE_BETA_EXTENSIONS
       case VK_CMD_INITIALIZE_GRAPH_SCRATCH_MEMORY_AMDX:

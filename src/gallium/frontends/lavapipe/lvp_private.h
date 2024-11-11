@@ -99,7 +99,7 @@ extern "C" {
 
 #define LVP_NUM_QUEUES 1
 #define MAX_SETS 8
-#define MAX_DESCRIPTORS 1000000 /* Required by vkd3d-proton */
+#define MAX_DESCRIPTORS ((1<<20) - (1<<15)) /* Required by VK_EXT_descriptor_heap */
 #define MAX_PUSH_CONSTANTS_SIZE 256
 #define MAX_PUSH_DESCRIPTORS 32
 #define MAX_DESCRIPTOR_UNIFORM_BLOCK_SIZE MAX_DESCRIPTORS
@@ -149,6 +149,13 @@ void __lvp_finishme(const char *file, int line, const char *format, ...)
            __tmp = (mesa_shader_stage)(LVP_STAGE_MASK_GFX);            \
         stage = ffs(__tmp) - 1, __tmp;                               \
         __tmp &= ~(1 << (stage)))
+
+enum lvp_descriptor_heap {
+   LVP_DESCRIPTOR_HEAP_RESOURCE,
+   LVP_DESCRIPTOR_HEAP_SAMPLER,
+   LVP_DESCRIPTOR_HEAP_EMBEDDED,
+   LVP_DESCRIPTOR_HEAP_COUNT,
+};
 
 struct lvp_physical_device {
    struct vk_physical_device vk;
@@ -447,6 +454,9 @@ lvp_pipeline_nir_ref(struct lvp_pipeline_nir **dst, struct lvp_pipeline_nir *src
 struct lvp_shader {
    struct vk_object_base base;
    struct lvp_pipeline_layout *layout;
+   struct pipe_memory_allocation *embedded_samplers_memory;
+   struct lp_sampler_descriptor *embedded_samplers_map;
+   struct pipe_resource *embedded_samplers;
    struct lvp_pipeline_nir *pipeline_nir;
    struct lvp_pipeline_nir *tess_ccw;
    void *shader_cso;
@@ -454,6 +464,7 @@ struct lvp_shader {
    struct pipe_stream_output_info stream_output;
    struct blob blob; //preserved for GetShaderBinaryDataEXT
    uint32_t push_constant_size;
+   bool heaps;
 };
 
 enum lvp_pipeline_type {
@@ -532,6 +543,7 @@ struct lvp_pipeline {
    bool library;
    bool compiled;
    bool used;
+   bool heaps;
 
    struct {
       const char *name;
@@ -766,7 +778,7 @@ void
 lvp_nir_lower_blend(nir_shader *nir, const nir_lower_blend_options *opts);
 
 void
-lvp_sampler_init(struct lvp_device *device, struct lp_sampler_descriptor *desc, const VkSamplerCreateInfo *pCreateInfo, const struct vk_sampler *sampler);
+lvp_sampler_init(struct lvp_device *device, struct lp_sampler_descriptor *desc, const struct vk_sampler_state *vk_state);
 
 static inline uint8_t
 lvp_image_aspects_to_plane(ASSERTED const struct lvp_image *image,

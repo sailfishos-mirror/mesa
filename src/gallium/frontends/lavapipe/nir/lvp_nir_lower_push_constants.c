@@ -29,12 +29,15 @@ pass(struct nir_builder *b, nir_intrinsic_instr *intr, void *data)
                                 .range = nir_intrinsic_range(intr));
    nir_def_replace(&intr->def, load);
 
+   uint32_t *push_counstants_size = data;
+   *push_counstants_size = MAX2(*push_counstants_size, nir_intrinsic_range(intr));
+
    return true;
 }
  
 bool
-lvp_nir_lower_push_constants(nir_shader *shader)
+lvp_nir_lower_push_constants(nir_shader *shader, uint32_t *push_counstants_size)
 {
-   nir_shader_intrinsics_pass(shader, pass, nir_metadata_control_flow, NULL);
+   return nir_shader_intrinsics_pass(shader, pass, nir_metadata_control_flow, push_counstants_size);
 }
  

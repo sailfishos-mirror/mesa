@@ -1191,3 +1191,163 @@ VKAPI_ATTR void VKAPI_CALL lvp_GetDescriptorEXT(
       break;
    }
 }
+
+VKAPI_ATTR VkDeviceSize VKAPI_CALL lvp_GetPhysicalDeviceDescriptorSizeEXT(
+    VkPhysicalDevice        physicalDevice,
+    VkDescriptorType        descriptorType)
+{
+   return lvp_get_descriptor_size(descriptorType);
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL lvp_GetImageOpaqueCaptureDataEXT(
+   VkDevice                                    device,
+   uint32_t                                    imageCount,
+   const VkImage*                              pImages,
+   VkHostAddressRangeEXT*                      pDatas)
+{
+   return VK_ERROR_FEATURE_NOT_PRESENT;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL lvp_WriteSamplerDescriptorsEXT(
+    VkDevice                                    _device,
+    uint32_t                                    samplerCount,
+    const VkSamplerCreateInfo*                  pSamplers,
+    const VkHostAddressRangeEXT*                pDescriptors)
+{
+   VK_FROM_HANDLE(lvp_device, device, _device);
+
+   struct pipe_sampler_state null_sampler = {
+      .seamless_cube_map = 1,
+      .max_lod = 0.25,
+   };
+
+   for (unsigned i = 0; i < samplerCount; i++) {
+      struct lp_sampler_descriptor *desc = pDescriptors[i].address;
+      /* invariance tests require whole struct to be zeroed */
+      memset(desc, 0, sizeof(*desc));
+      if (pSamplers) {
+         struct vk_sampler_state state;
+         vk_sampler_state_init(&state, &pSamplers[i]);
+         lvp_sampler_init(device, desc, &state);
+      } else {
+         lp_jit_sampler_from_pipe(&desc->jit, &null_sampler);
+         desc->sampler_index = 0;
+      }
+   }
+   return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL lvp_WriteResourceDescriptorsEXT(
+   VkDevice                                    _device,
+   uint32_t                                    resourceCount,
+   const VkResourceDescriptorInfoEXT*          pResources,
+   const VkHostAddressRangeEXT*                pDescriptors)
+{
+   VK_FROM_HANDLE(lvp_device, device, _device);
+
+   for (unsigned i = 0; i < resourceCount; i++) {
+      struct lp_image_descriptor *image_desc = pDescriptors[i].address;
+      struct lp_buffer_descriptor *buffer_desc = pDescriptors[i].address;
+      uint64_t *accel_struct_desc = pDescriptors[i].address;
+
+      switch (pResources[i].type) {
+      case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+      case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+      case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: {
+         /* invariance tests require the descriptor to be zeroed */
+         memset(image_desc, 0, sizeof(*image_desc));
+
+         const VkImageDescriptorInfoEXT *image = pResources[i].data.pImage;
+         if (image && image->pView) { // 0x7ffff7521080
+            VkImageView view;
+            device->vk.dispatch_table.CreateImageView(_device, image->pView, NULL, &view);
+            VK_FROM_HANDLE(lvp_image_view, iview, view);
+
+            unsigned plane_count = iview->plane_count;
+
+            for (unsigned p = 0; p < plane_count; p++) {
+               if (pResources[i].type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) {
+                  lp_jit_bindless_texture_from_pipe(&image_desc[p].texture, iview->planes[p].sv);
+                  image_desc[p].functions = iview->planes[p].texture_handle->functions;
+               } else {
+                  lp_jit_image_from_pipe(&image_desc[p].image, &iview->planes[p].iv);
+                  image_desc[p].functions = iview->planes[p].image_handle->functions;
+               }
+            }
+            device->vk.dispatch_table.DestroyImageView(_device, view, NULL);
+         } else {
+            if (pResources[i].type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+               image_desc->functions = device->null_texture_handle->functions;
+            else
+               image_desc->functions = device->null_image_handle->functions;
+         }
+         break;
+      }
+      case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER: {
+         /* invariance tests require the descriptor to be zeroed */
+         memset(image_desc, 0, sizeof(*image_desc));
+
+         const VkTexelBufferDescriptorInfoEXT *bda = pResources[i].data.pTexelBuffer;
+         if (bda && bda->addressRange.address) {
+            enum pipe_format pformat = vk_format_to_pipe_format(bda->format);
+            lp_jit_bindless_texture_buffer_from_bda(&image_desc->texture, (void*)(uintptr_t)bda->addressRange.address);
+            image_desc->functions = get_texture_handle_bda(device, bda->addressRange.address, bda->addressRange.size, pformat).functions;
+         } else {
+            image_desc->functions = device->null_texture_handle->functions;
+         }
+         break;
+      }
+      case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER: {
+         /* invariance tests require the descriptor to be zeroed */
+         memset(image_desc, 0, sizeof(*image_desc));
+
+         const VkTexelBufferDescriptorInfoEXT *bda = pResources[i].data.pTexelBuffer;
+         if (bda && bda->addressRange.address) {
+            enum pipe_format pformat = vk_format_to_pipe_format(bda->format);
+            lp_jit_image_buffer_from_bda(&image_desc->image, (void*)(uintptr_t)bda->addressRange.address, bda->addressRange.size, pformat);
+            image_desc->functions = get_image_handle_bda(device, bda->addressRange.address, bda->addressRange.size, pformat).functions;
+         } else {
+            image_desc->functions = device->null_image_handle->functions;
+         }
+         break;
+      }
+      case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
+         /* invariance tests require the descriptor to be zeroed */
+         memset(buffer_desc, 0, sizeof(buffer_desc->jit));
+
+         const VkDeviceAddressRangeEXT *bda = pResources[i].data.pAddressRange;
+         if (bda) {
+            struct pipe_constant_buffer ubo = {
+               .user_buffer = (void *)(uintptr_t)bda->address,
+               .buffer_size = bda->size,
+            };
+
+            lp_jit_buffer_from_pipe_const(&buffer_desc->jit, &ubo, device->pscreen);
+         } else {
+            lp_jit_buffer_from_pipe_const(&buffer_desc->jit, &((struct pipe_constant_buffer){0}), device->pscreen);
+         }
+         break;
+      }
+      case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: {
+         /* invariance tests require the descriptor to be zeroed */
+         memset(buffer_desc, 0, sizeof(buffer_desc->jit));
+
+         const VkDeviceAddressRangeEXT *bda = pResources[i].data.pAddressRange;
+         if (bda) {
+            lp_jit_buffer_from_bda(&buffer_desc->jit, (void *)(uintptr_t)bda->address, bda->size);
+         } else {
+            lp_jit_buffer_from_pipe(&buffer_desc->jit, &((struct pipe_shader_buffer){0}));
+         }
+         break;
+      }
+      case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {
+         const VkDeviceAddressRangeEXT *bda = pResources[i].data.pAddressRange;
+         *accel_struct_desc = bda ? bda->address : 0;
+         break;
+      }
+      default:
+         UNREACHABLE("illegal type passed");
+      }
+   }
+   return VK_SUCCESS;
+}
