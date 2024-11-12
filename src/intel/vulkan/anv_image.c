@@ -453,7 +453,7 @@ formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
 {
    const struct intel_device_info *devinfo = &physical_device->info;
 
-   if (!anv_format_supports_ccs_e(physical_device, format))
+   if (!isl_format_supports_ccs_e(devinfo, format))
       return false;
 
    /* For images created without MUTABLE_FORMAT_BIT set, we know that they will
@@ -479,19 +479,6 @@ formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
    }
 
    return true;
-}
-
-bool
-anv_format_supports_ccs_e(const struct anv_physical_device *physical_device,
-                          const enum isl_format format)
-{
-   /* CCS_E for YCRCB_NORMAL and YCRCB_SWAP_UV is not currently supported by
-    * ANV so leave it disabled for now.
-    */
-   if (isl_format_is_yuv(format))
-      return false;
-
-   return isl_format_supports_ccs_e(&physical_device->info, format);
 }
 
 bool

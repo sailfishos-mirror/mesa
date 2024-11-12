@@ -1033,9 +1033,8 @@ anv_get_image_format_features2(const struct anv_physical_device *physical_device
          }
       }
 
-      if (isl_drm_modifier_has_aux(isl_mod_info->modifier) &&
-          !anv_format_supports_ccs_e(physical_device,
-                                     plane_format.isl_format)) {
+      if (isl_mod_info->supports_render_compression &&
+          !isl_format_supports_ccs_e(devinfo, plane_format.isl_format)) {
          return 0;
       }
 

@@ -5557,9 +5557,6 @@ anv_get_vbo_format(const struct anv_physical_device *device, VkFormat vk_format)
    return format != NULL ? format->planes[0].vbo_format : ISL_FORMAT_UNSUPPORTED;
 }
 
-bool anv_format_supports_ccs_e(const struct anv_physical_device *device,
-                               const enum isl_format format);
-
 bool anv_formats_ccs_e_compatible(const struct anv_physical_device *device,
                                   VkImageCreateFlags create_flags,
                                   VkFormat vk_format, VkImageTiling vk_tiling,
