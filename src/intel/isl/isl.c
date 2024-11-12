@@ -3931,13 +3931,19 @@ _isl_surf_info_supports_ccs(const struct isl_device *dev,
                             enum isl_format format,
                             isl_surf_usage_flags_t usage)
 {
-   if (!isl_format_supports_ccs_d(dev->info, format) &&
-       !isl_format_supports_ccs_e(dev->info, format))
-      return false;
 
-   /* CCS is only for color images on Gfx7-11 */
-   if (ISL_GFX_VER(dev) <= 11 && isl_surf_usage_is_depth_or_stencil(usage))
-      return false;
+   /* On ICL and prior, CCS is only for RGB images.
+    * RGB images must support either CCS_D or CCS_E.
+    */
+   if (isl_format_is_yuv(format) ||
+       isl_surf_usage_is_depth_or_stencil(usage)) {
+      if (ISL_GFX_VER(dev) <= 11)
+         return false;
+   } else {
+      if (!isl_format_supports_ccs_d(dev->info, format) &&
+          !isl_format_supports_ccs_e(dev->info, format))
+         return false;
+   }
 
    /* With depth surfaces on gfx12, HIZ is required for CCS. */
    if (ISL_GFX_VER(dev) == 12 && isl_surf_usage_is_depth(usage) &&
