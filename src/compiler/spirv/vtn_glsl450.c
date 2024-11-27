@@ -458,7 +458,9 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
       break;
 
    case GLSLstd450Tanh: {
-      dest->def = nir_tanh_emulated(nb, src[0]);
+      dest->def = b->shader->options->has_tanh ?
+                     nir_ftanh(&b->nb, src[0]) :
+                     nir_tanh_emulated(nb, src[0]);
       break;
    }
 

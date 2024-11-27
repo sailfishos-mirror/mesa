@@ -914,6 +914,9 @@ typedef struct nir_shader_compiler_options {
     */
    unsigned skip_lower_packing_ops;
 
+   /** Backend supports tanh. */
+   bool has_tanh;
+
    /** Driver callback where drivers can define how to lower mediump.
     *  Used by nir_lower_io_passes.
     */

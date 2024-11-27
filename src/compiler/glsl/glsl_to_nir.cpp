@@ -2279,7 +2279,8 @@ nir_visitor::visit(ir_expression *ir)
    case ir_unop_sin:   result = nir_fsin(&b, srcs[0]); break;
    case ir_unop_cos:   result = nir_fcos(&b, srcs[0]); break;
    case ir_unop_tanh:
-      result = nir_tanh_emulated(&b, srcs[0]);
+      result = b.shader->options->has_tanh ? nir_ftanh(&b, srcs[0]) :
+                                             nir_tanh_emulated(&b, srcs[0]);
       break;
    case ir_unop_dFdx:        result = nir_ddx(&b, srcs[0]); break;
    case ir_unop_dFdy:        result = nir_ddy(&b, srcs[0]); break;
