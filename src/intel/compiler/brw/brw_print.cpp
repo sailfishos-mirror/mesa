@@ -177,6 +177,8 @@ brw_instruction_name(const struct brw_isa_info *isa, const brw_inst *inst)
       return "sin";
    case SHADER_OPCODE_COS:
       return "cos";
+   case SHADER_OPCODE_TANH:
+      return "tanh";
 
    case SHADER_OPCODE_SEND:
       return "send";

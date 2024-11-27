@@ -208,6 +208,8 @@ brw_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
       nir_options->divergence_analysis_options |=
          nir_divergence_single_prim_per_subgroup;
 
+   nir_options->has_tanh = devinfo->ver >= 35;
+
    for (int i = 0; i < MESA_ALL_SHADER_STAGES; i++) {
       bool jay = intel_use_jay(compiler->devinfo, i);
       struct nir_shader_compiler_options *stage_options =

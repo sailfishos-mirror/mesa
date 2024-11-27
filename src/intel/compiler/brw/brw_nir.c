@@ -2376,6 +2376,7 @@ lower_bit_size_callback(const nir_instr *instr, void *data)
       case nir_op_flog2:
       case nir_op_fsin:
       case nir_op_fcos:
+      case nir_op_ftanh:
          return 0;
       case nir_op_isign:
          UNREACHABLE("Should have been lowered by nir_opt_algebraic.");

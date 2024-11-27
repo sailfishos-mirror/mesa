@@ -428,6 +428,7 @@ namespace {
       case SHADER_OPCODE_LOG2:
       case SHADER_OPCODE_SIN:
       case SHADER_OPCODE_COS:
+      case SHADER_OPCODE_TANH:
          return calculate_desc(info, EU_UNIT_EM, -2, 4, 0, 0, 4,
                                0, 16, 0, 0, 0, 0);
 

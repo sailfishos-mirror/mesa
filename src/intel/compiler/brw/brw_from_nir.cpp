@@ -1085,6 +1085,10 @@ brw_from_nir_emit_alu(nir_to_brw_state &ntb, nir_alu_instr *instr,
       bld.COS(result, op[0]);
       break;
 
+   case nir_op_ftanh:
+      bld.TANH(result, op[0]);
+      break;
+
    case nir_op_fadd:
    case nir_op_fadd_rtne:
       if (instr->op == nir_op_fadd_rtne) {

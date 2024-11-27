@@ -320,6 +320,7 @@ gen_math_func_for_opcode(enum opcode op)
    case SHADER_OPCODE_COS:           return GEN_MATH_COS;
    case SHADER_OPCODE_INT_QUOTIENT:  return GEN_MATH_INT_DIV_QUOTIENT;
    case SHADER_OPCODE_INT_REMAINDER: return GEN_MATH_INT_DIV_REMAINDER;
+   case SHADER_OPCODE_TANH:          return GEN_MATH_TANH;
    default:
       UNREACHABLE("not reached: unknown math function");
    }
@@ -1699,6 +1700,7 @@ brw_generator::generate_code(const brw_shader &s,
       case SHADER_OPCODE_LOG2:
       case SHADER_OPCODE_SIN:
       case SHADER_OPCODE_COS:
+      case SHADER_OPCODE_TANH:
          assert(inst->conditional_mod == BRW_CONDITIONAL_NONE);
          generate_math(dst, src[0], retype(brw_null_reg(), src[0].type),
                        gen_math_func_for_opcode(inst->opcode));

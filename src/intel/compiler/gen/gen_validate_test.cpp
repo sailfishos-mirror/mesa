@@ -1509,6 +1509,7 @@ static const struct {
      "MATH POW and FDIV are not supported on Gfx12.5+.", { .ge = 125, .lt = 350 }
    },
 
+   { "math.tanh (8) r0:f r1:f null", VALID, { .ge = 350 } },
 
    { "math.sqt (8) r0:f r1:f null",         VALID },
    { "math.sqt (8) r0<2>:hf r1<2>:hf null", VALID },
