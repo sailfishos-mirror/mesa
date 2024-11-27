@@ -264,6 +264,7 @@ block_check_for_allowed_instrs(nir_block *block, unsigned *count,
             break;
 
          case nir_op_fcos:
+         case nir_op_ftanh:
          case nir_op_fdiv:
          case nir_op_fexp2:
          case nir_op_flog2:
