@@ -292,8 +292,7 @@ compute_induction_information(loop_info_state *state)
          }
       }
 
-      if (var.update_src && var.init_src &&
-          is_only_uniform_src(var.init_src)) {
+      if (var.update_src && var.init_src) {
          /* Insert induction variable into hash table. */
          struct hash_table *vars = state->loop->info->induction_vars;
          nir_loop_induction_variable *induction_var = ralloc(vars, nir_loop_induction_variable);
@@ -1246,8 +1245,11 @@ find_trip_count(loop_info_state *state, unsigned execution_mode,
        * Try to find one.
        */
       if ((!nir_scalar_is_const(initial_s) && !can_find_max_trip_count) ||
-          !nir_scalar_is_const(alu_s))
+          !nir_scalar_is_const(alu_s)) {
+         trip_count_known = false;
+         terminator->exact_trip_count_unknown = true;
          continue;
+      }
 
       nir_const_value initial_val;
       if (nir_scalar_is_const(initial_s))
