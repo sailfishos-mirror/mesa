@@ -116,6 +116,10 @@ print_base_devinfo(const struct intel_device_info *devinfo)
       [MESA_SHADER_TESS_CTRL] = "HS",
       [MESA_SHADER_TESS_EVAL] = "DS",
       [MESA_SHADER_GEOMETRY]  = "GS",
+      [MESA_SHADER_FRAGMENT]  = "FS",
+      [MESA_SHADER_COMPUTE]   = "CS",
+      [MESA_SHADER_TASK]      = "TS",
+      [MESA_SHADER_MESH]      = "MS",
    };
    STATIC_ASSERT(ARRAY_SIZE(stage_names) ==
                  ARRAY_SIZE(devinfo->urb.min_entries));
