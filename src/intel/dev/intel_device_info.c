@@ -1254,7 +1254,9 @@ static const struct intel_device_info intel_device_info_nvl_u_h = {
 
 #define XE3P_PLACEHOLDER_THREADS_AND_URB                        \
    XE3_PLACEHOLDER_THREADS_AND_URB,                             \
-   .num_thread_per_eu = 8 /* BSpec 74198 */
+   .num_thread_per_eu = 8 /* BSpec 74198 */,                    \
+   .urb.min_entries[MESA_SHADER_TASK] = 2,                      \
+   .urb.min_entries[MESA_SHADER_MESH] = 2
 
 #define XE3P_FEATURES                                           \
    XE3_FEATURES,                                                \
