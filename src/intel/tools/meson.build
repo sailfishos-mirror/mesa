@@ -98,6 +98,7 @@ error2hangdump = executable(
 
 intel_hang_replay = executable(
   'intel_hang_replay',
+  files('intel_hang_replay_lib.c'),
   files('intel_hang_replay.c'),
   dependencies : [idep_intel_dev, idep_libintel_common, dep_libdrm, dep_dl, dep_thread, dep_m,
                   idep_libintel_tools],

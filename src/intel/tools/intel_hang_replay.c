@@ -51,6 +51,7 @@
 
 #include "util/u_dynarray.h"
 #include "util/u_math.h"
+#include "intel_hang_replay_lib.h"
 
 #include "intel_tools.h"
 
@@ -182,20 +183,6 @@ gem_mmap_offset(int drm_fd,
 }
 
 static void
-write_malloc_data(void *out_data,
-                  int file_fd,
-                  size_t size)
-{
-   size_t total_read_len = 0;
-   ssize_t read_len;
-   while (total_read_len < size &&
-          (read_len = read(file_fd, out_data + total_read_len, size - total_read_len)) > 0) {
-      total_read_len += read_len;
-   }
-   assert(total_read_len == size);
-}
-
-static void
 write_gem_bo_data(int drm_fd,
                   uint32_t gem_handle,
                   int file_fd,
@@ -213,12 +200,6 @@ write_gem_bo_data(int drm_fd,
    munmap(map, size);
 
    assert(total_read_len == size);
-}
-
-static void
-skip_data(int file_fd, size_t size)
-{
-   lseek(file_fd, size, SEEK_CUR);
 }
 
 static int
@@ -249,22 +230,6 @@ get_drm_device(struct intel_device_info *devinfo)
    }
 
    return fd;
-}
-
-struct gem_bo {
-   off_t    file_offset;
-   uint32_t gem_handle;
-   uint64_t offset;
-   uint64_t size;
-   bool     hw_img;
-};
-
-static int
-compare_bos(const void *b1, const void *b2)
-{
-   const struct gem_bo *gem_b1 = b1, *gem_b2 = b2;
-
-   return gem_b2->size > gem_b1->size;
 }
 
 static void
