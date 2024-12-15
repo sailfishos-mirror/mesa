@@ -5,6 +5,7 @@
 #include "nvk_image.h"
 
 #include "nvk_device.h"
+#include "nvk_instance.h"
 #include "nvk_device_memory.h"
 #include "nvk_entrypoints.h"
 #include "nvk_format.h"
@@ -183,6 +184,15 @@ nvk_get_image_format_features(const struct nvk_physical_device *pdev,
 
    if (cosited_chroma)
       features |= VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT;
+
+   /* At least advertise support for NV12. This is incomplete. */
+   const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
+   if (vk_format == VK_FORMAT_G8_B8R8_2PLANE_420_UNORM &&
+       (instance->experimental_flags & NVK_EXPERIMENTAL_VIDEO) &&
+       pdev->info.has_video && VIDEO_CODEC_H264DEC) {
+      features |= VK_FORMAT_FEATURE_VIDEO_DECODE_OUTPUT_BIT_KHR;
+      features |= VK_FORMAT_FEATURE_VIDEO_DECODE_DPB_BIT_KHR;
+   }
 
    return features;
 }
