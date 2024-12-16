@@ -7,11 +7,11 @@ SPDX-License-Identifier: MIT
 <isa>
 
 <template name="INSTR_ALU">
-	{NAME}{DST_FULL}{SAT}{SKPHP}{UNK}{TYPE}{PMODE}{THREAD}{RMODE}
+	{NAME}{DST_FULL}{SAT}{SKPHP}{UNK}{DENORM}{TYPE}{PMODE}{THREAD}{RMODE}
 </template>
 
 <template name="INSTR_ALU_COND">
-	{NAME}{DST_FULL}{SAT}{COND}{SKPHP}{UNK}{TYPE}{PMODE}{THREAD}{RMODE}
+	{NAME}{DST_FULL}{SAT}{COND}{SKPHP}{UNK}{DENORM}{TYPE}{PMODE}{THREAD}{RMODE}
 </template>
 
 <template name="INSTR_TEX">
@@ -226,7 +226,9 @@ SPDX-License-Identifier: MIT
 
 	<pattern low="35" high="38">0000</pattern>
 	<field name="SKPHP" pos="39" type="bool" display=".skpHp"/>
-	<pattern low="40" high="42">000</pattern>
+	<pattern low="40" high="41">00</pattern>
+
+	<field name="DENORM" pos="42" type="bool" display=".denorm"/>
 
 	<field name="LOW_HALF" pos="109" type="bool"/>
 	<field name="HIGH_HALF" pos="120" type="bool"/>
