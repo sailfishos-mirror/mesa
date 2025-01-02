@@ -637,6 +637,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_depth_clamp_zero_one = true,
       .KHR_depth_stencil_resolve = true,
       .KHR_descriptor_update_template = true,
+      .KHR_device_address_commands = true,
       .KHR_device_group = true,
       .KHR_draw_indirect_count = true,
       .KHR_driver_properties = true,
@@ -1531,6 +1532,9 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       /* VK_KHR_copy_memory_indirect */
       .indirectMemoryCopy = pdev->info.gfx_level >= GFX8,
       .indirectMemoryToImageCopy = pdev->info.gfx_level >= GFX8,
+
+      /* VK_KHR_device_address_commands */
+      .deviceAddressCommands = true,
    };
 }
 
