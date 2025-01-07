@@ -138,6 +138,7 @@ static const struct vk_device_extension_table lvp_device_extensions_supported = 
    .KHR_deferred_host_operations          = true,
    .KHR_depth_stencil_resolve             = true,
    .KHR_descriptor_update_template        = true,
+   .KHR_device_address_commands           = true,
    .KHR_device_group                      = true,
    .KHR_draw_indirect_count               = true,
    .KHR_driver_properties                 = true,
@@ -881,6 +882,9 @@ lvp_get_features(const struct lvp_physical_device *pdevice,
       /* VK_KHR_unified_image_layouts */
       .unifiedImageLayouts = true,
       .unifiedImageLayoutsVideo = true,
+
+      /* VK_KHR_device_address_commands */
+      .deviceAddressCommands = true,
 
       /* VK_KHR_cooperative_matrix */
       .cooperativeMatrix = has_cooperative_matrix(),
