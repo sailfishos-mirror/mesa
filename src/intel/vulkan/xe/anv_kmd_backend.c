@@ -91,9 +91,9 @@ xe_gem_create(struct anv_device *device,
    case INTEL_DEVICE_INFO_MMAP_MODE_WB:
       gem_create.cpu_caching = DRM_XE_GEM_CPU_CACHING_WB;
       break;
-   default:
-      UNREACHABLE("missing");
+   case INTEL_DEVICE_INFO_MMAP_MODE_INVALID:
       gem_create.cpu_caching = DRM_XE_GEM_CPU_CACHING_WC;
+      break;
    }
 
    if (alloc_flags & ANV_BO_ALLOC_PROTECTED)
@@ -125,6 +125,10 @@ xe_gem_mmap(struct anv_device *device, struct anv_bo *bo, uint64_t offset,
    struct drm_xe_gem_mmap_offset args = {
       .handle = bo->gem_handle,
    };
+
+   assert(anv_device_get_pat_entry(device, bo->alloc_flags)->mmap !=
+          INTEL_DEVICE_INFO_MMAP_MODE_INVALID);
+
    if (intel_ioctl(device->fd, DRM_IOCTL_XE_GEM_MMAP_OFFSET, &args))
       return MAP_FAILED;
 

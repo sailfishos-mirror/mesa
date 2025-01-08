@@ -145,8 +145,10 @@ Struct("intel_memory_class_instance",
          Member("int", "instance")])
 
 Enum("intel_device_info_mmap_mode",
-      [EnumValue("INTEL_DEVICE_INFO_MMAP_MODE_WC"),
-       EnumValue("INTEL_DEVICE_INFO_MMAP_MODE_WB"),
+      [EnumValue("INTEL_DEVICE_INFO_MMAP_MODE_INVALID",
+                 comment=dedent("""No CPU access allowed.""")),
+       EnumValue("INTEL_DEVICE_INFO_MMAP_MODE_WC"),
+       EnumValue("INTEL_DEVICE_INFO_MMAP_MODE_WB")
        ])
 
 Struct("intel_device_info_pat_entry",
