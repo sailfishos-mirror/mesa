@@ -1181,19 +1181,19 @@ static const struct intel_device_info intel_device_info_arl_h = {
  *
  * (both 10 and 12 map to different compressed L3UC entries)
  */
-#define XE2_PAT_ENTRIES                                         \
-   /* BSpec 71582 (r59285) */                                   \
-   .pat = {                                                     \
-      /* CPU: WB, GPU: PAT 1 => WB, 1WAY */                     \
-      .cached_coherent = PAT_ENTRY(1, WB),                      \
-      /* CPU: WC, GPU: PAT 6 => XD */                           \
-      .scanout = PAT_ENTRY(6, WC),                              \
-      /* CPU: WC, GPU: PAT 0 => WB */                           \
-      .writecombining = PAT_ENTRY(0, WC),                       \
-      /* CPU: WC, GPU: PAT 11 => XD, compressed */              \
-      .compressed_scanout = PAT_ENTRY(11, WC),                  \
-      /* CPU: WC, GPU: PAT 9 => WB, compressed */               \
-      .compressed = PAT_ENTRY(9, WC)                            \
+#define XE2_PAT_ENTRIES                                              \
+   /* BSpec 71582 (r59285) */                                        \
+   .pat = {                                                          \
+      /* CPU: WB, GPU: PAT 1 => WB, 1WAY */                          \
+      .cached_coherent = PAT_ENTRY(1, WB),                           \
+      /* CPU: WC, GPU: PAT 6 => WB+display transient */              \
+      .scanout = PAT_ENTRY(6, WC),                                   \
+      /* CPU: WC, GPU: PAT 0 => WB */                                \
+      .writecombining = PAT_ENTRY(0, WC),                            \
+      /* CPU: WC, GPU: PAT 11 => WB+display transient+compressed */  \
+      .compressed_scanout = PAT_ENTRY(11, WC),                       \
+      /* CPU: WC, GPU: PAT 9 => WB+compressed */                     \
+      .compressed = PAT_ENTRY(9, WC)                                 \
    }
 
 #define XE2_CONFIG(platform_suffix)                             \
