@@ -612,9 +612,6 @@ anv_bo_ref(struct anv_bo *bo)
    return bo;
 }
 
-enum intel_device_info_mmap_mode
-anv_bo_get_mmap_mode(struct anv_device *device, struct anv_bo *bo);
-
 static inline bool
 anv_bo_needs_host_cache_flush(enum anv_bo_alloc_flags alloc_flags)
 {

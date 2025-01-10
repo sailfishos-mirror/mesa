@@ -1615,40 +1615,6 @@ anv_bo_vma_alloc_or_close(struct anv_device *device,
    return VK_SUCCESS;
 }
 
-enum intel_device_info_mmap_mode
-anv_bo_get_mmap_mode(struct anv_device *device, struct anv_bo *bo)
-{
-   enum anv_bo_alloc_flags alloc_flags = bo->alloc_flags;
-
-   if (device->info->has_set_pat_uapi)
-      return anv_device_get_pat_entry(device, alloc_flags)->mmap;
-
-   if (anv_physical_device_has_vram(device->physical)) {
-      if ((alloc_flags & ANV_BO_ALLOC_NO_LOCAL_MEM) ||
-          (alloc_flags & ANV_BO_ALLOC_IMPORTED))
-         return INTEL_DEVICE_INFO_MMAP_MODE_WB;
-
-      return INTEL_DEVICE_INFO_MMAP_MODE_WC;
-   }
-
-   /* gfx9 atom */
-   if (!device->info->has_llc) {
-      /* user wants a cached and coherent memory but to achieve it without
-       * LLC in older platforms DRM_IOCTL_I915_GEM_SET_CACHING needs to be
-       * supported and set.
-       */
-      if (alloc_flags & ANV_BO_ALLOC_HOST_CACHED)
-         return INTEL_DEVICE_INFO_MMAP_MODE_WB;
-
-      return INTEL_DEVICE_INFO_MMAP_MODE_WC;
-   }
-
-   if (alloc_flags & (ANV_BO_ALLOC_SCANOUT | ANV_BO_ALLOC_EXTERNAL))
-      return INTEL_DEVICE_INFO_MMAP_MODE_WC;
-
-   return INTEL_DEVICE_INFO_MMAP_MODE_WB;
-}
-
 VkResult
 anv_device_alloc_bo(struct anv_device *device,
                     const char *name,
