@@ -522,9 +522,18 @@ fallback_use_bypass(const struct tu_render_pass *pass,
 static uint32_t
 get_render_pass_pixel_count(const struct tu_cmd_buffer *cmd)
 {
-   const VkExtent2D *extent = &cmd->state.render_area.extent;
-   return extent->width * extent->height *
-      MAX2(cmd->state.pass->num_views, cmd->state.framebuffer->layers);
+   if (cmd->state.per_layer_render_area) {
+      uint32_t pixels = 0;
+      for (unsigned i = 0; i < cmd->state.pass->num_views; i++) {
+         const VkExtent2D *extent = &cmd->state.render_areas[i].extent;
+         pixels += extent->width * extent->height;
+      }
+      return pixels;
+   } else {
+      const VkExtent2D *extent = &cmd->state.render_areas[0].extent;
+      return extent->width * extent->height *
+         MAX2(cmd->state.pass->num_views, cmd->state.framebuffer->layers);
+   }
 }
 
 static uint64_t
@@ -616,7 +625,7 @@ tu_autotune_use_bypass(struct tu_autotune *at,
 
       const bool select_sysmem = sysmem_bandwidth <= gmem_bandwidth;
       if (TU_AUTOTUNE_DEBUG_LOG) {
-         const VkExtent2D *extent = &cmd_buffer->state.render_area.extent;
+         const VkExtent2D *extent = &cmd_buffer->state.render_areas[0].extent;
          const float drawcall_bandwidth_per_sample =
             (float)cmd_buffer->state.rp.drawcall_bandwidth_per_sample_sum /
             cmd_buffer->state.rp.drawcall_count;

@@ -3615,6 +3615,7 @@ resolve_sysmem(struct tu_cmd_buffer *cmd,
                const struct tu_image_view *dst,
                uint32_t layer_mask,
                uint32_t layers,
+               bool per_layer_rect,
                const VkRect2D *rect,
                bool src_separate_ds,
                bool dst_separate_ds)
@@ -3635,9 +3636,14 @@ resolve_sysmem(struct tu_cmd_buffer *cmd,
               VK_IMAGE_ASPECT_COLOR_BIT, 0, false, dst->view.ubwc_enabled,
               (VkSampleCountFlagBits)src->image->layout[0].nr_samples,
               (VkSampleCountFlagBits)dst->image->layout[0].nr_samples);
-   ops->coords(cmd, cs, rect->offset, rect->offset, rect->extent);
+
+   if (!per_layer_rect)
+      ops->coords(cmd, cs, rect->offset, rect->offset, rect->extent);
 
    for_each_layer(i, layer_mask, layers) {
+      if (per_layer_rect)
+         ops->coords(cmd, cs, rect[i].offset, rect[i].offset, rect[i].extent);
+
       if (src_separate_ds) {
          if (vk_src_format == VK_FORMAT_D32_SFLOAT || vk_dst_format == VK_FORMAT_D32_SFLOAT) {
             ops->src_depth(cmd, cs, src, i, VK_FILTER_NEAREST);
@@ -3678,6 +3684,7 @@ tu_resolve_sysmem(struct tu_cmd_buffer *cmd,
                   const struct tu_image_view *dst,
                   uint32_t layer_mask,
                   uint32_t layers,
+                  bool per_layer_rect,
                   const VkRect2D *rect)
 {
    assert(src->vk.format == dst->vk.format ||
@@ -3689,14 +3696,14 @@ tu_resolve_sysmem(struct tu_cmd_buffer *cmd,
 
    if (dst_separate_ds) {
       resolve_sysmem<CHIP>(cmd, cs, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT,
-                     src, dst, layer_mask, layers, rect,
+                     src, dst, layer_mask, layers, per_layer_rect, rect,
                      src_separate_ds, dst_separate_ds);
       resolve_sysmem<CHIP>(cmd, cs, VK_FORMAT_S8_UINT, VK_FORMAT_S8_UINT,
-                     src, dst, layer_mask, layers, rect,
+                     src, dst, layer_mask, layers, per_layer_rect, rect,
                      src_separate_ds, dst_separate_ds);
    } else {
       resolve_sysmem<CHIP>(cmd, cs, src->vk.format, dst->vk.format,
-                     src, dst, layer_mask, layers, rect,
+                     src, dst, layer_mask, layers, per_layer_rect, rect,
                      src_separate_ds, dst_separate_ds);
    }
 }
@@ -4408,6 +4415,7 @@ tu_emit_clear_gmem_attachment(struct tu_cmd_buffer *cmd,
                               uint32_t base_layer,
                               uint32_t layers,
                               uint32_t layer_mask,
+                              bool per_layer_render_area,
                               VkImageAspectFlags mask,
                               const VkClearValue *value,
                               const VkRect2D *fdm_rect)
@@ -4431,6 +4439,8 @@ tu_emit_clear_gmem_attachment(struct tu_cmd_buffer *cmd,
             tu_create_fdm_bin_patchpoint(cmd, cs, 3, TU_FDM_SKIP_BINNING,
                                          fdm_apply_gmem_clear_coords, state);
       }
+      if (per_layer_render_area)
+         tu6_emit_blit_scissor(cmd, cs, layer, false);
       if (att->format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
          if (mask & VK_IMAGE_ASPECT_DEPTH_BIT) {
             uint32_t buffer_id = tu_resolve_group_include_buffer<CHIP>(resolve_group, VK_FORMAT_D32_SFLOAT);
@@ -4511,7 +4521,7 @@ tu_clear_gmem_attachments(struct tu_cmd_buffer *cmd,
          tu_emit_clear_gmem_attachment<CHIP>(cmd, cs, &resolve_group, a,
                                        rects[i].baseArrayLayer,
                                        rects[i].layerCount,
-                                       subpass->multiview_mask,
+                                       subpass->multiview_mask, false,
                                        attachments[j].aspectMask,
                                        &attachments[j].clearValue,
                                        fdm_rect);
@@ -4775,11 +4785,17 @@ clear_sysmem_attachment(struct tu_cmd_buffer *cmd,
    ops->setup(cmd, cs, format, format, clear_mask, 0, true, iview->view.ubwc_enabled,
               cmd->state.pass->attachments[a].samples,
               cmd->state.pass->attachments[a].samples);
-   ops->coords(cmd, cs, cmd->state.render_area.offset, (VkOffset2D) {},
-               cmd->state.render_area.extent);
+   if (!cmd->state.per_layer_render_area) {
+      ops->coords(cmd, cs, cmd->state.render_areas[0].offset, (VkOffset2D) {},
+                  cmd->state.render_areas[0].extent);
+   }
    ops->clear_value(cmd, cs, format, value);
 
    for_each_layer(i, clear_views, fb->layers) {
+      if (cmd->state.per_layer_render_area) {
+         ops->coords(cmd, cs, cmd->state.render_areas[i].offset, (VkOffset2D) {},
+                     cmd->state.render_areas[i].extent);
+      }
       if (separate_ds) {
          if (vk_format == VK_FORMAT_D32_SFLOAT) {
             ops->dst_depth(cs, iview, i);
@@ -4850,6 +4866,7 @@ void
 tu_clear_gmem_attachment(struct tu_cmd_buffer *cmd,
                          struct tu_cs *cs,
                          struct tu_resolve_group *resolve_group,
+                         bool per_layer_render_area,
                          uint32_t a)
 {
    const struct tu_render_pass_attachment *attachment =
@@ -4861,6 +4878,7 @@ tu_clear_gmem_attachment(struct tu_cmd_buffer *cmd,
    tu_emit_clear_gmem_attachment<CHIP>(cmd, cs, resolve_group, a, 0,
                                  cmd->state.framebuffer->layers,
                                  attachment->used_views,
+                                 per_layer_render_area,
                                  attachment->clear_mask,
                                  &cmd->state.clear_values[a], NULL);
 }
@@ -4870,6 +4888,7 @@ void
 tu7_generic_clear_attachment(struct tu_cmd_buffer *cmd,
                              struct tu_cs *cs,
                              struct tu_resolve_group *resolve_group,
+                             bool per_layer_render_area,
                              uint32_t a)
 {
    const struct tu_render_pass_attachment *att =
@@ -4883,17 +4902,20 @@ tu7_generic_clear_attachment(struct tu_cmd_buffer *cmd,
 
    enum pipe_format format = vk_format_to_pipe_format(att->format);
    for_each_layer(i, att->used_views, cmd->state.framebuffer->layers) {
-      uint32_t layer = i + 0;
+      uint32_t layer = i;
       uint32_t mask =
          aspect_write_mask_generic_clear(format, att->clear_mask);
       if (cmd->state.fdm_enabled) {
          struct apply_gmem_clear_coords_state state = {
             .view = layer,
-            .rect = cmd->state.render_area,
+            .rect = per_layer_render_area ? cmd->state.render_areas[layer] :
+               cmd->state.render_areas[0],
             .custom_resolve = subpass->custom_resolve,
          };
          tu_create_fdm_bin_patchpoint(cmd, cs, 3, TU_FDM_SKIP_BINNING,
                                       fdm_apply_gmem_clear_coords, state);
+      } else if (per_layer_render_area) {
+         tu6_emit_blit_scissor(cmd, cs, layer, false);
       }
       if (att->format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
          if (att->clear_mask & VK_IMAGE_ASPECT_DEPTH_BIT) {
@@ -4927,6 +4949,8 @@ tu_emit_blit(struct tu_cmd_buffer *cmd,
              const struct tu_render_pass_attachment *attachment,
              const VkClearValue *clear_value,
              enum a6xx_blit_event_type blit_event_type,
+             bool scissor_per_layer,
+             bool align_scissor,
              bool separate_stencil)
 {
    assert(blit_event_type != BLIT_EVENT_CLEAR);
@@ -4973,6 +4997,8 @@ tu_emit_blit(struct tu_cmd_buffer *cmd,
    event_blit_setup(cs, buffer_id, attachment, blit_event_type, clear_mask);
 
    for_each_layer(i, attachment->used_views, cmd->state.framebuffer->layers) {
+      if (scissor_per_layer)
+         tu6_emit_blit_scissor(cmd, cs, i, align_scissor);
       event_blit_dst_view blt_view = blt_view_from_tu_view(iview, i);
       event_blit_run<CHIP>(cmd, cs, attachment, &blt_view, separate_stencil);
    }
@@ -5175,6 +5201,7 @@ tu_load_gmem_attachment(struct tu_cmd_buffer *cmd,
                         struct tu_resolve_group *resolve_group,
                         uint32_t a,
                         uint32_t gmem_a,
+                        bool per_layer_render_area,
                         bool cond_exec_allowed,
                         bool force_load)
 {
@@ -5218,10 +5245,12 @@ tu_load_gmem_attachment(struct tu_cmd_buffer *cmd,
          load_3d_blit<CHIP>(cmd, cs, iview, attachment, true);
    } else {
       if (load_common)
-         tu_emit_blit<CHIP>(cmd, cs, resolve_group, iview, attachment, NULL, BLIT_EVENT_LOAD, false);
+         tu_emit_blit<CHIP>(cmd, cs, resolve_group, iview, attachment, NULL,
+                            BLIT_EVENT_LOAD, per_layer_render_area, true, false);
 
       if (load_stencil)
-         tu_emit_blit<CHIP>(cmd, cs, resolve_group, iview, attachment, NULL, BLIT_EVENT_LOAD, true);
+         tu_emit_blit<CHIP>(cmd, cs, resolve_group, iview, attachment, NULL,
+                            BLIT_EVENT_LOAD, per_layer_render_area, true, true);
    }
 
    if (cond_exec)
@@ -5420,7 +5449,6 @@ tu_attachment_store_unaligned(struct tu_cmd_buffer *cmd, uint32_t a)
 {
    struct tu_physical_device *phys_dev = cmd->device->physical_device;
    const struct tu_image_view *iview = cmd->state.attachments[a];
-   const VkRect2D *render_area = &cmd->state.render_area;
 
    /* Unaligned store is incredibly rare in CTS, we have to force it to test. */
    if (TU_DEBUG(UNALIGNED_STORE))
@@ -5430,21 +5458,30 @@ tu_attachment_store_unaligned(struct tu_cmd_buffer *cmd, uint32_t a)
    if (cmd->state.pass->has_fdm)
       return true;
 
-   uint32_t x1 = render_area->offset.x;
-   uint32_t y1 = render_area->offset.y;
-   uint32_t x2 = x1 + render_area->extent.width;
-   uint32_t y2 = y1 + render_area->extent.height;
-   /* x2/y2 can be unaligned if equal to the size of the image, since it will
-    * write into padding space. The one exception is linear levels which don't
-    * have the required y padding in the layout (except for the last level)
-    */
-   bool need_y2_align =
-      y2 != iview->view.height || iview->view.need_y2_align;
+   unsigned render_area_count =
+      cmd->state.per_layer_render_area ? cmd->state.pass->num_views : 1;
 
-   return (x1 % phys_dev->info->gmem_align_w ||
-           (x2 % phys_dev->info->gmem_align_w && x2 != iview->view.width) ||
-           y1 % phys_dev->info->gmem_align_h ||
-           (y2 % phys_dev->info->gmem_align_h && need_y2_align));
+   for (unsigned i = 0; i < render_area_count; i++) {
+      const VkRect2D *render_area = &cmd->state.render_areas[i];
+      uint32_t x1 = render_area->offset.x;
+      uint32_t y1 = render_area->offset.y;
+      uint32_t x2 = x1 + render_area->extent.width;
+      uint32_t y2 = y1 + render_area->extent.height;
+      /* x2/y2 can be unaligned if equal to the size of the image, since it will
+       * write into padding space. The one exception is linear levels which don't
+       * have the required y padding in the layout (except for the last level)
+       */
+      bool need_y2_align =
+         y2 != iview->view.height || iview->view.need_y2_align;
+
+      if (x1 % phys_dev->info->gmem_align_w ||
+          (x2 % phys_dev->info->gmem_align_w && x2 != iview->view.width) ||
+          y1 % phys_dev->info->gmem_align_h ||
+          (y2 % phys_dev->info->gmem_align_h && need_y2_align))
+         return true;
+   }
+
+   return false;
 }
 
 /* The fast path cannot handle mismatched mutability. */
@@ -5561,9 +5598,9 @@ tu_store_gmem_attachment(struct tu_cmd_buffer *cmd,
                          uint32_t gmem_a,
                          uint32_t layers,
                          uint32_t layer_mask,
+                         bool per_layer_render_area,
                          bool cond_exec_allowed)
 {
-   const VkRect2D *render_area = &cmd->state.render_area;
    struct tu_render_pass_attachment *dst = &cmd->state.pass->attachments[a];
    const struct tu_image_view *dst_iview = cmd->state.attachments[a];
    struct tu_render_pass_attachment *src = &cmd->state.pass->attachments[gmem_a];
@@ -5615,9 +5652,11 @@ tu_store_gmem_attachment(struct tu_cmd_buffer *cmd,
    /* use fast path when render area is aligned, except for unsupported resolve cases */
    if (use_fast_path) {
       if (store_common)
-         tu_emit_blit<CHIP>(cmd, cs, resolve_group, dst_iview, src, clear_value, BLIT_EVENT_STORE, false);
+         tu_emit_blit<CHIP>(cmd, cs, resolve_group, dst_iview, src, clear_value,
+                            BLIT_EVENT_STORE, per_layer_render_area, true, false);
       if (store_separate_stencil)
-         tu_emit_blit<CHIP>(cmd, cs, resolve_group, dst_iview, src, clear_value, BLIT_EVENT_STORE, true);
+         tu_emit_blit<CHIP>(cmd, cs, resolve_group, dst_iview, src, clear_value,
+                            BLIT_EVENT_STORE, per_layer_render_area, true, true);
 
       if (cond_exec) {
          tu_end_load_store_cond_exec(cmd, cs, false);
@@ -5649,6 +5688,9 @@ tu_store_gmem_attachment(struct tu_cmd_buffer *cmd,
          tu_disable_draw_states(cmd, cs);
 
       for_each_layer(i, layer_mask, layers) {
+         const VkRect2D *render_area =
+            per_layer_render_area ? &cmd->state.render_areas[i] :
+            &cmd->state.render_areas[0];
          if (store_common) {
             store_3d_blit<CHIP>(cmd, cs, src_iview, dst_iview, dst->samples, false, src_format,
                           dst_format, render_area, i, tu_attachment_gmem_offset(cmd, src, i), src->cpp);
@@ -5660,25 +5702,42 @@ tu_store_gmem_attachment(struct tu_cmd_buffer *cmd,
          }
       }
    } else {
-      if (!cmd->state.pass->has_fdm) {
-         r2d_coords<CHIP>(cmd, cs, render_area->offset, render_area->offset,
-                          render_area->extent);
-      } else {
-         /* Usually GRAS_2D_RESOLVE_CNTL_* clips the destination to the bin
-          * area and the coordinates span the entire render area, but for
-          * FDM we need to scale the coordinates so we need to take the
-          * opposite aproach, specifying the exact bin size in the destination
-          * coordinates and using GRAS_2D_RESOLVE_CNTL_* to clip to the render
-          * area.
-          */
-         tu_cs_emit_regs(cs,
-                         GRAS_A2D_SCISSOR_TL(CHIP, .x = render_area->offset.x,
-                                                     .y = render_area->offset.y,),
-                         GRAS_A2D_SCISSOR_BR(CHIP, .x = render_area->offset.x + render_area->extent.width - 1,
-                                                     .y = render_area->offset.y + render_area->extent.height - 1,));
+      if (!per_layer_render_area) {
+         const VkRect2D *render_area = &cmd->state.render_areas[0];
+         if (!cmd->state.pass->has_fdm) {
+            r2d_coords<CHIP>(cmd, cs, render_area->offset, render_area->offset,
+                             render_area->extent);
+         } else {
+            /* Usually GRAS_2D_RESOLVE_CNTL_* clips the destination to the bin
+             * area and the coordinates span the entire render area, but for
+             * FDM we need to scale the coordinates so we need to take the
+             * opposite aproach, specifying the exact bin size in the destination
+             * coordinates and using GRAS_2D_RESOLVE_CNTL_* to clip to the render
+             * area.
+             */
+            tu_cs_emit_regs(cs,
+                            GRAS_A2D_SCISSOR_TL(CHIP, .x = render_area->offset.x,
+                                                      .y = render_area->offset.y,),
+                            GRAS_A2D_SCISSOR_BR(CHIP, .x = render_area->offset.x + render_area->extent.width - 1,
+                                                      .y = render_area->offset.y + render_area->extent.height - 1,));
+         }
       }
 
       for_each_layer (i, layer_mask, layers) {
+         if (per_layer_render_area) {
+            const VkRect2D *render_area = &cmd->state.render_areas[i];
+            if (!cmd->state.pass->has_fdm) {
+               r2d_coords<CHIP>(cmd, cs, render_area->offset, render_area->offset,
+                                render_area->extent);
+            } else {
+               tu_cs_emit_regs(cs,
+                               GRAS_A2D_SCISSOR_TL(CHIP, .x = render_area->offset.x,
+                                                         .y = render_area->offset.y,),
+                               GRAS_A2D_SCISSOR_BR(CHIP, .x = render_area->offset.x + render_area->extent.width - 1,
+                                                         .y = render_area->offset.y + render_area->extent.height - 1,));
+            }
+         }
+
          if (cmd->state.pass->has_fdm) {
             struct apply_store_coords_state state = {
                .view = i,
