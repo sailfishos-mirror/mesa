@@ -523,7 +523,8 @@ static uint32_t
 get_render_pass_pixel_count(const struct tu_cmd_buffer *cmd)
 {
    const VkExtent2D *extent = &cmd->state.render_area.extent;
-   return extent->width * extent->height;
+   return extent->width * extent->height *
+      MAX2(cmd->state.pass->num_views, cmd->state.framebuffer->layers);
 }
 
 static uint64_t
