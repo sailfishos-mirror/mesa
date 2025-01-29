@@ -1077,10 +1077,7 @@ etna_screen_bo_from_handle(struct pipe_screen *pscreen,
 static struct disk_cache *
 etna_get_disk_shader_cache(struct pipe_screen *pscreen)
 {
-   struct etna_screen *screen = etna_screen(pscreen);
-   struct etna_compiler *compiler = screen->compiler;
-
-   return compiler->disk_cache;
+   return etna_screen(pscreen)->disk_cache;
 }
 
 static int

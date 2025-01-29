@@ -566,7 +566,7 @@ etna_variant_compile(UNUSED void *user_data, void *cso, const void *spec_key)
    v->key = *key;
    v->id = ++shader->variant_count;
 
-   if (etna_disk_cache_retrieve(shader->compiler, v))
+   if (etna_disk_cache_retrieve(shader->screen, v))
       return &v->base;
 
    if (!etna_compile_shader(v)) {
@@ -575,7 +575,7 @@ etna_variant_compile(UNUSED void *user_data, void *cso, const void *spec_key)
       return NULL;
    }
 
-   etna_disk_cache_store(shader->compiler, v);
+   etna_disk_cache_store(shader->screen, v);
 
    if (DBG_ENABLED(ETNA_DBG_DUMP_SHADERS))
       etna_dump_shader(v);
@@ -705,7 +705,7 @@ etna_create_shader_state(struct pipe_context *pctx,
    if (ctx->mag_switchover_half)
       gather_tex_lod_samplers(shader->nir, &shader->tex_lod_samplers);
 
-   etna_disk_cache_init_shader_key(compiler, shader);
+   etna_disk_cache_init_shader_key(screen, shader);
 
    if (initial_variants_synchronous(ctx)) {
       struct etna_shader_key key = {};
@@ -793,7 +793,9 @@ etna_shader_screen_init(struct pipe_screen *pscreen)
    /* Create at least one thread - even on single core CPU systems. */
    num_threads = MAX2(1, num_threads);
 
-   screen->compiler = etna_compiler_create(pscreen->get_name(pscreen), screen->info);
+   etna_disk_cache_init(screen);
+
+   screen->compiler = etna_compiler_create(screen->info);
    if (!screen->compiler)
       return false;
 
@@ -824,5 +826,6 @@ etna_shader_screen_fini(struct pipe_screen *pscreen)
    struct etna_screen *screen = etna_screen(pscreen);
 
    util_queue_destroy(&screen->shader_compiler_queue);
+   disk_cache_destroy(screen->disk_cache);
    etna_compiler_destroy(screen->compiler);
 }
