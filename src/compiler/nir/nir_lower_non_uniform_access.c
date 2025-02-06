@@ -221,6 +221,7 @@ lower_non_uniform_tex_access(struct nu_state *state, nir_tex_instr *tex,
       case nir_tex_src_texture_offset:
       case nir_tex_src_texture_handle:
       case nir_tex_src_texture_deref:
+      case nir_tex_src_texture_2_deref:
          if (!tex->texture_non_uniform)
             continue;
          if (!(opts->types & nir_lower_non_uniform_texture_access))
@@ -232,6 +233,7 @@ lower_non_uniform_tex_access(struct nu_state *state, nir_tex_instr *tex,
       case nir_tex_src_sampler_offset:
       case nir_tex_src_sampler_handle:
       case nir_tex_src_sampler_deref:
+      case nir_tex_src_sampler_2_deref:
          if (!tex->sampler_non_uniform)
             continue;
          if (!(opts->types & nir_lower_non_uniform_texture_access))

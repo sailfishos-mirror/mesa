@@ -981,7 +981,8 @@ validate_tex_instr(nir_tex_instr *instr, validate_state *state)
          validate_assert(state, instr->op == nir_texop_txd);
          break;
 
-      case nir_tex_src_texture_deref: {
+      case nir_tex_src_texture_deref:
+      case nir_tex_src_texture_2_deref: {
          nir_deref_instr *deref = nir_src_as_deref(instr->src[i].src);
          if (!validate_assert(state, deref))
             break;
@@ -990,7 +991,8 @@ validate_tex_instr(nir_tex_instr *instr, validate_state *state)
          break;
       }
 
-      case nir_tex_src_sampler_deref: {
+      case nir_tex_src_sampler_deref:
+      case nir_tex_src_sampler_2_deref: {
          nir_deref_instr *deref = nir_src_as_deref(instr->src[i].src);
          if (!validate_assert(state, deref))
             break;
@@ -1016,7 +1018,18 @@ validate_tex_instr(nir_tex_instr *instr, validate_state *state)
          break;
       }
 
+      case nir_tex_src_block_size:
+         validate_assert(state,
+                         instr->op == nir_texop_block_match_sad_qcom ||
+                         instr->op == nir_texop_block_match_ssd_qcom);
+         break;
+
+      case nir_tex_src_box_size:
+         validate_assert(state, instr->op == nir_texop_box_filter_qcom);
+         break;
+
       case nir_tex_src_coord:
+      case nir_tex_src_ref_coord:
       case nir_tex_src_projector:
       case nir_tex_src_offset:
       case nir_tex_src_min_lod:
@@ -1026,6 +1039,8 @@ validate_tex_instr(nir_tex_instr *instr, validate_state *state)
       case nir_tex_src_plane:
       case nir_tex_src_texture_handle:
       case nir_tex_src_sampler_handle:
+      case nir_tex_src_texture_2_handle:
+      case nir_tex_src_sampler_2_handle:
          break;
 
       default:

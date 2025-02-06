@@ -334,10 +334,12 @@ gcm_pin_instructions(nir_function_impl *impl, struct gcm_state *state)
                nir_tex_src *src = &tex->src[i];
                switch (src->src_type) {
                case nir_tex_src_texture_deref:
+               case nir_tex_src_texture_2_deref:
                   if (!tex->texture_non_uniform && !is_binding_uniform(src->src))
                      instr->pass_flags = GCM_INSTR_PINNED;
                   break;
                case nir_tex_src_sampler_deref:
+               case nir_tex_src_sampler_2_deref:
                   if (!tex->sampler_non_uniform && !is_binding_uniform(src->src))
                      instr->pass_flags = GCM_INSTR_PINNED;
                   break;
