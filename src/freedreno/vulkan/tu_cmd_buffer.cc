@@ -3745,6 +3745,18 @@ tu_calc_frag_area(struct tu_cmd_buffer *cmd,
       float area = raw_areas[i].width * raw_areas[i].height;
       float frac_x = modff(raw_areas[i].width, &floor_x);
       float frac_y = modff(raw_areas[i].height, &floor_y);
+
+      /* The Vulkan spec says that a density of 0 results in an undefined
+       * fragment area. However the blob driver skips rendering tiles with 0
+       * density, and apps rely on that behavior. Replicate that here.
+       */
+      if (!isfinite(area)) {
+         tile->frag_areas[i].width = UINT32_MAX;
+         tile->frag_areas[i].height = UINT32_MAX;
+         tile->visible_views &= ~(1u << i);
+         continue;
+      }
+
       /* The spec allows rounding up one of the axes as long as the total
        * area is less than or equal to the original area. Take advantage of
        * this to try rounding up the number with the largest fraction.
