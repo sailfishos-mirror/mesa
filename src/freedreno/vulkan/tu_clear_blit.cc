@@ -4392,18 +4392,25 @@ fdm_apply_gmem_clear_coords(struct tu_cmd_buffer *cmd,
       frag_area = (VkExtent2D) { 1, 1 };
    }
 
-   unsigned x1 = state->rect.offset.x / frag_area.width + offset.x;
-   unsigned x2 = DIV_ROUND_UP(state->rect.offset.x + state->rect.extent.width,
-                              frag_area.width) + offset.x - 1;
-   unsigned y1 = state->rect.offset.y / frag_area.height + offset.y;
-   unsigned y2 = DIV_ROUND_UP(state->rect.offset.y + state->rect.extent.height,
-                              frag_area.height) + offset.y - 1;
+   if (bin.extent.width == 0 && bin.extent.height == 0) {
+      /* clear a 0 area rectangle to skip this clear */
+      tu_cs_emit_regs(cs,
+                      A6XX_RB_RESOLVE_CNTL_1(.x = 1, .y = 1),
+                      A6XX_RB_RESOLVE_CNTL_2(.x = 0, .y = 0));
+   } else {
+      unsigned x1 = state->rect.offset.x / frag_area.width + offset.x;
+      unsigned x2 = DIV_ROUND_UP(state->rect.offset.x + state->rect.extent.width,
+                                 frag_area.width) + offset.x - 1;
+      unsigned y1 = state->rect.offset.y / frag_area.height + offset.y;
+      unsigned y2 = DIV_ROUND_UP(state->rect.offset.y + state->rect.extent.height,
+                                 frag_area.height) + offset.y - 1;
 
-   tu_cs_emit_pkt4(cs, REG_A6XX_RB_RESOLVE_CNTL_1, 2);
-   tu_cs_emit(cs,
-              A6XX_RB_RESOLVE_CNTL_1_X(x1) | A6XX_RB_RESOLVE_CNTL_1_Y(y1));
-   tu_cs_emit(cs,
-              A6XX_RB_RESOLVE_CNTL_2_X(x2) | A6XX_RB_RESOLVE_CNTL_2_Y(y2));
+      tu_cs_emit_pkt4(cs, REG_A6XX_RB_RESOLVE_CNTL_1, 2);
+      tu_cs_emit(cs,
+                 A6XX_RB_RESOLVE_CNTL_1_X(x1) | A6XX_RB_RESOLVE_CNTL_1_Y(y1));
+      tu_cs_emit(cs,
+                 A6XX_RB_RESOLVE_CNTL_2_X(x2) | A6XX_RB_RESOLVE_CNTL_2_Y(y2));
+   }
 }
 
 template <chip CHIP>
@@ -5578,15 +5585,26 @@ fdm_apply_store_coords(struct tu_cmd_buffer *cmd,
    uint32_t scaled_width = bin.extent.width / frag_area.width;
    uint32_t scaled_height = bin.extent.height / frag_area.height;
 
-   tu_cs_emit_regs(
-      cs, GRAS_A2D_DEST_TL(CHIP, .x = bin.offset.x, .y = bin.offset.y),
-      GRAS_A2D_DEST_BR(CHIP, .x = bin.offset.x + bin.extent.width - 1,
-                       .y = bin.offset.y + bin.extent.height - 1));
-   tu_cs_emit_regs(cs,
-                   GRAS_A2D_SRC_XMIN(CHIP, common_bin_offset.x),
-                   GRAS_A2D_SRC_XMAX(CHIP, common_bin_offset.x + scaled_width - 1),
-                   GRAS_A2D_SRC_YMIN(CHIP, common_bin_offset.y),
-                   GRAS_A2D_SRC_YMAX(CHIP, common_bin_offset.y + scaled_height - 1));
+   if (bin.extent.width == 0 && bin.extent.height == 0) {
+      tu_cs_emit_regs(cs,
+         GRAS_A2D_DEST_TL(CHIP, .x = 1, .y = 1),
+         GRAS_A2D_DEST_BR(CHIP, .x = 0, .y = 0));
+      tu_cs_emit_regs(cs,
+                      GRAS_A2D_SRC_XMIN(CHIP, 1),
+                      GRAS_A2D_SRC_XMAX(CHIP, 0),
+                      GRAS_A2D_SRC_YMIN(CHIP, 1),
+                      GRAS_A2D_SRC_YMAX(CHIP, 0));
+   } else {
+      tu_cs_emit_regs(cs,
+         GRAS_A2D_DEST_TL(CHIP, .x = bin.offset.x, .y = bin.offset.y),
+         GRAS_A2D_DEST_BR(CHIP, .x = bin.offset.x + bin.extent.width - 1,
+                          .y = bin.offset.y + bin.extent.height - 1));
+      tu_cs_emit_regs(cs,
+                      GRAS_A2D_SRC_XMIN(CHIP, common_bin_offset.x),
+                      GRAS_A2D_SRC_XMAX(CHIP, common_bin_offset.x + scaled_width - 1),
+                      GRAS_A2D_SRC_YMIN(CHIP, common_bin_offset.y),
+                      GRAS_A2D_SRC_YMAX(CHIP, common_bin_offset.y + scaled_height - 1));
+   }
 }
 
 template <chip CHIP>
