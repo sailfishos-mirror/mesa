@@ -1527,7 +1527,7 @@ static void
 tu6_emit_tile_select(struct tu_cmd_buffer *cmd,
                      struct tu_cs *cs,
                      const struct tu_tile_config *tile,
-                     bool fdm, const VkOffset2D *fdm_offsets)
+                     const VkOffset2D *fdm_offsets)
 {
    const struct tu_tiling_config *tiling = cmd->state.tiling;
    const struct tu_framebuffer *fb = cmd->state.framebuffer;
@@ -1551,7 +1551,7 @@ tu6_emit_tile_select(struct tu_cmd_buffer *cmd,
                           cmd->state.framebuffer->layers);
    bool bin_is_scaled = false;
 
-   if (fdm) {
+   if (cmd->fdm_bin_patchpoints.size != 0) {
       for (unsigned i = 0; i < views; i++) {
          if (tile->frag_areas[i].width != 1 ||
              tile->frag_areas[i].height != 1) {
@@ -1645,7 +1645,7 @@ tu6_emit_tile_select(struct tu_cmd_buffer *cmd,
    tu_cs_emit_pkt7(cs, CP_SET_MODE, 1);
    tu_cs_emit(cs, 0x0);
 
-   if (fdm) {
+   if (cmd->fdm_bin_patchpoints.size != 0) {
       VkRect2D bin = {
          { x1, y1 },
          { (x2 - x1) * tile->extent.width, (y2 - y1) * tile->extent.height }
@@ -3535,9 +3535,9 @@ template <chip CHIP>
 static void
 tu6_render_tile(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
                 const struct tu_tile_config *tile,
-                bool fdm, const VkOffset2D *fdm_offsets)
+                const VkOffset2D *fdm_offsets)
 {
-   tu6_emit_tile_select<CHIP>(cmd, &cmd->cs, tile, fdm, fdm_offsets);
+   tu6_emit_tile_select<CHIP>(cmd, &cmd->cs, tile, fdm_offsets);
    tu_lrz_before_tile<CHIP>(cmd, &cmd->cs);
 
    trace_start_draw_ib_gmem(&cmd->trace, &cmd->cs, cmd);
@@ -3790,6 +3790,14 @@ tu_calc_frag_area(struct tu_cmd_buffer *cmd,
    }
 }
 
+static void
+tu_identity_frag_area(struct tu_cmd_buffer *cmd,
+                      struct tu_tile_config *tile)
+{
+   for (unsigned i = 0; i < tu_fdm_num_layers(cmd); i++)
+      tile->frag_areas[i] = (VkExtent2D) { 1, 1 };
+}
+
 static bool
 try_merge_tiles(struct tu_tile_config *dst, const struct tu_tile_config *src,
                 unsigned views, bool has_abs_bin_mask)
@@ -3919,8 +3927,7 @@ tu_render_pipe_fdm(struct tu_cmd_buffer *cmd, uint32_t pipe,
          if (merged_tiles & (1u << tile_idx))
             continue;
 
-         tu6_render_tile<CHIP>(cmd, &cmd->cs, &tiles[tile_idx],
-                               true, fdm_offsets);
+         tu6_render_tile<CHIP>(cmd, &cmd->cs, &tiles[tile_idx], fdm_offsets);
       }
    }
 }
@@ -4035,9 +4042,10 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
                };
                if (has_fdm)
                   tu_calc_frag_area(cmd, &tile, fdm, fdm_offsets);
+               else
+                  tu_identity_frag_area(cmd, &tile);
 
-               tu6_render_tile<CHIP>(cmd, &cmd->cs, &tile, has_fdm,
-                                     fdm_offsets);
+               tu6_render_tile<CHIP>(cmd, &cmd->cs, &tile, fdm_offsets);
             }
             slot_row += tile_row_stride;
          }
