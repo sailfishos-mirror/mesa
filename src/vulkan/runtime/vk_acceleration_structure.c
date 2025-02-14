@@ -93,6 +93,28 @@ vk_common_CreateAccelerationStructureKHR(VkDevice _device,
    return VK_SUCCESS;
 }
 
+VKAPI_ATTR VkResult VKAPI_CALL
+vk_common_CreateAccelerationStructure2KHR(VkDevice _device,
+                                          const VkAccelerationStructureCreateInfo2KHR *pCreateInfo,
+                                          const VkAllocationCallbacks *pAllocator,
+                                          VkAccelerationStructureKHR *pAccelerationStructure)
+{
+   VK_FROM_HANDLE(vk_device, device, _device);
+
+   struct vk_acceleration_structure *accel_struct = vk_object_zalloc(
+      device, pAllocator, sizeof(struct vk_acceleration_structure),
+      VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR);
+
+   if (!accel_struct)
+      return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+   accel_struct->addr = pCreateInfo->addressRange.address;
+   accel_struct->size = pCreateInfo->addressRange.size;
+
+   *pAccelerationStructure = vk_acceleration_structure_to_handle(accel_struct);
+   return VK_SUCCESS;
+}
+
 VKAPI_ATTR void VKAPI_CALL
 vk_common_DestroyAccelerationStructureKHR(VkDevice _device,
                                      VkAccelerationStructureKHR accelerationStructure,
