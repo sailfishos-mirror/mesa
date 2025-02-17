@@ -8186,8 +8186,7 @@ radv_emit_ray_tracing_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_r
    const uint32_t traversal_shader_addr_offset = radv_get_user_sgpr_loc(rt_prolog, AC_UD_CS_TRAVERSAL_SHADER_ADDR);
    struct radv_shader *traversal_shader = cmd_buffer->state.shaders[MESA_SHADER_INTERSECTION];
    if (traversal_shader_addr_offset && traversal_shader) {
-      uint64_t traversal_va = traversal_shader->va | radv_rt_priority_traversal;
-
+      uint64_t traversal_va = traversal_shader->va;
       radeon_begin(cs);
       if (pdev->info.gfx_level >= GFX12) {
          gfx12_push_32bit_pointer(traversal_shader_addr_offset, traversal_va, &pdev->info);
@@ -13740,10 +13739,9 @@ radv_emit_rt_stack_size(struct radv_cmd_buffer *cmd_buffer)
    unsigned rsrc2 = rt_prolog->config.rsrc2;
 
    /* Reserve scratch for stacks manually since it is not handled by the compute path. */
-   uint32_t scratch_bytes_per_wave = rt_prolog->config.scratch_bytes_per_wave;
    const uint32_t wave_size = rt_prolog->info.wave_size;
 
-   scratch_bytes_per_wave +=
+   uint32_t scratch_bytes_per_wave =
       align(cmd_buffer->state.rt_stack_size * wave_size, pdev->info.scratch_wavesize_granularity);
 
    cmd_buffer->compute_scratch_size_per_wave_needed =

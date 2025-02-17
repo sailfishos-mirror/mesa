@@ -654,34 +654,8 @@ void radv_get_nir_options(struct radv_physical_device *pdev);
 enum radv_rt_lowering_mode {
    RADV_RT_LOWERING_MODE_MONOLITHIC,
    RADV_RT_LOWERING_MODE_CPS,
+   RADV_RT_LOWERING_MODE_FUNCTION_CALLS,
 };
-
-enum radv_rt_priority {
-   radv_rt_priority_raygen = 0,
-   radv_rt_priority_traversal = 1,
-   radv_rt_priority_hit_miss = 2,
-   radv_rt_priority_callable = 3,
-   radv_rt_priority_mask = 0x3,
-};
-
-static inline enum radv_rt_priority
-radv_get_rt_priority(mesa_shader_stage stage)
-{
-   switch (stage) {
-   case MESA_SHADER_RAYGEN:
-      return radv_rt_priority_raygen;
-   case MESA_SHADER_INTERSECTION:
-   case MESA_SHADER_ANY_HIT:
-      return radv_rt_priority_traversal;
-   case MESA_SHADER_CLOSEST_HIT:
-   case MESA_SHADER_MISS:
-      return radv_rt_priority_hit_miss;
-   case MESA_SHADER_CALLABLE:
-      return radv_rt_priority_callable;
-   default:
-      UNREACHABLE("Unimplemented RT shader stage.");
-   }
-}
 
 struct radv_shader_layout;
 enum radv_pipeline_type;

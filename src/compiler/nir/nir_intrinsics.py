@@ -2152,6 +2152,13 @@ intrinsic("sleep_amd", indices=[BASE])
 # s_nop BASE (sleep for BASE+1 cycles, BASE must be in [0, 15]).
 intrinsic("nop_amd", indices=[BASE])
 
+intrinsic("store_param_amd", src_comp=[-1], indices=[PARAM_IDX])
+intrinsic("load_return_param_amd", dest_comp=0, indices=[CALL_IDX, PARAM_IDX])
+
+system_value("call_return_address_amd", 1, bit_sizes=[64])
+# src[0] is the divergent call target for each lane, src[1] is the (uniform) address to jump to next
+intrinsic("set_next_call_pc_amd", src_comp=[1, 1], bit_sizes=[64])
+
 # Return the FMASK descriptor of color buffer 0.
 system_value("fbfetch_image_fmask_desc_amd", 8)
 # Return the image descriptor of color buffer 0.

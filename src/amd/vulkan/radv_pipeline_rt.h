@@ -12,6 +12,7 @@
 #define RADV_PIPELINE_RT_H
 
 #include "util/bitset.h"
+#include "aco_nir_call_attribs.h"
 #include "radv_pipeline_compute.h"
 #include "radv_shader.h"
 
@@ -27,6 +28,7 @@ struct radv_ray_tracing_pipeline {
    unsigned group_count;
 
    uint32_t stack_size;
+   uint32_t traversal_stack_size;
 
    /* set if any shaders from this pipeline require robustness2 in the merged traversal shader */
    bool traversal_storage_robustness2 : 1;
@@ -76,7 +78,7 @@ struct radv_ray_tracing_stage_info {
    bool can_inline;
    bool has_position_fetch;
 
-   BITSET_DECLARE(unused_args, AC_MAX_ARGS);
+   BITSET_DECLARE(unused_args, CPS_ARG_COUNT);
 
    struct radv_rt_const_arg_info tmin;
    struct radv_rt_const_arg_info tmax;

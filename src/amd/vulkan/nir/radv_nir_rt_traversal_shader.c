@@ -385,6 +385,7 @@ insert_inlined_shader(nir_builder *b, struct traversal_inlining_params *params, 
    nir_opt_dce(shader);
 
    radv_nir_inline_constants(b->shader, shader);
+   b->shader->scratch_size = MAX2(b->shader->scratch_size, shader->scratch_size);
 
    nir_push_if(b, nir_ieq_imm(b, idx, call_idx));
    nir_inline_function_impl(b, nir_shader_get_entrypoint(shader), NULL, var_remap);
@@ -607,6 +608,9 @@ nir_lower_intersection_shader(nir_shader *intersection, nir_shader *any_hit)
    /* Eliminate the casts introduced for the commit return of the any-hit shader. */
    NIR_PASS(_, intersection, nir_opt_deref);
 
+   /* Reflect the scratch memory required by the inlined any-hit shader */
+   intersection->scratch_size += any_hit->scratch_size;
+
    ralloc_free(dead_ctx);
 }
 
@@ -665,9 +669,6 @@ radv_build_isec_case(nir_builder *b, nir_def *sbt_idx, struct radv_ray_tracing_g
       assert(any_hit_stage);
 
       params->preprocess(any_hit_stage, params->preprocess_data);
-
-      /* reserve stack size for any_hit before it is inlined */
-      data->pipeline->stages[group->any_hit_shader].stack_size = any_hit_stage->scratch_size;
 
       nir_lower_intersection_shader(nir_stage, any_hit_stage);
       ralloc_free(any_hit_stage);
@@ -857,7 +858,8 @@ handle_candidate_triangle(nir_builder *b, struct radv_triangle_intersection *int
 
    nir_push_if(b, nir_inot(b, intersection->base.opaque));
    {
-      struct radv_nir_sbt_data sbt_data = radv_nir_load_sbt_entry(b, sbt_idx, SBT_HIT, SBT_ANY_HIT_IDX);
+      struct radv_nir_sbt_data sbt_data =
+         radv_nir_load_sbt_entry(b, nir_load_sbt_base_amd(b), sbt_idx, SBT_HIT, SBT_ANY_HIT_IDX);
       nir_store_var(b, ahit_vars.shader_record_ptr, sbt_data.shader_record_ptr, 0x1);
 
       struct traversal_inlining_params inlining_params = {
@@ -942,7 +944,8 @@ handle_candidate_aabb(nir_builder *b, struct radv_leaf_intersection *intersectio
       nir_store_var(b, data->trav_vars.ahit_isec_count,
                     nir_iadd_imm(b, nir_load_var(b, data->trav_vars.ahit_isec_count), 1 << 16), 0x1);
 
-   struct radv_nir_sbt_data sbt_data = radv_nir_load_sbt_entry(b, sbt_idx, SBT_HIT, SBT_INTERSECTION_IDX);
+   struct radv_nir_sbt_data sbt_data =
+      radv_nir_load_sbt_entry(b, nir_load_sbt_base_amd(b), sbt_idx, SBT_HIT, SBT_INTERSECTION_IDX);
    nir_store_var(b, ahit_vars.shader_record_ptr, sbt_data.shader_record_ptr, 0x1);
 
    struct traversal_inlining_params inlining_params = {
@@ -1120,22 +1123,22 @@ radv_build_traversal(struct radv_device *device, struct radv_ray_tracing_pipelin
    if (device->rra_trace.ray_history_addr)
       radv_build_end_trace_token(b, &data, nir_load_var(b, iteration_instance_count));
 
-   nir_progress(true, nir_shader_get_entrypoint(b->shader), nir_metadata_none);
+   nir_progress(true, b->impl, nir_metadata_none);
    radv_nir_lower_hit_attrib_derefs(b->shader);
 
    return data.trav_vars.result;
 }
 
 static void
-preprocess_traversal_shader_ahit_isec(nir_shader *nir, void *_)
+preprocess_traversal_shader_ahit_isec(nir_shader *nir, void *cb)
 {
-   /* Compiling a separate traversal shader is always done in CPS mode. */
-   radv_nir_lower_rt_io_cps(nir);
+   radv_nir_traversal_preprocess_cb preprocess_cb = cb;
+   preprocess_cb(nir);
 }
 
 nir_shader *
 radv_build_traversal_shader(struct radv_device *device, struct radv_ray_tracing_pipeline *pipeline,
-                            struct radv_ray_tracing_stage_info *info)
+                            struct radv_ray_tracing_stage_info *info, radv_nir_traversal_preprocess_cb preprocess)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
@@ -1184,11 +1187,12 @@ radv_build_traversal_shader(struct radv_device *device, struct radv_ray_tracing_
    params.direction = nir_load_ray_world_direction(&b);
 
    params.preprocess_ahit_isec = preprocess_traversal_shader_ahit_isec;
+   params.cb_data = preprocess;
    params.ignore_cull_mask = false;
 
    struct radv_nir_rt_traversal_result result = radv_build_traversal(device, pipeline, &b, &params, info);
 
-   radv_nir_lower_hit_attribs(b.shader, hit_attribs, pdev->rt_wave_size);
+   radv_nir_lower_rt_storage(b.shader, hit_attribs, NULL, NULL, pdev->rt_wave_size);
 
    nir_push_if(&b, nir_load_var(&b, result.hit));
    {

@@ -15,6 +15,9 @@
 #include "radv_pipeline_cache.h"
 #include "radv_pipeline_rt.h"
 
+typedef struct nir_parameter nir_parameter;
+typedef struct glsl_type glsl_type;
+
 /*
  *
  * Common Constants
@@ -85,8 +88,8 @@ enum radv_nir_sbt_entry {
    SBT_ANY_HIT_IDX = offsetof(struct radv_pipeline_group_handle, any_hit_index),
 };
 
-struct radv_nir_sbt_data radv_nir_load_sbt_entry(nir_builder *b, nir_def *idx, enum radv_nir_sbt_type binding,
-                                                 enum radv_nir_sbt_entry offset);
+struct radv_nir_sbt_data radv_nir_load_sbt_entry(nir_builder *b, nir_def *base, nir_def *idx,
+                                                 enum radv_nir_sbt_type binding, enum radv_nir_sbt_entry offset);
 
 /*
  *
@@ -94,10 +97,10 @@ struct radv_nir_sbt_data radv_nir_load_sbt_entry(nir_builder *b, nir_def *idx, e
  *
  */
 
+bool radv_nir_lower_rt_storage(nir_shader *shader, nir_variable **hit_attribs, nir_deref_instr **payload_in,
+                               nir_variable **payload_out, uint32_t workgroup_size);
 
-bool radv_nir_lower_rt_derefs(nir_shader *shader);
-bool radv_nir_lower_hit_attribs(nir_shader *shader, nir_variable **hit_attribs, uint32_t workgroup_size);
-
+void radv_nir_param_from_type(nir_parameter *param, const glsl_type *type, bool uniform, unsigned driver_attribs);
 
 /*
  *

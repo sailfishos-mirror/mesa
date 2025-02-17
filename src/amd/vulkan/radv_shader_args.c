@@ -320,50 +320,6 @@ radv_init_shader_args(const struct radv_device *device, mesa_shader_stage stage,
       args->user_sgprs_locs.shader_data[i].sgpr_idx = -1;
 }
 
-void
-radv_declare_rt_shader_args(enum amd_gfx_level gfx_level, struct radv_shader_args *args)
-{
-   add_ud_arg(args, 2, AC_ARG_CONST_ADDR, &args->ac.rt.uniform_shader_addr, AC_UD_SCRATCH_RING_OFFSETS);
-   add_ud_arg(args, 1, AC_ARG_CONST_ADDR, &args->descriptors[0], AC_UD_INDIRECT_DESCRIPTORS);
-   ac_add_arg(&args->ac, AC_ARG_SGPR, 1, AC_ARG_CONST_ADDR, &args->ac.push_constants);
-   ac_add_arg(&args->ac, AC_ARG_SGPR, 1, AC_ARG_CONST_ADDR, &args->ac.dynamic_descriptors);
-   ac_add_arg(&args->ac, AC_ARG_SGPR, 1, AC_ARG_CONST_ADDR, &args->ac.rt.traversal_shader_addr);
-   ac_add_arg(&args->ac, AC_ARG_SGPR, 2, AC_ARG_CONST_ADDR, &args->ac.rt.sbt_descriptors);
-
-   for (uint32_t i = 0; i < ARRAY_SIZE(args->ac.rt.launch_sizes); i++)
-      ac_add_arg(&args->ac, AC_ARG_SGPR, 1, AC_ARG_VALUE, &args->ac.rt.launch_sizes[i]);
-
-   if (gfx_level < GFX9) {
-      ac_add_arg(&args->ac, AC_ARG_SGPR, 1, AC_ARG_VALUE, &args->ac.scratch_offset);
-      ac_add_arg(&args->ac, AC_ARG_SGPR, 2, AC_ARG_CONST_ADDR, &args->ac.ring_offsets);
-   }
-
-   for (uint32_t i = 0; i < ARRAY_SIZE(args->ac.rt.launch_ids); i++)
-      ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.launch_ids[i]);
-
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.dynamic_callable_stack_base);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 2, AC_ARG_CONST_ADDR, &args->ac.rt.shader_addr);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 2, AC_ARG_CONST_ADDR, &args->ac.rt.shader_record);
-
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.payload_offset);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 3, AC_ARG_VALUE, &args->ac.rt.ray_origin);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 3, AC_ARG_VALUE, &args->ac.rt.ray_direction);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.ray_tmin);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.ray_tmax);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.cull_mask_and_flags);
-
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 2, AC_ARG_CONST_ADDR, &args->ac.rt.accel_struct);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.sbt_offset);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.sbt_stride);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.miss_index);
-
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 2, AC_ARG_CONST_ADDR, &args->ac.rt.instance_addr);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 2, AC_ARG_CONST_ADDR, &args->ac.rt.primitive_addr);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.primitive_id);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.geometry_id_and_flags);
-   ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.rt.hit_kind);
-}
-
 static bool
 radv_tcs_needs_state_sgpr(const struct radv_shader_info *info, const struct radv_graphics_state_key *gfx_state)
 {
@@ -563,7 +519,6 @@ declare_shader_args(const struct radv_device *device, const struct radv_graphics
    radv_init_shader_args(device, stage, args);
 
    if (mesa_shader_stage_is_rt(stage)) {
-      radv_declare_rt_shader_args(gfx_level, args);
       return;
    }
 

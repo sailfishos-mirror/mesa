@@ -45,6 +45,7 @@
 #include "vk_sync.h"
 #include "vk_ycbcr_conversion.h"
 
+#include "nir/radv_nir_rt_stage_functions.h"
 #include "aco_shader_info.h"
 #include "radv_aco_shader_info.h"
 #if AMD_LLVM_AVAILABLE
@@ -220,7 +221,9 @@ radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively)
 
    NIR_PASS(progress, shader, nir_opt_move, nir_move_load_ubo);
 
-   nir_shader_gather_info(shader, nir_shader_get_entrypoint(shader));
+   /* radv_get_rt_shader_entrypoint returns the entrypoint for non-RT shaders too. */
+   nir_function_impl *entrypoint = radv_get_rt_shader_entrypoint(shader);
+   nir_shader_gather_info(shader, entrypoint);
 }
 
 void
