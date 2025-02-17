@@ -575,6 +575,10 @@ kill(wait_imm& imm, depctr_wait& depctr, Instruction* instr, wait_ctx& ctx,
        */
       force_waitcnt(ctx, imm);
    }
+   if (instr->opcode == aco_opcode::s_swappc_b64) {
+      u_foreach_bit (i, ctx.nonzero & ~counter_vs)
+         imm[i] = 0;
+   }
 
    check_instr(ctx, imm, instr);
 

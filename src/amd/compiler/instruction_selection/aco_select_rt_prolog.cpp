@@ -8,13 +8,18 @@
 #include "aco_instruction_selection.h"
 #include "aco_interface.h"
 #include "aco_ir.h"
+#include "aco_nir_call_attribs.h"
+
+#include "ac_descriptors.h"
+#include "sid.h"
 
 namespace aco {
 
 void
 select_rt_prolog(Program* program, ac_shader_config* config,
                  const struct aco_compiler_options* options, const struct aco_shader_info* info,
-                 const struct ac_shader_args* in_args, const struct ac_shader_args* out_args)
+                 const struct ac_shader_args* in_args, const struct ac_arg* descriptors,
+                 unsigned raygen_param_count, nir_parameter* raygen_params)
 {
    init_program(program, compute_cs, info, options, config);
    Block* block = program->create_and_insert_block();
@@ -24,8 +29,13 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    calc_min_waves(program);
    Builder bld(program, block);
    block->instructions.reserve(32);
-   unsigned num_sgprs = MAX2(in_args->num_sgprs_used, out_args->num_sgprs_used);
-   unsigned num_vgprs = MAX2(in_args->num_vgprs_used, out_args->num_vgprs_used);
+   unsigned num_sgprs = in_args->num_sgprs_used;
+   unsigned num_vgprs = in_args->num_vgprs_used;
+
+   RegisterDemand limit = get_addr_regs_from_waves(program, program->min_waves);
+
+   struct callee_info raygen_info = get_callee_info(program->gfx_level, rtRaygenABI,
+                                                    raygen_param_count, raygen_params, NULL, limit);
 
    /* Inputs:
     * Ring offsets:                s[0-1]
@@ -41,9 +51,12 @@ select_rt_prolog(Program* program, ac_shader_config* config,
     * Local invocation IDs:        v[0-2]
     */
    PhysReg in_ring_offsets = get_arg_reg(in_args, in_args->ring_offsets);
+   PhysReg in_descriptors = get_arg_reg(in_args, *descriptors);
+   PhysReg in_push_constants = get_arg_reg(in_args, in_args->push_constants);
+   PhysReg in_dynamic_descriptors = get_arg_reg(in_args, in_args->dynamic_descriptors);
    PhysReg in_sbt_desc = get_arg_reg(in_args, in_args->rt.sbt_descriptors);
+   PhysReg in_traversal_addr = get_arg_reg(in_args, in_args->rt.traversal_shader_addr);
    PhysReg in_launch_size_addr = get_arg_reg(in_args, in_args->rt.launch_size_addr);
-   PhysReg in_stack_base = get_arg_reg(in_args, in_args->rt.dynamic_callable_stack_base);
    PhysReg in_wg_id_x;
    PhysReg in_wg_id_y;
    PhysReg in_wg_id_z;
@@ -77,15 +90,48 @@ select_rt_prolog(Program* program, ac_shader_config* config,
     * Shader VA:                   v[4-5]
     * Shader Record Ptr:           v[6-7]
     */
-   PhysReg out_uniform_shader_addr = get_arg_reg(out_args, out_args->rt.uniform_shader_addr);
-   PhysReg out_launch_size_x = get_arg_reg(out_args, out_args->rt.launch_sizes[0]);
-   PhysReg out_launch_size_y = get_arg_reg(out_args, out_args->rt.launch_sizes[1]);
-   PhysReg out_launch_size_z = get_arg_reg(out_args, out_args->rt.launch_sizes[2]);
+   assert(raygen_info.stack_ptr.is_reg);
+   assert(raygen_info.return_address.is_reg);
+   assert(raygen_info.param_infos[0].is_reg);
+   assert(raygen_info.param_infos[1].is_reg);
+   assert(raygen_info.param_infos[RT_ARG_LAUNCH_ID + 2].is_reg);
+   assert(raygen_info.param_infos[RT_ARG_LAUNCH_SIZE + 2].is_reg);
+   assert(raygen_info.param_infos[RT_ARG_DESCRIPTORS + 2].is_reg);
+   assert(raygen_info.param_infos[RT_ARG_PUSH_CONSTANTS + 2].is_reg);
+   assert(raygen_info.param_infos[RT_ARG_SBT_DESCRIPTORS + 2].is_reg);
+   assert(raygen_info.param_infos[RAYGEN_ARG_TRAVERSAL_ADDR + 2].is_reg);
+   assert(raygen_info.param_infos[RAYGEN_ARG_SHADER_RECORD_PTR + 2].is_reg);
+   PhysReg out_stack_ptr_param = raygen_info.stack_ptr.def.physReg();
+   PhysReg out_return_shader_addr = raygen_info.return_address.def.physReg();
+   PhysReg out_divergent_shader_addr = raygen_info.param_infos[0].def.physReg();
+   PhysReg out_uniform_shader_addr = raygen_info.param_infos[1].def.physReg();
+   PhysReg out_launch_size_x = raygen_info.param_infos[RT_ARG_LAUNCH_SIZE + 2].def.physReg();
+   PhysReg out_launch_size_y = out_launch_size_x.advance(4);
+   PhysReg out_launch_size_z = out_launch_size_y.advance(4);
    PhysReg out_launch_ids[3];
-   for (unsigned i = 0; i < 3; i++)
-      out_launch_ids[i] = get_arg_reg(out_args, out_args->rt.launch_ids[i]);
-   PhysReg out_stack_ptr = get_arg_reg(out_args, out_args->rt.dynamic_callable_stack_base);
-   PhysReg out_record_ptr = get_arg_reg(out_args, out_args->rt.shader_record);
+   out_launch_ids[0] = raygen_info.param_infos[RT_ARG_LAUNCH_ID + 2].def.physReg();
+   for (unsigned i = 1; i < 3; i++)
+      out_launch_ids[i] = out_launch_ids[i - 1].advance(4);
+   PhysReg out_descriptors = raygen_info.param_infos[RT_ARG_DESCRIPTORS + 2].def.physReg();
+   PhysReg out_push_constants = raygen_info.param_infos[RT_ARG_PUSH_CONSTANTS + 2].def.physReg();
+   PhysReg out_dynamic_descriptors =
+      raygen_info.param_infos[RT_ARG_DYNAMIC_DESCRIPTORS + 2].def.physReg();
+   PhysReg out_sbt_descriptors = raygen_info.param_infos[RT_ARG_SBT_DESCRIPTORS + 2].def.physReg();
+   PhysReg out_traversal_addr =
+      raygen_info.param_infos[RAYGEN_ARG_TRAVERSAL_ADDR + 2].def.physReg();
+   PhysReg out_record_ptr = raygen_info.param_infos[RAYGEN_ARG_SHADER_RECORD_PTR + 2].def.physReg();
+
+   unsigned param_idx = 0;
+   for (auto& param_info : raygen_info.param_infos) {
+      unsigned byte_size =
+         align(raygen_params[param_idx].bit_size, 32) / 8 * raygen_params[param_idx].num_components;
+      if (raygen_params[param_idx].is_uniform)
+         num_sgprs = std::max(num_sgprs, param_info.def.physReg().reg() + byte_size / 4);
+      else
+         num_vgprs = std::max(num_vgprs, param_info.def.physReg().reg() - 256 + byte_size / 4);
+      ++param_idx;
+   }
+   num_sgprs = std::max(num_sgprs, raygen_info.stack_ptr.def.physReg().reg());
 
    /* Temporaries: */
    PhysReg tmp_wg_start_x = PhysReg{num_sgprs};
@@ -94,18 +140,26 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    num_sgprs++;
    PhysReg tmp_swizzle_bound_y = PhysReg{num_sgprs};
    num_sgprs++;
-   PhysReg tmp_wg_id_y;
-   if (program->gfx_level >= GFX12) {
-      tmp_wg_id_y = PhysReg{num_sgprs};
-      num_sgprs++;
-   } else {
-      tmp_wg_id_y = in_wg_id_y;
-   }
+   PhysReg tmp_wg_id_y = PhysReg{num_sgprs};
+   num_sgprs++;
    num_sgprs = align(num_sgprs, 2);
    PhysReg tmp_raygen_sbt = PhysReg{num_sgprs};
    num_sgprs += 2;
+   PhysReg tmp_launch_size_addr = PhysReg{num_sgprs};
+   num_sgprs += 2;
    PhysReg tmp_ring_offsets = PhysReg{num_sgprs};
    num_sgprs += 2;
+   PhysReg tmp_sbt_desc = PhysReg{num_sgprs};
+   if (program->gfx_level < GFX9)
+      num_sgprs += 2;
+   PhysReg tmp_traversal_addr = PhysReg{num_sgprs};
+   num_sgprs += 1;
+   PhysReg tmp_push_constants = PhysReg{num_sgprs};
+   num_sgprs++;
+   PhysReg tmp_descriptors = PhysReg{num_sgprs};
+   num_sgprs++;
+   PhysReg tmp_dynamic_descriptors = PhysReg{num_sgprs};
+   num_sgprs++;
 
    PhysReg tmp_swizzled_id_x = PhysReg{256 + num_vgprs++};
    PhysReg tmp_swizzled_id_y = PhysReg{256 + num_vgprs++};
@@ -113,40 +167,66 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    PhysReg tmp_swizzled_id_shifted_y = PhysReg{256 + num_vgprs++};
 
    /* Confirm some assumptions about register aliasing */
-   assert(in_ring_offsets == out_uniform_shader_addr);
-   assert(get_arg_reg(in_args, in_args->push_constants) ==
-          get_arg_reg(out_args, out_args->push_constants));
-   assert(get_arg_reg(in_args, in_args->dynamic_descriptors) ==
-          get_arg_reg(out_args, out_args->dynamic_descriptors));
-   assert(get_arg_reg(in_args, in_args->rt.sbt_descriptors) ==
-          get_arg_reg(out_args, out_args->rt.sbt_descriptors));
-   assert(get_arg_reg(in_args, in_args->rt.traversal_shader_addr) ==
-          get_arg_reg(out_args, out_args->rt.traversal_shader_addr));
-   assert(in_launch_size_addr == out_launch_size_x);
-   assert(in_stack_base == out_launch_size_z);
-   assert(in_local_id == out_launch_ids[0]);
-
-   /* <gfx9 reads in_scratch_offset at the end of the prolog to write out the scratch_offset
-    * arg. Make sure no other outputs have overwritten it by then.
-    */
-   assert(options->gfx_level >= GFX9 || in_scratch_offset.reg() >= out_args->num_sgprs_used);
+   if (program->gfx_level >= GFX9) {
+      if (program->gfx_level < GFX12) {
+         assert(in_wg_id_z == out_launch_size_y);
+         assert(in_wg_id_y == out_launch_size_x);
+      }
+      assert(in_sbt_desc == out_sbt_descriptors);
+      assert(in_traversal_addr == out_descriptors);
+   } else {
+      assert(out_launch_size_x == in_wg_id_y);
+      assert(out_sbt_descriptors == in_launch_size_addr);
+   }
 
    /* load raygen sbt */
    bld.smem(aco_opcode::s_load_dwordx2, Definition(tmp_raygen_sbt, s2), Operand(in_sbt_desc, s2),
             Operand::c32(0u));
 
+   bld.sop1(aco_opcode::s_mov_b64, Definition(tmp_launch_size_addr, s2),
+            Operand(in_launch_size_addr, s2));
+   bld.sop1(aco_opcode::s_mov_b32, Definition(tmp_traversal_addr, s1),
+            Operand(in_traversal_addr, s1));
+
+   /* On GFX8-, the out push constant/descriptor parameters alias WG IDs, so we copy these
+    * parameters only after we're done calculating the launch IDs.
+    */
+   bld.sop1(aco_opcode::s_mov_b32, Definition(tmp_push_constants, s1),
+            Operand(in_push_constants, s1));
+   bld.sop1(aco_opcode::s_mov_b32, Definition(tmp_dynamic_descriptors, s1),
+            Operand(in_dynamic_descriptors, s1));
+   bld.sop1(aco_opcode::s_mov_b32, Definition(tmp_descriptors, s1), Operand(in_descriptors, s1));
+
+   if (options->gfx_level < GFX9)
+      bld.sop1(aco_opcode::s_mov_b64, Definition(tmp_sbt_desc, s2), Operand(in_sbt_desc, s2));
+
    /* init scratch */
    if (options->gfx_level < GFX9) {
-      /* copy ring offsets to temporary location*/
-      bld.sop1(aco_opcode::s_mov_b64, Definition(tmp_ring_offsets, s2),
-               Operand(in_ring_offsets, s2));
+      /* Unconditionally apply the scratch offset to scratch_rsrc so we just have
+       * to pass the rsrc through to callees.
+       */
+      bld.sop2(aco_opcode::s_add_u32, Definition(tmp_ring_offsets, s1), Definition(scc, s1),
+               Operand(in_ring_offsets, s1), Operand(in_scratch_offset, s1));
+      bld.sop2(aco_opcode::s_addc_u32, Definition(tmp_ring_offsets.advance(4), s1),
+               Definition(scc, s1), Operand(in_ring_offsets.advance(4), s1), Operand::c32(0),
+               Operand(scc, s1));
    } else if (options->gfx_level < GFX11) {
       hw_init_scratch(bld, Definition(in_ring_offsets, s1), Operand(in_ring_offsets, s2),
                       Operand(in_scratch_offset, s1));
    }
 
-   /* set stack ptr */
-   bld.vop1(aco_opcode::v_mov_b32, Definition(out_stack_ptr, v1), Operand(in_stack_base, s1));
+   /* Set up the Z launch ID, as well as setting up workgroup Y IDs. On gfx11-, the setup consists
+    * of backing the ID up as the load for the ray launch sizes will overwrite it.
+    */
+   if (options->gfx_level >= GFX12) {
+      bld.vop2_e64(aco_opcode::v_lshrrev_b32, Definition(out_launch_ids[2], v1), Operand::c32(16),
+                   Operand(in_wg_id_y, s1));
+      bld.sop2(aco_opcode::s_pack_ll_b32_b16, Definition(tmp_wg_id_y, s1), Operand(in_wg_id_y, s1),
+               Operand::c32(0));
+   } else {
+      bld.vop1(aco_opcode::v_mov_b32, Definition(out_launch_ids[2], v1), Operand(in_wg_id_z, s1));
+      bld.sop1(aco_opcode::s_mov_b32, Definition(tmp_wg_id_y, s1), Operand(in_wg_id_y, s1));
+   }
 
    /* load raygen address */
    bld.smem(aco_opcode::s_load_dwordx2, Definition(out_uniform_shader_addr, s2),
@@ -156,22 +236,12 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    assert(out_launch_size_x.reg() % 4 == 0);
    if (options->gfx_level >= GFX12) {
       bld.smem(aco_opcode::s_load_dwordx3, Definition(out_launch_size_x, s3),
-               Operand(in_launch_size_addr, s2), Operand::c32(0u));
+               Operand(tmp_launch_size_addr, s2), Operand::c32(0u));
    } else {
       bld.smem(aco_opcode::s_load_dword, Definition(out_launch_size_z, s1),
-               Operand(in_launch_size_addr, s2), Operand::c32(8u));
+               Operand(tmp_launch_size_addr, s2), Operand::c32(8u));
       bld.smem(aco_opcode::s_load_dwordx2, Definition(out_launch_size_x, s2),
-               Operand(in_launch_size_addr, s2), Operand::c32(0u));
-   }
-
-   /* calculate ray launch ids */
-   if (options->gfx_level >= GFX12) {
-      bld.vop2_e64(aco_opcode::v_lshrrev_b32, Definition(out_launch_ids[2], v1), Operand::c32(16),
-                   Operand(in_wg_id_y, s1));
-      bld.sop2(aco_opcode::s_pack_ll_b32_b16, Definition(tmp_wg_id_y, s1), Operand(in_wg_id_y, s1),
-               Operand::c32(0));
-   } else {
-      bld.vop1(aco_opcode::v_mov_b32, Definition(out_launch_ids[2], v1), Operand(in_wg_id_z, s1));
+               Operand(tmp_launch_size_addr, s2), Operand::c32(0u));
    }
 
    /* Swizzle ray launch IDs. We dispatch a 1D 32x1/64x1 workgroup natively. Many games dispatch
@@ -313,13 +383,61 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    bld.vop1(aco_opcode::v_mov_b32, Definition(out_record_ptr.advance(4), v1),
             Operand(tmp_raygen_sbt.advance(4), s1));
 
-   if (options->gfx_level < GFX9) {
-      /* write scratch/ring offsets to outputs, if needed */
-      bld.sop1(aco_opcode::s_mov_b32,
-               Definition(get_arg_reg(out_args, out_args->scratch_offset), s1),
-               Operand(in_scratch_offset, s1));
-      bld.sop1(aco_opcode::s_mov_b64, Definition(get_arg_reg(out_args, out_args->ring_offsets), s2),
-               Operand(tmp_ring_offsets, s2));
+   bld.sop1(aco_opcode::s_mov_b32, Definition(out_traversal_addr, s1),
+            Operand(tmp_traversal_addr, s1));
+   bld.sop1(aco_opcode::s_mov_b32, Definition(out_traversal_addr.advance(4), s1),
+            Operand::c32(options->address32_hi));
+
+   if (program->gfx_level < GFX8)
+      bld.vop3(aco_opcode::v_lshr_b64, Definition(out_divergent_shader_addr, v2),
+               Operand(out_uniform_shader_addr, s2), Operand::c32(0));
+   else
+      bld.vop3(aco_opcode::v_lshrrev_b64, Definition(out_divergent_shader_addr, v2),
+               Operand::c32(0), Operand(out_uniform_shader_addr, s2));
+
+   /* Launch IDs are calculated, so copy the push constant/sbt descriptor parameters.
+    * Do this here before other parameters overwrite the inputs.
+    */
+   if (program->gfx_level < GFX9) {
+      bld.sop1(aco_opcode::s_mov_b32, Definition(out_sbt_descriptors, s1),
+               Operand(tmp_sbt_desc, s1));
+      bld.sop1(aco_opcode::s_mov_b32, Definition(out_sbt_descriptors.advance(4), s1),
+               Operand(tmp_sbt_desc.advance(4), s1));
+   }
+   bld.sop1(aco_opcode::s_mov_b32, Definition(out_push_constants, s1),
+            Operand(tmp_push_constants, s1));
+   bld.sop1(aco_opcode::s_mov_b32, Definition(out_dynamic_descriptors, s1),
+            Operand(tmp_dynamic_descriptors, s1));
+   bld.sop1(aco_opcode::s_mov_b32, Definition(out_descriptors, s1), Operand(tmp_descriptors, s1));
+
+   bld.sop1(aco_opcode::s_mov_b64, Definition(out_return_shader_addr, s2), Operand::c32(0));
+
+   if (program->gfx_level >= GFX9) {
+      bld.sopk(aco_opcode::s_movk_i32, Definition(out_stack_ptr_param, s1), 0);
+   } else {
+      /* Construct the scratch_rsrc here and pass it to the callees to use directly. */
+      struct ac_buffer_state ac_state = {0};
+      uint32_t desc[4];
+
+      ac_state.size = 0xffffffff;
+      ac_state.format = PIPE_FORMAT_R32_FLOAT;
+      for (int i = 0; i < 4; i++)
+         ac_state.swizzle[i] = PIPE_SWIZZLE_0;
+      ac_state.element_size = 1u;
+      ac_state.index_stride = program->wave_size == 64 ? 3u : 2u;
+      ac_state.add_tid = true;
+      ac_state.gfx10_oob_select = V_008F0C_OOB_SELECT_RAW;
+
+      ac_build_buffer_descriptor(program->gfx_level, &ac_state, desc);
+
+      bld.sop1(aco_opcode::s_mov_b32, Definition(out_stack_ptr_param, s1),
+               Operand(tmp_ring_offsets, s1));
+      bld.sop1(aco_opcode::s_mov_b32, Definition(out_stack_ptr_param.advance(4), s1),
+               Operand(tmp_ring_offsets.advance(4), s1));
+      bld.sop1(aco_opcode::s_mov_b32, Definition(out_stack_ptr_param.advance(8), s1),
+               Operand::c32(desc[2]));
+      bld.sop1(aco_opcode::s_mov_b32, Definition(out_stack_ptr_param.advance(12), s1),
+               Operand::c32(desc[3]));
    }
 
    /* jump to raygen */

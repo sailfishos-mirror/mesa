@@ -45,14 +45,8 @@ append_logical_end(isel_context* ctx, bool append_reload_preserved)
 {
    Builder bld(ctx->program, ctx->block);
 
-   if (append_reload_preserved && ctx->program->is_callee && ctx->block->loop_nest_depth == 0) {
-      Operand stack_ptr_op;
-      if (ctx->program->gfx_level >= GFX9)
-         stack_ptr_op = Operand(ctx->callee_info.stack_ptr.def.getTemp());
-      else
-         stack_ptr_op = Operand(load_scratch_resource(ctx->program, bld, -1u, false));
-      bld.pseudo(aco_opcode::p_reload_preserved, bld.def(bld.lm), bld.def(s1, scc), stack_ptr_op);
-   }
+   if (append_reload_preserved && ctx->program->is_callee && ctx->block->loop_nest_depth == 0)
+      emit_reload_preserved(ctx);
 
    bld.pseudo(aco_opcode::p_logical_end);
 }
@@ -676,8 +670,10 @@ build_end_with_regs(isel_context* ctx, std::vector<Operand>& regs)
 }
 
 Instruction*
-add_startpgm(struct isel_context* ctx)
+add_startpgm(struct isel_context* ctx, bool is_callee)
 {
+   ctx->program->scratch_arg_size += ctx->callee_info.scratch_param_size;
+
    unsigned def_count = 0;
    for (unsigned i = 0; i < ctx->args->arg_count; i++) {
       if (ctx->args->args[i].skip)
@@ -687,6 +683,15 @@ add_startpgm(struct isel_context* ctx)
          def_count += ctx->args->args[i].size;
       else
          def_count++;
+   }
+
+   if (is_callee) {
+      /* We do not support shader args in callees. */
+      assert(def_count == 0);
+      def_count += ctx->callee_info.reg_param_count;
+      /* Add system parameters separately - they aren't counted by reg_param_count */
+      assert(ctx->callee_info.stack_ptr.is_reg && ctx->callee_info.return_address.is_reg);
+      def_count += 2;
    }
 
    Instruction* startpgm = create_instruction(aco_opcode::p_startpgm, Format::PSEUDO, 0, def_count);
@@ -718,6 +723,22 @@ add_startpgm(struct isel_context* ctx)
             assert(file == AC_ARG_VGPR);
             ctx->program->args_pending_vmem.push_back(def);
          }
+      }
+   }
+
+   if (is_callee) {
+      unsigned def_idx = 0;
+      if (ctx->program->gfx_level >= GFX9)
+         ctx->program->stack_ptr = ctx->callee_info.stack_ptr.def.getTemp();
+      else
+         ctx->program->static_scratch_rsrc = ctx->callee_info.stack_ptr.def.getTemp();
+      startpgm->definitions[def_idx++] = ctx->callee_info.stack_ptr.def;
+      startpgm->definitions[def_idx++] = ctx->callee_info.return_address.def;
+
+      for (auto& info : ctx->callee_info.param_infos) {
+         if (!info.is_reg)
+            continue;
+         startpgm->definitions[def_idx++] = info.def;
       }
    }
 
@@ -1074,6 +1095,15 @@ get_callee_info(amd_gfx_level gfx_level, const ABI& abi, unsigned param_count,
 
    find_param_regs(program, abi, info, assignment_infos, reg_limit);
 
+   /* The call target parameters are special - they are marked as discardable to allow us
+    * to overwrite the parameter values within each callee for the divergent dispatch logic.
+    * However, we still need to explicitly write back the new values to the ABI-assigned registers
+    * when jumping to the next divergent callee/returning. Therefore, mark them as needing explicit
+    * preservation.
+    */
+   info.param_infos[ACO_NIR_CALL_SYSTEM_ARG_DIVERGENT_PC].needs_explicit_preservation = true;
+   info.param_infos[ACO_NIR_CALL_SYSTEM_ARG_UNIFORM_PC].needs_explicit_preservation = true;
+
    /* Explicitly preserve the stack pointer. spill_preserved() can ensure correctness on its own,
     * but it only can spill the initial stack pointer value to a linear VGPR, the inactive lanes of
     * which would in turn need to be spilled to scratch. Explicitly preserving the stack pointer's
@@ -1082,6 +1112,18 @@ get_callee_info(amd_gfx_level gfx_level, const ABI& abi, unsigned param_count,
    info.stack_ptr.needs_explicit_preservation = true;
 
    return info;
+}
+
+void
+emit_reload_preserved(isel_context* ctx)
+{
+   Builder bld(ctx->program, ctx->block);
+   Operand stack_ptr_op;
+   if (ctx->program->gfx_level >= GFX9)
+      stack_ptr_op = Operand(ctx->program->stack_ptr);
+   else
+      stack_ptr_op = Operand(load_scratch_resource(ctx->program, bld, -1u, false));
+   bld.pseudo(aco_opcode::p_reload_preserved, bld.def(bld.lm), Operand(), stack_ptr_op);
 }
 
 } // namespace aco

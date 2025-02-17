@@ -438,7 +438,10 @@ validate_ir(Program* program)
                   ((instr->isMUBUF() || instr->isMTBUF()) && i == 1) ||
                   (instr->isScratch() && i == 0) || (instr->isDS() && i == 0) ||
                   (instr->opcode == aco_opcode::p_init_scratch && i == 0) ||
-                  (instr_disables_wqm(instr.get()) && i + 2 >= instr->operands.size());
+                  (instr_disables_wqm(instr.get()) && i + 2 >= instr->operands.size()) ||
+                  ((instr->opcode == aco_opcode::p_return ||
+                    instr->opcode == aco_opcode::p_reload_preserved) &&
+                   i == 0);
                check(can_be_undef, "Undefs can only be used in certain operands", instr.get());
             } else {
                check(instr->operands[i].isFixed() || instr->operands[i].isTemp() ||
