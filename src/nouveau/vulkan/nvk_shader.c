@@ -70,6 +70,7 @@ shared_var_info(const struct glsl_type *type, unsigned *size, unsigned *align)
 uint64_t
 nvk_physical_device_compiler_flags(const struct nvk_physical_device *pdev)
 {
+   const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
    bool no_cbufs = pdev->debug_flags & NVK_DEBUG_NO_CBUF;
    bool use_edb_buffer_views = nvk_use_edb_buffer_views(pdev);
    uint64_t nak_flags = nak_debug_flags(pdev->nak);
@@ -78,6 +79,7 @@ nvk_physical_device_compiler_flags(const struct nvk_physical_device *pdev)
 
    return ((uint64_t)no_cbufs << 12)
       | ((uint64_t)use_edb_buffer_views << 13)
+      | ((uint64_t)instance->ssbo_align_4b << 14)
       | (nak_flags << 48);
 }
 
@@ -140,13 +142,14 @@ nvk_get_spirv_options(struct vk_physical_device *vk_pdev,
 {
    const struct nvk_physical_device *pdev =
       container_of(vk_pdev, struct nvk_physical_device, vk);
+   const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
 
    return (struct spirv_to_nir_options) {
       .ssbo_addr_format = nvk_ssbo_addr_format(pdev, rs),
       .phys_ssbo_addr_format = nir_address_format_64bit_global,
       .ubo_addr_format = nvk_ubo_addr_format(pdev, rs),
       .shared_addr_format = nir_address_format_32bit_offset,
-      .min_ssbo_alignment = NVK_MIN_SSBO_ALIGNMENT,
+      .min_ssbo_alignment = nvk_min_ssbo_alignment(instance),
       .min_ubo_alignment = nvk_min_cbuf_alignment(&pdev->info),
    };
 }

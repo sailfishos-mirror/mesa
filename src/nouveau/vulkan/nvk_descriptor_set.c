@@ -11,6 +11,7 @@
 #include "nvk_entrypoints.h"
 #include "nvk_format.h"
 #include "nvk_image_view.h"
+#include "nvk_instance.h"
 #include "nvk_physical_device.h"
 #include "nvk_sampler.h"
 #include "nvkmd/nvkmd.h"
@@ -314,12 +315,14 @@ write_dynamic_ubo_desc(struct nvk_descriptor_writer *w,
 }
 
 static union nvk_buffer_descriptor
-ssbo_desc(VkDeviceAddressRangeKHR addr_range)
+ssbo_desc(const struct nvk_physical_device *pdev,
+          VkDeviceAddressRangeKHR addr_range)
 {
-   assert(addr_range.address % NVK_MIN_SSBO_ALIGNMENT == 0);
+   const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
+   const uint32_t min_ssbo_alignment = nvk_min_ssbo_alignment(instance);
    assert(addr_range.size <= UINT32_MAX);
 
-   addr_range.address = ROUND_DOWN_TO(addr_range.address, NVK_MIN_SSBO_ALIGNMENT);
+   addr_range.address = ROUND_DOWN_TO(addr_range.address, min_ssbo_alignment);
    addr_range.size = align(addr_range.size, NVK_SSBO_BOUNDS_CHECK_ALIGNMENT);
 
    return (union nvk_buffer_descriptor) { .addr = {
@@ -337,7 +340,7 @@ write_ssbo_desc(struct nvk_descriptor_writer *w,
    const VkDeviceAddressRangeKHR addr_range =
       vk_device_address_range(&buffer->vk, info->offset, info->range);
 
-   const union nvk_buffer_descriptor desc = ssbo_desc(addr_range);
+   const union nvk_buffer_descriptor desc = ssbo_desc(w->pdev, addr_range);
    write_desc(w, binding, elem, &desc, sizeof(desc));
 }
 
@@ -353,7 +356,7 @@ write_dynamic_ssbo_desc(struct nvk_descriptor_writer *w,
    const struct nvk_descriptor_set_binding_layout *binding_layout =
       &w->layout->binding[binding];
    w->set->dynamic_buffers[binding_layout->dynamic_buffer_index + elem] =
-      ssbo_desc(addr_range);
+      ssbo_desc(w->pdev, addr_range);
 }
 
 static struct nvk_edb_buffer_view_descriptor
@@ -1207,7 +1210,7 @@ nvk_GetDescriptorEXT(VkDevice _device,
             .size = pDescriptorInfo->data.pStorageBuffer->range,
          };
       }
-      union nvk_buffer_descriptor desc = ssbo_desc(addr_range);
+      union nvk_buffer_descriptor desc = ssbo_desc(pdev, addr_range);
       assert(sizeof(desc) <= dataSize);
       memcpy(pDescriptor, &desc, sizeof(desc));
       break;
