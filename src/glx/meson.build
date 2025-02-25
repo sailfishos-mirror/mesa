@@ -59,6 +59,10 @@ extra_deps_libgl = []
 extra_ld_args_libgl = []
 
 if with_dri_platform == 'drm' or with_dri_platform == 'pseudo-drm'
+  if host_machine.cpu_family() == 'x86' and not with_glx_read_only_text
+    extra_ld_args_libgl += [cc.get_supported_link_arguments('-Wl,--no-error-rwx-segments')]
+  endif
+
   files_libglx += files('dri3_glx.c', 'dri3_priv.h')
 endif
 
