@@ -700,6 +700,41 @@ anv_blorp_execute_on_companion(struct anv_cmd_buffer *cmd_buffer,
    return false;
 }
 
+static bool
+anv_blorp_blitter_execute_on_companion2(struct anv_cmd_buffer *cmd_buffer,
+                                        struct anv_image *image,
+                                        uint32_t region_count,
+                                        const VkDeviceMemoryImageCopyKHR* regions)
+{
+   if (!anv_cmd_buffer_is_blitter_queue(cmd_buffer))
+      return false;
+
+   bool blorp_execute_on_companion = false;
+
+   for (unsigned r = 0; r < region_count && !blorp_execute_on_companion; r++) {
+      VkImageAspectFlags aspect_mask = regions[r].imageSubresource.aspectMask;
+
+      enum isl_format linear_format =
+         anv_get_isl_format(cmd_buffer->device->physical, image->vk.format,
+                            aspect_mask, VK_IMAGE_TILING_LINEAR);
+      const struct isl_format_layout *linear_fmtl =
+         isl_format_get_layout(linear_format);
+
+      switch (linear_fmtl->bpb) {
+      case 96:
+         /* We can only support linear mode for 96bpp on blitter engine. */
+         blorp_execute_on_companion |=
+            image->vk.tiling != VK_IMAGE_TILING_LINEAR;
+         break;
+      default:
+         blorp_execute_on_companion |= linear_fmtl->bpb % 3 == 0;
+         break;
+      }
+   }
+
+   return blorp_execute_on_companion;
+}
+
 void anv_CmdCopyImage2(
     VkCommandBuffer                             commandBuffer,
     const VkCopyImageInfo2*                     pCopyImageInfo)
@@ -915,6 +950,77 @@ void anv_CmdCopyBufferToImage2(
    }
 }
 
+void anv_CmdCopyMemoryToImageKHR(
+    VkCommandBuffer                             commandBuffer,
+    const VkCopyDeviceMemoryImageInfoKHR*       pCopyMemoryInfo)
+{
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+   ANV_FROM_HANDLE(anv_image, dst_image, pCopyMemoryInfo->image);
+
+   bool blorp_execute_on_companion =
+      anv_blorp_execute_on_companion(cmd_buffer, NULL, dst_image);
+
+   /* Check if any one of the aspects is incompatible with the blitter engine,
+    * if true, use the companion RCS command buffer for blit operation since 3
+    * component formats are not supported natively except 96bpb on the blitter.
+    */
+   blorp_execute_on_companion |=
+      anv_blorp_blitter_execute_on_companion2(cmd_buffer, dst_image,
+                                              pCopyMemoryInfo->regionCount,
+                                              pCopyMemoryInfo->pRegions);
+
+   anv_cmd_require_rcs(cmd_buffer, blorp_execute_on_companion) {
+      struct blorp_batch batch;
+      anv_blorp_batch_init(cmd_buffer, &batch, BLORP_BATCH_SRC_UNPADDED);
+
+      for (unsigned r = 0; r < pCopyMemoryInfo->regionCount; r++) {
+         const VkDeviceMemoryImageCopyKHR *region = &pCopyMemoryInfo->pRegions[r];
+         const struct vk_image_buffer_layout buffer_layout =
+            vk_image_memory_copy_layout(&dst_image->vk, region);
+
+         copy_buffer_to_image(cmd_buffer, &batch,
+                              anv_address_from_range_flags(
+                                 region->addressRange,
+                                 region->addressFlags),
+                              &buffer_layout,
+                              dst_image, region->imageLayout,
+                              region->imageSubresource,
+                              region->imageOffset, region->imageExtent,
+                              true);
+      }
+
+      anv_blorp_batch_finish(&batch);
+
+      if (dst_image->emu_plane_format != VK_FORMAT_UNDEFINED) {
+         assert(!anv_cmd_buffer_is_blitter_queue(cmd_buffer));
+         const enum anv_pipe_bits pipe_bits =
+            anv_cmd_buffer_is_compute_queue(cmd_buffer) ?
+            ANV_PIPE_HDC_PIPELINE_FLUSH_BIT :
+            ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT;
+         anv_add_pending_pipe_bits(cmd_buffer,
+                                   (batch.flags & BLORP_BATCH_USE_COMPUTE) ?
+                                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT :
+                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                                   pipe_bits,
+                                   "Copy flush before astc emu");
+
+         for (unsigned r = 0; r < pCopyMemoryInfo->regionCount; r++) {
+            const VkDeviceMemoryImageCopyKHR *region =
+               &pCopyMemoryInfo->pRegions[r];
+            const VkOffset3D block_offset = vk_image_offset_to_elements(
+               &dst_image->vk, region->imageOffset);
+            const VkExtent3D block_extent = vk_image_extent_to_elements(
+               &dst_image->vk, region->imageExtent);
+            anv_astc_emu_process(cmd_buffer, dst_image,
+                                 region->imageLayout,
+                                 &region->imageSubresource,
+                                 block_offset, block_extent);
+         }
+      }
+   }
+}
+
 static void
 anv_add_buffer_write_pending_bits(struct anv_cmd_buffer *cmd_buffer,
                                   const char *reason)
@@ -965,6 +1071,50 @@ void anv_CmdCopyImageToBuffer2(
                                               region->bufferOffset),
                               &buffer_layout,
                               src_image, pCopyImageToBufferInfo->srcImageLayout,
+                              region->imageSubresource,
+                              region->imageOffset, region->imageExtent,
+                              false);
+      }
+
+      anv_add_buffer_write_pending_bits(cmd_buffer, "after copy image to buffer");
+
+      anv_blorp_batch_finish(&batch);
+   }
+}
+
+void anv_CmdCopyImageToMemoryKHR(
+    VkCommandBuffer                             commandBuffer,
+    const VkCopyDeviceMemoryImageInfoKHR*       pCopyMemoryInfo)
+{
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+   ANV_FROM_HANDLE(anv_image, src_image, pCopyMemoryInfo->image);
+
+   bool blorp_execute_on_companion =
+      anv_blorp_execute_on_companion(cmd_buffer, src_image, NULL);
+
+   /* Check if any one of the aspects is incompatible with the blitter engine,
+    * if true, use the companion RCS command buffer for blit operation since 3
+    * component formats are not supported natively except 96bpb on the blitter.
+    */
+   blorp_execute_on_companion |=
+      anv_blorp_blitter_execute_on_companion2(cmd_buffer, src_image,
+                                              pCopyMemoryInfo->regionCount,
+                                              pCopyMemoryInfo->pRegions);
+
+   anv_cmd_require_rcs(cmd_buffer, blorp_execute_on_companion) {
+      struct blorp_batch batch;
+      anv_blorp_batch_init(cmd_buffer, &batch, 0);
+
+      for (unsigned r = 0; r < pCopyMemoryInfo->regionCount; r++) {
+         const VkDeviceMemoryImageCopyKHR *region = &pCopyMemoryInfo->pRegions[r];
+         const struct vk_image_buffer_layout memory_layout =
+            vk_image_memory_copy_layout(&src_image->vk, region);
+
+         copy_buffer_to_image(cmd_buffer, &batch,
+                              anv_address_from_range_flags(region->addressRange,
+                                                           region->addressFlags),
+                              &memory_layout,
+                              src_image, region->imageLayout,
                               region->imageSubresource,
                               region->imageOffset, region->imageExtent,
                               false);
@@ -1235,6 +1385,34 @@ void anv_CmdCopyBuffer2(
    anv_blorp_batch_finish(&batch);
 }
 
+void anv_CmdCopyMemoryKHR(
+    VkCommandBuffer                             commandBuffer,
+    const VkCopyDeviceMemoryInfoKHR*            pCopyMemoryInfo)
+{
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   struct blorp_batch batch;
+   anv_blorp_batch_init(cmd_buffer, &batch,
+                        BLORP_BATCH_SRC_UNPADDED |
+                        (cmd_buffer->state.current_pipeline ==
+                         cmd_buffer->device->physical->gpgpu_pipeline_value ?
+                         BLORP_BATCH_USE_COMPUTE : 0));
+
+   for (unsigned r = 0; r < pCopyMemoryInfo->regionCount; r++) {
+      const VkDeviceMemoryCopyKHR *region = &pCopyMemoryInfo->pRegions[r];
+      copy_memory(cmd_buffer->device, &batch,
+                  anv_address_from_range_flags(region->srcRange,
+                                               region->srcFlags),
+                  anv_address_from_range_flags(region->dstRange,
+                                               region->dstFlags),
+                  region->srcRange.size);
+   }
+
+   anv_add_buffer_write_pending_bits(cmd_buffer, "after copy buffer");
+
+   anv_blorp_batch_finish(&batch);
+}
+
 void
 anv_cmd_buffer_update_addr(
     struct anv_cmd_buffer*                      cmd_buffer,
@@ -1323,6 +1501,20 @@ void anv_CmdUpdateBuffer(
                               dataSize, pData);
 }
 
+void anv_CmdUpdateMemoryKHR(
+    VkCommandBuffer                             commandBuffer,
+    const VkDeviceAddressRangeKHR*              pDstRange,
+    VkAddressCommandFlagsKHR                    dstFlags,
+    VkDeviceSize                                dataSize,
+    const void*                                 pData)
+{
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   anv_cmd_buffer_update_addr(cmd_buffer,
+                              anv_address_from_range_flags(*pDstRange, dstFlags),
+                              pDstRange->size, pData);
+}
+
 void
 anv_cmd_buffer_fill_area(struct anv_cmd_buffer *cmd_buffer,
                          struct anv_address address,
@@ -1409,6 +1601,31 @@ void anv_CmdFillBuffer(
    anv_cmd_buffer_fill_area(cmd_buffer,
                             anv_address_add(dst_buffer->address, dstOffset),
                             fillSize, data);
+
+   anv_add_buffer_write_pending_bits(cmd_buffer, "after fill buffer");
+}
+
+void anv_CmdFillMemoryKHR(
+    VkCommandBuffer                             commandBuffer,
+    const VkDeviceAddressRangeKHR*              pDstRange,
+    VkAddressCommandFlagsKHR                    dstFlags,
+    uint32_t                                    data)
+{
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   /* From the Vulkan spec:
+    *
+    *    "size is the number of bytes to fill, and must be either a multiple
+    *    of 4, or VK_WHOLE_SIZE to fill the range from offset to the end of
+    *    the buffer. If VK_WHOLE_SIZE is used and the remaining size of the
+    *    buffer is not a multiple of 4, then the nearest smaller multiple is
+    *    used."
+    */
+   const VkDeviceSize size = pDstRange->size & ~3ull;
+
+   anv_cmd_buffer_fill_area(cmd_buffer,
+                            anv_address_from_range_flags(*pDstRange, dstFlags),
+                            size, data);
 
    anv_add_buffer_write_pending_bits(cmd_buffer, "after fill buffer");
 }

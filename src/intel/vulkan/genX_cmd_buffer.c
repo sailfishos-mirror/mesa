@@ -4936,6 +4936,27 @@ cmd_buffer_barrier_video(struct anv_cmd_buffer *cmd_buffer,
          break;
    }
 
+   const VkMemoryRangeBarriersInfoKHR *mem_range_barriers =
+      vk_find_struct_const(dep_infos->pNext, MEMORY_RANGE_BARRIERS_INFO_KHR);
+   for (uint32_t i = 0; mem_range_barriers && i < mem_range_barriers->memoryRangeBarrierCount; i++) {
+      const VkMemoryRangeBarrierKHR *mem_barrier =
+         &mem_range_barriers->pMemoryRangeBarriers[i];
+      const VkMemoryBarrierAccessFlags3KHR *barrier3 =
+            vk_find_struct_const(mem_barrier->pNext,
+                                 MEMORY_BARRIER_ACCESS_FLAGS_3_KHR);
+
+      /* Flush the cache if something is written by the video operations and
+       * used by any other stages except video encode/decode stage.
+       */
+      if (stage_is_video(mem_barrier->srcStageMask) &&
+          mask_is_write(mem_barrier->srcAccessMask,
+                        barrier3 ? barrier3->srcAccessMask3 : 0) &&
+          !stage_is_video(mem_barrier->dstStageMask)) {
+         flush_llc = true;
+         break;
+      }
+   }
+
    if (flush_ccs || flush_llc || !anv_address_is_null(signal_addr)) {
       anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), fd) {
 #if GFX_VERx10 >= 125
@@ -5046,6 +5067,26 @@ cmd_buffer_barrier_blitter(struct anv_cmd_buffer *cmd_buffer,
          if (stage_is_transfer(mem_barrier->srcStageMask) &&
              mask_is_write(mem_barrier->srcAccessMask,
                 barrier3 ? barrier3->srcAccessMask3 : 0)) {
+            flush_llc = true;
+            break;
+         }
+      }
+
+      const VkMemoryRangeBarriersInfoKHR *mem_range_barriers =
+         vk_find_struct_const(dep_info->pNext, MEMORY_RANGE_BARRIERS_INFO_KHR);
+      for (uint32_t i = 0; mem_range_barriers && i < mem_range_barriers->memoryRangeBarrierCount; i++) {
+         const VkMemoryRangeBarrierKHR *mem_barrier =
+            &mem_range_barriers->pMemoryRangeBarriers[i];
+         const VkMemoryBarrierAccessFlags3KHR *barrier3 =
+            vk_find_struct_const(mem_barrier->pNext,
+                                 MEMORY_BARRIER_ACCESS_FLAGS_3_KHR);
+
+         /* Flush the cache if something is written by the transfer command
+          * and used by any other stages except transfer stage.
+          */
+         if (stage_is_transfer(mem_barrier->srcStageMask) &&
+             mask_is_write(mem_barrier->srcAccessMask,
+                           barrier3 ? barrier3->srcAccessMask3 : 0)) {
             flush_llc = true;
             break;
          }
@@ -5365,6 +5406,53 @@ cmd_buffer_accumulate_barrier_bits(struct anv_cmd_buffer *cmd_buffer,
 
          if (anv_image_is_sparse(image) &&
              mask_is_write(src_flags, barrier3 ? barrier3->srcAccessMask3 : 0))
+            apply_sparse_flushes = true;
+#endif
+      }
+
+      const VkMemoryRangeBarriersInfoKHR *mem_range_barriers =
+         vk_find_struct_const(dep_info->pNext, MEMORY_RANGE_BARRIERS_INFO_KHR);
+      for (uint32_t i = 0; mem_range_barriers && i < mem_range_barriers->memoryRangeBarrierCount; i++) {
+         const VkMemoryRangeBarrierKHR *mem_barrier =
+            &mem_range_barriers->pMemoryRangeBarriers[i];
+         const VkMemoryBarrierAccessFlags3KHR *barrier3 =
+            vk_find_struct_const(mem_barrier->pNext,
+                                 MEMORY_BARRIER_ACCESS_FLAGS_3_KHR);
+
+         if (barrier3) {
+            src_flags3 |= barrier3->srcAccessMask3;
+            dst_flags3 |= barrier3->dstAccessMask3;
+         }
+
+         src_flags |= mem_barrier->srcAccessMask;
+         dst_flags |= mem_barrier->dstAccessMask;
+
+         src_stages |= mem_barrier->srcStageMask;
+         dst_stages |= mem_barrier->dstStageMask;
+
+         /* Shader writes to buffers that could then be written by a transfer
+          * command (including queries).
+          */
+         if (stage_is_shader(mem_barrier->srcStageMask) &&
+             mask_is_shader_write(mem_barrier->srcAccessMask,
+                                  barrier3 ? barrier3->srcAccessMask3 : 0) &&
+             stage_is_transfer(mem_barrier->dstStageMask)) {
+            cmd_buffer->state.queries.buffer_write_bits |=
+               ANV_QUERY_COMPUTE_WRITES_PENDING_BITS;
+         }
+
+         if (stage_is_transfer(mem_barrier->srcStageMask) &&
+             mask_is_transfer_write(mem_barrier->srcAccessMask) &&
+             cmd_buffer_has_pending_copy_query(cmd_buffer))
+            flush_query_copies = true;
+
+#if GFX_VER < 20
+         /* There's no way of knowing if this memory barrier is related to
+          * sparse buffers! This is pretty horrible.
+          */
+         if (mask_is_write(src_flags,
+                           barrier3 ? barrier3->srcAccessMask3 : 0) &&
+             p_atomic_read(&device->num_sparse_resources) > 0)
             apply_sparse_flushes = true;
 #endif
       }
@@ -6958,6 +7046,49 @@ void genX(CmdBeginConditionalRenderingEXT)(
                              mi_ult(&b, mi_imm(0), value));
 }
 
+void genX(CmdBeginConditionalRendering2EXT)(
+    VkCommandBuffer                             commandBuffer,
+    const VkConditionalRenderingBeginInfo2EXT*  pConditionalRenderingBegin)
+{
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct anv_cmd_state *cmd_state = &cmd_buffer->state;
+   struct anv_address value_address =
+      anv_address_from_u64(pConditionalRenderingBegin->addressRange.address);
+
+   const bool isInverted = pConditionalRenderingBegin->flags &
+                           VK_CONDITIONAL_RENDERING_INVERTED_BIT_EXT;
+
+   cmd_state->conditional_render_enabled = true;
+
+   genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
+
+   struct mi_builder b;
+   mi_builder_init(&b, cmd_buffer->device->info, &cmd_buffer->batch);
+   const uint32_t mocs = anv_mocs_for_address(cmd_buffer->device, &value_address);
+   mi_builder_set_mocs(&b, mocs);
+
+   /* Section 19.4 of the Vulkan 1.1.85 spec says:
+    *
+    *    If the value of the predicate in buffer memory changes
+    *    while conditional rendering is active, the rendering commands
+    *    may be discarded in an implementation-dependent way.
+    *    Some implementations may latch the value of the predicate
+    *    upon beginning conditional rendering while others
+    *    may read it before every rendering command.
+    *
+    * So it's perfectly fine to read a value from the buffer once.
+    */
+   struct mi_value value =  mi_mem32(value_address);
+
+   /* Precompute predicate result, it is necessary to support secondary
+    * command buffers since it is unknown if conditional rendering is
+    * inverted when populating them.
+    */
+   mi_store(&b, mi_reg64(ANV_PREDICATE_RESULT_REG),
+                isInverted ? mi_uge(&b, mi_imm(0), value) :
+                             mi_ult(&b, mi_imm(0), value));
+}
+
 void genX(CmdEndConditionalRenderingEXT)(
 	VkCommandBuffer                             commandBuffer)
 {
@@ -7669,6 +7800,45 @@ genX(CmdWriteBufferMarker2AMD)(VkCommandBuffer commandBuffer,
     */
    mi_store(&b, mi_mem32(anv_address_add(buffer->address, dstOffset)),
                 mi_imm(marker));
+
+   trace_intel_end_write_buffer_marker(&cmd_buffer->trace);
+}
+
+void genX(CmdWriteMarkerToMemoryAMD)(
+    VkCommandBuffer                             commandBuffer,
+    const VkMemoryMarkerInfoAMD*                pInfo)
+{
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   /* The barriers inserted by the application to make dstBuffer writable
+    * should already have the L1/L2 cache flushes. On platforms where the
+    * command streamer is not coherent with L3, we need an additional set of
+    * cache flushes.
+    */
+   enum anv_pipe_bits bits =
+      (ANV_DEVINFO_HAS_COHERENT_L3_CS(cmd_buffer->device->info) ? 0 :
+       (ANV_PIPE_DATA_CACHE_FLUSH_BIT | ANV_PIPE_TILE_CACHE_FLUSH_BIT)) |
+      ANV_PIPE_END_OF_PIPE_SYNC_BIT;
+
+   trace_intel_begin_write_buffer_marker(&cmd_buffer->trace);
+
+   anv_add_pending_pipe_bits(cmd_buffer, pInfo->stage,
+                             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                             bits, "write buffer marker");
+   genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
+
+   struct mi_builder b;
+   mi_builder_init(&b, cmd_buffer->device->info, &cmd_buffer->batch);
+
+   /* Emitting a PIPE_CONTROL with Post-Sync Op = Write Immediate Data
+    * would be the logical way to implement this extension, as it could
+    * do a pipelined marker write.  Unfortunately, it requires writing
+    * whole 64-bit QWords, and VK_AMD_buffer_marker requires writing a
+    * 32-bit value.  MI_STORE_DATA_IMM is the only good way to do that,
+    * and unfortunately it requires stalling.
+    */
+   mi_store(&b, mi_mem32(anv_address_from_u64(pInfo->dstRange.address)),
+                mi_imm(pInfo->marker));
 
    trace_intel_end_write_buffer_marker(&cmd_buffer->trace);
 }

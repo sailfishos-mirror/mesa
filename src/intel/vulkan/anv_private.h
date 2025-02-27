@@ -530,6 +530,28 @@ anv_address_from_u64(uint64_t addr_u64)
    };
 }
 
+static inline struct anv_address
+anv_address_from_range_flags(VkDeviceAddressRangeKHR range,
+                             VkAddressCommandFlagsKHR flags)
+{
+   return (struct anv_address) {
+      .bo = NULL,
+      .offset = range.address,
+      .protected = (flags & VK_ADDRESS_COMMAND_PROTECTED_BIT_KHR) != 0,
+   };
+}
+
+static inline struct anv_address
+anv_address_from_strided_range_flags(VkStridedDeviceAddressRangeKHR range,
+                                     VkAddressCommandFlagsKHR flags)
+{
+   return (struct anv_address) {
+      .bo = NULL,
+      .offset = range.address,
+      .protected = (flags & VK_ADDRESS_COMMAND_PROTECTED_BIT_KHR) != 0,
+   };
+}
+
 static inline bool
 anv_address_is_null(struct anv_address addr)
 {

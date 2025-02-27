@@ -886,6 +886,16 @@ void genX(CmdDispatchIndirect)(
    genX(cmd_buffer_dispatch_indirect)(cmd_buffer, addr, false);
 }
 
+void genX(CmdDispatchIndirect2KHR)(
+    VkCommandBuffer                             commandBuffer,
+    const VkDispatchIndirect2InfoKHR*           pInfo)
+{
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   genX(cmd_buffer_dispatch_indirect)(
+      cmd_buffer, anv_address_from_u64(pInfo->addressRange.address), false);
+}
+
 struct anv_address
 genX(cmd_buffer_ray_query_globals)(struct anv_cmd_buffer *cmd_buffer)
 {

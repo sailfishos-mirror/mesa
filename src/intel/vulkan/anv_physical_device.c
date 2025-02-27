@@ -159,6 +159,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .KHR_depth_stencil_resolve             = true,
       .KHR_descriptor_update_template        = true,
       .KHR_device_group                      = true,
+      .KHR_device_address_commands           = true,
       .KHR_draw_indirect_count               = true,
       .KHR_driver_properties                 = true,
       .KHR_dynamic_rendering                 = true,
@@ -1051,6 +1052,9 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_KHR_maintenance11 */
       .maintenance11 = true,
+
+      /* VK_KHR_device_address_commands */
+      .deviceAddressCommands = true,
    };
 
    /* The new DOOM and Wolfenstein games require depthBounds without
