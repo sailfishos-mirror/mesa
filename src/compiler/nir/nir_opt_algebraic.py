@@ -1596,6 +1596,12 @@ optimizations.extend([
 
    (('ine', ('b2i', 'a@1'), ('ineg', ('b2i', 'b@1'))), ('ior', a, b)),
    (('ieq', ('b2i', 'a@1'), ('ineg', ('b2i', 'b@1'))), ('inot', ('ior', a, b))),
+
+   (('imul', ('b2i', 'a@1'), b), ('bcsel', a, b, 0)),
+   (('imul', ('ineg', ('b2i', 'a@1')), b), ('ineg', ('bcsel', a, b, 0))),
+
+   (('ishl', ('b2i', 'a@1'), '#b'), ('bcsel', a, ('ishl', 1, b), 0)),
+   (('ishl', ('ineg', ('b2i', 'a@1')), '#b'), ('bcsel', a, ('ishl', -1, b), 0)),
 ])
 
 for op in ('ior', 'iand', 'ixor'):
