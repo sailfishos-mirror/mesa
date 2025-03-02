@@ -1286,6 +1286,21 @@ vk_cmd_set_vertex_binding_strides(struct vk_command_buffer *cmd,
                                   uint32_t binding_count,
                                   const VkDeviceSize *strides);
 
+/** Set vertex binding strides on a command buffer
+ *
+ * This is the dynamic state part of vkCmdBindVertexBuffers2().
+ *
+ * :param cmd:            |inout|  Command buffer to update
+ * :param first_binding:  |in|     First binding to update
+ * :param binding_count:  |in|     Number of bindings to update
+ * :param strides:        |in|     binding_count many stride values to set
+ */
+void
+vk_cmd_set_vertex_binding_strides2(struct vk_command_buffer *cmd,
+                                   uint32_t first_binding,
+                                   uint32_t binding_count,
+                                   const VkBindVertexBuffer3InfoKHR *bindings);
+
 /* Set color attachment count for blending on a command buffer.
  *
  * This is an implicit part of starting a subpass or a secondary command

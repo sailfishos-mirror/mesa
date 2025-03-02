@@ -1468,7 +1468,7 @@ vk_graphics_pipeline_state_fill(const struct vk_device *device,
       vk_find_struct_const(info->pNext, GRAPHICS_PIPELINE_LIBRARY_CREATE_INFO_EXT);
    const VkPipelineLibraryCreateInfoKHR *lib_info =
       vk_find_struct_const(info->pNext, PIPELINE_LIBRARY_CREATE_INFO_KHR);
-   
+
    VkPipelineCreateFlags2KHR pipeline_flags = vk_graphics_pipeline_create_flags(info);
 
    VkShaderStageFlagBits allowed_stages;
@@ -2414,6 +2414,23 @@ vk_cmd_set_vertex_binding_strides(struct vk_command_buffer *cmd,
    for (uint32_t i = 0; i < binding_count; i++) {
       SET_DYN_VALUE(dyn, VI_BINDING_STRIDES,
                     vi_binding_strides[first_binding + i], strides[i]);
+   }
+}
+
+void
+vk_cmd_set_vertex_binding_strides2(struct vk_command_buffer *cmd,
+                                   uint32_t first_binding,
+                                   uint32_t binding_count,
+                                   const VkBindVertexBuffer3InfoKHR *bindings)
+{
+   struct vk_dynamic_graphics_state *dyn = &cmd->dynamic_graphics_state;
+
+   for (uint32_t i = 0; i < binding_count; i++) {
+      if (!bindings[i].setStride)
+         continue;
+      SET_DYN_VALUE(dyn, VI_BINDING_STRIDES,
+                    vi_binding_strides[first_binding + i],
+                    bindings[i].addressRange.stride);
    }
 }
 
