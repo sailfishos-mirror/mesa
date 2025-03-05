@@ -533,41 +533,6 @@ copy_image(struct anv_cmd_buffer *cmd_buffer,
 }
 
 static bool
-anv_blorp_blitter_execute_on_companion(struct anv_cmd_buffer *cmd_buffer,
-                                       const struct anv_image *image,
-                                       uint32_t region_count,
-                                       const VkBufferImageCopy2* regions)
-{
-   if (!anv_cmd_buffer_is_blitter_queue(cmd_buffer))
-      return false;
-
-   bool blorp_execute_on_companion = false;
-
-   for (unsigned r = 0; r < region_count && !blorp_execute_on_companion; r++) {
-      VkImageAspectFlags aspect_mask = regions[r].imageSubresource.aspectMask;
-
-      enum isl_format linear_format =
-         anv_get_isl_format(cmd_buffer->device->physical, image->vk.format,
-                            aspect_mask, VK_IMAGE_TILING_LINEAR);
-      const struct isl_format_layout *linear_fmtl =
-         isl_format_get_layout(linear_format);
-
-      switch (linear_fmtl->bpb) {
-      case 96:
-         /* We can only support linear mode for 96bpp on blitter engine. */
-         blorp_execute_on_companion |=
-            image->vk.tiling != VK_IMAGE_TILING_LINEAR;
-         break;
-      default:
-         blorp_execute_on_companion |= linear_fmtl->bpb % 3 == 0;
-         break;
-      }
-   }
-
-   return blorp_execute_on_companion;
-}
-
-static bool
 is_image_multisampled(const struct anv_image *image)
 {
    return image->vk.samples > 1;
@@ -878,78 +843,6 @@ copy_buffer_to_image(struct anv_cmd_buffer *cmd_buffer,
    tex_cache_flush_hack(cmd_buffer, true);
 }
 
-void anv_CmdCopyBufferToImage2(
-    VkCommandBuffer                             commandBuffer,
-    const VkCopyBufferToImageInfo2*             pCopyBufferToImageInfo)
-{
-   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   ANV_FROM_HANDLE(anv_buffer, src_buffer, pCopyBufferToImageInfo->srcBuffer);
-   ANV_FROM_HANDLE(anv_image, dst_image, pCopyBufferToImageInfo->dstImage);
-
-   bool blorp_execute_on_companion =
-      anv_blorp_execute_on_companion(cmd_buffer, NULL, dst_image);
-
-   /* Check if any one of the aspects is incompatible with the blitter engine,
-    * if true, use the companion RCS command buffer for blit operation since 3
-    * component formats are not supported natively except 96bpb on the blitter.
-    */
-   blorp_execute_on_companion |=
-      anv_blorp_blitter_execute_on_companion(cmd_buffer, dst_image,
-                                             pCopyBufferToImageInfo->regionCount,
-                                             pCopyBufferToImageInfo->pRegions);
-
-   anv_cmd_require_rcs(cmd_buffer, blorp_execute_on_companion) {
-      struct blorp_batch batch;
-      anv_blorp_batch_init(cmd_buffer, &batch, BLORP_BATCH_SRC_UNPADDED);
-
-      for (unsigned r = 0; r < pCopyBufferToImageInfo->regionCount; r++) {
-         const VkBufferImageCopy2 *region = &pCopyBufferToImageInfo->pRegions[r];
-         const struct vk_image_buffer_layout buffer_layout =
-            vk_image_buffer_copy_layout(&dst_image->vk, region);
-
-         copy_buffer_to_image(cmd_buffer, &batch,
-                              anv_address_add(src_buffer->address,
-                                              region->bufferOffset),
-                              &buffer_layout,
-                              dst_image, pCopyBufferToImageInfo->dstImageLayout,
-                              region->imageSubresource,
-                              region->imageOffset, region->imageExtent,
-                              true);
-      }
-
-      anv_blorp_batch_finish(&batch);
-
-      if (dst_image->emu_plane_format != VK_FORMAT_UNDEFINED) {
-         assert(!anv_cmd_buffer_is_blitter_queue(cmd_buffer));
-         const enum anv_pipe_bits pipe_bits =
-            ANV_PIPE_TEXTURE_CACHE_INVALIDATE_BIT |
-            ((batch.flags & BLORP_BATCH_USE_COMPUTE) ?
-             ANV_PIPE_HDC_PIPELINE_FLUSH_BIT :
-             ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT);
-         anv_add_pending_pipe_bits(cmd_buffer,
-                                   (batch.flags & BLORP_BATCH_USE_COMPUTE) ?
-                                   VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT :
-                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                                   pipe_bits,
-                                   "Copy flush before astc emu");
-
-         for (unsigned r = 0; r < pCopyBufferToImageInfo->regionCount; r++) {
-            const VkBufferImageCopy2 *region =
-               &pCopyBufferToImageInfo->pRegions[r];
-            const VkOffset3D block_offset = vk_image_offset_to_elements(
-                  &dst_image->vk, region->imageOffset);
-            const VkExtent3D block_extent = vk_image_extent_to_elements(
-                  &dst_image->vk, region->imageExtent);
-            anv_astc_emu_process(cmd_buffer, dst_image,
-                                 pCopyBufferToImageInfo->dstImageLayout,
-                                 &region->imageSubresource,
-                                 block_offset, block_extent);
-         }
-      }
-   }
-}
-
 void anv_CmdCopyMemoryToImageKHR(
     VkCommandBuffer                             commandBuffer,
     const VkCopyDeviceMemoryImageInfoKHR*       pCopyMemoryInfo)
@@ -1035,51 +928,6 @@ anv_add_buffer_write_pending_bits(struct anv_cmd_buffer *cmd_buffer,
        cmd_buffer->device->physical->gpgpu_pipeline_value) ?
       ANV_QUERY_COMPUTE_WRITES_PENDING_BITS :
       ANV_QUERY_RENDER_TARGET_WRITES_PENDING_BITS(devinfo);
-}
-
-void anv_CmdCopyImageToBuffer2(
-    VkCommandBuffer                             commandBuffer,
-    const VkCopyImageToBufferInfo2*             pCopyImageToBufferInfo)
-{
-   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   ANV_FROM_HANDLE(anv_image, src_image, pCopyImageToBufferInfo->srcImage);
-   ANV_FROM_HANDLE(anv_buffer, dst_buffer, pCopyImageToBufferInfo->dstBuffer);
-
-   bool blorp_execute_on_companion =
-      anv_blorp_execute_on_companion(cmd_buffer, src_image, NULL);
-
-   /* Check if any one of the aspects is incompatible with the blitter engine,
-    * if true, use the companion RCS command buffer for blit operation since 3
-    * component formats are not supported natively except 96bpb on the blitter.
-    */
-   blorp_execute_on_companion |=
-      anv_blorp_blitter_execute_on_companion(cmd_buffer, src_image,
-                                             pCopyImageToBufferInfo->regionCount,
-                                             pCopyImageToBufferInfo->pRegions);
-
-   anv_cmd_require_rcs(cmd_buffer, blorp_execute_on_companion) {
-      struct blorp_batch batch;
-      anv_blorp_batch_init(cmd_buffer, &batch, 0);
-
-      for (unsigned r = 0; r < pCopyImageToBufferInfo->regionCount; r++) {
-         const VkBufferImageCopy2 *region = &pCopyImageToBufferInfo->pRegions[r];
-         const struct vk_image_buffer_layout buffer_layout =
-            vk_image_buffer_copy_layout(&src_image->vk, region);
-
-         copy_buffer_to_image(cmd_buffer, &batch,
-                              anv_address_add(dst_buffer->address,
-                                              region->bufferOffset),
-                              &buffer_layout,
-                              src_image, pCopyImageToBufferInfo->srcImageLayout,
-                              region->imageSubresource,
-                              region->imageOffset, region->imageExtent,
-                              false);
-      }
-
-      anv_add_buffer_write_pending_bits(cmd_buffer, "after copy image to buffer");
-
-      anv_blorp_batch_finish(&batch);
-   }
 }
 
 void anv_CmdCopyImageToMemoryKHR(
@@ -1356,35 +1204,6 @@ anv_cmd_copy_addr(struct anv_cmd_buffer *cmd_buffer,
    anv_blorp_batch_finish(&batch);
 }
 
-void anv_CmdCopyBuffer2(
-    VkCommandBuffer                             commandBuffer,
-    const VkCopyBufferInfo2*                    pCopyBufferInfo)
-{
-   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   ANV_FROM_HANDLE(anv_buffer, src_buffer, pCopyBufferInfo->srcBuffer);
-   ANV_FROM_HANDLE(anv_buffer, dst_buffer, pCopyBufferInfo->dstBuffer);
-
-   struct blorp_batch batch;
-   anv_blorp_batch_init(cmd_buffer, &batch,
-                        BLORP_BATCH_SRC_UNPADDED |
-                        (cmd_buffer->state.current_pipeline ==
-                         cmd_buffer->device->physical->gpgpu_pipeline_value ?
-                         BLORP_BATCH_USE_COMPUTE : 0));
-
-   for (unsigned r = 0; r < pCopyBufferInfo->regionCount; r++) {
-      const VkBufferCopy2 *region = &pCopyBufferInfo->pRegions[r];
-
-      copy_memory(cmd_buffer->device, &batch,
-                  anv_address_add(src_buffer->address, region->srcOffset),
-                  anv_address_add(dst_buffer->address, region->dstOffset),
-                  region->size);
-   }
-
-   anv_add_buffer_write_pending_bits(cmd_buffer, "after copy buffer");
-
-   anv_blorp_batch_finish(&batch);
-}
-
 void anv_CmdCopyMemoryKHR(
     VkCommandBuffer                             commandBuffer,
     const VkCopyDeviceMemoryInfoKHR*            pCopyMemoryInfo)
@@ -1486,21 +1305,6 @@ anv_cmd_buffer_update_addr(
    anv_blorp_batch_finish(&batch);
 }
 
-void anv_CmdUpdateBuffer(
-    VkCommandBuffer                             commandBuffer,
-    VkBuffer                                    dstBuffer,
-    VkDeviceSize                                dstOffset,
-    VkDeviceSize                                dataSize,
-    const void*                                 pData)
-{
-   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   ANV_FROM_HANDLE(anv_buffer, dst_buffer, dstBuffer);
-
-   anv_cmd_buffer_update_addr(cmd_buffer,
-                              anv_address_add(dst_buffer->address, dstOffset),
-                              dataSize, pData);
-}
-
 void anv_CmdUpdateMemoryKHR(
     VkCommandBuffer                             commandBuffer,
     const VkDeviceAddressRangeKHR*              pDstRange,
@@ -1571,35 +1375,6 @@ anv_cmd_fill_buffer_addr(VkCommandBuffer commandBuffer,
    ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
 
    anv_cmd_buffer_fill_area(cmd_buffer, anv_address_from_u64(dstAddr),
-                            fillSize, data);
-
-   anv_add_buffer_write_pending_bits(cmd_buffer, "after fill buffer");
-}
-
-void anv_CmdFillBuffer(
-    VkCommandBuffer                             commandBuffer,
-    VkBuffer                                    dstBuffer,
-    VkDeviceSize                                dstOffset,
-    VkDeviceSize                                fillSize,
-    uint32_t                                    data)
-{
-   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   ANV_FROM_HANDLE(anv_buffer, dst_buffer, dstBuffer);
-
-   fillSize = vk_buffer_range(&dst_buffer->vk, dstOffset, fillSize);
-
-   /* From the Vulkan spec:
-    *
-    *    "size is the number of bytes to fill, and must be either a multiple
-    *    of 4, or VK_WHOLE_SIZE to fill the range from offset to the end of
-    *    the buffer. If VK_WHOLE_SIZE is used and the remaining size of the
-    *    buffer is not a multiple of 4, then the nearest smaller multiple is
-    *    used."
-    */
-   fillSize &= ~3ull;
-
-   anv_cmd_buffer_fill_area(cmd_buffer,
-                            anv_address_add(dst_buffer->address, dstOffset),
                             fillSize, data);
 
    anv_add_buffer_write_pending_bits(cmd_buffer, "after fill buffer");

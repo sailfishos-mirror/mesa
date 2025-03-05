@@ -7002,50 +7002,6 @@ genX(cmd_emit_conditional_render_predicate)(struct anv_cmd_buffer *cmd_buffer)
    }
 }
 
-void genX(CmdBeginConditionalRenderingEXT)(
-   VkCommandBuffer                             commandBuffer,
-   const VkConditionalRenderingBeginInfoEXT*   pConditionalRenderingBegin)
-{
-   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   ANV_FROM_HANDLE(anv_buffer, buffer, pConditionalRenderingBegin->buffer);
-   struct anv_cmd_state *cmd_state = &cmd_buffer->state;
-   struct anv_address value_address =
-      anv_address_add(buffer->address, pConditionalRenderingBegin->offset);
-
-   const bool isInverted = pConditionalRenderingBegin->flags &
-                           VK_CONDITIONAL_RENDERING_INVERTED_BIT_EXT;
-
-   cmd_state->conditional_render_enabled = true;
-
-   genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
-
-   struct mi_builder b;
-   mi_builder_init(&b, cmd_buffer->device->info, &cmd_buffer->batch);
-   const uint32_t mocs = anv_mocs_for_address(cmd_buffer->device, &value_address);
-   mi_builder_set_mocs(&b, mocs);
-
-   /* Section 19.4 of the Vulkan 1.1.85 spec says:
-    *
-    *    If the value of the predicate in buffer memory changes
-    *    while conditional rendering is active, the rendering commands
-    *    may be discarded in an implementation-dependent way.
-    *    Some implementations may latch the value of the predicate
-    *    upon beginning conditional rendering while others
-    *    may read it before every rendering command.
-    *
-    * So it's perfectly fine to read a value from the buffer once.
-    */
-   struct mi_value value =  mi_mem32(value_address);
-
-   /* Precompute predicate result, it is necessary to support secondary
-    * command buffers since it is unknown if conditional rendering is
-    * inverted when populating them.
-    */
-   mi_store(&b, mi_reg64(ANV_PREDICATE_RESULT_REG),
-                isInverted ? mi_uge(&b, mi_imm(0), value) :
-                             mi_ult(&b, mi_imm(0), value));
-}
-
 void genX(CmdBeginConditionalRendering2EXT)(
     VkCommandBuffer                             commandBuffer,
     const VkConditionalRenderingBeginInfo2EXT*  pConditionalRenderingBegin)
@@ -7758,50 +7714,6 @@ genX(async_submit_end)(struct anv_async_submit *submit)
 {
    struct anv_batch *batch = &submit->batch;
    anv_batch_emit(batch, GENX(MI_BATCH_BUFFER_END), bbe);
-}
-
-void
-genX(CmdWriteBufferMarker2AMD)(VkCommandBuffer commandBuffer,
-                               VkPipelineStageFlags2 stage,
-                               VkBuffer dstBuffer,
-                               VkDeviceSize dstOffset,
-                               uint32_t marker)
-{
-   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
-   ANV_FROM_HANDLE(anv_buffer, buffer, dstBuffer);
-
-   /* The barriers inserted by the application to make dstBuffer writable
-    * should already have the L1/L2 cache flushes. On platforms where the
-    * command streamer is not coherent with L3, we need an additional set of
-    * cache flushes.
-    */
-   enum anv_pipe_bits bits =
-      (ANV_DEVINFO_HAS_COHERENT_L3_CS(cmd_buffer->device->info) ? 0 :
-       (ANV_PIPE_DATA_CACHE_FLUSH_BIT | ANV_PIPE_TILE_CACHE_FLUSH_BIT)) |
-      ANV_PIPE_END_OF_PIPE_SYNC_BIT;
-
-   trace_intel_begin_write_buffer_marker(&cmd_buffer->trace);
-
-   anv_add_pending_pipe_bits(cmd_buffer,
-                             stage,
-                             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                             bits, "write buffer marker");
-   genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
-
-   struct mi_builder b;
-   mi_builder_init(&b, cmd_buffer->device->info, &cmd_buffer->batch);
-
-   /* Emitting a PIPE_CONTROL with Post-Sync Op = Write Immediate Data
-    * would be the logical way to implement this extension, as it could
-    * do a pipelined marker write.  Unfortunately, it requires writing
-    * whole 64-bit QWords, and VK_AMD_buffer_marker requires writing a
-    * 32-bit value.  MI_STORE_DATA_IMM is the only good way to do that,
-    * and unfortunately it requires stalling.
-    */
-   mi_store(&b, mi_mem32(anv_address_add(buffer->address, dstOffset)),
-                mi_imm(marker));
-
-   trace_intel_end_write_buffer_marker(&cmd_buffer->trace);
 }
 
 void genX(CmdWriteMarkerToMemoryAMD)(

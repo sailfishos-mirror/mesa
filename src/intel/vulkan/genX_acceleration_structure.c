@@ -663,10 +663,17 @@ genX(CmdCopyAccelerationStructureKHR)(
                                 "bvh size read for dispatch");
    }
 
-   anv_genX(cmd_buffer->device->info, CmdDispatchIndirect)(
-      commandBuffer, vk_buffer_to_handle(src->buffer),
-      src->offset + offsetof(struct anv_accel_struct_header,
-                             copy_dispatch_size));
+   anv_genX(cmd_buffer->device->info, CmdDispatchIndirect2KHR)(
+      commandBuffer,
+      &(VkDispatchIndirect2InfoKHR) {
+         .sType = VK_STRUCTURE_TYPE_DISPATCH_INDIRECT_2_INFO_KHR,
+         .addressRange = {
+            .address = vk_acceleration_structure_get_va(src) +
+                       offsetof(struct anv_accel_struct_header,
+                                copy_dispatch_size),
+            .size = src->size,
+         },
+      });
 
    anv_cmd_buffer_restore_state(cmd_buffer, &saved);
 
@@ -715,10 +722,17 @@ genX(CmdCopyAccelerationStructureToMemoryKHR)(
                                 "bvh size read for dispatch");
    }
 
-   anv_genX(device->info, CmdDispatchIndirect)(
-      commandBuffer, vk_buffer_to_handle(src->buffer),
-      src->offset + offsetof(struct anv_accel_struct_header,
-                             copy_dispatch_size));
+   anv_genX(device->info, CmdDispatchIndirect2KHR)(
+      commandBuffer,
+      &(VkDispatchIndirect2InfoKHR) {
+         .sType = VK_STRUCTURE_TYPE_DISPATCH_INDIRECT_2_INFO_KHR,
+         .addressRange = {
+            .address = vk_acceleration_structure_get_va(src) +
+                       offsetof(struct anv_accel_struct_header,
+                                copy_dispatch_size),
+            .size = src->size,
+         },
+      });
 
    anv_cmd_buffer_restore_state(cmd_buffer, &saved);
 
