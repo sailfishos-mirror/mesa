@@ -47,6 +47,12 @@ struct vk_buffer {
     * delay as far as the bind for non-sparse buffers.
     */
    VkDeviceAddress device_address;
+
+   /** Inferred address flags from create_flags */
+   VkAddressCommandFlagsKHR address_flags;
+
+   /** Inferred copy flags from create_flags */
+   VkAddressCopyFlagsKHR copy_flags;
 };
 VK_DEFINE_NONDISP_HANDLE_CASTS(vk_buffer, base, VkBuffer,
                                VK_OBJECT_TYPE_BUFFER);
