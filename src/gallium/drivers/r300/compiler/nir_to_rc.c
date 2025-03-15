@@ -275,17 +275,8 @@ ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *fra
       tgsi_get_gl_varying_semantic(semantics.location, true, &semantic_name, &semantic_index);
 
       uint32_t usage_mask = BITFIELD_RANGE(*frac, instr->num_components);
-      uint32_t gs_streams = semantics.gs_streams;
-      for (int i = 0; i < 4; i++) {
-         if (!(usage_mask & (1 << i)))
-            gs_streams &= ~(0x3 << 2 * i);
-      }
-
-      /* No driver appears to use array_id of outputs. */
-      unsigned array_id = 0;
-
-      out = ureg_DECL_output_layout(c->ureg, semantic_name, semantic_index, gs_streams, base,
-                                    usage_mask, array_id, semantics.num_slots, false);
+      out = ureg_DECL_output_layout(c->ureg, semantic_name, semantic_index, 0, base,
+                                    usage_mask, 0, semantics.num_slots, false);
    }
 
    unsigned write_mask;
@@ -377,8 +368,6 @@ ntr_setup_inputs(struct ntr_compile *c)
       return;
 
    unsigned num_inputs = 0;
-   int num_input_arrays = 0;
-
    nir_foreach_shader_in_variable (var, c->s) {
       const struct glsl_type *type = var->type;
       unsigned array_len = glsl_count_attribute_slots(type, false);
@@ -417,15 +406,11 @@ ntr_setup_inputs(struct ntr_compile *c)
          sample_loc = TGSI_INTERPOLATE_LOC_CENTER;
       }
 
-      unsigned array_id = 0;
-      if (glsl_type_is_array(type))
-         array_id = ++num_input_arrays;
-
       uint32_t usage_mask = ntr_tgsi_var_usage_mask(var);
 
       decl = ureg_DECL_fs_input_centroid_layout(
          c->ureg, semantic_name, semantic_index, interpolation, sample_loc,
-         var->data.driver_location, usage_mask, array_id, array_len);
+         var->data.driver_location, usage_mask, 0, array_len);
 
       if (semantic_name == TGSI_SEMANTIC_FACE) {
          struct ureg_dst temp = ntr_temp(c);
