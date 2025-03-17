@@ -199,11 +199,6 @@ void r300_translate_vertex_shader(struct r300_context *r300,
     compiler.Base.max_constants = 256;
     compiler.Base.max_alu_insts = r300->screen->caps.is_r500 ? 1024 : 256;
 
-    if (compiler.Base.Debug & RC_DBG_LOG) {
-        DBG(r300, DBG_VP, "r300: Initial vertex program\n");
-        tgsi_dump(shader->state.tokens, 0);
-    }
-
     /* Translate TGSI to our internal representation */
     ttr.compiler = &compiler.Base;
     ttr.info = &vs->info;
