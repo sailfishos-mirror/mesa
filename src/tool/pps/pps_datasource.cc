@@ -186,6 +186,18 @@ template <typename GpuCounterDescriptor> void add_descriptors(GpuCounterDescript
       case Counter::Units::None:
          units = GpuCounterDescriptor::NONE;
          break;
+      case Counter::Units::Primitive:
+         units = GpuCounterDescriptor::PRIMITIVE;
+         break;
+      case Counter::Units::Instruction:
+         units = GpuCounterDescriptor::INSTRUCTION;
+         break;
+      case Counter::Units::Pixel:
+         units = GpuCounterDescriptor::PIXEL;
+         break;
+      case Counter::Units::Fragment:
+         units = GpuCounterDescriptor::FRAGMENT;
+         break;
       default:
          assert(false && "Missing counter units type!");
          break;
