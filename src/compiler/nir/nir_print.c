@@ -1669,6 +1669,9 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
             case nir_resource_intel_sampler_embedded:
                fprintf(fp, "sampler-embedded");
                break;
+            case nir_resource_intel_internal:
+               fprintf(fp, "internal");
+               break;
             default:
                fprintf(fp, "unknown");
                break;

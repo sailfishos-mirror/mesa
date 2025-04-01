@@ -20,8 +20,9 @@
 #include <optional>
 
 struct brw_bind_info {
-   bool valid;
-   bool bindless;
+   bool valid:1;
+   bool bindless:1;
+   bool internal:1;
    unsigned block;
    unsigned set;
    unsigned binding;
@@ -1834,6 +1835,12 @@ static bool
 get_nir_src_bindless(nir_to_brw_state &ntb, const nir_src &src)
 {
    return ntb.ssa_bind_infos[src.ssa->index].bindless;
+}
+
+static bool
+get_nir_src_internal(nir_to_brw_state &ntb, const nir_src &src)
+{
+   return ntb.ssa_bind_infos[src.ssa->index].internal;
 }
 
 /**
@@ -4854,6 +4861,9 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       ntb.ssa_bind_infos[instr->def.index].bindless =
          (nir_intrinsic_resource_access_intel(instr) &
           nir_resource_intel_bindless) != 0;
+      ntb.ssa_bind_infos[instr->def.index].internal =
+         (nir_intrinsic_resource_access_intel(instr) &
+          nir_resource_intel_internal) != 0;
       ntb.ssa_bind_infos[instr->def.index].block =
          nir_intrinsic_resource_block_intel(instr);
       ntb.ssa_bind_infos[instr->def.index].set =
@@ -5369,6 +5379,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       bool no_mask_handle = false;
 
       brw_reg binding_type = brw_imm_ud(
+         get_nir_src_internal(ntb, instr->src[0]) ? LSC_ADDR_SURFTYPE_SS :
          get_nir_src_bindless(ntb, instr->src[0]) ? LSC_ADDR_SURFTYPE_BSS :
          LSC_ADDR_SURFTYPE_BTI);
       brw_reg binding =
@@ -5430,6 +5441,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
             const brw_reg packed_consts = ubld.vgrf(BRW_TYPE_UD);
             brw_reg srcs[PULL_UNIFORM_CONSTANT_SRCS];
             srcs[PULL_UNIFORM_CONSTANT_SRC_BINDING_TYPE] = brw_imm_ud(
+               get_nir_src_internal(ntb, instr->src[0]) ? LSC_ADDR_SURFTYPE_SS :
                get_nir_src_bindless(ntb, instr->src[0]) ? LSC_ADDR_SURFTYPE_BSS :
                LSC_ADDR_SURFTYPE_BTI);
             srcs[PULL_UNIFORM_CONSTANT_SRC_BINDING]      = binding;
@@ -6065,8 +6077,10 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
    case nir_intrinsic_load_ssbo_uniform_block_intel:
       if (!mode.has_value())
          mode = MEMORY_MODE_UNTYPED;
-      binding_type = get_nir_src_bindless(ntb, instr->src[is_store ? 1 : 0]) ?
-                     LSC_ADDR_SURFTYPE_BSS : LSC_ADDR_SURFTYPE_BTI;
+      binding_type =
+         get_nir_src_internal(ntb, instr->src[is_store ? 1 : 0]) ? LSC_ADDR_SURFTYPE_SS :
+         get_nir_src_bindless(ntb, instr->src[is_store ? 1 : 0]) ? LSC_ADDR_SURFTYPE_BSS :
+         LSC_ADDR_SURFTYPE_BTI;
       srcs[MEMORY_LOGICAL_BINDING] =
          get_nir_buffer_intrinsic_index(ntb, bld, instr, &no_mask_handle);
       srcs[MEMORY_LOGICAL_ADDRESS] =
