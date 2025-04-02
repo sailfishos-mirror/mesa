@@ -10,3 +10,4 @@ shaderImageGatherExtended on pvr
 static C++ stdlib required on rusticl to workaround applications using their own C++ stdlib
 VK_EXT_pipeline_protected_access on RADV
 VK_EXT_extended_dynamic_state3 on panvk
+GL_ARB_texture_query_lod on panfrost/v9+
