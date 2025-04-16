@@ -1217,9 +1217,16 @@ static const struct intel_device_info intel_device_info_lnl = {
    .ver = 30,                                                   \
    .verx10 = 300
 
+#define XE3_URB_MIN_MAX_ENTRIES                                 \
+   XEHP_URB_MIN_MAX_ENTRIES
+
+#define XE3_PLACEHOLDER_THREADS_AND_URB                         \
+   XEHP_PLACEHOLDER_THREADS_AND_URB,                            \
+   XE3_URB_MIN_MAX_ENTRIES
+
 #define XE3_CONFIG(platform_suffix)                             \
    XE3_FEATURES, XE2_PAT_ENTRIES,                               \
-   XEHP_PLACEHOLDER_THREADS_AND_URB,                            \
+   XE3_PLACEHOLDER_THREADS_AND_URB,                             \
    .platform = INTEL_PLATFORM_ ## platform_suffix
 
 
