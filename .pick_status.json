@@ -5014,7 +5014,7 @@
         "description": "pick-ui: add `Backport-to: *` as a synonym to `Cc: mesa-stable`",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
