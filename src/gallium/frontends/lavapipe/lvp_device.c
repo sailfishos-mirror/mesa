@@ -145,11 +145,17 @@ static const struct vk_device_extension_table lvp_device_extensions_supported = 
    .KHR_dynamic_rendering_local_read      = true,
    .KHR_format_feature_flags2             = true,
    .KHR_external_fence                    = true,
+#ifdef HAVE_LIBDRM
+   .KHR_external_fence_fd                 = true,
+#endif
    .KHR_external_memory                   = true,
 #ifdef PIPE_MEMORY_FD
    .KHR_external_memory_fd                = true,
 #endif
    .KHR_external_semaphore                = true,
+#ifdef HAVE_LIBDRM
+   .KHR_external_semaphore_fd             = true,
+#endif
    .KHR_shader_float_controls             = true,
    .KHR_shader_float_controls2            = true,
    .KHR_get_memory_requirements2          = true,
@@ -1457,10 +1463,6 @@ lvp_physical_device_init(struct lvp_physical_device *device,
       device->vk.supported_extensions.EXT_external_memory_dma_buf = !!supported_dmabuf_bits;
    if (dmabuf_import_export)
       device->vk.supported_extensions.EXT_image_drm_format_modifier = true;
-   if (device->pscreen->caps.native_fence_fd) {
-      device->vk.supported_extensions.KHR_external_semaphore_fd = true;
-      device->vk.supported_extensions.KHR_external_fence_fd = true;
-   }
    if (supported_dmabuf_bits & DRM_PRIME_CAP_IMPORT)
       device->vk.supported_extensions.ANDROID_external_memory_android_hardware_buffer = true;
 #endif
@@ -2766,11 +2768,9 @@ VKAPI_ATTR void VKAPI_CALL lvp_GetPhysicalDeviceExternalFenceProperties(
    const VkPhysicalDeviceExternalFenceInfo    *pExternalFenceInfo,
    VkExternalFenceProperties                  *pExternalFenceProperties)
 {
-   VK_FROM_HANDLE(lvp_physical_device, physical_device, physicalDevice);
    const VkExternalFenceHandleTypeFlagBits handle_type = pExternalFenceInfo->handleType;
 
-   if (handle_type == VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT &&
-       physical_device->pscreen->caps.native_fence_fd) {
+   if (handle_type == VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT) {
       pExternalFenceProperties->exportFromImportedHandleTypes =
          VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT;
       pExternalFenceProperties->compatibleHandleTypes =
@@ -2790,15 +2790,13 @@ VKAPI_ATTR void VKAPI_CALL lvp_GetPhysicalDeviceExternalSemaphoreProperties(
    const VkPhysicalDeviceExternalSemaphoreInfo *pExternalSemaphoreInfo,
    VkExternalSemaphoreProperties               *pExternalSemaphoreProperties)
 {
-   VK_FROM_HANDLE(lvp_physical_device, physical_device, physicalDevice);
    const VkSemaphoreTypeCreateInfo *type_info =
       vk_find_struct_const(pExternalSemaphoreInfo->pNext, SEMAPHORE_TYPE_CREATE_INFO);
    const VkSemaphoreType type = !type_info ? VK_SEMAPHORE_TYPE_BINARY : type_info->semaphoreType;
    const VkExternalSemaphoreHandleTypeFlagBits handle_type = pExternalSemaphoreInfo->handleType;
 
    if (type == VK_SEMAPHORE_TYPE_BINARY &&
-       handle_type == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT &&
-       physical_device->pscreen->caps.native_fence_fd) {
+       handle_type == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT) {
       pExternalSemaphoreProperties->exportFromImportedHandleTypes =
          VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
       pExternalSemaphoreProperties->compatibleHandleTypes =
