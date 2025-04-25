@@ -114,6 +114,8 @@ void lvp_lower_pipeline_layout(const struct lvp_device *device,
                                struct lvp_pipeline_layout *layout,
                                nir_shader *shader);
 
+bool lvp_nir_lower_push_constants(nir_shader *shader);
+
 bool lvp_nir_lower_ray_queries(struct nir_shader *shader);
 
 bool lvp_nir_lower_sparse_residency(struct nir_shader *shader);
