@@ -877,7 +877,7 @@ image("fragment_mask_load_amd", src_comp=[4], dest_comp=1, bit_sizes=[32], flags
 # corresponds to the tuple (set, binding, index) and computes an index
 # corresponding to tuple (set, binding, idx + src1).
 intrinsic("vulkan_resource_index", src_comp=[1], dest_comp=0,
-          indices=[DESC_SET, BINDING, DESC_TYPE],
+          indices=[DESC_SET, BINDING, DESC_TYPE, RESOURCE_TYPE],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 intrinsic("vulkan_resource_reindex", src_comp=[0, 1], dest_comp=0,
           indices=[DESC_TYPE], flags=[CAN_ELIMINATE, CAN_REORDER])
