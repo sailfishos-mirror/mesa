@@ -615,12 +615,7 @@ panvk_per_arch(get_physical_device_properties)(
       .driverVersion = vk_get_driver_version(),
       .vendorID =
          instance->force_vk_vendor ? instance->force_vk_vendor : ARM_VENDOR_ID,
-
-      /* Collect arch_major, arch_minor, arch_rev and product_major,
-       * as done by the Arm driver.
-       */
-      .deviceID = device->kmod.dev->props.gpu_id &
-                  (ARCH_MAJOR | ARCH_MINOR | ARCH_REV | PRODUCT_MAJOR),
+      .deviceID = device->kmod.dev->props.gpu_id,
       .deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
 
       /* Vulkan 1.0 limits */
