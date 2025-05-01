@@ -527,6 +527,51 @@ debian/arm64_test-vk:
     - job: debian/arm64_test-vk
       optional: true
 
+# Debian-based x86_64 builder for Android test tools.
+# ANGLE, dEQP, and deqp-runner are built here since Google does not provide
+# an arm64 NDK. Artifacts are then copied into the arm64 test image.
+debian/arm64_test-android-tools:
+  extends:
+    - .android-variables
+    - .use-debian/x86_64_test-base  # NOT a mistake!
+    - .container-builds-android
+  variables:
+    MESA_IMAGE_TAG: &debian-arm64_test-android ${DEBIAN_TEST_ANDROID_TAG}
+
+# Debian based arm64 test image for Android
+debian/arm64_test-android:
+  tags:
+    - $FDO_RUNNER_JOB_PRIORITY_TAG_AARCH64
+  extends:
+    - .android-variables
+    - .use-debian/arm64_test-base
+    - .container-builds-android
+    - .export-container
+  variables:
+    MESA_IMAGE_TAG: *debian-arm64_test-android
+  needs:
+    - !reference [.use-debian/arm64_test-base, needs]
+    - job: debian/arm64_test-android-tools
+      optional: true
+
+.use-debian/arm64_test-android:
+  tags:
+    - $FDO_RUNNER_JOB_PRIORITY_TAG_AARCH64
+  extends:
+    - .android-variables
+    - .set-image-base-tag
+  variables:
+    MESA_BASE_TAG: *debian-arm64_test-base
+    MESA_IMAGE_PATH: "debian/arm64_test-android"
+    MESA_IMAGE_TAG: *debian-arm64_test-android
+  needs:
+    - job: sanity
+      optional: true
+    - job: debian/arm64_test-android
+      optional: true
+    - job: debian/arm64_test-android-tools
+      optional: true
+
 # x86_64 image with ARM64 & ARM32 kernel & rootfs for baremetal testing
 .debian/baremetal_arm_test:
   extends:
