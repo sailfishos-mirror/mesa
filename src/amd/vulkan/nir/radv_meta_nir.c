@@ -608,18 +608,18 @@ radv_meta_nir_build_btoi_r32g32b32_compute_shader(struct radv_device *dev)
    nir_def *global_id = radv_meta_nir_get_global_ids(&b, 2);
 
    nir_def *offset = nir_load_push_constant(&b, 2, 32, nir_imm_int(&b, 0), .range = 8);
-   nir_def *pitch = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 8), .range = 12);
-   nir_def *stride = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 12), .range = 16);
+   nir_def *stride = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 8), .range = 12);
+   nir_def *pitch = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 12), .range = 16);
 
    nir_def *pos_x = nir_channel(&b, global_id, 0);
    nir_def *pos_y = nir_channel(&b, global_id, 1);
 
-   nir_def *buf_coord = nir_imul(&b, pos_y, stride);
+   nir_def *buf_coord = nir_imul(&b, pos_y, pitch);
    buf_coord = nir_iadd(&b, buf_coord, pos_x);
 
    nir_def *img_coord = nir_iadd(&b, global_id, offset);
 
-   nir_def *global_pos = nir_iadd(&b, nir_imul(&b, nir_channel(&b, img_coord, 1), pitch),
+   nir_def *global_pos = nir_iadd(&b, nir_imul(&b, nir_channel(&b, img_coord, 1), stride),
                                   nir_imul_imm(&b, nir_channel(&b, img_coord, 0), 3));
 
    nir_def *outval = nir_txf(&b, buf_coord, .texture_deref = nir_build_deref_var(&b, input_img));
