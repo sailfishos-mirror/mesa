@@ -13,19 +13,19 @@
 #include "vk_format.h"
 
 static VkPipeline
-radv_get_etc_decode_pipeline(struct radv_cmd_buffer *cmd_buffer)
+radv_get_etc_decode_pipeline(struct radv_cmd_buffer *cmd_buffer, bool indirect)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_meta_state *state = &device->meta_state;
    VkResult ret;
 
-   ret = vk_texcompress_etc2_late_init(&device->vk, &state->etc_decode);
+   ret = vk_texcompress_etc2_late_init(&device->vk, indirect, &state->etc_decode);
    if (ret != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, ret);
       return VK_NULL_HANDLE;
    }
 
-   return state->etc_decode.pipeline;
+   return indirect ? state->etc_decode.indirect_pipeline : state->etc_decode.pipeline;
 }
 
 static void
@@ -33,7 +33,7 @@ decode_etc(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_iview
            const VkOffset3D *offset, const VkExtent3D *extent)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   VkPipeline pipeline = radv_get_etc_decode_pipeline(cmd_buffer);
+   VkPipeline pipeline = radv_get_etc_decode_pipeline(cmd_buffer, false);
 
    radv_meta_bind_descriptors(cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, device->meta_state.etc_decode.pipeline_layout,
                               2,

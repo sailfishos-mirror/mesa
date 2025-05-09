@@ -440,14 +440,35 @@ etc2_build_shader(struct vk_device *dev, const struct nir_shader_compiler_option
    return etc2_build_shader_core(&b, offset, format, image_type);
 }
 
+static nir_shader *
+etc2_build_shader_indirect(struct vk_device *dev, const struct nir_shader_compiler_options *nir_options)
+{
+   nir_builder b = nir_builder_init_simple_shader(MESA_SHADER_COMPUTE, nir_options, "meta_decode_etc_indirect");
+
+   nir_def *indirect_addr = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 0, .range = 8);
+   nir_def *format = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 8), .range = 12);
+   nir_def *image_type = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 12), .range = 16);
+
+   nir_def *offset = nir_build_load_global(
+      &b, 3, 32, nir_iadd_imm(&b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, imageOffset)));
+
+   return etc2_build_shader_core(&b, offset, format, image_type);
+}
+
 static VkResult
-etc2_init_pipeline(struct vk_device *device, struct vk_texcompress_etc2_state *etc2)
+etc2_init_pipeline(struct vk_device *device, bool indirect, struct vk_texcompress_etc2_state *etc2)
 {
    const struct vk_device_dispatch_table *disp = &device->dispatch_table;
+   VkPipeline *pipeline = indirect ? &etc2->indirect_pipeline : &etc2->pipeline;
    VkDevice _device = vk_device_to_handle(device);
    VkResult result;
+   nir_shader *cs;
 
-   nir_shader *cs = etc2_build_shader(device, etc2->nir_options);
+   if (indirect) {
+      cs = etc2_build_shader_indirect(device, etc2->nir_options);
+   } else {
+      cs = etc2_build_shader(device, etc2->nir_options);
+   }
 
    const VkComputePipelineCreateInfo pipeline_create_info = {
       .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
@@ -462,7 +483,7 @@ etc2_init_pipeline(struct vk_device *device, struct vk_texcompress_etc2_state *e
    };
 
    result = disp->CreateComputePipelines(_device, etc2->pipeline_cache, 1, &pipeline_create_info, etc2->allocator,
-                                         &etc2->pipeline);
+                                         pipeline);
 
    ralloc_free(cs);
    return result;
@@ -526,27 +547,31 @@ vk_texcompress_etc2_init(struct vk_device *device, struct vk_texcompress_etc2_st
 }
 
 VkResult
-vk_texcompress_etc2_late_init(struct vk_device *device, struct vk_texcompress_etc2_state *etc2)
+vk_texcompress_etc2_late_init(struct vk_device *device, bool indirect, struct vk_texcompress_etc2_state *etc2)
 {
+   const struct vk_device_dispatch_table *disp = &device->dispatch_table;
+   VkDevice _device = vk_device_to_handle(device);
    VkResult result = VK_SUCCESS;
 
    simple_mtx_lock(&etc2->mutex);
 
-   if (!etc2->pipeline) {
-      const struct vk_device_dispatch_table *disp = &device->dispatch_table;
-      VkDevice _device = vk_device_to_handle(device);
-
+   if (!etc2->ds_layout) {
       result = etc2_init_ds_layout(device, etc2);
       if (result != VK_SUCCESS)
          goto out;
+   }
 
+   if (!etc2->pipeline_layout) {
       result = etc2_init_pipeline_layout(device, etc2);
       if (result != VK_SUCCESS) {
          disp->DestroyDescriptorSetLayout(_device, etc2->ds_layout, etc2->allocator);
          goto out;
       }
+   }
 
-      result = etc2_init_pipeline(device, etc2);
+   VkPipeline pipeline = indirect ? etc2->indirect_pipeline : etc2->pipeline;
+   if (!pipeline) {
+      result = etc2_init_pipeline(device, indirect, etc2);
       if (result != VK_SUCCESS) {
          disp->DestroyPipelineLayout(_device, etc2->pipeline_layout, etc2->allocator);
          disp->DestroyDescriptorSetLayout(_device, etc2->ds_layout, etc2->allocator);
@@ -567,6 +592,8 @@ vk_texcompress_etc2_finish(struct vk_device *device, struct vk_texcompress_etc2_
 
    if (etc2->pipeline != VK_NULL_HANDLE)
       disp->DestroyPipeline(_device, etc2->pipeline, etc2->allocator);
+   if (etc2->indirect_pipeline != VK_NULL_HANDLE)
+      disp->DestroyPipeline(_device, etc2->indirect_pipeline, etc2->allocator);
 
    if (etc2->pipeline_layout != VK_NULL_HANDLE)
       disp->DestroyPipelineLayout(_device, etc2->pipeline_layout, etc2->allocator);
