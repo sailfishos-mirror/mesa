@@ -78,7 +78,7 @@ struct vbo_save_vertex_list {
     */
    struct {
       struct gl_vertex_array_object *VAO[VP_MODE_MAX];
-      struct _mesa_index_buffer ib;
+      struct gl_buffer_object *bo;
 
       struct pipe_draw_info info;
 

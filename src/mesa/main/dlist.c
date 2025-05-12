@@ -760,7 +760,7 @@ vbo_destroy_vertex_list(struct gl_context *ctx, struct vbo_save_vertex_list *nod
       free(node->start_counts);
    }
 
-   _mesa_reference_buffer_object(ctx, &node->cold->ib.obj, NULL);
+   _mesa_reference_buffer_object(ctx, &node->cold->bo, NULL);
    free(node->cold->current_data);
    node->cold->current_data = NULL;
 

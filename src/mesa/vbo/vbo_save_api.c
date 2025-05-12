@@ -613,7 +613,7 @@ compile_vertex_list(struct gl_context *ctx)
    node->cold->wrap_count = save->copied.nr;
    node->cold->prims = malloc(sizeof(struct _mesa_prim) * save->prim_store->used);
    memcpy(node->cold->prims, save->prim_store->prims, sizeof(struct _mesa_prim) * save->prim_store->used);
-   node->cold->ib.obj = NULL;
+   node->cold->bo = NULL;
    node->cold->prim_count = save->prim_store->used;
 
    if (save->no_current_update) {
@@ -839,9 +839,6 @@ compile_vertex_list(struct gl_context *ctx)
    }
 
    unsigned merged_prim_count = last_valid_prim + 1;
-   node->cold->ib.ptr = NULL;
-   node->cold->ib.count = idx;
-   node->cold->ib.index_size_shift = (GL_UNSIGNED_INT - GL_UNSIGNED_BYTE) >> 1;
 
    /* How many bytes do we need to store the indices and the vertices */
    total_vert_count = vertex_to_index ? (max_index + 1) : idx;
@@ -877,14 +874,14 @@ compile_vertex_list(struct gl_context *ctx)
       vao_buffer_offset = 0;
    }
 
-   _mesa_reference_buffer_object(ctx, &node->cold->ib.obj, save->current_bo);
+   _mesa_reference_buffer_object(ctx, &node->cold->bo, save->current_bo);
 
    /* Upload the vertices first (see vao_buffer_offset) */
    _mesa_bufferobj_subdata(ctx,
                            save->current_bo_bytes_used,
                            total_vert_count * save->vertex_size * sizeof(fi_type),
                            vertex_to_index ? temp_vertices_buffer : save->vertex_store->buffer_in_ram,
-                           node->cold->ib.obj);
+                           node->cold->bo);
    save->current_bo_bytes_used += total_vert_count * save->vertex_size * sizeof(fi_type);
    node->cold->bo_bytes_used = save->current_bo_bytes_used;
    ctx->ListState.Current.NeedsFlush = true;
@@ -905,12 +902,12 @@ compile_vertex_list(struct gl_context *ctx)
    }
 
    /* Then upload the indices. */
-   if (node->cold->ib.obj) {
+   if (node->cold->bo) {
       _mesa_bufferobj_subdata(ctx,
                               save->current_bo_bytes_used,
                               idx * sizeof(uint32_t),
                               indices,
-                              node->cold->ib.obj);
+                              node->cold->bo);
       save->current_bo_bytes_used += idx * sizeof(uint32_t);
    } else {
       node->cold->vertex_count = 0;
@@ -922,7 +919,7 @@ compile_vertex_list(struct gl_context *ctx)
    /* The other info fields will be updated in vbo_save_playback_vertex_list */
    node->cold->info.index_size = 4;
    node->cold->info.instance_count = 1;
-   node->cold->info.index.resource = node->cold->ib.obj->buffer;
+   node->cold->info.index.resource = node->cold->bo->buffer;
    if (merged_prim_count == 1) {
       node->cold->info.mode = merged_prims[0].mode;
       node->start_count.start = merged_prims[0].start;
@@ -999,7 +996,7 @@ end:
 
          node->state[i] =
             st_create_gallium_vertex_state(ctx, node->cold->VAO[i],
-                                           node->cold->ib.obj,
+                                           node->cold->bo,
                                            enabled_attribs);
          node->private_refcount[i] = 0;
          node->enabled_attribs[i] = enabled_attribs;
