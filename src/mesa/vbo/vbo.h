@@ -151,6 +151,7 @@ struct vbo_exec_context
 struct free_bo_pool_entry {
    GLuint bo_bytes_used;
    struct gl_buffer_object *bo;
+   struct gl_vertex_array_object *VAO[VP_MODE_MAX];
 };
 
 struct vbo_save_context {
@@ -159,7 +160,6 @@ struct vbo_save_context {
    GLenum16 attrtype[VBO_ATTRIB_MAX];  /**< GL_FLOAT, GL_INT, etc */
    GLubyte active_sz[VBO_ATTRIB_MAX];  /**< 1, 2, 3 or 4 */
    GLuint vertex_size;  /**< size in GLfloats */
-   struct gl_vertex_array_object *VAO[VP_MODE_MAX];
 
    struct vbo_save_vertex_store *vertex_store;
    struct vbo_save_primitive_store *prim_store;

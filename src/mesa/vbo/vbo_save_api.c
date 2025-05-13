@@ -143,6 +143,7 @@ static struct free_bo_pool_entry *
 _vbo_bo_add_to_free_list(struct gl_context *ctx,
                          struct gl_buffer_object *bo,
                          uint32_t start, uint32_t end_excl);
+
 /*
  * NOTE: Old 'parity' issue is gone, but copying can still be
  * wrong-footed on replay.
@@ -335,9 +336,9 @@ compare_vao(gl_vertex_processing_mode mode,
 }
 
 
-/* Create or reuse the vao for the vertex processing mode. */
+/* Create the vao for the vertex processing mode. */
 static void
-update_vao(struct gl_context *ctx,
+create_vao(struct gl_context *ctx,
            gl_vertex_processing_mode mode,
            struct gl_vertex_array_object **vao,
            struct gl_buffer_object *bo, GLintptr buffer_offset,
@@ -348,14 +349,6 @@ update_vao(struct gl_context *ctx,
 {
    /* Compute the bitmasks of vao_enabled arrays */
    GLbitfield vao_enabled = _vbo_get_vao_enabled_from_vbo(mode, vbo_enabled);
-
-   /*
-    * Check if we can possibly reuse the exisiting one.
-    * In the long term we should reset them when something changes.
-    */
-   if (compare_vao(mode, *vao, bo, buffer_offset, stride,
-                   vao_enabled, size, type, offset))
-      return;
 
    /* The initial refcount is 1 */
    _mesa_reference_vao(ctx, vao, NULL);
@@ -506,25 +499,20 @@ get_vertex_count(struct vbo_save_context *save)
    return save->vertex_store->used / save->vertex_size;
 }
 
-
-
 static bool
-is_vbo_storage_large_enough(const struct vbo_save_context *save,
+is_vbo_storage_large_enough(const struct free_bo_pool_entry *vbo_candidate,
                             unsigned free_space_start, unsigned free_space_end,
                             unsigned total_bytes_needed,
                             const GLsizei stride,
                             uint32_t *start_aligned)
 {
-   const GLintptr old_offset = save->VAO[0] ?
-      save->VAO[0]->BufferBinding[0].Offset + save->VAO[0]->VertexAttrib[VERT_ATTRIB_POS].RelativeOffset : 0;
-   if (old_offset != free_space_start && stride > 0) {
-      GLintptr offset_diff = free_space_start - old_offset;
-      while (offset_diff > 0 &&
-             offset_diff % stride != 0) {
-         free_space_start++;
-         offset_diff = free_space_start - old_offset;
-      }
-   }
+   assert(!vbo_candidate->VAO[0] ||
+          (vbo_candidate->VAO[0]->BufferBinding[0].Offset == 0 &&
+           vbo_candidate->VAO[0]->VertexAttrib[VERT_ATTRIB_POS].RelativeOffset == 0));
+
+   /* Align start position to the stride. */
+   while (stride && free_space_start % stride)
+      free_space_start++;
 
    int available_bytes = free_space_end - free_space_start;
 
@@ -538,9 +526,8 @@ is_vbo_storage_large_enough(const struct vbo_save_context *save,
 }
 
 static void
-vbo_reuse_same_bo(const struct vbo_save_context *save,
+vbo_reuse_same_bo(const struct free_bo_pool_entry *bo_entry,
                   const struct vbo_save_vertex_list *node,
-                  const struct gl_buffer_object *bo,
                   unsigned free_space_start,
                   const GLsizei stride, int index_count,
                   GLintptr *vao_buffer_offset,
@@ -548,44 +535,42 @@ vbo_reuse_same_bo(const struct vbo_save_context *save,
                   uint32_t *indices,
                   uint32_t *max_index)
 {
-   const GLintptr old_offset = save->VAO[0] ?
-      save->VAO[0]->BufferBinding[0].Offset + save->VAO[0]->VertexAttrib[VERT_ATTRIB_POS].RelativeOffset : 0;
-
    *vao_buffer_offset = free_space_start;
 
-   const GLintptr offset_diff = *vao_buffer_offset - old_offset;
-   if (offset_diff > 0 && stride > 0 && offset_diff % stride == 0) {
-      /* The vertex size is an exact multiple of the buffer offset.
-       * This means that we can use zero-based vertex attribute pointers
-       * and specify the start of the primitive with the _mesa_prim::start
-       * field.  This results in issuing several draw calls with identical
-       * vertex attribute information.  This can result in fewer state
-       * changes in drivers.  In particular, the Gallium CSO module will
-       * filter out redundant vertex buffer changes.
-       */
-      /* We cannot immediately update the primitives as some methods below
-       * still need the uncorrected start vertices
-       */
-      *start_offset = offset_diff/stride;
-      assert(old_offset == *vao_buffer_offset - offset_diff);
-      *vao_buffer_offset = old_offset;
-   }
+   if (*vao_buffer_offset > 0 && stride > 0) {
+      /* The vertex size is an exact multiple of the buffer offset (see
+      * is_vbo_storage_large_enough).
+      * This means that we can use zero-based vertex attribute pointers
+      * and specify the start of the primitive with the _mesa_prim::start
+      * field.  This results in issuing several draw calls with identical
+      * vertex attribute information.  This can result in fewer state
+      * changes in drivers.  In particular, the Gallium CSO module will
+      * filter out redundant vertex buffer changes.
+      *
+      * We cannot immediately update the primitives as some methods below
+      * still need the uncorrected start vertices.
+      */
+      assert(*vao_buffer_offset % stride == 0);
 
-   /* Correct the primitive starts, we can only do this here as copy_vertices
-    * and convert_line_loop_to_strip above consume the uncorrected starts.
-    * On the other hand the _vbo_loopback_vertex_list call below needs the
-    * primitives to be corrected already.
-    */
-   for (unsigned i = 0; i < node->cold->prim_count; i++) {
-      node->cold->prims[i].start += *start_offset;
-   }
-   /* start_offset shifts vertices (so v[0] becomes v[start_offset]), so we have
-    * to apply this transformation to all indices and max_index.
-    */
-   for (unsigned i = 0; i < index_count; i++)
-      indices[i] += *start_offset;
+      *start_offset = *vao_buffer_offset / stride;
+      *vao_buffer_offset = 0;
 
-   *max_index += *start_offset;
+      /* Correct the primitive starts, we can only do this here as copy_vertices
+      * and convert_line_loop_to_strip above consume the uncorrected starts.
+      * On the other hand the _vbo_loopback_vertex_list call below needs the
+      * primitives to be corrected already.
+      */
+      for (unsigned i = 0; i < node->cold->prim_count; i++) {
+         node->cold->prims[i].start += *start_offset;
+      }
+      /* start_offset shifts vertices (so v[0] becomes v[start_offset]), so we have
+      * to apply this transformation to all indices and max_index.
+      */
+      for (unsigned i = 0; i < index_count; i++)
+         indices[i] += *start_offset;
+
+      *max_index += *start_offset;
+   }
 }
 
 /**
@@ -865,7 +850,7 @@ compile_vertex_list(struct gl_context *ctx)
          if (!entry->bo)
             continue;
 
-         if (!is_vbo_storage_large_enough(save,
+         if (!is_vbo_storage_large_enough(entry,
                                           entry->bo_bytes_used,
                                           VBO_SAVE_BUFFER_SIZE,
                                           total_bytes_needed, stride,
@@ -880,7 +865,7 @@ compile_vertex_list(struct gl_context *ctx)
          start_in_bo = start;
       }
       if (reuse_entry) {
-         vbo_reuse_same_bo(save, node, reuse_entry->bo,
+         vbo_reuse_same_bo(reuse_entry, node,
                            start_in_bo,
                            stride, idx, &vao_buffer_offset, &start_offset,
                            indices, &max_index);
@@ -963,7 +948,7 @@ compile_vertex_list(struct gl_context *ctx)
       } else {
          if (upload_offset < bo->Size) {
             assert(shared_buffer);
-            _vbo_bo_add_to_free_list(ctx, bo, upload_offset, bo->Size);
+            reuse_entry = _vbo_bo_add_to_free_list(ctx, bo, upload_offset, bo->Size);
          }
       }
    } else {
@@ -1038,16 +1023,25 @@ compile_vertex_list(struct gl_context *ctx)
       offset += save->attrsz[i] * sizeof(GLfloat);
    }
    /* Create a pair of VAOs for the possible VERTEX_PROCESSING_MODEs
-    * Note that this may reuse the previous one of possible.
+    * Note that this may reuse the previous one if possible.
     */
    for (gl_vertex_processing_mode vpm = VP_MODE_FF; vpm < VP_MODE_MAX; ++vpm) {
-      /* create or reuse the vao */
-      update_vao(ctx, vpm, &save->VAO[vpm],
-                 bo, vao_buffer_offset, stride,
-                 save->enabled, save->attrsz, save->attrtype, offsets);
-      /* Reference the vao in the dlist */
-      node->cold->VAO[vpm] = NULL;
-      _mesa_reference_vao(ctx, &node->cold->VAO[vpm], save->VAO[vpm]);
+      const GLbitfield vao_enabled = _vbo_get_vao_enabled_from_vbo(vpm, save->enabled);
+
+      if (reuse_entry &&
+          compare_vao(vpm, reuse_entry->VAO[vpm], bo, vao_buffer_offset, stride,
+                      vao_enabled, save->attrsz, save->attrtype, offsets)) {
+         _mesa_reference_vao(ctx, &node->cold->VAO[vpm], reuse_entry->VAO[vpm]);
+      } else {
+         /* Create a VAO. */
+         create_vao(ctx, vpm, &node->cold->VAO[vpm],
+                     bo, vao_buffer_offset, stride,
+                     save->enabled, save->attrsz, save->attrtype, offsets);
+
+         /* Store the first VAO in the entry. */
+         if (reuse_entry && !reuse_entry->VAO[vpm] && vao_buffer_offset == 0)
+            _mesa_reference_vao(ctx, &reuse_entry->VAO[vpm], node->cold->VAO[vpm]);
+      }
    }
 
    /* Prepare for draw_vertex_state. */
@@ -2191,6 +2185,8 @@ _vbo_bo_add_to_free_list(struct gl_context *ctx, struct gl_buffer_object *bo,
    }
 
    if (e) {
+      _vbo_release_pool_entry(ctx, e);
+
       /* Set the bo reference. */
       _mesa_reference_buffer_object(ctx, &e->bo, bo);
       e->bo_bytes_used = start;
@@ -2210,25 +2206,31 @@ vbo_save_release_bo(struct gl_context *ctx, struct gl_buffer_object **_bo,
 
    assert(start < end_excl);
 
-   bool single_owner = p_atomic_read(&bo->RefCount) == 1;
+   unsigned n_owners = p_atomic_read(&bo->RefCount);
 
    /* Release the caller's reference. */
    _mesa_reference_buffer_object(ctx, _bo, NULL);
 
    /* The caller was the sole owner of this bo. Exit. */
-   if (single_owner || !save->free_bo_pool || start == end_excl)
+   if (n_owners == 1 || !save->free_bo_pool || start == end_excl)
       return;
+
+   n_owners--;
 
    for (int i = 0; i < save->free_bo_pool_n_entries; i++) {
       struct free_bo_pool_entry *entry = &save->free_bo_pool[i];
 
       if (bo == entry->bo) {
+         unsigned pool_ref_cnt = 1;
+         for (int j = 0; j < 2; j++) {
+            if (entry->VAO[j] && entry->VAO[j]->BufferBinding[0].BufferObj)
+               pool_ref_cnt++;
+         }
          /* If free_bo_pool is now the only owner of this bo, drop it to avoid keeping
           * unused bo in memory.
           */
-         if (p_atomic_read(&bo->RefCount) == 1) {
-            _mesa_reference_buffer_object(ctx, &entry->bo, NULL);
-            memset(entry, 0, sizeof(*entry));
+         if (n_owners == pool_ref_cnt) {
+            _vbo_release_pool_entry(ctx, entry);
             return;
          }
 
