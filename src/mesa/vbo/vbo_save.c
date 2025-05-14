@@ -30,6 +30,7 @@
 #include "main/bufferobj.h"
 
 #include "util/u_memory.h"
+#include "gallium/include/pipe/p_screen.h"
 
 #include "vbo_private.h"
 
@@ -41,6 +42,7 @@ void vbo_save_init( struct gl_context *ctx )
 {
    struct vbo_context *vbo = vbo_context(ctx);
    struct vbo_save_context *save = &vbo->save;
+   struct pipe_screen *screen = ctx->screen;
 
    vbo_save_api_init( save );
 
@@ -50,6 +52,8 @@ void vbo_save_init( struct gl_context *ctx )
    save->no_current_update = false;
 
    ctx->Driver.CurrentSavePrimitive = PRIM_OUTSIDE_BEGIN_END;
+
+   save->free_bo_pool_n_entries = CLAMP((screen->caps.video_memory * 1024 * 1024lu * 0.1) / VBO_SAVE_BUFFER_SIZE, 1, 128);
 }
 
 
@@ -74,5 +78,11 @@ void vbo_save_destroy( struct gl_context *ctx )
 
    free(save->copied.buffer);
 
-   _mesa_reference_buffer_object(ctx, &save->current_bo, NULL);
+   if (save->free_bo_pool) {
+      for (int i = 0; i < save->free_bo_pool_n_entries; i++) {
+         struct free_bo_pool_entry *entry = &save->free_bo_pool[i];
+         _mesa_reference_buffer_object(ctx, &entry->bo, NULL);
+      }
+      free(save->free_bo_pool);
+   }
 }

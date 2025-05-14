@@ -148,6 +148,10 @@ struct vbo_exec_context
 #endif
 };
 
+struct free_bo_pool_entry {
+   GLuint bo_bytes_used;
+   struct gl_buffer_object *bo;
+};
 
 struct vbo_save_context {
    GLbitfield64 enabled; /**< mask of enabled vbo arrays. */
@@ -159,8 +163,6 @@ struct vbo_save_context {
 
    struct vbo_save_vertex_store *vertex_store;
    struct vbo_save_primitive_store *prim_store;
-   struct gl_buffer_object *current_bo;
-   unsigned current_bo_bytes_used;
 
    fi_type vertex[VBO_ATTRIB_MAX*4];	   /* current values */
    fi_type *attrptr[VBO_ATTRIB_MAX];
@@ -176,6 +178,9 @@ struct vbo_save_context {
    GLboolean dangling_attr_ref;
    GLboolean out_of_memory;  /**< True if last VBO allocation failed */
    bool no_current_update;
+
+   uint8_t free_bo_pool_n_entries;
+   struct free_bo_pool_entry *free_bo_pool;
 };
 
 GLboolean

@@ -94,7 +94,9 @@ struct vbo_save_vertex_list {
       struct _mesa_prim *prims;
       GLuint prim_count;
       GLuint min_index, max_index;
-      GLuint bo_bytes_used;
+      /* Bytes range [start; end[ used to store the vertices + indices */
+      GLuint bo_start;
+      GLuint bo_end;
    } *cold;
 };
 
@@ -148,6 +150,10 @@ vbo_save_playback_vertex_list(struct gl_context *ctx, void *data, bool copy_to_c
 
 void
 vbo_save_playback_vertex_list_loopback(struct gl_context *ctx, void *data);
+
+void
+vbo_save_release_bo(struct gl_context *ctx, struct gl_buffer_object **bo,
+                    uint32_t start, uint32_t end);
 
 void
 vbo_save_api_init(struct vbo_save_context *save);
