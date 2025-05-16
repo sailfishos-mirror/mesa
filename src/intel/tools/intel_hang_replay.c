@@ -51,6 +51,8 @@
 
 #include "util/u_dynarray.h"
 #include "util/u_math.h"
+
+#include "intel_hang_replay_xe.h"
 #include "intel_hang_replay_lib.h"
 
 #include "intel_tools.h"
@@ -401,7 +403,7 @@ static int
 replay_dmp_file(int file_fd, int drm_fd, const struct intel_device_info *devinfo,
                 struct util_dynarray *buffers, void *mem_ctx,
                 struct intel_hang_dump_block_exec *init,
-                struct intel_hang_dump_block_exec *exec)
+                struct intel_hang_dump_block_exec *exec, uint32_t vm_flags)
 {
    /* Sort buffers by size */
    qsort(util_dynarray_begin(buffers),
@@ -411,6 +413,10 @@ replay_dmp_file(int file_fd, int drm_fd, const struct intel_device_info *devinfo
 
    if (devinfo->kmd_type == INTEL_KMD_TYPE_I915)
       return process_i915_dmp_file(file_fd, drm_fd, buffers, mem_ctx, init, exec);
+   else if (devinfo->kmd_type == INTEL_KMD_TYPE_XE)
+      return process_xe_dmp_file(file_fd, drm_fd, devinfo, buffers, mem_ctx, init, exec, vm_flags);
+   else
+      fprintf(stderr, "driver is unknown, exiting\n");
 
    return EXIT_FAILURE;
 }
@@ -436,6 +442,7 @@ main(int argc, char *argv[])
 
    const char *file = NULL;
    uint64_t check_addr = -1;
+   uint32_t vm_flags = -1;
    int c, i;
    while ((c = getopt_long(argc, argv, "a:d:hls:", aubinator_opts, &i)) != -1) {
       switch (c) {
@@ -496,11 +503,12 @@ main(int argc, char *argv[])
           sizeof(block_header.base)) {
 
       static const size_t block_size[] = {
-         [INTEL_HANG_DUMP_BLOCK_TYPE_HEADER]   = sizeof(struct intel_hang_dump_block_header),
-         [INTEL_HANG_DUMP_BLOCK_TYPE_BO]       = sizeof(struct intel_hang_dump_block_bo),
-         [INTEL_HANG_DUMP_BLOCK_TYPE_MAP]      = sizeof(struct intel_hang_dump_block_map),
-         [INTEL_HANG_DUMP_BLOCK_TYPE_EXEC]     = sizeof(struct intel_hang_dump_block_exec),
-         [INTEL_HANG_DUMP_BLOCK_TYPE_HW_IMAGE] = sizeof(struct intel_hang_dump_block_hw_image),
+         [INTEL_HANG_DUMP_BLOCK_TYPE_HEADER]        = sizeof(struct intel_hang_dump_block_header),
+         [INTEL_HANG_DUMP_BLOCK_TYPE_BO]            = sizeof(struct intel_hang_dump_block_bo),
+         [INTEL_HANG_DUMP_BLOCK_TYPE_MAP]           = sizeof(struct intel_hang_dump_block_map),
+         [INTEL_HANG_DUMP_BLOCK_TYPE_EXEC]          = sizeof(struct intel_hang_dump_block_exec),
+         [INTEL_HANG_DUMP_BLOCK_TYPE_HW_IMAGE]      = sizeof(struct intel_hang_dump_block_hw_image),
+         [INTEL_HANG_DUMP_BLOCK_TYPE_VM_FLAGS]      = sizeof(struct intel_hang_dump_block_vm_flags),
       };
 
       assert(block_header.base.type < ARRAY_SIZE(block_size));
@@ -522,6 +530,11 @@ main(int argc, char *argv[])
             .file_offset = lseek(file_fd, 0, SEEK_CUR),
             .offset = block_header.bo.offset,
             .size = block_header.bo.size,
+            .props.mem_region = block_header.bo.props.mem_region,
+            .props.pat_index = block_header.bo.props.pat_index,
+            .props.cpu_caching = block_header.bo.props.cpu_caching,
+            .props.mem_type = block_header.bo.props.mem_type,
+            .props.mem_permission = block_header.bo.props.mem_permission,
          };
          total_vma += bo->size;
          skip_data(file_fd, bo->size);
@@ -532,11 +545,17 @@ main(int argc, char *argv[])
          break;
       }
 
+      /* Handle both i915 and Xe HW image blocks under the unified type. */
       case INTEL_HANG_DUMP_BLOCK_TYPE_HW_IMAGE: {
          struct gem_bo *bo = util_dynarray_grow(&buffers, struct gem_bo, 1);
+
+         /* The unified intel_hang_dump_block_hw_image now contains Xe-specific fields.
+          * For i915 dumps, these fields will be 0.
+          */
          *bo = (struct gem_bo) {
             .file_offset = lseek(file_fd, 0, SEEK_CUR),
-            .offset = 0,
+            .gem_handle = 0, /* From Xe logic */
+            .offset = block_header.hw_img.offset,
             .size = block_header.hw_img.size,
             .hw_img = true,
          };
@@ -562,6 +581,11 @@ main(int argc, char *argv[])
             fprintf(stderr, "map   : offset=0x%016"PRIx64" size=0x%016"PRIx64" name=%s\n",
                     bo->offset, bo->size, block_header.map.name);
          }
+         break;
+      }
+
+      case INTEL_HANG_DUMP_BLOCK_TYPE_VM_FLAGS: {
+         vm_flags = block_header.vm_flags.vm_flags;
          break;
       }
 
@@ -630,7 +654,7 @@ main(int argc, char *argv[])
    }
 
    if (!list && util_dynarray_num_elements(&shader_addresses, uint64_t) == 0)
-      replay_dmp_file(file_fd, drm_fd, &devinfo, &buffers, mem_ctx, &init, &exec);
+      replay_dmp_file(file_fd, drm_fd, &devinfo, &buffers, mem_ctx, &init, &exec, vm_flags);
 
    close(drm_fd);
    close(file_fd);

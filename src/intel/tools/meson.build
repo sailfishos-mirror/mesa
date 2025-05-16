@@ -103,6 +103,8 @@ intel_hang_replay = executable(
   files('intel_hang_replay.c'),
   files('intel_hang_replay_lib.c'),
   files('intel_hang_replay_lib.h'),
+  files('intel_hang_replay_xe.c'),
+  files('intel_hang_replay_xe.h'),
   dependencies : [idep_intel_dev, idep_libintel_common, dep_libdrm, dep_dl, dep_thread, dep_m,
                   idep_libintel_tools],
   include_directories : [inc_include, inc_src, inc_intel],
