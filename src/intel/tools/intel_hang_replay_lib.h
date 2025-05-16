@@ -7,9 +7,12 @@
 
 #include <stdbool.h>
 #include <inttypes.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <assert.h>
 #include <unistd.h>
+
+#include "common/intel_hang_dump.h"
 
 struct gem_bo {
    off_t file_offset;
@@ -17,6 +20,7 @@ struct gem_bo {
    uint64_t offset;
    uint64_t size;
    bool hw_img;
+   struct intel_hang_dump_block_vm_properties props;
 };
 
 int compare_bos(const void *b1, const void *b2);
