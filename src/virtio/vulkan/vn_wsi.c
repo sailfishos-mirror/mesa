@@ -216,6 +216,35 @@ vn_wsi_create_image(struct vn_device *dev,
    return VK_SUCCESS;
 }
 
+void
+vn_wsi_memory_info_init(struct vn_device_memory *mem,
+                        const VkMemoryAllocateInfo *alloc_info)
+{
+   const VkMemoryDedicatedAllocateInfo *dedicated_info = NULL;
+   const struct wsi_memory_allocate_info *wsi_info = NULL;
+
+   vk_foreach_struct_const(pnext, alloc_info->pNext) {
+      switch ((uint32_t)pnext->sType) {
+      case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO:
+         dedicated_info = (const void *)pnext;
+         break;
+      case VK_STRUCTURE_TYPE_WSI_MEMORY_ALLOCATE_INFO_MESA:
+         wsi_info = (const void *)pnext;
+         break;
+      default:
+         break;
+      }
+   }
+
+   /* wsi always uses dedicated allocation */
+   assert(dedicated_info || !wsi_info);
+
+   if (wsi_info && dedicated_info->buffer != VK_NULL_HANDLE) {
+      struct vn_buffer *buf = vn_buffer_from_handle(dedicated_info->buffer);
+      buf->wsi.mem = mem;
+   }
+}
+
 static uint32_t
 vn_modifier_plane_count(struct vn_physical_device *physical_dev,
                         VkFormat format,
