@@ -551,7 +551,8 @@ blorp_fast_clear(struct blorp_batch *batch,
     * range information to do that.
     */
    int64_t size_B = 0;
-   int unaligned_height = 0;
+   int unaligned_top_rows = 0;
+   int unaligned_bottom_rows = 0;
    struct blorp_address addr = surf->addr;
    if (ISL_GFX_VERX10(batch->blorp->isl_dev) == 125 &&
        surf->surf->samples == 1) {
@@ -561,22 +562,70 @@ blorp_fast_clear(struct blorp_batch *batch,
                                           &start_tile_B, &end_tile_B)) {
          size_B = end_tile_B - start_tile_B;
          addr.offset += start_tile_B;
-      } else if (isl_tiling_is_64(surf->surf->tiling) ||
-                 isl_tiling_is_std_y(surf->surf->tiling)) {
+      } else if (isl_tiling_is_64(surf->surf->tiling)) {
          /* If not supported above, clear the range without redescription.
           * Thankfully, we haven't run into this outside of conformance tests.
           */
          assert(surf->surf->levels > 1 ||
                 surf->surf->logical_level0_px.d != num_layers);
-      } else if (level == 0 && start_layer == 0 && num_layers == 1) {
+      } else if (level == 0 && num_layers == 1) {
+         /* We're clearing a single layer that is not aligned to tile
+          * boundaries. Get the tile-aligned size of the layer and record the
+          * unaligned top and bottom rows. We'll use three strategies to clear
+          * this layer:
+          * 1) We'll clear the unaligned top rows by creating a tile-aligned
+          *    2d-array image with 32 / VALIGN rows. We'll use layered clears
+          *    to clear the range of rows corresponding to the original layer
+          *    we intend to clear.
+          * 2) We'll clear the naturally tile-aligned area of this layer in
+          *    chunks of tiles.
+          * 3) We'll clear the unaligned bottom rows by creating a
+          *    tile-aligned image and relying on HW to avoid clearing past the
+          *    height of the bottom rows.
+          */
          assert(surf->surf->tiling == ISL_TILING_4);
          assert(surf->surf->levels > 1 ||
                 surf->surf->logical_level0_px.d > 1 ||
                 surf->surf->logical_level0_px.a > 1);
-         const int phys_height0 = align(surf->surf->logical_level0_px.h,
-                                        surf->surf->image_alignment_el.h);
-         unaligned_height = phys_height0 % 32;
-         size_B = (int64_t)surf->surf->row_pitch_B * (phys_height0 - unaligned_height);
+
+         /* Get the tile-aligned offset to the layer and the y-offset into
+          * that tile which marks the first row.
+          */
+         uint64_t offset_B;
+         uint32_t x0_offset_el, y0_offset_el;
+         isl_surf_get_image_offset_B_tile_el(surf->surf, level,
+            surf->surf->dim == ISL_SURF_DIM_3D ? 0 : start_layer,
+            surf->surf->dim == ISL_SURF_DIM_3D ? start_layer : 0,
+            &offset_B, &x0_offset_el, &y0_offset_el);
+         assert(x0_offset_el == 0);
+         assert(y0_offset_el < 32);
+
+         /* Get the y-offset of the last row. Include as much padding as
+          * possible so that we can detect a naturally tile-aligned portion of
+          * the image.
+          */
+         if (surf->surf->dim == ISL_SURF_DIM_3D)
+            assert(surf->surf->array_pitch_el_rows % 32 == 0);
+         uint32_t max_valign = surf->surf->levels > 1 ?
+            surf->surf->image_alignment_el.h :
+            start_layer < surf->surf->logical_level0_px.a - 1 ?
+            surf->surf->array_pitch_el_rows : 32;
+         uint32_t y1_ex_offset_el = y0_offset_el +
+            ALIGN_NPOT(surf->surf->logical_level0_px.h, max_valign);
+
+         /* Now that we have y0 and y1, determine the unaligned row
+          * information, the size and offset.
+          */
+         int tile_aligned_y1 = ROUND_DOWN_TO(y1_ex_offset_el, 32);
+         int tile_aligned_y0 = align(y0_offset_el, 32);
+         int tile_aligned_rows =  tile_aligned_y1 - tile_aligned_y0;
+         if (tile_aligned_rows > 0) {
+            assert(tile_aligned_rows % 32 == 0);
+            size_B = surf->surf->row_pitch_B * tile_aligned_rows;
+            addr.offset += offset_B;
+            unaligned_top_rows = tile_aligned_y0 - y0_offset_el;
+            unaligned_bottom_rows = y1_ex_offset_el - tile_aligned_y1;
+         }
       }
    }
 
@@ -604,6 +653,34 @@ blorp_fast_clear(struct blorp_batch *batch,
          .clear_color_addr = surf->clear_color_addr,
          .aux_usage = surf->aux_usage,
       };
+
+      /* Use coordinate-based clears to clear the area that is not aligned
+       * to a tile.
+       */
+      if (unaligned_top_rows != 0) {
+         assert(unaligned_top_rows > 0);
+         assert(unaligned_top_rows < 32);
+         assert(level == 0);
+         isl_surf_from_mem(batch->blorp->isl_dev, &isl_surf,
+                           mem_surf.addr.offset, surf->surf->row_pitch_B * 32,
+                           ISL_TILING_4);
+         int valign = surf->surf->image_alignment_el.h;
+         assert(32 % valign == 0);
+         assert(isl_surf.image_alignment_el.h == valign);
+         assert(isl_surf.logical_level0_px.h == 32);
+
+         isl_surf.logical_level0_px.h = valign;
+         isl_surf.phys_level0_sa.h = valign;
+         isl_surf.logical_level0_px.a = 32 / valign;
+         isl_surf.phys_level0_sa.a = 32 / valign;
+         isl_surf.row_pitch_B = align(isl_surf.row_pitch_B, 16 * 128);
+
+         fast_clear_surf(batch, &mem_surf, isl_surf.format, swizzle, 0,
+                         (32 - unaligned_top_rows) / valign,
+                         unaligned_top_rows / valign);
+
+         mem_surf.addr.offset += isl_surf.size_B;
+      }
 
       do {
          if (mem_surf.addr.offset % _64k == 0) {
@@ -640,15 +717,16 @@ blorp_fast_clear(struct blorp_batch *batch,
       /* Use coordinate-based clears to clear the area that is not aligned to
        * a tile.
        */
-      if (unaligned_height > 0) {
-         assert(level == 0 && start_layer == 0 && num_layers == 1);
-         assert(surf->surf->tiling == ISL_TILING_4);
+      if (unaligned_bottom_rows != 0) {
+         assert(unaligned_bottom_rows > 0);
+         assert(unaligned_bottom_rows < 32);
+         assert(level == 0);
          isl_surf_from_mem(batch->blorp->isl_dev, &isl_surf,
                            mem_surf.addr.offset, surf->surf->row_pitch_B * 32,
                            ISL_TILING_4);
          assert(isl_surf.logical_level0_px.h == 32);
-         isl_surf.logical_level0_px.h = unaligned_height;
-         isl_surf.phys_level0_sa.h = unaligned_height;
+         isl_surf.logical_level0_px.h = unaligned_bottom_rows;
+         isl_surf.phys_level0_sa.h = unaligned_bottom_rows;
          fast_clear_surf(batch, &mem_surf, isl_surf.format, swizzle,
                          0, 0, isl_surf.logical_level0_px.a);
       }
