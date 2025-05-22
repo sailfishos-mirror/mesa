@@ -485,6 +485,18 @@ anv_shader_set_relocs(struct anv_device *device,
          .value = resume_sbt_addr >> 32,
       };
    }
+   if (device->info->verx10 >= 125) {
+      reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+         .id = BRW_SHADER_RELOC_DESCRIPTORS_BUFFERS_VIEW_HANDLE,
+         .value = anv_surface_state_to_handle(
+            device->physical, device->descriptor_buffer_view_state),
+      };
+      reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+         .id = BRW_SHADER_RELOC_DESCRIPTORS_VIEW_HANDLE,
+         .value = anv_surface_state_to_handle(
+            device->physical, device->descriptor_view_state),
+      };
+   }
 
    if (INTEL_DEBUG(DEBUG_SHADER_PRINT)) {
       struct anv_bo *bo = device->printf.bo;

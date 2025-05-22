@@ -1943,24 +1943,6 @@ anv_push_descriptor_set_finish(struct anv_push_descriptor_set *push_set)
    }
 }
 
-static uint32_t
-anv_surface_state_to_handle(struct anv_physical_device *device,
-                            struct anv_state state)
-{
-   /* Bits 31:12 of the bindless surface offset in the extended message
-    * descriptor is bits 25:6 of the byte-based address.
-    */
-   assert(state.offset >= 0);
-   uint32_t offset = state.offset;
-   if (device->uses_ex_bso) {
-      assert(util_is_aligned(offset, 64));
-      return offset;
-   } else {
-      assert(util_is_aligned(offset, 64) && offset < (1 << 26));
-      return offset << 6;
-   }
-}
-
 static const void *
 anv_image_view_surface_data_for_plane_layout(struct anv_image_view *image_view,
                                              VkDescriptorType desc_type,

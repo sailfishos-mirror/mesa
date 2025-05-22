@@ -2625,6 +2625,13 @@ struct anv_device {
 
     struct anv_state                            slice_hash;
 
+    /** Surface states used to access descriptor buffers
+     *
+     * Gfx12.5+ only, requires LSC_ADDR_SURFTYPE_SS.
+     */
+    struct anv_state                            descriptor_buffer_view_state;
+    struct anv_state                            descriptor_view_state;
+
     /** An array of CPS_STATE structures grouped by MAX_VIEWPORTS elements
      *
      * We need to emit CPS_STATE structures for each viewport accessible by a
@@ -2823,6 +2830,24 @@ static inline void
 anv_binding_table_pool_free(struct anv_device *device, struct anv_state state)
 {
    anv_state_pool_free(&device->binding_table_pool, state);
+}
+
+static inline uint32_t
+anv_surface_state_to_handle(struct anv_physical_device *device,
+                            struct anv_state state)
+{
+   /* Bits 31:12 of the bindless surface offset in the extended message
+    * descriptor is bits 25:6 of the byte-based address.
+    */
+   assert(state.offset >= 0);
+   uint32_t offset = state.offset;
+   if (device->uses_ex_bso) {
+      assert(util_is_aligned(offset, 64));
+      return offset;
+   } else {
+      assert(util_is_aligned(offset, 64) && offset < (1 << 26));
+      return offset << 6;
+   }
 }
 
 static inline struct anv_state

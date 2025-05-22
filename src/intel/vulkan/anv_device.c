@@ -332,6 +332,71 @@ anv_device_finish_trtt(struct anv_device *device)
    vk_free(&device->vk.alloc, trtt->page_table_bos);
 }
 
+static void
+anv_device_init_descriptors_view(struct anv_device *device)
+{
+   if (!device->info->has_lsc)
+      return;
+
+   struct anv_physical_device *pdevice = device->physical;
+
+   /* For descriptor buffers */
+   {
+      device->descriptor_buffer_view_state =
+         anv_state_pool_alloc(&device->scratch_surface_state_pool,
+                              device->isl_dev.ss.size, 64);
+
+      const uint64_t size = pdevice->va.dynamic_visible_pool.size +
+                            pdevice->va.push_descriptor_buffer_pool.size;
+      assert(size <= 4ull * 1024 * 1024 * 1024);
+
+      isl_buffer_fill_state(&device->isl_dev,
+                            device->descriptor_buffer_view_state.map,
+                            .address = pdevice->va.dynamic_visible_pool.addr,
+                            .size_B = size,
+                            .mocs = anv_mocs(device, NULL, ISL_SURF_USAGE_CONSTANT_BUFFER_BIT),
+                            .format = ISL_FORMAT_RAW,
+                            .swizzle = ISL_SWIZZLE_IDENTITY,
+                            .stride_B = 1,
+                            .is_scratch = false,
+                            .usage = ISL_SURF_USAGE_CONSTANT_BUFFER_BIT);
+   }
+
+   /* For descriptors */
+   {
+      device->descriptor_view_state =
+         anv_state_pool_alloc(&device->scratch_surface_state_pool,
+                              device->isl_dev.ss.size, 64);
+
+      const uint64_t size =
+         pdevice->va.internal_surface_state_pool.size +
+         pdevice->va.bindless_surface_state_pool.size;
+
+      isl_buffer_fill_state(&device->isl_dev,
+                            device->descriptor_view_state.map,
+                            .address = pdevice->va.internal_surface_state_pool.addr,
+                            .size_B = size,
+                            .mocs = anv_mocs(device, NULL, ISL_SURF_USAGE_CONSTANT_BUFFER_BIT),
+                            .format = ISL_FORMAT_RAW,
+                            .swizzle = ISL_SWIZZLE_IDENTITY,
+                            .stride_B = 1,
+                            .is_scratch = false,
+                            .usage = ISL_SURF_USAGE_CONSTANT_BUFFER_BIT);
+   }
+}
+
+static void
+anv_device_finish_descriptors_view(struct anv_device *device)
+{
+   if (!device->info->has_lsc)
+      return;
+
+   anv_state_pool_free(&device->scratch_surface_state_pool,
+                       device->descriptor_buffer_view_state);
+   anv_state_pool_free(&device->scratch_surface_state_pool,
+                       device->descriptor_view_state);
+}
+
 VkResult anv_CreateDevice(
     VkPhysicalDevice                            physicalDevice,
     const VkDeviceCreateInfo*                   pCreateInfo,
@@ -982,6 +1047,8 @@ VkResult anv_CreateDevice(
 
    anv_device_init_embedded_samplers(device);
 
+   anv_device_init_descriptors_view(device);
+
    BITSET_ONES(device->gfx_dirty_state);
    BITSET_CLEAR(device->gfx_dirty_state, ANV_GFX_STATE_INDEX_BUFFER);
    BITSET_CLEAR(device->gfx_dirty_state, ANV_GFX_STATE_SO_DECL_LIST);
@@ -1055,6 +1122,7 @@ VkResult anv_CreateDevice(
  fail_queues:
    for (uint32_t i = 0; i < device->queue_count; i++)
       anv_queue_finish(&device->queues[i]);
+   anv_device_finish_descriptors_view(device);
    anv_device_finish_embedded_samplers(device);
    anv_device_finish_blorp(device);
    anv_device_finish_astc_emu(device);
@@ -1202,6 +1270,8 @@ void anv_DestroyDevice(
    anv_device_finish_astc_emu(device);
 
    anv_device_finish_internal_kernels(device);
+
+   anv_device_finish_descriptors_view(device);
 
    if (INTEL_DEBUG(DEBUG_SHADER_PRINT))
       anv_device_print_fini(device);
