@@ -2687,6 +2687,10 @@ emit_binding_table(struct anv_cmd_buffer *cmd_buffer,
          break;
 
       case ANV_DESCRIPTOR_SET_DESCRIPTORS:
+         /* We have LSC_SS surface states for this, binding table isn't
+          * needed.
+          */
+         assert(!cmd_buffer->device->info->has_lsc);
          if (shader->bind_map.layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER) {
             assert(pipe_state->descriptor_buffers[binding->index].state.alloc_size);
             bt_map[s] = pipe_state->descriptor_buffers[binding->index].state.offset +

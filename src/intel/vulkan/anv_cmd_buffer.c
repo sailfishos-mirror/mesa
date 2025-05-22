@@ -649,24 +649,10 @@ anv_cmd_buffer_bind_descriptor_set(struct anv_cmd_buffer *cmd_buffer,
          cmd_buffer->state.descriptors_dirty |= stages;
          cmd_buffer->state.descriptor_buffers.offsets_dirty |= stages;
       } else {
-         /* When using indirect descriptors, stages that have access to the HW
-          * binding tables, never need to access the
-          * anv_push_constants::desc_offsets fields, because any data they
-          * need from the descriptor buffer is accessible through a binding
-          * table entry. For stages that are "bindless" (Mesh/Task/RT), we
-          * need to provide anv_push_constants::desc_offsets matching the
-          * bound descriptor so that shaders can access the descriptor buffer
-          * through A64 messages.
-          *
-          * With direct descriptors, the shaders can use the
-          * anv_push_constants::desc_offsets to build bindless offsets. So
-          * it's we always need to update the push constant data.
+         /* Plaforms with LSC will use descriptor buffer push constant
+          * offsets
           */
-         bool update_desc_sets =
-            !cmd_buffer->device->physical->indirect_descriptors ||
-            (stages & (VK_SHADER_STAGE_TASK_BIT_EXT |
-                       VK_SHADER_STAGE_MESH_BIT_EXT |
-                       ANV_RT_STAGE_BITS));
+         bool update_desc_sets = cmd_buffer->device->info->has_lsc;
 
          if (update_desc_sets) {
             struct anv_push_constants *push = &pipe_state->push_constants;
@@ -679,13 +665,14 @@ anv_cmd_buffer_bind_descriptor_set(struct anv_cmd_buffer *cmd_buffer,
             push->desc_sampler_offsets[set_index] =
                anv_address_physical(set->desc_sampler_addr) -
                cmd_buffer->device->physical->va.dynamic_state_pool.addr;
-
-            anv_reloc_list_add_bo(cmd_buffer->batch.relocs,
-                                  set->desc_surface_addr.bo);
-            anv_reloc_list_add_bo(cmd_buffer->batch.relocs,
-                                  set->desc_sampler_addr.bo);
          }
       }
+
+      /* Always add a reference to the buffers */
+      anv_reloc_list_add_bo(cmd_buffer->batch.relocs,
+                            set->desc_surface_addr.bo);
+      anv_reloc_list_add_bo(cmd_buffer->batch.relocs,
+                            set->desc_sampler_addr.bo);
 
       dirty_stages |= stages;
    }

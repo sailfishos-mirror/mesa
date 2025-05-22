@@ -36,6 +36,9 @@ update_resource_intel_block(nir_builder *b, nir_intrinsic_instr *intrin,
    if (intrin->intrinsic != nir_intrinsic_resource_intel)
       return false;
 
+   if (nir_intrinsic_resource_access_intel(intrin) & nir_resource_intel_internal)
+      return false;
+
    /* If the array index in the descriptor binding is not const, we won't be
     * able to turn this load_ubo into a push constant.
     *

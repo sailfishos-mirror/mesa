@@ -203,6 +203,10 @@ anv_nir_push_desc_ubo_fully_promoted(nir_shader *nir,
             if (nir_intrinsic_desc_set(resource) != push_set)
                continue;
 
+            /* Skip load_ubo loading the descriptor buffer (not a binding) */
+            if (nir_intrinsic_binding(resource) == UINT32_MAX)
+               continue;
+
             uint32_t binding = nir_intrinsic_binding(resource);
 
             /* If we have indirect indexing in the binding, no push promotion
