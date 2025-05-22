@@ -1512,7 +1512,8 @@ void anv_CmdClearColorImage(
             }
 
             if (image->planes[0].aux_usage == ISL_AUX_USAGE_STC_CCS) {
-               assert(image->vk.usage & VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR);
+               assert(image->vk.usage &
+                      VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR);
                blorp_hiz_clear_depth_stencil(&batch, NULL, &surf, level,
                                              clear_rect.baseArrayLayer,
                                              clear_rect.layerCount,
@@ -1520,23 +1521,28 @@ void anv_CmdClearColorImage(
                                              clear_rect.rect.offset.y,
                                              clear_rect.rect.extent.width,
                                              clear_rect.rect.extent.height,
-                                             false /* depth clear */, 0 /* depth value */,
-                                             true /* stencil_clear */, clear_color.u32[0] /* stencil_value */);
+                                             false /* Z clear */,
+                                             0 /* Z value */,
+                                             true /* STC clear */,
+                                             clear_color.u32[0] /* STC value */);
             } else if (anv_can_fast_clear_color(cmd_buffer, image,
                                                 pRanges[r].aspectMask,
                                                 level, &clear_rect,
-                                                imageLayout, src_format.isl_format,
+                                                imageLayout,
+                                                src_format.isl_format,
                                                 clear_color)) {
                assert(level == 0);
                assert(clear_rect.baseArrayLayer == 0);
                if (image->vk.samples == 1) {
-                  exec_ccs_op(cmd_buffer, &batch, image, src_format.isl_format,
-                              src_format.swizzle, VK_IMAGE_ASPECT_COLOR_BIT,
-                              0, 0, 1, ISL_AUX_OP_FAST_CLEAR, &clear_color);
+                  exec_ccs_op(cmd_buffer, &batch, image,
+                              src_format.isl_format, src_format.swizzle,
+                              VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1,
+                              ISL_AUX_OP_FAST_CLEAR, &clear_color);
                } else {
-                  exec_mcs_op(cmd_buffer, &batch, image, src_format.isl_format,
-                              src_format.swizzle, VK_IMAGE_ASPECT_COLOR_BIT,
-                              0, 1, ISL_AUX_OP_FAST_CLEAR, &clear_color);
+                  exec_mcs_op(cmd_buffer, &batch, image,
+                              src_format.isl_format, src_format.swizzle,
+                              VK_IMAGE_ASPECT_COLOR_BIT, 0, 1,
+                              ISL_AUX_OP_FAST_CLEAR, &clear_color);
                }
 
                if (cmd_buffer->device->info->ver < 20) {
