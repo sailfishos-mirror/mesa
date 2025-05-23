@@ -605,9 +605,10 @@ build_load_desc_set_dynamic_index(nir_builder *b, unsigned set_idx)
       ANV_DESCRIPTOR_SET_DYNAMIC_INDEX_MASK);
 }
 
+/** Build a 64bit_global_32bit_offset address for a descriptor set */
 static nir_def *
-build_load_desc_address(nir_builder *b, nir_def *set_idx, unsigned set_idx_imm,
-                        const struct apply_pipeline_layout_state *state)
+build_desc_address64(nir_builder *b, nir_def *set_idx, unsigned set_idx_imm,
+                     const struct apply_pipeline_layout_state *state)
 {
    nir_def *desc_offset = set_idx != NULL ?
       anv_load_driver_uniform_indexed(b, 1, desc_surface_offsets, set_idx) :
@@ -821,8 +822,7 @@ build_desc_addr_for_res_index(nir_builder *b,
    case nir_address_format_64bit_bounded_global: {
       switch (state->desc_addr_format) {
       case nir_address_format_64bit_global_32bit_offset: {
-         nir_def *base_addr =
-            build_load_desc_address(b, res.set_idx, 0, state);
+         nir_def *base_addr = build_desc_address64(b, res.set_idx, 0, state);
          return nir_vec4(b, nir_unpack_64_2x32_split_x(b, base_addr),
                             nir_unpack_64_2x32_split_y(b, base_addr),
                             nir_imm_int(b, UINT32_MAX),
@@ -859,7 +859,7 @@ build_desc_addr_for_binding(nir_builder *b,
    switch (state->desc_addr_format) {
    case nir_address_format_64bit_global_32bit_offset:
    case nir_address_format_64bit_bounded_global: {
-      nir_def *set_addr = build_load_desc_address(b, NULL, set, state);
+      nir_def *base_addr = build_desc_address64(b, NULL, set, state);
       nir_def *desc_offset =
          nir_iadd_imm(b,
                       nir_imul_imm(b,
@@ -871,8 +871,8 @@ build_desc_addr_for_binding(nir_builder *b,
             b, desc_offset, plane * bind_layout->descriptor_data_surface_size);
       }
 
-      return nir_vec4(b, nir_unpack_64_2x32_split_x(b, set_addr),
-                         nir_unpack_64_2x32_split_y(b, set_addr),
+      return nir_vec4(b, nir_unpack_64_2x32_split_x(b, base_addr),
+                         nir_unpack_64_2x32_split_y(b, base_addr),
                          nir_imm_int(b, UINT32_MAX),
                          desc_offset);
    }
