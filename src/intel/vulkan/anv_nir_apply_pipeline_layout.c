@@ -1290,7 +1290,6 @@ build_load_var_deref_surface_handle(nir_builder *b, nir_deref_instr *deref,
  */
 static nir_def *
 build_res_index_for_chain(nir_builder *b, nir_intrinsic_instr *intrin,
-                          nir_address_format addr_format,
                           uint32_t *set, uint32_t *binding,
                           struct apply_pipeline_layout_state *state)
 {
@@ -1303,8 +1302,7 @@ build_res_index_for_chain(nir_builder *b, nir_intrinsic_instr *intrin,
       assert(intrin->intrinsic == nir_intrinsic_vulkan_resource_reindex);
       nir_intrinsic_instr *parent = nir_src_as_intrinsic(intrin->src[0]);
       nir_def *index =
-         build_res_index_for_chain(b, parent, addr_format,
-                                   set, binding, state);
+         build_res_index_for_chain(b, parent, set, binding, state);
 
       b->cursor = nir_before_instr(&intrin->instr);
 
@@ -1324,8 +1322,7 @@ build_buffer_addr_for_idx_intrin(nir_builder *b,
 {
    uint32_t set = UINT32_MAX, binding = UINT32_MAX;
    nir_def *res_index =
-      build_res_index_for_chain(b, idx_intrin, addr_format,
-                                &set, &binding, state);
+      build_res_index_for_chain(b, idx_intrin, &set, &binding, state);
 
    const struct anv_descriptor_set_binding_layout *bind_layout =
       &state->set_layouts[set]->binding[binding];
@@ -1457,17 +1454,9 @@ lower_load_accel_struct_desc(nir_builder *b,
 
    nir_intrinsic_instr *idx_intrin = nir_src_as_intrinsic(load_desc->src[0]);
 
-   /* It doesn't really matter what address format we choose as
-    * everything will constant-fold nicely.  Choose one that uses the
-    * actual descriptor buffer.
-    */
-   const nir_address_format addr_format =
-      nir_address_format_64bit_bounded_global;
-
    uint32_t set = UINT32_MAX, binding = UINT32_MAX;
    nir_def *res_index =
-      build_res_index_for_chain(b, idx_intrin, addr_format,
-                                &set, &binding, state);
+      build_res_index_for_chain(b, idx_intrin, &set, &binding, state);
 
    b->cursor = nir_before_instr(&load_desc->instr);
 
@@ -1513,16 +1502,11 @@ lower_direct_buffer_instr(nir_builder *b, nir_instr *instr, void *_state)
       if (idx_intrin == NULL)
          return false;
 
-      /* We just checked that this is a BTI descriptor */
-      const nir_address_format addr_format =
-         nir_address_format_32bit_index_offset;
-
       b->cursor = nir_before_instr(&intrin->instr);
 
       uint32_t set = UINT32_MAX, binding = UINT32_MAX;
       nir_def *res_index =
-         build_res_index_for_chain(b, idx_intrin, addr_format,
-                                   &set, &binding, state);
+         build_res_index_for_chain(b, idx_intrin, &set, &binding, state);
 
       bool non_uniform = nir_intrinsic_access(intrin) & ACCESS_NON_UNIFORM;
 
