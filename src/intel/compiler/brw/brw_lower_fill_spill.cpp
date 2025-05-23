@@ -23,7 +23,7 @@ build_ex_desc(const brw_builder &bld, unsigned reg_size, bool unspill)
             brw_imm_ud(INTEL_MASK(31, 10)));
 
    const intel_device_info *devinfo = bld.shader->devinfo;
-   if (devinfo->verx10 >= 200) {
+   if (devinfo->verx10 >= 200 || bld.shader->compiler->extended_bindless_surface_offset) {
       ubld.SHR(ex_desc, ex_desc, brw_imm_ud(4));
    } else {
       if (unspill) {
@@ -84,6 +84,7 @@ brw_lower_lsc_fill(const intel_device_info *devinfo, brw_shader &s,
       lsc_msg_dest_len(devinfo, LSC_DATA_SIZE_D32, bld.dispatch_width()) * REG_SIZE;
    unspill_inst->has_side_effects = false;
    unspill_inst->is_volatile = true;
+   unspill_inst->bindless_surface = true;
 
    unspill_inst->src[0] = brw_imm_ud(
       desc |
@@ -136,6 +137,7 @@ brw_lower_lsc_spill(const intel_device_info *devinfo, brw_inst *inst)
    spill_inst->size_written = 0;
    spill_inst->has_side_effects = true;
    spill_inst->is_volatile = false;
+   spill_inst->bindless_surface = true;
 
    spill_inst->src[0] = brw_imm_ud(
       desc |

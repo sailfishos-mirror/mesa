@@ -93,7 +93,7 @@ get_scratch_surf(struct anv_batch *batch,
    anv_reloc_list_add_bo(batch->relocs, bo);
    return anv_scratch_pool_get_surf(
       device, pool, shader->prog_data->total_scratch) >>
-      ANV_SCRATCH_SPACE_SHIFT(GFX_VER);
+      ANV_SCRATCH_SPACE_SHIFT;
 }
 
 /* Streamout (can be used by several shaders) */

@@ -66,7 +66,7 @@ genX(cmd_buffer_ensure_cfe_state)(struct anv_cmd_buffer *cmd_buffer,
       anv_reloc_list_add_bo(cmd_buffer->batch.relocs, scratch_bo);
       scratch_surf = anv_scratch_pool_get_surf(cmd_buffer->device, scratch_pool,
                                                total_scratch);
-      cfe.ScratchSpaceBuffer = scratch_surf >> ANV_SCRATCH_SPACE_SHIFT(GFX_VER);
+      cfe.ScratchSpaceBuffer = scratch_surf >> ANV_SCRATCH_SPACE_SHIFT;
 #if GFX_VER >= 20
       switch (cmd_buffer->device->physical->instance->stack_ids) {
       case 256:  cfe.StackIDControl = StackIDs256;  break;
@@ -1246,7 +1246,7 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
             anv_scratch_pool_get_surf(cmd_buffer->device,
                                       &device->scratch_pool,
                                       rt->scratch_size);
-         btd.ScratchSpaceBuffer = scratch_surf >> ANV_SCRATCH_SPACE_SHIFT(GFX_VER);
+         btd.ScratchSpaceBuffer = scratch_surf >> ANV_SCRATCH_SPACE_SHIFT;
       }
 #if INTEL_NEEDS_WA_14017794102 || INTEL_NEEDS_WA_14023061436
       btd.BTDMidthreadpreemption = false;

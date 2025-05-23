@@ -1110,15 +1110,16 @@ setup_lsc_surface_descriptors(const brw_builder &bld, brw_send_inst *send,
 
    /* On Gfx20+ UGM always uses ExBSO which implies bindless. */
    send->bindless_surface =
-      surf_type == LSC_ADDR_SURFTYPE_BSS ||
-      (devinfo->ver >= 20 && surf_type == LSC_ADDR_SURFTYPE_SS);
+      (surf_type == LSC_ADDR_SURFTYPE_BSS ||
+       surf_type == LSC_ADDR_SURFTYPE_SS);
 
    switch (surf_type) {
    case LSC_ADDR_SURFTYPE_BSS:
    case LSC_ADDR_SURFTYPE_SS:
       assert(surface.file != BAD_FILE);
-      /* We assume that the driver provided the handle in the top 20 bits so
-       * we can use the surface handle directly as the extended descriptor.
+      /* We assume that the driver provided the handle in the top 20 bits or
+       * top 26 bits (depending on extended_bindless_surface_offset) so we can
+       * use the surface handle directly as the extended descriptor.
        */
       send->src[SEND_SRC_EX_DESC] = retype(surface, BRW_TYPE_UD);
 
@@ -1697,9 +1698,6 @@ lower_lsc_varying_pull_constant_logical_send(const brw_builder &bld,
    inst = NULL;
 
    send->sfid = BRW_SFID_UGM;
-   send->bindless_surface =
-      surf_type == LSC_ADDR_SURFTYPE_BSS ||
-      (devinfo->ver >= 20 && surf_type == LSC_ADDR_SURFTYPE_SS);
 
    assert(!compiler->indirect_ubos_use_sampler);
 
