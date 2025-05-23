@@ -5366,13 +5366,13 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
    case nir_intrinsic_load_ubo: {
       s.prog_data->has_ubo_pull = true;
 
-      brw_reg surface, surface_handle;
       bool no_mask_handle = false;
 
-      if (get_nir_src_bindless(ntb, instr->src[0]))
-         surface_handle = get_nir_buffer_intrinsic_index(ntb, bld, instr, &no_mask_handle);
-      else
-         surface = get_nir_buffer_intrinsic_index(ntb, bld, instr, &no_mask_handle);
+      brw_reg binding_type = brw_imm_ud(
+         get_nir_src_bindless(ntb, instr->src[0]) ? LSC_ADDR_SURFTYPE_BSS :
+         LSC_ADDR_SURFTYPE_BTI);
+      brw_reg binding =
+         get_nir_buffer_intrinsic_index(ntb, bld, instr, &no_mask_handle);
 
       const unsigned first_component =
          nir_def_first_component_read(&instr->def);
@@ -5399,7 +5399,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
               i += comps_per_load) {
             const unsigned remaining = last_component + 1 - i;
             xbld.VARYING_PULL_CONSTANT_LOAD(offset(dest, xbld, i),
-                                            surface, surface_handle,
+                                            binding_type, binding,
                                             base_offset,
                                             i * brw_type_size_bytes(dest.type),
                                             instr->def.bit_size / 8,
@@ -5429,10 +5429,12 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
 
             const brw_reg packed_consts = ubld.vgrf(BRW_TYPE_UD);
             brw_reg srcs[PULL_UNIFORM_CONSTANT_SRCS];
-            srcs[PULL_UNIFORM_CONSTANT_SRC_SURFACE]        = surface;
-            srcs[PULL_UNIFORM_CONSTANT_SRC_SURFACE_HANDLE] = surface_handle;
-            srcs[PULL_UNIFORM_CONSTANT_SRC_OFFSET]         = brw_imm_ud(base & ~(block_sz - 1));
-            srcs[PULL_UNIFORM_CONSTANT_SRC_SIZE]           = brw_imm_ud(block_sz);
+            srcs[PULL_UNIFORM_CONSTANT_SRC_BINDING_TYPE] = brw_imm_ud(
+               get_nir_src_bindless(ntb, instr->src[0]) ? LSC_ADDR_SURFTYPE_BSS :
+               LSC_ADDR_SURFTYPE_BTI);
+            srcs[PULL_UNIFORM_CONSTANT_SRC_BINDING]      = binding;
+            srcs[PULL_UNIFORM_CONSTANT_SRC_OFFSET]       = brw_imm_ud(base & ~(block_sz - 1));
+            srcs[PULL_UNIFORM_CONSTANT_SRC_SIZE]         = brw_imm_ud(block_sz);
 
             ubld.emit(FS_OPCODE_UNIFORM_PULL_CONSTANT_LOAD, packed_consts,
                       srcs, PULL_UNIFORM_CONSTANT_SRCS);

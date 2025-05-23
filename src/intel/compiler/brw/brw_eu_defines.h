@@ -587,10 +587,16 @@ enum tex_logical_srcs {
 };
 
 enum pull_uniform_constant_srcs {
-   /** Surface binding table index */
-   PULL_UNIFORM_CONSTANT_SRC_SURFACE,
-   /** Surface bindless handle */
-   PULL_UNIFORM_CONSTANT_SRC_SURFACE_HANDLE,
+   /** enum lsc_addr_surface_type (as UD immediate) */
+   PULL_UNIFORM_CONSTANT_SRC_BINDING_TYPE,
+   /**
+    * Where to find the surface state.  Depends on BINDING_TYPE above:
+    *
+    * - SS: pointer to surface state (relative to surface base address)
+    * - BSS: pointer to surface state (relative to bindless surface base)
+    * - BTI: binding table index
+    */
+   PULL_UNIFORM_CONSTANT_SRC_BINDING,
    /** Surface offset */
    PULL_UNIFORM_CONSTANT_SRC_OFFSET,
    /** Pull size */
@@ -600,10 +606,16 @@ enum pull_uniform_constant_srcs {
 };
 
 enum pull_varying_constant_srcs {
-   /** Surface binding table index */
-   PULL_VARYING_CONSTANT_SRC_SURFACE,
-   /** Surface bindless handle */
-   PULL_VARYING_CONSTANT_SRC_SURFACE_HANDLE,
+   /** enum lsc_addr_surface_type (as UD immediate) */
+   PULL_VARYING_CONSTANT_SRC_BINDING_TYPE,
+   /**
+    * Where to find the surface state.  Depends on BINDING_TYPE above:
+    *
+    * - SS: pointer to surface state (relative to surface base address)
+    * - BSS: pointer to surface state (relative to bindless surface base)
+    * - BTI: binding table index
+    */
+   PULL_VARYING_CONSTANT_SRC_BINDING,
    /** Surface offset */
    PULL_VARYING_CONSTANT_SRC_OFFSET,
    /** Pull alignment */

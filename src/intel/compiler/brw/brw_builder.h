@@ -846,8 +846,8 @@ public:
 
    void
    VARYING_PULL_CONSTANT_LOAD(const brw_reg &dst,
-                              const brw_reg &surface,
-                              const brw_reg &surface_handle,
+                              const brw_reg &binding_type,
+                              const brw_reg &binding,
                               const brw_reg &varying_offset,
                               uint32_t const_offset,
                               uint8_t alignment,
@@ -870,8 +870,8 @@ public:
       brw_reg vec4_result = vgrf(BRW_TYPE_F, 4);
 
       brw_reg srcs[PULL_VARYING_CONSTANT_SRCS];
-      srcs[PULL_VARYING_CONSTANT_SRC_SURFACE]        = surface;
-      srcs[PULL_VARYING_CONSTANT_SRC_SURFACE_HANDLE] = surface_handle;
+      srcs[PULL_VARYING_CONSTANT_SRC_BINDING_TYPE]   = binding_type;
+      srcs[PULL_VARYING_CONSTANT_SRC_BINDING]        = binding;
       srcs[PULL_VARYING_CONSTANT_SRC_OFFSET]         = total_offset;
       srcs[PULL_VARYING_CONSTANT_SRC_ALIGNMENT]      = brw_imm_ud(alignment);
 
