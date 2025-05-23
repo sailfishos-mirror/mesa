@@ -66,6 +66,9 @@ struct apply_pipeline_layout_state {
    bool uses_constants;
    bool has_dynamic_buffers;
    uint8_t constants_offset;
+
+   nir_def *set_idx_to_bti;
+
    struct {
       bool desc_buffer_used;
       uint8_t desc_offset;
@@ -629,6 +632,17 @@ build_desc_address64(nir_builder *b, nir_def *set_idx, unsigned set_idx_imm,
          BRW_SHADER_RELOC_DESCRIPTORS_ADDR_HIGH));
 }
 
+/** Build a 32bit_index_offset address for a descriptor set */
+static nir_def *
+build_desc_address32(nir_builder *b,
+                     nir_def *set_idx, nir_def *offset,
+                     const struct apply_pipeline_layout_state *state)
+{
+   return nir_vec2(b,
+                   nir_vector_extract(b, state->set_idx_to_bti, set_idx),
+                   offset);
+}
+
 /** Build a Vulkan resource index
  *
  * A "resource index" is the term used by our SPIR-V parser and the relevant
@@ -659,29 +673,6 @@ build_res_index(nir_builder *b,
       &state->set_layouts[set]->binding[binding];
 
    uint32_t array_size = bind_layout->array_size;
-
-   uint32_t set_idx;
-   switch (state->desc_addr_format) {
-   case nir_address_format_64bit_global_32bit_offset:
-      /* Descriptor set buffer accesses will go through A64 messages, so the
-       * index to get the descriptor set buffer address is located in the
-       * anv_push_constants::desc_surface_offsets and it's indexed by the set
-       * number.
-       */
-      set_idx = set;
-      break;
-
-   case nir_address_format_32bit_index_offset:
-      /* Descriptor set buffer accesses will go through the binding table. The
-       * offset is the entry in the binding table.
-       */
-      assert(state->set[set].desc_offset < MAX_BINDING_TABLE_SIZE);
-      set_idx = state->set[set].desc_offset;
-      break;
-
-   default:
-      UNREACHABLE("Unsupported address format");
-   }
 
    assert(bind_layout->dynamic_offset_index < MAX_DYNAMIC_BUFFERS);
       nir_def *dynamic_offset_index;
@@ -714,13 +705,12 @@ build_res_index(nir_builder *b,
       bind_layout->type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK ? 0 :
       bind_layout->descriptor_surface_stride / 8;
 
-      nir_def *packed =
-         nir_ior_imm(b,
-                     dynamic_offset_index,
-                     (desc_stride << 24) |
-                     (desc_bti << 16)    |
-                     (set_idx << 8));
-
+   nir_def *packed =
+      nir_ior_imm(b,
+                  dynamic_offset_index,
+                  (desc_stride << 24) |
+                  (desc_bti << 16)    |
+                  (set << 8));
 
    return nir_vec4(b, packed,
                       nir_imm_int(b, bind_layout->descriptor_surface_offset),
@@ -830,7 +820,7 @@ build_desc_addr_for_res_index(nir_builder *b,
       }
 
       case nir_address_format_32bit_index_offset:
-         return nir_vec2(b, res.set_idx, desc_offset);
+         return build_desc_address32(b, res.set_idx, desc_offset, state);
 
       default:
          UNREACHABLE("Unhandled address format");
@@ -840,7 +830,7 @@ build_desc_addr_for_res_index(nir_builder *b,
    case nir_address_format_32bit_index_offset:
       assert(desc_type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK);
       assert(state->desc_addr_format == nir_address_format_32bit_index_offset);
-      return nir_vec2(b, res.set_idx, desc_offset);
+      return build_desc_address32(b, res.set_idx, desc_offset, state);
 
    default:
       UNREACHABLE("Unhandled address format");
@@ -888,9 +878,7 @@ build_desc_addr_for_binding(nir_builder *b,
          desc_offset = nir_iadd_imm(
             b, desc_offset, plane * bind_layout->descriptor_data_surface_size);
       }
-      return nir_vec2(b,
-                      nir_imm_int(b, state->set[set].desc_offset),
-                      desc_offset);
+      return build_desc_address32(b, nir_imm_int(b, set), desc_offset, state);
    }
 
    default:
@@ -1260,9 +1248,9 @@ build_buffer_addr_for_binding(nir_builder *b,
    if (desc_type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
       const struct anv_descriptor_set_binding_layout *bind_layout =
          &state->set_layouts[set]->binding[binding];
-      return nir_vec2(b,
-                      nir_imm_int(b, state->set[set].desc_offset),
-                      nir_imm_int(b, bind_layout->descriptor_surface_offset));
+      return build_desc_address32(b, nir_imm_int(b, set),
+                                  nir_imm_int(b, bind_layout->descriptor_surface_offset),
+                                  state);
    }
 
    struct res_index_defs res = unpack_res_index(b, res_index);
@@ -2442,6 +2430,22 @@ build_packed_binding_table(struct apply_pipeline_layout_state *state,
    }
 }
 
+static nir_def *
+build_descriptor_bti_vec(nir_builder *b,
+                         const struct apply_pipeline_layout_state *state)
+{
+   STATIC_ASSERT(MAX_SETS == 8);
+   return nir_vec8(b,
+                   nir_imm_int(b, state->set[0].desc_offset),
+                   nir_imm_int(b, state->set[1].desc_offset),
+                   nir_imm_int(b, state->set[2].desc_offset),
+                   nir_imm_int(b, state->set[3].desc_offset),
+                   nir_imm_int(b, state->set[4].desc_offset),
+                   nir_imm_int(b, state->set[5].desc_offset),
+                   nir_imm_int(b, state->set[6].desc_offset),
+                   nir_imm_int(b, state->set[7].desc_offset));
+}
+
 bool
 anv_nir_apply_pipeline_layout(nir_shader *shader,
                               const struct anv_physical_device *pdevice,
@@ -2526,18 +2530,28 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
     *     information by the time we get to the load/store/atomic
     *     intrinsics in that pass.
     */
-   progress |= nir_shader_instructions_pass(shader, lower_direct_buffer_instr,
-                                nir_metadata_control_flow,
-                                &state);
+   nir_foreach_function_impl(impl, shader) {
+      nir_builder _b = nir_builder_at(nir_before_impl(impl)), *b = &_b;
+      state.set_idx_to_bti = build_descriptor_bti_vec(b, &state);
+      progress |= nir_function_instructions_pass(impl,
+                                                 lower_direct_buffer_instr,
+                                                 nir_metadata_control_flow,
+                                                 &state);
+   }
 
    /* We just got rid of all the direct access.  Delete it so it's not in the
     * way when we do our indirect lowering.
     */
    progress |= nir_opt_dce(shader);
 
-   progress |=  nir_shader_instructions_pass(shader, apply_pipeline_layout,
-                                nir_metadata_control_flow,
-                                &state);
+   nir_foreach_function_impl(impl, shader) {
+      nir_builder _b = nir_builder_at(nir_before_impl(impl)), *b = &_b;
+      state.set_idx_to_bti = build_descriptor_bti_vec(b, &state);
+      progress |= nir_function_instructions_pass(impl,
+                                                 apply_pipeline_layout,
+                                                 nir_metadata_control_flow,
+                                                 &state);
+   }
 
    ralloc_free(state.mem_ctx);
 
