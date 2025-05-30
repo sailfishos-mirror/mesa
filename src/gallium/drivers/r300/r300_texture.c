@@ -1178,7 +1178,6 @@ struct pipe_surface* r300_create_surface_custom(struct pipe_context * ctx,
 
         pipe_reference_init(&surface->base.reference, 1);
         pipe_resource_reference(&surface->base.texture, texture);
-        surface->base.context = ctx;
         surface->base.format = surf_tmpl->format;
         surface->base.level = level;
         surface->base.first_layer = surf_tmpl->first_layer;

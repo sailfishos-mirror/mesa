@@ -1940,7 +1940,6 @@ try_pbo_upload(struct gl_context *ctx, GLuint dims,
    templ.level = level;
    templ.first_layer = MIN2(zoffset, max_layer);
    templ.last_layer = MIN2(zoffset + depth - 1, max_layer);
-   templ.context = st->pipe;
    templ.texture = texture;
 
    success = try_pbo_upload_common(ctx, &templ, &addr, src_format);
@@ -2558,7 +2557,6 @@ st_CompressedTexSubImage(struct gl_context *ctx, GLuint dims,
    memset(&templ, 0, sizeof(templ));
    templ.format = copy_format;
    templ.texture = texture;
-   templ.context = st->pipe;
    templ.level = level;
    templ.first_layer = MIN2(layer, max_layer);
    templ.last_layer = MIN2(layer + d - 1, max_layer);

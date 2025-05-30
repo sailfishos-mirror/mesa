@@ -2863,7 +2863,6 @@ crocus_create_surface(struct pipe_context *ctx,
 
    pipe_reference_init(&psurf->reference, 1);
    pipe_resource_reference(&psurf->texture, tex);
-   psurf->context = ctx;
    psurf->format = tmpl->format;
    psurf->first_layer = tmpl->first_layer;
    psurf->last_layer = tmpl->last_layer;

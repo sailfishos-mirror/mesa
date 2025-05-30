@@ -424,7 +424,6 @@ struct pipe_surface
    unsigned level;
 
    struct pipe_resource *texture; /**< resource into which this is a view  */
-   struct pipe_context *context; /**< context this surface belongs to */
 };
 
 /**

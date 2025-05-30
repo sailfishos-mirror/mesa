@@ -347,7 +347,6 @@ pipe_surface_reset(struct pipe_context *ctx, struct pipe_surface* ps,
    ps->format = pt->format;
    ps->level = level;
    ps->first_layer = ps->last_layer = layer;
-   ps->context = ctx;
 }
 
 static inline void

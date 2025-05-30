@@ -151,7 +151,6 @@ v3d_set_blit_surface(struct pipe_surface *psurf,
                      int16_t layer)
 {
         memset(psurf, 0, sizeof(*psurf));
-        psurf->context = pctx;
         psurf->format = format;
         psurf->level = level;
         psurf->first_layer = layer;

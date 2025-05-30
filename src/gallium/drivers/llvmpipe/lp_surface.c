@@ -231,7 +231,6 @@ llvmpipe_create_surface(struct pipe_context *pipe,
    if (ps) {
       pipe_reference_init(&ps->reference, 1);
       pipe_resource_reference(&ps->texture, pt);
-      ps->context = pipe;
       ps->format = surf_tmpl->format;
       assert(surf_tmpl->level <= pt->last_level);
       assert(surf_tmpl->first_layer <= surf_tmpl->last_layer);

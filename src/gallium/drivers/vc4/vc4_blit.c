@@ -35,7 +35,6 @@ vc4_set_blit_surface(struct pipe_surface *psurf, struct pipe_context *pctx,
                      unsigned layer)
 {
         memset(psurf, 0, sizeof(*psurf));
-        psurf->context = pctx;
         psurf->format = prsc->format;
         psurf->level = level;
         psurf->first_layer = layer;

@@ -1573,7 +1573,6 @@ struct pipe_surface *r600_create_surface_custom(struct pipe_context *pipe,
 
 	pipe_reference_init(&surface->reference, 1);
 	pipe_resource_reference(&surface->texture, texture);
-	surface->context = pipe;
 	surface->format = templ->format;
 	surface->level = templ->level;
 	surface->first_layer = templ->first_layer;

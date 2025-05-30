@@ -202,7 +202,6 @@ lima_set_blit_surface(struct pipe_surface *psurf,
                       unsigned level)
 {
    memset(psurf, 0, sizeof(*psurf));
-   psurf->context = pctx;
    psurf->format = prsc->format;
    psurf->level = level;
    psurf->first_layer = 0;
