@@ -76,16 +76,16 @@ alloc_transfer_temp_bo(struct radv_cmd_buffer *cmd_buffer)
 }
 
 static void gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer_addr,
-                                                uint64_t buffer_size, enum radv_copy_flags src_copy_flags,
+                                                uint64_t buffer_size, VkAddressCopyFlagsKHR src_copy_flags,
                                                 struct radv_image *image, VkImageLayout layout,
                                                 const VkBufferImageCopy2 *region, const bool use_compute);
 
 static void compute_copy_image_to_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer_addr, uint64_t buffer_size,
-                                         enum radv_copy_flags dst_copy_flags, struct radv_image *image,
+                                         VkAddressCopyFlagsKHR dst_copy_flags, struct radv_image *image,
                                          VkImageLayout layout, const VkBufferImageCopy2 *region);
 static void
 transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer_va, uint64_t buffer_size,
-                           enum radv_copy_flags buffer_flags, struct radv_image *image, const VkImageLayout layout,
+                           VkAddressCopyFlagsKHR buffer_flags, struct radv_image *image, const VkImageLayout layout,
                            const VkBufferImageCopy2 *region, bool to_image)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -193,8 +193,8 @@ radv_fixup_copy_dst_htile_metadata(struct radv_cmd_buffer *cmd_buffer, struct ra
 
 static void
 gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer_addr, uint64_t buffer_size,
-                                    enum radv_copy_flags src_copy_flags, struct radv_image *image, VkImageLayout layout,
-                                    const VkBufferImageCopy2 *region, const bool use_compute)
+                                    VkAddressCopyFlagsKHR src_copy_flags, struct radv_image *image,
+                                    VkImageLayout layout, const VkBufferImageCopy2 *region, const bool use_compute)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -306,7 +306,7 @@ radv_CmdCopyBufferToImage2(VkCommandBuffer commandBuffer, const VkCopyBufferToIm
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   const enum radv_copy_flags src_copy_flags = radv_get_copy_flags_from_bo(src_buffer->bo);
+   const VkAddressCopyFlagsKHR src_copy_flags = radv_get_copy_flags_from_bo(src_buffer->bo);
 
    radv_suspend_conditional_rendering(cmd_buffer);
 
@@ -362,7 +362,7 @@ radv_CmdCopyBufferToImage2(VkCommandBuffer commandBuffer, const VkCopyBufferToIm
 
 static void
 compute_copy_image_to_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer_addr, uint64_t buffer_size,
-                             enum radv_copy_flags dst_copy_flags, struct radv_image *image, VkImageLayout layout,
+                             VkAddressCopyFlagsKHR dst_copy_flags, struct radv_image *image, VkImageLayout layout,
                              const VkBufferImageCopy2 *region)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -454,7 +454,7 @@ radv_CmdCopyImageToBuffer2(VkCommandBuffer commandBuffer, const VkCopyImageToBuf
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   const enum radv_copy_flags dst_copy_flags = radv_get_copy_flags_from_bo(dst_buffer->bo);
+   const VkAddressCopyFlagsKHR dst_copy_flags = radv_get_copy_flags_from_bo(dst_buffer->bo);
 
    radv_suspend_conditional_rendering(cmd_buffer);
 

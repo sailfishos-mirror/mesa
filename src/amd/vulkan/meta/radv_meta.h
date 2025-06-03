@@ -42,11 +42,6 @@ enum radv_meta_save_flags {
    RADV_META_SAVE_COMPUTE_PIPELINE = (1 << 5),
 };
 
-enum radv_copy_flags {
-   RADV_COPY_FLAGS_DEVICE_LOCAL = 1 << 0,
-   RADV_COPY_FLAGS_SPARSE = 1 << 1,
-};
-
 extern const VkFormat radv_fs_key_format_exemplars[NUM_META_FS_KEYS];
 
 enum radv_meta_object_key_type {
@@ -246,7 +241,7 @@ struct radv_meta_blit2d_buffer {
    uint32_t offset;
    uint32_t pitch;
    VkFormat format;
-   enum radv_copy_flags copy_flags;
+   VkAddressCopyFlagsKHR copy_flags;
 };
 
 VkFormat vk_format_for_size(int bs);
@@ -325,7 +320,7 @@ uint32_t radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *i
 void radv_update_memory_cp(struct radv_cmd_buffer *cmd_buffer, uint64_t va, const void *data, uint64_t size);
 
 void radv_update_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t size, const void *data,
-                        enum radv_copy_flags dst_copy_flags);
+                        VkAddressCopyFlagsKHR dst_copy_flags);
 
 void radv_meta_decode_etc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout layout,
                           const VkImageSubresourceLayers *subresource, VkOffset3D offset, VkExtent3D extent);
@@ -339,13 +334,13 @@ uint32_t radv_fill_buffer(struct radv_cmd_buffer *cmd_buffer, struct radeon_wins
                           uint32_t value);
 
 uint32_t radv_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t size, uint32_t value,
-                          enum radv_copy_flags copy_flags);
+                          VkAddressCopyFlagsKHR copy_flags);
 
 uint32_t radv_fill_image(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image, uint64_t offset,
                          uint64_t size, uint32_t value);
 
 void radv_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uint64_t dst_va, uint64_t size,
-                      enum radv_copy_flags src_copy_flags, enum radv_copy_flags dst_copy_flags);
+                      VkAddressCopyFlagsKHR src_copy_flags, VkAddressCopyFlagsKHR dst_copy_flags);
 
 void radv_cmd_buffer_clear_attachment(struct radv_cmd_buffer *cmd_buffer, const VkClearAttachment *attachment);
 
@@ -355,7 +350,7 @@ void radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const
 
 VkResult radv_meta_get_noop_pipeline_layout(struct radv_device *device, VkPipelineLayout *layout_out);
 
-enum radv_copy_flags radv_get_copy_flags_from_bo(const struct radeon_winsys_bo *bo);
+VkAddressCopyFlagsKHR radv_get_copy_flags_from_bo(const struct radeon_winsys_bo *bo);
 
 static inline unsigned
 radv_get_image_stride_for_96bit(const struct radv_device *device, const struct radv_image *image)

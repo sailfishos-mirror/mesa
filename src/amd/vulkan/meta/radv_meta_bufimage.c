@@ -477,7 +477,7 @@ fixup_gfx9_cs_copy(struct radv_cmd_buffer *cmd_buffer, const struct radv_meta_bl
    const struct radeon_surf *surf = &image->planes[0].surface;
    const struct radeon_info *gpu_info = &pdev->info;
    struct ac_surf_info surf_info = radv_get_ac_surf_info(device, image);
-   enum radv_copy_flags img_copy_flags = 0, mem_copy_flags = 0;
+   VkAddressCopyFlagsKHR img_copy_flags = 0, mem_copy_flags = 0;
 
    if (gpu_info->gfx_level < GFX9 || gpu_info->gfx_level >= GFX12)
       return;

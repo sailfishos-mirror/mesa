@@ -223,14 +223,15 @@ radv_compute_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, ui
 }
 
 static bool
-radv_prefer_compute_or_cp_dma(const struct radv_device *device, uint64_t size, enum radv_copy_flags src_copy_flags,
-                              enum radv_copy_flags dst_copy_flags)
+radv_prefer_compute_or_cp_dma(const struct radv_device *device, uint64_t size, VkAddressCopyFlagsKHR src_copy_flags,
+                              VkAddressCopyFlagsKHR dst_copy_flags)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    bool use_compute = size >= RADV_BUFFER_OPS_CS_THRESHOLD;
 
    if (pdev->info.gfx_level >= GFX10 && pdev->info.has_dedicated_vram) {
-      if (!(src_copy_flags & RADV_COPY_FLAGS_DEVICE_LOCAL) || !(dst_copy_flags & RADV_COPY_FLAGS_DEVICE_LOCAL)) {
+      if (!(src_copy_flags & VK_ADDRESS_COPY_DEVICE_LOCAL_BIT_KHR) ||
+          !(dst_copy_flags & VK_ADDRESS_COPY_DEVICE_LOCAL_BIT_KHR)) {
          /* Prefer CP DMA for GTT on dGPUS due to slow PCIe. */
          use_compute = false;
       }
@@ -240,19 +241,19 @@ radv_prefer_compute_or_cp_dma(const struct radv_device *device, uint64_t size, e
 }
 
 static bool
-radv_is_compute_required(const struct radv_device *device, enum radv_copy_flags src_copy_flags,
-                         enum radv_copy_flags dst_copy_flags)
+radv_is_compute_required(const struct radv_device *device, VkAddressCopyFlagsKHR src_copy_flags,
+                         VkAddressCopyFlagsKHR dst_copy_flags)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
    /* Use compute when CP DMA doesn't support sparse. */
    return !pdev->info.cp_dma_supports_sparse &&
-          ((src_copy_flags & RADV_COPY_FLAGS_SPARSE) || (dst_copy_flags & RADV_COPY_FLAGS_SPARSE));
+          ((src_copy_flags & VK_ADDRESS_COPY_SPARSE_BIT_KHR) || (dst_copy_flags & VK_ADDRESS_COPY_SPARSE_BIT_KHR));
 }
 
 static uint32_t
 radv_fill_memory_internal(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image, uint64_t va,
-                          uint64_t size, uint32_t value, enum radv_copy_flags copy_flags)
+                          uint64_t size, uint32_t value, VkAddressCopyFlagsKHR copy_flags)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const bool use_compute = radv_is_compute_required(device, copy_flags, copy_flags) ||
@@ -278,7 +279,7 @@ radv_fill_memory_internal(struct radv_cmd_buffer *cmd_buffer, const struct radv_
 
 uint32_t
 radv_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t size, uint32_t value,
-                 enum radv_copy_flags copy_flags)
+                 VkAddressCopyFlagsKHR copy_flags)
 {
    return radv_fill_memory_internal(cmd_buffer, NULL, va, size, value, copy_flags);
 }
@@ -290,7 +291,7 @@ radv_fill_image(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *ima
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const uint64_t va = image->bindings[0].addr + offset;
    struct radeon_winsys_bo *bo = image->bindings[0].bo;
-   const enum radv_copy_flags copy_flags = radv_get_copy_flags_from_bo(bo);
+   const VkAddressCopyFlagsKHR copy_flags = radv_get_copy_flags_from_bo(bo);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    radv_cs_add_buffer(device->ws, cs->b, bo);
@@ -303,7 +304,7 @@ radv_fill_buffer(struct radv_cmd_buffer *cmd_buffer, struct radeon_winsys_bo *bo
                  uint32_t value)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const enum radv_copy_flags copy_flags = radv_get_copy_flags_from_bo(bo);
+   const VkAddressCopyFlagsKHR copy_flags = radv_get_copy_flags_from_bo(bo);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    radv_cs_add_buffer(device->ws, cs->b, bo);
@@ -333,7 +334,7 @@ radv_CmdFillBuffer(VkCommandBuffer commandBuffer, VkBuffer dstBuffer, VkDeviceSi
 
 void
 radv_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uint64_t dst_va, uint64_t size,
-                 enum radv_copy_flags src_copy_flags, enum radv_copy_flags dst_copy_flags)
+                 VkAddressCopyFlagsKHR src_copy_flags, VkAddressCopyFlagsKHR dst_copy_flags)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const bool use_compute = radv_is_compute_required(device, src_copy_flags, dst_copy_flags) ||
@@ -358,8 +359,8 @@ radv_CmdCopyBuffer2(VkCommandBuffer commandBuffer, const VkCopyBufferInfo2 *pCop
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   const enum radv_copy_flags src_copy_flags = radv_get_copy_flags_from_bo(src_buffer->bo);
-   const enum radv_copy_flags dst_copy_flags = radv_get_copy_flags_from_bo(dst_buffer->bo);
+   const VkAddressCopyFlagsKHR src_copy_flags = radv_get_copy_flags_from_bo(src_buffer->bo);
+   const VkAddressCopyFlagsKHR dst_copy_flags = radv_get_copy_flags_from_bo(dst_buffer->bo);
 
    radv_suspend_conditional_rendering(cmd_buffer);
 
@@ -402,7 +403,7 @@ radv_update_memory_cp(struct radv_cmd_buffer *cmd_buffer, uint64_t va, const voi
 
 void
 radv_update_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t size, const void *data,
-                   enum radv_copy_flags dst_copy_flags)
+                   VkAddressCopyFlagsKHR dst_copy_flags)
 {
    assert(!(size & 3));
    assert(!(va & 3));
@@ -417,7 +418,7 @@ radv_update_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_t siz
 
       radv_cmd_buffer_upload_data(cmd_buffer, size, data, &buf_offset);
 
-      const enum radv_copy_flags src_copy_flags = radv_get_copy_flags_from_bo(cmd_buffer->upload.upload_bo);
+      const VkAddressCopyFlagsKHR src_copy_flags = radv_get_copy_flags_from_bo(cmd_buffer->upload.upload_bo);
       const uint64_t src_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo) + buf_offset;
 
       radv_copy_memory(cmd_buffer, src_va, va, size, src_copy_flags, dst_copy_flags);
@@ -434,7 +435,7 @@ radv_CmdUpdateBuffer(VkCommandBuffer commandBuffer, VkBuffer dstBuffer, VkDevice
    const uint64_t dst_va = vk_buffer_address(&dst_buffer->vk, dstOffset);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   const enum radv_copy_flags dst_copy_flags = radv_get_copy_flags_from_bo(dst_buffer->bo);
+   const VkAddressCopyFlagsKHR dst_copy_flags = radv_get_copy_flags_from_bo(dst_buffer->bo);
 
    radv_suspend_conditional_rendering(cmd_buffer);
 

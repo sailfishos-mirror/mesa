@@ -93,7 +93,7 @@ static void
 radv_fixup_copy_dst_metadata(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *src_image,
                              const struct radv_image *dst_image)
 {
-   enum radv_copy_flags src_copy_flags = 0, dst_copy_flags = 0;
+   VkAddressCopyFlagsKHR src_copy_flags = 0, dst_copy_flags = 0;
    uint64_t src_va, dst_va, size;
 
    assert(src_image->planes[0].surface.cmask_size == dst_image->planes[0].surface.cmask_size &&
