@@ -31,22 +31,14 @@
 #include "vk_android.h"
 
 static VkResult
-lvp_image_create(VkDevice _device,
-                 const VkImageCreateInfo *pCreateInfo,
-                 const VkAllocationCallbacks* alloc,
-                 VkImage *pImage)
+lvp_image_init(struct lvp_device *device, struct lvp_image *image,
+               const VkImageCreateInfo *pCreateInfo)
 {
-   VK_FROM_HANDLE(lvp_device, device, _device);
-   struct lvp_image *image;
-   VkResult result = VK_SUCCESS;
 #ifdef HAVE_LIBDRM
    bool android_surface = false;
    const VkSubresourceLayout *layouts = NULL;
    uint64_t modifier;
-#endif
-   assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
 
-#ifdef HAVE_LIBDRM
    enum pipe_format pipe_format = lvp_vk_format_to_pipe_format(pCreateInfo->format);
    const VkImageDrmFormatModifierExplicitCreateInfoEXT *modinfo = (void*)vk_find_struct_const(pCreateInfo->pNext,
                                                                   IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT);
@@ -59,10 +51,6 @@ lvp_image_create(VkDevice _device,
 
    modifier = DRM_FORMAT_MOD_LINEAR;
 #endif
-
-   image = vk_image_create(&device->vk, pCreateInfo, alloc, sizeof(*image));
-   if (image == NULL)
-      return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
    image->alignment = 64;
    if (image->vk.create_flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT)
@@ -77,10 +65,10 @@ lvp_image_create(VkDevice _device,
    VkImageDrmFormatModifierExplicitCreateInfoEXT eci;
    VkSubresourceLayout a_plane_layouts[LVP_MAX_PLANE_COUNT];
    if (vk_image_is_android_native_buffer(&image->vk)) {
-      result = vk_android_get_anb_layout(
+      VkResult result = vk_android_get_anb_layout(
          pCreateInfo, &eci, a_plane_layouts, LVP_MAX_PLANE_COUNT);
       if (result != VK_SUCCESS)
-         goto fail;
+         return result;
 
       modifier = eci.drmFormatModifier;
       layouts = a_plane_layouts;
@@ -180,15 +168,35 @@ lvp_image_create(VkDevice _device,
                                                                &template,
                                                                &image->planes[p].size);
       }
-      if (!image->planes[p].bo) {
-         result = vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
-         goto fail;
-      }
+      if (!image->planes[p].bo)
+         return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
       image->planes[p].size = align64(image->planes[p].size, image->alignment);
 
       image->size += image->planes[p].size;
    }
+
+   return VK_SUCCESS;
+}
+
+static VkResult
+lvp_image_create(VkDevice _device,
+                 const VkImageCreateInfo *pCreateInfo,
+                 const VkAllocationCallbacks* alloc,
+                 VkImage *pImage)
+{
+   VK_FROM_HANDLE(lvp_device, device, _device);
+   struct lvp_image *image;
+   VkResult result = VK_SUCCESS;
+   assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
+
+   image = vk_image_create(&device->vk, pCreateInfo, alloc, sizeof(*image));
+   if (image == NULL)
+      return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+   result = lvp_image_init(device, image, pCreateInfo);
+   if (result != VK_SUCCESS)
+      goto fail;
 
    /* This section is removed by the optimizer for non-ANDROID builds */
    if (vk_image_is_android_native_buffer(&image->vk)) {
