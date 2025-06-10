@@ -290,6 +290,36 @@ nvk_queue_submit_bind(struct nvk_queue *queue,
 }
 
 static VkResult
+nvk_queue_exec_cmd_buffer(struct nvk_queue *queue,
+                          struct nvk_cmd_buffer *cmd)
+{
+   VkResult result = VK_SUCCESS;
+
+   const uint32_t max_execs =
+      util_dynarray_num_elements(&cmd->pushes, struct nvk_cmd_push);
+   STACK_ARRAY(struct nvkmd_ctx_exec, execs, max_execs);
+   uint32_t exec_count = 0;
+
+   util_dynarray_foreach(&cmd->pushes, struct nvk_cmd_push, push) {
+      if (push->range == 0)
+         continue;
+
+      execs[exec_count++] = (struct nvkmd_ctx_exec) {
+         .addr = push->addr,
+         .size_B = push->range,
+         .incomplete = push->incomplete,
+         .no_prefetch = push->no_prefetch,
+      };
+   }
+
+   result = nvkmd_ctx_exec(queue->exec_ctx, &queue->vk.base,
+                           exec_count, execs);
+
+   STACK_ARRAY_FINISH(execs);
+   return result;
+}
+
+static VkResult
 nvk_queue_submit_exec(struct nvk_queue *queue,
                       struct vk_queue_submit *submit)
 {
@@ -335,29 +365,7 @@ nvk_queue_submit_exec(struct nvk_queue *queue,
    for (unsigned i = 0; i < submit->command_buffer_count; i++) {
       struct nvk_cmd_buffer *cmd =
          container_of(submit->command_buffers[i], struct nvk_cmd_buffer, vk);
-
-      const uint32_t max_execs =
-         util_dynarray_num_elements(&cmd->pushes, struct nvk_cmd_push);
-      STACK_ARRAY(struct nvkmd_ctx_exec, execs, max_execs);
-      uint32_t exec_count = 0;
-
-      util_dynarray_foreach(&cmd->pushes, struct nvk_cmd_push, push) {
-         if (push->range == 0)
-            continue;
-
-         execs[exec_count++] = (struct nvkmd_ctx_exec) {
-            .addr = push->addr,
-            .size_B = push->range,
-            .incomplete = push->incomplete,
-            .no_prefetch = push->no_prefetch,
-         };
-      }
-
-      result = nvkmd_ctx_exec(queue->exec_ctx, &queue->vk.base,
-                              exec_count, execs);
-
-      STACK_ARRAY_FINISH(execs);
-
+      result = nvk_queue_exec_cmd_buffer(queue, cmd);
       if (result != VK_SUCCESS)
          return result;
    }
