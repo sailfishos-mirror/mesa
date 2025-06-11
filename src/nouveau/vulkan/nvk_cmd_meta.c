@@ -71,7 +71,7 @@ struct nvk_meta_save_gfx {
    struct vk_sample_locations_state _dynamic_sl;
    struct vk_dynamic_graphics_state dynamic;
    struct nvk_shader *shaders[MESA_SHADER_MESH + 1];
-   struct nvk_addr_range vb0;
+   VkDeviceAddressRangeKHR vb0;
    struct nvk_descriptor_set_binding desc0;
    struct nvk_buffer_address desc0_set_addr;
    struct nvk_push_descriptor_set push_desc0;

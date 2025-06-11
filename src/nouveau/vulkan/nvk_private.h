@@ -49,9 +49,4 @@
 /* Device Generated Commands */
 #define NVK_DGC_ALIGN 0x100
 
-struct nvk_addr_range {
-   uint64_t addr;
-   uint64_t range;
-};
-
 #endif

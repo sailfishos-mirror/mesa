@@ -4493,15 +4493,15 @@ nvk_CmdBindIndexBuffer2KHR(VkCommandBuffer commandBuffer,
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
-   struct nvk_addr_range addr_range =
-      nvk_buffer_addr_range(buffer, offset, size);
+   const VkDeviceAddressRangeKHR addr_range =
+      vk_device_address_range(&buffer->vk, offset, size);
 
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_BIND_IB));
-   P_INLINE_DATA(p, addr_range.addr >> 32);
-   P_INLINE_DATA(p, addr_range.addr);
-   assert(addr_range.range <= UINT32_MAX);
-   P_INLINE_DATA(p, addr_range.range);
+   P_INLINE_DATA(p, addr_range.address >> 32);
+   P_INLINE_DATA(p, addr_range.address);
+   assert(addr_range.size <= UINT32_MAX);
+   P_INLINE_DATA(p, addr_range.size);
    P_INLINE_DATA(p, indexType);
 }
 
@@ -4611,7 +4611,7 @@ const struct nvk_mme_test_case nvk_mme_bind_vb_tests[] = {{
 
 void
 nvk_cmd_bind_vertex_buffer(struct nvk_cmd_buffer *cmd, uint32_t vb_idx,
-                           struct nvk_addr_range addr_range)
+                           VkDeviceAddressRangeKHR addr_range)
 {
    /* Used for meta save/restore */
    if (vb_idx == 0)
@@ -4620,10 +4620,10 @@ nvk_cmd_bind_vertex_buffer(struct nvk_cmd_buffer *cmd, uint32_t vb_idx,
    struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
    P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_BIND_VB));
    P_INLINE_DATA(p, vb_idx);
-   P_INLINE_DATA(p, addr_range.addr >> 32);
-   P_INLINE_DATA(p, addr_range.addr);
-   assert(addr_range.range <= UINT32_MAX);
-   P_INLINE_DATA(p, addr_range.range);
+   P_INLINE_DATA(p, addr_range.address >> 32);
+   P_INLINE_DATA(p, addr_range.address);
+   assert(addr_range.size <= UINT32_MAX);
+   P_INLINE_DATA(p, addr_range.size);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -4647,8 +4647,8 @@ nvk_CmdBindVertexBuffers2(VkCommandBuffer commandBuffer,
       uint32_t idx = firstBinding + i;
 
       uint64_t size = pSizes ? pSizes[i] : VK_WHOLE_SIZE;
-      const struct nvk_addr_range addr_range =
-         nvk_buffer_addr_range(buffer, pOffsets[i], size);
+      const VkDeviceAddressRangeKHR addr_range =
+         vk_device_address_range(&buffer->vk, pOffsets[i], size);
 
       nvk_cmd_bind_vertex_buffer(cmd, idx, addr_range);
    }
@@ -5838,17 +5838,17 @@ nvk_CmdBindTransformFeedbackBuffersEXT(VkCommandBuffer commandBuffer,
       VK_FROM_HANDLE(nvk_buffer, buffer, pBuffers[i]);
       uint32_t idx = firstBinding + i;
       uint64_t size = pSizes ? pSizes[i] : VK_WHOLE_SIZE;
-      struct nvk_addr_range addr_range =
-         nvk_buffer_addr_range(buffer, pOffsets[i], size);
-      assert(addr_range.range <= UINT32_MAX);
+      const VkDeviceAddressRangeKHR addr_range =
+         vk_device_address_range(&buffer->vk, pOffsets[i], size);
+      assert(addr_range.size <= UINT32_MAX);
 
       struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
 
       P_MTHD(p, NV9097, SET_STREAM_OUT_BUFFER_ENABLE(idx));
       P_NV9097_SET_STREAM_OUT_BUFFER_ENABLE(p, idx, V_TRUE);
-      P_NV9097_SET_STREAM_OUT_BUFFER_ADDRESS_A(p, idx, addr_range.addr >> 32);
-      P_NV9097_SET_STREAM_OUT_BUFFER_ADDRESS_B(p, idx, addr_range.addr);
-      P_NV9097_SET_STREAM_OUT_BUFFER_SIZE(p, idx, (uint32_t)addr_range.range);
+      P_NV9097_SET_STREAM_OUT_BUFFER_ADDRESS_A(p, idx, addr_range.address >> 32);
+      P_NV9097_SET_STREAM_OUT_BUFFER_ADDRESS_B(p, idx, addr_range.address);
+      P_NV9097_SET_STREAM_OUT_BUFFER_SIZE(p, idx, (uint32_t)addr_range.size);
    }
 
    // TODO: do we need to SET_STREAM_OUT_BUFFER_ENABLE V_FALSE ?

@@ -211,7 +211,7 @@ struct nvk_graphics_state {
    } cbuf_groups[5];
 
    /* Used for meta save/restore */
-   struct nvk_addr_range vb0;
+   VkDeviceAddressRangeKHR vb0;
 
    /* Needed by vk_command_buffer::dynamic_graphics_state */
    struct vk_vertex_input_state _dynamic_vi;
@@ -336,7 +336,7 @@ void nvk_cmd_dirty_cbufs_for_descriptors(struct nvk_cmd_buffer *cmd,
                                          VkShaderStageFlags stages,
                                          uint32_t sets_start, uint32_t sets_end);
 void nvk_cmd_bind_vertex_buffer(struct nvk_cmd_buffer *cmd, uint32_t vb_idx,
-                                struct nvk_addr_range addr_range);
+                                VkDeviceAddressRangeKHR addr_range);
 
 static inline struct nvk_descriptor_state *
 nvk_get_descriptors_state(struct nvk_cmd_buffer *cmd,
