@@ -46,3 +46,4 @@ VK_EXT_primitive_restart_index on RADV
 VK_EXT_attachment_feedback_loop_layout on panvk
 VK_EXT_attachment_feedback_loop_dynamic_state on panvk
 VK_KHR_shader_integer_dot_product on pvr
+VK_EXT_descriptor_heap on RADV (with 'export RADV_EXPERIMENTAL=heap')

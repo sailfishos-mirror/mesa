@@ -763,6 +763,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .EXT_depth_clip_enable = true,
       .EXT_depth_range_unrestricted = true,
       .EXT_descriptor_buffer = true,
+      .EXT_descriptor_heap = instance->experimental_flags & RADV_EXPERIMENTAL_DESCRIPTOR_HEAP,
       .EXT_descriptor_indexing = true,
       .EXT_device_address_binding_report = true,
       .EXT_device_fault = pdev->info.has_gpuvm_fault_query,
@@ -1537,6 +1538,10 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
 
       /* VK_EXT_primitive_restart_index */
       .primitiveRestartIndex = true,
+
+      /* VK_EXT_descriptor_heap */
+      .descriptorHeap = true,
+      .descriptorHeapCaptureReplay = true,
    };
 }
 
@@ -2230,6 +2235,27 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
 
       /* VK_KHR_copy_memory_indirect */
       .supportedQueues = copy_memory_indirect_queues,
+
+      /* VK_EXT_descriptor_heap */
+      .samplerHeapAlignment = 4,
+      .resourceHeapAlignment = 4,
+      .maxSamplerHeapSize = ~0,
+      .maxResourceHeapSize = ~0,
+      .minSamplerHeapReservedRange = 0,
+      .minSamplerHeapReservedRangeWithEmbedded = 0,
+      .minResourceHeapReservedRange = 0,
+      .samplerDescriptorSize = RADV_SAMPLER_DESC_SIZE,
+      .imageDescriptorSize = radv_get_sampled_image_desc_size(pdev),
+      .bufferDescriptorSize = RADV_BUFFER_DESC_SIZE,
+      .samplerDescriptorAlignment = 4,
+      .imageDescriptorAlignment = 4,
+      .bufferDescriptorAlignment = 4,
+      .maxPushDataSize = MAX_PUSH_CONSTANTS_SIZE,
+      .imageCaptureReplayOpaqueDataSize = 8,
+      .maxDescriptorHeapEmbeddedSamplers = 2048,
+      .samplerYcbcrConversionCount = 3,
+      .sparseDescriptorHeaps = false,
+      .protectedDescriptorHeaps = false,
    };
 
    struct vk_properties *p = &pdev->vk.properties;
