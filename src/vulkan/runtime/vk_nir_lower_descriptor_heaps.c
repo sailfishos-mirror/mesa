@@ -11,6 +11,154 @@
 #include "util/u_dynarray.h"
 #include "util/hash_table.h"
 
+static void
+hash_embedded_sampler(struct mesa_blake3 *ctx,
+                      const struct VkSamplerCreateInfo *info)
+{
+   if (info != NULL) {
+      struct vk_sampler_state state;
+      vk_sampler_state_init(&state, info);
+      _mesa_blake3_update(ctx, &state, sizeof(state));
+   }
+}
+
+void
+vk_hash_descriptor_heap_mappings(
+   const VkShaderDescriptorSetAndBindingMappingInfoEXT *info,
+   blake3_hash blake3_out)
+{
+   struct mesa_blake3 ctx;
+   _mesa_blake3_init(&ctx);
+
+#define HASH(ctx, x) _mesa_blake3_update(ctx, &(x), sizeof(x))
+
+   for (uint32_t i = 0; i < info->mappingCount; i++) {
+      const VkDescriptorSetAndBindingMappingEXT *mapping = &info->pMappings[i];
+      HASH(&ctx, mapping->descriptorSet);
+      HASH(&ctx, mapping->firstBinding);
+      HASH(&ctx, mapping->bindingCount);
+      HASH(&ctx, mapping->resourceMask);
+      HASH(&ctx, mapping->source);
+      switch (mapping->source) {
+      case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_CONSTANT_OFFSET_EXT: {
+         const VkDescriptorMappingSourceConstantOffsetEXT *data =
+            &mapping->sourceData.constantOffset;
+         HASH(&ctx, data->heapOffset);
+         HASH(&ctx, data->heapArrayStride);
+         hash_embedded_sampler(&ctx, data->pEmbeddedSampler);
+         HASH(&ctx, data->samplerHeapOffset);
+         HASH(&ctx, data->samplerHeapArrayStride);
+         break;
+      }
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT: {
+         const VkDescriptorMappingSourcePushIndexEXT *data =
+            &mapping->sourceData.pushIndex;
+         HASH(&ctx, data->heapOffset);
+         HASH(&ctx, data->pushOffset);
+         HASH(&ctx, data->heapIndexStride);
+         HASH(&ctx, data->heapArrayStride);
+         hash_embedded_sampler(&ctx, data->pEmbeddedSampler);
+         HASH(&ctx, data->useCombinedImageSamplerIndex);
+         HASH(&ctx, data->samplerHeapOffset);
+         HASH(&ctx, data->samplerPushOffset);
+         HASH(&ctx, data->samplerHeapIndexStride);
+         HASH(&ctx, data->samplerHeapArrayStride);
+         break;
+      }
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_INDIRECT_INDEX_EXT: {
+         const VkDescriptorMappingSourceIndirectIndexEXT *data =
+            &mapping->sourceData.indirectIndex;
+         HASH(&ctx, data->heapOffset);
+         HASH(&ctx, data->pushOffset);
+         HASH(&ctx, data->addressOffset);
+         HASH(&ctx, data->heapIndexStride);
+         HASH(&ctx, data->heapArrayStride);
+         hash_embedded_sampler(&ctx, data->pEmbeddedSampler);
+         HASH(&ctx, data->useCombinedImageSamplerIndex);
+         HASH(&ctx, data->samplerHeapOffset);
+         HASH(&ctx, data->samplerPushOffset);
+         HASH(&ctx, data->samplerAddressOffset);
+         HASH(&ctx, data->samplerHeapIndexStride);
+         HASH(&ctx, data->samplerHeapArrayStride);
+         break;
+      }
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_RESOURCE_HEAP_DATA_EXT: {
+         const VkDescriptorMappingSourceHeapDataEXT *data =
+            &mapping->sourceData.heapData;
+         HASH(&ctx, data->heapOffset);
+         HASH(&ctx, data->pushOffset);
+         break;
+      }
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_PUSH_DATA_EXT:
+         HASH(&ctx, mapping->sourceData.pushDataOffset);
+         break;
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_PUSH_ADDRESS_EXT:
+         HASH(&ctx, mapping->sourceData.pushAddressOffset);
+         break;
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_INDIRECT_ADDRESS_EXT: {
+         const VkDescriptorMappingSourceIndirectAddressEXT *data =
+            &mapping->sourceData.indirectAddress;
+         HASH(&ctx, data->pushOffset);
+         HASH(&ctx, data->addressOffset);
+         break;
+      }
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_INDIRECT_INDEX_ARRAY_EXT: {
+         const VkDescriptorMappingSourceIndirectIndexArrayEXT *data =
+            &mapping->sourceData.indirectIndexArray;
+         HASH(&ctx, data->heapOffset);
+         HASH(&ctx, data->pushOffset);
+         HASH(&ctx, data->addressOffset);
+         HASH(&ctx, data->heapIndexStride);
+         hash_embedded_sampler(&ctx, data->pEmbeddedSampler);
+         HASH(&ctx, data->useCombinedImageSamplerIndex);
+         HASH(&ctx, data->samplerHeapOffset);
+         HASH(&ctx, data->samplerPushOffset);
+         HASH(&ctx, data->samplerAddressOffset);
+         HASH(&ctx, data->samplerHeapIndexStride);
+         break;
+      }
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_SHADER_RECORD_INDEX_EXT: {
+         const VkDescriptorMappingSourceShaderRecordIndexEXT *data =
+            &mapping->sourceData.shaderRecordIndex;
+         HASH(&ctx, data->heapOffset);
+         HASH(&ctx, data->shaderRecordOffset);
+         HASH(&ctx, data->heapIndexStride);
+         HASH(&ctx, data->heapArrayStride);
+         hash_embedded_sampler(&ctx, data->pEmbeddedSampler);
+         HASH(&ctx, data->useCombinedImageSamplerIndex);
+         HASH(&ctx, data->samplerHeapOffset);
+         HASH(&ctx, data->samplerShaderRecordOffset);
+         HASH(&ctx, data->samplerHeapIndexStride);
+         HASH(&ctx, data->samplerHeapArrayStride);
+         break;
+      }
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_SHADER_RECORD_DATA_EXT:
+         HASH(&ctx, mapping->sourceData.shaderRecordDataOffset);
+         break;
+
+      case VK_DESCRIPTOR_MAPPING_SOURCE_SHADER_RECORD_ADDRESS_EXT:
+         HASH(&ctx, mapping->sourceData.shaderRecordAddressOffset);
+         break;
+
+      default:
+         UNREACHABLE("Unsupported descriptor mapping source");
+      }
+   }
+
+   _mesa_blake3_final(&ctx, blake3_out);
+}
+
+#undef HASH
+
 struct heap_mapping_ctx {
    const VkShaderDescriptorSetAndBindingMappingInfoEXT *info;
 

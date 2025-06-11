@@ -8,6 +8,7 @@
 
 #include "nir.h"
 #include <vulkan/vulkan_core.h>
+#include "util/mesa-blake3.h"
 
 static inline const VkDescriptorSetAndBindingMappingEXT *
 vk_descriptor_heap_mapping(const VkShaderDescriptorSetAndBindingMappingInfoEXT *info,
@@ -50,6 +51,10 @@ vk_descriptor_heap_embedded_sampler(const VkDescriptorSetAndBindingMappingEXT *m
       return NULL;
    }
 }
+
+void vk_hash_descriptor_heap_mappings(
+   const VkShaderDescriptorSetAndBindingMappingInfoEXT *info,
+   blake3_hash blake3_out);
 
 nir_def *
 vk_build_descriptor_heap_address(nir_builder *b,
