@@ -2351,11 +2351,13 @@ vk_get_compute_pipeline_compile_info(struct vk_pipeline_stage *stage,
                       features_blake3);
       _mesa_blake3_update(&blake3_ctx, features_blake3, sizeof(features_blake3));
 
-      for (uint32_t i = 0; i < pipeline_layout->set_count; i++) {
-         if (pipeline_layout->set_layouts[i] != NULL) {
-            _mesa_blake3_update(&blake3_ctx,
-                                pipeline_layout->set_layouts[i]->blake3,
-                                sizeof(pipeline_layout->set_layouts[i]->blake3));
+      if (pipeline_layout != NULL) {
+         for (uint32_t i = 0; i < pipeline_layout->set_count; i++) {
+            if (pipeline_layout->set_layouts[i] != NULL) {
+               _mesa_blake3_update(&blake3_ctx,
+                                   pipeline_layout->set_layouts[i]->blake3,
+                                   sizeof(pipeline_layout->set_layouts[i]->blake3));
+            }
          }
       }
       if (push_range != NULL)
@@ -2418,8 +2420,8 @@ vk_pipeline_compile_compute_stage(struct vk_device *device,
       .next_stage_mask = 0,
       .nir = nir,
       .robustness = &stage->precomp->rs,
-      .set_layout_count = pipeline_layout->set_count,
-      .set_layouts = pipeline_layout->set_layouts,
+      .set_layout_count = pipeline_layout ? pipeline_layout->set_count : 0,
+      .set_layouts = pipeline_layout ? pipeline_layout->set_layouts : NULL,
       .push_constant_range_count = push_range != NULL,
       .push_constant_ranges = push_range != NULL ? push_range : NULL,
    };
@@ -2801,11 +2803,13 @@ hash_rt_parameters(struct mesa_blake3 *blake3_ctx,
    _mesa_blake3_update(blake3_ctx, &shader_flags, sizeof(shader_flags));
    _mesa_blake3_update(blake3_ctx, &rt_flags, sizeof(rt_flags));
 
-   for (uint32_t i = 0; i < pipeline_layout->set_count; i++) {
-      if (pipeline_layout->set_layouts[i] != NULL) {
-         _mesa_blake3_update(blake3_ctx,
-                             pipeline_layout->set_layouts[i]->blake3,
-                             sizeof(pipeline_layout->set_layouts[i]->blake3));
+   if (pipeline_layout != NULL) {
+      for (uint32_t i = 0; i < pipeline_layout->set_count; i++) {
+         if (pipeline_layout->set_layouts[i] != NULL) {
+            _mesa_blake3_update(blake3_ctx,
+                                pipeline_layout->set_layouts[i]->blake3,
+                                sizeof(pipeline_layout->set_layouts[i]->blake3));
+         }
       }
    }
    if (push_range != NULL)
@@ -3212,8 +3216,8 @@ vk_pipeline_compile_rt_shader(struct vk_device *device,
       .next_stage_mask = 0,
       .nir = nir,
       .robustness = &stage->precomp->rs,
-      .set_layout_count = pipeline_layout->set_count,
-      .set_layouts = pipeline_layout->set_layouts,
+      .set_layout_count = pipeline_layout != NULL ? pipeline_layout->set_count : 0,
+      .set_layouts = pipeline_layout != NULL ? pipeline_layout->set_layouts : NULL,
       .push_constant_range_count = push_range != NULL,
       .push_constant_ranges = push_range != NULL ? push_range : NULL,
    };
@@ -3322,8 +3326,8 @@ vk_pipeline_compile_rt_shader_group(struct vk_device *device,
          .next_stage_mask = 0,
          .nir = vk_pipeline_precomp_shader_get_nir(precomp, nir_options),
          .robustness = &precomp->rs,
-         .set_layout_count = pipeline_layout->set_count,
-         .set_layouts = pipeline_layout->set_layouts,
+         .set_layout_count = pipeline_layout != NULL ? pipeline_layout->set_count : 0,
+         .set_layouts = pipeline_layout != NULL ? pipeline_layout->set_layouts : NULL,
          .push_constant_range_count = push_range != NULL,
          .push_constant_ranges = push_range != NULL ? push_range : NULL,
       };
