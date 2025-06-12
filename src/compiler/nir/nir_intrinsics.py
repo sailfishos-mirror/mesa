@@ -1449,6 +1449,10 @@ intrinsic("cmat_insert", src_comp=[-1, 1, -1, 1])
 intrinsic("cmat_copy", src_comp=[-1, -1])
 intrinsic("cmat_transpose", src_comp=[-1, -1], indices=[FP_MATH_CTRL])
 
+# VK_EXT_descriptor_heap
+system_value("sampler_heap_ptr", 1, bit_sizes=[64])
+system_value("resource_heap_ptr", 1, bit_sizes=[64])
+
 # Select an output vertex in a poly GS. Takes the stream-local vertex ID.
 intrinsic("select_vertex_poly", src_comp=[1], indices=[STREAM_ID])
 
