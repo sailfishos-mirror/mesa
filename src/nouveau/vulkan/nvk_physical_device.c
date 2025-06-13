@@ -1106,7 +1106,7 @@ nvk_get_device_properties(const struct nvk_instance *instance,
       .samplerCaptureReplayDescriptorDataSize =
          sizeof(struct nvk_sampler_capture),
       .accelerationStructureCaptureReplayDescriptorDataSize = 0, // todo
-      .samplerDescriptorSize = sizeof(struct nvk_sampled_image_descriptor),
+      .EDBsamplerDescriptorSize = sizeof(struct nvk_sampled_image_descriptor),
       .combinedImageSamplerDescriptorSize = sizeof(struct nvk_sampled_image_descriptor),
       .sampledImageDescriptorSize = sizeof(struct nvk_sampled_image_descriptor),
       .storageImageDescriptorSize = sizeof(struct nvk_storage_image_descriptor),

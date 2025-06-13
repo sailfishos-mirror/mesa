@@ -1715,7 +1715,7 @@ get_properties(const struct anv_physical_device *pdevice,
        */
       props->accelerationStructureCaptureReplayDescriptorDataSize = 0;
 
-      props->samplerDescriptorSize = ANV_SAMPLER_STATE_SIZE;
+      props->EDBsamplerDescriptorSize = ANV_SAMPLER_STATE_SIZE;
       props->combinedImageSamplerDescriptorSize = align(ANV_SURFACE_STATE_SIZE + ANV_SAMPLER_STATE_SIZE,
                                                         ANV_SURFACE_STATE_SIZE);
       props->sampledImageDescriptorSize = ANV_SURFACE_STATE_SIZE;

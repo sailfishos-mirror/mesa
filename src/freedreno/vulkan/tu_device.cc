@@ -1394,7 +1394,7 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->samplerCaptureReplayDescriptorDataSize = 0;
    props->accelerationStructureCaptureReplayDescriptorDataSize = 0;
    /* Note: these sizes must match descriptor_size() */
-   props->samplerDescriptorSize = FDL6_TEX_CONST_DWORDS * 4;
+   props->EDBsamplerDescriptorSize = FDL6_TEX_CONST_DWORDS * 4;
    props->combinedImageSamplerDescriptorSize = 2 * FDL6_TEX_CONST_DWORDS * 4;
    props->sampledImageDescriptorSize = FDL6_TEX_CONST_DWORDS * 4;
    props->storageImageDescriptorSize = FDL6_TEX_CONST_DWORDS * 4;

@@ -1230,7 +1230,7 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
       .imageViewCaptureReplayDescriptorDataSize = 0,
       .samplerCaptureReplayDescriptorDataSize = 0,
       .accelerationStructureCaptureReplayDescriptorDataSize = 0,
-      .samplerDescriptorSize = sizeof(struct lp_descriptor),
+      .EDBsamplerDescriptorSize = sizeof(struct lp_descriptor),
       .combinedImageSamplerDescriptorSize = sizeof(struct lp_descriptor),
       .sampledImageDescriptorSize = sizeof(struct lp_descriptor),
       .storageImageDescriptorSize = sizeof(struct lp_descriptor),
