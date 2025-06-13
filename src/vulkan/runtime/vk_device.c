@@ -636,6 +636,23 @@ vk_common_DeviceWaitIdle(VkDevice _device)
    return VK_SUCCESS;
 }
 
+VKAPI_ATTR VkResult VKAPI_CALL
+vk_common_RegisterCustomBorderColorEXT(VkDevice device,
+                                       const VkSamplerCustomBorderColorCreateInfoEXT* pBorderColor,
+                                       VkBool32 requestIndex,
+                                       uint32_t *pIndex)
+{
+   if (requestIndex)
+      *pIndex = 0;
+
+   return VK_SUCCESS;
+}
+
+VKAPI_ATTR void VKAPI_CALL
+vk_common_UnregisterCustomBorderColorEXT(VkDevice device,
+                                         uint32_t index)
+{ }
+
 VkResult
 vk_device_copy_semaphore_payloads(struct vk_device *device,
                                   uint32_t wait_semaphore_count,
