@@ -3502,6 +3502,17 @@ impl<'a> ShaderFromNir<'a> {
             }
             nir_intrinsic_load_sysval_nv => {
                 let idx = u8::try_from(intrin.base()).unwrap();
+
+                if idx == NAK_SV_ORDERING_TICKET {
+                    if let ShaderStageInfo::Fragment(info) =
+                        &mut self.info.stage
+                    {
+                        info.reads_interlock_ticket = true;
+                    } else {
+                        panic!("Ordering ticket is only available in fragment shaders");
+                    }
+                }
+
                 debug_assert!(intrin.def.num_components == 1);
                 debug_assert!(
                     intrin.def.bit_size == 32 || intrin.def.bit_size == 64
