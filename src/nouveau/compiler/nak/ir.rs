@@ -9376,7 +9376,7 @@ pub struct VertexShaderInfo {
 #[derive(Debug)]
 pub struct FragmentShaderInfo {
     pub uses_kill: bool,
-    pub does_interlock: bool,
+    pub reads_interlock_ticket: bool,
     pub post_depth_coverage: bool,
     pub early_fragment_tests: bool,
     pub uses_sample_shading: bool,

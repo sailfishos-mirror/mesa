@@ -76,7 +76,7 @@ fn init_info_from_nir(
                 let info_fs = unsafe { &nir.info.__bindgen_anon_1.fs };
                 ShaderStageInfo::Fragment(FragmentShaderInfo {
                     uses_kill: false,
-                    does_interlock: false,
+                    reads_interlock_ticket: false,
                     post_depth_coverage: info_fs.post_depth_coverage(),
                     early_fragment_tests: info_fs.early_fragment_tests(),
                     uses_sample_shading: info_fs.uses_sample_shading(),
