@@ -15,6 +15,28 @@
 #define NVK_IMAGE_DESCRIPTOR_IMAGE_INDEX_MASK   0x000fffff
 #define NVK_IMAGE_DESCRIPTOR_SAMPLER_INDEX_MASK 0xfff00000
 
+/** Hardware(ish) descriptor type used for images and buffer views.
+ *
+ * For all textures and Maxwell+ storage images, this is the hardware
+ * descriptor placed in the texture header pool.  For Kepler storage images,
+ * it's the su_info produced by NIL and consumed by NAK.
+ *
+ * All other image descriptor types used by NVK are for descriptor sets and
+ * contain indices which indirectly reference the texture header pool.  The
+ * only exception is that, on Kepler, we can put the su_info directly in the
+ * descriptor set because it's all software anyway.
+ */
+union nvk_image_descriptor {
+   struct nil_descriptor desc;
+   struct nil_su_info su_info;
+};
+static_assert(sizeof(struct nil_descriptor) == NVK_TEXTURE_HEADER_SIZE,
+              "All image heap descriptors are 32 bytes");
+static_assert(sizeof(struct nil_su_info) == NVK_TEXTURE_HEADER_SIZE,
+              "All image heap descriptors are 32 bytes");
+static_assert(sizeof(union nvk_image_descriptor) == NVK_TEXTURE_HEADER_SIZE,
+              "All image descriptors are 32 bytes");
+
 PRAGMA_DIAGNOSTIC_PUSH
 PRAGMA_DIAGNOSTIC_ERROR(-Wpadded)
 struct nvk_sampled_image_descriptor {

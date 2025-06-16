@@ -148,9 +148,9 @@ get_sampled_image_view_desc(VkDescriptorType descriptor_type,
 
       *plane_count = view->plane_count;
       for (uint8_t plane = 0; plane < *plane_count; plane++) {
-         assert(view->planes[plane].sampled_desc_index > 0);
-         assert(view->planes[plane].sampled_desc_index < (1 << 20));
-         desc[plane].image_index = view->planes[plane].sampled_desc_index;
+         assert(view->planes[plane].sampled.desc_index > 0);
+         assert(view->planes[plane].sampled.desc_index < (1 << 20));
+         desc[plane].image_index = view->planes[plane].sampled.desc_index;
       }
    }
 
@@ -210,10 +210,10 @@ get_storage_image_view_desc(const struct nvk_physical_device *pdev,
       assert(view->plane_count == 1);
       uint8_t plane = 0;
 
-      assert(view->planes[plane].storage_desc_index > 0);
-      assert(view->planes[plane].storage_desc_index < (1 << 20));
+      assert(view->planes[plane].storage.desc_index > 0);
+      assert(view->planes[plane].storage.desc_index < (1 << 20));
 
-      desc.image_index = view->planes[plane].storage_desc_index;
+      desc.image_index = view->planes[plane].storage.desc_index;
    }
 
    return desc;
@@ -231,8 +231,9 @@ get_kepler_storage_image_view_desc(const struct nvk_physical_device *pdev,
 
       /* Storage images are always single plane */
       assert(view->plane_count == 1);
+      const uint8_t plane = 0;
 
-      desc.su_info = view->su_info;
+      desc.su_info = view->planes[plane].storage.desc.su_info;
    } else {
       desc.su_info = nil_fill_null_su_info(&pdev->info);
    }
