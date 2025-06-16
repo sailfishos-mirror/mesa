@@ -107,19 +107,33 @@ struct ycbcr_state {
    nir_builder *builder;
    nir_def *image_size;
    nir_tex_instr *origin_tex;
-   nir_deref_instr *tex_deref;
+   nir_tex_src tex_handle;
    const struct vk_ycbcr_conversion_state *conversion;
    const struct vk_format_ycbcr_info *format_ycbcr_info;
 };
 
 /* TODO: we should probably replace this with a push constant/uniform. */
 static nir_def *
-get_texture_size(struct ycbcr_state *state, nir_deref_instr *texture)
+get_texture_size(struct ycbcr_state *state)
 {
-   if (!state->image_size) {
-      nir_builder *b = state->builder;
-      state->image_size = nir_i2f32(b, nir_txs(b, .texture_deref = texture));
-   }
+   if (state->image_size)
+      return state->image_size;
+
+   nir_builder *b = state->builder;
+   nir_tex_instr *tex = nir_tex_instr_create(b->shader, 1);
+
+   tex->op = nir_texop_txs;
+   tex->sampler_dim = state->origin_tex->sampler_dim,
+   tex->is_array = state->origin_tex->is_array,
+   tex->is_shadow = state->origin_tex->is_shadow,
+   tex->dest_type = nir_type_int32;
+
+   tex->src[0] = state->tex_handle;
+
+   nir_def_init(&tex->instr, &tex->def, nir_tex_instr_dest_size(tex), 32);
+   nir_builder_instr_insert(b, &tex->instr);
+
+   state->image_size = nir_i2f32(b, &tex->def);
 
    return state->image_size;
 }
@@ -141,7 +155,7 @@ implicit_downsampled_coords(struct ycbcr_state *state,
 {
    nir_builder *b = state->builder;
    const struct vk_ycbcr_conversion_state *conversion = state->conversion;
-   nir_def *image_size = get_texture_size(state, state->tex_deref);
+   nir_def *image_size = get_texture_size(state);
    nir_def *comp[4] = { NULL, };
    int c;
 
@@ -203,6 +217,7 @@ create_plane_tex_instr_implicit(struct ycbcr_state *state,
    tex->is_new_style_shadow = old_tex->is_new_style_shadow;
    tex->component = old_tex->component;
 
+   tex->embedded_sampler = old_tex->embedded_sampler;
    tex->texture_index = old_tex->texture_index;
    tex->sampler_index = old_tex->sampler_index;
    tex->is_array = old_tex->is_array;
@@ -250,25 +265,40 @@ lower_ycbcr_tex_instr(nir_builder *b, nir_tex_instr *tex, void *_state)
        tex->op == nir_texop_lod)
       return false;
 
-   int deref_src_idx = nir_tex_instr_src_index(tex, nir_tex_src_texture_deref);
-   assert(deref_src_idx >= 0);
-   nir_deref_instr *deref = nir_src_as_deref(tex->src[deref_src_idx].src);
+   nir_tex_src tex_handle;
+   const struct vk_ycbcr_conversion_state *conversion;
+   if (tex->embedded_sampler) {
+      const int heap_src_idx =
+         nir_tex_instr_src_index(tex, nir_tex_src_texture_heap_offset);
+      tex_handle = tex->src[heap_src_idx];
 
-   nir_variable *var = nir_deref_instr_get_variable(deref);
-   uint32_t set = var->data.descriptor_set;
-   uint32_t binding = var->data.binding;
-
-   assert(tex->texture_index == 0);
-   unsigned array_index = 0;
-   if (deref->deref_type != nir_deref_type_var) {
-      assert(deref->deref_type == nir_deref_type_array);
-      if (!nir_src_is_const(deref->arr.index))
+      conversion = state->cb(state->cb_data,
+                             VK_NIR_YCBCR_SET_IMMUTABLE_SAMPLERS,
+                             tex->sampler_index, 0);
+   } else {
+      const int deref_src_idx =
+         nir_tex_instr_src_index(tex, nir_tex_src_texture_deref);
+      if (deref_src_idx < 0)
          return false;
-      array_index = nir_src_as_uint(deref->arr.index);
-   }
 
-   const struct vk_ycbcr_conversion_state *conversion =
-      state->cb(state->cb_data, set, binding, array_index);
+      tex_handle = tex->src[deref_src_idx];
+      nir_deref_instr *deref = nir_src_as_deref(tex_handle.src);
+
+      nir_variable *var = nir_deref_instr_get_variable(deref);
+      uint32_t set = var->data.descriptor_set;
+      uint32_t binding = var->data.binding;
+
+      assert(tex->texture_index == 0);
+      unsigned array_index = 0;
+      if (deref->deref_type != nir_deref_type_var) {
+         assert(deref->deref_type == nir_deref_type_array);
+         if (!nir_src_is_const(deref->arr.index))
+            return false;
+         array_index = nir_src_as_uint(deref->arr.index);
+      }
+
+      conversion = state->cb(state->cb_data, set, binding, array_index);
+   }
    if (conversion == NULL)
       return false;
 
@@ -313,7 +343,7 @@ lower_ycbcr_tex_instr(nir_builder *b, nir_tex_instr *tex, void *_state)
       struct ycbcr_state tex_state = {
          .builder = b,
          .origin_tex = tex,
-         .tex_deref = deref,
+         .tex_handle = tex_handle,
          .conversion = conversion,
          .format_ycbcr_info = format_ycbcr_info,
       };
