@@ -46,6 +46,7 @@ struct vk_features;
 struct vk_physical_device;
 struct vk_pipeline;
 struct vk_pipeline_robustness_state;
+struct vk_sampler_state;
 
 bool vk_validate_shader_binaries(void);
 
@@ -99,6 +100,9 @@ struct vk_shader_compile_info {
 
    uint32_t set_layout_count;
    struct vk_descriptor_set_layout * const *set_layouts;
+
+   uint32_t embedded_sampler_count;
+   const struct vk_sampler_state* embedded_samplers;
 
    uint32_t push_constant_range_count;
    const VkPushConstantRange *push_constant_ranges;
