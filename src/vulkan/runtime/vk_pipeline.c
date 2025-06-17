@@ -792,6 +792,22 @@ vk_pipeline_precomp_shader_deserialize(struct vk_device *device,
                                        const void *key_data, size_t key_size,
                                        struct blob_reader *blob)
 {
+   const mesa_shader_stage stage = blob_read_uint32(blob);
+
+   struct vk_pipeline_robustness_state rs;
+   blob_copy_bytes(blob, &rs, sizeof(rs));
+
+   struct vk_pipeline_tess_info tess;
+   blob_copy_bytes(blob, &tess, sizeof(tess));
+
+   uint64_t nir_size = blob_read_uint64(blob);
+   if (blob->overrun || nir_size > SIZE_MAX)
+      return NULL;
+
+   const void *nir_data = blob_read_bytes(blob, nir_size);
+   if (blob->overrun)
+      return NULL;
+
    struct vk_pipeline_precomp_shader *shader =
       vk_zalloc(&device->alloc, sizeof(*shader), 8,
                 VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
@@ -806,28 +822,18 @@ vk_pipeline_precomp_shader_deserialize(struct vk_device *device,
                                  shader->cache_key,
                                  sizeof(shader->cache_key));
 
-   shader->stage = blob_read_uint32(blob);
-   blob_copy_bytes(blob, &shader->rs, sizeof(shader->rs));
-   blob_copy_bytes(blob, &shader->tess, sizeof(shader->tess));
-
-   uint64_t nir_size = blob_read_uint64(blob);
-   if (blob->overrun || nir_size > SIZE_MAX)
-      goto fail_shader;
-
-   const void *nir_data = blob_read_bytes(blob, nir_size);
-   if (blob->overrun)
-      goto fail_shader;
+   shader->stage = stage;
+   shader->rs = rs;
+   shader->tess = tess;
 
    blob_init(&shader->nir_blob);
    blob_write_bytes(&shader->nir_blob, nir_data, nir_size);
    if (shader->nir_blob.out_of_memory)
-      goto fail_nir_blob;
+      goto fail_cache_obj;
 
    return &shader->cache_obj;
 
-fail_nir_blob:
-   blob_finish(&shader->nir_blob);
-fail_shader:
+fail_cache_obj:
    vk_pipeline_cache_object_finish(&shader->cache_obj);
    vk_free(&device->alloc, shader);
 
