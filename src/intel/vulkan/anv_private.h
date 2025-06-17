@@ -2699,6 +2699,8 @@ struct anv_device {
 
     uint32_t                                    queue_count;
     struct anv_queue  *                         queues;
+    /* Bitfield of queues active that can use buffer/image views */
+    VkQueueFlagBits                             view_queues;
 
     struct anv_scratch_pool                     scratch_pool;
     struct anv_scratch_pool                     protected_scratch_pool;
