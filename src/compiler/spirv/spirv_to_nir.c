@@ -445,6 +445,7 @@ vtn_base_type_to_string(enum vtn_base_type t)
    CASE(function);
    CASE(event);
    CASE(cooperative_matrix);
+   CASE(buffer);
    }
 #undef CASE
    UNREACHABLE("unknown base type");
@@ -1249,6 +1250,9 @@ vtn_types_compatible(struct vtn_builder *b,
    case vtn_base_type_cooperative_matrix:
       return t1->type == t2->type;
 
+   case vtn_base_type_buffer:
+      return t1->storage_class == t2->storage_class;
+
    case vtn_base_type_array:
       return t1->length == t2->length &&
              vtn_types_compatible(b, t1->array_element, t2->array_element);
@@ -1310,6 +1314,7 @@ vtn_type_copy(struct vtn_builder *b, struct vtn_type *src)
    case vtn_base_type_accel_struct:
    case vtn_base_type_ray_query:
    case vtn_base_type_cooperative_matrix:
+   case vtn_base_type_buffer:
       /* Nothing more to do */
       break;
 
@@ -2417,6 +2422,21 @@ vtn_handle_type(struct vtn_builder *b, SpvOp opcode,
        */
       val->type->type = b->shader->info.cs.ptr_size == 64 ? glsl_int64_t_type() : glsl_int_type();
       break;
+
+   case SpvOpTypeBufferEXT: {
+      SpvStorageClass storage_class = w[2];
+      vtn_fail_if(storage_class != SpvStorageClassUniform &&
+                  storage_class != SpvStorageClassStorageBuffer,
+                  "Storage Class must be Uniform or StorageBuffer.");
+
+      const nir_address_format addr_format = vtn_mode_to_address_format(b,
+         vtn_storage_class_to_mode(b, storage_class, NULL, NULL));
+
+      val->type->base_type = vtn_base_type_buffer;
+      val->type->storage_class = storage_class;
+      val->type->type = nir_address_format_to_glsl_type(addr_format);
+      break;
+   }
 
    case SpvOpTypeDeviceEvent:
    case SpvOpTypeReserveId:
@@ -6059,6 +6079,7 @@ vtn_handle_variable_or_type_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpTypeRayQueryKHR:
    case SpvOpTypeCooperativeMatrixKHR:
    case SpvOpTypeUntypedPointerKHR:
+   case SpvOpTypeBufferEXT:
       vtn_handle_type(b, opcode, w, count);
       break;
 

@@ -279,6 +279,7 @@ enum vtn_base_type {
    vtn_base_type_function,
    vtn_base_type_event,
    vtn_base_type_cooperative_matrix,
+   vtn_base_type_buffer,
 };
 
 struct vtn_type {
@@ -346,7 +347,7 @@ struct vtn_type {
          bool packed:1;
       };
 
-      /* Members for pointer types */
+      /* Members for pointer and buffer types */
       struct {
          /* For regular pointers, the vtn_type of the object pointed to;
           * for untyped pointers it must be NULL.
