@@ -328,6 +328,7 @@ sample_plane(nir_builder *b, nir_tex_instr *tex, int plane,
    plane_tex->dest_type = nir_type_float | tex->def.bit_size;
    plane_tex->coord_components = 2;
 
+   plane_tex->embedded_sampler = tex->embedded_sampler;
    plane_tex->texture_index = tex->texture_index;
    plane_tex->sampler_index = tex->sampler_index;
    plane_tex->can_speculate = tex->can_speculate;
@@ -891,6 +892,7 @@ lower_tex_to_txd(nir_builder *b, nir_tex_instr *tex)
    txd->sampler_dim = tex->sampler_dim;
    txd->dest_type = tex->dest_type;
    txd->coord_components = tex->coord_components;
+   txd->embedded_sampler = tex->embedded_sampler;
    txd->texture_index = tex->texture_index;
    txd->sampler_index = tex->sampler_index;
    txd->is_array = tex->is_array;
@@ -934,6 +936,7 @@ lower_txb_to_txl(nir_builder *b, nir_tex_instr *tex)
    txl->sampler_dim = tex->sampler_dim;
    txl->dest_type = tex->dest_type;
    txl->coord_components = tex->coord_components;
+   txl->embedded_sampler = tex->embedded_sampler;
    txl->texture_index = tex->texture_index;
    txl->sampler_index = tex->sampler_index;
    txl->is_array = tex->is_array;
@@ -1191,6 +1194,7 @@ lower_tg4_offsets(nir_builder *b, nir_tex_instr *tex)
       tex_copy->is_gather_implicit_lod = tex->is_gather_implicit_lod;
       tex_copy->component = tex->component;
       tex_copy->dest_type = tex->dest_type;
+      tex_copy->embedded_sampler = tex->embedded_sampler;
       tex_copy->texture_index = tex->texture_index;
       tex_copy->sampler_index = tex->sampler_index;
       tex_copy->backend_flags = tex->backend_flags;

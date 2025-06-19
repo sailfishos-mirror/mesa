@@ -3593,6 +3593,8 @@ nir_tex_instr_src_type(const nir_tex_instr *instr, unsigned src)
    case nir_tex_src_texture_2_handle:
    case nir_tex_src_sampler_2_handle:
    case nir_tex_src_block_size:
+   case nir_tex_src_texture_heap_offset:
+   case nir_tex_src_sampler_heap_offset:
       return nir_type_uint;
 
    case nir_num_tex_src_types:

@@ -278,6 +278,7 @@ pack_tex(const nir_tex_instr *instr)
    PACK(instr->skip_helpers, 1);
    PACK(instr->texture_non_uniform, 1);
    PACK(instr->sampler_non_uniform, 1);
+   PACK(instr->embedded_sampler, 1);
    PACK(instr->offset_non_uniform, 1);
 
 #undef PACK

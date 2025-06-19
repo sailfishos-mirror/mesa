@@ -276,6 +276,9 @@ typedef struct shader_info {
    /* Whether ARB_bindless_texture ops or variables are used */
    bool uses_bindless : 1;
 
+   /* Number of embedded samplers used by this shader */
+   bool uses_embedded_samplers : 1;
+
    /**
     * Shared memory types have explicit layout set.  Used for
     * SPV_KHR_workgroup_storage_explicit_layout.

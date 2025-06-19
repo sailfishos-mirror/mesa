@@ -218,6 +218,7 @@ opt_non_uniform_tex_access(nir_tex_instr *tex)
       case nir_tex_src_texture_offset:
       case nir_tex_src_texture_handle:
       case nir_tex_src_texture_deref:
+      case nir_tex_src_texture_heap_offset:
          if (tex->texture_non_uniform && !nir_src_is_divergent(&tex->src[i].src)) {
             tex->texture_non_uniform = false;
             progress = true;
@@ -227,6 +228,7 @@ opt_non_uniform_tex_access(nir_tex_instr *tex)
       case nir_tex_src_sampler_offset:
       case nir_tex_src_sampler_handle:
       case nir_tex_src_sampler_deref:
+      case nir_tex_src_sampler_heap_offset:
          if (tex->sampler_non_uniform && !nir_src_is_divergent(&tex->src[i].src)) {
             tex->sampler_non_uniform = false;
             progress = true;
