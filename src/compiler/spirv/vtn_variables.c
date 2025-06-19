@@ -1447,6 +1447,7 @@ apply_var_decoration(struct vtn_builder *b,
    case SpvDecorationArrayStride:
    case SpvDecorationGLSLShared:
    case SpvDecorationGLSLPacked:
+   case SpvDecorationArrayStrideIdEXT:
       break; /* These can apply to a type but we don't care about them */
 
    case SpvDecorationBinding:

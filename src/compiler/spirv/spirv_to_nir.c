@@ -1108,6 +1108,7 @@ vtn_handle_decoration(struct vtn_builder *b, SpvOp opcode,
    case SpvOpDecorate:
    case SpvOpDecorateId:
    case SpvOpMemberDecorate:
+   case SpvOpMemberDecorateIdEXT:
    case SpvOpDecorateString:
    case SpvOpMemberDecorateString:
    case SpvOpExecutionMode:
@@ -1122,6 +1123,7 @@ vtn_handle_decoration(struct vtn_builder *b, SpvOp opcode,
          dec->scope = VTN_DEC_DECORATION;
          break;
       case SpvOpMemberDecorate:
+      case SpvOpMemberDecorateIdEXT:
       case SpvOpMemberDecorateString:
          dec->scope = VTN_DEC_STRUCT_MEMBER0 + *(w++);
          vtn_fail_if(dec->scope < VTN_DEC_STRUCT_MEMBER0, /* overflow */
@@ -1510,6 +1512,8 @@ array_stride_decoration_cb(struct vtn_builder *b,
          vtn_fail_if(dec->operands[0] == 0, "ArrayStride must be non-zero");
          type->stride = dec->operands[0];
       }
+   } else if (dec->decoration == SpvDecorationArrayStrideIdEXT) {
+      type->stride = vtn_constant_uint(b, dec->operands[0]);
    }
 }
 
@@ -1575,6 +1579,12 @@ struct_member_decoration_cb(struct vtn_builder *b,
       ctx->type->offsets[member] = dec->operands[0];
       ctx->fields[member].offset = dec->operands[0];
       break;
+   case SpvDecorationOffsetIdEXT: {
+      uint32_t offset = vtn_constant_uint(b, dec->operands[0]);
+      ctx->type->offsets[member] = offset;
+      ctx->fields[member].offset = offset;
+      break;
+   }
    case SpvDecorationMatrixStride:
       /* Handled as a second pass */
       break;
@@ -1755,6 +1765,7 @@ type_decoration_cb(struct vtn_builder *b,
 
    switch (dec->decoration) {
    case SpvDecorationArrayStride:
+   case SpvDecorationArrayStrideIdEXT:
       vtn_assert(type->base_type == vtn_base_type_array ||
                  type->base_type == vtn_base_type_pointer);
       break;
@@ -1793,6 +1804,7 @@ type_decoration_cb(struct vtn_builder *b,
    case SpvDecorationXfbBuffer:
    case SpvDecorationXfbStride:
    case SpvDecorationUserSemantic:
+   case SpvDecorationOffsetIdEXT:
       vtn_warn("Decoration only allowed for struct members: %s",
                spirv_decoration_to_string(dec->decoration));
       break;
@@ -5497,6 +5509,7 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpDecorate:
    case SpvOpDecorateId:
    case SpvOpMemberDecorate:
+   case SpvOpMemberDecorateIdEXT:
    case SpvOpGroupDecorate:
    case SpvOpGroupMemberDecorate:
    case SpvOpDecorateString:
@@ -6065,6 +6078,7 @@ spv_op_is_preamble(SpvOp opcode)
    case SpvOpDecorate:
    case SpvOpDecorateId:
    case SpvOpMemberDecorate:
+   case SpvOpMemberDecorateIdEXT:
    case SpvOpGroupDecorate:
    case SpvOpGroupMemberDecorate:
    case SpvOpDecorateString:
