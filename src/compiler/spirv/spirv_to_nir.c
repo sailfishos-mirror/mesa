@@ -3014,6 +3014,39 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
       val->is_null_constant = true;
       break;
 
+   case SpvOpConstantSizeOfEXT: {
+      vtn_fail_if(val->type->type != glsl_uint_type() &&
+                  val->type->type != glsl_int_type() &&
+                  val->type->type != glsl_uint64_t_type() &&
+                  val->type->type != glsl_int64_t_type(),
+                  "Result Type must be a 32-bit or 64-bit integer type scalar.");
+
+      struct vtn_type *type = vtn_get_type(b, w[3]);
+      switch (type->base_type) {
+      case vtn_base_type_image:
+         val->constant->values[0].u32 =
+            align(b->options->image_descriptor_size,
+                  b->options->image_descriptor_alignment);
+         break;
+      case vtn_base_type_sampler:
+         val->constant->values[0].u32 =
+            align(b->options->sampler_descriptor_size,
+                  b->options->sampler_descriptor_alignment);
+         break;
+      case vtn_base_type_accel_struct:
+      case vtn_base_type_buffer:
+         val->constant->values[0].u32 =
+            align(b->options->buffer_descriptor_size,
+                  b->options->buffer_descriptor_alignment);
+         break;
+      default:
+         vtn_fail("Type must be an OpTypeBufferKHR, OpTypeImage, "
+                  "OpTypeAccelerationStructureKHR, OpTypeTensorARM, or "
+                  "OpTypeSampler instruction.");
+      }
+      break;
+   }
+
    default:
       vtn_fail_with_opcode("Unhandled opcode", opcode);
    }
@@ -6095,6 +6128,7 @@ vtn_handle_variable_or_type_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpSpecConstantComposite:
    case SpvOpSpecConstantCompositeReplicateEXT:
    case SpvOpSpecConstantOp:
+   case SpvOpConstantSizeOfEXT:
       vtn_handle_constant(b, opcode, w, count);
       break;
 

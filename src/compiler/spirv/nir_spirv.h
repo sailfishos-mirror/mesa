@@ -93,6 +93,16 @@ struct spirv_to_nir_options {
     */
    uint32_t min_ssbo_alignment;
 
+   /* These must be identical to the values set in
+    * VkPhysicalDeviceDescriptorHeapPropertiesEXT
+    */
+   uint32_t sampler_descriptor_size;
+   uint32_t sampler_descriptor_alignment;
+   uint32_t image_descriptor_size;
+   uint32_t image_descriptor_alignment;
+   uint32_t buffer_descriptor_size;
+   uint32_t buffer_descriptor_alignment;
+
    const nir_shader *clc_shader;
 
    struct {
