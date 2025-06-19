@@ -61,6 +61,7 @@ static const struct spirv_capabilities implemented_capabilities = {
    .DenormFlushToZero = true,
    .DenormPreserve = true,
    .DerivativeControl = true,
+   .DescriptorHeapEXT = true,
    .DeviceGroup = true,
    .DotProduct = true,
    .DotProductBFloat16AccVALVE = true,
