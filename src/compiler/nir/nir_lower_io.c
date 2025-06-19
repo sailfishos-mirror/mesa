@@ -1097,10 +1097,11 @@ nir_get_io_offset_src(nir_intrinsic_instr *instr)
    return idx >= 0 ? &instr->src[idx] : NULL;
 }
 
-#define IMG_CASE(name)                    \
-   case nir_intrinsic_image_##name:       \
-   case nir_intrinsic_image_deref_##name: \
-   case nir_intrinsic_bindless_image_##name
+#define IMG_CASE(name)                          \
+   case nir_intrinsic_image_##name:             \
+   case nir_intrinsic_image_deref_##name:       \
+   case nir_intrinsic_bindless_image_##name:    \
+   case nir_intrinsic_image_heap_##name
 
 /**
  * Return the index or handle source number for a load/store intrinsic or -1

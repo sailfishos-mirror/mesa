@@ -425,6 +425,13 @@ nir_lower_non_uniform_access_impl(nir_function_impl *impl,
             case nir_intrinsic_image_deref_atomic_swap:
             case nir_intrinsic_image_deref_samples_identical:
             case nir_intrinsic_image_deref_fragment_mask_load_amd:
+            case nir_intrinsic_image_heap_load:
+            case nir_intrinsic_image_heap_sparse_load:
+            case nir_intrinsic_image_heap_store:
+            case nir_intrinsic_image_heap_atomic:
+            case nir_intrinsic_image_heap_atomic_swap:
+            case nir_intrinsic_image_heap_samples_identical:
+            case nir_intrinsic_image_heap_fragment_mask_load_amd:
                if ((options->types & nir_lower_non_uniform_image_access) &&
                    lower_non_uniform_access_intrin(&state, intrin, 0, nir_lower_non_uniform_image_access))
                   progress = true;
@@ -439,6 +446,9 @@ nir_lower_non_uniform_access_impl(nir_function_impl *impl,
             case nir_intrinsic_image_deref_levels:
             case nir_intrinsic_image_deref_size:
             case nir_intrinsic_image_deref_samples:
+            case nir_intrinsic_image_heap_levels:
+            case nir_intrinsic_image_heap_size:
+            case nir_intrinsic_image_heap_samples:
                if ((options->types & nir_lower_non_uniform_image_query) &&
                    lower_non_uniform_access_intrin(&state, intrin, 0, nir_lower_non_uniform_image_query))
                   progress = true;

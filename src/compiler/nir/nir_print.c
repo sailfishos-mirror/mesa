@@ -1241,6 +1241,33 @@ vulkan_descriptor_type_name(VkDescriptorType type)
    }
 }
 
+static const char *
+nir_resource_type_name(nir_resource_type type)
+{
+   switch (type) {
+   case nir_resource_type_sampler:
+      return "sampler";
+   case nir_resource_type_sampled_image:
+      return "texture";
+   case nir_resource_type_read_only_image:
+      return "RO-image";
+   case nir_resource_type_read_write_image:
+      return "RW-image";
+   case nir_resource_type_combined_sampled_image:
+      return "texture+sampler";
+   case nir_resource_type_uniform_buffer:
+      return "UBO";
+   case nir_resource_type_read_only_storage_buffer:
+      return "RO-SSBO";
+   case nir_resource_type_read_write_storage_buffer:
+      return "RW-SSBO";
+   case nir_resource_type_acceleration_structure:
+      return "accel-struct";
+   default:
+      return "unknown";
+   }
+}
+
 static void
 print_alu_type(nir_alu_type type, print_state *state)
 {
@@ -1425,6 +1452,12 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
       case NIR_INTRINSIC_DESC_TYPE: {
          VkDescriptorType desc_type = nir_intrinsic_desc_type(instr);
          fprintf(fp, "desc_type=%s", vulkan_descriptor_type_name(desc_type));
+         break;
+      }
+
+      case NIR_INTRINSIC_RESOURCE_TYPE: {
+         nir_resource_type res_type = nir_intrinsic_resource_type(instr);
+         fprintf(fp, "resource_type=%s", nir_resource_type_name(res_type));
          break;
       }
 

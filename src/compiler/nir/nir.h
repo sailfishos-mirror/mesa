@@ -182,6 +182,21 @@ typedef struct nir_state_slot {
 } nir_state_slot;
 
 /**
+ * Resource types according to VkSpirvResourceTypeFlagsKHR.
+ */
+typedef enum {
+   nir_resource_type_sampler = 1u << 0,
+   nir_resource_type_sampled_image = 1u << 1,
+   nir_resource_type_read_only_image = 1u << 2,
+   nir_resource_type_read_write_image = 1u << 3,
+   nir_resource_type_combined_sampled_image = 1u << 4,
+   nir_resource_type_uniform_buffer = 1u << 5,
+   nir_resource_type_read_only_storage_buffer = 1u << 6,
+   nir_resource_type_read_write_storage_buffer = 1u << 7,
+   nir_resource_type_acceleration_structure = 1u << 8,
+} nir_resource_type;
+
+/**
  * Rounding modes.
  */
 typedef enum {

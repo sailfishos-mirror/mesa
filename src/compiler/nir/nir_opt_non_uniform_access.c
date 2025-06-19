@@ -67,6 +67,12 @@ is_image_access_intrinsic(nir_intrinsic_instr *intrin)
    case nir_intrinsic_image_deref_atomic:
    case nir_intrinsic_image_deref_atomic_swap:
    case nir_intrinsic_image_deref_fragment_mask_load_amd:
+   case nir_intrinsic_image_heap_load:
+   case nir_intrinsic_image_heap_sparse_load:
+   case nir_intrinsic_image_heap_store:
+   case nir_intrinsic_image_heap_atomic:
+   case nir_intrinsic_image_heap_atomic_swap:
+   case nir_intrinsic_image_heap_fragment_mask_load_amd:
       return true;
 
    default:
@@ -87,6 +93,9 @@ is_image_query_intrinsic(nir_intrinsic_instr *intrin)
    case nir_intrinsic_image_deref_size:
    case nir_intrinsic_image_deref_samples:
    case nir_intrinsic_image_deref_levels:
+   case nir_intrinsic_image_heap_size:
+   case nir_intrinsic_image_heap_samples:
+   case nir_intrinsic_image_heap_levels:
       return true;
 
    default:

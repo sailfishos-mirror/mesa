@@ -920,7 +920,10 @@ gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader)
           instr->intrinsic == nir_intrinsic_bindless_image_size ||
           instr->intrinsic == nir_intrinsic_bindless_image_samples ||
           instr->intrinsic == nir_intrinsic_get_ubo_size ||
-          instr->intrinsic == nir_intrinsic_get_ssbo_size)
+          instr->intrinsic == nir_intrinsic_get_ssbo_size ||
+          instr->intrinsic == nir_intrinsic_image_heap_levels ||
+          instr->intrinsic == nir_intrinsic_image_heap_size ||
+          instr->intrinsic == nir_intrinsic_image_heap_samples)
          shader->info.uses_resource_info_query = true;
       break;
    }
