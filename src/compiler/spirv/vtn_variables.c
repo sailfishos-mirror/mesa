@@ -1318,6 +1318,15 @@ vtn_get_builtin_location(struct vtn_builder *b,
       set_mode_system_value(b, mode);
       break;
 
+   case SpvBuiltInSamplerHeapEXT:
+      *location = SYSTEM_VALUE_SAMPLER_HEAP_PTR;
+      set_mode_system_value(b, mode);
+      break;
+   case SpvBuiltInResourceHeapEXT:
+      *location = SYSTEM_VALUE_RESOURCE_HEAP_PTR;
+      set_mode_system_value(b, mode);
+      break;
+
    default:
       vtn_fail("Unsupported builtin: %s (%u)",
                spirv_builtin_to_string(builtin), builtin);
