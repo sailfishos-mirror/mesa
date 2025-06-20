@@ -16,6 +16,7 @@
 #include "pan_job.h"
 #include "pan_precomp.h"
 #include "pan_trace.h"
+#include "kmod/panfrost_kmod.h"
 
 #if PAN_ARCH >= 10
 #error "JM helpers are only used for gen < 10"
@@ -143,8 +144,7 @@ jm_submit_jc(struct panfrost_batch *batch, uint64_t first_job_desc,
    if (ctx->is_noop)
       ret = 0;
    else
-      ret = pan_kmod_ioctl(panfrost_device_fd(dev), DRM_IOCTL_PANFROST_SUBMIT,
-                           &submit);
+      ret = panfrost_kmod_submit(dev->kmod.dev, &submit);
    free(bo_handles);
 
    if (ret)

@@ -20,6 +20,7 @@
 #include "drm-uapi/panfrost_drm.h"
 
 #include "pan_kmod_backend.h"
+#include "panfrost_kmod.h"
 
 #include "pan_props.h"
 
@@ -38,6 +39,8 @@ struct panfrost_kmod_vm {
 struct panfrost_kmod_ops {
    int (*get_param)(const struct pan_kmod_dev *dev,
                     struct drm_panfrost_get_param *get_param);
+   int (*submit_job)(const struct pan_kmod_dev *dev,
+                     struct drm_panfrost_submit *submit_info);
 };
 
 struct panfrost_kmod_dev {
@@ -102,6 +105,16 @@ panfrost_query_raw(const struct pan_kmod_dev *dev,
    }
 
    return get_param.value;
+}
+
+int
+panfrost_kmod_submit(struct pan_kmod_dev *pan_kdev,
+                     struct drm_panfrost_submit *submit)
+{
+   struct panfrost_kmod_dev *panfrost_dev =
+      container_of(pan_kdev, struct panfrost_kmod_dev, base);
+
+   return panfrost_dev->ops.submit_job(pan_kdev, submit);
 }
 
 static inline void
@@ -265,6 +278,13 @@ panfrost_kmod_get_param(const struct pan_kmod_dev *dev,
    return pan_kmod_ioctl(dev->fd, DRM_IOCTL_PANFROST_GET_PARAM, get_param);
 }
 
+static int
+panfrost_kmod_submit_job(const struct pan_kmod_dev *dev,
+                         struct drm_panfrost_submit *submit_info)
+{
+   return pan_kmod_ioctl(dev->fd, DRM_IOCTL_PANFROST_SUBMIT, submit_info);
+}
+
 static struct pan_kmod_dev *
 panfrost_kmod_dev_create(int fd, uint32_t flags,
                          const struct pan_kmod_driver *drv_info,
@@ -284,7 +304,8 @@ panfrost_kmod_dev_create(int fd, uint32_t flags,
    }
 
    panfrost_dev->ops = (struct panfrost_kmod_ops){
-      .get_param = panfrost_kmod_get_param
+      .get_param = panfrost_kmod_get_param,
+      .submit_job = panfrost_kmod_submit_job
    };
 
    pan_kmod_dev_init(&panfrost_dev->base, fd, flags, drv_info,
