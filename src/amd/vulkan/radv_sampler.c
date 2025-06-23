@@ -200,7 +200,7 @@ radv_unregister_border_color(struct radv_device *device, uint32_t index)
 
 static void
 radv_make_sampler_descriptor(const struct radv_device *device, const struct vk_sampler_state *sampler_state,
-                             uint32_t border_color_index, uint32_t *desc)
+                             uint32_t *desc)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
@@ -219,7 +219,8 @@ radv_make_sampler_descriptor(const struct radv_device *device, const struct vk_s
       depth_compare_func = radv_tex_compare(sampler_state->compare_op);
 
    /* If we don't have a custom color, set the ptr to 0 */
-   const uint32_t border_color_ptr = border_color_index != RADV_BORDER_COLOR_COUNT ? border_color_index : 0;
+   const uint32_t border_color_ptr =
+      sampler_state->border_color_index != MESA_VK_MAX_CUSTOM_BORDER_COLOR ? sampler_state->border_color_index : 0;
 
    struct ac_sampler_state ac_state = {
       .address_mode_u = radv_tex_wrap(sampler_state->address_mode_u),
@@ -251,6 +252,7 @@ radv_sampler_init(struct radv_device *device, struct radv_sampler *sampler, cons
    vk_sampler_init(&device->vk, &sampler->vk, pCreateInfo);
 
    sampler->border_color_index = RADV_BORDER_COLOR_COUNT;
+   sampler->border_color_index_from_user = false;
 
    struct vk_sampler_state sampler_state;
    vk_sampler_state_init(&sampler_state, pCreateInfo);
@@ -259,25 +261,31 @@ radv_sampler_init(struct radv_device *device, struct radv_sampler *sampler, cons
    const VkBorderColor border_color = radv_get_border_color(&sampler_state);
 
    if (vk_border_color_is_custom(border_color)) {
-      uint32_t border_color_index = RADV_BORDER_COLOR_COUNT;
-      bool request_index = false;
-      VkResult result;
+      if (sampler_state.border_color_index != MESA_VK_MAX_CUSTOM_BORDER_COLOR) {
+         sampler->border_color_index_from_user = true;
+      } else {
+         uint32_t border_color_index = RADV_BORDER_COLOR_COUNT;
+         bool request_index = false;
+         VkResult result;
 
-      const VkOpaqueCaptureDescriptorDataCreateInfoEXT *opaque_info =
-         vk_find_struct_const(pCreateInfo->pNext, OPAQUE_CAPTURE_DESCRIPTOR_DATA_CREATE_INFO_EXT);
-      if (opaque_info) {
-         request_index = true;
-         border_color_index = *((const uint32_t *)opaque_info->opaqueCaptureDescriptorData);
+         const VkOpaqueCaptureDescriptorDataCreateInfoEXT *opaque_info =
+            vk_find_struct_const(pCreateInfo->pNext, OPAQUE_CAPTURE_DESCRIPTOR_DATA_CREATE_INFO_EXT);
+         if (opaque_info) {
+            request_index = true;
+            border_color_index = *((const uint32_t *)opaque_info->opaqueCaptureDescriptorData);
+         }
+
+         result =
+            radv_register_border_color(device, sampler->vk.border_color_value, request_index, &border_color_index);
+         if (result != VK_SUCCESS)
+            return result;
+
+         sampler->border_color_index = border_color_index;
+         sampler_state.border_color_index = border_color_index;
       }
-
-      result = radv_register_border_color(device, sampler->vk.border_color_value, request_index, &border_color_index);
-      if (result != VK_SUCCESS)
-         return result;
-
-      sampler->border_color_index = border_color_index;
    }
 
-   radv_make_sampler_descriptor(device, &sampler_state, sampler->border_color_index, sampler->state);
+   radv_make_sampler_descriptor(device, &sampler_state, sampler->state);
 
    return VK_SUCCESS;
 }
@@ -292,7 +300,7 @@ radv_destroy_sampler(struct radv_device *device, const VkAllocationCallbacks *pA
 void
 radv_sampler_finish(struct radv_device *device, struct radv_sampler *sampler)
 {
-   if (sampler->border_color_index != RADV_BORDER_COLOR_COUNT)
+   if (sampler->border_color_index != RADV_BORDER_COLOR_COUNT && !sampler->border_color_index_from_user)
       radv_unregister_border_color(device, sampler->border_color_index);
 
    vk_sampler_finish(&sampler->vk);
@@ -341,4 +349,21 @@ radv_GetSamplerOpaqueCaptureDescriptorDataEXT(VkDevice _device, const VkSamplerC
 
    *(uint32_t *)pData = sampler->border_color_index;
    return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+radv_RegisterCustomBorderColorEXT(VkDevice _device, const VkSamplerCustomBorderColorCreateInfoEXT *pBorderColor,
+                                  VkBool32 requestIndex, uint32_t *pIndex)
+{
+   VK_FROM_HANDLE(radv_device, device, _device);
+
+   return radv_register_border_color(device, pBorderColor->customBorderColor, requestIndex, pIndex);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_UnregisterCustomBorderColorEXT(VkDevice _device, uint32_t index)
+{
+   VK_FROM_HANDLE(radv_device, device, _device);
+
+   radv_unregister_border_color(device, index);
 }
