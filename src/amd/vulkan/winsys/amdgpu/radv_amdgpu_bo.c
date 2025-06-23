@@ -1293,6 +1293,21 @@ radv_amdgpu_dump_bo_ranges(struct radeon_winsys *_ws, FILE *file)
    } else
       fprintf(file, "  To get BO VA ranges, please specify RADV_DEBUG=allbos\n");
 }
+
+static bool
+radv_amdgpu_bo_wait_for_idle(struct radeon_winsys *_ws, struct radeon_winsys_bo *_bo)
+{
+   struct radv_amdgpu_winsys *ws = radv_amdgpu_winsys(_ws);
+   struct radv_amdgpu_winsys_bo *bo = radv_amdgpu_winsys_bo(_bo);
+   bool buffer_busy = true;
+
+   int r = ac_drm_bo_wait_for_idle(ws->dev, bo->bo, OS_TIMEOUT_INFINITE, &buffer_busy);
+   if (r)
+      fprintf(stderr, "radv/amdgpu: amdgpu_bo_wait_for_idle failed: %d\n", r);
+
+   return !buffer_busy;
+}
+
 void
 radv_amdgpu_bo_init_functions(struct radv_amdgpu_winsys *ws)
 {
@@ -1310,4 +1325,5 @@ radv_amdgpu_bo_init_functions(struct radv_amdgpu_winsys *ws)
    ws->base.buffer_make_resident = radv_amdgpu_winsys_bo_make_resident;
    ws->base.dump_bo_ranges = radv_amdgpu_dump_bo_ranges;
    ws->base.dump_bo_log = radv_amdgpu_dump_bo_log;
+   ws->base.bo_wait_for_idle = radv_amdgpu_bo_wait_for_idle;
 }
