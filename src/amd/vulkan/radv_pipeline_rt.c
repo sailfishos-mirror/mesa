@@ -1044,11 +1044,12 @@ postprocess_rt_config(struct ac_shader_config *config, const struct radeon_info 
 static void
 compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *pipeline)
 {
+   const bool uses_descriptor_heap = pipeline->base.base.create_flags & VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT;
    const struct radv_physical_device *pdev = radv_device_physical(device);
    uint32_t push_constant_size = 0;
 
    struct radv_shader_stage prolog_stage = {0};
-   radv_build_rt_prolog(device, &prolog_stage);
+   radv_build_rt_prolog(device, &prolog_stage, uses_descriptor_heap);
    prolog_stage.nir->options = &pdev->nir_options[MESA_SHADER_COMPUTE];
    radv_optimize_nir(prolog_stage.nir, false);
    radv_postprocess_nir(device, NULL, &prolog_stage);
