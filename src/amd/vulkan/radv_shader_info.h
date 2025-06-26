@@ -117,6 +117,7 @@ struct radv_shader_info {
    bool merged_shader_compiled_separately : 1; /* GFX9+ */
    bool force_indirect_descriptors : 1;
    bool ngg_wave_id_en : 1;
+   bool descriptor_heap : 1;
 
    struct {
       uint64_t tcs_inputs_via_temp;

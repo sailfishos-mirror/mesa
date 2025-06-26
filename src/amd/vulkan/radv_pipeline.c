@@ -145,6 +145,9 @@ radv_pipeline_get_shader_key(const struct radv_device *device, const VkPipelineS
    if (flags & VK_PIPELINE_CREATE_2_INDIRECT_BINDABLE_BIT_EXT)
       key.indirect_bindable = 1;
 
+   if (flags & VK_PIPELINE_CREATE_2_DESCRIPTOR_HEAP_BIT_EXT)
+      key.descriptor_heap = 1;
+
    if (stage->stage & RADV_GRAPHICS_STAGE_BITS) {
       key.version = instance->drirc.misc.override_graphics_shader_version;
    } else if (stage->stage & RADV_RT_STAGE_BITS) {

@@ -1084,6 +1084,7 @@ radv_nir_shader_info_pass(struct radv_device *device, const struct nir_shader *n
    info->user_data_0 = radv_get_user_data_0(pdev->info.gfx_level, info);
    info->merged_shader_compiled_separately = radv_is_merged_shader_compiled_separately(pdev->info.gfx_level, info);
    info->force_indirect_descriptors = info->merged_shader_compiled_separately || stage_key->indirect_bindable;
+   info->descriptor_heap = stage_key->descriptor_heap;
 
    switch (nir->info.stage) {
    case MESA_SHADER_COMPUTE:

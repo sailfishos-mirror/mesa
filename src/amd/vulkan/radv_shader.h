@@ -82,6 +82,7 @@ struct radv_shader_stage_key {
    uint8_t keep_statistic_info : 1;
    uint8_t keep_executable_info : 1;
    uint8_t view_index_from_device_index : 1;
+   uint8_t descriptor_heap : 1;
 
    /* Shader version (up to 8) to force re-compilation when RADV_BUILD_ID_OVERRIDE is enabled. */
    uint8_t version : 3;
