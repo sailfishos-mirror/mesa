@@ -78,21 +78,41 @@ add_descriptor_set(struct radv_shader_args *args, uint32_t set)
 }
 
 static void
+add_descriptor_heap(struct radv_shader_args *args, uint32_t heap)
+{
+   struct ac_arg *arg = &args->descriptors[heap];
+
+   ac_add_arg(&args->ac, AC_ARG_SGPR, 1, AC_ARG_CONST_ADDR, arg);
+
+   struct radv_userdata_info *ud_info = &args->user_sgprs_locs.descriptor_heaps[heap];
+   ud_info->sgpr_idx = args->num_user_sgprs;
+   ud_info->num_sgprs = 1;
+
+   args->user_sgprs_locs.descriptor_heaps_enabled |= 1u << heap;
+   args->num_user_sgprs++;
+}
+
+static void
 declare_global_input_sgprs(const enum amd_gfx_level gfx_level, const struct radv_shader_info *info,
                            const struct user_sgpr_info *user_sgpr_info, struct radv_shader_args *args)
 {
    if (user_sgpr_info) {
-      /* 1 for each descriptor set */
-      if (!user_sgpr_info->indirect_all_descriptor_sets) {
-         uint32_t mask = info->desc_set_used_mask;
-
-         while (mask) {
-            int i = u_bit_scan(&mask);
-
-            add_descriptor_set(args, i);
-         }
+      if (info->descriptor_heap) {
+         add_descriptor_heap(args, RADV_HEAP_RESOURCE);
+         add_descriptor_heap(args, RADV_HEAP_SAMPLER);
       } else {
-         add_ud_arg(args, 1, AC_ARG_CONST_ADDR, &args->descriptors[0], AC_UD_INDIRECT_DESCRIPTORS);
+         /* 1 for each descriptor set */
+         if (!user_sgpr_info->indirect_all_descriptor_sets) {
+            uint32_t mask = info->desc_set_used_mask;
+
+            while (mask) {
+               int i = u_bit_scan(&mask);
+
+               add_descriptor_set(args, i);
+            }
+         } else {
+            add_ud_arg(args, 1, AC_ARG_CONST_ADDR, &args->descriptors[0], AC_UD_INDIRECT_DESCRIPTORS);
+         }
       }
 
       if (info->merged_shader_compiled_separately ||
@@ -320,6 +340,8 @@ radv_init_shader_args(const struct radv_device *device, mesa_shader_stage stage,
 
    for (int i = 0; i < MAX_SETS; i++)
       args->user_sgprs_locs.descriptor_sets[i].sgpr_idx = -1;
+   for (int i = 0; i < RADV_MAX_HEAPS; i++)
+      args->user_sgprs_locs.descriptor_heaps[i].sgpr_idx = -1;
    for (int i = 0; i < AC_UD_MAX_UD; i++)
       args->user_sgprs_locs.shader_data[i].sgpr_idx = -1;
 }
@@ -871,13 +893,18 @@ radv_declare_shader_args(const struct radv_device *device, const struct radv_gra
       .remaining_sgprs = remaining_sgprs,
    };
 
-   uint32_t num_desc_set = util_bitcount(info->desc_set_used_mask);
-
-   if (info->force_indirect_descriptors || remaining_sgprs < num_desc_set) {
-      user_sgpr_info.indirect_all_descriptor_sets = true;
-      user_sgpr_info.remaining_sgprs--;
+   if (info->descriptor_heap) {
+      assert(user_sgpr_info.remaining_sgprs >= RADV_MAX_HEAPS);
+      user_sgpr_info.remaining_sgprs -= RADV_MAX_HEAPS;
    } else {
-      user_sgpr_info.remaining_sgprs -= num_desc_set;
+      const uint32_t num_desc_set = util_bitcount(info->desc_set_used_mask);
+
+      if (info->force_indirect_descriptors || remaining_sgprs < num_desc_set) {
+         user_sgpr_info.indirect_all_descriptor_sets = true;
+         user_sgpr_info.remaining_sgprs--;
+      } else {
+         user_sgpr_info.remaining_sgprs -= num_desc_set;
+      }
    }
 
    if (!info->merged_shader_compiled_separately)
