@@ -219,6 +219,10 @@ radv_pipeline_stage_init(VkPipelineCreateFlags2 pipeline_flags, const VkPipeline
       out_stage->spirv.size = minfo->codeSize;
    }
 
+   const VkShaderDescriptorSetAndBindingMappingInfoEXT *mapping =
+      vk_find_struct_const(sinfo->pNext, SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT);
+   out_stage->layout.mapping = mapping;
+
    radv_shader_layout_init(pipeline_layout, out_stage->stage, &out_stage->layout);
 
    vk_pipeline_hash_shader_stage(pipeline_flags, sinfo, NULL, out_stage->shader_blake3);

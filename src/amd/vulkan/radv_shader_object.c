@@ -96,6 +96,10 @@ radv_shader_stage_init(const VkShaderCreateInfoEXT *sinfo, struct radv_shader_st
 
    radv_get_shader_layout(sinfo, &out_stage->layout);
 
+   const VkShaderDescriptorSetAndBindingMappingInfoEXT *mapping =
+      vk_find_struct_const(sinfo->pNext, SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT);
+   out_stage->layout.mapping = mapping;
+
    const VkShaderRequiredSubgroupSizeCreateInfoEXT *const subgroup_size =
       vk_find_struct_const(sinfo->pNext, SHADER_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT);
 

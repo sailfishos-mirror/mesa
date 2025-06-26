@@ -263,6 +263,8 @@ struct radv_shader_layout {
    bool use_dynamic_descriptors;
 
    bool independent_sets;
+
+   const VkShaderDescriptorSetAndBindingMappingInfoEXT *mapping;
 };
 
 struct radv_shader_stage {
