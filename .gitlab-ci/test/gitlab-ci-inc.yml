@@ -149,7 +149,7 @@
 
 .deqp-test:
   script:
-    - rm -rf results  # Clear out old results if the docker container was cached
+    - if [ "$GIT_STRATEGY" = none ]; then rm -rf results; fi  # Clear out old results if the docker container was cached
     - ./install/deqp-runner.sh
   artifacts:
     exclude:
@@ -175,6 +175,6 @@
     # setup).
     - section_start artifacts_download "Downloading artifacts from s3"
     # Note: Build dir (and thus install) may be dirty due to GIT_STRATEGY
-    - rm -rf install
+    - if [ "$GIT_STRATEGY" = none ]; then rm -rf install; fi
     - (set -x; curl -L --retry 4 -f --retry-all-errors --retry-delay 60 ${FDO_HTTP_CACHE_URI:-}https://${PIPELINE_ARTIFACTS_BASE}/${S3_ARTIFACT_NAME}.tar.zst | tar --zstd -x)
     - section_end artifacts_download
