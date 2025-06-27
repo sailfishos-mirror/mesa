@@ -1517,6 +1517,15 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
             replay_address = *((const uint64_t *)opaque_info->opaqueCaptureDescriptorData);
       }
 
+      if (image->vk.create_flags & VK_IMAGE_CREATE_DESCRIPTOR_HEAP_CAPTURE_REPLAY_BIT_EXT) {
+         flags |= RADEON_FLAG_REPLAYABLE;
+
+         const VkOpaqueCaptureDataCreateInfoEXT *opaque_info =
+            vk_find_struct_const(create_info->vk_info->pNext, OPAQUE_CAPTURE_DATA_CREATE_INFO_EXT);
+         if (opaque_info && opaque_info->pData)
+            replay_address = *((const uint64_t *)opaque_info->pData->address);
+      }
+
       image->alignment = MAX2(image->alignment, 4096);
       image->size = align64(image->size, image->alignment);
 
@@ -1995,5 +2004,18 @@ radv_GetImageOpaqueCaptureDescriptorDataEXT(VkDevice device, const VkImageCaptur
    VK_FROM_HANDLE(radv_image, image, pInfo->image);
 
    *(uint64_t *)pData = image->bindings[0].addr;
+   return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+radv_GetImageOpaqueCaptureDataEXT(VkDevice device, uint32_t imageCount, const VkImage *pImages,
+                                  VkHostAddressRangeEXT *pDatas)
+{
+   for (uint32_t i = 0; i < imageCount; i++) {
+      VK_FROM_HANDLE(radv_image, image, pImages[i]);
+
+      *(uint64_t *)pDatas[i].address = image->bindings[0].addr;
+   }
+
    return VK_SUCCESS;
 }
