@@ -40,6 +40,8 @@
 #include "vk_debug_report.h"
 #include "vk_format.h"
 #include "vk_nir.h"
+#include "vk_nir_lower_descriptor_heaps.h"
+#include "vk_sampler.h"
 #include "vk_nir_convert_ycbcr.h"
 #include "vk_semaphore.h"
 #include "vk_sync.h"
@@ -448,11 +450,12 @@ ycbcr_conversion_lookup(const void *data, uint32_t set, uint32_t binding, uint32
 }
 
 nir_shader *
-radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_stage *stage,
+radv_shader_spirv_to_nir(struct radv_device *device, struct radv_shader_stage *stage,
                          const struct radv_spirv_to_nir_options *options, bool is_internal)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_instance *instance = radv_physical_device_instance(pdev);
+   struct vk_sampler_state_array embedded_samplers;
    nir_shader *nir;
    bool progress;
 
@@ -774,6 +777,29 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
                          (nir->options->lower_flrp64 ? 64 : 0);
    if (lower_flrp != 0)
       NIR_PASS(progress, nir, nir_lower_flrp, lower_flrp, false /* always precise */);
+
+   if (stage->key.descriptor_heap) {
+      progress = false;
+      NIR_PASS(progress, nir, vk_nir_lower_descriptor_heaps, stage->layout.mapping, &embedded_samplers);
+      if (progress) {
+         NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_uniform | nir_var_image, NULL);
+         NIR_PASS(_, nir, nir_opt_dce);
+
+         if (embedded_samplers.sampler_count > 0) {
+            /* Copy embedded samplers to the shader layout for easier uses. */
+            stage->layout.embedded_samplers.samplers =
+               malloc(embedded_samplers.sampler_count * sizeof(struct vk_sampler_state));
+            if (!stage->layout.embedded_samplers.samplers)
+               return NULL;
+
+            memcpy(stage->layout.embedded_samplers.samplers, embedded_samplers.samplers,
+                   embedded_samplers.sampler_count * sizeof(*embedded_samplers.samplers));
+            stage->layout.embedded_samplers.sampler_count = embedded_samplers.sampler_count;
+
+            vk_sampler_state_array_finish(&embedded_samplers);
+         }
+      }
+   }
 
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_push_const, nir_address_format_32bit_offset);
 

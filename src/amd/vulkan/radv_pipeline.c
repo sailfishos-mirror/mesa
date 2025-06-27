@@ -229,6 +229,13 @@ radv_pipeline_stage_init(VkPipelineCreateFlags2 pipeline_flags, const VkPipeline
 }
 
 void
+radv_pipeline_stage_finish(struct radv_shader_stage *stage)
+{
+   ralloc_free(stage->nir);
+   vk_sampler_state_array_finish(&stage->layout.embedded_samplers);
+}
+
+void
 radv_shader_layout_init(const struct radv_pipeline_layout *pipeline_layout, mesa_shader_stage stage,
                         struct radv_shader_layout *layout)
 {

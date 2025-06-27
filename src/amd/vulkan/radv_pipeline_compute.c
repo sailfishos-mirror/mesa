@@ -226,7 +226,7 @@ radv_compute_pipeline_compile(const VkComputePipelineCreateInfo *pCreateInfo, st
    if (radv_can_dump_shader_stats(device, cs_stage.nir)) {
       radv_dump_shader_stats(device, &pipeline->base, pipeline->base.shaders[MESA_SHADER_COMPUTE], stderr);
    }
-   ralloc_free(cs_stage.nir);
+   radv_pipeline_stage_finish(&cs_stage);
 
 done:
    pipeline_feedback.duration = os_time_get_nano() - pipeline_start;

@@ -951,7 +951,7 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
 
 cleanup:
    for (uint32_t i = 0; i < pCreateInfo->stageCount; i++)
-      ralloc_free(stages[i].nir);
+      radv_pipeline_stage_finish(&stages[i]);
    free(stages);
    return result;
 }
