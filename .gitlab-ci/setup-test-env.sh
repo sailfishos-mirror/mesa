@@ -131,8 +131,8 @@ export -f _error_msg
 if [ -z "${RESULTS_DIR:-}" ]; then
 	export RESULTS_DIR="${PWD%/}/results"
 	rm -rf "${RESULTS_DIR}"
-	mkdir -p "${RESULTS_DIR}"
 fi
+mkdir -p "${RESULTS_DIR}"
 
 function error {
     # we force the following to be not in a section
