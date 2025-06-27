@@ -3375,3 +3375,28 @@ radv_GetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(
    fill_array_sizes_structs(pdev, &out.base, fill_flexible_matrix_prop_nv);
    return vk_outarray_status(&out);
 }
+
+VKAPI_ATTR VkDeviceSize VKAPI_CALL
+radv_GetPhysicalDeviceDescriptorSizeEXT(VkPhysicalDevice physicalDevice, VkDescriptorType descriptorType)
+{
+   VK_FROM_HANDLE(radv_physical_device, pdev, physicalDevice);
+
+   switch (descriptorType) {
+   case VK_DESCRIPTOR_TYPE_SAMPLER:
+      return pdev->vk.properties.samplerDescriptorSize;
+   case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+   case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+      return pdev->vk.properties.imageDescriptorSize;
+   case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+      return RADV_STORAGE_IMAGE_DESC_SIZE;
+   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+   case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+   case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+   case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+      return pdev->vk.properties.bufferDescriptorSize;
+   default:
+      UNREACHABLE("Invalid descriptor type in GetPhysicalDeviceDescriptorSizeEXT");
+      return 0;
+   }
+}
