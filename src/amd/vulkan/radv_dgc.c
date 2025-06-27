@@ -282,6 +282,9 @@ radv_get_sequence_size_compute(const struct radv_indirect_command_layout *layout
       if (ies->uses_indirect_descriptors_sgpr) {
          /* PKT3_SET_SH_REG for indirect descriptors pointer */
          *cmd_size += 3 * 4;
+      } else if (ies->descriptor_heap) {
+         /* PKT3_SET_SH_REG for resource/sampler heap pointers */
+         *cmd_size += 6 * 4;
       }
 
       uses_grid_base_sgpr = ies->uses_grid_base_sgpr;
@@ -764,6 +767,8 @@ struct radv_dgc_params {
    uint64_t ies_addr;
    uint32_t ies_stride;
    uint32_t indirect_descriptors_va;
+   uint32_t heap_resource_va;
+   uint32_t heap_sampler_va;
 
    /* For conditional rendering on ACE. */
    uint8_t predicating;
@@ -2531,7 +2536,7 @@ dgc_emit_draw_mesh_tasks_with_count_ace(struct dgc_cmdbuf *ace_cs, nir_def *stre
  * Indirect execution set
  */
 static void
-dgc_emit_indirect_descriptors(struct dgc_cmdbuf *cs)
+dgc_emit_descriptors(struct dgc_cmdbuf *cs)
 {
    nir_builder *b = cs->b;
 
@@ -2543,6 +2548,30 @@ dgc_emit_indirect_descriptors(struct dgc_cmdbuf *cs)
       dgc_cs_emit(indirect_descriptors_sgpr);
       dgc_cs_emit(load_param32(b, indirect_descriptors_va));
       dgc_cs_end();
+   }
+   nir_push_else(b, NULL);
+   {
+      nir_def *heap_resource_sgpr = load_shader_metadata32(cs, heap_resource_sgpr);
+      nir_push_if(b, nir_ine_imm(b, heap_resource_sgpr, 0));
+      {
+         dgc_cs_begin(cs);
+         dgc_cs_emit_imm(PKT3(PKT3_SET_SH_REG, 1, 0));
+         dgc_cs_emit(heap_resource_sgpr);
+         dgc_cs_emit(load_param32(b, heap_resource_va));
+         dgc_cs_end();
+      }
+      nir_pop_if(b, NULL);
+
+      nir_def *heap_sampler_sgpr = load_shader_metadata32(cs, heap_sampler_sgpr);
+      nir_push_if(b, nir_ine_imm(b, heap_sampler_sgpr, 0));
+      {
+         dgc_cs_begin(cs);
+         dgc_cs_emit_imm(PKT3(PKT3_SET_SH_REG, 1, 0));
+         dgc_cs_emit(heap_sampler_sgpr);
+         dgc_cs_emit(load_param32(b, heap_sampler_va));
+         dgc_cs_end();
+      }
+      nir_pop_if(b, NULL);
    }
    nir_pop_if(b, NULL);
 }
@@ -2576,7 +2605,7 @@ dgc_emit_ies(struct dgc_cmdbuf *cs)
    }
    nir_pop_loop(b, NULL);
 
-   dgc_emit_indirect_descriptors(cs);
+   dgc_emit_descriptors(cs);
 }
 
 /**
@@ -3099,10 +3128,16 @@ radv_prepare_dgc_compute(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedCo
       struct radv_descriptor_state *descriptors_state =
          radv_get_descriptors_state(state_cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE);
 
-      radv_upload_indirect_descriptor_sets(cmd_buffer, descriptors_state);
-
       params->ies_stride = ies->stride;
-      params->indirect_descriptors_va = descriptors_state->indirect_descriptor_sets_va;
+
+      if (ies->descriptor_heap) {
+         params->heap_resource_va = cmd_buffer->descriptor_heaps[RADV_HEAP_RESOURCE];
+         params->heap_sampler_va = cmd_buffer->descriptor_heaps[RADV_HEAP_SAMPLER];
+      } else {
+         radv_upload_indirect_descriptor_sets(cmd_buffer, descriptors_state);
+
+         params->indirect_descriptors_va = descriptors_state->indirect_descriptor_sets_va;
+      }
    } else {
       const VkGeneratedCommandsPipelineInfoEXT *pipeline_info =
          vk_find_struct_const(pGeneratedCommandsInfo->pNext, GENERATED_COMMANDS_PIPELINE_INFO_EXT);
@@ -3442,6 +3477,7 @@ radv_update_ies_shader(struct radv_device *device, struct radv_indirect_executio
    set->push_constant_size = MAX2(set->push_constant_size, shader->info.push_constant_size);
    set->compute_scratch_size_per_wave = MAX2(set->compute_scratch_size_per_wave, shader->config.scratch_bytes_per_wave);
    set->compute_scratch_waves = MAX2(set->compute_scratch_waves, radv_get_max_scratch_waves(device, shader));
+   set->descriptor_heap = shader->info.descriptor_heap;
 
    free(cs.b->buf);
    free(cs.b);

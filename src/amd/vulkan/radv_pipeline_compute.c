@@ -60,6 +60,7 @@ void
 radv_get_compute_shader_metadata(const struct radv_device *device, const struct radv_shader *cs,
                                  struct radv_compute_pipeline_metadata *metadata)
 {
+   const struct radv_userdata_locations *locs = &cs->info.user_sgprs_locs;
    uint32_t upload_sgpr = 0, inline_sgpr = 0;
 
    memset(metadata, 0, sizeof(*metadata));
@@ -74,7 +75,14 @@ radv_get_compute_shader_metadata(const struct radv_device *device, const struct 
    metadata->push_const_sgpr = upload_sgpr | (inline_sgpr << 16);
    metadata->inline_push_const_mask = cs->info.inline_push_constant_mask;
 
-   metadata->indirect_descriptors_sgpr = radv_get_user_sgpr(cs, AC_UD_INDIRECT_DESCRIPTORS);
+   if (cs->info.descriptor_heap) {
+      metadata->heap_resource_sgpr =
+         ((cs->info.user_data_0 + locs->descriptor_heaps[RADV_HEAP_RESOURCE].sgpr_idx * 4) - SI_SH_REG_OFFSET) >> 2;
+      metadata->heap_sampler_sgpr =
+         ((cs->info.user_data_0 + locs->descriptor_heaps[RADV_HEAP_SAMPLER].sgpr_idx * 4) - SI_SH_REG_OFFSET) >> 2;
+   } else {
+      metadata->indirect_descriptors_sgpr = radv_get_user_sgpr(cs, AC_UD_INDIRECT_DESCRIPTORS);
+   }
 }
 
 void
