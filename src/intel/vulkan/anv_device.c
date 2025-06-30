@@ -401,6 +401,55 @@ anv_device_finish_descriptors_view(struct anv_device *device)
                        device->descriptor_view_state);
 }
 
+static VkResult
+anv_device_init_vma_heaps(struct anv_device *device)
+{
+   if (pthread_mutex_init(&device->vma_mutex, NULL) != 0)
+      return vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
+
+   /* keep the page with address zero out of the allocator */
+   util_vma_heap_init(&device->vma_lo,
+                      device->physical->va.low_heap.addr,
+                      device->physical->va.low_heap.size);
+
+   util_vma_heap_init(&device->vma_hi,
+                      device->physical->va.high_heap.addr,
+                      device->physical->va.high_heap.size);
+
+   if (device->physical->indirect_descriptors) {
+      util_vma_heap_init(&device->vma_desc,
+                         device->physical->va.indirect_descriptor_pool.addr,
+                         device->physical->va.indirect_descriptor_pool.size);
+   } else {
+      util_vma_heap_init(&device->vma_desc,
+                         device->physical->va.bindless_surface_state_pool.addr,
+                         device->physical->va.bindless_surface_state_pool.size);
+   }
+
+   /* Always initialized because the the memory types point to this and they
+    * are on the physical device.
+    */
+   util_vma_heap_init(&device->vma_dynamic_visible,
+                      device->physical->va.dynamic_visible_pool.addr,
+                      device->physical->va.dynamic_visible_pool.size);
+   util_vma_heap_init(&device->vma_trtt,
+                      device->physical->va.trtt.addr,
+                      device->physical->va.trtt.size);
+
+   return VK_SUCCESS;
+}
+
+static void
+anv_device_finish_vma_heaps(struct anv_device *device)
+{
+   util_vma_heap_finish(&device->vma_trtt);
+   util_vma_heap_finish(&device->vma_dynamic_visible);
+   util_vma_heap_finish(&device->vma_desc);
+   util_vma_heap_finish(&device->vma_hi);
+   util_vma_heap_finish(&device->vma_lo);
+   pthread_mutex_destroy(&device->vma_mutex);
+}
+
 VkResult anv_CreateDevice(
     VkPhysicalDevice                            physicalDevice,
     const VkDeviceCreateInfo*                   pCreateInfo,
@@ -559,39 +608,9 @@ VkResult anv_CreateDevice(
       goto fail_context_id;
    }
 
-   if (pthread_mutex_init(&device->vma_mutex, NULL) != 0) {
-      result = vk_error(device, VK_ERROR_INITIALIZATION_FAILED);
+   result = anv_device_init_vma_heaps(device);
+   if (result != VK_SUCCESS)
       goto fail_queues_alloc;
-   }
-
-   /* keep the page with address zero out of the allocator */
-   util_vma_heap_init(&device->vma_lo,
-                      device->physical->va.low_heap.addr,
-                      device->physical->va.low_heap.size);
-
-   util_vma_heap_init(&device->vma_hi,
-                      device->physical->va.high_heap.addr,
-                      device->physical->va.high_heap.size);
-
-   if (device->physical->indirect_descriptors) {
-      util_vma_heap_init(&device->vma_desc,
-                         device->physical->va.indirect_descriptor_pool.addr,
-                         device->physical->va.indirect_descriptor_pool.size);
-   } else {
-      util_vma_heap_init(&device->vma_desc,
-                         device->physical->va.bindless_surface_state_pool.addr,
-                         device->physical->va.bindless_surface_state_pool.size);
-   }
-
-   /* Always initialized because the the memory types point to this and they
-    * are on the physical device.
-    */
-   util_vma_heap_init(&device->vma_dynamic_visible,
-                      device->physical->va.dynamic_visible_pool.addr,
-                      device->physical->va.dynamic_visible_pool.size);
-   util_vma_heap_init(&device->vma_trtt,
-                      device->physical->va.trtt.addr,
-                      device->physical->va.trtt.size);
 
    list_inithead(&device->memory_objects);
    list_inithead(&device->image_private_objects);
@@ -1218,12 +1237,7 @@ VkResult anv_CreateDevice(
  fail_mutex:
    pthread_mutex_destroy(&device->mutex);
  fail_vmas:
-   util_vma_heap_finish(&device->vma_trtt);
-   util_vma_heap_finish(&device->vma_dynamic_visible);
-   util_vma_heap_finish(&device->vma_desc);
-   util_vma_heap_finish(&device->vma_hi);
-   util_vma_heap_finish(&device->vma_lo);
-   pthread_mutex_destroy(&device->vma_mutex);
+   anv_device_finish_vma_heaps(device);
  fail_queues_alloc:
    vk_free(&device->vk.alloc, device->queues);
  fail_context_id:
@@ -1372,12 +1386,7 @@ void anv_DestroyDevice(
    anv_slab_bo_deinit(device);
    anv_bo_cache_finish(&device->bo_cache);
 
-   util_vma_heap_finish(&device->vma_trtt);
-   util_vma_heap_finish(&device->vma_dynamic_visible);
-   util_vma_heap_finish(&device->vma_desc);
-   util_vma_heap_finish(&device->vma_hi);
-   util_vma_heap_finish(&device->vma_lo);
-   pthread_mutex_destroy(&device->vma_mutex);
+   anv_device_finish_vma_heaps(device);
 
    pthread_mutex_destroy(&device->mutex);
 
