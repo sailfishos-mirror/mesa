@@ -10,7 +10,7 @@
 #include "radv_sdma.h"
 #include "vk_format.h"
 
-static VkFormat
+VkFormat
 vk_format_for_size(int bs)
 {
    switch (bs) {
@@ -31,8 +31,9 @@ vk_format_for_size(int bs)
    }
 }
 
-static struct radv_meta_blit2d_surf
-blit_surf_for_image_level_layer(struct radv_image *image, VkImageLayout layout, const VkImageSubresourceLayers *subres)
+struct radv_meta_blit2d_surf
+radv_blit_surf_for_image_level_layer(struct radv_image *image, VkImageLayout layout,
+                                     const VkImageSubresourceLayers *subres)
 {
    VkFormat format = radv_get_aspect_format(image, subres->aspectMask);
 
@@ -224,7 +225,8 @@ gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, uint64_t
    const VkExtent3D img_extent_el = vk_image_extent_to_elements(&image->vk, region->imageExtent);
 
    /* Create blit surfaces */
-   struct radv_meta_blit2d_surf img_bsurf = blit_surf_for_image_level_layer(image, layout, &region->imageSubresource);
+   struct radv_meta_blit2d_surf img_bsurf =
+      radv_blit_surf_for_image_level_layer(image, layout, &region->imageSubresource);
 
    if (!radv_is_buffer_format_supported(img_bsurf.format, NULL)) {
       const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf);
@@ -387,7 +389,8 @@ compute_copy_image_to_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer
    const VkExtent3D img_extent_el = vk_image_extent_to_elements(&image->vk, region->imageExtent);
 
    /* Create blit surfaces */
-   struct radv_meta_blit2d_surf img_info = blit_surf_for_image_level_layer(image, layout, &region->imageSubresource);
+   struct radv_meta_blit2d_surf img_info =
+      radv_blit_surf_for_image_level_layer(image, layout, &region->imageSubresource);
 
    if (!radv_is_buffer_format_supported(img_info.format, NULL)) {
       const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf);
@@ -593,10 +596,10 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
 
    /* Create blit surfaces */
    struct radv_meta_blit2d_surf b_src =
-      blit_surf_for_image_level_layer(src_image, src_image_layout, &region->srcSubresource);
+      radv_blit_surf_for_image_level_layer(src_image, src_image_layout, &region->srcSubresource);
 
    struct radv_meta_blit2d_surf b_dst =
-      blit_surf_for_image_level_layer(dst_image, dst_image_layout, &region->dstSubresource);
+      radv_blit_surf_for_image_level_layer(dst_image, dst_image_layout, &region->dstSubresource);
 
    uint32_t dst_queue_mask = radv_image_queue_family_mask(dst_image, cmd_buffer->qf, cmd_buffer->qf);
    bool dst_compressed =

@@ -245,6 +245,11 @@ struct radv_meta_blit2d_buffer {
    enum radv_copy_flags copy_flags;
 };
 
+VkFormat vk_format_for_size(int bs);
+
+struct radv_meta_blit2d_surf radv_blit_surf_for_image_level_layer(struct radv_image *image, VkImageLayout layout,
+                                                                  const VkImageSubresourceLayers *subres);
+
 void radv_gfx_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_surf *src,
                          struct radv_meta_blit2d_surf *dst, const VkOffset3D *src_offset, const VkOffset3D *dst_offset,
                          const VkExtent3D *extent);
