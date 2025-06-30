@@ -46,6 +46,8 @@ libradv_files = files(
   'meta/radv_meta_clear.c',
   'meta/radv_meta_clear_hiz.c',
   'meta/radv_meta_copy.c',
+  'meta/radv_meta_copy_indirect_cs.c',
+  'meta/radv_meta_copy_indirect_fs.c',
   'meta/radv_meta_copy_vrs_htile.c',
   'meta/radv_meta_dcc_retile.c',
   'meta/radv_meta_decompress.c',

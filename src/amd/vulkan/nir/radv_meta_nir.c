@@ -1403,3 +1403,387 @@ radv_meta_nir_build_clear_hiz_compute_shader(struct radv_device *dev, int sample
 
    return b.shader;
 }
+
+static nir_def *
+nir_udiv_round_up(nir_builder *b, nir_def *n, nir_def *d)
+{
+   return nir_udiv(b, nir_iadd(b, n, nir_iadd_imm(b, d, -1)), d);
+}
+
+/* Copy memory->memory shaders. */
+nir_shader *
+radv_meta_nir_build_copy_memory_indirect_preprocess_cs(struct radv_device *dev)
+{
+   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_copy_memory_indirect_preprocess_cs");
+   b.shader->info.workgroup_size[0] = 64;
+
+   nir_def *global_id = radv_meta_nir_get_global_ids(&b, 1);
+
+   nir_def *copy_addr = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 0, .range = 8);
+   nir_def *copy_stride = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 8, .range = 8);
+   nir_def *upload_addr = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 16, .range = 8);
+
+   /* Compute the indirect address (copy_addr + copy_idx * copy_stride). */
+   nir_def *indirect_addr = nir_iadd(&b, copy_addr, nir_imul(&b, nir_u2u64(&b, global_id), copy_stride));
+
+   /* Load the number of bytes to copy. */
+   nir_def *copy_size =
+      nir_build_load_global(&b, 1, 32, nir_iadd_imm(&b, indirect_addr, offsetof(VkCopyMemoryIndirectCommandKHR, size)));
+
+   nir_def *use_16B_copy = nir_ige_imm(&b, copy_size, 16);
+
+   /* Compute the number of invocations for the 1D dispatch. */
+   nir_def *dims[3];
+   dims[0] = nir_bcsel(&b, use_16B_copy, nir_udiv_round_up(&b, copy_size, nir_imm_int(&b, 16)),
+                       nir_udiv_round_up(&b, copy_size, nir_imm_int(&b, 4)));
+   dims[1] = nir_imm_int(&b, 1);
+   dims[2] = nir_imm_int(&b, 1);
+
+   /* Store the number of workgroups for the indirect compute dispatch. */
+   nir_def *dst_offset = nir_imul_imm(&b, global_id, sizeof(VkDispatchIndirectCommand));
+   nir_build_store_global(&b, nir_vec(&b, dims, 3), nir_iadd(&b, upload_addr, nir_u2u64(&b, dst_offset)),
+                          .align_mul = 4);
+
+   return b.shader;
+}
+
+nir_shader *
+radv_meta_nir_build_copy_memory_indirect_cs(struct radv_device *dev)
+{
+   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_copy_memory_indirect_cs");
+   b.shader->info.workgroup_size[0] = 64;
+
+   nir_def *global_id = radv_meta_nir_get_global_ids(&b, 1);
+
+   nir_def *copy_addr = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .range = 8);
+
+   nir_def *copy_data = nir_build_load_global(&b, 2, 64, copy_addr);
+   nir_def *src_addr = nir_channel(&b, copy_data, 0);
+   nir_def *dst_addr = nir_channel(&b, copy_data, 1);
+   nir_def *copy_size =
+      nir_build_load_global(&b, 1, 32, nir_iadd_imm(&b, copy_addr, offsetof(VkCopyMemoryIndirectCommandKHR, size)));
+
+   nir_def *use_16B_copy = nir_ige_imm(&b, copy_size, 16);
+   nir_def *bytes_per_invocation = nir_bcsel(&b, use_16B_copy, nir_imm_int(&b, 16), nir_imm_int(&b, 4));
+
+   nir_def *max_offset = nir_isub(&b, copy_size, bytes_per_invocation);
+   nir_def *offset = nir_u2u64(&b, nir_umin(&b, nir_imul(&b, global_id, bytes_per_invocation), max_offset));
+
+   nir_push_if(&b, use_16B_copy);
+   {
+      nir_def *data = nir_build_load_global(&b, 4, 32, nir_iadd(&b, src_addr, offset), .align_mul = 4);
+      nir_build_store_global(&b, data, nir_iadd(&b, dst_addr, offset), .align_mul = 4);
+   }
+   nir_push_else(&b, NULL);
+   {
+      nir_def *data = nir_build_load_global(&b, 1, 32, nir_iadd(&b, src_addr, offset), .align_mul = 1);
+      nir_build_store_global(&b, data, nir_iadd(&b, dst_addr, offset), .align_mul = 1);
+   }
+   nir_pop_if(&b, NULL);
+
+   return b.shader;
+}
+
+/* Copy memory->image shaders. */
+nir_shader *
+radv_meta_nir_build_copy_memory_to_image_indirect_preprocess_cs(struct radv_device *dev)
+{
+   nir_builder b =
+      radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_copy_memory_to_image_indirect_preprocess_cs");
+   b.shader->info.workgroup_size[0] = 64;
+
+   nir_def *global_id = radv_meta_nir_get_global_ids(&b, 1);
+
+   nir_def *copy_addr = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 0, .range = 8);
+   nir_def *copy_stride = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 8, .range = 8);
+   nir_def *upload_addr = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 16, .range = 8);
+   nir_def *format_block_width = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 0), .base = 24, .range = 4);
+   nir_def *format_block_height = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 0), .base = 28, .range = 4);
+   nir_def *texel_scale = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 0), .base = 32, .range = 4);
+
+   /* Compute the indirect address (copy_addr + copy_idx * copy_stride). */
+   nir_def *indirect_addr = nir_iadd(&b, copy_addr, nir_imul(&b, nir_u2u64(&b, global_id), copy_stride));
+
+   /* Load image width/height. */
+   nir_def *image_extent = nir_build_load_global(
+      &b, 2, 32, nir_iadd_imm(&b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, imageExtent)));
+   nir_def *image_extent_width = nir_imul(&b, nir_channel(&b, image_extent, 0), texel_scale);
+   nir_def *image_extent_height = nir_channel(&b, image_extent, 1);
+
+   /* Compte the number of workgroups for the 2D dispatch. */
+   nir_def *dims[3];
+   dims[0] = nir_udiv_round_up(&b, image_extent_width, format_block_width);
+   dims[1] = nir_udiv_round_up(&b, image_extent_height, format_block_height);
+   dims[2] = nir_imm_int(&b, 1);
+
+   /* Store the number of workgroups for the indirect compute dispatch. */
+   nir_def *dst_offset = nir_imul_imm(&b, global_id, sizeof(VkDispatchIndirectCommand));
+   nir_build_store_global(&b, nir_vec(&b, dims, 3), nir_iadd(&b, upload_addr, nir_u2u64(&b, dst_offset)),
+                          .align_mul = 4);
+
+   return b.shader;
+}
+
+static nir_def *
+get_image_offset(nir_builder *b, nir_def *indirect_addr, uint8_t fmt_block_width, uint8_t fmt_block_height,
+                 uint8_t fmt_block_depth)
+{
+   nir_def *image_offset = nir_build_load_global(
+      b, 3, 32, nir_iadd_imm(b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, imageOffset)));
+
+   /* Convert the offsets from units of texels to units of blocks. */
+   return nir_udiv(
+      b, image_offset,
+      nir_vec3(b, nir_imm_int(b, fmt_block_width), nir_imm_int(b, fmt_block_height), nir_imm_int(b, fmt_block_depth)));
+}
+
+static nir_def *
+get_image_extent(nir_builder *b, nir_def *indirect_addr, uint8_t fmt_block_width, uint8_t fmt_block_height,
+                 uint8_t fmt_block_depth)
+{
+   nir_def *image_extent = nir_build_load_global(
+      b, 3, 32, nir_iadd_imm(b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, imageExtent)));
+
+   /* Convert the extent from units of texels to units of blocks. */
+   nir_def *extent_x = nir_udiv_round_up(b, nir_channel(b, image_extent, 0), nir_imm_int(b, fmt_block_width));
+   nir_def *extent_y = nir_udiv_round_up(b, nir_channel(b, image_extent, 1), nir_imm_int(b, fmt_block_height));
+   nir_def *extent_z = nir_udiv_round_up(b, nir_channel(b, image_extent, 2), nir_imm_int(b, fmt_block_depth));
+
+   return nir_vec3(b, extent_x, extent_y, extent_z);
+}
+
+static nir_def *
+get_row_stride_B(nir_builder *b, nir_def *indirect_addr, uint8_t fmt_element_size_B, uint8_t fmt_block_width)
+{
+   nir_def *buffer_row_length = nir_build_load_global(
+      b, 1, 32, nir_iadd_imm(b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, bufferRowLength)));
+   nir_def *image_extent_width = nir_build_load_global(
+      b, 1, 32, nir_iadd_imm(b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, imageExtent.width)));
+
+   nir_def *row_length = nir_bcsel(b, nir_ine_imm(b, buffer_row_length, 0), buffer_row_length, image_extent_width);
+
+   return nir_imul_imm(b, nir_udiv_round_up(b, row_length, nir_imm_int(b, fmt_block_width)), fmt_element_size_B);
+}
+
+static nir_def *
+get_image_stride_B(nir_builder *b, nir_def *indirect_addr, nir_def *row_stride_B, uint8_t fmt_block_height)
+{
+   nir_def *buffer_image_height = nir_build_load_global(
+      b, 1, 32, nir_iadd_imm(b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, bufferImageHeight)));
+   nir_def *image_extent_height = nir_build_load_global(
+      b, 1, 32, nir_iadd_imm(b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, imageExtent.height)));
+
+   nir_def *image_height =
+      nir_bcsel(b, nir_ine_imm(b, buffer_image_height, 0), buffer_image_height, image_extent_height);
+
+   return nir_imul(b, nir_udiv_round_up(b, image_height, nir_imm_int(b, fmt_block_height)), row_stride_B);
+}
+
+nir_shader *
+radv_meta_nir_build_copy_memory_to_image_indirect_cs(struct radv_device *dev, uint8_t fmt_block_width,
+                                                     uint8_t fmt_block_height, uint8_t fmt_block_depth,
+                                                     uint8_t fmt_element_size_B, bool is_3d)
+{
+   nir_builder b = radv_meta_nir_init_shader(
+      dev, MESA_SHADER_COMPUTE,
+      is_3d ? "meta_copy_memory_to_image_indirect_3d_cs" : "meta_copy_memory_to_image_indirect_cs");
+   b.shader->info.workgroup_size[0] = 64;
+
+   enum glsl_sampler_dim dim = is_3d ? GLSL_SAMPLER_DIM_3D : GLSL_SAMPLER_DIM_2D;
+   const struct glsl_type *buf_type = glsl_sampler_type(GLSL_SAMPLER_DIM_BUF, false, false, GLSL_TYPE_FLOAT);
+   const struct glsl_type *img_type = glsl_image_type(dim, false, GLSL_TYPE_FLOAT);
+
+   nir_variable *input_img = nir_variable_create(b.shader, nir_var_uniform, buf_type, "s_tex");
+   input_img->data.descriptor_set = 0;
+   input_img->data.binding = 0;
+
+   nir_variable *output_img = nir_variable_create(b.shader, nir_var_image, img_type, "out_img");
+   output_img->data.descriptor_set = 0;
+   output_img->data.binding = 1;
+
+   nir_def *global_id = radv_meta_nir_get_global_ids(&b, is_3d ? 3 : 2);
+
+   nir_def *indirect_addr = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 0, .range = 8);
+   nir_def *layer = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 0), .base = 8, .range = 4);
+   nir_def *descriptor = nir_load_push_constant(&b, 4, 32, nir_imm_int(&b, 0), .base = 12, .range = 16);
+   nir_def *base_array_layer = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 0), .base = 28, .range = 4);
+   nir_def *texel_scale = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 0), .base = 32, .range = 4);
+
+   nir_def *row_stride_B = get_row_stride_B(&b, indirect_addr, fmt_element_size_B, fmt_block_width);
+   nir_def *image_stride_B = get_image_stride_B(&b, indirect_addr, row_stride_B, fmt_block_height);
+   nir_def *buffer_pitch = nir_imul(&b, nir_udiv_imm(&b, row_stride_B, fmt_element_size_B), texel_scale);
+
+   nir_def *image_offset = get_image_offset(&b, indirect_addr, fmt_block_width, fmt_block_height, fmt_block_depth);
+   nir_def *image_offset_x = nir_imul(&b, nir_channel(&b, image_offset, 0), texel_scale);
+   nir_def *image_offset_y = nir_channel(&b, image_offset, 1);
+
+   nir_def *offset = nir_vec3(&b, image_offset_x, image_offset_y, nir_iadd(&b, base_array_layer, layer));
+
+   /* Load the buffer address and adjust the descriptor. */
+   nir_def *src_addr = nir_build_load_global(
+      &b, 1, 64, nir_iadd_imm(&b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, srcAddress)));
+
+   src_addr = nir_iadd(&b, src_addr, nir_u2u64(&b, nir_imul(&b, layer, image_stride_B)));
+
+   nir_def *src_addr_lo = nir_unpack_64_2x32_split_x(&b, src_addr);
+   nir_def *src_addr_hi = nir_unpack_64_2x32_split_y(&b, src_addr);
+
+   descriptor = nir_vector_insert_imm(&b, descriptor, src_addr_lo, 0);
+   descriptor = nir_vector_insert_imm(
+      &b, descriptor, nir_ior(&b, nir_channel(&b, descriptor, 1), nir_iand_imm(&b, src_addr_hi, 0xffff)), 1);
+
+   nir_def *pos_x = nir_channel(&b, global_id, 0);
+   nir_def *pos_y = nir_channel(&b, global_id, 1);
+
+   nir_def *buf_coord = nir_imul(&b, pos_y, buffer_pitch);
+   buf_coord = nir_iadd(&b, buf_coord, pos_x);
+
+   nir_def *coord = nir_iadd(&b, global_id, offset);
+
+   nir_def *zero = nir_imm_int(&b, 0);
+   nir_def *outval = nir_load_buffer_amd(&b, 4, 32, descriptor, zero, zero, buf_coord, .access = ACCESS_USES_FORMAT_AMD,
+                                         .dest_type = nir_type_uint32);
+
+   nir_def *img_coord = nir_vec4(&b, nir_channel(&b, coord, 0), nir_channel(&b, coord, 1),
+                                 is_3d ? nir_channel(&b, coord, 2) : nir_undef(&b, 1, 32), nir_undef(&b, 1, 32));
+
+   nir_image_deref_store(&b, &nir_build_deref_var(&b, output_img)->def, img_coord, nir_undef(&b, 1, 32), outval,
+                         nir_imm_int(&b, 0), .image_dim = dim);
+
+   return b.shader;
+}
+
+nir_shader *
+radv_meta_nir_build_copy_memory_to_image_indirect_vs(struct radv_device *dev, uint8_t fmt_block_width,
+                                                     uint8_t fmt_block_height, uint8_t fmt_block_depth)
+{
+   const struct glsl_type *vec4 = glsl_vec4_type();
+   const struct glsl_type *vec2 = glsl_vec2_type();
+   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_VERTEX, "meta_copy_memory_to_image_indirect_vs");
+
+   nir_variable *pos_out = nir_variable_create(b.shader, nir_var_shader_out, vec4, "gl_Position");
+   pos_out->data.location = VARYING_SLOT_POS;
+
+   nir_variable *tex_pos_out = nir_variable_create(b.shader, nir_var_shader_out, vec2, "v_tex_pos");
+   tex_pos_out->data.location = VARYING_SLOT_VAR0;
+   tex_pos_out->data.interpolation = INTERP_MODE_SMOOTH;
+
+   nir_def *indirect_addr = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 0, .range = 8);
+   nir_def *image_size = nir_load_push_constant(&b, 2, 32, nir_imm_int(&b, 0), .base = 8, .range = 8);
+
+   nir_def *image_offset = get_image_offset(&b, indirect_addr, fmt_block_width, fmt_block_height, fmt_block_depth);
+   nir_def *image_extent = get_image_extent(&b, indirect_addr, fmt_block_width, fmt_block_height, fmt_block_depth);
+
+   image_size = nir_u2f32(&b, image_size);
+   image_offset = nir_u2f32(&b, image_offset);
+   image_extent = nir_u2f32(&b, image_extent);
+
+   nir_def *norm_extent = nir_fdiv(&b, image_extent, image_size);
+   nir_def *norm_offset = nir_fdiv(&b, image_offset, image_size);
+
+   nir_def *x_begin = nir_channel(&b, norm_offset, 0);
+   nir_def *x_end = nir_fadd(&b, nir_channel(&b, norm_offset, 0), nir_channel(&b, norm_extent, 0));
+   nir_def *y_begin = nir_channel(&b, norm_offset, 1);
+   nir_def *y_end = nir_fadd(&b, nir_channel(&b, norm_offset, 1), nir_channel(&b, norm_extent, 1));
+
+   nir_def *vertex_id = nir_load_vertex_id_zero_base(&b);
+
+   nir_def *c0cmp = nir_ine_imm(&b, vertex_id, 2);
+   nir_def *c1cmp = nir_ine_imm(&b, vertex_id, 1);
+   nir_def *x_coord = nir_bcsel(&b, c0cmp, x_begin, x_end);
+   nir_def *y_coord = nir_bcsel(&b, c1cmp, y_begin, y_end);
+
+   nir_def *coords = nir_vec2(&b, x_coord, y_coord);
+   coords = nir_fadd_imm(&b, nir_fmul_imm(&b, coords, 2.0f), -1.0f);
+
+   nir_def *outvec = nir_vec4(&b, nir_channel(&b, coords, 0), nir_channel(&b, coords, 1), nir_imm_float(&b, 0.0f),
+                              nir_imm_float(&b, 1.0f));
+   nir_store_var(&b, pos_out, outvec, 0xf);
+
+   nir_def *src_box = nir_vec4(&b, nir_imm_float(&b, 0.0f), nir_imm_float(&b, 0.0f), nir_channel(&b, image_extent, 0),
+                               nir_channel(&b, image_extent, 1));
+
+   /* vertex 0 - src_x, src_y */
+   /* vertex 1 - src_x, src_y+h */
+   /* vertex 2 - src_x+w, src_y */
+   /* so channel 0 is vertex_id != 2 ? src_x : src_x + w
+      channel 1 is vertex id != 1 ? src_y : src_y + w */
+
+   nir_def *comp[2];
+   comp[0] = nir_bcsel(&b, c0cmp, nir_channel(&b, src_box, 0), nir_channel(&b, src_box, 2));
+
+   comp[1] = nir_bcsel(&b, c1cmp, nir_channel(&b, src_box, 1), nir_channel(&b, src_box, 3));
+   nir_def *out_tex_vec = nir_vec(&b, comp, 2);
+   nir_store_var(&b, tex_pos_out, out_tex_vec, 0x3);
+   return b.shader;
+}
+
+nir_shader *
+radv_meta_nir_build_copy_memory_to_image_indirect_fs(struct radv_device *dev, VkImageAspectFlags aspect_mask,
+                                                     uint8_t fmt_block_width, uint8_t fmt_block_height,
+                                                     uint8_t fmt_element_size_B)
+{
+   const struct glsl_type *vec4 = glsl_vec4_type();
+   const struct glsl_type *vec2 = glsl_vector_type(GLSL_TYPE_FLOAT, 2);
+   uint32_t output_channels;
+
+   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_FRAGMENT, "meta_copy_memory_to_image_indirect_fs");
+
+   nir_variable *tex_pos_in = nir_variable_create(b.shader, nir_var_shader_in, vec2, "v_tex_pos");
+   tex_pos_in->data.location = VARYING_SLOT_VAR0;
+
+   nir_variable *fs_output = nir_variable_create(b.shader, nir_var_shader_out, vec4, "fs_output");
+   switch (aspect_mask) {
+   case VK_IMAGE_ASPECT_COLOR_BIT:
+      fs_output->data.location = FRAG_RESULT_DATA0;
+      output_channels = 0xf;
+      break;
+   case VK_IMAGE_ASPECT_DEPTH_BIT:
+      fs_output->data.location = FRAG_RESULT_DEPTH;
+      output_channels = 0x1;
+      break;
+   case VK_IMAGE_ASPECT_STENCIL_BIT:
+      fs_output->data.location = FRAG_RESULT_STENCIL;
+      output_channels = 0x1;
+      break;
+   default:
+      UNREACHABLE("Unhandled aspect");
+   }
+
+   nir_def *indirect_addr = nir_load_push_constant(&b, 1, 64, nir_imm_int(&b, 0), .base = 16, .range = 8);
+   nir_def *layer = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 0), .base = 24, .range = 4);
+   nir_def *descriptor = nir_load_push_constant(&b, 4, 32, nir_imm_int(&b, 0), .base = 28, .range = 16);
+
+   nir_def *row_stride_B = get_row_stride_B(&b, indirect_addr, fmt_element_size_B, fmt_block_width);
+   nir_def *image_stride_B = get_image_stride_B(&b, indirect_addr, row_stride_B, fmt_block_height);
+   nir_def *buffer_pitch = nir_udiv_imm(&b, row_stride_B, fmt_element_size_B);
+
+   /* Load the buffer address and adjust the descriptor. */
+   nir_def *src_addr = nir_build_load_global(
+      &b, 1, 64, nir_iadd_imm(&b, indirect_addr, offsetof(VkCopyMemoryToImageIndirectCommandKHR, srcAddress)));
+
+   src_addr = nir_iadd(&b, src_addr, nir_u2u64(&b, nir_imul(&b, layer, image_stride_B)));
+
+   nir_def *src_addr_lo = nir_unpack_64_2x32_split_x(&b, src_addr);
+   nir_def *src_addr_hi = nir_unpack_64_2x32_split_y(&b, src_addr);
+
+   descriptor = nir_vector_insert_imm(&b, descriptor, src_addr_lo, 0);
+   descriptor = nir_vector_insert_imm(
+      &b, descriptor, nir_ior(&b, nir_channel(&b, descriptor, 1), nir_iand_imm(&b, src_addr_hi, 0xffff)), 1);
+
+   nir_def *pos_int = nir_f2i32(&b, nir_load_var(&b, tex_pos_in));
+   nir_def *tex_pos = nir_trim_vector(&b, pos_int, 2);
+
+   nir_def *pos_x = nir_channel(&b, tex_pos, 0);
+   nir_def *pos_y = nir_channel(&b, tex_pos, 1);
+   pos_y = nir_imul(&b, pos_y, buffer_pitch);
+   pos_x = nir_iadd(&b, pos_x, pos_y);
+
+   nir_def *zero = nir_imm_int(&b, 0);
+   nir_def *data = nir_load_buffer_amd(&b, 4, 32, descriptor, zero, zero, pos_x, .access = ACCESS_USES_FORMAT_AMD,
+                                       .dest_type = nir_type_uint32);
+
+   nir_store_var(&b, fs_output, data, output_channels);
+
+   return b.shader;
+}

@@ -107,6 +107,21 @@ nir_shader *radv_meta_nir_build_resolve_hw(struct radv_device *dev);
 
 nir_shader *radv_meta_nir_build_clear_hiz_compute_shader(struct radv_device *dev, int samples);
 
+nir_shader *radv_meta_nir_build_copy_memory_indirect_preprocess_cs(struct radv_device *dev);
+nir_shader *radv_meta_nir_build_copy_memory_indirect_cs(struct radv_device *dev);
+
+nir_shader *radv_meta_nir_build_copy_memory_to_image_indirect_preprocess_cs(struct radv_device *dev);
+nir_shader *radv_meta_nir_build_copy_memory_to_image_indirect_cs(struct radv_device *dev, uint8_t fmt_block_width,
+                                                                 uint8_t fmt_block_height, uint8_t fmt_block_depth,
+                                                                 uint8_t fmt_element_size_B, bool is_3d);
+
+nir_shader *radv_meta_nir_build_copy_memory_to_image_indirect_vs(struct radv_device *dev, uint8_t fmt_block_width,
+                                                                 uint8_t fmt_block_height, uint8_t fmt_block_depth);
+nir_shader *radv_meta_nir_build_copy_memory_to_image_indirect_fs(struct radv_device *dev,
+                                                                 VkImageAspectFlags aspect_mask,
+                                                                 uint8_t fmt_block_width, uint8_t fmt_block_height,
+                                                                 uint8_t fmt_element_size_B);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1278,7 +1278,8 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
           !device->vk.enabled_features.descriptorBindingUniformTexelBufferUpdateAfterBind &&
           !device->vk.enabled_features.descriptorBindingStorageTexelBufferUpdateAfterBind &&
           !device->vk.enabled_features.descriptorBindingUpdateUnusedWhilePending &&
-          !device->vk.enabled_features.descriptorBindingPartiallyBound) {
+          !device->vk.enabled_features.descriptorBindingPartiallyBound &&
+          !device->vk.enabled_features.indirectMemoryCopy && !device->vk.enabled_features.indirectMemoryToImageCopy) {
          device->use_global_bo_list = false;
       } else {
          fprintf(stderr, "radv: Can't disable the global BO list because some features require it!\n");

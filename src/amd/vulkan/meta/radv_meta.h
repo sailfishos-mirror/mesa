@@ -62,6 +62,11 @@ enum radv_meta_object_key_type {
    RADV_META_OBJECT_KEY_COPY_IMAGE_TO_BUFFER,
    RADV_META_OBJECT_KEY_COPY_BUFFER_TO_IMAGE,
    RADV_META_OBJECT_KEY_COPY_IMAGE,
+   RADV_META_OBJECT_KEY_COPY_MEMORY_INDIRECT_PREPROCESS_CS,
+   RADV_META_OBJECT_KEY_COPY_MEMORY_INDIRECT_CS,
+   RADV_META_OBJECT_KEY_COPY_MEMORY_TO_IMAGE_INDIRECT_PREPROCESS_CS,
+   RADV_META_OBJECT_KEY_COPY_MEMORY_TO_IMAGE_INDIRECT_CS,
+   RADV_META_OBJECT_KEY_COPY_MEMORY_TO_IMAGE_INDIRECT_GFX,
    RADV_META_OBJECT_KEY_COPY_VRS_HTILE,
    RADV_META_OBJECT_KEY_CLEAR_CS,
    RADV_META_OBJECT_KEY_CLEAR_CS_96BIT,
@@ -325,6 +330,9 @@ void radv_update_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64_
 
 void radv_meta_decode_etc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout layout,
                           const VkImageSubresourceLayers *subresource, VkOffset3D offset, VkExtent3D extent);
+void radv_meta_decode_etc_indirect(struct radv_cmd_buffer *cmd_buffer,
+                                   const VkCopyMemoryToImageIndirectInfoKHR *pCopyMemoryToImageIndirectInfo);
+
 void radv_meta_decode_astc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout layout,
                            const VkImageSubresourceLayers *subresource, VkOffset3D offset, VkExtent3D extent);
 
@@ -364,6 +372,16 @@ radv_get_image_stride_for_96bit(const struct radv_device *device, const struct r
 
    return stride;
 }
+
+void radv_compute_copy_memory_indirect(struct radv_cmd_buffer *cmd_buffer,
+                                       const VkCopyMemoryIndirectInfoKHR *pCopyMemoryIndirectInfo);
+
+void
+radv_compute_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
+                                           const VkCopyMemoryToImageIndirectInfoKHR *pCopyMemoryToImageIndirectInfo);
+
+void radv_gfx_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
+                                            const VkCopyMemoryToImageIndirectInfoKHR *pCopyMemoryToImageIndirectInfo);
 
 #ifdef __cplusplus
 }
