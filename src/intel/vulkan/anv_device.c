@@ -66,7 +66,7 @@ static void
 anv_device_init_border_colors(struct anv_device *device)
 {
    device->border_colors =
-      anv_state_pool_emit_data(&device->dynamic_state_pool,
+      anv_state_pool_emit_data(anv_device_get_dynamic_state_pool(device),
                                sizeof(anv_default_border_colors),
                                64, anv_default_border_colors);
 }
@@ -148,7 +148,7 @@ decode_get_bo(void *v_batch, bool ppgtt, uint64_t address)
 
    assert(ppgtt);
 
-   if (get_bo_from_pool(&ret_bo, &device->dynamic_state_pool.block_pool, address))
+   if (get_bo_from_pool(&ret_bo, &anv_device_get_dynamic_state_pool(device)->block_pool, address))
       return ret_bo;
    if (get_bo_from_shader_heap(&ret_bo, device, address))
       return ret_bo;
@@ -1034,7 +1034,7 @@ VkResult anv_CreateDevice(
       n_cps_states *= MAX_VIEWPORTS;
 
       device->cps_states =
-         anv_state_pool_alloc(&device->dynamic_state_pool,
+         anv_state_pool_alloc(anv_device_get_dynamic_state_pool(device),
                               n_cps_states * CPS_STATE_length(device->info) * 4,
                               32);
       if (device->cps_states.map == NULL)
@@ -1127,7 +1127,7 @@ VkResult anv_CreateDevice(
       device->vk.enabled_features.robustBufferAccess ||
       device->vk.enabled_features.nullDescriptor;
 
-   device->breakpoint = anv_state_pool_alloc(&device->dynamic_state_pool, 4,
+   device->breakpoint = anv_state_pool_alloc(anv_device_get_dynamic_state_pool(device), 4,
                                              4);
    p_atomic_set(&device->draw_call_count, 0);
    p_atomic_set(&device->dispatch_call_count, 0);
@@ -1410,10 +1410,10 @@ void anv_DestroyDevice(
    /* We only need to free these to prevent valgrind errors.  The backing
     * BO will go away in a couple of lines so we don't actually leak.
     */
-   anv_state_pool_free(&device->dynamic_state_pool, device->border_colors);
-   anv_state_pool_free(&device->dynamic_state_pool, device->slice_hash);
-   anv_state_pool_free(&device->dynamic_state_pool, device->cps_states);
-   anv_state_pool_free(&device->dynamic_state_pool, device->breakpoint);
+   anv_state_pool_free(anv_device_get_dynamic_state_pool(device), device->border_colors);
+   anv_state_pool_free(anv_device_get_dynamic_state_pool(device), device->slice_hash);
+   anv_state_pool_free(anv_device_get_dynamic_state_pool(device), device->cps_states);
+   anv_state_pool_free(anv_device_get_dynamic_state_pool(device), device->breakpoint);
 #endif
 
    for (unsigned i = 0; i < ARRAY_SIZE(device->rt_scratch_bos); i++) {

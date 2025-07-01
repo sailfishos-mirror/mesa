@@ -99,7 +99,7 @@ upload_dynamic_state(struct blorp_context *context,
    struct anv_device *device = context->driver_ctx;
 
    device->blorp.dynamic_states[name] =
-      anv_state_pool_emit_data(&device->dynamic_state_pool,
+      anv_state_pool_emit_data(anv_device_get_dynamic_state_pool(device),
                                size, alignment, data);
 }
 
@@ -152,7 +152,7 @@ anv_device_finish_blorp(struct anv_device *device)
     * BO will go away in a couple of lines so we don't actually leak.
     */
    for (uint32_t i = 0; i < ARRAY_SIZE(device->blorp.dynamic_states); i++) {
-      anv_state_pool_free(&device->dynamic_state_pool,
+      anv_state_pool_free(anv_device_get_dynamic_state_pool(device),
                           device->blorp.dynamic_states[i]);
    }
 #endif
@@ -1250,7 +1250,7 @@ anv_cmd_buffer_update_addr(
     * little data at the top to build its linked list.
     */
    const uint32_t max_update_size =
-      cmd_buffer->device->dynamic_state_pool.block_size - 64;
+      anv_device_get_dynamic_state_pool(cmd_buffer->device)->block_size - 64;
 
    assert(max_update_size < MAX_SURFACE_DIM * 4);
 

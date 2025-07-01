@@ -427,7 +427,7 @@ setup_execbuf_for_cmd_buffers(struct anv_execbuf *execbuf,
    if (result != VK_SUCCESS)
       return result;
 
-   result = pin_state_pool(device, execbuf, &device->dynamic_state_pool);
+   result = pin_state_pool(device, execbuf, anv_device_get_dynamic_state_pool(device));
    if (result != VK_SUCCESS)
       return result;
 

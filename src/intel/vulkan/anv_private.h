@@ -5051,7 +5051,7 @@ anv_cmd_buffer_dynamic_state_address(struct anv_cmd_buffer *cmd_buffer,
                                      struct anv_state state)
 {
    return anv_state_pool_state_address(
-      &cmd_buffer->device->dynamic_state_pool, state);
+      anv_device_get_dynamic_state_pool(cmd_buffer->device), state);
 }
 
 static inline uint64_t
@@ -5136,7 +5136,7 @@ anv_cmd_buffer_temporary_state_address(struct anv_cmd_buffer *cmd_buffer,
                                        struct anv_state state)
 {
    return anv_state_pool_state_address(
-      &cmd_buffer->device->dynamic_state_pool, state);
+      anv_device_get_dynamic_state_pool(cmd_buffer->device), state);
 }
 
 static inline struct anv_address
@@ -5144,7 +5144,7 @@ anv_cmd_buffer_gfx_push_constants_state_address(struct anv_cmd_buffer *cmd_buffe
                                                 struct anv_state state)
 {
    return anv_state_pool_state_address(
-      &cmd_buffer->device->dynamic_state_pool, state);
+      anv_device_get_dynamic_state_pool(cmd_buffer->device), state);
 }
 
 void

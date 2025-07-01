@@ -5605,7 +5605,7 @@ genX(batch_emit_breakpoint)(struct anv_batch *batch,
 
       if (should_emit) {
          struct anv_address wait_addr =
-            anv_state_pool_state_address(&device->dynamic_state_pool,
+            anv_state_pool_state_address(anv_device_get_dynamic_state_pool(device),
                                          device->breakpoint);
 
          anv_batch_emit(batch, GENX(MI_SEMAPHORE_WAIT), sem) {
@@ -7099,14 +7099,14 @@ void genX(CmdSetEvent2)(
    case INTEL_ENGINE_CLASS_VIDEO:
       cmd_buffer_barrier_video(cmd_buffer, 1, pDependencyInfo,
                                anv_state_pool_state_address(
-                                  &cmd_buffer->device->dynamic_state_pool,
+                                  anv_device_get_dynamic_state_pool(cmd_buffer->device),
                                   event->state), 1);
       break;
 
    case INTEL_ENGINE_CLASS_COPY:
       cmd_buffer_barrier_blitter(cmd_buffer, 1, pDependencyInfo,
                                  anv_state_pool_state_address(
-                                    &cmd_buffer->device->dynamic_state_pool,
+                                    anv_device_get_dynamic_state_pool(cmd_buffer->device),
                                     event->state), 1);
       break;
 
@@ -7133,7 +7133,7 @@ void genX(CmdSetEvent2)(
                                     cmd_buffer->state.current_pipeline,
                                     src_stages, dst_stages, bits,
                                     anv_state_pool_state_address(
-                                       &cmd_buffer->device->dynamic_state_pool,
+                                       anv_device_get_dynamic_state_pool(cmd_buffer->device),
                                        event->state),
                                     ANV_NULL_ADDRESS,
                                     NULL);
@@ -7163,7 +7163,7 @@ void genX(CmdResetEvent2)(
       anv_batch_emit(&cmd_buffer->batch, GENX(MI_FLUSH_DW), flush) {
          flush.PostSyncOperation = WriteImmediateData;
          flush.Address = anv_state_pool_state_address(
-            &cmd_buffer->device->dynamic_state_pool,
+            anv_device_get_dynamic_state_pool(cmd_buffer->device),
             event->state);
          flush.ImmediateData = 0;
       }
@@ -7190,7 +7190,7 @@ void genX(CmdResetEvent2)(
       genX(batch_emit_pipe_control_write)
          (&cmd_buffer->batch, cmd_buffer->device->info,
           cmd_buffer->state.current_pipeline, WriteImmediateData,
-          anv_state_pool_state_address(&cmd_buffer->device->dynamic_state_pool,
+          anv_state_pool_state_address(anv_device_get_dynamic_state_pool(cmd_buffer->device),
                                        event->state),
           0,
           pc_bits,
@@ -7217,7 +7217,7 @@ void genX(CmdWaitEvents2)(
       ANV_FROM_HANDLE(anv_event, event, pEvents[i]);
       struct anv_address wait_addr =
          anv_state_pool_state_address(
-            &cmd_buffer->device->dynamic_state_pool,
+            anv_device_get_dynamic_state_pool(cmd_buffer->device),
             event->state);
 
       VkPipelineStageFlags2 src_stages, dst_stages;
