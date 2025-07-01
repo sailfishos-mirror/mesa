@@ -154,7 +154,7 @@ decode_get_bo(void *v_batch, bool ppgtt, uint64_t address)
       return ret_bo;
    if (get_bo_from_pool(&ret_bo, &anv_device_get_binding_table_pool(device)->block_pool, address))
       return ret_bo;
-   if (get_bo_from_pool(&ret_bo, &device->scratch_surface_state_pool.block_pool, address))
+   if (get_bo_from_pool(&ret_bo, &anv_device_get_scratch_surface_state_pool(device)->block_pool, address))
       return ret_bo;
    if (device->physical->indirect_descriptors &&
        get_bo_from_pool(&ret_bo, &device->bindless_surface_state_pool.block_pool, address))
@@ -347,7 +347,7 @@ anv_device_init_descriptors_view(struct anv_device *device)
    /* For descriptor buffers */
    {
       device->descriptor_buffer_view_state =
-         anv_state_pool_alloc(&device->scratch_surface_state_pool,
+         anv_state_pool_alloc(anv_device_get_scratch_surface_state_pool(device),
                               device->isl_dev.ss.size, 64);
 
       const uint64_t size = pdevice->va.dynamic_visible_pool.size +
@@ -369,7 +369,7 @@ anv_device_init_descriptors_view(struct anv_device *device)
    /* For descriptors */
    {
       device->descriptor_view_state =
-         anv_state_pool_alloc(&device->scratch_surface_state_pool,
+         anv_state_pool_alloc(anv_device_get_scratch_surface_state_pool(device),
                               device->isl_dev.ss.size, 64);
 
       const uint64_t size =
@@ -395,9 +395,9 @@ anv_device_finish_descriptors_view(struct anv_device *device)
    if (!device->info->has_lsc)
       return;
 
-   anv_state_pool_free(&device->scratch_surface_state_pool,
+   anv_state_pool_free(anv_device_get_scratch_surface_state_pool(device),
                        device->descriptor_buffer_view_state);
-   anv_state_pool_free(&device->scratch_surface_state_pool,
+   anv_state_pool_free(anv_device_get_scratch_surface_state_pool(device),
                        device->descriptor_view_state);
 }
 
