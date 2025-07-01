@@ -25,6 +25,7 @@
 #include "vk_sampler.h"
 #include "vk_device.h"
 #include "vk_format.h"
+#include "vk_limits.h"
 #include "vk_util.h"
 #include "vk_ycbcr_conversion.h"
 
@@ -121,6 +122,7 @@ vk_sampler_state_init(struct vk_sampler_state *state,
    if (!vk_border_color_is_custom(pCreateInfo->borderColor))
       state->border_color_value = vk_border_color_value(pCreateInfo->borderColor);
    state->reduction_mode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+   state->border_color_index = MESA_VK_MAX_CUSTOM_BORDER_COLOR;
 
    vk_foreach_struct_const(ext, pCreateInfo->pNext) {
       switch (ext->sType) {
@@ -170,6 +172,12 @@ vk_sampler_state_init(struct vk_sampler_state *state,
          state->has_ycbcr_conversion = true;
          state->ycbcr_conversion = conversion->state;
          state->format = conversion->state.format;
+         break;
+      }
+
+      case VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_INDEX_CREATE_INFO_EXT: {
+         const VkSamplerCustomBorderColorIndexCreateInfoEXT *bc_info = (void *)ext;
+         state->border_color_index = bc_info->index;
          break;
       }
 
