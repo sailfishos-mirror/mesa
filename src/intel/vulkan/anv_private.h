@@ -2904,7 +2904,7 @@ anv_device_maybe_alloc_surface_state(struct anv_device *device,
    if (device->physical->indirect_descriptors) {
       if (surface_state_stream)
          return anv_state_stream_alloc(surface_state_stream, 64, 64);
-      return anv_state_pool_alloc(&device->bindless_surface_state_pool, 64, 64);
+      return anv_state_pool_alloc(anv_device_get_bindless_surface_state_pool(device), 64, 64);
    } else {
       return ANV_STATE_NULL;
    }
