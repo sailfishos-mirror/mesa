@@ -444,7 +444,7 @@ setup_execbuf_for_cmd_buffers(struct anv_execbuf *execbuf,
       return result;
 
    if (device->physical->va.aux_tt_pool.size > 0) {
-      result = pin_state_pool(device, execbuf, &device->aux_tt_pool);
+      result = pin_state_pool(device, execbuf, anv_device_get_aux_tt_pool(device));
       if (result != VK_SUCCESS)
          return result;
    }

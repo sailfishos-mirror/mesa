@@ -165,7 +165,7 @@ decode_get_bo(void *v_batch, bool ppgtt, uint64_t address)
        get_bo_from_pool(&ret_bo, &device->indirect_push_descriptor_pool.block_pool, address))
       return ret_bo;
    if (device->info->has_aux_map &&
-       get_bo_from_pool(&ret_bo, &device->aux_tt_pool.block_pool, address))
+       get_bo_from_pool(&ret_bo, &anv_device_get_aux_tt_pool(device)->block_pool, address))
       return ret_bo;
 
    if (!device->cmd_buffer_being_decoded)
@@ -226,7 +226,7 @@ intel_aux_map_buffer_alloc(void *driver_ctx, uint32_t size)
 
    struct anv_device *device = (struct anv_device*)driver_ctx;
 
-   struct anv_state_pool *pool = &device->aux_tt_pool;
+   struct anv_state_pool *pool = anv_device_get_aux_tt_pool(device);
    buf->state = anv_state_pool_alloc(pool, size, size);
 
    buf->base.gpu = pool->block_pool.bo->offset + buf->state.offset;
@@ -241,7 +241,7 @@ intel_aux_map_buffer_free(void *driver_ctx, struct intel_buffer *buffer)
 {
    struct intel_aux_map_buffer *buf = (struct intel_aux_map_buffer*)buffer;
    struct anv_device *device = (struct anv_device*)driver_ctx;
-   struct anv_state_pool *pool = &device->aux_tt_pool;
+   struct anv_state_pool *pool = anv_device_get_aux_tt_pool(device);
    anv_state_pool_free(pool, buf->state);
    free(buf);
 }
