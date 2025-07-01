@@ -161,7 +161,7 @@ anv_create_cmd_buffer(struct vk_command_pool *pool,
    anv_state_stream_init(&cmd_buffer->indirect_push_descriptor_stream,
                          anv_device_get_indirect_push_descriptor_pool(device), 4096);
    anv_state_stream_init(&cmd_buffer->push_descriptor_buffer_stream,
-                         &device->push_descriptor_buffer_pool, 4096);
+                         anv_device_get_push_descriptor_buffer_pool(device), 4096);
 
    int success = u_vector_init_pow2(&cmd_buffer->dynamic_bos, 8,
                                     sizeof(struct anv_bo *));
@@ -294,7 +294,7 @@ reset_cmd_buffer(struct anv_cmd_buffer *cmd_buffer,
 
    anv_state_stream_finish(&cmd_buffer->push_descriptor_buffer_stream);
    anv_state_stream_init(&cmd_buffer->push_descriptor_buffer_stream,
-                         &cmd_buffer->device->push_descriptor_buffer_pool, 4096);
+                         anv_device_get_push_descriptor_buffer_pool(cmd_buffer->device), 4096);
 
    while (u_vector_length(&cmd_buffer->dynamic_bos) > 0) {
       struct anv_bo **bo = u_vector_remove(&cmd_buffer->dynamic_bos);
