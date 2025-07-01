@@ -456,7 +456,7 @@ genX(simple_shader_push_state_address)(struct anv_simple_shader *state,
    } else {
 #if GFX_VERx10 >= 125
       return anv_state_pool_state_address(
-         &state->device->general_state_pool, push_state);
+         anv_device_get_general_state_pool(state->device), push_state);
 #else
       return anv_state_pool_state_address(
          &state->device->dynamic_state_pool, push_state);

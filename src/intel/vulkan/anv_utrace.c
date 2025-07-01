@@ -191,7 +191,7 @@ anv_device_utrace_flush_cmd_buffers(struct anv_queue *queue,
       anv_state_stream_init(&submit->dynamic_state_stream,
                             &device->dynamic_state_pool, 16384);
       anv_state_stream_init(&submit->general_state_stream,
-                            &device->general_state_pool, 16384);
+                            anv_device_get_general_state_pool(device), 16384);
 
       /* Only engine class where we support timestamp copies
        *
