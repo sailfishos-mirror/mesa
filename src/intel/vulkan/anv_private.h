@@ -2849,14 +2849,14 @@ anv_device_get_push_descriptor_buffer_pool(struct anv_device *device)
 static inline struct anv_state
 anv_binding_table_pool_alloc(struct anv_device *device)
 {
-   return anv_state_pool_alloc(&device->binding_table_pool,
-                               device->binding_table_pool.block_size, 0);
+   return anv_state_pool_alloc(anv_device_get_binding_table_pool(device),
+                               anv_device_get_binding_table_pool(device)->block_size, 0);
 }
 
 static inline void
 anv_binding_table_pool_free(struct anv_device *device, struct anv_state state)
 {
-   anv_state_pool_free(&device->binding_table_pool, state);
+   anv_state_pool_free(anv_device_get_binding_table_pool(device), state);
 }
 
 static inline uint32_t

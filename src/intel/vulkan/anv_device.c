@@ -152,7 +152,7 @@ decode_get_bo(void *v_batch, bool ppgtt, uint64_t address)
       return ret_bo;
    if (get_bo_from_shader_heap(&ret_bo, device, address))
       return ret_bo;
-   if (get_bo_from_pool(&ret_bo, &device->binding_table_pool.block_pool, address))
+   if (get_bo_from_pool(&ret_bo, &anv_device_get_binding_table_pool(device)->block_pool, address))
       return ret_bo;
    if (get_bo_from_pool(&ret_bo, &device->scratch_surface_state_pool.block_pool, address))
       return ret_bo;
