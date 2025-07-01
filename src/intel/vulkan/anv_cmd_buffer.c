@@ -159,7 +159,7 @@ anv_create_cmd_buffer(struct vk_command_pool *pool,
    anv_state_stream_init(&cmd_buffer->general_state_stream,
                          anv_device_get_general_state_pool(device), 16384);
    anv_state_stream_init(&cmd_buffer->indirect_push_descriptor_stream,
-                         &device->indirect_push_descriptor_pool, 4096);
+                         anv_device_get_indirect_push_descriptor_pool(device), 4096);
    anv_state_stream_init(&cmd_buffer->push_descriptor_buffer_stream,
                          &device->push_descriptor_buffer_pool, 4096);
 
@@ -289,7 +289,7 @@ reset_cmd_buffer(struct anv_cmd_buffer *cmd_buffer,
 
    anv_state_stream_finish(&cmd_buffer->indirect_push_descriptor_stream);
    anv_state_stream_init(&cmd_buffer->indirect_push_descriptor_stream,
-                         &cmd_buffer->device->indirect_push_descriptor_pool,
+                         anv_device_get_indirect_push_descriptor_pool(cmd_buffer->device),
                          4096);
 
    anv_state_stream_finish(&cmd_buffer->push_descriptor_buffer_stream);

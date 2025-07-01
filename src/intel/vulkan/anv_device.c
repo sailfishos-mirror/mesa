@@ -162,7 +162,7 @@ decode_get_bo(void *v_batch, bool ppgtt, uint64_t address)
    if (get_bo_from_pool(&ret_bo, &anv_device_get_internal_surface_state_pool(device)->block_pool, address))
       return ret_bo;
    if (device->physical->indirect_descriptors &&
-       get_bo_from_pool(&ret_bo, &device->indirect_push_descriptor_pool.block_pool, address))
+       get_bo_from_pool(&ret_bo, &anv_device_get_indirect_push_descriptor_pool(device)->block_pool, address))
       return ret_bo;
    if (device->info->has_aux_map &&
        get_bo_from_pool(&ret_bo, &anv_device_get_aux_tt_pool(device)->block_pool, address))

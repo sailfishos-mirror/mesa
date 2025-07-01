@@ -418,7 +418,7 @@ setup_execbuf_for_cmd_buffers(struct anv_execbuf *execbuf,
    }
 
    if (device->physical->va.indirect_push_descriptor_pool.size > 0) {
-      result = pin_state_pool(device, execbuf, &device->indirect_push_descriptor_pool);
+      result = pin_state_pool(device, execbuf, anv_device_get_indirect_push_descriptor_pool(device));
       if (result != VK_SUCCESS)
          return result;
    }
