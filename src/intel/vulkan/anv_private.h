@@ -2792,6 +2792,60 @@ anv_get_first_render_queue_index(struct anv_physical_device *pdevice)
    UNREACHABLE("Graphics capable queue family not found");
 }
 
+static inline struct anv_state_pool *
+anv_device_get_general_state_pool(struct anv_device *device)
+{
+   return &device->general_state_pool;
+}
+
+static inline struct anv_state_pool *
+anv_device_get_aux_tt_pool(struct anv_device *device)
+{
+   return &device->aux_tt_pool;
+}
+
+static inline struct anv_state_pool *
+anv_device_get_dynamic_state_pool(struct anv_device *device)
+{
+   return &device->dynamic_state_pool;
+}
+
+static inline struct anv_state_pool *
+anv_device_get_binding_table_pool(struct anv_device *device)
+{
+   return &device->binding_table_pool;
+}
+
+static inline struct anv_state_pool *
+anv_device_get_scratch_surface_state_pool(struct anv_device *device)
+{
+   return &device->scratch_surface_state_pool;
+}
+
+static inline struct anv_state_pool *
+anv_device_get_internal_surface_state_pool(struct anv_device *device)
+{
+   return &device->internal_surface_state_pool;
+}
+
+static inline struct anv_state_pool *
+anv_device_get_bindless_surface_state_pool(struct anv_device *device)
+{
+   return &device->bindless_surface_state_pool;
+}
+
+static inline struct anv_state_pool *
+anv_device_get_indirect_push_descriptor_pool(struct anv_device *device)
+{
+   return &device->indirect_push_descriptor_pool;
+}
+
+static inline struct anv_state_pool *
+anv_device_get_push_descriptor_buffer_pool(struct anv_device *device)
+{
+   return &device->push_descriptor_buffer_pool;
+}
+
 static inline struct anv_state
 anv_binding_table_pool_alloc(struct anv_device *device)
 {
