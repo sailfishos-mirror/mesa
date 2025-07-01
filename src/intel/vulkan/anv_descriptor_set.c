@@ -1378,7 +1378,7 @@ VkResult anv_CreateDescriptorPool(
     * states for VkBuffers.
     */
    anv_state_stream_init(&pool->surface_state_stream,
-                         &device->internal_surface_state_pool, 4096);
+                         anv_device_get_internal_surface_state_pool(device), 4096);
    pool->surface_state_free_list = NULL;
 
    list_inithead(&pool->desc_sets);
@@ -1451,7 +1451,7 @@ VkResult anv_ResetDescriptorPool(
 
    anv_state_stream_finish(&pool->surface_state_stream);
    anv_state_stream_init(&pool->surface_state_stream,
-                         &device->internal_surface_state_pool, 4096);
+                         anv_device_get_internal_surface_state_pool(device), 4096);
    pool->surface_state_free_list = NULL;
 
    return VK_SUCCESS;

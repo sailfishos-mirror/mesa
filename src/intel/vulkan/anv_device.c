@@ -159,7 +159,7 @@ decode_get_bo(void *v_batch, bool ppgtt, uint64_t address)
    if (device->physical->indirect_descriptors &&
        get_bo_from_pool(&ret_bo, &device->bindless_surface_state_pool.block_pool, address))
       return ret_bo;
-   if (get_bo_from_pool(&ret_bo, &device->internal_surface_state_pool.block_pool, address))
+   if (get_bo_from_pool(&ret_bo, &anv_device_get_internal_surface_state_pool(device)->block_pool, address))
       return ret_bo;
    if (device->physical->indirect_descriptors &&
        get_bo_from_pool(&ret_bo, &device->indirect_push_descriptor_pool.block_pool, address))
@@ -1062,7 +1062,7 @@ VkResult anv_CreateDevice(
        * pool.
        */
       device->null_surface_state =
-         anv_state_pool_alloc(&device->internal_surface_state_pool,
+         anv_state_pool_alloc(anv_device_get_internal_surface_state_pool(device),
                               device->isl_dev.ss.size,
                               device->isl_dev.ss.align);
       isl_null_fill_state(&device->isl_dev, device->null_surface_state.map,

@@ -895,7 +895,7 @@ genX(cmd_buffer_load_clear_color)(struct anv_cmd_buffer *cmd_buffer,
 #if GFX_VER < 10
    struct anv_address ss_clear_addr =
       anv_state_pool_state_address(
-         &cmd_buffer->device->internal_surface_state_pool,
+         anv_device_get_internal_surface_state_pool(cmd_buffer->device),
          (struct anv_state) {
             .offset = surface_state.offset +
                       cmd_buffer->device->isl_dev.ss.clear_value_offset
@@ -4336,9 +4336,9 @@ genX(CmdExecuteCommands)(
 
             genX(emit_so_memcpy)(
                &memcpy_state,
-               anv_state_pool_state_address(&device->internal_surface_state_pool,
+               anv_state_pool_state_address(anv_device_get_internal_surface_state_pool(device),
                                             dst_state),
-               anv_state_pool_state_address(&device->internal_surface_state_pool,
+               anv_state_pool_state_address(anv_device_get_internal_surface_state_pool(device),
                                             src_state),
                src_state.alloc_size);
          }
