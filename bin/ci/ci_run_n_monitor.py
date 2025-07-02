@@ -712,13 +712,20 @@ def main() -> None:
         if args.pipeline_url:
             pipe, cur_project = get_gitlab_pipeline_from_url(gl, args.pipeline_url)
             REV = pipe.sha
+            print(f"Using the revision from pipeline {pipe.id}: {REV}.")
         else:
-            mesa_project = gl.projects.get("mesa/mesa")
-            projects = [mesa_project]
-            if args.mr:
-                REV = mesa_project.mergerequests.get(args.mr).sha
+            if args.server == GITLAB_URL and args.project == "mesa":  # the default valut
+                gl_project = gl.projects.get("mesa/mesa")
             else:
+                gl_project = get_gitlab_project(gl, args.project)
+            projects = {gl_project}
+            if args.mr:
+                REV = gl_project.mergerequests.get(args.mr).sha
+                print(f"Using the revision from {args.mr}: {REV}.")
+            else:
+                print(f"Using the revision from {REV}: ",end="")
                 REV = check_output(['git', 'rev-parse', REV]).decode('ascii').strip()
+                print(f"{REV}.")
 
                 if args.rev == 'HEAD':
                     try:
@@ -748,7 +755,7 @@ def main() -> None:
                                 )
                                 print("Did you forget to `git push` ?")
 
-                projects.append(get_gitlab_project(gl, args.project))
+                projects.add(get_gitlab_project(gl, args.project))
             (pipe, cur_project) = wait_for_pipeline(projects, REV)
 
         print(f"Revision: {REV}")

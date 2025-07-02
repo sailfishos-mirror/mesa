@@ -14,6 +14,11 @@ import re
 import time
 from functools import cache
 from pathlib import Path
+from typing import Optional
+
+from gitlab import Gitlab
+from gitlab.v4.objects.projects import Project
+from gitlab.v4.objects.pipelines import ProjectPipeline
 
 GITLAB_URL = "https://gitlab.freedesktop.org"
 TOKEN_DIR = Path(os.environ.get("XDG_CONFIG_HOME", "")
@@ -70,7 +75,7 @@ def get_gitlab_pipeline_from_url(gl, pipeline_url) -> tuple:
     return pipe, cur_project
 
 
-def get_gitlab_project(glab, name: str):
+def get_gitlab_project(glab: Gitlab, name: str) -> Project:
     """Finds a specified gitlab project for given user"""
     if "/" in name:
         project_path = name
@@ -162,7 +167,11 @@ def read_token(token_arg: str | Path | None) -> str | None:
     return token
 
 
-def wait_for_pipeline(projects, sha: str, timeout=None):
+def wait_for_pipeline(
+    projects: set[Project],
+    sha: str,
+    timeout=None,
+) -> tuple[Optional[ProjectPipeline],Optional[Project]]:
     """await until pipeline appears in Gitlab"""
     project_names = [project.path_with_namespace for project in projects]
     print(f"⏲ for the pipeline to appear in {project_names}..", end="")
