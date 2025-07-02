@@ -5993,11 +5993,8 @@ vtn_handle_execution_mode_id(struct vtn_builder *b, struct vtn_value *entry_poin
 }
 
 static bool
-vtn_handle_variable_or_type_instruction(struct vtn_builder *b, SpvOp opcode,
-                                        const uint32_t *w, unsigned count)
+spv_op_is_preamble(SpvOp opcode)
 {
-   vtn_set_instruction_result_type(b, opcode, w, count);
-
    switch (opcode) {
    case SpvOpSource:
    case SpvOpSourceContinued:
@@ -6019,9 +6016,24 @@ vtn_handle_variable_or_type_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpGroupMemberDecorate:
    case SpvOpDecorateString:
    case SpvOpMemberDecorateString:
-      vtn_fail("Invalid opcode types and variables section");
-      break;
+      return true;
 
+   default:
+      return false;
+   }
+}
+
+static bool
+vtn_handle_variable_or_type_instruction(struct vtn_builder *b, SpvOp opcode,
+                                        const uint32_t *w, unsigned count)
+{
+   vtn_fail_if(spv_op_is_preamble(opcode),
+               "Invalid opcode in the types and variables section: %s",
+               spirv_op_to_string(opcode));
+
+   vtn_set_instruction_result_type(b, opcode, w, count);
+
+   switch (opcode) {
    case SpvOpTypeVoid:
    case SpvOpTypeBool:
    case SpvOpTypeInt:
