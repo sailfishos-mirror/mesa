@@ -221,7 +221,7 @@ static const struct fd6_format formats[PIPE_FORMAT_COUNT] = {
    V__(B10G10R10A2_SSCALED, 10_10_10_2_SINT,    WXYZ),
 
    VTC(R11G11B10_FLOAT, 11_11_10_FLOAT,         WZYX),
-   _T_(R9G9B9E5_FLOAT,  9_9_9_E5_FLOAT,         WZYX),
+   _TC(R9G9B9E5_FLOAT,  9_9_9_E5_FLOAT,         WZYX),
 
    _TC(Z24X8_UNORM,          Z24_UNORM_S8_UINT, WZYX),
    _TC(X24S8_UINT,           8_8_8_8_UINT,      WZYX),
@@ -525,6 +525,15 @@ fd6_color_format(enum pipe_format format, enum a6xx_tile_mode tile_mode)
       return FMT6_8_UNORM;
 
    return formats[format].rb;
+}
+
+bool
+fd6_color_format_supported(const struct fd_dev_info *info, enum pipe_format format,
+                             enum a6xx_tile_mode tile_mode)
+{
+   if (info->chip < 7 && format == PIPE_FORMAT_R9G9B9E5_FLOAT)
+      return false;
+   return fd6_color_format(format, tile_mode) != FMT6_NONE;
 }
 
 enum a3xx_color_swap

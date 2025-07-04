@@ -18,7 +18,7 @@
 
 template <chip CHIP>
 void fd6_blitter_init(struct pipe_context *pctx);
-unsigned fd6_tile_mode_for_format(enum pipe_format pfmt);
+unsigned fd6_tile_mode_for_format(const struct fd_dev_info *info, enum pipe_format pfmt);
 unsigned fd6_tile_mode(const struct pipe_resource *tmpl);
 
 /*

@@ -342,6 +342,8 @@ fd6_is_format_supported(struct pipe_screen *pscreen,
                         enum pipe_format fmt,
                         uint64_t modifier)
 {
+   struct fd_screen *screen = fd_screen(pscreen);
+
    switch (modifier) {
    case DRM_FORMAT_MOD_LINEAR:
       return true;
@@ -351,7 +353,7 @@ fd6_is_format_supported(struct pipe_screen *pscreen,
        */
       return ok_ubwc_format(pscreen, fmt, 0);
    case DRM_FORMAT_MOD_QCOM_TILED3:
-      return fd6_tile_mode_for_format(fmt) == TILE6_3;
+      return fd6_tile_mode_for_format(screen->info, fmt) == TILE6_3;
    default:
       return false;
    }

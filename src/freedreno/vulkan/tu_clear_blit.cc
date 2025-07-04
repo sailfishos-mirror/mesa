@@ -52,6 +52,8 @@ format_to_ifmt(enum pipe_format format)
       return R2D_INT8;
    if (format == PIPE_FORMAT_A8_UNORM)
       return R2D_UNORM8;
+   if (format == PIPE_FORMAT_R9G9B9E5_FLOAT)
+      return R2D_FLOAT16;
 
    /* use the size of the red channel to find the corresponding "ifmt" */
    bool is_int = util_format_is_pure_integer(format);
@@ -1927,6 +1929,10 @@ pack_blit_event_clear_value(const VkClearValue *val, enum pipe_format format, ui
          PACK_F(r8g8b8a8_unorm);
       else
          pack_int8(clear_value, val->color.uint32);
+      break;
+   case 9:
+      assert(format == PIPE_FORMAT_R9G9B9E5_FLOAT);
+      clear_value[0] = float3_to_rgb9e5(val->color.float32);
       break;
    case 10:
       if (util_format_is_pure_integer(format))
@@ -3922,11 +3928,6 @@ use_generic_clear_for_image_clear(struct tu_cmd_buffer *cmd,
 {
    const struct fd_dev_info *info = cmd->device->physical_device->info;
    return info->props.has_generic_clear &&
-          /* A7XX supports R9G9B9E5_FLOAT as color attachment and supports
-           * generic clears for it. A7XX TODO: allow R9G9B9E5_FLOAT
-           * attachments.
-           */
-          image->vk.format != VK_FORMAT_E5B9G9R9_UFLOAT_PACK32 &&
           /* Clearing VK_FORMAT_R8G8_* with fast-clear value, certain
            * dimensions (e.g. 960x540), and having GMEM renderpass afterwards
            * may lead to a GPU fault on A7XX.
@@ -4785,9 +4786,15 @@ clear_sysmem_attachment(struct tu_cmd_buffer *cmd,
    const VkClearValue *value = &cmd->state.clear_values[a];
    if (cmd->state.pass->attachments[a].samples > 1)
       ops = &r3d_ops<CHIP>;
+   bool e5b9g9r9_as_u32 =
+      vk_format == VK_FORMAT_E5B9G9R9_UFLOAT_PACK32 && ops == &r2d_ops<CHIP>;
 
    trace_start_sysmem_clear(&cmd->rp_trace, cs, cmd, vk_format, ops == &r3d_ops<CHIP>,
                             cmd->state.pass->attachments[a].samples);
+
+   if (e5b9g9r9_as_u32) {
+      format = PIPE_FORMAT_R32_UINT;
+   }
 
    ops->setup(cmd, cs, format, format, clear_mask, 0, true, iview->view.ubwc_enabled,
               cmd->state.pass->attachments[a].samples,
@@ -4796,7 +4803,12 @@ clear_sysmem_attachment(struct tu_cmd_buffer *cmd,
       ops->coords(cmd, cs, cmd->state.render_areas[0].offset, (VkOffset2D) {},
                   cmd->state.render_areas[0].extent);
    }
-   ops->clear_value(cmd, cs, format, value);
+
+   if (e5b9g9r9_as_u32) {
+      ops->clear_value(cmd, cs, PIPE_FORMAT_R9G9B9E5_FLOAT, value);
+   } else {
+      ops->clear_value(cmd, cs, format, value);
+   }
 
    for_each_layer(i, clear_views, fb->layers) {
       if (cmd->state.per_layer_render_area) {
@@ -4810,7 +4822,15 @@ clear_sysmem_attachment(struct tu_cmd_buffer *cmd,
             ops->dst_stencil(cs, iview, i);
          }
       } else {
-         ops->dst(cs, &iview->view, i, format);
+         if (e5b9g9r9_as_u32) {
+            struct fdl6_view view = iview->view;
+            view.RB_A2D_DEST_BUFFER_INFO =
+               pkt_field_set(A6XX_RB_A2D_DEST_BUFFER_INFO_COLOR_FORMAT,
+                             view.RB_A2D_DEST_BUFFER_INFO, FMT6_32_UINT);
+            ops->dst(cs, &view, i, format);
+         } else {
+            ops->dst(cs, &iview->view, i, format);
+         }
       }
       ops->run(cmd, cs);
    }

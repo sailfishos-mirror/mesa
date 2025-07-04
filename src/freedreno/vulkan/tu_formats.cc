@@ -36,9 +36,9 @@ tu6_format_vtx(enum pipe_format format)
 }
 
 static bool
-tu6_format_color_supported(enum pipe_format format)
+tu6_format_color_supported(const struct fd_dev_info *info, enum pipe_format format)
 {
-   return fd6_color_format(format, TILE6_LINEAR) != FMT6_NONE;
+   return fd6_color_format_supported(info, format, TILE6_LINEAR);
 }
 
 struct tu_native_format
@@ -136,7 +136,7 @@ tu_physical_device_get_format_properties(
    const struct vk_format_ycbcr_info *ycbcr_info = vk_format_get_ycbcr_info(vk_format);
 
    bool supported_vtx = tu6_format_vtx_supported(format);
-   bool supported_color = tu6_format_color_supported(format);
+   bool supported_color = tu6_format_color_supported(physical_device->info, format);
    bool supported_tex = fd6_texture_format_supported(physical_device->info, format,
                                                      TILE6_LINEAR, false);
    bool is_npot = !util_is_power_of_two_or_zero(desc->block.bits);

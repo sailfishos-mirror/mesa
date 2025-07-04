@@ -62,6 +62,9 @@ enum a3xx_color_swap fd6_texture_swap(enum pipe_format format,
                                       bool is_mutable) ATTRIBUTE_CONST;
 enum a6xx_format fd6_color_format(enum pipe_format format,
                                   enum a6xx_tile_mode tile_mode) ATTRIBUTE_CONST;
+bool fd6_color_format_supported(const struct fd_dev_info *info, enum pipe_format format,
+                                enum a6xx_tile_mode tile_mode)
+                                ATTRIBUTE_CONST;
 enum a3xx_color_swap fd6_color_swap(enum pipe_format format,
                                     enum a6xx_tile_mode tile_mode,
                                     bool is_mutable) ATTRIBUTE_CONST;
