@@ -1116,6 +1116,7 @@ static void si_fb_clear_via_compute(struct si_context *sctx, unsigned *buffers,
 }
 
 static void gfx6_clear(struct pipe_context *ctx, unsigned buffers,
+                       uint32_t color_clear_mask, uint8_t stencil_clear_mask,
                        const struct pipe_scissor_state *scissor_state,
                        const union pipe_color_union *color, double depth, unsigned stencil)
 {
@@ -1235,6 +1236,7 @@ static void gfx6_clear(struct pipe_context *ctx, unsigned buffers,
 }
 
 static void gfx12_clear(struct pipe_context *ctx, unsigned buffers,
+                        uint32_t color_clear_mask, uint8_t stencil_clear_mask,
                         const struct pipe_scissor_state *scissor_state,
                         const union pipe_color_union *color, double depth, unsigned stencil)
 {
@@ -1309,7 +1311,7 @@ static bool si_try_normal_clear(struct si_context *sctx, struct pipe_surface *ds
       fb.height = surf_height;
 
       ctx->set_framebuffer_state(ctx, &fb);
-      ctx->clear(ctx, buffers, NULL, color, depth, stencil);
+      ctx->clear(ctx, buffers, 0xf, 0, NULL, color, depth, stencil);
       ctx->set_framebuffer_state(ctx, &saved_fb);
 
       util_copy_framebuffer_state(&saved_fb, NULL);

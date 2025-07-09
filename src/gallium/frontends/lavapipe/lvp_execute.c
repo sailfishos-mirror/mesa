@@ -1475,6 +1475,7 @@ static void render_clear_fast(struct rendering_state *state)
       col_val.ui[i] = color_value.color.uint32[i];
 
    state->pctx->clear(state->pctx, buffers,
+                      0xffffffff, 0xff,
                       NULL, &col_val,
                       dclear_val, sclear_val);
    return;

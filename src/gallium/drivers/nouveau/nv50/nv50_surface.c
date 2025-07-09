@@ -454,7 +454,9 @@ nv50_clear_depth_stencil(struct pipe_context *pipe,
 }
 
 void
-nv50_clear(struct pipe_context *pipe, unsigned buffers, const struct pipe_scissor_state *scissor_state,
+nv50_clear(struct pipe_context *pipe, unsigned buffers,
+           uint32_t color_clear_mask, uint8_t stencil_clear_mask,
+           const struct pipe_scissor_state *scissor_state,
            const union pipe_color_union *color,
            double depth, unsigned stencil)
 {

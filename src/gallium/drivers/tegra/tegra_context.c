@@ -713,13 +713,15 @@ tegra_blit(struct pipe_context *pcontext, const struct pipe_blit_info *pinfo)
 }
 
 static void
-tegra_clear(struct pipe_context *pcontext, unsigned buffers, const struct pipe_scissor_state *scissor_state,
+tegra_clear(struct pipe_context *pcontext, unsigned buffers,
+            uint32_t color_clear_mask, uint8_t stencil_clear_mask,
+            const struct pipe_scissor_state *scissor_state,
             const union pipe_color_union *color, double depth,
             unsigned stencil)
 {
    struct tegra_context *context = to_tegra_context(pcontext);
 
-   context->gpu->clear(context->gpu, buffers, NULL, color, depth, stencil);
+   context->gpu->clear(context->gpu, buffers, color_clear_mask, stencil_clear_mask, NULL, color, depth, stencil);
 }
 
 static void

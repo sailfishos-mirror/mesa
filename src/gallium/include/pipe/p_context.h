@@ -712,6 +712,8 @@ struct pipe_context {
     * The entire buffers are cleared (no scissor, no colormask, etc).
     *
     * \param buffers  bitfield of PIPE_CLEAR_* values.
+    * \param color_clear_mask  4 color_mask bits per draw buffer, max 8 draw buffers. 4*8 = 32 bits
+    * \param stencil_clear_mask  the stencil mask
     * \param scissor_state  the scissored region to clear
     * \param color  pointer to a union of fiu array for each of r, g, b, a.
     * \param depth  depth clear value in [0,1].
@@ -719,6 +721,8 @@ struct pipe_context {
     */
    void (*clear)(struct pipe_context *pipe,
                  unsigned buffers,
+                 uint32_t color_clear_mask,
+                 uint8_t stencil_clear_mask,
                  const struct pipe_scissor_state *scissor_state,
                  const union pipe_color_union *color,
                  double depth,

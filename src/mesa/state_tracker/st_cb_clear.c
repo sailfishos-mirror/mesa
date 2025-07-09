@@ -392,6 +392,8 @@ st_Clear(struct gl_context *ctx, GLbitfield mask)
       = ctx->DrawBuffer->Attachment[BUFFER_DEPTH].Renderbuffer;
    struct gl_renderbuffer *stencilRb
       = ctx->DrawBuffer->Attachment[BUFFER_STENCIL].Renderbuffer;
+   uint32_t color_clear_mask = ctx->Color.ColorMask;
+   uint8_t stencil_clear_mask = ctx->Stencil.WriteMask[0] & 0xff;
    GLbitfield quad_buffers = 0x0;
    GLbitfield clear_buffers = 0x0;
    bool have_scissor_buffers = false;
@@ -429,7 +431,7 @@ st_Clear(struct gl_context *ctx, GLbitfield mask)
             bool scissor = is_scissor_enabled(ctx, rb);
             if ((scissor && !st->can_scissor_clear) ||
                 is_window_rectangle_enabled(ctx) ||
-                ((colormask & surf_colormask) != surf_colormask))
+                (((colormask & surf_colormask) != surf_colormask) && !st->pipe->screen->caps.clear_masked))
                quad_buffers |= PIPE_CLEAR_COLOR0 << i;
             else
                clear_buffers |= PIPE_CLEAR_COLOR0 << i;
@@ -454,7 +456,7 @@ st_Clear(struct gl_context *ctx, GLbitfield mask)
          bool scissor = is_scissor_enabled(ctx, stencilRb);
          if ((scissor && !st->can_scissor_clear) ||
              is_window_rectangle_enabled(ctx) ||
-             is_stencil_masked(ctx, stencilRb))
+             (is_stencil_masked(ctx, stencilRb) && !st->pipe->screen->caps.clear_masked))
             quad_buffers |= PIPE_CLEAR_STENCIL;
          else
             clear_buffers |= PIPE_CLEAR_STENCIL;
@@ -508,7 +510,9 @@ st_Clear(struct gl_context *ctx, GLbitfield mask)
       /* We can't translate the clear color to the colorbuffer format,
        * because different colorbuffers may have different formats.
        */
-      st->pipe->clear(st->pipe, clear_buffers, have_scissor_buffers ? &scissor_state : NULL,
+      st->pipe->clear(st->pipe, clear_buffers,
+                      color_clear_mask, stencil_clear_mask,
+                      have_scissor_buffers ? &scissor_state : NULL,
                       (union pipe_color_union*)&ctx->Color.ClearColor,
                       ctx->Depth.Clear, ctx->Stencil.Clear);
    }

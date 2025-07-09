@@ -1073,6 +1073,7 @@ agx_transfer_unmap(struct pipe_context *pctx, struct pipe_transfer *transfer)
  */
 static void
 agx_clear(struct pipe_context *pctx, unsigned buffers,
+          uint32_t color_clear_mask, uint8_t stencil_clear_mask,
           const struct pipe_scissor_state *scissor_state,
           const union pipe_color_union *color, double depth, unsigned stencil)
 {

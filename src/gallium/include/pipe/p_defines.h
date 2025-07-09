@@ -927,6 +927,7 @@ struct pipe_caps {
    bool shareable_shaders;
    bool copy_between_compressed_and_plain_formats;
    bool clear_scissored;
+   bool clear_masked;
    bool draw_parameters;
    bool shader_pack_half_float;
    bool multi_draw_indirect;

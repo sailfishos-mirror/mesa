@@ -674,6 +674,7 @@ Capability about the features and limits of the driver/GPU.
   dilation.
 * ``pipe_caps.conservative_raster_dilate_granularity``: The conservative rasterization
   dilation granularity for values relative to the minimum dilation.
+* ``pipe_caps.clear_masked``: Whether ``clear`` can accept a color_clear_mask for all color buffers and stencil_clear_mask.
 
 
 .. _pipe_shader_caps:
