@@ -23,8 +23,7 @@ option(
   type : 'combo',
   value : 'auto',
   choices : [
-    'auto', 'x11', 'wayland', 'haiku', 'android', 'windows',
-    'surfaceless', 'drm',
+    'auto', 'x11', 'haiku', 'android', 'surfaceless',
   ],
   description : 'the window system EGL assumes for EGL_DEFAULT_DISPLAY',
 )
