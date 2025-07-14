@@ -577,10 +577,10 @@ if with_egl
   if egl_native_platform.contains('auto')
     egl_native_platform = _platforms[0]
   endif
-endif
 
-if with_egl and not _platforms.contains(egl_native_platform)
-  error('-Degl-native-platform does not specify an enabled platform')
+  if not _platforms.contains(egl_native_platform)
+    error('-Degl-native-platform does not specify an enabled platform')
+  endif
 endif
 
 if 'x11' in _platforms
