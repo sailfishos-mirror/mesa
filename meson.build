@@ -2565,6 +2565,7 @@ if with_egl
   endif
   egl_summary += {'Drivers': egl_drivers}
   egl_summary += {'Platforms': _platforms}
+  egl_summary += {'Native platform': egl_native_platform}
 endif
 summary(egl_summary, section: 'EGL', bool_yn: true, list_sep: ' ')
 
