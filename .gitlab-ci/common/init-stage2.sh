@@ -97,6 +97,11 @@ if [ -n "$HWCI_ENABLE_X86_KVM" ]; then
         modprobe ${KVM_KERNEL_MODULE}
 fi
 
+if ! [ -e /install/ ] && ! [ -e $CI_PROJECT_DIR/install/ ]; then
+  echo "Missing install/ dir"
+  exit 1
+fi
+
 # Fix prefix confusion: the build installs to $CI_PROJECT_DIR, but we expect
 # it in /install
 ln -sf $CI_PROJECT_DIR/install /install
