@@ -24,6 +24,8 @@
 #include "brw_nir_rt.h"
 #include "brw_nir_rt_builder.h"
 
+#include "genxml/genX_bits.h"
+
 #include "nir_deref.h"
 
 #include "util/macros.h"
@@ -162,6 +164,14 @@ get_ray_query_shadow_addr(nir_builder *b,
                state->globals.num_dss_rt_stacks),
             brw_nir_rt_sync_stack_id(b)),
          BRW_RT_SIZEOF_SHADOW_RAY_QUERY);
+
+   /* Top/bottom 16 lanes each get their own stack area */
+   lane_offset = nir_bcsel(
+      b,
+      nir_ilt_imm(b, nir_load_subgroup_invocation(b), 16),
+      lane_offset,
+      nir_iadd_imm(b, lane_offset,
+                   brw_rt_ray_queries_shadow_stack_size(state->devinfo) / 2));
 
    return nir_iadd(b, base_addr, nir_i2i64(b, lane_offset));
 }
@@ -306,7 +316,11 @@ lower_ray_query_intrinsic(nir_builder *b,
          if (shadow_stack_addr)
             fill_query(b, hw_stack_addr, shadow_stack_addr, ctrl);
 
-         nir_trace_ray_intel(b, state->rq_globals, level, ctrl, .synchronous = true);
+         /* Do not use state->rq_globals, we want a uniform value for the
+          * tracing call.
+          */
+         nir_trace_ray_intel(b, nir_load_ray_query_global_intel(b),
+                             level, ctrl, .synchronous = true);
 
          struct brw_nir_rt_mem_hit_defs hit_in = {};
          brw_nir_rt_load_mem_hit_from_addr(b, &hit_in, hw_stack_addr, false,
@@ -533,7 +547,18 @@ lower_ray_query_impl(nir_function_impl *impl, struct lowering_state *state)
    nir_builder _b, *b = &_b;
    _b = nir_builder_at(nir_before_impl(impl));
 
-   state->rq_globals = nir_load_ray_query_global_intel(b);
+   nir_def *rq_globals_base = nir_load_ray_query_global_intel(b);
+
+   /* Use a different global for each 16lanes groups (only in SIMD32). */
+   state->rq_globals = nir_bcsel(
+      b,
+      nir_iand(b,
+               nir_ige_imm(b, nir_load_subgroup_invocation(b), 16),
+               nir_ieq_imm(b, nir_load_subgroup_size(b), 32)),
+      nir_iadd_imm(
+         b, rq_globals_base,
+         align(4 * RT_DISPATCH_GLOBALS_length(state->devinfo), 64)),
+      rq_globals_base);
 
    brw_nir_rt_load_globals_addr(b, &state->globals, state->rq_globals,
                                 state->devinfo);

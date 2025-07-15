@@ -265,7 +265,7 @@ brw_rt_ray_queries_hw_stacks_size(const struct intel_device_info *devinfo)
     * which includes all the threads.
     */
    uint32_t max_eu_id = devinfo->max_scratch_ids[MESA_SHADER_COMPUTE];
-   uint32_t max_simd_size = 16; /* Cannot run in SIMD32 with ray queries */
+   uint32_t max_simd_size = 32;
    return max_eu_id * max_simd_size * BRW_RT_SIZEOF_RAY_QUERY;
 }
 
@@ -276,7 +276,7 @@ brw_rt_ray_queries_shadow_stack_size(const struct intel_device_info *devinfo)
     * which includes all the threads.
     */
    uint32_t max_eu_id = devinfo->max_scratch_ids[MESA_SHADER_COMPUTE];
-   uint32_t max_simd_size = 16; /* Cannot run in SIMD32 with ray queries */
+   uint32_t max_simd_size = 32;
    return max_eu_id * max_simd_size * BRW_RT_SIZEOF_SHADOW_RAY_QUERY;
 }
 
