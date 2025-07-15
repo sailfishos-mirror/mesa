@@ -5938,8 +5938,6 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
          }
          break;
       case BRW_TOPOLOGY_ID_EU_THREAD_SIMD: {
-         s.limit_dispatch_width(16, "Topology helper for Ray queries, "
-                              "not supported in SIMD32 mode.");
          brw_reg dst = retype(dest, BRW_TYPE_UD);
          brw_reg eu;
 
@@ -5997,8 +5995,14 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
                        brw_imm_ud(4));
 
          /* LaneID[0:3] << 0 (Use subgroup invocation) */
-         assert(bld.dispatch_width() <= 16); /* Limit to 4 bits */
-         bld.ADD(dst, bld.OR(eu, tid), bld.LOAD_SUBGROUP_INVOCATION());
+
+         const brw_builder ubld = bld.group(MIN2(16, bld.dispatch_width()), 0).exec_all();
+         brw_reg uinvocation = ubld.LOAD_SUBGROUP_INVOCATION();
+         brw_reg invocation = bld.vgrf(BRW_TYPE_D);
+         ubld.MOV(invocation, uinvocation);
+         if (bld.dispatch_width() > 16)
+            ubld.MOV(byte_offset(invocation, 2 * REG_SIZE), uinvocation);
+         bld.ADD(dst, bld.OR(eu, tid), invocation);
          break;
       }
       default:
