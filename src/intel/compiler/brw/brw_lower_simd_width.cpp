@@ -284,6 +284,7 @@ brw_get_lowered_simd_width(const brw_shader *shader, const brw_inst *inst)
    case BRW_OPCODE_BFI1:
    case BRW_OPCODE_BFI2:
    case BRW_OPCODE_BFN:
+   case SHADER_OPCODE_READ_ARCH_REG:
       return get_fpu_lowered_simd_width(shader, inst);
 
    case SHADER_OPCODE_RCP:
@@ -386,6 +387,9 @@ brw_get_lowered_simd_width(const brw_shader *shader, const brw_inst *inst)
    case SHADER_OPCODE_URB_READ_LOGICAL:
    case SHADER_OPCODE_URB_WRITE_LOGICAL:
       return MIN2(devinfo->ver < 20 ? 8 : 16, inst->exec_size);
+
+   case RT_OPCODE_TRACE_RAY_LOGICAL:
+      return MIN2(16, inst->exec_size);
 
    case SHADER_OPCODE_QUAD_SWIZZLE: {
       const unsigned swiz = inst->src[1].ud;
