@@ -137,6 +137,10 @@ struct etna_shader_uniform_info {
    uint32_t count;
 };
 
+struct etna_framebuffer_state {
+   struct pipe_framebuffer_state base;
+};
+
 struct etna_context {
    struct pipe_context base;
 
@@ -212,7 +216,7 @@ struct etna_context {
    struct etna_shader_state shader;
 
    /* saved parameter-like state. these are mainly kept around for the blitter */
-   struct pipe_framebuffer_state framebuffer_s;
+   struct etna_framebuffer_state framebuffer_s;
    struct pipe_stencil_ref stencil_ref_s;
    struct pipe_viewport_state viewport_s;
    struct pipe_scissor_state scissor;

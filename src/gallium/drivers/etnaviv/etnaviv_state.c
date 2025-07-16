@@ -457,7 +457,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
    cs->PE_LOGIC_OP = pe_logic_op;
 
    /* keep copy of original structure */
-   util_copy_framebuffer_state(&ctx->framebuffer_s, fb);
+   util_copy_framebuffer_state(&ctx->framebuffer_s.base, fb);
    ctx->dirty |= ETNA_DIRTY_FRAMEBUFFER | ETNA_DIRTY_DERIVE_TS;
 }
 
@@ -795,7 +795,7 @@ etna_set_stream_output_targets(struct pipe_context *pctx,
 static bool
 etna_update_ts_config(struct etna_context *ctx)
 {
-   const struct pipe_framebuffer_state *fb = &ctx->framebuffer_s;
+   const struct pipe_framebuffer_state *fb = &ctx->framebuffer_s.base;
    bool dirty = ctx->dirty & ETNA_DIRTY_FRAMEBUFFER;
    unsigned rt = 0;
 
@@ -846,7 +846,7 @@ etna_update_ts_config(struct etna_context *ctx)
    }
 
    /* Update the ts config for depth fast clear. */
-   if (ctx->framebuffer_s.zsbuf.texture) {
+   if (ctx->framebuffer_s.base.zsbuf.texture) {
       struct etna_resource *res = etna_resource_get_render_compatible(&ctx->base, fb->zsbuf.texture);
       struct etna_resource_level *level = &res->levels[fb->zsbuf.level];
       uint32_t ts_config = ctx->framebuffer.TS_MEM_CONFIG;
@@ -874,7 +874,7 @@ static bool
 etna_update_clipping(struct etna_context *ctx)
 {
    const struct etna_rasterizer_state *rasterizer = etna_rasterizer_state(ctx->rasterizer);
-   const struct pipe_framebuffer_state *fb = &ctx->framebuffer_s;
+   const struct pipe_framebuffer_state *fb = &ctx->framebuffer_s.base;
 
    if (!VIV_FEATURE(ctx->screen, ETNA_FEATURE_HWTFB) &&
        ctx->rasterizer->rasterizer_discard) {
@@ -911,7 +911,7 @@ etna_update_clipping(struct etna_context *ctx)
 static bool
 etna_update_zsa(struct etna_context *ctx)
 {
-   struct pipe_framebuffer_state *fb = &ctx->framebuffer_s;
+   struct pipe_framebuffer_state *fb = &ctx->framebuffer_s.base;
    struct compiled_shader_state *shader_state = &ctx->shader_state;
    struct pipe_depth_stencil_alpha_state *zsa_state = ctx->zsa;
    struct etna_zsa_state *zsa = etna_zsa_state(zsa_state);
@@ -1008,7 +1008,7 @@ etna_update_zsa(struct etna_context *ctx)
 static bool
 etna_record_flush_resources(struct etna_context *ctx)
 {
-   struct pipe_framebuffer_state *fb = &ctx->framebuffer_s;
+   struct pipe_framebuffer_state *fb = &ctx->framebuffer_s.base;
 
    for (unsigned i = 0; i < fb->nr_cbufs; i++) {
       if (!fb->cbufs[i].texture)

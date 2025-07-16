@@ -117,7 +117,7 @@ etna_context_destroy(struct pipe_context *pctx)
    if (ctx->flush_resources)
       _mesa_set_destroy(ctx->flush_resources, NULL);
 
-   util_copy_framebuffer_state(&ctx->framebuffer_s, NULL);
+   util_copy_framebuffer_state(&ctx->framebuffer_s.base, NULL);
 
    if (ctx->blitter)
       util_blitter_destroy(ctx->blitter);
@@ -344,7 +344,7 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
 
    struct etna_context *ctx = etna_context(pctx);
    struct etna_screen *screen = ctx->screen;
-   struct pipe_framebuffer_state *pfb = &ctx->framebuffer_s;
+   struct pipe_framebuffer_state *pfb = &ctx->framebuffer_s.base;
    uint32_t draw_mode;
    unsigned i;
 
