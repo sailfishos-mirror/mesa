@@ -115,7 +115,7 @@ etna_blend_state_create(struct pipe_context *pctx,
 bool
 etna_update_blend(struct etna_context *ctx)
 {
-   struct pipe_framebuffer_state *pfb = &ctx->framebuffer_s;
+   struct pipe_framebuffer_state *pfb = &ctx->framebuffer_s.base;
    struct pipe_blend_state *pblend = ctx->blend;
    struct etna_blend_state *blend = etna_blend_state(pblend);
    unsigned current_rt = 0;

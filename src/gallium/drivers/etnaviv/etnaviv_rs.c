@@ -363,7 +363,7 @@ etna_blit_clear_color_rs(struct pipe_context *pctx, unsigned idx,
                       const union pipe_color_union *color, bool use_ts)
 {
    struct etna_context *ctx = etna_context(pctx);
-   struct pipe_surface *dst = &ctx->framebuffer_s.cbufs[idx];
+   struct pipe_surface *dst = &ctx->framebuffer_s.base.cbufs[idx];
    struct etna_resource *dst_res = etna_resource_get_render_compatible(pctx, dst->texture);
    struct etna_resource_level *dst_level = &dst_res->levels[dst->level];
    uint64_t new_clear_value = etna_clear_blit_pack_rgba(dst->format, color);
@@ -502,8 +502,8 @@ etna_clear_rs(struct pipe_context *pctx, unsigned buffers,
     * color and depth, otherwise it can result in crashes */
    bool need_ts_flush = false;
    if (buffers & PIPE_CLEAR_COLOR) {
-      for (int idx = 0; idx < ctx->framebuffer_s.nr_cbufs; ++idx) {
-         struct pipe_surface *psurf = &ctx->framebuffer_s.cbufs[idx];
+      for (int idx = 0; idx < ctx->framebuffer_s.base.nr_cbufs; ++idx) {
+         struct pipe_surface *psurf = &ctx->framebuffer_s.base.cbufs[idx];
 
          if (!psurf->texture)
             continue;
@@ -515,8 +515,8 @@ etna_clear_rs(struct pipe_context *pctx, unsigned buffers,
             need_ts_flush = true;
       }
    }
-   if ((buffers & PIPE_CLEAR_DEPTHSTENCIL) && ctx->framebuffer_s.zsbuf.texture != NULL) {
-      struct pipe_surface *psurf = &ctx->framebuffer_s.zsbuf;
+   if ((buffers & PIPE_CLEAR_DEPTHSTENCIL) && ctx->framebuffer_s.base.zsbuf.texture != NULL) {
+      struct pipe_surface *psurf = &ctx->framebuffer_s.base.zsbuf;
 
       if (etna_resource_get_render_compatible(pctx, psurf->texture)->levels[psurf->level].ts_size)
          need_ts_flush = true;
@@ -529,10 +529,10 @@ etna_clear_rs(struct pipe_context *pctx, unsigned buffers,
     * resolve and copy) do not require the TS state.
     */
    if (buffers & PIPE_CLEAR_COLOR) {
-      const bool use_ts = etna_use_ts_for_mrt(ctx->screen, &ctx->framebuffer_s);
+      const bool use_ts = etna_use_ts_for_mrt(ctx->screen, &ctx->framebuffer_s.base);
 
-      for (int idx = 0; idx < ctx->framebuffer_s.nr_cbufs; ++idx) {
-         struct pipe_surface *psurf = &ctx->framebuffer_s.cbufs[idx];
+      for (int idx = 0; idx < ctx->framebuffer_s.base.nr_cbufs; ++idx) {
+         struct pipe_surface *psurf = &ctx->framebuffer_s.base.cbufs[idx];
 
          if (!psurf->texture)
             continue;
@@ -554,8 +554,8 @@ etna_clear_rs(struct pipe_context *pctx, unsigned buffers,
                      VIVS_GL_FLUSH_CACHE_COLOR | VIVS_GL_FLUSH_CACHE_DEPTH);
 
    if ((buffers & PIPE_CLEAR_DEPTHSTENCIL) &&
-       ctx->framebuffer_s.zsbuf.texture != NULL)
-      etna_blit_clear_zs_rs(pctx, &ctx->framebuffer_s.zsbuf, buffers, depth, stencil);
+       ctx->framebuffer_s.base.zsbuf.texture != NULL)
+      etna_blit_clear_zs_rs(pctx, &ctx->framebuffer_s.base.zsbuf, buffers, depth, stencil);
 
    etna_stall(ctx->stream, SYNC_RECIPIENT_RA, SYNC_RECIPIENT_PE);
 }

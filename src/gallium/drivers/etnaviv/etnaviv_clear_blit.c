@@ -64,7 +64,7 @@ etna_blit_save_state(struct etna_context *ctx, bool render_cond)
    util_blitter_save_depth_stencil_alpha(ctx->blitter, ctx->zsa);
    util_blitter_save_stencil_ref(ctx->blitter, &ctx->stencil_ref_s);
    util_blitter_save_sample_mask(ctx->blitter, ctx->sample_mask, 0);
-   util_blitter_save_framebuffer(ctx->blitter, &ctx->framebuffer_s);
+   util_blitter_save_framebuffer(ctx->blitter, &ctx->framebuffer_s.base);
    util_blitter_save_fragment_sampler_states(ctx->blitter,
          ctx->num_fragment_samplers, (void **)ctx->sampler);
    util_blitter_save_fragment_sampler_views(ctx->blitter,
