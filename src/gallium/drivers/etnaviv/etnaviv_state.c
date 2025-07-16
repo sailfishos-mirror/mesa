@@ -132,6 +132,39 @@ etna_update_render_surface(struct pipe_context *pctx,
 }
 
 static void
+etna_fb_expand_128bit(struct etna_context *ctx,
+                      struct pipe_framebuffer_state *fb,
+                      unsigned rt_offset[], unsigned rt_output[])
+{
+   const unsigned nr_cbufs = fb->nr_cbufs;
+   unsigned next_slot = nr_cbufs;
+   unsigned next_output = ctx->screen->base.caps.max_render_targets;
+
+   for (unsigned i = 0; i < nr_cbufs; i++) {
+      if (!fb->cbufs[i].texture || !format_is_128bit(fb->cbufs[i].format))
+         continue;
+
+      const struct etna_resource *res = etna_resource_get_render_compatible(&ctx->base, fb->cbufs[i].texture);
+      const struct etna_resource_level *level = &res->levels[fb->cbufs[i].level];
+
+      assert(next_slot < PIPE_MAX_COLOR_BUFS);
+
+      ctx->framebuffer_s.rt_is_128bit |= 1u << i;
+      ctx->framebuffer_s.rt_companion[i] = next_output;
+      ctx->framebuffer_s.companion_src[next_slot] = i;
+
+      pipe_resource_reference(&fb->cbufs[next_slot].texture, fb->cbufs[i].texture);
+      fb->cbufs[next_slot] = fb->cbufs[i];
+      rt_offset[next_slot] = etna_resource_level_second_plane_offset(level);
+      rt_output[next_slot] = next_output;
+      fb->nr_cbufs = next_slot + 1;
+
+      next_slot++;
+      next_output++;
+   }
+}
+
+static void
 etna_set_framebuffer_state(struct pipe_context *pctx,
                            const struct pipe_framebuffer_state *fb)
 {
@@ -143,6 +176,9 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
    bool target_16bpp = false;
    bool target_linear = false;
 
+   /* keep copy of original structure */
+   util_copy_framebuffer_state(&ctx->framebuffer_s.base, fb);
+
    memset(cs, 0, sizeof(struct compiled_framebuffer_state));
 
    /* Set up TS as well. Warning: this state is used by both the RS and PE */
@@ -151,6 +187,17 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
    uint32_t pe_logic_op = 0;
 
    const bool use_ts = etna_use_ts_for_mrt(screen, fb);
+   STATIC_ASSERT(PIPE_MAX_COLOR_BUFS == 8);
+   unsigned rt_offset[PIPE_MAX_COLOR_BUFS] = {0};
+   unsigned rt_output[PIPE_MAX_COLOR_BUFS] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+   ctx->framebuffer_s.rt_is_128bit = 0;
+   memset(ctx->framebuffer_s.rt_companion, 0, sizeof(ctx->framebuffer_s.rt_companion));
+   memset(ctx->framebuffer_s.companion_src, -1, sizeof(ctx->framebuffer_s.companion_src));
+
+   etna_fb_expand_128bit(ctx, &ctx->framebuffer_s.base, rt_offset, rt_output);
+   fb = &ctx->framebuffer_s.base;
+
    unsigned rt = 0;
 
    for (unsigned i = 0; i < fb->nr_cbufs; i++) {
@@ -189,6 +236,9 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
             cs->PE_RT_PIPE_COLOR_ADDR[rt][i].offset += level->layer_stride / screen->specs.pixel_pipes * i;
          cs->PE_RT_PIPE_COLOR_ADDR[rt][i].flags = ETNA_RELOC_READ | ETNA_RELOC_WRITE;
       }
+
+      cs->PE_RT_PIPE_COLOR_ADDR[rt][0].offset += rt_offset[i];
+      cs->PE_RT_PIPE_COLOR_ADDR[rt][1].offset += rt_offset[i];
 
       if (rt == 0) {
          if (fmt >= PE_FORMAT_R16F)
@@ -257,9 +307,6 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
             cs->RT_TS_COLOR_STATUS_BASE[rt - 1].bo = res->ts_bo;
             cs->RT_TS_COLOR_STATUS_BASE[rt - 1].offset = level->ts_offset;
             cs->RT_TS_COLOR_STATUS_BASE[rt - 1].flags = ETNA_RELOC_READ | ETNA_RELOC_WRITE;
-         } else {
-            if (VIV_FEATURE(screen, ETNA_FEATURE_CACHE128B256BPERLINE))
-               cs->PE_RT_CONFIG[rt - 1] |= RT_CONFIG_UNK27;
          }
       }
 
@@ -293,7 +340,7 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
        * shader output mapping.
        */
       assert(rt < ARRAY_SIZE(cs->ps_output_remap));
-      cs->ps_output_remap[rt] = i;
+      cs->ps_output_remap[rt] = rt_output[i];
 
       rt++;
    }
@@ -452,8 +499,6 @@ etna_set_framebuffer_state(struct pipe_context *pctx,
       pe_logic_op |= VIVS_PE_LOGIC_OP_SINGLE_BUFFER(target_16bpp ? 3 : 2);
    cs->PE_LOGIC_OP = pe_logic_op;
 
-   /* keep copy of original structure */
-   util_copy_framebuffer_state(&ctx->framebuffer_s.base, fb);
    ctx->dirty |= ETNA_DIRTY_FRAMEBUFFER | ETNA_DIRTY_DERIVE_TS;
 }
 

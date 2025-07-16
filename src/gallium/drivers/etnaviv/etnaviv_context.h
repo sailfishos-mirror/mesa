@@ -139,6 +139,10 @@ struct etna_shader_uniform_info {
 
 struct etna_framebuffer_state {
    struct pipe_framebuffer_state base;
+
+   unsigned rt_is_128bit : ETNA_MAX_128BIT_RTS;
+   unsigned rt_companion[ETNA_MAX_128BIT_RTS];
+   int8_t companion_src[PIPE_MAX_COLOR_BUFS];
 };
 
 struct etna_context {
