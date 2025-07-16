@@ -62,7 +62,7 @@ brw_nir_rt_store(nir_builder *b, nir_def *addr, unsigned align,
 static inline nir_def *
 brw_nir_rt_load_const(nir_builder *b, unsigned components, nir_def *addr)
 {
-   return nir_load_global_constant_uniform_block_intel(
+   return nir_build_load_global_constant(
       b, components, 32, addr,
       .access = ACCESS_CAN_REORDER | ACCESS_NON_WRITEABLE,
       .align_mul = 64);
