@@ -266,6 +266,17 @@ intel_device_info_max_sbids(const struct intel_device_info *devinfo)
    return devinfo->ver >= 30 ? 32 : 16;
 }
 
+/* Always disabled while feature is not fully implemented */
+#define INTEL_DEV_ENABLE_64BIT_ADDRESSING 0
+
+static inline bool
+intel_device_info_has_64bit_addressing(const struct intel_device_info *devinfo)
+{
+   return devinfo->verx10 >= 350 && INTEL_DEV_ENABLE_64BIT_ADDRESSING;
+}
+
+#define HAS_64BIT_ADDRESSING(verx) ((verx >= 350) && INTEL_DEV_ENABLE_64BIT_ADDRESSING)
+
 #ifdef __cplusplus
 }
 #endif
