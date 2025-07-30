@@ -58,6 +58,7 @@ r300-rv410-deqp-piglit:
     GPU_VERSION: r300-rv410
     PIGLIT_PLATFORM: gbm
     CI_TRON_DUT_SETUP_TAGS: radeon:codename:RV410
+    HWCI_START_WESTON: 1
 
 r300-rs740-deqp-piglit:
   extends:
@@ -69,6 +70,7 @@ r300-rs740-deqp-piglit:
     GPU_VERSION: r300-rs740
     PIGLIT_PLATFORM: gbm
     CI_TRON_DUT_SETUP_TAGS: radeon:codename:RS740
+    HWCI_START_WESTON: 1
 
 r300-rv530-piglit:
   extends:
@@ -79,3 +81,4 @@ r300-rv530-piglit:
     PIGLIT_PLATFORM: gbm
     RADEON_DEBUG: nohiz
     GPU_VERSION: r300-rv530-nohiz
+    HWCI_START_WESTON: 1

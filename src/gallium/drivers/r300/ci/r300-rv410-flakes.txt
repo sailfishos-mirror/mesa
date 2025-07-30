@@ -5,3 +5,8 @@ spec@glsl-1.20@execution@glsl-fs-frontfacing-not
 
 shaders@glsl-max-varyings >max_varying_components
 shaders@glsl-max-varyings
+
+spec@!opengl 1.2@tex3d-maxsize
+
+glx@glx-buffer-age
+glx@glx-multithread-clearbuffer
