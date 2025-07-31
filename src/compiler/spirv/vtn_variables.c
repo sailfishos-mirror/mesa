@@ -2682,6 +2682,38 @@ vtn_cast_pointer(struct vtn_builder *b, struct vtn_pointer *p,
    return casted;
 }
 
+static void
+buffer_ptr_decoration_cb(struct vtn_builder *b, struct vtn_value *val,
+                         int member, const struct vtn_decoration *dec,
+                         void *void_access)
+{
+   enum gl_access_qualifier *access = void_access;
+   vtn_assert(member == -1);
+
+   switch (dec->decoration) {
+   case SpvDecorationNonReadable:
+      *access |= ACCESS_NON_READABLE;
+      break;
+   case SpvDecorationNonWritable:
+      *access |= ACCESS_NON_WRITEABLE;
+      break;
+   case SpvDecorationRestrict:
+      *access |= ACCESS_RESTRICT;
+      break;
+   case SpvDecorationAliased:
+      *access &= ~ACCESS_RESTRICT;
+      break;
+   case SpvDecorationVolatile:
+      *access |= ACCESS_VOLATILE;
+      break;
+   case SpvDecorationCoherent:
+      *access |= ACCESS_COHERENT;
+      break;
+   default:
+      vtn_fail_with_decoration("Unhandled decoration", dec->decoration);
+   }
+}
+
 void
 vtn_handle_variables(struct vtn_builder *b, SpvOp opcode,
                      const uint32_t *w, unsigned count)
@@ -2932,6 +2964,62 @@ vtn_handle_variables(struct vtn_builder *b, SpvOp opcode,
       vtn_emit_make_visible_barrier(b, access, scope, src->mode);
 
       vtn_push_ssa_value(b, w[2], vtn_variable_load(b, src, spv_access_to_gl_access(access)));
+      break;
+   }
+
+   case SpvOpBufferPointerEXT: {
+      struct vtn_type *res_type = vtn_get_type(b, w[1]);
+      struct vtn_value *val = vtn_untyped_value(b, w[2]);
+      struct vtn_value *src_val = vtn_value(b, w[3], vtn_value_type_pointer);
+      struct vtn_pointer *src = vtn_value_to_pointer(b, src_val);
+
+      vtn_fail_if(res_type->base_type != vtn_base_type_pointer,
+                  "Result Type must be a pointer type");
+
+      enum gl_access_qualifier access = 0;
+      vtn_foreach_decoration(b, val, buffer_ptr_decoration_cb, &access);
+
+      nir_resource_type resource_type;
+      switch (res_type->storage_class) {
+      case SpvStorageClassUniform:
+      case SpvStorageClassUniformConstant:
+         resource_type = nir_resource_type_uniform_buffer;
+         break;
+      case SpvStorageClassStorageBuffer:
+         if (access & ACCESS_NON_WRITEABLE)
+            resource_type = nir_resource_type_read_only_storage_buffer;
+         else
+            resource_type = nir_resource_type_read_write_storage_buffer;
+         break;
+      default:
+         vtn_fail("Result Type must be a pointer type with a Storage Class "
+                  "of Uniform or StorageBuffer.");
+      }
+
+      const nir_address_format addr_format = vtn_mode_to_address_format(b,
+         vtn_storage_class_to_mode(b, res_type->storage_class, NULL, NULL));
+
+      unsigned num_components = nir_address_format_num_components(addr_format);
+      unsigned bit_size = nir_address_format_bit_size(addr_format);
+
+      struct vtn_type *buffer_type = vtn_zalloc(b, struct vtn_type);
+      buffer_type->base_type = vtn_base_type_buffer;
+      buffer_type->storage_class = res_type->storage_class;
+      buffer_type->type = nir_address_format_to_glsl_type(addr_format);
+
+      /* buffer is always an untyped pointer */
+      src = vtn_cast_pointer(b, src, buffer_type);
+
+      /* We know the alignment from the API */
+      src = vtn_align_pointer(b, src, b->options->buffer_descriptor_alignment);
+
+      nir_deref_instr *src_deref = vtn_pointer_to_deref(b, src);
+      nir_def *ptr = nir_load_buffer_ptr_deref(&b->nb, num_components, bit_size,
+                                               &src_deref->def,
+                                               .access = access,
+                                               .resource_type = resource_type);
+
+      vtn_push_pointer(b, w[2], vtn_pointer_from_ssa(b, ptr, res_type));
       break;
    }
 

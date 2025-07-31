@@ -6703,6 +6703,7 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
    case SpvOpUntypedInBoundsAccessChainKHR:
    case SpvOpUntypedInBoundsPtrAccessChainKHR:
    case SpvOpUntypedArrayLengthKHR:
+   case SpvOpBufferPointerEXT:
       vtn_handle_variables(b, opcode, w, count);
       break;
 
