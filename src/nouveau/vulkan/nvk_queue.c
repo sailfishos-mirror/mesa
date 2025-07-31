@@ -35,78 +35,134 @@ nvk_queue_heap_state_finish(struct nvk_device *dev,
 { }
 
 static VkResult
-nvk_queue_heap_state_update(struct nvk_queue *queue,
-                            struct nvk_queue_heap_state *qhs)
+nvk_queue_heap_state_bind_image_heap(struct nvk_queue *queue,
+                                     struct nvk_queue_heap_state *qhs,
+                                     uint64_t image_heap_addr,
+                                     uint32_t image_count)
 {
-   struct nvk_device *dev = nvk_queue_device(queue);
+   /* We can't actually set a size of 0 but we can set a NULL address */
+   if (image_heap_addr == 0 || image_count == 0) {
+      image_heap_addr = 0;
+      image_count = 1;
+   }
 
-   const uint32_t image_count =
-      nvk_descriptor_table_alloc_count(&dev->images);
-   const uint32_t sampler_count =
-      nvk_descriptor_table_alloc_count(&dev->samplers);
-
-   if (qhs->image_count == image_count &&
-       qhs->sampler_count == sampler_count)
+   /* If the heap is already bound, there's nothing to do */
+   if (qhs->image_heap_addr == image_heap_addr &&
+       qhs->image_count == image_count)
       return VK_SUCCESS;
 
+   qhs->image_heap_addr = image_heap_addr;
    qhs->image_count = image_count;
-   qhs->sampler_count = sampler_count;
 
-   uint32_t push_data[64];
+   uint32_t push_data[16];
    struct nv_push push;
-   nv_push_init(&push, push_data, 64,
+   nv_push_init(&push, push_data, 16,
                 nvk_queue_subchannels_from_engines(queue->engines));
    struct nv_push *p = &push;
 
-   if (image_count > 0) {
-      const uint64_t image_heap_addr =
-         nvk_descriptor_table_base_address(&dev->images);
-      if (queue->engines & NVKMD_ENGINE_COMPUTE) {
-         P_MTHD(p, NVA0C0, SET_TEX_HEADER_POOL_A);
-         P_NVA0C0_SET_TEX_HEADER_POOL_A(p, image_heap_addr >> 32);
-         P_NVA0C0_SET_TEX_HEADER_POOL_B(p, image_heap_addr);
-         P_NVA0C0_SET_TEX_HEADER_POOL_C(p, image_count - 1);
-         P_IMMD(p, NVA0C0, INVALIDATE_TEXTURE_HEADER_CACHE_NO_WFI, {
-            .lines = LINES_ALL
-         });
-      }
-
-      if (queue->engines & NVKMD_ENGINE_3D) {
-         P_MTHD(p, NV9097, SET_TEX_HEADER_POOL_A);
-         P_NV9097_SET_TEX_HEADER_POOL_A(p, image_heap_addr >> 32);
-         P_NV9097_SET_TEX_HEADER_POOL_B(p, image_heap_addr);
-         P_NV9097_SET_TEX_HEADER_POOL_C(p, image_count - 1);
-         P_IMMD(p, NV9097, INVALIDATE_TEXTURE_HEADER_CACHE_NO_WFI, {
-            .lines = LINES_ALL
-         });
-      }
+   if (queue->engines & NVKMD_ENGINE_COMPUTE) {
+      P_MTHD(p, NVA0C0, SET_TEX_HEADER_POOL_A);
+      P_NVA0C0_SET_TEX_HEADER_POOL_A(p, image_heap_addr >> 32);
+      P_NVA0C0_SET_TEX_HEADER_POOL_B(p, image_heap_addr);
+      P_NVA0C0_SET_TEX_HEADER_POOL_C(p, image_count - 1);
+      P_IMMD(p, NVA0C0, INVALIDATE_TEXTURE_HEADER_CACHE_NO_WFI, {
+         .lines = LINES_ALL
+      });
    }
 
-   if (sampler_count > 0) {
-      const uint64_t sampler_heap_addr =
-         nvk_descriptor_table_base_address(&dev->samplers);
-      if (queue->engines & NVKMD_ENGINE_COMPUTE) {
-         P_MTHD(p, NVA0C0, SET_TEX_SAMPLER_POOL_A);
-         P_NVA0C0_SET_TEX_SAMPLER_POOL_A(p, sampler_heap_addr >> 32);
-         P_NVA0C0_SET_TEX_SAMPLER_POOL_B(p, sampler_heap_addr);
-         P_NVA0C0_SET_TEX_SAMPLER_POOL_C(p, sampler_count - 1);
-         P_IMMD(p, NVA0C0, INVALIDATE_SAMPLER_CACHE_NO_WFI, {
-            .lines = LINES_ALL
-         });
-      }
-
-      if (queue->engines & NVKMD_ENGINE_3D) {
-         P_MTHD(p, NV9097, SET_TEX_SAMPLER_POOL_A);
-         P_NV9097_SET_TEX_SAMPLER_POOL_A(p, sampler_heap_addr >> 32);
-         P_NV9097_SET_TEX_SAMPLER_POOL_B(p, sampler_heap_addr);
-         P_NV9097_SET_TEX_SAMPLER_POOL_C(p, sampler_count - 1);
-         P_IMMD(p, NV9097, INVALIDATE_SAMPLER_CACHE_NO_WFI, {
-            .lines = LINES_ALL
-         });
-      }
+   if (queue->engines & NVKMD_ENGINE_3D) {
+      P_MTHD(p, NV9097, SET_TEX_HEADER_POOL_A);
+      P_NV9097_SET_TEX_HEADER_POOL_A(p, image_heap_addr >> 32);
+      P_NV9097_SET_TEX_HEADER_POOL_B(p, image_heap_addr);
+      P_NV9097_SET_TEX_HEADER_POOL_C(p, image_count - 1);
+      P_IMMD(p, NV9097, INVALIDATE_TEXTURE_HEADER_CACHE_NO_WFI, {
+         .lines = LINES_ALL
+      });
    }
 
    return nvk_queue_push(queue, p);
+}
+
+static VkResult
+nvk_queue_heap_state_bind_sampler_heap(struct nvk_queue *queue,
+                                       struct nvk_queue_heap_state *qhs,
+                                       uint64_t sampler_heap_addr,
+                                       uint32_t sampler_count)
+{
+   /* We can't actually set a size of 0 but we can set a NULL address */
+   if (sampler_heap_addr == 0 || sampler_count == 0) {
+      sampler_heap_addr = 0;
+      sampler_count = 1;
+   }
+
+   /* If the heap is already bound, there's nothing to do */
+   if (qhs->sampler_heap_addr == sampler_heap_addr &&
+       qhs->sampler_count == sampler_count)
+      return VK_SUCCESS;
+
+   qhs->sampler_heap_addr = sampler_heap_addr;
+   qhs->sampler_count = sampler_count;
+
+   uint32_t push_data[16];
+   struct nv_push push;
+   nv_push_init(&push, push_data, 16,
+                nvk_queue_subchannels_from_engines(queue->engines));
+   struct nv_push *p = &push;
+
+   if (queue->engines & NVKMD_ENGINE_COMPUTE) {
+      P_MTHD(p, NVA0C0, SET_TEX_SAMPLER_POOL_A);
+      P_NVA0C0_SET_TEX_SAMPLER_POOL_A(p, sampler_heap_addr >> 32);
+      P_NVA0C0_SET_TEX_SAMPLER_POOL_B(p, sampler_heap_addr);
+      P_NVA0C0_SET_TEX_SAMPLER_POOL_C(p, sampler_count - 1);
+      P_IMMD(p, NVA0C0, INVALIDATE_SAMPLER_CACHE_NO_WFI, {
+         .lines = LINES_ALL
+      });
+   }
+
+   if (queue->engines & NVKMD_ENGINE_3D) {
+      P_MTHD(p, NV9097, SET_TEX_SAMPLER_POOL_A);
+      P_NV9097_SET_TEX_SAMPLER_POOL_A(p, sampler_heap_addr >> 32);
+      P_NV9097_SET_TEX_SAMPLER_POOL_B(p, sampler_heap_addr);
+      P_NV9097_SET_TEX_SAMPLER_POOL_C(p, sampler_count - 1);
+      P_IMMD(p, NV9097, INVALIDATE_SAMPLER_CACHE_NO_WFI, {
+         .lines = LINES_ALL
+      });
+   }
+
+   return nvk_queue_push(queue, p);
+}
+
+static VkResult
+nvk_queue_heap_state_bind_dev_heaps(struct nvk_queue *queue)
+{
+   struct nvk_device *dev = nvk_queue_device(queue);
+   VkResult result;
+
+   const uint64_t image_heap_addr =
+      nvk_descriptor_table_base_address(&dev->images);
+   const uint32_t image_count =
+      nvk_descriptor_table_alloc_count(&dev->images);
+
+   const uint64_t sampler_heap_addr =
+      nvk_descriptor_table_base_address(&dev->samplers);
+   const uint32_t sampler_count =
+      nvk_descriptor_table_alloc_count(&dev->samplers);
+
+   result = nvk_queue_heap_state_bind_image_heap(queue,
+                                                 &queue->heap_state,
+                                                 image_heap_addr,
+                                                 image_count);
+   if (result != VK_SUCCESS)
+      return result;
+
+   result = nvk_queue_heap_state_bind_sampler_heap(queue,
+                                                   &queue->heap_state,
+                                                   sampler_heap_addr,
+                                                   sampler_count);
+   if (result != VK_SUCCESS)
+      return result;
+
+   return VK_SUCCESS;
 }
 
 static void
@@ -246,7 +302,7 @@ nvk_queue_submit_exec(struct nvk_queue *queue,
       nvk_heap_flush_maps(dev, &dev->shader_heap);
       assert(dev->event_heap.arena.mem_flags & NVKMD_MEM_COHERENT);
 
-      result = nvk_queue_heap_state_update(queue, &queue->heap_state);
+      result = nvk_queue_heap_state_bind_dev_heaps(queue);
       if (result != VK_SUCCESS)
          return result;
 

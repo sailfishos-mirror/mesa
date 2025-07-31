@@ -19,6 +19,8 @@ struct nvkmd_mem;
 struct nvkmd_ctx;
 
 struct nvk_queue_heap_state {
+   uint64_t image_heap_addr;
+   uint64_t sampler_heap_addr;
    uint32_t image_count;
    uint32_t sampler_count;
 };
