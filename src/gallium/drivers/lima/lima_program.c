@@ -333,6 +333,12 @@ lima_fs_compile_shader(struct lima_context *ctx,
    for (int i = 0; i < ARRAY_SIZE(key->tex); i++) {
       for (int j = 0; j < 4; j++)
          tex_options.swizzles[i][j] = key->tex[i].swizzle[j];
+
+      enum pipe_format format = key->tex[i].format;
+      if (!format)
+         continue;
+      if (util_format_is_srgb(format))
+         tex_options.lower_srgb |= (1 << i);
    }
 
    lima_program_optimize_fs_nir(nir, key, &tex_options);
@@ -655,6 +661,9 @@ lima_update_fs_state(struct lima_context *ctx)
          memcpy(key->tex[i].swizzle, identity, 4);
          continue;
       }
+
+      key->tex[i].format = sampler->base.format;
+
       for (int j = 0; j < 4; j++)
          key->tex[i].swizzle[j] = sampler->swizzle[j];
    }
