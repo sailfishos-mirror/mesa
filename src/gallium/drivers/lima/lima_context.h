@@ -65,6 +65,8 @@ struct lima_fs_key {
    struct {
       uint8_t swizzle[4];
    } tex[PIPE_MAX_SAMPLERS];
+
+   enum pipe_format color_format;
 };
 
 #define LIMA_MAX_VARYING_NUM 13
