@@ -341,10 +341,10 @@ struct blorp_params
    bool use_pre_baked_binding_table;
    uint32_t pre_baked_binding_table_offset;
 
-   uint32_t vs_prog_kernel;
-   uint32_t sf_prog_kernel;
-   uint32_t wm_prog_kernel;
-   uint32_t cs_prog_kernel;
+   uint64_t vs_prog_kernel;
+   uint64_t sf_prog_kernel;
+   uint64_t wm_prog_kernel;
+   uint64_t cs_prog_kernel;
 
    /* These are pointers to struct {brw,elk}_stage_prog_data. */
    void *vs_prog_data;
