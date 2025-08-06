@@ -24,9 +24,11 @@
 #include "tu_event.h"
 #include "tu_image.h"
 #include "tu_knl.h"
+#include "tu_perfetto.h"
 #include "tu_subsampled_image.h"
 #include "tu_tile_config.h"
 #include "tu_tracepoints.h"
+#include "tu_trace_bin_layout.h"
 
 enum tu_cmd_buffer_status {
    TU_CMD_BUFFER_STATUS_IDLE = 0,
@@ -3025,7 +3027,8 @@ tu_trace_start_render_pass(struct tu_cmd_buffer *cmd)
 
 template <chip CHIP>
 static void
-tu_trace_end_render_pass(struct tu_cmd_buffer *cmd, bool gmem)
+tu_trace_end_render_pass(struct tu_cmd_buffer *cmd, bool gmem,
+                         struct tu_bin_layout_data *bin_info)
 {
    if (!u_trace_enabled(&cmd->device->trace_context))
       return;
@@ -3061,7 +3064,7 @@ tu_trace_end_render_pass(struct tu_cmd_buffer *cmd, bool gmem)
       cmd->state.rp.lrz_write_disable_reason
          ? cmd->state.rp.lrz_write_disable_reason
          : "",
-      lrz_write_disabled_at_draw, addr);
+      lrz_write_disabled_at_draw, addr, bin_info);
 }
 
 static void
@@ -3925,6 +3928,14 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
 
    tu6_tile_render_begin<CHIP>(cmd, &cmd->cs, rp_ctx, fdm_offsets);
 
+#ifdef HAVE_PERFETTO
+   const unsigned views = tu_fdm_num_layers(cmd);
+   const int tile_count = vsc->tile_count.height * vsc->tile_count.width;
+
+   struct tu_bin_layout_data *bin_layout_data =
+      tu_bin_layout_data_create(cmd, views, fdm_offsets, tile_count);
+#endif
+
    /* Note: we reverse the order of walking the pipes and tiles on every
     * other row, to improve texture cache locality compared to raster order.
     */
@@ -3969,6 +3980,13 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
                   tu_identity_frag_area(cmd, tile);
                }
 
+#ifdef HAVE_PERFETTO
+               if (bin_layout_data) {
+                  bin_layout_data->tiles[bin_layout_data->tile_count] = *tile;
+                  bin_layout_data->tile_count++;
+               }
+#endif
+
                tu6_render_tile<CHIP>(cmd, &cmd->cs, tile, fdm_offsets, rp_ctx, vsc);
             }
             slot_row += tile_row_stride;
@@ -3989,7 +4007,12 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
                                fdm_offsets);
    }
 
-   tu_trace_end_render_pass<CHIP>(cmd, true);
+#ifdef HAVE_PERFETTO
+   tu_trace_end_render_pass<CHIP>(cmd, true, bin_layout_data);
+   ralloc_free(bin_layout_data);
+#else
+   tu_trace_end_render_pass<CHIP>(cmd, true, NULL);
+#endif
 
    /* We have trashed the dynamically-emitted viewport, scissor, and FS params
     * via the patchpoints, so we need to re-emit them if they are reused for a
@@ -4036,7 +4059,7 @@ tu_cmd_render_sysmem(struct tu_cmd_buffer *cmd,
    tu_clone_trace_range<CHIP>(cmd, &cmd->cs, &cmd->trace, cmd->trace_renderpass_start,
                               u_trace_end_iterator(&cmd->rp_trace));
 
-   tu_trace_end_render_pass<CHIP>(cmd, false);
+   tu_trace_end_render_pass<CHIP>(cmd, false, NULL);
 }
 
 template <chip CHIP>
@@ -6293,6 +6316,32 @@ tu_CmdExecuteCommands(VkCommandBuffer commandBuffer,
 
    for (uint32_t i = 0; i < commandBufferCount; i++) {
       VK_FROM_HANDLE(tu_cmd_buffer, secondary, pCmdBuffers[i]);
+
+#ifdef HAVE_PERFETTO
+      /* Propagate viewport/scissor state so that we can emit the correct
+       * state for Perfetto's binInfo. Avoid setting dirty flags to prevent
+       * unnecessary GPU command re-emission.
+       */
+      if (BITSET_TEST(secondary->vk.dynamic_graphics_state.set,
+                      MESA_VK_DYNAMIC_VP_VIEWPORT_COUNT)) {
+         const struct vk_dynamic_graphics_state *sec =
+            &secondary->vk.dynamic_graphics_state;
+         cmd->vk.dynamic_graphics_state.vp.viewport_count =
+            sec->vp.viewport_count;
+         typed_memcpy(cmd->vk.dynamic_graphics_state.vp.viewports,
+               sec->vp.viewports, sec->vp.viewport_count);
+      }
+
+      if (BITSET_TEST(secondary->vk.dynamic_graphics_state.set,
+                      MESA_VK_DYNAMIC_VP_SCISSOR_COUNT)) {
+         const struct vk_dynamic_graphics_state *sec =
+            &secondary->vk.dynamic_graphics_state;
+         cmd->vk.dynamic_graphics_state.vp.scissor_count =
+            sec->vp.scissor_count;
+         typed_memcpy(cmd->vk.dynamic_graphics_state.vp.scissors,
+               sec->vp.scissors, sec->vp.scissor_count);
+      }
+#endif
 
       if (secondary->usage_flags &
           VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT) {

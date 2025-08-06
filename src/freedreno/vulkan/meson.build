@@ -171,6 +171,7 @@ tu_tracepoints = custom_target(
 if with_perfetto
   libtu_files += ['tu_perfetto.cc']
   tu_deps += dep_perfetto
+  tu_deps += idep_parson
 endif
 
 tu_cpp_args = []
