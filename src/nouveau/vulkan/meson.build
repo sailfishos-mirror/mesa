@@ -68,6 +68,8 @@ nvk_files = files(
   'nvk_shader.h',
   'nvk_upload_queue.c',
   'nvk_upload_queue.h',
+  'nvk_video_session.c',
+  'nvk_video_session.h',
   'nvk_wsi.c',
   'nvk_wsi.h',
   'layers/nvk_app_workarounds.c',
