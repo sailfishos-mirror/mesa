@@ -861,7 +861,7 @@ namespace {
    bool
    needs_nomask_workaround(const intel_device_info *devinfo)
    {
-      return true;
+      return devinfo->ver < 20;
    }
 
    /**
