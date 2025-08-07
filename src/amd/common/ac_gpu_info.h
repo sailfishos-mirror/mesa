@@ -200,8 +200,10 @@ struct ac_compiler_info {
    uint32_t has_primid_instancing_bug : 1;
    /* GFX6 and certain GFX7 chips: bug with compute workgroups larger 256 invocations. */
    uint32_t has_cs_regalloc_hang_bug : 1;
+   /* GFX6-GFX12, except GFX9: SMEM loads on NULL PRT page don't work. */
+   uint32_t has_smem_with_null_prt_bug : 1;
 
-   uint32_t reserved : 4;
+   uint32_t reserved : 3;
 };
 
 struct radeon_info {

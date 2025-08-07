@@ -413,6 +413,13 @@ ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_dev
    out->has_cs_regalloc_hang_bug = info->gfx_level == GFX6 ||
                                    info->family == CHIP_BONAIRE ||
                                    info->family == CHIP_KABINI;
+
+   /* On GFX6-8, SMEM loads on a NULL PRT page return garbage instead of zero.
+    * On GFX10-12, SMEM loads on a NULL PRT page throws a VM fault and hangs the GPU.
+    *
+    * Only GFX9 works as expected.
+    */
+   out->has_smem_with_null_prt_bug = info->gfx_level <= GFX12 && info->gfx_level != GFX9;
 }
 
 void
@@ -2087,6 +2094,7 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    has_attr_ring_wait_bug = %i\n", info->compiler_info.has_attr_ring_wait_bug);
    fprintf(f, "    has_primid_instancing_bug = %i\n", info->compiler_info.has_primid_instancing_bug);
    fprintf(f, "    has_cs_regalloc_hang_bug = %i\n", info->compiler_info.has_cs_regalloc_hang_bug);
+   fprintf(f, "    has_smem_with_null_prt_bug = %i\n", info->compiler_info.has_smem_with_null_prt_bug);
 
    fprintf(f, "Ring info:\n");
    if (info->gfx_level >= GFX11) {
