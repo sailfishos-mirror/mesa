@@ -226,6 +226,7 @@ libnvk_rs = static_library(
   ],
   dependencies: [
     dep_paste,
+    idep_nv_push_rs,
   ],
 )
 
