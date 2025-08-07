@@ -32,6 +32,29 @@ nvk_CreateVideoSessionKHR(VkDevice _device,
 
    assert(util_bitcount(vid->vk.op) == 1);
    switch (vid->vk.op) {
+   case VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR: {
+      uint64_t max_width_in_mb = vid->vk.max_coded.width / 16;
+      uint64_t max_height_in_mb = vid->vk.max_coded.height / 16;
+      uint64_t coloc_size = align(align(max_height_in_mb, 2) * (max_width_in_mb * 64) - 63, 0x100);
+      coloc_size *= vid->vk.max_active_ref_pics + 1; /* Max number of references frames, plus current frame */
+      uint64_t mbhist_size  = align(max_width_in_mb * 104, 0x100);
+      uint64_t history_size = align(max_width_in_mb * 0x300, 0x200);
+
+      vid->mems[0] = (struct nvk_vid_mem) {
+         .size_B = coloc_size,
+         .align_B = 256,
+      };
+      vid->mems[1] = (struct nvk_vid_mem) {
+         .size_B = mbhist_size,
+         .align_B = 256,
+      };
+      vid->mems[2] = (struct nvk_vid_mem) {
+         .size_B = history_size,
+         .align_B = 256,
+      };
+      break;
+   }
+
    default:
       vk_video_session_finish(&vid->vk);
       vk_free2(&dev->vk.alloc, pAllocator, vid);
