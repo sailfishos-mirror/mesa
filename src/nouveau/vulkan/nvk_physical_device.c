@@ -114,6 +114,14 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
                           bool has_tiled_bos,
                           struct vk_device_extension_table *ext)
 {
+   const bool video_hw = (instance->experimental_flags & NVK_EXPERIMENTAL_VIDEO) &&
+                         info->has_video;
+   const bool h264dec = video_hw && VIDEO_CODEC_H264DEC;
+   /* The queue and the maintenance extensions are not codec specific, so
+    * they follow whether any decode codec is built.
+    */
+   const bool video = h264dec;
+
    *ext = (struct vk_device_extension_table) {
       .KHR_8bit_storage = true,
       .KHR_16bit_storage = true,
@@ -212,6 +220,9 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
       .KHR_uniform_buffer_standard_layout = true,
       .KHR_variable_pointers = true,
       .KHR_vertex_attribute_divisor = true,
+      .KHR_video_queue = video,
+      .KHR_video_decode_queue = video,
+      .KHR_video_decode_h264 = h264dec,
       .KHR_vulkan_memory_model = info->cls_eng3d >= MAXWELL_A,
       .KHR_workgroup_memory_explicit_layout = true,
       .KHR_zero_initialize_workgroup_memory = true,
@@ -1688,6 +1699,14 @@ nvk_create_drm_physical_device(struct vk_instance *_instance,
          .queue_count = 2,
       };
    }
+   if ((instance->experimental_flags & NVK_EXPERIMENTAL_VIDEO) &&
+       pdev->info.has_video && VIDEO_CODEC_H264DEC) {
+      pdev->queue_families[pdev->queue_family_count++] = (struct nvk_queue_family) {
+         .queue_flags = VK_QUEUE_VIDEO_DECODE_BIT_KHR |
+                        VK_QUEUE_SPARSE_BINDING_BIT,
+         .queue_count = 1,
+      };
+   }
    assert(pdev->queue_family_count <= ARRAY_SIZE(pdev->queue_families));
 
    pdev->vk.supported_sync_types = nvkmd->sync_types;
@@ -1856,6 +1875,15 @@ nvk_GetPhysicalDeviceQueueFamilyProperties2(
             case VK_STRUCTURE_TYPE_QUEUE_FAMILY_OWNERSHIP_TRANSFER_PROPERTIES_KHR: {
                VkQueueFamilyOwnershipTransferPropertiesKHR *p = ext;
                p->optimalImageTransferToQueueFamilies = ~0;
+               break;
+            }
+
+            case VK_STRUCTURE_TYPE_QUEUE_FAMILY_VIDEO_PROPERTIES_KHR: {
+               VkQueueFamilyVideoPropertiesKHR *p = (void *)ext;
+               if (queue_family->queue_flags & VK_QUEUE_VIDEO_DECODE_BIT_KHR &&
+                   VIDEO_CODEC_H264DEC)
+                  p->videoCodecOperations =
+                     VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR;
                break;
             }
 

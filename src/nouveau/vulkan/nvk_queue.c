@@ -426,6 +426,9 @@ nvk_queue_create(struct nvk_device *dev,
    queue->engines =
       nvk_queue_engines_from_queue_flags(queue_family->queue_flags);
 
+   if (queue_family->queue_flags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
+      queue->engines |= NVKMD_ENGINE_VDEC;
+
    if (queue->engines) {
       result = nvkmd_dev_create_ctx(dev->nvkmd, &dev->vk.base,
                                     queue->engines, &queue->exec_ctx);
