@@ -855,6 +855,16 @@ namespace {
    };
 
    /**
+    * Whether it is needed to apply workaround to avoid
+    * data coherency issues due to Wa_1407528679.
+    */
+   bool
+   needs_nomask_workaround(const intel_device_info *devinfo)
+   {
+      return true;
+   }
+
+   /**
     * Add dependency \p dep to the list of dependencies of an instruction
     * \p deps.
     */
@@ -983,7 +993,8 @@ namespace {
                                    const dependency_list &deps,
                                    const ordered_address &jp)
    {
-      const bool exec_all = inst->force_writemask_all;
+      const bool exec_all = inst->force_writemask_all ||
+                            !needs_nomask_workaround(devinfo);
       const bool has_ordered = find_ordered_dependency(deps, jp, exec_all);
       const tgl_pipe ordered_pipe = ordered_dependency_swsb(deps, jp,
                                                             exec_all).pipe;
@@ -1224,7 +1235,8 @@ namespace {
       unsigned ip = 0;
 
       foreach_block_and_inst(block, brw_inst, inst, shader->cfg) {
-         const bool exec_all = inst->force_writemask_all;
+         const bool exec_all = inst->force_writemask_all ||
+                               !needs_nomask_workaround(devinfo);
          const tgl_pipe p = inferred_exec_pipe(devinfo, inst);
          scoreboard &sb = sbs[block->num];
 
@@ -1377,7 +1389,8 @@ namespace {
       unsigned ip = 0;
 
       foreach_block_and_inst_safe(block, brw_inst, inst, shader->cfg) {
-         const bool exec_all = inst->force_writemask_all;
+         const bool exec_all = inst->force_writemask_all ||
+                               !needs_nomask_workaround(devinfo);
          const bool ordered_mode =
             baked_ordered_dependency_mode(devinfo, inst, deps[ip], jps[ip]);
          const tgl_sbid_mode unordered_mode =
