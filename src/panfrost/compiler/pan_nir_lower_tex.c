@@ -984,6 +984,7 @@ va_lower_lod(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
       .wide_indices = tex_h->num_components > 1,
       .derivative_enable = false,
       .force_delta_enable = false,
+      .lod_clamp_disable = true,
    };
 
    tex_h = nir_pad_vector_imm_int(b, tex_h, 0, 2);
@@ -992,29 +993,50 @@ va_lower_lod(nir_builder *b, nir_tex_instr *tex, uint64_t gpu_id)
    if (tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE)
       coord = build_cube_desc(b, coord);
 
-   nir_def *comps[2];
-   for (unsigned i = 0; i < 2; i++) {
-      flags.lod_clamp_disable = i != 0;
-      nir_def *grdesc = nir_build_tex(b, nir_texop_gradient_pan,
-                                      .dim = tex->sampler_dim,
-                                      .dest_type = nir_type_int32,
-                                      .backend_flags = PAN_AS_U32(flags),
-                                      .texture_handle = tex_h,
-                                      .backend1 = coord);
+   nir_def *grdesc = nir_build_tex(b, nir_texop_gradient_pan,
+                                    .dim = tex->sampler_dim,
+                                    .dest_type = nir_type_int32,
+                                    .backend_flags = PAN_AS_U32(flags),
+                                    .texture_handle = tex_h,
+                                    .backend1 = coord);
 
-      nir_def *lod_i16 = nir_unpack_32_2x16_split_x(b, grdesc);
+   nir_def *lod_i16 = nir_unpack_32_2x16_split_x(b, grdesc);
 
-      assert(tex->dest_type == nir_type_float32);
-      nir_def *lod = nir_i2f32(b, lod_i16);
+   assert(tex->dest_type == nir_type_float32);
+   nir_def *lambda_prime = nir_fdiv_imm(b, nir_i2f32(b, lod_i16), 256.0);
 
-      lod = nir_fdiv_imm(b, lod, 256.0);
-      if (i == 0)
-         lod = nir_fround_even(b, lod);
+   nir_def *samp = pan_nir_load_va_desc(b, 2, 32, srcs.samp_h, 0);
+   nir_def *samp_w0 = nir_channel(b, samp, 0);
+   nir_def *samp_w1 = nir_channel(b, samp, 1);
 
-      comps[i] = lod;
-   }
+   /* decode min/max lod from descriptor */
+   nir_def *min_lod = nir_ubitfield_extract_imm(b, samp_w1, 0, 13);
+   nir_def *max_lod = nir_ubitfield_extract_imm(b, samp_w1, 16, 13);
+   min_lod = nir_fdiv_imm(b, nir_u2f32(b, min_lod), 256.0);
+   max_lod = nir_fdiv_imm(b, nir_u2f32(b, max_lod), 256.0);
 
-   nir_def_replace(&tex->def, nir_vec2(b, comps[0], comps[1]));
+   /* clamp max_lod to actual number of levels */
+   nir_def *levels = pan_nir_load_va_tex_levels(b, srcs.tex_h);
+   levels = nir_u2f32(b, nir_iadd_imm(b, levels, -1));
+   max_lod = nir_fmin(b, max_lod, levels);
+
+   /* clamp res.x to [min_lod, max_lod] range */
+   nir_def *lod = nir_fclamp(b, lambda_prime, min_lod, max_lod);
+
+   /* decode mipmap mode from descriptor */
+   nir_def *mipmap_mode = nir_ubitfield_extract_imm(b, samp_w0, 30, 2);
+
+   /* adjust lod.x for MALI_MIPMAP_MODE_NONE */
+   lod = nir_bcsel(b, nir_ieq_imm(b, mipmap_mode, 1 /* MALI_MIPMAP_MODE_NONE */),
+                      nir_imm_zero(b, 1, 32), lod);
+
+   /* adjust lod.x for MALI_MIPMAP_MODE_NEAREST */
+   nir_def *nearest_lod =
+      nir_fadd_imm(b, nir_fceil(b, nir_fadd_imm(b, lod, 0.5)), -1.0);
+   lod = nir_bcsel(b, nir_ieq_imm(b, mipmap_mode, 0 /* MALI_MIPMAP_MODE_NEAREST */),
+                      nearest_lod, lod);
+
+   nir_def_replace(&tex->def, nir_vec2(b, lod, lambda_prime));
    return true;
 }
 
