@@ -54,6 +54,12 @@ METHOD_ARRAY_SIZES = {
     'SET_CLIP_ID_EXTENT_*'                                  : 4,
 }
 
+def method_array_size(name):
+    for (glob, value) in METHOD_ARRAY_SIZES.items():
+        if glob_match(glob, name):
+            return value
+    return 0
+
 METHOD_IS_FLOAT = [
     'SET_BLEND_CONST_*',
     'SET_DEPTH_BIAS',
@@ -492,6 +498,7 @@ class Method(object):
         self.name = name
         self.addr = addr
         self.is_array = is_array
+        self.array_size = method_array_size(self.name)
         self.fields = []
 
     def __eq__(self, other):
@@ -521,13 +528,6 @@ class Method(object):
         expr = strip_parens(expr)
 
         return expr
-
-    @property
-    def array_size(self):
-        for (glob, value) in METHOD_ARRAY_SIZES.items():
-            if glob_match(glob, self.name):
-                return value
-        return 0
 
     @property
     def is_float(self):
@@ -604,15 +604,15 @@ def parse_header(nvcl, f):
                     del methods[curmthd.name]
 
                 teststr = nvcl + "_"
-                is_array = 0
+                is_array = False
                 if (':' in list[2]):
                     continue
                 name = list[1].removeprefix(teststr)
                 if name.endswith("(i)"):
-                    is_array = 1
+                    is_array = True
                     name = name.removesuffix("(i)")
                 if name.endswith("(j)"):
-                    is_array = 1
+                    is_array = True
                     name = name.removesuffix("(j)")
 
                 curmthd = Method(name, list[2], is_array)
