@@ -60,6 +60,12 @@ def method_array_size(name):
             return value
     return 0
 
+# Make array methods even if they aren't technically arrays
+METHOD_GEN_ARRAY = [
+    'SET_PICTURE_CHROMA_OFFSET',
+    'SET_PICTURE_LUMA_OFFSET',
+]
+
 METHOD_IS_FLOAT = [
     'SET_BLEND_CONST_*',
     'SET_DEPTH_BIAS',
@@ -494,11 +500,14 @@ class Field(object):
             return re.sub(r'_+', '_', name)
 
 class Method(object):
-    def __init__(self, name, addr, is_array=False):
+    def __init__(self, name, addr, is_array=False, array_size=None):
         self.name = name
         self.addr = addr
         self.is_array = is_array
-        self.array_size = method_array_size(self.name)
+        if array_size is None:
+            self.array_size = method_array_size(self.name)
+        else:
+            self.array_size = array_size
         self.fields = []
 
     def __eq__(self, other):
@@ -618,6 +627,29 @@ def parse_header(nvcl, f):
                 curmthd = Method(name, list[2], is_array)
                 methods[name] = curmthd
                 state = 1
+
+    for name in METHOD_GEN_ARRAY:
+        mthd0 = methods.get(name + '0')
+        mthd1 = methods.get(name + '1')
+        if mthd0 is not None and mthd1 is not None:
+            assert mthd1.fields == mthd0.fields
+            addr = int(mthd0.addr, 16)
+            stride = int(mthd1.addr, 16) - addr
+
+            array_len = 2
+            while True:
+                mthdN = methods.get(name + str(array_len))
+                if mthdN is None:
+                    break
+
+                assert mthdN.fields == mthd0.fields
+                assert int(mthdN.addr, 16) == addr + array_len * stride
+                array_len += 1
+
+            addr_calc = '({:#010x} + (i) * {})'.format(addr, stride)
+            mthd = Method(name, addr_calc, True)
+            mthd.fields = mthd0.fields
+            methods[name] = mthd
 
     return (version, methods)
 
