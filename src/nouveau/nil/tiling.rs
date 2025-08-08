@@ -5,7 +5,7 @@ use crate::extent::{units, Extent4D};
 use crate::format::Format;
 use crate::image::{
     ImageDim, ImageUsageFlags, SampleLayout, IMAGE_USAGE_2D_VIEW_BIT,
-    IMAGE_USAGE_LINEAR_BIT,
+    IMAGE_USAGE_LINEAR_BIT, IMAGE_USAGE_VIDEO_BIT,
 };
 use crate::ILog2Ceil;
 
@@ -427,6 +427,17 @@ impl Tiling {
         }
 
         tiling = tiling.clamp(extent_px.to_B(format, sample_layout));
+        if (usage & IMAGE_USAGE_VIDEO_BIT) != 0 {
+            // The NVDEC engine writes decoded surfaces in a fixed GOB_2 block
+            // layout (gob_height == 0 in the pic-setup struct, i.e. y_log2 == 1)
+            // regardless of surface size - confirmed against blob captures for
+            // both H.264 and H.265 at 176x144 up to 4K (all gob_height == 0).
+            // Using nil's size-based y_log2 (up to 5) makes the firmware-written
+            // layout disagree with the surface tiling used on readback, which
+            // produces garbage for H.265 (H.264 firmware happens to honor the
+            // field, so it tolerated larger values). Force GOB_2 for video.
+            tiling.y_log2 = 1;
+        }
 
         if max_tile_size_B > 0 {
             while tiling.size_B() > max_tile_size_B {
