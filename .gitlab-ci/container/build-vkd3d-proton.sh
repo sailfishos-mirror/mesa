@@ -24,9 +24,12 @@ if [ ! -d "$VKD3D_PROTON_WINE_DIR" ]; then
   exit 1
 fi
 
-git clone https://github.com/HansKristian-Work/vkd3d-proton.git --single-branch -b master --no-checkout "$VKD3D_PROTON_SRC_DIR"
+mkdir -p "$VKD3D_PROTON_SRC_DIR"
 pushd "$VKD3D_PROTON_SRC_DIR"
-git checkout "$VKD3D_PROTON_COMMIT"
+git init
+git remote add origin https://github.com/HansKristian-Work/vkd3d-proton.git
+git fetch --depth 1 origin "$VKD3D_PROTON_COMMIT"
+git checkout FETCH_HEAD
 git submodule update --init --recursive
 
 meson setup                                           \
