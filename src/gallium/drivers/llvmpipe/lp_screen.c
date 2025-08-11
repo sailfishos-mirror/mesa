@@ -212,6 +212,7 @@ llvmpipe_init_screen_caps(struct pipe_screen *screen)
 #if defined(HAVE_LIBDRM) && defined(HAVE_LINUX_UDMABUF_H)
    caps->native_fence_fd = lscreen->dummy_sync_fd != -1;
 #endif
+   caps->prefer_real_buffer_in_constbuf0 = true;
    caps->npot_textures = true;
    caps->mixed_framebuffer_sizes = true;
    caps->mixed_color_depth_bits = true;

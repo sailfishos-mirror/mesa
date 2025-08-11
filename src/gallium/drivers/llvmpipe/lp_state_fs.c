@@ -4294,17 +4294,9 @@ llvmpipe_set_constant_buffer(struct pipe_context *pipe,
    /* note: reference counting */
    util_copy_constant_buffer(&llvmpipe->constants[shader][index], cb);
 
-   /* user_buffer is only valid until the next set_constant_buffer (at most,
-    * possibly until shader deletion), so we need to upload it now to make
-    * sure it doesn't get updated/freed out from under us.
-    */
-   if (constants->user_buffer) {
-      u_upload_data_ref(llvmpipe->pipe.const_uploader, 0, constants->buffer_size,
-                    16, constants->user_buffer, &constants->buffer_offset,
-                    &constants->buffer);
-   }
+   assert(!constants->user_buffer);
    if (constants->buffer) {
-       if (!(constants->buffer->bind & PIPE_BIND_CONSTANT_BUFFER)) {
+      if (!(constants->buffer->bind & PIPE_BIND_CONSTANT_BUFFER)) {
          debug_printf("Illegal set constant without bind flag\n");
          constants->buffer->bind |= PIPE_BIND_CONSTANT_BUFFER;
       }
