@@ -31,18 +31,19 @@ git fetch --depth 1 origin "$VKD3D_PROTON_COMMIT"
 git checkout FETCH_HEAD
 git submodule update --init --recursive
 
-meson setup                                           \
-      -D c_args=-Wno-error=incompatible-pointer-types \
-      -D enable_tests=true                            \
-      --buildtype release                             \
-      --prefix "$VKD3D_PROTON_DST_DIR"                \
-      --strip                                         \
-      --libdir "lib"                                  \
-      build
-
-ninja -C build install
-
-install -m755 -t "${VKD3D_PROTON_DST_DIR}/tests" build/tests/d3d12
+meson setup build --buildtype release -D enable_tests=true \
+      -D c_args=-Wno-error=incompatible-pointer-types
+# Build and install specifically the bits we want; gets rid of 24MB of
+# unwanted files, keeping only 7.6MB of the three useful files.
+for file in \
+  libs/d3d12/libvkd3d-proton-d3d12.so \
+  libs/d3d12core/libvkd3d-proton-d3d12core.so \
+  tests/d3d12 \
+; do
+  ninja -C build "$file"
+  strip build/"$file"
+  install -Dm755 -t "${VKD3D_PROTON_DST_DIR}/$(dirname "$file")" build/"$file"
+done
 
 install -m755 -t "${VKD3D_PROTON_DST_DIR}/tests" tests/test-runner.sh
 popd
