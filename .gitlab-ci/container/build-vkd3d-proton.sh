@@ -42,7 +42,7 @@ meson setup                                           \
 
 ninja -C build install
 
-install -m755 -t "${VKD3D_PROTON_DST_DIR}/" build/tests/d3d12
+install -m755 -t "${VKD3D_PROTON_DST_DIR}/tests" build/tests/d3d12
 
 install -m755 -t "${VKD3D_PROTON_DST_DIR}/tests" tests/test-runner.sh
 popd
