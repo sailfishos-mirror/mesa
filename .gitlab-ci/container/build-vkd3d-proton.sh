@@ -15,7 +15,6 @@ VKD3D_PROTON_COMMIT="9ca0b9c076a01b5b7c046cb9a4fa9834c555eed3"
 
 VKD3D_PROTON_DST_DIR="/vkd3d-proton-tests"
 VKD3D_PROTON_SRC_DIR="/vkd3d-proton-src"
-VKD3D_PROTON_BUILD_DIR="/vkd3d-proton-build"
 VKD3D_PROTON_WINE_DIR="/vkd3d-proton-wine64"
 VKD3D_PROTON_S3_ARTIFACT="vkd3d-proton.tar.zst"
 
@@ -39,11 +38,11 @@ meson setup                                           \
       --prefix "$VKD3D_PROTON_DST_DIR"                \
       --strip                                         \
       --libdir "lib"                                  \
-      "$VKD3D_PROTON_BUILD_DIR/build"
+      build
 
-ninja -C "$VKD3D_PROTON_BUILD_DIR/build" install
+ninja -C build install
 
-install -m755 -t "${VKD3D_PROTON_DST_DIR}/" "$VKD3D_PROTON_BUILD_DIR/build/tests/d3d12"
+install -m755 -t "${VKD3D_PROTON_DST_DIR}/" build/tests/d3d12
 
 mkdir "$VKD3D_PROTON_DST_DIR/tests"
 cp \
@@ -64,7 +63,6 @@ else
   rm "$VKD3D_PROTON_S3_ARTIFACT"
 fi
 
-rm -rf "$VKD3D_PROTON_BUILD_DIR"
 rm -rf "$VKD3D_PROTON_SRC_DIR"
 
 section_end vkd3d-proton
