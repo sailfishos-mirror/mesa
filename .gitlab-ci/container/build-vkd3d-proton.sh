@@ -44,10 +44,7 @@ ninja -C build install
 
 install -m755 -t "${VKD3D_PROTON_DST_DIR}/" build/tests/d3d12
 
-mkdir "$VKD3D_PROTON_DST_DIR/tests"
-cp \
-  "tests/test-runner.sh" \
-  "$VKD3D_PROTON_DST_DIR/tests/"
+install -m755 -t "${VKD3D_PROTON_DST_DIR}/tests" tests/test-runner.sh
 popd
 
 # Archive and upload vkd3d-proton for use as a LAVA overlay, if the archive doesn't exist yet
