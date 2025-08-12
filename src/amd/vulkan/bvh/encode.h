@@ -345,12 +345,13 @@ radv_encode_instance_gfx12(VOID_REF dst, vk_ir_instance_node src, uint32_t paren
    bit_writer_write(child_writer, floatBitsToUint(blas_header.aabb.min.y), 32);
    bit_writer_write(child_writer, floatBitsToUint(blas_header.aabb.min.z), 32);
 
-   vec3 child_extent = blas_header.aabb.max - blas_header.aabb.min;
-   uvec3 child_extent_exponents = uvec3(ceil(clamp(log2(child_extent) + 127.0, vec3(0.0), vec3(255))));
+   vec3 extent = blas_header.aabb.max - blas_header.aabb.min;
+   vec3 aligned_extent = uintBitsToFloat((floatBitsToUint(extent) + uvec3(0x7fffff)) & 0x7f800000);
+   uvec3 extent_exponents = floatBitsToUint(aligned_extent) >> 23;
 
-   bit_writer_write(child_writer, child_extent_exponents.x, 8);
-   bit_writer_write(child_writer, child_extent_exponents.y, 8);
-   bit_writer_write(child_writer, child_extent_exponents.z, 8);
+   bit_writer_write(child_writer, extent_exponents.x, 8);
+   bit_writer_write(child_writer, extent_exponents.y, 8);
+   bit_writer_write(child_writer, extent_exponents.z, 8);
    bit_writer_write(child_writer, 0, 4);
    bit_writer_write(child_writer, 0, 4);
 
@@ -358,10 +359,10 @@ radv_encode_instance_gfx12(VOID_REF dst, vk_ir_instance_node src, uint32_t paren
    bit_writer_write(child_writer, 0, 12);
    bit_writer_write(child_writer, 4, 8);
    bit_writer_write(child_writer, 0, 12);
-   bit_writer_write(child_writer, 0xfff, 12);
+   bit_writer_write(child_writer, min(uint32_t(ceil(extent.x / aligned_extent.x * float(0x1000))) - 1, 0xfff), 12);
    bit_writer_write(child_writer, 0xff, 8);
-   bit_writer_write(child_writer, 0xfff, 12);
-   bit_writer_write(child_writer, 0xfff, 12);
+   bit_writer_write(child_writer, min(uint32_t(ceil(extent.y / aligned_extent.y * float(0x1000))) - 1, 0xfff), 12);
+   bit_writer_write(child_writer, min(uint32_t(ceil(extent.z / aligned_extent.z * float(0x1000))) - 1, 0xfff), 12);
    bit_writer_write(child_writer, radv_bvh_node_box32, 4);
    bit_writer_write(child_writer, 1, 4);
 
