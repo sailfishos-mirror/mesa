@@ -137,6 +137,64 @@ bit_writer_finish(inout bit_writer writer)
    writer.total_count = 0;
 }
 
+struct radv_gfx12_box_node_encoder {
+   vk_aabb total_bounds;
+   vec3 aligned_extent;
+};
+
+void
+radv_gfx12_box_node_encoder_init(inout radv_gfx12_box_node_encoder encoder, vk_aabb total_bounds)
+{
+   encoder.total_bounds = total_bounds;
+
+   vec3 extent = total_bounds.max - total_bounds.min;
+   encoder.aligned_extent = uintBitsToFloat((floatBitsToUint(extent) + uvec3(0x7fffff)) & 0x7f800000);
+}
+
+uint32_t
+radv_gfx12_box_node_encoder_get_exponents_count(radv_gfx12_box_node_encoder encoder,
+                                                uint32_t child_node_count_minus_one)
+{
+   uvec3 extent_exponents = floatBitsToUint(encoder.aligned_extent) >> 23;
+   uint32_t result = child_node_count_minus_one << 28;
+   result |= extent_exponents.x << 0;
+   result |= extent_exponents.y << 8;
+   result |= extent_exponents.z << 16;
+   return result;
+}
+
+void
+radv_gfx12_box_node_encoder_set_child_bounds(radv_gfx12_box_node_encoder encoder, inout radv_gfx12_box_child child,
+                                             vk_aabb aabb)
+{
+   vec3 origin = encoder.total_bounds.min;
+   vec3 aligned_extent = encoder.aligned_extent;
+
+   child.dword0 = (child.dword0 & 0xFF000000) |
+                  min(uint32_t(floor((aabb.min.x - origin.x) / aligned_extent.x * float(0x1000))), 0xfff) |
+                  (min(uint32_t(floor((aabb.min.y - origin.y) / aligned_extent.y * float(0x1000))), 0xfff) << 12);
+   child.dword1 = (child.dword1 & 0xFF000000) |
+                  min(uint32_t(floor((aabb.min.z - origin.z) / aligned_extent.z * float(0x1000))), 0xfff) |
+                  (min(uint32_t(ceil((aabb.max.x - origin.x) / aligned_extent.x * float(0x1000))) - 1, 0xfff) << 12);
+   child.dword2 = (child.dword2 & 0xFF000000) |
+                  min(uint32_t(ceil((aabb.max.y - origin.y) / aligned_extent.y * float(0x1000))) - 1, 0xfff) |
+                  (min(uint32_t(ceil((aabb.max.z - origin.z) / aligned_extent.z * float(0x1000))) - 1, 0xfff) << 12);
+}
+
+radv_gfx12_box_child
+radv_gfx12_box_node_encoder_get_child(radv_gfx12_box_node_encoder encoder, vk_aabb child_aabb, uint32_t type,
+                                      uint32_t size, uint32_t flags, uint32_t mask)
+{
+   radv_gfx12_box_child box_child;
+   box_child.dword0 = flags << 24;
+   box_child.dword1 = mask << 24;
+   box_child.dword2 = (type << 24) | (size << 28);
+
+   radv_gfx12_box_node_encoder_set_child_bounds(encoder, box_child, child_aabb);
+
+   return box_child;
+}
+
 #define RADV_GFX12_UPDATABLE_PRIMITIVE_NODE_INDICES_OFFSET                                                             \
    (align(RADV_GFX12_PRIMITIVE_NODE_HEADER_SIZE, 32) / 8 + 9 * 4)
 
