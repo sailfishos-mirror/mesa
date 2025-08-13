@@ -94,14 +94,18 @@ struct spill_ctx {
 
    unsigned resume_idx;
 
-   spill_ctx(const RegisterDemand target_pressure_, Program* program_, unsigned extra_vgprs_)
+   unsigned max_lds_spill_slots;
+   Temp lds_m0_zero;
+
+   spill_ctx(const RegisterDemand target_pressure_, Program* program_, unsigned extra_vgprs_,
+             unsigned max_lds_spill_slots_)
        : target_pressure(target_pressure_), program(program_), memory(),
          renames(program->blocks.size(), aco::map<Temp, Temp>(memory)),
          spills_entry(program->blocks.size(), aco::unordered_map<Temp, uint32_t>(memory)),
          spills_exit(program->blocks.size(), aco::unordered_map<Temp, uint32_t>(memory)),
          processed(program->blocks.size(), false), ssa_infos(program->peekAllocationId()),
          remat(memory), wave_size(program->wave_size), sgpr_spill_slots(0), vgpr_spill_slots(0),
-         extra_vgprs(extra_vgprs_), resume_idx(0)
+         extra_vgprs(extra_vgprs_), resume_idx(0), max_lds_spill_slots(max_lds_spill_slots_)
    {}
 
    void add_affinity(uint32_t first, uint32_t second)
@@ -1236,7 +1240,9 @@ setup_vgpr_spill_reload(spill_ctx& ctx, Block& block,
          offset_range = 0;
    }
 
-   bool overflow = (ctx.vgpr_spill_slots - 1) * 4 > offset_range;
+   assert(spill_slot >= ctx.max_lds_spill_slots);
+   spill_slot -= ctx.max_lds_spill_slots;
+   bool overflow = (ctx.vgpr_spill_slots - ctx.max_lds_spill_slots - 1) * 4 > offset_range;
 
    Builder rsrc_bld(ctx.program);
    unsigned bld_block = block.index;
@@ -1320,6 +1326,37 @@ setup_vgpr_spill_reload(spill_ctx& ctx, Block& block,
    }
 }
 
+uint32_t
+setup_vgpr_spill_reload_lds(spill_ctx& ctx, Block& block,
+                            std::vector<aco_ptr<Instruction>>& instructions, uint32_t spill_slot)
+{
+   uint32_t offset = align(ctx.program->config->lds_size, 4);
+   offset += spill_slot * ctx.program->workgroup_size * 4;
+
+   assert(offset < UINT16_MAX);
+
+   if (!ctx.lds_m0_zero.id()) {
+      Builder bld(ctx.program);
+      if (block.kind & block_kind_top_level) {
+         bld.reset(&instructions);
+      } else {
+         Block* tl_block = &block;
+         while (!(tl_block->kind & block_kind_top_level))
+            tl_block = &ctx.program->blocks[tl_block->linear_idom];
+
+         /* find p_logical_end */
+         std::vector<aco_ptr<Instruction>>& prev_instructions = tl_block->instructions;
+         unsigned idx = prev_instructions.size() - 1;
+         while (prev_instructions[idx]->opcode != aco_opcode::p_logical_end)
+            idx--;
+         bld.reset(&prev_instructions, std::next(prev_instructions.begin(), idx));
+      }
+      ctx.lds_m0_zero = bld.copy(bld.def(s1, m0), Operand::c32(0));
+   }
+
+   return offset;
+}
+
 void
 spill_vgpr(spill_ctx& ctx, Block& block, std::vector<aco_ptr<Instruction>>& instructions,
            aco_ptr<Instruction>& spill, std::vector<uint32_t>& slots)
@@ -1328,13 +1365,23 @@ spill_vgpr(spill_ctx& ctx, Block& block, std::vector<aco_ptr<Instruction>>& inst
 
    uint32_t spill_id = spill->operands[1].constantValue();
    uint32_t spill_slot = slots[spill_id];
+   uint32_t slot_count = spill->operands[0].size();
+   uint32_t lds_slots = spill_slot < ctx.max_lds_spill_slots
+                           ? MIN2(ctx.max_lds_spill_slots - spill_slot, slot_count)
+                           : 0;
+   uint32_t scratch_slots = slot_count - lds_slots;
 
    Operand scratch_offset;
    if (!ctx.program->scratch_offsets.empty())
       scratch_offset = Operand(ctx.program->scratch_offsets[ctx.resume_idx]);
    unsigned offset;
-   setup_vgpr_spill_reload(ctx, block, instructions, spill_slot, spill->operands[0].size(),
-                           &scratch_offset, &offset);
+   if (scratch_slots)
+      setup_vgpr_spill_reload(ctx, block, instructions, spill_slot + lds_slots, scratch_slots,
+                              &scratch_offset, &offset);
+
+   unsigned lds_offset = 0;
+   if (lds_slots)
+      lds_offset = setup_vgpr_spill_reload_lds(ctx, block, instructions, spill_slot);
 
    assert(spill->operands[0].isTemp());
    Temp temp = spill->operands[0].getTemp();
@@ -1342,15 +1389,18 @@ spill_vgpr(spill_ctx& ctx, Block& block, std::vector<aco_ptr<Instruction>>& inst
 
    Builder bld(ctx.program, &instructions);
    if (temp.size() > 1) {
+      const unsigned workgroup_size = ctx.program->workgroup_size;
       Instruction* split{
          create_instruction(aco_opcode::p_split_vector, Format::PSEUDO, 1, temp.size())};
       split->operands[0] = Operand(temp);
       for (unsigned i = 0; i < temp.size(); i++)
          split->definitions[i] = bld.def(v1);
       bld.insert(split);
-      for (unsigned i = 0; i < temp.size(); i++, offset += 4) {
+      for (unsigned i = 0; i < temp.size(); i++, offset += 4, lds_offset += workgroup_size * 4) {
          Temp elem = split->definitions[i].getTemp();
-         if (ctx.program->gfx_level >= GFX9) {
+         if (i < lds_slots) {
+            bld.ds(aco_opcode::ds_write_addtid_b32, bld.m0(ctx.lds_m0_zero), elem, lds_offset);
+         } else if (ctx.program->gfx_level >= GFX9) {
             bld.scratch(aco_opcode::scratch_store_dword, Operand(v1), ctx.scratch_rsrc, elem,
                         offset, memory_sync_info(storage_vgpr_spill, semantic_private));
          } else {
@@ -1360,6 +1410,8 @@ spill_vgpr(spill_ctx& ctx, Block& block, std::vector<aco_ptr<Instruction>>& inst
             instr->mubuf().cache.value = ac_swizzled;
          }
       }
+   } else if (lds_slots) {
+      bld.ds(aco_opcode::ds_write_addtid_b32, bld.m0(ctx.lds_m0_zero), temp, lds_offset);
    } else if (ctx.program->gfx_level >= GFX9) {
       bld.scratch(aco_opcode::scratch_store_dword, Operand(v1), ctx.scratch_rsrc, temp, offset,
                   memory_sync_info(storage_vgpr_spill, semantic_private));
@@ -1377,25 +1429,39 @@ reload_vgpr(spill_ctx& ctx, Block& block, std::vector<aco_ptr<Instruction>>& ins
 {
    uint32_t spill_id = reload->operands[0].constantValue();
    uint32_t spill_slot = slots[spill_id];
+   uint32_t slot_count = reload->definitions[0].size();
+   uint32_t lds_slots = spill_slot < ctx.max_lds_spill_slots
+                           ? MIN2(ctx.max_lds_spill_slots - spill_slot, slot_count)
+                           : 0;
+   uint32_t scratch_slots = slot_count - lds_slots;
 
    Operand scratch_offset;
    if (!ctx.program->scratch_offsets.empty())
       scratch_offset = Operand(ctx.program->scratch_offsets[ctx.resume_idx]);
    unsigned offset;
-   setup_vgpr_spill_reload(ctx, block, instructions, spill_slot, reload->definitions[0].size(),
-                           &scratch_offset, &offset);
+   if (scratch_slots)
+      setup_vgpr_spill_reload(ctx, block, instructions, spill_slot + lds_slots, scratch_slots,
+                              &scratch_offset, &offset);
+
+   unsigned lds_offset = 0;
+   if (lds_slots)
+      lds_offset = setup_vgpr_spill_reload_lds(ctx, block, instructions, spill_slot);
 
    Definition def = reload->definitions[0];
 
    Builder bld(ctx.program, &instructions);
    if (def.size() > 1) {
+      const unsigned workgroup_size = ctx.program->workgroup_size;
       Instruction* vec{
          create_instruction(aco_opcode::p_create_vector, Format::PSEUDO, def.size(), 1)};
       vec->definitions[0] = def;
-      for (unsigned i = 0; i < def.size(); i++, offset += 4) {
+      for (unsigned i = 0; i < def.size(); i++, offset += 4, lds_offset += workgroup_size * 4) {
          Temp tmp = bld.tmp(v1);
          vec->operands[i] = Operand(tmp);
-         if (ctx.program->gfx_level >= GFX9) {
+         if (i < lds_slots) {
+            bld.ds(aco_opcode::ds_read_addtid_b32, Definition(tmp), bld.m0(ctx.lds_m0_zero),
+                   lds_offset);
+         } else if (ctx.program->gfx_level >= GFX9) {
             bld.scratch(aco_opcode::scratch_load_dword, Definition(tmp), Operand(v1),
                         ctx.scratch_rsrc, offset,
                         memory_sync_info(storage_vgpr_spill, semantic_private));
@@ -1408,6 +1474,8 @@ reload_vgpr(spill_ctx& ctx, Block& block, std::vector<aco_ptr<Instruction>>& ins
          }
       }
       bld.insert(vec);
+   } else if (lds_slots) {
+      bld.ds(aco_opcode::ds_read_addtid_b32, def, bld.m0(ctx.lds_m0_zero), lds_offset);
    } else if (ctx.program->gfx_level >= GFX9) {
       bld.scratch(aco_opcode::scratch_load_dword, def, Operand(v1), ctx.scratch_rsrc, offset,
                   memory_sync_info(storage_vgpr_spill, semantic_private));
@@ -1734,8 +1802,14 @@ assign_spill_slots(spill_ctx& ctx, unsigned spills_to_vgpr)
       block.instructions = std::move(instructions);
    }
 
-   /* update required scratch memory */
-   ctx.program->config->scratch_bytes_per_wave += ctx.vgpr_spill_slots * 4 * ctx.program->wave_size;
+   /* update required scratch/LDS memory */
+   unsigned lds_slots_used = MIN2(ctx.max_lds_spill_slots, ctx.vgpr_spill_slots);
+   unsigned lds_bytes_used = lds_slots_used * 4 * ctx.program->workgroup_size;
+   if (lds_bytes_used)
+      ctx.program->config->lds_size = align(ctx.program->config->lds_size, 4) + lds_bytes_used;
+
+   unsigned scratch_slots_used = ctx.vgpr_spill_slots - lds_slots_used;
+   ctx.program->config->scratch_bytes_per_wave += scratch_slots_used * 4 * ctx.program->wave_size;
 }
 
 } /* end namespace */
@@ -1808,6 +1882,30 @@ spill(Program* program)
    uint16_t extra_vgprs = 0;
    uint16_t extra_sgprs = 0;
 
+   uint32_t max_lds_spill_slots = 0;
+   /* Only use LDS for VGPR spilling if we can use addtid access, to avoid having a VGPR addr.
+    * Limit to single wave workgroups, to avoid needing the wave_id for the offset.
+    * If we have a scratch stack pointer, don't use LDS at all.
+    */
+   if (program->stage == compute_cs && program->workgroup_size <= program->wave_size &&
+       !program->stack_ptr.id() && program->gfx_level >= GFX9) {
+      int used_lds = program->config->lds_size;
+
+      unsigned allocated_vgprs = ALIGN_NPOT(limit.vgpr, program->dev.vgpr_alloc_granule);
+      unsigned num_waves = program->dev.physical_vgprs / allocated_vgprs;
+      num_waves = MIN2(num_waves, program->dev.max_waves_per_simd);
+      assert(num_waves >= 1);
+
+      int max_lds = ROUND_DOWN_TO(program->dev.lds_limit / (num_waves * program->dev.simd_per_cu),
+                                  ac_shader_get_lds_alloc_granularity(program->gfx_level));
+
+      /* Limit LDS spilling to not reduce occupancy further.
+       * Note that in theory, this can still limit occupancy of other shaders running
+       * on the CU at the same time, but that's unlikely and impossible to know at this point.
+       */
+      max_lds_spill_slots = MAX2(max_lds - used_lds, 0) / (program->workgroup_size * 4);
+   }
+
    /* calculate extra VGPRs required for spilling SGPRs */
    unsigned sgpr_spills = demand.sgpr - std::min((uint16_t)demand.sgpr, (uint16_t)limit.sgpr);
    sgpr_spills += program->max_call_spills.sgpr;
@@ -1821,6 +1919,10 @@ spill(Program* program)
             program->stack_ptr.id() ? 2 : 1; /* SADDR + scc for stack pointer additions */
       else
          extra_sgprs = 5; /* scratch_resource (s4) + scratch_offset (s1) */
+
+      if (max_lds_spill_slots)
+         extra_sgprs += 1; /* addtid m0 */
+
       if (demand.sgpr + extra_sgprs > limit.sgpr || program->max_call_spills.sgpr) {
          /* re-calculate in case something has changed */
          sgpr_spills = program->max_call_spills.sgpr;
@@ -1833,7 +1935,7 @@ spill(Program* program)
    const RegisterDemand target(limit.vgpr - extra_vgprs, limit.sgpr - extra_sgprs);
 
    /* initialize ctx */
-   spill_ctx ctx(target, program, extra_vgprs);
+   spill_ctx ctx(target, program, extra_vgprs, max_lds_spill_slots);
    gather_ssa_use_info(ctx);
    get_rematerialize_info(ctx);
 
