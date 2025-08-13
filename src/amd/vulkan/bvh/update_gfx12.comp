@@ -22,7 +22,7 @@ layout(push_constant) uniform CONSTS
 void
 main()
 {
-   uint32_t bvh_offset = DEREF(args.src).bvh_offset;
+   uint32_t bvh_offset = DEREF(args.src).base.bvh_offset;
 
    VOID_REF src_bvh = OFFSET(args.src, bvh_offset);
    VOID_REF dst_bvh = OFFSET(args.dst, bvh_offset);
@@ -121,7 +121,8 @@ main()
 
       if (cluster.invocation_index == 0) {
          if (is_root_node) {
-            DEREF(args.dst).aabb = total_bounds;
+            DEREF(args.dst).base.aabb = total_bounds;
+            radv_write_instance_filter_gfx12(args.dst, cluster, total_bounds, bounds, valid_child_count_minus_one);
          } else {
             DEREF(INDEX(vk_aabb, args.bounds, node_index - 1)) = total_bounds;
 

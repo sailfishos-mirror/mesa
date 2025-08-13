@@ -11,6 +11,7 @@
 #define RADV_BVH_ENCODE_H
 
 #include "bvh_helpers.h"
+#include "invocation_cluster.h"
 
 void
 radv_encode_aabb_gfx10_3(VOID_REF dst_addr, vk_ir_aabb_node src)
@@ -363,88 +364,61 @@ radv_encode_aabb_gfx12(VOID_REF dst, vk_ir_aabb_node src)
    bit_writer_finish(child_writer);
 }
 
+void
+radv_write_instance_filter_gfx12(REF(radv_accel_struct_header_gfx12) dst, radv_invocation_cluster cluster,
+                                 vk_aabb total_bounds, vk_aabb bounds, uint32_t valid_child_count_minus_one)
+{
+   radv_gfx12_box_node_encoder encoder;
+   radv_gfx12_box_node_encoder_init(encoder, total_bounds);
+
+   radv_gfx12_box_child child;
+   child.dword0 = 0xffffffff;
+   child.dword1 = 0xfff;
+   child.dword2 = 0;
+
+   if (cluster.invocation_index == 0) {
+      DEREF(dst).instance_child_count_exponents = radv_gfx12_box_node_encoder_get_exponents_count(encoder, 0);
+      child = radv_gfx12_box_node_encoder_get_child(encoder, total_bounds, 5, 0, 0, 0xff);
+   }
+
+   if (cluster.invocation_index < 4) {
+      DEREF(dst).instance_children[cluster.invocation_index] = child;
+   }
+}
+
 /* Writes both the HW node and user data. */
 void
-radv_encode_instance_gfx12(VOID_REF dst, vk_ir_instance_node src, uint32_t parent_id)
+radv_encode_instance_gfx12(VOID_REF dst_addr, vk_ir_instance_node src, uint32_t parent_id)
 {
-   bit_writer child_writer;
-   bit_writer_init(child_writer, dst);
-
-   radv_accel_struct_header blas_header = DEREF(REF(radv_accel_struct_header)(src.base_ptr));
+   radv_accel_struct_header_gfx12 blas_header = DEREF(REF(radv_accel_struct_header_gfx12)(src.base_ptr));
 
    mat4 transform = mat4(src.otw_matrix);
    mat4 wto_matrix = transpose(inverse(transpose(transform)));
 
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[0][0]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[0][1]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[0][2]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[0][3]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[1][0]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[1][1]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[1][2]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[1][3]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[2][0]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[2][1]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[2][2]), 32);
-   bit_writer_write(child_writer, floatBitsToUint(wto_matrix[2][3]), 32);
+   REF(radv_gfx12_instance_node) dst = REF(radv_gfx12_instance_node)(dst_addr);
+   DEREF(dst).wto_matrix = mat3x4(wto_matrix);
 
    uint32_t flags = src.sbt_offset_and_flags >> 24;
    uint32_t instance_pointer_flags = 0;
 
-   uint64_t bvh_addr = addr_to_node(src.base_ptr + blas_header.bvh_offset);
-   bvh_addr |= radv_encode_blas_pointer_flags(flags, blas_header.geometry_type);
-   bit_writer_write(child_writer, uint32_t(bvh_addr & 0xffffffff), 32);
-   bit_writer_write(child_writer, uint32_t(bvh_addr >> 32), 32);
-   bit_writer_write(child_writer, parent_id, 32);
-   bit_writer_write(child_writer, src.sbt_offset_and_flags & 0xffffff, 24);
-   bit_writer_write(child_writer, src.custom_instance_and_mask >> 24, 8);
+   uint64_t bvh_addr = addr_to_node(src.base_ptr + blas_header.base.bvh_offset);
+   bvh_addr |= radv_encode_blas_pointer_flags(flags, blas_header.base.geometry_type);
+   DEREF(dst).pointer_flags_bvh_addr = bvh_addr;
 
-   bit_writer_write(child_writer, floatBitsToUint(blas_header.aabb.min.x), 32);
-   bit_writer_write(child_writer, floatBitsToUint(blas_header.aabb.min.y), 32);
-   bit_writer_write(child_writer, floatBitsToUint(blas_header.aabb.min.z), 32);
+   DEREF(dst).parent_id = parent_id;
+   DEREF(dst).cull_mask_user_data = (src.sbt_offset_and_flags & 0xffffff) | (src.custom_instance_and_mask & 0xff000000);
 
-   vec3 extent = blas_header.aabb.max - blas_header.aabb.min;
-   vec3 aligned_extent = uintBitsToFloat((floatBitsToUint(extent) + uvec3(0x7fffff)) & 0x7f800000);
-   uvec3 extent_exponents = floatBitsToUint(aligned_extent) >> 23;
-
-   bit_writer_write(child_writer, extent_exponents.x, 8);
-   bit_writer_write(child_writer, extent_exponents.y, 8);
-   bit_writer_write(child_writer, extent_exponents.z, 8);
-   bit_writer_write(child_writer, 0, 4);
-   bit_writer_write(child_writer, 0, 4);
-
-   bit_writer_write(child_writer, 0, 12);
-   bit_writer_write(child_writer, 0, 12);
-   bit_writer_write(child_writer, 4, 8);
-   bit_writer_write(child_writer, 0, 12);
-   bit_writer_write(child_writer, min(uint32_t(ceil(extent.x / aligned_extent.x * float(0x1000))) - 1, 0xfff), 12);
-   bit_writer_write(child_writer, 0xff, 8);
-   bit_writer_write(child_writer, min(uint32_t(ceil(extent.y / aligned_extent.y * float(0x1000))) - 1, 0xfff), 12);
-   bit_writer_write(child_writer, min(uint32_t(ceil(extent.z / aligned_extent.z * float(0x1000))) - 1, 0xfff), 12);
-   bit_writer_write(child_writer, radv_bvh_node_box32, 4);
-   bit_writer_write(child_writer, 1, 4);
-
-   for (uint32_t remaining_child_index = 0; remaining_child_index < 3; remaining_child_index++) {
-      bit_writer_write(child_writer, 0xfff, 12);
-      bit_writer_write(child_writer, 0xfff, 12);
-      bit_writer_write(child_writer, 0xff, 8);
-      bit_writer_write(child_writer, 0xfff, 12);
-      bit_writer_write(child_writer, 0, 12);
-      bit_writer_write(child_writer, 0, 8);
-      bit_writer_write(child_writer, 0, 12);
-      bit_writer_write(child_writer, 0, 12);
-      bit_writer_write(child_writer, 0, 8);
-   }
-
-   bit_writer_finish(child_writer);
+   DEREF(dst).origin = blas_header.base.aabb.min;
+   DEREF(dst).child_count_exponents = blas_header.instance_child_count_exponents;
+   DEREF(dst).children = blas_header.instance_children;
 
    REF(radv_gfx12_instance_node_user_data) user_data =
-      REF(radv_gfx12_instance_node_user_data)(dst + RADV_GFX12_BVH_NODE_SIZE);
+      REF(radv_gfx12_instance_node_user_data)(dst_addr + RADV_GFX12_BVH_NODE_SIZE);
    DEREF(user_data).otw_matrix = src.otw_matrix;
    DEREF(user_data).custom_instance = src.custom_instance_and_mask & 0xffffff;
    DEREF(user_data).instance_index = src.instance_id;
-   DEREF(user_data).bvh_offset = blas_header.bvh_offset;
-   DEREF(user_data).leaf_node_offsets_offset = blas_header.leaf_node_offsets_offset;
+   DEREF(user_data).bvh_offset = blas_header.base.bvh_offset;
+   DEREF(user_data).leaf_node_offsets_offset = blas_header.base.leaf_node_offsets_offset;
 }
 
 #endif
