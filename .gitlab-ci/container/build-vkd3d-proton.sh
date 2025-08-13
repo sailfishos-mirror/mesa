@@ -47,7 +47,6 @@ install -m755 -t "${VKD3D_PROTON_DST_DIR}/" build/tests/d3d12
 mkdir "$VKD3D_PROTON_DST_DIR/tests"
 cp \
   "tests/test-runner.sh" \
-  "tests/d3d12_tests.h" \
   "$VKD3D_PROTON_DST_DIR/tests/"
 popd
 
