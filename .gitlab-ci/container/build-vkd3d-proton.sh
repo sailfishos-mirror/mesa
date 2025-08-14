@@ -28,7 +28,6 @@ git clone https://github.com/HansKristian-Work/vkd3d-proton.git --single-branch 
 pushd "$VKD3D_PROTON_SRC_DIR"
 git checkout "$VKD3D_PROTON_COMMIT"
 git submodule update --init --recursive
-git submodule update --recursive
 
 meson setup                                           \
       -D c_args=-Wno-error=incompatible-pointer-types \
