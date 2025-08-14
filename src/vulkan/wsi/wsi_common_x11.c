@@ -1947,8 +1947,8 @@ x11_capture_trace(struct x11_swapchain *chain)
 
       simple_mtx_lock(&device->trace_mtx);
       bool capture_key_pressed = keys->keys[keycode / 8] & (1u << (keycode % 8));
-      device->trace_hotkey_trigger = capture_key_pressed && (capture_key_pressed != chain->base.capture_key_pressed);
-      chain->base.capture_key_pressed = capture_key_pressed;
+      device->trace_hotkey_trigger = capture_key_pressed && (capture_key_pressed != device->capture_key_pressed);
+      device->capture_key_pressed = capture_key_pressed;
       simple_mtx_unlock(&device->trace_mtx);
    }
 

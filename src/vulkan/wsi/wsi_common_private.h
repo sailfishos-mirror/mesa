@@ -296,8 +296,6 @@ struct wsi_swapchain {
       uint64_t minimum_complete_time;
    } present_timing;
 
-   bool capture_key_pressed;
-
    /* Command pools, one per queue family */
    VkCommandPool *cmd_pools;
 
