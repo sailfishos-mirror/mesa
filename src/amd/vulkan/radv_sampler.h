@@ -28,4 +28,7 @@ VkResult radv_sampler_init(struct radv_device *device, struct radv_sampler *samp
                            const VkSamplerCreateInfo *pCreateInfo);
 void radv_sampler_finish(struct radv_device *device, struct radv_sampler *sampler);
 
+void radv_make_sampler_descriptor(const struct radv_device *device, const struct vk_sampler_state *sampler_state,
+                                  uint32_t *desc);
+
 #endif /* RADV_SAMPLER_H */

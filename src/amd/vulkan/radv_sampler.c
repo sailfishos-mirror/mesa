@@ -198,7 +198,7 @@ radv_unregister_border_color(struct radv_device *device, uint32_t index)
    mtx_unlock(&device->border_color_data.mutex);
 }
 
-static void
+void
 radv_make_sampler_descriptor(const struct radv_device *device, const struct vk_sampler_state *sampler_state,
                              uint32_t *desc)
 {
