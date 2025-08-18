@@ -1416,7 +1416,7 @@ zink_resource_release(struct pipe_context *pctx, struct pipe_resource *pres)
 ALWAYS_INLINE static void
 update_existing_vbo(struct zink_context *ctx, unsigned slot)
 {
-   if (!ctx->vertex_buffers[slot].buffer.resource)
+   if (!ctx->vertex_buffers[slot].buffer.resource || ctx->vertex_buffers_unowned)
       return;
    struct zink_resource *res = zink_resource(ctx->vertex_buffers[slot].buffer.resource);
    res->vbo_bind_count--;
@@ -1506,6 +1506,11 @@ zink_set_vertex_buffers_internal(struct pipe_context *pctx,
 
    assert(!num_buffers || buffers);
 
+   if (ctx->vertex_buffers_unowned) {
+      for (unsigned i = num_buffers; i < ctx->vertex_buffers_count; i++)
+         ctx->vertex_buffers[i].buffer.resource = NULL;
+   }
+
    for (unsigned i = 0; i < num_buffers; ++i) {
       const struct pipe_vertex_buffer *vb = buffers + i;
       struct pipe_vertex_buffer *ctx_vb = &ctx->vertex_buffers[i];
@@ -1548,6 +1553,21 @@ zink_set_vertex_buffers_internal(struct pipe_context *pctx,
    ctx->can_promote_depth_op = false;
    ctx->vertex_buffers_count = num_buffers;
    ctx->vertex_buffers_dirty = num_buffers > 0;
+   ctx->vertex_buffers_unowned = false;
+}
+
+void
+zink_set_vertex_buffers_unowned(struct zink_context *ctx, unsigned num_buffers, const struct pipe_vertex_buffer *buffers)
+{
+   if (!ctx->vertex_buffers_unowned) {
+      for (unsigned i = 0; i < ctx->vertex_buffers_count; i++)
+         update_existing_vbo(ctx, i);
+      ctx->vertex_buffers_unowned = true;
+   }
+   for (unsigned i = num_buffers; i < ctx->vertex_buffers_count; i++)
+      ctx->vertex_buffers[i].buffer.resource = NULL;
+   memcpy(ctx->vertex_buffers, buffers, num_buffers * sizeof(struct pipe_vertex_buffer));
+   ctx->vertex_buffers_count = num_buffers;
 }
 
 static void
@@ -1613,7 +1633,7 @@ zink_bind_vertex_buffers(struct zink_context *ctx, const struct pipe_vertex_buff
 }
 
 void
-zink_bind_vertex_addresses(struct zink_context *ctx)
+zink_bind_vertex_addresses(struct zink_context *ctx, const struct pipe_vertex_buffer *vbuffers)
 {
 #define DAC_VB_INIT \
       {.sType = VK_STRUCTURE_TYPE_BIND_VERTEX_BUFFER_3_INFO_KHR, .setStride = VK_FALSE, \
@@ -1630,7 +1650,7 @@ zink_bind_vertex_addresses(struct zink_context *ctx)
    if (!elems->hw_state.num_bindings)
       return;
    for (unsigned i = 0; i < elems->hw_state.num_bindings; i++) {
-      const struct pipe_vertex_buffer *vb = &ctx->vertex_buffers[elems->hw_state.binding_map[i]];
+      const struct pipe_vertex_buffer *vb = &vbuffers[elems->hw_state.binding_map[i]];
       if (vb->buffer.resource) {
          struct zink_resource *res = zink_resource(vb->buffer.resource);
          int offset = vb->buffer_offset;

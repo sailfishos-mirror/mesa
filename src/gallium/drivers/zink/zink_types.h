@@ -1739,6 +1739,7 @@ struct zink_context {
    unsigned flags;
 
    pipe_draw_func draw_vbo[2]; //batch changed
+   pipe_draw_buffers_func draw_vbo_buffers[2]; //batch changed
    pipe_draw_vertex_state_func draw_state[2]; //batch changed
    pipe_launch_grid_func launch_grid[2]; //batch changed
    pipe_draw_mesh_tasks_func draw_mesh_tasks[2]; //batch changed
@@ -1845,6 +1846,7 @@ struct zink_context {
    struct pipe_vertex_buffer vertex_buffers[PIPE_MAX_ATTRIBS];
    unsigned vertex_buffers_count;
    bool vertex_buffers_dirty;
+   bool vertex_buffers_unowned;
 
    struct zink_sampler_state *sampler_states[MESA_SHADER_MESH_STAGES][PIPE_MAX_SAMPLERS];
    struct pipe_sampler_view *sampler_views[MESA_SHADER_MESH_STAGES][PIPE_MAX_SAMPLERS];
