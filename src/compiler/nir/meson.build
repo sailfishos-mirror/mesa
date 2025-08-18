@@ -299,6 +299,7 @@ else
   'nir_opt_reassociate_bfi.c',
   'nir_opt_rematerialize_compares.c',
   'nir_opt_remove_phis.c',
+  'nir_opt_shared_vars_to_subgroup.c',
   'nir_opt_shrink_stores.c',
   'nir_opt_shrink_vectors.c',
   'nir_opt_sink.c',

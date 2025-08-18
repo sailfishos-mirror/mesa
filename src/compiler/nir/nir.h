@@ -7021,6 +7021,10 @@ bool nir_opt_uniform_atomics(nir_shader *shader, bool fs_atomics_predicated);
 bool nir_opt_uniform_subgroup(nir_shader *shader,
                               const nir_lower_subgroups_options *);
 
+bool nir_opt_shared_vars_to_subgroup(nir_shader *shader,
+                                     unsigned ballot_num_components,
+                                     unsigned ballot_size);
+
 bool nir_opt_vectorize(nir_shader *shader, nir_vectorize_cb filter,
                        void *data);
 bool nir_opt_vectorize_io(nir_shader *shader, nir_variable_mode modes,

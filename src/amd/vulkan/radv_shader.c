@@ -825,6 +825,8 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
       if (nir->info.stage == MESA_SHADER_TASK || nir->info.stage == MESA_SHADER_MESH)
          var_modes |= nir_var_mem_task_payload;
 
+      NIR_PASS(_, nir, nir_opt_shared_vars_to_subgroup, 1, nir->info.max_subgroup_size);
+
       NIR_PASS(_, nir, nir_lower_vars_to_explicit_types, var_modes, shared_var_info);
       NIR_PASS(_, nir, nir_lower_explicit_io, var_modes, nir_address_format_32bit_offset);
 
