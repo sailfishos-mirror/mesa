@@ -67,6 +67,7 @@
 #include "pipe/p_context.h"
 #include "pipe/p_screen.h"
 #include "util/u_dual_blend.h"
+#include "util/u_draw.h"
 #include "util/u_inlines.h"
 #include "util/format/u_format.h"
 #include "util/u_framebuffer.h"
@@ -11273,6 +11274,7 @@ genX(init_state)(struct iris_context *ice)
    ctx->sampler_view_release = u_default_sampler_view_release;
    ctx->resource_release = u_default_resource_release;
    ctx->draw_vbo = iris_draw_vbo;
+   ctx->draw_vbo_buffers = util_draw_vbo_buffers;
    ctx->launch_grid = iris_launch_grid;
    ctx->create_stream_output_target = iris_create_stream_output_target;
    ctx->stream_output_target_destroy = iris_stream_output_target_destroy;

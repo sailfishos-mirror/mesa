@@ -4670,6 +4670,7 @@ static void
 context_populate_vtbl(struct pipe_context *pipe)
 {
    pipe->draw_vbo = panfrost_draw_vbo;
+   pipe->draw_vbo_buffers = util_draw_vbo_buffers;
    pipe->launch_grid = panfrost_launch_grid;
 
    pipe->create_vertex_elements_state = panfrost_create_vertex_elements_state;

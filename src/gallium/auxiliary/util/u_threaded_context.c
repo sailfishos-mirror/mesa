@@ -566,6 +566,8 @@ tc_batch_flush(struct threaded_context *tc, bool full_copy)
 
    tc_batch_check(next);
    tc_debug_check(tc);
+   /* can't set merge flag in queued batch without racing */
+   tc->pending_vbs = NULL;
    tc->bytes_mapped_estimate = 0;
    tc->bytes_replaced_estimate = 0;
    p_atomic_add(&tc->num_offloaded_slots, next->num_total_slots);
@@ -613,6 +615,12 @@ tc_add_sized_call(struct threaded_context *tc, enum tc_call_id id,
       next = &tc->batch_slots[tc->next];
       tc_assert(next->num_total_slots == 0);
       tc_assert(next->last_mergeable_call == NULL);
+   }
+
+   /* the calls between may cause drivers to save/restore/??? vbs: don't merge */
+   if (id >= TC_CALL_flush_resource && id <= TC_CALL_clear_texture) {
+      tc->pending_vbs = NULL;
+      tc->pending_vbs_seen_draws = false;
    }
 
    tc_assert(util_queue_fence_is_signalled(&next->fence));
@@ -771,6 +779,8 @@ _tc_sync(struct threaded_context *tc, UNUSED const char *info, UNUSED const char
    }
 
    tc_debug_check(tc);
+   tc->pending_vbs = NULL;
+   tc->pending_vbs_seen_draws = false;
 
    if (tc->options.parse_renderpass_info) {
       int renderpass_info_idx = next->renderpass_info_idx;
@@ -1397,6 +1407,14 @@ tc_render_condition(struct pipe_context *_pipe,
    p->mode = mode;
 }
 
+ALWAYS_INLINE static void
+tc_update_pending_vbs(struct threaded_context *tc, void *pending_vbs)
+{
+   if (tc->pending_vbs && tc->pending_vbs_seen_draws)
+      tc->pending_vbs->merge_with_draw = true;
+   tc->pending_vbs = pending_vbs;
+   tc->pending_vbs_seen_draws = false;
+}
 
 /********************************************************************
  * constant (immutable) states
@@ -1456,7 +1474,8 @@ TC_CSO_SHADER_TRACK(tcs)
 TC_CSO_SHADER_TRACK(tes)
 TC_CSO_CREATE(sampler, sampler)
 TC_CSO_DELETE(sampler)
-TC_CSO_BIND(vertex_elements)
+TC_CSO_BIND(vertex_elements,
+   tc_update_pending_vbs(tc, NULL);)
 TC_CSO_DELETE(vertex_elements)
 TC_CSO_SHADER(ms)
 TC_CSO_SHADER_TRACK(ts);
@@ -2209,7 +2228,10 @@ tc_call_set_vertex_buffers(struct pipe_context *pipe, void *call, struct tc_batc
    for (unsigned i = 0; i < count; i++)
       tc_assert(!p->slot[i].is_user_buffer);
 
-   pipe->set_vertex_buffers(pipe, count, p->slot);
+   if (p->merge_with_draw)
+      batch->tc->deferred_vbs = p;
+   else
+      pipe->set_vertex_buffers(pipe, count, p->slot);
    return p->base.num_slots;
 }
 
@@ -2221,11 +2243,11 @@ tc_set_vertex_buffers(struct pipe_context *_pipe, unsigned count,
 
    assert(!count || buffers);
 
+   struct tc_vertex_buffers *p =
+      tc_add_slot_based_call(tc, TC_CALL_set_vertex_buffers, tc_vertex_buffers, count);
+   p->merge_with_draw = false;
+   p->count = count;
    if (count) {
-      struct tc_vertex_buffers *p =
-         tc_add_slot_based_call(tc, TC_CALL_set_vertex_buffers, tc_vertex_buffers, count);
-      p->count = count;
-
       struct tc_buffer_list *next = &tc->buffer_lists[tc->next_buf_list];
 
       memcpy(p->slot, buffers, count * sizeof(struct pipe_vertex_buffer));
@@ -2239,11 +2261,8 @@ tc_set_vertex_buffers(struct pipe_context *_pipe, unsigned count,
             tc_unbind_buffer(&tc->vertex_buffers[i]);
          }
       }
-   } else {
-      struct tc_vertex_buffers *p =
-         tc_add_slot_based_call(tc, TC_CALL_set_vertex_buffers, tc_vertex_buffers, 0);
-      p->count = 0;
    }
+   tc_update_pending_vbs(tc, p);
 
    /* We don't need to unbind trailing buffers because we never touch bindings
     * after num_vertex_buffers.
@@ -2261,9 +2280,14 @@ tc_add_set_vertex_buffers_call(struct pipe_context *_pipe, unsigned count)
     */
    tc->num_vertex_buffers = count;
 
+
    struct tc_vertex_buffers *p =
       tc_add_slot_based_call(tc, TC_CALL_set_vertex_buffers, tc_vertex_buffers, count);
+   p->merge_with_draw = false;
    p->count = count;
+
+   tc_update_pending_vbs(tc, p);
+
    return p->slot;
 }
 
@@ -2304,6 +2328,8 @@ tc_add_set_vertex_elements_and_buffers_call(struct pipe_context *_pipe,
 {
    struct threaded_context *tc = threaded_context(_pipe);
    unsigned extra_slots = 0;
+
+   tc_update_pending_vbs(tc, NULL);
 
    /* We don't need to unbind trailing buffers because we never touch bindings
     * after num_vertex_buffers.
@@ -3760,6 +3786,25 @@ out_of_memory:
    tc->flushing = false;
 }
 
+ALWAYS_INLINE static void
+inline_vbs(struct pipe_context *pipe, struct tc_batch *batch,
+           struct pipe_draw_info *info,
+           struct pipe_draw_start_count_bias *multi, unsigned num_draws)
+{
+   if (batch->tc->deferred_vbs) {
+      /* at this point, it has been determined that the call sequence is like:
+       * - draw
+       * - set_vbs
+       * - ...
+       * - draw <-- we are here
+       */
+      pipe->draw_vbo_buffers(pipe, info, batch->tc->deferred_vbs->slot, batch->tc->deferred_vbs->count,  multi, num_draws);
+      batch->tc->deferred_vbs = NULL;
+   } else {
+      pipe->draw_vbo(pipe, info, 0, NULL, multi, num_draws);
+   }
+}
+
 struct tc_draw_single_drawid {
    struct tc_draw_single base;
    unsigned drawid_offset;
@@ -3781,6 +3826,11 @@ tc_call_draw_single_drawid(struct pipe_context *pipe, void *call, struct tc_batc
 
    info->info.index_bounds_valid = false;
    info->info.has_user_indices = false;
+
+   if (batch->tc->deferred_vbs) {
+      pipe->set_vertex_buffers(pipe, batch->tc->deferred_vbs->count, batch->tc->deferred_vbs->slot);
+      batch->tc->deferred_vbs = NULL;
+   }
 
    pipe->draw_vbo(pipe, &info->info, info_drawid->drawid_offset, NULL, &draw, 1);
 
@@ -3864,7 +3914,7 @@ tc_call_draw_single(struct pipe_context *pipe, void *call, struct tc_batch *batc
          }
 
          first->info.index_bias_varies = index_bias_varies;
-         pipe->draw_vbo(pipe, &first->info, 0, NULL, multi, num_draws);
+         inline_vbs(pipe, batch, &first->info, multi, num_draws);
 
          return call_size(tc_draw_single) * num_draws;
       }
@@ -3881,7 +3931,7 @@ tc_call_draw_single(struct pipe_context *pipe, void *call, struct tc_batch *batc
    first->info.index_bounds_valid = false;
    first->info.has_user_indices = false;
 
-   pipe->draw_vbo(pipe, &first->info, 0, NULL, &draw, 1);
+   inline_vbs(pipe, batch, &first->info, &draw, 1);
 
    return call_size(tc_draw_single);
 }
@@ -3900,6 +3950,10 @@ tc_call_draw_indirect(struct pipe_context *pipe, void *call, struct tc_batch *ba
 
    info->info.index_bounds_valid = false;
 
+   if (batch->tc->deferred_vbs) {
+      pipe->set_vertex_buffers(pipe, batch->tc->deferred_vbs->count, batch->tc->deferred_vbs->slot);
+      batch->tc->deferred_vbs = NULL;
+   }
    pipe->draw_vbo(pipe, &info->info, 0, &info->indirect, &info->draw, 1);
 
    tc_drop_so_target_reference(info->indirect.count_from_stream_output);
@@ -3921,7 +3975,7 @@ tc_call_draw_multi(struct pipe_context *pipe, void *call, struct tc_batch *batch
    info->info.has_user_indices = false;
    info->info.index_bounds_valid = false;
 
-   pipe->draw_vbo(pipe, &info->info, 0, NULL, info->slot, info->num_draws);
+   inline_vbs(pipe, batch, &info->info, info->slot, info->num_draws);
 
    return info->base.num_slots;
 }
@@ -4262,6 +4316,8 @@ tc_draw_vbo(struct pipe_context *_pipe, const struct pipe_draw_info *info,
    struct threaded_context *tc = threaded_context(_pipe);
    if (tc->options.parse_renderpass_info)
       tc_parse_draw(tc);
+   
+   tc->pending_vbs_seen_draws = true;
 
    /* Use a function table to call the desired variant of draw_vbo. */
    unsigned index = (indirect != NULL) * 8 +
@@ -4285,6 +4341,8 @@ tc_add_draw_single_call(struct pipe_context *_pipe,
 
    struct tc_draw_single *p =
       tc_add_call(tc, TC_CALL_draw_single, tc_draw_single);
+
+   tc->pending_vbs_seen_draws = true;
 
    if (index_bo)
       tc_add_to_buffer_list(&tc->buffer_lists[tc->next_buf_list], index_bo);

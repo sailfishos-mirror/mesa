@@ -12,6 +12,7 @@
 
 #include "util/hash_table.h"
 #include "util/u_cpu_detect.h"
+#include "util/u_draw.h"
 #include "util/u_debug.h"
 #include "util/u_helpers.h"
 #include "util/u_inlines.h"
@@ -1540,6 +1541,7 @@ zink_init_draw_functions(struct zink_context *ctx, struct zink_screen *screen)
     */
    ctx->base.draw_vbo = zink_invalid_draw_vbo;
    ctx->base.draw_vertex_state = zink_invalid_draw_vertex_state;
+   ctx->base.draw_vbo_buffers = util_draw_vbo_buffers;
 
    _mesa_hash_table_init(&ctx->program_cache[0], ctx, hash_gfx_program<0>, equals_gfx_program<0>);
    _mesa_hash_table_init(&ctx->program_cache[1], ctx, hash_gfx_program<1>, equals_gfx_program<1>);

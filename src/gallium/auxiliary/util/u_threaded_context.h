@@ -593,6 +593,7 @@ struct threaded_context_options {
 
 struct tc_vertex_buffers {
    struct tc_call_base base;
+   bool merge_with_draw;
    uint8_t count;
    struct pipe_vertex_buffer slot[0]; /* more will be allocated if needed */
 };
@@ -660,6 +661,7 @@ struct threaded_context {
    bool seen_shader_buffers[MESA_SHADER_MESH_STAGES];
    bool seen_image_buffers[MESA_SHADER_MESH_STAGES];
    bool seen_sampler_buffers[MESA_SHADER_MESH_STAGES];
+   bool pending_vbs_seen_draws;
 
    int8_t last_completed;
    int8_t batch_generation;
@@ -697,6 +699,8 @@ struct threaded_context {
    uint64_t image_buffers_writeable_mask[MESA_SHADER_MESH_STAGES];
    uint32_t sampler_buffers[MESA_SHADER_MESH_STAGES][PIPE_MAX_SHADER_SAMPLER_VIEWS];
 
+   struct tc_vertex_buffers *pending_vbs; //for enqueue
+
    struct tc_batch batch_slots[TC_MAX_BATCHES];
    struct tc_buffer_list buffer_lists[TC_MAX_BUFFER_LISTS];
    /* the current framebuffer attachments; [PIPE_MAX_COLOR_BUFS] is the zsbuf */
@@ -709,6 +713,7 @@ struct threaded_context {
 
    /* accessed by driver thread */
    alignas(MESA_CACHE_LINE_SIZE) struct tc_renderpass_info *renderpass_info;
+   struct tc_vertex_buffers *deferred_vbs; //for exec
 };
 
 

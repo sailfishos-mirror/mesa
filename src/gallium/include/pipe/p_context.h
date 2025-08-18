@@ -97,6 +97,13 @@ typedef void (*pipe_draw_func)(struct pipe_context *pipe,
                                const struct pipe_draw_start_count_bias *draws,
                                unsigned num_draws);
 
+typedef void (*pipe_draw_buffers_func)(struct pipe_context *pipe,
+                                       const struct pipe_draw_info *info,
+                                       const struct pipe_vertex_buffer *buffers,
+                                       unsigned buffer_count,
+                                       const struct pipe_draw_start_count_bias *draws,
+                                       unsigned num_draws);
+
 /**
  * Gallium rendering context.  Basically:
  *  - state setting functions
@@ -161,6 +168,18 @@ struct pipe_context {
     * \param num_draws     number of direct draws; 1 for indirect multi draws
     */
    pipe_draw_func draw_vbo;
+
+   /**
+    * Same behavior as draw_vbo except that indirect draws are not supported.
+    *
+    * \param pipe          context
+    * \param info          draw info
+    * \param buffers       vertex buffers used until the next set_vertex_buffers call
+    * \param buffer_count   number of vertex buffers
+    * \param draws         array of (start, count) pairs for direct draws
+    * \param num_draws     number of direct draws
+    */
+   pipe_draw_buffers_func draw_vbo_buffers;
 
    /**
     * Multi draw for display lists.
