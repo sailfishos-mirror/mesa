@@ -2149,13 +2149,8 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_AllocateMemory(
          error = VK_ERROR_INVALID_EXTERNAL_HANDLE;
          goto fail;
       }
-      if (mem->vk.export_handle_types == mem->vk.import_handle_type) {
-         mem->backed_fd = import_info->fd;
-      }
-      else {
-         close(import_info->fd);
-      }
 
+      mem->backed_fd = import_info->fd;
       mem->vk.size = size;
       mem->map = device->pscreen->map_memory(device->pscreen, mem->pmem);
       mem->memory_type = memory_type;
