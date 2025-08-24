@@ -71,6 +71,28 @@ agx_fence_get_fd(struct pipe_screen *screen, struct pipe_fence_handle *f)
 }
 
 struct pipe_fence_handle *
+agx_semaphore_create(struct pipe_screen *pscreen)
+{
+   struct agx_device *dev = agx_device(pscreen);
+   int ret;
+
+   struct pipe_fence_handle *f = calloc(1, sizeof(*f));
+   if (!f)
+      return NULL;
+
+   ret = drmSyncobjCreate(dev->fd, 0, &f->syncobj);
+   if (ret) {
+      agx_msg("create syncobj failed\n");
+      free(f);
+      return NULL;
+   }
+
+   pipe_reference_init(&f->reference, 1);
+
+   return f;
+}
+
+struct pipe_fence_handle *
 agx_fence_from_fd(struct agx_context *ctx, int fd, enum pipe_fd_type type)
 {
    struct agx_device *dev = agx_device(ctx->base.screen);

@@ -2484,6 +2484,7 @@ agx_screen_create(int fd, struct renderonly *ro,
    screen->fence_reference = agx_fence_reference;
    screen->fence_finish = agx_fence_finish;
    screen->fence_get_fd = agx_fence_get_fd;
+   screen->semaphore_create = agx_semaphore_create;
    screen->get_disk_shader_cache = agx_get_disk_shader_cache;
    screen->get_cl_cts_version = agx_get_cl_cts_version;
 
