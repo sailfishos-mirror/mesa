@@ -93,3 +93,5 @@ VK_KHR_internally_synchronized_queues on pvr
 VK_KHR_maintenance6 on v3dv
 VK_EXT_host_image_copy on v3dv
 VK_KHR_extended_flags on panvk
+GL_EXT_semaphore on asahi
+GL_EXT_semaphore_fd on asahi

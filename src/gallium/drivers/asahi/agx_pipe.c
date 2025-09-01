@@ -1815,6 +1815,7 @@ agx_create_context(struct pipe_screen *screen, void *priv, unsigned flags)
 
    pctx->create_fence_fd = agx_create_fence_fd;
    pctx->fence_server_sync = agx_fence_server_sync;
+   pctx->fence_server_signal = agx_fence_server_signal;
 
    pctx->get_device_reset_status = asahi_get_device_reset_status;
 
@@ -2035,6 +2036,7 @@ agx_init_screen_caps(struct pipe_screen *pscreen)
    caps->polygon_stipple = true;
    caps->anisotropic_filter = true;
    caps->native_fence_fd = true;
+   caps->fence_signal = true;
    caps->texture_barrier = true;
 
    /* Timer resolution is the length of a single tick in nanos */

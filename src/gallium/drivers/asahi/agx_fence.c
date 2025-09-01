@@ -175,3 +175,25 @@ agx_fence_server_sync(struct pipe_context *pctx, struct pipe_fence_handle *f,
    sync_accumulate("asahi", &ctx->in_sync_fd, fd);
    close(fd);
 }
+
+void
+agx_fence_server_signal(struct pipe_context *pctx, struct pipe_fence_handle *f,
+                        uint64_t value)
+{
+   struct agx_device *dev = agx_device(pctx->screen);
+   struct agx_context *ctx = agx_context(pctx);
+   int fd = -1, ret;
+   assert(!value);
+
+   agx_flush_all(ctx, "Gallium fence_server_signal");
+
+   ret = drmSyncobjExportSyncFile(dev->fd, ctx->syncobj, &fd);
+   assert(!ret);
+
+   ret = drmSyncobjImportSyncFile(dev->fd, f->syncobj, fd);
+   if (ret) {
+      agx_msg("import syncfile failed\n");
+   }
+
+   close(fd);
+}
