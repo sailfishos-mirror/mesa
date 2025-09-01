@@ -101,6 +101,20 @@ agx_fence_from_fd(struct agx_context *ctx, int fd, enum pipe_fd_type type)
       }
    }
 
+   /* For imported fences we have to wait until they materialize */
+   struct drm_syncobj_timeline_wait wait_args = {
+      .handles = (uintptr_t) &f->syncobj,
+      .timeout_nsec = INT64_MAX,
+      .count_handles = 1,
+      .flags = DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE,
+   };
+
+   ret = drmIoctl(dev->fd, DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT, &wait_args);
+   if (ret) {
+         agx_msg("agx_fence_from_fd failed\n");
+         goto err_free_fence;
+   }
+
    pipe_reference_init(&f->reference, 1);
 
    return f;
