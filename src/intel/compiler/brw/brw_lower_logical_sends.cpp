@@ -229,14 +229,41 @@ lower_urb_write_logical_send_xe2(const brw_builder &bld, brw_urb_inst *urb)
    send->sfid = GEN_SFID_URB;
 
    enum lsc_opcode op = cmask.file != BAD_FILE ? LSC_OP_STORE_CMASK : LSC_OP_STORE;
-   send->desc = lsc_msg_desc(devinfo, op,
-                             LSC_ADDR_SURFTYPE_FLAT, LSC_ADDR_SIZE_A32,
-                             LSC_DATA_SIZE_D32,
-                             num_channels_or_cmask,
-                             false /* transpose */,
-                             LSC_CACHE(devinfo, STORE, L1UC_L3UC));
+   unsigned cache_control = LSC_CACHE(devinfo, STORE, L1UC_L3UC);
 
-   setup_lsc_surface_descriptors(bld, send, send->desc, brw_reg(), offset);
+   if (bld.shader->key->use_efficient_64bit) {
+      /* BSpec 72006:
+       *    "Address offset scaling is not supported for data port URB"
+       *
+       * It's not really explained but it seems we also need to specify an
+       * offset in element count, not bytes.
+       */
+      assert(offset % 4 == 0);
+      send->combined_desc = lsc_64bit_msg_desc(devinfo,
+                                               (gen_sfid) send->sfid,
+                                               op,
+                                               LSC_ADDR_SIZE_A32,
+                                               LSC_DATA_SIZE_D32,
+                                               num_channels_or_cmask,
+                                               false,
+                                               cache_control,
+                                               0 /* scale_offset */,
+                                               offset / 4,
+                                               0 /* surface_state_index */);
+      send->src[SENDG_SRC_IND_0_DESC] = brw_reg();
+      send->src[SENDG_SRC_IND_1_DESC] = brw_reg();
+      send->efficient_64bit = true;
+   } else {
+      send->desc = lsc_msg_desc(devinfo, op,
+                                LSC_ADDR_SURFTYPE_FLAT,
+                                LSC_ADDR_SIZE_A32,
+                                LSC_DATA_SIZE_D32,
+                                num_channels_or_cmask /* num_channels */,
+                                false /* transpose */,
+                                cache_control);
+      send->src[SEND_SRC_DESC] = desc;
+      setup_lsc_surface_descriptors(bld, send, send->desc, brw_reg(), offset);
+   }
 
    send->mlen = brw_lsc_msg_addr_len(devinfo, LSC_ADDR_SIZE_A32, send->exec_size);
    send->ex_mlen = ex_mlen;
@@ -244,7 +271,6 @@ lower_urb_write_logical_send_xe2(const brw_builder &bld, brw_urb_inst *urb)
    send->has_side_effects = true;
    send->is_volatile = false;
 
-   send->src[SEND_SRC_DESC]     = desc;
    send->src[SEND_SRC_PAYLOAD1] = payload;
    send->src[SEND_SRC_PAYLOAD2] = payload2;
 }
