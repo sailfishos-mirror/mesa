@@ -1024,14 +1024,32 @@ clc_compile_to_llvm_module(LLVMContext &llvm_ctx,
    }
    if (args->features.subgroups) {
       c->getTargetOpts().OpenCLExtensionsAsWritten.push_back("+__opencl_c_subgroups");
+      if (args->features.subgroups_ballot) {
+         c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_ballot=1");
+      }
+      if (args->features.subgroups_clustered) {
+         c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_clustered_reduce=1");
+      }
+      if (args->features.subgroups_extended_types) {
+         c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_extended_types=1");
+      }
+      if (args->features.subgroups_named_barrier) {
+         c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_named_barrier=1");
+      }
+      if (args->features.subgroups_non_uniform_arithmetic) {
+         c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_non_uniform_arithmetic=1");
+      }
+      if (args->features.subgroups_non_uniform_vote) {
+         c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_non_uniform_vote=1");
+      }
+      if (args->features.subgroups_rotate) {
+         c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_rotate=1");
+      }
       if (args->features.subgroups_shuffle) {
          c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_shuffle=1");
       }
       if (args->features.subgroups_shuffle_relative) {
          c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_shuffle_relative=1");
-      }
-      if (args->features.subgroups_ballot) {
-         c->getPreprocessorOpts().addMacroDef("cl_khr_subgroup_ballot=1");
       }
    }
    if (args->features.subgroups_ifp) {
