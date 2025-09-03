@@ -740,17 +740,22 @@ impl DeviceBase {
         }
 
         if self.subgroups_supported() {
-            add_cap(SpvCapability::SpvCapabilityGroupNonUniformShuffle);
-            add_cap(SpvCapability::SpvCapabilityGroupNonUniformShuffleRelative);
             add_cap(SpvCapability::SpvCapabilityGroups);
             add_cap(SpvCapability::SpvCapabilitySubgroupDispatch);
             // requires CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS
             //add_ext(1, 0, 0, "cl_khr_subgroups");
             add_feat(1, 0, 0, "__opencl_c_subgroups");
 
-            // we have lowering in `nir_lower_subgroups`, drivers can just use that
-            add_ext(1, 0, 0, "cl_khr_subgroup_shuffle");
-            add_ext(1, 0, 0, "cl_khr_subgroup_shuffle_relative");
+            if self.subgroup_shuffle_supported() {
+                add_cap(SpvCapability::SpvCapabilityGroupNonUniformShuffle);
+                add_ext(1, 0, 0, "cl_khr_subgroup_shuffle");
+            }
+
+            if self.subgroup_shuffle_relative_supported() {
+                add_cap(SpvCapability::SpvCapabilityGroupNonUniformShuffleRelative);
+                add_ext(1, 0, 0, "cl_khr_subgroup_shuffle_relative");
+            }
+
             if self.intel_subgroups_supported() {
                 // add_cap(SpvCapability::SpvCapabilitySubgroupBufferBlockIOINTEL);
                 // add_cap(SpvCapability::SpvCapabilitySubgroupImageBlockIOINTEL);
@@ -1173,6 +1178,23 @@ impl DeviceBase {
         // supported, doing it without shareable shaders isn't practical
         self.max_subgroups() > 0
             && (subgroup_sizes == 1 || (subgroup_sizes > 1 && self.shareable_shaders()))
+            && self.screen().caps().shader_subgroup_supported_features
+                & PIPE_SHADER_SUBGROUP_FEATURE_BASIC
+                != 0
+    }
+
+    pub fn subgroup_shuffle_supported(&self) -> bool {
+        self.subgroups_supported()
+            && self.screen().caps().shader_subgroup_supported_features
+                & PIPE_SHADER_SUBGROUP_FEATURE_SHUFFLE
+                != 0
+    }
+
+    pub fn subgroup_shuffle_relative_supported(&self) -> bool {
+        self.subgroups_supported()
+            && self.screen().caps().shader_subgroup_supported_features
+                & PIPE_SHADER_SUBGROUP_FEATURE_SHUFFLE_RELATIVE
+                != 0
     }
 
     pub fn system_svm_supported(&self) -> bool {
@@ -1255,8 +1277,8 @@ impl DeviceBase {
             intel_subgroups: self.intel_subgroups_supported(),
             kernel_clock: self.kernel_clock_supported(),
             subgroups: subgroups_supported,
-            subgroups_shuffle: subgroups_supported,
-            subgroups_shuffle_relative: subgroups_supported,
+            subgroups_shuffle: self.subgroup_shuffle_supported(),
+            subgroups_shuffle_relative: self.subgroup_shuffle_relative_supported(),
             ..Default::default()
         }
     }
