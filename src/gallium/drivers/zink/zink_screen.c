@@ -1247,7 +1247,7 @@ zink_init_screen_caps(struct zink_screen *screen)
          caps->shader_subgroup_supported_stages = screen->info.subgroup.supportedStages & BITFIELD_MASK(MESA_SHADER_MESH_STAGES);
       else
          caps->shader_subgroup_supported_stages = screen->info.subgroup.supportedStages & BITFIELD_MASK(MESA_SHADER_STAGES);
-      caps->shader_subgroup_supported_features = screen->info.subgroup.supportedOperations & BITFIELD_MASK(PIPE_SHADER_SUBGROUP_NUM_FEATURES);
+      caps->shader_subgroup_supported_features = screen->info.subgroup.supportedOperations & PIPE_SHADER_SUBGROUP_FEATURE_MASK;
       caps->shader_subgroup_quad_all_stages = screen->info.subgroup.quadOperationsInAllStages;
    }
 }

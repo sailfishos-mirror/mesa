@@ -3569,6 +3569,28 @@ emit_subgroup_quad(struct ntv_context *ctx, nir_intrinsic_instr *intr)
 }
 
 static void
+emit_subgroup_rotate(struct ntv_context *ctx, nir_intrinsic_instr *intr)
+{
+   SpvOp op = SpvOpGroupNonUniformRotateKHR;
+   spirv_builder_emit_cap(&ctx->builder, SpvCapabilityGroupNonUniformRotateKHR);
+
+   nir_alu_type atype, unused;
+   SpvId src0 = get_src(ctx, &intr->src[0], &atype);
+   SpvId src1 = get_src(ctx, &intr->src[1], &unused);
+
+   unsigned cluster_size = nir_intrinsic_cluster_size(intr);
+   SpvId result;
+   if (cluster_size > 0) {
+      SpvId src2 = emit_uint_const(ctx, 32, cluster_size);
+      result = spirv_builder_emit_triop_subgroup(&ctx->builder, op, get_def_type(ctx, intr->src[0].ssa, atype), src0, src1, src2);
+   } else {
+      result = spirv_builder_emit_binop_subgroup(&ctx->builder, op, get_def_type(ctx, intr->src[0].ssa, atype), src0, src1);
+   }
+
+   store_def(ctx, intr->def.index, result, atype);
+}
+
+static void
 emit_shuffle(struct ntv_context *ctx, nir_intrinsic_instr *intr)
 {
    SpvOp op;
@@ -4046,6 +4068,10 @@ emit_intrinsic(struct ntv_context *ctx, nir_intrinsic_instr *intr)
    case nir_intrinsic_quad_swap_vertical:
    case nir_intrinsic_quad_swap_diagonal:
       emit_subgroup_quad(ctx, intr);
+      break;
+
+   case nir_intrinsic_rotate:
+      emit_subgroup_rotate(ctx, intr);
       break;
 
    case nir_intrinsic_shuffle:
