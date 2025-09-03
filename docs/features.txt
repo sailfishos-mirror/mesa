@@ -889,13 +889,13 @@ Rusticl extensions:
   cl_khr_spirv_no_integer_wrap_decoration               DONE
   cl_khr_spirv_queries                                  DONE
   cl_khr_srgb_image_writes                              not started
-  cl_khr_subgroup_ballot                                not started
-  cl_khr_subgroup_clustered_reduce                      not started
-  cl_khr_subgroup_extended_types                        not started
+  cl_khr_subgroup_ballot                                DONE (asahi, iris, llvmpipe, radeonsi, zink)
+  cl_khr_subgroup_clustered_reduce                      DONE (asahi, llvmpipe, radeonsi, zink)
+  cl_khr_subgroup_extended_types                        DONE (asahi, iris, llvmpipe, radeonsi, zink)
   cl_khr_subgroup_named_barrier                         not started
-  cl_khr_subgroup_non_uniform_arithmetic                not started
-  cl_khr_subgroup_non_uniform_vote                      not started
-  cl_khr_subgroup_rotate                                not started
+  cl_khr_subgroup_non_uniform_arithmetic                DONE (asahi, llvmpipe, radeonsi, zink)
+  cl_khr_subgroup_non_uniform_vote                      DONE (asahi, iris, llvmpipe, radeonsi, zink)
+  cl_khr_subgroup_rotate                                DONE (llvmpipe, zink)
   cl_khr_subgroup_shuffle                               DONE (asahi, iris, llvmpipe, radeonsi, zink)
   cl_khr_subgroup_shuffle_relative                      DONE (asahi, iris, llvmpipe, radeonsi, zink)
   cl_khr_subgroups                                      in progress

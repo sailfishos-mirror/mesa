@@ -744,7 +744,35 @@ impl DeviceBase {
             add_cap(SpvCapability::SpvCapabilitySubgroupDispatch);
             // requires CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS
             //add_ext(1, 0, 0, "cl_khr_subgroups");
+            add_ext(1, 0, 0, "cl_khr_subgroup_extended_types");
             add_feat(1, 0, 0, "__opencl_c_subgroups");
+
+            if self.subgroup_ballot_supported() {
+                add_cap(SpvCapability::SpvCapabilityGroupNonUniformBallot);
+                add_ext(1, 0, 0, "cl_khr_subgroup_ballot");
+            }
+
+            if self.subgroup_clustered_supported() {
+                add_cap(SpvCapability::SpvCapabilityGroupNonUniformClustered);
+                add_ext(1, 0, 0, "cl_khr_subgroup_clustered_reduce");
+            }
+
+            if self.subgroup_non_uniform_arithmetic_supported() {
+                add_cap(SpvCapability::SpvCapabilityGroupNonUniformArithmetic);
+                add_ext(1, 0, 0, "cl_khr_subgroup_non_uniform_arithmetic");
+            }
+
+            if self.subgroup_non_uniform_vote_supported() {
+                add_cap(SpvCapability::SpvCapabilityGroupNonUniform);
+                add_cap(SpvCapability::SpvCapabilityGroupNonUniformVote);
+                add_ext(1, 0, 0, "cl_khr_subgroup_non_uniform_vote");
+            }
+
+            if self.subgroup_rotate_supported() {
+                add_cap(SpvCapability::SpvCapabilityGroupNonUniformRotateKHR);
+                add_ext(1, 0, 0, "cl_khr_subgroup_rotate");
+                add_spirv(c"SPV_KHR_subgroup_rotate");
+            }
 
             if self.subgroup_shuffle_supported() {
                 add_cap(SpvCapability::SpvCapabilityGroupNonUniformShuffle);
@@ -1183,6 +1211,41 @@ impl DeviceBase {
                 != 0
     }
 
+    pub fn subgroup_ballot_supported(&self) -> bool {
+        self.subgroups_supported()
+            && self.screen().caps().shader_subgroup_supported_features
+                & PIPE_SHADER_SUBGROUP_FEATURE_BALLOT
+                != 0
+    }
+
+    pub fn subgroup_clustered_supported(&self) -> bool {
+        self.subgroups_supported()
+            && self.screen().caps().shader_subgroup_supported_features
+                & PIPE_SHADER_SUBGROUP_FEATURE_CLUSTERED
+                != 0
+    }
+
+    pub fn subgroup_non_uniform_arithmetic_supported(&self) -> bool {
+        self.subgroups_supported()
+            && self.screen().caps().shader_subgroup_supported_features
+                & PIPE_SHADER_SUBGROUP_FEATURE_ARITHMETIC
+                != 0
+    }
+
+    pub fn subgroup_non_uniform_vote_supported(&self) -> bool {
+        self.subgroups_supported()
+            && self.screen().caps().shader_subgroup_supported_features
+                & PIPE_SHADER_SUBGROUP_FEATURE_VOTE
+                != 0
+    }
+
+    pub fn subgroup_rotate_supported(&self) -> bool {
+        let mask =
+            PIPE_SHADER_SUBGROUP_FEATURE_ROTATE | PIPE_SHADER_SUBGROUP_FEATURE_ROTATE_CLUSTERED;
+        self.subgroups_supported()
+            && self.screen().caps().shader_subgroup_supported_features & mask == mask
+    }
+
     pub fn subgroup_shuffle_supported(&self) -> bool {
         self.subgroups_supported()
             && self.screen().caps().shader_subgroup_supported_features
@@ -1277,6 +1340,12 @@ impl DeviceBase {
             intel_subgroups: self.intel_subgroups_supported(),
             kernel_clock: self.kernel_clock_supported(),
             subgroups: subgroups_supported,
+            subgroups_ballot: self.subgroup_ballot_supported(),
+            subgroups_clustered: self.subgroup_clustered_supported(),
+            subgroups_extended_types: subgroups_supported,
+            subgroups_non_uniform_arithmetic: self.subgroup_non_uniform_arithmetic_supported(),
+            subgroups_non_uniform_vote: self.subgroup_non_uniform_vote_supported(),
+            subgroups_rotate: self.subgroup_rotate_supported(),
             subgroups_shuffle: self.subgroup_shuffle_supported(),
             subgroups_shuffle_relative: self.subgroup_shuffle_relative_supported(),
             ..Default::default()
