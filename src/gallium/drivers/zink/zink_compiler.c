@@ -5673,7 +5673,14 @@ zink_shader_init(struct zink_screen *screen, struct zink_shader *zs)
    {
       nir_lower_subgroups_options subgroup_options = {0};
       subgroup_options.lower_to_scalar = true;
-      subgroup_options.subgroup_size = screen->info.props11.subgroupSize;
+
+      if (nir->info.api_subgroup_size)
+         subgroup_options.subgroup_size = nir->info.api_subgroup_size;
+      else if (nir->info.stage != MESA_SHADER_KERNEL ||
+         !screen->info.feats13.subgroupSizeControl ||
+         screen->info.props13.minSubgroupSize == screen->info.props13.maxSubgroupSize)
+         subgroup_options.subgroup_size = screen->info.props11.subgroupSize;
+
       subgroup_options.ballot_bit_size = 32;
       subgroup_options.ballot_components = 4;
       subgroup_options.lower_subgroup_masks = true;

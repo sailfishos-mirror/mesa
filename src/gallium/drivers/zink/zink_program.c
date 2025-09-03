@@ -2339,6 +2339,67 @@ zink_bind_cs_state(struct pipe_context *pctx,
    zink_select_launch_grid(ctx);
 }
 
+static uint32_t
+zink_get_subgroup_sizes_for_pipeline(struct zink_screen *screen, VkPipeline pipeline)
+{
+   struct VkPipelineInfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
+      .pipeline = pipeline,
+   };
+
+   uint32_t stat_count;
+   uint32_t subgroup_sizes = 0;
+   VKSCR(GetPipelineExecutablePropertiesKHR)(screen->dev, &info, &stat_count, NULL);
+   struct VkPipelineExecutablePropertiesKHR *stats = CALLOC(stat_count, sizeof(*stats));
+   VKSCR(GetPipelineExecutablePropertiesKHR)(screen->dev, &info, &stat_count, stats);
+
+   for (unsigned i = 0; i < stat_count; i++)
+      subgroup_sizes |= stats[i].subgroupSize;
+
+   FREE(stats);
+   return subgroup_sizes;
+}
+
+uint32_t
+zink_get_subgroup_size_for_block(struct zink_screen *screen, struct zink_compute_program *comp,
+                                 const uint32_t block[3])
+{
+   if (!screen->info.feats13.subgroupSizeControl)
+      return screen->base.compute_caps.subgroup_sizes;
+
+   if (screen->info.props13.minSubgroupSize == screen->info.props13.maxSubgroupSize)
+      return screen->info.props13.minSubgroupSize;
+
+   uint32_t subgroup_sizes = 0;
+   if (screen->info.have_KHR_pipeline_executable_properties) {
+      struct zink_compute_pipeline_state pipeline_state = {
+         .dirty = true,
+         .local_size = { block[0], block[1], block[2] },
+         .variable_shared_mem = 0, // TODO?,
+      };
+
+      VkPipeline pipeline = zink_get_compute_pipeline(screen, comp, &pipeline_state);
+      subgroup_sizes = zink_get_subgroup_sizes_for_pipeline(screen, pipeline);
+      if (util_bitcount(subgroup_sizes) == 1)
+         return subgroup_sizes;
+   } else {
+      uint32_t size = screen->info.props13.minSubgroupSize;
+      uint32_t max = screen->info.props13.maxSubgroupSize;
+
+      for (; size <= max; size <<= 1)
+         subgroup_sizes |= size;
+   }
+
+   uint32_t invocations = block[0] * block[1] * block[2];
+   while (subgroup_sizes) {
+      unsigned size = 1 << u_bit_scan(&subgroup_sizes);
+      if (invocations <= size * screen->info.props13.maxComputeWorkgroupSubgroups)
+         return size;
+   }
+   // Should never happen and if so, not our fault.
+   return 0;
+}
+
 static void
 zink_get_compute_state_info(struct pipe_context *pctx, void *cso, struct pipe_compute_state_object_info *info)
 {
@@ -2349,13 +2410,22 @@ zink_get_compute_state_info(struct pipe_context *pctx, void *cso, struct pipe_co
    info->private_memory = comp->scratch_size;
    if (screen->info.props11.subgroupSize) {
       info->preferred_simd_size = screen->info.props11.subgroupSize;
-      info->simd_sizes = info->preferred_simd_size;
+      info->simd_sizes = screen->base.compute_caps.subgroup_sizes;
    } else {
       // just guess it
       info->preferred_simd_size = 64;
       // only used for actual subgroup support
       info->simd_sizes = 0;
    }
+}
+
+static uint32_t
+zink_get_compute_state_subgroup_size(struct pipe_context *pctx, void *cso,
+                                     const uint32_t block[3])
+{
+   struct zink_compute_program *comp = cso;
+   struct zink_screen *screen = zink_screen(pctx->screen);
+   return zink_get_subgroup_size_for_block(screen, comp, block);
 }
 
 static void
@@ -2616,6 +2686,7 @@ zink_program_init(struct zink_context *ctx)
    ctx->base.create_compute_state = zink_create_cs_state;
    ctx->base.bind_compute_state = zink_bind_cs_state;
    ctx->base.get_compute_state_info = zink_get_compute_state_info;
+   ctx->base.get_compute_state_subgroup_size = zink_get_compute_state_subgroup_size;
    ctx->base.delete_compute_state = zink_delete_cs_shader_state;
 
    if (zink_screen(ctx->base.screen)->info.have_EXT_vertex_input_dynamic_state)

@@ -693,7 +693,16 @@ zink_init_compute_caps(struct zink_screen *screen)
    caps->max_local_size =
       screen->info.props.limits.maxComputeSharedMemorySize;
 
-   caps->subgroup_sizes = screen->info.props11.subgroupSize;
+   if (screen->info.feats13.subgroupSizeControl) {
+      uint32_t size = screen->info.props13.minSubgroupSize;
+      uint32_t max = screen->info.props13.maxSubgroupSize;
+
+      for (; size <= max; size <<= 1)
+         caps->subgroup_sizes |= size;
+   } else {
+      caps->subgroup_sizes = screen->info.props11.subgroupSize;
+   }
+
    caps->max_mem_alloc_size = screen->clamp_video_mem;
    caps->max_global_size = screen->total_video_mem;
    /* no way in vulkan to retrieve this information. */
