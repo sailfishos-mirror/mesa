@@ -391,6 +391,9 @@ llvmpipe_init_screen_caps(struct pipe_screen *screen)
    caps->max_point_size_aa = LP_MAX_POINT_WIDTH; /* arbitrary */
    caps->max_texture_anisotropy = 16.0; /* not actually signficant at this time */
    caps->max_texture_lod_bias = 16.0; /* arbitrary */
+
+   caps->shader_subgroup_supported_stages = BITFIELD_MASK(MESA_SHADER_MESH_STAGES);
+   caps->shader_subgroup_supported_features = PIPE_SHADER_SUBGROUP_FEATURE_MASK;
 }
 
 

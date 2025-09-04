@@ -77,6 +77,7 @@ lp_build_opt_nir(struct nir_shader *nir)
          .lower_subgroup_masks = true,
          .lower_relative_shuffle = true,
          .lower_inverse_ballot = true,
+         .lower_rotate_to_shuffle = true,
       };
       NIR_PASS(progress, nir, nir_lower_subgroups, &subgroups_options);
    } while (progress);
