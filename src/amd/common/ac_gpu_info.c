@@ -522,7 +522,10 @@ ac_fill_memory_info(struct radeon_info *info, const struct drm_amdgpu_info_devic
    /* Add some margin of error, though this shouldn't be needed in theory. */
    info->all_vram_visible = info->vram_size_kb * 0.9 < info->vram_vis_size_kb;
 
+   info->high_va_offset = device_info->high_va_offset;
+   info->high_va_max = device_info->high_va_max;
    info->virtual_address_max = device_info->virtual_address_max;
+   info->virtual_address_alignment = device_info->virtual_address_alignment;
    /* Set which chips have dedicated VRAM. */
    info->has_dedicated_vram = !(device_info->ids_flags & AMDGPU_IDS_FLAGS_FUSION);
    /* The kernel can split large buffers in VRAM but not in GTT, so large
@@ -1909,7 +1912,10 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    address32_hi = 0x%x\n", info->address32_hi);
    fprintf(f, "    has_dedicated_vram = %u\n", info->has_dedicated_vram);
    fprintf(f, "    all_vram_visible = %u\n", info->all_vram_visible);
+   fprintf(f, "    high_va_offset = %" PRIx64 "\n", info->high_va_offset);
+   fprintf(f, "    high_va_max = %" PRIx64 "\n", info->high_va_max);
    fprintf(f, "    virtual_address_max = %" PRIx64 "\n", info->virtual_address_max);
+   fprintf(f, "    virtual_address_alignment = %" PRIx64 "\n", info->virtual_address_alignment);
    fprintf(f, "    max_tcc_blocks = %i\n", info->max_tcc_blocks);
    fprintf(f, "    tcc_cache_line_size = %u\n", info->tcc_cache_line_size);
    fprintf(f, "    tcc_rb_non_coherent = %u\n", info->tcc_rb_non_coherent);

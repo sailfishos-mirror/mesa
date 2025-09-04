@@ -317,7 +317,10 @@ struct radeon_info {
    uint32_t address32_hi;
    bool has_dedicated_vram;
    bool all_vram_visible;
+   uint64_t high_va_offset;
+   uint64_t high_va_max;
    uint64_t virtual_address_max;
+   uint64_t virtual_address_alignment;
    bool has_l2_uncached;
    bool r600_has_virtual_memory;
    uint32_t max_tcc_blocks;
