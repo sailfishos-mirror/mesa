@@ -41,6 +41,11 @@ trap cleanup INT TERM EXIT
 # background by this script
 BACKGROUND_PIDS=
 
+# Until we uniformize the install dir to /install, we need to make it
+# available to both possible CI_PROJECT_DIR paths.
+if [ "$GIT_STRATEGY" = empty ]; then
+  ln -s "$CI_PROJECT_DIR" "${CI_PROJECT_DIR%-empty}"
+fi
 
 for path in '/dut-env-vars.sh' '/set-job-env-vars.sh' './set-job-env-vars.sh'; do
     [ -f "$path" ] && source "$path"
