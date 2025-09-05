@@ -71,7 +71,6 @@ HOME=/cuttlefish launch_cvd \
   -daemon \
   -verbosity=VERBOSE \
   -file_verbosity=VERBOSE \
-  -use_overlay=false \
   -vsock_guest_cid=$VSOCK_CID \
   -enable_audio=false \
   -enable_bootanimation=false \

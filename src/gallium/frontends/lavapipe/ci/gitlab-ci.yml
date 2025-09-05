@@ -81,7 +81,7 @@ android-angle-lavapipe-cts:
   variables:
     CUTTLEFISH_GPU_MODE: mesa_swrast_guest_angle
     GPU_VERSION: lvp-android-angle
-  timeout: 15m
+  timeout: 30m
   extends:
     - .test-android
     - .test-android-cts

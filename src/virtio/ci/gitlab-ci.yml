@@ -68,6 +68,7 @@ android-angle-venus-anv-cml-cts:
   variables:
     GPU_VERSION: android-angle-venus-anv
     HWCI_KERNEL_MODULES: "i915,vhost_vsock"
+    DEVICE_HANGING_TIMEOUT_SEC: 5400  # Android CTS might not print anything for minutes
 
 android-angle-venus-anv-tgl:
   extends:

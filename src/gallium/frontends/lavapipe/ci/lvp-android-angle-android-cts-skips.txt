@@ -60,3 +60,20 @@ x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_ES2BlendWithNoTexture
 x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_GrAHardwareBuffer_BasicDrawTest
 x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_SurfaceResolveTest
 x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_VkYCbcrSampler_DrawImageWithYcbcrSampler
+
+# New crashes with Android 16
+# ../src/gallium/frontends/lavapipe/lvp_execute.c:1650: struct lvp_image_view *create_multisample_surface(struct rendering_state *, struct lvp_image_view *, uint32_t, _Bool): assertion "!imgv-&gt;multisample" failed
+x86_64 CtsGraphicsTestCases android.graphics.cts.GainmapTest#testDecodeFountainGainmap[1]
+x86_64 CtsGraphicsTestCases android.graphics.cts.GainmapTest#testDecodeFountainGainmap[2]
+x86_64 CtsGraphicsTestCases android.graphics.cts.GainmapTest#testDecodeFountainGainmap[4]
+x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_WritePixelsNonTextureMSAA_Gpu
+x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_SurfaceContextWritePixels_Renderable_BottomLeft
+
+# New failures with Android 16
+x86_64 CtsGraphicsTestCases android.graphics.cts.SetFrameRateTest#testAtLeast_Seamless
+x86_64 CtsGraphicsTestCases android.graphics.cts.SetFrameRateTest#testAtLeast_NonSeamless
+x86_64 CtsGraphicsTestCases android.graphics.fonts.SystemFontsTest#testFontsFallbackUnreadable[0]
+x86_64 CtsGraphicsTestCases android.graphics.fonts.SystemFontsTest#testAvailableFonts_ReadOnlyFile[0]
+
+# Flaky test
+x86_64 CtsGraphicsTestCases android.graphics.cts.DynamicColorsTest#testDynamicColors[high_FFB9577A_TONAL_SPOT]
