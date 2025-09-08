@@ -730,7 +730,7 @@ typedef struct nir_variable {
       /**
        * Descriptor set binding for sampler or UBO.
        */
-      unsigned descriptor_set : 5;
+      unsigned descriptor_set;
 
 #define NIR_VARIABLE_NO_INDEX ~0
 
