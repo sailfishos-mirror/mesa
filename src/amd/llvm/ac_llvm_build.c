@@ -418,7 +418,7 @@ void ac_build_optimization_barrier(struct ac_llvm_context *ctx, LLVMValueRef *pg
    } else {
       LLVMTypeRef old_type = LLVMTypeOf(*pgpr);
 
-      if (old_type == ctx->i1)
+      if (old_type == ctx->i1 || old_type == ctx->i8)
          *pgpr = LLVMBuildZExt(builder, *pgpr, ctx->i32, "");
 
       if (old_type == LLVMVectorType(ctx->i16, 3))
@@ -430,7 +430,7 @@ void ac_build_optimization_barrier(struct ac_llvm_context *ctx, LLVMValueRef *pg
 
       *pgpr = LLVMBuildCall2(builder, ftype, inlineasm, pgpr, 1, "");
 
-      if (old_type == ctx->i1)
+      if (old_type == ctx->i1 || old_type == ctx->i8)
          *pgpr = LLVMBuildTrunc(builder, *pgpr, old_type, "");
 
       if (old_type == LLVMVectorType(ctx->i16, 3))
