@@ -123,8 +123,10 @@ msm_ioctl_get_param(int fd, unsigned long request, void *arg)
       gp->value = 0;
       return 0;
    case MSM_PARAM_VA_START:
-   case MSM_PARAM_VA_SIZE:
       gp->value = 0x100000000ULL;
+      return 0;
+   case MSM_PARAM_VA_SIZE:
+      gp->value = (1ULL << 48) - 0x100000000ULL;
       return 0;
    case MSM_PARAM_RAYTRACING:
       gp->value = 1;
