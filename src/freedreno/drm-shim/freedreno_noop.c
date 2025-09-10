@@ -132,6 +132,20 @@ msm_ioctl_get_param(int fd, unsigned long request, void *arg)
    case MSM_PARAM_UCHE_TRAP_BASE:
       gp->value = 0x1fffffffff000ull;
       return 0;
+
+      /* UBWC config values from some GPU, but we don't actually maintain the
+       * device list mapping because it doesn't matter to shader compiles.
+       */
+   case MSM_PARAM_UBWC_SWIZZLE:
+      gp->value = 0x6;
+      return 0;
+   case MSM_PARAM_HIGHEST_BANK_BIT:
+      gp->value = 15;
+      return 0;
+   case MSM_PARAM_MACROTILE_MODE:
+      gp->value = 0;
+      return 0;
+
    default:
       fprintf(stderr, "Unknown DRM_IOCTL_MSM_GET_PARAM %d\n", gp->param);
       return -1;
