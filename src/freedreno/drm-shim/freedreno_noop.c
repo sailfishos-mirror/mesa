@@ -135,6 +135,10 @@ msm_ioctl_get_param(int fd, unsigned long request, void *arg)
       gp->value = 0x1fffffffff000ull;
       return 0;
 
+   case MSM_PARAM_HAS_PRR:
+      gp->value = 1;
+      return 0;
+
       /* UBWC config values from some GPU, but we don't actually maintain the
        * device list mapping because it doesn't matter to shader compiles.
        */
@@ -161,7 +165,10 @@ msm_ioctl_set_param(int fd, unsigned long request, void *arg)
 
    switch (sp->param) {
    case MSM_PARAM_EN_VM_BIND:
-      return -1;
+      /* Shim doesn't have to do anything with this -- it's binding iovas to
+       * BOs, but since we don't exec the iovas don't matter.
+       */
+      return 0;
    default:
       return 0;
    }
@@ -190,6 +197,7 @@ static ioctl_fn_t driver_ioctls[] = {
    [DRM_MSM_SUBMITQUEUE_NEW] = msm_ioctl_noop,
    [DRM_MSM_SUBMITQUEUE_CLOSE] = msm_ioctl_noop,
    [DRM_MSM_SUBMITQUEUE_QUERY] = msm_ioctl_noop,
+   [DRM_MSM_VM_BIND] = msm_ioctl_noop,
 };
 
 #define CHIPID(maj, min, rev, pat)                                             \
