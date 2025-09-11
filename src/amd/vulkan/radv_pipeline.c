@@ -1080,6 +1080,28 @@ vk_shader_module_finish(void *_module)
    vk_object_base_finish(&module->base);
 }
 
+VkShaderDescriptorSetAndBindingMappingInfoEXT *
+radv_copy_descriptor_heap_mapping_info(const VkShaderDescriptorSetAndBindingMappingInfoEXT *mapping, void *mem_ctx)
+{
+   VkShaderDescriptorSetAndBindingMappingInfoEXT *new_mapping =
+      ralloc(mem_ctx, VkShaderDescriptorSetAndBindingMappingInfoEXT);
+   if (!new_mapping)
+      return NULL;
+
+   new_mapping->sType = mapping->sType;
+   new_mapping->pNext = NULL;
+   new_mapping->mappingCount = mapping->mappingCount;
+
+   const uint32_t mappings_size = sizeof(VkDescriptorSetAndBindingMappingEXT) * mapping->mappingCount;
+   new_mapping->pMappings = ralloc_size(mem_ctx, mappings_size);
+   if (!new_mapping->pMappings)
+      return NULL;
+
+   memcpy((void *)new_mapping->pMappings, mapping->pMappings, mappings_size);
+
+   return new_mapping;
+}
+
 VkPipelineShaderStageCreateInfo *
 radv_copy_shader_stage_create_info(struct radv_device *device, uint32_t stageCount,
                                    const VkPipelineShaderStageCreateInfo *pStages, void *mem_ctx)
@@ -1149,6 +1171,17 @@ radv_copy_shader_stage_create_info(struct radv_device *device, uint32_t stageCou
          if (!new_stages[i].pName)
             return NULL;
          new_stages[i].pNext = NULL;
+      }
+
+      const VkShaderDescriptorSetAndBindingMappingInfoEXT *mapping =
+         vk_find_struct_const(pStages[i].pNext, SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT);
+      if (mapping) {
+         VkShaderDescriptorSetAndBindingMappingInfoEXT *copied_mapping =
+            radv_copy_descriptor_heap_mapping_info(mapping, mem_ctx);
+         if (!copied_mapping)
+            return NULL;
+
+         new_stages[i].pNext = copied_mapping;
       }
    }
 

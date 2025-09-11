@@ -105,6 +105,9 @@ VkPipelineShaderStageCreateInfo *radv_copy_shader_stage_create_info(struct radv_
                                                                     const VkPipelineShaderStageCreateInfo *pStages,
                                                                     void *mem_ctx);
 
+VkShaderDescriptorSetAndBindingMappingInfoEXT *
+radv_copy_descriptor_heap_mapping_info(const VkShaderDescriptorSetAndBindingMappingInfoEXT *mapping, void *mem_ctx);
+
 void radv_pipeline_hash(const struct radv_device *device, const struct radv_pipeline_layout *pipeline_layout,
                         blake3_hasher *ctx);
 
