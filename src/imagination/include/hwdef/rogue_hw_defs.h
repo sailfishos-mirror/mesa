@@ -87,6 +87,8 @@
 
 #define ROGUE_MAX_PIXEL_SHARED_REGISTERS 1024U
 
+#define ROGUE_MAX_COMPUTE_SHARED_REGISTERS (2U * 1024U)
+
 /* Number of CR_PDS_BGRND values that need setting up. */
 #define ROGUE_NUM_CR_PDS_BGRND_WORDS 3U
 
