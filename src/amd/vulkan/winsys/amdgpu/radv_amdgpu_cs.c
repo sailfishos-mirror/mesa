@@ -1910,12 +1910,13 @@ radv_amdgpu_cs_submit(struct radv_amdgpu_ctx *ctx, struct radv_amdgpu_cs_request
 
    if (sem_info->cs_emit_wait &&
        (sem_info->wait.timeline_syncobj_count || sem_info->wait.syncobj_count || *queue_syncobj_wait)) {
+      uint32_t queue_wait_syncobj = *queue_syncobj_wait ? queue_syncobj : 0;
 
       if (ctx->ws->info.has_timeline_syncobj) {
-         wait_syncobj = radv_amdgpu_cs_alloc_timeline_syncobj_chunk(&sem_info->wait, queue_syncobj, &chunks[num_chunks],
-                                                                    AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT);
+         wait_syncobj = radv_amdgpu_cs_alloc_timeline_syncobj_chunk(
+            &sem_info->wait, queue_wait_syncobj, &chunks[num_chunks], AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT);
       } else {
-         wait_syncobj = radv_amdgpu_cs_alloc_syncobj_chunk(&sem_info->wait, queue_syncobj, &chunks[num_chunks],
+         wait_syncobj = radv_amdgpu_cs_alloc_syncobj_chunk(&sem_info->wait, queue_wait_syncobj, &chunks[num_chunks],
                                                            AMDGPU_CHUNK_ID_SYNCOBJ_IN);
       }
       if (!wait_syncobj) {
