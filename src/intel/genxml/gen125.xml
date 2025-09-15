@@ -1579,6 +1579,7 @@
     <field name="3D Command Opcode" dword="0" bits="26:24" type="uint" default="0" />
     <field name="Command SubType" dword="0" bits="28:27" type="uint" default="3" />
     <field name="Command Type" dword="0" bits="31:29" type="uint" default="3" />
+    <field name="Depth Buffer Partial Resolve Enable" dword="1" bits="9:9" type="bool" />
     <field name="Number of Multisamples" dword="1" bits="15:13" type="uint" />
     <field name="Stencil Clear Value" dword="1" bits="23:16" type="uint" />
     <field name="Stencil Buffer Resolve Enable" dword="1" bits="24:24" type="bool" />
