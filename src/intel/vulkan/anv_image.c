@@ -3962,14 +3962,33 @@ anv_can_hiz_clear_image(struct anv_cmd_buffer *cmd_buffer,
    if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR))
       return false;
 
+   const enum isl_aux_usage clear_aux_usage =
+      anv_layout_to_aux_usage(device->info, image,
+                              (layout == VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL ||
+                               layout == VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL ||
+                               !(image->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT) ?
+                               VK_IMAGE_ASPECT_STENCIL_BIT : VK_IMAGE_ASPECT_DEPTH_BIT),
+                              VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                              layout, queue_flags);
+
+   /* Fast clears don't appear to work correctly for multisampled
+    * surfaces when HiZ CCS WT aux mode is in use.
+    *
+    * Note that this appears to be a problem both for depth fast
+    * clears as well as stencil fast clears, even if the fast clear is
+    * stencil-only even though the HiZ CCS WT usage is technically
+    * part of the depth state, stencil-only fast clears on
+    * uncompressed stencil buffers appear to lead to corruption if
+    * 3DSTATE_HIER_DEPTH_BUFFER::HierarchicalDepthBufferWriteThruEnable
+    * is set on DG2 and MTL.
+    */
+   if (clear_aux_usage == ISL_AUX_USAGE_HIZ_CCS_WT &&
+       image->vk.samples > 1 && device->info->ver < 20)
+      return false;
+
    /* If we're just clearing stencil, we can always HiZ clear */
    if (!(clear_aspects & VK_IMAGE_ASPECT_DEPTH_BIT))
       return true;
-
-   const enum isl_aux_usage clear_aux_usage =
-      anv_layout_to_aux_usage(device->info, image,
-                              VK_IMAGE_ASPECT_DEPTH_BIT, 0,
-                              layout, queue_flags);
 
    const uint32_t plane =
       anv_image_aspect_to_plane(image, VK_IMAGE_ASPECT_DEPTH_BIT);

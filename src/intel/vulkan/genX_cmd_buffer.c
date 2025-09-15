@@ -6371,8 +6371,8 @@ void genX(CmdBeginRendering)(
       if (clear_aspects != 0) {
          const bool hiz_clear =
             anv_can_hiz_clear_image(cmd_buffer, ds_iview->image,
-                                    depth_layout, clear_aspects,
-                                    clear_value.depth,
+                                    d_iview ? depth_layout : stencil_layout,
+                                    clear_aspects, clear_value.depth,
                                     render_area,
                                     ds_iview->vk.base_mip_level);
 
