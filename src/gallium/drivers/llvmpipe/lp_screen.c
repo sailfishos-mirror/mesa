@@ -394,6 +394,43 @@ llvmpipe_init_screen_caps(struct pipe_screen *screen)
 
    caps->shader_subgroup_supported_stages = BITFIELD_MASK(MESA_SHADER_MESH_STAGES);
    caps->shader_subgroup_supported_features = PIPE_SHADER_SUBGROUP_FEATURE_MASK;
+
+   caps->mesh_shader = true;
+
+   caps->mesh.max_task_work_group_total_count = 4194304;
+   caps->mesh.max_mesh_work_group_total_count = 4194304;
+   caps->mesh.max_mesh_work_group_invocations = 1024;
+   caps->mesh.max_task_work_group_invocations = 1024;
+   caps->mesh.max_task_payload_size = 16384;
+   caps->mesh.max_task_shared_memory_size = 32768;
+   caps->mesh.max_mesh_shared_memory_size = 28672;
+   caps->mesh.max_task_payload_and_shared_memory_size = 32768;
+   caps->mesh.max_mesh_payload_and_shared_memory_size = 32768;
+   caps->mesh.max_mesh_output_memory_size = 32768;
+   caps->mesh.max_mesh_payload_and_output_memory_size = 16384 * 28672;
+   caps->mesh.max_mesh_output_vertices = 256;
+   caps->mesh.max_mesh_output_primitives = 256;
+   caps->mesh.max_mesh_output_components = 128;
+   caps->mesh.max_mesh_output_layers = 8;
+   caps->mesh.max_mesh_multiview_view_count = 0; //???
+   caps->mesh.mesh_output_per_vertex_granularity = 1;
+   caps->mesh.mesh_output_per_primitive_granularity = 1;
+
+   caps->mesh.max_preferred_task_work_group_invocations = 64;
+   caps->mesh.max_preferred_mesh_work_group_invocations = 128;
+   caps->mesh.mesh_prefers_local_invocation_vertex_output = true;
+   caps->mesh.mesh_prefers_local_invocation_primitive_output = true;
+   caps->mesh.mesh_prefers_compact_vertex_output = true;
+   caps->mesh.mesh_prefers_compact_primitive_output = false;
+
+   for (unsigned i = 0; i < 3; i++) {
+      caps->mesh.max_task_work_group_count[i] = 65536;
+      caps->mesh.max_mesh_work_group_count[i] = 65536;
+      caps->mesh.max_task_work_group_size[i] = 1024;
+      caps->mesh.max_mesh_work_group_size[i] = 1024;
+   }
+
+   caps->mesh.pipeline_statistic_queries = true;
 }
 
 
