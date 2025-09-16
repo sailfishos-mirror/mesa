@@ -979,6 +979,7 @@ nir_get_io_offset_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_load_output:
    case nir_intrinsic_load_pixel_local:
    case nir_intrinsic_load_shared:
+   case nir_intrinsic_load_shared_nv:
    case nir_intrinsic_load_task_payload:
    case nir_intrinsic_load_uniform:
    case nir_intrinsic_load_constant:
@@ -988,16 +989,22 @@ nir_get_io_offset_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_load_global_2x32:
    case nir_intrinsic_load_global_constant:
    case nir_intrinsic_load_global_etna:
+   case nir_intrinsic_load_global_nv:
    case nir_intrinsic_load_scratch:
+   case nir_intrinsic_load_scratch_nv:
    case nir_intrinsic_load_fs_input_interp_deltas:
    case nir_intrinsic_shared_atomic:
+   case nir_intrinsic_shared_atomic_nv:
    case nir_intrinsic_shared_atomic_swap:
+   case nir_intrinsic_shared_atomic_swap_nv:
    case nir_intrinsic_task_payload_atomic:
    case nir_intrinsic_task_payload_atomic_swap:
    case nir_intrinsic_global_atomic:
    case nir_intrinsic_global_atomic_2x32:
+   case nir_intrinsic_global_atomic_nv:
    case nir_intrinsic_global_atomic_swap:
    case nir_intrinsic_global_atomic_swap_2x32:
+   case nir_intrinsic_global_atomic_swap_nv:
    case nir_intrinsic_load_coefficients_agx:
    case nir_intrinsic_load_shared_block_intel:
    case nir_intrinsic_load_global_block_intel:
@@ -1021,11 +1028,14 @@ nir_get_io_offset_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_store_output:
    case nir_intrinsic_store_pixel_local:
    case nir_intrinsic_store_shared:
+   case nir_intrinsic_store_shared_nv:
    case nir_intrinsic_store_task_payload:
    case nir_intrinsic_store_global:
    case nir_intrinsic_store_global_2x32:
    case nir_intrinsic_store_global_etna:
+   case nir_intrinsic_store_global_nv:
    case nir_intrinsic_store_scratch:
+   case nir_intrinsic_store_scratch_nv:
    case nir_intrinsic_ssbo_atomic:
    case nir_intrinsic_ssbo_atomic_swap:
    case nir_intrinsic_ldc_nv:

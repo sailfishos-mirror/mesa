@@ -612,6 +612,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
 
    case nir_intrinsic_load_shared:
    case nir_intrinsic_load_shared_ir3:
+   case nir_intrinsic_load_shared_nv:
       is_divergent = src_divergent(instr->src[0], state) ||
                      (options & nir_divergence_uniform_load_tears);
       break;
@@ -619,6 +620,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_global:
    case nir_intrinsic_load_global_2x32:
    case nir_intrinsic_load_global_ir3:
+   case nir_intrinsic_load_global_nv:
    case nir_intrinsic_load_deref: {
       if (load_may_tear(state, instr)) {
          is_divergent = true;
@@ -880,6 +882,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_helper_invocation:
    case nir_intrinsic_is_helper_invocation:
    case nir_intrinsic_load_scratch:
+   case nir_intrinsic_load_scratch_nv:
    case nir_intrinsic_deref_atomic:
    case nir_intrinsic_deref_atomic_swap:
    case nir_intrinsic_ssbo_atomic:
@@ -894,6 +897,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_bindless_image_atomic_swap:
    case nir_intrinsic_shared_atomic:
    case nir_intrinsic_shared_atomic_swap:
+   case nir_intrinsic_shared_atomic_nv:
+   case nir_intrinsic_shared_atomic_swap_nv:
    case nir_intrinsic_task_payload_atomic:
    case nir_intrinsic_task_payload_atomic_swap:
    case nir_intrinsic_global_atomic:
@@ -905,6 +910,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_global_atomic_swap_agx:
    case nir_intrinsic_global_atomic_2x32:
    case nir_intrinsic_global_atomic_swap_2x32:
+   case nir_intrinsic_global_atomic_nv:
+   case nir_intrinsic_global_atomic_swap_nv:
    case nir_intrinsic_global_atomic_pco:
    case nir_intrinsic_atomic_counter_add:
    case nir_intrinsic_atomic_counter_min:

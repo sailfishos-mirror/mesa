@@ -5595,6 +5595,27 @@ nir_src *nir_get_io_index_src(nir_intrinsic_instr *instr);
 nir_src *nir_get_io_arrayed_index_src(nir_intrinsic_instr *instr);
 nir_src *nir_get_shader_call_payload_src(nir_intrinsic_instr *call);
 
+static inline unsigned
+nir_get_io_base_size_nv(const nir_intrinsic_instr *intr)
+{
+   switch (intr->intrinsic) {
+   case nir_intrinsic_global_atomic_nv:
+   case nir_intrinsic_global_atomic_swap_nv:
+   case nir_intrinsic_shared_atomic_nv:
+   case nir_intrinsic_shared_atomic_swap_nv:
+   case nir_intrinsic_load_global_nv:
+   case nir_intrinsic_load_scratch_nv:
+   case nir_intrinsic_load_shared_nv:
+   case nir_intrinsic_store_global_nv:
+   case nir_intrinsic_store_scratch_nv:
+   case nir_intrinsic_store_shared_nv:
+      return 24;
+   default:
+      UNREACHABLE("unknown nvidia intrinsic");
+      return -1;
+   }
+}
+
 bool nir_is_shared_access(nir_intrinsic_instr *intr);
 bool nir_is_output_load(nir_intrinsic_instr *intr);
 bool nir_is_input_load(nir_intrinsic_instr *intr);

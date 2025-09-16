@@ -240,6 +240,7 @@ node_is_dead(nir_cf_node *node)
 
             case nir_intrinsic_load_shared:
             case nir_intrinsic_load_shared2_amd:
+            case nir_intrinsic_load_shared_nv:
             case nir_intrinsic_load_output:
             case nir_intrinsic_load_pixel_local:
             case nir_intrinsic_load_per_vertex_output:

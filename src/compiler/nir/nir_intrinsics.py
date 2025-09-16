@@ -905,6 +905,9 @@ intrinsic("load_vulkan_descriptor", src_comp=[-1], dest_comp=0,
 # AGX global variants take a 64-bit base address plus a 32-bit offset in words.
 # The offset is sign-extended or zero-extended based on the SIGN_EXTEND index.
 #
+# NV variants all come with a 24 bit base, that is unsigned with a constant 0 address,
+# signed otherwise.
+#
 # PCO global variants use a vec3 for the memory address and data, where component X
 # has the low 32 address bits, component Y has the high 32 address bits, and component Z
 # has the data parameter.
@@ -912,21 +915,25 @@ intrinsic("load_vulkan_descriptor", src_comp=[-1], dest_comp=0,
 intrinsic("deref_atomic",  src_comp=[-1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP])
 intrinsic("ssbo_atomic",  src_comp=[-1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP, OFFSET_SHIFT])
 intrinsic("shared_atomic",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
+intrinsic("shared_atomic_nv",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("task_payload_atomic",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic",  src_comp=[1, 1], dest_comp=1, indices=[ATOMIC_OP])
 intrinsic("global_atomic_2x32",  src_comp=[2, 1], dest_comp=1, indices=[ATOMIC_OP])
 intrinsic("global_atomic_amd",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic_agx",  src_comp=[1, 1, 1], dest_comp=1, indices=[ATOMIC_OP, SIGN_EXTEND])
+intrinsic("global_atomic_nv",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic_pco",  src_comp=[3], dest_comp=1, indices=[ATOMIC_OP], bit_sizes=[32])
 
 intrinsic("deref_atomic_swap",  src_comp=[-1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP])
 intrinsic("ssbo_atomic_swap",  src_comp=[-1, 1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP, OFFSET_SHIFT])
 intrinsic("shared_atomic_swap",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
+intrinsic("shared_atomic_swap_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("task_payload_atomic_swap",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic_swap",  src_comp=[1, 1, 1], dest_comp=1, indices=[ATOMIC_OP])
 intrinsic("global_atomic_swap_2x32",  src_comp=[2, 1, 1], dest_comp=1, indices=[ATOMIC_OP])
 intrinsic("global_atomic_swap_amd",  src_comp=[1, 1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic_swap_agx",  src_comp=[1, 1, 1, 1], dest_comp=1, indices=[ATOMIC_OP, SIGN_EXTEND])
+intrinsic("global_atomic_swap_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic_swap_pco",  src_comp=[4], dest_comp=1, indices=[ATOMIC_OP], bit_sizes=[32])
 
 def system_value(name, dest_comp, indices=[], bit_sizes=[32], can_reorder=True):
@@ -1824,6 +1831,15 @@ intrinsic("load_typed_buffer_amd", src_comp=[4, 1, 1, 1], dest_comp=0, indices=[
 load("global_amd", [1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
 # src[] = { value, address, unsigned 32-bit offset }.
 store("global_amd", [1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET, WRITE_MASK])
+
+# src[] = { address }. BASE is a 24 bit unsigned offset if a constant 0 address is given,
+# signed otherwise.
+load("global_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
+store("global_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
+load("scratch_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
+store("scratch_nv", [1], indices=[BASE, ALIGN_MUL, ALIGN_OFFSET])
+load("shared_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
+store("shared_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
 
 # Same as shared_atomic_add, but with GDS. src[] = {store_val, gds_addr, m0}
 intrinsic("gds_atomic_add_amd",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE])

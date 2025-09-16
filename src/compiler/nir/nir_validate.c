@@ -729,6 +729,30 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
       }
       break;
 
+   case nir_intrinsic_global_atomic_nv:
+   case nir_intrinsic_global_atomic_swap_nv:
+   case nir_intrinsic_shared_atomic_nv:
+   case nir_intrinsic_shared_atomic_swap_nv:
+   case nir_intrinsic_load_global_nv:
+   case nir_intrinsic_load_scratch_nv:
+   case nir_intrinsic_load_shared_nv:
+   case nir_intrinsic_store_global_nv:
+   case nir_intrinsic_store_scratch_nv:
+   case nir_intrinsic_store_shared_nv: {
+      int base = nir_intrinsic_base(instr);
+      nir_src src = *nir_get_io_offset_src(instr);
+      unsigned const_bits = nir_get_io_base_size_nv(instr);
+
+      if (nir_src_is_const(src) && nir_src_as_int(src) == 0) {
+         validate_assert(state, base >= 0 && base < BITFIELD_MASK(const_bits));
+      } else {
+         int32_t max = BITFIELD_MASK(const_bits - 1);
+         int32_t min = ~BITFIELD_MASK(const_bits - 1);
+         validate_assert(state, base >= min && base < max);
+      }
+      break;
+   }
+
    default:
       break;
    }
