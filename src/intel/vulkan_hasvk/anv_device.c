@@ -3481,6 +3481,9 @@ anv_bind_buffer_memory(const VkBindBufferMemoryInfo *pBindInfo)
 
    assert(pBindInfo->sType == VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO);
 
+   const VkBindMemoryStatusKHR *bind_status =
+      vk_find_struct_const(pBindInfo->pNext, BIND_MEMORY_STATUS_KHR);
+
    if (mem) {
       assert(pBindInfo->memoryOffset < mem->bo->size);
       assert(mem->bo->size - pBindInfo->memoryOffset >= buffer->vk.size);
@@ -3491,6 +3494,9 @@ anv_bind_buffer_memory(const VkBindBufferMemoryInfo *pBindInfo)
    } else {
       buffer->address = ANV_NULL_ADDRESS;
    }
+   
+   if (bind_status)
+      *bind_status->pResult = VK_SUCCESS;
 }
 
 VkResult anv_BindBufferMemory2(
