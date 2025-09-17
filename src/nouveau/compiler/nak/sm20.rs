@@ -2309,6 +2309,7 @@ impl SM20Op for OpLd {
     }
 
     fn encode(&self, e: &mut SM20Encoder<'_>) {
+        assert_eq!(self.stride, OffsetStride::X1);
         match self.access.space {
             MemSpace::Global(addr_type) => {
                 e.set_opcode(SM20Unit::Mem, 0x20);
@@ -2388,6 +2389,7 @@ impl SM20Op for OpSt {
     }
 
     fn encode(&self, e: &mut SM20Encoder<'_>) {
+        assert_eq!(self.stride, OffsetStride::X1);
         match self.access.space {
             MemSpace::Global(addr_type) => {
                 e.set_opcode(SM20Unit::Mem, 0x24);
@@ -2472,6 +2474,7 @@ impl SM20Op for OpAtom {
             panic!("SM20 only supports global atomics");
         };
         assert!(addr_type == MemAddrType::A64);
+        assert_eq!(self.addr_stride, OffsetStride::X1);
 
         if self.dst.is_none() {
             e.set_opcode(SM20Unit::Mem, 0x1);

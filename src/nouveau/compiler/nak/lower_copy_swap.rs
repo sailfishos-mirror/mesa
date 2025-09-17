@@ -96,6 +96,7 @@ impl LowerCopySwap {
                             dst: copy.dst,
                             addr: Src::ZERO,
                             offset: addr.try_into().unwrap(),
+                            stride: OffsetStride::X1,
                             access: access,
                         });
                     }
@@ -175,6 +176,7 @@ impl LowerCopySwap {
                             addr: Src::ZERO,
                             data: copy.src,
                             offset: addr.try_into().unwrap(),
+                            stride: OffsetStride::X1,
                             access: access,
                         });
                     }

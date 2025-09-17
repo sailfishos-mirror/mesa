@@ -2941,6 +2941,7 @@ impl<'a> ShaderFromNir<'a> {
                     atom_op: atom_op,
                     atom_type: atom_type,
                     addr_offset: intrin.base(),
+                    addr_stride: OffsetStride::X1,
                     mem_space: MemSpace::Global(MemAddrType::A64),
                     mem_order: MemOrder::Strong(MemScope::GPU),
                     mem_eviction_priority: MemEvictionPriority::Normal, // Note: no intrinic access
@@ -2966,6 +2967,7 @@ impl<'a> ShaderFromNir<'a> {
                     atom_op: AtomOp::CmpExch(AtomCmpSrc::Separate),
                     atom_type: atom_type,
                     addr_offset: intrin.base(),
+                    addr_stride: OffsetStride::X1,
                     mem_space: MemSpace::Global(MemAddrType::A64),
                     mem_order: MemOrder::Strong(MemScope::GPU),
                     mem_eviction_priority: MemEvictionPriority::Normal, // Note: no intrinic access
@@ -3075,6 +3077,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst: dst.clone().into(),
                     addr: addr,
                     offset: intrin.base(),
+                    stride: OffsetStride::X1,
                     access: access,
                 });
                 self.set_dst(&intrin.def, dst);
@@ -3184,6 +3187,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst: dst.clone().into(),
                     addr: addr,
                     offset: intrin.base(),
+                    stride: OffsetStride::X1,
                     access: access,
                 });
                 self.set_dst(&intrin.def, dst);
@@ -3205,6 +3209,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst: dst.clone().into(),
                     addr: addr,
                     offset: intrin.base(),
+                    stride: intrin.offset_shift_nv().try_into().unwrap(),
                     access: access,
                 });
                 self.set_dst(&intrin.def, dst);
@@ -3527,6 +3532,7 @@ impl<'a> ShaderFromNir<'a> {
                     atom_op: atom_op,
                     atom_type: atom_type,
                     addr_offset: intrin.base(),
+                    addr_stride: intrin.offset_shift_nv().try_into().unwrap(),
                     mem_space: MemSpace::Shared,
                     mem_order: MemOrder::Strong(MemScope::CTA),
                     mem_eviction_priority: MemEvictionPriority::Normal,
@@ -3552,6 +3558,7 @@ impl<'a> ShaderFromNir<'a> {
                     atom_op: AtomOp::CmpExch(AtomCmpSrc::Separate),
                     atom_type: atom_type,
                     addr_offset: intrin.base(),
+                    addr_stride: intrin.offset_shift_nv().try_into().unwrap(),
                     mem_space: MemSpace::Shared,
                     mem_order: MemOrder::Strong(MemScope::CTA),
                     mem_eviction_priority: MemEvictionPriority::Normal,
@@ -3580,6 +3587,7 @@ impl<'a> ShaderFromNir<'a> {
                     addr: addr,
                     data: data,
                     offset: intrin.base(),
+                    stride: OffsetStride::X1,
                     access: access,
                 });
             }
@@ -3610,6 +3618,7 @@ impl<'a> ShaderFromNir<'a> {
                     addr: addr,
                     data: data,
                     offset: intrin.base(),
+                    stride: OffsetStride::X1,
                     access: access,
                 });
             }
@@ -3630,6 +3639,7 @@ impl<'a> ShaderFromNir<'a> {
                     addr: addr,
                     data: data,
                     offset: intrin.base(),
+                    stride: intrin.offset_shift_nv().try_into().unwrap(),
                     access: access,
                 });
             }

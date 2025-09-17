@@ -2597,6 +2597,7 @@ impl SM50Op for OpLd {
     }
 
     fn encode(&self, e: &mut SM50Encoder<'_>) {
+        assert_eq!(self.stride, OffsetStride::X1);
         e.set_opcode(match self.access.space {
             MemSpace::Global(_) => 0xeed0,
             MemSpace::Local => 0xef40,
@@ -2652,6 +2653,7 @@ impl SM50Op for OpSt {
     }
 
     fn encode(&self, e: &mut SM50Encoder<'_>) {
+        assert_eq!(self.stride, OffsetStride::X1);
         e.set_opcode(match self.access.space {
             MemSpace::Global(_) => 0xeed8,
             MemSpace::Local => 0xef50,
@@ -2707,6 +2709,7 @@ impl SM50Op for OpAtom {
     }
 
     fn encode(&self, e: &mut SM50Encoder<'_>) {
+        assert_eq!(self.addr_stride, OffsetStride::X1);
         match self.mem_space {
             MemSpace::Global(addr_type) => {
                 if self.dst.is_none() {

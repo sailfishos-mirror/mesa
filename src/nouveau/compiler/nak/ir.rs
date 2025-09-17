@@ -6417,6 +6417,40 @@ impl DisplayOp for OpSuStGa {
 }
 impl_display_for_op!(OpSuStGa);
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OffsetStride {
+    X1 = 0,
+    X4 = 2,
+    X8 = 3,
+    X16 = 4,
+}
+
+impl fmt::Display for OffsetStride {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::X1 => return Ok(()),
+            Self::X4 => ".x4",
+            Self::X8 => ".x8",
+            Self::X16 => ".x16",
+        };
+        write!(f, "{s}")
+    }
+}
+
+impl TryFrom<u8> for OffsetStride {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::X1),
+            2 => Ok(Self::X4),
+            3 => Ok(Self::X8),
+            4 => Ok(Self::X16),
+            _ => Err("Unknown LdSt shift value {value}"),
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(SrcsAsSlice, DstsAsSlice)]
 pub struct OpLd {
@@ -6426,12 +6460,13 @@ pub struct OpLd {
     pub addr: Src,
 
     pub offset: i32,
+    pub stride: OffsetStride,
     pub access: MemAccess,
 }
 
 impl DisplayOp for OpLd {
     fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ld{} [{}", self.access, self.addr)?;
+        write!(f, "ld{} [{}{}", self.access, self.addr, self.stride)?;
         if self.offset > 0 {
             write!(f, "+{:#x}", self.offset)?;
         }
@@ -6577,12 +6612,13 @@ pub struct OpSt {
     pub data: Src,
 
     pub offset: i32,
+    pub stride: OffsetStride,
     pub access: MemAccess,
 }
 
 impl DisplayOp for OpSt {
     fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "st{} [{}", self.access, self.addr)?;
+        write!(f, "st{} [{}{}", self.access, self.addr, self.stride)?;
         if self.offset > 0 {
             write!(f, "+{:#x}", self.offset)?;
         }
@@ -6638,6 +6674,7 @@ pub struct OpAtom {
     pub atom_type: AtomType,
 
     pub addr_offset: i32,
+    pub addr_stride: OffsetStride,
 
     pub mem_space: MemSpace,
     pub mem_order: MemOrder,
@@ -6657,7 +6694,7 @@ impl DisplayOp for OpAtom {
         )?;
         write!(f, " [")?;
         if !self.addr.is_zero() {
-            write!(f, "{}", self.addr)?;
+            write!(f, "{}{}", self.addr, self.addr_stride)?;
         }
         if self.addr_offset > 0 {
             if !self.addr.is_zero() {

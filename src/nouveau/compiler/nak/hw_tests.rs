@@ -156,6 +156,7 @@ impl<'a> TestShaderBuilder<'a> {
             addr: self.data_addr.clone().into(),
             offset: offset.into(),
             access: access,
+            stride: OffsetStride::X1,
         });
         dst
     }
@@ -179,6 +180,7 @@ impl<'a> TestShaderBuilder<'a> {
             data: data.into(),
             offset: offset.into(),
             access: access,
+            stride: OffsetStride::X1,
         });
     }
 
@@ -1739,6 +1741,7 @@ fn test_op_ldsm() {
             order: MemOrder::Strong(MemScope::CTA),
             eviction_priority: MemEvictionPriority::Normal,
         },
+        stride: OffsetStride::X1,
     });
     b.push_op(OpMemBar {
         scope: MemScope::CTA,

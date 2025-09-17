@@ -377,6 +377,17 @@ impl ALUSrc {
     }
 }
 
+impl OffsetStride {
+    fn encode_sm75(&self) -> u8 {
+        match self {
+            Self::X1 => 0,
+            Self::X4 => 1,
+            Self::X8 => 2,
+            Self::X16 => 3,
+        }
+    }
+}
+
 impl SM70Encoder<'_> {
     fn set_swizzle(&mut self, range: Range<usize>, swizzle: SrcSwizzle) {
         assert!(range.len() == 2);
@@ -3049,10 +3060,12 @@ impl SM70Op for OpLd {
         match self.access.space {
             MemSpace::Global(_) => {
                 e.set_opcode(0x381);
+                assert_eq!(self.stride, OffsetStride::X1);
                 e.set_pred_dst(81..84, &Dst::None);
                 e.set_mem_access(&self.access);
             }
             MemSpace::Local => {
+                assert_eq!(self.stride, OffsetStride::X1);
                 e.set_opcode(0x983);
                 e.set_field(84..87, 1_u8);
 
@@ -3073,6 +3086,8 @@ impl SM70Op for OpLd {
                         == MemEvictionPriority::Normal
                 );
 
+                assert!(e.sm >= 75 || self.stride == OffsetStride::X1);
+                e.set_field(78..80, self.stride.encode_sm75());
                 e.set_bit(87, false); // !.ZD - Returns a predicate?
             }
         }
@@ -3182,10 +3197,12 @@ impl SM70Op for OpSt {
         match self.access.space {
             MemSpace::Global(_) => {
                 e.set_opcode(0x386);
+                assert_eq!(self.stride, OffsetStride::X1);
                 e.set_mem_access(&self.access);
             }
             MemSpace::Local => {
                 e.set_opcode(0x387);
+                assert_eq!(self.stride, OffsetStride::X1);
                 e.set_field(84..87, 1_u8);
 
                 e.set_mem_type(73..76, self.access.mem_type);
@@ -3204,6 +3221,9 @@ impl SM70Op for OpSt {
                     self.access.eviction_priority
                         == MemEvictionPriority::Normal
                 );
+
+                assert!(e.sm >= 75 || self.stride == OffsetStride::X1);
+                e.set_field(78..80, self.stride.encode_sm75());
             }
         }
 
@@ -3322,6 +3342,7 @@ impl SM70Op for OpAtom {
 
                 e.set_mem_order(&self.mem_order);
                 e.set_eviction_priority(&self.mem_eviction_priority);
+                assert_eq!(self.addr_stride, OffsetStride::X1);
             }
             MemSpace::Local => panic!("Atomics do not support local"),
             MemSpace::Shared => {
@@ -3346,6 +3367,9 @@ impl SM70Op for OpAtom {
                     );
                     e.set_atom_op(87..91, self.atom_op);
                 }
+
+                assert!(e.sm >= 75 || self.addr_stride == OffsetStride::X1);
+                e.set_field(78..80, self.addr_stride.encode_sm75());
 
                 assert!(self.mem_order == MemOrder::Strong(MemScope::CTA));
                 assert!(

@@ -2549,6 +2549,7 @@ impl SM32Op for OpLd {
     }
 
     fn encode(&self, e: &mut SM32Encoder<'_>) {
+        assert_eq!(self.stride, OffsetStride::X1);
         // Missing:
         // 0x7c8 for indirect const load
         match self.access.space {
@@ -2633,6 +2634,7 @@ impl SM32Op for OpSt {
     }
 
     fn encode(&self, e: &mut SM32Encoder<'_>) {
+        assert_eq!(self.stride, OffsetStride::X1);
         match self.access.space {
             MemSpace::Global(_) => {
                 e.set_opcode(0xe00, 0);
@@ -2739,6 +2741,7 @@ impl SM32Op for OpAtom {
     }
 
     fn encode(&self, e: &mut SM32Encoder<'_>) {
+        assert_eq!(self.addr_stride, OffsetStride::X1);
         match self.mem_space {
             MemSpace::Global(addr_type) => {
                 if let AtomOp::CmpExch(cmp_src) = self.atom_op {
