@@ -3654,7 +3654,7 @@
         "description": "gallium/sw: Fix llvmpipe being chosen when not wanted",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f87072f5b0ab74abbd2597764114801d3820e19c",
         "notes": null
