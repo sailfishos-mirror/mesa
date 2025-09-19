@@ -35,3 +35,5 @@ VK_KHR_shader_subgroup_uniform_control_flow on pvr
 VK_EXT_subgroup_size_control on pvr
 VK_EXT_rasterization_order_attachment_access on panvk
 VK_ARM_rasterization_order_attachment_access on panvk
+GL_OES_texture_float on etnaviv/HALTI5
+GL_ARB_texture_float on etnaviv/HALTI5

@@ -394,6 +394,7 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
 
    /* Requires split sampler support, which the driver doesn't support, yet. */
    if (!DBG_ENABLED(ETNA_DBG_DEQP) &&
+       (screen->info->halti < 5 || DBG_ENABLED(ETNA_DBG_NO_TEXDESC)) &&
        !util_format_is_compressed(format) &&
        util_format_get_blocksizebits(format) > 64)
       return false;
@@ -470,6 +471,7 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
 
    /* Requires split target support, which the driver doesn't support, yet. */
    if (!DBG_ENABLED(ETNA_DBG_DEQP) &&
+       screen->info->halti < 5 &&
        util_format_get_blocksizebits(format) > 64)
       return false;
 
