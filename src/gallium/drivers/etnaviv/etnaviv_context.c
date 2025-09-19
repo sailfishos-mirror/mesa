@@ -173,6 +173,12 @@ etna_get_vs(struct etna_context *ctx, struct etna_shader_key* const key)
 {
    const struct etna_shader_variant *old = ctx->shader.vs;
 
+   key->tex_is_128bit = ctx->tex_is_128bit[MESA_SHADER_VERTEX];
+
+   if (key->tex_is_128bit)
+      for (unsigned i = 0; i < ctx->screen->specs.vertex_sampler_count; i++)
+         key->sampler_companion[i] = ctx->sampler_companion[MESA_SHADER_VERTEX][i];
+
    ctx->shader.vs = etna_shader_variant(ctx->shader.bind_vs, key, &ctx->base.debug, true);
 
    if (!ctx->shader.vs)
@@ -208,6 +214,12 @@ etna_get_fs(struct etna_context *ctx, struct etna_shader_key* const key)
          key->tex_compare_func[i] = ctx->sampler[i]->compare_func;
       }
    }
+
+   key->tex_is_128bit = ctx->tex_is_128bit[MESA_SHADER_FRAGMENT];
+
+   if (key->tex_is_128bit)
+      for (unsigned i = 0; i < ctx->screen->specs.fragment_sampler_count; i++)
+         key->sampler_companion[i] = ctx->sampler_companion[MESA_SHADER_FRAGMENT][i];
 
    ctx->shader.fs = etna_shader_variant(ctx->shader.bind_fs, key, &ctx->base.debug, true);
 
@@ -433,6 +445,11 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
          }
       }
    }
+
+   key.rt_is_128bit = ctx->framebuffer_s.rt_is_128bit;
+   key.has_128bit_rt = !!key.rt_is_128bit;
+   for (i = 0; i < ARRAY_SIZE(key.rt_companion); i++)
+      key.rt_companion[i] = ctx->framebuffer_s.rt_companion[i];
 
    if (!etna_get_vs(ctx, &key) || !etna_get_fs(ctx, &key)) {
       BUG("compiled shaders are not okay");

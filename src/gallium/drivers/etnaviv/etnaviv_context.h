@@ -267,6 +267,7 @@ struct etna_context {
    struct etna_streamout streamout;
 
    unsigned sampler_companion[MESA_SHADER_STAGES][PIPE_MAX_SAMPLERS / 2];
+   uint16_t tex_is_128bit[MESA_SHADER_STAGES];
 };
 
 static inline struct etna_context *
