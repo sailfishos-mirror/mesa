@@ -30,10 +30,6 @@ handlePictureParameterBuffer(vlVaDriver *drv, vlVaContext *context, vlVaBuffer *
       vlVaHandlePictureParameterBufferVC1(drv, context, buf);
       break;
 
-   case PIPE_VIDEO_FORMAT_MPEG4:
-      vlVaHandlePictureParameterBufferMPEG4(drv, context, buf);
-      break;
-
    case PIPE_VIDEO_FORMAT_HEVC:
       vlVaHandlePictureParameterBufferHEVC(drv, context, buf);
       break;
@@ -98,10 +94,6 @@ handleIQMatrixBuffer(vlVaContext *context, vlVaBuffer *buf)
       vlVaHandleIQMatrixBufferH264(context, buf);
       break;
 
-   case PIPE_VIDEO_FORMAT_MPEG4:
-      vlVaHandleIQMatrixBufferMPEG4(context, buf);
-      break;
-
    case PIPE_VIDEO_FORMAT_HEVC:
       vlVaHandleIQMatrixBufferHEVC(context, buf);
       break;
@@ -129,10 +121,6 @@ handleSliceParameterBuffer(vlVaContext *context, vlVaBuffer *buf)
 
    case PIPE_VIDEO_FORMAT_MPEG4_AVC:
       vlVaHandleSliceParameterBufferH264(context, buf);
-      break;
-
-   case PIPE_VIDEO_FORMAT_MPEG4:
-      vlVaHandleSliceParameterBufferMPEG4(context, buf);
       break;
 
    case PIPE_VIDEO_FORMAT_HEVC:
@@ -253,13 +241,6 @@ handleVASliceDataBufferType(vlVaContext *context, vlVaBuffer *buf)
                start_code = start_code_vc1_field;
             vlVaAddSliceDataBuffer(context, start_code, sizeof(start_code_vc1_frame));
          }
-         break;
-      case PIPE_VIDEO_FORMAT_MPEG4:
-         if (bufHasStartcode(buf, 0x000001, 24))
-            break;
-
-         vlVaDecoderFixMPEG4Startcode(context);
-         vlVaAddSliceDataBuffer(context, context->mpeg4.start_code, context->mpeg4.start_code_size);
          break;
       case PIPE_VIDEO_FORMAT_JPEG:
          if (bufHasStartcode(buf, 0xffd8ffdb, 32))

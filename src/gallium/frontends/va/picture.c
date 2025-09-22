@@ -347,8 +347,6 @@ vlVaEndPicture(VADriverContextP ctx, VAContextID context_id)
       *out_target = surf->buffer;
    }
 
-   context->mpeg4.frame_num++;
-
    if ((bool)(surf->templat.bind & PIPE_BIND_PROTECTED) != context->desc.base.protected_playback) {
       mtx_unlock(&drv->mutex);
       return VA_STATUS_ERROR_INVALID_SURFACE;

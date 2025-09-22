@@ -342,7 +342,6 @@ vlVaCreateContext(VADriverContextP ctx, VAConfigID config_id, int picture_width,
    switch (u_reduce_video_profile(context->templat.profile)) {
    case PIPE_VIDEO_FORMAT_MPEG12:
    case PIPE_VIDEO_FORMAT_VC1:
-   case PIPE_VIDEO_FORMAT_MPEG4:
       context->templat.max_references = 2;
       break;
 
