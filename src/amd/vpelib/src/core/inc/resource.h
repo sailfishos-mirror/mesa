@@ -114,6 +114,9 @@ struct resource {
         bool geometric_scaling);
 
     bool (*validate_cached_param)(struct vpe_priv *vpe_priv, const struct vpe_build_param *param);
+
+    enum vpe_status (*calculate_shaper)(struct vpe_priv *vpe_priv, struct stream_ctx *stream_ctx);
+
     // Indicates the nominal range hdr input content should be in during processing.
     int internal_hdr_normalization;
 

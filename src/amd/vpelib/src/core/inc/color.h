@@ -264,6 +264,8 @@ enum vpe_status vpe_color_update_movable_cm(
 void vpe_color_get_color_space_and_tf(
     const struct vpe_color_space *vcs, enum color_space *cs, enum color_transfer_func *tf);
 
+enum vpe_status vpe_shaper_generator(struct vpe_priv *vpe_priv);
+
 bool vpe_use_csc_adjust(const struct vpe_color_adjust *adjustments);
 
 bool vpe_is_rgb_equal(const struct pwl_result_data *rgb, uint32_t num);
@@ -301,6 +303,8 @@ bool vpe_color_update_degamma_tf(struct vpe_priv *vpe_priv, enum color_transfer_
 
 enum color_range_type vpe_get_range_type(
     enum color_space color_space, enum vpe_surface_pixel_format format);
+
+enum vpe_status vpe_calculate_shaper(struct vpe_priv *vpe_priv, struct stream_ctx *stream_ctx);
 
 #ifdef __cplusplus
 }

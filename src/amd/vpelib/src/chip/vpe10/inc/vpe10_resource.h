@@ -106,6 +106,9 @@ bool vpe10_validate_cached_param(struct vpe_priv *vpe_priv, const struct vpe_bui
 void vpe10_setup_check_funcs(struct vpe_check_support_funcs *funcs);
 
 const struct vpe_caps *vpe10_get_capability(void);
+
+enum vpe_status vpe10_calculate_shaper(struct vpe_priv *vpe_priv, struct stream_ctx *stream_ctx);
+
 #ifdef __cplusplus
 }
 #endif

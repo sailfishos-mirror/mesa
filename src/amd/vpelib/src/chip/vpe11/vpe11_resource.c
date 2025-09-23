@@ -210,6 +210,7 @@ enum vpe_status vpe11_construct_resource(struct vpe_priv *vpe_priv, struct resou
     res->update_blnd_gamma                 = vpe10_update_blnd_gamma;
     res->update_output_gamma               = vpe10_update_output_gamma;
     res->validate_cached_param             = vpe11_validate_cached_param;
+    res->calculate_shaper                  = vpe10_calculate_shaper;
 
     return VPE_STATUS_OK;
 err:

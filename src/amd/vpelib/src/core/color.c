@@ -777,6 +777,40 @@ enum vpe_status vpe_color_update_shaper(const struct vpe_priv *vpe_priv, uint16_
     return ret;
 }
 
+enum vpe_status vpe_calculate_shaper(struct vpe_priv *vpe_priv, struct stream_ctx *stream_ctx)
+{
+    uint32_t                 shaper_norm_factor;
+    struct vpe_color_space   cs;
+    enum color_space         out_lut_cs;
+    enum color_transfer_func lut_in_tf;
+    bool                     need_update_3dlut = true;
+    bool                     enable_3dlut =
+        stream_ctx->stream.tm_params.UID != 0 || stream_ctx->stream.tm_params.enable_3dlut;
+
+    // Get the normalization factor for the shaper based on tone mapping parameters.
+    get_shaper_norm_factor(&stream_ctx->stream.tm_params, stream_ctx, &shaper_norm_factor);
+
+    // Update the HDR multiplier based on the shaper normalization factor and other parameters.
+    vpe_color_tm_update_hdr_mult(SHAPER_EXP_MAX_IN, shaper_norm_factor,
+        &stream_ctx->lut3d_func->hdr_multiplier, enable_3dlut,
+        vpe_is_fp16(stream_ctx->stream.surface_info.format));
+
+    if (need_update_3dlut) {
+        /* DirectConfig loading case */
+        vpe_color_update_3dlut(vpe_priv, stream_ctx, enable_3dlut);
+    }
+
+    // Build the shaper color space based on tone mapping parameters and output surface.
+    vpe_color_build_shaper_cs(&stream_ctx->stream.tm_params, &vpe_priv->output_ctx.surface, &cs);
+
+    // Extract the color space and transfer function from the shaper color space.
+    vpe_color_get_color_space_and_tf(&cs, &out_lut_cs, &lut_in_tf);
+
+    // Update the shaper transfer function for the current stream.
+    return vpe_color_update_shaper(
+        vpe_priv, SHAPER_EXP_MAX_IN, stream_ctx, lut_in_tf, enable_3dlut);
+}
+
 enum vpe_status vpe_color_update_movable_cm(
     struct vpe_priv *vpe_priv, const struct vpe_build_param *param)
 {
@@ -793,12 +827,9 @@ enum vpe_status vpe_color_update_movable_cm(
 
         if (stream_ctx->uid_3dlut != stream_ctx->stream.tm_params.UID) {
 
-            uint32_t                 shaper_norm_factor;
             struct vpe_color_space   tm_out_cs;
-            struct vpe_color_space   cs;
             enum color_space         out_lut_cs;
-            enum color_transfer_func tf, lut_in_tf;
-
+            enum color_transfer_func tf;
             if (!stream_ctx->in_shaper_func) {
                 stream_ctx->in_shaper_func =
                     (struct transfer_func *)vpe_zalloc(sizeof(struct transfer_func));
@@ -838,17 +869,7 @@ enum vpe_status vpe_color_update_movable_cm(
                 }
             }
 
-            get_shaper_norm_factor(&stream_ctx->stream.tm_params, stream_ctx, &shaper_norm_factor);
-
-            vpe_color_tm_update_hdr_mult(SHAPER_EXP_MAX_IN, shaper_norm_factor,
-                &stream_ctx->lut3d_func->hdr_multiplier, enable_3dlut,
-                vpe_is_fp16(stream_ctx->stream.surface_info.format));
-
-            vpe_color_build_shaper_cs(
-                &stream_ctx->stream.tm_params, &vpe_priv->output_ctx.surface, &cs);
-            vpe_color_get_color_space_and_tf(&cs, &out_lut_cs, &lut_in_tf);
-            vpe_color_update_shaper(
-                vpe_priv, SHAPER_EXP_MAX_IN, stream_ctx, lut_in_tf, enable_3dlut);
+            vpe_priv->resource.calculate_shaper(vpe_priv, stream_ctx);
 
             vpe_color_build_tm_cs(
                 &stream_ctx->stream.tm_params, &vpe_priv->output_ctx.surface, &tm_out_cs);

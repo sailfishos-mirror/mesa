@@ -1011,7 +1011,7 @@ enum vpe_status vpe_build_resolve_query(
     return result;
 }
 
-const struct vpe_engine *vpe_create_engine(struct vpe_init_data *params)
+struct vpe_engine *vpe_create_engine(struct vpe_init_data *params)
 {
     struct vpe_engine_priv *engine_priv;
     struct vpe_engine      *engine_handle;
