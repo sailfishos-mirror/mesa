@@ -3841,8 +3841,7 @@ bool si_update_gs_ring_buffers(struct si_context *sctx)
    }
 
    /* Flush the context to re-emit both cs_preamble states. */
-   sctx->initial_gfx_cs_size = 0; /* force flush */
-   si_flush_gfx_cs(sctx, RADEON_FLUSH_ASYNC_START_NEXT_GFX_IB_NOW, NULL);
+   si_flush_gfx_cs(sctx, RADEON_FLUSH_ASYNC_START_NEXT_GFX_IB_NOW | RADEON_FLUSH_FORCE, NULL);
 
    return true;
 }
