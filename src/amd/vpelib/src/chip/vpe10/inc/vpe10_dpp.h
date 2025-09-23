@@ -944,10 +944,8 @@ void vpe10_dpp_dscl_set_scale_ratio(struct dpp *dpp, const struct scaler_data *d
 
 void vpe10_dpp_dscl_set_taps(struct dpp *dpp, const struct scaler_data *scl_data);
 
-void vpe10_dpp_dscl_set_scl_filter(struct dpp *dpp, const struct scaler_data *scl_data,
-    enum vpe10_dscl_mode_sel scl_mode, bool chroma_coef_mode);
-
-void vpe10_dpp_dscl_set_dscl_mode(struct dpp *dpp, enum vpe10_dscl_mode_sel dscl_mode);
+void vpe10_dpp_dscl_set_scl_filter_and_dscl_mode(struct dpp *dpp,
+    const struct scaler_data *scl_data, enum vpe10_dscl_mode_sel scl_mode, bool chroma_coef_mode);
 
 enum vpe10_dscl_mode_sel vpe10_dpp_dscl_get_dscl_mode(const struct scaler_data *data);
 

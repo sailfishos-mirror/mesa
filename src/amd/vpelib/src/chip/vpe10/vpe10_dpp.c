@@ -484,6 +484,6 @@ bool vpe10_dpp_validate_number_of_taps(struct dpp *dpp, struct scaler_data *scl_
 void vpe10_dpp_program_crc(struct dpp *dpp, bool enable)
 {
     PROGRAM_ENTRY();
-    REG_UPDATE(VPDPP_CRC_CTRL, VPDPP_CRC_EN, enable);
+    REG_SET(VPDPP_CRC_CTRL, REG_DEFAULT(VPDPP_CRC_CTRL), VPDPP_CRC_EN, enable);
 }
 

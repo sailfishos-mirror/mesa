@@ -895,12 +895,9 @@ int32_t vpe10_program_frontend(struct vpe_priv *vpe_priv, uint32_t pipe_idx, uin
         dpp->funcs->program_input_transfer_func(dpp, stream_ctx->input_tf);
         dpp->funcs->program_gamut_remap(dpp, stream_ctx->gamut_remap);
 
-        enum mpcc_blend_mode blend_mode = get_blend_mode(
-            MPC_MUX_TOPSEL_DPP0, MPC_MUX_BOTSEL_DISABLE, vpe_priv->init.debug.mpc_bypass == 1);
-
         // for not bypass mode, we always are in single layer coming from DPP and output to OPP
         mpc->funcs->program_mpcc_mux(mpc, MPC_MPCCID_0, MPC_MUX_TOPSEL_DPP0, MPC_MUX_BOTSEL_DISABLE,
-            MPC_MUX_OUTMUX_MPCC0, MPC_MUX_OPPID_OPP0, blend_mode);
+            MPC_MUX_OUTMUX_MPCC0, MPC_MUX_OPPID_OPP0);
 
         // program shaper, 3dlut and 1dlut in MPC for stream before blend
         mpc->funcs->program_movable_cm(
@@ -933,7 +930,11 @@ int32_t vpe10_program_frontend(struct vpe_priv *vpe_priv, uint32_t pipe_idx, uin
         config_writer_complete(&vpe_priv->config_writer);
     }
 
-    vpe10_create_stream_ops_config(vpe_priv, pipe_idx, stream_ctx, cmd_input, cmd_info->ops);
+    enum mpcc_blend_mode blend_mode = get_blend_mode(
+        MPC_MUX_TOPSEL_DPP0, MPC_MUX_BOTSEL_DISABLE, vpe_priv->init.debug.mpc_bypass == 1);
+
+    vpe10_create_stream_ops_config(
+        vpe_priv, pipe_idx, stream_ctx, cmd_input, cmd_info->ops, blend_mode);
 
     /* start segment specific programming */
     vpe_priv->fe_cb_ctx.stream_sharing    = false;
@@ -962,9 +963,11 @@ int32_t vpe10_program_backend(
 
     struct bit_depth_reduction_params         fmt_bit_depth;
     struct clamping_and_pixel_encoding_params clamp_param;
+    struct opp_pipe_control_params            pipe_ctrl_param;
     enum color_depth                          display_color_depth;
     uint16_t                                  alpha_16;
     bool                                      opp_dig_bypass = false;
+    struct fmt_control_params                 fmt_ctrl       = {0};
 
     vpe_priv->be_cb_ctx.vpe_priv = vpe_priv;
     config_writer_set_callback(
@@ -1007,8 +1010,9 @@ int32_t vpe10_program_backend(
                 alpha_16 = 0xffff;
         }
 
-        opp->funcs->program_pipe_alpha(opp, alpha_16);
-        opp->funcs->program_pipe_bypass(opp, opp_dig_bypass);
+        pipe_ctrl_param.alpha         = alpha_16;
+        pipe_ctrl_param.bypass_enable = opp_dig_bypass;
+        opp->funcs->program_pipe_control(opp, &pipe_ctrl_param);
 
         display_color_depth = vpe_get_color_depth(surface_info->format);
         build_clamping_params(opp, &clamp_param);
@@ -1016,7 +1020,7 @@ int32_t vpe10_program_backend(
 
         // disable dynamic expansion for now as no use case
         opp->funcs->set_dyn_expansion(opp, false, display_color_depth);
-        opp->funcs->program_fmt(opp, &fmt_bit_depth, &clamp_param);
+        opp->funcs->program_fmt(opp, &fmt_bit_depth, &fmt_ctrl, &clamp_param);
         if (vpe_priv->init.debug.opp_pipe_crc_ctrl)
             opp->funcs->program_pipe_crc(opp, true);
 
@@ -1077,7 +1081,8 @@ enum vpe_status vpe10_populate_cmd_info(struct vpe_priv *vpe_priv)
 }
 
 void vpe10_create_stream_ops_config(struct vpe_priv *vpe_priv, uint32_t pipe_idx,
-    struct stream_ctx *stream_ctx, struct vpe_cmd_input *cmd_input, enum vpe_cmd_ops ops)
+    struct stream_ctx *stream_ctx, struct vpe_cmd_input *cmd_input, enum vpe_cmd_ops ops,
+    enum mpcc_blend_mode blend_mode)
 {
     /* put all hw programming that can be shared according to the cmd type within a stream here */
     struct mpcc_blnd_cfg blndcfg  = {0};
@@ -1185,6 +1190,7 @@ void vpe10_create_stream_ops_config(struct vpe_priv *vpe_priv, uint32_t pipe_idx
     blndcfg.top_gain            = 0x1f000;
     blndcfg.bottom_inside_gain  = 0x1f000;
     blndcfg.bottom_outside_gain = 0x1f000;
+    blndcfg.blend_mode          = blend_mode;
 
     mpc->funcs->program_mpcc_blending(mpc, MPC_MPCCID_0, &blndcfg);
 
