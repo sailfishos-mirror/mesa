@@ -300,6 +300,14 @@ brw_get_compiler_config_value(const struct brw_compiler *compiler)
       bits++;
    }
 
+   /* TODO: Add a proper prog_key entry. */
+   const unsigned atomic_branch =
+      debug_get_num_option("INTEL_ATOMIC_BRANCH", 0) & BITFIELD_MASK(3);
+   for (unsigned i = 0; i < 3; i++) {
+      insert_u64_bit(&config, atomic_branch & BITFIELD_BIT(i));
+      bits++;
+   }
+
    mask = 3;
    bits += util_bitcount64(mask);
 

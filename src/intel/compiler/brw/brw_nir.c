@@ -3577,6 +3577,14 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt)
    const struct intel_device_info *devinfo = compiler->devinfo;
    nir_shader *nir = pt->nir;
 
+   /* Run after the driver has selected SSBO versus global addressing and
+    * lowered image deref atomics, but before the late optimization/lowering
+    * sequence so the inserted control flow can still be cleaned up.
+    */
+   const unsigned enabled_cases = debug_get_num_option("INTEL_ATOMIC_BRANCH", 0);
+   if (enabled_cases != 0 && nir->info.stage == MESA_SHADER_COMPUTE)
+      OPT(intel_nir_opt_atomic_branch, enabled_cases);
+
    const nir_lower_tex_options tex_options = {
       .lower_txp = ~0,
       .lower_txf_offset = true,

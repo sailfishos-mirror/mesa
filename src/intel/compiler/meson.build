@@ -14,6 +14,7 @@ libintel_compiler_nir_files = files(
   'intel_nir_lower_printf.c',
   'intel_nir_lower_shading_rate_output.c',
   'intel_nir_lower_sparse.c',
+  'intel_nir_opt_atomic_branch.c',
   'intel_nir_opt_peephole_ffma.c',
   'intel_nir_opt_peephole_imul32x16.c',
   'intel_nir_tcs_workarounds.c',

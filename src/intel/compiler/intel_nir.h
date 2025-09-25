@@ -41,6 +41,19 @@ bool intel_nir_lower_sparse_intrinsics(nir_shader *nir, bool jay);
 bool intel_nir_opt_peephole_ffma(nir_shader *shader);
 bool intel_nir_opt_peephole_imul32x16(nir_shader *shader);
 
+enum intel_atomic_branch_cases {
+   /* Skip atomic add/umax if value is zero. */
+   INTEL_ATOMIC_BRANCH_SKIP_ON_ZERO = 1 << 0,
+
+   /* Load memory before umax/imax and skip if value is smaller. */
+   INTEL_ATOMIC_BRANCH_MAX = 1 << 1,
+
+   /* Load memory before umin/imin and skip if value is larger. */
+   INTEL_ATOMIC_BRANCH_MIN = 1 << 2,
+};
+
+bool intel_nir_opt_atomic_branch(nir_shader *shader, unsigned enabled_cases);
+
 bool intel_nir_pulls_at_sample(nir_shader *shader);
 
 unsigned intel_nir_split_conversions_cb(const nir_instr *instr, void *data);
