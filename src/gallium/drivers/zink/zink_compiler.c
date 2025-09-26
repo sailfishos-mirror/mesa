@@ -2896,6 +2896,40 @@ scalarize_vars_instr_filter(const nir_intrinsic_instr * intrin, const void *data
 }
 
 static void
+split_fs_indirect_arrays(nir_shader *nir)
+{
+   if (nir->info.stage != MESA_SHADER_FRAGMENT)
+      return;
+   nir_foreach_variable_with_modes_safe(var, nir, nir_var_shader_in | nir_var_shader_out) {
+      exec_node_remove(&var->node);
+   }
+   /* lower indirect loads to direct+temps and unlower back to convert arrays to slots */
+   NIR_PASS(_, nir, nir_lower_io_indirect_loads, nir_var_shader_in);
+   NIR_PASS(_, nir, nir_unlower_io_to_vars, false);
+}
+
+static bool
+align_array_slot_io(nir_shader *producer, nir_shader *consumer)
+{
+   /* walk producer outputs and compare to consumer inputs. fix pre-raster non-array: FS array mismatch. */
+   nir_foreach_variable_with_modes_safe(output_var, producer, nir_var_shader_out) {
+      nir_variable* input_var = nir_find_variable_with_location(consumer, nir_var_shader_in, output_var->data.location);
+      if (!input_var)
+         continue;
+      const glsl_type* output_type = nir_is_arrayed_io(output_var, producer->info.stage) ?
+         glsl_get_array_element(output_var->type) : output_var->type;
+      const glsl_type* input_type = nir_is_arrayed_io(input_var, consumer->info.stage) ?
+         glsl_get_array_element(input_var->type) : input_var->type;
+      /* XFB + FS indirect indexing, remove it. */
+      if (glsl_type_is_array(input_type) && !glsl_type_is_array(output_type)) {
+         split_fs_indirect_arrays(consumer);
+         return true;
+      }
+   }
+   return false;
+}
+
+static void
 fix_var_int_floatness(nir_shader *producer, nir_shader *consumer)
 {
    nir_foreach_shader_out_variable(output_var, producer) {
@@ -2983,6 +3017,8 @@ zink_compiler_assign_io(struct zink_screen *screen, nir_shader *producer, nir_sh
       if (consumer->info.stage == MESA_SHADER_FRAGMENT && screen->driver_compiler_workarounds.needs_sanitised_layer)
          do_fixup |= clamp_layer_output(producer, consumer, &io.reserved);
    }
+   if (producer->info.has_transform_feedback_varyings && consumer->info.stage == MESA_SHADER_FRAGMENT)
+      do_fixup |= align_array_slot_io(producer, consumer);
    nir_shader_gather_info(producer, nir_shader_get_entrypoint(producer));
    if (producer->info.io_lowered && consumer->info.io_lowered) {
       u_foreach_bit64(slot, producer->info.outputs_written & BITFIELD64_RANGE(VARYING_SLOT_VAR0, 31)) {
