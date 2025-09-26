@@ -6128,6 +6128,15 @@ void
 anv_attachment_external_resolve(struct anv_cmd_buffer *cmd_buffer,
                                 const struct anv_attachment *att);
 
+bool
+anv_image_pixel_is_default_value(const struct intel_device_info *devinfo,
+                                 const struct anv_image *image,
+                                 const uint32_t *view_pixel);
+
+union isl_color_value
+anv_image_color_clear_value(const struct intel_device_info * const devinfo,
+                            const struct anv_image *image);
+
 static inline union isl_color_value
 anv_image_hiz_clear_value(const struct anv_image *image)
 {
@@ -6277,6 +6286,7 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
                          const struct VkClearRect *clear_rect,
                          VkImageLayout layout,
                          enum isl_format view_format,
+                         struct isl_swizzle view_swizzle,
                          union isl_color_value clear_color);
 
 enum isl_aux_state ATTRIBUTE_PURE

@@ -363,8 +363,12 @@ get_blorp_surf_for_anv_image(const struct anv_cmd_buffer *cmd_buffer,
             !is_dest);
       blorp_surf->clear_color_addr = anv_to_blorp_address(clear_color_addr);
 
-      if (aspect & VK_IMAGE_ASPECT_DEPTH_BIT)
+      if (aspect & VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV) {
+         blorp_surf->clear_color =
+            anv_image_color_clear_value(device->info, image);
+      } else if (aspect & VK_IMAGE_ASPECT_DEPTH_BIT) {
          blorp_surf->clear_color = anv_image_hiz_clear_value(image);
+      }
    }
 }
 
@@ -1530,6 +1534,7 @@ void anv_CmdClearColorImage(
                                                 level, &clear_rect,
                                                 imageLayout,
                                                 src_format.isl_format,
+                                                src_format.swizzle,
                                                 clear_color)) {
                assert(level == 0);
                assert(clear_rect.baseArrayLayer == 0);
@@ -1763,6 +1768,7 @@ can_fast_clear_color_att(struct anv_cmd_buffer *cmd_buffer,
                                    att->iview->vk.base_mip_level,
                                    &rect, att->layout,
                                    att->iview->planes[0].isl.format,
+                                   att->iview->planes[0].isl.swizzle,
                                    clear_color);
 }
 

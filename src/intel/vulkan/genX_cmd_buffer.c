@@ -966,12 +966,9 @@ genX(set_fast_clear_state)(struct anv_cmd_buffer *cmd_buffer,
    isl_color_value_pack(&swiz_color, format, pixel);
    set_image_clear_color(cmd_buffer, image, aspect, pixel);
 
-   if (isl_color_value_is_zero(clear_color, format)) {
-      /* This image has the auxiliary buffer enabled. We can mark the
-       * subresource as not needing a resolve because the clear color
-       * will match what's in every RENDER_SURFACE_STATE object when
-       * it's being used for sampling.
-       */
+   const struct intel_device_info *devinfo = cmd_buffer->device->info;
+   if (aspect == VK_IMAGE_ASPECT_COLOR_BIT &&
+       anv_image_pixel_is_default_value(devinfo, image, pixel)) {
       set_image_fast_clear_state(cmd_buffer, image, aspect,
                                  ANV_FAST_CLEAR_DEFAULT_VALUE, false);
    } else {
@@ -1221,8 +1218,12 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
    if (must_init_fast_clear_state) {
       if (image->planes[plane].aux_usage == ISL_AUX_USAGE_FCV_CCS_E) {
          /* Ensure the raw and converted clear colors are in sync. */
-         const uint32_t zero_pixel[4] = {};
-         set_image_clear_color(cmd_buffer, image, aspect, zero_pixel);
+         const union isl_color_value color =
+            anv_image_color_clear_value(devinfo, image);
+         const enum isl_format format =
+            image->planes[plane].primary_surface.isl.format;
+         genX(set_fast_clear_state)(cmd_buffer, image, format,
+                                    ISL_SWIZZLE_IDENTITY, color);
       } else if (base_level == 0 && base_layer == 0) {
          /* Set the initial clear type to NONE to avoid redundant resolves.
           * Don't apply this optimization to FCV images as they may have other
@@ -6091,6 +6092,7 @@ void genX(CmdBeginRendering)(
                                      iview->vk.base_mip_level,
                                      &clear_rect, att->imageLayout,
                                      iview->planes[0].isl.format,
+                                     iview->planes[0].isl.swizzle,
                                      clear_color);
 
          if (att->imageLayout != initial_layout) {

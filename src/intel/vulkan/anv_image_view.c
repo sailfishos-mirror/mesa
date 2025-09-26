@@ -64,11 +64,10 @@ anv_image_fill_surface_state(struct anv_device *device,
    /* Propagate the protection flag of the image to the view. */
    view_usage |= surface->isl.usage & ISL_SURF_USAGE_PROTECTED_BIT;
 
-   /* If this is a HiZ buffer we can sample from with a programmable clear
-    * value (SKL+), define the clear value to the optimal constant.
-    */
    union isl_color_value default_clear_color = { .u32 = { 0, } };
-   if (aspect == VK_IMAGE_ASPECT_DEPTH_BIT)
+   if (aspect & VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV)
+      default_clear_color = anv_image_color_clear_value(device->info, image);
+   else if (aspect == VK_IMAGE_ASPECT_DEPTH_BIT)
       default_clear_color = anv_image_hiz_clear_value(image);
 
    if (!clear_color)

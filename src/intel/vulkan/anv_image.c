@@ -3747,6 +3747,56 @@ anv_layout_to_aux_usage(const struct intel_device_info * const devinfo,
    UNREACHABLE("Invalid isl_aux_state");
 }
 
+bool
+anv_image_pixel_is_default_value(const struct intel_device_info *devinfo,
+                                 const struct anv_image *image,
+                                 const uint32_t *view_pixel)
+{
+   uint32_t default_pixel[4] = {};
+   union isl_color_value default_color =
+      anv_image_color_clear_value(devinfo, image);
+   const uint32_t plane = anv_image_aspect_to_plane(image, image->vk.aspects);
+   enum isl_format format = image->planes[plane].primary_surface.isl.format;
+   isl_color_value_pack(&default_color, format, default_pixel);
+   return memcmp(default_pixel, view_pixel, 16) == 0;
+}
+
+union isl_color_value
+anv_image_color_clear_value(const struct intel_device_info * const devinfo,
+                            const struct anv_image *image)
+{
+   /* On gfx9, enabling non-zero fast-clears requires converting each use of
+    * the inline clear color. We currently only do this for indirect clear
+    * colors however.
+    */
+   if (devinfo->ver == 9)
+      return (union isl_color_value) { .f32 = { 0.0, } };
+
+   /* On gfx12.5 and prior, enabling non-zero fast-clears is dependent on
+    * knowing which formats will be used with the surface.
+    */
+   if (devinfo->ver <= 12 && anv_image_view_formats_incomplete(image))
+      return (union isl_color_value) { .f32 = { 0.0, } };
+
+   /* Tune the defaults to match the values used for 2D array images in the
+    * workloads we're aware of.
+    */
+   switch (image->vk.format) {
+   case VK_FORMAT_R8G8B8A8_SRGB:          /* Assassin's Creed Valhalla */
+      return (union isl_color_value) { .f32 = { 0.0, 0.0, 0.0, 1.0} };
+   case VK_FORMAT_R8G8B8A8_UNORM:         /* Assassin's Creed Valhalla */
+      return (union isl_color_value) { .f32 = { 0.498039, 0.498039, 1.0, } };
+   case VK_FORMAT_R8_UNORM:               /* Black Ops 3               */
+      return (union isl_color_value) { .f32 = { 1.0, } };
+   case VK_FORMAT_R16G16_UNORM:           /* Cyberpunk                 */
+      return (union isl_color_value) { .f32 = { 1000.0, 1000.0, } };
+   case VK_FORMAT_R16G16B16A16_SFLOAT:    /* Borderlands 3             */
+   case VK_FORMAT_B10G11R11_UFLOAT_PACK32:/* Unigine Superposition     */
+   default:
+      return (union isl_color_value) { .f32 = { 0.0, } };
+   }
+}
+
 /**
  * This function returns the level of unresolved fast-clear support of the
  * given image in the given VkImageLayout.
@@ -3796,6 +3846,15 @@ anv_layout_to_fast_clear_type(const struct intel_device_info * const devinfo,
    case ISL_AUX_STATE_PARTIAL_CLEAR:
    case ISL_AUX_STATE_COMPRESSED_CLEAR:
 
+      /* We must guarantee that there is only one clear color at any given
+       * time. The heuristic chosen is tuned to the app behavior we've
+       * measured thus far. For 2D arrays we require that all layers agree on
+       * a clear color. Other image types are handled in
+       * anv_can_fast_clear_color().
+       */
+      if (image->vk.array_layers > 1)
+         return ANV_FAST_CLEAR_DEFAULT_VALUE;
+
       /* On gfx12 and prior, enabling non-zero fast-clears is dependent on
        * knowing which formats will be used with the surface. So, disable them
        * if we lack this knowledge.
@@ -3811,8 +3870,7 @@ anv_layout_to_fast_clear_type(const struct intel_device_info * const devinfo,
 
       /* On gfx12, the FCV feature may convert a block of fragment shader
        * outputs to fast-clears. If this image has multiple subresources,
-       * restrict the clear color to zero to keep the fast cleared blocks in
-       * sync.
+       * restrict the clear color to keep the fast cleared blocks in sync.
        */
       if (image->planes[plane].aux_usage == ISL_AUX_USAGE_FCV_CCS_E &&
           (image->vk.mip_levels > 1 ||
@@ -3822,8 +3880,7 @@ anv_layout_to_fast_clear_type(const struct intel_device_info * const devinfo,
       }
 
       /* On gfx9, we only load clear colors for attachments and for BLORP
-       * surfaces. Outside of those surfaces, we can only support the default
-       * clear value of zero.
+       * surfaces. Outside of those surfaces, we can only support the default.
        */
       if (devinfo->ver == 9 &&
           (layout_usage & (VK_IMAGE_USAGE_SAMPLED_BIT |
@@ -3861,6 +3918,7 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
                          const struct VkClearRect *clear_rect,
                          VkImageLayout layout,
                          enum isl_format view_format,
+                         struct isl_swizzle view_swizzle,
                          union isl_color_value clear_color)
 {
    if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR))
@@ -3881,10 +3939,20 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
    switch (fast_clear_type) {
    case ANV_FAST_CLEAR_NONE:
       return false;
-   case ANV_FAST_CLEAR_DEFAULT_VALUE:
-      if (!isl_color_value_is_zero(clear_color, view_format))
+   case ANV_FAST_CLEAR_DEFAULT_VALUE: {
+      uint32_t view_pixel[4] = {};
+      union isl_color_value swiz_color =
+         isl_color_value_swizzle_inv(clear_color, view_swizzle);
+      isl_color_value_pack(&swiz_color, view_format, view_pixel);
+
+      const struct intel_device_info *devinfo = cmd_buffer->device->info;
+      if (!anv_image_pixel_is_default_value(devinfo, image, view_pixel)) {
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "clear color not default.  Slow clearing.");
          return false;
+      }
       break;
+   }
    case ANV_FAST_CLEAR_ANY:
       break;
    }
@@ -3899,17 +3967,23 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
        clear_rect->rect.extent.height != image->vk.extent.height)
       return false;
 
-   /* We only allow fast clears to the first slice of an image (level 0,
-    * layer 0) and only for the entire slice.  This guarantees us that, at
-    * any given time, there is only one clear color on any given image at
-    * any given time.  At the time of our testing (Jan 17, 2018), there
-    * were no known applications which would benefit from fast-clearing
-    * more than just the first slice.
+   /* When a CLEAR state is possible for an aux-usage, guarantee that there is
+    * only one clear color at any given time. The heuristic chosen is tuned to
+    * the app behavior we've measured thus far.
+    *
+    * For mipmapped images, just restrict fast-clears to the first LOD.
     */
    if (level > 0) {
       anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
                     "level > 0.  Not fast clearing.");
       return false;
+   }
+   /* For 2D arrays either using CCS prior to Xe2 or using MCS surfaces on any
+    * platform, we require that all layers agree on a clear color.
+    */
+   if ((cmd_buffer->device->info->ver <= 12 || image->vk.samples > 1) &&
+       image->vk.array_layers > 1) {
+      assert(fast_clear_type == ANV_FAST_CLEAR_DEFAULT_VALUE);
    }
 
    if (clear_rect->baseArrayLayer > 0) {
