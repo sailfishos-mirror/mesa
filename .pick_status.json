@@ -154,7 +154,7 @@
         "description": "iris: Use the CLEAR state on Xe2+ for MCS",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "df006bba0256e1d636b3fcc270db7c7b814e61d8",
         "notes": null
