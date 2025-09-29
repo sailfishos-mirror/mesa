@@ -504,7 +504,6 @@ static int si_get_video_param(struct pipe_screen *screen, enum pipe_video_profil
    case PIPE_VIDEO_CAP_MAX_LEVEL:
       if ((profile == PIPE_VIDEO_PROFILE_MPEG2_SIMPLE ||
            profile == PIPE_VIDEO_PROFILE_MPEG2_MAIN ||
-           profile == PIPE_VIDEO_PROFILE_MPEG4_ADVANCED_SIMPLE ||
            profile == PIPE_VIDEO_PROFILE_VC1_ADVANCED) &&
           sscreen->info.dec_caps.codec_info[codec - 1].valid) {
          return sscreen->info.dec_caps.codec_info[codec - 1].max_level;

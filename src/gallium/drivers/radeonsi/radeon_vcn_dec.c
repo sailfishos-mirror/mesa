@@ -1259,53 +1259,6 @@ static rvcn_dec_message_mpeg2_vld_t get_mpeg2_msg(struct radeon_decoder *dec,
    return result;
 }
 
-static rvcn_dec_message_mpeg4_asp_vld_t get_mpeg4_msg(struct radeon_decoder *dec,
-                                                      struct pipe_video_buffer *target,
-                                                      struct pipe_mpeg4_picture_desc *pic)
-{
-   rvcn_dec_message_mpeg4_asp_vld_t result;
-   unsigned i;
-
-   memset(&result, 0, sizeof(result));
-   result.decoded_pic_idx = dec->frame_number;
-
-   result.forward_ref_pic_idx = get_ref_pic_idx(dec, pic->ref[0]);
-   result.backward_ref_pic_idx = get_ref_pic_idx(dec, pic->ref[1]);
-
-   vl_video_buffer_set_associated_data(target, &dec->base, (void *)(uintptr_t)dec->frame_number,
-                                       &radeon_dec_destroy_associated_data);
-
-   result.variant_type = 0;
-   result.profile_and_level_indication = 0xF0;
-
-   result.video_object_layer_verid = 0x5;
-   result.video_object_layer_shape = 0x0;
-
-   result.video_object_layer_width = dec->base.width;
-   result.video_object_layer_height = dec->base.height;
-
-   result.vop_time_increment_resolution = pic->vop_time_increment_resolution;
-
-   result.short_video_header = pic->short_video_header;
-   result.interlaced = pic->interlaced;
-   result.load_intra_quant_mat = 1;
-   result.load_nonintra_quant_mat = 1;
-   result.quarter_sample = pic->quarter_sample;
-   result.complexity_estimation_disable = 1;
-   result.resync_marker_disable = pic->resync_marker_disable;
-   result.newpred_enable = 0;
-   result.reduced_resolution_vop_enable = 0;
-
-   result.quant_type = pic->quant_type;
-
-   for (i = 0; i < 64; ++i) {
-      result.intra_quant_mat[i] = pic->intra_matrix[vl_zscan_normal[i]];
-      result.nonintra_quant_mat[i] = pic->non_intra_matrix[vl_zscan_normal[i]];
-   }
-
-   return result;
-}
-
 static void rvcn_dec_message_create(struct radeon_decoder *dec)
 {
    rvcn_dec_message_header_t *header = dec->msg;
@@ -1865,15 +1818,6 @@ static struct pb_buffer_lean *rvcn_dec_message_decode(struct radeon_decoder *dec
       index_codec->size = sizeof(rvcn_dec_message_mpeg2_vld_t);
       break;
    }
-   case PIPE_VIDEO_FORMAT_MPEG4: {
-      rvcn_dec_message_mpeg4_asp_vld_t mpeg4 =
-         get_mpeg4_msg(dec, target, (struct pipe_mpeg4_picture_desc *)picture);
-
-      memcpy(codec, (void *)&mpeg4, sizeof(rvcn_dec_message_mpeg4_asp_vld_t));
-      index_codec->message_id = RDECODE_MESSAGE_MPEG4_ASP_VLD;
-      index_codec->size = sizeof(rvcn_dec_message_mpeg4_asp_vld_t);
-      break;
-   }
    case PIPE_VIDEO_FORMAT_VP9: {
       rvcn_dec_message_vp9_t vp9 =
          get_vp9_msg(dec, target, (struct pipe_vp9_picture_desc *)picture);
@@ -2293,19 +2237,6 @@ static unsigned calc_dpb_size(struct radeon_decoder *dec)
    case PIPE_VIDEO_FORMAT_MPEG12:
       // reference picture buffer, must be big enough for all frames
       dpb_size = image_size * NUM_MPEG2_REFS;
-      break;
-
-   case PIPE_VIDEO_FORMAT_MPEG4:
-      // reference picture buffer
-      dpb_size = image_size * max_references;
-
-      // CM
-      dpb_size += width_in_mb * height_in_mb * 64;
-
-      // IT surface buffer
-      dpb_size += align(width_in_mb * height_in_mb * 32, 64);
-
-      dpb_size = MAX2(dpb_size, 30 * 1024 * 1024);
       break;
 
    case PIPE_VIDEO_FORMAT_VP9:
@@ -2827,11 +2758,6 @@ struct pipe_video_codec *radeon_create_decoder(struct pipe_context *context,
    switch (u_reduce_video_profile(templ->profile)) {
    case PIPE_VIDEO_FORMAT_MPEG12:
       stream_type = RDECODE_CODEC_MPEG2_VLD;
-      break;
-   case PIPE_VIDEO_FORMAT_MPEG4:
-      width = align(width, VL_MACROBLOCK_WIDTH);
-      height = align(height, VL_MACROBLOCK_HEIGHT);
-      stream_type = RDECODE_CODEC_MPEG4;
       break;
    case PIPE_VIDEO_FORMAT_VC1:
       stream_type = RDECODE_CODEC_VC1;
