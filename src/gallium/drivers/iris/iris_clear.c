@@ -376,13 +376,15 @@ fast_clear_color(struct iris_context *ice,
       }
    }
 
-   /* If the buffer is already in ISL_AUX_STATE_CLEAR, the clear is redundant
-    * and can be skipped.
+   /* If the clear color is up-to-date and the buffer is already in
+    * ISL_AUX_STATE_CLEAR, the clear is redundant and can be skipped.
     */
    const enum isl_aux_state aux_state =
       iris_resource_get_aux_state(res, level, box->z);
-   if (box->depth == 1 && aux_state == ISL_AUX_STATE_CLEAR)
+   if ((devinfo->ver < 20 || !color_changed) &&
+       box->depth == 1 && aux_state == ISL_AUX_STATE_CLEAR) {
       return;
+   }
 
    iris_batch_sync_region_start(batch);
 
@@ -453,8 +455,8 @@ fast_clear_color(struct iris_context *ice,
 
    iris_batch_sync_region_end(batch);
 
-   iris_resource_set_aux_state(ice, res, level, box->z,
-                               box->depth, devinfo->ver < 20 ?
+   iris_resource_set_aux_state(ice, res, level, box->z, box->depth,
+                               devinfo->ver < 20 || res->surf.samples > 1 ?
                                ISL_AUX_STATE_CLEAR :
                                ISL_AUX_STATE_COMPRESSED_NO_CLEAR);
 }
