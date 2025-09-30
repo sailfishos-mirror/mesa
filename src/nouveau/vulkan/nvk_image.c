@@ -17,7 +17,6 @@
 #include "vk_format.h"
 #include "nil.h"
 #include "vk_enum_defines.h"
-#include "vk_format.h"
 
 #include "clb097.h"
 #include "clb197.h"
