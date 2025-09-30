@@ -39,6 +39,7 @@
 #include "pvr_physical_device.h"
 
 #include "util/bitpack_helpers.h"
+#include "util/bitscan.h"
 #include "util/compiler.h"
 #include "util/format/format_utils.h"
 #include "util/format/u_formats.h"
@@ -473,6 +474,33 @@ void pvr_GetPhysicalDeviceFormatProperties2(
    }
 }
 
+static VkFormatFeatureFlags2
+vk_image_usage_to_format_features(VkImageUsageFlagBits usage_flag)
+{
+   assert(util_bitcount(usage_flag) == 1);
+   switch (usage_flag) {
+   case VK_IMAGE_USAGE_TRANSFER_SRC_BIT:
+      return VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT |
+             VK_FORMAT_FEATURE_BLIT_SRC_BIT;
+   case VK_IMAGE_USAGE_TRANSFER_DST_BIT:
+      return VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT |
+             VK_FORMAT_FEATURE_BLIT_DST_BIT;
+   case VK_IMAGE_USAGE_SAMPLED_BIT:
+      return VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT;
+   case VK_IMAGE_USAGE_STORAGE_BIT:
+      return VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT;
+   case VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT:
+      return VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT;
+   case VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT:
+      return VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT;
+   case VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT:
+      return VK_FORMAT_FEATURE_2_COLOR_ATTACHMENT_BIT |
+             VK_FORMAT_FEATURE_2_DEPTH_STENCIL_ATTACHMENT_BIT;
+   default:
+      return 0;
+   }
+}
+
 static VkResult
 pvr_get_image_format_properties(struct pvr_physical_device *pdevice,
                                 const VkPhysicalDeviceImageFormatInfo2 *info,
@@ -514,12 +542,22 @@ pvr_get_image_format_properties(struct pvr_physical_device *pdevice,
    /* If VK_IMAGE_CREATE_EXTENDED_USAGE_BIT is set, the driver can't decide if a
     * specific format isn't supported based on the usage.
     */
-   if ((info->flags & VK_IMAGE_CREATE_EXTENDED_USAGE_BIT) == 0 &&
-       usage & (VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
-                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) &&
-       !(pvr_format->bind & PVR_BIND_RENDER_TARGET)) {
-      result = vk_error(pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED);
-      goto err_unsupported_format;
+   if ((info->flags & VK_IMAGE_CREATE_EXTENDED_USAGE_BIT) == 0) {
+      if (usage & (VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
+                   VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) &&
+           !(pvr_format->bind & PVR_BIND_RENDER_TARGET)) {
+         result = vk_error(pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED);
+         goto err_unsupported_format;
+      }
+
+      u_foreach_bit(b, usage) {
+         VkFormatFeatureFlags2 usage_features =
+            vk_image_usage_to_format_features(1 << b);
+         if (usage_features && !(tiling_features2 & usage_features)) {
+            result = vk_error(pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED);
+            goto err_unsupported_format;
+         }
+      }
    }
 
    if (info->type == VK_IMAGE_TYPE_3D) {
