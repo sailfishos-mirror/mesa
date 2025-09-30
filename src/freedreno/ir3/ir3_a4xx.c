@@ -10,6 +10,7 @@
 #define GPU 500
 
 #include "ir3_context.h"
+#include "ir3_ldg_stg.h"
 #include "ir3_image.h"
 
 /* SSBO data is available at this CB address, addressed like regular consts
@@ -383,6 +384,70 @@ emit_intrinsic_atomic_global(struct ir3_context *ctx, nir_intrinsic_instr *intr)
    UNREACHABLE("Global atomic are unimplemented on A5xx");
 }
 
+/* a5xx shares a6xx's register-offset ldg.a/stg.a; a constant offset that
+ * fits rides in the plain form's immediate field.
+ */
+static void
+emit_intrinsic_load_global(struct ir3_context *ctx, nir_intrinsic_instr *intr,
+                           struct ir3_instruction **dst)
+{
+   struct ir3_builder *b = &ctx->build;
+   unsigned dest_components = nir_intrinsic_dest_components(intr);
+   struct ir3_instruction *addr;
+
+   addr = ir3_collect(b, ir3_get_src(ctx, &intr->src[0])[0]);
+
+   struct ldg_stg_offset offset = ldg_stg_offset(ctx, intr);
+   struct ir3_instruction *load;
+
+   if (!offset.src) {
+      load = ir3_LDG(b, addr, 0, offset.imm, 0,
+                     create_immed(b, dest_components), 0);
+   } else {
+      load = ir3_LDG_A(b, addr, 0, offset.src, 0, offset.src_shift, 0,
+                       offset.imm, 0, create_immed(b, dest_components), 0);
+   }
+
+   load->cat6.type = type_uint_size(intr->def.bit_size);
+   load->dsts[0]->wrmask = MASK(dest_components);
+
+   load->barrier_class = IR3_BARRIER_BUFFER_R;
+   load->barrier_conflict = IR3_BARRIER_BUFFER_W;
+
+   ir3_split_dest(b, dst, load, 0, dest_components);
+}
+
+static void
+emit_intrinsic_store_global(struct ir3_context *ctx, nir_intrinsic_instr *intr)
+{
+   struct ir3_builder *b = &ctx->build;
+   struct ir3_instruction *value, *addr;
+   unsigned ncomp = nir_intrinsic_src_components(intr, 0);
+
+   addr = ir3_collect(b, ir3_get_src(ctx, &intr->src[1])[0]);
+
+   value = ir3_create_collect(b, ir3_get_src(ctx, &intr->src[0]), ncomp);
+
+   struct ldg_stg_offset offset = ldg_stg_offset(ctx, intr);
+   struct ir3_instruction *stg;
+
+   if (!offset.src) {
+      stg = ir3_STG(b, addr, 0, offset.imm, 0, value, 0,
+                    create_immed(b, ncomp), 0);
+   } else {
+      stg = ir3_STG_A(b, addr, 0, offset.src, 0, offset.src_shift, 0,
+                      offset.imm, 0, value, 0, create_immed(b, ncomp), 0);
+   }
+
+   stg->cat6.type = type_uint_size(intr->src[0].ssa->bit_size);
+   stg->cat6.iim_val = 1;
+
+   array_insert(ctx->block, ctx->block->keeps, stg);
+
+   stg->barrier_class = IR3_BARRIER_BUFFER_W;
+   stg->barrier_conflict = IR3_BARRIER_BUFFER_R | IR3_BARRIER_BUFFER_W;
+}
+
 const struct ir3_context_funcs ir3_a4xx_funcs = {
    .emit_intrinsic_load_ssbo = emit_intrinsic_load_ssbo,
    .emit_intrinsic_store_ssbo = emit_intrinsic_store_ssbo,
@@ -391,5 +456,7 @@ const struct ir3_context_funcs ir3_a4xx_funcs = {
    .emit_intrinsic_store_image = emit_intrinsic_store_image,
    .emit_intrinsic_atomic_image = emit_intrinsic_atomic_image,
    .emit_intrinsic_image_size = emit_intrinsic_image_size_tex,
+   .emit_intrinsic_load_global = emit_intrinsic_load_global,
+   .emit_intrinsic_store_global = emit_intrinsic_store_global,
    .emit_intrinsic_atomic_global = emit_intrinsic_atomic_global,
 };

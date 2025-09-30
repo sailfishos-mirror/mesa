@@ -147,7 +147,7 @@ TODO rename UAV src to "UAV" so disasm_field_cb can find it easily?
 		zero-extended to 64b first.
 	</doc>
 
-	<gen min="600" max="699"/>
+	<gen min="500" max="699"/>
 
 	<display>
 		{SY}{JP}{NAME}.{TYPE} {TYPE_HALF}{DST}, g[{SRC1}+((({SRC2}&lt;&lt;{SRC2_SHIFT}){OFF})&lt;&lt;{TYPE_SHIFT})], {SIZE}
@@ -318,7 +318,7 @@ TODO rename UAV src to "UAV" so disasm_field_cb can find it easily?
 		See the doc of ldg.a for how the address is calculated.
 	</doc>
 
-	<gen min="600" max="699"/>
+	<gen min="500" max="699"/>
 
 	<display>
 		{SY}{JP}{NAME}.{TYPE} g[{SRC1}+((({SRC2}&lt;&lt;{SRC2_SHIFT}){OFF})&lt;&lt;{TYPE_SHIFT})], {TYPE_HALF}{SRC3}, {SIZE}
