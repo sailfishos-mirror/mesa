@@ -3906,11 +3906,18 @@ isl_surf_get_mcs_surf(const struct isl_device *dev,
       UNREACHABLE("Invalid sample count");
    }
 
+   /* isl_genX(surf_fill_state_s) will assert on us if the QPitch is not
+    * aligned by the main surface's vertical alignment. Align the height of
+    * the image so that the QPitch follows.
+    */
+   const uint32_t aligned_height = isl_align(surf->logical_level0_px.height,
+                                             surf->image_alignment_el.height);
+
    return isl_surf_init(dev, mcs_surf,
                         .dim = ISL_SURF_DIM_2D,
                         .format = mcs_format,
                         .width = surf->logical_level0_px.width,
-                        .height = surf->logical_level0_px.height,
+                        .height = aligned_height,
                         .depth = 1,
                         .levels = 1,
                         .array_len = surf->logical_level0_px.array_len,
