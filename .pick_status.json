@@ -644,7 +644,7 @@
         "description": "iris: Set missing flags on clear color changes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "64d861b700e4e7dde08027af8f43f7b186489453",
         "notes": null

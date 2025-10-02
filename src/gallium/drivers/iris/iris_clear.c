@@ -353,9 +353,28 @@ fast_clear_color(struct iris_context *ice,
                                  PIPE_CONTROL_RENDER_TARGET_FLUSH);
    }
 
-   /* Update the clear color now that previous rendering is complete. */
-   if (color_changed && res->aux.clear_color_bo)
-      iris_resource_update_indirect_color(batch, res);
+   if (color_changed) {
+      if (devinfo->ver <= 12) {
+         /* A new clear color may require partial resolves later on. */
+         ice->state.dirty |= IRIS_DIRTY_RENDER_RESOLVES_AND_FLUSHES |
+                             IRIS_DIRTY_COMPUTE_RESOLVES_AND_FLUSHES;
+         ice->state.stage_dirty |= IRIS_ALL_STAGE_DIRTY_BINDINGS;
+      }
+
+      if (devinfo->ver >= 20) {
+         /* The clear pixel is updated by hardware during fast clears. */
+         assert(batch->screen->isl_dev.ss.clear_color_state_size == 0);
+         assert(batch->screen->isl_dev.ss.clear_value_size == 0);
+      } else if (devinfo->ver >= 11) {
+         /* Update dwords used for rendering and sampling. */
+         assert(batch->screen->isl_dev.ss.clear_color_state_size > 0);
+         iris_resource_update_indirect_color(batch, res);
+      } else {
+         /* We've flagged surface states with inline clear colors as dirty. */
+         assert(batch->screen->isl_dev.ss.clear_value_size > 0);
+         assert(ice->state.stage_dirty & IRIS_ALL_STAGE_DIRTY_BINDINGS);
+      }
+   }
 
    /* If the buffer is already in ISL_AUX_STATE_CLEAR, the clear is redundant
     * and can be skipped.
@@ -438,9 +457,6 @@ fast_clear_color(struct iris_context *ice,
                                box->depth, devinfo->ver < 20 ?
                                ISL_AUX_STATE_CLEAR :
                                ISL_AUX_STATE_COMPRESSED_NO_CLEAR);
-   ice->state.dirty |= IRIS_DIRTY_RENDER_BUFFER;
-   ice->state.stage_dirty |= IRIS_ALL_STAGE_DIRTY_BINDINGS;
-   return;
 }
 
 static void
