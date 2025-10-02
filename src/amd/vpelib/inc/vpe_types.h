@@ -653,7 +653,9 @@ struct vpe_color_adjust {
 struct vpe_surface_info {
 
     struct vpe_plane_address     address;     /**< Address */
-    enum vpe_swizzle_mode_values swizzle;     /**< Swizzle mode */
+    union {
+        enum vpe_swizzle_mode_values swizzle; /**< Swizzle mode */
+    };
 
     struct vpe_plane_size         plane_size; /**< Pitch */
     struct vpe_plane_dcc_param    dcc;        /**< DCC parameters */

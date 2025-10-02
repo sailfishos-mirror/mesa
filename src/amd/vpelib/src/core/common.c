@@ -374,7 +374,7 @@ enum vpe_status vpe_check_output_support(struct vpe *vpe, const struct vpe_build
     cdc_be = vpe_priv->resource.cdc_be[0];
 
     // swizzle mode
-    support = vpec->funcs->check_swmode_support(vpec, surface_info->swizzle);
+    support = vpec->funcs->check_output_swmode_support(vpec, surface_info);
     if (!support) {
         vpe_log("output swizzle mode not supported %d\n", surface_info->swizzle);
         return VPE_STATUS_SWIZZLE_NOT_SUPPORTED;
@@ -478,7 +478,7 @@ enum vpe_status vpe_check_input_support(struct vpe *vpe, const struct vpe_stream
     cdc_fe = vpe_priv->resource.cdc_fe[0];
 
     // swizzle mode
-    support = vpec->funcs->check_swmode_support(vpec, surface_info->swizzle);
+    support = vpec->funcs->check_input_swmode_support(vpec, surface_info);
     if (!support) {
         vpe_log("input swizzle mode not supported %d\n", surface_info->swizzle);
         return VPE_STATUS_SWIZZLE_NOT_SUPPORTED;
