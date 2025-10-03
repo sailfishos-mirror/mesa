@@ -652,6 +652,10 @@ d3d12_deinit_screen(struct d3d12_screen *screen)
       screen->dev10->Release();
       screen->dev10 = nullptr;
    }
+   if (screen->dev15) {
+      screen->dev15->Release();
+      screen->dev15 = nullptr;
+   }
    if (screen->dev) {
       screen->dev->Release();
       screen->dev = nullptr;
@@ -1636,6 +1640,9 @@ d3d12_init_screen(struct d3d12_screen *screen, IUnknown *adapter)
    if (FAILED(screen->dev->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(&screen->fence))))
       return false;
 
+   screen->dev->QueryInterface(&screen->dev15);
+
+   // Uses screen->dev15 so QI must be before this
    if (!d3d12_init_residency(screen))
       return false;
 
