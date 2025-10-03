@@ -440,13 +440,20 @@ ycbcr_conversion_lookup(const void *data, uint32_t set, uint32_t binding, uint32
 {
    const struct radv_shader_layout *layout = data;
 
-   const struct radv_descriptor_set_layout *set_layout = layout->set[set].layout;
-   const struct vk_ycbcr_conversion_state *ycbcr_samplers = radv_immutable_ycbcr_samplers(set_layout, binding);
+   if (set == VK_NIR_YCBCR_SET_IMMUTABLE_SAMPLERS) {
+      const struct vk_sampler_state_array *embedded_samplers = &layout->embedded_samplers;
+      assert(binding < embedded_samplers->sampler_count);
+      return &embedded_samplers->samplers[binding].ycbcr_conversion;
+   } else {
 
-   if (!ycbcr_samplers)
-      return NULL;
+      const struct radv_descriptor_set_layout *set_layout = layout->set[set].layout;
+      const struct vk_ycbcr_conversion_state *ycbcr_samplers = radv_immutable_ycbcr_samplers(set_layout, binding);
 
-   return ycbcr_samplers + array_index;
+      if (!ycbcr_samplers)
+         return NULL;
+
+      return ycbcr_samplers + array_index;
+   }
 }
 
 nir_shader *
