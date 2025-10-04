@@ -293,9 +293,6 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
 
    P_IMMD(p, NV9097, SET_ZCULL_STATS, ENABLE_TRUE);
 
-   P_IMMD(p, NV9097, SET_L1_CONFIGURATION,
-                     DIRECTLY_ADDRESSABLE_MEMORY_SIZE_48KB);
-
    P_IMMD(p, NV9097, SET_REDUCE_COLOR_THRESHOLDS_ENABLE, V_FALSE);
    P_IMMD(p, NV9097, SET_REDUCE_COLOR_THRESHOLDS_UNORM8, {
       .all_covered_all_hit_once = 0xff,
