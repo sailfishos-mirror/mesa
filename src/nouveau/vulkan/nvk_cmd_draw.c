@@ -330,6 +330,10 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
    if (pdev->info.cls_eng3d < MAXWELL_A)
       P_IMMD(p, NV9097, SET_SHADER_SCHEDULING, MODE_OLDEST_THREAD_FIRST);
 
+   P_IMMD(p, NV9097, SET_L2_CACHE_CONTROL_FOR_VAF_REQUESTS, {
+      .system_memory_volatile = false,
+      .policy                 = POLICY_EVICT_NORMAL,
+   });
    P_IMMD(p, NV9097, SET_L2_CACHE_CONTROL_FOR_ROP_PREFETCH_READ_REQUESTS,
                      POLICY_EVICT_NORMAL);
    P_IMMD(p, NV9097, SET_L2_CACHE_CONTROL_FOR_ROP_NONINTERLOCKED_READ_REQUESTS,
