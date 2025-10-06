@@ -198,20 +198,20 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
    cs_update_compute_ctx(b) {
       if (compute_state_dirty(cmdbuf, CS) ||
           compute_state_dirty(cmdbuf, DESC_STATE))
-         cs_move64_to(b, cs_sr_reg64(b, COMPUTE, SRT_0),
+         cs_move64_to(b, cs_reg64(b, PANVK_COMPUTE_SRT),
                       cs_desc_state->res_table);
 
       if (compute_state_dirty(cmdbuf, PUSH_UNIFORMS)) {
          uint64_t fau_ptr = cmdbuf->state.compute.push_uniforms |
                             ((uint64_t)cs->fau.total_count << 56);
-         cs_move64_to(b, cs_sr_reg64(b, COMPUTE, FAU_0), fau_ptr);
+         cs_move64_to(b, cs_reg64(b, PANVK_COMPUTE_FAU), fau_ptr);
       }
 
       if (compute_state_dirty(cmdbuf, CS))
-         cs_move64_to(b, cs_sr_reg64(b, COMPUTE, SPD_0),
+         cs_move64_to(b, cs_reg64(b, PANVK_COMPUTE_SPD),
                       panvk_priv_mem_dev_addr(cs->spd));
 
-      cs_move64_to(b, cs_sr_reg64(b, COMPUTE, TSD_0), tsd);
+      cs_move64_to(b, cs_reg64(b, PANVK_COMPUTE_TSD), tsd);
 
       /* Global attribute offset */
       cs_move32_to(b, cs_sr_reg32(b, COMPUTE, GLOBAL_ATTRIBUTE_OFFSET),
@@ -294,7 +294,7 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
          unsigned task_axis = MALI_TASK_AXIS_X;
          cs_trace_run_compute(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
                               wg_per_task, task_axis,
-                              cs_shader_res_sel(0, 0, 0, 0));
+                              PANVK_COMPUTE_RES_SEL);
       } else {
          unsigned task_axis = MALI_TASK_AXIS_X;
          unsigned task_increment = 0;
@@ -302,7 +302,7 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
             cs, phys_dev, &dim, &task_axis, &task_increment);
          cs_trace_run_compute(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
                               task_increment, task_axis,
-                              cs_shader_res_sel(0, 0, 0, 0));
+                              PANVK_COMPUTE_RES_SEL);
       }
    }
 

@@ -193,6 +193,21 @@ enum panvk_sb_ids {
 #define SB_ITER(x)      (PANVK_SB_ITER_START + (x))
 #define SB_WAIT_ITER(x) BITFIELD_BIT(PANVK_SB_ITER_START + (x))
 
+/* We use different resource registers for different types of compute shader
+ * dispatch, to avoid dirtying all the registers when switching from one to
+ * the other */
+#define PANVK_COMPUTE_SRT     MALI_COMPUTE_SR_SRT_0
+#define PANVK_COMPUTE_FAU     MALI_COMPUTE_SR_FAU_0
+#define PANVK_COMPUTE_SPD     MALI_COMPUTE_SR_SPD_0
+#define PANVK_COMPUTE_TSD     MALI_COMPUTE_SR_TSD_0
+#define PANVK_COMPUTE_RES_SEL cs_shader_res_sel(0, 0, 0, 0)
+
+#define PANVK_PRECOMP_SRT     MALI_COMPUTE_SR_SRT_1
+#define PANVK_PRECOMP_FAU     MALI_COMPUTE_SR_FAU_1
+#define PANVK_PRECOMP_SPD     MALI_COMPUTE_SR_SPD_1
+#define PANVK_PRECOMP_TSD     MALI_COMPUTE_SR_TSD_1
+#define PANVK_PRECOMP_RES_SEL cs_shader_res_sel(1, 1, 1, 1)
+
 enum panvk_cs_regs {
    /* RUN_IDVS staging regs. */
    PANVK_CS_REG_RUN_IDVS_SR_START = 0,
