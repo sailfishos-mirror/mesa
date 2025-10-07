@@ -667,9 +667,7 @@ iris_get_aux_clear_color_state_size(struct iris_screen *screen,
     * Gfx12.5 partial resolve.
     */
    if (isl_surf_usage_is_depth(res->surf.usage) &&
-       !(iris_sample_with_depth_aux(screen->devinfo, res) ||
-         (screen->devinfo->verx10 == 125 &&
-          isl_aux_usage_has_ccs(res->aux.usage))))
+       !iris_depth_texture_aux_usage(screen->devinfo, res))
       return 0;
 
    return screen->isl_dev.ss.clear_color_state_size;
