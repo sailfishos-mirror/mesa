@@ -490,8 +490,8 @@ struct pan_kmod_ops {
     */
    int (*bo_export)(struct pan_kmod_bo *bo, int dmabuf_fd);
 
-   /* Get the file offset to use to mmap() a buffer object. */
-   off_t (*bo_get_mmap_offset)(struct pan_kmod_bo *bo);
+   /* Map the buffer object to device memory. */
+   void *(*bo_mmap)(struct pan_kmod_bo *bo, int prot, int flags, void *host_addr);
 
    /* Flush the pending BO map syncs. */
    int (*flush_bo_map_syncs)(struct pan_kmod_dev *dev);
@@ -751,18 +751,11 @@ pan_kmod_bo_mmap(struct pan_kmod_bo *bo, int prot, int flags, void *host_addr)
 {
    PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
 
-   off_t mmap_offset;
-
    /* Don't bother trying an mmap() if it's not allowed. */
    if (bo->flags & PAN_KMOD_BO_FLAG_NO_MMAP)
       return MAP_FAILED;
 
-   mmap_offset = bo->dev->ops->bo_get_mmap_offset(bo);
-   if (mmap_offset < 0)
-      return MAP_FAILED;
-
-   host_addr =
-      os_mmap(host_addr, bo->size, prot, flags, bo->dev->fd, mmap_offset);
+   host_addr = bo->dev->ops->bo_mmap(bo, prot, flags, host_addr);
    if (host_addr == MAP_FAILED)
       mesa_loge("mmap(..., size=%" PRIu64 ", prot=%d, flags=0x%x) failed: %s",
                 bo->size, prot, flags, strerror(errno));

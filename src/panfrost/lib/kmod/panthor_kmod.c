@@ -581,6 +581,19 @@ panthor_kmod_bo_get_mmap_offset(struct pan_kmod_bo *bo)
    return req.offset;
 }
 
+static inline void *
+panthor_kmod_bo_mmap(struct pan_kmod_bo *bo, int prot, int flags,
+                     void *host_addr)
+{
+   off_t mmap_offset;
+
+   mmap_offset = panthor_kmod_bo_get_mmap_offset(bo);
+   if (mmap_offset < 0)
+      return MAP_FAILED;
+
+   return os_mmap(host_addr, bo->size, prot, flags, bo->dev->fd, mmap_offset);
+}
+
 static bool
 panthor_kmod_bo_wait(struct pan_kmod_bo *bo, int64_t timeout_ns,
                      bool for_read_only_access)
@@ -1407,7 +1420,7 @@ const struct pan_kmod_ops panthor_kmod_ops = {
    .bo_free = panthor_kmod_bo_free,
    .bo_import = panthor_kmod_bo_import,
    .bo_export = panthor_kmod_bo_export,
-   .bo_get_mmap_offset = panthor_kmod_bo_get_mmap_offset,
+   .bo_mmap = panthor_kmod_bo_mmap,
    .bo_wait = panthor_kmod_bo_wait,
    .flush_bo_map_syncs = panthor_kmod_flush_bo_map_syncs,
    .vm_create = panthor_kmod_vm_create,

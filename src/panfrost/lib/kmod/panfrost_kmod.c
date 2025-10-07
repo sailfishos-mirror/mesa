@@ -441,6 +441,19 @@ panfrost_kmod_bo_get_mmap_offset(struct pan_kmod_bo *bo)
    return mmap_bo.offset;
 }
 
+static inline void *
+panfrost_kmod_bo_mmap(struct pan_kmod_bo *bo, int prot, int flags,
+                      void *host_addr)
+{
+   off_t mmap_offset;
+
+   mmap_offset = panfrost_kmod_bo_get_mmap_offset(bo);
+   if (mmap_offset < 0)
+      return MAP_FAILED;
+
+   return os_mmap(host_addr, bo->size, prot, flags, bo->dev->fd, mmap_offset);
+}
+
 static bool
 panfrost_kmod_bo_wait(struct pan_kmod_bo *bo, int64_t timeout_ns,
                       bool for_read_only_access)
@@ -992,7 +1005,7 @@ const struct pan_kmod_ops panfrost_kmod_ops = {
    .bo_alloc = panfrost_kmod_bo_alloc,
    .bo_free = panfrost_kmod_bo_free,
    .bo_import = panfrost_kmod_bo_import,
-   .bo_get_mmap_offset = panfrost_kmod_bo_get_mmap_offset,
+   .bo_mmap = panfrost_kmod_bo_mmap,
    .bo_wait = panfrost_kmod_bo_wait,
    .flush_bo_map_syncs = panfrost_kmod_flush_bo_map_syncs,
    .bo_make_evictable = panfrost_kmod_bo_make_evictable,
