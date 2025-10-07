@@ -484,11 +484,8 @@ struct pan_kmod_ops {
    struct pan_kmod_bo *(*bo_import)(struct pan_kmod_dev *dev, uint32_t handle,
                                     uint64_t size);
 
-   /* Post export operations.
-    * Return 0 on success, -1 otherwise.
-    * This method is optional.
-    */
-   int (*bo_export)(struct pan_kmod_bo *bo, int dmabuf_fd);
+   /* Export buffer object. */
+   int (*bo_export)(struct pan_kmod_bo *bo);
 
    /* Map the buffer object to device memory. */
    void *(*bo_mmap)(struct pan_kmod_bo *bo, int prot, int flags, void *host_addr);
@@ -702,23 +699,7 @@ struct pan_kmod_bo *pan_kmod_bo_import(struct pan_kmod_dev *dev, int fd);
 static inline int
 pan_kmod_bo_export(struct pan_kmod_bo *bo)
 {
-   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
-
-   int fd;
-
-   if (drmPrimeHandleToFD(bo->dev->fd, bo->handle, DRM_CLOEXEC | DRM_RDWR,
-                          &fd)) {
-      mesa_loge("drmPrimeHandleToFD() failed (err=%d)", errno);
-      return -1;
-   }
-
-   if (bo->dev->ops->bo_export && bo->dev->ops->bo_export(bo, fd)) {
-      close(fd);
-      return -1;
-   }
-
-   bo->flags |= PAN_KMOD_BO_FLAG_EXPORTED;
-   return fd;
+   return bo->dev->ops->bo_export(bo);
 }
 
 static inline bool

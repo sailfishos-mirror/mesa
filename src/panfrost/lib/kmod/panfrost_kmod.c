@@ -427,9 +427,26 @@ err_free_bo:
    return NULL;
 }
 
+static inline int
+panfrost_kmod_bo_export(struct pan_kmod_bo *bo)
+{
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
+   int fd;
+
+   if (drmPrimeHandleToFD(bo->dev->fd, bo->handle, DRM_CLOEXEC | DRM_RDWR,
+                          &fd)) {
+      mesa_loge("drmPrimeHandleToFD() failed (err=%d)", errno);
+      return -1;
+   }
+
+   bo->flags |= PAN_KMOD_BO_FLAG_EXPORTED;
+   return fd;
+}
+
 static off_t
 panfrost_kmod_bo_get_mmap_offset(struct pan_kmod_bo *bo)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
    struct drm_panfrost_mmap_bo mmap_bo = {.handle = bo->handle};
    int ret = pan_kmod_ioctl(bo->dev->fd, DRM_IOCTL_PANFROST_MMAP_BO,
                             &mmap_bo);
@@ -1005,6 +1022,7 @@ const struct pan_kmod_ops panfrost_kmod_ops = {
    .bo_alloc = panfrost_kmod_bo_alloc,
    .bo_free = panfrost_kmod_bo_free,
    .bo_import = panfrost_kmod_bo_import,
+   .bo_export = panfrost_kmod_bo_export,
    .bo_mmap = panfrost_kmod_bo_mmap,
    .bo_wait = panfrost_kmod_bo_wait,
    .flush_bo_map_syncs = panfrost_kmod_flush_bo_map_syncs,

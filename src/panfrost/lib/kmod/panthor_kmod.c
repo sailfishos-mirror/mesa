@@ -516,8 +516,8 @@ err_free_bo:
    return NULL;
 }
 
-static int
-panthor_kmod_bo_export(struct pan_kmod_bo *bo, int dmabuf_fd)
+static inline int
+panthor_kmod_bo_post_export(struct pan_kmod_bo *bo, int dmabuf_fd)
 {
    struct panthor_kmod_bo *panthor_bo =
       container_of(bo, struct panthor_kmod_bo, base);
@@ -564,6 +564,25 @@ panthor_kmod_bo_export(struct pan_kmod_bo *bo, int dmabuf_fd)
 
    bo->flags |= PAN_KMOD_BO_FLAG_EXPORTED;
    return 0;
+}
+
+static inline int
+panthor_kmod_bo_export(struct pan_kmod_bo *bo)
+{
+   int fd;
+
+   if (drmPrimeHandleToFD(bo->dev->fd, bo->handle, DRM_CLOEXEC | DRM_RDWR,
+                          &fd)) {
+      mesa_loge("drmPrimeHandleToFD() failed (err=%d)", errno);
+      return -1;
+   }
+
+   if (panthor_kmod_bo_post_export(bo, fd)) {
+      close(fd);
+      return -1;
+   }
+
+   return fd;
 }
 
 static off_t
