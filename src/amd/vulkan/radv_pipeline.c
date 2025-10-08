@@ -239,6 +239,9 @@ void
 radv_shader_layout_init(const struct radv_pipeline_layout *pipeline_layout, mesa_shader_stage stage,
                         struct radv_shader_layout *layout)
 {
+   if (!pipeline_layout)
+      return;
+
    layout->num_sets = pipeline_layout->num_sets;
    for (unsigned i = 0; i < pipeline_layout->num_sets; i++) {
       layout->set[i].layout = pipeline_layout->set[i].layout;
