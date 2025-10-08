@@ -59,6 +59,7 @@ enum pco_debug {
    PCO_DEBUG_NO_PRED_CF = BITFIELD64_BIT(2),
    PCO_DEBUG_ALLOC_EXTRA_VTXINS = BITFIELD64_BIT(3),
    PCO_DEBUG_INT_SMP = BITFIELD64_BIT(4),
+   PCO_DEBUG_GLOBAL_SHMEM = BITFIELD64_BIT(5),
 };
 
 extern uint64_t pco_debug;
@@ -1803,6 +1804,7 @@ bool pco_nir_lower_vs_intrinsics(nir_shader *shader);
 bool pco_nir_lower_images(nir_shader *shader, pco_data *data, pco_ctx *ctx);
 bool pco_nir_lower_interpolation(nir_shader *shader, pco_fs_data *fs);
 bool pco_nir_lower_io(nir_shader *shader);
+bool pco_nir_lower_shared_io_to_global(nir_shader *shader, unsigned usc_slots);
 bool pco_nir_lower_subgroups(nir_shader *shader);
 bool pco_nir_lower_tex(nir_shader *shader, pco_data *data, pco_ctx *ctx);
 bool pco_nir_lower_variables(nir_shader *shader, bool inputs, bool outputs);

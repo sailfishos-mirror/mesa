@@ -852,6 +852,12 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
    if (data->common.robust_buffer_access)
       NIR_PASS(_, nir, nir_lower_robust_access, robustness_filter, NULL);
 
+   if (nir->info.stage == MESA_SHADER_COMPUTE && PCO_DEBUG(GLOBAL_SHMEM)) {
+      unsigned usc_slots = PVR_GET_FEATURE_VALUE(ctx->dev_info, usc_slots, 0U);
+      NIR_PASS(_, nir, pco_nir_lower_shared_io_to_global, usc_slots);
+      data->cs.global_shmem = true;
+   }
+
    if (data->common.null_descriptor) {
       NIR_PASS(_,
                nir,
