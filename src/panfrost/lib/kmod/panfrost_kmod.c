@@ -16,6 +16,7 @@
 #include "util/macros.h"
 #include "util/stack_array.h"
 #include "util/timespec.h"
+#include "util/u_sync_provider.h"
 
 #include "drm-uapi/panfrost_drm.h"
 
@@ -374,8 +375,14 @@ panfrost_kmod_dev_create(int fd, uint32_t flags,
       .prime_fd_to_handle = panfrost_kmod_prime_fd_to_handle,
    };
 
-   pan_kmod_dev_init(&panfrost_dev->base, fd, flags, drv_info,
-                     &panfrost_kmod_ops, allocator);
+   int ret = pan_kmod_dev_init(&panfrost_dev->base, fd, flags, drv_info,
+                               allocator, &panfrost_kmod_ops,
+                               util_sync_provider_drm(fd));
+   if (ret) {
+      free(panfrost_dev);
+      return NULL;
+   }
+
    panfrost_dev_query_props(&panfrost_dev->base);
 
    return &panfrost_dev->base;

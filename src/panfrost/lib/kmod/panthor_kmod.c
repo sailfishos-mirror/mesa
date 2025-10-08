@@ -19,6 +19,7 @@
 #include "util/timespec.h"
 #include "util/u_debug.h"
 #include "util/vma.h"
+#include "util/u_sync_provider.h"
 
 #include "drm-uapi/dma-buf.h"
 #include "drm-uapi/panthor_drm.h"
@@ -331,8 +332,11 @@ panthor_kmod_dev_create(int fd, uint32_t flags,
 
    assert(!ret);
 
-   pan_kmod_dev_init(&panthor_dev->base, fd, flags, drv_info, &panthor_kmod_ops,
-                     allocator);
+   ret = pan_kmod_dev_init(&panthor_dev->base, fd, flags, drv_info, allocator,
+                           &panthor_kmod_ops, util_sync_provider_drm(fd));
+   if (ret)
+      goto err_free_dev;
+
    panthor_dev_query_props(panthor_dev);
 
    return &panthor_dev->base;
