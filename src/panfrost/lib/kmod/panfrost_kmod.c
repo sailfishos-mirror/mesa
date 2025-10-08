@@ -1126,3 +1126,484 @@ const struct pan_kmod_ops panfrost_kmod_ops = {
    .perf_disable = panfrost_kmod_perf_disable,
    .perf_dump = panfrost_kmod_perf_dump,
 };
+
+
+#ifdef HAVE_PANFROST_VDRM
+#include "drm-uapi/virtgpu_drm.h"
+
+#include "panfrost_proto.h"
+
+#define panfrost_dev_to_vdrm_dev(dev) backend_dev_to_backend_vdrm_dev(panfrost, dev)
+#define pan_dev_to_vdrm_dev(dev)      pan_dev_to_backend_vdrm_dev(panfrost, dev)
+#define pan_bo_to_vdrm_bo(bo)         pan_bo_to_backend_vdrm_bo(panfrost, bo)
+#define PANFROST_CCMD(cmd, len)       PAN_CCMD(PANFROST, cmd, len)
+#define PANFROST_VDRM_SEND_REQ(dev, CMD, cmd, rsp, ...)         \
+           PAN_KMOD_VDRM_SEND_REQ(PANFROST, panfrost, dev, CMD, cmd, rsp, __VA_ARGS__)
+
+struct panfrost_vdrm_device {
+   struct panfrost_kmod_dev panfrost_dev;
+   struct vdrm_device *vdrm;
+   uint32_t next_blob_id;
+};
+
+struct panfrost_vdrm_bo {
+   struct panfrost_kmod_bo panfrost_bo;
+   /* Blob id used to create the blob on the host */
+   uint32_t blob_id;
+   /* Resource identification on host */
+   uint32_t res_id;
+};
+
+const struct pan_kmod_ops panfrost_virtio_gpu_ops;
+const struct pan_kmod_ops panfrost_vpipe_ops;
+
+
+// Panfrost Vdrm common functions
+static int
+panfrost_vdrm_get_param(const struct pan_kmod_dev *dev,
+                        struct drm_panfrost_get_param *get_param)
+{
+   struct panfrost_ccmd_get_param_rsp *rsp;
+   int ret = PANFROST_VDRM_SEND_REQ(dev, GET_PARAM, get_param, rsp,
+                                    .param = get_param->param);
+
+   if (ret)
+      return ret;
+   if (!rsp->ret)
+      get_param->value = rsp->value;
+
+   return rsp->ret;
+}
+
+static int
+panfrost_vdrm_submit_job(const struct pan_kmod_dev *dev,
+                         struct drm_panfrost_submit *submit)
+{
+   unsigned req_len = sizeof(struct panfrost_ccmd_submit_req)
+                    + sizeof(uint32_t) * submit->bo_handle_count;
+   uint32_t *blob_handles = (uint32_t *)submit->bo_handles;
+   uint32_t *sync_handles = (uint32_t *)submit->in_syncs;
+   struct drm_virtgpu_execbuffer_syncobj *in_syncobjs = NULL;
+   struct drm_virtgpu_execbuffer_syncobj out_syncobjs;
+   struct panfrost_vdrm_device *pan_vdrm = pan_dev_to_vdrm_dev(dev);
+   struct vdrm_device *vdrm = pan_vdrm->vdrm;
+   int ret = -ENOMEM;
+
+   struct panfrost_ccmd_submit_req *req = malloc(req_len);
+   if (!req)
+      return ret;
+
+   if (submit->in_sync_count) {
+      in_syncobjs = calloc(sizeof(*in_syncobjs), submit->in_sync_count);
+      if (!in_syncobjs)
+         goto syncobjs_alloc_error;
+
+      for (size_t i = 0; i < submit->in_sync_count; i++)
+         in_syncobjs[i].handle = sync_handles[i];
+   }
+
+   *req = (struct panfrost_ccmd_submit_req) {
+      .hdr = PANFROST_CCMD(SUBMIT, req_len),
+      .jc = submit->jc,
+      .requirements = submit->requirements,
+      .res_id_count = submit->bo_handle_count,
+   };
+
+   uint32_t *req_res_ids = (uint32_t *)req->payload;
+   for (size_t i = 0; i < submit->bo_handle_count; i++)
+      req_res_ids[i] = vdrm_handle_to_res_id(vdrm, blob_handles[i]);
+
+   if (submit->out_sync)
+      out_syncobjs = (struct drm_virtgpu_execbuffer_syncobj) {
+         .handle = submit->out_sync
+      };
+
+   struct vdrm_execbuf_params execbuf_param = {
+      .req = &req->hdr,
+      .handles = (uint32_t *)submit->bo_handles,
+      .num_handles = submit->bo_handle_count,
+      .in_syncobjs = in_syncobjs,
+      .num_in_syncobjs = submit->in_sync_count,
+      .out_syncobjs = &out_syncobjs,
+      .num_out_syncobjs = submit->out_sync ? 1 : 0,
+      .ring_idx = 0,
+   };
+
+   ret = vdrm_execbuf(vdrm, &execbuf_param);
+
+   free(in_syncobjs);
+syncobjs_alloc_error:
+   free(req);
+   return ret;
+}
+
+static struct pan_kmod_bo *
+panfrost_vdrm_bo_import(struct pan_kmod_dev *dev, uint32_t handle, size_t size)
+{
+   struct panfrost_vdrm_device *pan_vdrm = pan_dev_to_vdrm_dev(dev);
+   struct panfrost_ccmd_get_bo_offset_rsp *rsp;
+
+   struct panfrost_vdrm_bo *vdrm_bo = malloc(sizeof(*vdrm_bo));
+   if (!vdrm_bo)
+      return NULL;
+
+   vdrm_bo->res_id = vdrm_handle_to_res_id(pan_vdrm->vdrm, handle);
+
+   int ret = PANFROST_VDRM_SEND_REQ(dev, GET_BO_OFFSET, get_bo_offset, rsp,
+                                    .res_id = vdrm_bo->res_id);
+   if (ret || rsp->ret) {
+      mesa_loge("DRM_IOCTL_PANFROST_GET_BO_OFFSET failed: %m\n");
+      free(vdrm_bo);
+      return NULL;
+   }
+
+   vdrm_bo->panfrost_bo.offset = rsp->offset;
+   pan_kmod_bo_init(&vdrm_bo->panfrost_bo.base, dev, NULL, size, 0, handle);
+
+   return &vdrm_bo->panfrost_bo.base;
+}
+
+static inline int
+panfrost_vdrm_prime_fd_to_handle(struct pan_kmod_dev *dev, int fd,
+                                 uint32_t *handle)
+{
+   *handle = vdrm_dmabuf_to_handle(pan_dev_to_vdrm_dev(dev)->vdrm, fd);
+   if (!*handle) {
+      errno = EINVAL;
+      return errno;
+   }
+
+   return 0;
+}
+
+static void
+panfrost_vdrm_dev_destroy(struct pan_kmod_dev *dev)
+{
+   struct panfrost_kmod_dev *pan_dev =
+      container_of(dev, struct panfrost_kmod_dev, base);
+   struct panfrost_vdrm_device *pan_vdrm = panfrost_dev_to_vdrm_dev(pan_dev);
+
+   vdrm_device_close(pan_vdrm->vdrm);
+   pan_kmod_dev_cleanup(dev);
+   pan_kmod_free(dev->allocator, pan_dev);
+}
+
+static void
+panfrost_vdrm_bo_free(struct pan_kmod_bo *bo)
+{
+   struct panfrost_vdrm_device *pan_vdrm = pan_dev_to_vdrm_dev(bo->dev);
+   struct panfrost_vdrm_bo *vdrm_bo = pan_bo_to_vdrm_bo(bo);
+
+   vdrm_bo_close(pan_vdrm->vdrm, bo->handle);
+   pan_kmod_dev_free(bo->dev, vdrm_bo);
+}
+
+static struct pan_kmod_bo *
+panfrost_vdrm_bo_alloc(struct pan_kmod_dev *dev,
+                       struct pan_kmod_vm *exclusive_vm, size_t size,
+                       uint32_t flags)
+{
+   struct panfrost_vdrm_device *pan_vdrm = pan_dev_to_vdrm_dev(dev);
+   struct vdrm_device *vdrm = pan_vdrm->vdrm;
+   uint32_t blob_flags = 0;
+
+   /* We can't map GPU uncached. */
+   if (flags & PAN_KMOD_BO_FLAG_GPU_UNCACHED)
+      return NULL;
+
+   if (!(flags & PAN_KMOD_BO_FLAG_NO_MMAP))
+      blob_flags |= VIRTGPU_BLOB_FLAG_USE_MAPPABLE;
+
+   /* If non-NULL, the buffer object can only by mapped on this VM. Typical
+    * the case for all internal/non-shareable buffers
+    */
+   if (!exclusive_vm) {
+      blob_flags |= VIRTGPU_BLOB_FLAG_USE_SHAREABLE;
+      if (vdrm->supports_cross_device)
+         blob_flags |= VIRTGPU_BLOB_FLAG_USE_CROSS_DEVICE;
+   }
+
+   struct panfrost_vdrm_bo *vdrm_bo = pan_kmod_dev_alloc(dev, sizeof(*vdrm_bo));
+   if (!vdrm_bo)
+      return NULL;
+
+   uint32_t blob_id = p_atomic_inc_return(&pan_vdrm->next_blob_id);
+   struct panfrost_ccmd_create_bo_req req = {
+      .hdr = PANFROST_CCMD(CREATE_BO, sizeof(struct panfrost_ccmd_create_bo_req)),
+      .size = size,
+      .blob_id = blob_id,
+      .flags = to_panfrost_bo_flags(dev, flags)
+   };
+
+   uint32_t handle = vdrm_bo_create(vdrm, size, blob_flags, blob_id, 0, &req.hdr);
+   if (!handle) {
+      pan_kmod_dev_free(dev, vdrm_bo);
+      return NULL;
+   }
+
+   struct panfrost_ccmd_get_bo_offset_rsp *rsp;
+   vdrm_bo->res_id = vdrm_handle_to_res_id(vdrm, handle);
+   int ret = PANFROST_VDRM_SEND_REQ(dev, GET_BO_OFFSET, get_bo_offset, rsp,
+                                    .res_id = vdrm_bo->res_id);
+   if (ret && rsp->ret) {
+      panfrost_vdrm_bo_free(&vdrm_bo->panfrost_bo.base);
+      return NULL;
+   }
+
+   pan_kmod_bo_init(&vdrm_bo->panfrost_bo.base, dev, exclusive_vm, size,
+                    flags, handle);
+   vdrm_bo->res_id = vdrm_handle_to_res_id(vdrm, handle);
+   vdrm_bo->blob_id = blob_id;
+   vdrm_bo->panfrost_bo.offset = rsp->offset;
+
+   return &vdrm_bo->panfrost_bo.base;
+}
+
+static inline int
+panfrost_vdrm_bo_export(struct pan_kmod_bo *bo)
+{
+   struct panfrost_vdrm_device *pan_vdrm = pan_dev_to_vdrm_dev(bo->dev);
+   int fd = vdrm_bo_export_dmabuf(pan_vdrm->vdrm, bo->handle);
+   if (fd < 0) {
+      errno = EINVAL;
+      return errno;
+   }
+
+   bo->flags |= PAN_KMOD_BO_FLAG_EXPORTED;
+
+   return fd;
+}
+
+static void *
+panfrost_vdrm_bo_mmap(struct pan_kmod_bo *bo, int prot, int flags,
+                      void *host_addr)
+{
+   struct panfrost_vdrm_device *pan_vdrm = pan_dev_to_vdrm_dev(bo->dev);
+
+   return vdrm_bo_map(pan_vdrm->vdrm, bo->handle, bo->size, host_addr);
+}
+
+static uint64_t
+panfrost_vdrm_query_timestamp(const struct pan_kmod_dev *dev)
+{
+   struct panfrost_ccmd_get_param_rsp *rsp;
+   int ret = PANFROST_VDRM_SEND_REQ(dev, GET_PARAM, get_param, rsp,
+                                    .param = DRM_PANFROST_PARAM_SYSTEM_TIMESTAMP);
+
+   if (ret || rsp->ret)
+      return 0;
+
+   return rsp->value;
+}
+
+static inline int
+vdrm_kmod_dev_init(int fd, uint32_t flags,
+                   struct panfrost_vdrm_device *pan_vdrm_dev,
+                   const struct pan_kmod_allocator *allocator,
+                   const struct pan_kmod_ops *kmod_ops,
+                   struct util_sync_provider *sync_ops)
+{
+   const struct pan_kmod_driver drv_info = {
+      .version = {
+         .major = pan_vdrm_dev->vdrm->caps.version_major,
+         .minor = pan_vdrm_dev->vdrm->caps.version_minor,
+      },
+   };
+
+   if (!pan_kmod_driver_version_at_least(&drv_info, 1, 1)) {
+      mesa_loge("kernel driver is too old (requires at least 1.1, found %d.%d)",
+                drv_info.version.major, drv_info.version.minor);
+      return -1;
+   }
+
+   pan_vdrm_dev->panfrost_dev.ops = (struct panfrost_kmod_ops) {
+      .get_param = panfrost_vdrm_get_param,
+      .submit_job = panfrost_vdrm_submit_job,
+      .bo_import = panfrost_vdrm_bo_import,
+      .prime_fd_to_handle = panfrost_vdrm_prime_fd_to_handle
+   };
+   return pan_kmod_dev_init(&pan_vdrm_dev->panfrost_dev.base, fd, flags,
+                            &drv_info, allocator, kmod_ops, sync_ops);
+}
+
+
+// Virtio_gpu specific functions
+static struct pan_kmod_dev *
+panfrost_virtio_gpu_dev_create(int fd, uint32_t flags,
+                               const struct pan_kmod_allocator *allocator)
+{
+   struct panfrost_vdrm_device *pan_vdrm_dev =
+      pan_kmod_alloc(allocator, sizeof(*pan_vdrm_dev));
+   if (!pan_vdrm_dev) {
+      mesa_loge("failed to allocate a panfrost_vdrm_device object");
+      goto alloc_fail;
+   }
+
+   pan_vdrm_dev->vdrm = pan_kmod_vdrm_virtio_gpu_connect(fd, VIRTGPU_DRM_CONTEXT_PANFROST);
+   if (!pan_vdrm_dev->vdrm) {
+      mesa_logw("failed to connect to vdrm backend");
+      goto vdrm_connect_fail;
+   }
+
+   int ret = vdrm_kmod_dev_init(fd, flags, pan_vdrm_dev, allocator,
+                                &panfrost_virtio_gpu_ops,
+                                util_sync_provider_drm(fd));
+
+   if (ret)
+      goto kmod_init_fail;
+
+   panfrost_dev_query_props(&pan_vdrm_dev->panfrost_dev.base);
+
+   return &pan_vdrm_dev->panfrost_dev.base;
+
+kmod_init_fail:
+   vdrm_device_close(pan_vdrm_dev->vdrm);
+vdrm_connect_fail:
+   pan_kmod_free(allocator, pan_vdrm_dev);
+alloc_fail:
+   return NULL;
+}
+
+static bool
+panfrost_virtio_gpu_bo_wait(struct pan_kmod_bo *bo, int64_t timeout_ns,
+                            bool for_read_only_access)
+{
+   struct panfrost_vdrm_device *pan_vdrm = pan_dev_to_vdrm_dev(bo->dev);
+
+   return !vdrm_bo_wait(pan_vdrm->vdrm, bo->handle);
+}
+
+static void
+panfrost_virtio_gpu_bo_make_evictable(UNUSED struct pan_kmod_bo *bo)
+{
+   // Skip this operation for Vitio-GPU as the guest kernel doesn't support it
+   return;
+}
+
+static bool
+panfrost_virtio_gpu_bo_make_unevictable(UNUSED struct pan_kmod_bo *bo)
+{
+   // Same here
+   return true;
+}
+
+const struct pan_kmod_ops panfrost_virtio_gpu_ops = {
+   .dev_create = panfrost_virtio_gpu_dev_create,
+   .dev_destroy = panfrost_vdrm_dev_destroy,
+   .dev_query_user_va_range = panfrost_kmod_dev_query_user_va_range,
+   .bo_alloc = panfrost_vdrm_bo_alloc,
+   .bo_free = panfrost_vdrm_bo_free,
+   .bo_import = panfrost_kmod_bo_import,
+   .bo_export = panfrost_vdrm_bo_export,
+   .bo_mmap = panfrost_vdrm_bo_mmap,
+   .bo_wait = panfrost_virtio_gpu_bo_wait,
+   .bo_make_evictable = panfrost_virtio_gpu_bo_make_evictable,
+   .bo_make_unevictable = panfrost_virtio_gpu_bo_make_unevictable,
+   .vm_create = panfrost_kmod_vm_create,
+   .vm_destroy = panfrost_kmod_vm_destroy,
+   .vm_bind = panfrost_kmod_vm_bind,
+   .query_timestamp = panfrost_vdrm_query_timestamp,
+};
+
+
+// Vpipe specific functions
+static struct pan_kmod_dev *
+panfrost_vpipe_dev_create(int fd, uint32_t flags,
+                          const struct pan_kmod_allocator *allocator)
+{
+   struct panfrost_vdrm_device *pan_vdrm_dev =
+      pan_kmod_alloc(allocator, sizeof(*pan_vdrm_dev));
+   if (!pan_vdrm_dev) {
+      mesa_loge("failed to allocate a panfrost_vdrm_device object");
+      goto alloc_fail;
+   }
+
+   pan_vdrm_dev->vdrm = vdrm_device_connect(-1, VIRTGPU_DRM_CONTEXT_PANFROST);
+   if (!pan_vdrm_dev->vdrm) {
+      mesa_loge("failed to connect to vdrm backend");
+      goto vdrm_connect_fail;
+   }
+
+   int ret = vdrm_kmod_dev_init(fd, flags, pan_vdrm_dev, allocator,
+                                &panfrost_vpipe_ops,
+                                vdrm_vpipe_get_sync(pan_vdrm_dev->vdrm));
+   if (ret)
+      goto kmod_init_fail;
+
+   panfrost_dev_query_props(&pan_vdrm_dev->panfrost_dev.base);
+
+   return &pan_vdrm_dev->panfrost_dev.base;
+
+kmod_init_fail:
+   vdrm_device_close(pan_vdrm_dev->vdrm);
+vdrm_connect_fail:
+   pan_kmod_free(allocator, pan_vdrm_dev);
+alloc_fail:
+   return NULL;
+}
+
+static bool
+panfrost_vpipe_bo_wait(struct pan_kmod_bo *bo, int64_t timeout_ns,
+                       bool for_read_only_access)
+{
+   struct panfrost_vdrm_bo *vdrm_bo = pan_bo_to_vdrm_bo(bo);
+   struct panfrost_ccmd_wait_bo_rsp *rsp;
+
+   int ret = PANFROST_VDRM_SEND_REQ(bo->dev, WAIT_BO, wait_bo, rsp,
+                                    .res_id = vdrm_bo->res_id,
+                                    .timeout_ns = timeout_ns);
+
+   /* The ioctl returns >= 0 value when the BO we are waiting for is ready
+    * -1 otherwise.
+    */
+   if (ret == 0 && rsp->ret != -1)
+      return true;
+
+   return false;
+}
+
+static void
+panfrost_vpipe_bo_make_evictable(struct pan_kmod_bo *bo)
+{
+   struct panfrost_vdrm_bo *vdrm_bo = pan_bo_to_vdrm_bo(bo);
+   UNUSED struct panfrost_ccmd_madvise_rsp *rsp;
+
+   PANFROST_VDRM_SEND_REQ(bo->dev, MADVISE, madvise, rsp,
+                          .res_id = vdrm_bo->res_id,
+                          .madv = PANFROST_MADV_DONTNEED);
+}
+
+static bool
+panfrost_vpipe_bo_make_unevictable(struct pan_kmod_bo *bo)
+{
+   struct panfrost_vdrm_bo *vdrm_bo = pan_bo_to_vdrm_bo(bo);
+   struct panfrost_ccmd_madvise_rsp *rsp;
+
+   int ret = PANFROST_VDRM_SEND_REQ(bo->dev, MADVISE, madvise, rsp,
+                                    .res_id = vdrm_bo->res_id,
+                                    .madv = PANFROST_MADV_WILLNEED);
+
+   if (ret && rsp->ret && rsp->retained == 0)
+      return false;
+
+   return true;
+}
+
+const struct pan_kmod_ops panfrost_vpipe_ops = {
+   .dev_create = panfrost_vpipe_dev_create,
+   .dev_destroy = panfrost_vdrm_dev_destroy,
+   .dev_query_user_va_range = panfrost_kmod_dev_query_user_va_range,
+   .bo_alloc = panfrost_vdrm_bo_alloc,
+   .bo_free = panfrost_vdrm_bo_free,
+   .bo_import = panfrost_kmod_bo_import,
+   .bo_export = panfrost_vdrm_bo_export,
+   .bo_mmap = panfrost_vdrm_bo_mmap,
+   .bo_wait = panfrost_vpipe_bo_wait,
+   .bo_make_evictable = panfrost_vpipe_bo_make_evictable,
+   .bo_make_unevictable = panfrost_vpipe_bo_make_unevictable,
+   .vm_create = panfrost_kmod_vm_create,
+   .vm_destroy = panfrost_kmod_vm_destroy,
+   .vm_bind = panfrost_kmod_vm_bind,
+   .query_timestamp = panfrost_vdrm_query_timestamp,
+};
+#endif /* HAVE_PANFROST_VDRM */

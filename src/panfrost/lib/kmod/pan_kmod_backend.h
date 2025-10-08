@@ -9,6 +9,70 @@
 
 #include "pan_kmod.h"
 
+#ifdef HAVE_PANFROST_VDRM
+#include "util/macros.h"
+#include "vdrm.h"
+
+#define backend_dev_to_backend_vdrm_dev(backend, dev_ptr)                    \
+      container_of(dev_ptr, struct backend ## _vdrm_device, backend ## _dev)
+
+#define backend_bo_to_backend_vdrm_bo(backend, bo_ptr)                       \
+      container_of(bo_ptr, struct backend ## _vdrm_bo, backend ## _bo)
+
+#define pan_dev_to_backend_vdrm_dev(backend, dev)                            \
+   ({                                                                        \
+      struct backend ## _kmod_dev *__pan_dev =                               \
+          container_of(dev, struct backend ## _kmod_dev, base);              \
+      backend_dev_to_backend_vdrm_dev(backend, __pan_dev);                   \
+   })
+
+#define pan_bo_to_backend_vdrm_bo(backend, bo)                               \
+   ({                                                                        \
+      struct backend ## _kmod_bo *__pan_bo =                                 \
+          container_of(bo, struct backend ## _kmod_bo, base);                \
+      backend_bo_to_backend_vdrm_bo(backend, __pan_bo);                      \
+   })
+
+#define PAN_CCMD(BACKEND, _cmd, _len) (struct vdrm_ccmd_req) {               \
+       .cmd = CONCAT3(BACKEND, _CCMD_, _cmd),                                \
+       .len = (_len),                                                        \
+   }
+
+#define PAN_CCMD_STRUCT(backend, cmd, suffix)                                \
+   CONCAT4(struct backend, _ccmd_, cmd, suffix)
+
+#define PAN_KMOD_VDRM_SEND_REQ(BACKEND, backend, dev, CMD, cmd, rsp, ...)    \
+   ({                                                                        \
+      MESA_TRACE_FUNC();                                                     \
+      struct CONCAT2(backend, _vdrm_device) *__vdrm_dev =                    \
+         pan_dev_to_backend_vdrm_dev(backend, dev);                          \
+      unsigned __req_len = sizeof(PAN_CCMD_STRUCT(backend, cmd, _req));      \
+      unsigned __rsp_len = sizeof(PAN_CCMD_STRUCT(backend, cmd, _rsp));      \
+      PAN_CCMD_STRUCT(backend, cmd, _req) __req = {                          \
+         .hdr = PAN_CCMD(BACKEND, CMD, __req_len),                           \
+         __VA_ARGS__                                                         \
+      };                                                                     \
+                                                                             \
+      rsp = vdrm_alloc_rsp(__vdrm_dev->vdrm, &__req.hdr, __rsp_len);         \
+      vdrm_send_req(__vdrm_dev->vdrm, &__req.hdr, true);                     \
+   })
+
+static struct vdrm_device *
+pan_kmod_vdrm_virtio_gpu_connect(int fd, uint32_t context_type)
+{
+   drmVersionPtr version = drmGetVersion(fd);
+   if (!version)
+      return NULL;
+
+   bool is_vdrm = !strcmp(version->name, "virtio_gpu");
+   drmFreeVersion(version);
+
+   if (!is_vdrm)
+      return NULL;
+
+   return vdrm_device_connect(fd, context_type);
+}
+#endif /* HAVE_PANFROST_VDRM */
 
 static inline bool
 pan_kmod_drm_drv_match(int fd, char *drv_name, struct pan_kmod_driver *drv_info)

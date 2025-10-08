@@ -219,6 +219,14 @@ option(
   value : false,
   description : 'use experimental virtio backend for radeonsi/radv',
 )
+
+option(
+  'panfrost-virtio',
+  type : 'boolean',
+  value : false,
+  description : 'use experimental virtio backend for panfrost',
+)
+
 option(
   'imagination-srv',
   type : 'boolean',

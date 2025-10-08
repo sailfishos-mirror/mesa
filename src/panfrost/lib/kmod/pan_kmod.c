@@ -14,6 +14,10 @@
 
 extern const struct pan_kmod_ops panfrost_kmod_ops;
 extern const struct pan_kmod_ops panthor_kmod_ops;
+#ifdef HAVE_PANFROST_VDRM
+extern const struct pan_kmod_ops panfrost_virtio_gpu_ops;
+extern const struct pan_kmod_ops panfrost_vpipe_ops;
+#endif /* HAVE_PANFROST_VDRM */
 
 static const struct backend {
    const char *name;
@@ -27,6 +31,16 @@ static const struct backend {
       "panthor",
       &panthor_kmod_ops,
    },
+#ifdef HAVE_PANFROST_VDRM
+   {
+      "panfrost_virtio_gpu",
+      &panfrost_virtio_gpu_ops,
+   },
+   {
+      "panfrost_vpipe",
+      &panfrost_vpipe_ops,
+   },
+#endif /* HAVE_PANFROST_VDRM */
 };
 
 DEBUG_GET_ONCE_OPTION(enabled_backends, "PAN_KMOD_RESTRICT_TO_BACKENDS", "all");
