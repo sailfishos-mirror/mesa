@@ -31,6 +31,7 @@
 
 #include "compiler/pan_compiler.h"
 #include "compiler/nir/nir_serialize.h"
+#include "kmod/pan_kmod.h"
 #include "decode.h"
 #include "pan_blitter.h"
 #include "pan_device.h"
@@ -626,13 +627,13 @@ panfrost_destroy(struct pipe_context *pipe)
 
    util_dynarray_fini(&panfrost->global_buffers);
 
-   drmSyncobjDestroy(panfrost_device_fd(dev), panfrost->in_sync_obj);
+   pan_kmod_sync_destroy(dev->kmod.dev, panfrost->in_sync_obj);
    if (panfrost->in_sync_fd != -1) {
       close(panfrost->in_sync_fd);
       panfrost->in_sync_fd = -1;
    }
 
-   drmSyncobjDestroy(panfrost_device_fd(dev), panfrost->syncobj);
+   pan_kmod_sync_destroy(dev->kmod.dev, panfrost->syncobj);
    ralloc_free(pipe);
 }
 
@@ -1032,7 +1033,7 @@ panfrost_fence_server_sync(struct pipe_context *pctx,
    int fd = -1;
    assert(!value);
 
-   ret = drmSyncobjExportSyncFile(panfrost_device_fd(dev), f->syncobj, &fd);
+   ret = pan_kmod_sync_export_file(dev->kmod.dev, f->syncobj, &fd);
    assert(!ret);
 
    sync_accumulate("panfrost", &ctx->in_sync_fd, fd);
@@ -1075,8 +1076,7 @@ panfrost_create_context(struct pipe_screen *screen, void *priv, unsigned flags)
    /* Create a syncobj in a signaled state. Will be updated to point to the
     * last queued job out_sync every time we submit a new job.
     */
-   ret = drmSyncobjCreate(panfrost_device_fd(dev), DRM_SYNCOBJ_CREATE_SIGNALED,
-                          &ctx->syncobj);
+   ret = pan_kmod_sync_create(dev->kmod.dev, DRM_SYNCOBJ_CREATE_SIGNALED, &ctx->syncobj);
    if (ret) {
       ralloc_free(ctx);
       return NULL;
@@ -1182,7 +1182,7 @@ panfrost_create_context(struct pipe_screen *screen, void *priv, unsigned flags)
 
    /* Sync object/FD used for NATIVE_FENCE_FD. */
    ctx->in_sync_fd = -1;
-   ret = drmSyncobjCreate(panfrost_device_fd(dev), 0, &ctx->in_sync_obj);
+   ret = pan_kmod_sync_create(dev->kmod.dev, 0, &ctx->in_sync_obj);
    assert(!ret);
 
    ctx->printf.bo =

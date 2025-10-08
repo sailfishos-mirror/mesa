@@ -681,8 +681,8 @@ csf_submit_collect_wait_ops(struct panfrost_batch *batch,
    }
 
    if (ctx->in_sync_fd >= 0) {
-      ret = drmSyncobjImportSyncFile(panfrost_device_fd(dev), ctx->in_sync_obj,
-                                     ctx->in_sync_fd);
+      ret = pan_kmod_sync_import_file(dev->kmod.dev, ctx->in_sync_obj,
+                                      ctx->in_sync_fd);
       if (ret)
          return ret;
 
@@ -749,8 +749,8 @@ csf_attach_sync_points(struct panfrost_batch *batch, uint32_t vm_sync_handle,
    }
 
    /* And finally transfer the VM sync point to the context syncobj. */
-   return drmSyncobjTransfer(panfrost_device_fd(dev), ctx->syncobj, 0,
-                             vm_sync_handle, vm_sync_signal_point, 0);
+   return pan_kmod_sync_transfer(dev->kmod.dev, ctx->syncobj, 0,
+                                 vm_sync_handle, vm_sync_signal_point, 0);
 }
 
 static void
@@ -860,8 +860,9 @@ csf_submit_wait_and_dump(struct panfrost_batch *batch,
    /* Wait so we can get errors reported back */
    if (wait) {
       ASSERTED int ret =
-         drmSyncobjTimelineWait(panfrost_device_fd(dev), &vm_sync_handle,
-                                &vm_sync_signal_point, 1, INT64_MAX, 0, NULL);
+         pan_kmod_sync_timeline_wait(dev->kmod.dev, &vm_sync_handle,
+                                     &vm_sync_signal_point, 1, INT64_MAX, 0,
+                                     NULL);
       assert(ret >= 0);
 
       struct pan_csf_tiler_oom_ctx *tiler_oom_ctx =
@@ -2092,8 +2093,8 @@ GENX(csf_init_context)(struct panfrost_context *ctx)
       goto err_g_submit;
 
    /* Wait before freeing the buffer. */
-   ret = drmSyncobjWait(panfrost_device_fd(dev), &ctx->syncobj, 1, INT64_MAX, 0,
-                        NULL);
+   ret = pan_kmod_sync_wait(dev->kmod.dev, &ctx->syncobj, 1, INT64_MAX, 0,
+                            NULL);
    assert(!ret);
 
    panfrost_bo_unreference(cs_bo);
@@ -2133,8 +2134,8 @@ GENX(csf_cleanup_context)(struct panfrost_context *ctx)
    ASSERTED int ret;
 
    /* Make sure all jobs are done before destroying the heap. */
-   ret = drmSyncobjWait(panfrost_device_fd(dev), &ctx->syncobj, 1, INT64_MAX, 0,
-                        NULL);
+   ret = pan_kmod_sync_wait(dev->kmod.dev, &ctx->syncobj, 1, INT64_MAX, 0,
+                            NULL);
    assert(!ret);
 
    ret = pan_kmod_ioctl(panfrost_device_fd(dev),
