@@ -24,6 +24,7 @@ typedef struct {
    nir_builder *b;
    struct hash_table *range_ht;
    nir_cursor addr_cursor;
+   uint8_t required_align; /* Required alignment for offsets and final address */
    uint64_t out_const;
    nir_def *out_offset;
 } lower_state;
@@ -46,6 +47,12 @@ is_nuw(lower_state *state, nir_alu_instr *alu, nir_scalar src0, nir_scalar src1)
    if (alu)
       alu->no_unsigned_wrap = true;
    return true;
+}
+
+static bool
+const_scalar_is_aligned(nir_scalar src, uint8_t alignment, uint64_t mul)
+{
+   return util_is_aligned(nir_scalar_as_uint(src) * mul, alignment);
 }
 
 static bool
@@ -80,7 +87,7 @@ parse_imul(nir_scalar *def, uint64_t *c, bool require_nuw)
 static bool
 try_extract_additions(lower_state *state, nir_scalar *scalar, bool require_nuw, uint64_t mul)
 {
-   if (nir_scalar_is_const(*scalar)) {
+   if (nir_scalar_is_const(*scalar) && const_scalar_is_aligned(*scalar, state->required_align, mul)) {
       state->out_const += nir_scalar_as_uint(*scalar) * mul;
       scalar->def = NULL;
       return true;
@@ -149,12 +156,14 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *s)
    lower_state *state = (lower_state *)s;
    nir_intrinsic_op op;
    unsigned access = 0;
+   bool is_smem = false;
    switch (intrin->intrinsic) {
    case nir_intrinsic_load_global_constant:
       access |= ACCESS_NON_WRITEABLE |
                 (nir_intrinsic_access(intrin) & ACCESS_VOLATILE ? 0 : ACCESS_CAN_REORDER);
       FALLTHROUGH;
    case nir_intrinsic_load_global:
+      is_smem = nir_intrinsic_access(intrin) & ACCESS_SMEM_AMD;
       op = nir_intrinsic_load_global_amd;
       break;
    case nir_intrinsic_load_global_transpose_amd:
@@ -178,6 +187,8 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *s)
 
 
    state->b = b;
+   uint32_t bit_size = op == nir_intrinsic_store_global_amd ? intrin->src[0].ssa->bit_size : intrin->def.bit_size;
+   state->required_align = !is_smem ? 1 : bit_size >= 32 ? 4 : bit_size / 8;
    state->out_const = 0;
    state->out_offset = NULL;
    nir_scalar src = nir_get_scalar(addr_src->ssa, 0);
