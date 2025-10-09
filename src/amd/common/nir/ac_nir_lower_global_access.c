@@ -13,11 +13,46 @@ typedef struct {
    nir_builder *b;
    struct hash_table *range_ht;
    struct hash_table *numlsb_ht;
+   enum amd_gfx_level gfx_level;
    nir_cursor addr_cursor;
    uint8_t required_align; /* Required alignment for offsets and final address */
    uint64_t out_const;
    nir_def *out_offset;
 } lower_state;
+
+static uint32_t
+get_max_smem_const_offset(lower_state *state)
+{
+   /* GFX9+ allows both a constant and scalar offset using
+    * the SOE bit (scalar offset enable).
+    * Older generations may only have either a constant or
+    * a scalar offset depending on the IMM bit.
+    */
+   if (state->gfx_level < GFX9 && state->out_offset)
+      return 0;
+
+   if (state->gfx_level >= GFX12)
+      return 0x7fffff;
+   else if (state->gfx_level >= GFX8)
+      return 0xfffff;
+   else if (state->gfx_level >= GFX7)
+      return UINT32_MAX; /* GFX7 can use SQ_SRC_LITERAL. */
+   else
+      return 0x3ff;
+}
+
+static bool
+offset_add_might_overflow(nir_shader *shader, lower_state *state)
+{
+   if (state->out_const > UINT32_MAX)
+      return true;
+
+   if (!state->range_ht)
+      state->range_ht = _mesa_pointer_hash_table_create(NULL);
+
+   nir_scalar offset_scalar = nir_get_scalar(state->out_offset, 0);
+   return nir_addition_might_overflow(shader, state->range_ht, offset_scalar, state->out_const);
+}
 
 static bool
 is_nuw(lower_state *state, nir_alu_instr *alu, nir_scalar src0, nir_scalar src1)
@@ -210,9 +245,18 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *s)
    b->cursor = nir_before_instr(&intrin->instr);
    nir_def *addr = src.def ? nir_mov_scalar(b, src) : nir_imm_int64(b, 0);
 
-   if (state->out_const > UINT32_MAX) {
-      addr = nir_iadd_imm(b, addr, state->out_const);
-      state->out_const = 0;
+   const uint64_t max_offset = is_smem ? get_max_smem_const_offset(state) : UINT32_MAX;
+   if (state->out_const > max_offset) {
+      if (!state->out_offset && state->out_const <= UINT32_MAX) {
+         state->out_offset = nir_imm_int(b, state->out_const);
+         state->out_const = 0;
+      } else if (offset_add_might_overflow(b->shader, state)) {
+         addr = nir_iadd_imm(b, addr, state->out_const & ~max_offset);
+         state->out_const = state->out_const & max_offset;
+      } else {
+         state->out_offset = nir_iadd_imm_nuw(b, state->out_offset, state->out_const & ~max_offset);
+         state->out_const = state->out_const & max_offset;
+      }
    }
 
    nir_intrinsic_instr *new_intrin = nir_intrinsic_instr_create(b->shader, op);
@@ -250,11 +294,12 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *s)
 }
 
 bool
-ac_nir_lower_global_access(nir_shader *shader)
+ac_nir_lower_global_access(nir_shader *shader, enum amd_gfx_level gfx_level)
 {
    lower_state state;
    state.range_ht = NULL;
    state.numlsb_ht = NULL;
+   state.gfx_level = gfx_level;
 
    bool progress = nir_shader_intrinsics_pass(shader, process_instr,
                                               nir_metadata_control_flow, &state);
