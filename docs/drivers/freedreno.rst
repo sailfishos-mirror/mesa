@@ -670,3 +670,38 @@ are supported at the moment: ``nir``, ``nobin``, ``sysmem``, ``gmem``, ``forcebi
 Some of these options will behave differently when toggled at runtime, for example:
 ``nolrz`` will still result in LRZ allocation which would not happen if the option
 was set in the environment variable.
+
+Autotune
+^^^^^^^^
+
+Turnip supports dynamically selecting between SYSMEM and GMEM rendering with the
+autotune system, the behavior of which can be controlled with the following
+environment variables:
+
+.. envvar:: TU_AUTOTUNE_ALGO
+
+  Selects the algorithm used for autotuning. Supported values are:
+
+  ``bandwidth``
+    Estimates the bandwidth usage of rendering in SYSMEM and GMEM modes, and chooses
+    the one with lower estimated bandwidth. This is the default algorithm.
+
+.. envvar:: TU_AUTOTUNE_FLAGS
+
+  Modifies the behavior of the selected algorithm. Supported flags are:
+
+  ``big_gmem``
+    Always chooses GMEM rendering if the amount of draw calls in the render pass
+    is greater than a certain threshold. Larger RPs generally benefit more from
+    GMEM rendering due to less overhead from tiling. This tends to lead to worse
+    performance in most cases, so it's only useful for testing.
+
+  ``small_sysmem``
+    Always chooses SYSMEM rendering if the amount of draw calls in the render pass
+    is lower than a certain threshold. The benefits of GMEM rendering are less
+    pronounced in these smaller RPs and SYSMEM rendering tends to win more often.
+
+  Multiple flags can be combined by separating them with commas, e.g.
+  ``TU_AUTOTUNE_FLAGS=big_gmem,small_sysmem``.
+
+  If no flags are specified, the default behavior is used.

@@ -418,6 +418,7 @@ queue_submit(struct vk_queue *_queue, struct vk_queue_submit *vk_submit)
    struct tu_device *device = queue->device;
    bool u_trace_enabled = u_trace_should_process(&queue->device->trace_context);
    struct util_dynarray dump_cmds;
+   struct tu_cs *autotune_cs = NULL;
 
    if (vk_submit->buffer_bind_count ||
        vk_submit->image_bind_count ||
@@ -495,9 +496,8 @@ queue_submit(struct vk_queue *_queue, struct vk_queue_submit *vk_submit)
       }
    }
 
-   if (tu_autotune_submit_requires_fence(cmd_buffers, cmdbuf_count)) {
-      struct tu_cs *autotune_cs = tu_autotune_on_submit(
-         device, &device->autotune, cmd_buffers, cmdbuf_count);
+   autotune_cs = device->autotune->on_submit(cmd_buffers, cmdbuf_count);
+   if (autotune_cs) {
       submit_add_entries(device, submit, &dump_cmds, autotune_cs->entries,
                          autotune_cs->entry_count);
    }

@@ -29,6 +29,7 @@
 #include "common/fd6_gmem_cache.h"
 #include "util/vma.h"
 #include "util/u_vector.h"
+#include "util/rwlock.h"
 
 /* queue types */
 #define TU_QUEUE_GENERAL 0
@@ -267,7 +268,12 @@ struct tu6_global
 
    volatile uint32_t vtx_stats_query_not_running;
 
-   /* To know when renderpass stats for autotune are valid */
+   /* A fence with a monotonically increasing value that is
+    * incremented by the GPU on each submission that includes
+    * a tu_autotune::submission_entry CS. This is used to track
+    * which submissions have been processed by the GPU before
+    * processing the autotune packet on the CPU.
+    */
    volatile uint32_t autotune_fence;
 
    /* For recycling command buffers for dynamic suspend/resume comamnds */
@@ -356,12 +362,6 @@ struct tu_device
     */
    struct tu_suballocator pipeline_suballoc;
    mtx_t pipeline_mutex;
-
-   /* Device-global BO suballocator for reducing BO management for small
-    * gmem/sysmem autotune result buffers.  Synchronized by autotune_mutex.
-    */
-   struct tu_suballocator autotune_suballoc;
-   mtx_t autotune_mutex;
 
    /* KGSL requires a small chunk of GPU mem to retrieve raw GPU time on
     * each submission.
@@ -460,7 +460,7 @@ struct tu_device
    pthread_cond_t timeline_cond;
    pthread_mutex_t submit_mutex;
 
-   struct tu_autotune autotune;
+   struct tu_autotune *autotune;
 
    struct breadcrumbs_context *breadcrumbs_ctx;
 

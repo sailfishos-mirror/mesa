@@ -653,8 +653,7 @@ struct tu_cmd_buffer
    struct u_trace_iterator trace_renderpass_start;
    struct u_trace trace, rp_trace;
 
-   struct list_head renderpass_autotune_results;
-   struct tu_autotune_results_buffer* autotune_buffer;
+   tu_autotune::cmd_buf_ctx autotune_ctx;
 
    void *patchpoints_ctx;
    struct util_dynarray fdm_bin_patchpoints;
