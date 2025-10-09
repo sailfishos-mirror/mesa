@@ -564,8 +564,11 @@ struct tu_vsc_config {
    /* Whether binning could be used for gmem rendering using this framebuffer. */
    bool binning_possible;
 
-   /* Whether binning should be used for gmem rendering using this framebuffer. */
-   bool binning;
+   /* Whether binning is useful for GMEM rendering performance using this framebuffer. This is independent of whether
+    * binning is possible, and is determined by the tile count. Not binning when it's useful would be a performance
+    * hazard, and GMEM rendering should be avoided in the case where it's useful to bin but not possible to do so.
+    */
+   bool binning_useful;
 
    /* pipe register values */
    uint32_t pipe_config[MAX_VSC_PIPES];

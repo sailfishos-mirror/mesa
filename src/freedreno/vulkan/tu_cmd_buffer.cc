@@ -1310,7 +1310,7 @@ use_hw_binning(struct tu_cmd_buffer *cmd)
       return true;
    }
 
-   return vsc->binning;
+   return vsc->binning_possible && vsc->binning_useful;
 }
 
 static bool
@@ -1373,8 +1373,16 @@ use_sysmem_rendering(struct tu_cmd_buffer *cmd,
       return true;
    }
 
-   if (TU_DEBUG(GMEM))
+   if (TU_DEBUG(GMEM)) {
+      cmd->state.rp.gmem_disable_reason = "TU_DEBUG(GMEM)";
       return false;
+   }
+
+   /* This is a case where it's better to avoid GMEM, too many tiles but no HW binning possible. */
+   if (!vsc->binning_possible && vsc->binning_useful) {
+      cmd->state.rp.gmem_disable_reason = "Too many tiles and HW binning is not possible";
+      return true;
+   }
 
    bool use_sysmem = cmd->device->autotune->get_optimal_mode(cmd, rp_ctx) == tu_autotune::render_mode::SYSMEM;
    if (use_sysmem)
@@ -6413,7 +6421,7 @@ tu_emit_subpass_begin_gmem(struct tu_cmd_buffer *cmd, struct tu_resolve_group *r
     * (perf queries), then we can't do this optimization since the
     * start-of-the-CS geometry condition will have been overwritten.
     */
-   bool cond_load_allowed = vsc->binning &&
+   bool cond_load_allowed = vsc->binning_possible &&
                             cmd->state.pass->has_cond_load_store &&
                             !cmd->state.rp.draw_cs_writes_to_cond_pred;
 
