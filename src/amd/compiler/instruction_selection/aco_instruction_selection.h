@@ -155,7 +155,6 @@ struct isel_context {
 
    /* NIR range analysis. */
    struct hash_table* range_ht;
-   struct hash_table* numlsb_ht;
    nir_fp_analysis_state fp_class_ht;
 
    Temp arg_temps[AC_MAX_ARGS];

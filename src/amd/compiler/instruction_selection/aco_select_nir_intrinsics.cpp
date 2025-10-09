@@ -486,12 +486,6 @@ get_smem_opcode(amd_gfx_level level, unsigned bytes, bool buffer, bool round_dow
       return {buffer ? aco_opcode::s_buffer_load_dwordx16 : aco_opcode::s_load_dwordx16, 64};
 }
 
-unsigned
-src_has_req_lsb(isel_context* ctx, nir_src* src, unsigned req)
-{
-   return src && nir_def_num_lsb_zero(ctx->numlsb_ht, nir_get_scalar(src->ssa, 0)) >= req;
-}
-
 Temp
 smem_load_callback(Builder& bld, const LoadEmitInfo& info, unsigned bytes_needed, unsigned align)
 {
@@ -530,29 +524,9 @@ smem_load_callback(Builder& bld, const LoadEmitInfo& info, unsigned bytes_needed
     */
    RegClass rc(RegType::sgpr, DIV_ROUND_UP(util_next_power_of_two(bytes_needed), 4u));
 
+   /* We assume the address resource, offset and const offset are aligned. */
    unsigned req_lsb_zero = bytes_needed == 1 ? 0 : (bytes_needed == 2 ? 1 : 2);
-   if (!buffer) {
-      /* We require each offset source and the final address to be aligned, so ensure at least
-       * two sources are aligned. The remaining one can then be assumed to be aligned, otherwise the
-       * final address is unaligned. */
-      // TODO: lower in NIR
-      bool addr_aligned = src_has_req_lsb(info.ctx, info.resource_src, req_lsb_zero);
-      bool offset_aligned =
-         !offset.id() || src_has_req_lsb(info.ctx, info.offset_src, req_lsb_zero);
-      bool const_aligned = !const_offset || ffs(const_offset) > req_lsb_zero;
-
-      if (!offset_aligned && (!addr_aligned || !const_aligned)) {
-         addr = add64_32(bld, addr, Operand(offset));
-         offset = Temp();
-      }
-      if (!const_aligned && (!addr_aligned || !offset_aligned)) {
-         addr = add64_32(bld, addr, Operand::c32(const_offset));
-         const_offset = 0;
-      }
-   } else {
-      /* We assume the buffer resource is also aligned. */
-      assert(!const_offset || ffs(const_offset) > req_lsb_zero);
-   }
+   assert(!const_offset || ffs(const_offset) > req_lsb_zero);
 
    bool soe = !buffer && offset.id() && const_offset && bld.program->gfx_level >= GFX9;
    aco_ptr<Instruction> load{create_instruction(op, Format::SMEM, 2 + soe, 1)};
