@@ -714,6 +714,22 @@ environment variables:
     calls). By default, small RPs always use SYSMEM mode as they generally don't
     benefit from GMEM rendering due to the overhead of tiling.
 
+  ``preempt_optimize``
+    Tries to keep non-preemptible time in the render pass is below a certain
+    threshold. This is useful for systems with GPU-based compositors where long
+    non-preemptible times can lead to missed frame deadlines, causing noticeable
+    stuttering. This flag will reduce the performance of the render pass in order
+    to improve overall system responsiveness, it should not be used unless the
+    rest of the system is affected by preemption delays.
+    
+    This is done by measuring the time between a preemption request and preemption
+    actually occurring, if it is above a threshold we force those RPs to use GMEM
+    rendering, where non-preemptible times are driven by tile size which we
+    progressively reduce until the non-preemptible time is below the threshold.
+
+    It should be noted that this will occupy the last two CP performance counters
+    which may interfere with other profiling tools (such as `fdperf`).
+
   Multiple flags can be combined by separating them with commas, e.g.
   ``TU_AUTOTUNE_FLAGS=big_gmem,tune_small``.
 

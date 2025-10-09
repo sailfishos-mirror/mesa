@@ -147,6 +147,7 @@ a6xx_base = GPUProps(
         line_width_min = 1.0,
         line_width_max = 1.0,
         mov_half_shared_quirk = True,
+        max_draw_states = 32,
     )
 
 
@@ -859,6 +860,7 @@ a7xx_gen3 = GPUProps(
         new_control_regs = True,
         has_hw_bin_scaling = True,
         has_image_processing = True,
+        max_draw_states = 64,
     )
 
 a730_magic_regs = dict(

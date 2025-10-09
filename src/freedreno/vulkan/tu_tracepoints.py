@@ -86,7 +86,9 @@ begin_end_tp('cmd_buffer',
                Arg(type='const char *',         name='engineName',           var='cmd->device->instance->vk.app_info.engine_name ? cmd->device->instance->vk.app_info.engine_name : "Unknown"', c_format='%s'),
                Arg(type='uint8_t',              name='oneTimeSubmit',        var='(cmd->usage_flags & VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)', c_format='%u'),
                Arg(type='uint8_t',              name='simultaneousUse',      var='(cmd->usage_flags & VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT)', c_format='%u')],
-    end_args=[ArgStruct(type='const struct tu_cmd_buffer *', var='cmd')],
+    end_args=[ArgStruct(type='const struct tu_cmd_buffer *', var='cmd'),
+              Arg(type='uint32_t',              var='preempt_latency', c_format='%u', is_indirect=True),
+              Arg(type='uint64_t',              var='preempt_latency_rp_hash', c_format='0x%" PRIx64 "', to_prim_type='(uint64_t){}', is_indirect=True),],
     end_tp_struct=[Arg(type='uint32_t',         name='renderpasses',         var='cmd->state.total_renderpasses', c_format='%u'),
                    Arg(type='uint32_t',         name='dispatches',           var='cmd->state.total_dispatches', c_format='%u')])
 

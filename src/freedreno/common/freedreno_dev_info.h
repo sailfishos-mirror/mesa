@@ -470,6 +470,9 @@ struct fd_dev_info {
 
       /* Whether the device supports the image processing opcode */
       bool has_image_processing;
+
+      /* The amount of valid draw state IDs. */
+      uint32_t max_draw_states;
    } props;
 };
 

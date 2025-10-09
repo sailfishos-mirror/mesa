@@ -295,6 +295,27 @@ struct tu6_global
    volatile uint32_t userspace_fence;
    uint32_t _pad5;
 
+   /* Autotune preemption delay tracking */
+   uint64_t cur_rp_hash;
+
+   uint64_t base_preemption_latency;
+   uint64_t new_preemption_latency;
+   volatile uint64_t preemption_latency;
+
+   uint64_t base_always_count;
+   uint64_t new_always_count;
+   uint64_t base_aon;
+   uint64_t new_aon;
+
+   /* These four fields must be contiguous so that snapshot_preempt_data can copy them all in a single CP_MEMCPY. */
+   volatile uint64_t max_preemption_latency;
+   volatile uint64_t max_preemption_latency_rp_hash;
+   volatile uint64_t max_always_count_delta;
+   volatile uint64_t max_aon_delta;
+
+   uint64_t preemption_latency_cmp_scratch;
+   uint64_t zero_64b;
+
    struct bcolor_entry bcolor[];
 };
 #define gb_offset(member) offsetof(struct tu6_global, member)
@@ -448,6 +469,8 @@ struct tu_device
 
    struct tu_cs_entry bin_preamble_entry, bin_preamble_bv_entry;
 
+   struct tu_cs_entry switch_away_amble_entry, switch_back_amble_entry;
+
    struct tu_bo *vis_stream_bo;
    mtx_t vis_stream_mtx;
 
@@ -597,7 +620,8 @@ struct tu_framebuffer
 
    uint32_t max_tile_w_constraint;
    uint32_t max_tile_h_constraint;
-   struct tu_tiling_config tiling[TU_GMEM_LAYOUT_COUNT];
+   uint32_t initd_divisor; /* The tile divisors up to this have been initialized, for lazy init. */
+   struct tu_tiling_config tiling[TU_GMEM_LAYOUT_COUNT * TU_GMEM_LAYOUT_DIVISOR_MAX];
 
    uint32_t attachment_count;
    const struct tu_image_view *attachments[0];
