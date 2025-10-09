@@ -1056,6 +1056,7 @@ struct tu_autotune::rp_history {
 
       std::atomic<uint32_t> sysmem_probability = PROBABILITY_MID;
       bool should_reset = false; /* If true, will reset sysmem_probability before next update. */
+      bool locked = false;       /* If true, the probability will no longer be updated. */
       uint64_t seed[2] { 0x3bffb83978e24f88, 0x9238d5d56c71cd35 };
 
     public:
@@ -1066,6 +1067,9 @@ struct tu_autotune::rp_history {
 
       void update(rp_history &history, bool immediate)
       {
+         if (locked)
+            return;
+
          auto &sysmem_ema = history.sysmem_rp_average;
          auto &gmem_ema = history.gmem_rp_average;
          uint32_t sysmem_prob = sysmem_probability.load(std::memory_order_relaxed);
@@ -1075,15 +1079,13 @@ struct tu_autotune::rp_history {
              * scenario for autotune performance, since we know the optimal decisions.
              */
 
-            if (sysmem_prob == 0 || sysmem_prob == 100)
-               return; /* Already resolved, no further updates are necessary. */
-
             if (sysmem_ema.count < 1) {
                sysmem_prob = PROBABILITY_MAX;
             } else if (gmem_ema.count < 1) {
                sysmem_prob = 0;
             } else {
                sysmem_prob = gmem_ema.get() < sysmem_ema.get() ? 0 : PROBABILITY_MAX;
+               locked = true;
             }
          } else {
             if (sysmem_ema.count < MIN_PROFILE_DURATION_COUNT || gmem_ema.count < MIN_PROFILE_DURATION_COUNT) {
@@ -1097,14 +1099,41 @@ struct tu_autotune::rp_history {
                }
 
                /* Adjust probability based on timing results. */
-               constexpr uint32_t STEP_DELTA = 5, MIN_PROBABILITY = 5, MAX_PROBABILITY = 95;
+               constexpr uint32_t STEP_DELTA = 5; /* 5% */
+               constexpr uint32_t MIN_PROB = 5, MAX_PROB = 95;
 
                uint64_t avg_sysmem = sysmem_ema.get();
                uint64_t avg_gmem = gmem_ema.get();
-               if (avg_gmem < avg_sysmem && sysmem_prob > MIN_PROBABILITY) {
-                  sysmem_prob = MAX2(sysmem_prob - STEP_DELTA, MIN_PROBABILITY);
-               } else if (avg_sysmem < avg_gmem && sysmem_prob < MAX_PROBABILITY) {
-                  sysmem_prob = MIN2(sysmem_prob + STEP_DELTA, MAX_PROBABILITY);
+
+               if (avg_gmem < avg_sysmem && sysmem_prob > MIN_PROB) {
+                  sysmem_prob = MAX2(sysmem_prob - STEP_DELTA, MIN_PROB);
+               } else if (avg_sysmem < avg_gmem && sysmem_prob < MAX_PROB) {
+                  sysmem_prob = MIN2(sysmem_prob + STEP_DELTA, MAX_PROB);
+               }
+
+               /* If the RP duration exceeds a certain minimum duration threshold (i.e. has a large impact on frametime)
+                * and the percentage difference between the modes is large enough, we lock into the optimal mode. This
+                * avoids performance hazards from switching to an extremely suboptimal mode even if done very rarely.
+                * Note: Due to the potentially huge negative impact of a bad lock, this is a very conservative check.
+                */
+               constexpr uint32_t MIN_LOCK_DURATION_COUNT = 15;
+               constexpr uint64_t MIN_LOCK_THRESHOLD = GPU_TICKS_PER_US * 1'000; /* 1ms */
+               constexpr uint32_t LOCK_PERCENT_DIFF = 30;
+
+               bool has_resolved = sysmem_prob == MAX_PROB || sysmem_prob == MIN_PROB;
+               bool enough_samples =
+                  sysmem_ema.count >= MIN_LOCK_DURATION_COUNT && gmem_ema.count >= MIN_LOCK_DURATION_COUNT;
+               uint64_t min_avg = MIN2(avg_sysmem, avg_gmem);
+               uint64_t max_avg = MAX2(avg_sysmem, avg_gmem);
+               uint64_t percent_diff = (100 * (max_avg - min_avg)) / min_avg;
+
+               if (has_resolved && enough_samples && max_avg >= MIN_LOCK_THRESHOLD &&
+                   percent_diff >= LOCK_PERCENT_DIFF) {
+                  if (avg_gmem < avg_sysmem)
+                     sysmem_prob = 0;
+                  else
+                     sysmem_prob = 100;
+                  locked = true;
                }
             }
          }
@@ -1112,9 +1141,9 @@ struct tu_autotune::rp_history {
          sysmem_probability.store(sysmem_prob, std::memory_order_relaxed);
 
          at_log_profiled_h("update%s avg_gmem: %" PRIu64 " us (%" PRIu64 " samples) avg_sysmem: %" PRIu64
-                           " us (%" PRIu64 " samples) = sysmem_probability: %" PRIu32,
+                           " us (%" PRIu64 " samples) = sysmem_probability: %" PRIu32 " locked: %u",
                            history.hash, immediate ? "-imm" : "", ticks_to_us(gmem_ema.get()), gmem_ema.count,
-                           ticks_to_us(sysmem_ema.get()), sysmem_ema.count, sysmem_prob);
+                           ticks_to_us(sysmem_ema.get()), sysmem_ema.count, sysmem_prob, locked);
       }
 
     public:
