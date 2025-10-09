@@ -2844,15 +2844,15 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
     * occasionally use UINT32_MAX to signal the other thread that an error
     * has occurred and we don't want an overflow.
     */
-   ret = wsi_queue_init(&chain->present_queue, chain->base.image_count + 1);
-   if (ret) {
+   result = wsi_queue_init(&chain->present_queue, chain->base.image_count + 1);
+   if (result != VK_SUCCESS) {
       goto fail_init_images;
    }
 
    /* Acquire queue is only needed when using implicit sync */
    if (!chain->base.image_info.explicit_sync) {
-      ret = wsi_queue_init(&chain->acquire_queue, chain->base.image_count + 1);
-      if (ret) {
+      result = wsi_queue_init(&chain->acquire_queue, chain->base.image_count + 1);
+      if (result != VK_SUCCESS) {
          wsi_queue_destroy(&chain->present_queue);
          goto fail_init_images;
       }
@@ -2863,13 +2863,17 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
 
    ret = thrd_create(&chain->queue_manager,
                      x11_manage_present_queue, chain);
-   if (ret != thrd_success)
+   if (ret != thrd_success) {
+      result = VK_ERROR_OUT_OF_HOST_MEMORY;
       goto fail_init_fifo_queue;
+   }
 
    ret = thrd_create(&chain->event_manager,
                      x11_manage_event_queue, chain);
-   if (ret != thrd_success)
+   if (ret != thrd_success) {
+      result = VK_ERROR_OUT_OF_HOST_MEMORY;
       goto fail_init_event_queue;
+   }
 
    /* It is safe to set it here as only one swapchain can be associated with
     * the window, and swapchain creation does the association. At this point
@@ -2904,6 +2908,7 @@ fail_register:
 fail_alloc:
    vk_free(pAllocator, chain);
 
+   assert(result != VK_SUCCESS);
    return result;
 }
 
