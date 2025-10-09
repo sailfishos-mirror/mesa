@@ -236,6 +236,9 @@ struct tu_instance
     * instead.
     */
    bool emulate_alpha_to_coverage;
+
+   /* Configuration option to use a specific autotune algorithm by default. */
+   const char *autotune_algo;
 };
 VK_DEFINE_HANDLE_CASTS(tu_instance, vk.base, VkInstance,
                        VK_OBJECT_TYPE_INSTANCE)

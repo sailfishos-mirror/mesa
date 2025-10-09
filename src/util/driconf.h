@@ -692,6 +692,10 @@
    DRI_CONF_OPT_B(tu_emulate_alpha_to_coverage, def, \
                   "Enable emulation of alpha-to-coverage")
 
+#define DRI_CONF_TU_AUTOTUNE_ALGORITHM() \
+   DRI_CONF_OPT_S_NODEF(tu_autotune_algorithm, \
+                        "Set the preferred autotune algorithm")
+
 /**
  * \brief Honeykrisp specific configuration options
  */

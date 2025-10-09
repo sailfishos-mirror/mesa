@@ -707,6 +707,8 @@ environment variables:
     in some high-confidence cases as well as letting ``TU_AUTOTUNE_FLAGS`` still
     be applied.
 
+  The algorithm can be set via the driconf option ``tu_autotune_algorithm`` as well.
+
 .. envvar:: TU_AUTOTUNE_FLAGS
 
   Modifies the behavior of the selected algorithm. Supported flags are:
