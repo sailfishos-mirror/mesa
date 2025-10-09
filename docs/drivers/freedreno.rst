@@ -699,6 +699,14 @@ environment variables:
     for single-frame traces run multiple times in a CI where this algorithm can
     immediately chose the optimal rendering mode for each RP.
 
+  ``prefer_sysmem``/``prefer_gmem``
+    Always chooses SYSMEM/GMEM rendering. This is useful for games that work
+    better in one mode over the other due to their rendering patterns, setting
+    this is better than using ``TU_DEBUG=sysmem``/``TU_DEBUG=gmem`` when done
+    for performance reasons, since these still allow the other mode to be used
+    in some high-confidence cases as well as letting ``TU_AUTOTUNE_FLAGS`` still
+    be applied.
+
 .. envvar:: TU_AUTOTUNE_FLAGS
 
   Modifies the behavior of the selected algorithm. Supported flags are:
