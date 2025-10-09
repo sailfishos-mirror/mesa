@@ -7,22 +7,12 @@
 #include "ac_nir.h"
 #include "nir.h"
 #include "nir_builder.h"
-
-static inline bool
-is_u2u64(nir_scalar *scalar)
-{
-   if (!nir_scalar_is_alu(*scalar) || nir_scalar_alu_op(*scalar) != nir_op_u2u64)
-      return false;
-   nir_scalar src = nir_scalar_chase_alu_src(*scalar, 0);
-   if (src.def->bit_size != 32)
-      return false;
-   *scalar = src;
-   return true;
-}
+#include "nir_range_analysis.h"
 
 typedef struct {
    nir_builder *b;
    struct hash_table *range_ht;
+   struct hash_table *numlsb_ht;
    nir_cursor addr_cursor;
    uint8_t required_align; /* Required alignment for offsets and final address */
    uint64_t out_const;
@@ -50,9 +40,31 @@ is_nuw(lower_state *state, nir_alu_instr *alu, nir_scalar src0, nir_scalar src1)
 }
 
 static bool
-const_scalar_is_aligned(nir_scalar src, uint8_t alignment, uint64_t mul)
+scalar_is_aligned(nir_scalar src, lower_state *state, uint64_t mul)
 {
-   return util_is_aligned(nir_scalar_as_uint(src) * mul, alignment);
+   if (state->required_align == 1)
+      return true;
+
+   if (nir_scalar_is_const(src))
+      return util_is_aligned(nir_scalar_as_uint(src) * mul, state->required_align);
+
+   if (!state->numlsb_ht)
+      state->numlsb_ht = _mesa_pointer_hash_table_create(NULL);
+
+   unsigned num_lsb_zero = nir_def_num_lsb_zero(state->numlsb_ht, src) + util_logbase2(mul);
+   return num_lsb_zero >= util_logbase2(state->required_align);
+}
+
+static inline bool
+is_u2u64_aligned(nir_scalar *scalar, lower_state *state, uint64_t mul)
+{
+   if (!nir_scalar_is_alu(*scalar) || nir_scalar_alu_op(*scalar) != nir_op_u2u64)
+      return false;
+   nir_scalar src = nir_scalar_chase_alu_src(*scalar, 0);
+   if (src.def->bit_size != 32 || !scalar_is_aligned(src, state, mul))
+      return false;
+   *scalar = src;
+   return true;
 }
 
 static bool
@@ -87,7 +99,7 @@ parse_imul(nir_scalar *def, uint64_t *c, bool require_nuw)
 static bool
 try_extract_additions(lower_state *state, nir_scalar *scalar, bool require_nuw, uint64_t mul)
 {
-   if (nir_scalar_is_const(*scalar) && const_scalar_is_aligned(*scalar, state->required_align, mul)) {
+   if (nir_scalar_is_const(*scalar) && scalar_is_aligned(*scalar, state, mul)) {
       state->out_const += nir_scalar_as_uint(*scalar) * mul;
       scalar->def = NULL;
       return true;
@@ -107,7 +119,7 @@ try_extract_additions(lower_state *state, nir_scalar *scalar, bool require_nuw, 
          return true;
       }
       return false;
-   } else if (is_u2u64(&src)) {
+   } else if (is_u2u64_aligned(&src, state, mul)) {
       bool rewrite_src = try_extract_additions(state, &src, true, mul);
       b->cursor = nir_after_instr(&alu->instr);
       if (src.def && mul == 1 && state->out_offset &&
@@ -132,7 +144,7 @@ try_extract_additions(lower_state *state, nir_scalar *scalar, bool require_nuw, 
 
       /* Visit u2u64 sources first. This prioritizes u2u64 later in the chain over those earlier. */
       nir_scalar src1_conv = src1;
-      bool swap = is_u2u64(&src1_conv);
+      bool swap = is_u2u64_aligned(&src1_conv, state, mul);
 
       bool rewrite_src0 = try_extract_additions(state, swap ? &src1 : &src0, require_nuw, mul);
       bool rewrite_src1 = try_extract_additions(state, swap ? &src0 : &src1, require_nuw, mul);
@@ -242,8 +254,13 @@ ac_nir_lower_global_access(nir_shader *shader)
 {
    lower_state state;
    state.range_ht = NULL;
+   state.numlsb_ht = NULL;
+
    bool progress = nir_shader_intrinsics_pass(shader, process_instr,
                                               nir_metadata_control_flow, &state);
+
    _mesa_hash_table_destroy(state.range_ht, NULL);
+   _mesa_hash_table_destroy(state.numlsb_ht, NULL);
+
    return progress;
 }
