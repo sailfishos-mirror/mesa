@@ -709,12 +709,12 @@ environment variables:
     GMEM rendering due to less overhead from tiling. This tends to lead to worse
     performance in most cases, so it's only useful for testing.
 
-  ``small_sysmem``
-    Always chooses SYSMEM rendering if the amount of draw calls in the render pass
-    is lower than a certain threshold. The benefits of GMEM rendering are less
-    pronounced in these smaller RPs and SYSMEM rendering tends to win more often.
+  ``tune_small``
+    Enables tuning for small render passes (those with a small number of draw
+    calls). By default, small RPs always use SYSMEM mode as they generally don't
+    benefit from GMEM rendering due to the overhead of tiling.
 
   Multiple flags can be combined by separating them with commas, e.g.
-  ``TU_AUTOTUNE_FLAGS=big_gmem,small_sysmem``.
+  ``TU_AUTOTUNE_FLAGS=big_gmem,tune_small``.
 
   If no flags are specified, the default behavior is used.
