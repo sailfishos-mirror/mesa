@@ -28,6 +28,7 @@
 
 #define TU_AUTOTUNE_DEBUG_LOG_BASE      0
 #define TU_AUTOTUNE_DEBUG_LOG_BANDWIDTH 0
+#define TU_AUTOTUNE_DEBUG_LOG_PROFILED  0
 
 #if TU_AUTOTUNE_DEBUG_LOG_BASE
 #define at_log_base(fmt, ...)         mesa_logi("autotune: " fmt, ##__VA_ARGS__)
@@ -41,6 +42,12 @@
 #define at_log_bandwidth_h(fmt, hash, ...) mesa_logi("autotune-bw %016" PRIx64 ": " fmt, hash, ##__VA_ARGS__)
 #else
 #define at_log_bandwidth_h(fmt, hash, ...)
+#endif
+
+#if TU_AUTOTUNE_DEBUG_LOG_PROFILED
+#define at_log_profiled_h(fmt, hash, ...) mesa_logi("autotune-prof %016" PRIx64 ": " fmt, hash, ##__VA_ARGS__)
+#else
+#define at_log_profiled_h(fmt, hash, ...)
 #endif
 
 /* Process any pending entries on autotuner finish, could be used to gather data from traces. */
@@ -82,6 +89,8 @@ render_mode_str(tu_autotune::render_mode mode)
 
 enum class tu_autotune::algorithm : uint8_t {
    BANDWIDTH = 0,    /* Uses estimated BW for determining rendering mode. */
+   PROFILED = 1,     /* Uses dynamically profiled results for determining rendering mode. */
+   PROFILED_IMM = 2, /* Same as PROFILED but immediately resolves the SYSMEM/GMEM probability. */
 
    DEFAULT = BANDWIDTH, /* Default algorithm, used if no other is specified. */
 };
@@ -95,6 +104,7 @@ enum class tu_autotune::mod_flag : uint8_t {
 /* Metric flags, for internal tracking of enabled metrics. */
 enum class tu_autotune::metric_flag : uint8_t {
    SAMPLES = BIT(1), /* Enable tracking samples passed metric. */
+   TS = BIT(2),      /* Enable tracking per-RP timestamp metric. */
 };
 
 struct PACKED tu_autotune::config_t {
@@ -108,6 +118,8 @@ struct PACKED tu_autotune::config_t {
       /* Note: Always keep in sync with rp_history to prevent UB. */
       if (algo == algorithm::BANDWIDTH) {
          metric_flags |= (uint8_t) metric_flag::SAMPLES;
+      } else if (algo == algorithm::PROFILED || algo == algorithm::PROFILED_IMM) {
+         metric_flags |= (uint8_t) metric_flag::TS;
       }
    }
 
@@ -181,6 +193,8 @@ struct PACKED tu_autotune::config_t {
       std::string str = "Algorithm: ";
 
       ALGO_STR(BANDWIDTH);
+      ALGO_STR(PROFILED);
+      ALGO_STR(PROFILED_IMM);
 
       str += ", Mod Flags: 0x" + std::to_string(mod_flags) + " (";
       MODF_STR(BIG_GMEM);
@@ -189,6 +203,7 @@ struct PACKED tu_autotune::config_t {
 
       str += ", Metric Flags: 0x" + std::to_string(metric_flags) + " (";
       METRICF_STR(SAMPLES);
+      METRICF_STR(TS);
       str += ")";
 
       return str;
@@ -247,6 +262,12 @@ tu_autotune::get_env_config()
          std::string_view algo_strv(algo_env_str);
          if (algo_strv == "bandwidth") {
             algo = algorithm::BANDWIDTH;
+         } else if (algo_strv == "profiled") {
+            algo = algorithm::PROFILED;
+         } else if (algo_strv == "profiled_imm") {
+            algo = algorithm::PROFILED_IMM;
+         } else {
+            mesa_logw("Unknown TU_AUTOTUNE_ALGO '%s', using default", algo_env_str);
          }
 
          if (TU_DEBUG(STARTUP))
@@ -540,6 +561,22 @@ struct tu_autotune::rp_entry {
       }
    }
 
+   /** RP/Tile Timestamp Metric **/
+
+   uint64_t get_rp_duration()
+   {
+      assert(config.test(metric_flag::TS));
+      rp_gpu_data &gpu = get_gpu_data();
+      return gpu.ts_end - gpu.ts_start;
+   }
+
+   void emit_metric_timestamp(struct tu_cs *cs, uint64_t timestamp_iova)
+   {
+      tu_cs_emit_pkt7(cs, CP_REG_TO_MEM, 3);
+      tu_cs_emit(cs, CP_REG_TO_MEM_0_REG(REG_A6XX_CP_ALWAYS_ON_COUNTER) | CP_REG_TO_MEM_0_CNT(2) | CP_REG_TO_MEM_0_64B);
+      tu_cs_emit_qw(cs, timestamp_iova);
+   }
+
    /** CS Emission **/
 
    void emit_rp_start(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
@@ -548,6 +585,9 @@ struct tu_autotune::rp_entry {
       uint64_t bo_iova = bo.iova;
       if (config.test(metric_flag::SAMPLES))
          emit_metric_samples_start(cmd, cs, bo_iova + offsetof(rp_gpu_data, samples_start));
+
+      if (config.test(metric_flag::TS))
+         emit_metric_timestamp(cs, bo_iova + offsetof(rp_gpu_data, ts_start));
    }
 
    void emit_rp_end(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
@@ -557,6 +597,9 @@ struct tu_autotune::rp_entry {
       if (config.test(metric_flag::SAMPLES))
          emit_metric_samples_end(cmd, cs, bo_iova + offsetof(rp_gpu_data, samples_start),
                                  bo_iova + offsetof(rp_gpu_data, samples_end));
+
+      if (config.test(metric_flag::TS))
+         emit_metric_timestamp(cs, bo_iova + offsetof(rp_gpu_data, ts_end));
    }
 };
 
@@ -691,10 +734,66 @@ template <typename T = double> class exponential_average {
    }
 };
 
+/* An improvement over pure EMA to filter out spikes by using two EMAs:
+ * - A "slow" EMA with a low alpha to track the long-term average.
+ * - A "fast" EMA with a high alpha to track short-term changes.
+ * When retrieving the average, if the fast EMA deviates significantly from the slow EMA, it indicates a spike, and we
+ * fall back to the slow EMA.
+ */
+template <typename T = double> class adaptive_average {
+ private:
+   static constexpr double DEFAULT_SLOW_ALPHA = 0.1, DEFAULT_FAST_ALPHA = 0.5, DEFAULT_DEVIATION_THRESHOLD = 0.3;
+   exponential_average<T> slow;
+   exponential_average<T> fast;
+   double deviationThreshold;
+
+ public:
+   size_t count = 0;
+
+   explicit adaptive_average(double slow_alpha = DEFAULT_SLOW_ALPHA,
+                             double fast_alpha = DEFAULT_FAST_ALPHA,
+                             double deviation_threshold = DEFAULT_DEVIATION_THRESHOLD) noexcept
+       : slow(slow_alpha), fast(fast_alpha), deviationThreshold(deviation_threshold)
+   {
+   }
+
+   void add(T value) noexcept
+   {
+      slow.add(value);
+      fast.add(value);
+      count++;
+   }
+
+   T get() const noexcept
+   {
+      double s = slow.get();
+      double f = fast.get();
+      /* Use fast if it's close to slow (normal variation).
+       * Use slow if fast deviates too much (likely a spike).
+       */
+      double deviation = std::abs(f - s) / s;
+      return (deviation < deviationThreshold) ? f : s + (f - s) * deviationThreshold;
+   }
+
+   void clear() noexcept
+   {
+      slow.clear();
+      fast.clear();
+      count = 0;
+   }
+};
+
 /* All historical state pertaining to a uniquely identified RP. This integrates data from RP entries, accumulating
  * metrics over the long-term and providing autotune algorithms using the data.
  */
 struct tu_autotune::rp_history {
+ private:
+   /* Amount of duration samples for profiling before we start averaging. */
+   static constexpr uint32_t MIN_PROFILE_DURATION_COUNT = 5;
+
+   adaptive_average<uint64_t> sysmem_rp_average;
+   adaptive_average<uint64_t> gmem_rp_average;
+
  public:
    uint64_t hash; /* The hash of the renderpass, just for debug output. */
    uint32_t duplicates; /* The amount of times we've seen this RP, used for identifying repeated RPs. */
@@ -702,7 +801,7 @@ struct tu_autotune::rp_history {
    std::atomic<uint32_t> refcount = 0; /* Reference count to prevent deletion when active. */
    std::atomic<uint64_t> last_use_ts;  /* Last time the reference count was updated, in monotonic nanoseconds. */
 
-   rp_history(uint64_t hash): hash(hash), last_use_ts(os_time_get_nano())
+   rp_history(uint64_t hash): hash(hash), last_use_ts(os_time_get_nano()), profiled(hash)
    {
    }
 
@@ -777,6 +876,90 @@ struct tu_autotune::rp_history {
       }
    } bandwidth;
 
+   /** Profiled Algorithms **/
+   struct profiled_algo {
+    private:
+      /* Range [0 (GMEM), 100 (SYSMEM)], where 50 means no preference. */
+      constexpr static uint32_t PROBABILITY_MAX = 100, PROBABILITY_MID = 50;
+      constexpr static uint32_t PROBABILITY_PREFER_SYSMEM = 80, PROBABILITY_PREFER_GMEM = 20;
+
+      std::atomic<uint32_t> sysmem_probability = PROBABILITY_MID;
+      bool should_reset = false; /* If true, will reset sysmem_probability before next update. */
+      uint64_t seed[2] { 0x3bffb83978e24f88, 0x9238d5d56c71cd35 };
+
+    public:
+      profiled_algo(uint64_t hash)
+      {
+         seed[1] = hash;
+      }
+
+      void update(rp_history &history, bool immediate)
+      {
+         auto &sysmem_ema = history.sysmem_rp_average;
+         auto &gmem_ema = history.gmem_rp_average;
+         uint32_t sysmem_prob = sysmem_probability.load(std::memory_order_relaxed);
+         if (immediate) {
+            /* Try to immediately resolve the probability, this is useful for CI running a single trace of frames where
+             * the probabilites aren't expected to change from run to run. This environment also gives us a best case
+             * scenario for autotune performance, since we know the optimal decisions.
+             */
+
+            if (sysmem_prob == 0 || sysmem_prob == 100)
+               return; /* Already resolved, no further updates are necessary. */
+
+            if (sysmem_ema.count < 1) {
+               sysmem_prob = PROBABILITY_MAX;
+            } else if (gmem_ema.count < 1) {
+               sysmem_prob = 0;
+            } else {
+               sysmem_prob = gmem_ema.get() < sysmem_ema.get() ? 0 : PROBABILITY_MAX;
+            }
+         } else {
+            if (sysmem_ema.count < MIN_PROFILE_DURATION_COUNT || gmem_ema.count < MIN_PROFILE_DURATION_COUNT) {
+               /* Not enough data to make a decision, bias towards least used. */
+               sysmem_prob = sysmem_ema.count < gmem_ema.count ? PROBABILITY_PREFER_SYSMEM : PROBABILITY_PREFER_GMEM;
+               should_reset = true;
+            } else {
+               if (should_reset) {
+                  sysmem_prob = PROBABILITY_MID;
+                  should_reset = false;
+               }
+
+               /* Adjust probability based on timing results. */
+               constexpr uint32_t STEP_DELTA = 5, MIN_PROBABILITY = 5, MAX_PROBABILITY = 95;
+
+               uint64_t avg_sysmem = sysmem_ema.get();
+               uint64_t avg_gmem = gmem_ema.get();
+               if (avg_gmem < avg_sysmem && sysmem_prob > MIN_PROBABILITY) {
+                  sysmem_prob = MAX2(sysmem_prob - STEP_DELTA, MIN_PROBABILITY);
+               } else if (avg_sysmem < avg_gmem && sysmem_prob < MAX_PROBABILITY) {
+                  sysmem_prob = MIN2(sysmem_prob + STEP_DELTA, MAX_PROBABILITY);
+               }
+            }
+         }
+
+         sysmem_probability.store(sysmem_prob, std::memory_order_relaxed);
+
+         at_log_profiled_h("update%s avg_gmem: %" PRIu64 " us (%" PRIu64 " samples) avg_sysmem: %" PRIu64
+                           " us (%" PRIu64 " samples) = sysmem_probability: %" PRIu32,
+                           history.hash, immediate ? "-imm" : "", ticks_to_us(gmem_ema.get()), gmem_ema.count,
+                           ticks_to_us(sysmem_ema.get()), sysmem_ema.count, sysmem_prob);
+      }
+
+    public:
+      render_mode get_optimal_mode(rp_history &history)
+      {
+         uint32_t l_sysmem_probability = sysmem_probability.load(std::memory_order_relaxed);
+         bool select_sysmem = (rand_xorshift128plus(seed) % PROBABILITY_MAX) < l_sysmem_probability;
+         render_mode mode = select_sysmem ? render_mode::SYSMEM : render_mode::GMEM;
+
+         at_log_profiled_h("%" PRIu32 "%% sysmem chance, using %s", history.hash, l_sysmem_probability,
+                           render_mode_str(mode));
+
+         return mode;
+      }
+   } profiled;
+
    void process(rp_entry &entry, tu_autotune &at)
    {
       /* We use entry config to know what metrics it has, autotune config to know what algorithms are enabled. */
@@ -785,6 +968,19 @@ struct tu_autotune::rp_history {
 
       if (entry_config.test(metric_flag::SAMPLES) && at_config.is_enabled(algorithm::BANDWIDTH))
          bandwidth.update(entry.get_samples_passed());
+      if (entry_config.test(metric_flag::TS)) {
+         if (entry.sysmem) {
+            uint64_t rp_duration = entry.get_rp_duration();
+
+            sysmem_rp_average.add(rp_duration);
+         } else {
+            gmem_rp_average.add(entry.get_rp_duration());
+         }
+
+         if (at_config.is_enabled(algorithm::PROFILED) || at_config.is_enabled(algorithm::PROFILED_IMM)) {
+            profiled.update(*this, at_config.is_enabled(algorithm::PROFILED_IMM));
+         }
+      }
    }
 };
 
@@ -1082,6 +1278,9 @@ tu_autotune::get_optimal_mode(struct tu_cmd_buffer *cmd_buffer, rp_ctx_t *rp_ctx
 
    *rp_ctx = cb_ctx.attach_rp_entry(device, find_or_create_rp_history(key), config, rp_state->drawcall_count);
    rp_history &history = *((*rp_ctx)->history);
+
+   if (config.is_enabled(algorithm::PROFILED) || config.is_enabled(algorithm::PROFILED_IMM))
+      return history.profiled.get_optimal_mode(history);
 
    if (config.is_enabled(algorithm::BANDWIDTH))
       return history.bandwidth.get_optimal_mode(history, cmd_state, pass, framebuffer, rp_state);

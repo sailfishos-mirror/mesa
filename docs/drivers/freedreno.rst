@@ -686,6 +686,19 @@ environment variables:
     Estimates the bandwidth usage of rendering in SYSMEM and GMEM modes, and chooses
     the one with lower estimated bandwidth. This is the default algorithm.
 
+  ``profiled``
+    Dynamically profiles the RP timings in SYSMEM and GMEM modes, and uses that to
+    move a probability distribution towards the optimal choice over time. This
+    algorithm tends to be far more accurate than the bandwidth algorithm at choosing
+    the optimal rendering mode but may result in larger FPS variance due to being
+    based on a probability distribution with random sampling.
+
+  ``profiled_imm``
+    Similar to ``profiled``, but only profiles the first few instances of a RP
+    and then sticks to the chosen mode for subsequent instances. This is meant
+    for single-frame traces run multiple times in a CI where this algorithm can
+    immediately chose the optimal rendering mode for each RP.
+
 .. envvar:: TU_AUTOTUNE_FLAGS
 
   Modifies the behavior of the selected algorithm. Supported flags are:
