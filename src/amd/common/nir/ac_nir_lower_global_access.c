@@ -21,9 +21,11 @@ is_u2u64(nir_scalar *scalar)
 }
 
 typedef struct {
-   nir_shader *shader;
+   nir_builder *b;
    struct hash_table *range_ht;
    nir_cursor addr_cursor;
+   uint64_t out_const;
+   nir_def *out_offset;
 } lower_state;
 
 static bool
@@ -36,8 +38,8 @@ is_nuw(lower_state *state, nir_alu_instr *alu, nir_scalar src0, nir_scalar src1)
       state->range_ht = _mesa_pointer_hash_table_create(NULL);
 
    assert(src0.def->bit_size == 32 && src1.def->bit_size == 32);
-   uint32_t ub0 = nir_unsigned_upper_bound(state->shader, state->range_ht, src0);
-   uint32_t ub1 = nir_unsigned_upper_bound(state->shader, state->range_ht, src1);
+   uint32_t ub0 = nir_unsigned_upper_bound(state->b->shader, state->range_ht, src0);
+   uint32_t ub1 = nir_unsigned_upper_bound(state->b->shader, state->range_ht, src1);
    if ((UINT32_MAX - ub0) < ub1)
       return false;
 
@@ -76,11 +78,10 @@ parse_imul(nir_scalar *def, uint64_t *c, bool require_nuw)
 }
 
 static bool
-try_extract_additions(lower_state *state, nir_builder *b, nir_scalar *scalar, uint64_t *out_const,
-                      nir_def **out_offset, bool require_nuw, uint64_t mul)
+try_extract_additions(lower_state *state, nir_scalar *scalar, bool require_nuw, uint64_t mul)
 {
    if (nir_scalar_is_const(*scalar)) {
-      *out_const += nir_scalar_as_uint(*scalar) * mul;
+      state->out_const += nir_scalar_as_uint(*scalar) * mul;
       scalar->def = NULL;
       return true;
    }
@@ -91,21 +92,23 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar *scalar, ui
 
    uint64_t c;
    nir_scalar src = *scalar;
+   nir_builder *b = state->b;
    if (parse_imul(&src, &c, require_nuw)) {
-      if (try_extract_additions(state, b, &src, out_const, out_offset, require_nuw, mul * c)) {
+      if (try_extract_additions(state, &src, require_nuw, mul * c)) {
          b->cursor = nir_after_instr(&alu->instr);
          *scalar = nir_get_scalar(src.def ? nir_imul_imm(b, nir_mov_scalar(b, src), c) : NULL, 0);
          return true;
       }
       return false;
    } else if (is_u2u64(&src)) {
-      bool rewrite_src = try_extract_additions(state, b, &src, out_const, out_offset, true, mul);
+      bool rewrite_src = try_extract_additions(state, &src, true, mul);
       b->cursor = nir_after_instr(&alu->instr);
-      if (src.def && mul == 1 && *out_offset && is_nuw(state, NULL, src, nir_get_scalar(*out_offset, 0))) {
+      if (src.def && mul == 1 && state->out_offset &&
+          is_nuw(state, NULL, src, nir_get_scalar(state->out_offset, 0))) {
          b->cursor = state->addr_cursor;
-         *out_offset = nir_iadd_nuw(b, nir_mov_scalar(b, src), *out_offset);
-      } else if (src.def && mul == 1 && *out_offset == NULL) {
-         *out_offset = nir_mov_scalar(b, src);
+         state->out_offset = nir_iadd_nuw(b, nir_mov_scalar(b, src), state->out_offset);
+      } else if (src.def && mul == 1 && state->out_offset == NULL) {
+         state->out_offset = nir_mov_scalar(b, src);
       } else if (src.def) {
          if (rewrite_src)
             *scalar = nir_get_scalar(nir_u2u64(b, nir_mov_scalar(b, src)), 0);
@@ -124,10 +127,8 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar *scalar, ui
       nir_scalar src1_conv = src1;
       bool swap = is_u2u64(&src1_conv);
 
-      bool rewrite_src0 = try_extract_additions(
-         state, b, swap ? &src1 : &src0, out_const, out_offset, require_nuw, mul);
-      bool rewrite_src1 = try_extract_additions(
-         state, b, swap ? &src0 : &src1, out_const, out_offset, require_nuw, mul);
+      bool rewrite_src0 = try_extract_additions(state, swap ? &src1 : &src0, require_nuw, mul);
+      bool rewrite_src1 = try_extract_additions(state, swap ? &src0 : &src1, require_nuw, mul);
       if (!rewrite_src0 && !rewrite_src1)
          return false;
 
@@ -143,8 +144,9 @@ try_extract_additions(lower_state *state, nir_builder *b, nir_scalar *scalar, ui
 }
 
 static bool
-process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
+process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *s)
 {
+   lower_state *state = (lower_state *)s;
    nir_intrinsic_op op;
    unsigned access = 0;
    switch (intrin->intrinsic) {
@@ -174,18 +176,20 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
 
    nir_src *addr_src = &intrin->src[addr_src_idx];
 
-   uint64_t off_const = 0;
-   nir_def *offset = NULL;
+
+   state->b = b;
+   state->out_const = 0;
+   state->out_offset = NULL;
    nir_scalar src = nir_get_scalar(addr_src->ssa, 0);
-   ((lower_state *)state)->addr_cursor = nir_before_instr(nir_def_instr(addr_src->ssa));
-   try_extract_additions(state, b, &src, &off_const, &offset, false, 1);
+   state->addr_cursor = nir_before_instr(nir_def_instr(addr_src->ssa));
+   try_extract_additions(state, &src, false, 1);
 
    b->cursor = nir_before_instr(&intrin->instr);
    nir_def *addr = src.def ? nir_mov_scalar(b, src) : nir_imm_int64(b, 0);
 
-   if (off_const > UINT32_MAX) {
-      addr = nir_iadd_imm(b, addr, off_const);
-      off_const = 0;
+   if (state->out_const > UINT32_MAX) {
+      addr = nir_iadd_imm(b, addr, state->out_const);
+      state->out_const = 0;
    }
 
    nir_intrinsic_instr *new_intrin = nir_intrinsic_instr_create(b->shader, op);
@@ -199,7 +203,7 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
    unsigned num_src = nir_intrinsic_infos[intrin->intrinsic].num_srcs;
    for (unsigned i = 0; i < num_src; i++)
       new_intrin->src[i] = nir_src_for_ssa(intrin->src[i].ssa);
-   new_intrin->src[num_src] = nir_src_for_ssa(offset ? offset : nir_imm_zero(b, 1, 32));
+   new_intrin->src[num_src] = nir_src_for_ssa(state->out_offset ? state->out_offset : nir_imm_zero(b, 1, 32));
    new_intrin->src[addr_src_idx] = nir_src_for_ssa(addr);
 
    if (nir_intrinsic_has_access(intrin))
@@ -212,7 +216,7 @@ process_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
       nir_intrinsic_set_write_mask(new_intrin, nir_intrinsic_write_mask(intrin));
    if (nir_intrinsic_has_atomic_op(intrin))
       nir_intrinsic_set_atomic_op(new_intrin, nir_intrinsic_atomic_op(intrin));
-   nir_intrinsic_set_base(new_intrin, off_const);
+   nir_intrinsic_set_base(new_intrin, state->out_const);
 
    nir_builder_instr_insert(b, &new_intrin->instr);
    if (op != nir_intrinsic_store_global_amd)
@@ -226,7 +230,6 @@ bool
 ac_nir_lower_global_access(nir_shader *shader)
 {
    lower_state state;
-   state.shader = shader;
    state.range_ht = NULL;
    bool progress = nir_shader_intrinsics_pass(shader, process_instr,
                                               nir_metadata_control_flow, &state);
