@@ -467,6 +467,9 @@ struct fd_dev_info {
        * expected:
        */
       bool has_salu_int_narrowing_quirk;
+
+      /* Whether the device supports the image processing opcode */
+      bool has_image_processing;
    } props;
 };
 

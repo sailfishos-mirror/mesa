@@ -1016,6 +1016,7 @@ a7xx_gen2 = GPUProps(
         reading_shading_rate_requires_smask_quirk = True,
         has_ray_intersection = True,
         has_hw_bin_scaling = True,
+        has_image_processing = True,
     )
 
 a7xx_gen3 = GPUProps(
@@ -1043,6 +1044,7 @@ a7xx_gen3 = GPUProps(
         has_abs_bin_mask = True,
         new_control_regs = True,
         has_hw_bin_scaling = True,
+        has_image_processing = True,
     )
 
 a730_magic_regs = dict(

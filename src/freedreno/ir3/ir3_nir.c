@@ -523,6 +523,73 @@ ir3_nir_lower_array_sampler(nir_shader *shader)
       nir_metadata_control_flow, NULL);
 }
 
+/* pack_uvec2_to_uint does clamping that we don't need to do. */
+static nir_def *
+pack_16_16(nir_builder *b, nir_def *x)
+{
+   return nir_ior(b, nir_channel(b, x, 0), nir_ishl_imm(b, nir_channel(b, x, 1), 16));
+}
+
+static bool
+ir3_nir_lower_image_processing_instr(struct nir_builder *b, nir_instr *instr,
+                                     void *_data)
+{
+   if (instr->type != nir_instr_type_tex)
+      return false;
+
+   nir_tex_instr *tex = nir_instr_as_tex(instr);
+   b->cursor = nir_before_instr(&tex->instr);
+
+   if (tex->op == nir_texop_box_filter_qcom) {
+      /* The hardware's box filter arg is preprocessed, but still a vec2.  We do
+       * the preprocessing in NIR so it's more legible, and can be constant
+       * folded.
+       */
+      int box_size_src = nir_tex_instr_src_index(tex, nir_tex_src_box_size);
+      assert(box_size_src >= 0);
+
+      nir_def *box_size = tex->src[box_size_src].src.ssa;
+      nir_def *area =
+         nir_fmul(b, nir_channel(b, box_size, 0), nir_channel(b, box_size, 1));
+      box_size =
+         nir_f2u32(b, nir_fround_even(b, nir_fmul_imm(b, box_size, 64.0)));
+      nir_def *inv_area = nir_u2u32(b, nir_f2f16(b, nir_frcp(b, area)));
+
+      nir_src_rewrite(&tex->src[box_size_src].src, nir_vec2(b, pack_16_16(b, box_size), inv_area));
+
+      return true;
+   } else if (tex->op == nir_texop_block_match_sad_qcom ||
+              tex->op == nir_texop_block_match_ssd_qcom) {
+      /* Convert the src coords to integer, and pack the ref coord and block
+       * into u32s each.
+       */
+      int coord_src = nir_tex_instr_src_index(tex, nir_tex_src_coord);
+      assert(coord_src >= 0);
+      nir_src_rewrite(&tex->src[coord_src].src, nir_i2f32(b, tex->src[coord_src].src.ssa));
+
+      int ref_coord_src = nir_tex_instr_src_index(tex, nir_tex_src_ref_coord);
+      assert(ref_coord_src >= 0);
+      nir_src_rewrite(&tex->src[ref_coord_src].src,
+                      pack_16_16(b, tex->src[ref_coord_src].src.ssa));
+
+      int block_size_src = nir_tex_instr_src_index(tex, nir_tex_src_block_size);
+      assert(block_size_src >= 0);
+      nir_src_rewrite(&tex->src[block_size_src].src,
+                      pack_16_16(b, tex->src[block_size_src].src.ssa));
+
+      return true;
+   } else {
+      return false;
+   }
+}
+
+static bool
+ir3_nir_lower_image_processing(nir_shader *shader)
+{
+   return nir_shader_instructions_pass(shader, ir3_nir_lower_image_processing_instr,
+                                       nir_metadata_control_flow, NULL);
+}
+
 static bool
 lower_shader_clock(struct nir_builder *b, nir_intrinsic_instr *instr, void *data)
 {
@@ -700,6 +767,8 @@ ir3_finalize_nir(struct ir3_compiler *compiler,
 
    if (compiler->array_index_add_half)
       OPT(s, ir3_nir_lower_array_sampler);
+
+   OPT(s, ir3_nir_lower_image_processing);
 
    if (compiler->gen >= 6) {
       OPT(s, ir3_nir_lower_shader_clock, compiler->options.uche_trap_base);

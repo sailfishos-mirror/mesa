@@ -757,34 +757,51 @@ lower_tex_ycbcr(const struct tu_pipeline_layout *layout,
 }
 
 static bool
-lower_tex(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
+lower_tex_impl(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
           struct tu_shader *shader, const struct tu_pipeline_layout *layout,
-          uint32_t read_only_input_attachments, bool dynamic_renderpass)
+          uint32_t read_only_input_attachments, bool dynamic_renderpass,
+          bool ref)
 {
-   lower_tex_ycbcr(layout, b, tex);
-
-   int sampler_src_idx = nir_tex_instr_src_index(tex, nir_tex_src_sampler_deref);
+   int sampler_src_idx = nir_tex_instr_src_index(tex, ref ? nir_tex_src_sampler_2_deref : nir_tex_src_sampler_deref);
    if (sampler_src_idx >= 0) {
       nir_deref_instr *deref = nir_src_as_deref(tex->src[sampler_src_idx].src);
       nir_def *bindless = build_bindless(dev, b, deref, true, shader, layout,
                                          read_only_input_attachments,
                                          dynamic_renderpass);
       nir_src_rewrite(&tex->src[sampler_src_idx].src, bindless);
-      tex->src[sampler_src_idx].src_type = nir_tex_src_sampler_handle;
+      tex->src[sampler_src_idx].src_type = ref ? nir_tex_src_sampler_2_handle : nir_tex_src_sampler_handle;
    }
 
-   int tex_src_idx = nir_tex_instr_src_index(tex, nir_tex_src_texture_deref);
+   int tex_src_idx = nir_tex_instr_src_index(tex, ref ? nir_tex_src_texture_2_deref : nir_tex_src_texture_deref);
    if (tex_src_idx >= 0) {
       nir_deref_instr *deref = nir_src_as_deref(tex->src[tex_src_idx].src);
       nir_def *bindless = build_bindless(dev, b, deref, false, shader, layout,
                                          read_only_input_attachments,
                                          dynamic_renderpass);
       nir_src_rewrite(&tex->src[tex_src_idx].src, bindless);
-      tex->src[tex_src_idx].src_type = nir_tex_src_texture_handle;
+      tex->src[tex_src_idx].src_type = ref ? nir_tex_src_texture_2_handle : nir_tex_src_texture_handle;
 
       /* for the input attachment case: */
       if (!nir_def_is_intrinsic(bindless))
          tex->src[tex_src_idx].src_type = nir_tex_src_texture_offset;
+   }
+
+   return true;
+}
+
+static bool
+lower_tex(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
+          struct tu_shader *shader, const struct tu_pipeline_layout *layout,
+          uint32_t read_only_input_attachments, bool dynamic_renderpass)
+{
+   if (tex->op == nir_texop_block_match_sad_qcom ||
+       tex->op == nir_texop_block_match_ssd_qcom ||
+       tex->op == nir_texop_sample_weighted_qcom) {
+      lower_tex_impl(b, tex, dev, shader, layout, read_only_input_attachments, dynamic_renderpass, false);
+      lower_tex_impl(b, tex, dev, shader, layout, read_only_input_attachments, dynamic_renderpass, true);
+   } else {
+      lower_tex_ycbcr(layout, b, tex);
+      lower_tex_impl(b, tex, dev, shader, layout, read_only_input_attachments, dynamic_renderpass, false);
    }
 
    return true;

@@ -120,6 +120,10 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<bitfield name="MIN_LOD_CLAMP" low="0" high="11" type="ufixed" radix="8"/>
 		<!-- pitch for plane 2 / plane 3 -->
 		<bitfield name="PLANE_PITCH" low="8" high="31" type="uint"/>
+
+		<!-- QCOM_image_filtering sample weights descriptor fields, overlapping the others. -->
+		<bitfield name="LOG2_PHASES" low="0" high="2" type="uint"/>
+		<bitfield name="DILATION" low="8" high="11" type="uint"/>
 	</reg32>
 	<!-- 7/8 is plane 2 address for planar formats -->
 	<reg32 offset="7" name="7">
@@ -127,6 +131,8 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	</reg32>
 	<reg32 offset="8" name="8">
 		<bitfield name="FLAG_HI" low="0" high="16"/>
+		<bitfield name="FILTER_SIZE_X" low="17" high="23"/>
+		<bitfield name="FILTER_SIZE_Y" low="24" high="30"/>
 	</reg32>
 	<!-- 9/10 is plane 3 address for planar formats -->
 	<reg32 offset="9" name="9">
@@ -137,6 +143,8 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<!-- log2 size of the first level, required for mipmapping -->
 		<bitfield name="FLAG_BUFFER_LOGW" low="8" high="11" type="uint"/>
 		<bitfield name="FLAG_BUFFER_LOGH" low="12" high="15" type="uint"/>
+		<bitfield name="FILTER_OFFSET_X" low="17" high="22"/>
+		<bitfield name="FILTER_OFFSET_Y" low="23" high="28"/>
 	</reg32>
 	<reg32 offset="11" name="11"/>
 	<reg32 offset="12" name="12"/>

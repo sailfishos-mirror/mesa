@@ -180,6 +180,8 @@ tu_image_view_init(struct tu_device *device,
       vk_find_struct_const(pCreateInfo->pNext, SAMPLER_YCBCR_CONVERSION_INFO);
    const struct vk_ycbcr_conversion *conversion = ycbcr_conversion ?
       vk_ycbcr_conversion_from_handle(ycbcr_conversion->conversion) : NULL;
+   const VkImageViewSampleWeightCreateInfoQCOM *sample_weights =
+      vk_find_struct_const(pCreateInfo->pNext, IMAGE_VIEW_SAMPLE_WEIGHT_CREATE_INFO_QCOM);
 
    vk_image_view_init(&device->vk, &iview->vk, pCreateInfo);
    assert(iview->vk.format != VK_FORMAT_UNDEFINED);
@@ -266,6 +268,14 @@ tu_image_view_init(struct tu_device *device,
    if (conversion) {
       args.chroma_offsets[0] = (enum fdl_chroma_location) conversion->state.chroma_offsets[0];
       args.chroma_offsets[1] = (enum fdl_chroma_location) conversion->state.chroma_offsets[1];
+   }
+
+   if (sample_weights) {
+      args.filter_width = sample_weights->filterSize.width;
+      args.filter_height = sample_weights->filterSize.height;
+      args.filter_center_x = sample_weights->filterCenter.x;
+      args.filter_center_y = sample_weights->filterCenter.y;
+      args.filter_num_phases = sample_weights->numPhases;
    }
 
    TU_CALLX(device, fdl6_view_init)(&iview->view, layouts, &args, device->use_z24uint_s8uint);

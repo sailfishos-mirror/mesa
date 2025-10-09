@@ -83,6 +83,12 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<bitfield name="FLAG_BUFFER_PITCH" low="17" high="24" shr="6" type="uint"/>
 		<bitfield name="ALL_SAMPLES_CENTER" pos="29" type="boolean"/>
 		<bitfield name="MUTABLEEN" pos="31" type="boolean"/>
+
+		<!-- QCOM_image_filtering sample weights descriptor fields, overlapping the others. -->
+		<bitfield name="FILTER_SIZE_X" low="0" high="6"/>
+		<bitfield name="FILTER_SIZE_Y" low="7" high="13"/>
+		<bitfield name="FILTER_OFFSET_X" low="19" high="24"/>
+		<bitfield name="FILTER_OFFSET_Y" low="25" high="30"/>
 	</reg32>
 	<reg32 offset="6" name="6">
 		<bitfield name="TEX_LINE_OFFSET" low="0" high="23" type="uint"/> <!-- PITCH -->
@@ -99,6 +105,10 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<!-- For multiplanar.  This overlaps other single-planar fields: -->
 		<bitfield name="UV_OFFSET_H" low="24" high="25" type="ufixed" radix="2"/> <!-- CHROMA_MIDPOINT_X -->
 		<bitfield name="UV_OFFSET_V" low="26" high="27" type="ufixed" radix="2"/> <!-- CHROMA_MIDPOINT_Y -->
+
+		<!-- QCOM_image_filtering sample weights descriptor fields, overlapping the others. -->
+		<bitfield name="DILATION" low="24" high="27" type="uint"/>
+		<bitfield name="LOG2_PHASES" low="28" high="30" type="uint"/>
 	</reg32>
 	<reg32 offset="8" name="8">
 		<bitfield name="FLAG_ARRAY_PITCH" low="0" high="14" shr="12" type="uint"/> <!-- FLAG_BUFFER_ARRAY_PITCH -->

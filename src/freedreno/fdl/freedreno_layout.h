@@ -374,6 +374,12 @@ struct fdl_view_args {
    enum pipe_format format;
    enum fdl_view_type type;
    enum fdl_chroma_location chroma_offsets[2];
+
+   uint32_t filter_width;
+   uint32_t filter_height;
+   uint32_t filter_center_x;
+   uint32_t filter_center_y;
+   uint32_t filter_num_phases;
 };
 
 #define FDL6_TEX_CONST_DWORDS 16

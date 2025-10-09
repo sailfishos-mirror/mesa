@@ -251,6 +251,50 @@ tu_physical_device_get_format_properties(
                    VK_FORMAT_FEATURE_2_STORAGE_IMAGE_ATOMIC_BIT);
    }
 
+   /* Set up QCOM_imgae_processing flags. This matches blob behavior, except
+    * that it advertises box/weighted on NPOT sampleable formats and ASTC_FLOAT
+    * (which we don't advertise yet), and blockmatch/box/weighted on
+    * VK_FORMAT_G8B8G8R8_422_UNORM.
+    */
+   if ((optimal & VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT) &&
+       (!ycbcr_info || ycbcr_info->n_planes == 1) &&
+       !vk_format_is_depth_or_stencil(vk_format)) {
+      int c = util_format_get_first_non_void_channel(desc->format);
+      bool is_8bpc = c != -1 && desc->is_array && desc->channel[c].size == 8;
+
+      if ((is_8bpc && vk_format != VK_FORMAT_B8G8R8A8_UNORM &&
+           vk_format != VK_FORMAT_B8G8R8A8_SNORM &&
+           vk_format != VK_FORMAT_B8G8R8A8_SRGB) ||
+          vk_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) {
+         if (desc->is_unorm &&
+             desc->colorspace != UTIL_FORMAT_COLORSPACE_SRGB)
+            optimal |= VK_FORMAT_FEATURE_2_BLOCK_MATCHING_BIT_QCOM;
+         if ((desc->is_unorm || desc->is_snorm) &&
+             vk_format != VK_FORMAT_R8G8_SNORM) {
+            optimal |= VK_FORMAT_FEATURE_2_BOX_FILTER_SAMPLED_BIT_QCOM;
+            optimal |= VK_FORMAT_FEATURE_2_WEIGHT_SAMPLED_IMAGE_BIT_QCOM;
+         }
+      }
+
+      if (vk_format == VK_FORMAT_B5G6R5_UNORM_PACK16 ||
+          vk_format == VK_FORMAT_B10G11R11_UFLOAT_PACK32 ||
+          vk_format == VK_FORMAT_E5B9G9R9_UFLOAT_PACK32 ||
+          util_format_is_float16(format) ||
+          (util_format_is_compressed(format) &&
+           desc->layout != UTIL_FORMAT_LAYOUT_RGTC &&
+           vk_format != VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK &&
+           vk_format != VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK &&
+           vk_format != VK_FORMAT_EAC_R11G11_UNORM_BLOCK &&
+           vk_format != VK_FORMAT_EAC_R11G11_SNORM_BLOCK)) {
+         optimal |= VK_FORMAT_FEATURE_2_BOX_FILTER_SAMPLED_BIT_QCOM;
+         optimal |= VK_FORMAT_FEATURE_2_WEIGHT_SAMPLED_IMAGE_BIT_QCOM;
+      }
+
+      if (vk_format == VK_FORMAT_R8_UNORM ||
+          vk_format == VK_FORMAT_R16_SFLOAT)
+         optimal |= VK_FORMAT_FEATURE_2_WEIGHT_IMAGE_BIT_QCOM;
+   }
+
    /* For the most part, we can do anything with a linear image that we could
     * do with a tiled image. However, we can't support sysmem rendering with a
     * linear depth texture, because we don't know if there's a bit to control
