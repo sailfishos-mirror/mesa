@@ -284,6 +284,9 @@ _isl_notify_failure(const struct isl_surf_init_info *surf_info,
 #define notify_failure(surf_info, ...) \
    (_isl_notify_failure(surf_info, __FILE__, __LINE__, __VA_ARGS__), false)
 
+#define print_info(surf_info, ...) \
+   _isl_notify_failure(surf_info, __FILE__, __LINE__, __VA_ARGS__)
+
 
 /* This is useful for adding the isl_prefix to genX functions */
 #define isl_genX(x) CONCAT2(isl_, genX(x))

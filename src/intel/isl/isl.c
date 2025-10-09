@@ -3532,7 +3532,7 @@ isl_surf_init_s(const struct isl_device *dev,
       CHOOSE(ISL_TILING_SKL_Ys);
    }
 
-   /* Choose suggested 4K tilings first, then 64K tilings:
+   /* Choose one of the suggested tilings:
     *
     * The following quotes can be found in the SKL PRMs,
     *   Volume 5: Memory Views, Address Tiling Function Introduction
@@ -3546,15 +3546,40 @@ isl_surf_init_s(const struct isl_device *dev,
     *    "Tile64: 64KB tiling mode which support standard-tiling including
     *     Mip Tails"
     */
-   CHOOSE(ISL_TILING_Y0);
-   CHOOSE(ISL_TILING_4);
-   CHOOSE(ISL_TILING_SKL_Yf);
-   CHOOSE(ISL_TILING_ICL_Yf);
-   CHOOSE(ISL_TILING_SKL_Ys);
-   CHOOSE(ISL_TILING_ICL_Ys);
-   CHOOSE(ISL_TILING_64);
-   CHOOSE(ISL_TILING_64_XE2);
+   isl_tiling_flags_t suggested_tilings = ISL_TILING_Y0_BIT     |
+                                          ISL_TILING_4_BIT      |
+                                          ISL_TILING_SKL_Yf_BIT |
+                                          ISL_TILING_ICL_Yf_BIT |
+                                          ISL_TILING_SKL_Ys_BIT |
+                                          ISL_TILING_ICL_Ys_BIT |
+                                          ISL_TILING_64_BIT     |
+                                          ISL_TILING_64_XE2_BIT;
 
+   surf->size_B = 0;
+
+   u_foreach_bit(tiling, suggested_tilings & tiling_flags) {
+      struct isl_surf tmp_surf = {};
+      info_one_tiling.tiling_flags = 1 << tiling;
+      if (!isl_surf_init_s_with_tiling(dev, &tmp_surf, &info_one_tiling))
+         continue;
+
+      if (surf->size_B == 0) {
+         *surf = tmp_surf;
+      } else if ((info->usage & ISL_SURF_USAGE_PREFER_4K_ALIGNMENT) &&
+                 tmp_surf.alignment_B != surf->alignment_B) {
+         if (tmp_surf.alignment_B == 4096) {
+            print_info(&info_one_tiling, "Enabled preferred alignment.");
+            *surf = tmp_surf;
+         }
+      } else if (tmp_surf.size_B < surf->size_B) {
+         print_info(&info_one_tiling, "Saved %d 4KB page(s).",
+                    (int)(surf->size_B - tmp_surf.size_B) / 4096);
+         *surf = tmp_surf;
+      }
+   }
+
+   if (surf->size_B != 0)
+      return true;
 
    CHOOSE(ISL_TILING_X);
    CHOOSE(ISL_TILING_W);
