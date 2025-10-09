@@ -1645,123 +1645,6 @@ isl_color_value_is_zero_one(union isl_color_value value,
    return true;
 }
 
-/**
- * @param[out] tiling is set only on success
- */
-static bool
-isl_surf_choose_tiling(const struct isl_device *dev,
-                       const struct isl_surf_init_info *restrict info,
-                       enum isl_tiling *tiling)
-{
-   isl_tiling_flags_t tiling_flags = info->tiling_flags;
-
-   /* HiZ surfaces always use the HiZ tiling */
-   if (info->usage & ISL_SURF_USAGE_HIZ_BIT) {
-      assert(isl_format_is_hiz(info->format));
-      assert(tiling_flags == ISL_TILING_HIZ_BIT);
-      *tiling = isl_tiling_flag_to_enum(tiling_flags);
-      return true;
-   }
-
-   /* CCS surfaces always use the CCS tiling */
-   if (info->usage & ISL_SURF_USAGE_CCS_BIT) {
-      assert(isl_format_get_layout(info->format)->txc == ISL_TXC_CCS);
-      assert(tiling_flags == ISL_TILING_CCS_BIT);
-      *tiling = isl_tiling_flag_to_enum(tiling_flags);
-      return true;
-   }
-
-   if (ISL_GFX_VERX10(dev) >= 200) {
-      isl_gfx20_filter_tiling(dev, info, &tiling_flags);
-   } else if (ISL_GFX_VERX10(dev) >= 125) {
-      isl_gfx125_filter_tiling(dev, info, &tiling_flags);
-   } else if (ISL_GFX_VER(dev) >= 6) {
-      isl_gfx6_filter_tiling(dev, info, &tiling_flags);
-   } else {
-      isl_gfx4_filter_tiling(dev, info, &tiling_flags);
-   }
-
-   #define CHOOSE(__tiling) \
-      do { \
-         if (tiling_flags & (1u << (__tiling))) { \
-            *tiling = (__tiling); \
-            return true; \
-          } \
-      } while (0)
-
-   /* Of the tiling modes remaining, choose the one that offers the best
-    * performance.
-    */
-
-   if (info->dim == ISL_SURF_DIM_1D) {
-      /* Prefer linear for 1D surfaces because they do not benefit from
-       * tiling. To the contrary, tiling leads to wasted memory and poor
-       * memory locality due to the swizzling and alignment restrictions
-       * required in tiled surfaces.
-       */
-      CHOOSE(ISL_TILING_LINEAR);
-   }
-
-   if (intel_needs_workaround(dev->info, 22015614752) &&
-       _isl_surf_info_supports_ccs(dev, info->format, info->usage) &&
-       (info->usage & ISL_SURF_USAGE_MULTI_ENGINE_PAR_BIT) &&
-       (info->levels > 1 || info->depth > 1 || info->array_len > 1)) {
-      /* There are issues with multiple engines accessing the same CCS
-       * cacheline in parallel. This can happen if this image has multiple
-       * subresources. If possible, avoid such conflicts by picking a tiling
-       * that will increase the subresource alignment to 64k. If we can't use
-       * such a tiling, we'll prevent CCS from being enabled later on via
-       * isl_surf_supports_ccs.
-       */
-      CHOOSE(ISL_TILING_64);
-   }
-
-   /* For sparse images, prefer the formats that use the standard block
-    * shapes.
-    */
-   if (info->usage & ISL_SURF_USAGE_SPARSE_BIT) {
-      CHOOSE(ISL_TILING_64_XE2);
-      CHOOSE(ISL_TILING_64);
-      CHOOSE(ISL_TILING_ICL_Ys);
-      CHOOSE(ISL_TILING_SKL_Ys);
-   }
-
-   /* Choose suggested 4K tilings first, then 64K tilings:
-    *
-    * Then following quotes can be found in the SKL PRMs,
-    *   Volume 5: Memory Views, Address Tiling Function Introduction
-    * and from the ATS-M PRMs,
-    *   Volume 5: Memory Data Formats, Address Tiling Function Introduction
-    *
-    *    "TileY: Used for most tiled surfaces when TR_MODE=TR_NONE."
-    *    "Tile4: 4KB tiling mode based on previously-supported TileY"
-    *    "TileYF: 4KB tiling mode based on TileY"
-    *    "TileYS: 64KB tiling mode based on TileY"
-    *    "Tile64: 64KB tiling mode which support standard-tiling including
-    *     Mip Tails"
-    *
-    * When TileYF and TileYS are used TR_MODE != TR_NONE.
-    */
-   CHOOSE(ISL_TILING_Y0);
-   CHOOSE(ISL_TILING_4);
-   CHOOSE(ISL_TILING_SKL_Yf);
-   CHOOSE(ISL_TILING_ICL_Yf);
-   CHOOSE(ISL_TILING_SKL_Ys);
-   CHOOSE(ISL_TILING_ICL_Ys);
-   CHOOSE(ISL_TILING_64);
-   CHOOSE(ISL_TILING_64_XE2);
-
-   CHOOSE(ISL_TILING_X);
-   CHOOSE(ISL_TILING_W);
-   CHOOSE(ISL_TILING_LINEAR);
-
-   #undef CHOOSE
-
-   /* No tiling mode accommodates the inputs. */
-   assert(tiling_flags == 0);
-   return notify_failure(info, "no supported tiling");
-}
-
 static bool
 isl_choose_msaa_layout(const struct isl_device *dev,
                  const struct isl_surf_init_info *info,
@@ -3475,10 +3358,10 @@ isl_calc_base_alignment(const struct isl_device *dev,
    return base_alignment_B;
 }
 
-bool
-isl_surf_init_s(const struct isl_device *dev,
-                struct isl_surf *surf,
-                const struct isl_surf_init_info *restrict info)
+static bool
+isl_surf_init_s_with_tiling(const struct isl_device *dev,
+                            struct isl_surf *surf,
+                            const struct isl_surf_init_info *restrict info)
 {
    /* Some sanity checks */
    assert(!(info->usage & ISL_SURF_USAGE_CPB_BIT) ||
@@ -3493,9 +3376,7 @@ isl_surf_init_s(const struct isl_device *dev,
       .a = info->array_len,
    };
 
-   enum isl_tiling tiling;
-   if (!isl_surf_choose_tiling(dev, info, &tiling))
-      return false;
+   const enum isl_tiling tiling = isl_tiling_flag_to_enum(info->tiling_flags);
 
    const enum isl_dim_layout dim_layout =
       isl_surf_choose_dim_layout(dev, info->dim, tiling, info->usage);
@@ -3572,6 +3453,115 @@ isl_surf_init_s(const struct isl_device *dev,
    };
 
    return true;
+}
+
+bool
+isl_surf_init_s(const struct isl_device *dev,
+                struct isl_surf *surf,
+                const struct isl_surf_init_info *restrict info)
+{
+   /* Choose the tiling. */
+   struct isl_surf_init_info info_one_tiling = *info;
+   isl_tiling_flags_t tiling_flags = info->tiling_flags;
+
+   #define CHOOSE(__tiling) \
+      do { \
+         if (tiling_flags & (1u << (__tiling))) { \
+            info_one_tiling.tiling_flags = 1 << __tiling; \
+            return isl_surf_init_s_with_tiling(dev, surf, &info_one_tiling); \
+          } \
+      } while (0)
+
+   /* HiZ surfaces always use the HiZ tiling */
+   if (info->usage & ISL_SURF_USAGE_HIZ_BIT) {
+      assert(isl_format_is_hiz(info->format));
+      assert(tiling_flags == ISL_TILING_HIZ_BIT);
+      CHOOSE(ISL_TILING_HIZ);
+   }
+
+   /* CCS surfaces always use the CCS tiling */
+   if (info->usage & ISL_SURF_USAGE_CCS_BIT) {
+      assert(isl_format_get_layout(info->format)->txc == ISL_TXC_CCS);
+      assert(tiling_flags == ISL_TILING_CCS_BIT);
+      CHOOSE(ISL_TILING_CCS);
+   }
+
+   if (ISL_GFX_VERX10(dev) >= 200) {
+      isl_gfx20_filter_tiling(dev, info, &tiling_flags);
+   } else if (ISL_GFX_VERX10(dev) >= 125) {
+      isl_gfx125_filter_tiling(dev, info, &tiling_flags);
+   } else if (ISL_GFX_VER(dev) >= 6) {
+      isl_gfx6_filter_tiling(dev, info, &tiling_flags);
+   } else {
+      isl_gfx4_filter_tiling(dev, info, &tiling_flags);
+   }
+
+   /* Of the tiling modes remaining, choose the one that offers the best
+    * performance.
+    */
+   if (info->dim == ISL_SURF_DIM_1D) {
+      /* Prefer linear for 1D surfaces because they do not benefit from
+       * tiling. To the contrary, tiling leads to wasted memory and poor
+       * memory locality due to the swizzling and alignment restrictions
+       * required in tiled surfaces.
+       */
+      CHOOSE(ISL_TILING_LINEAR);
+   }
+
+   if (intel_needs_workaround(dev->info, 22015614752) &&
+       _isl_surf_info_supports_ccs(dev, info->format, info->usage) &&
+       (info->usage & ISL_SURF_USAGE_MULTI_ENGINE_PAR_BIT) &&
+       (info->levels > 1 || info->depth > 1 || info->array_len > 1)) {
+      /* There are issues with multiple engines accessing the same CCS
+       * cacheline in parallel. This can happen if this image has multiple
+       * subresources. If possible, avoid such conflicts by picking a tiling
+       * that will increase the subresource alignment to 64k. If we can't use
+       * such a tiling, we'll prevent CCS from being enabled later on via
+       * isl_surf_supports_ccs.
+       */
+      CHOOSE(ISL_TILING_64);
+   }
+
+   /* For sparse images, prefer the formats that use the standard block
+    * shapes.
+    */
+   if (info->usage & ISL_SURF_USAGE_SPARSE_BIT) {
+      CHOOSE(ISL_TILING_64_XE2);
+      CHOOSE(ISL_TILING_64);
+      CHOOSE(ISL_TILING_ICL_Ys);
+      CHOOSE(ISL_TILING_SKL_Ys);
+   }
+
+   /* Choose suggested 4K tilings first, then 64K tilings:
+    *
+    * The following quotes can be found in the SKL PRMs,
+    *   Volume 5: Memory Views, Address Tiling Function Introduction
+    * and from the ATS-M PRMs,
+    *   Volume 5: Memory Data Formats, Address Tiling Function Introduction
+    *
+    *    "TileY: Used for most tiled surfaces when TR_MODE=TR_NONE."
+    *    "Tile4: 4KB tiling mode based on previously-supported TileY"
+    *    "TileYF: 4KB tiling mode based on TileY"
+    *    "TileYS: 64KB tiling mode based on TileY"
+    *    "Tile64: 64KB tiling mode which support standard-tiling including
+    *     Mip Tails"
+    */
+   CHOOSE(ISL_TILING_Y0);
+   CHOOSE(ISL_TILING_4);
+   CHOOSE(ISL_TILING_SKL_Yf);
+   CHOOSE(ISL_TILING_ICL_Yf);
+   CHOOSE(ISL_TILING_SKL_Ys);
+   CHOOSE(ISL_TILING_ICL_Ys);
+   CHOOSE(ISL_TILING_64);
+   CHOOSE(ISL_TILING_64_XE2);
+
+
+   CHOOSE(ISL_TILING_X);
+   CHOOSE(ISL_TILING_W);
+   CHOOSE(ISL_TILING_LINEAR);
+
+   #undef CHOOSE
+   return notify_failure(info, "no supported tiling");
 }
 
 bool
