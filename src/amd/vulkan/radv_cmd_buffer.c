@@ -7893,88 +7893,98 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
       }
    }
 
-   if (cmd_buffer->vk.level == VK_COMMAND_BUFFER_LEVEL_SECONDARY &&
-       (pBeginInfo->flags & VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT)) {
-
-      char gcbiar_data[VK_GCBIARR_DATA_SIZE(MAX_RTS)];
-      const VkRenderingInfo *resume_info =
-         vk_get_command_buffer_inheritance_as_rendering_resume(cmd_buffer->vk.level, pBeginInfo, gcbiar_data);
-      if (resume_info) {
-         radv_CmdBeginRendering(commandBuffer, resume_info);
-      } else {
-         const VkCommandBufferInheritanceRenderingInfo *inheritance_info =
-            vk_get_command_buffer_inheritance_rendering_info(cmd_buffer->vk.level, pBeginInfo);
-         const VkCustomResolveCreateInfoEXT *crc_info =
-            vk_find_struct_const(pBeginInfo->pInheritanceInfo->pNext, CUSTOM_RESOLVE_CREATE_INFO_EXT);
-         const bool custom_resolve = crc_info && crc_info->customResolve;
-
-         radv_cmd_buffer_reset_rendering(cmd_buffer);
-         struct radv_rendering_state *render = &cmd_buffer->state.render;
-         render->active = true;
-         render->view_mask = inheritance_info->viewMask;
-         render->color_samples = inheritance_info->rasterizationSamples;
-         render->ds_samples = inheritance_info->rasterizationSamples;
-         render->max_samples = inheritance_info->rasterizationSamples;
-         render->color_att_count = inheritance_info->colorAttachmentCount;
-
-         if (custom_resolve) {
-            for (uint32_t i = 0; i < crc_info->colorAttachmentCount; i++) {
-               render->color_att[i] = (struct radv_attachment){
-                  .format = crc_info->pColorAttachmentFormats[i],
-               };
-            }
-         } else {
-            for (uint32_t i = 0; i < render->color_att_count; i++) {
-               render->color_att[i] = (struct radv_attachment){
-                  .format = inheritance_info->pColorAttachmentFormats[i],
-               };
-            }
-         }
-
-         assert(inheritance_info->depthAttachmentFormat == VK_FORMAT_UNDEFINED ||
-                inheritance_info->stencilAttachmentFormat == VK_FORMAT_UNDEFINED ||
-                inheritance_info->depthAttachmentFormat == inheritance_info->stencilAttachmentFormat);
-         render->ds_att = (struct radv_attachment){.iview = NULL};
-         if (inheritance_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
-            render->ds_att.format = inheritance_info->depthAttachmentFormat;
-         if (inheritance_info->stencilAttachmentFormat != VK_FORMAT_UNDEFINED)
-            render->ds_att.format = inheritance_info->stencilAttachmentFormat;
-
-         if (vk_format_has_depth(render->ds_att.format))
-            render->ds_att_aspects |= VK_IMAGE_ASPECT_DEPTH_BIT;
-         if (vk_format_has_stencil(render->ds_att.format))
-            render->ds_att_aspects |= VK_IMAGE_ASPECT_STENCIL_BIT;
-
-         if (pdev->info.gfx_level >= GFX12 && pdev->use_hiz && render->ds_att.format) {
-            /* For inherited rendering with secondary commands buffers, assume HiZ/HiS is enabled if
-             * there is a depth/stencil attachment. This is required to apply hardware workarounds
-             * on GFX12.
-             */
-            render->gfx12_has_hiz = true;
-         }
-
-         const VkRenderingAttachmentLocationInfo *ral_info =
-            vk_find_struct_const(pBeginInfo->pInheritanceInfo->pNext, RENDERING_ATTACHMENT_LOCATION_INFO);
-         if (ral_info) {
-            radv_CmdSetRenderingAttachmentLocations(commandBuffer, ral_info);
-         }
-
-         const VkRenderingInputAttachmentIndexInfo *ria_info =
-            vk_find_struct_const(pBeginInfo->pInheritanceInfo->pNext, RENDERING_INPUT_ATTACHMENT_INDEX_INFO);
-         if (ria_info) {
-            radv_CmdSetRenderingInputAttachmentIndices(commandBuffer, ria_info);
-         }
+   if (cmd_buffer->vk.level == VK_COMMAND_BUFFER_LEVEL_SECONDARY) {
+      const VkCommandBufferInheritanceDescriptorHeapInfoEXT *heap_info =
+         vk_find_struct_const(pBeginInfo->pInheritanceInfo->pNext, COMMAND_BUFFER_INHERITANCE_DESCRIPTOR_HEAP_INFO_EXT);
+      if (heap_info) {
+         if (heap_info->pSamplerHeapBindInfo)
+            radv_CmdBindSamplerHeapEXT(commandBuffer, heap_info->pSamplerHeapBindInfo);
+         if (heap_info->pResourceHeapBindInfo)
+            radv_CmdBindResourceHeapEXT(commandBuffer, heap_info->pResourceHeapBindInfo);
       }
 
-      cmd_buffer->state.inherited_pipeline_statistics = pBeginInfo->pInheritanceInfo->pipelineStatistics;
+      if (pBeginInfo->flags & VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT) {
+         char gcbiar_data[VK_GCBIARR_DATA_SIZE(MAX_RTS)];
+         const VkRenderingInfo *resume_info =
+            vk_get_command_buffer_inheritance_as_rendering_resume(cmd_buffer->vk.level, pBeginInfo, gcbiar_data);
+         if (resume_info) {
+            radv_CmdBeginRendering(commandBuffer, resume_info);
+         } else {
+            const VkCommandBufferInheritanceRenderingInfo *inheritance_info =
+               vk_get_command_buffer_inheritance_rendering_info(cmd_buffer->vk.level, pBeginInfo);
+            const VkCustomResolveCreateInfoEXT *crc_info =
+               vk_find_struct_const(pBeginInfo->pInheritanceInfo->pNext, CUSTOM_RESOLVE_CREATE_INFO_EXT);
+            const bool custom_resolve = crc_info && crc_info->customResolve;
 
-      if (cmd_buffer->state.inherited_pipeline_statistics & VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT)
-         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_SHADER_QUERY;
+            radv_cmd_buffer_reset_rendering(cmd_buffer);
+            struct radv_rendering_state *render = &cmd_buffer->state.render;
+            render->active = true;
+            render->color_samples = inheritance_info->rasterizationSamples;
+            render->ds_samples = inheritance_info->rasterizationSamples;
+            render->view_mask = inheritance_info->viewMask;
+            render->max_samples = inheritance_info->rasterizationSamples;
+            render->color_att_count = inheritance_info->colorAttachmentCount;
 
-      cmd_buffer->state.inherited_occlusion_queries = pBeginInfo->pInheritanceInfo->occlusionQueryEnable;
-      cmd_buffer->state.inherited_query_control_flags = pBeginInfo->pInheritanceInfo->queryFlags;
-      if (cmd_buffer->state.inherited_occlusion_queries)
-         cmd_buffer->state.dirty |= RADV_CMD_DIRTY_OCCLUSION_QUERY;
+            if (custom_resolve) {
+               for (uint32_t i = 0; i < crc_info->colorAttachmentCount; i++) {
+                  render->color_att[i] = (struct radv_attachment){
+                     .format = crc_info->pColorAttachmentFormats[i],
+                  };
+               }
+            } else {
+               for (uint32_t i = 0; i < render->color_att_count; i++) {
+                  render->color_att[i] = (struct radv_attachment){
+                     .format = inheritance_info->pColorAttachmentFormats[i],
+                  };
+               }
+            }
+
+            assert(inheritance_info->depthAttachmentFormat == VK_FORMAT_UNDEFINED ||
+                   inheritance_info->stencilAttachmentFormat == VK_FORMAT_UNDEFINED ||
+                   inheritance_info->depthAttachmentFormat == inheritance_info->stencilAttachmentFormat);
+            render->ds_att = (struct radv_attachment){.iview = NULL};
+            if (inheritance_info->depthAttachmentFormat != VK_FORMAT_UNDEFINED)
+               render->ds_att.format = inheritance_info->depthAttachmentFormat;
+            if (inheritance_info->stencilAttachmentFormat != VK_FORMAT_UNDEFINED)
+               render->ds_att.format = inheritance_info->stencilAttachmentFormat;
+
+            if (vk_format_has_depth(render->ds_att.format))
+               render->ds_att_aspects |= VK_IMAGE_ASPECT_DEPTH_BIT;
+            if (vk_format_has_stencil(render->ds_att.format))
+               render->ds_att_aspects |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+            if (pdev->info.gfx_level >= GFX12 && pdev->use_hiz && render->ds_att.format) {
+               /* For inherited rendering with secondary commands buffers, assume HiZ/HiS is enabled if
+                * there is a depth/stencil attachment. This is required to apply hardware workarounds
+                * on GFX12.
+                */
+               render->gfx12_has_hiz = true;
+            }
+
+            const VkRenderingAttachmentLocationInfo *ral_info =
+               vk_find_struct_const(pBeginInfo->pInheritanceInfo->pNext, RENDERING_ATTACHMENT_LOCATION_INFO);
+            if (ral_info) {
+               radv_CmdSetRenderingAttachmentLocations(commandBuffer, ral_info);
+            }
+
+            const VkRenderingInputAttachmentIndexInfo *ria_info =
+               vk_find_struct_const(pBeginInfo->pInheritanceInfo->pNext, RENDERING_INPUT_ATTACHMENT_INDEX_INFO);
+            if (ria_info) {
+               radv_CmdSetRenderingInputAttachmentIndices(commandBuffer, ria_info);
+            }
+         }
+
+         cmd_buffer->state.inherited_pipeline_statistics = pBeginInfo->pInheritanceInfo->pipelineStatistics;
+
+         if (cmd_buffer->state.inherited_pipeline_statistics &
+             VK_QUERY_PIPELINE_STATISTIC_GEOMETRY_SHADER_PRIMITIVES_BIT)
+            cmd_buffer->state.dirty |= RADV_CMD_DIRTY_SHADER_QUERY;
+
+         cmd_buffer->state.inherited_occlusion_queries = pBeginInfo->pInheritanceInfo->occlusionQueryEnable;
+         cmd_buffer->state.inherited_query_control_flags = pBeginInfo->pInheritanceInfo->queryFlags;
+         if (cmd_buffer->state.inherited_occlusion_queries)
+            cmd_buffer->state.dirty |= RADV_CMD_DIRTY_OCCLUSION_QUERY;
+      }
    }
 
    if (radv_device_fault_detection_enabled(device))
