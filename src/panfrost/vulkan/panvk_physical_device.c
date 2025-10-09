@@ -328,7 +328,8 @@ get_device_sync_types(struct panvk_physical_device *device,
    const unsigned arch = pan_arch(device->kmod.dev->props.gpu_id);
    uint32_t sync_type_count = 0;
 
-   device->drm_syncobj_type = vk_drm_syncobj_get_type(device->kmod.dev->fd);
+   device->drm_syncobj_type = vk_drm_syncobj_get_type_from_provider(device->kmod.dev->sync_ops);
+
    if (!device->drm_syncobj_type.features) {
       return vk_errorf(instance, VK_ERROR_INITIALIZATION_FAILED,
                        "failed to query syncobj features");

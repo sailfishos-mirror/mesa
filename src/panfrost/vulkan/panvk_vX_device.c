@@ -626,8 +626,7 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
                  device->printf.bo->addr.host);
 
    device->drm_fd = device->kmod.dev->fd;
-   vk_device_set_drm_fd(&device->vk, device->kmod.dev->fd);
-
+   device->vk.sync =  pan_kmod_sync_clone(device->kmod.dev);
 
    result = panvk_precomp_init(device);
    if (result != VK_SUCCESS)
