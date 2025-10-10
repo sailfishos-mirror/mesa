@@ -2015,11 +2015,12 @@ anv_get_image_format_properties(
    }
 
    const bool aux_supported =
-      vk_format_has_depth(info->format) ||
-      isl_format_supports_ccs_d(devinfo, format->planes[0].isl_format) ||
-      anv_formats_ccs_e_compatible(physical_device, info->flags, info->format,
-                                   info->tiling, info->usage,
-                                   format_list_info);
+      (info->tiling != VK_IMAGE_TILING_LINEAR || devinfo->ver >= 20) &&
+      (vk_format_has_depth(info->format) ||
+       isl_format_supports_ccs_d(devinfo, format->planes[0].isl_format) ||
+       anv_formats_ccs_e_compatible(physical_device, info->flags, info->format,
+                                    info->tiling, info->usage,
+                                    format_list_info));
 
    if (comp_props) {
       comp_props->imageCompressionFixedRateFlags =
@@ -2038,22 +2039,18 @@ anv_get_image_format_properties(
        *     format and vkGetPhysicalDeviceImageFormatProperties2 returns
        *     VK_SUCCESS, the implementation must return VK_TRUE in
        *     optimalDeviceAccess."
-       *
-       * When compression is not supported, the size of the image will not be
-       * changing to support host image transfers.
-       *
-       * TODO: We might be able to still allocate the compression data so that
-       *       we can report identicalMemoryLayout=true, but we might still
-       *       have to report optimalDeviceAccess=false to signal potential
-       *       perf loss.
        */
-      if (compressed_format || !aux_supported) {
-         host_props->optimalDeviceAccess = true;
-         host_props->identicalMemoryLayout = true;
-      } else {
-         host_props->optimalDeviceAccess = false;
-         host_props->identicalMemoryLayout = false;
-      }
+      host_props->optimalDeviceAccess = compressed_format || !aux_supported;
+
+      /* We might not have an identical layout because we disable Yf/Ys/Tile64
+       * and compression for the host transfer usage.
+       *
+       * TODO: Determine if the loss of Yf/Ys/Tile64 translates to a
+       *       measureable performance impact or add tiled-memcpy support for
+       *       these tilings.
+       */
+      host_props->identicalMemoryLayout =
+         info->tiling != VK_IMAGE_TILING_OPTIMAL && !aux_supported;
    }
 
    return VK_SUCCESS;
