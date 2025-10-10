@@ -2847,8 +2847,7 @@ isl_calc_row_pitch_alignment(const struct isl_device *dev,
             if (tile_info->format_bpb > 32 ||
                 surf_info->width > 256 ||
                 surf_info->height > 256) {
-               assert(tile_info->phys_extent_B.width == 128);
-               return 512;
+               return MAX(tile_info->phys_extent_B.width, 512);
             }
          }
       }
@@ -4019,10 +4018,6 @@ isl_surf_supports_ccs(const struct isl_device *dev,
    if (ISL_GFX_VER(dev) >= 9 && surf->tiling == ISL_TILING_X)
       return false;
 
-   /* TODO: add CCS support for Ys/Yf */
-   if (isl_tiling_is_std_y(surf->tiling))
-      return false;
-
    /* Wa_22015614752: There are issues with multiple engines accessing
     * the same CCS cacheline in parallel. This can happen if this image
     * has multiple subresources. Such conflicts can be avoided with
@@ -4074,6 +4069,12 @@ isl_surf_supports_ccs(const struct isl_device *dev,
       if (surf->dim == ISL_SURF_DIM_3D &&
           surf->tiling == ISL_TILING_ICL_Ys &&
           isl_format_get_layout(surf->format)->bpb >= 64)
+         return false;
+
+      /* The simulator says that Yf-tiling does not support compression.
+       * Actual hardware hangs and fails CTS tests with this enabled.
+       */
+      if (surf->tiling == ISL_TILING_ICL_Yf)
          return false;
    } else if (ISL_GFX_VER(dev) < 12) {
       if (surf->samples > 1)
