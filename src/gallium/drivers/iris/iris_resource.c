@@ -901,11 +901,18 @@ iris_resource_configure_main(const struct iris_screen *screen,
       tiling_flags = ISL_TILING_X_BIT;
    } else {
       tiling_flags = ISL_TILING_ANY_MASK;
-   }
 
-   /* We don't support Yf or Ys tiling yet */
-   tiling_flags &= ~ISL_TILING_STD_Y_MASK;
-   assert(tiling_flags != 0);
+      if (screen->devinfo->verx10 == 120 &&
+          util_format_get_blocksizebits(templ->format) == 32 &&
+          resource_needs_storage_usage(templ) &&
+          templ->target == PIPE_TEXTURE_3D) {
+         /* iris_image_view_aux_usage() will disable compression for atomic
+          * operations. Unfortunately BLORP can't resolve CCS on Ys tiled
+          * images on this platform. So, don't use it for now.
+          */
+         tiling_flags &= ~ISL_TILING_ICL_Ys_BIT;
+      }
+   }
 
    isl_surf_usage_flags_t usage = 0;
 
@@ -2616,8 +2623,11 @@ iris_transfer_map(struct pipe_context *ctx,
    if (prefer_cpu_access(res, box, usage, level, map_would_stall))
       usage |= PIPE_MAP_DIRECTLY;
 
-   /* TODO: Teach iris_map_tiled_memcpy about Tile64... */
-   if (isl_tiling_is_64(res->surf.tiling))
+   /* Disable support for tilings that are not supported by ISL's tiled-memcpy
+    * functions.
+    */
+   if (isl_tiling_is_64(res->surf.tiling) ||
+       isl_tiling_is_std_y(res->surf.tiling))
       usage &= ~PIPE_MAP_DIRECTLY;
 
    if (!(usage & PIPE_MAP_DIRECTLY)) {
@@ -2743,6 +2753,7 @@ iris_texture_subdata(struct pipe_context *ctx,
     */
    if (surf->tiling == ISL_TILING_LINEAR ||
        isl_tiling_is_64(res->surf.tiling) ||
+       isl_tiling_is_std_y(res->surf.tiling) ||
        isl_aux_usage_has_compression(res->aux.usage) ||
        resource_is_busy(ice, res) ||
        iris_bo_mmap_mode(res->bo) == IRIS_MMAP_NONE) {
