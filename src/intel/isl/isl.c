@@ -3508,20 +3508,6 @@ isl_surf_init_s(const struct isl_device *dev,
       CHOOSE(ISL_TILING_LINEAR);
    }
 
-   if (intel_needs_workaround(dev->info, 22015614752) &&
-       _isl_surf_info_supports_ccs(dev, info->format, info->usage) &&
-       (info->usage & ISL_SURF_USAGE_MULTI_ENGINE_PAR_BIT) &&
-       (info->levels > 1 || info->depth > 1 || info->array_len > 1)) {
-      /* There are issues with multiple engines accessing the same CCS
-       * cacheline in parallel. This can happen if this image has multiple
-       * subresources. If possible, avoid such conflicts by picking a tiling
-       * that will increase the subresource alignment to 64k. If we can't use
-       * such a tiling, we'll prevent CCS from being enabled later on via
-       * isl_surf_supports_ccs.
-       */
-      CHOOSE(ISL_TILING_64);
-   }
-
    /* For sparse images, prefer the formats that use the standard block
     * shapes.
     */
@@ -3565,6 +3551,12 @@ isl_surf_init_s(const struct isl_device *dev,
 
       if (surf->size_B == 0) {
          *surf = tmp_surf;
+      } else if (isl_surf_supports_ccs(dev, &tmp_surf) !=
+                 isl_surf_supports_ccs(dev, surf)) {
+         if (isl_surf_supports_ccs(dev, &tmp_surf)) {
+            print_info(&info_one_tiling, "Enabled CCS support.");
+            *surf = tmp_surf;
+         }
       } else if ((info->usage & ISL_SURF_USAGE_PREFER_4K_ALIGNMENT) &&
                  tmp_surf.alignment_B != surf->alignment_B) {
          if (tmp_surf.alignment_B == 4096) {
