@@ -5,12 +5,14 @@
  */
 
 #include "panvk_buffer.h"
+#include "panvk_cmd_alloc.h"
 #include "panvk_cmd_buffer.h"
 #include "panvk_device_memory.h"
 #include "panvk_entrypoints.h"
 
 #include "pan_desc.h"
 #include "pan_util.h"
+#include "poly/geometry.h"
 
 #include "vk_android.h"
 #include "vk_render_pass.h"
