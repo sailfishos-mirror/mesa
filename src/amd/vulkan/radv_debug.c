@@ -692,6 +692,7 @@ radv_dump_queue_state(struct radv_queue *queue, const char *dump_dir, const char
          }
          radv_dump_shader(device, pipeline, pipeline->shaders[MESA_SHADER_INTERSECTION], MESA_SHADER_INTERSECTION,
                           dump_dir, f);
+         radv_dump_shader(device, pipeline, rt_pipeline->prolog, MESA_SHADER_COMPUTE, dump_dir, f);
       } else {
          struct radv_compute_pipeline *compute_pipeline = radv_pipeline_to_compute(pipeline);
 
