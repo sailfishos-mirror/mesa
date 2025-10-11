@@ -331,6 +331,7 @@ def add_common_vk_options(debug_options, features_options, misc_options, valid_o
     B = DrircBool
     I = DrircInt
     F = DrircFloat
+    S = DrircString
 
     if defaults is None:
         defaults = {}
@@ -339,6 +340,9 @@ def add_common_vk_options(debug_options, features_options, misc_options, valid_o
         I("force_vk_vendor", defaults.get("force_vk_vendor", 0), -1, 2147483647,
           "Override GPU vendor id",
           c_name="force_vk_vendor"),
+        S("force_vk_devicename", defaults.get("force_vk_devicename", None),
+          "Override Vulkan deviceName.",
+          c_name="force_vk_devicename"),
         B("vk_lower_terminate_to_discard", defaults.get("vk_lower_terminate_to_discard", False),
           "Lower terminate to discard (which is implicitly demote)",
           c_name="lower_terminate_to_discard"),
