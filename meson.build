@@ -2316,7 +2316,9 @@ elif host_machine.system() == 'windows' and cc.get_argument_syntax() != 'msvc'
 else
   prog_nm = find_program('nm')
   with_symbols_check = prog_nm.found() and with_tests
-  symbols_check_args = ['--nm', prog_nm.full_path()]
+  if with_symbols_check
+    symbols_check_args = ['--nm', prog_nm.full_path()]
+  endif
 endif
 
 # This quirk needs to be applied to sources with functions defined in assembly
