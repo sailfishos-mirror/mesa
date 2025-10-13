@@ -1034,7 +1034,7 @@ iris_resource_configure_aux(struct iris_screen *screen,
       isl_surf_get_hiz_surf(&screen->isl_dev, &res->surf, &res->aux.surf);
 
    bool has_ccs = devinfo->has_aux_map || devinfo->has_flat_ccs ?
-      isl_surf_supports_ccs(&screen->isl_dev, &res->surf, &res->aux.surf) :
+      isl_surf_supports_ccs(&screen->isl_dev, &res->surf) :
       isl_surf_get_ccs_surf(&screen->isl_dev, &res->surf, &res->aux.surf, 0);
 
    /* TODO: We should be able to drop this. */

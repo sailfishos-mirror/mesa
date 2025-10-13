@@ -781,8 +781,7 @@ add_aux_surface_if_supported(struct anv_device *device,
       if (!ok)
          return VK_SUCCESS;
 
-      if (!isl_surf_supports_ccs(&device->isl_dev, main_surf,
-                                 &image->planes[plane].aux_surface.isl)) {
+      if (!isl_surf_supports_ccs(&device->isl_dev, main_surf)) {
          image->planes[plane].aux_usage = ISL_AUX_USAGE_HIZ;
       } else if (want_hiz_wt_for_image(device->info, image)) {
          assert(device->info->ver >= 12);
@@ -811,7 +810,7 @@ add_aux_surface_if_supported(struct anv_device *device,
                                               plane);
       }
    } else if (main_surf->usage & (ISL_SURF_USAGE_STENCIL_BIT | ISL_SURF_USAGE_CPB_BIT)) {
-      if (!isl_surf_supports_ccs(&device->isl_dev, main_surf, NULL))
+      if (!isl_surf_supports_ccs(&device->isl_dev, main_surf))
          return VK_SUCCESS;
 
       image->planes[plane].aux_usage = ISL_AUX_USAGE_STC_CCS;
@@ -827,7 +826,7 @@ add_aux_surface_if_supported(struct anv_device *device,
       assert(aspect & VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV);
 
       if (device->info->has_flat_ccs || device->info->has_aux_map) {
-         ok = isl_surf_supports_ccs(&device->isl_dev, main_surf, NULL);
+         ok = isl_surf_supports_ccs(&device->isl_dev, main_surf);
       } else {
          ok = isl_surf_get_ccs_surf(&device->isl_dev, main_surf,
                                     &image->planes[plane].aux_surface.isl,
@@ -890,8 +889,7 @@ add_aux_surface_if_supported(struct anv_device *device,
       if (!ok)
          return VK_SUCCESS;
 
-      if (isl_surf_supports_ccs(&device->isl_dev, main_surf,
-                                &image->planes[plane].aux_surface.isl)) {
+      if (isl_surf_supports_ccs(&device->isl_dev, main_surf)) {
          image->planes[plane].aux_usage = ISL_AUX_USAGE_MCS_CCS;
       } else {
          image->planes[plane].aux_usage = ISL_AUX_USAGE_MCS;

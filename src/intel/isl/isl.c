@@ -3941,6 +3941,11 @@ _isl_surf_info_supports_ccs(const struct isl_device *dev,
    if (ISL_GFX_VER(dev) <= 11 && isl_surf_usage_is_depth_or_stencil(usage))
       return false;
 
+   /* With depth surfaces on gfx12, HIZ is required for CCS. */
+   if (ISL_GFX_VER(dev) == 12 && isl_surf_usage_is_depth(usage) &&
+       INTEL_DEBUG(DEBUG_NO_HIZ))
+      return false;
+
    /* If the surface will be used for transfering data between the GPU and
     * CPU, compression would only introduce expensive resolves.
     */
@@ -3971,8 +3976,7 @@ _isl_surf_info_supports_ccs(const struct isl_device *dev,
 
 bool
 isl_surf_supports_ccs(const struct isl_device *dev,
-                      const struct isl_surf *surf,
-                      const struct isl_surf *hiz_or_mcs_surf)
+                      const struct isl_surf *surf)
 {
    if (!_isl_surf_info_supports_ccs(dev, surf->format, surf->usage))
       return false;
@@ -4046,75 +4050,45 @@ isl_surf_supports_ccs(const struct isl_device *dev,
    }
 
    if (ISL_GFX_VER(dev) == 12) {
-      if (isl_surf_usage_is_stencil(surf->usage)) {
-         /* HiZ and MCS aren't allowed with stencil */
-         assert(hiz_or_mcs_surf == NULL || hiz_or_mcs_surf->size_B == 0);
+      /* Multi-sampled stencil cannot have CCS */
+      if (isl_surf_usage_is_stencil(surf->usage) && surf->samples > 1)
+         return false;
 
-         /* Multi-sampled stencil cannot have CCS */
-         if (surf->samples > 1)
-            return false;
-      } else if (isl_surf_usage_is_depth(surf->usage)) {
-         const struct isl_surf *hiz_surf = hiz_or_mcs_surf;
-
-         /* With depth surfaces, HIZ is required for CCS. */
-         if (hiz_surf == NULL || hiz_surf->size_B == 0)
-            return false;
-
-         assert(hiz_surf->usage & ISL_SURF_USAGE_HIZ_BIT);
-         assert(hiz_surf->tiling == ISL_TILING_HIZ);
-         assert(isl_format_is_hiz(hiz_surf->format));
-      } else if (surf->samples > 1) {
-         const struct isl_surf *mcs_surf = hiz_or_mcs_surf;
-
-         /* With multisampled color, CCS requires MCS */
-         if (mcs_surf == NULL || mcs_surf->size_B == 0)
-            return false;
-
-         assert(mcs_surf->usage & ISL_SURF_USAGE_MCS_BIT);
-         assert(isl_format_is_mcs(mcs_surf->format));
-      } else {
-         /* Single-sampled color can't have MCS or HiZ */
-         assert(hiz_or_mcs_surf == NULL || hiz_or_mcs_surf->size_B == 0);
-
-         /* From Bspec 49252, Render Decompression:
-          *
-          *    "Compressed displayable surfaces must be 16KB aligned and have
-          *    pitches padded to multiple of 4 tiles."
-          *
-          * The drm_fourcc.h header doesn't require the aligned address for
-          * compressed dmabufs, but it does require the aligned pitch.
-          */
-         if (isl_surf_usage_is_display(surf->usage)) {
-            assert(surf->tiling == ISL_TILING_4 ||
-                   surf->tiling == ISL_TILING_Y0);
-            if (surf->row_pitch_B % 512 != 0)
-               return false;
-         }
-
-         /* From BSpec 44930,
-          *
-          *    "Compression of 3D Ys surfaces with 64 or 128 bpp is not
-          *    supported in Gen12. Moreover, "Render Target Fast-clear Enable"
-          *    command is not supported for any 3D Ys surfaces. except when
-          *    Surface is a Procdural Texture."
-          *
-          * It's not clear where the exception applies, but either way, we
-          * don't support Procedural Textures.
-          */
-         if (surf->dim == ISL_SURF_DIM_3D &&
-             surf->tiling == ISL_TILING_ICL_Ys &&
-             isl_format_get_layout(surf->format)->bpb >= 64)
+      /* From Bspec 49252, Render Decompression:
+       *
+       *    "Compressed displayable surfaces must be 16KB aligned and have
+       *    pitches padded to multiple of 4 tiles."
+       *
+       * The drm_fourcc.h header doesn't require the aligned address for
+       * compressed dmabufs, but it does require the aligned pitch.
+       */
+      if (isl_surf_usage_is_display(surf->usage)) {
+         assert(surf->tiling == ISL_TILING_4 ||
+                surf->tiling == ISL_TILING_Y0);
+         if (surf->row_pitch_B % 512 != 0)
             return false;
       }
+
+      /* From BSpec 44930,
+       *
+       *    "Compression of 3D Ys surfaces with 64 or 128 bpp is not
+       *    supported in Gen12. Moreover, "Render Target Fast-clear Enable"
+       *    command is not supported for any 3D Ys surfaces. except when
+       *    Surface is a Procdural Texture."
+       *
+       * It's not clear where the exception applies, but either way, we
+       * don't support Procedural Textures.
+       */
+      if (surf->dim == ISL_SURF_DIM_3D &&
+          surf->tiling == ISL_TILING_ICL_Ys &&
+          isl_format_get_layout(surf->format)->bpb >= 64)
+         return false;
    } else if (ISL_GFX_VER(dev) < 12) {
       if (surf->samples > 1)
          return false;
 
       /* CCS is only for color images on Gfx7-11 */
       assert(!isl_surf_usage_is_depth_or_stencil(surf->usage));
-
-      /* We're single-sampled color so having HiZ or MCS makes no sense */
-      assert(hiz_or_mcs_surf == NULL || hiz_or_mcs_surf->size_B == 0);
 
       /* The PRM doesn't say this explicitly, but fast-clears don't appear to
        * work for 3D textures until gfx9 where the layout of 3D textures
@@ -4151,7 +4125,7 @@ isl_surf_get_ccs_surf(const struct isl_device *dev,
                       struct isl_surf *ccs_surf,
                       uint32_t row_pitch_B)
 {
-   if (!isl_surf_supports_ccs(dev, surf, NULL))
+   if (!isl_surf_supports_ccs(dev, surf))
       return false;
 
    enum isl_format ccs_format;

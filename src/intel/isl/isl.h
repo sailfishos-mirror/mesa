@@ -2787,14 +2787,11 @@ isl_surf_get_tile_info(const struct isl_surf *surf,
 
 /**
  * :param surf:                 |in|  The main surface
- * :param hiz_or_mcs_surf:      |in|  HiZ or MCS surface associated with the main
- *                                    surface
  * :returns: true if the given surface supports CCS.
  */
 bool
 isl_surf_supports_ccs(const struct isl_device *dev,
-                      const struct isl_surf *surf,
-                      const struct isl_surf *hiz_or_mcs_surf);
+                      const struct isl_surf *surf);
 
 /** Constructs a HiZ surface for the given main surface.
  *
