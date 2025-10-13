@@ -64,7 +64,7 @@
         "description": "meson: avoid calling nm.full_path() when tool is not found",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2f652e0b3691e94d6a81e37985741d35561b2312",
         "notes": null
