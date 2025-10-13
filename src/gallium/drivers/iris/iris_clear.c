@@ -165,6 +165,24 @@ can_fast_clear_color(struct iris_context *ice,
          return false;
    }
 
+   /* BSpec 46969 (r45602) tells us that we get no fast-clears for 3D:
+    *
+    *   3D/Volumetric surfaces do not support Fast Clear operation.
+    *
+    * BLORP has a workaround for Y-tiled surfaces, but not Ys-tiled ones. If
+    * the entire surface is being cleared, we could teach BLORP to clear it.
+    * For now, just keep things simple and reject fast clears. HW doesn't
+    * support compression on 64bpp+ formats anyway and iris doesn't enable
+    * compression for 32bpp formats.
+    */
+   if (devinfo->verx10 == 120 &&
+       res->surf.tiling == ISL_TILING_ICL_Ys &&
+       res->surf.dim == ISL_SURF_DIM_3D) {
+      assert(isl_format_get_layout(res->surf.format)->bpb <= 16);
+      perf_debug(&ice->dbg, "Ys + 3D on gfx12.0. Slow clearing surface.");
+      return false;
+   }
+
    /* On gfx12.0, CCS fast clears don't seem to cover the correct portion of
     * the aux buffer when the pitch is not 512B-aligned.
     */

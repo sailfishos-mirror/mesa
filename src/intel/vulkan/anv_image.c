@@ -3905,6 +3905,23 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
          return false;
    }
 
+   /* BSpec 46969 (r45602) tells us that we get no fast-clears for 3D:
+    *
+    *   3D/Volumetric surfaces do not support Fast Clear operation.
+    *
+    * If the entire surface is being cleared, we could teach BLORP to clear
+    * it. For now, just keep things simple and reject fast clears. We don't
+    * support compression on 64bpp+ formats anyway.
+    */
+   if (cmd_buffer->device->info->verx10 == 120 &&
+       anv_surf->isl.dim == ISL_SURF_DIM_3D &&
+       anv_surf->isl.tiling == ISL_TILING_ICL_Ys) {
+      assert(isl_format_get_layout(anv_surf->isl.format)->bpb <= 32);
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "Ys + 3D on gfx12.0.  Slow clearing surface");
+      return false;
+   }
+
    /* On gfx12.0, CCS fast clears don't seem to cover the correct portion of
     * the aux buffer when the pitch is not 512B-aligned.
     */
