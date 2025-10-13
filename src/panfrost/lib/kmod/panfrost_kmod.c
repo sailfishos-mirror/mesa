@@ -26,15 +26,24 @@
 /* Maximum kmod BO label length, including NUL-terminator */
 #define PANFROST_BO_LABEL_MAXLEN 4096
 
+#define pan_bo_to_panfrost_bo(bo_pointer) \
+      container_of(bo_pointer, struct panfrost_kmod_bo, base)
+
 const struct pan_kmod_ops panfrost_kmod_ops;
 
 struct panfrost_kmod_vm {
    struct pan_kmod_vm base;
 };
 
+struct panfrost_kmod_ops {
+   int (*get_param)(const struct pan_kmod_dev *dev,
+                    struct drm_panfrost_get_param *get_param);
+};
+
 struct panfrost_kmod_dev {
    struct pan_kmod_dev base;
    struct panfrost_kmod_vm *vm;
+   struct panfrost_kmod_ops ops;
 };
 
 struct panfrost_kmod_bo {
@@ -77,15 +86,16 @@ struct panfrost_kmod_perf_session {
  * information about devices.
  */
 static __u64
-panfrost_query_raw(int fd, enum drm_panfrost_param param, bool required,
+panfrost_query_raw(const struct pan_kmod_dev *dev,
+                   enum drm_panfrost_param param, bool required,
                    unsigned default_value)
 {
-   struct drm_panfrost_get_param get_param = {};
+   struct drm_panfrost_get_param get_param = { .param = param };
+   struct panfrost_kmod_dev *panfrost_dev =
+      container_of(dev, struct panfrost_kmod_dev, base);
    ASSERTED int ret;
 
-   get_param.param = param;
-   ret = pan_kmod_ioctl(fd, DRM_IOCTL_PANFROST_GET_PARAM, &get_param);
-
+   ret = panfrost_dev->ops.get_param(dev, &get_param);
    if (ret) {
       assert(!required);
       return default_value;
@@ -94,15 +104,12 @@ panfrost_query_raw(int fd, enum drm_panfrost_param param, bool required,
    return get_param.value;
 }
 
-static void
-panfrost_dev_query_thread_props(struct panfrost_kmod_dev *panfrost_dev)
+static inline void
+panfrost_dev_query_thread_props(struct pan_kmod_dev *dev,
+                                struct pan_kmod_dev_props *props)
 {
-   struct pan_kmod_dev_props *props = &panfrost_dev->base.props;
-   const struct pan_kmod_dev *dev = &panfrost_dev->base;
-   int fd = dev->fd;
-
    props->max_threads_per_core =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_MAX_THREADS, true, 0);
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_MAX_THREADS, true, 0);
    if (!props->max_threads_per_core) {
       switch (pan_arch(props->gpu_id)) {
       case 4:
@@ -131,12 +138,12 @@ panfrost_dev_query_thread_props(struct panfrost_kmod_dev *panfrost_dev)
    }
 
    props->max_threads_per_wg = panfrost_query_raw(
-      fd, DRM_PANFROST_PARAM_THREAD_MAX_WORKGROUP_SZ, true, 0);
+      dev, DRM_PANFROST_PARAM_THREAD_MAX_WORKGROUP_SZ, true, 0);
    if (!props->max_threads_per_wg)
       props->max_threads_per_wg = props->max_threads_per_core;
 
    uint32_t thread_features =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_THREAD_FEATURES, true, 0);
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_THREAD_FEATURES, true, 0);
    props->max_tasks_per_core = MAX2(thread_features >> 24, 1);
    props->num_registers_per_core = thread_features & 0xffff;
    if (!props->num_registers_per_core) {
@@ -170,47 +177,45 @@ panfrost_dev_query_thread_props(struct panfrost_kmod_dev *panfrost_dev)
    }
 
    props->max_tls_instance_per_core =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_THREAD_TLS_ALLOC, true, 0);
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_THREAD_TLS_ALLOC, true, 0);
    if (!props->max_tls_instance_per_core)
       props->max_tls_instance_per_core = props->max_threads_per_core;
 }
 
-static void
-panfrost_dev_query_props(struct panfrost_kmod_dev *panfrost_dev)
+static inline void
+panfrost_dev_query_props(struct pan_kmod_dev *dev)
 {
-   struct pan_kmod_dev_props *props = &panfrost_dev->base.props;
-   const struct pan_kmod_dev *dev = &panfrost_dev->base;
-   int fd = dev->fd;
+   struct pan_kmod_dev_props *props = &dev->props;
 
    memset(props, 0, sizeof(*props));
    props->gpu_id =
-      (panfrost_query_raw(fd, DRM_PANFROST_PARAM_GPU_PROD_ID, true, 0) << 16) |
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_GPU_REVISION, true, 0);
+      (panfrost_query_raw(dev, DRM_PANFROST_PARAM_GPU_PROD_ID, true, 0) << 16) |
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_GPU_REVISION, true, 0);
    props->shader_present =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_SHADER_PRESENT, true, 0);
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_SHADER_PRESENT, true, 0);
    props->tiler_features =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_TILER_FEATURES, true, 0);
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_TILER_FEATURES, true, 0);
    props->mem_features =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_MEM_FEATURES, true, 0);
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_MEM_FEATURES, true, 0);
    props->mmu_features =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_MMU_FEATURES, true, 0);
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_MMU_FEATURES, true, 0);
    props->l2_features =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_L2_FEATURES, true, 0);
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_L2_FEATURES, true, 0);
 
    for (unsigned i = 0; i < ARRAY_SIZE(props->texture_features); i++) {
       props->texture_features[i] = panfrost_query_raw(
-         fd, DRM_PANFROST_PARAM_TEXTURE_FEATURES0 + i, true, 0);
+         dev, DRM_PANFROST_PARAM_TEXTURE_FEATURES0 + i, true, 0);
    }
 
    props->afbc_features =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_AFBC_FEATURES, true, 0);
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_AFBC_FEATURES, true, 0);
 
-   panfrost_dev_query_thread_props(panfrost_dev);
+   panfrost_dev_query_thread_props(dev, props);
 
    if (pan_kmod_driver_version_at_least(&dev->driver, 1, 3)) {
       props->gpu_can_query_timestamp = true;
       props->timestamp_frequency = panfrost_query_raw(
-         fd, DRM_PANFROST_PARAM_SYSTEM_TIMESTAMP_FREQUENCY, true, 0);
+         dev, DRM_PANFROST_PARAM_SYSTEM_TIMESTAMP_FREQUENCY, true, 0);
 
       if (props->timestamp_frequency) {
          props->timestamp_cycles_to_ns_factor =
@@ -224,7 +229,7 @@ panfrost_dev_query_props(struct panfrost_kmod_dev *panfrost_dev)
    /* Support for priorities was added in panfrost 1.5, assumes default
     * priority as medium if the param doesn't exist. */
    uint64_t prios =
-      panfrost_query_raw(fd, DRM_PANFROST_PARAM_ALLOWED_JM_CTX_PRIORITIES,
+      panfrost_query_raw(dev, DRM_PANFROST_PARAM_ALLOWED_JM_CTX_PRIORITIES,
                          false, BITFIELD_BIT(PANFROST_JM_CTX_PRIORITY_MEDIUM));
 
    if (prios & BITFIELD_BIT(PANFROST_JM_CTX_PRIORITY_LOW))
@@ -242,7 +247,7 @@ panfrost_dev_query_props(struct panfrost_kmod_dev *panfrost_dev)
 
    if (pan_kmod_driver_version_at_least(&dev->driver, 1, 6)) {
       uint32_t selected_coherency =
-         panfrost_query_raw(fd, DRM_PANFROST_PARAM_SELECTED_COHERENCY, true,
+         panfrost_query_raw(dev, DRM_PANFROST_PARAM_SELECTED_COHERENCY, true,
                             DRM_PANFROST_GPU_COHERENCY_NONE);
 
       props->supported_bo_flags |= PAN_KMOD_BO_FLAG_WB_MMAP;
@@ -251,6 +256,13 @@ panfrost_dev_query_props(struct panfrost_kmod_dev *panfrost_dev)
    }
 
    props->pgsize_bitmap = PAN_PGSIZE_4K | PAN_PGSIZE_2M;
+}
+
+static int
+panfrost_kmod_get_param(const struct pan_kmod_dev *dev,
+                        struct drm_panfrost_get_param *get_param)
+{
+   return pan_kmod_ioctl(dev->fd, DRM_IOCTL_PANFROST_GET_PARAM, get_param);
 }
 
 static struct pan_kmod_dev *
@@ -271,9 +283,13 @@ panfrost_kmod_dev_create(int fd, uint32_t flags,
       return NULL;
    }
 
+   panfrost_dev->ops = (struct panfrost_kmod_ops){
+      .get_param = panfrost_kmod_get_param
+   };
+
    pan_kmod_dev_init(&panfrost_dev->base, fd, flags, drv_info,
                      &panfrost_kmod_ops, allocator);
-   panfrost_dev_query_props(panfrost_dev);
+   panfrost_dev_query_props(&panfrost_dev->base);
 
    return &panfrost_dev->base;
 }
@@ -623,7 +639,7 @@ panfrost_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
 static uint64_t
 panfrost_kmod_query_timestamp(const struct pan_kmod_dev *dev)
 {
-   return panfrost_query_raw(dev->fd, DRM_PANFROST_PARAM_SYSTEM_TIMESTAMP,
+   return panfrost_query_raw(dev, DRM_PANFROST_PARAM_SYSTEM_TIMESTAMP,
                              false, 0);
 }
 
