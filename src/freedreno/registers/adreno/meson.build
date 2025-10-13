@@ -44,16 +44,18 @@ freedreno_pm4_xml_header_file += custom_target(
 )
 freedreno_xml_header_files += freedreno_pm4_xml_header_file
 
-custom_target(
-  'adreno_pm4.xml.gz',
-  input: 'adreno_pm4.xml',
-  output: 'adreno_pm4.xml.gz',
-  command: [prog_gzip, '-kc', '@INPUT@'],
-  capture: true,
-  install_dir: rnn_install_path + '/adreno',
-  install: install_fd_decode_tools,
-  build_by_default: install_fd_decode_tools,
-)
+if install_fd_decode_tools
+  custom_target(
+    'adreno_pm4.xml.gz',
+    input: 'adreno_pm4.xml',
+    output: 'adreno_pm4.xml.gz',
+    command: [prog_gzip, '-kc', '@INPUT@'],
+    capture: true,
+    install_dir: rnn_install_path + '/adreno',
+    install: install_fd_decode_tools,
+    build_by_default: install_fd_decode_tools,
+  )
+endif
 
 foreach f : xml_files
   _name = f + '.h'
@@ -64,17 +66,19 @@ foreach f : xml_files
     command: [prog_python, '@INPUT0@', '--validate', '--rnn', rnn_src_path, '--xml', '@INPUT1@', 'c-defines'],
     capture: true,
   )
-  _gzname = f + '.gz'
-  custom_target(
-    _gzname,
-    input: f,
-    output: _gzname,
-    command: [prog_gzip, '-kc', '@INPUT@'],
-    capture: true,
-    install_dir: rnn_install_path + '/adreno',
-    install: install_fd_decode_tools,
-    build_by_default: install_fd_decode_tools,
-  )
+  if install_fd_decode_tools
+    _gzname = f + '.gz'
+    custom_target(
+      _gzname,
+      input: f,
+      output: _gzname,
+      command: [prog_gzip, '-kc', '@INPUT@'],
+      capture: true,
+      install_dir: rnn_install_path + '/adreno',
+      install: install_fd_decode_tools,
+      build_by_default: install_fd_decode_tools,
+    )
+  endif
 endforeach
 
 freedreno_xml_header_files += custom_target(
