@@ -1094,7 +1094,7 @@
         "description": "blorp: Fix Tile64 clear redescription assertion",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "42ef23ecd1a077a5564c6cd4a31ecf00f234a615",
         "notes": null
