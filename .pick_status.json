@@ -1674,7 +1674,7 @@
         "description": "intel/isl: Fix miptail selection for compressed textures",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "46f45d62d1bc78dfdd8bf9300584a01541f7660f",
         "notes": null
