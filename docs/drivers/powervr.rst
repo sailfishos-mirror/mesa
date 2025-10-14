@@ -1,13 +1,13 @@
 PowerVR
 =======
 
-PowerVR is a Vulkan driver for Imagination Technologies PowerVR GPUs, starting
-with those based on the Rogue architecture.
+PowerVR is an open source Vulkan driver for Imagination Technologies PowerVR
+GPUs, starting with those based on the Rogue architecture.
 
 The driver is conformant to Vulkan 1.0 on `BXS-4-64 <https://www.khronos.org/conformance/adopters/conformant-products#submission_936>`__,
 but **not yet on other GPUs and Vulkan versions**, so it requires exporting
-``PVR_I_WANT_A_BROKEN_VULKAN_DRIVER=1`` to the environment before running any
-Vulkan content.
+``PVR_I_WANT_A_BROKEN_VULKAN_DRIVER=1`` to the environment for GPUs that aren't
+conformant to any Vulkan version before running any Vulkan content.
 
 The following hardware is currently in active development:
 
@@ -15,34 +15,33 @@ The following hardware is currently in active development:
 Product   Series      B.V.N.C        Vulkan
 ========= =========== ============== =======
 AXE-1-16M A-Series    33.15.11.3     1.2
-BXS-4-64  B-Series    36.53.104.796  1.2
 BXM-4-64  B-Series    36.52.104.182  1.2
 BXM-4-64  B-Series    36.56.104.183  1.2
+BXS-4-64  B-Series    36.53.104.796  1.2
 ========= =========== ============== =======
 
 The following hardware is partially supported and not currently
 under active development:
 
-========= =========== ============== ======= ==========
-Product   Series      B.V.N.C        Vulkan  Notes
-========= =========== ============== ======= ==========
-GX6250    Series 6XT  4.40.2.51      1.2     [#GX6250]_
-========= =========== ============== ======= ==========
+========= =========== ============== =======
+Product   Series      B.V.N.C        Vulkan
+========= =========== ============== =======
+GX6250    Series 6XT  4.40.2.51      1.2
+========= =========== ============== =======
 
-.. [#GX6250]
-   Various core-specific texture, compute, and other workarounds are
-   currently unimplemented for this device. Some very simple Vulkan applications
-   may run unhindered, but instability and corruption are to be expected until
-   the aforementioned workarounds are in place.
+Various core-specific features and workarounds are likely to be unimplemented
+for this hardware. Some very simple Vulkan applications may run unhindered, but
+instability and corruption are to be expected until additional feature support
+and workarounds are in place.
 
 The following hardware is unsupported and not under active development:
 
 ========= =========== ==============
 Product   Series      B.V.N.C
 ========= =========== ==============
+G6110     Series 6XE  5.9.1.46
 GX6250    Series 6XT  4.45.2.58
 GX6650    Series 6XT  4.46.6.62
-G6110     Series 6XE  5.9.1.46
 GE7800    Series 7XE  15.5.1.64
 GE8300    Series 8XE  22.67.54.30
 GE8300    Series 8XE  22.68.54.30
