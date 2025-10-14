@@ -34,6 +34,7 @@
 #else
 #include <vulkan/vulkan.h>
 typedef uint16_t float16_t;
+typedef struct radv_aabb16 radv_aabb16;
 #endif
 
 struct radv_accel_struct_serialization_header {
@@ -112,9 +113,18 @@ struct radv_bvh_instance_node {
    mat3x4 otw_matrix;
 };
 
+struct radv_aabb16 {
+   float16_t min_x;
+   float16_t min_y;
+   float16_t min_z;
+   float16_t max_x;
+   float16_t max_y;
+   float16_t max_z;
+};
+
 struct radv_bvh_box16_node {
    uint32_t children[4];
-   float16_t coords[4][2][3];
+   radv_aabb16 coords[4];
 };
 
 struct radv_bvh_box32_node {

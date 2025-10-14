@@ -285,15 +285,15 @@ rra_transcode_box16_node(struct rra_transcoding_context *ctx, const struct radv_
       vk_aabb bounds = {
          .min =
             {
-               _mesa_half_to_float(src->coords[i][0][0]),
-               _mesa_half_to_float(src->coords[i][0][1]),
-               _mesa_half_to_float(src->coords[i][0][2]),
+               _mesa_half_to_float(src->coords[i].min_x),
+               _mesa_half_to_float(src->coords[i].min_y),
+               _mesa_half_to_float(src->coords[i].min_z),
             },
          .max =
             {
-               _mesa_half_to_float(src->coords[i][1][0]),
-               _mesa_half_to_float(src->coords[i][1][1]),
-               _mesa_half_to_float(src->coords[i][1][2]),
+               _mesa_half_to_float(src->coords[i].max_x),
+               _mesa_half_to_float(src->coords[i].max_y),
+               _mesa_half_to_float(src->coords[i].max_z),
             },
       };
 
