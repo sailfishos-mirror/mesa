@@ -2363,12 +2363,6 @@ isl_choose_miptail_start_level(const struct isl_device *dev,
    /* Account for the specified minimum */
    min_miptail_start = MAX(min_miptail_start, info->min_miptail_start_level);
 
-   struct isl_extent3d level0_extent_el = {
-      .w = isl_align_div_npot(info->width, fmtl->bw),
-      .h = isl_align_div_npot(info->height, fmtl->bh),
-      .d = isl_align_div_npot(info->depth, fmtl->bd),
-   };
-
    /* The first miptail slot takes up the entire right side of the tile. So,
     * the extent is just the distance from the offset of the first level to
     * the corner of the tile.
@@ -2388,9 +2382,14 @@ isl_choose_miptail_start_level(const struct isl_device *dev,
    /* Now find the first level that fits the maximum miptail size requirement.
     */
    for (uint32_t s = min_miptail_start; s < info->levels; s++) {
-      if (isl_minify(level0_extent_el.w, s) <= miptail_level0_extent_el.w &&
-          isl_minify(level0_extent_el.h, s) <= miptail_level0_extent_el.h &&
-          isl_minify(level0_extent_el.d, s) <= miptail_level0_extent_el.d)
+      struct isl_extent3d level_s_extent_el = {
+         .w = isl_align_div_npot(isl_minify(info->width, s), fmtl->bw),
+         .h = isl_align_div_npot(isl_minify(info->height, s), fmtl->bh),
+         .d = isl_align_div_npot(isl_minify(info->depth, s), fmtl->bd),
+      };
+      if (level_s_extent_el.w <= miptail_level0_extent_el.w &&
+          level_s_extent_el.h <= miptail_level0_extent_el.h &&
+          level_s_extent_el.d <= miptail_level0_extent_el.d)
          return s;
    }
 
