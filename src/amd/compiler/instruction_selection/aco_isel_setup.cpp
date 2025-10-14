@@ -453,7 +453,9 @@ init_context(isel_context* ctx, nir_shader* shader)
                case nir_op_sdot_2x16_iadd_sat:
                case nir_op_bfdot2_bfadd:
                case nir_op_byte_perm_amd:
-               case nir_op_alignbyte_amd: type = RegType::vgpr; break;
+               case nir_op_alignbyte_amd:
+               case nir_op_f2f16_ru:
+               case nir_op_f2f16_rd: type = RegType::vgpr; break;
                case nir_op_fmul:
                case nir_op_ffma:
                case nir_op_fadd:

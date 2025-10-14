@@ -2615,6 +2615,13 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
       }
       break;
    }
+   case nir_op_f2f16_ru:
+   case nir_op_f2f16_rd:
+      ctx->program->needs_fp_mode_insertion = true;
+      bld.vop1(instr->op == nir_op_f2f16_ru ? aco_opcode::p_v_cvt_f16_f32_rtpi
+                                            : aco_opcode::p_v_cvt_f16_f32_rtni,
+               Definition(dst), Operand(get_alu_src(ctx, instr->src[0])));
+      break;
    case nir_op_f2f32: {
       if (dst.regClass() == s1) {
          assert(instr->src[0].src.ssa->bit_size == 16);

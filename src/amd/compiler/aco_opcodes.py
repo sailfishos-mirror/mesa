@@ -1029,6 +1029,8 @@ VOP1 = {
    ("v_cvt_i32_f32",              dst(U32), src(F32), op(0x08)),
    ("v_cvt_f16_f32",              dst(F16), src(F32), op(0x0a)),
    ("p_v_cvt_f16_f32_rtne",       dst(F16), src(F32), op(-1)),
+   ("p_v_cvt_f16_f32_rtpi",       dst(F16), src(F32), op(-1)),
+   ("p_v_cvt_f16_f32_rtni",       dst(F16), src(F32), op(-1)),
    ("v_cvt_f32_f16",              dst(F32), src(F16), op(0x0b)),
    ("v_cvt_rpi_i32_f32",          dst(U32), src(F32), op(0x0c)), #v_cvt_nearest_i32_f32 in GFX11
    ("v_cvt_flr_i32_f32",          dst(U32), src(F32), op(0x0d)),#v_cvt_floor_i32_f32 in GFX11
