@@ -37,3 +37,4 @@ VK_EXT_rasterization_order_attachment_access on panvk
 VK_ARM_rasterization_order_attachment_access on panvk
 GL_OES_texture_float on etnaviv/HALF_FLOAT
 GL_ARB_texture_float on etnaviv/HALF_FLOAT
+VK_NVX_binary_import on NVK
