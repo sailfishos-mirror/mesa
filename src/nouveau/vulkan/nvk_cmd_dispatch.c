@@ -159,7 +159,8 @@ static VkResult
 nvk_cmd_upload_qmd(struct nvk_cmd_buffer *cmd,
                    const struct nvk_shader *shader,
                    const struct nvk_descriptor_state *desc,
-                   const struct nvk_root_descriptor_table *root,
+                   const void *root,
+                   size_t root_size,
                    uint32_t global_size[3],
                    uint64_t *qmd_addr_out,
                    uint64_t *root_desc_addr_out)
@@ -174,17 +175,16 @@ nvk_cmd_upload_qmd(struct nvk_cmd_buffer *cmd,
     * simply allocated a buffer and upload data to it, make sure its size is
     * 0x100 aligned.
     */
-   STATIC_ASSERT((sizeof(*root) & 0xff) == 0);
-   assert(sizeof(*root) % min_cbuf_alignment == 0);
+   assert(root_size % min_cbuf_alignment == 0);
 
    void *root_desc_map;
    uint64_t root_desc_addr;
-   result = nvk_cmd_buffer_upload_alloc(cmd, sizeof(*root), min_cbuf_alignment,
+   result = nvk_cmd_buffer_upload_alloc(cmd, root_size, min_cbuf_alignment,
                                         &root_desc_addr, &root_desc_map);
    if (unlikely(result != VK_SUCCESS))
       return result;
 
-   memcpy(root_desc_map, root, sizeof(*root));
+   memcpy(root_desc_map, root, root_size);
 
    uint64_t qmd_addr = 0;
    if (shader != NULL) {
@@ -206,7 +206,7 @@ nvk_cmd_upload_qmd(struct nvk_cmd_buffer *cmd,
          if (cbuf->type == NVK_CBUF_TYPE_ROOT_DESC) {
             ba = (struct nvk_buffer_address) {
                .base_addr = root_desc_addr,
-               .size = sizeof(*root),
+               .size = root_size,
             };
          } else {
             ASSERTED bool direct_descriptor =
@@ -255,9 +255,11 @@ nvk_cmd_flush_cs_qmd(struct nvk_cmd_buffer *cmd,
                      uint64_t *root_desc_addr_out)
 {
    const struct nvk_descriptor_state *desc = &state->cs.descriptors;
+   STATIC_ASSERT((sizeof(desc->root) & 0xff) == 0);
 
-   return nvk_cmd_upload_qmd(cmd, state->cs.shader,
-                             desc, (void *)desc->root, global_size,
+   return nvk_cmd_upload_qmd(cmd, state->cs.shader, desc,
+                             desc->root, sizeof(desc->root),
+                             global_size,
                              qmd_addr_out, root_desc_addr_out);
 }
 
