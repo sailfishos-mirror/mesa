@@ -343,33 +343,22 @@ nvk_CmdDispatchBase(VkCommandBuffer commandBuffer,
 }
 
 void
-nvk_cmd_dispatch_shader(struct nvk_cmd_buffer *cmd,
-                        struct nvk_shader *shader,
-                        const void *push_data, size_t push_size,
-                        uint32_t groupCountX,
-                        uint32_t groupCountY,
-                        uint32_t groupCountZ)
+nvk_cmd_dispatch_with_root(struct nvk_cmd_buffer *cmd,
+                           struct nvk_shader *shader,
+                           const void *root,
+                           size_t root_size,
+                           uint32_t groupCountX,
+                           uint32_t groupCountY,
+                           uint32_t groupCountZ)
 {
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
 
-   struct nvk_root_descriptor_table root = {
-      .cs.group_count = {
-         groupCountX,
-         groupCountY,
-         groupCountZ,
-      },
-   };
-   assert(push_size <= sizeof(root.push));
-   memcpy(root.push, push_data, push_size);
-
-   if (NAK_CAN_PRINTF) {
-      struct nvkmd_mem *bo = (struct nvkmd_mem *)dev->printf.bo;
-      root.printf_buffer_addr = bo->va->addr;
-   }
+   uint32_t group_count[3] = { groupCountX, groupCountY, groupCountZ };
 
    uint64_t qmd_addr;
-   VkResult result = nvk_cmd_upload_qmd(cmd, shader, NULL, &root,
-                                        root.cs.group_count,
+   VkResult result = nvk_cmd_upload_qmd(cmd, shader, NULL,
+                                        root, root_size,
+                                        group_count,
                                         &qmd_addr, NULL);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd->vk, result);
@@ -400,6 +389,35 @@ nvk_cmd_dispatch_shader(struct nvk_cmd_buffer *cmd,
    }
 
    P_IMMD(p, NVA0C0, SET_RENDER_ENABLE_OVERRIDE, MODE_USE_RENDER_ENABLE);
+}
+
+void
+nvk_cmd_dispatch_shader(struct nvk_cmd_buffer *cmd,
+                        struct nvk_shader *shader,
+                        const void *push_data, size_t push_size,
+                        uint32_t groupCountX,
+                        uint32_t groupCountY,
+                        uint32_t groupCountZ)
+{
+   struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+
+   struct nvk_root_descriptor_table root = {
+      .cs.group_count = {
+         groupCountX,
+         groupCountY,
+         groupCountZ,
+      },
+   };
+   assert(push_size <= sizeof(root.push));
+   memcpy(root.push, push_data, push_size);
+
+   if (NAK_CAN_PRINTF) {
+      struct nvkmd_mem *bo = (struct nvkmd_mem *)dev->printf.bo;
+      root.printf_buffer_addr = bo->va->addr;
+   }
+
+   nvk_cmd_dispatch_with_root(cmd, shader, &root, sizeof(root),
+                              groupCountX, groupCountY, groupCountZ);
 }
 
 static void

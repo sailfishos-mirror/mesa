@@ -445,6 +445,14 @@ void nvk_cmd_dispatch_shader(struct nvk_cmd_buffer *cmd,
                              uint32_t groupCountY,
                              uint32_t groupCountZ);
 
+void nvk_cmd_dispatch_with_root(struct nvk_cmd_buffer *cmd,
+                                struct nvk_shader *shader,
+                                const void *root,
+                                size_t root_size,
+                                uint32_t groupCountX,
+                                uint32_t groupCountY,
+                                uint32_t groupCountZ);
+
 void nvk_cmd_fill_memory(struct nvk_cmd_buffer *cmd,
                          uint64_t dst_addr, uint64_t size,
                          uint32_t data);
