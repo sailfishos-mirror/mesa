@@ -2110,6 +2110,8 @@ if dep_elf.found()
   pre_args += '-DUSE_LIBELF'
 elif with_gallium_radeonsi and with_gfx_compute
   error('Gallium driver radeonsi requires libelf')
+elif with_nouveau_vk
+  error('NVK requires libelf')
 endif
 
 dep_valgrind = dependency('valgrind', required : get_option('valgrind'))
