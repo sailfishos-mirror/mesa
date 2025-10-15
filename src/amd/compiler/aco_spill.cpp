@@ -1887,8 +1887,9 @@ spill(Program* program)
     * Limit to single wave workgroups, to avoid needing the wave_id for the offset.
     * If we have a scratch stack pointer, don't use LDS at all.
     */
-   if (program->stage == compute_cs && program->workgroup_size <= program->wave_size &&
-       !program->stack_ptr.id() && program->gfx_level >= GFX9) {
+   if ((program->stage == compute_cs || program->stage == raytracing_cs) &&
+       program->workgroup_size <= program->wave_size && !program->stack_ptr.id() &&
+       program->gfx_level >= GFX9) {
       int used_lds = program->config->lds_size;
 
       unsigned allocated_vgprs = ALIGN_NPOT(limit.vgpr, program->dev.vgpr_alloc_granule);
