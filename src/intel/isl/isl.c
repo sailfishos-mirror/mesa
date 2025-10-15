@@ -1290,18 +1290,43 @@ isl_tiling_get_info(enum isl_tiling tiling,
          };
 
 #undef YS_OR_YF
+         /* From the ICL PRMs Volume 5: Memory Data Formats, "Compressed
+          * Multisampled Surfaces":
+          *
+          *    Tiling for CMS and UMS Surfaces
+          *
+          *    Multisampled CMS and UMS use a modified table from
+          *    non-mulitsampled 2D surfaces.
+          *
+          *    [...]
+          *
+          *    TileYS: In addition to u and v, the sample slice index “ss” is
+          *    included in the address swizzling according to the following
+          *    table.
+          *
+          *    [...]
+          *
+          *    TileYF: In addition to u and v, the sample slice index “ss” is
+          *    included in the address swizzling according to the following
+          *    table.
+          *
+          * IMS surfaces don't use the MSAA swizzles for Yf/Ys.
+          */
+         const uint32_t sample_idx =
+            (msaa_layout == ISL_MSAA_LAYOUT_INTERLEAVED) ? 0 :
+            (ffs(samples) - 1);
 
          switch (format_bpb) {
          case 128:
          case 64:
-            SET_SWIZ(_128_64bpp_swiz[ffs(samples) - 1], tiling_bits);
+            SET_SWIZ(_128_64bpp_swiz[sample_idx], tiling_bits);
             break;
          case 32:
          case 16:
-            SET_SWIZ(_32_16bpp_swiz[ffs(samples) - 1], tiling_bits);
+            SET_SWIZ(_32_16bpp_swiz[sample_idx], tiling_bits);
             break;
          case 8:
-            SET_SWIZ(_8bpp_swiz[ffs(samples) - 1], tiling_bits);
+            SET_SWIZ(_8bpp_swiz[sample_idx], tiling_bits);
             break;
          default:
             UNREACHABLE("Unsupported format size");
