@@ -2054,12 +2054,15 @@ iris_bo_import_dmabuf(struct iris_bufmgr *bufmgr, int prime_fd,
 
    uint64_t alignment = 1;
 
-   /* When an aux map will be used, there is an alignment requirement on the
-    * main surface from the mapping granularity. Some planes of the image may
-    * have smaller alignment requirements, but this one should work for all.
-    */
    if (bufmgr->devinfo.has_aux_map && isl_drm_modifier_has_aux(modifier))
+      /* There is an alignment requirement on the main surface from the
+       * aux-map's mapping granularity. Some planes of the image may have
+       * smaller alignment requirements, but this one should work for all.
+       */
       alignment = intel_aux_map_get_alignment(bufmgr->aux_map_ctx);
+   else if (bo->size >= 64 * 1024)
+      /* The BO may contain a surface that is tiled with a 64K tiling. */
+      alignment = 64 * 1024;
 
    bo->address = vma_alloc(bufmgr, IRIS_MEMZONE_OTHER, bo->size, alignment);
    if (bo->address == 0ull)
