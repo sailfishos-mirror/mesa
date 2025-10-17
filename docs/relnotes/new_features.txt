@@ -54,3 +54,5 @@ VK_EXT_display_control on pvr
 VK_EXT_direct_mode_display on pvr
 VK_KHR_surface_maintenance1 on pvr
 VK_EXT_surface_maintenance1 on pvr
+VK_KHR_swapchain_maintenance1 on pvr
+VK_EXT_swapchain_maintenance1 on pvr

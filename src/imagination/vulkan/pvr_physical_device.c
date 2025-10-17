@@ -174,6 +174,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_spirv_1_4 = true,
       .KHR_storage_buffer_storage_class = true,
       .KHR_swapchain = PVR_USE_WSI_PLATFORM,
+      .KHR_swapchain_maintenance1 = PVR_USE_WSI_PLATFORM,
       .KHR_swapchain_mutable_format = PVR_USE_WSI_PLATFORM,
       .KHR_timeline_semaphore = true,
       .KHR_uniform_buffer_standard_layout = true,
@@ -520,6 +521,9 @@ static void pvr_physical_device_get_supported_features(
 
       /* VK_KHR_pipeline_executable_properties */
       .pipelineExecutableInfo = true,
+
+      /* VK_EXT_swapchain_maintenance1 / VK_KHR_swapchain_maintenance1 */
+      .swapchainMaintenance1 = PVR_USE_WSI_PLATFORM,
    };
 }
 
