@@ -61,6 +61,7 @@ static const struct vk_instance_extension_table pvr_instance_extensions = {
    .EXT_headless_surface = PVR_USE_WSI_PLATFORM,
 #endif
    .EXT_surface_maintenance1 = PVR_USE_WSI_PLATFORM,
+   .EXT_swapchain_colorspace = PVR_USE_WSI_PLATFORM,
 };
 
 static VkResult pvr_get_drm_devices(void *const obj,
