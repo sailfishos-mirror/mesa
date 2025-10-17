@@ -177,6 +177,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_swapchain_maintenance1 = PVR_USE_WSI_PLATFORM,
       .KHR_swapchain_mutable_format = PVR_USE_WSI_PLATFORM,
       .KHR_timeline_semaphore = true,
+      .KHR_unified_image_layouts = true,
       .KHR_uniform_buffer_standard_layout = true,
       .KHR_vertex_attribute_divisor = true,
       .KHR_workgroup_memory_explicit_layout = true,
@@ -524,6 +525,9 @@ static void pvr_physical_device_get_supported_features(
 
       /* VK_EXT_swapchain_maintenance1 / VK_KHR_swapchain_maintenance1 */
       .swapchainMaintenance1 = PVR_USE_WSI_PLATFORM,
+
+      /* KHR_unifiedImageLayouts */
+      .unifiedImageLayouts = true
    };
 }
 
