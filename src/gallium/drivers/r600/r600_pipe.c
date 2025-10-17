@@ -502,6 +502,7 @@ static void r600_init_screen_caps(struct r600_screen *rscreen)
 	caps->sampler_view_target =
 	caps->shader_pack_half_float =
 	caps->shader_clock =
+	caps->shader_realtime_clock =
 	caps->shader_array_components =
 	caps->query_buffer_object =
 	caps->image_store_formatted =
