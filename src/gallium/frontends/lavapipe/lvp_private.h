@@ -38,6 +38,8 @@
 #include "util/simple_mtx.h"
 #include "util/u_queue.h"
 #include "util/u_upload_mgr.h"
+#include "vk_texcompress_astc.h"
+#include "vk_texcompress_etc2.h"
 
 #include "compiler/shader_enums.h"
 #include "pipe/p_screen.h"
@@ -303,7 +305,24 @@ struct lvp_image {
    bool disjoint;
    uint8_t plane_count;
    struct lvp_image_plane planes[3];
+   VkFormat emu_plane_format;
+   struct lvp_image_plane emu_plane;
 };
+
+static inline bool
+lvp_is_compressed_format_emulated(VkFormat format) {
+   const struct util_format_description *desc =
+      vk_format_description(format);
+
+   switch (desc->layout) {
+   case UTIL_FORMAT_LAYOUT_ASTC:
+      return vk_texcompress_astc_emulation_format(format) != VK_FORMAT_UNDEFINED;
+   case UTIL_FORMAT_LAYOUT_ETC:
+      return true;
+   default:
+      return false;
+   }
+}
 
 struct lvp_image_view {
    struct vk_image_view vk;
@@ -778,6 +797,23 @@ lvp_vk_format_to_pipe_format(VkFormat format)
    }
 }
 
+static inline VkFormat
+lvp_texcompress_vk_format_to_emu_plane_format(VkFormat format)
+{
+   const struct util_format_description *desc =
+      vk_format_description(format);
+
+   switch (desc->layout) {
+   case UTIL_FORMAT_LAYOUT_ASTC:
+      return vk_texcompress_astc_emulation_format(format);
+   case UTIL_FORMAT_LAYOUT_ETC:
+      return vk_texcompress_etc2_emulation_format(format);
+   default:
+      UNREACHABLE("Unsupported compressed texture format");
+      return VK_FORMAT_UNDEFINED;
+   }
+}
+
 void
 lvp_nir_lower_blend(nir_shader *nir, const nir_lower_blend_options *opts);
 
@@ -902,6 +938,14 @@ lvp_image_copy_depth_box(uint8_t *dst,
                enum pipe_format src_format,
                int src_stride, uint64_t src_slice_stride,
                unsigned src_x, unsigned src_y, unsigned src_z);
+
+void
+lvp_unpack_texcompress(uint8_t *dst_row,
+                       unsigned dst_stride,
+                       const uint8_t *src_row,
+                       unsigned src_stride,
+                       const VkExtent3D *extent,
+                       enum pipe_format format);
 
 #ifdef __cplusplus
 }
