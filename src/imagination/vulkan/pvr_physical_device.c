@@ -186,6 +186,7 @@ static void pvr_physical_device_get_supported_extensions(
       .EXT_depth_clamp_zero_one = true,
       .EXT_depth_clip_enable = true,
       .EXT_device_memory_report = true,
+      .EXT_display_control = PVR_USE_WSI_PLATFORM_DISPLAY,
       .EXT_image_drm_format_modifier = true,
       .EXT_extended_dynamic_state = true,
       .EXT_extended_dynamic_state2 = true,
