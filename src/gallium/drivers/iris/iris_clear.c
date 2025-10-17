@@ -128,21 +128,33 @@ can_fast_clear_color(struct iris_context *ice,
    if (!iris_is_color_fast_clear_compatible(ice, res->surf.format, color))
       return false;
 
-   /* The RENDER_SURFACE_STATE page for TGL says:
+   /* From the TGL PRM Vol. 9, "Render Target Fast Clear":
     *
-    *   For an 8 bpp surface with NUM_MULTISAMPLES = 1, Surface Width not
-    *   multiple of 64 pixels and more than 1 mip level in the view, Fast Clear
-    *   is not supported when AUX_CCS_E is set in this field.
+    *   SW needs to disable Render Target Fast clear for surface type = 2D,
+    *   surface format = 8 bpp, tile format = TYS pr TY, Mip is not aligned to
+    *   32x4 pixels
     *
-    * The granularity of a fast-clear is one CCS element. For an 8 bpp primary
-    * surface, this maps to 32px x 4rows. Due to the surface layout parameters,
-    * if LOD0's width isn't a multiple of 64px, LOD1 and LOD2+ will share CCS
-    * elements. Assuming LOD2 exists, don't fast-clear any level above LOD0
-    * to avoid stomping on other LODs.
+    * This can also be found in the ACM PRMs and it seems to be applicable
+    * according to test results.
     */
-   if (level > 0 && util_format_get_blocksizebits(p_res->format) == 8 &&
-       p_res->width0 % 64) {
-      return false;
+   if (util_format_get_blocksizebits(p_res->format) == 8) {
+      if (level - res->surf.miptail_start_level >= 5) {
+         /* If miptails are in use, avoid using slot 5 or anything afterwards.
+          * According to icl_std_y_2d_miptail_offset_el[], this slot offsets
+          * 16 pixels into the miptail.
+          */
+         return false;
+      }
+
+      if (level > 0 && p_res->width0 % 64 &&
+          res->surf.image_alignment_el.w % 32) {
+         /* The granularity of a fast-clear is one CCS element. For an 8 bpp
+          * primary surface, this maps to 32px x 4rows.  Due to the surface
+          * layout parameters, if LOD0's width isn't a multiple of 64px, LOD1
+          * and LOD2+ will share CCS elements.
+          */
+         return false;
+      }
    }
 
    /* Wa_18020603990 - slow clear surfaces up to 256x256, 32bpp. */
