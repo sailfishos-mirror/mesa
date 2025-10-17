@@ -51,3 +51,4 @@ VK_KHR_shader_fma on anv
 VK_KHR_extended_flags on RADV
 VK_EXT_display_surface_counter on pvr
 VK_EXT_display_control on pvr
+VK_EXT_direct_mode_display on pvr
