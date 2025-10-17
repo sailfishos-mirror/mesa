@@ -760,6 +760,115 @@ target_to_isl_surf_dim(enum pipe_texture_target target)
 }
 
 static bool
+pipe_format_has_pot_view_class(enum pipe_format format)
+{
+   /* See the view class table at the top of src/mesa/main/textureview.c. */
+   switch (format) {
+
+   /* VIEW_CLASS_128_BITS */
+   case PIPE_FORMAT_R32G32B32A32_FLOAT:
+   case PIPE_FORMAT_R32G32B32A32_UINT:
+   case PIPE_FORMAT_R32G32B32A32_SINT:
+
+   /* VIEW_CLASS_64_BITS */
+   case PIPE_FORMAT_R16G16B16A16_FLOAT:
+   case PIPE_FORMAT_R32G32_FLOAT:
+
+   case PIPE_FORMAT_R16G16B16A16_UINT:
+   case PIPE_FORMAT_R32G32_UINT:
+
+   case PIPE_FORMAT_R16G16B16A16_SINT:
+   case PIPE_FORMAT_R32G32_SINT:
+
+   case PIPE_FORMAT_R16G16B16A16_UNORM:
+   case PIPE_FORMAT_R16G16B16A16_SNORM:
+
+   /* VIEW_CLASS_32_BITS */
+   case PIPE_FORMAT_R16G16_FLOAT:
+   case PIPE_FORMAT_R11G11B10_FLOAT:
+   case PIPE_FORMAT_R32_FLOAT:
+
+   case PIPE_FORMAT_R10G10B10A2_UINT:
+   case PIPE_FORMAT_R8G8B8A8_UINT:
+   case PIPE_FORMAT_R16G16_UINT:
+   case PIPE_FORMAT_R32_UINT:
+
+   case PIPE_FORMAT_R8G8B8A8_SINT:
+   case PIPE_FORMAT_R16G16_SINT:
+   case PIPE_FORMAT_R32_SINT:
+
+   case PIPE_FORMAT_R10G10B10A2_UNORM:
+   case PIPE_FORMAT_R8G8B8A8_UNORM:
+   case PIPE_FORMAT_R16G16_UNORM:
+
+   case PIPE_FORMAT_R8G8B8A8_SNORM:
+   case PIPE_FORMAT_R16G16_SNORM:
+
+   case PIPE_FORMAT_R8G8B8A8_SRGB:
+
+   case PIPE_FORMAT_R9G9B9E5_FLOAT:
+
+   /* VIEW_CLASS_16_BITS */
+   case PIPE_FORMAT_R16_FLOAT:
+
+   case PIPE_FORMAT_R8G8_UINT:
+   case PIPE_FORMAT_R16_UINT:
+
+   case PIPE_FORMAT_R8G8_SINT:
+   case PIPE_FORMAT_R16_SINT:
+
+   case PIPE_FORMAT_R8G8_UNORM:
+   case PIPE_FORMAT_R16_UNORM:
+
+   case PIPE_FORMAT_R8G8_SNORM:
+   case PIPE_FORMAT_R16_SNORM:
+
+   /* VIEW_CLASS_8_BITS */
+   case PIPE_FORMAT_R8_UINT:
+   case PIPE_FORMAT_R8_SINT:
+   case PIPE_FORMAT_R8_UNORM:
+   case PIPE_FORMAT_R8_SNORM:
+      return true;
+
+   default:
+      return false;
+   }
+}
+
+static bool
+resource_needs_storage_usage(const struct pipe_resource *templ)
+{
+   if (templ->bind & PIPE_BIND_SHADER_IMAGE)
+      return true;
+
+   /* Gallium doesn't use PIPE_BIND_SHADER_IMAGE where expected for GL. Use
+    * a heuristic to determine if it's needed.
+    */
+   if (templ->flags & PIPE_RESOURCE_FLAG_TEXTURING_MORE_LIKELY) {
+      /* We don't support multisampled storage images (see
+       * iris_is_format_supported).
+       */
+      if (templ->nr_samples > 1)
+         return false;
+
+      /* If the image format is immutable, we only need to check that the
+       * original format supports load/store. If the format is mutable, we
+       * need to check if it's possible to texture view to a format supporting
+       * load/store. Gallium doesn't provide any information on format
+       * mutability. So, we must assume that the format is mutable.
+       *
+       * The formats allowed in a texture view are constrained by the view
+       * class. Every format supported for image load/store belongs to a
+       * power-of-two view class (see _mesa_is_shader_image_format_supported).
+       * So, check if the resource format belongs to such a view class.
+       */
+      return pipe_format_has_pot_view_class(templ->format);
+   }
+
+   return false;
+}
+
+static bool
 iris_resource_configure_main(const struct iris_screen *screen,
                              struct iris_resource *res,
                              const struct pipe_resource *templ,
@@ -830,7 +939,7 @@ iris_resource_configure_main(const struct iris_screen *screen,
    if (templ->bind & PIPE_BIND_SAMPLER_VIEW)
       usage |= ISL_SURF_USAGE_TEXTURE_BIT;
 
-   if (templ->bind & PIPE_BIND_SHADER_IMAGE)
+   if (resource_needs_storage_usage(templ))
       usage |= ISL_SURF_USAGE_STORAGE_BIT;
 
    if (templ->bind & PIPE_BIND_SCANOUT)
