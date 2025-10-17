@@ -841,6 +841,22 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
    if (progress)
       nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
 
+   if (pdev->info.has_cs_regalloc_hang_bug &&
+       mesa_shader_stage_is_compute(nir->info.stage)) {
+      const uint32_t wg_size = nir->info.workgroup_size[0] *
+                               nir->info.workgroup_size[1] *
+                               nir->info.workgroup_size[2];
+
+      if (wg_size > 256) {
+         NIR_PASS(progress, nir, nir_lower_workgroup_size, 256);
+
+         if (!stage->key.optimisations_disabled)
+            radv_optimize_nir(nir, false);
+
+         nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
+      }
+   }
+
    return nir;
 }
 
