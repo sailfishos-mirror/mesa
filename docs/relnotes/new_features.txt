@@ -49,3 +49,4 @@ VK_EXT_device_address_binding_report on panvk
 VK_EXT_multisampled_render_to_single_sampled on RADV/Android
 VK_KHR_shader_fma on anv
 VK_KHR_extended_flags on RADV
+VK_EXT_display_surface_counter on pvr
