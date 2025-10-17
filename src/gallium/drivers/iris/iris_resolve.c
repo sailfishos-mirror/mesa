@@ -1035,6 +1035,9 @@ iris_image_view_aux_usage(struct iris_context *ice,
                           pview->u.tex.level : 0;
 
    bool uses_atomic_load_store =
+      (pview->format == PIPE_FORMAT_R32_UINT ||
+       pview->format == PIPE_FORMAT_R32_SINT ||
+       pview->format == PIPE_FORMAT_R32_FLOAT) &&
       ice->shaders.uncompiled[info->stage]->uses_atomic_load_store;
 
    /* Prior to GFX12, render compression is not supported for images. */
