@@ -138,6 +138,88 @@ vmem_default_needs(Instruction* instr)
    }
 }
 
+bool
+instr_ignores_round_mode(Instruction* instr)
+{
+   switch (instr->opcode) {
+   case aco_opcode::v_min_f64_e64:
+   case aco_opcode::v_min_f64:
+   case aco_opcode::v_min_f32:
+   case aco_opcode::v_min_f16:
+   case aco_opcode::v_max_f64_e64:
+   case aco_opcode::v_max_f64:
+   case aco_opcode::v_max_f32:
+   case aco_opcode::v_max_f16:
+   case aco_opcode::v_min3_f32:
+   case aco_opcode::v_min3_f16:
+   case aco_opcode::v_max3_f32:
+   case aco_opcode::v_max3_f16:
+   case aco_opcode::v_med3_f32:
+   case aco_opcode::v_med3_f16:
+   case aco_opcode::v_minmax_f32:
+   case aco_opcode::v_minmax_f16:
+   case aco_opcode::v_maxmin_f32:
+   case aco_opcode::v_maxmin_f16:
+   case aco_opcode::v_minimum_f64:
+   case aco_opcode::v_minimum_f32:
+   case aco_opcode::v_minimum_f16:
+   case aco_opcode::v_maximum_f64:
+   case aco_opcode::v_maximum_f32:
+   case aco_opcode::v_maximum_f16:
+   case aco_opcode::v_minimum3_f32:
+   case aco_opcode::v_minimum3_f16:
+   case aco_opcode::v_maximum3_f32:
+   case aco_opcode::v_maximum3_f16:
+   case aco_opcode::v_minimummaximum_f32:
+   case aco_opcode::v_minimummaximum_f16:
+   case aco_opcode::v_maximumminimum_f32:
+   case aco_opcode::v_maximumminimum_f16:
+   case aco_opcode::v_pk_min_f16:
+   case aco_opcode::v_pk_max_f16:
+   case aco_opcode::v_pk_minimum_f16:
+   case aco_opcode::v_pk_maximum_f16:
+   case aco_opcode::v_cvt_pkrtz_f16_f32:
+   case aco_opcode::v_cvt_pkrtz_f16_f32_e64:
+   case aco_opcode::v_pack_b32_f16:
+   case aco_opcode::v_cvt_f32_f16:
+   case aco_opcode::v_cvt_f64_f32:
+   case aco_opcode::v_ceil_f64:
+   case aco_opcode::v_ceil_f32:
+   case aco_opcode::v_ceil_f16:
+   case aco_opcode::v_trunc_f64:
+   case aco_opcode::v_trunc_f32:
+   case aco_opcode::v_trunc_f16:
+   case aco_opcode::v_floor_f64:
+   case aco_opcode::v_floor_f32:
+   case aco_opcode::v_floor_f16:
+   case aco_opcode::v_rndne_f64:
+   case aco_opcode::v_rndne_f32:
+   case aco_opcode::v_rndne_f16:
+   case aco_opcode::v_fract_f64:
+   case aco_opcode::v_fract_f32:
+   case aco_opcode::v_fract_f16:
+   case aco_opcode::s_min_f32:
+   case aco_opcode::s_min_f16:
+   case aco_opcode::s_max_f32:
+   case aco_opcode::s_max_f16:
+   case aco_opcode::s_minimum_f32:
+   case aco_opcode::s_minimum_f16:
+   case aco_opcode::s_maximum_f32:
+   case aco_opcode::s_maximum_f16:
+   case aco_opcode::s_cvt_pk_rtz_f16_f32:
+   case aco_opcode::s_cvt_f32_f16:
+   case aco_opcode::s_ceil_f32:
+   case aco_opcode::s_ceil_f16:
+   case aco_opcode::s_trunc_f32:
+   case aco_opcode::s_trunc_f16:
+   case aco_opcode::s_floor_f32:
+   case aco_opcode::s_floor_f16:
+   case aco_opcode::s_rndne_f32:
+   case aco_opcode::s_rndne_f16: return true;
+   default: return false;
+   }
+}
+
 mode_mask
 instr_default_needs(fp_mode_ctx* ctx, Block* block, Instruction* instr)
 {
@@ -222,6 +304,10 @@ instr_default_needs(fp_mode_ctx* ctx, Block* block, Instruction* instr)
       res |= BITFIELD_BIT(mode_round32);
    else if (instr->opcode == aco_opcode::v_fma_mix_f32 && instr->valu().opsel_hi)
       res |= BITFIELD_BIT(mode_denorm16_64);
+
+   if (instr_ignores_round_mode(instr))
+      res &= ~(BITFIELD_BIT(mode_fp16_ovfl) | BITFIELD_BIT(mode_round32) |
+               BITFIELD_BIT(mode_round16_64));
 
    return res;
 }
