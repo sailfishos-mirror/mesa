@@ -404,6 +404,8 @@ validate_ir(Program* program)
                check(!valu.opsel[3], "Unexpected opsel for sub-dword definition", instr.get());
          } else if (instr->opcode == aco_opcode::v_fma_mixlo_f16 ||
                     instr->opcode == aco_opcode::v_fma_mixhi_f16 ||
+                    instr->opcode == aco_opcode::p_v_fma_mixlo_f16_rtz ||
+                    instr->opcode == aco_opcode::p_v_fma_mixhi_f16_rtz ||
                     instr->opcode == aco_opcode::v_fma_mix_f32) {
             check(instr->definitions[0].regClass() ==
                      (instr->opcode == aco_opcode::v_fma_mix_f32 ? v1 : v2b),
@@ -1348,6 +1350,8 @@ validate_subdword_operand(amd_gfx_level gfx_level, const aco_ptr<Instruction>& i
    if (instr->isVOP3P()) {
       bool fma_mix = instr->opcode == aco_opcode::v_fma_mixlo_f16 ||
                      instr->opcode == aco_opcode::v_fma_mixhi_f16 ||
+                     instr->opcode == aco_opcode::p_v_fma_mixlo_f16_rtz ||
+                     instr->opcode == aco_opcode::p_v_fma_mixhi_f16_rtz ||
                      instr->opcode == aco_opcode::v_fma_mix_f32;
       return instr->valu().opsel_lo[index] == (byte >> 1) &&
              instr->valu().opsel_hi[index] == (fma_mix || (byte >> 1));
@@ -1411,6 +1415,7 @@ validate_subdword_definition(amd_gfx_level gfx_level, const aco_ptr<Instruction>
    switch (instr->opcode) {
    case aco_opcode::v_interp_p2_hi_f16:
    case aco_opcode::v_fma_mixhi_f16:
+   case aco_opcode::p_v_fma_mixhi_f16_rtz:
    case aco_opcode::buffer_load_ubyte_d16_hi:
    case aco_opcode::buffer_load_sbyte_d16_hi:
    case aco_opcode::buffer_load_short_d16_hi:

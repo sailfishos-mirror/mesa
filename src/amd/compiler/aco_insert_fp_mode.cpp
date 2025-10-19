@@ -289,6 +289,16 @@ emit_set_mode_block(fp_mode_ctx* ctx, Block* block)
       } else if (instr->opcode == aco_opcode::p_v_cvt_pk_fp8_f32_ovfl) {
          set_mode |= fp_state.require(mode_fp16_ovfl, 1);
          instr->opcode = aco_opcode::v_cvt_pk_fp8_f32;
+      } else if (instr->opcode == aco_opcode::p_v_fma_mixlo_f16_rtz ||
+                 instr->opcode == aco_opcode::p_v_fma_mixhi_f16_rtz) {
+         set_mode |= fp_state.require(mode_round16_64, fp_round_tz);
+         set_mode |= fp_state.require(mode_round32, default_state.fields[mode_round32]);
+         set_mode |= fp_state.require(mode_denorm16_64, default_state.fields[mode_denorm16_64]);
+         set_mode |= fp_state.require(mode_denorm32, default_state.fields[mode_denorm32]);
+         if (instr->opcode == aco_opcode::p_v_fma_mixlo_f16_rtz)
+            instr->opcode = aco_opcode::v_fma_mixlo_f16;
+         else
+            instr->opcode = aco_opcode::v_fma_mixhi_f16;
       } else {
          mode_mask default_needs = instr_default_needs(ctx, block, instr);
          u_foreach_bit (i, default_needs)

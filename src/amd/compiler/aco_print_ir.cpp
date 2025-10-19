@@ -1044,7 +1044,9 @@ aco_print_instr(enum amd_gfx_level gfx_level, const Instruction* instr, FILE* ou
 
       if (instr->opcode == aco_opcode::v_fma_mix_f32 ||
           instr->opcode == aco_opcode::v_fma_mixlo_f16 ||
-          instr->opcode == aco_opcode::v_fma_mixhi_f16) {
+          instr->opcode == aco_opcode::v_fma_mixhi_f16 ||
+          instr->opcode == aco_opcode::p_v_fma_mixlo_f16_rtz ||
+          instr->opcode == aco_opcode::p_v_fma_mixhi_f16_rtz) {
          const VALU_instruction& vop3p = instr->valu();
          abs = vop3p.abs;
          neg = vop3p.neg;

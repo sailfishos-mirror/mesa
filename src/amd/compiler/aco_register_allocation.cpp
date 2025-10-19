@@ -771,6 +771,7 @@ DefInfo::get_subdword_definition_info(Program* program, const aco_ptr<Instructio
       rc = instr_is_16bit(gfx_level, instr->opcode) ? v2b : v1;
       stride = 4;
       if (instr->opcode == aco_opcode::v_fma_mixlo_f16 ||
+          instr->opcode == aco_opcode::p_v_fma_mixlo_f16_rtz ||
           can_use_opsel(gfx_level, instr->opcode, -1)) {
          data_stride = 2;
          stride = rc == v2b ? 2 : stride;
@@ -860,6 +861,9 @@ add_subdword_definition(Program* program, aco_ptr<Instruction>& instr, PhysReg r
 
       if (instr->opcode == aco_opcode::v_fma_mixlo_f16) {
          instr->opcode = aco_opcode::v_fma_mixhi_f16;
+         return;
+      } else if (instr->opcode == aco_opcode::p_v_fma_mixlo_f16_rtz) {
+         instr->opcode = aco_opcode::p_v_fma_mixhi_f16_rtz;
          return;
       }
 
