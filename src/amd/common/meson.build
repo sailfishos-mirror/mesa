@@ -130,7 +130,6 @@ amd_common_files = files(
   'nir/ac_nir_meta_cs_blit.c',
   'nir/ac_nir_meta_cs_clear_copy_buffer.c',
   'nir/ac_nir_meta_ps_resolve.c',
-  'nir/ac_nir_opt_pack_half.c',
   'nir/ac_nir_opt_shared_append.c',
   'nir/ac_nir_prerast_utils.c',
   'nir/ac_nir_surface.c',

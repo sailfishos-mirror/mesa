@@ -583,13 +583,6 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
    /* cleanup passes */
    NIR_PASS(_, stage->nir, nir_lower_alu_width, ac_nir_opt_vectorize_cb, &gfx_level);
 
-   /* This pass changes the global float control mode to RTZ, so can't be used
-    * with LLVM, which only supports RTNE, or RT, where the mode needs to match
-    * across separately compiled stages.
-    */
-   if (!radv_use_llvm_for_stage(pdev, stage->stage) && !mesa_shader_stage_is_rt(stage->stage))
-      NIR_PASS(_, stage->nir, ac_nir_opt_pack_half, gfx_level);
-
    NIR_PASS(_, stage->nir, nir_lower_load_const_to_scalar);
    NIR_PASS(_, stage->nir, nir_opt_copy_prop);
    NIR_PASS(_, stage->nir, nir_opt_dce);
