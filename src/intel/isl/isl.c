@@ -2314,10 +2314,15 @@ isl_choose_miptail_start_level(const struct isl_device *dev,
       return 15;
    }
 
+   assert(isl_tiling_is_64(tile_info->tiling) ||
+          isl_tiling_is_std_y(tile_info->tiling));
+   assert(info->samples == 1);
+
+   uint32_t max_miptail_levels = tile_info->max_miptail_levels;
+
    if ((ISL_GFX_VER(dev) == 9 ||
         intel_needs_workaround(dev->info, 1207137018)) &&
        info->dim == ISL_SURF_DIM_3D &&
-       isl_tiling_is_std_y(tile_info->tiling) &&
        _isl_surf_info_supports_ccs(dev, info->format, info->usage)) {
       /* From the workarounds section in the SKL PRM:
        *
@@ -2332,18 +2337,19 @@ isl_choose_miptail_start_level(const struct isl_device *dev,
        *     value of RENDER_SURFACE_STATE.Mip Tail Start LOD to a mip that
        *     larger than those present in the surface (i.e. 15)"
        *
-       * Referred to as Wa_1207137018 on ICL+. Disable miptails as suggested.
+       * Referred to as Wa_1207137018 on ICL+. Use a narrower workaround
+       * described in the HSD.
        */
-      return 15;
+      if (tile_info->tiling == ISL_TILING_SKL_Yf ||
+          tile_info->tiling == ISL_TILING_ICL_Yf) {
+         max_miptail_levels = MIN2(max_miptail_levels, 2);
+      } else {
+         max_miptail_levels = MIN2(max_miptail_levels, 6);
+      }
    }
 
-   assert(isl_tiling_is_64(tile_info->tiling) ||
-          isl_tiling_is_std_y(tile_info->tiling));
-   assert(info->samples == 1);
 
-   uint32_t max_miptail_levels = tile_info->max_miptail_levels;
-
-   if (max_miptail_levels > 11 &&
+   if (info->dim != ISL_SURF_DIM_3D &&
        _isl_surf_info_supports_ccs(dev, info->format, info->usage)) {
       /* SKL PRMs, Volume 5: Memory Views, Tiling and Mip Tails for 2D
        * Surfaces:
@@ -2353,7 +2359,12 @@ isl_choose_miptail_start_level(const struct isl_device *dev,
        *
        * Reduce the slot consumption to keep compression enabled.
        */
-      max_miptail_levels = 11;
+      if (tile_info->tiling == ISL_TILING_SKL_Yf ||
+          tile_info->tiling == ISL_TILING_ICL_Yf) {
+         max_miptail_levels = MIN2(max_miptail_levels, 7);
+      } else {
+         max_miptail_levels = MIN2(max_miptail_levels, 11);
+      }
    }
 
    /* Start with the minimum number of levels that will fit in the tile */
