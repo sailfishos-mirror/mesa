@@ -2348,6 +2348,22 @@ isl_choose_miptail_start_level(const struct isl_device *dev,
       }
    }
 
+   if (isl_tiling_is_std_y(tile_info->tiling) &&
+       info->dim == ISL_SURF_DIM_3D &&
+       fmtl->txc != ISL_TXC_NONE &&
+       (fmtl->bpb == 128 || (fmtl->bpb == 64 && ISL_GFX_VER(dev) == 9))) {
+       /* Although the note above is for lossless compression, this seems to
+        * affect 64bpb and 128bpb formats as well. At the moment, only
+        * block-compressed texture tests are affected, so limit the workaround
+        * to those for now.
+        */
+       if (tile_info->tiling == ISL_TILING_SKL_Yf ||
+           tile_info->tiling == ISL_TILING_ICL_Yf) {
+          max_miptail_levels = MIN2(max_miptail_levels, 2);
+       } else {
+          max_miptail_levels = MIN2(max_miptail_levels, 6);
+       }
+   }
 
    if (info->dim != ISL_SURF_DIM_3D &&
        _isl_surf_info_supports_ccs(dev, info->format, info->usage)) {
@@ -2358,6 +2374,21 @@ isl_choose_miptail_start_level(const struct isl_device *dev,
        *     Tail which contains MIPs for Slots greater than 11."
        *
        * Reduce the slot consumption to keep compression enabled.
+       */
+      if (tile_info->tiling == ISL_TILING_SKL_Yf ||
+          tile_info->tiling == ISL_TILING_ICL_Yf) {
+         max_miptail_levels = MIN2(max_miptail_levels, 7);
+      } else {
+         max_miptail_levels = MIN2(max_miptail_levels, 11);
+      }
+   }
+
+   if (isl_tiling_is_std_y(tile_info->tiling) &&
+       info->dim == ISL_SURF_DIM_2D &&
+       fmtl->txc != ISL_TXC_NONE && fmtl->bpb == 128) {
+      /* Although the note above is for lossless compression, this seems to
+       * affect 128bpb formats as well. At the moment, only block-compressed
+       * texture tests are affected, so limit the workaround to those for now.
        */
       if (tile_info->tiling == ISL_TILING_SKL_Yf ||
           tile_info->tiling == ISL_TILING_ICL_Yf) {
