@@ -670,6 +670,22 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
    }
 
    if (mesa_shader_stage_is_compute(nir->info.stage)) {
+      if (sel->screen->info.has_cs_regalloc_hang_bug) {
+         const uint32_t wg_size = nir->info.workgroup_size[0] *
+                                  nir->info.workgroup_size[1] *
+                                  nir->info.workgroup_size[2];
+
+         if (wg_size > 256) {
+            si_nir_opts(sel->screen, nir, true);
+            NIR_PASS(progress, nir, nir_lower_workgroup_size, 256);
+
+            if (progress)
+               si_nir_opts(sel->screen, nir, true);
+
+            nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
+         }
+      }
+
       /* gl_LocalInvocationIndex must be derived from gl_LocalInvocationID.xyz to make it correct
        * with quad derivatives. Using gl_SubgroupID for that (which is what we do by default) is
        * incorrect with a non-linear thread order.
