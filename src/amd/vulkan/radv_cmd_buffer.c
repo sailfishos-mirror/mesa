@@ -13772,10 +13772,6 @@ radv_before_dispatch(struct radv_cmd_buffer *cmd_buffer, struct radv_compute_pip
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const bool pipeline_is_dirty = pipeline != cmd_buffer->state.emitted_compute_pipeline;
-   const struct radv_shader *compute_shader = cmd_buffer->state.shaders[MESA_SHADER_COMPUTE];
-
-   if (compute_shader->info.cs.regalloc_hang_bug)
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_PS_PARTIAL_FLUSH | RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
 
    /* Use the optimal packet order similar to draws. */
    if (pipeline)
@@ -13812,7 +13808,6 @@ radv_after_dispatch(struct radv_cmd_buffer *cmd_buffer, bool dgc)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_shader *compute_shader = cmd_buffer->state.shaders[MESA_SHADER_COMPUTE];
    const bool has_prefetch = pdev->info.gfx_level >= GFX7;
 
    /* Start prefetches after the dispatch has been started. Both will run in parallel, but
@@ -13820,9 +13815,6 @@ radv_after_dispatch(struct radv_cmd_buffer *cmd_buffer, bool dgc)
     */
    if (has_prefetch)
       radv_emit_compute_prefetch(cmd_buffer);
-
-   if (compute_shader->info.cs.regalloc_hang_bug)
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
 
    radv_cmd_buffer_after_draw(cmd_buffer, RADV_CMD_FLAG_CS_PARTIAL_FLUSH, dgc);
 }
@@ -13844,10 +13836,6 @@ radv_before_trace_rays(struct radv_cmd_buffer *cmd_buffer, struct radv_ray_traci
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const bool pipeline_is_dirty = pipeline != cmd_buffer->state.emitted_rt_pipeline;
-   const struct radv_shader *rt_prolog = cmd_buffer->state.rt_prolog;
-
-   if (rt_prolog->info.cs.regalloc_hang_bug)
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_PS_PARTIAL_FLUSH | RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
 
    /* Use the optimal packet order similar to draws. */
    if (pipeline)
@@ -13882,7 +13870,6 @@ radv_after_trace_rays(struct radv_cmd_buffer *cmd_buffer, bool dgc)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_shader *rt_prolog = cmd_buffer->state.rt_prolog;
    const bool has_prefetch = pdev->info.gfx_level >= GFX7;
 
    /* Start prefetches after the dispatch has been started. Both will run in parallel, but
@@ -13890,9 +13877,6 @@ radv_after_trace_rays(struct radv_cmd_buffer *cmd_buffer, bool dgc)
     */
    if (has_prefetch)
       radv_emit_ray_tracing_prefetch(cmd_buffer);
-
-   if (rt_prolog->info.cs.regalloc_hang_bug)
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
 
    radv_cmd_buffer_after_draw(cmd_buffer, RADV_CMD_FLAG_CS_PARTIAL_FLUSH, dgc);
 }

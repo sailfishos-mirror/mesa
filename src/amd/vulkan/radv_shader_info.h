@@ -231,8 +231,6 @@ struct radv_shader_info {
       bool linear_taskmesh_dispatch : 1;
       bool has_query : 1; /* Task shader only */
 
-      bool regalloc_hang_bug : 1;
-
       uint32_t derivative_group : 2;
    } cs;
    struct {

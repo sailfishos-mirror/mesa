@@ -885,11 +885,6 @@ static void
 gather_shader_info_cs(struct radv_device *device, const nir_shader *nir, const struct radv_shader_stage_key *stage_key,
                       struct radv_shader_info *info)
 {
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
-   if (pdev->info.has_cs_regalloc_hang_bug) {
-      info->cs.regalloc_hang_bug = info->cs.block_size[0] * info->cs.block_size[1] * info->cs.block_size[2] > 256;
-   }
 }
 
 static void
