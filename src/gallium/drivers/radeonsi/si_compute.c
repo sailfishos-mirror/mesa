@@ -836,11 +836,6 @@ static void si_launch_grid(struct pipe_context *ctx, const struct pipe_grid_info
    if (program->shader.compilation_failed)
       return;
 
-   bool cs_regalloc_hang = sscreen->info.has_cs_regalloc_hang_bug &&
-                           info->block[0] * info->block[1] * info->block[2] > 256;
-   if (cs_regalloc_hang)
-      si_set_barrier_flags(sctx, SI_BARRIER_SYNC_PS | SI_BARRIER_SYNC_CS);
-
    si_check_dirty_buffers_textures(sctx);
 
    if (sctx->is_gfx_queue) {
@@ -970,9 +965,6 @@ static void si_launch_grid(struct pipe_context *ctx, const struct pipe_grid_info
 
    if (unlikely(sctx->perfetto_enabled))
       trace_si_end_compute(&sctx->trace, info->grid[0], info->grid[1], info->grid[2]);
-
-   if (cs_regalloc_hang)
-      si_set_barrier_flags(sctx, SI_BARRIER_SYNC_CS);
 }
 
 void si_destroy_compute(struct si_compute *program)
