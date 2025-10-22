@@ -243,6 +243,7 @@ print_help(const char *filename, FILE *f)
    fprintf(f, "    -s, --shader ADDR  print shader at ADDR\n");
    fprintf(f, "    -h, --help         print this screen\n");
    fprintf(f, "    -a, --address ADDR Find BO containing ADDR\n");
+   fprintf(f, "    -D, --dumpable     add DRM_XE_VM_BIND_FLAG_DUMPABLE to all VMA binds\n");
 }
 
 static int
@@ -403,7 +404,8 @@ static int
 replay_dmp_file(int file_fd, int drm_fd, const struct intel_device_info *devinfo,
                 struct util_dynarray *buffers, void *mem_ctx,
                 struct intel_hang_dump_block_exec *init,
-                struct intel_hang_dump_block_exec *exec, uint32_t vm_flags)
+                struct intel_hang_dump_block_exec *exec,
+                uint32_t vm_flags, uint32_t bo_dumpable)
 {
    /* Sort buffers by size */
    qsort(util_dynarray_begin(buffers),
@@ -414,7 +416,8 @@ replay_dmp_file(int file_fd, int drm_fd, const struct intel_device_info *devinfo
    if (devinfo->kmd_type == INTEL_KMD_TYPE_I915)
       return process_i915_dmp_file(file_fd, drm_fd, buffers, mem_ctx, init, exec);
    else if (devinfo->kmd_type == INTEL_KMD_TYPE_XE)
-      return process_xe_dmp_file(file_fd, drm_fd, devinfo, buffers, mem_ctx, init, exec, vm_flags);
+      return process_xe_dmp_file(file_fd, drm_fd, devinfo, buffers, mem_ctx, init, exec,
+                                 vm_flags, bo_dumpable);
    else
       fprintf(stderr, "driver is unknown, exiting\n");
 
@@ -424,12 +427,13 @@ replay_dmp_file(int file_fd, int drm_fd, const struct intel_device_info *devinfo
 int
 main(int argc, char *argv[])
 {
-   bool help = false, list = false;
+   bool help = false, list = false, bo_dumpable = false;
    const struct option aubinator_opts[] = {
       { "address",    required_argument, NULL, 'a' },
       { "dump",       required_argument, NULL, 'd' },
       { "shader",     required_argument, NULL, 's' },
       { "list",       no_argument,       NULL, 'l' },
+      { "dumpable",   no_argument,       0,    'D'},
       { "help",       no_argument,       NULL, 'h' },
       { NULL,         0,                 NULL,   0 },
    };
@@ -444,7 +448,7 @@ main(int argc, char *argv[])
    uint64_t check_addr = -1;
    uint32_t vm_flags = -1;
    int c, i;
-   while ((c = getopt_long(argc, argv, "a:d:hls:", aubinator_opts, &i)) != -1) {
+   while ((c = getopt_long(argc, argv, "a:d:hlDs:", aubinator_opts, &i)) != -1) {
       switch (c) {
       case 'a':
          check_addr = strtol(optarg, NULL, 0);
@@ -463,6 +467,9 @@ main(int argc, char *argv[])
          break;
       case 'l':
          list = true;
+         break;
+      case 'D':
+         bo_dumpable = true;
          break;
       default:
          break;
@@ -654,7 +661,7 @@ main(int argc, char *argv[])
    }
 
    if (!list && util_dynarray_num_elements(&shader_addresses, uint64_t) == 0)
-      replay_dmp_file(file_fd, drm_fd, &devinfo, &buffers, mem_ctx, &init, &exec, vm_flags);
+      replay_dmp_file(file_fd, drm_fd, &devinfo, &buffers, mem_ctx, &init, &exec, vm_flags, bo_dumpable);
 
    close(drm_fd);
    close(file_fd);

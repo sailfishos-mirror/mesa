@@ -283,7 +283,7 @@ process_xe_dmp_file(int file_fd, int drm_fd, const struct intel_device_info *dev
                     struct util_dynarray *buffers, void *mem_ctx,
                     struct intel_hang_dump_block_exec *init,
                     struct intel_hang_dump_block_exec *block_exec,
-                    uint32_t vm_flags)
+                    uint32_t vm_flags, uint32_t bo_dumpable)
 {
    void *hw_img = NULL;
    uint32_t hw_img_size = 0;
@@ -298,6 +298,7 @@ process_xe_dmp_file(int file_fd, int drm_fd, const struct intel_device_info *dev
        .syncs = to_user_pointer(&sync),
        .num_batch_buffer = 1,
    };
+   const uint32_t dumpable_bit = bo_dumpable ? DRM_XE_VM_BIND_FLAG_DUMPABLE : 0;
 
    uint32_t vm = xe_vm_create(drm_fd, vm_flags);
 
@@ -310,7 +311,7 @@ process_xe_dmp_file(int file_fd, int drm_fd, const struct intel_device_info *dev
    }
    util_dynarray_foreach(buffers, struct gem_bo, bo) {
       uint32_t ops = 0;
-      uint32_t flags = 0;
+      uint32_t flags = dumpable_bit;
       uint64_t obj_offset = 0;
       int ret;
 
@@ -338,7 +339,7 @@ process_xe_dmp_file(int file_fd, int drm_fd, const struct intel_device_info *dev
          }
          write_xe_bo_data(drm_fd, bo->gem_handle, file_fd, bo->size, bo->props.pat_index, devinfo);
          ops = DRM_XE_VM_BIND_OP_MAP;
-         flags = DRM_XE_VM_BIND_FLAG_READONLY;
+         flags |= DRM_XE_VM_BIND_FLAG_READONLY;
       } else if (bo->props.mem_type == INTEL_HANG_DUMP_BLOCK_MEM_TYPE_USERPTR) {
          ops = DRM_XE_VM_BIND_OP_MAP_USERPTR;
 
