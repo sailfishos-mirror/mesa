@@ -146,9 +146,6 @@ brw_compute_vue_map(const struct intel_device_info *devinfo,
        * read/write gl_ClipDistance, which has a fixed slot location.
        * We have to assume the worst and reserve a slot for it, or else
        * the rest of our varyings will be off by a slot.
-       *
-       * Note that we don't have to worry about COL/BFC, as those built-in
-       * variables only exist in legacy GL, which only supports VS and FS.
        */
       slots_valid |= VARYING_BIT_CLIP_DIST0;
       slots_valid |= VARYING_BIT_CLIP_DIST1;
@@ -215,19 +212,6 @@ brw_compute_vue_map(const struct intel_device_info *devinfo,
     * end so that the header ends on a 32-byte boundary".
     */
    slot += slot % 2;
-
-   /* front and back colors need to be consecutive so that we can use
-    * ATTRIBUTE_SWIZZLE_INPUTATTR_FACING to swizzle them when doing
-    * two-sided color.
-    */
-   if (slots_valid & VARYING_BIT_COL0)
-      assign_vue_slot(vue_map, VARYING_SLOT_COL0, slot++);
-   if (slots_valid & VARYING_BIT_BFC0)
-      assign_vue_slot(vue_map, VARYING_SLOT_BFC0, slot++);
-   if (slots_valid & VARYING_BIT_COL1)
-      assign_vue_slot(vue_map, VARYING_SLOT_COL1, slot++);
-   if (slots_valid & VARYING_BIT_BFC1)
-      assign_vue_slot(vue_map, VARYING_SLOT_BFC1, slot++);
 
    /* The hardware doesn't care about the rest of the vertex outputs, so we
     * can assign them however we like.  For normal programs, we simply assign

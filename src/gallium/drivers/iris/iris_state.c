@@ -2271,7 +2271,6 @@ struct iris_rasterizer_state {
    bool depth_clip_far; /* for CC_VIEWPORT */
    bool flatshade; /* for shader state */
    bool flatshade_first; /* for stream output */
-   bool light_twoside; /* for shader state */
    bool rasterizer_discard; /* for 3DSTATE_STREAMOUT and 3DSTATE_CLIP */
    bool half_pixel_center; /* for 3DSTATE_MULTISAMPLE */
    bool line_smooth;
@@ -2334,7 +2333,6 @@ iris_create_rasterizer_state(struct pipe_context *ctx,
    cso->depth_clip_far = state->depth_clip_far;
    cso->flatshade = state->flatshade;
    cso->flatshade_first = state->flatshade_first;
-   cso->light_twoside = state->light_twoside;
    cso->rasterizer_discard = state->rasterizer_discard;
    cso->half_pixel_center = state->half_pixel_center;
    cso->sprite_coord_mode = state->sprite_coord_mode;
@@ -2487,9 +2485,7 @@ iris_bind_rasterizer_state(struct pipe_context *ctx, void *state)
           cso_changed(clip_halfz))
          ice->state.dirty |= IRIS_DIRTY_CC_VIEWPORT;
 
-      if (cso_changed(sprite_coord_enable) ||
-          cso_changed(sprite_coord_mode) ||
-          cso_changed(light_twoside))
+      if (cso_changed(sprite_coord_enable) || cso_changed(sprite_coord_mode))
          ice->state.dirty |= IRIS_DIRTY_SBE;
 
       if (cso_changed(conservative_rasterization))
@@ -4729,95 +4725,37 @@ iris_create_so_decl_list(const struct pipe_stream_output_info *info,
    return map;
 }
 
-static inline int
-iris_compute_first_urb_slot_required(struct iris_compiled_shader *fs_shader,
-                                     const struct intel_vue_map *prev_stage_vue_map)
-{
-#if GFX_VER >= 9
-   uint32_t read_offset, read_length, num_varyings, primid_offset, flat_inputs;
-   brw_compute_sbe_per_vertex_urb_read(prev_stage_vue_map,
-                                       false /* mesh*/,
-                                       false /* per_primitive_remapping */,
-                                       brw_fs_prog_data(fs_shader->brw_prog_data),
-                                       &read_offset, &read_length, &num_varyings,
-                                       &primid_offset, &flat_inputs);
-   return 2 * read_offset;
-#else
-   const struct iris_fs_data *fs_data = iris_fs_data(fs_shader);
-   return elk_compute_first_urb_slot_required(fs_data->inputs, prev_stage_vue_map);
-#endif
-}
-
 static void
 iris_compute_sbe_urb_read_interval(struct iris_compiled_shader *fs_shader,
                                    const struct intel_vue_map *last_vue_map,
-                                   bool two_sided_color,
                                    unsigned *out_offset,
                                    unsigned *out_length)
 {
+#if GFX_VER >= 9
+   uint32_t num_varyings, primid_offset, flat_inputs;
+   brw_compute_sbe_per_vertex_urb_read(last_vue_map,
+                                       false /* mesh */,
+                                       false /* per_primitive_remapping */,
+                                       brw_fs_prog_data(fs_shader->brw_prog_data),
+                                       out_offset, out_length, &num_varyings,
+                                       &primid_offset, &flat_inputs);
+#else
    const struct iris_fs_data *fs_data = iris_fs_data(fs_shader);
-
-   /* The compiler computes the first URB slot without considering COL/BFC
-    * swizzling (because it doesn't know whether it's enabled), so we need
-    * to do that here too.  This may result in a smaller offset, which
-    * should be safe.
-    */
    const unsigned first_slot =
-      iris_compute_first_urb_slot_required(fs_shader, last_vue_map);
+      elk_compute_first_urb_slot_required(fs_data->inputs, last_vue_map);
 
    /* This becomes the URB read offset (counted in pairs of slots). */
    assert(first_slot % 2 == 0);
    *out_offset = first_slot / 2;
 
-   /* We need to adjust the inputs read to account for front/back color
-    * swizzling, as it can make the URB length longer.
-    */
-   uint64_t fs_input_slots = fs_data->inputs;
-   for (int c = 0; c <= 1; c++) {
-      if (fs_input_slots & (VARYING_BIT_COL0 << c)) {
-         /* If two sided color is enabled, the fragment shader's gl_Color
-          * (COL0) input comes from either the gl_FrontColor (COL0) or
-          * gl_BackColor (BFC0) input varyings.  Mark BFC as used, too.
-          */
-         if (two_sided_color)
-            fs_input_slots |= (VARYING_BIT_BFC0 << c);
-
-         /* If front color isn't written, we opt to give them back color
-          * instead of an undefined value.  Switch from COL to BFC.
-          */
-         if (last_vue_map->varying_to_slot[VARYING_SLOT_COL0 + c] == -1) {
-            fs_input_slots &= ~(VARYING_BIT_COL0 << c);
-            fs_input_slots |= (VARYING_BIT_BFC0 << c);
-         }
-      }
+   int last_slot = first_slot;
+   u_foreach_bit64(v, fs_data->inputs) {
+      last_slot = MAX2(last_slot, last_vue_map->varying_to_slot[v]);
    }
 
-   /* Compute the minimum URB Read Length necessary for the FS inputs.
-    *
-    * From the Sandy Bridge PRM, Volume 2, Part 1, documentation for
-    * 3DSTATE_SF DWord 1 bits 15:11, "Vertex URB Entry Read Length":
-    *
-    * "This field should be set to the minimum length required to read the
-    *  maximum source attribute.  The maximum source attribute is indicated
-    *  by the maximum value of the enabled Attribute # Source Attribute if
-    *  Attribute Swizzle Enable is set, Number of Output Attributes-1 if
-    *  enable is not set.
-    *  read_length = ceiling((max_source_attr + 1) / 2)
-    *
-    *  [errata] Corruption/Hang possible if length programmed larger than
-    *  recommended"
-    *
-    * Similar text exists for Ivy Bridge.
-    *
-    * We find the last URB slot that's actually read by the FS.
-    */
-   unsigned last_read_slot = last_vue_map->num_slots - 1;
-   while (last_read_slot > first_slot && !(fs_input_slots &
-          (1ull << last_vue_map->slot_to_varying[last_read_slot])))
-      --last_read_slot;
-
    /* The URB read length is the difference of the two, counted in pairs. */
-   *out_length = DIV_ROUND_UP(last_read_slot - first_slot + 1, 2);
+   *out_length = DIV_ROUND_UP(last_slot - first_slot + 1, 2);
+#endif
 }
 
 static void
@@ -4829,7 +4767,6 @@ iris_emit_sbe_swiz(struct iris_batch *batch,
    struct GENX(SF_OUTPUT_ATTRIBUTE_DETAIL) attr_overrides[16] = {};
    const struct iris_fs_data *fs_data =
       iris_fs_data(ice->shaders.prog[MESA_SHADER_FRAGMENT]);
-   const struct iris_rasterizer_state *cso_rast = ice->state.cso_rast;
 
    /* XXX: this should be generated when putting programs in place */
 
@@ -4852,17 +4789,6 @@ iris_emit_sbe_swiz(struct iris_batch *batch,
       const int source_attr = slot - 2 * (int) urb_read_offset;
       assert(source_attr >= 0 && source_attr <= 32);
       attr->SourceAttribute = source_attr;
-
-      /* If we are doing two-sided color, and the VUE slot following this one
-       * represents a back-facing color, then we need to instruct the SF unit
-       * to do back-facing swizzling.
-       */
-      if (cso_rast->light_twoside &&
-          ((vue_map->slot_to_varying[slot] == VARYING_SLOT_COL0 &&
-            vue_map->slot_to_varying[slot+1] == VARYING_SLOT_BFC0) ||
-           (vue_map->slot_to_varying[slot] == VARYING_SLOT_COL1 &&
-            vue_map->slot_to_varying[slot+1] == VARYING_SLOT_BFC1)))
-         attr->SwizzleSelect = INPUTATTR_FACING;
    }
 
    iris_emit_cmd(batch, GENX(3DSTATE_SBE_SWIZ), sbes) {
@@ -4923,7 +4849,6 @@ iris_emit_sbe(struct iris_batch *batch, const struct iris_context *ice)
    unsigned urb_read_offset, urb_read_length;
    iris_compute_sbe_urb_read_interval(ice->shaders.prog[MESA_SHADER_FRAGMENT],
                                       last_vue_map,
-                                      cso_rast->light_twoside,
                                       &urb_read_offset, &urb_read_length);
 
    unsigned sprite_coord_overrides =

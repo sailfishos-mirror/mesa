@@ -481,6 +481,12 @@ iris_init_screen_caps(struct iris_screen *screen)
     */
    caps->max_vma = intel_48b_address(UINT64_MAX) >> 1;
 
+   /* We could implement two-sided color via SBE attribute swizzling but
+    * opt to use common NIR lowering instead of maintaining the complexity
+    * for a minor improvement for a long deprecated feature.
+    */
+   caps->two_sided_color = false;
+
    if (devinfo->ver >= 9) {
       caps->shader_subgroup_size = 32;
       caps->shader_subgroup_supported_stages = BITFIELD_MASK(MESA_SHADER_STAGES);
