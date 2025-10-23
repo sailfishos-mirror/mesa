@@ -248,10 +248,10 @@ radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively)
 void
 radv_optimize_nir_algebraic_early(nir_shader *nir)
 {
-   bool more_algebraic = true;
+   bool progress = true;
    bool had_opt_fp_math_ctrl = false;
-   while (more_algebraic) {
-      more_algebraic = false;
+   while (progress) {
+      progress = false;
       NIR_PASS(_, nir, nir_opt_copy_prop);
       NIR_PASS(_, nir, nir_opt_dce);
       NIR_PASS(_, nir, nir_opt_constant_folding);
@@ -263,16 +263,16 @@ radv_optimize_nir_algebraic_early(nir_shader *nir)
          .expensive_alu_ok = true,
          .discard_ok = true,
       };
-      NIR_PASS(_, nir, nir_opt_peephole_select, &peephole_select_options);
+      NIR_PASS(progress, nir, nir_opt_peephole_select, &peephole_select_options);
       NIR_PASS(_, nir, nir_opt_undef);
       NIR_PASS(_, nir, nir_opt_phi_to_bool);
-      NIR_PASS(more_algebraic, nir, nir_opt_algebraic);
+      NIR_PASS(progress, nir, nir_opt_algebraic);
       NIR_PASS(_, nir, nir_opt_generate_bfi);
-      NIR_PASS(_, nir, nir_opt_remove_phis);
-      NIR_PASS(_, nir, nir_opt_dead_cf);
+      NIR_PASS(progress, nir, nir_opt_remove_phis);
+      NIR_PASS(progress, nir, nir_opt_dead_cf);
 
       if (!had_opt_fp_math_ctrl) {
-         NIR_PASS(more_algebraic, nir, nir_opt_fp_math_ctrl);
+         NIR_PASS(progress, nir, nir_opt_fp_math_ctrl);
          had_opt_fp_math_ctrl = true;
       }
    }
