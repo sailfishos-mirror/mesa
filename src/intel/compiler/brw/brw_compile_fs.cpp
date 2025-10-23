@@ -623,7 +623,9 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
       key->mesh_input == INTEL_NEVER ? 0 : VARYING_BIT_PRIMITIVE_ID;
    const uint64_t inputs_read =
       nir->info.inputs_read &
-      (~nir->info.per_primitive_inputs | per_vert_primitive_id);
+      (~nir->info.per_primitive_inputs | per_vert_primitive_id) &
+      BRW_FS_VARYING_INPUT_MASK &
+      ~BRW_VUE_HEADER_VARYING_MASK;
    const uint64_t per_primitive_header_bits =
       VARYING_BIT_PRIMITIVE_SHADING_RATE |
       VARYING_BIT_LAYER |
@@ -633,8 +635,6 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
       nir->info.inputs_read &
       (nir->info.per_primitive_inputs | per_prim_primitive_id) &
       ~per_primitive_header_bits;
-   uint64_t unique_fs_attrs =
-      inputs_read & BRW_FS_VARYING_INPUT_MASK;
    struct intel_vue_map vue_map;
    uint32_t per_primitive_stride = 0, first_read_offset = UINT32_MAX;
 
@@ -686,15 +686,12 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
    }
 
    /* Now do the per-vertex stuff (what used to be legacy pipeline) */
-   const uint64_t vue_header_bits = BRW_VUE_HEADER_VARYING_MASK;
-
-   unique_fs_attrs &= ~vue_header_bits;
 
    /* If Mesh is involved, we cannot do any packing. Documentation doesn't say
     * anything about this but 3DSTATE_SBE_SWIZ does not appear to work when
     * using Mesh.
     */
-   if (util_bitcount64(unique_fs_attrs) <= 16 && key->mesh_input == INTEL_NEVER) {
+   if (util_bitcount64(inputs_read) <= 16 && key->mesh_input == INTEL_NEVER) {
       /* When not in Mesh pipeline mode, the SF/SBE pipeline stage can do
        * arbitrary rearrangement of the first 16 varying inputs, so we can put
        * them wherever we want. Just put them in order.
@@ -705,8 +702,7 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
        * different vertex (or geometry) shader.
        */
       for (unsigned int i = 0; i < VARYING_SLOT_MAX; i++) {
-         if (inputs_read & BRW_FS_VARYING_INPUT_MASK & ~vue_header_bits &
-             BITFIELD64_BIT(i)) {
+         if (inputs_read & BITFIELD64_BIT(i)) {
             prog_data->urb_setup[i] = urb_next++;
          }
       }
@@ -727,9 +723,7 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
 
       for (int slot = first_slot; slot < vue_map.num_slots; slot++) {
          int varying = vue_map.slot_to_varying[slot];
-         if (varying > 0 &&
-             (inputs_read & BRW_FS_VARYING_INPUT_MASK &
-              BITFIELD64_BIT(varying))) {
+         if (varying > 0 && (inputs_read & BITFIELD64_BIT(varying))) {
             prog_data->urb_setup[varying] = slot - first_slot;
          }
       }
