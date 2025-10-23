@@ -933,18 +933,6 @@ static const uint8_t acm_tile64_3d_8bpp_swiz[16] = REV16(
  * BSpec 58767, 58786
  */
 
-static const uint8_t xe2_tile64_2d_128_64bpp_swiz[16] = REV16(
-   V(5), U(9), U(8), U(7), V(4), V(3), U(6), V(2), U(5), U(4), V(1), V(0), U(3), U(2), U(1), U(0)
-);
-
-static const uint8_t xe2_tile64_2d_32_16bpp_swiz[16] = REV16(
-   V(6), V(5), U(8), U(7), V(4), V(3), U(6), V(2), U(5), U(4), V(1), V(0), U(3), U(2), U(1), U(0)
-);
-
-static const uint8_t xe2_tile64_2d_8bpp_swiz[16] = REV16(
-   V(7), V(6), V(5), U(7), V(4), V(3), U(6), V(2), U(5), U(4), V(1), V(0), U(3), U(2), U(1), U(0)
-);
-
 static const uint8_t xe2_tile64_2d_128bpp_2msaa_swiz[16] = REV16(
    V(4), U(9), U(8), U(7), V(3), V(2), U(6), S(0), U(5), U(4), V(1), V(0), U(3), U(2), U(1), U(0)
 );
@@ -1455,14 +1443,14 @@ isl_tiling_get_info(enum isl_tiling tiling,
             switch (format_bpb) {
             case 128:
             case  64:
-               SET_SWIZ(xe2_tile64_2d_128_64bpp_swiz, 16);
+               SET_SWIZ(acm_tile64_2d_128_64bpp_swiz, 16);
                break;
             case  32:
             case  16:
-               SET_SWIZ(xe2_tile64_2d_32_16bpp_swiz, 16);
+               SET_SWIZ(acm_tile64_2d_32_16bpp_swiz, 16);
                break;
             case   8:
-               SET_SWIZ(xe2_tile64_2d_8bpp_swiz, 16);
+               SET_SWIZ(acm_tile64_2d_8bpp_swiz, 16);
                break;
             default:
                UNREACHABLE("Unsupported format size.");
