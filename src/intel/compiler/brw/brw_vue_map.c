@@ -121,6 +121,8 @@ brw_compute_per_primitive_map(int *out_per_primitive_map,
 static inline void
 assign_vue_slot(struct intel_vue_map *vue_map, int varying, int slot)
 {
+   STATIC_ASSERT(NUM_TOTAL_VARYING_SLOTS <= INT8_MAX);
+
    /* Make sure this varying hasn't been assigned a slot already */
    assert (vue_map->varying_to_slot[varying] == -1);
 
@@ -162,15 +164,7 @@ brw_compute_vue_map(const struct intel_device_info *devinfo,
     */
    slots_valid &= ~VARYING_BIT_FACE;
 
-   /* Make sure that the values we store in vue_map->varying_to_slot and
-    * vue_map->slot_to_varying won't overflow the signed chars that are used
-    * to store them.  Note that since vue_map->slot_to_varying sometimes holds
-    * values equal to BRW_VARYING_SLOT_COUNT, we need to ensure that
-    * BRW_VARYING_SLOT_COUNT is <= 127, not 128.
-    */
-   STATIC_ASSERT(BRW_VARYING_SLOT_COUNT <= 127);
-
-   for (int i = 0; i < BRW_VARYING_SLOT_COUNT; ++i) {
+   for (int i = 0; i < NUM_TOTAL_VARYING_SLOTS; ++i) {
       vue_map->varying_to_slot[i] = -1;
       vue_map->slot_to_varying[i] = BRW_VARYING_SLOT_PAD;
    }
@@ -291,15 +285,7 @@ brw_compute_tess_vue_map(struct intel_vue_map *vue_map,
       vertex_slots |= VARYING_BIT_CLIP_DIST1;
    }
 
-   /* Make sure that the values we store in vue_map->varying_to_slot and
-    * vue_map->slot_to_varying won't overflow the signed chars that are used
-    * to store them.  Note that since vue_map->slot_to_varying sometimes holds
-    * values equal to VARYING_SLOT_TESS_MAX , we need to ensure that
-    * VARYING_SLOT_TESS_MAX is <= 127, not 128.
-    */
-   STATIC_ASSERT(VARYING_SLOT_TESS_MAX <= 127);
-
-   for (int i = 0; i < VARYING_SLOT_TESS_MAX ; ++i) {
+   for (int i = 0; i < NUM_TOTAL_VARYING_SLOTS; ++i) {
       vue_map->varying_to_slot[i] = -1;
       vue_map->slot_to_varying[i] = BRW_VARYING_SLOT_PAD;
    }

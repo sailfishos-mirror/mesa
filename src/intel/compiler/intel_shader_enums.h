@@ -312,7 +312,7 @@ struct intel_vue_map {
     * additional processing is applied before storing them in the VUE), the
     * value is -1.
     */
-   int8_t varying_to_slot[VARYING_SLOT_TESS_MAX];
+   int8_t varying_to_slot[NUM_TOTAL_VARYING_SLOTS];
 
    /**
     * Map from VUE slot to gl_varying_slot value.  For slots that do not
@@ -321,7 +321,7 @@ struct intel_vue_map {
     *
     * For slots that are not in use, the value is BRW_VARYING_SLOT_PAD.
     */
-   int8_t slot_to_varying[VARYING_SLOT_TESS_MAX];
+   int8_t slot_to_varying[NUM_TOTAL_VARYING_SLOTS];
 
    /**
     * Total number of VUE slots in use
