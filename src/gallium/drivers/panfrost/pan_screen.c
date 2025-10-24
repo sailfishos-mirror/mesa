@@ -1061,8 +1061,12 @@ panfrost_create_screen(int fd, const struct pipe_screen_config *config,
       return NULL;
    }
 
+   unsigned core_id_range;
+   unsigned core_count =
+      pan_query_core_count(&dev->kmod.dev->props, &core_id_range);
+
    snprintf(screen->renderer_string, sizeof(screen->renderer_string),
-            "%s (Panfrost)", dev->model->name);
+            "%s MC%u (Panfrost)", dev->model->name, core_count);
 
    screen->afbc_tiled = driQueryOptionb(config->options, "pan_afbc_tiled");
 
