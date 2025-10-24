@@ -971,18 +971,6 @@ struct brw_bs_prog_data {
    uint32_t num_resume_shaders;
 };
 
-/**
- * Enum representing the i965-specific vertex results that don't correspond
- * exactly to any element of gl_varying_slot.  The values of this enum are
- * assigned such that they don't conflict with gl_varying_slot.
- */
-typedef enum
-{
-   BRW_VARYING_SLOT_PAD = VARYING_SLOT_MAX,
-   BRW_VARYING_SLOT_COUNT
-} brw_varying_slot;
-
-
 #define BRW_VUE_HEADER_VARYING_MASK \
    (VARYING_BIT_VIEWPORT | \
     VARYING_BIT_LAYER | \
@@ -1009,7 +997,7 @@ static inline unsigned brw_vue_slot_to_offset(unsigned slot)
 }
 
 /**
- * Convert a vertex output (brw_varying_slot) into a byte offset within the
+ * Convert a vertex output (gl_varying_slot) into a byte offset within the
  * VUE.
  */
 static inline unsigned

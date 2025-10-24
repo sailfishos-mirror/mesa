@@ -166,7 +166,7 @@ brw_compute_vue_map(const struct intel_device_info *devinfo,
 
    for (int i = 0; i < NUM_TOTAL_VARYING_SLOTS; ++i) {
       vue_map->varying_to_slot[i] = -1;
-      vue_map->slot_to_varying[i] = BRW_VARYING_SLOT_PAD;
+      vue_map->slot_to_varying[i] = -1;
    }
 
    int slot = 0;
@@ -287,7 +287,7 @@ brw_compute_tess_vue_map(struct intel_vue_map *vue_map,
 
    for (int i = 0; i < NUM_TOTAL_VARYING_SLOTS; ++i) {
       vue_map->varying_to_slot[i] = -1;
-      vue_map->slot_to_varying[i] = BRW_VARYING_SLOT_PAD;
+      vue_map->slot_to_varying[i] = -1;
    }
 
    int slot = 0;
@@ -360,21 +360,6 @@ brw_compute_tess_vue_map(struct intel_vue_map *vue_map,
    vue_map->num_slots = slot;
 }
 
-static const char *
-varying_name(brw_varying_slot slot, mesa_shader_stage stage)
-{
-   assume(slot < BRW_VARYING_SLOT_COUNT);
-
-   if (slot < VARYING_SLOT_MAX)
-      return gl_varying_slot_name_for_stage((gl_varying_slot)slot, stage);
-
-   static const char *brw_names[] = {
-      [BRW_VARYING_SLOT_PAD - VARYING_SLOT_MAX] = "BRW_VARYING_SLOT_PAD",
-   };
-
-   return brw_names[slot - VARYING_SLOT_MAX];
-}
-
 void
 brw_print_vue_map(FILE *fp, const struct intel_vue_map *vue_map,
                   mesa_shader_stage stage)
@@ -390,21 +375,18 @@ brw_print_vue_map(FILE *fp, const struct intel_vue_map *vue_map,
               vue_map->num_per_patch_slots,
               vue_map->num_per_vertex_slots,
               layout_name);
-      for (int i = 0; i < vue_map->num_slots; i++) {
-         if (vue_map->slot_to_varying[i] >= VARYING_SLOT_PATCH0) {
-            fprintf(fp, "  [%02d] VARYING_SLOT_PATCH%d\n", i,
-                    vue_map->slot_to_varying[i] - VARYING_SLOT_PATCH0);
-         } else {
-            fprintf(fp, "  [%02d] %s\n", i,
-                    varying_name(vue_map->slot_to_varying[i], stage));
-         }
-      }
    } else {
       fprintf(fp, "%s VUE map (%d slots, %s)\n",
               mesa_shader_stage_name(stage), vue_map->num_slots, layout_name);
-      for (int i = 0; i < vue_map->num_slots; i++) {
+   }
+
+   for (int i = 0; i < vue_map->num_slots; i++) {
+      const signed char v = vue_map->slot_to_varying[i];
+      if (v == -1) {
+         fprintf(fp, "  ...\n");
+      } else {
          fprintf(fp, "  [%02d] %s\n", i,
-                 varying_name(vue_map->slot_to_varying[i], stage));
+                 gl_varying_slot_name_for_stage(v, stage));
       }
    }
    fprintf(fp, "\n");

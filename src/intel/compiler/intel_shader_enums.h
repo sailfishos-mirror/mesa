@@ -317,9 +317,10 @@ struct intel_vue_map {
    /**
     * Map from VUE slot to gl_varying_slot value.  For slots that do not
     * directly correspond to a gl_varying_slot, the value comes from
-    * brw_varying_slot.
+    * elk_varying_slot.
     *
-    * For slots that are not in use, the value is BRW_VARYING_SLOT_PAD.
+    * For slots that are not in use, the value is -1 (brw) or
+    * ELK_VARYING_SLOT_PAD.
     */
    int8_t slot_to_varying[NUM_TOTAL_VARYING_SLOTS];
 

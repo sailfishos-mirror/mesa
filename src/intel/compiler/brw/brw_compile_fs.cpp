@@ -719,8 +719,7 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
       int first_slot = 0;
       for (int i = 0; i < vue_map.num_slots; i++) {
          int varying = vue_map.slot_to_varying[i];
-         if (varying != BRW_VARYING_SLOT_PAD && varying > 0 &&
-             (inputs_read & BITFIELD64_BIT(varying)) != 0) {
+         if (varying > 0 && (inputs_read & BITFIELD64_BIT(varying)) != 0) {
             first_slot = ROUND_DOWN_TO(i, 2);
             break;
          }
@@ -728,7 +727,7 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
 
       for (int slot = first_slot; slot < vue_map.num_slots; slot++) {
          int varying = vue_map.slot_to_varying[slot];
-         if (varying != BRW_VARYING_SLOT_PAD &&
+         if (varying > 0 &&
              (inputs_read & BRW_FS_VARYING_INPUT_MASK &
               BITFIELD64_BIT(varying))) {
             prog_data->urb_setup[varying] = slot - first_slot;
@@ -1953,11 +1952,7 @@ brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_m
    for (int _i = 0; _i < prev_stage_vue_map->num_slots; _i++) {
       uint32_t i = prev_stage_vue_map->num_slots - 1 - _i;
       int varying = prev_stage_vue_map->slot_to_varying[i];
-      if (varying < 0)
-         continue;
-
-      if (varying == BRW_VARYING_SLOT_PAD ||
-          (inputs_read & BITFIELD64_BIT(varying)) == 0)
+      if (varying < 0 || (inputs_read & BITFIELD64_BIT(varying)) == 0)
          continue;
 
       last_slot = i;
@@ -1966,8 +1961,7 @@ brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_m
 
    for (int i = 0; i < prev_stage_vue_map->num_slots; i++) {
       int varying = prev_stage_vue_map->slot_to_varying[i];
-      if (varying != BRW_VARYING_SLOT_PAD && varying > 0 &&
-          (inputs_read & BITFIELD64_BIT(varying)) != 0) {
+      if (varying > 0 && (inputs_read & BITFIELD64_BIT(varying)) != 0) {
          first_slot = i;
          break;
       }
