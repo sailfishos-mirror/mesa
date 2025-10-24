@@ -164,10 +164,8 @@ brw_compute_vue_map(const struct intel_device_info *devinfo,
     */
    slots_valid &= ~VARYING_BIT_FACE;
 
-   for (int i = 0; i < NUM_TOTAL_VARYING_SLOTS; ++i) {
-      vue_map->varying_to_slot[i] = -1;
-      vue_map->slot_to_varying[i] = -1;
-   }
+   memset(vue_map->varying_to_slot, -1, sizeof(vue_map->varying_to_slot));
+   memset(vue_map->slot_to_varying, -1, sizeof(vue_map->slot_to_varying));
 
    int slot = 0;
 
@@ -285,10 +283,8 @@ brw_compute_tess_vue_map(struct intel_vue_map *vue_map,
       vertex_slots |= VARYING_BIT_CLIP_DIST1;
    }
 
-   for (int i = 0; i < NUM_TOTAL_VARYING_SLOTS; ++i) {
-      vue_map->varying_to_slot[i] = -1;
-      vue_map->slot_to_varying[i] = -1;
-   }
+   memset(vue_map->varying_to_slot, -1, sizeof(vue_map->varying_to_slot));
+   memset(vue_map->slot_to_varying, -1, sizeof(vue_map->slot_to_varying));
 
    int slot = 0;
 
