@@ -206,6 +206,7 @@ struct mpc_color_caps {
     uint32_t shared_3d_lut       : 1; /**< can be in either dpp or mpc, but single instance */
     uint32_t global_alpha        : 1; /**< e.g. top plane 30 %. bottom 70 % */
     uint32_t top_bottom_blending : 1; /**< two-layer blending */
+
 };
 
 /** @struct vpe_color_caps
