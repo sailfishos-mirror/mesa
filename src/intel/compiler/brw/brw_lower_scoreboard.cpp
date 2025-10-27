@@ -53,6 +53,8 @@
  *  - tdr0 thread dependency register
  */
 
+#include <vector>
+
 #include "brw_shader.h"
 #include "brw_builder.h"
 #include "brw_cfg.h"
@@ -268,18 +270,18 @@ namespace {
     * Calculate the local ordered_address instruction counter at every
     * instruction of the shader for subsequent constant-time look-up.
     */
-   ordered_address *
+   std::vector<ordered_address>
    ordered_inst_addresses(const brw_shader *shader)
    {
-      ordered_address *jps = new ordered_address[num_instructions(shader)];
+      std::vector<ordered_address> jps;
+      jps.reserve(num_instructions(shader));
+
       ordered_address jp(TGL_PIPE_ALL, 0);
-      unsigned ip = 0;
 
       foreach_block_and_inst(block, brw_inst, inst, shader->cfg) {
-         jps[ip] = jp;
+         jps.push_back(jp);
          for (unsigned p = 0; p < IDX(TGL_PIPE_ALL); p++)
             jp.jp[p] += ordered_unit(shader->devinfo, inst, p);
-         ip++;
       }
 
       return jps;
@@ -338,15 +340,10 @@ namespace {
     * only if i == j for every pair of unsigned integers i and j.
     */
    struct equivalence_relation {
-      equivalence_relation(unsigned n) : is(new unsigned[n]), n(n)
+      equivalence_relation(unsigned n) : is(n)
       {
          for (unsigned i = 0; i < n; i++)
             is[i] = i;
-      }
-
-      ~equivalence_relation()
-      {
-         delete[] is;
       }
 
       /**
@@ -360,7 +357,7 @@ namespace {
       unsigned
       lookup(unsigned i) const
       {
-         if (i < n && is[i] != i)
+         if (i < is.size() && is[i] != i)
             return lookup(is[i]);
          else
             return i;
@@ -370,12 +367,12 @@ namespace {
        * Create an array with the results of the lookup() method for
        * constant-time evaluation.
        */
-      unsigned *
+      std::vector<unsigned>
       flatten() const
       {
-         unsigned *ids = new unsigned[n];
+         std::vector<unsigned> ids(is.size());
 
-         for (unsigned i = 0; i < n; i++)
+         for (unsigned i = 0; i < is.size(); i++)
             ids[i] = lookup(i);
 
          return ids;
@@ -399,11 +396,6 @@ namespace {
       }
 
    private:
-      equivalence_relation(const equivalence_relation &);
-
-      equivalence_relation &
-      operator=(const equivalence_relation &);
-
       /**
        * Assign the representative of \p from to be equivalent to \p to.
        *
@@ -414,7 +406,7 @@ namespace {
       assign(unsigned from, unsigned to)
       {
          if (from != to) {
-            assert(from < n);
+            assert(from < is.size());
 
             if (is[from] != from)
                assign(is[from], to);
@@ -423,8 +415,7 @@ namespace {
          }
       }
 
-      unsigned *is;
-      unsigned n;
+      std::vector<unsigned> is;
    };
 
    /**
@@ -807,54 +798,6 @@ namespace {
    };
 
    /**
-    * Dependency list handling.
-    * @{
-    */
-   struct dependency_list {
-      dependency_list() : deps(NULL), n(0) {}
-
-      ~dependency_list()
-      {
-         free(deps);
-      }
-
-      void
-      push_back(const dependency &dep)
-      {
-         deps = (dependency *)realloc(deps, (n + 1) * sizeof(*deps));
-         deps[n++] = dep;
-      }
-
-      unsigned
-      size() const
-      {
-         return n;
-      }
-
-      const dependency &
-      operator[](unsigned i) const
-      {
-         assert(i < n);
-         return deps[i];
-      }
-
-      dependency &
-      operator[](unsigned i)
-      {
-         assert(i < n);
-         return deps[i];
-      }
-
-   private:
-      dependency_list(const dependency_list &);
-      dependency_list &
-      operator=(const dependency_list &);
-
-      dependency *deps;
-      unsigned n;
-   };
-
-   /**
     * Whether it is needed to apply workaround to avoid
     * data coherency issues due to Wa_1407528679.
     */
@@ -869,7 +812,7 @@ namespace {
     * \p deps.
     */
    void
-   add_dependency(const unsigned *ids, dependency_list &deps, dependency dep)
+   add_dependency(const std::vector<unsigned> &ids, std::vector<dependency> &deps, dependency dep)
    {
       if (is_valid(dep)) {
          /* Translate the unordered dependency token first in order to keep
@@ -919,7 +862,7 @@ namespace {
     * channel masking applied will be considered in the calculation.
     */
    tgl_swsb
-   ordered_dependency_swsb(const dependency_list &deps,
+   ordered_dependency_swsb(const std::vector<dependency> &deps,
                            const ordered_address &jp,
                            bool exec_all)
    {
@@ -951,7 +894,7 @@ namespace {
     * masking applied will be considered in the calculation.
     */
    bool
-   find_ordered_dependency(const dependency_list &deps,
+   find_ordered_dependency(const std::vector<dependency> &deps,
                            const ordered_address &jp,
                            bool exec_all)
    {
@@ -966,7 +909,7 @@ namespace {
     * considered in the calculation.
     */
    tgl_sbid_mode
-   find_unordered_dependency(const dependency_list &deps,
+   find_unordered_dependency(const std::vector<dependency> &deps,
                              tgl_sbid_mode unordered,
                              bool exec_all)
    {
@@ -990,7 +933,7 @@ namespace {
    tgl_sbid_mode
    baked_unordered_dependency_mode(const struct intel_device_info *devinfo,
                                    const brw_inst *inst,
-                                   const dependency_list &deps,
+                                   const std::vector<dependency> &deps,
                                    const ordered_address &jp)
    {
       const bool exec_all = inst->force_writemask_all ||
@@ -1022,7 +965,7 @@ namespace {
    bool
    baked_ordered_dependency_mode(const struct intel_device_info *devinfo,
                                  const brw_inst *inst,
-                                 const dependency_list &deps,
+                                 const std::vector<dependency> &deps,
                                  const ordered_address &jp)
    {
       const bool exec_all = inst->force_writemask_all;
@@ -1066,7 +1009,8 @@ namespace {
     * instruction \p inst.
     */
    void
-   update_inst_scoreboard(const brw_shader *shader, const ordered_address *jps,
+   update_inst_scoreboard(const brw_shader *shader,
+                          const std::vector<ordered_address> &jps,
                           const brw_inst *inst, unsigned ip, scoreboard &sb)
    {
       const bool exec_all = inst->force_writemask_all;
@@ -1155,11 +1099,11 @@ namespace {
     * unconditionally resolved) dependencies at the end of each block of the
     * program.
     */
-   scoreboard *
+   std::vector<scoreboard>
    gather_block_scoreboards(const brw_shader *shader,
-                            const ordered_address *jps)
+                            const std::vector<ordered_address> &jps)
    {
-      scoreboard *sbs = new scoreboard[shader->cfg->num_blocks];
+      std::vector<scoreboard> sbs(shader->cfg->num_blocks);
       unsigned ip = 0;
 
       foreach_block_and_inst(block, brw_inst, inst, shader->cfg)
@@ -1175,14 +1119,14 @@ namespace {
     * Calculates the set of dependencies potentially pending at the beginning
     * of each block, and returns it as an array of scoreboard objects.
     */
-   scoreboard *
+   std::vector<scoreboard>
    propagate_block_scoreboards(const brw_shader *shader,
-                               const ordered_address *jps,
+                               const std::vector<ordered_address> &jps,
                                equivalence_relation &eq)
    {
-      const scoreboard *delta_sbs = gather_block_scoreboards(shader, jps);
-      scoreboard *in_sbs = new scoreboard[shader->cfg->num_blocks];
-      scoreboard *out_sbs = new scoreboard[shader->cfg->num_blocks];
+      const std::vector<scoreboard> delta_sbs = gather_block_scoreboards(shader, jps);
+      std::vector<scoreboard> in_sbs(shader->cfg->num_blocks);
+      std::vector<scoreboard> out_sbs(shader->cfg->num_blocks);
       const brw_ip_ranges &ips = shader->ip_ranges_analysis.require();
 
       for (bool progress = true; progress;) {
@@ -1213,9 +1157,6 @@ namespace {
          }
       }
 
-      delete[] delta_sbs;
-      delete[] out_sbs;
-
       return in_sbs;
    }
 
@@ -1223,15 +1164,17 @@ namespace {
     * Return the list of potential dependencies of each instruction in the
     * shader based on the result of global dependency analysis.
     */
-   dependency_list *
+   std::vector<std::vector<dependency>>
    gather_inst_dependencies(const brw_shader *shader,
-                            const ordered_address *jps)
+                            const std::vector<ordered_address> &jps)
    {
       const struct intel_device_info *devinfo = shader->devinfo;
       equivalence_relation eq(num_instructions(shader));
-      scoreboard *sbs = propagate_block_scoreboards(shader, jps, eq);
-      const unsigned *ids = eq.flatten();
-      dependency_list *deps = new dependency_list[num_instructions(shader)];
+      std::vector<scoreboard> sbs = propagate_block_scoreboards(shader, jps, eq);
+      const std::vector<unsigned> ids = eq.flatten();
+
+      std::vector<std::vector<dependency>> deps;
+      deps.reserve(num_instructions(shader));
       unsigned ip = 0;
 
       foreach_block_and_inst(block, brw_inst, inst, shader->cfg) {
@@ -1239,10 +1182,11 @@ namespace {
                                !needs_nomask_workaround(devinfo);
          const tgl_pipe p = inferred_exec_pipe(devinfo, inst);
          scoreboard &sb = sbs[block->num];
+         std::vector<dependency> inst_deps;
 
          for (unsigned i = 0; i < inst->sources; i++) {
             for (unsigned j = 0; j < regs_read(devinfo, inst, i); j++)
-               add_dependency(ids, deps[ip], dependency_for_read(
+               add_dependency(ids, inst_deps, dependency_for_read(
                   sb.get(byte_offset(inst->src[i], REG_SIZE * j))));
          }
 
@@ -1255,7 +1199,7 @@ namespace {
              */
             const dependency dep = sb.get(brw_acc_reg(8));
             if (dep.ordered && !is_single_pipe(dep.jp, p))
-               add_dependency(ids, deps[ip], dep);
+               add_dependency(ids, inst_deps, dep);
          }
 
          /* flags_read (and flags_written) returns a bit set per byte of the
@@ -1273,7 +1217,7 @@ namespace {
                   const dependency dep = sb.get(brw_flag_reg(i, 0));
 
                   if (dep.ordered && !is_single_pipe(dep.jp, p))
-                     add_dependency(ids, deps[ip], dep);
+                     add_dependency(ids, inst_deps, dep);
                }
 
                flags >>= 4;
@@ -1281,13 +1225,13 @@ namespace {
          }
 
          if (is_unordered(devinfo, inst) && !inst->eot)
-            add_dependency(ids, deps[ip],
+            add_dependency(ids, inst_deps,
                            dependency(TGL_SBID_SET, ip, exec_all));
 
          if (inst->dst.file != BAD_FILE && !inst->dst.is_null() &&
              !inst->dst.is_accumulator()) {
             for (unsigned j = 0; j < regs_written(inst); j++) {
-               add_dependency(ids, deps[ip], dependency_for_write(devinfo, inst,
+               add_dependency(ids, inst_deps, dependency_for_write(devinfo, inst,
                   sb.get(byte_offset(inst->dst, REG_SIZE * j))));
             }
          }
@@ -1302,7 +1246,7 @@ namespace {
              */
             const dependency dep = sb.get(brw_acc_reg(8));
             if (dep.ordered && !is_single_pipe(dep.jp, p))
-               add_dependency(ids, deps[ip], dep);
+               add_dependency(ids, inst_deps, dep);
          }
 
          /* flags_written returns a bit set per byte of the flags register
@@ -1313,18 +1257,16 @@ namespace {
             if ((flags & 0x0f) != 0) {
                const dependency dep = sb.get(brw_flag_reg(i, 0));
                if (dep.ordered && !is_single_pipe(dep.jp, p))
-                  add_dependency(ids, deps[ip], dep);
+                  add_dependency(ids, inst_deps, dep);
             }
 
             flags >>= 4;
          }
 
+         deps.push_back(inst_deps);
          update_inst_scoreboard(shader, jps, inst, ip, sb);
          ip++;
       }
-
-      delete[] sbs;
-      delete[] ids;
 
       return deps;
    }
@@ -1335,9 +1277,9 @@ namespace {
     * Allocate SBID tokens to track the execution of every out-of-order
     * instruction of the shader.
     */
-   dependency_list *
+   std::vector<std::vector<dependency>>
    allocate_inst_dependencies(const brw_shader *shader,
-                              const dependency_list *deps0)
+                              const std::vector<std::vector<dependency>> &deps0)
    {
       /* XXX - Use bin-packing algorithm to assign hardware SBIDs optimally in
        *       shaders with a large number of SEND messages.
@@ -1351,25 +1293,25 @@ namespace {
        * which is the maximum number of unordered IDs we can find in the
        * program.
        */
-      unsigned *ids = new unsigned[num_instructions(shader)];
-      for (unsigned ip = 0; ip < num_instructions(shader); ip++)
-         ids[ip] = ~0u;
+      std::vector<unsigned> ids(deps0.size(), ~0u);
 
-      dependency_list *deps1 = new dependency_list[num_instructions(shader)];
+      std::vector<std::vector<dependency>> deps1;
+      deps1.reserve(deps0.size());
+
       unsigned next_id = 0;
 
-      for (unsigned ip = 0; ip < num_instructions(shader); ip++) {
-         for (unsigned i = 0; i < deps0[ip].size(); i++) {
-            const dependency &dep = deps0[ip][i];
+      for (const auto &inst_deps0 : deps0) {
+         std::vector<dependency> inst_deps1;
 
+         for (const auto &dep : inst_deps0) {
             if (dep.unordered && ids[dep.id] == ~0u)
                ids[dep.id] = (next_id++) & (num_sbids - 1);
 
-            add_dependency(ids, deps1[ip], dep);
+            add_dependency(ids, inst_deps1, dep);
          }
-      }
 
-      delete[] ids;
+         deps1.push_back(inst_deps1);
+      }
 
       return deps1;
    }
@@ -1381,8 +1323,8 @@ namespace {
     */
    bool
    emit_inst_dependencies(brw_shader *shader,
-                          const ordered_address *jps,
-                          const dependency_list *deps)
+                          const std::vector<ordered_address> &jps,
+                          const std::vector<std::vector<dependency>> &deps)
    {
       bool progress = false;
       const struct intel_device_info *devinfo = shader->devinfo;
@@ -1463,13 +1405,10 @@ brw_lower_scoreboard(brw_shader &s)
    bool progress = false;
 
    if (s.devinfo->ver >= 12) {
-      const ordered_address *jps = ordered_inst_addresses(&s);
-      const dependency_list *deps0 = gather_inst_dependencies(&s, jps);
-      const dependency_list *deps1 = allocate_inst_dependencies(&s, deps0);
+      const std::vector<ordered_address> jps = ordered_inst_addresses(&s);
+      const auto deps0 = gather_inst_dependencies(&s, jps);
+      const auto deps1 = allocate_inst_dependencies(&s, deps0);
       progress = emit_inst_dependencies(&s, jps, deps1);
-      delete[] deps1;
-      delete[] deps0;
-      delete[] jps;
    }
 
    return progress;
