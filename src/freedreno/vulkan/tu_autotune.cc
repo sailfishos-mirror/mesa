@@ -1099,16 +1099,22 @@ struct tu_autotune::rp_history {
                }
 
                /* Adjust probability based on timing results. */
-               constexpr uint32_t STEP_DELTA = 5; /* 5% */
-               constexpr uint32_t MIN_PROB = 5, MAX_PROB = 95;
+               constexpr uint32_t FAST_STEP_DELTA = 5, FAST_MIN_PROBABILITY = 5, FAST_MAX_PROBABILITY = 95;
+               constexpr uint32_t SLOW_STEP_DELTA = 1, SLOW_MIN_PROBABILITY = 1, SLOW_MAX_PROBABILITY = 99;
 
                uint64_t avg_sysmem = sysmem_ema.get();
                uint64_t avg_gmem = gmem_ema.get();
 
-               if (avg_gmem < avg_sysmem && sysmem_prob > MIN_PROB) {
-                  sysmem_prob = MAX2(sysmem_prob - STEP_DELTA, MIN_PROB);
-               } else if (avg_sysmem < avg_gmem && sysmem_prob < MAX_PROB) {
-                  sysmem_prob = MIN2(sysmem_prob + STEP_DELTA, MAX_PROB);
+               if (avg_gmem < avg_sysmem) {
+                  if (sysmem_prob > FAST_MIN_PROBABILITY && sysmem_prob <= FAST_MAX_PROBABILITY)
+                     sysmem_prob = MAX2(sysmem_prob - FAST_STEP_DELTA, FAST_MIN_PROBABILITY);
+                  else if (sysmem_prob > SLOW_MIN_PROBABILITY)
+                     sysmem_prob = MAX2(sysmem_prob - SLOW_STEP_DELTA, SLOW_MIN_PROBABILITY);
+               } else if (avg_sysmem < avg_gmem) {
+                  if (sysmem_prob >= FAST_MIN_PROBABILITY && sysmem_prob < FAST_MAX_PROBABILITY)
+                     sysmem_prob = MIN2(sysmem_prob + FAST_STEP_DELTA, FAST_MAX_PROBABILITY);
+                  else if (sysmem_prob < SLOW_MAX_PROBABILITY)
+                     sysmem_prob = MIN2(sysmem_prob + SLOW_STEP_DELTA, SLOW_MAX_PROBABILITY);
                }
 
                /* If the RP duration exceeds a certain minimum duration threshold (i.e. has a large impact on frametime)
@@ -1120,7 +1126,7 @@ struct tu_autotune::rp_history {
                constexpr uint64_t MIN_LOCK_THRESHOLD = GPU_TICKS_PER_US * 1'000; /* 1ms */
                constexpr uint32_t LOCK_PERCENT_DIFF = 30;
 
-               bool has_resolved = sysmem_prob == MAX_PROB || sysmem_prob == MIN_PROB;
+               bool has_resolved = sysmem_prob == SLOW_MAX_PROBABILITY || sysmem_prob == SLOW_MIN_PROBABILITY;
                bool enough_samples =
                   sysmem_ema.count >= MIN_LOCK_DURATION_COUNT && gmem_ema.count >= MIN_LOCK_DURATION_COUNT;
                uint64_t min_avg = MIN2(avg_sysmem, avg_gmem);
