@@ -1141,6 +1141,7 @@ typedef uint64_t isl_surf_usage_flags_t;
 #define ISL_SURF_USAGE_MULTI_ENGINE_SEQ_BIT    (1u << 24)
 #define ISL_SURF_USAGE_MULTI_ENGINE_PAR_BIT    (1u << 25)
 #define ISL_SURF_USAGE_SOFTWARE_DETILING       (1u << 26)
+#define ISL_SURF_USAGE_PREFER_4K_ALIGNMENT     (1u << 27)
 /** @} */
 
 /**
