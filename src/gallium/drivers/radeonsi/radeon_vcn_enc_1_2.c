@@ -84,6 +84,14 @@ static void radeon_enc_slice_control(struct radeon_encoder *enc)
    RADEON_ENC_CS(enc->enc_pic.slice_ctrl.slice_control_mode);
    RADEON_ENC_CS(enc->enc_pic.slice_ctrl.num_mbs_per_slice);
    RADEON_ENC_END();
+
+   if (enc->enc_pic.slice_ctrl.slice_control_mode == RENCODE_H264_SLICE_CONTROL_MODE_VARIABLE_MBS) {
+      RADEON_ENC_BEGIN(enc->cmd.slice_info_h264);
+      RADEON_ENC_CS(enc->enc_pic.h264_slice_info_var.num_slices);
+      for (uint32_t i = 0; i < RENCODE_MAX_NUM_SLICES; i++)
+         RADEON_ENC_CS(enc->enc_pic.h264_slice_info_var.slice_info[i].num_mbs_per_slice);
+      RADEON_ENC_END();
+   }
 }
 
 static void radeon_enc_slice_control_hevc(struct radeon_encoder *enc)
@@ -93,6 +101,16 @@ static void radeon_enc_slice_control_hevc(struct radeon_encoder *enc)
    RADEON_ENC_CS(enc->enc_pic.hevc_slice_ctrl.fixed_ctbs_per_slice.num_ctbs_per_slice);
    RADEON_ENC_CS(enc->enc_pic.hevc_slice_ctrl.fixed_ctbs_per_slice.num_ctbs_per_slice_segment);
    RADEON_ENC_END();
+
+   if (enc->enc_pic.hevc_slice_ctrl.slice_control_mode == RENCODE_HEVC_SLICE_CONTROL_MODE_VARIABLE_CTBS) {
+      RADEON_ENC_BEGIN(enc->cmd.slice_info_hevc);
+      RADEON_ENC_CS(enc->enc_pic.hevc_slice_info_var.num_slice_segments);
+      for (uint32_t i = 0; i < RENCODE_MAX_NUM_SLICES; i++) {
+         RADEON_ENC_CS(enc->enc_pic.hevc_slice_info_var.slice_segment_info[i].num_ctbs_per_segment);
+         RADEON_ENC_CS(enc->enc_pic.hevc_slice_info_var.slice_segment_info[i].is_independent);
+      }
+      RADEON_ENC_END();
+   }
 }
 
 static void radeon_enc_spec_misc(struct radeon_encoder *enc)
@@ -914,6 +932,8 @@ static void encode(struct radeon_encoder *enc)
    enc->session_info(enc);
    enc->total_task_size = 0;
    enc->task_info(enc, enc->need_feedback);
+
+   enc->slice_control(enc);
 
    if (enc->need_rate_control || enc->need_rc_per_pic) {
       i = 0;
