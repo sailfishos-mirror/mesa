@@ -7,34 +7,13 @@
 #include "panvk_cmd_buffer.h"
 #include "panvk_entrypoints.h"
 
-VkResult
-panvk_per_arch(cmd_prepare_push_uniforms)(
-   struct panvk_cmd_buffer *cmdbuf, const struct panvk_shader_variant *shader,
-   uint32_t repeat_count)
+static VkResult
+prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
+                      const struct panvk_shader_variant *shader,
+                      uint64_t *push_ptr, uint32_t repeat_count,
+                      uint64_t *sysvals)
 {
    struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
-   uint64_t *push_ptr;
-
-   switch (shader->info.stage) {
-   case MESA_SHADER_COMPUTE:
-      if (!compute_state_dirty(cmdbuf, PUSH_UNIFORMS))
-         return VK_SUCCESS;
-      push_ptr = &cmdbuf->state.compute.push_uniforms;
-      break;
-   case MESA_SHADER_VERTEX:
-      if (!gfx_state_dirty(cmdbuf, VS_PUSH_UNIFORMS))
-         return VK_SUCCESS;
-      push_ptr = &cmdbuf->state.gfx.vs.push_uniforms;
-      break;
-   case MESA_SHADER_FRAGMENT:
-      if (!gfx_state_dirty(cmdbuf, FS_PUSH_UNIFORMS))
-         return VK_SUCCESS;
-      push_ptr = &cmdbuf->state.gfx.fs.push_uniforms;
-      break;
-   default:
-      assert(!"Invalid stage");
-      return VK_SUCCESS;
-   }
 
    if (!shader->fau.total_count) {
       *push_ptr = 0;
@@ -47,10 +26,6 @@ panvk_per_arch(cmd_prepare_push_uniforms)(
 
    if (!push_uniforms.gpu)
       return VK_ERROR_OUT_OF_DEVICE_MEMORY;
-
-   const uint64_t *sysvals = shader->info.stage == MESA_SHADER_COMPUTE
-                          ? (uint64_t *)&cmdbuf->state.compute.sysvals
-                          : (uint64_t *)&cmdbuf->state.gfx.sysvals;
 
    struct panvk_common_sysvals_inner common_inner = {
       .printf_buffer_address = dev->printf.bo->addr.dev,
@@ -87,6 +62,24 @@ panvk_per_arch(cmd_prepare_push_uniforms)(
 
    *push_ptr = push_uniforms.gpu;
    return VK_SUCCESS;
+}
+
+VkResult
+panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
+   struct panvk_cmd_buffer *cmdbuf, const struct panvk_shader_variant *shader,
+   uint64_t *push_ptr, uint32_t repeat_count)
+{
+   return prepare_push_uniforms(cmdbuf, shader, push_ptr, repeat_count,
+                                (uint64_t *)&cmdbuf->state.gfx.sysvals);
+}
+
+VkResult
+panvk_per_arch(cmd_prepare_compute_push_uniforms)(
+   struct panvk_cmd_buffer *cmdbuf, const struct panvk_shader_variant *shader,
+   uint64_t *push_ptr)
+{
+   return prepare_push_uniforms(cmdbuf, shader, push_ptr, 1,
+                                (uint64_t *)&cmdbuf->state.compute.sysvals);
 }
 
 VKAPI_ATTR void VKAPI_CALL

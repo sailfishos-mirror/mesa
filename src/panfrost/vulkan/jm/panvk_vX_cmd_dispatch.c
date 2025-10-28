@@ -121,7 +121,8 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
 
    panvk_per_arch(cmd_prepare_dispatch_sysvals)(cmdbuf, info);
 
-   result = panvk_per_arch(cmd_prepare_push_uniforms)(cmdbuf, cs, 1);
+   result = panvk_per_arch(cmd_prepare_compute_push_uniforms)(
+      cmdbuf, cs, &cmdbuf->state.compute.push_uniforms);
    if (result != VK_SUCCESS)
       return;
 

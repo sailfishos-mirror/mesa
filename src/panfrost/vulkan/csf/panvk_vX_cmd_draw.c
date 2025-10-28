@@ -1898,8 +1898,8 @@ prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
    }
 
    if (gfx_state_dirty(cmdbuf, VS_PUSH_UNIFORMS)) {
-      result =
-         panvk_per_arch(cmd_prepare_push_uniforms)(cmdbuf, vs, vs_repeat_count);
+      result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
+         cmdbuf, vs, &cmdbuf->state.gfx.vs.push_uniforms, vs_repeat_count);
       if (result != VK_SUCCESS)
          return result;
 
@@ -1914,7 +1914,8 @@ prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
       uint64_t fau_ptr = 0;
 
       if (fs) {
-         result = panvk_per_arch(cmd_prepare_push_uniforms)(cmdbuf, fs, 1);
+         result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
+            cmdbuf, fs, &cmdbuf->state.gfx.fs.push_uniforms, 1);
          if (result != VK_SUCCESS)
             return result;
 
