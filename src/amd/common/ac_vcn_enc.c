@@ -61,7 +61,7 @@
 
 #define RENCODE_V5_IB_PARAM_METADATA_BUFFER                                         0x0000001c
 #define RENCODE_V5_IB_PARAM_ENCODE_CONTEXT_BUFFER_OVERRIDE                          0x0000001d
-#define RENCODE_V5_IB_PARAM_HEVC_ENCODE_PARAMS                                      0x00100004
+#define RENCODE_V5_HEVC_IB_PARAM_ENCODE_PARAMS                                      0x00100004
 #define RENCODE_V5_AV1_IB_PARAM_TILE_CONFIG                                         0x00300002
 #define RENCODE_V5_AV1_IB_PARAM_BITSTREAM_INSTRUCTION                               0x00300003
 #define RENCODE_V5_AV1_IB_PARAM_ENCODE_PARAMS                                       0x00300004
@@ -121,7 +121,7 @@ void ac_vcn_enc_init_cmds(rvcn_enc_cmd_t *cmd, enum vcn_version version)
    if (version >= VCN_5_0_0) {
       cmd->metadata = RENCODE_V5_IB_PARAM_METADATA_BUFFER;
       cmd->ctx_override = RENCODE_V5_IB_PARAM_ENCODE_CONTEXT_BUFFER_OVERRIDE;
-      cmd->enc_params_hevc = RENCODE_V5_IB_PARAM_HEVC_ENCODE_PARAMS;
+      cmd->enc_params_hevc = RENCODE_V5_HEVC_IB_PARAM_ENCODE_PARAMS;
       cmd->tile_config_av1 = RENCODE_V5_AV1_IB_PARAM_TILE_CONFIG;
       cmd->bitstream_instruction_av1 = RENCODE_V5_AV1_IB_PARAM_BITSTREAM_INSTRUCTION;
       cmd->enc_params_av1 = RENCODE_V5_AV1_IB_PARAM_ENCODE_PARAMS;
