@@ -3442,6 +3442,51 @@ get_affinities(ra_ctx& ctx)
             ctx.vectors[vec[0].id()] = it->second;
       }
    }
+
+   /* If split definitions have affinities with other temporaries, try to allocate those temporaries
+    * as a vector. */
+   for (std::pair<uint32_t, Instruction*> pair : ctx.split_vectors) {
+      Instruction* split = pair.second;
+
+      vector_info info;
+      info.num_parts = split->definitions.size();
+
+      unsigned num_temps = 0;
+      for (unsigned i = 0; i < split->definitions.size(); i++) {
+         Definition def = split->definitions[i];
+         uint32_t id = ctx.assignments[def.tempId()].affinity;
+         if (!id || def.regClass().type() != split->operands[0].regClass().type())
+            continue;
+
+         if (!info.parts) {
+            info.parts =
+               (Operand*)ctx.memory.allocate(sizeof(Operand) * info.num_parts, alignof(Operand));
+            for (unsigned j = 0; j < split->definitions.size(); j++)
+               info.parts[j] = Operand(split->definitions[j].regClass());
+         }
+
+         info.parts[i] = Operand(Temp(id, ctx.program->temp_rc[id]));
+         num_temps++;
+      }
+      if (!num_temps)
+         continue;
+
+      for (unsigned i = 0; i < split->definitions.size(); i++) {
+         uint32_t id = info.parts[i].tempId();
+         if (!id)
+            continue;
+
+         /* If the new vector affinities only includes one temporary, only overwrite the old one if
+          * the new one is stronger. */
+         auto vec_it = ctx.vectors.find(id);
+         if (num_temps == 1 && vec_it != ctx.vectors.end() &&
+             (!vec_it->second.is_weak || info.is_weak))
+            continue;
+
+         info.index = i;
+         ctx.vectors[id] = info;
+      }
+   }
 }
 
 void
