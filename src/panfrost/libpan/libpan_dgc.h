@@ -25,6 +25,12 @@ struct panlib_precomp_grid {
          uint16_t local_dep;
          uint16_t global_dep;
       } jm;
+
+      struct {
+         /* If set, the dispatch size is determined at execution time, and
+          * passed in by the caller in the JOB_SIZE_{X,Y,Z} SRs */
+         bool dynamic_count;
+      } csf;
    };
 };
 
@@ -41,6 +47,14 @@ panlib_3d_with_jm_deps(uint32_t x, uint32_t y, uint32_t z, uint16_t local_dep,
    return (struct panlib_precomp_grid){
       .count = {x, y, z},
       .jm = {local_dep, global_dep},
+   };
+}
+
+static struct panlib_precomp_grid
+panlib_dynamic_csf()
+{
+   return (struct panlib_precomp_grid){
+      .csf.dynamic_count = true,
    };
 }
 

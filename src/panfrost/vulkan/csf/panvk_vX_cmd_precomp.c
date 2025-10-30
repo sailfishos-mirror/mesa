@@ -56,8 +56,8 @@ panvk_per_arch(dispatch_precomp)(struct panvk_precomp_ctx *ctx,
                                  .y = grid.count[1],
                                  .z = grid.count[2]};
 
-   uint64_t tsd =
-      panvk_per_arch(cmd_dispatch_prepare_tls)(cmdbuf, shader, &dim, false);
+   uint64_t tsd = panvk_per_arch(cmd_dispatch_prepare_tls)(
+      cmdbuf, shader, &dim, grid.csf.dynamic_count);
    assert(tsd);
 
    struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_COMPUTE);
@@ -105,9 +105,39 @@ panvk_per_arch(dispatch_precomp)(struct panvk_precomp_ctx *ctx,
       cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_OFFSET_Z), 0);
 
       /* Job size */
-      cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_X), grid.count[0]);
-      cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_Y), grid.count[1]);
-      cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_Z), grid.count[2]);
+      if (!grid.csf.dynamic_count) {
+         cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_X), grid.count[0]);
+         cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_Y), grid.count[1]);
+         cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_Z), grid.count[2]);
+      } else {
+         /* If job size is dynamic, JOB_SIZE_* were already filled by the
+          * caller. We need to patch num_workgroups sysvals with the dynamic
+          * values. */
+         bool patch_x = shader_uses_sysval(shader, compute, num_work_groups.x);
+         bool patch_y = shader_uses_sysval(shader, compute, num_work_groups.y);
+         bool patch_z = shader_uses_sysval(shader, compute, num_work_groups.z);
+         bool patch_faus = patch_x || patch_y || patch_z;
+
+         struct cs_index fau_addr = cs_scratch_reg64(b, 0);
+         if (patch_faus)
+            cs_move64_to(b, fau_addr, push_uniforms.gpu);
+
+         if (patch_x)
+            cs_store32(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_X), fau_addr,
+                       shader_remapped_sysval_offset(
+                          shader, sysval_offset(compute, num_work_groups.x)));
+         if (patch_y)
+            cs_store32(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_Y), fau_addr,
+                       shader_remapped_sysval_offset(
+                          shader, sysval_offset(compute, num_work_groups.y)));
+         if (patch_z)
+            cs_store32(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_Z), fau_addr,
+                       shader_remapped_sysval_offset(
+                          shader, sysval_offset(compute, num_work_groups.z)));
+
+         if (patch_faus)
+            cs_flush_stores(b);
+      }
    }
 
    cs_next_iter_sb(cmdbuf, PANVK_SUBQUEUE_COMPUTE,
@@ -115,8 +145,20 @@ panvk_per_arch(dispatch_precomp)(struct panvk_precomp_ctx *ctx,
 
    unsigned task_axis = MALI_TASK_AXIS_X;
    unsigned task_increment = 0;
-   panvk_per_arch(calculate_task_axis_and_increment)(
-      shader, phys_dev, &dim, &task_axis, &task_increment);
+   if (grid.csf.dynamic_count) {
+      /* Use run_compute with a set task axis instead of run_compute_indirect as
+       * run_compute_indirect has been found to cause intermittent hangs. This
+       * is safe, as the task increment will be clamped by the job size along
+       * the specified axis.
+       * The chosen task axis is potentially suboptimal, as choosing good
+       * increment/axis parameters requires knowledge of job dimensions, but
+       * this is somewhat offset by run_compute being a native instruction. */
+      task_increment = pan_calc_workgroups_per_task(
+         &shader->cs.local_size, &phys_dev->kmod.dev->props);
+   } else {
+      panvk_per_arch(calculate_task_axis_and_increment)(
+         shader, phys_dev, &dim, &task_axis, &task_increment);
+   }
    cs_trace_run_compute(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
                         task_increment, task_axis,
                         cs_shader_res_sel(0, 0, 0, 0));
