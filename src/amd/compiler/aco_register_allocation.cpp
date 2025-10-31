@@ -58,6 +58,7 @@ struct assignment {
          bool assigned : 1;
          bool precolor_affinity : 1;
          bool renamed : 1;
+         uint8_t weight : 2;
       };
       uint8_t _ = 0;
    };
@@ -82,6 +83,7 @@ struct assignment {
    {
       set_precolor_affinity(other.reg.advance(offset));
    }
+   void update_weight(assignment& other) { weight = MAX2(weight, other.weight); }
 };
 
 /* Iterator type for making PhysRegInterval compatible with range-based for */
@@ -2778,6 +2780,14 @@ get_regs_for_phis(ra_ctx& ctx, Block& block, RegisterFile& register_file,
       ctx.assignments[definition.tempId()].set(definition);
    }
 
+   for (aco_ptr<Instruction>& phi : instructions) {
+      for (Operand op : phi->operands) {
+         if (!op.isTemp() || !op.isFixed() || op.physReg() != phi->definitions[0].physReg())
+            continue;
+         ctx.assignments[phi->definitions[0].tempId()].update_weight(ctx.assignments[op.tempId()]);
+      }
+   }
+
    /* Provide a scratch register in case we need to preserve SCC */
    if (has_linear_phis || block.kind & block_kind_loop_header) {
       PhysReg scratch_reg = scc;
@@ -3831,6 +3841,17 @@ handle_call(ra_ctx& ctx, aco_ptr<Instruction>& instr, BITSET_DECLARE(call_clobbe
    }
 }
 
+void
+assign_weights(ra_ctx& ctx, const aco_ptr<Instruction>& instr)
+{
+   if ((instr->isVMEM() || instr->isFlatLike()) && !instr->definitions.empty())
+      ctx.assignments[instr->definitions[0].tempId()].weight = 3;
+   if (instr->isSMEM() && !instr->definitions.empty())
+      ctx.assignments[instr->definitions[0].tempId()].weight = 2;
+   if (instr->isDS() && !instr->definitions.empty())
+      ctx.assignments[instr->definitions[0].tempId()].weight = 1;
+}
+
 } /* end namespace */
 
 void
@@ -3927,6 +3948,8 @@ register_allocation(Program* program, ra_test_policy policy)
          bool temp_in_scc = register_file[scc];
 
          optimize_encoding(ctx, register_file, instr);
+
+         assign_weights(ctx, instr);
 
          auto tied_defs = get_tied_defs(instr.get());
          handle_operands_tied_to_definitions(ctx, parallelcopy, instr, register_file, tied_defs);
@@ -4037,6 +4060,8 @@ register_allocation(Program* program, ra_test_policy policy)
                if (get_reg_specified(ctx, register_file, rc, instr, reg, -1, false)) {
                   definition->setFixed(reg);
                   clear_preserved = false;
+                  ctx.assignments[definition->tempId()].update_weight(
+                     ctx.assignments[instr->operands[0].tempId()]);
                } else if (i == 0) {
                   RegClass vec_rc = RegClass::get(rc.type(), instr->operands[0].bytes());
                   DefInfo info(ctx, ctx.pseudo_dummy, vec_rc, -1);
@@ -4066,12 +4091,22 @@ register_allocation(Program* program, ra_test_policy policy)
                                      false)) {
                   definition->setFixed(reg);
                   clear_preserved = false;
+                  ctx.assignments[definition->tempId()].update_weight(
+                     ctx.assignments[instr->operands[0].tempId()]);
                }
             } else if (instr->opcode == aco_opcode::p_create_vector) {
                PhysReg reg = get_reg_create_vector(ctx, register_file, definition->getTemp(),
                                                    parallelcopy, instr);
                update_renames(ctx, register_file, parallelcopy, instr);
                definition->setFixed(reg);
+
+               unsigned offset = 0;
+               for (const Operand& op : instr->operands) {
+                  if (op.isTemp() && op.physReg() == reg.advance(offset))
+                     ctx.assignments[definition->tempId()].update_weight(
+                        ctx.assignments[op.tempId()]);
+                  offset += op.bytes();
+               }
             } else if (instr_info.classes[(int)instr->opcode] == instr_class::wmma &&
                        instr->operands[2].isTemp() && instr->operands[2].isKill() &&
                        instr->operands[2].regClass() == definition->regClass()) {
