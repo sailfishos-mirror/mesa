@@ -616,7 +616,7 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
     */
    bool monolithic = !library && pipeline->stage_count < 50;
    for (uint32_t i = 0; i < pCreateInfo->stageCount; i++) {
-      if (rt_stages[i].shader || rt_stages[i].nir)
+      if (rt_stages[i].nir)
          continue;
 
       int64_t stage_start = os_time_get_nano();
@@ -651,7 +651,7 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
    }
 
    for (uint32_t idx = 0; idx < pCreateInfo->stageCount; idx++) {
-      if (rt_stages[idx].shader || rt_stages[idx].nir)
+      if (rt_stages[idx].nir)
          continue;
 
       int64_t stage_start = os_time_get_nano();
