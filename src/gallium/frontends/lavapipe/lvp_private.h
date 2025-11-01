@@ -577,10 +577,8 @@ struct lvp_event {
 struct lvp_buffer {
    struct vk_buffer vk;
 
-   struct lvp_device_memory *mem;
    struct pipe_resource *bo;
    uint64_t total_size;
-   uint64_t offset;
    void *map;
    struct pipe_transfer *transfer;
 };
