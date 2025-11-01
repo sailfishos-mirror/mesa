@@ -168,8 +168,6 @@ struct lvp_physical_device {
 struct lvp_instance {
    struct vk_instance vk;
 
-   uint32_t apiVersion;
-
    uint64_t debug_flags;
 
    struct pipe_loader_device *devs;

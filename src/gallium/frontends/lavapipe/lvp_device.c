@@ -1495,8 +1495,6 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateInstance(
       return vk_error(NULL, result);
    }
 
-   instance->apiVersion = LVP_API_VERSION;
-
    instance->vk.physical_devices.enumerate = lvp_enumerate_physical_devices;
    instance->vk.physical_devices.destroy = lvp_destroy_physical_device;
 
