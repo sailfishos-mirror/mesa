@@ -38,10 +38,6 @@
 
 #include "gallivm/lp_bld_debug.h"
 
-#define SPIR_V_MAGIC_NUMBER 0x07230203
-
-#define MAX_DYNAMIC_STATES 72
-
 typedef void (*cso_destroy_func)(struct pipe_context*, void*);
 
 static void
