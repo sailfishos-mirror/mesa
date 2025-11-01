@@ -601,7 +601,6 @@ struct lvp_buffer_view {
 struct lvp_query_pool {
    struct vk_query_pool vk;
    enum pipe_query_type base_type;
-   void *data; /* Used by queries that are not implemented by pipe_query */
    struct pipe_query *queries[0];
 };
 

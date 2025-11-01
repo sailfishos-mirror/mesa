@@ -81,7 +81,6 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateQueryPool(
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
    pool->base_type = pipeq;
-   pool->data = &pool->queries;
 
    *pQueryPool = lvp_query_pool_to_handle(pool);
    return VK_SUCCESS;
@@ -122,6 +121,7 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_GetQueryPoolResults(
 
    device->vk.dispatch_table.DeviceWaitIdle(_device);
 
+   void *data = &pool->queries;
    for (unsigned i = firstQuery; i < firstQuery + queryCount; i++) {
       uint8_t *dest = (uint8_t *)((char *)pData + (stride * (i - firstQuery)));
       union pipe_query_result result;
@@ -130,13 +130,13 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_GetQueryPoolResults(
       if (pool->base_type >= PIPE_QUERY_TYPES) {
          if (flags & VK_QUERY_RESULT_64_BIT) {
             uint64_t *dst = (uint64_t *)dest;
-            uint64_t *src = (uint64_t *)pool->data;
+            uint64_t *src = (uint64_t *)data;
             *dst = src[i];
             if (flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT)
                *(dst + 1) = 1;
          } else {
             uint32_t *dst = (uint32_t *)dest;
-            uint64_t *src = (uint64_t *)pool->data;
+            uint64_t *src = (uint64_t *)data;
             *dst = src[i];
             if (flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT)
                *(dst + 1) = 1;

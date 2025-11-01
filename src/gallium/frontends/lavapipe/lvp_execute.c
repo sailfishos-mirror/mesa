@@ -2961,21 +2961,22 @@ static void handle_copy_query_pool_results(struct vk_cmd_queue_entry *cmd,
    unsigned result_size = copycmd->flags & VK_QUERY_RESULT_64_BIT ? 8 : 4;
    for (unsigned i = copycmd->first_query; i < copycmd->first_query + copycmd->query_count; i++) {
       unsigned offset = copycmd->dst_offset + (copycmd->stride * (i - copycmd->first_query));
-
       if (pool->base_type >= PIPE_QUERY_TYPES) {
          struct pipe_transfer *transfer;
          uint8_t *map = pipe_buffer_map(state->pctx, lvp_buffer_from_handle(copycmd->dst_buffer)->bo, PIPE_MAP_WRITE, &transfer);
          map += offset;
 
+         void *data = &pool->queries;
+
          if (copycmd->flags & VK_QUERY_RESULT_64_BIT) {
             uint64_t *dst = (uint64_t *)map;
-            uint64_t *src = (uint64_t *)pool->data;
+            uint64_t *src = (uint64_t *)data;
             *dst = src[i];
             if (copycmd->flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT)
                *(dst + 1) = 1;
          } else {
             uint32_t *dst = (uint32_t *)map;
-            uint64_t *src = (uint64_t *)pool->data;
+            uint64_t *src = (uint64_t *)data;
             *dst = (uint32_t) (src[i] & UINT32_MAX);
             if (copycmd->flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT)
                *(dst + 1) = 1;
@@ -4542,8 +4543,8 @@ handle_write_acceleration_structures_properties(struct vk_cmd_queue_entry *cmd, 
    struct vk_cmd_write_acceleration_structures_properties_khr *write = &cmd->u.write_acceleration_structures_properties_khr;
 
    VK_FROM_HANDLE(lvp_query_pool, pool, write->query_pool);
-
-   uint64_t *dst = pool->data;
+   void *data = &pool->queries;
+   uint64_t *dst = data;
    dst += write->first_query;
 
    for (uint32_t i = 0; i < write->acceleration_structure_count; i++) {
