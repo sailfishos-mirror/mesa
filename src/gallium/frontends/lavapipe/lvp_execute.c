@@ -73,11 +73,11 @@ struct descriptor_buffer_offset {
 struct lvp_render_attachment {
    struct lvp_image_view *imgv;
    VkResolveModeFlags resolve_mode;
+   bool read_only;
    struct lvp_image_view *resolve_imgv;
    VkAttachmentLoadOp load_op;
    VkAttachmentStoreOp store_op;
    VkClearValue clear_value;
-   bool read_only;
 };
 
 struct lvp_conditional_rendering_state {
