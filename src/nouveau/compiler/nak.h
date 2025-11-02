@@ -85,8 +85,21 @@ struct nak_constant_offset_info {
     * sample in a multi-pass fragment shader invocaiton.
     */
    uint32_t sample_masks_offset;
+
+   /**
+    * The offset into cb0 for the printf buffer pointer.
+    */
+   uint32_t printf_buffer_offset;
 };
 const extern struct nak_constant_offset_info nak_const_offsets;
+
+#define NAK_PRINTF_BUFFER_SIZE 0x40000
+
+#ifdef NDEBUG
+#define NAK_CAN_PRINTF false
+#else
+#define NAK_CAN_PRINTF true
+#endif
 
 void nak_postprocess_nir(nir_shader *nir, const struct nak_compiler *nak,
                          nir_variable_mode robust2_modes,

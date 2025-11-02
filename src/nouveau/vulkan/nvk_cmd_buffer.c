@@ -1173,6 +1173,20 @@ nvk_cmd_buffer_flush_push_descriptors(struct nvk_cmd_buffer *cmd,
    }
 }
 
+void
+nvk_cmd_buffer_flush_printf_buffer(struct nvk_cmd_buffer *cmd,
+                                   struct nvk_descriptor_state *desc)
+{
+   struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+
+   if (!NAK_CAN_PRINTF)
+      return;
+
+   struct nvkmd_mem *bo = (struct nvkmd_mem *) dev->printf.bo;
+   nvk_descriptor_state_set_root(cmd, desc, printf_buffer_addr,
+                                 bo->va->addr);
+}
+
 bool
 nvk_cmd_buffer_get_cbuf_addr(struct nvk_cmd_buffer *cmd,
                              const struct nvk_descriptor_state *desc,

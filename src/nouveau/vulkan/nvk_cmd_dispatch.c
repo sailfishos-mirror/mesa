@@ -150,6 +150,9 @@ nvk_flush_compute_state(struct nvk_cmd_buffer *cmd,
                                        0, 3, base_workgroup);
    nvk_descriptor_state_set_root_array(cmd, desc, cs.group_count,
                                        0, 3, global_size);
+
+   if (NAK_CAN_PRINTF)
+      nvk_cmd_buffer_flush_printf_buffer(cmd, desc);
 }
 
 static VkResult
@@ -356,6 +359,11 @@ nvk_cmd_dispatch_shader(struct nvk_cmd_buffer *cmd,
    };
    assert(push_size <= sizeof(root.push));
    memcpy(root.push, push_data, push_size);
+
+   if (NAK_CAN_PRINTF) {
+      struct nvkmd_mem *bo = (struct nvkmd_mem *)dev->printf.bo;
+      root.printf_buffer_addr = bo->va->addr;
+   }
 
    uint64_t qmd_addr;
    VkResult result = nvk_cmd_upload_qmd(cmd, shader, NULL, &root,

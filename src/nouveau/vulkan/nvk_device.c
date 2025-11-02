@@ -14,6 +14,8 @@
 
 #include "vk_drm_syncobj.h"
 #include "vk_pipeline_cache.h"
+#include "vk_debug_utils.h"
+#include "util/u_printf.h"
 #include "vulkan/wsi/wsi_common.h"
 
 #include "cl9097.h"
@@ -122,6 +124,46 @@ nvk_slm_area_ensure(struct nvk_device *dev,
 }
 
 static VkResult
+nvk_init_printf(struct nvk_device *dev)
+{
+   VkResult result;
+   struct nvkmd_mem *mem;
+   const uint64_t mem_size = NAK_PRINTF_BUFFER_SIZE;
+
+   result = nvkmd_dev_alloc_mapped_mem(dev->nvkmd, &dev->vk.base,
+                                       mem_size, 0 /* align_B */,
+                                       NVKMD_MEM_GART | NVKMD_MEM_COHERENT,
+                                       NVKMD_MEM_MAP_RDWR,
+                                       &mem);
+
+   if (result != VK_SUCCESS)
+      return result;
+
+   u_printf_init(&dev->printf, mem, mem->map);
+
+   return VK_SUCCESS;
+}
+
+static void
+nvk_destroy_printf(struct nvk_device *dev) {
+   struct nvkmd_mem *mem = dev->printf.bo;
+   u_printf_destroy(&dev->printf);
+   nvkmd_mem_unref(mem);
+}
+
+static VkResult
+nvk_device_check_status(struct vk_device *vk_dev)
+{
+   VkResult status = VK_SUCCESS;
+   struct nvk_device *dev = container_of(vk_dev, struct nvk_device, vk);
+
+   if (NAK_CAN_PRINTF)
+      status = vk_check_printf_status(&dev->vk, &dev->printf);
+
+   return status;
+}
+
+static VkResult
 nvk_device_get_timestamp(struct vk_device *vk_dev, uint64_t *timestamp)
 {
    struct nvk_device *dev = container_of(vk_dev, struct nvk_device, vk);
@@ -156,6 +198,7 @@ nvk_CreateDevice(VkPhysicalDevice physicalDevice,
       goto fail_alloc;
 
    dev->vk.shader_ops = &nvk_device_shader_ops;
+   dev->vk.check_status = &nvk_device_check_status;
 
    uint32_t queue_count = 0;
    for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; i++)
@@ -300,6 +343,12 @@ nvk_CreateDevice(VkPhysicalDevice physicalDevice,
          goto fail_mem_cache;
    }
 
+   if (queue_count > 0 && NAK_CAN_PRINTF) {
+      result = nvk_init_printf(dev);
+      if (result != VK_SUCCESS)
+         goto fail_mem_cache;
+   }
+
    *pDevice = nvk_device_to_handle(dev);
 
    return VK_SUCCESS;
@@ -349,6 +398,9 @@ nvk_DestroyDevice(VkDevice _device, const VkAllocationCallbacks *pAllocator)
       return;
 
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+
+   if (dev->nvkmd && NAK_CAN_PRINTF)
+      nvk_destroy_printf(dev);
 
    if (dev->copy_queries)
       vk_shader_destroy(&dev->vk, &dev->copy_queries->vk, &dev->vk.alloc);

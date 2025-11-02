@@ -3950,6 +3950,9 @@ nvk_cmd_flush_gfx_state(struct nvk_cmd_buffer *cmd)
    nvk_cmd_flush_gfx_dynamic_state(cmd);
    nvk_cmd_flush_gfx_shaders(cmd);
    nvk_cmd_flush_gfx_cbufs(cmd);
+
+   if (NAK_CAN_PRINTF)
+      nvk_cmd_buffer_flush_printf_buffer(cmd, &cmd->state.gfx.descriptors);
 }
 
 void

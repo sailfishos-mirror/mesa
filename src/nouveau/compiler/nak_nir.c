@@ -825,6 +825,34 @@ nak_nir_remove_barrier_intrin(nir_builder *b, nir_intrinsic_instr *barrier,
 }
 
 static bool
+nak_nir_lower_printf_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
+                            void *data)
+{
+   b->cursor = nir_before_instr(&intrin->instr);
+   if (intrin->intrinsic == nir_intrinsic_load_printf_buffer_address) {
+      nir_def *buffer_addr = nir_ldc_nv(
+         b, 1, 64,
+         nir_imm_int(b, 0),
+         nir_imm_int(b, nak_const_offsets.printf_buffer_offset));
+      nir_def_replace(&intrin->def, buffer_addr);
+      return true;
+   } else if (intrin->intrinsic == nir_intrinsic_load_printf_buffer_size) {
+      nir_def_replace(&intrin->def,
+                      nir_imm_int(b, NAK_PRINTF_BUFFER_SIZE));
+      return true;
+   } else {
+      return false;
+   }
+}
+
+static bool
+nak_nir_lower_printf(nir_shader *nir)
+{
+   return nir_shader_intrinsics_pass(nir, nak_nir_lower_printf_intrin,
+                                     nir_metadata_none, NULL);
+}
+
+static bool
 nak_nir_remove_barriers(nir_shader *nir)
 {
    /* We'll set this back to true if we leave any barriers in place */
@@ -1306,6 +1334,9 @@ nak_postprocess_nir(nir_shader *nir,
    }
 
    OPT(nir, nak_nir_remove_barriers);
+
+   if (NAK_CAN_PRINTF)
+      OPT(nir, nak_nir_lower_printf);
 
    /* Call divergence analysis regardless of sm version. */
    nir_divergence_analysis(nir);
