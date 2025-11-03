@@ -2674,7 +2674,7 @@
         "description": "intel/isl: Support MSAA in subimage range helper",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "64ca8a3272ec337bf026d8319b9565441c945c8b",
         "notes": null
