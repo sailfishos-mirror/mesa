@@ -3314,25 +3314,23 @@ isl_calc_sampler_padding_last_row(const struct isl_device *dev,
                                             tile_info->phys_extent_B.height);
 }
 
-static bool
-isl_calc_size(const struct isl_device *dev,
-              const struct isl_surf_init_info *info,
-              const struct isl_tile_info *tile_info,
-              const struct isl_extent4d *phys_total_el,
-              const struct isl_extent3d *image_align_el,
-              uint32_t array_pitch_el_rows,
-              uint32_t row_pitch_B,
-              uint64_t *out_size_B)
+static uint64_t
+isl_calc_initial_size(const struct isl_device *dev,
+                      const struct isl_surf_init_info *info,
+                      const struct isl_tile_info *tile_info,
+                      const struct isl_extent4d *phys_total_el,
+                      const struct isl_extent3d *image_align_el,
+                      uint32_t array_pitch_el_rows,
+                      uint32_t row_pitch_B)
 {
    uint32_t phys_total_h_el = phys_total_el->h;
    isl_calc_sampler_padding_rows(dev, info, image_align_el, &phys_total_h_el);
 
-   uint64_t size_B;
    if (tile_info->tiling == ISL_TILING_LINEAR) {
       /* LINEAR tiling has no concept of intra-tile arrays */
       assert(phys_total_el->d == 1 && phys_total_el->a == 1);
 
-      size_B = (uint64_t) row_pitch_B * phys_total_h_el;
+      return (uint64_t) row_pitch_B * phys_total_h_el;
 
    } else {
       /* Pitches must make sense with the tiling */
@@ -3364,34 +3362,43 @@ isl_calc_size(const struct isl_device *dev,
          (array_slices - 1) * array_pitch_tl_rows +
          isl_align_div(phys_total_h_el, tile_info->logical_extent_el.height);
 
-      size_B = (uint64_t) total_h_tl * tile_info->phys_extent_B.height *
-               row_pitch_B;
-
-      /* Bspec 57340 (r59562):
-       *
-       *    When allocating memory, MCS buffer size is extended by 4KB over
-       *    its original calculated size. First 4KB page of the MCS is
-       *    reserved for internal HW usage.
-       *
-       * Allocate an extra 4KB page reserved for hardware at the beginning of
-       * MCS buffer on Xe2. The start address of MCS is the head of the 4KB
-       * page. Any manipulation on the content of MCS should start after 4KB
-       * from the start address.
-       */
-      if (dev->info->ver >= 20 && info->usage & ISL_SURF_USAGE_MCS_BIT)
-         size_B += 4096;
+      return (uint64_t) total_h_tl * tile_info->phys_extent_B.height *
+             row_pitch_B;
    }
+}
 
-   isl_calc_sampler_padding_last_row(dev, info, tile_info, image_align_el,
-                                     row_pitch_B, &size_B);
+static bool
+isl_calc_final_size(const struct isl_device *dev,
+                    const struct isl_surf_init_info *restrict info,
+                    const struct isl_tile_info *tile_info,
+                    const struct isl_extent4d *phys_total_el,
+                    struct isl_surf *surf)
+{
+   /* Bspec 57340 (r59562):
+    *
+    *    When allocating memory, MCS buffer size is extended by 4KB over its
+    *    original calculated size. First 4KB page of the MCS is reserved for
+    *    internal HW usage.
+    *
+    * Allocate an extra 4KB page reserved for hardware at the beginning of MCS
+    * buffer on Xe2. The start address of MCS is the head of the 4KB page. Any
+    * manipulation on the content of MCS should start after 4KB from the start
+    * address.
+    */
+   if (dev->info->ver >= 20 && surf->usage & ISL_SURF_USAGE_MCS_BIT)
+      surf->size_B += 4096;
+
+   isl_calc_sampler_padding_last_row(dev, info, tile_info,
+                                     &surf->image_alignment_el,
+                                     surf->row_pitch_B, &surf->size_B);
 
    /* If for some reason we can't support the appropriate tiling format and
     * end up falling to linear or some other format, make sure the image size
     * and alignment are aligned to the expected block size so we can at least
     * do opaque binds.
     */
-   if (info->usage & ISL_SURF_USAGE_SPARSE_BIT)
-      size_B = isl_align(size_B, 64 * 1024);
+   if (surf->usage & ISL_SURF_USAGE_SPARSE_BIT)
+      surf->size_B = isl_align(surf->size_B, 64 * 1024);
 
    /* Pre-gfx9: from the Broadwell PRM Vol 5, Surface Layout:
     *    "In addition to restrictions on maximum height, width, and depth,
@@ -3408,14 +3415,13 @@ isl_calc_size(const struct isl_device *dev,
     */
    uint64_t max_surface_B = 1ull << (ISL_GFX_VER(dev) >= 11 ? 44 :
                                      ISL_GFX_VER(dev) >= 9 ? 38 : 31);
-   if (size_B > max_surface_B) {
+   if (surf->size_B > max_surface_B) {
       return notify_failure(
          info,
          "calculated size (%"PRIu64"B) exceeds platform limit of %"PRIu64"B",
-         size_B, max_surface_B);
+         surf->size_B, max_surface_B);
    }
 
-   *out_size_B = size_B;
    return true;
 }
 
@@ -3609,11 +3615,10 @@ isl_surf_init_s_with_tiling(const struct isl_device *dev,
                            &row_pitch_B))
       return false;
 
-   uint64_t size_B;
-   if (!isl_calc_size(dev, info, &tile_info, &phys_total_el,
-                      &image_align_el, array_pitch_el_rows,
-                      row_pitch_B, &size_B))
-      return false;
+   uint64_t initial_size_B =
+      isl_calc_initial_size(dev, info, &tile_info, &phys_total_el,
+                            &image_align_el, array_pitch_el_rows,
+                            row_pitch_B);
 
    const uint32_t base_alignment_B =
       isl_calc_base_alignment(dev, info, &tile_info);
@@ -3632,7 +3637,7 @@ isl_surf_init_s_with_tiling(const struct isl_device *dev,
       .logical_level0_px = logical_level0_px,
       .phys_level0_sa = phys_level0_sa,
 
-      .size_B = size_B,
+      .size_B = initial_size_B,
       .alignment_B = base_alignment_B,
       .row_pitch_B = row_pitch_B,
       .array_pitch_el_rows = array_pitch_el_rows,
@@ -3642,7 +3647,7 @@ isl_surf_init_s_with_tiling(const struct isl_device *dev,
       .usage = info->usage,
    };
 
-   return true;
+   return isl_calc_final_size(dev, info, &tile_info, &phys_total_el, surf);
 }
 
 bool
