@@ -3374,6 +3374,77 @@ isl_calc_final_size(const struct isl_device *dev,
                     const struct isl_extent4d *phys_total_el,
                     struct isl_surf *surf)
 {
+   /* Remove padding due to tiling if we can. */
+   bool remove_tile_padding = true;
+
+   /* On gfx12.0, CCS fast clears don't seem to cover the correct portion of
+    * the aux buffer when the pitch is not 512B-aligned. It seems that the
+    * pitch requires memory to be allocated - we can't just program the
+    * surface state this way.
+    */
+   if (ISL_GFX_VERX10(dev) == 120 && isl_surf_supports_ccs(dev, surf) &&
+       util_is_aligned(surf->row_pitch_B, 512) && info->samples == 1 &&
+       !isl_surf_usage_is_depth_or_stencil(info->usage))
+      remove_tile_padding = false;
+
+   /* If padding is needed and the surface is linearly tiled or sampler
+    * padding has changed the total image height, avoid removing any tiles.
+    * We could optimize this further, but we expect this to affect an
+    * insignificant number of cases.
+    */
+   if (dev->requires_padding &&
+        (info->usage & ISL_SURF_USAGE_TEXTURE_BIT) &&
+       !(info->usage & ISL_SURF_USAGE_NO_OVERFETCH_PADDING_BIT)) {
+
+      if (tile_info->tiling == ISL_TILING_LINEAR)
+         remove_tile_padding = false;
+
+      /* On tiled images, the sampler requires aligning the height to a value
+       * less than the tile height or adding rows regardless of the total
+       * image height. As such, it's safe to remove entire tiles if the height
+       * has not changed.
+       */
+      uint32_t padded_total_h_el = phys_total_el->h;
+      isl_calc_sampler_padding_rows(dev, info, &surf->image_alignment_el,
+                                    &padded_total_h_el);
+      if (padded_total_h_el > phys_total_el->h)
+         remove_tile_padding = false;
+   }
+
+   if (remove_tile_padding) {
+      uint64_t end_tile_B_max = 0;
+      for (int lod = 0; lod < surf->levels; lod++) {
+         uint64_t start_tile_B, end_tile_B;
+         if (surf->dim == ISL_SURF_DIM_3D) {
+            int last_z = u_minify(surf->logical_level0_px.d, lod) - 1;
+            isl_surf_get_image_range_B_tile(surf, lod, 0, last_z,
+                                            &start_tile_B, &end_tile_B);
+         } else {
+            int last_layer = surf->logical_level0_px.a - 1;
+            isl_surf_get_image_range_B_tile(surf, lod, last_layer, 0,
+                                            &start_tile_B, &end_tile_B);
+         }
+
+         end_tile_B_max = MAX2(end_tile_B_max, end_tile_B);
+
+         /* There's no padding if this LOD has a pixel in the last tile. */
+         if (end_tile_B_max == surf->size_B)
+            break;
+      }
+
+      uint64_t padding_B = surf->size_B - end_tile_B_max;
+      if (padding_B > 0) {
+         if (util_is_aligned(padding_B, 4096)) {
+            print_info(info, "Omitted %"PRIu64" 4KB page(s) of padding.",
+                       padding_B / 4096);
+         } else {
+            print_info(info, "Omitted %"PRIu64" Byte(s) of padding.",
+                       padding_B);
+         }
+         surf->size_B = end_tile_B_max;
+      }
+   }
+
    /* Bspec 57340 (r59562):
     *
     *    When allocating memory, MCS buffer size is extended by 4KB over its
