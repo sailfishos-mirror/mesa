@@ -466,6 +466,7 @@ crocus_screen_destroy(struct crocus_screen *screen)
    u_transfer_helper_destroy(screen->base.transfer_helper);
    crocus_bufmgr_unref(screen->bufmgr);
    disk_cache_destroy(screen->disk_cache);
+   intel_virtio_unref_fd(screen->winsys_fd);
    close(screen->winsys_fd);
    ralloc_free(screen);
 }
@@ -548,6 +549,9 @@ crocus_screen_create(int fd, const struct pipe_screen_config *config)
 {
    struct crocus_screen *screen = rzalloc(NULL, struct crocus_screen);
    if (!screen)
+      return NULL;
+
+   if (intel_virtio_init_fd(fd) < 0)
       return NULL;
 
    if (!intel_get_device_info_from_fd(fd, &screen->devinfo, 4, 8))

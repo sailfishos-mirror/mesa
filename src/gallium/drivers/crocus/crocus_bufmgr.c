@@ -164,6 +164,7 @@ struct crocus_bufmgr {
    bool has_mmap_offset:1;
    bool has_tiling_uapi:1;
    bool bo_reuse:1;
+   bool is_virtio:1;
 };
 
 static simple_mtx_t global_bufmgr_list_mutex = SIMPLE_MTX_INITIALIZER;
@@ -820,9 +821,14 @@ crocus_bo_gem_mmap_offset(struct util_debug_callback *dbg, struct crocus_bo *bo,
       return NULL;
    }
 
+   void *map;
+
    /* And map it */
-   void *map = mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
-                    bufmgr->fd, mmap_arg.offset);
+   if (bufmgr->is_virtio)
+      map = intel_virtio_bo_mmap(bufmgr->fd, bo->gem_handle, bo->size, NULL);
+   else
+      map = mmap(0, bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
+                 bufmgr->fd, mmap_arg.offset);
    if (map == MAP_FAILED) {
       DBG("%s:%d: Error mapping buffer %d (%s): %s .\n",
           __FILE__, __LINE__, bo->gem_handle, bo->name, strerror(errno));
@@ -1169,6 +1175,8 @@ crocus_bufmgr_destroy(struct crocus_bufmgr *bufmgr)
    _mesa_hash_table_destroy(bufmgr->name_table, NULL);
    _mesa_hash_table_destroy(bufmgr->handle_table, NULL);
 
+   intel_virtio_unref_fd(bufmgr->fd);
+
    close(bufmgr->fd);
 
    free(bufmgr);
@@ -1223,10 +1231,10 @@ crocus_bo_prime_fd_to_handle(int fd, int prime_fd, uint32_t *handle)
       .fd = prime_fd,
    };
 
-   *handle = 0;
-
-   if (intel_ioctl(fd, DRM_IOCTL_PRIME_FD_TO_HANDLE, &prime_arg))
+   if (intel_ioctl(fd, DRM_IOCTL_PRIME_FD_TO_HANDLE, &prime_arg)) {
+      *handle = 0;
       return -errno;
+   }
 
    *handle = prime_arg.handle;
 
@@ -1640,6 +1648,8 @@ crocus_bufmgr_create(struct intel_device_info *devinfo, int fd, bool bo_reuse)
     */
    bufmgr->fd = os_dupfd_cloexec(fd);
 
+   intel_virtio_ref_fd(bufmgr->fd);
+
    p_atomic_set(&bufmgr->refcount, 1);
 
    simple_mtx_init(&bufmgr->lock, mtx_plain);
@@ -1650,6 +1660,7 @@ crocus_bufmgr_create(struct intel_device_info *devinfo, int fd, bool bo_reuse)
    bufmgr->has_tiling_uapi = devinfo->has_tiling_uapi;
    bufmgr->bo_reuse = bo_reuse;
    bufmgr->has_mmap_offset = devinfo->has_mmap_offset;
+   bufmgr->is_virtio = devinfo->is_virtio;
 
    init_cache_buckets(bufmgr);
 
