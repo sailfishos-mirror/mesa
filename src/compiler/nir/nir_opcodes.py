@@ -257,7 +257,7 @@ for src_t in [tint, tuint, tfloat, tbool]:
    for dst_t in dst_types:
       for dst_bit_size in type_sizes(dst_t):
           if dst_bit_size == 16 and dst_t == tfloat and src_t == tfloat:
-              rnd_modes = ['_rtne', '_rtz', '']
+              rnd_modes = ['_rtne', '_rtz', '_ru', '_rd', '']
               for rnd_mode in rnd_modes:
                   if rnd_mode == '_rtne':
                       conv_expr = """
@@ -275,6 +275,22 @@ for src_t in [tint, tuint, tfloat, tbool]:
                          dst = _mesa_half_to_float(_mesa_double_to_float16_rtz(src0));
                       } else if (bit_size > 16) {
                          dst = _mesa_half_to_float(_mesa_float_to_float16_rtz(src0));
+                      } else {
+                         dst = src0;
+                      }
+                      """
+                  elif rnd_mode == '_ru':
+                      conv_expr = """
+                      if (bit_size > 16) {
+                         dst = _mesa_half_to_float(_mesa_float_to_float16_ru(src0));
+                      } else {
+                         dst = src0;
+                      }
+                      """
+                  elif rnd_mode == '_rd':
+                      conv_expr = """
+                      if (bit_size > 16) {
+                         dst = _mesa_half_to_float(_mesa_float_to_float16_rd(src0));
                       } else {
                          dst = src0;
                       }

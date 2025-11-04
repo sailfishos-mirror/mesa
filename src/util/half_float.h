@@ -113,6 +113,9 @@ _mesa_float_to_float16_rtz(float val)
    return _mesa_float_to_float16_rtz_slow(val);
 }
 
+uint16_t _mesa_float_to_float16_ru(float val);
+uint16_t _mesa_float_to_float16_rd(float val);
+
 static inline uint16_t
 _mesa_float_to_float16_rtne(float val)
 {
