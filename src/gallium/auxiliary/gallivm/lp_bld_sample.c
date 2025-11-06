@@ -269,6 +269,7 @@ lp_build_rho_aniso(struct lp_build_sample_context *bld,
                    LLVMValueRef first_level,
                    LLVMValueRef s,
                    LLVMValueRef t,
+                   const struct lp_derivatives *derivs,
                    struct lp_aniso_values *aniso_values)
 {
    struct gallivm_state *gallivm = bld->gallivm;
@@ -283,14 +284,12 @@ lp_build_rho_aniso(struct lp_build_sample_context *bld,
    LLVMTypeRef i32t = LLVMInt32TypeInContext(bld->gallivm->context);
    LLVMValueRef index0 = LLVMConstInt(i32t, 0, 0);
    LLVMValueRef index1 = LLVMConstInt(i32t, 1, 0);
-   LLVMValueRef ddx_ddy = lp_build_packed_ddx_ddy_twocoord(coord_bld, s, t);
-   LLVMValueRef int_size, float_size;
    const unsigned length = coord_bld->type.length;
    const unsigned num_quads = length / 4;
-   const bool rho_per_quad = rho_bld->type.length != length;
+   const bool rho_per_quad = bld->num_lods == num_quads;
 
-   int_size = lp_build_minify(int_size_bld, bld->int_size, first_level, true);
-   float_size = lp_build_int_to_float(float_size_bld, int_size);
+   LLVMValueRef int_size = lp_build_minify(int_size_bld, bld->int_size, first_level, true);
+   LLVMValueRef float_size = lp_build_int_to_float(float_size_bld, int_size);
 
    static const unsigned char swizzle01[] = { /* no-op swizzle */
       0, 1,
@@ -300,22 +299,37 @@ lp_build_rho_aniso(struct lp_build_sample_context *bld,
       2, 3,
       LP_BLD_SWIZZLE_DONTCARE, LP_BLD_SWIZZLE_DONTCARE
    };
-   LLVMValueRef ddx_ddys, ddx_ddyt, floatdim, shuffles[LP_MAX_VECTOR_LENGTH / 4];
-
+   LLVMValueRef shuffles[LP_MAX_VECTOR_LENGTH / 4];
    for (unsigned i = 0; i < num_quads; i++) {
       shuffles[i*4+0] = shuffles[i*4+1] = index0;
       shuffles[i*4+2] = shuffles[i*4+3] = index1;
    }
-   floatdim = LLVMBuildShuffleVector(builder, float_size, float_size,
+   LLVMValueRef width_height = LLVMBuildShuffleVector(builder, float_size, float_size,
                                      LLVMConstVector(shuffles, length), "");
-   ddx_ddy = lp_build_mul(coord_bld, ddx_ddy, floatdim);
 
-   ddx_ddy = lp_build_mul(coord_bld, ddx_ddy, ddx_ddy);
+   LLVMValueRef dsdx_dsdy_dtdx_dtdy;
+   if (derivs) {
+      LLVMValueRef result[] = {
+         derivs->ddx[0], derivs->ddy[0],
+         derivs->ddx[1], derivs->ddy[1],
+      };
+      dsdx_dsdy_dtdx_dtdy = coord_bld->undef;
+      for (size_t i = 0; i < ARRAY_SIZE(result); i++) {
+         dsdx_dsdy_dtdx_dtdy = LLVMBuildInsertElement(gallivm->builder, dsdx_dsdy_dtdx_dtdy,
+            LLVMBuildExtractElement(gallivm->builder, result[i], lp_build_const_int32(gallivm, 0), ""),
+            lp_build_const_int32(gallivm, i), "");
+      }
+   } else {
+      dsdx_dsdy_dtdx_dtdy = lp_build_packed_ddx_ddy_twocoord(coord_bld, s, t);
+   }
 
-   ddx_ddys = lp_build_swizzle_aos(coord_bld, ddx_ddy, swizzle01);
-   ddx_ddyt = lp_build_swizzle_aos(coord_bld, ddx_ddy, swizzle23);
+   dsdx_dsdy_dtdx_dtdy = lp_build_mul(coord_bld, dsdx_dsdy_dtdx_dtdy, width_height);
+   LLVMValueRef ds2dx_ds2dy_dt2dx_dt2dy = lp_build_mul(coord_bld, dsdx_dsdy_dtdx_dtdy, dsdx_dsdy_dtdx_dtdy);
 
-   LLVMValueRef rho_x2_rho_y2 = lp_build_add(coord_bld, ddx_ddys, ddx_ddyt);
+   LLVMValueRef ds2dx_ds2dy = lp_build_swizzle_aos(coord_bld, ds2dx_ds2dy_dt2dx_dt2dy, swizzle01);
+   LLVMValueRef dt2dx_dt2dy = lp_build_swizzle_aos(coord_bld, ds2dx_ds2dy_dt2dx_dt2dy, swizzle23);
+
+   LLVMValueRef rho_x2_rho_y2 = lp_build_add(coord_bld, ds2dx_ds2dy, dt2dx_dt2dy);
 
    static const unsigned char swizzle0[] = { /* no-op swizzle */
      0, LP_BLD_SWIZZLE_DONTCARE,
@@ -872,7 +886,7 @@ lp_build_lod_selector(struct lp_build_sample_context *bld,
     * since it's used to derive the anisotropic sampling rate.
     */
    if (bld->static_sampler_state->aniso) {
-      rho = lp_build_rho_aniso(bld, first_level, s, t, out_aniso_values);
+      rho = lp_build_rho_aniso(bld, first_level, s, t, derivs, out_aniso_values);
       rho_squared = true;
    }
 
@@ -903,7 +917,7 @@ lp_build_lod_selector(struct lp_build_sample_context *bld,
           * Compute lod = log2(rho)
           */
 
-         if (!lod_bias && !is_lodq &&
+         if (!lod_bias && !is_lodq && !min_lod &&
              !bld->static_sampler_state->lod_bias_non_zero &&
              !bld->static_sampler_state->apply_max_lod &&
              !bld->static_sampler_state->apply_min_lod) {

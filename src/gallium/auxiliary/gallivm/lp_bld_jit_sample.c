@@ -251,8 +251,15 @@ lp_bld_llvm_sampler_soa_emit_fetch_texel(const struct lp_build_sampler_soa *base
       }
 
       enum lp_sampler_lod_control lod_control = (params->sample_key & LP_SAMPLER_LOD_CONTROL_MASK) >> LP_SAMPLER_LOD_CONTROL_SHIFT;
-      if (lod_control == LP_SAMPLER_LOD_BIAS || lod_control == LP_SAMPLER_LOD_EXPLICIT)
+      if (lod_control == LP_SAMPLER_LOD_BIAS || lod_control == LP_SAMPLER_LOD_EXPLICIT) {
          args[num_args++] = params->lod;
+      } else if (lod_control == LP_SAMPLER_LOD_DERIVATIVES) {
+         for (unsigned i = 0; i < 3; i++) {
+            args[num_args++] = params->derivs->ddx[i];
+            args[num_args++] = params->derivs->ddy[i];
+         }
+      }
+
       if (params->sample_key & LP_SAMPLER_MIN_LOD)
          args[num_args++] = params->min_lod;
 

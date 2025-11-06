@@ -496,7 +496,7 @@ lvp_shader_lower(struct lvp_device *pdevice, nir_shader *nir, struct lvp_pipelin
       NIR_PASS(_, nir, nir_lower_io_array_vars_to_elements_no_indirects, true);
    }
 
-   // TODO: also optimize the tex srcs. see radeonSI for reference */
+   /* TODO: also optimize the tex srcs. see radeonSI for reference */
    /* Skip if there are potentially conflicting rounding modes */
    struct nir_opt_16bit_tex_image_options opt_16bit_options = {
       .rounding_mode = nir_rounding_mode_undef,
@@ -513,7 +513,11 @@ lvp_shader_lower(struct lvp_device *pdevice, nir_shader *nir, struct lvp_pipelin
        * lvp_nir_lower_sparse_residency.
        */
       .lower_tg4_offsets = true,
-      .lower_txd = true,
+      /* The NIR derivative lowering doesn't do the elliptical derivative
+       * transform. It matters for accurate anisotropic filtering, so we'll
+       * implement explicit derivatives internally instead.
+       */
+      .lower_txd = false,
    };
    NIR_PASS(_, nir, nir_lower_tex, &tex_options);
    NIR_PASS(_, nir, nir_lower_int64);

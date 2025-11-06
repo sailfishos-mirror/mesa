@@ -836,8 +836,14 @@ lp_build_sample_function_type(struct gallivm_state *gallivm, uint32_t sample_key
       for (uint32_t i = 0; i < 3; i++)
          arg_types[num_params++] = lp_build_int_vec_type(gallivm, type);
 
-   if (lod_control == LP_SAMPLER_LOD_BIAS || lod_control == LP_SAMPLER_LOD_EXPLICIT)
+   if (lod_control == LP_SAMPLER_LOD_BIAS || lod_control == LP_SAMPLER_LOD_EXPLICIT) {
       arg_types[num_params++] = coord_type;
+   } else if (lod_control == LP_SAMPLER_LOD_DERIVATIVES) {
+      for (unsigned i = 0; i < 3; i++) {
+         arg_types[num_params++] = lp_build_vec_type(gallivm, type);
+         arg_types[num_params++] = lp_build_vec_type(gallivm, type);
+      }
+   }
 
    if (sample_key & LP_SAMPLER_MIN_LOD)
       arg_types[num_params++] = coord_type;

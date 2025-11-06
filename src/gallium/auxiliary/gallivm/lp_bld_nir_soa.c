@@ -5460,6 +5460,8 @@ visit_tex(struct lp_build_nir_soa_context *bld, nir_tex_instr *instr)
             derivs.ddx[chan] = deriv_vec[chan];
          for (unsigned chan = 0; chan < deriv_cnt; ++chan)
             derivs.ddx[chan] = cast_type(bld, derivs.ddx[chan], nir_type_float, 32);
+         for (unsigned chan = deriv_cnt; chan < 3; ++chan)
+            derivs.ddx[chan] = coord_zero;
          break;
       }
       case nir_tex_src_ddy: {
@@ -5472,6 +5474,8 @@ visit_tex(struct lp_build_nir_soa_context *bld, nir_tex_instr *instr)
             derivs.ddy[chan] = deriv_vec[chan];
          for (unsigned chan = 0; chan < deriv_cnt; ++chan)
             derivs.ddy[chan] = cast_type(bld, derivs.ddy[chan], nir_type_float, 32);
+         for (unsigned chan = deriv_cnt; chan < 3; ++chan)
+            derivs.ddy[chan] = coord_zero;
          break;
       }
       case nir_tex_src_offset: {
