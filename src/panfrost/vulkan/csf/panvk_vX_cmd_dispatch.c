@@ -59,7 +59,7 @@ prepare_driver_set(struct panvk_cmd_buffer *cmdbuf)
       cfg.clamp_integer_array_indices = false;
    }
 
-   panvk_per_arch(cmd_fill_dyn_bufs)(desc_state, cs,
+   panvk_per_arch(cmd_fill_dyn_bufs)(desc_state, &cs->desc_info,
                                      (struct mali_buffer_packed *)(&descs[1]));
 
    cs_desc_state->driver_set.dev_addr = driver_set.gpu;
@@ -179,7 +179,7 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
    if (compute_state_dirty(cmdbuf, CS) ||
        compute_state_dirty(cmdbuf, DESC_STATE)) {
       result = panvk_per_arch(cmd_prepare_shader_res_table)(
-         cmdbuf, desc_state, cs, cs_desc_state, 1);
+         cmdbuf, desc_state, &cs->desc_info, cs_desc_state, 1);
       if (result != VK_SUCCESS)
          return;
    }

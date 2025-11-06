@@ -336,7 +336,7 @@ prepare_vs_driver_set(struct panvk_cmd_buffer *cmdbuf,
       }
 
       panvk_per_arch(cmd_fill_dyn_bufs)(
-         desc_state, vs,
+         desc_state, &vs->desc_info,
          (struct mali_buffer_packed *)(&descs[MAX_VS_ATTRIBS + 1]));
 
       for (uint32_t i = 0; i < vb_count; i++) {
@@ -444,7 +444,7 @@ prepare_fs_driver_set(struct panvk_cmd_buffer *cmdbuf)
    }
 
    panvk_per_arch(cmd_fill_dyn_bufs)(
-      desc_state, fs,
+      desc_state, &fs->desc_info,
       (struct mali_buffer_packed *)(&descs[sampler_idx + 1]));
 
    fs_desc_state->driver_set.dev_addr = driver_set.gpu;
@@ -1728,7 +1728,7 @@ prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw,
          repeat_count = draw->indirect.draw_count;
 
       result = panvk_per_arch(cmd_prepare_shader_res_table)(
-         cmdbuf, desc_state, vs, vs_desc_state, repeat_count);
+         cmdbuf, desc_state, &vs->desc_info, vs_desc_state, repeat_count);
       if (result != VK_SUCCESS)
          return result;
 
@@ -1786,7 +1786,7 @@ prepare_fs(struct panvk_cmd_buffer *cmdbuf,
          return result;
 
       result = panvk_per_arch(cmd_prepare_shader_res_table)(
-         cmdbuf, desc_state, fs, fs_desc_state, 1);
+         cmdbuf, desc_state, &fs->desc_info, fs_desc_state, 1);
       if (result != VK_SUCCESS)
          return result;
    }
