@@ -33,6 +33,7 @@
 #include "spirv.h"
 #include "spirv_info.h"
 #include "vtn_generator_ids.h"
+#include "spirv_internal_exts.h"
 
 extern uint32_t mesa_spirv_debug;
 
