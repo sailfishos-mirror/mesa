@@ -522,6 +522,12 @@ radv_shader_spirv_to_nir(struct radv_device *device, struct radv_shader_stage *s
          .emit_debug_break = !!device->trap_handler_shader,
          .debug_info = !!(instance->debug_flags & RADV_DEBUG_NIR_DEBUG_INFO),
          .printf = !!device->debug_nir.printf.buffer_addr,
+         .sampler_descriptor_size = pdev->vk.properties.samplerDescriptorSize,
+         .sampler_descriptor_alignment = pdev->vk.properties.samplerDescriptorAlignment,
+         .image_descriptor_size = pdev->vk.properties.imageDescriptorSize,
+         .image_descriptor_alignment = pdev->vk.properties.imageDescriptorAlignment,
+         .buffer_descriptor_size = pdev->vk.properties.bufferDescriptorSize,
+         .buffer_descriptor_alignment = pdev->vk.properties.bufferDescriptorAlignment,
       };
       nir = spirv_to_nir(spirv, stage->spirv.size / 4, spec_entries, num_spec_entries, stage->stage, stage->entrypoint,
                          &spirv_options, &pdev->nir_options[stage->stage]);
