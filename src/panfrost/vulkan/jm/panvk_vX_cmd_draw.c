@@ -1334,12 +1334,12 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
 
    if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS)) {
       result = panvk_per_arch(cmd_prepare_shader_desc_tables)(
-         cmdbuf, desc_state, vs, vs_desc_state);
+         cmdbuf, desc_state, &vs->desc_info, false, vs_desc_state);
       if (result != VK_SUCCESS)
          return result;
 
       result = panvk_per_arch(cmd_prepare_dyn_ssbos)(
-         cmdbuf, desc_state, vs, vs_desc_state);
+         cmdbuf, desc_state, &vs->desc_info, vs_desc_state);
       if (result != VK_SUCCESS)
          return result;
    }
@@ -1361,12 +1361,12 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
          memset(fs_desc_state, 0, sizeof(*fs_desc_state));
       } else {
          result = panvk_per_arch(cmd_prepare_shader_desc_tables)(
-            cmdbuf, desc_state, fs, fs_desc_state);
+            cmdbuf, desc_state, &fs->desc_info, true, fs_desc_state);
          if (result != VK_SUCCESS)
             return result;
 
          result = panvk_per_arch(cmd_prepare_dyn_ssbos)(
-            cmdbuf, desc_state, fs, fs_desc_state);
+            cmdbuf, desc_state, &fs->desc_info, fs_desc_state);
          if (result != VK_SUCCESS)
             return result;
 
