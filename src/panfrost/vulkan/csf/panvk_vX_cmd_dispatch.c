@@ -35,18 +35,17 @@
 static VkResult
 prepare_driver_set(struct panvk_cmd_buffer *cmdbuf)
 {
-   struct panvk_shader_desc_state *cs_desc_state =
-      &cmdbuf->state.compute.cs.desc;
-
    if (!compute_state_dirty(cmdbuf, CS) &&
        !compute_state_dirty(cmdbuf, DESC_STATE))
       return VK_SUCCESS;
 
+   const struct panvk_shader_desc_info *cs_desc_info =
+      &cmdbuf->state.compute.shader->desc_info;
    const struct panvk_descriptor_state *desc_state =
       &cmdbuf->state.compute.desc_state;
-   const struct panvk_shader_variant *cs =
-      panvk_shader_only_variant(cmdbuf->state.compute.shader);
-   uint32_t desc_count = cs->desc_info.dyn_bufs.count + 1;
+   struct panvk_shader_desc_state *cs_desc_state =
+      &cmdbuf->state.compute.cs.desc;
+   uint32_t desc_count = cs_desc_info->dyn_bufs.count + 1;
    struct pan_ptr driver_set = panvk_cmd_alloc_dev_mem(
       cmdbuf, desc, desc_count * PANVK_DESCRIPTOR_SIZE, PANVK_DESCRIPTOR_SIZE);
    struct panvk_opaque_desc *descs = driver_set.cpu;
@@ -59,7 +58,7 @@ prepare_driver_set(struct panvk_cmd_buffer *cmdbuf)
       cfg.clamp_integer_array_indices = false;
    }
 
-   panvk_per_arch(cmd_fill_dyn_bufs)(desc_state, &cs->desc_info,
+   panvk_per_arch(cmd_fill_dyn_bufs)(desc_state, cs_desc_info,
                                      (struct mali_buffer_packed *)(&descs[1]));
 
    cs_desc_state->driver_set.dev_addr = driver_set.gpu;
@@ -133,6 +132,8 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
 
    struct panvk_physical_device *phys_dev =
       to_panvk_physical_device(cmdbuf->vk.base.device->physical);
+   const struct panvk_shader_desc_info *cs_desc_info =
+      &cmdbuf->state.compute.shader->desc_info;
    struct panvk_descriptor_state *desc_state =
       &cmdbuf->state.compute.desc_state;
    struct panvk_shader_desc_state *cs_desc_state =
@@ -161,7 +162,7 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
    if (compute_state_dirty(cmdbuf, DESC_STATE) ||
        compute_state_dirty(cmdbuf, CS)) {
       result = panvk_per_arch(cmd_prepare_push_descs)(
-         cmdbuf, desc_state, cs->desc_info.used_set_mask);
+         cmdbuf, desc_state, cs_desc_info->used_set_mask);
       if (result != VK_SUCCESS)
          return;
    }
@@ -179,7 +180,7 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
    if (compute_state_dirty(cmdbuf, CS) ||
        compute_state_dirty(cmdbuf, DESC_STATE)) {
       result = panvk_per_arch(cmd_prepare_shader_res_table)(
-         cmdbuf, desc_state, &cs->desc_info, cs_desc_state, 1);
+         cmdbuf, desc_state, cs_desc_info, cs_desc_state, 1);
       if (result != VK_SUCCESS)
          return;
    }

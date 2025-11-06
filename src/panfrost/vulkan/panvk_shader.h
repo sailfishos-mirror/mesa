@@ -398,8 +398,6 @@ struct panvk_shader_variant {
       } fs;
    };
 
-   struct panvk_shader_desc_info desc_info;
-
    struct panvk_shader_fau_info fau;
 
    const void *bin_ptr;
@@ -439,6 +437,8 @@ enum panvk_vs_variant {
 
 struct panvk_shader {
    struct vk_shader vk;
+
+   struct panvk_shader_desc_info desc_info;
 
    struct panvk_shader_variant variants[];
 };
