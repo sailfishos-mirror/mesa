@@ -324,6 +324,8 @@ dri_fill_in_modes(struct dri_screen *screen)
       PIPE_FORMAT_B5G6R5_UNORM,
       PIPE_FORMAT_R16G16B16A16_FLOAT,
       PIPE_FORMAT_R16G16B16X16_FLOAT,
+      PIPE_FORMAT_R16G16B16A16_UNORM,
+      PIPE_FORMAT_R16G16B16X16_UNORM,
       PIPE_FORMAT_RGBA8888_UNORM,
       PIPE_FORMAT_RGBX8888_UNORM,
       PIPE_FORMAT_RGBA8888_SRGB,
@@ -341,6 +343,7 @@ dri_fill_in_modes(struct dri_screen *screen)
    bool mixed_color_depth;
    bool allow_rgba_ordering;
    bool allow_rgb10;
+   bool allow_rgb16;
    bool allow_fp16;
 
    static const bool db_modes[] = { false, true };
@@ -350,6 +353,7 @@ dri_fill_in_modes(struct dri_screen *screen)
 
    allow_rgba_ordering = dri_loader_get_cap(screen, DRI_LOADER_CAP_RGBA_ORDERING);
    allow_rgb10 = driQueryOptionb(&screen->dev->option_cache, "allow_rgb10_configs");
+   allow_rgb16 = driQueryOptionb(&screen->dev->option_cache, "allow_rgb16_configs");
    allow_fp16 = dri_loader_get_cap(screen, DRI_LOADER_CAP_FP16);
 
 #define HAS_ZS(fmt) \
@@ -403,6 +407,16 @@ dri_fill_in_modes(struct dri_screen *screen)
                                          UTIL_FORMAT_COLORSPACE_RGB, 1) == 10 &&
           util_format_get_component_bits(pipe_formats[f],
                                          UTIL_FORMAT_COLORSPACE_RGB, 2) == 10)
+         continue;
+
+      /* Block RGB[A]16_UNORM formats, if forbidden by config */
+      if (!allow_rgb16 && !util_format_is_float(pipe_formats[f]) &&
+          util_format_get_component_bits(pipe_formats[f],
+                                         UTIL_FORMAT_COLORSPACE_RGB, 0) == 16 &&
+          util_format_get_component_bits(pipe_formats[f],
+                                         UTIL_FORMAT_COLORSPACE_RGB, 1) == 16 &&
+          util_format_get_component_bits(pipe_formats[f],
+                                         UTIL_FORMAT_COLORSPACE_RGB, 2) == 16)
          continue;
 
       if (!allow_fp16 && util_format_is_float(pipe_formats[f]))

@@ -515,6 +515,10 @@
    DRI_CONF_OPT_B(allow_rgb10_configs, def, \
                   "Allow exposure of visuals and fbconfigs with rgb10a2 formats")
 
+#define DRI_CONF_ALLOW_RGB16_CONFIGS(def) \
+   DRI_CONF_OPT_B(allow_rgb16_configs, def, \
+                  "Allow exposure of visuals and fbconfigs with rgb16 and rgba16 formats")
+
 #define DRI_CONF_ALLOW_RGB565_CONFIGS(def) \
    DRI_CONF_OPT_B(allow_rgb565_configs, def, \
                   "Allow exposure of visuals and fbconfigs with rgb565 formats")

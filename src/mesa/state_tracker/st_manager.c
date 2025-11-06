@@ -416,6 +416,7 @@ st_new_renderbuffer_fb(enum pipe_format format, unsigned samples, bool sw)
    case PIPE_FORMAT_R16G16B16A16_UNORM:
       rb->InternalFormat = GL_RGBA16;
       break;
+   case PIPE_FORMAT_R16G16B16X16_UNORM:
    case PIPE_FORMAT_R16G16B16_UNORM:
       rb->InternalFormat = GL_RGB16;
       break;
