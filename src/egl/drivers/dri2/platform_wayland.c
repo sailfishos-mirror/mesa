@@ -94,6 +94,18 @@ static const struct dri2_wl_visual {
       DRM_FORMAT_XBGR16161616F,
    },
    {
+      DRM_FORMAT_ABGR16161616,
+      PIPE_FORMAT_R16G16B16A16_UNORM,
+      PIPE_FORMAT_NONE,
+      DRM_FORMAT_XBGR16161616,
+   },
+   {
+      DRM_FORMAT_XBGR16161616,
+      PIPE_FORMAT_R16G16B16X16_UNORM,
+      PIPE_FORMAT_NONE,
+      DRM_FORMAT_XBGR16161616,
+   },
+   {
       DRM_FORMAT_XRGB2101010,
       PIPE_FORMAT_B10G10R10X2_UNORM,
       PIPE_FORMAT_R10G10B10X2_UNORM,
@@ -2529,6 +2541,8 @@ dri2_wl_add_configs_for_visuals(_EGLDisplay *disp)
    /* Try to create an EGLConfig for every config the driver declares */
    for (unsigned i = 0; dri2_dpy->driver_configs[i]; i++) {
       struct dri2_egl_config *dri2_conf;
+      enum pipe_format format = PIPE_FORMAT_NONE;
+      EGLint config_group = 0;
       bool conversion = false;
       bool server_supported = true;
       int idx = dri2_wl_visual_idx_from_config(dri2_dpy->driver_configs[i]);
@@ -2548,14 +2562,24 @@ dri2_wl_add_configs_for_visuals(_EGLDisplay *disp)
             /* The alternate format is supported by the server, so we can
              * convert whilst we do a blit. */
             conversion = true;
+            format = dri2_wl_visuals[idx].alt_pipe_format;
          } else {
             /* Not supported at all by the server. */
             server_supported = false;
          }
+      } else {
+         format = dri2_wl_visuals[idx].pipe_format;
       }
+
+      /* Put the 16 bpc rgb[a] unorm formats into a lower priority EGL config
+       * group 1, so they don't get preferably chosen by eglChooseConfig().
+       */
+      if (server_supported && util_format_is_unorm16(util_format_description(format)))
+         config_group = 1;
 
       EGLint attr_list[] = {
          EGL_NATIVE_VISUAL_ID, dri2_wl_visuals[idx].wl_drm_format,
+         EGL_CONFIG_SELECT_GROUP_EXT, config_group,
          EGL_NONE,
       };
 
