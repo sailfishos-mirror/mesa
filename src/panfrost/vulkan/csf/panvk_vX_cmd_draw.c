@@ -2652,30 +2652,12 @@ update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
 }
 
 static void
-panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
+launch_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
 {
    const struct cs_tracing_ctx *tracing_ctx =
       &cmdbuf->state.cs[PANVK_SUBQUEUE_VERTEX_TILER].tracing;
-   const struct panvk_shader_variant *vs =
-      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-   VkResult result;
-
-   /* If there's no vertex shader, we can skip the draw. */
-   if (!panvk_priv_mem_check_alloc(vs->spd))
-      return;
-
-   /* Needs to be done before get_fs() is called because it depends on
-    * fs.required being initialized. */
-   cmdbuf->state.gfx.fs.required =
-      fs_required(&cmdbuf->state.gfx, &cmdbuf->vk.dynamic_graphics_state);
-
-   result = prepare_draw(cmdbuf, draw);
-   if (result != VK_SUCCESS)
-      return;
-
-   update_prims_generated_query(cmdbuf, draw);
 
    cs_update_vt_ctx(b) {
       cs_move32_to(b, cs_sr_reg32(b, IDVS, GLOBAL_ATTRIBUTE_OFFSET), 0);
@@ -2744,84 +2726,9 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
    }
 }
 
-VkResult
-panvk_per_arch(cmd_prepare_exec_cmd_for_draws)(
-   struct panvk_cmd_buffer *primary,
-   struct panvk_cmd_buffer *secondary)
-{
-   if (!(secondary->flags & VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT))
-      return VK_SUCCESS;
-
-   if (!inherits_render_ctx(primary)) {
-      enum u_tristate first_provoking_vertex =
-         secondary->state.gfx.render.first_provoking_vertex;
-      set_provoking_vertex_mode(primary, first_provoking_vertex);
-      VkResult result  = get_render_ctx(primary);
-      if (result != VK_SUCCESS)
-         return result;
-   }
-
-   return prepare_oq(primary);
-}
-
-VKAPI_ATTR void VKAPI_CALL
-panvk_per_arch(CmdDraw)(VkCommandBuffer commandBuffer, uint32_t vertexCount,
-                        uint32_t instanceCount, uint32_t firstVertex,
-                        uint32_t firstInstance)
-{
-   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
-
-   if (instanceCount == 0 || vertexCount == 0)
-      return;
-
-   /* gl_BaseVertexARB is a signed integer, and it should expose the value of
-    * firstVertex in a non-indexed draw. */
-   assert(firstVertex < INT32_MAX);
-
-   /* gl_BaseInstance is a signed integer, and it should expose the value of
-    * firstInstnace. */
-   assert(firstInstance < INT32_MAX);
-
-   struct panvk_draw_info draw = {
-      .vertex.base = firstVertex,
-      .vertex.count = vertexCount,
-      .instance.base = firstInstance,
-      .instance.count = instanceCount,
-   };
-
-   panvk_cmd_draw(cmdbuf, &draw);
-}
-
-VKAPI_ATTR void VKAPI_CALL
-panvk_per_arch(CmdDrawIndexed)(VkCommandBuffer commandBuffer,
-                               uint32_t indexCount, uint32_t instanceCount,
-                               uint32_t firstIndex, int32_t vertexOffset,
-                               uint32_t firstInstance)
-{
-   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
-
-   if (instanceCount == 0 || indexCount == 0)
-      return;
-
-   /* gl_BaseInstance is a signed integer, and it should expose the value of
-    * firstInstnace. */
-   assert(firstInstance < INT32_MAX);
-
-   struct panvk_draw_info draw = {
-      .index.size = cmdbuf->state.gfx.ib.index_size,
-      .index.offset = firstIndex,
-      .vertex.base = vertexOffset,
-      .vertex.count = indexCount,
-      .instance.count = instanceCount,
-      .instance.base = firstInstance,
-   };
-
-   panvk_cmd_draw(cmdbuf, &draw);
-}
-
 static void
-panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
-                        struct panvk_draw_info *draw)
+launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
+                     struct panvk_draw_info *draw)
 {
    const struct cs_tracing_ctx *tracing_ctx =
       &cmdbuf->state.cs[PANVK_SUBQUEUE_VERTEX_TILER].tracing;
@@ -2829,16 +2736,6 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
       panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-   VkResult result;
-
-   /* If there's no vertex shader, we can skip the draw. */
-   if (!panvk_priv_mem_check_alloc(vs->spd))
-      return;
-
-   /* Needs to be done before get_fs() is called because it depends on
-    * fs.required being initialized. */
-   cmdbuf->state.gfx.fs.required =
-      fs_required(&cmdbuf->state.gfx, &cmdbuf->vk.dynamic_graphics_state);
 
    /* Layered indirect draw (VK_EXT_shader_viewport_index_layer) needs
     * additional changes. We allow layer_count == 0 because that happens
@@ -2853,15 +2750,6 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
     * multiview. */
    assert(cmdbuf->state.gfx.render.layer_count <= 1 ||
           cmdbuf->state.gfx.render.view_mask);
-
-   /* Force a new push uniform block to be allocated */
-   gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
-
-   result = prepare_draw(cmdbuf, draw);
-   if (result != VK_SUCCESS)
-      return;
-
-   update_prims_generated_query(cmdbuf, draw);
 
    struct panvk_shader_desc_state *vs_desc_state =
       &cmdbuf->state.gfx.vs.desc;
@@ -3030,6 +2918,115 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
    }
 }
 
+static void
+panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info draw)
+{
+   const struct panvk_shader_variant *vs =
+      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
+   VkResult result;
+
+   /* If there's no vertex shader, we can skip the draw. */
+   if (!panvk_priv_mem_check_alloc(vs->spd))
+      return;
+
+   /* Needs to be done before get_fs() is called because it depends on
+    * fs.required being initialized. */
+   cmdbuf->state.gfx.fs.required =
+      fs_required(&cmdbuf->state.gfx, &cmdbuf->vk.dynamic_graphics_state);
+
+   /* Force a new push uniform block to be allocated because we're going to
+    * copy from the indirect buffer into the uniform block.
+    */
+   if (draw.indirect.buffer_dev_addr)
+      gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
+
+   result = prepare_draw(cmdbuf, &draw);
+   if (result != VK_SUCCESS)
+      return;
+
+   update_prims_generated_query(cmdbuf, &draw);
+
+   if (draw.indirect.buffer_dev_addr)
+      launch_indirect_draw(cmdbuf, &draw);
+   else
+      launch_draw(cmdbuf, &draw);
+}
+
+VkResult
+panvk_per_arch(cmd_prepare_exec_cmd_for_draws)(
+   struct panvk_cmd_buffer *primary,
+   struct panvk_cmd_buffer *secondary)
+{
+   if (!(secondary->flags & VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT))
+      return VK_SUCCESS;
+
+   if (!inherits_render_ctx(primary)) {
+      enum u_tristate first_provoking_vertex =
+         secondary->state.gfx.render.first_provoking_vertex;
+      set_provoking_vertex_mode(primary, first_provoking_vertex);
+      VkResult result  = get_render_ctx(primary);
+      if (result != VK_SUCCESS)
+         return result;
+   }
+
+   return prepare_oq(primary);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+panvk_per_arch(CmdDraw)(VkCommandBuffer commandBuffer, uint32_t vertexCount,
+                        uint32_t instanceCount, uint32_t firstVertex,
+                        uint32_t firstInstance)
+{
+   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
+
+   if (instanceCount == 0 || vertexCount == 0)
+      return;
+
+   /* gl_BaseVertexARB is a signed integer, and it should expose the value of
+    * firstVertex in a non-indexed draw. */
+   assert(firstVertex < INT32_MAX);
+
+   /* gl_BaseInstance is a signed integer, and it should expose the value of
+    * firstInstnace. */
+   assert(firstInstance < INT32_MAX);
+
+   struct panvk_draw_info draw = {
+      .vertex.base = firstVertex,
+      .vertex.count = vertexCount,
+      .instance.base = firstInstance,
+      .instance.count = instanceCount,
+   };
+
+   panvk_cmd_draw(cmdbuf, draw);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+panvk_per_arch(CmdDrawIndexed)(VkCommandBuffer commandBuffer,
+                               uint32_t indexCount, uint32_t instanceCount,
+                               uint32_t firstIndex, int32_t vertexOffset,
+                               uint32_t firstInstance)
+{
+   VK_FROM_HANDLE(panvk_cmd_buffer, cmdbuf, commandBuffer);
+
+   if (instanceCount == 0 || indexCount == 0)
+      return;
+
+   /* gl_BaseInstance is a signed integer, and it should expose the value of
+    * firstInstnace. */
+   assert(firstInstance < INT32_MAX);
+
+   struct panvk_draw_info draw = {
+      .index.size = cmdbuf->state.gfx.ib.index_size,
+      .index.offset = firstIndex,
+      .vertex.base = vertexOffset,
+      .vertex.count = indexCount,
+      .instance.count = instanceCount,
+      .instance.base = firstInstance,
+   };
+
+   panvk_cmd_draw(cmdbuf, draw);
+}
+
 VKAPI_ATTR void VKAPI_CALL
 panvk_per_arch(CmdDrawIndirect)(VkCommandBuffer commandBuffer, VkBuffer _buffer,
                                 VkDeviceSize offset, uint32_t drawCount,
@@ -3047,7 +3044,7 @@ panvk_per_arch(CmdDrawIndirect)(VkCommandBuffer commandBuffer, VkBuffer _buffer,
       .indirect.stride = stride,
    };
 
-   panvk_cmd_draw_indirect(cmdbuf, &draw);
+   panvk_cmd_draw(cmdbuf, draw);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -3068,7 +3065,7 @@ panvk_per_arch(CmdDrawIndexedIndirect)(VkCommandBuffer commandBuffer,
       .indirect.stride = stride,
    };
 
-   panvk_cmd_draw_indirect(cmdbuf, &draw);
+   panvk_cmd_draw(cmdbuf, draw);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -3095,7 +3092,7 @@ panvk_per_arch(CmdDrawIndirectCount)(VkCommandBuffer commandBuffer,
       .indirect.stride = stride,
    };
 
-   panvk_cmd_draw_indirect(cmdbuf, &draw);
+   panvk_cmd_draw(cmdbuf, draw);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -3123,7 +3120,7 @@ panvk_per_arch(CmdDrawIndexedIndirectCount)(VkCommandBuffer commandBuffer,
       .indirect.stride = stride,
    };
 
-   panvk_cmd_draw_indirect(cmdbuf, &draw);
+   panvk_cmd_draw(cmdbuf, draw);
 }
 
 void
