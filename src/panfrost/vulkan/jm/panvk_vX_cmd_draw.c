@@ -1332,25 +1332,44 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
          cmdbuf, desc_state, vs, vs_desc_state);
       if (result != VK_SUCCESS)
          return result;
-   }
 
-   /* No need to setup the FS desc tables if the FS is not executed. */
-   if (fs &&
-       (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, FS))) {
-      result = panvk_per_arch(cmd_prepare_shader_desc_tables)(
-         cmdbuf, desc_state, fs, fs_desc_state);
-      if (result != VK_SUCCESS)
-         return result;
-
-      result = panvk_draw_prepare_fs_copy_desc_job(cmdbuf, draw);
+      result = panvk_per_arch(cmd_prepare_dyn_ssbos)(
+         cmdbuf, desc_state, vs, vs_desc_state);
       if (result != VK_SUCCESS)
          return result;
    }
 
+   /* This allocates and initializes the image table, which we need before we
+    * can copy descriptors.
+    */
    panvk_draw_prepare_attributes(cmdbuf, draw);
 
-   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS))
-      panvk_draw_prepare_vs_copy_desc_job(cmdbuf, draw);
+   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS)) {
+      result = panvk_draw_prepare_vs_copy_desc_job(cmdbuf, draw);
+      if (result != VK_SUCCESS)
+         return result;
+   }
+
+   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, FS)) {
+      if (fs == NULL) {
+         /* No need to setup the FS desc tables if the FS is not executed. */
+         memset(fs_desc_state, 0, sizeof(*fs_desc_state));
+      } else {
+         result = panvk_per_arch(cmd_prepare_shader_desc_tables)(
+            cmdbuf, desc_state, fs, fs_desc_state);
+         if (result != VK_SUCCESS)
+            return result;
+
+         result = panvk_per_arch(cmd_prepare_dyn_ssbos)(
+            cmdbuf, desc_state, fs, fs_desc_state);
+         if (result != VK_SUCCESS)
+            return result;
+
+         result = panvk_draw_prepare_fs_copy_desc_job(cmdbuf, draw);
+         if (result != VK_SUCCESS)
+            return result;
+      }
+   }
 
    draw->tls = batch->tls.gpu;
    draw->fb = batch->fb.desc.gpu;
@@ -1361,20 +1380,6 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
 
    batch->tlsinfo.tls.size = MAX3(vs->info.tls_size, fs ? fs->info.tls_size : 0,
                                   batch->tlsinfo.tls.size);
-
-   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS)) {
-      VkResult result = panvk_per_arch(cmd_prepare_dyn_ssbos)(
-         cmdbuf, desc_state, vs, vs_desc_state);
-      if (result != VK_SUCCESS)
-         return result;
-   }
-
-   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, FS)) {
-      VkResult result = panvk_per_arch(cmd_prepare_dyn_ssbos)(
-         cmdbuf, desc_state, fs, fs_desc_state);
-      if (result != VK_SUCCESS)
-         return result;
-   }
 
    panvk_per_arch(cmd_prepare_draw_sysvals)(cmdbuf, &draw->info, fs);
 

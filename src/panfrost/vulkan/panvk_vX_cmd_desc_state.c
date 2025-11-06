@@ -109,7 +109,7 @@ panvk_per_arch(cmd_prepare_dyn_ssbos)(
 {
    shader_desc_state->dyn_ssbos = 0;
 
-   if (!shader || !shader->desc_info.dyn_ssbos.count)
+   if (!shader->desc_info.dyn_ssbos.count)
       return VK_SUCCESS;
 
    struct pan_ptr ptr = panvk_cmd_alloc_dev_mem(
@@ -174,12 +174,6 @@ panvk_per_arch(cmd_prepare_shader_desc_tables)(
    const struct panvk_shader_variant *shader,
    struct panvk_shader_desc_state *shader_desc_state)
 {
-   memset(shader_desc_state->tables, 0, sizeof(shader_desc_state->tables));
-   shader_desc_state->img_attrib_table = 0;
-
-   if (!shader)
-      return VK_SUCCESS;
-
    for (uint32_t i = 0; i < ARRAY_SIZE(shader->desc_info.others.count); i++) {
       uint32_t desc_count =
          shader->desc_info.others.count[i] +
