@@ -324,6 +324,11 @@ lp_build_swizzle_aos_n(struct gallivm_state* gallivm,
 
    assert(dst_len < LP_MAX_VECTOR_WIDTH);
 
+   if (dst_len == 1) {
+      return LLVMBuildExtractElement(builder, src,
+                              lp_build_const_int32(gallivm, swizzles[0]), "");
+   }
+
    for (unsigned i = 0; i < dst_len; ++i) {
       int swizzle = swizzles[i % num_swizzles];
 
@@ -798,4 +803,3 @@ lp_build_unpack_broadcast_aos_scalars(struct gallivm_state *gallivm,
                                     LLVMConstVector(shuffles, num_dst), "");
    }
 }
-
