@@ -1088,11 +1088,14 @@ panvk_draw_prepare_tiler_job(struct panvk_cmd_buffer *cmdbuf,
       panvk_shader_only_variant(cmdbuf->state.gfx.fs.shader);
    struct panvk_shader_desc_state *fs_desc_state = &cmdbuf->state.gfx.fs.desc;
    struct pan_ptr ptr;
-   VkResult result = panvk_per_arch(meta_get_copy_desc_job)(
-      cmdbuf, fs, &cmdbuf->state.gfx.desc_state, fs_desc_state, 0, &ptr);
 
-   if (result != VK_SUCCESS)
-      return result;
+   if (fs) {
+      VkResult result = panvk_per_arch(meta_get_copy_desc_job)(
+         cmdbuf, &fs->desc_info, &cmdbuf->state.gfx.desc_state,
+         fs_desc_state, 0, &ptr);
+      if (result != VK_SUCCESS)
+         return result;
+   }
 
    if (ptr.cpu)
       util_dynarray_append(&batch->jobs, ptr.cpu);
@@ -1178,8 +1181,9 @@ panvk_draw_prepare_vs_copy_desc_job(struct panvk_cmd_buffer *cmdbuf,
       cmdbuf->vk.dynamic_graphics_state.vi;
    unsigned num_vbs = util_last_bit(vi->bindings_valid);
    struct pan_ptr ptr;
+
    VkResult result = panvk_per_arch(meta_get_copy_desc_job)(
-      cmdbuf, vs, &cmdbuf->state.gfx.desc_state, vs_desc_state,
+      cmdbuf, &vs->desc_info, &cmdbuf->state.gfx.desc_state, vs_desc_state,
       num_vbs * pan_size(ATTRIBUTE_BUFFER) * 2, &ptr);
    if (result != VK_SUCCESS)
       return result;
@@ -1201,9 +1205,10 @@ panvk_draw_prepare_fs_copy_desc_job(struct panvk_cmd_buffer *cmdbuf,
    struct panvk_shader_desc_state *fs_desc_state = &cmdbuf->state.gfx.fs.desc;
    struct panvk_batch *batch = cmdbuf->cur_batch;
    struct pan_ptr ptr;
-   VkResult result = panvk_per_arch(meta_get_copy_desc_job)(
-      cmdbuf, fs, &cmdbuf->state.gfx.desc_state, fs_desc_state, 0, &ptr);
 
+   VkResult result = panvk_per_arch(meta_get_copy_desc_job)(
+      cmdbuf, &fs->desc_info, &cmdbuf->state.gfx.desc_state,
+      fs_desc_state, 0, &ptr);
    if (result != VK_SUCCESS)
       return result;
 

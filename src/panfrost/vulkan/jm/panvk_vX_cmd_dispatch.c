@@ -108,8 +108,8 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
          return;
 
       result = panvk_per_arch(meta_get_copy_desc_job)(
-         cmdbuf, cs, &cmdbuf->state.compute.desc_state, cs_desc_state, 0,
-         &copy_desc_job);
+         cmdbuf, &cs->desc_info, &cmdbuf->state.compute.desc_state,
+         cs_desc_state, 0, &copy_desc_job);
       if (result != VK_SUCCESS)
          return;
 
