@@ -2772,6 +2772,105 @@ launch_draw(struct panvk_cmd_buffer *cmdbuf,
 }
 
 static void
+patch_vs_attribs(struct panvk_cmd_buffer *cmdbuf,
+                 struct panvk_draw_info *draw)
+{
+   uint32_t patch_attribs =
+      cmdbuf->state.gfx.vi.attribs_changing_on_base_instance;
+
+   if (!patch_attribs)
+      return;
+
+   /* We had better not have thought our descriptors were re-usable */
+   assert(cmdbuf->state.gfx.vs.desc_repeat_count);
+
+   struct panvk_shader_desc_state *vs_desc_state =
+      &cmdbuf->state.gfx.vs.desc;
+   const struct vk_dynamic_graphics_state *dyns =
+      &cmdbuf->vk.dynamic_graphics_state;
+   const struct vk_vertex_input_state *vi = dyns->vi;
+   struct cs_builder *b =
+      panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
+
+   struct cs_index draw_params = cs_scratch_reg64(b, 0);
+   struct cs_index vs_drv_set = cs_scratch_reg64(b, 2);
+   struct cs_index first_instance = cs_scratch_reg32(b, 4);
+   struct cs_index attrib_offset = cs_scratch_reg32(b, 5);
+   struct cs_index multiplicand = cs_scratch_reg32(b, 6);
+   struct cs_index draw_count = cs_scratch_reg32(b, 7);
+   struct cs_index max_draw_count = cs_scratch_reg32(b, 8);
+
+   if (draw->indirect.count_buffer_dev_addr) {
+      cs_move32_to(b, max_draw_count, draw->indirect.draw_count);
+      cs_move64_to(b, draw_params, draw->indirect.count_buffer_dev_addr);
+      cs_load32_to(b, draw_count, draw_params, 0);
+      cs_umin32(b, draw_count, draw_count, max_draw_count);
+   } else {
+      cs_move32_to(b, draw_count, draw->indirect.draw_count);
+   }
+
+   cs_move64_to(b, vs_drv_set, vs_desc_state->driver_set.dev_addr);
+   cs_move64_to(b, draw_params, draw->indirect.buffer_dev_addr);
+
+   cs_while(b, MALI_CS_CONDITION_GREATER, draw_count) {
+      cs_load32_to(b, first_instance, draw_params,
+                   draw->index.index_size ? 16 : 12);
+
+      /* If firstInstance=0, skip the offset adjustment. */
+      cs_if(b, MALI_CS_CONDITION_NEQUAL, first_instance) {
+         u_foreach_bit(i, patch_attribs) {
+            const struct vk_vertex_attribute_state *attrib_info =
+               &vi->attributes[i];
+            const uint32_t stride =
+               dyns->vi_binding_strides[attrib_info->binding];
+
+            cs_load32_to(b, attrib_offset, vs_drv_set,
+                         pan_size(ATTRIBUTE) * i + (2 * sizeof(uint32_t)));
+
+            /* Emulated immediate multiply: we walk the bits in
+             * base_instance, and accumulate (stride << bit_pos) if the bit
+             * is present. This is sub-optimal, but it's simple :-). */
+            cs_move_reg32(b, multiplicand, first_instance);
+
+            /* Flush the loads here so that we don't get automatic flushes
+             * over and over again due to the divergent nature of the if/else
+             * in the loop below. */
+            cs_flush_loads(b);
+            for (uint32_t i = 31; i > 0; i--) {
+               uint32_t add = stride << i;
+
+               /* bit31 is the sign bit, so we don't need to subtract to
+                * check the presence of the bit. */
+               if (i < 31)
+                  cs_add_imm32(b, multiplicand, multiplicand, -(1 << i));
+
+               if (add) {
+                  cs_if(b, MALI_CS_CONDITION_LESS, multiplicand)
+                     cs_add_imm32(b, multiplicand, multiplicand, 1 << i);
+                  cs_else(b)
+                     cs_add_imm32(b, attrib_offset, attrib_offset, add);
+               } else {
+                  cs_if(b, MALI_CS_CONDITION_LESS, multiplicand)
+                     cs_add_imm32(b, multiplicand, multiplicand, 1 << i);
+               }
+            }
+
+            cs_if(b, MALI_CS_CONDITION_NEQUAL, multiplicand)
+               cs_add_imm32(b, attrib_offset, attrib_offset, stride);
+
+            cs_store32(b, attrib_offset, vs_drv_set,
+                       pan_size(ATTRIBUTE) * i + (2 * sizeof(uint32_t)));
+            cs_flush_stores(b);
+         }
+      }
+
+      cs_add_imm32(b, draw_count, draw_count, -1);
+      cs_add_imm64(b, draw_params, draw_params, draw->indirect.stride);
+      cs_add_imm64(b, vs_drv_set, vs_drv_set, vs_desc_state->driver_set.size);
+   }
+}
+
+static void
 launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
                      const struct panvk_draw_info *draw)
 {
@@ -2796,26 +2895,15 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
    assert(cmdbuf->state.gfx.render.layer_count <= 1 ||
           cmdbuf->state.gfx.render.view_mask);
 
-   struct panvk_shader_desc_state *vs_desc_state =
-      &cmdbuf->state.gfx.vs.desc;
-   const struct vk_dynamic_graphics_state *dyns =
-      &cmdbuf->vk.dynamic_graphics_state;
-   const struct vk_vertex_input_state *vi = dyns->vi;
-
    struct mali_primitive_flags_packed flags_override =
       get_tiler_flags_override(draw);
 
-   uint32_t patch_attribs =
-      cmdbuf->state.gfx.vi.attribs_changing_on_base_instance;
    uint32_t vs_res_table_size =
       panvk_shader_res_table_count(&cmdbuf->state.gfx.vs.desc) *
       pan_size(RESOURCE);
    bool patch_faus = shader_uses_sysval(vs, graphics, vs.first_vertex) ||
                      shader_uses_sysval(vs, graphics, vs.base_instance);
    struct cs_index draw_params_addr = cs_scratch_reg64(b, 0);
-   struct cs_index vs_drv_set = cs_scratch_reg64(b, 2);
-   struct cs_index attrib_offset = cs_scratch_reg32(b, 4);
-   struct cs_index multiplicand = cs_scratch_reg32(b, 5);
    struct cs_index draw_count = cs_scratch_reg32(b, 6);
    struct cs_index max_draw_count = cs_scratch_reg32(b, 7);
    struct cs_index draw_id = cs_scratch_reg32(b, 7);
@@ -2834,9 +2922,6 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
 
    if (patch_faus)
       cs_move64_to(b, vs_fau_addr, cmdbuf->state.gfx.vs.push_uniforms);
-
-   if (patch_attribs != 0)
-      cs_move64_to(b, vs_drv_set, vs_desc_state->driver_set.dev_addr);
 
    cs_move64_to(b, draw_params_addr, draw->indirect.buffer_dev_addr);
    cs_move32_to(b, draw_id, 0);
@@ -2863,58 +2948,6 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
             cs_store32(b, cs_sr_reg32(b, IDVS, INSTANCE_OFFSET), vs_fau_addr,
                        shader_remapped_sysval_offset(
                           vs, sysval_offset(graphics, vs.base_instance)));
-         }
-      }
-
-      if (patch_attribs != 0) {
-         /* If firstInstance=0, skip the offset adjustment. */
-         cs_if(b, MALI_CS_CONDITION_NEQUAL,
-               cs_sr_reg32(b, IDVS, INSTANCE_OFFSET)) {
-            u_foreach_bit(i, patch_attribs) {
-               const struct vk_vertex_attribute_state *attrib_info =
-                  &vi->attributes[i];
-               const uint32_t stride =
-                  dyns->vi_binding_strides[attrib_info->binding];
-
-               cs_load32_to(b, attrib_offset, vs_drv_set,
-                            pan_size(ATTRIBUTE) * i + (2 * sizeof(uint32_t)));
-
-               /* Emulated immediate multiply: we walk the bits in
-                * base_instance, and accumulate (stride << bit_pos) if the bit
-                * is present. This is sub-optimal, but it's simple :-). */
-               cs_move_reg32(b, multiplicand,
-                             cs_sr_reg32(b, IDVS, INSTANCE_OFFSET));
-
-               /* Flush the loads here so that we don't get automatic flushes
-                * over and over again due to the divergent nature of the if/else
-                * in the loop below. */
-               cs_flush_loads(b);
-               for (uint32_t i = 31; i > 0; i--) {
-                  uint32_t add = stride << i;
-
-                  /* bit31 is the sign bit, so we don't need to subtract to
-                   * check the presence of the bit. */
-                  if (i < 31)
-                     cs_add_imm32(b, multiplicand, multiplicand, -(1 << i));
-
-                  if (add) {
-                     cs_if(b, MALI_CS_CONDITION_LESS, multiplicand)
-                        cs_add_imm32(b, multiplicand, multiplicand, 1 << i);
-                     cs_else(b)
-                        cs_add_imm32(b, attrib_offset, attrib_offset, add);
-                  } else {
-                     cs_if(b, MALI_CS_CONDITION_LESS, multiplicand)
-                        cs_add_imm32(b, multiplicand, multiplicand, 1 << i);
-                  }
-               }
-
-               cs_if(b, MALI_CS_CONDITION_NEQUAL, multiplicand)
-                  cs_add_imm32(b, attrib_offset, attrib_offset, stride);
-
-               cs_store32(b, attrib_offset, vs_drv_set,
-                          pan_size(ATTRIBUTE) * i + (2 * sizeof(uint32_t)));
-               cs_flush_stores(b);
-            }
          }
       }
 
@@ -2952,9 +2985,8 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
 
       }
 
-      if (patch_attribs != 0) {
-         cs_add_imm64(b, vs_drv_set, vs_drv_set,
-                      vs_desc_state->driver_set.size);
+      /* If we patched the VS attributes, we need to re-emit them per-draw */
+      if (cmdbuf->state.gfx.vs.desc_repeat_count) {
          cs_update_vt_ctx(b) {
             cs_add_imm64(b, cs_sr_reg64(b, IDVS, VERTEX_SRT),
                          cs_sr_reg64(b, IDVS, VERTEX_SRT), vs_res_table_size);
@@ -2996,6 +3028,10 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info draw)
    result = prepare_descs(cmdbuf, &draw);
    if (result != VK_SUCCESS)
       return;
+
+   /* For indirect draws, we need to patch the descriptors we just emitted */
+   if (draw.indirect.buffer_dev_addr)
+      patch_vs_attribs(cmdbuf, &draw);
 
    result = prepare_draw(cmdbuf, &draw);
    if (result != VK_SUCCESS)
