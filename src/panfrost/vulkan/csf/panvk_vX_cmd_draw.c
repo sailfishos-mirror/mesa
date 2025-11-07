@@ -206,6 +206,31 @@ panvk_per_arch(device_draw_context_cleanup)(struct panvk_device *dev)
 #endif /* PAN_ARCH < 14 */
 
 static void
+prepare_vi(struct panvk_cmd_buffer *cmdbuf)
+{
+   if (!dyn_gfx_state_dirty(cmdbuf, VI) &&
+       !dyn_gfx_state_dirty(cmdbuf, VI_BINDINGS_VALID))
+      return;
+
+   const struct vk_dynamic_graphics_state *dyns =
+      &cmdbuf->vk.dynamic_graphics_state;
+   const struct vk_vertex_input_state *vi = dyns->vi;
+
+   cmdbuf->state.gfx.vi.attribs_changing_on_base_instance = 0;
+   u_foreach_bit(i, vi->attributes_valid) {
+      const struct vk_vertex_binding_state *binding =
+         &vi->bindings[vi->attributes[i].binding];
+      const uint32_t stride =
+         dyns->vi_binding_strides[vi->attributes[i].binding];
+
+      if (binding->input_rate == VK_VERTEX_INPUT_RATE_INSTANCE && stride != 0) {
+         cmdbuf->state.gfx.vi.attribs_changing_on_base_instance |=
+            BITFIELD_BIT(i);
+      }
+   }
+}
+
+static void
 emit_vs_attrib(struct panvk_cmd_buffer *cmdbuf,
                uint32_t attrib_idx, uint32_t vb_desc_offset,
                struct mali_attribute_packed *desc)
@@ -226,7 +251,7 @@ emit_vs_attrib(struct panvk_cmd_buffer *cmdbuf,
       cfg.offset = attrib_info->offset;
 
       if (per_instance)
-         cfg.offset += cmdbuf->state.gfx.sysvals.vs.base_instance * stride;
+         cfg.offset += cmdbuf->state.gfx.vi.base_instance * stride;
 
       cfg.format = GENX(pan_format_from_pipe_format)(f)->hw;
       cfg.table = 0;
@@ -261,9 +286,19 @@ emit_vs_attrib(struct panvk_cmd_buffer *cmdbuf,
    }
 }
 
+/* Only valid to call after prepare_vi() */
 static bool
 vs_driver_set_is_dirty(struct panvk_cmd_buffer *cmdbuf)
 {
+   /* If any of the attributes change on base instance and the base instance
+    * has changed, we need to re-emit regardless of what API state is dirty.
+    * prepare_draw() ensures that BASE_INSTANCE is always dirty for indirect
+    * draws.
+    */
+   if (cmdbuf->state.gfx.vi.attribs_changing_on_base_instance &&
+       gfx_state_dirty(cmdbuf, BASE_INSTANCE))
+      return true;
+
    return dyn_gfx_state_dirty(cmdbuf, VI) ||
           dyn_gfx_state_dirty(cmdbuf, VI_BINDINGS_VALID) ||
           dyn_gfx_state_dirty(cmdbuf, VI_BINDING_STRIDES) ||
@@ -275,6 +310,8 @@ static VkResult
 prepare_vs_driver_set(struct panvk_cmd_buffer *cmdbuf,
                       const struct panvk_draw_info *draw)
 {
+   prepare_vi(cmdbuf);
+
    if (!vs_driver_set_is_dirty(cmdbuf))
       return VK_SUCCESS;
 
@@ -284,30 +321,25 @@ prepare_vs_driver_set(struct panvk_cmd_buffer *cmdbuf,
    const struct vk_dynamic_graphics_state *dyns =
       &cmdbuf->vk.dynamic_graphics_state;
    const struct vk_vertex_input_state *vi = dyns->vi;
+
    uint32_t vb_count = 0;
-
-   cmdbuf->state.gfx.vi.attribs_changing_on_base_instance = 0;
-   u_foreach_bit(i, vi->attributes_valid) {
-      const struct vk_vertex_binding_state *binding =
-         &vi->bindings[vi->attributes[i].binding];
-      const uint32_t stride =
-         dyns->vi_binding_strides[vi->attributes[i].binding];
-
-      if (binding->input_rate == VK_VERTEX_INPUT_RATE_INSTANCE && stride != 0) {
-         cmdbuf->state.gfx.vi.attribs_changing_on_base_instance |=
-            BITFIELD_BIT(i);
-      }
-
+   u_foreach_bit(i, vi->attributes_valid)
       vb_count = MAX2(vi->attributes[i].binding + 1, vb_count);
-   }
 
    uint32_t vb_offset = vs_desc_info->dyn_bufs.count + MAX_VS_ATTRIBS + 1;
    uint32_t desc_count = vb_offset + vb_count;
-   uint32_t repeat_count = 1;
 
-   if (draw->indirect.draw_count > 1 &&
-       cmdbuf->state.gfx.vi.attribs_changing_on_base_instance != 0)
-      repeat_count = draw->indirect.draw_count;
+   cmdbuf->state.gfx.vs.desc_repeat_count = 0;
+   if (draw->indirect.buffer_dev_addr) {
+      /* BASE_INSTANCE is always dirty for indirect draws so it's safe to look
+       * at the draw info here.
+       */
+      assert(gfx_state_dirty(cmdbuf, BASE_INSTANCE));
+      if (cmdbuf->state.gfx.vi.attribs_changing_on_base_instance)
+         cmdbuf->state.gfx.vs.desc_repeat_count = draw->indirect.draw_count;
+   }
+
+   uint32_t repeat_count = MAX2(cmdbuf->state.gfx.vs.desc_repeat_count, 1);
 
    const struct panvk_descriptor_state *desc_state =
       &cmdbuf->state.gfx.desc_state;
@@ -1714,12 +1746,7 @@ prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw,
       const struct panvk_shader_desc_info *vs_desc_info =
          &cmdbuf->state.gfx.vs.shader->desc_info;
 
-      uint32_t repeat_count = 1;
-
-      if (draw->indirect.draw_count > 1 &&
-          cmdbuf->state.gfx.vi.attribs_changing_on_base_instance != 0)
-         repeat_count = draw->indirect.draw_count;
-
+      uint32_t repeat_count = MAX2(cmdbuf->state.gfx.vs.desc_repeat_count, 1);
       result = panvk_per_arch(cmd_prepare_shader_res_table)(
          cmdbuf, desc_state, vs_desc_info, vs_desc_state, repeat_count);
       if (result != VK_SUCCESS)
@@ -2502,14 +2529,6 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf,
    if (result != VK_SUCCESS)
       return result;
 
-   /* Changes to base_instance will modify the offset of per-instance
-    * attributes, so we manually invalidate the VI state to trigger a
-    * new attribute table generation in that case. */
-   if ((draw->instance.base != cmdbuf->state.gfx.sysvals.vs.base_instance ||
-        draw->indirect.buffer_dev_addr) &&
-       cmdbuf->state.gfx.vi.attribs_changing_on_base_instance != 0)
-      BITSET_SET(cmdbuf->vk.dynamic_graphics_state.dirty, MESA_VK_DYNAMIC_VI);
-
    panvk_per_arch(cmd_prepare_draw_sysvals)(cmdbuf, draw, fs);
 
    result = prepare_push_uniforms(cmdbuf, draw, vs, fs);
@@ -2930,11 +2949,19 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info draw)
    cmdbuf->state.gfx.fs.required =
       fs_required(&cmdbuf->state.gfx, &cmdbuf->vk.dynamic_graphics_state);
 
-   /* Force a new push uniform block to be allocated because we're going to
-    * copy from the indirect buffer into the uniform block.
+   if (cmdbuf->state.gfx.vi.base_instance != draw.instance.base) {
+      cmdbuf->state.gfx.vi.base_instance = draw.instance.base;
+      gfx_state_set_dirty(cmdbuf, BASE_INSTANCE);
+   }
+
+   /* Force new descriptors and push uniform blocks to be allocated because
+    * we're going to patch the descriptors and copy from the indirect buffer
+    * into the uniform block.
     */
-   if (draw.indirect.buffer_dev_addr)
+   if (draw.indirect.buffer_dev_addr) {
+      gfx_state_set_dirty(cmdbuf, BASE_INSTANCE);
       gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
+   }
 
    result = prepare_draw(cmdbuf, &draw);
    if (result != VK_SUCCESS)

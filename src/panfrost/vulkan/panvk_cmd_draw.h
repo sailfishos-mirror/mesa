@@ -134,6 +134,7 @@ struct panvk_rendering_state {
 };
 
 enum panvk_cmd_graphics_dirty_state {
+   PANVK_CMD_GRAPHICS_DIRTY_BASE_INSTANCE,
    PANVK_CMD_GRAPHICS_DIRTY_VS,
    PANVK_CMD_GRAPHICS_DIRTY_FS,
    PANVK_CMD_GRAPHICS_DIRTY_VB,
@@ -191,6 +192,12 @@ struct panvk_cmd_graphics_state {
       uint64_t indirect_attrib_bufs_infos;
       uint64_t indirect_varying_bufs_infos;
       bool previous_draw_was_indirect;
+#else
+      /* The number of times desc is repeated.  Zero means that it is not
+       * repeated but also that it's re-usable across draws and we're not
+       * allowed to patch it from the CSF.
+       */
+      uint32_t desc_repeat_count;
 #endif
    } vs;
 
@@ -201,6 +208,7 @@ struct panvk_cmd_graphics_state {
 
 #if PAN_ARCH >= 10
    struct {
+      uint32_t base_instance;
       uint32_t attribs_changing_on_base_instance;
    } vi;
 #endif
