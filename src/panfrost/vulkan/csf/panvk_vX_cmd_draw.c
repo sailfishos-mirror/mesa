@@ -286,35 +286,9 @@ emit_vs_attrib(struct panvk_cmd_buffer *cmdbuf,
    }
 }
 
-/* Only valid to call after prepare_vi() */
-static bool
-vs_driver_set_is_dirty(struct panvk_cmd_buffer *cmdbuf)
-{
-   /* If any of the attributes change on base instance and the base instance
-    * has changed, we need to re-emit regardless of what API state is dirty.
-    * prepare_draw() ensures that BASE_INSTANCE is always dirty for indirect
-    * draws.
-    */
-   if (cmdbuf->state.gfx.vi.attribs_changing_on_base_instance &&
-       gfx_state_dirty(cmdbuf, BASE_INSTANCE))
-      return true;
-
-   return dyn_gfx_state_dirty(cmdbuf, VI) ||
-          dyn_gfx_state_dirty(cmdbuf, VI_BINDINGS_VALID) ||
-          dyn_gfx_state_dirty(cmdbuf, VI_BINDING_STRIDES) ||
-          gfx_state_dirty(cmdbuf, VB) || gfx_state_dirty(cmdbuf, VS) ||
-          gfx_state_dirty(cmdbuf, DESC_STATE);
-}
-
 static VkResult
-prepare_vs_driver_set(struct panvk_cmd_buffer *cmdbuf,
-                      const struct panvk_draw_info *draw)
+prepare_vs_driver_set(struct panvk_cmd_buffer *cmdbuf, uint32_t repeat_count)
 {
-   prepare_vi(cmdbuf);
-
-   if (!vs_driver_set_is_dirty(cmdbuf))
-      return VK_SUCCESS;
-
    const struct panvk_shader_desc_info *vs_desc_info =
       &cmdbuf->state.gfx.vs.shader->desc_info;
    struct panvk_shader_desc_state *vs_desc_state = &cmdbuf->state.gfx.vs.desc;
@@ -328,18 +302,6 @@ prepare_vs_driver_set(struct panvk_cmd_buffer *cmdbuf,
 
    uint32_t vb_offset = vs_desc_info->dyn_bufs.count + MAX_VS_ATTRIBS + 1;
    uint32_t desc_count = vb_offset + vb_count;
-
-   cmdbuf->state.gfx.vs.desc_repeat_count = 0;
-   if (draw->indirect.buffer_dev_addr) {
-      /* BASE_INSTANCE is always dirty for indirect draws so it's safe to look
-       * at the draw info here.
-       */
-      assert(gfx_state_dirty(cmdbuf, BASE_INSTANCE));
-      if (cmdbuf->state.gfx.vi.attribs_changing_on_base_instance)
-         cmdbuf->state.gfx.vs.desc_repeat_count = draw->indirect.draw_count;
-   }
-
-   uint32_t repeat_count = MAX2(cmdbuf->state.gfx.vs.desc_repeat_count, 1);
 
    const struct panvk_descriptor_state *desc_state =
       &cmdbuf->state.gfx.desc_state;
@@ -394,6 +356,66 @@ prepare_vs_driver_set(struct panvk_cmd_buffer *cmdbuf,
    vs_desc_state->driver_set.dev_addr = driver_set.gpu;
    vs_desc_state->driver_set.size = desc_count * PANVK_DESCRIPTOR_SIZE;
    gfx_state_set_dirty(cmdbuf, DESC_STATE);
+   return VK_SUCCESS;
+}
+
+/* Only valid to call after prepare_vi() */
+static bool
+vs_desc_dirty(struct panvk_cmd_buffer *cmdbuf)
+{
+   /* If any of the attributes change on base instance and the base instance
+    * has changed, we need to re-emit regardless of what API state is dirty.
+    * prepare_draw() ensures that BASE_INSTANCE is always dirty for indirect
+    * draws.
+    */
+   if (cmdbuf->state.gfx.vi.attribs_changing_on_base_instance &&
+       gfx_state_dirty(cmdbuf, BASE_INSTANCE))
+      return true;
+
+   return dyn_gfx_state_dirty(cmdbuf, VI) ||
+          dyn_gfx_state_dirty(cmdbuf, VI_BINDINGS_VALID) ||
+          dyn_gfx_state_dirty(cmdbuf, VI_BINDING_STRIDES) ||
+          gfx_state_dirty(cmdbuf, VB) || gfx_state_dirty(cmdbuf, VS) ||
+          gfx_state_dirty(cmdbuf, DESC_STATE);
+}
+
+static VkResult
+prepare_vs_desc(struct panvk_cmd_buffer *cmdbuf,
+                const struct panvk_draw_info *draw)
+{
+   prepare_vi(cmdbuf);
+
+   if (!vs_desc_dirty(cmdbuf))
+      return VK_SUCCESS;
+
+   cmdbuf->state.gfx.vs.desc_repeat_count = 0;
+   if (draw->indirect.buffer_dev_addr) {
+      /* BASE_INSTANCE is always dirty for indirect draws so it's safe to look
+       * at the draw info here.
+       */
+      assert(gfx_state_dirty(cmdbuf, BASE_INSTANCE));
+      if (cmdbuf->state.gfx.vi.attribs_changing_on_base_instance)
+         cmdbuf->state.gfx.vs.desc_repeat_count = draw->indirect.draw_count;
+   }
+
+   const uint32_t repeat_count =
+      MAX2(cmdbuf->state.gfx.vs.desc_repeat_count, 1);
+
+   VkResult result = prepare_vs_driver_set(cmdbuf, repeat_count);
+   if (result != VK_SUCCESS)
+      return result;
+
+   const struct panvk_shader_desc_info *vs_desc_info =
+      &cmdbuf->state.gfx.vs.shader->desc_info;
+   const struct panvk_descriptor_state *desc_state =
+      &cmdbuf->state.gfx.desc_state;
+   struct panvk_shader_desc_state *vs_desc_state = &cmdbuf->state.gfx.vs.desc;
+
+   result = panvk_per_arch(cmd_prepare_shader_res_table)(
+      cmdbuf, desc_state, vs_desc_info, vs_desc_state, repeat_count);
+   if (result != VK_SUCCESS)
+      return result;
+
    return VK_SUCCESS;
 }
 
@@ -1768,32 +1790,16 @@ static VkResult
 prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw,
            const struct panvk_shader_variant *vs)
 {
-   struct panvk_descriptor_state *desc_state = &cmdbuf->state.gfx.desc_state;
    struct panvk_shader_desc_state *vs_desc_state = &cmdbuf->state.gfx.vs.desc;
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-   bool upd_res_table = false;
 
-   VkResult result = prepare_vs_driver_set(cmdbuf, draw);
+   VkResult result = prepare_vs_desc(cmdbuf, draw);
    if (result != VK_SUCCESS)
       return result;
 
-   if (gfx_state_dirty(cmdbuf, VS) || gfx_state_dirty(cmdbuf, DESC_STATE) ||
-       vs_driver_set_is_dirty(cmdbuf)) {
-      const struct panvk_shader_desc_info *vs_desc_info =
-         &cmdbuf->state.gfx.vs.shader->desc_info;
-
-      uint32_t repeat_count = MAX2(cmdbuf->state.gfx.vs.desc_repeat_count, 1);
-      result = panvk_per_arch(cmd_prepare_shader_res_table)(
-         cmdbuf, desc_state, vs_desc_info, vs_desc_state, repeat_count);
-      if (result != VK_SUCCESS)
-         return result;
-
-      upd_res_table = true;
-   }
-
    cs_update_vt_ctx(b) {
-      if (upd_res_table)
+      if (vs_desc_dirty(cmdbuf))
          cs_move64_to(b, cs_sr_reg64(b, IDVS, VERTEX_SRT),
                       vs_desc_state->res_table);
 
