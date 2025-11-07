@@ -545,6 +545,39 @@ prepare_fs_desc(struct panvk_cmd_buffer *cmdbuf)
    return VK_SUCCESS;
 }
 
+static VkResult
+prepare_descs(struct panvk_cmd_buffer *cmdbuf,
+              const struct panvk_draw_info *draw)
+{
+   const struct panvk_shader *vs = cmdbuf->state.gfx.vs.shader;
+   const struct panvk_shader *fs = get_fs(cmdbuf);
+   struct panvk_descriptor_state *desc_state =
+      &cmdbuf->state.gfx.desc_state;
+   VkResult result;
+
+   if (gfx_state_dirty(cmdbuf, DESC_STATE) ||
+       gfx_state_dirty(cmdbuf, VS) ||
+       fs_user_dirty(cmdbuf)) {
+      uint32_t used_set_mask = vs->desc_info.used_set_mask;
+      used_set_mask |= fs ? fs->desc_info.used_set_mask : 0;
+
+      result = panvk_per_arch(cmd_prepare_push_descs)(cmdbuf, desc_state,
+                                                      used_set_mask);
+      if (result != VK_SUCCESS)
+         return result;
+   }
+
+   result = prepare_vs_desc(cmdbuf, draw);
+   if (result != VK_SUCCESS)
+      return result;
+
+   result = prepare_fs_desc(cmdbuf);
+   if (result != VK_SUCCESS)
+      return result;
+
+   return VK_SUCCESS;
+}
+
 static bool
 has_depth_att(struct panvk_cmd_buffer *cmdbuf)
 {
@@ -1786,17 +1819,13 @@ get_render_ctx(struct panvk_cmd_buffer *cmdbuf)
    return get_fb_descs(cmdbuf);
 }
 
-static VkResult
-prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw,
+static void
+prepare_vs(struct panvk_cmd_buffer *cmdbuf,
            const struct panvk_shader_variant *vs)
 {
    struct panvk_shader_desc_state *vs_desc_state = &cmdbuf->state.gfx.vs.desc;
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-
-   VkResult result = prepare_vs_desc(cmdbuf, draw);
-   if (result != VK_SUCCESS)
-      return result;
 
    cs_update_vt_ctx(b) {
       if (vs_desc_dirty(cmdbuf))
@@ -1827,21 +1856,15 @@ prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw,
                       panvk_priv_mem_dev_addr(vs->spds.var));
 #endif
    }
-
-   return VK_SUCCESS;
 }
 
-static VkResult
+static void
 prepare_fs(struct panvk_cmd_buffer *cmdbuf,
            const struct panvk_shader_variant *fs)
 {
    struct panvk_shader_desc_state *fs_desc_state = &cmdbuf->state.gfx.fs.desc;
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-
-   VkResult result = prepare_fs_desc(cmdbuf);
-   if (result != VK_SUCCESS)
-      return result;
 
    cs_update_vt_ctx(b) {
       if (fs_desc_dirty(cmdbuf))
@@ -1851,8 +1874,6 @@ prepare_fs(struct panvk_cmd_buffer *cmdbuf,
          cs_move64_to(b, cs_sr_reg64(b, IDVS, FRAGMENT_SPD),
                       fs ? panvk_priv_mem_dev_addr(fs->spd) : 0);
    }
-
-   return VK_SUCCESS;
 }
 
 static VkResult
@@ -2474,7 +2495,6 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf,
       panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
    const struct panvk_shader_variant *fs =
       panvk_shader_only_variant(get_fs(cmdbuf));
-   struct panvk_descriptor_state *desc_state = &cmdbuf->state.gfx.desc_state;
    ASSERTED bool idvs = vs->info.vs.idvs;
    VkResult result;
 
@@ -2540,23 +2560,6 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf,
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
 
-   const struct panvk_shader_desc_info *vs_desc_info =
-      &cmdbuf->state.gfx.vs.shader->desc_info;
-   uint32_t used_set_mask = vs_desc_info->used_set_mask;
-   if (fs) {
-      const struct panvk_shader_desc_info *fs_desc_info =
-         &cmdbuf->state.gfx.fs.shader->desc_info;
-      used_set_mask |= fs_desc_info->used_set_mask;
-   }
-
-   if (gfx_state_dirty(cmdbuf, DESC_STATE) || gfx_state_dirty(cmdbuf, VS) ||
-       gfx_state_dirty(cmdbuf, FS)) {
-      result = panvk_per_arch(cmd_prepare_push_descs)(cmdbuf, desc_state,
-                                                      used_set_mask);
-      if (result != VK_SUCCESS)
-         return result;
-   }
-
    result = prepare_blend(cmdbuf);
    if (result != VK_SUCCESS)
       return result;
@@ -2567,13 +2570,8 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf,
    if (result != VK_SUCCESS)
       return result;
 
-   result = prepare_vs(cmdbuf, draw, vs);
-   if (result != VK_SUCCESS)
-      return result;
-
-   result = prepare_fs(cmdbuf, fs);
-   if (result != VK_SUCCESS)
-      return result;
+   prepare_vs(cmdbuf, vs);
+   prepare_fs(cmdbuf, fs);
 
    cs_update_vt_ctx(b) {
       prepare_index_buffer(b, draw);
@@ -2994,6 +2992,10 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info draw)
       gfx_state_set_dirty(cmdbuf, BASE_INSTANCE);
       gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
    }
+
+   result = prepare_descs(cmdbuf, &draw);
+   if (result != VK_SUCCESS)
+      return;
 
    result = prepare_draw(cmdbuf, &draw);
    if (result != VK_SUCCESS)
@@ -4228,6 +4230,10 @@ panvk_per_arch(cmd_draw_fullscreen)(struct vk_command_buffer *cmd,
          return;
    }
 
+   result = prepare_fs_desc(cmdbuf);
+   if (result != VK_SUCCESS)
+      return;
+
    result = build_blend(cmdbuf, fs, &bds_gpu);
    if (result != VK_SUCCESS)
       return;
@@ -4238,9 +4244,7 @@ panvk_per_arch(cmd_draw_fullscreen)(struct vk_command_buffer *cmd,
    if (result != VK_SUCCESS)
       return;
 
-   result = prepare_fs(cmdbuf, fs);
-   if (result != VK_SUCCESS)
-      return;
+   prepare_fs(cmdbuf, fs);
 
    build_dcd_flags(cmdbuf, fs, &dcd_flags);
 
