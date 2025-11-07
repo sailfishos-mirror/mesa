@@ -297,7 +297,16 @@ lp_apply_ellipse_transform(struct lp_build_context *bld,
    LLVMValueRef ds2dx_ds2dy_dt2dx_dt2dy = lp_build_mul(bld, dsdx_dsdy_dtdx_dtdy, dsdx_dsdy_dtdx_dtdy);
 
    /*
+    * "v == 0" checks will be rewritten as "abs(v) < epsilon" or "v * v < epsilon2"
+    */
+   static const double epsilon = 1e-6;
+   static const double epsilon2 = 1e-12;
+
+   /*
     * bool anyZero = length(dx) == 0 || length(dy) == 0;
+    *
+    * Rewrite as:
+    *   bool anyZero = dot(dx, dx) == 0 || dot(dy, dy) == 0
     */
    static const unsigned char swizzle01[] = { 0, 1 };
    static const unsigned char swizzle23[] = { 2, 3 };
@@ -307,14 +316,18 @@ lp_apply_ellipse_transform(struct lp_build_context *bld,
       swizzle23, ARRAY_SIZE(swizzle23), half_length_vec.length);
    LLVMValueRef square_length_dx_dy = lp_build_add(&half_length_bld, ds2dx_ds2dy, dt2dx_dt2dy);
    LLVMValueRef zero_length_dx_dy = lp_build_cmp(&half_length_bld, PIPE_FUNC_LESS,
-      square_length_dx_dy, lp_build_const_vec(gallivm, half_length_vec, 1e-6));
-   LLVMValueRef any_zero_length_dx_dy = lp_build_any_true_range(&half_length_bld,
-      quarter_length_vec.length, zero_length_dx_dy);
+      square_length_dx_dy, lp_build_const_vec(gallivm, half_length_vec, epsilon2));
+   LLVMValueRef any_zero_length_dx_dy = lp_build_any_true_range_n(&half_length_bld,
+      half_length_vec.length, quarter_length_vec.length, zero_length_dx_dy);
    any_zero_length_dx_dy = LLVMBuildSExt(gallivm->builder, any_zero_length_dx_dy,
       invalid_input_bld.int_vec_type, "");
 
    /*
-    * bool parallel = (dx.x * dy.y - dx.y * dy.x) == 0;
+    * bool parallel = (dx.s * dy.t - dx.t * dy.s) == 0;
+    *
+    * Rewrite as:
+    *   bool parallel = (dx.s * dy.t - dy.s * dx.t) * (dx.s * dy.t - dy.s * dx.t) == 0;
+    * This will make more sense when we get to computing "float F".
     */
    static const unsigned char swizzle32[] = { 3, 2 };
    LLVMValueRef dsdx_dsdy = lp_build_swizzle_aos_n(gallivm, dsdx_dsdy_dtdx_dtdy,
@@ -331,7 +344,7 @@ lp_apply_ellipse_transform(struct lp_build_context *bld,
          swizzle1, ARRAY_SIZE(swizzle1), quarter_length_vec.length));
    LLVMValueRef determinant2 = lp_build_mul(&quarter_length_bld, determinant, determinant);
    LLVMValueRef zero_determinant = lp_build_cmp(&quarter_length_bld, PIPE_FUNC_LESS,
-      determinant2, lp_build_const_vec(gallivm, quarter_length_vec, 1e-6));
+      determinant2, lp_build_const_vec(gallivm, quarter_length_vec, epsilon2));
 
    /*
     * bool perpendicular = dot(dx, dy) == 0;
@@ -350,7 +363,7 @@ lp_apply_ellipse_transform(struct lp_build_context *bld,
          swizzle1, ARRAY_SIZE(swizzle1), quarter_length_vec.length));
    LLVMValueRef abs_dot_product = lp_build_abs(&quarter_length_bld, dot_product);
    LLVMValueRef zero_dot_product = lp_build_cmp(&quarter_length_bld, PIPE_FUNC_LESS,
-      abs_dot_product, lp_build_const_vec(gallivm, quarter_length_vec, 1e-3));
+      abs_dot_product, lp_build_const_vec(gallivm, quarter_length_vec, epsilon));
 
    /*
     * bool nonFinite = isinf(dx) || isinf(dy) || isnan(dx) || isnan(dy);
@@ -370,7 +383,7 @@ lp_apply_ellipse_transform(struct lp_build_context *bld,
    invalid = lp_build_or(&invalid_input_bld, invalid, zero_dot_product);
    struct lp_build_if_state if_all_valid;
    lp_build_if(&if_all_valid, gallivm,lp_build_any_true_range(&quarter_length_bld,
-      1, lp_build_not(&invalid_input_bld, invalid)));
+      quarter_length_vec.length, lp_build_not(&invalid_input_bld, invalid)));
    {
       /*
        * float A = dx.t * dx.t + dy.t * dy.t
@@ -422,10 +435,11 @@ lp_apply_ellipse_transform(struct lp_build_context *bld,
        * newDy.s = sqrt(F * (t - p) / (t * (q - t))) * -sign(B)
        * newDy.t = sqrt(F * (t + p) / (t * (q - t)))
        *
-       * newDx.s * newDx.s = F * (t + p) / (t * (q + t))
-       * newDy.s * newDy.s = F * (t - p) / (t * (q - t))
-       * newDx.t * newDx.t = F * (t - p) / (t * (q + t))
-       * newDy.t * newDy.t = F * (t + p) / (t * (q - t))
+       * We only want the squared results, so rewrite as:
+       *   newDx.s * newDx.s = F * (t + p) / (t * (q + t))
+       *   newDy.s * newDy.s = F * (t - p) / (t * (q - t))
+       *   newDx.t * newDx.t = F * (t - p) / (t * (q + t))
+       *   newDy.t * newDy.t = F * (t + p) / (t * (q - t))
        */
       LLVMValueRef Fp = lp_build_mul(&quarter_length_bld, F,
          lp_build_add(&quarter_length_bld, t, p));
@@ -435,28 +449,43 @@ lp_apply_ellipse_transform(struct lp_build_context *bld,
          lp_build_add(&quarter_length_bld, q, t));
       LLVMValueRef tm = lp_build_mul(&quarter_length_bld, t,
          lp_build_sub(&quarter_length_bld, q, t));
-      LLVMValueRef new_dx_dy[] = {
+      LLVMValueRef new_d2dx_d2dy[4] = {
          lp_build_div(&quarter_length_bld, Fp, tp),
          lp_build_div(&quarter_length_bld, Fm, tm),
          lp_build_div(&quarter_length_bld, Fm, tp),
          lp_build_div(&quarter_length_bld, Fp, tm),
       };
-      LLVMValueRef ds2dx_ds2dy_dt2dx_dt2dy_ellipse = bld->undef;
-      for (size_t i = 0; i < ARRAY_SIZE(new_dx_dy); i++) {
-         ds2dx_ds2dy_dt2dx_dt2dy_ellipse = LLVMBuildInsertElement(gallivm->builder,
-            ds2dx_ds2dy_dt2dx_dt2dy_ellipse, new_dx_dy[i], lp_build_const_int32(gallivm, i), "");
+      LLVMValueRef ds2dx_ds2dy_dt2dx_dt2dy_ellipse;
+      if (quarter_length_vec.length > 1) {
+         ds2dx_ds2dy_dt2dx_dt2dy_ellipse = bld->undef;
+         for (int lane = 0; lane < quarter_length_vec.length; lane++) {
+            for (int i = 0; i < 4; i++) {
+               ds2dx_ds2dy_dt2dx_dt2dy_ellipse = LLVMBuildInsertElement(gallivm->builder,
+                  ds2dx_ds2dy_dt2dx_dt2dy_ellipse,
+                  LLVMBuildExtractElement(gallivm->builder, new_d2dx_d2dy[i],
+                     lp_build_const_int32(gallivm, lane), ""),
+                  lp_build_const_int32(gallivm, lane * 4 + i), "");
+            }
+         }
+      } else {
+         ds2dx_ds2dy_dt2dx_dt2dy_ellipse = bld->undef;
+         for (int i = 0; i < ARRAY_SIZE(new_d2dx_d2dy); i++) {
+            ds2dx_ds2dy_dt2dx_dt2dy_ellipse = LLVMBuildInsertElement(gallivm->builder,
+               ds2dx_ds2dy_dt2dx_dt2dy_ellipse, new_d2dx_d2dy[i],
+               lp_build_const_int32(gallivm, i), "");
+         }
       }
 
       /*
        * bool failed = any(isnan(newDx) || isinf(newDx) || isnan(newDy) || isinf(newDy));
-       * if (!failed)
+       * if (!failed) { ... }
        */
-      LLVMValueRef any_output_non_finite = lp_build_is_inf_or_nan(gallivm, bld->type, ds2dx_ds2dy_dt2dx_dt2dy_ellipse);
-      invalid = lp_build_extract_broadcast(gallivm, invalid_input_vec, invalid_output_vec,
-         invalid, lp_build_const_int32(gallivm, 0));
+      LLVMValueRef any_output_non_finite = lp_build_is_inf_or_nan(gallivm, bld->type,
+         ds2dx_ds2dy_dt2dx_dt2dy_ellipse);
+      invalid = lp_build_unpack_broadcast_aos_scalars(gallivm, invalid_input_vec, invalid_output_vec, invalid);
       invalid = lp_build_or(&invalid_output_bld, invalid, any_output_non_finite);
-      LLVMBuildStore(gallivm->builder,
-         lp_build_select(bld, invalid, ds2dx_ds2dy_dt2dx_dt2dy, ds2dx_ds2dy_dt2dx_dt2dy_ellipse), result);
+      LLVMBuildStore(gallivm->builder, lp_build_select(bld, invalid,
+         ds2dx_ds2dy_dt2dx_dt2dy, ds2dx_ds2dy_dt2dx_dt2dy_ellipse), result);
    }
    lp_build_else(&if_all_valid);
    {
@@ -477,103 +506,125 @@ lp_build_rho_aniso(struct lp_build_sample_context *bld,
                    struct lp_aniso_values *aniso_values)
 {
    struct gallivm_state *gallivm = bld->gallivm;
-   LLVMBuilderRef builder = bld->gallivm->builder;
    struct lp_build_context *coord_bld = &bld->coord_bld;
-   struct lp_build_context *int_coord_bld = &bld->int_coord_bld;
    struct lp_build_context *int_size_bld = &bld->int_size_in_bld;
    struct lp_build_context *float_size_bld = &bld->float_size_in_bld;
    struct lp_build_context *rho_bld = &bld->lodf_bld;
    struct lp_build_context *rate_bld = &bld->aniso_rate_bld;
    struct lp_build_context *direction_bld = &bld->aniso_direction_bld;
-   LLVMTypeRef i32t = LLVMInt32TypeInContext(bld->gallivm->context);
-   LLVMValueRef index0 = LLVMConstInt(i32t, 0, 0);
-   LLVMValueRef index1 = LLVMConstInt(i32t, 1, 0);
-   const unsigned length = coord_bld->type.length;
-   const unsigned num_quads = length / 4;
-   const bool rho_per_quad = bld->num_lods == num_quads;
+   const bool rho_per_element = bld->num_lods == coord_bld->type.length;
+
+   struct lp_build_context full_length_bld;
+   struct lp_type full_length_vec = coord_bld->type;
+   full_length_vec.length *= rho_per_element ? 4 : 1;
+   lp_build_context_init(&full_length_bld, gallivm, full_length_vec);
+
+   struct lp_build_context half_length_bld;
+   struct lp_type half_length_vec = full_length_bld.type;
+   half_length_vec.length /= 2;
+   lp_build_context_init(&half_length_bld, gallivm, half_length_vec);
+
+   struct lp_build_context quarter_length_bld;
+   struct lp_type quarter_length_vec = full_length_bld.type;
+   quarter_length_vec.length /= 4;
+   lp_build_context_init(&quarter_length_bld, gallivm, quarter_length_vec);
 
    LLVMValueRef int_size = lp_build_minify(int_size_bld, bld->int_size, first_level, true);
    LLVMValueRef float_size = lp_build_int_to_float(float_size_bld, int_size);
-
-   static const unsigned char swizzle01[] = { /* no-op swizzle */
-      0, 1,
-      LP_BLD_SWIZZLE_DONTCARE, LP_BLD_SWIZZLE_DONTCARE
-   };
-   static const unsigned char swizzle23[] = {
-      2, 3,
-      LP_BLD_SWIZZLE_DONTCARE, LP_BLD_SWIZZLE_DONTCARE
-   };
-   LLVMValueRef shuffles[LP_MAX_VECTOR_LENGTH / 4];
-   for (unsigned i = 0; i < num_quads; i++) {
-      shuffles[i*4+0] = shuffles[i*4+1] = index0;
-      shuffles[i*4+2] = shuffles[i*4+3] = index1;
-   }
-   LLVMValueRef width_height = LLVMBuildShuffleVector(builder, float_size, float_size,
-                                     LLVMConstVector(shuffles, length), "");
+   static const unsigned char swizzle01[] = { 0, 1 };
+   LLVMValueRef width_height = lp_build_swizzle_aos_n(gallivm, float_size,
+      swizzle01, ARRAY_SIZE(swizzle01), full_length_vec.length);
 
    LLVMValueRef dsdx_dsdy_dtdx_dtdy;
    if (derivs) {
-      LLVMValueRef result[] = {
+      assert(rho_per_element);
+      LLVMValueRef ddx_ddy[4] = {
          derivs->ddx[0], derivs->ddy[0],
          derivs->ddx[1], derivs->ddy[1],
       };
-      dsdx_dsdy_dtdx_dtdy = coord_bld->undef;
-      for (size_t i = 0; i < ARRAY_SIZE(result); i++) {
-         dsdx_dsdy_dtdx_dtdy = LLVMBuildInsertElement(gallivm->builder, dsdx_dsdy_dtdx_dtdy,
-            LLVMBuildExtractElement(gallivm->builder, result[i], lp_build_const_int32(gallivm, 0), ""),
-            lp_build_const_int32(gallivm, i), "");
+
+      dsdx_dsdy_dtdx_dtdy = full_length_bld.undef;
+      for (int lane = 0; lane < quarter_length_vec.length; lane++) {
+         for (int i = 0; i < 4; i++) {
+            dsdx_dsdy_dtdx_dtdy = LLVMBuildInsertElement(gallivm->builder, dsdx_dsdy_dtdx_dtdy,
+               LLVMBuildExtractElement(gallivm->builder, ddx_ddy[i],
+                  lp_build_const_int32(gallivm, lane), ""),
+               lp_build_const_int32(gallivm, lane * 4 + i), "");
+         }
       }
    } else {
-      dsdx_dsdy_dtdx_dtdy = lp_build_packed_ddx_ddy_twocoord(coord_bld, s, t);
+      /* lp_build_packed_ddx_ddy_twocoord() always computes per-quad, so if we
+       * need per-element, then we need to broadcast quads to elements.
+       */
+      struct lp_build_context *dd_bld = rho_per_element ? &quarter_length_bld : &full_length_bld;
+      dsdx_dsdy_dtdx_dtdy = lp_build_packed_ddx_ddy_twocoord(dd_bld, s, t);
+      if (rho_per_element) {
+         static const unsigned char broadcast4[] = {
+            0, 1, 2,3,
+            0, 1, 2,3,
+            0, 1, 2,3,
+            0, 1, 2,3,
+         };
+         dsdx_dsdy_dtdx_dtdy = lp_build_swizzle_aos_n(gallivm, dsdx_dsdy_dtdx_dtdy,
+            broadcast4, ARRAY_SIZE(broadcast4), full_length_vec.length);
+      }
    }
 
-   dsdx_dsdy_dtdx_dtdy = lp_build_mul(coord_bld, dsdx_dsdy_dtdx_dtdy, width_height);
-   LLVMValueRef ds2dx_ds2dy_dt2dx_dt2dy = lp_apply_ellipse_transform(coord_bld, dsdx_dsdy_dtdx_dtdy);
+   dsdx_dsdy_dtdx_dtdy = lp_build_mul(&full_length_bld, dsdx_dsdy_dtdx_dtdy, width_height);
+   LLVMValueRef ds2dx_ds2dy_dt2dx_dt2dy = lp_apply_ellipse_transform(&full_length_bld, dsdx_dsdy_dtdx_dtdy);
 
-   LLVMValueRef ds2dx_ds2dy = lp_build_swizzle_aos(coord_bld, ds2dx_ds2dy_dt2dx_dt2dy, swizzle01);
-   LLVMValueRef dt2dx_dt2dy = lp_build_swizzle_aos(coord_bld, ds2dx_ds2dy_dt2dx_dt2dy, swizzle23);
+   static const unsigned char swizzle23[] = { 2, 3 };
+   LLVMValueRef ds2dx_ds2dy = lp_build_swizzle_aos_n(gallivm, ds2dx_ds2dy_dt2dx_dt2dy,
+      swizzle01, ARRAY_SIZE(swizzle01), half_length_vec.length);
+   LLVMValueRef dt2dx_dt2dy = lp_build_swizzle_aos_n(gallivm, ds2dx_ds2dy_dt2dx_dt2dy,
+      swizzle23, ARRAY_SIZE(swizzle23), half_length_vec.length);
 
-   LLVMValueRef rho_x2_rho_y2 = lp_build_add(coord_bld, ds2dx_ds2dy, dt2dx_dt2dy);
+   LLVMValueRef rho_x2_rho_y2 = lp_build_add(&half_length_bld, ds2dx_ds2dy, dt2dx_dt2dy);
 
-   static const unsigned char swizzle0[] = { /* no-op swizzle */
-     0, LP_BLD_SWIZZLE_DONTCARE,
-     LP_BLD_SWIZZLE_DONTCARE, LP_BLD_SWIZZLE_DONTCARE
-   };
-   static const unsigned char swizzle1[] = {
-     1, LP_BLD_SWIZZLE_DONTCARE,
-     LP_BLD_SWIZZLE_DONTCARE, LP_BLD_SWIZZLE_DONTCARE
-   };
-   LLVMValueRef rho_x2 = lp_build_swizzle_aos(coord_bld, rho_x2_rho_y2, swizzle0);
-   LLVMValueRef rho_y2 = lp_build_swizzle_aos(coord_bld, rho_x2_rho_y2, swizzle1);
+   static const unsigned char swizzle0[] = { 0 };
+   static const unsigned char swizzle1[] = { 1 };
+   LLVMValueRef rho_x2 = lp_build_swizzle_aos_n(gallivm, rho_x2_rho_y2,
+      swizzle0, ARRAY_SIZE(swizzle0), quarter_length_vec.length);
+   LLVMValueRef rho_y2 = lp_build_swizzle_aos_n(gallivm, rho_x2_rho_y2,
+      swizzle1, ARRAY_SIZE(swizzle1), quarter_length_vec.length);
 
-   LLVMValueRef rho_max2 = lp_build_max(coord_bld, rho_x2, rho_y2);
-   LLVMValueRef rho_min2 = lp_build_min(coord_bld, rho_x2, rho_y2);
+   LLVMValueRef rho_max2 = lp_build_max(&quarter_length_bld, rho_x2, rho_y2);
+   LLVMValueRef rho_min2 = lp_build_min(&quarter_length_bld, rho_x2, rho_y2);
 
-   LLVMValueRef min_aniso2 = coord_bld->one;
-   LLVMValueRef max_aniso2 = lp_build_const_vec(gallivm, coord_bld->type, bld->static_sampler_state->aniso * bld->static_sampler_state->aniso);
-   LLVMValueRef eta2 = lp_build_clamp_nanmin(coord_bld, lp_build_div(coord_bld, rho_max2, rho_min2), min_aniso2, max_aniso2);
-   LLVMValueRef N = lp_build_iceil(coord_bld, lp_build_sqrt(coord_bld, eta2));
+   LLVMValueRef min_aniso2 = quarter_length_bld.one;
+   LLVMValueRef max_aniso2 = lp_build_const_vec(gallivm, quarter_length_vec,
+      bld->static_sampler_state->aniso * bld->static_sampler_state->aniso);
+   LLVMValueRef eta2 = lp_build_clamp_nanmin(&quarter_length_bld,
+      lp_build_div(&quarter_length_bld, rho_max2, rho_min2), min_aniso2, max_aniso2);
+   LLVMValueRef rate = lp_build_iceil(&quarter_length_bld, lp_build_sqrt(&quarter_length_bld, eta2));
 
-   LLVMValueRef direction = lp_build_cmp(coord_bld, PIPE_FUNC_GREATER, rho_x2, rho_y2);
+   LLVMValueRef direction = lp_build_cmp(&quarter_length_bld, PIPE_FUNC_GREATER, rho_x2, rho_y2);
 
    /* If eta2 was clamped this will increase the rho_min2 value,
     * increasing the LOD value (using a lower resolution mip) so
     * that the sampling loop does not skip pixels.
     */
-   rho_min2 = lp_build_div(coord_bld, rho_max2, eta2);
+   rho_min2 = lp_build_div(&quarter_length_bld, rho_max2, eta2);
 
-   if (rho_per_quad) {
-      aniso_values->rate = lp_build_pack_aos_scalars(bld->gallivm, int_coord_bld->type,
-         rate_bld->type, N, 0);
-      aniso_values->direction = lp_build_pack_aos_scalars(bld->gallivm, int_coord_bld->type,
-         direction_bld->type, direction, 0);
-      return lp_build_pack_aos_scalars(bld->gallivm, coord_bld->type,
-                                        rho_bld->type, rho_min2, 0);
+   /* Even if we compute one rho per quad, we still might need to output 4 wide.
+    * The other values are ignored.
+    */
+   if (quarter_length_vec.length != rho_bld->type.length) {
+      assert(!rho_per_element);
+      rho_min2 = lp_build_pad_vector(gallivm, rho_min2, rho_bld->type.length);
+   }
+   if (quarter_length_vec.length != rate_bld->type.length) {
+      assert(!rho_per_element);
+      rate = lp_build_pad_vector(gallivm, rate, rate_bld->type.length);
+   }
+   if (quarter_length_vec.length != direction_bld->type.length) {
+      assert(!rho_per_element);
+      direction = lp_build_pad_vector(gallivm, direction, direction_bld->type.length);
    }
 
-   aniso_values->rate = lp_build_swizzle_scalar_aos(rate_bld, N, 0, 4);
-   aniso_values->direction = lp_build_swizzle_scalar_aos(direction_bld, direction, 0, 4);
-   return lp_build_swizzle_scalar_aos(rho_bld, rho_min2, 0, 4);
+   aniso_values->rate = rate;
+   aniso_values->direction = direction;
+   return rho_min2;
 }
 
 

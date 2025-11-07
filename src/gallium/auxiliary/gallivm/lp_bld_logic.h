@@ -98,6 +98,12 @@ lp_build_any_true_range(struct lp_build_context *bld,
                         unsigned real_length,
                         LLVMValueRef val);
 
+LLVMValueRef
+lp_build_any_true_range_n(struct lp_build_context *bld,
+                          unsigned real_length,
+                          unsigned num_channels,
+                          LLVMValueRef val);
+
 #ifdef __cplusplus
 }
 #endif
