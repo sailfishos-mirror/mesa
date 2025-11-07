@@ -734,7 +734,7 @@
         "description": "panvk/csf: fix VERTEX_SPD dirty tracking when topology changes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c7b94b098c5473806307ca9491834fe89c039607",
         "notes": null
