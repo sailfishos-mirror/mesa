@@ -230,6 +230,12 @@ get_function_pointers(void)
 
 static uint32_t inited = 0;
 
+bool
+drm_shim_inited(void)
+{
+   return p_atomic_read(&inited);
+}
+
 static void
 destroy_shim(void)
 {
@@ -485,7 +491,7 @@ PUBLIC int __xstat64(int ver, const char *path, struct stat64 *st)
 /* Fakes fstat to return character device stuff for our fake render node. */
 PUBLIC int __fxstat(int ver, int fd, struct stat *st)
 {
-   init_shim();
+   get_function_pointers();
 
    struct shim_fd *shim_fd = drm_shim_fd_lookup(fd);
 
@@ -501,7 +507,7 @@ PUBLIC int __fxstat(int ver, int fd, struct stat *st)
 
 PUBLIC int __fxstat64(int ver, int fd, struct stat64 *st)
 {
-   init_shim();
+   get_function_pointers();
 
    struct shim_fd *shim_fd = drm_shim_fd_lookup(fd);
 
@@ -595,7 +601,7 @@ PUBLIC int stat64(const char* path, struct stat64* stat_buf)
 
 PUBLIC int fstat(int fd, struct stat* stat_buf)
 {
-   init_shim();
+   get_function_pointers();
 
    struct shim_fd *shim_fd = drm_shim_fd_lookup(fd);
 
@@ -611,7 +617,7 @@ PUBLIC int fstat(int fd, struct stat* stat_buf)
 
 PUBLIC int fstat64(int fd, struct stat64* stat_buf)
 {
-   init_shim();
+   get_function_pointers();
 
    struct shim_fd *shim_fd = drm_shim_fd_lookup(fd);
 
@@ -796,7 +802,7 @@ realpath(const char *path, char *resolved_path)
 PUBLIC int
 ioctl(int fd, unsigned long request, ...)
 {
-   init_shim();
+   get_function_pointers();
 
    va_list ap;
    va_start(ap, request);
@@ -814,7 +820,7 @@ ioctl(int fd, unsigned long request, ...)
 PUBLIC int
 fcntl(int fd, int cmd, ...)
 {
-   init_shim();
+   get_function_pointers();
 
    struct shim_fd *shim_fd = drm_shim_fd_lookup(fd);
 
@@ -850,7 +856,7 @@ PUBLIC int fcntl64(int, int, ...)
 PUBLIC int
 dup(int fd)
 {
-   init_shim();
+   get_function_pointers();
 
    int ret = real_dup(fd);
 
@@ -864,7 +870,7 @@ dup(int fd)
 PUBLIC void *
 mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 {
-   init_shim();
+   get_function_pointers();
 
    struct shim_fd *shim_fd = drm_shim_fd_lookup(fd);
    if (shim_fd)
@@ -876,7 +882,7 @@ mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 PUBLIC void *
 mmap64(void* addr, size_t length, int prot, int flags, int fd, off64_t offset)
 {
-   init_shim();
+   get_function_pointers();
 
    struct shim_fd *shim_fd = drm_shim_fd_lookup(fd);
    if (shim_fd)
