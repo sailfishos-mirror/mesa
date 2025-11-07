@@ -1373,6 +1373,10 @@ panvk_compile_shader(struct panvk_device *dev,
          nir_shader *nir =
             clone_nir ? nir_shader_clone(NULL, info->nir) : info->nir;
 
+         panvk_lower_nir(dev, nir, info->set_layout_count,
+                         info->set_layouts, info->robustness,
+                         state, &shader->desc_info, false);
+
 #if PAN_ARCH >= 10 && PAN_ARCH < 14
          if (inputs.view_mask) {
             nir_lower_multiview_options options = {
@@ -1391,12 +1395,10 @@ panvk_compile_shader(struct panvk_device *dev,
              */
             NIR_PASS(_, nir, nir_lower_io_vars_to_temporaries,
                      nir_shader_get_entrypoint(nir), nir_var_shader_out);
+            NIR_PASS(_, nir, nir_lower_global_vars_to_local);
+            NIR_PASS(_, nir, nir_split_var_copies);
          }
 #endif
-
-         panvk_lower_nir(dev, nir, info->set_layout_count,
-                         info->set_layouts, info->robustness,
-                         state, &shader->desc_info, false);
 
          /* We need the driver_location to match the vertex attribute
           * location, so we can use the attribute layout described by
