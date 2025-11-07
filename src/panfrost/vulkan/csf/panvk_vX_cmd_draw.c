@@ -487,6 +487,43 @@ prepare_fs_driver_set(struct panvk_cmd_buffer *cmdbuf)
 }
 
 static bool
+fs_desc_dirty(struct panvk_cmd_buffer *cmdbuf)
+{
+   return fs_user_dirty(cmdbuf) ||
+          gfx_state_dirty(cmdbuf, VS) ||
+          gfx_state_dirty(cmdbuf, DESC_STATE);
+}
+
+static VkResult
+prepare_fs_desc(struct panvk_cmd_buffer *cmdbuf)
+{
+   if (!fs_desc_dirty(cmdbuf))
+      return VK_SUCCESS;
+
+   const struct panvk_shader *fs = get_fs(cmdbuf);
+   struct panvk_shader_desc_state *fs_desc_state = &cmdbuf->state.gfx.fs.desc;
+
+   if (!fs) {
+      memset(fs_desc_state, 0, sizeof(*fs_desc_state));
+      return VK_SUCCESS;
+   }
+
+   const struct panvk_descriptor_state *desc_state =
+      &cmdbuf->state.gfx.desc_state;
+
+   VkResult result = prepare_fs_driver_set(cmdbuf);
+   if (result != VK_SUCCESS)
+      return result;
+
+   result = panvk_per_arch(cmd_prepare_shader_res_table)(
+      cmdbuf, desc_state, &fs->desc_info, fs_desc_state, 1);
+   if (result != VK_SUCCESS)
+      return result;
+
+   return VK_SUCCESS;
+}
+
+static bool
 has_depth_att(struct panvk_cmd_buffer *cmdbuf)
 {
    return (cmdbuf->state.gfx.render.bound_attachments &
@@ -1793,30 +1830,15 @@ prepare_fs(struct panvk_cmd_buffer *cmdbuf,
            const struct panvk_shader_variant *fs)
 {
    struct panvk_shader_desc_state *fs_desc_state = &cmdbuf->state.gfx.fs.desc;
-   struct panvk_descriptor_state *desc_state = &cmdbuf->state.gfx.desc_state;
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
 
-   if (fs &&
-       (gfx_state_dirty(cmdbuf, VS) ||
-        gfx_state_dirty(cmdbuf, FS) ||
-        gfx_state_dirty(cmdbuf, DESC_STATE))) {
-
-      const struct panvk_shader_desc_info *fs_desc_info =
-         &cmdbuf->state.gfx.fs.shader->desc_info;
-
-      VkResult result = prepare_fs_driver_set(cmdbuf);
-      if (result != VK_SUCCESS)
-         return result;
-
-      result = panvk_per_arch(cmd_prepare_shader_res_table)(
-         cmdbuf, desc_state, fs_desc_info, fs_desc_state, 1);
-      if (result != VK_SUCCESS)
-         return result;
-   }
+   VkResult result = prepare_fs_desc(cmdbuf);
+   if (result != VK_SUCCESS)
+      return result;
 
    cs_update_vt_ctx(b) {
-      if (fs_user_dirty(cmdbuf) || gfx_state_dirty(cmdbuf, DESC_STATE))
+      if (fs_desc_dirty(cmdbuf))
          cs_move64_to(b, cs_sr_reg64(b, IDVS, FRAGMENT_SRT),
                       fs ? fs_desc_state->res_table : 0);
       if (fs_user_dirty(cmdbuf))
