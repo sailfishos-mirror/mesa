@@ -1837,16 +1837,20 @@ prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
    VkResult result;
 
+   uint32_t vs_repeat_count = 1;
+   if (draw->indirect.buffer_dev_addr) {
+      /* For indirect draws, VS_PUSH_UNIFORMS are always dirty so it's safe to
+       * look at the draw info here.
+       */
+      assert(gfx_state_dirty(cmdbuf, VS_PUSH_UNIFORMS));
+      if (shader_uses_sysval(vs, graphics, vs.first_vertex) ||
+          shader_uses_sysval(vs, graphics, vs.base_instance))
+         vs_repeat_count = draw->indirect.draw_count;
+   }
+
    if (gfx_state_dirty(cmdbuf, VS_PUSH_UNIFORMS)) {
-      uint32_t repeat_count = 1;
-
-      if (draw->indirect.draw_count > 1 &&
-          (shader_uses_sysval(vs, graphics, vs.first_vertex) ||
-           shader_uses_sysval(vs, graphics, vs.base_instance)))
-         repeat_count = draw->indirect.draw_count;
-
       result =
-         panvk_per_arch(cmd_prepare_push_uniforms)(cmdbuf, vs, repeat_count);
+         panvk_per_arch(cmd_prepare_push_uniforms)(cmdbuf, vs, vs_repeat_count);
       if (result != VK_SUCCESS)
          return result;
 
