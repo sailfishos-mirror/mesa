@@ -837,34 +837,6 @@ prepare_vp(struct panvk_cmd_buffer *cmdbuf)
 }
 #endif
 
-#if PAN_ARCH >= 12
-static inline uint64_t
-get_vs_all_spd(const struct panvk_cmd_buffer *cmdbuf)
-{
-   const struct panvk_shader_variant *vs =
-      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
-   assert(vs);
-   const struct vk_input_assembly_state *ia =
-      &cmdbuf->vk.dynamic_graphics_state.ia;
-   return ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST
-             ? panvk_priv_mem_dev_addr(vs->spds.all_points)
-             : panvk_priv_mem_dev_addr(vs->spds.all_triangles);
-}
-#else
-static inline uint64_t
-get_vs_pos_spd(const struct panvk_cmd_buffer *cmdbuf)
-{
-   const struct panvk_shader_variant *vs =
-      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
-   assert(vs);
-   const struct vk_input_assembly_state *ia =
-      &cmdbuf->vk.dynamic_graphics_state.ia;
-   return ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST
-             ? panvk_priv_mem_dev_addr(vs->spds.pos_points)
-             : panvk_priv_mem_dev_addr(vs->spds.pos_triangles);
-}
-#endif
-
 static void
 prepare_tiler_primitive_size(struct panvk_cmd_buffer *cmdbuf)
 {
@@ -1726,6 +1698,8 @@ get_render_ctx(struct panvk_cmd_buffer *cmdbuf)
 static VkResult
 prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw)
 {
+   const struct vk_input_assembly_state *ia =
+      &cmdbuf->vk.dynamic_graphics_state.ia;
    struct panvk_descriptor_state *desc_state = &cmdbuf->state.gfx.desc_state;
    struct panvk_shader_desc_state *vs_desc_state = &cmdbuf->state.gfx.vs.desc;
    const struct panvk_shader_variant *vs =
@@ -1761,13 +1735,22 @@ prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw)
 
 #if PAN_ARCH >= 12
       if (gfx_state_dirty(cmdbuf, VS) ||
-          dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY))
-         cs_move64_to(b, cs_sr_reg64(b, IDVS, VERTEX_SPD), get_vs_all_spd(cmdbuf));
+          dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY)) {
+         const uint64_t spd_addr =
+            ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+            ? panvk_priv_mem_dev_addr(vs->spds.all_points)
+            : panvk_priv_mem_dev_addr(vs->spds.all_triangles);
+         cs_move64_to(b, cs_sr_reg64(b, IDVS, VERTEX_SPD), spd_addr);
+      }
 #else
       if (gfx_state_dirty(cmdbuf, VS) ||
-          dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY))
-         cs_move64_to(b, cs_sr_reg64(b, IDVS, VERTEX_POS_SPD),
-                      get_vs_pos_spd(cmdbuf));
+          dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY)) {
+         const uint64_t pos_spd_addr =
+            ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+            ? panvk_priv_mem_dev_addr(vs->spds.pos_points)
+            : panvk_priv_mem_dev_addr(vs->spds.pos_triangles);
+         cs_move64_to(b, cs_sr_reg64(b, IDVS, VERTEX_POS_SPD), pos_spd_addr);
+      }
 
       if (gfx_state_dirty(cmdbuf, VS))
          cs_move64_to(b, cs_sr_reg64(b, IDVS, VERTEX_VARY_SPD),
