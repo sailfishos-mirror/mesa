@@ -893,6 +893,8 @@ void vpe10_dpp_set_hdr_multiplier(struct dpp *dpp, uint32_t multiplier);
 /*Program Scaler*/
 void vpe10_dpp_set_segment_scaler(struct dpp *dpp, const struct scaler_data *scl_data);
 
+void vpe10_dpp_dscl_set_scaler_position(struct dpp *dpp, const struct scaler_data *scl_data);
+
 void vpe10_dpp_set_frame_scaler(struct dpp *dpp, const struct scaler_data *scl_data);
 
 /*Scalar helper functions*/

@@ -242,7 +242,7 @@ void vpe10_dpp_dscl_set_scale_ratio(struct dpp *dpp, const struct scaler_data *d
         vpe_fixpt_u3d19(data->ratios.vert_c) << 5);
 }
 
-static void dpp1_dscl_set_scaler_position(struct dpp *dpp, const struct scaler_data *data)
+void vpe10_dpp_dscl_set_scaler_position(struct dpp *dpp, const struct scaler_data *data)
 {
     uint32_t init_frac = 0;
     uint32_t init_int  = 0;
@@ -312,7 +312,7 @@ void vpe10_dpp_set_segment_scaler(struct dpp *dpp, const struct scaler_data *scl
     if (dscl_mode == DSCL_MODE_DSCL_BYPASS)
         return;
 
-    dpp1_dscl_set_scaler_position(dpp, scl_data);
+    dpp->funcs->dscl_set_scaler_position(dpp, scl_data);
 }
 
 void vpe10_dpp_set_frame_scaler(struct dpp *dpp, const struct scaler_data *scl_data)
