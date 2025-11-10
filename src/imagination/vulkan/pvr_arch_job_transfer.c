@@ -4854,62 +4854,72 @@ static bool pvr_double_stride(struct pvr_transfer_pass *pass, uint32_t stride)
       struct pvr_rect_mapping *mapping_a = &mappings[i];
       struct pvr_rect_mapping *mapping_b =
          &mappings[pass->sources[0].mapping_count + new_mapping];
-      int32_t mapping_a_src_rect_y1 =
-         mapping_a->src_rect.offset.y + mapping_a->src_rect.extent.height;
-      int32_t mapping_b_src_rect_y1 = mapping_a_src_rect_y1;
-      const bool dst_starts_odd_row = !!(mapping_a->dst_rect.offset.y & 1);
-      const bool dst_ends_odd_row =
-         !!((mapping_a->dst_rect.offset.y + mapping_a->dst_rect.extent.height) &
-            1);
-      const bool src_starts_odd_row = !!(mapping_a->src_rect.offset.y & 1);
-      const bool src_ends_odd_row =
-         !!((mapping_a->src_rect.offset.y + mapping_a->src_rect.extent.height) &
-            1);
+
+      int32_t a_src_rect_y0 = mapping_a->src_rect.offset.y;
+      int32_t a_src_rect_y1 = a_src_rect_y0 + mapping_a->src_rect.extent.height;
+      int32_t a_dst_rect_y0 = mapping_a->dst_rect.offset.y;
+      int32_t a_dst_rect_y1 = a_dst_rect_y0 + mapping_a->dst_rect.extent.height;
+
+      int32_t b_src_rect_y0 = a_src_rect_y0;
+      int32_t b_src_rect_y1 = a_src_rect_y1;
+      int32_t b_dst_rect_y0 = a_dst_rect_y0;
+      int32_t b_dst_rect_y1 = a_dst_rect_y1;
+
+      const bool dst_starts_odd_row = !!(a_dst_rect_y0 & 1);
+      const bool dst_ends_odd_row = !!(a_dst_rect_y1 & 1);
+      const bool src_starts_odd_row = !!(a_src_rect_y0 & 1);
+      const bool src_ends_odd_row = !!(a_src_rect_y1 & 1);
 
       assert(pass->sources[0].mapping_count + new_mapping <
              ARRAY_SIZE(pass->sources[0].mappings));
       *mapping_b = *mapping_a;
 
-      mapping_a->src_rect.offset.y = ALIGN_POT(mapping_a->src_rect.offset.y, 2);
+      a_src_rect_y0 = ALIGN_POT(a_src_rect_y0, 2);
       if (dst_starts_odd_row && !src_starts_odd_row)
-         mapping_a->src_rect.offset.y++;
+         a_src_rect_y0++;
       else if (!dst_starts_odd_row && src_starts_odd_row)
-         mapping_a->src_rect.offset.y--;
+         a_src_rect_y0--;
 
-      mapping_a_src_rect_y1 = ALIGN_POT(mapping_a_src_rect_y1, 2);
+      a_src_rect_y1 = ALIGN_POT(a_src_rect_y1, 2);
       if (dst_ends_odd_row && !src_ends_odd_row)
-         mapping_a_src_rect_y1++;
+         a_src_rect_y1++;
       else if (!dst_ends_odd_row && src_ends_odd_row)
-         mapping_a_src_rect_y1--;
+         a_src_rect_y1--;
 
-      mapping_a->src_rect.extent.height =
-         mapping_a_src_rect_y1 - mapping_a->src_rect.offset.y;
-
-      mapping_b->src_rect.offset.y = ALIGN_POT(mapping_b->src_rect.offset.y, 2);
+      b_src_rect_y0 = ALIGN_POT(b_src_rect_y0, 2);
       if (dst_starts_odd_row && src_starts_odd_row)
-         mapping_b->src_rect.offset.y--;
+         b_src_rect_y0--;
       else if (!dst_starts_odd_row && !src_starts_odd_row)
-         mapping_b->src_rect.offset.y++;
+         b_src_rect_y0++;
 
-      mapping_b_src_rect_y1 = ALIGN_POT(mapping_b_src_rect_y1, 2);
+      b_src_rect_y1 = ALIGN_POT(b_src_rect_y1, 2);
       if (dst_ends_odd_row && src_ends_odd_row)
-         mapping_b_src_rect_y1--;
+         b_src_rect_y1--;
       else if (!dst_ends_odd_row && !src_ends_odd_row)
-         mapping_b_src_rect_y1++;
-
-      mapping_b->src_rect.extent.height =
-         mapping_b_src_rect_y1 - mapping_b->src_rect.offset.y;
+         b_src_rect_y1++;
 
       /* Destination rectangles. */
-      mapping_a->dst_rect.offset.y = mapping_a->dst_rect.offset.y / 2;
-
+      a_dst_rect_y0 /= 2;
       if (dst_starts_odd_row)
-         mapping_a->dst_rect.offset.y++;
+         a_dst_rect_y0++;
+
+      a_dst_rect_y1 = (a_dst_rect_y1 + 1) / 2;
 
       mapping_b->dst_rect.offset.x += stride;
-      mapping_b->dst_rect.offset.y /= 2;
-      mapping_b->dst_rect.extent.height /= 2;
-      mapping_a->dst_rect.extent.height -= mapping_b->dst_rect.extent.height;
+      b_dst_rect_y0 /= 2;
+      b_dst_rect_y1 /= 2;
+
+      mapping_a->src_rect.offset.y = a_src_rect_y0;
+      mapping_a->src_rect.extent.height = a_src_rect_y1 - a_src_rect_y0;
+
+      mapping_a->dst_rect.offset.y = a_dst_rect_y0;
+      mapping_a->dst_rect.extent.height = a_dst_rect_y1 - a_dst_rect_y0;
+
+      mapping_b->src_rect.offset.y = b_src_rect_y0;
+      mapping_b->src_rect.extent.height = b_src_rect_y1 - b_src_rect_y0;
+
+      mapping_b->dst_rect.offset.y = b_dst_rect_y0;
+      mapping_b->dst_rect.extent.height = b_dst_rect_y1 - b_dst_rect_y0;
 
       if (!mapping_a->src_rect.extent.width ||
           !mapping_a->src_rect.extent.height) {
