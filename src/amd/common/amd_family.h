@@ -221,6 +221,7 @@ enum vcn_version{
 
    VCN_5_0_0,
    VCN_5_0_1,
+   VCN_5_3_0,
 };
 
 #define VPE_VERSION_VALUE(major, minor, rev) (((major) << 16) | ((minor) << 8) | (rev))
