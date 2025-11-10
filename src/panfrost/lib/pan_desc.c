@@ -1308,9 +1308,9 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
       cfg.bound_max_x = fb->width - 1;
       cfg.bound_max_y = fb->height - 1;
       cfg.dithering_enable = true;
-      cfg.clean_pixel_write_enable = true;
       cfg.tie_break_rule = MALI_TIE_BREAK_RULE_MINUS_180_IN_0_OUT;
       if (fb->rts[0].clear) {
+         cfg.clean_pixel_write_enable = true;
          cfg.clear_color_0 = fb->rts[0].clear_value[0];
          cfg.clear_color_1 = fb->rts[0].clear_value[1];
          cfg.clear_color_2 = fb->rts[0].clear_value[2];
