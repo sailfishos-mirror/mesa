@@ -2697,6 +2697,40 @@ update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
 }
 
 static void
+launch_gfx_cs(struct panvk_cmd_buffer *cmdbuf,
+              const struct panvk_shader_variant *cs,
+              const struct panvk_shader_desc_state *cs_desc_state,
+              uint64_t push_uniforms,
+              const struct panvk_dispatch_info *info)
+{
+   /* For GFX compute shaders, we re-emit push_uniforms every time because it
+    * massively simplifies the interface.  Also, they basically always contain
+    * draw info which changes every draw anyway so dirty checks won't actually
+    * save us anything.
+    */
+   if (!push_uniforms) {
+      VkResult result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
+         cmdbuf, cs, &push_uniforms, 1);
+      if (result != VK_SUCCESS)
+         return;
+   }
+
+   /* Dirty everything */
+   compute_state_set_dirty(cmdbuf, CS);
+   compute_state_set_dirty(cmdbuf, DESC_STATE);
+   compute_state_set_dirty(cmdbuf, PUSH_UNIFORMS);
+
+   panvk_per_arch(cmd_dispatch_shader)(cmdbuf, cs, cs_desc_state,
+                                       push_uniforms, cmdbuf->state.gfx.tsd,
+                                       info);
+
+   /* Dirty everything */
+   compute_state_set_dirty(cmdbuf, CS);
+   compute_state_set_dirty(cmdbuf, DESC_STATE);
+   compute_state_set_dirty(cmdbuf, PUSH_UNIFORMS);
+}
+
+static void
 launch_draw(struct panvk_cmd_buffer *cmdbuf,
             const struct panvk_draw_info *draw)
 {
