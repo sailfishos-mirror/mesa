@@ -41,6 +41,7 @@ static const struct debug_named_value lp_bld_perf_flags[] = {
    { "rho_approx", GALLIVM_PERF_RHO_APPROX, "enable rho_approx optimization" },
    { "no_quad_lod", GALLIVM_PERF_NO_QUAD_LOD, "disable quad_lod optimization" },
    { "no_aos_sampling", GALLIVM_PERF_NO_AOS_SAMPLING, "disable aos sampling optimization" },
+   { "no_lod_ellipse", GALLIVM_PERF_NO_LOD_ELLIPSE, "disable LOD elliptical derivative transform" },
    { "nopt",   GALLIVM_PERF_NO_OPT, "disable optimization passes to speed up shader compilation" },
    DEBUG_NAMED_VALUE_END
 };

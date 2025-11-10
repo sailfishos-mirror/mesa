@@ -295,6 +295,9 @@ lp_apply_ellipse_transform(struct lp_build_context *bld,
    lp_build_context_init(&invalid_output_bld, gallivm, invalid_output_vec);
 
    LLVMValueRef ds2dx_ds2dy_dt2dx_dt2dy = lp_build_mul(bld, dsdx_dsdy_dtdx_dtdy, dsdx_dsdy_dtdx_dtdy);
+   if (gallivm_perf & GALLIVM_PERF_NO_LOD_ELLIPSE) {
+      return ds2dx_ds2dy_dt2dx_dt2dy;
+   }
 
    /*
     * "v == 0" checks will be rewritten as "abs(v) < epsilon" or "v * v < epsilon2"
