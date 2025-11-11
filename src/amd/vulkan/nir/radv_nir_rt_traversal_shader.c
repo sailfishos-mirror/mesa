@@ -1162,12 +1162,6 @@ radv_build_traversal_shader(struct radv_device *device, struct radv_ray_tracing_
    b.shader->info.min_subgroup_size = pdev->rt_wave_size;
    b.shader->info.shared_size = pdev->rt_wave_size * MAX_STACK_ENTRY_COUNT * sizeof(uint32_t);
 
-   /* Register storage for hit attributes during traversal */
-   nir_variable *hit_attribs[RADV_MAX_HIT_ATTRIB_DWORDS];
-
-   for (uint32_t i = 0; i < ARRAY_SIZE(hit_attribs); i++)
-      hit_attribs[i] = nir_local_variable_create(nir_shader_get_entrypoint(b.shader), glsl_uint_type(), "ahit_attrib");
-
    struct radv_nir_rt_traversal_params params = {0};
 
    if (info->tmin.state == RADV_RT_CONST_ARG_STATE_VALID)
@@ -1202,12 +1196,22 @@ radv_build_traversal_shader(struct radv_device *device, struct radv_ray_tracing_
 
    struct radv_nir_rt_traversal_result result = radv_build_traversal(device, pipeline, &b, &params, info);
 
-   radv_nir_lower_rt_storage(b.shader, hit_attribs, NULL, NULL, pdev->rt_wave_size);
+   b.cursor = nir_before_impl(nir_shader_get_entrypoint(b.shader));
+
+   /* Register storage for hit attributes during traversal */
+   nir_deref_instr *hit_attrib_derefs[RADV_MAX_HIT_ATTRIB_DWORDS];
+   for (unsigned i = 0; i < ARRAY_SIZE(hit_attrib_derefs); ++i) {
+      hit_attrib_derefs[i] = nir_build_deref_var(
+         &b, nir_local_variable_create(nir_shader_get_entrypoint(b.shader), glsl_uint_type(), "ahit_attrib"));
+   }
+   b.cursor = nir_after_impl(nir_shader_get_entrypoint(b.shader));
+
+   radv_nir_lower_rt_storage(b.shader, hit_attrib_derefs, NULL, NULL, pdev->rt_wave_size);
 
    nir_push_if(&b, nir_load_var(&b, result.hit));
    {
-      for (int i = 0; i < ARRAY_SIZE(hit_attribs); ++i)
-         nir_store_hit_attrib_amd(&b, nir_load_var(&b, hit_attribs[i]), .base = i);
+      for (int i = 0; i < ARRAY_SIZE(hit_attrib_derefs); ++i)
+         nir_store_hit_attrib_amd(&b, nir_load_deref(&b, hit_attrib_derefs[i]), .base = i);
 
       nir_def *primitive_addr;
       if (info->has_position_fetch)

@@ -82,8 +82,10 @@ get_hw_stage_symbol(struct rgp_code_object_record *record, unsigned index)
 }
 
 static const char *
-rt_subtype_from_stage(mesa_shader_stage stage)
+rt_subtype_from_stage(mesa_shader_stage stage, uint32_t is_rt_traversal)
 {
+   if (is_rt_traversal)
+      return "Traversal";
    switch (stage) {
    case MESA_SHADER_RAYGEN:
       return "RayGeneration";
@@ -93,10 +95,10 @@ rt_subtype_from_stage(mesa_shader_stage stage)
       return "ClosestHit";
    case MESA_SHADER_CALLABLE:
       return "Callable";
+   case MESA_SHADER_ANY_HIT:
+      return "AnyHit";
    case MESA_SHADER_INTERSECTION:
-      return "Traversal";
-   /* There are also AnyHit and Intersection subtypes, but on RADV
-    * these are inlined into the traversal shader */
+      return "Intersection";
    default:
       return "Unknown";
    }
@@ -224,7 +226,7 @@ ac_rgp_write_msgpack(FILE *output,
                            ac_msgpack_add_uint(&msgpack, record->shader_data[i].rt_stack_size);
 
                            ac_msgpack_add_fixstr(&msgpack, ".shader_subtype");
-                           ac_msgpack_add_fixstr(&msgpack, rt_subtype_from_stage(i));
+                           ac_msgpack_add_fixstr(&msgpack, rt_subtype_from_stage(i, record->shader_data[i].is_rt_traversal));
                            ac_msgpack_add_fixstr(&msgpack, ".api_shader_hash");
                            ac_msgpack_add_fixarray_op(&msgpack, 2);
                               ac_msgpack_add_uint(&msgpack, record->pipeline_hash[0]);

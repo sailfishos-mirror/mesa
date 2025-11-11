@@ -560,7 +560,7 @@ radv_nir_lower_rt_abi_cps(nir_shader *shader, const struct radv_shader_info *inf
    if (shader->info.stage != MESA_SHADER_RAYGEN || resume_shader)
       init_cps_function(impl->function, has_position_fetch);
    else
-      radv_nir_init_rt_function_params(impl->function, MESA_SHADER_RAYGEN, 0);
+      radv_nir_init_rt_function_params(impl->function, MESA_SHADER_RAYGEN, 0, 0);
 
    if (traversal_info) {
       unsigned idx;

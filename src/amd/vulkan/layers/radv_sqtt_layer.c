@@ -1469,6 +1469,7 @@ radv_add_rt_record(struct radv_device *device, struct rgp_code_object *code_obje
 
    radv_fill_code_object_record(device, shader_data, shader, shader->va);
    shader_data->rt_stack_size = stack_size;
+   shader_data->is_rt_traversal = false;
 
    record->shader_stages_mask |= (1 << shader->info.stage);
    record->is_rt = true;
@@ -1483,7 +1484,15 @@ radv_add_rt_record(struct radv_device *device, struct rgp_code_object *code_obje
       snprintf(shader_data->rt_shader_name, sizeof(shader_data->rt_shader_name), "miss_%d", index);
       break;
    case MESA_SHADER_INTERSECTION:
-      snprintf(shader_data->rt_shader_name, sizeof(shader_data->rt_shader_name), "traversal");
+      if (shader == pipeline->base.base.shaders[MESA_SHADER_INTERSECTION]) {
+         snprintf(shader_data->rt_shader_name, sizeof(shader_data->rt_shader_name), "traversal");
+         shader_data->is_rt_traversal = true;
+      } else {
+         snprintf(shader_data->rt_shader_name, sizeof(shader_data->rt_shader_name), "intersection_%d", index);
+      }
+      break;
+   case MESA_SHADER_ANY_HIT:
+      snprintf(shader_data->rt_shader_name, sizeof(shader_data->rt_shader_name), "ahit_%d", index);
       break;
    case MESA_SHADER_CALLABLE:
       snprintf(shader_data->rt_shader_name, sizeof(shader_data->rt_shader_name), "call_%d", index);
@@ -1561,7 +1570,7 @@ radv_register_rt_pipeline(struct radv_device *device, struct radv_ray_tracing_pi
 
    /* Combined traversal shader */
    if (pipeline->base.base.shaders[MESA_SHADER_INTERSECTION]) {
-      result = radv_register_rt_stage(device, pipeline, idx++, max_any_hit_stack_size + max_intersection_stack_size,
+      result = radv_register_rt_stage(device, pipeline, idx++, pipeline->traversal_stack_size,
                                       pipeline->base.base.shaders[MESA_SHADER_INTERSECTION]);
       if (result != VK_SUCCESS)
          return result;

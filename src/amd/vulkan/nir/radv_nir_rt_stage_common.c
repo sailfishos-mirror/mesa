@@ -24,7 +24,8 @@ radv_nir_load_sbt_entry(nir_builder *b, nir_def *base, nir_def *idx, enum radv_n
 
    nir_def *addr = nir_iadd(b, desc, nir_u2u64(b, nir_iadd_imm(b, nir_imul(b, idx, stride), offset)));
 
-   unsigned load_size = offset == SBT_RECURSIVE_PTR ? 64 : 32;
+   bool offset_is_addr = offset == SBT_RECURSIVE_PTR || offset == SBT_AHIT_ISEC_PTR;
+   unsigned load_size = offset_is_addr ? 64 : 32;
    data.shader_addr = nir_load_global(b, 1, load_size, addr, .access = ACCESS_CAN_REORDER | ACCESS_NON_WRITEABLE);
    data.shader_record_ptr = nir_iadd_imm(b, addr, RADV_RT_HANDLE_SIZE - offset);
 
@@ -154,7 +155,7 @@ radv_visit_inlined_shaders(nir_builder *b, nir_def *sbt_idx, bool can_have_null_
 /* Lowers RT I/O vars to registers or shared memory. If hit_attribs is NULL, attributes are
  * lowered to shared memory. */
 bool
-radv_nir_lower_rt_storage(nir_shader *shader, nir_variable **hit_attribs, nir_deref_instr **payload_in,
+radv_nir_lower_rt_storage(nir_shader *shader, nir_deref_instr **hit_attribs, nir_deref_instr **payload_in,
                           nir_variable **payload_out, uint32_t workgroup_size)
 {
    bool progress = false;
@@ -195,13 +196,13 @@ radv_nir_lower_rt_storage(nir_shader *shader, nir_variable **hit_attribs, nir_de
             if (intrin->intrinsic == nir_intrinsic_load_hit_attrib_amd) {
                nir_def *ret;
                if (hit_attribs)
-                  ret = nir_load_var(&b, hit_attribs[nir_intrinsic_base(intrin)]);
+                  ret = nir_load_deref(&b, hit_attribs[nir_intrinsic_base(intrin)]);
                else
                   ret = nir_load_shared(&b, 1, 32, offset, .base = 0, .align_mul = 4);
                nir_def_rewrite_uses(nir_instr_def(instr), ret);
             } else {
                if (hit_attribs)
-                  nir_store_var(&b, hit_attribs[nir_intrinsic_base(intrin)], intrin->src->ssa, 0x1);
+                  nir_store_deref(&b, hit_attribs[nir_intrinsic_base(intrin)], intrin->src->ssa, 0x1);
                else
                   nir_store_shared(&b, intrin->src->ssa, offset, .base = 0, .align_mul = 4);
             }

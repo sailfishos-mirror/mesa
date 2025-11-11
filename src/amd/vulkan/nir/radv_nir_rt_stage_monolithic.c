@@ -459,7 +459,7 @@ radv_nir_lower_rt_abi_monolithic(nir_shader *shader, struct radv_device *device,
                                  struct radv_ray_tracing_pipeline *pipeline)
 {
    nir_function_impl *impl = nir_shader_get_entrypoint(shader);
-   radv_nir_init_rt_function_params(impl->function, MESA_SHADER_RAYGEN, 0);
+   radv_nir_init_rt_function_params(impl->function, MESA_SHADER_RAYGEN, 0, 0);
 
    nir_builder b = nir_builder_at(nir_before_impl(impl));
 
@@ -486,20 +486,22 @@ radv_nir_lower_rt_abi_monolithic(nir_shader *shader, struct radv_device *device,
    uint32_t payload_size = 0;
    nir_shader_intrinsics_pass(shader, radv_count_hit_attrib_slots, nir_metadata_all, &hit_attrib_count);
    nir_shader_intrinsics_pass(shader, radv_count_ray_payload_size, nir_metadata_all, &payload_size);
-   /* Register storage for hit attributes */
-   STACK_ARRAY(nir_variable *, hit_attribs, hit_attrib_count);
-   STACK_ARRAY(nir_variable *, payload_vars, DIV_ROUND_UP(payload_size, 4));
-   STACK_ARRAY(nir_deref_instr *, payload_derefs, DIV_ROUND_UP(payload_size, 4));
-   for (uint32_t i = 0; i < hit_attrib_count; i++)
-      hit_attribs[i] = nir_local_variable_create(impl, glsl_uint_type(), "ahit_attrib");
 
    b.cursor = nir_before_impl(impl);
+   /* Register storage for hit attributes */
+   STACK_ARRAY(nir_deref_instr *, hit_attrib_derefs, hit_attrib_count);
+   STACK_ARRAY(nir_variable *, payload_vars, DIV_ROUND_UP(payload_size, 4));
+   STACK_ARRAY(nir_deref_instr *, payload_derefs, DIV_ROUND_UP(payload_size, 4));
+   for (uint32_t i = 0; i < hit_attrib_count; i++) {
+      hit_attrib_derefs[i] = nir_build_deref_var(&b, nir_local_variable_create(impl, glsl_uint_type(), "ahit_attrib"));
+   }
+
    for (uint32_t i = 0; i < DIV_ROUND_UP(payload_size, 4); i++) {
       payload_vars[i] = nir_local_variable_create(impl, glsl_uint_type(), "payload_storage");
       payload_derefs[i] = nir_build_deref_var(&b, payload_vars[i]);
    }
 
-   radv_nir_lower_rt_storage(shader, hit_attribs, payload_derefs, payload_vars, 0);
+   radv_nir_lower_rt_storage(shader, hit_attrib_derefs, payload_derefs, payload_vars, 0);
 
    nir_progress(true, impl, nir_metadata_none);
 
@@ -508,5 +510,7 @@ radv_nir_lower_rt_abi_monolithic(nir_shader *shader, struct radv_device *device,
    NIR_PASS(_, shader, nir_lower_global_vars_to_local);
    NIR_PASS(_, shader, nir_lower_vars_to_ssa);
 
-   STACK_ARRAY_FINISH(hit_attribs);
+   STACK_ARRAY_FINISH(hit_attrib_derefs);
+   STACK_ARRAY_FINISH(payload_vars);
+   STACK_ARRAY_FINISH(payload_derefs);
 }

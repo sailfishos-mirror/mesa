@@ -39,6 +39,7 @@ RADV_DECL_PIPELINE_DOWNCAST(ray_tracing, RADV_PIPELINE_RAY_TRACING)
 
 struct radv_pipeline_group_handle {
    uint64_t recursive_shader_ptr;
+   uint64_t ahit_isec_ptr;
 
    union {
       uint32_t general_index;
@@ -52,6 +53,7 @@ struct radv_pipeline_group_handle {
 
 struct radv_rt_capture_replay_handle {
    struct radv_serialized_shader_arena_block recursive_shader_alloc;
+   struct radv_serialized_shader_arena_block ahit_isec_alloc;
    uint32_t non_recursive_idx;
 };
 
@@ -60,6 +62,7 @@ struct radv_ray_tracing_group {
    uint32_t recursive_shader; /* generalShader or closestHitShader */
    uint32_t any_hit_shader;
    uint32_t intersection_shader;
+   struct radv_shader *ahit_isec_shader;
    struct radv_pipeline_group_handle handle;
 };
 

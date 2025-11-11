@@ -82,6 +82,7 @@ enum radv_nir_sbt_type {
 
 enum radv_nir_sbt_entry {
    SBT_RECURSIVE_PTR = offsetof(struct radv_pipeline_group_handle, recursive_shader_ptr),
+   SBT_AHIT_ISEC_PTR = offsetof(struct radv_pipeline_group_handle, ahit_isec_ptr),
    SBT_GENERAL_IDX = offsetof(struct radv_pipeline_group_handle, general_index),
    SBT_CLOSEST_HIT_IDX = offsetof(struct radv_pipeline_group_handle, closest_hit_index),
    SBT_INTERSECTION_IDX = offsetof(struct radv_pipeline_group_handle, intersection_index),
@@ -97,7 +98,7 @@ struct radv_nir_sbt_data radv_nir_load_sbt_entry(nir_builder *b, nir_def *base, 
  *
  */
 
-bool radv_nir_lower_rt_storage(nir_shader *shader, nir_variable **hit_attribs, nir_deref_instr **payload_in,
+bool radv_nir_lower_rt_storage(nir_shader *shader, nir_deref_instr **hit_attribs, nir_deref_instr **payload_in,
                                nir_variable **payload_out, uint32_t workgroup_size);
 
 void radv_nir_param_from_type(nir_parameter *param, const glsl_type *type, bool uniform, unsigned driver_attribs);
@@ -125,6 +126,8 @@ struct radv_nir_rt_traversal_params {
    nir_def *miss_index;
 
    bool ignore_cull_mask;
+   uint32_t payload_size;
+   uint32_t hit_attrib_size;
 
    radv_nir_ahit_isec_preprocess_cb preprocess_ahit_isec;
 
