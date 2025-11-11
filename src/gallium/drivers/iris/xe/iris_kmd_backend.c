@@ -72,6 +72,10 @@ xe_gem_create(struct iris_bufmgr *bufmgr,
         heap_flags == IRIS_HEAP_DEVICE_LOCAL_CPU_VISIBLE_SMALL_BAR))
       flags |= DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM;
 
+   if (iris_heap_is_compressed(heap_flags) == false &&
+       iris_bufmgr_get_device_info(bufmgr)->xe2_has_no_compression_hint)
+      flags |= DRM_XE_GEM_CREATE_FLAG_NO_COMPRESSION;
+
    struct drm_xe_gem_create gem_create = {
      .vm_id = vm_id,
      .size = align64(size, devinfo->mem_alignment),
