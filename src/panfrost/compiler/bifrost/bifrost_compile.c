@@ -6460,8 +6460,10 @@ lower_texel_buffer_fetch(nir_builder *b, nir_tex_instr *tex, void *data)
    }
 
    nir_def *icd = nir_load_texel_buf_conv_pan(b, res_handle);
-   nir_def *texel_addr =
+   nir_def *loaded_texel_addr =
       nir_load_texel_buf_index_address_pan(b, res_handle, buf_index);
+   nir_def *texel_addr =
+      nir_pack_64_2x32(b, nir_channels(b, loaded_texel_addr, BITFIELD_MASK(2)));
    nir_def *new =
       nir_load_converted_mem_pan(b, tex->def.num_components, tex->def.bit_size,
                                  texel_addr, icd, tex->dest_type);
@@ -6496,8 +6498,10 @@ lower_buf_image_access(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
    nir_def *res_handle = intr->src[0].ssa;
    nir_def *buf_index = nir_channel(b, intr->src[1].ssa, 0);
-   nir_def *texel_addr =
+   nir_def *loaded_texel_addr =
       nir_load_texel_buf_index_address_pan(b, res_handle, buf_index);
+   nir_def *texel_addr =
+      nir_pack_64_2x32(b, nir_channels(b, loaded_texel_addr, BITFIELD_MASK(2)));
 
    switch (intr->intrinsic) {
    case nir_intrinsic_image_texel_address:
