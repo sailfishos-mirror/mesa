@@ -86,7 +86,7 @@ static bool
 is_indirect_draw(const struct panvk_draw_data *draw)
 {
    return draw->info.indirect.buffer_dev_addr != 0 ||
-          draw->info.index.size != 0;
+          draw->info.index.index_size != 0;
 }
 
 static bool
@@ -926,8 +926,8 @@ panvk_emit_tiler_primitive(struct panvk_cmd_buffer *cmdbuf,
          cfg.primitive_restart = MALI_PRIMITIVE_RESTART_IMPLICIT;
       cfg.job_task_split = 6;
 
-      if (draw->info.index.size) {
-         switch (draw->info.index.size) {
+      if (draw->info.index.index_size) {
+         switch (draw->info.index.index_size) {
          case 4:
             cfg.index_type = MALI_INDEX_TYPE_UINT32;
             break;
@@ -1585,14 +1585,14 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
    struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
    uint64_t index_min_max_res_ptr = 0;
    uint32_t job_before_indirect_helper = copy_desc_job_id;
-   if (draw->info.index.size) {
+   if (draw->info.index.index_size) {
       index_min_max_res_ptr =
          panvk_cmd_alloc_dev_mem(
             cmdbuf, desc,
             sizeof(struct libpan_draw_helper_index_min_max_result), 8)
             .gpu;
       const struct panlib_draw_index_minmax_search_helper_args args = {
-         .index_buffer_ptr = cmdbuf->state.gfx.ib.dev_addr,
+         .index_buffer_ptr = draw->info.index.buffer_dev_addr,
          .cmd = draw->info.indirect.buffer_dev_addr,
          .min_ptr =
             index_min_max_res_ptr +
@@ -1603,7 +1603,7 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
       };
 
       struct libpan_draw_helper_index_min_max_result val = {
-         .min = ((uint64_t)1 << (draw->info.index.size * 8)) - 1,
+         .min = ((uint64_t)1 << (draw->info.index.index_size * 8)) - 1,
          .max = 0,
       };
       uint64_t *raw_val = (uint64_t *)&val;
@@ -1622,13 +1622,14 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
                         0, copy_desc_job_id, &write_job, false);
       util_dynarray_append(&batch->jobs, write_job.cpu);
 
-      uint32_t index_count = cmdbuf->state.gfx.ib.size / draw->info.index.size;
+      const uint32_t index_count =
+         draw->info.index.buffer_size / draw->info.index.index_size;
       uint32_t wg_count = DIV_ROUND_UP(index_count, 65536);
       assert(wg_count <= 65536);
 
       panlib_draw_index_minmax_search_helper_struct(
          &precomp_ctx, panlib_1d_with_jm_deps(wg_count, 0, write_job_id),
-         PANLIB_BARRIER_NONE, args, util_logbase2(draw->info.index.size),
+         PANLIB_BARRIER_NONE, args, util_logbase2(draw->info.index.index_size),
          ia->primitive_restart_enable);
       job_before_indirect_helper = batch->vtc_jc.job_index;
    }
@@ -1643,7 +1644,8 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
       if (result != VK_SUCCESS)
          return;
 
-      assert(draw->info.indirect.buffer_dev_addr != 0 || draw->info.index.size);
+      assert(draw->info.indirect.buffer_dev_addr != 0 ||
+             draw->info.index.index_size);
 
       uint32_t attrib_bufs_valid = vi->bindings_valid;
       uint32_t attribs_valid = vi->attributes_valid;
@@ -1675,12 +1677,13 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
       struct panlib_precomp_grid indirect_grid =
          panlib_1d_with_jm_deps(1, 0, job_before_indirect_helper);
 
-      if (draw->info.indirect.buffer_dev_addr != 0 && draw->info.index.size) {
+      if (draw->info.indirect.buffer_dev_addr != 0 &&
+          draw->info.index.index_size) {
          const struct panlib_draw_indexed_indirect_helper_args args = {
             .cmd = draw->info.indirect.buffer_dev_addr,
-            .index_buffer_ptr = cmdbuf->state.gfx.ib.dev_addr,
+            .index_buffer_ptr = draw->info.index.buffer_dev_addr,
             .index_min_max_res = index_min_max_res_ptr,
-            .index_size = draw->info.index.size,
+            .index_size = draw->info.index.index_size,
             .primitive_vertex_count = primitive_vertex_count(
                translate_prim_topology(ia->primitive_topology)),
             .varying_bufs_descs = draw->varying_bufs,
@@ -1851,7 +1854,7 @@ panvk_per_arch(CmdDrawIndexed)(VkCommandBuffer commandBuffer,
 
    struct panvk_draw_data draw = {
       .info = {
-         .index.size = cmdbuf->state.gfx.ib.index_size,
+         .index = panvk_draw_info_index(cmdbuf, 0),
          .indirect.buffer_dev_addr = indirect_index_alloc.gpu,
          .indirect.draw_count = 1,
          .indirect.stride = 0,
@@ -1902,7 +1905,7 @@ panvk_per_arch(CmdDrawIndexedIndirect)(VkCommandBuffer commandBuffer,
 
    struct panvk_draw_data draw = {
       .info = {
-         .index.size = cmdbuf->state.gfx.ib.index_size,
+         .index = panvk_draw_info_index(cmdbuf, 0),
          .indirect.buffer_dev_addr = panvk_buffer_gpu_ptr(buffer, offset),
          .indirect.draw_count = drawCount,
          .indirect.stride = stride,

@@ -137,7 +137,6 @@ enum panvk_cmd_graphics_dirty_state {
    PANVK_CMD_GRAPHICS_DIRTY_VS,
    PANVK_CMD_GRAPHICS_DIRTY_FS,
    PANVK_CMD_GRAPHICS_DIRTY_VB,
-   PANVK_CMD_GRAPHICS_DIRTY_IB,
    PANVK_CMD_GRAPHICS_DIRTY_OQ,
    PANVK_CMD_GRAPHICS_DIRTY_DESC_STATE,
    PANVK_CMD_GRAPHICS_DIRTY_RENDER_STATE,
@@ -403,7 +402,9 @@ void panvk_per_arch(cmd_select_tile_size)(struct panvk_cmd_buffer *cmdbuf);
 
 struct panvk_draw_info {
    struct {
-      uint32_t size;
+      uint64_t buffer_dev_addr;
+      uint64_t buffer_size;
+      uint32_t index_size;
       uint32_t offset;
    } index;
 
@@ -431,6 +432,13 @@ struct panvk_draw_info {
    uint32_t layer_id;
 #endif
 };
+
+#define panvk_draw_info_index(__cmdbuf, __offset) {                            \
+   .buffer_dev_addr = (__cmdbuf)->state.gfx.ib.dev_addr,                       \
+   .buffer_size = (__cmdbuf)->state.gfx.ib.size,                               \
+   .index_size = (__cmdbuf)->state.gfx.ib.index_size,                          \
+   .offset = (__offset),                                                       \
+}
 
 void
 panvk_per_arch(cmd_prepare_draw_sysvals)(struct panvk_cmd_buffer *cmdbuf,

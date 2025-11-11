@@ -2322,17 +2322,14 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
 }
 
 static void
-prepare_index_buffer(struct panvk_cmd_buffer *cmdbuf)
+prepare_index_buffer(struct cs_builder *b,
+                     const struct panvk_draw_info *draw)
 {
-   struct cs_builder *b =
-      panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-
-   if (gfx_state_dirty(cmdbuf, IB)) {
+   if (draw->index.index_size) {
       cs_move32_to(b, cs_sr_reg32(b, IDVS, INDEX_BUFFER_SIZE),
-                   cmdbuf->state.gfx.ib.size);
-
+                   draw->index.buffer_size);
       cs_move64_to(b, cs_sr_reg64(b, IDVS, INDEX_BUFFER),
-                   cmdbuf->state.gfx.ib.dev_addr);
+                   draw->index.buffer_dev_addr);
    }
 }
 
@@ -2415,7 +2412,7 @@ get_tiler_flags_override(const struct panvk_draw_info *draw)
    /* Pack with nodefaults so only explicitly set override fields affect the
     * previously set register values */
    pan_pack_nodefaults(&flags_override, PRIMITIVE_FLAGS, cfg) {
-      cfg.index_type = index_size_to_index_type(draw->index.size);
+      cfg.index_type = index_size_to_index_type(draw->index.index_size);
    };
 
    return flags_override;
@@ -2532,7 +2529,7 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf,
       return result;
 
    cs_update_vt_ctx(b) {
-      prepare_index_buffer(cmdbuf);
+      prepare_index_buffer(b, draw);
 
       set_tiler_idvs_flags(b, cmdbuf, draw);
 
@@ -2572,19 +2569,20 @@ update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
    if (!state->ptr)
       return;
 
-   assert(!draw->index.size || !ia->primitive_restart_enable);
+   assert(!draw->index.index_size || !ia->primitive_restart_enable);
 
    enum mesa_prim prim = vk_topology_to_mesa(ia->primitive_topology);
    uint32_t view_count = cmdbuf->state.gfx.render.view_mask ?
       util_bitcount(cmdbuf->state.gfx.render.view_mask) : 1;
 
-   if (draw->index.size && ia->primitive_restart_enable) {
+   if (draw->index.index_size && ia->primitive_restart_enable) {
       struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
 
       struct panlib_update_prims_generated_query_restart_args args = {
          .prims_generated = state->ptr,
          .index_buffer = cmdbuf->state.gfx.ib.dev_addr,
-         .index_buffer_size_el = cmdbuf->state.gfx.ib.size / draw->index.size,
+         .index_buffer_size_el = cmdbuf->state.gfx.ib.size /
+                                 draw->index.index_size,
          .cmd_stride = draw->indirect.stride,
          .cmd = draw->indirect.buffer_dev_addr,
          .view_count = view_count,
@@ -2617,7 +2615,7 @@ update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
        * by having separate direct/indirect counters and adding them on read */
       panlib_update_prims_generated_query_restart_struct(
          &precomp_ctx, grid, PANLIB_BARRIER_CSF_WAIT, args,
-         poly_compact_prim(prim), util_logbase2(draw->index.size));
+         poly_compact_prim(prim), util_logbase2(draw->index.index_size));
    } else if (draw->indirect.buffer_dev_addr) {
       struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
 
@@ -2804,7 +2802,7 @@ launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
       cs_update_vt_ctx(b) {
          cs_move32_to(b, cs_sr_reg32(b, IDVS, GLOBAL_ATTRIBUTE_OFFSET), 0);
          /* Load SR33-37 from indirect buffer. */
-         unsigned reg_mask = draw->index.size ? 0b11111 : 0b11011;
+         unsigned reg_mask = draw->index.index_size ? 0b11111 : 0b11011;
          cs_load_to(b, cs_sr_reg_tuple(b, IDVS, INDEX_COUNT, 5),
                     draw_params_addr, reg_mask, 0);
       }
@@ -3018,8 +3016,7 @@ panvk_per_arch(CmdDrawIndexed)(VkCommandBuffer commandBuffer,
    assert(firstInstance < INT32_MAX);
 
    struct panvk_draw_info draw = {
-      .index.size = cmdbuf->state.gfx.ib.index_size,
-      .index.offset = firstIndex,
+      .index = panvk_draw_info_index(cmdbuf, firstIndex),
       .vertex.base = vertexOffset,
       .vertex.count = indexCount,
       .instance.count = instanceCount,
@@ -3061,7 +3058,7 @@ panvk_per_arch(CmdDrawIndexedIndirect)(VkCommandBuffer commandBuffer,
       return;
 
    struct panvk_draw_info draw = {
-      .index.size = cmdbuf->state.gfx.ib.index_size,
+      .index = panvk_draw_info_index(cmdbuf, 0),
       .indirect.buffer_dev_addr = panvk_buffer_gpu_ptr(buffer, offset),
       .indirect.draw_count = drawCount,
       .indirect.stride = stride,
@@ -3114,7 +3111,7 @@ panvk_per_arch(CmdDrawIndexedIndirectCount)(VkCommandBuffer commandBuffer,
       return;
 
    struct panvk_draw_info draw = {
-      .index.size = cmdbuf->state.gfx.ib.index_size,
+      .index = panvk_draw_info_index(cmdbuf, 0),
       .indirect.buffer_dev_addr = panvk_buffer_gpu_ptr(buffer, offset),
       .indirect.count_buffer_dev_addr =
          panvk_buffer_gpu_ptr(count_buffer, countBufferOffset),

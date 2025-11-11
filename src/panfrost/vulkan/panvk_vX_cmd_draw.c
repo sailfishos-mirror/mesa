@@ -1030,6 +1030,4 @@ panvk_per_arch(CmdBindIndexBuffer2)(VkCommandBuffer commandBuffer,
       cmdbuf->state.gfx.ib.dev_addr = PAN_ARCH >= 10 ? 0x1000 : 0;
    }
    cmdbuf->state.gfx.ib.index_size = vk_index_type_to_bytes(indexType);
-
-   gfx_state_set_dirty(cmdbuf, IB);
 }
