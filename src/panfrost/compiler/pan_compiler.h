@@ -332,6 +332,7 @@ struct pan_shader_info {
    unsigned attributes_read_count;
    unsigned attribute_count;
    unsigned attributes_read;
+   uint64_t images_used;
 
    struct {
       unsigned input_count;

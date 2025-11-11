@@ -1350,6 +1350,30 @@ GENX(pan_buffer_texture_emit)(const struct pan_buffer_view *bview,
    }
 }
 
+#elif PAN_ARCH >= 6
+
+void
+GENX(pan_buffer_texture_emit)(const struct pan_buffer_view *bview,
+                              struct mali_attribute_buffer_packed *out_buf,
+                              struct mali_attribute_packed *out_attrib)
+{
+   unsigned stride = util_format_get_blocksize(bview->format);
+   uint32_t hw_fmt = GENX(pan_format_from_pipe_format)(bview->format)->hw;
+
+   pan_pack(out_buf, ATTRIBUTE_BUFFER, cfg) {
+      cfg.type = MALI_ATTRIBUTE_TYPE_1D;
+      cfg.pointer = bview->base;
+      cfg.stride = stride;
+      cfg.size = bview->width_el * stride;
+   }
+
+   pan_pack(out_attrib, ATTRIBUTE, cfg) {
+      cfg.format = hw_fmt;
+      cfg.offset = bview->offset;
+      cfg.offset_enable = bview->offset != 0;
+   }
+}
+
 #else
 
 void
@@ -1377,12 +1401,6 @@ GENX(pan_buffer_texture_emit)(const struct pan_buffer_view *bview,
       cfg.texel_ordering = MALI_TEXTURE_LAYOUT_LINEAR;
       cfg.levels = 1;
       cfg.array_size = 1;
-
-#if PAN_ARCH >= 6
-      cfg.surfaces = payload->gpu;
-      cfg.minimum_lod = 0;
-      cfg.maximum_lod = 0;
-#endif
    }
 }
 

@@ -206,6 +206,9 @@ struct panfrost_context {
    struct panfrost_sampler_view
       *sampler_views[MESA_SHADER_STAGES][PIPE_MAX_SHADER_SAMPLER_VIEWS];
    unsigned sampler_view_count[MESA_SHADER_STAGES];
+   struct {
+      BITSET_DECLARE(mask, PIPE_MAX_SHADER_SAMPLER_VIEWS);
+   } texture_buffer[MESA_SHADER_STAGES];
 
    struct blitter_context *blitter;
 

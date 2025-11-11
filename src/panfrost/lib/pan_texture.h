@@ -96,6 +96,10 @@ void GENX(pan_tex_emit_afrc_payload_entry)(
 #if PAN_ARCH >= 9
 void GENX(pan_buffer_texture_emit)(const struct pan_buffer_view *bview,
                                    struct mali_buffer_packed *out);
+#elif PAN_ARCH >= 6
+void GENX(pan_buffer_texture_emit)(const struct pan_buffer_view *bview,
+                                   struct mali_attribute_buffer_packed *out_buf,
+                                   struct mali_attribute_packed *out_attrib);
 #else
 void GENX(pan_buffer_texture_emit)(const struct pan_buffer_view *bview,
                                    struct mali_texture_packed *out,

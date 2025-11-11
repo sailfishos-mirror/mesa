@@ -42,6 +42,7 @@ struct pan_buffer_view {
    } astc;
    unsigned width_el;
    uint64_t base;
+   uint32_t offset;
 };
 
 struct pan_compute_dim {

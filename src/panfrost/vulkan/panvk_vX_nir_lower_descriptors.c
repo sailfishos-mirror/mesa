@@ -130,13 +130,13 @@ desc_type_to_table_type(
       return sampler_subdesc ? PANVK_BIFROST_DESC_TABLE_SAMPLER
                              : PANVK_BIFROST_DESC_TABLE_TEXTURE;
    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-   case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
    case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
       return PANVK_BIFROST_DESC_TABLE_TEXTURE;
    case VK_DESCRIPTOR_TYPE_SAMPLER:
       return PANVK_BIFROST_DESC_TABLE_SAMPLER;
    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+   case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
       return PANVK_BIFROST_DESC_TABLE_IMG;
    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
    case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
@@ -598,12 +598,10 @@ load_tex_size(nir_builder *b, nir_deref_instr *deref, enum glsl_sampler_dim dim,
          b, deref, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 16, 1, 32, ctx);
       loaded_size = nir_idiv(b, size, stride);
 #else
-      nir_def *tex_w = load_resource_deref_desc(
-         b, deref, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 4, 1, 16, ctx);
-
-      /* S dimension is 16 bits wide. We don't support combining S,T dimensions
-       * to allow large buffers yet. */
-      loaded_size = nir_iadd_imm(b, nir_u2u32(b, tex_w), 1);
+      nir_def *stride_size = load_resource_deref_desc(
+         b, deref, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 8, 2, 32, ctx);
+      loaded_size = nir_idiv(b, nir_channel(b, stride_size, 1),
+                             nir_channel(b, stride_size, 0));
 #endif
    } else {
       nir_def *tex_w_h = load_resource_deref_desc(
@@ -644,12 +642,10 @@ load_img_size(nir_builder *b, nir_deref_instr *deref, enum glsl_sampler_dim dim,
       return load_tex_size(b, deref, dim, is_array, ctx);
 
    if (dim == GLSL_SAMPLER_DIM_BUF) {
-      nir_def *tex_w = load_resource_deref_desc(
-         b, deref, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 18, 1, 16, ctx);
-
-      /* S dimension is 16 bits wide. We don't support combining S,T dimensions
-       * to allow large buffers yet. */
-      return nir_iadd_imm(b, nir_u2u32(b, tex_w), 1);
+      nir_def *stride_size = load_resource_deref_desc(
+         b, deref, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 8, 2, 32, ctx);
+      return nir_idiv(b, nir_channel(b, stride_size, 1),
+                      nir_channel(b, stride_size, 0));
    } else {
       nir_def *tex_sz = load_resource_deref_desc(
          b, deref, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 18, 3, 16, ctx);

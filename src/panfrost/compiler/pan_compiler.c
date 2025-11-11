@@ -112,7 +112,8 @@ pan_nir_lower_texture_late(nir_shader *nir, unsigned gpu_id)
 {
    /* This must be called after any lowering of resource indices
     * (panfrost_nir_lower_res_indices / panvk_per_arch(nir_lower_descriptors))
-    */
+    * and lowering of attribute indices (pan_nir_lower_image_index /
+    * pan_nir_lower_texel_buffer_fetch_index)  */
    if (pan_arch(gpu_id) >= 6)
       bifrost_lower_texture_late_nir(nir, gpu_id);
 }
@@ -281,7 +282,11 @@ pan_shader_update_info(struct pan_shader_info *info, nir_shader *s,
    }
 
    info->outputs_written = s->info.outputs_written;
+   info->images_used =
+      s->info.images_used[0] | ((uint64_t)s->info.images_used[1]) << 32;
    info->attribute_count += BITSET_LAST_BIT(s->info.images_used);
+   if (arch >= 6 && arch < 9)
+      info->attribute_count += BITSET_LAST_BIT(s->info.texture_buffers);
    info->writes_global = s->info.writes_memory;
    info->ubo_count = s->info.num_ubos;
 

@@ -88,8 +88,10 @@ struct panfrost_sampler_view {
       struct mali_texture_packed bifrost_tex_descriptor;
    };
 #else
-   /* TODO: move Bifrost over to using BufferDescriptor as well. */
-   struct mali_texture_packed bifrost_tex_descriptor;
+   union {
+      uint64_t texel_buffer_base_ptr;
+      struct mali_texture_packed bifrost_tex_descriptor;
+   };
 #endif
    uint64_t texture_bo;
    uint64_t texture_size;
@@ -1709,6 +1711,7 @@ panfrost_create_sampler_view_bo(struct panfrost_sampler_view *so,
       panfrost_translate_texture_dimension(so->base.target);
 
    if (so->base.target == PIPE_BUFFER) {
+#if PAN_ARCH >= 9
       struct pan_buffer_view bview = {
          .format = format,
          .width_el =
@@ -1717,11 +1720,21 @@ panfrost_create_sampler_view_bo(struct panfrost_sampler_view *so,
          .base = prsrc->plane.base + so->base.u.buf.offset,
       };
 
-#if PAN_ARCH >= 9
       void *tex = &so->bifrost_buf_descriptor;
       GENX(pan_buffer_texture_emit)(&bview, tex);
-      return;
+#elif PAN_ARCH >= 6
+      /* For Bifrost, we'll generate the Attribute Buffer Descriptor when
+       * setting up attributes, so only store the base pointer at this point. */
+      so->texel_buffer_base_ptr = prsrc->plane.base;
 #else
+      struct pan_buffer_view bview = {
+         .format = format,
+         .width_el =
+            MIN2(so->base.u.buf.size / util_format_get_blocksize(format),
+                 pan_get_max_texel_buffer_elements(PAN_ARCH)),
+         .base = prsrc->plane.base + so->base.u.buf.offset,
+      };
+
       const struct util_format_description *desc =
          util_format_description(format);
       if (desc->layout == UTIL_FORMAT_LAYOUT_ASTC) {
@@ -1730,11 +1743,7 @@ panfrost_create_sampler_view_bo(struct panfrost_sampler_view *so,
          bview.astc.hdr = util_format_is_astc_hdr(format);
       }
 
-#if PAN_ARCH >= 6
-      unsigned payload_size = pan_size(SURFACE_WITH_STRIDE);
-#else
       unsigned payload_size = pan_size(TEXTURE) + pan_size(SURFACE_WITH_STRIDE);
-#endif
 
       struct panfrost_pool *pool = so->pool ?: &ctx->descs;
       struct pan_ptr payload =
@@ -1747,16 +1756,13 @@ panfrost_create_sampler_view_bo(struct panfrost_sampler_view *so,
 
       so->state = panfrost_pool_take_ref(pool, payload.gpu);
 
-      void *tex = (PAN_ARCH >= 6) ? &so->bifrost_tex_descriptor : payload.cpu;
-
-      if (PAN_ARCH <= 5) {
-         payload.cpu += pan_size(TEXTURE);
-         payload.gpu += pan_size(TEXTURE);
-      }
+      void *tex = payload.cpu;
+      payload.cpu += pan_size(TEXTURE);
+      payload.gpu += pan_size(TEXTURE);
 
       GENX(pan_buffer_texture_emit)(&bview, tex, &payload);
-      return;
 #endif
+      return;
    }
 
    unsigned first_level = so->base.u.tex.first_level;
@@ -1913,7 +1919,16 @@ panfrost_emit_texture_descriptors(struct panfrost_batch *batch,
       struct panfrost_resource *rsrc = pan_resource(pview->texture);
 
       panfrost_update_sampler_view(view, &ctx->base);
+
+#if PAN_ARCH < 9
+      if (pview->target == PIPE_BUFFER)
+         /* Texel buffers will be emitted as attributes */
+         panfrost_emit_null_texture(&out[i]);
+      else
+         out[i] = view->bifrost_tex_descriptor;
+#else
       out[i] = view->bifrost_tex_descriptor;
+#endif
 
       panfrost_batch_read_rsrc(batch, rsrc, stage);
       panfrost_batch_add_bo(batch, view->state.bo, stage);
@@ -1991,10 +2006,10 @@ panfrost_emit_sampler_descriptors(struct panfrost_batch *batch,
  */
 static void
 emit_image_attribs(struct panfrost_context *ctx, mesa_shader_stage shader,
-                   struct mali_attribute_packed *attribs,
+                   struct mali_attribute_packed *attribs, uint64_t image_mask,
                    unsigned first_image_buf_index)
 {
-   unsigned last_bit = util_last_bit(ctx->image_mask[shader]);
+   unsigned last_bit = util_last_bit(image_mask);
 
    for (unsigned i = 0; i < last_bit; ++i) {
       enum pipe_format format = ctx->images[shader][i].format;
@@ -2007,6 +2022,27 @@ emit_image_attribs(struct panfrost_context *ctx, mesa_shader_stage shader,
       }
    }
 }
+
+#if PAN_ARCH >= 6
+static void
+emit_texbuf_attribs(struct panfrost_context *ctx, mesa_shader_stage shader,
+                    struct mali_attribute_packed *attribs,
+                    unsigned first_texel_buf_index)
+{
+   unsigned i;
+   BITSET_FOREACH_SET(i, ctx->texture_buffer[shader].mask,
+                      PIPE_MAX_SHADER_SAMPLER_VIEWS) {
+      struct panfrost_sampler_view *view = ctx->sampler_views[shader][i];
+      assert(view);
+      enum pipe_format format = view->base.format;
+      pan_pack(attribs + i, ATTRIBUTE, cfg) {
+         cfg.buffer_index = first_texel_buf_index + i;
+         cfg.offset_enable = false;
+         cfg.format = GENX(pan_format_from_pipe_format)(format)->hw;
+      }
+   }
+}
+#endif
 
 static enum mali_attribute_type
 pan_modifier_to_attr_type(uint64_t modifier)
@@ -2023,10 +2059,10 @@ pan_modifier_to_attr_type(uint64_t modifier)
 
 static void
 emit_image_bufs(struct panfrost_batch *batch, mesa_shader_stage shader,
-                struct mali_attribute_buffer_packed *bufs)
+                struct mali_attribute_buffer_packed *bufs, uint64_t image_mask)
 {
    struct panfrost_context *ctx = batch->ctx;
-   unsigned last_bit = util_last_bit(ctx->image_mask[shader]);
+   unsigned last_bit = util_last_bit(image_mask);
 
    for (unsigned i = 0; i < last_bit; ++i) {
       struct pipe_image_view *image = &ctx->images[shader][i];
@@ -2065,6 +2101,18 @@ emit_image_bufs(struct panfrost_batch *batch, mesa_shader_stage shader,
 
       panfrost_track_image_access(batch, shader, image);
 
+#if MALI_ARCH >= 6
+      if (is_buffer) {
+         pan_pack(bufs + (i * 2), ATTRIBUTE_BUFFER, cfg) {
+            cfg.type = MALI_ATTRIBUTE_TYPE_1D;
+            cfg.pointer = rsrc->plane.base + offset;
+            cfg.stride = util_format_get_blocksize(image->format);
+            cfg.size = rsrc->base.width0;
+         }
+         continue;
+      }
+#endif
+
       pan_pack(bufs + (i * 2), ATTRIBUTE_BUFFER, cfg) {
          cfg.type = pan_modifier_to_attr_type(rsrc->image.props.modifier);
          cfg.pointer = rsrc->plane.base + offset;
@@ -2074,6 +2122,7 @@ emit_image_bufs(struct panfrost_batch *batch, mesa_shader_stage shader,
             is_buffer ? 0 : image->u.tex.level);
       }
 
+#if MALI_ARCH <= 5
       if (is_buffer) {
          pan_cast_and_pack(&bufs[(i * 2) + 1], ATTRIBUTE_BUFFER_CONTINUATION_3D,
                            cfg) {
@@ -2084,6 +2133,7 @@ emit_image_bufs(struct panfrost_batch *batch, mesa_shader_stage shader,
 
          continue;
       }
+#endif
 
       pan_cast_and_pack(&bufs[(i * 2) + 1], ATTRIBUTE_BUFFER_CONTINUATION_3D,
                         cfg) {
@@ -2122,9 +2172,31 @@ emit_image_bufs(struct panfrost_batch *batch, mesa_shader_stage shader,
    }
 }
 
+#if PAN_ARCH >= 6
+static void
+emit_texbuf_bufs(struct panfrost_context *ctx, mesa_shader_stage shader,
+                 struct mali_attribute_buffer_packed *bufs)
+{
+   unsigned i;
+   BITSET_FOREACH_SET(i, ctx->texture_buffer[shader].mask,
+                      PIPE_MAX_SHADER_SAMPLER_VIEWS) {
+      struct panfrost_sampler_view *view = ctx->sampler_views[shader][i];
+      assert(view);
+      struct pipe_sampler_view *pview = &view->base;
+
+      pan_pack(bufs + i, ATTRIBUTE_BUFFER, cfg) {
+         cfg.type = MALI_ATTRIBUTE_TYPE_1D;
+         cfg.pointer = view->texel_buffer_base_ptr + pview->u.buf.offset;
+         cfg.stride = util_format_get_blocksize(pview->format);
+         cfg.size = pview->u.buf.size;
+      }
+   }
+}
+#endif
+
 static uint64_t
-panfrost_emit_image_attribs(struct panfrost_batch *batch, uint64_t *buffers,
-                            mesa_shader_stage type)
+panfrost_emit_image_texbuf_attribs(struct panfrost_batch *batch,
+                                   uint64_t *buffers, mesa_shader_stage type)
 {
    struct panfrost_context *ctx = batch->ctx;
    struct panfrost_compiled_shader *shader = ctx->prog[type];
@@ -2134,9 +2206,23 @@ panfrost_emit_image_attribs(struct panfrost_batch *batch, uint64_t *buffers,
       return 0;
    }
 
-   unsigned attr_count = util_last_bit(ctx->image_mask[type]);
-   /* Images always need a MALI_ATTRIBUTE_BUFFER_CONTINUATION_3D */
-   unsigned buf_count = (attr_count * 2) + (PAN_ARCH >= 6 ? 1 : 0);
+#if PAN_ARCH >= 6
+   /* For Bifrost, we can only output images if they are used in the shader to
+    * ensure the offset for texel buffers is correct. Therefore, we check the
+    * mask here and ensure we emit attribs if the shader changes. */
+   uint64_t image_mask = ctx->image_mask[type] & shader->info.images_used;
+   unsigned image_count = util_last_bit(image_mask);
+   unsigned attr_count =
+      image_count + BITSET_LAST_BIT(ctx->texture_buffer[type].mask);
+#else
+   uint64_t image_mask = ctx->image_mask[type];
+   unsigned image_count = util_last_bit(image_mask);
+   unsigned attr_count = image_count;
+#endif
+   /* Images always need a MALI_ATTRIBUTE_BUFFER_CONTINUATION_3D, so we need to
+    * use two buffers per image (counted once in attr_count, then once again in
+    * image_count) */
+   unsigned buf_count = attr_count + image_count + (PAN_ARCH >= 6 ? 1 : 0);
 
    struct pan_ptr bufs =
       pan_pool_alloc_desc_array(&batch->pool.base, buf_count, ATTRIBUTE_BUFFER);
@@ -2144,13 +2230,17 @@ panfrost_emit_image_attribs(struct panfrost_batch *batch, uint64_t *buffers,
    struct pan_ptr attribs =
       pan_pool_alloc_desc_array(&batch->pool.base, attr_count, ATTRIBUTE);
 
-   emit_image_attribs(ctx, type, attribs.cpu, 0);
-   emit_image_bufs(batch, type, bufs.cpu);
+   emit_image_attribs(ctx, type, attribs.cpu, image_mask, 0);
+   emit_image_bufs(batch, type, bufs.cpu, image_mask);
+
+#if PAN_ARCH >= 6
+   /* Texel buffers come after the images, which require two buffers per image. */
+   unsigned image_buf_offset = image_count * 2;
+   emit_texbuf_attribs(ctx, type, attribs.cpu + image_count, image_buf_offset);
+   emit_texbuf_bufs(ctx, type, bufs.cpu + image_buf_offset);
 
    /* We need an empty attrib buf to stop the prefetching on Bifrost */
-#if PAN_ARCH >= 6
-   struct  mali_attribute_buffer_packed *attrib_bufs = bufs.cpu;
-
+   struct mali_attribute_buffer_packed *attrib_bufs = bufs.cpu;
    pan_pack(&attrib_bufs[buf_count - 1], ATTRIBUTE_BUFFER, cfg)
       ;
 #endif
@@ -2166,16 +2256,28 @@ panfrost_emit_vertex_data(struct panfrost_batch *batch, uint64_t *buffers)
    struct panfrost_vertex_state *so = ctx->vertex;
    struct panfrost_compiled_shader *vs = ctx->prog[MESA_SHADER_VERTEX];
    bool instanced = ctx->instance_count > 1;
-   uint32_t image_mask = ctx->image_mask[MESA_SHADER_VERTEX];
+
+   unsigned nr_texbuf;
+#if PAN_ARCH >= 6
+   /* For Bifrost, we can only output images if they are used in the shader to
+    * ensure the offset for texel buffers is correct. Therefore, we check the
+    * mask here and ensure we emit attribs if the shader changes. */
+   uint64_t image_mask =
+      ctx->image_mask[MESA_SHADER_VERTEX] & vs->info.images_used;
+   nr_texbuf = BITSET_LAST_BIT(ctx->texture_buffer[MESA_SHADER_VERTEX].mask);
+#else
+   uint64_t image_mask = ctx->image_mask[MESA_SHADER_VERTEX];
+   nr_texbuf = 0;
+#endif
    unsigned nr_images = util_last_bit(image_mask);
 
    /* Worst case: everything is NPOT, which is only possible if instancing
     * is enabled. Otherwise single record is gauranteed.
-    * Also, we allocate more memory than what's needed here if either instancing
-    * is enabled or images are present, this can be improved. */
-   unsigned bufs_per_attrib = (instanced || nr_images > 0) ? 2 : 1;
+    * Images always use two buffer descriptors. */
+   unsigned attrib_bufs =
+      instanced ? so->nr_bufs * 2 : ALIGN_POT(so->nr_bufs, 2);
    unsigned nr_bufs =
-      ((so->nr_bufs + nr_images) * bufs_per_attrib) + (PAN_ARCH >= 6 ? 1 : 0);
+      attrib_bufs + (nr_images * 2) + nr_texbuf + (PAN_ARCH >= 6 ? 1 : 0);
 
    unsigned count = vs->info.attribute_count;
 
@@ -2326,12 +2428,20 @@ panfrost_emit_vertex_data(struct panfrost_batch *batch, uint64_t *buffers)
 
    if (nr_images) {
       k = ALIGN_POT(k, 2);
-      emit_image_attribs(ctx, MESA_SHADER_VERTEX, out + so->num_elements, k);
-      emit_image_bufs(batch, MESA_SHADER_VERTEX, bufs + k);
-      k += (util_last_bit(ctx->image_mask[MESA_SHADER_VERTEX]) * 2);
+      emit_image_attribs(ctx, MESA_SHADER_VERTEX, out + so->num_elements,
+                         image_mask, k);
+      emit_image_bufs(batch, MESA_SHADER_VERTEX, bufs + k, image_mask);
+      k += (nr_images * 2);
    }
 
 #if PAN_ARCH >= 6
+   if (nr_texbuf) {
+      emit_texbuf_attribs(ctx, MESA_SHADER_VERTEX,
+                          out + so->num_elements + nr_images, k);
+      emit_texbuf_bufs(ctx, MESA_SHADER_VERTEX, bufs + k);
+      k += nr_texbuf;
+   }
+
    /* We need an empty attrib buf to stop the prefetching on Bifrost */
    pan_pack(&bufs[k], ATTRIBUTE_BUFFER, cfg)
       ;
@@ -3040,12 +3150,20 @@ panfrost_update_shader_state(struct panfrost_batch *batch,
       batch->rsd[st] = panfrost_emit_frag_shader_meta(batch);
    }
 
+#if PAN_ARCH >= 6
+   /* Bifrost needs to place texel buffers after the image attributes, so we
+    * need to emit them if textures or the shader is dirty. */
+   unsigned attribs_dirty_mask =
+      PAN_DIRTY_STAGE_IMAGE | PAN_DIRTY_STAGE_TEXTURE | PAN_DIRTY_STAGE_SHADER;
+#else
+   unsigned attribs_dirty_mask = PAN_DIRTY_STAGE_IMAGE;
+#endif
    /* Vertex shaders need to mix vertex data and image descriptors in the
     * attribute array. This is taken care of in panfrost_update_state_3d().
     */
-   if (st != MESA_SHADER_VERTEX && (dirty & PAN_DIRTY_STAGE_IMAGE)) {
+   if (st != MESA_SHADER_VERTEX && (dirty & attribs_dirty_mask)) {
       batch->attribs[st] =
-         panfrost_emit_image_attribs(batch, &batch->attrib_bufs[st], st);
+         panfrost_emit_image_texbuf_attribs(batch, &batch->attrib_bufs[st], st);
    }
 #endif
 }
@@ -3086,12 +3204,19 @@ panfrost_update_state_3d(struct panfrost_batch *batch)
    bool attr_offsetted_by_instance_base =
       vstate->attr_depends_on_base_instance_mask &
       BITFIELD_MASK(vs->info.attributes_read_count);
+#if PAN_ARCH >= 6
+   /* Bifrost needs to place texel buffers after the image attributes, so we
+    * need to emit them if textures or the shader is dirty. */
+   unsigned attribs_dirty_mask =
+      PAN_DIRTY_STAGE_IMAGE | PAN_DIRTY_STAGE_TEXTURE | PAN_DIRTY_STAGE_SHADER;
+#else
+   unsigned attribs_dirty_mask = PAN_DIRTY_STAGE_IMAGE | PAN_DIRTY_STAGE_SHADER;
+#endif
 
    /* Vertex data, vertex shader and images accessed by the vertex shader have
     * an impact on the attributes array, we need to re-emit anytime one of these
     * parameters changes. */
-   if ((dirty & PAN_DIRTY_VERTEX) ||
-       (vt_shader_dirty & (PAN_DIRTY_STAGE_IMAGE | PAN_DIRTY_STAGE_SHADER)) ||
+   if ((dirty & PAN_DIRTY_VERTEX) || (vt_shader_dirty & attribs_dirty_mask) ||
        attr_offsetted_by_instance_base) {
       batch->attribs[MESA_SHADER_VERTEX] = panfrost_emit_vertex_data(
          batch, &batch->attrib_bufs[MESA_SHADER_VERTEX]);

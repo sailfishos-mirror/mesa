@@ -397,12 +397,18 @@ panfrost_set_sampler_views(struct pipe_context *pctx,
       if (view)
          new_nr = p + 1;
 
+      if (view && view->target == PIPE_BUFFER)
+         BITSET_SET(ctx->texture_buffer[shader].mask, p);
+      else
+         BITSET_CLEAR(ctx->texture_buffer[shader].mask, p);
+
       pipe_sampler_view_reference(
          (struct pipe_sampler_view **)&ctx->sampler_views[shader][p], view);
    }
 
    for (; i < num_views + unbind_num_trailing_slots; i++) {
       unsigned p = i + start_slot;
+      BITSET_CLEAR(ctx->texture_buffer[shader].mask, p);
       pipe_sampler_view_reference(
          (struct pipe_sampler_view **)&ctx->sampler_views[shader][p], NULL);
    }
@@ -417,8 +423,14 @@ panfrost_set_sampler_views(struct pipe_context *pctx,
     * set sampler views */
    if (new_nr == 0) {
       for (i = 0; i < start_slot; ++i) {
-         if (ctx->sampler_views[shader][i])
+         struct pipe_sampler_view *view =
+            (struct pipe_sampler_view *)ctx->sampler_views[shader][i];
+         if (view)
             new_nr = i + 1;
+         if (view && view->target == PIPE_BUFFER)
+            BITSET_SET(ctx->texture_buffer[shader].mask, i);
+         else
+            BITSET_CLEAR(ctx->texture_buffer[shader].mask, i);
       }
    }
 

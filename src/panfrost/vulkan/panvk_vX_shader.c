@@ -894,7 +894,6 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
    struct pan_compile_inputs input = *compile_input;
 
    pan_postprocess_nir(nir, input.gpu_id);
-   pan_nir_lower_texture_late(nir, input.gpu_id);
 
    if (nir->info.stage == MESA_SHADER_VERTEX)
       NIR_PASS(_, nir, nir_shader_intrinsics_pass, panvk_lower_load_vs_input,
@@ -906,8 +905,11 @@ panvk_compile_nir(struct panvk_device *dev, nir_shader *nir,
    /* since valhall, panvk_per_arch(nir_lower_descriptors) separates the
     * driver set and the user sets, and does not need pan_nir_lower_image_index
     */
-   if (PAN_ARCH < 9 && nir->info.stage == MESA_SHADER_VERTEX)
+   if (PAN_ARCH < 9 && nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, pan_nir_lower_image_index, MAX_VS_ATTRIBS);
+      NIR_PASS(_, nir, pan_nir_lower_texel_buffer_fetch_index, MAX_VS_ATTRIBS);
+   }
+   pan_nir_lower_texture_late(nir, input.gpu_id);
 
    if (noperspective_varyings && nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, nir_inline_sysval,

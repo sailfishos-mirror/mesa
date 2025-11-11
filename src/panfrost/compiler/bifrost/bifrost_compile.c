@@ -1605,7 +1605,7 @@ static void
 bi_emit_image_load(bi_builder *b, nir_intrinsic_instr *instr)
 {
    enum glsl_sampler_dim dim = nir_intrinsic_image_dim(instr);
-   assert((b->shader->arch < 9 || dim != GLSL_SAMPLER_DIM_BUF) &&
+   assert((dim != GLSL_SAMPLER_DIM_BUF) &&
           "Texel buffers should already have been lowered");
    unsigned coord_comps = nir_image_intrinsic_coord_components(instr);
    bool array =
@@ -1657,7 +1657,7 @@ static void
 bi_emit_lea_image_to(bi_builder *b, bi_index dest, nir_intrinsic_instr *instr)
 {
    enum glsl_sampler_dim dim = nir_intrinsic_image_dim(instr);
-   assert((b->shader->arch < 9 || dim != GLSL_SAMPLER_DIM_BUF) &&
+   assert((dim != GLSL_SAMPLER_DIM_BUF) &&
           "Texel buffers should already have been lowered");
    bool array =
       nir_intrinsic_image_array(instr) || dim == GLSL_SAMPLER_DIM_CUBE;
@@ -4242,6 +4242,10 @@ enum bifrost_tex_dreg {
 static void
 bi_emit_texc(bi_builder *b, nir_tex_instr *instr)
 {
+   assert((instr->op != nir_texop_txf ||
+           instr->sampler_dim != GLSL_SAMPLER_DIM_BUF) &&
+          "Texel buffers should already have been lowered");
+
    struct bifrost_texture_operation desc = {
       .op = bi_tex_op(instr->op),
       .offset_or_bias_disable = false, /* TODO */
@@ -6600,10 +6604,8 @@ pan_nir_lower_buf_image_access(nir_shader *shader, unsigned arch)
 void
 bifrost_lower_texture_late_nir(nir_shader *nir, unsigned gpu_id)
 {
-   if (pan_arch(gpu_id) >= 9) {
-      NIR_PASS(_, nir, pan_nir_lower_texel_buffer_fetch, pan_arch(gpu_id));
-      NIR_PASS(_, nir, pan_nir_lower_buf_image_access, pan_arch(gpu_id));
-   }
+   NIR_PASS(_, nir, pan_nir_lower_texel_buffer_fetch, pan_arch(gpu_id));
+   NIR_PASS(_, nir, pan_nir_lower_buf_image_access, pan_arch(gpu_id));
 }
 
 static int

@@ -559,13 +559,20 @@ panfrost_create_shader_state(struct pipe_context *pctx,
       so->noperspective_varyings =
          pan_nir_collect_noperspective_varyings_fs(nir);
 
-   /* Vertex shaders get passed images through the vertex attribute descriptor
-    * array. We need to add an offset to all image intrinsics so they point
-    * to the right attribute.
-    */
+   unsigned attrib_offset = 0;
    if (nir->info.stage == MESA_SHADER_VERTEX && dev->arch <= 7) {
-      NIR_PASS(_, nir, pan_nir_lower_image_index,
-               util_bitcount64(nir->info.inputs_read));
+      /* Vertex shaders get passed images through the vertex attribute
+       * descriptor array. We need to add an offset to all image intrinsics so
+       * they point to the right attribute.
+       */
+      attrib_offset += util_bitcount64(nir->info.inputs_read);
+      NIR_PASS(_, nir, pan_nir_lower_image_index, attrib_offset);
+   }
+   if (dev->arch >= 6 && dev->arch <= 7) {
+      /* Bifrost needs to use attributes to access texel buffers. We place these
+       * after images, which are also accessed using attributes. */
+      attrib_offset += BITSET_LAST_BIT(nir->info.images_used);
+      NIR_PASS(_, nir, pan_nir_lower_texel_buffer_fetch_index, attrib_offset);
    }
 
    /* If this shader uses transform feedback, compile the transform
