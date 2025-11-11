@@ -66,6 +66,10 @@ xe_gem_create(struct anv_device *device,
        device->physical->vram_non_mappable.size > 0)
       flags |= DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM;
 
+   if ((alloc_flags & ANV_BO_ALLOC_COMPRESSED) == 0 &&
+       device->info->xe2_has_no_compression_hint)
+      flags |= DRM_XE_GEM_CREATE_FLAG_NO_COMPRESSION;
+
    struct drm_xe_gem_create gem_create = {
      /* From xe_drm.h: If a VM is specified, this BO must:
       * 1. Only ever be bound to that VM.
