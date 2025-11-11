@@ -498,6 +498,22 @@ lower_rt_instruction(nir_builder *b, nir_instr *instr, void *_vars)
       ret = nir_ushr_imm(b, nir_load_param(b, vars->cull_mask_and_flags_param), 24);
       break;
    }
+   case nir_intrinsic_load_ray_payload_ptr_amd: {
+      ret = nir_load_param(b, vars->in_payload_base_param + nir_intrinsic_base(intr));
+      break;
+   }
+   case nir_intrinsic_load_rt_descriptors_amd: {
+      ret = nir_load_param(b, RT_ARG_DESCRIPTORS);
+      break;
+   }
+   case nir_intrinsic_load_rt_dynamic_descriptors_amd: {
+      ret = nir_load_param(b, RT_ARG_DYNAMIC_DESCRIPTORS);
+      break;
+   }
+   case nir_intrinsic_load_rt_push_constants_amd: {
+      ret = nir_load_param(b, RT_ARG_PUSH_CONSTANTS);
+      break;
+   }
    case nir_intrinsic_load_sbt_base_amd: {
       ret = nir_load_param(b, RT_ARG_SBT_DESCRIPTORS);
       break;

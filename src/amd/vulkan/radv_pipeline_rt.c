@@ -909,8 +909,12 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
    radv_nir_traversal_preprocess_cb preprocess =
       recursive_lowering_mode == RADV_RT_LOWERING_MODE_CPS ? radv_nir_lower_rt_io_cps : radv_nir_lower_rt_io_functions;
 
+   if (!inline_any_hit_shaders)
+      preprocess = NULL;
+
    /* create traversal shader */
-   nir_shader *traversal_nir = radv_build_traversal_shader(device, pipeline, &traversal_info, preprocess);
+   nir_shader *traversal_nir =
+      radv_build_traversal_shader(device, pipeline, &traversal_info, preprocess, payload_size, hit_attrib_size);
    struct radv_shader_stage traversal_stage = {
       .stage = MESA_SHADER_INTERSECTION,
       .nir = traversal_nir,

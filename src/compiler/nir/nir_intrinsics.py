@@ -2005,6 +2005,9 @@ system_value("intersection_opaque_amd", 1, bit_sizes=[1])
 system_value("resume_shader_address_amd", 1, bit_sizes=[64], indices=[CALL_IDX])
 
 # Ray Tracing Traversal inputs
+system_value("rt_descriptors_amd", 1)
+system_value("rt_dynamic_descriptors_amd", 1)
+system_value("rt_push_constants_amd", 1)
 system_value("sbt_offset_amd", 1)
 system_value("sbt_stride_amd", 1)
 system_value("accel_struct_amd", 1, bit_sizes=[64])
@@ -2030,6 +2033,7 @@ intrinsic("load_incoming_ray_payload_amd", dest_comp=1, bit_sizes=[32], indices=
 intrinsic("store_incoming_ray_payload_amd", src_comp=[1], indices=[BASE])
 intrinsic("load_outgoing_ray_payload_amd", dest_comp=1, bit_sizes=[32], indices=[BASE])
 intrinsic("store_outgoing_ray_payload_amd", src_comp=[1], indices=[BASE])
+intrinsic("load_ray_payload_ptr_amd", dest_comp=1, indices=[BASE])
 
 # Load forced VRS rates.
 intrinsic("load_force_vrs_rates_amd", dest_comp=1, bit_sizes=[32], flags=[CAN_ELIMINATE, CAN_REORDER])
