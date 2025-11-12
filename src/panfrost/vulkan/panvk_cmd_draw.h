@@ -142,6 +142,7 @@ enum panvk_cmd_graphics_dirty_state {
    PANVK_CMD_GRAPHICS_DIRTY_RENDER_STATE,
    PANVK_CMD_GRAPHICS_DIRTY_VS_PUSH_UNIFORMS,
    PANVK_CMD_GRAPHICS_DIRTY_FS_PUSH_UNIFORMS,
+   PANVK_CMD_GRAPHICS_DIRTY_IDVS,
    PANVK_CMD_GRAPHICS_DIRTY_STATE_COUNT,
 };
 
@@ -173,6 +174,11 @@ struct panvk_cmd_graphics_state {
       uint64_t rsd;
 #endif
    } fs;
+
+   struct {
+      enum mesa_prim prim;
+      bool restart;
+   } idvs;
 
    struct {
       const struct panvk_shader *shader;

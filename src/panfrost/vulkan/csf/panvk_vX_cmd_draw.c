@@ -557,34 +557,28 @@ translate_stencil_op(VkStencilOp in)
 }
 
 static enum mali_draw_mode
-translate_prim_topology(VkPrimitiveTopology in)
+translate_prim(enum mesa_prim prim)
 {
-   /* Test VK_PRIMITIVE_TOPOLOGY_META_RECT_LIST_MESA separately, as it's not
-    * part of the VkPrimitiveTopology enum.
-    */
-   if (in == VK_PRIMITIVE_TOPOLOGY_META_RECT_LIST_MESA)
-      return MALI_DRAW_MODE_TRIANGLES;
-
-   switch (in) {
-   case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
+   switch (prim) {
+   case MESA_PRIM_POINTS:
       return MALI_DRAW_MODE_POINTS;
-   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
+   case MESA_PRIM_LINES:
       return MALI_DRAW_MODE_LINES;
-   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
+   case MESA_PRIM_LINE_STRIP:
       return MALI_DRAW_MODE_LINE_STRIP;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
+   case MESA_PRIM_TRIANGLES:
       return MALI_DRAW_MODE_TRIANGLES;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
+   case MESA_PRIM_TRIANGLE_STRIP:
       return MALI_DRAW_MODE_TRIANGLE_STRIP;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
+   case MESA_PRIM_TRIANGLE_FAN:
       return MALI_DRAW_MODE_TRIANGLE_FAN;
-   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY:
+   case MESA_PRIM_LINES_ADJACENCY:
       return MALI_DRAW_MODE_LINES_ADJACENCY;
-   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY:
+   case MESA_PRIM_LINE_STRIP_ADJACENCY:
       return MALI_DRAW_MODE_LINE_STRIP_ADJACENCY;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY:
+   case MESA_PRIM_TRIANGLES_ADJACENCY:
       return MALI_DRAW_MODE_TRIANGLES_ADJACENCY;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY:
+   case MESA_PRIM_TRIANGLE_STRIP_ADJACENCY:
       return MALI_DRAW_MODE_TRIANGLE_STRIP_ADJACENCY;
    default:
       UNREACHABLE("Invalid primitive type");
@@ -854,21 +848,19 @@ prepare_vp(struct panvk_cmd_buffer *cmdbuf)
 #endif
 
 static void
-prepare_tiler_primitive_size(struct panvk_cmd_buffer *cmdbuf)
+prepare_tiler_primitive_size(struct panvk_cmd_buffer *cmdbuf,
+                             const struct panvk_draw_info *draw)
 {
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
-   const struct vk_input_assembly_state *ia =
-      &cmdbuf->vk.dynamic_graphics_state.ia;
    float primitive_size;
 
-   if (!dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY) &&
-       !dyn_gfx_state_dirty(cmdbuf, RS_LINE_WIDTH) &&
-       !gfx_state_dirty(cmdbuf, VS))
+   if (!dyn_gfx_state_dirty(cmdbuf, RS_LINE_WIDTH) &&
+       !gfx_state_dirty(cmdbuf, VS) &&
+       !gfx_state_dirty(cmdbuf, IDVS))
       return;
 
-   enum mesa_prim prim = vk_topology_to_mesa(ia->primitive_topology);
-   switch (u_reduced_prim(prim)) {
+   switch (u_reduced_prim(cmdbuf->state.gfx.idvs.prim)) {
    /* From the Vulkan spec 1.3.293:
     *
     *    "If maintenance5 is enabled and a value is not written to a variable
@@ -1707,8 +1699,6 @@ static VkResult
 prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw,
            const struct panvk_shader_variant *vs)
 {
-   const struct vk_input_assembly_state *ia =
-      &cmdbuf->vk.dynamic_graphics_state.ia;
    struct panvk_descriptor_state *desc_state = &cmdbuf->state.gfx.desc_state;
    struct panvk_shader_desc_state *vs_desc_state = &cmdbuf->state.gfx.vs.desc;
    struct cs_builder *b =
@@ -1745,18 +1735,18 @@ prepare_vs(struct panvk_cmd_buffer *cmdbuf, const struct panvk_draw_info *draw,
 
 #if PAN_ARCH >= 12
       if (gfx_state_dirty(cmdbuf, VS) ||
-          dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY)) {
+          gfx_state_dirty(cmdbuf, IDVS)) {
          const uint64_t spd_addr =
-            ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+            cmdbuf->state.gfx.idvs.prim == MESA_PRIM_POINTS
             ? panvk_priv_mem_dev_addr(vs->spds.all_points)
             : panvk_priv_mem_dev_addr(vs->spds.all_triangles);
          cs_move64_to(b, cs_sr_reg64(b, IDVS, VERTEX_SPD), spd_addr);
       }
 #else
       if (gfx_state_dirty(cmdbuf, VS) ||
-          dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY)) {
+          gfx_state_dirty(cmdbuf, IDVS)) {
          const uint64_t pos_spd_addr =
-            ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+            cmdbuf->state.gfx.idvs.prim == MESA_PRIM_POINTS
             ? panvk_priv_mem_dev_addr(vs->spds.pos_points)
             : panvk_priv_mem_dev_addr(vs->spds.pos_triangles);
          cs_move64_to(b, cs_sr_reg64(b, IDVS, VERTEX_POS_SPD), pos_spd_addr);
@@ -2286,6 +2276,7 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
       dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY) ||
       dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP) ||
       fs_user_dirty(cmdbuf) || gfx_state_dirty(cmdbuf, RENDER_STATE) ||
+      gfx_state_dirty(cmdbuf, IDVS) ||
       gfx_state_dirty(cmdbuf, OQ) || dcd2_dirty;
    bool dcd1_dirty = dyn_gfx_state_dirty(cmdbuf, MS_RASTERIZATION_SAMPLES) ||
                      dyn_gfx_state_dirty(cmdbuf, MS_SAMPLE_MASK) ||
@@ -2294,6 +2285,7 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
                      dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY) ||
                      dyn_gfx_state_dirty(cmdbuf, COLOR_ATTACHMENT_MAP) ||
                      fs_user_dirty(cmdbuf) ||
+                     gfx_state_dirty(cmdbuf, IDVS) ||
                      gfx_state_dirty(cmdbuf, RENDER_STATE);
 
    if (!dcd0_dirty && !dcd1_dirty && !dcd2_dirty)
@@ -2342,7 +2334,6 @@ set_tiler_idvs_flags(struct cs_builder *b, struct panvk_cmd_buffer *cmdbuf,
       panvk_shader_only_variant(get_fs(cmdbuf));
    const struct vk_dynamic_graphics_state *dyns =
       &cmdbuf->vk.dynamic_graphics_state;
-   const struct vk_input_assembly_state *ia = &dyns->ia;
    const struct vk_rasterization_state *rs = &dyns->rs;
    struct mali_primitive_flags_packed tiler_idvs_flags;
 
@@ -2350,21 +2341,20 @@ set_tiler_idvs_flags(struct cs_builder *b, struct panvk_cmd_buffer *cmdbuf,
     * point size writes patched out */
    bool writes_point_size =
       vs->info.vs.writes_point_size &&
-      ia->primitive_topology == VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+      cmdbuf->state.gfx.idvs.prim == MESA_PRIM_POINTS;
    bool writes_layer = vs->info.outputs_written & VARYING_BIT_LAYER;
    bool extended_fifo = writes_point_size || vs->info.vs.needs_extended_fifo;
    bool writes_prim_id = vs->info.outputs_written & VARYING_BIT_PRIMITIVE_ID;
    bool fs_reads_prim_id = fs ? fs->info.fs.reads_primitive_id : false;
 
    bool dirty = gfx_state_dirty(cmdbuf, VS) || fs_user_dirty(cmdbuf) ||
-                dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_RESTART_ENABLE) ||
-                dyn_gfx_state_dirty(cmdbuf, IA_PRIMITIVE_TOPOLOGY) ||
+                gfx_state_dirty(cmdbuf, IDVS) ||
                 dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_CLAMP_ENABLE) ||
                 dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_CLIP_ENABLE);
 
    if (dirty) {
       pan_pack(&tiler_idvs_flags, PRIMITIVE_FLAGS, cfg) {
-         cfg.draw_mode = translate_prim_topology(ia->primitive_topology);
+         cfg.draw_mode = translate_prim(cmdbuf->state.gfx.idvs.prim);
          cfg.primitive_index_enable = fs_reads_prim_id;
          cfg.primitive_index_override = writes_prim_id && fs_reads_prim_id;
 
@@ -2384,7 +2374,7 @@ set_tiler_idvs_flags(struct cs_builder *b, struct panvk_cmd_buffer *cmdbuf,
             vk_rasterization_state_depth_clip_enable(rs);
 
          cfg.secondary_shader = vs->info.vs.secondary_enable && fs != NULL;
-         cfg.primitive_restart = ia->primitive_restart_enable;
+         cfg.primitive_restart = cmdbuf->state.gfx.idvs.restart;
 #if PAN_ARCH < 14
          cfg.view_mask = cmdbuf->state.gfx.render.view_mask;
 #endif
@@ -2433,6 +2423,13 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf,
 
    /* FIXME: support non-IDVS. */
    assert(idvs);
+
+   if (cmdbuf->state.gfx.idvs.prim != draw->prim ||
+       cmdbuf->state.gfx.idvs.restart != draw->index.restart_enable) {
+      cmdbuf->state.gfx.idvs.prim = draw->prim;
+      cmdbuf->state.gfx.idvs.restart = draw->index.restart_enable;
+      gfx_state_set_dirty(cmdbuf, IDVS);
+   }
 
    if (cmdbuf->state.gfx.vk_meta) {
       /* vk_meta doesn't care about the provoking vertex mode, we should use
@@ -2548,7 +2545,7 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf,
          return result;
 
       prepare_vp(cmdbuf);
-      prepare_tiler_primitive_size(cmdbuf);
+      prepare_tiler_primitive_size(cmdbuf, draw);
    }
 
    clear_dirty_after_draw(cmdbuf);
@@ -2570,7 +2567,6 @@ update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
 
    assert(!draw->index.index_size || !ia->primitive_restart_enable);
 
-   enum mesa_prim prim = vk_topology_to_mesa(ia->primitive_topology);
    uint32_t view_count = cmdbuf->state.gfx.render.view_mask ?
       util_bitcount(cmdbuf->state.gfx.render.view_mask) : 1;
 
@@ -2614,7 +2610,8 @@ update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
        * by having separate direct/indirect counters and adding them on read */
       panlib_update_prims_generated_query_restart_struct(
          &precomp_ctx, grid, PANLIB_BARRIER_CSF_WAIT, args,
-         poly_compact_prim(prim), util_logbase2(draw->index.index_size));
+         poly_compact_prim(cmdbuf->state.gfx.idvs.prim),
+         util_logbase2(draw->index.index_size));
    } else if (draw->indirect.buffer_dev_addr) {
       struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
 
@@ -2632,10 +2629,10 @@ update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
        * by having separate direct/indirect counters and adding them on read */
       panlib_update_prims_generated_query_indirect_struct(
          &precomp_ctx, panlib_1d(1), PANLIB_BARRIER_CSF_WAIT, args,
-         poly_compact_prim(prim));
+         poly_compact_prim(cmdbuf->state.gfx.idvs.prim));
    } else {
-      uint32_t prims_per_instance =
-         u_decomposed_prims_for_vertices(prim, draw->vertex.count);
+      uint32_t prims_per_instance = u_decomposed_prims_for_vertices(
+         cmdbuf->state.gfx.idvs.prim, draw->vertex.count);
       uint32_t prims_generated =
          prims_per_instance * draw->instance.count * view_count;
 
@@ -2994,6 +2991,7 @@ panvk_per_arch(CmdDraw)(VkCommandBuffer commandBuffer, uint32_t vertexCount,
       .vertex.count = vertexCount,
       .instance.base = firstInstance,
       .instance.count = instanceCount,
+      .prim = panvk_get_client_prim(cmdbuf),
    };
 
    panvk_cmd_draw(cmdbuf, draw);
@@ -3020,6 +3018,7 @@ panvk_per_arch(CmdDrawIndexed)(VkCommandBuffer commandBuffer,
       .vertex.count = indexCount,
       .instance.count = instanceCount,
       .instance.base = firstInstance,
+      .prim = panvk_get_client_prim(cmdbuf),
    };
 
    panvk_cmd_draw(cmdbuf, draw);
@@ -3040,6 +3039,7 @@ panvk_per_arch(CmdDrawIndirect)(VkCommandBuffer commandBuffer, VkBuffer _buffer,
       .indirect.buffer_dev_addr = panvk_buffer_gpu_ptr(buffer, offset),
       .indirect.draw_count = drawCount,
       .indirect.stride = stride,
+      .prim = panvk_get_client_prim(cmdbuf),
    };
 
    panvk_cmd_draw(cmdbuf, draw);
@@ -3061,6 +3061,7 @@ panvk_per_arch(CmdDrawIndexedIndirect)(VkCommandBuffer commandBuffer,
       .indirect.buffer_dev_addr = panvk_buffer_gpu_ptr(buffer, offset),
       .indirect.draw_count = drawCount,
       .indirect.stride = stride,
+      .prim = panvk_get_client_prim(cmdbuf),
    };
 
    panvk_cmd_draw(cmdbuf, draw);
@@ -3088,6 +3089,7 @@ panvk_per_arch(CmdDrawIndirectCount)(VkCommandBuffer commandBuffer,
          panvk_buffer_gpu_ptr(count_buffer, countBufferOffset),
       .indirect.draw_count = maxDrawCount,
       .indirect.stride = stride,
+      .prim = panvk_get_client_prim(cmdbuf),
    };
 
    panvk_cmd_draw(cmdbuf, draw);
@@ -3116,6 +3118,7 @@ panvk_per_arch(CmdDrawIndexedIndirectCount)(VkCommandBuffer commandBuffer,
          panvk_buffer_gpu_ptr(count_buffer, countBufferOffset),
       .indirect.draw_count = maxDrawCount,
       .indirect.stride = stride,
+      .prim = panvk_get_client_prim(cmdbuf),
    };
 
    panvk_cmd_draw(cmdbuf, draw);
