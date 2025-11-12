@@ -1396,8 +1396,6 @@ brw_nir_optimize(nir_shader *nir,
          LOOP_OPT(nir_split_array_vars, nir_var_function_temp);
       LOOP_OPT(nir_shrink_vec_array_vars, nir_var_function_temp);
       LOOP_OPT(nir_opt_deref);
-      if (LOOP_OPT(nir_opt_memcpy))
-         LOOP_OPT(nir_split_var_copies);
       LOOP_OPT(nir_lower_vars_to_ssa);
       if (!nir->info.var_copies_lowered) {
          /* Only run this pass if nir_lower_var_copies was not called
@@ -1684,6 +1682,9 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
 
    OPT(nir_split_var_copies);
    OPT(nir_split_struct_vars, nir_var_function_temp);
+
+   if (OPT(nir_opt_memcpy))
+      OPT(nir_split_var_copies);
 
    brw_nir_optimize(nir, devinfo);
 
