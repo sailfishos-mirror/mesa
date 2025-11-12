@@ -1395,7 +1395,6 @@ brw_nir_optimize(nir_shader *nir,
       if (nir->info.stage != MESA_SHADER_KERNEL)
          LOOP_OPT(nir_split_array_vars, nir_var_function_temp);
       LOOP_OPT(nir_shrink_vec_array_vars, nir_var_function_temp);
-      LOOP_OPT(nir_opt_deref);
       LOOP_OPT(nir_lower_vars_to_ssa);
       if (!nir->info.var_copies_lowered) {
          /* Only run this pass if nir_lower_var_copies was not called
@@ -1686,6 +1685,8 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
       OPT(nir_split_var_copies);
 
    brw_nir_optimize(nir, devinfo);
+
+   OPT(nir_opt_deref);
 
    unsigned lower_flrp =
       (nir->options->lower_flrp16 ? 16 : 0) |
