@@ -1859,6 +1859,45 @@ emit_intrinsic_image_size_tex(struct ir3_context *ctx,
    }
 }
 
+struct bindless_ref_info {
+   uint32_t desc_set;
+
+   /* Index value (encodes vulkan's binding+index) as a src, which you may use
+    * if not encoding a constant value.
+    */
+   struct ir3_instruction *index;
+
+   bool is_const;
+   uint32_t const_index;
+};
+
+static struct bindless_ref_info
+get_bindless_ref(struct ir3_context *ctx, nir_src *src, bool is_sampler)
+{
+   struct bindless_ref_info info = {0};
+   if (!src) {
+      /* Treat an unused index as a constant 0.*/
+      info.is_const = true;
+      return info;
+   }
+
+   if (is_sampler)
+      ctx->so->bindless_samp = true;
+   else
+      ctx->so->bindless_tex = true;
+
+   nir_intrinsic_instr *bindless_resource = ir3_bindless_resource(*src);
+   assert(bindless_resource);
+   info.desc_set = nir_intrinsic_desc_set(bindless_resource);
+   info.index = ir3_get_src(ctx, &bindless_resource->src[0])[0];
+   if (nir_src_is_const(bindless_resource->src[0])) {
+      info.is_const = true;
+      info.const_index = nir_src_as_uint(bindless_resource->src[0]);
+   }
+
+   return info;
+}
+
 static struct tex_src_info
 get_bindless_samp_src(struct ir3_context *ctx, nir_src *tex,
                       nir_src *samp)
@@ -1871,43 +1910,19 @@ get_bindless_samp_src(struct ir3_context *ctx, nir_src *tex,
    /* Gather information required to determine which encoding to
     * choose as well as for prefetch.
     */
-   nir_intrinsic_instr *bindless_tex = NULL;
-   bool tex_const;
-   if (tex) {
-      ctx->so->bindless_tex = true;
-      bindless_tex = ir3_bindless_resource(*tex);
-      assert(bindless_tex);
-      info.tex_base = nir_intrinsic_desc_set(bindless_tex);
-      tex_const = nir_src_is_const(bindless_tex->src[0]);
-      if (tex_const)
-         info.tex_idx = nir_src_as_uint(bindless_tex->src[0]);
-   } else {
-      /* To simplify some of the logic below, assume the index is
-       * constant 0 when it's not enabled.
-       */
-      tex_const = true;
-      info.tex_idx = 0;
-   }
-   nir_intrinsic_instr *bindless_samp = NULL;
-   bool samp_const;
-   if (samp) {
-      ctx->so->bindless_samp = true;
-      bindless_samp = ir3_bindless_resource(*samp);
-      assert(bindless_samp);
-      info.samp_base = nir_intrinsic_desc_set(bindless_samp);
-      samp_const = nir_src_is_const(bindless_samp->src[0]);
-      if (samp_const)
-         info.samp_idx = nir_src_as_uint(bindless_samp->src[0]);
-   } else {
-      samp_const = true;
-      info.samp_idx = 0;
-   }
+   struct bindless_ref_info tex_info = get_bindless_ref(ctx, tex, false);
+   struct bindless_ref_info samp_info = get_bindless_ref(ctx, samp, true);
+
+   info.tex_base = tex_info.desc_set;
+   info.tex_idx = tex_info.const_index;
+   info.samp_base = samp_info.desc_set;
+   info.samp_idx = samp_info.const_index;
 
    /* Choose encoding. */
-   if (tex_const && samp_const && info.tex_idx < 256 &&
+   if (tex_info.is_const && samp_info.is_const && info.tex_idx < 256 &&
        info.samp_idx < 256) {
       if (info.tex_idx < 16 && info.samp_idx < 16 &&
-          (!bindless_tex || !bindless_samp ||
+          (!tex_info.index || !samp_info.index ||
            info.tex_base == info.samp_base)) {
          /* Everything fits within the instruction */
          info.base = info.tex_base;
@@ -1927,7 +1942,7 @@ get_bindless_samp_src(struct ir3_context *ctx, nir_src *tex,
       /* In the indirect case, we only use a1.x to store the sampler
        * base if it differs from the texture base.
        */
-      if (!bindless_tex || !bindless_samp ||
+      if (!tex_info.index || !samp_info.index ||
           info.tex_base == info.samp_base) {
          info.base = info.tex_base;
       } else {
@@ -1938,20 +1953,12 @@ get_bindless_samp_src(struct ir3_context *ctx, nir_src *tex,
 
       /* Note: the indirect source is now a vec2 instead of hvec2
        */
-      struct ir3_instruction *texture, *sampler;
+      if (!tex_info.index)
+         tex_info.index = create_immed(b, 0);
+      if (!samp_info.index)
+         samp_info.index = create_immed(b, 0);
 
-      if (bindless_tex) {
-         texture = ir3_get_src(ctx, tex)[0];
-      } else {
-         texture = create_immed(b, 0);
-      }
-
-      if (bindless_samp) {
-         sampler = ir3_get_src(ctx, samp)[0];
-      } else {
-         sampler = create_immed(b, 0);
-      }
-      info.samp_tex = ir3_collect(b, texture, sampler);
+      info.samp_tex = ir3_collect(b, tex_info.index, samp_info.index);
    }
 
    return info;
