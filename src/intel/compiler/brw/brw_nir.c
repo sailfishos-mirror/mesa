@@ -1432,9 +1432,6 @@ brw_nir_optimize(nir_shader *nir,
       LOOP_OPT(nir_opt_intrinsics);
       LOOP_OPT_NOT_IDEMPOTENT(nir_opt_algebraic);
 
-      LOOP_OPT(nir_opt_generate_bfi);
-      LOOP_OPT(nir_opt_reassociate_bfi);
-
       LOOP_OPT(nir_lower_constant_convert_alu_types);
       LOOP_OPT(nir_opt_constant_folding);
 
@@ -2638,6 +2635,8 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
       OPT(nir_opt_shrink_vectors, false);
 
    OPT(intel_nir_opt_peephole_imul32x16);
+   OPT(nir_opt_generate_bfi);
+   OPT(nir_opt_reassociate_bfi);
 
    if (OPT(nir_opt_comparison_pre)) {
       OPT(nir_opt_copy_prop);
