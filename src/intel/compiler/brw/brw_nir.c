@@ -1430,7 +1430,6 @@ brw_nir_optimize(nir_shader *nir,
       LOOP_OPT(nir_opt_peephole_select, &peephole_select_options);
 
       LOOP_OPT(nir_opt_intrinsics);
-      LOOP_OPT(nir_opt_idiv_const, 32);
       LOOP_OPT_NOT_IDEMPOTENT(nir_opt_algebraic);
 
       LOOP_OPT(nir_opt_generate_bfi);
@@ -2570,9 +2569,10 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
       OPT(nir_opt_algebraic_before_ffma);
    } while (progress);
 
+   OPT(nir_opt_idiv_const, 32);
+
    if (devinfo->verx10 >= 125) {
       /* Lower integer division by constants before nir_lower_idiv. */
-      OPT(nir_opt_idiv_const, 32);
       const nir_lower_idiv_options options = {
          .allow_fp16 = false
       };
