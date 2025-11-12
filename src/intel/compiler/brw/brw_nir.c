@@ -1955,7 +1955,6 @@ brw_nir_optimize(brw_pass_tracker *pt)
       LOOP_OPT(nir_opt_intrinsics);
       LOOP_OPT_NOT_IDEMPOTENT(nir_opt_algebraic);
 
-      LOOP_OPT(nir_lower_constant_convert_alu_types);
       LOOP_OPT(nir_opt_constant_folding);
 
       LOOP_OPT(nir_opt_dead_cf);
@@ -2203,6 +2202,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
    OPT(nir_normalize_cubemap_coords);
 
    OPT(nir_lower_global_vars_to_local);
+   OPT(nir_lower_constant_convert_alu_types);
 
    OPT(nir_split_var_copies);
    OPT(nir_split_struct_vars, nir_var_function_temp);
