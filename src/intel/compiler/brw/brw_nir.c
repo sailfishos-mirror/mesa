@@ -1683,8 +1683,10 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
 
    brw_nir_optimize(nir, devinfo);
 
-   OPT(nir_opt_ray_queries);
-   OPT(nir_opt_ray_query_ranges);
+   if (nir->info.ray_queries) {
+      OPT(nir_opt_ray_queries);
+      OPT(nir_opt_ray_query_ranges);
+   }
 
    OPT(nir_opt_deref);
 
