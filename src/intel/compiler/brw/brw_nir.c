@@ -1406,9 +1406,6 @@ brw_nir_optimize(nir_shader *nir,
       LOOP_OPT(nir_opt_copy_prop_vars);
       LOOP_OPT(nir_opt_dead_write_vars);
 
-      LOOP_OPT(nir_opt_ray_queries);
-      LOOP_OPT(nir_opt_ray_query_ranges);
-
       LOOP_OPT(nir_lower_alu_to_scalar, NULL, NULL);
 
       LOOP_OPT(nir_opt_copy_prop);
@@ -1685,6 +1682,9 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
       OPT(nir_split_var_copies);
 
    brw_nir_optimize(nir, devinfo);
+
+   OPT(nir_opt_ray_queries);
+   OPT(nir_opt_ray_query_ranges);
 
    OPT(nir_opt_deref);
 
