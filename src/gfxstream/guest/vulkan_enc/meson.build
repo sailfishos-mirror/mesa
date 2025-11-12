@@ -24,6 +24,7 @@ if build_machine.system() != 'android'
             'VkEncoder.cpp',
             'func_table.cpp',
         ],
+        depend_files: genvk_depends,
         env: {
             'GFXSTREAM_NO_CLANG_FMT': '1',
             'CEREAL_VARIANT' : 'guest',
@@ -48,6 +49,7 @@ if build_machine.system() != 'android'
         output: ['vulkan_gfxstream.h'],
         env: {'GFXSTREAM_NO_CLANG_FMT': '1', 'CEREAL_VARIANT' : 'guest'},
         input: [genvk, vk_gfxstream_xml],
+        depend_files: genvk_depends,
         command: [
             prog_python,
             '@INPUT0@',
