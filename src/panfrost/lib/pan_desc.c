@@ -646,41 +646,6 @@ get_rt_formats(enum pipe_format pfmt, uint32_t *writeback, uint32_t *internal,
    *pswizzle = pan_translate_swizzle_4(swizzle);
 }
 
-/* forward declaration */
-static bool pan_force_clean_write_on(const struct pan_image *img, unsigned tile_size);
-
-static struct MALI_RT_CLEAR
-rt_clear(const struct pan_fb_color_attachment *rt)
-{
-   if (!rt || !rt->clear)
-      return (struct MALI_RT_CLEAR){0};
-
-   return (struct MALI_RT_CLEAR){
-      .color_0 = rt->clear_value[0],
-      .color_1 = rt->clear_value[1],
-      .color_2 = rt->clear_value[2],
-      .color_3 = rt->clear_value[3],
-   };
-}
-
-static bool
-rt_clean_pixel_write(const struct pan_fb_color_attachment *rt,
-                     unsigned tile_size)
-{
-   if (rt->clear)
-      return true;
-
-#if PAN_ARCH >= 6
-   const struct pan_image_plane_ref pref =
-      pan_image_view_get_color_plane(rt->view);
-
-   if (pan_force_clean_write_on(pref.image, tile_size))
-      return true;
-#endif
-
-   return false;
-}
-
 void
 GENX(pan_emit_afbc_color_attachment)(const struct pan_fb_info *fb,
                                      unsigned rt_idx,
@@ -940,6 +905,41 @@ pan_emit_midgard_tiler(const struct pan_fb_info *fb,
 #endif
 
 #if PAN_ARCH >= 5
+/* forward declaration */
+static bool pan_force_clean_write_on(const struct pan_image *img, unsigned tile_size);
+
+static struct MALI_RT_CLEAR
+rt_clear(const struct pan_fb_color_attachment *rt)
+{
+   if (!rt->clear)
+      return (struct MALI_RT_CLEAR){0};
+
+   return (struct MALI_RT_CLEAR){
+      .color_0 = rt->clear_value[0],
+      .color_1 = rt->clear_value[1],
+      .color_2 = rt->clear_value[2],
+      .color_3 = rt->clear_value[3],
+   };
+}
+
+static bool
+rt_clean_pixel_write(const struct pan_fb_color_attachment *rt,
+                     unsigned tile_size)
+{
+   if (rt->clear)
+      return true;
+
+#if PAN_ARCH >= 6
+   const struct pan_image_plane_ref pref =
+      pan_image_view_get_color_plane(rt->view);
+
+   if (pan_force_clean_write_on(pref.image, tile_size))
+      return true;
+#endif
+
+   return false;
+}
+
 static void
 pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
             unsigned cbuf_offset, struct mali_render_target_packed *out)
