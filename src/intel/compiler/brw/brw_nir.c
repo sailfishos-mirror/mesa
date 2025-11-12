@@ -1406,29 +1406,16 @@ brw_nir_optimize(nir_shader *nir,
       LOOP_OPT(nir_opt_cse);
       LOOP_OPT(nir_opt_combine_stores, nir_var_all);
 
-      /* Passing 0 to the peephole select pass causes it to convert
-       * if-statements that contain only move instructions in the branches
-       * regardless of the count.
-       *
-       * Passing 1 to the peephole select pass causes it to convert
-       * if-statements that contain at most a single ALU instruction (total)
-       * in both branches.  Before Gfx6, some math instructions were
-       * prohibitively expensive and the results of compare operations need an
-       * extra resolve step.  For these reasons, this pass is more harmful
-       * than good on those platforms.
-       *
-       * For indirect loads of uniforms (push constants), we assume that array
+      /* For indirect loads of uniforms (push constants), we assume that array
        * indices will nearly always be in bounds and the cost of the load is
-       * low.  Therefore there shouldn't be a performance benefit to avoid it.
+       * low. Therefore there shouldn't be a performance benefit to avoid it.
        */
       nir_opt_peephole_select_options peephole_select_options = {
-         .limit = 0,
+         .limit = 8,
          .indirect_load_ok = true,
+         .expensive_alu_ok = true,
+         .discard_ok = true,
       };
-      LOOP_OPT(nir_opt_peephole_select, &peephole_select_options);
-
-      peephole_select_options.limit = 8;
-      peephole_select_options.expensive_alu_ok = true;
       LOOP_OPT(nir_opt_peephole_select, &peephole_select_options);
 
       LOOP_OPT(nir_opt_intrinsics);
@@ -1452,11 +1439,6 @@ brw_nir_optimize(nir_shader *nir,
       }
       LOOP_OPT_NOT_IDEMPOTENT(nir_opt_if, nir_opt_if_optimize_phi_true_false);
 
-      nir_opt_peephole_select_options peephole_discard_options = {
-         .limit = 0,
-         .discard_ok = true,
-      };
-      LOOP_OPT(nir_opt_peephole_select, &peephole_discard_options);
       if (nir->options->max_unroll_iterations != 0) {
          LOOP_OPT_NOT_IDEMPOTENT(nir_opt_loop_unroll);
       }
