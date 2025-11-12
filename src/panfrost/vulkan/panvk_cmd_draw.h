@@ -406,6 +406,7 @@ struct panvk_draw_info {
       uint64_t buffer_size;
       uint32_t index_size;
       uint32_t offset;
+      bool restart_enable;
    } index;
 
    struct {
@@ -428,6 +429,8 @@ struct panvk_draw_info {
       uint32_t stride;
    } indirect;
 
+   enum mesa_prim prim;
+
 #if PAN_ARCH < 9
    uint32_t layer_id;
 #endif
@@ -438,7 +441,12 @@ struct panvk_draw_info {
    .buffer_size = (__cmdbuf)->state.gfx.ib.size,                               \
    .index_size = (__cmdbuf)->state.gfx.ib.index_size,                          \
    .offset = (__offset),                                                       \
+   .restart_enable =                                                           \
+      (__cmdbuf)->vk.dynamic_graphics_state.ia.primitive_restart_enable,       \
 }
+
+#define panvk_get_client_prim(__cmdbuf) vk_topology_to_mesa(                   \
+      (__cmdbuf)->vk.dynamic_graphics_state.ia.primitive_topology)
 
 void
 panvk_per_arch(cmd_prepare_draw_sysvals)(struct panvk_cmd_buffer *cmdbuf,
