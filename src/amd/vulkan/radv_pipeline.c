@@ -531,6 +531,12 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
    if (pdev->cache_key.mitigate_smem_oob)
       NIR_PASS(_, stage->nir, ac_nir_fixup_mem_access_gfx6, &stage->args.ac, 4096, true, true);
 
+   bool opt_intrinsics = false;
+   if (gfx_level >= GFX11)
+      NIR_PASS(opt_intrinsics, stage->nir, ac_nir_opt_flip_if_for_mem_loads);
+   if (opt_intrinsics) /* optimize inot(inverse_ballot) */
+      NIR_PASS(_, stage->nir, nir_opt_intrinsics);
+
    radv_optimize_nir_algebraic(
       stage->nir, io_to_mem || lowered_ngg || stage->stage == MESA_SHADER_COMPUTE || stage->stage == MESA_SHADER_TASK,
       gfx_level >= GFX8, gfx_level);

@@ -1170,6 +1170,12 @@ static void si_postprocess_nir(struct si_nir_shader_ctx *ctx)
    };
    NIR_PASS(_, nir, nir_opt_offsets, &offset_options);
 
+   bool opt_intrinsics = false;
+   if (sel->screen->info.gfx_level >= GFX11)
+      NIR_PASS(opt_intrinsics, nir, ac_nir_opt_flip_if_for_mem_loads);
+   if (opt_intrinsics) /* optimize inot(inverse_ballot) */
+      NIR_PASS(_, nir, nir_opt_intrinsics);
+
    si_nir_late_opts(nir);
 
    /* Only do this for GPUs supporting 16-bit packed math. */

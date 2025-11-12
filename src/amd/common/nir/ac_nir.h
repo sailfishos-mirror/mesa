@@ -424,6 +424,9 @@ bool
 ac_nir_opt_shared_append(nir_shader *shader);
 
 bool
+ac_nir_opt_flip_if_for_mem_loads(nir_shader *shader);
+
+bool
 ac_nir_flag_smem_for_loads(nir_shader *shader, enum amd_gfx_level gfx_level, bool use_llvm);
 
 bool
