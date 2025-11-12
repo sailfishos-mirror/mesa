@@ -1406,7 +1406,6 @@ brw_nir_optimize(nir_shader *nir,
       }
       LOOP_OPT(nir_opt_copy_prop_vars);
       LOOP_OPT(nir_opt_dead_write_vars);
-      LOOP_OPT(nir_opt_combine_stores, nir_var_all);
 
       LOOP_OPT(nir_opt_ray_queries);
       LOOP_OPT(nir_opt_ray_query_ranges);
