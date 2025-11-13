@@ -435,13 +435,16 @@ pan_prepare_crc(const struct pan_fb_info *fb, int rt_crc,
 
 static void
 pan_emit_zs_crc_ext(const struct pan_fb_info *fb, unsigned layer_idx,
-                    int rt_crc, struct mali_zs_crc_extension_packed *zs_crc_ext)
+                    int rt_crc,
+                    struct mali_zs_crc_extension_packed *zs_crc_ext,
+                    struct pan_clean_tile clean_tile)
 {
    struct mali_zs_crc_extension_packed desc;
 
    pan_pack(&desc, ZS_CRC_EXTENSION, cfg) {
       pan_prepare_crc(fb, rt_crc, &cfg.crc);
-      cfg.zs.clean_pixel_write_enable = fb->zs.clear.z || fb->zs.clear.s;
+      cfg.zs.clean_pixel_write_enable =
+         pan_clean_tile_write_zs_enabled(clean_tile);
    }
 
    if (fb->zs.view.zs) {
@@ -905,9 +908,6 @@ pan_emit_midgard_tiler(const struct pan_fb_info *fb,
 #endif
 
 #if PAN_ARCH >= 5
-/* forward declaration */
-static bool pan_force_clean_write_on(const struct pan_image *img, unsigned tile_size);
-
 static struct MALI_RT_CLEAR
 rt_clear(const struct pan_fb_color_attachment *rt)
 {
@@ -922,33 +922,17 @@ rt_clear(const struct pan_fb_color_attachment *rt)
    };
 }
 
-static bool
-rt_clean_pixel_write(const struct pan_fb_color_attachment *rt,
-                     unsigned tile_size)
-{
-   if (rt->clear)
-      return true;
-
-#if PAN_ARCH >= 6
-   const struct pan_image_plane_ref pref =
-      pan_image_view_get_color_plane(rt->view);
-
-   if (pan_force_clean_write_on(pref.image, tile_size))
-      return true;
-#endif
-
-   return false;
-}
-
 static void
 pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
-            unsigned cbuf_offset, struct mali_render_target_packed *out)
+            unsigned cbuf_offset, struct mali_render_target_packed *out,
+            struct pan_clean_tile clean_tile)
 {
    const struct pan_image_view *rt = fb->rts[idx].view;
 
    if (!rt || fb->rts[idx].discard) {
       pan_cast_and_pack(out, RGB_RENDER_TARGET, cfg) {
-         cfg.clean_pixel_write_enable = fb->rts[idx].clear;
+         cfg.clean_pixel_write_enable =
+            pan_clean_tile_write_rt_enabled(clean_tile, idx);
          cfg.internal_buffer_offset = cbuf_offset;
          cfg.clear = rt_clear(&fb->rts[idx]);
          cfg.dithering_enable = true;
@@ -964,8 +948,8 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
    struct mali_rgb_render_target_packed common;
    pan_pack(&common, RGB_RENDER_TARGET, cfg) {
       assert(fb->rts[idx].view != NULL);
-      cfg.clean_pixel_write_enable = rt_clean_pixel_write(&fb->rts[idx],
-                                                          fb->tile_size);
+      cfg.clean_pixel_write_enable =
+         pan_clean_tile_write_rt_enabled(clean_tile, idx);
       cfg.internal_buffer_offset = cbuf_offset;
       cfg.clear = rt_clear(&fb->rts[idx]);
       cfg.dithering_enable = true;
@@ -1011,6 +995,7 @@ pan_fix_frame_shader_mode(enum mali_pre_post_frame_shader_mode mode,
    else
       return mode;
 }
+#endif
 
 /* Clean tiles must be written back for AFBC buffers (color, z/s) when either
  * one of the effective tile size dimension is smaller than the superblock
@@ -1019,6 +1004,7 @@ pan_fix_frame_shader_mode(enum mali_pre_post_frame_shader_mode mode,
 static bool
 pan_force_clean_write_on(const struct pan_image *image, unsigned tile_size)
 {
+#if PAN_ARCH >= 6
    if (!image)
       return false;
 
@@ -1034,40 +1020,46 @@ pan_force_clean_write_on(const struct pan_image *image, unsigned tile_size)
 
    return tileblk_sz.width < superblk_sz.width ||
       tileblk_sz.height < superblk_sz.height;
+#else
+   return false;
+#endif
 }
 
-static bool
-pan_force_clean_write(const struct pan_fb_info *fb, unsigned tile_size)
+static struct pan_clean_tile
+pan_get_clean_tile_info(const struct pan_fb_info *fb)
 {
-   /* Maximum tile size */
-   assert(tile_size <= pan_max_effective_tile_size(PAN_ARCH));
+   struct pan_clean_tile clean_tile = { 0, };
+   const struct pan_image *img;
+
+   /* Force write-back of each color, depth and stencil attachment if cleared
+    * or forced, unless it's discarded. */
 
    for (unsigned i = 0; i < fb->rt_count; ++i) {
-      if (!fb->rts[i].view || fb->rts[i].discard)
+      if (fb->rts[i].discard)
          continue;
 
-      const struct pan_image_plane_ref pref =
-         pan_image_view_get_color_plane(fb->rts[i].view);
-      const struct pan_image *img = pref.image;
-
-      if (pan_force_clean_write_on(img, tile_size))
-         return true;
+      img = fb->rts[i].view ?
+         pan_image_view_get_color_plane(fb->rts[i].view).image : NULL;
+      if (fb->rts[i].clear || pan_force_clean_write_on(img, fb->tile_size))
+         clean_tile.write_rt_mask |= 1 << i;
    }
 
-   if (fb->zs.view.zs && !fb->zs.discard.z &&
-       pan_force_clean_write_on(
-          pan_image_view_get_zs_plane(fb->zs.view.zs).image, tile_size))
-      return true;
+   if (!fb->zs.discard.z) {
+      img = fb->zs.view.zs ?
+         pan_image_view_get_zs_plane(fb->zs.view.zs).image : NULL;
+      if (fb->zs.clear.z || pan_force_clean_write_on(img, fb->tile_size))
+         clean_tile.write_zs = 1;
+   }
 
-   if (fb->zs.view.s && !fb->zs.discard.s &&
-       pan_force_clean_write_on(pan_image_view_get_s_plane(fb->zs.view.s).image,
-                                tile_size))
-      return true;
+   if (!fb->zs.discard.s) {
+      img = fb->zs.view.s ?
+         pan_image_view_get_s_plane(fb->zs.view.s).image : NULL;
+      if (fb->zs.clear.s || pan_force_clean_write_on(img, fb->tile_size))
+         clean_tile.write_zs = 1;
+   }
 
-   return false;
+   return clean_tile;
 }
-
-#endif
 
 static void
 check_fb_attachments(const struct pan_fb_info *fb)
@@ -1107,18 +1099,17 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
 
    int crc_rt = GENX(pan_select_crc_rt)(fb, fb->tile_size);
    bool has_zs_crc_ext = (fb->zs.view.zs || fb->zs.view.s || crc_rt >= 0);
+   struct pan_clean_tile clean_tile = pan_get_clean_tile_info(fb);
 
    pan_section_pack(fbd, FRAMEBUFFER, PARAMETERS, cfg) {
 #if PAN_ARCH >= 6
-      bool force_clean_write = pan_force_clean_write(fb, fb->tile_size);
-
       cfg.sample_locations = fb->sample_positions;
       cfg.pre_frame_0 = pan_fix_frame_shader_mode(fb->bifrost.pre_post.modes[0],
-                                                  force_clean_write);
+                                                  pan_clean_tile_write_any_set(clean_tile));
       cfg.pre_frame_1 = pan_fix_frame_shader_mode(fb->bifrost.pre_post.modes[1],
-                                                  force_clean_write);
+                                                  pan_clean_tile_write_any_set(clean_tile));
       cfg.post_frame = pan_fix_frame_shader_mode(fb->bifrost.pre_post.modes[2],
-                                                 force_clean_write);
+                                                 pan_clean_tile_write_any_set(clean_tile));
 #if PAN_ARCH < 9
       /* On Bifrost, the layer_id is passed through a push_uniform, which forces
        * us to have one pre/post DCD array per layer. */
@@ -1188,18 +1179,12 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
          bool full = !fb->draw_extent.minx && !fb->draw_extent.miny &&
                      fb->draw_extent.maxx == (fb->width - 1) &&
                      fb->draw_extent.maxy == (fb->height - 1);
-         bool clean_tile_write = fb->rts[crc_rt].clear;
-
-#if PAN_ARCH >= 6
-         clean_tile_write |= pan_force_clean_write_on(
-            pan_image_view_get_color_plane(fb->rts[crc_rt].view).image,
-            fb->tile_size);
-#endif
 
          /* If the CRC was valid it stays valid, if it wasn't, we must ensure
           * the render operation covers the full frame, and clean tiles are
           * pushed to memory. */
-         bool new_valid = *valid | (full && clean_tile_write);
+         bool new_valid = *valid |
+            (full && pan_clean_tile_write_rt_enabled(clean_tile, crc_rt));
 
          cfg.crc_read_enable = *valid;
 
@@ -1243,14 +1228,14 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
       struct mali_zs_crc_extension_packed *zs_crc_ext =
          out + pan_size(FRAMEBUFFER);
 
-      pan_emit_zs_crc_ext(fb, layer_idx, crc_rt, zs_crc_ext);
+      pan_emit_zs_crc_ext(fb, layer_idx, crc_rt, zs_crc_ext, clean_tile);
       rtd += pan_size(ZS_CRC_EXTENSION);
    }
 
    unsigned rt_count = MAX2(fb->rt_count, 1);
    unsigned cbuf_offset = 0;
    for (unsigned i = 0; i < rt_count; i++) {
-      pan_emit_rt(fb, layer_idx, i, cbuf_offset, rtd);
+      pan_emit_rt(fb, layer_idx, i, cbuf_offset, rtd, clean_tile);
       rtd += pan_size(RENDER_TARGET);
       if (!fb->rts[i].view)
          continue;

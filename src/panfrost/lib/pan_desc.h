@@ -154,6 +154,33 @@ struct pan_fb_info {
    bool pls_enabled;
 };
 
+struct pan_clean_tile {
+   /* clean_tile_write_enable mask on the 8 color attachments. */
+   uint8_t write_rt_mask;
+
+   /* clean_tile_write_enable flag on the depth/stencil attachment. */
+   uint8_t write_zs : 1;
+};
+
+static inline bool
+pan_clean_tile_write_rt_enabled(struct pan_clean_tile clean_tile,
+                                unsigned index)
+{
+   return (clean_tile.write_rt_mask >> index) & 1;
+}
+
+static inline bool
+pan_clean_tile_write_zs_enabled(struct pan_clean_tile clean_tile)
+{
+   return clean_tile.write_zs;
+}
+
+static inline bool
+pan_clean_tile_write_any_set(struct pan_clean_tile clean_tile)
+{
+   return clean_tile.write_rt_mask || clean_tile.write_zs;
+}
+
 static inline unsigned
 pan_wls_instances(const struct pan_compute_dim *dim)
 {
