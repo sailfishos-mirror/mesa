@@ -204,7 +204,7 @@
         "description": "panfrost: Fix clean_pixel_write_enable forced check for AFBC",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "762a0f413369ecbbeb94810b133e66963b69208b",
         "notes": null
