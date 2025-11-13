@@ -37,6 +37,7 @@ lower(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       CASE(image)
       CASE(bindless_image)
       CASE(image_deref)
+      CASE(image_heap)
    default:
       return false;
    }
