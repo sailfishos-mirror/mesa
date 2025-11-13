@@ -1925,15 +1925,6 @@ static void wsi_display_page_flip_handler(int fd,
    wsi_display_page_flip_handler2(fd, frame, sec, usec, 0, data);
 }
 
-static void wsi_display_vblank_handler(int fd, unsigned int frame,
-                                       unsigned int sec, unsigned int usec,
-                                       void *data)
-{
-   struct wsi_display_fence *fence = data;
-
-   wsi_display_fence_event_handler(fence);
-}
-
 /**
  * libdrm callback for when we get a DRM_EVENT_CRTC_SEQUENCE in response to a
  * drmCrtcQueueSequence(), indicating that the first pixel of a new frame is
@@ -1954,7 +1945,7 @@ static drmEventContext event_context = {
 #if DRM_EVENT_CONTEXT_VERSION >= 3
    .page_flip_handler2 = wsi_display_page_flip_handler2,
 #endif
-   .vblank_handler = wsi_display_vblank_handler,
+   .vblank_handler = NULL,
    .sequence_handler = wsi_display_sequence_handler,
 };
 
