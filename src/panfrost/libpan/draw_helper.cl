@@ -5,9 +5,38 @@
 
 #include "compiler/libcl/libcl.h"
 #include "compiler/libcl/libcl_vk.h"
+#include "compiler/shader_enums.h"
 #include "genxml/gen_macros.h"
 #include "lib/pan_encoder.h"
+#include "poly/cl/restart.h"
 #include "draw_helper.h"
+
+#if PAN_ARCH >= 10
+KERNEL(1)
+panlib_update_prims_generated_query_indirect(
+   global uint32_t *prims_generated, global uint32_t *draw_count_buffer,
+   uint32_t max_draw_count, uint32_t cmd_stride, constant uint32_t *cmd,
+   uint32_t view_count, uint32_t compact_prim__11)
+{
+   enum mesa_prim prim = poly_uncompact_prim(compact_prim__11);
+   uint32_t draw_count = draw_count_buffer ?
+      min(*draw_count_buffer, max_draw_count) : max_draw_count;
+
+   for (uint32_t draw_id = 0; draw_id < draw_count; draw_id++) {
+      /* cmd may be either VkDrawnIndirectCommand or
+       * VkDrawIndexedIndirectCommand. In both cases the vertex/index count is
+       * the first field, and the instance count is the second */
+      uint32_t vertex_count = cmd[0];
+      uint32_t instance_count = cmd[1];
+
+      uint32_t prims_per_instance =
+         u_decomposed_prims_for_vertices(prim, vertex_count);
+      *prims_generated += prims_per_instance * instance_count;
+
+      cmd = (constant uint32_t *) ((uintptr_t) cmd + cmd_stride);
+   }
+}
+#endif
 
 #if (PAN_ARCH == 6 || PAN_ARCH == 7)
 struct panlib_draw_info {

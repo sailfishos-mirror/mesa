@@ -22,6 +22,7 @@
 #include "panvk_cmd_draw.h"
 #include "panvk_cmd_fb_preload.h"
 #include "panvk_cmd_meta.h"
+#include "panvk_cmd_precomp.h"
 #include "panvk_cmd_ts.h"
 #include "panvk_device.h"
 #include "panvk_entrypoints.h"
@@ -48,6 +49,7 @@
 #include "vk_meta.h"
 #include "vk_pipeline_layout.h"
 #include "vk_render_pass.h"
+#include "poly/geometry.h"
 
 static enum cs_reg_perm
 provoking_vertex_fn_reg_perm_cb(struct cs_builder *b, unsigned reg)
@@ -2359,6 +2361,60 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
 }
 
 static void
+update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
+                             struct panvk_draw_info *draw)
+{
+   struct cs_builder *b =
+      panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_COMPUTE);
+   struct vk_input_assembly_state *ia = &cmdbuf->vk.dynamic_graphics_state.ia;
+   struct panvk_prims_generated_query_state *state =
+      &cmdbuf->state.gfx.prims_generated_query;
+
+   if (!state->ptr)
+      return;
+
+   /* TODO: primitive restart */
+   assert(!draw->index.size || !ia->primitive_restart_enable);
+
+   enum mesa_prim prim = vk_topology_to_mesa(ia->primitive_topology);
+   uint32_t view_count = cmdbuf->state.gfx.render.view_mask ?
+      util_bitcount(cmdbuf->state.gfx.render.view_mask) : 1;
+
+   if (draw->indirect.buffer_dev_addr) {
+      struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
+
+      struct panlib_update_prims_generated_query_indirect_args args = {
+         .prims_generated = state->ptr,
+         .draw_count_buffer = draw->indirect.count_buffer_dev_addr,
+         .max_draw_count = draw->indirect.draw_count,
+         .cmd_stride = draw->indirect.stride,
+         .cmd = draw->indirect.buffer_dev_addr,
+         .view_count = view_count,
+      };
+
+      /* We need to WAIT in order to avoid overlapping the (non-atomic) direct
+       * draw counter updates with indirect draws. TODO: we could avoid that
+       * by having separate direct/indirect counters and adding them on read */
+      panlib_update_prims_generated_query_indirect_struct(
+         &precomp_ctx, panlib_1d(1), PANLIB_BARRIER_CSF_WAIT, args,
+         poly_compact_prim(prim));
+   } else {
+      uint32_t prims_per_instance =
+         u_decomposed_prims_for_vertices(prim, draw->vertex.count);
+      uint32_t prims_generated =
+         prims_per_instance * draw->instance.count * view_count;
+
+      struct cs_index addr = cs_scratch_reg64(b, 0);
+      struct cs_index value = cs_scratch_reg32(b, 2);
+
+      cs_move64_to(b, addr, state->ptr);
+      cs_load32_to(b, value, addr, 0);
+      cs_add32(b, value, value, prims_generated);
+      cs_store32(b, value, addr, 0);
+   }
+}
+
+static void
 panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
 {
    const struct cs_tracing_ctx *tracing_ctx =
@@ -2381,6 +2437,8 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
    result = prepare_draw(cmdbuf, draw);
    if (result != VK_SUCCESS)
       return;
+
+   update_prims_generated_query(cmdbuf, draw);
 
    cs_update_vt_ctx(b) {
       cs_move32_to(b, cs_sr_reg32(b, IDVS, GLOBAL_ATTRIBUTE_OFFSET), 0);
@@ -2561,6 +2619,8 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
    result = prepare_draw(cmdbuf, draw);
    if (result != VK_SUCCESS)
       return;
+
+   update_prims_generated_query(cmdbuf, draw);
 
    struct panvk_shader_desc_state *vs_desc_state =
       &cmdbuf->state.gfx.vs.desc;

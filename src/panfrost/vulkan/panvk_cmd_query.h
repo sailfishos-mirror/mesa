@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifndef PANVK_CMD_OQ_H
-#define PANVK_CMD_OQ_H
+#ifndef PANVK_CMD_QUERY_H
+#define PANVK_CMD_QUERY_H
 
 #ifndef PAN_ARCH
 #error "PAN_ARCH must be defined"
@@ -19,5 +19,12 @@ struct panvk_occlusion_query_state {
    uint64_t ptr;
    enum mali_occlusion_mode mode;
 };
+
+#if PAN_ARCH >= 10
+struct panvk_prims_generated_query_state {
+   uint64_t syncobj;
+   uint64_t ptr;
+};
+#endif
 
 #endif
