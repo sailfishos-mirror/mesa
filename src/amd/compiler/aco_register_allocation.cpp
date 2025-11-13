@@ -1214,14 +1214,9 @@ find_vars(ra_ctx& ctx, const RegisterFile& reg_file, const PhysRegInterval reg_i
    return vars;
 }
 
-/* collect variables from a register area and clear reg_file
- * variables are sorted in decreasing size and
- * increasing assigned register
- */
-std::vector<unsigned>
-collect_vars(ra_ctx& ctx, RegisterFile& reg_file, const PhysRegInterval reg_interval)
+void
+collect_vars(ra_ctx& ctx, RegisterFile& reg_file, std::vector<unsigned>& ids)
 {
-   std::vector<unsigned> ids = find_vars(ctx, reg_file, reg_interval);
    std::sort(ids.begin(), ids.end(),
              [&](unsigned a, unsigned b)
              {
@@ -1235,6 +1230,17 @@ collect_vars(ra_ctx& ctx, RegisterFile& reg_file, const PhysRegInterval reg_inte
       assignment& var = ctx.assignments[id];
       reg_file.clear(var.reg, var.rc);
    }
+}
+
+/* collect variables from a register area and clear reg_file
+ * variables are sorted in decreasing size and
+ * increasing assigned register
+ */
+std::vector<unsigned>
+collect_vars(ra_ctx& ctx, RegisterFile& reg_file, const PhysRegInterval reg_interval)
+{
+   std::vector<unsigned> ids = find_vars(ctx, reg_file, reg_interval);
+   collect_vars(ctx, reg_file, ids);
    return ids;
 }
 
@@ -1982,6 +1988,49 @@ should_compact_linear_vgprs(ra_ctx& ctx, const RegisterFile& reg_file)
    return max_vgpr_usage > get_reg_bounds(ctx, RegType::vgpr, false).size;
 }
 
+std::optional<PhysReg>
+get_reg_affinity(ra_ctx& ctx, const RegisterFile& reg_file, Temp temp,
+                 std::vector<parallelcopy>& parallelcopies, aco_ptr<Instruction>& instr,
+                 int operand_index, assignment& affinity)
+{
+   /* check if the target register is blocked */
+   if (operand_index == -1 && reg_file.test(affinity.reg, temp.bytes())) {
+      /* It is cheaper to just assign a different register. */
+      if (ctx.assignments[temp.id()].weight == 0)
+         return {};
+
+      const PhysRegInterval def_regs{PhysReg(affinity.reg.reg()), temp.size()};
+      std::vector<unsigned> vars = find_vars(ctx, reg_file, def_regs);
+
+      /* Bail if the cost of moving the blocking var is likely more expensive
+       * than assigning a different register.
+       */
+      if (std::any_of(vars.begin(), vars.end(), [&](unsigned id) -> bool
+                      { return ctx.assignments[id].weight >= ctx.assignments[temp.id()].weight; }))
+         return {};
+
+      RegisterFile tmp_file(reg_file);
+      collect_vars(ctx, tmp_file, vars);
+
+      /* re-enable the killed operands, so that we don't move the blocking vars there */
+      if (!is_phi(instr))
+         tmp_file.fill_killed_operands(instr.get());
+
+      /* create parallelcopy to move blocking vars */
+      std::vector<parallelcopy> pc;
+      if (get_reg_specified(ctx, tmp_file, temp.regClass(), instr, affinity.reg, operand_index) &&
+          get_regs_for_copies(ctx, tmp_file, parallelcopies, vars, instr, def_regs)) {
+         parallelcopies.insert(parallelcopies.end(), pc.begin(), pc.end());
+         return affinity.reg;
+      }
+   } else if (get_reg_specified(ctx, reg_file, temp.regClass(), instr, affinity.reg,
+                                operand_index)) {
+      return affinity.reg;
+   }
+
+   return {};
+}
+
 PhysReg
 get_reg(ra_ctx& ctx, const RegisterFile& reg_file, Temp temp,
         std::vector<parallelcopy>& parallelcopies, aco_ptr<Instruction>& instr,
@@ -2008,11 +2057,15 @@ get_reg(ra_ctx& ctx, const RegisterFile& reg_file, Temp temp,
       }
    }
 
+   std::optional<PhysReg> res;
+
    if (ctx.assignments[temp.id()].affinity) {
       assignment& affinity = ctx.assignments[ctx.assignments[temp.id()].affinity];
       if (affinity.assigned) {
-         if (get_reg_specified(ctx, reg_file, temp.regClass(), instr, affinity.reg, operand_index))
-            return affinity.reg;
+         res =
+            get_reg_affinity(ctx, reg_file, temp, parallelcopies, instr, operand_index, affinity);
+         if (res)
+            return *res;
       }
    }
    if (ctx.assignments[temp.id()].precolor_affinity) {
@@ -2020,8 +2073,6 @@ get_reg(ra_ctx& ctx, const RegisterFile& reg_file, Temp temp,
                             operand_index, false))
          return ctx.assignments[temp.id()].reg;
    }
-
-   std::optional<PhysReg> res;
 
    if (ctx.vectors.find(temp.id()) != ctx.vectors.end()) {
       res = get_reg_vector(ctx, reg_file, temp, instr, operand_index);
