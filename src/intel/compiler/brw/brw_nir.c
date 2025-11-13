@@ -2649,12 +2649,9 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
        * might be under the threshold of conversion to bcsel.
        */
       nir_opt_peephole_select_options peephole_select_options = {
-         .limit = 0,
+         .limit = 1,
+         .expensive_alu_ok = true,
       };
-      OPT(nir_opt_peephole_select, &peephole_select_options);
-
-      peephole_select_options.limit = 1;
-      peephole_select_options.expensive_alu_ok = true;
       OPT(nir_opt_peephole_select, &peephole_select_options);
    }
 
