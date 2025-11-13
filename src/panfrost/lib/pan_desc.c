@@ -978,13 +978,14 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
 }
 
 #if PAN_ARCH >= 6
-/* All Bifrost and Valhall GPUs are affected by issue TSIX-2033:
+/* All GPUs starting from Bifrost are affected by issue TSIX-2033:
  *
  *      Forcing clean_tile_writes breaks INTERSECT readbacks
  *
- * To workaround, use the frame shader mode ALWAYS instead of INTERSECT if
- * clean tile writes is forced. Since INTERSECT is a hint that the hardware may
- * ignore, this cannot affect correctness, only performance */
+ * To workaround, use the pre-frame shader mode ALWAYS instead of INTERSECT if
+ * clean_tile_write_enable is set on either one of the color, depth or stencil
+ * buffers. Since INTERSECT is a hint that the hardware may ignore, this
+ * cannot affect correctness, only performance. */
 
 static enum mali_pre_post_frame_shader_mode
 pan_fix_frame_shader_mode(enum mali_pre_post_frame_shader_mode mode,
@@ -1108,8 +1109,7 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
                                                   pan_clean_tile_write_any_set(clean_tile));
       cfg.pre_frame_1 = pan_fix_frame_shader_mode(fb->bifrost.pre_post.modes[1],
                                                   pan_clean_tile_write_any_set(clean_tile));
-      cfg.post_frame = pan_fix_frame_shader_mode(fb->bifrost.pre_post.modes[2],
-                                                 pan_clean_tile_write_any_set(clean_tile));
+      cfg.post_frame = fb->bifrost.pre_post.modes[2];
 #if PAN_ARCH < 9
       /* On Bifrost, the layer_id is passed through a push_uniform, which forces
        * us to have one pre/post DCD array per layer. */
