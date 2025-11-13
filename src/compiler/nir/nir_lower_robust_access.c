@@ -141,8 +141,42 @@ lower_buffer_shared(nir_builder *b, nir_intrinsic_instr *instr)
                   nir_imm_int(b, b->shader->info.shared_size));
 }
 
+static nir_image_intrinsic_type
+image_intrinsic_type(nir_intrinsic_op intrinsic)
+{
+   switch (intrinsic) {
+   case nir_intrinsic_image_load:
+   case nir_intrinsic_image_store:
+   case nir_intrinsic_image_atomic:
+   case nir_intrinsic_image_atomic_swap:
+      return nir_image_intrinsic_type_default;
+
+   case nir_intrinsic_bindless_image_load:
+   case nir_intrinsic_bindless_image_store:
+   case nir_intrinsic_bindless_image_atomic:
+   case nir_intrinsic_bindless_image_atomic_swap:
+      return nir_image_intrinsic_type_bindless;
+
+   case nir_intrinsic_image_deref_load:
+   case nir_intrinsic_image_deref_store:
+   case nir_intrinsic_image_deref_atomic:
+   case nir_intrinsic_image_deref_atomic_swap:
+      return nir_image_intrinsic_type_deref;
+
+   case nir_intrinsic_image_heap_load:
+   case nir_intrinsic_image_heap_store:
+   case nir_intrinsic_image_heap_atomic:
+   case nir_intrinsic_image_heap_atomic_swap:
+      return nir_image_intrinsic_type_heap;
+
+   default:
+      UNREACHABLE("Invalid NIR image intrinsic");
+   }
+}
+
 static void
-lower_image(nir_builder *b, nir_intrinsic_instr *instr, bool deref, bool is_load)
+lower_image(nir_builder *b, nir_intrinsic_instr *instr,
+            nir_image_intrinsic_type type, bool is_load)
 {
    enum glsl_sampler_dim dim = nir_intrinsic_image_dim(instr);
    uint32_t num_coords = nir_image_intrinsic_coord_components(instr);
@@ -157,9 +191,19 @@ lower_image(nir_builder *b, nir_intrinsic_instr *instr, bool deref, bool is_load
    nir_def *size = nir_image_size(b, size_components, 32,
                                   instr->src[0].ssa, nir_imm_int(b, 0),
                                   .image_array = is_array, .image_dim = dim);
-   if (deref) {
-      nir_def_as_intrinsic(size)->intrinsic =
-         nir_intrinsic_image_deref_size;
+
+   switch (type) {
+   case nir_image_intrinsic_type_default:
+      nir_def_as_intrinsic(size)->intrinsic = nir_intrinsic_image_size;
+      break;
+   case nir_image_intrinsic_type_deref:
+      nir_def_as_intrinsic(size)->intrinsic = nir_intrinsic_image_deref_size;
+      break;
+   case nir_image_intrinsic_type_heap:
+      nir_def_as_intrinsic(size)->intrinsic = nir_intrinsic_image_heap_size;
+      break;
+   default:
+      UNREACHABLE("Invalid NIR image intrinsic type");
    }
 
    if (dim == GLSL_SAMPLER_DIM_CUBE) {
@@ -175,9 +219,19 @@ lower_image(nir_builder *b, nir_intrinsic_instr *instr, bool deref, bool is_load
       nir_def *sample = instr->src[2].ssa;
       nir_def *samples = nir_image_samples(b, 32, instr->src[0].ssa,
                                            .image_array = is_array, .image_dim = dim);
-      if (deref) {
-         nir_def_as_intrinsic(samples)->intrinsic =
-            nir_intrinsic_image_deref_samples;
+
+      switch (type) {
+      case nir_image_intrinsic_type_default:
+         nir_def_as_intrinsic(samples)->intrinsic = nir_intrinsic_image_samples;
+         break;
+      case nir_image_intrinsic_type_deref:
+         nir_def_as_intrinsic(samples)->intrinsic = nir_intrinsic_image_deref_samples;
+         break;
+      case nir_image_intrinsic_type_heap:
+         nir_def_as_intrinsic(samples)->intrinsic = nir_intrinsic_image_heap_samples;
+         break;
+      default:
+         UNREACHABLE("Invalid NIR image intrinsic type");
       }
 
       in_bounds = nir_iand(b, in_bounds, nir_ult(b, sample, samples));
@@ -203,21 +257,20 @@ lower(nir_builder *b, nir_intrinsic_instr *intr, void *_opts)
 
    switch (intr->intrinsic) {
    case nir_intrinsic_image_load:
-      lower_image(b, intr, false, true);
+   case nir_intrinsic_image_deref_load:
+   case nir_intrinsic_image_heap_load:
+      lower_image(b, intr, image_intrinsic_type(intr->intrinsic), true);
       return true;
    case nir_intrinsic_image_store:
    case nir_intrinsic_image_atomic:
    case nir_intrinsic_image_atomic_swap:
-      lower_image(b, intr, false, false);
-      return true;
-
-   case nir_intrinsic_image_deref_load:
-      lower_image(b, intr, true, true);
-      return true;
    case nir_intrinsic_image_deref_store:
    case nir_intrinsic_image_deref_atomic:
    case nir_intrinsic_image_deref_atomic_swap:
-      lower_image(b, intr, true, false);
+   case nir_intrinsic_image_heap_store:
+   case nir_intrinsic_image_heap_atomic:
+   case nir_intrinsic_image_heap_atomic_swap:
+      lower_image(b, intr, image_intrinsic_type(intr->intrinsic), false);
       return true;
 
    case nir_intrinsic_load_ubo:
