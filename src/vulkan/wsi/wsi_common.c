@@ -3524,6 +3524,22 @@ wsi_device_supports_explicit_sync(struct wsi_device *device)
        VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT);
 }
 
+/**
+ * Returns true if an enabled WSI surface extension supports
+ * VK_GOOGLE_display_timing, and none of the enabled surfaces *don't* support it
+ * (since the device extension lacks per-surface feature flags)
+ */
+bool
+wsi_instance_supports_google_display_timing(struct vk_instance *instance)
+{
+   return instance->enabled_extensions.KHR_display &&
+          !(instance->enabled_extensions.EXT_headless_surface ||
+            instance->enabled_extensions.KHR_android_surface ||
+            instance->enabled_extensions.KHR_wayland_surface ||
+            instance->enabled_extensions.KHR_xcb_surface ||
+            instance->enabled_extensions.KHR_xlib_surface);
+}
+
 VKAPI_ATTR void VKAPI_CALL
 wsi_SetHdrMetadataEXT(VkDevice device, uint32_t swapchainCount,
                       const VkSwapchainKHR* pSwapchains,

@@ -46,6 +46,10 @@
 #include "tu_tracepoints.h"
 #include "tu_wsi.h"
 
+#ifdef TU_WSI_PLATFORM
+#include "wsi_common.h"
+#endif
+
 #if DETECT_OS_ANDROID
 #include <vndk/hardware_buffer.h>
 #endif
@@ -385,6 +389,9 @@ get_device_extensions(const struct tu_physical_device *device,
       .ANDROID_native_buffer = has_gralloc,
       .ARM_rasterization_order_attachment_access = true,
       .GOOGLE_decorate_string = true,
+#ifdef TU_USE_WSI_PLATFORM
+      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(&device->instance->vk),
+#endif
       .GOOGLE_hlsl_functionality1 = true,
       .GOOGLE_user_type = true,
       .IMG_filter_cubic = device->info->props.has_tex_filter_cubic,

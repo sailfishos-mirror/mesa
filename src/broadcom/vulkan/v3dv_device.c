@@ -105,6 +105,7 @@ v3dv_EnumerateInstanceVersion(uint32_t *pApiVersion)
     defined(VK_USE_PLATFORM_XLIB_KHR) ||    \
     defined(VK_USE_PLATFORM_DISPLAY_KHR)
 #define V3DV_USE_WSI_PLATFORM
+#include "wsi_common.h"
 #endif
 
 static const struct vk_instance_extension_table instance_extensions = {
@@ -261,6 +262,9 @@ get_device_extensions(const struct v3dv_physical_device *device,
       .EXT_texel_buffer_alignment           = true,
       .EXT_tooling_info                     = true,
       .EXT_vertex_attribute_divisor         = true,
+#ifdef V3DV_USE_WSI_PLATFORM
+      .GOOGLE_display_timing = wsi_instance_supports_google_display_timing(device->vk.instance),
+#endif
    };
 #if DETECT_OS_ANDROID
    struct u_gralloc *gralloc = vk_android_get_ugralloc();
