@@ -1879,6 +1879,17 @@ wsi_display_surface_error(struct wsi_display_swapchain *swapchain, VkResult resu
    mtx_unlock(&swapchain->present_id_mutex);
 }
 
+/**
+ * libdrm callback for when we get a DRM_EVENT_PAGE_FLIP in response to our
+ * atomic commit with DRM_MODE_PAGE_FLIP_EVENT.  That event can happen at any
+ * point after vblank, when the old image is no longer being scanned out and
+ * that commit is set up to be scanned out next.
+ *
+ * This means that we can queue up a new atomic commit, if there were presents
+ * that we hadn't submitted yet (the event queue is driven by
+ * wsi_display_wait_thread(), so that's what ends up submitting atomic commits
+ * most of the time).
+ **/
 static void
 wsi_display_page_flip_handler2(int fd,
                                unsigned int frame,
@@ -1923,6 +1934,11 @@ static void wsi_display_vblank_handler(int fd, unsigned int frame,
    wsi_display_fence_event_handler(fence);
 }
 
+/**
+ * libdrm callback for when we get a DRM_EVENT_CRTC_SEQUENCE in response to a
+ * drmCrtcQueueSequence(), indicating that the first pixel of a new frame is
+ * being scanned out.
+ **/
 static void wsi_display_sequence_handler(int fd, uint64_t frame,
                                          uint64_t nsec, uint64_t user_data)
 {
