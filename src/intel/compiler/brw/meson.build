@@ -107,6 +107,8 @@ libintel_compiler_brw_files = files(
   'brw_simd_selection.cpp',
   'brw_thread_payload.cpp',
   'brw_thread_payload.h',
+  'brw_to_binary.cpp',
+  'brw_to_binary.h',
   'brw_validate.cpp',
   'brw_vue_map.c',
   'brw_workaround.cpp',
