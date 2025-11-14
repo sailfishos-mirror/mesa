@@ -141,6 +141,111 @@ typedef struct gen_validate_params {
 bool gen_validate(gen_validate_params *params);
 
 
+typedef enum gen_print_flags {
+   GEN_PRINT_NONE = 0,
+
+   /* Don't omit regions, types and other values that can be inferred. */
+   GEN_PRINT_VERBOSE = 1 << 0,
+
+   /* Print translated operations like LOAD and STORE instead of raw SENDs,
+    * as the opcode.
+    */
+   GEN_PRINT_TRANSLATED_SENDS = 1 << 1,
+
+   /* Prefix each instruction with address_base + encoded byte offset.
+    * Requires raw_bytes so the instruction layout can be scanned.
+    */
+   GEN_PRINT_BYTE_OFFSETS = 1 << 2,
+
+   /* Prefix each instruction with a hex dump of its encoded bytes.
+    * Requires raw_bytes so the instruction layout can be scanned.
+    */
+   GEN_PRINT_HEX = 1 << 3,
+
+   /* Suppress folding of environment-driven flags (e.g. INTEL_DEBUG=hex
+    * implies GEN_PRINT_HEX) into the effective flags.
+    */
+   GEN_PRINT_IGNORE_ENV = 1 << 4,
+} gen_print_flags;
+
+typedef struct gen_print_params {
+   const struct intel_device_info *devinfo;
+
+   /* When NULL, uses stderr. */
+   FILE *fp;
+
+   gen_print_flags flags;
+
+   /* Optional decoded instructions to print.  When NULL, gen_print() decodes
+    * raw_bytes internally and prints the decoded program.
+    */
+   gen_inst *insts;
+   int       num_insts;
+
+   /* Optional errors to print inline.  When NULL and validate is true,
+    * gen_print() validates the instruction stream it prints and emits the
+    * resulting errors inline.
+    */
+   const gen_error *errors;
+   int              num_errors;
+
+   /* Optional per-instruction information.  When non-NULL, the array
+    * must have `num_insts` elements.
+    */
+   const char *const *annotations;
+
+   /* Optional per-label information keyed by instruction index.  When
+    * non-NULL, the array must have `num_insts` elements.
+    *
+    * If the instruction index already has a label, the text is printed inline
+    * with the label.  Otherwise it is printed as an extra annotation before
+    * the instruction.
+    */
+   const char *const *label_annotations;
+
+   /* Optional raw encoded bytes for the program being printed.  When
+    * non-NULL, gen_print() uses them to determine instruction layout for
+    * compacted annotations and byte-offset prefixes.  When insts is NULL,
+    * raw_bytes is decoded internally.
+    */
+   const void *raw_bytes;
+   int         raw_bytes_size;
+
+   /* Validate the instruction stream being printed when errors is NULL.
+    * Internally generated validation errors are printed inline and are not
+    * returned to the caller.
+    */
+   bool validate;
+
+   /* Passed through to gen_decode() when decoding raw_bytes internally. */
+   bool program_subset;
+
+   /* Base address used by GEN_PRINT_BYTE_OFFSETS. */
+   uint64_t address_base;
+} gen_print_params;
+
+bool gen_print(gen_print_params *params);
+
+void gen_print_inst(const struct intel_device_info *devinfo,
+                    FILE *fp,
+                    const gen_inst *inst,
+                    gen_print_flags flags);
+
+/* Print a software scoreboard annotation in the canonical
+ * "<pipe>@<regdist> $<sbid>[.dst|.src]" form.  No brackets, no leading or
+ * trailing whitespace; nothing is printed when \p swsb has neither a RegDist
+ * nor an SBID dependency.
+ *
+ * When \p devinfo is non-NULL and the platform has a single in-order pipe
+ * (verx10 < 125), the pipe letter is suppressed.  When \p devinfo is NULL the
+ * pipe letter is always emitted.
+ */
+void gen_print_swsb(const struct intel_device_info *devinfo,
+                    FILE *fp, gen_swsb swsb);
+
+const char *gen_opcode_to_string(gen_opcode op);
+
+
 gen_lsc_desc gen_lsc_desc_decode(const struct intel_device_info *devinfo,
                                  uint32_t desc);
 
