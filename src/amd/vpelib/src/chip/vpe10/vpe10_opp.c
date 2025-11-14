@@ -33,13 +33,13 @@
 #define CTX      vpe10_opp
 
 static struct opp_funcs opp_funcs = {
-    .program_pipe_control        = vpe10_opp_program_pipe_control,
-    .program_pipe_crc            = vpe10_opp_program_pipe_crc,
     .set_clamping                = vpe10_opp_set_clamping,
-    .program_bit_depth_reduction = vpe10_opp_program_bit_depth_reduction,
     .set_dyn_expansion           = vpe10_opp_set_dyn_expansion,
+    .program_bit_depth_reduction = vpe10_opp_program_bit_depth_reduction,
     .program_fmt                 = vpe10_opp_program_fmt,
     .program_fmt_control         = vpe10_opp_program_fmt_control,
+    .program_pipe_control        = vpe10_opp_program_pipe_control,
+    .program_pipe_crc            = vpe10_opp_program_pipe_crc,
 };
 
 void vpe10_construct_opp(struct vpe_priv *vpe_priv, struct opp *opp)
