@@ -138,6 +138,9 @@ typedef struct shader_info {
    /** Bitfield of which textures are used by texelFetch() */
    BITSET_DECLARE(textures_used_by_txf, 128);
 
+   /** Bitfield of which textures are texel buffers */
+   BITSET_DECLARE(texture_buffers, 128);
+
    /** Bitfield of which samplers are used */
    BITSET_DECLARE(samplers_used, 32);
 

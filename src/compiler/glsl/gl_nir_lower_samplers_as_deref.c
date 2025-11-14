@@ -247,6 +247,14 @@ record_textures_used(struct shader_info *info,
       BITSET_SET_COUNT(info->textures_used_by_txf, var->data.binding,
                       MAX2(size, 1));
    }
+
+   enum glsl_sampler_dim sampler_dim =
+      glsl_get_sampler_dim(glsl_without_array(var->type));
+   if (sampler_dim == GLSL_SAMPLER_DIM_BUF) {
+      BITSET_SET_RANGE(info->texture_buffers, var->data.binding,
+                       var->data.binding + (MAX2(size, 1) - 1));
+   }
+
 }
 
 static void
