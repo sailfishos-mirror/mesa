@@ -19,6 +19,25 @@
 extern "C" {
 #endif
 
+/* Finish structured control flow instructions by filling in any missing
+ * JIPs and UIPs.
+ *
+ * Any JIPs or UIPs already set by the caller must be relative byte
+ * offsets, and will be respected as-is.
+ *
+ * The caller must ensure that the JIP for WHILE instructions is set.
+ * It represents the "back-edge" and can't be inferred since there's no
+ * DO instruction marking the start of a loop.
+ *
+ * Any other JIPs and UIPs will be inferred from the structure of the
+ * program and filled in as relative byte offsets.
+ *
+ * If a final_halt_idx is provided, that will act as a final synchronization
+ * point for the halts and JIPs filled in the instructions.
+ */
+bool gen_finish_structured_cf(gen_inst *insts, int num_insts, int final_halt_idx);
+
+
 typedef struct gen_encode_params {
    const struct intel_device_info *devinfo;
 
