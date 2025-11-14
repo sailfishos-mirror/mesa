@@ -246,6 +246,26 @@ void gen_print_swsb(const struct intel_device_info *devinfo,
 const char *gen_opcode_to_string(gen_opcode op);
 
 
+typedef struct gen_parse_params {
+   const struct intel_device_info *devinfo;
+
+   const char *text;
+   int         text_size;
+
+   /* Must be non-NULL, used for allocating `insts` and `errors`. */
+   void *mem_ctx;
+
+   gen_inst *insts;
+   int       num_insts;
+
+   /* For parse errors, `index` is the 1-based input line number. */
+   gen_error *errors;
+   int        num_errors;
+} gen_parse_params;
+
+bool gen_parse(gen_parse_params *params);
+
+
 gen_lsc_desc gen_lsc_desc_decode(const struct intel_device_info *devinfo,
                                  uint32_t desc);
 
