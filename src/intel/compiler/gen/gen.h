@@ -25,6 +25,8 @@ typedef struct gen_encode_params {
    /* Use compacted encoded form for all instructions that support it. */
    bool compact_all;
 
+   bool skip_validation;
+
    const gen_inst *insts;
    int             num_insts;
 
@@ -102,6 +104,22 @@ typedef struct gen_scan_raw_layout_params {
 } gen_scan_raw_layout_params;
 
 bool gen_scan_raw_layout(gen_scan_raw_layout_params *params);
+
+
+typedef struct gen_validate_params {
+   const struct intel_device_info *devinfo;
+
+   const gen_inst *insts;
+   int             num_insts;
+
+   /* Must be non-NULL, used for allocating `errors`. */
+   void *mem_ctx;
+
+   gen_error *errors;
+   int        num_errors;
+} gen_validate_params;
+
+bool gen_validate(gen_validate_params *params);
 
 
 gen_lsc_desc gen_lsc_desc_decode(const struct intel_device_info *devinfo,

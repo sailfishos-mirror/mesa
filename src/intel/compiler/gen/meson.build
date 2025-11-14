@@ -13,6 +13,7 @@ libintel_compiler_gen_files = files(
   'gen_names.c',
   'gen_encoding.cpp',
   'gen_encoding_pre_xe.cpp',
+  'gen_validate.cpp',
 )
 
 libintel_compiler_gen = static_library(
@@ -40,6 +41,7 @@ if with_tests
       'intel_compiler_gen_tests',
       files(
         'gen_encoding_test.cpp',
+        'gen_validate_test.cpp',
       ),
       include_directories : [inc_include, inc_src, inc_intel, inc_intel_compiler],
       cpp_args : ['-Werror=vla'],

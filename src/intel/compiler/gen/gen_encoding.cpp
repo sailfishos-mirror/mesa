@@ -1933,6 +1933,22 @@ gen_encode(gen_encode_params *params)
       return true;
    }
 
+   if (!params->skip_validation) {
+      gen_validate_params val_params = {
+         .devinfo   = devinfo,
+         .insts     = params->insts,
+         .num_insts = params->num_insts,
+         .mem_ctx   = params->mem_ctx,
+      };
+
+      /* Early return if is not valid. */
+      if (!gen_validate(&val_params)) {
+         params->errors     = val_params.errors;
+         params->num_errors = val_params.num_errors;
+         return false;
+      }
+   }
+
    const int required_size = params->num_insts * sizeof(gen_raw_inst);
 
    if (params->raw_bytes_size < required_size)
