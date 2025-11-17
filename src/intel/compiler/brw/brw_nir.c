@@ -2321,11 +2321,11 @@ brw_vectorize_lower_mem_access(nir_shader *nir,
       .cb_data = &cb_data,
    };
    OPT(nir_lower_mem_access_bit_sizes, &mem_access_options);
+   OPT(nir_lower_pack);
 
    while (progress) {
       progress = false;
 
-      OPT(nir_lower_pack);
       OPT(nir_opt_copy_prop);
       OPT(nir_opt_dce);
       OPT(nir_opt_cse);
