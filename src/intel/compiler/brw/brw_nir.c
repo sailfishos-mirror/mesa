@@ -2258,7 +2258,7 @@ brw_vectorize_lower_mem_access(nir_shader *nir,
                                const struct brw_compiler *compiler,
                                enum brw_robustness_flags robust_flags)
 {
-   bool progress = false;
+   UNUSED bool progress = false;
 
    nir_load_store_vectorize_options options = {
       .modes = nir_var_mem_ubo | nir_var_mem_ssbo |
@@ -2322,16 +2322,10 @@ brw_vectorize_lower_mem_access(nir_shader *nir,
    };
    OPT(nir_lower_mem_access_bit_sizes, &mem_access_options);
    OPT(nir_lower_pack);
-
-   while (progress) {
-      progress = false;
-
-      OPT(nir_opt_copy_prop);
-      OPT(nir_opt_dce);
-      OPT(nir_opt_cse);
-      OPT(nir_opt_algebraic);
-      OPT(nir_opt_constant_folding);
-   }
+   OPT(nir_opt_copy_prop);
+   OPT(nir_opt_dce);
+   OPT(nir_opt_algebraic);
+   OPT(nir_opt_cse);
 
    /* Do this after the vectorization & brw_nir_rebase_const_offset_ubo_loads
     * so that we maximize the offset put into the messages.
