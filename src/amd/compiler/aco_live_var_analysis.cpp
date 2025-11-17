@@ -690,6 +690,7 @@ update_vgpr_sgpr_demand(Program* program, RegisterDemand new_demand)
       program->num_waves = 0;
       program->max_reg_demand = new_demand;
    } else {
+      RegisterDemand temp_demand = new_demand;
       new_demand.update(program->fixed_reg_demand);
 
       program->num_waves = program->dev.physical_sgprs / get_sgpr_alloc(program, new_demand.sgpr);
@@ -699,8 +700,21 @@ update_vgpr_sgpr_demand(Program* program, RegisterDemand new_demand)
          std::min<uint16_t>(program->num_waves, program->dev.physical_vgprs / vgpr_demand);
       program->num_waves = std::min(program->num_waves, program->dev.max_waves_per_simd);
 
-      /* Adjust for LDS and workgroup multiples and calculate max_reg_demand */
+      /* Adjust for LDS, workgroup multiples and callee ABI, and calculate max_reg_demand */
       program->num_waves = max_suitable_waves(program, program->num_waves);
+      if (program->is_callee) {
+         /* Decrease waves to reduce the chances of needing preserved VGPRs. */
+         std::pair<int, unsigned> best(INT_MIN, program->num_waves);
+         for (; program->num_waves > program->min_waves; program->num_waves--) {
+            program->max_reg_demand = get_addr_regs_from_waves(program, program->num_waves);
+            RegisterDemand clobbered = program->callee_abi.numClobbered(program->max_reg_demand);
+            std::pair<int, unsigned> val(MIN2(clobbered.vgpr - temp_demand.vgpr, 0),
+                                         program->num_waves);
+            if (val > best)
+               best = val;
+         }
+         program->num_waves = best.second;
+      }
       program->max_reg_demand = get_addr_regs_from_waves(program, program->num_waves);
    }
 }

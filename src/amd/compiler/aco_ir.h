@@ -1155,6 +1155,23 @@ struct ABI {
          gpr_offset = end + block_size.clobbered_size.vgpr;
       }
    }
+
+   RegisterDemand numClobbered(RegisterDemand reg_limit) const
+   {
+      RegisterDemand clobbered_regs;
+
+      unsigned stride = block_size.clobbered_size.vgpr + block_size.preserved_size.vgpr;
+      int clobbered_start = block_size.clobbered_first ? 0 : block_size.preserved_size.vgpr;
+      clobbered_regs.vgpr = (reg_limit.vgpr / stride) * block_size.clobbered_size.vgpr;
+      clobbered_regs.vgpr += std::max((int)(reg_limit.vgpr % stride) - clobbered_start, 0);
+
+      stride = block_size.clobbered_size.sgpr + block_size.preserved_size.sgpr;
+      clobbered_start = block_size.clobbered_first ? 0 : block_size.preserved_size.sgpr;
+      clobbered_regs.sgpr = (reg_limit.sgpr / stride) * block_size.clobbered_size.sgpr;
+      clobbered_regs.sgpr += std::max((int)(reg_limit.sgpr % stride) - clobbered_start, 0);
+
+      return clobbered_regs;
+   }
 };
 
 static constexpr ABI rtRaygenABI = {
