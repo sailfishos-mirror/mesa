@@ -251,7 +251,7 @@ pan_get_max_texel_buffer_elements(unsigned arch)
       /* TODO 1<<27 can be made larger for v11+ with a refactor of the buffer
        * path away from using image logic. */
       return 1 << 27;
-   else if (arch >= 9)
+   else if (arch >= 6)
       return 1 << 27;
    else
       return 65536;
