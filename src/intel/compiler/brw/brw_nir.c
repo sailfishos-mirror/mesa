@@ -2656,11 +2656,11 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
    }
 
    OPT(brw_nir_lower_fsign);
+   OPT(brw_nir_opt_fsat);
 
    do {
       progress = false;
 
-      OPT(brw_nir_opt_fsat);
       OPT(nir_opt_algebraic_late);
 
       if (progress) {
