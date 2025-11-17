@@ -2809,11 +2809,8 @@ brw_postprocess_nir_out_of_ssa(nir_shader *nir,
    }
 
    OPT(nir_convert_from_ssa, true, true);
-
+   OPT(nir_opt_rematerialize_compares);
    OPT(nir_opt_dce);
-
-   if (OPT(nir_opt_rematerialize_compares))
-      OPT(nir_opt_dce);
 
    nir_trivialize_registers(nir);
 
