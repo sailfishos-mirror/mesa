@@ -450,6 +450,11 @@ VkResult anv_CreateDevice(
       goto fail_device;
    }
 
+   if (intel_virtio_init_fd(device->fd) < 0) {
+      result = VK_ERROR_INCOMPATIBLE_DRIVER;
+      goto fail_fd;
+   }
+
    switch (device->info->kmd_type) {
    case INTEL_KMD_TYPE_I915:
       device->vk.check_status = anv_i915_device_check_status;
@@ -463,7 +468,11 @@ VkResult anv_CreateDevice(
 
    device->vk.copy_sync_payloads = vk_drm_syncobj_copy_payloads;
    device->vk.command_buffer_ops = &anv_cmd_buffer_ops;
-   vk_device_set_drm_fd(&device->vk, device->fd);
+
+   if (physical_device->info.is_virtio)
+      device->vk.sync = intel_virtio_sync_provider(device->fd);
+   else
+      vk_device_set_drm_fd(&device->vk, device->fd);
 
    uint32_t num_queues = 0;
    for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; i++)
@@ -1148,6 +1157,7 @@ VkResult anv_CreateDevice(
  fail_context_id:
    anv_device_destroy_context_or_vm(device);
  fail_fd:
+   intel_virtio_unref_fd(device->fd);
    close(device->fd);
  fail_device:
    vk_device_finish(&device->vk);

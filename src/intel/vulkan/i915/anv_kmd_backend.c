@@ -183,10 +183,17 @@ i915_gem_mmap_offset(struct anv_device *device, struct anv_bo *bo,
    /* The Kernel uAPI doesn't allow us to map with an offset. To work around,
     * overallocate and then unmap the unneeded region
     */
-   void *ptr = mmap(placed_addr, offset + size,
-                    PROT_READ | PROT_WRITE,
-                    (placed_addr != NULL ? MAP_FIXED : 0) | MAP_SHARED,
-                    device->fd, gem_mmap.offset);
+   void *ptr;
+
+   if (device->physical->info.is_virtio)
+      ptr = intel_virtio_bo_mmap(device->fd, bo->gem_handle,
+                                 offset + size, placed_addr);
+   else
+      ptr = mmap(placed_addr, offset + size,
+                 PROT_READ | PROT_WRITE,
+                 (placed_addr != NULL ? MAP_FIXED : 0) | MAP_SHARED,
+                 device->fd, gem_mmap.offset);
+
    if (ptr == MAP_FAILED)
       return ptr;
 
