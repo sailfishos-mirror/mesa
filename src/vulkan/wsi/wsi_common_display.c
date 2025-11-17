@@ -192,7 +192,15 @@ struct wsi_display {
 
    const VkAllocationCallbacks  *alloc;
 
+   /* fd currently in use for KHR_display, provided by vkAcquireDrmDisplayEXT()
+    * or vkAcquireXlibDisplayEXT().  When none is active, it's set to device_fd
+    * for connector enumeration.
+    */
    int                          fd;
+   /* fd that was passed to wsi_display_init_wsi */
+   int                          device_fd;
+   /* Refcount for DRM master on device_fd. */
+   uint32_t                     master_refcount;
 
    /* Used with syncobj imported from driver side. */
    int                          syncobj_fd;
@@ -1729,12 +1737,54 @@ wsi_display_image_finish(struct wsi_swapchain *drv_chain,
    wsi_destroy_image(&chain->base, &image->base);
 }
 
+/** Re-acquires DRM master privileges for the device_fd as necessary.
+ *
+ * We have to refcount, because an oldSwapchain can be freed after a new
+ * swapchain is created.
+ */
+static int
+wsi_display_get_master(struct wsi_display *wsi)
+{
+   if (wsi->fd != wsi->device_fd)
+      return 0;
+
+   if (wsi->master_refcount++ == 0) {
+      int ret = drmSetMaster(wsi->fd);
+      if (ret != 0) {
+         wsi_display_debug("drm fd %d failed to re-set master: %s", wsi->fd, strerror(-errno));
+         wsi->master_refcount--;
+         return ret;
+      }
+      wsi_display_debug("drm fd %d got master", wsi->fd);
+   }
+
+   return 0;
+}
+
+static int
+wsi_display_drop_master(struct wsi_display *wsi)
+{
+   if (wsi->fd != wsi->device_fd)
+      return 0;
+
+   if (--wsi->master_refcount == 0) {
+      int ret = drmDropMaster(wsi->fd);
+      if (ret != 0) {
+         wsi_display_debug("drm fd %d failed to drop master: %s", wsi->fd, strerror(-errno));
+      }
+      wsi_display_debug("drm fd %d dropped master", wsi->fd);
+   }
+
+   return 0;
+}
+
 static VkResult
 wsi_display_swapchain_destroy(struct wsi_swapchain *drv_chain,
                               const VkAllocationCallbacks *allocator)
 {
    struct wsi_display_swapchain *chain =
       (struct wsi_display_swapchain *) drv_chain;
+   struct wsi_display *wsi = chain->wsi;
 
    _wsi_display_cleanup_state(chain);
 
@@ -1750,6 +1800,8 @@ wsi_display_swapchain_destroy(struct wsi_swapchain *drv_chain,
       display_mode->connector->crtc_id = 0;
 
    wsi_swapchain_finish(&chain->base);
+
+   wsi_display_drop_master(wsi);
 
    vk_free(allocator, chain);
    return VK_SUCCESS;
@@ -2852,6 +2904,11 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
          return VK_ERROR_SURFACE_LOST_KHR;
       }
 
+      if (!drmIsMaster(wsi->fd)) {
+         wsi_display_debug("drm_atomic_commit without DRM master\n");
+         wsi_display_surface_error(chain, VK_ERROR_SURFACE_LOST_KHR);
+      }
+
       /* Some other VT is currently active. Sit here waiting for
        * our VT to become active again by polling once a second
        */
@@ -3031,12 +3088,22 @@ wsi_display_surface_create_swapchain(
       image_params.num_modifiers = &num_modifiers;
    }
 
+   /* Set master, so that we can do modesets when we're using wsi->device_fd
+    * that had previously had master dropped.
+    */
+   ret = wsi_display_get_master(wsi);
+   if (ret != 0) {
+      wsi_display_debug("Failed to get DRM master: %s", strerror(ret));
+      result = VK_ERROR_DEVICE_LOST;
+      goto fail_cond_destroy;
+   }
+
    result = wsi_swapchain_init(wsi_device, &chain->base, device,
                                create_info, &image_params.base,
                                allocator);
    free((void *)modifiers);
    if (result != VK_SUCCESS)
-      goto fail_cond_destroy;
+      goto fail_drop_master;
 
    chain->base.destroy = wsi_display_swapchain_destroy;
    chain->base.get_wsi_image = wsi_display_get_wsi_image;
@@ -3091,6 +3158,9 @@ wsi_display_surface_create_swapchain(
 
 fail_swapchain_fini:
    wsi_swapchain_finish(&chain->base);
+fail_drop_master:
+   if (wsi->fd == wsi->device_fd)
+      wsi_display_drop_master(wsi);
 fail_cond_destroy:
    u_cnd_monotonic_destroy(&chain->present_id_cond);
 fail_mtx_destroy:
@@ -3223,10 +3293,29 @@ wsi_display_init_wsi(struct wsi_device *wsi_device,
    if (wsi->fd != -1 && !local_drmIsMaster(wsi->fd))
       wsi->fd = -1;
 
+   /* wsi->fd will get modified as part of vkAcquireDRMDisplayEXT() and
+    * vkReleaseDisplay(), but we need to keep it around for the
+    * device-equivalence check in vkAcquireDRMDisplayEXT.
+    */
+   wsi->device_fd = wsi->fd;
+
    wsi->syncobj_fd = wsi->fd;
 
-   if (wsi->fd >= 0)
+   if (wsi->fd >= 0) {
       drmSetClientCap(wsi->fd, DRM_CLIENT_CAP_ATOMIC, 1);
+      /* Drop master, so that others (vkAcquireDRMDisplayEXT, KMS-native
+       * compositors after a VT switch) can get master when they open.
+       */
+      int ret = drmDropMaster(wsi->fd);
+      if (ret != 0) {
+         /* Leave a debug note, but ignore it -- if you ask for KHR_display, and
+          * are the second client (not master), but can later acquire a master
+          * fd by whatever means (systemd-logind, whatever), that should be
+          * allowed.
+          */
+         wsi_display_debug("wsi_display_init_wsi: drm fd %d failed to drop master", wsi->fd);
+      }
+   }
 
    wsi->alloc = alloc;
 
@@ -3318,8 +3407,10 @@ wsi_ReleaseDisplayEXT(VkPhysicalDevice physicalDevice,
    if (wsi->fd >= 0) {
       wsi_display_stop_wait_thread(wsi);
 
-      close(wsi->fd);
-      wsi->fd = -1;
+      /* Only close if we have an active drmFd passed in from an Acquire. */
+      if (wsi->fd != wsi->device_fd)
+         close(wsi->fd);
+      wsi->fd = wsi->device_fd;
    }
 
    wsi_display_connector_from_handle(display)->active = false;
@@ -3741,8 +3832,10 @@ wsi_AcquireXlibDisplayEXT(VkPhysicalDevice physicalDevice,
       wsi_display_connector_from_handle(display);
    xcb_window_t root;
 
-   /* XXX no support for multiple leases yet */
-   if (wsi->fd >= 0)
+   /* XXX no support for tracking the FD used for a particular VkDisplayKHR, so
+    * make sure that we don't have an existing Acquire active.
+    */
+   if (wsi->fd >= 0 && wsi->fd != wsi->device_fd)
       return VK_ERROR_INITIALIZATION_FAILED;
 
    if (!connector->output) {
@@ -4061,9 +4154,39 @@ wsi_AcquireDrmDisplayEXT(VkPhysicalDevice physicalDevice,
    struct wsi_display *wsi =
       (struct wsi_display *) wsi_device->wsi[VK_ICD_WSI_PLATFORM_DISPLAY];
 
-   /* XXX no support for mulitple leases yet */
-   if (wsi->fd >= 0 || !local_drmIsMaster(drmFd))
+   /* "The provided drmFd must correspond to the one owned by the
+    *  physicalDevice.  If not, the error code VK_ERROR_UNKNOWN must be returned.
+    *  The DRM FD must have DRM mast⁠er permissions.  If any error is encountered
+    *  during the acquisition of the display, the call must return the error code
+    *  VK_ERROR_INITIALIZATION_FAILED."
+    *
+    * Since the wsi->fd will only be set to a master fd, we just check if they
+    * provided an fd that matches the device's, and treat the "DRM fd must have
+    * DRM master permissions" as referring to the physicalDevice's.
+    */
+   if (wsi->fd >= 0) {
+      struct stat in_stat = {0}, wsi_stat = {0};
+      if (fstat(drmFd, &in_stat) != 0 ||
+          fstat(wsi->device_fd, &wsi_stat) != 0 ||
+          in_stat.st_dev != wsi_stat.st_dev ||
+          in_stat.st_rdev != wsi_stat.st_rdev) {
+         wsi_display_debug("vkAcquireDRMDisplayEXT(rdev=%d/%d) vs wsi->fd rdev=%d/%d\n",
+            major(in_stat.st_dev), minor(in_stat.st_dev),
+            major(wsi_stat.st_rdev), minor(wsi_stat.st_rdev));
+         return VK_ERROR_UNKNOWN;
+      }
+
+      /* XXX no support for tracking the FD used for a particular VkDisplayKHR, so
+       * make sure that we don't have an existing Acquire active.
+       */
+      if (wsi->fd != wsi->device_fd)
+         return VK_ERROR_INITIALIZATION_FAILED;
+   }
+
+   if (!local_drmIsMaster(drmFd)) {
+      wsi_display_debug("vkAcquireDRMDisplayEXT(drmFd=%d not master)\n", drmFd);
       return VK_ERROR_INITIALIZATION_FAILED;
+   }
 
    struct wsi_display_connector *connector =
          wsi_display_connector_from_handle(display);
