@@ -1133,7 +1133,7 @@ struct ABI {
    RegisterDemand max_param_demand;
 
    void preservedRegisters(BITSET_DECLARE(regs, 512),
-                           RegisterDemand reg_limit = RegisterDemand(256, 256)) const
+                           RegisterDemand reg_limit = RegisterDemand(256, 128)) const
    {
       unsigned size = DIV_ROUND_UP(512, BITSET_WORDBITS) * sizeof(BITSET_WORD);
       memset(regs, 0, size);
