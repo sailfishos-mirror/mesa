@@ -112,6 +112,7 @@ Linux, FreeBSD, and other operating systems.
    rust
    releasing
    release-calendar
+   graphics-debugging/debugging-misrenderings-crashes
    dispatch
    gallium/index
    vulkan/index

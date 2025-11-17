@@ -300,6 +300,8 @@ management and command stream generation.
 
    freedreno/*
 
+.. _freedreno-gpu-devcoredump:
+
 GPU devcoredump
 ^^^^^^^^^^^^^^^^^^
 
@@ -461,6 +463,8 @@ More examples:
 .. code-block:: sh
 
   ./replay --override=0 test_replay.rd
+
+.. _freedreno-editing-command-stream:
 
 Editing Command Stream (a6xx+)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
