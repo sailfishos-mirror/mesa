@@ -2192,12 +2192,102 @@ i915 driver environment variables
 
    Dump all commands going to the hardware.
 
+Turnip driver environment variables
+-----------------------------------
+
+.. envvar:: TU_DEBUG
+
+   A comma-separated list of named flags for the Turnip driver:
+
+   ``nobin``
+      Disable hardware binning.
+   ``sysmem``
+      Force sysmem rendering.
+   ``gmem``
+      Force gmem rendering.
+   ``forcebin``
+      Force hardware binning.
+   ``noubwc``
+      Disable UBWC compression.
+   ``perfc``
+      Enable ``VK_KHR_performance_query`` support.
+   ``nolrz``
+      Disable LRZ.
+   ``nolrzfc``
+      Disable LRZ fast-clear.
+   ``flushall``
+      Flush all caches before each draw, dispatch, blit, etc.
+   ``syncdraw``
+      Wait for GPU to finish after each draw, dispatch, blit, etc.
+   ``rast_order``
+      Force enable rast order access as described in ``VK_EXT_rasterization_order_attachment_access``.
+   ``unaligned_store``
+      Force all GMEM stores to be unaligned.
+   ``dynamic``
+      Force translate old renderpasses into dynamic renderpasses.
+   ``3d_load``
+      Force GMEM loads via 3D engine.
+   ``fdm``
+      Force enable fragment density map for all renderpasses.
+   ``noconcurrentresolves``
+      Disable concurrent resolves.
+   ``noconcurrentunresolves``
+      Disable concurrent unresolves.
+   ``nobinmerging``
+      Disable bin merging (used for FDM).
+   ``perfcraw``
+      Enable raw performance counters.
+   ``fdmoffset``
+      Force enable FDM offset (set to 0).
+   ``check_cmd_buffer_status``
+      Check that command buffers are done executing on destruction.
+   ``nofdm``
+      Force disable FDM.
+   ``nocb``
+      Disable concurrent binning.
+   ``forcecb``
+      Force enable concurrent binning.
+
 Freedreno driver environment variables
 --------------------------------------
 
 .. envvar:: FD_MESA_DEBUG
 
    Debug flags for the Freedreno driver.
+
+IR3 shader debug environment variables
+--------------------------------------
+
+.. envvar:: IR3_SHADER_DEBUG
+
+   A comma-separated list of named flags for the IR3 shader compiler:
+
+   ``nouboopt``
+      Disable lowering UBO to uniform.
+   ``nofp16``
+      Don't lower mediump to fp16.
+   ``nocache``
+      Disable shader cache.
+   ``spillall``
+      Spill as much as possible to test the spiller.
+   ``nopreamble``
+      Disable the preamble pass.
+   ``fullsync``
+      Add (sy) + (ss) after each cat5/cat6.
+   ``fullnop``
+      Add nops before each instruction.
+   ``nopreamble``
+      Disable the preamble pass.
+   ``noearlypreamble``
+      Disable early preambles.
+   ``nodescprefetch``
+      Disable descriptor prefetch optimization.
+   ``expandrpt``
+      Expand rptN instructions.
+   ``noaliastex``
+      Don't use alias.tex
+   ``noaliasrt``
+      Don't use alias.rt
 
 ----
 
