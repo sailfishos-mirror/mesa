@@ -46,6 +46,8 @@ bool pan_nir_lower_xfb(nir_shader *nir);
 
 bool pan_nir_lower_image_index(nir_shader *shader,
                                unsigned vs_img_attrib_offset);
+bool pan_nir_lower_texel_buffer_fetch_index(nir_shader *shader,
+                                            unsigned attrib_offset);
 
 void pan_nir_lower_texture_early(nir_shader *nir, unsigned gpu_id);
 void pan_nir_lower_texture_late(nir_shader *nir, unsigned gpu_id);
