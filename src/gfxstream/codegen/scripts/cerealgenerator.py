@@ -554,7 +554,7 @@ using DlSymFunc = void* (void*, const char*);
 
         decoderHeaderIncludes = f"""
 #include "vk_decoder_context.h"
-#include "gfxstream/host/ProcessResources.h"
+#include "gfxstream/host/process_resources.h"
 
 #include <memory>
 
