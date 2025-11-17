@@ -238,6 +238,9 @@ emit_vgpr_spills_reloads(spill_preserved_ctx& ctx, Builder& bld,
       bld.sop1(aco_opcode::s_bitset0_b32, Definition(stack_reg, s1), Operand::c32(0),
                Operand(stack_reg, s1));
    }
+
+   if (!reload)
+      ctx.program->config->spilled_vgprs += spills.size();
 }
 
 void
@@ -261,6 +264,9 @@ emit_sgpr_spills_reloads(spill_preserved_ctx& ctx, std::vector<aco_ptr<Instructi
 
    insert_point = instructions.insert(insert_point, std::move_iterator(spill_instructions.begin()),
                                       std::move_iterator(spill_instructions.end()));
+
+   if (!reload)
+      ctx.program->config->spilled_sgprs += spills.size();
 }
 
 void
