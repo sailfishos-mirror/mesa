@@ -2655,12 +2655,13 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
       OPT(nir_opt_peephole_select, &peephole_select_options);
    }
 
+   OPT(brw_nir_lower_fsign);
+
    do {
       progress = false;
 
       OPT(brw_nir_opt_fsat);
       OPT(nir_opt_algebraic_late);
-      OPT(brw_nir_lower_fsign);
 
       if (progress) {
          OPT(nir_opt_constant_folding);
