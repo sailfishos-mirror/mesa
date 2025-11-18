@@ -1522,6 +1522,7 @@ struct Instruction {
 
    constexpr bool isVMEM() const noexcept { return isMTBUF() || isMUBUF() || isMIMG(); }
 
+   bool hasPrecoloredGPRs() const noexcept;
    bool accessesLDS() const noexcept;
    bool isTrans() const noexcept;
 };
@@ -1919,6 +1920,13 @@ struct Pseudo_call_instruction : public Instruction {
 };
 
 inline bool
+Instruction::hasPrecoloredGPRs() const noexcept
+{
+   return isCall() || opcode == aco_opcode::p_startpgm || opcode == aco_opcode::p_return ||
+          opcode == aco_opcode::p_end_with_regs || opcode == aco_opcode::p_jump_to_epilog;
+}
+
+inline bool
 Instruction::accessesLDS() const noexcept
 {
    return (isDS() && !ds().gds) || isLDSDIR() || isVINTRP();
@@ -2275,6 +2283,7 @@ public:
    std::vector<RegClass> temp_rc = {s1};
    RegisterDemand max_reg_demand = RegisterDemand();
    RegisterDemand max_call_spills = RegisterDemand();
+   RegisterDemand fixed_reg_demand = RegisterDemand();
    ac_shader_config* config;
    struct aco_shader_info info;
    enum amd_gfx_level gfx_level;

@@ -169,6 +169,27 @@ compute_live_out(live_ctx& ctx, Block* block)
    return live;
 }
 
+template <typename T>
+RegisterDemand
+get_demand_for_reg(live_ctx& ctx, T op_or_def)
+{
+   if (!op_or_def.isPrecolored())
+      return RegisterDemand();
+
+   PhysReg reg = op_or_def.physReg();
+   RegType type = op_or_def.regClass().type();
+
+   if (type == RegType::sgpr && reg >= ctx.program->dev.sgpr_limit)
+      return RegisterDemand();
+
+   PhysReg max_reg = reg.advance(op_or_def.regClass().bytes());
+
+   if (type == RegType::sgpr)
+      return RegisterDemand(0, max_reg);
+   else
+      return RegisterDemand(max_reg - 256, 0);
+}
+
 void
 process_live_temps_per_block(live_ctx& ctx, Block* block)
 {
@@ -191,6 +212,18 @@ process_live_temps_per_block(live_ctx& ctx, Block* block)
       Instruction* insn = block->instructions[idx].get();
       if (is_phi(insn))
          break;
+
+      /* Precolored operands may be fixed to a register higher than the current demand.
+       * Record the demand of precolored registers here.
+       */
+      if (insn->hasPrecoloredGPRs()) {
+         RegisterDemand precolored_demand = RegisterDemand();
+         for (Operand op : insn->operands)
+            precolored_demand.update(get_demand_for_reg(ctx, op));
+         for (Definition def : insn->definitions)
+            precolored_demand.update(get_demand_for_reg(ctx, def));
+         ctx.program->fixed_reg_demand.update(precolored_demand);
+      }
 
       ctx.program->needs_vcc |= instr_needs_vcc(insn);
       RegisterDemand demand_after_instr = RegisterDemand(new_demand.vgpr, new_demand.sgpr);
@@ -678,6 +711,7 @@ live_var_analysis(Program* program)
    program->live.live_in.resize(program->blocks.size(), IDSet(program->live.memory));
    program->max_reg_demand = RegisterDemand();
    program->max_call_spills = RegisterDemand();
+   program->fixed_reg_demand = RegisterDemand();
    program->needs_vcc = program->gfx_level >= GFX10;
 
    live_ctx ctx;
@@ -690,6 +724,8 @@ live_var_analysis(Program* program)
    while (ctx.worklist >= 0) {
       process_live_temps_per_block(ctx, &program->blocks[ctx.worklist--]);
    }
+
+   program->max_reg_demand.update(program->fixed_reg_demand);
 
    /* calculate the program's register demand and number of waves */
    if (program->progress < CompilationProgress::after_ra)
