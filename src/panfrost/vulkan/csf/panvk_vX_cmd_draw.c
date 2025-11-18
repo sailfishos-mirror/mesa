@@ -2338,7 +2338,7 @@ prepare_index_buffer(struct panvk_cmd_buffer *cmdbuf)
 
 static void
 set_tiler_idvs_flags(struct cs_builder *b, struct panvk_cmd_buffer *cmdbuf,
-                     struct panvk_draw_info *draw)
+                     const struct panvk_draw_info *draw)
 {
    const struct panvk_shader_variant *vs =
       panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
@@ -2409,7 +2409,7 @@ set_tiler_idvs_flags(struct cs_builder *b, struct panvk_cmd_buffer *cmdbuf,
 }
 
 static struct mali_primitive_flags_packed
-get_tiler_flags_override(struct panvk_draw_info *draw)
+get_tiler_flags_override(const struct panvk_draw_info *draw)
 {
    struct mali_primitive_flags_packed flags_override;
    /* Pack with nodefaults so only explicitly set override fields affect the
@@ -2422,7 +2422,8 @@ get_tiler_flags_override(struct panvk_draw_info *draw)
 }
 
 static VkResult
-prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
+prepare_draw(struct panvk_cmd_buffer *cmdbuf,
+             const struct panvk_draw_info *draw)
 {
    const struct panvk_shader_variant *vs =
       panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
@@ -2560,7 +2561,7 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
 
 static void
 update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
-                             struct panvk_draw_info *draw)
+                             const struct panvk_draw_info *draw)
 {
    struct cs_builder *b =
       panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_COMPUTE);
@@ -2652,7 +2653,8 @@ update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
 }
 
 static void
-launch_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
+launch_draw(struct panvk_cmd_buffer *cmdbuf,
+            const struct panvk_draw_info *draw)
 {
    const struct cs_tracing_ctx *tracing_ctx =
       &cmdbuf->state.cs[PANVK_SUBQUEUE_VERTEX_TILER].tracing;
@@ -2728,7 +2730,7 @@ launch_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
 
 static void
 launch_indirect_draw(struct panvk_cmd_buffer *cmdbuf,
-                     struct panvk_draw_info *draw)
+                     const struct panvk_draw_info *draw)
 {
    const struct cs_tracing_ctx *tracing_ctx =
       &cmdbuf->state.cs[PANVK_SUBQUEUE_VERTEX_TILER].tracing;
