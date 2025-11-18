@@ -147,33 +147,78 @@ set_to_table_img_copy(nir_builder *b, nir_def *set_ptr, nir_def *set_desc_count,
       nir_def *src_desc = nir_load_global(b, element_size / 4, 32,
                                           nir_iadd(b, set_ptr, src_offset),
                                           .align_mul = element_size);
-      nir_def *fmt = nir_iand_imm(b, nir_channel(b, src_desc, 2), 0xfffffc00);
+      nir_def *attr_buf_type =
+         nir_iand_imm(b, nir_channel(b, src_desc, 0), BITFIELD_MASK(5));
 
-      /* Each image descriptor takes two attribute buffer slots, and we need
-       * to add the attribute buffer offset to have images working with vertex
-       * shader. */
-      nir_def *buf_idx =
-         nir_iadd(b, nir_imul_imm(b, dst_desc_idx, 2), attr_buf_idx_offset);
+      /* Texel buffer */
+      nir_push_if(b, nir_ieq_imm(b, attr_buf_type, MALI_ATTRIBUTE_TYPE_1D));
+      {
+         nir_def *fmt_offsetenable =
+            nir_iand_imm(b, nir_channel(b, src_desc, 4), ~BITFIELD_MASK(9));
+         nir_def *buf_idx =
+            nir_iadd(b, nir_imul_imm(b, dst_desc_idx, 2), attr_buf_idx_offset);
+         nir_def *attrib_w1 = nir_ior(b, fmt_offsetenable, buf_idx);
+         nir_def *attrib_desc =
+            nir_vec2(b, attrib_w1, nir_channel(b, src_desc, 5));
 
-      nir_def *attrib_w1 = nir_ior(b, buf_idx, fmt);
+         nir_store_global(b, attrib_desc,
+                          nir_iadd(b, attrib_table_ptr, attrib_offset),
+                          .align_mul = pan_size(ATTRIBUTE),
+                          .write_mask = nir_component_mask(attrib_comps));
 
-      nir_def *attrib_desc = nir_vec2(b, attrib_w1, nir_imm_int(b, 0));
+         nir_const_value v[] = {
+            nir_const_value_for_uint(0, 32),
+            nir_const_value_for_uint(0, 32),
+            nir_const_value_for_uint(0, 32),
+            nir_const_value_for_uint(0, 32),
+         };
 
-      nir_store_global(b, attrib_desc,
-                       nir_iadd(b, attrib_table_ptr, attrib_offset),
-                       .align_mul = pan_size(ATTRIBUTE),
-                       .write_mask = nir_component_mask(attrib_comps));
+         nir_def *null_desc = nir_build_imm(b, attrib_buf_comps / 2, 32, v);
 
-      nir_def *attrib_buf_desc = nir_vec8(
-         b, nir_channel(b, src_desc, 0), nir_channel(b, src_desc, 1),
-         nir_iand_imm(b, nir_channel(b, src_desc, 2), BITFIELD_MASK(10)),
-         nir_channel(b, src_desc, 3), nir_channel(b, src_desc, 4),
-         nir_channel(b, src_desc, 5), nir_channel(b, src_desc, 6),
-         nir_channel(b, src_desc, 7));
-      nir_store_global(b, attrib_buf_desc,
-                       nir_iadd(b, attrib_buf_table_ptr, attrib_buf_offset),
-                       .align_mul = element_size,
-                       .write_mask = nir_component_mask(attrib_buf_comps));
+         nir_def *attrib_buf_desc = nir_vec8(
+            b, nir_channel(b, src_desc, 0), nir_channel(b, src_desc, 1),
+            nir_iand_imm(b, nir_channel(b, src_desc, 2), BITFIELD_MASK(10)),
+            nir_channel(b, src_desc, 3), nir_channel(b, null_desc, 0),
+            nir_channel(b, null_desc, 1), nir_channel(b, null_desc, 2),
+            nir_channel(b, null_desc, 3));
+         nir_store_global(b, attrib_buf_desc,
+                          nir_iadd(b, attrib_buf_table_ptr, attrib_buf_offset),
+                          .align_mul = element_size,
+                          .write_mask = nir_component_mask(attrib_buf_comps));
+      }
+      /* Image */
+      nir_push_else(b, NULL);
+      {
+         nir_def *fmt =
+            nir_iand_imm(b, nir_channel(b, src_desc, 2), 0xfffffc00);
+
+         /* Each image descriptor takes two attribute buffer slots, and we need
+          * to add the attribute buffer offset to have images working with
+          * vertex shader. */
+         nir_def *buf_idx =
+            nir_iadd(b, nir_imul_imm(b, dst_desc_idx, 2), attr_buf_idx_offset);
+
+         nir_def *attrib_w1 = nir_ior(b, buf_idx, fmt);
+
+         nir_def *attrib_desc = nir_vec2(b, attrib_w1, nir_imm_int(b, 0));
+
+         nir_store_global(b, attrib_desc,
+                          nir_iadd(b, attrib_table_ptr, attrib_offset),
+                          .align_mul = pan_size(ATTRIBUTE),
+                          .write_mask = nir_component_mask(attrib_comps));
+
+         nir_def *attrib_buf_desc = nir_vec8(
+            b, nir_channel(b, src_desc, 0), nir_channel(b, src_desc, 1),
+            nir_iand_imm(b, nir_channel(b, src_desc, 2), BITFIELD_MASK(10)),
+            nir_channel(b, src_desc, 3), nir_channel(b, src_desc, 4),
+            nir_channel(b, src_desc, 5), nir_channel(b, src_desc, 6),
+            nir_channel(b, src_desc, 7));
+         nir_store_global(b, attrib_buf_desc,
+                          nir_iadd(b, attrib_buf_table_ptr, attrib_buf_offset),
+                          .align_mul = element_size,
+                          .write_mask = nir_component_mask(attrib_buf_comps));
+      }
+      nir_pop_if(b, NULL);
    }
    nir_push_else(b, NULL);
    {
