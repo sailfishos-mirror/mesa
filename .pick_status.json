@@ -624,7 +624,7 @@
         "description": "dril: don't build a rocket_dri.so",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5b829658f74f8108fef7decf3fae5d317c85fd01",
         "notes": null
