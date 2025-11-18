@@ -1345,6 +1345,14 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
       for (uint32_t l = 0; l < level_count; l++) {
          uint32_t level = base_level + l;
 
+         /* We only support fast-clear on the first level. So, partial
+          * resolves should not be used on other subresources unless the image
+          * is using FCV_CCS_E.
+          */
+         if (level > 0 && resolve_op == ISL_AUX_OP_PARTIAL_RESOLVE &&
+             image->planes[plane].aux_usage != ISL_AUX_USAGE_FCV_CCS_E)
+            break;
+
          uint32_t aux_layers = anv_image_aux_layers(image, aspect, level);
          if (base_layer >= aux_layers)
             break; /* We will only get fewer layers as level increases */
