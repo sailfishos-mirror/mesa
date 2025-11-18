@@ -45,6 +45,9 @@ glx@glx-copy-sub-buffer.*
 dEQP-VK.api.get_device_proc_addr.non_enabled
 dEQP-VK.api.version_check.unavailable_entry_points
 
+# These require a DRM master connection, so we need https://gitlab.freedesktop.org/mesa/deqp-runner/-/issues/67
+dEQP-VK.wsi.direct_drm.*
+
 # These tests are flaking too much recently on almost all drivers, so better skip them until the cause is identified
 spec@arb_program_interface_query@arb_program_interface_query-getprogramresourceindex
 spec@arb_program_interface_query@arb_program_interface_query-getprogramresourceindex@'vs_input2[1][0]' on GL_PROGRAM_INPUT
