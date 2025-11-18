@@ -42,6 +42,8 @@ struct spill_preserved_ctx {
    /* Next linear VGPR lane to spill SGPRs to. */
    unsigned next_preserved_lane;
 
+   std::unordered_set<unsigned> input_temps;
+
    explicit spill_preserved_ctx(Program* program_)
        : program(program_), memory(), preserved_spill_offsets(memory), preserved_vgprs(memory),
          preserved_linear_vgprs(memory), preserved_spill_lanes(memory), preserved_sgprs(memory),
@@ -63,9 +65,12 @@ can_reload_at_instr(const aco_ptr<Instruction>& instr)
 
 void
 add_instr(spill_preserved_ctx& ctx, unsigned block_index, bool seen_reload,
-          const aco_ptr<Instruction>& instr, Instruction* startpgm)
+          const aco_ptr<Instruction>& instr)
 {
    for (auto& def : instr->definitions) {
+      if (ctx.input_temps.count(def.tempId()))
+         continue;
+
       assert(def.isFixed());
       /* Round down subdword registers to their base */
       PhysReg start_reg = PhysReg{def.physReg().reg()};
@@ -106,12 +111,11 @@ add_instr(spill_preserved_ctx& ctx, unsigned block_index, bool seen_reload,
 
       if (!op.isTemp())
          continue;
+
       /* Temporaries defined by startpgm are the preserved value - these uses don't need
        * any preservation.
        */
-      if (std::any_of(startpgm->definitions.begin(), startpgm->definitions.end(),
-                      [op](const auto& def)
-                      { return def.isTemp() && def.tempId() == op.tempId(); }))
+      if (ctx.input_temps.count(op.tempId()))
          continue;
 
       /* Round down subdword registers to their base */
@@ -366,7 +370,32 @@ emit_spills_reloads(spill_preserved_ctx& ctx, std::vector<aco_ptr<Instruction>>&
 void
 init_block_info(spill_preserved_ctx& ctx)
 {
-   Instruction* startpgm = ctx.program->blocks.front().instructions.front().get();
+   for (Block& block : ctx.program->blocks) {
+      for (aco_ptr<Instruction>& instr : block.instructions) {
+         if (instr->opcode == aco_opcode::p_startpgm) {
+            for (Definition def : instr->definitions)
+               ctx.input_temps.insert(def.tempId());
+         } else if (instr->operands.size() >= 1 && instr->operands[0].isTemp() &&
+                    ctx.input_temps.count(instr->operands[0].tempId())) {
+            if (instr->opcode == aco_opcode::p_parallelcopy &&
+                instr->operands[0].physReg() == instr->definitions[0].physReg()) {
+               ctx.input_temps.insert(instr->definitions[0].tempId());
+            } else if (instr->opcode == aco_opcode::p_split_vector) {
+               unsigned offset = 0;
+               for (Definition def : instr->definitions) {
+                  if (def.physReg() == instr->operands[0].physReg().advance(offset))
+                     ctx.input_temps.insert(def.tempId());
+                  offset += def.bytes();
+               }
+            } else if (instr->opcode == aco_opcode::p_extract_vector &&
+                       instr->definitions[0].physReg() ==
+                          instr->operands[0].physReg().advance(instr->operands[1].constantValue() *
+                                                               instr->definitions[0].bytes())) {
+               ctx.input_temps.insert(instr->definitions[0].tempId());
+            }
+         }
+      }
+   }
 
    int cur_loop_header = -1;
    for (int index = ctx.program->blocks.size() - 1; index >= 0;) {
@@ -436,7 +465,7 @@ init_block_info(spill_preserved_ctx& ctx)
             seen_reload_vgpr = true;
          }
 
-         add_instr(ctx, index, seen_reload_vgpr, instr, startpgm);
+         add_instr(ctx, index, seen_reload_vgpr, instr);
       }
 
       /* Process predecessors of loop headers again, since post-dominance information of the header
