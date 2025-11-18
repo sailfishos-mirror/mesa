@@ -827,18 +827,9 @@ anv_cmd_predicated_ccs_resolve(struct anv_cmd_buffer *cmd_buffer,
                                enum isl_aux_op resolve_op,
                                enum anv_fast_clear_type fast_clear_supported)
 {
-   const uint32_t plane = anv_image_aspect_to_plane(image, aspect);
-
    anv_cmd_compute_resolve_predicate(cmd_buffer, image,
                                      aspect, level, array_layer,
                                      resolve_op, fast_clear_supported);
-
-   /* CCS_D only supports full resolves and BLORP will assert on us if we try
-    * to do a partial resolve on a CCS_D surface.
-    */
-   if (resolve_op == ISL_AUX_OP_PARTIAL_RESOLVE &&
-       image->planes[plane].aux_usage == ISL_AUX_USAGE_CCS_D)
-      resolve_op = ISL_AUX_OP_FULL_RESOLVE;
 
    anv_image_ccs_op(cmd_buffer, image, format, swizzle, aspect,
                     level, array_layer, 1, resolve_op, NULL, true);
