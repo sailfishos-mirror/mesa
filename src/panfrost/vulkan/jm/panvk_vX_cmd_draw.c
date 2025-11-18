@@ -1389,6 +1389,66 @@ prepare_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
    return VK_SUCCESS;
 }
 
+static VkResult
+prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
+                   struct panvk_draw_data *draw, uint32_t layer)
+{
+   const struct panvk_shader_variant *vs =
+      panvk_shader_hw_variant(cmdbuf->state.gfx.vs.shader);
+   const struct panvk_shader_variant *fs =
+      panvk_shader_only_variant(get_fs(cmdbuf));
+   VkResult result;
+
+   result = panvk_draw_prepare_varyings(cmdbuf, draw);
+   if (result != VK_SUCCESS)
+      return result;
+
+   draw->info.layer_id = layer;
+   if (draw->info.layer_id > 0) {
+      cmdbuf->state.gfx.sysvals.layer_id = draw->info.layer_id;
+      gfx_state_set_dirty(cmdbuf, FS_PUSH_UNIFORMS);
+   }
+
+   result = panvk_per_arch(cmd_prepare_push_uniforms)(
+      cmdbuf, vs, 1);
+   if (result != VK_SUCCESS)
+      return result;
+
+   if (fs) {
+      result = panvk_per_arch(cmd_prepare_push_uniforms)(
+         cmdbuf, fs, 1);
+      if (result != VK_SUCCESS)
+         return result;
+   }
+
+   result = panvk_draw_prepare_tiler_context(cmdbuf, draw);
+   if (result != VK_SUCCESS)
+      return result;
+
+   if (vs->info.vs.idvs) {
+      result = panvk_draw_prepare_idvs_job(cmdbuf, draw);
+      if (result != VK_SUCCESS)
+         return result;
+   } else {
+      result = panvk_draw_prepare_vertex_job(cmdbuf, draw);
+      if (result != VK_SUCCESS)
+         return result;
+
+      bool needs_tiling =
+         !cmdbuf->vk.dynamic_graphics_state.rs.rasterizer_discard_enable ||
+         cmdbuf->state.gfx.occlusion_query.mode !=
+            MALI_OCCLUSION_MODE_DISABLED;
+
+      if (needs_tiling) {
+         result = panvk_draw_prepare_tiler_job(cmdbuf, draw);
+         if (result != VK_SUCCESS)
+            return result;
+      }
+   }
+
+   return VK_SUCCESS;
+}
+
 static void
 panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
 {
@@ -1434,58 +1494,22 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_data *draw)
    uint32_t enabled_layer_count = view_mask
                                      ? util_bitcount(view_mask)
                                      : cmdbuf->state.gfx.render.layer_count;
-   const struct panvk_shader_variant *fs = panvk_shader_only_variant(get_fs(cmdbuf));
 
    for (uint32_t i = 0; i < enabled_layer_count; i++) {
-      result = panvk_draw_prepare_varyings(cmdbuf, draw);
-      if (result != VK_SUCCESS)
-         return;
-
-      draw->info.layer_id = (view_mask != 0) ? u_bit_scan(&view_mask) : i;
-      if (draw->info.layer_id > 0) {
-         cmdbuf->state.gfx.sysvals.layer_id = draw->info.layer_id;
-         gfx_state_set_dirty(cmdbuf, FS_PUSH_UNIFORMS);
-      }
-
-      result = panvk_per_arch(cmd_prepare_push_uniforms)(
-         cmdbuf, vs, 1);
-      if (result != VK_SUCCESS)
-         return;
-
-      if (fs) {
-         result = panvk_per_arch(cmd_prepare_push_uniforms)(
-            cmdbuf, fs, 1);
-         if (result != VK_SUCCESS)
-            return;
-      }
-
-      result = panvk_draw_prepare_tiler_context(cmdbuf, draw);
+      const uint32_t layer = (view_mask != 0) ? u_bit_scan(&view_mask) : i;
+      result = prepare_draw_layer(cmdbuf, draw, layer);
       if (result != VK_SUCCESS)
          return;
 
       if (vs->info.vs.idvs) {
-         result = panvk_draw_prepare_idvs_job(cmdbuf, draw);
-         if (result != VK_SUCCESS)
-            return;
-
          pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_INDEXED_VERTEX, false,
                         false, 0, copy_desc_job_id, &draw->jobs.idvs, false);
       } else {
-         result = panvk_draw_prepare_vertex_job(cmdbuf, draw);
-         if (result != VK_SUCCESS)
-            return;
-
          unsigned vjob_id =
             pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_VERTEX, false, false,
                            0, copy_desc_job_id, &draw->jobs.vertex, false);
 
-         bool needs_tiling =
-            !cmdbuf->vk.dynamic_graphics_state.rs.rasterizer_discard_enable ||
-            cmdbuf->state.gfx.occlusion_query.mode !=
-               MALI_OCCLUSION_MODE_DISABLED;
-
-         if (needs_tiling) {
-            panvk_draw_prepare_tiler_job(cmdbuf, draw);
+         if (draw->jobs.tiler.gpu != 0) {
             pan_jc_add_job(&batch->vtc_jc, MALI_JOB_TYPE_TILER, false, false,
                            vjob_id, 0, &draw->jobs.tiler, false);
          }
@@ -1542,7 +1566,6 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
    uint32_t enabled_layer_count = view_mask
                                      ? util_bitcount(view_mask)
                                      : cmdbuf->state.gfx.render.layer_count;
-   const struct panvk_shader_variant *fs = panvk_shader_only_variant(get_fs(cmdbuf));
 
    struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
    uint64_t index_min_max_res_ptr = 0;
@@ -1596,58 +1619,14 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
    }
 
    for (uint32_t i = 0; i < enabled_layer_count; i++) {
+      const uint32_t layer = (view_mask != 0) ? u_bit_scan(&view_mask) : i;
+
       /* Force a new push uniform block to be allocated */
       gfx_state_set_dirty(cmdbuf, VS_PUSH_UNIFORMS);
 
-      result = panvk_draw_prepare_varyings(cmdbuf, draw);
+      result = prepare_draw_layer(cmdbuf, draw, layer);
       if (result != VK_SUCCESS)
          return;
-
-      draw->info.layer_id = (view_mask != 0) ? u_bit_scan(&view_mask) : i;
-      if (draw->info.layer_id > 0) {
-         cmdbuf->state.gfx.sysvals.layer_id = draw->info.layer_id;
-         gfx_state_set_dirty(cmdbuf, FS_PUSH_UNIFORMS);
-      }
-
-      result = panvk_per_arch(cmd_prepare_push_uniforms)(
-         cmdbuf, vs, 1);
-      if (result != VK_SUCCESS)
-         return;
-
-      if (fs) {
-         result = panvk_per_arch(cmd_prepare_push_uniforms)(
-            cmdbuf, fs, 1);
-         if (result != VK_SUCCESS)
-            return;
-      }
-
-      result = panvk_draw_prepare_tiler_context(cmdbuf, draw);
-      if (result != VK_SUCCESS)
-         return;
-
-      if (vs->info.vs.idvs) {
-         result = panvk_draw_prepare_idvs_job(cmdbuf, draw);
-
-         if (result != VK_SUCCESS)
-            return;
-      } else {
-         result = panvk_draw_prepare_vertex_job(cmdbuf, draw);
-
-         if (result != VK_SUCCESS)
-            return;
-
-         bool needs_tiling =
-            !cmdbuf->vk.dynamic_graphics_state.rs.rasterizer_discard_enable ||
-            cmdbuf->state.gfx.occlusion_query.mode !=
-               MALI_OCCLUSION_MODE_DISABLED;
-
-         if (needs_tiling) {
-            result = panvk_draw_prepare_tiler_job(cmdbuf, draw);
-
-            if (result != VK_SUCCESS)
-               return;
-         }
-      }
 
       assert(draw->info.indirect.buffer_dev_addr != 0 || draw->info.index.size);
 
