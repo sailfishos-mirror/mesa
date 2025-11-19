@@ -28,6 +28,13 @@ void pan_postprocess_nir(nir_shader *nir, unsigned gpu_id);
 
 #define PAN_PRINTF_BUFFER_SIZE 16384
 
+/* Any address with the top bit set is treated OOB by the hardware when
+ * accessed from a shader and any reads will return zero and writes will be
+ * discarded.  Using these is sometimes preferable to control-flow in the
+ * shader.
+ */
+#define PAN_SHADER_OOB_ADDRESS (((uint64_t)1) << 63)
+
 /* Indices for named (non-XFB) varyings that are present. These are packed
  * tightly so they correspond to a bitfield present (P) indexed by (1 <<
  * PAN_VARY_*). This has the nice property that you can lookup the buffer index

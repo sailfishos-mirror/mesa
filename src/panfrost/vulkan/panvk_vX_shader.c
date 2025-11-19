@@ -181,6 +181,10 @@ panvk_lower_sysvals(nir_builder *b, nir_instr *instr, void *data)
       break;
    }
 
+   case nir_intrinsic_load_ro_sink_address_poly:
+      val = nir_imm_int64(b, PAN_SHADER_OOB_ADDRESS);
+      break;
+
    default:
       return false;
    }
