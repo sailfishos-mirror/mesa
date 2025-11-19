@@ -12,6 +12,39 @@
 #include "draw_helper.h"
 
 #if PAN_ARCH >= 10
+
+/* Subgroup size is always 16 on v10+ */
+#define SUBGROUP_SIZE 16
+
+KERNEL(SUBGROUP_SIZE * SUBGROUP_SIZE)
+panlib_update_prims_generated_query_restart(
+   global atomic_uint *prims_generated, uint64_t index_buffer,
+   uint32_t index_buffer_size_el, uint32_t cmd_stride,
+   constant VkDrawIndexedIndirectCommand *cmd, uint32_t view_count,
+   uint32_t compact_prim__11, uint32_t index_bytes_log2__3)
+{
+   assert(get_sub_group_size() == SUBGROUP_SIZE);
+
+   enum mesa_prim prim = poly_uncompact_prim(compact_prim__11);
+   uint32_t index_bytes = 1 << index_bytes_log2__3;
+   uint32_t restart_index = (1 << (index_bytes * 8)) - 1;
+
+   uint32_t tid = cl_local_id.x;
+   uint32_t draw_id = cl_group_id.x;
+
+   cmd = (constant VkDrawIndexedIndirectCommand *)
+      ((uintptr_t) cmd + cmd_stride * draw_id);
+
+   POLY_DECL_UNROLL_RESTART_SCRATCH(scratch, SUBGROUP_SIZE * SUBGROUP_SIZE);
+   uint32_t prims_per_instance = poly_count_restart_prims(
+      (constant uint32_t *) cmd, index_buffer, index_buffer_size_el,
+      index_bytes, restart_index, prim, scratch);
+
+   if (tid == 0)
+      atomic_fetch_add(prims_generated,
+                       prims_per_instance * cmd->instanceCount * view_count);
+}
+
 KERNEL(1)
 panlib_update_prims_generated_query_indirect(
    global uint32_t *prims_generated, global uint32_t *draw_count_buffer,

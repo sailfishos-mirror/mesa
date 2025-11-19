@@ -2373,14 +2373,53 @@ update_prims_generated_query(struct panvk_cmd_buffer *cmdbuf,
    if (!state->ptr)
       return;
 
-   /* TODO: primitive restart */
    assert(!draw->index.size || !ia->primitive_restart_enable);
 
    enum mesa_prim prim = vk_topology_to_mesa(ia->primitive_topology);
    uint32_t view_count = cmdbuf->state.gfx.render.view_mask ?
       util_bitcount(cmdbuf->state.gfx.render.view_mask) : 1;
 
-   if (draw->indirect.buffer_dev_addr) {
+   if (draw->index.size && ia->primitive_restart_enable) {
+      struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
+
+      struct panlib_update_prims_generated_query_restart_args args = {
+         .prims_generated = state->ptr,
+         .index_buffer = cmdbuf->state.gfx.ib.dev_addr,
+         .index_buffer_size_el = cmdbuf->state.gfx.ib.size / draw->index.size,
+         .cmd_stride = draw->indirect.stride,
+         .cmd = draw->indirect.buffer_dev_addr,
+         .view_count = view_count,
+      };
+
+      struct panlib_precomp_grid grid;
+      if (draw->indirect.count_buffer_dev_addr) {
+         struct cs_index addr = cs_scratch_reg64(b, 0);
+         struct cs_index max_draw_count = cs_scratch_reg32(b, 2);
+
+         cs_update_compute_ctx(b) {
+            cs_move64_to(b, addr, draw->indirect.count_buffer_dev_addr);
+            cs_load32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_X), addr, 0);
+
+            cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_Y), 1);
+            cs_move32_to(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_Z), 1);
+
+            cs_move32_to(b, max_draw_count, draw->indirect.draw_count);
+            cs_umin32(b, cs_sr_reg32(b, COMPUTE, JOB_SIZE_X),
+                      cs_sr_reg32(b, COMPUTE, JOB_SIZE_X), max_draw_count);
+         }
+
+         grid = panlib_dynamic_csf();
+      } else {
+         grid = panlib_1d(draw->indirect.draw_count);
+      }
+
+      /* We need to WAIT in order to avoid overlapping the (non-atomic) direct
+       * draw counter updates with indirect draws. TODO: we could avoid that
+       * by having separate direct/indirect counters and adding them on read */
+      panlib_update_prims_generated_query_restart_struct(
+         &precomp_ctx, grid, PANLIB_BARRIER_CSF_WAIT, args,
+         poly_compact_prim(prim), util_logbase2(draw->index.size));
+   } else if (draw->indirect.buffer_dev_addr) {
       struct panvk_precomp_ctx precomp_ctx = panvk_per_arch(precomp_cs)(cmdbuf);
 
       struct panlib_update_prims_generated_query_indirect_args args = {

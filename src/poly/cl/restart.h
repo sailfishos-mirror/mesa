@@ -238,3 +238,45 @@ poly_unroll_restart(global uint32_t *out_draw,
    if (tid == 0)
       out_draw[0] = out_prims * per_prim;
 }
+
+static inline uint32_t
+poly_count_restart_prims(constant uint *in_draw,
+                         uint64_t index_buffer,
+                         uint32_t index_buffer_range_el,
+                         uint32_t index_size_B,
+                         uint32_t restart_index,
+                         enum mesa_prim mode,
+                         local void *scratch)
+{
+   uint tid = cl_local_id.x;
+   uint count = in_draw[0];
+
+   uintptr_t in_ptr = (uintptr_t)(poly_index_buffer(
+      index_buffer, index_buffer_range_el, in_draw[2], index_size_B));
+
+   uint out_prims = 0;
+   uint needle = 0;
+   uint per_prim = mesa_vertices_per_prim(mode);
+   while (needle < count) {
+      /* Search for next restart or the end. Lanes load in parallel. */
+      uint next_restart = needle;
+      for (;;) {
+         uint idx = next_restart + tid;
+         bool restart =
+            idx >= count || poly_load_index(in_ptr, index_buffer_range_el, idx,
+                                            index_size_B) == restart_index;
+
+         uint next_offs = poly_work_group_first_true(restart, scratch);
+
+         next_restart += next_offs;
+         if (next_offs < cl_local_size.x)
+            break;
+      }
+
+      uint subcount = next_restart - needle;
+      out_prims += u_decomposed_prims_for_vertices(mode, subcount);
+      needle = next_restart + 1;
+   }
+
+   return out_prims;
+}
