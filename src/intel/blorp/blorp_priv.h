@@ -238,39 +238,49 @@ enum blorp_shader_pipeline {
 struct blorp_params
 {
    enum blorp_op op;
+
    uint32_t x0;
    uint32_t y0;
    uint32_t x1;
    uint32_t y1;
    float z;
-   uint8_t stencil_mask;
-   uint8_t stencil_ref;
-   struct blorp_surface_info depth;
-   struct blorp_surface_info stencil;
-   uint32_t depth_format;
+
    struct blorp_surface_info src;
    struct blorp_surface_info dst;
-   enum isl_aux_op hiz_op;
+   struct blorp_surface_info depth;
+   struct blorp_surface_info stencil;
+
+   uint32_t depth_format;
+   uint8_t stencil_mask;
+   uint8_t stencil_ref;
+
    bool full_surface_hiz_op;
-   enum isl_aux_op fast_clear_op;
    uint8_t color_write_disable;
+   enum isl_aux_op fast_clear_op;
+   enum isl_aux_op hiz_op;
+
    struct blorp_wm_inputs wm_inputs;
    struct blorp_vs_inputs vs_inputs;
-   bool dst_clear_color_as_input;
+
    unsigned num_samples;
    unsigned num_draw_buffers;
    unsigned num_layers;
-   uint32_t vs_prog_kernel;
-   void *vs_prog_data;
-   uint32_t sf_prog_kernel;
-   void *sf_prog_data;
-   uint32_t wm_prog_kernel;
-   void *wm_prog_data;
-   uint32_t cs_prog_kernel;
-   void *cs_prog_data;
+   bool dst_clear_color_as_input;
 
    bool use_pre_baked_binding_table;
    uint32_t pre_baked_binding_table_offset;
+
+   uint32_t vs_prog_kernel;
+   uint32_t sf_prog_kernel;
+   uint32_t wm_prog_kernel;
+   uint32_t cs_prog_kernel;
+
+   /* These are pointers to struct {brw,elk}_stage_prog_data. */
+   void *vs_prog_data;
+   void *sf_prog_data;
+   void *wm_prog_data;
+   void *cs_prog_data;
+
    enum blorp_shader_type shader_type;
    enum blorp_shader_pipeline shader_pipeline;
 };
