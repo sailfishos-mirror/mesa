@@ -1322,8 +1322,8 @@ blorp_setup_binding_table(struct blorp_batch *batch,
                           const struct blorp_params *params)
 {
    const struct isl_device *isl_dev = batch->blorp->isl_dev;
-   uint32_t surface_offsets[2], bind_offset = 0;
-   void *surface_maps[2];
+   uint32_t surface_offsets[BLORP_NUM_BT_ENTRIES], bind_offset = 0;
+   void *surface_maps[BLORP_NUM_BT_ENTRIES];
 
    if (params->use_pre_baked_binding_table) {
       bind_offset = params->pre_baked_binding_table_offset;
