@@ -698,6 +698,11 @@ main(int argc, char **argv)
          printf("FAIL: assembler\n");
          printf("  Expected: %08x_%08x\n", code[1], code[0]);
          printf("  Got:      %08x_%08x\n", v->bin[1], v->bin[0]);
+         uint32_t diff[2] = {code[0] ^ v->bin[0], code[1] ^ v->bin[1]};
+         if (diff[0] && util_bitcount64(diff[0]) == 1)
+            printf("Diff in bit %d\n", ffs(diff[0]) - 1);
+         if (diff[1] && util_bitcount64(diff[1]) == 1)
+            printf("Diff in bit %d\n", 32 + ffs(diff[1]) - 1);
          retval = 1;
          encode_fails++;
       }
