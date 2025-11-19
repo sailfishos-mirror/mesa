@@ -1319,7 +1319,7 @@ blorp_emit_null_surface_state(struct blorp_batch *batch,
 
 static uint32_t
 blorp_setup_binding_table(struct blorp_batch *batch,
-                           const struct blorp_params *params)
+                          const struct blorp_params *params)
 {
    const struct isl_device *isl_dev = batch->blorp->isl_dev;
    uint32_t surface_offsets[2], bind_offset = 0;

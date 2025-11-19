@@ -494,7 +494,7 @@ fast_clear_surf(struct blorp_batch *batch,
       return;
 
    blorp_surface_info_init(batch, &params.dst, surf, level,
-                               start_layer, format, true);
+                           start_layer, format, true);
 
    /* BSpec: 46969 (r45602):
     *
@@ -776,7 +776,7 @@ blorp_clear(struct blorp_batch *batch,
    assert(num_layers > 0);
    while (num_layers > 0) {
       blorp_surface_info_init(batch, &params.dst, surf, level,
-                                  start_layer, format, true);
+                              start_layer, format, true);
       params.dst.view.swizzle = swizzle;
 
       params.x0 = x0;
@@ -961,7 +961,7 @@ blorp_clear_stencil_as_rgba(struct blorp_batch *batch,
       uint32_t layer = start_layer + a;
 
       blorp_surface_info_init(batch, &params.dst, surf, level,
-                                  layer, ISL_FORMAT_UNSUPPORTED, true);
+                              layer, ISL_FORMAT_UNSUPPORTED, true);
 
       if (surf->surf->samples > 1)
          blorp_surf_fake_interleaved_msaa(batch->blorp->isl_dev, &params.dst);
@@ -1033,8 +1033,8 @@ blorp_clear_depth_stencil(struct blorp_batch *batch,
 
       if (stencil_mask) {
          blorp_surface_info_init(batch, &params.stencil, stencil,
-                                     level, start_layer,
-                                     ISL_FORMAT_UNSUPPORTED, true);
+                                 level, start_layer,
+                                 ISL_FORMAT_UNSUPPORTED, true);
          params.stencil_mask = stencil_mask;
          params.stencil_ref = stencil_value;
 
@@ -1055,8 +1055,8 @@ blorp_clear_depth_stencil(struct blorp_batch *batch,
 
       if (clear_depth) {
          blorp_surface_info_init(batch, &params.depth, depth,
-                                     level, start_layer,
-                                     ISL_FORMAT_UNSUPPORTED, true);
+                                 level, start_layer,
+                                 ISL_FORMAT_UNSUPPORTED, true);
          params.z = depth_value;
          params.depth_format =
             isl_format_get_depth_format(depth->surf->format, false);
@@ -1144,8 +1144,8 @@ blorp_hiz_clear_depth_stencil(struct blorp_batch *batch,
       const uint32_t layer = start_layer + l;
       if (clear_stencil) {
          blorp_surface_info_init(batch, &params.stencil, stencil,
-                                     level, layer,
-                                     ISL_FORMAT_UNSUPPORTED, true);
+                                 level, layer,
+                                 ISL_FORMAT_UNSUPPORTED, true);
          params.stencil_mask = 0xff;
          params.stencil_ref = stencil_value;
          params.num_samples = params.stencil.surf.samples;
@@ -1156,8 +1156,8 @@ blorp_hiz_clear_depth_stencil(struct blorp_batch *batch,
          assert(depth && isl_aux_usage_has_hiz(depth->aux_usage));
 
          blorp_surface_info_init(batch, &params.depth, depth,
-                                     level, layer,
-                                     ISL_FORMAT_UNSUPPORTED, true);
+                                 level, layer,
+                                 ISL_FORMAT_UNSUPPORTED, true);
          params.depth.clear_color.f32[0] = depth_value;
          params.depth_format =
             isl_format_get_depth_format(depth->surf->format, false);
@@ -1301,7 +1301,7 @@ blorp_ccs_resolve(struct blorp_batch *batch,
       assert(false);
    }
    blorp_surface_info_init(batch, &params.dst, surf,
-                               level, start_layer, format, true);
+                           level, start_layer, format, true);
 
    /* From the TGL PRM, Volume 2d: 3DSTATE_PS_BODY,
     *
@@ -1502,9 +1502,9 @@ blorp_mcs_partial_resolve(struct blorp_batch *batch,
    params.y1 = surf->surf->logical_level0_px.height;
 
    blorp_surface_info_init(batch, &params.src, surf, 0,
-                               start_layer, format, false);
+                           start_layer, format, false);
    blorp_surface_info_init(batch, &params.dst, surf, 0,
-                               start_layer, format, true);
+                           start_layer, format, true);
 
    params.num_samples = params.dst.surf.samples;
    params.num_layers = num_layers;

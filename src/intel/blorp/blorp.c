@@ -144,10 +144,10 @@ blorp_batch_finish(struct blorp_batch *batch)
 
 void
 blorp_surface_info_init(struct blorp_batch *batch,
-                            struct blorp_surface_info *info,
-                            const struct blorp_surf *surf,
-                            unsigned int level, float layer,
-                            enum isl_format format, bool is_dest)
+                        struct blorp_surface_info *info,
+                        const struct blorp_surf *surf,
+                        unsigned int level, float layer,
+                        enum isl_format format, bool is_dest)
 {
    struct blorp_context *blorp = batch->blorp;
    memset(info, 0, sizeof(*info));
@@ -282,7 +282,7 @@ blorp_hiz_op(struct blorp_batch *batch, struct blorp_surf *surf,
       const uint32_t layer = start_layer + a;
 
       blorp_surface_info_init(batch, &params.depth, surf, level,
-                                  layer, surf->surf->format, true);
+                              layer, surf->surf->format, true);
 
       /* Align the rectangle primitive to 8x4 pixels.
        *

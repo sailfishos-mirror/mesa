@@ -101,10 +101,10 @@ struct blorp_surface_info
 
 void
 blorp_surface_info_init(struct blorp_batch *batch,
-                            struct blorp_surface_info *info,
-                            const struct blorp_surf *surf,
-                            unsigned int level, float layer,
-                            enum isl_format format, bool is_dest);
+                        struct blorp_surface_info *info,
+                        const struct blorp_surf *surf,
+                        unsigned int level, float layer,
+                        enum isl_format format, bool is_dest);
 void
 blorp_surf_convert_to_single_slice(const struct isl_device *isl_dev,
                                    struct blorp_surface_info *info);

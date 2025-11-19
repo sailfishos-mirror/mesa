@@ -48,7 +48,7 @@ struct blorp_blit_vars {
 
 static void
 blorp_blit_vars_init(nir_builder *b, struct blorp_blit_vars *v,
-                         const struct blorp_blit_prog_key *key)
+                     const struct blorp_blit_prog_key *key)
 {
 #define LOAD_INPUT(name, type)\
    v->v_##name = BLORP_CREATE_NIR_INPUT(b->shader, name, type);
@@ -1179,8 +1179,8 @@ convert_color(struct nir_builder *b, nir_def *color,
  */
 static nir_shader *
 blorp_build_nir_shader(struct blorp_context *blorp,
-                           struct blorp_batch *batch, void *mem_ctx,
-                           const struct blorp_blit_prog_key *key)
+                       struct blorp_batch *batch, void *mem_ctx,
+                       const struct blorp_blit_prog_key *key)
 {
    const struct intel_device_info *devinfo = blorp->isl_dev->info;
 
@@ -2580,9 +2580,9 @@ blorp_blit(struct blorp_batch *batch,
    }
 
    blorp_surface_info_init(batch, &params.src, src_surf, src_level,
-                               src_layer, src_format, false);
+                           src_layer, src_format, false);
    blorp_surface_info_init(batch, &params.dst, dst_surf, dst_level,
-                               dst_layer, dst_format, true);
+                           dst_layer, dst_format, true);
 
    params.src.view.swizzle = src_swizzle;
    params.dst.view.swizzle = dst_swizzle;
@@ -2994,9 +2994,9 @@ blorp_copy(struct blorp_batch *batch,
    }
 
    blorp_surface_info_init(batch, &params.src, src_surf, src_level,
-                               src_layer, ISL_FORMAT_UNSUPPORTED, false);
+                           src_layer, ISL_FORMAT_UNSUPPORTED, false);
    blorp_surface_info_init(batch, &params.dst, dst_surf, dst_level,
-                               dst_layer, ISL_FORMAT_UNSUPPORTED, true);
+                           dst_layer, ISL_FORMAT_UNSUPPORTED, true);
 
    struct blorp_blit_prog_key key = {
       .base = BLORP_BASE_KEY_INIT(BLORP_SHADER_TYPE_COPY),
