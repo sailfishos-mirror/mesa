@@ -201,6 +201,8 @@ class BitSetCase(object):
             self.fields[f.name] = f
 
         for field in xml.findall('field'):
+            if 'name' not in field.attrib:
+                print("missing field name in {}".format(self.name))
             dbg("{}.{}".format(self.name, field.attrib['name']))
             f = BitSetField(bitset.isa, field)
             update_field_mask(self, f)
