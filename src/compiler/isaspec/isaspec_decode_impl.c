@@ -519,7 +519,7 @@ isa_decode_field(struct decode_scope *scope, const char *field_name)
 	bitmask_t val;
 	const struct isa_field *field = resolve_field(scope, field_name, strlen(field_name), &val);
 	if (!field) {
-		decode_error(scope->state, "no field '%s'", field_name);
+		decode_error(scope->state, "no field '%s' in '%s'", field_name, scope->bitset->name);
 		return 0;
 	}
 
