@@ -295,9 +295,15 @@ handle_action(struct rknpu_action *args)
    }
 }
 
-typedef int (*real_ioctl_t)(int fd, unsigned long request, ...);
+#ifdef __GLIBC__
+typedef unsigned long ioctl_req;
+#else
+typedef int ioctl_req; // per POSIX
+#endif
+
+typedef int (*real_ioctl_t)(int fd, ioctl_req request, ...);
 int
-ioctl(int fd, unsigned long request, ...)
+ioctl(int fd, ioctl_req request, ...)
 {
    int ret;
    uint32_t output_address = 0;
