@@ -160,13 +160,15 @@ struct pipe_ctx *vpe_pipe_find_owner(struct vpe_priv *vpe_priv, uint32_t stream_
 void vpe_clip_stream(
     struct vpe_rect *src_rect, struct vpe_rect *dst_rect, const struct vpe_rect *target_rect);
 
-void calculate_scaling_ratios(struct scaler_data *scl_data, struct vpe_rect *src_rect,
+void vpe_calculate_scaling_ratios(struct scaler_data *scl_data, struct vpe_rect *src_rect,
     struct vpe_rect *dst_rect, enum vpe_surface_pixel_format format);
+
+enum lut3d_type vpe_get_stream_lut3d_type(struct stream_ctx *stream_ctx);
 
 uint16_t vpe_get_num_segments(struct vpe_priv *vpe_priv, const struct vpe_rect *src,
     const struct vpe_rect *dst, const uint32_t max_seg_width);
 
-bool should_generate_cmd_info(struct stream_ctx *stream_ctx);
+bool vpe_should_generate_cmd_info(struct stream_ctx *stream_ctx);
 
 enum vpe_status vpe_resource_build_scaling_params(struct segment_ctx *segment);
 

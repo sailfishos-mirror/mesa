@@ -230,7 +230,8 @@ static bool vpe10_init_scaler_data(struct vpe_priv *vpe_priv, struct stream_ctx 
     struct dpp *dpp;
     dpp = vpe_priv->resource.dpp[0];
 
-    calculate_scaling_ratios(scl_data, src_rect, dst_rect, stream_ctx->stream.surface_info.format);
+    vpe_calculate_scaling_ratios(
+        scl_data, src_rect, dst_rect, stream_ctx->stream.surface_info.format);
 
     scl_data->taps.v_taps   = stream_ctx->stream.scaling_info.taps.v_taps;
     scl_data->taps.h_taps   = stream_ctx->stream.scaling_info.taps.h_taps;
@@ -1039,12 +1040,12 @@ enum vpe_status vpe10_populate_cmd_info(struct vpe_priv *vpe_priv)
     uint16_t             segment_idx;
     struct stream_ctx   *stream_ctx;
     struct vpe_cmd_info  cmd_info = {0};
-    bool                 tm_enabled;
+    enum lut3d_type      lut3d_type;
 
     for (stream_idx = 0; stream_idx < vpe_priv->num_streams; stream_idx++) {
         stream_ctx = &vpe_priv->stream_ctx[stream_idx];
 
-        tm_enabled = stream_ctx->stream.tm_params.UID != 0 || stream_ctx->stream.tm_params.enable_3dlut;
+        lut3d_type = vpe_get_stream_lut3d_type(stream_ctx);
 
         for (segment_idx = 0; segment_idx < stream_ctx->num_segments; segment_idx++) {
 
@@ -1060,7 +1061,7 @@ enum vpe_status vpe10_populate_cmd_info(struct vpe_priv *vpe_priv)
 
             cmd_info.num_inputs         = 1;
             cmd_info.ops                = VPE_CMD_OPS_COMPOSITING;
-            cmd_info.tm_enabled         = tm_enabled;
+            cmd_info.lut3d_type         = lut3d_type;
             cmd_info.insert_start_csync = false;
             cmd_info.insert_end_csync   = false;
             vpe_vector_push(vpe_priv->vpe_cmd_vector, &cmd_info);
@@ -1232,8 +1233,9 @@ void vpe10_get_bufs_req(struct vpe_priv *vpe_priv, struct vpe_bufs_req *req)
         // just the segment specific config size is added
         if (cmd_info->ops == VPE_CMD_OPS_COMPOSITING) {
             if (stream_idx != cmd_info->inputs[0].stream_idx) {
-                emb_req    = cmd_info->tm_enabled ? VPE10_GENERAL_EMB_USAGE_3DLUT_FRAME_SHARED
-                                                  : VPE10_GENERAL_EMB_USAGE_FRAME_SHARED;
+                emb_req    = (cmd_info->lut3d_type == LUT3D_TYPE_CPU)
+                                 ? VPE10_GENERAL_EMB_USAGE_3DLUT_FRAME_SHARED
+                                 : VPE10_GENERAL_EMB_USAGE_FRAME_SHARED;
                 stream_idx = cmd_info->inputs[0].stream_idx;
             } else {
                 emb_req = VPE10_GENERAL_EMB_USAGE_SEG_NON_SHARED;
