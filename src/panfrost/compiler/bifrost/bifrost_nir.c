@@ -576,9 +576,15 @@ bi_lower_subgroups(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 }
 
 /* Workgroups may be merged if the structure of the workgroup is not software
- * visible. This is true if neither shared memory nor BARRIER instructions are
- * used. The hardware may be able to optimize compute shaders that set this
- * flag. */
+ * visible. This is true if neither shared memory nor BARRIER instructions nor
+ * subgroups are used. The hardware may be able to optimize compute shaders
+ * that set this flag.
+ *
+ * From the vulkan spec version 1.4.317 section 9.25.8:
+ *
+ *    "For shaders that have defined workgroups, each invocation in a subgroup
+ *     must be in the same local workgroup."
+ */
 bool
 valhall_can_merge_workgroups(nir_shader *nir)
 {
@@ -598,6 +604,24 @@ valhall_can_merge_workgroups(nir_shader *nir)
             nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
             if (intrin->intrinsic == nir_intrinsic_barrier &&
                 nir_intrinsic_execution_scope(intrin) == SCOPE_WORKGROUP)
+               return false;
+
+            /* This is in nir->info.uses_wide_subgroups, but we don't want to
+             * force an extra nir_gather_shader_info call. */
+            if (nir_intrinsic_has_semantic(intrin, NIR_INTRINSIC_SUBGROUP))
+               return false;
+
+            /* load_subgroup_invocation allows observing merged workgroups
+             * because the first thread in the workgroup may have a nonzero
+             * subgroup invocation and so on. We don't have to care about
+             * load_subgroup_id, because we implement it by dividing the local
+             * invocation id, so it doesn't care what the actual subgroup
+             * layout is in hw.
+             *
+             * Note that these intrinsics do not have NIR_INTRINSIC_SUBGROUP
+             * because they do not perform any communication with other
+             * subgroup threads. */
+            if (intrin->intrinsic == nir_intrinsic_load_subgroup_invocation)
                return false;
          }
       }
