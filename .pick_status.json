@@ -754,7 +754,7 @@
         "description": "panfrost/bi: Fix potential out-of-bounds writes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dc85f65e059d3c603210bc3a0d93c34bdcdd6d17",
         "notes": null

@@ -1991,7 +1991,8 @@ panfrost_emit_sampler_descriptors(struct panfrost_batch *batch,
  */
 static void
 emit_image_attribs(struct panfrost_context *ctx, mesa_shader_stage shader,
-                   struct mali_attribute_packed *attribs, unsigned first_buf)
+                   struct mali_attribute_packed *attribs,
+                   unsigned first_image_buf_index)
 {
    unsigned last_bit = util_last_bit(ctx->image_mask[shader]);
 
@@ -2000,7 +2001,7 @@ emit_image_attribs(struct panfrost_context *ctx, mesa_shader_stage shader,
 
       pan_pack(attribs + i, ATTRIBUTE, cfg) {
          /* Continuation record means 2 buffers per image */
-         cfg.buffer_index = first_buf + (i * 2);
+         cfg.buffer_index = first_image_buf_index + (i * 2);
          cfg.offset_enable = (PAN_ARCH <= 5);
          cfg.format = GENX(pan_format_from_pipe_format)(format)->hw;
       }
@@ -2022,8 +2023,7 @@ pan_modifier_to_attr_type(uint64_t modifier)
 
 static void
 emit_image_bufs(struct panfrost_batch *batch, mesa_shader_stage shader,
-                struct mali_attribute_buffer_packed *bufs,
-                unsigned first_image_buf_index)
+                struct mali_attribute_buffer_packed *bufs)
 {
    struct panfrost_context *ctx = batch->ctx;
    unsigned last_bit = util_last_bit(ctx->image_mask[shader]);
@@ -2134,8 +2134,8 @@ panfrost_emit_image_attribs(struct panfrost_batch *batch, uint64_t *buffers,
       return 0;
    }
 
+   unsigned attr_count = util_last_bit(ctx->image_mask[type]);
    /* Images always need a MALI_ATTRIBUTE_BUFFER_CONTINUATION_3D */
-   unsigned attr_count = shader->info.attribute_count;
    unsigned buf_count = (attr_count * 2) + (PAN_ARCH >= 6 ? 1 : 0);
 
    struct pan_ptr bufs =
@@ -2145,7 +2145,7 @@ panfrost_emit_image_attribs(struct panfrost_batch *batch, uint64_t *buffers,
       pan_pool_alloc_desc_array(&batch->pool.base, attr_count, ATTRIBUTE);
 
    emit_image_attribs(ctx, type, attribs.cpu, 0);
-   emit_image_bufs(batch, type, bufs.cpu, 0);
+   emit_image_bufs(batch, type, bufs.cpu);
 
    /* We need an empty attrib buf to stop the prefetching on Bifrost */
 #if PAN_ARCH >= 6
@@ -2327,7 +2327,7 @@ panfrost_emit_vertex_data(struct panfrost_batch *batch, uint64_t *buffers)
    if (nr_images) {
       k = ALIGN_POT(k, 2);
       emit_image_attribs(ctx, MESA_SHADER_VERTEX, out + so->num_elements, k);
-      emit_image_bufs(batch, MESA_SHADER_VERTEX, bufs + k, k);
+      emit_image_bufs(batch, MESA_SHADER_VERTEX, bufs + k);
       k += (util_last_bit(ctx->image_mask[MESA_SHADER_VERTEX]) * 2);
    }
 
