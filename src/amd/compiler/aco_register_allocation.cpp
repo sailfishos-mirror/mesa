@@ -1332,9 +1332,7 @@ get_regs_for_copies(ra_ctx& ctx, RegisterFile& reg_file, std::vector<parallelcop
          continue;
       }
 
-      PhysReg best_pos = bounds.lo();
-      unsigned num_moves = 0xFF;
-      unsigned num_vars = 0;
+      std::optional<std::pair<PhysRegInterval, std::tuple<unsigned, int>>> best;
 
       /* we use a sliding window to find potential positions */
       unsigned stride = DIV_ROUND_UP(info.stride, 4);
@@ -1343,27 +1341,22 @@ get_regs_for_copies(ra_ctx& ctx, RegisterFile& reg_file, std::vector<parallelcop
          if (!is_dead_operand && intersects(reg_win, def_reg))
             continue;
 
-         /* second, check that we have at most k=num_moves elements in the window
-          * and no element is larger than the currently processed one */
-         unsigned k = 0;
-         unsigned n = 0;
+         /* second, check that no element is larger than the currently processed one */
+         unsigned num_moves = 0;
+         int num_vars = 0;
          unsigned last_var = 0;
          bool found = true;
          for (PhysReg j : reg_win) {
             if (reg_file[j] == 0 || reg_file[j] == last_var)
                continue;
 
-            if (reg_file.is_blocked(j) || k > num_moves) {
+            if (reg_file.is_blocked(j)) {
                found = false;
                break;
             }
             if (reg_file[j] == 0xF0000000) {
-               k += 1;
-               n++;
-               if (k > num_moves || (k == num_moves && n <= num_vars)) {
-                  found = false;
-                  break;
-               }
+               num_moves += 1;
+               num_vars++;
                continue;
             }
             /* we cannot split live ranges of linear vgprs */
@@ -1383,27 +1376,24 @@ get_regs_for_copies(ra_ctx& ctx, RegisterFile& reg_file, std::vector<parallelcop
                break;
             }
 
-            k += ctx.assignments[reg_file[j]].rc.size();
+            num_moves += ctx.assignments[reg_file[j]].rc.size();
             last_var = reg_file[j];
-            n++;
-            if (k > num_moves || (k == num_moves && n <= num_vars)) {
-               found = false;
-               break;
-            }
+            num_vars++;
          }
 
-         if (found) {
-            best_pos = reg_win.lo();
-            num_moves = k;
-            num_vars = n;
-         }
+         if (!found)
+            continue;
+
+         std::tuple<unsigned, int> cost{num_moves, -num_vars};
+         if (!best || cost < best->second)
+            best.emplace(reg_win, cost);
       }
 
       /* FIXME: we messed up and couldn't find space for the variables to be copied */
-      if (num_moves == 0xFF)
+      if (!best)
          return false;
 
-      PhysRegInterval reg_win{best_pos, size};
+      PhysRegInterval reg_win = best->first;
 
       /* collect variables and block reg file */
       std::vector<unsigned> new_vars = collect_vars(ctx, reg_file, reg_win);
@@ -1479,10 +1469,7 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
       op_moves = size - (regs_free - killed_ops);
 
    /* find the best position to place the definition */
-   PhysRegInterval best_win = {bounds.lo(), size};
-   unsigned num_moves = 0xFF;
-   unsigned num_vars = 0;
-   bool best_aligned = false;
+   std::optional<std::pair<PhysRegInterval, std::tuple<unsigned, int, bool>>> best;
 
    /* we use a sliding window to check potential positions */
    for (PhysRegInterval reg_win = {bounds.lo(), size}; reg_win.hi() <= bounds.hi();
@@ -1499,8 +1486,8 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
 
       /* second, check that we have at most k=num_moves elements in the window
        * and no element is larger than the currently processed one */
-      unsigned k = op_moves;
-      unsigned n = 0;
+      unsigned num_moves = op_moves;
+      int num_vars = 0;
       unsigned remaining_op_moves = op_moves;
       unsigned last_var = 0;
       bool found = true;
@@ -1509,7 +1496,7 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
          /* dead operands effectively reduce the number of estimated moves */
          if (is_killed_operand[j & 0xFF]) {
             if (remaining_op_moves) {
-               k--;
+               num_moves--;
                remaining_op_moves--;
             }
             continue;
@@ -1523,8 +1510,8 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
             continue;
 
          if (reg_file[j] == 0xF0000000) {
-            k += 1;
-            n++;
+            num_moves += 1;
+            num_vars++;
             continue;
          }
 
@@ -1539,28 +1526,22 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
             break;
          }
 
-         k += ctx.assignments[reg_file[j]].rc.size();
-         n++;
+         num_moves += ctx.assignments[reg_file[j]].rc.size();
+         num_vars++;
          last_var = reg_file[j];
       }
 
-      if (!found || k > num_moves)
-         continue;
-      if (k == num_moves && n < num_vars)
-         continue;
-      if ((!aligned || best_aligned) && k == num_moves && n == num_vars)
+      if (!found)
          continue;
 
-      if (found) {
-         best_win = reg_win;
-         num_moves = k;
-         num_vars = n;
-         best_aligned = aligned;
-      }
+      std::tuple<unsigned, int, bool> cost{num_moves, -num_vars, !aligned};
+      if (!best || cost < best->second)
+         best.emplace(reg_win, cost);
    }
 
-   if (num_moves == 0xFF)
+   if (!best)
       return {};
+   PhysRegInterval best_win = best->first;
 
    /* now, we figured the placement for our definition */
    RegisterFile tmp_file(reg_file);
