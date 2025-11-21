@@ -1478,6 +1478,7 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
    PhysRegInterval best_win = {bounds.lo(), size};
    unsigned num_moves = 0xFF;
    unsigned num_vars = 0;
+   bool best_aligned = false;
 
    /* we use a sliding window to check potential positions */
    for (PhysRegInterval reg_win = {bounds.lo(), size}; reg_win.hi() <= bounds.hi();
@@ -1543,13 +1544,14 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
          continue;
       if (k == num_moves && n < num_vars)
          continue;
-      if (!aligned && k == num_moves && n == num_vars)
+      if ((!aligned || best_aligned) && k == num_moves && n == num_vars)
          continue;
 
       if (found) {
          best_win = reg_win;
          num_moves = k;
          num_vars = n;
+         best_aligned = aligned;
       }
    }
 
