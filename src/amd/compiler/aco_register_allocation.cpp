@@ -1360,6 +1360,10 @@ get_regs_for_copies(ra_ctx& ctx, RegisterFile& reg_file, std::vector<parallelcop
             if (reg_file[j] == 0xF0000000) {
                k += 1;
                n++;
+               if (k > num_moves || (k == num_moves && n <= num_vars)) {
+                  found = false;
+                  break;
+               }
                continue;
             }
             /* we cannot split live ranges of linear vgprs */
