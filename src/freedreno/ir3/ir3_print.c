@@ -257,6 +257,12 @@ print_instr_name(struct log_stream *stream, struct ir3_instruction *instr,
 
          mesa_log_stream_printf(stream, ".%s", type_name(instr->cat6.type));
          break;
+      case OPC_IMG_BINDLESS: {
+         mesa_log_stream_printf(
+            stream, ".%s",
+            instr->cat5.match_mode == IR3_MATCH_MODE_SSD ? "ssd" : "sad");
+         break;
+      }
       case OPC_ALIAS:
          switch (instr->cat7.alias_scope) {
          case ALIAS_TEX:

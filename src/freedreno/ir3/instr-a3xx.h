@@ -259,9 +259,12 @@ typedef enum {
    OPC_QUAD_SHUFFLE_VERT   = _OPC(5, 31),
    OPC_QUAD_SHUFFLE_DIAG   = _OPC(5, 32),
    OPC_TCINV               = _OPC(5, 33),
+   OPC_IMG_BINDLESS_HOF  = _OPC(5, 34),
+   OPC_IMG_BINDLESS_PCMN = _OPC(5, 35),
+   OPC_IMG_BINDLESS      = _OPC(5, 36),
    /* cat5 meta instructions, placed above the cat5 opc field's size */
-   OPC_DSXPP_MACRO     = _OPC(5, 35),
-   OPC_DSYPP_MACRO     = _OPC(5, 36),
+   OPC_DSXPP_MACRO     = _OPC(5, 37),
+   OPC_DSYPP_MACRO     = _OPC(5, 38),
 
    /* category 6: */
    OPC_LDG             = _OPC(6, 0),        /* load-global */

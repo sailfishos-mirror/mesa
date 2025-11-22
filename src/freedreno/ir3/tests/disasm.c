@@ -201,6 +201,21 @@ static const struct test {
    INSTR_7XX(a02c3f06_c2041003, "isam.v.base0 (u32)(xyzw)r1.z, r0.y+8, s#0, t#1"),
    INSTR_7XX(a02c3f05_a1240601, "isam.v.s2en.uniform.base0 (u32)(xyzw)r1.y, r0.x+3, r2.y"),
 
+   INSTR_7XX(a7581f00_e0014001, "img_bindless.sad.base0 (f32)(xyzw)r0.x, r0.x, r40.x, t#0, a1.x"), /* img_bindless.s2en.mode7.sad.base0 (f32)(xyzw)r0.x, r0.x, r40.x, 0 */
+   INSTR_7XX(a75c1f00_e0014001, "img_bindless.ssd.base0 (f32)(xyzw)r0.x, r0.x, r40.x, t#0, a1.x"), /* img_bindless.s2en.mode7.ssd.base0 (f32)(xyzw)r0.x, r0.x, r40.x, 0 */
+   INSTR_7XX(a7581f00_a0014541, "img_bindless.sad.s2en.uniform.base0 (f32)(xyzw)r0.x, r40.x, r40.z, r0.x"),
+   INSTR_7XX(a7581f00_e1414541, "img_bindless.sad.base0 (f32)(xyzw)r0.x, r40.x, r40.z, t#10, a1.x"),
+
+   /* dEQP-VK.image_processing.graphics.monolithic.block_matching.sad.basic.r8_unorm_diff (a750) */
+   INSTR_7XX(a7581104_e0014001, "img_bindless.sad.base0 (f32)(x)r1.x, r0.x, r40.x, t#0, a1.x"),    /* img_bindless.o.s2en.mode7.sad.base0 (f32)(xOOO)r1.x, r0.x, r40.x, 0; */
+   /* dEQP-VK.image_processing.graphics.monolithic.block_matching.ssd.basic.r8_unorm_diff (a750) */
+   INSTR_7XX(a75c1104_e0014001, "img_bindless.ssd.base0 (f32)(x)r1.x, r0.x, r40.x, t#0, a1.x"),    /* img_bindless.o.s.s2en.mode7.ssd.base0 (f32)(xOOO)r1.x, r0.x, r40.x, 0; */
+
+   /* dEQP-VK.image_processing.compute.box_filter_sampling.box_filter.* (a750) */
+   INSTR_7XX(a74c1f00_c0214541, "img_bindless.pcmn.base0 (f32)(xyzw)r0.x, r40.x, r40.z, s#1, t#0"),      /* img_bindless.s.s2en.mode6.pcmn.base0 (f32)(xyzw)r0.x, r40.x, r40.z, 1; */
+   /* dEQP-VK.image_processing.graphics.monolithic.weight_image_sampling.weight_sampling.basic.r8_unorm_weight_r8_unorm_random_subtexel (a750) */
+   INSTR_7XX(a7481f00_e0000141, "img_bindless.hof.base0 (f32)(xyzw)r0.x, r40.x, t#0, a1.x"),       /* img_bindless.s2en.mode7.hof.base0 (f32)(xyzw)r0.x, r40.x, 0; */
+
    /* dEQP-VK.subgroups.arithmetic.compute.subgroupadd_float */
    INSTR_6XX(a7c03102_00100003, "brcst.active.w8 (u32)(x)r0.z, r0.y"), /* brcst.active.w8 (u32)(xOOO)r0.z, r0.y */
    /* dEQP-VK.subgroups.quad.graphics.subgroupquadbroadcast_int */

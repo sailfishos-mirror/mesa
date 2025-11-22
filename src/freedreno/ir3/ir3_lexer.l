@@ -360,6 +360,9 @@ static int parse_reg(const char *str)
 "quad_shuffle.vert"               return TOKEN(T_OP_QSHUFFLE_V);
 "quad_shuffle.diag"               return TOKEN(T_OP_QSHUFFLE_DIAG);
 "tcinv"                           return TOKEN(T_OP_TCINV);
+"img_bindless.hof"                return TOKEN(T_OP_IMG_BINDLESS_HOF);
+"img_bindless.pcmn"               return TOKEN(T_OP_IMG_BINDLESS_PCMN);
+"img_bindless"                    return TOKEN(T_OP_IMG_BINDLESS);
 
                                   /* category 6: */
 "ldg"                             return TOKEN(T_OP_LDG);
@@ -481,6 +484,9 @@ static int parse_reg(const char *str)
 "2d"                              return TOKEN(T_2D);
 "3d"                              return TOKEN(T_3D);
 "4d"                              return TOKEN(T_4D);
+
+"sad"                             return TOKEN(T_SAD);
+"ssd"                             return TOKEN(T_SSD);
 
 "lt"                              return TOKEN(T_LT);
 "le"                              return TOKEN(T_LE);

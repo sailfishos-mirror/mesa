@@ -475,6 +475,10 @@ struct ir3_instruction {
          unsigned tex_base : 3;
          unsigned cluster_size : 4;
          type_t type;
+         enum {
+            IR3_MATCH_MODE_SAD = 0, /* Sum of Absolute Difference */
+            IR3_MATCH_MODE_SSD = 1, /* Sum of Squared Differences */
+         } match_mode; /* for block matching textures */
       } cat5;
       struct {
          type_t type;
