@@ -45,7 +45,7 @@ append_logical_end(isel_context* ctx, bool append_reload_preserved)
 {
    Builder bld(ctx->program, ctx->block);
 
-   if (append_reload_preserved && ctx->program->is_callee) {
+   if (append_reload_preserved && ctx->program->is_callee && ctx->block->loop_nest_depth == 0) {
       Operand stack_ptr_op;
       if (ctx->program->gfx_level >= GFX9)
          stack_ptr_op = Operand(ctx->callee_info.stack_ptr.def.getTemp());
