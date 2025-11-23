@@ -43,6 +43,7 @@ enum vk_acceleration_structure_build_step {
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT,
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_BUILD_INTERNAL,
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_PLOC_BUILD_INTERNAL,
+   VK_ACCELERATION_STRUCTURE_BUILD_STEP_HPLOC_BUILD_INTERNAL,
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_ENCODE,
    VK_ACCELERATION_STRUCTURE_BUILD_STEP_UPDATE,
 };
@@ -88,6 +89,7 @@ VK_DEFINE_NONDISP_HANDLE_CASTS(vk_acceleration_structure, base, VkAccelerationSt
 enum vk_internal_build_type {
    VK_INTERNAL_BUILD_TYPE_LBVH,
    VK_INTERNAL_BUILD_TYPE_PLOC,
+   VK_INTERNAL_BUILD_TYPE_HPLOC,
    VK_INTERNAL_BUILD_TYPE_UPDATE,
 };
 
@@ -111,6 +113,7 @@ struct vk_scratch_layout {
 
    uint32_t ploc_prefix_sum_partition_offset;
    uint32_t lbvh_node_offset;
+   uint32_t hploc_ranges_offset;
 
    uint32_t ir_offset;
    uint32_t internal_node_offset;

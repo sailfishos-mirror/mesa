@@ -61,6 +61,10 @@ static const uint32_t ploc_spv[] = {
 #include "bvh/ploc_internal.spv.h"
 };
 
+static const uint32_t hploc_spv[] = {
+#include "bvh/hploc_internal.spv.h"
+};
+
 VKAPI_ATTR VkResult VKAPI_CALL
 vk_common_CreateAccelerationStructureKHR(VkDevice _device,
                                          const VkAccelerationStructureCreateInfoKHR *pCreateInfo,
@@ -172,10 +176,13 @@ vk_acceleration_structure_build_state_init(struct vk_acceleration_structure_buil
    uint32_t offset = 0;
 
    uint32_t ploc_scratch_space = 0;
+   uint32_t hploc_scratch_space = 0;
    uint32_t lbvh_node_space = 0;
 
    if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_PLOC)
       ploc_scratch_space = DIV_ROUND_UP(leaf_count, PLOC_WORKGROUP_SIZE) * sizeof(struct ploc_prefix_scan_partition);
+   else if (state->config.internal_type == VK_INTERNAL_BUILD_TYPE_HPLOC)
+      hploc_scratch_space = sizeof(uint32_t) * internal_count;
    else
       lbvh_node_space = sizeof(struct lbvh_node_info) * internal_count;
 
@@ -199,8 +206,11 @@ vk_acceleration_structure_build_state_init(struct vk_acceleration_structure_buil
    /* Internal sorting data is not needed when PLOC/LBVH are invoked,
     * save space by aliasing them */
    state->scratch.ploc_prefix_sum_partition_offset = offset;
+   offset += MAX2(requirements.internal_size, ploc_scratch_space);
+
    state->scratch.lbvh_node_offset = offset;
-   offset += MAX3(requirements.internal_size, ploc_scratch_space, lbvh_node_space);
+   state->scratch.hploc_ranges_offset = offset;
+   offset += MAX2(hploc_scratch_space, lbvh_node_space);
 
    /* Make sure encode scratch space does not overlap the BVH. */
    offset = MAX2(offset, encode_scratch_end);
@@ -242,6 +252,7 @@ struct bvh_batch_state {
    bool any_updateable;
    bool any_non_updateable;
    bool any_ploc;
+   bool any_hploc;
    bool any_lbvh;
    bool any_update;
 };
@@ -1069,6 +1080,72 @@ ploc_build_internal(VkCommandBuffer commandBuffer,
    return VK_SUCCESS;
 }
 
+static VkResult
+hploc_build_internal(VkCommandBuffer commandBuffer,
+                     struct vk_device *device, struct vk_meta_device *meta,
+                     const struct vk_acceleration_structure_build_args *args,
+                     uint32_t infoCount,
+                     const VkAccelerationStructureBuildGeometryInfoKHR *pInfos, struct bvh_state *bvh_states)
+{
+   VkPipeline pipeline;
+   VkPipelineLayout layout;
+
+   uint32_t flags = 0;
+   if (args->propagate_cull_flags)
+      flags |= VK_BUILD_FLAG_PROPAGATE_CULL_FLAGS;
+
+   VkResult result = vk_get_bvh_build_pipeline_spv(device, meta, VK_META_OBJECT_KEY_HPLOC, hploc_spv,
+                                                   sizeof(hploc_spv), sizeof(struct hploc_args),
+                                                   args, flags, &pipeline,
+                                                   false /* unaligned_dispatch */);
+   if (result != VK_SUCCESS)
+      return result;
+
+   result = vk_get_bvh_build_pipeline_layout(device, meta, sizeof(struct hploc_args), &layout);
+   if (result != VK_SUCCESS)
+      return result;
+
+   if (args->emit_markers) {
+      struct vk_acceleration_structure_build_marker marker = {
+         .step = VK_ACCELERATION_STRUCTURE_BUILD_STEP_HPLOC_BUILD_INTERNAL,
+      };
+      device->as_build_ops->begin_debug_marker(commandBuffer, &marker);
+   }
+
+   const struct vk_device_dispatch_table *disp = &device->dispatch_table;
+   disp->CmdBindPipeline(
+      commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+
+   for (uint32_t i = 0; i < infoCount; ++i) {
+      if (bvh_states[i].vk.config.internal_type != VK_INTERNAL_BUILD_TYPE_HPLOC)
+         continue;
+
+      assert(args->subgroup_size <= 64);
+
+      uint64_t scratch_addr = pInfos[i].scratchData.deviceAddress;
+      const struct hploc_args consts = {
+         .header = scratch_addr + bvh_states[i].vk.scratch.header_offset,
+         .bvh = scratch_addr + bvh_states[i].vk.scratch.ir_offset,
+         .ranges = scratch_addr + bvh_states[i].vk.scratch.hploc_ranges_offset,
+         .ids = scratch_addr + bvh_states[i].scratch_offset,
+         .internal_node_base = bvh_states[i].vk.scratch.internal_node_offset - bvh_states[i].vk.scratch.ir_offset,
+      };
+
+      disp->CmdPushConstants(commandBuffer, layout,
+                             VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(consts), &consts);
+      disp->CmdDispatch(commandBuffer, MAX2(DIV_ROUND_UP(bvh_states[i].vk.leaf_node_count, args->subgroup_size), 1), 1, 1);
+   }
+
+   if (args->emit_markers) {
+      struct vk_acceleration_structure_build_marker marker = {
+         .step = VK_ACCELERATION_STRUCTURE_BUILD_STEP_HPLOC_BUILD_INTERNAL,
+      };
+      device->as_build_ops->end_debug_marker(commandBuffer, &marker);
+   }
+
+   return VK_SUCCESS;
+}
+
 void
 vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
                                      struct vk_device *device,
@@ -1124,6 +1201,8 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
       if (bvh_states[i].vk.config.internal_type == VK_INTERNAL_BUILD_TYPE_PLOC) {
          batch_state.any_ploc = true;
+      } else if (bvh_states[i].vk.config.internal_type == VK_INTERNAL_BUILD_TYPE_HPLOC) {
+         batch_state.any_hploc = true;
       } else if (bvh_states[i].vk.config.internal_type == VK_INTERNAL_BUILD_TYPE_LBVH) {
          batch_state.any_lbvh = true;
       } else if (bvh_states[i].vk.config.internal_type == VK_INTERNAL_BUILD_TYPE_UPDATE) {
@@ -1172,7 +1251,7 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
                                                 .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                                              }, 0, NULL, 0, NULL);
 
-   if (batch_state.any_lbvh || batch_state.any_ploc) {
+   if (batch_state.any_lbvh || batch_state.any_ploc || batch_state.any_hploc) {
       VkResult result;
 
       if (batch_state.any_non_updateable) {
@@ -1197,6 +1276,17 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
             vk_command_buffer_set_error(cmd_buffer, result);
             return;
          }
+      }
+
+      if (batch_state.any_hploc) {
+         for (uint32_t i = 0; i < infoCount; ++i) {
+            uint32_t internal_count = MAX2(bvh_states[i].vk.leaf_node_count, 2) - 1;
+            if (bvh_states[i].vk.config.internal_type == VK_INTERNAL_BUILD_TYPE_HPLOC) {
+               device->cmd_fill_buffer_addr(commandBuffer, pInfos[i].scratchData.deviceAddress + bvh_states[i].vk.scratch.hploc_ranges_offset,
+                                            sizeof(uint32_t) * internal_count, 0xffffffff);
+            }
+         }
+         vk_barrier_transfer_w_to_compute_r(commandBuffer);
       }
 
       vk_barrier_compute_w_to_compute_r(commandBuffer);
@@ -1230,6 +1320,16 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
       if (batch_state.any_ploc) {
          result =
             ploc_build_internal(commandBuffer, device, meta, args, infoCount, pInfos, bvh_states);
+
+         if (result != VK_SUCCESS) {
+            vk_command_buffer_set_error(cmd_buffer, result);
+            return;
+         }
+      }
+
+      if (batch_state.any_hploc) {
+         result =
+            hploc_build_internal(commandBuffer, device, meta, args, infoCount, pInfos, bvh_states);
 
          if (result != VK_SUCCESS) {
             vk_command_buffer_set_error(cmd_buffer, result);

@@ -40,6 +40,10 @@ bvh_shaders = [
     'ploc_internal.comp',
     'ploc_internal',
   ],
+  [
+    'hploc_internal.comp',
+    'hploc_internal',
+  ],
 ]
 
 spirv_include_dir = dir_source_root + '/src/compiler/spirv'
@@ -70,6 +74,7 @@ vk_glsl_shader_extensions = [
   'GL_KHR_shader_subgroup_shuffle',
   'GL_KHR_shader_subgroup_ballot',
   'GL_KHR_shader_subgroup_clustered',
+  'GL_KHR_shader_subgroup_vote',
   'GL_EXT_shader_atomic_int64',
   'GL_EXT_spirv_intrinsics',
 ]
