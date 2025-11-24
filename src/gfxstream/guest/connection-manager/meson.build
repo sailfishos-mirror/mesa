@@ -24,5 +24,5 @@ libconnection_manager = static_library(
         inc_aemu,
     ],
     link_with: [lib_goldfish_address_space, libplatform_virtgpu],
-    dependencies: dep_libdrm,
+    dependencies: [dep_libdrm, dep_android_aemu_qemupipe, idep_mesautil],
 )

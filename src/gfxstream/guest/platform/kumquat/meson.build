@@ -26,6 +26,7 @@ libplatform_virtgpu_kumquat = static_library(
     ],
     dependencies: [
         idep_vulkan_util_headers,
+        idep_mesautil,
         dep_virtgpu_kumquat_ffi,
         dep_gfxstream_vulkan_mapper,
     ],

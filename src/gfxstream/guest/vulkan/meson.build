@@ -18,22 +18,18 @@ if with_platform_wayland
     gfxstream_vk_wsi_args += '-DGFXSTREAM_VK_WAYLAND'
 endif
 
-gfxstream_deps = [
-    dep_libdrm,
-    idep_vulkan_wsi_headers,
-    idep_vulkan_lite_runtime,
-    idep_vulkan_util_headers,
-    idep_vulkan_wsi,
-    dep_valgrind,
-]
+files_vulkan_gfxstream = files_lib_vulkan_gfxstream + files_lib_vulkan_enc
+files_vulkan_gfxstream += gfxstream_vk_entrypoints
+files_vulkan_gfxstream += gfxstream_guest_vk_autogen
+files_vulkan_gfxstream += vulkan_gfxstream_h
 
-if with_perfetto
-    gfxstream_deps += dep_perfetto
+if with_platform_android or with_gfxstream_emulated_android
+    files_vulkan_gfxstream += files_lib_vulkan_enc_android
 endif
 
 lib_vulkan_gfxstream = shared_library(
     'vulkan_gfxstream',
-    files_lib_vulkan_gfxstream + files_lib_vulkan_enc + gfxstream_vk_entrypoints + gfxstream_guest_vk_autogen + vulkan_gfxstream_h,
+    files_vulkan_gfxstream,
     cpp_args: gfxstream_guest_args + gfxstream_vk_wsi_args,
     include_directories: [
         inc_vulkan_headers,
@@ -66,7 +62,7 @@ icd_file_name = libname_prefix + 'vulkan_gfxstream.' + libname_suffix
 gfxstream_icd = custom_target(
     'gfxstream_vk_icd',
     input: [vk_icd_gen, vk_api_xml],
-    output : 'gfxstream_vk_icd.' + vulkan_manifest_suffix,
+    output: 'gfxstream_vk_icd.' + vulkan_manifest_suffix,
     command: [
         prog_python,
         '@INPUT0@',

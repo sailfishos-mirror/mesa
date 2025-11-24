@@ -451,6 +451,27 @@ with_platform_haiku = _platforms.contains('haiku')
 with_platform_windows = _platforms.contains('windows')
 with_platform_macos = _platforms.contains('macos')
 
+with_gfxstream_emulated_android = with_gfxstream_vk and with_platform_android and host_machine.system() == 'linux'
+if with_gfxstream_emulated_android
+  # When building the android_stub with a non-Bionic sysroot/target, we to have
+  # define macros that are typically in <sys/cdefs.h> when using a Bionic
+  # sysroot
+  pre_args += '-D__INTRODUCED_IN(api_level)='
+
+  # We don't want to build Vulkan common code when running the emulated
+  # gfxstream Android platform.  This causes issues when building in
+  # tandem with host Lavapipe.
+  #
+  # TODO(gfxstream-devs@): Modifying the user-provided platform can be removed
+  # when Cuttlefish moves it's host library builds off Soong, and on to Github.
+  # For now, add basic sanity checks before modifying user arguments.
+  if _platforms.contains('android') and _platforms.length() != 1
+    error('You cannot enable platform "android" at the same time as another platform')
+  endif
+  _platforms = []
+  with_platform_android = false
+endif
+
 with_glx = get_option('glx')
 if with_glx == 'auto'
   if not with_opengl
@@ -925,8 +946,9 @@ endif
 pre_args += '-DGLAPI_EXPORT_PROTO_ENTRY_POINTS=@0@'.format(with_glapi_export_proto_entry_points.to_int())
 
 with_android_stub = get_option('android-stub')
-if with_android_stub and not with_platform_android
-  error('`-D android-stub=true` makes no sense without `-D platforms=android`')
+need_android_stub = with_platform_android or with_gfxstream_emulated_android
+if with_android_stub and not need_android_stub
+  error('`-D android-stub=true` makes no sense without `-D platforms=android` or emulated Android')
 endif
 
 with_libbacktrace = get_option('android-libbacktrace') \
