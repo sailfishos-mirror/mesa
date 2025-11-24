@@ -741,7 +741,8 @@ static void
 set_image_fast_clear_state(struct anv_cmd_buffer *cmd_buffer,
                            const struct anv_image *image,
                            VkImageAspectFlagBits aspect,
-                           enum anv_fast_clear_type fast_clear)
+                           enum anv_fast_clear_type fast_clear,
+                           bool predicated)
 {
    struct anv_device *device = cmd_buffer->device;
    struct mi_builder b;
@@ -750,7 +751,11 @@ set_image_fast_clear_state(struct anv_cmd_buffer *cmd_buffer,
 
    struct anv_address fc_type_addr =
       anv_image_get_fast_clear_type_addr(device, image, aspect);
-   mi_store(&b, mi_mem32(fc_type_addr), mi_imm(fast_clear));
+
+   if (predicated)
+      mi_store_if(&b, mi_mem32(fc_type_addr), mi_imm(fast_clear));
+   else
+      mi_store(&b, mi_mem32(fc_type_addr), mi_imm(fast_clear));
 
    /* Whenever we have fast-clear, we consider that slice to be compressed.
     * This makes building predicates much easier.
@@ -771,13 +776,9 @@ anv_cmd_compute_resolve_predicate(struct anv_cmd_buffer *cmd_buffer,
                                   enum anv_fast_clear_type fast_clear_supported)
 {
    struct anv_device *device = cmd_buffer->device;
-   struct anv_address addr =
-      anv_image_get_fast_clear_type_addr(device, image, aspect);
    struct mi_builder b;
    mi_builder_init(&b, device->info, &cmd_buffer->batch);
    mi_builder_set_mocs(&b, isl_mocs(&device->isl_dev, 0, false));
-
-   const struct mi_value fast_clear_type = mi_mem32(addr);
 
    if (resolve_op == ISL_AUX_OP_FULL_RESOLVE) {
       /* In this case, we're doing a full resolve which means we want the
@@ -794,18 +795,6 @@ anv_cmd_compute_resolve_predicate(struct anv_cmd_buffer *cmd_buffer,
                                                        level, array_layer));
       mi_store(&b, mi_reg64(MI_PREDICATE_SRC0), compression_state);
       mi_store(&b, compression_state, mi_imm(0));
-
-      if (level == 0 && array_layer == 0) {
-         /* If the predicate is true, we want to write 0 to the fast clear type
-          * and, if it's false, leave it alone.  We can do this by writing
-          *
-          * clear_type = clear_type & ~predicate;
-          */
-         struct mi_value new_fast_clear_type =
-            mi_iand(&b, fast_clear_type,
-                        mi_inot(&b, mi_reg64(MI_PREDICATE_SRC0)));
-         mi_store(&b, fast_clear_type, new_fast_clear_type);
-      }
    } else if (level == 0 && array_layer == 0) {
       /* In this case, we are doing a partial resolve to get rid of fast-clear
        * colors.  We don't care about the compression state but we do care
@@ -814,19 +803,15 @@ anv_cmd_compute_resolve_predicate(struct anv_cmd_buffer *cmd_buffer,
       assert(resolve_op == ISL_AUX_OP_PARTIAL_RESOLVE);
       assert(fast_clear_supported < ANV_FAST_CLEAR_ANY);
 
+      const struct anv_address fc_type_addr =
+         anv_image_get_fast_clear_type_addr(device, image, aspect);
+      const struct mi_value fast_clear_type = mi_mem32(fc_type_addr);
+
       /* We need to compute (fast_clear_supported < image->fast_clear) */
       struct mi_value pred =
          mi_ult(&b, mi_imm(fast_clear_supported), fast_clear_type);
       mi_store(&b, mi_reg64(MI_PREDICATE_SRC0), mi_value_ref(&b, pred));
-
-      /* If the predicate is true, we want to write 0 to the fast clear type
-       * and, if it's false, leave it alone.  We can do this by writing
-       *
-       * clear_type = clear_type & ~predicate;
-       */
-      struct mi_value new_fast_clear_type =
-         mi_iand(&b, fast_clear_type, mi_inot(&b, pred));
-      mi_store(&b, fast_clear_type, new_fast_clear_type);
+      /* We'll set the new fast-clear type in transition_color_buffer(). */
    } else {
       /* In this case, we're trying to do a partial resolve on a slice that
        * doesn't have clear color.  There's nothing to do.
@@ -1049,10 +1034,10 @@ genX(set_fast_clear_state)(struct anv_cmd_buffer *cmd_buffer,
        * it's being used for sampling.
        */
       set_image_fast_clear_state(cmd_buffer, image, aspect,
-                                 ANV_FAST_CLEAR_DEFAULT_VALUE);
+                                 ANV_FAST_CLEAR_DEFAULT_VALUE, false);
    } else {
       set_image_fast_clear_state(cmd_buffer, image, aspect,
-                                 ANV_FAST_CLEAR_ANY);
+                                 ANV_FAST_CLEAR_ANY, false);
    }
 }
 
@@ -1305,7 +1290,7 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
           * levels/layers with fast-cleared blocks.
           */
          set_image_fast_clear_state(cmd_buffer, image, aspect,
-                                    ANV_FAST_CLEAR_NONE);
+                                    ANV_FAST_CLEAR_NONE, false);
       }
    }
 
@@ -1488,6 +1473,16 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
             }
          }
       }
+   }
+
+   /* Set the new fast-clear type to NONE to avoid redundant resolves. Don't
+    * apply this optimization to FCV images as they may have other
+    * levels/layers with fast-cleared blocks.
+    */
+   if (image->planes[plane].aux_usage != ISL_AUX_USAGE_FCV_CCS_E &&
+       base_level == 0 && base_layer == 0) {
+      set_image_fast_clear_state(cmd_buffer, image, aspect,
+                                 ANV_FAST_CLEAR_NONE, true);
    }
 }
 
