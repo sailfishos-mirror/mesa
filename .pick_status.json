@@ -2074,7 +2074,7 @@
         "description": "r600: fix cayman msaa shading behavior",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f7796a966d20b04c00025bdc170883f4179a5697",
         "notes": null
