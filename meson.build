@@ -957,6 +957,10 @@ if with_platform_android
     if get_option('platform-sdk-version') >= 35
       dep_android_ui = dependency('ui', required : false)
     endif
+    dep_hwvulkan_headers = dependency('android-hwvulkan-headers', required : false)
+    if dep_hwvulkan_headers.found() and with_any_vk
+      dep_android += dep_hwvulkan_headers
+    endif
   endif
   pre_args += '-DANDROID_API_LEVEL=' + get_option('platform-sdk-version').to_string()
   if get_option('android-strict')
