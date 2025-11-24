@@ -817,45 +817,6 @@ anv_cmd_compute_resolve_predicate(struct anv_cmd_buffer *cmd_buffer,
    }
 }
 
-static void
-anv_cmd_predicated_ccs_resolve(struct anv_cmd_buffer *cmd_buffer,
-                               const struct anv_image *image,
-                               enum isl_format format,
-                               struct isl_swizzle swizzle,
-                               VkImageAspectFlagBits aspect,
-                               uint32_t level, uint32_t array_layer,
-                               enum isl_aux_op resolve_op,
-                               enum anv_fast_clear_type fast_clear_supported)
-{
-   anv_cmd_compute_resolve_predicate(cmd_buffer, image,
-                                     aspect, level, array_layer,
-                                     resolve_op, fast_clear_supported);
-
-   anv_image_ccs_op(cmd_buffer, image, format, swizzle, aspect,
-                    level, array_layer, 1, resolve_op, NULL, true);
-}
-
-static void
-anv_cmd_predicated_mcs_resolve(struct anv_cmd_buffer *cmd_buffer,
-                               const struct anv_image *image,
-                               enum isl_format format,
-                               struct isl_swizzle swizzle,
-                               VkImageAspectFlagBits aspect,
-                               uint32_t array_layer,
-                               enum isl_aux_op resolve_op,
-                               enum anv_fast_clear_type fast_clear_supported)
-{
-   assert(aspect == VK_IMAGE_ASPECT_COLOR_BIT);
-   assert(resolve_op == ISL_AUX_OP_PARTIAL_RESOLVE);
-
-   anv_cmd_compute_resolve_predicate(cmd_buffer, image,
-                                     aspect, 0, array_layer,
-                                     resolve_op, fast_clear_supported);
-
-   anv_image_mcs_op(cmd_buffer, image, format, swizzle, aspect,
-                    array_layer, 1, resolve_op, NULL, true);
-}
-
 void
 genX(cmd_buffer_mark_image_written)(struct anv_cmd_buffer *cmd_buffer,
                                     const struct anv_image *image,
@@ -1410,12 +1371,15 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
             if (level == 0 && array_layer == 0 && will_full_fast_clear)
                continue;
 
-            if (image->vk.samples == 1) {
-               anv_cmd_predicated_ccs_resolve(cmd_buffer, image,
-                                              image->planes[plane].primary_surface.isl.format,
-                                              ISL_SWIZZLE_IDENTITY,
-                                              aspect, level, array_layer, resolve_op,
+            anv_cmd_compute_resolve_predicate(cmd_buffer, image, aspect,
+                                              level, array_layer, resolve_op,
                                               final_fast_clear);
+
+            if (image->vk.samples == 1) {
+               anv_image_ccs_op(cmd_buffer, image,
+                                image->planes[plane].primary_surface.isl.format,
+                                ISL_SWIZZLE_IDENTITY, aspect, level,
+                                array_layer, 1, resolve_op, NULL, true);
             } else {
                /* We only support fast-clear on the first layer so partial
                 * resolves should not be used on other layers as they will use
@@ -1425,11 +1389,10 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
                    array_layer != 0)
                   continue;
 
-               anv_cmd_predicated_mcs_resolve(cmd_buffer, image,
-                                              image->planes[plane].primary_surface.isl.format,
-                                              ISL_SWIZZLE_IDENTITY,
-                                              aspect, array_layer, resolve_op,
-                                              final_fast_clear);
+               anv_image_mcs_op(cmd_buffer, image,
+                                image->planes[plane].primary_surface.isl.format,
+                                ISL_SWIZZLE_IDENTITY, aspect, array_layer, 1,
+                                resolve_op, NULL, true);
             }
          }
       }
