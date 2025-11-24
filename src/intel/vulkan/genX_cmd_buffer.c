@@ -795,7 +795,7 @@ anv_cmd_compute_resolve_predicate(struct anv_cmd_buffer *cmd_buffer,
                                                        level, array_layer));
       mi_store(&b, mi_reg64(MI_PREDICATE_SRC0), compression_state);
       mi_store(&b, compression_state, mi_imm(0));
-   } else if (level == 0 && array_layer == 0) {
+   } else {
       /* In this case, we are doing a partial resolve to get rid of fast-clear
        * colors.  We don't care about the compression state but we do care
        * about how much fast clear is allowed by the final layout.
@@ -812,12 +812,6 @@ anv_cmd_compute_resolve_predicate(struct anv_cmd_buffer *cmd_buffer,
          mi_ult(&b, mi_imm(fast_clear_supported), fast_clear_type);
       mi_store(&b, mi_reg64(MI_PREDICATE_SRC0), mi_value_ref(&b, pred));
       /* We'll set the new fast-clear type in transition_color_buffer(). */
-   } else {
-      /* In this case, we're trying to do a partial resolve on a slice that
-       * doesn't have clear color.  There's nothing to do.
-       */
-      assert(resolve_op == ISL_AUX_OP_PARTIAL_RESOLVE);
-      return;
    }
 
    /* Set src1 to 0 and use a != condition */
@@ -1402,26 +1396,8 @@ transition_color_buffer(struct anv_cmd_buffer *cmd_buffer,
    /* If the initial layout supports more fast clear than the final layout
     * then we need at least a partial resolve.
     */
-   if (final_fast_clear < initial_fast_clear) {
-      /* Partial resolves will actually only occur on layer 0/level 0. This
-       * is generally okay because anv only allows explicit fast clears to
-       * the first subresource.
-       *
-       * The situation is a bit different with FCV_CCS_E. With that aux
-       * usage, implicit fast clears can occur on any layer and level.
-       * anv doesn't track fast clear states for more than the first
-       * subresource, so we need to assert that a layout transition doesn't
-       * attempt to partial resolve the other subresources.
-       *
-       * At the moment, we don't enter such a situation, and partial resolves
-       * for higher level/layer resources shouldn't be a concern.
-       */
-      if (image->planes[plane].aux_usage == ISL_AUX_USAGE_FCV_CCS_E) {
-         assert(base_level == 0 && level_count == 1 &&
-                base_layer == 0 && layer_count == 1);
-      }
+   if (final_fast_clear < initial_fast_clear)
       resolve_op = ISL_AUX_OP_PARTIAL_RESOLVE;
-   }
 
    if (isl_aux_usage_has_ccs_e(initial_aux_usage) &&
        !isl_aux_usage_has_ccs_e(final_aux_usage))
