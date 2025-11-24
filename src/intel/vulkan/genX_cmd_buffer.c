@@ -756,12 +756,6 @@ set_image_fast_clear_state(struct anv_cmd_buffer *cmd_buffer,
       mi_store_if(&b, mi_mem32(fc_type_addr), mi_imm(fast_clear));
    else
       mi_store(&b, mi_mem32(fc_type_addr), mi_imm(fast_clear));
-
-   /* Whenever we have fast-clear, we consider that slice to be compressed.
-    * This makes building predicates much easier.
-    */
-   if (fast_clear != ANV_FAST_CLEAR_NONE)
-      set_image_compressed_bit(cmd_buffer, image, aspect, 0, 0, 1, true);
 }
 
 /* This is only really practical on haswell and above because it requires
@@ -786,8 +780,7 @@ anv_cmd_compute_resolve_predicate(struct anv_cmd_buffer *cmd_buffer,
        * present.
        *
        * In order to simplify the logic a bit, we make the assumption that,
-       * if the first slice has been fast-cleared, it is also marked as
-       * compressed.  See also set_image_fast_clear_state.
+       * if a slice has been fast-cleared, it is also marked as compressed.
        */
       const struct mi_value compression_state =
          mi_mem32(anv_image_get_compression_state_addr(device,
@@ -6205,6 +6198,8 @@ void genX(CmdBeginRendering)(
             clear_rect.baseArrayLayer++;
             clear_rect.layerCount--;
 #if GFX_VER < 20
+            set_image_compressed_bit(cmd_buffer, iview->image,
+                                     iview->vk.aspects, 0, 0, 1, true);
             genX(set_fast_clear_state)(cmd_buffer, iview->image,
                                        iview->planes[0].isl.format,
                                        iview->planes[0].isl.swizzle,
