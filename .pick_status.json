@@ -144,7 +144,7 @@
         "description": "anv: Update predicated resolve documentation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0e6b132a75e6e7982155a001e4c51acb40e63f9a",
         "notes": null
