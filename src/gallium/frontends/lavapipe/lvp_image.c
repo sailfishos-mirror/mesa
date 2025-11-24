@@ -31,6 +31,121 @@
 #include "frontend/winsys_handle.h"
 #include "vk_android.h"
 
+static VkResult
+lvp_alloc_plane(struct lvp_device *device,
+                struct lvp_image *image,
+                const VkImageCreateInfo *pCreateInfo,
+                const VkImageDrmFormatModifierExplicitCreateInfoEXT *modinfo,
+                const VkSubresourceLayout *layouts,
+                uint64_t modifier,
+                VkFormat format,
+                uint8_t width_scale, uint8_t height_scale,
+                bool android_surface,
+                size_t plane_idx,
+                struct lvp_image_plane *plane)
+{
+   struct pipe_resource template;
+
+   memset(&template, 0, sizeof(template));
+
+   template.screen = device->pscreen;
+   switch (pCreateInfo->imageType) {
+   case VK_IMAGE_TYPE_1D:
+      template.target = pCreateInfo->arrayLayers > 1 ? PIPE_TEXTURE_1D_ARRAY : PIPE_TEXTURE_1D;
+      break;
+   default:
+   case VK_IMAGE_TYPE_2D:
+      template.target = pCreateInfo->arrayLayers > 1 ? PIPE_TEXTURE_2D_ARRAY : PIPE_TEXTURE_2D;
+      break;
+   case VK_IMAGE_TYPE_3D:
+      template.target = PIPE_TEXTURE_3D;
+      break;
+   }
+
+   template.format = lvp_vk_format_to_pipe_format(format);
+
+   bool is_ds = util_format_is_depth_or_stencil(template.format);
+
+   if (pCreateInfo->usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
+      template.bind |= PIPE_BIND_RENDER_TARGET;
+      /* sampler view is needed for resolve blits */
+      if (pCreateInfo->samples > 1)
+         template.bind |= PIPE_BIND_SAMPLER_VIEW;
+   }
+
+   if (pCreateInfo->usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
+      if (!is_ds)
+         template.bind |= PIPE_BIND_RENDER_TARGET;
+      else
+         template.bind |= PIPE_BIND_DEPTH_STENCIL;
+   }
+
+   if (pCreateInfo->usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+      template.bind |= PIPE_BIND_DEPTH_STENCIL;
+
+   if (pCreateInfo->usage & (VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                             VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
+      template.bind |= PIPE_BIND_SAMPLER_VIEW;
+
+   if (pCreateInfo->usage & (VK_IMAGE_USAGE_STORAGE_BIT |
+                             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                             VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
+      template.bind |= PIPE_BIND_SHADER_IMAGE;
+
+   if (pCreateInfo->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT)
+      template.flags |= PIPE_RESOURCE_FLAG_SPARSE;
+
+   template.width0 = pCreateInfo->extent.width / width_scale;
+   template.height0 = pCreateInfo->extent.height / height_scale;
+   template.depth0 = pCreateInfo->extent.depth;
+   template.array_size = pCreateInfo->arrayLayers;
+   template.last_level = pCreateInfo->mipLevels - 1;
+   template.nr_samples = pCreateInfo->samples;
+   template.nr_storage_samples = pCreateInfo->samples;
+
+#ifdef HAVE_LIBDRM
+   if (android_surface || (modinfo && pCreateInfo->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT)) {
+      struct winsys_handle whandle = {
+         .type = WINSYS_HANDLE_TYPE_UNBACKED,
+         .plane = plane_idx,
+         .stride = layouts[plane_idx].rowPitch,
+         .array_stride = layouts[plane_idx].arrayPitch,
+         .image_stride = layouts[plane_idx].depthPitch,
+         .format = pCreateInfo->format,
+         .modifier = modifier,
+      };
+      struct pipe_resource *pres = device->pscreen->resource_from_handle(
+         device->pscreen, &template, &whandle,
+         PIPE_HANDLE_USAGE_EXPLICIT_FLUSH);
+      if (!pres)
+         return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+      *plane = (struct lvp_image_plane){
+         .bo = pres,
+         .offset = layouts[plane_idx].offset,
+         .size = whandle.size,
+      };
+   } else
+#endif
+   {
+      uint64_t size_req;
+      struct pipe_resource *pres = device->pscreen->resource_create_unbacked(
+         device->pscreen, &template, &size_req);
+      if (!pres)
+         return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+      *plane = (struct lvp_image_plane){
+         .bo = pres,
+         .offset = image->disjoint ? 0 : image->size,
+         .size = align64(size_req, image->alignment),
+      };
+   }
+
+   image->size += plane->size;
+
+   return VK_SUCCESS;
+}
+
 VkResult
 lvp_image_init(struct lvp_device *device, struct lvp_image *image,
                const VkImageCreateInfo *pCreateInfo)
@@ -51,6 +166,11 @@ lvp_image_init(struct lvp_device *device, struct lvp_image *image,
    }
 
    modifier = DRM_FORMAT_MOD_LINEAR;
+#else
+   const bool android_surface = false;
+   const VkSubresourceLayout *layouts = NULL;
+   const uint64_t modifier = 0;
+   const VkImageDrmFormatModifierExplicitCreateInfoEXT *modinfo = NULL;
 #endif
 
    image->alignment = 64;
@@ -80,109 +200,19 @@ lvp_image_init(struct lvp_device *device, struct lvp_image *image,
    const struct vk_format_ycbcr_info *ycbcr_info =
       vk_format_get_ycbcr_info(pCreateInfo->format);
    for (unsigned p = 0; p < image->plane_count; p++) {
-      struct pipe_resource template;
       VkFormat format = ycbcr_info ?
          ycbcr_info->planes[p].format : pCreateInfo->format;
       const uint8_t width_scale = ycbcr_info ?
          ycbcr_info->planes[p].denominator_scales[0] : 1;
       const uint8_t height_scale = ycbcr_info ?
          ycbcr_info->planes[p].denominator_scales[1] : 1;
-      memset(&template, 0, sizeof(template));
-
-      template.screen = device->pscreen;
-      switch (pCreateInfo->imageType) {
-      case VK_IMAGE_TYPE_1D:
-         template.target = pCreateInfo->arrayLayers > 1 ? PIPE_TEXTURE_1D_ARRAY : PIPE_TEXTURE_1D;
-         break;
-      default:
-      case VK_IMAGE_TYPE_2D:
-         template.target = pCreateInfo->arrayLayers > 1 ? PIPE_TEXTURE_2D_ARRAY : PIPE_TEXTURE_2D;
-         break;
-      case VK_IMAGE_TYPE_3D:
-         template.target = PIPE_TEXTURE_3D;
-         break;
-      }
-
-      template.format = lvp_vk_format_to_pipe_format(format);
-
-      bool is_ds = util_format_is_depth_or_stencil(template.format);
-
-      if (pCreateInfo->usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
-         template.bind |= PIPE_BIND_RENDER_TARGET;
-         /* sampler view is needed for resolve blits */
-         if (pCreateInfo->samples > 1)
-            template.bind |= PIPE_BIND_SAMPLER_VIEW;
-      }
-
-      if (pCreateInfo->usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
-         if (!is_ds)
-            template.bind |= PIPE_BIND_RENDER_TARGET;
-         else
-            template.bind |= PIPE_BIND_DEPTH_STENCIL;
-      }
-
-      if (pCreateInfo->usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
-         template.bind |= PIPE_BIND_DEPTH_STENCIL;
-
-      if (pCreateInfo->usage & (VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                                VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
-         template.bind |= PIPE_BIND_SAMPLER_VIEW;
-
-      if (pCreateInfo->usage & (VK_IMAGE_USAGE_STORAGE_BIT |
-                                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-                                VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT))
-         template.bind |= PIPE_BIND_SHADER_IMAGE;
-
-      if (pCreateInfo->flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT)
-         template.flags |= PIPE_RESOURCE_FLAG_SPARSE;
-
-      template.width0 = pCreateInfo->extent.width / width_scale;
-      template.height0 = pCreateInfo->extent.height / height_scale;
-      template.depth0 = pCreateInfo->extent.depth;
-      template.array_size = pCreateInfo->arrayLayers;
-      template.last_level = pCreateInfo->mipLevels - 1;
-      template.nr_samples = pCreateInfo->samples;
-      template.nr_storage_samples = pCreateInfo->samples;
-
-#ifdef HAVE_LIBDRM
-      if (android_surface || (modinfo && pCreateInfo->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT)) {
-         struct winsys_handle whandle = {
-            .type = WINSYS_HANDLE_TYPE_UNBACKED,
-            .plane = p,
-            .stride = layouts[p].rowPitch,
-            .array_stride = layouts[p].arrayPitch,
-            .image_stride = layouts[p].depthPitch,
-            .format = pCreateInfo->format,
-            .modifier = modifier,
-         };
-         struct pipe_resource *pres = device->pscreen->resource_from_handle(
-            device->pscreen, &template, &whandle,
-            PIPE_HANDLE_USAGE_EXPLICIT_FLUSH);
-         if (!pres)
-            return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
-
-         image->planes[p] = (struct lvp_image_plane){
-            .bo = pres,
-            .offset = layouts[p].offset,
-            .size = whandle.size,
-         };
-      } else
-#endif
-      {
-         uint64_t size_req;
-         struct pipe_resource *pres = device->pscreen->resource_create_unbacked(
-            device->pscreen, &template, &size_req);
-         if (!pres)
-            return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
-
-         image->planes[p] = (struct lvp_image_plane){
-            .bo = pres,
-            .offset = image->disjoint ? 0 : image->size,
-            .size = align64(size_req, image->alignment),
-         };
-      }
-
-      image->size += image->planes[p].size;
+      VkResult result = lvp_alloc_plane(device, image, pCreateInfo,
+                                        modinfo, layouts, modifier,
+                                        format,
+                                        width_scale, height_scale, android_surface,
+                                        p, &image->planes[p]);
+      if (result != VK_SUCCESS)
+         return result;
    }
 
    return VK_SUCCESS;
