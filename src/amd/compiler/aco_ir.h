@@ -1180,7 +1180,7 @@ static constexpr ABI rtRaygenABI = {
       ABI::GPRRange{0u, 0u},     /* preserved_size */
       true,                      /* preserved_first */
    },
-   RegisterDemand(32, 32), /* max_param_demand */
+   RegisterDemand(48, 48), /* max_param_demand */
 };
 
 static constexpr ABI rtTraversalABI = {
@@ -1189,7 +1189,7 @@ static constexpr ABI rtTraversalABI = {
       ABI::GPRRange{0u, 0u},     /* preserved_size */
       true,                      /* preserved_first */
    },
-   RegisterDemand(32, 32), /* max_param_demand */
+   RegisterDemand(48, 48), /* max_param_demand */
 };
 
 static constexpr ABI rtAnyHitABI = {
@@ -1198,7 +1198,7 @@ static constexpr ABI rtAnyHitABI = {
       ABI::GPRRange{80u, 80u},   /* preserved_size */
       false,                     /* preserved_first */
    },
-   RegisterDemand(32, 32), /* max_param_demand */
+   RegisterDemand(48, 48), /* max_param_demand */
 };
 
 struct Block;
