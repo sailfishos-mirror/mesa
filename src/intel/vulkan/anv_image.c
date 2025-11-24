@@ -554,10 +554,11 @@ anv_formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
  *
  * The fast clear portion of the image is laid out in the following order:
  *
- *  * 1 or 4 dwords (depending on hardware generation) for the clear color
+ *  * 1 clear color per view format used with the image (format depending on
+ *    hardware generation).
  *  * 1 dword for the anv_fast_clear_type of the clear color
- *  * On gfx9+, 1 dword per level and layer of the image (3D levels count
- *    multiple layers) in level-major order for compression state.
+ *  * 1 dword per level and layer of the image (3D levels count multiple
+ *    layers) in level-major order for compression state.
  *
  * For the purpose of discoverability, the algorithm used to manage
  * compression and fast-clears is described here:
@@ -584,7 +585,7 @@ anv_formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
  * See anv_layout_to_aux_usage and anv_layout_to_fast_clear_type functions for
  * details on exactly what is allowed in what layouts.
  *
- * On gfx7-9, we do not have a concept of indirect clear colors in hardware.
+ * On gfx9, we do not have a concept of indirect clear colors in hardware.
  * In order to deal with this, we have to do some clear color management.
  *
  *  * For LOAD_OP_LOAD at the top of a renderpass, we have to copy the clear
