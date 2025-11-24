@@ -3766,10 +3766,15 @@ anv_layout_to_fast_clear_type(const struct intel_device_info * const devinfo,
                               const VkImageLayout layout,
                               const VkQueueFlagBits queue_flags)
 {
-   if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR))
-      return ANV_FAST_CLEAR_NONE;
-
    const uint32_t plane = anv_image_aspect_to_plane(image, aspect);
+
+   /* Even without fast-clearing, some aux-usages may still end up with
+    * fast-cleared blocks.
+    */
+   if (INTEL_DEBUG(DEBUG_NO_FAST_CLEAR)) {
+      return image->planes[plane].aux_usage == ISL_AUX_USAGE_FCV_CCS_E ?
+             ANV_FAST_CLEAR_DEFAULT_VALUE : ANV_FAST_CLEAR_NONE;
+   }
 
    /* If there is no auxiliary surface allocated, there are no fast-clears */
    if (image->planes[plane].aux_usage == ISL_AUX_USAGE_NONE)
