@@ -134,7 +134,7 @@
         "description": "anv: Fix the fast clear type for FCV writes",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cd8e120b97d3d0ee69fd632fb7017b10fac13e77",
         "notes": null
