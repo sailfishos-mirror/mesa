@@ -292,7 +292,7 @@ struct gl_colorbuffer_attrib
     * draw buffer, and NVX_blend_equation_advanced_multi_draw_buffer still
     * requires all draw buffers to match, so we only need a single value.
     */
-   enum gl_advanced_blend_mode _AdvancedBlendMode;
+   enum pipe_advanced_blend_mode _AdvancedBlendMode;
 
    /** Coherency requested via glEnable(GL_BLEND_ADVANCED_COHERENT_KHR)? */
    bool BlendCoherent;

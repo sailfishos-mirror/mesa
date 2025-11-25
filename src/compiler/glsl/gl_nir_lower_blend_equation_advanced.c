@@ -303,7 +303,7 @@ set_lum_sat(nir_builder *b,
 }
 
 static nir_def *
-is_mode(nir_builder *b, nir_variable *mode, enum gl_advanced_blend_mode q)
+is_mode(nir_builder *b, nir_variable *mode, enum pipe_advanced_blend_mode q)
 {
    return nir_ieq_imm(b, nir_load_var(b, mode), (unsigned) q);
 }
@@ -318,7 +318,7 @@ calc_blend_result(nir_builder *b,
    nir_variable *result = add_temp_var(b, "__blend_result", glsl_vec4_type());
 
    /* If we're not doing advanced blending, just write the original value. */
-   nir_if *if_blending = nir_push_if(b, is_mode(b, mode, BLEND_NONE));
+   nir_if *if_blending = nir_push_if(b, is_mode(b, mode, PIPE_ADVANCED_BLEND_NONE));
    nir_store_var(b, result, blend_src, ~0);
 
    nir_push_else(b, if_blending);
@@ -362,58 +362,58 @@ calc_blend_result(nir_builder *b,
 
    unsigned choices = blend_qualifiers;
    while (choices) {
-      enum gl_advanced_blend_mode choice = (enum gl_advanced_blend_mode)u_bit_scan(&choices);
+      enum pipe_advanced_blend_mode choice = (enum pipe_advanced_blend_mode)u_bit_scan(&choices);
 
       nir_if *iff = nir_push_if(b, is_mode(b, mode, choice));
       nir_def *val = NULL;
 
       switch (choice) {
-      case BLEND_MULTIPLY:
+      case PIPE_ADVANCED_BLEND_MULTIPLY:
          val = blend_multiply(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_SCREEN:
+      case PIPE_ADVANCED_BLEND_SCREEN:
          val = blend_screen(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_OVERLAY:
+      case PIPE_ADVANCED_BLEND_OVERLAY:
          val = blend_overlay(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_DARKEN:
+      case PIPE_ADVANCED_BLEND_DARKEN:
          val = blend_darken(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_LIGHTEN:
+      case PIPE_ADVANCED_BLEND_LIGHTEN:
          val = blend_lighten(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_COLORDODGE:
+      case PIPE_ADVANCED_BLEND_COLORDODGE:
          val = blend_colordodge(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_COLORBURN:
+      case PIPE_ADVANCED_BLEND_COLORBURN:
          val = blend_colorburn(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_HARDLIGHT:
+      case PIPE_ADVANCED_BLEND_HARDLIGHT:
          val = blend_hardlight(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_SOFTLIGHT:
+      case PIPE_ADVANCED_BLEND_SOFTLIGHT:
          val = blend_softlight(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_DIFFERENCE:
+      case PIPE_ADVANCED_BLEND_DIFFERENCE:
          val = blend_difference(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_EXCLUSION:
+      case PIPE_ADVANCED_BLEND_EXCLUSION:
          val = blend_exclusion(b, src_rgb_def, dst_rgb_def);
          break;
-      case BLEND_HSL_HUE:
+      case PIPE_ADVANCED_BLEND_HSL_HUE:
          set_lum_sat(b, factor, src_rgb, dst_rgb, dst_rgb);
          break;
-      case BLEND_HSL_SATURATION:
+      case PIPE_ADVANCED_BLEND_HSL_SATURATION:
          set_lum_sat(b, factor, dst_rgb, src_rgb, dst_rgb);
          break;
-      case BLEND_HSL_COLOR:
+      case PIPE_ADVANCED_BLEND_HSL_COLOR:
          set_lum(b, factor, src_rgb, dst_rgb);
          break;
-      case BLEND_HSL_LUMINOSITY:
+      case PIPE_ADVANCED_BLEND_HSL_LUMINOSITY:
          set_lum(b, factor, dst_rgb, src_rgb);
          break;
-      case BLEND_NONE:
+      case PIPE_ADVANCED_BLEND_NONE:
          UNREACHABLE("not real cases");
       }
 

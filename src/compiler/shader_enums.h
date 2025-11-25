@@ -1256,29 +1256,6 @@ enum gl_access_qualifier
    ACCESS_FUSED_EU_DISABLE_INTEL = (1 << 19),
 };
 
-/**
- * \brief Blend support qualifiers
- */
-enum gl_advanced_blend_mode
-{
-   BLEND_NONE = 0,
-   BLEND_MULTIPLY,
-   BLEND_SCREEN,
-   BLEND_OVERLAY,
-   BLEND_DARKEN,
-   BLEND_LIGHTEN,
-   BLEND_COLORDODGE,
-   BLEND_COLORBURN,
-   BLEND_HARDLIGHT,
-   BLEND_SOFTLIGHT,
-   BLEND_DIFFERENCE,
-   BLEND_EXCLUSION,
-   BLEND_HSL_HUE,
-   BLEND_HSL_SATURATION,
-   BLEND_HSL_COLOR,
-   BLEND_HSL_LUMINOSITY,
-};
-
 enum gl_tess_spacing
 {
    TESS_SPACING_UNSPECIFIED,

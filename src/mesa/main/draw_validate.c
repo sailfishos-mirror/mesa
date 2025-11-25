@@ -121,7 +121,7 @@ _mesa_update_valid_to_render_state(struct gl_context *ctx)
       return;
 
    if (ctx->Color.BlendEnabled &&
-       ctx->Color._AdvancedBlendMode != BLEND_NONE) {
+       ctx->Color._AdvancedBlendMode != PIPE_ADVANCED_BLEND_NONE) {
       /* The KHR_blend_equation_advanced spec says:
        *
        *    "If any non-NONE draw buffer uses a blend equation found in table
