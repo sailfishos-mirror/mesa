@@ -415,6 +415,8 @@ calc_blend_result(nir_builder *b,
          break;
       case PIPE_ADVANCED_BLEND_NONE:
          UNREACHABLE("not real cases");
+      default:
+         UNREACHABLE("not supported advanced blend mode");
       }
 
       if (val)
