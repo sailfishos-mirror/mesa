@@ -1880,40 +1880,40 @@ nvk_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(VkPhysicalDevice physicalDev
             *p = (struct VkCooperativeMatrixPropertiesKHR){
                .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
                .MSize = 16,
-               .NSize = 8,
-               .KSize = 8,
-               .AType = VK_COMPONENT_TYPE_FLOAT16_KHR,
-               .BType = VK_COMPONENT_TYPE_FLOAT16_KHR,
-               .CType = input_type_cd,
-               .ResultType = input_type_cd,
-               .saturatingAccumulation = false,
-               .scope = VK_SCOPE_SUBGROUP_KHR
-            };
-         }
-
-         vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
-         {
-            *p = (struct VkCooperativeMatrixPropertiesKHR){
-               .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
-               .MSize = 16,
-               .NSize = 8,
-               .KSize = 16,
-               .AType = VK_COMPONENT_TYPE_FLOAT16_KHR,
-               .BType = VK_COMPONENT_TYPE_FLOAT16_KHR,
-               .CType = input_type_cd,
-               .ResultType = input_type_cd,
-               .saturatingAccumulation = false,
-               .scope = VK_SCOPE_SUBGROUP_KHR
-            };
-         }
-
-         vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
-         {
-            *p = (struct VkCooperativeMatrixPropertiesKHR){
-               .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
-               .MSize = 16,
                .NSize = 16,
                .KSize = 16,
+               .AType = VK_COMPONENT_TYPE_FLOAT16_KHR,
+               .BType = VK_COMPONENT_TYPE_FLOAT16_KHR,
+               .CType = input_type_cd,
+               .ResultType = input_type_cd,
+               .saturatingAccumulation = false,
+               .scope = VK_SCOPE_SUBGROUP_KHR
+            };
+         }
+
+         vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
+         {
+            *p = (struct VkCooperativeMatrixPropertiesKHR){
+               .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+               .MSize = 16,
+               .NSize = 8,
+               .KSize = 16,
+               .AType = VK_COMPONENT_TYPE_FLOAT16_KHR,
+               .BType = VK_COMPONENT_TYPE_FLOAT16_KHR,
+               .CType = input_type_cd,
+               .ResultType = input_type_cd,
+               .saturatingAccumulation = false,
+               .scope = VK_SCOPE_SUBGROUP_KHR
+            };
+         }
+
+         vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
+         {
+            *p = (struct VkCooperativeMatrixPropertiesKHR){
+               .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+               .MSize = 16,
+               .NSize = 8,
+               .KSize = 8,
                .AType = VK_COMPONENT_TYPE_FLOAT16_KHR,
                .BType = VK_COMPONENT_TYPE_FLOAT16_KHR,
                .CType = input_type_cd,
@@ -1936,22 +1936,36 @@ nvk_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(VkPhysicalDevice physicalDev
             if (result_type == VK_COMPONENT_TYPE_UINT32_KHR && sat)
                continue;
 
-            if (pdev->info.cls_compute < BLACKWELL_COMPUTE_A) {
-               vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
-               {
-                  *p = (struct VkCooperativeMatrixPropertiesKHR){
-                     .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
-                     .MSize = 8,
-                     .NSize = 8,
-                     .KSize = 16,
-                     .AType = input_type_ab,
-                     .BType = input_type_ab,
-                     .CType = result_type,
-                     .ResultType = result_type,
-                     .saturatingAccumulation = sat,
+            vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
+            {
+               *p = (struct VkCooperativeMatrixPropertiesKHR){
+                  .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+                  .MSize = 16,
+                  .NSize = 16,
+                  .KSize = 32,
+                  .AType = input_type_ab,
+                  .BType = input_type_ab,
+                  .CType = result_type,
+                  .ResultType = result_type,
+                  .saturatingAccumulation = sat,
                   .scope = VK_SCOPE_SUBGROUP_KHR
-                  };
-               }
+               };
+            }
+
+            vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
+            {
+               *p = (struct VkCooperativeMatrixPropertiesKHR){
+                  .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+                  .MSize = 16,
+                  .NSize = 8,
+                  .KSize = 32,
+                  .AType = input_type_ab,
+                  .BType = input_type_ab,
+                  .CType = result_type,
+                  .ResultType = result_type,
+                  .saturatingAccumulation = sat,
+                  .scope = VK_SCOPE_SUBGROUP_KHR
+               };
             }
 
             if (pdev->info.cls_compute >= AMPERE_COMPUTE_A) {
@@ -1972,36 +1986,22 @@ nvk_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(VkPhysicalDevice physicalDev
                }
             }
 
-            vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
-            {
-               *p = (struct VkCooperativeMatrixPropertiesKHR){
-                  .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
-                  .MSize = 16,
-                  .NSize = 8,
-                  .KSize = 32,
-                  .AType = input_type_ab,
-                  .BType = input_type_ab,
-                  .CType = result_type,
-                  .ResultType = result_type,
-                  .saturatingAccumulation = sat,
+            if (pdev->info.cls_compute < BLACKWELL_COMPUTE_A) {
+               vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
+               {
+                  *p = (struct VkCooperativeMatrixPropertiesKHR){
+                     .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+                     .MSize = 8,
+                     .NSize = 8,
+                     .KSize = 16,
+                     .AType = input_type_ab,
+                     .BType = input_type_ab,
+                     .CType = result_type,
+                     .ResultType = result_type,
+                     .saturatingAccumulation = sat,
                   .scope = VK_SCOPE_SUBGROUP_KHR
-               };
-            }
-
-            vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
-            {
-               *p = (struct VkCooperativeMatrixPropertiesKHR){
-                  .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
-                  .MSize = 16,
-                  .NSize = 16,
-                  .KSize = 32,
-                  .AType = input_type_ab,
-                  .BType = input_type_ab,
-                  .CType = result_type,
-                  .ResultType = result_type,
-                  .saturatingAccumulation = sat,
-                  .scope = VK_SCOPE_SUBGROUP_KHR
-               };
+                  };
+               }
             }
          }
       }
