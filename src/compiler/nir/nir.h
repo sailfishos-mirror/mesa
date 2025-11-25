@@ -3444,6 +3444,9 @@ typedef struct nir_loop_info {
    /* Unroll the loop regardless of its size */
    bool force_unroll;
 
+   /* Whether all control flow gets eliminated upon unrolling. */
+   bool flattens_all_control_flow;
+
    /* Does the loop contain complex loop terminators, continues or other
     * complex behaviours? If this is true we can't rely on
     * loop_terminator_list to be complete or accurate.

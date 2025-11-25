@@ -1405,11 +1405,22 @@ gather_constant_fold_info(loop_info_state *state, nir_instr *instr)
 static void
 gather_unroll_heuristic_info(loop_info_state *state, const nir_shader_compiler_options *options)
 {
+   state->loop->info->flattens_all_control_flow = state->loop->info->exact_trip_count_known;
+
    nir_foreach_block_in_cf_node(block, &state->loop->cf_node) {
       /* Calculate instruction cost. */
       nir_foreach_instr(instr, block) {
          gather_constant_fold_info(state, instr);
          state->loop->info->instr_cost += instr_cost(state, instr, options);
+      }
+
+      nir_if *nif = nir_block_get_following_if(block);
+      if (nif) {
+         /* If all IF statements can be constant-folded after unrolling,
+          * the loop becomes a single large basic block.
+          */
+         state->loop->info->flattens_all_control_flow &=
+            is_const_after_unrolling(state, nif->condition.ssa);
       }
 
       if (state->loop->info->force_unroll)
