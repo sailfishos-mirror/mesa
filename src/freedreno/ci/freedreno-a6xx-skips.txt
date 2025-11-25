@@ -106,3 +106,7 @@ dEQP-VK.memory.mapping.dedicated_alloc.buffer.full.variable.implicit_unmap
 dEQP-VK.memory.mapping.dedicated_alloc.buffer.full.variable.implicit_unmap_map2
 dEQP-VK.memory.mapping.dedicated_alloc.image.full.variable.implicit_unmap
 dEQP-VK.memory.mapping.dedicated_alloc.image.full.variable.implicit_unmap_map2
+
+# Generates too many immediates due to loop unrolling
+KHR-GLES31.core.geometry_shader.limits.max_output_components
+KHR-GL46.geometry_shader.limits.max_output_components
