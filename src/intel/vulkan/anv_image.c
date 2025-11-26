@@ -3896,8 +3896,9 @@ anv_can_fast_clear_color(const struct anv_cmd_buffer *cmd_buffer,
    }
 
    /* Wa_18020603990 - slow clear surfaces up to 256x256, 32bpp. */
+   const uint32_t plane = anv_image_aspect_to_plane(image, clear_aspect);
+   const struct anv_surface *anv_surf = &image->planes[plane].primary_surface;
    if (intel_needs_workaround(cmd_buffer->device->info, 18020603990)) {
-      const struct anv_surface *anv_surf = &image->planes->primary_surface;
       if (isl_format_get_layout(anv_surf->isl.format)->bpb <= 32 &&
           anv_surf->isl.logical_level0_px.w <= 256 &&
           anv_surf->isl.logical_level0_px.h <= 256)
