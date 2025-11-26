@@ -117,23 +117,28 @@ emit_extract_vector(isel_context* ctx, Temp src, uint32_t idx, RegClass dst_rc)
    }
 
    assert(src.bytes() > (idx * dst_rc.bytes()));
-   Builder bld(ctx->program, ctx->block);
+
    auto it = ctx->allocated_vec.find(src.id());
-   if (it != ctx->allocated_vec.end() && dst_rc.bytes() == it->second[idx].regClass().bytes()) {
-      if (it->second[idx].regClass() == dst_rc) {
-         return it->second[idx];
-      } else {
-         assert(!dst_rc.is_subdword());
-         assert(dst_rc.type() == RegType::vgpr && it->second[idx].type() == RegType::sgpr);
-         return bld.copy(bld.def(dst_rc), it->second[idx]);
+   if (it != ctx->allocated_vec.end()) {
+      unsigned new_byte_offset = (idx * dst_rc.bytes()) % it->second[0].bytes();
+
+      if ((it->second[0].bytes() - new_byte_offset) >= dst_rc.bytes() &&
+          new_byte_offset % dst_rc.bytes() == 0) {
+         src = it->second[idx * dst_rc.bytes() / it->second[0].bytes()];
+         idx = new_byte_offset / dst_rc.bytes();
+         assert(src.id()); /* allocated_vec can contain undefs, but they must not be used. */
+         return emit_extract_vector(ctx, src, idx, dst_rc);
       }
    }
+
+   Builder bld(ctx->program, ctx->block);
 
    if (dst_rc.is_subdword())
       src = as_vgpr(ctx, src);
 
    if (src.bytes() == dst_rc.bytes()) {
       assert(idx == 0);
+      assert(dst_rc.type() == RegType::vgpr && src.type() == RegType::sgpr);
       return bld.copy(bld.def(dst_rc), src);
    } else {
       return bld.pseudo(aco_opcode::p_extract_vector, bld.def(dst_rc), src, Operand::c32(idx));
