@@ -1359,6 +1359,21 @@ alu_opt_gather_info(opt_ctx& ctx, Instruction* instr, alu_opt_info& info)
          info.operands[1].extract[0] = SubdwordSel::uword1;
       info.opcode = aco_opcode::s_pack_ll_b32_b16;
       break;
+   case aco_opcode::v_cvt_f32_ubyte0:
+   case aco_opcode::v_cvt_f32_ubyte1:
+   case aco_opcode::v_cvt_f32_ubyte2:
+   case aco_opcode::v_cvt_f32_ubyte3:
+      if (info.operands[0].extract[0] != SubdwordSel::dword)
+         break;
+      switch (info.opcode) {
+      case aco_opcode::v_cvt_f32_ubyte0: info.operands[0].extract[0] = SubdwordSel::ubyte0; break;
+      case aco_opcode::v_cvt_f32_ubyte1: info.operands[0].extract[0] = SubdwordSel::ubyte1; break;
+      case aco_opcode::v_cvt_f32_ubyte2: info.operands[0].extract[0] = SubdwordSel::ubyte2; break;
+      case aco_opcode::v_cvt_f32_ubyte3: info.operands[0].extract[0] = SubdwordSel::ubyte3; break;
+      default: UNREACHABLE("invalid op");
+      }
+      info.opcode = aco_opcode::v_cvt_f32_u32;
+      break;
    case aco_opcode::v_sub_f32:
    case aco_opcode::v_subrev_f32:
       info.operands[info.opcode == aco_opcode::v_sub_f32].neg[0] ^= true;
