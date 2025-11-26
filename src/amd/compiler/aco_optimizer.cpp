@@ -1998,6 +1998,10 @@ remove_operand_extract(opt_ctx& ctx, aco_ptr<Instruction>& instr)
    if (instr->isSALU() || instr->isVALU())
       return;
 
+   /* There might be dead splits created by emit_split_vector. */
+   if (instr->opcode == aco_opcode::p_split_vector)
+      return;
+
    for (unsigned i = 0; i < instr->operands.size(); i++) {
       Operand op = instr->operands[i];
       if (!op.isTemp())
