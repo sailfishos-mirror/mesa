@@ -6855,7 +6855,7 @@ bi_compile_variant_nir(nir_shader *nir,
    }
 
    if (bifrost_debug & BIFROST_DBG_SHADERS && !skip_internal)
-      bi_print_shader(ctx, stdout);
+      bi_print_shader(ctx, stderr);
 
    /* Analyze before register allocation to avoid false dependencies. The
     * skip bit is a function of only the data flow graph and is invariant
@@ -6901,7 +6901,7 @@ bi_compile_variant_nir(nir_shader *nir,
       bi_opt_post_ra(ctx);
 
    if (bifrost_debug & BIFROST_DBG_SHADERS && !skip_internal)
-      bi_print_shader(ctx, stdout);
+      bi_print_shader(ctx, stderr);
 
    bi_opt_control_flow(ctx);
 
@@ -6923,7 +6923,7 @@ bi_compile_variant_nir(nir_shader *nir,
    }
 
    if (bifrost_debug & BIFROST_DBG_SHADERS && !skip_internal)
-      bi_print_shader(ctx, stdout);
+      bi_print_shader(ctx, stderr);
 
    if (ctx->arch <= 8) {
       bi_pack_clauses(ctx, binary, offset);
@@ -6933,16 +6933,16 @@ bi_compile_variant_nir(nir_shader *nir,
 
    if (bifrost_debug & BIFROST_DBG_SHADERS && !skip_internal) {
       if (ctx->arch <= 8) {
-         disassemble_bifrost(stdout, binary->data + offset,
+         disassemble_bifrost(stderr, binary->data + offset,
                              binary->size - offset,
                              bifrost_debug & BIFROST_DBG_VERBOSE);
       } else {
-         disassemble_valhall(stdout, binary->data + offset,
+         disassemble_valhall(stderr, binary->data + offset,
                              binary->size - offset,
                              bifrost_debug & BIFROST_DBG_VERBOSE);
       }
 
-      fflush(stdout);
+      fflush(stderr);
    }
 
    /* gather instruction statistics */
