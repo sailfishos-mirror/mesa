@@ -148,14 +148,24 @@ emit_extract_vector(isel_context* ctx, Temp src, uint32_t idx, RegClass dst_rc)
 void
 emit_split_vector(isel_context* ctx, Temp vec_src, unsigned num_components)
 {
+   if (vec_src.size() == 1 && vec_src.type() == RegType::sgpr)
+      return;
+   unsigned comp_bytes = vec_src.bytes() / num_components;
+   assert(vec_src.bytes() % num_components == 0 && util_is_power_of_two_nonzero(comp_bytes));
    if (num_components == 1)
       return;
    if (ctx->allocated_vec.find(vec_src.id()) != ctx->allocated_vec.end())
       return;
-   if (num_components > vec_src.size() && vec_src.type() == RegType::sgpr) {
-      /* sub-dword split: should still help get_alu_src() */
-      emit_split_vector(ctx, vec_src, vec_src.size());
-      return;
+   if (comp_bytes < 4 && num_components > 2) {
+      /* sub-dword split: split into dwords/words first */
+      unsigned split_size = vec_src.size() == 1 ? 2 : 4;
+      if (vec_src.bytes() % split_size == 0) {
+         emit_split_vector(ctx, vec_src, vec_src.bytes() / split_size);
+         auto it = ctx->allocated_vec.find(vec_src.id());
+         for (unsigned i = 0; i < vec_src.bytes() / split_size; i++)
+            emit_split_vector(ctx, it->second[i], split_size / comp_bytes);
+         return;
+      }
    }
    RegClass rc = RegClass::get(vec_src.type(), vec_src.bytes() / num_components);
    aco_ptr<Instruction> split{
