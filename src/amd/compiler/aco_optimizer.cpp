@@ -2677,36 +2677,41 @@ label_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
          }
       }
 
-      offset = 0;
-      for (unsigned i = 0; i < ops.size(); i++) {
-         if (ops[i].isTemp()) {
-            if (ctx.info[ops[i].tempId()].is_temp() &&
-                ops[i].regClass() == ctx.info[ops[i].tempId()].temp.regClass()) {
-               ops[i].setTemp(ctx.info[ops[i].tempId()].temp);
-            }
-
-            /* If this and the following operands make up all definitions of a `p_split_vector`,
-             * replace them with the operand of the `p_split_vector` instruction.
-             */
-            Instruction* parent = ctx.info[ops[i].tempId()].parent_instr;
-            if (parent->opcode == aco_opcode::p_split_vector &&
-                (offset % 4 == 0 || parent->operands[0].bytes() < 4) &&
-                parent->definitions.size() <= ops.size() - i) {
-               copy_prop = true;
-               for (unsigned j = 0; copy_prop && j < parent->definitions.size(); j++) {
-                  copy_prop &= ops[i + j].isTemp() &&
-                               ops[i + j].getTemp() == parent->definitions[j].getTemp();
+      bool progress;
+      do {
+         progress = false;
+         offset = 0;
+         for (unsigned i = 0; i < ops.size(); i++) {
+            if (ops[i].isTemp()) {
+               if (ctx.info[ops[i].tempId()].is_temp() &&
+                   ops[i].regClass() == ctx.info[ops[i].tempId()].temp.regClass()) {
+                  ops[i].setTemp(ctx.info[ops[i].tempId()].temp);
                }
 
-               if (copy_prop) {
-                  ops.erase(ops.begin() + i + 1, ops.begin() + i + parent->definitions.size());
-                  ops[i] = parent->operands[0];
+               /* If this and the following operands make up all definitions of a `p_split_vector`,
+                * replace them with the operand of the `p_split_vector` instruction.
+                */
+               Instruction* parent = ctx.info[ops[i].tempId()].parent_instr;
+               if (parent->opcode == aco_opcode::p_split_vector &&
+                   (offset % 4 == 0 || parent->operands[0].bytes() < 4) &&
+                   parent->definitions.size() <= ops.size() - i) {
+                  copy_prop = true;
+                  for (unsigned j = 0; copy_prop && j < parent->definitions.size(); j++) {
+                     copy_prop &= ops[i + j].isTemp() &&
+                                  ops[i + j].getTemp() == parent->definitions[j].getTemp();
+                  }
+
+                  if (copy_prop) {
+                     ops.erase(ops.begin() + i + 1, ops.begin() + i + parent->definitions.size());
+                     ops[i] = parent->operands[0];
+                     progress = true;
+                  }
                }
             }
+
+            offset += ops[i].bytes();
          }
-
-         offset += ops[i].bytes();
-      }
+      } while (progress);
 
       /* combine expanded operands to new vector */
       if (ops.size() <= instr->operands.size()) {
