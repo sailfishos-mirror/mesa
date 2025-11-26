@@ -3682,10 +3682,9 @@ recreate_blocking_vectors(ra_ctx& ctx, const std::vector<Instruction*>& splits,
    }
 }
 
-
 void
-handle_last_reload_preserved(ra_ctx& ctx, aco_ptr<Instruction>& instr,
-                             std::vector<parallelcopy>& parallelcopy, RegisterFile& register_file)
+handle_return(ra_ctx& ctx, aco_ptr<Instruction>& instr, std::vector<parallelcopy>& parallelcopy,
+              RegisterFile& register_file)
 {
    BITSET_DECLARE(preserved_regs, 512);
    ctx.program->callee_abi.preservedRegisters(preserved_regs);
@@ -3839,13 +3838,12 @@ register_allocation(Program* program, ra_test_policy policy)
                register_file.clear(op);
          }
 
-         /* If this is the last p_reload_preserved, we have no more opportunities to restore
-          * overwritten ABI-preserved registers. Make sure all remaining temporaries are outside
-          * preserved registers, then block the preserved registers to mark them unusable.
+         /* After p_return, we have no more opportunities to restore overwritten ABI-preserved
+          * registers. Make sure all remaining temporaries are outside preserved registers, then
+          * block the preserved registers to mark them unusable.
           */
-         if (instr->opcode == aco_opcode::p_reload_preserved && block.linear_succs.empty()) {
-            handle_last_reload_preserved(ctx, instr, parallelcopy, register_file);
-         }
+         if (instr->opcode == aco_opcode::p_return)
+            handle_return(ctx, instr, parallelcopy, register_file);
 
          BITSET_DECLARE(call_clobbered_regs, 512);
          if (instr->isCall()) {
