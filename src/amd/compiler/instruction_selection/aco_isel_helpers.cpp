@@ -136,9 +136,7 @@ emit_extract_vector(isel_context* ctx, Temp src, uint32_t idx, RegClass dst_rc)
       assert(idx == 0);
       return bld.copy(bld.def(dst_rc), src);
    } else {
-      Temp dst = bld.tmp(dst_rc);
-      bld.pseudo(aco_opcode::p_extract_vector, Definition(dst), src, Operand::c32(idx));
-      return dst;
+      return bld.pseudo(aco_opcode::p_extract_vector, bld.def(dst_rc), src, Operand::c32(idx));
    }
 }
 
