@@ -4217,6 +4217,23 @@ combine_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
       /* Apply SDWA. Do this after label_instruction() so it can remove
        * label_extract if not all instructions can take SDWA. */
       alu_propagate_temp_const(ctx, instr, true);
+   } else if (instr->isPseudo()) {
+      /* PSEUDO: propagate temporaries/constants */
+      for (unsigned i = 0; i < instr->operands.size(); i++) {
+         Operand op = instr->operands[i];
+         if (!op.isTemp())
+            continue;
+
+         ssa_info info = ctx.info[op.tempId()];
+         while (info.is_temp()) {
+            if (pseudo_propagate_temp(ctx, instr, info.temp, i)) {
+               ctx.uses[info.temp.id()]++;
+               decrease_and_dce(ctx, op.getTemp());
+               op = instr->operands[i];
+            }
+            info = ctx.info[info.temp.id()];
+         }
+      }
    }
 
    if (instr->isDPP())
