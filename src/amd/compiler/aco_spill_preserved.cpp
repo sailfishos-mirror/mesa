@@ -587,25 +587,30 @@ emit_preserved_spills(spill_preserved_ctx& ctx)
 
       unsigned min_common_postdom = *it->second.begin();
 
-      for (auto succ_idx : it->second) {
-         while (succ_idx != min_common_postdom) {
-            if (min_common_postdom < succ_idx) {
-               min_common_postdom = is_linear
-                                       ? ctx.dom_info[min_common_postdom].linear_imm_postdom
-                                       : ctx.dom_info[min_common_postdom].logical_imm_postdom;
-            } else {
-               succ_idx = is_linear ? ctx.dom_info[succ_idx].linear_imm_postdom
-                                    : ctx.dom_info[succ_idx].logical_imm_postdom;
+      /* Reloading linear VGPRs clobbers SCC, so only do it in p_return. */
+      if (is_linear_vgpr) {
+         min_common_postdom = ctx.program->blocks.size() - 1;
+      } else {
+         for (auto succ_idx : it->second) {
+            while (succ_idx != min_common_postdom) {
+               if (min_common_postdom < succ_idx) {
+                  min_common_postdom = is_linear
+                                          ? ctx.dom_info[min_common_postdom].linear_imm_postdom
+                                          : ctx.dom_info[min_common_postdom].logical_imm_postdom;
+               } else {
+                  succ_idx = is_linear ? ctx.dom_info[succ_idx].linear_imm_postdom
+                                       : ctx.dom_info[succ_idx].logical_imm_postdom;
+               }
             }
          }
-      }
 
-      while (std::find_if(ctx.program->blocks[min_common_postdom].instructions.rbegin(),
-                          ctx.program->blocks[min_common_postdom].instructions.rend(),
-                          can_reload_at_instr) ==
-             ctx.program->blocks[min_common_postdom].instructions.rend())
-         min_common_postdom = is_linear ? ctx.dom_info[min_common_postdom].linear_imm_postdom
-                                        : ctx.dom_info[min_common_postdom].logical_imm_postdom;
+         while (std::find_if(ctx.program->blocks[min_common_postdom].instructions.rbegin(),
+                             ctx.program->blocks[min_common_postdom].instructions.rend(),
+                             can_reload_at_instr) ==
+                ctx.program->blocks[min_common_postdom].instructions.rend())
+            min_common_postdom = is_linear ? ctx.dom_info[min_common_postdom].linear_imm_postdom
+                                           : ctx.dom_info[min_common_postdom].logical_imm_postdom;
+      }
 
       if (is_linear_vgpr) {
          lvgpr_block_reloads[min_common_postdom].emplace_back(
