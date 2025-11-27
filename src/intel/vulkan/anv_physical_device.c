@@ -6,6 +6,7 @@
 #include "anv_api_version.h"
 #include "anv_measure.h"
 
+#include "dev/intel_debug.h"
 #include "i915/anv_device.h"
 #include "xe/anv_device.h"
 
@@ -133,7 +134,8 @@ static void
 get_device_extensions(const struct anv_physical_device *device,
                       struct vk_device_extension_table *ext)
 {
-   const bool rt_enabled = ANV_SUPPORT_RT && device->info.has_ray_tracing;
+   const bool rt_enabled = ANV_SUPPORT_RT && device->info.has_ray_tracing &&
+                           !intel_use_jay_any_stage(&device->info);
    const bool hw_video_encode_supported = device->info.verx10 < 125;
    const bool video_encode_enabled = hw_video_encode_supported &&
                                      (device->instance->debug & ANV_DEBUG_VIDEO_ENCODE);
@@ -2779,7 +2781,8 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
 
    device->has_cooperative_matrix =
       (device->info.has_systolic || debug_get_bool_option("INTEL_LOWER_DPAS", false)) &&
-      device->info.cooperative_matrix_configurations[0].scope != INTEL_CMAT_SCOPE_NONE;
+      device->info.cooperative_matrix_configurations[0].scope != INTEL_CMAT_SCOPE_NONE &&
+      !intel_use_jay_any_stage(&device->info);
 
    if (is_virtio) {
       struct util_sync_provider *sync = intel_virtio_sync_provider(fd);

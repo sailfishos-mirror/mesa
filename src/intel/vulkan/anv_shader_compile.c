@@ -15,6 +15,7 @@
 #include "compiler/brw/brw_nir.h"
 #include "compiler/brw/brw_nir_rt.h"
 #include "compiler/intel_nir.h"
+#include "compiler/jay/jay.h"
 
 #include "git_sha1.h"
 
@@ -833,6 +834,7 @@ anv_shader_compile_vs(struct anv_device *device,
                       char **error_str)
 {
    const struct brw_compiler *compiler = device->physical->compiler;
+   const struct intel_device_info *devinfo = compiler->devinfo;
    nir_shader *nir = shader_data->info->nir;
 
    shader_data->num_stats = 1;
@@ -850,7 +852,17 @@ anv_shader_compile_vs(struct anv_device *device,
       .prog_data = &shader_data->prog_data.vs,
    };
 
-   shader_data->code = (void *)brw_compile_vs(compiler, &params);
+   if (intel_use_jay(devinfo, nir->info.stage)) {
+      struct jay_shader_bin *bin =
+         jay_compile(devinfo, mem_ctx, nir,
+                     (union brw_any_prog_data *) params.prog_data,
+                     (union brw_any_prog_key *) params.key);
+
+      shader_data->code = (void *) bin->kernel;
+   } else {
+      shader_data->code = (void *) brw_compile_vs(compiler, &params);
+   }
+
    *error_str = params.base.error_str;
 }
 
@@ -1040,6 +1052,7 @@ anv_shader_compile_fs(struct anv_device *device,
                       char **error_str)
 {
    const struct brw_compiler *compiler = device->physical->compiler;
+   const struct intel_device_info *devinfo = compiler->devinfo;
    nir_shader *nir = shader_data->info->nir;
 
    /* When using Primitive Replication for multiview, each view gets its own
@@ -1072,7 +1085,17 @@ anv_shader_compile_fs(struct anv_device *device,
       .max_polygons = UCHAR_MAX,
    };
 
-   shader_data->code = (void *)brw_compile_fs(compiler, &params);
+   if (intel_use_jay(devinfo, nir->info.stage)) {
+      struct jay_shader_bin *bin =
+         jay_compile(devinfo, mem_ctx, nir,
+                     (union brw_any_prog_data *) params.prog_data,
+                     (union brw_any_prog_key *) params.key);
+
+      shader_data->code = (void *) bin->kernel;
+   } else {
+      shader_data->code = (void *) brw_compile_fs(compiler, &params);
+   }
+
    *error_str = params.base.error_str;
 
    shader_data->num_stats = (uint32_t)!!shader_data->prog_data.fs.dispatch_multi +
@@ -1101,6 +1124,7 @@ anv_shader_compile_cs(struct anv_device *device,
                       char **error_str)
 {
    const struct brw_compiler *compiler = device->physical->compiler;
+   const struct intel_device_info *devinfo = compiler->devinfo;
    nir_shader *nir = shader_data->info->nir;
 
    shader_data->num_stats = 1;
@@ -1118,7 +1142,21 @@ anv_shader_compile_cs(struct anv_device *device,
       .prog_data = &shader_data->prog_data.cs,
    };
 
-   shader_data->code = (void *)brw_compile_cs(compiler, &params);
+   if (intel_use_jay(devinfo, nir->info.stage)) {
+      struct jay_shader_bin *bin = jay_compile(devinfo, mem_ctx, nir,
+                             (union brw_any_prog_data*)params.prog_data,
+                             (union brw_any_prog_key*)params.key);
+
+       shader_data->code = (void*)bin->kernel;
+       shader_data->stats[0] = bin->stats;
+
+       params.prog_data->local_size[0] = nir->info.workgroup_size[0];
+       params.prog_data->local_size[1] = nir->info.workgroup_size[1];
+       params.prog_data->local_size[2] = nir->info.workgroup_size[2];
+   } else {
+       shader_data->code = (void*)brw_compile_cs(compiler, &params);
+   }
+
    *error_str = params.base.error_str;
 }
 

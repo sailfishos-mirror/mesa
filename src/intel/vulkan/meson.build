@@ -277,7 +277,8 @@ libvulkan_intel = shared_library(
     idep_nir, idep_genxml, idep_vulkan_util, idep_vulkan_wsi,
     idep_vulkan_runtime, idep_mesautil, idep_xmlconfig,
     idep_intel_driver_ds, idep_intel_dev, idep_intel_blorp,
-    idep_intel_compiler_brw, idep_libvulkan_intel_decoder
+    idep_intel_compiler_brw, idep_libvulkan_intel_decoder,
+    idep_intel_compiler_jay,
   ],
   c_args : anv_flags,
   gnu_symbol_visibility : 'hidden',
@@ -315,7 +316,7 @@ if with_tests
       dep_thread, dep_dl, dep_m, anv_deps,
       idep_nir, idep_vulkan_util, idep_vulkan_wsi, idep_vulkan_runtime,
       idep_mesautil, idep_intel_dev, idep_intel_blorp,
-      idep_intel_compiler_brw, idep_libvulkan_intel_decoder,
+      idep_intel_compiler_brw, idep_intel_compiler_jay, idep_libvulkan_intel_decoder,
     ],
     c_args : anv_flags,
     gnu_symbol_visibility : 'hidden',
