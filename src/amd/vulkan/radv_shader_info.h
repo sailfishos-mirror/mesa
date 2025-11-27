@@ -32,6 +32,7 @@ enum radv_shader_type {
    RADV_SHADER_TYPE_GS_COPY,
    RADV_SHADER_TYPE_TRAP_HANDLER,
    RADV_SHADER_TYPE_RT_PROLOG,
+   RADV_SHADER_TYPE_RT_TRAVERSAL,
 };
 
 struct radv_vs_output_info {

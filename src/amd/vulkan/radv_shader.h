@@ -583,6 +583,8 @@ unsigned radv_compute_spi_ps_input(const struct radv_physical_device *pdev,
                                    const struct radv_graphics_state_key *gfx_state,
                                    const struct radv_shader_info *info);
 
+bool radv_is_traversal_shader(nir_shader *nir);
+
 bool radv_can_dump_shader(struct radv_device *device, nir_shader *nir);
 
 bool radv_can_dump_shader_stats(struct radv_device *device, nir_shader *nir);

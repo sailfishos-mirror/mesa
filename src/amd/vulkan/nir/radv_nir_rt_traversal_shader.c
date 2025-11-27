@@ -1145,7 +1145,6 @@ radv_build_traversal_shader(struct radv_device *device, struct radv_ray_tracing_
    /* Create the traversal shader as an intersection shader to prevent validation failures due to
     * invalid variable modes.*/
    nir_builder b = radv_meta_nir_init_shader(device, MESA_SHADER_INTERSECTION, "rt_traversal");
-   b.shader->info.internal = false;
    b.shader->info.workgroup_size[0] = pdev->rt_wave_size;
    b.shader->info.api_subgroup_size = pdev->rt_wave_size;
    b.shader->info.max_subgroup_size = pdev->rt_wave_size;

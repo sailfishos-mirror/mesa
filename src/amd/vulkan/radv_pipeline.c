@@ -762,7 +762,10 @@ radv_GetPipelineExecutablePropertiesKHR(VkDevice _device, const VkPipelineInfoKH
          description = "Vulkan Miss Shader";
          break;
       case MESA_SHADER_INTERSECTION:
-         description = "Shader responsible for traversing the acceleration structure";
+         if (shader->info.type == RADV_SHADER_TYPE_RT_TRAVERSAL)
+            description = "Shader responsible for traversing the acceleration structure";
+         else
+            description = "Vulkan Intersection Shader";
          break;
       case MESA_SHADER_CALLABLE:
          description = "Vulkan Callable Shader";

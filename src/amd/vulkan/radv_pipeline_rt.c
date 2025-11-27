@@ -400,6 +400,7 @@ radv_rt_nir_to_asm(struct radv_device *device, struct vk_pipeline_cache *cache,
 
    stage->info.user_sgprs_locs = stage->args.user_sgprs_locs;
    stage->info.inline_push_constant_mask = stage->args.ac.inline_push_const_mask;
+   stage->info.type = radv_is_traversal_shader(stage->nir) ? RADV_SHADER_TYPE_RT_TRAVERSAL : RADV_SHADER_TYPE_DEFAULT;
 
    /* Move ray tracing system values to the top that are set by rt_trace_ray
     * to prevent them from being overwritten by other rt_trace_ray calls.
@@ -469,7 +470,7 @@ radv_rt_nir_to_asm(struct radv_device *device, struct vk_pipeline_cache *cache,
       NIR_PASS(_, stage->nir, nir_lower_vars_to_ssa);
       NIR_PASS(_, stage->nir, nir_opt_copy_prop);
       NIR_PASS(_, stage->nir, nir_opt_remove_phis);
-      if (!stage->key.optimisations_disabled)
+      if (!stage->key.optimisations_disabled && !radv_is_traversal_shader(stage->nir))
          NIR_PASS(_, stage->nir, nir_minimize_call_live_states);
 
       stage->info.nir_shared_size = MAX2(stage->info.nir_shared_size, temp_stage.info.nir_shared_size);
@@ -481,7 +482,7 @@ radv_rt_nir_to_asm(struct radv_device *device, struct vk_pipeline_cache *cache,
    bool dump_nir = dump_shader && (instance->debug_flags & RADV_DEBUG_DUMP_NIR);
    bool replayable = (pipeline->base.base.create_flags &
                       VK_PIPELINE_CREATE_2_RAY_TRACING_SHADER_GROUP_HANDLE_CAPTURE_REPLAY_BIT_KHR) &&
-                     stage->stage != MESA_SHADER_INTERSECTION;
+                     !radv_is_traversal_shader(stage->nir);
 
    if (dump_shader) {
       simple_mtx_lock(&instance->shader_dump_mtx);
