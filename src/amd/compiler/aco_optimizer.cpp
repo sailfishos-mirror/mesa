@@ -4205,12 +4205,6 @@ combine_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
    if (instr->definitions.empty() || is_dead(ctx.uses, instr.get()))
       return;
 
-   for (const Definition& def : instr->definitions) {
-      ssa_info& info = ctx.info[def.tempId()];
-      if (info.is_extract() && ctx.uses[def.tempId()] > 4)
-         info.label &= ~label_extract;
-   }
-
    if (instr->opcode == aco_opcode::p_split_vector && instr->operands[0].size() == 1) {
       /* If all except the first definition still have their extract label, we will likely
        * eliminate the whole split instruction after copy propagating the first one.
