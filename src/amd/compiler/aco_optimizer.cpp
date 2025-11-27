@@ -2782,9 +2782,7 @@ label_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
             /* Subdword split */
             unsigned offset = 0;
             for (const Definition& def : instr->definitions) {
-               if (offset == 0)
-                  ctx.info[def.tempId()].set_temp(instr->operands[0].getTemp());
-               else if (offset % def.bytes() == 0)
+               if (offset && offset % def.bytes() == 0)
                   ctx.info[def.tempId()].set_extract();
                offset += def.bytes();
             }
@@ -4211,6 +4209,20 @@ combine_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
       ssa_info& info = ctx.info[def.tempId()];
       if (info.is_extract() && ctx.uses[def.tempId()] > 4)
          info.label &= ~label_extract;
+   }
+
+   if (instr->opcode == aco_opcode::p_split_vector && instr->operands[0].size() == 1) {
+      /* If all except the first definition still have their extract label, we will likely
+       * eliminate the whole split instruction after copy propagating the first one.
+       * Unconditional copy propagation would mean we end up with more splits
+       * that don't kill their operands.
+       */
+      bool will_be_removed = true;
+      for (unsigned i = 1; i < instr->definitions.size(); i++)
+         will_be_removed &= ctx.info[instr->definitions[i].tempId()].is_extract();
+
+      if (will_be_removed)
+         ctx.info[instr->definitions[0].tempId()].set_temp(instr->operands[0].getTemp());
    }
 
    if (instr->isVALU() || instr->isSALU()) {
