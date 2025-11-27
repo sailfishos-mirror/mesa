@@ -922,6 +922,8 @@ find_param_regs(Program* program, const ABI& abi, callee_info& info,
 
             param_demand += Temp(0, it2->rc);
 
+            it2->dst_info->needs_explicit_preservation =
+               regs == clobbered_regs && !it2->dst_info->discardable;
             it2->dst_info->def.setPrecolored(*next_reg);
             for (unsigned i = 0; i < it2->rc.size(); ++i)
                BITSET_CLEAR(regs, next_reg->reg() + i);
@@ -937,6 +939,8 @@ find_param_regs(Program* program, const ABI& abi, callee_info& info,
             next_reg = next_reg->advance(required_padding * 4);
       }
       if (next_reg) {
+         params.back().dst_info->needs_explicit_preservation =
+            regs == clobbered_regs && !params.back().dst_info->discardable;
          param_demand += Temp(0, params.back().rc);
          params.back().dst_info->def.setPrecolored(*next_reg);
          BITSET_CLEAR_COUNT(regs, next_reg->reg(), params.back().rc.size());
@@ -1069,6 +1073,13 @@ get_callee_info(amd_gfx_level gfx_level, const ABI& abi, unsigned param_count,
       assignment_infos[info_base + i].dst_info = &info.param_infos[i];
 
    find_param_regs(program, abi, info, assignment_infos, reg_limit);
+
+   /* Explicitly preserve the stack pointer. spill_preserved() can ensure correctness on its own,
+    * but it only can spill the initial stack pointer value to a linear VGPR, the inactive lanes of
+    * which would in turn need to be spilled to scratch. Explicitly preserving the stack pointer's
+    * value is more efficient.
+    */
+   info.stack_ptr.needs_explicit_preservation = true;
 
    return info;
 }

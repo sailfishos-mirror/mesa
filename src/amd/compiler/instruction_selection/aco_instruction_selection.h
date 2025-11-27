@@ -20,6 +20,7 @@ namespace aco {
 
 struct parameter_info {
    bool discardable;
+   bool needs_explicit_preservation;
    bool is_reg;
    union {
       Definition def;
