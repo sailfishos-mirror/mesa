@@ -956,6 +956,8 @@ brw_allocate_registers(brw_shader &s, bool allow_spilling)
    if (s.failed)
       return;
 
+   brw_workaround_emit_dummy_mov_mulmac(s);
+
    OPT(brw_lower_scoreboard);
 }
 
