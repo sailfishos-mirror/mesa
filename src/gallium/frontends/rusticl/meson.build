@@ -136,6 +136,8 @@ rusticl_opencl_bindings_rs = rust.bindgen(
     'rusticl_opencl_bindings.h',
     opencl_headers,
   ],
+  # required by 'CL_intel/cl_ext_private.h'
+  language : 'cpp',
   output : 'rusticl_opencl_bindings.rs',
   include_directories : [
     inc_include,

@@ -14,6 +14,7 @@ use crate::core::format::*;
 use crate::core::gl::*;
 use crate::core::memory::*;
 use crate::core::queue::*;
+use crate::rusticl_warn_once;
 
 use mesa_rust_gen::pipe_fd_type;
 use mesa_rust_util::properties::Properties;
@@ -48,7 +49,8 @@ fn validate_mem_flags(flags: cl_mem_flags, validation: MemFlagValidationType) ->
             | CL_MEM_WRITE_ONLY
             | CL_MEM_READ_ONLY
             | CL_MEM_KERNEL_READ_AND_WRITE
-            | CL_MEM_IMMUTABLE_EXT,
+            | CL_MEM_IMMUTABLE_EXT
+            | CL_MEM_ALLOW_UNRESTRICTED_SIZE_INTEL,
     );
 
     if validation != MemFlagValidationType::Imported {
@@ -64,6 +66,12 @@ fn validate_mem_flags(flags: cl_mem_flags, validation: MemFlagValidationType) ->
 
     if flags & !valid_flags != 0 {
         return Err(CL_INVALID_VALUE);
+    }
+
+    if flags & cl_bitfield::from(CL_MEM_ALLOW_UNRESTRICTED_SIZE_INTEL) != 0 {
+        rusticl_warn_once!(
+            "Use of CL_MEM_ALLOW_UNRESTRICTED_SIZE_INTEL detected. This flag is ignored and applications shouldn't use them with rusticl."
+        );
     }
 
     Ok(())
