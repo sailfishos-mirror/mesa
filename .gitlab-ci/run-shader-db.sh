@@ -51,3 +51,13 @@ for chipset in 0x5460 0x7140; do
             > "$ARTIFACTSDIR/r300-${chipset}-shader-db.txt"
     section_end shader-db-r300-${chipset}
 done
+
+# Run shader-db for radeonsi
+for device in pitcairn bonaire navi21 navi31 gfx1150 gfx1201; do
+    section_start shader-db-radeonsi-${device} "Running shader-db for radeonsi - ${device}"
+    env LD_PRELOAD="$LIBDIR/libamdgpu_noop_drm_shim.so" \
+        RADEON_GPU_ID=${device} \
+        ./run -j"${FDO_CI_CONCURRENT:-4}" -o radeonsi ./shaders \
+            > "$ARTIFACTSDIR/radeonsi-${device}-shader-db.txt"
+    section_end shader-db-radeonsi-${device}
+done

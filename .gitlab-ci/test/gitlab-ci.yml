@@ -44,6 +44,7 @@ shader-db:
     - !reference [.vc4-rules, rules]
     - !reference [.nouveau-rules, rules]
     - !reference [.r300-rules, rules]
+    - !reference [.radeonsi-collabora-rules, rules]
     # Also run if this job's own config or script changes
     - changes:
         - .gitlab-ci/build/gitlab-ci.yml
