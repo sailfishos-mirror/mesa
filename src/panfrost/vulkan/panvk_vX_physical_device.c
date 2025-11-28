@@ -113,7 +113,9 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_spirv_1_4 = PAN_ARCH >= 10,
       .KHR_storage_buffer_storage_class = true,
 #ifdef PANVK_USE_WSI_PLATFORM
+      .KHR_present_id = true,
       .KHR_present_id2 = true,
+      .KHR_present_wait = true,
       .KHR_present_wait2 = true,
       .KHR_swapchain = true,
 #endif
@@ -542,8 +544,14 @@ panvk_per_arch(get_physical_device_features)(
       .mutableDescriptorType = PAN_ARCH >= 9,
 
 #ifdef PANVK_USE_WSI_PLATFORM
+      /* VK_KHR_present_id */
+      .presentId = true,
+
       /* VK_KHR_present_id2 */
       .presentId2 = true,
+
+      /* VK_KHR_present_wait */
+      .presentWait = true,
 
       /* VK_KHR_present_wait2 */
       .presentWait2 = true,

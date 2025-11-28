@@ -7,3 +7,5 @@ VK_EXT_blend_operation_advanced on lavapipe
 VK_KHR_get_surface_capabilities2 on panvk
 VK_KHR_get_display_properties2 on panvk
 VK_EXT_acquire_drm_display on panvk
+VK_KHR_present_id on panvk
+VK_KHR_present_wait on panvk
