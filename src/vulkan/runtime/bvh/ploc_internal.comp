@@ -132,7 +132,7 @@ combined_node_cost(uint32_t lds_base, uint32_t i, uint32_t j)
    vk_aabb combined_bounds;
    combined_bounds.min = min(shared_bounds[i - lds_base].min, shared_bounds[j - lds_base].min);
    combined_bounds.max = max(shared_bounds[i - lds_base].max, shared_bounds[j - lds_base].max);
-   return aabb_surface_area(combined_bounds);
+   return aabb_half_surface_area(combined_bounds);
 }
 
 shared uint32_t shared_aggregate_sum;

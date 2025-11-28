@@ -292,7 +292,7 @@ find_children(vk_ir_box_node src, inout uint32_t children[6],
 
          vk_aabb bounds = DEREF(REF(vk_ir_node)NODE_OFFSET(children[i])).aabb;
 
-         float surface_area = aabb_surface_area(bounds);
+         float surface_area = aabb_half_surface_area(bounds);
          if (surface_area > largest_surface_area) {
             largest_surface_area = surface_area;
             collapsed_child_index = i;
