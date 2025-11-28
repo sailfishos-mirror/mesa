@@ -1348,6 +1348,17 @@ util_format_is_unorm8(const struct util_format_description *desc)
 }
 
 static inline bool
+util_format_is_unorm16(const struct util_format_description *desc)
+{
+   int c = util_format_get_first_non_void_channel(desc->format);
+
+   if (c == -1)
+      return false;
+
+   return desc->is_unorm && desc->is_array && desc->channel[c].size == 16;
+}
+
+static inline bool
 util_format_is_int64(const struct util_format_description *desc)
 {
    int c = util_format_get_first_non_void_channel(desc->format);
