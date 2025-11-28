@@ -581,151 +581,6 @@ bi_emit_load_attr(bi_builder *b, nir_intrinsic_instr *instr)
 }
 
 static void
-bi_emit_load_fs_input(bi_builder *b, nir_intrinsic_instr *instr)
-{
-   enum bi_sample sample = BI_SAMPLE_CENTER;
-   enum bi_update update = BI_UPDATE_STORE;
-   enum bi_register_format regfmt = BI_REGISTER_FORMAT_AUTO;
-   enum bi_source_format source_format;
-   bool smooth = instr->intrinsic == nir_intrinsic_load_interpolated_input;
-   bi_index src0 = bi_null();
-
-   /* Only use LD_VAR_BUF[_IMM] if explicitly told by the driver
-    * through a compiler input value, falling back to LD_VAR[_IMM] +
-    * Attribute Descriptors otherwise. */
-   bool use_ld_var_buf =
-      b->shader->malloc_idvs && b->shader->inputs->valhall.use_ld_var_buf;
-
-   unsigned component = nir_intrinsic_component(instr);
-   enum bi_vecsize vecsize = (instr->num_components + component - 1);
-   bi_index dest =
-      (component == 0) ? bi_def_index(&instr->def) : bi_temp(b->shader);
-
-   nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
-
-   const nir_alu_type type = nir_intrinsic_dest_type(instr);
-   const nir_alu_type base_type = nir_alu_type_get_base_type(type);
-   const nir_alu_type sz = nir_alu_type_get_type_size(type);
-   assert(sz == instr->def.bit_size);
-   assert(sz == 16 || sz == 32);
-   assert(base_type == nir_type_int || base_type == nir_type_uint || base_type == nir_type_float);
-
-   const struct pan_varying_slot *slot = NULL;
-   unsigned src_sz = sz;
-   if (use_ld_var_buf) {
-      pan_varying_layout_require_layout(b->shader->varying_layout);
-      slot = pan_varying_layout_find_slot(b->shader->varying_layout,
-                                          sem.location);
-      assert(slot);
-      src_sz = nir_alu_type_get_type_size(slot->alu_type);
-      assert(src_sz == 16 || src_sz == 32);
-   }
-
-   if (smooth) {
-      nir_intrinsic_instr *parent = nir_src_as_intrinsic(instr->src[0]);
-      assert(parent);
-
-      sample = bi_interp_for_intrinsic(parent->intrinsic);
-      src0 = bi_varying_src0_for_barycentric(b, parent);
-
-      /* Smooth ints don't exist */
-      assert(base_type == nir_type_float);
-      regfmt = (sz == 16) ? BI_REGISTER_FORMAT_F16 : BI_REGISTER_FORMAT_F32;
-      source_format =
-         (src_sz == 16) ? BI_SOURCE_FORMAT_F16 : BI_SOURCE_FORMAT_F32;
-   } else {
-      if (use_ld_var_buf) {
-         /* integer regfmt are not supported by LD_VAR_BUF, but using float src_types for integers
-          * is okay if the source_format is flat and uses the same bit size.
-          * The conversion is a no-op. */
-         regfmt = (sz == 16) ? BI_REGISTER_FORMAT_F16 : BI_REGISTER_FORMAT_F32;
-         source_format = (src_sz == 16) ?
-            BI_SOURCE_FORMAT_FLAT16 : BI_SOURCE_FORMAT_FLAT32;
-         /* conversion MUST be a noop for int varyings to work correctly */
-         assert(base_type == nir_type_float || src_sz == sz);
-      } else {
-         /* Flat loading with i16/u16 is not encodable */
-         assert(base_type == nir_type_float || sz == 32);
-         regfmt = bi_reg_fmt_for_nir(type);
-      }
-
-      /* Valhall can't have bi_null() here, although the source is
-       * logically unused for flat varyings
-       */
-      if (b->shader->arch >= 9)
-         src0 = bi_preload(b, 61);
-
-      /* Gather info as we go */
-      b->shader->info.bifrost->uses_flat_shading = true;
-   }
-
-   nir_src *offset_src = nir_get_io_offset_src(instr);
-   unsigned imm_index = 0;
-   bool immediate = bi_is_imm_var_desc_handle(b, instr, &imm_index);
-   unsigned base = nir_intrinsic_base(instr);
-
-   if (use_ld_var_buf) {
-      assert(slot);
-      if (immediate) {
-         assert(nir_src_is_const(*offset_src) && "assumes immediate offset");
-         unsigned offset = slot->offset + (nir_src_as_uint(*offset_src) * 16);
-
-         /* Immediate index given in bytes. */
-         bi_ld_var_buf_imm_to(b, sz, dest, src0, regfmt, sample, source_format,
-                              update, vecsize, offset);
-      } else {
-         bi_index idx = bi_src_index(offset_src);
-         /* Index needs to be in bytes, but NIR gives the index
-          * in slots. For now assume 16 bytes per element.
-          */
-         bi_index idx_bytes = bi_lshift_or_i32(b, idx, bi_zero(), bi_imm_u8(4));
-         if (slot->offset != 0)
-            idx_bytes = bi_iadd_u32(b, idx_bytes, bi_imm_u32(slot->offset),
-                                    false);
-
-         bi_ld_var_buf_to(b, sz, dest, src0, idx_bytes, regfmt, sample,
-                          source_format, update, vecsize);
-      }
-   } else {
-      /* On Valhall, ensure the table and index are valid for usage with
-       * immediate form when IDVS isn't used */
-      if (b->shader->arch >= 9)
-         immediate &= va_is_valid_const_table(pan_res_handle_get_table(base)) &&
-                      pan_res_handle_get_index(base) < 256;
-
-      if (immediate) {
-         bi_instr *I;
-
-         if (smooth) {
-            I = bi_ld_var_imm_to(b, dest, src0, regfmt, sample, update, vecsize,
-                                 pan_res_handle_get_index(imm_index));
-         } else {
-            I =
-               bi_ld_var_flat_imm_to(b, dest, BI_FUNCTION_NONE, regfmt, vecsize,
-                                     pan_res_handle_get_index(imm_index));
-         }
-
-         /* Valhall usually uses LD_VAR_BUF. If this is disabled, use a simple
-          * Midgard-style ABI. */
-         if (b->shader->arch >= 9)
-            I->table = va_res_fold_table_idx(pan_res_handle_get_table(base));
-      } else {
-         bi_index idx = bi_src_index(offset_src);
-
-         if (base != 0)
-            idx = bi_iadd_u32(b, idx, bi_imm_u32(base), false);
-
-         if (smooth)
-            bi_ld_var_to(b, dest, src0, idx, regfmt, sample, update, vecsize);
-         else
-            bi_ld_var_flat_to(b, dest, idx, BI_FUNCTION_NONE, regfmt, vecsize);
-      }
-   }
-
-   bi_copy_component(b, instr, dest);
-}
-
-static void
 bi_emit_load_var(bi_builder *b, nir_intrinsic_instr *intr)
 {
    assert(intr->intrinsic == nir_intrinsic_load_var_pan ||
@@ -2140,9 +1995,7 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_interpolated_input:
    case nir_intrinsic_load_input:
       assert(!b->shader->inputs->is_blend);
-      if (stage == MESA_SHADER_FRAGMENT)
-         bi_emit_load_fs_input(b, instr);
-      else if (stage == MESA_SHADER_VERTEX)
+      if (stage == MESA_SHADER_VERTEX)
          bi_emit_load_attr(b, instr);
       else
          UNREACHABLE("Unsupported shader stage");
@@ -7247,6 +7100,10 @@ bifrost_compile_shader_nir(nir_shader *nir,
                                   inputs->trust_varying_flat_highp_types, false);
       info->varyings.noperspective =
          pan_nir_collect_noperspective_varyings_fs(nir);
+
+      if (!inputs->is_blend)
+         NIR_PASS(_, nir, pan_nir_lower_fs_inputs, inputs->gpu_id,
+                  inputs->varying_layout, inputs->valhall.use_ld_var_buf);
    }
 
    if (nir->info.stage == MESA_SHADER_VERTEX && info->vs.idvs) {
