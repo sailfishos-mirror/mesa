@@ -1741,8 +1741,7 @@ va_emit_load_texel_buf_index_address(bi_builder *b, bi_index dst,
 }
 
 static void
-bi_emit_load_converted_mem(bi_builder *b, bi_index dst,
-                           nir_intrinsic_instr *instr)
+bi_emit_load_cvt(bi_builder *b, bi_index dst, nir_intrinsic_instr *instr)
 {
    bi_index addr = bi_src_index(&instr->src[0]);
    bi_index icd = bi_src_index(&instr->src[1]);
@@ -1754,14 +1753,25 @@ bi_emit_load_converted_mem(bi_builder *b, bi_index dst,
 }
 
 static void
-bi_emit_store_converted_mem(bi_builder *b, nir_intrinsic_instr *instr)
+bi_emit_store_cvt(bi_builder *b, nir_intrinsic_instr *instr)
 {
    bi_index value = bi_src_index(&instr->src[0]);
    bi_index addr = bi_src_index(&instr->src[1]);
    bi_index icd = bi_src_index(&instr->src[2]);
 
+   const nir_alu_type src_type = nir_intrinsic_src_type(instr);
+   enum bi_register_format regfmt;
+   if (src_type == 32) {
+      assert(nir_src_bit_size(instr->src[0]) == 32);
+      regfmt = BI_REGISTER_FORMAT_AUTO;
+   } else {
+      assert(nir_src_bit_size(instr->src[0]) ==
+             nir_alu_type_get_type_size(src_type));
+      regfmt = bi_reg_fmt_for_nir(src_type);
+   }
+
    bi_st_cvt(b, value, bi_extract(b, addr, 0), bi_extract(b, addr, 1), icd,
-             BI_REGISTER_FORMAT_AUTO, instr->num_components - 1);
+             regfmt, instr->num_components - 1);
 }
 
 static void
@@ -2287,12 +2297,12 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
          bi_emit_load_texel_buf_index_address(b, dst, instr);
       break;
 
-   case nir_intrinsic_load_converted_mem_pan:
-      bi_emit_load_converted_mem(b, dst, instr);
+   case nir_intrinsic_load_global_cvt_pan:
+      bi_emit_load_cvt(b, dst, instr);
       break;
 
-   case nir_intrinsic_store_converted_mem_pan:
-      bi_emit_store_converted_mem(b, instr);
+   case nir_intrinsic_store_global_cvt_pan:
+      bi_emit_store_cvt(b, instr);
       break;
 
    case nir_intrinsic_load_tile_pan:
@@ -6453,12 +6463,12 @@ lower_texel_buffer_fetch(nir_builder *b, nir_tex_instr *tex, void *data)
    nir_def *loaded_mem;
    if (*arch >= 9) {
       nir_def *icd = nir_load_texel_buf_conv_pan(b, res_handle);
-      loaded_mem = nir_load_converted_mem_pan(b, tex->def.num_components,
+      loaded_mem = nir_load_global_cvt_pan(b, tex->def.num_components,
                                               tex->def.bit_size, texel_addr,
                                               icd, tex->dest_type);
    } else {
       nir_def *icd = nir_channel(b, loaded_texel_addr, 2);
-      loaded_mem = nir_load_converted_mem_pan(b, tex->def.num_components,
+      loaded_mem = nir_load_global_cvt_pan(b, tex->def.num_components,
                                               tex->def.bit_size, texel_addr,
                                               icd, tex->dest_type);
    }
@@ -6508,9 +6518,9 @@ lower_buf_image_access(nir_builder *b, nir_intrinsic_instr *intr, void *data)
          icd = nir_load_texel_buf_conv_pan(b, res_handle);
       else
          icd = nir_channel(b, loaded_texel_addr, 2);
-      nir_def *loaded_mem = nir_load_converted_mem_pan(
+      nir_def *loaded_mem = nir_load_global_cvt_pan(
          b, intr->def.num_components, intr->def.bit_size, texel_addr, icd,
-         nir_intrinsic_dest_type(intr));
+         .dest_type = nir_intrinsic_dest_type(intr));
       nir_def_replace(&intr->def, loaded_mem);
       break;
    }
@@ -6530,7 +6540,7 @@ lower_buf_image_access(nir_builder *b, nir_intrinsic_instr *intr, void *data)
          icd = nir_load_texel_buf_conv_pan(b, res_handle);
       else
          icd = nir_channel(b, loaded_texel_addr, 2);
-      nir_store_converted_mem_pan(b, value, texel_addr, icd);
+      nir_store_global_cvt_pan(b, value, texel_addr, icd, .src_type = 32);
       nir_instr_remove(&intr->instr);
       break;
    }

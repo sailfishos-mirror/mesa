@@ -1185,7 +1185,7 @@ nir_get_io_data_src_number(const nir_intrinsic_instr *intr)
    case nir_intrinsic_store_raw_output_pan:
    case nir_intrinsic_store_combined_output_pan:
    case nir_intrinsic_store_tile_pan:
-   case nir_intrinsic_store_converted_mem_pan:
+   case nir_intrinsic_store_global_cvt_pan:
    case nir_intrinsic_store_tlb_sample_color_v3d:
    case nir_intrinsic_store_uvs_agx:
    case nir_intrinsic_store_local_pixel_agx:

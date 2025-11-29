@@ -1727,11 +1727,14 @@ store("tile_pan", [1, 1, 1], indices=[ACCESS, SRC_TYPE, IO_SEMANTICS])
 
 # Load converted memory given an address and a conversion descriptor
 # src[] = { address, conversion }
-load("converted_mem_pan", [1, 1], indices=[DEST_TYPE, IO_SEMANTICS], flags=[CAN_ELIMINATE])
+load("global_cvt_pan", [1, 1], indices=[DEST_TYPE, ACCESS], flags=[CAN_ELIMINATE])
 
-# Store a value to memory with conversion given an address and a conversion descriptor
+# Store a value to memory with conversion given an address and a conversion
+# descriptor.  The hardware also supports AUTO32, meaning a global store without
+# any conversion for 32-bit values, this behaviour can be enabled by setting
+# SRC_TYPE = `32` (using nir_type_invalid instead of real types).
 # src[] = { value, address, conversion }
-store("converted_mem_pan", [1, 1], indices=[IO_SEMANTICS])
+store("global_cvt_pan", [1, 1], indices=[SRC_TYPE, ACCESS])
 
 # Load the address and potentially the conversion descriptor for a texel buffer index.
 # The 64 bit address is always in the first two channels, while the 32 bit

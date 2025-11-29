@@ -754,7 +754,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_vulkan_descriptor:
    case nir_intrinsic_load_input_attachment_target_pan:
    case nir_intrinsic_load_input_attachment_conv_pan:
-   case nir_intrinsic_load_converted_mem_pan:
+   case nir_intrinsic_load_global_cvt_pan:
    case nir_intrinsic_atomic_counter_read:
    case nir_intrinsic_atomic_counter_read_deref:
    case nir_intrinsic_is_sparse_texels_resident:
