@@ -2878,6 +2878,7 @@ init_driver_workarounds(struct zink_screen *screen)
    /* enable implicit sync for all non-mesa drivers */
    screen->driver_workarounds.implicit_sync = !zink_driver_is_venus(screen);
    switch (zink_driverid(screen)) {
+   case VK_DRIVER_ID_IMAGINATION_OPEN_SOURCE_MESA:
    case VK_DRIVER_ID_MESA_RADV:
    case VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA:
    case VK_DRIVER_ID_MESA_LLVMPIPE:
@@ -3074,6 +3075,7 @@ init_driver_workarounds(struct zink_screen *screen)
 
    /* these drivers can successfully do INVALID <-> LINEAR dri3 modifier swap */
    switch (zink_driverid(screen)) {
+   case VK_DRIVER_ID_IMAGINATION_OPEN_SOURCE_MESA:
    case VK_DRIVER_ID_MESA_TURNIP:
    case VK_DRIVER_ID_MESA_NVK:
    case VK_DRIVER_ID_MESA_LLVMPIPE:
