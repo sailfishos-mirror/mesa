@@ -28,6 +28,9 @@
 #include "vk_common_entrypoints.h"
 #include "vk_util.h"
 
+#define V3D_VERSION 42
+#include "v3dv_format_table.h"
+
 float
 v3dv_get_aa_line_width(struct v3dv_pipeline *pipeline,
                        struct v3dv_cmd_buffer *buffer)

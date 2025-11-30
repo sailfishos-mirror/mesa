@@ -22,9 +22,9 @@
  */
 
 #include "v3dv_private.h"
+#include "v3dv_format_table.h"
+#include "v3dvx_format_table.h"
 
-#include "broadcom/common/v3d_macros.h"
-#include "broadcom/cle/v3dx_pack.h"
 #include "broadcom/compiler/v3d_compiler.h"
 #include "util/u_pack_color.h"
 #include "util/half_float.h"

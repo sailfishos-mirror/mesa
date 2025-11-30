@@ -23,6 +23,9 @@
 
 #include "v3dv_private.h"
 
+#define V3D_VERSION 42
+#include "v3dv_format_table.h"
+
 static uint32_t
 num_subpass_attachments(const VkSubpassDescription2 *desc)
 {

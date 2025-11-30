@@ -28,6 +28,9 @@
 #include "util/u_pack_color.h"
 #include "vk_common_entrypoints.h"
 
+#define V3D_VERSION 42
+#include "v3dv_format_table.h"
+
 static void
 get_hw_clear_color(struct v3dv_device *device,
                    const VkClearColorValue *color,

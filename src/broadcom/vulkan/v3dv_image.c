@@ -30,6 +30,9 @@
 #include "vulkan/wsi/wsi_common.h"
 #include "vk_android.h"
 
+#define V3D_VERSION 42
+#include "v3dv_format_table.h"
+
 /**
  * Computes the HW's UIFblock padding for a given height/cpp.
  *

@@ -33,6 +33,9 @@
 
 #include <vulkan/vulkan_android.h>
 
+#define V3D_VERSION 42
+#include "v3dv_format_table.h"
+
 const uint8_t *
 v3dv_get_format_swizzle(struct v3dv_device *device, VkFormat f, uint8_t plane)
 {

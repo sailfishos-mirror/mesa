@@ -116,6 +116,8 @@
 
 struct v3dv_instance;
 struct v3dv_image;
+struct v3dv_format_plane;
+struct v3dv_format;
 struct v3d_simulator_file;
 
 /* Minimum required by the Vulkan 1.1 spec */
@@ -618,39 +620,6 @@ struct v3dv_device_memory {
 #define TEXTURE_DATA_FORMAT_NO     255
 
 #define V3DV_MAX_PLANE_COUNT 3
-struct v3dv_format_plane {
-   /* One of V3D42_OUTPUT_IMAGE_FORMAT_*, or OUTPUT_IMAGE_FORMAT_NO */
-   uint8_t rt_type;
-
-   /* One of V3D42_TEXTURE_DATA_FORMAT_*. */
-   uint8_t tex_type;
-
-   /* Swizzle to apply to the RGBA shader output for storing to the tile
-    * buffer, to the RGBA tile buffer to produce shader input (for
-    * blending), and for turning the rgba8888 texture sampler return
-    * value into shader rgba values.
-    */
-   uint8_t swizzle[4];
-
-   /* Whether the return value is 16F/I/UI or 32F/I/UI. */
-   uint8_t return_size;
-
-   /* Needs software unorm packing */
-   bool unorm;
-
-   /* Needs software snorm packing */
-   bool snorm;
-};
-
-struct v3dv_format {
-   /* Non 0 plane count implies supported */
-   uint8_t plane_count;
-
-   struct v3dv_format_plane planes[V3DV_MAX_PLANE_COUNT];
-
-   /* If the format supports (linear) filtering when texturing. */
-   bool supports_filtering;
-};
 
 /* Note that although VkImageAspectFlags would allow to combine more than one
  * PLANE bit, for all the use cases we implement that use VkImageAspectFlags,

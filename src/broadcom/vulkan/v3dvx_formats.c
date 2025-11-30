@@ -22,8 +22,8 @@
  */
 
 #include "v3dv_private.h"
-#include "broadcom/common/v3d_macros.h"
-#include "broadcom/cle/v3dx_pack.h"
+#include "v3dv_format_table.h"
+#include "v3dvx_format_table.h"
 
 #include "util/format/u_format.h"
 #include "vk_enum_to_str.h"

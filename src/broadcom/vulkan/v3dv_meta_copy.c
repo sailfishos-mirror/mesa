@@ -28,6 +28,9 @@
 #include "util/u_pack_color.h"
 #include "vk_common_entrypoints.h"
 
+#define V3D_VERSION 42
+#include "v3dv_format_table.h"
+
 static uint32_t
 meta_blit_key_hash(const void *key)
 {

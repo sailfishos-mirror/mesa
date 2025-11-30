@@ -22,6 +22,7 @@
  */
 
 #include "v3dv_private.h"
+#include "v3dv_format_table.h"
 #include "v3dv_meta_common.h"
 
 #include "broadcom/common/v3d_macros.h"

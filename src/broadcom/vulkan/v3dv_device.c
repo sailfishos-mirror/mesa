@@ -71,6 +71,9 @@
 #include <wayland-client.h>
 #endif
 
+#define V3D_VERSION 42
+#include "v3dv_format_table.h"
+
 #define V3DV_API_VERSION VK_MAKE_VERSION(1, 3, VK_HEADER_VERSION)
 
 #ifdef ANDROID_STRICT
