@@ -35,6 +35,7 @@
 #include "vk_sync_timeline.h"
 #include "vk_util.h"
 #include "util/compiler.h"
+#include "util/detect_os.h"
 #include "util/u_debug.h"
 #include "util/hash_table.h"
 #include "util/perf/cpu_trace.h"
@@ -250,6 +251,7 @@ vk_device_init(struct vk_device *device,
       const VkTimeDomainKHR calibrate_domains[] = {
          VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_KHR,
          VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR,
+         VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_KHR,
       };
       for (uint32_t i = 0; i < ARRAY_SIZE(calibrate_domains); i++) {
          const VkTimeDomainKHR domain = calibrate_domains[i];
@@ -810,7 +812,15 @@ vk_device_get_timestamp(struct vk_device *device, VkTimeDomainKHR domain,
    }
 
    /* device is not used for host time domains */
-#ifndef _WIN32
+#if DETECT_OS_WINDOWS
+   if (domain == VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_KHR) {
+      LARGE_INTEGER ts;
+      if (QueryPerformanceCounter(&ts)) {
+         *timestamp = ts.QuadPart;
+         return VK_SUCCESS;
+      }
+   }
+#else /* !DETECT_OS_WINDOWS */
    clockid_t clockid;
    struct timespec ts;
 
@@ -840,7 +850,7 @@ vk_device_get_timestamp(struct vk_device *device, VkTimeDomainKHR domain,
    return VK_SUCCESS;
 
 fail:
-#endif /* _WIN32 */
+#endif /* DETECT_OS_WINDOWS */
    return VK_ERROR_FEATURE_NOT_PRESENT;
 }
 
