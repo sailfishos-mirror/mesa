@@ -156,8 +156,11 @@ public:
    brw_analysis<brw_def_analysis, brw_shader> def_analysis;
    brw_analysis<brw_ip_ranges, brw_shader> ip_ranges_analysis;
 
-   /** Number of uniform variable components visited. */
-   unsigned uniforms;
+   /** Amount data push constant data delivered to the shader
+    *
+    * Aligned to native GRF registers
+    */
+   unsigned push_data_size;
 
    /** Byte-offset for the next available spot in the scratch space buffer. */
    unsigned last_scratch;
@@ -285,13 +288,19 @@ sample_mask_flag_subreg(const brw_shader &s)
 inline brw_reg
 brw_dynamic_msaa_flags(const struct brw_wm_prog_data *wm_prog_data)
 {
-   return brw_uniform_reg(wm_prog_data->msaa_flags_param, BRW_TYPE_UD);
+   return byte_offset(
+      brw_uniform_reg(
+         wm_prog_data->msaa_flags_param / REG_SIZE, BRW_TYPE_UD),
+      wm_prog_data->msaa_flags_param % REG_SIZE);
 }
 
 inline brw_reg
 brw_dynamic_per_primitive_remap(const struct brw_wm_prog_data *wm_prog_data)
 {
-   return brw_uniform_reg(wm_prog_data->per_primitive_remap_param, BRW_TYPE_UD);
+   return byte_offset(
+      brw_uniform_reg(
+         wm_prog_data->per_primitive_remap_param / REG_SIZE, BRW_TYPE_UD),
+      wm_prog_data->per_primitive_remap_param % REG_SIZE);
 }
 
 enum intel_barycentric_mode brw_barycentric_mode(const struct brw_wm_prog_key *key,

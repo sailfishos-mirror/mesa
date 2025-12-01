@@ -1992,8 +1992,7 @@ get_nir_def(nir_to_brw_state &ntb, const nir_def &def, bool all_sources_uniform)
          is_scalar = get_nir_src(ntb, instr->src[1], 0).is_scalar;
          break;
 
-      case nir_intrinsic_load_uniform:
-      case nir_intrinsic_load_push_constant:
+      case nir_intrinsic_load_push_data_intel:
          is_scalar = get_nir_src(ntb, instr->src[0], 0).is_scalar;
          break;
 
@@ -2976,7 +2975,10 @@ brw_from_nir_emit_tcs_intrinsic(nir_to_brw_state &ntb,
 
    case nir_intrinsic_load_tess_config_intel:
       bld.MOV(retype(dst, BRW_TYPE_UD),
-              brw_uniform_reg(tcs_prog_data->tess_config_param, BRW_TYPE_UD));
+              byte_offset(
+                 brw_uniform_reg(
+                    tcs_prog_data->tess_config_param / REG_SIZE, BRW_TYPE_UD),
+                 tcs_prog_data->tess_config_param % REG_SIZE));
       break;
 
    default:
@@ -3026,7 +3028,10 @@ brw_from_nir_emit_tes_intrinsic(nir_to_brw_state &ntb,
 
    case nir_intrinsic_load_tess_config_intel:
       bld.MOV(retype(dest, BRW_TYPE_UD),
-              brw_uniform_reg(tes_prog_data->tess_config_param, BRW_TYPE_UD));
+              byte_offset(
+                 brw_uniform_reg(
+                    tes_prog_data->tess_config_param / REG_SIZE, BRW_TYPE_UD),
+                 tes_prog_data->tess_config_param % REG_SIZE));
       break;
 
    default:
@@ -5393,15 +5398,14 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       break;
    }
 
-   case nir_intrinsic_load_uniform:
-   case nir_intrinsic_load_push_constant: {
+   case nir_intrinsic_load_push_data_intel: {
       /* Offsets are in bytes but they should always aligned to
        * the type size
        */
       unsigned base_offset = nir_intrinsic_base(instr);
       assert(base_offset % 4 == 0 || base_offset % brw_type_size_bytes(dest.type) == 0);
 
-      brw_reg src = brw_uniform_reg(base_offset / 4, dest.type);
+      brw_reg src = brw_uniform_reg(base_offset / REG_SIZE, dest.type);
 
       if (nir_src_is_const(instr->src[0])) {
          unsigned load_offset = nir_src_as_uint(instr->src[0]);
@@ -5410,7 +5414,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
           * data take the modulo of the offset with 4 bytes and add it to
           * the offset to read from within the source register.
           */
-         src.offset = load_offset + base_offset % 4;
+         src.offset = load_offset + base_offset % REG_SIZE;
 
          for (unsigned j = 0; j < instr->num_components; j++) {
             xbld.MOV(offset(dest, xbld, j), offset(src, xbld, j));
@@ -5458,8 +5462,14 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       break;
    }
 
-   case nir_intrinsic_load_ubo:
-   case nir_intrinsic_load_ubo_uniform_block_intel: {
+   case nir_intrinsic_load_ubo_uniform_block_intel:
+      s.prog_data->has_ubo_pull = true;
+      brw_from_nir_emit_memory_access(ntb, bld, xbld, instr);
+      break;
+
+   case nir_intrinsic_load_ubo: {
+      s.prog_data->has_ubo_pull = true;
+
       brw_reg surface, surface_handle;
       bool no_mask_handle = false;
 
@@ -5475,37 +5485,29 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       const unsigned num_components = last_component - first_component + 1;
 
       if (!nir_src_is_const(instr->src[1])) {
-         s.prog_data->has_ubo_pull = true;
+         /* load_ubo with non-constant offset. The offset might still be
+          * uniform on non-LSC platforms when loading fewer than 4 components.
+          */
+         brw_reg base_offset = retype(get_nir_src(ntb, instr->src[1], 0),
+                                      BRW_TYPE_UD);
+         if (nir_intrinsic_has_base(instr)) {
+            struct brw_reg imm = brw_imm_int(base_offset.type,
+                                             nir_intrinsic_base(instr));
+            base_offset = bld.ADD(base_offset, imm);
+         }
 
-         if (instr->intrinsic == nir_intrinsic_load_ubo) {
-            /* load_ubo with non-constant offset. The offset might still be
-             * uniform on non-LSC platforms when loading fewer than 4
-             * components.
-             */
-            brw_reg base_offset = retype(get_nir_src(ntb, instr->src[1], 0),
-                                        BRW_TYPE_UD);
-            if (nir_intrinsic_has_base(instr)) {
-               struct brw_reg imm = brw_imm_int(base_offset.type,
-                                                nir_intrinsic_base(instr));
-               base_offset = bld.ADD(base_offset, imm);
-            }
+         const unsigned comps_per_load = brw_type_size_bytes(dest.type) == 8 ? 2 : 4;
 
-            const unsigned comps_per_load = brw_type_size_bytes(dest.type) == 8 ? 2 : 4;
-
-            for (unsigned i = first_component;
-                 i <= last_component;
-                 i += comps_per_load) {
-               const unsigned remaining = last_component + 1 - i;
-               xbld.VARYING_PULL_CONSTANT_LOAD(offset(dest, xbld, i),
-                                               surface, surface_handle,
-                                               base_offset,
-                                               i * brw_type_size_bytes(dest.type),
-                                               instr->def.bit_size / 8,
-                                               MIN2(remaining, comps_per_load));
-            }
-         } else {
-            /* load_ubo_uniform_block_intel with non-constant offset */
-            brw_from_nir_emit_memory_access(ntb, bld, xbld, instr);
+         for (unsigned i = first_component;
+              i <= last_component;
+              i += comps_per_load) {
+            const unsigned remaining = last_component + 1 - i;
+            xbld.VARYING_PULL_CONSTANT_LOAD(offset(dest, xbld, i),
+                                            surface, surface_handle,
+                                            base_offset,
+                                            i * brw_type_size_bytes(dest.type),
+                                            instr->def.bit_size / 8,
+                                            MIN2(remaining, comps_per_load));
          }
       } else {
          /* Even if we are loading doubles, a pull constant load will load
@@ -5520,42 +5522,6 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
          const unsigned load_offset =
             nir_src_as_uint(instr->src[1]) + first_component * type_size +
             (nir_intrinsic_has_base(instr) ? nir_intrinsic_base(instr) : 0);
-         const unsigned end_offset = load_offset + num_components * type_size;
-         const unsigned ubo_block =
-            brw_nir_ubo_surface_index_get_push_block(instr->src[0]);
-         const unsigned offset_256b = load_offset / 32;
-         const unsigned end_256b = DIV_ROUND_UP(end_offset, 32);
-
-         /* See if we've selected this as a push constant candidate */
-         brw_reg push_reg;
-         for (int i = 0; i < 4; i++) {
-            const struct brw_ubo_range *range = &s.prog_data->ubo_ranges[i];
-            if (range->block == ubo_block &&
-                offset_256b >= range->start &&
-                end_256b <= range->start + range->length) {
-
-               push_reg = brw_uniform_reg(UBO_START + i, dest.type);
-               push_reg.offset = load_offset - 32 * range->start;
-               break;
-            }
-         }
-
-         if (push_reg.file != BAD_FILE) {
-            for (unsigned i = first_component; i <= last_component; i++) {
-               xbld.MOV(offset(dest, xbld, i),
-                        byte_offset(push_reg,
-                                    (i - first_component) * type_size));
-            }
-            break;
-         }
-
-         s.prog_data->has_ubo_pull = true;
-
-         if (instr->intrinsic == nir_intrinsic_load_ubo_uniform_block_intel) {
-            brw_from_nir_emit_memory_access(ntb, bld, xbld, instr);
-            break;
-         }
-
          const unsigned block_sz = 64; /* Fetch one cacheline at a time. */
          const brw_builder ubld = bld.exec_all().group(block_sz / 4, 0);
 

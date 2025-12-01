@@ -785,7 +785,7 @@ enum ENUM_PACKED brw_reg_file {
    ADDRESS,
    VGRF,
    ATTR,
-   UNIFORM, /* prog_data->params[reg] */
+   UNIFORM, /* pushed constant delivered register */
 };
 
 /* Align1 support for 3-src instructions. Bit 35 of the instruction

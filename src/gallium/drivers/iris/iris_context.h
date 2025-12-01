@@ -47,6 +47,7 @@ struct iris_bo;
 struct iris_context;
 struct blorp_batch;
 struct blorp_params;
+struct brw_ubo_range;
 
 #define IRIS_MAX_DRAW_BUFFERS 8
 #define IRIS_MAX_SOL_BINDINGS 64
@@ -699,9 +700,14 @@ struct iris_compiled_shader {
    mesa_shader_stage stage;
 
    /**
-    * Data derived from prog_data.
+    * Data derived from ELK prog_data.
     */
    struct iris_ubo_range ubo_ranges[4];
+
+   /**
+    * Data derived from BRW prog_data.
+    */
+   uint16_t push_sizes[4];
 
    unsigned nr_params;
    unsigned total_scratch;
@@ -1353,7 +1359,8 @@ uint32_t iris_bti_to_group_index(const struct iris_binding_table *bt,
                                  enum iris_surface_group group,
                                  uint32_t bti);
 void iris_apply_brw_prog_data(struct iris_compiled_shader *shader,
-                              struct brw_stage_prog_data *prog_data);
+                              struct brw_stage_prog_data *prog_data,
+                              struct brw_ubo_range *ubo_ranges);
 void iris_apply_elk_prog_data(struct iris_compiled_shader *shader,
                               struct elk_stage_prog_data *prog_data);
 struct intel_cs_dispatch_info

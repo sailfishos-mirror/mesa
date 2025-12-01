@@ -27,7 +27,6 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
    const struct brw_compiler *compiler = blorp->compiler->brw;
 
    struct brw_wm_prog_data *wm_prog_data = rzalloc(mem_ctx, struct brw_wm_prog_data);
-   wm_prog_data->base.nr_params = 0;
 
    struct brw_nir_compiler_opts opts = {
       .softfp64 = blorp->get_fp64_nir ? blorp->get_fp64_nir(blorp) : NULL,
@@ -124,6 +123,24 @@ lower_base_workgroup_id(nir_builder *b, nir_intrinsic_instr *intrin,
    return true;
 }
 
+static bool
+lower_load_uniform(nir_builder *b, nir_intrinsic_instr *intrin,
+                   UNUSED void *data)
+{
+   if (intrin->intrinsic != nir_intrinsic_load_uniform)
+      return false;
+
+   b->cursor = nir_instr_remove(&intrin->instr);
+   nir_def_rewrite_uses(&intrin->def,
+                        nir_load_push_data_intel(b,
+                                                 intrin->def.num_components,
+                                                 intrin->def.bit_size,
+                                                 intrin->src[0].ssa,
+                                                 .base = nir_intrinsic_base(intrin),
+                                                 .range = nir_intrinsic_range(intrin)));
+   return true;
+}
+
 static struct blorp_program
 blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
                      struct nir_shader *nir)
@@ -139,21 +156,24 @@ blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
    NIR_PASS(_, nir, nir_lower_io, nir_var_uniform, type_size_scalar_bytes,
               (nir_lower_io_options)0);
 
+   NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_load_uniform,
+               nir_metadata_control_flow, NULL);
+
    STATIC_ASSERT(offsetof(struct blorp_wm_inputs, subgroup_id) + 4 ==
                  sizeof(struct blorp_wm_inputs));
-   nir->num_uniforms = offsetof(struct blorp_wm_inputs, subgroup_id);
-   unsigned nr_params = nir->num_uniforms / 4;
 
    struct brw_cs_prog_data *cs_prog_data = rzalloc(mem_ctx, struct brw_cs_prog_data);
-   cs_prog_data->base.nr_params = nr_params;
-   brw_cs_fill_push_const_info(compiler->devinfo, cs_prog_data, nr_params);
+   cs_prog_data->base.push_sizes[0] = sizeof(struct blorp_wm_inputs);
+
+   brw_cs_fill_push_const_info(compiler->devinfo, cs_prog_data,
+                               offsetof(struct blorp_wm_inputs, subgroup_id) / 4);
 
    NIR_PASS(_, nir, brw_nir_lower_cs_intrinsics, compiler->devinfo,
               cs_prog_data);
    NIR_PASS(_, nir, brw_nir_lower_cs_subgroup_id, compiler->devinfo,
-            offsetof(struct blorp_wm_inputs, subgroup_id));
+               offsetof(struct blorp_wm_inputs, subgroup_id));
    NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_base_workgroup_id,
-              nir_metadata_control_flow, NULL);
+               nir_metadata_control_flow, NULL);
 
    struct brw_cs_prog_key cs_key;
    memset(&cs_key, 0, sizeof(cs_key));

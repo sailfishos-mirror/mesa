@@ -425,7 +425,6 @@ brw_shader::brw_shader(const brw_shader_params *params)
    this->source_depth_to_render_target = false;
    this->first_non_payload_grf = 0;
 
-   this->uniforms = this->nir->num_uniforms / 4;
    this->last_scratch = 0;
 
    memset(&this->shader_stats, 0, sizeof(this->shader_stats));
@@ -621,37 +620,22 @@ brw_shader::mark_last_urb_write_with_eot()
    return true;
 }
 
-static unsigned
-round_components_to_whole_registers(const intel_device_info *devinfo,
-                                    unsigned c)
-{
-   return DIV_ROUND_UP(c, 8 * reg_unit(devinfo)) * reg_unit(devinfo);
-}
-
 void
 brw_shader::assign_curb_setup()
 {
-   unsigned uniform_push_length =
-      round_components_to_whole_registers(devinfo, prog_data->nr_params);
-
-   unsigned ubo_push_length = 0;
-   unsigned ubo_push_start[4];
-   for (int i = 0; i < 4; i++) {
-      ubo_push_start[i] = 8 * (ubo_push_length + uniform_push_length);
-      ubo_push_length += prog_data->ubo_ranges[i].length;
-
-      assert(ubo_push_start[i] % (8 * reg_unit(devinfo)) == 0);
-      assert(ubo_push_length % (1 * reg_unit(devinfo)) == 0);
+   uint32_t ranges_start[4];
+   this->push_data_size = 0;
+   for (uint32_t i = 0; i < 4; i++) {
+      ranges_start[i] = this->push_data_size / REG_SIZE;
+      this->push_data_size += align(prog_data->push_sizes[i], REG_SIZE);
    }
-
-   prog_data->curb_read_length = uniform_push_length + ubo_push_length;
 
    uint64_t used = 0;
    const bool pull_constants =
       devinfo->verx10 >= 125 &&
       (mesa_shader_stage_is_compute(stage) ||
        mesa_shader_stage_is_mesh(stage)) &&
-      uniform_push_length;
+      this->push_data_size > 0;
 
    if (pull_constants) {
       const bool pull_constants_a64 =
@@ -685,9 +669,11 @@ brw_shader::assign_curb_setup()
       /* On Gfx12-HP we load constants at the start of the program using A32
        * stateless messages.
        */
-      for (unsigned i = 0; i < uniform_push_length;) {
+      const unsigned n_push_data_regs = reg_unit(devinfo) *
+         DIV_ROUND_UP(this->push_data_size, reg_unit(devinfo) * REG_SIZE);
+      for (unsigned i = 0; i < this->push_data_size / REG_SIZE;) {
          /* Limit ourselves to LSC HW limit of 8 GRFs (256bytes D32V64). */
-         unsigned num_regs = MIN2(uniform_push_length - i, 8);
+         unsigned num_regs = MIN2(this->push_data_size / REG_SIZE - i, 8);
          assert(num_regs > 0);
          num_regs = 1 << util_logbase2(num_regs);
 
@@ -743,7 +729,7 @@ brw_shader::assign_curb_setup()
          send->size_written =
             lsc_msg_dest_len(devinfo, LSC_DATA_SIZE_D32, num_regs * 8) * REG_SIZE;
          assert((payload().num_regs + i + send->size_written / REG_SIZE) <=
-                (payload().num_regs + prog_data->curb_read_length));
+                (payload().num_regs + n_push_data_regs));
          send->is_volatile = true;
 
          send->src[SEND_SRC_DESC] =
@@ -762,29 +748,13 @@ brw_shader::assign_curb_setup()
    foreach_block_and_inst(block, brw_inst, inst, cfg) {
       for (unsigned int i = 0; i < inst->sources; i++) {
 	 if (inst->src[i].file == UNIFORM) {
-            int uniform_nr = inst->src[i].nr + inst->src[i].offset / 4;
-            int constant_nr;
-            if (inst->src[i].nr >= UBO_START) {
-               /* constant_nr is in 32-bit units, the rest are in bytes */
-               constant_nr = ubo_push_start[inst->src[i].nr - UBO_START] +
-                             inst->src[i].offset / 4;
-            } else if (uniform_nr >= 0 && uniform_nr < (int) uniforms) {
-               constant_nr = uniform_nr;
-            } else {
-               /* Section 5.11 of the OpenGL 4.1 spec says:
-                * "Out-of-bounds reads return undefined values, which include
-                *  values from other variables of the active program or zero."
-                * Just return the first push constant.
-                */
-               constant_nr = 0;
-            }
+            assert(inst->src[i].nr < 64);
+            used |= BITFIELD64_BIT(inst->src[i].nr);
 
-            assert(constant_nr / 8 < 64);
-            used |= BITFIELD64_BIT(constant_nr / 8);
+            assert(inst->src[i].nr < this->push_data_size);
 
 	    struct brw_reg brw_reg = brw_vec1_grf(payload().num_regs +
-						  constant_nr / 8,
-						  constant_nr % 8);
+						  inst->src[i].nr, 0);
             brw_reg.abs = inst->src[i].abs;
             brw_reg.negate = inst->src[i].negate;
 
@@ -795,7 +765,7 @@ brw_shader::assign_curb_setup()
             assert(inst->src[i].stride == 0 || inst->exec_size == 2);
             inst->src[i] = byte_offset(
                retype(brw_reg, inst->src[i].type),
-               inst->src[i].offset % 4);
+               inst->src[i].offset);
 	 }
       }
    }
@@ -821,15 +791,16 @@ brw_shader::assign_curb_setup()
          ubld.group(16, 0).ADD(horiz_offset(offset_base, 16), offset_base, brw_imm_uw(16));
 
       u_foreach_bit(i, prog_data->robust_ubo_ranges) {
-         struct brw_ubo_range *ubo_range = &prog_data->ubo_ranges[i];
+         const unsigned range_length =
+            DIV_ROUND_UP(prog_data->push_sizes[i], REG_SIZE);
 
-         unsigned range_start = ubo_push_start[i] / 8;
-         uint64_t want_zero = (used >> range_start) & BITFIELD64_MASK(ubo_range->length);
+         const unsigned range_start = ranges_start[i];
+         uint64_t want_zero = (used >> range_start) & BITFIELD64_MASK(range_length);
          if (!want_zero)
             continue;
 
          const unsigned grf_start = payload().num_regs + range_start;
-         const unsigned grf_end = grf_start + ubo_range->length;
+         const unsigned grf_end = grf_start + range_length;
          const unsigned max_grf_mask = max_grf_writes * 4;
          unsigned grf = grf_start;
 
@@ -896,7 +867,10 @@ brw_shader::assign_curb_setup()
    }
 
    /* This may be updated in assign_urb_setup or assign_vs_urb_setup. */
-   this->first_non_payload_grf = payload().num_regs + prog_data->curb_read_length;
+   this->first_non_payload_grf = payload().num_regs +
+                                 DIV_ROUND_UP(align(this->push_data_size,
+                                                    REG_SIZE * reg_unit(devinfo)),
+                                              REG_SIZE);
 
    this->debug_optimizer(this->nir, "assign_curb_setup", 90, 0);
 }
@@ -932,7 +906,9 @@ brw_shader::convert_attr_sources_to_hw_regs(brw_inst *inst)
       if (inst->src[i].file == ATTR) {
          assert(inst->src[i].nr == 0);
          int grf = payload().num_regs +
-                   prog_data->curb_read_length +
+                   DIV_ROUND_UP(
+                      align(this->push_data_size, REG_SIZE * reg_unit(devinfo)),
+                      REG_SIZE) +
                    inst->src[i].offset / REG_SIZE;
 
          /* As explained at brw_lower_vgrf_to_fixed_grf, From the Haswell PRM:

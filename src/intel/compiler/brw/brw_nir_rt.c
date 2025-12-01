@@ -427,7 +427,6 @@ brw_nir_create_raygen_trampoline(const struct brw_compiler *compiler,
     * passed in as push constants in the first register.  We deal with the
     * raygen BSR address here; the global data we'll deal with later.
     */
-   b.shader->num_uniforms = 32;
    nir_def *raygen_param_bsr_addr =
       load_trampoline_param(&b, raygen_bsr_addr, 1, 64);
    nir_def *is_indirect =

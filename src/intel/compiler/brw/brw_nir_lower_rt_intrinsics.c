@@ -135,8 +135,7 @@ lower_rt_intrinsics_impl(nir_function_impl *impl,
             nir_instr_remove(instr);
             break;
 
-         case nir_intrinsic_load_uniform:
-         case nir_intrinsic_load_push_constant:
+         case nir_intrinsic_load_push_data_intel:
             /* We don't want to lower this in the launch trampoline.
              *
              * Also if the driver chooses to use an inline push address, we

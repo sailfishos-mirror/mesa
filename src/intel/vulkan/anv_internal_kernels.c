@@ -152,13 +152,9 @@ compile_shader(struct anv_device *device,
    };
    NIR_PASS(_, nir, nir_opt_load_store_vectorize, &options);
 
-   nir->num_uniforms = uniform_size;
+   prog_data.base.push_sizes[0] = uniform_size;
 
    void *temp_ctx = ralloc_context(NULL);
-
-   prog_data.base.nr_params = nir->num_uniforms / 4;
-
-   brw_nir_analyze_ubo_ranges(compiler, nir, prog_data.base.ubo_ranges);
 
    const unsigned *program;
    if (stage == MESA_SHADER_FRAGMENT) {

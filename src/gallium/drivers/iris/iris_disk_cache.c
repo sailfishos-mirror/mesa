@@ -151,6 +151,7 @@ iris_disk_cache_store(struct disk_cache *cache,
    if (brw) {
       blob_write_bytes(&blob, brw->relocs,
                        brw->num_relocs * sizeof(struct intel_shader_reloc));
+      blob_write_bytes(&blob, shader->ubo_ranges, sizeof(shader->ubo_ranges));
    } else {
 #ifdef INTEL_USE_ELK
       blob_write_bytes(&blob, elk->relocs,
@@ -262,6 +263,7 @@ iris_disk_cache_retrieve(struct iris_screen *screen,
                          brw->num_relocs * sizeof(struct intel_shader_reloc));
          brw->relocs = relocs;
       }
+      blob_copy_bytes(&blob, shader->ubo_ranges, sizeof(shader->ubo_ranges));
    } else {
 #ifdef INTEL_USE_ELK
       elk->relocs = NULL;
@@ -311,7 +313,7 @@ iris_disk_cache_retrieve(struct iris_screen *screen,
       num_cbufs++;
 
    if (brw)
-      iris_apply_brw_prog_data(shader, brw);
+      iris_apply_brw_prog_data(shader, brw, NULL);
    else
 #ifdef INTEL_USE_ELK
       iris_apply_elk_prog_data(shader, elk);

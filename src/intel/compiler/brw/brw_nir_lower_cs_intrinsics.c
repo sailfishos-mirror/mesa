@@ -400,7 +400,7 @@ lower_cs_subgroup_id_instr(nir_builder *b,
 
    b->cursor = nir_before_instr(&intrin->instr);
    nir_def_replace(&intrin->def,
-                   nir_load_uniform(
+                   nir_load_push_data_intel(
                       b, 1, 32, nir_imm_int(b, 0),
                       .base = *subgroup_id_offset_ptr,
                       .range = 4));

@@ -36,11 +36,11 @@ brw_cs_fill_push_const_info(const struct intel_device_info *devinfo,
    if (devinfo->verx10 < 125 && subgroup_id_index >= 0) {
       /* Fill all but the last register with cross-thread payload */
       cross_thread_dwords = 8 * (subgroup_id_index / 8);
-      per_thread_dwords = prog_data->nr_params - cross_thread_dwords;
+      per_thread_dwords = prog_data->push_sizes[0] / 4 - cross_thread_dwords;
       assert(per_thread_dwords > 0 && per_thread_dwords <= 8);
    } else {
       /* Fill all data using cross-thread payload */
-      cross_thread_dwords = prog_data->nr_params;
+      cross_thread_dwords = prog_data->push_sizes[0] / 4;
       per_thread_dwords = 0u;
    }
 
@@ -51,7 +51,7 @@ brw_cs_fill_push_const_info(const struct intel_device_info *devinfo,
           cs_prog_data->push.per_thread.size == 0);
    assert(cs_prog_data->push.cross_thread.dwords +
           cs_prog_data->push.per_thread.dwords ==
-             prog_data->nr_params);
+             prog_data->push_sizes[0] / 4);
 }
 
 static bool

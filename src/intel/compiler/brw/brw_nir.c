@@ -3144,8 +3144,7 @@ nir_def *
 brw_nir_load_global_const(nir_builder *b, nir_intrinsic_instr *load,
       nir_def *base_addr, unsigned off)
 {
-   assert(load->intrinsic == nir_intrinsic_load_push_constant ||
-          load->intrinsic == nir_intrinsic_load_uniform);
+   assert(load->intrinsic == nir_intrinsic_load_push_data_intel);
 
    unsigned bit_size = load->def.bit_size;
    assert(bit_size >= 8 && bit_size % 8 == 0);

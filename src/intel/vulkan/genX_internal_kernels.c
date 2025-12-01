@@ -26,10 +26,10 @@
 
 #include "genxml/gen_macros.h"
 
-#define load_param(b, bit_size, struct_name, field_name)          \
-   nir_load_uniform(b, 1, bit_size, nir_imm_int(b, 0),            \
-                    .base = offsetof(struct_name, field_name),   \
-                    .range = bit_size / 8)
+#define load_param(b, bit_size, struct_name, field_name)                \
+   nir_load_push_data_intel(b, 1, bit_size, nir_imm_int(b, 0),          \
+                            .base = offsetof(struct_name, field_name),  \
+                            .range = bit_size / 8)
 
 static nir_def *
 load_fragment_index(nir_builder *b)
