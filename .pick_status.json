@@ -624,7 +624,7 @@
         "description": "ci: Drop duplicate Intel shader-db run",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "183d57aa9e6023155b8354e74934b4d650d93e87",
         "notes": null
