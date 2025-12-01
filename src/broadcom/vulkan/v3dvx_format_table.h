@@ -28,11 +28,44 @@
 #include "broadcom/common/v3d_macros.h"
 #include "broadcom/cle/v3dx_pack.h"
 
-/* FIXME: tex_format should be `enum V3DX(Texture_Data_Formats)`, but using
- * that enum type in the header requires including v3dx_pack.h, which triggers
- * circular include dependencies issues, so we're using a `uint32_t` for now.
- */
-bool v3dX(tfu_supports_tex_format)(uint32_t tex_format);
+bool v3dX(tfu_supports_tex_format)(enum V3DX(Texture_Data_Formats) tex_format);
 
-void v3dX(get_internal_type_bpp_for_output_format)(uint32_t format,
+void v3dX(get_internal_type_bpp_for_output_format)(enum V3DX(Output_Image_Format) format,
                                                     uint32_t *type, uint32_t *bpp);
+
+void
+v3dX(meta_emit_copy_buffer)(struct v3dv_job *job,
+                            struct v3dv_bo *dst,
+                            struct v3dv_bo *src,
+                            uint32_t dst_offset,
+                            uint32_t src_offset,
+                            struct v3dv_meta_framebuffer *framebuffer,
+                            enum V3DX(Output_Image_Format)  format,
+                            uint32_t item_size);
+
+void
+v3dX(meta_emit_copy_buffer_rcl)(struct v3dv_job *job,
+                                struct v3dv_bo *dst,
+                                struct v3dv_bo *src,
+                                uint32_t dst_offset,
+                                uint32_t src_offset,
+                                struct v3dv_meta_framebuffer *framebuffer,
+                                enum V3DX(Output_Image_Format)  format,
+                                uint32_t item_size);
+
+enum V3DX(Internal_Depth_Type)
+v3dX(get_internal_depth_type)(VkFormat format);
+
+#if V3D_VERSION == 42
+enum V3DX(Render_Target_Clamp)
+v3dX(clamp_for_format_and_type)(enum V3DX(Internal_Type) rt_type,
+                                VkFormat vk_format);
+#endif
+#if V3D_VERSION >= 71
+enum V3DX(Render_Target_Type_Clamp)
+v3dX(clamp_for_format_and_type)(enum V3DX(Internal_Type) rt_type,
+                                VkFormat vk_format);
+#endif
+
+enum V3DX(Stencil_Op)
+v3dX(translate_stencil_op)(VkStencilOp op);

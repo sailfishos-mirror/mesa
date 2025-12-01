@@ -23,9 +23,10 @@
 
 #include "v3dv_private.h"
 #include "v3dv_format_table.h"
+#include "v3dvx_format_table.h"
 #include "broadcom/compiler/v3d_compiler.h"
 
-static uint8_t
+static enum V3DX(Blend_Factor)
 blend_factor(VkBlendFactor factor, bool dst_alpha_one, bool *needs_constants,
              bool *needs_dual_src)
 {
@@ -244,7 +245,7 @@ pack_cfg_bits(struct v3dv_pipeline *pipeline,
    };
 }
 
-uint32_t
+enum V3DX(Stencil_Op)
 v3dX(translate_stencil_op)(VkStencilOp op)
 {
    switch (op) {

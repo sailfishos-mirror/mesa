@@ -23,6 +23,7 @@
 
 #include "v3dv_private.h"
 #include "v3dv_format_table.h"
+#include "v3dvx_format_table.h"
 #include "broadcom/common/v3d_util.h"
 #include "broadcom/compiler/v3d_compiler.h"
 
@@ -828,19 +829,27 @@ set_rcl_early_z_config(struct v3dv_job *job,
  * seems to be the equivalent for no-clamp on 4.2), but not pq or hlg. In
  * summary right now we are just porting what we were doing on 4.2
  */
-uint32_t
-v3dX(clamp_for_format_and_type)(uint32_t rt_type,
+
+#if V3D_VERSION == 42
+enum V3DX(Render_Target_Clamp)
+v3dX(clamp_for_format_and_type)(enum V3DX(Internal_Type) rt_type,
                                 VkFormat vk_format)
 {
-#if V3D_VERSION == 42
    if (vk_format_is_int(vk_format))
       return V3D_RENDER_TARGET_CLAMP_INT;
    else if (vk_format_is_srgb(vk_format))
       return V3D_RENDER_TARGET_CLAMP_NORM;
    else
       return V3D_RENDER_TARGET_CLAMP_NONE;
+   UNREACHABLE("Wrong V3D_VERSION");
+}
 #endif
+
 #if V3D_VERSION >= 71
+enum V3DX(Render_Target_Type_Clamp)
+v3dX(clamp_for_format_and_type)(enum V3DX(Internal_Type) rt_type,
+                                VkFormat vk_format)
+{
    switch (rt_type) {
    case V3D_INTERNAL_TYPE_8I:
       return V3D_RENDER_TARGET_TYPE_CLAMP_8I_CLAMPED;
@@ -867,10 +876,11 @@ v3dX(clamp_for_format_and_type)(uint32_t rt_type,
    default:
       UNREACHABLE("Unknown internal render target type");
    }
-
    return V3D_RENDER_TARGET_TYPE_CLAMP_INVALID;
-#endif
+
+   UNREACHABLE("Wrong V3D_VERSION");
 }
+#endif
 
 static void
 cmd_buffer_render_pass_setup_render_target(struct v3dv_cmd_buffer *cmd_buffer,
@@ -2362,7 +2372,7 @@ emit_tes_gs_common_params(struct v3dv_job *job,
    }
 }
 
-static uint8_t
+static enum V3DX(Pack_Mode)
 simd_width_to_gs_pack_mode(uint32_t width)
 {
    switch (width) {
