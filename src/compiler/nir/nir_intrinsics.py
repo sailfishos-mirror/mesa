@@ -2561,9 +2561,7 @@ system_value("urb_output_handle_intel", 1)
 load("urb_input_handle_indexed_intel", [1], [], [CAN_ELIMINATE, CAN_REORDER])
 
 # Inline register delivery (available on Gfx12.5+ for CS/Mesh/Task stages)
-intrinsic("load_inline_data_intel", [], dest_comp=0,
-          indices=[BASE],
-          flags=[CAN_ELIMINATE, CAN_REORDER])
+load("inline_data_intel", [], [BASE], [CAN_ELIMINATE, CAN_REORDER])
 
 # Dynamic tesselation parameters (see intel_tess_config).
 system_value("tess_config_intel", 1)
