@@ -244,7 +244,7 @@ PipeToProfile(enum pipe_video_profile profile)
       return VAProfileVC1Main;
    case PIPE_VIDEO_PROFILE_VC1_ADVANCED:
       return VAProfileVC1Advanced;
-   case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
+   case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
       return VAProfileH264ConstrainedBaseline;
    case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
       return VAProfileH264Main;
@@ -277,7 +277,7 @@ PipeToProfile(enum pipe_video_profile profile)
    case PIPE_VIDEO_PROFILE_MPEG4_AVC_EXTENDED:
    case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH422:
    case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH444:
-   case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
+   case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
    case PIPE_VIDEO_PROFILE_HEVC_MAIN_12:
    case PIPE_VIDEO_PROFILE_HEVC_MAIN_STILL:
    case PIPE_VIDEO_PROFILE_HEVC_MAIN_444:
@@ -311,7 +311,7 @@ ProfileToPipe(VAProfile profile)
    case VAProfileVC1Advanced:
       return PIPE_VIDEO_PROFILE_VC1_ADVANCED;
    case VAProfileH264ConstrainedBaseline:
-      return PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE;
+      return PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE;
    case VAProfileH264Main:
       return PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN;
    case VAProfileH264High:
