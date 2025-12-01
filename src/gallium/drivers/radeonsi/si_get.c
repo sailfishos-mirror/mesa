@@ -83,7 +83,7 @@ static int si_get_video_param(struct pipe_screen *screen, enum pipe_video_profil
 {
    struct si_screen *sscreen = (struct si_screen *)screen;
    enum pipe_video_format codec = u_reduce_video_profile(profile);
-   bool fully_supported_profile = ((profile >= PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE) &&
+   bool fully_supported_profile = ((profile >= PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE) &&
                                    (profile <= PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH)) ||
                                   (profile == PIPE_VIDEO_PROFILE_HEVC_MAIN) ||
                                   (profile == PIPE_VIDEO_PROFILE_AV1_MAIN);
@@ -422,7 +422,7 @@ static int si_get_video_param(struct pipe_screen *screen, enum pipe_video_profil
             RVID_ERR("POLARIS10/11 firmware version need to be updated.\n");
             return false;
          }
-         return (profile != PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH10);
+         return fully_supported_profile;
       case PIPE_VIDEO_FORMAT_VC1:
          return !(sscreen->info.vcn_ip_version >= VCN_3_0_33);
       case PIPE_VIDEO_FORMAT_HEVC:
@@ -525,7 +525,7 @@ static int si_get_video_param(struct pipe_screen *screen, enum pipe_video_profil
             return 2;
          case PIPE_VIDEO_PROFILE_VC1_ADVANCED:
             return 4;
-         case PIPE_VIDEO_PROFILE_MPEG4_AVC_BASELINE:
+         case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
          case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
          case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
             return (sscreen->info.family < CHIP_TONGA) ? 41 : 52;
