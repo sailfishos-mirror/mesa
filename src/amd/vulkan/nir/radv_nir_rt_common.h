@@ -149,6 +149,7 @@ struct radv_ray_traversal_args {
    uint32_t unset_flags;
 
    bool ignore_cull_mask;
+   bool tmin_zero;
 
    bool write_ray_history;
 

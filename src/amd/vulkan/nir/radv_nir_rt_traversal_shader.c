@@ -1322,6 +1322,7 @@ radv_build_traversal(const struct radv_compiler_info *compiler_info, struct radv
       .stack_stride = stack_stride,
       .stack_entries = MAX_STACK_ENTRY_COUNT,
       .ignore_cull_mask = params->ignore_cull_mask,
+      .tmin_zero = params->tmin_zero,
       .write_ray_history = !!compiler_info->rra_trace->ray_history_addr,
       .set_flags = info ? info->set_flags : 0,
       .unset_flags = info ? info->unset_flags : 0,

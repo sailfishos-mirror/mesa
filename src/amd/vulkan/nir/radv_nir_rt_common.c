@@ -662,9 +662,11 @@ insert_traversal_triangle_case(const struct radv_compiler_info *compiler_info, n
          not_cull = nir_imm_true(b);
       }
 
-      nir_push_if(b, nir_iand(b,
+      /* The ray triangle emulation doesn't check tmin. */
+      if (compiler_info->key.emulate_rt || !args->tmin_zero)
+         not_cull = nir_iand(b, nir_flt(b, args->tmin, intersection.t), not_cull);
 
-                              nir_flt(b, args->tmin, intersection.t), not_cull));
+      nir_push_if(b, not_cull);
       {
          intersection.base.node_addr = build_node_to_addr(compiler_info, b, bvh_node, false);
          nir_def *triangle_info = nir_load_global(

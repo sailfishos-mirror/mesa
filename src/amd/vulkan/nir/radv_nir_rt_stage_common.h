@@ -124,6 +124,8 @@ struct radv_nir_rt_traversal_params {
    nir_def *miss_index;
 
    bool ignore_cull_mask;
+   bool tmin_zero;
+
    uint32_t payload_size;
    uint32_t hit_attrib_size;
 

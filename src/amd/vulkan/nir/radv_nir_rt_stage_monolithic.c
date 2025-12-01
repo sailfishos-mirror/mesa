@@ -314,6 +314,9 @@ lower_rt_call_monolithic(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       nir_src cull_mask = intr->src[2];
       bool ignore_cull_mask = nir_src_is_const(cull_mask) && (nir_src_as_uint(cull_mask) & 0xFF) == 0xFF;
 
+      nir_src tmin = intr->src[7];
+      bool tmin_zero = nir_src_is_const(tmin) && nir_src_as_float(tmin) == 0.0;
+
       /* Per the SPIR-V extension spec we have to ignore some bits for some arguments. */
       struct radv_nir_rt_traversal_params params = {
          .accel_struct = intr->src[0].ssa,
@@ -326,6 +329,7 @@ lower_rt_call_monolithic(nir_builder *b, nir_intrinsic_instr *intr, void *data)
          .direction = intr->src[8].ssa,
          .tmax = intr->src[9].ssa,
          .ignore_cull_mask = ignore_cull_mask,
+         .tmin_zero = tmin_zero,
          .preprocess_ahit_isec = preprocess_shader_cb_monolithic,
          .cb_data = &vars->payload_offset,
       };
