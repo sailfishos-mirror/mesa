@@ -139,6 +139,16 @@ wsi_metal_surface_get_capabilities2(VkIcdSurfaceBase *surface,
          break;
       }
 
+      case VK_STRUCTURE_TYPE_PRESENT_TIMING_SURFACE_CAPABILITIES_EXT: {
+         VkPresentTimingSurfaceCapabilitiesEXT *wait = (void *)ext;
+
+         wait->presentStageQueries = 0;
+         wait->presentTimingSupported = VK_FALSE;
+         wait->presentAtAbsoluteTimeSupported = VK_FALSE;
+         wait->presentAtRelativeTimeSupported = VK_FALSE;
+         break;
+      }
+
       default:
          /* Ignored */
          break;
