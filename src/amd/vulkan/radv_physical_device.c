@@ -812,6 +812,10 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .EXT_pipeline_library_group_handles = radv_enable_rt(pdev),
       .EXT_pipeline_robustness = !pdev->use_llvm,
       .EXT_post_depth_coverage = pdev->info.gfx_level >= GFX10,
+#ifdef RADV_USE_WSI_PLATFORM
+      /* KHR_calibrated_timestamps is a requirement to expose EXT_present_timing. */
+      .EXT_present_timing = radv_calibrated_timestamps_enabled(pdev),
+#endif
       .EXT_primitive_topology_list_restart = true,
       .EXT_primitives_generated_query = true,
       .EXT_private_data = true,
@@ -1502,6 +1506,14 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
 
       /* VK_EXT_custom_resolve */
       .customResolve = true,
+
+#ifdef RADV_USE_WSI_PLATFORM
+      /* VK_EXT_present_timing */
+      /* The actual query is deferred to surface time. */
+      .presentTiming = true,
+      .presentAtAbsoluteTime = true,
+      .presentAtRelativeTime = true,
+#endif
    };
 }
 
