@@ -23,7 +23,7 @@ for driver in freedreno lima v3d vc4; do
 done
 
 # Run shader-db over a number of supported platforms for crocus/iris
-for platform in hsw bdw skl mtl; do
+for platform in hsw bdw skl mtl lnl ptl; do
     section_start "shader-db-intel-${platform}" "Running shader-db for intel - ${platform}"
     env LD_PRELOAD="$LIBDIR/libintel_noop_drm_shim.so" \
         INTEL_STUB_GPU_PLATFORM="${platform}" \
