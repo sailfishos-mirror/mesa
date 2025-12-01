@@ -575,6 +575,37 @@ bi_lower_subgroups(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    return true;
 }
 
+/* Workgroups may be merged if the structure of the workgroup is not software
+ * visible. This is true if neither shared memory nor BARRIER instructions are
+ * used. The hardware may be able to optimize compute shaders that set this
+ * flag. */
+static bool
+bi_can_merge_workgroups(nir_shader *nir)
+{
+   if (nir->info.shared_size != 0)
+      return false;
+
+   nir_foreach_function_impl(impl, nir) {
+      nir_foreach_block(block, impl) {
+         nir_foreach_instr(instr, block) {
+            if (instr->type != nir_instr_type_intrinsic)
+               continue;
+
+            /* We only emit BARRIER instructions for workgroup execution
+             * barriers. For subgroup execution barriers, the only consequence
+             * of merging workgroups is that the scope may be larger, which is
+             * allowed. */
+            nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+            if (intrin->intrinsic == nir_intrinsic_barrier &&
+                nir_intrinsic_execution_scope(intrin) == SCOPE_WORKGROUP)
+               return false;
+         }
+      }
+   }
+
+   return true;
+}
+
 static bool
 bi_lower_load_output(nir_builder *b, nir_intrinsic_instr *intr,
                      UNUSED void *data)
@@ -1121,16 +1152,8 @@ bifrost_compile_shader_nir(nir_shader *nir,
       bi_compile_variant(nir, inputs, binary, info, BI_IDVS_NONE);
    }
 
-   if (mesa_shader_stage_is_compute(nir->info.stage)) {
-      /* Workgroups may be merged if the structure of the workgroup is
-       * not software visible. This is true if neither shared memory
-       * nor barriers are used. The hardware may be able to optimize
-       * compute shaders that set this flag.
-       */
-      info->cs.allow_merging_workgroups = (nir->info.shared_size == 0) &&
-                                          !nir->info.uses_control_barrier &&
-                                          !nir->info.uses_memory_barrier;
-   }
+   if (mesa_shader_stage_is_compute(nir->info.stage))
+      info->cs.allow_merging_workgroups = bi_can_merge_workgroups(nir);
 
    info->ubo_mask &= (1 << nir->info.num_ubos) - 1;
 }
