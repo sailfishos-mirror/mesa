@@ -1545,6 +1545,53 @@ validate_instr_defs(Program* program, std::array<unsigned, 2048>& regs,
    return err;
 }
 
+bool
+validate_call(Program* program, std::array<unsigned, 2048>& regs,
+              const std::vector<Assignment>& assignments, const Location& loc,
+              aco_ptr<Instruction>& instr)
+{
+   bool err = false;
+
+   RegisterDemand limit = get_addr_regs_from_waves(program, program->min_waves);
+   BITSET_DECLARE(preserved_regs, 512);
+   instr->call().abi.preservedRegisters(preserved_regs, limit);
+
+   /* TODO: This is a hack. I think the return address should not be precolored to a preserved
+    * register. */
+   BITSET_CLEAR(preserved_regs, instr->definitions[0].physReg().reg());
+   BITSET_CLEAR(preserved_regs, instr->definitions[0].physReg().reg() + 1);
+
+   for (unsigned i = 0; i < regs.size(); i++) {
+      unsigned temp = regs[i];
+      bool is_preserved = BITSET_TEST(preserved_regs, i / 4);
+      if (!temp || is_preserved)
+         continue;
+
+      bool can_use_clobbered =
+         program->temp_rc[temp].is_linear_vgpr() ||
+         std::any_of(
+            instr->operands.begin(), instr->operands.end(), [&](const Operand& op)
+            { return op.tempId() == temp && (op.isKillBeforeDef() || !op.isClobbered()); });
+      if (!can_use_clobbered) {
+         err |= ra_fail(program, loc, assignments[temp].defloc,
+                        "Assignment of %%%d in clobbered register at call instruction", temp);
+      }
+   }
+
+   for (Definition def : instr->definitions) {
+      for (unsigned i = 0; i < def.bytes(); i++) {
+         bool is_preserved = BITSET_TEST(preserved_regs, (def.physReg().reg_b + i) / 4);
+         if (is_preserved) {
+            err |= ra_fail(program, loc, Location(),
+                           "Assignment of %%%d in callee-preserved register of call instruction",
+                           def.tempId());
+         }
+      }
+   }
+
+   return err;
+}
+
 } /* end namespace */
 
 bool
@@ -1680,6 +1727,9 @@ validate_ra(Program* program)
                   regs[reg.reg_b + i] = 0;
             }
          }
+
+         if (instr->isCall())
+            err |= validate_call(program, regs, assignments, loc, instr);
 
          if (instr->opcode != aco_opcode::p_phi && instr->opcode != aco_opcode::p_linear_phi) {
             for (const Operand& op : instr->operands) {
