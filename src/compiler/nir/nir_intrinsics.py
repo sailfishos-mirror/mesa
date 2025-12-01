@@ -2563,6 +2563,14 @@ load("urb_input_handle_indexed_intel", [1], [], [CAN_ELIMINATE, CAN_REORDER])
 # Inline register delivery (available on Gfx12.5+ for CS/Mesh/Task stages)
 load("inline_data_intel", [], [BASE], [CAN_ELIMINATE, CAN_REORDER])
 
+# Load push data on Intel VS,TCS,TES,GS,FS stages
+# src[] = { offset }
+#
+# We use the ACCESS index mostly for ACCESS_NON_UNIFORM, this allows us to
+# preserve the semantic of load_push_constant which is always uniform
+# regardless of the offset source.
+load("push_data_intel", [1], [BASE, RANGE, ACCESS], [CAN_ELIMINATE, CAN_REORDER])
+
 # Dynamic tesselation parameters (see intel_tess_config).
 system_value("tess_config_intel", 1)
 

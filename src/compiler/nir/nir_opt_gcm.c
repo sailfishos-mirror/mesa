@@ -273,7 +273,8 @@ pin_intrinsic(nir_intrinsic_instr *intrin)
                                nir_var_mem_ubo | nir_var_mem_ssbo)))) {
       if (!is_binding_uniform(intrin->src[0]))
          instr->pass_flags = GCM_INSTR_PINNED;
-   } else if (intrin->intrinsic == nir_intrinsic_load_push_constant) {
+   } else if (intrin->intrinsic == nir_intrinsic_load_push_constant ||
+              intrin->intrinsic == nir_intrinsic_load_push_data_intel) {
       if (!nir_src_is_always_uniform(intrin->src[0]))
          instr->pass_flags = GCM_INSTR_PINNED;
    } else if (intrin->intrinsic == nir_intrinsic_load_deref &&
