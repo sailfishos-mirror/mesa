@@ -294,6 +294,11 @@ wsi_common_queue_present(const struct wsi_device *wsi,
                          struct vk_queue *queue,
                          const VkPresentInfoKHR *pPresentInfo);
 
+VkTimeDomainKHR
+wsi_common_get_time_domain(VkSwapchainKHR _swapchain,
+                           VkPresentStageFlagBitsEXT stage,
+                           uint64_t time_domain_id);
+
 static inline bool
 wsi_common_is_swapchain_image(const VkImageCreateInfo *pCreateInfo)
 {

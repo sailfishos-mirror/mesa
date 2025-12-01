@@ -190,6 +190,22 @@ struct wsi_image {
    void *cpu_map;
 };
 
+struct wsi_presentation_timing {
+   uint64_t present_id;
+   uint64_t target_time;
+   uint64_t serial;
+   uint64_t queue_done_time; /* GPU timestamp based. */
+   uint64_t complete_time; /* Best effort timestamp we get from backend. */
+   VkPresentStageFlagsEXT requested_feedback;
+   VkBool32 complete;
+};
+
+struct wsi_image_timing_request {
+   uint64_t                    serial;
+   uint64_t                    time;
+   VkPresentTimingInfoFlagsEXT flags;
+};
+
 struct wsi_swapchain {
    struct vk_object_base base;
 
@@ -238,6 +254,26 @@ struct wsi_swapchain {
       struct vk_queue *queue;
    } blit;
 
+   struct {
+      mtx_t lock;
+      bool active;
+
+      struct wsi_presentation_timing *timings;
+      size_t timings_capacity;
+      size_t timings_count;
+
+      size_t serial;
+
+      /* Maps to Vulkan spec definitions. */
+      uint64_t refresh_duration;
+      uint64_t refresh_interval;
+      /* When 0, we don't know yet. Every time the refresh rate changes,
+       * increase this counter. This counter must also be passed in GetPastTimings. */
+      uint64_t refresh_counter;
+
+      VkTimeDomainKHR time_domain;
+   } present_timing;
+
    bool capture_key_pressed;
 
    /* Command pools, one per queue family */
@@ -267,6 +303,10 @@ struct wsi_swapchain {
                             VkPresentModeKHR mode);
    void (*set_hdr_metadata)(struct wsi_swapchain *swap_chain,
                             const VkHdrMetadataEXT* pMetadata);
+   void (*set_timing_request)(struct wsi_swapchain *swap_chain,
+                            const struct wsi_image_timing_request *request);
+   void (*poll_timing_request)(struct wsi_swapchain *swap_chain);
+   uint64_t (*poll_early_refresh)(struct wsi_swapchain *swap_chain);
 };
 
 bool
@@ -377,6 +417,15 @@ wsi_destroy_image(const struct wsi_swapchain *chain,
 VkResult
 wsi_swapchain_wait_for_present_semaphore(const struct wsi_swapchain *chain,
                                          uint64_t present_id, uint64_t timeout);
+
+void
+wsi_swapchain_present_timing_notify_completion(struct wsi_swapchain *chain,
+                                               uint64_t timing_serial, uint64_t timestamp);
+
+void
+wsi_swapchain_present_timing_update_refresh_rate(struct wsi_swapchain *chain,
+                                                 uint64_t refresh_duration, uint64_t refresh_interval,
+                                                 int minimum_delta_for_update);
 
 #ifdef HAVE_LIBDRM
 VkResult

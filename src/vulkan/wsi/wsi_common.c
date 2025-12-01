@@ -631,6 +631,12 @@ wsi_swapchain_finish(struct wsi_swapchain *chain)
       vk_free(&chain->alloc, chain->cmd_pools);
    }
 
+   if (chain->present_timing.active) {
+      mtx_destroy(&chain->present_timing.lock);
+      if (chain->present_timing.timings)
+         vk_free(&chain->alloc, chain->present_timing.timings);
+   }
+
    vk_object_base_finish(&chain->base);
 }
 
@@ -1116,6 +1122,23 @@ wsi_CreateSwapchainKHR(VkDevice _device,
 
    *pSwapchain = wsi_swapchain_to_handle(swapchain);
 
+   if (pCreateInfo->flags & VK_SWAPCHAIN_CREATE_PRESENT_TIMING_BIT_EXT) {
+      swapchain->present_timing.active = true;
+      mtx_init(&swapchain->present_timing.lock, 0);
+
+      if (swapchain->poll_early_refresh) {
+         /* If we can query the display directly, we should report something reasonable on first query
+          * before we even present the first time. */
+         uint64_t refresh_ns = swapchain->poll_early_refresh(swapchain);
+         if (refresh_ns) {
+            swapchain->present_timing.refresh_duration = refresh_ns;
+            /* None of the APIs can know a-priori if we're driving the display VRR or not. */
+            swapchain->present_timing.refresh_interval = 0;
+            swapchain->present_timing.refresh_counter++;
+         }
+      }
+   }
+
    return VK_SUCCESS;
 }
 
@@ -1172,12 +1195,280 @@ wsi_ReleaseSwapchainImagesKHR(VkDevice _device,
    return VK_SUCCESS;
 }
 
+static VkResult wsi_common_allocate_timing_request(
+      struct wsi_swapchain *swapchain, const VkPresentTimingInfoEXT *timing, uint64_t present_id)
+{
+   VkResult vr = VK_SUCCESS;
+   mtx_lock(&swapchain->present_timing.lock);
+
+   if (swapchain->present_timing.timings_count >= swapchain->present_timing.timings_capacity) {
+      vr = VK_ERROR_PRESENT_TIMING_QUEUE_FULL_EXT;
+      goto err;
+   }
+
+   struct wsi_presentation_timing *wsi_timing =
+         &swapchain->present_timing.timings[swapchain->present_timing.timings_count++];
+
+   memset(wsi_timing, 0, sizeof(*wsi_timing));
+   wsi_timing->serial = ++swapchain->present_timing.serial;
+   wsi_timing->target_time = timing->targetTime;
+   wsi_timing->present_id = present_id;
+   wsi_timing->requested_feedback = timing->presentStageQueries;
+
+   /* Ignore the time domain since we have a static domain. */
+
+err:
+   mtx_unlock(&swapchain->present_timing.lock);
+   return vr;
+}
+
+void
+wsi_swapchain_present_timing_notify_completion(struct wsi_swapchain *chain,
+                                               uint64_t timing_serial,
+                                               uint64_t timestamp)
+{
+   assert(chain->present_timing.active);
+   mtx_lock(&chain->present_timing.lock);
+
+   for (size_t i = 0; i < chain->present_timing.timings_count; i++) {
+      if (chain->present_timing.timings[i].serial == timing_serial) {
+         chain->present_timing.timings[i].complete_time = timestamp;
+         chain->present_timing.timings[i].complete = VK_TRUE;
+         break;
+      }
+   }
+
+   mtx_unlock(&chain->present_timing.lock);
+}
+
+void
+wsi_swapchain_present_timing_update_refresh_rate(struct wsi_swapchain *chain,
+                                                 uint64_t refresh_duration,
+                                                 uint64_t refresh_interval,
+                                                 int minimum_delta_for_update)
+{
+   mtx_lock(&chain->present_timing.lock);
+
+   int64_t duration_delta = llabs((int64_t)refresh_duration - (int64_t)chain->present_timing.refresh_duration);
+   int64_t interval_delta = llabs((int64_t)refresh_interval - (int64_t)chain->present_timing.refresh_interval);
+
+   /* When the refresh rate is an estimate, the value may fluctuate slightly frame to frame,
+    * don't spam refresh counter updates unless there is a meaningful delta.
+    * Applications that use absolute timings are expected to recalibrate based on feedback. */
+   if (duration_delta > minimum_delta_for_update || interval_delta > minimum_delta_for_update ||
+       chain->present_timing.refresh_counter == 0) {
+      /* We'll report this updated refresh counter in feedback,
+       * so that application knows to requery the refresh rate. */
+      chain->present_timing.refresh_counter++;
+      chain->present_timing.refresh_duration = refresh_duration;
+      chain->present_timing.refresh_interval = refresh_interval;
+   }
+
+   mtx_unlock(&chain->present_timing.lock);
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+wsi_GetPastPresentationTimingEXT(
+      VkDevice                                    device,
+      const VkPastPresentationTimingInfoEXT*      pPastPresentationTimingInfo,
+      VkPastPresentationTimingPropertiesEXT*      pPastPresentationTimingProperties)
+{
+   VK_FROM_HANDLE(wsi_swapchain, swapchain, pPastPresentationTimingInfo->swapchain);
+   VkResult vr = VK_SUCCESS;
+   bool out_of_order = (pPastPresentationTimingInfo->flags &
+         VK_PAST_PRESENTATION_TIMING_ALLOW_OUT_OF_ORDER_RESULTS_BIT_EXT) != 0;
+
+   if (swapchain->poll_timing_request)
+      swapchain->poll_timing_request(swapchain);
+
+   mtx_lock(&swapchain->present_timing.lock);
+
+   pPastPresentationTimingProperties->timingPropertiesCounter = swapchain->present_timing.refresh_counter;
+   pPastPresentationTimingProperties->timeDomainsCounter = 1;
+
+   /* This implementation always returns results in-order, so can ignore the out-of-order flag.
+    * TODO: Honor the partial results flag. */
+
+   uint32_t done_count = 0;
+   for (uint32_t i = 0; i < swapchain->present_timing.timings_count; i++) {
+      /* If different presents request different kinds of state, we may get completion out of order.
+       * If flag is not set, we cannot report frame N until we have completed all frames M < N. */
+      if (swapchain->present_timing.timings[i].complete)
+         done_count++;
+      else if (!out_of_order)
+         break;
+   }
+
+   /* We don't remove timing info from queue until it is consumed. */
+   if (!pPastPresentationTimingProperties->pPresentationTimings) {
+      pPastPresentationTimingProperties->presentationTimingCount = done_count;
+      mtx_unlock(&swapchain->present_timing.lock);
+      return VK_SUCCESS;
+   }
+
+   VK_OUTARRAY_MAKE_TYPED(VkPastPresentationTimingEXT, timings,
+                          pPastPresentationTimingProperties->pPresentationTimings,
+                          &pPastPresentationTimingProperties->presentationTimingCount);
+
+   uint32_t new_timings_count = 0;
+   bool stop_timing_removal = false;
+
+   for (uint32_t i = 0; i < swapchain->present_timing.timings_count; i++) {
+      const struct wsi_presentation_timing *in_timing = &swapchain->present_timing.timings[i];
+
+      if (!swapchain->present_timing.timings[i].complete || stop_timing_removal) {
+         /* Keep output ordered to be compliant without having to re-sort every time.
+          * Queue depth for timestamps is expected to be small. */
+         swapchain->present_timing.timings[new_timings_count++] = swapchain->present_timing.timings[i];
+         if (!out_of_order)
+            stop_timing_removal = true;
+         continue;
+      }
+
+      vk_outarray_append_typed(VkPastPresentationTimingEXT, &timings, timing) {
+         timing->targetTime = swapchain->present_timing.timings[i].target_time;
+         timing->presentId = in_timing->present_id;
+         timing->timeDomain = swapchain->present_timing.time_domain;
+         timing->timeDomainId = 0;
+         timing->reportComplete = in_timing->complete;
+
+         /* No INCOMPLETE is reported here. Failures are silent.
+          * However, application already knows upper bound for stage count based on the query,
+          * so this should never fail. */
+
+         /* CTS expects that presentStageCount is overwritten (from 0 to something), not checked as an upper bound.
+          * VUID 12230 and 12231 require that presentStageCount is conservatively allocated.
+          * However, given the VUs, this is invalid usage. */
+         timing->presentStageCount = UINT32_MAX;
+
+         VK_OUTARRAY_MAKE_TYPED(VkPresentStageTimeEXT, stages, timing->pPresentStages, &timing->presentStageCount);
+
+         if (in_timing->requested_feedback & VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT) {
+            vk_outarray_append_typed(VkPresentStageTimeEXT, &stages, stage) {
+               stage->stage = VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT;
+               stage->time = in_timing->queue_done_time;
+            }
+         }
+
+         if (in_timing->requested_feedback & ~VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT) {
+            vk_outarray_append_typed(VkPresentStageTimeEXT, &stages, stage) {
+               stage->stage = in_timing->requested_feedback & ~VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT;
+               /* It is expected that implementation will only expose one timing value. */
+               assert(util_bitcount(stage->stage) == 1);
+               stage->time = in_timing->complete_time;
+            }
+         }
+      }
+   }
+
+   swapchain->present_timing.timings_count = new_timings_count;
+   vr = vk_outarray_status(&timings);
+
+   /* This function is fully atomic within implementation, so have to be thread safe. */
+   mtx_unlock(&swapchain->present_timing.lock);
+   return vr;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+wsi_GetSwapchainTimeDomainPropertiesEXT(
+      VkDevice                                    device,
+      VkSwapchainKHR                              swapchain_,
+      VkSwapchainTimeDomainPropertiesEXT*         pSwapchainTimeDomainProperties,
+      uint64_t*                                   pTimeDomainsCounter)
+{
+   /* We don't change time domains. Everything is static. */
+   if (pTimeDomainsCounter)
+      *pTimeDomainsCounter = 1;
+
+   /* This style is a bit goofy and doesn't map cleanly to anything. */
+   if (!pSwapchainTimeDomainProperties->pTimeDomainIds && !pSwapchainTimeDomainProperties->pTimeDomains) {
+      pSwapchainTimeDomainProperties->timeDomainCount = 1;
+      return VK_SUCCESS;
+   } else if (pSwapchainTimeDomainProperties->timeDomainCount == 0) {
+      return VK_INCOMPLETE;
+   }
+
+   /* The proposal document requires that this domain is supported, but the spec does not make that clear.
+    * CTS also tests that. */
+   pSwapchainTimeDomainProperties->timeDomainCount = 1;
+   if (pSwapchainTimeDomainProperties->pTimeDomains)
+      *pSwapchainTimeDomainProperties->pTimeDomains = VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT;
+   if (pSwapchainTimeDomainProperties->pTimeDomainIds)
+      *pSwapchainTimeDomainProperties->pTimeDomainIds = 0;
+
+   return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+wsi_GetSwapchainTimingPropertiesEXT(
+      VkDevice                                    device,
+      VkSwapchainKHR                              swapchain_,
+      VkSwapchainTimingPropertiesEXT*             pSwapchainTimingProperties,
+      uint64_t*                                   pSwapchainTimingPropertiesCounter)
+{
+   VK_FROM_HANDLE(wsi_swapchain, swapchain, swapchain_);
+
+   mtx_lock(&swapchain->present_timing.lock);
+   /* If we don't have data yet (i.e., counter is 0), should return VK_NOT_READY.
+    * CTS does not like that however, so just return VK_SUCCESS. */
+   pSwapchainTimingProperties->refreshInterval = swapchain->present_timing.refresh_interval;
+   pSwapchainTimingProperties->refreshDuration = swapchain->present_timing.refresh_duration;
+   if (pSwapchainTimingPropertiesCounter)
+      *pSwapchainTimingPropertiesCounter = swapchain->present_timing.refresh_counter;
+   mtx_unlock(&swapchain->present_timing.lock);
+   return VK_SUCCESS;
+}
+
+VKAPI_ATTR VkResult VKAPI_CALL
+wsi_SetSwapchainPresentTimingQueueSizeEXT(
+      VkDevice                                    device,
+      VkSwapchainKHR                              swapchain_,
+      uint32_t                                    size)
+{
+   VK_FROM_HANDLE(wsi_swapchain, swapchain, swapchain_);
+   assert(swapchain->present_timing.active);
+   VkResult vr = VK_SUCCESS;
+
+   mtx_lock(&swapchain->present_timing.lock);
+
+   if (size < swapchain->present_timing.timings_count) {
+      vr = VK_NOT_READY;
+      goto error;
+   }
+
+   if (size > swapchain->present_timing.timings_capacity) {
+      void *new_ptr = vk_realloc(&swapchain->alloc, swapchain->present_timing.timings,
+                 sizeof(*swapchain->present_timing.timings) * size, 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      if (new_ptr) {
+         swapchain->present_timing.timings = new_ptr;
+         swapchain->present_timing.timings_capacity = size;
+      } else {
+         vr = VK_ERROR_OUT_OF_HOST_MEMORY;
+         goto error;
+      }
+   } else {
+      swapchain->present_timing.timings_capacity = size;
+   }
+
+error:
+   mtx_unlock(&swapchain->present_timing.lock);
+   return vr;
+}
+
 VkDeviceMemory
 wsi_common_get_memory(VkSwapchainKHR _swapchain, uint32_t index)
 {
    VK_FROM_HANDLE(wsi_swapchain, swapchain, _swapchain);
    assert(index < swapchain->image_count);
    return swapchain->get_wsi_image(swapchain, index)->memory;
+}
+
+VkTimeDomainKHR
+wsi_common_get_time_domain(VkSwapchainKHR _swapchain, VkPresentStageFlagBitsEXT stage, uint64_t time_domain_id)
+{
+   VK_FROM_HANDLE(wsi_swapchain, swapchain, _swapchain);
+   return stage == VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT ?
+         VK_TIME_DOMAIN_DEVICE_KHR : swapchain->present_timing.time_domain;
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
@@ -1525,6 +1816,38 @@ wsi_common_queue_present(const struct wsi_device *wsi,
       vk_find_struct_const(pPresentInfo->pNext, PRESENT_ID_2_KHR);
    const VkSwapchainPresentFenceInfoKHR *present_fence_info =
       vk_find_struct_const(pPresentInfo->pNext, SWAPCHAIN_PRESENT_FENCE_INFO_KHR);
+   const VkPresentTimingsInfoEXT *present_timings_info =
+         vk_find_struct_const(pPresentInfo->pNext, PRESENT_TIMINGS_INFO_EXT);
+
+   if (present_timings_info) {
+      /* If we fail a present due to full queue, it's a little unclear from
+       * spec if we should treat it as OUT_OF_DATE or OUT_OF_HOST_MEMORY for
+       * purposes of signaling. Validation layers and at least one other implementation
+       * in the wild seems to treat it as OUT_OF_DATE, so do that. */
+      for (uint32_t i = 0; i < present_timings_info->swapchainCount; i++) {
+         const VkPresentTimingInfoEXT *info = &present_timings_info->pTimingInfos[i];
+         VK_FROM_HANDLE(wsi_swapchain, swapchain, pPresentInfo->pSwapchains[i]);
+         if (results[i] != VK_SUCCESS || !swapchain->set_timing_request || info->presentStageQueries == 0)
+            continue;
+
+         assert(swapchain->present_timing.active);
+
+         /* EXT_present_timing is defined to only work with present_id2.
+          * It's only used when reporting back timings. */
+         results[i] = wsi_common_allocate_timing_request(
+               swapchain, info, present_ids2 ? present_ids2->pPresentIds[i] : 0);
+
+         /* Application is responsible for allocating sufficient size here.
+          * We fail with VK_ERROR_PRESENT_TIMING_QUEUE_FULL_EXT if application is bugged. */
+         if (results[i] == VK_SUCCESS) {
+            swapchain->set_timing_request(swapchain, &(struct wsi_image_timing_request) {
+               .serial = swapchain->present_timing.serial,
+               .time = info->targetTime,
+               .flags = info->flags,
+            });
+         }
+      }
+   }
 
    /* Gather up all the semaphores and fences we need to signal per-image */
    STACK_ARRAY(struct wsi_image_signal_info, image_signal_infos,
@@ -1620,14 +1943,28 @@ wsi_common_queue_present(const struct wsi_device *wsi,
          struct wsi_image *image =
             swapchain->get_wsi_image(swapchain, image_index);
 
+         bool separate_queue_blit = swapchain->blit.type != WSI_SWAPCHAIN_NO_BLIT &&
+                                    swapchain->blit.queue != NULL;
+
+         /* For TIMING_QUEUE_FULL_EXT, ensure sync objects are signaled,
+          * but don't do any real work. */
+         if (results[i] == VK_ERROR_PRESENT_TIMING_QUEUE_FULL_EXT ||
+               (!separate_queue_blit && results[i] == VK_SUCCESS)) {
+            for (uint32_t j = 0; j < image_signal_infos[i].semaphore_count; j++) {
+               signal_semaphore_infos[signal_semaphore_count++] =
+                     image_signal_infos[i].semaphore_infos[j];
+            }
+            for (uint32_t j = 0; j < image_signal_infos[i].fence_count; j++)
+               fences[fence_count++] = image_signal_infos[i].fences[j];
+         }
+
          if (results[i] != VK_SUCCESS)
             continue;
 
          /* If we're blitting on another swapchain, just signal the blit
           * semaphore for now.
           */
-         if (swapchain->blit.type != WSI_SWAPCHAIN_NO_BLIT &&
-             swapchain->blit.queue != NULL) {
+         if (separate_queue_blit) {
             /* Create the blit semaphore if needed */
             if (swapchain->blit.semaphores[image_index] == VK_NULL_HANDLE) {
                const VkSemaphoreCreateInfo sem_info = {
@@ -1658,13 +1995,6 @@ wsi_common_queue_present(const struct wsi_device *wsi,
                   image->blit.cmd_buffers[queue->queue_family_index],
             };
          }
-
-         for (uint32_t j = 0; j < image_signal_infos[i].semaphore_count; j++) {
-            signal_semaphore_infos[signal_semaphore_count++] =
-               image_signal_infos[i].semaphore_infos[j];
-         }
-         for (uint32_t j = 0; j < image_signal_infos[i].fence_count; j++)
-            fences[fence_count++] = image_signal_infos[i].fences[j];
       }
 
       const VkSubmitInfo2 submit_info = {
@@ -1701,8 +2031,10 @@ wsi_common_queue_present(const struct wsi_device *wsi,
       if (results[i] != VK_SUCCESS)
          continue;
 
-      if (swapchain->blit.type == WSI_SWAPCHAIN_NO_BLIT ||
-          swapchain->blit.queue == NULL)
+      bool separate_queue_blit = swapchain->blit.type != WSI_SWAPCHAIN_NO_BLIT &&
+                                 swapchain->blit.queue != NULL;
+
+      if (!separate_queue_blit)
          continue;
 
       const VkSemaphoreSubmitInfo blit_semaphore_info = {
