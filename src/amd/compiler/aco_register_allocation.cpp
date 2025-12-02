@@ -3660,6 +3660,7 @@ recreate_blocking_vectors(ra_ctx& ctx, const std::vector<Instruction*>& splits,
          Temp component = split->definitions[op_idx].getTemp();
          component = read_variable(ctx, component, ctx.block->index);
          vec->operands[op_idx] = Operand(component, ctx.assignments[component.id()].reg);
+         reg_file.clear(vec->operands[op_idx]);
       }
 
       bool temp_in_scc = reg_file[scc];
