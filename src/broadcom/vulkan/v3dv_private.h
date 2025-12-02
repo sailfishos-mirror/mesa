@@ -120,12 +120,6 @@ struct v3dv_format_plane;
 struct v3dv_format;
 struct v3d_simulator_file;
 
-/* Minimum required by the Vulkan 1.1 spec */
-#define MAX_MEMORY_ALLOCATION_SIZE (1ull << 30)
-
-/* Maximum performance counters number */
-#define V3D_MAX_PERFCNT 93
-
 struct v3dv_physical_device {
    struct vk_physical_device vk;
 
@@ -618,8 +612,6 @@ struct v3dv_device_memory {
 
 #define V3D_OUTPUT_IMAGE_FORMAT_NO 255
 #define TEXTURE_DATA_FORMAT_NO     255
-
-#define V3DV_MAX_PLANE_COUNT 3
 
 /* Note that although VkImageAspectFlags would allow to combine more than one
  * PLANE bit, for all the use cases we implement that use VkImageAspectFlags,
@@ -1129,10 +1121,6 @@ struct v3dv_timestamp_query_cpu_job_info {
    /* This is one unless multiview is used */
    uint32_t count;
 };
-
-/* Number of perfmons required to handle all supported performance counters */
-#define V3DV_MAX_PERFMONS DIV_ROUND_UP(V3D_MAX_PERFCNT, \
-                                       DRM_V3D_MAX_PERF_COUNTERS)
 
 struct v3dv_perf_query {
    uint32_t kperfmon_ids[V3DV_MAX_PERFMONS];

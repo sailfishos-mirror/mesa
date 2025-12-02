@@ -31,7 +31,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-
+#include "v3dv_limits.h"
 
 #ifdef v3dX
 #  include "broadcom/cle/v3dx_pack.h"
