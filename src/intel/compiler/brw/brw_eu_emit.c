@@ -485,7 +485,7 @@ brw_add_reloc(struct brw_codegen *p, uint32_t id,
    };
 }
 
-static brw_eu_inst *
+brw_eu_inst *
 brw_alu1(struct brw_codegen *p, unsigned opcode,
          struct brw_reg dest, struct brw_reg src)
 {
@@ -495,7 +495,7 @@ brw_alu1(struct brw_codegen *p, unsigned opcode,
    return insn;
 }
 
-static brw_eu_inst *
+brw_eu_inst *
 brw_alu2(struct brw_codegen *p, unsigned opcode,
          struct brw_reg dest, struct brw_reg src0, struct brw_reg src1)
 {
@@ -565,7 +565,7 @@ to_3src_align1_hstride(enum brw_horizontal_stride hstride)
    }
 }
 
-static brw_eu_inst *
+brw_eu_inst *
 brw_alu3(struct brw_codegen *p, unsigned opcode, struct brw_reg dest,
          struct brw_reg src0, struct brw_reg src1, struct brw_reg src2)
 {

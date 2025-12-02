@@ -914,31 +914,58 @@ brw_generator::generate_code(const brw_shader &s,
             ++sync_nop_count;
 
          break;
+
       case BRW_OPCODE_MOV:
-	 brw_MOV(p, dst, src[0]);
+      case BRW_OPCODE_FRC:
+      case BRW_OPCODE_RNDD:
+      case BRW_OPCODE_RNDE:
+      case BRW_OPCODE_RNDZ:
+      case BRW_OPCODE_NOT:
+      case BRW_OPCODE_LZD:
+	 brw_alu1(p, inst->opcode, dst, src[0]);
 	 break;
+
       case BRW_OPCODE_ADD:
-	 brw_ADD(p, dst, src[0], src[1]);
-	 break;
       case BRW_OPCODE_MUL:
-	 brw_MUL(p, dst, src[0], src[1]);
-	 break;
       case BRW_OPCODE_AVG:
-	 brw_AVG(p, dst, src[0], src[1]);
-	 break;
       case BRW_OPCODE_MACH:
-	 brw_MACH(p, dst, src[0], src[1]);
+      case BRW_OPCODE_AND:
+      case BRW_OPCODE_OR:
+      case BRW_OPCODE_XOR:
+      case BRW_OPCODE_ASR:
+      case BRW_OPCODE_SHR:
+      case BRW_OPCODE_SHL:
+      case BRW_OPCODE_SEL:
+      case BRW_OPCODE_ADDC:
+      case BRW_OPCODE_SUBB:
+      case BRW_OPCODE_MAC:
+      case BRW_OPCODE_BFI1:
+      case BRW_OPCODE_PLN:
+      case BRW_OPCODE_SRND:
+      case BRW_OPCODE_ROL:
+      case BRW_OPCODE_ROR:
+         assert(inst->opcode != BRW_OPCODE_SRND || devinfo->ver >= 20);
+         assert(inst->opcode != BRW_OPCODE_ROL || devinfo->ver >= 11);
+         assert(inst->opcode != BRW_OPCODE_ROR || devinfo->ver >= 11);
+
+	 brw_alu2(p, inst->opcode, dst, src[0], src[1]);
 	 break;
 
+      case BRW_OPCODE_MAD:
+      case BRW_OPCODE_CSEL:
+      case BRW_OPCODE_BFE:
+      case BRW_OPCODE_BFI2:
       case BRW_OPCODE_DP4A:
-         assert(devinfo->ver >= 12);
-         brw_DP4A(p, dst, src[0], src[1], src[2]);
-         break;
+      case BRW_OPCODE_LRP:
+      case BRW_OPCODE_ADD3:
+         assert(inst->opcode != BRW_OPCODE_DP4A || devinfo->ver >= 12);
+         assert(inst->opcode != BRW_OPCODE_LRP  || devinfo->ver == 9);
+         assert(inst->opcode != BRW_OPCODE_ADD3 || devinfo->verx10 >= 125);
 
-      case BRW_OPCODE_SRND:
-         assert(devinfo->ver >= 20);
-         brw_SRND(p, dst, src[0], src[1]);
-         break;
+         if (devinfo->ver == 9)
+            brw_set_default_access_mode(p, BRW_ALIGN_16);
+         brw_alu3(p, inst->opcode, dst, src[0], src[1], src[2]);
+	 break;
 
       case BRW_OPCODE_DPAS: {
          assert(devinfo->verx10 >= 125);
@@ -948,121 +975,25 @@ brw_generator::generate_code(const brw_shader &s,
          break;
       }
 
-      case BRW_OPCODE_MAD:
-         if (devinfo->ver < 10)
-            brw_set_default_access_mode(p, BRW_ALIGN_16);
-         brw_MAD(p, dst, src[0], src[1], src[2]);
-	 break;
-
-      case BRW_OPCODE_LRP:
-         assert(devinfo->ver <= 10);
-         if (devinfo->ver < 10)
-            brw_set_default_access_mode(p, BRW_ALIGN_16);
-         brw_LRP(p, dst, src[0], src[1], src[2]);
-	 break;
-
-      case BRW_OPCODE_ADD3:
-         assert(devinfo->verx10 >= 125);
-         brw_ADD3(p, dst, src[0], src[1], src[2]);
-         break;
-
-      case BRW_OPCODE_FRC:
-	 brw_FRC(p, dst, src[0]);
-	 break;
-      case BRW_OPCODE_RNDD:
-	 brw_RNDD(p, dst, src[0]);
-	 break;
-      case BRW_OPCODE_RNDE:
-	 brw_RNDE(p, dst, src[0]);
-	 break;
-      case BRW_OPCODE_RNDZ:
-	 brw_RNDZ(p, dst, src[0]);
-	 break;
-
-      case BRW_OPCODE_AND:
-	 brw_AND(p, dst, src[0], src[1]);
-	 break;
-      case BRW_OPCODE_OR:
-	 brw_OR(p, dst, src[0], src[1]);
-	 break;
-      case BRW_OPCODE_XOR:
-	 brw_XOR(p, dst, src[0], src[1]);
-	 break;
-      case BRW_OPCODE_NOT:
-	 brw_NOT(p, dst, src[0]);
-	 break;
       case BRW_OPCODE_BFN:
          brw_BFN(p, dst, src[0], src[1], src[2], src[3]);
          break;
-      case BRW_OPCODE_ASR:
-	 brw_ASR(p, dst, src[0], src[1]);
-	 break;
-      case BRW_OPCODE_SHR:
-	 brw_SHR(p, dst, src[0], src[1]);
-	 break;
-      case BRW_OPCODE_SHL:
-	 brw_SHL(p, dst, src[0], src[1]);
-	 break;
-      case BRW_OPCODE_ROL:
-	 assert(devinfo->ver >= 11);
-	 brw_ROL(p, dst, src[0], src[1]);
-	 break;
-      case BRW_OPCODE_ROR:
-	 assert(devinfo->ver >= 11);
-	 brw_ROR(p, dst, src[0], src[1]);
-	 break;
+
       case BRW_OPCODE_CMP:
          brw_CMP(p, dst, inst->conditional_mod, src[0], src[1]);
 	 break;
       case BRW_OPCODE_CMPN:
          brw_CMPN(p, dst, inst->conditional_mod, src[0], src[1]);
          break;
-      case BRW_OPCODE_SEL:
-	 brw_SEL(p, dst, src[0], src[1]);
-	 break;
-      case BRW_OPCODE_CSEL:
-         if (devinfo->ver < 10)
-            brw_set_default_access_mode(p, BRW_ALIGN_16);
-         brw_CSEL(p, dst, src[0], src[1], src[2]);
-         break;
+
       case BRW_OPCODE_BFREV:
-         brw_BFREV(p, retype(dst, BRW_TYPE_UD), retype(src[0], BRW_TYPE_UD));
+      case BRW_OPCODE_FBL:
+      case BRW_OPCODE_CBIT:
+         brw_alu1(p, inst->opcode, retype(dst, BRW_TYPE_UD), retype(src[0], BRW_TYPE_UD));
          break;
+
       case BRW_OPCODE_FBH:
          brw_FBH(p, retype(dst, src[0].type), src[0]);
-         break;
-      case BRW_OPCODE_FBL:
-         brw_FBL(p, retype(dst, BRW_TYPE_UD), retype(src[0], BRW_TYPE_UD));
-         break;
-      case BRW_OPCODE_LZD:
-         brw_LZD(p, dst, src[0]);
-         break;
-      case BRW_OPCODE_CBIT:
-         brw_CBIT(p, retype(dst, BRW_TYPE_UD), retype(src[0], BRW_TYPE_UD));
-         break;
-      case BRW_OPCODE_ADDC:
-         brw_ADDC(p, dst, src[0], src[1]);
-         break;
-      case BRW_OPCODE_SUBB:
-         brw_SUBB(p, dst, src[0], src[1]);
-         break;
-      case BRW_OPCODE_MAC:
-         brw_MAC(p, dst, src[0], src[1]);
-         break;
-
-      case BRW_OPCODE_BFE:
-         if (devinfo->ver < 10)
-            brw_set_default_access_mode(p, BRW_ALIGN_16);
-         brw_BFE(p, dst, src[0], src[1], src[2]);
-         break;
-
-      case BRW_OPCODE_BFI1:
-         brw_BFI1(p, dst, src[0], src[1]);
-         break;
-      case BRW_OPCODE_BFI2:
-         if (devinfo->ver < 10)
-            brw_set_default_access_mode(p, BRW_ALIGN_16);
-         brw_BFI2(p, dst, src[0], src[1], src[2]);
          break;
 
       case BRW_OPCODE_IF:
@@ -1122,17 +1053,6 @@ brw_generator::generate_code(const brw_shader &s,
          assert(inst->conditional_mod == BRW_CONDITIONAL_NONE);
          assert(inst->opcode == SHADER_OPCODE_POW || inst->exec_size == 8);
          gfx6_math(p, dst, brw_math_function(inst->opcode), src[0], src[1]);
-	 break;
-      case BRW_OPCODE_PLN:
-         /* PLN reads:
-          *                      /   in SIMD16   \
-          *    -----------------------------------
-          *   | src1+0 | src1+1 | src1+2 | src1+3 |
-          *   |-----------------------------------|
-          *   |(x0, x1)|(y0, y1)|(x2, x3)|(y2, y3)|
-          *    -----------------------------------
-          */
-         brw_PLN(p, dst, src[0], src[1]);
 	 break;
       case FS_OPCODE_PIXEL_X:
          assert(src[0].type == BRW_TYPE_UW);
