@@ -3620,23 +3620,29 @@ split_blocking_vectors(ra_ctx& ctx, std::vector<unsigned>& vars, RegisterFile& r
 
    for (unsigned id : vars) {
       RegClass rc = ctx.program->temp_rc[id];
-      PhysReg start = ctx.assignments[id].reg;
       if (rc.size() == 1)
          continue;
 
-      aco_ptr<Instruction> split = aco_ptr<Instruction>(
-         create_instruction(aco_opcode::p_split_vector, Format::PSEUDO, 1, rc.size()));
-      split->operands[0] = Operand(Temp(id, rc), start);
+      Operand split_op(Temp(id, rc), ctx.assignments[id].reg);
 
-      for (unsigned def_idx = 0; def_idx < rc.size(); ++def_idx) {
-         RegClass def_rc = RegClass::get(rc.type(), MIN2(4, rc.bytes() - def_idx * 4));
-         Temp tmp = ctx.program->allocateTmp(def_rc);
-         PhysReg reg = start.advance(def_idx * 4);
-         ctx.assignments.emplace_back(reg, def_rc);
-         split->definitions[def_idx] = Definition(tmp, reg);
+      small_vec<Definition, 8> defs;
+      for (unsigned offset = 0; offset < rc.bytes();) {
+         PhysReg reg = split_op.physReg().advance(offset);
+         unsigned size = MIN2(4, rc.bytes() - offset) - reg.byte();
+         Definition def(ctx.program->allocateTmp(RegClass::get(rc.type(), size)), reg);
 
-         register_file.fill(split->definitions[def_idx]);
+         defs.push_back(def);
+         ctx.assignments.emplace_back(def.physReg(), def.regClass());
+         register_file.fill(def);
+
+         offset += def.bytes();
       }
+
+      aco_ptr<Instruction> split = aco_ptr<Instruction>(
+         create_instruction(aco_opcode::p_split_vector, Format::PSEUDO, 1, defs.size()));
+      split->operands[0] = split_op;
+      std::copy(defs.begin(), defs.end(), split->definitions.begin());
+
       splits.push_back(split.release());
    }
 
