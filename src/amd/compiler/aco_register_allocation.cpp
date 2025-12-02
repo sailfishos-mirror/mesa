@@ -3622,16 +3622,11 @@ split_blocking_vectors(ra_ctx& ctx, std::vector<unsigned>& vars, RegisterFile& f
    for (auto var_it = vars.begin(); var_it != vars.end();) {
       unsigned id = *var_it;
       RegClass rc = ctx.program->temp_rc[id];
+      PhysReg start = ctx.assignments[id].reg;
       if (rc.size() == 1) {
          ++var_it;
          continue;
       }
-
-      /* If the vector is only partially blocking, clear the non-blocking parts */
-      PhysReg start = ctx.assignments[id].reg;
-      for (PhysReg reg = start; reg < reg + rc.size(); reg = reg.advance(4))
-         if (!file.is_blocked(reg))
-            file.clear(reg, RegClass(ctx.program->temp_rc[id].type(), 1));
 
       aco_ptr<Instruction> split = aco_ptr<Instruction>(
          create_instruction(aco_opcode::p_split_vector, Format::PSEUDO, 1, rc.size()));
