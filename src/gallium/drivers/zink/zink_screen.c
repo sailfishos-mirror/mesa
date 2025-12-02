@@ -1058,10 +1058,14 @@ zink_init_screen_caps(struct zink_screen *screen)
    caps->shader_buffer_offset_alignment =
       screen->info.props.limits.minStorageBufferOffsetAlignment;
 
-   caps->pci_group =
-   caps->pci_bus =
-   caps->pci_device =
-   caps->pci_function = 0; /* TODO: figure these out */
+   if (screen->info.have_EXT_pci_bus_info) {
+      caps->pci_group = screen->info.pci_props.pciDomain;
+      caps->pci_bus = screen->info.pci_props.pciBus;
+      caps->pci_device = screen->info.pci_props.pciDevice;
+      caps->pci_function = screen->info.pci_props.pciFunction;
+   } else {
+      caps->pci_group = caps->pci_bus = caps->pci_device = caps->pci_function = 0;
+   }
 
    caps->cull_distance = screen->info.feats.features.shaderCullDistance;
 
