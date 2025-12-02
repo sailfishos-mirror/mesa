@@ -3673,7 +3673,9 @@ recreate_blocking_vectors(ra_ctx& ctx, const std::vector<Instruction*>& splits,
       emit_parallel_copy(ctx, parallelcopies, vec, instructions, temp_in_scc, reg_file);
       instructions.push_back(std::move(vec));
 
-      add_rename(ctx, split->operands[0].getTemp(), tmp);
+      auto orig_it = ctx.orig_names.find(split->operands[0].tempId());
+      Temp orig = orig_it != ctx.orig_names.end() ? orig_it->second : split->operands[0].getTemp();
+      add_rename(ctx, orig, tmp);
    }
 }
 
