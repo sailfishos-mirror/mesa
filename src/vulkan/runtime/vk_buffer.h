@@ -86,6 +86,38 @@ vk_buffer_range(const struct vk_buffer *buffer,
    }
 }
 
+static inline VkDeviceAddressRangeKHR
+vk_device_address_range(const struct vk_buffer *buffer,
+                        VkDeviceSize offset,
+                        VkDeviceSize range)
+{
+   VkDeviceAddressRangeKHR addr_range = { 0 };
+
+   if (buffer) {
+      addr_range.address = vk_buffer_address(buffer, offset);
+      addr_range.size = vk_buffer_range(buffer, offset, range);
+   }
+
+   return addr_range;
+}
+
+static inline VkStridedDeviceAddressRangeKHR
+vk_strided_device_address_range(const struct vk_buffer *buffer,
+                                VkDeviceSize offset,
+                                VkDeviceSize range,
+                                VkDeviceSize stride)
+{
+   VkStridedDeviceAddressRangeKHR addr_range = { 0 };
+
+   if (buffer) {
+      addr_range.address = vk_buffer_address(buffer, offset);
+      addr_range.size = vk_buffer_range(buffer, offset, range);
+      addr_range.stride = stride;
+   }
+
+   return addr_range;
+}
+
 #ifdef __cplusplus
 }
 #endif
