@@ -26,6 +26,7 @@
  **************************************************************************/
 
 #include "util/u_debug.h"
+#include "util/u_memory.h"
 #include "util/os_time.h"
 #include "lp_bld_debug.h"
 #include "lp_bld_passmgr.h"
