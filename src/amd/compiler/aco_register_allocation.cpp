@@ -3656,9 +3656,11 @@ recreate_blocking_vectors(ra_ctx& ctx, const std::vector<Instruction*>& splits,
       aco_ptr<Instruction> vec = aco_ptr<Instruction>(create_instruction(
          aco_opcode::p_create_vector, Format::PSEUDO, split->definitions.size(), 1));
 
-      for (unsigned op_idx = 0; op_idx < split->definitions.size(); ++op_idx)
-         vec->operands[op_idx] =
-            Operand(split->definitions[op_idx].getTemp(), split->definitions[op_idx].physReg());
+      for (unsigned op_idx = 0; op_idx < split->definitions.size(); ++op_idx) {
+         Temp component = split->definitions[op_idx].getTemp();
+         component = read_variable(ctx, component, ctx.block->index);
+         vec->operands[op_idx] = Operand(component, ctx.assignments[component.id()].reg);
+      }
 
       bool temp_in_scc = reg_file[scc];
 
