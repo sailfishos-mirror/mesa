@@ -443,8 +443,13 @@ pan_emit_zs_crc_ext(const struct pan_fb_info *fb, unsigned layer_idx,
 
    pan_pack(&desc, ZS_CRC_EXTENSION, cfg) {
       pan_prepare_crc(fb, rt_crc, &cfg.crc);
+#if PAN_ARCH == 5
       cfg.zs.clean_pixel_write_enable =
          pan_clean_tile_write_zs_enabled(clean_tile);
+#elif PAN_ARCH >= 6
+      cfg.zs.clean_tile_write_enable =
+         pan_clean_tile_write_zs_enabled(clean_tile);
+#endif
    }
 
    if (fb->zs.view.zs) {
@@ -931,8 +936,13 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
 
    if (!rt || fb->rts[idx].discard) {
       pan_cast_and_pack(out, RGB_RENDER_TARGET, cfg) {
+#if PAN_ARCH == 5
          cfg.clean_pixel_write_enable =
             pan_clean_tile_write_rt_enabled(clean_tile, idx);
+#elif PAN_ARCH >= 6
+         cfg.clean_tile_write_enable =
+            pan_clean_tile_write_rt_enabled(clean_tile, idx);
+#endif
          cfg.internal_buffer_offset = cbuf_offset;
          cfg.clear = rt_clear(&fb->rts[idx]);
          cfg.dithering_enable = true;
@@ -948,8 +958,13 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
    struct mali_rgb_render_target_packed common;
    pan_pack(&common, RGB_RENDER_TARGET, cfg) {
       assert(fb->rts[idx].view != NULL);
+#if PAN_ARCH == 5
       cfg.clean_pixel_write_enable =
          pan_clean_tile_write_rt_enabled(clean_tile, idx);
+#elif PAN_ARCH >= 6
+      cfg.clean_tile_write_enable =
+         pan_clean_tile_write_rt_enabled(clean_tile, idx);
+#endif
       cfg.internal_buffer_offset = cbuf_offset;
       cfg.clear = rt_clear(&fb->rts[idx]);
       cfg.dithering_enable = true;

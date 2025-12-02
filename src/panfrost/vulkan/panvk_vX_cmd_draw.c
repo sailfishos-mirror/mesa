@@ -36,7 +36,7 @@ att_set_clear_preload(const VkRenderingAttachmentInfo *att, bool *clear, bool *p
        * easiest way to do that is forcing a preload, so that partial stores
        * for unused attachments will be no-op'd by writing existing contents.
        *
-       * TODO: disable preload when we have clean_pixel_write_enable = false
+       * TODO: disable preload when we have clean_tile_write_enable = false
        * as an optimization
        */
       *preload |= att->storeOp == VK_ATTACHMENT_STORE_OP_NONE;

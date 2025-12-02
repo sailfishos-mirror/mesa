@@ -526,7 +526,7 @@ cmd_emit_dcd(struct panvk_cmd_buffer *cmdbuf, struct pan_fb_info *fbinfo,
 
       /* If we're dealing with a combined ZS resource and only one
        * component is cleared, we need to reload the whole surface
-       * because the zs_clean_pixel_write_enable flag is set in that
+       * because the zs_clean_tile_write_enable flag is set in that
        * case.
        */
       if (util_format_is_depth_and_stencil(fmt) &&
