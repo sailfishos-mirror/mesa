@@ -93,6 +93,7 @@ static const struct vk_instance_extension_table panvk_instance_extensions = {
    .KHR_external_fence_capabilities = true,
    .KHR_get_physical_device_properties2 = true,
 #ifdef PANVK_USE_WSI_PLATFORM
+   .KHR_get_surface_capabilities2 = true,
    .KHR_surface = true,
 #endif
 #ifdef VK_USE_PLATFORM_DISPLAY_KHR
