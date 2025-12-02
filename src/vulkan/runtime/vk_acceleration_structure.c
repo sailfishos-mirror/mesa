@@ -74,7 +74,7 @@ vk_common_CreateAccelerationStructureKHR(VkDevice _device,
    VK_FROM_HANDLE(vk_device, device, _device);
    VK_FROM_HANDLE(vk_buffer, buffer, pCreateInfo->buffer);
 
-   struct vk_acceleration_structure *accel_struct = vk_object_alloc(
+   struct vk_acceleration_structure *accel_struct = vk_object_zalloc(
       device, pAllocator, sizeof(struct vk_acceleration_structure),
       VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR);
 
