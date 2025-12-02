@@ -3614,19 +3614,15 @@ emit_parallel_copy(ra_ctx& ctx, std::vector<parallelcopy>& copies,
 }
 
 std::vector<Instruction*>
-split_blocking_vectors(ra_ctx& ctx, std::vector<unsigned>& vars, RegisterFile& file)
+split_blocking_vectors(ra_ctx& ctx, std::vector<unsigned>& vars, RegisterFile& register_file)
 {
-   std::vector<unsigned> blocked_defs;
    std::vector<Instruction*> splits;
 
-   for (auto var_it = vars.begin(); var_it != vars.end();) {
-      unsigned id = *var_it;
+   for (unsigned id : vars) {
       RegClass rc = ctx.program->temp_rc[id];
       PhysReg start = ctx.assignments[id].reg;
-      if (rc.size() == 1) {
-         ++var_it;
+      if (rc.size() == 1)
          continue;
-      }
 
       aco_ptr<Instruction> split = aco_ptr<Instruction>(
          create_instruction(aco_opcode::p_split_vector, Format::PSEUDO, 1, rc.size()));
@@ -3639,16 +3635,10 @@ split_blocking_vectors(ra_ctx& ctx, std::vector<unsigned>& vars, RegisterFile& f
          ctx.assignments.emplace_back(reg, def_rc);
          split->definitions[def_idx] = Definition(tmp, reg);
 
-         if (get_reg_specified(ctx, file, def_rc, split, reg, 0))
-            file.fill(split->definitions[def_idx]);
-         else
-            blocked_defs.push_back(tmp.id());
+         register_file.fill(split->definitions[def_idx]);
       }
       splits.push_back(split.release());
-      var_it = vars.erase(var_it);
    }
-
-   vars.insert(vars.end(), blocked_defs.begin(), blocked_defs.end());
 
    return splits;
 }
@@ -3725,14 +3715,13 @@ handle_call(ra_ctx& ctx, aco_ptr<Instruction>& instr, BITSET_DECLARE(call_clobbe
    bool success = get_regs_for_copies(ctx, tmp_file, copies, vars, instr, PhysRegInterval{});
    if (success) {
       parallelcopy.insert(parallelcopy.end(), copies.begin(), copies.end());
+      update_renames(ctx, register_file, parallelcopy, instr);
    } else {
-      vector_splits = split_blocking_vectors(ctx, vars, tmp_file);
-      success = get_regs_for_copies(ctx, tmp_file, parallelcopy, vars, instr, PhysRegInterval{});
+      assert(vector_splits.empty());
       /* With all blocking vars being scalar, assigning registers should always succeed. */
-      assert(success);
+      vector_splits = split_blocking_vectors(ctx, vars, register_file);
+      handle_call(ctx, instr, call_clobbered_regs, vector_splits, parallelcopy, register_file);
    }
-
-   update_renames(ctx, register_file, parallelcopy, instr);
 }
 
 } /* end namespace */
