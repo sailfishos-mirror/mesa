@@ -101,6 +101,7 @@ static const struct vk_instance_extension_table panvk_instance_extensions = {
 #endif
 #ifdef VK_USE_PLATFORM_DISPLAY_KHR
    .KHR_display = true,
+   .EXT_acquire_drm_display = true,
    .EXT_direct_mode_display = true,
    .EXT_display_surface_counter = true,
 #endif
