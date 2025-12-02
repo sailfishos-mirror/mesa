@@ -1068,7 +1068,7 @@ radv_build_ray_traversal(const struct radv_compiler_info *compiler_info, nir_bui
 
                nir_store_deref(b, args->vars.top_stack, nir_load_deref(b, args->vars.stack), 1);
 
-               nir_def *instance_pointer = nir_pack_64_2x32(b, nir_trim_vector(b, instance_data, 2));
+               nir_def *instance_pointer = nir_trim_vector(b, instance_data, 2);
                if (compiler_info->ac->gfx_level >= GFX11 && !compiler_info->key.emulate_rt) {
                   /* If ray flags dictate a forced opaqueness/nonopaqueness, instance flags dictating the same are
                    * meaningless.
@@ -1076,9 +1076,12 @@ radv_build_ray_traversal(const struct radv_compiler_info *compiler_info, nir_bui
                   uint32_t forced_opaqueness_mask = SpvRayFlagsOpaqueKHRMask | SpvRayFlagsNoOpaqueKHRMask;
                   nir_def *instance_flag_mask =
                      nir_bcsel(b, nir_test_mask(b, ptr_flags, forced_opaqueness_mask),
-                               nir_imm_int64(b, ~((uint64_t)forced_opaqueness_mask << 54ull)), nir_imm_int64(b, ~0ull));
-                  instance_pointer = nir_iand(b, instance_pointer, instance_flag_mask);
+                               nir_imm_int(b, ~(forced_opaqueness_mask << (54 - 32))), nir_imm_int(b, -1));
+                  nir_def *instance_pointer_lo = nir_channel(b, instance_pointer, 0);
+                  nir_def *instance_pointer_hi = nir_iand(b, nir_channel(b, instance_pointer, 1), instance_flag_mask);
+                  instance_pointer = nir_vec2(b, instance_pointer_lo, instance_pointer_hi);
                }
+               instance_pointer = nir_pack_64_2x32(b, instance_pointer);
                nir_store_deref(b, args->vars.bvh_base,
                                build_bvh_base(b, compiler_info, instance_pointer, ptr_flags, false), 0x1);
 
