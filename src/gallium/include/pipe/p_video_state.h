@@ -317,31 +317,6 @@ struct pipe_mpeg12_macroblock
    unsigned short num_skipped_macroblocks;
 };
 
-struct pipe_mpeg4_picture_desc
-{
-   struct pipe_picture_desc base;
-
-   int32_t trd[2];
-   int32_t trb[2];
-   uint16_t vop_time_increment_resolution;
-   uint8_t vop_coding_type;
-   uint8_t vop_fcode_forward;
-   uint8_t vop_fcode_backward;
-   uint8_t resync_marker_disable;
-   uint8_t interlaced;
-   uint8_t quant_type;
-   uint8_t quarter_sample;
-   uint8_t short_video_header;
-   uint8_t rounding_control;
-   uint8_t alternate_vertical_scan_flag;
-   uint8_t top_field_first;
-
-   const uint8_t *intra_matrix;
-   const uint8_t *non_intra_matrix;
-
-   struct pipe_video_buffer *ref[2];
-};
-
 struct pipe_vc1_picture_desc
 {
    struct pipe_picture_desc base;

@@ -73,7 +73,6 @@ d3d12_video_encoder_convert_codec_to_d3d12_enc_codec(enum pipe_video_profile pro
          return D3D12_VIDEO_ENCODER_CODEC_AV1;
       } break;
       case PIPE_VIDEO_FORMAT_MPEG12:
-      case PIPE_VIDEO_FORMAT_MPEG4:
       case PIPE_VIDEO_FORMAT_VC1:
       case PIPE_VIDEO_FORMAT_JPEG:
       case PIPE_VIDEO_FORMAT_VP9:
