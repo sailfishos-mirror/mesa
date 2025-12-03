@@ -530,25 +530,15 @@ ntr_setup_uniforms(struct ntr_compile *c)
       }
    }
 
-   c->first_ubo = ~0;
-
-   unsigned ubo_sizes[PIPE_MAX_CONSTANT_BUFFERS] = {0};
+   /* We expect only single ubo. */
+   unsigned size = 0;
    nir_foreach_variable_with_modes (var, c->s, nir_var_mem_ubo) {
       int ubo = var->data.driver_location;
-      if (ubo == -1)
-         continue;
-
-      if (!(ubo == 0 && c->s->info.first_ubo_is_default_ubo))
-         c->first_ubo = MIN2(c->first_ubo, ubo);
-
-      unsigned size = glsl_get_explicit_size(var->interface_type, false);
-      ubo_sizes[ubo] = size;
+      assert(ubo == 0 && size == 0);
+      size = glsl_get_explicit_size(var->interface_type, false);
    }
-
-   for (int i = 0; i < ARRAY_SIZE(ubo_sizes); i++) {
-      if (ubo_sizes[i])
-         ureg_DECL_constant2D(c->ureg, 0, DIV_ROUND_UP(ubo_sizes[i], 16) - 1, i);
-   }
+   if (size)
+      ureg_DECL_constant2D(c->ureg, 0, DIV_ROUND_UP(size, 16) - 1, 0);
 }
 
 static void
