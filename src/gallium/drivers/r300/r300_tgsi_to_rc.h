@@ -7,6 +7,7 @@
 #define R300_TGSI_TO_RC_H
 
 #include "util/compiler.h"
+#include "nir/nir.h"
 
 struct radeon_compiler;
 
@@ -21,7 +22,7 @@ struct swizzled_imms {
 
 struct tgsi_to_rc {
     struct radeon_compiler * compiler;
-    const struct tgsi_shader_info * info;
+    struct nir_shader * shader;
 
     int immediate_offset;
 

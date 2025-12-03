@@ -221,7 +221,13 @@ void r300_tgsi_to_rc(struct tgsi_to_rc * ttr,
     /* Allocate constants placeholders.
      *
      * Note: What if declared constants are not contiguous? */
-    for(i = 0; i <= ttr->info->file_max[TGSI_FILE_CONSTANT]; ++i) {
+    unsigned num_constants = 0;
+    nir_foreach_variable_with_modes (var, ttr->shader, nir_var_mem_ubo) {
+        assert(num_constants == 0);
+        unsigned size = glsl_get_explicit_size(var->interface_type, false);
+        num_constants = DIV_ROUND_UP(size, 16);
+    }
+    for(i = 0; i < num_constants; ++i) {
         struct rc_constant constant;
         memset(&constant, 0, sizeof(constant));
         constant.Type = RC_CONSTANT_EXTERNAL;

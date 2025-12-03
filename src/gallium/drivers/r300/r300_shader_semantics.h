@@ -27,6 +27,9 @@ struct r300_shader_semantics {
     int wpos;
 
     int num_generic;
+
+    /* Total number of used inputs/outputs. */
+    unsigned num_total;
 };
 
 static inline void r300_shader_semantics_reset(
@@ -50,6 +53,7 @@ static inline void r300_shader_semantics_reset(
     }
 
     info->num_generic = 0;
+    info->num_total = 0;
 }
 
 #endif

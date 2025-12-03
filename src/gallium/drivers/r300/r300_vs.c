@@ -90,13 +90,12 @@ static void set_vertex_inputs_outputs(struct r300_vertex_program_compiler * c)
 {
     struct r300_vertex_shader_code * vs = c->UserData;
     struct r300_shader_semantics* outputs = &vs->outputs;
-    struct tgsi_shader_info* info = &vs->info;
     int i, reg = 0;
     bool any_bcolor_used = outputs->bcolor[0] != ATTR_UNUSED ||
                            outputs->bcolor[1] != ATTR_UNUSED;
 
     /* Fill in the input mapping */
-    for (i = 0; i < info->num_inputs; i++)
+    for (i = 0; i < vs->s->num_inputs; i++)
         c->code->inputs[i] = i;
 
     /* Position. */
@@ -167,19 +166,24 @@ void r300_translate_vertex_shader(struct r300_context *r300,
     struct r300_vertex_program_compiler compiler;
     struct tgsi_to_rc ttr;
     unsigned i;
+
     struct r300_vertex_shader_code *vs = shader->shader;
+    r300_shader_semantics_reset(&vs->outputs);
 
-    nir_shader *clone = nir_shader_clone(NULL, shader->state.ir.nir);
+    union r300_shader_code code;
+    code.v = vs;
+
+    vs->s = nir_shader_clone(NULL, shader->state.ir.nir);
     struct r300_fragment_program_external_state external_state = {};
-    shader->state.tokens = nir_to_rc(clone, (struct pipe_screen *)r300->screen, external_state);
-
-    r300_init_vs_outputs(r300, shader);
+    shader->state.tokens = nir_to_rc(vs->s, (struct pipe_screen *)r300->screen,
+                                     external_state, code);
+    vs->outputs.wpos = vs->outputs.num_total;
 
     /* Nothing to do if the shader does not write gl_Position. */
     if (vs->outputs.pos == ATTR_UNUSED) {
         vs->dummy = true;
         FREE((void*)shader->state.tokens);
-        return;
+        goto cleanup;
     }
 
     /* Setup the compiler */
@@ -208,7 +212,7 @@ void r300_translate_vertex_shader(struct r300_context *r300,
 
     /* Translate TGSI to our internal representation */
     ttr.compiler = &compiler.Base;
-    ttr.info = &vs->info;
+    ttr.shader = vs->s;
 
     r300_tgsi_to_rc(&ttr, shader->state.tokens);
     FREE((void*)shader->state.tokens);
@@ -216,14 +220,14 @@ void r300_translate_vertex_shader(struct r300_context *r300,
     if (ttr.error) {
         vs->error = strdup("Cannot translate shader from TGSI");
         vs->dummy = true;
-        return;
+        goto cleanup;
     }
 
     if (compiler.Base.Program.Constants.Count > 200) {
         compiler.Base.remove_unused_constants = true;
     }
 
-    compiler.RequiredOutputs = ~(~0U << (vs->info.num_outputs + (vs->wpos ? 1 : 0)));
+    compiler.RequiredOutputs = ~(~0U << (vs->outputs.num_total + (vs->wpos ? 1 : 0)));
     compiler.SetHwInputOutput = &set_vertex_inputs_outputs;
 
     /* Insert the WPOS output. */
@@ -234,9 +238,8 @@ void r300_translate_vertex_shader(struct r300_context *r300,
     r3xx_compile_vertex_program(&compiler);
     if (compiler.Base.Error) {
         vs->error = strdup(compiler.Base.ErrorMsg);
-        rc_destroy(&compiler.Base);
         vs->dummy = true;
-        return;
+        goto cleanup;
     }
 
     /* Initialize numbers of constants for each type. */
@@ -252,5 +255,7 @@ void r300_translate_vertex_shader(struct r300_context *r300,
     vs->immediates_count = vs->code.constants.Count - vs->externals_count;
 
     /* And, finally... */
+cleanup:
+    ralloc_free(vs->s);
     rc_destroy(&compiler.Base);
 }

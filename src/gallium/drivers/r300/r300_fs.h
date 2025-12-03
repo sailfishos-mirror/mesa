@@ -13,6 +13,8 @@
 #include "compiler/radeon_code.h"
 #include "r300_shader_semantics.h"
 
+struct r300_context;
+
 struct r300_fragment_shader_code {
     struct rX00_fragment_program_code code;
     struct tgsi_shader_info info;
@@ -55,9 +57,6 @@ struct r300_fragment_shader {
      * states. */
     struct r300_fragment_shader_code* first;
 };
-
-void r300_shader_read_fs_inputs(struct tgsi_shader_info* info,
-                                struct r300_shader_semantics* fs_inputs);
 
 /* Return TRUE if the shader was switched and should be re-emitted. */
 bool r300_pick_fragment_shader(struct r300_context *r300,

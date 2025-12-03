@@ -56,6 +56,7 @@ struct ntr_compile {
    nir_function_impl *impl;
    struct pipe_screen *screen;
    struct ureg_program *ureg;
+   struct r300_shader_semantics *semantics;
 
    /* Options */
    bool lower_fabs;
@@ -244,6 +245,59 @@ ntr_tgsi_var_usage_mask(const struct nir_variable *var)
    return BITFIELD_RANGE(var->data.location_frac, num_components);
 }
 
+static void
+ntr_read_input_output(struct ntr_compile *c, gl_varying_slot location, unsigned base)
+{
+   if (base >= c->semantics->num_total)
+      c->semantics->num_total = base + 1;
+
+   switch (location) {
+   case VARYING_SLOT_POS:
+      if (c->s->info.stage == MESA_SHADER_VERTEX)
+         c->semantics->pos = base;
+      else
+         c->semantics->wpos = base;
+      break;
+   case VARYING_SLOT_PSIZ:
+      c->semantics->psize = base;
+      break;
+   case VARYING_SLOT_COL0:
+      c->semantics->color[0] = base;
+      break;
+   case VARYING_SLOT_COL1:
+      c->semantics->color[1] = base;
+      break;
+   case VARYING_SLOT_BFC0:
+      c->semantics->bcolor[0] = base;
+      break;
+   case VARYING_SLOT_BFC1:
+      c->semantics->bcolor[1] = base;
+      break;
+   case VARYING_SLOT_FOGC:
+      c->semantics->fog = base;
+      break;
+   case VARYING_SLOT_FACE:
+      assert(c->s->info.stage == MESA_SHADER_FRAGMENT);
+      c->semantics->face = base;
+      break;
+   case VARYING_SLOT_EDGE:
+      assert(c->s->info.stage == MESA_SHADER_VERTEX);
+      fprintf(stderr, "r300 VP: cannot handle edgeflag output.\n");
+      break;
+   default:
+      if (location >= VARYING_SLOT_VAR0 && location <= VARYING_SLOT_VAR31) {
+         unsigned index = location - VARYING_SLOT_VAR0;
+         if (c->semantics->generic[index] == ATTR_UNUSED)
+            c->semantics->num_generic++;
+         c->semantics->generic[index] = base;
+      } else {
+         printf("Unhandled varying slot: %u\n", location);
+         UNREACHABLE("Unhandled varying slot");
+      }
+      break;
+   }
+}
+
 static struct ureg_dst
 ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *frac)
 {
@@ -273,6 +327,8 @@ ntr_output_decl(struct ntr_compile *c, nir_intrinsic_instr *instr, uint32_t *fra
       unsigned semantic_name, semantic_index;
 
       tgsi_get_gl_varying_semantic(semantics.location, true, &semantic_name, &semantic_index);
+
+      ntr_read_input_output(c, semantics.location, base);
 
       uint32_t usage_mask = BITFIELD_RANGE(*frac, instr->num_components);
       out = ureg_DECL_output_layout(c->ureg, semantic_name, semantic_index, 0, base,
@@ -1001,6 +1057,9 @@ ntr_emit_load_input(struct ntr_compile *c, nir_intrinsic_instr *instr)
    unsigned base = nir_intrinsic_base(instr);
    struct ureg_src input;
    nir_io_semantics semantics = nir_intrinsic_io_semantics(instr);
+
+   if (c->s->info.stage == MESA_SHADER_FRAGMENT)
+      ntr_read_input_output(c, semantics.location, base);
 
    if (c->s->info.stage == MESA_SHADER_VERTEX) {
       input = ureg_DECL_vs_input(c->ureg, base);
@@ -1787,7 +1846,8 @@ ntr_fixup_varying_slots(nir_shader *s, nir_variable_mode mode)
  */
 const void *
 nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
-          struct r300_fragment_program_external_state state)
+          struct r300_fragment_program_external_state state,
+          union r300_shader_code rc)
 {
    struct ntr_compile *c;
    const void *tgsi_tokens;
@@ -1795,6 +1855,11 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    c = rzalloc(NULL, struct ntr_compile);
    c->screen = screen;
    c->lower_fabs = !is_r500 && s->info.stage == MESA_SHADER_VERTEX;
+   if (s->info.stage == MESA_SHADER_FRAGMENT) {
+      c->semantics = &rc.f->inputs;
+   } else {
+      c->semantics = &rc.v->outputs;
+   }
 
    ntr_fixup_varying_slots(s, s->info.stage == MESA_SHADER_FRAGMENT ? nir_var_shader_in : nir_var_shader_out);
 
@@ -1971,7 +2036,6 @@ nir_to_rc(struct nir_shader *s, struct pipe_screen *screen,
    ureg_destroy(c->ureg);
 
    ralloc_free(c);
-   ralloc_free(s);
 
    return tgsi_tokens;
 }

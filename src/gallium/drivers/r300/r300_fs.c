@@ -26,52 +26,6 @@
 #include "nir.h"
 #include "nir/tgsi_to_nir.h"
 
-/* Convert info about FS input semantics to r300_shader_semantics. */
-void r300_shader_read_fs_inputs(struct tgsi_shader_info* info,
-                                struct r300_shader_semantics* fs_inputs)
-{
-    int i;
-    unsigned index;
-
-    r300_shader_semantics_reset(fs_inputs);
-
-    for (i = 0; i < info->num_inputs; i++) {
-        index = info->input_semantic_index[i];
-
-        switch (info->input_semantic_name[i]) {
-            case TGSI_SEMANTIC_COLOR:
-                assert(index < ATTR_COLOR_COUNT);
-                fs_inputs->color[index] = i;
-                break;
-
-            case TGSI_SEMANTIC_GENERIC:
-                assert(index < ATTR_GENERIC_COUNT);
-                fs_inputs->generic[index] = i;
-                fs_inputs->num_generic++;
-                break;
-
-            case TGSI_SEMANTIC_FOG:
-                assert(index == 0);
-                fs_inputs->fog = i;
-                break;
-
-            case TGSI_SEMANTIC_POSITION:
-                assert(index == 0);
-                fs_inputs->wpos = i;
-                break;
-
-            case TGSI_SEMANTIC_FACE:
-                assert(index == 0);
-                fs_inputs->face = i;
-                break;
-
-            default:
-                fprintf(stderr, "r300: FP: Unknown input semantic: %i\n",
-                        info->input_semantic_name[i]);
-        }
-    }
-}
-
 static void find_output_registers(struct r300_fragment_program_compiler * compiler,
                                   struct r300_fragment_shader_code *shader)
 {
@@ -412,14 +366,16 @@ static void r300_translate_fragment_shader(
     struct tgsi_to_rc ttr;
     int wpos, face;
     unsigned i;
+    union r300_shader_code code;
+    code.f = shader;
 
-    if (state.type == PIPE_SHADER_IR_NIR) {
-        nir_shader *clone = nir_shader_clone(NULL, state.ir.nir);
-        state.tokens = nir_to_rc(clone, (struct pipe_screen *)r300->screen, shader->compare_state);
-    }
+    r300_shader_semantics_reset(&shader->inputs);
+
+    nir_shader *clone = nir_shader_clone(NULL, state.ir.nir);
+    state.tokens = nir_to_rc(clone, (struct pipe_screen *)r300->screen, shader->compare_state,
+                             code);
 
     tgsi_scan_shader(state.tokens, &shader->info);
-    r300_shader_read_fs_inputs(&shader->info, &shader->inputs);
 
     wpos = shader->inputs.wpos;
     face = shader->inputs.face;
@@ -456,13 +412,11 @@ static void r300_translate_fragment_shader(
 
     /* Translate TGSI to our internal representation */
     ttr.compiler = &compiler.Base;
-    ttr.info = &shader->info;
+    ttr.shader = clone;
 
     r300_tgsi_to_rc(&ttr, state.tokens);
-
-    if (state.type == PIPE_SHADER_IR_NIR) {
-        FREE((void*)state.tokens);
-    }
+    ralloc_free(clone);
+    FREE((void*)state.tokens);
 
     if (ttr.error) {
         shader->error = strdup("Cannot translate a shader from TGSI.");

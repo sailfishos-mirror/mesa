@@ -20,6 +20,7 @@ struct r300_vertex_shader_code {
     /* Parent class */
 
     struct tgsi_shader_info info;
+    struct nir_shader *s;
     struct r300_shader_semantics outputs;
 
     /* Whether the shader was replaced by a dummy one due to a shader
