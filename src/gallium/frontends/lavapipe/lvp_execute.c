@@ -33,6 +33,7 @@
 #include "pipe/p_shader_tokens.h"
 #include "tgsi/tgsi_from_mesa.h"
 
+#include "util/blend.h"
 #include "util/format/u_format.h"
 #include "util/u_surface.h"
 #include "util/u_sampler.h"
@@ -223,6 +224,17 @@ struct rendering_state {
       struct lvp_shader *compute_shader;
       uint8_t push_constants[128 * 4];
    } saved;
+
+   struct {
+      VkBlendOp op;
+      bool blend_enable;
+      bool src_premultiplied;
+      bool dst_premultiplied;
+      VkBlendOverlapEXT overlap;
+   } advanced_blend[PIPE_MAX_COLOR_BUFS];
+   bool advanced_blend_dirty;
+   void *advanced_blend_fs_variant;  /* cached lowered FS for cleanup */
+   struct lvp_shader *advanced_blend_fs_shader; /* shader used to build variant */
 };
 
 static struct pipe_resource *
@@ -380,8 +392,88 @@ static void update_vertex_elements_buffer_index(struct rendering_state *state)
       state->velem.velems[i].vertex_buffer_index = state->vertex_buffer_index[i] - state->start_vb;
 }
 
+static void
+emit_advanced_blend_fs(struct rendering_state *state)
+{
+   struct lvp_shader *shader = state->shaders[MESA_SHADER_FRAGMENT];
+   if (!shader || !shader->pipeline_nir)
+      return;
+
+   /* Compute which RTs need advanced blend lowering.
+    * Use advanced_blend[].blend_enable instead of blend_state.rt[].blend_enable
+    * because the latter is set to false after lowering to disable HW blending.
+    */
+   unsigned advanced_rts = 0;
+   for (unsigned i = 0; i < PIPE_MAX_COLOR_BUFS; i++) {
+      if (state->advanced_blend[i].blend_enable &&
+          state->advanced_blend[i].op >= VK_BLEND_OP_ZERO_EXT)
+         advanced_rts |= BITFIELD_BIT(i);
+   }
+
+   if (!advanced_rts) {
+      /* If we previously bound a lowered variant, rebind the original shader */
+      if (state->advanced_blend_fs_variant) {
+         state->pctx->delete_fs_state(state->pctx, state->advanced_blend_fs_variant);
+         state->advanced_blend_fs_variant = NULL;
+         state->advanced_blend_fs_shader = NULL;
+         state->pctx->bind_fs_state(state->pctx, shader->shader_cso);
+      }
+      return;
+   }
+
+   /* Reuse the cached variant if the shader and blend state haven't changed */
+   if (state->advanced_blend_fs_variant &&
+       state->advanced_blend_fs_shader == shader &&
+       !state->advanced_blend_dirty)
+      return;
+
+   /* Clone and lower the shader */
+   nir_shader *nir = nir_shader_clone(NULL, shader->pipeline_nir->nir);
+   nir_lower_blend_options opts = { 0 };
+
+   u_foreach_bit(rt, advanced_rts) {
+      const bool write_enable = !(state->color_write_disables & BITFIELD_BIT(rt));
+      const unsigned write_mask = write_enable ? state->blend_state.rt[rt].colormask : 0;
+
+      opts.rt[rt] = (nir_lower_blend_rt){
+         .format = state->framebuffer.cbufs[rt].format,
+         .advanced_blend = true,
+         .colormask = write_mask,
+         .blend_mode = vk_advanced_blend_op_to_pipe(state->advanced_blend[rt].op),
+         .src_premultiplied = state->advanced_blend[rt].src_premultiplied,
+         .dst_premultiplied = state->advanced_blend[rt].dst_premultiplied,
+         .overlap = vk_blend_overlap_to_pipe(state->advanced_blend[rt].overlap),
+      };
+
+      /* Set passthrough blending for this RT since shader does the blend */
+      state->blend_state.rt[rt].blend_enable = false;
+   }
+   state->blend_dirty = true;
+
+   lvp_nir_lower_blend(nir, &opts);
+
+   /* Compile the variant */
+   void *cso = state->pctx->create_fs_state(state->pctx,
+      &(struct pipe_shader_state) {
+         .type = PIPE_SHADER_IR_NIR,
+         .ir.nir = nir,
+      });
+
+   /* Clean up previous variant if any */
+   if (state->advanced_blend_fs_variant)
+      state->pctx->delete_fs_state(state->pctx, state->advanced_blend_fs_variant);
+
+   state->advanced_blend_fs_variant = cso;
+   state->advanced_blend_fs_shader = shader;
+   state->advanced_blend_dirty = false;
+   state->pctx->bind_fs_state(state->pctx, cso);
+   state->noop_fs_bound = false;
+}
+
 static void emit_state(struct rendering_state *state)
 {
+   emit_advanced_blend_fs(state);
+
    if (!state->shaders[MESA_SHADER_FRAGMENT] && !state->noop_fs_bound) {
       state->pctx->bind_fs_state(state->pctx, state->device->noop_fs);
       state->noop_fs_bound = true;
@@ -877,8 +969,21 @@ static void handle_graphics_pipeline(struct lvp_pipeline *pipeline,
       if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_CB_COLOR_WRITE_ENABLES))
          state->color_write_disables = ~ps->cb->color_write_enables;
 
+      if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_CB_BLEND_ADVANCED)) {
+         for (unsigned i = 0; i < PIPE_MAX_COLOR_BUFS; i++)
+            state->advanced_blend[i].op = 0;
+      }
+
       for (unsigned i = 0; i < ps->cb->attachment_count; i++) {
          const struct vk_color_blend_attachment_state *att = &ps->cb->attachments[i];
+
+         /* Advanced blend is lowered in the fragment shader - use passthrough */
+         if (pipeline->advanced_blend_rts & BITFIELD_BIT(i)) {
+            state->blend_state.rt[i].blend_enable = false;
+            state->blend_state.rt[i].colormask = att->write_mask;
+            continue;
+         }
+
          if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_CB_WRITE_MASKS))
             state->blend_state.rt[i].colormask = att->write_mask;
          if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_CB_BLEND_ENABLES))
@@ -3624,6 +3729,7 @@ static void handle_set_color_write_enable(struct vk_cmd_queue_entry *cmd,
          disable_mask |= BITFIELD_BIT(i);
    }
 
+   state->advanced_blend_dirty |= state->color_write_disables != disable_mask;
    state->blend_dirty |= state->color_write_disables != disable_mask;
    state->color_write_disables = disable_mask;
 }
@@ -3769,10 +3875,14 @@ static void handle_set_color_blend_enable(struct vk_cmd_queue_entry *cmd,
                                           struct rendering_state *state)
 {
    for (unsigned i = 0; i < cmd->u.set_color_blend_enable_ext.attachment_count; i++) {
-      if (state->blend_state.rt[cmd->u.set_color_blend_enable_ext.first_attachment + i].blend_enable != !!cmd->u.set_color_blend_enable_ext.color_blend_enables[i]) {
+      unsigned idx = cmd->u.set_color_blend_enable_ext.first_attachment + i;
+      bool enable = !!cmd->u.set_color_blend_enable_ext.color_blend_enables[i];
+      if (state->blend_state.rt[idx].blend_enable != enable) {
          state->blend_dirty = true;
+         state->advanced_blend_dirty = true;
       }
-      state->blend_state.rt[cmd->u.set_color_blend_enable_ext.first_attachment + i].blend_enable = !!cmd->u.set_color_blend_enable_ext.color_blend_enables[i];
+      state->blend_state.rt[idx].blend_enable = enable;
+      state->advanced_blend[idx].blend_enable = enable;
    }
 }
 
@@ -3780,8 +3890,10 @@ static void handle_set_color_write_mask(struct vk_cmd_queue_entry *cmd,
                                         struct rendering_state *state)
 {
    for (unsigned i = 0; i < cmd->u.set_color_write_mask_ext.attachment_count; i++) {
-      if (state->blend_state.rt[cmd->u.set_color_write_mask_ext.first_attachment + i].colormask != cmd->u.set_color_write_mask_ext.color_write_masks[i])
+      if (state->blend_state.rt[cmd->u.set_color_write_mask_ext.first_attachment + i].colormask != cmd->u.set_color_write_mask_ext.color_write_masks[i]) {
          state->blend_dirty = true;
+         state->advanced_blend_dirty = true;
+      }
       state->blend_state.rt[cmd->u.set_color_write_mask_ext.first_attachment + i].colormask = cmd->u.set_color_write_mask_ext.color_write_masks[i];
    }
 }
@@ -3792,12 +3904,16 @@ static void handle_set_color_blend_equation(struct vk_cmd_queue_entry *cmd,
    const VkColorBlendEquationEXT *cb = cmd->u.set_color_blend_equation_ext.color_blend_equations;
    state->blend_dirty = true;
    for (unsigned i = 0; i < cmd->u.set_color_blend_equation_ext.attachment_count; i++) {
-      state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].rgb_func = vk_blend_op_to_pipe(cb[i].colorBlendOp);
-      state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].rgb_src_factor = vk_blend_factor_to_pipe(cb[i].srcColorBlendFactor);
-      state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].rgb_dst_factor = vk_blend_factor_to_pipe(cb[i].dstColorBlendFactor);
-      state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].alpha_func = vk_blend_op_to_pipe(cb[i].alphaBlendOp);
-      state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].alpha_src_factor = vk_blend_factor_to_pipe(cb[i].srcAlphaBlendFactor);
-      state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].alpha_dst_factor = vk_blend_factor_to_pipe(cb[i].dstAlphaBlendFactor);
+      unsigned idx = cmd->u.set_color_blend_equation_ext.first_attachment + i;
+      state->blend_state.rt[idx].rgb_func = vk_blend_op_to_pipe(cb[i].colorBlendOp);
+      state->blend_state.rt[idx].rgb_src_factor = vk_blend_factor_to_pipe(cb[i].srcColorBlendFactor);
+      state->blend_state.rt[idx].rgb_dst_factor = vk_blend_factor_to_pipe(cb[i].dstColorBlendFactor);
+      state->blend_state.rt[idx].alpha_func = vk_blend_op_to_pipe(cb[i].alphaBlendOp);
+      state->blend_state.rt[idx].alpha_src_factor = vk_blend_factor_to_pipe(cb[i].srcAlphaBlendFactor);
+      state->blend_state.rt[idx].alpha_dst_factor = vk_blend_factor_to_pipe(cb[i].dstAlphaBlendFactor);
+
+      /* Setting a regular blend equation clears advanced blend op for this RT */
+      state->advanced_blend[idx].op = 0;
 
       /* At least llvmpipe applies the blend factor prior to the blend function,
        * regardless of what function is used. (like i965 hardware).
@@ -3805,15 +3921,32 @@ static void handle_set_color_blend_equation(struct vk_cmd_queue_entry *cmd,
        */
       if (cb[i].colorBlendOp == VK_BLEND_OP_MIN ||
           cb[i].colorBlendOp == VK_BLEND_OP_MAX) {
-         state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].rgb_src_factor = PIPE_BLENDFACTOR_ONE;
-         state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].rgb_dst_factor = PIPE_BLENDFACTOR_ONE;
+         state->blend_state.rt[idx].rgb_src_factor = PIPE_BLENDFACTOR_ONE;
+         state->blend_state.rt[idx].rgb_dst_factor = PIPE_BLENDFACTOR_ONE;
       }
 
       if (cb[i].alphaBlendOp == VK_BLEND_OP_MIN ||
           cb[i].alphaBlendOp == VK_BLEND_OP_MAX) {
-         state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].alpha_src_factor = PIPE_BLENDFACTOR_ONE;
-         state->blend_state.rt[cmd->u.set_color_blend_equation_ext.first_attachment + i].alpha_dst_factor = PIPE_BLENDFACTOR_ONE;
+         state->blend_state.rt[idx].alpha_src_factor = PIPE_BLENDFACTOR_ONE;
+         state->blend_state.rt[idx].alpha_dst_factor = PIPE_BLENDFACTOR_ONE;
       }
+   }
+}
+
+static void handle_set_color_blend_advanced(struct vk_cmd_queue_entry *cmd,
+                                            struct rendering_state *state)
+{
+   const struct vk_cmd_set_color_blend_advanced_ext *adv = &cmd->u.set_color_blend_advanced_ext;
+   state->blend_dirty = true;
+   state->advanced_blend_dirty = true;
+   for (unsigned i = 0; i < adv->attachment_count; i++) {
+      const VkColorBlendAdvancedEXT *a = &adv->color_blend_advanced[i];
+      unsigned idx = adv->first_attachment + i;
+      assert(a->clampResults == false);
+      state->advanced_blend[idx].op = a->advancedBlendOp;
+      state->advanced_blend[idx].src_premultiplied = a->srcPremultiplied;
+      state->advanced_blend[idx].dst_premultiplied = a->dstPremultiplied;
+      state->advanced_blend[idx].overlap = a->blendOverlap;
    }
 }
 
@@ -4947,6 +5080,7 @@ void lvp_add_enqueue_cmd_entrypoints(struct vk_device_dispatch_table *disp)
    ENQUEUE_CMD(CmdSetSampleLocationsEnableEXT)
    ENQUEUE_CMD(CmdSetSampleLocationsEXT)
 
+   ENQUEUE_CMD(CmdSetColorBlendAdvancedEXT)
 #undef ENQUEUE_CMD
 }
 
@@ -5369,6 +5503,9 @@ static void lvp_execute_cmd_buffer(struct list_head *cmds,
       case VK_CMD_SET_SAMPLE_LOCATIONS_EXT:
          handle_set_sample_locations(cmd, state);
          break;
+      case VK_CMD_SET_COLOR_BLEND_ADVANCED_EXT:
+         handle_set_color_blend_advanced(cmd, state);
+         break;
       default:
          fprintf(stderr, "Unsupported command %s\n", vk_cmd_queue_type_names[cmd->type]);
          UNREACHABLE("Unsupported command");
@@ -5450,6 +5587,9 @@ VkResult lvp_execute_cmds(struct lvp_device *device,
 
    for (unsigned i = 0; i < ARRAY_SIZE(state->desc_buffers); i++)
       pipe_resource_reference(&state->desc_buffers[i], NULL);
+
+   if (state->advanced_blend_fs_variant)
+      state->pctx->delete_fs_state(state->pctx, state->advanced_blend_fs_variant);
 
    return VK_SUCCESS;
 }

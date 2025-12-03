@@ -43,6 +43,7 @@
 #include "pipe/p_state.h"
 #include "cso_cache/cso_context.h"
 #include "nir.h"
+#include "nir/nir_lower_blend.h"
 
 #ifdef HAVE_LIBDRM
 #include <drm-uapi/drm.h>
@@ -539,6 +540,8 @@ struct lvp_pipeline {
       uint32_t group_count;
    } rt;
 
+   uint8_t advanced_blend_rts;
+
    unsigned num_groups;
    unsigned num_groups_total;
    VkPipeline groups[0];
@@ -750,6 +753,9 @@ lvp_vk_format_to_pipe_format(VkFormat format)
       return vk_format_to_pipe_format(format);
    }
 }
+
+void
+lvp_nir_lower_blend(nir_shader *nir, const nir_lower_blend_options *opts);
 
 void
 lvp_sampler_init(struct lvp_device *device, struct lp_descriptor *desc, const VkSamplerCreateInfo *pCreateInfo, const struct vk_sampler *sampler);

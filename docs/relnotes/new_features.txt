@@ -3,3 +3,4 @@ VK_EXT_present_timing on RADV, NVK, Turnip, ANV, Honeykrisp, panvk
 VK_KHR_sampler_ycbcr_conversion on pvr
 VK_EXT_image_drm_format_modifier on pvr
 VK_KHR_internally_synchronized_queues on RADV
+VK_EXT_blend_operation_advanced on lavapipe

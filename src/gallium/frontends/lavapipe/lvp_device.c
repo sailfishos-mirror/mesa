@@ -218,6 +218,7 @@ static const struct vk_device_extension_table lvp_device_extensions_supported = 
    .EXT_4444_formats                      = true,
    .EXT_attachment_feedback_loop_layout   = true,
    .EXT_attachment_feedback_loop_dynamic_state = true,
+   .EXT_blend_operation_advanced          = true,
    .EXT_border_color_swizzle              = true,
    .EXT_calibrated_timestamps             = true,
    .EXT_color_write_enable                = true,
@@ -628,6 +629,9 @@ lvp_get_features(const struct lvp_physical_device *pdevice,
 
       /* VK_EXT_attachment_feedback_loop_layout_dynamic_state */
       .attachmentFeedbackLoopDynamicState = true,
+
+      /* VK_EXT_blend_operation_advanced */
+      .advancedBlendCoherentOperations = true,
 
       /* VK_KHR_ray_query */
       .rayQuery = true,
@@ -1155,6 +1159,14 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
       .pCopyDstLayouts = lvp_host_copy_image_layouts,
       .copyDstLayoutCount = ARRAY_SIZE(lvp_host_copy_image_layouts),
       .identicalMemoryTypeRequirements = VK_FALSE,
+
+      /* VK_EXT_blend_operation_advanced */
+      .advancedBlendMaxColorAttachments = device->pscreen->caps.max_render_targets,
+      .advancedBlendIndependentBlend = true,
+      .advancedBlendNonPremultipliedSrcColor = true,
+      .advancedBlendNonPremultipliedDstColor = true,
+      .advancedBlendCorrelatedOverlap = true,
+      .advancedBlendAllOperations = true,
 
       /* VK_EXT_transform_feedback */
       .maxTransformFeedbackStreams = device->pscreen->caps.max_vertex_streams,

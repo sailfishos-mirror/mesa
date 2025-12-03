@@ -22,6 +22,7 @@
  */
 
 #include "lvp_private.h"
+#include "vk_blend.h"
 #include "vk_nir_convert_ycbcr.h"
 #include "vk_pipeline.h"
 #include "vk_render_pass.h"
@@ -129,6 +130,74 @@ shared_var_info(const struct glsl_type *type, unsigned *size, unsigned *align)
    unsigned length = glsl_get_vector_elements(type);
    *size = comp_size * length,
       *align = comp_size;
+}
+
+static bool
+lvp_needs_advanced_blend_lowering(struct lvp_pipeline *pipeline)
+{
+   const struct vk_color_blend_state *cb = pipeline->graphics_state.cb;
+   if (!cb)
+      return false;
+
+   for (uint32_t i = 0; i < cb->attachment_count; i++)
+      if (cb->attachments[i].color_blend_op >= VK_BLEND_OP_ZERO_EXT)
+         return true;
+
+   return false;
+}
+
+static int
+type_size_vec4(const struct glsl_type *type, bool bindless)
+{
+   return glsl_count_attribute_slots(type, false);
+}
+
+void
+lvp_nir_lower_blend(nir_shader *nir, const nir_lower_blend_options *opts)
+{
+   /* nir_lower_blend operates on IO intrinsics, so lower derefs to intrinsics
+    * first, run the blend lowering, then convert back to derefs for llvmpipe.
+    */
+   NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out, type_size_vec4, 0);
+   NIR_PASS(_, nir, nir_opt_dce);
+   NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_shader_in | nir_var_shader_out, NULL);
+   NIR_PASS(_, nir, nir_lower_blend, opts);
+   NIR_PASS(_, nir, nir_unlower_io_to_vars, false);
+}
+
+static void
+lvp_lower_advanced_blend(struct lvp_pipeline *pipeline)
+{
+   const struct vk_color_blend_state *cb = pipeline->graphics_state.cb;
+   const struct vk_render_pass_state *rp = pipeline->graphics_state.rp;
+   nir_shader *nir = pipeline->shaders[MESA_SHADER_FRAGMENT].pipeline_nir->nir;
+   nir_lower_blend_options opts = { 0 };
+
+   for (unsigned rt = 0; rt < cb->attachment_count; rt++) {
+      const struct vk_color_blend_attachment_state *att = &cb->attachments[rt];
+
+      /* Advanced blend ops start at VK_BLEND_OP_ZERO_EXT */
+      if (att->color_blend_op < VK_BLEND_OP_ZERO_EXT)
+         continue;
+
+      const bool write_enable = cb->color_write_enables & BITFIELD_BIT(rt);
+      const unsigned write_mask = write_enable ? att->write_mask : 0;
+
+      opts.rt[rt] = (nir_lower_blend_rt){
+         .format = lvp_vk_format_to_pipe_format(rp->color_attachment_formats[rt]),
+         .advanced_blend = true,
+         .colormask = write_mask,
+         .blend_mode = vk_advanced_blend_op_to_pipe(att->color_blend_op),
+         .src_premultiplied = att->src_premultiplied,
+         .dst_premultiplied = att->dst_premultiplied,
+         .overlap = vk_blend_overlap_to_pipe(att->blend_overlap),
+      };
+
+      assert(att->clamp_results == false);
+      pipeline->advanced_blend_rts |= BITFIELD_BIT(rt);
+   }
+
+   lvp_nir_lower_blend(nir, &opts);
 }
 
 static bool
@@ -915,6 +984,17 @@ lvp_graphics_pipeline_init(struct lvp_pipeline *pipeline,
          pipeline->line_rectangular = true;
       lvp_pipeline_xfb_init(pipeline);
    }
+
+   if (pipeline->shaders[MESA_SHADER_FRAGMENT].pipeline_nir && pipeline->graphics_state.cb) {
+      if (lvp_needs_advanced_blend_lowering(pipeline)) {
+         /* Clone to avoid modifying shared library NIR. */
+         nir_shader *cloned = nir_shader_clone(NULL, pipeline->shaders[MESA_SHADER_FRAGMENT].pipeline_nir->nir);
+         lvp_pipeline_nir_ref(&pipeline->shaders[MESA_SHADER_FRAGMENT].pipeline_nir, NULL);
+         pipeline->shaders[MESA_SHADER_FRAGMENT].pipeline_nir = lvp_create_pipeline_nir(cloned);
+         lvp_lower_advanced_blend(pipeline);
+      }
+   }
+
    if (!libstate && !pipeline->library)
       lvp_pipeline_shaders_compile(pipeline, false);
 
