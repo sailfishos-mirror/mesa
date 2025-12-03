@@ -304,9 +304,16 @@ lp_build_swizzle_scalar_aos(struct lp_build_context *bld,
  * Swizzle a vector consisting of an array of XYZW structs.
  *
  * This fills a vector of dst_len length with the swizzled channels from src.
+ * Swizzle values are repeated as many times as necessary to fill the dst_len.
+ * The "stride" value is used to increment a base index every time the list of
+ * swizzle repeats. Once its value equals or exceeds the source length, all
+ * further values are "undef".
  *
- * e.g. with swizzles = { 2, 1, 0 } and swizzle_count = 6 results in
- *      RGBA RGBA = BGR BGR BG
+ * e.g. with swizzles = { 2, 1, 0 }, stride = 0, dst_len = 6 results in
+ *      R1G1B1A1 R2G2B2A2 = B1G1R1 B1G1R1 B1G1
+ *
+ * e.g. with swizzles = { 2, 1, 0 }, stride = 4, dst_len = 6 results in
+ *      R1G1B1A1 R2G2B2A2 = B1G1R1 B2G2R2 undef undef
  *
  * @param swizzles        the swizzle array
  * @param num_swizzles    the number of elements in swizzles
@@ -317,6 +324,7 @@ lp_build_swizzle_aos_n(struct gallivm_state* gallivm,
                        LLVMValueRef src,
                        const unsigned char* swizzles,
                        unsigned num_swizzles,
+                       unsigned stride,
                        unsigned dst_len)
 {
    LLVMBuilderRef builder = gallivm->builder;
@@ -329,8 +337,20 @@ lp_build_swizzle_aos_n(struct gallivm_state* gallivm,
                               lp_build_const_int32(gallivm, swizzles[0]), "");
    }
 
+   const unsigned src_len = LLVMGetVectorSize(LLVMTypeOf(src));
+
+   unsigned base_index = 0;
    for (unsigned i = 0; i < dst_len; ++i) {
-      int swizzle = swizzles[i % num_swizzles];
+      const unsigned local_index = i % num_swizzles;
+      unsigned swizzle = swizzles[local_index];
+      swizzle += base_index;
+      if (local_index + 1 == num_swizzles) {
+         base_index += stride;
+      }
+
+      if (swizzle >= src_len) {
+         swizzle = LP_BLD_SWIZZLE_DONTCARE;
+      }
 
       if (swizzle == LP_BLD_SWIZZLE_DONTCARE) {
          shuffles[i] = LLVMGetUndef(LLVMInt32TypeInContext(gallivm->context));

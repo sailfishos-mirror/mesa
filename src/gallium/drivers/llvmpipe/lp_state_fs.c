@@ -1589,7 +1589,7 @@ generate_fs_twiddle(struct gallivm_state *gallivm,
 
       for (unsigned i = 0; i < src_count; ++i) {
          dst[i] = lp_build_swizzle_aos_n(gallivm, dst[i], swizzles,
-                                         type.length, type.length);
+                                         type.length, 0, type.length);
       }
    }
 
@@ -2877,11 +2877,11 @@ generate_unswizzled_blend(struct gallivm_state *gallivm,
    if (pad_inline) {
       /* Use all 4 channels e.g. from RGBA RGBA to RGxx RGxx */
       blend_color = lp_build_swizzle_aos_n(gallivm, blend_color, swizzle,
-                                           TGSI_NUM_CHANNELS, row_type.length);
+                                           TGSI_NUM_CHANNELS, 0, row_type.length);
    } else {
       /* Only use dst_channels e.g. RGBA RGBA to RG RG xxxx */
       blend_color = lp_build_swizzle_aos_n(gallivm, blend_color, swizzle,
-                                           dst_channels, row_type.length);
+                                           dst_channels, 0, row_type.length);
    }
 
    /*

@@ -96,6 +96,7 @@ lp_build_swizzle_aos_n(struct gallivm_state* gallivm,
                        LLVMValueRef src,
                        const unsigned char* swizzles,
                        unsigned num_swizzles,
+                       unsigned stride,
                        unsigned dst_len);
 
 
