@@ -1345,6 +1345,8 @@ panvk_compile_shader(struct panvk_device *dev,
          nir_assign_io_var_locations(nir, nir_var_shader_out);
          panvk_lower_nir_io(nir);
 
+         inputs.trust_varying_flat_highp_types = true;
+
          variant->own_bin = true;
 
          result = panvk_compile_nir(dev, nir, info->flags, &inputs, state,

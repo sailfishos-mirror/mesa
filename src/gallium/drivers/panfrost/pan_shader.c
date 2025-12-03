@@ -209,6 +209,10 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    NIR_PASS(_, s, panfrost_nir_lower_res_indices, &inputs);
    pan_nir_lower_texture_late(s, inputs.gpu_id);
 
+   /* nir_opt_varyings is replacing all flat highp types with float32, we need
+    * to figure out the varying types ourselves */
+   inputs.trust_varying_flat_highp_types = false;
+
    if (dev->arch >= 9) {
       inputs.valhall.use_ld_var_buf = panfrost_use_ld_var_buf(s);
       /* Always enable this for GL, it avoids crashes when using unbound
