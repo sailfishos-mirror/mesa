@@ -566,7 +566,11 @@ v3d_vir_emit_image_load_store(struct v3d_compile *c,
 
         struct V3D42_TMU_CONFIG_PARAMETER_1 p1_unpacked;
         memset(&p1_unpacked, 0, sizeof(p1_unpacked));
-        p1_unpacked.per_pixel_mask_enable = true;
+        enum gl_access_qualifier access = nir_intrinsic_access(instr);
+        p1_unpacked.per_pixel_mask_enable =
+                (c->s->info.stage != MESA_SHADER_FRAGMENT ||
+                 instr->intrinsic != nir_intrinsic_image_load ||
+                 access & ACCESS_SKIP_HELPERS);
         p1_unpacked.output_type_32_bit = v3d_gl_format_is_return_32(format);
 
         struct V3D42_TMU_CONFIG_PARAMETER_2 p2_unpacked;

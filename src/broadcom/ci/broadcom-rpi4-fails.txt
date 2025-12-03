@@ -517,7 +517,6 @@ KHR-GL31.framebuffer_blit.multisampled_to_singlesampled_blit_color_config_test,F
 program@execute@vector-conversion,Fail
 
 # New failures with VK CTS 1.4.3.3
-dEQP-VK.glsl.helper_invocations.load_from_image,Fail
 dEQP-VK.image.mutable.2d.b8g8r8a8_srgb_r16g16_sint_draw_copy_resolve_mutable_resolve_att,Fail
 dEQP-VK.image.mutable.2d.b8g8r8a8_srgb_r16g16_uint_draw_copy_resolve_mutable_resolve_att,Fail
 dEQP-VK.image.mutable.2d.b8g8r8a8_srgb_r32_sfloat_draw_copy_resolve_mutable_resolve_att,Fail

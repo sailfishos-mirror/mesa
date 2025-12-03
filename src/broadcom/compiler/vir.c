@@ -1763,6 +1763,17 @@ should_lower_robustness(const nir_intrinsic_instr *intr, const void *data)
         }
 }
 
+static bool
+intrinsic_try_skip_helpers(nir_intrinsic_instr *intr, UNUSED void *data)
+{
+        switch(intr->intrinsic) {
+                case nir_intrinsic_image_load:
+                        return true;
+                default:
+                        return false;
+        }
+}
+
 static void
 v3d_attempt_compile(struct v3d_compile *c)
 {
@@ -1893,6 +1904,16 @@ v3d_attempt_compile(struct v3d_compile *c)
         NIR_PASS(_, c->s, nir_lower_bool_to_int32);
         NIR_PASS(_, c->s, nir_convert_to_lcssa, true, true);
         nir_divergence_analysis(c->s);
+
+        if (c->s->info.stage == MESA_SHADER_FRAGMENT) {
+                nir_opt_load_skip_helpers_options skip_helper_options = {
+                        .no_add_divergence = true,
+                        .intrinsic_cb = intrinsic_try_skip_helpers,
+                };
+                NIR_PASS(_, c->s, nir_opt_load_skip_helpers,
+                         &skip_helper_options);
+        }
+
         NIR_PASS(_, c->s, nir_convert_from_ssa, true, true);
 
         struct nir_schedule_options schedule_options = {
