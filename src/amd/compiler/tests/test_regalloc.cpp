@@ -231,6 +231,22 @@ BEGIN_TEST(regalloc.precolor.different_regs_def_all_clobbered)
    finish_ra_test(ra_test_policy());
 END_TEST
 
+BEGIN_TEST(regalloc.precolor.move_and_def_interference)
+   //>> v1: %tmp0:v[0] = p_startpgm
+   if (!setup_cs("v1", GFX10))
+      return;
+
+   /* First the RA has to move tmp0 into v1, then it has to move it again out of v1 for later use. */
+   //! v1: %tmp0_2:v[1], v1: %tmp0_3:v[0] = p_parallelcopy %tmp0:v[0], %tmp0:v[0]
+   //! v1: %_:v[1] = p_unit_test %tmp0_2:v[1]
+   bld.pseudo(aco_opcode::p_unit_test, bld.def(v1, PhysReg(256 + 1)),
+              Operand(inputs[0], PhysReg(256 + 1)));
+   //! p_unit_test %tmp0_3:v[0]
+   bld.pseudo(aco_opcode::p_unit_test, Operand(inputs[0]));
+
+   finish_ra_test(ra_test_policy());
+END_TEST
+
 BEGIN_TEST(regalloc.branch_def_phis_at_merge_block)
    //>> p_startpgm
    if (!setup_cs("", GFX10))

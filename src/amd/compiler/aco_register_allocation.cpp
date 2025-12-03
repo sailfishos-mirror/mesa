@@ -923,10 +923,12 @@ adjust_max_used_regs(ra_ctx& ctx, RegClass rc, unsigned reg)
    }
 }
 
-void
+bool
 rename_operands_for_copy(RegisterFile& reg_file, const parallelcopy& copy,
                          aco_ptr<Instruction>& instr, bool fill_operands, bool never_rename)
 {
+   bool renamed_all = true;
+
    bool is_copy_kill = copy.copy_kill >= 0;
    bool first[2] = {true, true};
    bool fill = !is_copy_kill;
@@ -953,6 +955,7 @@ rename_operands_for_copy(RegisterFile& reg_file, const parallelcopy& copy,
          op.setKill(kill);
       first[omit_renaming] = false;
 
+      renamed_all &= !omit_renaming;
       if (omit_renaming)
          continue;
 
@@ -971,6 +974,8 @@ rename_operands_for_copy(RegisterFile& reg_file, const parallelcopy& copy,
    /* Apply changes to register file. */
    if (fill)
       reg_file.fill(copy.def);
+
+   return renamed_all;
 }
 
 void
@@ -1028,49 +1033,44 @@ update_renames(ra_ctx& ctx, RegisterFile& reg_file, std::vector<parallelcopy>& p
       if (is_def)
          continue;
 
-      /* Check if we moved another parallelcopy definition. We use a different path for copy-kill
-       * copies, since they are able to exist alongside a normal copy with the same operand.
+      /* For copy-kill operands, use the current Operand name so that kill flags stay correct.
+       * This is because the operand's temporary changed in the case of other copies with the
+       * same operand.
        */
-      for (parallelcopy& other : parallelcopies) {
-         if (!other.def.isTemp())
-            continue;
-         if (is_copy_kill && it->op.getTemp() == other.def.getTemp()) {
-            it->op = other.op;
-            break;
-         } else if (it->op.getTemp() == other.def.getTemp()) {
-            other.def.setFixed(it->def.physReg());
-            ctx.assignments[other.def.tempId()].reg = other.def.physReg();
-            it = parallelcopies.erase(it);
-            is_def = true;
-            /* check if we moved an operand, again */
-            bool fill = true;
-            for (Operand& op : instr->operands) {
-               if (op.isTemp() && op.tempId() == other.def.tempId()) {
-                  // FIXME: ensure that the operand can use this reg
-                  if (op.isFixed())
-                     op.setFixed(other.def.physReg());
-                  fill = !op.isKillBeforeDef() || fill_operands;
-               }
-            }
-            if (fill)
-               reg_file.fill(other.def);
-            break;
-         }
-      }
-      if (is_def)
-         continue;
+      Operand copy_op = is_copy_kill ? instr->operands[it->copy_kill] : it->op;
+
+      /* Check if we moved another parallelcopy definition. */
+      auto other = std::find_if(parallelcopies.begin(), parallelcopies.end(), [&](parallelcopy& c)
+                                { return c.def.isTemp() && it->op.getTemp() == c.def.getTemp(); });
+      if (other != parallelcopies.end())
+         it->op = other->op;
 
       parallelcopy& copy = *it;
       copy.def.setTemp(ctx.program->allocateTmp(copy.def.regClass()));
       ctx.assignments.emplace_back(copy.def.physReg(), copy.def.regClass());
       assert(ctx.assignments.size() == ctx.program->peekAllocationId());
 
-      /* Check if we moved an operand:
-       * For copy-kill operands, use the current Operand name so that kill flags stay correct.
+      /* Check if we moved an operand: */
+      bool renamed_all =
+         rename_operands_for_copy(reg_file, parallelcopy(copy_op, copy.def, copy.copy_kill), instr,
+                                  fill_operands, never_rename);
+
+      /* We don't erase the old copy if this is a copy-kill copy, since they are able to exist
+       * alongside a normal copy with the same operand.
        */
-      Operand copy_op = is_copy_kill ? instr->operands[copy.copy_kill] : it->op;
-      rename_operands_for_copy(reg_file, parallelcopy(copy_op, copy.def, copy.copy_kill), instr,
-                               fill_operands, never_rename);
+      if (!is_copy_kill && other != parallelcopies.end()) {
+         if (renamed_all) {
+            assert(other < it);
+            it = parallelcopies.erase(other);
+         } else if (other->copy_kill < 0 && !never_rename) {
+            /* If we didn't rename all operands and "other" is a normal copy, then it's because of a
+             * precolored operand. So make "other" a copy-kill copy for that operand.
+             */
+            auto idx = std::find_if(instr->operands.begin(), instr->operands.end(), [&](Operand& op)
+                                    { return op.isTemp() && op.tempId() == copy_op.tempId(); });
+            other->copy_kill = idx - instr->operands.begin();
+         }
+      }
 
       ++it;
    }
