@@ -414,8 +414,6 @@ static int si_get_video_param(struct pipe_screen *screen, enum pipe_video_profil
       switch (codec) {
       case PIPE_VIDEO_FORMAT_MPEG12:
          return !(sscreen->info.vcn_ip_version >= VCN_3_0_33 || profile == PIPE_VIDEO_PROFILE_MPEG1);
-      case PIPE_VIDEO_FORMAT_MPEG4:
-         return !(sscreen->info.vcn_ip_version >= VCN_3_0_33);
       case PIPE_VIDEO_FORMAT_MPEG4_AVC:
          if ((sscreen->info.family == CHIP_POLARIS10 || sscreen->info.family == CHIP_POLARIS11) &&
              sscreen->info.uvd_fw_version < UVD_FW_1_66_16) {
@@ -514,10 +512,6 @@ static int si_get_video_param(struct pipe_screen *screen, enum pipe_video_profil
          case PIPE_VIDEO_PROFILE_MPEG2_SIMPLE:
          case PIPE_VIDEO_PROFILE_MPEG2_MAIN:
             return 3;
-         case PIPE_VIDEO_PROFILE_MPEG4_SIMPLE:
-            return 3;
-         case PIPE_VIDEO_PROFILE_MPEG4_ADVANCED_SIMPLE:
-            return 5;
          case PIPE_VIDEO_PROFILE_VC1_SIMPLE:
             return 1;
          case PIPE_VIDEO_PROFILE_VC1_MAIN:
