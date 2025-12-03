@@ -3594,7 +3594,7 @@
         "description": "intel: Fix async compute thread limit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "080b9a165c9994bd64d79a5811d411f7b2b01f98",
         "notes": null
