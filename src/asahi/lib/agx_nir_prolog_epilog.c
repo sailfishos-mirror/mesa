@@ -329,11 +329,14 @@ lower_tests_zs(nir_shader *s, bool value)
 static inline bool
 blend_uses_2src(struct agx_blend_rt_key rt)
 {
+   assert(rt.advanced_blend == false);
+   const struct agx_blend_standard blend = agx_unpack_blend_standard(rt.mode);
+
    enum pipe_blendfactor factors[] = {
-      rt.rgb_src_factor,
-      rt.rgb_dst_factor,
-      rt.alpha_src_factor,
-      rt.alpha_dst_factor,
+      blend.rgb_src_factor,
+      blend.rgb_dst_factor,
+      blend.alpha_src_factor,
+      blend.alpha_dst_factor,
    };
 
    for (unsigned i = 0; i < ARRAY_SIZE(factors); ++i) {
@@ -394,7 +397,8 @@ agx_nir_fs_epilog(nir_builder *b, const void *key_)
           * for blending so should be suppressed for missing attachments to keep
           * the assert from blowing up on OpenGL.
           */
-         if (blend_uses_2src(key->blend.rt[rt]) &&
+         if (!key->blend.rt[rt].advanced_blend &&
+             blend_uses_2src(key->blend.rt[rt]) &&
              key->rt_formats[rt] != PIPE_FORMAT_NONE) {
 
             assert(location == 0);
@@ -432,19 +436,37 @@ agx_nir_fs_epilog(nir_builder *b, const void *key_)
    static_assert(ARRAY_SIZE(opts.rt) == 8, "max RTs out of sync");
 
    for (unsigned i = 0; i < 8; ++i) {
-      opts.rt[i] = (nir_lower_blend_rt){
-         .format = key->rt_formats[i],
+      if (key->blend.rt[i].advanced_blend) {
+         const struct agx_blend_advanced blend =
+            agx_unpack_blend_advanced(key->blend.rt[i].mode);
 
-         .rgb.src_factor = key->blend.rt[i].rgb_src_factor,
-         .rgb.dst_factor = key->blend.rt[i].rgb_dst_factor,
-         .rgb.func = key->blend.rt[i].rgb_func,
+         opts.rt[i] = (nir_lower_blend_rt){
+            .format = key->rt_formats[i],
+            .advanced_blend = true,
+            .colormask = key->blend.rt[i].colormask,
+            .blend_mode = blend.op,
+            .src_premultiplied = blend.src_premultiplied,
+            .dst_premultiplied = blend.dst_premultiplied,
+            .overlap = blend.overlap,
+         };
+      } else {
+         const struct agx_blend_standard blend =
+            agx_unpack_blend_standard(key->blend.rt[i].mode);
 
-         .alpha.src_factor = key->blend.rt[i].alpha_src_factor,
-         .alpha.dst_factor = key->blend.rt[i].alpha_dst_factor,
-         .alpha.func = key->blend.rt[i].alpha_func,
+         opts.rt[i] = (nir_lower_blend_rt){
+            .format = key->rt_formats[i],
 
-         .colormask = key->blend.rt[i].colormask,
-      };
+            .rgb.src_factor = blend.rgb_src_factor,
+            .rgb.dst_factor = blend.rgb_dst_factor,
+            .rgb.func = blend.rgb_func,
+
+            .alpha.src_factor = blend.alpha_src_factor,
+            .alpha.dst_factor = blend.alpha_dst_factor,
+            .alpha.func = blend.alpha_func,
+
+            .colormask = key->blend.rt[i].colormask,
+         };
+      }
    }
 
    /* It's more efficient to use masked stores (with

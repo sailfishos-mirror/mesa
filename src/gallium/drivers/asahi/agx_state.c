@@ -218,23 +218,13 @@ agx_create_blend_state(struct pipe_context *ctx,
 
       if (state->logicop_enable || !rt.blend_enable) {
          /* No blending, but we get the colour mask below */
-         key->rt[i] = (struct agx_blend_rt_key){
-            .rgb_func = PIPE_BLEND_ADD,
-            .rgb_src_factor = PIPE_BLENDFACTOR_ONE,
-            .rgb_dst_factor = PIPE_BLENDFACTOR_ZERO,
-
-            .alpha_func = PIPE_BLEND_ADD,
-            .alpha_src_factor = PIPE_BLENDFACTOR_ONE,
-            .alpha_dst_factor = PIPE_BLENDFACTOR_ZERO,
-         };
+         key->rt[i].mode = agx_pack_blend_standard(
+            PIPE_BLEND_ADD, PIPE_BLENDFACTOR_ONE, PIPE_BLENDFACTOR_ZERO,
+            PIPE_BLEND_ADD, PIPE_BLENDFACTOR_ONE, PIPE_BLENDFACTOR_ZERO);
       } else {
-         key->rt[i].rgb_func = rt.rgb_func;
-         key->rt[i].rgb_src_factor = rt.rgb_src_factor;
-         key->rt[i].rgb_dst_factor = rt.rgb_dst_factor;
-
-         key->rt[i].alpha_func = rt.alpha_func;
-         key->rt[i].alpha_src_factor = rt.alpha_src_factor;
-         key->rt[i].alpha_dst_factor = rt.alpha_dst_factor;
+         key->rt[i].mode = agx_pack_blend_standard(
+            rt.rgb_func, rt.rgb_src_factor, rt.rgb_dst_factor, rt.alpha_func,
+            rt.alpha_src_factor, rt.alpha_dst_factor);
       }
 
       key->rt[i].colormask = rt.colormask;
@@ -2357,12 +2347,17 @@ agx_update_fs(struct agx_batch *batch)
    /* Try to disable blending to get rid of some fsats */
    if (link_key.epilog.fs.link.loc0_w_1) {
       struct agx_blend_rt_key *k = &link_key.epilog.fs.blend.rt[0];
+      struct agx_blend_standard b = agx_unpack_blend_standard(k->mode);
 
-      k->rgb_src_factor = optimize_blend_factor_w_1(k->rgb_src_factor);
-      k->rgb_dst_factor = optimize_blend_factor_w_1(k->rgb_dst_factor);
+      b.rgb_src_factor = optimize_blend_factor_w_1(b.rgb_src_factor);
+      b.rgb_dst_factor = optimize_blend_factor_w_1(b.rgb_dst_factor);
 
-      k->alpha_src_factor = optimize_blend_factor_w_1(k->alpha_src_factor);
-      k->alpha_dst_factor = optimize_blend_factor_w_1(k->alpha_dst_factor);
+      b.alpha_src_factor = optimize_blend_factor_w_1(b.alpha_src_factor);
+      b.alpha_dst_factor = optimize_blend_factor_w_1(b.alpha_dst_factor);
+
+      k->mode = agx_pack_blend_standard(b.rgb_func, b.rgb_src_factor,
+                                        b.rgb_dst_factor, b.alpha_func,
+                                        b.alpha_src_factor, b.alpha_dst_factor);
    }
 
    link_key.epilog.fs.blend.alpha_to_coverage &= msaa;

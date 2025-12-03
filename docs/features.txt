@@ -597,7 +597,7 @@ Khronos extensions that are not part of any Vulkan version:
   VK_EXT_acquire_xlib_display                           DONE (anv, hk, lvp, nvk, panvk, radv, tu, v3dv, vn)
   VK_EXT_attachment_feedback_loop_dynamic_state         DONE (anv, lvp, radv, tu, vn)
   VK_EXT_attachment_feedback_loop_layout                DONE (anv, hk, lvp, nvk, radv, tu, v3dv, vn)
-  VK_EXT_blend_operation_advanced                       DONE (vn)
+  VK_EXT_blend_operation_advanced                       DONE (hk, vn)
   VK_EXT_border_color_swizzle                           DONE (anv, hasvk, hk, lvp, nvk, panvk, pvr, radv/gfx10+, tu, v3dv, vn)
   VK_EXT_buffer_device_address                          DONE (anv, dzn/sm6.6+, hasvk, hk, nvk, panvk, radv, vn)
   VK_EXT_calibrated_timestamps                          DONE (anv, hasvk, hk, kk, nvk, panvk/v10+, lvp, radv, vn, tu/a750+)
