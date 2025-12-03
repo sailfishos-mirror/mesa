@@ -108,6 +108,7 @@ enum mesa_vk_dynamic_graphics_state {
    MESA_VK_DYNAMIC_ATTACHMENT_FEEDBACK_LOOP_ENABLE,
    MESA_VK_DYNAMIC_COLOR_ATTACHMENT_MAP,
    MESA_VK_DYNAMIC_INPUT_ATTACHMENT_MAP,
+   MESA_VK_DYNAMIC_CB_BLEND_ADVANCED,
 
    /* Must be left at the end */
    MESA_VK_DYNAMIC_GRAPHICS_STATE_ENUM_MAX,
@@ -127,10 +128,12 @@ enum mesa_vk_dynamic_graphics_state {
  *
  * :param dynamic:      |out| Bitset to populate
  * :param info:         |in|  VkPipelineDynamicStateCreateInfo or NULL
+ * :param device:       |in|  Device for feature checks
  */
 void
 vk_get_dynamic_graphics_states(BITSET_WORD *dynamic,
-                               const VkPipelineDynamicStateCreateInfo *info);
+                               const VkPipelineDynamicStateCreateInfo *info,
+                               const struct vk_device *device);
 
 /***/
 struct vk_vertex_binding_state {
@@ -656,6 +659,15 @@ struct vk_color_blend_attachment_state {
     * MESA_VK_DYNAMIC_CB_BLEND_EQUATIONS
     */
    VkBlendOp alpha_blend_op;
+
+   /** VkColorBlendAdvancedEXT - advanced blend parameters
+    *
+    * MESA_VK_DYNAMIC_CB_BLEND_ADVANCED
+    */
+   bool src_premultiplied;
+   bool dst_premultiplied;
+   VkBlendOverlapEXT blend_overlap;
+   bool clamp_results;
 };
 
 /***/

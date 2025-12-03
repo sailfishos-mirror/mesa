@@ -127,6 +127,7 @@ get_dynamic_state_groups(BITSET_WORD *dynamic,
       BITSET_SET(dynamic, MESA_VK_DYNAMIC_CB_BLEND_EQUATIONS);
       BITSET_SET(dynamic, MESA_VK_DYNAMIC_CB_WRITE_MASKS);
       BITSET_SET(dynamic, MESA_VK_DYNAMIC_CB_BLEND_CONSTANTS);
+      BITSET_SET(dynamic, MESA_VK_DYNAMIC_CB_BLEND_ADVANCED);
    }
 
    if (groups & MESA_VK_GRAPHICS_STATE_COLOR_ATTACHMENT_MAP_BIT)
@@ -177,7 +178,8 @@ fully_dynamic_state_groups(const BITSET_WORD *dynamic)
        BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_BLEND_ENABLES) &&
        BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_BLEND_EQUATIONS) &&
        BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_WRITE_MASKS) &&
-       BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_BLEND_CONSTANTS))
+       BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_BLEND_CONSTANTS) &&
+       BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_BLEND_ADVANCED))
       groups |= MESA_VK_GRAPHICS_STATE_COLOR_BLEND_BIT;
 
    if (BITSET_TEST(dynamic, MESA_VK_DYNAMIC_COLOR_ATTACHMENT_MAP))
@@ -204,7 +206,8 @@ validate_dynamic_state_groups(const BITSET_WORD *dynamic,
 
 void
 vk_get_dynamic_graphics_states(BITSET_WORD *dynamic,
-                               const VkPipelineDynamicStateCreateInfo *info)
+                               const VkPipelineDynamicStateCreateInfo *info,
+                               const struct vk_device *device)
 {
    clear_all_dynamic_state(dynamic);
 
@@ -295,18 +298,27 @@ vk_get_dynamic_graphics_states(BITSET_WORD *dynamic,
       CASE( DEPTH_CLIP_NEGATIVE_ONE_TO_ONE_EXT, VP_DEPTH_CLIP_NEGATIVE_ONE_TO_ONE)
       CASE( ATTACHMENT_FEEDBACK_LOOP_ENABLE_EXT, ATTACHMENT_FEEDBACK_LOOP_ENABLE)
       CASE( DEPTH_CLAMP_RANGE_EXT,        VP_DEPTH_CLAMP_RANGE)
+      CASE( COLOR_BLEND_ADVANCED_EXT,     CB_BLEND_ADVANCED)
       default:
          UNREACHABLE("Unsupported dynamic graphics state");
       }
    }
 
-   /* attachmentCount is ignored if all of the states using it are dyanmic.
-    *
-    * TODO: Handle advanced blending here when supported.
+   /* Per spec, COLOR_BLEND_ADVANCED only needs to be dynamic if
+    * advancedBlendCoherentOperations is enabled. Mark it as dynamic when
+    * the feature is not enabled to simplify downstream checks.
+    */
+   if (!device->enabled_features.advancedBlendCoherentOperations)
+      BITSET_SET(dynamic, MESA_VK_DYNAMIC_CB_BLEND_ADVANCED);
+
+   /* Per spec, attachmentCount is ignored if COLOR_BLEND_ENABLE,
+    * COLOR_BLEND_EQUATION, COLOR_WRITE_MASK, and COLOR_BLEND_ADVANCED
+    * are all dynamic.
     */
    if (BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_BLEND_ENABLES) &&
        BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_BLEND_EQUATIONS) &&
-       BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_WRITE_MASKS))
+       BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_WRITE_MASKS) &&
+       BITSET_TEST(dynamic, MESA_VK_DYNAMIC_CB_BLEND_ADVANCED))
       BITSET_SET(dynamic, MESA_VK_DYNAMIC_CB_ATTACHMENT_COUNT);
 }
 
@@ -1010,10 +1022,25 @@ vk_color_blend_state_init(struct vk_color_blend_state *cb,
 
    assert(cb_info->attachmentCount <= MESA_VK_MAX_COLOR_ATTACHMENTS);
    cb->attachment_count = cb_info->attachmentCount;
-   /* pAttachments is ignored if any of these is not set */
-   bool full_dynamic = IS_DYNAMIC(CB_BLEND_ENABLES) && IS_DYNAMIC(CB_BLEND_EQUATIONS) && IS_DYNAMIC(CB_WRITE_MASKS);
+
+   /* Per spec, pAttachments is ignored if BLEND_ENABLES, BLEND_EQUATIONS,
+    * WRITE_MASKS, and BLEND_ADVANCED are all dynamic.
+    */
+   bool full_dynamic = IS_DYNAMIC(CB_BLEND_ENABLES) &&
+                       IS_DYNAMIC(CB_BLEND_EQUATIONS) &&
+                       IS_DYNAMIC(CB_WRITE_MASKS) &&
+                       IS_DYNAMIC(CB_BLEND_ADVANCED);
+
+   /* Advanced blend state is ignored if CB_BLEND_ADVANCED is dynamic */
+   const VkPipelineColorBlendAdvancedStateCreateInfoEXT *advanced = NULL;
+   if (!IS_DYNAMIC(CB_BLEND_ADVANCED)) {
+      advanced = vk_find_struct_const(cb_info->pNext,
+         PIPELINE_COLOR_BLEND_ADVANCED_STATE_CREATE_INFO_EXT);
+   }
+
    for (uint32_t a = 0; a < cb_info->attachmentCount; a++) {
-      const VkPipelineColorBlendAttachmentState *att = full_dynamic ? NULL : &cb_info->pAttachments[a];
+      const VkPipelineColorBlendAttachmentState *att =
+         full_dynamic ? NULL : &cb_info->pAttachments[a];
 
       cb->attachments[a] = (struct vk_color_blend_attachment_state) {
          .blend_enable = IS_DYNAMIC(CB_BLEND_ENABLES) || att->blendEnable,
@@ -1024,6 +1051,10 @@ vk_color_blend_state_init(struct vk_color_blend_state *cb,
          .write_mask = IS_DYNAMIC(CB_WRITE_MASKS) ? 0xf : att->colorWriteMask,
          .color_blend_op = IS_DYNAMIC(CB_BLEND_EQUATIONS) ? 0 : att->colorBlendOp,
          .alpha_blend_op = IS_DYNAMIC(CB_BLEND_EQUATIONS) ? 0 : att->alphaBlendOp,
+         /* Vulkan spec defaults for advanced blend if not provided or dynamic */
+         .src_premultiplied = advanced ? advanced->srcPremultiplied : true,
+         .dst_premultiplied = advanced ? advanced->dstPremultiplied : true,
+         .blend_overlap = advanced ? advanced->blendOverlap : VK_BLEND_OVERLAP_UNCORRELATED_EXT,
       };
    }
 
@@ -1128,7 +1159,8 @@ vk_dynamic_graphics_state_init_cb(struct vk_dynamic_graphics_state *dst,
 
    if (IS_NEEDED(CB_BLEND_ENABLES) ||
        IS_NEEDED(CB_BLEND_EQUATIONS) ||
-       IS_NEEDED(CB_WRITE_MASKS)) {
+       IS_NEEDED(CB_WRITE_MASKS) ||
+       IS_NEEDED(CB_BLEND_ADVANCED)) {
       typed_memcpy(dst->cb.attachments, cb->attachments, cb->attachment_count);
    }
 
@@ -1425,7 +1457,7 @@ vk_graphics_pipeline_state_fill(const struct vk_device *device,
    vk_graphics_pipeline_state_validate(state);
 
    BITSET_DECLARE(dynamic, MESA_VK_DYNAMIC_GRAPHICS_STATE_ENUM_MAX);
-   vk_get_dynamic_graphics_states(dynamic, info->pDynamicState);
+   vk_get_dynamic_graphics_states(dynamic, info->pDynamicState, device);
 
    /*
     * First, figure out which library-level shader/state groups we need
@@ -2263,6 +2295,17 @@ vk_dynamic_graphics_state_copy(struct vk_dynamic_graphics_state *dst,
    if (IS_SET_IN_SRC(CB_BLEND_CONSTANTS))
       COPY_ARRAY(CB_BLEND_CONSTANTS, cb.blend_constants, 4);
 
+   if (IS_SET_IN_SRC(CB_BLEND_ADVANCED)) {
+      for (uint32_t a = 0; a < src->cb.attachment_count; a++) {
+         COPY_MEMBER(CB_BLEND_ADVANCED,
+                     cb.attachments[a].dst_premultiplied);
+         COPY_MEMBER(CB_BLEND_ADVANCED,
+                     cb.attachments[a].src_premultiplied);
+         COPY_MEMBER(CB_BLEND_ADVANCED,
+                     cb.attachments[a].blend_overlap);
+      }
+   }
+
    COPY_IF_SET(RP_ATTACHMENTS, rp.attachments);
 
    if (IS_SET_IN_SRC(INPUT_ATTACHMENT_MAP)) {
@@ -3085,7 +3128,37 @@ vk_common_CmdSetColorBlendAdvancedEXT(VkCommandBuffer commandBuffer,
                                       uint32_t attachmentCount,
                                       const VkColorBlendAdvancedEXT* pColorBlendAdvanced)
 {
-   UNREACHABLE("VK_EXT_blend_operation_advanced unsupported");
+   VK_FROM_HANDLE(vk_command_buffer, cmd, commandBuffer);
+   struct vk_dynamic_graphics_state *dyn = &cmd->dynamic_graphics_state;
+
+   for (uint32_t i = 0; i < attachmentCount; i++) {
+      uint32_t a = firstAttachment + i;
+      assert(a < ARRAY_SIZE(dyn->cb.attachments));
+
+      SET_DYN_VALUE(dyn, CB_BLEND_ADVANCED,
+                    cb.attachments[a].color_blend_op,
+                    pColorBlendAdvanced[i].advancedBlendOp);
+
+      SET_DYN_VALUE(dyn, CB_BLEND_ADVANCED,
+                    cb.attachments[a].alpha_blend_op,
+                    pColorBlendAdvanced[i].advancedBlendOp);
+
+      SET_DYN_VALUE(dyn, CB_BLEND_ADVANCED,
+                    cb.attachments[a].src_premultiplied,
+                    pColorBlendAdvanced[i].srcPremultiplied);
+
+      SET_DYN_VALUE(dyn, CB_BLEND_ADVANCED,
+                    cb.attachments[a].dst_premultiplied,
+                    pColorBlendAdvanced[i].dstPremultiplied);
+
+      SET_DYN_VALUE(dyn, CB_BLEND_ADVANCED,
+                    cb.attachments[a].blend_overlap,
+                    pColorBlendAdvanced[i].blendOverlap);
+
+      SET_DYN_VALUE(dyn, CB_BLEND_ADVANCED,
+                    cb.attachments[a].clamp_results,
+                    pColorBlendAdvanced[i].clampResults);
+   }
 }
 
 void
@@ -3382,6 +3455,7 @@ vk_dynamic_graphic_state_to_str(enum mesa_vk_dynamic_graphics_state state)
       NAME(CB_BLEND_CONSTANTS);
       NAME(ATTACHMENT_FEEDBACK_LOOP_ENABLE);
       NAME(COLOR_ATTACHMENT_MAP);
+      NAME(CB_BLEND_ADVANCED);
    default: UNREACHABLE("Invalid state");
    }
 
