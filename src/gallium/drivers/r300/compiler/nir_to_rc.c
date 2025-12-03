@@ -1760,7 +1760,7 @@ nir_to_rc_lower_txp(nir_shader *s)
  * like vs using generics and fs using texcoords. This function tries to fix it.
  * See https://gitlab.freedesktop.org/mesa/mesa/-/issues/12749 for more details.
  */
-static void
+void
 ntr_fixup_varying_slots(nir_shader *s, nir_variable_mode mode)
 {
    if (s->info.name && !strcmp(s->info.name, "st/drawtex VS"))

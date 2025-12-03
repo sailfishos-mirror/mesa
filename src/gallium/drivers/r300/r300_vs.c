@@ -13,7 +13,9 @@
 
 #include "tgsi/tgsi_dump.h"
 
+#include "compiler/nir_to_rc.h"
 #include "compiler/radeon_compiler.h"
+#include "nir/nir.h"
 
 /* Convert info about VS output semantics into r300_shader_semantics. */
 static void r300_shader_read_vs_outputs(
@@ -167,11 +169,16 @@ void r300_translate_vertex_shader(struct r300_context *r300,
     unsigned i;
     struct r300_vertex_shader_code *vs = shader->shader;
 
+    nir_shader *clone = nir_shader_clone(NULL, shader->state.ir.nir);
+    struct r300_fragment_program_external_state external_state = {};
+    shader->state.tokens = nir_to_rc(clone, (struct pipe_screen *)r300->screen, external_state);
+
     r300_init_vs_outputs(r300, shader);
 
     /* Nothing to do if the shader does not write gl_Position. */
     if (vs->outputs.pos == ATTR_UNUSED) {
         vs->dummy = true;
+        FREE((void*)shader->state.tokens);
         return;
     }
 
@@ -204,6 +211,7 @@ void r300_translate_vertex_shader(struct r300_context *r300,
     ttr.info = &vs->info;
 
     r300_tgsi_to_rc(&ttr, shader->state.tokens);
+    FREE((void*)shader->state.tokens);
 
     if (ttr.error) {
         vs->error = strdup("Cannot translate shader from TGSI");

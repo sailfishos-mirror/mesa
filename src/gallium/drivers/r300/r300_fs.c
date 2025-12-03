@@ -24,6 +24,7 @@
 #include "compiler/radeon_compiler.h"
 #include "compiler/nir_to_rc.h"
 #include "nir.h"
+#include "nir/tgsi_to_nir.h"
 
 /* Convert info about FS input semantics to r300_shader_semantics. */
 void r300_shader_read_fs_inputs(struct tgsi_shader_info* info,
@@ -198,7 +199,7 @@ static void r300_dummy_fragment_shader(
     struct r300_context* r300,
     struct r300_fragment_shader_code* shader)
 {
-    struct pipe_shader_state state;
+    struct pipe_shader_state state = {};
     struct ureg_program *ureg;
     struct ureg_dst out;
     struct ureg_src imm;
@@ -214,7 +215,11 @@ static void r300_dummy_fragment_shader(
     state.tokens = ureg_finalize(ureg);
 
     shader->dummy = true;
+    state.type = PIPE_SHADER_IR_NIR;
+    /* We could just build a NIR directly, was lazy to figure it out for now... */
+    state.ir.nir = tgsi_to_nir(state.tokens, &r300->screen->screen, false);
     r300_translate_fragment_shader(r300, shader, state);
+    ralloc_free(state.ir.nir);
 
     ureg_destroy(ureg);
 }

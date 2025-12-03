@@ -15,6 +15,9 @@
 #include "util/u_transfer.h"
 #include "util/u_blend.h"
 
+#include "nir/nir_to_tgsi.h"
+#include "nir/tgsi_to_nir.h"
+
 #include "tgsi/tgsi_parse.h"
 
 #include "util/detect.h"
@@ -1232,8 +1235,9 @@ static void* r300_create_fs_state(struct pipe_context* pipe,
         }
     } else {
        assert(fs->state.type == PIPE_SHADER_IR_TGSI);
-       /* we need to keep a local copy of the tokens */
-       fs->state.tokens = tgsi_dup_tokens(fs->state.tokens);
+       /* Convert to NIR. */
+       fs->state.ir.nir = tgsi_to_nir(fs->state.tokens, pipe->screen, false);
+       fs->state.type = PIPE_SHADER_IR_NIR;
     }
 
     /* Precompile the fragment shader at creation time to avoid jank at runtime.
@@ -1244,7 +1248,7 @@ static void* r300_create_fs_state(struct pipe_context* pipe,
 
     if (fs->state.type == PIPE_SHADER_IR_NIR) {
         /* Pick something for the shadow samplers so that we have somewhat reliable shader stats later. */
-        nir_foreach_function_impl(impl, shader->ir.nir) {
+        nir_foreach_function_impl(impl, fs->state.ir.nir) {
             nir_foreach_block_safe(block, impl) {
                 nir_foreach_instr_safe(instr, block) {
                     if (instr->type != nir_instr_type_tex)
@@ -2165,27 +2169,47 @@ static void* r300_create_vs_state(struct pipe_context* pipe,
     /* Copy state directly into shader. */
     vs->state = *shader;
 
-    if (vs->state.type == PIPE_SHADER_IR_NIR) {
-        r300_optimize_nir(shader->ir.nir, r300->screen);
+    /* Always convert TGSI input to NIR up front */
+    if (vs->state.type == PIPE_SHADER_IR_TGSI) {
+       vs->state.ir.nir = tgsi_to_nir(vs->state.tokens, pipe->screen, false);
+       vs->state.type = PIPE_SHADER_IR_NIR;
+    }
 
+    /* Run the same NIR optimization/lowering for both HW and SW TCL.
+     * The LLVM-based draw emulation likely doesn't need the full
+     * hardware-targeted set of passes (e.g. the scalar/vector
+     * vectorization-or-scalarization choices, or much of the algebraic
+     * lowering); we could trim this for the draw path later to just
+     * what nir_to_rc actually requires - notably scalarizing vector
+     * comparisons (otherwise nir_lower_bool_to_float asserts) and
+     * keeping VS outputs aligned with FS inputs via the +9 varying-slot
+     * shift.
+     */
+    r300_optimize_nir(vs->state.ir.nir, r300->screen);
+
+    if (r300->screen->caps.has_tcl) {
         /* R300/R400 can not do any kind of control flow, so abort early here. */
-        if (!r300->screen->caps.is_r500 && r300->screen->caps.has_tcl) {
-            char *msg = r300_check_control_flow(shader->ir.nir);
+        if (!r300->screen->caps.is_r500) {
+            char *msg = r300_check_control_flow(vs->state.ir.nir);
             if (msg && shader->report_compile_error) {
                 fprintf(stderr, "r300 VP: Compiler error: %s\n", msg);
                 ((struct pipe_shader_state *)shader)->error_message = strdup(msg);
-                ralloc_free(shader->ir.nir);
+                ralloc_free(vs->state.ir.nir);
                 FREE(vs);
                 return NULL;
             }
         }
-
-       struct r300_fragment_program_external_state state = {};
-       vs->state.tokens = nir_to_rc(shader->ir.nir, pipe->screen, state);
     } else {
-       assert(vs->state.type == PIPE_SHADER_IR_TGSI);
-       /* we need to keep a local copy of the tokens */
-       vs->state.tokens = tgsi_dup_tokens(vs->state.tokens);
+       /* r300_draw_init_vertex_shader needs TGSI tokens.
+        * Apply the +9 varying shift to keep VS outputs aligned with the
+        * FS inputs (which always go through nir_to_rc and pick up the
+        * same shift), then go through the stock gallium nir_to_tgsi.
+        */
+       nir_shader *clone = nir_shader_clone(NULL, vs->state.ir.nir);
+       ralloc_free(vs->state.ir.nir);
+       ntr_fixup_varying_slots(clone, nir_var_shader_out);
+       vs->state.tokens = nir_to_tgsi(clone, pipe->screen);
+       vs->state.type = PIPE_SHADER_IR_TGSI;
     }
 
     if (!vs->first)
@@ -2277,7 +2301,11 @@ static void r300_delete_vs_state(struct pipe_context* pipe, void* shader)
                 (struct draw_vertex_shader*)vs->draw_vs);
     }
 
-    FREE((void*)vs->state.tokens);
+    if (vs->state.type == PIPE_SHADER_IR_NIR) {
+        ralloc_free(vs->state.ir.nir);
+    } else {
+        FREE((void*)vs->state.tokens);
+    }
     FREE(shader);
 }
 
