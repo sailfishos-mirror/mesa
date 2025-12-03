@@ -1514,7 +1514,7 @@
         "description": "pan/compiler: Handle store_per_view_output in collect_varyings()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "448b5e0225f92c19d6d2721589c5c87e65bdf003",
         "notes": null
