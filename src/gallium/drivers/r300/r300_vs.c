@@ -160,6 +160,35 @@ void r300_init_vs_outputs(struct r300_context *r300,
     r300_shader_read_vs_outputs(r300, &vs->shader->info, &vs->shader->outputs);
 }
 
+static void r300_setup_vs_compiler(struct r300_context *r300,
+                            struct r300_vertex_program_compiler *compiler,
+                            struct r300_vertex_shader_code *vs)
+{
+    /* Setup the compiler */
+    memset(compiler, 0, sizeof(*compiler));
+    rc_init(&compiler->Base, &r300->vs_regalloc_state);
+
+    DBG_ON(r300, DBG_VP) ? compiler->Base.Debug |= RC_DBG_LOG : 0;
+    compiler->code = &vs->code;
+    compiler->UserData = vs;
+    compiler->Base.debug = &r300->context.debug;
+    compiler->Base.is_r400 = r300->screen->caps.is_r400;
+    compiler->Base.is_r500 = r300->screen->caps.is_r500;
+    compiler->Base.disable_optimizations = DBG_ON(r300, DBG_NO_OPT);
+    /* Only R500 has few IEEE math opcodes. */
+    if (r300->screen->options.ieeemath && r300->screen->caps.is_r500) {
+        compiler->Base.math_rules = RC_MATH_IEEE;
+    } else if (r300->screen->options.ffmath) {
+        compiler->Base.math_rules = RC_MATH_FF;
+    }
+    compiler->Base.has_half_swizzles = false;
+    compiler->Base.has_presub = false;
+    compiler->Base.has_omod = false;
+    compiler->Base.max_temp_regs = 32;
+    compiler->Base.max_constants = 256;
+    compiler->Base.max_alu_insts = r300->screen->caps.is_r500 ? 1024 : 256;
+}
+
 void r300_translate_vertex_shader(struct r300_context *r300,
                                   struct r300_vertex_shader *shader)
 {
@@ -173,6 +202,8 @@ void r300_translate_vertex_shader(struct r300_context *r300,
     union r300_shader_code code;
     code.v = vs;
 
+    r300_setup_vs_compiler(r300, &compiler, vs);
+
     vs->s = nir_shader_clone(NULL, shader->state.ir.nir);
     struct r300_fragment_program_external_state external_state = {};
     shader->state.tokens = nir_to_rc(vs->s, (struct pipe_screen *)r300->screen,
@@ -185,30 +216,6 @@ void r300_translate_vertex_shader(struct r300_context *r300,
         FREE((void*)shader->state.tokens);
         goto cleanup;
     }
-
-    /* Setup the compiler */
-    memset(&compiler, 0, sizeof(compiler));
-    rc_init(&compiler.Base, &r300->vs_regalloc_state);
-
-    DBG_ON(r300, DBG_VP) ? compiler.Base.Debug |= RC_DBG_LOG : 0;
-    compiler.code = &vs->code;
-    compiler.UserData = vs;
-    compiler.Base.debug = &r300->context.debug;
-    compiler.Base.is_r400 = r300->screen->caps.is_r400;
-    compiler.Base.is_r500 = r300->screen->caps.is_r500;
-    compiler.Base.disable_optimizations = DBG_ON(r300, DBG_NO_OPT);
-    /* Only R500 has few IEEE math opcodes. */
-    if (r300->screen->options.ieeemath && r300->screen->caps.is_r500) {
-        compiler.Base.math_rules = RC_MATH_IEEE;
-    } else if (r300->screen->options.ffmath) {
-        compiler.Base.math_rules = RC_MATH_FF;
-    }
-    compiler.Base.has_half_swizzles = false;
-    compiler.Base.has_presub = false;
-    compiler.Base.has_omod = false;
-    compiler.Base.max_temp_regs = 32;
-    compiler.Base.max_constants = 256;
-    compiler.Base.max_alu_insts = r300->screen->caps.is_r500 ? 1024 : 256;
 
     /* Translate TGSI to our internal representation */
     ttr.compiler = &compiler.Base;
