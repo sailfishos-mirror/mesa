@@ -1550,9 +1550,6 @@ validate_instr_defs(Program* program, std::array<unsigned, 2048>& regs,
 bool
 validate_ra(Program* program)
 {
-   if (!(debug_flags & DEBUG_VALIDATE_RA))
-      return false;
-
    bool err = false;
    aco::live_var_analysis(program);
    std::vector<std::vector<Temp>> phi_sgpr_ops(program->blocks.size());

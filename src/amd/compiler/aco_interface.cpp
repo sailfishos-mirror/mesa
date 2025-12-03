@@ -130,7 +130,7 @@ aco_postprocess_shader(const struct aco_compiler_options* options,
    /* Register Allocation */
    register_allocation(program.get());
 
-   if (validate_ra(program.get())) {
+   if ((debug_flags & DEBUG_VALIDATE_RA) && validate_ra(program.get())) {
       aco_print_program(program.get(), stderr);
       abort();
    } else if (options->dump_ir) {
