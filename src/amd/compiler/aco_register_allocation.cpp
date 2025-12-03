@@ -924,6 +924,56 @@ adjust_max_used_regs(ra_ctx& ctx, RegClass rc, unsigned reg)
 }
 
 void
+rename_operands_for_copy(RegisterFile& reg_file, const parallelcopy& copy,
+                         aco_ptr<Instruction>& instr, bool fill_operands, bool never_rename)
+{
+   bool is_copy_kill = copy.copy_kill >= 0;
+   bool first[2] = {true, true};
+   bool fill = !is_copy_kill;
+   for (unsigned i = 0; i < instr->operands.size(); i++) {
+      Operand& op = instr->operands[i];
+      if (!op.isTemp() || op.tempId() != copy.op.tempId())
+         continue;
+
+      /* only rename precolored operands if the copy-location matches */
+      bool omit_renaming = op.isPrecolored() && op.physReg() != copy.def.physReg();
+      omit_renaming |= is_copy_kill && i != (unsigned)copy.copy_kill;
+      omit_renaming |= never_rename;
+
+      /* If this is a copy-kill, then the renamed operand is killed since we don't rename any
+       * uses in other instructions. If it's a normal copy, then this operand is killed if we
+       * don't rename it since any future uses will be renamed to use the copy definition. */
+      bool kill =
+         op.isKill() || (omit_renaming && !is_copy_kill) || (!omit_renaming && is_copy_kill);
+
+      /* Fix the kill flags */
+      if (first[omit_renaming])
+         op.setFirstKill(kill);
+      else
+         op.setKill(kill);
+      first[omit_renaming] = false;
+
+      if (omit_renaming)
+         continue;
+
+      op.setTemp(copy.def.getTemp());
+      if (op.isFixed())
+         op.setFixed(copy.def.physReg());
+
+      /* Copy-kill or precolored operand parallelcopies are only added when setting up
+       * operands.
+       */
+      assert(!op.isPrecolored() || fill_operands);
+      assert(!is_copy_kill || fill_operands);
+      fill = !op.isKillBeforeDef() || fill_operands;
+   }
+
+   /* Apply changes to register file. */
+   if (fill)
+      reg_file.fill(copy.def);
+}
+
+void
 update_renames(ra_ctx& ctx, RegisterFile& reg_file, std::vector<parallelcopy>& parallelcopies,
                aco_ptr<Instruction>& instr, bool fill_operands = false, bool clear_operands = true,
                bool never_rename = false)
@@ -1019,50 +1069,8 @@ update_renames(ra_ctx& ctx, RegisterFile& reg_file, std::vector<parallelcopy>& p
        * For copy-kill operands, use the current Operand name so that kill flags stay correct.
        */
       Operand copy_op = is_copy_kill ? instr->operands[copy.copy_kill] : it->op;
-      bool first[2] = {true, true};
-      bool fill = !is_copy_kill;
-      for (unsigned i = 0; i < instr->operands.size(); i++) {
-         Operand& op = instr->operands[i];
-         if (!op.isTemp())
-            continue;
-         if (op.tempId() == copy_op.tempId()) {
-            /* only rename precolored operands if the copy-location matches */
-            bool omit_renaming = op.isPrecolored() && op.physReg() != copy.def.physReg();
-            omit_renaming |= is_copy_kill && i != (unsigned)copy.copy_kill;
-            omit_renaming |= never_rename;
-
-            /* If this is a copy-kill, then the renamed operand is killed since we don't rename any
-             * uses in other instructions. If it's a normal copy, then this operand is killed if we
-             * don't rename it since any future uses will be renamed to use the copy definition. */
-            bool kill =
-               op.isKill() || (omit_renaming && !is_copy_kill) || (!omit_renaming && is_copy_kill);
-
-            /* Fix the kill flags */
-            if (first[omit_renaming])
-               op.setFirstKill(kill);
-            else
-               op.setKill(kill);
-            first[omit_renaming] = false;
-
-            if (omit_renaming)
-               continue;
-
-            op.setTemp(copy.def.getTemp());
-            if (op.isFixed())
-               op.setFixed(copy.def.physReg());
-
-            /* Copy-kill or precolored operand parallelcopies are only added when setting up
-             * operands.
-             */
-            assert(!op.isPrecolored() || fill_operands);
-            assert(!is_copy_kill || fill_operands);
-            fill = !op.isKillBeforeDef() || fill_operands;
-         }
-      }
-
-      /* Apply changes to register file. */
-      if (fill)
-         reg_file.fill(copy.def);
+      rename_operands_for_copy(reg_file, parallelcopy(copy_op, copy.def, copy.copy_kill), instr,
+                               fill_operands, never_rename);
 
       ++it;
    }
