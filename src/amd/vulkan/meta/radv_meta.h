@@ -234,8 +234,6 @@ void radv_meta_resolve_fragment_image(struct radv_cmd_buffer *cmd_buffer, struct
                                       VkFormat dst_format, VkImageLayout dst_image_layout,
                                       const VkImageResolve2 *region);
 
-void radv_decompress_resolve_rendering_src(struct radv_cmd_buffer *cmd_buffer);
-
 void radv_decompress_resolve_src(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image,
                                  VkImageLayout src_image_layout, const VkImageResolve2 *region);
 

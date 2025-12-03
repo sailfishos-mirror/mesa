@@ -720,38 +720,6 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer)
 }
 
 /**
- * Decompress CMask/FMask before resolving a multisampled source image inside a
- * subpass.
- */
-void
-radv_decompress_resolve_rendering_src(struct radv_cmd_buffer *cmd_buffer)
-{
-   const struct radv_rendering_state *render = &cmd_buffer->state.render;
-
-   uint32_t layer_count = render->layer_count;
-   if (render->view_mask)
-      layer_count = util_last_bit(render->view_mask);
-
-   for (uint32_t i = 0; i < render->color_att_count; ++i) {
-      if (render->color_att[i].resolve_iview == NULL)
-         continue;
-
-      struct radv_image_view *src_iview = render->color_att[i].iview;
-      VkImageLayout src_layout = render->color_att[i].layout;
-      struct radv_image *src_image = src_iview->image;
-
-      VkImageResolve2 region = {0};
-      region.sType = VK_STRUCTURE_TYPE_IMAGE_RESOLVE_2;
-      region.srcSubresource.aspectMask = src_iview->vk.aspects;
-      region.srcSubresource.mipLevel = 0;
-      region.srcSubresource.baseArrayLayer = src_iview->vk.base_array_layer;
-      region.srcSubresource.layerCount = layer_count;
-
-      radv_decompress_resolve_src(cmd_buffer, src_image, src_layout, &region);
-   }
-}
-
-/**
  * Decompress CMask/FMask before resolving a multisampled source image.
  */
 void
