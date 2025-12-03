@@ -126,6 +126,9 @@ struct pan_compile_inputs {
     */
    uint32_t fixed_varying_mask;
 
+   /* Varying layout in memory, if known */
+   const struct pan_varying_layout *varying_layout;
+
    /* Optimizations as nir_opt_varyings can erase all flat types to float, when
     * this field is false, varying types are inferred from their usage.
     */
