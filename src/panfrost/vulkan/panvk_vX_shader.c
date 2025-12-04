@@ -1351,8 +1351,20 @@ panvk_compile_shader(struct panvk_device *dev,
          }
          nir_assign_io_var_locations(nir, nir_var_shader_out);
          panvk_lower_nir_io(nir);
+         /* This somehow folds the location for multi-slot nir_load/nir_store */
+         NIR_PASS(_, nir, nir_opt_constant_folding);
 
          inputs.trust_varying_flat_highp_types = true;
+         struct pan_varying_layout varying_layout;
+         if (v == PANVK_VS_VARIANT_HW) {
+            pan_varying_collect_formats(&varying_layout, nir, inputs.gpu_id,
+                                        inputs.trust_varying_flat_highp_types,
+                                        false);
+            pan_build_varying_layout_sso_abi(&varying_layout,
+                                             nir, inputs.gpu_id,
+                                             0 /* fixed_varyings */);
+            inputs.varying_layout = &varying_layout;
+         }
 
          variant->own_bin = true;
 
