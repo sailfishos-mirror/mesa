@@ -545,6 +545,21 @@ pan_subgroup_size(unsigned arch)
 }
 
 /*
+ * Helper returning the maximum offset in bytes (exclusive) that a LD_VAR_BUF*
+ * instruction can use.
+ */
+static inline unsigned
+pan_ld_var_buf_off_size(unsigned arch)
+{
+   if (arch >= 11)
+      return 2048;
+   else if (arch >= 9)
+      return 256;
+   else
+      return 0;
+}
+
+/*
  * Helper extracting the table from a given handle of Valhall descriptor model.
  */
 static inline unsigned
