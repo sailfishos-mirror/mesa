@@ -157,7 +157,7 @@ nir_opt_licm(nir_shader *shader)
       state.loop = NULL;
 
       progress |= nir_progress(visit_cf_list(&impl->body, &state), impl,
-                               nir_metadata_block_index | nir_metadata_dominance);
+                               nir_metadata_control_flow);
    }
 
    return progress;
