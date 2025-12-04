@@ -3624,7 +3624,6 @@ split_blocking_vectors(ra_ctx& ctx, std::vector<unsigned>& vars, RegisterFile& r
          continue;
 
       Operand split_op(Temp(id, rc), ctx.assignments[id].reg);
-
       small_vec<Definition, 8> defs;
       for (unsigned offset = 0; offset < rc.bytes();) {
          PhysReg reg = split_op.physReg().advance(offset);
@@ -3725,6 +3724,41 @@ handle_call(ra_ctx& ctx, aco_ptr<Instruction>& instr, BITSET_DECLARE(call_clobbe
    std::vector<struct parallelcopy> copies;
    bool success = get_regs_for_copies(ctx, tmp_file, copies, vars, instr, PhysRegInterval{});
    if (success) {
+      std::map<unsigned, Definition*> split_defs;
+      for (Instruction* split : vector_splits) {
+         for (Definition& def : split->definitions)
+            split_defs[def.tempId()] = &def;
+      }
+
+      /* If a p_split_vector operand is also a p_call operand, we expect that all p_split_vector
+       * definitions are moved, so that the p_split_vector operand does not intersect with it's
+       * definitions. Moving only some of the definitions would require a p_call operand which is
+       * only partially in clobbered registers, which doesn't happen. */
+      for (auto it = copies.begin(); it != copies.end();) {
+         auto def_it = split_defs.find(it->op.tempId());
+         if (def_it == split_defs.end()) {
+            ASSERTED PhysRegInterval def_regs{it->def.physReg(), it->def.size()};
+            assert(std::none_of(vector_splits.begin(), vector_splits.end(),
+                                [=](Instruction* split)
+                                {
+                                   return intersects(PhysRegInterval{split->operands[0].physReg(),
+                                                                     split->operands[0].size()},
+                                                     def_regs);
+                                }));
+            ++it;
+            continue;
+         }
+
+         Definition& def = *def_it->second;
+         def.setFixed(it->def.physReg());
+         /* Clearing and filling in the same loop is safe because we're moving temporaries from one
+          * set of registers to a disjoint set of registers. */
+         register_file.clear(it->op);
+         register_file.fill(def);
+         ctx.assignments[def.tempId()].reg = def.physReg();
+         it = copies.erase(it);
+      }
+
       parallelcopy.insert(parallelcopy.end(), copies.begin(), copies.end());
       update_renames(ctx, register_file, parallelcopy, instr);
    } else {
@@ -4017,10 +4051,10 @@ register_allocation(Program* program, ra_test_policy policy)
                add_subdword_operand(ctx, instr, i, op.physReg().byte(), op.regClass());
          }
 
+         emit_parallel_copy(ctx, parallelcopy, instr, instructions, temp_in_scc, register_file);
+
          for (auto split : vector_splits)
             instructions.emplace_back(split);
-
-         emit_parallel_copy(ctx, parallelcopy, instr, instructions, temp_in_scc, register_file);
 
          /* some instructions need VOP3 encoding if operand/definition is not assigned to VCC */
          bool instr_needs_vop3 =
