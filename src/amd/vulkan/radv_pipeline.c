@@ -371,7 +371,7 @@ radv_postprocess_nir(const struct radv_compiler_info *compiler_info, const struc
    nir_move_options sink_opts = nir_move_const_undef | nir_move_copies | nir_dont_move_byte_word_vecs;
 
    if (!stage->key.optimisations_disabled) {
-      NIR_PASS(_, stage->nir, nir_opt_licm);
+      NIR_PASS(_, stage->nir, nir_opt_licm, NULL);
 
       if (stage->stage == MESA_SHADER_VERTEX) {
          /* Always load all VS inputs at the top to eliminate needless VMEM->s_wait->VMEM sequences.

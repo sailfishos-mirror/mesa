@@ -802,7 +802,7 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
 
    NIR_PASS(_, nir, nir_lower_memory_model);
 
-   NIR_PASS(_, nir, nir_opt_licm);
+   NIR_PASS(_, nir, nir_opt_licm, NULL);
 
    NIR_PASS(_, nir, nir_lower_memcpy);
 

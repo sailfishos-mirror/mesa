@@ -6755,7 +6755,11 @@ bool nir_opt_large_constants(nir_shader *shader,
                              glsl_type_size_align_func size_align,
                              unsigned threshold);
 
-bool nir_opt_licm(nir_shader *shader);
+typedef bool (*nir_opt_licm_filter_cb)(nir_instr *instr, nir_loop *loop,
+                                       bool instr_block_dominates_exit);
+
+bool nir_opt_licm(nir_shader *shader,
+                  nir_opt_licm_filter_cb filter);
 bool nir_opt_loop(nir_shader *shader);
 
 bool nir_opt_loop_unroll(nir_shader *shader);
