@@ -100,6 +100,29 @@ visit_cf_list(struct exec_list *list, licm_state *state)
    foreach_list_typed(nir_cf_node, node, node, list) {
       switch (node->type) {
       case nir_cf_node_block: {
+         nir_cf_node *next = nir_cf_node_next(node);
+         bool optimize_loop = false;
+
+         /* If the next CF node is a loop that we optimize, visit it first
+          * before visiting its predecessor block, so that any instructions
+          * hoisted from this (potentially nested) loop are then considered
+          * for hoisting from the outer loop as well. The goal is to hoist
+          * instructions across all levels of nested loops.
+          */
+         if (next && next->type == nir_cf_node_loop) {
+            nir_loop *inner_loop = nir_cf_node_as_loop(next);
+            optimize_loop = should_optimize_loop(inner_loop);
+
+            if (optimize_loop) {
+               nir_loop *outer_loop = state->loop;
+
+               state->loop = inner_loop;
+               progress |= visit_cf_list(&inner_loop->body, state);
+               progress |= visit_cf_list(&inner_loop->continue_list, state);
+               state->loop = outer_loop;
+            }
+         }
+
          /* By only visiting blocks which dominate the block after the loop,
           * we ensure that we don't speculatively hoist any instructions
           * which otherwise might not be executed.
@@ -111,6 +134,17 @@ visit_cf_list(struct exec_list *list, licm_state *state)
          if (state->loop &&
              nir_block_dominates(block, nir_loop_successor_block(state->loop)))
             progress |= visit_block(block, state);
+
+         if (next && next->type == nir_cf_node_loop && !optimize_loop) {
+            nir_loop *loop = nir_cf_node_as_loop(next);
+
+            /* We treat this loop like any other block, so we don't do LICM
+             * from it per se, but if this loop is nested inside another
+             * loop, we still do LICM for the outer loop.
+             */
+            progress |= visit_cf_list(&loop->body, state);
+            progress |= visit_cf_list(&loop->continue_list, state);
+         }
          break;
       }
       case nir_cf_node_if: {
@@ -119,23 +153,9 @@ visit_cf_list(struct exec_list *list, licm_state *state)
          progress |= visit_cf_list(&nif->else_list, state);
          break;
       }
-      case nir_cf_node_loop: {
-         nir_loop *inner_loop = nir_cf_node_as_loop(node);
-         nir_loop *outer_loop = state->loop;
-
-         /* If we don't optimize this loop, we treat it like a block, so we
-          * don't do LICM from it per se, but if this loop is nested inside
-          * another loop that's optimized, we still do LICM from this CF list
-          * for the outer loop.
-          */
-         if (should_optimize_loop(inner_loop))
-            state->loop = inner_loop;
-
-         progress |= visit_cf_list(&inner_loop->body, state);
-         progress |= visit_cf_list(&inner_loop->continue_list, state);
-         state->loop = outer_loop;
+      case nir_cf_node_loop:
+         /* All loops are handled when handling their predecessor block. */
          break;
-      }
       case nir_cf_node_function:
          UNREACHABLE("NIR LICM: Unsupported cf_node type.");
       }
