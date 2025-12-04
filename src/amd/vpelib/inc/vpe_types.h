@@ -998,6 +998,18 @@ struct vpe_engine {
     struct vpe_check_support_funcs check_funcs; /**< vpe check format support funcs */
 };
 
+#ifdef VPE_REGISTER_PROFILE
+/** @struct vpe_register_count
+ *  @brief VPE register profiling information
+ */
+struct vpe_register_count {
+    uint64_t total_register_count;        /**< Total Registers Accessed */
+    uint64_t burstmode_register_count;    /**< Burst Mode Registers Accessed */
+    uint64_t nonburstmode_register_count; /**< Non-Burst Mode Registers Accessed */
+    uint64_t total_config_count;          /**< Total Config Descriptors */
+    uint64_t reused_config_count;         /**< Total Re-used Config Descriptors */
+};
+#endif
 #ifdef __cplusplus
 }
 #endif

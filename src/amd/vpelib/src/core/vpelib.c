@@ -912,6 +912,27 @@ enum vpe_status vpe_build_commands(
     return status;
 }
 
+#ifdef VPE_REGISTER_PROFILE
+enum vpe_status vpe_get_register_profile_data(struct vpe *vpe, const struct vpe_build_param *param,
+    struct vpe_build_bufs *bufs, struct vpe_register_count *reg_count)
+{
+    struct vpe_priv *vpe_priv;
+
+    vpe_priv = container_of(vpe, struct vpe_priv, pub);
+    // call build commands to get the register profile data
+    enum vpe_status status = vpe_build_commands(vpe, param, bufs);
+
+    // populate the register count data and return
+    reg_count->total_register_count        = vpe_priv->config_writer.total_register_count;
+    reg_count->burstmode_register_count    = vpe_priv->config_writer.burstMode_register_count;
+    reg_count->nonburstmode_register_count = vpe_priv->config_writer.nonBurstMode_register_count;
+    reg_count->total_config_count          = vpe_priv->config_writer.total_config_count;
+    reg_count->reused_config_count         = vpe_priv->config_writer.reused_config_count;
+
+    return status;
+}
+#endif
+
 void vpe_get_optimal_num_of_taps(struct vpe *vpe, struct vpe_scaling_info *scaling_info)
 {
     struct vpe_priv *vpe_priv;

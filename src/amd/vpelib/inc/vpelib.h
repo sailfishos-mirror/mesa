@@ -117,6 +117,24 @@ enum vpe_status vpe_build_noops(struct vpe *vpe, uint32_t num_dwords, uint32_t *
 enum vpe_status vpe_build_commands(
     struct vpe *vpe, const struct vpe_build_param *param, struct vpe_build_bufs *bufs);
 
+#ifdef VPE_REGISTER_PROFILE
+/**
+ * Wrapper function for vpe_build_commands to be used with profiling
+ * caller must call vpe_check_support() before this function,
+ * unexpected result otherwise.
+ *
+ * @param[in]  vpe      vpe instance created by vpe_create()
+ * @param[in]  param    vpe build params
+ * @param[in,out]  bufs  [in]  memory allocated for the command buffer, embedded buffer and 3dlut.
+ *                             If size is 0, it reports the required size for this checked
+ * operation. [out] the next write address and the filled sizes.
+ * @param[out]  reg_counts  register profiling data collected during command building
+ * @return status
+ */
+
+enum vpe_status vpe_get_register_profile_data(struct vpe *vpe, const struct vpe_build_param *param,
+    struct vpe_build_bufs *bufs, struct vpe_register_count *reg_count);
+#endif
 /**
  * get the optimal number of taps based on the scaling ratio.
  * @param[in]  vpe      vpe instance created by vpe_create()
