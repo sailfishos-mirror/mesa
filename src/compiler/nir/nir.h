@@ -4970,6 +4970,18 @@ nir_block *nir_cf_node_cf_tree_prev(nir_cf_node *node);
         block != nir_cf_node_cf_tree_prev(node);               \
         block = prev, prev = nir_block_cf_tree_prev(block))
 
+static inline nir_block *
+nir_loop_predecessor_block(nir_loop *loop)
+{
+   return nir_cf_node_cf_tree_prev(&loop->cf_node);
+}
+
+static inline nir_block *
+nir_loop_successor_block(nir_loop *loop)
+{
+   return nir_cf_node_cf_tree_next(&loop->cf_node);
+}
+
 /* If the following CF node is an if, this function returns that if.
  * Otherwise, it returns NULL.
  */
