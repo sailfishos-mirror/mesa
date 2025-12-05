@@ -346,7 +346,7 @@ stream_state(struct iris_batch *batch,
    struct iris_bo *bo = iris_resource_bo(*out_res);
    iris_use_pinned_bo(batch, bo, false, IRIS_DOMAIN_NONE);
 
-   iris_record_state_size(batch->state_sizes,
+   iris_record_state_size(bo->bufmgr, batch->state_sizes,
                           bo->address + *out_offset, size);
 
    *out_offset += iris_bo_offset_from_base_address(bo);
@@ -1085,7 +1085,8 @@ upload_pixel_hashing_tables(struct iris_batch *batch)
    pipe_buffer_unmap(&ice->ctx, transfer);
 
    iris_use_pinned_bo(batch, res->bo, false, IRIS_DOMAIN_NONE);
-   iris_record_state_size(batch->state_sizes, res->bo->address + res->offset, size);
+   iris_record_state_size(res->bo->bufmgr, batch->state_sizes,
+                          res->bo->address + res->offset, size);
 
    iris_emit_cmd(batch, GENX(3DSTATE_SLICE_TABLE_STATE_POINTERS), ptr) {
       ptr.SliceHashStatePointerValid = true;
@@ -2738,7 +2739,7 @@ iris_upload_sampler_states(struct iris_context *ice, mesa_shader_stage stage)
    struct pipe_resource *res = shs->sampler_table.res;
    struct iris_bo *bo = iris_resource_bo(res);
 
-   iris_record_state_size(ice->state.sizes,
+   iris_record_state_size(bo->bufmgr, ice->state.sizes,
                           bo->address + shs->sampler_table.offset, size);
 
    shs->sampler_table.offset += iris_bo_offset_from_base_address(bo);

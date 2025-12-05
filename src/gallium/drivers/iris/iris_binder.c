@@ -123,7 +123,7 @@ iris_binder_reserve_gen(struct iris_context *ice)
    binder->bt_offset[MESA_SHADER_FRAGMENT] =
       iris_binder_reserve(ice, sizeof(uint32_t));
 
-   iris_record_state_size(ice->state.sizes,
+   iris_record_state_size(binder->bo->bufmgr, ice->state.sizes,
                           binder->bo->address +
                           binder->bt_offset[MESA_SHADER_FRAGMENT],
                           sizeof(uint32_t));
@@ -189,7 +189,7 @@ iris_binder_reserve_3d(struct iris_context *ice)
    for (int stage = 0; stage <= MESA_SHADER_FRAGMENT; stage++) {
       if (ice->state.stage_dirty & (IRIS_STAGE_DIRTY_BINDINGS_VS << stage)) {
          binder->bt_offset[stage] = sizes[stage] > 0 ? offset : 0;
-         iris_record_state_size(ice->state.sizes,
+         iris_record_state_size(binder->bo->bufmgr, ice->state.sizes,
                                 binder->bo->address + offset, sizes[stage]);
          offset += sizes[stage];
       }
