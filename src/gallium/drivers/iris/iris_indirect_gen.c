@@ -126,7 +126,7 @@ upload_state(struct iris_batch *batch,
              unsigned alignment)
 {
    void *p = NULL;
-   u_upload_alloc_ref(uploader, 0, size, alignment, &ref->offset, &ref->res, &p);
+   iris_u_upload_alloc_ref_to_iris_state_ref(uploader, 0, size, alignment, ref, &p);
    iris_use_pinned_bo(batch, iris_resource_bo(ref->res), false, IRIS_DOMAIN_NONE);
    return p;
 }

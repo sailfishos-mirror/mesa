@@ -176,9 +176,8 @@ iris_upload_shader(struct iris_screen *screen,
                    const void *key,
                    const void *assembly)
 {
-   u_upload_alloc_ref(uploader, 0, shader->program_size, 64,
-                  &shader->assembly.offset, &shader->assembly.res,
-                  &shader->map);
+   iris_u_upload_alloc_ref_to_iris_state_ref(uploader, 0, shader->program_size,
+                                             64, &shader->assembly, &shader->map);
    memcpy(shader->map, assembly, shader->program_size);
 
    struct iris_resource *res = (void *) shader->assembly.res;

@@ -505,4 +505,29 @@ void iris_resource_finish_render(struct iris_context *ice,
                                  enum isl_aux_usage aux_usage);
 
 void iris_surface_destroy(struct iris_surface *surf);
+
+static inline void
+iris_u_upload_alloc_ref_to_iris_state_ref(struct u_upload_mgr *upload,
+                                          unsigned min_out_offset,
+                                          unsigned size,
+                                          unsigned alignment,
+                                          struct iris_state_ref *state_ref,
+                                          void **ptr)
+{
+   u_upload_alloc_ref(upload, min_out_offset, size, alignment, &state_ref->offset,
+                      &state_ref->res, ptr);
+}
+
+static inline void
+iris_u_upload_data_ref_to_iris_state_ref(struct u_upload_mgr *upload,
+                                         unsigned min_out_offset,
+                                         unsigned size,
+                                         unsigned alignment,
+                                         const void *data,
+                                         struct iris_state_ref *state_ref)
+{
+   u_upload_data_ref(upload, min_out_offset, size, alignment, data, &state_ref->offset,
+                     &state_ref->res);
+}
+
 #endif

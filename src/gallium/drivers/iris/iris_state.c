@@ -320,7 +320,7 @@ upload_state(struct u_upload_mgr *uploader,
              unsigned alignment)
 {
    void *p = NULL;
-   u_upload_alloc_ref(uploader, 0, size, alignment, &ref->offset, &ref->res, &p);
+   iris_u_upload_alloc_ref_to_iris_state_ref(uploader, 0, size, alignment, ref, &p);
    return p;
 }
 
