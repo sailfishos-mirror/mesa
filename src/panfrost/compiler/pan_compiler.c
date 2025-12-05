@@ -33,6 +33,15 @@
 
 #include "panfrost/model/pan_model.h"
 
+bool
+pan_will_dump_shaders(unsigned arch)
+{
+   if (arch >= 6)
+      return bifrost_will_dump_shaders();
+   else
+      return midgard_will_dump_shaders();
+}
+
 const nir_shader_compiler_options *
 pan_get_nir_shader_compiler_options(unsigned arch)
 {

@@ -78,6 +78,13 @@ DEBUG_GET_ONCE_FLAGS_OPTION(bifrost_debug, "BIFROST_MESA_DEBUG",
 
 unsigned bifrost_debug = 0;
 
+bool
+bifrost_will_dump_shaders(void)
+{
+   bifrost_debug = debug_get_option_bifrost_debug();
+   return bifrost_debug & BIFROST_DBG_SHADERS;
+}
+
 static bi_block *emit_cf_list(bi_context *ctx, struct exec_list *list);
 
 static bi_index

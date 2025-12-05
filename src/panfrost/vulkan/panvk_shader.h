@@ -547,6 +547,9 @@ struct panvk_internal_shader {
 VK_DEFINE_NONDISP_HANDLE_CASTS(panvk_internal_shader, vk.base, VkShaderEXT,
                                VK_OBJECT_TYPE_SHADER_EXT)
 
+void panvk_per_arch(compiler_lock)(void);
+void panvk_per_arch(compiler_unlock)(void);
+
 VkResult panvk_per_arch(create_internal_shader)(
    struct panvk_device *dev, nir_shader *nir,
    struct pan_compile_inputs *compiler_inputs,

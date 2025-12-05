@@ -1488,12 +1488,12 @@ panvk_per_arch(create_shader_from_binary)(struct panvk_device *dev,
 }
 
 static VkResult
-panvk_compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
-                      struct vk_shader_compile_info *infos,
-                      const struct vk_graphics_pipeline_state *state,
-                      const struct vk_features *enabled_features,
-                      const VkAllocationCallbacks *pAllocator,
-                      struct vk_shader **shaders_out)
+compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
+                struct vk_shader_compile_info *infos,
+                const struct vk_graphics_pipeline_state *state,
+                const struct vk_features *enabled_features,
+                const VkAllocationCallbacks *pAllocator,
+                struct vk_shader **shaders_out)
 {
    struct panvk_device *dev = to_panvk_device(vk_dev);
    bool use_static_noperspective = false;
@@ -1546,6 +1546,41 @@ err_cleanup:
 
    /* Memset the output array */
    memset(shaders_out, 0, shader_count * sizeof(*shaders_out));
+
+   return result;
+}
+
+static simple_mtx_t compiler_mutex = SIMPLE_MTX_INITIALIZER;
+
+void
+panvk_per_arch(compiler_lock)(void)
+{
+   if (pan_will_dump_shaders(PAN_ARCH) || PANVK_DEBUG(NIR))
+      simple_mtx_lock(&compiler_mutex);
+}
+
+void
+panvk_per_arch(compiler_unlock)(void)
+{
+   if (pan_will_dump_shaders(PAN_ARCH) || PANVK_DEBUG(NIR))
+      simple_mtx_unlock(&compiler_mutex);
+}
+
+static VkResult
+panvk_compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
+                      struct vk_shader_compile_info *infos,
+                      const struct vk_graphics_pipeline_state *state,
+                      const struct vk_features *enabled_features,
+                      const VkAllocationCallbacks *pAllocator,
+                      struct vk_shader **shaders_out)
+{
+   panvk_per_arch(compiler_lock)();
+
+   VkResult result = compile_shaders(vk_dev, shader_count, infos, state,
+                                     enabled_features, pAllocator,
+                                     shaders_out);
+
+   panvk_per_arch(compiler_unlock)();
 
    return result;
 }
@@ -2320,8 +2355,12 @@ panvk_per_arch(create_internal_shader)(
    VkResult result;
    struct util_dynarray binary;
 
+   panvk_per_arch(compiler_lock)();
+
    util_dynarray_init(&binary, nir);
    pan_shader_compile(nir, compiler_inputs, &binary, &shader->info);
+
+   panvk_per_arch(compiler_unlock)();
 
    unsigned bin_size = util_dynarray_num_elements(&binary, uint8_t);
    if (bin_size) {
