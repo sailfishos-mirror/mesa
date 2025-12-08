@@ -187,6 +187,24 @@ variables:
     KERNEL_IMAGE_TYPE: "image"
     BOOT_METHOD: u-boot
 
+.lava-arm64-test-android:
+  extends:
+    - .use-debian/arm64_test-android
+    - .lava-arm64-test
+    - .android-variables
+  variables:
+    HWCI_KERNEL_MODULES: vhost_vsock
+    HWCI_TEST_SCRIPT: install/cuttlefish-runner.sh
+    S3_ANDROID_ARTIFACT_NAME: mesa-arm64-android-debug
+  needs:
+    - job: debian/arm64_test-android
+      artifacts: false
+      optional: true
+    - job: debian-arm64  # The generic Linux build for the host will be downloaded later
+      artifacts: false
+    - job: debian-android  # The Android build for the guest will be downloaded later and installed via adb
+      artifacts: false
+
 .lava-arm64-test-gl:
   extends:
     - .use-debian/arm64_test-gl

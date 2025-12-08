@@ -55,6 +55,19 @@
     - !reference [.venus-collabora-manual-rules, rules]
     - !reference [.anv-manual-rules, rules]
 
+.venus-tu-rules:
+  stage: layered-backends
+  rules:
+    - !reference [.venus-collabora-rules, rules]
+    - !reference [.collabora-turnip-rules, rules]
+
+.venus-tu-manual-rules:
+  stage: layered-backends-nightly
+  extends: .no-auto-retry
+  rules:
+    - !reference [.venus-collabora-manual-rules, rules]
+    - !reference [.collabora-turnip-manual-rules, rules]
+
 
 .venus-lavapipe-test:
   extends:
@@ -78,3 +91,11 @@
   variables:
     CUTTLEFISH_GPU_MODE: venus_guest_angle
     VK_DRIVER: intel
+
+.android-angle-venus-tu-test:
+  extends:
+    - .lava-arm64-test-android
+    - .test-angle
+  variables:
+    CUTTLEFISH_GPU_MODE: venus_guest_angle
+    VK_DRIVER: freedreno

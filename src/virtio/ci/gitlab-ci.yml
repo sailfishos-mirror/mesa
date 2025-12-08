@@ -91,3 +91,12 @@ android-angle-venus-anv-adl:
     DEQP_SUITE: android-angle-venus-anv
     GPU_VERSION: android-angle-venus-anv
     HWCI_KERNEL_MODULES: "xe,vhost_vsock"
+
+android-angle-venus-tu-a618:
+  extends:
+    - .android-angle-venus-tu-test
+    - .lava-sc7180-trogdor-wormdingler-rev1-boe:arm64  # TODO: move to .lava-sc7180-trogdor-kingoftown:arm64 once its network config is fixed
+    - .venus-tu-manual-rules
+  variables:
+    DEQP_SUITE: android-angle-venus-tu
+    GPU_VERSION: android-angle-venus-tu
