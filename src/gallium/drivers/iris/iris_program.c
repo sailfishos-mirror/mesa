@@ -1498,14 +1498,13 @@ iris_setup_binding_table(const struct intel_device_info *devinfo,
     * surfaces.  After this point, the functions to go between "group indices"
     * and binding table indices can be used.
     */
-   uint32_t next = 0;
+   bt->total_surf_count = 0;
    for (int i = 0; i < IRIS_SURFACE_GROUP_COUNT; i++) {
       if (bt->used_mask[i] != 0) {
-         bt->offsets[i] = next;
-         next += util_bitcount64(bt->used_mask[i]);
+         bt->offsets[i] = bt->total_surf_count;
+         bt->total_surf_count += util_bitcount64(bt->used_mask[i]);
       }
    }
-   bt->size_bytes = next * 4;
 
    if (INTEL_DEBUG(DEBUG_BT)) {
       iris_print_binding_table(stderr, mesa_shader_stage_name(info->stage), bt);

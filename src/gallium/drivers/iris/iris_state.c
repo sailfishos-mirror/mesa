@@ -5045,7 +5045,7 @@ encode_surface_count(const struct iris_screen *screen,
        !screen->driconf.force_compute_surface_prefetch)
       return 0;
 #endif
-   return shader->bt.size_bytes / 4;
+   return shader->bt.total_surf_count;
 }
 
 #define INIT_THREAD_DISPATCH_FIELDS(pkt, prefix, stage)                   \
@@ -5747,7 +5747,7 @@ use_image(struct iris_batch *batch, struct iris_context *ice,
 
 #define push_bt_entry(addr) \
    assert(addr >= surf_base_offset); \
-   assert(s < shader->bt.size_bytes / sizeof(uint32_t)); \
+   assert(s < shader->bt.total_surf_count); \
    if (!pin_only) bt_map[s++] = (addr) - surf_base_offset;
 
 #define bt_assert(section) \

@@ -598,7 +598,7 @@ enum {
 };
 
 struct iris_binding_table {
-   uint32_t size_bytes;
+   uint32_t total_surf_count;
 
    /** Number of surfaces in each group, before compacting. */
    uint32_t surf_count[IRIS_SURFACE_GROUP_COUNT];

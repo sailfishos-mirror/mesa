@@ -157,7 +157,8 @@ iris_binder_reserve_3d(struct iris_context *ice)
          continue;
 
       /* Round up the size so our next table has an aligned starting offset */
-      sizes[stage] = align(shaders[stage]->bt.size_bytes, binder->alignment);
+      uint32_t size_bytes = shaders[stage]->bt.total_surf_count * sizeof(uint32_t);
+      sizes[stage] = align(size_bytes, binder->alignment);
    }
 
    /* Make space for the new binding tables...this may take two tries. */
@@ -210,7 +211,7 @@ iris_binder_reserve_compute(struct iris_context *ice)
    struct iris_compiled_shader *shader =
       ice->shaders.prog[MESA_SHADER_COMPUTE];
 
-   unsigned size = shader->bt.size_bytes;
+   unsigned size = shader->bt.total_surf_count * sizeof(uint32_t);
 
    if (size == 0)
       return;
