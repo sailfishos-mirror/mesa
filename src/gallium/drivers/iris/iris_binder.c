@@ -35,6 +35,12 @@
 #include "iris_context.h"
 
 static bool
+binder_is_used(struct iris_binder *binder)
+{
+   return binder->size > 0;
+}
+
+static bool
 binder_has_space(struct iris_binder *binder, unsigned size)
 {
    return binder->insert_point + size <= binder->size;
@@ -93,6 +99,9 @@ iris_binder_reserve(struct iris_context *ice,
 {
    struct iris_binder *binder = &ice->state.binder;
 
+   if (!binder_is_used(binder))
+      return 0;
+
    if (!binder_has_space(binder, size))
       binder_realloc(ice);
 
@@ -107,6 +116,9 @@ void
 iris_binder_reserve_gen(struct iris_context *ice)
 {
    struct iris_binder *binder = &ice->state.binder;
+
+   if (!binder_is_used(binder))
+      return;
 
    binder->bt_offset[MESA_SHADER_FRAGMENT] =
       iris_binder_reserve(ice, sizeof(uint32_t));
@@ -130,6 +142,9 @@ iris_binder_reserve_3d(struct iris_context *ice)
    struct iris_binder *binder = &ice->state.binder;
    unsigned sizes[MESA_SHADER_STAGES] = {};
    unsigned total_size;
+
+   if (!binder_is_used(binder))
+      return;
 
    /* If nothing is dirty, skip all this. */
    if (!(ice->state.dirty & IRIS_DIRTY_RENDER_BUFFER) &&
@@ -188,6 +203,10 @@ iris_binder_reserve_compute(struct iris_context *ice)
       return;
 
    struct iris_binder *binder = &ice->state.binder;
+
+   if (!binder_is_used(binder))
+      return;
+
    struct iris_compiled_shader *shader =
       ice->shaders.prog[MESA_SHADER_COMPUTE];
 
@@ -204,6 +223,9 @@ iris_binder_pin(struct iris_batch *batch)
 {
    struct iris_binder *binder = &batch->ice->state.binder;
 
+   if (!binder_is_used(binder))
+      return;
+
    iris_use_pinned_bo(batch, binder->bo, false, IRIS_DOMAIN_NONE);
 }
 
@@ -214,6 +236,9 @@ iris_init_binder(struct iris_context *ice)
    const struct intel_device_info *devinfo = screen->devinfo;
 
    memset(&ice->state.binder, 0, sizeof(struct iris_binder));
+
+   if (iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr))
+      return;
 
    /* We use different binding table pointer formats on various generations.
     *
