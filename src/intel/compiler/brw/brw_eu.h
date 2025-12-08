@@ -1589,7 +1589,7 @@ brw_set_desc(struct brw_codegen *p, brw_eu_inst *insn, unsigned desc, bool gathe
    brw_set_desc_ex(p, insn, desc, 0, gather);
 }
 
-void brw_set_uip_jip(struct brw_codegen *p, int start_offset);
+void brw_set_uip_jip(struct brw_codegen *p, int start_offset, int final_halt_offset);
 
 enum brw_conditional_mod brw_negate_cmod(enum brw_conditional_mod cmod);
 enum brw_conditional_mod brw_swap_cmod(enum brw_conditional_mod cmod);

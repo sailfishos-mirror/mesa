@@ -40,8 +40,6 @@ private:
    void generate_scratch_header(brw_inst *inst,
                                 struct brw_reg dst, struct brw_reg src);
 
-   void generate_halt(brw_inst *inst);
-
    void generate_mov_indirect(brw_inst *inst,
                               struct brw_reg dst,
                               struct brw_reg reg,
@@ -68,7 +66,9 @@ private:
 
    unsigned dispatch_width; /**< 8, 16 or 32 */
 
-   brw_exec_list discard_halt_patches;
+   int final_halt_offset;
+   bool needs_final_halt;
+
    bool debug_flag;
    const char *shader_name;
    mesa_shader_stage stage;
