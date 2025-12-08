@@ -8614,8 +8614,7 @@ iris_upload_render_state(struct iris_context *ice,
     * context, and need it anyway.  Since true zero-bindings cases are
     * practically non-existent, just pin it and avoid last_res tracking.
     */
-   iris_use_pinned_bo(batch, ice->state.binder.bo, false,
-                      IRIS_DOMAIN_NONE);
+   iris_binder_pin(batch);
 
    if (!batch->contains_draw) {
       if (GFX_VER == 12) {
@@ -8822,8 +8821,7 @@ iris_upload_indirect_render_state(struct iris_context *ice,
     * context, and need it anyway.  Since true zero-bindings cases are
     * practically non-existent, just pin it and avoid last_res tracking.
     */
-   iris_use_pinned_bo(batch, ice->state.binder.bo, false,
-                      IRIS_DOMAIN_NONE);
+   iris_binder_pin(batch);
 
    if (!batch->contains_draw) {
       /* Re-emit constants when starting a new batch buffer in order to
@@ -8921,8 +8919,7 @@ iris_upload_indirect_shader_render_state(struct iris_context *ice,
     * context, and need it anyway.  Since true zero-bindings cases are
     * practically non-existent, just pin it and avoid last_res tracking.
     */
-   iris_use_pinned_bo(batch, ice->state.binder.bo, false,
-                      IRIS_DOMAIN_NONE);
+   iris_binder_pin(batch);
 
    if (!batch->contains_draw) {
       if (GFX_VER == 12) {
@@ -8989,8 +8986,7 @@ iris_upload_indirect_shader_render_state(struct iris_context *ice,
     * context, and need it anyway.  Since true zero-bindings cases are
     * practically non-existent, just pin it and avoid last_res tracking.
     */
-   iris_use_pinned_bo(batch, ice->state.binder.bo, false,
-                      IRIS_DOMAIN_NONE);
+   iris_binder_pin(batch);
 
    /* Wa_1306463417 - Send HS state for every primitive on gfx11.
     * Wa_16011107343 (same for gfx12)
@@ -9435,7 +9431,7 @@ iris_upload_compute_state(struct iris_context *ice,
     * context, and need it anyway.  Since true zero-bindings cases are
     * practically non-existent, just pin it and avoid last_res tracking.
     */
-   iris_use_pinned_bo(batch, ice->state.binder.bo, false, IRIS_DOMAIN_NONE);
+   iris_binder_pin(batch);
 
    if ((stage_dirty & IRIS_STAGE_DIRTY_CONSTANTS_CS) &&
         shs->sysvals_need_upload)

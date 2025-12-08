@@ -200,6 +200,14 @@ iris_binder_reserve_compute(struct iris_context *ice)
 }
 
 void
+iris_binder_pin(struct iris_batch *batch)
+{
+   struct iris_binder *binder = &batch->ice->state.binder;
+
+   iris_use_pinned_bo(batch, binder->bo, false, IRIS_DOMAIN_NONE);
+}
+
+void
 iris_init_binder(struct iris_context *ice)
 {
    struct iris_screen *screen = (void *) ice->ctx.screen;
