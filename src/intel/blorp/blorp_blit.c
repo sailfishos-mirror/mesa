@@ -47,8 +47,7 @@ struct blorp_blit_vars {
 };
 
 static void
-blorp_blit_vars_init(nir_builder *b, struct blorp_blit_vars *v,
-                     const struct blorp_blit_prog_key *key)
+blorp_blit_vars_init(nir_builder *b, struct blorp_blit_vars *v)
 {
 #define LOAD_INPUT(name, type)\
    v->v_##name = BLORP_CREATE_NIR_INPUT(b->shader, name, type);
@@ -1227,7 +1226,7 @@ blorp_build_nir_shader(struct blorp_context *blorp,
    blorp_nir_init_shader(&b, blorp, mem_ctx, stage, NULL);
 
    struct blorp_blit_vars v;
-   blorp_blit_vars_init(&b, &v, key);
+   blorp_blit_vars_init(&b, &v);
 
    dst_pos = compute ?
       blorp_blit_get_cs_dst_coords(&b, key, &v) :
