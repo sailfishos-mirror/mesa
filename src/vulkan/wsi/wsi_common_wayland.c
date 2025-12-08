@@ -1670,7 +1670,15 @@ wsi_GetPhysicalDeviceWaylandPresentationSupportKHR(VkPhysicalDevice physicalDevi
    struct wsi_wayland *wsi =
       (struct wsi_wayland *)wsi_device->wsi[VK_ICD_WSI_PLATFORM_WAYLAND];
 
-   if (!(wsi_device->queue_supports_blit & BITFIELD64_BIT(queueFamilyIndex)))
+   /* These should overlap. */
+   uint64_t effective_queues = wsi_device->queue_supports_blit & wsi_device->queue_supports_timestamps;
+
+   /* If there are no queues that support both blits and timestamps,
+    * don't report support for queue timestamps. */
+   if (!effective_queues)
+      effective_queues = wsi_device->queue_supports_blit;
+
+   if (!(effective_queues & BITFIELD64_BIT(queueFamilyIndex)))
       return false;
 
    struct wsi_wl_display display;
@@ -2469,6 +2477,7 @@ struct wsi_wl_present_id {
    uint64_t target_time;
    uint64_t correction;
    struct wl_list link;
+   struct wsi_image *img;
    bool user_target_time;
 };
 
@@ -2903,7 +2912,7 @@ presentation_handle_presented(void *data,
    /* Notify this before present wait to reduce latency of presentation timing requests
     * if the application is driving its queries based off present waits. */
    if (id->timing_serial)
-      wsi_swapchain_present_timing_notify_completion(&chain->base, id->timing_serial, presentation_time);
+      wsi_swapchain_present_timing_notify_completion(&chain->base, id->timing_serial, presentation_time, id->img);
 
    mtx_lock(&chain->present_ids.lock);
    chain->present_ids.refresh_nsec = refresh;
@@ -2940,7 +2949,7 @@ presentation_handle_discarded(void *data)
     * applications may start to latch onto that timestamp as ground truth, which
     * is obviously not correct. */
    if (id->timing_serial)
-      wsi_swapchain_present_timing_notify_completion(&chain->base, id->timing_serial, 0);
+      wsi_swapchain_present_timing_notify_completion(&chain->base, id->timing_serial, 0, id->img);
 
    mtx_lock(&chain->present_ids.lock);
    if (!chain->present_ids.valid_refresh_nsec) {
@@ -3217,6 +3226,7 @@ wsi_wl_swapchain_queue_present(struct wsi_swapchain *wsi_chain,
       id->present_id = present_id;
       id->alloc = chain->wsi_wl_surface->display->wsi_wl->alloc;
       id->timing_serial = chain->timing_request.serial;
+      id->img = &chain->images[image_index].base;
       id->user_target_time = chain->timing_request.time != 0;
 
       mtx_lock(&chain->present_ids.lock);

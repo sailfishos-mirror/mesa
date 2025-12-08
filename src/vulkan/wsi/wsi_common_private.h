@@ -188,6 +188,9 @@ struct wsi_image {
    int dma_buf_fd;
 #endif
    void *cpu_map;
+
+   VkQueryPool query_pool;
+   VkCommandBuffer *timestamp_cmd_buffers;
 };
 
 struct wsi_presentation_timing {
@@ -196,6 +199,10 @@ struct wsi_presentation_timing {
    uint64_t serial;
    uint64_t queue_done_time; /* GPU timestamp based. */
    uint64_t complete_time; /* Best effort timestamp we get from backend. */
+   /* If we're rendering with IMMEDIATE, it's possible for images to IDLE long before they complete.
+    * In this case, we have to ensure that queue_done_time is sampled at QueuePresentKHR time
+    * before we recycle an image. */
+   struct wsi_image *image;
    VkPresentStageFlagsEXT requested_feedback;
    VkBool32 complete;
 };
@@ -272,6 +279,11 @@ struct wsi_swapchain {
       uint64_t refresh_counter;
 
       VkTimeDomainKHR time_domain;
+
+      VkPresentStageFlagsEXT supported_query_stages;
+      /* Ensures monotonicity for complete_time. */
+      uint64_t minimum_queue_done_time;
+      uint64_t minimum_complete_time;
    } present_timing;
 
    bool capture_key_pressed;
@@ -410,6 +422,10 @@ wsi_create_image(const struct wsi_swapchain *chain,
 void
 wsi_image_init(struct wsi_image *image);
 
+VkResult
+wsi_image_init_timestamp(const struct wsi_swapchain *chain,
+                         struct wsi_image *image);
+
 void
 wsi_destroy_image(const struct wsi_swapchain *chain,
                   struct wsi_image *image);
@@ -420,7 +436,8 @@ wsi_swapchain_wait_for_present_semaphore(const struct wsi_swapchain *chain,
 
 void
 wsi_swapchain_present_timing_notify_completion(struct wsi_swapchain *chain,
-                                               uint64_t timing_serial, uint64_t timestamp);
+                                               uint64_t timing_serial, uint64_t timestamp,
+                                               struct wsi_image *image);
 
 void
 wsi_swapchain_present_timing_update_refresh_rate(struct wsi_swapchain *chain,
