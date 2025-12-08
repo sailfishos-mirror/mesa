@@ -6844,16 +6844,23 @@ setup_autostrip_state(struct iris_context *ice,
 }
 
 static void
+iris_populate_binding_tables(struct iris_context *ice, struct iris_batch *batch,
+                             uint64_t stage_dirty)
+{
+   for (int stage = 0; stage <= MESA_SHADER_FRAGMENT; stage++) {
+      if (stage_dirty & (IRIS_STAGE_DIRTY_BINDINGS_VS << stage)) {
+         iris_populate_binding_table(ice, batch, stage, false);
+      }
+   }
+}
+
+static void
 iris_emit_binding_tables(struct iris_context *ice, struct iris_batch *batch,
                          uint64_t stage_dirty)
 {
    struct iris_binder *binder = &ice->state.binder;
 
    for (int stage = 0; stage <= MESA_SHADER_FRAGMENT; stage++) {
-      if (stage_dirty & (IRIS_STAGE_DIRTY_BINDINGS_VS << stage)) {
-         iris_populate_binding_table(ice, batch, stage, false);
-      }
-
       /* Gfx9 requires 3DSTATE_BINDING_TABLE_POINTERS_XS to be re-emitted
        * in order to commit constants.  TODO: Investigate "Disable Gather
        * at Set Shader" to go back to legacy mode...
@@ -7299,6 +7306,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
    }
 #endif
 
+   iris_populate_binding_tables(ice, batch, stage_dirty);
    iris_emit_push_constants(ice, batch, dirty, stage_dirty);
    iris_emit_binding_tables(ice, batch, stage_dirty);
 
