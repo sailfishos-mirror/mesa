@@ -774,7 +774,7 @@
         "description": "brw/algebraic: Allow mixed types in saturate constant folding",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f8e54d02f79057f679302c06847066edc3ae7aa7",
         "notes": null
