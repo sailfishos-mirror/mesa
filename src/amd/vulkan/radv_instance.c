@@ -125,6 +125,7 @@ static const struct debug_control radv_perftest_options[] = {
    {"nogttspill", RADV_PERFTEST_NO_GTT_SPILL},
    {"hic", RADV_PERFTEST_HIC},
    {"sparse", RADV_PERFTEST_SPARSE},
+   {"rtcps", RADV_PERFTEST_RT_CPS},
    {NULL, 0},
 };
 

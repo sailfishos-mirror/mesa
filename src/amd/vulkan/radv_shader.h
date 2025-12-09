@@ -651,6 +651,10 @@ bool radv_consider_culling(const struct radv_physical_device *pdev, struct nir_s
 
 void radv_get_nir_options(struct radv_physical_device *pdev);
 
+enum radv_rt_lowering_mode {
+   RADV_RT_LOWERING_MODE_MONOLITHIC,
+   RADV_RT_LOWERING_MODE_CPS,
+};
 
 enum radv_rt_priority {
    radv_rt_priority_raygen = 0,
