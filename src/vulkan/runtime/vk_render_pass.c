@@ -356,6 +356,25 @@ vk_render_pass_attachment_init(struct vk_render_pass_attachment *att,
       .has_external_format =
          vk_android_rp_attachment_has_external_format(desc),
    };
+
+   /* We require separate stencil layouts */
+   if (att->aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
+      att->initial_layout = vk_image_layout_depth_only(att->initial_layout);
+      att->final_layout = vk_image_layout_depth_only(att->final_layout);
+   } else if (att->aspects == VK_IMAGE_ASPECT_STENCIL_BIT) {
+      att->initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+      att->final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+   }
+
+   if (att->aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
+      att->initial_stencil_layout =
+         vk_image_layout_stencil_only(att->initial_stencil_layout);
+      att->final_stencil_layout =
+         vk_image_layout_stencil_only(att->final_stencil_layout);
+   } else {
+      assert(att->initial_stencil_layout == VK_IMAGE_LAYOUT_UNDEFINED);
+      assert(att->final_stencil_layout == VK_IMAGE_LAYOUT_UNDEFINED);
+   }
 }
 
 static void
@@ -384,6 +403,17 @@ vk_subpass_attachment_init(struct vk_subpass_attachment *att,
       .layout =         ref->layout,
       .stencil_layout = vk_att_ref_stencil_layout(ref, attachments),
    };
+
+   /* We require separate stencil layouts */
+   if (att->aspects & VK_IMAGE_ASPECT_DEPTH_BIT)
+      att->layout = vk_image_layout_depth_only(att->layout);
+   else if (att->aspects == VK_IMAGE_ASPECT_STENCIL_BIT)
+      att->layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+   if (att->aspects & VK_IMAGE_ASPECT_STENCIL_BIT)
+      att->stencil_layout = vk_image_layout_stencil_only(att->stencil_layout);
+   else
+      assert(att->stencil_layout == VK_IMAGE_LAYOUT_UNDEFINED);
 
    switch (usage) {
    case VK_IMAGE_USAGE_TRANSFER_DST_BIT:
