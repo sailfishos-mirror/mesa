@@ -10,6 +10,8 @@ enum kk_debug {
    KK_DEBUG_NIR = 1ull << 0,
    /* Print out the generated MSL source code from the compiler */
    KK_DEBUG_MSL = 1ull << 1,
+   /* Forces robustness for all shaders */
+   KK_DEBUG_FORCE_ROBUSTNESS = 1ull << 2,
 };
 
 extern enum kk_debug kk_mesa_debug_flags;

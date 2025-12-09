@@ -10,6 +10,7 @@ enum kk_debug kk_mesa_debug_flags = 0;
 const struct debug_named_value flags[] = {
    {"nir", KK_DEBUG_NIR},
    {"msl", KK_DEBUG_MSL},
+   {"force_robustness", KK_DEBUG_FORCE_ROBUSTNESS},
    {NULL, 0},
 };
 

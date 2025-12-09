@@ -71,11 +71,22 @@ kk_get_nir_options(struct vk_physical_device *vk_pdev, mesa_shader_stage stage,
    return &options;
 }
 
+/* TODO_KOSMICKRISP Once we support robustness2, update these values. */
+static const struct vk_pipeline_robustness_state rs_all_supported = {
+   .uniform_buffers =
+      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
+   .storage_buffers =
+      VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS,
+   .images = VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_ROBUST_IMAGE_ACCESS_2_EXT,
+};
+
 static struct spirv_to_nir_options
 kk_get_spirv_options(struct vk_physical_device *vk_pdev,
                      UNUSED mesa_shader_stage stage,
                      const struct vk_pipeline_robustness_state *rs)
 {
+   if (KK_DEBUG(FORCE_ROBUSTNESS))
+      rs = &rs_all_supported;
    return (struct spirv_to_nir_options){
       .environment = NIR_SPIRV_VULKAN,
       .ssbo_addr_format = kk_buffer_addr_format(rs->storage_buffers),
@@ -435,6 +446,9 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir,
              struct vk_descriptor_set_layout *const *set_layouts,
              const struct vk_graphics_pipeline_state *state)
 {
+   if (KK_DEBUG(FORCE_ROBUSTNESS))
+      rs = &rs_all_supported;
+
    /* Massage IO related variables to please Metal */
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, kk_nir_lower_vs_multiview, state->rp->view_mask);
