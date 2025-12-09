@@ -393,7 +393,10 @@
     CI_TRON_KERNEL__URL: "https://fs.mupuf.org/radv/linux-6.17.3_w_buddy_fixes/linux-x86_64"
     CI_TRON_INITRAMFS__DEPMOD__URL: "https://fs.mupuf.org/radv/linux-6.17.3_w_buddy_fixes/linux-x86_64.depmod.cpio.xz"
     CI_TRON_INITRAMFS__GPU__URL: "https://fs.mupuf.org/radv/linux-6.17.3_w_buddy_fixes/linux-x86_64.gpu_amdgpu.cpio"
-    CI_TRON_INITRAMFS__GPU__FORMAT__0__ARCHIVE__KEEP__0__PATH: "(lib/(modules|firmware/amdgpu)/.*)"
+    CI_TRON_INITRAMFS__GPU__FORMAT__0__ARCHIVE__KEEP__0__PATH: '(lib/modules/.*)'
+    CI_TRON_INITRAMFS_CATEGORY__50_PLATFORM__0__URL: 'https://${S3_BASE_PATH}/${FIRMWARE_REPO}/amdgpu-${FIRMWARE_TAG}.tar'
+    CI_TRON_INITRAMFS_CATEGORY__50_PLATFORM__0__FORMAT__0__ARCHIVE__EXTENSION: 'cpio'
+    CI_TRON_INITRAMFS_CATEGORY__50_PLATFORM__0__FORMAT__0__ARCHIVE__KEEP__0__PATH: '(./lib/firmware/amdgpu/.*)'
     CI_TRON_KERNEL_CMDLINE__LOAD_MODULES: 'modules_load=amdgpu'
     CI_TRON_KERNEL_CMDLINE__AMDGPU_COMMON: "${AMDGPU_COMMON_CMDLINE}"
   tags:
