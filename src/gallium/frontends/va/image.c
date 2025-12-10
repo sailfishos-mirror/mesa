@@ -504,6 +504,12 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
             .x1 = vaimage->width,
             .y1 = vaimage->height,
          },
+         .in_color_range = util_format_is_yuv(surf->buffer->buffer_format) ?
+            PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED : PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL,
+         .out_color_range = util_format_is_yuv(tmp_surf.buffer->buffer_format) ?
+            PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED : PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL,
+         .in_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
+         .out_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
       };
       ret = vlVaPostProcCompositor(drv, surf->buffer, tmp_surf.buffer,
                                    VL_COMPOSITOR_NONE, &param);
@@ -674,6 +680,12 @@ vlVaPutImage(VADriverContextP ctx, VASurfaceID surface, VAImageID image,
             .x1 = dest_x + dest_width,
             .y1 = dest_y + dest_height,
          },
+         .in_color_range = util_format_is_yuv(tmp_surf.buffer->buffer_format) ?
+            PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED : PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL,
+         .out_color_range = util_format_is_yuv(surf->buffer->buffer_format) ?
+            PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED : PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_FULL,
+         .in_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
+         .out_matrix_coefficients = PIPE_VIDEO_VPP_MCF_BT709,
       };
       ret = vlVaPostProcCompositor(drv, tmp_surf.buffer, surf->buffer,
                                    VL_COMPOSITOR_NONE, &param);
