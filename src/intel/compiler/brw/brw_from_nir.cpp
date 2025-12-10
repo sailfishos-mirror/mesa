@@ -3803,6 +3803,16 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
       break;
    }
 
+   case nir_intrinsic_load_coverage_mask_intel: {
+      struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(ntb.s.prog_data);
+      assert(fs_prog_data->uses_sample_mask);
+      bld.MOV(retype(dest, BRW_TYPE_UD),
+              brw_fetch_payload_reg(ntb.bld,
+                                    ntb.s.fs_payload().sample_mask_in_reg,
+                                    BRW_TYPE_UD));
+      break;
+   }
+
    case nir_intrinsic_store_output: {
       const brw_reg src = get_nir_src(ntb, instr->src[0], -1);
       const nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
