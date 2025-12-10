@@ -183,6 +183,7 @@ kk_get_device_features(
       .textureCompressionASTC_LDR = true,
       .textureCompressionBC = true,
       .textureCompressionETC2 = true,
+      .vertexPipelineStoresAndAtomics = true,
 
       /* Vulkan 1.1 */
       .multiview = true,
