@@ -1458,6 +1458,36 @@ fragment_top_block_or_after_wa_18019110168(nir_function_impl *impl)
       post_wa_18019110168_block : nir_start_block(impl);
 }
 
+static bool
+lower_frag_shading_rate(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
+{
+   if (intrin->intrinsic != nir_intrinsic_load_frag_shading_rate)
+      return false;
+
+   b->cursor = nir_before_instr(&intrin->instr);
+
+   /* The shading rates provided in the shader are the actual 2D shading
+    * rate while the SPIR-V built-in is the enum value that has the shading
+    * rate encoded as a bitfield.  Fortunately, the bitfield value is just
+    * the shading rate divided by two and shifted.
+    */
+   nir_def *sr = nir_load_frag_shading_rate_intel(b);
+   nir_def *int_rate_x = nir_ushr_imm(b, nir_channel(b, sr, 0), 1);
+   nir_def *int_rate_y = nir_ushr_imm(b, nir_channel(b, sr, 1), 1);
+   nir_def *rate = nir_ior(b, nir_ishl_imm(b, int_rate_x, 2), int_rate_y);
+
+   nir_def_replace(&intrin->def, rate);
+
+   return true;
+}
+
+static bool
+brw_nir_lower_frag_shading_rate(nir_shader *nir)
+{
+   return nir_shader_intrinsics_pass(nir, lower_frag_shading_rate,
+                                     nir_metadata_control_flow, NULL);
+}
+
 void
 brw_nir_lower_fs_inputs(nir_shader *nir,
                         const struct intel_device_info *devinfo,
@@ -1524,6 +1554,9 @@ brw_nir_lower_fs_inputs(nir_shader *nir,
 
    if (brw_needs_vertex_attributes_bypass(nir))
       brw_nir_lower_fs_barycentrics(nir);
+
+   if (devinfo->ver >= 11)
+      NIR_PASS(_, nir, brw_nir_lower_frag_shading_rate);
 
    if (key->multisample_fbo == INTEL_NEVER) {
       nir_lower_single_sampled_options lss_opts = {

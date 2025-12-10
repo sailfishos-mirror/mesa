@@ -54,7 +54,6 @@ static void brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb, const brw_builder
 static brw_reg emit_samplepos_setup(nir_to_brw_state &ntb);
 static brw_reg emit_sampleid_setup(nir_to_brw_state &ntb);
 static brw_reg emit_samplemaskin_setup(nir_to_brw_state &ntb);
-static brw_reg emit_shading_rate_setup(nir_to_brw_state &ntb);
 
 static void brw_from_nir_emit_impl(nir_to_brw_state &ntb, nir_function_impl *impl);
 static void brw_from_nir_emit_cf_list(nir_to_brw_state &ntb, exec_list *list);
@@ -220,12 +219,6 @@ emit_system_values_block(nir_to_brw_state &ntb, nir_block *block)
 
             *reg = abld.MOV(negate(retype(anded, BRW_TYPE_D)));
          }
-         break;
-
-      case nir_intrinsic_load_frag_shading_rate:
-         reg = &ntb.system_values[SYSTEM_VALUE_FRAG_SHADING_RATE];
-         if (reg->file == BAD_FILE)
-            *reg = emit_shading_rate_setup(ntb);
          break;
 
       default:
@@ -3600,49 +3593,54 @@ emit_samplemaskin_setup(nir_to_brw_state &ntb)
    return mask;
 }
 
-static brw_reg
-emit_shading_rate_setup(nir_to_brw_state &ntb)
+static void
+emit_frag_shading_rate_setup(nir_to_brw_state &ntb, brw_reg result)
 {
    const intel_device_info *devinfo = ntb.devinfo;
    const brw_builder &bld = ntb.bld;
 
-   assert(devinfo->ver >= 11);
-
    struct brw_fs_prog_data *fs_prog_data =
       brw_fs_prog_data(bld.shader->prog_data);
 
+   const brw_builder abld = bld.annotate("compute fragment size");
+
+   result.type = BRW_TYPE_UD;
+
+   bld.MOV(offset(result, bld, 0), brw_imm_ud(1));
+   bld.MOV(offset(result, bld, 1), brw_imm_ud(1));
+
    /* Coarse pixel shading size fields overlap with other fields of not in
-    * coarse pixel dispatch mode, so report 0 when that's not the case.
+    * coarse pixel dispatch mode, so report (1, 1) when that's not the case.
     */
    if (fs_prog_data->coarse_pixel_dispatch == INTEL_NEVER)
-      return brw_imm_ud(0);
+      return;
 
-   const brw_builder abld = bld.annotate("compute fragment shading rate");
-
-   /* The shading rates provided in the shader are the actual 2D shading
-    * rate while the SPIR-V built-in is the enum value that has the shading
-    * rate encoded as a bitfield.  Fortunately, the bitfield value is just
-    * the shading rate divided by two and shifted.
-    */
+   assert(devinfo->ver >= 11);
 
    /* r1.0 - 0:7 ActualCoarsePixelShadingSize.X */
    brw_reg actual_x = brw_reg(retype(brw_vec1_grf(1, 0), BRW_TYPE_UB));
    /* r1.0 - 15:8 ActualCoarsePixelShadingSize.Y */
    brw_reg actual_y = byte_offset(actual_x, 1);
 
-   brw_reg int_rate_y = abld.SHR(actual_y, brw_imm_ud(1));
-   brw_reg int_rate_x = abld.SHR(actual_x, brw_imm_ud(1));
+   brw_reg coarse_size = abld.vgrf(BRW_TYPE_UD, 2);
 
-   brw_reg rate = abld.OR(abld.SHL(int_rate_x, brw_imm_ud(2)), int_rate_y);
+   bld.MOV(offset(coarse_size, bld, 0), actual_x);
+   bld.MOV(offset(coarse_size, bld, 1), actual_y);
 
-   if (fs_prog_data->coarse_pixel_dispatch == INTEL_ALWAYS)
-      return rate;
+   if (fs_prog_data->coarse_pixel_dispatch == INTEL_ALWAYS) {
+      for (unsigned i = 0; i < 2; i++)
+         bld.MOV(offset(result, bld, i), offset(coarse_size, bld, i));
+      return;
+   }
 
    brw_check_dynamic_fs_config(abld, fs_prog_data,
                                INTEL_FS_CONFIG_COARSE_RT_WRITES);
-   set_predicate(BRW_PREDICATE_NORMAL, abld.SEL(rate, rate, brw_imm_ud(0)));
-
-   return rate;
+   for (unsigned i = 0; i < 2; i++) {
+      set_predicate(BRW_PREDICATE_NORMAL,
+                    abld.SEL(offset(result, bld, i),
+                             offset(coarse_size, bld, i),
+                             offset(result, bld, i)));
+   }
 }
 
 /* Input data is organized with first the per-primitive values, followed
@@ -3793,13 +3791,17 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
 
    case nir_intrinsic_load_helper_invocation:
    case nir_intrinsic_load_sample_mask_in:
-   case nir_intrinsic_load_sample_id:
-   case nir_intrinsic_load_frag_shading_rate: {
+   case nir_intrinsic_load_sample_id: {
       gl_system_value sv = nir_system_value_from_intrinsic(instr->intrinsic);
       brw_reg val = ntb.system_values[sv];
       assert(val.file != BAD_FILE);
       dest.type = val.type;
       bld.MOV(dest, val);
+      break;
+   }
+
+   case nir_intrinsic_load_frag_shading_rate_intel: {
+      emit_frag_shading_rate_setup(ntb, dest);
       break;
    }
 
