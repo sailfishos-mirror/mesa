@@ -155,7 +155,7 @@ __gen_padded(uint32_t v, uint32_t start, uint32_t end)
       size_t __tmp_bytes = pan_size(type);                                     \
       for (unsigned i = 0; i < (__tmp_bytes / 4); ++i)                         \
          (packed1)->opaque[i] |= (packed2)->opaque[i];                         \
-   } while (0);
+   } while (0)
 
 #ifndef __OPENCL_VERSION__
 static inline const char *
