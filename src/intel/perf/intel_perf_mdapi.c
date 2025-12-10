@@ -128,6 +128,46 @@ intel_perf_query_result_write_mdapi(void *data, uint32_t data_size,
       mdapi_data->SplitOccured = result->query_disjoint;
       return sizeof(*mdapi_data);
    }
+   case 20: {
+      struct gfx20_mdapi_metrics *mdapi_data = (struct gfx20_mdapi_metrics *) data;
+
+      if (data_size < sizeof(*mdapi_data))
+         return 0;
+
+      mdapi_data->TotalTime =
+         intel_device_info_timebase_scale(devinfo, result->accumulator[0]);
+      mdapi_data->GpuTicks = result->accumulator[1];
+
+      for (int i = 0; i < ARRAY_SIZE(mdapi_data->PerformanceEventCounter); i++)
+         mdapi_data->PerformanceEventCounter[i] = result->accumulator[2 + i];
+
+      for (int i = 0; i < ARRAY_SIZE(mdapi_data->VisaCounter); i++) {
+         uint32_t acc_index = 2 + ARRAY_SIZE(mdapi_data->PerformanceEventCounter) + i;
+
+         /* TODO: not clear from where the remaining VisaCounters should be read from */
+         if (acc_index == ARRAY_SIZE(result->accumulator))
+            break;
+
+         mdapi_data->VisaCounter[i] = result->accumulator[acc_index];
+      }
+
+      mdapi_data->ReportId = result->hw_id;
+      mdapi_data->ReportsCount = result->reports_accumulated;
+      mdapi_data->BeginTimestamp =
+         intel_device_info_timebase_scale(devinfo, result->begin_timestamp);
+      mdapi_data->CoreFrequency = result->gt_frequency[1];
+      mdapi_data->CoreFrequencyChanged = result->gt_frequency[1] != result->gt_frequency[0];
+      mdapi_data->SliceFrequency =
+         (result->slice_frequency[0] + result->slice_frequency[1]) / 2ULL;
+      mdapi_data->UnsliceFrequency =
+         (result->unslice_frequency[0] + result->unslice_frequency[1]) / 2ULL;
+      mdapi_data->SplitOccured = result->query_disjoint;
+
+      /* TODO: Fields not being set: MidQueryEvents, OverrunOccured, MarkerUser,
+       * MarkerDriver, UserCntr, UserCntrCfgId, Flags
+       */
+      return sizeof(*mdapi_data);
+   }
    default:
       UNREACHABLE("unexpected gen");
    }
@@ -234,7 +274,7 @@ intel_perf_register_mdapi_oa_query(struct intel_perf_config *perf,
    /* MDAPI requires different structures for pretty much every generation
     * (right now we have definitions for gen 7 to 12).
     */
-   if (!(devinfo->ver >= 7 && devinfo->ver <= 12))
+   if (!(devinfo->ver >= 7 && devinfo->ver <= 30))
       return;
 
    switch (devinfo->ver) {
@@ -336,6 +376,44 @@ intel_perf_register_mdapi_oa_query(struct intel_perf_config *perf,
       }
       MDAPI_QUERY_ADD_COUNTER(query, metric_data, UserCntrCfgId, UINT32);
       MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved4, UINT32);
+      break;
+   }
+   case 20: {
+      query = intel_perf_append_query_info(perf, 2 + 64 + 16 + 14 + 16 + 2);
+
+      struct gfx20_mdapi_metrics metric_data;
+      query->data_size = sizeof(metric_data);
+
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, TotalTime, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, GpuTicks, UINT64);
+      for (int i = 0; i < ARRAY_SIZE(metric_data.PerformanceEventCounter); i++) {
+         MDAPI_QUERY_ADD_ARRAY_COUNTER(perf->queries, query,
+                                       metric_data, PerformanceEventCounter, i, UINT64);
+      }
+      for (int i = 0; i < ARRAY_SIZE(metric_data.VisaCounter); i++) {
+         MDAPI_QUERY_ADD_ARRAY_COUNTER(perf->queries, query,
+                                       metric_data, VisaCounter, i, UINT64);
+      }
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, BeginTimestamp, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved1, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved2, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MidQueryEvents, UINT32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, OverrunOccured, BOOL32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MarkerUser, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MarkerDriver, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, SliceFrequency, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, UnsliceFrequency, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, SplitOccured, BOOL32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequencyChanged, BOOL32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequency, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportId, UINT32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportsCount, UINT32);
+      for (int i = 0; i < ARRAY_SIZE(metric_data.UserCntr); i++) {
+         MDAPI_QUERY_ADD_ARRAY_COUNTER(perf->queries, query,
+                                       metric_data, UserCntr, i, UINT64);
+      }
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, UserCntrCfgId, UINT32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Flags, UINT32);
       break;
    }
    default:
