@@ -659,10 +659,12 @@ vlVaHandleVAProcPipelineParameterBufferType(vlVaDriver *drv, vlVaContext *contex
                              &vpp.in_transfer_characteristics, &vpp.in_matrix_coefficients);
    }
 
-   if (vpp.in_color_primaries == PIPE_VIDEO_VPP_PRI_UNSPECIFIED)
+   if (vpp.in_color_primaries == PIPE_VIDEO_VPP_PRI_RESERVED0 ||
+       vpp.in_color_primaries == PIPE_VIDEO_VPP_PRI_UNSPECIFIED)
       vpp.in_color_primaries = PIPE_VIDEO_VPP_PRI_BT709;
 
-   if (vpp.in_transfer_characteristics == PIPE_VIDEO_VPP_TRC_UNSPECIFIED)
+   if (vpp.in_transfer_characteristics == PIPE_VIDEO_VPP_TRC_RESERVED0 ||
+       vpp.in_transfer_characteristics == PIPE_VIDEO_VPP_TRC_UNSPECIFIED)
       vpp.in_transfer_characteristics = PIPE_VIDEO_VPP_TRC_GAMMA22;
 
    if (vpp.in_matrix_coefficients == PIPE_VIDEO_VPP_MCF_UNSPECIFIED ||
@@ -706,10 +708,12 @@ vlVaHandleVAProcPipelineParameterBufferType(vlVaDriver *drv, vlVaContext *contex
                              &vpp.out_transfer_characteristics, &vpp.out_matrix_coefficients);
    }
 
-   if (vpp.out_color_primaries == PIPE_VIDEO_VPP_PRI_UNSPECIFIED)
+   if (vpp.out_color_primaries == PIPE_VIDEO_VPP_PRI_RESERVED0 ||
+       vpp.out_color_primaries == PIPE_VIDEO_VPP_PRI_UNSPECIFIED)
       vpp.out_color_primaries = PIPE_VIDEO_VPP_PRI_BT709;
 
-   if (vpp.out_transfer_characteristics == PIPE_VIDEO_VPP_TRC_UNSPECIFIED)
+   if (vpp.out_transfer_characteristics == PIPE_VIDEO_VPP_TRC_RESERVED0 ||
+       vpp.out_transfer_characteristics == PIPE_VIDEO_VPP_TRC_UNSPECIFIED)
       vpp.out_transfer_characteristics = PIPE_VIDEO_VPP_TRC_GAMMA22;
 
    if (vpp.out_matrix_coefficients == PIPE_VIDEO_VPP_MCF_UNSPECIFIED ||
