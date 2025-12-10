@@ -2653,6 +2653,9 @@ system_value("indirect_address_intel", 1)
 # The semantics of it depend on the HW state.
 system_value("coverage_mask_intel", 1)
 
+# MSAA rate provided by the FS payload.
+system_value("msaa_rate_intel", 1)
+
 # Load a relocatable 32-bit value
 intrinsic("load_reloc_const_intel", dest_comp=1, bit_sizes=[32],
           indices=[PARAM_IDX, BASE], flags=[CAN_ELIMINATE, CAN_REORDER])

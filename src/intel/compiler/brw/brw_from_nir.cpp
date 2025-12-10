@@ -3813,6 +3813,13 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
       break;
    }
 
+   case nir_intrinsic_load_msaa_rate_intel: {
+      brw_reg msaa = brw_uw1_grf(1, 1);
+      dest.type = BRW_TYPE_UD;
+      bld.ADD(dest, bld.AND(msaa, brw_imm_uw(0xf)), brw_imm_ud(1));
+      break;
+   }
+
    case nir_intrinsic_store_output: {
       const brw_reg src = get_nir_src(ntb, instr->src[0], -1);
       const nir_io_semantics sem = nir_intrinsic_io_semantics(instr);

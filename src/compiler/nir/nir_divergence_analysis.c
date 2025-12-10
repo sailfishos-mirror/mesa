@@ -364,6 +364,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_call_return_address_amd:
    case nir_intrinsic_load_indirect_address_intel:
    case nir_intrinsic_load_alpha_to_coverage_enable_ir3:
+   case nir_intrinsic_load_msaa_rate_intel:
       is_divergent = false;
       break;
 
