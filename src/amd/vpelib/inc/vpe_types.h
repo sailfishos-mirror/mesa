@@ -237,6 +237,8 @@ struct vpe_caps {
     uint32_t is_apu                 : 1; /**< is APU */
     uint32_t bg_color_check_support : 1; /**< background color check support */
 
+    uint32_t prefer_external_scaler_coef : 1; /**< prefer external scaler coeff */
+
     /** resource capability */
     struct {
         uint32_t num_dpp;             /**< num of dpp */

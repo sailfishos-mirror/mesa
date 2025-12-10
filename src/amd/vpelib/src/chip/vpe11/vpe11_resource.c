@@ -86,6 +86,9 @@ static struct vpe_caps
             .v_mirror_support       = 0,
             .is_apu                 = 1,
             .bg_color_check_support = 0,
+
+            .prefer_external_scaler_coef = 1,
+
             .resource_caps =
                 {
                     .num_dpp       = 1,
