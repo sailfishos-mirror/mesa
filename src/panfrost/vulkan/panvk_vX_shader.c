@@ -297,6 +297,75 @@ lower_layer_writes(nir_shader *nir)
 }
 #endif
 
+#if PAN_ARCH >= 10
+static bool
+mark_all_access_non_uniform(nir_builder *b, nir_instr *instr, void *data)
+{
+   switch (instr->type) {
+   case nir_instr_type_tex: {
+      nir_tex_instr *tex = nir_instr_as_tex(instr);
+
+      for (unsigned i = 0; i < tex->num_srcs; i++) {
+         switch (tex->src[i].src_type) {
+         case nir_tex_src_texture_offset:
+         case nir_tex_src_texture_handle:
+            tex->texture_non_uniform = true;
+            break;
+
+         case nir_tex_src_sampler_offset:
+         case nir_tex_src_sampler_handle:
+            tex->sampler_non_uniform = true;
+            break;
+
+         case nir_tex_src_offset:
+            tex->offset_non_uniform = true;
+            break;
+
+         default:
+            break;
+         }
+      }
+
+      return true;
+   }
+   case nir_instr_type_intrinsic: {
+      nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+
+      switch (intrin->intrinsic) {
+      case nir_intrinsic_load_ubo:
+      case nir_intrinsic_load_ssbo:
+      case nir_intrinsic_store_ssbo:
+      case nir_intrinsic_ssbo_atomic:
+      case nir_intrinsic_ssbo_atomic_swap:
+      case nir_intrinsic_image_load:
+      case nir_intrinsic_image_sparse_load:
+      case nir_intrinsic_image_store:
+      case nir_intrinsic_image_atomic:
+      case nir_intrinsic_image_atomic_swap:
+      case nir_intrinsic_image_size:
+      case nir_intrinsic_image_samples:
+      case nir_intrinsic_image_deref_load:
+      case nir_intrinsic_image_deref_sparse_load:
+      case nir_intrinsic_image_deref_store:
+      case nir_intrinsic_image_deref_atomic:
+      case nir_intrinsic_image_deref_atomic_swap:
+      case nir_intrinsic_image_deref_levels:
+      case nir_intrinsic_image_deref_size:
+      case nir_intrinsic_image_deref_samples:
+      case nir_intrinsic_image_deref_samples_identical:
+         nir_intrinsic_set_access(
+            intrin, nir_intrinsic_access(intrin) | ACCESS_NON_UNIFORM);
+         return true;
+      default:
+         return false;
+      }
+   }
+   default:
+      return false;
+   }
+}
+#endif
+
 static void
 shared_type_info(const struct glsl_type *type, unsigned *size, unsigned *align)
 {
@@ -749,7 +818,8 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
                 struct vk_descriptor_set_layout *const *set_layouts,
                 const struct vk_pipeline_robustness_state *rs,
                 const struct vk_graphics_pipeline_state *state,
-                struct panvk_shader_desc_info *desc_info)
+                struct panvk_shader_desc_info *desc_info,
+                bool allow_merging_workgroups)
 {
    mesa_shader_stage stage = nir->info.stage;
 
@@ -787,6 +857,17 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_global,
             nir_address_format_64bit_global);
 
+#if PAN_ARCH >= 10
+   if (allow_merging_workgroups) {
+      /* Accesses that were uniform in the source shader may now be
+       * nonuniform. To handle this, we just flag everything as nonuniform and
+       * then let nir_opt_non_uniform_access figure out which ones can really
+       * be nonuniform based on divergence analysis */
+      NIR_PASS(_, nir, nir_shader_instructions_pass,
+               mark_all_access_non_uniform, nir_metadata_all, NULL);
+   }
+#endif
+
    /* nir_lower_non_uniform_access needs to run after lowering UBO and SSBO
     * IO. This means we run it after nir_lower_descriptors, which reads the
     * array indices, but it's okay because lower_descriptors treats all
@@ -806,7 +887,8 @@ panvk_lower_nir(struct panvk_device *dev, nir_shader *nir,
 
    /* In practice, most shaders do not have non-uniform-qualified accesses
     * thus a cheaper and likely to fail check is run first. */
-   if (nir_has_non_uniform_access(nir, lower_non_uniform_access_types)) {
+   if (allow_merging_workgroups ||
+       nir_has_non_uniform_access(nir, lower_non_uniform_access_types)) {
       NIR_PASS(_, nir, nir_opt_non_uniform_access);
       struct nir_lower_non_uniform_access_options opts = {
          .types = lower_non_uniform_access_types,
@@ -1324,7 +1406,7 @@ panvk_compile_shader(struct panvk_device *dev,
 
          panvk_lower_nir(dev, nir, info->set_layout_count,
                          info->set_layouts, info->robustness,
-                         state, &variant->desc_info);
+                         state, &variant->desc_info, false);
 
          /* We need the driver_location to match the vertex attribute
           * location, so we can use the attribute layout described by
@@ -1393,7 +1475,7 @@ panvk_compile_shader(struct panvk_device *dev,
       inputs.varying_layout = vs_varying_layout;
 
       panvk_lower_nir(dev, nir, info->set_layout_count, info->set_layouts,
-                      info->robustness, state, &variant->desc_info);
+                      info->robustness, state, &variant->desc_info, false);
 
       nir_assign_io_var_locations(nir, nir_var_shader_out);
       panvk_lower_nir_io(nir);
@@ -1433,12 +1515,24 @@ panvk_compile_shader(struct panvk_device *dev,
       nir_shader *nir = info->nir;
 
 #if PAN_ARCH >= 9
+      nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
       variant->info.cs.allow_merging_workgroups =
          valhall_can_merge_workgroups(nir);
+
+      /* With merged workgroups, we need to use different divergence analysis
+       * options to take into account that threads from different workgroups
+       * may be in the same subgroup */
+      if (variant->info.cs.allow_merging_workgroups) {
+         nir->options = pan_get_nir_shader_compiler_options(PAN_ARCH, true);
+         /* Invalidate the old divergence analysis */
+         nir_foreach_function_impl(impl, nir)
+            nir_progress(true, impl, ~nir_metadata_divergence);
+      }
 #endif
 
       panvk_lower_nir(dev, nir, info->set_layout_count, info->set_layouts,
-                      info->robustness, state, &variant->desc_info);
+                      info->robustness, state, &variant->desc_info,
+                      variant->info.cs.allow_merging_workgroups);
 
       variant->own_bin = true;
 
