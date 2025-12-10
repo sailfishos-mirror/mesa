@@ -681,17 +681,6 @@ rt_clean_pixel_write(const struct pan_fb_color_attachment *rt,
    return false;
 }
 
-#define rt_common_cfg(rt__, cbuf_offset__, tile_size__, cfg__)                 \
-   do {                                                                        \
-      assert((rt__)->view != NULL);                                            \
-      (cfg__).clean_pixel_write_enable =                                       \
-         rt_clean_pixel_write(rt__, tile_size__);                              \
-      (cfg__).internal_buffer_offset = cbuf_offset__;                          \
-      (cfg__).clear = rt_clear(rt__);                                          \
-      (cfg__).dithering_enable = true;                                         \
-      (cfg__).writeback_msaa = mali_sampling_mode((rt__)->view);               \
-   } while (0)
-
 void
 GENX(pan_emit_afbc_color_attachment)(const struct pan_fb_info *fb,
                                      unsigned rt_idx,
@@ -710,7 +699,6 @@ GENX(pan_emit_afbc_color_attachment)(const struct pan_fb_info *fb,
    /* TODO: YUV RT. */
    assert(!pan_format_is_yuv(iview->format));
    pan_cast_and_pack(payload, AFBC_RGB_RENDER_TARGET, cfg) {
-      rt_common_cfg(rt, cbuf_offset, fb->tile_size, cfg);
       cfg.write_enable = true;
       get_rt_formats(iview->format, &cfg.writeback_format, &cfg.internal_format,
                      &cfg.swizzle);
@@ -775,7 +763,6 @@ GENX(pan_emit_u_tiled_color_attachment)(const struct pan_fb_info *fb,
    /* TODO: YUV RT. */
    assert(!pan_format_is_yuv(iview->format));
    pan_cast_and_pack(payload, RGB_RENDER_TARGET, cfg) {
-      rt_common_cfg(rt, cbuf_offset, fb->tile_size, cfg);
       cfg.write_enable = true;
       cfg.writeback_block_format = MALI_BLOCK_FORMAT_TILED_U_INTERLEAVED;
       get_rt_formats(iview->format, &cfg.writeback_format, &cfg.internal_format,
@@ -804,7 +791,6 @@ GENX(pan_emit_linear_color_attachment)(const struct pan_fb_info *fb,
    /* TODO: YUV RT. */
    assert(!pan_format_is_yuv(iview->format));
    pan_cast_and_pack(payload, RGB_RENDER_TARGET, cfg) {
-      rt_common_cfg(rt, cbuf_offset, fb->tile_size, cfg);
       cfg.write_enable = true;
       cfg.writeback_block_format = MALI_BLOCK_FORMAT_LINEAR;
       get_rt_formats(iview->format, &cfg.writeback_format, &cfg.internal_format,
@@ -834,7 +820,6 @@ GENX(pan_emit_interleaved_64k_color_attachment)(const struct pan_fb_info *fb,
    /* TODO: YUV RT. */
    assert(!pan_format_is_yuv(iview->format));
    pan_cast_and_pack(payload, RGB_RENDER_TARGET, cfg) {
-      rt_common_cfg(rt, cbuf_offset, fb->tile_size, cfg);
       cfg.write_enable = true;
       cfg.writeback_block_format = MALI_BLOCK_FORMAT_INTERLEAVED_64K;
       get_rt_formats(iview->format, &cfg.writeback_format, &cfg.internal_format,
@@ -866,7 +851,6 @@ GENX(pan_emit_afrc_color_attachment)(const struct pan_fb_info *fb,
    /* TODO: YUV RT. */
    assert(!pan_format_is_yuv(iview->format));
    pan_cast_and_pack(payload, AFRC_RGB_RENDER_TARGET, cfg) {
-      rt_common_cfg(rt, cbuf_offset, fb->tile_size, cfg);
       cfg.writeback_mode = MALI_WRITEBACK_MODE_AFRC_RGB;
       cfg.afrc_block_size = pan_afrc_block_size(image->props.modifier, 0);
       cfg.afrc_format = pan_afrc_format(finfo, image->props.modifier, 0);
@@ -977,6 +961,17 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
       return;
    }
 
+   struct mali_rgb_render_target_packed common;
+   pan_pack(&common, RGB_RENDER_TARGET, cfg) {
+      assert(fb->rts[idx].view != NULL);
+      cfg.clean_pixel_write_enable = rt_clean_pixel_write(&fb->rts[idx],
+                                                          fb->tile_size);
+      cfg.internal_buffer_offset = cbuf_offset;
+      cfg.clear = rt_clear(&fb->rts[idx]);
+      cfg.dithering_enable = true;
+      cfg.writeback_msaa = mali_sampling_mode(fb->rts[idx].view);
+   }
+
    struct pan_image_plane_ref pref = pan_image_view_get_color_plane(rt);
    assert(pref.image);
    const struct pan_mod_handler *mod_handler = pref.image->mod_handler;
@@ -989,8 +984,13 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
    assert(rt->last_level == rt->first_level);
    assert(layer_idx < layer_count);
 
+   struct mali_render_target_packed desc;
    mod_handler->emit_color_attachment(fb, idx, layer_idx + rt->first_layer,
-                                      cbuf_offset, out);
+                                      cbuf_offset, &desc);
+
+   /* Avoid mixing loads and stores on write-combined memory. */
+   pan_merge(&desc, &common, RGB_RENDER_TARGET);
+   *out = desc;
 }
 
 #if PAN_ARCH >= 6
