@@ -128,7 +128,8 @@ intel_perf_query_result_write_mdapi(void *data, uint32_t data_size,
       mdapi_data->SplitOccured = result->query_disjoint;
       return sizeof(*mdapi_data);
    }
-   case 20: {
+   case 20:
+   case 30: {
       struct gfx20_mdapi_metrics *mdapi_data = (struct gfx20_mdapi_metrics *) data;
 
       if (data_size < sizeof(*mdapi_data))
@@ -378,7 +379,8 @@ intel_perf_register_mdapi_oa_query(struct intel_perf_config *perf,
       MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved4, UINT32);
       break;
    }
-   case 20: {
+   case 20:
+   case 30: {
       query = intel_perf_append_query_info(perf, 2 + 64 + 16 + 14 + 16 + 2);
 
       struct gfx20_mdapi_metrics metric_data;
