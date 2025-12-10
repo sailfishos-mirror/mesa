@@ -355,6 +355,9 @@ get_device_extensions(const struct anv_physical_device *device,
       .EXT_pipeline_protected_access         = device->has_protected_contexts,
       .EXT_pipeline_robustness               = true,
       .EXT_post_depth_coverage               = true,
+#ifdef ANV_USE_WSI_PLATFORM
+      .EXT_present_timing                    = device->has_reg_timestamp,
+#endif
       .EXT_primitive_topology_list_restart   = true,
       .EXT_primitives_generated_query        = true,
       .EXT_private_data                      = true,
@@ -1006,6 +1009,13 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_KHR_pipeline_binary */
       .pipelineBinaries = true,
+
+#ifdef ANV_USE_WSI_PLATFORM
+      /* VK_EXT_present_timing */
+      .presentTiming = true,
+      .presentAtRelativeTime = true,
+      .presentAtAbsoluteTime = true,
+#endif
    };
 
    /* The new DOOM and Wolfenstein games require depthBounds without
