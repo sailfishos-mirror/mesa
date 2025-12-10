@@ -570,6 +570,7 @@ struct brw_fs_prog_data {
    bool uses_vmask;
    bool has_side_effects;
    bool pulls_bary;
+   bool uses_fully_covered;
 
    /**
     * Whether nonperspective interpolation modes are used by the
@@ -700,7 +701,9 @@ brw_fs_prog_data_is_dynamic(const struct brw_fs_prog_data *prog_data)
       prog_data->alpha_to_coverage == INTEL_SOMETIMES ||
       prog_data->coarse_pixel_dispatch == INTEL_SOMETIMES ||
       prog_data->persample_dispatch == INTEL_SOMETIMES ||
-      prog_data->conservative_raster == INTEL_SOMETIMES;
+      /* We only care as long as fully covered is used */
+      (prog_data->conservative_raster == INTEL_SOMETIMES &&
+       prog_data->uses_fully_covered);
 }
 
 #ifdef GFX_VERx10

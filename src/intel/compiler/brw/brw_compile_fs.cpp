@@ -870,7 +870,9 @@ brw_nir_populate_fs_prog_data(nir_shader *shader,
    assert(devinfo->verx10 >= 200 || key->provoking_vertex_last == INTEL_NEVER);
    prog_data->provoking_vertex_last = key->provoking_vertex_last;
 
-   prog_data->uses_sample_mask =
+   prog_data->uses_fully_covered =
+      BITSET_TEST(shader->info.system_values_read, SYSTEM_VALUE_FULLY_COVERED);
+   prog_data->uses_sample_mask = prog_data->uses_fully_covered ||
       BITSET_TEST(shader->info.system_values_read, SYSTEM_VALUE_SAMPLE_MASK_IN);
 
    /* From the Ivy Bridge PRM documentation for 3DSTATE_PS:

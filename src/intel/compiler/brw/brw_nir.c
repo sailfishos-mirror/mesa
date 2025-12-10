@@ -1555,6 +1555,8 @@ brw_nir_lower_fs_inputs(nir_shader *nir,
    if (brw_needs_vertex_attributes_bypass(nir))
       brw_nir_lower_fs_barycentrics(nir);
 
+   NIR_PASS(_, nir, brw_nir_lower_fully_covered);
+
    if (devinfo->ver >= 11)
       NIR_PASS(_, nir, brw_nir_lower_frag_shading_rate);
 
