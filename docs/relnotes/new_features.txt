@@ -1,1 +1,2 @@
 VK_QCOM_image_processing on Turnip
+VK_EXT_present_timing on RADV, NVK, Turnip, ANV, Honeykrisp, panvk
