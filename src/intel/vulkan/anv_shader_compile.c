@@ -553,6 +553,16 @@ populate_fs_prog_key(struct brw_fs_prog_key *key,
       key->provoking_vertex_last = INTEL_NEVER;
    }
 
+   if (state != NULL && state->rs != NULL) {
+      key->conservative_raster =
+         BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_RS_CONSERVATIVE_MODE) ?
+         INTEL_SOMETIMES :
+         state->rs->conservative_mode == VK_CONSERVATIVE_RASTERIZATION_MODE_DISABLED_EXT ?
+         INTEL_NEVER : INTEL_ALWAYS;
+   } else {
+      key->conservative_raster = INTEL_SOMETIMES;
+   }
+
    key->mesh_input =
       (link_stages & VK_SHADER_STAGE_VERTEX_BIT) ? INTEL_NEVER :
       (link_stages & VK_SHADER_STAGE_MESH_BIT_EXT) ? INTEL_ALWAYS :

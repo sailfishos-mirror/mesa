@@ -1545,6 +1545,9 @@ brw_compile_fs(const struct brw_compiler *compiler,
       if (prog_data->coarse_pixel_dispatch == INTEL_ALWAYS)
          f |= INTEL_FS_CONFIG_COARSE_RT_WRITES;
 
+      if (key->conservative_raster == INTEL_ALWAYS)
+         f |= INTEL_FS_CONFIG_CONSERVATIVE_RASTER;
+
       BRW_NIR_PASS(nir_inline_sysval, nir_intrinsic_load_fs_config_intel, f);
    }
 

@@ -390,10 +390,15 @@ struct brw_fs_prog_key {
    /* Is provoking vertex last? */
    enum intel_sometimes provoking_vertex_last:2;
 
+   /* If the shader reads FullyCovered, we need to know if conservative
+    * rasterization is on, which may be dynamic.
+    */
+   enum intel_sometimes conservative_raster:2;
+
    bool ignore_sample_mask_out:1;
    bool coarse_pixel:1;
    bool api_sample_shading:1;
-   unsigned pad:13;
+   unsigned pad:11;
 };
 
 static inline bool
@@ -405,6 +410,7 @@ brw_fs_prog_key_is_dynamic(const struct brw_fs_prog_key *key)
       key->alpha_to_coverage == INTEL_SOMETIMES ||
       key->persample_interp == INTEL_SOMETIMES ||
       key->multisample_fbo == INTEL_SOMETIMES ||
+      key->conservative_raster == INTEL_SOMETIMES ||
       key->base.vue_layout == INTEL_VUE_LAYOUT_SEPARATE_MESH;
 }
 
@@ -626,6 +632,12 @@ struct brw_fs_prog_data {
    enum intel_sometimes provoking_vertex_last;
 
    /**
+    * If the fragment shader reads FullyCovered, it needs to know what the
+    * state of conservative rasterization is.
+    */
+   enum intel_sometimes conservative_raster;
+
+   /**
     * Push constant location of intel_fs_config (dynamic configuration of the
     * pixel shader) in bytes.
     */
@@ -687,7 +699,8 @@ brw_fs_prog_data_is_dynamic(const struct brw_fs_prog_data *prog_data)
        prog_data->provoking_vertex_last == INTEL_SOMETIMES) ||
       prog_data->alpha_to_coverage == INTEL_SOMETIMES ||
       prog_data->coarse_pixel_dispatch == INTEL_SOMETIMES ||
-      prog_data->persample_dispatch == INTEL_SOMETIMES;
+      prog_data->persample_dispatch == INTEL_SOMETIMES ||
+      prog_data->conservative_raster == INTEL_SOMETIMES;
 }
 
 #ifdef GFX_VERx10
