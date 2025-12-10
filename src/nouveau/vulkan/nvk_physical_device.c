@@ -263,6 +263,9 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
       .EXT_pipeline_robustness = true,
       .EXT_physical_device_drm = true,
       .EXT_post_depth_coverage = info->cls_eng3d >= MAXWELL_B,
+#ifdef NVK_USE_WSI_PLATFORM
+      .EXT_present_timing = true,
+#endif
       .EXT_primitive_topology_list_restart = true,
       .EXT_private_data = true,
       .EXT_primitives_generated_query = true,
@@ -754,6 +757,11 @@ nvk_get_device_features(const struct nv_device_info *info,
 
       /* VK_KHR_present_wait2 */
       .presentWait2 = true,
+
+      /* VK_EXT_present_timing */
+      .presentTiming = true,
+      .presentAtRelativeTime = true,
+      .presentAtAbsoluteTime = true,
 #endif
    };
 }
