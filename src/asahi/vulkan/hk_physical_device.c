@@ -184,6 +184,9 @@ hk_get_device_extensions(const struct hk_instance *instance,
       .EXT_pipeline_protected_access = true,
       .EXT_pipeline_robustness = true,
       .EXT_physical_device_drm = true,
+#ifdef HK_USE_WSI_PLATFORM
+      .EXT_present_timing = true,
+#endif
       .EXT_primitive_topology_list_restart = true,
       .EXT_private_data = true,
       .EXT_primitives_generated_query = false,
@@ -636,6 +639,13 @@ hk_get_device_features(
 
       /* VK_EXT_blend_operation_advanced */
       .advancedBlendCoherentOperations = true,
+
+#ifdef HK_USE_WSI_PLATFORM
+      /* VK_EXT_present_timing */
+      .presentTiming = true,
+      .presentAtRelativeTime = true,
+      .presentAtAbsoluteTime = true,
+#endif
    };
 }
 
