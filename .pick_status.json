@@ -1254,7 +1254,7 @@
         "description": "frontends/va: Also treat PRI/TRC_RESERVED0 as unspecified",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a284bff8adb36b316593510674217371a4c08d00",
         "notes": null
