@@ -2879,16 +2879,13 @@ wsi_wl_swapchain_acquire_next_image_implicit(struct wsi_swapchain *wsi_chain,
 }
 
 static void
-wsi_wl_presentation_update_present_id(struct wsi_wl_present_id *id)
+wsi_wl_presentation_update_present_id_locked(struct wsi_wl_present_id *id)
 {
-   mtx_lock(&id->chain->present_ids.lock);
    id->chain->present_ids.outstanding_count--;
    if (id->present_id > id->chain->present_ids.max_completed)
       id->chain->present_ids.max_completed = id->present_id;
 
    id->chain->present_ids.display_time_correction -= id->correction;
-   mtx_unlock(&id->chain->present_ids.lock);
-   vk_free(id->alloc, id);
 }
 
 static void
@@ -2931,9 +2928,10 @@ presentation_handle_presented(void *data,
       chain->present_ids.display_time_error = presentation_time - target_time;
    else
       chain->present_ids.display_time_error = 0;
-   mtx_unlock(&chain->present_ids.lock);
 
-   wsi_wl_presentation_update_present_id(id);
+   wsi_wl_presentation_update_present_id_locked(id);
+   mtx_unlock(&chain->present_ids.lock);
+   vk_free(id->alloc, id);
 }
 
 static void
@@ -2959,9 +2957,10 @@ presentation_handle_discarded(void *data)
       chain->present_ids.refresh_nsec = 16666666;
       chain->present_ids.valid_refresh_nsec = true;
    }
-   mtx_unlock(&chain->present_ids.lock);
 
-   wsi_wl_presentation_update_present_id(id);
+   wsi_wl_presentation_update_present_id_locked(id);
+   mtx_unlock(&chain->present_ids.lock);
+   vk_free(id->alloc, id);
 }
 
 static void
@@ -2980,9 +2979,10 @@ presentation_frame_handle_done(void *data, struct wl_callback *callback, uint32_
 
    mtx_lock(&chain->present_ids.lock);
    wl_list_remove(&id->link);
-   mtx_unlock(&chain->present_ids.lock);
 
-   wsi_wl_presentation_update_present_id(id);
+   wsi_wl_presentation_update_present_id_locked(id);
+   mtx_unlock(&chain->present_ids.lock);
+   vk_free(id->alloc, id);
    wl_callback_destroy(callback);
 }
 
