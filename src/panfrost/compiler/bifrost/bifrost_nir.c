@@ -579,8 +579,8 @@ bi_lower_subgroups(nir_builder *b, nir_intrinsic_instr *intr, void *data)
  * visible. This is true if neither shared memory nor BARRIER instructions are
  * used. The hardware may be able to optimize compute shaders that set this
  * flag. */
-static bool
-bi_can_merge_workgroups(nir_shader *nir)
+bool
+valhall_can_merge_workgroups(nir_shader *nir)
 {
    if (nir->info.shared_size != 0)
       return false;
@@ -1151,9 +1151,6 @@ bifrost_compile_shader_nir(nir_shader *nir,
    } else {
       bi_compile_variant(nir, inputs, binary, info, BI_IDVS_NONE);
    }
-
-   if (mesa_shader_stage_is_compute(nir->info.stage))
-      info->cs.allow_merging_workgroups = bi_can_merge_workgroups(nir);
 
    info->ubo_mask &= (1 << nir->info.num_ubos) - 1;
 }

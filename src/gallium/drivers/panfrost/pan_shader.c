@@ -18,6 +18,7 @@
 #include "pan_compiler.h"
 #include "pan_nir.h"
 #include "pan_trace.h"
+#include "compiler/bifrost/bifrost_compile.h"
 #include "shader_enums.h"
 
 static struct panfrost_uncompiled_shader *
@@ -177,6 +178,10 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       NIR_PASS(_, s, nir_inline_sysval,
                nir_intrinsic_load_noperspective_varyings_pan,
                key->vs.noperspective_varyings);
+   }
+
+   if (dev->arch >= 9 && mesa_shader_stage_is_compute(s->info.stage)) {
+      out->info.cs.allow_merging_workgroups = valhall_can_merge_workgroups(s);
    }
 
    NIR_PASS(_, s, panfrost_nir_lower_sysvals, dev->arch, &out->sysvals);

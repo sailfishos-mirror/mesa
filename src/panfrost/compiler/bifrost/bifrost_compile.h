@@ -73,6 +73,8 @@ void bifrost_compile_shader_nir(nir_shader *nir,
                                 struct util_dynarray *binary,
                                 struct pan_shader_info *info);
 
+bool valhall_can_merge_workgroups(nir_shader *nir);
+
 #define VALHAL_EX_FIFO_VARYING_BITS \
    (VARYING_BIT_PSIZ | VARYING_BIT_LAYER | VARYING_BIT_PRIMITIVE_ID)
 

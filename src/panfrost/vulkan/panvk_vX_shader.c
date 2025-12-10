@@ -38,6 +38,7 @@
 #include "vk_ycbcr_conversion.h"
 
 #include "compiler/bifrost/bifrost_nir.h"
+#include "compiler/bifrost/bifrost_compile.h"
 #include "compiler/pan_compiler.h"
 #include "compiler/pan_nir.h"
 #include "pan_shader.h"
@@ -1430,6 +1431,11 @@ panvk_compile_shader(struct panvk_device *dev,
          (struct panvk_shader_variant *)panvk_shader_only_variant(shader);
 
       nir_shader *nir = info->nir;
+
+#if PAN_ARCH >= 9
+      variant->info.cs.allow_merging_workgroups =
+         valhall_can_merge_workgroups(nir);
+#endif
 
       panvk_lower_nir(dev, nir, info->set_layout_count, info->set_layouts,
                       info->robustness, state, &variant->desc_info);

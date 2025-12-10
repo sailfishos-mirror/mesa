@@ -439,6 +439,11 @@ main(int argc, const char **argv)
          struct util_dynarray shader_binary;
          struct pan_shader_info shader_info = {0};
          shader_binary = UTIL_DYNARRAY_INIT;
+
+         if (target_arch >= 9)
+            shader_info.cs.allow_merging_workgroups =
+               valhall_can_merge_workgroups(s);
+
          pan_shader_compile(clone, &inputs, &shader_binary, &shader_info);
 
          assert(shader_info.push.count * 4 <=
