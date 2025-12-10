@@ -1244,7 +1244,7 @@
         "description": "frontends/va: Fix RGB/YUV conversion in Get/PutImage",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9393a0510b5a9d1d6d9315c756394945804410b3",
         "notes": null
