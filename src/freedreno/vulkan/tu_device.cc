@@ -317,6 +317,9 @@ get_device_extensions(const struct tu_physical_device *device,
       .EXT_physical_device_drm = !is_kgsl(device->instance),
       .EXT_pipeline_creation_cache_control = true,
       .EXT_pipeline_creation_feedback = true,
+#ifdef TU_USE_WSI_PLATFORM
+      .EXT_present_timing = device->info->props.has_persistent_counter,
+#endif
       .EXT_primitive_topology_list_restart = true,
       .EXT_primitives_generated_query = true,
       .EXT_private_data = true,
@@ -847,6 +850,13 @@ tu_get_features(struct tu_physical_device *pdevice,
 
    /* QCOM_multiview_per_view_render_areas */
    features->multiviewPerViewRenderAreas = true;
+
+#ifdef TU_USE_WSI_PLATFORM
+   /* VK_EXT_present_timing */
+   features->presentTiming = true;
+   features->presentAtRelativeTime = true;
+   features->presentAtAbsoluteTime = true;
+#endif
 }
 
 static void
