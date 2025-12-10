@@ -21,7 +21,7 @@ bool pan_will_dump_shaders(unsigned arch);
 bool pan_want_debug_info(unsigned arch);
 
 const nir_shader_compiler_options *
-pan_get_nir_shader_compiler_options(unsigned arch);
+pan_get_nir_shader_compiler_options(unsigned arch, bool merge_wg);
 
 void pan_preprocess_nir(nir_shader *nir, uint64_t gpu_id);
 void pan_optimize_nir(nir_shader *nir, uint64_t gpu_id);

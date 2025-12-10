@@ -345,7 +345,7 @@ panvk_get_nir_options(UNUSED struct vk_physical_device *vk_pdev,
 {
    struct panvk_physical_device *phys_dev = to_panvk_physical_device(vk_pdev);
    return pan_get_nir_shader_compiler_options(
-      pan_arch(phys_dev->kmod.dev->props.gpu_id));
+      pan_arch(phys_dev->kmod.dev->props.gpu_id), false);
 }
 
 static struct spirv_to_nir_options

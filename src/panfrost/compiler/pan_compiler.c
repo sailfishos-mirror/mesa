@@ -34,22 +34,26 @@ pan_want_debug_info(unsigned arch)
 }
 
 const nir_shader_compiler_options *
-pan_get_nir_shader_compiler_options(unsigned arch)
+pan_get_nir_shader_compiler_options(unsigned arch, bool merge_wg)
 {
    switch (arch) {
    case 4:
    case 5:
+      assert(!merge_wg);
       return &midgard_nir_options;
    case 6:
    case 7:
+      assert(!merge_wg);
       return &bifrost_nir_options_v6;
    case 9:
    case 10:
-      return &bifrost_nir_options_v9;
+      return merge_wg ? &bifrost_nir_options_v9_merge_wg :
+                        &bifrost_nir_options_v9;
    case 11:
    case 12:
    case 13:
-      return &bifrost_nir_options_v11;
+      return merge_wg ? &bifrost_nir_options_v11_merge_wg :
+                        &bifrost_nir_options_v11;
    default:
       assert(!"Unsupported arch");
       return NULL;

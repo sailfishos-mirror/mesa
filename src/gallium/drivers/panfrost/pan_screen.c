@@ -1148,7 +1148,7 @@ panfrost_create_screen(int fd, const struct pipe_screen_config *config,
 
    for (unsigned i = 0; i <= MESA_SHADER_COMPUTE; i++)
       screen->base.nir_options[i] =
-         pan_get_nir_shader_compiler_options(dev->arch);
+         pan_get_nir_shader_compiler_options(dev->arch, false);
 
    switch (dev->arch) {
    case 4:

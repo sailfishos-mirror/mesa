@@ -439,9 +439,10 @@ pan_preload_get_shader(struct pan_fb_preload_cache *cache,
                   key->surfaces[i].samples);
    }
 
+   const nir_shader_compiler_options *compiler_options =
+      pan_get_nir_shader_compiler_options(PAN_ARCH, false);
    nir_builder b = nir_builder_init_simple_shader(
-      MESA_SHADER_FRAGMENT, pan_get_nir_shader_compiler_options(PAN_ARCH),
-      "pan_preload(%s)", sig);
+      MESA_SHADER_FRAGMENT, compiler_options, "pan_preload(%s)", sig);
 
    nir_def *barycentric = nir_load_barycentric(
       &b, nir_intrinsic_load_barycentric_pixel, INTERP_MODE_SMOOTH);

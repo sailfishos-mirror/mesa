@@ -206,7 +206,7 @@ get_frame_shader(struct panvk_device *dev,
       goto out;
 
    const struct nir_shader_compiler_options *nir_options =
-      pan_get_nir_shader_compiler_options(PAN_ARCH);
+      pan_get_nir_shader_compiler_options(PAN_ARCH, false);
    nir_shader *nir = GENX(pan_get_fb_shader)(&key->key, nir_options);
 
    NIR_PASS(_, nir, nir_shader_instructions_pass, lower_instr,

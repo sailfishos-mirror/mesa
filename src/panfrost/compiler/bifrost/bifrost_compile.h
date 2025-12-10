@@ -78,8 +78,8 @@ bool valhall_can_merge_workgroups(nir_shader *nir);
 #define VALHAL_EX_FIFO_VARYING_BITS \
    (VARYING_BIT_PSIZ | VARYING_BIT_LAYER | VARYING_BIT_PRIMITIVE_ID)
 
-#define DEFINE_OPTIONS(arch)                                                   \
-   static const nir_shader_compiler_options bifrost_nir_options_v##arch = {    \
+#define DEFINE_OPTIONS(name, arch, merge_workgroups)                           \
+   static const nir_shader_compiler_options name = {                           \
       .lower_scmp = true,                                                      \
       .lower_flrp16 = true,                                                    \
       .lower_flrp32 = true,                                                    \
@@ -149,10 +149,17 @@ bool valhall_can_merge_workgroups(nir_shader *nir);
       .has_udot_4x8_sat = arch >= 9,                                           \
       .has_sdot_4x8 = arch >= 9,                                               \
       .has_sdot_4x8_sat = arch >= 9,                                           \
+                                                                               \
+      .divergence_analysis_options = merge_workgroups ?                        \
+         (nir_divergence_across_subgroups |                                    \
+          nir_divergence_multiple_workgroup_per_compute_subgroup)              \
+         : 0,                                                                  \
    };
 
-DEFINE_OPTIONS(6);
-DEFINE_OPTIONS(9);
-DEFINE_OPTIONS(11);
+DEFINE_OPTIONS(bifrost_nir_options_v6, 6, false);
+DEFINE_OPTIONS(bifrost_nir_options_v9, 9, false);
+DEFINE_OPTIONS(bifrost_nir_options_v9_merge_wg, 9, true);
+DEFINE_OPTIONS(bifrost_nir_options_v11, 11, false);
+DEFINE_OPTIONS(bifrost_nir_options_v11_merge_wg, 11, true);
 
 #endif
