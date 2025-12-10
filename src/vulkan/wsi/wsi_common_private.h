@@ -318,7 +318,22 @@ struct wsi_swapchain {
    void (*set_timing_request)(struct wsi_swapchain *swap_chain,
                             const struct wsi_image_timing_request *request);
    void (*poll_timing_request)(struct wsi_swapchain *swap_chain);
-   uint64_t (*poll_early_refresh)(struct wsi_swapchain *swap_chain);
+
+   /* On some backends we may be able to query the refresh parameters before
+    * we get any feedback from the compositor.
+    * Return value is refreshDuration in the API which is intended to be minimum
+    * duration between screen refreshes. E.g. if 16.6ms, a FIFO swapchain will not update
+    * more often than 60 Hz. refreshDuration may be 0 in case we truly have no idea
+    * what the actual screen refresh rate is.
+    * The interval maps to refreshInterval in the API which has different meanings:
+    * - 0: Unknown if the monitor is VRR or FRR. Application cannot rely on fully locked frame pacing
+    *   for interval > 1.
+    * - UINT64_MAX: VRR.
+    * - Equal to refreshDuration: Normal FRR scenario.
+    * - refreshInterval * N == refreshDuration: This can be a situation where the monitor is e.g. 120 Hz,
+    *   but has been locked to maximum of 60 Hz. This would allow for application to request e.g. 40 Hz.
+    */
+   uint64_t (*poll_early_refresh)(struct wsi_swapchain *swap_chain, uint64_t *interval);
 };
 
 bool

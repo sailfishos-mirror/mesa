@@ -156,6 +156,12 @@ enum colorspace_enum {
    COLORSPACE_ENUM_MAX,
 };
 
+enum vrr_tristate {
+   VRR_TRISTATE_UNKNOWN,
+   VRR_TRISTATE_DISABLED,
+   VRR_TRISTATE_ENABLED,
+};
+
 typedef struct wsi_display_connector_metadata {
    VkHdrMetadataEXT             hdr_metadata;
    bool                         supports_st2084;
@@ -185,6 +191,10 @@ typedef struct wsi_display_connector {
    struct wsi_display_connector_metadata metadata;
    uint32_t                     count_formats;
    uint32_t                     *formats;
+   enum vrr_tristate            vrr_capable;
+   enum vrr_tristate            vrr_enabled;
+   uint64_t                     last_frame;
+   uint64_t                     last_nsec;
 } wsi_display_connector;
 
 struct wsi_display {
@@ -378,6 +388,11 @@ find_properties(struct wsi_display_connector *connector, uint32_t count_props, u
          }
       }
 
+      if (!strcmp(prop->name, "vrr_capable"))
+         connector->vrr_capable = prop_values[p] != 0 ? VRR_TRISTATE_ENABLED : VRR_TRISTATE_DISABLED;
+      if (!strcmp(prop->name, "VRR_ENABLED"))
+         connector->vrr_enabled = prop_values[p] != 0 ? VRR_TRISTATE_ENABLED : VRR_TRISTATE_DISABLED;
+
       drmModeFreeProperty(prop);
    }
 
@@ -439,38 +454,45 @@ find_connector_properties(struct wsi_display_connector *connector, drmModeConnec
 enum wsi_image_state {
    WSI_IMAGE_IDLE,
    WSI_IMAGE_DRAWING,
+   WSI_IMAGE_WAITING,
+   WSI_IMAGE_QUEUED_AFTER_WAIT,
    WSI_IMAGE_QUEUED,
    WSI_IMAGE_FLIPPING,
    WSI_IMAGE_DISPLAYING
 };
 
 struct wsi_display_image {
-   struct wsi_image             base;
-   struct wsi_display_swapchain *chain;
-   enum wsi_image_state         state;
-   uint32_t                     fb_id;
-   uint32_t                     buffer[4];
-   uint64_t                     flip_sequence;
-   uint64_t                     present_id;
+   struct wsi_image                base;
+   struct wsi_display_swapchain    *chain;
+   enum wsi_image_state            state;
+   uint32_t                        fb_id;
+   uint32_t                        buffer[4];
+   uint64_t                        flip_sequence;
+   uint64_t                        present_id;
+   struct wsi_image_timing_request timing_request;
+   struct wsi_display_fence        *fence;
+   uint64_t                        minimum_ns;
 };
 
 struct wsi_display_swapchain {
-   struct wsi_swapchain         base;
-   struct wsi_display           *wsi;
-   VkIcdSurfaceDisplay          *surface;
-   uint64_t                     flip_sequence;
-   VkResult                     status;
+   struct wsi_swapchain            base;
+   struct wsi_display              *wsi;
+   VkIcdSurfaceDisplay             *surface;
+   uint64_t                        flip_sequence;
+   VkResult                        status;
 
-   mtx_t                        present_id_mutex;
-   struct u_cnd_monotonic       present_id_cond;
-   uint64_t                     present_id;
-   VkResult                     present_id_error;
+   mtx_t                           present_id_mutex;
+   struct u_cnd_monotonic          present_id_cond;
+   uint64_t                        present_id;
+   VkResult                        present_id_error;
 
    /* A unique ID for the color outcome of the swapchain. A serial of 0 means unset/default. */
-   uint64_t                     color_outcome_serial;
-   VkHdrMetadataEXT             hdr_metadata;
+   uint64_t                        color_outcome_serial;
+   VkHdrMetadataEXT                hdr_metadata;
 
-   struct wsi_display_image     images[0];
+   struct wsi_image_timing_request timing_request;
+
+   struct wsi_display_image        images[0];
 };
 
 struct wsi_display_fence {
@@ -481,6 +503,9 @@ struct wsi_display_fence {
    uint32_t                     syncobj; /* syncobj to signal on event */
    uint64_t                     sequence;
    bool                         device_event; /* fence is used for device events */
+   struct wsi_display_connector *connector;
+   /* Image to be flipped, if this fence is for an image in the WSI_IMAGE_WAITING state that will need to move to QUEUED. */
+   struct wsi_display_image     *image;
 };
 
 struct wsi_display_sync {
@@ -1330,10 +1355,10 @@ wsi_display_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
       case VK_STRUCTURE_TYPE_PRESENT_TIMING_SURFACE_CAPABILITIES_EXT: {
          VkPresentTimingSurfaceCapabilitiesEXT *wait = (void *)ext;
 
-         wait->presentStageQueries = 0;
-         wait->presentTimingSupported = VK_FALSE;
-         wait->presentAtAbsoluteTimeSupported = VK_FALSE;
-         wait->presentAtRelativeTimeSupported = VK_FALSE;
+         wait->presentStageQueries = VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_OUT_BIT_EXT;
+         wait->presentTimingSupported = VK_TRUE;
+         wait->presentAtAbsoluteTimeSupported = VK_TRUE;
+         wait->presentAtRelativeTimeSupported = VK_TRUE;
          break;
       }
 
@@ -1696,6 +1721,8 @@ wsi_display_image_init(struct wsi_swapchain *drv_chain,
 
    image->chain = chain;
    image->state = WSI_IMAGE_IDLE;
+   image->fence = NULL;
+   image->minimum_ns = 0;
    image->fb_id = 0;
 
    uint64_t *fb_modifiers = NULL;
@@ -1851,6 +1878,12 @@ wsi_display_idle_old_displaying(struct wsi_display_image *active_image)
 static VkResult
 _wsi_display_queue_next(struct wsi_swapchain *drv_chain);
 
+static uint64_t
+widen_32_to_64(uint32_t narrow, uint64_t near)
+{
+   return near + (int32_t)(narrow - near);
+}
+
 /**
  * Wakes up any vkWaitForPresentKHR() waiters on the last present to this
  * image.
@@ -1901,6 +1934,28 @@ wsi_display_page_flip_handler2(int fd,
    struct wsi_display_image *image = data;
    struct wsi_display_swapchain *chain = image->chain;
 
+   VkIcdSurfaceDisplay *surface = chain->surface;
+   wsi_display_mode *display_mode =
+         wsi_display_mode_from_handle(surface->displayMode);
+   wsi_display_connector *connector = display_mode->connector;
+
+   uint64_t nsec = 1000000000ull * sec + 1000ull * usec;
+   /* If we're on VRR timing path, ensure we get a stable pace. */
+   nsec = MAX2(nsec, image->minimum_ns);
+
+   uint64_t frame64 = widen_32_to_64(frame, connector->last_frame);
+   connector->last_frame = frame64;
+   connector->last_nsec = nsec;
+
+   /* Never update the refresh rate estimate. It's static based on the mode.
+    * Update this before we signal present wait so that applications
+    * get lowest possible latency for present time. */
+   if (image->timing_request.serial) {
+      wsi_swapchain_present_timing_notify_completion(
+            &chain->base, image->timing_request.serial,
+            nsec, &image->base);
+   }
+
    wsi_display_debug("image %ld displayed at %d\n",
                      image - &(image->chain->images[0]), frame);
    image->state = WSI_IMAGE_DISPLAYING;
@@ -1914,7 +1969,9 @@ wsi_display_page_flip_handler2(int fd,
       chain->status = result;
 }
 
-static void wsi_display_fence_event_handler(struct wsi_display_fence *fence);
+static void wsi_display_fence_event_handler(struct wsi_display_fence *fence,
+                                            uint64_t nsec,
+                                            uint64_t frame);
 
 /**
  * libdrm callback for when we get a DRM_EVENT_CRTC_SEQUENCE in response to a
@@ -1927,7 +1984,7 @@ static void wsi_display_sequence_handler(int fd, uint64_t frame,
    struct wsi_display_fence *fence =
       (struct wsi_display_fence *) (uintptr_t) user_data;
 
-   wsi_display_fence_event_handler(fence);
+   wsi_display_fence_event_handler(fence, nsec, frame);
 }
 
 static drmEventContext event_context = {
@@ -2441,11 +2498,28 @@ wsi_display_fence_check_free(struct wsi_display_fence *fence)
       vk_free(fence->wsi->alloc, fence);
 }
 
-static void wsi_display_fence_event_handler(struct wsi_display_fence *fence)
+static void wsi_display_fence_event_handler(struct wsi_display_fence *fence,
+                                            uint64_t nsec, uint64_t frame)
 {
+   struct wsi_display_connector *connector = fence->connector;
+   struct wsi_display_image *image = fence->image;
+
    if (fence->syncobj) {
       (void) drmSyncobjSignal(fence->wsi->syncobj_fd, &fence->syncobj, 1);
       (void) drmSyncobjDestroy(fence->wsi->syncobj_fd, fence->syncobj);
+   }
+
+   if (connector) {
+      connector->last_nsec = nsec;
+      connector->last_frame = frame;
+   }
+
+   if (image && image->state == WSI_IMAGE_WAITING) {
+      /* We may need to do the final sleep on CPU to resolve VRR timings. */
+      image->state = WSI_IMAGE_QUEUED_AFTER_WAIT;
+      VkResult result = _wsi_display_queue_next(&image->chain->base);
+      if (result != VK_SUCCESS)
+         image->chain->status = result;
    }
 
    fence->event_received = true;
@@ -2880,9 +2954,11 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
 
          switch (tmp_image->state) {
          case WSI_IMAGE_FLIPPING:
-            /* already flipping, don't send another to the kernel yet */
+         case WSI_IMAGE_WAITING:
+            /* already flipping or waiting for a flip, don't send another to the kernel yet */
             return VK_SUCCESS;
          case WSI_IMAGE_QUEUED:
+         case WSI_IMAGE_QUEUED_AFTER_WAIT:
             /* find the oldest queued */
             if (!image || tmp_image->flip_sequence < image->flip_sequence)
                image = tmp_image;
@@ -2894,6 +2970,95 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
 
       if (!image)
          return VK_SUCCESS;
+
+      if (image->fence) {
+         image->fence->image = NULL;
+         wsi_display_fence_destroy(image->fence);
+         image->fence = NULL;
+      }
+
+      unsigned num_cycles_to_skip = 0;
+      int64_t target_relative_ns = 0;
+      bool skip_timing = false;
+      bool nearest_cycle =
+            (image->timing_request.flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT) != 0;
+
+      if (image->timing_request.time != 0) {
+         /* Ensure we have some kind of timebase to work from. */
+         if (!connector->last_frame)
+            drmCrtcGetSequence(wsi->fd, connector->crtc_id, &connector->last_frame, &connector->last_nsec);
+
+         if (!connector->last_frame || chain->base.present_timing.refresh_duration == 0) {
+            /* Something has gone very wrong. Just ignore present timing for safety. */
+            skip_timing = true;
+            wsi_display_debug("Cannot get a stable timebase, last frame = %"PRIu64", refresh_duration = %"PRIu64".\n",
+                              connector->last_frame, chain->base.present_timing.refresh_duration);
+         }
+      }
+
+      if (!skip_timing && image->state == WSI_IMAGE_QUEUED && image->timing_request.time != 0) {
+         target_relative_ns = (int64_t)image->timing_request.time;
+
+         /* We need to estimate number of refresh cycles to wait for. */
+         if (!(image->timing_request.flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_RELATIVE_TIME_BIT_EXT)) {
+            target_relative_ns -= (int64_t)connector->last_nsec;
+         }
+
+         if (nearest_cycle) {
+            /* No need to lock, we never update refresh_duration dynamically. */
+            target_relative_ns -= (int64_t)chain->base.present_timing.refresh_duration / 2;
+         } else {
+            /* If application is computing an exact value that lands exactly on the refresh cycle,
+             * pull back the estimate a little bit since DRM precision is 1us. */
+            target_relative_ns -= 1000;
+         }
+      }
+
+      target_relative_ns = MAX2(target_relative_ns, 0);
+      if (target_relative_ns && chain->base.present_timing.refresh_duration)
+         num_cycles_to_skip = target_relative_ns / chain->base.present_timing.refresh_duration;
+
+      /* CRTC cycles is not reliable on VRR. We cannot use that as a time base. */
+      bool is_vrr = connector->vrr_enabled == VRR_TRISTATE_ENABLED &&
+                    connector->vrr_capable == VRR_TRISTATE_ENABLED;
+
+      if (num_cycles_to_skip) {
+         if (!is_vrr) {
+            /* On FRR, we can rely on vblank events to guide time progression. */
+            VkDisplayKHR display = wsi_display_connector_to_handle(connector);
+            image->fence = wsi_display_fence_alloc(wsi, -1);
+
+            if (image->fence) {
+               image->fence->connector = connector;
+               image->fence->image = image;
+
+               uint64_t frame_queued;
+               uint64_t target_frame = connector->last_frame + num_cycles_to_skip;
+               VkResult result = wsi_register_vblank_event(image->fence, chain->base.wsi, display,
+                                                           0, target_frame, &frame_queued);
+
+               if (result == VK_SUCCESS && frame_queued <= target_frame) {
+                  /* Wait until the vblank fence signals and the event handler will attempt to requeue us. */
+                  image->state = WSI_IMAGE_WAITING;
+                  return VK_SUCCESS;
+               }
+            }
+         } else {
+            /* On a VRR display, applications can request frame times which are fractional,
+             * and there is no good way to target absolute time with atomic commits it seems ... */
+            int64_t target_ns = target_relative_ns + (int64_t)connector->last_nsec;
+            image->minimum_ns = target_ns;
+
+            /* Account for some minimum delay in submitting a page flip until it's processed and sleep jitter.
+             * We will compensate for the difference if there is any, so that we don't report completion
+             * times in the past. */
+            target_ns -= 1 * 1000 * 1000;
+
+            os_time_nanosleep_until(target_ns);
+         }
+      }
+
+      image->state = WSI_IMAGE_QUEUED;
 
       int ret = drm_atomic_commit(connector, image);
       if (ret == 0) {
@@ -2924,6 +3089,44 @@ _wsi_display_queue_next(struct wsi_swapchain *drv_chain)
    }
 }
 
+static void
+wsi_display_set_timing_request(struct wsi_swapchain *drv_chain,
+                               const struct wsi_image_timing_request *request)
+{
+   struct wsi_display_swapchain *chain =
+         (struct wsi_display_swapchain *) drv_chain;
+   chain->timing_request = *request;
+}
+
+static uint64_t
+wsi_display_poll_refresh_duration(struct wsi_swapchain *drv_chain, uint64_t *interval)
+{
+   struct wsi_display_swapchain *chain =
+         (struct wsi_display_swapchain *)drv_chain;
+   VkIcdSurfaceDisplay *surface = chain->surface;
+   wsi_display_mode *display_mode =
+         wsi_display_mode_from_handle(surface->displayMode);
+   double refresh = wsi_display_mode_refresh(display_mode);
+   wsi_display_connector *connector = display_mode->connector;
+
+   uint64_t refresh_ns = (uint64_t)(floor(1.0 / refresh * 1e9 + 0.5));
+
+   /* Assume FRR by default. */
+   *interval = refresh_ns;
+
+   /* If VRR is not enabled on the target CRTC, we should honor that.
+    * There is no mechanism to clearly request that VRR is desired,
+    * so we must assume that user might force us into FRR mode. */
+   if (connector->vrr_capable == VRR_TRISTATE_ENABLED) {
+      if (connector->vrr_enabled == VRR_TRISTATE_UNKNOWN)
+         *interval = 0; /* Somehow we don't know if the connector is VRR or FRR. Report unknown. */
+      else if (connector->vrr_enabled == VRR_TRISTATE_ENABLED)
+         *interval = UINT64_MAX;
+   }
+
+   return refresh_ns;
+}
+
 static VkResult
 wsi_display_queue_present(struct wsi_swapchain *drv_chain,
                           uint32_t image_index,
@@ -2941,16 +3144,19 @@ wsi_display_queue_present(struct wsi_swapchain *drv_chain,
       return chain->status;
 
    image->present_id = present_id;
+   image->timing_request = chain->timing_request;
 
    assert(image->state == WSI_IMAGE_DRAWING);
    wsi_display_debug("present %d\n", image_index);
 
    mtx_lock(&wsi->wait_mutex);
 
-   /* Make sure that the page flip handler is processed in finite time if using present wait. */
-   if (present_id)
+   /* Make sure that the page flip handler is processed in finite time if using present wait
+    * or presentation time. */
+   if (present_id || chain->timing_request.serial)
       wsi_display_start_wait_thread(wsi);
 
+   memset(&chain->timing_request, 0, sizeof(chain->timing_request));
    image->flip_sequence = ++chain->flip_sequence;
    image->state = WSI_IMAGE_QUEUED;
 
@@ -3116,6 +3322,9 @@ wsi_display_surface_create_swapchain(
    chain->base.acquire_next_image = wsi_display_acquire_next_image;
    chain->base.release_images = wsi_display_release_images;
    chain->base.queue_present = wsi_display_queue_present;
+   chain->base.set_timing_request = wsi_display_set_timing_request;
+   chain->base.poll_early_refresh = wsi_display_poll_refresh_duration;
+   chain->base.present_timing.time_domain = VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR;
    chain->base.wait_for_present = wsi_display_wait_for_present;
    chain->base.wait_for_present2 = wsi_display_wait_for_present;
    chain->base.set_hdr_metadata = wsi_display_set_hdr_metadata;

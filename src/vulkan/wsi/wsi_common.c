@@ -1332,11 +1332,11 @@ wsi_CreateSwapchainKHR(VkDevice _device,
       if (swapchain->poll_early_refresh) {
          /* If we can query the display directly, we should report something reasonable on first query
           * before we even present the first time. */
-         uint64_t refresh_ns = swapchain->poll_early_refresh(swapchain);
+         uint64_t interval;
+         uint64_t refresh_ns = swapchain->poll_early_refresh(swapchain, &interval);
          if (refresh_ns) {
             swapchain->present_timing.refresh_duration = refresh_ns;
-            /* None of the APIs can know a-priori if we're driving the display VRR or not. */
-            swapchain->present_timing.refresh_interval = 0;
+            swapchain->present_timing.refresh_interval = interval;
             swapchain->present_timing.refresh_counter++;
          }
       }
