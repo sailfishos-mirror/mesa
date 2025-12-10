@@ -1774,6 +1774,7 @@ struct anv_instance {
     bool                                        force_guc_low_latency;
     bool                                        emulate_read_without_format;
     bool                                        promote_cbv_to_push_buffers;
+    bool                                        enable_fully_covered;
 
     /**
      * Workarounds for game bugs.

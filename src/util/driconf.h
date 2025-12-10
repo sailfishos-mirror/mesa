@@ -975,6 +975,10 @@
    DRI_CONF_OPT_B(anv_enable_scratch_page, def, \
                   "Disables surface padding and suppresses all page faults, drops writes and returns zeros on reads.")
 
+#define DRI_CONF_ANV_ENABLE_FULLY_COVERED(def) \
+   DRI_CONF_OPT_B(anv_enable_fully_covered, def, \
+                  "Enable fullyCoveredFragmentShaderInputVariable (Alchemist and newer only).")
+
 /**
  * \brief HASVK specific configuration options
  */

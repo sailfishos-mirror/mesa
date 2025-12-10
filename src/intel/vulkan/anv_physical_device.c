@@ -1701,8 +1701,15 @@ get_properties(const struct anv_physical_device *pdevice,
       props->conservativePointAndLineRasterization = false;
       props->degenerateTrianglesRasterized = true;
       props->degenerateLinesRasterized = false;
-      props->fullyCoveredFragmentShaderInputVariable = false;
-      props->conservativeRasterizationPostDepthCoverage = true;
+
+      bool fully_covered = pdevice->instance->enable_fully_covered &&
+         pdevice->info.verx10 >= 125;
+
+      props->fullyCoveredFragmentShaderInputVariable = fully_covered;
+      /* InnerCoverage, used to implement fully covered, is mutually exclusive
+       * with PostDepthCoverage.
+       */
+      props->conservativeRasterizationPostDepthCoverage = !fully_covered;
    }
 
    /* VK_EXT_custom_border_color */
