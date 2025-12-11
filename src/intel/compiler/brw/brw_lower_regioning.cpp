@@ -452,8 +452,16 @@ namespace {
       switch (inst->opcode) {
       case BRW_OPCODE_MOV:
          return false;
-      case BRW_OPCODE_SEL:
-         return inst->dst.type != get_exec_type(inst);
+      case BRW_OPCODE_SEL: {
+         const brw_reg_type exec_type = get_exec_type(inst);
+
+         if (inst->dst.type == exec_type)
+            return false;
+
+         /* SEL can mix integer sizes and signed/unsigned. */
+         return !brw_type_is_int(inst->dst.type) ||
+                !brw_type_is_int(exec_type);
+      }
       default:
          /* FIXME: We assume the opcodes not explicitly mentioned before just
           * work fine with arbitrary conversions, unless they need to be

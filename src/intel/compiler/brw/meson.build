@@ -163,6 +163,7 @@ if with_tests
         'test_helpers.cpp',
         'test_helpers.h',
         'test_insert_load_reg.cpp',
+        'test_lower_regioning.cpp',
         'test_lower_scoreboard.cpp',
         'test_opt_algebraic.cpp',
         'test_opt_cmod_propagation.cpp',
