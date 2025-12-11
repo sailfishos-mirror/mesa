@@ -1157,8 +1157,8 @@ barycentric("coord_at_offset", 3, [2])
 
 # Load sample position:
 #
-# Takes a sample # and returns a sample position.  Used for lowering
-# interpolateAtSample() to interpolateAtOffset()
+# Takes a sample # and returns a sample position (where the pixel center is
+# (0.5, 0.5)).  Used for lowering interpolateAtSample() to interpolateAtOffset()
 intrinsic("load_sample_pos_from_id", src_comp=[1], dest_comp=2,
           flags=[CAN_ELIMINATE, CAN_REORDER])
 
