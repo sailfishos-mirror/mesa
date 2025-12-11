@@ -481,6 +481,10 @@ SOFTWARE.
 </bitset>
 
 <bitset name="rgetpos" extends="#instruction-cat5-tex">
+	<doc>
+		Returns the sample id's position within a pixel, centered around
+		(0.0, 0.0)
+	</doc>
 	<pattern low="54" high="58">11010</pattern>
 	<derived name="NUM_SRC" expr="#one" type="uint"/>
 	<derived name="HAS_SAMP" expr="#false" type="bool"/>
