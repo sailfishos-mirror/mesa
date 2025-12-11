@@ -219,6 +219,9 @@ bool brw_nir_lower_inputs_to_urb_intrinsics(nir_shader *, const struct brw_lower
 
 bool brw_nir_lower_outputs_to_urb_intrinsics(nir_shader *, const struct brw_lower_urb_cb_data *);
 
+void brw_nir_opt_vectorize_urb(nir_shader *nir,
+                               const struct intel_device_info *devinfo);
+
 void brw_nir_lower_vs_inputs(nir_shader *nir);
 void brw_nir_lower_gs_inputs(nir_shader *nir,
                              const struct intel_device_info *devinfo,

@@ -779,6 +779,59 @@ brw_nir_lower_per_view_outputs(nir_shader *nir)
                                      NULL);
 }
 
+static bool
+brw_nir_should_vectorize_urb(unsigned align_mul, unsigned align_offset,
+                             unsigned bit_size,
+                             unsigned num_components,
+                             int64_t hole_size,
+                             nir_intrinsic_instr *low,
+                             nir_intrinsic_instr *high,
+                             void *data)
+{
+   if (bit_size != 32 || num_components > 8)
+      return false;
+
+   if (num_components > 4 && num_components < 8 &&
+       low->intrinsic == nir_intrinsic_store_urb_lsc_intel)
+      return false;
+
+   if (low->intrinsic == nir_intrinsic_store_urb_vec4_intel)
+      return nir_src_is_const(low->src[3]) && nir_src_is_const(high->src[3]);
+
+   return low->intrinsic == nir_intrinsic_load_urb_lsc_intel ||
+          low->intrinsic == nir_intrinsic_store_urb_lsc_intel ||
+          low->intrinsic == nir_intrinsic_load_urb_vec4_intel;
+}
+
+static unsigned
+vec4_urb_round_up_components(unsigned n)
+{
+   return n < 4 ? 4 : util_next_power_of_two(n);
+}
+
+static unsigned
+lsc_urb_round_up_components(unsigned n)
+{
+   return n < 4 ? n : util_next_power_of_two(n);
+}
+
+void
+brw_nir_opt_vectorize_urb(nir_shader *nir,
+                          const struct intel_device_info *devinfo)
+{
+   NIR_PASS(_, nir, nir_opt_cse);
+
+   nir_load_store_vectorize_options options = {
+      .modes = nir_var_shader_in | nir_var_shader_out,
+      .callback = brw_nir_should_vectorize_urb,
+      .round_up_store_components = true,
+      .round_up_components =
+         devinfo->ver >= 20 ? lsc_urb_round_up_components :
+                              vec4_urb_round_up_components,
+   };
+   NIR_PASS(_, nir, nir_opt_load_store_vectorize, &options);
+}
+
 void
 brw_nir_lower_vs_inputs(nir_shader *nir)
 {
@@ -2628,6 +2681,7 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
    if (nir->info.stage == MESA_SHADER_MESH ||
        nir->info.stage == MESA_SHADER_TASK) {
       OPT(lower_task_payload_to_urb_intrinsics, devinfo);
+      brw_nir_opt_vectorize_urb(nir, devinfo);
    }
 
    /* Needs to be prior int64 lower because it generates 64bit address

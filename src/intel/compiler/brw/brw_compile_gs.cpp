@@ -179,6 +179,7 @@ brw_compile_gs(const struct brw_compiler *compiler,
    brw_nir_lower_gs_inputs(nir, compiler->devinfo, &input_vue_map,
                            &prog_data->base.urb_read_length);
    brw_nir_lower_vue_outputs(nir);
+   brw_nir_opt_vectorize_urb(nir, compiler->devinfo);
    brw_postprocess_nir(nir, compiler, dispatch_width,
                        params->base.archiver, debug_enabled,
                        key->base.robust_flags);

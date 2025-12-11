@@ -233,6 +233,7 @@ brw_compile_tcs(const struct brw_compiler *compiler,
    brw_nir_lower_tcs_inputs(nir, devinfo, &input_vue_map);
    brw_nir_lower_tcs_outputs(nir, devinfo, &vue_prog_data->vue_map,
                              key->_tes_primitive_mode);
+   brw_nir_opt_vectorize_urb(nir, devinfo);
    intel_nir_lower_patch_vertices_in(nir, key->input_vertices);
 
    brw_postprocess_nir(nir, compiler, dispatch_width,

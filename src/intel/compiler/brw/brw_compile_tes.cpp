@@ -108,6 +108,7 @@ brw_compile_tes(const struct brw_compiler *compiler,
    brw_nir_apply_key(nir, compiler, &key->base, dispatch_width);
    brw_nir_lower_tes_inputs(nir, devinfo, &input_vue_map);
    brw_nir_lower_vue_outputs(nir);
+   brw_nir_opt_vectorize_urb(nir, devinfo);
    NIR_PASS(_, nir, intel_nir_lower_patch_vertices_tes);
    brw_postprocess_nir(nir, compiler, dispatch_width, params->base.archiver,
                        debug_enabled, key->base.robust_flags);

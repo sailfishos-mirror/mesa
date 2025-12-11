@@ -1034,6 +1034,7 @@ brw_compile_mesh(const struct brw_compiler *compiler,
       .per_primitive_byte_offsets = prog_data->map.per_primitive_offsets,
    };
    NIR_PASS(_, nir, brw_nir_lower_outputs_to_urb_intrinsics, &cb_data);
+   brw_nir_opt_vectorize_urb(nir, devinfo);
    struct nir_opt_offsets_options offset_options = {};
    NIR_PASS(_, nir, nir_opt_offsets, &offset_options);
 
