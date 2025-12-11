@@ -128,6 +128,42 @@ intel_perf_query_result_write_mdapi(void *data, uint32_t data_size,
       mdapi_data->SplitOccured = result->query_disjoint;
       return sizeof(*mdapi_data);
    }
+   case 125: {
+      struct gfx12_5_mdapi_metrics *mdapi_data = (struct gfx12_5_mdapi_metrics *) data;
+
+      if (data_size < sizeof(*mdapi_data))
+         return 0;
+
+      for (int i = 0; i < ARRAY_SIZE(mdapi_data->OaCntr); i++)
+         mdapi_data->OaCntr[i] = result->accumulator[2 + i];
+      for (int i = 0; i < ARRAY_SIZE(mdapi_data->NoaCntr); i++) {
+         mdapi_data->NoaCntr[i] =
+            result->accumulator[2 + ARRAY_SIZE(mdapi_data->OaCntr) + i];
+      }
+
+      mdapi_data->PerfCounter1 = result->accumulator[query->perfcnt_offset + 0];
+      mdapi_data->PerfCounter2 = result->accumulator[query->perfcnt_offset + 1];
+
+      mdapi_data->ReportId = result->hw_id;
+      mdapi_data->ReportsCount = result->reports_accumulated;
+      mdapi_data->TotalTime =
+         intel_device_info_timebase_scale(devinfo, result->accumulator[0]);
+      mdapi_data->BeginTimestamp =
+         intel_device_info_timebase_scale(devinfo, result->begin_timestamp);
+      mdapi_data->GPUTicks = result->accumulator[1];
+      mdapi_data->CoreFrequency = result->gt_frequency[1];
+      mdapi_data->CoreFrequencyChanged = result->gt_frequency[1] != result->gt_frequency[0];
+      mdapi_data->SliceFrequency =
+         (result->slice_frequency[0] + result->slice_frequency[1]) / 2ULL;
+      mdapi_data->UnsliceFrequency =
+         (result->unslice_frequency[0] + result->unslice_frequency[1]) / 2ULL;
+      mdapi_data->SplitOccured = result->query_disjoint;
+
+      /* TODO: Fields not being set: MidQueryEvents, OverrunOccured, MarkerUser,
+       * MarkerDriver, UserCntr, UserCntrCfgId, Flags.
+       */
+      return sizeof(*mdapi_data);
+   }
    case 200:
    case 300: {
       struct gfx20_mdapi_metrics *mdapi_data = (struct gfx20_mdapi_metrics *) data;
@@ -377,6 +413,47 @@ intel_perf_register_mdapi_oa_query(struct intel_perf_config *perf,
       }
       MDAPI_QUERY_ADD_COUNTER(query, metric_data, UserCntrCfgId, UINT32);
       MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved4, UINT32);
+      break;
+   }
+   case 125: {
+      query = intel_perf_append_query_info(perf, 2 + 38 + 16 + 16 + 16 + 2);
+
+      struct gfx12_5_mdapi_metrics metric_data;
+      query->data_size = sizeof(metric_data);
+
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, TotalTime, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, GPUTicks, UINT64);
+      for (int i = 0; i < ARRAY_SIZE(metric_data.OaCntr); i++) {
+         MDAPI_QUERY_ADD_ARRAY_COUNTER(perf->queries, query,
+                                       metric_data, OaCntr, i, UINT64);
+      }
+      for (int i = 0; i < ARRAY_SIZE(metric_data.NoaCntr); i++) {
+         MDAPI_QUERY_ADD_ARRAY_COUNTER(perf->queries, query,
+                                       metric_data, NoaCntr, i, UINT64);
+      }
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, BeginTimestamp, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved1, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Reserved2, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MidQueryEvents, UINT32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, OverrunOccured, BOOL32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MarkerUser, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, MarkerDriver, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, SliceFrequency, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, UnsliceFrequency, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, PerfCounter1, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, PerfCounter2, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, SplitOccured, BOOL32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequencyChanged, BOOL32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, CoreFrequency, UINT64);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportId, UINT32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, ReportsCount, UINT32);
+      for (int i = 0; i < ARRAY_SIZE(metric_data.UserCntr); i++) {
+         MDAPI_QUERY_ADD_ARRAY_COUNTER(perf->queries, query,
+                                       metric_data, UserCntr, i, UINT64);
+      }
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, UserCntrCfgId, UINT32);
+      MDAPI_QUERY_ADD_COUNTER(query, metric_data, Flags, UINT32);
+
       break;
    }
    case 200:
