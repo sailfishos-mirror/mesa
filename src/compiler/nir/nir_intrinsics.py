@@ -383,6 +383,10 @@ index("bool", "explicit_coord")
 index("bool", "src_is_reg")
 index("bool", "dst_is_reg")
 
+# For an Intel render target store, whether this signals end-of-thread. Must be
+# the last instruction.
+index("bool", "eot")
+
 # The index of the format string used by a printf. (u_printf_info element of the shader)
 index("unsigned", "fmt_idx")
 # for NV coop matrix - num of matrix in load 1/2/4
@@ -2613,6 +2617,10 @@ system_value("indirect_address_intel", 1)
 # Load a relocatable 32-bit value
 intrinsic("load_reloc_const_intel", dest_comp=1, bit_sizes=[32],
           indices=[PARAM_IDX, BASE], flags=[CAN_ELIMINATE, CAN_REORDER])
+
+# Write a render target
+# src[] = { payload, 2x32 descriptor, predicate }
+intrinsic("store_render_target_intel", [-1, 2, 1], indices=[EOT], bit_sizes=[32])
 
 # 1 component 32bit surface index that can be used for bindless or BTI heaps
 #
