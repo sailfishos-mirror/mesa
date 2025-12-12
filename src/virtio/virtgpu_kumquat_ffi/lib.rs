@@ -47,52 +47,52 @@ macro_rules! return_on_error {
     };
 }
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type virtgpu_kumquat_ffi = Mutex<VirtGpuKumquat>;
 
 // The following structs (in define.rs) must be ABI-compatible with FFI header
 // (virtgpu_kumquat_ffi.h).
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_getparam = VirtGpuParam;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_resource_unref = VirtGpuResourceUnref;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_get_caps = VirtGpuGetCaps;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_context_init = VirtGpuContextInit;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_resource_create_3d = VirtGpuResourceCreate3D;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_resource_create_blob = VirtGpuResourceCreateBlob;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_transfer_to_host = VirtGpuTransfer;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_transfer_from_host = VirtGpuTransfer;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_execbuffer = VirtGpuExecBuffer;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_wait = VirtGpuWait;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_resource_map = VirtGpuResourceMap;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_resource_export = VirtGpuResourceExport;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_resource_import = VirtGpuResourceImport;
 
-#[allow(non_camel_case_types)]
+#[expect(non_camel_case_types)]
 type drm_kumquat_resource_info = VirtGpuResourceInfo;
 
 #[no_mangle]
