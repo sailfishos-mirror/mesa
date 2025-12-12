@@ -411,6 +411,24 @@ static void r300_clear(struct pipe_context* pipe,
         r300_mark_fb_state_dirty(r300, R300_CHANGED_HYPERZ_FLAG);
     }
 
+    /* If we are clearing texture currently bound for sampling we need to invalidate the cache. */
+    if (buffers & PIPE_CLEAR_COLOR) {
+        struct r300_textures_state *texstate =
+            (struct r300_textures_state*)r300->textures_state.state;
+        for (unsigned i = 0; i < fb->nr_cbufs; i++) {
+            struct pipe_resource *cbuf_tex = fb->cbufs[i].texture;
+            if (!cbuf_tex)
+                continue;
+            for (unsigned s = 0; s < texstate->sampler_view_count; s++) {
+                struct r300_sampler_view *view = texstate->sampler_views[s];
+                if (view && view->base.texture == cbuf_tex) {
+                    r300_mark_atom_dirty(r300, &r300->texture_cache_inval);
+                    break;
+                }
+            }
+        }
+    }
+
     /* Enable fastfill and/or hiz.
      *
      * If we cleared zmask/hiz, it's in use now. The Hyper-Z state update
