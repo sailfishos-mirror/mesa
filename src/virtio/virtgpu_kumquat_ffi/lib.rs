@@ -183,6 +183,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_context_init(
         let mut capset_id: u64 = 0;
 
         for param in context_params {
+            #[expect(clippy::single_match)]
             match param.param {
                 VIRTGPU_KUMQUAT_CONTEXT_PARAM_CAPSET_ID => {
                     capset_id = param.value;
