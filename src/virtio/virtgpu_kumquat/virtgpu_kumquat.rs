@@ -38,7 +38,6 @@ pub struct VirtGpuResource {
     size: usize,
     handle: MesaHandle,
     attached_fences: Vec<MesaHandle>,
-    #[allow(dead_code)]
     vulkan_info: VulkanInfo,
     system_mapping: Option<MemoryMapping>,
 }
