@@ -764,7 +764,7 @@
         "description": "brw: Handle scalars and swizzles correctly in is_const_zero",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "96cde9cc01dc0cfa4d4edf70d47df118ca57e5c0",
         "notes": null
