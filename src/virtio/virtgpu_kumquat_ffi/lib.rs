@@ -136,7 +136,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_get_param(
     cmd: &mut drm_kumquat_getparam,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().get_param(cmd);
+        let result = ptr.get_mut().unwrap().get_param(cmd);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_get_caps(
         } else {
             &mut []
         };
-        let result = ptr.lock().unwrap().get_caps(cmd.cap_set_id, caps_slice);
+        let result = ptr.get_mut().unwrap().get_caps(cmd.cap_set_id, caps_slice);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -191,7 +191,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_context_init(
             }
         }
 
-        let result = ptr.lock().unwrap().context_create(capset_id, "");
+        let result = ptr.get_mut().unwrap().context_create(capset_id, "");
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -203,7 +203,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_resource_create_3d(
     cmd: &mut drm_kumquat_resource_create_3d,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().resource_create_3d(cmd);
+        let result = ptr.get_mut().unwrap().resource_create_3d(cmd);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -222,7 +222,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_resource_create_blob(
         } else {
             &[]
         };
-        let result = ptr.lock().unwrap().resource_create_blob(cmd, blob_cmd);
+        let result = ptr.get_mut().unwrap().resource_create_blob(cmd, blob_cmd);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -234,7 +234,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_resource_unref(
     cmd: &mut drm_kumquat_resource_unref,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().resource_unref(cmd.bo_handle);
+        let result = ptr.get_mut().unwrap().resource_unref(cmd.bo_handle);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -246,7 +246,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_resource_map(
     cmd: &mut drm_kumquat_resource_map,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().map(cmd.bo_handle);
+        let result = ptr.get_mut().unwrap().map(cmd.bo_handle);
         let internal_map = return_on_error!(result);
         (*cmd).ptr = internal_map.ptr as *mut c_void;
         (*cmd).size = internal_map.size;
@@ -261,7 +261,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_resource_unmap(
     bo_handle: u32,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().unmap(bo_handle);
+        let result = ptr.get_mut().unwrap().unmap(bo_handle);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -273,7 +273,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_transfer_to_host(
     cmd: &mut drm_kumquat_transfer_to_host,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().transfer_to_host(cmd);
+        let result = ptr.get_mut().unwrap().transfer_to_host(cmd);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -285,7 +285,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_transfer_from_host(
     cmd: &mut drm_kumquat_transfer_from_host,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().transfer_from_host(cmd);
+        let result = ptr.get_mut().unwrap().transfer_from_host(cmd);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -317,7 +317,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_execbuffer(
         let in_fences: &[u64] = &[0; 0];
 
         let mut descriptor: RawDescriptor = DEFAULT_RAW_DESCRIPTOR;
-        let result = ptr.lock().unwrap().submit_command(
+        let result = ptr.get_mut().unwrap().submit_command(
             cmd.flags,
             bo_handles,
             cmd_buf,
@@ -338,7 +338,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_wait(
     cmd: &mut drm_kumquat_wait,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().wait(cmd.bo_handle);
+        let result = ptr.get_mut().unwrap().wait(cmd.bo_handle);
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -351,7 +351,7 @@ pub extern "C" fn virtgpu_kumquat_resource_export(
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
         let result = ptr
-            .lock()
+            .get_mut()
             .unwrap()
             .resource_export(cmd.bo_handle, cmd.flags);
         let hnd = return_on_error!(result);
@@ -378,7 +378,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_resource_import(
             handle_type: (*cmd).handle_type,
         };
 
-        let result = ptr.lock().unwrap().resource_import(
+        let result = ptr.get_mut().unwrap().resource_import(
             handle,
             &mut cmd.bo_handle,
             &mut cmd.res_handle,
@@ -396,7 +396,7 @@ pub extern "C" fn virtgpu_kumquat_resource_info(
     cmd: &mut drm_kumquat_resource_info,
 ) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().resource_info(cmd.bo_handle);
+        let result = ptr.get_mut().unwrap().resource_info(cmd.bo_handle);
 
         let info = return_on_error!(result);
         (*cmd).vulkan_info = info;
@@ -408,7 +408,7 @@ pub extern "C" fn virtgpu_kumquat_resource_info(
 #[no_mangle]
 pub unsafe extern "C" fn virtgpu_kumquat_snapshot_save(ptr: &mut virtgpu_kumquat_ffi) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().snapshot();
+        let result = ptr.get_mut().unwrap().snapshot();
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
@@ -417,7 +417,7 @@ pub unsafe extern "C" fn virtgpu_kumquat_snapshot_save(ptr: &mut virtgpu_kumquat
 #[no_mangle]
 pub unsafe extern "C" fn virtgpu_kumquat_snapshot_restore(ptr: &mut virtgpu_kumquat_ffi) -> i32 {
     catch_unwind(AssertUnwindSafe(|| {
-        let result = ptr.lock().unwrap().restore();
+        let result = ptr.get_mut().unwrap().restore();
         return_result(result)
     }))
     .unwrap_or(-ESRCH)
