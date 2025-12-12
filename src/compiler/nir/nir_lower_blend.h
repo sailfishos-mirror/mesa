@@ -46,7 +46,13 @@ typedef struct {
    nir_lower_blend_channel alpha;
 
    /* 4-bit colormask. 0x0 for none, 0xF for RGBA, 0x1 for R */
-   unsigned colormask;
+   unsigned colormask:4;
+
+   unsigned advanced_blend:1;
+   enum pipe_advanced_blend_mode blend_mode;
+   bool src_premultiplied;
+   bool dst_premultiplied;
+   enum pipe_blend_overlap_mode overlap;
 } nir_lower_blend_rt;
 
 typedef struct {
