@@ -560,7 +560,7 @@ static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
       has_depth_feedback = true;
    }
 
-   if (!state->has_discards) {
+   if (!state->has_sample_check) {
       b->cursor = nir_after_instr(&state->last_discard_store->instr);
 
       nir_def *smp_msk = nir_ishl(b, nir_imm_int(b, 1), nir_load_sample_id(b));
@@ -572,6 +572,7 @@ static bool lower_isp_fb(nir_builder *b, struct pfo_state *state)
       state->last_discard_store =
          nir_build_store_reg(b, val, state->discard_cond_reg);
 
+      state->has_sample_check = true;
       state->has_discards = true;
    }
 
