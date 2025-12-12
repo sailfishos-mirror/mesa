@@ -248,8 +248,8 @@ pub unsafe extern "C" fn virtgpu_kumquat_resource_map(
     catch_unwind(AssertUnwindSafe(|| {
         let result = ptr.get_mut().unwrap().map(cmd.bo_handle);
         let internal_map = return_on_error!(result);
-        (*cmd).ptr = internal_map.ptr as *mut c_void;
-        (*cmd).size = internal_map.size;
+        cmd.ptr = internal_map.ptr as *mut c_void;
+        cmd.size = internal_map.size;
         NO_ERROR
     }))
     .unwrap_or(-ESRCH)
@@ -356,8 +356,8 @@ pub extern "C" fn virtgpu_kumquat_resource_export(
             .resource_export(cmd.bo_handle, cmd.flags);
         let hnd = return_on_error!(result);
 
-        (*cmd).handle_type = hnd.handle_type;
-        (*cmd).os_handle = hnd.os_handle.into_raw_descriptor() as i64;
+        cmd.handle_type = hnd.handle_type;
+        cmd.os_handle = hnd.os_handle.into_raw_descriptor() as i64;
         NO_ERROR
     }))
     .unwrap_or(-ESRCH)
@@ -373,9 +373,9 @@ pub unsafe extern "C" fn virtgpu_kumquat_resource_import(
             // SAFETY:
             // The API user must transfer ownership of a valid OS handle.
             os_handle: unsafe {
-                OwnedDescriptor::from_raw_descriptor((*cmd).os_handle.into_raw_descriptor())
+                OwnedDescriptor::from_raw_descriptor(cmd.os_handle.into_raw_descriptor())
             },
-            handle_type: (*cmd).handle_type,
+            handle_type: cmd.handle_type,
         };
 
         let result = ptr.get_mut().unwrap().resource_import(
@@ -399,7 +399,7 @@ pub extern "C" fn virtgpu_kumquat_resource_info(
         let result = ptr.get_mut().unwrap().resource_info(cmd.bo_handle);
 
         let info = return_on_error!(result);
-        (*cmd).vulkan_info = info;
+        cmd.vulkan_info = info;
         NO_ERROR
     }))
     .unwrap_or(-ESRCH)
