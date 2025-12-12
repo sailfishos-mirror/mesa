@@ -26,6 +26,7 @@ libpanfrost_bifrost_files = files(
   'bi_ra.c',
   'bi_ra_ssa.c',
   'bi_spill_ssa.c',
+  'bi_reindex_ssa.c',
   'bi_validate.c',
   'bi_dominance.c',
   'bir.c',

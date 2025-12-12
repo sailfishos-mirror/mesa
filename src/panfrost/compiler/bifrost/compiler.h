@@ -1476,6 +1476,9 @@ uint64_t MUST_CHECK bi_postra_liveness_ins(uint64_t live, bi_instr *ins);
 /* SSA spilling; returns number of spilled registers */
 unsigned bi_spill_ssa(bi_context *ctx, unsigned num_registers, unsigned tls_size);
 
+/* Reindex SSA to reduce memory usage */
+void bi_reindex_ssa(bi_context *ctx);
+
 /* Layout */
 
 signed bi_block_offset(bi_context *ctx, bi_clause *start, bi_block *target);
