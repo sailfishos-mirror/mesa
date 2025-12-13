@@ -481,14 +481,20 @@ emit_ps_color_export(nir_builder *b, lower_ps_state *s, unsigned output_index, u
          if (!lo && !hi)
             continue;
 
-         lo = lo ? lo : nir_undef(b, 1, type_size);
-         hi = hi ? hi : nir_undef(b, 1, type_size);
-
-         if (nir_op_infos[pack_op].num_inputs == 2) {
-            outputs[i] = nir_build_alu2(b, pack_op, lo, hi);
+         if (pack_op == nir_op_pack_half_2x16_rtz_split && (!lo || !hi)) {
+            lo = lo ? nir_f2f16_rtz(b, lo) : nir_undef(b, 1, 16);
+            hi = hi ? nir_f2f16_rtz(b, hi) : nir_undef(b, 1, 16);
+            outputs[i] = nir_pack_32_2x16_split(b, lo, hi);
          } else {
-            nir_def *vec = nir_vec2(b, lo, hi);
-            outputs[i] = nir_build_alu1(b, pack_op, vec);
+            lo = lo ? lo : nir_undef(b, 1, type_size);
+            hi = hi ? hi : nir_undef(b, 1, type_size);
+
+            if (nir_op_infos[pack_op].num_inputs == 2) {
+               outputs[i] = nir_build_alu2(b, pack_op, lo, hi);
+            } else {
+               nir_def *vec = nir_vec2(b, lo, hi);
+               outputs[i] = nir_build_alu1(b, pack_op, vec);
+            }
          }
 
          if (s->options->gfx_level >= GFX11)
