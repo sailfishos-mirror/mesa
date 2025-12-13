@@ -309,6 +309,7 @@ static const struct vk_device_extension_table lvp_device_extensions_supported = 
    .GOOGLE_decorate_string                = true,
    .GOOGLE_hlsl_functionality1            = true,
    .GOOGLE_user_type                      = true,
+   .NV_cooperative_matrix2                = true,
 };
 
 static bool
@@ -870,6 +871,8 @@ lvp_get_features(const struct lvp_physical_device *pdevice,
       /* VK_KHR_cooperative_matrix */
       .cooperativeMatrix = has_cooperative_matrix(),
       .cooperativeMatrixRobustBufferAccess = has_cooperative_matrix(),
+
+      .cooperativeMatrixFlexibleDimensions = true,
    };
 }
 
@@ -1315,6 +1318,9 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
 
       /* VK_KHR_compute_shader_derivatives */
       .meshAndTaskShaderDerivatives = true,
+
+      /* VK_NV_cooperative_matrix2 */
+      .cooperativeMatrixFlexibleDimensionsMaxDimension = 1024,
    };
 
    /* Vulkan 1.0 */
@@ -2879,60 +2885,96 @@ VKAPI_ATTR void VKAPI_CALL lvp_GetRenderingAreaGranularityKHR(
    *pGranularity = tile_size;
 }
 
+struct matrix_prop {
+   VkComponentTypeKHR a_type;
+   VkComponentTypeKHR b_type;
+   VkComponentTypeKHR c_type;
+   VkComponentTypeKHR r_type;
+};
+
+static void
+fill_matrix_prop_khr(struct __vk_outarray *base, struct matrix_prop *prop)
+{
+   vk_outarray(VkCooperativeMatrixPropertiesKHR) *out = (void *)base;
+
+   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, out, p)
+   {
+      *p = (struct VkCooperativeMatrixPropertiesKHR){.sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
+                                                     .MSize = 8,
+                                                     .NSize = 8,
+                                                     .KSize = 8,
+                                                     .AType = prop->a_type,
+                                                     .BType = prop->b_type,
+                                                     .CType = prop->c_type,
+                                                     .ResultType = prop->r_type,
+                                                     .saturatingAccumulation = false,
+                                                     .scope = VK_SCOPE_SUBGROUP_KHR};
+   }
+}
+
+static void
+fill_flexible_matrix_prop_nv(struct __vk_outarray *base, struct matrix_prop *prop)
+{
+   vk_outarray(VkCooperativeMatrixFlexibleDimensionsPropertiesNV) *out = (void *)base;
+
+   vk_outarray_append_typed(VkCooperativeMatrixFlexibleDimensionsPropertiesNV, out, p)
+   {
+      *p = (struct VkCooperativeMatrixFlexibleDimensionsPropertiesNV){
+         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_FLEXIBLE_DIMENSIONS_PROPERTIES_NV,
+         .MGranularity = 8,
+         .NGranularity = 8,
+         .KGranularity = 8,
+         .AType = prop->a_type,
+         .BType = prop->b_type,
+         .CType = prop->c_type,
+         .ResultType = prop->r_type,
+         .saturatingAccumulation = false,
+         .scope = VK_SCOPE_SUBGROUP_KHR};
+   }
+}
+
+static void
+fill_array_sizes_structs(struct __vk_outarray *base,
+                         void (*array_size_cb)(struct __vk_outarray *base, struct matrix_prop *prop))
+{
+   struct matrix_prop prop;
+
+   prop.a_type = VK_COMPONENT_TYPE_FLOAT16_KHR;
+   prop.b_type = VK_COMPONENT_TYPE_FLOAT16_KHR;
+   for (unsigned fp32 = 0; fp32 < 2; fp32++) {
+      prop.c_type = fp32 == 1 ? VK_COMPONENT_TYPE_FLOAT32_KHR : VK_COMPONENT_TYPE_FLOAT16_KHR;
+      prop.r_type = fp32 == 1 ? VK_COMPONENT_TYPE_FLOAT32_KHR : VK_COMPONENT_TYPE_FLOAT16_KHR;
+      (*array_size_cb)(base, &prop);
+   }
+
+   prop.a_type = VK_COMPONENT_TYPE_UINT8_KHR;
+   prop.b_type = VK_COMPONENT_TYPE_UINT8_KHR;
+   prop.c_type = VK_COMPONENT_TYPE_UINT32_KHR;
+   prop.r_type = VK_COMPONENT_TYPE_UINT32_KHR;
+   (*array_size_cb)(base, &prop);
+
+   prop.a_type = VK_COMPONENT_TYPE_SINT8_KHR;
+   prop.b_type = VK_COMPONENT_TYPE_SINT8_KHR;
+   prop.c_type = VK_COMPONENT_TYPE_SINT32_KHR;
+   prop.r_type = VK_COMPONENT_TYPE_SINT32_KHR;
+   (*array_size_cb)(base, &prop);
+}
 VKAPI_ATTR VkResult VKAPI_CALL lvp_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(
    VkPhysicalDevice physicalDevice,
    uint32_t *pPropertyCount,
    VkCooperativeMatrixPropertiesKHR *pProperties)
 {
    VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixPropertiesKHR, out, pProperties, pPropertyCount);
+   fill_array_sizes_structs(&out.base, fill_matrix_prop_khr);
+   return vk_outarray_status(&out);
+}
 
-   for (unsigned fp32 = 0; fp32 < 2; fp32++) {
-      vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
-      {
-         *p = (struct VkCooperativeMatrixPropertiesKHR){
-            .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
-            .MSize = 8,
-            .NSize = 8,
-            .KSize = 8,
-            .AType = VK_COMPONENT_TYPE_FLOAT16_KHR,
-            .BType = VK_COMPONENT_TYPE_FLOAT16_KHR,
-            .CType = fp32 == 1 ? VK_COMPONENT_TYPE_FLOAT32_KHR : VK_COMPONENT_TYPE_FLOAT16_KHR,
-            .ResultType = fp32 == 1 ? VK_COMPONENT_TYPE_FLOAT32_KHR : VK_COMPONENT_TYPE_FLOAT16_KHR,
-            .saturatingAccumulation = false,
-            .scope = VK_SCOPE_SUBGROUP_KHR
-         };
-      }
-   }
-
-   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
-   {
-      *p = (struct VkCooperativeMatrixPropertiesKHR){
-         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
-         .MSize = 8,
-         .NSize = 8,
-         .KSize = 8,
-         .AType = VK_COMPONENT_TYPE_UINT8_KHR,
-         .BType = VK_COMPONENT_TYPE_UINT8_KHR,
-         .CType = VK_COMPONENT_TYPE_UINT32_KHR,
-         .ResultType = VK_COMPONENT_TYPE_UINT32_KHR,
-         .saturatingAccumulation = false,
-         .scope = VK_SCOPE_SUBGROUP_KHR
-      };
-   }
-   vk_outarray_append_typed(VkCooperativeMatrixPropertiesKHR, &out, p)
-   {
-      *p = (struct VkCooperativeMatrixPropertiesKHR){
-         .sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR,
-         .MSize = 8,
-         .NSize = 8,
-         .KSize = 8,
-         .AType = VK_COMPONENT_TYPE_SINT8_KHR,
-         .BType = VK_COMPONENT_TYPE_SINT8_KHR,
-         .CType = VK_COMPONENT_TYPE_SINT32_KHR,
-         .ResultType = VK_COMPONENT_TYPE_SINT32_KHR,
-         .saturatingAccumulation = false,
-         .scope = VK_SCOPE_SUBGROUP_KHR
-      };
-   }
+VKAPI_ATTR VkResult VKAPI_CALL
+lvp_GetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(
+   VkPhysicalDevice physicalDevice, uint32_t *pPropertyCount,
+   VkCooperativeMatrixFlexibleDimensionsPropertiesNV *pProperties)
+{
+   VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixFlexibleDimensionsPropertiesNV, out, pProperties, pPropertyCount);
+   fill_array_sizes_structs(&out.base, fill_flexible_matrix_prop_nv);
    return vk_outarray_status(&out);
 }

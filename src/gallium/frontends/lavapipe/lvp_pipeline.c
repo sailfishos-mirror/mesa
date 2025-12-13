@@ -349,6 +349,13 @@ lvp_shader_lower(struct lvp_device *pdevice, nir_shader *nir, struct lvp_pipelin
    NIR_PASS(_, nir, nir_lower_system_values);
    NIR_PASS(_, nir, nir_lower_is_helper_invocation);
 
+   bool progress;
+   NIR_PASS(progress, nir, nir_lower_cooperative_matrix_flexible_dimensions, 8, 8, 8);
+   if (progress) {
+      NIR_PASS(_, nir, nir_opt_deref);
+      NIR_PASS(_, nir, nir_opt_dce);
+      NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp | nir_var_shader_temp, NULL);
+   }
    NIR_PASS(_, nir, lvp_nir_lower_cooperative_matrix);
 
    const struct nir_lower_compute_system_values_options compute_system_values = {0};
