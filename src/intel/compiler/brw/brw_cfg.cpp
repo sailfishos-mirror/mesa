@@ -126,9 +126,9 @@ cfg_t::cfg_t(brw_shader *s, brw_exec_list *instructions) :
    s(s), total_instructions(0)
 {
    mem_ctx = ralloc_context(NULL);
-   block_list.make_empty();
    blocks = NULL;
    num_blocks = 0;
+   cap_blocks = 0;
 
    bblock_t *cur = NULL;
    int ip = 0;
@@ -365,8 +365,6 @@ cfg_t::cfg_t(brw_shader *s, brw_exec_list *instructions) :
          break;
       }
    }
-
-   make_block_array();
 }
 
 cfg_t::~cfg_t()
@@ -472,8 +470,6 @@ cfg_t::remove_block(bblock_t *block)
       }
    }
 
-   block->link.remove();
-
    for (int b = block->num; b < this->num_blocks - 1; b++) {
       this->blocks[b] = this->blocks[b + 1];
       this->blocks[b]->num = b;
@@ -495,20 +491,13 @@ void
 cfg_t::set_next_block(bblock_t **cur, bblock_t *block, int ip)
 {
    block->num = num_blocks++;
-   block_list.push_tail(&block->link);
-   *cur = block;
-}
-
-void
-cfg_t::make_block_array()
-{
-   blocks = ralloc_array(mem_ctx, bblock_t *, num_blocks);
-
-   int i = 0;
-   foreach_block (block, this) {
-      blocks[i++] = block;
+   if (num_blocks > cap_blocks) {
+      int new_cap = MAX2(cap_blocks * 2, 8);
+      blocks = rerzalloc(mem_ctx, blocks, bblock_t *, cap_blocks, new_cap);
+      cap_blocks = new_cap;
    }
-   assert(i == num_blocks);
+   blocks[block->num] = block;
+   *cur = block;
 }
 
 void

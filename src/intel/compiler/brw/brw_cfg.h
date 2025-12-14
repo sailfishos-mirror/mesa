@@ -97,7 +97,6 @@ struct bblock_t {
    void insert_before(brw_inst *inst, brw_exec_node *ref);
    void remove(brw_inst *inst);
 
-   struct brw_exec_node link;
    struct cfg_t *cfg;
 
    unsigned num_instructions;
@@ -132,42 +131,6 @@ bblock_t::end() const
    return (const brw_inst *)brw_exec_list_get_tail_const(&instructions);
 }
 
-inline bblock_t *
-bblock_t::next()
-{
-   if (brw_exec_node_is_tail_sentinel(link.next))
-      return NULL;
-
-   return (struct bblock_t *)link.next;
-}
-
-inline const bblock_t *
-bblock_t::next() const
-{
-   if (brw_exec_node_is_tail_sentinel(link.next))
-      return NULL;
-
-   return (const struct bblock_t *)link.next;
-}
-
-inline bblock_t *
-bblock_t::prev()
-{
-   if (brw_exec_node_is_head_sentinel(link.prev))
-      return NULL;
-
-   return (struct bblock_t *)link.prev;
-}
-
-inline const bblock_t *
-bblock_t::prev() const
-{
-   if (brw_exec_node_is_head_sentinel(link.prev))
-      return NULL;
-
-   return (const struct bblock_t *)link.prev;
-}
-
 inline bool
 bblock_t::ends_with_control_flow() const
 {
@@ -197,14 +160,13 @@ struct cfg_t {
 
    void remove_block(bblock_t *block);
 
-   bblock_t *first_block();
-   const bblock_t *first_block() const;
-   bblock_t *last_block();
-   const bblock_t *last_block() const;
+   bblock_t *first_block()             { return blocks[0]; }
+   const bblock_t *first_block() const { return blocks[0]; }
+   bblock_t *last_block()              { return blocks[num_blocks - 1]; }
+   const bblock_t *last_block() const  { return blocks[num_blocks - 1]; }
 
    bblock_t *new_block();
    void set_next_block(bblock_t **cur, bblock_t *block, int ip);
-   void make_block_array();
 
    void dump_cfg();
 
@@ -218,36 +180,45 @@ struct cfg_t {
    void *mem_ctx;
 
    /** Ordered list (by ip) of basic blocks */
-   struct brw_exec_list block_list;
-   struct bblock_t **blocks;
+   bblock_t **blocks;
    int num_blocks;
+   int cap_blocks;
 
    unsigned total_instructions;
 };
 
 inline bblock_t *
-cfg_t::first_block()
+bblock_t::next()
 {
-   return (struct bblock_t *)brw_exec_list_get_head(&block_list);
+   if (num == cfg->num_blocks - 1)
+      return NULL;
+   return cfg->blocks[num + 1];
 }
 
-const inline bblock_t *
-cfg_t::first_block() const
+inline const bblock_t *
+bblock_t::next() const
 {
-   return (const struct bblock_t *)brw_exec_list_get_head_const(&block_list);
+   if (num == cfg->num_blocks - 1)
+      return NULL;
+   return cfg->blocks[num + 1];
 }
 
 inline bblock_t *
-cfg_t::last_block()
+bblock_t::prev()
 {
-   return (struct bblock_t *)brw_exec_list_get_tail(&block_list);
+   if (num == 0)
+      return NULL;
+   return cfg->blocks[num - 1];
 }
 
-const inline bblock_t *
-cfg_t::last_block() const
+inline const bblock_t *
+bblock_t::prev() const
 {
-   return (const struct bblock_t *)brw_exec_list_get_tail_const(&block_list);
+   if (num == 0)
+      return NULL;
+   return cfg->blocks[num - 1];
 }
+
 
 /* Note that this is implemented with a double for loop -- break will
  * break from the inner loop only!
@@ -263,11 +234,13 @@ cfg_t::last_block() const
    foreach_block (__block, __cfg)                                   \
       foreach_inst_in_block_safe (__type, __inst, __block)
 
-#define foreach_block(__block, __cfg)                          \
-   brw_foreach_list_typed (bblock_t, __block, link, &(__cfg)->block_list)
+#define foreach_block(__block, __cfg)                                          \
+   for (int __block_idx = 0; __block_idx < (__cfg)->num_blocks; __block_idx++) \
+      if (bblock_t *__block = (__cfg)->blocks[__block_idx]; true)
 
-#define foreach_block_reverse(__block, __cfg)                  \
-   brw_foreach_list_typed_reverse (bblock_t, __block, link, &(__cfg)->block_list)
+#define foreach_block_reverse(__block, __cfg)                                          \
+   for (int __block_idx = (__cfg)->num_blocks - 1; __block_idx >= 0; __block_idx--) \
+      if (bblock_t *__block = (__cfg)->blocks[__block_idx]; true)
 
 #define foreach_inst_in_block(__type, __inst, __block)         \
    brw_foreach_in_list(__type, __inst, &(__block)->instructions)
