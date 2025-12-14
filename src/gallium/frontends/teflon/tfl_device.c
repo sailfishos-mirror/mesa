@@ -643,6 +643,18 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "STRIDED_SLICE";
    case kTfLiteBuiltinResizeNearestNeighbor:
       return "RESIZE";
+   case kTfLiteBuiltinSplit:
+      return "SPLIT";
+   case kTfLiteBuiltinRelu:
+      return "RELU";
+   case kTfLiteBuiltinAbs:
+      return "ABS";
+   case kTfLiteBuiltinLogistic:
+      return "LOG";
+   case kTfLiteBuiltinSub:
+      return "SUB";
+   case kTfLiteBuiltinTranspose:
+      return "TRANSPOSE";
    default:
       return "unknown";
    }
