@@ -7,6 +7,7 @@
 
 struct lower_spill_ctx {
    bi_context *shader;
+   uint32_t *sizes;
    /* If bi_index::memory, tls_loc[idx.value] is valid. */
    uint32_t *tls_loc;
    /* Bytes of spill memory used so far. */
@@ -21,16 +22,19 @@ lower_memmov(struct lower_spill_ctx* ctx, bi_instr *I, uint32_t tls_base)
    assert(I->src[0].memory || I->dest[0].memory);
 
    bi_builder b = bi_init_builder(ctx->shader, bi_before_instr(I));
-   const unsigned bits = 32;
 
    bi_index src = I->src[0];
    bi_index dst = I->dest[0];
 
    if (I->src[0].memory) {
       unsigned offset = ctx->tls_loc[src.value];
+      unsigned bits = ctx->sizes[src.value] * 32;
+      assert(bits <= 128);
       bi_load_tl(&b, bits, dst, tls_base + offset);
    } else {
       unsigned offset = ctx->tls_loc[dst.value];
+      unsigned bits = ctx->sizes[dst.value] * 32;
+      assert(bits <= 128);
       bi_store_tl(&b, bits, src, tls_base + offset);
    }
 
@@ -49,6 +53,11 @@ lower_mem_phi(struct lower_spill_ctx* ctx, bi_instr *I, uint32_t tls_base)
 
    if (I->dest[0].memory) {
       const bi_index dst = I->dest[0];
+      /* bi_repair_ssa could make PHIs for MEMMOV sources which could be
+       * wider. But, those should all get eliminated as trivial because they
+       * are only defined once so they would all look like mX = PHI mX, mX.
+       */
+      assert(ctx->sizes[dst.value] == 1);
       I->dest[0].value = tls_base + ctx->tls_loc[dst.value];
    }
 
@@ -58,6 +67,7 @@ lower_mem_phi(struct lower_spill_ctx* ctx, bi_instr *I, uint32_t tls_base)
          continue;
 
       assert(ctx->tls_loc[src.value] != UINT32_MAX && "Undefined source");
+      assert(ctx->sizes[src.value] == 1);
       I->src[s].value = tls_base + ctx->tls_loc[src.value];
    }
 }
@@ -74,7 +84,7 @@ assign_tls_locations(struct lower_spill_ctx *ctx) {
          assert(ctx->tls_loc[dst.value] == UINT32_MAX && "Broken SSA");
 
          ctx->tls_loc[dst.value] = ctx->spill_count;
-         ctx->spill_count += 4;
+         ctx->spill_count += 4 * ctx->sizes[dst.value];
       }
    }
 }
@@ -83,11 +93,15 @@ unsigned
 bi_lower_spill(bi_context* ctx, uint32_t tls_base) {
    void* memctx = ralloc_context(NULL);
 
+   uint32_t *sizes = rzalloc_array(memctx, uint32_t, ctx->ssa_alloc);
    uint32_t *tls_loc = ralloc_array(memctx, uint32_t, ctx->ssa_alloc);
    memset(tls_loc, 0xff, sizeof(uint32_t) * ctx->ssa_alloc);
 
+   bi_record_sizes(ctx, sizes);
+
    struct lower_spill_ctx lctx = {
       .shader = ctx,
+      .sizes = sizes,
       .tls_loc = tls_loc,
       .spill_count = 0,
    };
