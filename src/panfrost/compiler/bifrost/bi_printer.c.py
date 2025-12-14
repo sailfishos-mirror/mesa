@@ -85,9 +85,9 @@ bi_print_index(FILE *fp, bi_index index)
     else if (index.type == BI_INDEX_PASS)
         fprintf(fp, "%s", bir_passthrough_name(index.value));
     else if (index.type == BI_INDEX_REGISTER)
-        fprintf(fp, "r%u", index.value);
+        fprintf(fp, "%s%u", index.memory ? "m" : "r", index.value);
     else if (index.type == BI_INDEX_NORMAL)
-        fprintf(fp, "%u", index.value);
+        fprintf(fp, "%s%u", index.memory ? "m" : "", index.value);
     else
         UNREACHABLE("Invalid index");
 
