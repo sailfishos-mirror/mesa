@@ -1214,7 +1214,9 @@ bi_register_allocate(bi_context *ctx)
          if (ctx->inputs->is_blend)
             UNREACHABLE("Blend shaders may not spill");
 
-         spill_count = bi_spill_ssa(ctx, regs_to_use, spill_count);
+         bi_spill_ssa(ctx, regs_to_use);
+         spill_count += bi_lower_spill(ctx, spill_count);
+
          /* By default, we use packed TLS addressing on Valhall.
           * We cannot cross 16 byte boundaries with packed TLS
           * addressing. Align to ensure this doesn't happen. This

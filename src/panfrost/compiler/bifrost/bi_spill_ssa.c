@@ -277,8 +277,8 @@ bi_along_edge(bi_block *pred, bi_block *succ)
       return bi_before_block(succ);
 }
 
-static bool bi_idx_is_memory(bi_index idx) {
-//   return (idx.type == BI_INDEX_FAU);
+static inline bool
+bi_idx_is_memory(bi_index idx) {
    return idx.memory;
 }
 
@@ -286,32 +286,18 @@ static bi_index
 bi_index_as_mem(bi_index idx, struct spill_ctx *ctx)
 {
    assert(idx.type == BI_INDEX_NORMAL);
-   idx.type = BI_INDEX_FAU;
-   unsigned val = idx.value;
+   assert(!idx.memory);
 
-   assert(val < ctx->spill_max);
-   if (ctx->spill_map[val] == 0xFFFFFFFFU) {
-      uint32_t remap = ctx->spill_bytes;
-      ctx->spill_bytes += 4;
-      ctx->spill_map[val] = remap;
-      unsigned i = (remap - ctx->spill_base)/4;
-      assert(i < ctx->spill_max);
-      ctx->mem_map[i] = val;
-   }
-   idx.value = ctx->spill_map[val];
    idx.memory = true;
+   idx.value = ctx->spill_base + idx.value;
+
    return idx;
 }
 
 static unsigned
 chase_mem_index(bi_index ref, struct spill_ctx *ctx)
 {
-   unsigned val = ref.value;
-   if (bi_idx_is_memory(ref)) {
-      unsigned i = (val - ctx->spill_base)/4;
-      return ctx->mem_map[i];
-   }
-   return val;
+   return bi_idx_is_memory(ref) ? (ref.value - ctx->spill_base) : ref.value;
 }
 
 static bi_index
@@ -416,9 +402,8 @@ insert_spill(bi_builder *b, struct spill_ctx *ctx, unsigned node)
    if (!ctx->remat[node] && !BITSET_TEST(ctx->spill_map_store, node)) {
       bi_index idx = reconstruct_index(ctx, node);
       bi_index mem = bi_index_as_mem(idx, ctx);
-      unsigned bits = 32;
 
-      bi_store_tl(b, bits, idx, mem.value);
+      bi_memmov_to(b, mem, idx);
 
       b->shader->spills++;
       /* We only need the extra registers reserved if we actually spilled
@@ -442,9 +427,7 @@ insert_reload(struct spill_ctx *ctx, bi_block *block, bi_cursor cursor,
    if (ctx->remat[node]) {
       remat_to(&b, idx, ctx, node);
    } else {
-      bi_index mem = bi_index_as_mem(idx, ctx);
-      unsigned bits = 32;
-      bi_load_tl(&b, bits, idx, mem.value);
+      bi_memmov_to(&b, idx, bi_index_as_mem(idx, ctx));
       b.shader->fills++;
    }
 }
@@ -551,7 +534,6 @@ insert_coupling_code(struct spill_ctx *ctx, bi_block *pred, bi_block *succ)
                 I->src[s].type == BI_INDEX_REGISTER);
 
          bi_index gpr = bi_temp(ctx->shader);
-         unsigned bits = 32;
 
          assert(gpr.type == BI_INDEX_NORMAL);
          if (ctx->arch >= 9 && I->src[s].type == BI_INDEX_CONSTANT) {
@@ -560,8 +542,9 @@ insert_coupling_code(struct spill_ctx *ctx, bi_block *pred, bi_block *succ)
             bi_iadd_imm_i32_to(&b, gpr, zero, I->src[s].value);
          } else
             bi_mov_i32_to(&b, gpr, I->src[s]);
+
          bi_index mem = bi_index_as_mem(gpr, ctx);
-         bi_store_tl(&b, bits, gpr, mem.value);
+         bi_memmov_to(&b, mem, gpr);
          I->src[s] = mem;
          continue;
       }
@@ -586,10 +569,9 @@ insert_coupling_code(struct spill_ctx *ctx, bi_block *pred, bi_block *succ)
          unsigned node = I->src[s].value;
          bi_index idx = reconstruct_index(ctx, node);
          bi_index tmp = bi_temp(ctx->shader);
-         unsigned bits = 32;
 
          remat_to(&b, tmp, ctx, node);
-         bi_store_tl(&b, bits, tmp, bi_index_as_mem(idx, ctx).value);
+         bi_memmov_to(&b, bi_index_as_mem(idx, ctx), tmp);
       }
 
       /* Use the spilled version */
@@ -1459,11 +1441,10 @@ record_ssa_defs(bi_context *ctx, bi_instr **defs, bi_block **blocks)
  * returns number of registers spilled
  */
 
-unsigned
-bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
+void
+bi_spill_ssa(bi_context *ctx, unsigned k)
 {
    void *memctx = ralloc_context(NULL);
-   unsigned spill_count = spill_base;
    unsigned max_temps = MIN_TEMPS_FOR_SPILL;
 
    /* calculate how many temporaries we may need */
@@ -1498,8 +1479,11 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
    global_next_use_distances(ctx, memctx, blocks);
    validate_next_use_info(ctx, blocks);
 
+   /* Reserve a memory variable for every regular variable */
+   const uint32_t n = ctx->ssa_alloc;
+   ctx->ssa_alloc *= 2;
+
    /* we may need to allocate some temporaries for spilling PHIs, hence the max_temps */
-   unsigned n = ctx->ssa_alloc + max_temps;
    BITSET_WORD *W = ralloc_array(memctx, BITSET_WORD, BITSET_WORDS(n));
    BITSET_WORD *S = ralloc_array(memctx, BITSET_WORD, BITSET_WORDS(n));
    uint32_t *spill_map = ralloc_array(memctx, uint32_t, n);
@@ -1524,7 +1508,7 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
       struct spill_ctx sctx = {
          .memctx = memctx,
          .shader = ctx,
-         .n_alloc = ctx->ssa_alloc,
+         .n_alloc = n,
          .remat = remat,
          .next_uses = next_uses,
          .block = block,
@@ -1533,10 +1517,10 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
          .W = W,
          .S = S,
          .size = sizes,
-         .spill_max = n,
-         .spill_base = spill_base,
+         .spill_max = 2*n,
+         .spill_base = n,
          .spill_map = spill_map,
-         .spill_bytes = spill_count,
+         .spill_bytes = 0,
          .spill_map_store = spill_map_store,
          .mem_map = mem_map,
          .ssa_defs = ssa_defs,
@@ -1548,7 +1532,6 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
       compute_w_entry(&sctx);
       compute_s_entry(&sctx);
       min_algorithm(&sctx);
-      spill_count = MAX2(spill_count, sctx.spill_bytes);
    }
 
    /* Now that all blocks are processed separately, stitch it together */
@@ -1556,7 +1539,7 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
       struct spill_ctx sctx = {
          .memctx = memctx,
          .shader = ctx,
-         .n_alloc = ctx->ssa_alloc,
+         .n_alloc = n,
          .remat = remat,
          .block = block,
          .blocks = blocks,
@@ -1564,10 +1547,10 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
          .W = W,
          .S = S,
          .size = sizes,
-         .spill_max = n,
-         .spill_base = spill_base,
+         .spill_max = 2*n,
+         .spill_base = n,
          .spill_map = spill_map,
-         .spill_bytes = spill_count,
+         .spill_bytes = 0,
          .spill_map_store = spill_map_store,
          .mem_map = mem_map,
          .ssa_defs = ssa_defs,
@@ -1580,12 +1563,9 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
          /* After spilling phi sources, insert coupling code */
          insert_coupling_code(&sctx, *pred, block);
       }
-      spill_count = MAX2(spill_count, sctx.spill_bytes);
    }
 
    ralloc_free(memctx);
 
    bi_repair_ssa(ctx);
-
-   return spill_count;
 }

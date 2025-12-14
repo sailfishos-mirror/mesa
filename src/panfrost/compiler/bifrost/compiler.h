@@ -1491,13 +1491,16 @@ uint64_t MUST_CHECK bi_postra_liveness_ins(uint64_t live, bi_instr *ins);
 /* Record sizes of SSA values into the provided array. */
 void bi_record_sizes(bi_context *ctx, uint32_t *sizes);
 
-/* SSA spilling; returns number of spilled registers */
-unsigned bi_spill_ssa(bi_context *ctx, unsigned num_registers, unsigned tls_size);
+/* SSA spilling */
+void bi_spill_ssa(bi_context *ctx, unsigned num_registers);
 
 void bi_repair_ssa(bi_context *ctx);
 
 /* Reindex SSA to reduce memory usage */
 void bi_reindex_ssa(bi_context *ctx);
+
+/* Lower memory operands created during spilling. */
+unsigned bi_lower_spill(bi_context* ctx, uint32_t tls_base);
 
 /* Layout */
 
