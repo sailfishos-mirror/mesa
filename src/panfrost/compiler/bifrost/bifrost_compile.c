@@ -6636,6 +6636,7 @@ bi_compile_variant_nir(nir_shader *nir,
 
    nir_foreach_function_impl(impl, nir) {
       nir_index_blocks(impl);
+      nir_index_ssa_defs(impl);
 
       ctx->indexed_nir_blocks =
          rzalloc_array(ctx, bi_block *, impl->num_blocks);
