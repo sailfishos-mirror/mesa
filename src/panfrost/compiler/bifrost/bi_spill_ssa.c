@@ -15,9 +15,6 @@
 #include "bifrost_nir.h"
 #include "compiler.h"
 
-/* allow at least this many temporaries for spilling */
-#define MIN_TEMPS_FOR_SPILL 4
-
 /*
  * An implementation of "Register Spilling and Live-Range Splitting for SSA-Form
  * Programs" by Braun and Hack.
@@ -287,6 +284,7 @@ bi_index_as_mem(bi_index idx, struct spill_ctx *ctx)
 {
    assert(idx.type == BI_INDEX_NORMAL);
    assert(!idx.memory);
+   assert(idx.value <= ctx->n_alloc);
 
    idx.memory = true;
    idx.value = ctx->spill_base + idx.value;
@@ -398,7 +396,8 @@ choose_spill_position(struct spill_ctx *ctx, unsigned node, bi_cursor fallback)
 static void
 insert_spill(bi_builder *b, struct spill_ctx *ctx, unsigned node)
 {
-   assert(node < ctx->spill_max);
+   assert(node < ctx->n_alloc);
+
    if (!ctx->remat[node] && !BITSET_TEST(ctx->spill_map_store, node)) {
       bi_index idx = reconstruct_index(ctx, node);
       bi_index mem = bi_index_as_mem(idx, ctx);
@@ -419,11 +418,12 @@ static void
 insert_reload(struct spill_ctx *ctx, bi_block *block, bi_cursor cursor,
               unsigned node)
 {
+   assert(node < ctx->n_alloc);
+
    bi_builder b = bi_init_builder(ctx->shader, cursor);
    bi_index idx = reconstruct_index(ctx, node);
 
    /* Reloading breaks SSA, but we're leaving SSA anyway */
-   assert(node < ctx->spill_max);
    if (ctx->remat[node]) {
       remat_to(&b, idx, ctx, node);
    } else {
@@ -533,6 +533,9 @@ insert_coupling_code(struct spill_ctx *ctx, bi_block *pred, bi_block *succ)
          assert(I->src[s].type == BI_INDEX_CONSTANT ||
                 I->src[s].type == BI_INDEX_REGISTER);
 
+         bi_index mem = bi_temp(ctx->shader);
+         mem.memory = true;
+
          bi_index gpr = bi_temp(ctx->shader);
 
          assert(gpr.type == BI_INDEX_NORMAL);
@@ -543,7 +546,6 @@ insert_coupling_code(struct spill_ctx *ctx, bi_block *pred, bi_block *succ)
          } else
             bi_mov_i32_to(&b, gpr, I->src[s]);
 
-         bi_index mem = bi_index_as_mem(gpr, ctx);
          bi_memmov_to(&b, mem, gpr);
          I->src[s] = mem;
          continue;
@@ -1445,21 +1447,10 @@ void
 bi_spill_ssa(bi_context *ctx, unsigned k)
 {
    void *memctx = ralloc_context(NULL);
-   unsigned max_temps = MIN_TEMPS_FOR_SPILL;
 
-   /* calculate how many temporaries we may need */
-   bi_foreach_instr_global(ctx, I) {
-      /* we may need a temp to re-materialize */
-      if (can_remat(I))
-         max_temps++;
-      /* we also may need temps to handle phis */
-      if (I->op == BI_OPCODE_PHI)
-         max_temps++;
-   }
-
-   dist_t *next_uses = rzalloc_array(memctx, dist_t, ctx->ssa_alloc + max_temps);
-   bi_instr **remat = rzalloc_array(memctx, bi_instr *, ctx->ssa_alloc + max_temps);
-   uint32_t *sizes = rzalloc_array(memctx, uint32_t, ctx->ssa_alloc + max_temps);
+   dist_t *next_uses = rzalloc_array(memctx, dist_t, ctx->ssa_alloc);
+   bi_instr **remat = rzalloc_array(memctx, bi_instr *, ctx->ssa_alloc);
+   uint32_t *sizes = rzalloc_array(memctx, uint32_t, ctx->ssa_alloc);
 
    /* now record instructions that can be easily re-materialized */
    bi_foreach_instr_global(ctx, I) {
