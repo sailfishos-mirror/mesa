@@ -3106,6 +3106,8 @@ for f2f16 in ['f2f16', 'f2f16_rtz', 'f2f16_rtne']:
       ('fmin', (f2f16, ('vec2', a, c)), (f2f16, ('vec2', b, d))), 'options->support_16bit_alu'),
 
       ((f2f16, ('f2f32', 'a@16')), ('fcanonicalize', a)),
+      ((f2f16, ('bcsel', a, '#b', c)), ('bcsel', a, (f2f16, b), (f2f16, c)), 'options->support_16bit_alu'),
+      ((f2f16, ('bcsel', a, b, '#c')), ('bcsel', a, (f2f16, b), (f2f16, c)), 'options->support_16bit_alu'),
    ]
 
 optimizations += [
