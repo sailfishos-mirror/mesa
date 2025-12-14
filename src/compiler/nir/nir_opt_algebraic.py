@@ -3096,14 +3096,17 @@ optimizations += [
 
 # Optimize fmin/fmax with constant followed by conversion to 16bit
 # Assume 16bit fmin/fmax is faster.
-optimizations += [
-   (('f2f16', ('fmax(is_used_once)', a, '#b')), ('fmax', ('f2f16', a), ('f2f16', b)), 'options->support_16bit_alu'),
-   (('f2f16', ('fmin(is_used_once)', a, '#b')), ('fmin', ('f2f16', a), ('f2f16', b)), 'options->support_16bit_alu'),
-   (('f2f16', ('vec2(is_used_once)', ('fmax(is_used_once)', a, '#b'), ('fmax(is_used_once)', c, '#d'))),
-    ('fmax', ('f2f16', ('vec2', a, c)), ('f2f16', ('vec2', b, d))), 'options->support_16bit_alu'),
-   (('f2f16', ('vec2(is_used_once)', ('fmin(is_used_once)', a, '#b'), ('fmin(is_used_once)', c, '#d'))),
-    ('fmin', ('f2f16', ('vec2', a, c)), ('f2f16', ('vec2', b, d))), 'options->support_16bit_alu'),
+for f2f16 in ['f2f16', 'f2f16_rtz', 'f2f16_rtne']:
+   optimizations += [
+      ((f2f16, ('fmax(is_used_once)', a, '#b')), ('fmax', (f2f16, a), (f2f16, b)), 'options->support_16bit_alu'),
+      ((f2f16, ('fmin(is_used_once)', a, '#b')), ('fmin', (f2f16, a), (f2f16, b)), 'options->support_16bit_alu'),
+      ((f2f16, ('vec2(is_used_once)', ('fmax(is_used_once)', a, '#b'), ('fmax(is_used_once)', c, '#d'))),
+      ('fmax', (f2f16, ('vec2', a, c)), (f2f16, ('vec2', b, d))), 'options->support_16bit_alu'),
+      ((f2f16, ('vec2(is_used_once)', ('fmin(is_used_once)', a, '#b'), ('fmin(is_used_once)', c, '#d'))),
+      ('fmin', (f2f16, ('vec2', a, c)), (f2f16, ('vec2', b, d))), 'options->support_16bit_alu'),
+   ]
 
+optimizations += [
    (('pack_half_2x16_rtz_split', ('fmax(is_used_once)', a, '#b'), ('fmax(is_used_once)', c, '#d')),
     ('pack_32_2x16', ('fmax', ('unpack_32_2x16', ('pack_half_2x16_rtz_split', a, c)), ('unpack_32_2x16', ('pack_half_2x16_rtz_split', b, d)))),
     'options->vectorize_vec2_16bit'),
