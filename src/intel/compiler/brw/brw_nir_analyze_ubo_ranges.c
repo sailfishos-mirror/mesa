@@ -129,36 +129,37 @@ analyze_ubos_block(struct ubo_analysis_state *state, nir_block *block)
       if (intrin->intrinsic != nir_intrinsic_load_ubo)
          continue;
 
-      if (brw_nir_ubo_surface_index_is_pushable(intrin->src[0]) &&
-          nir_src_is_const(intrin->src[1])) {
-         const int block = brw_nir_ubo_surface_index_get_push_block(intrin->src[0]);
-         const unsigned byte_offset = nir_src_as_uint(intrin->src[1]);
-         const unsigned sizeof_GRF = REG_SIZE * reg_unit(state->devinfo);
-         const int offset = byte_offset / sizeof_GRF;
+      if (!brw_nir_ubo_surface_index_is_pushable(intrin->src[0]) ||
+          !nir_src_is_const(intrin->src[1]))
+         continue;
 
-         /* Avoid shifting by larger than the width of our bitfield, as this
-          * is undefined in C.  Even if we require multiple bits to represent
-          * the entire value, it's OK to record a partial value - the backend
-          * is capable of falling back to pull loads for later components of
-          * vectors, as it has to shrink ranges for other reasons anyway.
-          */
-         if (offset >= 64)
-            continue;
+      const int block = brw_nir_ubo_surface_index_get_push_block(intrin->src[0]);
+      const unsigned byte_offset = nir_src_as_uint(intrin->src[1]);
+      const unsigned sizeof_GRF = REG_SIZE * reg_unit(state->devinfo);
+      const int offset = byte_offset / sizeof_GRF;
 
-         /* The value might span multiple sizeof(GRF) chunks. */
-         const unsigned num_components =
-            nir_def_last_component_read(&intrin->def) + 1;
-         const int bytes = num_components * (intrin->def.bit_size / 8);
-         const int start = ROUND_DOWN_TO(byte_offset, sizeof_GRF);
-         const int end = align(byte_offset + bytes, sizeof_GRF);
-         const int chunks = (end - start) / sizeof_GRF;
+      /* Avoid shifting by larger than the width of our bitfield, as this
+       * is undefined in C.  Even if we require multiple bits to represent
+       * the entire value, it's OK to record a partial value - the backend
+       * is capable of falling back to pull loads for later components of
+       * vectors, as it has to shrink ranges for other reasons anyway.
+       */
+      if (offset >= 64)
+         continue;
 
-         /* TODO: should we count uses in loops as higher benefit? */
+      /* The value might span multiple sizeof(GRF) chunks. */
+      const unsigned num_components =
+         nir_def_last_component_read(&intrin->def) + 1;
+      const int bytes = num_components * (intrin->def.bit_size / 8);
+      const int start = ROUND_DOWN_TO(byte_offset, sizeof_GRF);
+      const int end = align(byte_offset + bytes, sizeof_GRF);
+      const int chunks = (end - start) / sizeof_GRF;
 
-         struct ubo_block_info *info = get_block_info(state, block);
-         info->offsets |= ((1ull << chunks) - 1) << offset;
-         info->uses[offset]++;
-      }
+      /* TODO: should we count uses in loops as higher benefit? */
+
+      struct ubo_block_info *info = get_block_info(state, block);
+      info->offsets |= ((1ull << chunks) - 1) << offset;
+      info->uses[offset]++;
    }
 }
 
