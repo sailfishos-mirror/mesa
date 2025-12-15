@@ -1391,6 +1391,7 @@ bi_record_sizes(bi_context *ctx, uint32_t *sizes)
          assert(sizes[idx] == 0 && "SSA broken");
          switch (I->op) {
          case BI_OPCODE_PHI:
+         case BI_OPCODE_MEMMOV:
             break;
          default:
             sizes[idx] = bi_count_write_registers(I, d);
@@ -1409,6 +1410,28 @@ bi_record_sizes(bi_context *ctx, uint32_t *sizes)
          bi_foreach_ssa_src(I, s) {
             sizes[idx] = MAX2(sizes[idx], sizes[I->src[s].value]);
          }
+      }
+   }
+
+   /* After we know PHI sizes, determine MEMMOV sizes. */
+
+   bi_foreach_instr_global(ctx, I) {
+      if (I->op != BI_OPCODE_MEMMOV || I->dest[0].type != BI_INDEX_NORMAL)
+         continue;
+
+      if (I->dest[0].memory) {
+         assert(!I->src[0].memory);
+         sizes[I->dest[0].value] = sizes[I->src[0].value];
+      }
+   }
+
+   bi_foreach_instr_global(ctx, I) {
+      if (I->op != BI_OPCODE_MEMMOV || I->dest[0].type != BI_INDEX_NORMAL)
+         continue;
+
+      if (!I->dest[0].memory) {
+         assert(I->src[0].memory);
+         sizes[I->dest[0].value] = sizes[I->src[0].value];
       }
    }
 }
