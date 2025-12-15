@@ -115,7 +115,7 @@ brw_opt_dead_code_eliminate(brw_shader &s)
    BITSET_WORD *live = rzalloc_array(NULL, BITSET_WORD, BITSET_WORDS(num_vars));
    BITSET_WORD *flag_live = rzalloc_array(NULL, BITSET_WORD, 1);
 
-   foreach_block_reverse_safe(block, s.cfg) {
+   foreach_block_reverse(block, s.cfg) {
       memcpy(live, live_vars.block_data[block->num].liveout,
              sizeof(BITSET_WORD) * BITSET_WORDS(num_vars));
       memcpy(flag_live, live_vars.block_data[block->num].flag_liveout,

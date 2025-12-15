@@ -187,7 +187,7 @@ brw_workaround_nomask_control_flow(brw_shader &s)
    /* Scan the program backwards in order to be able to easily determine
     * whether the flag register is live at any point.
     */
-   foreach_block_reverse_safe(block, s.cfg) {
+   foreach_block_reverse(block, s.cfg) {
       BITSET_WORD flag_liveout = live_vars.block_data[block->num]
                                                .flag_liveout[0];
       STATIC_ASSERT(ARRAY_SIZE(live_vars.block_data[0].flag_liveout) == 1);

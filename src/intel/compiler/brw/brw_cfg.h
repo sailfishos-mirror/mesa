@@ -260,7 +260,7 @@ cfg_t::last_block() const
  * break from the inner loop only!
  */
 #define foreach_block_and_inst_safe(__block, __type, __inst, __cfg) \
-   foreach_block_safe (__block, __cfg)                              \
+   foreach_block (__block, __cfg)                                   \
       foreach_inst_in_block_safe (__type, __inst, __block)
 
 #define foreach_block(__block, __cfg)                          \
@@ -268,12 +268,6 @@ cfg_t::last_block() const
 
 #define foreach_block_reverse(__block, __cfg)                  \
    brw_foreach_list_typed_reverse (bblock_t, __block, link, &(__cfg)->block_list)
-
-#define foreach_block_safe(__block, __cfg)                     \
-   brw_foreach_list_typed_safe (bblock_t, __block, link, &(__cfg)->block_list)
-
-#define foreach_block_reverse_safe(__block, __cfg)             \
-   brw_foreach_list_typed_reverse_safe (bblock_t, __block, link, &(__cfg)->block_list)
 
 #define foreach_inst_in_block(__type, __inst, __block)         \
    brw_foreach_in_list(__type, __inst, &(__block)->instructions)
