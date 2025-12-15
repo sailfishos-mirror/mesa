@@ -1488,6 +1488,9 @@ unsigned bi_calc_register_demand(bi_context *ctx);
 void bi_postra_liveness(bi_context *ctx);
 uint64_t MUST_CHECK bi_postra_liveness_ins(uint64_t live, bi_instr *ins);
 
+/* Record sizes of SSA values into the provided array. */
+void bi_record_sizes(bi_context *ctx, uint32_t *sizes);
+
 /* SSA spilling; returns number of spilled registers */
 unsigned bi_spill_ssa(bi_context *ctx, unsigned num_registers, unsigned tls_size);
 

@@ -1395,6 +1395,40 @@ min_algorithm(struct spill_ctx *ctx)
    util_dynarray_fini(&local_next_ip);
 }
 
+void
+bi_record_sizes(bi_context *ctx, uint32_t *sizes)
+{
+   bi_foreach_instr_global(ctx, I) {
+      if (I->nr_dests == 0 || I->dest[0].type != BI_INDEX_NORMAL)
+         continue;
+      unsigned idx = I->dest[0].value;
+      bi_foreach_ssa_dest(I, d) {
+         idx = I->dest[d].value;
+         assert(sizes[idx] == 0 && "SSA broken");
+         switch (I->op) {
+         case BI_OPCODE_PHI:
+            break;
+         default:
+            sizes[idx] = bi_count_write_registers(I, d);
+            break;
+         }
+      }
+   }
+
+   /* now that we know the rest of the sizes, find the sizes for PHI nodes */
+   bi_foreach_block(ctx, block) {
+      bi_foreach_phi_in_block(block, I) {
+         if (I->dest[0].type != BI_INDEX_NORMAL)
+            continue;
+         unsigned idx = I->dest[0].value;
+         sizes[idx] = 1;
+         bi_foreach_ssa_src(I, s) {
+            sizes[idx] = MAX2(sizes[idx], sizes[I->src[s].value]);
+         }
+      }
+   }
+}
+
 static void
 record_ssa_defs(bi_context *ctx, bi_instr **defs, bi_block **blocks)
 {
@@ -1447,37 +1481,16 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
    uint32_t *sizes = rzalloc_array(memctx, uint32_t, ctx->ssa_alloc + max_temps);
 
    /* now record instructions that can be easily re-materialized */
-   /* while we're at it, calculate sizes too */
    bi_foreach_instr_global(ctx, I) {
       if (I->nr_dests == 0 || I->dest[0].type != BI_INDEX_NORMAL)
          continue;
       unsigned idx = I->dest[0].value;
       if (can_remat(I))
          remat[idx] = I;
-      bi_foreach_ssa_dest(I, d) {
-         idx = I->dest[d].value;
-         assert(sizes[idx] == 0 && "SSA broken");
-         switch (I->op) {
-         case BI_OPCODE_PHI:
-            break;
-         default:
-            sizes[idx] = bi_count_write_registers(I, d);
-            break;
-         }
-      }
    }
-   /* now that we know the rest of the sizes, find the sizes for PHI nodes */
-   bi_foreach_block(ctx, block) {
-      bi_foreach_phi_in_block(block, I) {
-         if (I->dest[0].type != BI_INDEX_NORMAL)
-            continue;
-         unsigned idx = I->dest[0].value;
-         sizes[idx] = 1;
-         bi_foreach_ssa_src(I, s) {
-            sizes[idx] = MAX2(sizes[idx], sizes[I->src[s].value]);
-         }
-      }
-   }
+
+   bi_record_sizes(ctx, sizes);
+
    struct spill_block *blocks =
       rzalloc_array(memctx, struct spill_block, ctx->num_blocks);
 
