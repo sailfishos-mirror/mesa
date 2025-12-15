@@ -4526,7 +4526,7 @@ static VkResult pvr_isp_ctrl_stream(const struct pvr_device_info *dev_info,
          /* Fill blit count for custom mapping equals source blit count. While
           * normal blits use only one fill blit.
           */
-         if (state->custom_mapping.pass_count == 0 && source > num_sources) {
+         if (state->custom_mapping.pass_count == 0 || source >= num_sources) {
             fill_blit = false;
             source = 0;
          }
