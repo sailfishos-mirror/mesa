@@ -873,6 +873,7 @@ lvp_get_features(const struct lvp_physical_device *pdevice,
       .cooperativeMatrixRobustBufferAccess = has_cooperative_matrix(),
 
       .cooperativeMatrixFlexibleDimensions = true,
+      .cooperativeMatrixConversions = true,
    };
 }
 
