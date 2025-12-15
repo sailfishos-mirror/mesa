@@ -2566,6 +2566,30 @@ lvp_unpack_texcompress(uint8_t *dst_row,
                                format,
                                false);
       break;
+   case UTIL_FORMAT_LAYOUT_S3TC:
+   case UTIL_FORMAT_LAYOUT_RGTC:
+   case UTIL_FORMAT_LAYOUT_BPTC: {
+      enum pipe_format dst_format;
+      if (format == PIPE_FORMAT_BPTC_RGB_FLOAT ||
+          format == PIPE_FORMAT_BPTC_RGB_UFLOAT)
+         dst_format = PIPE_FORMAT_R16G16B16A16_FLOAT;
+      else if (desc->is_snorm)
+         dst_format = PIPE_FORMAT_R8G8B8A8_SNORM;
+      else
+         dst_format = PIPE_FORMAT_R8G8B8A8_UNORM;
+
+      /* Decompress raw texel values; the sRGB decode happens at sampling,
+       * driven by the view format.
+       */
+      util_format_translate_3d(dst_format,
+                               dst_row, dst_stride, 0,
+                               0, 0, 0,
+                               util_format_linear(format),
+                               src_row, src_stride, 0,
+                               0, 0, 0,
+                               extent->width, extent->height, 1);
+      break;
+   }
    default:
       UNREACHABLE("Unsupported compressed texture format");
    }

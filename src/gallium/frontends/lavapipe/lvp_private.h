@@ -318,6 +318,9 @@ lvp_is_compressed_format_emulated(VkFormat format) {
    case UTIL_FORMAT_LAYOUT_ASTC:
       return vk_texcompress_astc_emulation_format(format) != VK_FORMAT_UNDEFINED;
    case UTIL_FORMAT_LAYOUT_ETC:
+   case UTIL_FORMAT_LAYOUT_S3TC:
+   case UTIL_FORMAT_LAYOUT_RGTC:
+   case UTIL_FORMAT_LAYOUT_BPTC:
       return true;
    default:
       return false;
@@ -798,6 +801,27 @@ lvp_vk_format_to_pipe_format(VkFormat format)
 }
 
 static inline VkFormat
+lvp_texcompress_bc_emulation_format(VkFormat format)
+{
+   const struct util_format_description *desc = vk_format_description(format);
+
+   /* BC6H needs float16 for HDR data. The other BC formats decompress to raw
+    * texel values, so sRGB formats use an SRGB emulation format and the sRGB
+    * decode happens at sampling.
+    */
+
+   if (format == VK_FORMAT_BC6H_UFLOAT_BLOCK ||
+       format == VK_FORMAT_BC6H_SFLOAT_BLOCK)
+      return VK_FORMAT_R16G16B16A16_SFLOAT;
+
+   if (desc->is_snorm)
+      return VK_FORMAT_R8G8B8A8_SNORM;
+
+   return vk_format_is_srgb(format) ? VK_FORMAT_R8G8B8A8_SRGB :
+                                      VK_FORMAT_R8G8B8A8_UNORM;
+}
+
+static inline VkFormat
 lvp_texcompress_vk_format_to_emu_plane_format(VkFormat format)
 {
    const struct util_format_description *desc =
@@ -808,6 +832,10 @@ lvp_texcompress_vk_format_to_emu_plane_format(VkFormat format)
       return vk_texcompress_astc_emulation_format(format);
    case UTIL_FORMAT_LAYOUT_ETC:
       return vk_texcompress_etc2_emulation_format(format);
+   case UTIL_FORMAT_LAYOUT_S3TC:
+   case UTIL_FORMAT_LAYOUT_RGTC:
+   case UTIL_FORMAT_LAYOUT_BPTC:
+      return lvp_texcompress_bc_emulation_format(format);
    default:
       UNREACHABLE("Unsupported compressed texture format");
       return VK_FORMAT_UNDEFINED;
