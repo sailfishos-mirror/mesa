@@ -988,24 +988,6 @@ brw_inst::has_side_effects() const
    }
 }
 
-bool
-brw_inst::is_volatile() const
-{
-   switch (opcode) {
-   case SHADER_OPCODE_MEMORY_LOAD_LOGICAL:
-   case SHADER_OPCODE_LOAD_REG:
-   case SHADER_OPCODE_LSC_FILL:
-      return true;
-   case SHADER_OPCODE_MEMORY_STORE_LOGICAL:
-      return as_mem()->flags & MEMORY_FLAG_VOLATILE_ACCESS;
-   case SHADER_OPCODE_SEND:
-   case SHADER_OPCODE_SEND_GATHER:
-      return as_send()->is_volatile;
-   default:
-      return false;
-   }
-}
-
 void
 brw_inst::remove()
 {

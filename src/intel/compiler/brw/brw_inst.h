@@ -124,12 +124,6 @@ struct brw_inst : brw_exec_node {
    bool has_side_effects() const;
 
    /**
-    * True if the instruction might be affected by side effects of other
-    * instructions.
-    */
-   bool is_volatile() const;
-
-   /**
     * Return whether \p arg is a control source of a virtual instruction which
     * shouldn't contribute to the execution type and usual regioning
     * restriction calculations of arithmetic instructions.
@@ -256,6 +250,11 @@ struct brw_send_inst : brw_inst {
          bool check_tdr:1;
 
          bool has_side_effects:1;
+
+         /**
+          * True if the instruction might be affected by side effects of other
+          * instructions.
+          */
          bool is_volatile:1;
 
          /**
