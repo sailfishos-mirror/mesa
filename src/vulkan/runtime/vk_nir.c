@@ -168,7 +168,7 @@ vk_spirv_to_nir(struct vk_device *device,
    NIR_PASS(_, nir, nir_opt_deref);
 
    /* Pick off the single entrypoint that we want */
-   nir_remove_non_entrypoints(nir);
+   nir_remove_non_cmat_call_entrypoints(nir);
 
    /* Now that we've deleted all but the main function, we can go ahead and
     * lower the rest of the constant initializers.  We do this here so that
