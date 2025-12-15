@@ -1571,5 +1571,8 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
    }
 
    ralloc_free(memctx);
+
+   bi_repair_ssa(ctx);
+
    return spill_count;
 }
