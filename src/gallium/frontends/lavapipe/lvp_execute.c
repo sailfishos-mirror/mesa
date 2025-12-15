@@ -3387,6 +3387,73 @@ static void handle_pipeline_barrier(struct vk_cmd_queue_entry *cmd,
                                     struct rendering_state *state)
 {
    finish_fence(state);
+
+   /* Handle emulated compressed images transitioning from ZERO_INITIALIZED.
+    * When memory is zero-initialized, the emu_plane contains raw zeros,
+    * but we need the decompressed values of zeroed compressed blocks.
+    */
+   const VkDependencyInfo *dep_info = cmd->u.pipeline_barrier2.dependency_info;
+   for (uint32_t i = 0; i < dep_info->imageMemoryBarrierCount; i++) {
+      const VkImageMemoryBarrier2 *barrier = &dep_info->pImageMemoryBarriers[i];
+
+      if (barrier->oldLayout != VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT)
+         continue;
+
+      VK_FROM_HANDLE(lvp_image, image, barrier->image);
+      if (image->emu_plane_format == VK_FORMAT_UNDEFINED)
+         continue;
+
+      /* Decompress zeroed compressed data into emu_plane for each mip level */
+      uint32_t base_level = barrier->subresourceRange.baseMipLevel;
+      uint32_t level_count = vk_image_subresource_level_count(&image->vk,
+                                                              &barrier->subresourceRange);
+      uint32_t base_layer = barrier->subresourceRange.baseArrayLayer;
+      uint32_t layer_count = vk_image_subresource_layer_count(&image->vk,
+                                                              &barrier->subresourceRange);
+
+      for (uint32_t level = base_level; level < base_level + level_count; level++) {
+         VkExtent3D extent = vk_image_mip_level_extent(&image->vk, level);
+
+         struct pipe_box box;
+         box.x = 0;
+         box.y = 0;
+         box.width = extent.width;
+         box.height = extent.height;
+         box.depth = 1;
+
+         for (uint32_t layer = base_layer; layer < base_layer + layer_count; layer++) {
+            box.z = layer;
+
+            /* Map the compressed plane to read zeroed data */
+            struct pipe_transfer *src_t;
+            void *src_data = state->pctx->texture_map(state->pctx,
+                                                      image->planes[0].bo,
+                                                      level,
+                                                      PIPE_MAP_READ,
+                                                      &box,
+                                                      &src_t);
+
+            /* Map the emu_plane to write decompressed data */
+            struct pipe_transfer *emu_t;
+            void *emu_data = state->pctx->texture_map(state->pctx,
+                                                      image->emu_plane.bo,
+                                                      level,
+                                                      PIPE_MAP_WRITE,
+                                                      &box,
+                                                      &emu_t);
+
+            lvp_unpack_texcompress((uint8_t *)emu_data,
+                                   emu_t->stride,
+                                   (uint8_t *)src_data,
+                                   src_t->stride,
+                                   &extent,
+                                   vk_format_to_pipe_format(image->vk.format));
+
+            state->pctx->texture_unmap(state->pctx, emu_t);
+            state->pctx->texture_unmap(state->pctx, src_t);
+         }
+      }
+   }
 }
 
 static void handle_begin_query(struct vk_cmd_queue_entry *cmd,
