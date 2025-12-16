@@ -904,6 +904,18 @@ static const struct {
       .internal_format =        GL_RGB16,
    },
    {
+      .image_format    = PIPE_FORMAT_R32G32B32A32_FLOAT,
+      .internal_format =        GL_RGBA32F,
+   },
+   {
+      .image_format    = PIPE_FORMAT_R32_FLOAT,
+      .internal_format =        GL_R32F,
+   },
+   {
+      .image_format    = PIPE_FORMAT_R32G32_FLOAT,
+      .internal_format =        GL_RG32F,
+   },
+   {
       .image_format    = __DRI_IMAGE_FORMAT_ARGB2101010,
       .internal_format =        GL_RGB10_A2,
    },

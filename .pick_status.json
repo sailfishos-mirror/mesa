@@ -1264,7 +1264,7 @@
         "description": "dri: Add R32F,RG32F,RGBA32F format mappings for DRIImage",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6d3f266406616f85dafc69c8ac75cef996a278b2",
         "notes": null
