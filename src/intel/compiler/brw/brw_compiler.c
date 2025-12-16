@@ -271,6 +271,11 @@ brw_get_compiler_config_value(const struct brw_compiler *compiler)
    u_foreach_bit64(bit, mask)
       insert_u64_bit(&config, (intel_simd & (1ULL << bit)) != 0);
 
+   for (unsigned i = 0; i < MESA_VULKAN_SHADER_STAGES; i++) {
+      insert_u64_bit(&config, intel_use_jay(compiler->devinfo, i) != 0);
+      bits++;
+   }
+
    mask = 3;
    bits += util_bitcount64(mask);
 

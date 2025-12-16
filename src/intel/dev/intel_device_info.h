@@ -31,6 +31,7 @@
 #include "util/bitset.h"
 #include "util/macros.h"
 #include "compiler/shader_enums.h"
+#include "intel_debug.h"
 #include "intel_kmd.h"
 
 #include "intel/dev/intel_wa.h"
