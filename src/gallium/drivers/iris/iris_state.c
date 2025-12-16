@@ -5763,6 +5763,7 @@ iris_populate_64bit_binding_table(struct iris_context *ice,
    struct iris_screen *screen = batch->screen;
    struct iris_compiled_shader *shader = ice->shaders.prog[stage];
    const struct isl_device *isl_dev = &screen->isl_dev;
+   struct iris_shader_state *shs = &ice->state.shaders[stage];
    struct iris_binding_table *bt = &shader->bt;
    uint32_t surfaces_i = 0;
    void *surfaces_state_map;
@@ -5820,7 +5821,61 @@ iris_populate_64bit_binding_table(struct iris_context *ice,
       }
    }
 
-   /* TODO: add missing surfaces */
+   for (enum iris_surface_group group = IRIS_SURFACE_GROUP_RENDER_TARGET_READ; group < IRIS_SURFACE_GROUP_COUNT; group++) {
+      if (group == IRIS_SURFACE_GROUP_CS_WORK_GROUPS)
+         continue;
+
+      for (int index = 0; index < bt->surf_count[group]; index++) {
+         if (iris_group_index_to_bti(bt, group, index) == IRIS_SURFACE_NOT_USED)
+            continue;
+
+         switch (group) {
+         case IRIS_SURFACE_GROUP_UBO:
+         case IRIS_SURFACE_GROUP_SSBO: {
+            uint8_t *surface_state_map = surfaces_state_map + (surfaces_i++ * isl_dev->ss.size);
+            struct pipe_shader_buffer *buf = NULL;
+            isl_surf_usage_flags_t usage;
+            enum iris_domain access;
+            bool writable;
+
+            if (group == IRIS_SURFACE_GROUP_UBO) {
+               buf = &shs->constbuf[index];
+               writable = false;
+               access = IRIS_DOMAIN_PULL_CONSTANT_READ;
+               usage = ISL_SURF_USAGE_CONSTANT_BUFFER_BIT;
+            } else if (group == IRIS_SURFACE_GROUP_SSBO) {
+               buf = &shs->ssbo[index];
+               writable = shs->writable_ssbos & (1u << index);
+               access = IRIS_DOMAIN_NONE;
+               usage = ISL_SURF_USAGE_STORAGE_BIT;
+            }
+
+            if (buf->buffer) {
+               struct iris_resource *res = (void *)buf->buffer;
+               const bool ssbo = usage & ISL_SURF_USAGE_STORAGE_BIT;
+               const bool dataport = ssbo || !intel_indirect_ubos_use_sampler(screen->devinfo);
+
+               iris_use_pinned_bo(batch, iris_resource_bo(buf->buffer), writable, access);
+
+               isl_buffer_fill_state(&screen->isl_dev, surface_state_map,
+                                     .address = res->bo->address + res->offset + buf->buffer_offset,
+                                     .size_B = buf->buffer_size - res->offset,
+                                     .format = dataport ? ISL_FORMAT_RAW : ISL_FORMAT_R32G32B32A32_FLOAT,
+                                     .swizzle = ISL_SWIZZLE_IDENTITY,
+                                     .stride_B = 1,
+                                     .usage = usage,
+                                     .mocs = iris_mocs(res->bo, &screen->isl_dev, usage));
+            } else {
+               isl_null_fill_state(&screen->isl_dev, surface_state_map, .size = isl_extent3d(1, 1, 1));
+            }
+            break;
+         }
+         default:
+            UNREACHABLE("group not handled\n");
+         }
+      }
+   }
+
    assert(surfaces_i == bt->total_surf_count);
 }
 
@@ -6106,10 +6161,10 @@ iris_restore_render_saved_bos(struct iris_context *ice,
       if (!shader)
          continue;
 
-      for (int i = 0; i < 4; i++) {
+      for (int i = 0; i < ARRAY_SIZE(shader->ubo_ranges); i++) {
          const struct iris_ubo_range *range = &shader->ubo_ranges[i];
 
-         if (range->length == 0)
+         if (range->length == 0 || range->reserved_64bits_binding_tables)
             continue;
 
          struct iris_bo *bo;
@@ -6566,12 +6621,13 @@ setup_constant_buffers(struct iris_context *ice,
    uint32_t push_range_sum = 0;
    int n = 0;
 
-   if (iris_bufmgr_is_eff_64bit_enabled(batch->screen->bufmgr))
-      setup_binding_tables_to_push_bos(ice, batch, stage, push_bos, &n, &push_range_sum);
-
-   for (int i = 0; i < 4 && n < 4; i++) {
+   for (int i = 0; i < 4; i++) {
       const struct iris_ubo_range *range = &shader->ubo_ranges[i];
 
+      if (range->reserved_64bits_binding_tables) {
+         setup_binding_tables_to_push_bos(ice, batch, stage, push_bos, &n, &push_range_sum);
+         continue;
+      }
       if (range->length == 0)
          continue;
 

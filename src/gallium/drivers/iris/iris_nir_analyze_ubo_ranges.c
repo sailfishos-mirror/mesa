@@ -229,6 +229,7 @@ iris_nir_analyze_ubo_ranges(const intel_device_info *devinfo,
          entry->range.start = first_bit;
          /* first_hole is one beyond the end, so we don't need to add 1 */
          entry->range.length = first_hole - first_bit;
+         entry->range.reserved_64bits_binding_tables = false;
          entry->benefit = 0;
 
          for (int i = 0; i < entry->range.length; i++)
@@ -313,9 +314,10 @@ lower_load_ubo_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
    unsigned range_offset = 0;
    const struct iris_ubo_range *range = data;
    for (uint32_t i = 0; i < 4; i++) {
-      if (range[i].block != block ||
-          byte_offset < range[i].start * 32 ||
-          (byte_offset + bytes) > (range[i].start + range[i].length) * 32) {
+      if ((range[i].block != block) ||
+          (byte_offset < range[i].start * 32) ||
+          ((byte_offset + bytes) > (range[i].start + range[i].length) * 32) ||
+          range[i].reserved_64bits_binding_tables) {
          range_offset += range[i].length * 32;
          continue;
       }

@@ -1867,7 +1867,27 @@ brw_apply_ubo_ranges(const struct iris_screen *screen,
                      struct iris_ubo_range ubo_ranges[4],
                      struct brw_stage_prog_data *prog_data)
 {
-   iris_nir_analyze_ubo_ranges(screen->devinfo, nir, ubo_ranges, 4, 0);
+   const bool need_reserved_64bits_binding_tables = iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr) &&
+                                                    mesa_shader_stage_is_compute(nir->info.stage) == false;
+   struct iris_ubo_range *first_avail_ubo_range = ubo_ranges;
+   uint8_t used_push_regs = 0;
+   uint8_t ubo_range_len = 4;
+
+   /* When 64bits addressing mode is enabled the first register is reserved for
+    * the binding tables addresses
+    */
+   if (need_reserved_64bits_binding_tables) {
+      ubo_ranges[0].block = 0;
+      ubo_ranges[0].length = screen->devinfo->grf_size / REG_SIZE;
+      ubo_ranges[0].start = 0;
+      ubo_ranges[0].reserved_64bits_binding_tables = true;
+
+      first_avail_ubo_range = &ubo_ranges[1];
+      used_push_regs += ubo_ranges[0].length;
+      ubo_range_len--;
+   }
+
+   iris_nir_analyze_ubo_ranges(screen->devinfo, nir, first_avail_ubo_range, ubo_range_len, used_push_regs);
    NIR_PASS(_, nir, iris_nir_lower_ubo_ranges, ubo_ranges);
 
    if (ubo_ranges[0].length == 0 &&

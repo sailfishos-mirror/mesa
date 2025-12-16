@@ -286,6 +286,8 @@ struct iris_ubo_range
    /* In units of 32-byte registers */
    uint8_t start;
    uint8_t length;
+
+   bool reserved_64bits_binding_tables;
 };
 
 struct iris_fs_data {
