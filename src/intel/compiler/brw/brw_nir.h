@@ -354,6 +354,9 @@ void brw_nir_analyze_ubo_ranges(const struct brw_compiler *compiler,
                                 nir_shader *nir,
                                 struct brw_ubo_range out_ranges[4]);
 
+bool brw_nir_lower_ubo_ranges(nir_shader *nir,
+                              struct brw_ubo_range out_ranges[4]);
+
 void brw_nir_optimize(nir_shader *nir,
                       const struct intel_device_info *devinfo);
 
