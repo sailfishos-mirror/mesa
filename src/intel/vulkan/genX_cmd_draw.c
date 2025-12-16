@@ -452,7 +452,7 @@ cmd_buffer_flush_gfx_push_constants(struct anv_cmd_buffer *cmd_buffer,
          for (unsigned i = 0; i < 4; i++) {
             const struct anv_push_range *range = &bind_map->push_ranges[i];
             if (range->length == 0)
-               continue;
+               break;
 
             /* Skip any push ranges that were not promoted from UBOs */
             if (range->set >= MAX_SETS) {
