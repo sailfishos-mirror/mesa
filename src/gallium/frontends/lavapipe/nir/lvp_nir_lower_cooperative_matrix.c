@@ -608,6 +608,62 @@ lower_cmat_reduce_2x2_call(nir_builder *b, nir_cmat_call_instr *call)
 }
 
 static bool
+lower_cmat_per_element_op_call(nir_builder *b, nir_cmat_call_instr *call)
+{
+   nir_def *src = load_cmat_src(b, call->params[3]);
+   nir_deref_instr *dst_deref = nir_src_as_deref(call->params[0]);
+   nir_function *fnptr = call->callee;
+   nir_def *lane_id = nir_load_subgroup_invocation(b);
+
+   struct glsl_cmat_description desc = *glsl_get_cmat_description(dst_deref->type);
+
+   nir_variable *elem_tmp = nir_local_variable_create(b->impl, glsl_get_cmat_element(dst_deref->type), "elemtmp");
+   nir_deref_instr *elem_deref = nir_build_deref_var(b, elem_tmp);
+
+   nir_def *comps[NIR_MAX_VEC_COMPONENTS];
+
+   for (unsigned i = 0; i < CMAT_LEN; i++) {
+      nir_def *src_elem = nir_channel(b, src, i);
+      nir_call_instr *new_call = nir_call_instr_create(b->shader, fnptr);
+
+      nir_def *row_val = nir_imm_int(b, i);
+      nir_def *col_val = lane_id;
+
+      if (desc.use == GLSL_CMAT_USE_B)
+         SWAP(col_val, row_val);
+
+      row_val = nir_iadd(b, call->params[1].ssa, row_val);
+      col_val = nir_iadd(b, call->params[2].ssa, col_val);
+
+      new_call->params[0] = nir_src_for_ssa(&elem_deref->def);
+      new_call->params[1] = nir_src_for_ssa(row_val);
+      new_call->params[2] = nir_src_for_ssa(col_val);
+      new_call->params[3] = nir_src_for_ssa(src_elem);
+
+      for (unsigned p = 4; p < call->num_params; p++) {
+         nir_deref_instr *deref = nir_src_as_deref(call->params[p]);
+         nir_def *def = call->params[p].ssa;
+         if (deref) {
+            if (glsl_type_is_cmat(deref->type)) {
+               def = nir_build_load_deref(b, get_cmat_length(desc),
+                                          glsl_base_type_bit_size(desc.element_type), def);
+               def = nir_channel(b, def, i);
+            }
+         }
+         new_call->params[p] = nir_src_for_ssa(def);
+      }
+      nir_builder_instr_insert(b, &new_call->instr);
+      comps[i] = nir_build_load_deref(b, 1, glsl_base_type_bit_size(desc.element_type), &elem_deref->def, 0);
+   }
+
+   nir_def *mat = nir_vec(b, comps, CMAT_LEN);
+   nir_store_deref(b, dst_deref, mat, nir_component_mask(src->num_components));
+
+   nir_instr_remove(&call->instr);
+   return true;
+}
+
+static bool
 lower_impl(nir_function_impl *impl,
            struct hash_table *type_mapping)
 {
@@ -697,6 +753,9 @@ lower_impl(nir_function_impl *impl,
                break;
             case nir_cmat_call_op_reduce_2x2:
                progress |= lower_cmat_reduce_2x2_call(&b, call);
+               break;
+            case nir_cmat_call_op_per_element_op:
+               progress |= lower_cmat_per_element_op_call(&b, call);
                break;
             default:
                break;
