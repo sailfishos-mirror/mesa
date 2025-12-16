@@ -1084,3 +1084,7 @@ vk_xfermodes3,Fail
 
 # Bisected to 08b5876c379 ("v3d: only expose rgba buffer-textures")
 TransferPixelsTest,Fail
+
+# uprev Piglit in Mesa
+spec@arb_texture_view@tex-view,Fail
+
