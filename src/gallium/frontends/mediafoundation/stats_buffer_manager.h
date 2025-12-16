@@ -39,12 +39,15 @@
 #include "pipe_headers.h"
 #include "staticasynccallback.h"
 
+using namespace Microsoft::WRL;
+using Microsoft::WRL::ComPtr;
+using namespace std;
 
 class stats_buffer_manager : public IUnknown
 {
  public:
    // retrieve a new tracked buffer from the pool
-   struct pipe_resource *get_new_tracked_buffer();
+   struct pipe_resource *get_new_tracked_buffer( struct vl_screen *pVlScreen );
 
    // release a tracked buffer back to the pool
    void release_tracked_buffer( void *target );
@@ -54,11 +57,13 @@ class stats_buffer_manager : public IUnknown
    ULONG __stdcall Release() override;
 
    HRESULT
-   AttachPipeResourceAsSampleExtension( struct pipe_resource *pPipeRes, ID3D12CommandQueue *pSyncObjectQueue, IMFSample *pSample );
+   AttachPipeResourceAsSampleExtension( struct pipe_context *pPipeContext,
+                                        struct pipe_resource *pPipeRes,
+                                        ID3D12CommandQueue *pSyncObjectQueue,
+                                        IMFSample *pSample );
 
    static HRESULT Create( void *logId,
-                          struct vl_screen *pVlScreen,
-                          struct pipe_context *pPipeContext,
+                          ID3D12Device *pD3D12Device,
                           REFGUID guidExtension,
                           uint32_t width,
                           uint16_t height,
@@ -69,8 +74,7 @@ class stats_buffer_manager : public IUnknown
 
  private:
    stats_buffer_manager( void *logId,
-                         struct vl_screen *m_pVlScreen,
-                         pipe_context *pPipeContext,
+                         ID3D12Device *pD3D12Device,
                          REFGUID guidExtension,
                          uint32_t width,
                          uint16_t height,
@@ -84,20 +88,22 @@ class stats_buffer_manager : public IUnknown
    STDMETHOD( OnSampleAvailable )( __in IMFAsyncResult *pAsyncResult );
    METHODASYNCCALLBACKEX( OnSampleAvailable, stats_buffer_manager, 0, MFASYNC_CALLBACK_QUEUE_MULTITHREADED );
 
+
    const void *m_logId = {};
    std::mutex m_lock;
    GUID m_resourceGUID {};
    ULONG m_refCount = 0;
 
-   struct vl_screen *m_pVlScreen = nullptr;
-   struct pipe_context *m_pPipeContext = nullptr;
+   ComPtr<ID3D12Device> m_spD3D12Device = nullptr;
    struct pipe_resource m_template = {};
 
    struct stats_buffer_manager_pool_entry
    {
-      struct pipe_resource *buffer {};
+      ComPtr<ID3D12Resource> d3d12_resource {};
       bool used {};
    };
+
+   HRESULT CreateSample( stats_buffer_manager_pool_entry &entry );
 
    std::vector<struct stats_buffer_manager_pool_entry> m_pool;
 };

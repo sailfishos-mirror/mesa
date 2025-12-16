@@ -548,8 +548,11 @@ DEFINE_CODECAPI_GUID( AVEncWorkProcessPriority,
 #endif
 
 #define MFT_INPUT_QUEUE_DEPTH 8
-#define MFT_STAT_POOL_MIN_SIZE                                                                                                     \
-   2   // when MFSample is destroyed, the stat texture is returned via some other threads and it could be after ProcessInput.
+
+// For low latency mode we should only need 2 if we have guarantee that the output sample is returned quickly.  However,
+// when using mp4 sink via SinkWriter, it buffers the input sample so we will hit no resource sample and error out, choosing 11 to
+// be safe.
+#define MFT_STAT_POOL_MIN_SIZE 11
 
 class __declspec( uuid( HMFT_GUID ) ) CDX12EncHMFT : CMFD3DManager,
                                                      public RuntimeClass<RuntimeClassFlags<RuntimeClassType::WinRtClassicComMix>,

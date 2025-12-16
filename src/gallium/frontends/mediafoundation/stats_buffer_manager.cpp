@@ -64,10 +64,62 @@ ULONG __stdcall stats_buffer_manager::Release()
    return ulCount;
 }
 
+// helper to convert known pipe_format to DXGI_FORMAT.
+static DXGI_FORMAT
+PipeFormatToD3D12Format( enum pipe_format pipeFormat )
+{
+   switch( pipeFormat )
+   {
+      case PIPE_FORMAT_R32_UINT:
+         return DXGI_FORMAT_R32_UINT;
+      case PIPE_FORMAT_R8_SINT:
+         return DXGI_FORMAT_R8_SINT;
+      case PIPE_FORMAT_Y8_U8V8_420_UNORM:
+         return DXGI_FORMAT_NV12;
+      default:
+         assert( false );
+         return DXGI_FORMAT_UNKNOWN;
+   }
+}
+
+HRESULT
+stats_buffer_manager::CreateSample( stats_buffer_manager_pool_entry &entry )
+{
+   HRESULT hr = S_OK;
+   D3D12_RESOURCE_DESC desc;
+   desc.Format = PipeFormatToD3D12Format( m_template.format );
+   // DXGI_FORMAT_R32_UINT;
+   desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+   desc.Width = m_template.width0;
+   desc.Height = m_template.height0;
+   desc.DepthOrArraySize = 1;
+   desc.MipLevels = 1;
+
+   desc.SampleDesc.Count = 1;
+   desc.SampleDesc.Quality = 0;
+
+   desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+   desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+   desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+   D3D12_HEAP_PROPERTIES heap_pris = m_spD3D12Device->GetCustomHeapProperties( 0, D3D12_HEAP_TYPE_DEFAULT );
+   D3D12_HEAP_FLAGS heap_flags = D3D12_HEAP_FLAG_NONE;
+
+   hr = m_spD3D12Device->CreateCommittedResource( &heap_pris,
+                                                  heap_flags,
+                                                  &desc,
+                                                  D3D12_RESOURCE_STATE_COMMON,
+                                                  nullptr,
+                                                  IID_PPV_ARGS( &entry.d3d12_resource ) );
+   if( FAILED( hr ) )
+   {
+      MFE_ERROR( "[dx12 hmft 0x%p] CreateCommittedResource failed hr=0x%08x", m_logId, hr );
+   }
+   return hr;
+}
+
 HRESULT
 stats_buffer_manager::Create( void *logId,
-                              struct vl_screen *pVlScreen,
-                              struct pipe_context *pPipeContext,
+                              ID3D12Device *pD3D12Device,
                               REFGUID guidExtension,
                               uint32_t width,
                               uint16_t height,
@@ -84,16 +136,8 @@ stats_buffer_manager::Create( void *logId,
    assert( initial_pool_size <= max_pool_size );
 
    HRESULT hr;
-   auto pInstance = new ( std::nothrow ) stats_buffer_manager( logId,
-                                                               pVlScreen,
-                                                               pPipeContext,
-                                                               guidExtension,
-                                                               width,
-                                                               height,
-                                                               buffer_format,
-                                                               initial_pool_size,
-                                                               max_pool_size,
-                                                               hr );
+   auto pInstance = new ( std::nothrow )
+      stats_buffer_manager( logId, pD3D12Device, guidExtension, width, height, buffer_format, initial_pool_size, max_pool_size, hr );
    if( !pInstance )
       return E_OUTOFMEMORY;
 
@@ -108,26 +152,60 @@ stats_buffer_manager::Create( void *logId,
    return S_OK;
 }
 
+
+// Helper to import d3d12 resource to pipe_resource*
+// Returns NULL on failure.
+struct pipe_resource *
+AllocatePipeResourceFromD3D12Resource( ID3D12Resource *pD3D12Resource,
+                                       struct pipe_screen *pScreen,
+                                       const struct pipe_resource *templ )
+{
+   // Build winsys_handle
+   struct winsys_handle whandle = {};
+   whandle.type = WINSYS_HANDLE_TYPE_D3D12_RES;
+   whandle.com_obj = pD3D12Resource;
+   // templ->format contains the desired pipe_format
+   whandle.format = templ->format;
+
+   // Call resource_from_handle with the same templ for resource_create.
+   struct pipe_resource *pres = pScreen->resource_from_handle( pScreen, templ, &whandle, PIPE_USAGE_DEFAULT );
+
+   if( !pres )
+   {
+      // Release the detached COM object if resource_from_handle fails
+      if( whandle.com_obj )
+      {
+         static_cast<ID3D12Resource *>( whandle.com_obj )->Release();
+      }
+      return nullptr;
+   }
+   pD3D12Resource->AddRef();   // Hold a reference for the pipe_resource, so we do:
+                               // pipe_resource_reference( &pipe_resource, nullptr )
+                               // in context destructor, or we might leak some pipe_resources memory.
+   return pres;
+}
+
 // retrieve a buffer from the pool
 struct pipe_resource *
-stats_buffer_manager::get_new_tracked_buffer()
+stats_buffer_manager::get_new_tracked_buffer( struct vl_screen *pVlScreen )
 {
    auto lock = std::lock_guard<std::mutex>( m_lock );
    for( auto &entry : m_pool )
    {
       if( !entry.used )
       {
-         if( !entry.buffer )
+         if( !entry.d3d12_resource )
          {
-            entry.buffer = m_pVlScreen->pscreen->resource_create( m_pVlScreen->pscreen, &m_template );
-            if( !entry.buffer )
+            HRESULT hr = stats_buffer_manager::CreateSample( entry );
+            if( FAILED( hr ) )
             {
-               MFE_ERROR( "[dx12 hmft 0x%p] dynamic resource_create failed", m_logId );
-               break;
+               MFE_ERROR( "[dx12 hmft 0x%p] CreateSample failed", m_logId );
+               assert( false );   // Failed to create a new buffer
+               return NULL;
             }
          }
          entry.used = true;
-         return entry.buffer;
+         return AllocatePipeResourceFromD3D12Resource( entry.d3d12_resource.Get(), pVlScreen->pscreen, &m_template );
       }
    }
 
@@ -144,16 +222,7 @@ stats_buffer_manager::release_tracked_buffer( void *target )
    bool found = false;
    for( auto &entry : m_pool )
    {
-      bool ret;
-      struct winsys_handle whandle = {};
-      whandle.type = WINSYS_HANDLE_TYPE_D3D12_RES;
-      ret = m_pVlScreen->pscreen->resource_get_handle( m_pVlScreen->pscreen, m_pPipeContext, entry.buffer, &whandle, 0u );
-      if( !ret )
-      {
-         MFE_ERROR( "[dx12 hmft 0x%p] resource_get_handle failed", m_logId );
-         break;
-      }
-      if( whandle.com_obj == target )
+      if( entry.d3d12_resource.Get() == target )
       {
          entry.used = false;
          found = true;
@@ -168,8 +237,7 @@ stats_buffer_manager::release_tracked_buffer( void *target )
 }
 
 stats_buffer_manager::stats_buffer_manager( void *logId,
-                                            struct vl_screen *pVlScreen,
-                                            struct pipe_context *pPipeContext,
+                                            ID3D12Device *pD3D12Device,
                                             REFGUID resourceGUID,
                                             uint32_t width,
                                             uint16_t height,
@@ -177,11 +245,7 @@ stats_buffer_manager::stats_buffer_manager( void *logId,
                                             unsigned initial_pool_size,
                                             unsigned max_pool_size,
                                             HRESULT &hr )
-   : m_logId( logId ),
-     m_pVlScreen( pVlScreen ),
-     m_pPipeContext( pPipeContext ),
-     m_resourceGUID( resourceGUID ),
-     m_pool( max_pool_size, { NULL, false } )
+   : m_logId( logId ), m_spD3D12Device( pD3D12Device ), m_resourceGUID( resourceGUID ), m_pool( max_pool_size )
 {
    hr = S_OK;
    m_template.target = PIPE_TEXTURE_2D;
@@ -198,39 +262,20 @@ stats_buffer_manager::stats_buffer_manager( void *logId,
    {
       if( buffer_count < initial_pool_size )
       {
-         entry.buffer = m_pVlScreen->pscreen->resource_create( m_pVlScreen->pscreen, &m_template );
-         if( !entry.buffer )
+         HRESULT hr = stats_buffer_manager::CreateSample( entry );
+         if( FAILED( hr ) )
          {
-            MFE_ERROR( "[dx12 hmft 0x%p] resource_create failed", m_logId );
+            MFE_ERROR( "[dx12 hmft 0x%p] CreateSample failed", m_logId );
             assert( false );
-            hr = E_FAIL;
             break;
          }
          buffer_count++;
-      }
-   }
-
-   if( FAILED( hr ) )
-   {
-      for( auto &entry : m_pool )
-      {
-         if( entry.buffer )
-         {
-            m_pVlScreen->pscreen->resource_destroy( m_pVlScreen->pscreen, entry.buffer );
-         }
       }
    }
 }
 
 stats_buffer_manager::~stats_buffer_manager()
 {
-   for( auto &entry : m_pool )
-   {
-      if( entry.buffer )
-      {
-         m_pVlScreen->pscreen->resource_destroy( m_pVlScreen->pscreen, entry.buffer );
-      }
-   }
 }
 
 // callback from IMFTrackSample (i.e. application)
@@ -279,12 +324,13 @@ done:
 // Converts a Gallium pipe_resource into a D3D12 resource and wraps it as an IMFMediaBuffer,
 // then attaches it as a sample extension on an IMFSample using the specified GUID.
 HRESULT
-stats_buffer_manager::AttachPipeResourceAsSampleExtension( struct pipe_resource *pPipeRes,
+stats_buffer_manager::AttachPipeResourceAsSampleExtension( struct pipe_context *pPipeContext,
+                                                           struct pipe_resource *pPipeRes,
                                                            ID3D12CommandQueue *pSyncObjectQueue,
                                                            IMFSample *pSample )
 {
    HRESULT hr = S_OK;
-   if( !pPipeRes || !pSample || !pSyncObjectQueue )
+   if( !pPipeRes || !pPipeContext || !pSample || !pSyncObjectQueue )
    {
       return E_INVALIDARG;
    }
@@ -292,7 +338,7 @@ stats_buffer_manager::AttachPipeResourceAsSampleExtension( struct pipe_resource 
    struct winsys_handle whandle = {};
    whandle.type = WINSYS_HANDLE_TYPE_D3D12_RES;
 
-   if( !m_pPipeContext->screen->resource_get_handle( m_pPipeContext->screen, m_pPipeContext, pPipeRes, &whandle, 0u ) )
+   if( !pPipeContext->screen->resource_get_handle( pPipeContext->screen, pPipeContext, pPipeRes, &whandle, 0u ) )
    {
       return E_FAIL;
    }

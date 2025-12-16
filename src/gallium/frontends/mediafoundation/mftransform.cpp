@@ -1183,8 +1183,10 @@ CDX12EncHMFT::ConfigureAsyncStatsMetadataOutputSampleAttributes( IMFSample *pSam
    // releases the MF sample, the d3d12resource will be returned back to the pool
    if( m_uiVideoOutputQPMapBlockSize && pPipeResourceQPMapStats != nullptr )
    {
-      CHECKHR_GOTO(
-         m_spQPMapStatsBufferPool->AttachPipeResourceAsSampleExtension( pPipeResourceQPMapStats, pSyncObjectQueue, pSample ),
+      CHECKHR_GOTO( m_spQPMapStatsBufferPool->AttachPipeResourceAsSampleExtension( m_pPipeContext,
+                                                                                   pPipeResourceQPMapStats,
+                                                                                   pSyncObjectQueue,
+                                                                                   pSample ),
          done );
    }
 
@@ -1192,7 +1194,8 @@ CDX12EncHMFT::ConfigureAsyncStatsMetadataOutputSampleAttributes( IMFSample *pSam
    // the app releases the MF sample, the d3d12resource will be returned back to the pool
    if( m_uiVideoOutputBitsUsedMapBlockSize && pPipeResourceRCBitAllocMapStats != nullptr )
    {
-      CHECKHR_GOTO( m_spBitsUsedStatsBufferPool->AttachPipeResourceAsSampleExtension( pPipeResourceRCBitAllocMapStats,
+      CHECKHR_GOTO( m_spBitsUsedStatsBufferPool->AttachPipeResourceAsSampleExtension( m_pPipeContext,
+                                                                                      pPipeResourceRCBitAllocMapStats,
                                                                                       pSyncObjectQueue,
                                                                                       pSample ),
                     done );
@@ -1202,9 +1205,11 @@ CDX12EncHMFT::ConfigureAsyncStatsMetadataOutputSampleAttributes( IMFSample *pSam
    // releases the MF sample, the d3d12resource will be returned back to the pool
    if( m_uiVideoSatdMapBlockSize && pPipeResourceSATDMapStats != nullptr )
    {
-      CHECKHR_GOTO(
-         m_spSatdStatsBufferPool->AttachPipeResourceAsSampleExtension( pPipeResourceSATDMapStats, pSyncObjectQueue, pSample ),
-         done );
+      CHECKHR_GOTO( m_spSatdStatsBufferPool->AttachPipeResourceAsSampleExtension( m_pPipeContext,
+                                                                                  pPipeResourceSATDMapStats,
+                                                                                  pSyncObjectQueue,
+                                                                                  pSample ),
+                    done );
    }
 
    // Conditionally attach reconstructed picture copy (d3d12resource), gated by the completion fence
@@ -1230,7 +1235,8 @@ CDX12EncHMFT::ConfigureAsyncStatsMetadataOutputSampleAttributes( IMFSample *pSam
          assert( pPipeResourceReconstructedPicture );
          assert( spReconstructedPictureCompletionFence );   // Copy completion fence must be valid in this mode
          pSyncObjectQueue->Wait( spReconstructedPictureCompletionFence.Get(), ReconstructedPictureCompletionFenceValue );
-         CHECKHR_GOTO( m_spReconstructedPictureBufferPool->AttachPipeResourceAsSampleExtension( pPipeResourceReconstructedPicture,
+         CHECKHR_GOTO( m_spReconstructedPictureBufferPool->AttachPipeResourceAsSampleExtension( m_pPipeContext,
+                                                                                                pPipeResourceReconstructedPicture,
                                                                                                 pSyncObjectQueue,
                                                                                                 pSample ),
                        done );

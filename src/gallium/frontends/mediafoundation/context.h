@@ -46,6 +46,7 @@ typedef class DX12EncodeContext
    pipe_resource *pPipeResourceSATDMapStats = nullptr;
    pipe_resource *pPipeResourceRCBitAllocMapStats = nullptr;
    pipe_resource *pPipeResourcePSNRStats = nullptr;
+   bool pipeResourceReconstructedPictureCopyMode = false;
    pipe_resource *pPipeResourceReconstructedPicture = nullptr;
    UINT PipeResourceReconstructedPictureSubresource = 0;
    pipe_fence_handle *pPipeFenceReconstructedPictureCompletionFence = NULL;
@@ -260,6 +261,29 @@ typedef class DX12EncodeContext
 
       for( uint32_t slice_idx = 0; slice_idx < static_cast<uint32_t>( pOutputBitRes.size() ); slice_idx++ )
          pipe_resource_reference( &pOutputBitRes[slice_idx], nullptr );
+
+      if( pPipeResourceQPMapStats )
+      {
+         pipe_resource_reference( &pPipeResourceQPMapStats, nullptr );
+      }
+
+      if( pPipeResourceSATDMapStats )
+      {
+         pipe_resource_reference( &pPipeResourceSATDMapStats, nullptr );
+      }
+
+      if( pPipeResourceRCBitAllocMapStats )
+      {
+         pipe_resource_reference( &pPipeResourceRCBitAllocMapStats, nullptr );
+      }
+
+      if( pipeResourceReconstructedPictureCopyMode )
+      {
+         if( pPipeResourceReconstructedPicture )
+         {
+            pipe_resource_reference( &pPipeResourceReconstructedPicture, nullptr );
+         }
+      }
 
       if( pPipeVideoBuffer )
          pPipeVideoBuffer->destroy( pPipeVideoBuffer );
