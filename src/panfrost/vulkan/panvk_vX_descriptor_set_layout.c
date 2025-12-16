@@ -91,6 +91,10 @@ panvk_per_arch(CreateDescriptorSetLayout)(
    VkDescriptorSetLayoutBinding *bindings = NULL;
    unsigned num_bindings = 0;
    VkResult result;
+   const VkDescriptorSetLayoutBindingFlagsCreateInfo *binding_flags_info =
+      vk_find_struct_const(pCreateInfo->pNext,
+                           DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO);
+   VkDescriptorBindingFlags *sorted_binding_flags = NULL;
 
    unsigned immutable_sampler_count = 0;
    for (uint32_t j = 0; j < pCreateInfo->bindingCount; j++) {
@@ -114,7 +118,9 @@ panvk_per_arch(CreateDescriptorSetLayout)(
 
    if (pCreateInfo->bindingCount) {
       result = vk_create_sorted_bindings(pCreateInfo->pBindings,
-                                         pCreateInfo->bindingCount, &bindings);
+                                         pCreateInfo->bindingCount, &bindings,
+                                         binding_flags_info,
+                                         &sorted_binding_flags);
       if (result != VK_SUCCESS)
          return panvk_error(device, result);
 
@@ -137,10 +143,6 @@ panvk_per_arch(CreateDescriptorSetLayout)(
    layout->bindings = binding_layouts;
    layout->binding_count = num_bindings;
 
-   const VkDescriptorSetLayoutBindingFlagsCreateInfo *binding_flags_info =
-      vk_find_struct_const(pCreateInfo->pNext,
-                           DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO);
-
    unsigned desc_idx = 0;
    unsigned dyn_buf_idx = 0;
    for (unsigned i = 0; i < pCreateInfo->bindingCount; i++) {
@@ -153,9 +155,8 @@ panvk_per_arch(CreateDescriptorSetLayout)(
 
       binding_layout->type = binding->descriptorType;
 
-      if (binding_flags_info && binding_flags_info->bindingCount > 0) {
-         assert(binding_flags_info->bindingCount == pCreateInfo->bindingCount);
-         binding_layout->flags = binding_flags_info->pBindingFlags[i];
+      if (sorted_binding_flags) {
+         binding_layout->flags = sorted_binding_flags[i];
       }
 
       if (binding_layout->type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
@@ -233,6 +234,7 @@ panvk_per_arch(CreateDescriptorSetLayout)(
    _mesa_blake3_final(&hash_ctx, layout->vk.blake3);
 
    free(bindings);
+   free(sorted_binding_flags);
    *pSetLayout = panvk_descriptor_set_layout_to_handle(layout);
 
    return VK_SUCCESS;

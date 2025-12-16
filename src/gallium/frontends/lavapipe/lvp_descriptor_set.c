@@ -104,7 +104,7 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateDescriptorSetLayout(
    VkDescriptorSetLayoutBinding *bindings = NULL;
    VkResult result = vk_create_sorted_bindings(pCreateInfo->pBindings,
                                                pCreateInfo->bindingCount,
-                                               &bindings);
+                                               &bindings, NULL, NULL);
    if (result != VK_SUCCESS) {
       vk_descriptor_set_layout_unref(&device->vk, &set_layout->vk);
       return vk_error(device, result);

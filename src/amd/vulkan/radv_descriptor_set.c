@@ -85,7 +85,7 @@ radv_CreateDescriptorSetLayout(VkDevice _device, const VkDescriptorSetLayoutCrea
       set_layout->ycbcr_sampler_offsets_offset = 0;
 
    VkDescriptorSetLayoutBinding *bindings = NULL;
-   VkResult result = vk_create_sorted_bindings(pCreateInfo->pBindings, pCreateInfo->bindingCount, &bindings);
+   VkResult result = vk_create_sorted_bindings(pCreateInfo->pBindings, pCreateInfo->bindingCount, &bindings, NULL, NULL);
    if (result != VK_SUCCESS) {
       vk_descriptor_set_layout_unref(&device->vk, &set_layout->vk);
       return vk_error(device, result);
@@ -262,7 +262,7 @@ radv_GetDescriptorSetLayoutSupport(VkDevice _device, const VkDescriptorSetLayout
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
    VkDescriptorSetLayoutBinding *bindings = NULL;
-   VkResult result = vk_create_sorted_bindings(pCreateInfo->pBindings, pCreateInfo->bindingCount, &bindings);
+   VkResult result = vk_create_sorted_bindings(pCreateInfo->pBindings, pCreateInfo->bindingCount, &bindings, NULL, NULL);
    if (result != VK_SUCCESS) {
       pSupport->supported = false;
       return;

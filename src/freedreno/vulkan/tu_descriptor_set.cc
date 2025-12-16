@@ -168,7 +168,7 @@ tu_CreateDescriptorSetLayout(
 
    VkDescriptorSetLayoutBinding *bindings = NULL;
    VkResult result = vk_create_sorted_bindings(
-      pCreateInfo->pBindings, pCreateInfo->bindingCount, &bindings);
+      pCreateInfo->pBindings, pCreateInfo->bindingCount, &bindings, NULL, NULL);
    if (result != VK_SUCCESS) {
       vk_object_free(&device->vk, pAllocator, set_layout);
       return vk_error(device, result);
@@ -316,7 +316,7 @@ tu_GetDescriptorSetLayoutSupport(
 
    VkDescriptorSetLayoutBinding *bindings = NULL;
    VkResult result = vk_create_sorted_bindings(
-      pCreateInfo->pBindings, pCreateInfo->bindingCount, &bindings);
+      pCreateInfo->pBindings, pCreateInfo->bindingCount, &bindings, NULL, NULL);
    if (result != VK_SUCCESS) {
       pSupport->supported = false;
       return;
