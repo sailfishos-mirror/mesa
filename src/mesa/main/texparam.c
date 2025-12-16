@@ -79,7 +79,7 @@ validate_texture_wrap_mode(struct gl_context * ctx, GLenum target, GLenum wrap)
       break;
 
    case GL_CLAMP_TO_BORDER:
-      supported = ctx->API != API_OPENGLES
+      supported = !_mesa_is_gles1(ctx)
          && (target != GL_TEXTURE_EXTERNAL_OES);
       break;
 
@@ -461,7 +461,7 @@ set_tex_parameteri(struct gl_context *ctx,
       return GL_TRUE;
 
    case GL_GENERATE_MIPMAP_SGIS:
-      if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+      if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
          goto invalid_pname;
 
       if (params[0] && texObj->Target == GL_TEXTURE_EXTERNAL_OES)
@@ -2423,7 +2423,7 @@ get_tex_parameterfv(struct gl_context *ctx,
          *params = obj->Sampler.Attrib.MaxAnisotropy;
          break;
       case GL_GENERATE_MIPMAP_SGIS:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_pname;
 
 	 *params = (GLfloat) obj->Attrib.GenerateMipmap;
@@ -2711,7 +2711,7 @@ get_tex_parameteriv(struct gl_context *ctx,
          *params = LCLAMPF(obj->Sampler.Attrib.MaxAnisotropy, INT32_MIN, INT32_MAX);
          break;
       case GL_GENERATE_MIPMAP_SGIS:
-         if (!_mesa_is_desktop_gl_compat(ctx) && ctx->API != API_OPENGLES)
+         if (!_mesa_is_desktop_gl_compat(ctx) && !_mesa_is_gles1(ctx))
             goto invalid_pname;
 
 	 *params = (GLint) obj->Attrib.GenerateMipmap;
