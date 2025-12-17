@@ -216,6 +216,12 @@ typedef enum {
     */
    nir_io_use_frag_result_dual_src_blend = BITFIELD_BIT(12),
 
+   /**
+    * Whether the implementation can compact 16-bit values in the higher
+    * 32-bits of a varying.
+    */
+   nir_io_compact_to_higher_16 = BITFIELD_BIT(13),
+
    /* Options affecting the GLSL compiler or Gallium are below. */
 
    /**

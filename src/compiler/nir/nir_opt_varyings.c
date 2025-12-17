@@ -659,6 +659,7 @@ struct linkage_info {
    bool has_flexible_interp;
    bool always_interpolate_convergent_fs_inputs;
    bool group_tes_inputs_into_pos_var_groups;
+   bool can_compact_to_higher_16;
 
    mesa_shader_stage producer_stage;
    mesa_shader_stage consumer_stage;
@@ -4788,8 +4789,9 @@ vs_tcs_tes_gs_assign_slots_2sets(struct linkage_info *linkage,
     */
    vs_tcs_tes_gs_assign_slots(linkage, input32_mask, slot_index,
                               patch_slot_index, 2, progress);
+   unsigned slot_size_16bit = linkage->can_compact_to_higher_16 ? 1 : 2;
    vs_tcs_tes_gs_assign_slots(linkage, input16_mask, slot_index,
-                              patch_slot_index, 1, progress);
+                              patch_slot_index, slot_size_16bit, progress);
 
    assert(*slot_index <= VARYING_SLOT_MAX * 8);
    assert(!patch_slot_index || *patch_slot_index <= VARYING_SLOT_TESS_MAX * 8);
@@ -4810,6 +4812,7 @@ static void
 compact_varyings(struct linkage_info *linkage,
                  nir_opt_varyings_progress *progress)
 {
+   unsigned slot_size_16bit = linkage->can_compact_to_higher_16 ? 1 : 2;
    if (linkage->consumer_stage == MESA_SHADER_FRAGMENT) {
       /* These arrays are used to track which scalar slots we've already
        * assigned. We can fill unused components of indirectly-indexed slots,
@@ -4866,7 +4869,7 @@ compact_varyings(struct linkage_info *linkage,
          fs_assign_slot_groups(linkage, assigned_mask, assigned_fs_vec4_type,
                                linkage->interp_fp16_mask, linkage->flat16_mask,
                                linkage->convergent16_mask, NULL,
-                               FS_VEC4_TYPE_INTERP_FP16, 1, false, 0, progress);
+                               FS_VEC4_TYPE_INTERP_FP16, slot_size_16bit, false, 0, progress);
       } else {
          /* Basically the same as above. */
          fs_assign_slot_groups_separate_qual(
@@ -4879,7 +4882,7 @@ compact_varyings(struct linkage_info *linkage,
             linkage, assigned_mask, assigned_fs_vec4_type,
             &linkage->interp_fp16_qual_masks, linkage->flat16_mask,
             linkage->convergent16_mask, NULL,
-            FS_VEC4_TYPE_INTERP_FP16_PERSP_PIXEL, 1, false, 0, progress);
+            FS_VEC4_TYPE_INTERP_FP16_PERSP_PIXEL, slot_size_16bit, false, 0, progress);
       }
 
       /* Assign INTERP_MODE_EXPLICIT. Both FP32 and FP16 can occupy the same
@@ -5247,7 +5250,10 @@ init_linkage(nir_shader *producer, nir_shader *consumer, bool spirv,
       .group_tes_inputs_into_pos_var_groups =
          consumer->info.stage == MESA_SHADER_TESS_EVAL &&
          consumer->options->io_options &
-         nir_io_compaction_groups_tes_inputs_into_pos_and_var_groups,
+            nir_io_compaction_groups_tes_inputs_into_pos_and_var_groups,
+      .can_compact_to_higher_16 = producer->options->io_options &
+                                  consumer->options->io_options &
+                                  nir_io_compact_to_higher_16,
       .producer_stage = producer->info.stage,
       .consumer_stage = consumer->info.stage,
       .producer_builder =
