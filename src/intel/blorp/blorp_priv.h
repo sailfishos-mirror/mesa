@@ -164,10 +164,9 @@ struct blorp_surf_offset {
    uint32_t y;
 };
 
-struct blorp_wm_inputs
+/* Parameters used in blorp_blit.c. */
+struct blorp_wm_inputs_blit
 {
-   uint32_t clear_color[4];
-
    struct blorp_bounds_rect bounds_rect;
    struct blorp_rect_grid rect_grid;
    struct blorp_coord_transform coord_transform[2];
@@ -182,11 +181,25 @@ struct blorp_wm_inputs
     * for which the setting has no effect. Use the z-coordinate instead.
     */
    float src_z;
+};
+
+/* Parameters used in blorp_clear.c. */
+struct blorp_wm_inputs_clear {
+   uint32_t clear_color[4];
+   struct blorp_bounds_rect bounds_rect;
+};
+
+struct blorp_wm_inputs
+{
+   union {
+      struct blorp_wm_inputs_blit blit;
+      struct blorp_wm_inputs_clear clear;
+   };
 
    /* Note: Pad out to an integral number of registers when extending, but
     * make sure subgroup_id is the last 32-bit item.
     */
-   /* uint32_t pad[?]; */
+   uint32_t pad[4];
    uint32_t subgroup_id;
 };
 
@@ -517,6 +530,42 @@ blorp_params_get_layer_offset_vs(struct blorp_batch *batch,
                                  struct blorp_params *params)
 {
    return batch->blorp->compiler->params_get_layer_offset_vs(batch, params);
+}
+
+/* This means: blorp_params->wm_inputs.blit should be used. */
+static inline bool
+blorp_op_type_is_blit(enum blorp_op op)
+{
+   switch (op) {
+   case BLORP_OP_BLIT:
+   case BLORP_OP_COPY:
+      return true;
+   default:
+      return false;
+   }
+}
+
+/* This means: blorp_params->wm_inputs.clear should be used. */
+static inline bool
+blorp_op_type_is_clear(enum blorp_op op)
+{
+   switch (op) {
+   case BLORP_OP_CCS_AMBIGUATE:
+   case BLORP_OP_CCS_COLOR_CLEAR:
+   case BLORP_OP_CCS_PARTIAL_RESOLVE:
+   case BLORP_OP_CCS_RESOLVE:
+   case BLORP_OP_HIZ_AMBIGUATE:
+   case BLORP_OP_HIZ_CLEAR:
+   case BLORP_OP_HIZ_RESOLVE:
+   case BLORP_OP_MCS_AMBIGUATE:
+   case BLORP_OP_MCS_COLOR_CLEAR:
+   case BLORP_OP_MCS_PARTIAL_RESOLVE:
+   case BLORP_OP_SLOW_COLOR_CLEAR:
+   case BLORP_OP_SLOW_DEPTH_CLEAR:
+      return true;
+   default:
+      return false;
+   }
 }
 
 /** \} */

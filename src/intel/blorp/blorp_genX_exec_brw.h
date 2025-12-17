@@ -2051,19 +2051,22 @@ blorp_xy_block_copy_blt(struct blorp_batch *batch,
 
    unsigned dst_x0 = params->x0;
    unsigned dst_x1 = params->x1;
-   unsigned src_x0 =
-      dst_x0 - params->wm_inputs.coord_transform[0].offset;
-   ASSERTED unsigned src_x1 =
-      dst_x1 - params->wm_inputs.coord_transform[0].offset;
+   unsigned src_x0 = dst_x0;
+   ASSERTED unsigned src_x1 = dst_x1;
    unsigned dst_y0 = params->y0;
    unsigned dst_y1 = params->y1;
-   unsigned src_y0 =
-      dst_y0 - params->wm_inputs.coord_transform[1].offset;
-   ASSERTED unsigned src_y1 =
-      dst_y1 - params->wm_inputs.coord_transform[1].offset;
+   unsigned src_y0 = dst_y0;
+   ASSERTED unsigned src_y1 = dst_y1;
 
    assert(src_x1 - src_x0 == dst_x1 - dst_x0);
    assert(src_y1 - src_y0 == dst_y1 - dst_y0);
+
+   if (blorp_op_type_is_blit(params->op)) {
+      src_x0 = dst_x0 - params->wm_inputs.blit.coord_transform[0].offset;
+      src_x1 = dst_x1 - params->wm_inputs.blit.coord_transform[0].offset;
+      src_y0 = dst_y0 - params->wm_inputs.blit.coord_transform[1].offset;
+      src_y1 = dst_y1 - params->wm_inputs.blit.coord_transform[1].offset;
+   }
 
    const struct isl_surf *src_surf = &params->src.surf;
    const struct isl_surf *dst_surf = &params->dst.surf;
@@ -2242,9 +2245,13 @@ blorp_xy_fast_color_blit(struct blorp_batch *batch,
       blt.DestinationXOffset = params->dst.tile_x_sa;
       blt.DestinationYOffset = params->dst.tile_y_sa;
 
-      isl_color_value_pack((union isl_color_value *)
-                           params->wm_inputs.clear_color,
-                           params->dst.view.format, blt.FillColor);
+      if (blorp_op_type_is_clear(params->op)) {
+         isl_color_value_pack((union isl_color_value *)
+                              params->wm_inputs.clear.clear_color,
+                              params->dst.view.format, blt.FillColor);
+      } else {
+         memset(blt.FillColor, 0, sizeof(blt.FillColor));
+      }
 
 #if GFX_VERx10 >= 125
       blt.DestinationSurfaceType = xy_bcb_surf_dim(dst_surf);
