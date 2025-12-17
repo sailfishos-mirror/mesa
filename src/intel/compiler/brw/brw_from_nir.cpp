@@ -3812,6 +3812,22 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
       bld.MOV(dest, s.wpos_w);
       break;
 
+   case nir_intrinsic_load_fs_start_intel: {
+      brw_reg comps[2] = { s.x_start, s.y_start };
+      bld.VEC(retype(dest, BRW_TYPE_F), comps, 2);
+      break;
+   }
+
+   case nir_intrinsic_load_fs_z_c_intel: {
+      brw_reg comps[2] = { s.z_cx, s.z_cy };
+      bld.VEC(retype(dest, BRW_TYPE_F), comps, 2);
+      break;
+   }
+
+   case nir_intrinsic_load_fs_z_c0_intel:
+      bld.MOV(dest, s.z_c0);
+      break;
+
    case nir_intrinsic_load_front_face:
       bld.MOV(retype(dest, BRW_TYPE_D), emit_frontfacing_interpolation(ntb));
       break;

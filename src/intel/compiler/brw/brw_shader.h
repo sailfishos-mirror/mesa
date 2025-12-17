@@ -211,6 +211,12 @@ public:
    brw_reg pixel_z;
    brw_reg wpos_w;
    brw_reg pixel_w;
+   brw_reg x_start;
+   brw_reg y_start;
+   brw_reg z_cx;
+   brw_reg z_cy;
+   brw_reg z_c0;
+
    brw_reg delta_xy[INTEL_BARYCENTRIC_MODE_COUNT];
    brw_reg final_gs_vertex_count;
    brw_reg control_data_bits;

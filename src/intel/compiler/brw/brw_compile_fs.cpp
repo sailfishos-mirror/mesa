@@ -451,82 +451,27 @@ brw_emit_interpolation_setup(brw_shader &s)
       }
    }
 
-   abld = bld.annotate("compute pos.z");
-   brw_reg coarse_z;
-   if (wm_prog_data->coarse_pixel_dispatch != INTEL_NEVER &&
-       wm_prog_data->uses_depth_w_coefficients) {
-      /* In coarse pixel mode, the HW doesn't interpolate Z coordinate
-       * properly. In the same way we have to add the coarse pixel size to
-       * pixels locations, here we recompute the Z value with 2 coefficients
-       * in X & Y axis.
-       *
-       * src_z = (x - xstart)*z_cx + (y - ystart)*z_cy + z_c0
-       */
+   if (wm_prog_data->uses_depth_w_coefficients) {
       brw_reg coef_payload = brw_vec8_grf(payload.depth_w_coef_reg, 0);
-      const brw_reg x_start = devinfo->ver >= 20 ?
+      s.x_start = devinfo->ver >= 20 ?
          brw_vec1_grf(coef_payload.nr, 6) :
          brw_vec1_grf(coef_payload.nr, 2);
-      const brw_reg y_start = devinfo->ver >= 20 ?
+      s.y_start = devinfo->ver >= 20 ?
          brw_vec1_grf(coef_payload.nr, 7) :
          brw_vec1_grf(coef_payload.nr, 6);
-      const brw_reg z_cx    = devinfo->ver >= 20 ?
+      s.z_cx    = devinfo->ver >= 20 ?
          brw_vec1_grf(coef_payload.nr + 1, 1) :
          brw_vec1_grf(coef_payload.nr, 1);
-      const brw_reg z_cy    = devinfo->ver >= 20 ?
+      s.z_cy    = devinfo->ver >= 20 ?
          brw_vec1_grf(coef_payload.nr + 1, 0) :
          brw_vec1_grf(coef_payload.nr, 0);
-      const brw_reg z_c0    = devinfo->ver >= 20 ?
+      s.z_c0    = devinfo->ver >= 20 ?
          brw_vec1_grf(coef_payload.nr + 1, 2) :
          brw_vec1_grf(coef_payload.nr, 3);
-
-      const brw_reg float_pixel_x = abld.vgrf(BRW_TYPE_F);
-      const brw_reg float_pixel_y = abld.vgrf(BRW_TYPE_F);
-
-      abld.MOV(float_pixel_x, s.uw_pixel_x);
-      abld.MOV(float_pixel_y, s.uw_pixel_y);
-
-      abld.ADD(float_pixel_x, float_pixel_x, negate(x_start));
-      abld.ADD(float_pixel_y, float_pixel_y, negate(y_start));
-
-      const brw_reg f_cps_width = abld.vgrf(BRW_TYPE_F);
-      const brw_reg f_cps_height = abld.vgrf(BRW_TYPE_F);
-      abld.MOV(f_cps_width, ub_cps_width);
-      abld.MOV(f_cps_height, ub_cps_height);
-
-      /* Center in the middle of the coarse pixel. */
-      abld.MAD(float_pixel_x, float_pixel_x, f_cps_width, brw_imm_f(0.5f));
-      abld.MAD(float_pixel_y, float_pixel_y, f_cps_height, brw_imm_f(0.5f));
-
-      coarse_z = abld.vgrf(BRW_TYPE_F);
-      abld.MAD(coarse_z, z_c0, z_cx, float_pixel_x);
-      abld.MAD(coarse_z, coarse_z, z_cy, float_pixel_y);
    }
 
    if (wm_prog_data->uses_src_depth)
       s.pixel_z = brw_fetch_payload_reg(bld, payload.source_depth_reg);
-
-   if (wm_prog_data->uses_depth_w_coefficients ||
-       wm_prog_data->uses_src_depth) {
-      switch (wm_prog_data->coarse_pixel_dispatch) {
-      case INTEL_NEVER:
-         break;
-
-      case INTEL_SOMETIMES:
-         /* We cannot enable 3DSTATE_PS_EXTRA::PixelShaderUsesSourceDepth when
-          * coarse is enabled. Here we don't know if it's going to be, but
-          * setting brw_wm_prog_data::uses_src_depth dynamically would disturb
-          * the payload. So instead rely on the computed coarse_z which will
-          * produce a correct value even when coarse is disabled.
-          */
-
-         /* Fallthrough */
-      case INTEL_ALWAYS:
-         assert(!wm_prog_data->uses_src_depth);
-         assert(wm_prog_data->uses_depth_w_coefficients);
-         s.pixel_z = coarse_z;
-         break;
-      }
-   }
 
    if (wm_prog_data->uses_src_w) {
       abld = bld.annotate("compute pos.w");
@@ -1534,21 +1479,9 @@ brw_compile_fs(const struct brw_compiler *compiler,
    if (!brw_can_coherent_fb_fetch(devinfo))
       NIR_PASS(_, nir, brw_nir_lower_fs_load_output, key);
 
+   /* Do this lowering before brw_nir_populate_wm_prog_data(). */
    NIR_PASS(_, nir, nir_opt_frag_coord_to_pixel_coord);
    NIR_PASS(_, nir, nir_lower_frag_coord_to_pixel_coord);
-
-   /* From the SKL PRM, Volume 7, "Alpha Coverage":
-    *  "If Pixel Shader outputs oMask, AlphaToCoverage is disabled in
-    *   hardware, regardless of the state setting for this feature."
-    */
-   if (key->alpha_to_coverage != INTEL_NEVER) {
-      /* Run constant fold optimization in order to get the correct source
-       * offset to determine render target 0 store instruction in
-       * emit_alpha_to_coverage pass.
-       */
-      NIR_PASS(_, nir, nir_opt_constant_folding);
-      NIR_PASS(_, nir, brw_nir_lower_alpha_to_coverage);
-   }
 
    NIR_PASS(_, nir, brw_nir_move_interpolation_to_top);
 
@@ -1560,6 +1493,22 @@ brw_compile_fs(const struct brw_compiler *compiler,
    brw_nir_populate_wm_prog_data(nir, compiler->devinfo, key, prog_data,
                                  params->mue_map,
                                  per_primitive_offsets);
+
+   /* From the SKL PRM, Volume 7, "Alpha Coverage":
+    *  "If Pixel Shader outputs oMask, AlphaToCoverage is disabled in
+    *   hardware, regardless of the state setting for this feature."
+    */
+   if (prog_data->alpha_to_coverage != INTEL_NEVER) {
+      /* Run constant fold optimization in order to get the correct source
+       * offset to determine render target 0 store instruction in
+       * emit_alpha_to_coverage pass.
+       */
+      NIR_PASS(_, nir, nir_opt_constant_folding);
+      NIR_PASS(_, nir, brw_nir_lower_alpha_to_coverage);
+   }
+
+   if (prog_data->coarse_pixel_dispatch != INTEL_NEVER)
+      NIR_PASS(_, nir, brw_nir_lower_frag_coord_z);
 
    if (!brw_wm_prog_key_is_dynamic(key)) {
       uint32_t f = 0;
