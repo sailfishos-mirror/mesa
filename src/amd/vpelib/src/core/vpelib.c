@@ -468,16 +468,6 @@ static enum vpe_status populate_input_streams(struct vpe_priv *vpe_priv, const s
             stream_ctx->flip_horizonal_output = false;
 
         memcpy(&stream_ctx->stream, &param->streams[i], sizeof(struct vpe_stream));
-
-        /* if top-bottom blending is not supported,
-         * the 1st stream still can support blending with background,
-         * however, the 2nd stream and onward can not enable blending.
-         */
-        if (i && param->streams[i].blend_info.blending &&
-            !vpe_priv->pub.caps->color_caps.mpc.top_bottom_blending) {
-            result = VPE_STATUS_ALPHA_BLENDING_NOT_SUPPORTED;
-            break;
-        }
     }
 
     return result;
@@ -590,17 +580,19 @@ enum vpe_status vpe_check_support(
                 vpe_log("fail input support check. status %d\n", (int)status);
                 break;
             }
-        }
-    }
-
-    if (status == VPE_STATUS_OK) {
-        // input checking - check tone map support
-        for (i = 0; i < param->num_streams; i++) {
+            // input checking - check tone map support
             status = vpe_check_tone_map_support(vpe, &param->streams[i], param);
             if (status != VPE_STATUS_OK) {
                 vpe_log("fail tone map support check. status %d\n", (int)status);
                 break;
             }
+            // blending support check
+            status = vpe_check_blending_support(vpe, &param->streams[i], i);
+            if (status != VPE_STATUS_OK) {
+                vpe_log("fail blending support check. status %d\n", (int)status);
+                break;
+            }
+
         }
     }
 
@@ -621,7 +613,6 @@ enum vpe_status vpe_check_support(
 
 
     if (status == VPE_STATUS_OK) {
-        // blending support check
         status = populate_input_streams(vpe_priv, param, vpe_priv->stream_ctx);
         if (status != VPE_STATUS_OK)
             vpe_log("fail input stream population. status %d\n", (int)status);

@@ -633,3 +633,20 @@ enum vpe_status vpe_check_tone_map_support(
     return status;
 }
 
+enum vpe_status vpe_check_blending_support(
+    struct vpe *vpe, const struct vpe_stream *stream, uint32_t stream_idx)
+{
+    enum vpe_status  result   = VPE_STATUS_OK;
+    struct vpe_priv *vpe_priv = container_of(vpe, struct vpe_priv, pub);
+
+    /* if top-bottom blending is not supported,
+     * the 1st stream still can support blending with background,
+     * however, the 2nd stream and onward can not enable blending.
+     */
+    if (stream_idx && stream->blend_info.blending &&
+        !vpe_priv->pub.caps->color_caps.mpc.top_bottom_blending) {
+        result = VPE_STATUS_ALPHA_BLENDING_NOT_SUPPORTED;
+    }
+    return result;
+}
+
