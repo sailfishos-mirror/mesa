@@ -363,6 +363,23 @@ push:
 Finally, open a pull request against the main branch, assigning it to
 ``@marge-bot`` immediately.
 
+Update the website
+------------------
+
+Create a fork of `Mesa3d.org <https://gitlab.freedesktop.org/mesa/mesa3d.org/>`__, and create
+a new pull request using the script:
+
+.. code-block:: sh
+
+   git checkout -b X.Y-release
+   ./post_release.py X.Y.Z
+   git push -u YOUR_FORK X.Y-release
+
+Where X.Y.Z is the same value as passed to post_version.py in the previous step.
+
+Create a merge request from this commit. After the commit to mesa is merged,
+merge this pull request.
+
 Announce the release
 --------------------
 
