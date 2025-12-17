@@ -424,6 +424,7 @@ main(int argc, const char **argv)
          do {
             progress = false;
             NIR_PASS(progress, s, nir_opt_loop);
+            NIR_PASS(_, s, nir_opt_remove_phis);
          } while (progress);
 
          pan_preprocess_nir(s, inputs.gpu_id);
