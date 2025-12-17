@@ -89,6 +89,7 @@ static const struct drm_driver_descriptor *driver_descriptors[] = {
    &tegra_driver_descriptor,
    &lima_driver_descriptor,
    &zink_driver_descriptor,
+   &kmsro_driver_descriptor,
 };
 
 static const struct drm_driver_descriptor *
@@ -98,7 +99,7 @@ get_driver_descriptor(const char *driver_name)
       if (strcmp(driver_descriptors[i]->driver_name, driver_name) == 0)
          return driver_descriptors[i];
    }
-   return &kmsro_driver_descriptor;
+   return NULL;
 }
 
 static int
