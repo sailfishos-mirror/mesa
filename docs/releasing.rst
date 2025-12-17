@@ -334,13 +334,14 @@ the ``X.Y`` branch:
    git push origin HEAD:X.Y
 
 
-Back on mesa main, add the new release notes into the tree
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Create a new branch against main for the release notes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Something like the following steps will do the trick:
 
 .. code-block:: sh
 
+   git checkout -b X.Y-release
    git cherry-pick -x X.Y~2
    git cherry-pick -x X.Y
 
@@ -357,7 +358,10 @@ push:
 
 .. code-block:: sh
 
-      git push origin main X.Y
+      git push -u YOUR_FORK X.Y-release
+
+Finally, open a pull request against the main branch, assigning it to
+``@marge-bot`` immediately.
 
 Announce the release
 --------------------
