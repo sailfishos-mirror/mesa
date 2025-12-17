@@ -111,7 +111,6 @@ anv_shader_serialize(struct vk_device *device,
    union brw_any_prog_data prog_data;
    memcpy(&prog_data, shader->prog_data, brw_prog_data_size(vk_shader->stage));
    prog_data.base.relocs = NULL;
-   prog_data.base.param = NULL;
 
    blob_write_bytes(blob, &prog_data, brw_prog_data_size(vk_shader->stage));
 
@@ -583,9 +582,6 @@ anv_shader_create(struct anv_device *device,
 
    const uint32_t cmd_data_dwords = anv_genX(device->info, shader_cmd_size)(
       device, stage);
-
-   /* We never need this at runtime */
-   shader_data->prog_data.base.param = NULL;
 
    VK_MULTIALLOC(ma);
    VK_MULTIALLOC_DECL(&ma, struct anv_shader, shader, 1);

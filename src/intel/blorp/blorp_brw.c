@@ -28,7 +28,6 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
 
    struct brw_wm_prog_data *wm_prog_data = rzalloc(mem_ctx, struct brw_wm_prog_data);
    wm_prog_data->base.nr_params = 0;
-   wm_prog_data->base.param = NULL;
 
    struct brw_nir_compiler_opts opts = {
       .softfp64 = blorp->get_fp64_nir ? blorp->get_fp64_nir(blorp) : NULL,
@@ -147,10 +146,12 @@ blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
 
    struct brw_cs_prog_data *cs_prog_data = rzalloc(mem_ctx, struct brw_cs_prog_data);
    cs_prog_data->base.nr_params = nr_params;
-   cs_prog_data->base.param = rzalloc_array(NULL, uint32_t, nr_params);
+   brw_cs_fill_push_const_info(compiler->devinfo, cs_prog_data, nr_params);
 
    NIR_PASS(_, nir, brw_nir_lower_cs_intrinsics, compiler->devinfo,
               cs_prog_data);
+   NIR_PASS(_, nir, brw_nir_lower_cs_subgroup_id, compiler->devinfo,
+            offsetof(struct blorp_wm_inputs, subgroup_id));
    NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_base_workgroup_id,
               nir_metadata_control_flow, NULL);
 
@@ -169,9 +170,6 @@ blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
    };
 
    const unsigned *kernel = brw_compile_cs(compiler, &params);
-
-   ralloc_free(cs_prog_data->base.param);
-   cs_prog_data->base.param = NULL;
 
    return (struct blorp_program) {
       .kernel         = kernel,

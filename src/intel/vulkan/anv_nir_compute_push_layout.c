@@ -143,18 +143,6 @@ anv_nir_compute_push_layout(nir_shader *nir,
       push_end = MAX2(push_end, tess_config_end);
    }
 
-   if (nir->info.stage == MESA_SHADER_COMPUTE && devinfo->verx10 < 125) {
-      /* For compute shaders, we always have to have the subgroup ID.  The
-       * back-end compiler will "helpfully" add it for us in the last push
-       * constant slot.  Yes, there is an off-by-one error here but that's
-       * because the back-end will add it so we want to claim the number of
-       * push constants one dword less than the full amount including
-       * gl_SubgroupId.
-       */
-      assert(push_end <= anv_drv_const_offset(cs.subgroup_id));
-      push_end = anv_drv_const_offset(cs.subgroup_id);
-   }
-
    /* Align push_start down to a 32B (for 3DSTATE_CONSTANT) and make it no
     * larger than push_end (no push constants is indicated by push_start =
     * UINT_MAX).
@@ -188,7 +176,18 @@ anv_nir_compute_push_layout(nir_shader *nir,
    const unsigned alignment = 4;
    nir->num_uniforms = align(push_end - push_start, alignment);
    prog_data->nr_params = nir->num_uniforms / 4;
-   prog_data->param = rzalloc_array(mem_ctx, uint32_t, prog_data->nr_params);
+
+   /* Fill the compute push constant layout (cross/per thread constants) for
+    * platforms pre Gfx12.5.
+    */
+   if (nir->info.stage == MESA_SHADER_COMPUTE) {
+      const int subgroup_id_index =
+          push_end == (anv_drv_const_offset(cs.subgroup_id) +
+                       anv_drv_const_size(cs.subgroup_id)) ?
+         (anv_drv_const_offset(cs.subgroup_id) - push_start) / 4 : -1;
+      struct brw_cs_prog_data *cs_prog_data = brw_cs_prog_data(prog_data);
+      brw_cs_fill_push_const_info(devinfo, cs_prog_data, subgroup_id_index);
+   }
 
    const struct anv_push_range push_constant_range = {
       .set = ANV_DESCRIPTOR_SET_PUSH_CONSTANTS,

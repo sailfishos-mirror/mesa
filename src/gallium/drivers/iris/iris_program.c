@@ -165,9 +165,8 @@ iris_apply_brw_cs_prog_data(struct iris_compiled_shader *shader,
    iris->uses_sampler      = brw->uses_sampler;
    iris->prog_mask         = brw->prog_mask;
 
-   iris->first_param_is_builtin_subgroup_id =
-      brw->base.nr_params > 0 &&
-      brw->base.param[0] == BRW_PARAM_BUILTIN_SUBGROUP_ID;
+   /* The pushed constants only contain the subgroup_id */
+   iris->first_param_is_builtin_subgroup_id = brw->base.nr_params > 0;
 }
 
 static void
@@ -294,7 +293,6 @@ iris_apply_brw_prog_data(struct iris_compiled_shader *shader,
 
    ralloc_steal(shader, shader->brw_prog_data);
    ralloc_steal(shader->brw_prog_data, (void *)brw->relocs);
-   ralloc_steal(shader->brw_prog_data, brw->param);
 }
 
 #ifdef INTEL_USE_ELK
@@ -1212,13 +1210,6 @@ iris_setup_uniforms(ASSERTED const struct intel_device_info *devinfo,
 
    assert(num_cbufs < PIPE_MAX_CONSTANT_BUFFERS);
    nir_validate_shader(nir, "after remap");
-
-   /* We don't use params[] but gallium leaves num_uniforms set.  We use this
-    * to detect when cbuf0 exists but we don't need it anymore when we get
-    * here.  Instead, zero it out so that the back-end doesn't get confused
-    * when nr_params * 4 != num_uniforms != nr_params * 4.
-    */
-   nir->num_uniforms = 0;
 
    *out_system_values = system_values;
    *out_num_system_values = num_system_values;
@@ -3110,6 +3101,15 @@ iris_compile_cs(struct iris_screen *screen,
 
       struct brw_cs_prog_data *brw_prog_data =
          rzalloc(mem_ctx, struct brw_cs_prog_data);
+
+      bool subgroup_id_lowered = false;
+      NIR_PASS(subgroup_id_lowered, nir, brw_nir_lower_cs_subgroup_id, devinfo, 0);
+      if (subgroup_id_lowered) {
+         brw_prog_data->base.nr_params = 1;
+         brw_cs_fill_push_const_info(devinfo, brw_prog_data, 0);
+      } else {
+         brw_cs_fill_push_const_info(devinfo, brw_prog_data, -1);
+      }
 
       struct brw_compile_cs_params params = {
          .base = {

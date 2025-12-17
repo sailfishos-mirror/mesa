@@ -25,19 +25,15 @@ fill_push_const_block_info(struct brw_push_const_block *block, unsigned dwords)
    block->size = block->regs * 32;
 }
 
-static void
-cs_fill_push_const_info(const struct intel_device_info *devinfo,
-                        struct brw_cs_prog_data *cs_prog_data)
+extern "C" void
+brw_cs_fill_push_const_info(const struct intel_device_info *devinfo,
+                            struct brw_cs_prog_data *cs_prog_data,
+                            int subgroup_id_index)
 {
    const struct brw_stage_prog_data *prog_data = &cs_prog_data->base;
-   int subgroup_id_index = brw_get_subgroup_id_param_index(devinfo, prog_data);
-
-   /* The thread ID should be stored in the last param dword */
-   assert(subgroup_id_index == -1 ||
-          subgroup_id_index == (int)prog_data->nr_params - 1);
 
    unsigned cross_thread_dwords, per_thread_dwords;
-   if (subgroup_id_index >= 0) {
+   if (devinfo->verx10 < 125 && subgroup_id_index >= 0) {
       /* Fill all but the last register with cross-thread payload */
       cross_thread_dwords = 8 * (subgroup_id_index / 8);
       per_thread_dwords = prog_data->nr_params - cross_thread_dwords;
@@ -120,41 +116,6 @@ brw_nir_uses_sampler(nir_shader *shader)
                                        NULL);
 }
 
-static inline uint32_t *
-brw_stage_prog_data_add_params(struct brw_stage_prog_data *prog_data,
-                               unsigned nr_new_params)
-{
-   unsigned old_nr_params = prog_data->nr_params;
-   prog_data->nr_params += nr_new_params;
-   prog_data->param = reralloc(ralloc_parent(prog_data->param),
-                               prog_data->param, uint32_t,
-                               prog_data->nr_params);
-   return prog_data->param + old_nr_params;
-}
-
-static void
-brw_adjust_uniforms(brw_shader &s)
-{
-   if (s.devinfo->verx10 >= 125)
-      return;
-
-   assert(mesa_shader_stage_is_compute(s.stage));
-
-   if (brw_get_subgroup_id_param_index(s.devinfo, s.prog_data) == -1) {
-      /* Add uniforms for builtins after regular NIR uniforms. */
-      assert(s.uniforms == s.prog_data->nr_params);
-
-      /* Subgroup ID must be the last uniform on the list.  This will make
-       * easier later to split between cross thread and per thread
-       * uniforms.
-       */
-      uint32_t *param = brw_stage_prog_data_add_params(s.prog_data, 1);
-      *param = BRW_PARAM_BUILTIN_SUBGROUP_ID;
-   }
-
-   s.uniforms = s.prog_data->nr_params;
-}
-
 const unsigned *
 brw_compile_cs(const struct brw_compiler *compiler,
                struct brw_compile_cs_params *params)
@@ -233,7 +194,6 @@ brw_compile_cs(const struct brw_compiler *compiler,
          .archiver                = params->base.archiver,
       };
       v[simd] = std::make_unique<brw_shader>(&shader_params);
-      brw_adjust_uniforms(*v[simd]);
 
       const bool allow_spilling = simd == 0 ||
          (!simd_state.compiled[simd - 1] && !brw_simd_should_compile(simd_state, simd - 1)) ||
@@ -245,8 +205,6 @@ brw_compile_cs(const struct brw_compiler *compiler,
       }
 
       if (run_cs(*v[simd], allow_spilling)) {
-         cs_fill_push_const_info(compiler->devinfo, prog_data);
-
          brw_simd_mark_compiled(simd_state, simd, v[simd]->spilled_any_registers);
 
          if (devinfo->ver >= 30 && !v[simd]->spilled_any_registers &&

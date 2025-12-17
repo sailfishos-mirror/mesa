@@ -380,19 +380,9 @@ void
 brw_cs_thread_payload::load_subgroup_id(const brw_builder &bld,
                                     brw_reg &dest) const
 {
-   auto devinfo = bld.shader->devinfo;
+   assert(bld.shader->devinfo->verx10 >= 125);
    dest = retype(dest, BRW_TYPE_UD);
-
-   if (subgroup_id_.file != BAD_FILE) {
-      assert(devinfo->verx10 >= 125);
-      bld.AND(dest, subgroup_id_, brw_imm_ud(INTEL_MASK(7, 0)));
-   } else {
-      assert(devinfo->verx10 < 125);
-      assert(mesa_shader_stage_is_compute(bld.shader->stage));
-      int index = brw_get_subgroup_id_param_index(devinfo,
-                                                  bld.shader->prog_data);
-      bld.MOV(dest, brw_uniform_reg(index, BRW_TYPE_UD));
-   }
+   bld.AND(dest, subgroup_id_, brw_imm_ud(INTEL_MASK(7, 0)));
 }
 
 brw_task_mesh_thread_payload::brw_task_mesh_thread_payload(brw_shader &v)

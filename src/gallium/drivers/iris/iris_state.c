@@ -9410,21 +9410,34 @@ iris_upload_gpgpu_walker(struct iris_context *ice,
    if ((stage_dirty & IRIS_STAGE_DIRTY_CS) ||
        (GFX_VER == 12 && !batch->contains_draw) ||
        cs_data->local_size[0] == 0 /* Variable local group size */) {
-      uint32_t curbe_data_offset = 0;
-      assert(cs_data->push.cross_thread.dwords == 0 &&
-             cs_data->push.per_thread.dwords == 1 &&
-             cs_data->first_param_is_builtin_subgroup_id);
-      const unsigned push_const_size =
-         iris_cs_push_const_total_size(shader, dispatch.threads);
-      uint32_t *curbe_data_map =
-         stream_state(batch, ice->state.dynamic_uploader,
-                      &ice->state.last_res.cs_thread_ids,
-                      align(push_const_size, 64), 64,
-                      &curbe_data_offset);
-      assert(curbe_data_map);
-      memset(curbe_data_map, 0x5a, align(push_const_size, 64));
-      iris_fill_cs_push_const_buffer(screen, shader, dispatch.threads,
-                                     curbe_data_map);
+      uint32_t curbe_data_offset, push_const_size;
+      uint32_t *curbe_data_map;
+      if (cs_data->push.cross_thread.dwords == 0 &&
+          cs_data->push.per_thread.dwords == 0) {
+         push_const_size = 64;
+         curbe_data_map =
+            stream_state(batch, ice->state.dynamic_uploader,
+                         &ice->state.last_res.cs_thread_ids,
+                         align(push_const_size, 64), 64,
+                         &curbe_data_offset);
+         assert(curbe_data_map);
+         memset(curbe_data_map, 0x5a, align(push_const_size, 64));
+      } else {
+         assert(cs_data->push.cross_thread.dwords == 0 &&
+                cs_data->push.per_thread.dwords == 1 &&
+                cs_data->first_param_is_builtin_subgroup_id);
+         push_const_size =
+            iris_cs_push_const_total_size(shader, dispatch.threads);
+         curbe_data_map =
+            stream_state(batch, ice->state.dynamic_uploader,
+                         &ice->state.last_res.cs_thread_ids,
+                         align(push_const_size, 64), 64,
+                         &curbe_data_offset);
+         assert(curbe_data_map);
+         memset(curbe_data_map, 0x5a, align(push_const_size, 64));
+         iris_fill_cs_push_const_buffer(screen, shader, dispatch.threads,
+                                        curbe_data_map);
+      }
 
       iris_emit_cmd(batch, GENX(MEDIA_CURBE_LOAD), curbe) {
          curbe.CURBETotalDataLength = align(push_const_size, 64);

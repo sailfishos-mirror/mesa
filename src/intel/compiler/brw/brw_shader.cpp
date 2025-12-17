@@ -969,24 +969,6 @@ brw_shader::convert_attr_sources_to_hw_regs(brw_inst *inst)
    }
 }
 
-int
-brw_get_subgroup_id_param_index(const intel_device_info *devinfo,
-                                const brw_stage_prog_data *prog_data)
-{
-   if (prog_data->nr_params == 0)
-      return -1;
-
-   if (devinfo->verx10 >= 125)
-      return -1;
-
-   /* The local thread id is always the last parameter in the list */
-   uint32_t last_param = prog_data->param[prog_data->nr_params - 1];
-   if (last_param == BRW_PARAM_BUILTIN_SUBGROUP_ID)
-      return prog_data->nr_params - 1;
-
-   return -1;
-}
-
 uint32_t
 brw_fb_write_msg_control(const brw_inst *inst,
                          const struct brw_wm_prog_data *prog_data)

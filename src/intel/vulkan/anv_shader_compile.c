@@ -1473,8 +1473,6 @@ anv_shader_lower_nir(struct anv_device *device,
                dynamic_descriptors_offsets,
                &shader_data->bind_map, &shader_data->push_map, mem_ctx);
 
-   NIR_PASS(_, nir, anv_nir_lower_driver_values, pdevice);
-
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_ubo,
             anv_nir_ubo_addr_format(pdevice, shader_data->key.base.robust_flags));
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_ssbo,
@@ -1545,28 +1543,6 @@ anv_shader_lower_nir(struct anv_device *device,
       NIR_PASS(_, nir, nir_opt_dce);
    }
 
-   NIR_PASS(_, nir, anv_nir_update_resource_intel_block);
-
-   NIR_PASS(_, nir, anv_nir_compute_push_layout,
-               pdevice, shader_data->key.base.robust_flags,
-               &(struct anv_nir_push_layout_info) {
-                  .separate_tessellation = (nir->info.stage == MESA_SHADER_TESS_CTRL &&
-                                            shader_data->key.tcs.separate_tess_vue_layout) ||
-                                           (nir->info.stage == MESA_SHADER_TESS_EVAL &&
-                                            shader_data->key.tes.separate_tess_vue_layout),
-                  .fragment_dynamic      = nir->info.stage == MESA_SHADER_FRAGMENT &&
-                                           brw_wm_prog_key_is_dynamic(&shader_data->key.wm),
-                  .mesh_dynamic          = nir->info.stage == MESA_SHADER_FRAGMENT &&
-                                           shader_data->key.wm.mesh_input == INTEL_SOMETIMES,
-               },
-               &shader_data->key.base,
-               &shader_data->prog_data.base,
-               &shader_data->bind_map, &shader_data->push_map,
-               mem_ctx);
-
-   NIR_PASS(_, nir, anv_nir_lower_resource_intel, pdevice,
-               shader_data->bind_map.layout_type);
-
    if (mesa_shader_stage_uses_workgroup(nir->info.stage)) {
       NIR_PASS(_, nir, nir_lower_vars_to_explicit_types,
                nir_var_mem_shared, shared_type_info);
@@ -1596,6 +1572,30 @@ anv_shader_lower_nir(struct anv_device *device,
       NIR_PASS(_, nir, brw_nir_lower_cs_intrinsics, compiler->devinfo,
                &shader_data->prog_data.cs);
    }
+
+   NIR_PASS(_, nir, anv_nir_lower_driver_values, pdevice);
+
+   NIR_PASS(_, nir, anv_nir_update_resource_intel_block);
+
+   NIR_PASS(_, nir, anv_nir_compute_push_layout,
+               pdevice, shader_data->key.base.robust_flags,
+               &(struct anv_nir_push_layout_info) {
+                  .separate_tessellation = (nir->info.stage == MESA_SHADER_TESS_CTRL &&
+                                            shader_data->key.tcs.separate_tess_vue_layout) ||
+                                           (nir->info.stage == MESA_SHADER_TESS_EVAL &&
+                                            shader_data->key.tes.separate_tess_vue_layout),
+                  .fragment_dynamic      = nir->info.stage == MESA_SHADER_FRAGMENT &&
+                                           brw_wm_prog_key_is_dynamic(&shader_data->key.wm),
+                  .mesh_dynamic          = nir->info.stage == MESA_SHADER_FRAGMENT &&
+                                           shader_data->key.wm.mesh_input == INTEL_SOMETIMES,
+               },
+               &shader_data->key.base,
+               &shader_data->prog_data.base,
+               &shader_data->bind_map, &shader_data->push_map,
+               mem_ctx);
+
+   NIR_PASS(_, nir, anv_nir_lower_resource_intel, pdevice,
+               shader_data->bind_map.layout_type);
 
    shader_data->push_desc_info.push_set_buffer =
       anv_nir_loads_push_desc_buffer(

@@ -302,9 +302,6 @@ uint32_t brw_fb_write_msg_control(const brw_inst *inst,
 
 void brw_compute_urb_setup_index(struct brw_wm_prog_data *wm_prog_data);
 
-int brw_get_subgroup_id_param_index(const intel_device_info *devinfo,
-                                    const brw_stage_prog_data *prog_data);
-
 void brw_from_nir(brw_shader *s);
 
 void brw_shader_phase_update(brw_shader &s, enum brw_shader_phase phase);

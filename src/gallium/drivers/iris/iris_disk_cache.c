@@ -128,7 +128,6 @@ iris_disk_cache_store(struct disk_cache *cache,
       union brw_any_prog_data serializable;
       assert(prog_data_s <= sizeof(serializable));
       memcpy(&serializable, shader->brw_prog_data, prog_data_s);
-      serializable.base.param = NULL;
       serializable.base.relocs = NULL;
       blob_write_bytes(&blob, &serializable, prog_data_s);
    } else {
@@ -152,8 +151,6 @@ iris_disk_cache_store(struct disk_cache *cache,
    if (brw) {
       blob_write_bytes(&blob, brw->relocs,
                        brw->num_relocs * sizeof(struct intel_shader_reloc));
-      blob_write_bytes(&blob, brw->param,
-                       brw->nr_params * sizeof(uint32_t));
    } else {
 #ifdef INTEL_USE_ELK
       blob_write_bytes(&blob, elk->relocs,
@@ -264,12 +261,6 @@ iris_disk_cache_retrieve(struct iris_screen *screen,
          blob_copy_bytes(&blob, relocs,
                          brw->num_relocs * sizeof(struct intel_shader_reloc));
          brw->relocs = relocs;
-      }
-
-      brw->param = NULL;
-      if (brw->nr_params) {
-         brw->param = ralloc_array(NULL, uint32_t, brw->nr_params);
-         blob_copy_bytes(&blob, brw->param, brw->nr_params * sizeof(uint32_t));
       }
    } else {
 #ifdef INTEL_USE_ELK

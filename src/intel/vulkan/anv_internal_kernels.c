@@ -157,7 +157,6 @@ compile_shader(struct anv_device *device,
    void *temp_ctx = ralloc_context(NULL);
 
    prog_data.base.nr_params = nir->num_uniforms / 4;
-   prog_data.base.param = rzalloc_array(temp_ctx, uint32_t, prog_data.base.nr_params);
 
    brw_nir_analyze_ubo_ranges(compiler, nir, prog_data.base.ubo_ranges);
 
@@ -191,6 +190,8 @@ compile_shader(struct anv_device *device,
          }
       }
    } else {
+      brw_cs_fill_push_const_info(device->info, &prog_data.cs, -1);
+
       struct genisa_stats stats;
       struct brw_compile_cs_params params = {
          .base = {

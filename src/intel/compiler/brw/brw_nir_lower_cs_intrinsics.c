@@ -387,3 +387,36 @@ brw_nir_lower_cs_intrinsics(nir_shader *nir,
 
    return state.progress;
 }
+
+static bool
+lower_cs_subgroup_id_instr(nir_builder *b,
+                           nir_intrinsic_instr *intrin,
+                           void *data)
+{
+   if (intrin->intrinsic != nir_intrinsic_load_subgroup_id)
+      return false;
+
+   const unsigned *subgroup_id_offset_ptr = data;
+
+   b->cursor = nir_before_instr(&intrin->instr);
+   nir_def_replace(&intrin->def,
+                   nir_load_uniform(
+                      b, 1, 32, nir_imm_int(b, 0),
+                      .base = *subgroup_id_offset_ptr,
+                      .range = 4));
+
+   return true;
+}
+
+bool
+brw_nir_lower_cs_subgroup_id(nir_shader *nir,
+                             const struct intel_device_info *devinfo,
+                             unsigned subgroup_id_offset)
+{
+   if (devinfo->verx10 >= 125)
+      return false;
+
+   return nir_shader_intrinsics_pass(nir, lower_cs_subgroup_id_instr,
+                                     nir_metadata_control_flow,
+                                     &subgroup_id_offset);
+}

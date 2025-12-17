@@ -54,6 +54,20 @@ lower_base_workgroup_id(nir_builder *b, nir_intrinsic_instr *intrin)
 }
 
 static bool
+lower_subgroup_id(nir_builder *b, nir_intrinsic_instr *intrin,
+                  const struct anv_physical_device *pdevice)
+{
+   if (pdevice->info.verx10 >= 125)
+      return false;
+
+   b->cursor = nir_before_instr(&intrin->instr);
+   nir_def_replace(&intrin->def,
+                   anv_load_driver_uniform(b, 1, cs.subgroup_id));
+
+   return true;
+}
+
+static bool
 lower_ray_query_globals(nir_builder *b, nir_intrinsic_instr *intrin)
 {
    b->cursor = nir_before_instr(&intrin->instr);
@@ -72,6 +86,8 @@ lower_driver_values(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
       return lower_load_constant(b, intrin);
    case nir_intrinsic_load_base_workgroup_id:
       return lower_base_workgroup_id(b, intrin);
+   case nir_intrinsic_load_subgroup_id:
+      return lower_subgroup_id(b, intrin, data);
    case nir_intrinsic_load_ray_query_global_intel:
       return lower_ray_query_globals(b, intrin);
    default:

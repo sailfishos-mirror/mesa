@@ -543,7 +543,6 @@ enum brw_param_builtin {
    BRW_PARAM_BUILTIN_BASE_WORK_GROUP_ID_X,
    BRW_PARAM_BUILTIN_BASE_WORK_GROUP_ID_Y,
    BRW_PARAM_BUILTIN_BASE_WORK_GROUP_ID_Z,
-   BRW_PARAM_BUILTIN_SUBGROUP_ID,
    BRW_PARAM_BUILTIN_WORK_GROUP_SIZE_X,
    BRW_PARAM_BUILTIN_WORK_GROUP_SIZE_Y,
    BRW_PARAM_BUILTIN_WORK_GROUP_SIZE_Z,
@@ -615,14 +614,6 @@ struct brw_stage_prog_data {
    bool use_alt_mode; /**< Use ALT floating point mode?  Otherwise, IEEE. */
 
    uint32_t source_hash;
-
-   /* 32-bit identifiers for all push/pull parameters.  These can be anything
-    * the driver wishes them to be; the core of the back-end compiler simply
-    * re-arranges them.  The one restriction is that the bottom 2^16 values
-    * are reserved for builtins defined in the brw_param_builtin enum defined
-    * above.
-    */
-   uint32_t *param;
 
    /* Whether shader uses atomic operations. */
    bool uses_atomic_load_store;
@@ -1671,6 +1662,11 @@ void brw_debug_key_recompile(const struct brw_compiler *c, void *log,
 unsigned
 brw_cs_push_const_total_size(const struct brw_cs_prog_data *cs_prog_data,
                              unsigned threads);
+
+void
+brw_cs_fill_push_const_info(const struct intel_device_info *devinfo,
+                            struct brw_cs_prog_data *cs_prog_data,
+                            int subgroup_id_index);
 
 void
 brw_write_shader_relocs(const struct brw_isa_info *isa,

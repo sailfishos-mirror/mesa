@@ -179,6 +179,10 @@ brw_nir_link_shaders(const struct brw_compiler *compiler,
 bool brw_nir_lower_cs_intrinsics(nir_shader *nir,
                                  const struct intel_device_info *devinfo,
                                  struct brw_cs_prog_data *prog_data);
+bool brw_nir_lower_cs_subgroup_id(nir_shader *nir,
+                                  const struct intel_device_info *devinfo,
+                                  unsigned subgroup_id_offset);
+
 bool brw_nir_lower_alpha_to_coverage(nir_shader *shader);
 bool brw_needs_vertex_attributes_bypass(const nir_shader *shader);
 void brw_nir_lower_fs_barycentrics(nir_shader *shader);

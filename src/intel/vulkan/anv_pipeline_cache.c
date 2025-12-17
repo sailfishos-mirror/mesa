@@ -94,7 +94,6 @@ anv_shader_internal_create(struct anv_device *device,
                                 prog_data_size);
    VK_MULTIALLOC_DECL(&ma, struct intel_shader_reloc, prog_data_relocs,
                            prog_data_in->num_relocs);
-   VK_MULTIALLOC_DECL(&ma, uint32_t, prog_data_param, prog_data_in->nr_params);
    VK_MULTIALLOC_DECL(&ma, void, code, kernel_size);
 
    VK_MULTIALLOC_DECL_SIZE(&ma, nir_xfb_info, xfb_info,
@@ -151,7 +150,6 @@ anv_shader_internal_create(struct anv_device *device,
    typed_memcpy(prog_data_relocs, prog_data_in->relocs,
                 prog_data_in->num_relocs);
    prog_data->relocs = prog_data_relocs;
-   prog_data->param = prog_data_param;
    shader->prog_data = prog_data;
    shader->prog_data_size = prog_data_size;
 
@@ -210,7 +208,6 @@ anv_shader_internal_serialize(struct vk_pipeline_cache_object *object,
    assert(shader->prog_data_size <= sizeof(prog_data));
    memcpy(&prog_data, shader->prog_data, shader->prog_data_size);
    prog_data.base.relocs = NULL;
-   prog_data.base.param = NULL;
    blob_write_bytes(blob, &prog_data, shader->prog_data_size);
 
    blob_write_bytes(blob, shader->prog_data->relocs,
