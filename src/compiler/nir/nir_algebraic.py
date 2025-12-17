@@ -114,6 +114,9 @@ class SearchExpression(object):
         self.sources = expr[1:]
         self.ignore_exact = False
 
+        assert '{' not in self.opcode, \
+            'Malformed opcode name \"{}\".'.format(self.opcode)
+
     @staticmethod
     def create(val):
         if isinstance(val, tuple):
