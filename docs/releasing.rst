@@ -341,7 +341,7 @@ Something like the following steps will do the trick:
 
 .. code-block:: sh
 
-   git cherry-pick -x X.Y~1
+   git cherry-pick -x X.Y~2
    git cherry-pick -x X.Y
 
 Then run the
