@@ -1477,6 +1477,20 @@ brw_print_fs_urb_setup(FILE *fp, const struct brw_wm_prog_data *prog_data,
    }
 }
 
+static void
+brw_nir_cleanup_pre_wm_prog_data(nir_shader *nir)
+{
+   bool progress;
+   do {
+      progress = false;
+      NIR_PASS(progress, nir, nir_opt_algebraic);
+      NIR_PASS(progress, nir, nir_opt_copy_prop);
+      NIR_PASS(progress, nir, nir_opt_constant_folding);
+      NIR_PASS(progress, nir, nir_opt_dce);
+      NIR_PASS(progress, nir, nir_opt_cse);
+   } while (progress);
+}
+
 const unsigned *
 brw_compile_fs(const struct brw_compiler *compiler,
                struct brw_compile_fs_params *params)
@@ -1538,6 +1552,15 @@ brw_compile_fs(const struct brw_compiler *compiler,
 
    NIR_PASS(_, nir, brw_nir_move_interpolation_to_top);
 
+   brw_nir_cleanup_pre_wm_prog_data(nir);
+
+   int per_primitive_offsets[VARYING_SLOT_MAX];
+   memset(per_primitive_offsets, -1, sizeof(per_primitive_offsets));
+
+   brw_nir_populate_wm_prog_data(nir, compiler->devinfo, key, prog_data,
+                                 params->mue_map,
+                                 per_primitive_offsets);
+
    if (!brw_wm_prog_key_is_dynamic(key)) {
       uint32_t f = 0;
 
@@ -1571,13 +1594,6 @@ brw_compile_fs(const struct brw_compiler *compiler,
 
    brw_postprocess_nir_out_of_ssa(nir, 0, params->base.archiver,
                                   debug_enabled);
-
-   int per_primitive_offsets[VARYING_SLOT_MAX];
-   memset(per_primitive_offsets, -1, sizeof(per_primitive_offsets));
-
-   brw_nir_populate_wm_prog_data(nir, compiler->devinfo, key, prog_data,
-                                 params->mue_map,
-                                 per_primitive_offsets);
 
    if (unlikely(debug_enabled))
       brw_print_fs_urb_setup(stderr, prog_data, per_primitive_offsets);
