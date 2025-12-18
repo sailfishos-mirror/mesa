@@ -128,27 +128,14 @@ radeonsi-raven-va:
     - .lava-x86_64-test-video
     - .radeonsi-raven-test:x86_64
     - .radeonsi-vaapi-rules
-    - .lava-hp-x360-14a-cb0001xx-zork:x86_64
-  variables:
-    DEQP_SUITE: gtest-va
-    # While the tests don't need Xorg, it's an easy way to keep DRM open so we don't
-    # spend all our time in drm_lastclose()'s modesetting.
-    HWCI_START_WESTON: 1
-    # The big 10-surface 10k allocations oomkill us at around 2.5G of GPU memory
-    # allocated if we run at the normal 4 threads.
-    # https://github.com/intel/libva-utils/issues/248
-    FDO_CI_CONCURRENT: 1
-
-radeonsi-raven-vaapi-fluster:
-  extends:
-    - .lava-x86_64-test-video
-    - .radeonsi-raven-test:x86_64
-    - .radeonsi-vaapi-rules
     - .test-fluster
     - .lava-hp-x360-14a-cb0001xx-zork:x86_64
   variables:
-    DEQP_SUITE: fluster-vaapi
-    GPU_VERSION: radeonsi-raven-fluster
+    DEQP_SUITE: vaapi
+    GPU_VERSION: radeonsi-raven-va
+    # While the tests don't need Xorg, it's an easy way to keep DRM open so we don't
+    # spend all our time in drm_lastclose()'s modesetting.
+    HWCI_START_WESTON: 1
 
 radeonsi-mendocino-glcts-piglit:
   extends:
