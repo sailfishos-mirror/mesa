@@ -197,7 +197,7 @@ ac_sdma_get_tiled_header_dword(enum sdma_version sdma_ip_version,
 
       return (mip_max - 1) << 20 | mip_id << 24;
    } else {
-      UNREACHABLE("unsupported SDMA version");
+      return 0;
    }
 }
 
