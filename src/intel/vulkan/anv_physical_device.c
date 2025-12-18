@@ -152,6 +152,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .KHR_cooperative_matrix                = device->has_cooperative_matrix,
       .NV_cooperative_matrix2                = device->has_cooperative_matrix,
       .KHR_copy_commands2                    = true,
+      .KHR_copy_memory_indirect              = true,
       .KHR_create_renderpass2                = true,
       .KHR_dedicated_allocation              = true,
       .KHR_deferred_host_operations          = true,
@@ -1018,6 +1019,10 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_KHR_pipeline_binary */
       .pipelineBinaries = true,
+
+      /* VK_KHR_copy_memory_indirect */
+      .indirectMemoryCopy = true,
+      .indirectMemoryToImageCopy = pdevice->info.verx10 >= 125,
 
 #ifdef ANV_USE_WSI_PLATFORM
       /* VK_EXT_present_timing */
@@ -2211,6 +2216,11 @@ get_properties(const struct anv_physical_device *pdevice,
        * generations & driver versions.
        */
       props->shaderBinaryVersion = 0;
+   }
+
+   /* VK_KHR_copy_memory_indirect */
+   {
+      props->supportedQueues = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
    }
 }
 
