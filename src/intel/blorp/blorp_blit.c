@@ -25,6 +25,7 @@
 #include "compiler/nir/nir_format_convert.h"
 
 #include "blorp_priv.h"
+#include "blorp_shaders.h"
 #include "dev/intel_debug.h"
 #include "dev/intel_device_info.h"
 
@@ -1285,8 +1286,9 @@ blorp_build_nir_shader(struct blorp_context *blorp,
    nir_if *bounds_if = NULL;
    if (key->use_kill) {
       nir_def *bounds_rect = nir_load_var(&b, v.v_bounds_rect);
-      nir_def *in_bounds = blorp_check_in_bounds(&b, bounds_rect,
-                                                     dst_pos);
+      nir_def *in_bounds =
+         blorp_check_in_bounds(&b, bounds_rect,
+                               nir_trim_vector(&b, dst_pos, 2));
       if (!compute)
          nir_discard_if(&b, nir_inot(&b, in_bounds));
       else

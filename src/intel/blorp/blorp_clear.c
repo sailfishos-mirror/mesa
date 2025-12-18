@@ -29,6 +29,7 @@
 #include "util/u_math.h"
 
 #include "blorp_priv.h"
+#include "blorp_shaders.h"
 #include "dev/intel_debug.h"
 #include "dev/intel_device_info.h"
 
@@ -165,7 +166,8 @@ blorp_params_get_clear_kernel_cs(struct blorp_batch *batch,
    nir_variable *v_bounds_rect =
       BLORP_CREATE_NIR_INPUT(b.shader, clear.bounds_rect, glsl_vec4_type());
    nir_def *bounds_rect = nir_load_var(&b, v_bounds_rect);
-   nir_def *in_bounds = blorp_check_in_bounds(&b, bounds_rect, dst_pos);
+   nir_def *in_bounds =
+      blorp_check_in_bounds(&b, bounds_rect, nir_trim_vector(&b, dst_pos, 2));
 
    if (clear_rgb_as_red) {
       nir_def *comp = nir_umod_imm(&b, nir_channel(&b, dst_pos, 0), 3);
