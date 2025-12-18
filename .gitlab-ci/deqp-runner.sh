@@ -34,6 +34,9 @@ fi
 if [ -n "${FLUSTER_TAG:-}" ]; then
   # Are we using the right Fluster version?
   ci_tag_test_time_check "FLUSTER_TAG"
+fi
+
+if [ -n "${FLUSTER_TAG:-}" ] || [ "$DEQP_SUITE" == "gtest-va" ]; then
   export LIBVA_DRIVERS_PATH=$INSTALL/lib/dri/
   # libva spams driver open info by default, and that happens per testcase.
   export LIBVA_MESSAGING_LEVEL=1
