@@ -260,7 +260,8 @@ void brw_nir_lower_fs_outputs(nir_shader *nir);
 bool brw_nir_lower_fs_load_output(nir_shader *shader,
                                   const struct brw_wm_prog_key *key);
 
-bool brw_nir_lower_frag_coord_z(nir_shader *nir);
+bool brw_nir_lower_frag_coord_z(nir_shader *nir,
+                                const struct intel_device_info *devinfo);
 
 bool brw_nir_lower_cmat(nir_shader *nir, unsigned subgroup_size);
 

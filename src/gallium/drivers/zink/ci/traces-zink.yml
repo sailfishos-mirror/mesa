@@ -7,9 +7,9 @@ traces:
   0ad/0ad-v2.trace:
     gl-zink-anv-adl:
       label: [no-perf]
-      checksum: ff0d4b072dd613b6f11c351027db3bb3
+      checksum: 0d04e54fa259d407433a7925c739900a
     gl-zink-anv-tgl:
-      checksum: ff0d4b072dd613b6f11c351027db3bb3
+      checksum: 0d04e54fa259d407433a7925c739900a
     zink-radv-vangogh:
       checksum: 52cabbe16a14628f92df31e0fb4c109e
     zink-radv-gfx1201:

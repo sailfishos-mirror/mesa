@@ -1308,7 +1308,7 @@ brw_nir_lower_fs_outputs(nir_shader *nir)
 }
 
 static bool
-lower_frag_coord_z_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *)
+lower_frag_coord_z_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
 {
    if (intrin->intrinsic != nir_intrinsic_load_frag_coord_z)
       return false;
@@ -1316,25 +1316,31 @@ lower_frag_coord_z_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *)
    b->cursor = nir_after_instr(&intrin->instr);
    b->fp_math_ctrl = nir_fp_no_fast_math;
 
-   nir_def *start = nir_load_fs_start_intel(b);
-   nir_def *z_c = nir_load_fs_z_c_intel(b);
-   nir_def *z_c0 = nir_load_fs_z_c0_intel(b);
-   nir_def *coord = nir_fadd_imm(b, nir_i2f32(b, nir_load_pixel_coord(b)), 0.5f);
+   const struct intel_device_info *devinfo = (const struct intel_device_info *)data;
+   const unsigned precision = devinfo->has_64bit_float ? 64 : 32;
+
+   nir_def *start = nir_f2fN(b, nir_load_fs_start_intel(b), precision);
+   nir_def *z_c = nir_f2fN(b, nir_load_fs_z_c_intel(b), precision);
+   nir_def *z_c0 = nir_f2fN(b, nir_load_fs_z_c0_intel(b), precision);
+   nir_def *coord = nir_fadd_imm(
+      b, nir_i2fN(b, nir_load_pixel_coord(b), precision), 0.5f);
 
    nir_def *offset = nir_fsub(b, coord, start);
    nir_def *dot = nir_fdot(b, offset, z_c);
    nir_def *coarse_z = nir_fadd(b, dot, z_c0);
 
-   nir_def_replace(&intrin->def, coarse_z);
+   nir_def_replace(&intrin->def, nir_f2f32(b, coarse_z));
 
    return true;
 }
 
 bool
-brw_nir_lower_frag_coord_z(nir_shader *nir)
+brw_nir_lower_frag_coord_z(nir_shader *nir,
+                           const struct intel_device_info *devinfo)
 {
    return nir_shader_intrinsics_pass(nir, lower_frag_coord_z_instr,
-                                     nir_metadata_control_flow, NULL);
+                                     nir_metadata_control_flow,
+                                     (void *)devinfo);
 }
 
 static bool

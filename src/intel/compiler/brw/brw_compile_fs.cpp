@@ -1508,7 +1508,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
    }
 
    if (prog_data->coarse_pixel_dispatch != INTEL_NEVER)
-      NIR_PASS(_, nir, brw_nir_lower_frag_coord_z);
+      NIR_PASS(_, nir, brw_nir_lower_frag_coord_z, devinfo);
 
    if (!brw_wm_prog_key_is_dynamic(key)) {
       uint32_t f = 0;
