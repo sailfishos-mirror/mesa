@@ -138,18 +138,6 @@
         *radeon_vcn_file_list
       when: manual
 
-.radeonsi-vaapi-fluster-rules:
-  stage: amd
-  extends:
-    - .test-fluster
-  rules:
-    - !reference [.radeonsi-vaapi-rules, rules]
-    - changes:
-        - src/amd/ci/$GPU_VERSION-fluster-fails.txt
-        - src/amd/ci/$GPU_VERSION-fluster-flakes.txt
-        - src/amd/ci/$GPU_VERSION-fluster-skips.txt
-      when: on_success
-
 .radeonsi-valve-rules:
   stage: amd
   rules:
