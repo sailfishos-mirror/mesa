@@ -1578,6 +1578,9 @@ brw_compile_fs(const struct brw_compiler *compiler,
               INTEL_MSAA_FLAG_PERSAMPLE_INTERP;
       }
 
+      if (prog_data->coarse_pixel_dispatch == INTEL_ALWAYS)
+         f |= INTEL_MSAA_FLAG_COARSE_RT_WRITES;
+
       NIR_PASS(_, nir, nir_inline_sysval, nir_intrinsic_load_fs_msaa_intel, f);
    }
 
