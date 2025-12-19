@@ -1,3 +1,8 @@
+# Warning!
+# --------
+# G720 results aren't regularly updated, this is just kept around as a "best
+# effort" reference of what we expect the results to be.
+
 # Cause a "gpu sched timeout" (fixed by sched increase to 10s)
 dEQP-VK.memory.pipeline_barrier.host_write_uniform_buffer.1048576
 dEQP-VK.memory.pipeline_barrier.host_write_uniform_texel_buffer.1048576
