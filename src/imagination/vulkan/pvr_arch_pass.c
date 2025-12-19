@@ -1075,7 +1075,7 @@ void PVR_PER_ARCH(DestroyRenderPass)(VkDevice _device,
                                     allocator,
                                     pass,
                                     pass->hw_setup->render_count);
-   PVR_PER_ARCH(destroy_renderpass_hwsetup)(allocator, pass->hw_setup);
+   pvr_destroy_renderpass_hwsetup(allocator, pass->hw_setup);
    vk_object_base_finish(&pass->base);
    vk_free2(&device->vk.alloc, pAllocator, pass);
 }

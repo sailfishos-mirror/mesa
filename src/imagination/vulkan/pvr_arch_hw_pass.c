@@ -2720,7 +2720,7 @@ end_create_renderpass_hwsetup:
       pvr_free_render(ctx);
 
       if (hw_setup) {
-         PVR_PER_ARCH(destroy_renderpass_hwsetup)(alloc, hw_setup);
+         pvr_destroy_renderpass_hwsetup(alloc, hw_setup);
          hw_setup = NULL;
       }
    }

@@ -270,7 +270,7 @@ VkResult PVR_PER_ARCH(csb_copy)(struct pvr_csb *csb_dst,
       assert(!"CSB source buffer too large to do a full copy");
    }
 
-   destination = PVR_PER_ARCH(csb_alloc_dwords)(csb_dst, size);
+   destination = pvr_csb_alloc_dwords(csb_dst, size);
    if (!destination) {
       assert(csb_dst->status != VK_SUCCESS);
       return csb_dst->status;

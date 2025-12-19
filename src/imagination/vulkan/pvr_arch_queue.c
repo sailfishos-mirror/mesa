@@ -170,7 +170,7 @@ VkResult PVR_PER_ARCH(queues_create)(struct pvr_device *device,
    return VK_SUCCESS;
 
 err_queues_finish:
-   PVR_PER_ARCH(queues_destroy)(device);
+   pvr_queues_destroy(device);
    return result;
 }
 

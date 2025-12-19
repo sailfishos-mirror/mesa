@@ -726,7 +726,7 @@ VkResult pvr_GetPhysicalDeviceImageFormatProperties2(
          break;
       case VK_STRUCTURE_TYPE_IMAGE_STENCIL_USAGE_CREATE_INFO:
          /* Nothing to do here, it's handled in
-          * PVR_PER_ARCH(get_image_format_properties)
+          * pvr_get_image_format_properties)
           */
          break;
       default:
