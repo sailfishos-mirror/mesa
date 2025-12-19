@@ -313,7 +313,7 @@ uint32_t PVR_PER_ARCH(get_tex_format_aspect)(VkFormat vk_format,
    return ROGUE_TEXSTATE_FORMAT_INVALID;
 }
 
-uint32_t pvr_get_pbe_packmode(VkFormat vk_format)
+uint32_t PVR_PER_ARCH(get_pbe_packmode)(VkFormat vk_format)
 {
    if (vk_format_is_block_compressed(vk_format))
       return ROGUE_PBESTATE_PACKMODE_INVALID;
@@ -321,7 +321,7 @@ uint32_t pvr_get_pbe_packmode(VkFormat vk_format)
    return pvr_get_pbe_format(vk_format)->packmode;
 }
 
-uint32_t pvr_get_pbe_accum_format(VkFormat vk_format)
+uint32_t PVR_PER_ARCH(get_pbe_accum_format)(VkFormat vk_format)
 {
    if (vk_format_is_block_compressed(vk_format))
       return PVR_PBE_ACCUM_FORMAT_INVALID;
