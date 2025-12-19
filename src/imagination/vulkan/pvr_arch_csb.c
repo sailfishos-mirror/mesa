@@ -188,7 +188,7 @@ static bool pvr_csb_buffer_extend(struct pvr_csb *csb)
  * \param[in] num_dwords Number of dwords to allocate.
  * \return Valid host virtual address or NULL otherwise.
  */
-void *PVR_PER_ARCH(csb_alloc_dwords)(struct pvr_csb *csb, uint32_t num_dwords)
+void *pvr_arch_csb_alloc_dwords(struct pvr_csb *csb, uint32_t num_dwords)
 {
    const uint32_t required_space = PVR_DW_TO_BYTES(num_dwords);
    void *p;
@@ -241,8 +241,7 @@ void *PVR_PER_ARCH(csb_alloc_dwords)(struct pvr_csb *csb, uint32_t num_dwords)
  * \param[in,out] csb_dst Destination control Stream Builder object.
  * \param[in]     csb_src Source Control Stream Builder object.
  */
-VkResult PVR_PER_ARCH(csb_copy)(struct pvr_csb *csb_dst,
-                                struct pvr_csb *csb_src)
+VkResult pvr_arch_csb_copy(struct pvr_csb *csb_dst, struct pvr_csb *csb_src)
 {
    const uint8_t stream_reserved_space =
       PVR_DW_TO_BYTES(pvr_cmd_length(VDMCTRL_STREAM_LINK0) +
@@ -290,9 +289,7 @@ VkResult PVR_PER_ARCH(csb_copy)(struct pvr_csb *csb_dst,
  * \param[in] ret  Selects whether the sub control stream will return or
  *                 terminate.
  */
-void PVR_PER_ARCH(csb_emit_link)(struct pvr_csb *csb,
-                                 pvr_dev_addr_t addr,
-                                 bool ret)
+void pvr_arch_csb_emit_link(struct pvr_csb *csb, pvr_dev_addr_t addr, bool ret)
 {
    pvr_csb_set_relocation_mark(csb);
    pvr_csb_emit_link_unmarked(csb, addr, ret);
@@ -307,7 +304,7 @@ void PVR_PER_ARCH(csb_emit_link)(struct pvr_csb *csb,
  * \param[in] csb Control Stream Builder object to add VDMCTRL_STREAM_RETURN to.
  * \return VK_SUCCESS on success, or error code otherwise.
  */
-VkResult PVR_PER_ARCH(csb_emit_return)(struct pvr_csb *csb)
+VkResult pvr_arch_csb_emit_return(struct pvr_csb *csb)
 {
    /* STREAM_RETURN is only supported by graphics control stream. */
    assert(csb->stream_type == PVR_CMD_STREAM_TYPE_GRAPHICS ||
@@ -330,7 +327,7 @@ VkResult PVR_PER_ARCH(csb_emit_return)(struct pvr_csb *csb)
  * \param[in] csb Control Stream Builder object to terminate.
  * \return VK_SUCCESS on success, or error code otherwise.
  */
-VkResult PVR_PER_ARCH(csb_emit_terminate)(struct pvr_csb *csb)
+VkResult pvr_arch_csb_emit_terminate(struct pvr_csb *csb)
 {
    pvr_csb_set_relocation_mark(csb);
 

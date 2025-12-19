@@ -2454,9 +2454,8 @@ pvr_count_uses_in_color_output_list(struct pvr_render_subpass *subpass,
    *resolve_output_count_out = resolve_count;
 }
 
-void PVR_PER_ARCH(destroy_renderpass_hwsetup)(
-   const VkAllocationCallbacks *alloc,
-   struct pvr_renderpass_hwsetup *hw_setup)
+void pvr_arch_destroy_renderpass_hwsetup(const VkAllocationCallbacks *alloc,
+                                         struct pvr_renderpass_hwsetup *hw_setup)
 {
    for (uint32_t i = 0U; i < hw_setup->render_count; i++) {
       struct pvr_renderpass_hwsetup_render *hw_render = &hw_setup->renders[i];
@@ -2482,7 +2481,7 @@ void PVR_PER_ARCH(destroy_renderpass_hwsetup)(
    vk_free(alloc, hw_setup);
 }
 
-VkResult PVR_PER_ARCH(create_renderpass_hwsetup)(
+VkResult pvr_arch_create_renderpass_hwsetup(
    struct pvr_device *device,
    const VkAllocationCallbacks *alloc,
    struct pvr_render_pass *pass,

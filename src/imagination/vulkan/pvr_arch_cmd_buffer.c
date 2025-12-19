@@ -112,7 +112,7 @@ static void pvr_cmd_buffer_clear_values_free(struct pvr_cmd_buffer *cmd_buffer);
 
 static void pvr_cmd_buffer_attachments_free(struct pvr_cmd_buffer *cmd_buffer);
 
-struct pvr_renderpass_hwsetup_render *PVR_PER_ARCH(pass_info_get_hw_render)(
+struct pvr_renderpass_hwsetup_render *pvr_arch_pass_info_get_hw_render(
    const struct pvr_render_pass_info *render_pass_info,
    uint32_t idx)
 {
@@ -424,11 +424,11 @@ pvr_cmd_buffer_emit_ppp_state(const struct pvr_cmd_buffer *const cmd_buffer,
    return csb->status;
 }
 
-VkResult PVR_PER_ARCH(cmd_buffer_upload_general)(
-   struct pvr_cmd_buffer *const cmd_buffer,
-   const void *const data,
-   const size_t size,
-   struct pvr_suballoc_bo **const pvr_bo_out)
+VkResult
+pvr_arch_cmd_buffer_upload_general(struct pvr_cmd_buffer *const cmd_buffer,
+                                   const void *const data,
+                                   const size_t size,
+                                   struct pvr_suballoc_bo **const pvr_bo_out)
 {
    struct pvr_device *const device = cmd_buffer->device;
    const uint32_t cache_line_size =
@@ -480,15 +480,15 @@ pvr_cmd_buffer_upload_usc(struct pvr_cmd_buffer *const cmd_buffer,
 }
 
 VkResult
-PVR_PER_ARCH(cmd_buffer_upload_pds)(struct pvr_cmd_buffer *const cmd_buffer,
-                                    const uint32_t *data,
-                                    uint32_t data_size_dwords,
-                                    uint32_t data_alignment,
-                                    const uint32_t *code,
-                                    uint32_t code_size_dwords,
-                                    uint32_t code_alignment,
-                                    uint64_t min_alignment,
-                                    struct pvr_pds_upload *const pds_upload_out)
+pvr_arch_cmd_buffer_upload_pds(struct pvr_cmd_buffer *const cmd_buffer,
+                               const uint32_t *data,
+                               uint32_t data_size_dwords,
+                               uint32_t data_alignment,
+                               const uint32_t *code,
+                               uint32_t code_size_dwords,
+                               uint32_t code_alignment,
+                               uint64_t min_alignment,
+                               struct pvr_pds_upload *const pds_upload_out)
 {
    struct pvr_device *const device = cmd_buffer->device;
    VkResult result;
@@ -2241,10 +2241,9 @@ pvr_compute_generate_idfwdf(struct pvr_cmd_buffer *cmd_buffer,
 /* TODO: This can be pre-packed and uploaded directly. Would that provide any
  * speed up?
  */
-void PVR_PER_ARCH(compute_generate_fence)(
-   struct pvr_cmd_buffer *cmd_buffer,
-   struct pvr_sub_cmd_compute *const sub_cmd,
-   bool deallocate_shareds)
+void pvr_arch_compute_generate_fence(struct pvr_cmd_buffer *cmd_buffer,
+                                     struct pvr_sub_cmd_compute *const sub_cmd,
+                                     bool deallocate_shareds)
 {
    const struct pvr_pds_upload *program =
       &cmd_buffer->device->pds_compute_fence_program;
@@ -2369,7 +2368,7 @@ err_csb_finish:
    return result;
 }
 
-VkResult PVR_PER_ARCH(cmd_buffer_end_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer)
+VkResult pvr_arch_cmd_buffer_end_sub_cmd(struct pvr_cmd_buffer *cmd_buffer)
 {
    struct pvr_cmd_buffer_state *state = &cmd_buffer->state;
    struct pvr_sub_cmd *sub_cmd = state->current_sub_cmd;
@@ -2574,9 +2573,8 @@ VkResult PVR_PER_ARCH(cmd_buffer_end_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer)
    return VK_SUCCESS;
 }
 
-void PVR_PER_ARCH(reset_graphics_dirty_state)(
-   struct pvr_cmd_buffer *const cmd_buffer,
-   bool start_geom)
+void pvr_arch_reset_graphics_dirty_state(struct pvr_cmd_buffer *const cmd_buffer,
+                                         bool start_geom)
 {
    struct vk_dynamic_graphics_state *const dynamic_state =
       &cmd_buffer->vk.dynamic_graphics_state;
@@ -2660,9 +2658,8 @@ pvr_render_pass_info_get_view_mask(const struct pvr_render_pass_info *rp_info)
    return hw_render->view_mask;
 }
 
-VkResult
-PVR_PER_ARCH(cmd_buffer_start_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer,
-                                       enum pvr_sub_cmd_type type)
+VkResult pvr_arch_cmd_buffer_start_sub_cmd(struct pvr_cmd_buffer *cmd_buffer,
+                                           enum pvr_sub_cmd_type type)
 {
    struct pvr_cmd_buffer_state *state = &cmd_buffer->state;
    struct pvr_device *device = cmd_buffer->device;
@@ -2776,10 +2773,10 @@ PVR_PER_ARCH(cmd_buffer_start_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer,
 }
 
 VkResult
-PVR_PER_ARCH(cmd_buffer_alloc_mem)(struct pvr_cmd_buffer *cmd_buffer,
-                                   struct pvr_winsys_heap *heap,
-                                   uint64_t size,
-                                   struct pvr_suballoc_bo **const pvr_bo_out)
+pvr_arch_cmd_buffer_alloc_mem(struct pvr_cmd_buffer *cmd_buffer,
+                              struct pvr_winsys_heap *heap,
+                              uint64_t size,
+                              struct pvr_suballoc_bo **const pvr_bo_out)
 {
    const uint32_t cache_line_size =
       pvr_get_slc_cache_line_size(&cmd_buffer->device->pdevice->dev_info);
@@ -3264,8 +3261,8 @@ pvr_render_targets_init_for_render(struct pvr_device *device,
 }
 
 const struct pvr_renderpass_hwsetup_subpass *
-PVR_PER_ARCH(get_hw_subpass)(const struct pvr_render_pass *pass,
-                             const uint32_t subpass)
+pvr_arch_get_hw_subpass(const struct pvr_render_pass *pass,
+                        const uint32_t subpass)
 {
    const struct pvr_renderpass_hw_map *map =
       &pass->hw_setup->subpass_map[subpass];
@@ -5193,8 +5190,8 @@ PVR_PER_ARCH(BeginCommandBuffer)(VkCommandBuffer commandBuffer,
 }
 
 VkResult
-PVR_PER_ARCH(cmd_buffer_add_transfer_cmd)(struct pvr_cmd_buffer *cmd_buffer,
-                                          struct pvr_transfer_cmd *transfer_cmd)
+pvr_arch_cmd_buffer_add_transfer_cmd(struct pvr_cmd_buffer *cmd_buffer,
+                                     struct pvr_transfer_cmd *transfer_cmd)
 {
    struct pvr_sub_cmd_transfer *sub_cmd;
    VkResult result;
@@ -6019,7 +6016,7 @@ static void pvr_compute_update_shared(struct pvr_cmd_buffer *cmd_buffer,
    pvr_compute_generate_control_stream(csb, sub_cmd, &info);
 }
 
-void PVR_PER_ARCH(compute_update_shared_private)(
+void pvr_arch_compute_update_shared_private(
    struct pvr_cmd_buffer *cmd_buffer,
    struct pvr_sub_cmd_compute *const sub_cmd,
    struct pvr_private_compute_pipeline *pipeline)
@@ -6094,7 +6091,7 @@ pvr_compute_flat_pad_workgroup_size(const struct pvr_physical_device *pdevice,
    return workgroup_size;
 }
 
-void PVR_PER_ARCH(compute_update_kernel_private)(
+void pvr_arch_compute_update_kernel_private(
    struct pvr_cmd_buffer *cmd_buffer,
    struct pvr_sub_cmd_compute *const sub_cmd,
    struct pvr_private_compute_pipeline *pipeline,
@@ -7914,12 +7911,11 @@ pvr_emit_dirty_ppp_state(struct pvr_cmd_buffer *const cmd_buffer,
    return VK_SUCCESS;
 }
 
-void PVR_PER_ARCH(calculate_vertex_cam_size)(
-   const struct pvr_device_info *dev_info,
-   const uint32_t vs_output_size,
-   const bool raster_enable,
-   uint32_t *const cam_size_out,
-   uint32_t *const vs_max_instances_out)
+void pvr_arch_calculate_vertex_cam_size(const struct pvr_device_info *dev_info,
+                                        const uint32_t vs_output_size,
+                                        const bool raster_enable,
+                                        uint32_t *const cam_size_out,
+                                        uint32_t *const vs_max_instances_out)
 {
    /* First work out the size of a vertex in the UVS and multiply by 4 for
     * column ordering.

@@ -92,12 +92,12 @@ err_mutex_destroy:
    return false;
 }
 
-VkResult PVR_PER_ARCH(render_state_setup)(
-   struct pvr_device *device,
-   const VkAllocationCallbacks *pAllocator,
-   struct pvr_render_state *rstate,
-   uint32_t render_count,
-   const struct pvr_renderpass_hwsetup_render *renders)
+VkResult
+pvr_arch_render_state_setup(struct pvr_device *device,
+                            const VkAllocationCallbacks *pAllocator,
+                            struct pvr_render_state *rstate,
+                            uint32_t render_count,
+                            const struct pvr_renderpass_hwsetup_render *renders)
 {
    struct pvr_spm_bgobj_state *spm_bgobj_state_per_render;
    struct pvr_spm_eot_state *spm_eot_state_per_render;

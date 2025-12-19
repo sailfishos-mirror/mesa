@@ -108,11 +108,11 @@ static inline void pvr_get_samples_in_xy(uint32_t samples,
    }
 }
 
-void PVR_PER_ARCH(rt_mtile_info_init)(const struct pvr_device_info *dev_info,
-                                      struct pvr_rt_mtile_info *info,
-                                      uint32_t width,
-                                      uint32_t height,
-                                      uint32_t samples)
+void pvr_arch_rt_mtile_info_init(const struct pvr_device_info *dev_info,
+                                 struct pvr_rt_mtile_info *info,
+                                 uint32_t width,
+                                 uint32_t height,
+                                 uint32_t samples)
 {
    uint32_t samples_in_x;
    uint32_t samples_in_y;
@@ -611,7 +611,7 @@ static void pvr_rt_dataset_ws_create_info_init(
       pvr_rt_get_isp_region_size(device, mtile_info);
 }
 
-VkResult PVR_PER_ARCH(render_target_dataset_create)(
+VkResult pvr_arch_render_target_dataset_create(
    struct pvr_device *device,
    uint32_t width,
    uint32_t height,
@@ -1452,12 +1452,12 @@ static void pvr_render_job_ws_submit_info_init(
       &submit_info->fragment_pr);
 }
 
-VkResult PVR_PER_ARCH(render_job_submit)(struct pvr_render_ctx *ctx,
-                                         struct pvr_render_job *job,
-                                         struct vk_sync *wait_geom,
-                                         struct vk_sync *wait_frag,
-                                         struct vk_sync *signal_sync_geom,
-                                         struct vk_sync *signal_sync_frag)
+VkResult pvr_arch_render_job_submit(struct pvr_render_ctx *ctx,
+                                    struct pvr_render_job *job,
+                                    struct vk_sync *wait_geom,
+                                    struct vk_sync *wait_frag,
+                                    struct vk_sync *signal_sync_geom,
+                                    struct vk_sync *signal_sync_frag)
 {
    struct pvr_rt_dataset *rt_dataset =
       job->view_state.rt_datasets[job->view_state.view_index];

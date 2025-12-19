@@ -138,8 +138,8 @@ err_vk_queue_finish:
    return result;
 }
 
-VkResult PVR_PER_ARCH(queues_create)(struct pvr_device *device,
-                                     const VkDeviceCreateInfo *pCreateInfo)
+VkResult pvr_arch_queues_create(struct pvr_device *device,
+                                const VkDeviceCreateInfo *pCreateInfo)
 {
    VkResult result;
 
@@ -195,7 +195,7 @@ static void pvr_queue_finish(struct pvr_queue *queue)
    vk_queue_finish(&queue->vk);
 }
 
-void PVR_PER_ARCH(queues_destroy)(struct pvr_device *device)
+void pvr_arch_queues_destroy(struct pvr_device *device)
 {
    for (uint32_t q_idx = 0; q_idx < device->queue_count; q_idx++)
       pvr_queue_finish(&device->queues[q_idx]);

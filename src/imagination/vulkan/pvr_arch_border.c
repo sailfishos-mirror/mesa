@@ -415,7 +415,7 @@ static inline void pvr_border_color_swizzle_to_tex_format(
    *color = swizzled_color;
 }
 
-VkResult PVR_PER_ARCH(border_color_table_init)(struct pvr_device *const device)
+VkResult pvr_arch_border_color_table_init(struct pvr_device *const device)
 {
    struct pvr_border_color_table *table = device->border_color_table =
       vk_zalloc(&device->vk.alloc,
@@ -470,7 +470,7 @@ err_out:
    return result;
 }
 
-void PVR_PER_ARCH(border_color_table_finish)(struct pvr_device *const device)
+void pvr_arch_border_color_table_finish(struct pvr_device *const device)
 {
 #if MESA_DEBUG
    BITSET_SET_RANGE_INSIDE_WORD(device->border_color_table->unused_entries,
@@ -593,7 +593,7 @@ err_out:
                     "Failed to allocate border color table entry");
 }
 
-VkResult PVR_PER_ARCH(border_color_table_get_or_create_entry)(
+VkResult pvr_arch_border_color_table_get_or_create_entry(
    struct pvr_device *const device,
    const struct pvr_sampler *const sampler,
    struct pvr_border_color_table *const table,
@@ -612,7 +612,7 @@ VkResult PVR_PER_ARCH(border_color_table_get_or_create_entry)(
                                                      index_out);
 }
 
-void PVR_PER_ARCH(border_color_table_release_entry)(
+void pvr_arch_border_color_table_release_entry(
    struct pvr_border_color_table *const table,
    const uint32_t index)
 {

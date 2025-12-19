@@ -86,7 +86,7 @@ static uint32_t pvr_get_simultaneous_num_allocs(
       return 4;
 }
 
-uint32_t PVR_PER_ARCH(calc_fscommon_size_and_tiles_in_flight)(
+uint32_t pvr_arch_calc_fscommon_size_and_tiles_in_flight(
    const struct pvr_device_info *dev_info,
    const struct pvr_device_runtime_info *dev_runtime_info,
    uint32_t fs_common_size,
@@ -148,7 +148,7 @@ uint32_t PVR_PER_ARCH(calc_fscommon_size_and_tiles_in_flight)(
    return MIN2(num_tile_in_flight, max_tiles_in_flight);
 }
 
-VkResult PVR_PER_ARCH(pds_compute_shader_create_and_upload)(
+VkResult pvr_arch_pds_compute_shader_create_and_upload(
    struct pvr_device *device,
    struct pvr_pds_compute_shader_program *program,
    struct pvr_pds_upload *const pds_upload_out)
