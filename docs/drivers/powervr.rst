@@ -66,6 +66,37 @@ Hardware documentation can be found at: https://docs.imgtec.com/
 Note: GPUs prior to Series6 do not have the hardware capabilities required to
 support Vulkan and therefore cannot be supported by this driver.
 
+Multi-Architecture support
+--------------------------
+
+In order to support multiple distinct hardware generations without too much
+spaghetti-code, ther PowerVR compiles a few files multiple times (once per
+hardware architecture), and uses a system of macros and aliases to be able
+to refer to the different versions.
+
+The files that gets compiled multiple times are those named
+:file:`pvr_arch_*.c`. These files contains definitions of functions prefixed
+with ``pvr_arch_`` (instead of the normal ``pvr_``-prefix). The ``arch``-bit
+of that function is a placeholder, which gets replaced at compile-time, thanks
+to a system of defines in the corresponding header file, supported by a set
+of macros defined in :file:`pvr_macros.h`.
+
+The intention is that these functions are mostly called from architecture
+specific entrypoints, that are handled by the common vulkan dispatch-table
+code. This means that a architecture specific function can easily call either
+architecture specific or architecture agnostic code.
+
+The tricky bit comes when architecture agnostic calls architecture specific
+code. In that case, we have the ``PVR_ARCH_DISPATCH`` and
+``PVR_ARCH_DISPATCH_RET`` macros. These are a bit error-prone to use, because
+they need to see definition for all architecture versions of each entrypoint,
+which isn't something we have available. To work around this, we define a
+``PER_ARCH_FUNCS(arch)`` macro in each source-file that needs to use these
+dispatch macros, and make sure to instantiate it once per architecture.
+
+To avoid confusion, please do not add functions that are prefixed with
+``pvr_arch_`` if they are not part of the system described here.
+
 Chat
 ----
 
