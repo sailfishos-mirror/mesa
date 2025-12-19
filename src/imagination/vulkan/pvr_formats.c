@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <vulkan/vulkan.h>
 
+#include "drm-uapi/drm_fourcc.h"
 #include "hwdef/rogue_hw_utils.h"
 
 #include "pvr_common.h"
@@ -452,6 +453,62 @@ pvr_get_buffer_format_features2(struct pvr_physical_device *pdevice,
    return flags;
 }
 
+static void pvr_get_drm_format_modifier_properties_list(
+   struct pvr_physical_device *pdevice,
+   VkFormat vk_format,
+   VkBaseOutStructure *ext)
+{
+   assert(ext->sType == VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT ||
+          ext->sType == VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_2_EXT);
+
+   /* The two top-level data structures are the same.  It's only when
+    * you get to walking the actual list of modifier properties that
+    * they differ.
+    */
+   VkDrmFormatModifierPropertiesListEXT *p = (void *)ext;
+   const VkFormatFeatureFlags2 linear_features =
+      pvr_get_image_format_features2(pdevice, vk_format, VK_IMAGE_TILING_LINEAR);
+
+   /* We support LINEAR only yet */
+   if (!linear_features) {
+      p->drmFormatModifierCount = 0;
+      return;
+   }
+
+   switch (ext->sType) {
+   case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT: {
+      VK_OUTARRAY_MAKE_TYPED(VkDrmFormatModifierPropertiesEXT, out,
+                             p->pDrmFormatModifierProperties,
+                             &p->drmFormatModifierCount);
+
+      vk_outarray_append_typed(VkDrmFormatModifierPropertiesEXT, &out, mp) {
+         mp->drmFormatModifier = DRM_FORMAT_MOD_LINEAR;
+         mp->drmFormatModifierPlaneCount = 1;
+         mp->drmFormatModifierTilingFeatures =
+            vk_format_features2_to_features(linear_features);
+      }
+      break;
+   }
+
+   case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_2_EXT: {
+      VkDrmFormatModifierPropertiesList2EXT *p2 = (void *)p;
+      VK_OUTARRAY_MAKE_TYPED(VkDrmFormatModifierProperties2EXT, out,
+                             p2->pDrmFormatModifierProperties,
+                             &p2->drmFormatModifierCount);
+
+      vk_outarray_append_typed(VkDrmFormatModifierProperties2EXT, &out, mp) {
+         mp->drmFormatModifier = DRM_FORMAT_MOD_LINEAR;
+         mp->drmFormatModifierPlaneCount = 1;
+         mp->drmFormatModifierTilingFeatures = linear_features;
+      }
+      break;
+   }
+
+   default:
+      UNREACHABLE("Invalid structure type for modifier properties");
+   }
+}
+
 void pvr_GetPhysicalDeviceFormatProperties2(
    VkPhysicalDevice physicalDevice,
    VkFormat format,
@@ -481,6 +538,10 @@ void pvr_GetPhysicalDeviceFormatProperties2(
          pFormatProperties3->bufferFeatures = buffer2;
          break;
       }
+      case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT:
+      case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_2_EXT:
+         pvr_get_drm_format_modifier_properties_list(pdevice, format, ext);
+         break;
       default:
          vk_debug_ignored_stype(ext->sType);
          break;
@@ -534,6 +595,7 @@ pvr_get_image_format_properties(struct pvr_physical_device *pdevice,
    VkFormatFeatureFlags2 tiling_features2;
    VkImageUsageFlags usage =
       info->usage | (stencil_usage_info ? stencil_usage_info->stencilUsage : 0);
+   VkImageTiling tiling = info->tiling;
    VkResult result;
 
    if (!pvr_format) {
@@ -546,8 +608,22 @@ pvr_get_image_format_properties(struct pvr_physical_device *pdevice,
       goto err_unsupported_format;
    }
 
+   if (tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+      const VkPhysicalDeviceImageDrmFormatModifierInfoEXT *drm_format_mod_info =
+         vk_find_struct_const(info->pNext,
+                              PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT);
+
+      if (drm_format_mod_info &&
+          drm_format_mod_info->drmFormatModifier == DRM_FORMAT_MOD_LINEAR) {
+         tiling = VK_IMAGE_TILING_LINEAR;
+      } else {
+         result = vk_error(pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED);
+         goto err_unsupported_format;
+      }
+   }
+
    tiling_features2 =
-      pvr_get_image_format_features2(pdevice, info->format, info->tiling);
+      pvr_get_image_format_features2(pdevice, info->format, tiling);
    if (tiling_features2 == 0) {
       result = vk_error(pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED);
       goto err_unsupported_format;
@@ -587,7 +663,7 @@ pvr_get_image_format_properties(struct pvr_physical_device *pdevice,
       /* Linear tiled 3D images may only be used for transfer or blit
        * operations.
        */
-      if (info->tiling == VK_IMAGE_TILING_LINEAR && usage & ~transfer_usage) {
+      if (tiling == VK_IMAGE_TILING_LINEAR && usage & ~transfer_usage) {
          result = vk_error(pdevice, VK_ERROR_FORMAT_NOT_SUPPORTED);
          goto err_unsupported_format;
       }
@@ -618,7 +694,7 @@ pvr_get_image_format_properties(struct pvr_physical_device *pdevice,
       pImageFormatProperties->maxExtent.depth = max_render_size_z;
    }
 
-   if (info->tiling == VK_IMAGE_TILING_LINEAR) {
+   if (tiling == VK_IMAGE_TILING_LINEAR) {
       pImageFormatProperties->maxExtent.depth = 1;
       pImageFormatProperties->maxArrayLayers = 1;
       pImageFormatProperties->sampleCounts = VK_SAMPLE_COUNT_1_BIT;
@@ -672,7 +748,7 @@ pvr_get_image_format_properties(struct pvr_physical_device *pdevice,
     * or VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT, so for simplicity don't
     * support miplevels for these tilings.
     */
-   if (info->tiling == VK_IMAGE_TILING_LINEAR) {
+   if (tiling == VK_IMAGE_TILING_LINEAR) {
       pImageFormatProperties->maxMipLevels = 1;
    } else {
       const uint32_t max_size = MAX3(pImageFormatProperties->maxExtent.width,
@@ -738,6 +814,7 @@ VkResult pvr_GetPhysicalDeviceImageFormatProperties2(
       case VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO:
          break;
       case VK_STRUCTURE_TYPE_IMAGE_STENCIL_USAGE_CREATE_INFO:
+      case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT:
          /* Nothing to do here, it's handled in
           * pvr_get_image_format_properties)
           */

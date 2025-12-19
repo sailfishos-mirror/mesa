@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "drm-uapi/drm_fourcc.h"
 #include "pvr_buffer.h"
 #include "pvr_device.h"
 #include "pvr_device_info.h"
@@ -62,11 +63,17 @@ static void pvr_image_init_memlayout(struct pvr_image *image)
    case VK_IMAGE_TILING_LINEAR:
       image->memlayout = PVR_MEMLAYOUT_LINEAR;
       break;
+   case VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT:
+      /* Support only LINEAR now */
+      assert(image->vk.drm_format_mod == DRM_FORMAT_MOD_LINEAR);
+      image->memlayout = PVR_MEMLAYOUT_LINEAR;
+      break;
    }
 }
 
 static void pvr_image_plane_init_physical_extent(
    struct pvr_image *image,
+   const VkImageCreateInfo *pCreateInfo,
    unsigned pbe_stride_align,
    const struct vk_format_ycbcr_info *ycbcr_info,
    uint8_t i)
@@ -95,6 +102,19 @@ static void pvr_image_plane_init_physical_extent(
          plane->physical_extent.width =
             align(plane->physical_extent.width, pbe_stride_align);
       }
+
+      if (image->vk.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+         const VkImageDrmFormatModifierExplicitCreateInfoEXT *explicit_mod =
+            vk_find_struct_const(
+               pCreateInfo->pNext,
+               IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT);
+         if (explicit_mod) {
+            const uint32_t bpp =
+              vk_format_get_blocksize(image->vk.format);
+            plane->physical_extent.width =
+              explicit_mod->pPlaneLayouts[i].rowPitch / bpp;
+         }
+      }
    }
 
    if (ycbcr_info) {
@@ -106,6 +126,7 @@ static void pvr_image_plane_init_physical_extent(
 }
 
 static void pvr_image_init_physical_extent(struct pvr_image *image,
+                                           const VkImageCreateInfo *pCreateInfo,
                                            unsigned pbe_stride_align)
 {
    assert(image->memlayout != PVR_MEMLAYOUT_UNDEFINED);
@@ -115,6 +136,7 @@ static void pvr_image_init_physical_extent(struct pvr_image *image,
 
    for (uint8_t plane = 0; plane < image->plane_count; plane++) {
       pvr_image_plane_init_physical_extent(image,
+                                           pCreateInfo,
                                            pbe_stride_align,
                                            ycbcr_info,
                                            plane);
@@ -197,6 +219,50 @@ static void pvr_image_setup_mip_levels(struct pvr_image *image)
 
 static unsigned get_pbe_stride_align(const struct pvr_device_info *dev_info);
 
+static VkResult pvr_pick_modifier(const VkImageCreateInfo *pCreateInfo,
+                                  unsigned pbe_stride_align,
+                                  uint64_t *modifier)
+{
+   const VkImageDrmFormatModifierListCreateInfoEXT *mod_list =
+         vk_find_struct_const(pCreateInfo->pNext,
+                              IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT);
+
+   const VkImageDrmFormatModifierExplicitCreateInfoEXT *explicit_mod =
+      vk_find_struct_const(
+         pCreateInfo->pNext,
+         IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT);
+
+   /* Only support LINEAR now */
+   *modifier = DRM_FORMAT_MOD_INVALID;
+
+   if (mod_list)
+      for (unsigned i = 0; i < mod_list->drmFormatModifierCount; i++)
+         if (mod_list->pDrmFormatModifiers[i] == DRM_FORMAT_MOD_LINEAR)
+            *modifier = DRM_FORMAT_MOD_LINEAR;
+
+   if (explicit_mod) {
+      const uint32_t bpp = vk_format_get_blocksize(pCreateInfo->format);
+      assert(explicit_mod->drmFormatModifier == DRM_FORMAT_MOD_LINEAR &&
+             explicit_mod->drmFormatModifierPlaneCount == 1);
+      *modifier = explicit_mod->drmFormatModifier;
+
+      if (explicit_mod->pPlaneLayouts[0].offset != 0)
+         return VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT;
+
+      if (explicit_mod->pPlaneLayouts[0].rowPitch %
+          (bpp * pbe_stride_align) != 0) {
+         return VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT;
+      }
+
+      if (explicit_mod->pPlaneLayouts[0].rowPitch <
+          pCreateInfo->extent.width * bpp) {
+         return VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT;
+      }
+   }
+
+   return VK_SUCCESS;
+}
+
 VkResult pvr_CreateImage(VkDevice _device,
                          const VkImageCreateInfo *pCreateInfo,
                          const VkAllocationCallbacks *pAllocator,
@@ -204,6 +270,10 @@ VkResult pvr_CreateImage(VkDevice _device,
 {
    VK_FROM_HANDLE(pvr_device, device, _device);
    struct pvr_image *image;
+   uint64_t modifier = DRM_FORMAT_MOD_INVALID;
+   VkResult res;
+
+   unsigned pbe_stride_align = get_pbe_stride_align(&device->pdevice->dev_info);
 
    if (wsi_common_is_swapchain_image(pCreateInfo)) {
       return wsi_common_create_swapchain_image(&device->pdevice->wsi_device,
@@ -211,10 +281,23 @@ VkResult pvr_CreateImage(VkDevice _device,
                                                pImage);
    }
 
+   if (pCreateInfo->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+      res = pvr_pick_modifier(pCreateInfo, pbe_stride_align,
+                              &modifier);
+      if (res != VK_SUCCESS)
+         return vk_error(device, res);
+
+      assert(modifier == DRM_FORMAT_MOD_LINEAR);
+   }
+
    image =
       vk_image_create(&device->vk, pCreateInfo, pAllocator, sizeof(*image));
    if (!image)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+   if (image->vk.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+      image->vk.drm_format_mod = modifier;
+   }
 
    /* All images aligned to 4k, in case of arrays/CEM.
     * Refer: pvr_GetImageMemoryRequirements for further details.
@@ -223,11 +306,9 @@ VkResult pvr_CreateImage(VkDevice _device,
 
    image->plane_count = vk_format_get_plane_count(image->vk.format);
 
-   unsigned pbe_stride_align = get_pbe_stride_align(&device->pdevice->dev_info);
-
    /* Initialize the image using the saved information from pCreateInfo */
    pvr_image_init_memlayout(image);
-   pvr_image_init_physical_extent(image, pbe_stride_align);
+   pvr_image_init_physical_extent(image, pCreateInfo, pbe_stride_align);
    pvr_image_setup_mip_levels(image);
 
    *pImage = pvr_image_to_handle(image);
