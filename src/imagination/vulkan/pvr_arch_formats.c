@@ -264,8 +264,7 @@ const struct pvr_format *PVR_PER_ARCH(get_format_table)(unsigned *num_formats)
    return pvr_format_table;
 }
 
-static inline const struct pvr_format *
-PVR_PER_ARCH(get_format)(VkFormat vk_format)
+static inline const struct pvr_format *get_format(VkFormat vk_format)
 {
    enum pipe_format format = vk_format_to_pipe_format(vk_format);
    if (format < ARRAY_SIZE(pvr_format_table) &&
@@ -290,7 +289,7 @@ pvr_get_pbe_format(VkFormat vk_format)
 
 uint32_t PVR_PER_ARCH(get_tex_format)(VkFormat vk_format)
 {
-   const struct pvr_format *pvr_format = PVR_PER_ARCH(get_format)(vk_format);
+   const struct pvr_format *pvr_format = get_format(vk_format);
    if (pvr_format) {
       return pvr_format->tex_format;
    }
@@ -301,7 +300,7 @@ uint32_t PVR_PER_ARCH(get_tex_format)(VkFormat vk_format)
 uint32_t PVR_PER_ARCH(get_tex_format_aspect)(VkFormat vk_format,
                                              VkImageAspectFlags aspect_mask)
 {
-   const struct pvr_format *pvr_format = PVR_PER_ARCH(get_format)(vk_format);
+   const struct pvr_format *pvr_format = get_format(vk_format);
    if (pvr_format) {
       if (aspect_mask == VK_IMAGE_ASPECT_DEPTH_BIT)
          return pvr_format->depth_tex_format;
