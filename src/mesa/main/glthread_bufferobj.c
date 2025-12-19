@@ -25,8 +25,6 @@
 #include "dispatch.h"
 #include "main/bufferobj.h"
 
-#define PRIVATE_REFCOUNT 1000000
-
 /**
  * Create an upload buffer. This is called from the app thread, so everything
  * has to be thread-safe in the driver.
@@ -80,11 +78,6 @@ _mesa_glthread_release_upload_buffer(struct gl_context *ctx, bool async_release)
       p_atomic_add(&glthread->upload_buffer->RefCount,
                    -glthread->upload_buffer_private_refcount);
       glthread->upload_buffer_private_refcount = 0;
-   }
-   if (glthread->upload_buffer) {
-      glthread->upload_buffer->Ctx = NULL;
-      p_atomic_add(&glthread->upload_buffer->RefCount,
-                   -(PRIVATE_REFCOUNT - glthread->upload_buffer->CtxRefCount));
    }
 
    if (async_release) {
@@ -163,8 +156,6 @@ _mesa_glthread_upload(struct gl_context *ctx, const void *data,
        */
       glthread->upload_buffer->RefCount += default_size;
       glthread->upload_buffer_private_refcount = default_size;
-      glthread->upload_buffer->Ctx = ctx;
-      glthread->upload_buffer->CtxRefCount = PRIVATE_REFCOUNT;
    }
 
    /* Upload data. */
