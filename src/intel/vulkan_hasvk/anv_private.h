@@ -286,6 +286,13 @@ align_down_npot_u32(uint32_t v, uint32_t a)
    return v - (v % a);
 }
 
+/** Alignment must be a power of 2. */
+static inline bool
+anv_is_aligned(uintmax_t n, uintmax_t a)
+{
+   return a == 0 || util_is_aligned(n, a);
+}
+
 static inline union isl_color_value
 vk_to_isl_color(VkClearColorValue color)
 {
