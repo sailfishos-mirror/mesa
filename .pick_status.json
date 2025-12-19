@@ -5734,7 +5734,7 @@
         "description": "Revert \"glthread: mark internal bufferobjs for the ctx they belong to\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "45b6aa1eb7ce0b3845567be7ee4349ab55f30043",
         "notes": null
