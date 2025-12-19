@@ -90,7 +90,7 @@ pvr_csb_emit_link_unmarked(struct pvr_csb *csb, pvr_dev_addr_t addr, bool ret)
  * current buffer, a few bytes including guard padding size are reserved at the
  * end, every time a buffer is created. Every time we allocate a new buffer we
  * fix the current buffer in use to emit the stream link dwords. This makes sure
- * that when #pvr_csb_alloc_dwords() is called from #pvr_csb_emit() to add
+ * that when #pvr_arch_csb_alloc_dwords() is called from #pvr_csb_emit() to add
  * STREAM_LINK0 and STREAM_LINK1, it succeeds without trying to allocate new
  * pages.
  *
@@ -270,7 +270,7 @@ VkResult PVR_PER_ARCH(csb_copy)(struct pvr_csb *csb_dst,
       assert(!"CSB source buffer too large to do a full copy");
    }
 
-   destination = pvr_csb_alloc_dwords(csb_dst, size);
+   destination = pvr_arch_csb_alloc_dwords(csb_dst, size);
    if (!destination) {
       assert(csb_dst->status != VK_SUCCESS);
       return csb_dst->status;

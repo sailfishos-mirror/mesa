@@ -350,11 +350,11 @@ VkResult PVR_PER_ARCH(srv_render_target_dataset_create)(
    /* If not 2 the arrays used in the bridge call will require updating. */
    STATIC_ASSERT(ROGUE_FWIF_NUM_RTDATAS == 2);
 
-   pvr_rt_mtile_info_init(dev_info,
-                          &mtile_info,
-                          create_info->width,
-                          create_info->height,
-                          create_info->samples);
+   pvr_arch_rt_mtile_info_init(dev_info,
+                               &mtile_info,
+                               create_info->width,
+                               create_info->height,
+                               create_info->samples);
 
    isp_mtile_size = pvr_rogue_get_cr_isp_mtile_size_val(dev_info,
                                                         &mtile_info,

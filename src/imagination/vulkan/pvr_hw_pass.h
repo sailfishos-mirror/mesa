@@ -229,13 +229,14 @@ VkResult PVR_PER_ARCH(create_renderpass_hwsetup)(
    bool disable_merge,
    struct pvr_renderpass_hwsetup **const hw_setup_out);
 
-#   define pvr_create_renderpass_hwsetup PVR_PER_ARCH(create_renderpass_hwsetup)
+#   define pvr_arch_create_renderpass_hwsetup \
+      PVR_PER_ARCH(create_renderpass_hwsetup)
 
 void PVR_PER_ARCH(destroy_renderpass_hwsetup)(
    const VkAllocationCallbacks *alloc,
    struct pvr_renderpass_hwsetup *hw_setup);
 
-#   define pvr_destroy_renderpass_hwsetup \
+#   define pvr_arch_destroy_renderpass_hwsetup \
       PVR_PER_ARCH(destroy_renderpass_hwsetup)
 
 #endif

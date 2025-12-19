@@ -48,6 +48,6 @@ VkResult PVR_PER_ARCH(transfer_job_submit)(struct pvr_transfer_ctx *ctx,
                                            struct vk_sync *wait,
                                            struct vk_sync *signal_sync);
 
-#define pvr_transfer_job_submit PVR_PER_ARCH(transfer_job_submit)
+#define pvr_arch_transfer_job_submit PVR_PER_ARCH(transfer_job_submit)
 
 #endif /* PVR_JOB_TRANSFER_H */

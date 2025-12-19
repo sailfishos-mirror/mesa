@@ -307,25 +307,25 @@ pvr_vk_format_get_common_color_channel_count(VkFormat src_format,
 #ifdef PVR_PER_ARCH
 
 const struct pvr_format *PVR_PER_ARCH(get_format_table)(unsigned *num_formats);
-#   define pvr_get_format_table PVR_PER_ARCH(get_format_table)
+#   define pvr_arch_get_format_table PVR_PER_ARCH(get_format_table)
 
 uint32_t PVR_PER_ARCH(get_tex_format)(VkFormat vk_format);
-#   define pvr_get_tex_format PVR_PER_ARCH(get_tex_format)
+#   define pvr_arch_get_tex_format PVR_PER_ARCH(get_tex_format)
 
 uint32_t PVR_PER_ARCH(get_tex_format_aspect)(VkFormat vk_format,
                                              VkImageAspectFlags aspect_mask);
-#   define pvr_get_tex_format_aspect PVR_PER_ARCH(get_tex_format_aspect)
+#   define pvr_arch_get_tex_format_aspect PVR_PER_ARCH(get_tex_format_aspect)
 
 uint32_t PVR_PER_ARCH(get_pbe_packmode)(VkFormat vk_format);
-#   define pvr_get_pbe_packmode PVR_PER_ARCH(get_pbe_packmode)
+#   define pvr_arch_get_pbe_packmode PVR_PER_ARCH(get_pbe_packmode)
 
 uint32_t PVR_PER_ARCH(get_pbe_accum_format)(VkFormat vk_format);
-#   define pvr_get_pbe_accum_format PVR_PER_ARCH(get_pbe_accum_format)
+#   define pvr_arch_get_pbe_accum_format PVR_PER_ARCH(get_pbe_accum_format)
 
 bool PVR_PER_ARCH(format_is_pbe_downscalable)(
    const struct pvr_device_info *dev_info,
    VkFormat vk_format);
-#   define pvr_format_is_pbe_downscalable \
+#   define pvr_arch_format_is_pbe_downscalable \
       PVR_PER_ARCH(format_is_pbe_downscalable)
 
 #endif /* PVR_PER_ARCH */

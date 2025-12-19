@@ -89,7 +89,7 @@ void PVR_PER_ARCH(init_mrt_desc)(VkFormat format, struct usc_mrt_desc *desc)
     */
    const uint32_t part_bits = 0;
    if (vk_format_is_color(format) &&
-       pvr_get_pbe_accum_format(format) == PVR_PBE_ACCUM_FORMAT_INVALID) {
+       pvr_arch_get_pbe_accum_format(format) == PVR_PBE_ACCUM_FORMAT_INVALID) {
       /* The VkFormat is not supported as a color attachment so `0`.
        * vulkan doesn't seem to restrict vkCreateRenderPass() to supported
        * formats only.
@@ -179,7 +179,7 @@ static VkResult pvr_alloc_mrt(const struct pvr_device_info *dev_info,
          MAX2(alloc->output_regs_count, resource->mem.offset_dw + pixel_size);
    }
 
-   pvr_init_mrt_desc(format, &resource->mrt_desc);
+   pvr_arch_init_mrt_desc(format, &resource->mrt_desc);
    resource->intermediate_size = resource->mrt_desc.intermediate_size;
 
    setup->num_render_targets++;
@@ -298,7 +298,7 @@ static VkResult pvr_mrt_load_op_init(struct pvr_device *device,
 
    load_op->clears_loads_state.mrt_setup = &dr_info->hw_render.init_setup;
 
-   result = pvr_load_op_shader_generate(device, alloc, load_op);
+   result = pvr_arch_load_op_shader_generate(device, alloc, load_op);
    if (result != VK_SUCCESS) {
       vk_free2(&device->vk.alloc, alloc, load_op);
       return result;
@@ -382,7 +382,7 @@ pvr_mrt_load_op_state_create(struct pvr_device *device,
    return VK_SUCCESS;
 
 err_load_op_state_cleanup:
-   pvr_mrt_load_op_state_cleanup(device, alloc, load_op_state);
+   pvr_arch_mrt_load_op_state_cleanup(device, alloc, load_op_state);
 
    return result;
 }
@@ -634,7 +634,7 @@ PVR_PER_ARCH(load_op_shader_generate)(struct pvr_device *device,
     * one buffer to be DMAed. See `pvr_load_op_data_create_and_upload()`, where
     * we upload the buffer and upload the code section.
     */
-   result = pvr_pds_unitex_state_program_create_and_upload(
+   result = pvr_arch_pds_unitex_state_program_create_and_upload(
       device,
       allocator,
       1U,

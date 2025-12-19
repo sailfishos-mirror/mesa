@@ -115,7 +115,7 @@ VkResult PVR_PER_ARCH(pack_tex_state)(struct pvr_device *device,
                                       const struct pvr_texture_state_info *info,
                                       struct pvr_image_descriptor *state);
 
-#   define pvr_pack_tex_state PVR_PER_ARCH(pack_tex_state)
+#   define pvr_arch_pack_tex_state PVR_PER_ARCH(pack_tex_state)
 
 #endif
 

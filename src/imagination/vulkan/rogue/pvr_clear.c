@@ -748,15 +748,15 @@ VkResult pvr_pds_clear_vertex_shader_program_create_and_upload_data(
                          PDS_GENERATE_DATA_SEGMENT,
                          dev_info);
 
-   result = pvr_cmd_buffer_upload_pds(cmd_buffer,
-                                      staging_buffer,
-                                      program->data_size,
-                                      4,
-                                      NULL,
-                                      0,
-                                      0,
-                                      4,
-                                      pds_upload_out);
+   result = pvr_arch_cmd_buffer_upload_pds(cmd_buffer,
+                                           staging_buffer,
+                                           program->data_size,
+                                           4,
+                                           NULL,
+                                           0,
+                                           0,
+                                           4,
+                                           pds_upload_out);
    if (result != VK_SUCCESS) {
       vk_free(&cmd_buffer->device->vk.alloc, staging_buffer);
 
@@ -822,15 +822,15 @@ VkResult pvr_pds_clear_rta_vertex_shader_program_create_and_upload_code(
                          PDS_GENERATE_CODE_SEGMENT,
                          dev_info);
 
-   result = pvr_cmd_buffer_upload_pds(cmd_buffer,
-                                      NULL,
-                                      0,
-                                      0,
-                                      staging_buffer,
-                                      program->code_size,
-                                      4,
-                                      4,
-                                      pds_upload_out);
+   result = pvr_arch_cmd_buffer_upload_pds(cmd_buffer,
+                                           NULL,
+                                           0,
+                                           0,
+                                           staging_buffer,
+                                           program->code_size,
+                                           4,
+                                           4,
+                                           pds_upload_out);
    if (result != VK_SUCCESS) {
       vk_free(&cmd_buffer->device->vk.alloc, staging_buffer);
 
@@ -880,11 +880,11 @@ void pvr_pack_clear_vdm_state(const struct pvr_device_info *const dev_info,
        */
    }
 
-   pvr_calculate_vertex_cam_size(dev_info,
-                                 vs_output_size,
-                                 true,
-                                 &cam_size,
-                                 &max_instances);
+   pvr_arch_calculate_vertex_cam_size(dev_info,
+                                      vs_output_size,
+                                      true,
+                                      &cam_size,
+                                      &max_instances);
 
    pvr_csb_pack (stream, VDMCTRL_VDM_STATE0, state0) {
       state0.vs_data_addr_present = true;

@@ -255,26 +255,26 @@ VkResult pvr_csb_bake(struct pvr_csb *csb, struct list_head *bo_list_out);
 
 void *PVR_PER_ARCH(csb_alloc_dwords)(struct pvr_csb *csb, uint32_t num_dwords);
 
-#   define pvr_csb_alloc_dwords PVR_PER_ARCH(csb_alloc_dwords)
+#   define pvr_arch_csb_alloc_dwords PVR_PER_ARCH(csb_alloc_dwords)
 
 VkResult PVR_PER_ARCH(csb_copy)(struct pvr_csb *csb_dst,
                                 struct pvr_csb *csb_src);
 
-#   define pvr_csb_copy PVR_PER_ARCH(csb_copy)
+#   define pvr_arch_csb_copy PVR_PER_ARCH(csb_copy)
 
 void PVR_PER_ARCH(csb_emit_link)(struct pvr_csb *csb,
                                  pvr_dev_addr_t addr,
                                  bool ret);
 
-#   define pvr_csb_emit_link PVR_PER_ARCH(csb_emit_link)
+#   define pvr_arch_csb_emit_link PVR_PER_ARCH(csb_emit_link)
 
 VkResult PVR_PER_ARCH(csb_emit_return)(struct pvr_csb *csb);
 
-#   define pvr_csb_emit_return PVR_PER_ARCH(csb_emit_return)
+#   define pvr_arch_csb_emit_return PVR_PER_ARCH(csb_emit_return)
 
 VkResult PVR_PER_ARCH(csb_emit_terminate)(struct pvr_csb *csb);
 
-#   define pvr_csb_emit_terminate PVR_PER_ARCH(csb_emit_terminate)
+#   define pvr_arch_csb_emit_terminate PVR_PER_ARCH(csb_emit_terminate)
 
 #endif /* PVR_PER_ARCH */
 
@@ -301,14 +301,14 @@ void pvr_csb_dump(const struct pvr_csb *csb,
  *                     used by the caller to modify the command or state
  *                     information before it's packed.
  */
-#define pvr_csb_emit(csb, cmd, name)                               \
-   for (struct ROGUE_##cmd                                         \
-           name = { pvr_cmd_header(cmd) },                         \
-           *_dst = pvr_csb_alloc_dwords(csb, pvr_cmd_length(cmd)); \
-        __builtin_expect(_dst != NULL, 1);                         \
-        ({                                                         \
-           pvr_cmd_pack(cmd)(_dst, &name);                         \
-           _dst = NULL;                                            \
+#define pvr_csb_emit(csb, cmd, name)                                    \
+   for (struct ROGUE_##cmd                                              \
+           name = { pvr_cmd_header(cmd) },                              \
+           *_dst = pvr_arch_csb_alloc_dwords(csb, pvr_cmd_length(cmd)); \
+        __builtin_expect(_dst != NULL, 1);                              \
+        ({                                                              \
+           pvr_cmd_pack(cmd)(_dst, &name);                              \
+           _dst = NULL;                                                 \
         }))
 
 /**

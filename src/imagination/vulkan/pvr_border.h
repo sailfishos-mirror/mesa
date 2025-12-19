@@ -64,23 +64,25 @@ struct pvr_border_color_table {
 #ifdef PVR_PER_ARCH
 
 VkResult PVR_PER_ARCH(border_color_table_init)(struct pvr_device *const device);
-#   define pvr_border_color_table_init PVR_PER_ARCH(border_color_table_init)
+#   define pvr_arch_border_color_table_init \
+      PVR_PER_ARCH(border_color_table_init)
 
 void PVR_PER_ARCH(border_color_table_finish)(struct pvr_device *device);
-#   define pvr_border_color_table_finish PVR_PER_ARCH(border_color_table_finish)
+#   define pvr_arch_border_color_table_finish \
+      PVR_PER_ARCH(border_color_table_finish)
 
 VkResult PVR_PER_ARCH(border_color_table_get_or_create_entry)(
    struct pvr_device *device,
    const struct pvr_sampler *sampler,
    struct pvr_border_color_table *table,
    uint32_t *index_out);
-#   define pvr_border_color_table_get_or_create_entry \
+#   define pvr_arch_border_color_table_get_or_create_entry \
       PVR_PER_ARCH(border_color_table_get_or_create_entry)
 
 void PVR_PER_ARCH(border_color_table_release_entry)(
    struct pvr_border_color_table *table,
    uint32_t index);
-#   define pvr_border_color_table_release_entry \
+#   define pvr_arch_border_color_table_release_entry \
       PVR_PER_ARCH(border_color_table_release_entry)
 
 #endif

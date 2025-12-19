@@ -224,7 +224,7 @@ static VkResult pvr_device_init_compute_fence_program(struct pvr_device *device)
    program.fence = true;
    program.clear_pds_barrier = true;
 
-   return pvr_pds_compute_shader_create_and_upload(
+   return pvr_arch_pds_compute_shader_create_and_upload(
       device,
       &program,
       &device->pds_compute_fence_program);
@@ -237,7 +237,7 @@ static VkResult pvr_device_init_compute_empty_program(struct pvr_device *device)
    pvr_pds_compute_shader_program_init(&program);
    program.clear_pds_barrier = true;
 
-   return pvr_pds_compute_shader_create_and_upload(
+   return pvr_arch_pds_compute_shader_create_and_upload(
       device,
       &program,
       &device->pds_compute_empty_program);
@@ -444,7 +444,7 @@ static VkResult pvr_device_init_compute_idfwdf_state(struct pvr_device *device)
       .addr = device->idfwdf_state.store_bo->vma->dev_addr,
    };
 
-   result = pvr_pack_tex_state(device, &tex_info, &image_state);
+   result = pvr_arch_pack_tex_state(device, &tex_info, &image_state);
    if (result != VK_SUCCESS)
       goto err_free_shareds_buffer;
 
@@ -809,7 +809,7 @@ VkResult PVR_PER_ARCH(create_device)(struct pvr_physical_device *pdevice,
    if (result != VK_SUCCESS)
       goto err_pvr_free_compute_empty;
 
-   result = pvr_device_create_compute_query_programs(device);
+   result = pvr_arch_device_create_compute_query_programs(device);
    if (result != VK_SUCCESS)
       goto err_pvr_free_view_index;
 
@@ -821,13 +821,13 @@ VkResult PVR_PER_ARCH(create_device)(struct pvr_physical_device *pdevice,
    if (result != VK_SUCCESS)
       goto err_pvr_finish_compute_idfwdf;
 
-   result = pvr_device_init_spm_load_state(device);
+   result = pvr_arch_device_init_spm_load_state(device);
    if (result != VK_SUCCESS)
       goto err_pvr_finish_graphics_static_clear_state;
 
    pvr_device_init_tile_buffer_state(device);
 
-   result = pvr_queues_create(device, pCreateInfo);
+   result = pvr_arch_queues_create(device, pCreateInfo);
    if (result != VK_SUCCESS)
       goto err_pvr_finish_tile_buffer_state;
 
@@ -839,7 +839,7 @@ VkResult PVR_PER_ARCH(create_device)(struct pvr_physical_device *pdevice,
    if (result != VK_SUCCESS)
       goto err_pvr_spm_finish_scratch_buffer_store;
 
-   result = pvr_border_color_table_init(device);
+   result = pvr_arch_border_color_table_init(device);
    if (result != VK_SUCCESS)
       goto err_pvr_robustness_buffer_finish;
 
@@ -867,11 +867,11 @@ err_pvr_robustness_buffer_finish:
 err_pvr_spm_finish_scratch_buffer_store:
    pvr_spm_finish_scratch_buffer_store(device);
 
-   pvr_queues_destroy(device);
+   pvr_arch_queues_destroy(device);
 
 err_pvr_finish_tile_buffer_state:
    pvr_device_finish_tile_buffer_state(device);
-   pvr_device_finish_spm_load_state(device);
+   pvr_arch_device_finish_spm_load_state(device);
 
 err_pvr_finish_graphics_static_clear_state:
    pvr_device_finish_graphics_static_clear_state(device);
@@ -880,7 +880,7 @@ err_pvr_finish_compute_idfwdf:
    pvr_device_finish_compute_idfwdf_state(device);
 
 err_pvr_destroy_compute_query_programs:
-   pvr_device_destroy_compute_query_programs(device);
+   pvr_arch_device_destroy_compute_query_programs(device);
 
 err_pvr_free_view_index:
    for (uint32_t u = 0; u < PVR_MAX_MULTIVIEW; ++u)
@@ -942,15 +942,15 @@ void PVR_PER_ARCH(destroy_device)(struct pvr_device *device,
    simple_mtx_unlock(&device->rs_mtx);
    simple_mtx_destroy(&device->rs_mtx);
 
-   pvr_border_color_table_finish(device);
+   pvr_arch_border_color_table_finish(device);
    pvr_robustness_buffer_finish(device);
    pvr_spm_finish_scratch_buffer_store(device);
-   pvr_queues_destroy(device);
+   pvr_arch_queues_destroy(device);
    pvr_device_finish_tile_buffer_state(device);
-   pvr_device_finish_spm_load_state(device);
+   pvr_arch_device_finish_spm_load_state(device);
    pvr_device_finish_graphics_static_clear_state(device);
    pvr_device_finish_compute_idfwdf_state(device);
-   pvr_device_destroy_compute_query_programs(device);
+   pvr_arch_device_destroy_compute_query_programs(device);
    pvr_bo_suballoc_free(device->pds_compute_empty_program.pvr_bo);
 
    for (uint32_t u = 0; u < PVR_MAX_MULTIVIEW; ++u)

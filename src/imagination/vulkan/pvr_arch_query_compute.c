@@ -172,9 +172,9 @@ static VkResult pvr_create_compute_query_precomp_program(
                        false);
 
    result =
-      pvr_pds_compute_shader_create_and_upload(device,
-                                               &pds_primary_prog,
-                                               &query_prog->pds_prim_code);
+      pvr_arch_pds_compute_shader_create_and_upload(device,
+                                                    &pds_primary_prog,
+                                                    &query_prog->pds_prim_code);
    if (result != VK_SUCCESS)
       goto err_free_usc_bo;
 
@@ -212,10 +212,11 @@ static VkResult pvr_write_compute_query_pds_data_section(
    uint64_t *qword_buffer;
    VkResult result;
 
-   result = pvr_cmd_buffer_alloc_mem(cmd_buffer,
-                                     cmd_buffer->device->heaps.pds_heap,
-                                     PVR_DW_TO_BYTES(info->data_size_in_dwords),
-                                     &pvr_bo);
+   result =
+      pvr_arch_cmd_buffer_alloc_mem(cmd_buffer,
+                                    cmd_buffer->device->heaps.pds_heap,
+                                    PVR_DW_TO_BYTES(info->data_size_in_dwords),
+                                    &pvr_bo);
    if (result != VK_SUCCESS)
       return result;
 
@@ -329,12 +330,14 @@ static void pvr_write_private_compute_dispatch(
 
    assert(sub_cmd->type == PVR_SUB_CMD_TYPE_QUERY);
 
-   pvr_compute_update_shared_private(cmd_buffer, &sub_cmd->compute, pipeline);
-   pvr_compute_update_kernel_private(cmd_buffer,
-                                     &sub_cmd->compute,
-                                     pipeline,
-                                     workgroup_size);
-   pvr_compute_generate_fence(cmd_buffer, &sub_cmd->compute, false);
+   pvr_arch_compute_update_shared_private(cmd_buffer,
+                                          &sub_cmd->compute,
+                                          pipeline);
+   pvr_arch_compute_update_kernel_private(cmd_buffer,
+                                          &sub_cmd->compute,
+                                          pipeline,
+                                          workgroup_size);
+   pvr_arch_compute_generate_fence(cmd_buffer, &sub_cmd->compute, false);
 }
 
 static void
@@ -410,7 +413,8 @@ PVR_PER_ARCH(add_query_program)(struct pvr_cmd_buffer *cmd_buffer,
    struct pvr_suballoc_bo *pvr_bo;
    VkResult result;
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_QUERY);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_QUERY);
    if (result != VK_SUCCESS)
       return result;
 
@@ -564,7 +568,7 @@ PVR_PER_ARCH(add_query_program)(struct pvr_cmd_buffer *cmd_buffer,
       UNREACHABLE("Invalid query type");
    }
 
-   result = pvr_cmd_buffer_upload_general(
+   result = pvr_arch_cmd_buffer_upload_general(
       cmd_buffer,
       const_buffer,
       PVR_DW_TO_BYTES(pipeline.const_shared_regs_count),
@@ -592,5 +596,5 @@ PVR_PER_ARCH(add_query_program)(struct pvr_cmd_buffer *cmd_buffer,
 
    pvr_write_private_compute_dispatch(cmd_buffer, &pipeline, num_query_indices);
 
-   return pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   return pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
 }

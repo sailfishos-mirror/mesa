@@ -413,7 +413,8 @@ void pvr_rogue_CmdBlitImage2(VkCommandBuffer commandBuffer,
             transfer_cmd->dst = dst_surface;
             transfer_cmd->scissor = dst_rect;
 
-            result = pvr_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
+            result =
+               pvr_arch_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
             if (result != VK_SUCCESS) {
                vk_free(&cmd_buffer->vk.pool->alloc, transfer_cmd);
                return;
@@ -630,7 +631,7 @@ pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
       transfer_cmd->sources[0].mapping_count++;
       transfer_cmd->source_count = 1;
 
-      result = pvr_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
+      result = pvr_arch_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
       if (result != VK_SUCCESS) {
          vk_free(&cmd_buffer->vk.pool->alloc, transfer_cmd);
          return result;
@@ -895,7 +896,8 @@ pvr_copy_buffer_to_image_region_format(struct pvr_cmd_buffer *const cmd_buffer,
          transfer_cmd->sources[0].mappings[0].dst_rect = transfer_cmd->scissor;
          transfer_cmd->sources[0].mapping_count++;
 
-         result = pvr_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
+         result =
+            pvr_arch_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
          if (result != VK_SUCCESS) {
             vk_free(&cmd_buffer->vk.pool->alloc, transfer_cmd);
             return result;
@@ -1081,7 +1083,8 @@ pvr_copy_image_to_buffer_region_format(struct pvr_cmd_buffer *const cmd_buffer,
          transfer_cmd->dst = dst_surface;
          transfer_cmd->scissor = dst_rect;
 
-         result = pvr_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
+         result =
+            pvr_arch_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
          if (result != VK_SUCCESS) {
             vk_free(&cmd_buffer->vk.pool->alloc, transfer_cmd);
             return result;
@@ -1233,7 +1236,8 @@ static VkResult pvr_clear_image_range(struct pvr_cmd_buffer *cmd_buffer,
                                        format,
                                        psRange->aspectMask);
 
-            result = pvr_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
+            result =
+               pvr_arch_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
             if (result != VK_SUCCESS) {
                vk_free(&cmd_buffer->vk.pool->alloc, transfer_cmd);
                return result;
@@ -1407,7 +1411,7 @@ static VkResult pvr_cmd_copy_buffer_region(struct pvr_cmd_buffer *cmd_buffer,
          transfer_cmd->sources[0].mapping_count++;
       }
 
-      result = pvr_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
+      result = pvr_arch_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
       if (result != VK_SUCCESS) {
          vk_free(&cmd_buffer->vk.pool->alloc, transfer_cmd);
          return result;
@@ -1432,7 +1436,8 @@ void pvr_rogue_CmdUpdateBuffer(VkCommandBuffer commandBuffer,
 
    PVR_CHECK_COMMAND_BUFFER_BUILDING_STATE(cmd_buffer);
 
-   result = pvr_cmd_buffer_upload_general(cmd_buffer, pData, dataSize, &pvr_bo);
+   result =
+      pvr_arch_cmd_buffer_upload_general(cmd_buffer, pData, dataSize, &pvr_bo);
    if (result != VK_SUCCESS)
       return;
 
@@ -1604,14 +1609,14 @@ static VkResult pvr_clear_color_attachment_static_create_consts_buffer(
    VkResult result;
 
    /* TODO: This doesn't need to be aligned to slc size. Alignment to 4 is fine.
-    * Change pvr_cmd_buffer_alloc_mem() to take in an alignment?
+    * Change pvr_arch_cmd_buffer_alloc_mem() to take in an alignment?
     */
    /* TODO: only allocate what's needed, not always
     * _PVR_CLEAR_ATTACH_DATA_COUNT? */
-   result = pvr_cmd_buffer_alloc_mem(cmd_buffer,
-                                     device->heaps.general_heap,
-                                     _PVR_CLEAR_ATTACH_DATA_COUNT,
-                                     &const_shareds_buffer);
+   result = pvr_arch_cmd_buffer_alloc_mem(cmd_buffer,
+                                          device->heaps.general_heap,
+                                          _PVR_CLEAR_ATTACH_DATA_COUNT,
+                                          &const_shareds_buffer);
    if (result != VK_SUCCESS)
       return result;
 
@@ -1715,9 +1720,9 @@ static VkResult pvr_clear_color_attachment_static(
       &dev_clear_state->pds_clear_attachment_program_info[program_idx];
 
    /* TODO: This doesn't need to be aligned to slc size. Alignment to 4 is fine.
-    * Change pvr_cmd_buffer_alloc_mem() to take in an alignment?
+    * Change pvr_arch_cmd_buffer_alloc_mem() to take in an alignment?
     */
-   result = pvr_cmd_buffer_alloc_mem(
+   result = pvr_arch_cmd_buffer_alloc_mem(
       cmd_buffer,
       device->heaps.pds_heap,
       clear_attachment_program->texture_program_data_size,
@@ -1835,7 +1840,7 @@ static VkResult pvr_add_deferred_rta_clear(struct pvr_cmd_buffer *cmd_buffer,
    struct pvr_render_pass_info *pass_info = &cmd_buffer->state.render_pass_info;
    struct pvr_sub_cmd_gfx *sub_cmd = &cmd_buffer->state.current_sub_cmd->gfx;
    const struct pvr_renderpass_hwsetup_render *hw_render =
-      pvr_pass_info_get_hw_render(pass_info, sub_cmd->hw_render_idx);
+      pvr_arch_pass_info_get_hw_render(pass_info, sub_cmd->hw_render_idx);
    const struct pvr_image_view *image_view;
    const struct pvr_image *image;
    uint32_t base_layer;
@@ -1882,7 +1887,7 @@ static VkResult pvr_add_deferred_rta_clear(struct pvr_cmd_buffer *cmd_buffer,
       image_view = pass_info->attachments[index];
    } else {
       const struct pvr_renderpass_hwsetup_subpass *hw_pass =
-         pvr_get_hw_subpass(pass_info->pass, pass_info->subpass_idx);
+         pvr_arch_get_hw_subpass(pass_info->pass, pass_info->subpass_idx);
       const struct pvr_render_subpass *sub_pass =
          &pass_info->pass->subpasses[hw_pass->index];
       const uint32_t attachment_idx =
@@ -1958,7 +1963,7 @@ static void pvr_clear_attachments(struct pvr_cmd_buffer *cmd_buffer,
     */
 
    if (pass) {
-      hw_pass = pvr_get_hw_subpass(pass, pass_info->subpass_idx);
+      hw_pass = pvr_arch_get_hw_subpass(pass, pass_info->subpass_idx);
       multiview_enabled = pass->multiview_enabled;
    } else {
       multiview_enabled = pass_info->dr_info->hw_render.multiview_enabled;
@@ -1967,7 +1972,7 @@ static void pvr_clear_attachments(struct pvr_cmd_buffer *cmd_buffer,
 
    assert(cmd_buffer->state.current_sub_cmd->type == PVR_SUB_CMD_TYPE_GRAPHICS);
 
-   pvr_reset_graphics_dirty_state(cmd_buffer, false);
+   pvr_arch_reset_graphics_dirty_state(cmd_buffer, false);
 
    /* We'll be emitting to the control stream. */
    sub_cmd->empty_cmd = false;
@@ -2002,8 +2007,9 @@ static void pvr_clear_attachments(struct pvr_cmd_buffer *cmd_buffer,
 
          assert(cmd_buffer->state.current_sub_cmd->is_dynamic_render ||
                 pass->hw_setup->render_count > 0);
-         hw_render =
-            pvr_pass_info_get_hw_render(&cmd_buffer->state.render_pass_info, 0);
+         hw_render = pvr_arch_pass_info_get_hw_render(
+            &cmd_buffer->state.render_pass_info,
+            0);
 
          /* TODO: verify that the hw_render if is_render_init is true is
           * exclusive to a non dynamic rendering path.
@@ -2257,8 +2263,8 @@ static void pvr_clear_attachments(struct pvr_cmd_buffer *cmd_buffer,
 
          pvr_csb_set_relocation_mark(&sub_cmd->control_stream);
 
-         vdm_cs_buffer =
-            pvr_csb_alloc_dwords(&sub_cmd->control_stream, vdm_cs_size_in_dw);
+         vdm_cs_buffer = pvr_arch_csb_alloc_dwords(&sub_cmd->control_stream,
+                                                   vdm_cs_size_in_dw);
          if (!vdm_cs_buffer) {
             pvr_cmd_buffer_set_error_unwarned(cmd_buffer,
                                               sub_cmd->control_stream.status);

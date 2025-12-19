@@ -226,7 +226,7 @@ VkResult PVR_PER_ARCH(pack_tex_state)(struct pvr_device *device,
        * to avoid this.
        */
       word0.texformat =
-         pvr_get_tex_format_aspect(info->format, info->aspect_mask);
+         pvr_arch_get_tex_format_aspect(info->format, info->aspect_mask);
       word0.smpcnt = util_logbase2(info->sample_count);
       word0.swiz0 =
          pvr_get_hw_swizzle(VK_COMPONENT_SWIZZLE_R, info->swizzle[0]);

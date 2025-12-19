@@ -122,9 +122,9 @@ VkResult PVR_PER_ARCH(CreateImageView)(VkDevice _device,
 
    util_format_compose_swizzles(format_swizzle, input_swizzle, info.swizzle);
 
-   result = pvr_pack_tex_state(device,
-                               &info,
-                               &iview->image_state[info.tex_state_type]);
+   result = pvr_arch_pack_tex_state(device,
+                                    &info,
+                                    &iview->image_state[info.tex_state_type]);
    if (result != VK_SUCCESS)
       goto err_vk_image_view_destroy;
 
@@ -134,9 +134,10 @@ VkResult PVR_PER_ARCH(CreateImageView)(VkDevice _device,
    if (info.is_cube && image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT) {
       info.tex_state_type = PVR_TEXTURE_STATE_STORAGE;
 
-      result = pvr_pack_tex_state(device,
-                                  &info,
-                                  &iview->image_state[info.tex_state_type]);
+      result =
+         pvr_arch_pack_tex_state(device,
+                                 &info,
+                                 &iview->image_state[info.tex_state_type]);
       if (result != VK_SUCCESS)
          goto err_vk_image_view_destroy;
    }
@@ -165,9 +166,10 @@ VkResult PVR_PER_ARCH(CreateImageView)(VkDevice _device,
          info.type = iview->vk.view_type;
       }
 
-      result = pvr_pack_tex_state(device,
-                                  &info,
-                                  &iview->image_state[info.tex_state_type]);
+      result =
+         pvr_arch_pack_tex_state(device,
+                                 &info,
+                                 &iview->image_state[info.tex_state_type]);
       if (result != VK_SUCCESS)
          goto err_vk_image_view_destroy;
    }
@@ -251,7 +253,7 @@ PVR_PER_ARCH(CreateBufferView)(VkDevice _device,
    format_swizzle = pvr_get_format_swizzle(info.format);
    memcpy(info.swizzle, format_swizzle, sizeof(info.swizzle));
 
-   result = pvr_pack_tex_state(device, &info, &bview->image_state);
+   result = pvr_arch_pack_tex_state(device, &info, &bview->image_state);
    if (result != VK_SUCCESS)
       goto err_vk_buffer_view_destroy;
 

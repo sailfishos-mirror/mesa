@@ -310,11 +310,11 @@ static uint64_t pvr_spm_setup_pbe_state(
       .source_start = source_start,
    };
 
-   pvr_pbe_pack_state(dev_info,
-                      &surface_params,
-                      &render_params,
-                      pbe_state_words_out,
-                      pbe_reg_words_out);
+   pvr_arch_pbe_pack_state(dev_info,
+                           &surface_params,
+                           &render_params,
+                           pbe_state_words_out,
+                           pbe_reg_words_out);
 
    return (uint64_t)stride * framebuffer_size->height * sample_count *
           PVR_DW_TO_BYTES(dword_count);
@@ -666,7 +666,7 @@ pvr_spm_setup_texture_state_words(struct pvr_device *device,
    format_swizzle = pvr_get_format_swizzle(info.format);
    memcpy(info.swizzle, format_swizzle, sizeof(info.swizzle));
 
-   result = pvr_pack_tex_state(device, &info, &image_descriptor);
+   result = pvr_arch_pack_tex_state(device, &info, &image_descriptor);
    if (result != VK_SUCCESS)
       return result;
 

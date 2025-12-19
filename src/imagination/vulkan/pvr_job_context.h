@@ -163,32 +163,32 @@ VkResult PVR_PER_ARCH(render_ctx_create)(struct pvr_device *device,
                                          enum pvr_winsys_ctx_priority priority,
                                          struct pvr_render_ctx **const ctx_out);
 
-#define pvr_render_ctx_create PVR_PER_ARCH(render_ctx_create)
+#define pvr_arch_render_ctx_create PVR_PER_ARCH(render_ctx_create)
 
 void PVR_PER_ARCH(render_ctx_destroy)(struct pvr_render_ctx *ctx);
 
-#define pvr_render_ctx_destroy PVR_PER_ARCH(render_ctx_destroy)
+#define pvr_arch_render_ctx_destroy PVR_PER_ARCH(render_ctx_destroy)
 
 VkResult
    PVR_PER_ARCH(compute_ctx_create)(struct pvr_device *const device,
                                     enum pvr_winsys_ctx_priority priority,
                                     struct pvr_compute_ctx **const ctx_out);
 
-#define pvr_compute_ctx_create PVR_PER_ARCH(compute_ctx_create)
+#define pvr_arch_compute_ctx_create PVR_PER_ARCH(compute_ctx_create)
 
 void PVR_PER_ARCH(compute_ctx_destroy)(struct pvr_compute_ctx *ctx);
 
-#define pvr_compute_ctx_destroy PVR_PER_ARCH(compute_ctx_destroy)
+#define pvr_arch_compute_ctx_destroy PVR_PER_ARCH(compute_ctx_destroy)
 
 VkResult
    PVR_PER_ARCH(transfer_ctx_create)(struct pvr_device *const device,
                                      enum pvr_winsys_ctx_priority priority,
                                      struct pvr_transfer_ctx **const ctx_out);
 
-#define pvr_transfer_ctx_create PVR_PER_ARCH(transfer_ctx_create)
+#define pvr_arch_transfer_ctx_create PVR_PER_ARCH(transfer_ctx_create)
 
 void PVR_PER_ARCH(transfer_ctx_destroy)(struct pvr_transfer_ctx *const ctx);
 
-#define pvr_transfer_ctx_destroy PVR_PER_ARCH(transfer_ctx_destroy)
+#define pvr_arch_transfer_ctx_destroy PVR_PER_ARCH(transfer_ctx_destroy)
 
 #endif /* PVR_JOB_CONTEXT_H */

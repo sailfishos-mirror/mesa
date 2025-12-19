@@ -31,7 +31,8 @@ void PVR_PER_ARCH(CmdResetQueryPool)(VkCommandBuffer commandBuffer,
    /* make the query-reset program wait for previous geom/frag,
     * to not overwrite them
     */
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
    if (result != VK_SUCCESS)
       return;
 
@@ -44,14 +45,15 @@ void PVR_PER_ARCH(CmdResetQueryPool)(VkCommandBuffer commandBuffer,
    };
 
    /* add the query-program itself */
-   result = pvr_add_query_program(cmd_buffer, &query_info);
+   result = pvr_arch_add_query_program(cmd_buffer, &query_info);
    if (result != VK_SUCCESS)
       return;
 
    /* make future geom/frag wait for the query-reset program to
     * reset the counters to 0
     */
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
    if (result != VK_SUCCESS)
       return;
 
@@ -89,7 +91,8 @@ void PVR_PER_ARCH(CmdCopyQueryPoolResults)(VkCommandBuffer commandBuffer,
    query_info.copy_query_results.stride = stride;
    query_info.copy_query_results.flags = flags;
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
    if (result != VK_SUCCESS)
       return;
 
@@ -114,13 +117,14 @@ void PVR_PER_ARCH(CmdCopyQueryPoolResults)(VkCommandBuffer commandBuffer,
       },
    };
 
-   result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
    if (result != VK_SUCCESS)
       return;
 
-   pvr_add_query_program(cmd_buffer, &query_info);
+   pvr_arch_add_query_program(cmd_buffer, &query_info);
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
    if (result != VK_SUCCESS)
       return;
 
@@ -141,7 +145,7 @@ pvr_cmd_buffer_state_get_view_count(const struct pvr_cmd_buffer_state *state)
    const struct pvr_sub_cmd_gfx *gfx_sub_cmd = &state->current_sub_cmd->gfx;
    const uint32_t hw_render_idx = gfx_sub_cmd->hw_render_idx;
    const struct pvr_renderpass_hwsetup_render *hw_render =
-      pvr_pass_info_get_hw_render(render_pass_info, hw_render_idx);
+      pvr_arch_pass_info_get_hw_render(render_pass_info, hw_render_idx);
    const uint32_t view_count = util_bitcount(hw_render->view_mask);
 
    assert(state->current_sub_cmd->type == PVR_SUB_CMD_TYPE_GRAPHICS);
@@ -177,12 +181,12 @@ void PVR_PER_ARCH(CmdBeginQuery)(VkCommandBuffer commandBuffer,
          /* Kick render. */
          state->current_sub_cmd->gfx.barrier_store = true;
 
-         result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+         result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
          if (result != VK_SUCCESS)
             return;
 
-         result =
-            pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
+         result = pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer,
+                                                    PVR_SUB_CMD_TYPE_GRAPHICS);
          if (result != VK_SUCCESS)
             return;
 

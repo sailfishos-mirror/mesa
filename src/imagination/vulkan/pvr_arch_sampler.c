@@ -78,7 +78,7 @@ VkResult PVR_PER_ARCH(CreateSampler)(VkDevice _device,
    mag_filter = pCreateInfo->magFilter;
    min_filter = pCreateInfo->minFilter;
 
-   result = pvr_border_color_table_get_or_create_entry(
+   result = pvr_arch_border_color_table_get_or_create_entry(
       device,
       sampler,
       device->border_color_table,
@@ -229,8 +229,8 @@ void PVR_PER_ARCH(DestroySampler)(VkDevice _device,
    if (!sampler)
       return;
 
-   pvr_border_color_table_release_entry(device->border_color_table,
-                                        sampler->border_color_table_index);
+   pvr_arch_border_color_table_release_entry(device->border_color_table,
+                                             sampler->border_color_table_index);
 
    vk_sampler_destroy(&device->vk, pAllocator, &sampler->vk);
 }

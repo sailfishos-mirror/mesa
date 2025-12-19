@@ -121,7 +121,7 @@ void PVR_PER_ARCH(pbe_pack_state)(
    uint32_t pbe_cs_words[static const ROGUE_NUM_PBESTATE_STATE_WORDS],
    uint64_t pbe_reg_words[static const ROGUE_NUM_PBESTATE_REG_WORDS]);
 
-#   define pvr_pbe_pack_state PVR_PER_ARCH(pbe_pack_state)
+#   define pvr_arch_pbe_pack_state PVR_PER_ARCH(pbe_pack_state)
 
 /* Helper to calculate pvr_pbe_surf_params::gamma and
  * pvr_pbe_surf_params::source_format.
@@ -133,7 +133,7 @@ void PVR_PER_ARCH(pbe_get_src_format_and_gamma)(
    uint32_t *const src_format_out,
    enum pvr_pbe_gamma *const gamma_out);
 
-#   define pvr_pbe_get_src_format_and_gamma \
+#   define pvr_arch_pbe_get_src_format_and_gamma \
       PVR_PER_ARCH(pbe_get_src_format_and_gamma)
 
 void PVR_PER_ARCH(setup_tiles_in_flight)(
@@ -146,7 +146,7 @@ void PVR_PER_ARCH(setup_tiles_in_flight)(
    uint32_t *const isp_ctl_out,
    uint32_t *const pixel_ctl_out);
 
-#   define pvr_setup_tiles_in_flight PVR_PER_ARCH(setup_tiles_in_flight)
+#   define pvr_arch_setup_tiles_in_flight PVR_PER_ARCH(setup_tiles_in_flight)
 
 #endif /* PVR_PER_ARCH */
 

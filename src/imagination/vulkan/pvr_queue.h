@@ -45,10 +45,10 @@ VK_DEFINE_HANDLE_CASTS(pvr_queue, vk.base, VkQueue, VK_OBJECT_TYPE_QUEUE)
 #ifdef PVR_PER_ARCH
 VkResult PVR_PER_ARCH(queues_create)(struct pvr_device *device,
                                      const VkDeviceCreateInfo *pCreateInfo);
-#   define pvr_queues_create PVR_PER_ARCH(queues_create)
+#   define pvr_arch_queues_create PVR_PER_ARCH(queues_create)
 
 void PVR_PER_ARCH(queues_destroy)(struct pvr_device *device);
-#   define pvr_queues_destroy PVR_PER_ARCH(queues_destroy)
+#   define pvr_arch_queues_destroy PVR_PER_ARCH(queues_destroy)
 
 #endif /* PVR_PER_ARCH */
 

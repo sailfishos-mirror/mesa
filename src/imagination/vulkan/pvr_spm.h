@@ -116,18 +116,18 @@ uint64_t PVR_PER_ARCH(spm_scratch_buffer_calc_required_size)(
    uint32_t framebuffer_width,
    uint32_t framebuffer_height);
 
-#   define pvr_spm_scratch_buffer_calc_required_size \
+#   define pvr_arch_spm_scratch_buffer_calc_required_size \
       PVR_PER_ARCH(spm_scratch_buffer_calc_required_size)
 
 /* The SPM load programs are needed for the SPM background object load op. */
 VkResult PVR_PER_ARCH(device_init_spm_load_state)(struct pvr_device *device);
 
-#   define pvr_device_init_spm_load_state \
+#   define pvr_arch_device_init_spm_load_state \
       PVR_PER_ARCH(device_init_spm_load_state)
 
 void PVR_PER_ARCH(device_finish_spm_load_state)(struct pvr_device *device);
 
-#   define pvr_device_finish_spm_load_state \
+#   define pvr_arch_device_finish_spm_load_state \
       PVR_PER_ARCH(device_finish_spm_load_state)
 
 VkResult PVR_PER_ARCH(spm_init_eot_state)(
@@ -136,7 +136,7 @@ VkResult PVR_PER_ARCH(spm_init_eot_state)(
    const struct pvr_render_state *rstate,
    const struct pvr_renderpass_hwsetup_render *hw_render);
 
-#   define pvr_spm_init_eot_state PVR_PER_ARCH(spm_init_eot_state)
+#   define pvr_arch_spm_init_eot_state PVR_PER_ARCH(spm_init_eot_state)
 
 VkResult PVR_PER_ARCH(spm_init_bgobj_state)(
    struct pvr_device *device,
@@ -144,7 +144,7 @@ VkResult PVR_PER_ARCH(spm_init_bgobj_state)(
    const struct pvr_render_state *rstate,
    const struct pvr_renderpass_hwsetup_render *hw_render);
 
-#   define pvr_spm_init_bgobj_state PVR_PER_ARCH(spm_init_bgobj_state)
+#   define pvr_arch_spm_init_bgobj_state PVR_PER_ARCH(spm_init_bgobj_state)
 
 #endif /* PVR_PER_ARCH */
 

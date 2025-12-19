@@ -341,7 +341,7 @@ bool PVR_PER_ARCH(format_is_pbe_downscalable)(
       return false;
    }
 
-   switch (pvr_get_pbe_packmode(vk_format)) {
+   switch (pvr_arch_get_pbe_packmode(vk_format)) {
    default:
       return true;
    case ROGUE_PBESTATE_PACKMODE_F16:

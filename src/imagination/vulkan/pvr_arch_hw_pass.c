@@ -2552,7 +2552,7 @@ VkResult PVR_PER_ARCH(create_renderpass_hwsetup)(
       const uint32_t part_bits = 0;
 
       if (vk_format_is_color(format) &&
-          pvr_get_pbe_accum_format(attachment->vk_format) ==
+          pvr_arch_get_pbe_accum_format(attachment->vk_format) ==
              PVR_PBE_ACCUM_FORMAT_INVALID) {
          /* The VkFormat is not supported as a color attachment so `0`.
           * Vulkan doesn't seems to restrict vkCreateRenderPass() to supported
@@ -2720,7 +2720,7 @@ end_create_renderpass_hwsetup:
       pvr_free_render(ctx);
 
       if (hw_setup) {
-         pvr_destroy_renderpass_hwsetup(alloc, hw_setup);
+         pvr_arch_destroy_renderpass_hwsetup(alloc, hw_setup);
          hw_setup = NULL;
       }
    }

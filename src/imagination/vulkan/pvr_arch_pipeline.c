@@ -2739,10 +2739,10 @@ pvr_graphics_pipeline_compile(struct pvr_device *const device,
    if (!pCreateInfo->renderPass) {
       const struct vk_render_pass_state *rp = state->rp;
 
-      result = pvr_init_usc_mrt_setup(device,
-                                      rp->color_attachment_count,
-                                      rp->color_attachment_formats,
-                                      &mrt_setup);
+      result = pvr_arch_init_usc_mrt_setup(device,
+                                           rp->color_attachment_count,
+                                           rp->color_attachment_formats,
+                                           &mrt_setup);
       if (result != VK_SUCCESS)
          return result;
    }
@@ -2834,7 +2834,7 @@ pvr_graphics_pipeline_compile(struct pvr_device *const device,
    }
 
    if (!pCreateInfo->renderPass)
-      pvr_destroy_mrt_setup(device, &mrt_setup);
+      pvr_arch_destroy_mrt_setup(device, &mrt_setup);
 
    for (mesa_shader_stage stage = 0; stage < MESA_SHADER_STAGES; ++stage) {
       pco_shader **pco = &pco_shaders[stage];
@@ -2974,7 +2974,7 @@ err_free_vertex_bo:
 err_free_build_context:
    ralloc_free(shader_mem_ctx);
    if (!pCreateInfo->renderPass)
-      pvr_destroy_mrt_setup(device, &mrt_setup);
+      pvr_arch_destroy_mrt_setup(device, &mrt_setup);
    return result;
 }
 

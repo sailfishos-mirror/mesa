@@ -89,26 +89,27 @@ static VkResult pvr_queue_init(struct pvr_device *device,
          goto err_vk_queue_finish;
    }
 
-   result = pvr_transfer_ctx_create(device,
-                                    PVR_WINSYS_CTX_PRIORITY_MEDIUM,
-                                    &transfer_ctx);
+   result = pvr_arch_transfer_ctx_create(device,
+                                         PVR_WINSYS_CTX_PRIORITY_MEDIUM,
+                                         &transfer_ctx);
    if (result != VK_SUCCESS)
       goto err_vk_queue_finish;
 
-   result = pvr_compute_ctx_create(device,
-                                   PVR_WINSYS_CTX_PRIORITY_MEDIUM,
-                                   &compute_ctx);
+   result = pvr_arch_compute_ctx_create(device,
+                                        PVR_WINSYS_CTX_PRIORITY_MEDIUM,
+                                        &compute_ctx);
    if (result != VK_SUCCESS)
       goto err_transfer_ctx_destroy;
 
-   result = pvr_compute_ctx_create(device,
-                                   PVR_WINSYS_CTX_PRIORITY_MEDIUM,
-                                   &query_ctx);
+   result = pvr_arch_compute_ctx_create(device,
+                                        PVR_WINSYS_CTX_PRIORITY_MEDIUM,
+                                        &query_ctx);
    if (result != VK_SUCCESS)
       goto err_compute_ctx_destroy;
 
-   result =
-      pvr_render_ctx_create(device, PVR_WINSYS_CTX_PRIORITY_MEDIUM, &gfx_ctx);
+   result = pvr_arch_render_ctx_create(device,
+                                       PVR_WINSYS_CTX_PRIORITY_MEDIUM,
+                                       &gfx_ctx);
    if (result != VK_SUCCESS)
       goto err_query_ctx_destroy;
 
@@ -123,13 +124,13 @@ static VkResult pvr_queue_init(struct pvr_device *device,
    return VK_SUCCESS;
 
 err_query_ctx_destroy:
-   pvr_compute_ctx_destroy(query_ctx);
+   pvr_arch_compute_ctx_destroy(query_ctx);
 
 err_compute_ctx_destroy:
-   pvr_compute_ctx_destroy(compute_ctx);
+   pvr_arch_compute_ctx_destroy(compute_ctx);
 
 err_transfer_ctx_destroy:
-   pvr_transfer_ctx_destroy(transfer_ctx);
+   pvr_arch_transfer_ctx_destroy(transfer_ctx);
 
 err_vk_queue_finish:
    vk_queue_finish(&queue->vk);
@@ -170,7 +171,7 @@ VkResult PVR_PER_ARCH(queues_create)(struct pvr_device *device,
    return VK_SUCCESS;
 
 err_queues_finish:
-   pvr_queues_destroy(device);
+   pvr_arch_queues_destroy(device);
    return result;
 }
 
@@ -186,10 +187,10 @@ static void pvr_queue_finish(struct pvr_queue *queue)
          vk_sync_destroy(&queue->device->vk, queue->last_job_signal_sync[i]);
    }
 
-   pvr_render_ctx_destroy(queue->gfx_ctx);
-   pvr_compute_ctx_destroy(queue->query_ctx);
-   pvr_compute_ctx_destroy(queue->compute_ctx);
-   pvr_transfer_ctx_destroy(queue->transfer_ctx);
+   pvr_arch_render_ctx_destroy(queue->gfx_ctx);
+   pvr_arch_compute_ctx_destroy(queue->query_ctx);
+   pvr_arch_compute_ctx_destroy(queue->compute_ctx);
+   pvr_arch_transfer_ctx_destroy(queue->transfer_ctx);
 
    vk_queue_finish(&queue->vk);
 }
@@ -275,13 +276,13 @@ pvr_process_graphics_cmd_for_view(struct pvr_device *device,
       job->geometry_terminate = false;
       job->run_frag = false;
 
-      result =
-         pvr_render_job_submit(queue->gfx_ctx,
-                               &sub_cmd->job,
-                               queue->next_job_wait_sync[PVR_JOB_TYPE_GEOM],
-                               NULL,
-                               NULL,
-                               NULL);
+      result = pvr_arch_render_job_submit(
+         queue->gfx_ctx,
+         &sub_cmd->job,
+         queue->next_job_wait_sync[PVR_JOB_TYPE_GEOM],
+         NULL,
+         NULL,
+         NULL);
 
       job->geometry_terminate = true;
       job->run_frag = true;
@@ -303,12 +304,13 @@ pvr_process_graphics_cmd_for_view(struct pvr_device *device,
          (view_index * PVR_DW_TO_BYTES(sub_cmd->multiview_ctrl_stream_stride));
    }
 
-   result = pvr_render_job_submit(queue->gfx_ctx,
-                                  &sub_cmd->job,
-                                  queue->next_job_wait_sync[PVR_JOB_TYPE_GEOM],
-                                  queue->next_job_wait_sync[PVR_JOB_TYPE_FRAG],
-                                  geom_signal_sync,
-                                  frag_signal_sync);
+   result =
+      pvr_arch_render_job_submit(queue->gfx_ctx,
+                                 &sub_cmd->job,
+                                 queue->next_job_wait_sync[PVR_JOB_TYPE_GEOM],
+                                 queue->next_job_wait_sync[PVR_JOB_TYPE_FRAG],
+                                 geom_signal_sync,
+                                 frag_signal_sync);
 
    if (original_ctrl_stream_addr.addr > 0)
       job->ctrl_stream_addr = original_ctrl_stream_addr;
@@ -373,11 +375,11 @@ static VkResult pvr_process_compute_cmd(struct pvr_device *device,
    if (result != VK_SUCCESS)
       return result;
 
-   result =
-      pvr_compute_job_submit(queue->compute_ctx,
-                             sub_cmd,
-                             queue->next_job_wait_sync[PVR_JOB_TYPE_COMPUTE],
-                             sync);
+   result = pvr_arch_compute_job_submit(
+      queue->compute_ctx,
+      sub_cmd,
+      queue->next_job_wait_sync[PVR_JOB_TYPE_COMPUTE],
+      sync);
    if (result != VK_SUCCESS) {
       vk_sync_destroy(&device->vk, sync);
       return result;
@@ -403,11 +405,11 @@ static VkResult pvr_process_transfer_cmds(struct pvr_device *device,
    if (result != VK_SUCCESS)
       return result;
 
-   result =
-      pvr_transfer_job_submit(queue->transfer_ctx,
-                              sub_cmd,
-                              queue->next_job_wait_sync[PVR_JOB_TYPE_TRANSFER],
-                              sync);
+   result = pvr_arch_transfer_job_submit(
+      queue->transfer_ctx,
+      sub_cmd,
+      queue->next_job_wait_sync[PVR_JOB_TYPE_TRANSFER],
+      sync);
    if (result != VK_SUCCESS) {
       vk_sync_destroy(&device->vk, sync);
       return result;
@@ -440,10 +442,10 @@ static VkResult pvr_process_query_cmd(struct pvr_device *device,
       return result;
 
    result =
-      pvr_compute_job_submit(queue->query_ctx,
-                             sub_cmd,
-                             queue->next_job_wait_sync[PVR_JOB_TYPE_QUERY],
-                             sync);
+      pvr_arch_compute_job_submit(queue->query_ctx,
+                                  sub_cmd,
+                                  queue->next_job_wait_sync[PVR_JOB_TYPE_QUERY],
+                                  sync);
    if (result != VK_SUCCESS) {
       vk_sync_destroy(&device->vk, sync);
       return result;

@@ -517,15 +517,15 @@ pvr_cmd_buffer_upload_pds_data(struct pvr_cmd_buffer *const cmd_buffer,
                                uint32_t data_alignment,
                                struct pvr_pds_upload *const pds_upload_out)
 {
-   return pvr_cmd_buffer_upload_pds(cmd_buffer,
-                                    data,
-                                    data_size_dwords,
-                                    data_alignment,
-                                    NULL,
-                                    0,
-                                    0,
-                                    data_alignment,
-                                    pds_upload_out);
+   return pvr_arch_cmd_buffer_upload_pds(cmd_buffer,
+                                         data,
+                                         data_size_dwords,
+                                         data_alignment,
+                                         NULL,
+                                         0,
+                                         0,
+                                         data_alignment,
+                                         pds_upload_out);
 }
 
 /* pbe_cs_words must be an array of length emit_count with
@@ -655,7 +655,7 @@ static VkResult pvr_sub_cmd_gfx_build_terminate_ctrl_stream(
    if (result != VK_SUCCESS)
       goto err_csb_finish;
 
-   result = pvr_csb_emit_terminate(&csb);
+   result = pvr_arch_csb_emit_terminate(&csb);
    if (result != VK_SUCCESS)
       goto err_csb_finish;
 
@@ -705,7 +705,7 @@ static VkResult pvr_setup_texture_state_words(
    memcpy(&info.swizzle, swizzle, sizeof(info.swizzle));
 
    /* TODO: Can we use image_view->texture_state instead of generating here? */
-   result = pvr_pack_tex_state(device, &info, &descriptor->image);
+   result = pvr_arch_pack_tex_state(device, &info, &descriptor->image);
    if (result != VK_SUCCESS)
       return result;
 
@@ -870,10 +870,11 @@ pvr_load_op_constants_create_and_upload(struct pvr_cmd_buffer *cmd_buffer,
    assert(!(buffer_size % sizeof(uint32_t)));
    assert(buffer_size / sizeof(uint32_t) == load_op->shareds_count);
 
-   result = pvr_cmd_buffer_alloc_mem(cmd_buffer,
-                                     cmd_buffer->device->heaps.general_heap,
-                                     buffer_size,
-                                     &clear_bo);
+   result =
+      pvr_arch_cmd_buffer_alloc_mem(cmd_buffer,
+                                    cmd_buffer->device->heaps.general_heap,
+                                    buffer_size,
+                                    &clear_bo);
    if (result != VK_SUCCESS)
       return result;
 
@@ -1130,15 +1131,15 @@ static void pvr_setup_pbe_state(
    swizzle = pvr_get_format_swizzle(iview->vk.format);
    memcpy(surface_params.swizzle, swizzle, sizeof(surface_params.swizzle));
 
-   pvr_pbe_get_src_format_and_gamma(iview->vk.format,
-                                    PVR_PBE_GAMMA_NONE,
-                                    with_packed_usc_channel,
-                                    &surface_params.source_format,
-                                    &surface_params.gamma);
+   pvr_arch_pbe_get_src_format_and_gamma(iview->vk.format,
+                                         PVR_PBE_GAMMA_NONE,
+                                         with_packed_usc_channel,
+                                         &surface_params.source_format,
+                                         &surface_params.gamma);
 
    surface_params.is_normalized =
       pvr_vk_format_is_fully_normalized(iview->vk.format);
-   surface_params.pbe_packmode = pvr_get_pbe_packmode(iview->vk.format);
+   surface_params.pbe_packmode = pvr_arch_get_pbe_packmode(iview->vk.format);
    surface_params.nr_components = vk_format_get_nr_components(iview->vk.format);
 
    /* FIXME: Should we have an inline function to return the address of a mip
@@ -1215,11 +1216,11 @@ static void pvr_setup_pbe_state(
 
    render_params.mrt_index = mrt_index;
 
-   pvr_pbe_pack_state(dev_info,
-                      &surface_params,
-                      &render_params,
-                      pbe_cs_words,
-                      pbe_reg_words);
+   pvr_arch_pbe_pack_state(dev_info,
+                           &surface_params,
+                           &render_params,
+                           pbe_cs_words,
+                           pbe_reg_words);
 }
 
 static struct pvr_render_target *
@@ -1367,10 +1368,11 @@ pvr_sub_cmd_gfx_align_ds_subtiles(struct pvr_cmd_buffer *const cmd_buffer,
 
    buffer_size = buffer_layer_size * ds->iview->vk.layer_count;
 
-   result = pvr_cmd_buffer_alloc_mem(cmd_buffer,
-                                     cmd_buffer->device->heaps.general_heap,
-                                     buffer_size,
-                                     &buffer);
+   result =
+      pvr_arch_cmd_buffer_alloc_mem(cmd_buffer,
+                                    cmd_buffer->device->heaps.general_heap,
+                                    buffer_size,
+                                    &buffer);
    if (result != VK_SUCCESS)
       return result;
 
@@ -1399,8 +1401,8 @@ pvr_sub_cmd_gfx_align_ds_subtiles(struct pvr_cmd_buffer *const cmd_buffer,
 
       cmd_buffer->state.current_sub_cmd = NULL;
 
-      result =
-         pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_TRANSFER);
+      result = pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer,
+                                                 PVR_SUB_CMD_TYPE_TRANSFER);
       if (result != VK_SUCCESS)
          return result;
 
@@ -1417,7 +1419,7 @@ pvr_sub_cmd_gfx_align_ds_subtiles(struct pvr_cmd_buffer *const cmd_buffer,
 
       new_sub_cmd->transfer.serialize_with_frag = true;
 
-      result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+      result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
       if (result != VK_SUCCESS)
          return result;
 
@@ -1435,8 +1437,8 @@ pvr_sub_cmd_gfx_align_ds_subtiles(struct pvr_cmd_buffer *const cmd_buffer,
    if (ds->store.d || ds->store.s) {
       cmd_buffer->state.current_sub_cmd = NULL;
 
-      result =
-         pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_TRANSFER);
+      result = pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer,
+                                                 PVR_SUB_CMD_TYPE_TRANSFER);
       if (result != VK_SUCCESS)
          return result;
 
@@ -1452,7 +1454,7 @@ pvr_sub_cmd_gfx_align_ds_subtiles(struct pvr_cmd_buffer *const cmd_buffer,
 
       cmd_buffer->state.current_sub_cmd->transfer.serialize_with_frag = true;
 
-      result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+      result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
       if (result != VK_SUCCESS)
          return result;
 
@@ -1596,7 +1598,8 @@ static VkResult pvr_sub_cmd_gfx_job_init(const struct pvr_device_info *dev_info,
    struct pvr_render_pass_info *render_pass_info =
       &cmd_buffer->state.render_pass_info;
    const struct pvr_renderpass_hwsetup_render *hw_render =
-      pvr_pass_info_get_hw_render(render_pass_info, sub_cmd->hw_render_idx);
+      pvr_arch_pass_info_get_hw_render(render_pass_info,
+                                       sub_cmd->hw_render_idx);
    struct pvr_render_job *job = &sub_cmd->job;
    struct pvr_render_state *rstate = render_pass_info->rstate;
    struct pvr_spm_bgobj_state *spm_bgobj_state =
@@ -2286,7 +2289,7 @@ pvr_cmd_buffer_process_deferred_clears(struct pvr_cmd_buffer *cmd_buffer)
       VkResult result;
 
       list_del(&transfer_cmd->link);
-      result = pvr_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
+      result = pvr_arch_cmd_buffer_add_transfer_cmd(cmd_buffer, transfer_cmd);
       if (result != VK_SUCCESS)
          return result;
 
@@ -2341,7 +2344,7 @@ pvr_csb_gfx_build_view_index_ctrl_stream(struct pvr_device *const device,
 
       pvr_csb_clear_relocation_mark(&csb);
 
-      pvr_csb_emit_link(&csb, addr, false);
+      pvr_arch_csb_emit_link(&csb, addr, false);
    }
 
    result = pvr_csb_bake(&csb, &bo_list);
@@ -2409,10 +2412,10 @@ VkResult PVR_PER_ARCH(cmd_buffer_end_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer)
          } else {
             const void *data = util_dynarray_begin(&state->query_indices);
 
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   data,
-                                                   query_indices_size,
-                                                   &query_bo);
+            result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                        data,
+                                                        query_indices_size,
+                                                        &query_bo);
             if (result != VK_SUCCESS)
                return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
 
@@ -2427,7 +2430,7 @@ VkResult PVR_PER_ARCH(cmd_buffer_end_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer)
       }
 
       if (secondary_cont) {
-         result = pvr_csb_emit_return(&gfx_sub_cmd->control_stream);
+         result = pvr_arch_csb_emit_return(&gfx_sub_cmd->control_stream);
          if (result != VK_SUCCESS)
             return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
 
@@ -2451,7 +2454,7 @@ VkResult PVR_PER_ARCH(cmd_buffer_end_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer)
       if (result != VK_SUCCESS)
          return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
 
-      result = pvr_csb_emit_terminate(&gfx_sub_cmd->control_stream);
+      result = pvr_arch_csb_emit_terminate(&gfx_sub_cmd->control_stream);
       if (result != VK_SUCCESS)
          return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
 
@@ -2486,9 +2489,9 @@ VkResult PVR_PER_ARCH(cmd_buffer_end_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer)
    case PVR_SUB_CMD_TYPE_COMPUTE: {
       struct pvr_sub_cmd_compute *const compute_sub_cmd = &sub_cmd->compute;
 
-      pvr_compute_generate_fence(cmd_buffer, compute_sub_cmd, true);
+      pvr_arch_compute_generate_fence(cmd_buffer, compute_sub_cmd, true);
 
-      result = pvr_csb_emit_terminate(&compute_sub_cmd->control_stream);
+      result = pvr_arch_csb_emit_terminate(&compute_sub_cmd->control_stream);
       if (result != VK_SUCCESS)
          return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
 
@@ -2552,7 +2555,8 @@ VkResult PVR_PER_ARCH(cmd_buffer_end_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer)
        * fragment shader to complete.
        */
 
-      result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+      result =
+         pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
       if (result != VK_SUCCESS)
          return result;
 
@@ -2564,7 +2568,7 @@ VkResult PVR_PER_ARCH(cmd_buffer_end_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer)
          },
       };
 
-      return pvr_add_query_program(cmd_buffer, &query_info);
+      return pvr_arch_add_query_program(cmd_buffer, &query_info);
    }
 
    return VK_SUCCESS;
@@ -2651,7 +2655,7 @@ pvr_render_pass_info_get_view_mask(const struct pvr_render_pass_info *rp_info)
 {
    const uint32_t hw_render_idx = rp_info->current_hw_subpass;
    const struct pvr_renderpass_hwsetup_render *hw_render =
-      pvr_pass_info_get_hw_render(rp_info, hw_render_idx);
+      pvr_arch_pass_info_get_hw_render(rp_info, hw_render_idx);
 
    return hw_render->view_mask;
 }
@@ -2679,7 +2683,7 @@ PVR_PER_ARCH(cmd_buffer_start_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer,
       }
 
       /* End the current sub command. */
-      result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+      result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
       if (result != VK_SUCCESS)
          return result;
    }
@@ -2731,7 +2735,7 @@ PVR_PER_ARCH(cmd_buffer_start_sub_cmd)(struct pvr_cmd_buffer *cmd_buffer,
       if (state->vis_test_enabled)
          sub_cmd->gfx.query_pool = state->query_pool;
 
-      pvr_reset_graphics_dirty_state(cmd_buffer, true);
+      pvr_arch_reset_graphics_dirty_state(cmd_buffer, true);
 
       if (pvr_cmd_uses_deferred_cs_cmds(cmd_buffer)) {
          pvr_csb_init(device,
@@ -3204,12 +3208,12 @@ static inline VkResult pvr_render_targets_datasets_create(
       if (render_target->valid_mask & BITFIELD_BIT(view_idx))
          continue;
 
-      result = pvr_render_target_dataset_create(device,
-                                                rstate->width,
-                                                rstate->height,
-                                                hw_render->sample_count,
-                                                layers,
-                                                &rt_dataset);
+      result = pvr_arch_render_target_dataset_create(device,
+                                                     rstate->width,
+                                                     rstate->height,
+                                                     hw_render->sample_count,
+                                                     layers,
+                                                     &rt_dataset);
       if (result != VK_SUCCESS) {
          pvr_render_targets_datasets_destroy(render_target);
          pthread_mutex_unlock(&render_target->mutex);
@@ -3286,7 +3290,7 @@ pvr_perform_start_of_render_attachment_clear(struct pvr_cmd_buffer *cmd_buffer,
    const uint32_t hw_render_idx =
       hw_setup ? hw_setup->subpass_map[info->subpass_idx].render : 0;
    const struct pvr_renderpass_hwsetup_render *hw_render =
-      pvr_pass_info_get_hw_render(info, hw_render_idx);
+      pvr_arch_pass_info_get_hw_render(info, hw_render_idx);
    VkImageAspectFlags image_aspect;
    const struct pvr_image *image;
    struct pvr_image_view *iview;
@@ -3394,7 +3398,7 @@ pvr_perform_start_of_render_clears(struct pvr_cmd_buffer *cmd_buffer,
       hw_render =
          &hw_setup->renders[hw_setup->subpass_map[info->subpass_idx].render];
    } else {
-      hw_render = pvr_pass_info_get_hw_render(info, 0);
+      hw_render = pvr_arch_pass_info_get_hw_render(info, 0);
    }
 
    /* Mask of attachment clears using index lists instead of background object
@@ -3439,8 +3443,8 @@ static void pvr_stash_depth_format(struct pvr_cmd_buffer_state *state,
                                    struct pvr_sub_cmd_gfx *const sub_cmd)
 {
    const struct pvr_renderpass_hwsetup_render *hw_render =
-      pvr_pass_info_get_hw_render(&state->render_pass_info,
-                                  sub_cmd->hw_render_idx);
+      pvr_arch_pass_info_get_hw_render(&state->render_pass_info,
+                                       sub_cmd->hw_render_idx);
 
    if (hw_render->ds_attach_idx != VK_ATTACHMENT_UNUSED) {
       struct pvr_image_view **iviews = state->render_pass_info.attachments;
@@ -3583,7 +3587,7 @@ static void pvr_emit_clear_words(struct pvr_cmd_buffer *const cmd_buffer,
 
    pvr_csb_set_relocation_mark(csb);
 
-   stream = pvr_csb_alloc_dwords(csb, vdm_state_size_in_dw);
+   stream = pvr_arch_csb_alloc_dwords(csb, vdm_state_size_in_dw);
    if (!stream) {
       pvr_cmd_buffer_set_error_unwarned(cmd_buffer, csb->status);
       return;
@@ -3678,7 +3682,7 @@ static VkResult pvr_cs_write_load_op_for_view(struct pvr_cmd_buffer *cmd_buffer,
 
    pvr_emit_clear_words(cmd_buffer, sub_cmd);
 
-   pvr_reset_graphics_dirty_state(cmd_buffer, false);
+   pvr_arch_reset_graphics_dirty_state(cmd_buffer, false);
 
    return VK_SUCCESS;
 }
@@ -3771,8 +3775,8 @@ pvr_resolve_unemitted_resolve_attachments(struct pvr_cmd_buffer *cmd_buffer,
 {
    struct pvr_cmd_buffer_state *state = &cmd_buffer->state;
    const struct pvr_renderpass_hwsetup_render *hw_render =
-      pvr_pass_info_get_hw_render(&state->render_pass_info,
-                                  info->current_hw_subpass);
+      pvr_arch_pass_info_get_hw_render(&state->render_pass_info,
+                                       info->current_hw_subpass);
 
    for (uint32_t i = 0U; i < hw_render->eot_surface_count; i++) {
       const struct pvr_renderpass_hwsetup_eot_surface *surface =
@@ -3920,7 +3924,7 @@ pvr_resolve_unemitted_resolve_attachments(struct pvr_cmd_buffer *cmd_buffer,
       }
    }
 
-   return pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   return pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
 }
 
 void PVR_PER_ARCH(CmdBeginRenderPass2)(
@@ -3976,14 +3980,15 @@ void PVR_PER_ARCH(CmdBeginRenderPass2)(
    assert(pass->subpasses[0].pipeline_bind_point ==
           VK_PIPELINE_BIND_POINT_GRAPHICS);
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
    if (result != VK_SUCCESS)
       return;
 
    /* Run subpass 0 "soft" background object after the actual background
     * object.
     */
-   hw_subpass = pvr_get_hw_subpass(pass, 0);
+   hw_subpass = pvr_arch_get_hw_subpass(pass, 0);
    if (hw_subpass->load_op) {
       result = pvr_cs_write_load_op(cmd_buffer,
                                     &cmd_buffer->state.current_sub_cmd->gfx,
@@ -4033,7 +4038,7 @@ pvr_can_pbe_resolve_ds_attachment(const struct pvr_device_info *dev_info,
    if (pvr_get_ds_component_bits(vk_format, VK_IMAGE_ASPECT_STENCIL_BIT))
       return false;
 
-   return pvr_format_is_pbe_downscalable(dev_info, vk_format);
+   return pvr_arch_format_is_pbe_downscalable(dev_info, vk_format);
 }
 
 static inline VkResult
@@ -4075,13 +4080,13 @@ static void pvr_dynamic_rendering_output_attachments_cleanup(
    if (!dr_info)
       return;
 
-   pvr_mrt_load_op_state_cleanup(device,
-                                 allocator,
-                                 dr_info->hw_render.load_op_state);
+   pvr_arch_mrt_load_op_state_cleanup(device,
+                                      allocator,
+                                      dr_info->hw_render.load_op_state);
 
-   pvr_destroy_mrt_setup(device, &dr_info->hw_render.eot_setup);
-   pvr_destroy_mrt_setup(device, &dr_info->hw_render.init_setup);
-   pvr_destroy_mrt_setup(device, dr_info->mrt_setup);
+   pvr_arch_destroy_mrt_setup(device, &dr_info->hw_render.eot_setup);
+   pvr_arch_destroy_mrt_setup(device, &dr_info->hw_render.init_setup);
+   pvr_arch_destroy_mrt_setup(device, dr_info->mrt_setup);
 
    vk_free2(&device->vk.alloc, allocator, dr_info->hw_render.eot_surfaces);
    vk_free2(&device->vk.alloc, allocator, dr_info->hw_render.color_init);
@@ -4275,8 +4280,10 @@ static VkResult pvr_dynamic_rendering_output_attachments_setup(
       }
    }
 
-   result =
-      pvr_init_usc_mrt_setup(device, mrt_count, attachment_formats, &mrt_setup);
+   result = pvr_arch_init_usc_mrt_setup(device,
+                                        mrt_count,
+                                        attachment_formats,
+                                        &mrt_setup);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_free_hw_render_eot_surface;
@@ -4291,7 +4298,7 @@ static VkResult pvr_dynamic_rendering_output_attachments_setup(
                                        dr_info->hw_render.output_regs_count,
                                        dr_info->hw_render.tile_buffers_count);
    if (result != VK_SUCCESS) {
-      pvr_destroy_mrt_setup(device, &mrt_setup);
+      pvr_arch_destroy_mrt_setup(device, &mrt_setup);
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_free_hw_render_eot_surface;
    }
@@ -4315,7 +4322,7 @@ static VkResult pvr_dynamic_rendering_output_attachments_setup(
                                        dr_info->hw_render.output_regs_count,
                                        dr_info->hw_render.tile_buffers_count);
    if (result != VK_SUCCESS) {
-      pvr_destroy_mrt_setup(device, &mrt_setup);
+      pvr_arch_destroy_mrt_setup(device, &mrt_setup);
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_finish_mrt_setup;
    }
@@ -4326,7 +4333,7 @@ static VkResult pvr_dynamic_rendering_output_attachments_setup(
                                        dr_info->hw_render.output_regs_count,
                                        dr_info->hw_render.tile_buffers_count);
    if (result != VK_SUCCESS) {
-      pvr_destroy_mrt_setup(device, &mrt_setup);
+      pvr_arch_destroy_mrt_setup(device, &mrt_setup);
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_finish_mrt_init_setup;
    }
@@ -4422,15 +4429,15 @@ static VkResult pvr_dynamic_rendering_output_attachments_setup(
 
    dr_info->hw_render.pbe_emits = pbe_emits;
 
-   pvr_destroy_mrt_setup(device, &mrt_setup);
+   pvr_arch_destroy_mrt_setup(device, &mrt_setup);
 
    return VK_SUCCESS;
 
 err_finish_mrt_init_setup:
-   pvr_destroy_mrt_setup(device, &dr_info->hw_render.init_setup);
+   pvr_arch_destroy_mrt_setup(device, &dr_info->hw_render.init_setup);
 
 err_finish_mrt_setup:
-   pvr_destroy_mrt_setup(device, dr_info->mrt_setup);
+   pvr_arch_destroy_mrt_setup(device, dr_info->mrt_setup);
 
 err_free_hw_render_eot_surface:
    vk_free(&device->vk.alloc, dr_info->hw_render.eot_surfaces);
@@ -4741,7 +4748,7 @@ static inline uint64_t pvr_render_pass_info_get_scratch_buffer_size(
    struct pvr_device *device,
    const struct pvr_render_pass_info *info)
 {
-   return pvr_spm_scratch_buffer_calc_required_size(
+   return pvr_arch_spm_scratch_buffer_calc_required_size(
       &info->dr_info->hw_render,
       1,
       info->dr_info->hw_render.sample_count,
@@ -4835,17 +4842,18 @@ void PVR_PER_ARCH(CmdBeginRendering)(VkCommandBuffer commandBuffer,
       pvr_render_pass_info_get_scratch_buffer_size(device,
                                                    &state->render_pass_info);
 
-   result = pvr_render_state_setup(device,
-                                   NULL,
-                                   state->render_pass_info.rstate,
-                                   1,
-                                   &dr_info->hw_render);
+   result = pvr_arch_render_state_setup(device,
+                                        NULL,
+                                        state->render_pass_info.rstate,
+                                        1,
+                                        &dr_info->hw_render);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_cleanup_tile_buffers;
    }
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_cleanup_render_state;
@@ -4856,9 +4864,9 @@ void PVR_PER_ARCH(CmdBeginRendering)(VkCommandBuffer commandBuffer,
    sub_cmd->dr_info = dr_info;
    assert(sub_cmd->dr_info);
 
-   result = pvr_mrt_load_ops_setup(cmd_buffer,
-                                   &cmd_buffer->vk.pool->alloc,
-                                   &dr_info->hw_render.load_op_state);
+   result = pvr_arch_mrt_load_ops_setup(cmd_buffer,
+                                        &cmd_buffer->vk.pool->alloc,
+                                        &dr_info->hw_render.load_op_state);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_cleanup_render_state;
@@ -4892,7 +4900,7 @@ void PVR_PER_ARCH(CmdEndRendering)(VkCommandBuffer commandBuffer)
       return;
    }
 
-   result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto exit_teardown_render;
@@ -5034,8 +5042,10 @@ static void pvr_cmd_buffer_state_from_dynamic_inheritance(
       attach_idx++;
    }
 
-   result =
-      pvr_init_usc_mrt_setup(device, mrt_count, attachment_formats, &mrt_setup);
+   result = pvr_arch_init_usc_mrt_setup(device,
+                                        mrt_count,
+                                        attachment_formats,
+                                        &mrt_setup);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_free_attachments;
@@ -5047,7 +5057,7 @@ static void pvr_cmd_buffer_state_from_dynamic_inheritance(
                                        mrt_setup.num_output_regs,
                                        mrt_setup.num_tile_buffers);
    if (result != VK_SUCCESS) {
-      pvr_destroy_mrt_setup(device, &mrt_setup);
+      pvr_arch_destroy_mrt_setup(device, &mrt_setup);
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_free_attachments;
    }
@@ -5065,7 +5075,7 @@ static void pvr_cmd_buffer_state_from_dynamic_inheritance(
       }
    }
 
-   pvr_destroy_mrt_setup(device, &mrt_setup);
+   pvr_arch_destroy_mrt_setup(device, &mrt_setup);
 
    if (dr_info->mrt_setup->num_tile_buffers) {
       result = pvr_device_tile_buffer_ensure_cap(
@@ -5091,7 +5101,7 @@ static void pvr_cmd_buffer_state_from_dynamic_inheritance(
    return;
 
 err_destroy_mrt_setup:
-   pvr_destroy_mrt_setup(device, dr_info->mrt_setup);
+   pvr_arch_destroy_mrt_setup(device, dr_info->mrt_setup);
 
 err_free_attachments:
    vk_free(&device->vk.alloc, dr_info->attachments);
@@ -5158,8 +5168,8 @@ PVR_PER_ARCH(BeginCommandBuffer)(VkCommandBuffer commandBuffer,
                pBeginInfo->pInheritanceInfo);
          }
 
-         result =
-            pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
+         result = pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer,
+                                                    PVR_SUB_CMD_TYPE_GRAPHICS);
          if (result != VK_SUCCESS)
             return result;
 
@@ -5189,7 +5199,8 @@ PVR_PER_ARCH(cmd_buffer_add_transfer_cmd)(struct pvr_cmd_buffer *cmd_buffer,
    struct pvr_sub_cmd_transfer *sub_cmd;
    VkResult result;
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_TRANSFER);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_TRANSFER);
    if (result != VK_SUCCESS)
       return result;
 
@@ -5214,11 +5225,11 @@ pvr_setup_vertex_buffers(struct pvr_cmd_buffer *cmd_buffer,
    uint64_t *qword_buffer;
    VkResult result;
 
-   result =
-      pvr_cmd_buffer_alloc_mem(cmd_buffer,
-                               cmd_buffer->device->heaps.pds_heap,
-                               PVR_DW_TO_BYTES(pds_info->data_size_in_dwords),
-                               &pvr_bo);
+   result = pvr_arch_cmd_buffer_alloc_mem(
+      cmd_buffer,
+      cmd_buffer->device->heaps.pds_heap,
+      PVR_DW_TO_BYTES(pds_info->data_size_in_dwords),
+      &pvr_bo);
    if (result != VK_SUCCESS)
       return result;
 
@@ -5482,11 +5493,11 @@ static VkResult pvr_setup_descriptor_mappings(
    if (!pds_info->data_size_in_dwords)
       return VK_SUCCESS;
 
-   result =
-      pvr_cmd_buffer_alloc_mem(cmd_buffer,
-                               cmd_buffer->device->heaps.pds_heap,
-                               PVR_DW_TO_BYTES(pds_info->data_size_in_dwords),
-                               &pvr_bo);
+   result = pvr_arch_cmd_buffer_alloc_mem(
+      cmd_buffer,
+      cmd_buffer->device->heaps.pds_heap,
+      PVR_DW_TO_BYTES(pds_info->data_size_in_dwords),
+      &pvr_bo);
    if (result != VK_SUCCESS)
       return result;
 
@@ -5571,7 +5582,7 @@ static VkResult pvr_setup_descriptor_mappings(
             descriptor_set = desc_state->sets[desc_set];
             assert(descriptor_set);
 
-            result = pvr_cmd_buffer_upload_general(
+            result = pvr_arch_cmd_buffer_upload_general(
                cmd_buffer,
                descriptor_set->dynamic_buffers,
                special_buff_entry->size_in_dwords * sizeof(uint32_t),
@@ -5618,10 +5629,11 @@ static VkResult pvr_setup_descriptor_mappings(
                &cmd_buffer->vk.dynamic_graphics_state.cb;
 
             struct pvr_suballoc_bo *blend_consts_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   cb->blend_constants,
-                                                   sizeof(cb->blend_constants),
-                                                   &blend_consts_bo);
+            result =
+               pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                  cb->blend_constants,
+                                                  sizeof(cb->blend_constants),
+                                                  &blend_consts_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5653,10 +5665,11 @@ static VkResult pvr_setup_descriptor_mappings(
                           sampler) {}
 
             struct pvr_suballoc_bo *point_sampler_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   point_sampler_words,
-                                                   sizeof(point_sampler_words),
-                                                   &point_sampler_bo);
+            result =
+               pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                  point_sampler_words,
+                                                  sizeof(point_sampler_words),
+                                                  &point_sampler_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5688,10 +5701,11 @@ static VkResult pvr_setup_descriptor_mappings(
                           sampler) {}
 
             struct pvr_suballoc_bo *ia_sampler_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   ia_sampler_words,
-                                                   sizeof(ia_sampler_words),
-                                                   &ia_sampler_bo);
+            result =
+               pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                  ia_sampler_words,
+                                                  sizeof(ia_sampler_words),
+                                                  &ia_sampler_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5725,10 +5739,10 @@ static VkResult pvr_setup_descriptor_mappings(
             }
 
             struct pvr_suballoc_bo *ff_op_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   &ff_op,
-                                                   sizeof(ff_op),
-                                                   &ff_op_bo);
+            result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                        &ff_op,
+                                                        sizeof(ff_op),
+                                                        &ff_op_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5757,10 +5771,10 @@ static VkResult pvr_setup_descriptor_mappings(
                fs_meta |= (1 << 25);
 
             struct pvr_suballoc_bo *fs_meta_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   &fs_meta,
-                                                   sizeof(fs_meta),
-                                                   &fs_meta_bo);
+            result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                        &fs_meta,
+                                                        sizeof(fs_meta),
+                                                        &fs_meta_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5794,11 +5808,11 @@ static VkResult pvr_setup_descriptor_mappings(
             }
 
             struct pvr_suballoc_bo *tile_buffer_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   &tile_buffer_addrs,
-                                                   num_tile_buffers *
-                                                      sizeof(uint64_t),
-                                                   &tile_buffer_bo);
+            result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                        &tile_buffer_addrs,
+                                                        num_tile_buffers *
+                                                           sizeof(uint64_t),
+                                                        &tile_buffer_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5817,10 +5831,10 @@ static VkResult pvr_setup_descriptor_mappings(
                                                 : sizeof(uint32_t);
 
             struct pvr_suballoc_bo *spill_buffer_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   NULL,
-                                                   spill_block_size * 2048,
-                                                   &spill_buffer_bo);
+            result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                        NULL,
+                                                        spill_block_size * 2048,
+                                                        &spill_buffer_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5832,10 +5846,10 @@ static VkResult pvr_setup_descriptor_mappings(
             };
 
             struct pvr_suballoc_bo *spill_info_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   spill_info,
-                                                   sizeof(spill_info),
-                                                   &spill_info_bo);
+            result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                        spill_info,
+                                                        sizeof(spill_info),
+                                                        &spill_info_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5855,10 +5869,11 @@ static VkResult pvr_setup_descriptor_mappings(
              * programmatically!
              */
             struct pvr_suballoc_bo *scratch_buffer_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   NULL,
-                                                   scratch_block_size * 2048,
-                                                   &scratch_buffer_bo);
+            result =
+               pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                  NULL,
+                                                  scratch_block_size * 2048,
+                                                  &scratch_buffer_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5870,10 +5885,10 @@ static VkResult pvr_setup_descriptor_mappings(
             };
 
             struct pvr_suballoc_bo *scratch_info_bo;
-            result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                   scratch_info,
-                                                   sizeof(scratch_info),
-                                                   &scratch_info_bo);
+            result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                        scratch_info,
+                                                        sizeof(scratch_info),
+                                                        &scratch_info_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -5895,11 +5910,11 @@ static VkResult pvr_setup_descriptor_mappings(
             };
 
             struct pvr_suballoc_bo *sample_locations_bo;
-            result =
-               pvr_cmd_buffer_upload_general(cmd_buffer,
-                                             &packed_sample_locations,
-                                             sizeof(packed_sample_locations),
-                                             &sample_locations_bo);
+            result = pvr_arch_cmd_buffer_upload_general(
+               cmd_buffer,
+               &packed_sample_locations,
+               sizeof(packed_sample_locations),
+               &sample_locations_bo);
 
             if (result != VK_SUCCESS)
                return result;
@@ -6274,10 +6289,10 @@ static VkResult pvr_cmd_upload_push_consts(struct pvr_cmd_buffer *cmd_buffer,
    if (!push_consts->dirty)
       return VK_SUCCESS;
 
-   result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                          push_consts->data,
-                                          push_consts->bytes_updated,
-                                          &suballoc_bo);
+   result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                               push_consts->data,
+                                               push_consts->bytes_updated,
+                                               &suballoc_bo);
    if (result != VK_SUCCESS)
       return result;
 
@@ -6300,7 +6315,7 @@ static void pvr_cmd_dispatch(
    struct pvr_sub_cmd_compute *sub_cmd;
    VkResult result;
 
-   pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_COMPUTE);
+   pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_COMPUTE);
 
    sub_cmd = &state->current_sub_cmd->compute;
    sub_cmd->uses_atomic_ops |= cs_data->common.uses.atomics;
@@ -7110,7 +7125,7 @@ setup_pds_fragment_program(struct pvr_cmd_buffer *const cmd_buffer,
       &doutu_src);
 
    /* FIXME: Figure out the define for alignment of 16. */
-   return pvr_cmd_buffer_upload_pds(
+   return pvr_arch_cmd_buffer_upload_pds(
       cmd_buffer,
       &pds_fragment_program_buffer[0],
       program->data_size,
@@ -7178,7 +7193,7 @@ setup_pds_coeff_program(struct pvr_cmd_buffer *const cmd_buffer,
    }
 
    /* FIXME: Figure out the define for alignment of 16. */
-   return pvr_cmd_buffer_upload_pds(
+   return pvr_arch_cmd_buffer_upload_pds(
       cmd_buffer,
       &pds_coeff_program_buffer[0],
       program->data_size,
@@ -7240,7 +7255,7 @@ pvr_setup_fragment_state_pointers(struct pvr_cmd_buffer *const cmd_buffer,
                    ROGUE_TA_STATE_PDS_SIZEINFO2_USC_SHAREDSIZE_UNIT_SIZE);
 
    const uint32_t max_tiles_in_flight =
-      pvr_calc_fscommon_size_and_tiles_in_flight(
+      pvr_arch_calc_fscommon_size_and_tiles_in_flight(
          &pdevice->dev_info,
          &pdevice->dev_runtime_info,
          usc_shared_size *
@@ -7695,10 +7710,11 @@ static VkResult pvr_emit_ppp_state(struct pvr_cmd_buffer *const cmd_buffer,
    ppp_state_words_count = buffer_ptr - ppp_state_words;
    assert(ppp_state_words_count <= PVR_MAX_PPP_STATE_DWORDS);
 
-   result = pvr_cmd_buffer_alloc_mem(cmd_buffer,
-                                     cmd_buffer->device->heaps.general_heap,
-                                     PVR_DW_TO_BYTES(ppp_state_words_count),
-                                     &pvr_bo);
+   result =
+      pvr_arch_cmd_buffer_alloc_mem(cmd_buffer,
+                                    cmd_buffer->device->heaps.general_heap,
+                                    PVR_DW_TO_BYTES(ppp_state_words_count),
+                                    &pvr_bo);
    if (result != VK_SUCCESS)
       return result;
 
@@ -7730,7 +7746,7 @@ static VkResult pvr_emit_ppp_state(struct pvr_cmd_buffer *const cmd_buffer,
 
          pvr_csb_set_relocation_mark(control_stream);
 
-         vdm_state = pvr_csb_alloc_dwords(control_stream, num_dwords);
+         vdm_state = pvr_arch_csb_alloc_dwords(control_stream, num_dwords);
          if (!vdm_state) {
             result = pvr_csb_get_status(control_stream);
             return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
@@ -7828,10 +7844,10 @@ pvr_emit_dirty_ppp_state(struct pvr_cmd_buffer *const cmd_buffer,
    VkResult result;
 
    /* TODO: The emit_header will be dirty only if
-    * pvr_reset_graphics_dirty_state() was called before this (so when command
-    * buffer begins recording or when it's reset). Otherwise it will have been
-    * zeroed out by the previous pvr_emit_ppp_state(). We can probably set a
-    * flag in there and check it here instead of checking the header.
+    * pvr_arch_reset_graphics_dirty_state() was called before this (so when
+    * command buffer begins recording or when it's reset). Otherwise it will
+    * have been zeroed out by the previous pvr_emit_ppp_state(). We can probably
+    * set a flag in there and check it here instead of checking the header.
     * Check if this is true and implement the flag.
     */
    if (!pvr_ppp_state_update_required(cmd_buffer))
@@ -7989,11 +8005,11 @@ static void pvr_emit_dirty_vdm_state(struct pvr_cmd_buffer *const cmd_buffer,
    /* CAM Calculations and HW state take vertex size aligned to DWORDS. */
    assert(vs_data->vs.vtxouts <= max_user_vertex_output_components);
 
-   pvr_calculate_vertex_cam_size(dev_info,
-                                 vs_data->vs.vtxouts,
-                                 true,
-                                 &cam_size,
-                                 &max_instances);
+   pvr_arch_calculate_vertex_cam_size(dev_info,
+                                      vs_data->vs.vtxouts,
+                                      true,
+                                      &cam_size,
+                                      &max_instances);
 
    pvr_csb_set_relocation_mark(csb);
 
@@ -8099,7 +8115,7 @@ static VkResult pvr_validate_draw_state(struct pvr_cmd_buffer *cmd_buffer)
    bool bstencil_keep;
    VkResult result;
 
-   pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
+   pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
 
    sub_cmd = &state->current_sub_cmd->gfx;
    sub_cmd->empty_cmd = false;
@@ -8345,10 +8361,11 @@ pvr_write_draw_indirect_vdm_stream(struct pvr_cmd_buffer *cmd_buffer,
       VkResult result;
 
       /* TODO: Move this outside the loop and allocate all of them in one go? */
-      result = pvr_cmd_buffer_alloc_mem(cmd_buffer,
-                                        cmd_buffer->device->heaps.general_heap,
-                                        DUMMY_VDM_CONTROL_STREAM_BLOCK_SIZE,
-                                        &dummy_bo);
+      result =
+         pvr_arch_cmd_buffer_alloc_mem(cmd_buffer,
+                                       cmd_buffer->device->heaps.general_heap,
+                                       DUMMY_VDM_CONTROL_STREAM_BLOCK_SIZE,
+                                       &dummy_bo);
       if (result != VK_SUCCESS)
          return result;
 
@@ -8370,10 +8387,10 @@ pvr_write_draw_indirect_vdm_stream(struct pvr_cmd_buffer *cmd_buffer,
       pds_size = PVR_DW_TO_BYTES(pds_prog.program.data_size_aligned +
                                  pds_prog.program.code_size_aligned);
 
-      result = pvr_cmd_buffer_alloc_mem(cmd_buffer,
-                                        cmd_buffer->device->heaps.pds_heap,
-                                        pds_size,
-                                        &pds_bo);
+      result = pvr_arch_cmd_buffer_alloc_mem(cmd_buffer,
+                                             cmd_buffer->device->heaps.pds_heap,
+                                             pds_size,
+                                             &pds_bo);
       if (result != VK_SUCCESS)
          return result;
 
@@ -8763,7 +8780,7 @@ void PVR_PER_ARCH(CmdEndRenderPass2)(VkCommandBuffer commandBuffer,
    assert(state->render_pass_info.pass);
    assert(state->render_pass_info.framebuffer);
 
-   result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
    if (result != VK_SUCCESS)
       return;
 
@@ -8819,10 +8836,10 @@ pvr_execute_deferred_cmd_buffer(struct pvr_cmd_buffer *cmd_buffer,
             ispdbsc.scindex = scissor_idx;
          }
 
-         result = pvr_cmd_buffer_upload_general(cmd_buffer,
-                                                &ppp_state[0],
-                                                sizeof(ppp_state),
-                                                &suballoc_bo);
+         result = pvr_arch_cmd_buffer_upload_general(cmd_buffer,
+                                                     &ppp_state[0],
+                                                     sizeof(ppp_state),
+                                                     &suballoc_bo);
          if (result != VK_SUCCESS)
             return result;
 
@@ -8948,12 +8965,12 @@ pvr_execute_graphics_cmd_buffer(struct pvr_cmd_buffer *cmd_buffer,
        primary_sub_cmd->gfx.query_pool != first_sec_cmd->gfx.query_pool) {
       state->current_sub_cmd->gfx.barrier_store = true;
 
-      result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+      result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
       if (result != VK_SUCCESS)
          return result;
 
-      result =
-         pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
+      result = pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer,
+                                                 PVR_SUB_CMD_TYPE_GRAPHICS);
       if (result != VK_SUCCESS)
          return result;
 
@@ -8986,7 +9003,7 @@ pvr_execute_graphics_cmd_buffer(struct pvr_cmd_buffer *cmd_buffer,
       if (pvr_cmd_uses_deferred_cs_cmds(sec_cmd_buffer)) {
          /* TODO: In case if secondary buffer is created with
           * VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, then we patch the
-          * stream and copy it to primary stream using pvr_csb_copy below.
+          * stream and copy it to primary stream using pvr_arch_csb_copy below.
           * This will need locking if the same secondary command buffer is
           * executed in multiple primary buffers at the same time.
           */
@@ -8994,8 +9011,8 @@ pvr_execute_graphics_cmd_buffer(struct pvr_cmd_buffer *cmd_buffer,
          if (result != VK_SUCCESS)
             return result;
 
-         result = pvr_csb_copy(&primary_sub_cmd->gfx.control_stream,
-                               &sec_sub_cmd->gfx.control_stream);
+         result = pvr_arch_csb_copy(&primary_sub_cmd->gfx.control_stream,
+                                    &sec_sub_cmd->gfx.control_stream);
          if (result != VK_SUCCESS)
             return pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
       } else {
@@ -9003,7 +9020,7 @@ pvr_execute_graphics_cmd_buffer(struct pvr_cmd_buffer *cmd_buffer,
          if (result != VK_SUCCESS)
             return result;
 
-         pvr_csb_emit_link(
+         pvr_arch_csb_emit_link(
             &primary_sub_cmd->gfx.control_stream,
             pvr_csb_get_start_address(&sec_sub_cmd->gfx.control_stream),
             true);
@@ -9048,12 +9065,12 @@ pvr_execute_graphics_cmd_buffer(struct pvr_cmd_buffer *cmd_buffer,
          state->current_sub_cmd->gfx.barrier_store = true;
          state->current_sub_cmd->gfx.empty_cmd = false;
 
-         result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+         result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
          if (result != VK_SUCCESS)
             return result;
 
-         result =
-            pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
+         result = pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer,
+                                                    PVR_SUB_CMD_TYPE_GRAPHICS);
          if (result != VK_SUCCESS)
             return result;
 
@@ -9098,7 +9115,7 @@ void PVR_PER_ARCH(CmdExecuteCommands)(VkCommandBuffer commandBuffer,
     * Can't just copy state from the secondary because the recording state of
     * the secondary command buffers would have been deleted at this point.
     */
-   pvr_reset_graphics_dirty_state(cmd_buffer, false);
+   pvr_arch_reset_graphics_dirty_state(cmd_buffer, false);
 
    if (state->current_sub_cmd &&
        state->current_sub_cmd->type == PVR_SUB_CMD_TYPE_GRAPHICS) {
@@ -9127,7 +9144,7 @@ void PVR_PER_ARCH(CmdExecuteCommands)(VkCommandBuffer commandBuffer,
 
          assert(sec_cmd_buffer->vk.level == VK_COMMAND_BUFFER_LEVEL_SECONDARY);
 
-         result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+         result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
          if (result != VK_SUCCESS)
             return;
 
@@ -9187,7 +9204,7 @@ static void pvr_insert_transparent_obj(struct pvr_cmd_buffer *const cmd_buffer,
    pvr_emit_clear_words(cmd_buffer, sub_cmd);
 
    /* Reset graphics state. */
-   pvr_reset_graphics_dirty_state(cmd_buffer, false);
+   pvr_arch_reset_graphics_dirty_state(cmd_buffer, false);
 }
 
 static inline struct pvr_render_subpass *
@@ -9220,7 +9237,7 @@ void PVR_PER_ARCH(CmdNextSubpass2)(VkCommandBuffer commandBuffer,
    next_hw_render = &pass->hw_setup->renders[next_map->render];
 
    if (current_map->render != next_map->render) {
-      result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+      result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
       if (result != VK_SUCCESS)
          return;
 
@@ -9230,8 +9247,8 @@ void PVR_PER_ARCH(CmdNextSubpass2)(VkCommandBuffer commandBuffer,
 
       rp_info->current_hw_subpass = next_map->render;
 
-      result =
-         pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
+      result = pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer,
+                                                 PVR_SUB_CMD_TYPE_GRAPHICS);
       if (result != VK_SUCCESS)
          return;
 
@@ -9362,7 +9379,7 @@ static bool pvr_is_stencil_store_load_needed(
 
    hw_render_idx = state->current_sub_cmd->gfx.hw_render_idx;
    hw_render =
-      pvr_pass_info_get_hw_render(&state->render_pass_info, hw_render_idx);
+      pvr_arch_pass_info_get_hw_render(&state->render_pass_info, hw_render_idx);
 
    if (hw_render->ds_attach_idx == VK_ATTACHMENT_UNUSED)
       return false;
@@ -9427,8 +9444,9 @@ pvr_cmd_buffer_insert_mid_frag_barrier_event(struct pvr_cmd_buffer *cmd_buffer,
    /* Submit graphics job to store stencil. */
    cmd_buffer->state.current_sub_cmd->gfx.barrier_store = true;
 
-   pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+   pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
    if (result != VK_SUCCESS)
       return result;
 
@@ -9439,8 +9457,8 @@ pvr_cmd_buffer_insert_mid_frag_barrier_event(struct pvr_cmd_buffer *cmd_buffer,
          .wait_at_stage_mask = dst_stage_mask,
       },
    };
-   pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
-   pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
+   pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
+   pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_GRAPHICS);
 
    cmd_buffer->state.current_sub_cmd->gfx.dr_info = prev_sub_cmd->gfx.dr_info;
    prev_sub_cmd->gfx.dr_info = NULL;
@@ -9466,7 +9484,8 @@ pvr_cmd_buffer_insert_barrier_event(struct pvr_cmd_buffer *cmd_buffer,
 {
    VkResult result;
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
    if (result != VK_SUCCESS)
       return result;
 
@@ -9478,7 +9497,7 @@ pvr_cmd_buffer_insert_barrier_event(struct pvr_cmd_buffer *cmd_buffer,
       },
    };
 
-   return pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   return pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
 }
 
 /* This is just enough to handle vkCmdPipelineBarrier().
@@ -9585,9 +9604,9 @@ void PVR_PER_ARCH(CmdPipelineBarrier2)(VkCommandBuffer commandBuffer,
           */
          pvr_compute_generate_idfwdf(cmd_buffer, &current_sub_cmd->compute);
 
-         pvr_compute_generate_fence(cmd_buffer,
-                                    &current_sub_cmd->compute,
-                                    false);
+         pvr_arch_compute_generate_fence(cmd_buffer,
+                                         &current_sub_cmd->compute,
+                                         false);
          break;
 
       default:
@@ -9633,7 +9652,8 @@ void PVR_PER_ARCH(CmdResetEvent2)(VkCommandBuffer commandBuffer,
 
    PVR_CHECK_COMMAND_BUFFER_BUILDING_STATE(cmd_buffer);
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
    if (result != VK_SUCCESS)
       return;
 
@@ -9645,7 +9665,7 @@ void PVR_PER_ARCH(CmdResetEvent2)(VkCommandBuffer commandBuffer,
       },
    };
 
-   pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
 }
 
 void PVR_PER_ARCH(CmdSetEvent2)(VkCommandBuffer commandBuffer,
@@ -9658,7 +9678,8 @@ void PVR_PER_ARCH(CmdSetEvent2)(VkCommandBuffer commandBuffer,
 
    PVR_CHECK_COMMAND_BUFFER_BUILDING_STATE(cmd_buffer);
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
    if (result != VK_SUCCESS)
       return;
 
@@ -9673,7 +9694,7 @@ void PVR_PER_ARCH(CmdSetEvent2)(VkCommandBuffer commandBuffer,
       },
    };
 
-   pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
 }
 
 void PVR_PER_ARCH(CmdWaitEvents2)(VkCommandBuffer commandBuffer,
@@ -9699,7 +9720,8 @@ void PVR_PER_ARCH(CmdWaitEvents2)(VkCommandBuffer commandBuffer,
       return;
    }
 
-   result = pvr_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
+   result =
+      pvr_arch_cmd_buffer_start_sub_cmd(cmd_buffer, PVR_SUB_CMD_TYPE_EVENT);
    if (result != VK_SUCCESS) {
       vk_free(&cmd_buffer->vk.pool->alloc, events_array);
       return;
@@ -9732,7 +9754,7 @@ void PVR_PER_ARCH(CmdWaitEvents2)(VkCommandBuffer commandBuffer,
       },
    };
 
-   pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
 }
 
 void PVR_PER_ARCH(CmdWriteTimestamp2)(VkCommandBuffer commandBuffer,
@@ -9757,7 +9779,7 @@ VkResult PVR_PER_ARCH(EndCommandBuffer)(VkCommandBuffer commandBuffer)
     */
    util_dynarray_fini(&state->query_indices);
 
-   result = pvr_cmd_buffer_end_sub_cmd(cmd_buffer);
+   result = pvr_arch_cmd_buffer_end_sub_cmd(cmd_buffer);
    if (result != VK_SUCCESS)
       pvr_cmd_buffer_set_error_unwarned(cmd_buffer, result);
 

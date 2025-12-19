@@ -1345,7 +1345,7 @@ PVR_PER_ARCH(transfer_ctx_create)(struct pvr_device *const device,
          if (i == 0U && j == 0U)
             continue;
 
-         result = pvr_pds_unitex_state_program_create_and_upload(
+         result = pvr_arch_pds_unitex_state_program_create_and_upload(
             device,
             NULL,
             i,

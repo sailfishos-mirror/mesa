@@ -173,7 +173,7 @@ void PVR_PER_ARCH(rt_mtile_info_init)(const struct pvr_device_info *dev_info,
                                       uint32_t height,
                                       uint32_t samples);
 
-#   define pvr_rt_mtile_info_init PVR_PER_ARCH(rt_mtile_info_init)
+#   define pvr_arch_rt_mtile_info_init PVR_PER_ARCH(rt_mtile_info_init)
 
 VkResult PVR_PER_ARCH(render_target_dataset_create)(
    struct pvr_device *device,
@@ -183,7 +183,7 @@ VkResult PVR_PER_ARCH(render_target_dataset_create)(
    uint32_t layers,
    struct pvr_rt_dataset **const rt_dataset_out);
 
-#   define pvr_render_target_dataset_create \
+#   define pvr_arch_render_target_dataset_create \
       PVR_PER_ARCH(render_target_dataset_create)
 
 VkResult PVR_PER_ARCH(render_job_submit)(struct pvr_render_ctx *ctx,
@@ -193,7 +193,7 @@ VkResult PVR_PER_ARCH(render_job_submit)(struct pvr_render_ctx *ctx,
                                          struct vk_sync *signal_sync_geom,
                                          struct vk_sync *signal_sync_frag);
 
-#   define pvr_render_job_submit PVR_PER_ARCH(render_job_submit)
+#   define pvr_arch_render_job_submit PVR_PER_ARCH(render_job_submit)
 
 #endif
 

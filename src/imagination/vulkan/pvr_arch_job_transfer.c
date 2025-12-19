@@ -816,14 +816,14 @@ pvr_pbe_setup_codegen_defaults(const struct pvr_device_info *dev_info,
    swizzle = pvr_get_format_swizzle(format);
    memcpy(surface_params->swizzle, swizzle, sizeof(surface_params->swizzle));
 
-   pvr_pbe_get_src_format_and_gamma(format,
-                                    PVR_PBE_GAMMA_NONE,
-                                    false,
-                                    &surface_params->source_format,
-                                    &surface_params->gamma);
+   pvr_arch_pbe_get_src_format_and_gamma(format,
+                                         PVR_PBE_GAMMA_NONE,
+                                         false,
+                                         &surface_params->source_format,
+                                         &surface_params->gamma);
 
    surface_params->is_normalized = pvr_vk_format_is_fully_normalized(format);
-   surface_params->pbe_packmode = pvr_get_pbe_packmode(format);
+   surface_params->pbe_packmode = pvr_arch_get_pbe_packmode(format);
    surface_params->nr_components = vk_format_get_nr_components(format);
 
    result = pvr_mem_layout_spec(dst,
@@ -1206,16 +1206,16 @@ static VkResult pvr_pbe_setup_emit(const struct pvr_transfer_cmd *transfer_cmd,
                                              staging_buffer + program.data_size,
                                              dev_info);
 
-   result =
-      pvr_cmd_buffer_upload_pds(transfer_cmd->cmd_buffer,
-                                staging_buffer,
-                                program.data_size,
-                                ROGUE_CR_EVENT_PIXEL_PDS_DATA_ADDR_ALIGNMENT,
-                                staging_buffer + program.data_size,
-                                program.code_size,
-                                ROGUE_CR_EVENT_PIXEL_PDS_CODE_ADDR_ALIGNMENT,
-                                ROGUE_CR_EVENT_PIXEL_PDS_DATA_ADDR_ALIGNMENT,
-                                &pds_upload);
+   result = pvr_arch_cmd_buffer_upload_pds(
+      transfer_cmd->cmd_buffer,
+      staging_buffer,
+      program.data_size,
+      ROGUE_CR_EVENT_PIXEL_PDS_DATA_ADDR_ALIGNMENT,
+      staging_buffer + program.data_size,
+      program.code_size,
+      ROGUE_CR_EVENT_PIXEL_PDS_CODE_ADDR_ALIGNMENT,
+      ROGUE_CR_EVENT_PIXEL_PDS_DATA_ADDR_ALIGNMENT,
+      &pds_upload);
    vk_free(&device->vk.alloc, staging_buffer);
    if (result != VK_SUCCESS)
       return result;
@@ -1300,11 +1300,11 @@ static VkResult pvr_pbe_setup(const struct pvr_transfer_cmd *transfer_cmd,
 
       pvr_pbe_setup_swizzle(transfer_cmd, state, &surf_params);
 
-      pvr_pbe_pack_state(dev_info,
-                         &surf_params,
-                         &render_params,
-                         pbe_words,
-                         pbe_regs);
+      pvr_arch_pbe_pack_state(dev_info,
+                              &surf_params,
+                              &render_params,
+                              pbe_words,
+                              pbe_regs);
 
       if (PVR_HAS_ERN(dev_info, 42064)) {
          uint64_t temp_reg;
@@ -1438,14 +1438,14 @@ static VkResult pvr_isp_tiles(const struct pvr_device *device,
       reg.y = origin_y;
    }
 
-   pvr_setup_tiles_in_flight(dev_info,
-                             dev_runtime_info,
-                             pvr_cr_isp_aa_mode_type(samples),
-                             state->usc_pixel_width,
-                             state->pair_tiles != PVR_PAIRED_TILES_NONE,
-                             0,
-                             &isp_tiles_in_flight,
-                             &state->regs.usc_pixel_output_ctrl);
+   pvr_arch_setup_tiles_in_flight(dev_info,
+                                  dev_runtime_info,
+                                  pvr_cr_isp_aa_mode_type(samples),
+                                  state->usc_pixel_width,
+                                  state->pair_tiles != PVR_PAIRED_TILES_NONE,
+                                  0,
+                                  &isp_tiles_in_flight,
+                                  &state->regs.usc_pixel_output_ctrl);
 
    pvr_csb_pack (&state->regs.isp_ctl, CR_ISP_CTL, reg) {
       reg.process_empty_tiles = true;
@@ -1737,7 +1737,7 @@ static inline VkResult pvr_image_state_set_codegen_defaults(
    else
       info.type = VK_IMAGE_VIEW_TYPE_1D;
 
-   result = pvr_pack_tex_state(device, &info, &image_state);
+   result = pvr_arch_pack_tex_state(device, &info, &image_state);
    if (result != VK_SUCCESS)
       return result;
 
@@ -2241,10 +2241,10 @@ pvr_pds_unitex(const struct pvr_device_info *dev_info,
                 ROGUE_TA_STATE_PDS_SIZEINFO1_PDS_TEXTURESTATESIZE_UNIT_SIZE);
 
    result =
-      pvr_cmd_buffer_alloc_mem(transfer_cmd->cmd_buffer,
-                               ctx->device->heaps.pds_heap,
-                               PVR_DW_TO_BYTES(state->tex_state_data_size),
-                               &pvr_bo);
+      pvr_arch_cmd_buffer_alloc_mem(transfer_cmd->cmd_buffer,
+                                    ctx->device->heaps.pds_heap,
+                                    PVR_DW_TO_BYTES(state->tex_state_data_size),
+                                    &pvr_bo);
    if (result != VK_SUCCESS)
       return result;
 
@@ -2375,7 +2375,7 @@ static VkResult pvr_pack_clear_color(VkFormat format,
 {
    const uint32_t red_width =
       vk_format_get_component_bits(format, UTIL_FORMAT_COLORSPACE_RGB, 0U);
-   uint32_t pbe_pack_mode = pvr_get_pbe_packmode(format);
+   uint32_t pbe_pack_mode = pvr_arch_get_pbe_packmode(format);
    const bool pbe_norm = pvr_vk_format_is_fully_normalized(format);
 
    /* TODO: Use PBE Accum format NOT PBE pack format! */
@@ -2950,10 +2950,11 @@ static VkResult pvr_3d_copy_blit_core(struct pvr_transfer_ctx *ctx,
       unitex_prog.num_texture_dma_kicks = 1U;
       unitex_prog.num_uniform_dma_kicks = 0U;
 
-      result = pvr_cmd_buffer_alloc_mem(transfer_cmd->cmd_buffer,
-                                        device->heaps.general_heap,
-                                        PVR_DW_TO_BYTES(tex_state_dma_size_dw),
-                                        &pvr_bo);
+      result =
+         pvr_arch_cmd_buffer_alloc_mem(transfer_cmd->cmd_buffer,
+                                       device->heaps.general_heap,
+                                       PVR_DW_TO_BYTES(tex_state_dma_size_dw),
+                                       &pvr_bo);
       if (result != VK_SUCCESS)
          return result;
 
@@ -3132,7 +3133,7 @@ pvr_pds_coeff_task(struct pvr_transfer_ctx *ctx,
 
    pvr_pds_set_sizes_coeff_loading(&program);
 
-   result = pvr_cmd_buffer_alloc_mem(
+   result = pvr_arch_cmd_buffer_alloc_mem(
       transfer_cmd->cmd_buffer,
       ctx->device->heaps.pds_heap,
       PVR_DW_TO_BYTES(program.data_size + program.code_size),
@@ -4131,10 +4132,10 @@ static VkResult pvr_isp_ctrl_stream(const struct pvr_device_info *dev_info,
    total_stream_size = region_arrays_size + prim_blk_size;
 
    /* Allocate space for IPF control stream. */
-   result = pvr_cmd_buffer_alloc_mem(transfer_cmd->cmd_buffer,
-                                     ctx->device->heaps.transfer_frag_heap,
-                                     total_stream_size,
-                                     &pvr_cs_bo);
+   result = pvr_arch_cmd_buffer_alloc_mem(transfer_cmd->cmd_buffer,
+                                          ctx->device->heaps.transfer_frag_heap,
+                                          total_stream_size,
+                                          &pvr_cs_bo);
    if (result != VK_SUCCESS)
       return result;
 
@@ -4295,10 +4296,11 @@ static VkResult pvr_isp_ctrl_stream(const struct pvr_device_info *dev_info,
             unitex_pds_prog.num_uniform_dma_kicks = 0U;
 
             /* Allocate memory for DMA. */
-            result = pvr_cmd_buffer_alloc_mem(transfer_cmd->cmd_buffer,
-                                              ctx->device->heaps.general_heap,
-                                              tex_state_dma_size << 2U,
-                                              &pvr_bo);
+            result =
+               pvr_arch_cmd_buffer_alloc_mem(transfer_cmd->cmd_buffer,
+                                             ctx->device->heaps.general_heap,
+                                             tex_state_dma_size << 2U,
+                                             &pvr_bo);
             if (result != VK_SUCCESS)
                return result;
 

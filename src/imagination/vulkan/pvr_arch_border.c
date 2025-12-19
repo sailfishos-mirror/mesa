@@ -496,7 +496,7 @@ static inline void pvr_border_color_table_set_custom_entry(
    struct pvr_border_color_table_entry *const entry = &entries[index];
 
    const enum pipe_format format = vk_format_to_pipe_format(vk_format);
-   uint32_t tex_format = pvr_get_tex_format(vk_format);
+   uint32_t tex_format = pvr_arch_get_tex_format(vk_format);
 
    assert(tex_format != ROGUE_TEXSTATE_FORMAT_INVALID);
 
@@ -527,7 +527,7 @@ static inline void pvr_border_color_table_set_custom_entry(
           * format relative to the depth-only or stencil-only compoment
           * associated with this Vulkan format.
           */
-         tex_format = pvr_get_tex_format_aspect(vk_format, aspect_mask);
+         tex_format = pvr_arch_get_tex_format_aspect(vk_format, aspect_mask);
          assert(tex_format != ROGUE_TEXSTATE_FORMAT_INVALID);
       }
 

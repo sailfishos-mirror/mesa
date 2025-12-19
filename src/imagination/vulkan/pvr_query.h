@@ -78,13 +78,13 @@ VK_DEFINE_NONDISP_HANDLE_CASTS(pvr_query_pool,
 VkResult PVR_PER_ARCH(device_create_compute_query_programs)(
    struct pvr_device *device);
 
-#   define pvr_device_create_compute_query_programs \
+#   define pvr_arch_device_create_compute_query_programs \
       PVR_PER_ARCH(device_create_compute_query_programs)
 
 void PVR_PER_ARCH(device_destroy_compute_query_programs)(
    struct pvr_device *device);
 
-#   define pvr_device_destroy_compute_query_programs \
+#   define pvr_arch_device_destroy_compute_query_programs \
       PVR_PER_ARCH(device_destroy_compute_query_programs)
 
 #endif

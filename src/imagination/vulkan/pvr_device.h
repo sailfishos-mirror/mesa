@@ -229,7 +229,7 @@ uint32_t PVR_PER_ARCH(calc_fscommon_size_and_tiles_in_flight)(
    uint32_t fs_common_size,
    uint32_t min_tiles_in_flight);
 
-#   define pvr_calc_fscommon_size_and_tiles_in_flight \
+#   define pvr_arch_calc_fscommon_size_and_tiles_in_flight \
       PVR_PER_ARCH(calc_fscommon_size_and_tiles_in_flight)
 
 VkResult PVR_PER_ARCH(pds_compute_shader_create_and_upload)(
@@ -237,7 +237,7 @@ VkResult PVR_PER_ARCH(pds_compute_shader_create_and_upload)(
    struct pvr_pds_compute_shader_program *program,
    struct pvr_pds_upload *const pds_upload_out);
 
-#   define pvr_pds_compute_shader_create_and_upload \
+#   define pvr_arch_pds_compute_shader_create_and_upload \
       PVR_PER_ARCH(pds_compute_shader_create_and_upload)
 
 #endif /* PVR_PER_ARCH */

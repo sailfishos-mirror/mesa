@@ -148,17 +148,17 @@ VkResult PVR_PER_ARCH(render_state_setup)(
       goto err_release_scratch_buffer;
 
    for (uint32_t i = 0; i < render_count; i++) {
-      result = pvr_spm_init_eot_state(device,
-                                      &spm_eot_state_per_render[i],
-                                      rstate,
-                                      &renders[i]);
+      result = pvr_arch_spm_init_eot_state(device,
+                                           &spm_eot_state_per_render[i],
+                                           rstate,
+                                           &renders[i]);
       if (result != VK_SUCCESS)
          goto err_finish_eot_state;
 
-      result = pvr_spm_init_bgobj_state(device,
-                                        &spm_bgobj_state_per_render[i],
-                                        rstate,
-                                        &renders[i]);
+      result = pvr_arch_spm_init_bgobj_state(device,
+                                             &spm_bgobj_state_per_render[i],
+                                             rstate,
+                                             &renders[i]);
       if (result != VK_SUCCESS)
          goto err_finish_bgobj_state;
 
@@ -203,7 +203,7 @@ pvr_render_pass_get_scratch_buffer_size(struct pvr_device *device,
                                         const struct pvr_render_pass *pass,
                                         const struct pvr_render_state *rstate)
 {
-   return pvr_spm_scratch_buffer_calc_required_size(
+   return pvr_arch_spm_scratch_buffer_calc_required_size(
       pass->hw_setup->renders,
       pass->hw_setup->render_count,
       pass->max_sample_count,
@@ -268,11 +268,11 @@ PVR_PER_ARCH(CreateFramebuffer)(VkDevice _device,
    rstate->scratch_buffer_size =
       pvr_render_pass_get_scratch_buffer_size(device, pass, rstate);
 
-   result = pvr_render_state_setup(device,
-                                   pAllocator,
-                                   rstate,
-                                   pass->hw_setup->render_count,
-                                   pass->hw_setup->renders);
+   result = pvr_arch_render_state_setup(device,
+                                        pAllocator,
+                                        rstate,
+                                        pass->hw_setup->render_count,
+                                        pass->hw_setup->renders);
    if (result != VK_SUCCESS)
       goto err_free_framebuffer;
 
