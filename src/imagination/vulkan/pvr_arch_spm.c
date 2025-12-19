@@ -69,7 +69,7 @@ uint64_t PVR_PER_ARCH(spm_scratch_buffer_calc_required_size)(
    return buffer_size;
 }
 
-VkResult pvr_device_init_spm_load_state(struct pvr_device *device)
+VkResult PVR_PER_ARCH(device_init_spm_load_state)(struct pvr_device *device)
 {
    const struct pvr_device_info *dev_info = &device->pdevice->dev_info;
    uint32_t pds_texture_aligned_offsets[PVR_NUM_SPM_LOAD_SHADERS];
