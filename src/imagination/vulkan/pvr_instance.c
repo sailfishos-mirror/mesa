@@ -72,7 +72,7 @@ static const struct vk_instance_extension_table pvr_instance_extensions = {
    .EXT_debug_report = true,
    .EXT_debug_utils = true,
 #ifndef VK_USE_PLATFORM_WIN32_KHR
-   .EXT_headless_surface = PVR_USE_WSI_PLATFORM && false,
+   .EXT_headless_surface = PVR_USE_WSI_PLATFORM,
 #endif
 };
 
