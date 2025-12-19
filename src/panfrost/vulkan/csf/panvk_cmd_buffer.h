@@ -157,7 +157,8 @@ struct panvk_cache_flush_info {
 };
 
 struct panvk_cs_deps {
-   bool needs_draw_flush;
+   bool needs_fb_barrier;
+
    struct {
       uint32_t wait_sb_mask;
       struct panvk_cache_flush_info cache_flush;
@@ -468,7 +469,7 @@ panvk_cache_flush_is_nop(const struct panvk_cache_flush_info *cache_flush)
 
 extern const struct vk_command_buffer_ops panvk_per_arch(cmd_buffer_ops);
 
-void panvk_per_arch(cmd_flush_draws)(struct panvk_cmd_buffer *cmdbuf);
+void panvk_per_arch(cmd_fb_barrier)(struct panvk_cmd_buffer *cmdbuf);
 
 #if PAN_ARCH == 10
 /* Match against all possible iter_sb values. The constant iter_sb value for

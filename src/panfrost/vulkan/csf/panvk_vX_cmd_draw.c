@@ -2940,6 +2940,193 @@ panvk_per_arch(CmdBeginRendering)(VkCommandBuffer commandBuffer,
 }
 
 static void
+set_run_fullscreen_tiler_flags(struct cs_builder *b, uint32_t view_mask)
+{
+   struct mali_primitive_flags_packed tiler_flags;
+   pan_pack(&tiler_flags, PRIMITIVE_FLAGS, cfg) {
+      cfg.draw_mode = MALI_DRAW_MODE_TRIANGLES;
+      cfg.position_fifo_format = MALI_FIFO_FORMAT_BASIC;
+      cfg.view_mask = view_mask;
+   }
+
+   cs_update_vt_ctx(b)
+      cs_move32_to(b, cs_sr_reg32(b, IDVS, TILER_FLAGS), tiler_flags.opaque[0]);
+}
+
+static void
+cmd_run_fullscreen(struct panvk_cmd_buffer *cmdbuf,
+                   uint64_t dcd, bool ignore_scissor)
+{
+   const struct cs_tracing_ctx *tracing_ctx =
+      &cmdbuf->state.cs[PANVK_SUBQUEUE_VERTEX_TILER].tracing;
+   struct cs_builder *b =
+      panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_VERTEX_TILER);
+
+   if (!inherits_render_ctx(cmdbuf)) {
+      VkResult result = get_render_ctx(cmdbuf);
+      if (result != VK_SUCCESS)
+         return;
+   }
+
+   struct cs_index draw_ptr = cs_scratch_reg64(b, 0);
+   struct cs_index tf_tmp = cs_scratch_reg32(b, 2);
+#if PAN_ARCH >= 11
+   struct cs_index tf2_tmp = cs_scratch_reg32(b, 3);
+#endif
+#if PAN_ARCH >= 13
+   struct cs_index dcd0_tmp = cs_scratch_reg32(b, 4);
+   struct cs_index dcd1_tmp = cs_scratch_reg32(b, 5);
+   struct cs_index dcd2_tmp = cs_scratch_reg32(b, 6);
+#endif
+   struct cs_index scissor_tmp = cs_scratch_reg64(b, 8);
+   struct cs_index counter = cs_scratch_reg32(b, 10);
+   struct cs_index trace_regs = cs_scratch_reg_tuple(b, 12, 4);
+
+   cs_move64_to(b, draw_ptr, dcd);
+
+   /* We need to set our own tiler flags so save them off */
+   cs_move_reg32(b, tf_tmp, cs_sr_reg32(b, IDVS, TILER_FLAGS));
+
+#if PAN_ARCH >= 11
+   cs_move_reg32(b, tf2_tmp, cs_sr_reg32(b, IDVS, TILER_FLAGS2));
+   cs_update_vt_ctx(b) {
+      struct mali_primitive_flags_2_packed tiler_flags_2;
+      pan_pack(&tiler_flags_2, PRIMITIVE_FLAGS_2, cfg) {
+      }
+      cs_move32_to(b, cs_sr_reg32(b, IDVS, TILER_FLAGS2),
+                   tiler_flags_2.opaque[0]);
+   }
+#endif
+
+   /* Starting with v13, the DCD flag registers have to match the flag fields
+    * in the DrawCallDescriptor we provide in memory so we have to save them
+    * off.
+    */
+#if PAN_ARCH >= 13
+   cs_move_reg32(b, dcd0_tmp, cs_sr_reg32(b, IDVS, DCD0));
+   cs_move_reg32(b, dcd1_tmp, cs_sr_reg32(b, IDVS, DCD1));
+   cs_move_reg32(b, dcd2_tmp, cs_sr_reg32(b, IDVS, DCD2));
+
+   cs_update_vt_ctx(b) {
+      cs_load32_to(b, cs_sr_reg32(b, IDVS, DCD0), draw_ptr, 0);
+      cs_load32_to(b, cs_sr_reg32(b, IDVS, DCD1), draw_ptr, 1 * 4);
+      cs_load32_to(b, cs_sr_reg32(b, IDVS, DCD2), draw_ptr, 5 * 4);
+   }
+#endif
+
+   /* RUN_FULLSCREEN respects scissors but for some things like barrier draws,
+    * we want to ignore the scissor so we have to save off the old one and use
+    * a default.
+    */
+   if (ignore_scissor) {
+      struct mali_scissor_packed scissor;
+      pan_pack(&scissor, SCISSOR, cfg) {
+         cfg.scissor_minimum_x = 0;
+         cfg.scissor_minimum_y = 0;
+         cfg.scissor_maximum_x = UINT16_MAX;
+         cfg.scissor_maximum_y = UINT16_MAX;
+      }
+
+      cs_move_reg64(b, scissor_tmp, cs_sr_reg64(b, IDVS, SCISSOR_BOX));
+
+      cs_update_vt_ctx(b) {
+         cs_move64_to(b, cs_sr_reg64(b, IDVS, SCISSOR_BOX),
+                      scissor.opaque[0] | (uint64_t)scissor.opaque[1] << 32);
+      }
+   }
+
+   uint32_t layer_count = cmdbuf->state.gfx.render.layer_count;
+   uint32_t view_mask = cmdbuf->state.gfx.render.view_mask;
+   uint32_t tiler_count = DIV_ROUND_UP(layer_count, MAX_LAYERS_PER_TILER_DESC);
+   if (tiler_count > 1) {
+      struct cs_index tiler_ctx_addr = cs_sr_reg64(b, IDVS, TILER_CTX);
+
+      /* Multiview always fits inside a single tiler context */
+      assert(view_mask == 0);
+
+      /* Start off with a full view mask */
+      set_run_fullscreen_tiler_flags(b,
+         BITFIELD_MASK(MAX_LAYERS_PER_TILER_DESC));
+
+      cs_move32_to(b, counter, tiler_count);
+      cs_while(b, MALI_CS_CONDITION_GREATER, counter) {
+         cs_add32(b, counter, counter, -1);
+         cs_if(b, MALI_CS_CONDITION_EQUAL, counter) {
+            set_run_fullscreen_tiler_flags(b,
+               BITFIELD_MASK(layer_count % MAX_LAYERS_PER_TILER_DESC));
+         }
+
+         cs_trace_run_fullscreen(b, tracing_ctx, trace_regs, 0, draw_ptr);
+
+         cs_update_vt_ctx(b) {
+            cs_add64(b, tiler_ctx_addr, tiler_ctx_addr,
+                     pan_size(TILER_CONTEXT));
+         }
+      }
+
+      cs_update_vt_ctx(b) {
+         cs_add64(b, tiler_ctx_addr, tiler_ctx_addr,
+                  -(tiler_count * pan_size(TILER_CONTEXT)));
+      }
+   } else {
+      set_run_fullscreen_tiler_flags(b,
+         view_mask ? view_mask : BITFIELD_MASK(layer_count));
+
+      cs_trace_run_fullscreen(b, tracing_ctx, trace_regs, 0, draw_ptr);
+   }
+
+   cs_update_vt_ctx(b) {
+      cs_move_reg32(b, cs_sr_reg32(b, IDVS, TILER_FLAGS), tf_tmp);
+#if PAN_ARCH >= 11
+      cs_move_reg32(b, cs_sr_reg32(b, IDVS, TILER_FLAGS2), tf2_tmp);
+#endif
+#if PAN_ARCH >= 13
+      cs_move_reg32(b, cs_sr_reg32(b, IDVS, DCD0), dcd0_tmp);
+      cs_move_reg32(b, cs_sr_reg32(b, IDVS, DCD1), dcd1_tmp);
+      cs_move_reg32(b, cs_sr_reg32(b, IDVS, DCD2), dcd2_tmp);
+#endif
+      if (ignore_scissor)
+         cs_move_reg64(b, cs_sr_reg64(b, IDVS, SCISSOR_BOX), scissor_tmp);
+   }
+}
+
+void
+panvk_per_arch(cmd_fb_barrier)(struct panvk_cmd_buffer *cmdbuf)
+{
+   struct pan_ptr zsd = panvk_cmd_alloc_desc(cmdbuf, DEPTH_STENCIL);
+   if (!zsd.gpu)
+      return;
+
+   pan_cast_and_pack(zsd.cpu, DEPTH_STENCIL, cfg) {
+      cfg.stencil_test_enable = false;
+      cfg.depth_write_enable = false;
+      cfg.depth_function = MALI_FUNC_ALWAYS;
+   };
+
+   struct pan_ptr dcd = panvk_cmd_alloc_desc(cmdbuf, DRAW);
+   if (!dcd.gpu)
+      return;
+
+   pan_cast_and_pack(dcd.cpu, DRAW, cfg) {
+      cfg.flags_0.allow_forward_pixel_to_kill = false;
+      cfg.flags_0.allow_forward_pixel_to_be_killed = false;
+      cfg.flags_0.primitive_barrier = true;
+      cfg.flags_0.occlusion_query = MALI_OCCLUSION_MODE_DISABLED;
+
+      cfg.flags_2.read_mask = 0;
+      cfg.flags_2.write_mask = 0;
+#if PAN_ARCH >= 11
+      cfg.flags_2.no_shader_depth_read = true;
+      cfg.flags_2.no_shader_stencil_read = true;
+#endif
+
+      cfg.depth_stencil = zsd.gpu;
+   };
+
+   cmd_run_fullscreen(cmdbuf, dcd.gpu, true);
+}
+
+static void
 flush_tiling(struct panvk_cmd_buffer *cmdbuf)
 {
    struct cs_builder *b =
@@ -3372,30 +3559,6 @@ issue_fragment_jobs(struct panvk_cmd_buffer *cmdbuf)
 
 
    return VK_SUCCESS;
-}
-
-void
-panvk_per_arch(cmd_flush_draws)(struct panvk_cmd_buffer *cmdbuf)
-{
-   /* If there was no draw queued, we don't need to force a preload. */
-   if (cmdbuf->state.gfx.render.fbds.gpu || inherits_render_ctx(cmdbuf)) {
-      flush_tiling(cmdbuf);
-      issue_fragment_jobs(cmdbuf);
-      memset(&cmdbuf->state.gfx.render.fbds, 0,
-             sizeof(cmdbuf->state.gfx.render.fbds));
-      cmdbuf->state.gfx.render.tiler = 0;
-
-      panvk_per_arch(cmd_force_fb_preload)(cmdbuf, NULL);
-
-      /* We inherited the render context, and need to let the primary command
-       * buffer know that it's changed. */
-      cmdbuf->state.gfx.render.invalidate_inherited_ctx =
-         inherits_render_ctx(cmdbuf);
-
-      /* Re-emit the FB/Tiler descs if we inherited them. */
-      if (inherits_render_ctx(cmdbuf))
-         get_render_ctx(cmdbuf);
-   }
 }
 
 static void

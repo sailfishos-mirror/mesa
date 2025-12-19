@@ -386,72 +386,6 @@ add_memory_dependency(struct panvk_cache_flush_info *cache_flush,
    }
 }
 
-static bool
-frag_subqueue_needs_sidefx_barrier(VkAccessFlags2 src_access,
-                                   VkAccessFlags2 dst_access)
-{
-   bool src_reads_mem = src_access & (VK_ACCESS_2_SHADER_SAMPLED_READ_BIT |
-                                      VK_ACCESS_2_SHADER_STORAGE_READ_BIT |
-                                      VK_ACCESS_2_MEMORY_READ_BIT);
-   bool dst_reads_mem = dst_access & (VK_ACCESS_2_SHADER_SAMPLED_READ_BIT |
-                                      VK_ACCESS_2_SHADER_STORAGE_READ_BIT |
-                                      VK_ACCESS_2_MEMORY_READ_BIT);
-   bool src_writes_mem = src_access & (VK_ACCESS_2_MEMORY_WRITE_BIT |
-                                       VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-   bool dst_writes_mem = dst_access & (VK_ACCESS_2_MEMORY_WRITE_BIT |
-                                       VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-
-   /* If there's no read -> write, write -> write or write -> read
-    * memory dependency, we can skip, otherwise we have to split the
-    * render pass. We could possibly add the dependency at the draw level,
-    * using extra bits in the DCD2 flags to encode storage reads/writes and
-    * adding extra WAIT/WAIT_RESOURCE shader side, but we can't flush the
-    * texture cache, so it wouldn't work for SAMPLED_READ. Let's keep things
-    * simple and consider any side effect as requiring a split, until this
-    * proves to be a real bottleneck.
-    */
-   return (src_reads_mem && dst_writes_mem) ||
-          (src_writes_mem && dst_writes_mem) ||
-          (src_writes_mem && dst_reads_mem);
-}
-
-static bool
-should_split_render_pass(const uint32_t wait_masks[static PANVK_SUBQUEUE_COUNT],
-                         VkAccessFlags2 src_access, VkAccessFlags2 dst_access)
-{
-   /* From the Vulkan 1.3.301 spec:
-    *
-    *    VUID-vkCmdPipelineBarrier-None-07892
-    *
-    *    "If vkCmdPipelineBarrier is called within a render pass instance, the
-    *    source and destination stage masks of any memory barriers must only
-    *    include graphics pipeline stages"
-    *
-    * We only consider the tiler and the fragment subqueues here.
-    */
-
-   /* split if the tiler subqueue waits for the fragment subqueue */
-   if (wait_masks[PANVK_SUBQUEUE_VERTEX_TILER] &
-       BITFIELD_BIT(PANVK_SUBQUEUE_FRAGMENT))
-      return true;
-
-   if (wait_masks[PANVK_SUBQUEUE_FRAGMENT] &
-       BITFIELD_BIT(PANVK_SUBQUEUE_FRAGMENT)) {
-      /* split if the fragment subqueue self-waits with a feedback loop, because
-       * we lower subpassLoad to texelFetch
-       */
-      if ((src_access & (VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT |
-                         VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)) &&
-          (dst_access & VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT))
-         return true;
-
-      if (frag_subqueue_needs_sidefx_barrier(src_access, dst_access))
-         return true;
-   }
-
-   return false;
-}
-
 static void
 collect_cache_flush_info(enum panvk_subqueue_id subqueue,
                          struct panvk_cache_flush_info *cache_flush,
@@ -466,49 +400,42 @@ collect_cache_flush_info(enum panvk_subqueue_id subqueue,
    add_memory_dependency(cache_flush, src_access, dst_access);
 }
 
-static bool
-can_skip_barrier(struct panvk_cmd_buffer *cmdbuf, const VkDependencyInfo *info,
-                 struct panvk_sync_scope src, struct panvk_sync_scope dst)
-{
-   bool inside_rp = cmdbuf->state.gfx.render.tiler || inherits_render_ctx(cmdbuf);
-   bool by_region = info->dependencyFlags & VK_DEPENDENCY_BY_REGION_BIT;
-
-   if (inside_rp && by_region &&
-       !frag_subqueue_needs_sidefx_barrier(src.access, dst.access))
-      return true;
-
-   return false;
-}
-
 static void
 collect_cs_deps(struct panvk_cmd_buffer *cmdbuf, const VkDependencyInfo *info,
                 struct panvk_sync_scope src, struct panvk_sync_scope dst,
                 struct panvk_cs_deps *deps)
 {
-   if (can_skip_barrier(cmdbuf, info, src, dst))
-      return;
-
    struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
    uint32_t wait_masks[PANVK_SUBQUEUE_COUNT] = {0};
    add_execution_dependency(wait_masks, src.stages, dst.stages);
 
-   /* within a render pass */
    if (cmdbuf->state.gfx.render.tiler || inherits_render_ctx(cmdbuf)) {
-      if (should_split_render_pass(wait_masks, src.access, dst.access)) {
-         deps->needs_draw_flush = true;
-      } else {
-         /* skip the tiler subqueue self-wait because we use the same
-          * scoreboard slot for the idvs jobs
+      if (info->dependencyFlags & VK_DEPENDENCY_BY_REGION_BIT) {
+         /* Instead of doing an actual fragment job dependency, use a FB
+          * barrier instead.
           */
-         wait_masks[PANVK_SUBQUEUE_VERTEX_TILER] &=
-            ~BITFIELD_BIT(PANVK_SUBQUEUE_VERTEX_TILER);
-
-         /* skip the fragment subqueue self-wait because we emit the fragment
-          * job at the end of the render pass and there is nothing to wait yet
-          */
+         deps->needs_fb_barrier = true;
          wait_masks[PANVK_SUBQUEUE_FRAGMENT] &=
             ~BITFIELD_BIT(PANVK_SUBQUEUE_FRAGMENT);
       }
+
+      /* From the Vulkan 1.4.335 spec:
+       *
+       *    VUID-vkCmdPipelineBarrier-dependencyFlags-07891
+       *
+       *    "If vkCmdPipelineBarrier is called within a render pass
+       *    instance, and the source stage masks of any memory barriers
+       *    include framebuffer-space stages, then dependencyFlags must
+       *    include VK_DEPENDENCY_BY_REGION_BIT"
+       */
+      for (uint32_t i = 0; i < PANVK_SUBQUEUE_COUNT; i++)
+         assert(!(wait_masks[i] & BITFIELD_BIT(PANVK_SUBQUEUE_FRAGMENT)));
+
+      /* skip the tiler subqueue self-wait because we use the same
+       * scoreboard slot for the idvs jobs
+       */
+      wait_masks[PANVK_SUBQUEUE_VERTEX_TILER] &=
+         ~BITFIELD_BIT(PANVK_SUBQUEUE_VERTEX_TILER);
    }
 
    for (uint32_t i = 0; i < PANVK_SUBQUEUE_COUNT; i++) {
@@ -789,8 +716,8 @@ panvk_per_arch(CmdPipelineBarrier2)(VkCommandBuffer commandBuffer,
 
    panvk_per_arch(add_cs_deps)(cmdbuf, PANVK_BARRIER_STAGE_FIRST, pDependencyInfo, &deps, false);
 
-   if (deps.needs_draw_flush)
-      panvk_per_arch(cmd_flush_draws)(cmdbuf);
+   if (deps.needs_fb_barrier)
+      panvk_per_arch(cmd_fb_barrier)(cmdbuf);
 
    panvk_per_arch(emit_barrier)(cmdbuf, deps);
 
@@ -807,7 +734,7 @@ panvk_per_arch(CmdPipelineBarrier2)(VkCommandBuffer commandBuffer,
          cmdbuf, PANVK_BARRIER_STAGE_AFTER_LAYOUT_TRANSITION,
          pDependencyInfo, &trans_deps, false);
 
-      assert(!trans_deps.needs_draw_flush);
+      assert(!trans_deps.needs_fb_barrier);
 
       panvk_per_arch(emit_barrier)(cmdbuf, trans_deps);
    }

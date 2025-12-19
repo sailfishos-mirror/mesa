@@ -1731,6 +1731,13 @@ cs_move_reg32(struct cs_builder *b, struct cs_index dest, struct cs_index src)
 #endif
 }
 
+static inline void
+cs_move_reg64(struct cs_builder *b, struct cs_index dest, struct cs_index src)
+{
+   cs_move_reg32(b, cs_extract32(b, dest, 0), cs_extract32(b, src, 0));
+   cs_move_reg32(b, cs_extract32(b, dest, 1), cs_extract32(b, src, 1));
+}
+
 #if PAN_ARCH >= 11
 static inline void
 cs_and32(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
