@@ -2691,7 +2691,10 @@ static void pvr_early_init_shader_data(pco_data *data,
          const VkPipelineRenderingCreateInfo *ri =
             vk_find_struct_const(pGraphicsCreateInfo->pNext,
                                  PIPELINE_RENDERING_CREATE_INFO);
-         data->common.multiview = !!ri->viewMask;
+         if (ri)
+            data->common.multiview = !!ri->viewMask;
+         else
+            data->common.multiview = false;
       }
 
       nir_foreach_variable_with_modes (var, nir, nir_var_system_value) {
