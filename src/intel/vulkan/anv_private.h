@@ -2530,6 +2530,7 @@ enum anv_object_key_bvh_type {
    ANV_OBJECT_KEY_BVH_ENCODE = VK_META_OBJECT_KEY_DRIVER_OFFSET,
    ANV_OBJECT_KEY_BVH_HEADER,
    ANV_OBJECT_KEY_BVH_COPY,
+   ANV_OBJECT_KEY_BVH_UPDATE,
 };
 
 enum bvh_dump_type {

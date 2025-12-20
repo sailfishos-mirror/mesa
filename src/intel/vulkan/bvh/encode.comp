@@ -182,6 +182,11 @@ encode_internal_node(uint32_t child, uint32_t child_block_offset_from_internal_n
       DEREF(dst_node).exp_z = exp_i8[2];
       DEREF(dst_node).node_mask = uint8_t(0xff);
       DEREF(dst_node).node_type = node_type;
+
+      /* Note: This is not a real field, it's unused byte padding, which is not
+       * required to be MBZ. We're just using it to store the child count.
+       */
+      DEREF(dst_node).child_count = uint8_t(child_count);
    }
 
    child_aabb = conservative_aabb(child_aabb);
@@ -359,7 +364,10 @@ main()
       /* Tracks BLOCK where the next children should be encoded. */
       DEREF(args.header).dst_node_offset = 1;
       DEREF(header).instance_count = 0;
-      DEREF(INDEX(uint32_t, args.parent_child_map, 0)) = VK_NULL_BVH_OFFSET;
+      if (VK_BUILD_FLAG(ANV_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE) &&
+          args.parent_child_map != 0) {
+         DEREF(INDEX(uint32_t, args.parent_child_map, 0)) = VK_NULL_BVH_OFFSET;
+      }
    }
 
    IR_NODE children[6] = {VK_BVH_INVALID_NODE, VK_BVH_INVALID_NODE,
@@ -442,7 +450,6 @@ main()
                   REF(vk_ir_box_node)NODE_OFFSET(children[i]);
                DEREF(child_node).bvh_offset = child_offset;
             }
-
             child_offset += (type == vk_ir_node_instance) ? 2 : 1;
          }
 
@@ -496,18 +503,26 @@ main()
                child_aabb = DEREF(REF(vk_ir_node)NODE_OFFSET(child)).aabb;
 
             uint32_t type = ir_id_to_type(child);
-	    if (child != VK_BVH_INVALID_NODE &&
-                (type == vk_ir_node_triangle || type == vk_ir_node_aabb)) {
-               uint32_t ir_offset = ir_id_to_offset(child);
-               uint32_t leaf_id = ir_offset / intermediate_leaf_node_size;
-               DEREF(INDEX(uint32_t, args.leaf_block_offset_map, leaf_id)) = child_block;
-            }
+            if (VK_BUILD_FLAG(ANV_BUILD_FLAG_WRITE_LOOKUP_MAPS_FOR_UPDATE) &&
+                child != VK_BVH_INVALID_NODE &&
+                args.parent_child_map != 0 &&
+                args.leaf_block_offset_map != 0) {
+	       if (type == vk_ir_node_triangle || type == vk_ir_node_aabb) {
+                  uint32_t ir_offset = ir_id_to_offset(child);
+                  uint32_t leaf_id = ir_offset / intermediate_leaf_node_size;
+                  /* Block offset 0 is assigned to root, so avoid accidental
+                   * assignment.
+                   */
+                  DEREF(INDEX(uint32_t, args.leaf_block_offset_map, leaf_id)) =
+                     (child_block != 0) ? child_block : VK_NULL_BVH_OFFSET;
+               }
 
-            /* Track each children's parent in the map. */
-            if (child != VK_BVH_INVALID_NODE && type != vk_ir_node_instance) {
-               uint32_t pcm_val = 0;
-               pcm_val = (cluster.idx << 26) | internal_node_block;
-               DEREF(INDEX(uint32_t, args.parent_child_map, child_block)) = pcm_val;
+               /* Track each children's parent in the map. */
+               if (type != vk_ir_node_instance && child_block != 0) {
+                  uint32_t pcm = 0;
+                  pcm = internal_node_block | (cluster.idx << 26);
+                  DEREF(INDEX(uint32_t, args.parent_child_map, child_block)) = pcm;
+               }
             }
 
             if (child != VK_BVH_INVALID_NODE && type != vk_ir_node_internal) {

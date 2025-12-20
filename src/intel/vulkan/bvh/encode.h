@@ -7,6 +7,7 @@
 
 #include "anv_build_helpers.h"
 #include "anv_build_interface.h"
+#include "vk_debug.h"
 
 #define ULP 1.1920928955078125e-7f
 

@@ -7,6 +7,7 @@ bvh_shaders = [
   'encode.comp',
   'header.comp',
   'copy.comp',
+  'update.comp',
 ]
 
 # A mapping: [filename version, GFX_VERx10 define version]

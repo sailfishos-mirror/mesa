@@ -164,7 +164,10 @@ struct anv_internal_node {
     */
    uint8_t node_type;
 
-   uint8_t reserved;
+   /* Note: This is not a real field, it's unused byte padding, which is not
+    * required to be MBZ. We're just using it to store the child count.
+    */
+   uint8_t child_count;
 
    /* 2^exp_x is the size of the grid in x dimension */
    int8_t exp_x;
