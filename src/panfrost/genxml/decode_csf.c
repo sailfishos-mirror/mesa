@@ -2450,6 +2450,7 @@ print_cs_binary(struct pandecode_context *ctx, uint64_t bin,
       case MALI_CS_OPCODE_RUN_IDVS:
 #endif
       case MALI_CS_OPCODE_RUN_FRAGMENT:
+      case MALI_CS_OPCODE_RUN_FULLSCREEN:
       case MALI_CS_OPCODE_RUN_COMPUTE:
       case MALI_CS_OPCODE_RUN_COMPUTE_INDIRECT:
          fprintf(ctx->dump_stream, " // tracepoint_%" PRIx64,
@@ -2566,6 +2567,22 @@ GENX(pandecode_cs_trace)(struct pandecode_context *ctx, uint64_t trace,
          pandecode_run_fragment(ctx, ctx->dump_stream, &qctx, &I);
          trace_data = frag_trace + 1;
          trace_size -= sizeof(*frag_trace);
+         break;
+      }
+
+      case MALI_CS_OPCODE_RUN_FULLSCREEN: {
+         struct cs_run_fullscreen_trace *fs_trace = trace_data;
+
+         assert(trace_size >= sizeof(*fs_trace));
+         cs_unpack(instr, CS_RUN_FULLSCREEN, I);
+         regs[I.dcd + 0] = (uint32_t)(fs_trace->dcd);
+         regs[I.dcd + 1] = (uint32_t)(fs_trace->dcd >> 32);
+         uint32_t sr_idx = 0;
+         u_foreach_bit64(b, CS_RUN_FULLSCREEN_SR_MASK)
+            regs[b] = fs_trace->sr[sr_idx++];
+         pandecode_run_fullscreen(ctx, ctx->dump_stream, &qctx, &I);
+         trace_data = fs_trace + 1;
+         trace_size -= sizeof(*fs_trace);
          break;
       }
 
