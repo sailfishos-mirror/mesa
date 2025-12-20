@@ -2498,7 +2498,7 @@ void si_vs_ps_key_update_rast_prim_smooth_stipple(struct si_context *sctx)
    int old_force_front_face_input = ps_key->ps.opt.force_front_face_input;
 
    if (sctx->current_rast_prim == MESA_PRIM_POINTS) {
-      vs_key->ge.opt.kill_pointsize = 0;
+      vs_key->ge.opt.kill_pointsize = hw_vs->cso->info.writes_psize && !rs->point_size_per_vertex;
       ps_key->ps.part.prolog.color_two_side = 0;
       ps_key->ps.part.prolog.poly_stipple = 0;
       ps_key->ps.mono.poly_line_smoothing = 0;
@@ -2514,7 +2514,7 @@ void si_vs_ps_key_update_rast_prim_smooth_stipple(struct si_context *sctx)
    } else {
       /* Triangles. */
       vs_key->ge.opt.kill_pointsize = hw_vs->cso->info.writes_psize &&
-                                      !rs->polygon_mode_is_points;
+                                      (!rs->point_size_per_vertex || !rs->polygon_mode_is_points);
       ps_key->ps.part.prolog.color_two_side = rs->two_side && ps->info.colors_read;
       ps_key->ps.part.prolog.poly_stipple = rs->poly_stipple_enable;
       ps_key->ps.mono.poly_line_smoothing = rs->poly_smooth && sctx->framebuffer.nr_samples <= 1;

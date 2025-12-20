@@ -903,6 +903,7 @@ static void *si_create_rs_state(struct pipe_context *ctx, const struct pipe_rast
    /* Line width > 2 is an internal recommendation. */
    rs->perpendicular_end_caps = state->multisample &&
                                 state->line_width > 2 && !state->line_stipple_enable;
+   rs->point_size_per_vertex = state->point_size_per_vertex;
 
    rs->pa_cl_clip_cntl = S_028810_DX_CLIP_SPACE_DEF(state->clip_halfz) |
                          S_028810_ZCLIP_NEAR_DISABLE(!state->depth_clip_near) |
@@ -1272,6 +1273,7 @@ static void si_bind_rs_state(struct pipe_context *ctx, void *state)
        old_rs->polygon_mode_is_points != rs->polygon_mode_is_points ||
        old_rs->poly_stipple_enable != rs->poly_stipple_enable ||
        old_rs->two_side != rs->two_side ||
+       old_rs->point_size_per_vertex != rs->point_size_per_vertex ||
        old_rs->force_front_face_input != rs->force_front_face_input)
       si_vs_ps_key_update_rast_prim_smooth_stipple(sctx);
 

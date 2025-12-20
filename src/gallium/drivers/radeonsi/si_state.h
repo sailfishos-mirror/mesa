@@ -103,6 +103,7 @@ struct si_state_rasterizer {
    unsigned polygon_mode_is_points : 1;
    unsigned perpendicular_end_caps : 1;
    unsigned bottom_edge_rule : 1;
+   bool point_size_per_vertex : 1;
    int force_front_face_input : 2;
 };
 
