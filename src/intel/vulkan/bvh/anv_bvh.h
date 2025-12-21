@@ -132,7 +132,9 @@ struct anv_quad_leaf_node {
     * Reserved (9-bits)
     */
    uint32_t prim_index1_delta;
-   float v[4][3];
+   float v[3][3];
+   /* Second triangle coords */
+   float v1[3];
 };
 
 struct anv_procedural_leaf_node {
