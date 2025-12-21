@@ -40,12 +40,6 @@ struct anv_accel_struct_header {
    /* The bounding box that encloses this bvh. */
    vk_aabb aabb;
 
-   /* This word contains flags that should be set in the leaf nodes for
-    * instances pointing to this BLAS. ALL_NODES_{OPAQUE_NONOPAQUE} may be
-    * modified by the FORCE_OPAQUE and FORCE_NON_OPAQUE instance flags.
-    */
-   uint32_t instance_flags;
-
    /* Everything after this gets either updated/copied from the CPU or written
     * by header.comp.
     */
