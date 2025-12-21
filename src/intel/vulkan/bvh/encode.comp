@@ -85,8 +85,6 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
 
       /* sub-type (4-bit) encoded on 24-bit index */
       geometry_id_and_flags |= (ANV_SUB_TYPE_QUAD & 0xF) << 24;
-      /* Set disable opacity culling by default */
-      geometry_id_and_flags |= (1 << 29);
 
       /* Disable the second triangle */
       uint32_t prim_index1_delta = 0;
@@ -129,8 +127,6 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
 
       /* sub-type (4-bit) encoded on 24-bit index */
       geometry_id_and_flags |= (ANV_SUB_TYPE_PROCEDURAL & 0xF) << 24;
-      /* Set disable opacity culling by default */
-      geometry_id_and_flags |= (1 << 29);
 
       if ((src.geometry_id_and_flags & VK_GEOMETRY_OPAQUE) != 0) {
          geometry_id_and_flags |= (ANV_GEOMETRY_FLAG_OPAQUE << 30);
@@ -184,7 +180,6 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
 
       uint32_t inst_flags_and_the_rest = 0;
       inst_flags_and_the_rest |= get_instance_flag(instance_flags | (src.sbt_offset_and_flags >> 24));
-      inst_flags_and_the_rest |= (1 << 29);
       inst_flags_and_the_rest |=
          ((get_instance_flag(src.sbt_offset_and_flags >> 24) & ANV_INSTANCE_FLAG_FORCE_OPAQUE) != 0 ?
           ANV_GEOMETRY_FLAG_OPAQUE : 0) << 30;
@@ -198,7 +193,6 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
 
       uint32_t instance_contribution_and_geom_flags = 0;
       instance_contribution_and_geom_flags |= src.sbt_offset_and_flags & 0xffffff;
-      instance_contribution_and_geom_flags |= (1 << 29);
       instance_contribution_and_geom_flags |=
          ((get_instance_flag(src.sbt_offset_and_flags >> 24) & ANV_INSTANCE_FLAG_FORCE_OPAQUE) != 0 ?
           ANV_GEOMETRY_FLAG_OPAQUE : 0) << 30;
