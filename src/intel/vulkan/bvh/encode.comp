@@ -44,8 +44,7 @@ debug_dump(uint32_t offset, uint32_t value)
 uint32_t
 get_instance_flag(uint32_t src)
 {
-   uint32_t flags = src & 0xff;
-   return flags & 0xf;
+   return ((src >> 24) & 0xff);
 }
 
 struct anv_cluster {
@@ -86,23 +85,17 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
       /* sub-type (4-bit) encoded on 24-bit index */
       geometry_id_and_flags |= (ANV_SUB_TYPE_QUAD & 0xF) << 24;
 
+      if ((src.geometry_id_and_flags & VK_GEOMETRY_OPAQUE) != 0) {
+         /* Geometry opqaue (1-bit) is encoded on 30-bit index */
+         geometry_id_and_flags |= (ANV_GEOMETRY_FLAG_OPAQUE << 30);
+      }
+
       /* Disable the second triangle */
       uint32_t prim_index1_delta = 0;
       /* For now, blockIncr are all 1, so every quad leaf has its "last" bit set. */
       prim_index1_delta |= (1 << 22);
 
       DEREF(quad_leaf).prim_index1_delta = prim_index1_delta;
-
-      if ((src.geometry_id_and_flags & VK_GEOMETRY_OPAQUE) != 0) {
-         /* Geometry opqaue (1-bit) is encoded on 30-bit index */
-         geometry_id_and_flags |= (ANV_GEOMETRY_FLAG_OPAQUE << 30);
-         atomicAnd(DEREF(dst_header).instance_flags,
-                   ~ANV_INSTANCE_FLAG_FORCE_NON_OPAQUE);
-      } else {
-         atomicAnd(DEREF(dst_header).instance_flags,
-                   ~ANV_INSTANCE_FLAG_FORCE_OPAQUE);
-      }
-
       DEREF(quad_leaf).prim_index0 = src.triangle_id;
       DEREF(quad_leaf).leaf_desc.geometry_id_and_flags = geometry_id_and_flags;
 
@@ -130,11 +123,6 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
 
       if ((src.geometry_id_and_flags & VK_GEOMETRY_OPAQUE) != 0) {
          geometry_id_and_flags |= (ANV_GEOMETRY_FLAG_OPAQUE << 30);
-         atomicAnd(DEREF(dst_header).instance_flags,
-                   ~ANV_INSTANCE_FLAG_FORCE_NON_OPAQUE);
-      } else {
-         atomicAnd(DEREF(dst_header).instance_flags,
-                   ~ANV_INSTANCE_FLAG_FORCE_OPAQUE);
       }
 
       DEREF(aabb_leaf).leaf_desc.geometry_id_and_flags = geometry_id_and_flags;
@@ -157,19 +145,8 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
       vk_ir_instance_node src = DEREF(REF(vk_ir_instance_node)(src_node));
 
       REF(anv_instance_leaf) dst_instance = REF(anv_instance_leaf)(dst_node);
-
       REF(anv_accel_struct_header) blas_header = REF(anv_accel_struct_header)(src.base_ptr);
       uint64_t start_node_ptr = uint64_t(src.base_ptr) + DEREF(blas_header).rootNodeOffset;
-
-      uint32_t sbt_offset_and_flags = src.sbt_offset_and_flags;
-      uint32_t instance_flags = DEREF(blas_header).instance_flags;
-      if (((sbt_offset_and_flags >> 24) & (VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR |
-                                           VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR)) != 0) {
-         instance_flags &= ~(VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR |
-                             VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR);
-         instance_flags |= (sbt_offset_and_flags >> 24) & (VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR |
-                                                           VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR);
-      }
 
 #if GFX_VERx10 >= 300
       DEREF(dst_instance).part0.QW_startNodePtr = start_node_ptr;
@@ -179,9 +156,9 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
       DEREF(dst_instance).part0.DW0 = instance_contribution_and_geom_mask;
 
       uint32_t inst_flags_and_the_rest = 0;
-      inst_flags_and_the_rest |= get_instance_flag(instance_flags | (src.sbt_offset_and_flags >> 24));
+      inst_flags_and_the_rest |= get_instance_flag(src.sbt_offset_and_flags);
       inst_flags_and_the_rest |=
-         ((get_instance_flag(src.sbt_offset_and_flags >> 24) & ANV_INSTANCE_FLAG_FORCE_OPAQUE) != 0 ?
+         ((get_instance_flag(src.sbt_offset_and_flags) & ANV_INSTANCE_FLAG_FORCE_OPAQUE) != 0 ?
           ANV_GEOMETRY_FLAG_OPAQUE : 0) << 30;
 
       DEREF(dst_instance).part0.DW1 = inst_flags_and_the_rest;
@@ -194,13 +171,13 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
       uint32_t instance_contribution_and_geom_flags = 0;
       instance_contribution_and_geom_flags |= src.sbt_offset_and_flags & 0xffffff;
       instance_contribution_and_geom_flags |=
-         ((get_instance_flag(src.sbt_offset_and_flags >> 24) & ANV_INSTANCE_FLAG_FORCE_OPAQUE) != 0 ?
-          ANV_GEOMETRY_FLAG_OPAQUE : 0) << 30;
+         ((get_instance_flag(src.sbt_offset_and_flags) & ANV_INSTANCE_FLAG_FORCE_OPAQUE) != 0 ?
+         ANV_GEOMETRY_FLAG_OPAQUE : 0) << 30;
       DEREF(dst_instance).part0.DW1 = instance_contribution_and_geom_flags;
 
       DEREF(dst_instance).part0.QW_startNodePtr =
          (start_node_ptr & ((1ul << 48) - 1)) |
-         (uint64_t(get_instance_flag(instance_flags | (src.sbt_offset_and_flags >> 24))) << 48);
+         (uint64_t(get_instance_flag(src.sbt_offset_and_flags)) << 48);
 #endif
 
       mat4 transform = mat4(src.otw_matrix);
@@ -549,11 +526,6 @@ main()
       REF(anv_accel_struct_header)(args.output_bvh - args.output_bvh_offset);
 
    if (is_root_node) {
-      DEREF(header).instance_flags =
-         (args.geometry_type == VK_GEOMETRY_TYPE_AABBS_KHR ? ANV_INSTANCE_ALL_AABB : 0) |
-         /* These will be removed when processing leaf nodes */
-         ANV_INSTANCE_FLAG_FORCE_OPAQUE | ANV_INSTANCE_FLAG_FORCE_NON_OPAQUE;
-
       /* Tracks BLOCK where the next children should be encoded. */
       DEREF(args.header).dst_node_offset = 1;
       DEREF(header).instance_count = 0;
