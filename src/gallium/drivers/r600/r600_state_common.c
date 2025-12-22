@@ -1525,7 +1525,8 @@ void eg_setup_buffer_constants(struct r600_context *rctx, int shader_type)
 			int idx = i - sview_bits;
 			if (images->enabled_mask & (1 << idx)) {
 				uint32_t offset = (base_offset / 4) + i;
-				constants[offset] = images->views[idx].base.resource->array_size / 6;
+				constants[offset] = (G_038014_LAST_ARRAY(images->views[idx].resource_words[5]) -
+						     G_038014_BASE_ARRAY(images->views[idx].resource_words[5]) + 1) / 6;
 			}
 		}
 	}

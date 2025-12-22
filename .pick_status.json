@@ -1924,7 +1924,7 @@
         "description": "r600: update cubearray imagesize calculation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6c1432f0be9c7772573bb86b997c9f085d16c204",
         "notes": null

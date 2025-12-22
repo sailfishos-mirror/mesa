@@ -1057,8 +1057,6 @@ spec@arb_texture_stencil8@texwrap formats,Fail
 spec@arb_texture_stencil8@texwrap formats offset,Fail
 spec@arb_texture_stencil8@texwrap formats offset@GL_STENCIL_INDEX8- NPOT,Fail
 spec@arb_texture_stencil8@texwrap formats@GL_STENCIL_INDEX8- NPOT,Fail
-spec@arb_texture_view@rendering-layers-image,Fail
-spec@arb_texture_view@rendering-layers-image@layers rendering of imageCubeArray,Fail
 
 spec@arb_vertex_type_2_10_10_10_rev@arb_vertex_type_2_10_10_10_rev-array_types,Fail
 
