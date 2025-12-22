@@ -714,6 +714,29 @@ static struct ac_pc_block_base gfx12_GCEA_CPWD = {
    .spm_block_select = AC_SPM_GLOBAL_BLOCK_GCEA_CPWD,
 };
 
+/* GCEA_SE */
+static unsigned gfx12_GCEA_SE_select0[] = {
+   R_036880_GC_EA_SE_PERFCOUNTER0_SELECT,
+   R_036888_GC_EA_SE_PERFCOUNTER1_SELECT,
+};
+static unsigned gfx12_GCEA_SE_select1[] = {
+   R_036884_GC_EA_SE_PERFCOUNTER0_SELECT1,
+};
+static struct ac_pc_block_base gfx12_GCEA_SE = {
+   .gpu_block = GCEA_SE,
+   .name = "GCEA_SE",
+   .distribution = AC_PC_GLOBAL_BLOCK,
+   .num_counters = 2,
+
+   .select0 = gfx12_GCEA_SE_select0,
+   .select1 = gfx12_GCEA_SE_select1,
+   .counter0_lo = R_0349C0_GC_EA_SE_PERFCOUNTER0_LO,
+
+   .num_spm_counters = 1,
+   .num_spm_wires = 2,
+   .spm_block_select = AC_SPM_GLOBAL_BLOCK_GCEA_SE,
+};
+
 static struct ac_pc_block_gfxdescr groups_gfx12[] = {
    {&gfx12_CB, 315},
    {&gfx12_CHA, 25},
@@ -742,6 +765,7 @@ static struct ac_pc_block_gfxdescr groups_gfx12[] = {
    {&gfx12_UTCL1, 71, 2},
    {&gfx12_SQ_WGP, 511, 4},
    {&gfx12_GCEA_CPWD, 32},
+   {&gfx12_GCEA_SE, 32},
 };
 
 const struct ac_pc_block_gfxdescr *
