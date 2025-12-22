@@ -293,7 +293,8 @@ ac_spm_init_instance_mapping(const struct radeon_info *info,
       /* Global blocks. */
       assert(block->b->b->gpu_block == GL2C ||
              block->b->b->gpu_block == CPF ||
-             block->b->b->gpu_block == GCEA);
+             block->b->b->gpu_block == GCEA ||
+             block->b->b->gpu_block == GCEA_CPWD);
       instance_index = counter->instance;
    }
 
@@ -346,6 +347,7 @@ ac_spm_init_grbm_gfx_index(const struct ac_pc_block *block,
    case GL2C:
    case CPF:
    case GCEA:
+   case GCEA_CPWD:
       /* Global blocks. */
       grbm_gfx_index |= S_030800_SE_BROADCAST_WRITES(1);
       FALLTHROUGH;
