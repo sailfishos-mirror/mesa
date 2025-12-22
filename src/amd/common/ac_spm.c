@@ -1159,6 +1159,7 @@ static struct ac_spm_derived_counter_descr gfx103_ray_tri_tests_counter = {
 };
 
 /* SPM groups. */
+/* GFX10+ */
 static struct ac_spm_derived_group_descr gfx10_cache_group = {
    .id = AC_SPM_GROUP_CACHE,
    .name = "Cache",
@@ -1210,6 +1211,19 @@ static struct ac_spm_derived_group_descr gfx103_rt_group = {
    .counters = {
       &gfx103_ray_box_tests_counter,
       &gfx103_ray_tri_tests_counter,
+   },
+};
+
+/* GFX12+ */
+static struct ac_spm_derived_group_descr gfx12_cache_group = {
+   .id = AC_SPM_GROUP_CACHE,
+   .name = "Cache",
+   .num_counters = 4,
+   .counters = {
+      &gfx10_inst_cache_hit_counter,
+      &gfx10_scalar_cache_hit_counter,
+      &gfx10_l0_cache_hit_counter,
+      &gfx10_l2_cache_hit_counter,
    },
 };
 
@@ -1352,7 +1366,11 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
       return NULL;
 
    /* Add groups to the trace. */
-   ac_spm_add_group(spm_derived_trace, &gfx10_cache_group);
+   if (info->gfx_level >= GFX12) {
+      ac_spm_add_group(spm_derived_trace, &gfx12_cache_group);
+   } else {
+      ac_spm_add_group(spm_derived_trace, &gfx10_cache_group);
+   }
    ac_spm_add_group(spm_derived_trace, &gfx10_lds_group);
    ac_spm_add_group(spm_derived_trace, &gfx10_memory_bytes_group);
    ac_spm_add_group(spm_derived_trace, &gfx10_memory_percentage_group);
@@ -1517,17 +1535,19 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
       ADD(L0_CACHE_MISS_COUNT, l0_cache_miss_count);
       ADD(L0_CACHE_HIT, l0_cache_hit);
 
-      /* L1 cache. */
-      const double l1_cache_request_count = OP_RAW(GL1C_PERF_SEL_REQ);
-      const double l1_cache_hit_count = OP_SUB2(GL1C_PERF_SEL_REQ, GL1C_PERF_SEL_REQ_MISS);
-      const double l1_cache_miss_count = OP_RAW(GL1C_PERF_SEL_REQ_MISS);
-      const double l1_cache_hit =
-         l1_cache_request_count ? (l1_cache_hit_count / l1_cache_request_count) * 100.0f : 0.0f;
+      if (info->gfx_level < GFX12) {
+         /* L1 cache. */
+         const double l1_cache_request_count = OP_RAW(GL1C_PERF_SEL_REQ);
+         const double l1_cache_hit_count = OP_SUB2(GL1C_PERF_SEL_REQ, GL1C_PERF_SEL_REQ_MISS);
+         const double l1_cache_miss_count = OP_RAW(GL1C_PERF_SEL_REQ_MISS);
+         const double l1_cache_hit =
+            l1_cache_request_count ? (l1_cache_hit_count / l1_cache_request_count) * 100.0f : 0.0f;
 
-      ADD(L1_CACHE_REQUEST_COUNT, l1_cache_request_count);
-      ADD(L1_CACHE_HIT_COUNT, l1_cache_hit_count);
-      ADD(L1_CACHE_MISS_COUNT, l1_cache_miss_count);
-      ADD(L1_CACHE_HIT, l1_cache_hit);
+         ADD(L1_CACHE_REQUEST_COUNT, l1_cache_request_count);
+         ADD(L1_CACHE_HIT_COUNT, l1_cache_hit_count);
+         ADD(L1_CACHE_MISS_COUNT, l1_cache_miss_count);
+         ADD(L1_CACHE_HIT, l1_cache_hit);
+      }
 
       /* L2 cache. */
       const double l2_cache_request_count = OP_RAW(GL2C_PERF_SEL_REQ);
