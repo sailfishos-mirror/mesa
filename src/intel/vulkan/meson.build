@@ -354,4 +354,29 @@ if with_tests
     is_parallel : false,
     timeout : 60,
   )
+
+  test(
+    'anv_slab_bo_test',
+    executable(
+      'anv_slab_bo_test',
+      [
+        'tests/anv_slab_bo_test.c',
+        'tests/anv_slab_bo_test.cpp',
+        anv_entrypoints[0]
+      ],
+      c_args : [ sse2_args ],
+      link_with : libvulkan_intel_test,
+      dependencies : [
+        idep_gtest, idep_intel_driver_ds, anv_deps,
+      ],
+      include_directories : [
+        inc_include, inc_src, inc_intel, inc_compiler, inc_nir
+      ],
+      link_args : ['-Wl,--wrap=anv_device_release_bo,--wrap=anv_device_alloc_bo']
+    ),
+    suite : ['intel'],
+    protocol : 'gtest',
+    is_parallel : false,
+    timeout : 60,
+  )
 endif
