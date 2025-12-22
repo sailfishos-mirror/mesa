@@ -210,6 +210,26 @@ static struct ac_spm_counter_descr gfx12_gl2c_perf_sel_miss =
    {AC_SPM_GL2C_PERF_SEL_MISS, GL2C, 0x2a};
 static struct ac_spm_counter_descr gfx12_sqc_perf_sel_lds_bank_conflict =
    {AC_SPM_SQC_PERF_SEL_LDS_BANK_CONFLICT, SQ_WGP, 0x120};
+static struct ac_spm_counter_descr gfx12_gl2c_perf_sel_ea_rdreq_32b =
+   {AC_SPM_GL2C_PERF_SEL_EA_RDREQ_32B, GL2C, 0x92};
+static struct ac_spm_counter_descr gfx12_gl2c_perf_sel_ea_rdreq_64b =
+   {AC_SPM_GL2C_PERF_SEL_EA_RDREQ_64B, GL2C, 0x93};
+static struct ac_spm_counter_descr gfx12_gl2c_perf_sel_ea_rdreq_128b =
+   {AC_SPM_GL2C_PERF_SEL_EA_RDREQ_128B, GL2C, 0x94};
+static struct ac_spm_counter_descr gfx12_gl2c_perf_sel_ea_rdreq_256b =
+   {AC_SPM_GL2C_PERF_SEL_EA_RDREQ_256B, GL2C, 0x95};
+static struct ac_spm_counter_descr gfx12_gl2c_perf_sel_ea_wrreq =
+   {AC_SPM_GL2C_PERF_SEL_EA_WRREQ, GL2C, 0x6c};
+static struct ac_spm_counter_descr gfx12_gl2c_perf_sel_ea_wrreq_64b =
+   {AC_SPM_GL2C_PERF_SEL_EA_WRREQ_64B, GL2C, 0x72};
+static struct ac_spm_counter_descr gfx12_gcea_cpwd_perf_sel_sarb_dram_rd_size_req =
+   {AC_SPM_GCEA_CPWD_PERF_SEL_SARB_DRAM_RD_SIZE_REQ, GCEA_CPWD, 0x3};
+static struct ac_spm_counter_descr gfx12_gcea_cpwd_perf_sel_sarb_dram_wr_size_req =
+   {AC_SPM_GCEA_CPWD_PERF_SEL_SARB_DRAM_WR_SIZE_REQ, GCEA_CPWD, 0x4};
+static struct ac_spm_counter_descr gfx12_gcea_se_perf_sel_sarb_io_rd_size_req =
+   {AC_SPM_GCEA_SE_PERF_SEL_SARB_IO_RD_SIZE_REQ, GCEA_SE, 0x1};
+static struct ac_spm_counter_descr gfx12_gcea_se_perf_sel_sarb_io_wr_size_req =
+   {AC_SPM_GCEA_SE_PERF_SEL_SARB_IO_WR_SIZE_REQ, GCEA_SE, 0x2};
 
 static struct ac_spm_counter_create_info gfx12_spm_counters[] = {
    {&gfx10_tcp_perf_sel_req},
@@ -224,6 +244,16 @@ static struct ac_spm_counter_create_info gfx12_spm_counters[] = {
    {&gfx12_gl2c_perf_sel_miss},
    {&gfx10_cpf_perf_sel_stat_busy},
    {&gfx12_sqc_perf_sel_lds_bank_conflict},
+   {&gfx12_gl2c_perf_sel_ea_rdreq_32b},
+   {&gfx12_gl2c_perf_sel_ea_rdreq_64b},
+   {&gfx12_gl2c_perf_sel_ea_rdreq_128b},
+   {&gfx12_gl2c_perf_sel_ea_rdreq_256b},
+   {&gfx12_gl2c_perf_sel_ea_wrreq},
+   {&gfx12_gl2c_perf_sel_ea_wrreq_64b},
+   {&gfx12_gcea_cpwd_perf_sel_sarb_dram_rd_size_req},
+   {&gfx12_gcea_cpwd_perf_sel_sarb_dram_wr_size_req},
+   {&gfx12_gcea_se_perf_sel_sarb_io_rd_size_req},
+   {&gfx12_gcea_se_perf_sel_sarb_io_wr_size_req},
 };
 
 static struct ac_spm_block_select *
@@ -1341,10 +1371,15 @@ ac_spm_get_raw_counter_op(enum ac_spm_raw_counter_id id)
    case AC_SPM_GL2C_PERF_SEL_EA_RDREQ_64B:
    case AC_SPM_GL2C_PERF_SEL_EA_RDREQ_96B:
    case AC_SPM_GL2C_PERF_SEL_EA_RDREQ_128B:
+   case AC_SPM_GL2C_PERF_SEL_EA_RDREQ_256B:
    case AC_SPM_GL2C_PERF_SEL_EA_WRREQ:
    case AC_SPM_GL2C_PERF_SEL_EA_WRREQ_64B:
    case AC_SPM_GCEA_PERF_SEL_SARB_DRAM_SIZED_REQUESTS:
+   case AC_SPM_GCEA_CPWD_PERF_SEL_SARB_DRAM_RD_SIZE_REQ:
+   case AC_SPM_GCEA_CPWD_PERF_SEL_SARB_DRAM_WR_SIZE_REQ:
    case AC_SPM_GCEA_PERF_SEL_SARB_IO_SIZED_REQUESTS:
+   case AC_SPM_GCEA_SE_PERF_SEL_SARB_IO_RD_SIZE_REQ:
+   case AC_SPM_GCEA_SE_PERF_SEL_SARB_IO_WR_SIZE_REQ:
    case AC_SPM_TD_PERF_SEL_RAY_TRACING_BVH4_TRI_NODE:
    case AC_SPM_TD_PERF_SEL_RAY_TRACING_BVH4_FP16_BOX_NODE:
    case AC_SPM_TD_PERF_SEL_RAY_TRACING_BVH4_FP32_BOX_NODE:
@@ -1578,10 +1613,19 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
 
       /* Memmory (bytes) group. */
       /* Fetch size. */
-      double fetch_size = OP_RAW(GL2C_PERF_SEL_EA_RDREQ_32B) * 32 +
-                          OP_RAW(GL2C_PERF_SEL_EA_RDREQ_64B) * 64 +
-                          OP_RAW(GL2C_PERF_SEL_EA_RDREQ_96B) * 96 +
-                          OP_RAW(GL2C_PERF_SEL_EA_RDREQ_128B) * 128;
+      double fetch_size;
+
+      if (info->gfx_level >= GFX12) {
+         fetch_size = OP_RAW(GL2C_PERF_SEL_EA_RDREQ_32B) * 32 +
+                      OP_RAW(GL2C_PERF_SEL_EA_RDREQ_64B) * 64 +
+                      OP_RAW(GL2C_PERF_SEL_EA_RDREQ_128B) * 128 +
+                      OP_RAW(GL2C_PERF_SEL_EA_RDREQ_256B) * 256;
+      } else {
+         fetch_size = OP_RAW(GL2C_PERF_SEL_EA_RDREQ_32B) * 32 +
+                      OP_RAW(GL2C_PERF_SEL_EA_RDREQ_64B) * 64 +
+                      OP_RAW(GL2C_PERF_SEL_EA_RDREQ_96B) * 96 +
+                      OP_RAW(GL2C_PERF_SEL_EA_RDREQ_128B) * 128;
+      }
 
       ADD(FETCH_SIZE, fetch_size);
 
@@ -1593,12 +1637,26 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
       ADD(WRITE_SIZE, write_size);
 
       /* Local video mem bytes. */
-      const double local_vid_mem_bytes = OP_RAW(GCEA_PERF_SEL_SARB_DRAM_SIZED_REQUESTS) * 32;
+      double local_vid_mem_bytes;
+
+      if (info->gfx_level >= GFX12) {
+         local_vid_mem_bytes = (OP_RAW(GCEA_CPWD_PERF_SEL_SARB_DRAM_RD_SIZE_REQ) +
+                                OP_RAW(GCEA_CPWD_PERF_SEL_SARB_DRAM_WR_SIZE_REQ)) * 32;
+      } else {
+         local_vid_mem_bytes = OP_RAW(GCEA_PERF_SEL_SARB_DRAM_SIZED_REQUESTS) * 32;
+      }
 
       ADD(LOCAL_VID_MEM_BYTES, local_vid_mem_bytes);
 
       /* PCIe bytes. */
-      const double pcie_bytes = OP_RAW(GCEA_PERF_SEL_SARB_IO_SIZED_REQUESTS) * 32;
+      double pcie_bytes;
+
+      if (info->gfx_level >= GFX12) {
+         pcie_bytes = (OP_RAW(GCEA_SE_PERF_SEL_SARB_IO_RD_SIZE_REQ) +
+                       OP_RAW(GCEA_SE_PERF_SEL_SARB_IO_WR_SIZE_REQ)) * 32;
+      } else {
+         pcie_bytes = OP_RAW(GCEA_PERF_SEL_SARB_IO_SIZED_REQUESTS) * 32;
+      }
 
       ADD(PCIE_BYTES, pcie_bytes);
 
