@@ -872,16 +872,6 @@ enum vpe_status vpe_build_commands(
         }
     }
 
-    if (status == VPE_STATUS_OK) {
-        bufs->cmd_buf.size   = cmd_buf_size - curr_bufs.cmd_buf.size; // used cmd buffer size
-        bufs->cmd_buf.gpu_va = cmd_buf_gpu_a;
-        bufs->cmd_buf.cpu_va = cmd_buf_cpu_a;
-
-        bufs->emb_buf.size   = emb_buf_size - curr_bufs.emb_buf.size; // used emb buffer size
-        bufs->emb_buf.gpu_va = emb_buf_gpu_a;
-        bufs->emb_buf.cpu_va = emb_buf_cpu_a;
-    }
-
     if (status == VPE_STATUS_OK && param->predication_info.enable == true) {
         status = vpe_build_set_predication(bufs->cmd_buf.cpu_va, param->predication_info.polarity,
             param->predication_info.gpu_va,
@@ -891,6 +881,16 @@ enum vpe_status vpe_build_commands(
         if (status != VPE_STATUS_OK) {
             vpe_log("failed in building vpe predication cmd %d\n", (int)status);
         }
+    }
+
+    if (status == VPE_STATUS_OK) {
+        bufs->cmd_buf.size   = cmd_buf_size - curr_bufs.cmd_buf.size; // used cmd buffer size
+        bufs->cmd_buf.gpu_va = cmd_buf_gpu_a;
+        bufs->cmd_buf.cpu_va = cmd_buf_cpu_a;
+
+        bufs->emb_buf.size   = emb_buf_size - curr_bufs.emb_buf.size; // used emb buffer size
+        bufs->emb_buf.gpu_va = emb_buf_gpu_a;
+        bufs->emb_buf.cpu_va = emb_buf_cpu_a;
     }
 
     vpe_priv->ops_support = false;
