@@ -208,6 +208,8 @@ static struct ac_spm_counter_descr gfx12_sqc_perf_sel_icache_misses_duplicate =
    {AC_SPM_SQC_PERF_SEL_ICACHE_MISSES_DUPLICATE, SQ_WGP, 0x130};
 static struct ac_spm_counter_descr gfx12_gl2c_perf_sel_miss =
    {AC_SPM_GL2C_PERF_SEL_MISS, GL2C, 0x2a};
+static struct ac_spm_counter_descr gfx12_sqc_perf_sel_lds_bank_conflict =
+   {AC_SPM_SQC_PERF_SEL_LDS_BANK_CONFLICT, SQ_WGP, 0x120};
 
 static struct ac_spm_counter_create_info gfx12_spm_counters[] = {
    {&gfx10_tcp_perf_sel_req},
@@ -220,6 +222,8 @@ static struct ac_spm_counter_create_info gfx12_spm_counters[] = {
    {&gfx12_sqc_perf_sel_icache_misses_duplicate},
    {&gfx10_gl2c_perf_sel_req},
    {&gfx12_gl2c_perf_sel_miss},
+   {&gfx10_cpf_perf_sel_stat_busy},
+   {&gfx12_sqc_perf_sel_lds_bank_conflict},
 };
 
 static struct ac_spm_block_select *
