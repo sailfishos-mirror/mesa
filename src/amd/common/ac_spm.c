@@ -230,6 +230,8 @@ static struct ac_spm_counter_descr gfx12_gcea_se_perf_sel_sarb_io_rd_size_req =
    {AC_SPM_GCEA_SE_PERF_SEL_SARB_IO_RD_SIZE_REQ, GCEA_SE, 0x1};
 static struct ac_spm_counter_descr gfx12_gcea_se_perf_sel_sarb_io_wr_size_req =
    {AC_SPM_GCEA_SE_PERF_SEL_SARB_IO_WR_SIZE_REQ, GCEA_SE, 0x2};
+static struct ac_spm_counter_descr gfx12_gl2c_perf_sel_ea_wrreq_stall =
+   {AC_SPM_GL2C_PERF_SEL_EA_WRREQ_STALL, GL2C, 0x7a};
 
 static struct ac_spm_counter_create_info gfx12_spm_counters[] = {
    {&gfx10_tcp_perf_sel_req},
@@ -254,6 +256,9 @@ static struct ac_spm_counter_create_info gfx12_spm_counters[] = {
    {&gfx12_gcea_cpwd_perf_sel_sarb_dram_wr_size_req},
    {&gfx12_gcea_se_perf_sel_sarb_io_rd_size_req},
    {&gfx12_gcea_se_perf_sel_sarb_io_wr_size_req},
+   {&gfx10_ta_perf_sel_ta_busy},
+   {&gfx11_tcp_perf_sel_tcp_ta_req_stall},
+   {&gfx12_gl2c_perf_sel_ea_wrreq_stall},
 };
 
 static struct ac_spm_block_select *
@@ -1002,6 +1007,13 @@ static struct ac_spm_derived_component_descr gfx10_mem_unit_stalled_cycles_comp 
    .usage = AC_SPM_USAGE_CYCLES,
 };
 
+static struct ac_spm_derived_component_descr gfx12_write_unit_stalled_cycles_comp = {
+   .id = AC_SPM_COMPONENT_WRITE_UNIT_STALLED_CYCLES,
+   .counter_id = AC_SPM_COUNTER_WRITE_UNIT_STALLED,
+   .name = "Write unit stalled cycles",
+   .usage = AC_SPM_USAGE_CYCLES,
+};
+
 /* SPM counters. */
 static struct ac_spm_derived_counter_descr gfx10_inst_cache_hit_counter = {
    .id = AC_SPM_COUNTER_INST_CACHE_HIT,
@@ -1174,6 +1186,20 @@ static struct ac_spm_derived_counter_descr gfx10_mem_unit_stalled_counter = {
    },
 };
 
+static struct ac_spm_derived_counter_descr gfx12_write_unit_stalled_counter = {
+   .id = AC_SPM_COUNTER_WRITE_UNIT_STALLED,
+   .group_id = AC_SPM_GROUP_MEMORY_PERCENTAGE,
+   .name = "WriteUnitStalled",
+   .desc = "The percentage of GPUTime the Write unit is stalled. Value range: "
+           "0% to 100% (bad).",
+   .usage = AC_SPM_USAGE_PERCENTAGE,
+   .num_components = 2,
+   .components = {
+      &gfx10_gpu_busy_cycles_comp,
+      &gfx12_write_unit_stalled_cycles_comp,
+   },
+};
+
 static struct ac_spm_derived_counter_descr gfx103_ray_box_tests_counter = {
    .id = AC_SPM_COUNTER_RAY_BOX_TESTS,
    .group_id = AC_SPM_GROUP_RT,
@@ -1258,6 +1284,17 @@ static struct ac_spm_derived_group_descr gfx12_cache_group = {
       &gfx10_scalar_cache_hit_counter,
       &gfx10_l0_cache_hit_counter,
       &gfx10_l2_cache_hit_counter,
+   },
+};
+
+static struct ac_spm_derived_group_descr gfx12_memory_percentage_group = {
+   .id = AC_SPM_GROUP_MEMORY_PERCENTAGE,
+   .name = "Memory (%)",
+   .num_counters = 3,
+   .counters = {
+      &gfx10_mem_unit_busy_counter,
+      &gfx10_mem_unit_stalled_counter,
+      &gfx12_write_unit_stalled_counter,
    },
 };
 
@@ -1386,6 +1423,7 @@ ac_spm_get_raw_counter_op(enum ac_spm_raw_counter_id id)
       return AC_SPM_RAW_COUNTER_OP_SUM;
    case AC_SPM_TA_PERF_SEL_TA_BUSY:
    case AC_SPM_TCP_PERF_SEL_TCP_TA_REQ_STALL:
+   case AC_SPM_GL2C_PERF_SEL_EA_WRREQ_STALL:
       return AC_SPM_RAW_COUNTER_OP_MAX;
    default:
       UNREACHABLE("Invalid SPM raw counter ID.");
@@ -1412,7 +1450,11 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
    }
    ac_spm_add_group(spm_derived_trace, &gfx10_lds_group);
    ac_spm_add_group(spm_derived_trace, &gfx10_memory_bytes_group);
-   ac_spm_add_group(spm_derived_trace, &gfx10_memory_percentage_group);
+   if (info->gfx_level >= GFX12) {
+      ac_spm_add_group(spm_derived_trace, &gfx12_memory_percentage_group);
+   } else {
+      ac_spm_add_group(spm_derived_trace, &gfx10_memory_percentage_group);
+   }
    if (info->gfx_level >= GFX10_3)
       ac_spm_add_group(spm_derived_trace, &gfx103_rt_group);
 
@@ -1486,6 +1528,7 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
    GET_COUNTER(PCIE_BYTES);
    GET_COUNTER(MEM_UNIT_BUSY);
    GET_COUNTER(MEM_UNIT_STALLED);
+   GET_COUNTER(WRITE_UNIT_STALLED);
    GET_COUNTER(RAY_BOX_TESTS);
    GET_COUNTER(RAY_TRI_TESTS);
 
@@ -1508,6 +1551,7 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
    GET_COMPONENT(CS_LDS_BANK_CONFLICT_CYCLES);
    GET_COMPONENT(MEM_UNIT_BUSY_CYCLES);
    GET_COMPONENT(MEM_UNIT_STALLED_CYCLES);
+   GET_COMPONENT(WRITE_UNIT_STALLED_CYCLES);
 
 #undef GET_COMPONENT
 #undef GET_COUNTER
@@ -1676,6 +1720,16 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
 
       ADD(MEM_UNIT_STALLED_CYCLES, mem_unit_stalled_cycles);
       ADD(MEM_UNIT_STALLED, mem_unit_stalled);
+
+      if (info->gfx_level >= GFX12) {
+         /* Write unit stalled. */
+         const double write_unit_stalled_cycles = OP_RAW(GL2C_PERF_SEL_EA_WRREQ_STALL);
+         const double write_unit_stalled =
+            gpu_busy_cycles ? (write_unit_stalled_cycles / gpu_busy_cycles) * 100.0f : 0.0f;
+
+         ADD(WRITE_UNIT_STALLED_CYCLES, write_unit_stalled_cycles);
+         ADD(WRITE_UNIT_STALLED, write_unit_stalled);
+      }
 
       if (info->gfx_level >= GFX10_3) {
          /* Raytracing group. */
