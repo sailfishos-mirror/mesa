@@ -259,6 +259,9 @@ static struct ac_spm_counter_create_info gfx12_spm_counters[] = {
    {&gfx10_ta_perf_sel_ta_busy},
    {&gfx11_tcp_perf_sel_tcp_ta_req_stall},
    {&gfx12_gl2c_perf_sel_ea_wrreq_stall},
+   {&gfx103_td_perf_sel_ray_tracing_bvh4_tri_node},
+   {&gfx103_td_perf_sel_ray_tracing_bvh4_fp16_box_node},
+   {&gfx103_td_perf_sel_ray_tracing_bvh4_fp32_box_node},
 };
 
 static struct ac_spm_block_select *
