@@ -72,6 +72,15 @@ radv_taskmesh_enabled(const struct radv_physical_device *pdev)
           pdev->info.has_gang_submit;
 }
 
+bool
+radv_spm_trace_enabled(const struct radv_physical_device *pdev)
+{
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   return (instance->vk.trace_mode & RADV_TRACE_MODE_RGP) &&
+          debug_get_bool_option("RADV_THREAD_TRACE_CACHE_COUNTERS", true);
+}
+
 static bool
 radv_transfer_queue_enabled(const struct radv_physical_device *pdev)
 {
