@@ -528,7 +528,7 @@ optimizations.extend([
    (('fdot2', a, 0.0), 0.0),
 
    (('fdot4', ('vec4', a, b,   c,   1.0), d), ('fdph',  ('vec3', a, b, c), d), '!options->lower_fdph'),
-   (('fdot4', ('vec4', a, 0.0, 0.0, 0.0), b), ('fmul', a, b)),
+   (('fdot4', ('vec4', a, 0.0, 0.0, 0.0), b), ('fmul', a, 'b.x')),
    (('fdot4', ('vec4', a, b,   0.0, 0.0), c), ('fdot2', ('vec2', a, b), c)),
    (('fdot4', ('vec4', a, b,   c,   0.0), d), ('fdot3', ('vec3', a, b, c), d)),
    (('fdot4', 'a(w_is_zero)', b), ('fdot3', 'a.xyz', 'b.xyz')),
@@ -536,13 +536,13 @@ optimizations.extend([
    (('fdot4', 'a(y_is_zero)', b), ('fdot3', 'a.xzw', 'b.xzw')),
    (('fdot4', 'a(x_is_zero)', b), ('fdot3', 'a.yzw', 'b.yzw')),
 
-   (('fdot3', ('vec3', a, 0.0, 0.0), b), ('fmul', a, b)),
+   (('fdot3', ('vec3', a, 0.0, 0.0), b), ('fmul', a, 'b.x')),
    (('fdot3', ('vec3', a, b,   0.0), c), ('fdot2', ('vec2', a, b), c)),
    (('fdot3', 'a(x_is_zero)', b), ('fdot2', 'a.yz', 'b.yz')),
    (('fdot3', 'a(y_is_zero)', b), ('fdot2', 'a.xz', 'b.xz')),
    (('fdot3', 'a(z_is_zero)', b), ('fdot2', 'a.xy', 'b.xy')),
 
-   (('fdot2', ('vec2', a, 0.0), b), ('fmul', a, b)),
+   (('fdot2', ('vec2', a, 0.0), b), ('fmul', a, 'b.x')),
    (('fdot2', 'a(x_is_zero)', b), ('fmul', 'a.y', 'b.y')),
    (('fdot2', 'a(y_is_zero)', b), ('fmul', 'a.x', 'b.x')),
    (('fdot2', a, 1.0), ('fadd', 'a.x', 'a.y')),
