@@ -332,10 +332,11 @@ d3d12_wgl_framebuffer_present(stw_winsys_framebuffer *fb, int interval)
       hr = framebuffer->swapchain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
    else
       hr = framebuffer->swapchain->Present(interval, 0);
+   assert(SUCCEEDED(hr));
 
-   if (hr == S_OK)
-      return WaitForSingleObject(framebuffer->waitable_object, 2000) == WAIT_OBJECT_0;
-   return false;
+   if (SUCCEEDED(hr))
+      (void)WaitForSingleObject(framebuffer->waitable_object, 2000);
+   return SUCCEEDED(hr);
 }
 
 static struct pipe_resource *
