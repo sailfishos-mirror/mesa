@@ -447,8 +447,9 @@ stw_st_framebuffer_present_locked(HDC hdc,
    assert(stw_own_mutex(&stwfb->fb->mutex));
 
    resource = stwfb->textures[statt];
+   bool ret = false;
    if (resource) {
-      stw_framebuffer_present_locked(hdc, stwfb->fb, resource);
+      ret = stw_framebuffer_present_locked(hdc, stwfb->fb, resource);
    }
    else {
       stw_framebuffer_unlock(stwfb->fb);
@@ -456,7 +457,7 @@ stw_st_framebuffer_present_locked(HDC hdc,
 
    assert(!stw_own_mutex(&stwfb->fb->mutex));
 
-   return true;
+   return ret;
 }
 
 static bool
@@ -468,40 +469,32 @@ stw_st_framebuffer_flush_front(struct st_context *st,
    struct pipe_context *pipe = st->pipe;
    bool ret;
    HDC hDC;
-   bool need_swap_textures = false;
 
    if (statt != ST_ATTACHMENT_FRONT_LEFT)
       return false;
 
    stw_framebuffer_lock(stwfb->fb);
+   
+   enum st_attachment_type flush_statt = statt;
 
    /* Resolve the front buffer. */
    if (stwfb->stvis.samples > 1) {
-      enum st_attachment_type blit_target = statt;
-      if (stwfb->fb->winsys_framebuffer) {
-         blit_target = ST_ATTACHMENT_BACK_LEFT;
-         need_swap_textures = true;
-      }
+      if (stwfb->fb->winsys_framebuffer)
+         flush_statt = ST_ATTACHMENT_BACK_LEFT;
 
-      stw_pipe_blit(pipe, stwfb->textures[blit_target],
+      stw_pipe_blit(pipe, stwfb->textures[flush_statt],
                     stwfb->msaa_textures[statt]);
    } else if (stwfb->needs_fake_front) {
       /* fake front texture is now invalid */
       p_atomic_inc(&stwfb->base.stamp);
-      need_swap_textures = true;
+      flush_statt = ST_ATTACHMENT_BACK_LEFT;
    } else if (stwfb->fb->winsys_framebuffer &&
               stwfb->fb->winsys_framebuffer->flush_frontbuffer) {
       stwfb->fb->winsys_framebuffer->flush_frontbuffer(stwfb->fb->winsys_framebuffer, pipe);
    }
 
-   if (need_swap_textures) {
-      struct pipe_resource *ptex = stwfb->textures[ST_ATTACHMENT_FRONT_LEFT];
-      stwfb->textures[ST_ATTACHMENT_FRONT_LEFT] = stwfb->textures[ST_ATTACHMENT_BACK_LEFT];
-      stwfb->textures[ST_ATTACHMENT_BACK_LEFT] = ptex;
-   }
-
-   if (stwfb->textures[statt])
-      pipe->flush_resource(pipe, stwfb->textures[statt]);
+   if (stwfb->textures[flush_statt])
+      pipe->flush_resource(pipe, stwfb->textures[flush_statt]);
 
    pipe->flush(pipe, NULL, 0);
 
@@ -510,9 +503,15 @@ stw_st_framebuffer_flush_front(struct st_context *st,
 
    hDC = GetDC(stwfb->fb->hWnd);
 
-   ret = stw_st_framebuffer_present_locked(hDC, &stwfb->base, statt);
+   ret = stw_st_framebuffer_present_locked(hDC, &stwfb->base, flush_statt);
 
    ReleaseDC(stwfb->fb->hWnd, hDC);
+
+   if (flush_statt != statt && ret) {
+      struct pipe_resource *ptex = stwfb->textures[ST_ATTACHMENT_FRONT_LEFT];
+      stwfb->textures[ST_ATTACHMENT_FRONT_LEFT] = stwfb->textures[ST_ATTACHMENT_BACK_LEFT];
+      stwfb->textures[ST_ATTACHMENT_BACK_LEFT] = ptex;
+   }
 
    return ret;
 }
@@ -577,6 +576,10 @@ stw_st_swap_framebuffer_locked(HDC hdc,
    struct pipe_resource *ptex;
    unsigned mask;
 
+   bool ret = stw_st_framebuffer_present_locked(hdc, &stwfb->base, back);
+   if (!ret)
+      return false;
+
    /* swap the textures */
    ptex = stwfb->textures[front];
    stwfb->textures[front] = stwfb->textures[back];
@@ -604,8 +607,7 @@ stw_st_swap_framebuffer_locked(HDC hdc,
       mask |= front;
    stwfb->texture_mask = mask;
 
-   front = ST_ATTACHMENT_FRONT_LEFT;
-   return stw_st_framebuffer_present_locked(hdc, &stwfb->base, front);
+   return true;
 }
 
 
