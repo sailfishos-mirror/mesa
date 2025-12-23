@@ -335,15 +335,24 @@ resolve_global_state(struct d3d12_context *ctx, struct d3d12_bo *bo, d3d12_resou
       D3D12_RESOURCE_STATES promotable_state =
          resource_state_if_promoted(target_state->state, false, current_state);
 
-      D3D12_RESOURCE_STATES after = target_state->state;
-      if ((promotable_state & target_state->state) == target_state->state ||
-          !transition_required(current_state->state, &after))
+      if (promotable_state != D3D12_RESOURCE_STATE_COMMON) {
+         // If we're allowed to promote, then we must be in common, since we're not currently in a
+         // command list - in other words, previous executions would've decayed. We assert this
+         // because otherwise, the first barrier in the already-recorded command list would be
+         // wrong, missing whatever state bits we're promoting from here.
+         assert(current_state->state == D3D12_RESOURCE_STATE_COMMON);
+         continue;
+      }
+
+      if (current_state->state == target_state->state)
          continue;
 
       D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
       barrier.Transition.pResource = bo->res;
       barrier.Transition.StateBefore = current_state->state;
-      barrier.Transition.StateAfter = after;
+      // Note: We throw away any modifications to 'after' because we need our final state to be an exact match
+      // for barriers in the already-recorded command list
+      barrier.Transition.StateAfter = target_state->state;
       barrier.Transition.Subresource = num_subresources == 1 ? D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES : i;
       assert(!bo->is_front_buffer);   // No explicit barriers against front buffers
       util_dynarray_append(&ctx->barrier_scratch, barrier);
