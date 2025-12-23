@@ -180,12 +180,19 @@ static void
 copy_resource_state(d3d12_resource_state *dest, d3d12_resource_state *src)
 {
    assert(dest->num_subresources == src->num_subresources);
-   if (src->homogenous)
-      set_resource_state(dest, &src->subresource_states[0]);
-   else {
+   if (src->homogenous) {
+      if (src->subresource_states[0].may_decay)
+         reset_resource_state(dest);
+      else
+         set_resource_state(dest, &src->subresource_states[0]);
+   } else {
       dest->homogenous = false;
-      for (unsigned i = 0; i < src->num_subresources; ++i)
-         dest->subresource_states[i] = src->subresource_states[i];
+      for (unsigned i = 0; i < src->num_subresources; ++i) {
+         if (src->subresource_states[i].may_decay)
+            dest->subresource_states[i] = {};
+         else
+            dest->subresource_states[i] = src->subresource_states[i];
+      }
    }
 }
 
@@ -352,6 +359,7 @@ context_state_resolve_submission(struct d3d12_context *ctx, d3d12_bo *bo)
 
       copy_resource_state(&bo_state->batch_begin, &bo_state->batch_end);
       copy_resource_state(&bo->global_state, &bo_state->batch_end);
+      copy_resource_state(&bo_state->batch_end, &bo_state->batch_begin);
    } else {
       reset_resource_state(&bo_state->batch_end);
    }
@@ -456,7 +464,7 @@ append_barrier(struct d3d12_context *ctx,
          may_decay = current_state->supports_simultaneous_access && !d3d12_is_write_state(after);
          is_promotion = false;
       }
-   } else if (after != state_if_promoted) {
+   } else {
       after = state_if_promoted;
       may_decay = !d3d12_is_write_state(after);
       is_promotion = true;
