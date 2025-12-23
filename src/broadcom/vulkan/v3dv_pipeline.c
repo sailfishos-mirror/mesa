@@ -489,7 +489,16 @@ lower_load_push_constant(nir_builder *b, nir_intrinsic_instr *instr,
                          struct lower_pipeline_layout_state *state)
 {
    assert(instr->intrinsic == nir_intrinsic_load_push_constant);
-   instr->intrinsic = nir_intrinsic_load_uniform;
+   nir_def *old = &instr->def;
+
+   nir_def *load =
+      nir_load_uniform(b, old->num_components,
+                       old->bit_size, instr->src->ssa,
+                       .base = nir_intrinsic_base(instr),
+                       .range = nir_intrinsic_range(instr),
+                       .dest_type = nir_type_uint | old->bit_size);
+
+   nir_def_replace(old, load);
 }
 
 static struct v3dv_descriptor_map*
