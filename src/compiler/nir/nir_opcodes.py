@@ -1502,7 +1502,7 @@ if (!isnormal(dst))
 binop("usadd_4x8_vc4", tint32, _2src_commutative + associative, """
 dst = 0;
 for (int i = 0; i < 32; i += 8) {
-   dst |= MIN2(((src0 >> i) & 0xff) + ((src1 >> i) & 0xff), 0xff) << i;
+   dst |= (uint32_t)MIN2(((src0 >> i) & 0xff) + ((src1 >> i) & 0xff), 0xff) << i;
 }
 """)
 
