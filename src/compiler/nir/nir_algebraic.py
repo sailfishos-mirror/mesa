@@ -1286,7 +1286,7 @@ class AlgebraicPass(object):
                     print("Transform expected to have too many commutative "
                           "expression but did not "
                           "({} <= {}).".format(
-                              comm_exprs, nir_search_max_comm_op),
+                              comm_exprs, nir_search_max_comm_ops),
                           file=sys.stderr)
                     print("  " + str(xform), file=sys.stderr)
                     traceback.print_exc(file=sys.stderr)
