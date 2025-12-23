@@ -1325,7 +1325,8 @@ anv_cmd_buffer_set_stack_size(struct vk_command_buffer *vk_cmd_buffer,
    if (anv_batch_has_error(&cmd_buffer->batch))
       return;
 
-   uint32_t stack_ids_per_dss = 2048; /* TODO */
+   uint32_t stack_ids_per_dss =
+      brw_rt_ray_queries_stack_ids_per_dss(device->info);
 
    unsigned stack_size_log2 = util_logbase2_ceil(stack_size);
    if (stack_size_log2 < 10)

@@ -822,6 +822,7 @@ genX(setup_ray_query_globals)(struct anv_device *device,
 #if GFX_VERx10 >= 125
    assert(num_queries > 0);
    uint64_t stack_stride = brw_rt_ray_queries_stacks_stride(device->info);
+   uint32_t ids_per_dss = brw_rt_ray_queries_stack_ids_per_dss(device->info);
    for (uint32_t i = 0; i < num_queries; ++i)
       for (uint32_t j = 0; j < 2; j++)
          GENX(RT_DISPATCH_GLOBALS_pack)(NULL,
@@ -837,7 +838,7 @@ genX(setup_ray_query_globals)(struct anv_device *device,
                   .offset = offset - i * stack_stride - j * stack_stride / 2,
                },
                .AsyncRTStackSize = BRW_RT_SIZEOF_RAY_QUERY / 64,
-               .NumDSSRTStacks = 2048, /* TODO */
+               .NumDSSRTStacks = ids_per_dss,
                .MaxBVHLevels = BRW_RT_MAX_BVH_LEVELS,
                .Flags = RT_DEPTH_TEST_LESS_EQUAL,
             });

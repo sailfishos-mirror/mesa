@@ -482,13 +482,8 @@ lower_ray_query_impl(nir_function_impl *impl, struct lowering_state *state)
 
    state->rq_globals = nir_load_ray_query_global_intel(b);
 
-   /* ATSM PRMs Vol 9, "State Model for Ray Tracing - RTDispatchGlobals"
-    *
-    *    "For Sync Ray tracing (i.e. using RayQueries), SW must allocate
-    *    space assuming 2K StackIDs"
-    */
-   state->num_dss_rt_stacks = 2048; /* TODO */
-
+   state->num_dss_rt_stacks =
+      brw_rt_ray_queries_stack_ids_per_dss(state->devinfo);
    state->sync_stacks_stride =
       brw_rt_ray_queries_stacks_stride(state->devinfo);
 

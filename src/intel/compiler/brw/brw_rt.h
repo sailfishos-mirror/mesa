@@ -266,6 +266,17 @@ brw_rt_ray_queries_hw_stacks_size(const struct intel_device_info *devinfo)
 }
 
 static inline uint32_t
+brw_rt_ray_queries_stack_ids_per_dss(const struct intel_device_info *devinfo)
+{
+   /* ATSM PRMs Vol 9, "State Model for Ray Tracing - RTDispatchGlobals"
+    *
+    *    "For Sync Ray tracing (i.e. using RayQueries), SW must allocate
+    *    space assuming 2K StackIDs"
+    */
+   return 2048;
+}
+
+static inline uint32_t
 brw_rt_ray_queries_stacks_offset(uint32_t num_queries)
 {
    return BRW_RT_DISPATCH_GLOBALS_ALIGN << util_logbase2_ceil(num_queries);
