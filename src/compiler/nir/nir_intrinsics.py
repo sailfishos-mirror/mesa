@@ -1785,9 +1785,9 @@ intrinsic("optimization_barrier_sgpr_amd", dest_comp=0, src_comp=[0],
           flags=[CAN_ELIMINATE])
 
 # These are no-op intrinsics used as a simple source and user of SSA defs for testing.
-intrinsic("unit_test_amd", src_comp=[0], indices=[BASE])
-intrinsic("unit_test_uniform_amd", dest_comp=0, indices=[BASE])
-intrinsic("unit_test_divergent_amd", dest_comp=0, indices=[BASE])
+intrinsic("unit_test_output", src_comp=[0], indices=[BASE])
+intrinsic("unit_test_uniform_input", dest_comp=0, indices=[BASE])
+intrinsic("unit_test_divergent_input", dest_comp=0, indices=[BASE])
 
 # Untyped buffer load/store instructions of arbitrary length.
 # src[] = { descriptor, vector byte offset, scalar byte offset, index offset }

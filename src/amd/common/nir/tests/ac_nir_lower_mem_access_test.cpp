@@ -122,9 +122,9 @@ void create_shader(test_state *state, nir_shader_compiler_options *options)
       st->op == nir_intrinsic_load_global || st->op == nir_intrinsic_store_global ? 64 : 32;
    nir_def *offset;
    if (st->access & ACCESS_SMEM_AMD)
-      offset = nir_unit_test_uniform_amd(b, 1, offset_bit_size);
+      offset = nir_unit_test_uniform_input(b, 1, offset_bit_size);
    else
-      offset = nir_unit_test_divergent_amd(b, 1, offset_bit_size);
+      offset = nir_unit_test_divergent_input(b, 1, offset_bit_size);
    state->offset = offset;
 
    b->shader->info.next_stage = MESA_SHADER_NONE;
