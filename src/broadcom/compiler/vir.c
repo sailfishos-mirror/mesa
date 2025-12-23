@@ -1768,6 +1768,13 @@ intrinsic_try_skip_helpers(nir_intrinsic_instr *intr, UNUSED void *data)
 {
         switch(intr->intrinsic) {
                 case nir_intrinsic_image_load:
+                case nir_intrinsic_load_uniform:
+                case nir_intrinsic_load_ubo:
+                case nir_intrinsic_load_ssbo:
+                case nir_intrinsic_load_scratch:
+                case nir_intrinsic_load_shared:
+                case nir_intrinsic_load_global:
+                case nir_intrinsic_load_global_constant:
                         return true;
                 default:
                         return false;

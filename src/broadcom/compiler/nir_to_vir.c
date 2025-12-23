@@ -651,18 +651,14 @@ ntq_emit_tmu_general(struct v3d_compile *c, nir_intrinsic_instr *instr,
                                 v3d_tmu_get_type_from_op(tmu_op, !is_load) ==
                                 V3D_TMU_OP_TYPE_ATOMIC;
 
-                        /* Only load per-quad if we can be certain that all
-                         * lines in the quad are active. Notice that demoted
-                         * invocations, unlike terminated ones, are still
-                         * active: we want to skip memory writes for them but
-                         * loads should still work.
+                        /* Only load per-quad if we can't skip helper
+                         * invocations.
                          */
                         uint32_t perquad =
-                                is_load && !vir_in_nonuniform_control_flow(c) &&
-                                ((c->s->info.stage == MESA_SHADER_FRAGMENT &&
-                                  c->s->info.fs.needs_coarse_quad_helper_invocations &&
-                                  !c->emitted_discard) ||
-                                 c->s->info.uses_wide_subgroup_intrinsics) ?
+                                is_load &&
+                                c->s->info.stage == MESA_SHADER_FRAGMENT &&
+                                nir_intrinsic_has_access(instr) &&
+                                !(nir_intrinsic_access(instr) & ACCESS_SKIP_HELPERS) ?
                                 GENERAL_TMU_LOOKUP_PER_QUAD :
                                 GENERAL_TMU_LOOKUP_PER_PIXEL;
                         config = 0xffffff00 | tmu_op << 3 | perquad;
