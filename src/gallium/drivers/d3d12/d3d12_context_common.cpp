@@ -205,6 +205,8 @@ d3d12_flush_resource(struct pipe_context *pctx,
                                    D3D12_RESOURCE_STATE_COMMON,
                                    D3D12_TRANSITION_FLAG_INVALIDATE_BINDINGS);
    d3d12_apply_resource_states(ctx, false);
+   d3d12_batch_reference_resource(d3d12_current_batch(ctx), res, true);
+   ctx->has_commands = true;
 }
 
 static void
