@@ -324,7 +324,7 @@ transition_required(D3D12_RESOURCE_STATES current_state, D3D12_RESOURCE_STATES *
 }
 
 static void
-resolve_global_state(struct d3d12_context *ctx, ID3D12Resource *res, d3d12_resource_state *batch_state, d3d12_resource_state *res_state)
+resolve_global_state(struct d3d12_context *ctx, struct d3d12_bo *bo, d3d12_resource_state *batch_state, d3d12_resource_state *res_state)
 {
    assert(batch_state->num_subresources == res_state->num_subresources);
    unsigned num_subresources = batch_state->homogenous && res_state->homogenous ? 1 : batch_state->num_subresources;
@@ -340,10 +340,11 @@ resolve_global_state(struct d3d12_context *ctx, ID3D12Resource *res, d3d12_resou
          continue;
 
       D3D12_RESOURCE_BARRIER barrier = { D3D12_RESOURCE_BARRIER_TYPE_TRANSITION };
-      barrier.Transition.pResource = res;
+      barrier.Transition.pResource = bo->res;
       barrier.Transition.StateBefore = current_state->state;
       barrier.Transition.StateAfter = after;
       barrier.Transition.Subresource = num_subresources == 1 ? D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES : i;
+      assert(!bo->is_front_buffer);   // No explicit barriers against front buffers
       util_dynarray_append(&ctx->barrier_scratch, barrier);
    }
 }
@@ -355,7 +356,7 @@ context_state_resolve_submission(struct d3d12_context *ctx, d3d12_bo *bo)
    if (!bo_state->batch_end.supports_simultaneous_access) {
       assert(bo->res && bo->global_state.subresource_states);
 
-      resolve_global_state(ctx, bo->res, &bo_state->batch_begin, &bo->global_state);
+      resolve_global_state(ctx, bo, &bo_state->batch_begin, &bo->global_state);
 
       copy_resource_state(&bo_state->batch_begin, &bo_state->batch_end);
       copy_resource_state(&bo->global_state, &bo_state->batch_end);
@@ -469,6 +470,8 @@ append_barrier(struct d3d12_context *ctx,
       may_decay = !d3d12_is_write_state(after);
       is_promotion = true;
    }
+
+   assert(!bo->is_front_buffer || (is_promotion && may_decay));
 
    d3d12_subresource_state new_subresource_state { after, ctx->submit_id, is_promotion, may_decay };
    if (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)

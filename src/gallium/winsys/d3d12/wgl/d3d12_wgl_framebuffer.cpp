@@ -291,6 +291,11 @@ d3d12_wgl_framebuffer_resize(stw_winsys_framebuffer *fb,
       pipe_resource_reference(&framebuffer->buffers[i],
                               screen->base.base.resource_from_handle(&screen->base.base, &templ, &handle,
                                                                      PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE));
+
+#ifndef NDEBUG
+      struct d3d12_bo *bo = d3d12_resource(framebuffer->buffers[i])->bo;
+      bo->is_front_buffer = i != 0;
+#endif
    }
 
    if (framebuffer->single_buffered) {
@@ -333,6 +338,14 @@ d3d12_wgl_framebuffer_present(stw_winsys_framebuffer *fb, int interval)
    else
       hr = framebuffer->swapchain->Present(interval, 0);
    assert(SUCCEEDED(hr));
+
+#ifndef NDEBUG
+   uint32_t back_buffer_idx = framebuffer->swapchain->GetCurrentBackBufferIndex();
+   for (uint32_t i = 0; i < num_buffers; ++i) {
+      struct d3d12_bo *bo = d3d12_resource(framebuffer->buffers[i])->bo;
+      bo->is_front_buffer = i != back_buffer_idx;
+   }
+#endif
 
    if (SUCCEEDED(hr))
       (void)WaitForSingleObject(framebuffer->waitable_object, 2000);
