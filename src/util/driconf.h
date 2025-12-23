@@ -941,6 +941,10 @@
    DRI_CONF_OPT_B(anv_disable_drm_ccs_modifiers, def, \
                   "Disable DRM CCS modifier usage")
 
+#define DRI_CONF_ANV_DISABLE_LINK_TIME_OPTIMIZATION(def) \
+   DRI_CONF_OPT_B(anv_disable_link_time_optimization, def, \
+                  "Disable linking of graphics pipeline shaders")
+
 /**
  * \brief HASVK specific configuration options
  */

@@ -313,6 +313,9 @@ struct vk_device {
    /* For VK_KHR_pipeline_binary */
    bool disable_internal_cache;
 
+   /* Link-time optimization disable */
+   bool disable_lto;
+
    struct vk_device_memory_report *memory_reports;
    uint32_t memory_report_count;
 };

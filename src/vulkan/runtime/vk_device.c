@@ -269,6 +269,8 @@ vk_device_init(struct vk_device *device,
    if (result != VK_SUCCESS)
       return result;
 
+   device->disable_lto = false;
+
    return VK_SUCCESS;
 }
 

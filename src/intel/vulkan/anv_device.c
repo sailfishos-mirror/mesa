@@ -1031,6 +1031,8 @@ VkResult anv_CreateDevice(
    if (result != VK_SUCCESS)
       goto fail_meta_device;
 
+   device->vk.disable_lto = device->physical->instance->disable_lto;
+
    simple_mtx_init(&device->accel_struct_build.mutex, mtx_plain);
 
    *pDevice = anv_device_to_handle(device);

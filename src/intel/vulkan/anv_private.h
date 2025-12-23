@@ -1789,6 +1789,11 @@ struct anv_instance {
     bool                                        intel_enable_wa_14024015672_msaa;
 
     /**
+     * Performance workarounds
+     */
+    bool                                        disable_lto;
+
+    /**
      * Ray tracing configuration.
      */
     unsigned                                    stack_ids;
