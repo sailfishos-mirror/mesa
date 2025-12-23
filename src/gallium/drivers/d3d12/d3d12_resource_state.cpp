@@ -168,7 +168,8 @@ resource_state_if_promoted(D3D12_RESOURCE_STATES desired_state,
 
       // If the current state is a read state resulting from previous promotion...
       if (current_state->is_promoted &&
-          (current_state->state & D3D12_RESOURCE_STATE_GENERIC_READ) != D3D12_RESOURCE_STATE_COMMON)
+          (current_state->state & D3D12_RESOURCE_STATE_GENERIC_READ) != D3D12_RESOURCE_STATE_COMMON &&
+          !d3d12_is_write_state(desired_state))
          // ...then (accumulated) promotion is allowed
          return desired_state | current_state->state;
    }
