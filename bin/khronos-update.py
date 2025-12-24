@@ -186,6 +186,14 @@ SOURCES = [
     },
 
     {
+        'api': 'opencl_intel',
+        'inc_folder': 'CL_intel',
+        'sources': [
+            Source('include/CL_intel/cl_ext_private.h', 'https://github.com/intel/compute-runtime/raw/master/opencl/extensions/public/cl_ext_private.h'),
+        ],
+    },
+
+    {
         'api': 'spirv',
         'sources': [
             Source('src/compiler/spirv/NonSemanticShaderDebugInfo100.h', 'https://github.com/KhronosGroup/SPIRV-Headers/raw/main/include/spirv/unified1/NonSemanticShaderDebugInfo100.h'),
