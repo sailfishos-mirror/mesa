@@ -322,10 +322,12 @@ struct ac_spm_derived_group_descr {
 
 struct ac_spm_derived_group {
    const struct ac_spm_derived_group_descr *descr;
+   uint32_t counter_ids[AC_SPM_MAX_COUNTERS_PER_GROUP];
 };
 
 struct ac_spm_derived_counter {
    const struct ac_spm_derived_counter_descr *descr;
+   uint32_t component_ids[AC_SPM_MAX_COMPONENTS_PER_COUNTER];
 
    struct util_dynarray values;
 };

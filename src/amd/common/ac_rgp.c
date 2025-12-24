@@ -1096,8 +1096,7 @@ static void ac_sqtt_dump_derived_spm(const struct ac_spm_derived_trace *spm_deri
       fwrite(group_descr->name, group_info.group_name_length, 1, output);
 
       for (uint32_t j = 0; j < group_descr->num_counters; j++) {
-         const struct ac_spm_derived_counter_descr *counter_descr = group_descr->counters[j];
-         uint32_t counter_id = counter_descr->id;
+         uint32_t counter_id = group->counter_ids[j];
 
          file_offset += sizeof(uint32_t);
          fwrite(&counter_id, sizeof(uint32_t), 1, output);
@@ -1129,8 +1128,7 @@ static void ac_sqtt_dump_derived_spm(const struct ac_spm_derived_trace *spm_deri
       fwrite(counter_descr->desc, counter_info.counter_description_length, 1, output);
 
       for (uint32_t j = 0; j < counter_descr->num_components; j++) {
-         const struct ac_spm_derived_component_descr *component_descr = counter_descr->components[j];
-         uint32_t component_id = component_descr->id;
+         uint32_t component_id = counter->component_ids[j];
 
          file_offset += sizeof(uint32_t);
          fwrite(&component_id, sizeof(uint32_t), 1, output);

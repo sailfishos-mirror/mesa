@@ -1241,37 +1241,64 @@ ac_spm_get_component_by_id(struct ac_spm_derived_trace *spm_derived_trace,
    return NULL;
 }
 
+static int
+ac_spm_get_global_component_id(struct ac_spm_derived_trace *spm_derived_trace,
+                               enum ac_spm_component_id component_id)
+{
+   for (uint32_t i = 0; i < spm_derived_trace->num_components; i++) {
+      struct ac_spm_derived_component *component = &spm_derived_trace->components[i];
+
+      if (component->descr->id == component_id)
+         return i;
+   }
+
+   return -1;
+}
+
 static void
 ac_spm_add_group(struct ac_spm_derived_trace *spm_derived_trace,
                  const struct ac_spm_derived_group_descr *group_descr)
 {
+   struct ac_spm_derived_group *group =
+      &spm_derived_trace->groups[spm_derived_trace->num_groups];
+
+   assert(spm_derived_trace->num_groups < AC_SPM_GROUP_COUNT);
+   group->descr = group_descr;
+
    for (uint32_t i = 0; i < group_descr->num_counters; i++) {
       const struct ac_spm_derived_counter_descr *counter_descr =
          group_descr->counters[i];
+      struct ac_spm_derived_counter *counter =
+         &spm_derived_trace->counters[spm_derived_trace->num_counters];
+
+      assert(spm_derived_trace->num_counters < AC_SPM_COUNTER_COUNT);
+      counter->descr = counter_descr;
 
       for (uint32_t j = 0; j < counter_descr->num_components; j++) {
-         /* Avoid redundant components. */
-         if (ac_spm_get_component_by_id(spm_derived_trace,
-                                        counter_descr->components[j]->id))
-            continue;
+         /* A component can be used by different counters, re-use the same ID. */
+         const int component_id =
+            ac_spm_get_global_component_id(spm_derived_trace,
+                                           counter_descr->components[j]->id);
 
-         struct ac_spm_derived_component *component =
-            &spm_derived_trace->components[spm_derived_trace->num_components++];
-         assert(spm_derived_trace->num_components <= AC_SPM_COMPONENT_COUNT);
+         if (component_id != -1) {
+            counter->component_ids[j] = component_id;
+         } else {
+            struct ac_spm_derived_component *component =
+               &spm_derived_trace->components[spm_derived_trace->num_components];
 
-         component->descr = counter_descr->components[j];
+            assert(spm_derived_trace->num_components < AC_SPM_COMPONENT_COUNT);
+            component->descr = counter_descr->components[j];
+
+            counter->component_ids[j] = spm_derived_trace->num_components;
+            spm_derived_trace->num_components++;
+         }
       }
 
-      struct ac_spm_derived_counter *counter =
-         &spm_derived_trace->counters[spm_derived_trace->num_counters++];
-      assert(spm_derived_trace->num_counters <= AC_SPM_COUNTER_COUNT);
-      counter->descr = counter_descr;
+      group->counter_ids[i] = spm_derived_trace->num_counters;
+      spm_derived_trace->num_counters++;
    }
 
-   struct ac_spm_derived_group *group =
-      &spm_derived_trace->groups[spm_derived_trace->num_groups++];
-   assert(spm_derived_trace->num_groups <= AC_SPM_GROUP_COUNT);
-   group->descr = group_descr;
+   spm_derived_trace->num_groups++;
 }
 
 static enum ac_spm_raw_counter_op
