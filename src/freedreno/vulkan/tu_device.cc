@@ -2208,12 +2208,17 @@ tu_copy_buffer(struct u_trace_context *utctx, void *cmdstream,
                uint64_t size_B)
 {
    struct tu_cs *cs = (struct tu_cs *) cmdstream;
-   struct tu_suballoc_bo *bo_from = (struct tu_suballoc_bo *) ts_from;
+   uint64_t src_iova = from_offset_B;
+   if (ts_from) {
+      struct tu_suballoc_bo *bo_from = (struct tu_suballoc_bo *) ts_from;
+      src_iova = bo_from->iova + from_offset_B;
+   }
+
    struct tu_suballoc_bo *bo_to = (struct tu_suballoc_bo *) ts_to;
 
    tu_cs_emit_pkt7(cs, CP_MEMCPY, 5);
    tu_cs_emit(cs, size_B / sizeof(uint32_t));
-   tu_cs_emit_qw(cs, bo_from->iova + from_offset_B);
+   tu_cs_emit_qw(cs, src_iova);
    tu_cs_emit_qw(cs, bo_to->iova + to_offset_B);
 }
 
@@ -2226,7 +2231,8 @@ tu_trace_capture_data(struct u_trace *ut,
                         uint64_t src_offset_B,
                         uint32_t size_B)
 {
-   if (src_buffer)
+   assert(src_buffer == NULL);
+   if (src_offset_B)
       tu_copy_buffer(ut->utctx, cs, src_buffer, src_offset_B, dst_buffer,
                      dst_offset_B, size_B);
 }
