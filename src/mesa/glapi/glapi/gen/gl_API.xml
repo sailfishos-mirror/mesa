@@ -11095,7 +11095,7 @@
     </function>
 
     <!-- Internal function for glthread to implement ancillary buffer invalidation. -->
-    <function name="InternalInvalidateFramebufferAncillaryMESA" es2="3.0">
+    <function name="InternalInvalidateFramebufferAncillaryMESA" es1="1.0" es2="2.0">
     </function>
 
     <!-- Internal function for glthread to defer buffer release. -->
