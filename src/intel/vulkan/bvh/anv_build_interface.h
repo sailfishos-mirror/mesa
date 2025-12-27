@@ -29,6 +29,8 @@ struct encode_args {
 
    uint32_t leaf_node_count;
    uint32_t geometry_type;
+
+   VOID_REF parent_child_map;
 };
 
 struct header_args {

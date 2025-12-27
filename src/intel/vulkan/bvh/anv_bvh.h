@@ -319,13 +319,12 @@ struct anv_instance_leaf {
 | start with root node,         |
 | followed by interleaving      |
 | internal nodes and leaves     |
-|-------------------------------|
-| padding to align to           |
-| 64 bytes boundary             |
 |-------------------------------| bvh_layout.instance_leaves_offset
 | For a TLAS, the pointers      |
 | to all anv_instance_leaves    |
 | For a BLAS, nothing here      |
+|-------------------------------| bvh_layout.parent_child_map_offset
+| Parent - child map            |
 |-------------------------------|
 | padding to align to           |
 | 64 bytes boundary             | bvh_layout.size
@@ -338,13 +337,20 @@ struct bvh_layout {
     */
    uint64_t bvh_offset;
 
+   /* This tracks pointers to all anv_instance_leaves for BLAS. */
+   uint64_t instance_leaves_offset;
+
+   /* This map stores parent BVH offset for each child
+    *
+    * Lower 26bits - parent block index
+    * upper 6bits  - parent child slot index
+    * */
+   uint64_t parent_child_map_offset;
+
    /* Total size = bvh_offset + leaves + internal_nodes (assuming there's no
     * internal node collpased)
     */
    uint64_t size;
-
-   /* This tracks pointers to all anv_instance_leaves for BLAS. */
-   uint64_t instance_leaves_offset;
 };
 
 #endif

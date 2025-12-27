@@ -283,6 +283,10 @@ get_bvh_layout(const struct vk_acceleration_structure_build_state *state,
       offset += leaf_count * sizeof(uint64_t);
    }
 
+   uint64_t parent_child_map_size = (internal_count + leaf_count) * sizeof(uint32_t);
+   layout->parent_child_map_offset = offset;
+   offset += parent_child_map_size;
+
    layout->size = align64(offset, 64);
 }
 
@@ -421,6 +425,8 @@ anv_encode_as(VkCommandBuffer commandBuffer, const struct vk_acceleration_struct
       .geometry_type = geometry_type,
       .instance_leaves_addr = vk_acceleration_structure_get_va(dst) +
                               bvh_layout.instance_leaves_offset,
+      .parent_child_map = vk_acceleration_structure_get_va(dst) +
+                          bvh_layout.parent_child_map_offset,
    };
    anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
 

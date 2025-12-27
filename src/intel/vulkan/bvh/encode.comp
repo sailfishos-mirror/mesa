@@ -359,6 +359,7 @@ main()
       /* Tracks BLOCK where the next children should be encoded. */
       DEREF(args.header).dst_node_offset = 1;
       DEREF(header).instance_count = 0;
+      DEREF(INDEX(uint32_t, args.parent_child_map, 0)) = VK_NULL_BVH_OFFSET;
    }
 
    IR_NODE children[6] = {VK_BVH_INVALID_NODE, VK_BVH_INVALID_NODE,
@@ -495,9 +496,17 @@ main()
                child_aabb = DEREF(REF(vk_ir_node)NODE_OFFSET(child)).aabb;
 
             uint32_t type = ir_id_to_type(child);
-            if (child != VK_BVH_INVALID_NODE && type != vk_ir_node_internal)
+            /* Track each children's parent in the map. */
+            if (child != VK_BVH_INVALID_NODE && type != vk_ir_node_instance) {
+               uint32_t pcm_val = 0;
+               pcm_val = (cluster.idx << 26) | internal_node_block;
+               DEREF(INDEX(uint32_t, args.parent_child_map, child_block)) = pcm_val;
+            }
+
+            if (child != VK_BVH_INVALID_NODE && type != vk_ir_node_internal) {
                encode_leaf_node(type, child, BLOCK_OFFSET(child_block),
                                 header);
+            }
          }
 
          BLOCK child_block_offset =
