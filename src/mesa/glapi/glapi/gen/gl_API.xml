@@ -11099,7 +11099,7 @@
     </function>
 
     <!-- Internal function for glthread to defer buffer release. -->
-    <function name="InternalReleaseBufferMESA" es2="3.0" marshal="async">
+    <function name="InternalReleaseBufferMESA" es1="1.0" es2="2.0" marshal="async">
         <param name="buffer" type="GLvoid *"/>
     </function>
 </category>
