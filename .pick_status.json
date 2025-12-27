@@ -1344,7 +1344,7 @@
         "description": "mesa: fix GL_INVALID_OPERATION with GLES1/2 + Kopper",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0c7994bb2ddb082cdd72ab7b4de6de8b0d55c204",
         "notes": null
