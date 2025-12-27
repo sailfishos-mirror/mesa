@@ -1354,7 +1354,7 @@
         "description": "mesa: workaround GL_INVALID_OPERATION in GLES 2.0 draws",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7c1f8b63ad5a8d3e2fb36eae51881f437f988d09",
         "notes": null
