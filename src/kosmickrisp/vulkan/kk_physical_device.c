@@ -242,6 +242,7 @@ kk_get_device_features(
       .bufferDeviceAddress = true,
       .computeFullSubgroups = true,
       .dynamicRendering = true,
+      .extendedDynamicState = true,
       .inlineUniformBlock = true,
       .maintenance4 = true,
       .pipelineCreationCacheControl = true,
