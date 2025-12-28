@@ -247,7 +247,6 @@ kk_CreateDescriptorSetLayout(VkDevice device,
       }
 
       stride *= max_plane_count;
-      layout->binding[b].count_per_element = max_plane_count;
 
       if (stride > 0) {
          assert(stride <= UINT8_MAX);

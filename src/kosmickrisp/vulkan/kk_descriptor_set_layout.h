@@ -32,9 +32,6 @@ struct kk_descriptor_set_binding_layout {
     */
    uint32_t array_size;
 
-   /* Number of actual descriptors per element */
-   uint32_t count_per_element;
-
    /* Offset into the descriptor buffer where this descriptor lives */
    uint32_t offset;
 
