@@ -15,19 +15,20 @@
 
 #include <assert.h>
 
-#define KK_MAX_SETS                   32
-#define KK_MAX_PUSH_SIZE              128
-#define KK_MAX_DYNAMIC_BUFFERS        64
-#define KK_MAX_RTS                    8
-#define KK_MAX_SAMPLES                8
-#define KK_MIN_SSBO_ALIGNMENT         16
-#define KK_MIN_TEXEL_BUFFER_ALIGNMENT 16
-#define KK_MIN_UBO_ALIGNMENT          64
-#define KK_MAX_VIEWPORTS              16
-#define KK_MAX_DESCRIPTOR_SIZE        64
-#define KK_MAX_PUSH_DESCRIPTORS       32
-#define KK_MAX_DESCRIPTOR_SET_SIZE    (1u << 30)
-#define KK_MAX_DESCRIPTORS            (1 << 20)
+#define KK_MAX_SETS                      32
+#define KK_MAX_PUSH_SIZE                 128
+#define KK_MAX_DYNAMIC_BUFFERS           64
+#define KK_MAX_RTS                       8
+#define KK_MAX_SAMPLES                   8
+#define KK_MIN_SSBO_ALIGNMENT            16
+#define KK_MIN_TEXEL_BUFFER_ALIGNMENT    16
+#define KK_MIN_UBO_ALIGNMENT             64
+#define KK_MAX_VIEWPORTS                 16
+#define KK_MAX_DESCRIPTOR_SIZE           64
+#define KK_MAX_PUSH_DESCRIPTORS          32
+#define KK_MAX_DESCRIPTOR_SET_SIZE       (1u << 30)
+#define KK_MAX_INLINE_UNIFORM_BLOCK_SIZE (1u << 16)
+#define KK_MAX_DESCRIPTORS               (1 << 20)
 #define KK_PUSH_DESCRIPTOR_SET_SIZE                                            \
    (KK_MAX_PUSH_DESCRIPTORS * KK_MAX_DESCRIPTOR_SIZE)
 #define KK_SSBO_BOUNDS_CHECK_ALIGNMENT 4
