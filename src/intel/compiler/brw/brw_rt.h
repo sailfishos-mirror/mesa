@@ -51,6 +51,9 @@ extern "C" {
 /** Stride of the resume SBT */
 #define BRW_BTD_RESUME_SBT_STRIDE 8
 
+/** Root node offset for BVH */
+#define BRW_RT_ROOT_NODE_OFFSET 256
+
 /* Vulkan always uses exactly two levels of BVH: world and object.  At the API
  * level, these are referred to as top and bottom.
  */

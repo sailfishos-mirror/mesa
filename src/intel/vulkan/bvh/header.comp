@@ -29,6 +29,7 @@ main(void)
    DEREF(args.dst).serialization_size = serialization_size;
    DEREF(args.dst).self_ptr = uint64_t(args.dst);
    DEREF(args.dst).instance_count = args.instance_count;
+   DEREF(args.dst).instance_leaves_offset = args.instance_leaves_offset;
 
    /* 128 is local_size_x in copy.comp shader, 8 is the amount of data
     * copied by each iteration of that shader's loop

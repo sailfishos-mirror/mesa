@@ -1186,21 +1186,7 @@ brw_nir_rt_acceleration_structure_to_root_node(nir_builder *b,
     *
     * But if the acceleration structure pointer is NULL, then we should return
     * NULL as root node pointer.
-    *
-    * TODO: we could optimize this by assuming that for a given version of the
-    * BVH, we can find the root node at a given offset.
     */
-   nir_def *root_node_ptr, *null_node_ptr;
-   nir_push_if(b, nir_ieq_imm(b, as_addr, 0));
-   {
-      null_node_ptr = nir_imm_int64(b, 0);
-   }
-   nir_push_else(b, NULL);
-   {
-      root_node_ptr =
-         nir_iadd(b, as_addr, brw_nir_rt_load(b, as_addr, 256, 1, 64));
-   }
-   nir_pop_if(b, NULL);
-
-   return nir_if_phi(b, null_node_ptr, root_node_ptr);
+   return nir_bcsel(b, nir_ieq_imm(b, as_addr, 0), nir_imm_int64(b, 0),
+                    nir_iadd_imm(b, as_addr, BRW_RT_ROOT_NODE_OFFSET));
 }

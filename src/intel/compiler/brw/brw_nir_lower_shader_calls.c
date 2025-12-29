@@ -285,7 +285,7 @@ brw_nir_lower_shader_calls(nir_shader *shader,
                            struct brw_nir_lower_shader_calls_state *state)
 {
    bool a = nir_shader_intrinsics_pass(shader, lower_shader_trace_ray,
-                                       nir_metadata_none, state);
+                                       nir_metadata_control_flow, state);
    bool b = nir_shader_intrinsics_pass(shader, lower_shader_call_instr,
                                          nir_metadata_control_flow,
                                          NULL);

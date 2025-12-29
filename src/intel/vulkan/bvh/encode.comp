@@ -146,7 +146,7 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
 
       REF(anv_instance_leaf) dst_instance = REF(anv_instance_leaf)(dst_node);
       REF(anv_accel_struct_header) blas_header = REF(anv_accel_struct_header)(src.base_ptr);
-      uint64_t start_node_ptr = uint64_t(src.base_ptr) + DEREF(blas_header).rootNodeOffset;
+      uint64_t start_node_ptr = uint64_t(src.base_ptr) + args.output_bvh_offset;
 
 #if GFX_VERx10 >= 300
       DEREF(dst_instance).part0.QW_startNodePtr = start_node_ptr;
@@ -222,8 +222,7 @@ encode_leaf_node(uint32_t type, uint64_t src_node, uint64_t dst_node, REF(anv_ac
       DEREF(dst_instance).part1.instance_index = src.instance_id;
       DEREF(dst_instance).part1.instance_id = src.custom_instance_and_mask & 0xffffff;
 
-      uint64_t instance_leaves_addr_base = args.output_bvh -
-         args.output_bvh_offset + ANV_RT_BVH_HEADER_SIZE;
+      uint64_t instance_leaves_addr_base = args.instance_leaves_addr;
       uint64_t cnt = atomicAdd(DEREF(dst_header).instance_count, 1);
       DEREF(INDEX(uint64_t, instance_leaves_addr_base, cnt)) = dst_node;
       break;

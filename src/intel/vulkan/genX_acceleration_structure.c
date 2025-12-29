@@ -247,16 +247,11 @@ get_bvh_layout(VkGeometryTypeKHR geometry_type, uint32_t leaf_count,
 
    uint64_t offset = ANV_RT_BVH_HEADER_SIZE;
 
-   /* For a TLAS, we store the address of anv_instance_leaf after header
-    * This is for quick access in the copy.comp
+   /* This is where internal_nodes/leaves start to be encoded.
+    *
+    * NOTE: Root node offset is fixed to 256 so make sure you don't add
+    * anything above this offset.
     */
-   if (geometry_type == VK_GEOMETRY_TYPE_INSTANCES_KHR) {
-      offset += leaf_count * sizeof(uint64_t);
-   }
-   /* The BVH and hence bvh_offset needs 64 byte alignment for RT nodes. */
-   offset = align64(offset, 64);
-
-   /* This is where internal_nodes/leaves start to be encoded */
    layout->bvh_offset = offset;
 
    offset += internal_count * ANV_RT_INTERNAL_NODE_SIZE;
@@ -276,7 +271,17 @@ get_bvh_layout(VkGeometryTypeKHR geometry_type, uint32_t leaf_count,
       UNREACHABLE("Unknown VkGeometryTypeKHR");
    }
 
-   layout->size = offset;
+   offset = align64(offset, 64);
+   layout->instance_leaves_offset = offset;
+
+   /* For a TLAS, we store the address of anv_instance_leaf after header
+    * This is for quick access in the copy.comp
+    */
+   if (geometry_type == VK_GEOMETRY_TYPE_INSTANCES_KHR) {
+      offset += leaf_count * sizeof(uint64_t);
+   }
+
+   layout->size = align64(offset, 64);
 }
 
 static VkDeviceSize
@@ -394,6 +399,8 @@ anv_encode_as(VkCommandBuffer commandBuffer, const struct vk_acceleration_struct
       .output_bvh_offset = bvh_layout.bvh_offset,
       .leaf_node_count = state->leaf_node_count,
       .geometry_type = geometry_type,
+      .instance_leaves_addr = vk_acceleration_structure_get_va(dst) +
+                              bvh_layout.instance_leaves_offset,
    };
    anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
 
@@ -444,6 +451,7 @@ anv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_stru
          .dst = vk_acceleration_structure_get_va(dst),
          .bvh_offset = bvh_layout.bvh_offset,
          .instance_count = instance_count,
+         .instance_leaves_offset = bvh_layout.instance_leaves_offset,
       };
 
       anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
@@ -487,6 +495,8 @@ anv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_stru
          sizeof(uint64_t) * header.instance_count;
 
       header.size = header.compacted_size;
+
+      header.instance_leaves_offset = bvh_layout.instance_leaves_offset;
 
 #if GFX_VERx10 >= 300
       header.enable_64b_rt = 1;
