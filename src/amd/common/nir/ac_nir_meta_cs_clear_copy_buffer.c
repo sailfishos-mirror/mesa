@@ -568,10 +568,15 @@ ac_prepare_cs_clear_copy_buffer(const struct ac_cs_clear_copy_buffer_options *op
     * the beginning a 256B block and clear/copy whole 256B blocks. Clearing/copying a 256B block
     * partially for each wave is inefficient, which happens when dst_offset isn't aligned to 256.
     * Clearing/copying whole 256B blocks per wave isn't possible if dwords_per_thread isn't 2^n.
+    *
+    * pipe_interleave_bytes is 256.
     */
    unsigned start_thread =
-      dst_offset_bound % 256 && util_is_power_of_two_nonzero(dwords_per_thread) ?
-            DIV_ROUND_UP(256 - dst_offset_bound % 256, dwords_per_thread * 4) : 0;
+      dst_offset_bound % options->info->pipe_interleave_bytes &&
+      util_is_power_of_two_nonzero(dwords_per_thread) ?
+            DIV_ROUND_UP(options->info->pipe_interleave_bytes -
+                         dst_offset_bound % options->info->pipe_interleave_bytes,
+                         dwords_per_thread * 4) : 0;
    out->shader_key.has_start_thread = start_thread != 0;
 
    /* Set the value of the last thread ID, so that the shader knows which thread is the last one. */

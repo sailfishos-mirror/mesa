@@ -19,6 +19,74 @@ extern "C" {
 #define AMD_MAX_SA_PER_SE  2
 #define AMD_MAX_WGP        60
 
+/* Memory is divided among memory channels such that each 256B maps to a different memory channel
+ * and the memory channel index increments with each 256B block, which wraps around to 0 after
+ * the last memory channel index.
+ *
+ * For example, with 16 memory channels, address bits 8:11 contain the memory channel index.
+ * Let's call them "channel address bits". The number of memory channels can be a non-power-of-two
+ * on some chips.
+ *
+ * AMD GPUs usually assign 16 bits of memory bus to 1 memory channel. For example, 192-bit GDDR
+ * memory bus has 12 memory channels. APUs usually have 1 memory channel per 32 bits or 64 bits
+ * of memory bus. The physical memory channels don't always map 1:1 to AMD GPU memory channels.
+ *
+ * Memory channels are like separate cores. The advertised bandwidth and cache sizes are always
+ * for all memory channels combined. That means that each channel has only 1/num_memory_channels
+ * bandwidth and 1/memory_channels cache size. If all memory accesses unluckily end up in the same
+ * channel for all running shaders, the available memory bandwidth is only 1/num_memory_channels
+ * and the available cache size is also only 1/num_memory_channels. With 16 memory channels, that
+ * would be 16x worse cache and memory performance.
+ *
+ * Strategies to distribute work among all memory channels evenly:
+ *
+ * - Ring element sizes should be set to an odd multiple of 256 to make sure each element starts on
+ *   a different memory channel. This is similar to how LDS banks work, but the granularity is 256B
+ *   instead of 4B here. The simplest way to do that is that if the ring element size is > 256,
+ *   apply "|= 256;" to it. The scratch ring and the task shader payload ring do this.
+ *
+ * - For tree data structures in memory, try to randomize channel address bits, which can be done by
+ *   making sure that tree nodes start on an odd multiple of 256. All possible numbers of
+ *   ((address / 256) % num_memory_channels) should be represented equally in the node addresses.
+ *
+ * - If we have a ring buffer where we can't set the ring element size (e.g. TCS outputs where it's
+ *   set to 32K), each workgroup should write at least (num_memory_channels * 256) of TCS outputs
+ *   in bytes, and ideally twice that amount, to make sure each workgroup doesn't leave some memory
+ *   channels (and thus bandwidth) completely unused or underutilized. We could also shift
+ *   the placement of TCS outputs to a random 256*i offset within each 32K segment instead. Our TCS
+ *   workgroup size calculation takes this into account.
+ *
+ * - radeon_surf::tile_swizzle is a random number that randomizes channel address bits to make sure
+ *   some fixed image coordinates (x,y) map to a different memory channel for each image, so if
+ *   a shader were to access multiple images at some fixed image coordinates (x,y) with the same
+ *   bpp, each image would load from a different channel if radeon_surf::tile_swizzle is different.
+ *   If multiple render targets are bound, it's recommended that they all have different tile_swizzle,
+ *   so that MRT0 goes to channel A, MRT1 goes to channel B (A != B), etc. Other than that, image
+ *   tiling does the optimal thing for us. The main purpose of 4K and bigger tiling is to distribute
+ *   work among all memory channels evenly. Linear and 256B tiling generally don't do that.
+ *
+ * - Performance is also affected by how many memory channels a VMEM instruction or a clause
+ *   intersects. Stores are more sensitive to this than loads because they are often globally
+ *   coherent. For example, a 32-lane VMEM store can store to address range=128..640 (size=512),
+ *   which stores data to 3 memory channels, while storing to address range=256..768 stores the same
+ *   amount of data to only 2 memory channels. The latter case has better performance (less VMEM
+ *   latency) when all memory channels are already busy because the wave only has to wait for replies
+ *   from 2 channels instead of 3, and 1 channel has less work to do. Examples are:
+ *   - Our clear_buffer and copy_buffer compute shaders where the store address of lane 0 is always
+ *     a multiple of 256, so that each subgroup always stores to a 256B-aligned memory region of
+ *     size 256*N.
+ *   - Our image clear and blit compute shaders where the stored adress range of each compute
+ *     subgroup is always aligned to 256B and stores 256*N. That's accomplished by making compute
+ *     subgroups always clear or copy whole 256B image tiles, whose dimensions differ between tiling
+ *     modes.
+ *   - Vertex 0 of each TCS output starts on an address aligned to 256 to make TCS output stores
+ *     from each subgroup always store 256B-aligned blocks of 256*N bytes.
+ *
+ * Number 256 comes from GB_ADDR_CONFIG.PIPE_INTERLEAVE_SIZE and is stored in
+ * radeon_info::pipe_interleave_bytes. It's always 256 on all GCN and RDNA chips. "Pipe" means
+ * a memory channel in this context.
+ */
+
 struct amdgpu_gpu_info;
 struct drm_amdgpu_info_device;
 

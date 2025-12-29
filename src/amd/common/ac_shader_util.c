@@ -908,7 +908,8 @@ unsigned ac_compute_ngg_workgroup_size(unsigned es_verts, unsigned gs_inst_prims
    return CLAMP(workgroup_size, 1, 256);
 }
 
-static unsigned get_tcs_wg_output_mem_size(uint32_t num_tcs_output_cp, uint32_t num_mem_tcs_outputs,
+static unsigned get_tcs_wg_output_mem_size(const struct radeon_info *info,
+                                           uint32_t num_tcs_output_cp, uint32_t num_mem_tcs_outputs,
                                            uint32_t num_mem_tcs_patch_outputs, uint32_t num_patches)
 {
    /* Align each per-vertex and per-patch output to 16 vec4 elements = 256B. It's most optimal when
@@ -918,8 +919,9 @@ static unsigned get_tcs_wg_output_mem_size(uint32_t num_tcs_output_cp, uint32_t 
     * in wave64 will cover 4 channels (1024B). If an output was only aligned to 128B, wave64 could
     * cover 5 channels (128B .. 1.125K) instead of 4, which could increase VMEM latency.
     */
-   unsigned mem_one_pervertex_output = align(16 * num_tcs_output_cp * num_patches, 256);
-   unsigned mem_one_perpatch_output = align(16 * num_patches, 256);
+   unsigned mem_one_pervertex_output = align(16 * num_tcs_output_cp * num_patches,
+                                             info->pipe_interleave_bytes);
+   unsigned mem_one_perpatch_output = align(16 * num_patches, info->pipe_interleave_bytes);
 
    return mem_one_pervertex_output * num_mem_tcs_outputs +
           mem_one_perpatch_output * num_mem_tcs_patch_outputs;
@@ -955,20 +957,20 @@ uint32_t ac_compute_num_tess_patches(const struct radeon_info *info, uint32_t nu
       num_patches = MIN2(num_patches, 16); /* recommended */
 
    /* Make sure the output data fits in the offchip buffer */
-   unsigned mem_size = get_tcs_wg_output_mem_size(num_tcs_output_cp, num_mem_tcs_outputs,
+   unsigned mem_size = get_tcs_wg_output_mem_size(info, num_tcs_output_cp, num_mem_tcs_outputs,
                                                   num_mem_tcs_patch_outputs, num_patches);
    if (mem_size > info->hs_offchip_workgroup_dw_size * 4) {
       /* Find the number of patches that fit in memory. Each output is aligned separately,
        * so this division won't return a precise result.
        */
       num_patches = info->hs_offchip_workgroup_dw_size * 4 /
-                    get_tcs_wg_output_mem_size(num_tcs_output_cp, num_mem_tcs_outputs,
+                    get_tcs_wg_output_mem_size(info, num_tcs_output_cp, num_mem_tcs_outputs,
                                                num_mem_tcs_patch_outputs, 1);
-      assert(get_tcs_wg_output_mem_size(num_tcs_output_cp, num_mem_tcs_outputs,
+      assert(get_tcs_wg_output_mem_size(info, num_tcs_output_cp, num_mem_tcs_outputs,
                                         num_mem_tcs_patch_outputs, num_patches) <=
              info->hs_offchip_workgroup_dw_size * 4);
 
-      while (get_tcs_wg_output_mem_size(num_tcs_output_cp, num_mem_tcs_outputs,
+      while (get_tcs_wg_output_mem_size(info, num_tcs_output_cp, num_mem_tcs_outputs,
                                         num_mem_tcs_patch_outputs, num_patches + 1) <=
              info->hs_offchip_workgroup_dw_size * 4)
          num_patches++;
@@ -1043,6 +1045,8 @@ ac_compute_scratch_wavesize(const struct radeon_info *info, uint32_t bytes_per_w
    /* Add 1 scratch item to make the number of items odd. This should improve
     * scratch performance by more randomly distributing scratch waves among
     * memory channels.
+    *
+    * On GFX11+, this is exactly "|= info->pipe_interleave_bytes".
     */
    if (bytes_per_wave)
       bytes_per_wave |= info->scratch_wavesize_granularity;

@@ -2390,7 +2390,7 @@ void ac_get_task_info(const struct radeon_info *info,
     *    64K        | 550               | 574               | +4.3%
     *    # Adding 256 mitigates the performance loss from increasing num_entries.
     */
-   const uint32_t payload_entry_size = 16384 + 256;
+   const uint32_t payload_entry_size = 16384 + info->pipe_interleave_bytes;
    const uint16_t num_entries = get_task_num_entries(info->family);
    const uint32_t draw_ring_bytes = num_entries * AC_TASK_DRAW_ENTRY_BYTES;
    const uint32_t payload_ring_bytes = num_entries * payload_entry_size;
