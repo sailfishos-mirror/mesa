@@ -1964,6 +1964,12 @@ can_use_resource_barrier(const struct intel_device_info *devinfo,
                ANV_PIPE_CS_STALL_BIT))
       return false;
 
+   /* There are issues with resource barrier and ANV_PIPE_RT_BTI_CHANGE,
+    * see https://gitlab.freedesktop.org/mesa/mesa/-/issues/14533
+    */
+   if (bits & ANV_PIPE_RT_BTI_CHANGE)
+      return false;
+
    return true;
 }
 
