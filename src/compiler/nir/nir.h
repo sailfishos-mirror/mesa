@@ -1500,11 +1500,29 @@ nir_op_is_selection(nir_op op)
  * to this enum in the future.
  */
 typedef enum {
+   /**
+    * If not set, any -0.0 or +0.0 output can have either sign,
+    * and any zero input can be treated as having opposite sign.
+    */
    nir_fp_preserve_signed_zero = BITFIELD_BIT(0),
+
+   /**
+    * If not set, the output value is undefined if
+    * it or any input is -Inf or +Inf.
+    */
    nir_fp_preserve_inf = BITFIELD_BIT(1),
+
+   /**
+    * If not set, the output value is undefined if
+    * it or any input is a NaN.
+    */
    nir_fp_preserve_nan = BITFIELD_BIT(2),
 
-   nir_fp_preserve_sz_inf_nan = BITFIELD_MASK(3),
+
+   nir_fp_preserve_sz_inf_nan = nir_fp_preserve_signed_zero |
+                                nir_fp_preserve_inf |
+                                nir_fp_preserve_nan,
+
    nir_fp_fast_math = 0,
    nir_fp_no_fast_math = BITFIELD_MASK(3),
 } nir_fp_math_control;
