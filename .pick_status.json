@@ -2054,7 +2054,7 @@
         "description": "r600: fix rv770 dot4 operations",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "942e6af40bfc0baefa52217ffb60a2d42adb6c25",
         "notes": null
