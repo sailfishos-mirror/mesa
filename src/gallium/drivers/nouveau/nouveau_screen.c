@@ -176,8 +176,8 @@ static void
 nouveau_disk_cache_create(struct nouveau_screen *screen)
 {
    struct mesa_sha1 ctx;
-   unsigned char sha1[20];
-   char cache_id[20 * 2 + 1];
+   unsigned char sha1[SHA1_DIGEST_LENGTH];
+   char cache_id[SHA1_DIGEST_STRING_LENGTH];
    uint64_t driver_flags = 0;
 
    _mesa_sha1_init(&ctx);
@@ -186,7 +186,7 @@ nouveau_disk_cache_create(struct nouveau_screen *screen)
       return;
 
    _mesa_sha1_final(&ctx, sha1);
-   mesa_bytes_to_hex(cache_id, sha1, 20);
+   mesa_bytes_to_hex(cache_id, sha1, SHA1_DIGEST_LENGTH);
 
    driver_flags |= NOUVEAU_SHADER_CACHE_FLAGS_IR_NIR;
 
@@ -276,7 +276,7 @@ nouveau_driver_uuid(struct pipe_screen *screen, char *uuid)
 {
    const char* driver = PACKAGE_VERSION MESA_GIT_SHA1;
    struct mesa_sha1 sha1_ctx;
-   uint8_t sha1[20];
+   uint8_t sha1[SHA1_DIGEST_LENGTH];
 
    _mesa_sha1_init(&sha1_ctx);
    _mesa_sha1_update(&sha1_ctx, driver, strlen(driver));

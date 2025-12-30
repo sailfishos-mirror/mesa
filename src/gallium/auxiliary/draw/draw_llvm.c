@@ -442,7 +442,7 @@ static void
 draw_get_ir_cache_key(struct nir_shader *nir,
                       const void *key, size_t key_size,
                       uint32_t val_32bit,
-                      unsigned char ir_sha1_cache_key[20])
+                      unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH])
 {
    struct blob blob = { 0 };
    unsigned ir_size;
@@ -476,7 +476,7 @@ draw_llvm_create_variant(struct draw_llvm *llvm,
    struct llvm_vertex_shader *shader =
       llvm_vertex_shader(llvm->draw->vs.vertex_shader);
    char module_name[64];
-   unsigned char ir_sha1_cache_key[20];
+   unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH];
    struct lp_cached_code cached = { 0 };
    bool needs_caching = false;
    variant = MALLOC(sizeof *variant +
@@ -2505,7 +2505,7 @@ draw_gs_llvm_create_variant(struct draw_llvm *llvm,
    struct llvm_geometry_shader *shader =
       llvm_geometry_shader(llvm->draw->gs.geometry_shader);
    char module_name[64];
-   unsigned char ir_sha1_cache_key[20];
+   unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH];
    struct lp_cached_code cached = { 0 };
    bool needs_caching = false;
 
@@ -3177,7 +3177,7 @@ draw_tcs_llvm_create_variant(struct draw_llvm *llvm,
    struct draw_tcs_llvm_variant *variant;
    struct llvm_tess_ctrl_shader *shader = llvm_tess_ctrl_shader(llvm->draw->tcs.tess_ctrl_shader);
    char module_name[64];
-   unsigned char ir_sha1_cache_key[20];
+   unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH];
    struct lp_cached_code cached = { 0 };
    bool needs_caching = false;
 
@@ -3715,7 +3715,7 @@ draw_tes_llvm_create_variant(struct draw_llvm *llvm,
    struct draw_tes_llvm_variant *variant;
    struct llvm_tess_eval_shader *shader = llvm_tess_eval_shader(llvm->draw->tes.tess_eval_shader);
    char module_name[64];
-   unsigned char ir_sha1_cache_key[20];
+   unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH];
    struct lp_cached_code cached = { 0 };
    bool needs_caching = false;
 

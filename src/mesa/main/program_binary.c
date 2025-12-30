@@ -56,7 +56,7 @@ struct program_binary_header {
     * something besides a sha1, then a new internal_format value can be added.
     */
    uint32_t internal_format;
-   uint8_t sha1[20];
+   uint8_t sha1[SHA1_DIGEST_LENGTH];
    /* Fields following sha1 can be changed since the sha1 will guarantee that
     * the binary only works with the same Mesa version.
     */
@@ -236,7 +236,7 @@ _mesa_get_program_binary(struct gl_context *ctx,
                        GLenum *binary_format, GLvoid *binary)
 {
    struct blob blob;
-   uint8_t driver_sha1[20];
+   uint8_t driver_sha1[SHA1_DIGEST_LENGTH];
    unsigned header_size = get_program_binary_header_size();
 
    st_get_program_binary_driver_sha1(ctx, driver_sha1);
@@ -273,7 +273,7 @@ _mesa_program_binary(struct gl_context *ctx, struct gl_shader_program *sh_prog,
                      GLenum binary_format, const GLvoid *binary,
                      GLsizei length)
 {
-   uint8_t driver_sha1[20];
+   uint8_t driver_sha1[SHA1_DIGEST_LENGTH];
    unsigned header_size = get_program_binary_header_size();
 
    st_get_program_binary_driver_sha1(ctx, driver_sha1);

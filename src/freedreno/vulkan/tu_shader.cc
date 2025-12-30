@@ -3319,9 +3319,9 @@ tu_compile_shaders(struct tu_device *device,
 
       int64_t stage_start = os_time_get_nano();
 
-      unsigned char shader_sha1[21];
-      memcpy(shader_sha1, pipeline_sha1, 20);
-      shader_sha1[20] = (unsigned char) stage;
+      unsigned char shader_sha1[SHA1_DIGEST_LENGTH + 1];
+      memcpy(shader_sha1, pipeline_sha1, SHA1_DIGEST_LENGTH);
+      shader_sha1[SHA1_DIGEST_LENGTH] = (unsigned char) stage;
 
       result = tu_shader_create(device,
                                 &shaders[stage], nir[stage], &keys[stage],

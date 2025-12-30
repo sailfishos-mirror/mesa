@@ -36,7 +36,7 @@ static const bool dump_stats_on_destroy = false;
 static uint32_t
 sha1_hash_func(const void *sha1)
 {
-   return _mesa_hash_data(sha1, 20);
+   return _mesa_hash_data(sha1, SHA1_DIGEST_LENGTH);
 }
 
 static bool
@@ -46,7 +46,7 @@ sha1_compare_func(const void *sha1_a, const void *sha1_b)
 }
 
 struct serialized_nir {
-   unsigned char sha1_key[20];
+   unsigned char sha1_key[SHA1_DIGEST_LENGTH];
    size_t size;
    char data[0];
 };
@@ -83,7 +83,7 @@ void
 v3dv_pipeline_cache_upload_nir(struct v3dv_pipeline *pipeline,
                                struct v3dv_pipeline_cache *cache,
                                nir_shader *nir,
-                               unsigned char sha1_key[20])
+                               unsigned char sha1_key[SHA1_DIGEST_LENGTH])
 {
    if (!cache || !cache->nir_cache)
       return;
@@ -121,7 +121,7 @@ v3dv_pipeline_cache_upload_nir(struct v3dv_pipeline *pipeline,
 
    struct serialized_nir *snir =
       ralloc_size(cache->nir_cache, sizeof(*snir) + blob.size);
-   memcpy(snir->sha1_key, sha1_key, 20);
+   memcpy(snir->sha1_key, sha1_key, SHA1_DIGEST_LENGTH);
    snir->size = blob.size;
    memcpy(snir->data, blob.data, blob.size);
 
@@ -129,7 +129,7 @@ v3dv_pipeline_cache_upload_nir(struct v3dv_pipeline *pipeline,
 
    cache->nir_stats.count++;
    if (debug_cache) {
-      char sha1buf[41];
+      char sha1buf[SHA1_DIGEST_STRING_LENGTH];
       _mesa_sha1_format(sha1buf, snir->sha1_key);
       mesa_logi("pipeline cache %p, new nir entry %s\n", cache, sha1buf);
       if (dump_stats)
@@ -145,13 +145,13 @@ nir_shader*
 v3dv_pipeline_cache_search_for_nir(struct v3dv_pipeline *pipeline,
                                    struct v3dv_pipeline_cache *cache,
                                    const nir_shader_compiler_options *nir_options,
-                                   unsigned char sha1_key[20])
+                                   unsigned char sha1_key[SHA1_DIGEST_LENGTH])
 {
    if (!cache || !cache->nir_cache)
       return NULL;
 
    if (debug_cache) {
-      char sha1buf[41];
+      char sha1buf[SHA1_DIGEST_STRING_LENGTH];
       _mesa_sha1_format(sha1buf, sha1_key);
 
       mesa_logi("pipeline cache %p, search for nir %s\n", cache, sha1buf);
@@ -249,14 +249,14 @@ v3dv_pipeline_shared_data_write_to_blob(const struct v3dv_pipeline_shared_data *
  */
 struct v3dv_pipeline_shared_data *
 v3dv_pipeline_cache_search_for_pipeline(struct v3dv_pipeline_cache *cache,
-                                        unsigned char sha1_key[20],
+                                        unsigned char sha1_key[SHA1_DIGEST_LENGTH],
                                         bool *cache_hit)
 {
    if (!cache || !cache->cache)
       return NULL;
 
    if (debug_cache) {
-      char sha1buf[41];
+      char sha1buf[SHA1_DIGEST_STRING_LENGTH];
       _mesa_sha1_format(sha1buf, sha1_key);
 
       mesa_logi("pipeline cache %p, search pipeline with key %s\n", cache, sha1buf);
@@ -312,7 +312,7 @@ v3dv_pipeline_cache_search_for_pipeline(struct v3dv_pipeline_cache *cache,
       size_t buffer_size;
       uint8_t *buffer = disk_cache_get(disk_cache, cache_key, &buffer_size);
       if (V3D_DBG(CACHE)) {
-         char sha1buf[41];
+         char sha1buf[SHA1_DIGEST_STRING_LENGTH];
          _mesa_sha1_format(sha1buf, cache_key);
          mesa_logi("[v3dv on-disk cache] %s %s\n",
                    buffer ? "hit" : "miss", sha1buf);
@@ -370,7 +370,7 @@ v3dv_pipeline_shared_data_destroy(struct v3dv_device *device,
 
 static struct v3dv_pipeline_shared_data *
 v3dv_pipeline_shared_data_new(struct v3dv_pipeline_cache *cache,
-                              const unsigned char sha1_key[20],
+                              const unsigned char sha1_key[SHA1_DIGEST_LENGTH],
                               struct v3dv_descriptor_maps **maps,
                               struct v3dv_shader_variant **variants,
                               const uint64_t *total_assembly,
@@ -390,7 +390,7 @@ v3dv_pipeline_shared_data_new(struct v3dv_pipeline_cache *cache,
       return NULL;
 
    new_entry->ref_cnt = 1;
-   memcpy(new_entry->sha1_key, sha1_key, 20);
+   memcpy(new_entry->sha1_key, sha1_key, SHA1_DIGEST_LENGTH);
 
    for (uint8_t stage = 0; stage < BROADCOM_SHADER_STAGES; stage++) {
       new_entry->maps[stage] = maps[stage];
@@ -452,7 +452,7 @@ pipeline_cache_upload_shared_data(struct v3dv_pipeline_cache *cache,
    _mesa_hash_table_insert(cache->cache, shared_data->sha1_key, shared_data);
    cache->stats.count++;
    if (debug_cache) {
-      char sha1buf[41];
+      char sha1buf[SHA1_DIGEST_STRING_LENGTH];
       _mesa_sha1_format(sha1buf, shared_data->sha1_key);
 
       mesa_logi("pipeline cache %p, new cache entry with sha1 key %s:%p\n\n",
@@ -480,7 +480,7 @@ pipeline_cache_upload_shared_data(struct v3dv_pipeline_cache *cache,
          disk_cache_compute_key(disk_cache, shared_data->sha1_key, 20, cache_key);
 
          if (V3D_DBG(CACHE)) {
-            char sha1buf[41];
+            char sha1buf[SHA1_DIGEST_STRING_LENGTH];
             _mesa_sha1_format(sha1buf, shared_data->sha1_key);
             mesa_logi("[v3dv on-disk cache] storing %s\n", sha1buf);
          }
@@ -504,7 +504,7 @@ static struct serialized_nir*
 serialized_nir_create_from_blob(struct v3dv_pipeline_cache *cache,
                                 struct blob_reader *blob)
 {
-   const unsigned char *sha1_key = blob_read_bytes(blob, 20);
+   const unsigned char *sha1_key = blob_read_bytes(blob, SHA1_DIGEST_LENGTH);
    uint32_t snir_size = blob_read_uint32(blob);
    const char* snir_data = blob_read_bytes(blob, snir_size);
    if (blob->overrun)
@@ -512,7 +512,7 @@ serialized_nir_create_from_blob(struct v3dv_pipeline_cache *cache,
 
    struct serialized_nir *snir =
       ralloc_size(cache->nir_cache, sizeof(*snir) + snir_size);
-   memcpy(snir->sha1_key, sha1_key, 20);
+   memcpy(snir->sha1_key, sha1_key, SHA1_DIGEST_LENGTH);
    snir->size = snir_size;
    memcpy(snir->data, snir_data, snir_size);
 
@@ -574,7 +574,7 @@ static struct v3dv_pipeline_shared_data *
 v3dv_pipeline_shared_data_create_from_blob(struct v3dv_pipeline_cache *cache,
                                            struct blob_reader *blob)
 {
-   const unsigned char *sha1_key = blob_read_bytes(blob, 20);
+   const unsigned char *sha1_key = blob_read_bytes(blob, SHA1_DIGEST_LENGTH);
 
    struct v3dv_descriptor_maps *maps[BROADCOM_SHADER_STAGES] = { 0 };
    struct v3dv_shader_variant *variants[BROADCOM_SHADER_STAGES] = { 0 };
@@ -811,14 +811,14 @@ v3dv_MergePipelineCaches(VkDevice device,
           */
          struct serialized_nir *snir_dst =
             ralloc_size(dst->nir_cache, sizeof(*snir_dst) + src_snir->size);
-         memcpy(snir_dst->sha1_key, src_snir->sha1_key, 20);
+         memcpy(snir_dst->sha1_key, src_snir->sha1_key, SHA1_DIGEST_LENGTH);
          snir_dst->size = src_snir->size;
          memcpy(snir_dst->data, src_snir->data, src_snir->size);
 
          _mesa_hash_table_insert(dst->nir_cache, snir_dst->sha1_key, snir_dst);
          dst->nir_stats.count++;
          if (debug_cache) {
-            char sha1buf[41];
+            char sha1buf[SHA1_DIGEST_STRING_LENGTH];
             _mesa_sha1_format(sha1buf, snir_dst->sha1_key);
 
             mesa_logi("pipeline cache %p, added nir entry %s "
@@ -841,7 +841,7 @@ v3dv_MergePipelineCaches(VkDevice device,
 
          dst->stats.count++;
          if (debug_cache) {
-            char sha1buf[41];
+            char sha1buf[SHA1_DIGEST_STRING_LENGTH];
             _mesa_sha1_format(sha1buf, cache_entry->sha1_key);
 
             mesa_logi("pipeline cache %p, added entry %s "
@@ -880,7 +880,7 @@ static bool
 v3dv_pipeline_shared_data_write_to_blob(const struct v3dv_pipeline_shared_data *cache_entry,
                                         struct blob *blob)
 {
-   blob_write_bytes(blob, cache_entry->sha1_key, 20);
+   blob_write_bytes(blob, cache_entry->sha1_key, SHA1_DIGEST_LENGTH);
 
    uint8_t descriptor_maps_count = 0;
    for (uint8_t stage = 0; stage < BROADCOM_SHADER_STAGES; stage++) {
@@ -988,7 +988,7 @@ v3dv_GetPipelineCacheData(VkDevice _device,
 
          size_t save_size = blob.size;
 
-         blob_write_bytes(&blob, snir->sha1_key, 20);
+         blob_write_bytes(&blob, snir->sha1_key, SHA1_DIGEST_LENGTH);
          blob_write_uint32(&blob, snir->size);
          blob_write_bytes(&blob, snir->data, snir->size);
 

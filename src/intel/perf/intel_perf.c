@@ -815,10 +815,10 @@ intel_perf_store_configuration(struct intel_perf_config *perf_cfg, int fd,
                         config->n_b_counter_regs);
    }
 
-   uint8_t hash[20];
+   uint8_t hash[SHA1_DIGEST_LENGTH];
    _mesa_sha1_final(&sha1_ctx, hash);
 
-   char formatted_hash[41];
+   char formatted_hash[SHA1_DIGEST_STRING_LENGTH];
    _mesa_sha1_format(formatted_hash, hash);
 
    char generated_guid[37];

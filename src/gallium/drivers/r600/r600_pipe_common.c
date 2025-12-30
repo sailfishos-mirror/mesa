@@ -754,8 +754,8 @@ static void r600_disk_cache_create(struct r600_common_screen *rscreen)
 		return;
 
 	struct mesa_sha1 ctx;
-	unsigned char sha1[20];
-	char cache_id[20 * 2 + 1];
+	unsigned char sha1[SHA1_DIGEST_LENGTH];
+	char cache_id[SHA1_DIGEST_STRING_LENGTH];
 
 	_mesa_sha1_init(&ctx);
 	if (!disk_cache_get_function_identifier(r600_disk_cache_create,
@@ -763,7 +763,7 @@ static void r600_disk_cache_create(struct r600_common_screen *rscreen)
 		return;
 
 	_mesa_sha1_final(&ctx, sha1);
-	mesa_bytes_to_hex(cache_id, sha1, 20);
+	mesa_bytes_to_hex(cache_id, sha1, SHA1_DIGEST_LENGTH);
 
 	/* These flags affect shader compilation. */
 	rscreen->disk_shader_cache =

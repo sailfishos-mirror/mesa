@@ -28,6 +28,7 @@
 #define _API_H_
 
 #include "util/format/u_formats.h"
+#include "util/sha1/sha1.h"
 
 struct st_context;
 
@@ -207,7 +208,7 @@ struct st_config_options
    bool allow_multisampled_copyteximage;
    bool vertex_program_default_out;
 
-   unsigned char config_options_sha1[20];
+   unsigned char config_options_sha1[SHA1_DIGEST_LENGTH];
 };
 
 struct pipe_frontend_screen;

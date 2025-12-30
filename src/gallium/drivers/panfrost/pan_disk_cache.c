@@ -80,7 +80,7 @@ panfrost_disk_cache_store(struct disk_cache *cache,
    panfrost_disk_cache_compute_key(cache, uncompiled, key, cache_key);
 
    if (debug) {
-      char sha1[41];
+      char sha1[SHA1_DIGEST_STRING_LENGTH];
       _mesa_sha1_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] storing %s\n", sha1);
    }
@@ -124,7 +124,7 @@ panfrost_disk_cache_retrieve(struct disk_cache *cache,
    panfrost_disk_cache_compute_key(cache, uncompiled, key, cache_key);
 
    if (debug) {
-      char sha1[41];
+      char sha1[SHA1_DIGEST_STRING_LENGTH];
       _mesa_sha1_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] retrieving %s: ", sha1);
    }
@@ -174,7 +174,7 @@ panfrost_disk_cache_init(struct panfrost_screen *screen)
    const uint8_t *id_sha1 = build_id_data(note);
    assert(id_sha1);
 
-   char timestamp[41];
+   char timestamp[SHA1_DIGEST_STRING_LENGTH];
    _mesa_sha1_format(timestamp, id_sha1);
 
    /* Consider any flags affecting the compile when caching */

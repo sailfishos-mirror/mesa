@@ -381,7 +381,7 @@ VkResult anv_EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
          counter->scope = VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_KHR;
          counter->storage = intel_perf_counter_data_type_to_vk_storage[intel_counter->data_type];
 
-         unsigned char sha1_result[20];
+         unsigned char sha1_result[SHA1_DIGEST_LENGTH];
          _mesa_sha1_compute(intel_counter->symbol_name,
                             strlen(intel_counter->symbol_name),
                             sha1_result);

@@ -1483,8 +1483,8 @@ brw_generator::generate_code(const brw_shader &s,
    int after_size = p->next_insn_offset - start_offset;
 
    bool dump_shader_bin = brw_should_dump_shader_bin();
-   unsigned char sha1[21];
-   char sha1buf[41];
+   unsigned char sha1[SHA1_DIGEST_LENGTH + 1];
+   char sha1buf[SHA1_DIGEST_STRING_LENGTH];
 
    auto override_path = debug_get_option_shader_bin_override_path();
    if (unlikely(debug_flag || dump_shader_bin || override_path != NULL ||

@@ -1936,26 +1936,26 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
          !builder->rasterizer_discard && msaa_info && msaa_info->sampleShadingEnable;
    }
 
-   unsigned char pipeline_sha1[20];
+   unsigned char pipeline_sha1[SHA1_DIGEST_LENGTH];
    tu_hash_shaders(pipeline_sha1, builder->create_flags, stage_infos, nir,
                    &builder->layout, keys, builder->state);
 
-   unsigned char nir_sha1[21];
+   unsigned char nir_sha1[SHA1_DIGEST_LENGTH + 1];
    memcpy(nir_sha1, pipeline_sha1, sizeof(pipeline_sha1));
-   nir_sha1[20] = 'N';
+   nir_sha1[SHA1_DIGEST_LENGTH] = 'N';
 
    if (!executable_info) {
       cache_hit = true;
       bool application_cache_hit = false;
 
-      unsigned char shader_sha1[21];
+      unsigned char shader_sha1[SHA1_DIGEST_LENGTH + 1];
       memcpy(shader_sha1, pipeline_sha1, sizeof(pipeline_sha1));
       
       for (mesa_shader_stage stage = MESA_SHADER_VERTEX; stage < ARRAY_SIZE(nir);
            stage = (mesa_shader_stage) (stage + 1)) {
          if (stage_infos[stage] || nir[stage]) {
             bool shader_application_cache_hit;
-            shader_sha1[20] = (unsigned char) stage;
+            shader_sha1[SHA1_DIGEST_LENGTH] = (unsigned char) stage;
             shaders[stage] =
                tu_pipeline_cache_lookup(builder->cache, &shader_sha1,
                                         sizeof(shader_sha1),
@@ -4856,7 +4856,7 @@ tu_compute_pipeline_create(VkDevice device,
 
    void *pipeline_mem_ctx = ralloc_context(NULL);
 
-   unsigned char pipeline_sha1[20];
+   unsigned char pipeline_sha1[SHA1_DIGEST_LENGTH];
    tu_hash_compute(pipeline_sha1, flags, stage_info, layout, &key);
 
    struct tu_shader *shader = NULL;

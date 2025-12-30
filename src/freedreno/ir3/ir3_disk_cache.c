@@ -50,7 +50,7 @@ ir3_disk_cache_init(struct ir3_compiler *compiler)
                      sizeof(compiler->options.uche_trap_base));
    _mesa_sha1_final(&ctx, sha1);
 
-   char timestamp[41];
+   char timestamp[SHA1_DIGEST_STRING_LENGTH];
    _mesa_sha1_format(timestamp, sha1);
 
    uint64_t driver_flags = ir3_shader_debug_hash_key();
@@ -225,7 +225,7 @@ ir3_disk_cache_retrieve(struct ir3_shader *shader,
    compute_variant_key(shader, v, cache_key);
 
    if (debug) {
-      char sha1[41];
+      char sha1[SHA1_DIGEST_STRING_LENGTH];
       _mesa_sha1_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] retrieving variant %s: ", sha1);
    }
@@ -264,7 +264,7 @@ ir3_disk_cache_store(struct ir3_shader *shader,
    compute_variant_key(shader, v, cache_key);
 
    if (debug) {
-      char sha1[41];
+      char sha1[SHA1_DIGEST_STRING_LENGTH];
       _mesa_sha1_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] storing variant %s\n", sha1);
    }

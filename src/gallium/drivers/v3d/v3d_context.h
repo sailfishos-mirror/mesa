@@ -231,7 +231,7 @@ struct v3d_uncompiled_shader {
         uint32_t num_tf_specs;
 
         /* For caching */
-        unsigned char sha1[20];
+        unsigned char sha1[SHA1_DIGEST_LENGTH];
 };
 
 struct v3d_compiled_shader {

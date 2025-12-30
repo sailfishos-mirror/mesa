@@ -2238,8 +2238,8 @@ generate_code(struct elk_codegen *p,
    int after_size = p->next_insn_offset;
 
    bool dump_shader_bin = elk_should_dump_shader_bin();
-   unsigned char sha1[21];
-   char sha1buf[41];
+   unsigned char sha1[SHA1_DIGEST_LENGTH + 1];
+   char sha1buf[SHA1_DIGEST_STRING_LENGTH];
 
    if (unlikely(debug_enabled || dump_shader_bin)) {
       _mesa_sha1_compute(p->store, p->next_insn_offset, sha1);

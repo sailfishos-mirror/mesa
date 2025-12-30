@@ -460,7 +460,7 @@ v3d_shader_state_create(struct pipe_context *pctx,
 /* Key ued with the RAM cache */
 struct v3d_cache_key {
         struct v3d_key *key;
-        unsigned char sha1[20];
+        unsigned char sha1[SHA1_DIGEST_LENGTH];
 };
 
 struct v3d_compiled_shader *
@@ -970,12 +970,12 @@ cache_hash(const void *_key, uint32_t key_size)
         const struct v3d_cache_key *key = (struct v3d_cache_key *) _key;
 
         struct mesa_sha1 ctx;
-        unsigned char sha1[20];
+        unsigned char sha1[SHA1_DIGEST_LENGTH];
         _mesa_sha1_init(&ctx);
         _mesa_sha1_update(&ctx, key->key, key_size);
-        _mesa_sha1_update(&ctx, key->sha1, 20);
+        _mesa_sha1_update(&ctx, key->sha1, SHA1_DIGEST_LENGTH);
         _mesa_sha1_final(&ctx, sha1);
-        return _mesa_hash_data(sha1, 20);
+        return _mesa_hash_data(sha1, SHA1_DIGEST_LENGTH);
 }
 
 static inline bool

@@ -2206,8 +2206,8 @@ elk_fs_generator::generate_code(const elk_cfg_t *cfg, int dispatch_width,
    int after_size = p->next_insn_offset - start_offset;
 
    bool dump_shader_bin = elk_should_dump_shader_bin();
-   unsigned char sha1[21];
-   char sha1buf[41];
+   unsigned char sha1[SHA1_DIGEST_LENGTH + 1];
+   char sha1buf[SHA1_DIGEST_STRING_LENGTH];
 
    if (unlikely(debug_flag || dump_shader_bin)) {
       _mesa_sha1_compute(p->store + start_offset / sizeof(elk_inst),

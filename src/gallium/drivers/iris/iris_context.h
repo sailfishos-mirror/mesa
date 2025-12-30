@@ -575,7 +575,7 @@ struct iris_uncompiled_shader {
    struct pipe_stream_output_info stream_output;
 
    /* A SHA1 of the serialized NIR for the disk cache. */
-   unsigned char nir_sha1[20];
+   unsigned char nir_sha1[SHA1_DIGEST_LENGTH];
 
    /* Hash value based on shader source program */
    unsigned source_hash;

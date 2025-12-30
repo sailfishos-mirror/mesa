@@ -28,7 +28,7 @@
 
 struct rt_handle_hash_entry {
    uint32_t key;
-   char hash[20];
+   char hash[SHA1_DIGEST_LENGTH];
 };
 
 static uint32_t

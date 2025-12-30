@@ -40,6 +40,7 @@
 
 #include "pipe/p_state.h"
 #include "pipe/p_shader_tokens.h"
+#include "util/sha1/sha1.h"
 #include "nir.h"
 
 struct pipe_context;
@@ -422,10 +423,10 @@ draw_set_disk_cache_callbacks(struct draw_context *draw,
                               void *data_cookie,
                               void (*find_shader)(void *cookie,
                                                   struct lp_cached_code *cache,
-                                                  unsigned char ir_sha1_cache_key[20]),
+                                                  unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH]),
                               void (*insert_shader)(void *cookie,
                                                     struct lp_cached_code *cache,
-                                                    unsigned char ir_sha1_cache_key[20]));
+                                                    unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH]));
 
 
 #endif /* DRAW_CONTEXT_H */

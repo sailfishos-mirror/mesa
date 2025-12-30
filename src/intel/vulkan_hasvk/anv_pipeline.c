@@ -337,13 +337,13 @@ struct anv_pipeline_stage {
    VkPipelineCreateFlags2KHR pipeline_flags;
    const VkPipelineShaderStageCreateInfo *info;
 
-   unsigned char shader_sha1[20];
+   unsigned char shader_sha1[SHA1_DIGEST_LENGTH];
 
    union elk_any_prog_key key;
 
    struct {
       mesa_shader_stage stage;
-      unsigned char sha1[20];
+      unsigned char sha1[SHA1_DIGEST_LENGTH];
    } cache_key;
 
    nir_shader *nir;
@@ -1230,7 +1230,7 @@ anv_graphics_pipeline_compile(struct anv_graphics_pipeline *pipeline,
 
    anv_graphics_pipeline_init_keys(pipeline, state, stages);
 
-   unsigned char sha1[20];
+   unsigned char sha1[SHA1_DIGEST_LENGTH];
    anv_pipeline_hash_graphics(pipeline, layout, stages, sha1);
 
    for (unsigned s = 0; s < ARRAY_SIZE(stages); s++) {

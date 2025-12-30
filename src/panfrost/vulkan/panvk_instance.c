@@ -240,7 +240,7 @@ panvk_CreateInstance(const VkInstanceCreateInfo *pCreateInfo,
    }
 
    unsigned build_id_len = build_id_length(note);
-   if (build_id_len < SHA1_DIGEST_LENGTH) {
+   if (build_id_len < 20) {
       return panvk_errorf(NULL, VK_ERROR_INITIALIZATION_FAILED,
                           "build-id too short.  It needs to be a SHA");
    }

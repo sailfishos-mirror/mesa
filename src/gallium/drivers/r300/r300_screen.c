@@ -80,8 +80,8 @@ static const char* r300_get_name(struct pipe_screen* pscreen)
 static void r300_disk_cache_create(struct r300_screen* r300screen)
 {
     struct mesa_sha1 ctx;
-    unsigned char sha1[20];
-    char cache_id[20 * 2 + 1];
+    unsigned char sha1[SHA1_DIGEST_LENGTH];
+    char cache_id[SHA1_DIGEST_STRING_LENGTH];
 
     _mesa_sha1_init(&ctx);
     if (!disk_cache_get_function_identifier(r300_disk_cache_create,
@@ -89,7 +89,7 @@ static void r300_disk_cache_create(struct r300_screen* r300screen)
         return;
 
     _mesa_sha1_final(&ctx, sha1);
-    mesa_bytes_to_hex(cache_id, sha1, 20);
+    mesa_bytes_to_hex(cache_id, sha1, SHA1_DIGEST_LENGTH);
 
     r300screen->disk_shader_cache =
                     disk_cache_create(r300_get_family_name(r300screen),

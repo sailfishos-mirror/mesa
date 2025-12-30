@@ -270,7 +270,7 @@ struct agx_uncompiled_shader {
    mesa_shader_stage type;
    struct blob early_serialized_nir;
    struct blob serialized_nir;
-   uint8_t nir_sha1[20];
+   uint8_t nir_sha1[SHA1_DIGEST_LENGTH];
 
    struct {
       uint64_t inputs_flat_shaded;

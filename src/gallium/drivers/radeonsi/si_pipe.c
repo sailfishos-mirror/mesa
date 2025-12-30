@@ -1162,8 +1162,8 @@ static void si_disk_cache_create(struct si_screen *sscreen)
       return;
 
    struct mesa_sha1 ctx;
-   unsigned char sha1[20];
-   char cache_id[20 * 2 + 1];
+   unsigned char sha1[SHA1_DIGEST_LENGTH];
+   char cache_id[SHA1_DIGEST_STRING_LENGTH];
 
    _mesa_sha1_init(&ctx);
 
@@ -1190,7 +1190,7 @@ static void si_disk_cache_create(struct si_screen *sscreen)
    _mesa_sha1_update(&ctx, &sscreen->use_aco, sizeof(sscreen->use_aco));
 
    _mesa_sha1_final(&ctx, sha1);
-   mesa_bytes_to_hex(cache_id, sha1, 20);
+   mesa_bytes_to_hex(cache_id, sha1, SHA1_DIGEST_LENGTH);
 
    sscreen->disk_shader_cache = disk_cache_create(ac_get_family_name(sscreen->info.family),
                                                   cache_id, sscreen->info.address32_hi);

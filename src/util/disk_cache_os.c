@@ -441,7 +441,7 @@ static void
 make_cache_file_directory(struct disk_cache *cache, const cache_key key)
 {
    char *dir;
-   char buf[41];
+   char buf[SHA1_DIGEST_STRING_LENGTH];
 
    _mesa_sha1_format(buf, key);
    if (asprintf(&dir, "%s/%c%c", cache->path, buf[0], buf[1]) == -1)
@@ -678,7 +678,7 @@ disk_cache_load_item(struct disk_cache *cache, char *filename, size_t *size)
 char *
 disk_cache_get_cache_filename(struct disk_cache *cache, const cache_key key)
 {
-   char buf[41];
+   char buf[SHA1_DIGEST_STRING_LENGTH];
    char *filename;
 
    if (cache->path_init_failed)

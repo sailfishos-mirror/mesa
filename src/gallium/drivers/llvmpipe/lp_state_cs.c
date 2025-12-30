@@ -1251,7 +1251,7 @@ lp_debug_cs_variant(const struct lp_compute_shader_variant *variant)
 
 static void
 lp_cs_get_ir_cache_key(struct lp_compute_shader_variant *variant,
-                       unsigned char ir_sha1_cache_key[20])
+                       unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH])
 {
    struct blob blob = { 0 };
    unsigned ir_size;
@@ -1296,7 +1296,7 @@ generate_variant(struct llvmpipe_context *lp,
    variant->shader = shader;
    memcpy(&variant->key, key, shader->variant_key_size);
 
-   unsigned char ir_sha1_cache_key[20];
+   unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH];
    struct lp_cached_code cached = { 0 };
    bool needs_caching = false;
 

@@ -436,7 +436,7 @@ anv_load_fp64_shader(struct anv_device *device)
 
    const char* shader_name = "float64_spv_lib";
    struct mesa_sha1 sha1_ctx;
-   uint8_t sha1[20];
+   uint8_t sha1[SHA1_DIGEST_LENGTH];
    _mesa_sha1_init(&sha1_ctx);
    _mesa_sha1_update(&sha1_ctx, shader_name, strlen(shader_name));
    _mesa_sha1_final(&sha1_ctx, sha1);

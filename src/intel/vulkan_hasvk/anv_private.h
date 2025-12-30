@@ -886,7 +886,7 @@ struct anv_physical_device {
     } memory;
 
     struct anv_memregion                        sys;
-    uint8_t                                     driver_build_sha1[20];
+    uint8_t                                     driver_build_sha1[SHA1_DIGEST_LENGTH];
     uint8_t                                     pipeline_cache_uuid[VK_UUID_SIZE];
     uint8_t                                     driver_uuid[VK_UUID_SIZE];
     uint8_t                                     device_uuid[VK_UUID_SIZE];
@@ -981,14 +981,14 @@ struct nir_shader *
 anv_device_search_for_nir(struct anv_device *device,
                           struct vk_pipeline_cache *cache,
                           const struct nir_shader_compiler_options *nir_options,
-                          unsigned char sha1_key[20],
+                          unsigned char sha1_key[SHA1_DIGEST_LENGTH],
                           void *mem_ctx);
 
 void
 anv_device_upload_nir(struct anv_device *device,
                       struct vk_pipeline_cache *cache,
                       const struct nir_shader *nir,
-                      unsigned char sha1_key[20]);
+                      unsigned char sha1_key[SHA1_DIGEST_LENGTH]);
 
 struct anv_device {
     struct vk_device                            vk;
@@ -1932,7 +1932,7 @@ struct anv_pipeline_layout {
 
    uint32_t num_sets;
 
-   unsigned char sha1[20];
+   unsigned char sha1[SHA1_DIGEST_LENGTH];
 };
 
 struct anv_buffer {
@@ -2481,9 +2481,9 @@ struct anv_cmd_state {
    struct anv_state                             binding_tables[MESA_VULKAN_SHADER_STAGES];
    struct anv_state                             samplers[MESA_VULKAN_SHADER_STAGES];
 
-   unsigned char                                sampler_sha1s[MESA_VULKAN_SHADER_STAGES][20];
-   unsigned char                                surface_sha1s[MESA_VULKAN_SHADER_STAGES][20];
-   unsigned char                                push_sha1s[MESA_VULKAN_SHADER_STAGES][20];
+   unsigned char                                sampler_sha1s[MESA_VULKAN_SHADER_STAGES][SHA1_DIGEST_LENGTH];
+   unsigned char                                surface_sha1s[MESA_VULKAN_SHADER_STAGES][SHA1_DIGEST_LENGTH];
+   unsigned char                                push_sha1s[MESA_VULKAN_SHADER_STAGES][SHA1_DIGEST_LENGTH];
 
    /**
     * Whether or not the gfx8 PMA fix is enabled.  We ensure that, at the top
@@ -2702,9 +2702,9 @@ struct anv_event {
         __tmp &= ~(1 << (stage)))
 
 struct anv_pipeline_bind_map {
-   unsigned char                                surface_sha1[20];
-   unsigned char                                sampler_sha1[20];
-   unsigned char                                push_sha1[20];
+   unsigned char                                surface_sha1[SHA1_DIGEST_LENGTH];
+   unsigned char                                sampler_sha1[SHA1_DIGEST_LENGTH];
+   unsigned char                                push_sha1[SHA1_DIGEST_LENGTH];
 
    uint32_t surface_count;
    uint32_t sampler_count;

@@ -848,8 +848,8 @@ lp_disk_cache_create(struct llvmpipe_screen *screen)
 {
    struct mesa_sha1 ctx;
    unsigned gallivm_perf = gallivm_get_perf_flags();
-   unsigned char sha1[20];
-   char cache_id[20 * 2 + 1];
+   unsigned char sha1[SHA1_DIGEST_LENGTH];
+   char cache_id[SHA1_DIGEST_STRING_LENGTH];
    _mesa_sha1_init(&ctx);
 
    if (!disk_cache_get_function_identifier(lp_disk_cache_create, &ctx) ||
@@ -859,7 +859,7 @@ lp_disk_cache_create(struct llvmpipe_screen *screen)
    _mesa_sha1_update(&ctx, &gallivm_perf, sizeof(gallivm_perf));
    update_cache_sha1_cpu(&ctx);
    _mesa_sha1_final(&ctx, sha1);
-   mesa_bytes_to_hex(cache_id, sha1, 20);
+   mesa_bytes_to_hex(cache_id, sha1, SHA1_DIGEST_LENGTH);
 
    screen->disk_shader_cache = disk_cache_create("llvmpipe", cache_id, 0);
 }
@@ -889,7 +889,7 @@ llvmpipe_screen_get_fd(struct pipe_screen *_screen)
 void
 lp_disk_cache_find_shader(struct llvmpipe_screen *screen,
                           struct lp_cached_code *cache,
-                          unsigned char ir_sha1_cache_key[20])
+                          unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH])
 {
    unsigned char sha1[CACHE_KEY_SIZE];
 
@@ -913,7 +913,7 @@ lp_disk_cache_find_shader(struct llvmpipe_screen *screen,
 void
 lp_disk_cache_insert_shader(struct llvmpipe_screen *screen,
                             struct lp_cached_code *cache,
-                            unsigned char ir_sha1_cache_key[20])
+                            unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH])
 {
    unsigned char sha1[CACHE_KEY_SIZE];
 

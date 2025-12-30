@@ -44,7 +44,7 @@ etna_disk_cache_init(struct etna_compiler *compiler, const char *renderer)
    const uint8_t *id_sha1 = build_id_data(note);
    assert(id_sha1);
 
-   char timestamp[41];
+   char timestamp[SHA1_DIGEST_STRING_LENGTH];
    _mesa_sha1_format(timestamp, id_sha1);
 
    compiler->disk_cache = disk_cache_create(renderer, timestamp, etna_mesa_debug);
@@ -131,7 +131,7 @@ etna_disk_cache_retrieve(struct etna_compiler *compiler, struct etna_shader_vari
    compute_variant_key(compiler, v, cache_key);
 
    if (debug) {
-      char sha1[41];
+      char sha1[SHA1_DIGEST_STRING_LENGTH];
 
       _mesa_sha1_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] retrieving variant %s: ", sha1);
@@ -167,7 +167,7 @@ etna_disk_cache_store(struct etna_compiler *compiler, struct etna_shader_variant
    compute_variant_key(compiler, v, cache_key);
 
    if (debug) {
-      char sha1[41];
+      char sha1[SHA1_DIGEST_STRING_LENGTH];
 
       _mesa_sha1_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] storing variant %s\n", sha1);

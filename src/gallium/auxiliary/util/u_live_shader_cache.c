@@ -99,7 +99,7 @@ util_live_shader_cache_get(struct pipe_context *ctx,
 
    /* Compute SHA1 of pipe_shader_state. */
    struct mesa_sha1 sha1_ctx;
-   unsigned char sha1[20];
+   unsigned char sha1[SHA1_DIGEST_LENGTH];
    _mesa_sha1_init(&sha1_ctx);
    _mesa_sha1_update(&sha1_ctx, ir_binary, ir_size);
    if ((stage == MESA_SHADER_VERTEX ||

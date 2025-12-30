@@ -110,7 +110,7 @@ struct tu_pipeline_layout
    uint32_t num_sets;
    uint32_t push_constant_size;
 
-   unsigned char sha1[20];
+   unsigned char sha1[SHA1_DIGEST_LENGTH];
 };
 VK_DEFINE_NONDISP_HANDLE_CASTS(tu_pipeline_layout, base, VkPipelineLayout,
                                VK_OBJECT_TYPE_PIPELINE_LAYOUT)

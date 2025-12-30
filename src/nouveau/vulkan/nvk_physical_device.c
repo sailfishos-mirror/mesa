@@ -1329,7 +1329,7 @@ nvk_physical_device_init_pipeline_cache(struct nvk_physical_device *pdev)
                                pdev->info.chipset);
    assert(len == sizeof(renderer) - 2);
 
-   char timestamp[41];
+   char timestamp[SHA1_DIGEST_STRING_LENGTH];
    _mesa_sha1_format(timestamp, instance->driver_build_sha);
 
    const uint64_t driver_flags = nvk_physical_device_compiler_flags(pdev);

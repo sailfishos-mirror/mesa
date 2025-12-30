@@ -1376,7 +1376,7 @@ v3dv_EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
          counter->scope = VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_KHR;
          counter->storage = VK_PERFORMANCE_COUNTER_STORAGE_UINT64_KHR;
 
-         unsigned char sha1_result[20];
+         unsigned char sha1_result[SHA1_DIGEST_LENGTH];
          _mesa_sha1_compute(perfcntr_desc->name, strlen(perfcntr_desc->name), sha1_result);
 
          memcpy(counter->uuid, sha1_result, sizeof(counter->uuid));

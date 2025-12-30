@@ -1067,7 +1067,7 @@ hk_get_device_properties(const struct agx_device *dev,
 
    {
       struct mesa_sha1 sha1_ctx;
-      uint8_t sha1[20];
+      uint8_t sha1[SHA1_DIGEST_LENGTH];
 
       _mesa_sha1_init(&sha1_ctx);
       /* Make sure we don't match with other vendors */
@@ -1108,7 +1108,7 @@ hk_physical_device_init_pipeline_cache(struct hk_physical_device *pdev)
 
    assert(len == sizeof(renderer) - 2);
 
-   char timestamp[41];
+   char timestamp[SHA1_DIGEST_STRING_LENGTH];
    _mesa_sha1_format(timestamp, instance->driver_build_sha);
 
    const uint64_t driver_flags = hk_physical_device_compiler_flags(pdev);

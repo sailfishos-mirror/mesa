@@ -118,7 +118,7 @@ does_cache_contain(struct disk_cache *cache, const cache_key key)
 static bool
 cache_exists(struct disk_cache *cache)
 {
-   uint8_t key[20];
+   uint8_t key[SHA1_DIGEST_LENGTH];
    char data[] = "some test data";
 
    if (!cache)
@@ -273,13 +273,13 @@ test_put_and_get(bool test_cache_size_limit, const char *driver_id)
 {
    struct disk_cache *cache;
    char blob[] = "This is a blob of thirty-seven bytes";
-   uint8_t blob_key[20];
+   uint8_t blob_key[SHA1_DIGEST_LENGTH];
    char string[] = "While this string has thirty-four";
-   uint8_t string_key[20];
+   uint8_t string_key[SHA1_DIGEST_LENGTH];
    char *result;
    size_t size;
    uint8_t *one_KB, *one_MB;
-   uint8_t one_KB_key[20], one_MB_key[20];
+   uint8_t one_KB_key[SHA1_DIGEST_LENGTH], one_MB_key[SHA1_DIGEST_LENGTH];
    int count;
 
 #ifdef SHADER_CACHE_DISABLE_BY_DEFAULT
@@ -452,11 +452,11 @@ test_put_key_and_get_key(const char *driver_id)
    struct disk_cache *cache;
    bool result;
 
-   uint8_t key_a[20] = {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
-                         10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
-   uint8_t key_b[20] = { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-                         30, 33, 32, 33, 34, 35, 36, 37, 38, 39};
-   uint8_t key_a_collide[20] =
+   uint8_t key_a[SHA1_DIGEST_LENGTH] = {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+                                         10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+   uint8_t key_b[SHA1_DIGEST_LENGTH] = { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+                                         30, 33, 32, 33, 34, 35, 36, 37, 38, 39};
+   uint8_t key_a_collide[SHA1_DIGEST_LENGTH] =
                         { 0,  1, 42, 43, 44, 45, 46, 47, 48, 49,
                          50, 55, 52, 53, 54, 55, 56, 57, 58, 59};
 
@@ -510,9 +510,9 @@ static void
 test_put_and_get_between_instances(const char *driver_id)
 {
    char blob[] = "This is a blob of thirty-seven bytes";
-   uint8_t blob_key[20];
+   uint8_t blob_key[SHA1_DIGEST_LENGTH];
    char string[] = "While this string has thirty-four";
-   uint8_t string_key[20];
+   uint8_t string_key[SHA1_DIGEST_LENGTH];
    char *result;
    size_t size;
 
@@ -699,7 +699,7 @@ static void
 test_put_big_sized_entry_to_empty_cache(const char *driver_id)
 {
    static uint8_t blob[4096];
-   uint8_t blob_key[20];
+   uint8_t blob_key[SHA1_DIGEST_LENGTH];
    struct disk_cache *cache;
    char *result;
    size_t size;
@@ -861,9 +861,9 @@ TEST_F(Cache, Combined)
    const char *driver_id = "make_check";
    char blob[] = "This is a RO blob";
    char blob2[] = "This is a RW blob";
-   uint8_t dummy_key[20] = { 0 };
-   uint8_t blob_key[20];
-   uint8_t blob_key2[20];
+   uint8_t dummy_key[SHA1_DIGEST_LENGTH] = { 0 };
+   uint8_t blob_key[SHA1_DIGEST_LENGTH];
+   uint8_t blob_key2[SHA1_DIGEST_LENGTH];
    char foz_rw_idx_file[1024];
    char foz_ro_idx_file[1024];
    char foz_rw_file[1024];
@@ -1088,7 +1088,7 @@ TEST_F(Cache, List)
 {
    const char *driver_id = "make_check";
    char blob[] = "This is a RO blob";
-   uint8_t blob_key[20];
+   uint8_t blob_key[SHA1_DIGEST_LENGTH];
    char foz_rw_idx_file[1024];
    char foz_ro_idx_file[1024];
    char foz_rw_file[1024];
@@ -1355,7 +1355,7 @@ test_put_and_get_disabled(const char *driver_id)
 {
    struct disk_cache *cache;
    char blob[] = "This is a blob of thirty-seven bytes";
-   uint8_t blob_key[20];
+   uint8_t blob_key[SHA1_DIGEST_LENGTH];
    char *result;
    size_t size;
 
