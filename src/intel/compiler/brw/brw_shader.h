@@ -35,6 +35,18 @@
 #include "brw_analysis.h"
 #include "brw_thread_payload.h"
 
+/* UBO_START is a pseudo-register number that must be greater than the maximum
+ * number of physical hardware registers.
+ * It is used in earlier compiler stages as a source for instructions where
+ * nir_intrinsic_load_ubo has been promoted to push constants.
+ * At those stages, the exact location of the push constant data in the thread
+ * payload is not yet known.
+ *
+ * Later, in brw_shader::assign_curb_setup(), once this location is determined,
+ * the compiler checks if a register number is greater than or equal to UBO_START.
+ * If it is, the compiler calculates the actual hardware register where the push
+ * constant data will be loaded and update the instruction.
+ */
 #define UBO_START ((1 << 16) - 4)
 
 struct brw_shader_stats {
