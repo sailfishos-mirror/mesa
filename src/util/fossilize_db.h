@@ -51,7 +51,7 @@
 /* Max number of DBs our implementation can read from at once */
 #define FOZ_MAX_DBS 9 /* Default DB + 8 Read only DBs */
 
-#define FOSSILIZE_BLOB_HASH_LENGTH 40
+#define FOSSILIZE_BLOB_HASH_LENGTH 40 /* SHA1 hexadecimal string length */
 
 enum {
    FOSSILIZE_COMPRESSION_NONE = 1,

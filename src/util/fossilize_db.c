@@ -153,8 +153,12 @@ update_foz_index(struct foz_db *foz_db, FILE *db_idx, unsigned file_idx)
           header->payload_size != sizeof(uint64_t))
          break;
 
-      char hash_str[FOSSILIZE_BLOB_HASH_LENGTH + 1] = {0};
+      static_assert(FOSSILIZE_BLOB_HASH_LENGTH <= SHA1_DIGEST_STRING_LENGTH, "");
+      char hash_str[SHA1_DIGEST_STRING_LENGTH] = {0};
       memcpy(hash_str, bytes_to_read, FOSSILIZE_BLOB_HASH_LENGTH);
+      /* Fill the rest of the key string with zeros. */
+      memset(hash_str + FOSSILIZE_BLOB_HASH_LENGTH, '0',
+             SHA1_DIGEST_STRING_LENGTH - 1 - FOSSILIZE_BLOB_HASH_LENGTH);
 
       /* read cache item offset from index file */
       uint64_t cache_offset;
@@ -693,7 +697,7 @@ foz_write_entry(struct foz_db *foz_db, const uint8_t *cache_key_160bit,
    fseek(foz_db->file[0], 0, SEEK_END);
 
    /* Write hash header to db */
-   char hash_str[FOSSILIZE_BLOB_HASH_LENGTH + 1]; /* 40 digits + null */
+   char hash_str[SHA1_DIGEST_STRING_LENGTH];
    _mesa_sha1_format(hash_str, cache_key_160bit);
    if (fwrite(hash_str, 1, FOSSILIZE_BLOB_HASH_LENGTH, foz_db->file[0]) !=
        FOSSILIZE_BLOB_HASH_LENGTH)
