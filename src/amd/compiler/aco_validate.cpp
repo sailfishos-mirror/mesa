@@ -134,14 +134,35 @@ validate_ir(Program* program)
    for (Block& block : program->blocks) {
       for (aco_ptr<Instruction>& instr : block.instructions) {
 
-         if (program->progress < CompilationProgress::after_lower_to_hw) {
-            for (const Operand& op : instr->operands)
+         /* Check that register assignment and register class are consistent. */
+         for (const Operand& op : instr->operands) {
+            if (program->progress < CompilationProgress::after_lower_to_hw)
                check(!op.isTemp() || op.regClass() == program->temp_rc[op.tempId()],
                      "Operand RC not consistent.", instr.get());
 
-            for (const Definition& def : instr->definitions)
+            if (program->progress >= CompilationProgress::after_ra)
+               check(op.isFixed(), "Operand without register assignment.", instr.get());
+
+            check(!op.hasRegClass() || op.isUndefined() || !op.isFixed() ||
+                     (op.physReg().reg() >= 256
+                         ? op.isOfType(RegType::vgpr)
+                         : (op.isOfType(RegType::sgpr) && op.physReg().byte() == 0)),
+                  "Operand RC and assignment not consistent.", instr.get());
+         }
+
+         for (const Definition& def : instr->definitions) {
+            if (program->progress < CompilationProgress::after_lower_to_hw)
                check(!def.isTemp() || def.regClass() == program->temp_rc[def.tempId()],
                      "Definition RC not consistent.", instr.get());
+
+            if (program->progress >= CompilationProgress::after_ra)
+               check(def.isFixed(), "Definition without register assignment.", instr.get());
+
+            check(!def.isFixed() ||
+                     (def.physReg().reg() >= 256
+                         ? def.regClass().type() == RegType::vgpr
+                         : (def.regClass().type() == RegType::sgpr && def.physReg().byte() == 0)),
+                  "Definition RC and assignment not consistent.", instr.get());
          }
 
          const aco_alu_opcode_info& opcode_info = instr_info.alu_opcode_infos[(int)instr->opcode];
