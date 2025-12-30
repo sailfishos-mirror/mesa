@@ -1599,6 +1599,12 @@ nir_alu_instr_is_signed_zero_inf_nan_preserve(nir_alu_instr *alu)
    return alu->fp_math_ctrl & nir_fp_preserve_sz_inf_nan;
 }
 
+static inline bool
+nir_alu_instr_is_exact(nir_alu_instr *alu)
+{
+   return alu->exact;
+}
+
 void nir_alu_src_copy(nir_alu_src *dest, const nir_alu_src *src);
 
 nir_component_mask_t

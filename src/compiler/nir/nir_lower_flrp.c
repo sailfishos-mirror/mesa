@@ -390,7 +390,7 @@ convert_flrp_instruction(nir_builder *bld,
     *   subtract, a multiply, and an FMA)... but in that case the other
     *   formulation should have been used.
     */
-   if (alu->exact) {
+   if (nir_alu_instr_is_exact(alu)) {
       if (have_ffma)
          replace_with_strict_ffma(bld, dead_flrp, alu);
       else

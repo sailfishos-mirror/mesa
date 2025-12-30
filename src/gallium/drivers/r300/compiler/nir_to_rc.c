@@ -818,7 +818,7 @@ ntr_emit_alu(struct ntr_compile *c, nir_alu_instr *instr)
    if (instr->op == nir_op_fsat && nir_legacy_fsat_folds(instr))
       return;
 
-   c->precise = instr->exact;
+   c->precise = nir_alu_instr_is_exact(instr);
 
    assert(num_srcs <= ARRAY_SIZE(src));
    for (i = 0; i < num_srcs; i++)

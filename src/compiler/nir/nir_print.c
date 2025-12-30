@@ -489,7 +489,7 @@ print_alu_instr(nir_alu_instr *instr, print_state *state)
    print_def(&instr->def, state);
 
    fprintf(fp, " = %s", nir_op_infos[instr->op].name);
-   if (instr->exact)
+   if (nir_alu_instr_is_exact(instr))
       fprintf(fp, "!");
    if (instr->no_signed_wrap)
       fprintf(fp, ".nsw");

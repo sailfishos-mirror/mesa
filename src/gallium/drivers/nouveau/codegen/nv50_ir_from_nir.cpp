@@ -3003,7 +3003,7 @@ Converter::visit(nir_alu_instr *insn)
 
    if (!oldPos) {
       oldPos = this->bb->getEntry();
-      oldPos->precise = insn->exact;
+      oldPos->precise = nir_alu_instr_is_exact(insn);
    }
 
    if (unlikely(!oldPos))
@@ -3011,7 +3011,7 @@ Converter::visit(nir_alu_instr *insn)
 
    while (oldPos->next) {
       oldPos = oldPos->next;
-      oldPos->precise = insn->exact;
+      oldPos->precise = nir_alu_instr_is_exact(insn);
    }
 
    return true;

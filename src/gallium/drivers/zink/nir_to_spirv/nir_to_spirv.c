@@ -2234,7 +2234,7 @@ emit_alu(struct ntv_context *ctx, nir_alu_instr *alu)
       UNREACHABLE("unsupported opcode");
       return;
    }
-   if (alu->exact)
+   if (nir_alu_instr_is_exact(alu))
       spirv_builder_emit_decoration(&ctx->builder, result, SpvDecorationNoContraction);
 
    store_alu_result(ctx, alu, result, atype);

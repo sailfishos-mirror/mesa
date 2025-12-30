@@ -392,8 +392,8 @@ match_expression(const nir_algebraic_table *table, const nir_search_expression *
        instr->def.bit_size != expr->value.bit_size)
       return false;
 
-   state->inexact_match = expr->inexact || expr->contract || state->inexact_match;
-   state->has_exact_alu = (instr->exact && !expr->ignore_exact) || state->has_exact_alu;
+   state->inexact_match |= expr->inexact || expr->contract;
+   state->has_exact_alu |= nir_alu_instr_is_exact(instr) && !expr->ignore_exact;
    if (state->inexact_match && state->has_exact_alu)
       return false;
 

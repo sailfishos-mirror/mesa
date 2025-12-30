@@ -276,7 +276,8 @@ try_opt_exclusive_scan_to_inclusive(nir_builder *b, nir_intrinsic_instr *intrin)
          return false;
 
       /* Don't reassociate exact float operations. */
-      if (nir_alu_type_get_base_type(nir_op_infos[alu->op].output_type) == nir_type_float && alu->exact)
+      if (nir_alu_type_get_base_type(nir_op_infos[alu->op].output_type) == nir_type_float &&
+          nir_alu_instr_is_exact(alu))
          return false;
 
       /* SPIR-V rules for fmax/fmin scans are *very* stupid.

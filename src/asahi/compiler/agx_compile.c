@@ -3677,7 +3677,8 @@ libagx_frcp(nir_builder *b, nir_def *x)
 static bool
 agx_nir_lower_fdiv(nir_builder *b, nir_alu_instr *alu, void *_)
 {
-   if (alu->op != nir_op_frcp || !alu->exact || alu->def.bit_size != 32)
+   if (alu->op != nir_op_frcp || !nir_alu_instr_is_exact(alu) ||
+       alu->def.bit_size != 32)
       return false;
 
    b->cursor = nir_before_instr(&alu->instr);
