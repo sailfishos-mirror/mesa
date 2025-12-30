@@ -564,6 +564,9 @@ enum brw_param_builtin {
    (((param) - BRW_PARAM_BUILTIN_CLIP_PLANE_0_X) & 0x3)
 
 struct brw_stage_prog_data {
+   /* Ranges of memory of nir_intrinsic_load_ubo instructions that were promoted
+    * to push constants to improve performance.
+    */
    struct brw_ubo_range ubo_ranges[4];
 
    unsigned nr_params;       /**< number of float params/constants */
