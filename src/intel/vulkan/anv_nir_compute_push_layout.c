@@ -190,7 +190,7 @@ anv_nir_compute_push_layout(nir_shader *nir,
    prog_data->nr_params = nir->num_uniforms / 4;
    prog_data->param = rzalloc_array(mem_ctx, uint32_t, prog_data->nr_params);
 
-   struct anv_push_range push_constant_range = {
+   const struct anv_push_range push_constant_range = {
       .set = ANV_DESCRIPTOR_SET_PUSH_CONSTANTS,
       .start = push_start / 32,
       .length = align(push_end - push_start, devinfo->grf_size) / 32,
@@ -259,6 +259,10 @@ anv_nir_compute_push_layout(nir_shader *nir,
        (nir->info.inputs_read & VARYING_BIT_PRIMITIVE_ID));
 
    unsigned n_push_ranges = 0;
+
+   if (push_constant_range.length > 0)
+      map->push_ranges[n_push_ranges++] = push_constant_range;
+
    if (push_ubo_ranges) {
       brw_nir_analyze_ubo_ranges(compiler, nir, prog_data->ubo_ranges);
 
@@ -271,9 +275,6 @@ anv_nir_compute_push_layout(nir_shader *nir,
          total_push_regs += prog_data->ubo_ranges[i].length;
       }
       assert(total_push_regs <= max_push_regs);
-
-      if (push_constant_range.length > 0)
-         map->push_ranges[n_push_ranges++] = push_constant_range;
 
       if (robust_flags & BRW_ROBUSTNESS_UBO) {
          const uint32_t push_reg_mask_offset =
@@ -313,16 +314,6 @@ anv_nir_compute_push_layout(nir_shader *nir,
             prog_data->robust_ubo_ranges |= (uint8_t) (1 << i);
          }
       }
-   } else if (push_constant_range.length > 0) {
-      /* For Ivy Bridge, the push constants packets have a different
-       * rule that would require us to iterate in the other direction
-       * and possibly mess around with dynamic state base address.
-       * Don't bother; just emit regular push constants at n = 0.
-       *
-       * In the compute case, we don't have multiple push ranges so it's
-       * better to just provide one in push_ranges[0].
-       */
-      map->push_ranges[n_push_ranges++] = push_constant_range;
    }
 
    /* Pass a single-register push constant payload for the PS stage even if
