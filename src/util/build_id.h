@@ -38,7 +38,10 @@ extern "C" {
 
 #if HAVE_BUILD_ID
 
+#define BUILD_ID_EXPECTED_HASH_LENGTH 20 /* sha1 */
+
 #include <stdint.h>
+#include "sha1/sha1.h"
 
 struct build_id_note;
 
@@ -50,6 +53,10 @@ build_id_length(const struct build_id_note *note);
 
 const uint8_t *
 build_id_data(const struct build_id_note *note);
+
+void
+copy_build_id_to_sha1(uint8_t sha1[SHA1_DIGEST_LENGTH],
+                      const struct build_id_note *note);
 
 #endif
 

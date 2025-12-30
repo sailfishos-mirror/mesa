@@ -188,4 +188,15 @@ build_id_data(const struct build_id_note *note)
 #endif /* DETECT_OS_APPLE */
 }
 
+void
+copy_build_id_to_sha1(uint8_t sha1[SHA1_DIGEST_LENGTH],
+                      const struct build_id_note *note)
+{
+   unsigned length = build_id_length(note);
+
+   assert(length <= SHA1_DIGEST_LENGTH);
+   memcpy(sha1, build_id_data(note), length);
+   memset(sha1 + length, 0, SHA1_DIGEST_LENGTH - length);
+}
+
 #endif

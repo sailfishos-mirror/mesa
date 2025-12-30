@@ -169,7 +169,7 @@ panfrost_disk_cache_init(struct panfrost_screen *screen)
 
    const struct build_id_note *note =
       build_id_find_nhdr_for_addr(panfrost_disk_cache_init);
-   assert(note && build_id_length(note) == 20); /* sha1 */
+   assert(note && build_id_length(note) == BUILD_ID_EXPECTED_HASH_LENGTH); /* sha1 */
 
    const uint8_t *id_sha1 = build_id_data(note);
    assert(id_sha1);

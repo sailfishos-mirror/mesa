@@ -910,7 +910,7 @@ static void virgl_disk_cache_create(struct virgl_screen *screen)
    assert(note);
 
    unsigned build_id_len = build_id_length(note);
-   assert(build_id_len == 20); /* sha1 */
+   assert(build_id_len == BUILD_ID_EXPECTED_HASH_LENGTH); /* sha1 */
 
    const uint8_t *id_sha1 = build_id_data(note);
    assert(id_sha1);
