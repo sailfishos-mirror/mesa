@@ -95,7 +95,6 @@ files_mesa_util = files(
   'u_qsort.h',
   'rwlock.c',
   'rwlock.h',
-  'sha1/sha1.c',
   'sha1/sha1.h',
   'ralloc.c',
   'ralloc.h',
