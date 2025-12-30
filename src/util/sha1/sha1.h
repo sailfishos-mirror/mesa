@@ -11,10 +11,12 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "util/mesa-blake3.h"
 
 #define	SHA1_BLOCK_LENGTH		64
-#define	SHA1_DIGEST_LENGTH		20
-#define	SHA1_DIGEST_STRING_LENGTH	(SHA1_DIGEST_LENGTH * 2 + 1)
+#define	SHA1_DIGEST_LENGTH_INTERNAL     20
+#define	SHA1_DIGEST_LENGTH		BLAKE3_KEY_LEN
+#define	SHA1_DIGEST_STRING_LENGTH	BLAKE3_HEX_LEN
 
 #ifdef __cplusplus
 extern "C" {

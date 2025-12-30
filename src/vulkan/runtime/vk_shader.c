@@ -315,10 +315,9 @@ struct vk_shader_bin_header {
    uint32_t version;
    uint64_t size;
    uint8_t sha1[SHA1_DIGEST_LENGTH];
-   uint32_t _pad;
 };
 PRAGMA_DIAGNOSTIC_POP
-static_assert(sizeof(struct vk_shader_bin_header) == 72,
+static_assert(sizeof(struct vk_shader_bin_header) == 80,
               "This struct has no holes");
 
 static void

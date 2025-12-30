@@ -169,9 +169,14 @@ SHA1Final(uint8_t digest[SHA1_DIGEST_LENGTH], SHA1_CTX *context)
 	uint32_t i;
 
 	SHA1Pad(context);
-	for (i = 0; i < SHA1_DIGEST_LENGTH; i++) {
+	for (i = 0; i < SHA1_DIGEST_LENGTH_INTERNAL; i++) {
 		digest[i] = (uint8_t)
 		   ((context->state[i>>2] >> ((3-(i & 3)) * 8) ) & 255);
 	}
+
+	/* Fill the rest of the hash with zeros. */
+	memset(digest + SHA1_DIGEST_LENGTH_INTERNAL, 0,
+	       SHA1_DIGEST_LENGTH - SHA1_DIGEST_LENGTH_INTERNAL);
+
 	memset(context, 0, sizeof(*context));
 }

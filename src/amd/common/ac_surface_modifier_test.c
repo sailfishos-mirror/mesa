@@ -31,17 +31,17 @@ struct test_entry {
    enum pipe_format format;
 
    /* debug info */
-   const char *name;
    uint8_t pipes;
    uint8_t rb;
    uint8_t banks_or_pkrs;
    uint8_t se;
+   const char *name;
 
    /* value to determine uniqueness */
    unsigned char hash[SHA1_DIGEST_LENGTH];
 
    /* u_vector requires power of two sizing */
-   char padding[sizeof(void*) == 8 ? 8 : 16];
+   char padding[sizeof(void*) == 8 ? 0 : 4];
 };
 
 static uint64_t
