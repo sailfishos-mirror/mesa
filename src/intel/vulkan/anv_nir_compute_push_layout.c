@@ -345,12 +345,12 @@ anv_nir_compute_push_layout(nir_shader *nir,
    }
 
    if (needs_padding_per_primitive) {
-      struct anv_push_range push_constant_range = {
+      struct anv_push_range push_constant_padding_range = {
          .set = ANV_DESCRIPTOR_SET_PER_PRIM_PADDING,
          .start = 0,
          .length = 1,
       };
-      map->push_ranges[n_push_ranges++] = push_constant_range;
+      map->push_ranges[n_push_ranges++] = push_constant_padding_range;
    }
 
    assert(n_push_ranges <= 4);
