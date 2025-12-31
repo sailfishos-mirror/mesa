@@ -715,7 +715,7 @@ bool pco_nir_lower_alpha_to_coverage(nir_shader *shader)
       nir_ubitfield_extract_imm(&b, nir_load_fs_meta_pco(&b), 25, 1),
       0);
 
-   nir_lower_alpha_to_coverage(shader, 0, true, a2c_enabled);
+   nir_lower_alpha_to_coverage(shader, true, a2c_enabled);
 
    nir_shader_intrinsics_pass(shader,
                               lower_demote_samples,
