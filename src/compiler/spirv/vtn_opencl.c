@@ -656,16 +656,16 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
           (nb->shader->options->lower_ffma32 && srcs[0]->bit_size == 32) ||
           (nb->shader->options->lower_ffma64 && srcs[0]->bit_size == 64));
 
-      const bool save_exact = nb->exact;
+      const unsigned save_math_ctrl = nb->fp_math_ctrl;
       nir_def *res;
 
-      nb->exact = true;
+      nb->fp_math_ctrl |= nir_fp_exact;
       if (lower)
          res = nir_fmad(nb, srcs[0], srcs[1], srcs[2]);
       else
          res = nir_ffma(nb, srcs[0], srcs[1], srcs[2]);
 
-      nb->exact = save_exact;
+      nb->fp_math_ctrl = save_math_ctrl;
       return res;
    }
    case OpenCLstd_Maxmag:
@@ -709,10 +709,10 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
          break;
 
       /* OpenCL FMA is not allowed to be split. */
-      const bool save_exact = nb->exact;
-      nb->exact = true;
+      const bool save_math_ctrl = nb->fp_math_ctrl;
+      nb->fp_math_ctrl |= nir_fp_exact;
       nir_def *res = nir_ffma(nb, srcs[0], srcs[1], srcs[2]);
-      nb->exact = save_exact;
+      nb->fp_math_ctrl = save_math_ctrl;
       return res;
    }
    case OpenCLstd_Rotate:

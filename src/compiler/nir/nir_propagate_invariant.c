@@ -84,7 +84,7 @@ propagate_invariant_instr(nir_instr *instr, struct set *invariants)
       if (!def_is_invariant(&alu->def, invariants))
          break;
 
-      alu->exact = true;
+      alu->fp_math_ctrl |= nir_fp_exact;
       nir_foreach_src(instr, add_src_cb, invariants);
       break;
    }

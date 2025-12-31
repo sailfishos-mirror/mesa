@@ -79,8 +79,8 @@ intersect_ray_amd_software_box(struct radv_device *device, nir_builder *b, nir_d
    const struct glsl_type *vec4_type = glsl_vector_type(GLSL_TYPE_FLOAT, 4);
    const struct glsl_type *uvec4_type = glsl_vector_type(GLSL_TYPE_UINT, 4);
 
-   bool old_exact = b->exact;
-   b->exact = true;
+   unsigned old_math_ctrl = b->fp_math_ctrl;
+   b->fp_math_ctrl |= nir_fp_exact;
 
    nir_def *node_addr = build_node_to_addr(device, b, bvh_node, false);
 
@@ -165,7 +165,7 @@ intersect_ray_amd_software_box(struct radv_device *device, nir_builder *b, nir_d
    nir_sort_hit_pair(b, distances, child_indices, 1, 3);
    nir_sort_hit_pair(b, distances, child_indices, 1, 2);
 
-   b->exact = old_exact;
+   b->fp_math_ctrl = old_math_ctrl;
    return nir_load_var(b, child_indices);
 }
 
@@ -196,8 +196,8 @@ intersect_ray_amd_software_tri(struct radv_device *device, nir_builder *b, nir_d
 {
    const struct glsl_type *vec4_type = glsl_vector_type(GLSL_TYPE_FLOAT, 4);
 
-   bool old_exact = b->exact;
-   b->exact = true;
+   unsigned old_math_ctrl = b->fp_math_ctrl;
+   b->fp_math_ctrl |= nir_fp_exact;
 
    nir_def *node_addr = build_node_to_addr(device, b, bvh_node, false);
 
@@ -375,7 +375,7 @@ intersect_ray_amd_software_tri(struct radv_device *device, nir_builder *b, nir_d
    }
    nir_pop_if(b, NULL);
 
-   b->exact = old_exact;
+   b->fp_math_ctrl = old_math_ctrl;
    return nir_load_var(b, result);
 }
 

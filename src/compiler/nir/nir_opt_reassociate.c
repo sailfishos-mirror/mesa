@@ -173,7 +173,7 @@ struct chain {
    nir_alu_instr *root;
    unsigned length;
    nir_scalar srcs[MAX_CHAIN_LENGTH];
-   bool do_global_cse, exact;
+   bool do_global_cse;
    unsigned fp_math_ctrl;
 };
 
@@ -216,12 +216,9 @@ build_chain(struct chain *c, nir_scalar def, unsigned reserved_count)
 {
    nir_alu_instr *alu = nir_def_as_alu(def.def);
 
-   /* Conservative fast math handling: if ANY instruction along the chain is
-    * exact, treat the whole chain as exact. Likewise for float controls.
-    *
-    * It is safe to add `exact` or float control bits, but not the reverse.
+   /* Conservative fast math handling: take the union of all float controls
+    * along the chain. Float controls may be safely added but not removed.
     */
-   c->exact |= alu->exact;
    c->fp_math_ctrl |= alu->fp_math_ctrl;
 
    for (unsigned i = 0; i < 2; ++i) {
@@ -450,7 +447,6 @@ static bool
 reassociate_chain(struct chain *c, void *pair_freq)
 {
    nir_builder b = nir_builder_at(nir_before_instr(&c->root->instr));
-   b.exact = c->exact;
    b.fp_math_ctrl = c->fp_math_ctrl;
 
    /* Pick a new order using sort-by-rank and possibly the CSE heuristics */
@@ -502,7 +498,6 @@ reassociate_chain(struct chain *c, void *pair_freq)
 
    /* Set flags conservatively, matching the rest of the chain */
    c->root->no_signed_wrap = c->root->no_unsigned_wrap = false;
-   c->root->exact = c->exact;
    c->root->fp_math_ctrl = c->fp_math_ctrl;
    return true;
 }

@@ -446,7 +446,7 @@
  *
  * When we decide not to interpolate a varying, we need to convert Infs to
  * NaNs manually. Infs can be converted to NaNs like this: x*0 + x
- * (suggested by Ian Romanick, the multiplication must be "exact")
+ * (suggested by Ian Romanick, the multiplication must preserve nans/infs")
  *
  * Changes to optimizations:
  * - When we propagate a uniform expression and NaNs must be preserved,
@@ -1038,7 +1038,7 @@ build_convert_inf_to_nan(nir_builder *b, nir_def *x)
 {
    /* Do x*0 + x. The multiplication by 0 can't be optimized out. */
    nir_def *fma = nir_ffma_imm1(b, x, 0, x);
-   nir_def_as_alu(fma)->exact = true;
+   nir_def_as_alu(fma)->fp_math_ctrl = nir_fp_preserve_nan | nir_fp_preserve_inf | nir_fp_exact;
    return fma;
 }
 
@@ -2263,11 +2263,9 @@ clone_ssa_impl(struct linkage_info *linkage, nir_builder *b, nir_def *ssa)
       clone = nir_builder_alu_instr_finish_and_insert(b, alu_clone);
 
       /* nir_builder_alu_instr_finish_and_insert overwrites fp_math_ctrl. */
-      alu_clone->exact = alu->exact;
       alu_clone->fp_math_ctrl = alu->fp_math_ctrl;
       alu_clone->no_signed_wrap = alu->no_signed_wrap;
       alu_clone->no_unsigned_wrap = alu->no_unsigned_wrap;
-
       break;
    }
 

@@ -968,9 +968,9 @@ static void
 ttn_kill_if(nir_builder *b, nir_def **src)
 {
    /* flt must be exact, because NaN shouldn't discard. (apps rely on this) */
-   b->exact = true;
+   b->fp_math_ctrl = nir_fp_exact;
    nir_def *cmp = nir_bany(b, nir_flt_imm(b, src[0], 0.0));
-   b->exact = false;
+   b->fp_math_ctrl = nir_fp_fast_math;
 
    nir_discard_if(b, cmp);
    b->shader->info.fs.uses_discard = true;

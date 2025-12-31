@@ -49,7 +49,7 @@ nir_builder MUST_CHECK PRINTFLIKE(3, 4)
 
    nir_function *func = nir_function_create(b.shader, "main");
    func->is_entrypoint = true;
-   b.exact = false;
+   b.fp_math_ctrl = nir_fp_fast_math;
    b.impl = nir_function_impl_create(func);
    b.cursor = nir_after_cf_list(&b.impl->body);
 
@@ -71,7 +71,6 @@ nir_builder_alu_instr_finish_and_insert(nir_builder *build, nir_alu_instr *instr
 {
    const nir_op_info *op_info = &nir_op_infos[instr->op];
 
-   instr->exact = build->exact;
    instr->fp_math_ctrl = build->fp_math_ctrl;
 
    /* Guess the number of components the destination temporary should have
@@ -387,7 +386,6 @@ nir_vec_scalars(nir_builder *build, nir_scalar *comp, unsigned num_components)
       instr->src[i].src = nir_src_for_ssa(comp[i].def);
       instr->src[i].swizzle[0] = comp[i].comp;
    }
-   instr->exact = build->exact;
    instr->fp_math_ctrl = build->fp_math_ctrl;
 
    /* Note: not reusing nir_builder_alu_instr_finish_and_insert() because it

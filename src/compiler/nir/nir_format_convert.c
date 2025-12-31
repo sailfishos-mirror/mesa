@@ -458,12 +458,12 @@ nir_format_pack_r9g9b9e5(nir_builder *b, nir_def *color)
     * NaN to 0.  We set exact to ensure that nothing optimizes this behavior
     * away from us.
     */
-   float exact_save = b->exact;
-   b->exact = true;
+   unsigned old_fp_math_ctrl = b->fp_math_ctrl;
+   b->fp_math_ctrl |= nir_fp_exact;
    nir_def *clamped =
       nir_fmin(b, nir_fmax(b, color, nir_imm_float(b, 0)),
                nir_imm_float(b, MAX_RGB9E5));
-   b->exact = exact_save;
+   b->fp_math_ctrl = old_fp_math_ctrl;
 
    /* maxrgb.u = MAX3(rc.u, gc.u, bc.u); */
    nir_def *maxu = nir_umax(b, nir_channel(b, clamped, 0),

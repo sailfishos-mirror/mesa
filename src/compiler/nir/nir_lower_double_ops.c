@@ -442,9 +442,10 @@ lower_round_even(nir_builder *b, nir_def *src)
    nir_def *sign = nir_iand_imm(b, nir_unpack_64_2x32_split_y(b, src),
                                 1ull << 31);
 
-   b->exact = true;
+   unsigned old_fp_math_ctrl = b->fp_math_ctrl;
+   b->fp_math_ctrl |= nir_fp_exact;
    nir_def *res = nir_fsub(b, nir_fadd(b, nir_fabs(b, src), two52), two52);
-   b->exact = false;
+   b->fp_math_ctrl = old_fp_math_ctrl;
 
    return nir_bcsel(b, nir_flt(b, nir_fabs(b, src), two52),
                     nir_pack_64_2x32_split(b, nir_unpack_64_2x32_split_x(b, res),
@@ -490,10 +491,11 @@ lower_mod(nir_builder *b, nir_def *src0, nir_def *src1)
 static nir_def *
 lower_minmax(nir_builder *b, nir_op cmp, nir_def *src0, nir_def *src1)
 {
-   b->exact = true;
+   unsigned old_fp_math_ctrl = b->fp_math_ctrl;
+   b->fp_math_ctrl |= nir_fp_exact;
    nir_def *src1_is_nan = nir_fneu(b, src1, src1);
    nir_def *cmp_res = nir_build_alu2(b, cmp, src0, src1);
-   b->exact = false;
+   b->fp_math_ctrl = old_fp_math_ctrl;
    nir_def *take_src0 = nir_ior(b, src1_is_nan, cmp_res);
 
    /* IEEE-754-2019 requires that fmin/fmax compare -0 < 0, but -0 and 0 are
@@ -518,11 +520,12 @@ lower_minmax(nir_builder *b, nir_op cmp, nir_def *src0, nir_def *src1)
 static nir_def *
 lower_sat(nir_builder *b, nir_def *src)
 {
-   b->exact = true;
+   unsigned old_fp_math_ctrl = b->fp_math_ctrl;
+   b->fp_math_ctrl |= nir_fp_exact;
    /* This will get lowered again if nir_lower_dminmax is set */
    nir_def *sat = nir_fclamp(b, src, nir_imm_double(b, 0),
                              nir_imm_double(b, 1));
-   b->exact = false;
+   b->fp_math_ctrl = old_fp_math_ctrl;
    return sat;
 }
 

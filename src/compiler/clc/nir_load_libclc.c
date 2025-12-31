@@ -321,7 +321,7 @@ libclc_add_generic_variants(nir_shader *shader)
 static bool
 mark_exact(nir_builder *b, nir_alu_instr *alu, UNUSED void *_)
 {
-   alu->exact = true;
+   alu->fp_math_ctrl |= nir_fp_exact;
    return true;
 }
 

@@ -43,7 +43,6 @@ lower_alu_instr(nir_builder *b, nir_alu_instr *instr, UNUSED void *cb_data)
    nir_def *lowered = NULL;
 
    b->cursor = nir_before_instr(&instr->instr);
-   b->exact = instr->exact;
    b->fp_math_ctrl = instr->fp_math_ctrl;
 
    switch (instr->op) {

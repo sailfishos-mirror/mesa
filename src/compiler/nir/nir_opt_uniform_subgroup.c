@@ -211,9 +211,9 @@ opt_uniform_subgroup_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *_s
 
       if (intrin->intrinsic == nir_intrinsic_vote_feq) {
          nir_def *x = intrin->src[0].ssa;
-         b->exact = true;
+         b->fp_math_ctrl = nir_fp_exact;
          replacement = nir_feq(b, x, x);
-         b->exact = false;
+         b->fp_math_ctrl = nir_fp_fast_math;
       } else if (intrin->intrinsic == nir_intrinsic_vote_ieq) {
          replacement = nir_imm_true(b);
       } else {

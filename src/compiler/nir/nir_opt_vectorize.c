@@ -453,11 +453,6 @@ instr_try_combine_alu(struct set *instr_set, nir_alu_instr *alu1, nir_alu_instr 
                 alu1->def.bit_size);
    new_alu->instr.pass_flags = alu1->instr.pass_flags;
 
-   /* If either channel is exact, we have to preserve it even if it's
-    * not optimal for other channels.
-    */
-   new_alu->exact = alu1->exact || alu2->exact;
-
    /* fp_math_ctrl is a set of restrictions, take the union of both.
     */
    new_alu->fp_math_ctrl = alu1->fp_math_ctrl | alu2->fp_math_ctrl;

@@ -529,7 +529,7 @@ union packed_instr {
    } any;
    struct {
       unsigned instr_type : 4;
-      unsigned exact : 1;
+      unsigned pad : 1;
       unsigned no_signed_wrap : 1;
       unsigned no_unsigned_wrap : 1;
       /* Swizzles for 2 srcs */
@@ -719,7 +719,6 @@ write_alu(write_ctx *ctx, const nir_alu_instr *alu)
    header.u32 = 0;
 
    header.alu.instr_type = alu->instr.type;
-   header.alu.exact = alu->exact;
    header.alu.no_signed_wrap = alu->no_signed_wrap;
    header.alu.no_unsigned_wrap = alu->no_unsigned_wrap;
    header.alu.op = alu->op;
@@ -783,7 +782,6 @@ read_alu(read_ctx *ctx, union packed_instr header)
    unsigned num_srcs = nir_op_infos[header.alu.op].num_inputs;
    nir_alu_instr *alu = nir_alu_instr_create(ctx->nir, header.alu.op);
 
-   alu->exact = header.alu.exact;
    alu->no_signed_wrap = header.alu.no_signed_wrap;
    alu->no_unsigned_wrap = header.alu.no_unsigned_wrap;
 

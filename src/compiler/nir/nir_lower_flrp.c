@@ -344,7 +344,6 @@ convert_flrp_instruction(nir_builder *bld,
       UNREACHABLE("invalid bit_size");
 
    bld->cursor = nir_before_instr(&alu->instr);
-   bld->exact = alu->exact;
    bld->fp_math_ctrl = alu->fp_math_ctrl;
 
    /* There are two methods to implement flrp(x, y, t).  The strictly correct
