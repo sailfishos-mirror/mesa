@@ -1830,6 +1830,7 @@ static const driOptionDescription tu_dri_options[] = {
       DRI_CONF_TU_USE_TEX_COORD_ROUND_NEAREST_EVEN_MODE(false)
       DRI_CONF_TU_IGNORE_FRAG_DEPTH_DIRECTION(false)
       DRI_CONF_TU_ENABLE_SOFTFLOAT32(false)
+      DRI_CONF_TU_EMULATE_ALPHA_TO_COVERAGE(false)
    DRI_CONF_SECTION_END
 };
 
@@ -1860,6 +1861,8 @@ tu_init_dri_options(struct tu_instance *instance)
          driQueryOptionb(&instance->dri_options, "tu_ignore_frag_depth_direction");
    instance->enable_softfloat32 =
          driQueryOptionb(&instance->dri_options, "tu_enable_softfloat32");
+   instance->emulate_alpha_to_coverage =
+         driQueryOptionb(&instance->dri_options, "tu_emulate_alpha_to_coverage");
 }
 
 static uint32_t instance_count = 0;

@@ -229,6 +229,12 @@ struct tu_instance
     * However we don't want native Vulkan apps using this.
     */
    bool enable_softfloat32;
+
+   /* The hardware implementation of alpha-to-coverage gives visually poor
+    * results for many games. Set this option to enable it in the shader
+    * instead.
+    */
+   bool emulate_alpha_to_coverage;
 };
 VK_DEFINE_HANDLE_CASTS(tu_instance, vk.base, VkInstance,
                        VK_OBJECT_TYPE_INSTANCE)

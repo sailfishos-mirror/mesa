@@ -1850,6 +1850,18 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
        VK_GRAPHICS_PIPELINE_LIBRARY_FRAGMENT_SHADER_BIT_EXT) {
       keys[MESA_SHADER_FRAGMENT].custom_resolve =
          builder->graphics_state.rp->custom_resolve;
+
+      if (builder->device->physical_device->instance->emulate_alpha_to_coverage) {
+         keys[MESA_SHADER_FRAGMENT].emulate_alpha_to_coverage = true;
+
+         /* Don't emulate if we know it won't be enabled. */
+         if (builder->graphics_state.ms &&
+             !BITSET_TEST(builder->graphics_state.dynamic,
+                          MESA_VK_DYNAMIC_MS_ALPHA_TO_COVERAGE_ENABLE)) {
+            if (!builder->graphics_state.ms->alpha_to_coverage_enable)
+               keys[MESA_SHADER_FRAGMENT].emulate_alpha_to_coverage = false;
+         }
+      }
    }
 
    if (builder->create_flags &
@@ -3278,6 +3290,8 @@ tu6_emit_blend(struct tu_cs *cs,
 {
    bool rop_reads_dst = cb->logic_op_enable && tu_logic_op_reads_dst((VkLogicOp)cb->logic_op);
    enum a3xx_rop_code rop = tu6_rop((VkLogicOp)cb->logic_op);
+   if (cs->device->physical_device->instance->emulate_alpha_to_coverage)
+      alpha_to_coverage_enable = false;
 
    uint32_t blend_enable_mask = 0;
    for (unsigned i = 0; i < cb->attachment_count; i++) {

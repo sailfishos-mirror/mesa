@@ -1533,6 +1533,20 @@ tu_nir_lower_view_to_zero(nir_shader *shader)
                                         lower_view_to_zero, NULL);
 }
 
+static bool
+lower_alpha_to_coverage(nir_shader *shader)
+{
+   nir_builder b = nir_builder_create(nir_shader_get_entrypoint(shader));
+   b.cursor = nir_before_cf_list(&nir_shader_get_entrypoint(shader)->body);
+   nir_def *a2c_enabled =
+      nir_ine_imm(&b, nir_load_alpha_to_coverage_enable_ir3(&b), 0);
+
+   NIR_PASS(_, shader, nir_lower_alpha_to_coverage, false, a2c_enabled);
+   NIR_PASS(_, shader, tu_nir_lower_demote_samples);
+
+   return true;
+}
+
 static void
 shared_type_info(const struct glsl_type *type, unsigned *size, unsigned *align)
 {
@@ -3072,6 +3086,9 @@ tu_shader_create(struct tu_device *dev,
    }
 
    ir3_nir_lower_io(nir);
+
+   if (key->emulate_alpha_to_coverage)
+      lower_alpha_to_coverage(nir);
 
    struct ir3_const_allocations const_allocs = {};
    NIR_PASS(_, nir, tu_lower_io, dev, shader, layout,
