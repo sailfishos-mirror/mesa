@@ -840,24 +840,34 @@ BEGIN_TEST(to_hw_instr.pack2x16_constant)
    }
 END_TEST
 
-BEGIN_TEST(to_hw_instr.mov_b16_sgpr_src)
-   if (!setup_cs(NULL, GFX11))
-      return;
+BEGIN_TEST(to_hw_instr.mov_subdword_sgpr_src)
+   for (amd_gfx_level lvl : {GFX10, GFX11}) {
+      if (!setup_cs(NULL, lvl))
+         continue;
 
-   //>> p_unit_test 0
-   //! v2b: %0:v[0][0:16] = v_mov_b16 hi(%0:s[0])
-   bld.pseudo(aco_opcode::p_unit_test, Operand::zero());
-   bld.pseudo(aco_opcode::p_extract_vector, Definition(PhysReg(256), v2b), Operand(PhysReg(0), s1),
-              Operand::c32(1));
+      //>> p_unit_test 0
+      //~gfx10! v2b: %0:v[0][0:16] = v_mov_b32 %0:s[0] dst_sel:uword0 dst_preserve src0_sel:uword1
+      //~gfx11! v2b: %0:v[0][0:16] = v_mov_b16 hi(%0:s[0])
+      bld.pseudo(aco_opcode::p_unit_test, Operand::zero());
+      bld.pseudo(aco_opcode::p_extract_vector, Definition(PhysReg(256), v2b),
+                 Operand(PhysReg(0), s1), Operand::c32(1));
 
-   //! s_endpgm
+      //>> p_unit_test 1
+      //~gfx10! v1b: %0:v[1][0:8] = v_mov_b32 %0:s[0] dst_sel:ubyte0 dst_preserve src0_sel:ubyte3
+      //~gfx11! v1: %0:v[1] = v_perm_b32 %0:v[1], %0:s[0], 0x7060503
+      bld.pseudo(aco_opcode::p_unit_test, Operand::c32(1));
+      bld.pseudo(aco_opcode::p_extract_vector, Definition(PhysReg(257), v1b),
+                 Operand(PhysReg(0), s1), Operand::c32(3));
 
-   finish_to_hw_instr_test();
+      //! s_endpgm
 
-   for (aco_ptr<Instruction>& instr : program->blocks[0].instructions) {
-      if (instr->opcode == aco_opcode::v_mov_b16 && instr->format != asVOP3(Format::VOP1)) {
-         fail_test("v_mov_b16 must be be VOP3");
-         return;
+      finish_to_hw_instr_test();
+
+      for (aco_ptr<Instruction>& instr : program->blocks[0].instructions) {
+         if (instr->opcode == aco_opcode::v_mov_b16 && instr->format != asVOP3(Format::VOP1)) {
+            fail_test("v_mov_b16 must be be VOP3");
+            return;
+         }
       }
    }
 END_TEST
