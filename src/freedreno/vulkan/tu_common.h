@@ -91,7 +91,7 @@
 #define MAX_DYNAMIC_STORAGE_BUFFERS 8
 #define MAX_DYNAMIC_BUFFERS_SIZE                                             \
    (MAX_DYNAMIC_UNIFORM_BUFFERS + 2 * MAX_DYNAMIC_STORAGE_BUFFERS) *         \
-   A6XX_TEX_CONST_DWORDS
+   FDL6_TEX_CONST_DWORDS
 
 #define TU_MAX_VIS_STREAMS 4
 
@@ -124,7 +124,6 @@
 #define MAX_INLINE_UBO_RANGE 256
 #define MAX_INLINE_UBOS 4
 
-#define A6XX_TEX_CONST_DWORDS 16
 #define A6XX_TEX_SAMP_DWORDS 4
 
 /* We sample the fragment density map on the CPU, so technically the

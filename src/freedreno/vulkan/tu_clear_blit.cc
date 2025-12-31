@@ -1077,13 +1077,13 @@ r3d_src_common(struct tu_cmd_buffer *cmd,
    struct tu_cs_memory texture = { };
    VkResult result = tu_cs_alloc(&cmd->sub_cs,
                                  2, /* allocate space for a sampler too */
-                                 A6XX_TEX_CONST_DWORDS, &texture);
+                                 FDL6_TEX_CONST_DWORDS, &texture);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd->vk, result);
       return;
    }
 
-   memcpy(texture.map, tex_const, A6XX_TEX_CONST_DWORDS * 4);
+   memcpy(texture.map, tex_const, FDL6_TEX_CONST_DWORDS * 4);
 
    /* patch addresses for layer offset */
    *(uint64_t*) (texture.map + 4) += offset_base;
@@ -1091,18 +1091,18 @@ r3d_src_common(struct tu_cmd_buffer *cmd,
    texture.map[7] = ubwc_addr;
    texture.map[8] = ubwc_addr >> 32;
 
-   texture.map[A6XX_TEX_CONST_DWORDS + 0] =
+   texture.map[FDL6_TEX_CONST_DWORDS + 0] =
       A6XX_TEX_SAMP_0_XY_MAG(tu6_tex_filter(filter, false)) |
       A6XX_TEX_SAMP_0_XY_MIN(tu6_tex_filter(filter, false)) |
       A6XX_TEX_SAMP_0_WRAP_S(A6XX_TEX_CLAMP_TO_EDGE) |
       A6XX_TEX_SAMP_0_WRAP_T(A6XX_TEX_CLAMP_TO_EDGE) |
       A6XX_TEX_SAMP_0_WRAP_R(A6XX_TEX_CLAMP_TO_EDGE) |
       0x60000; /* XXX used by blob, doesn't seem necessary */
-   texture.map[A6XX_TEX_CONST_DWORDS + 1] =
+   texture.map[FDL6_TEX_CONST_DWORDS + 1] =
       A6XX_TEX_SAMP_1_UNNORM_COORDS |
       A6XX_TEX_SAMP_1_MIPFILTER_LINEAR_FAR;
-   texture.map[A6XX_TEX_CONST_DWORDS + 2] = 0;
-   texture.map[A6XX_TEX_CONST_DWORDS + 3] = 0;
+   texture.map[FDL6_TEX_CONST_DWORDS + 2] = 0;
+   texture.map[FDL6_TEX_CONST_DWORDS + 3] = 0;
 
    tu_cs_emit_pkt7(cs, CP_LOAD_STATE6_FRAG, 3);
    tu_cs_emit(cs, CP_LOAD_STATE6_0_DST_OFF(0) |
@@ -1110,9 +1110,9 @@ r3d_src_common(struct tu_cmd_buffer *cmd,
                CP_LOAD_STATE6_0_STATE_SRC(SS6_INDIRECT) |
                CP_LOAD_STATE6_0_STATE_BLOCK(SB6_FS_TEX) |
                CP_LOAD_STATE6_0_NUM_UNIT(1));
-   tu_cs_emit_qw(cs, texture.iova + A6XX_TEX_CONST_DWORDS * 4);
+   tu_cs_emit_qw(cs, texture.iova + FDL6_TEX_CONST_DWORDS * 4);
 
-   tu_cs_emit_regs(cs, A6XX_SP_PS_SAMPLER_BASE(.qword = texture.iova + A6XX_TEX_CONST_DWORDS * 4));
+   tu_cs_emit_regs(cs, A6XX_SP_PS_SAMPLER_BASE(.qword = texture.iova + FDL6_TEX_CONST_DWORDS * 4));
 
    tu_cs_emit_pkt7(cs, CP_LOAD_STATE6_FRAG, 3);
    tu_cs_emit(cs, CP_LOAD_STATE6_0_DST_OFF(0) |
@@ -1134,7 +1134,7 @@ r3d_src(struct tu_cmd_buffer *cmd,
         VkFilter filter,
         enum pipe_format dst_format)
 {
-   uint32_t desc[A6XX_TEX_CONST_DWORDS];
+   uint32_t desc[FDL6_TEX_CONST_DWORDS];
    memcpy(desc, iview->descriptor, sizeof(desc));
 
    enum a6xx_format fmt =
@@ -1158,7 +1158,7 @@ r3d_src_buffer(struct tu_cmd_buffer *cmd,
                uint32_t width, uint32_t height,
                enum pipe_format dst_format)
 {
-   uint32_t desc[A6XX_TEX_CONST_DWORDS];
+   uint32_t desc[FDL6_TEX_CONST_DWORDS];
 
    struct tu_native_format fmt = blit_format_texture<CHIP>(format, TILE6_LINEAR, false, false);
    enum a6xx_format color_format = fmt.fmt;
@@ -1179,7 +1179,7 @@ r3d_src_buffer(struct tu_cmd_buffer *cmd,
    desc[3] = 0;
    desc[4] = va;
    desc[5] = va >> 32;
-   for (uint32_t i = 6; i < A6XX_TEX_CONST_DWORDS; i++)
+   for (uint32_t i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
       desc[i] = 0;
 
    r3d_src_common(cmd, cs, desc, 0, 0, VK_FILTER_NEAREST);
@@ -1192,7 +1192,7 @@ r3d_src_depth(struct tu_cmd_buffer *cmd,
               uint32_t layer,
               VkFilter filter)
 {
-   uint32_t desc[A6XX_TEX_CONST_DWORDS];
+   uint32_t desc[FDL6_TEX_CONST_DWORDS];
 
    memcpy(desc, iview->view.descriptor, sizeof(desc));
    uint64_t va = iview->depth_base_addr;
@@ -1228,7 +1228,7 @@ r3d_src_stencil(struct tu_cmd_buffer *cmd,
                 uint32_t layer,
                 VkFilter filter)
 {
-   uint32_t desc[A6XX_TEX_CONST_DWORDS];
+   uint32_t desc[FDL6_TEX_CONST_DWORDS];
 
    memcpy(desc, iview->view.descriptor, sizeof(desc));
    uint64_t va = iview->stencil_base_addr;
@@ -1248,7 +1248,7 @@ r3d_src_stencil(struct tu_cmd_buffer *cmd,
    desc[3] = A6XX_TEX_CONST_3_ARRAY_PITCH(iview->stencil_layer_size);
    desc[4] = va;
    desc[5] = va >> 32;
-   for (unsigned i = 6; i < A6XX_TEX_CONST_DWORDS; i++)
+   for (unsigned i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
       desc[i] = 0;
 
    r3d_src_common(cmd, cs, desc, iview->stencil_layer_size * layer, 0,
@@ -1262,7 +1262,7 @@ r3d_src_load(struct tu_cmd_buffer *cmd,
              uint32_t layer,
              bool override_swap)
 {
-   uint32_t desc[A6XX_TEX_CONST_DWORDS];
+   uint32_t desc[FDL6_TEX_CONST_DWORDS];
 
    memcpy(desc, iview->view.descriptor, sizeof(desc));
 
@@ -1327,7 +1327,7 @@ r3d_src_gmem(struct tu_cmd_buffer *cmd,
              uint32_t gmem_offset,
              uint32_t cpp)
 {
-   uint32_t desc[A6XX_TEX_CONST_DWORDS];
+   uint32_t desc[FDL6_TEX_CONST_DWORDS];
    memcpy(desc, iview->view.descriptor, sizeof(desc));
 
    enum a6xx_format fmt =
@@ -1369,7 +1369,7 @@ r3d_src_gmem(struct tu_cmd_buffer *cmd,
    desc[3] = 0;
    desc[4] = cmd->device->physical_device->gmem_base + gmem_offset;
    desc[5] = A6XX_TEX_CONST_5_DEPTH(1);
-   for (unsigned i = 6; i < A6XX_TEX_CONST_DWORDS; i++)
+   for (unsigned i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
       desc[i] = 0;
 
    r3d_src_common(cmd, cs, desc, 0, 0, VK_FILTER_NEAREST);

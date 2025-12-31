@@ -2621,7 +2621,7 @@ tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
 
    struct tu_cs_memory texture;
    VkResult result = tu_cs_alloc(&cmd->sub_cs, subpass->input_count * 2,
-                                 A6XX_TEX_CONST_DWORDS, &texture);
+                                 FDL6_TEX_CONST_DWORDS, &texture);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd->vk, result);
       return (struct tu_draw_state) {};
@@ -2635,11 +2635,11 @@ tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
       const struct tu_image_view *iview = cmd->state.attachments[a];
       const struct tu_render_pass_attachment *att =
          &cmd->state.pass->attachments[a];
-      uint32_t dst[A6XX_TEX_CONST_DWORDS];
+      uint32_t dst[FDL6_TEX_CONST_DWORDS];
       uint32_t gmem_offset = tu_attachment_gmem_offset(cmd, att, 0);
       uint32_t cpp = att->cpp;
 
-      memcpy(dst, iview->view.descriptor, A6XX_TEX_CONST_DWORDS * 4);
+      memcpy(dst, iview->view.descriptor, FDL6_TEX_CONST_DWORDS * 4);
 
       /* Cube descriptors require a different sampling instruction in shader,
        * however we don't know whether image is a cube or not until the start
@@ -2699,7 +2699,7 @@ tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
            * assertion failures from register packing below.
            */
           !tiling->possible) {
-         memcpy(&texture.map[i * A6XX_TEX_CONST_DWORDS], dst, sizeof(dst));
+         memcpy(&texture.map[i * FDL6_TEX_CONST_DWORDS], dst, sizeof(dst));
          continue;
       }
 
@@ -2737,10 +2737,10 @@ tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
       }
       dst[4] = cmd->device->physical_device->gmem_base + gmem_offset;
       dst[5] &= A6XX_TEX_CONST_5_DEPTH__MASK;
-      for (unsigned i = 6; i < A6XX_TEX_CONST_DWORDS; i++)
+      for (unsigned i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
          dst[i] = 0;
 
-      memcpy(&texture.map[i * A6XX_TEX_CONST_DWORDS], dst, sizeof(dst));
+      memcpy(&texture.map[i * FDL6_TEX_CONST_DWORDS], dst, sizeof(dst));
    }
 
    struct tu_cs cs;
@@ -4754,8 +4754,8 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                } else {
                   uint32_t *dst_desc = dst;
                   for (unsigned i = 0;
-                       i < binding->size / (4 * A6XX_TEX_CONST_DWORDS);
-                       i++, dst_desc += A6XX_TEX_CONST_DWORDS) {
+                       i < binding->size / (4 * FDL6_TEX_CONST_DWORDS);
+                       i++, dst_desc += FDL6_TEX_CONST_DWORDS) {
                      /* Note: A6XX_TEX_CONST_5_DEPTH is always 0 */
                      uint64_t va = dst_desc[4] | ((uint64_t)dst_desc[5] << 32);
                      uint32_t desc_offset = pkt_field_get(
@@ -4813,8 +4813,8 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
       VkResult result =
          tu_cs_alloc(&cmd->sub_cs,
                      descriptors_state->max_dynamic_offset_size /
-                     (4 * A6XX_TEX_CONST_DWORDS),
-                     A6XX_TEX_CONST_DWORDS, &dynamic_desc_set);
+                     (4 * FDL6_TEX_CONST_DWORDS),
+                     FDL6_TEX_CONST_DWORDS, &dynamic_desc_set);
       if (result != VK_SUCCESS) {
          vk_command_buffer_set_error(&cmd->vk, result);
          return;
@@ -4993,8 +4993,8 @@ tu_push_descriptor_set(struct tu_cmd_buffer *cmd,
 
    struct tu_cs_memory set_mem;
    VkResult result = tu_cs_alloc(&cmd->sub_cs,
-                                 DIV_ROUND_UP(layout->size, A6XX_TEX_CONST_DWORDS * 4),
-                                 A6XX_TEX_CONST_DWORDS, &set_mem);
+                                 DIV_ROUND_UP(layout->size, FDL6_TEX_CONST_DWORDS * 4),
+                                 FDL6_TEX_CONST_DWORDS, &set_mem);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd->vk, result);
       return;
@@ -5056,8 +5056,8 @@ tu_CmdPushDescriptorSetWithTemplate2KHR(
 
    struct tu_cs_memory set_mem;
    VkResult result = tu_cs_alloc(&cmd->sub_cs,
-                                 DIV_ROUND_UP(layout->size, A6XX_TEX_CONST_DWORDS * 4),
-                                 A6XX_TEX_CONST_DWORDS, &set_mem);
+                                 DIV_ROUND_UP(layout->size, FDL6_TEX_CONST_DWORDS * 4),
+                                 FDL6_TEX_CONST_DWORDS, &set_mem);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd->vk, result);
       return;

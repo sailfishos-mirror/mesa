@@ -178,7 +178,7 @@ tu6_emit_load_state(struct tu_device *device,
          case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
          case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
          case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {
-            unsigned mul = binding->size / (A6XX_TEX_CONST_DWORDS * 4);
+            unsigned mul = binding->size / (FDL6_TEX_CONST_DWORDS * 4);
             /* UAV-backed resources only need one packet for all graphics stages */
             if (stages & ~VK_SHADER_STAGE_COMPUTE_BIT) {
                emit_load_state(&cs, CP_LOAD_STATE6, ST6_SHADER, SB6_UAV,
@@ -225,8 +225,8 @@ tu6_emit_load_state(struct tu_device *device,
                 * struct-of-arrays instead of array-of-structs.
                 */
                for (unsigned i = 0; i < count; i++) {
-                  unsigned tex_offset = offset + 2 * i * A6XX_TEX_CONST_DWORDS;
-                  unsigned sam_offset = offset + (2 * i + 1) * A6XX_TEX_CONST_DWORDS;
+                  unsigned tex_offset = offset + 2 * i * FDL6_TEX_CONST_DWORDS;
+                  unsigned sam_offset = offset + (2 * i + 1) * FDL6_TEX_CONST_DWORDS;
                   emit_load_state(&cs, tu6_stage2opcode(stage),
                                   ST6_CONSTANTS, tu6_stage2texsb(stage),
                                   base, tex_offset, 1);
@@ -425,7 +425,7 @@ tu6_emit_dynamic_offset(struct tu_cs *cs,
       uint32_t offsets[MAX_SETS];
       for (unsigned i = 0; i < phys_dev->usable_sets; i++) {
          unsigned dynamic_offset_start =
-            program->dynamic_descriptor_offsets[i] / (A6XX_TEX_CONST_DWORDS * 4);
+            program->dynamic_descriptor_offsets[i] / (FDL6_TEX_CONST_DWORDS * 4);
          offsets[i] = dynamic_offset_start;
       }
 
@@ -458,7 +458,7 @@ tu6_emit_dynamic_offset(struct tu_cs *cs,
 
       for (unsigned i = 0; i < phys_dev->usable_sets; i++) {
          unsigned dynamic_offset_start =
-            program->dynamic_descriptor_offsets[i] / (A6XX_TEX_CONST_DWORDS * 4);
+            program->dynamic_descriptor_offsets[i] / (FDL6_TEX_CONST_DWORDS * 4);
          tu_cs_emit(cs, dynamic_offset_start);
       }
    }

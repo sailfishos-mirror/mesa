@@ -347,7 +347,7 @@ lower_vulkan_resource_index(struct tu_device *dev, nir_builder *b,
           * with fast linking means after the shader is compiled. We have to
           * get it from the const file instead.
           */
-         base = nir_imm_int(b, binding_layout->dynamic_offset_offset / (4 * A6XX_TEX_CONST_DWORDS));
+         base = nir_imm_int(b, binding_layout->dynamic_offset_offset / (4 * FDL6_TEX_CONST_DWORDS));
          nir_def *dynamic_offset_start;
          if (compiler->load_shader_consts_via_preamble) {
             dynamic_offset_start =
@@ -360,14 +360,14 @@ lower_vulkan_resource_index(struct tu_device *dev, nir_builder *b,
          base = nir_iadd(b, base, dynamic_offset_start);
       } else {
          base = nir_imm_int(b, (offset +
-            binding_layout->dynamic_offset_offset) / (4 * A6XX_TEX_CONST_DWORDS));
+            binding_layout->dynamic_offset_offset) / (4 * FDL6_TEX_CONST_DWORDS));
       }
       assert(dev->physical_device->reserved_set_idx >= 0);
       set = dev->physical_device->reserved_set_idx;
    } else
-      base = nir_imm_int(b, binding_layout->offset / (4 * A6XX_TEX_CONST_DWORDS));
+      base = nir_imm_int(b, binding_layout->offset / (4 * FDL6_TEX_CONST_DWORDS));
 
-   unsigned stride = binding_layout->size / (4 * A6XX_TEX_CONST_DWORDS);
+   unsigned stride = binding_layout->size / (4 * FDL6_TEX_CONST_DWORDS);
    assert(util_is_power_of_two_nonzero(stride));
    nir_def *shift = nir_imm_int(b, util_logbase2(stride));
 
@@ -573,9 +573,9 @@ build_bindless(struct tu_device *dev, nir_builder *b,
       offset = 1;
    }
    desc_offset =
-      nir_imm_int(b, (bind_layout->offset / (4 * A6XX_TEX_CONST_DWORDS)) +
+      nir_imm_int(b, (bind_layout->offset / (4 * FDL6_TEX_CONST_DWORDS)) +
                   offset);
-   descriptor_stride = bind_layout->size / (4 * A6XX_TEX_CONST_DWORDS);
+   descriptor_stride = bind_layout->size / (4 * FDL6_TEX_CONST_DWORDS);
 
    if (deref->deref_type != nir_deref_type_var) {
       assert(deref->deref_type == nir_deref_type_array);

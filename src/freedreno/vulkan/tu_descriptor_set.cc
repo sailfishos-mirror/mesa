@@ -54,14 +54,14 @@ descriptor_size(struct tu_device *dev,
        * descriptors which are less than 16 dwords. However combined images
        * and samplers are actually two descriptors, so they have size 2.
        */
-      return A6XX_TEX_CONST_DWORDS * 4 * 2;
+      return FDL6_TEX_CONST_DWORDS * 4 * 2;
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
       /* isam.v allows using a single 16-bit descriptor for both 16-bit and
        * 32-bit loads. If not available but 16-bit storage is still supported,
        * two separate descriptors are required.
        */
-      return A6XX_TEX_CONST_DWORDS * 4 * (1 +
+      return FDL6_TEX_CONST_DWORDS * 4 * (1 +
          COND(dev->physical_device->info->props.storage_16bit &&
               !dev->physical_device->info->props.has_isam_v, 1) +
          COND(dev->physical_device->info->props.storage_8bit, 1));
@@ -69,7 +69,7 @@ descriptor_size(struct tu_device *dev,
       return binding->descriptorCount;
    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
    default:
-      return A6XX_TEX_CONST_DWORDS * 4;
+      return FDL6_TEX_CONST_DWORDS * 4;
    }
 }
 
@@ -253,7 +253,7 @@ tu_CreateDescriptorSetLayout(
       }
 
       uint32_t size =
-         ALIGN_POT(set_layout->binding[b].array_size * set_layout->binding[b].size, 4 * A6XX_TEX_CONST_DWORDS);
+         ALIGN_POT(set_layout->binding[b].array_size * set_layout->binding[b].size, 4 * FDL6_TEX_CONST_DWORDS);
       if (vk_descriptor_type_is_dynamic(binding->descriptorType)) {
          dynamic_offset_size += size;
       } else {
@@ -367,7 +367,7 @@ tu_GetDescriptorSetLayoutSupport(
       } else {
          descriptor_sz = descriptor_size(device, binding, binding->descriptorType);
       }
-      uint64_t descriptor_alignment = 4 * A6XX_TEX_CONST_DWORDS;
+      uint64_t descriptor_alignment = 4 * FDL6_TEX_CONST_DWORDS;
 
       if (size && !ALIGN_POT(size, descriptor_alignment)) {
          supported = false;
@@ -602,7 +602,7 @@ tu_descriptor_set_create(struct tu_device *device,
          &layout->binding[layout->binding_count - 1];
       if (binding->type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
          layout_size = binding->offset +
-            align(variable_count, 4 * A6XX_TEX_CONST_DWORDS);
+            align(variable_count, 4 * FDL6_TEX_CONST_DWORDS);
       } else {
          uint32_t stride = binding->size;
          layout_size = binding->offset + variable_count * stride;
@@ -647,7 +647,7 @@ tu_descriptor_set_create(struct tu_device *device,
 
          unsigned offset = layout->binding[i].offset / 4;
          if (layout->binding[i].type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-            offset += A6XX_TEX_CONST_DWORDS;
+            offset += FDL6_TEX_CONST_DWORDS;
 
          const struct tu_sampler *samplers =
             (const struct tu_sampler *)((const char *)layout +
@@ -707,11 +707,11 @@ tu_CreateDescriptorPool(VkDevice _device,
 
    if (inline_info) {
       /* We have to factor in the padding for each binding. The sizes are 4
-       * aligned but we have to align to 4 * A6XX_TEX_CONST_DWORDS bytes, and in
+       * aligned but we have to align to 4 * FDL6_TEX_CONST_DWORDS bytes, and in
        * the worst case each inline binding has a size of 4 bytes and we have
        * to pad each one out.
        */
-      bo_size += (4 * A6XX_TEX_CONST_DWORDS - 4) *
+      bo_size += (4 * FDL6_TEX_CONST_DWORDS - 4) *
          inline_info->maxInlineUniformBlockBindings;
    }
 
@@ -732,7 +732,7 @@ tu_CreateDescriptorPool(VkDevice _device,
                   pool_size->descriptorCount;
          } else {
             /* Allocate the maximum size possible. */
-            bo_size += 2 * A6XX_TEX_CONST_DWORDS * 4 *
+            bo_size += 2 * FDL6_TEX_CONST_DWORDS * 4 *
                   pool_size->descriptorCount;
          }
          break;
@@ -943,7 +943,7 @@ write_texel_buffer_descriptor_addr(uint32_t *dst,
                                    const VkDescriptorAddressInfoEXT *buffer_info)
 {
    if (!buffer_info || buffer_info->address == 0) {
-      memset(dst, 0, A6XX_TEX_CONST_DWORDS * sizeof(uint32_t));
+      memset(dst, 0, FDL6_TEX_CONST_DWORDS * sizeof(uint32_t));
    } else {
       uint8_t swiz[4] = { PIPE_SWIZZLE_X, PIPE_SWIZZLE_Y, PIPE_SWIZZLE_Z,
                           PIPE_SWIZZLE_W };
@@ -957,7 +957,7 @@ static void
 write_texel_buffer_descriptor(uint32_t *dst, const VkBufferView buffer_view)
 {
    if (buffer_view == VK_NULL_HANDLE) {
-      memset(dst, 0, A6XX_TEX_CONST_DWORDS * sizeof(uint32_t));
+      memset(dst, 0, FDL6_TEX_CONST_DWORDS * sizeof(uint32_t));
    } else {
       VK_FROM_HANDLE(tu_buffer_view, view, buffer_view);
 
@@ -1000,7 +1000,7 @@ write_buffer_descriptor_addr(const struct tu_device *device,
    unsigned num_descriptors = 1 +
       COND(info->props.storage_16bit && !info->props.has_isam_v, 1) +
       COND(info->props.storage_8bit, 1);
-   memset(dst, 0, num_descriptors * A6XX_TEX_CONST_DWORDS * sizeof(uint32_t));
+   memset(dst, 0, num_descriptors * FDL6_TEX_CONST_DWORDS * sizeof(uint32_t));
 
    if (!buffer_info || buffer_info->address == 0)
       return;
@@ -1019,7 +1019,7 @@ write_buffer_descriptor_addr(const struct tu_device *device,
          A6XX_TEX_CONST_2_TYPE(A6XX_TEX_BUFFER);
       dst[4] = A6XX_TEX_CONST_4_BASE_LO(base_va);
       dst[5] = A6XX_TEX_CONST_5_BASE_HI(base_va >> 32);
-      dst += A6XX_TEX_CONST_DWORDS;
+      dst += FDL6_TEX_CONST_DWORDS;
    }
 
    /* Set up the 32-bit descriptor when 16-bit storage isn't supported or the
@@ -1034,7 +1034,7 @@ write_buffer_descriptor_addr(const struct tu_device *device,
          A6XX_TEX_CONST_2_TYPE(A6XX_TEX_BUFFER);
       dst[4] = A6XX_TEX_CONST_4_BASE_LO(base_va);
       dst[5] = A6XX_TEX_CONST_5_BASE_HI(base_va >> 32);
-      dst += A6XX_TEX_CONST_DWORDS;
+      dst += FDL6_TEX_CONST_DWORDS;
    }
 
    if (info->props.storage_8bit) {
@@ -1087,7 +1087,7 @@ write_image_descriptor(uint32_t *dst,
                        const VkDescriptorImageInfo *image_info)
 {
    if (!image_info || image_info->imageView == VK_NULL_HANDLE) {
-      memset(dst, 0, A6XX_TEX_CONST_DWORDS * sizeof(uint32_t));
+      memset(dst, 0, FDL6_TEX_CONST_DWORDS * sizeof(uint32_t));
       return;
    }
 
@@ -1111,7 +1111,7 @@ write_combined_image_sampler_descriptor(uint32_t *dst,
    if (has_sampler) {
       VK_FROM_HANDLE(tu_sampler, sampler, image_info->sampler);
 
-      memcpy(dst + A6XX_TEX_CONST_DWORDS, sampler->descriptor, sizeof(sampler->descriptor));
+      memcpy(dst + FDL6_TEX_CONST_DWORDS, sampler->descriptor, sizeof(sampler->descriptor));
    }
 }
 
@@ -1141,7 +1141,7 @@ write_accel_struct(uint32_t *dst, uint64_t va)
    dst[3] = 0;
    dst[4] = A6XX_TEX_CONST_4_BASE_LO(va);
    dst[5] = A6XX_TEX_CONST_5_BASE_HI(va >> 32);
-   for (int j = 6; j < A6XX_TEX_CONST_DWORDS; j++)
+   for (int j = 6; j < FDL6_TEX_CONST_DWORDS; j++)
       dst[j] = 0;
 }
 
@@ -1311,7 +1311,7 @@ tu_update_descriptor_sets(const struct tu_device *device,
                                                     !binding_layout->immutable_samplers_offset);
 
             if (copy_immutable_samplers)
-               write_sampler_push(ptr + A6XX_TEX_CONST_DWORDS, &samplers[writeset->dstArrayElement + j]);
+               write_sampler_push(ptr + FDL6_TEX_CONST_DWORDS, &samplers[writeset->dstArrayElement + j]);
             break;
          case VK_DESCRIPTOR_TYPE_SAMPLER:
             if (!binding_layout->immutable_samplers_offset)
@@ -1386,15 +1386,15 @@ tu_update_descriptor_sets(const struct tu_device *device,
             if (src_remaining == 0) {
                src_binding_layout++;
                src_ptr = src_set->mapped_ptr + src_binding_layout->offset / 4;
-               src = (uint8_t *)(src_ptr + A6XX_TEX_CONST_DWORDS);
-               src_remaining = src_binding_layout->size - 4 * A6XX_TEX_CONST_DWORDS;
+               src = (uint8_t *)(src_ptr + FDL6_TEX_CONST_DWORDS);
+               src_remaining = src_binding_layout->size - 4 * FDL6_TEX_CONST_DWORDS;
             }
 
             if (dst_remaining == 0) {
                dst_binding_layout++;
                dst_ptr = dst_set->mapped_ptr + dst_binding_layout->offset / 4;
-               dst = (uint8_t *)(dst_ptr + A6XX_TEX_CONST_DWORDS);
-               dst_remaining = dst_binding_layout->size - 4 * A6XX_TEX_CONST_DWORDS;
+               dst = (uint8_t *)(dst_ptr + FDL6_TEX_CONST_DWORDS);
+               dst_remaining = dst_binding_layout->size - 4 * FDL6_TEX_CONST_DWORDS;
             }
          } while (remaining > 0);
 
@@ -1653,7 +1653,7 @@ tu_update_descriptor_set_with_template(
                                                     (const VkDescriptorImageInfo *) src,
                                                     templ->entry[i].has_sampler);
             if (samplers)
-               write_sampler_push(ptr + A6XX_TEX_CONST_DWORDS, &samplers[j]);
+               write_sampler_push(ptr + FDL6_TEX_CONST_DWORDS, &samplers[j]);
             break;
          case VK_DESCRIPTOR_TYPE_SAMPLER:
             if (templ->entry[i].has_sampler)
