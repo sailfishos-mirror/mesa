@@ -1108,11 +1108,8 @@ void
 vtn_handle_integer_dot(struct vtn_builder *b, SpvOp opcode,
                        const uint32_t *w, unsigned count)
 {
-   struct vtn_value *dest_val = vtn_untyped_value(b, w[2]);
    const struct glsl_type *dest_type = vtn_get_type(b, w[1])->type;
    const unsigned dest_size = glsl_get_bit_size(dest_type);
-
-   b->nb.exact |= vtn_has_decoration(b, dest_val, SpvDecorationNoContraction);
 
    /* Collect the various SSA sources.
     *
@@ -1374,8 +1371,6 @@ vtn_handle_integer_dot(struct vtn_builder *b, SpvOp opcode,
    }
 
    vtn_push_nir_ssa(b, w[2], dest);
-
-   b->nb.exact = b->exact;
 }
 
 void
