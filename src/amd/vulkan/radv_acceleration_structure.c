@@ -287,6 +287,9 @@ radv_get_build_config(VkDevice _device, struct vk_acceleration_structure_build_s
 
    VkGeometryTypeKHR geometry_type = vk_get_as_geometry_type(state->build_info);
 
+   if (state->build_info->type == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR)
+      state->config.internal_type = VK_INTERNAL_BUILD_TYPE_HPLOC;
+
    uint32_t encode_key = 0;
    if (radv_use_bvh8(pdev)) {
       /*
