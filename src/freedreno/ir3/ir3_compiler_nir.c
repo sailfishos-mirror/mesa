@@ -3217,6 +3217,9 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
    case nir_intrinsic_load_frag_invocation_count:
       dst[0] = create_driver_param(ctx, IR3_DP_FS(frag_invocation_count));
       break;
+   case nir_intrinsic_load_alpha_to_coverage_enable_ir3:
+      dst[0] = create_driver_param(ctx, IR3_DP_FS(alpha_to_coverage_enable));
+      break;
    case nir_intrinsic_load_frag_size_ir3:
    case nir_intrinsic_load_frag_offset_ir3:
    case nir_intrinsic_load_gmem_frag_scale_ir3:
