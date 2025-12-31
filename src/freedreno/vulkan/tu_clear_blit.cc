@@ -1066,6 +1066,7 @@ r3d_clear_value(struct tu_cmd_buffer *cmd, struct tu_cs *cs, enum pipe_format fo
    tu6_emit_blit_consts_load(cmd, cs, CP_LOAD_STATE6_FRAG, SB6_FS_SHADER, 0, coords, 1);
 }
 
+template <chip CHIP>
 static void
 r3d_src_common(struct tu_cmd_buffer *cmd,
                struct tu_cs *cs,
@@ -1126,6 +1127,7 @@ r3d_src_common(struct tu_cmd_buffer *cmd,
    tu_cs_emit_regs(cs, A6XX_SP_PS_TSIZE(1));
 }
 
+template <chip CHIP>
 static void
 r3d_src(struct tu_cmd_buffer *cmd,
         struct tu_cs *cs,
@@ -1143,10 +1145,10 @@ r3d_src(struct tu_cmd_buffer *cmd,
    fixup_src_format(&src_format, dst_format, &fmt);
    desc[0] = pkt_field_set(A6XX_TEX_CONST_0_FMT, desc[0], fmt);
 
-   r3d_src_common(cmd, cs, desc,
-                  iview->layer_size * layer,
-                  iview->ubwc_layer_size * layer,
-                  filter);
+   r3d_src_common<CHIP>(cmd, cs, desc,
+                        iview->layer_size * layer,
+                        iview->ubwc_layer_size * layer,
+                        filter);
 }
 
 template <chip CHIP>
@@ -1182,9 +1184,10 @@ r3d_src_buffer(struct tu_cmd_buffer *cmd,
    for (uint32_t i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
       desc[i] = 0;
 
-   r3d_src_common(cmd, cs, desc, 0, 0, VK_FILTER_NEAREST);
+   r3d_src_common<CHIP>(cmd, cs, desc, 0, 0, VK_FILTER_NEAREST);
 }
 
+template <chip CHIP>
 static void
 r3d_src_depth(struct tu_cmd_buffer *cmd,
               struct tu_cs *cs,
@@ -1215,12 +1218,13 @@ r3d_src_depth(struct tu_cmd_buffer *cmd,
    desc[4] = va;
    desc[5] = va >> 32;
 
-   r3d_src_common(cmd, cs, desc,
-                  iview->depth_layer_size * layer, 
-                  iview->view.ubwc_layer_size * layer,
-                  VK_FILTER_NEAREST);
+   r3d_src_common<CHIP>(cmd, cs, desc,
+                        iview->depth_layer_size * layer,
+                        iview->view.ubwc_layer_size * layer,
+                        VK_FILTER_NEAREST);
 }
 
+template <chip CHIP>
 static void
 r3d_src_stencil(struct tu_cmd_buffer *cmd,
                 struct tu_cs *cs,
@@ -1251,10 +1255,11 @@ r3d_src_stencil(struct tu_cmd_buffer *cmd,
    for (unsigned i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
       desc[i] = 0;
 
-   r3d_src_common(cmd, cs, desc, iview->stencil_layer_size * layer, 0,
-                  VK_FILTER_NEAREST);
+   r3d_src_common<CHIP>(cmd, cs, desc, iview->stencil_layer_size * layer, 0,
+                        VK_FILTER_NEAREST);
 }
 
+template <chip CHIP>
 static void
 r3d_src_load(struct tu_cmd_buffer *cmd,
              struct tu_cs *cs,
@@ -1293,28 +1298,30 @@ r3d_src_load(struct tu_cmd_buffer *cmd,
               A6XX_TEX_CONST_0_SWIZ_Z(A6XX_TEX_Z) |
               A6XX_TEX_CONST_0_SWIZ_W(A6XX_TEX_W);
 
-   r3d_src_common(cmd, cs, desc,
-                  iview->view.layer_size * layer,
-                  iview->view.ubwc_layer_size * layer,
-                  VK_FILTER_NEAREST);
+   r3d_src_common<CHIP>(cmd, cs, desc,
+                        iview->view.layer_size * layer,
+                        iview->view.ubwc_layer_size * layer,
+                        VK_FILTER_NEAREST);
 }
 
+template <chip CHIP>
 static void
 r3d_src_gmem_load(struct tu_cmd_buffer *cmd,
                   struct tu_cs *cs,
                   const struct tu_image_view *iview,
                   uint32_t layer)
 {
-   r3d_src_load(cmd, cs, iview, layer, true);
+   r3d_src_load<CHIP>(cmd, cs, iview, layer, true);
 }
 
+template <chip CHIP>
 static void
 r3d_src_sysmem_load(struct tu_cmd_buffer *cmd,
                     struct tu_cs *cs,
                     const struct tu_image_view *iview,
                     uint32_t layer)
 {
-   r3d_src_load(cmd, cs, iview, layer, false);
+   r3d_src_load<CHIP>(cmd, cs, iview, layer, false);
 }
 
 template <chip CHIP>
@@ -1372,7 +1379,7 @@ r3d_src_gmem(struct tu_cmd_buffer *cmd,
    for (unsigned i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
       desc[i] = 0;
 
-   r3d_src_common(cmd, cs, desc, 0, 0, VK_FILTER_NEAREST);
+   r3d_src_common<CHIP>(cmd, cs, desc, 0, 0, VK_FILTER_NEAREST);
 }
 
 template <chip CHIP>
@@ -1792,10 +1799,10 @@ template <chip CHIP>
 static const struct blit_ops r3d_ops = {
    .coords = r3d_coords,
    .clear_value = r3d_clear_value,
-   .src = r3d_src,
+   .src = r3d_src<CHIP>,
    .src_buffer = r3d_src_buffer<CHIP>,
-   .src_depth = r3d_src_depth,
-   .src_stencil = r3d_src_stencil,
+   .src_depth = r3d_src_depth<CHIP>,
+   .src_stencil = r3d_src_stencil<CHIP>,
    .dst = r3d_dst<CHIP>,
    .dst_depth = r3d_dst_depth<CHIP>,
    .dst_stencil = r3d_dst_stencil<CHIP>,
@@ -3630,7 +3637,7 @@ resolve_sysmem(struct tu_cmd_buffer *cmd,
          }
       } else {
          if (ops == &r3d_ops<CHIP>) {
-            r3d_src_sysmem_load(cmd, cs, src, i);
+            r3d_src_sysmem_load<CHIP>(cmd, cs, src, i);
          } else {
             ops->src(cmd, cs, &src->view, i, VK_FILTER_NEAREST, dst_format);
          }
@@ -5069,11 +5076,11 @@ load_3d_blit(struct tu_cmd_buffer *cmd,
 
       if (iview->image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
          if (separate_stencil)
-            r3d_src_stencil(cmd, cs, iview, i, VK_FILTER_NEAREST);
+            r3d_src_stencil<CHIP>(cmd, cs, iview, i, VK_FILTER_NEAREST);
          else
-            r3d_src_depth(cmd, cs, iview, i, VK_FILTER_NEAREST);
+            r3d_src_depth<CHIP>(cmd, cs, iview, i, VK_FILTER_NEAREST);
       } else {
-         r3d_src_gmem_load(cmd, cs, iview, i);
+         r3d_src_gmem_load<CHIP>(cmd, cs, iview, i);
       }
 
       r3d_run(cmd, cs);

@@ -2597,6 +2597,7 @@ tu6_emit_binning_pass(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
    tu_cs_emit(cs, 0x0);
 }
 
+template <chip CHIP>
 static struct tu_draw_state
 tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
                           const struct tu_subpass *subpass,
@@ -2763,6 +2764,7 @@ tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
    return ds;
 }
 
+template <chip CHIP>
 static void
 tu_set_input_attachments(struct tu_cmd_buffer *cmd, const struct tu_subpass *subpass)
 {
@@ -2770,9 +2772,9 @@ tu_set_input_attachments(struct tu_cmd_buffer *cmd, const struct tu_subpass *sub
 
    tu_cs_emit_pkt7(cs, CP_SET_DRAW_STATE, 6);
    tu_cs_emit_draw_state(cs, TU_DRAW_STATE_INPUT_ATTACHMENTS_GMEM,
-                         tu_emit_input_attachments(cmd, subpass, true));
+                         tu_emit_input_attachments<CHIP>(cmd, subpass, true));
    tu_cs_emit_draw_state(cs, TU_DRAW_STATE_INPUT_ATTACHMENTS_SYSMEM,
-                         tu_emit_input_attachments(cmd, subpass, false));
+                         tu_emit_input_attachments<CHIP>(cmd, subpass, false));
 }
 
 static void
@@ -4693,6 +4695,7 @@ tu_dirty_desc_sets(struct tu_cmd_buffer *cmd,
    }
 }
 
+template <chip CHIP>
 static void
 tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                         const VkBindDescriptorSetsInfoKHR *info,
@@ -4829,6 +4832,7 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
    tu_dirty_desc_sets(cmd, bind_point);
 }
 
+template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
 tu_CmdBindDescriptorSets2KHR(
    VkCommandBuffer commandBuffer,
@@ -4837,15 +4841,16 @@ tu_CmdBindDescriptorSets2KHR(
    VK_FROM_HANDLE(tu_cmd_buffer, cmd, commandBuffer);
 
    if (pBindDescriptorSetsInfo->stageFlags & VK_SHADER_STAGE_COMPUTE_BIT) {
-      tu_bind_descriptor_sets(cmd, pBindDescriptorSetsInfo,
-                              VK_PIPELINE_BIND_POINT_COMPUTE);
+      tu_bind_descriptor_sets<CHIP>(cmd, pBindDescriptorSetsInfo,
+                                    VK_PIPELINE_BIND_POINT_COMPUTE);
    }
 
    if (pBindDescriptorSetsInfo->stageFlags & VK_SHADER_STAGE_ALL_GRAPHICS) {
-      tu_bind_descriptor_sets(cmd, pBindDescriptorSetsInfo,
-                              VK_PIPELINE_BIND_POINT_GRAPHICS);
+      tu_bind_descriptor_sets<CHIP>(cmd, pBindDescriptorSetsInfo,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS);
    }
 }
+TU_GENX(tu_CmdBindDescriptorSets2KHR);
 
 VKAPI_ATTR void VKAPI_CALL
 tu_CmdBindDescriptorBuffersEXT(
@@ -4980,6 +4985,7 @@ tu_push_descriptor_set_update_layout(struct tu_device *device,
    return VK_SUCCESS;
 }
 
+template <chip CHIP>
 static void
 tu_push_descriptor_set(struct tu_cmd_buffer *cmd,
                        const VkPushDescriptorSetInfoKHR *info,
@@ -5006,9 +5012,9 @@ tu_push_descriptor_set(struct tu_cmd_buffer *cmd,
       return;
    }
 
-   tu_update_descriptor_sets(cmd->device, tu_descriptor_set_to_handle(set),
-                             info->descriptorWriteCount,
-                             info->pDescriptorWrites, 0, NULL);
+   tu_update_descriptor_sets<CHIP>(cmd->device, tu_descriptor_set_to_handle(set),
+                                   info->descriptorWriteCount,
+                                   info->pDescriptorWrites, 0, NULL);
 
    memcpy(set_mem.map, set->mapped_ptr, layout->size);
    set->va = set_mem.iova;
@@ -5019,6 +5025,7 @@ tu_push_descriptor_set(struct tu_cmd_buffer *cmd,
                                    NULL);
 }
 
+template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
 tu_CmdPushDescriptorSet2KHR(
    VkCommandBuffer commandBuffer,
@@ -5027,16 +5034,18 @@ tu_CmdPushDescriptorSet2KHR(
    VK_FROM_HANDLE(tu_cmd_buffer, cmd, commandBuffer);
 
    if (pPushDescriptorSetInfo->stageFlags & VK_SHADER_STAGE_COMPUTE_BIT) {
-      tu_push_descriptor_set(cmd, pPushDescriptorSetInfo,
-                             VK_PIPELINE_BIND_POINT_COMPUTE);
+      tu_push_descriptor_set<CHIP>(cmd, pPushDescriptorSetInfo,
+                                   VK_PIPELINE_BIND_POINT_COMPUTE);
    }
 
    if (pPushDescriptorSetInfo->stageFlags & VK_SHADER_STAGE_ALL_GRAPHICS) {
-      tu_push_descriptor_set(cmd, pPushDescriptorSetInfo,
-                             VK_PIPELINE_BIND_POINT_GRAPHICS);
+      tu_push_descriptor_set<CHIP>(cmd, pPushDescriptorSetInfo,
+                                   VK_PIPELINE_BIND_POINT_GRAPHICS);
    }
 }
+TU_GENX(tu_CmdPushDescriptorSet2KHR);
 
+template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
 tu_CmdPushDescriptorSetWithTemplate2KHR(
    VkCommandBuffer commandBuffer,
@@ -5069,7 +5078,7 @@ tu_CmdPushDescriptorSetWithTemplate2KHR(
       return;
    }
 
-   tu_update_descriptor_set_with_template(
+   tu_update_descriptor_set_with_template<CHIP>(
       cmd->device, set,
       pPushDescriptorSetWithTemplateInfo->descriptorUpdateTemplate,
       pPushDescriptorSetWithTemplateInfo->pData);
@@ -5083,6 +5092,7 @@ tu_CmdPushDescriptorSetWithTemplate2KHR(
       pPushDescriptorSetWithTemplateInfo->layout,
       pPushDescriptorSetWithTemplateInfo->set, 1, desc_set, 0, NULL);
 }
+TU_GENX(tu_CmdPushDescriptorSetWithTemplate2KHR);
 
 template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
@@ -6775,7 +6785,7 @@ tu_emit_subpass_begin(struct tu_cmd_buffer *cmd)
       tu7_emit_subpass_shading_rate<CHIP>(cmd, cmd->state.subpass, &cmd->draw_cs);
    }
 
-   tu_set_input_attachments(cmd, cmd->state.subpass);
+   tu_set_input_attachments<CHIP>(cmd, cmd->state.subpass);
 
    vk_cmd_set_cb_attachment_count(&cmd->vk, cmd->state.subpass->color_count);
 
@@ -7121,6 +7131,7 @@ tu_CmdSetRenderingAttachmentLocationsKHR(
 }
 TU_GENX(tu_CmdSetRenderingAttachmentLocationsKHR);
 
+template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
 tu_CmdSetRenderingInputAttachmentIndicesKHR(
    VkCommandBuffer commandBuffer,
@@ -7174,8 +7185,9 @@ tu_CmdSetRenderingInputAttachmentIndicesKHR(
 
    subpass->input_count = input_count;
 
-   tu_set_input_attachments(cmd, subpass);
+   tu_set_input_attachments<CHIP>(cmd, subpass);
 }
+TU_GENX(tu_CmdSetRenderingInputAttachmentIndicesKHR);
 
 static void
 tu_next_subpass_lrz(struct tu_cmd_buffer *cmd,

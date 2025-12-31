@@ -979,6 +979,7 @@ buffer_info_to_address(const VkDescriptorBufferInfo *buffer_info)
    };
 }
 
+template <chip CHIP>
 static void
 write_buffer_descriptor_addr(const struct tu_device *device,
                              uint32_t *dst,
@@ -1049,13 +1050,14 @@ write_buffer_descriptor_addr(const struct tu_device *device,
    }
 }
 
+template <chip CHIP>
 static void
 write_buffer_descriptor(const struct tu_device *device,
                         uint32_t *dst,
                         const VkDescriptorBufferInfo *buffer_info)
 {
    VkDescriptorAddressInfoEXT addr = buffer_info_to_address(buffer_info);
-   write_buffer_descriptor_addr(device, dst, &addr);
+   write_buffer_descriptor_addr<CHIP>(device, dst, &addr);
 }
 
 static void
@@ -1123,6 +1125,7 @@ write_sampler_descriptor(uint32_t *dst, VkSampler _sampler)
    memcpy(dst, sampler->descriptor, sizeof(sampler->descriptor));
 }
 
+template <chip CHIP>
 static void
 write_accel_struct(uint32_t *dst, uint64_t va)
 {
@@ -1152,6 +1155,7 @@ write_sampler_push(uint32_t *dst, const struct tu_sampler *sampler)
    memcpy(dst, sampler->descriptor, sizeof(sampler->descriptor));
 }
 
+template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
 tu_GetDescriptorEXT(
    VkDevice _device,
@@ -1167,13 +1171,13 @@ tu_GetDescriptorEXT(
       write_ubo_descriptor_addr(dest, pDescriptorInfo->data.pUniformBuffer);
       break;
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-      write_buffer_descriptor_addr(device, dest, pDescriptorInfo->data.pStorageBuffer);
+      write_buffer_descriptor_addr<CHIP>(device, dest, pDescriptorInfo->data.pStorageBuffer);
       break;
    case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-      TU_CALLX(device, write_texel_buffer_descriptor_addr)(dest, pDescriptorInfo->data.pUniformTexelBuffer);
+      write_texel_buffer_descriptor_addr<CHIP>(dest, pDescriptorInfo->data.pUniformTexelBuffer);
       break;
    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-      TU_CALLX(device, write_texel_buffer_descriptor_addr)(dest, pDescriptorInfo->data.pStorageTexelBuffer);
+      write_texel_buffer_descriptor_addr<CHIP>(dest, pDescriptorInfo->data.pStorageTexelBuffer);
       break;
    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
       write_image_descriptor(dest, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
@@ -1194,9 +1198,9 @@ tu_GetDescriptorEXT(
       break;
    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {
       if (pDescriptorInfo->data.accelerationStructure == 0) {
-         write_accel_struct(dest, device->null_accel_struct_bo->iova);
+         write_accel_struct<CHIP>(dest, device->null_accel_struct_bo->iova);
       } else {
-         write_accel_struct(dest, pDescriptorInfo->data.accelerationStructure);
+         write_accel_struct<CHIP>(dest, pDescriptorInfo->data.accelerationStructure);
       }
       break;
    }
@@ -1209,7 +1213,9 @@ tu_GetDescriptorEXT(
       break;
    }
 }
+TU_GENX(tu_GetDescriptorEXT);
 
+template <chip CHIP>
 void
 tu_update_descriptor_sets(const struct tu_device *device,
                           VkDescriptorSet dstSetOverride,
@@ -1293,7 +1299,7 @@ tu_update_descriptor_sets(const struct tu_device *device,
             break;
          case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
          case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-            write_buffer_descriptor(device, ptr, writeset->pBufferInfo + j);
+            write_buffer_descriptor<CHIP>(device, ptr, writeset->pBufferInfo + j);
             break;
          case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
          case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
@@ -1322,10 +1328,10 @@ tu_update_descriptor_sets(const struct tu_device *device,
          case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {
             VK_FROM_HANDLE(vk_acceleration_structure, accel_struct, accel_structs->pAccelerationStructures[j]);
             if (accel_struct) {
-               write_accel_struct(ptr,
-                                  vk_acceleration_structure_get_va(accel_struct));
+               write_accel_struct<CHIP>(ptr,
+                                        vk_acceleration_structure_get_va(accel_struct));
             } else {
-               write_accel_struct(ptr, device->null_accel_struct_bo->iova);
+               write_accel_struct<CHIP>(ptr, device->null_accel_struct_bo->iova);
             }
             break;
          }
@@ -1417,7 +1423,9 @@ tu_update_descriptor_sets(const struct tu_device *device,
       }
    }
 }
+TU_GENX(tu_update_descriptor_sets);
 
+template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
 tu_UpdateDescriptorSets(VkDevice _device,
                         uint32_t descriptorWriteCount,
@@ -1426,10 +1434,11 @@ tu_UpdateDescriptorSets(VkDevice _device,
                         const VkCopyDescriptorSet *pDescriptorCopies)
 {
    VK_FROM_HANDLE(tu_device, device, _device);
-   tu_update_descriptor_sets(device, VK_NULL_HANDLE,
-                             descriptorWriteCount, pDescriptorWrites,
-                             descriptorCopyCount, pDescriptorCopies);
+   tu_update_descriptor_sets<CHIP>(device, VK_NULL_HANDLE,
+                                   descriptorWriteCount, pDescriptorWrites,
+                                   descriptorCopyCount, pDescriptorCopies);
 }
+TU_GENX(tu_UpdateDescriptorSets);
 
 VKAPI_ATTR VkResult VKAPI_CALL
 tu_CreateDescriptorUpdateTemplate(
@@ -1591,6 +1600,7 @@ tu_DestroyDescriptorUpdateTemplate(
    vk_object_free(&device->vk, pAllocator, templ);
 }
 
+template <chip CHIP>
 void
 tu_update_descriptor_set_with_template(
    const struct tu_device *device,
@@ -1627,14 +1637,14 @@ tu_update_descriptor_set_with_template(
             break;
          case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC: {
             assert(!(set->layout->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR));
-            write_buffer_descriptor(device,
-                                    set->dynamic_descriptors + dst_offset,
-                                    (const VkDescriptorBufferInfo *) src);
+            write_buffer_descriptor<CHIP>(device,
+                                          set->dynamic_descriptors + dst_offset,
+                                          (const VkDescriptorBufferInfo *) src);
             break;
          }
          case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-            write_buffer_descriptor(device, ptr,
-                                    (const VkDescriptorBufferInfo *) src);
+            write_buffer_descriptor<CHIP>(device, ptr,
+                                          (const VkDescriptorBufferInfo *) src);
             break;
          case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
          case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
@@ -1664,10 +1674,10 @@ tu_update_descriptor_set_with_template(
          case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {
             VK_FROM_HANDLE(vk_acceleration_structure, accel_struct, *(const VkAccelerationStructureKHR *)src);
             if (accel_struct) {
-               write_accel_struct(ptr,
-                                  vk_acceleration_structure_get_va(accel_struct));
+               write_accel_struct<CHIP>(ptr,
+                                        vk_acceleration_structure_get_va(accel_struct));
             } else {
-               write_accel_struct(ptr, device->null_accel_struct_bo->iova);
+               write_accel_struct<CHIP>(ptr, device->null_accel_struct_bo->iova);
             }
             break;
          }
@@ -1681,7 +1691,9 @@ tu_update_descriptor_set_with_template(
       }
    }
 }
+TU_GENX(tu_update_descriptor_set_with_template);
 
+template <chip CHIP>
 VKAPI_ATTR void VKAPI_CALL
 tu_UpdateDescriptorSetWithTemplate(
    VkDevice _device,
@@ -1692,5 +1704,6 @@ tu_UpdateDescriptorSetWithTemplate(
    VK_FROM_HANDLE(tu_device, device, _device);
    VK_FROM_HANDLE(tu_descriptor_set, set, descriptorSet);
 
-   tu_update_descriptor_set_with_template(device, set, descriptorUpdateTemplate, pData);
+   tu_update_descriptor_set_with_template<CHIP>(device, set, descriptorUpdateTemplate, pData);
 }
+TU_GENX(tu_UpdateDescriptorSetWithTemplate);

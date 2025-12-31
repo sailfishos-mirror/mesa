@@ -202,6 +202,7 @@ VK_DEFINE_NONDISP_HANDLE_CASTS(tu_descriptor_update_template, base,
                                VkDescriptorUpdateTemplate,
                                VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE)
 
+template <chip CHIP>
 void
 tu_update_descriptor_sets(const struct tu_device *device,
                           VkDescriptorSet overrideSet,
@@ -210,6 +211,7 @@ tu_update_descriptor_sets(const struct tu_device *device,
                           uint32_t descriptorCopyCount,
                           const VkCopyDescriptorSet *pDescriptorCopies);
 
+template <chip CHIP>
 void
 tu_update_descriptor_set_with_template(
    const struct tu_device *device,
