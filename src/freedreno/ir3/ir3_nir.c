@@ -1256,6 +1256,8 @@ ir3_vars_to_scratch_cb(struct set *set, void *data)
       if (_mesa_set_search(nonspilled, var))
          _mesa_set_remove_key(set, var);
    }
+
+   _mesa_set_destroy(nonspilled, NULL);
 }
 
 /**
