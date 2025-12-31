@@ -3183,17 +3183,17 @@ tu_DestroyDevice(VkDevice _device, const VkAllocationCallbacks *pAllocator)
       vk_free(&device->vk.alloc, device->trace_suballoc);
    }
 
+   if (device->msrtss_color_temporary)
+      tu_destroy_memory(device, device->msrtss_color_temporary);
+   if (device->msrtss_depth_temporary)
+      tu_destroy_memory(device, device->msrtss_depth_temporary);
+
    for (unsigned i = 0; i < TU_MAX_QUEUE_FAMILIES; i++) {
       for (unsigned q = 0; q < device->queue_count[i]; q++)
          tu_queue_finish(&device->queues[i][q]);
       if (device->queue_count[i])
          vk_free(&device->vk.alloc, device->queues[i]);
    }
-
-   if (device->msrtss_color_temporary)
-      tu_destroy_memory(device, device->msrtss_color_temporary);
-   if (device->msrtss_depth_temporary)
-      tu_destroy_memory(device, device->msrtss_depth_temporary);
 
    tu_drm_device_finish(device);
 
