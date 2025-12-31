@@ -541,8 +541,6 @@ fdl6_buffer_view_init(uint32_t *descriptor, enum pipe_format format,
 {
    unsigned elem_size = util_format_get_blocksize(format);
    unsigned elements = size / elem_size;
-   uint64_t base_iova = iova & ~0x3full;
-   unsigned texel_offset = (iova & 0x3f) / elem_size;
 
    struct fdl_view_args args = {
       .swiz = {swiz[0], swiz[1], swiz[2], swiz[3]},
@@ -552,6 +550,9 @@ fdl6_buffer_view_init(uint32_t *descriptor, enum pipe_format format,
    memset(descriptor, 0, 4 * FDL6_TEX_CONST_DWORDS);
 
    if (CHIP <= A7XX) {
+      uint64_t base_iova = iova & ~0x3full;
+      unsigned texel_offset = (iova & 0x3f) / elem_size;
+
       descriptor[0] =
          A6XX_TEX_CONST_0_TILE_MODE(TILE6_LINEAR) |
          A6XX_TEX_CONST_0_SWAP(fd6_texture_swap(format, TILE6_LINEAR, false)) |
@@ -566,10 +567,10 @@ fdl6_buffer_view_init(uint32_t *descriptor, enum pipe_format format,
       descriptor[4] = base_iova;
       descriptor[5] = base_iova >> 32;
    } else if (CHIP >= A8XX) {
-      descriptor[0] = A8XX_TEX_MEMOBJ_0_BASE_LO(base_iova);
-      descriptor[1] = A8XX_TEX_MEMOBJ_1_BASE_HI(base_iova >> 32) |
+      descriptor[0] = A8XX_TEX_MEMOBJ_0_INSTANCE_DESC_BASE_LO(iova);
+      descriptor[1] = A8XX_TEX_MEMOBJ_1_BASE_HI(iova >> 32) |
                       A8XX_TEX_MEMOBJ_1_TYPE(A6XX_TEX_BUFFER) |
-                      A8XX_TEX_MEMOBJ_1_DEPTH(1);
+                      A8XX_TEX_MEMOBJ_1_STRUCTSIZETEXELS(1);
       descriptor[2] = A8XX_TEX_MEMOBJ_2_WIDTH(elements & ((1 << 15) - 1)) |
                       A8XX_TEX_MEMOBJ_2_HEIGHT(elements >> 15) |
                       A8XX_TEX_MEMOBJ_2_SAMPLES(MSAA_ONE);
