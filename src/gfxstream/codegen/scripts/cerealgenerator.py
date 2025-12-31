@@ -531,6 +531,10 @@ using DlSymFunc = void* (void*, const char*);
 #include "goldfish_vk_private_defs.h"
 """
 
+        countingIncludeGuest = """
+#include <cstdlib>
+"""
+
         dispatchImplIncludes = """
 #include <stdio.h>
 #include <stdlib.h>
@@ -640,7 +644,7 @@ class BumpPool;
                                        extraImpl=commonCerealImplIncludesGuest + deepcopyInclude)
             self.addGuestEncoderModule("goldfish_vk_counting_guest",
                                        extraHeader=countingIncludes,
-                                       extraImpl=commonCerealImplIncludesGuest)
+                                       extraImpl=commonCerealImplIncludesGuest + countingIncludeGuest)
             self.addGuestEncoderModule("goldfish_vk_transform_guest",
                                        extraHeader=commonCerealIncludesGuest + transformIncludeGuest,
                                        extraImpl=commonCerealImplIncludesGuest + transformImplIncludeGuest)
