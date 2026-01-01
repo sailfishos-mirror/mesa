@@ -239,4 +239,6 @@ tu_immutable_ycbcr_samplers(const struct tu_descriptor_set_layout *set,
                                            binding->ycbcr_samplers_offset);
 }
 
+#define tu_swiz(x, y, z, w) (uint8_t[]){ PIPE_SWIZZLE_ ##x, PIPE_SWIZZLE_ ##y, PIPE_SWIZZLE_ ##z, PIPE_SWIZZLE_ ##w }
+
 #endif /* TU_DESCRIPTOR_SET_H */

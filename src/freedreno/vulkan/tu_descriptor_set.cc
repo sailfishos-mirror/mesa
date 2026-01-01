@@ -1007,19 +1007,10 @@ write_buffer_descriptor_addr(const struct tu_device *device,
       return;
 
    uint64_t va = buffer_info->address;
-   uint64_t base_va = va & ~0x3full;
-   unsigned offset = va & 0x3f;
    uint32_t range = buffer_info->range;
 
    if (info->props.storage_16bit) {
-      dst[0] = A6XX_TEX_CONST_0_TILE_MODE(TILE6_LINEAR) | A6XX_TEX_CONST_0_FMT(FMT6_16_UINT);
-      dst[1] = DIV_ROUND_UP(range, 2);
-      dst[2] =
-         A6XX_TEX_CONST_2_STRUCTSIZETEXELS(1) |
-         A6XX_TEX_CONST_2_STARTOFFSETTEXELS(offset / 2) |
-         A6XX_TEX_CONST_2_TYPE(A6XX_TEX_BUFFER);
-      dst[4] = A6XX_TEX_CONST_4_BASE_LO(base_va);
-      dst[5] = A6XX_TEX_CONST_5_BASE_HI(base_va >> 32);
+      fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R16_UINT, tu_swiz(X, Y, Z, W), va, range);
       dst += FDL6_TEX_CONST_DWORDS;
    }
 
@@ -1027,26 +1018,13 @@ write_buffer_descriptor_addr(const struct tu_device *device,
     * 16-bit descriptor cannot be used for 32-bit loads through isam.v.
     */
    if (!info->props.storage_16bit || !info->props.has_isam_v) {
-      dst[0] = A6XX_TEX_CONST_0_TILE_MODE(TILE6_LINEAR) | A6XX_TEX_CONST_0_FMT(FMT6_32_UINT);
-      dst[1] = DIV_ROUND_UP(range, 4);
-      dst[2] =
-         A6XX_TEX_CONST_2_STRUCTSIZETEXELS(1) |
-         A6XX_TEX_CONST_2_STARTOFFSETTEXELS(offset / 4) |
-         A6XX_TEX_CONST_2_TYPE(A6XX_TEX_BUFFER);
-      dst[4] = A6XX_TEX_CONST_4_BASE_LO(base_va);
-      dst[5] = A6XX_TEX_CONST_5_BASE_HI(base_va >> 32);
+      fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R32_UINT, tu_swiz(X, Y, Z, W), va, range);
       dst += FDL6_TEX_CONST_DWORDS;
    }
 
    if (info->props.storage_8bit) {
-      dst[0] = A6XX_TEX_CONST_0_TILE_MODE(TILE6_LINEAR) | A6XX_TEX_CONST_0_FMT(FMT6_8_UINT);
-      dst[1] = range;
-      dst[2] =
-         A6XX_TEX_CONST_2_STRUCTSIZETEXELS(1) |
-         A6XX_TEX_CONST_2_STARTOFFSETTEXELS(offset) |
-         A6XX_TEX_CONST_2_TYPE(A6XX_TEX_BUFFER);
-      dst[4] = A6XX_TEX_CONST_4_BASE_LO(base_va);
-      dst[5] = A6XX_TEX_CONST_5_BASE_HI(base_va >> 32);
+      fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R8_UINT, tu_swiz(X, Y, Z, W), va, range);
+      dst += FDL6_TEX_CONST_DWORDS;
    }
 }
 
@@ -1129,23 +1107,14 @@ template <chip CHIP>
 static void
 write_accel_struct(uint32_t *dst, uint64_t va)
 {
-   dst[0] = A6XX_TEX_CONST_0_TILE_MODE(TILE6_LINEAR) | A6XX_TEX_CONST_0_FMT(FMT6_32_UINT);
-
    /* We don't actually use the bounds checking in the shader, since the
     * instance array is accessed entirely with a driver-controlled offset.
     * Therefore just always specify the maximum possible size to avoid having
     * to keep track of the size.
     */
-   dst[1] = MAX_TEXEL_ELEMENTS;
-   dst[2] =
-      A6XX_TEX_CONST_2_STRUCTSIZETEXELS(AS_RECORD_SIZE / 4) |
-      A6XX_TEX_CONST_2_STARTOFFSETTEXELS(0) |
-      A6XX_TEX_CONST_2_TYPE(A6XX_TEX_BUFFER);
-   dst[3] = 0;
-   dst[4] = A6XX_TEX_CONST_4_BASE_LO(va);
-   dst[5] = A6XX_TEX_CONST_5_BASE_HI(va >> 32);
-   for (int j = 6; j < FDL6_TEX_CONST_DWORDS; j++)
-      dst[j] = 0;
+   fdl6_buffer_view_init<CHIP>(dst, PIPE_FORMAT_R32_UINT,
+                               tu_swiz(X, X, X, X), va,
+                               MAX_TEXEL_ELEMENTS, AS_RECORD_SIZE / 4);
 }
 
 /* note: this is used with immutable samplers in push descriptors */
