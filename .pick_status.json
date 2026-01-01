@@ -1134,7 +1134,7 @@
         "description": "rocket: Fix printing of rknpu_mem_create.dma_addr",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
