@@ -190,11 +190,10 @@ impl<'a> CopyPropPass<'a> {
         }
     }
 
-    fn prop_to_ssa_ref(&self, src_ssa: &mut SSARef) -> bool {
+    fn prop_to_ssa_values(&self, src_ssa: &mut [SSAValue]) -> bool {
         let mut progress = false;
 
-        for c in 0..src_ssa.comps() {
-            let c_ssa = &mut src_ssa[usize::from(c)];
+        for c_ssa in src_ssa {
             let Some(CopyPropEntry::Copy(entry)) = self.get_copy(c_ssa) else {
                 continue;
             };
@@ -209,6 +208,10 @@ impl<'a> CopyPropPass<'a> {
         }
 
         progress
+    }
+
+    fn prop_to_ssa_ref(&self, src_ssa: &mut SSARef) -> bool {
+        self.prop_to_ssa_values(&mut src_ssa[..])
     }
 
     fn prop_to_ssa_src(&self, src: &mut Src) {
