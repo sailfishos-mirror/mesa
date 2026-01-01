@@ -190,7 +190,11 @@ impl<'a> CopyPropPass<'a> {
         }
     }
 
-    fn prop_to_ssa_values(&self, src_ssa: &mut [SSAValue]) -> bool {
+    fn prop_to_ssa_values(
+        &self,
+        src_ssa: &mut [SSAValue],
+        same_file: bool,
+    ) -> bool {
         let mut progress = false;
 
         for c_ssa in src_ssa {
@@ -201,6 +205,11 @@ impl<'a> CopyPropPass<'a> {
             if entry.src.is_unmodified() {
                 if let SrcRef::SSA(entry_ssa) = &entry.src.src_ref {
                     assert!(entry_ssa.comps() == 1);
+
+                    if same_file && (c_ssa.file() != entry_ssa[0].file()) {
+                        continue;
+                    }
+
                     *c_ssa = entry_ssa[0];
                     progress = true;
                 }
@@ -211,7 +220,18 @@ impl<'a> CopyPropPass<'a> {
     }
 
     fn prop_to_ssa_ref(&self, src_ssa: &mut SSARef) -> bool {
-        self.prop_to_ssa_values(&mut src_ssa[..])
+        self.prop_to_ssa_values(&mut src_ssa[..], false)
+    }
+
+    fn prop_to_cbuf_ref(&self, cbuf: &mut CBufRef) {
+        match cbuf.buf {
+            CBuf::BindlessSSA(ref mut ssa_values) => loop {
+                if !self.prop_to_ssa_values(&mut ssa_values[..], true) {
+                    break;
+                }
+            },
+            _ => (),
+        }
     }
 
     fn prop_to_ssa_src(&self, src: &mut Src) {
@@ -488,6 +508,13 @@ impl<'a> CopyPropPass<'a> {
                 self.prop_to_f64_src(cbuf_rule, src);
             }
             SrcType::Carry | SrcType::Bar => (),
+        }
+
+        match &mut src.src_ref {
+            SrcRef::CBuf(cbuf) => {
+                self.prop_to_cbuf_ref(cbuf);
+            }
+            _ => (),
         }
     }
 
