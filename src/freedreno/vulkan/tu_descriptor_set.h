@@ -13,6 +13,9 @@
 #include "tu_sampler.h"
 #include "util/vma.h"
 
+#include "common/freedreno_pm4.h"
+#include "fdl/fd6_format_table.h"
+
 /* The hardware supports up to 8 descriptor sets since A7XX.
  * Note: This is the maximum across generations, not the maximum for a
  * particular generation so it should only be used for allocation.
@@ -239,6 +242,174 @@ tu_immutable_ycbcr_samplers(const struct tu_descriptor_set_layout *set,
                                            binding->ycbcr_samplers_offset);
 }
 
+/*
+ * Helpers for modifying descriptors:
+ */
+
 #define tu_swiz(x, y, z, w) (uint8_t[]){ PIPE_SWIZZLE_ ##x, PIPE_SWIZZLE_ ##y, PIPE_SWIZZLE_ ##z, PIPE_SWIZZLE_ ##w }
+
+template <chip CHIP>
+static inline void
+tu_desc_set_swiz(uint32_t *desc, const uint8_t *swiz)
+{
+   desc[0] = pkt_field_set(A6XX_TEX_CONST_0_SWIZ_X, desc[0], fdl6_swiz(swiz[0]));
+   desc[0] = pkt_field_set(A6XX_TEX_CONST_0_SWIZ_Y, desc[0], fdl6_swiz(swiz[1]));
+   desc[0] = pkt_field_set(A6XX_TEX_CONST_0_SWIZ_Z, desc[0], fdl6_swiz(swiz[2]));
+   desc[0] = pkt_field_set(A6XX_TEX_CONST_0_SWIZ_W, desc[0], fdl6_swiz(swiz[3]));
+}
+
+template <chip CHIP>
+static inline enum a6xx_format
+tu_desc_get_format(uint32_t *desc)
+{
+   return (enum a6xx_format)pkt_field_get(A6XX_TEX_CONST_0_FMT, desc[0]);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_format(uint32_t *desc, enum a6xx_format fmt)
+{
+   desc[0] = pkt_field_set(A6XX_TEX_CONST_0_FMT, desc[0], fmt);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_swap(uint32_t *desc, enum a3xx_color_swap swap)
+{
+   desc[0] = pkt_field_set(A6XX_TEX_CONST_0_SWAP, desc[0], swap);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_tile_mode(uint32_t *desc, enum a6xx_tile_mode tile_mode)
+{
+   desc[0] = pkt_field_set(A6XX_TEX_CONST_0_TILE_MODE, desc[0], tile_mode);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_tile_all(uint32_t *desc, bool tile_all)
+{
+   if (tile_all) {
+      desc[3] |= A6XX_TEX_CONST_3_TILE_ALL;
+   } else {
+      desc[3] &= ~A6XX_TEX_CONST_3_TILE_ALL;
+   }
+}
+
+template <chip CHIP>
+static inline enum a6xx_tex_type
+tu_desc_get_type(uint32_t *desc)
+{
+   return (enum a6xx_tex_type)pkt_field_get(A6XX_TEX_CONST_2_TYPE, desc[2]);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_type(uint32_t *desc, enum a6xx_tex_type type)
+{
+   desc[2] = pkt_field_set(A6XX_TEX_CONST_2_TYPE, desc[2], type);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_get_dim(uint32_t *desc, uint32_t *width, uint32_t *height)
+{
+   *width  = pkt_field_get(A6XX_TEX_CONST_1_WIDTH, desc[1]);
+   *height = pkt_field_get(A6XX_TEX_CONST_1_HEIGHT, desc[1]);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_dim(uint32_t *desc, uint32_t width, uint32_t height)
+{
+   desc[1] = pkt_field_set(A6XX_TEX_CONST_1_WIDTH, desc[1], width);
+   desc[1] = pkt_field_set(A6XX_TEX_CONST_1_HEIGHT, desc[1], height);
+}
+
+template <chip CHIP>
+static inline uint32_t
+tu_desc_get_depth(uint32_t *desc)
+{
+   return pkt_field_get(A6XX_TEX_CONST_5_DEPTH, desc[5]);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_depth(uint32_t *desc, uint32_t depth)
+{
+   desc[5] = pkt_field_set(A6XX_TEX_CONST_5_DEPTH, desc[5], depth);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_struct_size_texels(uint32_t *desc, uint32_t struct_size_texels)
+{
+   desc[2] = pkt_field_set(A6XX_TEX_CONST_2_STRUCTSIZETEXELS, desc[2], struct_size_texels);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_min_line_offset(uint32_t *desc, uint32_t min_line_offset)
+{
+   desc[2] = pkt_field_set(A6XX_TEX_CONST_2_PITCHALIGN, desc[2], min_line_offset);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_tex_line_offset(uint32_t *desc, uint32_t tex_line_offset)
+{
+   desc[2] = pkt_field_set(A6XX_TEX_CONST_2_PITCH, desc[2], tex_line_offset);
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_array_slice_offset(uint32_t *desc, uint32_t array_slice_offset)
+{
+   desc[3] = pkt_field_set(A6XX_TEX_CONST_3_ARRAY_PITCH, desc[3], array_slice_offset);
+}
+
+template <chip CHIP>
+static inline uint64_t
+tu_desc_get_addr(uint32_t *desc)
+{
+   uint64_t addr = desc[4];
+   addr |= (uint64_t)(desc[5] & 0xffff) << 32;
+   return addr;
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_addr(uint32_t *desc, uint64_t addr)
+{
+   desc[4] = addr;
+   desc[5] = (desc[5] & ~0xffff) | addr >> 32;
+}
+
+template <chip CHIP>
+static inline uint64_t
+tu_desc_get_ubwc(uint32_t *desc)
+{
+   if (desc[3] & A6XX_TEX_CONST_3_FLAG) {
+      uint64_t addr = desc[7];
+      addr |= (uint64_t)(desc[8] & 0xffff) << 32;
+      return addr;
+   } else {
+      return 0;
+   }
+}
+
+template <chip CHIP>
+static inline void
+tu_desc_set_ubwc(uint32_t *desc, uint64_t addr)
+{
+   if (addr) {
+      desc[7] = addr;
+      desc[8] = (desc[8] & 0xffff) | addr >> 32;
+      desc[3] |= A6XX_TEX_CONST_3_FLAG;
+   } else {
+      desc[3] &= ~A6XX_TEX_CONST_3_FLAG;
+   }
+}
 
 #endif /* TU_DESCRIPTOR_SET_H */

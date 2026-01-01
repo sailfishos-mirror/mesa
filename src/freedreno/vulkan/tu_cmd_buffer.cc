@@ -2647,13 +2647,12 @@ tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
        * of a renderpass. We have to patch the descriptor to make it compatible
        * with how it is sampled in shader.
        */
-      enum a6xx_tex_type tex_type =
-         (enum a6xx_tex_type) pkt_field_get(A6XX_TEX_CONST_2_TYPE, dst[2]);
+      enum a6xx_tex_type tex_type = tu_desc_get_type<CHIP>(dst);
       if (tex_type == A6XX_TEX_CUBE) {
-         dst[2] = pkt_field_set(A6XX_TEX_CONST_2_TYPE, dst[2], A6XX_TEX_2D);
+         tu_desc_set_type<CHIP>(dst, A6XX_TEX_2D);
 
-         uint32_t depth = pkt_field_get(A6XX_TEX_CONST_5_DEPTH, dst[5]);
-         dst[5] = pkt_field_set(A6XX_TEX_CONST_5_DEPTH, dst[5], depth * 6);
+         uint32_t depth = tu_desc_get_depth<CHIP>(dst);
+         tu_desc_set_depth<CHIP>(dst, depth * 6);
       }
 
       if (i % 2 == 1 && att->format == VK_FORMAT_D24_UNORM_S8_UINT) {
@@ -2663,33 +2662,23 @@ tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
           * Also we clear swap to WZYX.  This is because the view might have
           * picked XYZW to work better with border colors.
           */
-         dst[0] &= ~(A6XX_TEX_CONST_0_FMT__MASK |
-            A6XX_TEX_CONST_0_SWAP__MASK |
-            A6XX_TEX_CONST_0_SWIZ_X__MASK | A6XX_TEX_CONST_0_SWIZ_Y__MASK |
-            A6XX_TEX_CONST_0_SWIZ_Z__MASK | A6XX_TEX_CONST_0_SWIZ_W__MASK);
+         tu_desc_set_swap<CHIP>(dst, WZYX);
          if (!cmd->device->physical_device->info->props.has_z24uint_s8uint) {
-            dst[0] |= A6XX_TEX_CONST_0_FMT(FMT6_8_8_8_8_UINT) |
-               A6XX_TEX_CONST_0_SWIZ_X(A6XX_TEX_W) |
-               A6XX_TEX_CONST_0_SWIZ_Y(A6XX_TEX_ZERO) |
-               A6XX_TEX_CONST_0_SWIZ_Z(A6XX_TEX_ZERO) |
-               A6XX_TEX_CONST_0_SWIZ_W(A6XX_TEX_ONE);
+            tu_desc_set_format<CHIP>(dst, FMT6_8_8_8_8_UINT);
+            tu_desc_set_swiz<CHIP>(dst, tu_swiz(W, 0, 0, 1));
          } else {
-            dst[0] |= A6XX_TEX_CONST_0_FMT(FMT6_Z24_UINT_S8_UINT) |
-               A6XX_TEX_CONST_0_SWIZ_X(A6XX_TEX_Y) |
-               A6XX_TEX_CONST_0_SWIZ_Y(A6XX_TEX_ZERO) |
-               A6XX_TEX_CONST_0_SWIZ_Z(A6XX_TEX_ZERO) |
-               A6XX_TEX_CONST_0_SWIZ_W(A6XX_TEX_ONE);
+            tu_desc_set_format<CHIP>(dst, FMT6_Z24_UINT_S8_UINT);
+            tu_desc_set_swiz<CHIP>(dst, tu_swiz(Y, 0, 0, 1));
          }
       }
 
       if (i % 2 == 1 && att->format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
-         dst[0] = pkt_field_set(A6XX_TEX_CONST_0_FMT, dst[0], FMT6_8_UINT);
-         dst[2] = pkt_field_set(A6XX_TEX_CONST_2_PITCHALIGN, dst[2], 0);
-         dst[2] = pkt_field_set(A6XX_TEX_CONST_2_PITCH, dst[2],
-                                iview->stencil_pitch);
-         dst[3] = 0;
-         dst[4] = iview->stencil_base_addr;
-         dst[5] = (dst[5] & 0xffff) | iview->stencil_base_addr >> 32;
+         tu_desc_set_format<CHIP>(dst, FMT6_8_UINT);
+         tu_desc_set_min_line_offset<CHIP>(dst, 0);
+         tu_desc_set_tex_line_offset<CHIP>(dst, iview->stencil_pitch);
+         tu_desc_set_addr<CHIP>(dst, iview->stencil_base_addr);
+         tu_desc_set_array_slice_offset<CHIP>(dst, 0);
+         tu_desc_set_ubwc<CHIP>(dst, 0);
 
          cpp = att->samples;
          gmem_offset = att->gmem_offset_stencil[cmd->state.gmem_layout];
@@ -2705,41 +2694,40 @@ tu_emit_input_attachments(struct tu_cmd_buffer *cmd,
       }
 
       /* patched for gmem */
-      dst[0] = pkt_field_set(A6XX_TEX_CONST_0_TILE_MODE, dst[0], TILE6_2);
+      tu_desc_set_tile_mode<CHIP>(dst, TILE6_2);
+
       if (!iview->view.is_mutable)
-         dst[0] = pkt_field_set(A6XX_TEX_CONST_0_SWAP, dst[0], WZYX);
+         tu_desc_set_swap<CHIP>(dst, WZYX);
 
       /* If FDM offset is used, the last row and column extend beyond the
        * framebuffer but are shifted over when storing. Expand the width and
        * height to account for that.
        */
       if (tu_enable_fdm_offset(cmd)) {
-         uint32_t width = pkt_field_get(A6XX_TEX_CONST_1_WIDTH, dst[1]);
-         uint32_t height = pkt_field_get(A6XX_TEX_CONST_1_HEIGHT, dst[1]);
+         uint32_t width, height;
+
+         tu_desc_get_dim<CHIP>(dst, &width, &height);
          width += cmd->state.tiling->tile0.width;
          height += cmd->state.tiling->tile0.height;
-         dst[1] = pkt_field_set(A6XX_TEX_CONST_1_WIDTH, dst[1], width);
-         dst[1] = pkt_field_set(A6XX_TEX_CONST_1_HEIGHT, dst[1], height);
+         tu_desc_set_dim<CHIP>(dst, width, height);
       }
 
-      dst[2] =
-         A6XX_TEX_CONST_2_TYPE(A6XX_TEX_2D) |
-         A6XX_TEX_CONST_2_PITCH(tiling->tile0.width * cpp);
+      tu_desc_set_type<CHIP>(dst, A6XX_TEX_2D);
+      tu_desc_set_min_line_offset<CHIP>(dst, 0);
+      tu_desc_set_tex_line_offset<CHIP>(dst, tiling->tile0.width * cpp);
+      tu_desc_set_ubwc<CHIP>(dst, 0);
       /* Note: it seems the HW implicitly calculates the array pitch, except
        * when rendering to sysmem (i.e. in a custom resolve subpass). We only
        * guarantee the pitch is valid when there is more than 1 layer, so skip
        * emitting it otherwise to avoid asserts.
        */
       if (layers > 1) {
-         dst[3] = A6XX_TEX_CONST_3_ARRAY_PITCH(tiling->tile0.width *
-                                               tiling->tile0.height * cpp);
+         uint32_t array_pitch = tiling->tile0.width * tiling->tile0.height * cpp;
+         tu_desc_set_array_slice_offset<CHIP>(dst, array_pitch);
       } else {
-         dst[3] = 0;
+         tu_desc_set_array_slice_offset<CHIP>(dst, 0);
       }
-      dst[4] = cmd->device->physical_device->gmem_base + gmem_offset;
-      dst[5] &= A6XX_TEX_CONST_5_DEPTH__MASK;
-      for (unsigned i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
-         dst[i] = 0;
+      tu_desc_set_addr<CHIP>(dst, cmd->device->physical_device->gmem_base + gmem_offset);
 
       memcpy(&texture.map[i * FDL6_TEX_CONST_DWORDS], dst, sizeof(dst));
    }
@@ -4759,16 +4747,14 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                   for (unsigned i = 0;
                        i < binding->size / (4 * FDL6_TEX_CONST_DWORDS);
                        i++, dst_desc += FDL6_TEX_CONST_DWORDS) {
-                     /* Note: A6XX_TEX_CONST_5_DEPTH is always 0 */
-                     uint64_t va = dst_desc[4] | ((uint64_t)dst_desc[5] << 32);
+                     uint64_t va = tu_desc_get_addr<CHIP>(dst_desc);
                      uint32_t desc_offset = pkt_field_get(
                         A6XX_TEX_CONST_2_STARTOFFSETTEXELS, dst_desc[2]);
 
                      /* Use descriptor's format to determine the shift amount
                       * that's to be used on the offset value.
                       */
-                     uint32_t format =
-                        pkt_field_get(A6XX_TEX_CONST_0_FMT, dst_desc[0]);
+                     enum a6xx_format format = tu_desc_get_format<CHIP>(dst_desc);
                      unsigned offset_shift;
                      switch (format) {
                      case FMT6_16_UINT:
@@ -4787,8 +4773,7 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                      va += offset;
                      unsigned new_offset = (va & 0x3f) >> offset_shift;
                      va &= ~0x3full;
-                     dst_desc[4] = va;
-                     dst_desc[5] = va >> 32;
+                     tu_desc_set_addr<CHIP>(dst_desc, va);
                      dst_desc[2] =
                         pkt_field_set(A6XX_TEX_CONST_2_STARTOFFSETTEXELS,
                                       dst_desc[2], new_offset);

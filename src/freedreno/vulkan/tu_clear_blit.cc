@@ -19,6 +19,7 @@
 #include "tu_buffer.h"
 #include "tu_cmd_buffer.h"
 #include "tu_cs.h"
+#include "tu_descriptor_set.h"
 #include "tu_formats.h"
 #include "tu_image.h"
 #include "tu_tracepoints.h"
@@ -1087,10 +1088,11 @@ r3d_src_common(struct tu_cmd_buffer *cmd,
    memcpy(texture.map, tex_const, FDL6_TEX_CONST_DWORDS * 4);
 
    /* patch addresses for layer offset */
-   *(uint64_t*) (texture.map + 4) += offset_base;
-   uint64_t ubwc_addr = (texture.map[7] | (uint64_t) texture.map[8] << 32) + offset_ubwc;
-   texture.map[7] = ubwc_addr;
-   texture.map[8] = ubwc_addr >> 32;
+   uint64_t addr = tu_desc_get_addr<CHIP>(texture.map);
+   tu_desc_set_addr<CHIP>(texture.map, addr + offset_base);
+   uint64_t ubwc_addr = tu_desc_get_ubwc<CHIP>(texture.map);
+   if (ubwc_addr)
+      tu_desc_set_ubwc<CHIP>(texture.map, ubwc_addr + offset_ubwc);
 
    texture.map[FDL6_TEX_CONST_DWORDS + 0] =
       A6XX_TEX_SAMP_0_XY_MAG(tu6_tex_filter(filter, false)) |
@@ -1139,11 +1141,10 @@ r3d_src(struct tu_cmd_buffer *cmd,
    uint32_t desc[FDL6_TEX_CONST_DWORDS];
    memcpy(desc, iview->descriptor, sizeof(desc));
 
-   enum a6xx_format fmt =
-      (enum a6xx_format) pkt_field_get(A6XX_TEX_CONST_0_FMT, desc[0]);
+   enum a6xx_format fmt = tu_desc_get_format<CHIP>(desc);
    enum pipe_format src_format = iview->format;
    fixup_src_format(&src_format, dst_format, &fmt);
-   desc[0] = pkt_field_set(A6XX_TEX_CONST_0_FMT, desc[0], fmt);
+   tu_desc_set_format<CHIP>(desc, fmt);
 
    r3d_src_common<CHIP>(cmd, cs, desc,
                         iview->layer_size * layer,
@@ -1160,29 +1161,23 @@ r3d_src_buffer(struct tu_cmd_buffer *cmd,
                uint32_t width, uint32_t height,
                enum pipe_format dst_format)
 {
-   uint32_t desc[FDL6_TEX_CONST_DWORDS];
+   uint32_t desc[FDL6_TEX_CONST_DWORDS] = {};
 
    struct tu_native_format fmt = blit_format_texture<CHIP>(format, TILE6_LINEAR, false, false);
    enum a6xx_format color_format = fmt.fmt;
    fixup_src_format(&format, dst_format, &color_format);
 
-   desc[0] =
-      COND(util_format_is_srgb(format), A6XX_TEX_CONST_0_SRGB) |
-      A6XX_TEX_CONST_0_FMT(color_format) |
-      A6XX_TEX_CONST_0_SWAP(fmt.swap) |
-      A6XX_TEX_CONST_0_SWIZ_X(A6XX_TEX_X) |
-      A6XX_TEX_CONST_0_SWIZ_Y(A6XX_TEX_Y) |
-      A6XX_TEX_CONST_0_SWIZ_Z(A6XX_TEX_Z) |
-      A6XX_TEX_CONST_0_SWIZ_W(A6XX_TEX_W);
-   desc[1] = A6XX_TEX_CONST_1_WIDTH(width) | A6XX_TEX_CONST_1_HEIGHT(height);
-   desc[2] =
-      A6XX_TEX_CONST_2_PITCH(pitch) |
-      A6XX_TEX_CONST_2_TYPE(A6XX_TEX_2D);
-   desc[3] = 0;
-   desc[4] = va;
-   desc[5] = va >> 32;
-   for (uint32_t i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
-      desc[i] = 0;
+   /* TODO are sRGB buffers a thing? */
+   desc[0] = COND(util_format_is_srgb(format), A6XX_TEX_CONST_0_SRGB);
+
+   tu_desc_set_dim<CHIP>(desc, width, height);
+   tu_desc_set_tex_line_offset<CHIP>(desc, pitch);
+   tu_desc_set_addr<CHIP>(desc, va);
+   tu_desc_set_depth<CHIP>(desc, 0);
+   tu_desc_set_format<CHIP>(desc, color_format);
+   tu_desc_set_swap<CHIP>(desc, fmt.swap);
+   tu_desc_set_swiz<CHIP>(desc, tu_swiz(X, Y, Z, W));
+   tu_desc_set_type<CHIP>(desc, A6XX_TEX_2D);
 
    r3d_src_common<CHIP>(cmd, cs, desc, 0, 0, VK_FILTER_NEAREST);
 }
@@ -1200,23 +1195,14 @@ r3d_src_depth(struct tu_cmd_buffer *cmd,
    memcpy(desc, iview->view.descriptor, sizeof(desc));
    uint64_t va = iview->depth_base_addr;
 
-   desc[0] &= ~(A6XX_TEX_CONST_0_FMT__MASK |
-                A6XX_TEX_CONST_0_SWIZ_X__MASK | A6XX_TEX_CONST_0_SWIZ_Y__MASK |
-                A6XX_TEX_CONST_0_SWIZ_Z__MASK | A6XX_TEX_CONST_0_SWIZ_W__MASK |
-                A6XX_TEX_CONST_0_SWAP__MASK);
-   desc[0] |= A6XX_TEX_CONST_0_FMT(FMT6_32_FLOAT) |
-              A6XX_TEX_CONST_0_SWIZ_X(A6XX_TEX_X) |
-              A6XX_TEX_CONST_0_SWIZ_Y(A6XX_TEX_Y) |
-              A6XX_TEX_CONST_0_SWIZ_Z(A6XX_TEX_Z) |
-              A6XX_TEX_CONST_0_SWIZ_W(A6XX_TEX_W);
-   desc[2] =
-      A6XX_TEX_CONST_2_PITCH(iview->depth_pitch) |
-      A6XX_TEX_CONST_2_TYPE(A6XX_TEX_2D);
-   desc[3] =
-      pkt_field_set(A6XX_TEX_CONST_3_ARRAY_PITCH, iview->view.descriptor[3],
-                    iview->depth_layer_size);
-   desc[4] = va;
-   desc[5] = va >> 32;
+   tu_desc_set_min_line_offset<CHIP>(desc, 0);
+   tu_desc_set_tex_line_offset<CHIP>(desc, iview->depth_pitch);
+   tu_desc_set_array_slice_offset<CHIP>(desc, iview->depth_layer_size);
+   tu_desc_set_addr<CHIP>(desc, va);
+   tu_desc_set_depth<CHIP>(desc, 0);
+   tu_desc_set_format<CHIP>(desc, FMT6_32_FLOAT);
+   tu_desc_set_swiz<CHIP>(desc, tu_swiz(X, Y, Z, W));
+   tu_desc_set_type<CHIP>(desc, A6XX_TEX_2D);
 
    r3d_src_common<CHIP>(cmd, cs, desc,
                         iview->depth_layer_size * layer,
@@ -1237,23 +1223,17 @@ r3d_src_stencil(struct tu_cmd_buffer *cmd,
    memcpy(desc, iview->view.descriptor, sizeof(desc));
    uint64_t va = iview->stencil_base_addr;
 
-   desc[0] &= ~(A6XX_TEX_CONST_0_FMT__MASK |
-                A6XX_TEX_CONST_0_SWIZ_X__MASK | A6XX_TEX_CONST_0_SWIZ_Y__MASK |
-                A6XX_TEX_CONST_0_SWIZ_Z__MASK | A6XX_TEX_CONST_0_SWIZ_W__MASK |
-                A6XX_TEX_CONST_0_SWAP__MASK);
-   desc[0] |= A6XX_TEX_CONST_0_FMT(FMT6_8_UINT) |
-              A6XX_TEX_CONST_0_SWIZ_X(A6XX_TEX_X) |
-              A6XX_TEX_CONST_0_SWIZ_Y(A6XX_TEX_Y) |
-              A6XX_TEX_CONST_0_SWIZ_Z(A6XX_TEX_Z) |
-              A6XX_TEX_CONST_0_SWIZ_W(A6XX_TEX_W);
-   desc[2] =
-      A6XX_TEX_CONST_2_PITCH(iview->stencil_pitch) |
-      A6XX_TEX_CONST_2_TYPE(A6XX_TEX_2D);
-   desc[3] = A6XX_TEX_CONST_3_ARRAY_PITCH(iview->stencil_layer_size);
-   desc[4] = va;
-   desc[5] = va >> 32;
-   for (unsigned i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
-      desc[i] = 0;
+   /* Separate stencil is linear even if depth is not: */
+   tu_desc_set_ubwc<CHIP>(desc, 0);
+
+   tu_desc_set_min_line_offset<CHIP>(desc, 0);
+   tu_desc_set_tex_line_offset<CHIP>(desc, iview->stencil_pitch);
+   tu_desc_set_array_slice_offset<CHIP>(desc, iview->stencil_layer_size);
+   tu_desc_set_addr<CHIP>(desc, va);
+   tu_desc_set_depth<CHIP>(desc, 0);
+   tu_desc_set_format<CHIP>(desc, FMT6_8_UINT);
+   tu_desc_set_swiz<CHIP>(desc, tu_swiz(X, Y, Z, W));
+   tu_desc_set_type<CHIP>(desc, A6XX_TEX_2D);
 
    r3d_src_common<CHIP>(cmd, cs, desc, iview->stencil_layer_size * layer, 0,
                         VK_FILTER_NEAREST);
@@ -1282,21 +1262,16 @@ r3d_src_load(struct tu_cmd_buffer *cmd,
       else
          tex_format = FMT6_8_8_8_8_UNORM;
 
-      desc[0] = pkt_field_set(A6XX_TEX_CONST_0_FMT, desc[0], tex_format);
+      tu_desc_set_format<CHIP>(desc, tex_format);
    }
 
    /* When loading/storing GMEM we always load the full image and don't do any
     * swizzling or swapping, that's done in the draw when reading/writing
     * GMEM, so we need to fixup the swizzle and swap.
     */
-   desc[0] &= ~(A6XX_TEX_CONST_0_SWIZ_X__MASK | A6XX_TEX_CONST_0_SWIZ_Y__MASK |
-                A6XX_TEX_CONST_0_SWIZ_Z__MASK | A6XX_TEX_CONST_0_SWIZ_W__MASK);
    if (override_swap)
-      desc[0] &= ~A6XX_TEX_CONST_0_SWAP__MASK;
-   desc[0] |= A6XX_TEX_CONST_0_SWIZ_X(A6XX_TEX_X) |
-              A6XX_TEX_CONST_0_SWIZ_Y(A6XX_TEX_Y) |
-              A6XX_TEX_CONST_0_SWIZ_Z(A6XX_TEX_Z) |
-              A6XX_TEX_CONST_0_SWIZ_W(A6XX_TEX_W);
+      tu_desc_set_swap<CHIP>(desc, WZYX);
+   tu_desc_set_swiz<CHIP>(desc, tu_swiz(X, Y, Z, W));
 
    r3d_src_common<CHIP>(cmd, cs, desc,
                         iview->view.layer_size * layer,
@@ -1342,42 +1317,37 @@ r3d_src_gmem(struct tu_cmd_buffer *cmd,
                                 iview->view.is_mutable, true).fmt;
    fixup_src_format(&format, dst_format, &fmt);
 
-   /* patch the format so that depth/stencil get the right format and swizzle */
-   desc[0] &= ~(A6XX_TEX_CONST_0_FMT__MASK |
-                A6XX_TEX_CONST_0_SWIZ_X__MASK | A6XX_TEX_CONST_0_SWIZ_Y__MASK |
-                A6XX_TEX_CONST_0_SWIZ_Z__MASK | A6XX_TEX_CONST_0_SWIZ_W__MASK);
-   desc[0] |= A6XX_TEX_CONST_0_FMT(fmt) |
-               A6XX_TEX_CONST_0_SWIZ_X(A6XX_TEX_X) |
-               A6XX_TEX_CONST_0_SWIZ_Y(A6XX_TEX_Y) |
-               A6XX_TEX_CONST_0_SWIZ_Z(A6XX_TEX_Z) |
-               A6XX_TEX_CONST_0_SWIZ_W(A6XX_TEX_W);
-
    /* patched for gmem */
-   desc[0] = pkt_field_set(A6XX_TEX_CONST_0_TILE_MODE, desc[0], TILE6_2);
+   tu_desc_set_tile_mode<CHIP>(desc, TILE6_2);
+
    if (!iview->view.is_mutable)
-      desc[0] = pkt_field_set(A6XX_TEX_CONST_0_SWAP, desc[0], WZYX);
+      tu_desc_set_swap<CHIP>(desc, WZYX);
 
    /* If FDM offset is used, the last row and column extend beyond the
     * framebuffer but are shifted over when storing. Expand the width and
     * height to account for that.
     */
    if (tu_enable_fdm_offset(cmd)) {
-      uint32_t width = pkt_field_get(A6XX_TEX_CONST_1_WIDTH, desc[1]);
-      uint32_t height = pkt_field_get(A6XX_TEX_CONST_1_HEIGHT, desc[1]);
+      uint32_t width, height;
+
+      tu_desc_get_dim<CHIP>(desc, &width, &height);
       width += cmd->state.tiling->tile0.width;
       height += cmd->state.tiling->tile0.height;
-      desc[1] = pkt_field_set(A6XX_TEX_CONST_1_WIDTH, desc[1], width);
-      desc[1] = pkt_field_set(A6XX_TEX_CONST_1_HEIGHT, desc[1], height);
+      tu_desc_set_dim<CHIP>(desc, width, height);
    }
 
-   desc[2] =
-      A6XX_TEX_CONST_2_TYPE(A6XX_TEX_2D) |
-      A6XX_TEX_CONST_2_PITCH(cmd->state.tiling->tile0.width * cpp);
-   desc[3] = 0;
-   desc[4] = cmd->device->physical_device->gmem_base + gmem_offset;
-   desc[5] = A6XX_TEX_CONST_5_DEPTH(1);
-   for (unsigned i = 6; i < FDL6_TEX_CONST_DWORDS; i++)
-      desc[i] = 0;
+   tu_desc_set_tile_all<CHIP>(desc, false);
+   tu_desc_set_ubwc<CHIP>(desc, 0);
+   tu_desc_set_min_line_offset<CHIP>(desc, 0);
+   tu_desc_set_tex_line_offset<CHIP>(desc, cmd->state.tiling->tile0.width * cpp);
+   tu_desc_set_array_slice_offset<CHIP>(desc, 0);
+   tu_desc_set_depth<CHIP>(desc, 1);
+   tu_desc_set_addr<CHIP>(desc, cmd->device->physical_device->gmem_base + gmem_offset);
+
+   /* patch the format so that depth/stencil get the right format and swizzle */
+   tu_desc_set_format<CHIP>(desc, fmt);
+   tu_desc_set_swiz<CHIP>(desc, tu_swiz(X, Y, Z, W));
+   tu_desc_set_type<CHIP>(desc, A6XX_TEX_2D);
 
    r3d_src_common<CHIP>(cmd, cs, desc, 0, 0, VK_FILTER_NEAREST);
 }
