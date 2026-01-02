@@ -1564,17 +1564,19 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
       ADD(MEM_UNIT_STALLED_CYCLES, mem_unit_stalled_cycles);
       ADD(MEM_UNIT_STALLED, mem_unit_stalled);
 
-      /* Raytracing group. */
-      /* Ray box tests. */
-      const double ray_box_tests = OP_RAW(TD_PERF_SEL_RAY_TRACING_BVH4_FP16_BOX_NODE) +
-                                   OP_RAW(TD_PERF_SEL_RAY_TRACING_BVH4_FP32_BOX_NODE);
+      if (info->gfx_level >= GFX10_3) {
+         /* Raytracing group. */
+         /* Ray box tests. */
+         const double ray_box_tests = OP_RAW(TD_PERF_SEL_RAY_TRACING_BVH4_FP16_BOX_NODE) +
+                                      OP_RAW(TD_PERF_SEL_RAY_TRACING_BVH4_FP32_BOX_NODE);
 
-      ADD(RAY_BOX_TESTS, ray_box_tests);
+         ADD(RAY_BOX_TESTS, ray_box_tests);
 
-      /* Ray triangle tests. */
-      const double ray_tri_tests = OP_RAW(TD_PERF_SEL_RAY_TRACING_BVH4_TRI_NODE);
+         /* Ray triangle tests. */
+         const double ray_tri_tests = OP_RAW(TD_PERF_SEL_RAY_TRACING_BVH4_TRI_NODE);
 
-      ADD(RAY_TRI_TESTS, ray_tri_tests);
+         ADD(RAY_TRI_TESTS, ray_tri_tests);
+      }
    }
 
 #undef ADD
