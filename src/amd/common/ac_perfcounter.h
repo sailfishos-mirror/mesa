@@ -138,7 +138,7 @@ struct ac_pc_block_gfxdescr {
 struct ac_pc_block {
    const struct ac_pc_block_gfxdescr *b;
    unsigned num_scoped_instances;
-   unsigned num_global_instances;
+   unsigned num_instances;
 
    unsigned num_groups;
    char *group_names;

@@ -290,10 +290,10 @@ ac_spm_get_block_select(struct ac_spm *spm, const struct ac_pc_block *block)
 
    new_block_sel->b = block;
    new_block_sel->instances =
-      calloc(block->num_global_instances, sizeof(*new_block_sel->instances));
+      calloc(block->num_instances, sizeof(*new_block_sel->instances));
    if (!new_block_sel->instances)
       return NULL;
-   new_block_sel->num_instances = block->num_global_instances;
+   new_block_sel->num_instances = block->num_instances;
 
    for (unsigned i = 0; i < new_block_sel->num_instances; i++)
       new_block_sel->instances[i].num_counters = block->b->b->num_spm_counters;
@@ -558,7 +558,7 @@ ac_spm_add_counter(const struct radeon_info *info,
    }
 
    /* Check if the number of instances is valid. */
-   if (counter_info->instance > block->num_global_instances - 1) {
+   if (counter_info->instance > block->num_instances - 1) {
       fprintf(stderr, "ac/spm: Invalid instance ID.\n");
       return false;
    }
@@ -699,7 +699,7 @@ bool ac_init_spm(const struct radeon_info *info,
          return false;
       }
 
-      num_counters += block->num_global_instances;
+      num_counters += block->num_instances;
    }
 
    spm->counters = CALLOC(num_counters, sizeof(*spm->counters));
@@ -710,9 +710,9 @@ bool ac_init_spm(const struct radeon_info *info,
       const struct ac_pc_block *block = ac_pc_get_block(pc, create_info[i].b->gpu_block);
       struct ac_spm_counter_create_info counter = create_info[i];
 
-      assert(block->num_global_instances > 0);
+      assert(block->num_instances > 0);
 
-      for (unsigned j = 0; j < block->num_global_instances; j++) {
+      for (unsigned j = 0; j < block->num_instances; j++) {
          counter.instance = j;
 
          if (!ac_spm_add_counter(info, pc, spm, &counter)) {

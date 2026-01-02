@@ -791,13 +791,13 @@ bool ac_init_perfcounters(const struct radeon_info *info,
 
          switch (block->b->b->distribution) {
          case AC_PC_PER_SHADER_ARRAY:
-            block->num_global_instances = block->num_scoped_instances * info->num_se * info->max_sa_per_se;
+            block->num_instances = block->num_scoped_instances * info->num_se * info->max_sa_per_se;
             break;
          case AC_PC_PER_SHADER_ENGINE:
-            block->num_global_instances = block->num_scoped_instances * info->num_se;
+            block->num_instances = block->num_scoped_instances * info->num_se;
             break;
          case AC_PC_GLOBAL_BLOCK:
-            block->num_global_instances = block->num_scoped_instances;
+            block->num_instances = block->num_scoped_instances;
             break;
          default:
             UNREACHABLE("Invalid perf block distribution mode.");
@@ -819,20 +819,20 @@ bool ac_init_perfcounters(const struct radeon_info *info,
 
          if (info->gfx_level >= GFX10) {
             if (!strcmp(block->b->b->name, "TCP")) {
-               block->num_global_instances = MAX2(1, info->num_cu_per_sh) * info->num_se * info->max_sa_per_se;
+               block->num_instances = MAX2(1, info->num_cu_per_sh) * info->num_se * info->max_sa_per_se;
             } else if (!strcmp(block->b->b->name, "SQ")) {
-               block->num_global_instances = block->num_scoped_instances * info->num_se;
+               block->num_instances = block->num_scoped_instances * info->num_se;
             } else if (!strcmp(block->b->b->name, "GL1C") ||
                        !strcmp(block->b->b->name, "SQ_WGP")) {
-               block->num_global_instances = block->num_scoped_instances * info->num_se * info->max_sa_per_se;
+               block->num_instances = block->num_scoped_instances * info->num_se * info->max_sa_per_se;
             } else if (!strcmp(block->b->b->name, "GL2C") ||
                        !strcmp(block->b->b->name, "GCEA")) {
-               block->num_scoped_instances = block->num_global_instances = info->num_tcc_blocks;
+               block->num_scoped_instances = block->num_instances = info->num_tcc_blocks;
             } else if (!strcmp(block->b->b->name, "CPF")) {
-               block->num_scoped_instances = block->num_global_instances = 1;
+               block->num_scoped_instances = block->num_instances = 1;
             } else if (!strcmp(block->b->b->name, "TA") ||
                        !strcmp(block->b->b->name, "TD")) {
-               block->num_global_instances = block->num_scoped_instances;
+               block->num_instances = block->num_scoped_instances;
             }
          }
       }
