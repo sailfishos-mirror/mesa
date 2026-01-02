@@ -1792,11 +1792,15 @@ spill(Program* program)
                                                  instr->opcode == aco_opcode::p_reload_preserved ||
                                                  instr->opcode == aco_opcode::p_logical_end;
                                        });
-            /* If we encounter p_logical_end, we know there is no reload in the block so we can
-             * skip searching the other instructions.
+            if (reload == block.instructions.rend())
+               continue;
+            /* p_reload_preserved is always inserted just before p_logical_end - if we hit
+             * p_logical_end, check the previous instruction
              */
-            if (reload == block.instructions.rend() ||
-                (*reload)->opcode == aco_opcode::p_logical_end)
+            if ((*reload)->opcode == aco_opcode::p_logical_end)
+               ++reload;
+            if ((*reload)->opcode != aco_opcode::p_return &&
+                (*reload)->opcode != aco_opcode::p_reload_preserved)
                continue;
             (*reload)->operands[0] = Operand(abi_sgpr_spill_space);
          }
