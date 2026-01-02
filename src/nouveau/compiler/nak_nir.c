@@ -1075,7 +1075,7 @@ nak_postprocess_nir(nir_shader *nir,
    case MESA_SHADER_TESS_EVAL:
    case MESA_SHADER_GEOMETRY:
       OPT(nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
-          type_size_vec4, nir_lower_io_lower_64bit_to_32_new);
+          type_size_vec4, nir_lower_io_lower_64bit_to_32);
       OPT(nir, nir_opt_constant_folding);
       OPT(nir, nak_nir_lower_vtg_io, nak);
       if (nir->info.stage == MESA_SHADER_GEOMETRY)
