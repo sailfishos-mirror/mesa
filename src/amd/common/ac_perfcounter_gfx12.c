@@ -590,6 +590,8 @@ static struct ac_pc_block_base gfx12_SQ = {
    .select_or = S_036700_SQC_BANK_MASK(15),
    .counter0_lo = R_034790_SQG_PERFCOUNTER0_LO,
 
+   .num_16bit_spm_counters = 0,
+   .num_32bit_spm_counters = 8, /* Counters must be used as 32-bit */
    .num_spm_counters = 8,
    .num_spm_wires = 8,
    .spm_block_select = AC_SPM_SE_BLOCK_SQG,
@@ -669,6 +671,8 @@ static struct ac_pc_block_base gfx12_SQ_WGP = {
    .select0 = gfx12_SQ_WGP_select0,
    .counter0_lo = R_034700_SQ_PERFCOUNTER0_LO,
 
+   .num_16bit_spm_counters = 16,
+   .num_32bit_spm_counters = 16,
    .num_spm_counters = 8,
    .num_spm_wires = 8,
    .spm_block_select = AC_SPM_SE_BLOCK_SQC,

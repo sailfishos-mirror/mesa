@@ -754,6 +754,12 @@ bool ac_init_perfcounters(const struct radeon_info *info,
          const uint32_t num_rb_per_se = info->num_rb / info->num_se;
          const uint32_t rb_per_sa = num_rb_per_se / info->max_sa_per_se;
 
+         /* Determine the number of 16-bit/32-bit SPM counters. */
+         if (!block->b->b->num_16bit_spm_counters)
+            block->b->b->num_16bit_spm_counters = block->b->b->num_spm_counters * 4;
+         if (!block->b->b->num_32bit_spm_counters)
+            block->b->b->num_32bit_spm_counters = block->b->b->num_spm_counters * 2;
+
          switch (block->b->b->gpu_block) {
          case CB:
          case DB:

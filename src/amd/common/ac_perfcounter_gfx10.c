@@ -714,6 +714,8 @@ static struct ac_pc_block_base gfx10_SQ = {
    .select_or = S_036700_SQC_BANK_MASK(15),
    .counter0_lo = R_034700_SQ_PERFCOUNTER0_LO,
 
+   .num_16bit_spm_counters = 16,
+   .num_16bit_spm_counters = 16,
    .num_spm_wires = 16,
    .spm_block_select = AC_SPM_SE_BLOCK_SQG,
 };
