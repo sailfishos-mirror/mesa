@@ -282,14 +282,9 @@ struct lower_ycbcr_tex_state {
 };
 
 static bool
-lower_ycbcr_tex_instr(nir_builder *b, nir_instr *instr, void *_state)
+lower_ycbcr_tex_instr(nir_builder *b, nir_tex_instr *tex, void *_state)
 {
    const struct lower_ycbcr_tex_state *state = _state;
-
-   if (instr->type != nir_instr_type_tex)
-      return false;
-
-   nir_tex_instr *tex = nir_instr_as_tex(instr);
 
    /* For the following instructions, we don't apply any change and let the
     * instruction apply to the first plane.
@@ -432,7 +427,6 @@ bool nir_vk_lower_ycbcr_tex(nir_shader *nir,
       .cb_data = cb_data,
    };
 
-   return nir_shader_instructions_pass(nir, lower_ycbcr_tex_instr,
-                                       nir_metadata_control_flow,
-                                       &state);
+   return nir_shader_tex_pass(nir, lower_ycbcr_tex_instr,
+                              nir_metadata_control_flow, &state);
 }
