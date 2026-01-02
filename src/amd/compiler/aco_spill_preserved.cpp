@@ -117,8 +117,7 @@ add_instr(spill_preserved_ctx& ctx, unsigned block_index, bool seen_reload,
       /* Round down subdword registers to their base */
       PhysReg start_reg = PhysReg{op.physReg().reg()};
       for (PhysReg reg = start_reg; reg < start_reg.advance(op.bytes()); reg = reg.advance(4)) {
-         if (instr->opcode == aco_opcode::p_spill && &op == &instr->operands[0]) {
-            assert(op.regClass().is_linear_vgpr());
+         if (instr->opcode != aco_opcode::p_end_linear_vgpr && op.regClass().is_linear_vgpr()) {
             ctx.preserved_linear_vgprs.insert(reg);
          }
 
