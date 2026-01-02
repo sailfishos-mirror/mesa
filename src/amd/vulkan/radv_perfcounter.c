@@ -341,9 +341,9 @@ radv_get_counter_registers(const struct radv_physical_device *pdev, uint32_t num
 }
 
 static unsigned
-radv_pc_get_num_instances(const struct radv_physical_device *pdev, struct ac_pc_block *ac_block)
+radv_pc_get_num_scoped_instances(const struct radv_physical_device *pdev, struct ac_pc_block *ac_block)
 {
-   return ac_block->num_instances * ((ac_block->b->b->flags & AC_PC_BLOCK_SE) ? pdev->info.max_se : 1);
+   return ac_block->num_scoped_instances * ((ac_block->b->b->flags & AC_PC_BLOCK_SE) ? pdev->info.max_se : 1);
 }
 
 static unsigned
@@ -404,10 +404,10 @@ radv_pc_init_query_pool(struct radv_physical_device *pdev, const VkQueryPoolCrea
    for (unsigned i = 0; i < pool->num_pc_regs; ++i) {
       enum ac_pc_gpu_block block = pool->pc_regs[i] >> 16;
       struct ac_pc_block *ac_block = ac_pc_get_block(&pdev->ac_perfcounters, block);
-      unsigned num_instances = radv_pc_get_num_instances(pdev, ac_block);
+      unsigned num_scoped_instances = radv_pc_get_num_scoped_instances(pdev, ac_block);
 
-      pc_reg_offsets[i] = S_REG_OFFSET(offset) | S_REG_INSTANCES(num_instances);
-      offset += sizeof(uint64_t) * 2 * num_instances;
+      pc_reg_offsets[i] = S_REG_OFFSET(offset) | S_REG_INSTANCES(num_scoped_instances);
+      offset += sizeof(uint64_t) * 2 * num_scoped_instances;
    }
 
    /* allow an uint32_t per pass to signal completion. */
@@ -513,7 +513,7 @@ radv_pc_emit_block_instance_read(struct radv_cmd_buffer *cmd_buffer, struct ac_p
       ac_emit_cp_copy_data(cs->b, COPY_DATA_PERF, COPY_DATA_TC_L2, reg >> 2, va,
                            AC_CP_COPY_DATA_WR_CONFIRM | AC_CP_COPY_DATA_COUNT_SEL, false);
 
-      va += sizeof(uint64_t) * 2 * radv_pc_get_num_instances(pdev, block);
+      va += sizeof(uint64_t) * 2 * radv_pc_get_num_scoped_instances(pdev, block);
       reg += reg_delta;
    }
 }
@@ -528,7 +528,7 @@ radv_pc_sample_block(struct radv_cmd_buffer *cmd_buffer, struct ac_pc_block *blo
       se_end = pdev->info.max_se;
 
    for (unsigned se = 0; se < se_end; ++se) {
-      for (unsigned instance = 0; instance < block->num_instances; ++instance) {
+      for (unsigned instance = 0; instance < block->num_scoped_instances; ++instance) {
          radv_emit_instance(cmd_buffer, se, instance);
          radv_pc_emit_block_instance_read(cmd_buffer, block, count, va);
          va += sizeof(uint64_t) * 2;
@@ -582,8 +582,8 @@ radv_pc_stop_and_sample(struct radv_cmd_buffer *cmd_buffer, struct radv_pc_query
       for (unsigned i = 0; i < pool->num_pc_regs;) {
          enum ac_pc_gpu_block block = G_REG_BLOCK(pool->pc_regs[i]);
          struct ac_pc_block *ac_block = ac_pc_get_block(&pdev->ac_perfcounters, block);
-         unsigned offset = ac_block->num_instances * pass;
-         unsigned num_instances = radv_pc_get_num_instances(pdev, ac_block);
+         unsigned offset = ac_block->num_scoped_instances * pass;
+         unsigned num_scoped_instances = radv_pc_get_num_scoped_instances(pdev, ac_block);
 
          unsigned cnt = 1;
          while (cnt < pool->num_pc_regs - i && block == G_REG_BLOCK(pool->pc_regs[i + cnt]))
@@ -592,11 +592,11 @@ radv_pc_stop_and_sample(struct radv_cmd_buffer *cmd_buffer, struct radv_pc_query
          if (offset < cnt) {
             unsigned pass_reg_cnt = MIN2(cnt - offset, ac_block->b->b->num_counters);
             radv_pc_sample_block(cmd_buffer, ac_block, pass_reg_cnt,
-                                 reg_va + offset * num_instances * sizeof(uint64_t));
+                                 reg_va + offset * num_scoped_instances * sizeof(uint64_t));
          }
 
          i += cnt;
-         reg_va += num_instances * sizeof(uint64_t) * 2 * cnt;
+         reg_va += num_scoped_instances * sizeof(uint64_t) * 2 * cnt;
       }
 
       if (end) {
@@ -648,7 +648,7 @@ radv_pc_begin_query(struct radv_cmd_buffer *cmd_buffer, struct radv_pc_query_poo
       for (unsigned i = 0; i < pool->num_pc_regs;) {
          enum ac_pc_gpu_block block = G_REG_BLOCK(pool->pc_regs[i]);
          struct ac_pc_block *ac_block = ac_pc_get_block(&pdev->ac_perfcounters, block);
-         unsigned offset = ac_block->num_instances * pass;
+         unsigned offset = ac_block->num_scoped_instances * pass;
 
          unsigned cnt = 1;
          while (cnt < pool->num_pc_regs - i && block == G_REG_BLOCK(pool->pc_regs[i + cnt]))

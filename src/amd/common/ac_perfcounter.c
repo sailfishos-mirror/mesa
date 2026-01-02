@@ -624,7 +624,7 @@ bool ac_init_block_names(const struct radeon_info *info,
    char *p;
 
    if (per_instance_groups)
-      groups_instance = block->num_instances;
+      groups_instance = block->num_scoped_instances;
    if (per_se_groups)
       groups_se = info->max_se;
    if (block->b->b->flags & AC_PC_BLOCK_SHADER)
@@ -747,7 +747,7 @@ bool ac_init_perfcounters(const struct radeon_info *info,
       struct ac_pc_block *block = &pc->blocks[i];
 
       block->b = &blocks[i];
-      block->num_instances = MAX2(1, block->b->instances);
+      block->num_scoped_instances = MAX2(1, block->b->instances);
 
       if (info->gfx_level >= GFX10) {
          /* TODO: Generalize this to older generations. */
@@ -763,27 +763,27 @@ bool ac_init_perfcounters(const struct radeon_info *info,
          switch (block->b->b->gpu_block) {
          case CB:
          case DB:
-            block->num_instances = rb_per_sa;
+            block->num_scoped_instances = rb_per_sa;
             break;
          case GL2C:
          case GCEA:
          case GCEA_SE:
-            block->num_instances = info->num_tcc_blocks;
+            block->num_scoped_instances = info->num_tcc_blocks;
             break;
          case GL2A:
             if (info->family == CHIP_NAVI21 ||
                 info->family == CHIP_NAVI31) {
-               block->num_instances = 4;
+               block->num_scoped_instances = 4;
             } else if (info->family == CHIP_NAVI14 ||
                        info->family == CHIP_NAVI32 ||
                        info->family == CHIP_NAVI33) {
-               block->num_instances = 2;
+               block->num_scoped_instances = 2;
             }
             break;
          case TA:
          case TD:
          case TCP:
-            block->num_instances = MAX2(1, info->max_good_cu_per_sa);
+            block->num_scoped_instances = MAX2(1, info->max_good_cu_per_sa);
             break;
          default:
             break;
@@ -791,13 +791,13 @@ bool ac_init_perfcounters(const struct radeon_info *info,
 
          switch (block->b->b->distribution) {
          case AC_PC_PER_SHADER_ARRAY:
-            block->num_global_instances = block->num_instances * info->num_se * info->max_sa_per_se;
+            block->num_global_instances = block->num_scoped_instances * info->num_se * info->max_sa_per_se;
             break;
          case AC_PC_PER_SHADER_ENGINE:
-            block->num_global_instances = block->num_instances * info->num_se;
+            block->num_global_instances = block->num_scoped_instances * info->num_se;
             break;
          case AC_PC_GLOBAL_BLOCK:
-            block->num_global_instances = block->num_instances;
+            block->num_global_instances = block->num_scoped_instances;
             break;
          default:
             UNREACHABLE("Invalid perf block distribution mode.");
@@ -806,39 +806,39 @@ bool ac_init_perfcounters(const struct radeon_info *info,
          if (!strcmp(block->b->b->name, "CB") ||
              !strcmp(block->b->b->name, "DB") ||
              !strcmp(block->b->b->name, "RMI"))
-            block->num_instances = info->max_se;
+            block->num_scoped_instances = info->max_se;
          else if (!strcmp(block->b->b->name, "TCC"))
-            block->num_instances = info->max_tcc_blocks;
+            block->num_scoped_instances = info->max_tcc_blocks;
          else if (!strcmp(block->b->b->name, "IA"))
-            block->num_instances = MAX2(1, info->max_se / 2);
+            block->num_scoped_instances = MAX2(1, info->max_se / 2);
          else if (!strcmp(block->b->b->name, "TA") ||
                   !strcmp(block->b->b->name, "TCP") ||
                   !strcmp(block->b->b->name, "TD")) {
-            block->num_instances = MAX2(1, info->max_good_cu_per_sa);
+            block->num_scoped_instances = MAX2(1, info->max_good_cu_per_sa);
          }
 
          if (info->gfx_level >= GFX10) {
             if (!strcmp(block->b->b->name, "TCP")) {
                block->num_global_instances = MAX2(1, info->num_cu_per_sh) * info->num_se * info->max_sa_per_se;
             } else if (!strcmp(block->b->b->name, "SQ")) {
-               block->num_global_instances = block->num_instances * info->num_se;
+               block->num_global_instances = block->num_scoped_instances * info->num_se;
             } else if (!strcmp(block->b->b->name, "GL1C") ||
                        !strcmp(block->b->b->name, "SQ_WGP")) {
-               block->num_global_instances = block->num_instances * info->num_se * info->max_sa_per_se;
+               block->num_global_instances = block->num_scoped_instances * info->num_se * info->max_sa_per_se;
             } else if (!strcmp(block->b->b->name, "GL2C") ||
                        !strcmp(block->b->b->name, "GCEA")) {
-               block->num_instances = block->num_global_instances = info->num_tcc_blocks;
+               block->num_scoped_instances = block->num_global_instances = info->num_tcc_blocks;
             } else if (!strcmp(block->b->b->name, "CPF")) {
-               block->num_instances = block->num_global_instances = 1;
+               block->num_scoped_instances = block->num_global_instances = 1;
             } else if (!strcmp(block->b->b->name, "TA") ||
                        !strcmp(block->b->b->name, "TD")) {
-               block->num_global_instances = block->num_instances;
+               block->num_global_instances = block->num_scoped_instances;
             }
          }
       }
 
       if (ac_pc_block_has_per_instance_groups(pc, block)) {
-         block->num_groups = block->num_instances;
+         block->num_groups = block->num_scoped_instances;
       } else {
          block->num_groups = 1;
       }

@@ -137,7 +137,7 @@ struct ac_pc_block_gfxdescr {
 
 struct ac_pc_block {
    const struct ac_pc_block_gfxdescr *b;
-   unsigned num_instances;
+   unsigned num_scoped_instances;
    unsigned num_global_instances;
 
    unsigned num_groups;
@@ -187,7 +187,7 @@ ac_pc_block_has_per_instance_groups(const struct ac_perfcounters *pc,
                                     const struct ac_pc_block *block)
 {
    return block->b->b->flags & AC_PC_BLOCK_INSTANCE_GROUPS ||
-          (block->num_instances > 1 && pc->separate_instance);
+          (block->num_scoped_instances > 1 && pc->separate_instance);
 }
 
 struct ac_pc_block *ac_lookup_counter(const struct ac_perfcounters *pc,

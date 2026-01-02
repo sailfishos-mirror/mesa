@@ -324,16 +324,16 @@ ac_spm_init_instance_mapping(const struct radeon_info *info,
       /* We want the SE index to be the outer index and the local instance to
        * be the inner index.
        */
-      se_index = counter->instance / block->num_instances;
-      instance_index = counter->instance % block->num_instances;
+      se_index = counter->instance / block->num_scoped_instances;
+      instance_index = counter->instance % block->num_scoped_instances;
       break;
    case AC_PC_PER_SHADER_ARRAY:
       /* From the outermost to the innermost, the internal indices are in the
        * order: SE, SA, local instance.
        */
-      se_index = (counter->instance / block->num_instances) / info->max_sa_per_se;
-      sa_index = (counter->instance / block->num_instances) % info->max_sa_per_se;
-      instance_index = counter->instance % block->num_instances;
+      se_index = (counter->instance / block->num_scoped_instances) / info->max_sa_per_se;
+      sa_index = (counter->instance / block->num_scoped_instances) % info->max_sa_per_se;
+      instance_index = counter->instance % block->num_scoped_instances;
       break;
    default:
       UNREACHABLE("Invalid perf block distribution mode.");
@@ -341,7 +341,7 @@ ac_spm_init_instance_mapping(const struct radeon_info *info,
 
    if (se_index >= info->num_se ||
        sa_index >= info->max_sa_per_se ||
-       instance_index >= block->num_instances)
+       instance_index >= block->num_scoped_instances)
       return false;
 
    mapping->se_index = se_index;

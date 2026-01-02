@@ -298,7 +298,7 @@ static void si_pc_query_suspend(struct si_context *sctx, struct si_query *squery
             si_pc_emit_instance(sctx, se, instance);
             si_pc_emit_read(sctx, block, group->num_counters, va);
             va += sizeof(uint64_t) * group->num_counters;
-         } while (group->instance < 0 && ++instance < block->num_instances);
+         } while (group->instance < 0 && ++instance < block->num_scoped_instances);
       } while (++se < se_end);
    }
 
@@ -408,7 +408,7 @@ static struct si_query_group *get_group_state(struct si_screen *screen, struct s
    group->sub_gid = sub_gid;
 
    if (block->b->b->flags & AC_PC_BLOCK_SHADER) {
-      unsigned sub_gids = block->num_instances;
+      unsigned sub_gids = block->num_scoped_instances;
       unsigned shader_id;
       unsigned shaders;
       unsigned query_shaders;
@@ -436,8 +436,8 @@ static struct si_query_group *get_group_state(struct si_screen *screen, struct s
    }
 
    if (ac_pc_block_has_per_se_groups(&pc->base, block)) {
-      group->se = sub_gid / block->num_instances;
-      sub_gid = sub_gid % block->num_instances;
+      group->se = sub_gid / block->num_scoped_instances;
+      sub_gid = sub_gid % block->num_scoped_instances;
    } else {
       group->se = -1;
    }
@@ -516,7 +516,7 @@ struct pipe_query *si_create_batch_query(struct pipe_context *ctx, unsigned num_
       if ((block->b->b->flags & AC_PC_BLOCK_SE) && group->se < 0)
          instances = screen->info.max_se;
       if (group->instance < 0)
-         instances *= block->num_instances;
+         instances *= block->num_scoped_instances;
 
       group->result_base = i;
       query->result_size += sizeof(uint64_t) * instances * group->num_counters;
@@ -559,7 +559,7 @@ struct pipe_query *si_create_batch_query(struct pipe_context *ctx, unsigned num_
       if ((block->b->b->flags & AC_PC_BLOCK_SE) && group->se < 0)
          counter->qwords = screen->info.max_se;
       if (group->instance < 0)
-         counter->qwords *= block->num_instances;
+         counter->qwords *= block->num_scoped_instances;
    }
 
    return (struct pipe_query *)query;
