@@ -315,30 +315,28 @@ ac_spm_init_instance_mapping(const struct radeon_info *info,
 {
    uint32_t instance_index = 0, se_index = 0, sa_index = 0;
 
-   if (block->b->b->flags & AC_PC_BLOCK_SE) {
-      if (block->b->b->gpu_block == SQ) {
-         /* Per-SE blocks. */
-         se_index = counter->instance / block->num_instances;
-         instance_index = counter->instance % block->num_instances;
-      } else {
-         /* Per-SA blocks. */
-         assert(block->b->b->gpu_block == GL1C ||
-                block->b->b->gpu_block == TCP ||
-                block->b->b->gpu_block == SQ_WGP ||
-                block->b->b->gpu_block == TA ||
-                block->b->b->gpu_block == TD);
-         se_index = (counter->instance / block->num_instances) / info->max_sa_per_se;
-         sa_index = (counter->instance / block->num_instances) % info->max_sa_per_se;
-         instance_index = counter->instance % block->num_instances;
-      }
-   } else {
-      /* Global blocks. */
-      assert(block->b->b->gpu_block == GL2C ||
-             block->b->b->gpu_block == CPF ||
-             block->b->b->gpu_block == GCEA ||
-             block->b->b->gpu_block == GCEA_CPWD ||
-             block->b->b->gpu_block == GCEA_SE);
+   switch (block->b->b->distribution) {
+   case AC_PC_GLOBAL_BLOCK:
+      /* Global blocks have a one-to-one instance mapping. */
       instance_index = counter->instance;
+      break;
+   case AC_PC_PER_SHADER_ENGINE:
+      /* We want the SE index to be the outer index and the local instance to
+       * be the inner index.
+       */
+      se_index = counter->instance / block->num_instances;
+      instance_index = counter->instance % block->num_instances;
+      break;
+   case AC_PC_PER_SHADER_ARRAY:
+      /* From the outermost to the innermost, the internal indices are in the
+       * order: SE, SA, local instance.
+       */
+      se_index = (counter->instance / block->num_instances) / info->max_sa_per_se;
+      sa_index = (counter->instance / block->num_instances) % info->max_sa_per_se;
+      instance_index = counter->instance % block->num_instances;
+      break;
+   default:
+      UNREACHABLE("Invalid perf block distribution mode.");
    }
 
    if (se_index >= info->num_se ||
