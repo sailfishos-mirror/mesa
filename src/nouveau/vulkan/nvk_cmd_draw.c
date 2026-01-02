@@ -511,6 +511,19 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
    P_IMMD(p, NV9097, SET_CT_MRT_ENABLE, V_TRUE);
 
    if (pdev->info.cls_eng3d >= TURING_A) {
+      P_MTHD(p, NVC597, SET_ROOT_TABLE_VISIBILITY(0));
+      for (int i = 0; i < 8; i++) {
+         P_NVC597_SET_ROOT_TABLE_VISIBILITY(p, i, {
+            .binding_group0_enable = 0x3,
+            .binding_group1_enable = 0x3,
+            .binding_group2_enable = 0x3,
+            .binding_group3_enable = 0x3,
+            .binding_group4_enable = 0x3,
+         });
+      }
+   }
+
+   if (pdev->info.cls_eng3d >= TURING_A) {
       /* I don't know what these values actually mean.  I just copied them
        * from the way the blob sets up the hardware.
        */
