@@ -650,6 +650,24 @@ vk_format_get_plane_format(VkFormat format, unsigned plane_id)
 }
 
 VkFormat
+vk_format_get_plane_aspect_format(VkFormat format, const VkImageAspectFlags aspect)
+{
+   assert(aspect & vk_format_aspects(format));
+
+   switch(aspect) {
+   case VK_IMAGE_ASPECT_PLANE_0_BIT:
+      return vk_format_get_plane_format(format, 0);
+   case VK_IMAGE_ASPECT_PLANE_1_BIT:
+      return vk_format_get_plane_format(format, 1);
+   case VK_IMAGE_ASPECT_PLANE_2_BIT:
+      return vk_format_get_plane_format(format, 2);
+   default:
+      assert(vk_format_get_plane_count(format) == 1);
+      return format;
+   }
+}
+
+VkFormat
 vk_format_get_aspect_format(VkFormat format, const VkImageAspectFlags aspect)
 {
    assert(util_bitcount(aspect) == 1);
@@ -663,11 +681,9 @@ vk_format_get_aspect_format(VkFormat format, const VkImageAspectFlags aspect)
    case VK_IMAGE_ASPECT_STENCIL_BIT:
       return vk_format_stencil_only(format);
    case VK_IMAGE_ASPECT_PLANE_0_BIT:
-      return vk_format_get_plane_format(format, 0);
    case VK_IMAGE_ASPECT_PLANE_1_BIT:
-      return vk_format_get_plane_format(format, 1);
    case VK_IMAGE_ASPECT_PLANE_2_BIT:
-      return vk_format_get_plane_format(format, 2);
+      return vk_format_get_plane_aspect_format(format, aspect);
    default:
       UNREACHABLE("Cannot translate format aspect");
    }

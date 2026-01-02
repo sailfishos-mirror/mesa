@@ -308,6 +308,9 @@ VkFormat
 vk_format_get_plane_format(VkFormat format, unsigned plane_id);
 
 VkFormat
+vk_format_get_plane_aspect_format(VkFormat format, const VkImageAspectFlags aspect);
+
+VkFormat
 vk_format_get_aspect_format(VkFormat format, const VkImageAspectFlags aspect);
 
 struct vk_format_ycbcr_plane {
