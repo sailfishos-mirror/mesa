@@ -386,28 +386,20 @@ ac_spm_init_grbm_gfx_index(const struct ac_pc_block *block,
    grbm_gfx_index |= S_030800_SE_INDEX(mapping->se_index) |
                      S_030800_SH_INDEX(mapping->sa_index);
 
-   switch (block->b->b->gpu_block) {
-   case GL2C:
-   case CPF:
-   case GCEA:
-   case GCEA_CPWD:
-   case GCEA_SE:
-      /* Global blocks. */
+   switch (block->b->b->distribution) {
+   case AC_PC_GLOBAL_BLOCK:
+      /* Global block writes should broadcast to SEs and SAs. */
       grbm_gfx_index |= S_030800_SE_BROADCAST_WRITES(1);
       FALLTHROUGH;
-   case SQ:
-      /* Per-SE blocks. */
+   case AC_PC_PER_SHADER_ENGINE:
+      /* Per-SE block writes should broadcast to SAs. */
       grbm_gfx_index |= S_030800_SH_BROADCAST_WRITES(1);
       break;
-   case TA:
-   case TD:
-   case TCP:
-   case SQ_WGP:
-   case GL1C:
+   case AC_PC_PER_SHADER_ARRAY:
       /* Other blocks shouldn't broadcast. */
       break;
    default:
-      UNREACHABLE("Invalid SPM block.");
+      UNREACHABLE("Invalid perf block distribution mode.");
    }
 
    if (block->b->b->gpu_block == SQ_WGP) {
