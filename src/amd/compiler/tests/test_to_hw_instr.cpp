@@ -871,3 +871,28 @@ BEGIN_TEST(to_hw_instr.mov_subdword_sgpr_src)
       }
    }
 END_TEST
+
+BEGIN_TEST(to_hw_instr.pack_sgpr_test)
+   for (amd_gfx_level lvl : {GFX9, GFX10, GFX11, GFX12}) {
+
+      if (!setup_cs(NULL, lvl))
+         return;
+
+      //>> p_unit_test 0
+      //~gfx(9|10)! v2b: %0:v[0][0:16] = v_mov_b32 %0:s[0] dst_sel:uword0 dst_preserve src0_sel:uword1
+      //~gfx(11|12)! v2b: %0:v[0][0:16] = v_mov_b16 hi(%0:s[0])
+      //~gfx(9|12)! v2b: %0:v[1][0:16] = v_mov_b32 %0:s[0]
+      //~gfx9! v2b: %0:v[1][16:32] = v_mov_b32 %0:s[1] dst_sel:uword1 dst_preserve src0_sel:uword1
+      //~gfx12! v2b: %0:v[1][16:32] = v_mov_b16 hi(%0:s[1]) opsel_hi
+      //~gfx(10|11)! v1: %0:v[1] = v_pack_b32_f16 %0:s[0], hi(%0:s[1])
+      //~gfx(9|10)! v2b: %0:v[2][0:16] = v_mov_b32 %0:s[1] dst_sel:uword0 dst_preserve src0_sel:uword0
+      //~gfx(11|12)! v2b: %0:v[2][0:16] = v_mov_b16 %0:s[1]
+      bld.pseudo(aco_opcode::p_unit_test, Operand::zero());
+      bld.pseudo(aco_opcode::p_split_vector, Definition(PhysReg(257), v2b),
+                 Definition(PhysReg(256), v2b), Definition(PhysReg(258), v2b),
+                 Definition(PhysReg(257).advance(2), v2b), Operand(PhysReg(0), s2));
+
+      //! s_endpgm
+      finish_to_hw_instr_test();
+   }
+END_TEST
