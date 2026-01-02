@@ -319,35 +319,25 @@ panvk_per_arch(blend_emit_descs)(struct panvk_cmd_buffer *cmdbuf,
    for (uint8_t i = 0; i < cb->attachment_count; i++) {
       struct pan_blend_rt_state *rt = &bs.rts[i];
 
-      if (cal->color_map[i] == MESA_VK_ATTACHMENT_UNUSED) {
-         rt->equation.color_mask = 0;
+      if (cal->color_map[i] == MESA_VK_ATTACHMENT_UNUSED)
          continue;
-      }
 
-      if (!(cb->color_write_enables & BITFIELD_BIT(i))) {
-         rt->equation.color_mask = 0;
+      if (!(cb->color_write_enables & BITFIELD_BIT(i)))
          continue;
-      }
 
-      if (color_attachment_formats[i] == VK_FORMAT_UNDEFINED) {
-         rt->equation.color_mask = 0;
+      if (color_attachment_formats[i] == VK_FORMAT_UNDEFINED)
          continue;
-      }
 
-      if (!cb->attachments[i].write_mask) {
-         rt->equation.color_mask = 0;
+      if (!cb->attachments[i].write_mask)
          continue;
-      }
 
       rt->format = vk_format_to_pipe_format(color_attachment_formats[i]);
 
       /* Disable blending for LOGICOP_NOOP unless the format is float/srgb */
       bool is_float = util_format_is_float(rt->format);
       if (bs.logicop_enable && bs.logicop_func == PIPE_LOGICOP_NOOP &&
-          !(is_float || util_format_is_srgb(rt->format))) {
-         rt->equation.color_mask = 0;
+          !(is_float || util_format_is_srgb(rt->format)))
          continue;
-      }
 
       rt->nr_samples = color_attachment_samples[i];
       rt->equation.blend_enable = cb->attachments[i].blend_enable;
