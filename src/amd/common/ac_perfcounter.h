@@ -216,4 +216,7 @@ ac_gfx11_get_perfcounters(uint32_t *num_blocks);
 const struct ac_pc_block_gfxdescr *
 ac_gfx103_get_perfcounters(uint32_t *num_blocks);
 
+const struct ac_pc_block_gfxdescr *
+ac_gfx10_get_perfcounters(uint32_t *num_blocks);
+
 #endif
