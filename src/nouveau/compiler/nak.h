@@ -97,6 +97,7 @@ struct nak_constant_offset_info {
    uint32_t printf_buffer_offset;
 };
 const extern struct nak_constant_offset_info nak_const_offsets_base;
+const extern struct nak_constant_offset_info nak_const_offsets_turing_graphics;
 
 #define NAK_PRINTF_BUFFER_SIZE 0x40000
 

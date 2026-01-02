@@ -16,6 +16,7 @@
 #include "util/u_dynarray.h"
 
 #include "vk_command_buffer.h"
+#include "clc597.h"
 
 #include <stdio.h>
 
@@ -79,6 +80,17 @@ struct nvk_root_descriptor_table {
 /* Push constants should be aligned properly */
 static_assert(nvk_root_descriptor_offset(push) % 8 == 0,
               "Push constants should be aligned properly");
+
+#define nvk_hw_root_table_index(member)\
+   (nvk_root_descriptor_offset(member) / NVK_HW_ROOT_TABLE_SIZE)
+#define nvk_hw_root_table_offset(member)\
+   (nvk_root_descriptor_offset(member) % NVK_HW_ROOT_TABLE_SIZE)
+
+static inline bool nvk_use_hw_root_table(const struct nv_device_info *info,
+                                         bool is_gfx)
+{
+   return is_gfx && info->cls_eng3d >= TURING_A;
+}
 
 enum ENUM_PACKED nvk_descriptor_set_type {
    NVK_DESCRIPTOR_SET_TYPE_NONE,

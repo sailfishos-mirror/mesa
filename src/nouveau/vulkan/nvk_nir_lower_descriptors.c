@@ -568,12 +568,22 @@ _load_root_table(nir_builder *b,
                  const struct lower_descriptors_ctx *ctx)
 {
    unsigned align_mul = bit_size / 8;
+   uint32_t base, cbuf;
+   if (nvk_use_hw_root_table(ctx->dev_info,
+                             b->shader->info.stage != MESA_SHADER_COMPUTE)) {
+      cbuf = NVK_HW_ROOT_TABLE_FIRST_CB +
+             root_table_offset / NVK_HW_ROOT_TABLE_SIZE;
+      base = root_table_offset % NVK_HW_ROOT_TABLE_SIZE;
+   } else {
+      cbuf = 0; /* Root table */
+      base = root_table_offset;
+   }
    return nir_ldc_nv(b, num_components, bit_size,
-                     nir_imm_int(b, 0), /* Root table */
+                     nir_imm_int(b, cbuf),
                      nir_imm_int(b, 0),
                      .align_mul = align_mul,
                      .align_offset = 0,
-                     .base = root_table_offset);
+                     .base = base);
 }
 
 #define load_root_table(b, nc, bs, member, ctx) \
@@ -583,18 +593,32 @@ static nir_def *
 _load_root_table_array(nir_builder *b,
                        unsigned num_components, unsigned bit_size,
                        uint32_t root_table_offset, uint32_t stride,
-                       nir_def *index,
+                       uint32_t array_size, nir_def *index,
                        const struct lower_descriptors_ctx *ctx)
 {
+   uint32_t base, cbuf;
+   if (nvk_use_hw_root_table(ctx->dev_info,
+                             b->shader->info.stage != MESA_SHADER_COMPUTE)) {
+      assert(root_table_offset % NVK_HW_ROOT_TABLE_SIZE + array_size <=
+             NVK_HW_ROOT_TABLE_SIZE);
+
+      cbuf = NVK_HW_ROOT_TABLE_FIRST_CB +
+             root_table_offset / NVK_HW_ROOT_TABLE_SIZE;
+      base = root_table_offset % NVK_HW_ROOT_TABLE_SIZE;
+   } else {
+      cbuf = 0; /* Root table */
+      base = root_table_offset;
+   }
    return nir_ldc_nv(b, num_components, bit_size,
-                     nir_imm_int(b, 0), /* Root table */
+                     nir_imm_int(b, cbuf),
                      nir_imul_imm(b, index, stride),
-                     .base = root_table_offset);
+                     .base = base);
 }
 
 #define load_root_table_array(b, nc, bs, member, index, ctx) \
    _load_root_table_array(b, nc, bs, nvk_root_descriptor_offset(member), \
                           sizeof(((struct nvk_root_descriptor_table){}).member[0]), \
+                          sizeof(((struct nvk_root_descriptor_table){}).member), \
                           index, ctx)
 
 static bool

@@ -346,7 +346,11 @@ enum nak_fs_out {
 static inline const struct nak_constant_offset_info*
 nak_const_offsets(const struct nak_compiler* nak, bool is_graphics)
 {
-   return &nak_const_offsets_base;
+   if (nak->sm >= 75 && is_graphics) {
+      return &nak_const_offsets_turing_graphics;
+   } else {
+      return &nak_const_offsets_base;
+   }
 }
 
 bool nak_nir_rematerialize_load_const(nir_shader *nir);

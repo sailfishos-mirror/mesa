@@ -508,9 +508,24 @@ build_push_write_push_const(nir_builder *b, struct nvk_nir_push *p,
    assert(pc_range->size % 4 == 0);
    const uint32_t dw_count = pc_range->size / 4;
 
-   nvk_nir_P_1INC(b, p, NV9097, LOAD_CONSTANT_BUFFER_OFFSET, 1 + dw_count);
-   nvk_nir_push_dw(b, p, nir_imm_int(b,
-      nvk_root_descriptor_offset(push) + pc_range->offset));
+   assert(!(pc_range->stageFlags & VK_SHADER_STAGE_COMPUTE_BIT));
+   if (nvk_use_hw_root_table(&pdev->info, true)) {
+      const uint32_t table = nvk_hw_root_table_index(push);
+      static_assert(nvk_hw_root_table_offset(push) == 0,
+                    "Push constants are aligned");
+
+      uint32_t root_table_selector;
+      V_NVC597_SET_ROOT_TABLE_SELECTOR(root_table_selector,{
+         .root_table = table,
+         .offset = pc_range->offset,
+      });
+      nvk_nir_P_1INC(b, p, NVC597, SET_ROOT_TABLE_SELECTOR, 1 + dw_count);
+      nvk_nir_push_dw(b, p, nir_imm_int(b, root_table_selector));
+   } else {
+      nvk_nir_P_1INC(b, p, NV9097, LOAD_CONSTANT_BUFFER_OFFSET, 1 + dw_count);
+      nvk_nir_push_dw(b, p, nir_imm_int(b,
+         nvk_root_descriptor_offset(push) + pc_range->offset));
+   }
 }
 
 static void
