@@ -41,8 +41,9 @@ def print_once(*args, **kwargs):
     print(*args, **kwargs)
 
 
-def pretty_duration(seconds):
+def pretty_duration(seconds: int | float) -> str:
     """Pretty print duration"""
+    seconds = int(seconds)
     hours, rem = divmod(seconds, 3600)
     minutes, seconds = divmod(rem, 60)
     if hours:
