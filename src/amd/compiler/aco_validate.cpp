@@ -532,7 +532,7 @@ validate_ir(Program* program)
                }
 
                unsigned num_sgprs = 0;
-               unsigned sgpr[] = {0, 0};
+               Operand sgpr_ops[] = {Operand(), Operand()};
                for (unsigned i = 0; i < instr->operands.size(); i++) {
                   Operand op = instr->operands[i];
                   if (instr->opcode == aco_opcode::v_readfirstlane_b32 ||
@@ -566,9 +566,16 @@ validate_ir(Program* program)
                      check(scalar_mask & (1 << i), "Wrong source position for SGPR argument",
                            instr.get());
 
-                     if (op.tempId() != sgpr[0] && op.tempId() != sgpr[1]) {
+                     /* Ignore flags and SSA when register was assigned. */
+                     Operand current_sgpr =
+                        op.isFixed() ? Operand(op.physReg(), op.regClass()) : Operand(op.getTemp());
+                     bool same = false;
+                     for (unsigned j = 0; j < MIN2(2, num_sgprs); j++)
+                        same |= current_sgpr == sgpr_ops[j];
+                     if (!same) {
                         if (num_sgprs < 2)
-                           sgpr[num_sgprs++] = op.tempId();
+                           sgpr_ops[num_sgprs] = current_sgpr;
+                        num_sgprs++;
                      }
                   }
 
