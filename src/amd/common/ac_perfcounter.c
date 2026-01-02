@@ -749,7 +749,7 @@ bool ac_init_perfcounters(const struct radeon_info *info,
       block->b = &blocks[i];
       block->num_instances = MAX2(1, block->b->instances);
 
-      if (info->gfx_level >= GFX10_3) {
+      if (info->gfx_level >= GFX10) {
          /* TODO: Generalize this to older generations. */
          const uint32_t num_rb_per_se = info->num_rb / info->num_se;
          const uint32_t rb_per_sa = num_rb_per_se / info->max_sa_per_se;
