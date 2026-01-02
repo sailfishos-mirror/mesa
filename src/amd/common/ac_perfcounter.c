@@ -767,7 +767,8 @@ bool ac_init_perfcounters(const struct radeon_info *info,
             if (info->family == CHIP_NAVI21 ||
                 info->family == CHIP_NAVI31) {
                block->num_instances = 4;
-            } else if (info->family == CHIP_NAVI32 ||
+            } else if (info->family == CHIP_NAVI14 ||
+                       info->family == CHIP_NAVI32 ||
                        info->family == CHIP_NAVI33) {
                block->num_instances = 2;
             }
