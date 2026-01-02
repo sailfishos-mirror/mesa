@@ -1243,6 +1243,7 @@ bool ac_init_perfcounters(const struct radeon_info *info,
             block->num_instances = rb_per_sa;
             break;
          case GL2C:
+         case GCEA:
             block->num_instances = info->num_tcc_blocks;
             break;
          case GL2A:
