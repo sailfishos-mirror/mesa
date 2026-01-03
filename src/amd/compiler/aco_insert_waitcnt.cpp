@@ -349,9 +349,9 @@ get_vmem_mask(wait_ctx& ctx, Instruction* instr)
 }
 
 wait_imm
-get_imm(wait_ctx& ctx, PhysReg reg, wait_entry& entry)
+get_imm(wait_ctx& ctx, bool linear_rc, wait_entry& entry)
 {
-   if (reg.reg() >= 256) {
+   if (!linear_rc) {
       uint32_t events = entry.logical_events;
 
       /* ALU can't safely write to unwritten destination VGPR lanes with DS/VMEM on GFX11+ without
@@ -387,8 +387,9 @@ check_instr(wait_ctx& ctx, wait_imm& wait, Instruction* instr)
       /* check consecutively read gprs */
       for (unsigned j = 0; j < op.size(); j++) {
          std::map<PhysReg, wait_entry>::iterator it = ctx.gpr_map.find(PhysReg{op.physReg() + j});
-         if (it != ctx.gpr_map.end() && it->second.wait_on_read)
-            wait.combine(get_imm(ctx, PhysReg{op.physReg() + j}, it->second));
+         if (it != ctx.gpr_map.end() && it->second.wait_on_read) {
+            wait.combine(get_imm(ctx, op.regClass().is_linear(), it->second));
+         }
       }
    }
 
@@ -401,7 +402,7 @@ check_instr(wait_ctx& ctx, wait_imm& wait, Instruction* instr)
          if (it == ctx.gpr_map.end())
             continue;
 
-         wait_imm reg_imm = get_imm(ctx, reg, it->second);
+         wait_imm reg_imm = get_imm(ctx, def.regClass().is_linear(), it->second);
 
          /* Vector Memory reads and writes decrease the counter in the order they were issued.
           * Before GFX12, they also write VGPRs in order if they're of the same type.
