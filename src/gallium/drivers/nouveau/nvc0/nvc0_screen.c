@@ -239,7 +239,6 @@ nvc0_init_screen_caps(struct nvc0_screen *screen)
    caps->max_varyings = 0x1f0 / 16;
    caps->max_vertex_buffers = 16;
    caps->gl_begin_end_buffer_size = 512 * 1024; /* TODO: Investigate tuning this */
-   caps->max_texture_mb = 0; /* TODO: use 1/2 of VRAM for this? */
 
    caps->timer_resolution = 1000;
 
