@@ -20,12 +20,11 @@ radv_use_bvh_stack_rtn(const struct radv_physical_device *pdevice)
 }
 
 nir_def *
-radv_build_bvh_stack_rtn_addr(nir_builder *b, const struct radv_physical_device *pdev, uint32_t workgroup_size,
+radv_build_bvh_stack_rtn_addr(nir_builder *b, nir_def *stack_idx, const struct radv_physical_device *pdev, uint32_t workgroup_size,
                               uint32_t stack_base, uint32_t max_stack_entries)
 {
    assert(stack_base % 4 == 0);
 
-   nir_def *stack_idx = nir_load_local_invocation_index(b);
    /* RDNA3's ds_bvh_stack_rtn instruction uses a special encoding for the stack address.
     * Bits 0-17 encode the current stack index (set to 0 initially)
     * Bits 18-31 encodes the stack base in multiples of 4

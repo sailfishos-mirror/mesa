@@ -17,8 +17,8 @@ struct radv_physical_device;
 
 bool radv_use_bvh_stack_rtn(const struct radv_physical_device *pdevice);
 
-nir_def *radv_build_bvh_stack_rtn_addr(nir_builder *b, const struct radv_physical_device *pdev, uint32_t workgroup_size,
-                                       uint32_t stack_base, uint32_t max_stack_entries);
+nir_def *radv_build_bvh_stack_rtn_addr(nir_builder *b, nir_def *stack_idx, const struct radv_physical_device *pdev,
+                                       uint32_t workgroup_size, uint32_t stack_base, uint32_t max_stack_entries);
 
 nir_def *build_addr_to_node(struct radv_device *device, nir_builder *b, nir_def *addr, nir_def *flags);
 

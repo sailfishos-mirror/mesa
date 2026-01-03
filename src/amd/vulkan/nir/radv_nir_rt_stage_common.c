@@ -219,7 +219,7 @@ radv_nir_lower_hit_attribs(nir_shader *shader, nir_variable **hit_attribs, uint3
          nir_def *offset;
          if (!hit_attribs)
             offset = nir_imul_imm(
-               &b, nir_iadd_imm(&b, nir_load_local_invocation_index(&b), nir_intrinsic_base(intrin) * workgroup_size),
+               &b, nir_iadd_imm(&b, nir_load_subgroup_invocation(&b), nir_intrinsic_base(intrin) * workgroup_size),
                sizeof(uint32_t));
 
          if (intrin->intrinsic == nir_intrinsic_load_hit_attrib_amd) {

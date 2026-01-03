@@ -1042,11 +1042,11 @@ radv_build_traversal(struct radv_device *device, struct radv_ray_tracing_pipelin
    nir_def *root_bvh_base = nir_iadd(b, params->accel_struct, nir_u2u64(b, bvh_offset));
    root_bvh_base = build_addr_to_node(device, b, root_bvh_base, params->cull_mask_and_flags);
 
-   nir_def *stack_idx = nir_load_local_invocation_index(b);
+   nir_def *stack_idx = nir_load_subgroup_invocation(b);
    uint32_t stack_stride;
 
    if (radv_use_bvh_stack_rtn(pdev)) {
-      stack_idx = radv_build_bvh_stack_rtn_addr(b, pdev, pdev->rt_wave_size, 0, MAX_STACK_ENTRY_COUNT);
+      stack_idx = radv_build_bvh_stack_rtn_addr(b, stack_idx, pdev, pdev->rt_wave_size, 0, MAX_STACK_ENTRY_COUNT);
       stack_stride = 1;
    } else {
       stack_idx = nir_imul_imm(b, stack_idx, sizeof(uint32_t));
