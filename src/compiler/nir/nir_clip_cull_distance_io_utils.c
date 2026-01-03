@@ -110,8 +110,13 @@ get_unwrapped_array_length(nir_shader *nir, nir_variable *var)
       type = glsl_get_array_element(type);
 
    assert(glsl_type_is_array(type));
+   /* Clip/cull distances must be float. */
+   assert(glsl_type_is_float(glsl_get_array_element(type)));
 
-   return glsl_get_length(type);
+   unsigned length = glsl_get_length(type);
+   /* Clip/cull distances must have at most 8 array elements. */
+   assert(length <= 8);
+   return length;
 }
 
 /**
