@@ -5,9 +5,6 @@
  * Copyright (C) 2019-2020 Collabora, Ltd.
  *
  * SPDX-License-Identifier: MIT
- *
- * Authors:
- *   Alyssa Rosenzweig <alyssa.rosenzweig@collabora.com>
  */
 
 #ifndef __PAN_AFBC_H
