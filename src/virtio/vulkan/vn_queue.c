@@ -23,6 +23,7 @@
 #include "vn_physical_device.h"
 #include "vn_query_pool.h"
 #include "vn_renderer.h"
+#include "vn_wsi.h"
 
 /* queue commands */
 
@@ -1083,6 +1084,7 @@ vn_QueueSubmit(VkQueue queue,
    VN_TRACE_FUNC();
 
    vn_tls_set_async_pipeline_create();
+   vn_wsi_flush(vn_queue_from_handle(queue));
 
    struct vn_queue_submission submit = {
       .batch_type = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -1238,6 +1240,7 @@ vn_QueueSubmit2(VkQueue queue,
    struct vn_device *dev = vn_device_from_vk(queue_vk->base.device);
 
    vn_tls_set_async_pipeline_create();
+   vn_wsi_flush(vn_queue_from_handle(queue));
 
    if (!dev->has_sync2) {
       VN_TRACE_SCOPE("2->1");
@@ -1447,6 +1450,8 @@ vn_QueueBindSparse(VkQueue queue,
    VN_TRACE_FUNC();
    VkResult result;
 
+   vn_wsi_flush(vn_queue_from_handle(queue));
+
    struct vn_queue_submission submit = {
       .batch_type = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO,
       .queue_handle = queue,
@@ -1495,6 +1500,8 @@ vn_QueueWaitIdle(VkQueue _queue)
    VkDevice dev_handle = vk_device_to_handle(queue->base.vk.base.device);
    struct vn_device *dev = vn_device_from_handle(dev_handle);
    VkResult result;
+
+   vn_wsi_flush(queue);
 
    /* lazily create queue wait fence for queue idle waiting */
    if (queue->wait_fence == VK_NULL_HANDLE) {

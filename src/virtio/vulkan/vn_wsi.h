@@ -38,6 +38,9 @@ vn_wsi_validate_image_format_info(
 void
 vn_wsi_sync_wait(struct vn_device *dev, int fd);
 
+void
+vn_wsi_flush(struct vn_queue *queue);
+
 #else
 
 static inline VkResult
@@ -70,6 +73,12 @@ vn_wsi_validate_image_format_info(struct vn_physical_device *physical_dev,
 
 static inline void
 vn_wsi_sync_wait(struct vn_device *dev, int fd)
+{
+   return;
+}
+
+static inline void
+vn_wsi_flush(struct vn_queue *queue)
 {
    return;
 }

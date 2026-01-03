@@ -323,6 +323,12 @@ vn_wsi_sync_wait(struct vn_device *dev, int fd)
       sync_wait(fd, -1);
 }
 
+void
+vn_wsi_flush(struct vn_queue *queue)
+{
+   /* TODO */
+}
+
 static VkPresentInfoKHR *
 vn_wsi_clone_present_info(struct vn_device *dev, const VkPresentInfoKHR *pi)
 {
