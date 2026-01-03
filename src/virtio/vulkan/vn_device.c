@@ -27,6 +27,18 @@ vn_queue_fini(struct vn_queue *queue)
 {
    VkDevice dev_handle = vk_device_to_handle(queue->base.vk.base.device);
 
+   if (queue->async_present.initialized) {
+      mtx_lock(&queue->async_present.mutex);
+      queue->async_present.join = true;
+      cnd_signal(&queue->async_present.cond);
+      mtx_unlock(&queue->async_present.mutex);
+
+      thrd_join(queue->async_present.thread, NULL);
+
+      mtx_destroy(&queue->async_present.mutex);
+      cnd_destroy(&queue->async_present.cond);
+   }
+
    if (queue->wait_fence != VK_NULL_HANDLE) {
       vn_DestroyFence(dev_handle, queue->wait_fence, NULL);
    }

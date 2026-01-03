@@ -326,7 +326,19 @@ vn_wsi_sync_wait(struct vn_device *dev, int fd)
 void
 vn_wsi_flush(struct vn_queue *queue)
 {
-   /* TODO */
+   /* No need to flush if there's no present. */
+   if (!queue->async_present.initialized)
+      return;
+
+   /* Should not flush on the async present thread. */
+   if (queue->async_present.tid == vn_gettid())
+      return;
+
+   /* Being able to acquire the lock ensures async present queue access
+    * has completed.
+    */
+   mtx_lock(&queue->async_present.mutex);
+   mtx_unlock(&queue->async_present.mutex);
 }
 
 static VkPresentInfoKHR *
@@ -549,6 +561,89 @@ vn_wsi_clone_present_info(struct vn_device *dev, const VkPresentInfoKHR *pi)
    }
 
    return _pi;
+}
+
+static int
+vn_wsi_present_thread(void *data)
+{
+   struct vn_queue *queue = data;
+   struct vk_queue *queue_vk = &queue->base.vk;
+   struct vn_device *dev = vn_device_from_vk(queue_vk->base.device);
+   const VkAllocationCallbacks *alloc = &dev->base.vk.alloc;
+   char thread_name[16];
+
+   snprintf(thread_name, ARRAY_SIZE(thread_name), "vn_wsi[%u,%u]",
+            queue_vk->queue_family_index, queue_vk->index_in_family);
+   u_thread_setname(thread_name);
+
+   queue->async_present.tid = vn_gettid();
+   queue->async_present.initialized = true;
+
+   mtx_lock(&queue->async_present.mutex);
+   while (true) {
+      while (!queue->async_present.info && !queue->async_present.join)
+         cnd_wait(&queue->async_present.cond, &queue->async_present.mutex);
+
+      if (queue->async_present.join)
+         break;
+
+      vn_wsi_chains_lock(dev, queue->async_present.info, /*all=*/true);
+
+      queue->async_present.pending = false;
+
+      queue->async_present.result =
+         wsi_common_queue_present(queue_vk->base.device->physical->wsi_device,
+                                  queue_vk, queue->async_present.info);
+
+      vn_wsi_chains_unlock(dev, queue->async_present.info, /*all=*/true);
+
+      vk_free(alloc, queue->async_present.info);
+      queue->async_present.info = NULL;
+   }
+   mtx_unlock(&queue->async_present.mutex);
+
+   return 0;
+}
+
+static VkResult
+vn_wsi_present_async(struct vn_device *dev,
+                     struct vn_queue *queue,
+                     const VkPresentInfoKHR *pi)
+{
+   VkResult result = VK_SUCCESS;
+
+   if (unlikely(!queue->async_present.initialized)) {
+      mtx_init(&queue->async_present.mutex, mtx_plain);
+      cnd_init(&queue->async_present.cond);
+
+      if (u_thread_create(&queue->async_present.thread, vn_wsi_present_thread,
+                          queue) != thrd_success)
+         return VK_ERROR_OUT_OF_HOST_MEMORY;
+   }
+
+   mtx_lock(&queue->async_present.mutex);
+   assert(!queue->async_present.info);
+   assert(!queue->async_present.pending);
+   result = queue->async_present.result;
+   if (result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR) {
+      queue->async_present.info = vn_wsi_clone_present_info(dev, pi);
+      queue->async_present.pending = true;
+      cnd_signal(&queue->async_present.cond);
+   }
+   queue->async_present.result = VK_SUCCESS;
+   mtx_unlock(&queue->async_present.mutex);
+
+   /* Ensure async present thread has acquired the present lock. */
+   while (queue->async_present.pending)
+      thrd_yield();
+
+   if (pi->pResults) {
+      /* TODO: fill present result for the corresponding chain */
+      for (uint32_t i = 0; i < pi->swapchainCount; i++)
+         pi->pResults[i] = result;
+   }
+
+   return result;
 }
 
 /* swapchain commands */
