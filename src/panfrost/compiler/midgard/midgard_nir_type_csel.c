@@ -11,11 +11,9 @@
 static bool
 pass(nir_builder *b, nir_alu_instr *alu, void *data)
 {
-   if (alu->op != nir_op_b32csel)
-      return false;
-
    BITSET_WORD *float_types = data;
-   if (BITSET_TEST(float_types, alu->def.index)) {
+
+   if (alu->op == nir_op_b32csel && BITSET_TEST(float_types, alu->def.index)) {
       alu->op = nir_op_b32fcsel_mdg;
       return true;
    } else {
@@ -36,6 +34,5 @@ midgard_nir_type_csel(nir_shader *shader)
       nir_shader_alu_pass(shader, pass, nir_metadata_control_flow, float_types);
 
    free(float_types);
-
    return progress;
 }
