@@ -275,39 +275,52 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
             info->gs_writes_stream0 |= writes_stream0;
             info->num_outputs = MAX2(info->num_outputs, loc + 1);
 
-            if (nir->info.stage == MESA_SHADER_VERTEX ||
-                nir->info.stage == MESA_SHADER_TESS_CTRL ||
-                nir->info.stage == MESA_SHADER_TESS_EVAL ||
-                nir->info.stage == MESA_SHADER_GEOMETRY) {
-               if (slot_semantic == VARYING_SLOT_TESS_LEVEL_INNER ||
-                   slot_semantic == VARYING_SLOT_TESS_LEVEL_OUTER) {
-                  if (!nir_intrinsic_io_semantics(intr).no_varying) {
-                     unsigned index = ac_shader_io_get_unique_index_patch(slot_semantic);
-                     info->num_tess_level_vram_outputs =
-                        MAX2(info->num_tess_level_vram_outputs, index + 1);
-                  }
-               } else if ((slot_semantic <= VARYING_SLOT_VAR31 ||
-                           slot_semantic >= VARYING_SLOT_VAR0_16BIT) &&
-                          slot_semantic != VARYING_SLOT_EDGE) {
-                  uint64_t bit = BITFIELD64_BIT(si_shader_io_get_unique_index(slot_semantic));
+            switch (nir->info.stage) {
+            case MESA_SHADER_TESS_CTRL:
+               if ((slot_semantic == VARYING_SLOT_TESS_LEVEL_INNER ||
+                    slot_semantic == VARYING_SLOT_TESS_LEVEL_OUTER) &&
+                   !nir_intrinsic_io_semantics(intr).no_varying) {
+                  unsigned index = ac_shader_io_get_unique_index_patch(slot_semantic);
+                  info->num_tess_level_vram_outputs =
+                     MAX2(info->num_tess_level_vram_outputs, index + 1);
+               }
+               break;
 
+            case MESA_SHADER_VERTEX:
+            case MESA_SHADER_TESS_EVAL:
+            case MESA_SHADER_GEOMETRY:
+            case MESA_SHADER_MESH:
+               if ((slot_semantic <= VARYING_SLOT_VAR31 ||
+                    slot_semantic >= VARYING_SLOT_VAR0_16BIT) &&
+                   slot_semantic != VARYING_SLOT_EDGE) {
                   /* Ignore outputs that are not passed from VS to PS. */
                   if (slot_semantic != VARYING_SLOT_POS &&
                       slot_semantic != VARYING_SLOT_PSIZ &&
                       slot_semantic != VARYING_SLOT_CLIP_VERTEX &&
                       slot_semantic != VARYING_SLOT_LAYER &&
-                      writes_stream0)
-                     info->outputs_written_before_ps |= bit;
+                      slot_semantic != VARYING_SLOT_PRIMITIVE_INDICES &&
+                      writes_stream0) {
+                     info->outputs_written_before_ps |=
+                        BITFIELD64_BIT(si_shader_io_get_unique_index(slot_semantic));
+                  }
 
-                  /* LAYER and VIEWPORT have no effect if they don't feed the rasterizer. */
-                  if (slot_semantic != VARYING_SLOT_LAYER &&
-                      slot_semantic != VARYING_SLOT_VIEWPORT)
-                     info->ls_es_outputs_written |= bit;
+                  if ((nir->info.stage == MESA_SHADER_VERTEX ||
+                       nir->info.stage == MESA_SHADER_TESS_EVAL) &&
+                      /* LAYER and VIEWPORT have no effect if they don't feed the rasterizer. */
+                      slot_semantic != VARYING_SLOT_LAYER &&
+                      slot_semantic != VARYING_SLOT_VIEWPORT) {
+                     info->ls_es_outputs_written |=
+                        BITFIELD64_BIT(si_shader_io_get_unique_index(slot_semantic));
+                  }
 
                   /* Clip distances must be gathered manually because nir_opt_clip_cull_const
                    * can reduce their number.
                    */
-                  if ((slot_semantic == VARYING_SLOT_CLIP_DIST0 ||
+                  if ((nir->info.stage == MESA_SHADER_VERTEX ||
+                       nir->info.stage == MESA_SHADER_TESS_EVAL ||
+                       nir->info.stage == MESA_SHADER_GEOMETRY ||
+                       nir->info.stage == MESA_SHADER_MESH) &&
+                      (slot_semantic == VARYING_SLOT_CLIP_DIST0 ||
                        slot_semantic == VARYING_SLOT_CLIP_DIST1) &&
                       !nir_intrinsic_io_semantics(intr).no_sysval_output) {
                      assert(!indirect);
@@ -323,17 +336,9 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
                      }
                   }
                }
-            } else if (nir->info.stage == MESA_SHADER_MESH) {
-               if (slot_semantic != VARYING_SLOT_POS &&
-                   slot_semantic != VARYING_SLOT_PSIZ &&
-                   slot_semantic != VARYING_SLOT_LAYER &&
-                   slot_semantic != VARYING_SLOT_PRIMITIVE_INDICES) {
-                  info->outputs_written_before_ps |=
-                     BITFIELD64_BIT(si_shader_io_get_unique_index(slot_semantic));
-               }
-            }
+               break;
 
-            if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+            case MESA_SHADER_FRAGMENT: {
                int color_index = mesa_frag_result_get_color_index(semantic);
 
                if (color_index != -1) {
@@ -344,6 +349,11 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
                   else if (nir_intrinsic_src_type(intr) == nir_type_uint16)
                      info->output_color_types |= SI_TYPE_UINT16 << (color_index * 2);
                }
+               break;
+            }
+
+            default:
+               break;
             }
          }
       }
