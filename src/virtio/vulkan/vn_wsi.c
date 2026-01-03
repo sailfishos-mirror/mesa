@@ -443,3 +443,13 @@ vn_AcquireNextImage2KHR(VkDevice device,
 
    return vn_result(dev->instance, result);
 }
+
+VKAPI_ATTR VkResult VKAPI_CALL
+vn_QueuePresentKHR(VkQueue _queue, const VkPresentInfoKHR *pPresentInfo)
+{
+   VN_TRACE_FUNC();
+   VK_FROM_HANDLE(vk_queue, queue_vk, _queue);
+
+   return wsi_common_queue_present(
+      queue_vk->base.device->physical->wsi_device, queue_vk, pPresentInfo);
+}
