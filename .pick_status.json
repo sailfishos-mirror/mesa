@@ -6534,7 +6534,7 @@
         "description": "nir/clip_cull_distance_utils: fix assertion failures with GL_EXT_mesh_shader",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null

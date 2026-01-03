@@ -178,6 +178,8 @@ replace_var_declaration(struct lower_distance_state *state, nir_shader *sh,
          assert((var->data.mode == nir_var_shader_in &&
                  (sh->info.stage == MESA_SHADER_GEOMETRY ||
                   sh->info.stage == MESA_SHADER_TESS_EVAL)) ||
+                (var->data.mode == nir_var_shader_out &&
+                 sh->info.stage == MESA_SHADER_MESH) ||
                 sh->info.stage == MESA_SHADER_TESS_CTRL);
 
          assert(glsl_get_base_type(glsl_get_array_element(glsl_get_array_element(var->type))) ==
