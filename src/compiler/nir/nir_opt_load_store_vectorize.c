@@ -121,6 +121,10 @@ get_info(nir_intrinsic_op op)
       INFO(nir_var_mem_shared, shared_consume_amd, true, -1, -1, -1, -1, 1)
       LOAD(0, buffer_amd, 0, 1, -1, 1)
       STORE(0, buffer_amd, 1, 2, -1, 0, 1)
+      LOAD(0, urb_lsc_intel, -1, 0, -1, 1)
+      STORE(nir_var_shader_out, urb_lsc_intel, -1, 1, -1, 0, 1)
+      LOAD(0, urb_vec4_intel, 0, 1, -1, 16)
+      STORE(nir_var_shader_out, urb_vec4_intel, 1, 2, -1, 0, 16)
    default:
       break;
 #undef ATOMIC
@@ -315,9 +319,27 @@ get_write_mask(const nir_intrinsic_instr *intrin)
    if (nir_intrinsic_has_write_mask(intrin))
       return nir_intrinsic_write_mask(intrin);
 
+   /* store_urb_vec4_intel allows non-constant writemasks, but the callback
+    * only allows vectorization of those with constant writemasks.
+    */
+   if (intrin->intrinsic == nir_intrinsic_store_urb_vec4_intel)
+      return nir_src_as_uint(intrin->src[3]);
+
    const struct intrinsic_info *info = get_info(intrin->intrinsic);
    assert(info->value_src >= 0);
    return nir_component_mask(intrin->src[info->value_src].ssa->num_components);
+}
+
+static void
+set_write_mask(nir_builder *b,
+               nir_intrinsic_instr *intrin,
+               uint32_t write_mask)
+{
+   if (nir_intrinsic_has_write_mask(intrin))
+      nir_intrinsic_set_write_mask(intrin, write_mask);
+
+   if (intrin->intrinsic == nir_intrinsic_store_urb_vec4_intel)
+      nir_src_rewrite(&intrin->src[3], nir_imm_int(b, write_mask));
 }
 
 static nir_op
@@ -1100,8 +1122,7 @@ vectorize_stores(nir_builder *b, struct vectorize_ctx *ctx,
    nir_def *data = nir_vec(b, data_channels, new_num_components);
 
    /* update the intrinsic */
-   if (nir_intrinsic_has_write_mask(second->intrin))
-      nir_intrinsic_set_write_mask(second->intrin, write_mask);
+   set_write_mask(b, second->intrin, write_mask);
    second->intrin->num_components = data->num_components;
    second->num_components = data->num_components;
 
@@ -1716,6 +1737,10 @@ handle_barrier(struct vectorize_ctx *ctx, bool *progress, nir_function_impl *imp
          default:
             break;
          }
+         break;
+      case nir_intrinsic_emit_vertex:
+      case nir_intrinsic_emit_vertex_with_counter:
+         modes = nir_var_shader_out;
          break;
       default:
          return false;
