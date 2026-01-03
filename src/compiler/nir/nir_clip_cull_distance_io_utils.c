@@ -182,6 +182,8 @@ replace_var_declaration(struct lower_distance_state *state, nir_shader *sh,
          assert((var->data.mode == nir_var_shader_in &&
                  (sh->info.stage == MESA_SHADER_GEOMETRY ||
                   sh->info.stage == MESA_SHADER_TESS_EVAL)) ||
+                (var->data.mode == nir_var_shader_out &&
+                 sh->info.stage == MESA_SHADER_MESH) ||
                 sh->info.stage == MESA_SHADER_TESS_CTRL);
 
          assert(glsl_get_base_type(glsl_get_array_element(glsl_get_array_element(var->type))) ==
@@ -513,10 +515,6 @@ nir_gather_clip_cull_distance_sizes_from_vars(nir_shader *nir)
          else if (var->data.location == VARYING_SLOT_CULL_DIST0)
             cull = var;
       }
-
-      /* The arrays must be "compact". */
-      assert(!clip || clip->data.compact);
-      assert(!cull || cull->data.compact);
 
       /* nir_merge_clip_cull_distance_vars must not have been called. */
       assert(!clip || clip->data.how_declared != nir_var_hidden);
