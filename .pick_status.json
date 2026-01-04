@@ -634,7 +634,7 @@
         "description": "venus: respect VK_SUBOPTIMAL_KHR returned from wsi image acquire",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a312bb4285642ee25c530bbcfb8d170586910866",
         "notes": null
