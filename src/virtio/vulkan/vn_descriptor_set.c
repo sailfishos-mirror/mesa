@@ -579,7 +579,6 @@ vn_ResetDescriptorPool(VkDevice device,
                        VkDescriptorPool descriptorPool,
                        VkDescriptorPoolResetFlags flags)
 {
-   VN_TRACE_FUNC();
    struct vn_device *dev = vn_device_from_handle(device);
    struct vn_descriptor_pool *pool =
       vn_descriptor_pool_from_handle(descriptorPool);
