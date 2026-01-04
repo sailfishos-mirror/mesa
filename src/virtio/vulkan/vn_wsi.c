@@ -283,10 +283,12 @@ vn_AcquireNextImage2KHR(VkDevice device,
          .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT,
          .fd = -1,
       };
-      result = vn_ImportSemaphoreFdKHR(device, &info);
+      VkResult ret = vn_ImportSemaphoreFdKHR(device, &info);
+      if (ret != VK_SUCCESS)
+         return vn_error(dev->instance, ret);
    }
 
-   if (result == VK_SUCCESS && pAcquireInfo->fence != VK_NULL_HANDLE) {
+   if (pAcquireInfo->fence != VK_NULL_HANDLE) {
       const VkImportFenceFdInfoKHR info = {
          .sType = VK_STRUCTURE_TYPE_IMPORT_FENCE_FD_INFO_KHR,
          .fence = pAcquireInfo->fence,
@@ -294,7 +296,9 @@ vn_AcquireNextImage2KHR(VkDevice device,
          .handleType = VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT,
          .fd = -1,
       };
-      result = vn_ImportFenceFdKHR(device, &info);
+      VkResult ret = vn_ImportFenceFdKHR(device, &info);
+      if (ret != VK_SUCCESS)
+         return vn_error(dev->instance, ret);
    }
 
    return vn_result(dev->instance, result);
