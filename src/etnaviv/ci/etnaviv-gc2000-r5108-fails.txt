@@ -644,7 +644,6 @@ spec@glsl-1.10@execution@variable-indexing@fs-input-array-vec2-index-rd,Fail
 shaders@zero-tex-coord bias,Fail
 spec@!opengl 1.1@push-pop-color-material,Fail
 spec@!opengl 1.1@teximage-scale-bias,Fail
-spec@!opengl 1.4@stencil-wrap,Fail
 spec@arb_fragment_program_shadow@tex-shadow2drect,Fail
 spec@khr_texture_compression_astc@miptree-gl srgb-sd,Fail
 spec@khr_texture_compression_astc@miptree-gl srgb-sd@sRGB skip decode,Fail
