@@ -323,6 +323,228 @@ vn_wsi_sync_wait(struct vn_device *dev, int fd)
       sync_wait(fd, -1);
 }
 
+static VkPresentInfoKHR *
+vn_wsi_clone_present_info(struct vn_device *dev, const VkPresentInfoKHR *pi)
+{
+   const VkAllocationCallbacks *alloc = &dev->base.vk.alloc;
+
+   VkDeviceGroupPresentInfoKHR *dgpi = NULL;
+   VkPresentRegionsKHR *pr = NULL;
+   VkPresentIdKHR *id = NULL;
+   VkPresentId2KHR *id2 = NULL;
+   VkSwapchainPresentFenceInfoKHR *spfi = NULL;
+   VkSwapchainPresentModeInfoKHR *spmi = NULL;
+   VkPresentTimingsInfoEXT *pti = NULL;
+
+   vk_foreach_struct_const(pnext, pi->pNext) {
+      switch (pnext->sType) {
+      case VK_STRUCTURE_TYPE_DEVICE_GROUP_PRESENT_INFO_KHR:
+         dgpi = (void *)pnext;
+         break;
+      case VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR:
+         pr = (void *)pnext;
+         break;
+      case VK_STRUCTURE_TYPE_PRESENT_ID_KHR:
+         id = (void *)pnext;
+         break;
+      case VK_STRUCTURE_TYPE_PRESENT_ID_2_KHR:
+         id2 = (void *)pnext;
+         break;
+      case VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_KHR:
+         spfi = (void *)pnext;
+         break;
+      case VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_KHR:
+         spmi = (void *)pnext;
+         break;
+      case VK_STRUCTURE_TYPE_PRESENT_TIMINGS_INFO_EXT:
+         pti = (void *)pnext;
+         break;
+      default:
+         break;
+      }
+   }
+
+   /* VK_KHR_swapchain */
+   VkPresentInfoKHR *_pi;
+   VkSemaphore *_pi_sems;
+   VkSwapchainKHR *_pi_chains;
+   uint32_t *_pi_indices;
+   VkResult *_pi_results;
+
+   /* VK_KHR_device_group */
+   VkDeviceGroupPresentInfoKHR *_dgpi;
+   uint32_t *_dgpi_masks;
+
+   /* VK_KHR_incremental_present */
+   VkPresentRegionsKHR *_pr;
+   VkPresentRegionKHR *_pr_regions;
+
+   /* VK_KHR_present_id */
+   VkPresentIdKHR *_id;
+   uint64_t *_id_ids;
+
+   /* VK_KHR_present_id2 */
+   VkPresentId2KHR *_id2;
+   uint64_t *_id2_ids;
+
+   /* VK_KHR_swapchain_maintenance1 */
+   VkSwapchainPresentFenceInfoKHR *_spfi;
+   VkFence *_spfi_fences;
+   VkSwapchainPresentModeInfoKHR *_spmi;
+   VkPresentModeKHR *_spmi_modes;
+
+   /* VK_EXT_present_timing */
+   VkPresentTimingsInfoEXT *_pti;
+   VkPresentTimingInfoEXT *_pti_timings;
+
+   VK_MULTIALLOC(ma);
+   vk_multialloc_add(&ma, &_pi, __typeof__(*_pi), 1);
+   vk_multialloc_add(&ma, &_pi_sems, __typeof__(*_pi_sems),
+                     pi->waitSemaphoreCount);
+   vk_multialloc_add(&ma, &_pi_chains, __typeof__(*_pi_chains),
+                     pi->swapchainCount);
+   vk_multialloc_add(&ma, &_pi_indices, __typeof__(*_pi_indices),
+                     pi->swapchainCount);
+   if (pi->pResults) {
+      vk_multialloc_add(&ma, &_pi_results, __typeof__(*_pi_results),
+                        pi->swapchainCount);
+   } else {
+      _pi_results = NULL;
+   }
+   if (dgpi) {
+      vk_multialloc_add(&ma, &_dgpi, __typeof__(*_dgpi), 1);
+      vk_multialloc_add(&ma, &_dgpi_masks, __typeof__(*_dgpi_masks),
+                        dgpi->swapchainCount);
+   }
+   if (pr) {
+      vk_multialloc_add(&ma, &_pr, __typeof__(*_pr), 1);
+      vk_multialloc_add(&ma, &_pr_regions, __typeof__(*_pr_regions),
+                        pr->swapchainCount);
+   }
+   if (id) {
+      vk_multialloc_add(&ma, &_id, __typeof__(*_id), 1);
+      vk_multialloc_add(&ma, &_id_ids, __typeof__(*_id_ids),
+                        id->swapchainCount);
+   }
+   if (id2) {
+      vk_multialloc_add(&ma, &_id2, __typeof__(*_id2), 1);
+      vk_multialloc_add(&ma, &_id2_ids, __typeof__(*_id2_ids),
+                        id2->swapchainCount);
+   }
+   if (spfi) {
+      vk_multialloc_add(&ma, &_spfi, __typeof__(*_spfi), 1);
+      vk_multialloc_add(&ma, &_spfi_fences, __typeof__(*_spfi_fences),
+                        spfi->swapchainCount);
+   }
+   if (spmi) {
+      vk_multialloc_add(&ma, &_spmi, __typeof__(*_spmi), 1);
+      vk_multialloc_add(&ma, &_spmi_modes, __typeof__(*_spmi_modes),
+                        spmi->swapchainCount);
+   }
+   if (pti) {
+      vk_multialloc_add(&ma, &_pti, __typeof__(*_pti), 1);
+      vk_multialloc_add(&ma, &_pti_timings, __typeof__(*_pti_timings),
+                        pti->swapchainCount);
+   }
+
+   if (!vk_multialloc_alloc(&ma, alloc, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE))
+      return NULL;
+
+   typed_memcpy(_pi_sems, pi->pWaitSemaphores, pi->waitSemaphoreCount);
+   typed_memcpy(_pi_chains, pi->pSwapchains, pi->swapchainCount);
+   typed_memcpy(_pi_indices, pi->pImageIndices, pi->swapchainCount);
+
+   *_pi = (VkPresentInfoKHR){
+      .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+      .waitSemaphoreCount = pi->waitSemaphoreCount,
+      .pWaitSemaphores = _pi_sems,
+      .swapchainCount = pi->swapchainCount,
+      .pSwapchains = _pi_chains,
+      .pImageIndices = _pi_indices,
+      .pResults = _pi_results,
+   };
+
+   if (dgpi) {
+      typed_memcpy(_dgpi_masks, dgpi->pDeviceMasks, dgpi->swapchainCount);
+
+      *_dgpi = (VkDeviceGroupPresentInfoKHR){
+         .sType = VK_STRUCTURE_TYPE_DEVICE_GROUP_PRESENT_INFO_KHR,
+         .swapchainCount = dgpi->swapchainCount,
+         .pDeviceMasks = _dgpi_masks,
+         .mode = dgpi->mode,
+      };
+      __vk_append_struct(_pi, _dgpi);
+   }
+
+   if (pr) {
+      typed_memcpy(_pr_regions, pr->pRegions, pr->swapchainCount);
+
+      *_pr = (VkPresentRegionsKHR){
+         .sType = VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR,
+         .swapchainCount = pr->swapchainCount,
+         .pRegions = _pr_regions,
+      };
+      __vk_append_struct(_pi, _pr);
+   }
+
+   if (id) {
+      typed_memcpy(_id_ids, id->pPresentIds, id->swapchainCount);
+
+      *_id = (VkPresentIdKHR){
+         .sType = VK_STRUCTURE_TYPE_PRESENT_ID_KHR,
+         .swapchainCount = id->swapchainCount,
+         .pPresentIds = _id_ids,
+      };
+      __vk_append_struct(_pi, _id);
+   }
+
+   if (id2) {
+      typed_memcpy(_id2_ids, id2->pPresentIds, id2->swapchainCount);
+
+      *_id2 = (VkPresentId2KHR){
+         .sType = VK_STRUCTURE_TYPE_PRESENT_ID_2_KHR,
+         .swapchainCount = id2->swapchainCount,
+         .pPresentIds = _id2_ids,
+      };
+      __vk_append_struct(_pi, _id2);
+   }
+
+   if (spfi) {
+      typed_memcpy(_spfi_fences, spfi->pFences, spfi->swapchainCount);
+
+      *_spfi = (VkSwapchainPresentFenceInfoKHR){
+         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_KHR,
+         .swapchainCount = spfi->swapchainCount,
+         .pFences = _spfi_fences,
+      };
+      __vk_append_struct(_pi, _spfi);
+   }
+
+   if (spmi) {
+      typed_memcpy(_spmi_modes, spmi->pPresentModes, spmi->swapchainCount);
+
+      *_spmi = (VkSwapchainPresentModeInfoKHR){
+         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_KHR,
+         .swapchainCount = spmi->swapchainCount,
+         .pPresentModes = _spmi_modes,
+      };
+      __vk_append_struct(_pi, _spmi);
+   }
+
+   if (pti) {
+      typed_memcpy(_pti_timings, pti->pTimingInfos, pti->swapchainCount);
+
+      *_pti = (VkPresentTimingsInfoEXT){
+         .sType = VK_STRUCTURE_TYPE_PRESENT_TIMINGS_INFO_EXT,
+         .swapchainCount = pti->swapchainCount,
+         .pTimingInfos = _pti_timings,
+      };
+      __vk_append_struct(_pi, _pti);
+   }
+
+   return _pi;
+}
+
 /* swapchain commands */
 
 VKAPI_ATTR VkResult VKAPI_CALL
