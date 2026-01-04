@@ -76,6 +76,7 @@ r300_nir_opt_algebraic_late = [
         (('fabs', ('fneg', a)), ('fabs', a)),
         # Some cleanups after comparison lowering if one of the operands is 0.
         (('fadd', a, 0.0), a),
+        (('fadd', a, -0.0), a),
         (('fadd', a, ('fneg', 0.0)), a),
         # NIR terminate_if expects bools, but we can handle floats just fine
         # so get rid of the unneeded select.
