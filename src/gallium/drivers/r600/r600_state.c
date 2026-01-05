@@ -190,6 +190,9 @@ bool r600_is_format_supported(struct pipe_screen *screen,
 		}
 	}
 
+	if (unlikely(format == PIPE_FORMAT_L8_SRGB))
+		return false;
+
 	if (usage & PIPE_BIND_SAMPLER_VIEW) {
 		if (target == PIPE_BUFFER) {
 			if (r600_is_buffer_format_supported(format, false, R600_PBO_NO_WORKAROUND_NEEDED))
