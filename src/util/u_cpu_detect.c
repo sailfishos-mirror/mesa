@@ -92,6 +92,15 @@
 #include <sched.h>
 #endif
 
+#if DETECT_OS_LINUX && DETECT_ARCH_RISCV && __has_include(<asm/hwprobe.h>)
+#include <asm/hwprobe.h>
+#include <sys/syscall.h>
+#if !defined(__NR_riscv_hwprobe)
+#define __NR_riscv_hwprobe 258
+#endif
+#define HAVE_RISCV_HWPROBE
+#endif
+
 // prevent inadvert infinite recursion
 #define util_get_cpu_caps() util_get_cpu_caps_DO_NOT_USE()
 
@@ -443,11 +452,65 @@ check_os_loongarch64_support(void)
 
 #if DETECT_ARCH_RISCV
 static void
-check_os_riscv_support(void)
+check_os_riscv_support_default(void)
 {
-   /* Stub code assume GC (IMAFDC) */
+   /* Failed to use hwprobe, assume GC (IMAFDC) */
    util_cpu_caps.has_rv_fd = 1;
    util_cpu_caps.has_rv_c = 1;
+}
+static void
+check_os_riscv_support(void)
+{
+#ifdef HAVE_RISCV_HWPROBE
+   struct riscv_hwprobe probes[] = {
+      /*
+       * IMA_EXT_0 come in the same kernel version with with the hwprobe
+       * interface (v6.4).
+       */
+      {RISCV_HWPROBE_KEY_IMA_EXT_0, 0},
+   };
+   int ret;
+
+   ret = syscall(__NR_riscv_hwprobe, probes, ARRAY_SIZE(probes), 0, NULL, 0);
+
+   if (ret != 0) {
+      /* Kernel might be too old to have hwprobe */
+      check_os_riscv_support_default();
+      return;
+   }
+
+   for (unsigned i = 0; i < ARRAY_SIZE(probes); i++) {
+      switch(probes[i].key) {
+      case RISCV_HWPROBE_KEY_IMA_EXT_0:
+	 /* IMA_FD/IMA_C definition appear in v6.4 */
+         if (probes[i].value & RISCV_HWPROBE_IMA_FD)
+            util_cpu_caps.has_rv_fd = 1;
+         if (probes[i].value & RISCV_HWPROBE_IMA_C)
+            util_cpu_caps.has_rv_c = 1;
+         /* IMA_V/EXT_ZBA/EXT_ZBB/EXT_ZBS definition appear in v6.5 */
+#if defined(RISCV_HWPROBE_IMA_V)
+         if (probes[i].value & RISCV_HWPROBE_IMA_V)
+            util_cpu_caps.has_rv_v = 1;
+#endif
+#if defined(RISCV_HWPROBE_EXT_ZBA)
+         if (probes[i].value & RISCV_HWPROBE_EXT_ZBA)
+            util_cpu_caps.has_rv_zba = 1;
+#endif
+#if defined(RISCV_HWPROBE_EXT_ZBB)
+         if (probes[i].value & RISCV_HWPROBE_EXT_ZBB)
+            util_cpu_caps.has_rv_zbb = 1;
+#endif
+#if defined(RISCV_HWPROBE_EXT_ZBS)
+         if (probes[i].value & RISCV_HWPROBE_EXT_ZBS)
+            util_cpu_caps.has_rv_zbs = 1;
+#endif
+         break;
+      }
+   }
+#else
+   /* Toolchain might be too old to have hwprobe */
+   check_os_riscv_support_default();
+#endif
 }
 #endif
 
