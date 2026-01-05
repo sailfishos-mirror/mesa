@@ -125,7 +125,8 @@ pan_pack_color(const struct pan_blendable_format *blendable_formats,
    enum mali_color_buffer_internal_format internal =
       blendable_formats[format].internal;
 
-   if (internal == MALI_COLOR_BUFFER_INTERNAL_FORMAT_RAW_VALUE) {
+   if (util_format_is_float(format) ||
+       internal == MALI_COLOR_BUFFER_INTERNAL_FORMAT_RAW_VALUE) {
       pan_pack_raw(packed, color, format);
       return;
    }
