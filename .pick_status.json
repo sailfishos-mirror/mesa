@@ -1324,7 +1324,7 @@
         "description": "wsi/display: initialize Xlib display connector property IDs in all cases",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "513ffea1d366c82e50975fd430d012ff8e652a79",
         "notes": null
