@@ -719,14 +719,6 @@ wsi_display_get_connector(struct wsi_device *wsi_device,
    if (drm_fd < 0)
       return NULL;
 
-   /* We set this flag because this is the common entrypoint before we start
-    * using atomic capabilities -- it's a simple bool setting in the kernel to
-    * make the properties we start querying be available, and re-setting it is
-    * harmless.  Otherwise, we'd need to push it up to all the entrypoints that
-    * a drm FD comes thorugh.
-    */
-   drmSetClientCap(drm_fd, DRM_CLIENT_CAP_ATOMIC, 1);
-
    drmModeConnectorPtr drm_connector =
       drmModeGetConnector(drm_fd, connector_id);
 
@@ -4552,6 +4544,8 @@ wsi_GetDrmDisplayEXT(VkPhysicalDevice physicalDevice,
       *pDisplay = VK_NULL_HANDLE;
       return VK_ERROR_UNKNOWN;
    }
+
+   drmSetClientCap(drmFd, DRM_CLIENT_CAP_ATOMIC, 1);
 
    struct wsi_display_connector *connector =
       wsi_display_get_connector(wsi_device, drmFd, connectorId);
