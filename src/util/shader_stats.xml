@@ -187,4 +187,18 @@
          </stat>
        </isa>
     </family>
+
+   <family name="PVR">
+      <isa name="Rogue">
+         <stat name="Code size">Binary size in bytes</stat>
+         <stat name="Scratch size">Scratch size per instance in bytes</stat>
+         <stat name="Spill count">Number of spilled registers per instance</stat>
+         <stat name="Temp count">Number of allocated temp registers</stat>
+         <stat name="Loop count">Number of not unrolled loops in the shader</stat>
+         <stat name="Inst group count">Total number of instruction groups</stat>
+         <stat name="Main inst group count">Number of main instruction groups</stat>
+         <stat name="Bitwise inst group count">Number of bitwise instruction groups</stat>
+         <stat name="Control inst group count">Number of control instruction groups</stat>
+      </isa>
+   </family>
 </shaderdb>

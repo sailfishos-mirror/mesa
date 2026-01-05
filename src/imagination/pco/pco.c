@@ -19,6 +19,7 @@
 #include "util/list.h"
 #include "util/macros.h"
 #include "util/ralloc.h"
+#include "util/shader_stats.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -314,5 +315,66 @@ pco_precomp_data pco_get_precomp_data(pco_shader *shader)
       .coeffs = shader->data.common.coeffs,
       .shareds = shader->data.common.shareds,
       .size_dwords = size_dwords,
+   };
+}
+
+/**
+ * \brief Returns statistics for a shader.
+ *
+ * \param[in] shader PCO shader.
+ * \return The shader statistics.
+ */
+struct pvr_stats pco_get_pvr_stats(pco_shader *shader)
+{
+   assert(shader->is_grouped);
+
+   unsigned shader_size = pco_shader_binary_size(shader);
+   assert(shader_size > 0);
+
+   unsigned loop_count = 0;
+   unsigned igrp_count = 0;
+
+   unsigned main_count = 0;
+   unsigned bitwise_count = 0;
+   unsigned control_count = 0;
+
+   pco_foreach_func_in_shader (func, shader) {
+      pco_foreach_loop_in_func (loop, func) {
+         loop_count++;
+      }
+      pco_foreach_igrp_in_func (igrp, func) {
+         igrp_count++;
+         switch (igrp->hdr.alutype) {
+         case PCO_ALUTYPE_MAIN:
+            main_count++;
+            break;
+
+         case PCO_ALUTYPE_BITWISE:
+            bitwise_count++;
+            break;
+
+         case PCO_ALUTYPE_CONTROL:
+            control_count++;
+            break;
+
+         default:
+            UNREACHABLE("Invalid pco_alutype");
+         }
+      }
+   }
+
+   return (struct pvr_stats){
+      .isa = PVR_STAT_ROGUE,
+      .rogue = (struct rogue_stats) {
+         .code_size = shader_size,
+         .scratch_size = shader->data.common.scratch,
+         .spill_count = shader->data.common.spilled_temps,
+         .temp_count = shader->data.common.temps,
+         .loop_count = loop_count,
+         .inst_group_count = igrp_count,
+         .main_inst_group_count = main_count,
+         .bitwise_inst_group_count = bitwise_count,
+         .control_inst_group_count = control_count,
+      },
    };
 }

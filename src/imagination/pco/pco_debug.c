@@ -42,6 +42,7 @@ static const struct debug_named_value pco_debug_print_options[] = {
    { "binary", PCO_DEBUG_PRINT_BINARY, "Print the resulting binary." },
    { "verbose", PCO_DEBUG_PRINT_VERBOSE, "Print verbose IR." },
    { "ra", PCO_DEBUG_PRINT_RA, "Print register alloc info." },
+   { "stats", PCO_DEBUG_PRINT_STATS, "Print shader stats." },
    DEBUG_NAMED_VALUE_END,
 };
 

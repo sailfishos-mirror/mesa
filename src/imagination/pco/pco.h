@@ -55,6 +55,7 @@ const void *pco_shader_binary_data(pco_shader *shader);
 
 void pco_validate_shader(pco_shader *shader, const char *when);
 
+void pco_print_shader_stats(pco_shader *shader, FILE *fp);
 void pco_print_shader(pco_shader *shader, FILE *fp, const char *when);
 void pco_print_binary(pco_shader *shader, FILE *fp, const char *when);
 

@@ -127,6 +127,9 @@ void pco_encode_ir(pco_ctx *ctx, pco_shader *shader)
 
    if (pco_should_print_binary(shader))
       pco_print_binary(shader, stdout, "after encoding");
+
+   if (pco_should_print_stats(shader))
+      pco_print_shader_stats(shader, stdout);
 }
 
 /**

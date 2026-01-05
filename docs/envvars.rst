@@ -2168,6 +2168,8 @@ PowerVR driver environment variables
       Print verbose IR.
    ``ra``
       Print register alloc info.
+   ``stats``
+      Print shader stats.
 
 .. envvar:: PCO_COLOR
 
