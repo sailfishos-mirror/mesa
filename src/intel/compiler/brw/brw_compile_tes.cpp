@@ -111,6 +111,15 @@ brw_compile_tes(const struct brw_compiler *compiler,
                                nir->info.patch_inputs_read,
                                key->separate_tess_vue_layout);
    }
+
+   const uint32_t pos_slots =
+      (nir->info.per_view_outputs & VARYING_BIT_POS) ?
+      MAX2(1, util_bitcount(key->base.view_mask)) : 1;
+
+   brw_compute_vue_map(devinfo, &prog_data->base.vue_map,
+                       nir->info.outputs_written,
+                       key->base.vue_layout, pos_slots);
+
    brw_nir_apply_key(pt, &key->base, dispatch_width);
    brw_nir_lower_tes_inputs(nir, devinfo, &input_vue_map);
    brw_nir_lower_vue_outputs(nir);
@@ -120,14 +129,6 @@ brw_compile_tes(const struct brw_compiler *compiler,
    BRW_NIR_PASS(intel_nir_lower_patch_vertices_tes);
 
    brw_postprocess_nir(pt, debug_enabled, key->base.robust_flags);
-
-   const uint32_t pos_slots =
-      (nir->info.per_view_outputs & VARYING_BIT_POS) ?
-      MAX2(1, util_bitcount(key->base.view_mask)) : 1;
-
-   brw_compute_vue_map(devinfo, &prog_data->base.vue_map,
-                       nir->info.outputs_written,
-                       key->base.vue_layout, pos_slots);
 
    unsigned output_size_bytes = prog_data->base.vue_map.num_slots * 4 * 4;
 
