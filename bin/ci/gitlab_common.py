@@ -177,3 +177,7 @@ def wait_for_pipeline(projects, sha: str, timeout=None):
             print(" not found", flush=True)
             return (None, None)
         time.sleep(1)
+
+@cache
+def is_gitlab_job() -> bool:
+    return os.getenv("CI_JOB_ID") is not None

@@ -20,7 +20,6 @@ from collections import defaultdict, Counter
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from itertools import chain
-from os import getenv
 from subprocess import check_output, CalledProcessError
 from typing import Callable, Dict, TYPE_CHECKING, Iterable, Literal, Optional, Tuple, cast
 
@@ -32,6 +31,7 @@ from gitlab_common import (
     get_gitlab_pipeline_from_url,
     get_gitlab_project,
     get_token_from_default_dir,
+    is_gitlab_job,
     pretty_duration,
     read_token,
     wait_for_pipeline,
@@ -57,7 +57,7 @@ STATUS_COLORS = defaultdict(lambda: "", {
 COMPLETED_STATUSES = frozenset({"success", "failed"})
 RUNNING_STATUSES = frozenset({"created", "pending", "running"})
 
-if getenv("CI_JOB_ID"):
+if is_gitlab_job():
     console = Console(highlight=False, no_color=False, color_system="truecolor", width=120)
 else:
     console = Console(highlight=False)
