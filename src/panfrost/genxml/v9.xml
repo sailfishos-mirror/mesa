@@ -944,6 +944,10 @@
     <value name="R4G4B4A4" value="4"/>
     <value name="R5G6B5A0" value="5"/>
     <value name="R5G5B5A1" value="6"/>
+    <value name="R16F" value="16"/>
+    <value name="RG16F" value="17"/>
+    <value name="RGBA16F" value="18"/>
+    <value name="RG11F_B10F" value="20"/>
     <value name="RAW8" value="32"/>
     <value name="RAW16" value="33"/>
     <value name="RAW32" value="34"/>
@@ -980,6 +984,22 @@
     <value name="R5G5B5A1" value="28"/>
     <value name="A1B5G5R5" value="29"/>
     <value name="NATIVE" value="31"/>
+  </enum>
+
+  <enum name="Float Color Format">
+    <value name="RAW8" value="0"/>
+    <value name="RAW16" value="1"/>
+    <value name="RAW24" value="2"/>
+    <value name="RAW32" value="3"/>
+    <value name="RAW48" value="4"/>
+    <value name="RAW64" value="5"/>
+    <value name="RAW96" value="6"/>
+    <value name="RAW128" value="7"/>
+    <value name="R16F" value="16"/>
+    <value name="RG16F" value="17"/>
+    <value name="RGB16F" value="18"/>
+    <value name="RGBA16F" value="19"/>
+    <value name="RG11F_B10F" value="20"/>
   </enum>
 
   <enum name="Downsampling Accumulation Mode">
@@ -1195,6 +1215,7 @@
     <field name="Internal Format" size="6" start="0:26" type="Color Buffer Internal Format"/>
     <field name="Write Enable" size="1" start="1:0" type="bool"/>
     <field name="Writeback Format" size="5" start="1:3" type="Color Format"/>
+    <field name="Writeback Float Format" size="5" start="1:3" type="Float Color Format"/>
     <field name="Writeback Block Format" size="4" start="1:8" type="Block Format"/>
     <field name="Writeback MSAA" size="2" start="1:12" type="MSAA"/>
     <field name="sRGB" size="1" start="1:14" type="bool"/>
@@ -1238,6 +1259,7 @@
     <field name="Internal Format" size="6" start="0:26" type="Color Buffer Internal Format"/>
     <field name="Write Enable" size="1" start="1:0" type="bool"/>
     <field name="Writeback Format" size="5" start="1:3" type="Color Format"/>
+    <field name="Writeback Float Format" size="5" start="1:3" type="Float Color Format"/>
     <field name="Writeback Block Format" size="4" start="1:8" type="Block Format"/>
     <field name="Writeback MSAA" size="2" start="1:12" type="MSAA"/>
     <field name="sRGB" size="1" start="1:14" type="bool"/>
