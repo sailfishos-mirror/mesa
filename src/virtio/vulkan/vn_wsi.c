@@ -792,6 +792,13 @@ vn_QueuePresentKHR(VkQueue _queue, const VkPresentInfoKHR *pPresentInfo)
 {
    VN_TRACE_FUNC();
    VK_FROM_HANDLE(vk_queue, queue_vk, _queue);
+   struct vn_device *dev = vn_device_from_vk(queue_vk->base.device);
+
+   if (!dev->renderer->info.has_implicit_fencing &&
+       !VN_PERF(NO_ASYNC_PRESENT)) {
+      struct vn_queue *queue = vn_queue_from_handle(_queue);
+      return vn_wsi_present_async(dev, queue, pPresentInfo);
+   }
 
    return wsi_common_queue_present(
       queue_vk->base.device->physical->wsi_device, queue_vk, pPresentInfo);

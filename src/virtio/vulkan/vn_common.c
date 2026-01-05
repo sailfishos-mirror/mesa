@@ -54,6 +54,7 @@ static const struct debug_control vn_perf_options[] = {
    { "no_multi_ring", VN_PERF_NO_MULTI_RING },
    { "no_async_image_create", VN_PERF_NO_ASYNC_IMAGE_CREATE },
    { "no_async_image_format", VN_PERF_NO_ASYNC_IMAGE_FORMAT },
+   { "no_async_present", VN_PERF_NO_ASYNC_PRESENT },
    { NULL, 0 },
    /* clang-format on */
 };
