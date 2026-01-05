@@ -441,6 +441,15 @@ check_os_loongarch64_support(void)
 }
 #endif /* DETECT_ARCH_LOONGARCH64 */
 
+#if DETECT_ARCH_RISCV
+static void
+check_os_riscv_support(void)
+{
+   /* Stub code assume GC (IMAFDC) */
+   util_cpu_caps.has_rv_fd = 1;
+   util_cpu_caps.has_rv_c = 1;
+}
+#endif
 
 static void
 get_cpu_topology(bool zen)
@@ -886,6 +895,10 @@ _util_cpu_detect_once(void)
    check_os_loongarch64_support();
 #endif /* DETECT_ARCH_LOONGARCH64 */
 
+#if DETECT_ARCH_RISCV
+   check_os_riscv_support();
+#endif /* DETECT_ARCH_RISCV */
+
    check_cpu_caps_override();
 
    /* max_vector_bits should be checked after cpu caps override */
@@ -916,6 +929,12 @@ _util_cpu_detect_once(void)
       printf("util_cpu_caps.has_daz = %u\n", util_cpu_caps.has_daz);
       printf("util_cpu_caps.has_lsx = %u\n", util_cpu_caps.has_lsx);
       printf("util_cpu_caps.has_lasx = %u\n", util_cpu_caps.has_lasx);
+      printf("util_cpu_caps.has_rv_fd = %u\n", util_cpu_caps.has_rv_fd);
+      printf("util_cpu_caps.has_rv_c = %u\n", util_cpu_caps.has_rv_c);
+      printf("util_cpu_caps.has_rv_v = %u\n", util_cpu_caps.has_rv_v);
+      printf("util_cpu_caps.has_rv_zba = %u\n", util_cpu_caps.has_rv_zba);
+      printf("util_cpu_caps.has_rv_zbb = %u\n", util_cpu_caps.has_rv_zbb);
+      printf("util_cpu_caps.has_rv_zbs = %u\n", util_cpu_caps.has_rv_zbs);
       printf("util_cpu_caps.has_avx512f = %u\n", util_cpu_caps.has_avx512f);
       printf("util_cpu_caps.has_avx512dq = %u\n", util_cpu_caps.has_avx512dq);
       printf("util_cpu_caps.has_avx512ifma = %u\n", util_cpu_caps.has_avx512ifma);

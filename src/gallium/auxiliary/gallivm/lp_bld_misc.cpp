@@ -410,11 +410,15 @@ lp_build_fill_mattrs(std::vector<std::string> &MAttrs)
 #endif
 
 #if DETECT_ARCH_RISCV64 == 1
-   /* Before riscv is more matured and util_get_cpu_caps() is implemented,
-    * assume this for now since most of linux capable riscv machine are
-    * riscv64gc
-    */
-   MAttrs = {"+m","+c","+a","+d","+f"};
+   /* Linux currently requires IMA, so hardcode it */
+   MAttrs = {"+m","+a"};
+   MAttrs.push_back(util_get_cpu_caps()->has_rv_fd ? "+f" : "-f");
+   MAttrs.push_back(util_get_cpu_caps()->has_rv_fd ? "+d" : "-d");
+   MAttrs.push_back(util_get_cpu_caps()->has_rv_c ? "+c" : "-c");
+   MAttrs.push_back(util_get_cpu_caps()->has_rv_v ? "+v" : "-v");
+   MAttrs.push_back(util_get_cpu_caps()->has_rv_zba ? "+zba" : "-zba");
+   MAttrs.push_back(util_get_cpu_caps()->has_rv_zbb ? "+zbb" : "-zbb");
+   MAttrs.push_back(util_get_cpu_caps()->has_rv_zbs ? "+zbb" : "-zbs");
 #endif
 
 #if DETECT_ARCH_LOONGARCH64 == 1
