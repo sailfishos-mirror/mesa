@@ -35,6 +35,9 @@ vn_wsi_validate_image_format_info(
    struct vn_physical_device *physical_dev,
    const VkPhysicalDeviceImageFormatInfo2 *info);
 
+void
+vn_wsi_sync_wait(struct vn_device *dev, int fd);
+
 #else
 
 static inline VkResult
@@ -63,6 +66,12 @@ vn_wsi_validate_image_format_info(struct vn_physical_device *physical_dev,
                                   const VkPhysicalDeviceImageFormatInfo2 *info)
 {
    return true;
+}
+
+static inline void
+vn_wsi_sync_wait(struct vn_device *dev, int fd)
+{
+   return;
 }
 
 #endif /* VN_USE_WSI_PLATFORM */

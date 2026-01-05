@@ -252,6 +252,13 @@ vn_wsi_validate_image_format_info(struct vn_physical_device *physical_dev,
    return true;
 }
 
+void
+vn_wsi_sync_wait(struct vn_device *dev, int fd)
+{
+   if (!dev->renderer->info.has_implicit_fencing)
+      sync_wait(fd, -1);
+}
+
 /* swapchain commands */
 
 VKAPI_ATTR VkResult VKAPI_CALL

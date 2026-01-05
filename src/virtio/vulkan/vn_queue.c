@@ -10,7 +10,6 @@
 
 #include "vn_queue.h"
 
-#include "util/libsync.h"
 #include "venus-protocol/vn_protocol_driver_event.h"
 #include "venus-protocol/vn_protocol_driver_fence.h"
 #include "venus-protocol/vn_protocol_driver_queue.h"
@@ -2449,10 +2448,7 @@ vn_GetSemaphoreFdKHR(VkDevice device,
       if (result != VK_SUCCESS)
          return vn_error(dev->instance, result);
 
-#ifdef VN_USE_WSI_PLATFORM
-      if (!dev->renderer->info.has_implicit_fencing)
-         sync_wait(fd, -1);
-#endif
+      vn_wsi_sync_wait(dev, fd);
    } else {
       assert(payload->type == VN_SYNC_TYPE_IMPORTED_SYNC_FD);
 
