@@ -319,8 +319,28 @@ vn_wsi_validate_image_format_info(struct vn_physical_device *physical_dev,
 void
 vn_wsi_sync_wait(struct vn_device *dev, int fd)
 {
-   if (!dev->renderer->info.has_implicit_fencing)
-      sync_wait(fd, -1);
+   if (dev->renderer->info.has_implicit_fencing)
+      return;
+
+   const pid_t tid = vn_gettid();
+   struct vn_queue *queue = NULL;
+   for (uint32_t i = 0; i < dev->queue_count; i++) {
+      if (dev->queues[i].async_present.initialized &&
+          dev->queues[i].async_present.tid == tid) {
+         queue = &dev->queues[i];
+         break;
+      }
+   }
+
+   if (queue) {
+      vn_wsi_chains_unlock(dev, queue->async_present.info, /*all=*/false);
+   }
+
+   sync_wait(fd, -1);
+
+   if (queue) {
+      vn_wsi_chains_lock(dev, queue->async_present.info, /*all=*/false);
+   }
 }
 
 void
