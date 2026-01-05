@@ -2579,7 +2579,7 @@ load("shared_uniform_block_intel", [1], [BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET],
 # loads can be reordered freely.
 #
 # src[] = { urb_handle, offset }.
-load("urb_vec4_intel", [1, 1], [BASE, ACCESS], [CAN_ELIMINATE])
+load("urb_vec4_intel", [1, 1], [BASE, ACCESS, MEMORY_MODES], [CAN_ELIMINATE])
 
 # Newer Xe2+ URB read.  This takes a byte offset into the URB memory
 # (which is the handle plus any offset).  The hardware can implicitly
@@ -2588,7 +2588,7 @@ load("urb_vec4_intel", [1, 1], [BASE, ACCESS], [CAN_ELIMINATE])
 # will never be written to and that loads can be reordered freely.
 #
 # src[] = { address }.
-load("urb_lsc_intel", [1], [BASE, ACCESS], [CAN_ELIMINATE])
+load("urb_lsc_intel", [1], [BASE, ACCESS, MEMORY_MODES], [CAN_ELIMINATE])
 
 # Legacy pre-Xe2 URB write.  This takes a URB handle, a 128-bit (vec4)
 # aligned offset and a writemask (which can be non-constant).

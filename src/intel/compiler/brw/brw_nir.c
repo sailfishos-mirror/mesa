@@ -56,6 +56,12 @@ is_per_primitive(nir_intrinsic_instr *intrin)
           intrin->intrinsic == nir_intrinsic_store_per_primitive_output;
 }
 
+static nir_variable_mode
+io_mode(nir_intrinsic_instr *io)
+{
+   return is_input(io) ? nir_var_shader_in : nir_var_shader_out;
+}
+
 /**
  * Given an URB offset in 32-bit units, determine whether (offset % 4)
  * is statically known.  If so, add this to the value of first_component.
@@ -180,6 +186,7 @@ load_urb(nir_builder *b,
          enum gl_access_qualifier access)
 {
    const struct intel_device_info *devinfo = cb_data->devinfo;
+   const nir_variable_mode mode = io_mode(intrin);
    const unsigned bits = intrin->def.bit_size;
    const unsigned base = io_base_slot(intrin, cb_data);
    unsigned first_component = io_component(intrin, cb_data);
@@ -189,7 +196,7 @@ load_urb(nir_builder *b,
       return nir_load_urb_lsc_intel(b, intrin->def.num_components, bits,
                                     nir_iadd(b, handle, offset),
                                     16 * base + 4 * first_component,
-                                    .access = access);
+                                    .access = access, .memory_modes = mode);
    }
 
    /* Load a whole vec4 or vec8 and return the desired portion */
@@ -200,7 +207,8 @@ load_urb(nir_builder *b,
       assert(intrin->def.num_components <= 4);
       nir_def *load =
          nir_load_urb_vec4_intel(b, 4, bits, handle, offset,
-                                 .base = base, .access = access);
+                                 .base = base, .access = access,
+                                 .memory_modes = mode);
       return nir_channels(b, load, mask << first_component);
    }
 
@@ -216,7 +224,8 @@ load_urb(nir_builder *b,
 
    nir_def *load =
       nir_load_urb_vec4_intel(b, single_vec4 ? 4 : 8, bits, handle,
-                              vec4_offset, .base = base, .access = access);
+                              vec4_offset, .base = base, .access = access,
+                              .memory_modes = mode);
 
    if (static_mod) {
       return nir_channels(b, load, mask << first_component);
@@ -493,6 +502,7 @@ remap_tess_levels_legacy(nir_builder *b,
 
    b->cursor = nir_before_instr(&intrin->instr);
 
+   const nir_variable_mode mode = io_mode(intrin);
    const bool inner = io_sem.location == VARYING_SLOT_TESS_LEVEL_INNER;
 
    nir_def *tess_config = nir_load_tess_config_intel(b);
@@ -584,7 +594,8 @@ remap_tess_levels_legacy(nir_builder *b,
       } else {
          assert(intrin->intrinsic == nir_intrinsic_load_output);
          nir_def *vec =
-            nir_load_urb_vec4_intel(b, 4, 32, output_handle(b), slot);
+            nir_load_urb_vec4_intel(b, 4, 32, output_handle(b), slot,
+                                    .memory_modes = mode);
          const unsigned nc = intrin->def.num_components;
 
          nir_def *result =
