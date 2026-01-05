@@ -691,6 +691,7 @@ wsi_display_alloc_connector(struct wsi_display *wsi,
    connector->active = false;
    connector->imported = imported;
    list_inithead(&connector->display_modes);
+   list_addtail(&connector->list, &wsi->connectors);
 
    return connector;
 }
@@ -741,7 +742,6 @@ wsi_display_get_connector(struct wsi_device *wsi_device,
          drmModeFreeConnector(drm_connector);
          return NULL;
       }
-      list_addtail(&connector->list, &wsi->connectors);
    }
 
    if (!find_connector_properties(connector, drm_connector, drm_fd)) {
@@ -4036,7 +4036,6 @@ wsi_display_get_randr_output(struct wsi_device *wsi_device,
          if (!connector) {
             return NULL;
          }
-         list_addtail(&connector->list, &wsi->connectors);
       }
       connector->output = output;
    }
