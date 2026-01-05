@@ -215,3 +215,18 @@ vk_advanced_blend_op_to_pipe(VkBlendOp in)
       UNREACHABLE("Invalid advanced blend op");
    }
 }
+
+enum pipe_blend_overlap_mode
+vk_blend_overlap_to_pipe(VkBlendOverlapEXT in)
+{
+   switch (in) {
+   case VK_BLEND_OVERLAP_UNCORRELATED_EXT:
+      return PIPE_BLEND_OVERLAP_UNCORRELATED;
+   case VK_BLEND_OVERLAP_DISJOINT_EXT:
+      return PIPE_BLEND_OVERLAP_DISJOINT;
+   case VK_BLEND_OVERLAP_CONJOINT_EXT:
+      return PIPE_BLEND_OVERLAP_CONJOINT;
+   default:
+      UNREACHABLE("Invalid blend overlap");
+   }
+}
