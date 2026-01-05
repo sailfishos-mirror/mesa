@@ -178,6 +178,9 @@ bool
 radv_are_formats_dcc_compatible(const struct radv_physical_device *pdev, const void *pNext, VkFormat format,
                                 VkImageCreateFlags flags, bool *sign_reinterpret)
 {
+   if (pdev->info.gfx_level >= GFX12)
+      return true;
+
    if (!radv_is_colorbuffer_format_supported(pdev, format))
       return false;
 
@@ -276,7 +279,7 @@ radv_use_dcc_for_image_early(struct radv_device *device, struct radv_image *imag
    if (pCreateInfo->tiling == VK_IMAGE_TILING_LINEAR)
       return false;
 
-   if (vk_format_is_subsampled(format) || vk_format_get_plane_count(format) > 1)
+   if (vk_format_is_subsampled(format) || (pdev->info.gfx_level < GFX12 && vk_format_get_plane_count(format) > 1))
       return false;
 
    if (!radv_image_use_fast_clear_for_image_early(device, image) &&
@@ -1271,7 +1274,7 @@ radv_image_create_layout(struct radv_device *device, struct radv_image_create_in
       info.width = vk_format_get_plane_width(image->vk.format, plane, info.width);
       info.height = vk_format_get_plane_height(image->vk.format, plane, info.height);
 
-      if (create_info.no_metadata_planes || plane_count > 1) {
+      if (create_info.no_metadata_planes || (pdev->info.gfx_level < GFX12 && plane_count > 1)) {
          image->planes[plane].surface.flags |= RADEON_SURF_DISABLE_DCC | RADEON_SURF_NO_FMASK | RADEON_SURF_NO_HTILE;
       }
 
