@@ -129,7 +129,7 @@ struct VirtGpuPciBusInfo {
     uint8_t function;
 };
 
-#define INVALID_DESCRIPTOR -1
+#define INVALID_DESCRIPTOR 0xFFFFFFFFU
 
 class VirtGpuResourceMapping;
 class VirtGpuResource;
