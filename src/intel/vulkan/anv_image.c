@@ -480,6 +480,24 @@ formats_ccs_e_compatible(const struct anv_physical_device *physical_device,
    if (!(create_flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT))
       return true;
 
+   /* On gfx12+, we specify the compression format independently from the
+    * surface format. So, even if the surface format changes, hardware is
+    * still able to determine how to access the CCS. However, it's not until
+    * gfx20+ that we support compression with the following formats:
+    *  - ISL_FORMAT_L8_UNORM_SRGB
+    *  - ISL_FORMAT_L8A8_UNORM_SRGB
+    *  - ISL_FORMAT_R9G9B9E5_SHAREDEXP
+    */
+   if (devinfo->ver >= 20)
+      return true;
+
+   if (devinfo->ver == 12 && isl_format_get_layout(format)->bpb >= 64)
+      return true;
+
+   /* The three RGBA32 formats are CCS_E-compatible on gfx9-11. */
+   if (isl_format_get_layout(format)->bpb == 128)
+      return true;
+
    if (!fmt_list || fmt_list->viewFormatCount == 0)
       return false;
 
@@ -2074,7 +2092,8 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
    if (image->vk.create_flags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) {
       if (!fmt_list || fmt_list->viewFormatCount == 0) {
          /* Without a format list provided, we must assume all compatible
-          * formats. Instead of adding them all, mark our list as incomplete.
+          * formats. Instead of adding them all with
+          * vk_image_create_get_format_list(), mark our list as incomplete.
           */
          mark_image_view_formats_incomplete(image);
       } else {
