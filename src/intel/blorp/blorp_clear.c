@@ -490,9 +490,6 @@ fast_clear_surf(struct blorp_batch *batch,
    get_fast_clear_rect(batch->blorp->isl_dev, surf->surf, surf->aux_surf,
                        &params.x0, &params.y0, &params.x1, &params.y1);
 
-   if (!blorp_params_get_clear_kernel(batch, &params, true, true, false))
-      return;
-
    blorp_surface_info_init(batch, &params.dst, surf, level,
                            start_layer, format, true);
 
@@ -512,6 +509,9 @@ fast_clear_surf(struct blorp_batch *batch,
       params.op = BLORP_OP_CCS_COLOR_CLEAR;
    else
       params.op = BLORP_OP_MCS_COLOR_CLEAR;
+
+   if (!blorp_params_get_clear_kernel(batch, &params, true, true, false))
+      return;
 
    batch->blorp->exec(batch, &params);
 }
