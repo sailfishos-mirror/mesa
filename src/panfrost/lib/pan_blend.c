@@ -131,6 +131,25 @@ pan_blend_is_homogenous_constant(unsigned mask, const float *constants)
    return true;
 }
 
+uint16_t
+pan_pack_blend_constant(enum pipe_format format, float cons)
+{
+   const struct util_format_description *format_desc =
+      util_format_description(format);
+
+   /* On Bifrost, the blend constant is expressed with a UNORM of the
+    * size of the target format. The value is then shifted such that
+    * used bits are in the MSB.
+    */
+   unsigned chan_size = 0;
+   for (unsigned i = 0; i < format_desc->nr_channels; i++)
+      chan_size = MAX2(format_desc->channel[0].size, chan_size);
+
+   float factor = ((1 << chan_size) - 1) << (16 - chan_size);
+
+   return cons * factor;
+}
+
 /* Determines if an equation can run in fixed function */
 
 bool

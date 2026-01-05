@@ -216,26 +216,6 @@ emit_blend_desc(const struct pan_shader_info *fs_info, uint64_t fs_code,
    }
 }
 
-static uint16_t
-get_ff_blend_constant(const struct pan_blend_state *state, unsigned rt_idx,
-                      unsigned const_idx)
-{
-   const struct pan_blend_rt_state *rt = &state->rts[rt_idx];
-
-   /* On Bifrost, the blend constant is expressed with a UNORM of the
-    * size of the target format. The value is then shifted such that
-    * used bits are in the MSB.
-    */
-   const struct util_format_description *format_desc =
-      util_format_description(rt->format);
-   unsigned chan_size = 0;
-   for (unsigned c = 0; c < format_desc->nr_channels; c++)
-      chan_size = MAX2(format_desc->channel[c].size, chan_size);
-   float factor = ((1 << chan_size) - 1) << (16 - chan_size);
-
-   return (uint16_t)(state->constants[const_idx] * factor);
-}
-
 static bool
 blend_needs_shader(const struct pan_blend_state *state, unsigned rt_idx,
                    unsigned *ff_blend_constant)
@@ -275,8 +255,9 @@ blend_needs_shader(const struct pan_blend_state *state, unsigned rt_idx,
     */
    unsigned blend_const = ~0;
    if (constant_mask) {
-      blend_const =
-         get_ff_blend_constant(state, rt_idx, ffs(constant_mask) - 1);
+      const float blend_const_f =
+         pan_blend_get_constant(constant_mask, state->constants);
+      blend_const = pan_pack_blend_constant(rt->format, blend_const_f);
 
       if (*ff_blend_constant != ~0 && blend_const != *ff_blend_constant)
          return true;

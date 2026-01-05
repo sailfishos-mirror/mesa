@@ -119,6 +119,8 @@ pan_blend_supports_2src(unsigned arch)
 
 bool pan_blend_is_homogenous_constant(unsigned mask, const float *constants);
 
+uint16_t pan_pack_blend_constant(enum pipe_format format, float cons);
+
 void pan_blend_to_fixed_function_equation(const struct pan_blend_equation eq,
                                           struct MALI_BLEND_EQUATION *equation);
 

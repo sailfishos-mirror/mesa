@@ -281,21 +281,6 @@ panfrost_get_blend_shaders(struct panfrost_batch *batch,
 }
 
 #if PAN_ARCH >= 5
-UNUSED static uint16_t
-pack_blend_constant(enum pipe_format format, float cons)
-{
-   const struct util_format_description *format_desc =
-      util_format_description(format);
-
-   unsigned chan_size = 0;
-
-   for (unsigned i = 0; i < format_desc->nr_channels; i++)
-      chan_size = MAX2(format_desc->channel[0].size, chan_size);
-
-   uint16_t unorm = (cons * ((1 << chan_size) - 1));
-   return unorm << (16 - chan_size);
-}
-
 static void
 panfrost_emit_blend(struct panfrost_batch *batch, void *rts,
                     uint64_t *blend_shaders)
@@ -334,7 +319,7 @@ panfrost_emit_blend(struct panfrost_batch *batch, void *rts,
          cfg.alpha_to_one = ctx->blend->base.alpha_to_one;
 #if PAN_ARCH >= 6
          if (!blend_shaders[i])
-            cfg.blend_constant = pack_blend_constant(format, cons);
+            cfg.blend_constant = pan_pack_blend_constant(format, cons);
 #else
          cfg.blend_shader = (blend_shaders[i] != 0);
 
