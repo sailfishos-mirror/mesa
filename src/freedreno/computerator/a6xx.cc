@@ -550,8 +550,13 @@ a6xx_emit_grid(struct kernel *kernel, uint32_t grid[3],
    cs_uav_emit<CHIP>(cs, a6xx_backend->dev, kernel);
    cs_ubo_emit(cs, kernel);
 
-   fd_pkt7(cs, CP_SET_MARKER, 1)
-      .add(A6XX_CP_SET_MARKER_0(.mode = RM6_COMPUTE));
+   if (CHIP >= A8XX) {
+      fd_pkt7(cs, CP_SET_MARKER, 1)
+         .add(A8XX_CP_SET_MARKER_0(.mode = RM6_COMPUTE));
+   } else{
+      fd_pkt7(cs, CP_SET_MARKER, 1)
+         .add(A6XX_CP_SET_MARKER_0(.mode = RM6_COMPUTE));
+   }
 
    const unsigned *local_size = kernel->local_size;
    const unsigned *num_groups = grid;
