@@ -82,10 +82,10 @@ extern "C" {
  *   - Vertex 0 of each TCS output starts on an address aligned to 256 to make TCS output stores
  *     from each subgroup always store 256B-aligned blocks of 256*N bytes.
  *
- * Number 256 comes from GB_ADDR_CONFIG.PIPE_INTERLEAVE_SIZE and is stored in
- * radeon_info::pipe_interleave_bytes. It's always 256 on all GCN and RDNA chips. "Pipe" means
- * a memory channel in this context.
+ * Number 256 comes from GB_ADDR_CONFIG.PIPE_INTERLEAVE_SIZE. It's always 256 on all GCN and RDNA
+ * chips. "Pipe" means a memory channel in this context.
  */
+#define AMD_MEMCHANNEL_INTERLEAVE_BYTES 256 /* always equal to GB_ADDR_CONFIG.PIPE_INTERLEAVE_SIZE */
 
 struct amdgpu_gpu_info;
 struct drm_amdgpu_info_device;
@@ -417,12 +417,12 @@ struct radeon_info {
    uint32_t r600_gb_backend_map; /* R600 harvest config */
    bool r600_gb_backend_map_valid;
    uint32_t r600_num_banks;
+   uint32_t r600_pipe_interleave_bytes;
    uint32_t mc_arb_ramcfg;
    uint32_t gb_addr_config;
    uint32_t pa_sc_tile_steering_override; /* CLEAR_STATE also sets this */
    uint32_t max_render_backends;  /* number of render backends incl. disabled ones */
    uint32_t num_tile_pipes; /* pipe count from PIPE_CONFIG */
-   uint32_t pipe_interleave_bytes;
    uint64_t enabled_rb_mask; /* bitmask of enabled physical RBs, up to max_render_backends bits */
    uint64_t max_alignment;   /* from addrlib */
    uint32_t pbb_max_alloc_count;

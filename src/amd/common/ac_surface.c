@@ -1276,7 +1276,7 @@ static int gfx6_surface_settings(struct ac_addrlib *addrlib, const struct radeon
 static void ac_compute_cmask(const struct radeon_info *info, const struct ac_surf_config *config,
                              struct radeon_surf *surf)
 {
-   unsigned pipe_interleave_bytes = info->pipe_interleave_bytes;
+   unsigned pipe_interleave_bytes = AMD_MEMCHANNEL_INTERLEAVE_BYTES;
    unsigned num_pipes = info->num_tile_pipes;
    unsigned cl_width, cl_height;
 

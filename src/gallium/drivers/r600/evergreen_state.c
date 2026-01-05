@@ -1076,7 +1076,7 @@ static void evergreen_set_color_surface_buffer(struct r600_context *rctx,
 	const struct util_format_description *desc;
 	unsigned block_size = util_format_get_blocksize(res->b.b.format);
 	unsigned pitch_alignment =
-		MAX2(64, rctx->screen->b.info.pipe_interleave_bytes / block_size);
+		MAX2(64, rctx->screen->b.info.r600_pipe_interleave_bytes / block_size);
 	unsigned pitch = align(res->b.b.width0, pitch_alignment);
 	int i;
 	unsigned width_elements;
