@@ -313,6 +313,13 @@ get_bit_size(struct entry *entry)
    return size == 1 ? 32u : size;
 }
 
+static bool
+has_write_mask(const nir_intrinsic_instr *intrin)
+{
+   return nir_intrinsic_has_write_mask(intrin) ||
+          intrin->intrinsic == nir_intrinsic_store_urb_vec4_intel;
+}
+
 static unsigned
 get_write_mask(const nir_intrinsic_instr *intrin)
 {
@@ -817,6 +824,26 @@ cast_deref(nir_builder *b, unsigned num_components, unsigned bit_size, nir_deref
    return nir_build_deref_cast(b, &deref->def, deref->modes, type, 0);
 }
 
+static unsigned
+calc_new_num_components(const struct vectorize_ctx *ctx,
+                        const struct entry *e,
+                        unsigned new_size,
+                        unsigned new_bit_size)
+{
+   unsigned new_num_components = MAX2(new_size / new_bit_size, 1);
+
+   /* Round up the number of components for loads to the next valid vector
+    * size (effectively overfetching).  Optionally, round up the number of
+    * components for stores which support writemasking as well.
+    */
+   if (!e->is_store ||
+       (ctx->options->round_up_store_components && has_write_mask(e->intrin))) {
+      new_num_components = nir_round_up_components(new_num_components);
+   }
+
+   return new_num_components;
+}
+
 /* Return true if "new_bit_size" is a usable bit size for a vectorized load/store
  * of "low" and "high". */
 static bool
@@ -826,19 +853,11 @@ new_bitsize_acceptable(struct vectorize_ctx *ctx, unsigned new_bit_size,
    if (size % new_bit_size != 0)
       return false;
 
-   unsigned new_num_components = size / new_bit_size;
+   unsigned new_num_components =
+      calc_new_num_components(ctx, low, size, new_bit_size);
 
-   if (low->is_store) {
-      if (!nir_num_components_valid(new_num_components))
-         return false;
-   } else {
-      /* Invalid component counts must be rejected by the callback, otherwise
-       * the load will overfetch by aligning the number to the next valid
-       * component count.
-       */
-      if (new_num_components > NIR_MAX_VEC_COMPONENTS)
-         return false;
-   }
+   if (!nir_num_components_valid(new_num_components))
+      return false;
 
    unsigned high_offset = get_offset_diff(low, high);
 
@@ -860,7 +879,7 @@ new_bitsize_acceptable(struct vectorize_ctx *ctx, unsigned new_bit_size,
 
    if (!ctx->options->callback(low->align_mul,
                                low->align_offset,
-                               new_bit_size, new_num_components, hole_size,
+                               new_bit_size, size / new_bit_size, hole_size,
                                low->intrin, high->intrin,
                                ctx->options->cb_data))
       return false;
@@ -957,13 +976,6 @@ vectorize_loads(nir_builder *b, struct vectorize_ctx *ctx,
    nir_def *data = &first->intrin->def;
 
    b->cursor = nir_after_instr(first->instr);
-
-   /* Align num_components to a supported vector size, effectively
-    * overfetching. Drivers can reject this in the callback by returning
-    * false for invalid num_components.
-    */
-   new_num_components = nir_round_up_components(new_num_components);
-   new_num_components = MAX2(new_num_components, 1);
 
    /* update the load's destination size and extract data for each of the original loads */
    data->num_components = new_num_components;
@@ -1508,7 +1520,8 @@ try_vectorize(nir_function_impl *impl, struct vectorize_ctx *ctx,
    } else {
       return false;
    }
-   unsigned new_num_components = new_size / new_bit_size;
+   unsigned new_num_components =
+      calc_new_num_components(ctx, low, new_size, new_bit_size);
 
    /* vectorize the loads/stores */
    nir_builder b = nir_builder_create(impl);
