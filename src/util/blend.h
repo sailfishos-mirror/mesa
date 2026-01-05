@@ -169,6 +169,12 @@ enum pipe_advanced_blend_mode {
    PIPE_ADVANCED_BLEND_BLUE,
 };
 
+enum pipe_blend_overlap_mode {
+   PIPE_BLEND_OVERLAP_UNCORRELATED = 0,
+   PIPE_BLEND_OVERLAP_CONJOINT = 1,
+   PIPE_BLEND_OVERLAP_DISJOINT = 2,
+};
+
 /**
  * When faking RGBX render target formats with RGBA ones, the blender is still
  * supposed to treat the destination's alpha channel as 1 instead of the
