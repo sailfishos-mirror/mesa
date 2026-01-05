@@ -801,7 +801,7 @@ cmd_buffer_flush_gfx_state(struct anv_cmd_buffer *cmd_buffer)
 
    genX(cmd_buffer_config_l3)(cmd_buffer, device->l3_config);
 
-   genX(cmd_buffer_update_color_aux_op(cmd_buffer, ISL_AUX_OP_NONE));
+   genX(cmd_buffer_update_color_aux_op)(cmd_buffer, ANV_COLOR_AUX_OP_CLASS_NONE);
 
    genX(cmd_buffer_emit_hashing_mode)(cmd_buffer, UINT_MAX, UINT_MAX, 1);
 

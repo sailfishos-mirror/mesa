@@ -3464,50 +3464,38 @@ genX(cmd_buffer_begin_companion)(struct anv_cmd_buffer *cmd_buffer,
 }
 
 static bool
-aux_op_resolves(enum isl_aux_op aux_op)
+is_hw_managed_fast_clear(enum anv_color_aux_op_class op)
 {
-   return aux_op == ISL_AUX_OP_FULL_RESOLVE ||
-          aux_op == ISL_AUX_OP_PARTIAL_RESOLVE;
-}
-
-static bool
-aux_op_clears(enum isl_aux_op aux_op)
-{
-   return aux_op == ISL_AUX_OP_FAST_CLEAR ||
-          aux_op == ISL_AUX_OP_AMBIGUATE;
-}
-
-static bool
-aux_op_renders(enum isl_aux_op aux_op)
-{
-   return aux_op == ISL_AUX_OP_NONE;
+   return op == ANV_COLOR_AUX_OP_CLASS_FAST_CLEAR ||
+          op == ANV_COLOR_AUX_OP_CLASS_HW_AMBIGUATE;
 }
 
 static void
 add_pending_pipe_bits_for_color_aux_op(struct anv_cmd_buffer *cmd_buffer,
-                                       enum isl_aux_op next_aux_op,
+                                       enum anv_color_aux_op_class next_aux_op,
                                        enum anv_pipe_bits pipe_bits,
                                        const char *reason)
 {
-   const enum isl_aux_op last_aux_op = cmd_buffer->state.color_aux_op;
+   const enum anv_color_aux_op_class last_aux_op = cmd_buffer->state.color_aux_op;
    assert(next_aux_op != last_aux_op);
 
    anv_add_pending_pipe_bits(cmd_buffer,
-                             aux_op_clears(next_aux_op) ?
+                             is_hw_managed_fast_clear(next_aux_op) ?
                              VK_PIPELINE_STAGE_2_NONE :
                              VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                             aux_op_clears(next_aux_op) ?
+                             is_hw_managed_fast_clear(next_aux_op) ?
                              VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : 0,
                              pipe_bits, reason);
 }
 
 void
 genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
-                                     enum isl_aux_op next_aux_op)
+                                     enum anv_color_aux_op_class next_aux_op)
 {
-   const enum isl_aux_op last_aux_op = cmd_buffer->state.color_aux_op;
+   const enum anv_color_aux_op_class last_aux_op = cmd_buffer->state.color_aux_op;
 
-   if (!aux_op_clears(last_aux_op) && aux_op_clears(next_aux_op)) {
+   if (!is_hw_managed_fast_clear(last_aux_op) &&
+       is_hw_managed_fast_clear(next_aux_op)) {
 #if GFX_VER >= 20
       /* From the Xe2 Bspec 57340 (r59562),
        * "MCS/CCS Buffers, Fast Clear for Render Target(s)":
@@ -3529,7 +3517,7 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
        */
       add_pending_pipe_bits_for_color_aux_op(
          cmd_buffer, next_aux_op, ANV_PIPE_RT_BTI_CHANGE,
-         "aux color !aux->aux");
+         "aux color !fast-clear->fast-clear");
 
 #elif GFX_VERx10 == 125
       /* From the ACM Bspec 47704 (r52663), "Render Target Fast Clear":
@@ -3556,7 +3544,7 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
             ANV_PIPE_HDC_PIPELINE_FLUSH_BIT |
             ANV_PIPE_DATA_CACHE_FLUSH_BIT |
             ANV_PIPE_TEXTURE_CACHE_INVALIDATE_BIT,
-            "aux color !aux->aux");
+            "aux color !fast-clear->fast-clear");
 
 #elif GFX_VERx10 == 120
       /* From the TGL Bspec 47704 (r52663), "Render Target Fast Clear":
@@ -3580,7 +3568,7 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
             ANV_PIPE_TILE_CACHE_FLUSH_BIT |
             ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT |
             ANV_PIPE_TEXTURE_CACHE_INVALIDATE_BIT,
-            "aux color !aux->aux");
+            "aux color !fast-clear->fast-clear");
 
 #else
       /* From the Sky Lake PRM Vol. 7, "MCS Buffer for Render Target(s)":
@@ -3609,9 +3597,10 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
             cmd_buffer, next_aux_op,
             ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT |
             ANV_PIPE_END_OF_PIPE_SYNC_BIT,
-            "aux color !aux->aux");
+            "aux color !fast-clear->fast-clear");
 #endif
-   } else if (aux_op_clears(last_aux_op) && !aux_op_clears(next_aux_op)) {
+   } else if (is_hw_managed_fast_clear(last_aux_op) &&
+              !is_hw_managed_fast_clear(next_aux_op)) {
 #if GFX_VERx10 >= 125
       /* From the ACM PRM Vol. 9, "Color Fast Clear Synchronization":
        *
@@ -3623,7 +3612,7 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
        */
       add_pending_pipe_bits_for_color_aux_op(
          cmd_buffer, next_aux_op, ANV_PIPE_RT_BTI_CHANGE,
-         "aux color aux->!aux");
+         "aux color fast-clear->!fast-clear");
 
 #elif GFX_VERx10 == 120
       /* From the TGL PRM Vol. 9, "Color Fast Clear Synchronization":
@@ -3648,7 +3637,7 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
          ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT |
          ANV_PIPE_L3_FABRIC_FLUSH_BIT |
          ANV_PIPE_DEPTH_STALL_BIT,
-         "aux color aux->!aux");
+         "aux color fast-clear->!fast-clear");
 
 #else
       /* From the Sky Lake PRM Vol. 7, "Render Target Fast Clear":
@@ -3667,11 +3656,11 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
          cmd_buffer, next_aux_op,
          ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT |
          ANV_PIPE_END_OF_PIPE_SYNC_BIT,
-         "aux color aux->!aux");
+         "aux color fast-clear->!fast-clear");
 #endif
-
-   } else if (aux_op_renders(last_aux_op) != aux_op_renders(next_aux_op)) {
-      assert(aux_op_resolves(last_aux_op) != aux_op_resolves(next_aux_op));
+   } else if (last_aux_op != next_aux_op &&
+              !is_hw_managed_fast_clear(last_aux_op) &&
+              !is_hw_managed_fast_clear(next_aux_op)) {
       /* From the Sky Lake PRM Vol. 7, "MCS Buffer for Render Target(s)":
        *
        *    Any transition from any value in {Clear, Render, Resolve} to a
@@ -3691,11 +3680,11 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
             cmd_buffer, next_aux_op,
             ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT |
             ANV_PIPE_END_OF_PIPE_SYNC_BIT,
-            "aux color render->!render");
+            "aux color change (non fast-clear)");
    }
 
-   if (last_aux_op != ISL_AUX_OP_FAST_CLEAR &&
-       next_aux_op == ISL_AUX_OP_FAST_CLEAR &&
+   if (last_aux_op != ANV_COLOR_AUX_OP_CLASS_FAST_CLEAR &&
+       next_aux_op == ANV_COLOR_AUX_OP_CLASS_FAST_CLEAR &&
        cmd_buffer->device->isl_dev.ss.clear_color_state_size > 0) {
       /* From the ICL PRM Vol. 9, "State Caching":
        *
@@ -3718,9 +3707,8 @@ genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
    }
 
    /* Update the auxiliary surface operation, but with one exception. */
-   if (last_aux_op == ISL_AUX_OP_FAST_CLEAR &&
-       next_aux_op == ISL_AUX_OP_AMBIGUATE) {
-      assert(aux_op_clears(last_aux_op) && aux_op_clears(next_aux_op));
+   if (last_aux_op == ANV_COLOR_AUX_OP_CLASS_HW_AMBIGUATE &&
+       next_aux_op == ANV_COLOR_AUX_OP_CLASS_FAST_CLEAR) {
       /* Fast clears and ambiguates are in the same class of operation, but
        * fast clears have more stringent synchronization requirements. For
        * better performance, don't replace the current fast clear operation
@@ -4045,7 +4033,7 @@ end_command_buffer(struct anv_cmd_buffer *cmd_buffer)
    }
 
    /* Flush any in-progress CCS/MCS operations in preparation for chaining. */
-   genX(cmd_buffer_update_color_aux_op(cmd_buffer, ISL_AUX_OP_NONE));
+   genX(cmd_buffer_update_color_aux_op)(cmd_buffer, ANV_COLOR_AUX_OP_CLASS_NONE);
 
    genX(cmd_buffer_flush_generated_draws)(cmd_buffer);
 
@@ -4158,7 +4146,7 @@ genX(CmdExecuteCommands)(
    /* Ensure we're in a regular drawing cache mode (assumption for all
     * secondary).
     */
-   genX(cmd_buffer_update_color_aux_op(container, ISL_AUX_OP_NONE));
+   genX(cmd_buffer_update_color_aux_op)(container, ANV_COLOR_AUX_OP_CLASS_NONE);
 
    /* The secondary command buffer doesn't know which textures etc. have been
     * flushed prior to their execution.  Apply those flushes now.

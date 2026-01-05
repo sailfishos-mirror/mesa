@@ -4741,6 +4741,21 @@ enum anv_cmd_descriptor_buffer_mode {
    ANV_CMD_DESCRIPTOR_BUFFER_MODE_BUFFER,
 };
 
+enum anv_color_aux_op_class {
+   /* Non color related operation class or rendering */
+   ANV_COLOR_AUX_OP_CLASS_NONE,
+   /* Software managed ambiguate operation class (MCS & CCS-pre-gfx11) */
+   ANV_COLOR_AUX_OP_CLASS_SW_AMBIGUATE,
+   /* Hardware managed ambiguate operation class (CCS gfx11+) */
+   ANV_COLOR_AUX_OP_CLASS_HW_AMBIGUATE,
+   /* Fast clear (includes CCS ambiguate) */
+   ANV_COLOR_AUX_OP_CLASS_FAST_CLEAR,
+   /* Resolves HW managed */
+   ANV_COLOR_AUX_OP_CLASS_HW_RESOLVE,
+   /* Resolves SW managed */
+   ANV_COLOR_AUX_OP_CLASS_SW_RESOLVE,
+};
+
 /** State required while building cmd buffer */
 struct anv_cmd_state {
    /* PIPELINE_SELECT.PipelineSelection */
@@ -4836,7 +4851,7 @@ struct anv_cmd_state {
    /* The last auxiliary surface operation (or equivalent operation) provided
     * to genX(cmd_buffer_update_color_aux_op).
     */
-   enum isl_aux_op                              color_aux_op;
+   enum anv_color_aux_op_class                  color_aux_op;
 
    /**
     * Whether RHWO optimization is enabled (Wa_1508744258 and Wa_14024015672).

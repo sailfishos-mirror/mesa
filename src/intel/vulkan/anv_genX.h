@@ -95,7 +95,7 @@ void genX(batch_emit_push_constants)(struct anv_batch *batch,
 
 void
 genX(cmd_buffer_update_color_aux_op)(struct anv_cmd_buffer *cmd_buffer,
-                                     enum isl_aux_op aux_op);
+                                     enum anv_color_aux_op_class aux_op);
 
 void genX(cmd_buffer_emit_gfx12_depth_wa)(struct anv_cmd_buffer *cmd_buffer,
                                           const struct isl_surf *surf);

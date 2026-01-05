@@ -100,7 +100,7 @@ cmd_buffer_flush_compute_state(struct anv_cmd_buffer *cmd_buffer)
                               comp_state->shader->prog_data->total_shared > 0 ?
                               device->l3_slm_config : device->l3_config);
 
-   genX(cmd_buffer_update_color_aux_op(cmd_buffer, ISL_AUX_OP_NONE));
+   genX(cmd_buffer_update_color_aux_op)(cmd_buffer, ANV_COLOR_AUX_OP_CLASS_NONE);
 
    genX(flush_descriptor_buffers)(cmd_buffer, &comp_state->base,
                                   VK_SHADER_STAGE_COMPUTE_BIT);
@@ -1162,7 +1162,7 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
 
    genX(cmd_buffer_config_l3)(cmd_buffer, device->l3_config);
 
-   genX(cmd_buffer_update_color_aux_op(cmd_buffer, ISL_AUX_OP_NONE));
+   genX(cmd_buffer_update_color_aux_op)(cmd_buffer, ANV_COLOR_AUX_OP_CLASS_NONE);
 
    genX(flush_descriptor_buffers)(cmd_buffer, &rt->base,
                                   ANV_RT_STAGE_BITS);
