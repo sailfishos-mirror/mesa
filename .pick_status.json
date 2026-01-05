@@ -34,7 +34,7 @@
         "description": "radv: disable unordered submits when SQTT queue events are enabled",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "82d06b58add3932e21f58f975c1f5a7cddcbd6cc",
         "notes": null
