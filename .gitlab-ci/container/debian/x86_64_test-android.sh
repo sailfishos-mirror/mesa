@@ -130,11 +130,6 @@ curl -L --retry 4 -f --retry-all-errors --retry-delay 60 \
 tar --zst -xvf cvd-host_package-x86_64.tar.zst
 rm cvd-host_package-x86_64.tar.zst
 
-curl -L --retry 4 -f --retry-all-errors --retry-delay 60 \
-  -O "https://${S3_HOST}/${S3_ANDROID_BUCKET}/${AOSP_KERNEL_PROJECT_PATH}/aosp-kernel-common-${AOSP_KERNEL_BUILD_VERSION_TAGS}.${AOSP_KERNEL_BUILD_NUMBER}/bzImage"
-curl -L --retry 4 -f --retry-all-errors --retry-delay 60 \
-  -O "https://${S3_HOST}/${S3_ANDROID_BUCKET}/${AOSP_KERNEL_PROJECT_PATH}/aosp-kernel-common-${AOSP_KERNEL_BUILD_VERSION_TAGS}.${AOSP_KERNEL_BUILD_NUMBER}/initramfs.img"
-
 popd
 
 addgroup --system kvm

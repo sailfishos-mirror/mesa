@@ -58,15 +58,6 @@ ulimit -n 32768
 VSOCK_BASE=10000 # greater than all the default vsock ports
 VSOCK_CID=$((VSOCK_BASE + (CI_JOB_ID & 0xfff)))
 
-# Venus requires a custom kernel for now
-CUSTOM_KERNEL_ARGS=""
-if [ "$CUTTLEFISH_GPU_MODE" = "venus" ] || [ "$CUTTLEFISH_GPU_MODE" = "venus_guest_angle" ]; then
-  CUSTOM_KERNEL_ARGS="
-  -kernel_path=/cuttlefish/bzImage
-  -initramfs_path=/cuttlefish/initramfs.img
-  "
-fi
-
 HOME=/cuttlefish launch_cvd \
   -daemon \
   -verbosity=VERBOSE \
@@ -80,8 +71,7 @@ HOME=/cuttlefish launch_cvd \
   -report_anonymous_usage_stats=no \
   -gpu_mode="$CUTTLEFISH_GPU_MODE" \
   -cpus=${FDO_CI_CONCURRENT:-4} \
-  -memory_mb ${CUTTLEFISH_MEMORY:-4096} \
-  $CUSTOM_KERNEL_ARGS
+  -memory_mb ${CUTTLEFISH_MEMORY:-4096}
 
 sleep 1
 
