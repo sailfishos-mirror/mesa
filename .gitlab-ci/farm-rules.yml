@@ -35,6 +35,7 @@
 #   austriancoder    | ci-tron                          | @austriancoder
 #   collabora        | lava                             | @daniels, @sergi
 #   igalia           | baremetal/poe-powered, ci-tron   | @jasuarez, @chema
+#   imagination      | ci-tron                          | @MTCoster
 #   lima             | lava                             | @enunes
 #   lumag            | ci-tron                          | @lumag
 #   microsoft        | custom                           | @jenatali, @alatiera
@@ -313,6 +314,25 @@
       when: never
     - !reference [.lumag-farm-rules, rules]
 
+.imagination-farm-rules:
+  rules:
+    - exists: [ .ci-farms-disabled/imagination ]
+      when: never
+    - changes: [ .ci-farms-disabled/imagination ]
+      if: '$CI_PIPELINE_SOURCE != "schedule"'
+      when: on_success
+    - changes: [ .ci-farms-disabled/* ]
+      if: '$CI_PIPELINE_SOURCE != "schedule"'
+      when: never
+
+.imagination-farm-manual-rules:
+  rules:
+    - exists: [ .ci-farms-disabled/imagination ]
+      when: never
+    - changes: [ .ci-farms-disabled/imagination ]
+      if: '$CI_PIPELINE_SOURCE != "schedule"'
+      when: never
+    - !reference [.imagination-farm-rules, rules]
 
 # Skip container & build jobs when disabling any farm, and run them if any
 # farm gets re-enabled.
@@ -373,6 +393,10 @@
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes: [ .ci-farms-disabled/lumag ]
       exists: [ .ci-farms-disabled/lumag ]
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes: [ .ci-farms-disabled/imagination ]
+      exists: [ .ci-farms-disabled/imagination ]
       when: never
     # Any other change to ci-farms/* means some farm is getting re-enabled.
     # Run jobs in Marge pipelines (and let it fallback to manual otherwise)
