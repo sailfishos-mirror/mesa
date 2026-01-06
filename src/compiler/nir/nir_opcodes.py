@@ -1178,6 +1178,7 @@ if (bits == 0) {
    dst = 0;
 } else if (bits < 0 || offset < 0 || offset + bits > bit_size) {
    dst = 0; /* undefined per the spec */
+   poison = true;
 } else {
    dst = (base >> offset) & ((1ull << bits) - 1);
 }
@@ -1190,6 +1191,7 @@ if (bits == 0) {
    dst = 0;
 } else if (offset < 0 || bits < 0 || offset + bits > bit_size) {
    dst = 0;
+   poison = true;
 } else {
    dst = (base << (32 - offset - bits)) >> (32 - bits); /* use sign-extending shift */
 }
