@@ -360,6 +360,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_tess_config_intel:
    case nir_intrinsic_load_urb_input_handle_intel:
    case nir_intrinsic_load_urb_output_handle_intel:
+   case nir_intrinsic_load_ray_query_global_intel:
       is_divergent = false;
       break;
 
