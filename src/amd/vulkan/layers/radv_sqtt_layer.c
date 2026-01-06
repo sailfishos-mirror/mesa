@@ -682,10 +682,8 @@ radv_sqtt_wsi_submit(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *
    VK_FROM_HANDLE(radv_queue, queue, _queue);
    struct radv_device *device = radv_queue_device(queue);
    VkCommandBufferSubmitInfo *new_cmdbufs = NULL;
-   struct radeon_winsys_bo *gpu_timestamp_bo;
-   uint32_t gpu_timestamp_offset;
+   struct radv_sqtt_gpu_timestamp gpu_timestamp;
    VkCommandBuffer timed_cmdbuf;
-   void *gpu_timestamp_ptr;
    uint64_t cpu_timestamp;
    VkResult result = VK_SUCCESS;
 
@@ -707,11 +705,11 @@ radv_sqtt_wsi_submit(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *
       /* Sample the current CPU time before building the GPU timestamp cmdbuf. */
       cpu_timestamp = os_time_get_nano();
 
-      result = radv_sqtt_acquire_gpu_timestamp(device, &gpu_timestamp_bo, &gpu_timestamp_offset, &gpu_timestamp_ptr);
+      result = radv_sqtt_acquire_gpu_timestamp(device, &gpu_timestamp);
       if (result != VK_SUCCESS)
          goto fail;
 
-      result = radv_sqtt_get_timed_cmdbuf(queue, gpu_timestamp_bo, gpu_timestamp_offset,
+      result = radv_sqtt_get_timed_cmdbuf(queue, gpu_timestamp.bo, gpu_timestamp.offset,
                                           VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, &timed_cmdbuf);
       if (result != VK_SUCCESS)
          goto fail;
@@ -727,7 +725,7 @@ radv_sqtt_wsi_submit(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *
       sqtt_submit.commandBufferInfoCount = new_cmdbuf_count;
       sqtt_submit.pCommandBufferInfos = new_cmdbufs;
 
-      radv_describe_queue_present(queue, cpu_timestamp, gpu_timestamp_ptr);
+      radv_describe_queue_present(queue, cpu_timestamp, gpu_timestamp.ptr);
 
       result = device->layer_dispatch.rgp.QueueSubmit2(_queue, 1, &sqtt_submit,
                                                        i + 1 == submitCount ? _fence : VK_NULL_HANDLE);
@@ -757,6 +755,7 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
    const bool is_gfx_or_ace = queue->state.qf == RADV_QUEUE_GENERAL || queue->state.qf == RADV_QUEUE_COMPUTE;
    VkCommandBufferSubmitInfo *new_cmdbufs = NULL;
+   struct util_dynarray gpu_timestamps;
    VkResult result = VK_SUCCESS;
 
    /* Only consider queue events on graphics/compute when enabled. */
@@ -784,6 +783,8 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
       radv_sqtt_start_capturing(queue);
    }
 
+   util_dynarray_init(&gpu_timestamps, NULL);
+
    for (uint32_t i = 0; i < submitCount; i++) {
       const VkSubmitInfo2 *pSubmit = &pSubmits[i];
       VkSubmitInfo2 sqtt_submit = *pSubmit;
@@ -796,23 +797,32 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
       if (!new_cmdbufs)
          return VK_ERROR_OUT_OF_HOST_MEMORY;
 
+      /* Acquire GPU timestamp objects. */
+      const uint32_t num_gpu_timestamps = sqtt_submit.commandBufferInfoCount * 2;
+      for (uint32_t j = 0; j < num_gpu_timestamps; j++) {
+         struct radv_sqtt_gpu_timestamp gpu_timestamp;
+
+         result = radv_sqtt_acquire_gpu_timestamp(device, &gpu_timestamp);
+         if (result != VK_SUCCESS)
+            goto fail;
+
+         util_dynarray_append(&gpu_timestamps, gpu_timestamp);
+      }
+
       for (uint32_t j = 0; j < sqtt_submit.commandBufferInfoCount; j++) {
          const VkCommandBufferSubmitInfo *pCommandBufferInfo = &sqtt_submit.pCommandBufferInfos[j];
-         struct radeon_winsys_bo *gpu_timestamps_bo[2];
-         uint32_t gpu_timestamps_offset[2];
          VkCommandBuffer pre_timed_cmdbuf, post_timed_cmdbuf;
-         void *gpu_timestamps_ptr[2];
          uint64_t cpu_timestamp;
 
          /* Sample the current CPU time before building the timed cmdbufs. */
          cpu_timestamp = os_time_get_nano();
 
-         result = radv_sqtt_acquire_gpu_timestamp(device, &gpu_timestamps_bo[0], &gpu_timestamps_offset[0],
-                                                  &gpu_timestamps_ptr[0]);
-         if (result != VK_SUCCESS)
-            goto fail;
+         struct radv_sqtt_gpu_timestamp *pre_gpu_timestamp =
+            util_dynarray_element(&gpu_timestamps, struct radv_sqtt_gpu_timestamp, j * 2);
+         struct radv_sqtt_gpu_timestamp *post_gpu_timestamp =
+            util_dynarray_element(&gpu_timestamps, struct radv_sqtt_gpu_timestamp, j * 2 + 1);
 
-         result = radv_sqtt_get_timed_cmdbuf(queue, gpu_timestamps_bo[0], gpu_timestamps_offset[0],
+         result = radv_sqtt_get_timed_cmdbuf(queue, pre_gpu_timestamp->bo, pre_gpu_timestamp->offset,
                                              VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, &pre_timed_cmdbuf);
          if (result != VK_SUCCESS)
             goto fail;
@@ -824,12 +834,8 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
 
          new_cmdbufs[cmdbuf_idx++] = *pCommandBufferInfo;
 
-         result = radv_sqtt_acquire_gpu_timestamp(device, &gpu_timestamps_bo[1], &gpu_timestamps_offset[1],
-                                                  &gpu_timestamps_ptr[1]);
-         if (result != VK_SUCCESS)
-            goto fail;
 
-         result = radv_sqtt_get_timed_cmdbuf(queue, gpu_timestamps_bo[1], gpu_timestamps_offset[1],
+         result = radv_sqtt_get_timed_cmdbuf(queue, post_gpu_timestamp->bo, post_gpu_timestamp->offset,
                                              VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, &post_timed_cmdbuf);
          if (result != VK_SUCCESS)
             goto fail;
@@ -840,7 +846,8 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
          };
 
          VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, pCommandBufferInfo->commandBuffer);
-         radv_describe_queue_submit(queue, cmd_buffer, j, cpu_timestamp, gpu_timestamps_ptr[0], gpu_timestamps_ptr[1]);
+         radv_describe_queue_submit(queue, cmd_buffer, j, cpu_timestamp, pre_gpu_timestamp->ptr,
+                                    post_gpu_timestamp->ptr);
       }
 
       sqtt_submit.commandBufferInfoCount = new_cmdbuf_count;
@@ -857,6 +864,7 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
          radv_describe_queue_semaphore(queue, sem, SQTT_QUEUE_TIMING_EVENT_SIGNAL_SEMAPHORE);
       }
 
+      util_dynarray_clear(&gpu_timestamps);
       FREE(new_cmdbufs);
    }
 
@@ -869,9 +877,11 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
       simple_mtx_unlock(&device->sqtt.lock);
    }
 
+   util_dynarray_fini(&gpu_timestamps);
    return result;
 
 fail:
+   util_dynarray_fini(&gpu_timestamps);
    FREE(new_cmdbufs);
 
    if (instance->vk.trace_per_submit) {

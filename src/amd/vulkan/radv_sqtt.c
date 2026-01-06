@@ -145,8 +145,7 @@ radv_emit_sqtt_userdata(const struct radv_cmd_buffer *cmd_buffer, const void *da
 }
 
 VkResult
-radv_sqtt_acquire_gpu_timestamp(struct radv_device *device, struct radeon_winsys_bo **gpu_timestamp_bo,
-                                uint32_t *gpu_timestamp_offset, void **gpu_timestamp_ptr)
+radv_sqtt_acquire_gpu_timestamp(struct radv_device *device, struct radv_sqtt_gpu_timestamp *timestamp)
 {
    simple_mtx_lock(&device->sqtt_timestamp_mtx);
 
@@ -193,9 +192,9 @@ radv_sqtt_acquire_gpu_timestamp(struct radv_device *device, struct radeon_winsys
       device->sqtt_timestamp.map = map;
    }
 
-   *gpu_timestamp_bo = device->sqtt_timestamp.bo;
-   *gpu_timestamp_offset = device->sqtt_timestamp.offset;
-   *gpu_timestamp_ptr = device->sqtt_timestamp.map + device->sqtt_timestamp.offset;
+   timestamp->bo = device->sqtt_timestamp.bo;
+   timestamp->offset = device->sqtt_timestamp.offset;
+   timestamp->ptr = device->sqtt_timestamp.map + device->sqtt_timestamp.offset;
 
    device->sqtt_timestamp.offset += 8;
 
