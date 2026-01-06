@@ -886,12 +886,7 @@ nir_algebraic_instr(nir_builder *build, nir_instr *instr,
 
    nir_alu_instr *alu = nir_instr_as_alu(instr);
 
-   unsigned bit_size = alu->def.bit_size;
-   const unsigned execution_mode =
-      build->shader->info.float_controls_execution_mode;
-   const bool ignore_inexact =
-      nir_alu_instr_is_signed_zero_inf_nan_preserve(alu) ||
-      nir_is_denorm_flush_to_zero(execution_mode, bit_size);
+   const bool ignore_inexact = nir_alu_instr_is_signed_zero_inf_nan_preserve(alu);
 
    int xform_idx = *util_dynarray_element(states, uint16_t,
                                           alu->def.index);
