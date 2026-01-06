@@ -711,7 +711,9 @@ enum vpe_status vpe_build_commands(
     vpe_priv->config_writer.reused_config_count = 0;
 #endif
     if (!vpe_priv->ops_support) {
-        VPE_ASSERT(vpe_priv->ops_support);
+        if (vpe_priv->init.debug.assert_when_not_support) {
+            VPE_ASSERT(vpe_priv->ops_support);
+        }
         status = VPE_STATUS_NOT_SUPPORTED;
     }
 
