@@ -288,6 +288,8 @@ struct rra_bvh_info {
    uint32_t leaf_nodes_size;
    uint32_t internal_nodes_size;
    uint32_t instance_sideband_data_size;
+   uint32_t box32_count;
+   uint32_t box16_count;
    struct rra_geometry_info *geometry_infos;
 };
 

@@ -153,6 +153,7 @@ rra_gather_bvh_info_gfx12(const uint8_t *bvh, uint32_t node_id, struct rra_bvh_i
    switch (node_type) {
    case radv_bvh_node_box32:
       dst->internal_nodes_size += sizeof(struct radv_gfx12_box_node);
+      dst->box32_count++;
       break;
    case radv_bvh_node_instance:
       dst->leaf_nodes_size += sizeof(struct radv_gfx12_instance_node);
