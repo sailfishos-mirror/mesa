@@ -141,6 +141,120 @@ pan_blend_constant_mask(const struct pan_blend_equation eq)
           blend_factor_constant_mask(eq.alpha_dst_factor);
 }
 
+static inline bool
+is_min_max(enum pipe_blend_func func)
+{
+   return func == PIPE_BLEND_MIN || func == PIPE_BLEND_MAX;
+}
+
+void
+pan_blend_optimize_equation(struct pan_blend_equation *eq,
+                            enum pipe_format format,
+                            const float *constants)
+{
+   unsigned comp_mask = 0xf;
+
+   if (!eq->blend_enable)
+      return;
+
+   /* Sanitize alpha blend factors because later optimizations rely on COLOR
+    * actually meaning color.
+    */
+   eq->alpha_src_factor = util_blendfactor_to_alpha(eq->alpha_src_factor);
+   eq->alpha_dst_factor = util_blendfactor_to_alpha(eq->alpha_dst_factor);
+
+   if (is_min_max(eq->rgb_func)) {
+      eq->rgb_src_factor = PIPE_BLENDFACTOR_ONE;
+      eq->rgb_dst_factor = PIPE_BLENDFACTOR_ONE;
+   }
+
+   if (is_min_max(eq->alpha_func)) {
+      eq->alpha_src_factor = PIPE_BLENDFACTOR_ONE;
+      eq->alpha_dst_factor = PIPE_BLENDFACTOR_ONE;
+   }
+
+   /* If we know the format, we can optimize a few things */
+   if (format != PIPE_FORMAT_NONE) {
+      const struct util_format_description *fmt =
+         util_format_description(format);
+      assert(eq->is_float == (fmt->channel[0].type == UTIL_FORMAT_TYPE_FLOAT));
+
+      comp_mask = util_format_colormask(fmt);
+
+      /* Check to see if any of the disabled channels actually matter.  If
+       * not, smash the blend mask to 0xf.  Otherwise, pan_blend_is_opaque()
+       * may return false unnecessarily.
+       */
+      if (!((~eq->color_mask) & comp_mask))
+         eq->color_mask = 0xf;
+
+      if (!(comp_mask & 0b1000)) {
+         eq->rgb_src_factor =
+            util_blend_dst_alpha_to_one(eq->rgb_src_factor);
+         eq->rgb_dst_factor =
+            util_blend_dst_alpha_to_one(eq->rgb_dst_factor);
+
+         eq->alpha_src_factor =
+            util_blend_dst_alpha_to_one(eq->alpha_src_factor);
+         eq->alpha_dst_factor =
+            util_blend_dst_alpha_to_one(eq->alpha_dst_factor);
+      }
+   }
+
+   /* If we know the blend constants, we can optimize more */
+   unsigned constant_mask = pan_blend_constant_mask(*eq);
+   if (constant_mask && constants != NULL) {
+      enum pipe_blendfactor const_alpha = PIPE_BLENDFACTOR_CONST_ALPHA;
+      if (constant_mask & 0b1000) {
+         if (constants[3] == 0.0f)
+            const_alpha = PIPE_BLENDFACTOR_ZERO;
+         else if (constants[3] == 1.0f)
+            const_alpha = PIPE_BLENDFACTOR_ONE;
+      }
+
+      /* Each color blend constant can only affect it's corresponding channel
+       * so we only care about components actually in our format.
+       */
+      const unsigned color_constant_mask = comp_mask & constant_mask & 0b0111;
+
+      enum pipe_blendfactor const_color = PIPE_BLENDFACTOR_CONST_COLOR;
+      if (color_constant_mask) {
+         bool all_zero = true, all_one = true;
+         u_foreach_bit(i, color_constant_mask) {
+            if (constants[i] != 0.0f)
+               all_zero = false;
+            if (constants[i] != 1.0f)
+               all_one = false;
+         }
+         assert(!all_zero || !all_one);
+         if (all_zero)
+            const_color = PIPE_BLENDFACTOR_ZERO;
+         if (all_one)
+            const_color = PIPE_BLENDFACTOR_ONE;
+      }
+
+      if (const_color != PIPE_BLENDFACTOR_CONST_COLOR ||
+          const_alpha != PIPE_BLENDFACTOR_CONST_ALPHA) {
+#define REPLACE_CONST_FACTOR(factor) do {             \
+   if (factor == PIPE_BLENDFACTOR_CONST_COLOR)        \
+      factor = const_color;                           \
+   else if (factor == PIPE_BLENDFACTOR_CONST_ALPHA)   \
+      factor = const_alpha;                           \
+} while (false)
+
+         REPLACE_CONST_FACTOR(eq->rgb_src_factor);
+         REPLACE_CONST_FACTOR(eq->rgb_dst_factor);
+         REPLACE_CONST_FACTOR(eq->alpha_src_factor);
+         REPLACE_CONST_FACTOR(eq->alpha_dst_factor);
+
+#undef REPLACE_CONST_FACTOR
+      }
+   }
+
+   if (pan_blend_is_opaque(*eq))
+      eq->blend_enable = false;
+}
+
 /* Only "homogenous" (scalar or vector with all components equal) constants are
  * valid for fixed-function, so check for this condition */
 
@@ -467,12 +581,6 @@ is_dest_factor(enum pipe_blendfactor factor, bool alpha)
    return factor == PIPE_BLENDFACTOR_DST_ALPHA ||
           factor == PIPE_BLENDFACTOR_DST_COLOR ||
           (factor == PIPE_BLENDFACTOR_SRC_ALPHA_SATURATE && !alpha);
-}
-
-static inline bool
-is_min_max(enum pipe_blend_func func)
-{
-   return func == PIPE_BLEND_MIN || func == PIPE_BLEND_MAX;
 }
 
 /* Determines if a blend equation reads back the destination. This can occur by

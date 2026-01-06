@@ -89,6 +89,10 @@ bool pan_blend_alpha_one_store(const struct pan_blend_equation eq);
 
 unsigned pan_blend_constant_mask(const struct pan_blend_equation eq);
 
+void pan_blend_optimize_equation(struct pan_blend_equation *eq,
+                                 enum pipe_format format,
+                                 const float *constants);
+
 /* Fixed-function blending only supports a single constant, so if multiple bits
  * are set in constant_mask, the constants must match. Therefore we may pick
  * just the first constant. */

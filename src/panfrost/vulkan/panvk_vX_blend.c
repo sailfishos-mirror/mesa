@@ -363,6 +363,7 @@ panvk_per_arch(blend_emit_descs)(struct panvk_cmd_buffer *cmdbuf,
       rt->equation.blend_enable = cb->attachments[i].blend_enable;
       rt->equation.is_float = is_float;
       rt->equation.color_mask = cb->attachments[i].write_mask;
+
       rt->equation.rgb_func =
          vk_blend_op_to_pipe(cb->attachments[i].color_blend_op);
       rt->equation.rgb_src_factor =
@@ -376,18 +377,10 @@ panvk_per_arch(blend_emit_descs)(struct panvk_cmd_buffer *cmdbuf,
       rt->equation.alpha_dst_factor =
          vk_blend_factor_to_pipe(cb->attachments[i].dst_alpha_blend_factor);
 
-      bool dest_has_alpha = util_format_has_alpha(rt->format);
-      if (!dest_has_alpha) {
-         rt->equation.rgb_src_factor =
-            util_blend_dst_alpha_to_one(rt->equation.rgb_src_factor);
-         rt->equation.rgb_dst_factor =
-            util_blend_dst_alpha_to_one(rt->equation.rgb_dst_factor);
-
-         rt->equation.alpha_src_factor =
-            util_blend_dst_alpha_to_one(rt->equation.alpha_src_factor);
-         rt->equation.alpha_dst_factor =
-            util_blend_dst_alpha_to_one(rt->equation.alpha_dst_factor);
-      }
+      /* We have the format and the constants so we can optimize the blend
+       * equation before we decide if we actually need a blend shader.
+       */
+      pan_blend_optimize_equation(&rt->equation, rt->format, bs.constants);
 
       blend_info->any_dest_read |= pan_blend_reads_dest(rt->equation);
 
