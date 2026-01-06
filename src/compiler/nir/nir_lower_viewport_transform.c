@@ -51,7 +51,7 @@ lower_viewport_transform_instr(nir_builder *b, nir_intrinsic_instr *intr,
                                void *data)
 {
    gl_varying_slot location = VARYING_SLOT_MAX;
-   nir_src *pos_src;
+   nir_src *pos_src = NULL;
 
    if (intr->intrinsic == nir_intrinsic_store_deref) {
       nir_deref_instr *deref = nir_src_as_deref(intr->src[0]);
