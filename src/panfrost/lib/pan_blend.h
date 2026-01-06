@@ -35,6 +35,7 @@ struct MALI_BLEND_EQUATION;
 
 struct pan_blend_equation {
    unsigned blend_enable                  : 1;
+   unsigned is_float                      : 1;
    enum pipe_blend_func rgb_func          : 3;
    enum pipe_blendfactor rgb_src_factor   : 5;
    enum pipe_blendfactor rgb_dst_factor   : 5;
@@ -42,7 +43,6 @@ struct pan_blend_equation {
    enum pipe_blendfactor alpha_src_factor : 5;
    enum pipe_blendfactor alpha_dst_factor : 5;
    unsigned color_mask                    : 4;
-   unsigned padding                       : 1;
 };
 
 struct pan_blend_rt_state {

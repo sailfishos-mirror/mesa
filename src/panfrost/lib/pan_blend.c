@@ -51,6 +51,18 @@ factor_is_supported(enum pipe_blendfactor factor)
           factor != PIPE_BLENDFACTOR_SRC1_ALPHA;
 }
 
+/* The set of factors supported by the hardware for floats is significantly
+ * reduced.
+ */
+static bool
+factor_is_supported_for_float(enum pipe_blendfactor factor)
+{
+   return factor == PIPE_BLENDFACTOR_ZERO ||
+          factor == PIPE_BLENDFACTOR_ONE ||
+          factor == PIPE_BLENDFACTOR_SRC_ALPHA ||
+          factor == PIPE_BLENDFACTOR_INV_SRC_ALPHA;
+}
+
 /* OpenGL allows encoding (src*dest + dest*src) which is incompatiblle with
  * Midgard style blending since there are two multiplies. However, it may be
  * factored as 2*src*dest = dest*(2*src), which can be encoded on Bifrost as 0
@@ -70,27 +82,41 @@ is_2srcdest(enum pipe_blend_func blend_func, enum pipe_blendfactor src_factor,
 static bool
 can_fixed_function_equation(enum pipe_blend_func blend_func,
                             enum pipe_blendfactor src_factor,
-                            enum pipe_blendfactor dest_factor, bool is_alpha,
+                            enum pipe_blendfactor dest_factor,
+                            bool is_alpha, bool is_float,
                             bool supports_2src)
 {
-   if (is_2srcdest(blend_func, src_factor, dest_factor, is_alpha))
-      return supports_2src;
-
+   /* We can only do add/subtract in hardware.  No min/max. */
    if (blend_func != PIPE_BLEND_ADD && blend_func != PIPE_BLEND_SUBTRACT &&
        blend_func != PIPE_BLEND_REVERSE_SUBTRACT)
       return false;
 
-   if (!factor_is_supported(src_factor) || !factor_is_supported(dest_factor))
-      return false;
+   if (is_float) {
+      /* There are a couple special cases for add with zero */
+      if (blend_func == PIPE_BLEND_ADD &&
+          src_factor == PIPE_BLENDFACTOR_ZERO &&
+          (dest_factor == PIPE_BLENDFACTOR_INV_SRC_COLOR ||
+           dest_factor == PIPE_BLENDFACTOR_DST_ALPHA))
+         return true;
 
-   /* Fixed function requires src/dest factors to match (up to invert) or be
-    * zero/one.
-    */
-   enum pipe_blendfactor src = util_blendfactor_without_invert(src_factor);
-   enum pipe_blendfactor dest = util_blendfactor_without_invert(dest_factor);
+      return factor_is_supported_for_float(src_factor) &&
+             factor_is_supported_for_float(dest_factor);
+   } else {
+      if (is_2srcdest(blend_func, src_factor, dest_factor, is_alpha))
+         return supports_2src;
 
-   return (src == dest) || (src == PIPE_BLENDFACTOR_ONE) ||
-          (dest == PIPE_BLENDFACTOR_ONE);
+      if (!factor_is_supported(src_factor) || !factor_is_supported(dest_factor))
+         return false;
+
+      /* Fixed function requires src/dest factors to match (up to invert) or be
+       * zero/one.
+       */
+      enum pipe_blendfactor src = util_blendfactor_without_invert(src_factor);
+      enum pipe_blendfactor dest = util_blendfactor_without_invert(dest_factor);
+
+      return (src == dest) || (src == PIPE_BLENDFACTOR_ONE) ||
+             (dest == PIPE_BLENDFACTOR_ONE);
+   }
 }
 
 static unsigned
@@ -137,6 +163,9 @@ pan_pack_blend_constant(enum pipe_format format, float cons)
    const struct util_format_description *format_desc =
       util_format_description(format);
 
+   /* Mali doesn't support float blend constants */
+   assert(format_desc->channel[0].type != UTIL_FORMAT_TYPE_FLOAT);
+
    /* On Bifrost, the blend constant is expressed with a UNORM of the
     * size of the target format. The value is then shifted such that
     * used bits are in the MSB.
@@ -159,10 +188,12 @@ pan_blend_can_fixed_function(const struct pan_blend_equation equation,
    return !equation.blend_enable ||
           (can_fixed_function_equation(
               equation.rgb_func, equation.rgb_src_factor,
-              equation.rgb_dst_factor, false, supports_2src) &&
+              equation.rgb_dst_factor, false /* is_alpha */,
+              equation.is_float, supports_2src) &&
            can_fixed_function_equation(
               equation.alpha_func, equation.alpha_src_factor,
-              equation.alpha_dst_factor, true, supports_2src));
+              equation.alpha_dst_factor, true /* is_alpha */,
+              equation.is_float, supports_2src));
 }
 
 static enum mali_blend_operand_c
@@ -197,11 +228,13 @@ to_c_factor(enum pipe_blendfactor factor)
 static void
 to_mali_function(enum pipe_blend_func blend_func,
                  enum pipe_blendfactor src_factor,
-                 enum pipe_blendfactor dest_factor, bool is_alpha,
+                 enum pipe_blendfactor dest_factor,
+                 bool is_alpha, bool is_float,
                  struct MALI_BLEND_FUNCTION *function)
 {
    assert(can_fixed_function_equation(blend_func, src_factor, dest_factor,
-                                      is_alpha, true));
+                                      is_alpha, is_float,
+                                      true /* supports_2src */));
 
    /* We handle ZERO/ONE specially since it's the hardware has 0 and can invert
     * to 1 but Gallium has 0 as the uninverted version.
@@ -307,6 +340,15 @@ pan_blend_is_opaque(const struct pan_blend_equation equation)
    /* With nothing masked out, disabled bledning is opaque */
    if (!equation.blend_enable)
       return true;
+
+   /* NOTE (NaN/inf):
+    *
+    * Technically, we should reject this optimization for float blending
+    * because 0.0 * NaN/inf = NaN.  However, Vulkan and OpenGL both allow us
+    * to drop inf/NaN pretty much at-will and the NIR blending we would fall
+    * back to will also drop 0.0 blend factors.  One day we might want to do
+    * all this behind a driconf flag but today is not that day.
+    */
 
    /* Also detect open-coded opaque blending */
    return equation.rgb_src_factor == PIPE_BLENDFACTOR_ONE &&
@@ -446,8 +488,22 @@ pan_blend_reads_dest(const struct pan_blend_equation equation)
    if (!equation.blend_enable)
       return false;
 
-   return is_min_max(equation.rgb_func) || is_min_max(equation.alpha_func) ||
-          is_dest_factor(equation.rgb_src_factor, false) ||
+   /* NOTE (NaN/inf):
+    *
+    * Technically, we should reject this optimization for float blending
+    * because 0.0 * NaN/inf = NaN.  However, Vulkan and OpenGL both allow us
+    * to drop inf/NaN pretty much at-will and the NIR blending we would fall
+    * back to will also drop 0.0 blend factors.  One day we might want to do
+    * all this behind a driconf flag but today is not that day.
+    */
+
+   /* Min/max blending ignores the factors so the destination always gets
+    * read verbatim.
+    */
+   if (is_min_max(equation.rgb_func) || is_min_max(equation.alpha_func))
+      return true;
+
+   return is_dest_factor(equation.rgb_src_factor, false) ||
           is_dest_factor(equation.alpha_src_factor, true) ||
           equation.rgb_dst_factor != PIPE_BLENDFACTOR_ZERO ||
           equation.alpha_dst_factor != PIPE_BLENDFACTOR_ZERO;
@@ -474,9 +530,11 @@ pan_blend_to_fixed_function_equation(const struct pan_blend_equation equation,
 
    /* Compile the fixed-function blend */
    to_mali_function(equation.rgb_func, equation.rgb_src_factor,
-                    equation.rgb_dst_factor, false, &out->rgb);
+                    equation.rgb_dst_factor, false /* is_alpha */,
+                    equation.is_float, &out->rgb);
    to_mali_function(equation.alpha_func, equation.alpha_src_factor,
-                    equation.alpha_dst_factor, true, &out->alpha);
+                    equation.alpha_dst_factor, true /* is_alpha */,
+                    equation.is_float, &out->alpha);
 
    out->color_mask = equation.color_mask;
 }
