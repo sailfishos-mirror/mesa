@@ -806,7 +806,8 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
       VkSubmitInfo2 sqtt_submit = *pSubmit;
 
       /* Command buffers */
-      uint32_t new_cmdbuf_count = sqtt_submit.commandBufferInfoCount * 3;
+      uint32_t new_cmdbuf_count =
+         sqtt_submit.commandBufferInfoCount > 0 ? sqtt_submit.commandBufferInfoCount * 2 + 1 : 0;
       uint32_t cmdbuf_idx = 0;
 
       new_cmdbufs = malloc(new_cmdbuf_count * sizeof(*new_cmdbufs));
@@ -814,7 +815,8 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
          return VK_ERROR_OUT_OF_HOST_MEMORY;
 
       /* Allocate timed cmdbuf. */
-      const uint32_t num_timed_cmdbufs = sqtt_submit.commandBufferInfoCount * 2;
+      const uint32_t num_timed_cmdbufs =
+         sqtt_submit.commandBufferInfoCount > 0 ? sqtt_submit.commandBufferInfoCount + 1 : 0;
       for (uint32_t j = 0; j < num_timed_cmdbufs; j++) {
          VkCommandBuffer cmdbuf;
 
@@ -848,17 +850,20 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
             util_dynarray_element(&gpu_timestamps, struct radv_sqtt_gpu_timestamp, j * 2);
          struct radv_sqtt_gpu_timestamp *post_gpu_timestamp =
             util_dynarray_element(&gpu_timestamps, struct radv_sqtt_gpu_timestamp, j * 2 + 1);
-         VkCommandBuffer pre_timed_cmdbuf = *util_dynarray_element(&timed_cmdbufs, VkCommandBuffer, j * 2);
-         VkCommandBuffer post_timed_cmdbuf = *util_dynarray_element(&timed_cmdbufs, VkCommandBuffer, j * 2 + 1);
+         VkCommandBuffer pre_timed_cmdbuf = *util_dynarray_element(&timed_cmdbufs, VkCommandBuffer, j);
+         VkCommandBuffer post_timed_cmdbuf = *util_dynarray_element(&timed_cmdbufs, VkCommandBuffer, j + 1);
 
          const VkCommandBufferBeginInfo begin_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
          };
 
-         result = radv_BeginCommandBuffer(pre_timed_cmdbuf, &begin_info);
-         if (result != VK_SUCCESS)
-            goto fail;
+         /* Pre timed cmdbuf. */
+         if (j == 0) {
+            result = radv_BeginCommandBuffer(pre_timed_cmdbuf, &begin_info);
+            if (result != VK_SUCCESS)
+               goto fail;
+         }
 
          radv_sqtt_write_gpu_timestamp(radv_cmd_buffer_from_handle(pre_timed_cmdbuf), pre_gpu_timestamp,
                                        VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT);
@@ -867,13 +872,16 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
          if (result != VK_SUCCESS)
             goto fail;
 
-         new_cmdbufs[cmdbuf_idx++] = (VkCommandBufferSubmitInfo){
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-            .commandBuffer = pre_timed_cmdbuf,
-         };
+         if (j == 0) {
+            new_cmdbufs[cmdbuf_idx++] = (VkCommandBufferSubmitInfo){
+               .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+               .commandBuffer = pre_timed_cmdbuf,
+            };
+         }
 
          new_cmdbufs[cmdbuf_idx++] = *pCommandBufferInfo;
 
+         /* Post timed cmdbuf. */
          result = radv_BeginCommandBuffer(post_timed_cmdbuf, &begin_info);
          if (result != VK_SUCCESS)
             goto fail;
@@ -881,9 +889,11 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
          radv_sqtt_write_gpu_timestamp(radv_cmd_buffer_from_handle(post_timed_cmdbuf), post_gpu_timestamp,
                                        VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
 
-         result = radv_EndCommandBuffer(post_timed_cmdbuf);
-         if (result != VK_SUCCESS)
-            goto fail;
+         if (j == sqtt_submit.commandBufferInfoCount - 1) {
+            result = radv_EndCommandBuffer(post_timed_cmdbuf);
+            if (result != VK_SUCCESS)
+               goto fail;
+         }
 
          new_cmdbufs[cmdbuf_idx++] = (VkCommandBufferSubmitInfo){
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -894,6 +904,8 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
          radv_describe_queue_submit(queue, cmd_buffer, j, cpu_timestamp, pre_gpu_timestamp->ptr,
                                     post_gpu_timestamp->ptr);
       }
+
+      assert(cmdbuf_idx == new_cmdbuf_count);
 
       sqtt_submit.commandBufferInfoCount = new_cmdbuf_count;
       sqtt_submit.pCommandBufferInfos = new_cmdbufs;
