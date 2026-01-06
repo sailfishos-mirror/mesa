@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "vk_log.h"
+#include "vk_ycbcr_conversion.h"
 
 #include "pvr_buffer.h"
 #include "pvr_device.h"
@@ -108,7 +109,25 @@ VkResult PVR_PER_ARCH(CreateImageView)(VkDevice _device,
 
    pvr_adjust_non_compressed_view(image, plane, &info);
 
-   vk_component_mapping_to_pipe_swizzle(iview->vk.swizzle, input_swizzle);
+   if (ycbcr_iview) {
+      const VkSamplerYcbcrConversionInfo *pConversion =
+         vk_find_struct_const(pCreateInfo->pNext,
+                              SAMPLER_YCBCR_CONVERSION_INFO);
+      VK_FROM_HANDLE(vk_ycbcr_conversion, conversion, pConversion->conversion);
+      assert(conversion);
+
+      /* UV swizzle is handled by chroma swap instead */
+      input_swizzle[0] = PIPE_SWIZZLE_X;
+      input_swizzle[1] = PIPE_SWIZZLE_Y;
+      input_swizzle[2] = PIPE_SWIZZLE_Z;
+      input_swizzle[3] = PIPE_SWIZZLE_1;
+
+      if (conversion->state.mapping[3] == VK_COMPONENT_SWIZZLE_ZERO) {
+         input_swizzle[3] = PIPE_SWIZZLE_0;
+      }
+   } else {
+      vk_component_mapping_to_pipe_swizzle(iview->vk.swizzle, input_swizzle);
+   }
 
    enum pipe_format pipe_format =
       vk_format_to_pipe_format(iview->vk.view_format);
