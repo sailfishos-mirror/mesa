@@ -187,7 +187,7 @@ radv_write_end_general_api_marker(struct radv_cmd_buffer *cmd_buffer, enum rgp_s
 static void
 radv_write_event_marker(struct radv_cmd_buffer *cmd_buffer, enum rgp_sqtt_marker_event_type api_type,
                         uint32_t vertex_offset_user_data, uint32_t instance_offset_user_data,
-                        uint32_t draw_index_user_data)
+                        uint32_t draw_index_user_data, enum radv_sqtt_userdata_flags flags)
 {
    struct rgp_sqtt_marker_event marker = {0};
 
@@ -208,7 +208,7 @@ radv_write_event_marker(struct radv_cmd_buffer *cmd_buffer, enum rgp_sqtt_marker
    marker.instance_offset_reg_idx = instance_offset_user_data;
    marker.draw_index_reg_idx = draw_index_user_data;
 
-   radv_emit_sqtt_userdata(cmd_buffer, &marker, sizeof(marker) / 4, RADV_SQTT_USERDATA_MAIN_CS);
+   radv_emit_sqtt_userdata(cmd_buffer, &marker, sizeof(marker) / 4, flags);
 }
 
 static void
@@ -339,14 +339,15 @@ radv_gfx12_write_draw_marker(struct radv_cmd_buffer *cmd_buffer, const struct ra
 }
 
 void
-radv_describe_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *draw_info)
+radv_describe_draw(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *draw_info, bool use_gang_cs)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
    assert(device->sqtt.bo);
 
-   radv_write_event_marker(cmd_buffer, cmd_buffer->state.current_event_type, UINT_MAX, UINT_MAX, UINT_MAX);
+   radv_write_event_marker(cmd_buffer, cmd_buffer->state.current_event_type, UINT_MAX, UINT_MAX, UINT_MAX,
+                           RADV_SQTT_USERDATA_MAIN_CS | (use_gang_cs ? RADV_SQTT_USERDATA_GANG_CS : 0));
 
    if (pdev->info.gfx_level >= GFX12)
       radv_gfx12_write_draw_marker(cmd_buffer, draw_info);
@@ -361,7 +362,8 @@ radv_describe_dispatch(struct radv_cmd_buffer *cmd_buffer, const struct radv_dis
       return;
 
    if (info->indirect_va) {
-      radv_write_event_marker(cmd_buffer, cmd_buffer->state.current_event_type, UINT_MAX, UINT_MAX, UINT_MAX);
+      radv_write_event_marker(cmd_buffer, cmd_buffer->state.current_event_type, UINT_MAX, UINT_MAX, UINT_MAX,
+                              RADV_SQTT_USERDATA_MAIN_CS);
    } else {
       radv_write_event_with_dims_marker(cmd_buffer, cmd_buffer->state.current_event_type, info->blocks[0],
                                         info->blocks[1], info->blocks[2]);
@@ -544,6 +546,16 @@ radv_describe_pipeline_bind(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPo
    marker.api_pso_hash[1] = pipeline->pipeline_hash >> 32;
 
    radv_emit_sqtt_userdata(cmd_buffer, &marker, sizeof(marker) / 4, RADV_SQTT_USERDATA_MAIN_CS);
+
+   if (pipeline->type == RADV_PIPELINE_GRAPHICS) {
+      const struct radv_graphics_pipeline *graphics_pipeline = radv_pipeline_to_graphics(pipeline);
+
+      if (radv_pipeline_has_stage(graphics_pipeline, MESA_SHADER_TASK)) {
+         marker.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+
+         radv_emit_sqtt_userdata(cmd_buffer, &marker, sizeof(marker) / 4, RADV_SQTT_USERDATA_GANG_CS);
+      }
+   }
 }
 
 /* Queue events */
