@@ -13,6 +13,7 @@
 #include "vk_ycbcr_conversion.h"
 
 #include "pvr_buffer.h"
+#include "pvr_csb.h"
 #include "pvr_device.h"
 #include "pvr_entrypoints.h"
 #include "pvr_macros.h"
@@ -124,6 +125,17 @@ VkResult PVR_PER_ARCH(CreateImageView)(VkDevice _device,
 
       if (conversion->state.mapping[3] == VK_COMPONENT_SWIZZLE_ZERO) {
          input_swizzle[3] = PIPE_SWIZZLE_0;
+      }
+
+      pvr_csb_pack (&iview->sampler_words[0], TEXSTATE_SAMPLER_WORD0, cfg) {
+         cfg.texaddr_plane2_lo =
+            PVR_DEV_ADDR_OFFSET(image->dev_addr, image->planes[1].offset);
+      }
+      pvr_csb_pack (&iview->sampler_words[1], TEXSTATE_SAMPLER_WORD1, cfg) {
+         cfg.texaddr_plane2_hi =
+            PVR_DEV_ADDR_OFFSET(image->dev_addr, image->planes[1].offset);
+         cfg.texaddr_plane3 =
+            PVR_DEV_ADDR_OFFSET(image->dev_addr, image->planes[2].offset);
       }
    } else {
       vk_component_mapping_to_pipe_swizzle(iview->vk.swizzle, input_swizzle);

@@ -120,6 +120,13 @@ write_image_sampler(const struct pvr_descriptor_set *set,
       VK_FROM_HANDLE(pvr_image_view, image_view, image_info->imageView);
       image_sampler_desc.image =
          image_view->image_state[PVR_TEXTURE_STATE_SAMPLE];
+      if (image_view->sampler_words[0]) {
+         for (unsigned i = 0; i < ROGUE_NUM_TEXSTATE_SAMPLER_WORDS; i++) {
+            image_sampler_desc.sampler.words[i] |= image_view->sampler_words[i];
+            image_sampler_desc.sampler.gather_words[i] |=
+               image_view->sampler_words[i];
+         }
+      }
    }
 
    memcpy(desc_mapping, &image_sampler_desc, sizeof(image_sampler_desc));
@@ -156,6 +163,9 @@ write_sampled_image(const struct pvr_descriptor_set *set,
 
    struct pvr_image_descriptor sampled_image_desc =
       image_view->image_state[PVR_TEXTURE_STATE_SAMPLE];
+
+   /* YCbCr must use combined image smapler */
+   assert(!image_view->sampler_words[0] && !image_view->sampler_words[1]);
 
    memcpy(desc_mapping, &sampled_image_desc, sizeof(sampled_image_desc));
 }

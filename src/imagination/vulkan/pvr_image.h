@@ -139,6 +139,9 @@ struct pvr_image_view {
     * attachment cases.
     */
    struct pvr_image_descriptor image_state[PVR_TEXTURE_STATE_MAX_ENUM];
+
+   /* Prepacked Sampler Words with YCbCr plane addresses */
+   uint64_t sampler_words[ROGUE_NUM_TEXSTATE_SAMPLER_WORDS];
 };
 
 VK_DEFINE_NONDISP_HANDLE_CASTS(pvr_image, vk.base, VkImage, VK_OBJECT_TYPE_IMAGE)
