@@ -98,13 +98,32 @@ radv_emit_sqtt_stop(const struct radv_device *device, struct radv_cmd_stream *cs
    ac_pm4_free_state(pm4);
 }
 
+static void
+radv_emit_sqtt_userdata_cs(const struct radv_device *device, struct radv_cmd_stream *cs, uint32_t count,
+                           const uint32_t *dwords)
+{
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
+   radeon_check_space(device->ws, cs->b, 2 + count);
+   radeon_begin(cs);
+
+   /* Without the perfctr bit the CP might not always pass the
+    * write on correctly. */
+   if (pdev->info.gfx_level >= GFX10)
+      radeon_set_uconfig_perfctr_reg_seq(pdev->info.gfx_level, cs->hw_ip, R_030D08_SQ_THREAD_TRACE_USERDATA_2, count);
+   else
+      radeon_set_uconfig_reg_seq(R_030D08_SQ_THREAD_TRACE_USERDATA_2, count);
+   radeon_emit_array(dwords, count);
+
+   radeon_end();
+}
+
 void
-radv_emit_sqtt_userdata(const struct radv_cmd_buffer *cmd_buffer, const void *data, uint32_t num_dwords)
+radv_emit_sqtt_userdata(const struct radv_cmd_buffer *cmd_buffer, const void *data, uint32_t num_dwords,
+                        enum radv_sqtt_userdata_flags flags)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    const bool is_gfx_or_ace = cmd_buffer->qf == RADV_QUEUE_GENERAL || cmd_buffer->qf == RADV_QUEUE_COMPUTE;
-   const enum amd_gfx_level gfx_level = pdev->info.gfx_level;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    const uint32_t *dwords = (uint32_t *)data;
 
@@ -115,18 +134,10 @@ radv_emit_sqtt_userdata(const struct radv_cmd_buffer *cmd_buffer, const void *da
    while (num_dwords > 0) {
       uint32_t count = MIN2(num_dwords, 2);
 
-      radeon_check_space(device->ws, cs->b, 2 + count);
-      radeon_begin(cs);
-
-      /* Without the perfctr bit the CP might not always pass the
-       * write on correctly. */
-      if (pdev->info.gfx_level >= GFX10)
-         radeon_set_uconfig_perfctr_reg_seq(gfx_level, cs->hw_ip, R_030D08_SQ_THREAD_TRACE_USERDATA_2, count);
-      else
-         radeon_set_uconfig_reg_seq(R_030D08_SQ_THREAD_TRACE_USERDATA_2, count);
-      radeon_emit_array(dwords, count);
-
-      radeon_end();
+      if (flags & RADV_SQTT_USERDATA_MAIN_CS)
+         radv_emit_sqtt_userdata_cs(device, cs, count, dwords);
+      if (flags & RADV_SQTT_USERDATA_GANG_CS)
+         radv_emit_sqtt_userdata_cs(device, cmd_buffer->gang.cs, count, dwords);
 
       dwords += count;
       num_dwords -= count;
