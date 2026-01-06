@@ -282,6 +282,8 @@ radv_sqtt_init_bo(struct radv_device *device)
    size += device->sqtt.buffer_size * (uint64_t)max_se;
 
    struct radeon_winsys_bo *bo = NULL;
+
+   /* The SQTT BO must be in VRAM, otherwise it's really slow and timings don't match real cases. */
    result = radv_bo_create(device, NULL, size, 4096, RADEON_DOMAIN_VRAM,
                            RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_ZERO_VRAM,
                            RADV_BO_PRIORITY_SCRATCH, 0, true, &bo);
