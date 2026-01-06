@@ -694,7 +694,7 @@
         "description": "tgsi/nir: Store output variables before each TGSI_OPCODE_RET",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "885323ea3ab15d736645ac7da8ce60fa66b217b8",
         "notes": null
