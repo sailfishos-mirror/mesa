@@ -1168,7 +1168,7 @@ unsigned base = src0;
 int offset = src1, bits = src2;
 if (bits == 0) {
    dst = 0;
-} else if (bits < 0 || offset < 0 || offset + bits > 32) {
+} else if (bits < 0 || offset < 0 || offset + bits > bit_size) {
    dst = 0; /* undefined per the spec */
 } else {
    dst = (base >> offset) & ((1ull << bits) - 1);
@@ -1180,7 +1180,7 @@ int base = src0;
 int offset = src1, bits = src2;
 if (bits == 0) {
    dst = 0;
-} else if (offset < 0 || bits < 0 || offset + bits > 32) {
+} else if (offset < 0 || bits < 0 || offset + bits > bit_size) {
    dst = 0;
 } else {
    dst = (base << (32 - offset - bits)) >> (32 - bits); /* use sign-extending shift */

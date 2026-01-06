@@ -794,7 +794,7 @@
         "description": "nir: Fix constant evaluation of non-32-bit bitfield_extract.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "226b0e28dbe9e48c51a6b3213f9da10c7d2cbad0",
         "notes": null
