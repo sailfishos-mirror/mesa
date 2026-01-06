@@ -5035,7 +5035,8 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       srcs[URB_LOGICAL_SRC_DATA] = get_nir_src(ntb, instr->src[0], -1);
 
       if (!nir_src_is_const(instr->src[3]) ||
-          nir_src_as_uint(instr->src[3]) != 0xf) {
+          nir_src_as_uint(instr->src[3]) !=
+          nir_component_mask(nir_src_num_components(instr->src[0]))) {
          srcs[URB_LOGICAL_SRC_CHANNEL_MASK] =
             retype(get_nir_src_imm(ntb, instr->src[3]), BRW_TYPE_UD);
       }
