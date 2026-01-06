@@ -475,7 +475,8 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
 template <chip CHIP>
 void
 fdl6_buffer_view_init(uint32_t *descriptor, enum pipe_format format,
-                      const uint8_t *swiz, uint64_t iova, uint32_t size);
+                      const uint8_t *swiz, uint64_t iova, uint32_t size,
+                      uint32_t struct_size_texels = 1);
 #endif
 
 #endif /* FREEDRENO_LAYOUT_H_ */
