@@ -60,10 +60,7 @@ select_rt_prolog(Program* program, ac_shader_config* config,
       in_scratch_offset = get_arg_reg(in_args, in_args->scratch_offset);
    struct ac_arg arg_id = options->gfx_level >= GFX11 ? in_args->local_invocation_ids_packed
                                                       : in_args->local_invocation_id_x;
-   PhysReg in_local_ids[2] = {
-      get_arg_reg(in_args, arg_id),
-      get_arg_reg(in_args, arg_id).advance(4),
-   };
+   PhysReg in_local_id = get_arg_reg(in_args, arg_id);
 
    /* Outputs:
     * Callee shader PC:            s[0-1]
@@ -91,15 +88,18 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    PhysReg out_record_ptr = get_arg_reg(out_args, out_args->rt.shader_record);
 
    /* Temporaries: */
+   PhysReg tmp_wg_id_y;
+   if (program->gfx_level >= GFX12) {
+      tmp_wg_id_y = PhysReg{num_sgprs};
+      num_sgprs++;
+   } else {
+      tmp_wg_id_y = in_wg_id_y;
+   }
    num_sgprs = align(num_sgprs, 2);
    PhysReg tmp_raygen_sbt = PhysReg{num_sgprs};
    num_sgprs += 2;
    PhysReg tmp_ring_offsets = PhysReg{num_sgprs};
    num_sgprs += 2;
-   PhysReg tmp_wg_id_x_times_size = PhysReg{num_sgprs};
-   num_sgprs++;
-
-   PhysReg tmp_invocation_idx = PhysReg{256 + num_vgprs++};
 
    /* Confirm some assumptions about register aliasing */
    assert(in_ring_offsets == out_uniform_shader_addr);
@@ -113,7 +113,7 @@ select_rt_prolog(Program* program, ac_shader_config* config,
           get_arg_reg(out_args, out_args->rt.traversal_shader_addr));
    assert(in_launch_size_addr == out_launch_size_x);
    assert(in_stack_base == out_launch_size_z);
-   assert(in_local_ids[0] == out_launch_ids[0]);
+   assert(in_local_id == out_launch_ids[0]);
 
    /* <gfx9 reads in_scratch_offset at the end of the prolog to write out the scratch_offset
     * arg. Make sure no other outputs have overwritten it by then.
@@ -154,28 +154,18 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    }
 
    /* calculate ray launch ids */
-   if (options->gfx_level >= GFX11) {
-      /* Thread IDs are packed in VGPR0, 10 bits per component. */
-      bld.vop3(aco_opcode::v_bfe_u32, Definition(in_local_ids[1], v1), Operand(in_local_ids[0], v1),
-               Operand::c32(10u), Operand::c32(3u));
-      bld.vop2(aco_opcode::v_and_b32, Definition(in_local_ids[0], v1), Operand::c32(0x7),
-               Operand(in_local_ids[0], v1));
-   }
-   /* Do this backwards to reduce some RAW hazards on GFX11+ */
    if (options->gfx_level >= GFX12) {
       bld.vop2_e64(aco_opcode::v_lshrrev_b32, Definition(out_launch_ids[2], v1), Operand::c32(16),
                    Operand(in_wg_id_y, s1));
-      bld.vop3(aco_opcode::v_mad_u32_u16, Definition(out_launch_ids[1], v1),
-               Operand(in_wg_id_y, s1), Operand::c32(program->workgroup_size == 32 ? 4 : 8),
-               Operand(in_local_ids[1], v1));
+      bld.sop2(aco_opcode::s_pack_ll_b32_b16, Definition(tmp_wg_id_y, s1), Operand(in_wg_id_y, s1),
+               Operand::c32(0));
    } else {
       bld.vop1(aco_opcode::v_mov_b32, Definition(out_launch_ids[2], v1), Operand(in_wg_id_z, s1));
-      bld.vop3(aco_opcode::v_mad_u32_u24, Definition(out_launch_ids[1], v1),
-               Operand(in_wg_id_y, s1), Operand::c32(program->workgroup_size == 32 ? 4 : 8),
-               Operand(in_local_ids[1], v1));
    }
+
+   bld.vop1(aco_opcode::v_mov_b32, Definition(out_launch_ids[1], v1), Operand(tmp_wg_id_y, s1));
    bld.vop3(aco_opcode::v_mad_u32_u24, Definition(out_launch_ids[0], v1), Operand(in_wg_id_x, s1),
-            Operand::c32(8), Operand(in_local_ids[0], v1));
+            Operand::c32(program->workgroup_size), Operand(in_local_id, v1));
 
    /* calculate shader record ptr: SBT + RADV_RT_HANDLE_SIZE */
    if (options->gfx_level < GFX9) {
@@ -187,38 +177,6 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    }
    bld.vop1(aco_opcode::v_mov_b32, Definition(out_record_ptr.advance(4), v1),
             Operand(tmp_raygen_sbt.advance(4), s1));
-
-   /* For 1D dispatches converted into 2D ones, we need to fix up the launch IDs.
-    * Calculating the 1D launch ID is: id = local_invocation_index + (wg_id.x * wg_size).
-    * tmp_wg_id_x_times_size now holds wg_id.x * wg_size.
-    */
-   bld.sop2(aco_opcode::s_lshl_b32, Definition(tmp_wg_id_x_times_size, s1), Definition(scc, s1),
-            Operand(in_wg_id_x, s1), Operand::c32(program->workgroup_size == 32 ? 5 : 6));
-
-   /* Calculate and add local_invocation_index */
-   bld.vop3(aco_opcode::v_mbcnt_lo_u32_b32, Definition(tmp_invocation_idx, v1), Operand::c32(-1u),
-            Operand(tmp_wg_id_x_times_size, s1));
-   if (program->wave_size == 64) {
-      if (program->gfx_level <= GFX7)
-         bld.vop2(aco_opcode::v_mbcnt_hi_u32_b32, Definition(tmp_invocation_idx, v1),
-                  Operand::c32(-1u), Operand(tmp_invocation_idx, v1));
-      else
-         bld.vop3(aco_opcode::v_mbcnt_hi_u32_b32_e64, Definition(tmp_invocation_idx, v1),
-                  Operand::c32(-1u), Operand(tmp_invocation_idx, v1));
-   }
-
-   /* Make fixup operations a no-op if this is not a converted 2D dispatch. */
-   bld.sopc(aco_opcode::s_cmp_lg_u32, Definition(scc, s1),
-            Operand::c32(ACO_RT_CONVERTED_2D_LAUNCH_SIZE), Operand(out_launch_size_y, s1));
-   bld.sop2(Builder::s_cselect, Definition(vcc, bld.lm),
-            Operand::c32_or_c64(-1u, program->wave_size == 64),
-            Operand::c32_or_c64(0, program->wave_size == 64), Operand(scc, s1));
-   bld.sop2(aco_opcode::s_cselect_b32, Definition(out_launch_size_y, s1),
-            Operand(out_launch_size_y, s1), Operand::c32(1), Operand(scc, s1));
-   bld.vop2(aco_opcode::v_cndmask_b32, Definition(out_launch_ids[0], v1),
-            Operand(tmp_invocation_idx, v1), Operand(out_launch_ids[0], v1), Operand(vcc, bld.lm));
-   bld.vop2(aco_opcode::v_cndmask_b32, Definition(out_launch_ids[1], v1), Operand::zero(),
-            Operand(out_launch_ids[1], v1), Operand(vcc, bld.lm));
 
    if (options->gfx_level < GFX9) {
       /* write scratch/ring offsets to outputs, if needed */

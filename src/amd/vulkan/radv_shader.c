@@ -3424,11 +3424,10 @@ radv_create_rt_prolog(struct radv_device *device)
    info.workgroup_size = info.wave_size;
    info.user_data_0 = R_00B900_COMPUTE_USER_DATA_0;
    info.type = RADV_SHADER_TYPE_RT_PROLOG;
-   info.cs.block_size[0] = 8;
-   info.cs.block_size[1] = pdev->rt_wave_size == 64 ? 8 : 4;
+   info.cs.block_size[0] = pdev->rt_wave_size;
+   info.cs.block_size[1] = 1;
    info.cs.block_size[2] = 1;
    info.cs.uses_thread_id[0] = true;
-   info.cs.uses_thread_id[1] = true;
    for (unsigned i = 0; i < 3; i++)
       info.cs.uses_block_id[i] = true;
 

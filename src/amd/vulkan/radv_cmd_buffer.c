@@ -13895,17 +13895,6 @@ radv_after_trace_rays(struct radv_cmd_buffer *cmd_buffer, bool dgc)
    radv_cmd_buffer_after_draw(cmd_buffer, RADV_CMD_FLAG_CS_PARTIAL_FLUSH, dgc);
 }
 
-static void
-radv_rt_dispatch(struct radv_cmd_buffer *cmd_buffer, const struct radv_dispatch_info *info)
-{
-   struct radv_ray_tracing_pipeline *rt_pipeline = cmd_buffer->state.rt_pipeline;
-   const struct radv_shader *rt_prolog = cmd_buffer->state.rt_prolog;
-
-   radv_before_trace_rays(cmd_buffer, rt_pipeline);
-   radv_emit_dispatch_packets(cmd_buffer, rt_prolog, info);
-   radv_after_trace_rays(cmd_buffer, false);
-}
-
 VKAPI_ATTR void VKAPI_CALL
 radv_CmdDispatchBase(VkCommandBuffer commandBuffer, uint32_t base_x, uint32_t base_y, uint32_t base_z, uint32_t x,
                      uint32_t y, uint32_t z)
@@ -14059,11 +14048,7 @@ radv_trace_rays(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysIndirectCommand2K
       radv_trace_trace_rays(cmd_buffer, tables, indirect_va);
 
    struct radv_shader *rt_prolog = cmd_buffer->state.rt_prolog;
-
-   /* Since the workgroup size is 8x4 (or 8x8), 1D dispatches can only fill 8 threads per wave at most. To increase
-    * occupancy, it's beneficial to convert to a 2D dispatch in these cases. */
-   if (tables && tables->height == 1 && tables->width >= cmd_buffer->state.rt_prolog->info.cs.block_size[0])
-      tables->height = ACO_RT_CONVERTED_2D_LAUNCH_SIZE;
+   struct radv_ray_tracing_pipeline *rt_pipeline = cmd_buffer->state.rt_pipeline;
 
    struct radv_dispatch_info info = {0};
    info.unaligned = true;
@@ -14079,24 +14064,10 @@ radv_trace_rays(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysIndirectCommand2K
       sbt_va = indirect_va;
    }
 
-   uint32_t remaining_ray_count = 0;
-
    if (mode == radv_rt_mode_direct) {
       info.blocks[0] = tables->width;
       info.blocks[1] = tables->height;
       info.blocks[2] = tables->depth;
-
-      if (tables->height == ACO_RT_CONVERTED_2D_LAUNCH_SIZE) {
-         /* We need the ray count for the 2D dispatch to be a multiple of the y block size for the division to work, and
-          * a multiple of the x block size because the invocation offset must be a multiple of the block size when
-          * dispatching the remaining rays. Fortunately, the x block size is itself a multiple of the y block size, so
-          * we only need to ensure that the ray count is a multiple of the x block size. */
-         remaining_ray_count = tables->width % rt_prolog->info.cs.block_size[0];
-
-         uint32_t ray_count = tables->width - remaining_ray_count;
-         info.blocks[0] = ray_count / rt_prolog->info.cs.block_size[1];
-         info.blocks[1] = rt_prolog->info.cs.block_size[1];
-      }
    } else
       info.indirect_va = launch_size_va;
 
@@ -14126,28 +14097,9 @@ radv_trace_rays(struct radv_cmd_buffer *cmd_buffer, VkTraceRaysIndirectCommand2K
 
    assert(cs->b->cdw <= cdw_max);
 
-   radv_rt_dispatch(cmd_buffer, &info);
-
-   if (remaining_ray_count) {
-      info.blocks[0] = remaining_ray_count;
-      info.blocks[1] = 1;
-      info.offsets[0] = tables->width - remaining_ray_count;
-
-      /* Reset the ray launch size so the prolog doesn't think this is a converted dispatch */
-      tables->height = 1;
-      radv_upload_trace_rays_params(cmd_buffer, tables, mode, &launch_size_va, NULL);
-      if (ray_launch_size_addr_offset) {
-         radeon_begin(cs);
-         if (pdev->info.gfx_level >= GFX12) {
-            gfx12_push_64bit_pointer(ray_launch_size_addr_offset, launch_size_va);
-         } else {
-            radeon_emit_64bit_pointer(ray_launch_size_addr_offset, launch_size_va);
-         }
-         radeon_end();
-      }
-
-      radv_rt_dispatch(cmd_buffer, &info);
-   }
+   radv_before_trace_rays(cmd_buffer, rt_pipeline);
+   radv_emit_dispatch_packets(cmd_buffer, rt_prolog, &info);
+   radv_after_trace_rays(cmd_buffer, false);
 
    radv_resume_conditional_rendering(cmd_buffer);
 }

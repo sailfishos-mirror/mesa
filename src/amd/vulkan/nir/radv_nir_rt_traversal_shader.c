@@ -1143,8 +1143,7 @@ radv_build_traversal_shader(struct radv_device *device, struct radv_ray_tracing_
     * invalid variable modes.*/
    nir_builder b = radv_meta_nir_init_shader(device, MESA_SHADER_INTERSECTION, "rt_traversal");
    b.shader->info.internal = false;
-   b.shader->info.workgroup_size[0] = 8;
-   b.shader->info.workgroup_size[1] = pdev->rt_wave_size == 64 ? 8 : 4;
+   b.shader->info.workgroup_size[0] = pdev->rt_wave_size;
    b.shader->info.api_subgroup_size = pdev->rt_wave_size;
    b.shader->info.max_subgroup_size = pdev->rt_wave_size;
    b.shader->info.min_subgroup_size = pdev->rt_wave_size;
