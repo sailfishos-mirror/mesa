@@ -31,18 +31,21 @@ class Opcode:
 
 def normalize_hw_opcode(hw_opcode: HwOpcodeInput) -> HwOpcode:
     if isinstance(hw_opcode, int):
-        return {"pre_xe": hw_opcode, "xe": hw_opcode, "xe2": hw_opcode}
+        return {"pre_xe": hw_opcode, "xe": hw_opcode, "xe2": hw_opcode,
+                "xe3p": hw_opcode}
 
-    assert hw_opcode.keys() <= {"pre_xe", "xe", "xe2"}
+    assert hw_opcode.keys() <= {"pre_xe", "xe", "xe2", "xe3p"}
     assert all(value is None or isinstance(value, int)
                for value in hw_opcode.values())
     pre_xe = hw_opcode.get("pre_xe")
     xe = hw_opcode.get("xe", pre_xe)
     xe2 = hw_opcode.get("xe2", xe)
+    xe3p = hw_opcode.get("xe3p", xe2)
     return {
         "pre_xe": pre_xe,
         "xe": xe,
         "xe2": xe2,
+        "xe3p": xe3p,
     }
 
 

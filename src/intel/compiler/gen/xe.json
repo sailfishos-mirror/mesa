@@ -305,5 +305,8 @@
             "3SRC_CONTROL_INDEX":       [  21,  18 ],
             "3SRC_SWSB":                [  17,   8 ]
         }
+    },
+    "Xe3P": {
+        "import": "Xe2"
     }
 }

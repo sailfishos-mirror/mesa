@@ -19,6 +19,7 @@
 #include "gen_info_pre_xe.h"
 #include "gen_info_xe.h"
 #include "gen_info_xe2.h"
+#include "gen_info_xe3p.h"
 
 enum {
    GEN_SYSTOLIC_DEPTH_16 = 0,
@@ -1714,8 +1715,11 @@ gen_encode(gen_encode_params *params)
    } else if (devinfo->ver < 20) {
       auto e = gen_encoder<gen_encoding_xe>(devinfo);
       return e.encode_many(params);
-   } else {
+   } else if (devinfo->ver < 35) {
       auto e = gen_encoder<gen_encoding_xe2>(devinfo);
+      return e.encode_many(params);
+   } else {
+      auto e = gen_encoder<gen_encoding_xe3p>(devinfo);
       return e.encode_many(params);
    }
 }
@@ -1811,8 +1815,11 @@ gen_decode(gen_decode_params *params)
    } else if (devinfo->ver < 20) {
       auto d = gen_decoder<gen_encoding_xe>(devinfo, params->mem_ctx);
       return d.decode_many(params);
-   } else {
+   } else if (devinfo->ver < 35) {
       auto d = gen_decoder<gen_encoding_xe2>(devinfo, params->mem_ctx);
+      return d.decode_many(params);
+   } else {
+      auto d = gen_decoder<gen_encoding_xe3p>(devinfo, params->mem_ctx);
       return d.decode_many(params);
    }
 }
