@@ -722,8 +722,6 @@ enum vpe_status vpe_build_commands(
     }
 
     if (status == VPE_STATUS_OK) {
-        vpe_geometric_scaling_feature_skip(vpe_priv, param);
-
         if (bufs->cmd_buf.size == 0 || bufs->emb_buf.size == 0) {
             /* Here we directly return without setting ops_support to false
              *  becaues the supported check is already passed
@@ -737,6 +735,8 @@ enum vpe_status vpe_build_commands(
                    (bufs->emb_buf.size < vpe_priv->bufs_required.emb_buf_size)) {
             status = VPE_STATUS_INVALID_BUFFER_SIZE;
         }
+
+        vpe_geometric_scaling_feature_skip(vpe_priv, param);
     }
 
     builder = &vpe_priv->resource.cmd_builder;
