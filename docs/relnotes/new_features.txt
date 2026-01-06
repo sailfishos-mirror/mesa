@@ -22,3 +22,5 @@ VK_KHR_dynamic_rendering on PowerVR
 VK_EXT_multisampled_render_to_single_sampled on panvk
 VK_KHR_pipeline_binary on HoneyKrisp
 VK_KHR_incremental_present on pvr
+VK_KHR_xcb_surface on pvr
+VK_KHR_xlib_surface on pvr
