@@ -2617,6 +2617,8 @@ system_value("leaf_procedural_intel", 1, bit_sizes=[1])
 #  2: Miss
 #  3: Intersection
 system_value("btd_shader_type_intel", 1)
+# 64bit pointer to a couple of RT_DISPATCH_GLOBALS structure each aligned to
+# 64B, the pointer needs 256B aligned.
 system_value("ray_query_global_intel", 1, bit_sizes=[64])
 
 # Source 0: Accumulator matrix (type specified by DEST_TYPE)

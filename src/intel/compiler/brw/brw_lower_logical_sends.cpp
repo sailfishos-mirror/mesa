@@ -29,6 +29,7 @@
 #include "brw_shader.h"
 #include "brw_builder.h"
 #include "brw_sampler.h"
+#include "brw_rt.h"
 
 #include "util/bitpack_helpers.h"
 
@@ -2079,11 +2080,16 @@ lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
    brw_reg header = ubld.vgrf(BRW_TYPE_UD);
    ubld.MOV(header, brw_imm_ud(0));
 
+   const uint32_t second_group_offset =
+      align(BRW_RT_DISPATCH_GLOBALS_SIZE, 64);
+
    const brw_reg globals_addr = inst->src[RT_LOGICAL_SRC_GLOBALS];
    if (globals_addr.file != UNIFORM) {
       brw_reg addr_ud = retype(globals_addr, BRW_TYPE_UD);
       addr_ud.stride = 1;
       ubld.group(2, 0).MOV(header, addr_ud);
+      if (inst->group == 16)
+         ubld.group(1, 0).ADD(header, header, brw_imm_ud(second_group_offset));
    } else {
       /* If the globals address comes from a uniform, do not do the SIMD2
        * optimization. This occurs in many Vulkan CTS tests.
@@ -2093,8 +2099,14 @@ lower_trace_ray_logical_send(const brw_builder &bld, brw_inst *inst)
        * UNIFORM will be uniform (i.e., <0,1,0>). The clever SIMD2
        * optimization violates that assumption.
        */
-      ubld.group(1, 0).MOV(byte_offset(header, 0),
-                           subscript(globals_addr, BRW_TYPE_UD, 0));
+      if (inst->group == 16) {
+         ubld.group(1, 0).ADD(byte_offset(header, 0),
+                              subscript(globals_addr, BRW_TYPE_UD, 0),
+                              brw_imm_ud(second_group_offset));
+      } else {
+         ubld.group(1, 0).MOV(byte_offset(header, 0),
+                              subscript(globals_addr, BRW_TYPE_UD, 0));
+      }
       ubld.group(1, 0).MOV(byte_offset(header, 4),
                            subscript(globals_addr, BRW_TYPE_UD, 1));
    }

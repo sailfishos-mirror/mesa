@@ -38,6 +38,13 @@ extern "C" {
 /** RT_DISPATCH_GLOBALS size (see gen_rt.xml) */
 #define BRW_RT_DISPATCH_GLOBALS_SIZE 80
 
+/** RT_DISPATCH_GLOBALS alignment
+ *
+ * Use 256B to make sure we can access the pair of RT_DISPATCH_GLOBALS without
+ * 64bit math.
+ */
+#define BRW_RT_DISPATCH_GLOBALS_ALIGN 256
+
 /** Offset after the RT dispatch globals at which "push" constants live */
 #define BRW_RT_PUSH_CONST_OFFSET 128
 

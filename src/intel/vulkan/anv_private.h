@@ -4247,7 +4247,11 @@ struct anv_push_constants {
     */
    uint32_t surfaces_base_offset;
 
-   /** Ray query globals (RT_DISPATCH_GLOBALS) */
+   /** Ray query globals
+    *
+    * Pointer to a couple of RT_DISPATCH_GLOBALS structures (see
+    * genX(cmd_buffer_ray_query_globals))
+    */
    uint64_t ray_query_globals;
 
    union {
