@@ -336,6 +336,26 @@ for src_t in [tint, tuint, tfloat, tbool]:
               unop_numeric_convert("{0}2{1}{2}".format(src_t[0], dst_t[0],
                                                        dst_bit_size),
                                    dst_t + str(dst_bit_size), src_t, conv_expr)
+          elif src_t == tfloat and dst_t in [tint, tuint]:
+              # SPIRV specifies that OpConvertFToU and OpConvertFToS are UB if
+              # the input is out of range of the output.  glsl 4.60 just says
+              # "It is undefined to convert a negative floating-point value to
+              # an uint.", but we define the NIR opcodes the SPIRV way.
+              if dst_t == tuint:
+                   min = "0.0"
+                   max = "u_uintN_max({})".format(dst_bit_size)
+              else:
+                   min = "u_intN_min({})".format(dst_bit_size)
+                   max = "u_intN_max({})".format(dst_bit_size)
+              conv_expr = f"""
+                dst = src0;
+                if (src0 < {min} || src0 > {max}) {{
+                   poison = true;
+                }}
+              """
+              unop_numeric_convert("{0}2{1}{2}".format(src_t[0], dst_t[0],
+                                                       dst_bit_size),
+                                   dst_t + str(dst_bit_size), src_t, conv_expr)
           else:
               conv_expr = "src0 != 0" if dst_t == tbool else "src0"
               unop_numeric_convert("{0}2{1}{2}".format(src_t[0], dst_t[0],
