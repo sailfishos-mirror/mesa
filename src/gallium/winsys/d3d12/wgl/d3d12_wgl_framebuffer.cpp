@@ -168,16 +168,6 @@ d3d12_wgl_framebuffer_resize(stw_winsys_framebuffer *fb,
    desc.Scaling = DXGI_SCALING_STRETCH;
 
    framebuffer->pformat = templ->format;
-   switch (templ->format) {
-   case PIPE_FORMAT_B8G8R8X8_UNORM:
-      framebuffer->pformat = PIPE_FORMAT_B8G8R8A8_UNORM;
-      break;
-   case PIPE_FORMAT_R8G8B8X8_UNORM:
-      framebuffer->pformat = PIPE_FORMAT_R8G8B8A8_UNORM;
-      break;
-   default:
-      break;
-   }
 
    if (desc.AlphaMode != DXGI_ALPHA_MODE_IGNORE) {
       if (!framebuffer->dcomp) {
