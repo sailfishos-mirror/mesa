@@ -1829,12 +1829,19 @@ opcode("sdot_2x16_iadd_sat", 0, tint32, [0, 0, 0], [tuint32, tuint32, tint32],
 # Like udot_2x16_uadd, but the result is clampled to the range [0, 0xfffffffff].
 opcode("udot_2x16_uadd_sat", 0, tint32, [0, 0, 0], [tuint32, tuint32, tint32],
        False, _2src_commutative, """
-   const uint64_t v0x = (uint16_t)(src0      );
-   const uint64_t v0y = (uint16_t)(src0 >> 16);
-   const uint64_t v1x = (uint16_t)(src1      );
-   const uint64_t v1y = (uint16_t)(src1 >> 16);
+   const uint32_t v0x = (uint16_t)(src0      );
+   const uint32_t v0y = (uint16_t)(src0 >> 16);
+   const uint32_t v1x = (uint16_t)(src1      );
+   const uint32_t v1y = (uint16_t)(src1 >> 16);
 
-   const uint64_t tmp = (v0x * v1x) + (v0y * v1y) + src2;
+   /* SPIRV specifies that UDotAccSat is UB if the addition (or muliplication)
+    * overflows before the accumulation step.
+    */
+   uint32_t dp = (v0x * v1x) + (v0y * v1y);
+   if (dp < (v0x * v1x))
+      poison = true;
+
+   const uint64_t tmp = (uint64_t)dp + src2;
 
    dst = tmp >= UINT32_MAX ? UINT32_MAX : tmp;
 """)
