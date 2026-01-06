@@ -988,47 +988,18 @@ radv_sqtt_free_cmdbuf(struct radv_device *device, enum radv_queue_family queue_f
    simple_mtx_unlock(&device->sqtt_command_pool_mtx);
 }
 
-VkResult
-radv_sqtt_get_timed_cmdbuf(struct radv_queue *queue, struct radeon_winsys_bo *timestamp_bo, uint32_t timestamp_offset,
-                           VkPipelineStageFlags2 timestamp_stage, VkCommandBuffer *pcmdbuf)
+void
+radv_sqtt_write_gpu_timestamp(struct radv_cmd_buffer *cmd_buffer, const struct radv_sqtt_gpu_timestamp *gpu_timestamp,
+                              VkPipelineStageFlags2 timestamp_stage)
 {
-   struct radv_device *device = radv_queue_device(queue);
-   enum radv_queue_family queue_family = queue->state.qf;
-   VkCommandBuffer cmdbuf;
-   uint64_t timestamp_va;
-   VkResult result;
-
-   assert(queue_family == RADV_QUEUE_GENERAL || queue_family == RADV_QUEUE_COMPUTE);
-
-   result = radv_sqtt_allocate_cmdbuf(device, queue_family, &cmdbuf);
-   if (result != VK_SUCCESS)
-      return result;
-
-   const VkCommandBufferBeginInfo begin_info = {
-      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-   };
-
-   result = radv_BeginCommandBuffer(cmdbuf, &begin_info);
-   if (result != VK_SUCCESS)
-      return result;
-
-   struct radv_cmd_buffer *cmd_buffer = radv_cmd_buffer_from_handle(cmdbuf);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    radeon_check_space(device->ws, cs->b, 28);
 
-   timestamp_va = radv_buffer_get_va(timestamp_bo) + timestamp_offset;
+   uint64_t timestamp_va = radv_buffer_get_va(gpu_timestamp->bo) + gpu_timestamp->offset;
 
-   radv_cs_add_buffer(device->ws, cs->b, timestamp_bo);
+   radv_cs_add_buffer(device->ws, cs->b, gpu_timestamp->bo);
 
-   radv_write_timestamp(radv_cmd_buffer_from_handle(cmdbuf), timestamp_va, timestamp_stage);
-
-   result = radv_EndCommandBuffer(cmdbuf);
-   if (result != VK_SUCCESS)
-      return result;
-
-   *pcmdbuf = cmdbuf;
-
-   return result;
+   radv_write_timestamp(cmd_buffer, timestamp_va, timestamp_stage);
 }
