@@ -1053,17 +1053,32 @@ dst.y = src1.x;
 Combines the first component of each input to make a 2-component vector.
 """)
 
+def extract_insert_op(name, ty, expr):
+   if name.endswith("16"):
+     width = 16
+   else:
+     assert(name.endswith("8"))
+     width = 8;
+   binop(name, ty, "", f"""
+         if ((uint64_t)(src1 * {width}) >= bit_size) {{
+            dst = 0;
+            poison = true;
+         }} else {{
+            dst = {expr};
+         }}
+         """)
+
 # Byte extraction
-binop("extract_u8", tuint, "", "(uint8_t)(src0 >> (src1 * 8))")
-binop("extract_i8", tint, "", "(int8_t)(src0 >> (src1 * 8))")
+extract_insert_op("extract_u8", tuint, "(uint8_t)(src0 >> (src1 * 8))")
+extract_insert_op("extract_i8", tint, "(int8_t)(src0 >> (src1 * 8))")
 
 # Word extraction
-binop("extract_u16", tuint, "", "(uint16_t)(src0 >> (src1 * 16))")
-binop("extract_i16", tint, "", "(int16_t)(src0 >> (src1 * 16))")
+extract_insert_op("extract_u16", tuint, "(uint16_t)(src0 >> (src1 * 16))")
+extract_insert_op("extract_i16", tint, "(int16_t)(src0 >> (src1 * 16))")
 
 # Byte/word insertion
-binop("insert_u8", tuint, "", "(src0 & 0xff) << (src1 * 8)")
-binop("insert_u16", tuint, "", "(src0 & 0xffff) << (src1 * 16)")
+extract_insert_op("insert_u8", tuint, "(src0 & 0xff) << (src1 * 8)")
+extract_insert_op("insert_u16", tuint, "(src0 & 0xffff) << (src1 * 16)")
 
 
 def triop(name, ty, alg_props, const_expr, description = ""):
@@ -1260,6 +1275,7 @@ if (bits == 0) {
    dst = base;
 } else if (offset < 0 || bits < 0 || bits + offset > 32) {
    dst = 0;
+   poison = true;
 } else {
    unsigned mask = ((1ull << bits) - 1) << offset;
    dst = (base & ~mask) | ((insert << offset) & mask);
