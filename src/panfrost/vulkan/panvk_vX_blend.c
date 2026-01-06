@@ -240,6 +240,10 @@ blend_needs_shader(const struct pan_blend_state *state, unsigned rt_idx,
    if (!GENX(pan_blendable_format_from_pipe_format)(rt->format)->internal)
       return true;
 
+   bool supports_2src = pan_blend_supports_2src(PAN_ARCH);
+   if (!pan_blend_can_fixed_function(rt->equation, supports_2src))
+      return true;
+
    unsigned constant_mask = pan_blend_constant_mask(rt->equation);
 
    /* v6 doesn't support blend constants in FF blend equations. */
@@ -262,10 +266,6 @@ blend_needs_shader(const struct pan_blend_state *state, unsigned rt_idx,
       if (*ff_blend_constant != ~0 && blend_const != *ff_blend_constant)
          return true;
    }
-
-   bool supports_2src = pan_blend_supports_2src(PAN_ARCH);
-   if (!pan_blend_can_fixed_function(rt->equation, supports_2src))
-      return true;
 
    /* Update the fixed function blend constant, if we use it. */
    if (blend_const != ~0)
