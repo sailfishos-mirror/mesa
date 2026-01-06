@@ -2688,6 +2688,10 @@ brw_from_nir_emit_vs_intrinsic(nir_to_brw_state &ntb,
    case nir_intrinsic_load_base_vertex:
       UNREACHABLE("should be lowered by nir_lower_system_values()");
 
+   case nir_intrinsic_load_urb_output_handle_intel:
+      bld.MOV(retype(dest, BRW_TYPE_UD), s.vs_payload().urb_handles);
+      break;
+
    case nir_intrinsic_load_input: {
       assert(instr->def.bit_size == 32);
       const brw_reg src = offset(brw_attr_reg(0, dest.type), bld,
@@ -3132,6 +3136,10 @@ brw_from_nir_emit_gs_intrinsic(nir_to_brw_state &ntb,
       }
       break;
    }
+
+   case nir_intrinsic_load_urb_output_handle_intel:
+      bld.MOV(retype(dest, BRW_TYPE_UD), s.gs_payload().urb_handles);
+      break;
 
    case nir_intrinsic_emit_vertex_with_counter:
       emit_gs_vertex(ntb, instr->src[0], nir_intrinsic_stream_id(instr));
