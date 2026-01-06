@@ -178,9 +178,13 @@ panfrost_get_blend(struct panfrost_batch *batch, unsigned rti)
    struct pipe_surface *surf = &batch->key.cbufs[rti];
    enum pipe_format fmt = surf->format;
 
+   bool is_float = util_format_is_float(fmt);
+   bool fixed_function = is_float ? info.fixed_function_float
+                                  : info.fixed_function;
+
    /* Use fixed-function if the equation permits, the format is blendable,
     * and no more than one unique constant is accessed */
-   if (info.fixed_function && dev->blendable_formats[fmt].internal &&
+   if (fixed_function && dev->blendable_formats[fmt].internal &&
        !blend->base.alpha_to_one &&
        pan_blend_is_homogenous_constant(info.constant_mask,
                                         ctx->blend_color.color)) {
@@ -207,6 +211,7 @@ panfrost_get_blend(struct panfrost_batch *batch, unsigned rti)
 
    pan_blend.rts[rti].format = fmt;
    pan_blend.rts[rti].nr_samples = nr_samples;
+   pan_blend.rts[rti].equation.is_float = is_float;
    memcpy(pan_blend.constants, ctx->blend_color.color,
           sizeof(pan_blend.constants));
 

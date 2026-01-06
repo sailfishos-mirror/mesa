@@ -333,7 +333,9 @@ panfrost_emit_blend(struct panfrost_batch *batch, void *rts,
       if (!blend_shaders[i]) {
          /* Word 1: Blend Equation */
          STATIC_ASSERT(pan_size(BLEND_EQUATION) == 4);
-         packed->opaque[PAN_ARCH >= 6 ? 1 : 2] = so->equation[i];
+         packed->opaque[PAN_ARCH >= 6 ? 1 : 2] =
+            util_format_is_float(format) ? so->float_equation[i]
+                                         : so->equation[i];
       }
 
 #if PAN_ARCH >= 6
@@ -4131,6 +4133,9 @@ panfrost_create_blend_state(struct pipe_context *pipe,
          equation.alpha_dst_factor = pipe.alpha_dst_factor;
       }
 
+      struct pan_blend_equation float_equation = equation;
+      float_equation.is_float = true;
+
       /* Determine some common properties */
       unsigned constant_mask = pan_blend_constant_mask(equation);
       const bool supports_2src = pan_blend_supports_2src(PAN_ARCH);
@@ -4148,6 +4153,11 @@ panfrost_create_blend_state(struct pipe_context *pipe,
          .fixed_function =
             !blend->logicop_enable &&
             pan_blend_can_fixed_function(equation, supports_2src) &&
+            (!constant_mask || pan_blend_supports_constant(PAN_ARCH, c)),
+
+         .fixed_function_float =
+            !blend->logicop_enable &&
+            pan_blend_can_fixed_function(float_equation, supports_2src) &&
             (!constant_mask || pan_blend_supports_constant(PAN_ARCH, c)),
 
          .alpha_zero_nop = pan_blend_alpha_zero_nop(equation),
@@ -4168,9 +4178,10 @@ panfrost_create_blend_state(struct pipe_context *pipe,
 
       /* Converting equations to Mali style is expensive, do it at
        * CSO create time instead of draw-time */
-      if (so->info[c].fixed_function) {
+      if (so->info[c].fixed_function)
          so->equation[c] = pan_pack_blend(equation);
-      }
+      if (so->info[c].fixed_function_float)
+         so->float_equation[c] = pan_pack_blend(float_equation);
    }
 
    return so;

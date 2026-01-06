@@ -34,13 +34,14 @@ struct panfrost_bo;
 struct panfrost_batch;
 
 struct pan_blend_info {
-   unsigned constant_mask : 4;
-   bool fixed_function    : 1;
-   bool enabled           : 1;
-   bool load_dest         : 1;
-   bool opaque            : 1;
-   bool alpha_zero_nop    : 1;
-   bool alpha_one_store   : 1;
+   unsigned constant_mask    : 4;
+   bool fixed_function       : 1;
+   bool fixed_function_float : 1;
+   bool enabled              : 1;
+   bool load_dest            : 1;
+   bool opaque               : 1;
+   bool alpha_zero_nop       : 1;
+   bool alpha_one_store      : 1;
 };
 
 struct panfrost_blend_state {
@@ -48,6 +49,7 @@ struct panfrost_blend_state {
    struct pan_blend_state pan;
    struct pan_blend_info info[PIPE_MAX_COLOR_BUFS];
    uint32_t equation[PIPE_MAX_COLOR_BUFS];
+   uint32_t float_equation[PIPE_MAX_COLOR_BUFS];
 
    /* info.load presented as a bitfield for draw call hot paths */
    unsigned load_dest_mask : PIPE_MAX_COLOR_BUFS;
