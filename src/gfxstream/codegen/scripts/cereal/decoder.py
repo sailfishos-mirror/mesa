@@ -35,13 +35,6 @@ GLOBAL_COMMANDS_WITHOUT_DISPATCH = [
     "vkEnumerateInstanceExtensionProperties",
     "vkEnumerateInstanceLayerProperties",
     "vkTraceAsyncGOOGLE",
-    "vkSetDebugMetadataAsyncGOOGLE",
-]
-
-COMMANDS_WITHOUT_TRACE = [
-    # This command is used to set perfetto track names (using the guest process and thread name)
-    # and track names should (ideally) be set before any trace events
-    'vkSetDebugMetadataAsyncGOOGLE',
 ]
 
 SNAPSHOT_API_CALL_HANDLE_VARNAME = "snapshotApiCallHandle"
@@ -799,7 +792,6 @@ custom_decodes = {
     "vkGetBlobGOOGLE" : emit_global_state_wrapped_decoding,
     "vkGetSemaphoreGOOGLE" : emit_global_state_wrapped_decoding,
     "vkTraceAsyncGOOGLE" : emit_global_state_wrapped_decoding,
-    "vkSetDebugMetadataAsyncGOOGLE" : emit_global_state_wrapped_decoding,
 
     # Descriptor update templates
     "vkCreateDescriptorUpdateTemplate" : emit_global_state_wrapped_decoding,
@@ -976,9 +968,7 @@ size_t VkDecoder::Impl::decode(void* buf, size_t len, IOStream* ioStream,
 
         cgen.line("case OP_%s:" % name)
         cgen.beginBlock()
-
-        if name not in COMMANDS_WITHOUT_TRACE:
-            cgen.stmt("GFXSTREAM_TRACE_EVENT(GFXSTREAM_TRACE_DECODER_CATEGORY, \"VkDecoder %s\")" % name)
+        cgen.stmt("GFXSTREAM_TRACE_EVENT(GFXSTREAM_TRACE_DECODER_CATEGORY, \"VkDecoder %s\")" % name)
 
         if api.name in custom_decodes.keys():
             custom_decodes[api.name](typeInfo, api, cgen)
