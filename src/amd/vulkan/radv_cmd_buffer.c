@@ -1667,6 +1667,15 @@ radv_gang_finalize(struct radv_cmd_buffer *cmd_buffer)
 }
 
 static void
+radv_emit_thread_trace_marker(struct radv_device *device, struct radv_cmd_stream *cs, bool predicate)
+{
+   radeon_check_space(device->ws, cs->b, 2);
+   radeon_begin(cs);
+   radeon_event_write_predicate(V_028A90_THREAD_TRACE_MARKER, predicate);
+   radeon_end();
+}
+
+static void
 radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flush_bits flags, bool dgc)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -1675,10 +1684,12 @@ radv_cmd_buffer_after_draw(struct radv_cmd_buffer *cmd_buffer, enum radv_cmd_flu
    struct radv_cmd_stream *cs = radv_get_pm4_cs(cmd_buffer);
 
    if (unlikely(device->sqtt.bo) && !dgc) {
-      radeon_check_space(device->ws, cs->b, 2);
-      radeon_begin(cs);
-      radeon_event_write_predicate(V_028A90_THREAD_TRACE_MARKER, cmd_buffer->state.predicating);
-      radeon_end();
+      if (radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
+         /* For task+mesh draws, the mesh packet always includes the SQTT marker in it. */
+         radv_emit_thread_trace_marker(device, cmd_buffer->gang.cs, cmd_buffer->state.predicating);
+      } else {
+         radv_emit_thread_trace_marker(device, cmd_buffer->cs, cmd_buffer->state.predicating);
+      }
    }
 
    if (instance->debug_flags & RADV_DEBUG_SYNC_SHADERS) {
