@@ -60,7 +60,7 @@ VSOCK_CID=$((VSOCK_BASE + (CI_JOB_ID & 0xfff)))
 
 HOME=/cuttlefish launch_cvd \
   -daemon \
-  -verbosity=VERBOSE \
+  -verbosity=INFO \
   -file_verbosity=VERBOSE \
   -vsock_guest_cid=$VSOCK_CID \
   -enable_audio=false \
