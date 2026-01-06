@@ -2202,6 +2202,11 @@ ttn_parse_tgsi(struct ttn_compile *c, const void *tgsi_tokens)
          break;
 
       case TGSI_TOKEN_TYPE_INSTRUCTION:
+         if (parser.FullToken.FullInstruction.Instruction.Opcode == TGSI_OPCODE_RET) {
+            /* We have to be conservative and add output stores before each return.
+             * Hopefully stores will be optimized out later if not actually required */
+            ttn_add_output_stores(c);
+         }
          ttn_emit_instruction(c);
          break;
 
