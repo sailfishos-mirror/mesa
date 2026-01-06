@@ -160,6 +160,8 @@ VkResult pvr_arch_pack_tex_state(struct pvr_device *device,
                                  struct pvr_image_descriptor *state)
 {
    const struct pvr_device_info *dev_info = &device->pdevice->dev_info;
+   const struct vk_format_ycbcr_info *ycbcr =
+      vk_format_get_ycbcr_info(info->format);
    enum pvr_memlayout mem_layout;
    VkImageViewType iview_type;
 
@@ -270,7 +272,14 @@ VkResult pvr_arch_pack_tex_state(struct pvr_device *device,
          word0.height = info->extent.height - 1;
    }
 
-   if (mem_layout == PVR_MEMLAYOUT_LINEAR) {
+   if (ycbcr) {
+      pvr_csb_pack (&state->words[1], TEXSTATE_YUV_IMAGE_WORD1, word1) {
+         word1.chroma_interpolation_v = 0;
+         word1.chroma_interpolation_u = 0;
+         word1.stride = info->extent.width - 1;
+         word1.texaddr = PVR_DEV_ADDR_OFFSET(info->addr, info->offset);
+      }
+   } else if (mem_layout == PVR_MEMLAYOUT_LINEAR) {
       pvr_csb_pack (&state->words[1], TEXSTATE_STRIDE_IMAGE_WORD1, word1) {
          assert(info->stride > 0U);
          word1.stride = info->stride - 1U;

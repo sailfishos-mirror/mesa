@@ -51,7 +51,8 @@ static void pvr_image_init_memlayout(struct pvr_image *image)
    default:
       UNREACHABLE("bad VkImageTiling");
    case VK_IMAGE_TILING_OPTIMAL:
-      if (image->vk.wsi_legacy_scanout)
+      if (image->vk.wsi_legacy_scanout ||
+          vk_format_get_ycbcr_info(image->vk.format))
          image->memlayout = PVR_MEMLAYOUT_LINEAR;
       else if (image->vk.image_type == VK_IMAGE_TYPE_3D)
          image->memlayout = PVR_MEMLAYOUT_3DTWIDDLED;
