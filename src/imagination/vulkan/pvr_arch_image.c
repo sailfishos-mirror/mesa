@@ -19,6 +19,7 @@
 #include "pvr_macros.h"
 #include "pvr_physical_device.h"
 #include "pvr_tex_state.h"
+#include "pvr_ycbcr.h"
 
 static void pvr_adjust_non_compressed_view(const struct pvr_image *image,
                                            const struct pvr_image_plane *plane,
@@ -42,6 +43,26 @@ static void pvr_adjust_non_compressed_view(const struct pvr_image *image,
    info->extent = vk_image_extent_to_elements(&image->vk, info->extent);
    info->offset += plane->mip_levels[base_level].offset;
    info->base_level = 0;
+}
+
+static unsigned int pvr_ycbcr_csc_index(struct vk_ycbcr_conversion *conversion)
+{
+#define MAPPING(vk, slot_full, slot_narrow)     \
+   [VK_SAMPLER_YCBCR_MODEL_CONVERSION_##vk] = { \
+      PVR_YCBCR_SLOT_##slot_full,               \
+      PVR_YCBCR_SLOT_##slot_narrow              \
+   }
+
+   static unsigned int mapping[][2] = {
+      MAPPING(RGB_IDENTITY, RGB_IDENTITY, RGB_IDENTITY),
+      MAPPING(YCBCR_IDENTITY, YCBCR_IDENTITY_FULL, YCBCR_IDENTITY),
+      MAPPING(YCBCR_709, YCBCR_709_FULL, YCBCR_709),
+      MAPPING(YCBCR_601, YCBCR_601_FULL, YCBCR_601),
+      MAPPING(YCBCR_2020, YCBCR_2020_FULL, YCBCR_2020),
+   };
+   return mapping[conversion->state.ycbcr_model][conversion->state.ycbcr_range];
+
+#undef MAPPING
 }
 
 VkResult PVR_PER_ARCH(CreateImageView)(VkDevice _device,
@@ -126,6 +147,8 @@ VkResult PVR_PER_ARCH(CreateImageView)(VkDevice _device,
       if (conversion->state.mapping[3] == VK_COMPONENT_SWIZZLE_ZERO) {
          input_swizzle[3] = PIPE_SWIZZLE_0;
       }
+
+      info.csc_coeff_index = pvr_ycbcr_csc_index(conversion);
 
       pvr_csb_pack (&iview->sampler_words[0], TEXSTATE_SAMPLER_WORD0, cfg) {
          cfg.texaddr_plane2_lo =

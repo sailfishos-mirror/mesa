@@ -107,6 +107,11 @@ struct pvr_texture_state_info {
    uint32_t layer_size;
    uint32_t buffer_elems;
    uint32_t z_slice;
+
+   /**
+    * YCbCr CSC matrix
+    */
+   uint8_t csc_coeff_index;
 };
 
 #ifdef PVR_PER_ARCH

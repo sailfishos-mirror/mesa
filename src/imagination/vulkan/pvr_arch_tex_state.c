@@ -278,6 +278,7 @@ VkResult pvr_arch_pack_tex_state(struct pvr_device *device,
          word1.chroma_interpolation_u = 0;
          word1.stride = info->extent.width - 1;
          word1.texaddr = PVR_DEV_ADDR_OFFSET(info->addr, info->offset);
+         word1.csc_coeff_index = info->csc_coeff_index;
       }
    } else if (mem_layout == PVR_MEMLAYOUT_LINEAR) {
       pvr_csb_pack (&state->words[1], TEXSTATE_STRIDE_IMAGE_WORD1, word1) {

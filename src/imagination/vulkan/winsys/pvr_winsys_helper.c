@@ -34,6 +34,7 @@
 #include "pvr_types.h"
 #include "pvr_winsys.h"
 #include "pvr_winsys_helper.h"
+#include "pvr_ycbcr.h"
 #include "util/u_atomic.h"
 #include "vk_log.h"
 
@@ -342,6 +343,10 @@ pvr_winsys_helper_fill_static_memory(struct pvr_winsys *const ws,
 
    pvr_setup_static_pixel_event_program(pds_vma->bo->map,
                                         pds_vma->heap->static_data_offsets.eot);
+
+   pvr_setup_static_yuv_csc_table(
+      general_vma->bo->map,
+      general_vma->heap->static_data_offsets.yuv_csc);
 
    ws->ops->buffer_unmap(usc_vma->bo, false);
    ws->ops->buffer_unmap(pds_vma->bo, false);
