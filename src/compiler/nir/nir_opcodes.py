@@ -67,6 +67,13 @@ class Opcode(object):
       and the result will be equivalent to "dst = <expression>" for
       per-component instructions and "dst.x = dst.y = ... = <expression>"
       for non-per-component instructions.
+
+      The expression may set a poison = true flag to indicate that the
+      calculation invoked deferred undefined behavior (see
+      https://llvm.org/docs/UndefinedBehavior.html, which is similar to the
+      SPIRV 2.2.6 "Validity and Defined Behavior" definition.).  For
+      non-per-component opcodes, poison_mask must be set to the undefined
+      components, instead.
       """
       assert isinstance(name, str)
       assert isinstance(output_size, int)

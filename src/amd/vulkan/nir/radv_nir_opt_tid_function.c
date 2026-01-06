@@ -181,10 +181,10 @@ constant_fold_scalar(nir_scalar s, unsigned invocation_id, nir_shader *shader, n
          srcs[i] = sources[i];
       nir_const_value dests[NIR_MAX_VEC_COMPONENTS];
       if (op_info->output_size == 0) {
-         nir_eval_const_opcode(alu->op, dests, 1, bit_size, srcs, exec_mode);
+         nir_eval_const_opcode(alu->op, dests, NULL, 1, bit_size, srcs, exec_mode);
          *dest = dests[0];
       } else {
-         nir_eval_const_opcode(alu->op, dests, s.def->num_components, bit_size, srcs, exec_mode);
+         nir_eval_const_opcode(alu->op, dests, NULL, s.def->num_components, bit_size, srcs, exec_mode);
          *dest = dests[s.comp];
       }
       return true;

@@ -475,6 +475,7 @@ struct ${type}${width}_vec {
       ## components and apply the constant expression one component
       ## at a time.
       for (unsigned _i = 0; _i < num_components; _i++) {
+         bool poison = false;
          ## For each per-component input, create a variable srcN that
          ## contains the value of the current (_i'th) component.
          % for j in range(op.num_inputs):
@@ -538,6 +539,9 @@ struct ${type}${width}_vec {
                }
             %endif
          % endif
+
+         if (poison)
+            poison_mask |= (1 << _i);
       }
    % else:
       ## In the non-per-component case, create a struct dst with
@@ -590,13 +594,15 @@ struct ${type}${width}_vec {
 </%def>
 
 % for name, op in sorted(opcodes.items()):
-static void
+static nir_component_mask_t
 evaluate_${name}(nir_const_value *_dst_val,
                  UNUSED unsigned num_components,
                  ${"UNUSED" if op_bit_sizes(op) is None else ""} unsigned bit_size,
                  UNUSED nir_const_value **_src,
                  UNUSED unsigned execution_mode)
 {
+   nir_component_mask_t poison_mask = 0;
+
    % if op_bit_sizes(op) is not None:
       switch (bit_size) {
       % for bit_size in op_bit_sizes(op):
@@ -612,24 +618,31 @@ evaluate_${name}(nir_const_value *_dst_val,
    % else:
       ${evaluate_op(op, 0, execution_mode)}
    % endif
+
+   return poison_mask;
 }
 % endfor
 
 void
-nir_eval_const_opcode(nir_op op, nir_const_value *dest,
+nir_eval_const_opcode(nir_op op, nir_const_value *dest, nir_component_mask_t *out_poison,
                       unsigned num_components, unsigned bit_width,
                       nir_const_value **src,
                       unsigned float_controls_execution_mode)
 {
+   nir_component_mask_t poison;
+
    switch (op) {
 % for name in sorted(opcodes.keys()):
    case nir_op_${name}:
-      evaluate_${name}(dest, num_components, bit_width, src, float_controls_execution_mode);
-      return;
+      poison = evaluate_${name}(dest, num_components, bit_width, src, float_controls_execution_mode);
+      break;
 % endfor
    default:
       UNREACHABLE("shouldn't get here");
    }
+
+   if (out_poison)
+      *out_poison = poison;
 }"""
 
 from mako.template import Template

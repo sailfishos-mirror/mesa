@@ -77,7 +77,7 @@ nir_try_constant_fold_alu(nir_builder *b, nir_alu_instr *alu)
    memset(dest, 0, sizeof(dest));
    for (unsigned i = 0; i < nir_op_infos[alu->op].num_inputs; ++i)
       srcs[i] = src[i];
-   nir_eval_const_opcode(alu->op, dest, alu->def.num_components,
+   nir_eval_const_opcode(alu->op, dest, NULL, alu->def.num_components,
                          bit_size, srcs,
                          b->shader->info.float_controls_execution_mode);
 

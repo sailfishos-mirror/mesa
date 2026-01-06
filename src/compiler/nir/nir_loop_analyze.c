@@ -583,7 +583,7 @@ eval_const_unop(nir_op op, unsigned bit_size, nir_const_value src0,
    assert(nir_op_infos[op].num_inputs == 1);
    nir_const_value dest;
    nir_const_value *src[1] = { &src0 };
-   nir_eval_const_opcode(op, &dest, 1, bit_size, src, execution_mode);
+   nir_eval_const_opcode(op, &dest, NULL, 1, bit_size, src, execution_mode);
    return dest;
 }
 
@@ -595,7 +595,7 @@ eval_const_binop(nir_op op, unsigned bit_size,
    assert(nir_op_infos[op].num_inputs == 2);
    nir_const_value dest;
    nir_const_value *src[2] = { &src0, &src1 };
-   nir_eval_const_opcode(op, &dest, 1, bit_size, src, execution_mode);
+   nir_eval_const_opcode(op, &dest, NULL, 1, bit_size, src, execution_mode);
    return dest;
 }
 
@@ -687,7 +687,7 @@ try_eval_const_alu(nir_const_value *dest, nir_scalar alu_s, const nir_scalar *or
       }
    }
 
-   nir_eval_const_opcode(alu->op, dest, 1, bit_size, src_ptrs, execution_mode);
+   nir_eval_const_opcode(alu->op, dest, NULL, 1, bit_size, src_ptrs, execution_mode);
 
    return true;
 }
@@ -897,7 +897,7 @@ test_iterations(int32_t iter_int, nir_const_value step,
 
    /* Evaluate the loop exit condition */
    nir_const_value result;
-   nir_eval_const_opcode(cond_op, &result, 1, bit_size, src, execution_mode);
+   nir_eval_const_opcode(cond_op, &result, NULL, 1, bit_size, src, execution_mode);
 
    return invert_cond ? !result.b : result.b;
 }
