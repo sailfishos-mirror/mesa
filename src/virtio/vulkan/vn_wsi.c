@@ -55,6 +55,12 @@
 /* cast a WSI object to a pointer for logging */
 #define VN_WSI_PTR(obj) ((const void *)(uintptr_t)(obj))
 
+struct vn_swapchain {
+   VkSwapchainKHR handle;
+
+   struct list_head head;
+};
+
 static VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
 vn_wsi_proc_addr(VkPhysicalDevice physicalDevice, const char *pName)
 {
@@ -260,6 +266,65 @@ vn_wsi_sync_wait(struct vn_device *dev, int fd)
 }
 
 /* swapchain commands */
+
+VKAPI_ATTR VkResult VKAPI_CALL
+vn_CreateSwapchainKHR(VkDevice device,
+                      const VkSwapchainCreateInfoKHR *pCreateInfo,
+                      const VkAllocationCallbacks *pAllocator,
+                      VkSwapchainKHR *pSwapchain)
+{
+   VN_TRACE_FUNC();
+   struct vn_device *dev = vn_device_from_handle(device);
+
+   struct vn_swapchain *chain =
+      vk_alloc2(&dev->base.vk.alloc, pAllocator, sizeof(*chain),
+                VN_DEFAULT_ALIGN, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   if (!chain)
+      return vn_error(dev->instance, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+   VkResult result =
+      wsi_CreateSwapchainKHR(device, pCreateInfo, pAllocator, pSwapchain);
+   if (result != VK_SUCCESS) {
+      vk_free2(&dev->base.vk.alloc, pAllocator, chain);
+      return vn_error(dev->instance, result);
+   }
+
+   chain->handle = *pSwapchain;
+
+   simple_mtx_lock(&dev->mutex);
+   list_add(&chain->head, &dev->chains);
+   simple_mtx_unlock(&dev->mutex);
+
+   return VK_SUCCESS;
+}
+
+VKAPI_ATTR void VKAPI_CALL
+vn_DestroySwapchainKHR(VkDevice device,
+                       VkSwapchainKHR swapchain,
+                       const VkAllocationCallbacks *pAllocator)
+{
+   VN_TRACE_FUNC();
+   struct vn_device *dev = vn_device_from_handle(device);
+   struct vn_swapchain *chain = NULL;
+
+   if (swapchain == VK_NULL_HANDLE)
+      return;
+
+   simple_mtx_lock(&dev->mutex);
+   list_for_each_entry(struct vn_swapchain, entry, &dev->chains, head) {
+      if (entry->handle == swapchain) {
+         list_del(&entry->head);
+         chain = entry;
+         break;
+      }
+   }
+   simple_mtx_unlock(&dev->mutex);
+
+   assert(chain);
+   vk_free2(&dev->base.vk.alloc, pAllocator, chain);
+
+   return wsi_DestroySwapchainKHR(device, swapchain, pAllocator);
+}
 
 VKAPI_ATTR VkResult VKAPI_CALL
 vn_AcquireNextImage2KHR(VkDevice device,

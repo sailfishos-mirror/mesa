@@ -535,6 +535,9 @@ vn_device_init(struct vn_device *dev,
    dev->has_sync2 = physical_dev->renderer_version >= VK_API_VERSION_1_3 ||
                     dev->base.vk.enabled_extensions.KHR_synchronization2;
 
+   simple_mtx_init(&dev->mutex, mtx_plain);
+   list_inithead(&dev->chains);
+
    return VK_SUCCESS;
 
 out_feedback_cmd_pools_fini:
@@ -620,6 +623,9 @@ vn_DestroyDevice(VkDevice device, const VkAllocationCallbacks *pAllocator)
 
    if (!dev)
       return;
+
+   assert(list_is_empty(&dev->chains));
+   simple_mtx_destroy(&dev->mutex);
 
    vn_image_reqs_cache_fini(dev);
    vn_buffer_reqs_cache_fini(dev);
