@@ -352,15 +352,16 @@ panvk_per_arch(blend_emit_descs)(struct panvk_cmd_buffer *cmdbuf,
       rt->format = vk_format_to_pipe_format(color_attachment_formats[i]);
 
       /* Disable blending for LOGICOP_NOOP unless the format is float/srgb */
+      bool is_float = util_format_is_float(rt->format);
       if (bs.logicop_enable && bs.logicop_func == PIPE_LOGICOP_NOOP &&
-          !(util_format_is_float(rt->format) ||
-            util_format_is_srgb(rt->format))) {
+          !(is_float || util_format_is_srgb(rt->format))) {
          rt->equation.color_mask = 0;
          continue;
       }
 
       rt->nr_samples = color_attachment_samples[i];
       rt->equation.blend_enable = cb->attachments[i].blend_enable;
+      rt->equation.is_float = is_float;
       rt->equation.color_mask = cb->attachments[i].write_mask;
       rt->equation.rgb_func =
          vk_blend_op_to_pipe(cb->attachments[i].color_blend_op);
