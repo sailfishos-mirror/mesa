@@ -231,6 +231,25 @@ try_opt_quad_vote(nir_builder *b, nir_alu_instr *alu, bool block_has_discard)
 }
 
 static bool
+try_opt_inot_inverse_ballot(nir_builder *b, nir_alu_instr *alu)
+{
+   if (alu->def.bit_size != 1 ||
+       !nir_src_is_intrinsic(alu->src[0].src) ||
+       !list_is_singular(&alu->src[0].src.ssa->uses))
+      return false;
+
+   nir_intrinsic_instr *intrin = nir_src_as_intrinsic(alu->src[0].src);
+   if (intrin->intrinsic != nir_intrinsic_inverse_ballot || !nir_src_is_const(intrin->src[0]))
+      return false;
+
+   alu->op = nir_op_mov;
+   b->cursor = nir_before_instr(&intrin->instr);
+   nir_src_rewrite(&intrin->src[0], nir_inot(b, intrin->src[0].ssa));
+
+   return true;
+}
+
+static bool
 opt_intrinsics_alu(nir_builder *b, nir_alu_instr *alu, bool block_has_discard)
 {
    nir_def *replacement = NULL;
@@ -245,6 +264,10 @@ opt_intrinsics_alu(nir_builder *b, nir_alu_instr *alu, bool block_has_discard)
    case nir_op_ior:
       if (alu->def.bit_size == 1 && b->shader->options->optimize_quad_vote_to_reduce)
          replacement = try_opt_quad_vote(b, alu, block_has_discard);
+      break;
+   case nir_op_inot:
+      if (try_opt_inot_inverse_ballot(b, alu))
+         return true;
       break;
    default:
       break;
