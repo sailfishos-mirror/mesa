@@ -3002,6 +3002,8 @@ tu_shader_create(struct tu_device *dev,
 
    ir3_finalize_nir(dev->compiler, &nir_options, nir);
 
+   ir3_nir_lower_io(nir);
+
    /* This has to happen after finalizing, so that we know the final bitsize
     * after vectorizing.
     */

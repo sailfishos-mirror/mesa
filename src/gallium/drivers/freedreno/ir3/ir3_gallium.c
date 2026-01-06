@@ -492,6 +492,7 @@ ir3_screen_finalize_nir(struct pipe_screen *pscreen, struct nir_shader *nir,
 
    ir3_nir_lower_io_vars_to_temporaries(nir);
    ir3_finalize_nir(screen->compiler, &options, nir);
+   ir3_nir_lower_io(nir);
 }
 
 static void

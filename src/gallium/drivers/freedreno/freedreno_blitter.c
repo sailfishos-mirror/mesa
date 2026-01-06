@@ -203,6 +203,8 @@ build_f16_copy_fs_shader(struct pipe_screen *pscreen, enum pipe_texture_target t
 
    nir_store_var(b, out_color, tex, 0xf);
 
+   pscreen->finalize_nir(pscreen, b->shader, true);
+
    return b->shader;
 }
 

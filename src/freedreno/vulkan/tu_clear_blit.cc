@@ -794,6 +794,8 @@ compile_shader(struct tu_device *dev, struct nir_shader *nir,
 
    ir3_finalize_nir(dev->compiler, &options.nir_options, nir);
 
+   ir3_nir_lower_io(nir);
+
    struct ir3_shader *sh =
       ir3_shader_from_nir(dev->compiler, nir, &options, NULL);
 

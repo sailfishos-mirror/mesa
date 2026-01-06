@@ -845,6 +845,18 @@ ir3_nir_lower_subgroup_id_cs(nir_shader *nir, struct ir3_shader *shader)
 }
 
 /**
+ * Call nir_lower_io with the appropriate arguments.
+ */
+void
+ir3_nir_lower_io(nir_shader *s)
+{
+   NIR_PASS(_, s, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
+            ir3_glsl_type_size,
+            nir_lower_io_lower_64bit_to_32 |
+               nir_lower_io_use_interpolated_input_intrinsics);
+}
+
+/**
  * Late passes that need to be done after pscreen->finalize_nir()
  */
 void
@@ -854,11 +866,6 @@ ir3_nir_post_finalize(struct ir3_shader *shader)
    struct ir3_compiler *compiler = shader->compiler;
 
    MESA_TRACE_FUNC();
-
-   NIR_PASS(_, s, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
-            ir3_glsl_type_size,
-            nir_lower_io_lower_64bit_to_32 |
-               nir_lower_io_use_interpolated_input_intrinsics);
 
    if (s->info.stage == MESA_SHADER_FRAGMENT) {
       /* NOTE: nir_opt_barycentric comes first, since it
