@@ -704,31 +704,41 @@ brw_alu3(struct brw_codegen *p, unsigned opcode, struct brw_reg dest,
       brw_eu_inst_set_3src_a16_dst_writemask(devinfo, inst, dest.writemask);
 
       assert(src0.file == FIXED_GRF);
-      brw_eu_inst_set_3src_a16_src0_swizzle(devinfo, inst, src0.swizzle);
       brw_eu_inst_set_3src_a16_src0_subreg_nr(devinfo, inst, src0.subnr);
       brw_eu_inst_set_3src_src0_reg_nr(devinfo, inst, src0.nr);
       brw_eu_inst_set_3src_src0_abs(devinfo, inst, src0.abs);
       brw_eu_inst_set_3src_src0_negate(devinfo, inst, src0.negate);
-      brw_eu_inst_set_3src_a16_src0_rep_ctrl(devinfo, inst,
-                                          src0.vstride == BRW_VERTICAL_STRIDE_0);
+
+      /* From "Instruction Fields":
+       *
+       *     ChanSel does not apply when Replicate Control is set.
+       *
+       * In the code ChanSel is swizzle.  Also apply to the src1 and src2.
+       */
+      if (src0.vstride == BRW_VERTICAL_STRIDE_0)
+         brw_eu_inst_set_3src_a16_src0_rep_ctrl(devinfo, inst, 1);
+      else
+         brw_eu_inst_set_3src_a16_src0_swizzle(devinfo, inst, src0.swizzle);
 
       assert(src1.file == FIXED_GRF);
-      brw_eu_inst_set_3src_a16_src1_swizzle(devinfo, inst, src1.swizzle);
       brw_eu_inst_set_3src_a16_src1_subreg_nr(devinfo, inst, src1.subnr);
       brw_eu_inst_set_3src_src1_reg_nr(devinfo, inst, src1.nr);
       brw_eu_inst_set_3src_src1_abs(devinfo, inst, src1.abs);
       brw_eu_inst_set_3src_src1_negate(devinfo, inst, src1.negate);
-      brw_eu_inst_set_3src_a16_src1_rep_ctrl(devinfo, inst,
-                                          src1.vstride == BRW_VERTICAL_STRIDE_0);
+      if (src1.vstride == BRW_VERTICAL_STRIDE_0)
+         brw_eu_inst_set_3src_a16_src1_rep_ctrl(devinfo, inst, 1);
+      else
+         brw_eu_inst_set_3src_a16_src1_swizzle(devinfo, inst, src1.swizzle);
 
       assert(src2.file == FIXED_GRF);
-      brw_eu_inst_set_3src_a16_src2_swizzle(devinfo, inst, src2.swizzle);
       brw_eu_inst_set_3src_a16_src2_subreg_nr(devinfo, inst, src2.subnr);
       brw_eu_inst_set_3src_src2_reg_nr(devinfo, inst, src2.nr);
       brw_eu_inst_set_3src_src2_abs(devinfo, inst, src2.abs);
       brw_eu_inst_set_3src_src2_negate(devinfo, inst, src2.negate);
-      brw_eu_inst_set_3src_a16_src2_rep_ctrl(devinfo, inst,
-                                          src2.vstride == BRW_VERTICAL_STRIDE_0);
+      if (src2.vstride == BRW_VERTICAL_STRIDE_0)
+         brw_eu_inst_set_3src_a16_src2_rep_ctrl(devinfo, inst, 1);
+      else
+         brw_eu_inst_set_3src_a16_src2_swizzle(devinfo, inst, src2.swizzle);
 
       /* Set both the source and destination types based on dest.type,
        * ignoring the source register types.  The MAD and LRP emitters ensure
@@ -840,14 +850,6 @@ brw_eu_inst *brw_##OP(struct brw_codegen *p,		\
 	      struct brw_reg src1,			\
 	      struct brw_reg src2)   			\
 {                                                       \
-   if (p->current->access_mode == BRW_ALIGN_16) {       \
-      if (src0.vstride == BRW_VERTICAL_STRIDE_0)        \
-         src0.swizzle = BRW_SWIZZLE_XXXX;               \
-      if (src1.vstride == BRW_VERTICAL_STRIDE_0)        \
-         src1.swizzle = BRW_SWIZZLE_XXXX;               \
-      if (src2.vstride == BRW_VERTICAL_STRIDE_0)        \
-         src2.swizzle = BRW_SWIZZLE_XXXX;               \
-   }                                                    \
    return brw_alu3(p, BRW_OPCODE_##OP, dest, src0, src1, src2);	\
 }
 
@@ -868,15 +870,6 @@ brw_eu_inst *brw_##OP(struct brw_codegen *p,         \
       assert(src0.type == BRW_TYPE_DF);                \
       assert(src1.type == BRW_TYPE_DF);                \
       assert(src2.type == BRW_TYPE_DF);                \
-   }                                                            \
-                                                                \
-   if (p->current->access_mode == BRW_ALIGN_16) {               \
-      if (src0.vstride == BRW_VERTICAL_STRIDE_0)                \
-         src0.swizzle = BRW_SWIZZLE_XXXX;                       \
-      if (src1.vstride == BRW_VERTICAL_STRIDE_0)                \
-         src1.swizzle = BRW_SWIZZLE_XXXX;                       \
-      if (src2.vstride == BRW_VERTICAL_STRIDE_0)                \
-         src2.swizzle = BRW_SWIZZLE_XXXX;                       \
    }                                                            \
    return brw_alu3(p, BRW_OPCODE_##OP, dest, src0, src1, src2); \
 }
