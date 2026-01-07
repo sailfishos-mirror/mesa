@@ -227,6 +227,11 @@ struct pvr_format {
    uint32_t bind;
 };
 
+struct pvr_format_table {
+   const struct pvr_format *formats;
+   unsigned count;
+};
+
 struct util_format_description;
 
 const uint8_t *
@@ -306,7 +311,7 @@ pvr_vk_format_get_common_color_channel_count(VkFormat src_format,
 
 #ifdef PVR_PER_ARCH
 
-const struct pvr_format *PVR_PER_ARCH(get_format_table)(unsigned *num_formats);
+struct pvr_format_table PVR_PER_ARCH(get_format_table)(void);
 #   define pvr_arch_get_format_table PVR_PER_ARCH(get_format_table)
 
 uint32_t PVR_PER_ARCH(get_tex_format)(VkFormat vk_format);

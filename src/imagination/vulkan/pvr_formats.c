@@ -232,9 +232,9 @@ static inline const struct pvr_format *
 pvr_get_format(struct pvr_physical_device *pdevice, VkFormat vk_format)
 {
    enum pipe_format format = vk_format_to_pipe_format(vk_format);
-   if (format < pdevice->num_formats &&
-       pdevice->formats[format].bind != 0) {
-      return &pdevice->formats[format];
+   if (format < pdevice->formats.count &&
+       pdevice->formats.formats[format].bind != 0) {
+      return &pdevice->formats.formats[format];
    }
 
    mesa_logd("Format %s(%d) not supported\n",

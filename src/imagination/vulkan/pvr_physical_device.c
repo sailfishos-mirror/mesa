@@ -1195,7 +1195,7 @@ void pvr_GetPhysicalDeviceMemoryProperties2(
    void pvr_##arch##_destroy_device(struct pvr_device *device,                \
                                     const VkAllocationCallbacks *pAllocator); \
                                                                               \
-   const struct pvr_format *pvr_##arch##_get_format_table(unsigned *num_formats)
+   struct pvr_format_table pvr_##arch##_get_format_table(void)
 
 PER_ARCH_FUNCS(rogue);
 
@@ -1232,10 +1232,7 @@ static void
 pvr_physical_device_setup_formats(struct pvr_physical_device *const pdevice)
 {
    enum pvr_device_arch arch = pdevice->dev_info.ident.arch;
-   PVR_ARCH_DISPATCH_RET(get_format_table,
-                         arch,
-                         pdevice->formats,
-                         &pdevice->num_formats);
+   PVR_ARCH_DISPATCH_RET(get_format_table, arch, pdevice->formats);
 }
 
 /* Leave this at the very end, to avoid leakage of HW-defs here */

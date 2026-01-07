@@ -257,11 +257,12 @@ static const struct pvr_pbe_format pvr_pbe_format_table[] = {
 #undef FORMAT
 #undef FORMAT_DEPTH_STENCIL
 
-const struct pvr_format *pvr_arch_get_format_table(unsigned *num_formats)
+struct pvr_format_table pvr_arch_get_format_table(void)
 {
-   assert(num_formats != NULL);
-   *num_formats = ARRAY_SIZE(pvr_format_table);
-   return pvr_format_table;
+   return (struct pvr_format_table){
+      .formats = pvr_format_table,
+      .count = ARRAY_SIZE(pvr_format_table),
+   };
 }
 
 static inline const struct pvr_format *get_format(VkFormat vk_format)
