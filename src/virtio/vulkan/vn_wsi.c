@@ -57,9 +57,31 @@
 
 struct vn_swapchain {
    VkSwapchainKHR handle;
+   /* lock chain access */
+   simple_mtx_t mutex;
+   /* sub-lock for image acquire */
+   simple_mtx_t acquire_mutex;
 
    struct list_head head;
 };
+
+static struct vn_swapchain *
+vn_wsi_chain_lookup(struct vn_device *dev, VkSwapchainKHR swapchain)
+{
+   struct vn_swapchain *chain = NULL;
+
+   simple_mtx_lock(&dev->mutex);
+   list_for_each_entry(struct vn_swapchain, entry, &dev->chains, head) {
+      if (entry->handle == swapchain) {
+         chain = entry;
+         break;
+      }
+   }
+   simple_mtx_unlock(&dev->mutex);
+
+   assert(chain);
+   return chain;
+}
 
 static VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
 vn_wsi_proc_addr(VkPhysicalDevice physicalDevice, const char *pName)
@@ -290,6 +312,8 @@ vn_CreateSwapchainKHR(VkDevice device,
    }
 
    chain->handle = *pSwapchain;
+   simple_mtx_init(&chain->mutex, mtx_plain);
+   simple_mtx_init(&chain->acquire_mutex, mtx_plain);
 
    simple_mtx_lock(&dev->mutex);
    list_add(&chain->head, &dev->chains);
@@ -305,22 +329,23 @@ vn_DestroySwapchainKHR(VkDevice device,
 {
    VN_TRACE_FUNC();
    struct vn_device *dev = vn_device_from_handle(device);
-   struct vn_swapchain *chain = NULL;
 
    if (swapchain == VK_NULL_HANDLE)
       return;
 
+   struct vn_swapchain *chain = vn_wsi_chain_lookup(dev, swapchain);
+
+   /* lock/unlock to wait for async present thread to release chain access */
+   simple_mtx_lock(&chain->mutex);
+   simple_mtx_unlock(&chain->mutex);
+
    simple_mtx_lock(&dev->mutex);
-   list_for_each_entry(struct vn_swapchain, entry, &dev->chains, head) {
-      if (entry->handle == swapchain) {
-         list_del(&entry->head);
-         chain = entry;
-         break;
-      }
-   }
+   list_del(&chain->head);
    simple_mtx_unlock(&dev->mutex);
 
-   assert(chain);
+   /* now safe to do swapchain tear down */
+   simple_mtx_destroy(&chain->acquire_mutex);
+   simple_mtx_destroy(&chain->mutex);
    vk_free2(&dev->base.vk.alloc, pAllocator, chain);
 
    return wsi_DestroySwapchainKHR(device, swapchain, pAllocator);
@@ -333,9 +358,16 @@ vn_AcquireNextImage2KHR(VkDevice device,
 {
    VN_TRACE_FUNC();
    struct vn_device *dev = vn_device_from_handle(device);
+   VkResult result;
 
-   VkResult result = wsi_common_acquire_next_image2(
-      &dev->physical_device->wsi_device, device, pAcquireInfo, pImageIndex);
+   struct vn_swapchain *chain =
+      vn_wsi_chain_lookup(dev, pAcquireInfo->swapchain);
+
+   simple_mtx_lock(&chain->acquire_mutex);
+   result = wsi_common_acquire_next_image2(&dev->physical_device->wsi_device,
+                                           device, pAcquireInfo, pImageIndex);
+   simple_mtx_unlock(&chain->acquire_mutex);
+
    if (VN_DEBUG(WSI) && result != VK_SUCCESS) {
       const int idx = result >= VK_SUCCESS ? *pImageIndex : -1;
       vn_log(dev->instance, "swapchain %p: acquired image %d: %s",
