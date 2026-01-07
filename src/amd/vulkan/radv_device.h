@@ -227,8 +227,12 @@ struct radv_device {
    VkCommandBuffer sqtt_start_cmdbuf[2];
    VkCommandBuffer sqtt_stop_cmdbuf[2];
 
+   uint64_t sqtt_size;
    VkBuffer sqtt_buffer;
    VkDeviceMemory sqtt_memory;
+
+   VkBuffer sqtt_staging_buffer;
+   VkDeviceMemory sqtt_staging_memory;
 
    /* SQTT timestamps for queue events. */
    simple_mtx_t sqtt_timestamp_mtx;
@@ -237,6 +241,9 @@ struct radv_device {
    /* SQTT timed cmd buffers. */
    simple_mtx_t sqtt_command_pool_mtx;
    struct vk_command_pool *sqtt_command_pool[2];
+
+   /* Whether to use a staging buffer for SQTT/SPM buffers. */
+   bool rgp_use_staging_buffer;
 
    /* Memory trace. */
    struct radv_memory_trace_data memory_trace;
