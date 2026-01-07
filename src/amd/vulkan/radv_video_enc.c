@@ -1569,10 +1569,17 @@ radv_enc_ctx(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *inf
 
    uint32_t swizzle_mode = 0;
 
-   if (pdev->enc_hw_ver >= RADV_VIDEO_ENC_HW_4)
-      swizzle_mode = RENCODE_REC_SWIZZLE_MODE_256B_D;
-   else if (pdev->enc_hw_ver >= RADV_VIDEO_ENC_HW_2)
-      swizzle_mode = RENCODE_REC_SWIZZLE_MODE_256B_S;
+   if (pdev->enc_hw_ver >= RADV_VIDEO_ENC_HW_4) {
+      if (vid->vk.luma_bit_depth == VK_VIDEO_COMPONENT_BIT_DEPTH_10_BIT_KHR)
+         swizzle_mode = RENCODE_REC_SWIZZLE_MODE_8x8_1D_THIN_12_24BPP_VCN4;
+      else
+         swizzle_mode = RENCODE_REC_SWIZZLE_MODE_256B_D;
+   } else if (pdev->enc_hw_ver >= RADV_VIDEO_ENC_HW_2) {
+      if (vid->vk.luma_bit_depth == VK_VIDEO_COMPONENT_BIT_DEPTH_10_BIT_KHR)
+         swizzle_mode = RENCODE_REC_SWIZZLE_MODE_8x8_1D_THIN_12_24BPP;
+      else
+         swizzle_mode = RENCODE_REC_SWIZZLE_MODE_256B_S;
+   }
 
    RADEON_ENC_BEGIN(pdev->vcn_enc_cmds.ctx);
    RADEON_ENC_CS(va >> 32);
