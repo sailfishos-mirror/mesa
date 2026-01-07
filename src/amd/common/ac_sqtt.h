@@ -37,7 +37,7 @@ struct ac_sqtt {
    /* Only used by RadeonSI */
    void *start_cs[2];
    void *stop_cs[2];
-   /* VkBuffer or struct pb_buffer */
+   /* VkBuffer or struct si_resource */
    void *bo;
    uint64_t buffer_va;
    void *ptr;

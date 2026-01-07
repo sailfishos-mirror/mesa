@@ -209,7 +209,7 @@ struct ac_spm_block_select {
 };
 
 struct ac_spm {
-   /* struct radeon_winsys_bo or struct pb_buffer */
+   /* struct radeon_winsys_bo or struct si_resource */
    void *bo;
    void *ptr;
    uint8_t ptr_granularity;

@@ -23,7 +23,6 @@ si_emit_spi_config_cntl(struct si_context *sctx,
 static bool si_sqtt_init_bo(struct si_context *sctx)
 {
    unsigned max_se = sctx->screen->info.max_se;
-   struct radeon_winsys *ws = sctx->ws;
    uint64_t size;
 
    /* The buffer size and address need to be aligned in HW regs. Align the
@@ -37,14 +36,16 @@ static bool si_sqtt_init_bo(struct si_context *sctx)
                   1ull << SQTT_BUFFER_ALIGN_SHIFT);
    size += sctx->sqtt->buffer_size * (uint64_t)max_se;
 
+   if (size > UINT32_MAX)
+      return false;
+
    sctx->sqtt->bo =
-      ws->buffer_create(ws, size, 4096, RADEON_DOMAIN_GTT,
-                        RADEON_FLAG_NO_INTERPROCESS_SHARING |
-                           RADEON_FLAG_GTT_WC | RADEON_FLAG_NO_SUBALLOC);
+      pipe_aligned_buffer_create(&sctx->screen->b, SI_RESOURCE_FLAG_DRIVER_INTERNAL,
+                                 PIPE_USAGE_STREAM, size, 4096);
    if (!sctx->sqtt->bo)
       return false;
 
-   sctx->sqtt->buffer_va = sctx->ws->buffer_get_virtual_address(sctx->sqtt->bo);
+   sctx->sqtt->buffer_va = si_resource(sctx->sqtt->bo)->gpu_address;
 
    return true;
 }
@@ -120,10 +121,10 @@ static void si_sqtt_start(struct si_context *sctx, struct radeon_cmdbuf *cs)
    }
    radeon_end();
 
-   ws->cs_add_buffer(cs, sctx->sqtt->bo, RADEON_USAGE_READWRITE,
+   ws->cs_add_buffer(cs, si_resource(sctx->sqtt->bo)->buf, RADEON_USAGE_READWRITE,
                      RADEON_DOMAIN_VRAM);
    if (sctx->spm.bo)
-      ws->cs_add_buffer(cs, sctx->spm.bo, RADEON_USAGE_READWRITE,
+      ws->cs_add_buffer(cs, si_resource(sctx->spm.bo)->buf, RADEON_USAGE_READWRITE,
                         RADEON_DOMAIN_VRAM);
 
    si_cp_dma_wait_for_idle(sctx, cs);
@@ -175,11 +176,11 @@ static void si_sqtt_stop(struct si_context *sctx, struct radeon_cmdbuf *cs)
    }
    radeon_end();
 
-   ws->cs_add_buffer(cs, sctx->sqtt->bo, RADEON_USAGE_READWRITE,
+   ws->cs_add_buffer(cs, si_resource(sctx->sqtt->bo)->buf, RADEON_USAGE_READWRITE,
                      RADEON_DOMAIN_VRAM);
 
    if (sctx->spm.bo)
-      ws->cs_add_buffer(cs, sctx->spm.bo, RADEON_USAGE_READWRITE,
+      ws->cs_add_buffer(cs, si_resource(sctx->spm.bo)->buf, RADEON_USAGE_READWRITE,
                         RADEON_DOMAIN_VRAM);
 
    si_cp_dma_wait_for_idle(sctx, cs);
@@ -258,19 +259,19 @@ static bool
 si_sqtt_resize_bo(struct si_context *sctx)
 {
    /* Destroy the previous thread trace BO. */
-   struct pb_buffer_lean *bo = sctx->sqtt->bo;
-   radeon_bo_reference(sctx->screen->ws, &bo, NULL);
+   struct pipe_resource *bo = sctx->sqtt->bo;
+   pipe_resource_reference(&bo, NULL);
    sctx->sqtt->bo = NULL;
 
    if (sctx->sqtt->buffer_size < UINT32_MAX / 2) {
       /* Double the size of the thread trace buffer per SE. */
       sctx->sqtt->buffer_size *= 2;
       mesa_loge("Failed to get the thread trace because the buffer "
-                "was too small, resizing to %d kB",
+                "was too small, resizing to %d kB per se",
                 sctx->sqtt->buffer_size / 1024);
    } else {
       mesa_loge("Failed to get the thread trace because the buffer "
-                "was too small (%d kB). Cancelling trace capture.",
+                "was too small (%d kB per se). Cancelling trace capture.",
                  sctx->sqtt->buffer_size / 1024);
       if (sctx->sqtt->instruction_timing_enabled)
          mesa_loge("Try again with AMD_THREAD_TRACE_INSTRUCTION_TIMING=false"
@@ -288,7 +289,7 @@ static bool si_get_sqtt_trace(struct si_context *sctx,
    memset(sqtt, 0, sizeof(*sqtt));
 
    sctx->sqtt->ptr =
-      sctx->ws->buffer_map(sctx->ws, sctx->sqtt->bo, NULL, PIPE_MAP_READ);
+      sctx->ws->buffer_map(sctx->ws, si_resource(sctx->sqtt->bo)->buf, NULL, PIPE_MAP_READ);
 
    if (!sctx->sqtt->ptr)
       return false;
@@ -374,8 +375,8 @@ bool si_init_sqtt(struct si_context *sctx)
 void si_destroy_sqtt(struct si_context *sctx)
 {
    struct si_screen *sscreen = sctx->screen;
-   struct pb_buffer_lean *bo = sctx->sqtt->bo;
-   radeon_bo_reference(sctx->screen->ws, &bo, NULL);
+   struct pipe_resource *bo = sctx->sqtt->bo;
+   pipe_resource_reference(&bo, NULL);
 
    free(sctx->sqtt->trigger_file);
 
@@ -489,7 +490,7 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
          /* Map the SPM counter buffer */
          if (sctx->spm.bo) {
             sctx->spm.ptr = sctx->ws->buffer_map(
-               sctx->ws, sctx->spm.bo, NULL, PIPE_MAP_READ | RADEON_MAP_TEMPORARY);
+               sctx->ws, si_resource(sctx->spm.bo)->buf, NULL, PIPE_MAP_READ | RADEON_MAP_TEMPORARY);
             ac_spm_get_trace(&sctx->spm, &spm_trace);
          }
 
@@ -497,7 +498,7 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
                              sctx->spm.bo ? &spm_trace : NULL);
 
          if (sctx->spm.ptr)
-            sctx->ws->buffer_unmap(sctx->ws, sctx->spm.bo);
+            sctx->ws->buffer_unmap(sctx->ws, si_resource(sctx->spm.bo)->buf);
       } else if (sctx->sqtt->bo) {
          if (!sctx->sqtt->trigger_file) {
             sctx->sqtt->start_frame = num_frames + 10;
