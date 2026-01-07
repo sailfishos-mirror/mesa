@@ -15,6 +15,7 @@
 #include "util/u_cpu_detect.h"
 #include "util/u_hash_table.h"
 #include "util/hash_table.h"
+#include "util/log.h"
 #include "util/thread_sched.h"
 #include "util/xmlconfig.h"
 #include "drm-uapi/amdgpu_drm.h"
@@ -37,13 +38,13 @@ static bool do_winsys_init(struct amdgpu_winsys *aws,
                            int fd)
 {
    if (ac_query_gpu_info(fd, aws->dev, &aws->info, false) != AC_QUERY_GPU_INFO_SUCCESS) {
-      fprintf(stderr, "amdgpu: ac_query_gpu_info failed.\n");
+      mesa_loge("amdgpu: ac_query_gpu_info failed.\n");
       goto fail;
    }
 
    aws->addrlib = ac_addrlib_create(&aws->info, &aws->info.max_alignment);
    if (!aws->addrlib) {
-      fprintf(stderr, "amdgpu: Cannot create addrlib.\n");
+      mesa_loge("amdgpu: Cannot create addrlib.\n");
       goto fail;
    }
 
@@ -400,8 +401,7 @@ amdgpu_winsys_create(int fd, const struct pipe_screen_config *config,
     * for the same fd. */
    r = ac_drm_device_initialize(fd, is_virtio, &drm_major, &drm_minor, &dev);
    if (r) {
-      fprintf(stderr, "amdgpu: amd%s_device_initialize failed.\n",
-         is_virtio ? "vgpu" : "gpu");
+      mesa_loge("amdgpu: amd%s_device_initialize failed.\n", is_virtio ? "vgpu" : "gpu");
       goto fail;
    }
 

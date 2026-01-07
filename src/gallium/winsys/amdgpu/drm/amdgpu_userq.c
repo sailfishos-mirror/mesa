@@ -8,6 +8,7 @@
 #include "amdgpu_cs.h"
 #include "ac_linux_drm.h"
 #include "sid.h"
+#include "util/log.h"
 
 static void
 update_vm_timeline_point_to_wait(uint64_t *vm_timeline_point_to_wait, struct pb_buffer_lean *_buf)
@@ -96,7 +97,7 @@ amdgpu_userq_deinit(struct amdgpu_winsys *aws, struct amdgpu_userq *userq)
       radeon_bo_reference(&aws->dummy_sws.base, &userq->sdma_data.csa_bo, NULL);
       break;
    default:
-      fprintf(stderr, "amdgpu: userq unsupported for ip = %d\n", userq->ip_type);
+      mesa_loge("amdgpu: userq unsupported for ip = %d\n", userq->ip_type);
    }
 }
 
@@ -177,7 +178,7 @@ amdgpu_userq_init(struct amdgpu_winsys *aws, struct amdgpu_userq *userq, enum am
       update_vm_timeline_point_to_wait(&vm_timeline_point_to_wait, userq->sdma_data.csa_bo);
       break;
    default:
-      fprintf(stderr, "amdgpu: userq unsupported for ip = %d\n", userq->ip_type);
+      mesa_loge("amdgpu: userq unsupported for ip = %d\n", userq->ip_type);
       goto fail;
    }
 
@@ -197,7 +198,7 @@ amdgpu_userq_init(struct amdgpu_winsys *aws, struct amdgpu_userq *userq, enum am
                                        INT64_MAX, DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL |
                                           DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT, NULL);
    if (r) {
-      fprintf(stderr, "amdgpu: waiting for vm fences failed\n");
+      mesa_loge("amdgpu: waiting for vm fences failed\n");
       goto fail;
    }
 
@@ -221,7 +222,7 @@ amdgpu_userq_init(struct amdgpu_winsys *aws, struct amdgpu_userq *userq, enum am
    }
 
    if (r) {
-      fprintf(stderr, "amdgpu: failed to create userq\n");
+      mesa_loge("amdgpu: failed to create userq\n");
       goto fail;
    }
 

@@ -922,9 +922,8 @@ void amdgpu_bo_slab_free(struct amdgpu_winsys *aws, struct pb_slab *slab)
 static void
 sparse_dump(struct amdgpu_bo_sparse *bo, const char *func)
 {
-   fprintf(stderr, "%s: %p (size=%"PRIu64", num_va_pages=%u) @ %s\n"
-                   "Commitments:\n",
-           __func__, bo, bo->b.base.size, bo->num_va_pages, func);
+   mesa_logi("%s: %p (size=%"PRIu64", num_va_pages=%u) @ %s\n"
+             "Commitments:\n", __func__, bo, bo->b.base.size, bo->num_va_pages, func);
 
    struct amdgpu_sparse_backing *span_backing = NULL;
    uint32_t span_first_backing_page = 0;
@@ -943,10 +942,9 @@ sparse_dump(struct amdgpu_bo_sparse *bo, const char *func)
       if (span_backing &&
           (backing != span_backing ||
            backing_page != span_first_backing_page + (va_page - span_first_va_page))) {
-         fprintf(stderr, " %u..%u: backing=%p:%u..%u\n",
-                 span_first_va_page, va_page - 1, span_backing,
-                 span_first_backing_page,
-                 span_first_backing_page + (va_page - span_first_va_page) - 1);
+         mesa_logi(" %u..%u: backing=%p:%u..%u\n", span_first_va_page, va_page - 1, span_backing,
+                   span_first_backing_page,
+                   span_first_backing_page + (va_page - span_first_va_page) - 1);
 
          span_backing = NULL;
       }
@@ -963,12 +961,12 @@ sparse_dump(struct amdgpu_bo_sparse *bo, const char *func)
       va_page++;
    }
 
-   fprintf(stderr, "Backing:\n");
+   mesa_logi("Backing:\n");
 
    list_for_each_entry(struct amdgpu_sparse_backing, backing, &bo->backing, list) {
-      fprintf(stderr, " %p (size=%"PRIu64")\n", backing, backing->bo->b.base.size);
+      mesa_logi(" %p (size=%"PRIu64")\n", backing, backing->bo->b.base.size);
       for (unsigned i = 0; i < backing->num_chunks; ++i)
-         fprintf(stderr, "   %u..%u\n", backing->chunks[i].begin, backing->chunks[i].end);
+         mesa_logi("   %u..%u\n", backing->chunks[i].begin, backing->chunks[i].end);
    }
 }
 #endif
