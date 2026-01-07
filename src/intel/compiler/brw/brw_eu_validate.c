@@ -2353,6 +2353,14 @@ instruction_restrictions(const struct brw_isa_info *isa,
       ERROR_IF(inst->dst.type != inst->src[0].type,
                "ROR/ROL src0 and dst must be of same datatype precision.");
    }
+
+   if (inst->opcode == BRW_OPCODE_LRP) {
+      ERROR_IF(inst->dst.type != BRW_TYPE_F ||
+               inst->src[0].type != BRW_TYPE_F ||
+               inst->src[1].type != BRW_TYPE_F ||
+               inst->src[2].type != BRW_TYPE_F,
+               "LRP dst and sources must be of type F.");
+   }
 }
 
 static void

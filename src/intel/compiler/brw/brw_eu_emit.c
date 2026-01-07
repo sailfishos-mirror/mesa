@@ -853,27 +853,6 @@ brw_eu_inst *brw_##OP(struct brw_codegen *p,		\
    return brw_alu3(p, BRW_OPCODE_##OP, dest, src0, src1, src2);	\
 }
 
-#define ALU3F(OP)                                               \
-brw_eu_inst *brw_##OP(struct brw_codegen *p,         \
-                                 struct brw_reg dest,           \
-                                 struct brw_reg src0,           \
-                                 struct brw_reg src1,           \
-                                 struct brw_reg src2)           \
-{                                                               \
-   assert(dest.type == BRW_TYPE_F ||                   \
-          dest.type == BRW_TYPE_DF);                   \
-   if (dest.type == BRW_TYPE_F) {                      \
-      assert(src0.type == BRW_TYPE_F);                 \
-      assert(src1.type == BRW_TYPE_F);                 \
-      assert(src2.type == BRW_TYPE_F);                 \
-   } else if (dest.type == BRW_TYPE_DF) {              \
-      assert(src0.type == BRW_TYPE_DF);                \
-      assert(src1.type == BRW_TYPE_DF);                \
-      assert(src2.type == BRW_TYPE_DF);                \
-   }                                                            \
-   return brw_alu3(p, BRW_OPCODE_##OP, dest, src0, src1, src2); \
-}
-
 ALU2(SEL)
 ALU1(NOT)
 ALU2(AND)
@@ -899,7 +878,7 @@ ALU2(DP3)
 ALU2(DP2)
 ALU3(DP4A)
 ALU3(MAD)
-ALU3F(LRP)
+ALU3(LRP)
 ALU1(BFREV)
 ALU3(BFE)
 ALU2(BFI1)
