@@ -22,6 +22,7 @@
 #include "nv_push_cl906f.h"
 #include "nv_push_cla0c0.h"
 #include "nv_push_clb1c0.h"
+#include "nv_push_clc597.h"
 #include "nv_push_clc6c0.h"
 #include "nv_push_clc7c0.h"
 #include "nv_push_clc86f.h"
@@ -499,6 +500,19 @@ build_gfx_set_exec(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr,
 }
 
 static void
+build_push_write_push_const(nir_builder *b, struct nvk_nir_push *p,
+                            const VkPushConstantRange *pc_range)
+{
+   assert(pc_range->offset % 4 == 0);
+   assert(pc_range->size % 4 == 0);
+   const uint32_t dw_count = pc_range->size / 4;
+
+   nvk_nir_P_1INC(b, p, NV9097, LOAD_CONSTANT_BUFFER_OFFSET, 1 + dw_count);
+   nvk_nir_push_dw(b, p, nir_imm_int(b,
+      nvk_root_descriptor_offset(push) + pc_range->offset));
+}
+
+static void
 build_push_gfx_const(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr,
                      const VkIndirectCommandsPushConstantTokenEXT *token)
 {
@@ -507,13 +521,10 @@ build_push_gfx_const(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr
    // TODO: Compute
    assert(!(pc_range->stageFlags & VK_SHADER_STAGE_COMPUTE_BIT));
 
-   assert(pc_range->offset % 4 == 0);
    assert(pc_range->size % 4 == 0);
    const uint32_t dw_count = pc_range->size / 4;
 
-   nvk_nir_P_1INC(b, p, NV9097, LOAD_CONSTANT_BUFFER_OFFSET, 1 + dw_count);
-   nvk_nir_push_dw(b, p, nir_imm_int(b,
-      nvk_root_descriptor_offset(push) + pc_range->offset));
+   build_push_write_push_const(b, p, pc_range);
    for (uint32_t i = 0; i < dw_count; i++)
       nvk_nir_push_dw(b, p, load_global_dw(b, token_addr, i));
 }
@@ -527,12 +538,9 @@ build_push_gfx_seq_idx(nir_builder *b, struct nvk_nir_push *p,
 
    // TODO: Compute
    assert(!(pc_range->stageFlags & VK_SHADER_STAGE_COMPUTE_BIT));
-
-   assert(pc_range->offset % 4 == 0);
    assert(pc_range->size == 4);
-   nvk_nir_P_1INC(b, p, NV9097, LOAD_CONSTANT_BUFFER_OFFSET, 2);
-   nvk_nir_push_dw(b, p, nir_imm_int(b,
-      nvk_root_descriptor_offset(push) + pc_range->offset));
+
+   build_push_write_push_const(b, p, pc_range);
    nvk_nir_push_dw(b, p, seq_idx);
 }
 
