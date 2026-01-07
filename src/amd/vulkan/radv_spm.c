@@ -8,30 +8,56 @@
 
 #include "radv_buffer.h"
 #include "radv_cs.h"
+#include "radv_entrypoints.h"
 #include "radv_spm.h"
+#include "radv_sqtt.h"
+
+#include "vk_common_entrypoints.h"
+
 #include "sid.h"
 
 static bool
 radv_spm_init_bo(struct radv_device *device)
 {
-   struct radeon_winsys *ws = device->ws;
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   VkDeviceMemory memory;
+   VkBuffer buffer;
    VkResult result;
+   uint64_t va;
+   void *ptr;
 
-   struct radeon_winsys_bo *bo = NULL;
-   result = radv_bo_create(device, NULL, device->spm.buffer_size, 4096, RADEON_DOMAIN_GTT,
-                           RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_ZERO_VRAM,
-                           RADV_BO_PRIORITY_SCRATCH, 0, true, &bo);
-   device->spm.bo = bo;
+   /* Allocate the SPM buffer. */
+   const uint32_t memory_type_index =
+      radv_find_memory_index(pdev, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                                      VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+
+   result = radv_sqtt_allocate_buffer(radv_device_to_handle(device), device->spm.buffer_size, memory_type_index,
+                                      &buffer, &memory);
    if (result != VK_SUCCESS)
       return false;
 
-   result = ws->buffer_make_resident(ws, device->spm.bo, true);
+   VkBufferDeviceAddressInfo addr_info = {
+      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+      .buffer = buffer,
+   };
+
+   va = vk_common_GetBufferDeviceAddress(radv_device_to_handle(device), &addr_info);
+
+   VkMemoryMapInfo mem_map_info = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_MAP_INFO,
+      .memory = memory,
+      .size = VK_WHOLE_SIZE,
+   };
+
+   result = radv_MapMemory2(radv_device_to_handle(device), &mem_map_info, &ptr);
    if (result != VK_SUCCESS)
       return false;
 
-   device->spm.ptr = radv_buffer_map(ws, device->spm.bo);
-   if (!device->spm.ptr)
-      return false;
+   device->spm_buffer = buffer;
+   device->spm_memory = memory;
+   device->spm_buffer_va = va;
+   device->spm.bo = &device->spm_buffer;
+   device->spm.ptr = ptr;
 
    return true;
 }
@@ -39,12 +65,16 @@ radv_spm_init_bo(struct radv_device *device)
 static void
 radv_spm_finish_bo(struct radv_device *device)
 {
-   struct radeon_winsys *ws = device->ws;
+   if (device->spm_memory) {
+      VkMemoryUnmapInfo unmap_info = {
+         .sType = VK_STRUCTURE_TYPE_MEMORY_UNMAP_INFO,
+         .memory = device->spm_memory,
+      };
 
-   if (device->spm.bo) {
-      ws->buffer_make_resident(ws, device->spm.bo, false);
-      radv_bo_destroy(device, NULL, device->spm.bo);
+      radv_UnmapMemory2(radv_device_to_handle(device), &unmap_info);
    }
+
+   radv_sqtt_destroy_buffer(radv_device_to_handle(device), device->spm_buffer, device->spm_memory);
 }
 
 static bool
@@ -70,10 +100,9 @@ radv_emit_spm_setup(struct radv_device *device, struct radv_cmd_stream *cs)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct ac_spm *spm = &device->spm;
-   uint64_t va = radv_buffer_get_va(spm->bo);
 
    radeon_check_space(device->ws, cs->b, 8192);
-   ac_emit_spm_setup(cs->b, pdev->info.gfx_level, cs->hw_ip, spm, va);
+   ac_emit_spm_setup(cs->b, pdev->info.gfx_level, cs->hw_ip, spm, device->spm_buffer_va);
 }
 
 bool

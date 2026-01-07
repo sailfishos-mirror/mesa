@@ -87,6 +87,11 @@ VkResult radv_sqtt_allocate_cmdbuf(struct radv_device *device, enum radv_queue_f
 
 void radv_sqtt_free_cmdbuf(struct radv_device *device, enum radv_queue_family queue_family, VkCommandBuffer cmdbuf);
 
+VkResult radv_sqtt_allocate_buffer(VkDevice device, uint64_t size, uint32_t memory_type_index, VkBuffer *buffer,
+                                   VkDeviceMemory *memory);
+
+void radv_sqtt_destroy_buffer(VkDevice device, VkBuffer buffer, VkDeviceMemory memory);
+
 VkResult radv_sqtt_get_timed_cmdbuf(struct radv_queue *queue, struct radeon_winsys_bo *timestamp_bo,
                                     uint32_t timestamp_offset, VkPipelineStageFlags2 timestamp_stage,
                                     VkCommandBuffer *pcmdbuf);

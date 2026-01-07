@@ -263,7 +263,7 @@ radv_sqtt_finish_queue_event(struct radv_device *device)
    simple_mtx_destroy(&device->sqtt_command_pool_mtx);
 }
 
-static VkResult
+VkResult
 radv_sqtt_allocate_buffer(VkDevice device, uint64_t size, uint32_t memory_type_index, VkBuffer *buffer,
                           VkDeviceMemory *memory)
 {
@@ -322,7 +322,7 @@ fail_buffer:
    return result;
 }
 
-static void
+void
 radv_sqtt_destroy_buffer(VkDevice device, VkBuffer buffer, VkDeviceMemory memory)
 {
    radv_DestroyBuffer(device, buffer, NULL);
