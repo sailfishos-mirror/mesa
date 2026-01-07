@@ -363,7 +363,7 @@ is_16_bits_with_scale(const nir_alu_instr *instr,
 
    for (unsigned i = 0; i < num_components; i++) {
       const int64_t val =
-         scale * nir_src_comp_as_int(instr->src[src].src, swizzle[i]);
+         (uint64_t)(int64_t)scale * nir_src_comp_as_uint(instr->src[src].src, swizzle[i]);
 
       if (val > 0xffff || val < -0x8000)
          return false;
