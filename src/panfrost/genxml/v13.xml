@@ -2700,6 +2700,16 @@
     <field name="Render Target Mask" size="12" start="16" type="hex"/>
   </struct>
 
+  <enum name="HSR Update">
+    <value name="Early" value="0"/>
+    <value name="Late" value="1"/>
+  </enum>
+
+  <enum name="HSR Prepass Kill">
+    <value name="Follow HSR Update" value="0"/>
+    <value name="Late" value="1"/>
+  </enum>
+
   <struct name="DCD Flags 2" size="1">
     <field name="Read Mask" size="12" start="0" type="hex"/>
     <field name="Write Mask" size="12" start="12" type="hex"/>
@@ -2709,8 +2719,8 @@
     <field name="HSR Can Be Culled" size="1" start="27" type="bool"/>
     <field name="Z Write Or Stencil" size="1" start="28" type="bool"/>
     <field name="Enable Varying Shading In Pre Pass" size="1" start="29" type="bool"/>
-    <field name="HSR Update Operation" size="1" start="30" type="bool"/>
-    <field name="HSR Prepass Kill Operation" size="1" start="31" type="bool"/>
+    <field name="HSR Update Operation" size="1" start="30" type="HSR Update"/>
+    <field name="HSR Prepass Kill Operation" size="1" start="31" type="HSR Prepass Kill"/>
   </struct>
 
   <struct name="FAU Pointer" size="2">
