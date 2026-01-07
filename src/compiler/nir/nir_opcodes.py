@@ -590,7 +590,7 @@ dst = -1;
 /* We are looking for the highest bit that's not the same as the sign bit. */
 uint32_t sign = src0 & 0x80000000u;
 for (int bit = 0; bit < 32; bit++) {
-   if (((src0 << bit) & 0x80000000u) != sign) {
+   if ((((uint32_t)src0 << bit) & 0x80000000u) != sign) {
       dst = bit;
       break;
    }
@@ -1228,7 +1228,7 @@ if (bits == 0) {
    dst = 0;
    poison = true;
 } else {
-   dst = (base << (32 - offset - bits)) >> (32 - bits); /* use sign-extending shift */
+   dst = (int32_t)((uint32_t)base << (32 - offset - bits)) >> (32 - bits); /* use sign-extending shift */
 }
 """)
 
@@ -1350,7 +1350,7 @@ binop("amul", tint, _2src_commutative + associative, "src0 * src1")
 # multiplication (imul) on Freedreno backend..
 opcode("imadsh_mix16", 0, tint32,
        [0, 0, 0], [tint32, tint32, tint32], False, "", """
-dst = ((((src0 & 0x0000ffff) << 16) * (src1 & 0xffff0000)) >> 16) + src2;
+dst = (((int32_t)(((uint32_t)src0 & 0x0000ffff) << 16) * (src1 & 0xffff0000)) >> 16) + src2;
 """)
 
 # ir3-specific instruction that maps directly to ir3 mad.s24.
@@ -1528,7 +1528,7 @@ opcode("lea_nv", 0, tuint, [0, 0, 0], [tuint, tuint, tuint32], False,
 
 # 24b multiply into 32b result (with sign extension)
 binop("imul24", tint32, _2src_commutative,
-      "(((int32_t)src0 << 8) >> 8) * (((int32_t)src1 << 8) >> 8)")
+      "util_mask_sign_extend(src0, 24) * util_mask_sign_extend(src1, 24)")
 
 # unsigned 24b multiply into 32b result plus 32b int
 triop("umad24", tuint32, _2src_commutative,
@@ -1574,7 +1574,7 @@ for (int i = 0; i < 32; i += 8) {
    int src0_chan = (src0 >> i) & 0xff;
    int src1_chan = (src1 >> i) & 0xff;
    if (src0_chan > src1_chan)
-      dst |= (src0_chan - src1_chan) << i;
+      dst |= (uint32_t)(src0_chan - src1_chan) << i;
 }
 """)
 
