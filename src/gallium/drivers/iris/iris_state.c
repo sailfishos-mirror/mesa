@@ -5870,6 +5870,33 @@ iris_populate_64bit_binding_table(struct iris_context *ice,
             }
             break;
          }
+         case IRIS_SURFACE_GROUP_IMAGE: {
+            uint8_t *surface_state_map = surfaces_state_map + (surfaces_i++ * isl_dev->ss.size);
+            struct iris_image_view *iv = &shs->image[index];
+            struct iris_resource *res = (void *) iv->base.resource;
+
+            if (!res) {
+               isl_null_fill_state(&screen->isl_dev, surface_state_map, .size = isl_extent3d(1, 1, 1));
+               break;
+            }
+
+            const bool write = iv->base.shader_access & PIPE_IMAGE_ACCESS_WRITE;
+
+            iris_use_pinned_bo(batch, res->bo, write, IRIS_DOMAIN_NONE);
+            if (res->aux.bo)
+               iris_use_pinned_bo(batch, res->aux.bo, write, IRIS_DOMAIN_NONE);
+            if (res->aux.clear_color_bo)
+               iris_use_pinned_bo(batch, res->aux.clear_color_bo, false,
+                                  IRIS_DOMAIN_NONE);
+
+            uint8_t *surface_state_cpu = (uint8_t *)iv->surface_state.cpu;
+            const enum isl_aux_usage aux_usage = shs->image_aux_usage[index];
+
+            assert(surface_state_cpu);
+            surface_state_cpu += surf_state_offset_for_aux(iv->surface_state.aux_usages, aux_usage);
+            memcpy(surface_state_map, surface_state_cpu, isl_dev->ss.size);
+            break;
+         }
          default:
             UNREACHABLE("group not handled\n");
          }
