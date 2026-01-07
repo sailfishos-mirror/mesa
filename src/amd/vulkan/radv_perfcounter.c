@@ -486,7 +486,7 @@ radv_emit_select(struct radv_cmd_buffer *cmd_buffer, struct ac_pc_block *block, 
                                      G_REG_SEL(selectors[idx]) | regs->select_or);
    }
 
-   for (idx = 0; idx < regs->num_spm_counters; idx++) {
+   for (idx = 0; idx < regs->num_spm_modules; idx++) {
       radeon_set_uconfig_reg_seq(regs->select1[idx], 1);
       radeon_emit(0);
    }

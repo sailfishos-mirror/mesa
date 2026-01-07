@@ -128,7 +128,7 @@ struct ac_pc_block_base {
    /* SPM */
    unsigned num_16bit_spm_counters;
    unsigned num_32bit_spm_counters;
-   unsigned num_spm_counters;
+   unsigned num_spm_modules;
    unsigned num_spm_wires;
    unsigned *select1;
    unsigned spm_block_select;

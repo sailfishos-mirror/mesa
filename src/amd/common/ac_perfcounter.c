@@ -31,7 +31,7 @@ static struct ac_pc_block_base cik_CB = {
    .select1 = cik_CB_select1,
    .counter0_lo = R_035018_CB_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 1,
+   .num_spm_modules = 1,
    .num_spm_wires = 2,
    .spm_block_select = AC_SPM_SE_BLOCK_CB,
 };
@@ -57,7 +57,7 @@ static struct ac_pc_block_base cik_CPC = {
    .select1 = cik_CPC_select1,
    .counters = cik_CPC_counters,
 
-   .num_spm_counters = 1,
+   .num_spm_modules = 1,
    .num_spm_wires = 2,
    .spm_block_select = AC_SPM_GLOBAL_BLOCK_CPC,
 };
@@ -83,7 +83,7 @@ static struct ac_pc_block_base cik_CPF = {
    .select1 = cik_CPF_select1,
    .counters = cik_CPF_counters,
 
-   .num_spm_counters = 1,
+   .num_spm_modules = 1,
    .num_spm_wires = 2,
    .spm_block_select = AC_SPM_GLOBAL_BLOCK_CPF,
 };
@@ -109,7 +109,7 @@ static struct ac_pc_block_base cik_CPG = {
    .select1 = cik_CPG_select1,
    .counters = cik_CPG_counters,
 
-   .num_spm_counters = 1,
+   .num_spm_modules = 1,
    .num_spm_wires = 2,
    .spm_block_select = AC_SPM_GLOBAL_BLOCK_CPG,
 };
@@ -135,7 +135,7 @@ static struct ac_pc_block_base cik_DB = {
    .select1 = cik_DB_select1,
    .counter0_lo = R_035100_DB_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 2,
+   .num_spm_modules = 2,
    .num_spm_wires = 3,
 };
 
@@ -158,7 +158,7 @@ static struct ac_pc_block_base cik_GDS = {
    .select1 = cik_GDS_select1,
    .counter0_lo = R_034A00_GDS_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 1,
+   .num_spm_modules = 1,
    .num_spm_wires = 2,
    .spm_block_select = AC_SPM_GLOBAL_BLOCK_GDS,
 };
@@ -216,7 +216,7 @@ static struct ac_pc_block_base cik_IA = {
    .select1 = cik_IA_select1,
    .counter0_lo = R_034220_IA_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 1,
+   .num_spm_modules = 1,
    .num_spm_wires = 2,
 };
 
@@ -244,7 +244,7 @@ static struct ac_pc_block_base cik_PA_SC = {
    .select1 = cik_PA_SC_select1,
    .counter0_lo = R_034500_PA_SC_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 1,
+   .num_spm_modules = 1,
    .num_spm_wires = 2,
    .spm_block_select = AC_SPM_SE_BLOCK_SC,
 };
@@ -271,7 +271,7 @@ static struct ac_pc_block_base cik_PA_SU = {
    .select1 = cik_PA_SU_select1,
    .counter0_lo = R_034400_PA_SU_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 2,
+   .num_spm_modules = 2,
    .num_spm_wires = 3,
 };
 
@@ -300,7 +300,7 @@ static struct ac_pc_block_base cik_SPI = {
    .select1 = cik_SPI_select1,
    .counter0_lo = R_034604_SPI_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 4,
+   .num_spm_modules = 4,
    .num_spm_wires = 8,
    .spm_block_select = AC_SPM_SE_BLOCK_SPI,
 };
@@ -358,7 +358,7 @@ static struct ac_pc_block_base cik_SX = {
    .select1 = cik_SX_select1,
    .counter0_lo = R_034900_SX_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 2,
+   .num_spm_modules = 2,
    .num_spm_wires = 4,
    .spm_block_select = AC_SPM_SE_BLOCK_SX,
 };
@@ -381,7 +381,7 @@ static struct ac_pc_block_base cik_TA = {
    .select1 = cik_TA_select1,
    .counter0_lo = R_034B00_TA_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 1,
+   .num_spm_modules = 1,
    .num_spm_wires = 2,
    .spm_block_select = AC_SPM_SE_BLOCK_TA,
 };
@@ -404,7 +404,7 @@ static struct ac_pc_block_base cik_TD = {
    .select1 = cik_TD_select1,
    .counter0_lo = R_034C00_TD_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 1,
+   .num_spm_modules = 1,
    .num_spm_wires = 2,
    .spm_block_select = AC_SPM_SE_BLOCK_TD,
 };
@@ -430,7 +430,7 @@ static struct ac_pc_block_base cik_TCA = {
    .select1 = cik_TCA_select1,
    .counter0_lo = R_034E40_TCA_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 2,
+   .num_spm_modules = 2,
    .num_spm_wires = 4,
 };
 
@@ -455,7 +455,7 @@ static struct ac_pc_block_base cik_TCC = {
    .select1 = cik_TCC_select1,
    .counter0_lo = R_034E00_TCC_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 2,
+   .num_spm_modules = 2,
    .num_spm_wires = 4,
 };
 
@@ -480,7 +480,7 @@ static struct ac_pc_block_base cik_TCP = {
    .select1 = cik_TCP_select1,
    .counter0_lo = R_034D00_TCP_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 2,
+   .num_spm_modules = 2,
    .num_spm_wires = 3,
 };
 
@@ -505,7 +505,7 @@ static struct ac_pc_block_base cik_VGT = {
    .select1 = cik_VGT_select1,
    .counter0_lo = R_034240_VGT_PERFCOUNTER0_LO,
 
-   .num_spm_counters = 2,
+   .num_spm_modules = 2,
    .num_spm_wires = 3,
 };
 
@@ -757,8 +757,8 @@ bool ac_init_perfcounters(const struct radeon_info *info,
          /* Determine the number of 16-bit/32-bit SPM counters. */
          if (!block->b->b->num_16bit_spm_counters &&
              !block->b->b->num_32bit_spm_counters) {
-            block->b->b->num_16bit_spm_counters = block->b->b->num_spm_counters * 4;
-            block->b->b->num_32bit_spm_counters = block->b->b->num_spm_counters * 2;
+            block->b->b->num_16bit_spm_counters = block->b->b->num_spm_modules * 4;
+            block->b->b->num_32bit_spm_counters = block->b->b->num_spm_modules * 2;
          }
 
          switch (block->b->b->gpu_block) {

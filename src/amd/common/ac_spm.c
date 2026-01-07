@@ -296,7 +296,7 @@ ac_spm_get_block_select(struct ac_spm *spm, const struct ac_pc_block *block)
    new_block_sel->num_instances = block->num_instances;
 
    for (unsigned i = 0; i < new_block_sel->num_instances; i++)
-      new_block_sel->instances[i].num_counters = block->b->b->num_spm_counters;
+      new_block_sel->instances[i].num_counters = block->b->b->num_spm_modules;
 
    return new_block_sel;
 }
