@@ -374,6 +374,9 @@ typedef enum
    VARYING_SLOT_TASK_COUNT = VARYING_SLOT_BOUNDING_BOX0, /* Only appears in TASK. */
    VARYING_SLOT_CULL_PRIMITIVE = VARYING_SLOT_BOUNDING_BOX0, /* Only appears in MESH. */
 
+   VARYING_SLOT_GS_HEADER_IR3 = VARYING_SLOT_BOUNDING_BOX0, /* VS/TES output and GS input */
+   VARYING_SLOT_GS_VERTEX_FLAGS_IR3 = VARYING_SLOT_BOUNDING_BOX1, /* GS output */
+
    VARYING_SLOT_VAR0 = 32, /* First generic varying slot */
    /* the remaining are simply for the benefit of gl_varying_slot_name()
     * and not to be construed as an upper bound:

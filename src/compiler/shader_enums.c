@@ -208,6 +208,34 @@ gl_varying_slot_name_for_stage(gl_varying_slot slot, mesa_shader_stage stage)
       }
       break;
 
+   case MESA_SHADER_VERTEX:
+      switch (slot) {
+      case VARYING_SLOT_GS_HEADER_IR3: return "VARYING_SLOT_GS_HEADER_IR3";
+      default:
+         /* Not an overlapping value. */
+         break;
+      }
+      break;
+
+   case MESA_SHADER_TESS_EVAL:
+      switch (slot) {
+      case VARYING_SLOT_GS_HEADER_IR3: return "VARYING_SLOT_GS_HEADER_IR3";
+      default:
+         /* Not an overlapping value. */
+         break;
+      }
+      break;
+
+   case MESA_SHADER_GEOMETRY:
+      switch (slot) {
+      case VARYING_SLOT_GS_HEADER_IR3: return "VARYING_SLOT_GS_HEADER_IR3";
+      case VARYING_SLOT_GS_VERTEX_FLAGS_IR3: return "VARYING_SLOT_GS_VERTEX_FLAGS_IR3";
+      default:
+         /* Not an overlapping value. */
+         break;
+      }
+      break;
+
    default:
       break;
    }
