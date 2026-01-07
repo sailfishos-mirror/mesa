@@ -120,6 +120,11 @@ struct ac_pc_block_base {
    unsigned counter0_lo;
    unsigned *counters;
 
+   /* Config style */
+   unsigned cfg_cntl;
+   unsigned *cfg_regs;
+   unsigned cfg_counter_lo;
+
    /* SPM */
    unsigned num_16bit_spm_counters;
    unsigned num_32bit_spm_counters;
