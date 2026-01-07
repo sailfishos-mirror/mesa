@@ -89,6 +89,7 @@ split_pack_half(nir_builder *b, nir_instr *instr, void *param)
       return false;
 
    b->cursor = nir_before_instr(instr);
+   b->fp_math_ctrl = alu->fp_math_ctrl;
 
    /* Split pack_half into two f2f16 to create v_fma_mix{lo,hi}_f16
     * in the backend.
