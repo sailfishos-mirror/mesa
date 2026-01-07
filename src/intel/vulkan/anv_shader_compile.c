@@ -558,9 +558,6 @@ populate_wm_prog_key(struct brw_wm_prog_key *key,
    }
 
    key->coarse_pixel = pipeline_has_coarse_pixel(state);
-
-   key->null_push_constant_tbimr_workaround =
-      pdevice->info.needs_null_push_constant_tbimr_workaround;
 }
 
 static void

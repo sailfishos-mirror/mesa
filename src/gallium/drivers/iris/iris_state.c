@@ -6067,19 +6067,25 @@ iris_restore_render_saved_bos(struct iris_context *ice,
          if (range->length == 0)
             continue;
 
-         /* Range block is a binding table index, map back to UBO index. */
-         unsigned block_index = iris_bti_to_group_index(
-            &shader->bt, IRIS_SURFACE_GROUP_UBO, range->block);
-         assert(block_index != IRIS_SURFACE_NOT_USED);
+         struct iris_bo *bo;
+         if (range->block == IRIS_SURFACE_NULL_PUSH_TBIMR_WA) {
+            bo = batch->screen->workaround_bo;
+         } else {
+            /* Range block is a binding table index, map back to UBO index. */
+            unsigned block_index = iris_bti_to_group_index(
+               &shader->bt, IRIS_SURFACE_GROUP_UBO, range->block);
+            assert(block_index != IRIS_SURFACE_NOT_USED);
 
-         struct pipe_shader_buffer *cbuf = &shs->constbuf[block_index];
-         struct iris_resource *res = (void *) cbuf->buffer;
+            struct pipe_shader_buffer *cbuf = &shs->constbuf[block_index];
+            struct iris_resource *res = (void *) cbuf->buffer;
 
-         if (res)
-            iris_use_pinned_bo(batch, res->bo, false, IRIS_DOMAIN_OTHER_READ);
-         else
-            iris_use_pinned_bo(batch, batch->screen->workaround_bo, false,
-                               IRIS_DOMAIN_OTHER_READ);
+            if (res)
+               bo = res->bo;
+            else
+               bo = batch->screen->workaround_bo;
+         }
+
+         iris_use_pinned_bo(batch, bo, false, IRIS_DOMAIN_OTHER_READ);
       }
    }
 
@@ -6489,23 +6495,42 @@ setup_constant_buffers(struct iris_context *ice,
       if (range->length > push_bos->max_length)
          push_bos->max_length = range->length;
 
-      /* Range block is a binding table index, map back to UBO index. */
-      unsigned block_index = iris_bti_to_group_index(
-         &shader->bt, IRIS_SURFACE_GROUP_UBO, range->block);
-      assert(block_index != IRIS_SURFACE_NOT_USED);
 
-      struct pipe_shader_buffer *cbuf = &shs->constbuf[block_index];
-      struct iris_resource *res = (void *) cbuf->buffer;
+      struct iris_address push_addr;
+      if (range->block == IRIS_SURFACE_NULL_PUSH_TBIMR_WA) {
+         /* Pass a single-register push constant payload for the PS
+          * stage even if empty, since PS invocations with zero push
+          * constant cycles have been found to cause hangs with TBIMR
+          * enabled.  See HSDES #22020184996.
+          *
+          * XXX - Use workaround infrastructure and final workaround
+          *       when provided by hardware team.
+          */
+         push_addr = (struct iris_address) {
+            .bo = batch->screen->workaround_bo,
+            .offset = 1024,
+         };
+      } else {
+         /* Range block is a binding table index, map back to UBO index. */
+         unsigned block_index = iris_bti_to_group_index(
+            &shader->bt, IRIS_SURFACE_GROUP_UBO, range->block);
+         assert(block_index != IRIS_SURFACE_NOT_USED);
 
-      assert(cbuf->buffer_offset % 32 == 0);
+         struct pipe_shader_buffer *cbuf = &shs->constbuf[block_index];
+         struct iris_resource *res = (void *) cbuf->buffer;
 
-      if (res)
-         iris_emit_buffer_barrier_for(batch, res->bo, IRIS_DOMAIN_OTHER_READ);
+         assert(cbuf->buffer_offset % 32 == 0);
+
+         if (res)
+            iris_emit_buffer_barrier_for(batch, res->bo, IRIS_DOMAIN_OTHER_READ);
+
+         push_addr = res ?
+            ro_bo(res->bo, range->start * 32 + cbuf->buffer_offset) :
+            batch->screen->workaround_address;
+      }
 
       push_bos->buffers[n].length = range->length;
-      push_bos->buffers[n].addr =
-         res ? ro_bo(res->bo, range->start * 32 + cbuf->buffer_offset)
-         : batch->screen->workaround_address;
+      push_bos->buffers[n].addr = push_addr;
       n++;
    }
 
@@ -6558,42 +6583,6 @@ emit_push_constant_packets(struct iris_context *ice,
 
 #if GFX_VER >= 12
 static void
-emit_null_push_constant_tbimr_workaround(struct iris_batch *batch)
-{
-   struct isl_device *isl_dev = &batch->screen->isl_dev;
-   /* Pass a single-register push constant payload for the PS
-    * stage even if empty, since PS invocations with zero push
-    * constant cycles have been found to cause hangs with TBIMR
-    * enabled.  See HSDES #22020184996.
-    *
-    * XXX - Use workaround infrastructure and final workaround
-    *       when provided by hardware team.
-    */
-   const struct iris_address null_addr = {
-      .bo = batch->screen->workaround_bo,
-      .offset = 1024,
-   };
-   const uint32_t num_dwords = 2 + 2 * 1;
-   uint32_t const_all[num_dwords];
-   uint32_t *dw = &const_all[0];
-
-   iris_pack_command(GENX(3DSTATE_CONSTANT_ALL), dw, all) {
-      all.DWordLength = num_dwords - 2;
-      all.MOCS = isl_mocs(isl_dev, 0, false);
-      all.ShaderUpdateEnable = (1 << MESA_SHADER_FRAGMENT);
-      all.PointerBufferMask = 1;
-   }
-   dw += 2;
-
-   _iris_pack_state(batch, GENX(3DSTATE_CONSTANT_ALL_DATA), dw, data) {
-      data.PointerToConstantBuffer = null_addr;
-      data.ConstantBufferReadLength = 1;
-   }
-
-   iris_batch_emit(batch, const_all, sizeof(uint32_t) * num_dwords);
-}
-
-static void
 emit_push_constant_packet_all(struct iris_context *ice,
                               struct iris_batch *batch,
                               uint32_t shader_mask,
@@ -6602,12 +6591,6 @@ emit_push_constant_packet_all(struct iris_context *ice,
    struct isl_device *isl_dev = &batch->screen->isl_dev;
 
    if (!push_bos) {
-      if (batch->screen->devinfo->needs_null_push_constant_tbimr_workaround &&
-          (shader_mask & (1 << MESA_SHADER_FRAGMENT))) {
-         emit_null_push_constant_tbimr_workaround(batch);
-         shader_mask &= ~(1 << MESA_SHADER_FRAGMENT);
-      }
-
       if (shader_mask) {
          iris_emit_cmd(batch, GENX(3DSTATE_CONSTANT_ALL), pc) {
             pc.ShaderUpdateEnable = shader_mask;

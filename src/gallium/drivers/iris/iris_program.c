@@ -580,8 +580,6 @@ iris_to_brw_fs_key(const struct iris_screen *screen,
       .force_dual_color_blend = key->force_dual_color_blend,
       .color_outputs_valid = key->color_outputs_valid,
       .ignore_sample_mask_out = !key->multisample_fbo,
-      .null_push_constant_tbimr_workaround =
-         screen->devinfo->needs_null_push_constant_tbimr_workaround,
    };
 }
 
@@ -2756,6 +2754,15 @@ iris_compile_fs(struct iris_screen *screen,
       brw_prog_data->base.use_alt_mode = nir->info.use_legacy_math_rules;
 
       brw_nir_analyze_ubo_ranges(screen->brw, nir, brw_prog_data->base.ubo_ranges);
+
+      if (brw_prog_data->base.ubo_ranges[0].length == 0 &&
+          screen->devinfo->needs_null_push_constant_tbimr_workaround) {
+         brw_prog_data->base.ubo_ranges[0] = (struct brw_ubo_range) {
+            .block = IRIS_SURFACE_NULL_PUSH_TBIMR_WA,
+            .start = 0,
+            .length = 1,
+         };
+      }
 
       struct brw_wm_prog_key brw_key = iris_to_brw_fs_key(screen, key);
 

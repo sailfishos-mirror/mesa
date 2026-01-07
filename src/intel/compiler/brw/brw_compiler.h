@@ -433,9 +433,8 @@ struct brw_wm_prog_key {
 
    bool ignore_sample_mask_out:1;
    bool coarse_pixel:1;
-   bool null_push_constant_tbimr_workaround:1;
    bool api_sample_shading:1;
-   unsigned pad:3;
+   unsigned pad:4;
 };
 
 static inline bool

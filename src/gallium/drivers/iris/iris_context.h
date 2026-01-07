@@ -618,6 +618,9 @@ enum iris_surface_group {
 };
 
 enum {
+   /* Workaround index to HSDES #22020184996 */
+   IRIS_SURFACE_NULL_PUSH_TBIMR_WA = UINT16_MAX,
+
    /* Invalid value for a binding table index. */
    IRIS_SURFACE_NOT_USED = 0xa0a0a0a0,
 };
