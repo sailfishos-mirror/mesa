@@ -315,7 +315,12 @@
 
             "TWO_EXEC_DATA_TYPE":       [  39,  39 ],
             "TWO_SRC0_TYPE":            [  42,  40 ],
-            "TWO_SRC1_SCALAR":          [ 116, 116 ]
+            "TWO_SRC1_SCALAR":          [ 116, 116 ],
+
+            "THREE_SRC1_HSTRIDE":       null,
+            "THREE_SRC1_VSTRIDE_LO":    null,
+            "THREE_SRC1_VSTRIDE_HI":    null,
+            "THREE_SRC1_SCALAR":        [  49,  49 ]
         }
     }
 }

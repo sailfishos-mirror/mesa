@@ -732,10 +732,15 @@ struct gen_encoder {
 
          encode_direct_operand(E::THREE_SRC1_OPERAND, inst->src[1]);
 
-         const unsigned src1_vstride = ENCODE_VSTRIDE_3SRC(inst->src[1].region.vstride);
-         set(E::THREE_SRC1_VSTRIDE, src1_vstride);
+         if constexpr (E::TYPE < GEN_ENCODING_XE3P) {
+            const unsigned src1_vstride = ENCODE_VSTRIDE_3SRC(inst->src[1].region.vstride);
+            set(E::THREE_SRC1_VSTRIDE, src1_vstride);
 
-         set(E::THREE_SRC1_HSTRIDE, encode_hstride(inst->src[1].region.hstride));
+            set(E::THREE_SRC1_HSTRIDE, encode_hstride(inst->src[1].region.hstride));
+         } else {
+            assert(gen_region_is_scalar_or_linear(inst->src[1].region));
+            set(E::THREE_SRC1_SCALAR, gen_region_is_scalar(inst->src[1].region));
+         }
 
          if (inst->src[2].file == GEN_IMM) {
             set(E::THREE_SRC2_IS_IMM, 1);
@@ -1343,11 +1348,31 @@ struct gen_decoder {
 
          decode_direct_operand(E::THREE_SRC1_OPERAND, inst->src[1]);
 
-         const unsigned encoded_src1_vstride = get(E::THREE_SRC1_VSTRIDE);
-         inst->src[1].region.vstride = DECODE_VSTRIDE_3SRC(encoded_src1_vstride);
+         if constexpr (E::TYPE < GEN_ENCODING_XE3P) {
+            const unsigned encoded_src1_vstride = get(E::THREE_SRC1_VSTRIDE);
+            inst->src[1].region.vstride = DECODE_VSTRIDE_3SRC(encoded_src1_vstride);
 
-         inst->src[1].region.hstride = decode_hstride(get(E::THREE_SRC1_HSTRIDE));
-         inst->src[1].region.width = gen_implied_width_for_3src_a1(inst->src[1].region.vstride, inst->src[1].region.hstride);
+            inst->src[1].region.hstride =
+               decode_hstride(get(E::THREE_SRC1_HSTRIDE));
+            inst->src[1].region.width =
+               gen_implied_width_for_3src_a1(inst->src[1].region.vstride,
+                                             inst->src[1].region.hstride);
+         } else {
+            if (get(E::THREE_SRC1_SCALAR)) {
+               inst->src[1].region.vstride = 0;
+               inst->src[1].region.width   = 1;
+               inst->src[1].region.hstride = 0;
+            } else {
+               const unsigned dst_stride =
+                  MAX2(gen_byte_stride(inst->dst),
+                       gen_type_size_bytes(inst->dst.type));
+               const unsigned src1_size =
+                  gen_type_size_bytes(inst->src[1].type);
+               inst->src[1].region.vstride = 2 * dst_stride / src1_size;
+               inst->src[1].region.width   = 2;
+               inst->src[1].region.hstride = dst_stride / src1_size;
+            }
+         }
 
          if (src2_is_imm) {
             inst->src[2].file = GEN_IMM;
