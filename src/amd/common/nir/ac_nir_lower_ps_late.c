@@ -575,6 +575,7 @@ static bool
 export_ps_outputs(nir_builder *b, lower_ps_state *s)
 {
    b->cursor = nir_after_impl(b->impl);
+   b->fp_math_ctrl = nir_fp_preserve_sz_inf_nan;
 
    /* Alpha-to-coverage should be before alpha-to-one. */
    nir_def *mrtz_alpha = NULL;
