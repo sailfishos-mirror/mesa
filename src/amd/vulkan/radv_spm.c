@@ -20,16 +20,18 @@ static bool
 radv_spm_init_bo(struct radv_device *device)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   VkDeviceMemory memory;
-   VkBuffer buffer;
+   VkDeviceMemory memory, staging_memory;
+   VkBuffer buffer, staging_buffer;
    VkResult result;
    uint64_t va;
    void *ptr;
 
-   /* Allocate the SPM buffer. */
-   const uint32_t memory_type_index =
-      radv_find_memory_index(pdev, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
-                                      VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+   /* Allocate the SPM buffer (it must be in VRAM). */
+   const uint32_t memory_type_index = radv_find_memory_index(
+      pdev,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT |
+         (device->rgp_use_staging_buffer ? 0
+                                         : VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT));
 
    result = radv_sqtt_allocate_buffer(radv_device_to_handle(device), device->spm.buffer_size, memory_type_index,
                                       &buffer, &memory);
@@ -43,9 +45,21 @@ radv_spm_init_bo(struct radv_device *device)
 
    va = vk_common_GetBufferDeviceAddress(radv_device_to_handle(device), &addr_info);
 
+   /* Allocate a staging buffer in GTT. */
+   if (device->rgp_use_staging_buffer) {
+      const uint32_t staging_memory_type_index =
+         radv_find_memory_index(pdev, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT |
+                                         VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+
+      result = radv_sqtt_allocate_buffer(radv_device_to_handle(device), device->spm.buffer_size,
+                                         staging_memory_type_index, &staging_buffer, &staging_memory);
+      if (result != VK_SUCCESS)
+         return false;
+   }
+
    VkMemoryMapInfo mem_map_info = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_MAP_INFO,
-      .memory = memory,
+      .memory = device->rgp_use_staging_buffer ? staging_memory : memory,
       .size = VK_WHOLE_SIZE,
    };
 
@@ -55,6 +69,8 @@ radv_spm_init_bo(struct radv_device *device)
 
    device->spm_buffer = buffer;
    device->spm_memory = memory;
+   device->spm_staging_buffer = staging_buffer;
+   device->spm_staging_memory = staging_memory;
    device->spm_buffer_va = va;
    device->spm.bo = &device->spm_buffer;
    device->spm.ptr = ptr;
@@ -65,16 +81,20 @@ radv_spm_init_bo(struct radv_device *device)
 static void
 radv_spm_finish_bo(struct radv_device *device)
 {
-   if (device->spm_memory) {
+   VkDeviceMemory memory = device->rgp_use_staging_buffer ? device->spm_staging_memory : device->spm_memory;
+
+   if (memory) {
       VkMemoryUnmapInfo unmap_info = {
          .sType = VK_STRUCTURE_TYPE_MEMORY_UNMAP_INFO,
-         .memory = device->spm_memory,
+         .memory = memory,
       };
 
       radv_UnmapMemory2(radv_device_to_handle(device), &unmap_info);
    }
 
    radv_sqtt_destroy_buffer(radv_device_to_handle(device), device->spm_buffer, device->spm_memory);
+   if (device->rgp_use_staging_buffer)
+      radv_sqtt_destroy_buffer(radv_device_to_handle(device), device->spm_staging_buffer, device->spm_staging_memory);
 }
 
 static bool

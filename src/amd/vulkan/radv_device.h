@@ -254,6 +254,8 @@ struct radv_device {
    uint64_t spm_buffer_va;
    VkBuffer spm_buffer;
    VkDeviceMemory spm_memory;
+   VkBuffer spm_staging_buffer;
+   VkDeviceMemory spm_staging_memory;
 
    /* Radeon Raytracing Analyzer trace. */
    struct radv_rra_trace_data rra_trace;

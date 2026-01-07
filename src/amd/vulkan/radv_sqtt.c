@@ -753,9 +753,11 @@ radv_end_sqtt(struct radv_queue *queue)
    /* Restore previous state by re-enabling clock gating. */
    ac_emit_cp_inhibit_clockgating(cs->b, pdev->info.gfx_level, false);
 
-   /* Copy to the staging buffer for faster reads on dGPUs. */
+   /* Copy to the staging buffers for faster reads on dGPUs. */
    if (device->rgp_use_staging_buffer) {
       radv_sqtt_copy_buffer(cmdbuf, device->sqtt_buffer, device->sqtt_staging_buffer, device->sqtt_size);
+      if (device->spm.bo)
+         radv_sqtt_copy_buffer(cmdbuf, device->spm_buffer, device->spm_staging_buffer, device->spm.buffer_size);
    }
 
    result = radv_EndCommandBuffer(cmdbuf);
