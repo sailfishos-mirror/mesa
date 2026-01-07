@@ -41,7 +41,7 @@ static bool si_sqtt_init_bo(struct si_context *sctx)
 
    sctx->sqtt->bo =
       pipe_aligned_buffer_create(&sctx->screen->b, SI_RESOURCE_FLAG_DRIVER_INTERNAL,
-                                 PIPE_USAGE_STREAM, size, 4096);
+                                 PIPE_USAGE_DEFAULT, size, 4096);
    if (!sctx->sqtt->bo)
       return false;
 

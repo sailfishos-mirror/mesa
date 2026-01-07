@@ -676,7 +676,7 @@ si_spm_init_bo(struct si_context *sctx)
 
    sctx->spm.bo =
       pipe_aligned_buffer_create(&sctx->screen->b, SI_RESOURCE_FLAG_DRIVER_INTERNAL,
-                                 PIPE_USAGE_STREAM, size, 4096);
+                                 PIPE_USAGE_DEFAULT, size, 4096);
 
    return sctx->spm.bo != NULL;
 }
