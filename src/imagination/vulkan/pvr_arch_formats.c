@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "pvr_formats.h"
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
