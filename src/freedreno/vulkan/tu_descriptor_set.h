@@ -250,7 +250,7 @@ tu_immutable_ycbcr_samplers(const struct tu_descriptor_set_layout *set,
 
 template <chip CHIP>
 static inline void
-tu_desc_set_swiz(uint32_t *desc, const uint8_t *swiz)
+tu_desc_set_swiz(uint32_t *desc, const uint8_t (&swiz)[4])
 {
    desc[0] = pkt_field_set(A6XX_TEX_CONST_0_SWIZ_X, desc[0], fdl6_swiz(swiz[0]));
    desc[0] = pkt_field_set(A6XX_TEX_CONST_0_SWIZ_Y, desc[0], fdl6_swiz(swiz[1]));

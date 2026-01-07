@@ -537,7 +537,7 @@ FD_GENX(fdl6_view_init);
 template <chip CHIP>
 void
 fdl6_buffer_view_init(uint32_t *descriptor, enum pipe_format format,
-                      const uint8_t *swiz, uint64_t iova, uint32_t size,
+                      const uint8_t (&swiz)[4], uint64_t iova, uint32_t size,
                       uint32_t struct_size_texels)
 {
    unsigned elem_size = util_format_get_blocksize(format);
