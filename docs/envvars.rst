@@ -98,6 +98,13 @@ Core Mesa environment variables
    specifies a file name for logging all errors, warnings, etc., rather
    than stderr
 
+.. envvar:: MESA_LOG_FILE_AUTO
+
+   if set, creates a file in /tmp folder with mesa_<process_name>_<pid>_XXXXXX.log
+   logging all errors, warnings, etc., rather than stderr. The XXXXXX will be replaced
+   with alpha numeric character so for each run of the app a new log file will be
+   created guaranteed.
+
 .. envvar:: MESA_LOG_PREFIX
 
    specifies what to to include in the log prefix (linux only) - default is ``tag,level``

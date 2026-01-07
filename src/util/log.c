@@ -144,13 +144,26 @@ mesa_log_init_once(void)
 
 #if !DETECT_OS_WINDOWS
    if (__normal_user()) {
-      const char *log_file = os_get_option("MESA_LOG_FILE");
-      if (log_file) {
-         FILE *fp = fopen(log_file, "w");
-         if (fp) {
-            mesa_log_file = fp;
-            mesa_log_control |= MESA_LOG_CONTROL_FILE;
-         }
+      FILE *fp = NULL;
+
+      if (os_get_option("MESA_LOG_FILE_AUTO")) {
+         char log_file[512];
+         int fd;
+
+         snprintf(log_file, sizeof(log_file), "/tmp/mesa_%s_%d_XXXXXX.log", util_get_process_name(),
+                  getpid());
+         fd = mkstemps(log_file, 4);
+         if (fd >= 0)
+            fp = fdopen(fd, "w");
+      } else {
+         const char *log_file = os_get_option("MESA_LOG_FILE");
+         if (log_file)
+            fp = fopen(log_file, "w");
+      }
+
+      if (fp) {
+         mesa_log_file = fp;
+         mesa_log_control |= MESA_LOG_CONTROL_FILE;
       }
    }
 #endif
