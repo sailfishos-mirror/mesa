@@ -34,6 +34,8 @@
 #include "util/format/u_formats.h"
 #include "vk_format.h"
 
+struct pvr_device_info;
+
 /* This is based on VkClearColorValue which is an array of RGBA, and on the
  * output register usage for the biggest 32 bit 4 component formats which use up
  * all 4 output registers.
