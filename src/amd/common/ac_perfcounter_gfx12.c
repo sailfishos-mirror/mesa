@@ -672,7 +672,7 @@ static struct ac_pc_block_base gfx12_SQ_WGP = {
    .counter0_lo = R_034700_SQ_PERFCOUNTER0_LO,
 
    .num_16bit_spm_counters = 16,
-   .num_32bit_spm_counters = 16,
+   .num_32bit_spm_counters = 8,
    .num_spm_counters = 8,
    .num_spm_wires = 8,
    .spm_block_select = AC_SPM_SE_BLOCK_SQC,
