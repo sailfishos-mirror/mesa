@@ -630,7 +630,17 @@ struct gen_encoder {
          set(E::SRC0_ADDRESS_MODE, inst->src[0].indirect);
          set(E::SRC0_NEGATE,       inst->src[0].negate);
          set(E::SRC0_ABS,          inst->src[0].abs);
-         set(E::SRC0_TYPE,         encode_type(inst->src[0].file, inst->src[0].type));
+         if constexpr (E::TYPE < GEN_ENCODING_XE3P) {
+            set(E::SRC0_TYPE, encode_type(inst->src[0].file,
+                                          inst->src[0].type));
+         } else {
+            if (desc->format == GEN_FORMAT_BASIC_ONE_SRC) {
+               set(E::SRC0_TYPE, encode_type(inst->src[0].file,
+                                             inst->src[0].type));
+            } else {
+               set(E::TWO_SRC0_TYPE, encode_type_short(inst->src[0].type));
+            }
+         }
 
          int imm_src = -1;
 
@@ -671,9 +681,14 @@ struct gen_encoder {
                else
                   encode_direct_operand(E::SRC1_OPERAND, inst->src[1]);
 
-               set(E::SRC1_VSTRIDE, encode_vstride(inst->src[1].region.vstride));
-               set(E::SRC1_WIDTH,   encode_width(inst->src[1].region.width));
-               set(E::SRC1_HSTRIDE, encode_hstride(inst->src[1].region.hstride));
+               if constexpr (E::TYPE < GEN_ENCODING_XE3P) {
+                  set(E::SRC1_VSTRIDE, encode_vstride(inst->src[1].region.vstride));
+                  set(E::SRC1_WIDTH,   encode_width(inst->src[1].region.width));
+                  set(E::SRC1_HSTRIDE, encode_hstride(inst->src[1].region.hstride));
+               } else {
+                  assert(gen_region_is_scalar_or_linear(inst->src[1].region));
+                  set(E::TWO_SRC1_SCALAR, gen_region_is_scalar(inst->src[1].region));
+               }
             }
          }
 
@@ -1225,6 +1240,27 @@ struct gen_decoder {
             inst->src[0].region.hstride = decode_hstride(get(E::SRC0_HSTRIDE));
          }
 
+         inst->dst.type = decode_type(inst->dst.file, get(E::DST_TYPE));
+
+         if constexpr (E::TYPE < GEN_ENCODING_XE3P) {
+            inst->src[0].type = decode_type(inst->src[0].file,
+                                            get(E::SRC0_TYPE));
+         } else {
+            if (desc->format == GEN_FORMAT_BASIC_ONE_SRC) {
+               inst->src[0].type =
+                  decode_type(inst->src[0].file, get(E::SRC0_TYPE));
+            } else {
+               inst->src[0].type =
+                  decode_type_short(get(E::TWO_SRC0_TYPE),
+                                    get(E::TWO_EXEC_DATA_TYPE));
+            }
+         }
+
+         if (desc->format == GEN_FORMAT_BASIC_TWO_SRC)
+            inst->src[1].type = decode_type(inst->src[1].file, get(E::SRC1_TYPE));
+         else
+            inst->src[1].file = GEN_BAD_FILE;
+
          if (desc->format == GEN_FORMAT_BASIC_TWO_SRC) {
             inst->src[1].indirect = get(E::SRC1_ADDRESS_MODE);
 
@@ -1242,18 +1278,29 @@ struct gen_decoder {
                else
                   decode_direct_operand(E::SRC1_OPERAND, inst->src[1]);
 
-               inst->src[1].region.vstride = decode_vstride(get(E::SRC1_VSTRIDE));
-               inst->src[1].region.width   = decode_width(get(E::SRC1_WIDTH));
-               inst->src[1].region.hstride = decode_hstride(get(E::SRC1_HSTRIDE));
+               if constexpr (E::TYPE < GEN_ENCODING_XE3P) {
+                  inst->src[1].region.vstride =
+                     decode_vstride(get(E::SRC1_VSTRIDE));
+                  inst->src[1].region.width =
+                     decode_width(get(E::SRC1_WIDTH));
+                  inst->src[1].region.hstride =
+                     decode_hstride(get(E::SRC1_HSTRIDE));
+               } else {
+                  if (get(E::TWO_SRC1_SCALAR)) {
+                     inst->src[1].region.vstride = 0;
+                  } else {
+                     const unsigned dst_stride =
+                        MAX2(gen_byte_stride(inst->dst),
+                             gen_type_size_bytes(inst->dst.type));
+                     const unsigned src1_size =
+                        gen_type_size_bytes(inst->src[1].type);
+                     inst->src[1].region.vstride = dst_stride / src1_size;
+                  }
+                  inst->src[1].region.width   = 1;
+                  inst->src[1].region.hstride = 0;
+               }
             }
          }
-
-         inst->dst.type    = decode_type(inst->dst.file,    get(E::DST_TYPE));
-         inst->src[0].type = decode_type(inst->src[0].file, get(E::SRC0_TYPE));
-         if (desc->format == GEN_FORMAT_BASIC_TWO_SRC)
-            inst->src[1].type = decode_type(inst->src[1].file, get(E::SRC1_TYPE));
-         else
-            inst->src[1].file = GEN_BAD_FILE;
 
          if (imm_src != -1) {
             uint64_t value = get(E::IMM_LO_32);

@@ -307,6 +307,15 @@
         }
     },
     "Xe3P": {
-        "import": "Xe2"
+        "import": "Xe2",
+        "fields": {
+            "SRC1_HSTRIDE":             null,
+            "SRC1_VSTRIDE":             null,
+            "SRC1_WIDTH":               null,
+
+            "TWO_EXEC_DATA_TYPE":       [  39,  39 ],
+            "TWO_SRC0_TYPE":            [  42,  40 ],
+            "TWO_SRC1_SCALAR":          [ 116, 116 ]
+        }
     }
 }
