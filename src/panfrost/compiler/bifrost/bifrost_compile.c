@@ -6868,6 +6868,9 @@ bi_compile_variant_nir(nir_shader *nir,
       bi_gather_stats(ctx, binary->size - offset, &stats->bifrost);
    }
 
+   if (ctx->arch >= 13)
+      va_gather_hsr_info(ctx, pinfo);
+
    /* update info struct */
    pan_shader_update_info(pinfo, ctx->nir, inputs);
 

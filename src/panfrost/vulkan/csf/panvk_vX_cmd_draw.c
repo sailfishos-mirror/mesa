@@ -1964,6 +1964,18 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
       fs_user_dirty(cmdbuf) ||
       dyn_gfx_state_dirty(cmdbuf, INPUT_ATTACHMENT_MAP) ||
       dyn_gfx_state_dirty(cmdbuf, COLOR_ATTACHMENT_MAP);
+#if PAN_ARCH >= 13
+   dcd2_dirty |= dyn_gfx_state_dirty(cmdbuf, MS_ALPHA_TO_COVERAGE_ENABLE) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_TEST_ENABLE) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_WRITE_ENABLE) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_DEPTH_COMPARE_OP) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_TEST_ENABLE) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_OP) ||
+                 dyn_gfx_state_dirty(cmdbuf, DS_STENCIL_WRITE_MASK) ||
+                 dyn_gfx_state_dirty(cmdbuf, CB_BLEND_ENABLES) ||
+                 dyn_gfx_state_dirty(cmdbuf, CB_BLEND_EQUATIONS) ||
+                 dyn_gfx_state_dirty(cmdbuf, CB_WRITE_MASKS);
+#endif
    bool dcd0_dirty =
       dyn_gfx_state_dirty(cmdbuf, RS_RASTERIZER_DISCARD_ENABLE) ||
       dyn_gfx_state_dirty(cmdbuf, RS_CULL_MODE) ||
@@ -2009,6 +2021,7 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
    bool alpha_to_coverage = dyns->ms.alpha_to_coverage_enable;
    bool writes_z = writes_depth(cmdbuf);
    bool writes_s = writes_stencil(cmdbuf);
+   bool shader_modifies_coverage = false;
    uint8_t rt_mask = cmdbuf->state.gfx.render.bound_attachments &
                      MESA_VK_RP_ATTACHMENT_ANY_COLOR_BITS;
    uint8_t rt_written = 0, rt_read = 0;
@@ -2016,6 +2029,8 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
    if (fs) {
       rt_written = color_attachment_written_mask(fs, &dyns->cal);
       rt_read = color_attachment_read_mask(fs, &dyns->ial, rt_mask);
+      shader_modifies_coverage = fs->info.fs.writes_coverage ||
+                                 fs->info.fs.can_discard || alpha_to_coverage;
    }
 
    bool msaa = dyns->ms.rasterization_samples > 1;
@@ -2076,9 +2091,7 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
                 cmdbuf->state.gfx.cb.info.needs_shader) &&
                (dyns->ms.rasterization_samples > 1);
 
-            cfg.shader_modifies_coverage = fs->info.fs.writes_coverage ||
-                                           fs->info.fs.can_discard ||
-                                           alpha_to_coverage;
+            cfg.shader_modifies_coverage = shader_modifies_coverage;
          } else {
             cfg.allow_forward_pixel_to_kill = true;
             cfg.allow_forward_pixel_to_be_killed = true;
@@ -2124,6 +2137,62 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
          if (fs) {
             cfg.no_shader_depth_read = !z_attachment_read(fs, &dyns->ial);
             cfg.no_shader_stencil_read = !s_attachment_read(fs, &dyns->ial);
+         }
+#endif
+#if PAN_ARCH >= 13
+         if (fs) {
+            /* HSR can cull */
+            cfg.hsr_can_cull = !fs->info.fs.hsr.ld_tile && rt_written &&
+                               !(rt_read & rt_written) &&
+                               !cmdbuf->state.gfx.cb.info.any_dest_read;
+
+
+            /* HSR can_be_culled
+             * - FUTURE: We could allow write-only side effects.
+             * - FUTURE: we could allow any LD_TILE that's not used in CLPER or
+             *   tex_lod operations. */
+            assert(dcd0_dirty && "earlyzs was never filled");
+            bool late_zs = earlyzs->update == MALI_PIXEL_KILL_FORCE_LATE;
+            cfg.hsr_can_be_culled =
+               !fs->info.fs.sidefx &&
+               !fs->info.fs.hsr.wait_or_tile_access_before_atest_zsemit &&
+               !fs->info.fs.hsr.rasterizer_coverage_read &&
+               !fs->info.fs.hsr.ld_tile &&
+               !fs->info.fs.hsr.centroid_interpolation &&
+               (!shader_modifies_coverage || !cfg.z_write_or_stencil ||
+                late_zs);
+
+            /* Late HSR update */
+            cfg.hsr_update_operation = shader_modifies_coverage || late_zs
+                                          ? MALI_HSR_UPDATE_LATE
+                                          : MALI_HSR_UPDATE_EARLY;
+
+            /* Since we do not allow side effects for HSR, we can always have
+             * the HSR kill op follow HSR update. */
+            cfg.hsr_prepass_kill_operation =
+               MALI_HSR_PREPASS_KILL_FOLLOW_HSR_UPDATE;
+
+            /* Whether prepass must run varyings. */
+            cfg.enable_varying_shading_in_pre_pass =
+               fs->info.fs.hsr.varying_before_atest_zsemit &&
+               (cfg.hsr_update_operation == MALI_HSR_UPDATE_LATE ||
+                cfg.hsr_prepass_kill_operation == MALI_HSR_PREPASS_KILL_LATE ||
+                earlyzs->update == MALI_PIXEL_KILL_FORCE_LATE ||
+                earlyzs->kill == MALI_PIXEL_KILL_FORCE_LATE);
+
+            /* Whether depth is written or stencil is used */
+            const struct vk_depth_stencil_state *ds =
+               &cmdbuf->vk.dynamic_graphics_state.ds;
+            cfg.z_write_or_stencil =
+               writes_z || (has_stencil_att(cmdbuf) && ds->stencil.test_enable);
+         } else {
+            cfg.hsr_can_cull = false;
+            cfg.hsr_can_be_culled = false;
+            cfg.z_write_or_stencil = false;
+            cfg.enable_varying_shading_in_pre_pass = false;
+            cfg.hsr_update_operation = MALI_HSR_UPDATE_EARLY;
+            cfg.hsr_prepass_kill_operation =
+               MALI_HSR_PREPASS_KILL_FOLLOW_HSR_UPDATE;
          }
 #endif
       }
