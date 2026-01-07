@@ -725,7 +725,7 @@ if (nir_is_rounding_mode_rtz(execution_mode, bit_size)) {
    dst = src0 - src1;
 }
 """)
-binop("isub", tint, "", "src0 - src1")
+binop("isub", tint, "", "(uint64_t)src0 - (uint64_t)src1", "", True)
 binop_convert("uabs_isub", tuint, tint, "", """
               src1 > src0 ? (uint64_t) src1 - (uint64_t) src0
                           : (uint64_t) src0 - (uint64_t) src1
@@ -1125,7 +1125,7 @@ zero plus src2 if either src0 or src1 is zero.
 
 triop("flrp", tfloat, "", "src0 * (1 - src2) + src1 * src2")
 
-triop("iadd3", tint, _2src_commutative, "src0 + src1 + src2",
+triop("iadd3", tint, _2src_commutative, "(uint64_t)src0 + (uint64_t)src1 + (uint64_t)src2",
       description = "Ternary addition")
 
 triop("imad", tint, _2src_commutative, "src0 * src1 + src2",
