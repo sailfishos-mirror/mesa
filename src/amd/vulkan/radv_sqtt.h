@@ -82,6 +82,11 @@ void radv_reset_sqtt_trace(struct radv_device *device);
 
 bool radv_sqtt_sample_clocks(struct radv_device *device);
 
+VkResult radv_sqtt_allocate_cmdbuf(struct radv_device *device, enum radv_queue_family queue_family,
+                                   VkCommandBuffer *pcmdbuf);
+
+void radv_sqtt_free_cmdbuf(struct radv_device *device, enum radv_queue_family queue_family, VkCommandBuffer cmdbuf);
+
 VkResult radv_sqtt_get_timed_cmdbuf(struct radv_queue *queue, struct radeon_winsys_bo *timestamp_bo,
                                     uint32_t timestamp_offset, VkPipelineStageFlags2 timestamp_stage,
                                     VkCommandBuffer *pcmdbuf);

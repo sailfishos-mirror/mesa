@@ -224,6 +224,9 @@ struct radv_device {
    bool sqtt_enabled;
    bool sqtt_triggered;
 
+   VkCommandBuffer sqtt_start_cmdbuf[2];
+   VkCommandBuffer sqtt_stop_cmdbuf[2];
+
    /* SQTT timestamps for queue events. */
    simple_mtx_t sqtt_timestamp_mtx;
    struct radv_sqtt_timestamp sqtt_timestamp;
