@@ -29,7 +29,6 @@
 #include <vulkan/vulkan.h>
 
 #include "pvr_macros.h"
-#include "pvr_physical_device.h"
 
 #include "util/format/u_formats.h"
 #include "vk_format.h"
