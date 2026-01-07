@@ -1004,7 +1004,7 @@
         "description": "pvr: add missing forward-declaration",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "82fad3f25842a46a151fa10096e61305a7921a64",
         "notes": null
