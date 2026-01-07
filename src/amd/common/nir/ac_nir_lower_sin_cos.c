@@ -10,22 +10,22 @@
 #include "nir_builder.h"
 
 static bool
-is_sin_cos(const nir_instr *instr, UNUSED const void *_)
+lower_sin_cos(struct nir_builder *b, nir_alu_instr *sincos, UNUSED void *_)
 {
-   return instr->type == nir_instr_type_alu && (nir_instr_as_alu(instr)->op == nir_op_fsin ||
-                                                nir_instr_as_alu(instr)->op == nir_op_fcos);
-}
+   if (sincos->op != nir_op_fsin && sincos->op != nir_op_fcos)
+      return false;
 
-static nir_def *
-lower_sin_cos(struct nir_builder *b, nir_instr *instr, UNUSED void *_)
-{
-   nir_alu_instr *sincos = nir_instr_as_alu(instr);
+   b->cursor = nir_before_instr(&sincos->instr);
+
    nir_def *src = nir_fmul_imm(b, nir_ssa_for_alu_src(b, sincos, 0), 0.15915493667125702);
-   return sincos->op == nir_op_fsin ? nir_fsin_amd(b, src) : nir_fcos_amd(b, src);
+   nir_def *replace = sincos->op == nir_op_fsin ? nir_fsin_amd(b, src) : nir_fcos_amd(b, src);
+   nir_def_replace(&sincos->def, replace);
+
+   return true;
 }
 
 bool
 ac_nir_lower_sin_cos(nir_shader *shader)
 {
-   return nir_shader_lower_instructions(shader, is_sin_cos, lower_sin_cos, NULL);
+   return nir_shader_alu_pass(shader, lower_sin_cos, nir_metadata_control_flow, NULL);
 }
