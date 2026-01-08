@@ -44,6 +44,17 @@ freedreno_pm4_xml_header_file += custom_target(
 )
 freedreno_xml_header_files += freedreno_pm4_xml_header_file
 
+custom_target(
+  'adreno_pm4.xml.gz',
+  input: 'adreno_pm4.xml',
+  output: 'adreno_pm4.xml.gz',
+  command: [prog_gzip, '-kc', '@INPUT@'],
+  capture: true,
+  install_dir: rnn_install_path + '/adreno',
+  install: install_fd_decode_tools,
+  build_by_default: install_fd_decode_tools,
+)
+
 foreach f : xml_files
   _name = f + '.h'
   freedreno_xml_header_files += custom_target(
