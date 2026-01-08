@@ -1118,6 +1118,8 @@ nir_get_io_index_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_store_shared_block_intel:
    case nir_intrinsic_load_ubo_uniform_block_intel:
    case nir_intrinsic_load_ssbo_uniform_block_intel:
+   case nir_intrinsic_ssbo_atomic:
+   case nir_intrinsic_ssbo_atomic_swap:
 #define IMG_CASE(name) case nir_intrinsic_image_##name: case nir_intrinsic_bindless_image_##name
    IMG_CASE(load):
    IMG_CASE(store):
