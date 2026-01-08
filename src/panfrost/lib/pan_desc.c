@@ -1225,6 +1225,22 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
       cfg.internal_layer_index = layer_idx - tiler_ctx->valhall.layer_offset;
       cfg.frame_argument = layer_idx;
 #endif
+
+#if PAN_ARCH >= 13
+      unsigned zs_bytes_per_pixel = pan_zsbuf_bytes_per_pixel(fb);
+      /* We can interleave HSR if we have space for two ZS tiles in the tile
+       * buffer. */
+      unsigned max_zs_tile_size_interleave =
+         fb->z_tile_buf_budget >> util_logbase2_ceil(zs_bytes_per_pixel);
+      bool hsr_can_interleave = fb->tile_size <= max_zs_tile_size_interleave;
+
+      /* Enabling prepass without interleave is generally not good for
+       * performance, so disable HSR in that case. */
+      cfg.hsr_prepass_enable = fb->allow_hsr_prepass && hsr_can_interleave;
+      cfg.hsr_prepass_interleaving_enable = hsr_can_interleave;
+      cfg.hsr_prepass_filter_enable = true;
+      cfg.hsr_hierarchical_optimizations_enable = true;
+#endif
    }
 
 #if PAN_ARCH >= 6

@@ -394,6 +394,9 @@ panvk_per_arch(cmd_init_render_state)(struct panvk_cmd_buffer *cmdbuf,
       .z_tile_buf_budget = pan_query_optimal_z_tib_size(PAN_ARCH, phys_dev->model),
       .nr_samples = 0,
       .rt_count = pRenderingInfo->colorAttachmentCount,
+#if PAN_ARCH >= 13
+      .allow_hsr_prepass = PANVK_DEBUG(HSR_PREPASS),
+#endif
    };
    /* In case ms2ss is enabled, use the provided sample count.
     * All attachments need to have sample count == 1 or the provided value.

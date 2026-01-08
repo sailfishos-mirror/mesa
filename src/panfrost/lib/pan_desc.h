@@ -149,6 +149,7 @@ struct pan_fb_info {
    /* Only used on Valhall */
    bool sprite_coord_origin;
    bool first_provoking_vertex;
+   bool allow_hsr_prepass;
 
    /* indicates whether pixel local storage is enabled */
    bool pls_enabled;
