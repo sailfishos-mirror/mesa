@@ -1689,10 +1689,16 @@ wsi_get_modifiers_for_format(const struct wsi_display * const wsi,
       if (!(mod->formats & (1ull << (format_index - mod->offset))))
          continue;
 
-      modifiers = realloc(modifiers,
-                          (count_modifiers + 1) *
-                          sizeof(modifiers[0]));
-      assert(modifiers);
+      uint64_t *new_modifiers = realloc(modifiers,
+                                        (count_modifiers + 1) *
+                                        sizeof(modifiers[0]));
+      if (!new_modifiers) {
+         free(modifiers);
+         drmModeFreePropertyBlob(blob);
+         drmModeFreeObjectProperties(props);
+         return NULL;
+      }
+      modifiers = new_modifiers;
       modifiers[count_modifiers++] = mod->modifier;
    }
 
