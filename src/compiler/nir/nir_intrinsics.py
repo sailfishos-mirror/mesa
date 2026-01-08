@@ -1728,6 +1728,24 @@ system_value("multisampled_pan", 1, bit_sizes=[32])
 # noperspective, this is 32 bits and starts from VARYING_SLOT_VAR0.
 system_value("noperspective_varyings_pan", 1, bit_sizes=[32])
 
+# Cumulative coverage mask, the start of the atest/zt/blend chain
+system_value("cumulative_coverage_pan", 1, bit_sizes=[32])
+system_value("blend_descriptor_pan", 1, bit_sizes=[64], indices=[BASE])
+
+load("blend_input_pan", [], [IO_SEMANTICS, DEST_TYPE],
+     [CAN_ELIMINATE, CAN_REORDER])
+# src[] = { coverage, alpha }
+intrinsic("atest_pan", [1, 1], dest_comp=1, bit_sizes=[32])
+# src[] = { coverage, depth, stencil }
+intrinsic("zs_emit_pan", [1, 1, 1], dest_comp=1,
+          indices=[FLAGS], bit_sizes=[32])
+# src[] = { coverage, desc, color }
+intrinsic("blend_pan", [1, 1, 4], indices=[IO_SEMANTICS, SRC_TYPE])
+# src[] = { coverage, desc, color1, color2 }
+intrinsic("blend2_pan", [1, 1, 4, 4],
+          indices=[IO_SEMANTICS, SRC_TYPE, DEST_TYPE])
+barrier("blend_return_pan")
+
 # System values for SPV_ARM_core_builtins
 system_value("core_count_arm", 1, bit_sizes=[32])
 system_value("core_max_id_arm", 1, bit_sizes=[32])
