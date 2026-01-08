@@ -5118,6 +5118,15 @@ load_3d_blit(struct tu_cmd_buffer *cmd,
              const struct tu_render_pass_attachment *att,
              bool separate_stencil)
 {
+   if (CHIP >= A7XX && vk_format_is_depth_or_stencil(att->format)) {
+      /* Workaround for when concurrent resolve is enabled.
+       * We have to wait until all CP_EVENT_WRITE::BLIT are completed,
+       * otherwise writing to depth image as color confuses HW.
+       */
+      tu_emit_event_write<CHIP>(cmd, cs, FD_CCU_CLEAN_BLIT_CACHE);
+      /* WFI happens later below. */
+   }
+
    const struct tu_framebuffer *fb = cmd->state.framebuffer;
    enum pipe_format format = iview->view.format;
    if (iview->image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
