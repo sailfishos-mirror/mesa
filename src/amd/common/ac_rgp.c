@@ -404,6 +404,8 @@ static enum sqtt_memory_type ac_vram_type_to_sqtt_memory_type(uint32_t vram_type
 }
 
 static void ac_sqtt_fill_asic_info(const struct radeon_info *rad_info,
+                                   uint32_t trace_shader_core_clock,
+                                   uint32_t trace_memory_clock,
                                    struct sqtt_file_chunk_asic_info *chunk)
 {
    bool has_wave32 = rad_info->gfx_level >= GFX10;
@@ -426,8 +428,8 @@ static void ac_sqtt_fill_asic_info(const struct radeon_info *rad_info,
    if (rad_info->gfx_level >= GFX9)
       chunk->flags |= SQTT_FILE_CHUNK_ASIC_INFO_FLAG_PS1_EVENT_TOKENS_ENABLED;
 
-   chunk->trace_shader_core_clock = rad_info->max_gpu_freq_mhz * 1000000ull;
-   chunk->trace_memory_clock = rad_info->memory_freq_mhz * 1000000ull;
+   chunk->trace_shader_core_clock = trace_shader_core_clock * 1000000ull;
+   chunk->trace_memory_clock = trace_memory_clock * 1000000ull;
 
    /* RGP gets very confused if these clocks are 0. The numbers here are for profile_peak on
     * VGH since that is the chips where we've seen the need for this workaround. */
@@ -1215,7 +1217,8 @@ ac_sqtt_dump_data(const struct radeon_info *rad_info, struct ac_sqtt_trace *sqtt
    fwrite(&cpu_info, sizeof(cpu_info), 1, output);
 
    /* SQTT asic chunk. */
-   ac_sqtt_fill_asic_info(rad_info, &asic_info);
+   ac_sqtt_fill_asic_info(rad_info, sqtt_trace->trace_shader_core_clock,
+                          sqtt_trace->trace_memory_clock, &asic_info);
    file_offset += sizeof(asic_info);
    fwrite(&asic_info, sizeof(asic_info), 1, output);
 

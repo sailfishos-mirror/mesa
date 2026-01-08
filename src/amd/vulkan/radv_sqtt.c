@@ -925,13 +925,22 @@ bool
 radv_sqtt_sample_clocks(struct radv_device *device)
 {
    uint64_t cpu_timestamp = 0, gpu_timestamp = 0;
+   uint64_t shader_clock_freq, memory_clock_freq;
+   struct radeon_winsys *ws = device->ws;
    VkResult result;
 
    result = radv_get_calibrated_timestamps(device, &cpu_timestamp, &gpu_timestamp);
    if (result != VK_SUCCESS)
       return false;
 
-   return ac_sqtt_add_clock_calibration(&device->sqtt, cpu_timestamp, gpu_timestamp);
+   if (!ac_sqtt_add_clock_calibration(&device->sqtt, cpu_timestamp, gpu_timestamp))
+      return false;
+
+   shader_clock_freq = ws->query_value(ws, RADEON_CURRENT_SCLK);
+   memory_clock_freq = ws->query_value(ws, RADEON_CURRENT_MCLK);
+
+   ac_sqtt_set_gpu_trace_clocks(&device->sqtt, shader_clock_freq, memory_clock_freq);
+   return true;
 }
 
 VkResult

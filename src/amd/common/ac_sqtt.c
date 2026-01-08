@@ -183,6 +183,15 @@ ac_sqtt_add_clock_calibration(struct ac_sqtt *sqtt, uint64_t cpu_timestamp, uint
    return true;
 }
 
+void
+ac_sqtt_set_gpu_trace_clocks(struct ac_sqtt *sqtt,
+                             uint32_t trace_shader_core_clock,
+                             uint32_t trace_memory_clock)
+{
+   sqtt->trace_shader_core_clock = trace_shader_core_clock;
+   sqtt->trace_memory_clock = trace_memory_clock;
+}
+
 /* See https://gitlab.freedesktop.org/mesa/mesa/-/issues/5260
  * On some HW SQTT can hang if we're not in one of the profiling pstates. */
 bool
@@ -285,6 +294,15 @@ ac_sqtt_get_trace(struct ac_sqtt *data, const struct radeon_info *info,
    sqtt_trace->rgp_queue_info = &data->rgp_queue_info;
    sqtt_trace->rgp_queue_event = &data->rgp_queue_event;
    sqtt_trace->rgp_clock_calibration = &data->rgp_clock_calibration;
+
+   sqtt_trace->trace_shader_core_clock = data->trace_shader_core_clock;
+   sqtt_trace->trace_memory_clock = data->trace_memory_clock;
+
+   /* Use maximum clocks when they aren't sampled. */
+   if (!sqtt_trace->trace_shader_core_clock)
+      sqtt_trace->trace_shader_core_clock = info->max_gpu_freq_mhz;
+   if (!sqtt_trace->trace_memory_clock)
+      sqtt_trace->trace_memory_clock = info->memory_freq_mhz;
 
    return true;
 }
