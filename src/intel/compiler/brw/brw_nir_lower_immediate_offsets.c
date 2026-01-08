@@ -13,15 +13,6 @@ lower_immediate_offsets(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
    unsigned max_bits = 0;
 
    switch (intrin->intrinsic) {
-   case nir_intrinsic_load_shared:
-   case nir_intrinsic_store_shared:
-   case nir_intrinsic_shared_atomic:
-   case nir_intrinsic_shared_atomic_swap:
-   case nir_intrinsic_load_shared_block_intel:
-   case nir_intrinsic_store_shared_block_intel:
-   case nir_intrinsic_load_shared_uniform_block_intel:
-      max_bits = LSC_ADDRESS_OFFSET_FLAT_BITS;
-      break;
    case nir_intrinsic_load_ssbo_intel:
    case nir_intrinsic_load_ubo_uniform_block_intel:
    case nir_intrinsic_load_ssbo_uniform_block_intel:
@@ -68,6 +59,11 @@ lower_immediate_offsets(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
       break;
    }
    default:
+      if (nir_is_shared_access(intrin)) {
+         max_bits = LSC_ADDRESS_OFFSET_FLAT_BITS;
+         break;
+      }
+
       return false;
    }
 
