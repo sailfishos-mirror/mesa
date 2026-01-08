@@ -286,6 +286,23 @@ wsi_headless_swapchain_get_wsi_image(struct wsi_swapchain *wsi_chain,
 }
 
 static VkResult
+wsi_headless_swapchain_release_images(struct wsi_swapchain *wsi_chain,
+                                      uint32_t count, const uint32_t *indices)
+{
+   struct wsi_headless_swapchain *chain =
+      (struct wsi_headless_swapchain *)wsi_chain;
+
+   for (uint32_t i = 0; i < count; i++) {
+      uint32_t index = indices[i];
+      assert(index < chain->base.image_count);
+      chain->images[index].busy_on_device = false;
+      chain->images[index].busy_on_host = false;
+   }
+
+   return VK_SUCCESS;
+}
+
+static VkResult
 wsi_headless_swapchain_acquire_next_image(struct wsi_swapchain *wsi_chain,
                                           const VkAcquireNextImageInfoKHR *info,
                                           uint32_t *image_index)
@@ -429,6 +446,7 @@ wsi_headless_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    chain->base.destroy = wsi_headless_swapchain_destroy;
    chain->base.get_wsi_image = wsi_headless_swapchain_get_wsi_image;
    chain->base.acquire_next_image = wsi_headless_swapchain_acquire_next_image;
+   chain->base.release_images = wsi_headless_swapchain_release_images;
    chain->base.queue_present = wsi_headless_swapchain_queue_present;
    chain->base.present_mode = wsi_swapchain_get_present_mode(wsi_device, pCreateInfo);
    chain->base.image_count = num_images;
