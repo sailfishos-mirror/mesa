@@ -789,6 +789,9 @@ bool ac_init_perfcounters(const struct radeon_info *info,
          case DMA:
             block->num_scoped_instances = MIN2(2, info->ip[AMD_IP_SDMA].num_queues);
             break;
+         case RMI:
+            block->num_scoped_instances = rb_per_sa * 2;
+            break;
          default:
             break;
          }
