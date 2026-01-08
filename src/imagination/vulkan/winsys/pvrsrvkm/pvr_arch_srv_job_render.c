@@ -523,11 +523,11 @@ static void pvr_srv_geometry_cmd_ext_stream_load(
    assert((const uint8_t *)ext_stream_ptr - stream == stream_len);
 }
 
-void PVR_PER_ARCH(srv_geometry_cmd_init)(
-   const struct pvr_winsys_render_submit_info *submit_info,
-   const struct pvr_srv_sync_prim *sync_prim,
-   struct rogue_fwif_cmd_ta *cmd,
-   const struct pvr_device_info *const dev_info)
+static void
+srv_geometry_cmd_init(const struct pvr_winsys_render_submit_info *submit_info,
+                      const struct pvr_srv_sync_prim *sync_prim,
+                      struct rogue_fwif_cmd_ta *cmd,
+                      const struct pvr_device_info *const dev_info)
 {
    const struct pvr_winsys_geometry_state *state = &submit_info->geometry;
    uint32_t ext_stream_offset;
@@ -706,11 +706,10 @@ static void pvr_srv_fragment_cmd_ext_stream_load(
    assert((const uint8_t *)ext_stream_ptr - stream == stream_len);
 }
 
-void PVR_PER_ARCH(srv_fragment_cmd_init)(
-   struct rogue_fwif_cmd_3d *cmd,
-   const struct pvr_winsys_fragment_state *state,
-   const struct pvr_device_info *dev_info,
-   uint32_t frame_num)
+static void srv_fragment_cmd_init(struct rogue_fwif_cmd_3d *cmd,
+                                  const struct pvr_winsys_fragment_state *state,
+                                  const struct pvr_device_info *dev_info,
+                                  uint32_t frame_num)
 {
    uint32_t ext_stream_offset;
 
@@ -751,4 +750,193 @@ void PVR_PER_ARCH(srv_fragment_cmd_init)(
 
    if (state->flags.disable_pixel_merging)
       cmd->flags |= ROGUE_FWIF_RENDERFLAGS_DISABLE_PIXELMERGE;
+}
+
+VkResult PVR_PER_ARCH(srv_winsys_render_submit)(
+   const struct pvr_winsys_render_ctx *ctx,
+   const struct pvr_winsys_render_submit_info *submit_info,
+   const struct pvr_device_info *dev_info,
+   struct vk_sync *signal_sync_geom,
+   struct vk_sync *signal_sync_frag)
+{
+   const struct pvr_srv_winsys_rt_dataset *srv_rt_dataset =
+      to_pvr_srv_winsys_rt_dataset(submit_info->rt_dataset);
+   struct pvr_srv_sync_prim *sync_prim =
+      srv_rt_dataset->rt_datas[submit_info->rt_data_idx].sync_prim;
+   void *rt_data_handle =
+      srv_rt_dataset->rt_datas[submit_info->rt_data_idx].handle;
+   const struct pvr_srv_winsys_render_ctx *srv_ctx =
+      to_pvr_srv_winsys_render_ctx(ctx);
+   const struct pvr_srv_winsys *srv_ws = to_pvr_srv_winsys(ctx->ws);
+
+   struct pvr_srv_sync *srv_signal_sync_geom;
+   struct pvr_srv_sync *srv_signal_sync_frag;
+
+   struct rogue_fwif_cmd_ta geom_cmd;
+   struct rogue_fwif_cmd_3d frag_cmd = { 0 };
+   struct rogue_fwif_cmd_3d pr_cmd = { 0 };
+
+   uint8_t *frag_cmd_ptr = NULL;
+   uint32_t frag_cmd_size = 0;
+
+   uint32_t current_sync_value = sync_prim->value;
+   uint32_t geom_sync_update_value;
+   uint32_t frag_to_geom_fence_count = 0;
+   uint32_t frag_to_geom_fence_value;
+   uint32_t frag_sync_update_count = 0;
+   uint32_t frag_sync_update_value;
+
+   int in_frag_fd = -1;
+   int in_geom_fd = -1;
+   int fence_frag;
+   int fence_geom;
+
+   VkResult result;
+   srv_geometry_cmd_init(submit_info, sync_prim, &geom_cmd, dev_info);
+
+   srv_fragment_cmd_init(&pr_cmd,
+                         &submit_info->fragment_pr,
+                         dev_info,
+                         submit_info->frame_num);
+
+   if (submit_info->has_fragment_job) {
+      srv_fragment_cmd_init(&frag_cmd,
+                            &submit_info->fragment,
+                            dev_info,
+                            submit_info->frame_num);
+
+      frag_cmd_ptr = (uint8_t *)&frag_cmd;
+      frag_cmd_size = sizeof(frag_cmd);
+   }
+
+   if (submit_info->geometry.wait) {
+      struct pvr_srv_sync *srv_wait_sync =
+         to_srv_sync(submit_info->geometry.wait);
+
+      if (srv_wait_sync->fd >= 0) {
+         in_geom_fd = os_dupfd_cloexec(srv_wait_sync->fd);
+         if (in_geom_fd == -1) {
+            return vk_errorf(NULL,
+                             VK_ERROR_OUT_OF_HOST_MEMORY,
+                             "dup called on wait sync failed, Errno: %s",
+                             strerror(errno));
+         }
+      }
+   }
+
+   if (submit_info->fragment.wait) {
+      struct pvr_srv_sync *srv_wait_sync =
+         to_srv_sync(submit_info->fragment.wait);
+
+      if (srv_wait_sync->fd >= 0) {
+         in_frag_fd = os_dupfd_cloexec(srv_wait_sync->fd);
+         if (in_frag_fd == -1) {
+            return vk_errorf(NULL,
+                             VK_ERROR_OUT_OF_HOST_MEMORY,
+                             "dup called on wait sync failed, Errno: %s",
+                             strerror(errno));
+         }
+      }
+   }
+
+   if (submit_info->geometry.flags.is_first_geometry) {
+      frag_to_geom_fence_count = 1;
+      frag_to_geom_fence_value = current_sync_value;
+   }
+
+   /* Geometery is always kicked */
+   geom_sync_update_value = ++current_sync_value;
+
+   if (submit_info->has_fragment_job) {
+      frag_sync_update_count = 1;
+      frag_sync_update_value = ++current_sync_value;
+   }
+
+   do {
+      /* The fw allows the ZS and MSAA scratch buffers to be lazily allocated in
+       * which case we need to provide a status update (i.e. if they are
+       * physically backed or not) to the fw. In our case they will always be
+       * physically backed so no need to inform the fw about their status and
+       * pass in anything. We'll just pass in NULL.
+       */
+      result = pvr_srv_rgx_kick_render2(srv_ws->base.render_fd,
+                                        srv_ctx->handle,
+                                        frag_to_geom_fence_count,
+                                        &sync_prim->ctx->block_handle,
+                                        &sync_prim->offset,
+                                        &frag_to_geom_fence_value,
+                                        1,
+                                        &sync_prim->ctx->block_handle,
+                                        &sync_prim->offset,
+                                        &geom_sync_update_value,
+                                        frag_sync_update_count,
+                                        &sync_prim->ctx->block_handle,
+                                        &sync_prim->offset,
+                                        &frag_sync_update_value,
+                                        sync_prim->ctx->block_handle,
+                                        sync_prim->offset,
+                                        geom_sync_update_value,
+                                        in_geom_fd,
+                                        srv_ctx->timeline_geom,
+                                        &fence_geom,
+                                        "GEOM",
+                                        in_frag_fd,
+                                        srv_ctx->timeline_frag,
+                                        &fence_frag,
+                                        "FRAG",
+                                        sizeof(geom_cmd),
+                                        (uint8_t *)&geom_cmd,
+                                        sizeof(pr_cmd),
+                                        (uint8_t *)&pr_cmd,
+                                        frag_cmd_size,
+                                        frag_cmd_ptr,
+                                        submit_info->job_num,
+                                        /* Always kick the TA. */
+                                        true,
+                                        /* Always kick a PR. */
+                                        true,
+                                        submit_info->has_fragment_job,
+                                        false,
+                                        0,
+                                        rt_data_handle,
+                                        NULL,
+                                        NULL,
+                                        0,
+                                        NULL,
+                                        NULL,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0);
+   } while (result == VK_NOT_READY);
+
+   if (result != VK_SUCCESS)
+      goto end_close_in_fds;
+
+   /* The job submission was succesful, update the sync prim value. */
+   sync_prim->value = current_sync_value;
+
+   if (signal_sync_geom) {
+      srv_signal_sync_geom = to_srv_sync(signal_sync_geom);
+      pvr_srv_set_sync_payload(srv_signal_sync_geom, fence_geom);
+   } else if (fence_geom != -1) {
+      close(fence_geom);
+   }
+
+   if (signal_sync_frag) {
+      srv_signal_sync_frag = to_srv_sync(signal_sync_frag);
+      pvr_srv_set_sync_payload(srv_signal_sync_frag, fence_frag);
+   } else if (fence_frag != -1) {
+      close(fence_frag);
+   }
+
+end_close_in_fds:
+   if (in_geom_fd >= 0)
+      close(in_geom_fd);
+
+   if (in_frag_fd >= 0)
+      close(in_frag_fd);
+
+   return result;
 }

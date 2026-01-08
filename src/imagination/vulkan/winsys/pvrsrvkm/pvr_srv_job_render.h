@@ -59,12 +59,6 @@ VkResult pvr_srv_winsys_free_list_create(
    struct pvr_winsys_free_list **const free_list_out);
 void pvr_srv_winsys_free_list_destroy(struct pvr_winsys_free_list *free_list);
 
-VkResult pvr_srv_render_target_dataset_create(
-   struct pvr_winsys *ws,
-   const struct pvr_winsys_rt_dataset_create_info *create_info,
-   const struct pvr_device_info *dev_info,
-   struct pvr_winsys_rt_dataset **const rt_dataset_out);
-
 void pvr_srv_render_target_dataset_destroy(
    struct pvr_winsys_rt_dataset *rt_dataset);
 
@@ -75,14 +69,14 @@ VkResult pvr_srv_winsys_render_ctx_create(
    struct pvr_winsys_render_ctx **const ctx_out);
 void pvr_srv_winsys_render_ctx_destroy(struct pvr_winsys_render_ctx *ctx);
 
-VkResult pvr_srv_winsys_render_submit(
+#ifdef PVR_PER_ARCH
+VkResult PVR_PER_ARCH(srv_winsys_render_submit)(
    const struct pvr_winsys_render_ctx *ctx,
    const struct pvr_winsys_render_submit_info *submit_info,
    const struct pvr_device_info *dev_info,
    struct vk_sync *signal_sync_geom,
    struct vk_sync *signal_sync_frag);
 
-#ifdef PVR_PER_ARCH
 VkResult PVR_PER_ARCH(srv_render_target_dataset_create)(
    struct pvr_winsys *ws,
    const struct pvr_winsys_rt_dataset_create_info *create_info,

@@ -23,10 +23,16 @@
 
 #include "pvr_srv_job_compute.h"
 
+#include "util/os_file.h"
+
+#include "vk_log.h"
+
 #include "fw-api/pvr_rogue_fwif.h"
 
 #include "pvr_csb.h"
 #include "pvr_device_info.h"
+#include "pvr_srv.h"
+#include "pvr_srv_bridge.h"
 
 static uint32_t
 pvr_srv_compute_cmd_stream_load(struct rogue_fwif_cmd_compute *const cmd,
@@ -104,10 +110,10 @@ static void pvr_srv_compute_cmd_ext_stream_load(
    assert((const uint8_t *)ext_stream_ptr - stream == stream_len);
 }
 
-void PVR_PER_ARCH(srv_compute_cmd_init)(
-   const struct pvr_winsys_compute_submit_info *submit_info,
-   struct rogue_fwif_cmd_compute *cmd,
-   const struct pvr_device_info *const dev_info)
+static void
+srv_compute_cmd_init(const struct pvr_winsys_compute_submit_info *submit_info,
+                     struct rogue_fwif_cmd_compute *cmd,
+                     const struct pvr_device_info *const dev_info)
 {
    uint32_t ext_stream_offset;
 
@@ -134,4 +140,75 @@ void PVR_PER_ARCH(srv_compute_cmd_init)(
 
    if (submit_info->flags.use_single_core)
       cmd->flags |= ROGUE_FWIF_COMPUTE_FLAG_SINGLE_CORE;
+}
+
+VkResult PVR_PER_ARCH(srv_winsys_compute_submit)(
+   const struct pvr_winsys_compute_ctx *ctx,
+   const struct pvr_winsys_compute_submit_info *submit_info,
+   const struct pvr_device_info *const dev_info,
+   struct vk_sync *signal_sync)
+{
+   const struct pvr_srv_winsys_compute_ctx *srv_ctx =
+      to_pvr_srv_winsys_compute_ctx(ctx);
+   const struct pvr_srv_winsys *srv_ws = to_pvr_srv_winsys(ctx->ws);
+   struct rogue_fwif_cmd_compute compute_cmd;
+   struct pvr_srv_sync *srv_signal_sync;
+   VkResult result;
+   int in_fd = -1;
+   int fence;
+
+   srv_compute_cmd_init(submit_info, &compute_cmd, dev_info);
+
+   if (submit_info->wait) {
+      struct pvr_srv_sync *srv_wait_sync = to_srv_sync(submit_info->wait);
+
+      if (srv_wait_sync->fd >= 0) {
+         in_fd = os_dupfd_cloexec(srv_wait_sync->fd);
+         if (in_fd == -1) {
+            return vk_errorf(NULL,
+                             VK_ERROR_OUT_OF_HOST_MEMORY,
+                             "dup called on wait sync failed, Errno: %s",
+                             strerror(errno));
+         }
+      }
+   }
+
+   do {
+      result = pvr_srv_rgx_kick_compute2(srv_ws->base.render_fd,
+                                         srv_ctx->handle,
+                                         0U,
+                                         NULL,
+                                         NULL,
+                                         NULL,
+                                         in_fd,
+                                         srv_ctx->timeline,
+                                         sizeof(compute_cmd),
+                                         (uint8_t *)&compute_cmd,
+                                         submit_info->job_num,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         0U,
+                                         0U,
+                                         0U,
+                                         0U,
+                                         "COMPUTE",
+                                         &fence);
+   } while (result == VK_NOT_READY);
+
+   if (result != VK_SUCCESS)
+      goto end_close_in_fd;
+
+   if (signal_sync) {
+      srv_signal_sync = to_srv_sync(signal_sync);
+      pvr_srv_set_sync_payload(srv_signal_sync, fence);
+   } else if (fence != -1) {
+      close(fence);
+   }
+
+end_close_in_fd:
+   if (in_fd >= 0)
+      close(in_fd);
+
+   return result;
 }
