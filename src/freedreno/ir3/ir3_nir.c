@@ -854,6 +854,12 @@ ir3_nir_lower_io(nir_shader *s)
             ir3_glsl_type_size,
             nir_lower_io_lower_64bit_to_32 |
                nir_lower_io_use_interpolated_input_intrinsics);
+   NIR_PASS(_, s, nir_opt_dce);
+   NIR_PASS(_, s, nir_remove_dead_variables,
+            nir_var_shader_in | nir_var_shader_out,
+            &(nir_remove_dead_variables_options) {});
+
+   s->info.io_lowered = true;
 }
 
 /**
