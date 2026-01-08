@@ -27,8 +27,6 @@
 #include <stdint.h>
 #include <vulkan/vulkan.h>
 
-#include "pvr_macros.h"
-
 struct pvr_device_info;
 struct pvr_winsys;
 struct pvr_winsys_free_list;
@@ -76,12 +74,5 @@ VkResult pvr_drm_winsys_render_submit(
    const struct pvr_device_info *dev_info,
    struct vk_sync *signal_sync_geom,
    struct vk_sync *signal_sync_frag);
-
-#ifdef PVR_PER_ARCH
-void PVR_PER_ARCH(drm_render_ctx_static_state_init)(
-   struct pvr_winsys_render_ctx_create_info *create_info,
-   uint8_t *stream_ptr_start,
-   uint32_t *stream_len_ptr);
-#endif
 
 #endif /* PVR_DRM_JOB_RENDER_H */

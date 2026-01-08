@@ -142,6 +142,44 @@ void pvr_drm_winsys_free_list_destroy(struct pvr_winsys_free_list *free_list)
    vk_free(drm_ws->base.alloc, free_list);
 }
 
+static void pvr_drm_render_ctx_static_state_init(
+   struct pvr_winsys_render_ctx_create_info *create_info,
+   uint8_t *stream_ptr_start,
+   uint32_t *stream_len_ptr)
+{
+   struct pvr_winsys_render_ctx_static_state *ws_static_state =
+      &create_info->static_state;
+   uint64_t *stream_ptr = (uint64_t *)stream_ptr_start;
+
+   /* Leave space for stream header. */
+   stream_ptr++;
+
+   *stream_ptr++ = ws_static_state->vdm_ctx_state_base_addr;
+   /* geom_reg_vdm_context_state_resume_addr is unused and zeroed. */
+   *stream_ptr++ = 0;
+   *stream_ptr++ = ws_static_state->geom_ctx_state_base_addr;
+
+   for (uint32_t i = 0; i < ARRAY_SIZE(ws_static_state->geom_state); i++) {
+      *stream_ptr++ = ws_static_state->geom_state[i].vdm_ctx_store_task0;
+      *stream_ptr++ = ws_static_state->geom_state[i].vdm_ctx_store_task1;
+      *stream_ptr++ = ws_static_state->geom_state[i].vdm_ctx_store_task2;
+      /* {store, resume}_task{3, 4} are unused and zeroed. */
+      *stream_ptr++ = 0;
+      *stream_ptr++ = 0;
+
+      *stream_ptr++ = ws_static_state->geom_state[i].vdm_ctx_resume_task0;
+      *stream_ptr++ = ws_static_state->geom_state[i].vdm_ctx_resume_task1;
+      *stream_ptr++ = ws_static_state->geom_state[i].vdm_ctx_resume_task2;
+      /* {store, resume}_task{3, 4} are unused and zeroed. */
+      *stream_ptr++ = 0;
+      *stream_ptr++ = 0;
+   }
+
+   *stream_len_ptr = ((uint8_t *)stream_ptr - stream_ptr_start);
+
+   *((uint64_t *)stream_ptr_start) = *stream_len_ptr;
+}
+
 struct pvr_drm_winsys_render_ctx {
    struct pvr_winsys_render_ctx base;
 
@@ -153,14 +191,6 @@ struct pvr_drm_winsys_render_ctx {
 
 #define to_pvr_drm_winsys_render_ctx(ctx) \
    container_of(ctx, struct pvr_drm_winsys_render_ctx, base)
-
-#define PER_ARCH_FUNCS(arch)                                 \
-   void pvr_##arch##_drm_render_ctx_static_state_init(       \
-      struct pvr_winsys_render_ctx_create_info *create_info, \
-      uint8_t *stream_ptr_start,                             \
-      uint32_t *stream_len_ptr)
-
-PER_ARCH_FUNCS(rogue);
 
 VkResult pvr_drm_winsys_render_ctx_create(
    struct pvr_winsys *ws,
@@ -201,12 +231,9 @@ VkResult pvr_drm_winsys_render_ctx_create(
       goto err_free_ctx;
    }
 
-   enum pvr_device_arch arch = dev_info->ident.arch;
-   PVR_ARCH_DISPATCH(drm_render_ctx_static_state_init,
-                     arch,
-                     create_info,
-                     static_ctx_state_fw_stream,
-                     &ctx_args.static_context_state_len);
+   pvr_drm_render_ctx_static_state_init(create_info,
+                                        static_ctx_state_fw_stream,
+                                        &ctx_args.static_context_state_len);
 
    result = pvr_ioctlf(ws->render_fd,
                        DRM_IOCTL_PVR_CREATE_CONTEXT,

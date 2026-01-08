@@ -21,18 +21,24 @@
  * SOFTWARE.
  */
 
-#include "pvr_drm_job_compute.h"
+#include <errno.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include <vulkan/vulkan.h>
+#include <xf86drm.h>
 
+#include "drm-uapi/pvr_drm.h"
+#include "pvr_drm.h"
+#include "pvr_drm_job_common.h"
+#include "pvr_drm_job_compute.h"
+#include "pvr_winsys.h"
+#include "pvr_winsys_helper.h"
+#include "util/macros.h"
 #include "vk_alloc.h"
 #include "vk_drm_syncobj.h"
 #include "vk_log.h"
-
-#include "drm-uapi/pvr_drm.h"
-
-#include "pvr_drm_job_common.h"
-#include "pvr_drm.h"
-#include "pvr_macros.h"
-#include "pvr_winsys_helper.h"
 
 struct pvr_drm_winsys_compute_ctx {
    struct pvr_winsys_compute_ctx base;
@@ -44,13 +50,30 @@ struct pvr_drm_winsys_compute_ctx {
 #define to_pvr_drm_winsys_compute_ctx(ctx) \
    container_of(ctx, struct pvr_drm_winsys_compute_ctx, base)
 
-#define PER_ARCH_FUNCS(arch)                                        \
-   void pvr_##arch##_drm_compute_ctx_static_state_init(             \
-      const struct pvr_winsys_compute_ctx_create_info *create_info, \
-      uint8_t *stream_ptr_start,                                    \
-      uint32_t *stream_len_ptr);
+static void pvr_drm_compute_ctx_static_state_init(
+   const struct pvr_winsys_compute_ctx_create_info *create_info,
+   uint8_t *stream_ptr_start,
+   uint32_t *stream_len_ptr)
+{
+   const struct pvr_winsys_compute_ctx_static_state *ws_static_state =
+      &create_info->static_state;
+   uint64_t *stream_ptr = (uint64_t *)stream_ptr_start;
 
-PER_ARCH_FUNCS(rogue);
+   /* Leave space for stream header. */
+   stream_ptr++;
+
+   *stream_ptr++ = ws_static_state->cdm_ctx_store_pds0;
+   *stream_ptr++ = ws_static_state->cdm_ctx_store_pds1;
+   *stream_ptr++ = ws_static_state->cdm_ctx_terminate_pds;
+   *stream_ptr++ = ws_static_state->cdm_ctx_terminate_pds1;
+   *stream_ptr++ = ws_static_state->cdm_ctx_resume_pds0;
+   *stream_ptr++ = ws_static_state->cdm_ctx_store_pds0_b;
+   *stream_ptr++ = ws_static_state->cdm_ctx_resume_pds0_b;
+
+   *stream_len_ptr = ((uint8_t *)stream_ptr - stream_ptr_start);
+
+   *((uint64_t *)stream_ptr_start) = *stream_len_ptr;
+}
 
 VkResult pvr_drm_winsys_compute_ctx_create(
    struct pvr_winsys *ws,
@@ -80,12 +103,9 @@ VkResult pvr_drm_winsys_compute_ctx_create(
       goto err_out;
    }
 
-   enum pvr_device_arch arch = dev_info->ident.arch;
-   PVR_ARCH_DISPATCH(drm_compute_ctx_static_state_init,
-                     arch,
-                     create_info,
-                     static_ctx_state_fw_stream,
-                     &ctx_args.static_context_state_len);
+   pvr_drm_compute_ctx_static_state_init(create_info,
+                                         static_ctx_state_fw_stream,
+                                         &ctx_args.static_context_state_len);
 
    result = pvr_ioctlf(ws->render_fd,
                        DRM_IOCTL_PVR_CREATE_CONTEXT,
