@@ -856,7 +856,16 @@ impl Function {
                     let live_count = PerRegFile::new_with(|f| {
                         live_count[f].try_into().unwrap()
                     });
-                    let used_gprs = calc_used_gprs(live_count, max_regs);
+                    let mut used_gprs = calc_used_gprs(live_count, max_regs);
+
+                    if let Op::RegOut(reg_out) = &instr.op {
+                        // This should be the last instruction.  Everything should
+                        // be dead once we've processed it.
+                        assert_eq!(live_set.count(RegFile::GPR), 0);
+                        let num_gprs_out =
+                            reg_out.srcs.len().try_into().unwrap();
+                        used_gprs = max(used_gprs, num_gprs_out);
+                    }
 
                     // We never want our target to be worse than the original schedule
                     max_gpr_target = max(max_gpr_target, used_gprs);
