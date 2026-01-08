@@ -67,20 +67,6 @@ get_var_num_slots(mesa_shader_stage stage, nir_variable *var,
    }
 }
 
-static bool
-is_compact(nir_shader *nir, bool is_output, unsigned location)
-{
-   return nir->options->compact_arrays &&
-          (nir->info.stage != MESA_SHADER_VERTEX || is_output) &&
-          (nir->info.stage != MESA_SHADER_FRAGMENT || !is_output) &&
-          (location == VARYING_SLOT_CLIP_DIST0 ||
-           location == VARYING_SLOT_CLIP_DIST1 ||
-           location == VARYING_SLOT_CULL_DIST0 ||
-           location == VARYING_SLOT_CULL_DIST1 ||
-           location == VARYING_SLOT_TESS_LEVEL_OUTER ||
-           location == VARYING_SLOT_TESS_LEVEL_INNER);
-}
-
 /* Get information about the intrinsic. */
 static bool
 parse_intrinsic(nir_shader *nir, nir_intrinsic_instr *intr,
@@ -120,7 +106,7 @@ parse_intrinsic(nir_shader *nir, nir_intrinsic_instr *intr,
    desc->mode = desc->is_output ? nir_var_shader_out : nir_var_shader_in;
    desc->location_src = *nir_get_io_offset_src(intr);
    desc->is_indirect = !nir_src_is_const(desc->location_src);
-   desc->is_compact = is_compact(nir, desc->is_output, desc->sem.location);
+   desc->is_compact = nir_is_io_compact(nir, desc->is_output, desc->sem.location);
    desc->is_xfb = nir_instr_xfb_write_mask(intr) != 0;
    desc->num_slots = desc->is_compact ? DIV_ROUND_UP(desc->sem.num_slots, 4)
                                       : desc->sem.num_slots;

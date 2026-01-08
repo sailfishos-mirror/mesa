@@ -6969,6 +6969,20 @@ bool nir_opt_barycentric(nir_shader *shader, bool lower_sample_to_pos);
 
 #include "nir_inline_helpers.h"
 
+static inline bool
+nir_is_io_compact(nir_shader *nir, bool is_output, unsigned location)
+{
+   return nir->options->compact_arrays &&
+          (nir->info.stage != MESA_SHADER_VERTEX || is_output) &&
+          (nir->info.stage != MESA_SHADER_FRAGMENT || !is_output) &&
+          (location == VARYING_SLOT_CLIP_DIST0 ||
+           location == VARYING_SLOT_CLIP_DIST1 ||
+           location == VARYING_SLOT_CULL_DIST0 ||
+           location == VARYING_SLOT_CULL_DIST1 ||
+           location == VARYING_SLOT_TESS_LEVEL_OUTER ||
+           location == VARYING_SLOT_TESS_LEVEL_INNER);
+}
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
