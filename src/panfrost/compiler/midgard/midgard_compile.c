@@ -1255,9 +1255,7 @@ emit_atomic(compiler_context *ctx, nir_intrinsic_instr *instr)
          ? nir_type_int
          : nir_type_uint;
 
-   bool is_shared = (instr->intrinsic == nir_intrinsic_shared_atomic) ||
-                    (instr->intrinsic == nir_intrinsic_shared_atomic_swap);
-
+   bool is_shared = nir_is_shared_access(instr);
    unsigned dest = nir_def_index(&instr->def);
    unsigned val = nir_src_index(ctx, &instr->src[1]);
    unsigned bitsize = nir_src_bit_size(instr->src[1]);
