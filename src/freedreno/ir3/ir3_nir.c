@@ -905,14 +905,8 @@ ir3_nir_post_finalize(struct ir3_shader *shader)
        * you'd end up with an incorrect f2f16(i2i32(load_input())) instead of
        * load_input).
        */
-      uint64_t mediump_varyings = 0;
-      nir_foreach_shader_in_variable(var, s) {
-         if ((var->data.precision == GLSL_PRECISION_MEDIUM ||
-              var->data.precision == GLSL_PRECISION_LOW) &&
-             var->data.interpolation != INTERP_MODE_FLAT) {
-            mediump_varyings |= BITFIELD64_BIT(var->data.location);
-         }
-      }
+      uint64_t mediump_varyings = s->info.linear_varyings |
+         s->info.perspective_varyings;
 
       if (mediump_varyings) {
          NIR_PASS(_, s, nir_lower_mediump_io, nir_var_shader_in,

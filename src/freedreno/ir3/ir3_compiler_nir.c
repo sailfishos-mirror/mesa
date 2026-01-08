@@ -4950,6 +4950,14 @@ setup_input(struct ir3_context *ctx, nir_intrinsic_instr *intr)
          compmask = clip_cull_mask >> 4;
    }
 
+   if (ctx->so->type == MESA_SHADER_FRAGMENT &&
+       (BITFIELD64_BIT(slot) & VARYING_BITS_COLOR) &&
+       intr->intrinsic == nir_intrinsic_load_interpolated_input) {
+      nir_intrinsic_instr *baryc = nir_def_as_intrinsic(intr->src[0].ssa);
+      if (nir_intrinsic_interp_mode(baryc) == INTERP_MODE_NONE)
+         so->inputs[n].rasterflat = true;
+   }
+
    /* for a4xx+ rasterflat */
    if (so->inputs[n].rasterflat && ctx->so->key.rasterflat)
       coord = NULL;
@@ -5177,9 +5185,14 @@ setup_output(struct ir3_context *ctx, nir_intrinsic_instr *intr)
          so->writes_stencilref = true;
          break;
       default:
-         slot += io.dual_source_blend_index; /* For dual-src blend */
-         if (io.dual_source_blend_index > 0)
+         if (io.dual_source_blend_index > 0 ||
+            /* Implement the "dual_color_blend_by_location" workaround for
+             * Unigine Heaven and Unigine Valley, by forcing on dual-source
+             * blending when there are two outputs.
+             */
+             (slot == FRAG_RESULT_DATA1 && so->key.force_dual_color_blend))
             so->dual_src_blend = true;
+         slot += io.dual_source_blend_index; /* For dual-src blend */
          if (slot >= FRAG_RESULT_DATA0)
             break;
          ir3_context_error(ctx, "unknown FS output name: %s\n",
@@ -5296,25 +5309,6 @@ emit_instructions(struct ir3_context *ctx)
    MESA_TRACE_FUNC();
 
    nir_function_impl *fxn = nir_shader_get_entrypoint(ctx->s);
-
-   /* some varying setup which can't be done in setup_input(): */
-   if (ctx->so->type == MESA_SHADER_FRAGMENT) {
-      nir_foreach_shader_in_variable (var, ctx->s) {
-         /* set rasterflat flag for front/back color */
-         if (var->data.interpolation == INTERP_MODE_NONE) {
-            switch (var->data.location) {
-            case VARYING_SLOT_COL0:
-            case VARYING_SLOT_COL1:
-            case VARYING_SLOT_BFC0:
-            case VARYING_SLOT_BFC1:
-               ctx->so->inputs[var->data.driver_location].rasterflat = true;
-               break;
-            default:
-               break;
-            }
-         }
-      }
-   }
 
    if (uses_load_input(ctx->so)) {
       ctx->so->inputs_count = ctx->s->num_inputs;
