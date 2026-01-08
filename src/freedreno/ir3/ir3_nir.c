@@ -659,8 +659,35 @@ ir3_finalize_nir(struct ir3_compiler *compiler,
       mesa_logi("----------------------");
    }
 
-   if (s->info.stage == MESA_SHADER_GEOMETRY)
+   /* For vertex inputs, we expect them to all be at the top. FS inputs are also
+    * more optimal at the top.
+    */
+   if (s->info.stage == MESA_SHADER_VERTEX ||
+       s->info.stage == MESA_SHADER_FRAGMENT)
+      NIR_PASS(_, s, nir_opt_move_to_top, nir_move_to_top_input_loads);
+
+   if (s->info.stage == MESA_SHADER_GEOMETRY) {
+      /* nir_unlower_io_to_vars expects constant indirect offsets to be folded
+       * in.
+       */
+      NIR_PASS(_, s, nir_opt_constant_folding);
+      NIR_PASS(_, s, nir_opt_dce);
+
+      /* GS lowering works most easily with variables, so temporarily switch
+       * inputs/outputs to variables and then switch back after the lowering is
+       * done.
+       */
+      NIR_PASS(_, s, nir_unlower_io_to_vars, false);
+      /* nir_lower_io doesn't work with compact variables and non-constant
+       * indices, so clean up output of unlower_io_to_vars.
+       */
+      NIR_PASS(_, s, nir_opt_constant_folding);
+      NIR_PASS(_, s, nir_opt_dce);
+
       NIR_PASS(_, s, ir3_nir_lower_gs);
+
+      ir3_nir_lower_io(s);
+   }
 
    NIR_PASS(_, s, nir_lower_frexp);
    NIR_PASS(_, s, nir_lower_amul, ir3_glsl_type_size);

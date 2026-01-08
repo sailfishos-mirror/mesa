@@ -168,9 +168,10 @@ spec@ext_framebuffer_multisample@interpolation 4 non-centroid-deriv-disabled,Fai
 spec@ext_framebuffer_multisample@interpolation 4 non-centroid-disabled,Fail
 spec@ext_framebuffer_multisample@sample-alpha-to-coverage 2 color,Fail
 spec@ext_framebuffer_multisample@sample-alpha-to-coverage 4 color,Fail
-spec@ext_transform_feedback@max-varyings,Fail
-spec@ext_transform_feedback@max-varyings@max-varying-arrays-of-arrays,Fail
-spec@ext_transform_feedback@max-varyings@max-varying-single-dimension-array,Fail
+
+# see https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/37602#note_3294118
+spec@ext_transform_feedback@max-varyings,Crash
+
 spec@ext_transform_feedback@tessellation quad_strip wireframe,Fail
 spec@ext_transform_feedback@tessellation quads wireframe,Fail
 spec@ext_transform_feedback@tessellation triangle_fan flat_first,Fail

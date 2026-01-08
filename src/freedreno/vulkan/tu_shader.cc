@@ -2949,6 +2949,8 @@ tu_shader_create(struct tu_device *dev,
       NIR_PASS(_, nir, nir_lower_mem_access_bit_sizes, &options);
    }
 
+   ir3_nir_lower_io(nir);
+
    struct ir3_const_allocations const_allocs = {};
    NIR_PASS(_, nir, tu_lower_io, dev, shader, layout,
             key->read_only_input_attachments, key->dynamic_renderpass,
@@ -2960,8 +2962,6 @@ tu_shader_create(struct tu_device *dev,
    init_ir3_nir_options(&nir_options, key);
 
    ir3_finalize_nir(dev->compiler, &nir_options, nir);
-
-   ir3_nir_lower_io(nir);
 
    /* This has to happen after finalizing, so that we know the final bitsize
     * after vectorizing.

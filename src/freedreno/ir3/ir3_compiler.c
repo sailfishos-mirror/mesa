@@ -137,6 +137,8 @@ static const nir_shader_compiler_options ir3_base_options = {
 
    .per_view_unique_driver_locations = true,
    .compact_view_index = true,
+
+   .io_options = nir_io_has_intrinsics,
 };
 
 struct ir3_compiler *
