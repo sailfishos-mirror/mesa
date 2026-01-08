@@ -1425,13 +1425,15 @@ brw_print_fs_urb_setup(FILE *fp, const struct brw_wm_prog_data *prog_data,
 static void
 brw_nir_cleanup_pre_wm_prog_data(brw_pass_tracker *pt)
 {
+   pass_tracker_new_loop(pt);
+
    do {
-      pt->progress = false;
-      BRW_NIR_PASS(nir_opt_algebraic);
-      BRW_NIR_PASS(nir_opt_copy_prop);
-      BRW_NIR_PASS(nir_opt_constant_folding);
-      BRW_NIR_PASS(nir_opt_dce);
-      BRW_NIR_PASS(nir_opt_cse);
+      pass_tracker_new_iteration(pt);
+      BRW_NIR_LOOP_PASS(nir_opt_algebraic);
+      BRW_NIR_LOOP_PASS(nir_opt_copy_prop);
+      BRW_NIR_LOOP_PASS(nir_opt_constant_folding);
+      BRW_NIR_LOOP_PASS(nir_opt_dce);
+      BRW_NIR_LOOP_PASS(nir_opt_cse);
    } while (pt->progress);
 }
 
