@@ -2105,12 +2105,7 @@ prepare_dcd(struct panvk_cmd_buffer *cmdbuf,
       struct mali_dcd_flags_1_packed dcd1;
       pan_pack(&dcd1, DCD_FLAGS_1, cfg) {
          cfg.sample_mask = msaa ? dyns->ms.sample_mask : UINT16_MAX;
-
-         if (fs) {
-            cfg.render_target_mask =
-               (fs->info.outputs_written >> FRAG_RESULT_DATA0) &
-               cmdbuf->state.gfx.render.bound_attachments;
-         }
+         cfg.render_target_mask = rt_written;
       }
 
       cs_update_vt_ctx(b)
