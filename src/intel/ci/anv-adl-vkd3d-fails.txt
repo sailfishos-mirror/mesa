@@ -12,3 +12,5 @@ test_undefined_typed_read_structured_raw_dxil,Fail
 
 # xe 0000:00:02.0: [drm] GT0: Timedout job: seqno=4294967172, lrc_seqno=4294967172, guc_id=2, flags=0x0 in d3d12 [871]
 test_fence_pending_signal_cpu_rewind_plain,Crash
+
+test_copy_subresource_depth_stencil_batch,Crash
