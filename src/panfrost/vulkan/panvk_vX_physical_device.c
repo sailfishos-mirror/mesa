@@ -305,8 +305,7 @@ panvk_per_arch(get_physical_device_features)(
       .vertexPipelineStoresAndAtomics =
          (PAN_ARCH >= 13 && instance->enable_vertex_pipeline_stores_atomics) ||
          instance->force_enable_shader_atomics,
-      .fragmentStoresAndAtomics =
-         (PAN_ARCH >= 10) || instance->force_enable_shader_atomics,
+      .fragmentStoresAndAtomics = true,
       .shaderTessellationAndGeometryPointSize = false,
       .shaderImageGatherExtended = true,
       .shaderStorageImageExtendedFormats = true,

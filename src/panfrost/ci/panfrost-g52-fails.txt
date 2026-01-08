@@ -767,6 +767,10 @@ dEQP-VK.wsi.direct_drm.swapchain.simulate_oom.present_mode,Crash
 # Regressions from https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/39987
 # ../src/panfrost/compiler/bifrost/bifrost/bi_pack.c:187: bi_pack_registers: Assertion `!(mode & 0x8)' failed.
 dEQP-VK.robustness.image_robustness.bind.notemplate.r32i.dontunroll.nonvolatile.storage_image.fmt_qual.img.samples_1.cube.comp,Crash
+dEQP-VK.robustness.image_robustness.bind.notemplate.r32i.dontunroll.nonvolatile.storage_image.fmt_qual.img.samples_1.cube.frag,Crash
 dEQP-VK.robustness.image_robustness.push.notemplate.r32i.dontunroll.nonvolatile.storage_image.fmt_qual.img.samples_1.cube_array.comp,Crash
+dEQP-VK.robustness.image_robustness.push.notemplate.r32i.dontunroll.nonvolatile.storage_image.fmt_qual.img.samples_1.cube_array.frag,Crash
 dEQP-VK.robustness.image_robustness.bind.notemplate.r32i.dontunroll.nonvolatile.storage_image.fmt_qual.img.samples_1.cube_array.comp,Crash
+dEQP-VK.robustness.image_robustness.bind.notemplate.r32i.dontunroll.nonvolatile.storage_image.fmt_qual.img.samples_1.cube_array.frag,Crash
 dEQP-VK.robustness.image_robustness.push.notemplate.r32i.dontunroll.nonvolatile.storage_image.fmt_qual.img.samples_1.cube.comp,Crash
+dEQP-VK.robustness.image_robustness.push.notemplate.r32i.dontunroll.nonvolatile.storage_image.fmt_qual.img.samples_1.cube.frag,Crash
