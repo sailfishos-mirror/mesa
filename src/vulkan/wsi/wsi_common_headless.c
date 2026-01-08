@@ -100,6 +100,9 @@ wsi_headless_surface_get_capabilities2(VkIcdSurfaceBase *surface,
 {
    assert(caps->sType == VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR);
 
+   const VkSurfacePresentModeKHR *present_mode =
+      vk_find_struct_const(info_next, SURFACE_PRESENT_MODE_EXT);
+
    VkResult result =
       wsi_headless_surface_get_capabilities(surface, wsi_device,
                                       &caps->surfaceCapabilities);
@@ -109,6 +112,23 @@ wsi_headless_surface_get_capabilities2(VkIcdSurfaceBase *surface,
       case VK_STRUCTURE_TYPE_SURFACE_PROTECTED_CAPABILITIES_KHR: {
          VkSurfaceProtectedCapabilitiesKHR *protected = (void *)ext;
          protected->supportsProtected = VK_FALSE;
+         break;
+      }
+      case VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_KHR: {
+         /* Unsupported */
+         VkSurfacePresentModeCompatibilityKHR *compat = (void *)ext;
+         if (compat->pPresentModes == NULL) {
+            if (!present_mode) {
+               wsi_common_vk_warn_once("Use of VkSurfacePresentModeCompatibilityKHR "
+                                       "without a VkSurfacePresentModeKHR set. This is an "
+                                       "application bug.\n");
+            }
+            compat->presentModeCount = 1;
+         } else if (compat->presentModeCount) {
+            assert(present_mode);
+            compat->presentModeCount = 1;
+            compat->pPresentModes[0] = present_mode->presentMode;
+         }
          break;
       }
 
