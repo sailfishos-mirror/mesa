@@ -755,15 +755,23 @@ static unsigned gfx11_GCEA_select0[] = {
 static unsigned gfx11_GCEA_select1[] = {
    R_036804_GCEA_PERFCOUNTER2_SELECT1,
 };
+static unsigned gfx11_GCEA_cfg[] = {
+   R_03680C_GCEA_PERFCOUNTER0_CFG,
+   R_036810_GCEA_PERFCOUNTER1_CFG,
+};
 static struct ac_pc_block_base gfx11_GCEA = {
    .gpu_block = GCEA,
    .name = "GCEA",
    .distribution = AC_PC_GLOBAL_BLOCK,
-   .num_counters = 1,
+   .num_counters = 3,
 
    .select0 = gfx11_GCEA_select0,
    .select1 = gfx11_GCEA_select1,
    .counter0_lo = R_034980_GCEA_PERFCOUNTER2_LO,
+
+   .cfg_cntl = R_036814_GCEA_PERFCOUNTER_RSLT_CNTL,
+   .cfg_regs = gfx11_GCEA_cfg,
+   .cfg_counter_lo = R_034988_GCEA_PERFCOUNTER_LO,
 
    .num_spm_modules = 1,
    .num_spm_wires = 2,
