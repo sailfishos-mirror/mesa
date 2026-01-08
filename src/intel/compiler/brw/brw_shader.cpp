@@ -1317,21 +1317,18 @@ brw_allocate_registers(brw_shader &s, bool allow_spilling)
 
 #ifndef NDEBUG
 void
-brw_debug_archive_nir(debug_archiver *archiver, nir_shader *nir,
-                      unsigned dispatch_width, const char *step)
+brw_pass_tracker_archive(brw_pass_tracker *pt, const char *pass_name)
 {
-   if (!archiver)
+   if (!pt->archiver)
       return;
 
-   const bool prefix_dispatch_width =
-      dispatch_width > 0 && mesa_shader_stage_uses_workgroup(nir->info.stage);
-   const char *filename = prefix_dispatch_width ?
-         ralloc_asprintf(archiver, "NIR%d/%s", dispatch_width, step) :
-         ralloc_asprintf(archiver, "NIR/%s", step);
+   const char *filename =
+      ralloc_asprintf(pt->archiver, "NIR%d/%03d-%s",
+                      pt->dispatch_width, pt->pass_num, pass_name);
 
-   FILE *f = debug_archiver_start_file(archiver, filename);
-   nir_print_shader(nir, f);
-   debug_archiver_finish_file(archiver);
+   FILE *f = debug_archiver_start_file(pt->archiver, filename);
+   nir_print_shader(pt->nir, f);
+   debug_archiver_finish_file(pt->archiver);
 }
 #endif
 

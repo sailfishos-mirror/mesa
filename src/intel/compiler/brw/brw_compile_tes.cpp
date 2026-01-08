@@ -88,7 +88,14 @@ brw_compile_tes(const struct brw_compiler *compiler,
 
    const bool debug_enabled = brw_should_print_shader(nir, DEBUG_TES, params->base.source_hash);
 
-   brw_debug_archive_nir(params->base.archiver, nir, dispatch_width, "first");
+   brw_pass_tracker pt_ = {
+      .nir = nir,
+      .dispatch_width = dispatch_width,
+      .compiler = compiler,
+      .archiver = params->base.archiver,
+   }, *pt = &pt_;
+
+   BRW_NIR_SNAPSHOT("first");
 
    brw_prog_data_init(&prog_data->base.base, &params->base);
 
@@ -104,14 +111,15 @@ brw_compile_tes(const struct brw_compiler *compiler,
                                nir->info.patch_inputs_read,
                                key->separate_tess_vue_layout);
    }
-
-   brw_nir_apply_key(nir, compiler, &key->base, dispatch_width);
+   brw_nir_apply_key(pt, &key->base, dispatch_width);
    brw_nir_lower_tes_inputs(nir, devinfo, &input_vue_map);
    brw_nir_lower_vue_outputs(nir);
-   brw_nir_opt_vectorize_urb(nir, devinfo);
-   NIR_PASS(_, nir, intel_nir_lower_patch_vertices_tes);
-   brw_postprocess_nir(nir, compiler, dispatch_width, params->base.archiver,
-                       debug_enabled, key->base.robust_flags);
+   BRW_NIR_SNAPSHOT("after_lower_io");
+
+   brw_nir_opt_vectorize_urb(pt);
+   BRW_NIR_PASS(intel_nir_lower_patch_vertices_tes);
+
+   brw_postprocess_nir(pt, debug_enabled, key->base.robust_flags);
 
    const uint32_t pos_slots =
       (nir->info.per_view_outputs & VARYING_BIT_POS) ?

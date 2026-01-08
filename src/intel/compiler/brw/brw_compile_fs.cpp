@@ -1423,17 +1423,16 @@ brw_print_fs_urb_setup(FILE *fp, const struct brw_wm_prog_data *prog_data,
 }
 
 static void
-brw_nir_cleanup_pre_wm_prog_data(nir_shader *nir)
+brw_nir_cleanup_pre_wm_prog_data(brw_pass_tracker *pt)
 {
-   bool progress;
    do {
-      progress = false;
-      NIR_PASS(progress, nir, nir_opt_algebraic);
-      NIR_PASS(progress, nir, nir_opt_copy_prop);
-      NIR_PASS(progress, nir, nir_opt_constant_folding);
-      NIR_PASS(progress, nir, nir_opt_dce);
-      NIR_PASS(progress, nir, nir_opt_cse);
-   } while (progress);
+      pt->progress = false;
+      BRW_NIR_PASS(nir_opt_algebraic);
+      BRW_NIR_PASS(nir_opt_copy_prop);
+      BRW_NIR_PASS(nir_opt_constant_folding);
+      BRW_NIR_PASS(nir_opt_dce);
+      BRW_NIR_PASS(nir_opt_cse);
+   } while (pt->progress);
 }
 
 const unsigned *
@@ -1455,17 +1454,24 @@ brw_compile_fs(const struct brw_compiler *compiler,
    const unsigned max_subgroup_size = 32;
    unsigned max_polygons = MAX2(1, params->max_polygons);
 
-   brw_debug_archive_nir(params->base.archiver, nir, 0, "first");
+   brw_pass_tracker pt_ = {
+      .nir = nir,
+      .dispatch_width = 0,
+      .compiler = compiler,
+      .archiver = params->base.archiver,
+   }, *pt = &pt_;
 
-   brw_nir_apply_key(nir, compiler, &key->base, max_subgroup_size);
+   BRW_NIR_SNAPSHOT("first");
+
+   brw_nir_apply_key(pt, &key->base, max_subgroup_size);
 
    if (brw_nir_fragment_shader_needs_wa_18019110168(devinfo, key->mesh_input, nir)) {
       if (params->mue_map && params->mue_map->wa_18019110168_active) {
          brw_nir_frag_convert_attrs_prim_to_vert(
             nir, params->mue_map->per_primitive_offsets);
       } else {
-         NIR_PASS(_, nir, brw_nir_frag_convert_attrs_prim_to_vert_indirect,
-                  devinfo, params);
+         BRW_NIR_PASS(brw_nir_frag_convert_attrs_prim_to_vert_indirect,
+                      devinfo, params);
       }
       /* Remapping per-primitive inputs into unused per-vertex inputs cannot
        * work with multipolygon.
@@ -1476,16 +1482,18 @@ brw_compile_fs(const struct brw_compiler *compiler,
    brw_nir_lower_fs_inputs(nir, devinfo, key);
    brw_nir_lower_fs_outputs(nir);
 
+   BRW_NIR_SNAPSHOT("after_lower_io");
+
    if (!brw_can_coherent_fb_fetch(devinfo))
-      NIR_PASS(_, nir, brw_nir_lower_fs_load_output, key);
+      BRW_NIR_PASS(brw_nir_lower_fs_load_output, key);
 
    /* Do this lowering before brw_nir_populate_wm_prog_data(). */
-   NIR_PASS(_, nir, nir_opt_frag_coord_to_pixel_coord);
-   NIR_PASS(_, nir, nir_lower_frag_coord_to_pixel_coord);
+   BRW_NIR_PASS(nir_opt_frag_coord_to_pixel_coord);
+   BRW_NIR_PASS(nir_lower_frag_coord_to_pixel_coord);
 
-   NIR_PASS(_, nir, brw_nir_move_interpolation_to_top);
+   BRW_NIR_PASS(brw_nir_move_interpolation_to_top);
 
-   brw_nir_cleanup_pre_wm_prog_data(nir);
+   brw_nir_cleanup_pre_wm_prog_data(pt);
 
    int per_primitive_offsets[VARYING_SLOT_MAX];
    memset(per_primitive_offsets, -1, sizeof(per_primitive_offsets));
@@ -1503,12 +1511,12 @@ brw_compile_fs(const struct brw_compiler *compiler,
        * offset to determine render target 0 store instruction in
        * emit_alpha_to_coverage pass.
        */
-      NIR_PASS(_, nir, nir_opt_constant_folding);
-      NIR_PASS(_, nir, brw_nir_lower_alpha_to_coverage);
+      BRW_NIR_PASS(nir_opt_constant_folding);
+      BRW_NIR_PASS(brw_nir_lower_alpha_to_coverage);
    }
 
    if (prog_data->coarse_pixel_dispatch != INTEL_NEVER)
-      NIR_PASS(_, nir, brw_nir_lower_frag_coord_z, devinfo);
+      BRW_NIR_PASS(brw_nir_lower_frag_coord_z, devinfo);
 
    if (!brw_wm_prog_key_is_dynamic(key)) {
       uint32_t f = 0;
@@ -1530,10 +1538,10 @@ brw_compile_fs(const struct brw_compiler *compiler,
       if (prog_data->coarse_pixel_dispatch == INTEL_ALWAYS)
          f |= INTEL_MSAA_FLAG_COARSE_RT_WRITES;
 
-      NIR_PASS(_, nir, nir_inline_sysval, nir_intrinsic_load_fs_msaa_intel, f);
+      BRW_NIR_PASS(nir_inline_sysval, nir_intrinsic_load_fs_msaa_intel, f);
    }
 
-   brw_postprocess_nir_opts(nir, compiler, key->base.robust_flags);
+   brw_postprocess_nir_opts(pt, key->base.robust_flags);
 
    unsigned pressure[SIMD_COUNT];
    brw_nir_quick_pressure_estimate(nir, devinfo, pressure);
@@ -1544,8 +1552,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
          pressure[i] > compiler->register_pressure_threshold;
    }
 
-   brw_postprocess_nir_out_of_ssa(nir, 0, params->base.archiver,
-                                  debug_enabled);
+   brw_postprocess_nir_out_of_ssa(pt, debug_enabled);
 
    if (unlikely(debug_enabled))
       brw_print_fs_urb_setup(stderr, prog_data, per_primitive_offsets);

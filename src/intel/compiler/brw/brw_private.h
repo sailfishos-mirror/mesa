@@ -19,14 +19,83 @@ void brw_alloc_reg_sets(struct brw_compiler *compiler);
 extern const char *const conditional_modifier[16];
 extern const char *const pred_ctrl_align16[16];
 
+typedef struct brw_pass_tracker {
+   nir_shader *nir;
+   unsigned dispatch_width;
+
+   const struct brw_compiler *compiler;
+
+   bool progress;
+
+   /* Filled with the last line that made progress.
+    * Used to perform early break in loops.
+    * See BRW_NIR_LOOP_PASS macros below.
+    */
+   unsigned long opt_line;
+
+   /* Tracking information for the debug archiver. */
+   unsigned pass_num;
+   debug_archiver *archiver;
+} brw_pass_tracker;
+
 #ifndef NDEBUG
-void brw_debug_archive_nir(debug_archiver *archiver, nir_shader *nir,
-                           unsigned dispatch_width, const char *step);
+void
+brw_pass_tracker_archive(brw_pass_tracker *pt, const char *pass_name);
 #else
 static inline void
-brw_debug_archive_nir(debug_archiver *archiver, nir_shader *nir,
-                      unsigned dispatch_width, const char *step) {}
+brw_pass_tracker_archive(brw_pass_tracker *pt, const char *pass_name)
+{}
 #endif
+
+/* To be used in conjunction to BRW_NIR_LOOP_* macros. */
+static inline void
+pass_tracker_new_loop(brw_pass_tracker *pt)
+{
+   pt->opt_line = 0;
+}
+
+/* To be used in conjunction to BRW_NIR_LOOP_* macros. */
+static inline void
+pass_tracker_new_iteration(brw_pass_tracker *pt)
+{
+   pt->progress = false;
+}
+
+#define BRW_NIR_SNAPSHOT(name) do {                        \
+   pt->pass_num++;                                         \
+   brw_pass_tracker_archive(pt, name);                     \
+} while (false);
+
+#define BRW_NIR_PASS(pass, ...) ({                         \
+   pt->pass_num++;                                         \
+   bool this_progress = false;                             \
+   NIR_PASS(this_progress, pt->nir, pass, ##__VA_ARGS__);  \
+   if (this_progress) {                                    \
+      pt->progress = true;                                 \
+      if (unlikely(pt->archiver))                          \
+         brw_pass_tracker_archive(pt, #pass);              \
+   }                                                       \
+   this_progress;                                          \
+})
+
+#define BRW_NIR_LOOP_PASS(pass, ...) ({                    \
+   const unsigned long this_line = __LINE__;               \
+   if (pt->opt_line == this_line) {                        \
+      pt->pass_num++;                                      \
+      break;                                               \
+   }                                                       \
+   bool this_progress = BRW_NIR_PASS(pass, ##__VA_ARGS__); \
+   if (this_progress)                                      \
+      pt->opt_line = this_line;                            \
+   this_progress;                                          \
+})
+
+#define BRW_NIR_LOOP_PASS_NOT_IDEMPOTENT(pass, ...) ({     \
+   bool this_progress = BRW_NIR_PASS(pass, ##__VA_ARGS__); \
+   if (this_progress)                                      \
+      pt->opt_line = 0;                                    \
+   this_progress;                                          \
+})
 
 #ifdef __cplusplus
 }

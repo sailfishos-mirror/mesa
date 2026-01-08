@@ -816,10 +816,11 @@ lsc_urb_round_up_components(unsigned n)
 }
 
 void
-brw_nir_opt_vectorize_urb(nir_shader *nir,
-                          const struct intel_device_info *devinfo)
+brw_nir_opt_vectorize_urb(brw_pass_tracker *pt)
 {
-   NIR_PASS(_, nir, nir_opt_cse);
+   const struct intel_device_info *devinfo = pt->compiler->devinfo;
+
+   BRW_NIR_PASS(nir_opt_cse);
 
    nir_load_store_vectorize_options options = {
       .modes = nir_var_shader_in | nir_var_shader_out,
@@ -829,7 +830,7 @@ brw_nir_opt_vectorize_urb(nir_shader *nir,
          devinfo->ver >= 20 ? lsc_urb_round_up_components :
                               vec4_urb_round_up_components,
    };
-   NIR_PASS(_, nir, nir_opt_load_store_vectorize, &options);
+   BRW_NIR_PASS(nir_opt_load_store_vectorize, &options);
 }
 
 void
@@ -1423,45 +1424,19 @@ brw_nir_tag_speculative_access(nir_shader *nir)
                                      nir_metadata_all, NULL);
 }
 
-#define OPT(pass, ...) ({                                  \
-   bool this_progress = false;                             \
-   NIR_PASS(this_progress, nir, pass, ##__VA_ARGS__);      \
-   if (this_progress)                                      \
-      progress = true;                                     \
-   this_progress;                                          \
-})
-
-#define LOOP_OPT(pass, ...) ({                             \
-   const unsigned long this_line = __LINE__;               \
-   bool this_progress = false;                             \
-   if (opt_line == this_line)                              \
-      break;                                               \
-   NIR_PASS(this_progress, nir, pass, ##__VA_ARGS__);      \
-   if (this_progress) {                                    \
-      progress = true;                                     \
-      opt_line = this_line;                                \
-   }                                                       \
-   this_progress;                                          \
-})
-
-#define LOOP_OPT_NOT_IDEMPOTENT(pass, ...) ({              \
-   bool this_progress = false;                             \
-   NIR_PASS(this_progress, nir, pass, ##__VA_ARGS__);      \
-   if (this_progress) {                                    \
-      progress = true;                                     \
-      opt_line = 0;                                        \
-   }                                                       \
-   this_progress;                                          \
-})
+#define OPT BRW_NIR_PASS
+#define LOOP_OPT BRW_NIR_LOOP_PASS
+#define LOOP_OPT_NOT_IDEMPOTENT BRW_NIR_LOOP_PASS_NOT_IDEMPOTENT
 
 void
-brw_nir_optimize(nir_shader *nir,
-                 const struct intel_device_info *devinfo)
+brw_nir_optimize(brw_pass_tracker *pt)
 {
-   bool progress;
-   unsigned long opt_line = 0;
+   nir_shader *nir = pt->nir;
+
+   pass_tracker_new_loop(pt);
    do {
-      progress = false;
+      pass_tracker_new_iteration(pt);
+
       /* This pass is causing problems with types used by OpenCL :
        *    https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/13955
        *
@@ -1529,7 +1504,7 @@ brw_nir_optimize(nir_shader *nir,
       LOOP_OPT(nir_opt_gcm, false);
       LOOP_OPT(nir_opt_undef);
       LOOP_OPT(nir_lower_pack);
-   } while (progress);
+   } while (pt->progress);
 
    /* Workaround Gfxbench unused local sampler variable which will trigger an
     * assert in the opt_large_constants pass.
@@ -1718,7 +1693,15 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
                    const struct brw_nir_compiler_opts *opts)
 {
    const struct intel_device_info *devinfo = compiler->devinfo;
-   UNUSED bool progress; /* Written by OPT */
+
+   /* TODO: This is part of the "pre-processing" before the shader is fed to
+    * brw_compile_* functions, so there's no debug archiver available yet.
+    * In the future runtime/driver will create one for us to use here.
+    */
+   brw_pass_tracker pt_ = {
+      .nir = nir,
+      .compiler = compiler,
+   }, *pt = &pt_;
 
    nir_validate_ssa_dominance(nir, "before brw_preprocess_nir");
 
@@ -1753,7 +1736,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
    if (OPT(nir_opt_memcpy))
       OPT(nir_split_var_copies);
 
-   brw_nir_optimize(nir, devinfo);
+   brw_nir_optimize(pt);
 
    if (nir->info.ray_queries) {
       OPT(nir_opt_ray_queries);
@@ -1853,7 +1836,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
       OPT(intel_nir_clamp_per_vertex_loads);
 
    /* Get rid of split copies */
-   brw_nir_optimize(nir, devinfo);
+   brw_nir_optimize(pt);
 }
 
 static bool
@@ -1969,8 +1952,6 @@ void
 brw_nir_link_shaders(const struct brw_compiler *compiler,
                      nir_shader *producer, nir_shader *consumer)
 {
-   const struct intel_device_info *devinfo = compiler->devinfo;
-
    if (producer->info.stage == MESA_SHADER_MESH &&
        consumer->info.stage == MESA_SHADER_FRAGMENT) {
       uint64_t fs_inputs = 0, ms_outputs = 0;
@@ -2009,11 +1990,19 @@ brw_nir_link_shaders(const struct brw_compiler *compiler,
 
    NIR_PASS(_, producer, nir_lower_io_vars_to_scalar, nir_var_shader_out);
    NIR_PASS(_, consumer, nir_lower_io_vars_to_scalar, nir_var_shader_in);
-   brw_nir_optimize(producer, devinfo);
-   brw_nir_optimize(consumer, devinfo);
+
+   /* TODO: This is part of the "pre-processing" before the shader is fed to
+    * brw_compile_* functions, so there's no debug archiver available yet.
+    * In the future runtime/driver will create one for us to use here.
+    */
+   brw_pass_tracker pt_producer = { .nir = producer, .compiler = compiler };
+   brw_pass_tracker pt_consumer = { .nir = consumer, .compiler = compiler };
+
+   brw_nir_optimize(&pt_producer);
+   brw_nir_optimize(&pt_consumer);
 
    if (nir_link_opt_varyings(producer, consumer))
-      brw_nir_optimize(consumer, devinfo);
+      brw_nir_optimize(&pt_consumer);
 
    NIR_PASS(_, producer, nir_remove_dead_variables, nir_var_shader_out, NULL);
    NIR_PASS(_, consumer, nir_remove_dead_variables, nir_var_shader_in, NULL);
@@ -2031,8 +2020,8 @@ brw_nir_link_shaders(const struct brw_compiler *compiler,
       NIR_PASS(_, producer, nir_lower_global_vars_to_local);
       NIR_PASS(_, consumer, nir_lower_global_vars_to_local);
 
-      brw_nir_optimize(producer, devinfo);
-      brw_nir_optimize(consumer, devinfo);
+      brw_nir_optimize(&pt_producer);
+      brw_nir_optimize(&pt_consumer);
 
       if (producer->info.stage == MESA_SHADER_MESH &&
             consumer->info.stage == MESA_SHADER_FRAGMENT) {
@@ -2329,11 +2318,10 @@ brw_nir_ssbo_intel(nir_shader *shader)
 }
 
 static void
-brw_vectorize_lower_mem_access(nir_shader *nir,
-                               const struct brw_compiler *compiler,
+brw_vectorize_lower_mem_access(brw_pass_tracker *pt,
                                enum brw_robustness_flags robust_flags)
 {
-   UNUSED bool progress = false;
+   const struct brw_compiler *compiler = pt->compiler;
 
    nir_load_store_vectorize_options options = {
       .modes = nir_var_mem_ubo | nir_var_mem_ssbo |
@@ -2569,10 +2557,8 @@ flag_fused_eu_disable_instr(nir_builder *b, nir_instr *instr, void *data)
 }
 
 static void
-brw_nir_lower_int64(nir_shader *nir, const struct intel_device_info *devinfo)
+brw_nir_lower_int64(brw_pass_tracker *pt)
 {
-   UNUSED bool progress; /* Written by OPT */
-
    /* Potentially perform this optimization pass twice because it can create
     * additional opportunities for itself.
     */
@@ -2580,7 +2566,7 @@ brw_nir_lower_int64(nir_shader *nir, const struct intel_device_info *devinfo)
       OPT(nir_opt_algebraic_before_lower_int64);
 
    if (OPT(nir_lower_int64))
-      brw_nir_optimize(nir, devinfo);
+      brw_nir_optimize(pt);
 }
 
 /* Prepare the given shader for codegen
@@ -2589,12 +2575,12 @@ brw_nir_lower_int64(nir_shader *nir, const struct intel_device_info *devinfo)
  * backend and is highly backend-specific.
  */
 void
-brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
+brw_postprocess_nir_opts(brw_pass_tracker *pt,
                          enum brw_robustness_flags robust_flags)
 {
+   const struct brw_compiler *compiler = pt->compiler;
    const struct intel_device_info *devinfo = compiler->devinfo;
-
-   UNUSED bool progress; /* Written by OPT */
+   nir_shader *nir = pt->nir;
 
    const nir_lower_tex_options tex_options = {
       .lower_txp = ~0,
@@ -2637,10 +2623,7 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
 
    OPT(nir_opt_combine_barriers, combine_all_memory_barriers, NULL);
 
-   do {
-      progress = false;
-      OPT(nir_opt_algebraic_before_ffma);
-   } while (progress);
+   while (OPT(nir_opt_algebraic_before_ffma)) {}
 
    OPT(nir_opt_idiv_const, 32);
 
@@ -2665,23 +2648,23 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
 
    OPT(brw_nir_tag_speculative_access);
 
-   brw_nir_optimize(nir, devinfo);
+   brw_nir_optimize(pt);
 
    if (nir_shader_has_local_variables(nir)) {
       OPT(nir_lower_vars_to_explicit_types, nir_var_function_temp,
           glsl_get_natural_size_align_bytes);
       OPT(nir_lower_explicit_io, nir_var_function_temp,
           nir_address_format_32bit_offset);
-      brw_nir_optimize(nir, devinfo);
+      brw_nir_optimize(pt);
    }
 
-   brw_vectorize_lower_mem_access(nir, compiler, robust_flags);
+   brw_vectorize_lower_mem_access(pt, robust_flags);
 
    /* Do this after lowering memory access bit-sizes */
    if (nir->info.stage == MESA_SHADER_MESH ||
        nir->info.stage == MESA_SHADER_TASK) {
       OPT(lower_task_payload_to_urb_intrinsics, devinfo);
-      brw_nir_opt_vectorize_urb(nir, devinfo);
+      brw_nir_opt_vectorize_urb(pt);
    }
 
    /* Needs to be prior int64 lower because it generates 64bit address
@@ -2689,7 +2672,7 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
     */
    OPT(intel_nir_lower_printf);
 
-   brw_nir_lower_int64(nir, devinfo);
+   brw_nir_lower_int64(pt);
 
    /* This pass specifically looks for sequences of fmul and fadd that
     * intel_nir_opt_peephole_ffma will try to eliminate. Call this
@@ -2736,18 +2719,17 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
    OPT(brw_nir_opt_fsat);
 
    do {
-      progress = false;
+      pt->progress = false;
 
       OPT(nir_opt_algebraic_late);
 
-      if (progress) {
+      if (pt->progress) {
          OPT(nir_opt_constant_folding);
          OPT(nir_opt_copy_prop);
          OPT(nir_opt_dce);
          OPT(nir_opt_cse);
       }
-   } while (progress);
-
+   } while (pt->progress);
 
    OPT(nir_lower_fp16_casts, nir_lower_fp16_split_fp64);
 
@@ -2791,7 +2773,7 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
        * allows the elimination of some loops over, say, a TXF instruction
        * with a non-uniform texture handle.
        */
-      brw_nir_optimize(nir, devinfo);
+      brw_nir_optimize(pt);
 
       OPT(nir_lower_subgroups, &subgroups_options);
    }
@@ -2801,7 +2783,7 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
     * and peephole_select may generate a 64-bit select.  So do another
     * round at the tail end.
     */
-   brw_nir_lower_int64(nir, devinfo);
+   brw_nir_lower_int64(pt);
 
    /* Deal with EU fusion */
    if (devinfo->ver == 12) {
@@ -2828,12 +2810,10 @@ brw_postprocess_nir_opts(nir_shader *nir, const struct brw_compiler *compiler,
 }
 
 void
-brw_postprocess_nir_out_of_ssa(nir_shader *nir,
-                               unsigned dispatch_width,
-                               debug_archiver *archiver,
+brw_postprocess_nir_out_of_ssa(brw_pass_tracker *pt,
                                bool debug_enabled)
 {
-   UNUSED bool progress; /* Written by OPT */
+   nir_shader *nir = pt->nir;
 
    /* Run fsign lowering again after the last time brw_nir_optimize is called.
     * As is the case with conversion lowering (below), brw_nir_optimize can
@@ -2867,10 +2847,10 @@ brw_postprocess_nir_out_of_ssa(nir_shader *nir,
    /* Rerun the divergence analysis before convert_from_ssa as this pass has
     * some assert on consistent divergence flags.
     */
-   NIR_PASS(_, nir, nir_convert_to_lcssa, true, true);
+   OPT(nir_convert_to_lcssa, true, true);
    nir_divergence_analysis(nir);
 
-   if (unlikely(debug_enabled || archiver)) {
+   if (unlikely(debug_enabled || pt->archiver)) {
       /* Re-index SSA defs so we print more sensible numbers. */
       nir_foreach_function_impl(impl, nir) {
          nir_index_ssa_defs(impl);
@@ -2882,8 +2862,7 @@ brw_postprocess_nir_out_of_ssa(nir_shader *nir,
          nir_print_shader(nir, stderr);
       }
 
-      if (unlikely(archiver))
-         brw_debug_archive_nir(archiver, nir, dispatch_width, "ssa");
+      BRW_NIR_SNAPSHOT("ssa");
    }
 
    OPT(nir_convert_from_ssa, true, true);
@@ -2900,8 +2879,7 @@ brw_postprocess_nir_out_of_ssa(nir_shader *nir,
       nir_print_shader(nir, stderr);
    }
 
-   if (unlikely(archiver))
-      brw_debug_archive_nir(archiver, nir, dispatch_width, "out");
+   BRW_NIR_SNAPSHOT("out");
 }
 
 static unsigned
@@ -2944,12 +2922,13 @@ brw_nir_api_subgroup_size(const nir_shader *nir,
 }
 
 void
-brw_nir_apply_key(nir_shader *nir,
-                  const struct brw_compiler *compiler,
+brw_nir_apply_key(brw_pass_tracker *pt,
                   const struct brw_base_prog_key *key,
                   unsigned max_subgroup_size)
 {
-   bool progress = false;
+   nir_shader *nir = pt->nir;
+
+   pt->progress = false;
 
    const nir_lower_subgroups_options subgroups_options = {
       .subgroup_size = get_subgroup_size(&nir->info, max_subgroup_size),
@@ -2962,9 +2941,8 @@ brw_nir_apply_key(nir_shader *nir,
    if (key->limit_trig_input_range)
       OPT(brw_nir_limit_trig_input_range_workaround);
 
-   if (progress) {
-      brw_nir_optimize(nir, compiler->devinfo);
-   }
+   if (pt->progress)
+      brw_nir_optimize(pt);
 }
 
 enum brw_conditional_mod

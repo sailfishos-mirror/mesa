@@ -141,7 +141,15 @@ brw_compile_cs(const struct brw_compiler *compiler,
       prog_data->local_size[2] = nir->info.workgroup_size[2];
    }
 
-   brw_postprocess_nir_opts(nir, compiler, key->base.robust_flags);
+   brw_pass_tracker pt_ = {
+      .nir = nir,
+      .dispatch_width = 0,
+      .compiler = compiler,
+      .archiver = params->base.archiver,
+   }, *pt = &pt_;
+
+   BRW_NIR_SNAPSHOT("first");
+   brw_postprocess_nir_opts(pt, key->base.robust_flags);
 
    brw_simd_selection_state simd_state{
       .devinfo = compiler->devinfo,
@@ -170,18 +178,23 @@ brw_compile_cs(const struct brw_compiler *compiler,
       const unsigned dispatch_width = 8u << simd;
 
       nir_shader *shader = nir_shader_clone(params->base.mem_ctx, nir);
-      brw_debug_archive_nir(params->base.archiver, shader, dispatch_width, "first");
 
-      brw_nir_apply_key(shader, compiler, &key->base,
-                        dispatch_width);
+      pt_ = {
+         .nir = shader,
+         .dispatch_width = dispatch_width,
+         .compiler = compiler,
+         .archiver = params->base.archiver,
+      };
 
-      NIR_PASS(_, shader, brw_nir_lower_simd, dispatch_width);
+      BRW_NIR_SNAPSHOT("first");
+      brw_nir_apply_key(pt, &key->base, dispatch_width);
 
-      brw_nir_optimize(shader, devinfo);
+      BRW_NIR_PASS(brw_nir_lower_simd, dispatch_width);
+
+      brw_nir_optimize(pt);
       /* brw_nir_optimize undoes late lowerings. */
-      NIR_PASS(_, shader, nir_opt_algebraic_late);
-      brw_postprocess_nir_out_of_ssa(shader, dispatch_width,
-                                     params->base.archiver, debug_enabled);
+      BRW_NIR_PASS(nir_opt_algebraic_late);
+      brw_postprocess_nir_out_of_ssa(pt, debug_enabled);
 
       const brw_shader_params shader_params = {
          .compiler                = compiler,

@@ -7,6 +7,7 @@
 #include "brw_nir_rt.h"
 #include "brw_nir_rt_builder.h"
 #include "intel_nir.h"
+#include "brw_private.h"
 
 static bool
 resize_deref(nir_builder *b, nir_deref_instr *deref,
@@ -499,7 +500,12 @@ brw_nir_create_raygen_trampoline(const struct brw_compiler *compiler,
 
    NIR_PASS(_, nir, brw_nir_lower_cs_intrinsics, devinfo, NULL);
 
-   brw_nir_optimize(nir, devinfo);
+   brw_pass_tracker pt = {
+      .nir = nir,
+      .compiler = compiler,
+   };
+
+   brw_nir_optimize(&pt);
 
    return nir;
 }
