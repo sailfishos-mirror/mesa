@@ -1169,6 +1169,22 @@ nir_get_io_arrayed_index_src_number(const nir_intrinsic_instr *instr)
 }
 
 bool
+nir_is_shared_access(nir_intrinsic_instr *intr)
+{
+   return intr->intrinsic == nir_intrinsic_load_shared ||
+          intr->intrinsic == nir_intrinsic_store_shared ||
+          intr->intrinsic == nir_intrinsic_shared_atomic ||
+          intr->intrinsic == nir_intrinsic_shared_atomic_swap ||
+          intr->intrinsic == nir_intrinsic_load_shared_block_intel ||
+          intr->intrinsic == nir_intrinsic_store_shared_block_intel ||
+          intr->intrinsic == nir_intrinsic_load_shared_uniform_block_intel ||
+          intr->intrinsic == nir_intrinsic_load_shared2_amd ||
+          intr->intrinsic == nir_intrinsic_store_shared2_amd ||
+          intr->intrinsic == nir_intrinsic_shared_append_amd ||
+          intr->intrinsic == nir_intrinsic_shared_consume_amd;
+}
+
+bool
 nir_is_output_load(nir_intrinsic_instr *intr)
 {
    return intr->intrinsic == nir_intrinsic_load_output ||

@@ -5559,6 +5559,7 @@ nir_src *nir_get_io_index_src(nir_intrinsic_instr *instr);
 nir_src *nir_get_io_arrayed_index_src(nir_intrinsic_instr *instr);
 nir_src *nir_get_shader_call_payload_src(nir_intrinsic_instr *call);
 
+bool nir_is_shared_access(nir_intrinsic_instr *intr);
 bool nir_is_output_load(nir_intrinsic_instr *intr);
 bool nir_is_input_load(nir_intrinsic_instr *intr);
 bool nir_is_arrayed_io(const nir_variable *var, mesa_shader_stage stage);
