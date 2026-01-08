@@ -2686,34 +2686,32 @@ emit_binding_table(struct anv_cmd_buffer *cmd_buffer,
          bt_map[s] = surface_state.offset + state_offset;
          break;
 
-      case ANV_DESCRIPTOR_SET_DESCRIPTORS: {
-         struct anv_descriptor_set *set =
-            pipe_state->descriptors[binding->index];
+      case ANV_DESCRIPTOR_SET_DESCRIPTORS:
+         if (shader->bind_map.layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER) {
+            assert(pipe_state->descriptor_buffers[binding->index].state.alloc_size);
+            bt_map[s] = pipe_state->descriptor_buffers[binding->index].state.offset +
+                        state_offset;
+         } else {
+            struct anv_descriptor_set *set =
+               pipe_state->descriptors[binding->index];
 
-         /* If the shader doesn't access the set buffer, just put the null
-          * surface.
-          */
-         if (set->is_push && shader->push_desc_info.push_set_buffer == 0) {
-            bt_map[s] = 0;
-            break;
+            /* If the shader doesn't access the set buffer, just put the null
+             * surface.
+             */
+            if (set->is_push && shader->push_desc_info.push_set_buffer == 0) {
+               bt_map[s] = 0;
+               break;
+            }
+
+            /* This is a descriptor set buffer so the set index is actually
+             * given by binding->binding. (Yes, that's confusing.)
+             */
+            assert(set->desc_surface_mem.alloc_size);
+            assert(set->desc_surface_state.alloc_size);
+            bt_map[s] = set->desc_surface_state.offset + state_offset;
+            add_surface_reloc(cmd_buffer, anv_descriptor_set_address(set));
          }
-
-         /* This is a descriptor set buffer so the set index is actually
-          * given by binding->binding.  (Yes, that's confusing.)
-          */
-         assert(set->desc_surface_mem.alloc_size);
-         assert(set->desc_surface_state.alloc_size);
-         bt_map[s] = set->desc_surface_state.offset + state_offset;
-         add_surface_reloc(cmd_buffer, anv_descriptor_set_address(set));
          break;
-      }
-
-      case ANV_DESCRIPTOR_SET_DESCRIPTORS_BUFFER: {
-         assert(pipe_state->descriptor_buffers[binding->index].state.alloc_size);
-         bt_map[s] = pipe_state->descriptor_buffers[binding->index].state.offset +
-                     state_offset;
-         break;
-      }
 
       default: {
          assert(binding->set < MAX_SETS);

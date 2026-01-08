@@ -2238,10 +2238,7 @@ build_packed_binding_table(struct apply_pipeline_layout_state *state,
       } else if (state->set[s].desc_buffer_used) {
          map->surface_to_descriptor[map->surface_count] =
             (struct anv_pipeline_binding) {
-               .set = (state->bind_map->layout_type ==
-                       ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER) ?
-                      ANV_DESCRIPTOR_SET_DESCRIPTORS_BUFFER :
-                      ANV_DESCRIPTOR_SET_DESCRIPTORS,
+               .set = ANV_DESCRIPTOR_SET_DESCRIPTORS,
                .binding = UINT32_MAX,
                .index = s,
             };

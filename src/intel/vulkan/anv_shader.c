@@ -285,12 +285,6 @@ get_shader_bind_map_text(const struct anv_shader *shader)
             fprintf(stream, "Vulkan push constants and API params");
             break;
 
-         case ANV_DESCRIPTOR_SET_DESCRIPTORS_BUFFER:
-            fprintf(stream, "Descriptor buffer (desc buffer) for set %d (start=%dB)",
-                    bind_map->push_ranges[i].index,
-                    bind_map->push_ranges[i].start * 32);
-            break;
-
          case ANV_DESCRIPTOR_SET_DESCRIPTORS:
             fprintf(stream, "Descriptor buffer for set %d (start=%dB)",
                     bind_map->push_ranges[i].index,

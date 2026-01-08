@@ -167,23 +167,22 @@ get_push_range_address(struct anv_cmd_buffer *cmd_buffer,
 {
    struct anv_cmd_graphics_state *gfx_state = &cmd_buffer->state.gfx;
    switch (range->set) {
-   case ANV_DESCRIPTOR_SET_DESCRIPTORS: {
-      /* This is a descriptor set buffer so the set index is
-       * actually given by binding->binding.  (Yes, that's
-       * confusing.)
-       */
-      struct anv_descriptor_set *set =
-         gfx_state->base.descriptors[range->index];
-      return anv_descriptor_set_address(set);
-   }
-
-   case ANV_DESCRIPTOR_SET_DESCRIPTORS_BUFFER: {
-      return anv_address_from_u64(
-         anv_cmd_buffer_descriptor_buffer_address(
-            cmd_buffer,
-            gfx_state->base.descriptor_buffers[range->index].buffer_index) +
-         gfx_state->base.descriptor_buffers[range->index].buffer_offset);
-   }
+   case ANV_DESCRIPTOR_SET_DESCRIPTORS:
+      if (shader->bind_map.layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER) {
+         return anv_address_from_u64(
+            anv_cmd_buffer_descriptor_buffer_address(
+               cmd_buffer,
+               gfx_state->base.descriptor_buffers[range->index].buffer_index) +
+            gfx_state->base.descriptor_buffers[range->index].buffer_offset);
+      } else {
+         /* This is a descriptor set buffer so the set index is
+          * actually given by binding->binding.  (Yes, that's
+          * confusing.)
+          */
+         struct anv_descriptor_set *set =
+            gfx_state->base.descriptors[range->index];
+         return anv_descriptor_set_address(set);
+      }
 
    case ANV_DESCRIPTOR_SET_PUSH_CONSTANTS: {
       if (gfx_state->base.push_constants_state.alloc_size == 0) {
@@ -248,22 +247,22 @@ get_push_range_bound_size(struct anv_cmd_buffer *cmd_buffer,
    assert(shader->vk.stage != MESA_SHADER_COMPUTE);
    const struct anv_cmd_graphics_state *gfx_state = &cmd_buffer->state.gfx;
    switch (range->set) {
-   case ANV_DESCRIPTOR_SET_DESCRIPTORS: {
-      struct anv_descriptor_set *set =
-         gfx_state->base.descriptors[range->index];
-      struct anv_state state = set->desc_surface_mem;
-      assert(range->start * 32 < state.alloc_size);
-      assert((range->start + range->length) * 32 <= state.alloc_size);
-      return state.alloc_size;
-   }
-
-   case ANV_DESCRIPTOR_SET_DESCRIPTORS_BUFFER:
-      /* It's hard to bound a reference to a descriptor buffer because we
-       * don't have an actual buffer, only an address. So just return the
-       * maximum size of the heap (which bounds the largest buffer size).
-       */
-      return anv_physical_device_bindless_heap_size(
-         cmd_buffer->device->physical, true);
+   case ANV_DESCRIPTOR_SET_DESCRIPTORS:
+      if (shader->bind_map.layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER) {
+         /* It's hard to bound a reference to a descriptor buffer because we
+          * don't have an actual buffer, only an address. So just return the
+          * maximum size of the heap (which bounds the largest buffer size).
+          */
+         return anv_physical_device_bindless_heap_size(
+            cmd_buffer->device->physical, true);
+      } else {
+         struct anv_descriptor_set *set =
+            gfx_state->base.descriptors[range->index];
+         struct anv_state state = set->desc_surface_mem;
+         assert(range->start * 32 < state.alloc_size);
+         assert((range->start + range->length) * 32 <= state.alloc_size);
+         return state.alloc_size;
+      }
 
    case ANV_DESCRIPTOR_SET_NULL:
    case ANV_DESCRIPTOR_SET_PUSH_CONSTANTS:
