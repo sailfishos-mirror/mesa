@@ -377,9 +377,11 @@ r2d_src_buffer_unaligned(struct tu_cmd_buffer *cmd,
 
    uint32_t offset_texels = ((va & 0x3f) / util_format_get_blocksize(format));
    va &= ~0x3f;
-   tu_cs_emit_regs(cs, TPL1_A2D_BLT_CNTL(CHIP, .raw_copy = false,
-                                         .start_offset_texels = offset_texels,
-                                         .type = A6XX_TEX_IMG_BUFFER));
+   tu_cs_emit_regs(cs, TPL1_A2D_BLT_CNTL(CHIP,
+      .raw_copy = false,
+      .type = A6XX_TEX_IMG_BUFFER,
+      .start_offset_texels = offset_texels,
+   ));
 
    tu_cs_emit_regs(cs,
                    TPL1_A2D_SRC_TEXTURE_INFO(CHIP, .color_format = color_format,
@@ -507,7 +509,6 @@ r2d_setup_common(struct tu_cmd_buffer *cmd,
 
    if (CHIP > A6XX) {
       tu_cs_emit_regs(cs, TPL1_A2D_BLT_CNTL(CHIP, .raw_copy = false,
-                                                .start_offset_texels = 0,
                                                 .type = A6XX_TEX_2D));
    }
 
