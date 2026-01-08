@@ -96,6 +96,10 @@ nir_recompute_io_bases(nir_shader *nir, nir_variable_mode modes)
          unsigned num_slots = sem.num_slots;
          if (sem.medium_precision)
             num_slots = (num_slots + sem.high_16bits + 1) / 2;
+         if (nir_is_io_compact(nir, mode == nir_var_shader_out,
+                               sem.location)) {
+            num_slots = DIV_ROUND_UP(num_slots, 4);
+         }
 
          if (mode == nir_var_shader_in) {
             for (unsigned i = 0; i < num_slots; i++) {
