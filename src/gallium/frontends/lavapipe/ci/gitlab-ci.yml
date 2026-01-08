@@ -85,5 +85,5 @@ android-angle-lavapipe-cts:
   extends:
     - .test-android
     - .test-android-cts
-    - .lavapipe-rules
+    - .lavapipe-manual-rules
     - .test-angle
