@@ -175,6 +175,18 @@ nouveau_ioctl_get_param(int fd, unsigned long request, void *arg)
    case NOUVEAU_GETPARAM_GRAPH_UNITS:
       gp->value = 0x01000101;
       return 0;
+   case NOUVEAU_GETPARAM_EXEC_PUSH_MAX:
+      gp->value = 510;
+      return 0;
+   case NOUVEAU_GETPARAM_VRAM_BAR_SIZE:
+      gp->value = 1L << 34;
+      return 0;
+   case NOUVEAU_GETPARAM_VRAM_USED:
+      gp->value = 4096;
+      return 0;
+   case NOUVEAU_GETPARAM_HAS_VMA_TILEMODE:
+      gp->value = 1;
+      return 0;
    default:
       fprintf(stderr, "Unknown DRM_IOCTL_NOUVEAU_GETPARAM %llu\n",
               (long long unsigned)gp->param);
