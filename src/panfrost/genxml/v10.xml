@@ -1030,7 +1030,7 @@
     <field name="Fixed-Function" size="64" start="0:0" type="Blend Fixed-Function"/>
   </struct>
 
-  <struct name="Blend" size="4" align="16">
+  <struct name="Blend" size="4" align="64">
     <field name="Load Destination" size="1" start="0:0" type="bool" default="false"/>
     <field name="Alpha To One" size="1" start="0:8" type="bool"/>
     <field name="Enable" size="1" start="0:9" type="bool" default="true"/>
