@@ -1722,7 +1722,7 @@ anv_image_init_sparse_bindings(struct anv_image *image,
                         b->memory_range.offset + b->memory_range.size);
    }
 
-   struct anv_address base_address;
+   struct anv_address base_address = ANV_NULL_ADDRESS;
    VkResult result = anv_init_sparse_bindings(
       device, total_size, &image->sparse_data, alloc_flags,
       explicit_addresses != NULL ? explicit_addresses->main_binding : 0,
