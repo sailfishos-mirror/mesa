@@ -73,10 +73,8 @@ radv_tex_filter(VkFilter filter, unsigned max_ansio)
       return (max_ansio > 1 ? V_008F38_SQ_TEX_XY_FILTER_ANISO_POINT : V_008F38_SQ_TEX_XY_FILTER_POINT);
    case VK_FILTER_LINEAR:
       return (max_ansio > 1 ? V_008F38_SQ_TEX_XY_FILTER_ANISO_BILINEAR : V_008F38_SQ_TEX_XY_FILTER_BILINEAR);
-   case VK_FILTER_CUBIC_EXT:
    default:
-      fprintf(stderr, "illegal texture filter");
-      return 0;
+      UNREACHABLE("illegal texture filter");
    }
 }
 
