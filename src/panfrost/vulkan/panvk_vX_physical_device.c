@@ -164,6 +164,10 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_pipeline_creation_cache_control = true,
       .EXT_pipeline_creation_feedback = true,
       .EXT_pipeline_robustness = true,
+#ifdef PANVK_USE_WSI_PLATFORM
+	  .EXT_present_timing =
+         device->kmod.dev->props.gpu_can_query_timestamp,
+#endif
       .EXT_private_data = true,
       .EXT_primitive_topology_list_restart = true,
       .EXT_primitives_generated_query = PAN_ARCH >= 10,
@@ -560,6 +564,13 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_EXT_multisampled_render_to_single_sampled */
       .multisampledRenderToSingleSampled = true,
+
+#ifdef PANVK_USE_WSI_PLATFORM
+      /* VK_EXT_present_timing */
+      .presentTiming = true,
+      .presentAtRelativeTime = true,
+      .presentAtAbsoluteTime = true,
+#endif
    };
 }
 
