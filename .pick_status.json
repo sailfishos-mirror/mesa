@@ -1314,7 +1314,7 @@
         "description": "anv: skip compressed flag for bo if not supported by modifier",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f91de58818173b8ab2120a57f2cbdb81995d1ee1",
         "notes": null
