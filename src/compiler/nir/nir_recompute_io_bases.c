@@ -77,12 +77,14 @@ nir_recompute_io_bases(nir_shader *nir, nir_variable_mode modes)
    BITSET_DECLARE(color_inputs, 2); /* VARYING_SLOT_COL{0,1}, FS only */
    BITSET_DECLARE(dual_slot_inputs, NUM_TOTAL_VARYING_SLOTS); /* VS only */
    BITSET_DECLARE(outputs, NUM_TOTAL_VARYING_SLOTS);
+   BITSET_DECLARE(dual_source_outputs, NUM_TOTAL_VARYING_SLOTS);
 
    BITSET_ZERO(inputs);
    BITSET_ZERO(per_prim_inputs);
    BITSET_ZERO(color_inputs);
    BITSET_ZERO(dual_slot_inputs);
    BITSET_ZERO(outputs);
+   BITSET_ZERO(dual_source_outputs);
 
    /* Gather the bitmasks of used locations. */
    nir_foreach_block(block, impl) {
@@ -130,9 +132,10 @@ nir_recompute_io_bases(nir_shader *nir, nir_variable_mode modes)
                if (sem.high_dvec2)
                   BITSET_SET(dual_slot_inputs, location);
             }
-         } else if (!sem.dual_source_blend_index) {
-            for (unsigned i = 0; i < num_slots; i++)
-               BITSET_SET(outputs, sem.location + i);
+         } else if (sem.dual_source_blend_index) {
+            BITSET_SET_COUNT(dual_source_outputs, sem.location, num_slots);
+         } else {
+            BITSET_SET_COUNT(outputs, sem.location, num_slots);
          }
       }
    }
@@ -177,7 +180,8 @@ nir_recompute_io_bases(nir_shader *nir, nir_variable_mode modes)
                           (sem.high_dvec2 ? 1 : 0);
             }
          } else if (sem.dual_source_blend_index) {
-            new_base = BITSET_PREFIX_SUM(outputs, NUM_TOTAL_VARYING_SLOTS);
+            new_base = BITSET_PREFIX_SUM(outputs, NUM_TOTAL_VARYING_SLOTS) +
+               BITSET_PREFIX_SUM(dual_source_outputs, sem.location);
          } else {
             new_base = BITSET_PREFIX_SUM(outputs, sem.location);
          }
@@ -202,7 +206,8 @@ nir_recompute_io_bases(nir_shader *nir, nir_variable_mode modes)
    }
 
    if (modes & nir_var_shader_out) {
-      unsigned num_outputs = BITSET_COUNT(outputs);
+      unsigned num_outputs = BITSET_COUNT(outputs) +
+         BITSET_COUNT(dual_source_outputs);
 
       if (nir->num_outputs != num_outputs) {
          nir->num_outputs = num_outputs;
