@@ -1159,7 +1159,6 @@ resolve_tile_setup(struct fd_batch *batch, fd_cs &cs, uint32_t base,
                    struct pipe_surface *psurf, uint32_t unknown_8c01)
 {
    const struct fd_gmem_stateobj *gmem = batch->gmem_state;
-   uint64_t gmem_base = batch->ctx->screen->gmem_base + base;
    uint32_t gmem_pitch = gmem->bin_w * batch->framebuffer.samples *
                          util_format_get_blocksize(psurf->format);
    unsigned width = pipe_surface_width(psurf);
@@ -1202,7 +1201,12 @@ resolve_tile_setup(struct fd_batch *batch, fd_cs &cs, uint32_t base,
       .width = width,
       .height = height,
    ));
-   ncrb.add(TPL1_A2D_SRC_TEXTURE_BASE(CHIP, .qword = gmem_base));
+
+   /* gen8 simply uses gmem offset when GMEM tiling (TILE6_2) is specified: */
+   if (CHIP < A8XX)
+      base += batch->ctx->screen->gmem_base;
+
+   ncrb.add(TPL1_A2D_SRC_TEXTURE_BASE(CHIP, .qword = base));
    ncrb.add(TPL1_A2D_SRC_TEXTURE_PITCH(CHIP, .pitch = gmem_pitch));
 }
 
