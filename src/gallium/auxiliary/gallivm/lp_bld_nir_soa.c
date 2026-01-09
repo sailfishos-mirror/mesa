@@ -5535,6 +5535,12 @@ visit_tex(struct lp_build_nir_soa_context *bld, nir_tex_instr *instr)
    if (!sampler_resource)
       sampler_resource = texture_resource;
 
+   if (instr->is_array && instr->sampler_dim == GLSL_SAMPLER_DIM_1D) {
+      /* move layer coord for 1d arrays. */
+      coords[2] = coords[1];
+      coords[1] = coord_zero;
+   }
+
    switch (instr->op) {
    case nir_texop_tex:
    case nir_texop_tg4:
@@ -5552,12 +5558,6 @@ visit_tex(struct lp_build_nir_soa_context *bld, nir_tex_instr *instr)
       break;
    default:
       ;
-   }
-
-   if (instr->is_array && instr->sampler_dim == GLSL_SAMPLER_DIM_1D) {
-      /* move layer coord for 1d arrays. */
-      coords[2] = coords[1];
-      coords[1] = coord_zero;
    }
 
    uint32_t samp_base_index = 0, tex_base_index = 0;
