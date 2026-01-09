@@ -1225,7 +1225,7 @@ CDX12EncHMFT::ConfigureAsyncStatsMetadataOutputSampleAttributes( IMFSample *pSam
                                                               pPipeResourceReconstructedPicture,
                                                               PipeResourceReconstructedPictureSubresource,
                                                               pSyncObjectQueue,
-                                                              MFSampleExtension_VideoEncodeReconstructedPicture,
+                                                              MFSampleExtension_VideoEncodeD3D12ReconstructedPicture,
                                                               pSample ),
                        done );
       }

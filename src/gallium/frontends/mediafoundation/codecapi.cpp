@@ -266,9 +266,9 @@ StringFromCodecAPI( const GUID *Api )
    {
       return "CODECAPI_AVEncVideoSatdMapBlockSize";
    }
-   else if( *Api == CODECAPI_AVEncVideoReconstructedPictureOutputMode )
+   else if( *Api == CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode )
    {
-      return "CODECAPI_AVEncVideoReconstructedPictureOutputMode";
+      return "CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode";
    }
    else if( *Api == CODECAPI_AVEncVideoRateControlFramePreAnalysis )
    {
@@ -450,7 +450,7 @@ CDX12EncHMFT::IsSupported( const GUID *Api )
 
    if( m_EncoderCapabilities.m_bHWSupportReadableReconstructedPicture )
    {
-      if( *Api == CODECAPI_AVEncVideoReconstructedPictureOutputMode )
+      if( *Api == CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode )
       {
          hr = S_OK;
          return hr;
@@ -919,7 +919,7 @@ CDX12EncHMFT::GetValue( const GUID *Api, VARIANT *Value )
       Value->vt = VT_UI4;
       Value->ulVal = m_bVideoEnableFramePsnrYuv;
    }
-   else if( *Api == CODECAPI_AVEncVideoReconstructedPictureOutputMode )
+   else if( *Api == CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode )
    {
       Value->vt = VT_UI4;
       Value->ulVal = (UINT32) m_VideoReconstructedPictureMode;
@@ -1688,7 +1688,7 @@ CDX12EncHMFT::SetValue( const GUID *Api, VARIANT *Value )
       }
       m_bVideoEnableFramePsnrYuv = Value->ulVal ? TRUE : FALSE;
    }
-   else if( *Api == CODECAPI_AVEncVideoReconstructedPictureOutputMode )
+   else if( *Api == CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode )
    {
       debug_printf( "[dx12 hmft 0x%p] SET CODECAPI_AVEncVideoReconstructedPictureOutputMode - %u\n", this, Value->ulVal );
       if( Value->vt != VT_UI4 )

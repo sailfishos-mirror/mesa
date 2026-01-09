@@ -548,7 +548,7 @@ CDX12EncHMFT::PrepareForEncode( IMFSample *pSample, LPDX12EncodeContext *ppDX12E
       {
          CHECKHR_GOTO( stats_buffer_manager::Create( this,
                                                      m_spDevice.Get(),
-                                                     MFSampleExtension_VideoEncodeReconstructedPicture,
+                                                     MFSampleExtension_VideoEncodeD3D12ReconstructedPicture,
                                                      pDX12EncodeContext->pPipeVideoBuffer->width,
                                                      static_cast<uint16_t>( pDX12EncodeContext->pPipeVideoBuffer->height ),
                                                      pDX12EncodeContext->pPipeVideoBuffer->buffer_format,

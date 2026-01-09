@@ -350,17 +350,37 @@ DEFINE_GUID( MFSampleExtension_VideoEncodeSatdMap, 0xadf61d96, 0xc2d3, 0x4b57, 0
 
 #endif
 
-// MFSampleExtension_VideoEncodeReconstructedPicture {3E8A1B7F-5C92-4D6E-B834-F0A729E65C48}
-// Type: IMFMediaBuffer
-// The reconstructed picture data of an encoded video frame (Experimental).
-DEFINE_GUID(
-   MFSampleExtension_VideoEncodeReconstructedPicture, 0x3e8a1b7f, 0x5c92, 0x4d6e, 0xb8, 0x34, 0xf0, 0xa7, 0x29, 0xe6, 0x5c, 0x48 );
+#ifndef CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode
 
-#ifndef CODECAPI_AVEncVideoReconstructedPictureOutputMode
-// AVEncVideoReconstructedPictureOutputMode (VT_UI4) (Experimental, Testing only)
-// Specifies the reconstructed picture output mode for video encoding.
-// 0: disable; 1: blit copy; 2: read-only shared resource
-DEFINE_CODECAPI_GUID( AVEncVideoReconstructedPictureOutputMode,
+// MFSampleExtension_VideoEncodeD3D12ReconstructedPicture {3E8A1B7F-5C92-4D6E-B834-F0A729E65C48}
+// Type: IMFMediaBuffer
+// The reconstructed picture data of an encoded video frame from a D3D12-based MFT (Experimental).
+DEFINE_GUID( MFSampleExtension_VideoEncodeD3D12ReconstructedPicture,
+             0x3e8a1b7f,
+             0x5c92,
+             0x4d6e,
+             0xb8,
+             0x34,
+             0xf0,
+             0xa7,
+             0x29,
+             0xe6,
+             0x5c,
+             0x48 );
+
+enum eAVEncVideoD3D12ReconstructedPictureOutputMode
+{
+   eAVEncVideoEncodeD3D12ReconstructedPictureMode_None = 0,   // Does not return a D3D12 reconstructed buffer.
+   eAVEncVideoEncodeD3D12ReconstructedPictureMode_Copy =
+      1,   // Returns a copy of the D3D12 reconstructed buffer used by the encoder.
+   eAVEncVideoEncodeD3D12ReconstructedPictureMode_Shared =
+      2   // Returns the D3D12 reconstructed buffer written by the encoder without a copy.
+};
+
+// AVEncVideoD3D12ReconstructedPictureOutputMode (VT_UI4) (Experimental, Testing only)
+// This property controls the output of D3D12 reconstructed picture data from a D3D12-based encoder.
+// ulVal must be a value from the eAVEncVideoD3D12ReconstructedPictureOutputMode enumeration.
+DEFINE_CODECAPI_GUID( AVEncVideoD3D12ReconstructedPictureOutputMode,
                       "4A7B2E8F-1D93-4C6A-B548-91E2F8C5A7D3",
                       0x4a7b2e8f,
                       0x1d93,
@@ -373,7 +393,7 @@ DEFINE_CODECAPI_GUID( AVEncVideoReconstructedPictureOutputMode,
                       0xc5,
                       0xa7,
                       0xd3 )
-#define CODECAPI_AVEncVideoReconstructedPictureOutputMode DEFINE_CODECAPI_GUIDNAMED( AVEncVideoReconstructedPictureOutputMode )
+#define CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode DEFINE_CODECAPI_GUIDNAMED( AVEncVideoD3D12ReconstructedPictureOutputMode )
 
 #endif
 
