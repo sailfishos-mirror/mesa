@@ -1114,7 +1114,7 @@
         "description": "pan/bi: Use bi_emit_collect_to() for load_const",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
