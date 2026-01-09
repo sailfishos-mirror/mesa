@@ -190,6 +190,8 @@ u_init_pipe_screen_caps(struct pipe_screen *pscreen, int accel)
 
    caps->max_label_length = 256;
    caps->max_texture_mb = 1024;
+
+   caps->prefer_persp = false;
 }
 
 uint64_t u_default_get_timestamp(UNUSED struct pipe_screen *screen)
