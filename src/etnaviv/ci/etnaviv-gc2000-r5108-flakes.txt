@@ -267,19 +267,70 @@ dEQP-GLES2.functional.shaders.random.texture.fragment.138
 dEQP-GLES2.functional.texture.filtering.2d.linear_nearest_mirror_rgb888_pot
 dEQP-GLES2.functional.texture.filtering.2d.nearest_mipmap_nearest_nearest_mirror_rgba8888
 dEQP-GLES2.functional.uniform_api.random.48
+shaders@glsl-fs-bug25902
+shaders@zero-tex-coord bias
+spec@!opengl 1.1@gl-1.1-drawarrays-vertex-count 100000 vbo gl_triangle_strip
+spec@!opengl 1.2@copyteximage 3d
+spec@!opengl 1.2@levelclamp
+spec@!opengl 1.4@gl-1.4-tex1d-2dborder
+spec@!opengl 1.4@tex-miplevel-selection
+spec@!opengl 2.0@attribs
+spec@!opengl 2.0@max-samplers
 spec@arb_color_buffer_float@gl_rgba8-drawpixels
+spec@arb_depth_texture@fbo-clear-formats
+spec@arb_depth_texture@fbo-clear-formats@GL_DEPTH_COMPONENT16
 spec@arb_es2_compatibility@fbo-clear-formats
 spec@arb_es2_compatibility@fbo-clear-formats@GL_RGB565
+spec@arb_fragment_program@fog-modes
+spec@arb_fragment_program_shadow@tex-shadow1d
+spec@arb_fragment_program_shadow@txp-shadow1d
+spec@arb_framebuffer_object@fbo-generatemipmap-3d
+spec@arb_pixel_buffer_object@texsubimage pbo manual gl_texture_2d gl_rgb8 6 10 0 94 53 0
 spec@arb_point_sprite@arb_point_sprite-checkerboard
+spec@arb_separate_shader_objects@400 combinations by name
 spec@ati_texture_compression_3dc@texwrap formats
 spec@ati_texture_compression_3dc@texwrap formats@GL_COMPRESSED_LUMINANCE_ALPHA_3DC_ATI
 spec@ati_texture_compression_3dc@texwrap formats@GL_COMPRESSED_LUMINANCE_ALPHA_3DC_ATI- swizzled
+spec@ext_framebuffer_object@fbo-clear-formats
+spec@ext_framebuffer_object@fbo-clear-formats@3
+spec@ext_framebuffer_object@fbo-clear-formats@4
+spec@ext_framebuffer_object@fbo-clear-formats@GL_R3_G3_B2
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGB
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGB10
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGB10_A2
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGB12
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGB16
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGB4
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGB5
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGB8
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGBA
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGBA2
+spec@ext_framebuffer_object@fbo-clear-formats@GL_RGBA4
+spec@ext_framebuffer_object@fbo-flushing-2
+spec@ext_packed_depth_stencil@fbo-clear-formats stencil
+spec@ext_packed_depth_stencil@fbo-clear-formats stencil@GL_DEPTH_STENCIL
+spec@ext_texture_array@glsl-fs-shadow2darray
+spec@ext_texture_compression_s3tc@gen-compressed-teximage
+spec@ext_texture_lod_bias@lodbias
+spec@glsl-1.10@execution@built-in-functions@fs-acos-vec3
+spec@glsl-1.10@execution@built-in-functions@fs-lessthanequal-ivec3-ivec3
 spec@glsl-1.10@execution@built-in-functions@fs-op-add-ivec3-ivec3
+spec@glsl-1.10@execution@built-in-functions@fs-op-ne-int-int-using-if
+spec@glsl-1.10@execution@built-in-functions@vs-equal-vec4-vec4
+spec@glsl-1.10@execution@built-in-functions@vs-fract-float
 spec@glsl-1.10@execution@built-in-functions@vs-op-gt-float-float
+spec@glsl-1.10@execution@built-in-functions@vs-op-mult-vec4-float
 spec@glsl-1.10@execution@copy-propagation@glsl-fs-copy-propagation-texcoords-1
 spec@glsl-1.10@execution@samplers@glsl-fs-texture2d
+spec@glsl-1.10@execution@samplers@glsl-fs-texture2d-bias
+spec@glsl-1.10@execution@samplers@glsl-fs-texture2d-dependent-5
 spec@glsl-1.10@execution@samplers@glsl-fs-texture2d-masked-3
+spec@glsl-1.10@execution@samplers@glsl-fs-texture2d-masked-4
+spec@glsl-1.10@execution@samplers@in-parameter-struct-array
+spec@glsl-1.10@execution@temp_arrays
 spec@glsl-1.20@execution@built-in-functions@fs-op-sub-float-mat4x3
+spec@glsl-1.20@execution@built-in-functions@vs-outerproduct-vec2-vec3
+spec@oes_draw_texture@oes_draw_texture
 
 # regularly repeated flake
 spec@khr_texture_compression_astc@miptree-gles ldr

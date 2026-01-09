@@ -641,7 +641,6 @@ spec@glsl-1.10@execution@variable-indexing@fs-input-array-float-index-rd,Fail
 spec@glsl-1.10@execution@variable-indexing@fs-input-array-vec2-index-rd,Fail
 
 # uprev Piglit in Mesa
-shaders@zero-tex-coord bias,Fail
 spec@!opengl 1.1@push-pop-color-material,Fail
 spec@!opengl 1.1@teximage-scale-bias,Fail
 spec@arb_fragment_program_shadow@tex-shadow2drect,Fail
