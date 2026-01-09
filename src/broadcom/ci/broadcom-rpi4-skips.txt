@@ -96,12 +96,6 @@ dEQP-VK.shader_object.rendering.*
 dEQP-VK.sparse_resources.*
 dEQP-VK.transform_feedback.*
 
-# These are due an issue in CTS that is already fixed upstream
-asan-KHR-GL31.ext_texture_shadow_lod.texture.sampler2darrayshadow_bias_fragment
-asan-KHR-GLES31.core.geometry_shader.adjacency.adjacency_indiced_triangle_strip
-asan-KHR-GLES31.core.geometry_shader.api.fs_gs_draw_call
-asan-KHR-GLES31.core.geometry_shader.linking.more_ACs_in_GS_than_supported
-
 # These generate OOM on purpose to test failures. Better skip them to
 # avoid interferences when running with other tests in parallel
 dEQP-VK.api.device_init.create_instance_device_intentional_alloc_fail.basic
@@ -132,9 +126,6 @@ dEQP-VK.image.concurrent_copy.vk_format_r8g8b8a8_unorm.vk_image_tiling_optimal.v
 dEQP-VK.image.concurrent_copy.vk_format_r8g8b8a8_unorm.vk_image_tiling_optimal.vk_image_type_3d.multiple.random.device.write
 dEQP-VK.image.concurrent_copy.vk_format_r8g8b8a8_unorm.vk_image_tiling_optimal.vk_image_type_3d.single.gradient.device.write
 dEQP-VK.image.concurrent_copy.vk_format_r8g8b8a8_unorm.vk_image_tiling_optimal.vk_image_type_3d.single.random.device.write
-
-# Leaky in VKCTS 1.4.1.1
-asan-dEQP-VK.video.*
 
 # These tests cause GPU resets
 dEQP-VK.pipeline.monolithic.input_assembly.primitive_restart.restart_mix.restart_mix_triangle_list_dynamic_topo

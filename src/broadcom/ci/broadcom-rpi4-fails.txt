@@ -499,13 +499,11 @@ KHR-GL31.framebuffer_blit.framebuffer_blit_functionality_multisampled_to_singles
 KHR-GL31.transform_feedback3.multiple_streams,Fail
 KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
 KHR-GL31.transform_feedback3.skip_components,Fail
-asan-KHR-GL31.transform_feedback3.multiple_streams,Fail
 arm32-KHR-GL31.framebuffer_blit.framebuffer_blit_functionality_multisampled_to_singlesampled_blit,Fail
 arm32-KHR-GL31.transform_feedback3.multiple_streams,Fail
 arm32-KHR-GL31.transform_feedback3.skip_components,Fail
 arm32-KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
 
-asan-KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
 ubsan-KHR-GL31.transform_feedback3.multiple_streams,Fail
 
 # New failures with GL CTS 4.6.6.0
