@@ -995,8 +995,6 @@ kopperSetSurfaceCreateInfo(void *_draw, struct kopper_loader_info *ci)
       dri2_egl_display(dri2_surf->base.Resource.Display);
    VkXcbSurfaceCreateInfoKHR *xcb = (VkXcbSurfaceCreateInfoKHR *)&ci->bos;
 
-   if (dri2_surf->base.Type != EGL_WINDOW_BIT)
-      return;
    xcb->sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
    xcb->pNext = NULL;
    xcb->flags = 0;
