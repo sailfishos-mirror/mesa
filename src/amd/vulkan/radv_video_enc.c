@@ -1689,16 +1689,10 @@ radv_enc_ctx2(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *in
    if (info->pSetupReferenceSlot) {
       max_ref_slot_idx = info->pSetupReferenceSlot->slotIndex;
       slots[info->pSetupReferenceSlot->slotIndex] = info->pSetupReferenceSlot->pPictureResource;
-   } else if (vid->vk.max_dpb_slots == 0) {
+   } else {
+      assert(vid->vk.max_dpb_slots == 0);
       intra_only_dpb = true;
       slots[0] = &info->srcPictureResource;
-   } else {
-      /* Workaround for CTS bug dEQP-VK.video.encode.h264.i_p_b_13_layered_src_general_layout:
-       *   VUID-vkCmdEncodeVideoKHR-pEncodeInfo-08377
-       *    pEncodeInfo->pSetupReferenceSlot must not be NULL unless the bound video session
-       *    was created with VkVideoSessionCreateInfoKHR::maxDpbSlots equal to zero
-       */
-      slots[0] = info->pReferenceSlots[0].pPictureResource;
    }
 
    for (unsigned i = 0; i < info->referenceSlotCount; i++) {
