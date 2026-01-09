@@ -508,6 +508,9 @@ struct gl_program
    /** whether to skip VARYING_SLOT_PSIZ in st_translate_stream_output_info() */
    bool skip_pointsize_xfb;
 
+   /** Determine whether ::sh or ::arb (below) is valid. */
+   bool is_arb_asm;
+
    /** A bitfield indicating which vertex shader inputs consume two slots
     *
     * This is used for mapping from single-slot input locations in the GL API

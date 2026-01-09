@@ -884,7 +884,7 @@
         "description": "mesa: Fix segfaults in _mesa_delete_program and _mesa_reference_program_",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ca16c271fa7b016714899c7dd92e0e7dd95c08e2",
         "notes": null
