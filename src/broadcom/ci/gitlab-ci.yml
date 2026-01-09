@@ -45,6 +45,7 @@ vc4-rpi3-gl:arm32:
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 20
     DEQP_SUITE: broadcom-rpi3-gl-arm32
+    DEQP_FRACTION: 2
 
 # ASan fails when running on rpi3
 .vc4-rpi3-gl-asan:arm64:
@@ -145,6 +146,7 @@ v3d-rpi4-gl:arm32:
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 30
     DEQP_SUITE: broadcom-rpi4-gl-arm32
+    DEQP_FRACTION: 3
 
 # ASan fails when running on rpi4
 .v3d-rpi4-gl-asan:arm64:
@@ -171,7 +173,7 @@ v3d-rpi4-gl-ubsan:arm64:
     # UBSan is quite slow, so restrict to 1 job
     FDO_CI_CONCURRENT: 1
     DEQP_SUITE: broadcom-rpi4-gl-ubsan
-    DEQP_FRACTION: 8
+    DEQP_FRACTION: 9
 
 v3dv-rpi4-vk:arm64:
   extends:
