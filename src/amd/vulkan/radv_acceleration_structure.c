@@ -188,10 +188,10 @@ radv_get_update_scratch_layout(struct radv_device *device, const struct vk_accel
                                struct update_scratch_layout *scratch)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-
    uint32_t internal_count = MAX2(state->leaf_node_count, 2) - 1;
-
    uint32_t offset = 0;
+
+   memset(scratch, 0, sizeof(*scratch));
 
    if (radv_use_bvh8(pdev)) {
       scratch->geometry_data_offset = offset;
