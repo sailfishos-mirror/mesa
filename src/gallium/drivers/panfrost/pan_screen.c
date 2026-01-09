@@ -929,6 +929,9 @@ panfrost_init_screen_caps(struct panfrost_screen *screen)
 
    /* We hard-code this value as it is dictated by driver uAPI */
    caps->max_label_length = 4096;
+
+   /* Avoid emulating non-perspective interpolation when not needed */
+   caps->prefer_persp = true;
 }
 
 static void
