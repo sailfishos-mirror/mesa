@@ -1084,7 +1084,6 @@ typedef struct {
    bi_block *break_block;
    bi_block *continue_block;
    bi_block **indexed_nir_blocks;
-   bool emitted_atest;
 
    /* During NIR->BIR, the coverage bitmap. If this is NULL, the default
     * coverage bitmap should be source from preloaded register r60. This is

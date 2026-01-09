@@ -917,58 +917,6 @@ bi_emit_load_blend_input(bi_builder *b, nir_intrinsic_instr *instr)
    bi_emit_collect_to(b, bi_def_index(&instr->def), srcs, size == 32 ? 4 : 2);
 }
 
-static void
-bi_emit_blend_op(bi_builder *b, bi_index rgba, nir_alu_type T, bi_index rgba2,
-                 nir_alu_type T2, unsigned rt)
-{
-   /* Reads 2 or 4 staging registers to cover the input */
-   unsigned size = nir_alu_type_get_type_size(T);
-   unsigned size_2 = nir_alu_type_get_type_size(T2);
-   unsigned sr_count = (size <= 16) ? 2 : 4;
-   unsigned sr_count_2 = (size_2 <= 16) ? 2 : 4;
-   enum bi_register_format regfmt = bi_reg_fmt_for_nir(T);
-
-   /* Workaround for NIR-to-TGSI */
-   if (b->shader->nir->info.fs.untyped_color_outputs)
-      regfmt = BI_REGISTER_FORMAT_AUTO;
-
-   /* Blend descriptor comes from the FAU RAM. By convention, the
-    * return address on Bifrost is stored in r48 and will be used
-    * by the blend shader to jump back to the fragment shader */
-
-   bi_blend_to(b, bi_temp(b->shader), rgba, bi_coverage(b),
-               bi_fau(BIR_FAU_BLEND_0 + rt, false),
-               bi_fau(BIR_FAU_BLEND_0 + rt, true), rgba2, regfmt, sr_count,
-               sr_count_2);
-
-   assert(rt < 8);
-   b->shader->info.bifrost->blend[rt].type = T;
-
-   if (T2)
-      b->shader->info.bifrost->blend_src1_type = T2;
-}
-
-/* Blend shaders do not need to run ATEST since they are dependent on a
- * fragment shader that runs it. Blit shaders may not need to run ATEST, since
- * ATEST is not needed if early-z is forced, alpha-to-coverage is disabled, and
- * there are no writes to the coverage mask. The latter two are satisfied for
- * all blit shaders, so we just care about early-z, which blit shaders force
- * iff they do not write depth or stencil */
-
-static bool
-bi_skip_atest(bi_context *ctx, bool emit_zs)
-{
-   return (ctx->inputs->is_blit && !emit_zs) || ctx->inputs->is_blend;
-}
-
-static void
-bi_emit_atest(bi_builder *b, bi_index alpha)
-{
-   b->shader->coverage =
-      bi_atest(b, bi_coverage(b), alpha, bi_fau(BIR_FAU_ATEST_PARAM, false));
-   b->shader->emitted_atest = true;
-}
-
 static bi_index
 bi_src_color_vec4(bi_builder *b, nir_src *src, nir_alu_type T)
 {
@@ -994,106 +942,6 @@ bi_src_color_vec4(bi_builder *b, nir_src *src, nir_alu_type T)
    bi_index temp = bi_temp(b->shader);
    bi_make_vec_to(b, temp, src_vals, NULL, 4, size);
    return temp;
-}
-
-static void
-bi_emit_fragment_out(bi_builder *b, nir_intrinsic_instr *instr)
-{
-   bool combined = instr->intrinsic == nir_intrinsic_store_combined_output_pan;
-
-   unsigned writeout =
-      combined ? nir_intrinsic_component(instr) : PAN_WRITEOUT_C;
-
-   bool emit_blend = writeout & (PAN_WRITEOUT_C);
-   bool emit_zs = writeout & (PAN_WRITEOUT_Z | PAN_WRITEOUT_S);
-
-   unsigned loc = nir_intrinsic_io_semantics(instr).location;
-   bi_index src0 = bi_src_index(&instr->src[0]);
-
-   /* Blend shaders should use nir_intrinsic_blend_pan */
-   assert(!b->shader->inputs->is_blend);
-
-   /* By ISA convention, the coverage mask is stored in R60. The store
-    * itself will be handled by a subsequent ATEST instruction */
-   if (loc == FRAG_RESULT_SAMPLE_MASK) {
-      b->shader->coverage = bi_extract(b, src0, 0);
-      return;
-   }
-
-   /* Emit ATEST if we have to, note ATEST requires a floating-point alpha
-    * value, but render target #0 might not be floating point. However the
-    * alpha value is only used for alpha-to-coverage, a stage which is
-    * skipped for pure integer framebuffers, so the issue is moot. */
-
-   if (!b->shader->emitted_atest && !bi_skip_atest(b->shader, emit_zs)) {
-      nir_alu_type T = nir_intrinsic_src_type(instr);
-
-      bi_index rgba = bi_src_index(&instr->src[0]);
-      bi_index alpha;
-
-      if (nir_src_num_components(instr->src[0]) < 4) {
-         /* Don't read out-of-bounds */
-         alpha = bi_imm_f32(1.0);
-      } else if (T == nir_type_float16) {
-         alpha = bi_half(bi_extract(b, rgba, 1), true);
-      } else if (T == nir_type_float32) {
-         alpha = bi_extract(b, rgba, 3);
-      } else {
-         alpha = bi_dontcare(b);
-      }
-      bi_emit_atest(b, alpha);
-   }
-
-   if (emit_zs) {
-      bi_index z = bi_dontcare(b), s = bi_dontcare(b);
-
-      if (writeout & PAN_WRITEOUT_Z)
-         z = bi_src_index(&instr->src[2]);
-
-      if (writeout & PAN_WRITEOUT_S)
-         s = bi_src_index(&instr->src[3]);
-
-      b->shader->coverage =
-         bi_zs_emit(b, z, s, bi_coverage(b), writeout & PAN_WRITEOUT_S,
-                    writeout & PAN_WRITEOUT_Z);
-   }
-
-   if (emit_blend) {
-      unsigned rt = loc ? (loc - FRAG_RESULT_DATA0) : 0;
-      bool dual = (writeout & PAN_WRITEOUT_2);
-      nir_alu_type T = nir_intrinsic_src_type(instr);
-      nir_alu_type T2 = dual ? nir_intrinsic_dest_type(instr) : 0;
-      bi_index color = bi_src_color_vec4(b, &instr->src[0], T);
-      bi_index color2 =
-         dual ? bi_src_color_vec4(b, &instr->src[4], T2) : bi_null();
-
-      if (instr->intrinsic == nir_intrinsic_store_output &&
-          loc >= FRAG_RESULT_DATA0 && loc <= FRAG_RESULT_DATA7) {
-         assert(nir_src_is_const(instr->src[1]) && "no indirect outputs");
-
-         unsigned rt_offs = nir_src_as_uint(instr->src[1]);
-
-         assert(rt + rt_offs < 8 && "RT not in the [0-7] range");
-         rt += rt_offs;
-      }
-
-      /* Explicit copy since BLEND inputs are precoloured to R0-R3,
-       * TODO: maybe schedule around this or implement in RA as a
-       * spill */
-      bool has_mrt =
-         (b->shader->nir->info.outputs_written >> FRAG_RESULT_DATA1);
-
-      if (has_mrt) {
-         bi_index srcs[4] = {color, color, color, color};
-         unsigned channels[4] = {0, 1, 2, 3};
-         color = bi_temp(b->shader);
-         bi_make_vec_to(
-            b, color, srcs, channels, nir_src_num_components(instr->src[0]),
-            nir_alu_type_get_type_size(nir_intrinsic_src_type(instr)));
-      }
-
-      bi_emit_blend_op(b, color, nir_intrinsic_src_type(instr), color2, T2, rt);
-   }
 }
 
 static unsigned
@@ -2212,7 +2060,7 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
    case nir_intrinsic_store_output:
    case nir_intrinsic_store_per_view_output:
       if (stage == MESA_SHADER_FRAGMENT)
-         bi_emit_fragment_out(b, instr);
+         UNREACHABLE("Should have been lowered by pan_nir_lower_fs_outputs");
       else if (stage == MESA_SHADER_VERTEX)
          bi_emit_store_vary(b, instr);
       else
@@ -2225,10 +2073,6 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
    case nir_intrinsic_store_pixel_local:
       assert(stage == MESA_SHADER_FRAGMENT);
       bi_emit_store_pls(b, instr);
-      break;
-   case nir_intrinsic_store_combined_output_pan:
-      assert(stage == MESA_SHADER_FRAGMENT);
-      bi_emit_fragment_out(b, instr);
       break;
 
    case nir_intrinsic_load_cumulative_coverage_pan:
@@ -2246,7 +2090,6 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_index coverage = bi_src_index(&instr->src[0]);
       bi_index alpha = bi_src_index(&instr->src[1]);
       bi_atest_to(b, dst, coverage, alpha, bi_fau(BIR_FAU_ATEST_PARAM, false));
-      b->shader->emitted_atest = true;
       break;
    }
 
@@ -6811,17 +6654,6 @@ bi_compile_variant_nir(nir_shader *nir,
 
    bi_validate(ctx, "NIR -> BIR");
 
-   /* If the shader doesn't write any colour or depth outputs, it may
-    * still need an ATEST at the very end! */
-   bool need_dummy_atest = (ctx->stage == MESA_SHADER_FRAGMENT) &&
-                           !ctx->emitted_atest && !bi_skip_atest(ctx, false);
-
-   if (need_dummy_atest) {
-      bi_block *end = list_last_entry(&ctx->blocks, bi_block, link);
-      bi_builder b = bi_init_builder(ctx, bi_after_block(end));
-      bi_emit_atest(&b, bi_zero());
-   }
-
    bool optimize = !(bifrost_debug & BIFROST_DBG_NOOPT);
 
    /* Runs before constant folding */
@@ -7161,11 +6993,6 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    bifrost_debug = debug_get_option_bifrost_debug();
 
-   /* Combine stores late, to give the driver a chance to lower dual-source
-    * blending as regular store_output intrinsics.
-    */
-   NIR_PASS(_, nir, pan_nir_lower_zs_store);
-
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       info->vs.idvs = bi_should_idvs(nir, inputs);
 
@@ -7191,6 +7018,20 @@ bifrost_compile_shader_nir(nir_shader *nir,
             NIR_PASS(_, nir, nir_opt_if, 0);
          }
       }
+   }
+
+   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      /* Blit shaders may not need to run ATEST, since ATEST is not needed if
+       * early-z is forced, alpha-to-coverage is disabled, and there are no
+       * writes to the coverage mask. The latter two are satisfied for all
+       * blit shaders, so we just care about early-z, which blit shaders force
+       * iff they do not write depth or stencil
+       */
+      const bool emit_zs =
+         nir->info.outputs_written & (BITFIELD_BIT(FRAG_RESULT_DEPTH) |
+                                      BITFIELD_BIT(FRAG_RESULT_STENCIL));
+      const bool skip_atest = inputs->is_blit && !emit_zs;
+      NIR_PASS(_, nir, pan_nir_lower_fs_outputs, skip_atest);
    }
 
    bi_optimize_nir(nir, inputs->gpu_id, inputs->robust2_modes);
