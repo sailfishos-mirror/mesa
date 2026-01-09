@@ -1534,6 +1534,9 @@ static inline pco_instr *pco_prev_instr(pco_instr *instr)
  */
 static inline pco_igrp *pco_first_igrp(pco_block *block)
 {
+   if (list_is_empty(&block->instrs))
+      return NULL;
+
    return list_first_entry(&block->instrs, pco_igrp, link);
 }
 
@@ -1545,6 +1548,9 @@ static inline pco_igrp *pco_first_igrp(pco_block *block)
  */
 static inline pco_igrp *pco_last_igrp(pco_block *block)
 {
+   if (list_is_empty(&block->instrs))
+      return NULL;
+
    return list_first_entry(&block->instrs, pco_igrp, link);
 }
 
