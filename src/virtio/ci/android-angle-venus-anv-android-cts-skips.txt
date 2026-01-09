@@ -29,3 +29,7 @@ x86_64 CtsGraphicsTestCases android.graphics.fonts.SystemFontsTest#testFontsFall
 x86_64 CtsGraphicsTestCases android.graphics.fonts.SystemFontsTest#testAvailableFonts_ReadOnlyFile[0]
 
 x86_64 CtsNativeHardwareTestCases android.hardware.nativehardware.cts.AHardwareBufferNativeTests#AHardwareBufferTest_AllocateLockUnlockDeallocateStressTest
+
+# Hits an assert since ANGLE enabled VK_KHR_swapchain_mutable_format
+# '../src/virtio/vulkan/vn_android.c:261: VkResult vn_android_image_from_anb_internal(struct vn_device *, const VkImageCreateInfo *, const VkNativeBufferANDROID *, const VkAllocationCallbacks *, struct vn_image **): assertion "!(create_info-&gt;flags &amp; VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)" failed'
+x86_64 CtsGraphicsTestCases android.graphics.cts.CameraGpuTest#testCameraImageCaptureAndRendering

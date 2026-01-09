@@ -13,7 +13,7 @@ section_start angle "Building ANGLE"
 # setting up the environment variables locally
 ci_tag_build_time_check "ANGLE_TAG"
 
-ANGLE_REV="b406401e42080c2f8fe479e6c5fa48dfae97c482"
+ANGLE_REV="63d1dd7c2dfccf6acbd92af224b48aa6ada45f1c"
 DEPOT_REV="5982a1aeb33dc36382ed8c62eddf52a6135e7dd3"
 
 # Set ANGLE_ARCH based on DEBIAN_ARCH if it hasn't been explicitly defined
@@ -129,6 +129,16 @@ if [[ "$DEBIAN_ARCH" = "arm64" ]]; then
   # 'arm64' toolchain you get from Google infrastructure is a cross-compiler
   # from x86-64
   build/linux/sysroot_scripts/install-sysroot.py --arch=arm64
+
+  # The Bullseye sysroot is too old for Chromium's default PAC/BTI setup.
+  # Chromium forces -z force-bti on arm64, but our sysroot objects lack BTI
+  # notes, which breaks linking. Disable branch protection to keep the build
+  # sane. See:
+  # https://chromium.googlesource.com/chromium/src/build/+/7c4a6063/config/linux/BUILD.gn#87
+  # https://chromium.googlesource.com/chromium/src/build/+/7c4a6063/config/arm.gni#77
+  cat >> out/Release/args.gn <<EOF
+arm_control_flow_integrity="none"
+EOF
 fi
 
 (
