@@ -257,6 +257,9 @@ pvr_get_image_format_features2(struct pvr_physical_device *pdevice,
 
    assert(pvr_format->bind != 0);
 
+   const struct vk_format_ycbcr_info *ycbcr_info =
+      vk_format_get_ycbcr_info(vk_format);
+
    if (pvr_format->bind & PVR_BIND_SAMPLER_VIEW) {
       if (vk_tiling == VK_IMAGE_TILING_OPTIMAL) {
          const uint32_t first_component_size =
@@ -265,7 +268,6 @@ pvr_get_image_format_features2(struct pvr_physical_device *pdevice,
                                          0);
 
          flags |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT |
-                  VK_FORMAT_FEATURE_2_BLIT_SRC_BIT |
                   VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT |
                   VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT;
 
@@ -275,11 +277,22 @@ pvr_get_image_format_features2(struct pvr_physical_device *pdevice,
               vk_format_is_block_compressed(vk_format))) {
             flags |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
          }
+
+         if (ycbcr_info) {
+            flags |= VK_FORMAT_FEATURE_2_COSITED_CHROMA_SAMPLES_BIT;
+         } else {
+            flags |= VK_FORMAT_FEATURE_2_BLIT_SRC_BIT;
+         }
       } else if (!vk_format_is_block_compressed(vk_format)) {
          flags |= VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT |
-                  VK_FORMAT_FEATURE_2_BLIT_SRC_BIT |
                   VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT |
                   VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT;
+
+         if (ycbcr_info) {
+            flags |= VK_FORMAT_FEATURE_2_COSITED_CHROMA_SAMPLES_BIT;
+         } else {
+            flags |= VK_FORMAT_FEATURE_2_BLIT_SRC_BIT;
+         }
       }
    }
 
@@ -741,6 +754,12 @@ VkResult pvr_GetPhysicalDeviceImageFormatProperties2(
       case VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES:
          external_props = (void *)ext;
          break;
+      case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_IMAGE_FORMAT_PROPERTIES: {
+         VkSamplerYcbcrConversionImageFormatProperties *ycbcr_props =
+            (void *)ext;
+         ycbcr_props->combinedImageSamplerDescriptorCount = 1;
+         break;
+      }
       default:
          vk_debug_ignored_stype(ext->sType);
          break;

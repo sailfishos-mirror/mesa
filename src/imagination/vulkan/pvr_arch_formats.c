@@ -59,6 +59,14 @@
       .bind = FLAGS_##bind_,                               \
    }
 
+#define FORMAT_YCBCR(vk, tex_fmt)                          \
+   [PIPE_FORMAT_##vk] = {                                  \
+      .tex_format = ROGUE_TEXSTATE_FORMAT_##tex_fmt,       \
+      .depth_tex_format = ROGUE_TEXSTATE_FORMAT_INVALID,   \
+      .stencil_tex_format = ROGUE_TEXSTATE_FORMAT_INVALID, \
+      .bind = FLAGS__T__,                                  \
+   }
+
 #define FORMAT_COMPRESSED(vk, tex_fmt)                          \
    [PIPE_FORMAT_##vk] = {                                       \
       .tex_format = ROGUE_TEXSTATE_FORMAT_COMPRESSED_##tex_fmt, \
@@ -157,9 +165,12 @@ static const struct pvr_format pvr_format_table[] = {
    FORMAT_COMPRESSED(ETC2_R11_SNORM, EAC_R11_SIGNED),
    FORMAT_COMPRESSED(ETC2_RG11_UNORM, EAC_RG11_UNSIGNED),
    FORMAT_COMPRESSED(ETC2_RG11_SNORM, EAC_RG11_SIGNED),
+   FORMAT_YCBCR(G8_B8R8_420_UNORM, YVU420_2PLANE),
+   FORMAT_YCBCR(G8_B8_R8_420_UNORM, YUV420_3PLANE),
 };
 /* clang-format on */
 
+#undef FORMAT_YCBCR
 #undef FORMAT
 #undef FORMAT_DEPTH_STENCIL
 #undef FORMAT_COMPRESSED
