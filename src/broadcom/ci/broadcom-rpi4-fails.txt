@@ -946,6 +946,13 @@ ubsan-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.r32ui_r
 ubsan-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2_rgb10_a2.texture2d_to_renderbuffer,Fail
 ubsan-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rgb10_a2ui.renderbuffer_to_renderbuffer,Fail
 
+arm32-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_128_bits.rgba32ui_rgba32ui.texture2d_to_renderbuffer,Fail
+arm32-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_16_bits.r16ui_r16ui.renderbuffer_to_renderbuffer,Fail
+arm32-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_16_bits.r16ui_r16ui.texture2d_to_renderbuffer,Fail
+arm32-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_16_bits.rg8_rg8.texture2d_to_renderbuffer,Fail
+arm32-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rg16i_rg16i.texture2d_to_renderbuffer,Fail
+arm32-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_64_bits.rgba16ui_rgba16ui.renderbuffer_to_renderbuffer,Fail
+
 # SKQP failing tests
 ES2BlendWithNoTexture,Fail
 SRGBReadWritePixels,Fail
