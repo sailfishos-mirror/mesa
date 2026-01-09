@@ -2269,6 +2269,101 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_emit_fragment_out(b, instr);
       break;
 
+   case nir_intrinsic_load_cumulative_coverage_pan:
+      bi_mov_i32_to(b, dst, bi_preload(b, 60));
+      break;
+
+   case nir_intrinsic_load_blend_descriptor_pan: {
+      unsigned rt = nir_intrinsic_base(instr);
+      bi_collect_v2i32_to(b, dst, bi_fau(BIR_FAU_BLEND_0 + rt, false),
+                                  bi_fau(BIR_FAU_BLEND_0 + rt, true));
+      break;
+   }
+
+   case nir_intrinsic_atest_pan: {
+      bi_index coverage = bi_src_index(&instr->src[0]);
+      bi_index alpha = bi_src_index(&instr->src[1]);
+      bi_atest_to(b, dst, coverage, alpha, bi_fau(BIR_FAU_ATEST_PARAM, false));
+      b->shader->emitted_atest = true;
+      break;
+   }
+
+   case nir_intrinsic_zs_emit_pan: {
+      bi_index coverage = bi_src_index(&instr->src[0]);
+      unsigned flags = nir_intrinsic_flags(instr);
+      uint32_t has_z = flags & BITFIELD_BIT(FRAG_RESULT_DEPTH);
+      uint32_t has_s = flags & BITFIELD_BIT(FRAG_RESULT_STENCIL);
+      bi_index z = has_z ? bi_src_index(&instr->src[1]) : bi_dontcare(b);
+      bi_index s = has_s ? bi_src_index(&instr->src[2]) : bi_dontcare(b);
+      bi_zs_emit_to(b, dst, z, s, coverage, has_s, has_z);
+      break;
+   }
+
+   case nir_intrinsic_blend_pan:
+   case nir_intrinsic_blend2_pan: {
+      bi_index coverage = bi_src_index(&instr->src[0]);
+      bi_index desc = bi_src_index(&instr->src[1]);
+      bi_index rgba = bi_src_index(&instr->src[2]);
+      nir_alu_type T = nir_intrinsic_src_type(instr);
+
+      bi_index rgba2 = bi_null();
+      nir_alu_type T2 = nir_type_invalid;
+      if (instr->intrinsic == nir_intrinsic_blend2_pan) {
+         rgba2 = bi_src_index(&instr->src[3]);
+         T2 = nir_intrinsic_dest_type(instr);
+      }
+
+      unsigned size = nir_alu_type_get_type_size(T);
+      unsigned size_2 = nir_alu_type_get_type_size(T2);
+      unsigned sr_count = (size <= 16) ? 2 : 4;
+      unsigned sr_count_2 = (size_2 <= 16) ? 2 : 4;
+
+      enum bi_register_format regfmt = bi_reg_fmt_for_nir(T);
+      if (b->shader->nir->info.fs.untyped_color_outputs)
+         regfmt = BI_REGISTER_FORMAT_AUTO;
+
+      /* If we have more than one color target, explicit copy since BLEND
+       * inputs are precoloured to R0-R3.
+       *
+       * TODO: maybe schedule around this or implement in RA as a spill
+       */
+      if (b->shader->nir->info.outputs_written >> FRAG_RESULT_DATA1) {
+         bi_index srcs[4] = {rgba, rgba, rgba, rgba};
+         unsigned channels[4] = {0, 1, 2, 3};
+         rgba = bi_temp(b->shader);
+         bi_make_vec_to(b, rgba, srcs, channels, 4, size);
+      }
+
+      bi_blend_to(b, bi_temp(b->shader), rgba, coverage,
+                  bi_extract(b, desc, 0), bi_extract(b, desc, 1),
+                  rgba2, regfmt, sr_count, sr_count_2);
+
+      nir_io_semantics io = nir_intrinsic_io_semantics(instr);
+      assert(io.location >= FRAG_RESULT_DATA0);
+      assert(io.location <= FRAG_RESULT_DATA7);
+      unsigned rt = io.location - FRAG_RESULT_DATA0;
+
+      b->shader->info.bifrost->blend[rt].type = T;
+      if (instr->intrinsic == nir_intrinsic_blend2_pan) {
+         assert(b->shader->info.bifrost->blend_src1_type == nir_type_invalid);
+         b->shader->info.bifrost->blend_src1_type = T2;
+      }
+      break;
+   }
+
+   case nir_intrinsic_blend_return_pan:
+      /* Jump back to the fragment shader, return address is stored
+       * in r48 (see above). On Valhall, only jump if the address is
+       * nonzero. The check is free there and it implements the "jump
+       * to 0 terminates the blend shader" that's automatic on
+       * Bifrost.
+       */
+      if (b->shader->arch >= 9)
+         bi_branchzi(b, bi_preload(b, 48), bi_preload(b, 48), BI_CMPF_NE);
+      else
+         bi_jump(b, bi_preload(b, 48));
+      break;
+
    case nir_intrinsic_load_ubo:
       bi_emit_load_ubo(b, instr);
       break;
