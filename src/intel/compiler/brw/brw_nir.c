@@ -1721,6 +1721,9 @@ lower_bit_size_callback(const nir_instr *instr, void *data)
       switch (alu->op) {
       case nir_op_bitfield_reverse:
          return alu->def.bit_size != 32 ? 32 : 0;
+      case nir_op_umul_high:
+      case nir_op_imul_high:
+         return alu->def.bit_size < 32 ? 32 : 0;
       case nir_op_idiv:
       case nir_op_imod:
       case nir_op_irem:
