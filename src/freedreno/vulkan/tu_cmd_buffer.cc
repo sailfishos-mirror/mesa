@@ -152,10 +152,10 @@ tu_emit_event_write(struct tu_cmd_buffer *cmd,
 }
 TU_GENX(tu_emit_event_write);
 
-/* Emits the tessfactor address to the top-level CS if it hasn't been already.
- * Updating this register requires a WFI if outstanding drawing is using it, but
- * tu6_init_hardware() will have WFIed before we started and no other draws
- * could be using the tessfactor address yet since we only emit one per cmdbuf.
+/* Emits the tessfactor address to the top-level CS if it may be invalid.
+ * On A6XX updating PC_TESS_BASE requires a WFI if outstanding drawing is
+ * using it, but tu6_init_hardware() will have WFIed before we started and
+ * no other draws could be using PC_TESS_BASE with different address.
  */
 template <chip CHIP>
 static void
@@ -163,11 +163,12 @@ tu6_lazy_emit_tessfactor_addr(struct tu_cmd_buffer *cmd)
 {
    if (cmd->state.tessfactor_addr_set)
       return;
+   cmd->state.tessfactor_addr_set = true;
 
    tu_cs_emit_regs(&cmd->cs, PC_TESS_BASE(CHIP, .qword = cmd->device->tess_bo->iova));
    /* Updating PC_TESS_BASE could race with the next draw which uses it. */
-   cmd->state.cache.flush_bits |= TU_CMD_FLAG_WAIT_FOR_IDLE;
-   cmd->state.tessfactor_addr_set = true;
+   if (CHIP == A6XX)
+      cmd->state.cache.flush_bits |= TU_CMD_FLAG_WAIT_FOR_IDLE;
 }
 
 static void
@@ -3152,6 +3153,11 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
    const struct tu_tiling_config *tiling = cmd->state.tiling;
    const struct tu_vsc_config *vsc = tu_vsc_config(cmd, tiling);
    const struct tu_image_view *fdm = NULL;
+
+   /* Preamble save/restore for BINs doesn't handle PC_TESS_BASE, so we
+    * assume that PC_TESS_BASE is invalid after any GMEM pass.
+    */
+   cmd->state.tessfactor_addr_set = false;
 
    VkResult result = tu_allocate_transient_attachments(cmd, false);
    if (result != VK_SUCCESS) {
