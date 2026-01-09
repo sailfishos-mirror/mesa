@@ -150,12 +150,12 @@ urb_offset(nir_builder *b,
 
       offset = nir_iadd(b, offset, nir_imul_imm(b, index->ssa, stride));
    } else if (index) {
-      nir_def *stride = cb_data->dynamic_tes
-         ? intel_nir_tess_field(b, PER_VERTEX_SLOTS)
-         : nir_imm_int(b, cb_data->per_vertex_stride /
-                          (cb_data->vec4_access ? 16 : 4));
+      const unsigned unit = cb_data->vec4_access ? 16 : 4;
+      nir_def *index_offset = cb_data->dynamic_tes
+         ? nir_imul(b, index->ssa, intel_nir_tess_field(b, PER_VERTEX_SLOTS))
+         : nir_imul_imm(b, index->ssa, cb_data->per_vertex_stride / unit);
 
-      offset = nir_iadd(b, offset, nir_imul(b, index->ssa, stride));
+      offset = nir_iadd(b, offset, index_offset);
 
       /* In the Tessellation evaluation shader, reposition the offset of
        * builtins when using separate layout.
