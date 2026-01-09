@@ -30,7 +30,6 @@
 
 struct util_format_description;
 
-bool pan_nir_lower_zs_store(nir_shader *nir);
 bool pan_nir_lower_store_component(nir_shader *shader);
 
 bool pan_nir_lower_vertex_id(nir_shader *shader);

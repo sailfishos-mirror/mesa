@@ -18,6 +18,7 @@ libpanfrost_midgard_files = files(
   'mir_promote_uniforms.c',
   'mir_squeeze.c',
   'midgard_nir_lower_image_bitsize.c',
+  'midgard_nir_lower_writeout.c',
   'midgard_nir_type_csel.c',
   'midgard_opt_copy_prop.c',
   'midgard_opt_dce.c',

@@ -15,7 +15,6 @@ libpanfrost_compiler_files = files(
   'pan_nir_lower_sample_position.c',
   'pan_nir_lower_store_component.c',
   'pan_nir_lower_vertex_id.c',
-  'pan_nir_lower_writeout.c',
   'pan_nir_lower_xfb.c',
 )
 

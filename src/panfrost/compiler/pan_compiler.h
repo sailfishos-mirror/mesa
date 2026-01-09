@@ -372,11 +372,6 @@ uint16_t pan_to_bytemask(unsigned bytes, unsigned mask);
 
 /* NIR passes to do some backend-specific lowering */
 
-#define PAN_WRITEOUT_C 1
-#define PAN_WRITEOUT_Z 2
-#define PAN_WRITEOUT_S 4
-#define PAN_WRITEOUT_2 8
-
 /*
  * Helper returning the subgroup size. Generally, this is equal to the number of
  * threads in a warp. For Midgard (including warping models), this returns 1, as

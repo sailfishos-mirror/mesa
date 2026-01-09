@@ -432,7 +432,7 @@ midgard_postprocess_nir(nir_shader *nir, UNUSED unsigned gpu_id)
    }
 
    NIR_PASS(_, nir, nir_lower_ssbo, NULL);
-   NIR_PASS(_, nir, pan_nir_lower_zs_store);
+   NIR_PASS(_, nir, midgard_nir_lower_zs_store);
 
    NIR_PASS(_, nir, nir_lower_frexp);
    NIR_PASS(_, nir, midgard_nir_lower_global_load);
@@ -1499,7 +1499,7 @@ emit_fragment_store(compiler_context *ctx, unsigned src, unsigned src_z,
 
    bool depth_only = (rt == MIDGARD_ZS_RT);
 
-   ins.writeout = depth_only ? 0 : PAN_WRITEOUT_C;
+   ins.writeout = depth_only ? 0 : MIR_WRITEOUT_C;
 
    /* Add dependencies */
    ins.src[0] = src;
@@ -1517,13 +1517,13 @@ emit_fragment_store(compiler_context *ctx, unsigned src, unsigned src_z,
       emit_explicit_constant(ctx, src_z);
       ins.src[2] = src_z;
       ins.src_types[2] = nir_type_uint32;
-      ins.writeout |= PAN_WRITEOUT_Z;
+      ins.writeout |= MIR_WRITEOUT_Z;
    }
    if (~src_s) {
       emit_explicit_constant(ctx, src_s);
       ins.src[3] = src_s;
       ins.src_types[3] = nir_type_uint32;
-      ins.writeout |= PAN_WRITEOUT_S;
+      ins.writeout |= MIR_WRITEOUT_S;
    }
 
    /* Emit the branch */
@@ -1836,18 +1836,18 @@ emit_intrinsic(compiler_context *ctx, nir_intrinsic_instr *instr)
          enum midgard_rt_id rt;
 
          unsigned reg_z = ~0, reg_s = ~0, reg_2 = ~0;
-         unsigned writeout = PAN_WRITEOUT_C;
+         unsigned writeout = MIR_WRITEOUT_C;
          if (combined) {
             writeout = nir_intrinsic_component(instr);
-            if (writeout & PAN_WRITEOUT_Z)
+            if (writeout & MIR_WRITEOUT_Z)
                reg_z = nir_src_index(ctx, &instr->src[2]);
-            if (writeout & PAN_WRITEOUT_S)
+            if (writeout & MIR_WRITEOUT_S)
                reg_s = nir_src_index(ctx, &instr->src[3]);
-            if (writeout & PAN_WRITEOUT_2)
+            if (writeout & MIR_WRITEOUT_2)
                reg_2 = nir_src_index(ctx, &instr->src[4]);
          }
 
-         if (writeout & PAN_WRITEOUT_C) {
+         if (writeout & MIR_WRITEOUT_C) {
             nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
 
             rt = MIDGARD_COLOR_RT0 + (sem.location - FRAG_RESULT_DATA0);

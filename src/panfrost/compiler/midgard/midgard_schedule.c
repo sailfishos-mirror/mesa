@@ -1269,11 +1269,11 @@ mir_schedule_alu(compiler_context *ctx, midgard_instruction **instructions,
       branch->dest_type = vadd->dest_type;
    }
 
-   if (writeout & PAN_WRITEOUT_Z)
+   if (writeout & MIR_WRITEOUT_Z)
       mir_schedule_zs_write(ctx, &predicate, instructions, liveness, worklist,
                             len, branch, &smul, &vadd, &vlut, false);
 
-   if (writeout & PAN_WRITEOUT_S)
+   if (writeout & MIR_WRITEOUT_S)
       mir_schedule_zs_write(ctx, &predicate, instructions, liveness, worklist,
                             len, branch, &smul, &vadd, &vlut, true);
 

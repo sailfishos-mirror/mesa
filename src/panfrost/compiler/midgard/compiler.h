@@ -86,6 +86,11 @@ typedef struct midgard_branch {
 #define MIR_SRC_COUNT      4
 #define MIR_VEC_COMPONENTS 16
 
+#define MIR_WRITEOUT_C 1
+#define MIR_WRITEOUT_Z 2
+#define MIR_WRITEOUT_S 4
+#define MIR_WRITEOUT_2 8
+
 typedef struct midgard_instruction {
    /* Must be first for casting */
    struct list_head link;

@@ -22,16 +22,13 @@
  * SOFTWARE.
  */
 
-#include "compiler/nir/nir_builder.h"
-#include "pan_nir.h"
+#include "compiler.h"
+#include "midgard_nir.h"
+#include "nir_builder.h"
 
 /* Midgard can write all of color, depth and stencil in a single writeout
  * operation, so we merge depth/stencil stores with color stores.
  * If there are no color stores, we add a write to the "depth RT".
- *
- * For Bifrost, we want these combined so we can properly order
- * +ZS_EMIT with respect to +ATEST and +BLEND, as well as combining
- * depth/stencil stores into a single +ZS_EMIT op.
  */
 
 /*
@@ -94,7 +91,7 @@ kill_depth_stencil_writes(nir_builder *b, nir_intrinsic_instr *intr,
 }
 
 bool
-pan_nir_lower_zs_store(nir_shader *nir)
+midgard_nir_lower_zs_store(nir_shader *nir)
 {
    bool progress = false;
 
@@ -124,14 +121,14 @@ pan_nir_lower_zs_store(nir_shader *nir)
             nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
             if (sem.location == FRAG_RESULT_DEPTH) {
                stores[0] = intr;
-               writeout |= PAN_WRITEOUT_Z;
+               writeout |= MIR_WRITEOUT_Z;
             } else if (sem.location == FRAG_RESULT_STENCIL) {
                stores[1] = intr;
-               writeout |= PAN_WRITEOUT_S;
+               writeout |= MIR_WRITEOUT_S;
             } else if (sem.dual_source_blend_index) {
                assert(!stores[2]); /* there should be only 1 source for dual blending */
                stores[2] = intr;
-               writeout |= PAN_WRITEOUT_2;
+               writeout |= MIR_WRITEOUT_2;
             } else if (sem.location == FRAG_RESULT_SAMPLE_MASK) {
                last_mask_store = intr;
                mask_block = intr->instr.block;
@@ -206,7 +203,7 @@ pan_nir_lower_zs_store(nir_shader *nir)
             /* Trying to write depth twice results in the
              * wrong blend shader being executed on
              * Midgard */
-            unsigned this_store = PAN_WRITEOUT_C | (replaced ? 0 : writeout);
+            unsigned this_store = MIR_WRITEOUT_C | (replaced ? 0 : writeout);
 
             pan_nir_emit_combined_store(&b, intr, this_store, stores);
 
