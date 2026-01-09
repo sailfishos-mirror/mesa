@@ -1,2 +1,7 @@
 # RADV bug
 dEQP-VK.texture.mipmap.cubemap.misc.projected_derivatives,Fail
+
+# https://gitlab.khronos.org/Tracker/vk-gl-cts/-/issues/6257
+dEQP-VK.api.copy_and_blit.dynamic_state.blit.draw_multisampled_image_r8g8b8a8_unorm_samples_2,Crash
+dEQP-VK.api.copy_and_blit.dynamic_state.blit.draw_multisampled_image_r8g8b8a8_unorm_samples_4,Crash
+dEQP-VK.api.copy_and_blit.dynamic_state.blit.draw_multisampled_image_r8g8b8a8_unorm_samples_8,Crash
