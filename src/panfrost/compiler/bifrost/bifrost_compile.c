@@ -907,7 +907,7 @@ static void
 bi_emit_load_blend_input(bi_builder *b, nir_intrinsic_instr *instr)
 {
    nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
-   unsigned base = (sem.location == VARYING_SLOT_VAR0) ? 4 : 0;
+   unsigned base = sem.dual_source_blend_index * 4;
    unsigned size = nir_alu_type_get_type_size(nir_intrinsic_dest_type(instr));
    assert(size == 16 || size == 32);
 
@@ -2194,11 +2194,14 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_emit_load_attr(b, instr);
       break;
 
+   case nir_intrinsic_load_blend_input_pan:
+      bi_emit_load_blend_input(b, instr);
+      break;
+
    case nir_intrinsic_load_interpolated_input:
    case nir_intrinsic_load_input:
-      if (b->shader->inputs->is_blend)
-         bi_emit_load_blend_input(b, instr);
-      else if (stage == MESA_SHADER_FRAGMENT)
+      assert(!b->shader->inputs->is_blend);
+      if (stage == MESA_SHADER_FRAGMENT)
          bi_emit_load_vary(b, instr);
       else if (stage == MESA_SHADER_VERTEX)
          bi_emit_load_attr(b, instr);

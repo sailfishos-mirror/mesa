@@ -918,10 +918,11 @@ GENX(pan_blend_create_shader)(const struct pan_blend_state *state,
       src_type = nir_alu_type_get_base_type(nir_type) |
                  nir_alu_type_get_type_size(src_type);
 
-      nir_def *src = nir_load_input(
-         &b, 4, nir_alu_type_get_type_size(src_type), zero,
-         .io_semantics.location = i ? VARYING_SLOT_VAR0 : VARYING_SLOT_COL0,
-         .io_semantics.num_slots = 1, .base = i, .dest_type = src_type);
+      nir_def *src = nir_load_blend_input_pan(
+         &b, 4, nir_alu_type_get_type_size(src_type),
+         .io_semantics.location = FRAG_RESULT_DATA0 + rt,
+         .io_semantics.dual_source_blend_index = i,
+         .io_semantics.num_slots = 1, .dest_type = src_type);
 
       if (state->alpha_to_one && src_type == nir_type_float32) {
          /* force alpha to 1 */

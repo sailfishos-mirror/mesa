@@ -1727,24 +1727,27 @@ emit_intrinsic(compiler_context *ctx, nir_intrinsic_instr *instr)
       } else if (ctx->stage == MESA_SHADER_FRAGMENT && !ctx->inputs->is_blend) {
          emit_varying_read(ctx, reg, offset, nr_comp, component,
                            indirect_offset, t | instr->def.bit_size, is_flat);
-      } else if (ctx->inputs->is_blend) {
-         /* ctx->blend_input will be precoloured to r0/r2, where
-          * the input is preloaded */
-
-         unsigned *input = offset ? &ctx->blend_src1 : &ctx->blend_input;
-
-         if (*input == ~0)
-            *input = reg;
-         else {
-            struct midgard_instruction ins = v_mov(*input, reg);
-            emit_mir_instruction(ctx, &ins);
-         }
       } else if (ctx->stage == MESA_SHADER_VERTEX) {
          emit_attr_read(ctx, reg, offset, nr_comp, t);
       } else {
          UNREACHABLE("Unknown load");
       }
 
+      break;
+   }
+
+   case nir_intrinsic_load_blend_input_pan: {
+      nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
+      unsigned *input = sem.dual_source_blend_index ? &ctx->blend_src1
+                                                    : &ctx->blend_input;
+
+      reg = nir_def_index(&instr->def);
+      if (*input == ~0) {
+         *input = reg;
+      } else {
+         struct midgard_instruction ins = v_mov(*input, reg);
+         emit_mir_instruction(ctx, &ins);
+      }
       break;
    }
 
