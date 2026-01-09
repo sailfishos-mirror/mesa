@@ -628,7 +628,7 @@ struct anv_address {
    bool protected;
 };
 
-#define ANV_NULL_ADDRESS ((struct anv_address) { NULL, 0 })
+#define ANV_NULL_ADDRESS ((struct anv_address) { 0 })
 
 static inline struct anv_address
 anv_address_from_u64(uint64_t addr_u64)
