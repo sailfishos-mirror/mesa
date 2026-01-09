@@ -52,7 +52,7 @@
 #define FLAGS__T_Z (_T | _Z)
 
 #define FORMAT(vk, tex_fmt, bind_)                         \
-   [PIPE_FORMAT_##vk] = {                                    \
+   [PIPE_FORMAT_##vk] = {                                  \
       .tex_format = ROGUE_TEXSTATE_FORMAT_##tex_fmt,       \
       .depth_tex_format = ROGUE_TEXSTATE_FORMAT_INVALID,   \
       .stencil_tex_format = ROGUE_TEXSTATE_FORMAT_INVALID, \
@@ -60,7 +60,7 @@
    }
 
 #define FORMAT_COMPRESSED(vk, tex_fmt)                          \
-   [PIPE_FORMAT_##vk] = {                                         \
+   [PIPE_FORMAT_##vk] = {                                       \
       .tex_format = ROGUE_TEXSTATE_FORMAT_COMPRESSED_##tex_fmt, \
       .depth_tex_format = ROGUE_TEXSTATE_FORMAT_INVALID,        \
       .stencil_tex_format = ROGUE_TEXSTATE_FORMAT_INVALID,      \
@@ -68,7 +68,7 @@
    }
 
 #define FORMAT_DEPTH_STENCIL(vk, combined_fmt, d_fmt, s_fmt) \
-   [PIPE_FORMAT_##vk] = {                                      \
+   [PIPE_FORMAT_##vk] = {                                    \
       .tex_format = ROGUE_TEXSTATE_FORMAT_##combined_fmt,    \
       .depth_tex_format = ROGUE_TEXSTATE_FORMAT_##d_fmt,     \
       .stencil_tex_format = ROGUE_TEXSTATE_FORMAT_##s_fmt,   \
@@ -97,11 +97,11 @@ static const struct pvr_format pvr_format_table[] = {
    FORMAT(R8G8B8A8_SRGB,       U8U8U8U8,     _TR_),
    FORMAT(B8G8R8A8_UNORM,      U8U8U8U8,     VTR_),
    FORMAT(B8G8R8A8_SRGB,       U8U8U8U8,     _TR_),
-   FORMAT(A8B8G8R8_UNORM,      U8U8U8U8,     VTR_),
-   FORMAT(A8B8G8R8_SNORM,      S8S8S8S8,     VTR_),
-   FORMAT(A8B8G8R8_UINT,       U8U8U8U8,     VTR_),
-   FORMAT(A8B8G8R8_SINT,       S8S8S8S8,     VTR_),
-   FORMAT(A8B8G8R8_SRGB,       U8U8U8U8,     _TR_),
+   FORMAT(RGBA8888_UNORM,      U8U8U8U8,     VTR_),
+   FORMAT(RGBA8888_SNORM,      S8S8S8S8,     VTR_),
+   FORMAT(RGBA8888_UINT,       U8U8U8U8,     VTR_),
+   FORMAT(RGBA8888_SINT,       S8S8S8S8,     VTR_),
+   FORMAT(RGBA8888_SRGB,       U8U8U8U8,     _TR_),
    FORMAT(B10G10R10A2_USCALED, INVALID,      V___),
    FORMAT(B10G10R10A2_SSCALED, INVALID,      V___),
    FORMAT(R10G10B10A2_UNORM,   A2R10B10G10,  VTRI),
@@ -165,13 +165,13 @@ static const struct pvr_format pvr_format_table[] = {
 #undef FORMAT_COMPRESSED
 
 #define FORMAT(vk, pack_mode_, accum_format_)               \
-   [PIPE_FORMAT_##vk] = {                                     \
+   [PIPE_FORMAT_##vk] = {                                   \
       .packmode = ROGUE_PBESTATE_PACKMODE_##pack_mode_,     \
       .accum_format = PVR_PBE_ACCUM_FORMAT_##accum_format_, \
    }
 
 #define FORMAT_DEPTH_STENCIL(vk, combined_fmt)            \
-   [PIPE_FORMAT_##vk] = {                                   \
+   [PIPE_FORMAT_##vk] = {                                 \
       .packmode = ROGUE_PBESTATE_PACKMODE_##combined_fmt, \
       .accum_format = PVR_PBE_ACCUM_FORMAT_INVALID,       \
    }
@@ -182,9 +182,9 @@ struct pvr_pbe_format {
 };
 
 static const struct pvr_pbe_format pvr_pbe_format_table[] = {
-   FORMAT(B4G4R4A4_UNORM, A4R4G4B4, U8),
-   FORMAT(R5G6B5_UNORM, R5G6B5, U8),
-   FORMAT(A1R5G5B5_UNORM, A1R5G5B5, U8),
+   FORMAT(A4R4G4B4_UNORM, A4R4G4B4, U8),
+   FORMAT(B5G6R5_UNORM, R5G6B5, U8),
+   FORMAT(B5G5R5A1_UNORM, A1R5G5B5, U8),
    FORMAT(R8_UNORM, U8, U8),
    FORMAT(R8_SNORM, S8, S8),
    FORMAT(R8_UINT, U8, UINT8),
@@ -202,11 +202,11 @@ static const struct pvr_pbe_format pvr_pbe_format_table[] = {
    FORMAT(R8G8B8A8_SRGB, U8U8U8U8, F16),
    FORMAT(B8G8R8A8_UNORM, U8U8U8U8, U8),
    FORMAT(B8G8R8A8_SRGB, U8U8U8U8, F16),
-   FORMAT(A8B8G8R8_UNORM, U8U8U8U8, U8),
-   FORMAT(A8B8G8R8_SNORM, S8S8S8S8, S8),
-   FORMAT(A8B8G8R8_UINT, U8U8U8U8, UINT8),
-   FORMAT(A8B8G8R8_SINT, S8S8S8S8, SINT8),
-   FORMAT(A8B8G8R8_SRGB, U8U8U8U8, F16),
+   FORMAT(RGBA8888_UNORM, U8U8U8U8, U8),
+   FORMAT(RGBA8888_SNORM, S8S8S8S8, S8),
+   FORMAT(RGBA8888_UINT, U8U8U8U8, UINT8),
+   FORMAT(RGBA8888_SINT, S8S8S8S8, SINT8),
+   FORMAT(RGBA8888_SRGB, U8U8U8U8, F16),
    FORMAT(B10G10R10A2_USCALED, INVALID, INVALID),
    FORMAT(B10G10R10A2_SSCALED, INVALID, INVALID),
    FORMAT(R10G10B10A2_UNORM, A2R10B10G10, F16),
