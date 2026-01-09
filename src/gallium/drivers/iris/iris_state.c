@@ -5897,6 +5897,45 @@ iris_populate_64bit_binding_table(struct iris_context *ice,
             memcpy(surface_state_map, surface_state_cpu, isl_dev->ss.size);
             break;
          }
+         case IRIS_SURFACE_GROUP_TEXTURE_LOW64:
+         case IRIS_SURFACE_GROUP_TEXTURE_HIGH64: {
+            uint8_t *surface_state_map = surfaces_state_map + (surfaces_i++ * isl_dev->ss.size);
+            struct iris_sampler_view *view = NULL;
+
+            if (group == IRIS_SURFACE_GROUP_TEXTURE_LOW64)
+               view = shs->textures[index];
+            else if (group == IRIS_SURFACE_GROUP_TEXTURE_HIGH64)
+               view = shs->textures[64 + index];
+
+            if (view) {
+               uint8_t *surface_state_cpu = (uint8_t *)view->surface_state.cpu;
+               enum isl_aux_usage aux_usage;
+
+               if (memcmp(&view->res->aux.clear_color, &view->clear_color, sizeof(view->clear_color)) != 0) {
+                  update_clear_value(ice, batch, view->res, &view->surface_state, &view->view);
+                  view->clear_color = view->res->aux.clear_color;
+               }
+
+               if (view->res->aux.clear_color_bo)
+                  iris_use_pinned_bo(batch, view->res->aux.clear_color_bo, false, IRIS_DOMAIN_SAMPLER_READ);
+               if (view->res->aux.bo)
+                  iris_use_pinned_bo(batch, view->res->aux.bo, false, IRIS_DOMAIN_SAMPLER_READ);
+               iris_use_pinned_bo(batch, view->res->bo, false, IRIS_DOMAIN_SAMPLER_READ);
+
+               assert(surface_state_cpu);
+               aux_usage = iris_resource_texture_aux_usage(ice,
+                                                           view->res,
+                                                           view->view.format,
+                                                           view->view.base_level,
+                                                           view->view.levels);
+
+               surface_state_cpu += surf_state_offset_for_aux(view->surface_state.aux_usages, aux_usage);
+               memcpy(surface_state_map, surface_state_cpu, isl_dev->ss.size);
+            } else {
+               isl_null_fill_state(&screen->isl_dev, surface_state_map, .size = isl_extent3d(1, 1, 1));
+            }
+            break;
+         }
          default:
             UNREACHABLE("group not handled\n");
          }
