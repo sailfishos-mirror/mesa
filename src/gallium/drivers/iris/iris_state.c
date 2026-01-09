@@ -2534,6 +2534,12 @@ wrap_mode_needs_border_color(unsigned wrap_mode)
    return wrap_mode == TCM_CLAMP_BORDER || wrap_mode == TCM_HALF_BORDER;
 }
 
+#if GFX_VERx10 >= 350
+#define SAMPLER_STATE_DWORDS GENX(SAMPLER_STATE_EXTENDED_length)
+#else
+#define SAMPLER_STATE_DWORDS GENX(SAMPLER_STATE_length)
+#endif
+
 /**
  * Gallium CSO for sampler state.
  */
@@ -2541,18 +2547,19 @@ struct iris_sampler_state {
    union pipe_color_union border_color;
    bool needs_border_color;
 
-   uint32_t sampler_state[GENX(SAMPLER_STATE_length)];
+   uint32_t sampler_state[SAMPLER_STATE_DWORDS];
 
 #if GFX_VERx10 == 125
    /* Sampler state structure to use for 3D textures in order to
     * implement Wa_14014414195.
     */
-   uint32_t sampler_state_3d[GENX(SAMPLER_STATE_length)];
+   uint32_t sampler_state_3d[SAMPLER_STATE_DWORDS];
 #endif
 };
 
 static void
-fill_sampler_state(uint32_t *sampler_state,
+fill_sampler_state(struct iris_screen *screen,
+                   uint32_t *sampler_state,
                    const struct pipe_sampler_state *state,
                    unsigned max_anisotropy)
 {
@@ -2569,6 +2576,64 @@ fill_sampler_state(uint32_t *sampler_state,
 #if GFX_VER > 8
    uint32_t reduction_mode =
       translate_tex_filter_mode(state->reduction_mode);
+#endif
+
+#if GFX_VERx10 >= 350
+   if (iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)) {
+      iris_pack_state(GENX(SAMPLER_STATE_EXTENDED), sampler_state, samp) {
+         samp.TCXAddressControlMode = translate_wrap(state->wrap_s);
+         samp.TCYAddressControlMode = translate_wrap(state->wrap_t);
+         samp.TCZAddressControlMode = translate_wrap(state->wrap_r);
+         samp.CubeSurfaceControlMode = state->seamless_cube_map;
+         samp.NonnormalizedCoordinateEnable = state->unnormalized_coords;
+         samp.MinModeFilter = state->min_img_filter;
+         samp.MagModeFilter = mag_img_filter;
+         samp.MipModeFilter = translate_mip_filter(state->min_mip_filter);
+         samp.MaximumAnisotropy = RATIO21;
+         samp.ReductionType = reduction_mode;
+         samp.ReductionTypeEnable =
+            reduction_mode != PIPE_TEX_REDUCTION_WEIGHTED_AVERAGE;
+         if (max_anisotropy >= 2) {
+            if (state->min_img_filter == PIPE_TEX_FILTER_LINEAR) {
+               samp.MinModeFilter = MAPFILTER_ANISOTROPIC_FAST;
+               samp.LODAlgorithm = EWAApproximation;
+            }
+
+            if (state->mag_img_filter == PIPE_TEX_FILTER_LINEAR) {
+               samp.MagModeFilter = MAPFILTER_ANISOTROPIC_FAST;
+            }
+
+            samp.MaximumAnisotropy =
+               MIN2((max_anisotropy - 2) / 2, RATIO161);
+         }
+
+         /* Set address rounding bits if not using nearest filtering. */
+         if (state->min_img_filter != PIPE_TEX_FILTER_NEAREST) {
+            samp.UAddressMinFilterRoundingEnable = true;
+            samp.VAddressMinFilterRoundingEnable = true;
+            samp.RAddressMinFilterRoundingEnable = true;
+         }
+
+         if (state->mag_img_filter != PIPE_TEX_FILTER_NEAREST) {
+            samp.UAddressMagFilterRoundingEnable = true;
+            samp.VAddressMagFilterRoundingEnable = true;
+            samp.RAddressMagFilterRoundingEnable = true;
+         }
+
+         if (state->compare_mode == PIPE_TEX_COMPARE_R_TO_TEXTURE)
+            samp.ShadowFunction = translate_shadow_func(state->compare_func);
+
+         const float hw_max_lod = 14;
+
+         samp.LODPreClampMode = CLAMP_MODE_OGL;
+         samp.MinLOD = CLAMP(min_lod, 0, hw_max_lod);
+         samp.MaxLOD = CLAMP(state->max_lod, 0, hw_max_lod);
+         samp.TextureLODBias = CLAMP(state->lod_bias, -16, 15);
+         samp.YCRCBBorderMode = YCRCBBM_PASSTHROUGH;
+      }
+
+      return;
+   }
 #endif
 
    iris_pack_state(GENX(SAMPLER_STATE), sampler_state, samp) {
@@ -2647,7 +2712,7 @@ static void *
 iris_create_sampler_state(struct pipe_context *ctx,
                           const struct pipe_sampler_state *state)
 {
-   UNUSED struct iris_screen *screen = (void *)ctx->screen;
+   struct iris_screen *screen = (void *)ctx->screen;
    UNUSED const struct intel_device_info *devinfo = screen->devinfo;
    struct iris_sampler_state *cso = CALLOC_STRUCT(iris_sampler_state);
 
@@ -2667,14 +2732,14 @@ iris_create_sampler_state(struct pipe_context *ctx,
                              wrap_mode_needs_border_color(wrap_t) ||
                              wrap_mode_needs_border_color(wrap_r);
 
-   fill_sampler_state(cso->sampler_state, state, state->max_anisotropy);
+   fill_sampler_state(screen, cso->sampler_state, state, state->max_anisotropy);
 
 #if GFX_VERx10 == 125
    /* Fill an extra sampler state structure with anisotropic filtering
     * disabled used to implement Wa_14014414195.
     */
    if (intel_needs_workaround(screen->devinfo, 14014414195))
-      fill_sampler_state(cso->sampler_state_3d, state, 0);
+      fill_sampler_state(screen, cso->sampler_state_3d, state, 0);
 #endif
 
    return cso;
@@ -2708,6 +2773,33 @@ iris_bind_sampler_states(struct pipe_context *ctx,
       ice->state.stage_dirty |= IRIS_STAGE_DIRTY_SAMPLER_STATES_VS << stage;
 }
 
+static void
+iris_upload_sampler_state_set_border_color(struct iris_screen *screen,
+                                           uint32_t *dynamic,
+                                           union pipe_color_union *color)
+{
+#if GFX_VERx10 >= 350
+   if (iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr)) {
+      iris_pack_state(GENX(SAMPLER_STATE_EXTENDED), dynamic, dyns) {
+         dyns.BorderColorRed = color->f[0];
+         dyns.BorderColorGreen = color->f[1];
+         dyns.BorderColorBlue = color->f[2];
+         dyns.BorderColorAlpha = color->f[3];
+      }
+      return;
+   }
+#endif
+
+   struct iris_border_color_pool *border_color_pool =
+      iris_bufmgr_get_border_color_pool(screen->bufmgr);
+   /* Stream out the border color and merge the pointer. */
+   uint32_t offset = iris_upload_border_color(border_color_pool, color);
+
+   iris_pack_state(GENX(SAMPLER_STATE), dynamic, dyns) {
+      dyns.BorderColorPointer = offset;
+   }
+}
+
 /**
  * Upload the sampler states into a contiguous area of GPU memory, for
  * for 3DSTATE_SAMPLER_STATE_POINTERS_*.
@@ -2720,8 +2812,6 @@ iris_upload_sampler_states(struct iris_context *ice, mesa_shader_stage stage)
    struct iris_screen *screen = (struct iris_screen *) ice->ctx.screen;
    struct iris_compiled_shader *shader = ice->shaders.prog[stage];
    struct iris_shader_state *shs = &ice->state.shaders[stage];
-   struct iris_border_color_pool *border_color_pool =
-      iris_bufmgr_get_border_color_pool(screen->bufmgr);
 
    /* We assume gallium frontends will call pipe->bind_sampler_states()
     * if the program's number of textures changes.
@@ -2731,11 +2821,14 @@ iris_upload_sampler_states(struct iris_context *ice, mesa_shader_stage stage)
    if (!count)
       return;
 
+   const bool eff_64bit_enabled = iris_bufmgr_is_eff_64bit_enabled(screen->bufmgr);
+   const unsigned sampler_state_len = intel_sampler_state_size(eff_64bit_enabled);
+
    /* Assemble the SAMPLER_STATEs into a contiguous table that lives
     * in the dynamic state memory zone, so we can point to it via the
     * 3DSTATE_SAMPLER_STATE_POINTERS_* commands.
     */
-   unsigned size = count * 4 * GENX(SAMPLER_STATE_length);
+   unsigned size = count * sampler_state_len;
    uint32_t *map =
       upload_state(ice->state.dynamic_uploader, &shs->sampler_table, size, 32);
    if (unlikely(!map))
@@ -2747,8 +2840,8 @@ iris_upload_sampler_states(struct iris_context *ice, mesa_shader_stage stage)
    iris_record_state_size(bo->bufmgr, ice->state.sizes,
                           bo->address + shs->sampler_table.offset, size);
 
-   shs->sampler_table.offset += iris_bufmgr_is_eff_64bit_enabled(bo->bufmgr) ?
-                                   bo->address : iris_bo_offset_from_base_address(bo);
+   shs->sampler_table.offset += eff_64bit_enabled ? bo->address :
+                                                    iris_bo_offset_from_base_address(bo);
 
    ice->state.need_border_colors &= ~(1 << stage);
 
@@ -2757,7 +2850,7 @@ iris_upload_sampler_states(struct iris_context *ice, mesa_shader_stage stage)
       struct iris_sampler_view *tex = shs->textures[i];
 
       if (!state) {
-         memset(map, 0, 4 * GENX(SAMPLER_STATE_length));
+         memset(map, 0, sampler_state_len);
       } else {
          const uint32_t *sampler_state = state->sampler_state;
 
@@ -2769,7 +2862,7 @@ iris_upload_sampler_states(struct iris_context *ice, mesa_shader_stage stage)
 #endif
 
          if (!state->needs_border_color) {
-            memcpy(map, sampler_state, 4 * GENX(SAMPLER_STATE_length));
+            memcpy(map, sampler_state, sampler_state_len);
          } else {
             ice->state.need_border_colors |= 1 << stage;
 
@@ -2802,21 +2895,15 @@ iris_upload_sampler_states(struct iris_context *ice, mesa_shader_stage stage)
                }
             }
 
-            /* Stream out the border color and merge the pointer. */
-            uint32_t offset = iris_upload_border_color(border_color_pool,
-                                                       color);
+            uint32_t dynamic[SAMPLER_STATE_DWORDS];
 
-            uint32_t dynamic[GENX(SAMPLER_STATE_length)];
-            iris_pack_state(GENX(SAMPLER_STATE), dynamic, dyns) {
-               dyns.BorderColorPointer = offset;
-            }
-
-            for (uint32_t j = 0; j < GENX(SAMPLER_STATE_length); j++)
+            iris_upload_sampler_state_set_border_color(screen, dynamic, color);
+            for (uint32_t j = 0; j < (sampler_state_len / sizeof(uint32_t)); j++)
                map[j] = sampler_state[j] | dynamic[j];
          }
       }
 
-      map += GENX(SAMPLER_STATE_length);
+      map += (sampler_state_len / 4);
    }
 }
 
@@ -6666,7 +6753,19 @@ setup_binding_tables_to_push_bos(struct iris_context *ice,
 
    assert(push_const_map);
    push_const_map[0] = batch->render_target_surfs_state_addr[stage];
-   /* TODO: add sampler */
+
+   if (ice->shaders.prog[stage]) {
+      struct iris_shader_state *shs = &ice->state.shaders[stage];
+
+      iris_upload_sampler_states(ice, stage);
+
+      if (shs->sampler_table.res) {
+         iris_use_pinned_bo(batch, iris_resource_bo(shs->sampler_table.res), false,
+                            IRIS_DOMAIN_NONE);
+
+         push_const_map[1] = shs->sampler_table.offset;
+      }
+   }
 
    *push_range_sum = *push_range_sum + len_256bit_units;
    push_bos->buffers[*n].length = len_256bit_units;
