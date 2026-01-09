@@ -791,6 +791,66 @@ get_equation_str(const struct pan_blend_rt_state *rt_state, char *str,
    }
 }
 
+#if PAN_ARCH >= 6
+static bool
+lower_rt_intrin(nir_builder *b, nir_intrinsic_instr *intr, void *data)
+{
+   const struct pan_blend_state *state = data;
+
+   switch (intr->intrinsic) {
+   case nir_intrinsic_load_output: {
+      nir_io_semantics io = nir_intrinsic_io_semantics(intr);
+      assert(io.location >= FRAG_RESULT_DATA0);
+      unsigned rt = io.location - FRAG_RESULT_DATA0;
+      enum pipe_format format = state->rts[rt].format;
+      unsigned nr_samples = state->rts[rt].nr_samples;
+
+      nir_alu_type dest_type = nir_intrinsic_dest_type(intr);
+      unsigned size = nir_alu_type_get_type_size(dest_type);
+      uint64_t blend_desc =
+         GENX(pan_blend_get_internal_desc)(format, rt, size, false);
+
+      b->cursor = nir_after_instr(&intr->instr);
+
+      nir_def *lowered = nir_load_converted_output_pan(
+         b, intr->def.num_components, intr->def.bit_size,
+         nir_imm_int(b, rt),
+         nr_samples > 1 ? nir_load_sample_id(b) : nir_imm_int(b, 0),
+         nir_imm_int(b, blend_desc >> 32),
+         .dest_type = dest_type,
+         .io_semantics = io);
+
+      nir_def_replace(&intr->def, lowered);
+      return true;
+   }
+
+   case nir_intrinsic_store_output: {
+      nir_io_semantics io = nir_intrinsic_io_semantics(intr);
+      assert(io.location >= FRAG_RESULT_DATA0);
+      unsigned rt = io.location - FRAG_RESULT_DATA0;
+      enum pipe_format format = state->rts[rt].format;
+
+      nir_alu_type src_type = nir_intrinsic_src_type(intr);
+      unsigned size = nir_alu_type_get_type_size(src_type);
+      uint64_t blend_desc =
+         GENX(pan_blend_get_internal_desc)(format, rt, size, false);
+
+      b->cursor = nir_instr_remove(&intr->instr);
+
+      assert(nir_intrinsic_component(intr) == 0);
+      nir_blend_pan(b, nir_load_cumulative_coverage_pan(b),
+                    nir_imm_int64(b, blend_desc),
+                    nir_pad_vec4(b, intr->src[0].ssa),
+                    .io_semantics = io,
+                    .src_type = src_type);
+      return true;
+   }
+
+   default:
+      return false;
+   }
+}
+#endif
 
 nir_shader *
 GENX(pan_blend_create_shader)(const struct pan_blend_state *state,
@@ -891,6 +951,20 @@ GENX(pan_blend_create_shader)(const struct pan_blend_state *state,
 
    NIR_PASS(_, b.shader, nir_lower_blend, &options);
 
+#if PAN_ARCH >= 6
+   /* On bifrost+ we use the NIR blend/load intrinsics directly */
+   NIR_PASS(_, b.shader, nir_shader_intrinsics_pass,
+            lower_rt_intrin, nir_metadata_control_flow, (void *)state);
+
+   /* And we put a blend_return_pan at the end.
+    *
+    * We have to do this here because nir_lower_blend assumes it can stick
+    * stuff at the end of the shader, after the blend_return_pan.
+    */
+   b = nir_builder_at(nir_after_impl(nir_shader_get_entrypoint(b.shader)));
+   nir_blend_return_pan(&b);
+#endif
+
    return b.shader;
 }
 
@@ -947,30 +1021,6 @@ GENX(pan_blend_get_internal_desc)(enum pipe_format fmt, unsigned rt,
    }
 
    return res.opaque[0] | ((uint64_t)res.opaque[1] << 32);
-}
-
-static bool
-inline_rt_conversion(nir_builder *b, nir_intrinsic_instr *intr, void *data)
-{
-   if (intr->intrinsic != nir_intrinsic_load_rt_conversion_pan)
-      return false;
-
-   enum pipe_format *formats = data;
-   unsigned rt = nir_intrinsic_base(intr);
-   unsigned size = nir_alu_type_get_type_size(nir_intrinsic_src_type(intr));
-   uint64_t conversion =
-      GENX(pan_blend_get_internal_desc)(formats[rt], rt, size, false);
-
-   b->cursor = nir_after_instr(&intr->instr);
-   nir_def_rewrite_uses(&intr->def, nir_imm_int(b, conversion >> 32));
-   return true;
-}
-
-bool
-GENX(pan_inline_rt_conversion)(nir_shader *s, enum pipe_format *formats)
-{
-   return nir_shader_intrinsics_pass(s, inline_rt_conversion,
-                                     nir_metadata_control_flow, formats);
 }
 
 #if PAN_ARCH < 9

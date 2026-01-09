@@ -121,10 +121,6 @@ struct pan_compile_inputs {
    uint64_t (*get_conv_desc)(enum pipe_format fmt, unsigned rt,
                              unsigned force_size, bool dithered);
    bool is_blend, is_blit;
-   struct {
-      unsigned nr_samples;
-      uint64_t bifrost_blend_desc;
-   } blend;
    bool no_idvs;
    uint32_t view_mask;
 

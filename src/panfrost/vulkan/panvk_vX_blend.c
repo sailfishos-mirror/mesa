@@ -90,20 +90,10 @@ get_blend_shader(struct panvk_device *dev,
       .gpu_id = pdev->kmod.dev->props.gpu_id,
       .gpu_variant = pdev->kmod.dev->props.gpu_variant,
       .is_blend = true,
-      .blend = {
-         .nr_samples = key.info.nr_samples,
-         .bifrost_blend_desc =
-            GENX(pan_blend_get_internal_desc)(key.info.format, key.info.rt, 0,
-                                              false),
-      },
    };
 
    pan_preprocess_nir(nir, inputs.gpu_id);
    pan_postprocess_nir(nir, inputs.gpu_id);
-
-   enum pipe_format rt_formats[8] = {0};
-   rt_formats[rt] = key.info.format;
-   NIR_PASS(_, nir, GENX(pan_inline_rt_conversion), rt_formats);
 
    VkResult result =
       panvk_per_arch(create_internal_shader)(dev, nir, &inputs, &shader);

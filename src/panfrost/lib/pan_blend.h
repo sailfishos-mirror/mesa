@@ -141,8 +141,6 @@ nir_shader *GENX(pan_blend_create_shader)(const struct pan_blend_state *state,
 uint64_t GENX(pan_blend_get_internal_desc)(enum pipe_format fmt, unsigned rt,
                                            unsigned force_size, bool dithered);
 
-bool GENX(pan_inline_rt_conversion)(nir_shader *s, enum pipe_format *formats);
-
 #if PAN_ARCH < 9
 enum mali_register_file_format
    GENX(pan_fixup_blend_type)(nir_alu_type T_size, enum pipe_format format);

@@ -897,18 +897,7 @@ bi_pixel_indices(bi_builder *b, unsigned rt, unsigned sample)
 
    uint32_t indices_u32 = 0;
    memcpy(&indices_u32, &pix, sizeof(indices_u32));
-   bi_index indices = bi_imm_u32(indices_u32);
-
-   /* Implicit sample_id assignment only happens in blend shaders,
-    * and we don't expect an explicit sample to be passed in that
-    * case, hence the assert(sample == 0). */
-
-   if (b->shader->inputs->blend.nr_samples > 1) {
-      assert(sample == 0);
-      indices = bi_iadd_u32(b, indices, bi_load_sample_id(b), false);
-   }
-
-   return indices;
+   return bi_imm_u32(indices_u32);
 }
 
 /* Source color is passed through r0-r3, or r4-r7 for the second source when
@@ -937,38 +926,20 @@ bi_emit_blend_op(bi_builder *b, bi_index rgba, nir_alu_type T, bi_index rgba2,
    unsigned size_2 = nir_alu_type_get_type_size(T2);
    unsigned sr_count = (size <= 16) ? 2 : 4;
    unsigned sr_count_2 = (size_2 <= 16) ? 2 : 4;
-   const struct pan_compile_inputs *inputs = b->shader->inputs;
-   uint64_t blend_desc = inputs->blend.bifrost_blend_desc;
    enum bi_register_format regfmt = bi_reg_fmt_for_nir(T);
 
    /* Workaround for NIR-to-TGSI */
    if (b->shader->nir->info.fs.untyped_color_outputs)
       regfmt = BI_REGISTER_FORMAT_AUTO;
 
-   if (inputs->is_blend && inputs->blend.nr_samples > 1) {
-      /* Conversion descriptor comes from the compile inputs, pixel
-       * indices derived at run time based on sample ID */
-      bi_st_tile(b, rgba, bi_pixel_indices(b, rt, 0), bi_coverage(b),
-                 bi_imm_u32(blend_desc >> 32), regfmt, BI_VECSIZE_V4);
-   } else if (b->shader->inputs->is_blend) {
-      uint64_t blend_desc = b->shader->inputs->blend.bifrost_blend_desc;
+   /* Blend descriptor comes from the FAU RAM. By convention, the
+    * return address on Bifrost is stored in r48 and will be used
+    * by the blend shader to jump back to the fragment shader */
 
-      /* Blend descriptor comes from the compile inputs */
-      /* Put the result in r0 */
-
-      bi_blend_to(b, bi_temp(b->shader), rgba, bi_coverage(b),
-                  bi_imm_u32(blend_desc), bi_imm_u32(blend_desc >> 32),
-                  bi_null(), regfmt, sr_count, 0);
-   } else {
-      /* Blend descriptor comes from the FAU RAM. By convention, the
-       * return address on Bifrost is stored in r48 and will be used
-       * by the blend shader to jump back to the fragment shader */
-
-      bi_blend_to(b, bi_temp(b->shader), rgba, bi_coverage(b),
-                  bi_fau(BIR_FAU_BLEND_0 + rt, false),
-                  bi_fau(BIR_FAU_BLEND_0 + rt, true), rgba2, regfmt, sr_count,
-                  sr_count_2);
-   }
+   bi_blend_to(b, bi_temp(b->shader), rgba, bi_coverage(b),
+               bi_fau(BIR_FAU_BLEND_0 + rt, false),
+               bi_fau(BIR_FAU_BLEND_0 + rt, true), rgba2, regfmt, sr_count,
+               sr_count_2);
 
    assert(rt < 8);
    b->shader->info.bifrost->blend[rt].type = T;
@@ -1038,6 +1009,9 @@ bi_emit_fragment_out(bi_builder *b, nir_intrinsic_instr *instr)
 
    unsigned loc = nir_intrinsic_io_semantics(instr).location;
    bi_index src0 = bi_src_index(&instr->src[0]);
+
+   /* Blend shaders should use nir_intrinsic_blend_pan */
+   assert(!b->shader->inputs->is_blend);
 
    /* By ISA convention, the coverage mask is stored in R60. The store
     * itself will be handled by a subsequent ATEST instruction */
@@ -1119,19 +1093,6 @@ bi_emit_fragment_out(bi_builder *b, nir_intrinsic_instr *instr)
       }
 
       bi_emit_blend_op(b, color, nir_intrinsic_src_type(instr), color2, T2, rt);
-   }
-
-   if (b->shader->inputs->is_blend) {
-      /* Jump back to the fragment shader, return address is stored
-       * in r48 (see above). On Valhall, only jump if the address is
-       * nonzero. The check is free there and it implements the "jump
-       * to 0 terminates the blend shader" that's automatic on
-       * Bifrost.
-       */
-      if (b->shader->arch >= 8)
-         bi_branchzi(b, bi_preload(b, 48), bi_preload(b, 48), BI_CMPF_NE);
-      else
-         bi_jump(b, bi_preload(b, 48));
    }
 }
 
