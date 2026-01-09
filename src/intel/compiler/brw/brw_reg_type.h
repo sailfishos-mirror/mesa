@@ -169,6 +169,16 @@ brw_type_with_size(enum brw_reg_type ref_type, unsigned bit_size)
    return (enum brw_reg_type)(base_field | size_field);
 }
 
+static inline enum brw_reg_type
+brw_float_type_for_reg_type(enum brw_reg_type ref_type)
+{
+   unsigned bit_size = brw_type_size_bits(ref_type);
+   assert(bit_size == 16 || bit_size == 32 || bit_size == 64);
+   unsigned base_field = BRW_TYPE_F & BRW_TYPE_BASE_MASK;
+   unsigned size_field = ffs(bit_size) - 4;
+   return (enum brw_reg_type)(base_field | size_field);
+}
+
 /**
  * Returns the larger of two types (i.e. W and D -> D).
  *

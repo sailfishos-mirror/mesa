@@ -5652,24 +5652,32 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
    case nir_intrinsic_load_subgroup_lt_mask:
       UNREACHABLE("not reached");
 
-   case nir_intrinsic_ddx_fine:
-      bld.emit(FS_OPCODE_DDX_FINE, retype(dest, BRW_TYPE_F),
-               retype(get_nir_src(ntb, instr->src[0], 0), BRW_TYPE_F));
+   case nir_intrinsic_ddx_fine: {
+      enum brw_reg_type type = brw_float_type_for_reg_type(dest.type);
+      bld.emit(FS_OPCODE_DDX_FINE, retype(dest, type),
+               retype(get_nir_src(ntb, instr->src[0], 0), type));
       break;
+   }
    case nir_intrinsic_ddx:
-   case nir_intrinsic_ddx_coarse:
-      bld.emit(FS_OPCODE_DDX_COARSE, retype(dest, BRW_TYPE_F),
-               retype(get_nir_src(ntb, instr->src[0], 0), BRW_TYPE_F));
+   case nir_intrinsic_ddx_coarse: {
+      enum brw_reg_type type = brw_float_type_for_reg_type(dest.type);
+      bld.emit(FS_OPCODE_DDX_COARSE, retype(dest, type),
+               retype(get_nir_src(ntb, instr->src[0], 0), type));
       break;
-   case nir_intrinsic_ddy_fine:
-      bld.emit(FS_OPCODE_DDY_FINE, retype(dest, BRW_TYPE_F),
-               retype(get_nir_src(ntb, instr->src[0], 0), BRW_TYPE_F));
+   }
+   case nir_intrinsic_ddy_fine: {
+      enum brw_reg_type type = brw_float_type_for_reg_type(dest.type);
+      bld.emit(FS_OPCODE_DDY_FINE, retype(dest, type),
+               retype(get_nir_src(ntb, instr->src[0], 0), type));
       break;
+   }
    case nir_intrinsic_ddy:
-   case nir_intrinsic_ddy_coarse:
-      bld.emit(FS_OPCODE_DDY_COARSE, retype(dest, BRW_TYPE_F),
-               retype(get_nir_src(ntb, instr->src[0], 0), BRW_TYPE_F));
+   case nir_intrinsic_ddy_coarse: {
+      enum brw_reg_type type = brw_float_type_for_reg_type(dest.type);
+      bld.emit(FS_OPCODE_DDY_COARSE, retype(dest, type),
+               retype(get_nir_src(ntb, instr->src[0], 0), type));
       break;
+   }
 
    case nir_intrinsic_vote_any:
    case nir_intrinsic_vote_all:
