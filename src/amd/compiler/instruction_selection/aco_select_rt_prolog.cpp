@@ -197,44 +197,32 @@ select_rt_prolog(Program* program, ac_shader_config* config,
     * coordinates on the Z-order curve.
     */
 
-   /* Deinterleave bits - odd bits go to tmp_swizzled_id_x, even ones to tmp_swizzled_id_y */
-   bld.vop2(aco_opcode::v_and_b32, Definition(tmp_swizzled_id_x, v1), Operand::c32(0x55),
-            Operand(in_local_id, v1));
-   bld.vop2(aco_opcode::v_and_b32, Definition(tmp_swizzled_id_y, v1), Operand::c32(0xaa),
-            Operand(in_local_id, v1));
+   /* Deinterleave bits - even bits go to tmp_swizzled_id_x, odd ones to tmp_swizzled_id_y */
    bld.vop2(aco_opcode::v_lshrrev_b32, Definition(tmp_swizzled_id_y, v1), Operand::c32(1),
-            Operand(tmp_swizzled_id_y, v1));
+            Operand(in_local_id, v1));
 
-   /* The deinterleaved bits are currently padded with a zero between each bit, like so:
-    * 0 A 0 B 0 C 0 D
+   /* The deinterleaved bits are currently separated by single bit, like so:
+    * ...0 0 0 A ? B ? C
     * Compact the deinterleaved bits by factor 2 to remove the padding, resulting in
-    * A B C D
+    * ...0 0 0 0 0 A B C
     */
-   bld.vop2(aco_opcode::v_lshrrev_b32, Definition(tmp_swizzled_id_shifted_x, v1), Operand::c32(1),
-            Operand(tmp_swizzled_id_x, v1));
    bld.vop2(aco_opcode::v_lshrrev_b32, Definition(tmp_swizzled_id_shifted_y, v1), Operand::c32(1),
             Operand(tmp_swizzled_id_y, v1));
-   bld.vop2(aco_opcode::v_or_b32, Definition(tmp_swizzled_id_x, v1), Operand(tmp_swizzled_id_x, v1),
-            Operand(tmp_swizzled_id_shifted_x, v1));
-   bld.vop2(aco_opcode::v_or_b32, Definition(tmp_swizzled_id_y, v1), Operand(tmp_swizzled_id_y, v1),
-            Operand(tmp_swizzled_id_shifted_y, v1));
-   bld.vop2(aco_opcode::v_and_b32, Definition(tmp_swizzled_id_x, v1), Operand::c32(0x33u),
-            Operand(tmp_swizzled_id_x, v1));
-   bld.vop2(aco_opcode::v_and_b32, Definition(tmp_swizzled_id_y, v1), Operand::c32(0x33u),
-            Operand(tmp_swizzled_id_y, v1));
+   /* Use tmp_swizzled_id_y instead of creating a tmp_swizzled_id_shifted_x, since they would both
+    * be in_local_id>>1 */
+   bld.vop3(aco_opcode::v_bfi_b32, Definition(tmp_swizzled_id_x, v1), Operand::c32(0x11),
+            Operand(in_local_id, v1), Operand(tmp_swizzled_id_y, v1));
+   bld.vop3(aco_opcode::v_bfi_b32, Definition(tmp_swizzled_id_y, v1), Operand::c32(0x11),
+            Operand(tmp_swizzled_id_y, v1), Operand(tmp_swizzled_id_shifted_y, v1));
 
    bld.vop2(aco_opcode::v_lshrrev_b32, Definition(tmp_swizzled_id_shifted_x, v1), Operand::c32(2),
             Operand(tmp_swizzled_id_x, v1));
    bld.vop2(aco_opcode::v_lshrrev_b32, Definition(tmp_swizzled_id_shifted_y, v1), Operand::c32(2),
             Operand(tmp_swizzled_id_y, v1));
-   bld.vop2(aco_opcode::v_or_b32, Definition(tmp_swizzled_id_x, v1), Operand(tmp_swizzled_id_x, v1),
-            Operand(tmp_swizzled_id_shifted_x, v1));
-   bld.vop2(aco_opcode::v_or_b32, Definition(tmp_swizzled_id_y, v1), Operand(tmp_swizzled_id_y, v1),
-            Operand(tmp_swizzled_id_shifted_y, v1));
-   bld.vop2(aco_opcode::v_and_b32, Definition(tmp_swizzled_id_x, v1), Operand::c32(0x0Fu),
-            Operand(tmp_swizzled_id_x, v1));
-   bld.vop2(aco_opcode::v_and_b32, Definition(tmp_swizzled_id_y, v1), Operand::c32(0x0Fu),
-            Operand(tmp_swizzled_id_y, v1));
+   bld.vop3(aco_opcode::v_bfi_b32, Definition(tmp_swizzled_id_x, v1), Operand::c32(0x3),
+            Operand(tmp_swizzled_id_x, v1), Operand(tmp_swizzled_id_shifted_x, v1));
+   bld.vop3(aco_opcode::v_bfi_b32, Definition(tmp_swizzled_id_y, v1), Operand::c32(0x3),
+            Operand(tmp_swizzled_id_y, v1), Operand(tmp_swizzled_id_shifted_y, v1));
 
    /* Fix up the workgroup IDs after converting from 32x1/64x1 to 8x4/8x8. The X dimension of the
     * workgroup size gets divided by 4/8, while the Y dimension gets multiplied by the same amount.
