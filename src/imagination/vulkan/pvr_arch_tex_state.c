@@ -63,6 +63,24 @@ static enum ROGUE_TEXSTATE_SWIZ pvr_get_hw_swizzle(VkComponentSwizzle comp,
    };
 }
 
+static enum ROGUE_TEXSTATE_FORMAT
+pvr_chroma_swap_format(enum ROGUE_TEXSTATE_FORMAT format)
+{
+   switch (format) {
+   case ROGUE_TEXSTATE_FORMAT_YUV420_2PLANE:
+      return ROGUE_TEXSTATE_FORMAT_YVU420_2PLANE;
+   case ROGUE_TEXSTATE_FORMAT_YUV420_3PLANE:
+      return ROGUE_TEXSTATE_FORMAT_YVU420_3PLANE;
+   case ROGUE_TEXSTATE_FORMAT_YVU420_2PLANE:
+      return ROGUE_TEXSTATE_FORMAT_YUV420_2PLANE;
+   case ROGUE_TEXSTATE_FORMAT_YVU420_3PLANE:
+      return ROGUE_TEXSTATE_FORMAT_YUV420_3PLANE;
+   default:
+      UNREACHABLE("Unsupported format");
+      return ROGUE_TEXSTATE_FORMAT_INVALID;
+   }
+}
+
 static uint32_t setup_pck_info(VkFormat vk_format)
 {
    /* TODO NEXT: commonize this.*/
@@ -233,6 +251,11 @@ VkResult pvr_arch_pack_tex_state(struct pvr_device *device,
        */
       word0.texformat =
          pvr_arch_get_tex_format_aspect(info->format, info->aspect_mask);
+
+      if (info->swap_chroma) {
+         word0.texformat = pvr_chroma_swap_format(word0.texformat);
+      }
+
       word0.smpcnt = util_logbase2(info->sample_count);
       word0.swiz0 =
          pvr_get_hw_swizzle(VK_COMPONENT_SWIZZLE_R, info->swizzle[0]);

@@ -112,6 +112,11 @@ struct pvr_texture_state_info {
     * YCbCr CSC matrix
     */
    uint8_t csc_coeff_index;
+
+   /**
+    * Use a YVU format instead of YUV
+    */
+   bool swap_chroma;
 };
 
 #ifdef PVR_PER_ARCH

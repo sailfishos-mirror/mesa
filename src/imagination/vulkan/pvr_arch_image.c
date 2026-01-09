@@ -148,6 +148,8 @@ VkResult PVR_PER_ARCH(CreateImageView)(VkDevice _device,
          input_swizzle[3] = PIPE_SWIZZLE_0;
       }
 
+      info.swap_chroma = conversion->state.mapping[0] == VK_COMPONENT_SWIZZLE_B;
+
       info.csc_coeff_index = pvr_ycbcr_csc_index(conversion);
 
       pvr_csb_pack (&iview->sampler_words[0], TEXSTATE_SAMPLER_WORD0, cfg) {
