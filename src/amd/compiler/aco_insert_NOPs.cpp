@@ -1498,8 +1498,8 @@ handle_instruction_gfx11(State& state, NOP_ctx_gfx11& ctx, aco_ptr<Instruction>&
             for (unsigned i = 0; i < op.size(); i++) {
                unsigned reg = op.physReg() + i;
 
-               /* s_waitcnt_depctr on sa_sdst */
-               if (ctx.sgpr_read_by_valu_as_lanemask_then_wr_by_salu[reg] && wait.sa_sdst > 0) {
+               /* s_waitcnt_depctr on sa_sdst, implicit wait.sa_sdst=0 is not enough. */
+               if (ctx.sgpr_read_by_valu_as_lanemask_then_wr_by_salu[reg]) {
                   imm &= 0xfffe;
                   wait.sa_sdst = 0;
                }
@@ -1619,8 +1619,8 @@ handle_instruction_gfx11(State& state, NOP_ctx_gfx11& ctx, aco_ptr<Instruction>&
 
             for (unsigned i = 0; i < op.size(); i++) {
                PhysReg reg = op.physReg().advance(i * 4);
-               if (ctx.sgpr_read_by_valu_then_wr_by_salu.get(reg) < expiry_count &&
-                   wait.sa_sdst > 0) {
+               /* Implicit wait.sa_sdst=0 is not enough. */
+               if (ctx.sgpr_read_by_valu_then_wr_by_salu.get(reg) < expiry_count) {
                   imm &= 0xfffe;
                   wait.sa_sdst = 0;
                }
