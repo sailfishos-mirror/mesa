@@ -188,7 +188,7 @@ load_urb(nir_builder *b,
    const struct intel_device_info *devinfo = cb_data->devinfo;
    const nir_variable_mode mode = io_mode(intrin);
    const unsigned bits = intrin->def.bit_size;
-   const unsigned base = io_base_slot(intrin, cb_data);
+   unsigned base = io_base_slot(intrin, cb_data);
    unsigned first_component = io_component(intrin, cb_data);
 
    if (devinfo->ver >= 20) {
@@ -205,6 +205,18 @@ load_urb(nir_builder *b,
    /* If the offset is in vec4 units, do a straightforward load */
    if (cb_data->vec4_access) {
       assert(intrin->def.num_components <= 4);
+
+      /* URB offsets are technically unsigned, and Icelake and earlier seem
+       * to perform the addition of global and per-slot offsets in a way that
+       * doesn't handle 32-bit overflow/unsigned wrapping correctly.
+       *
+       * Work around this by just including the base in the offset.
+       */
+      if (devinfo->ver <= 11 && !nir_def_is_const(offset)) {
+         offset = nir_iadd_imm(b, offset, base);
+         base = 0;
+      }
+
       nir_def *load =
          nir_load_urb_vec4_intel(b, 4, bits, handle, offset,
                                  .base = base, .access = access,
