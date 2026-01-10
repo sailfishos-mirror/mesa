@@ -313,6 +313,18 @@ struct vk_device_shader_ops {
                                                uint32_t shader_count,
                                                void *output);
 
+   /** Enable a RT shader for replay
+    *
+    * The @replay_data pointer is the pointer handed to
+    * VkRayTracingShaderGroupCreateInfoKHR::pShaderGroupCaptureReplayHandle on
+    * replay or NULL on capture.
+    */
+   void (*replay_rt_shader_group)(struct vk_device *vk_device,
+                                  VkRayTracingShaderGroupTypeKHR type,
+                                  uint32_t shader_count,
+                                  struct vk_shader **vk_shaders,
+                                  const void *replay_data);
+
    /** Bind a set of shaders
     *
     * This is roughly equivalent to vkCmdBindShadersEXT()

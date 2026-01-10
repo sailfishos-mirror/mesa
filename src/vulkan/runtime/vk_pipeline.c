@@ -3682,6 +3682,19 @@ vk_create_rt_pipeline(struct vk_device *device,
          assert(group->stages[s].shader != NULL);
       }
 
+      /* Activate replay if needed */
+      if (pipeline_flags &
+          VK_PIPELINE_CREATE_RAY_TRACING_SHADER_GROUP_HANDLE_CAPTURE_REPLAY_BIT_KHR) {
+         const struct vk_device_shader_ops *ops = device->shader_ops;
+         struct vk_shader *shaders[3] = {};
+         for (uint32_t s = 0; s < group->stage_count; s++)
+            shaders[s] = group->stages[s].shader;
+         ops->replay_rt_shader_group(
+            device, group_info->type,
+            group->stage_count, shaders,
+            group_info->pShaderGroupCaptureReplayHandle);
+      }
+
       pipeline->group_count++;
    }
 
