@@ -3725,8 +3725,9 @@ tu_CmdBindVertexBuffers2(VkCommandBuffer commandBuffer,
                                         pStrides);
    }
 
+   cmd->state.vertex_buffers.size = 4 * cmd->state.max_vbs_bound;
    cmd->state.vertex_buffers.iova =
-      tu_cs_draw_state(&cmd->sub_cs, &cs, 4 * cmd->state.max_vbs_bound).iova;
+      tu_cs_draw_state(&cmd->sub_cs, &cs, cmd->state.vertex_buffers.size).iova;
 
    for (uint32_t i = 0; i < bindingCount; i++) {
       if (pBuffers[i] == VK_NULL_HANDLE) {
@@ -7026,13 +7027,6 @@ tu6_draw_common(struct tu_cmd_buffer *cmd,
          cmd->state.rp.gmem_disable_reason =
             "MESA_VK_DYNAMIC_ATTACHMENT_FEEDBACK_LOOP_ENABLE";
       }
-   }
-
-   if (BITSET_TEST(cmd->vk.dynamic_graphics_state.dirty,
-                   MESA_VK_DYNAMIC_VI_BINDINGS_VALID)) {
-      cmd->state.vertex_buffers.size =
-         util_last_bit(cmd->vk.dynamic_graphics_state.vi_bindings_valid) * 4;
-      dirty |= TU_CMD_DIRTY_VERTEX_BUFFERS;
    }
 
    if (dirty & TU_CMD_DIRTY_SHADER_CONSTS)
