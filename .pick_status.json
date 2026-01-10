@@ -554,7 +554,7 @@
         "description": "panvk/csf: Stop calling blend_emit_descs() with no FS",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
