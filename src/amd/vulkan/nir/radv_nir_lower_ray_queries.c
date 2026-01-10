@@ -510,7 +510,7 @@ lower_rq_proceed(nir_builder *b, nir_intrinsic_instr *instr, struct ray_query_va
    nir_metadata_require(nir_cf_node_get_function(&instr->instr.block->cf_node), nir_metadata_dominance);
 
    bool ignore_cull_mask = false;
-   if (nir_block_dominates(vars->initialize->instr.block, instr->instr.block)) {
+   if (vars->initialize && nir_block_dominates(vars->initialize->instr.block, instr->instr.block)) {
       nir_src cull_mask = vars->initialize->src[3];
       if (nir_src_is_const(cull_mask) && nir_src_as_uint(cull_mask) == 0xFF)
          ignore_cull_mask = true;
