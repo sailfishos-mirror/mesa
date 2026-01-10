@@ -1754,6 +1754,16 @@ BEGIN_TEST(insert_nops.valu_read_sgpr.basic)
    bld.vop1(aco_opcode::v_mov_b32, Definition(PhysReg(256), v1), Operand(vcc_hi, s1));
    bld.vop1(aco_opcode::v_mov_b32, Definition(PhysReg(256), v1), Operand(PhysReg(4), s1));
 
+   /* VALU read of SALU result need an explicit wait. */
+   //! p_unit_test 24
+   //! s1: %0:s[4] = s_mov_b32 0
+   //! s_waitcnt_depctr sa_sdst(0)
+   //! s2: %0:exec = v_cmpx_eq_i32 %0:s[4], %0:v[0]
+   bld.pseudo(aco_opcode::p_unit_test, Operand::c32(24));
+   bld.sop1(aco_opcode::s_mov_b32, Definition(PhysReg(4), s1), Operand::zero(4));
+   bld.vop2(aco_opcode::v_cmpx_eq_i32, Definition(exec, bld.lm), Operand(PhysReg(4), s1),
+            Operand(PhysReg(256), v1));
+
    finish_insert_nops_test();
 END_TEST
 
