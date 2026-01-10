@@ -146,6 +146,12 @@ panvk_lower_sysvals(nir_builder *b, nir_instr *instr, void *data)
       val = load_sysval(b, common, bit_size, printf_buffer_address);
       break;
 
+   case nir_intrinsic_load_blend_descriptor_pan: {
+      uint32_t loc = nir_intrinsic_base(intr);
+      val = load_sysval(b, graphics, bit_size, fs.blend_descs[loc]);
+      break;
+   }
+
    case nir_intrinsic_load_input_attachment_target_pan: {
       const struct vk_input_attachment_location_state *ial =
          ctx->state ? ctx->state->ial : NULL;
@@ -1399,6 +1405,13 @@ panvk_compile_shader(struct panvk_device *dev,
 
       nir_assign_io_var_locations(nir, nir_var_shader_out);
       panvk_lower_nir_io(nir);
+
+      /* Lower FS outputs now so that we can lower load_blend_descriptor_pan
+       * to a driver-provided FAU instead of using the blend descriptors
+       * uploaded by the hardware.  See panvk_vX_blend.c for details.
+       */
+      NIR_PASS(_, nir, nir_opt_constant_folding);
+      NIR_PASS(_, nir, pan_nir_lower_fs_outputs, false);
 
       variant->own_bin = true;
 

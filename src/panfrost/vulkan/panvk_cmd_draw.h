@@ -26,7 +26,6 @@
 #include "pan_props.h"
 
 #define MAX_VBS 16
-#define MAX_RTS 8
 
 struct panvk_cmd_buffer;
 
@@ -139,6 +138,7 @@ struct panvk_cmd_graphics_state {
    struct {
       const struct panvk_shader *shader;
       struct panvk_shader_desc_state desc;
+      uint64_t blend_descs[MAX_RTS];
       uint64_t push_uniforms;
       bool required;
 #if PAN_ARCH < 9

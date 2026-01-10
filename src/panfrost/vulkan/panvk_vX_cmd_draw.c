@@ -733,6 +733,11 @@ panvk_per_arch(cmd_prepare_draw_sysvals)(struct panvk_cmd_buffer *cmdbuf,
       }
    }
 
+   for (unsigned i = 0; i < MAX_RTS; i++) {
+      set_gfx_sysval(cmdbuf, dirty_sysvals, fs.blend_descs[i],
+                     cmdbuf->state.gfx.fs.blend_descs[i]);
+   }
+
    if (dyn_gfx_state_dirty(cmdbuf, VP_VIEWPORTS) ||
        dyn_gfx_state_dirty(cmdbuf, VP_DEPTH_CLIP_NEGATIVE_ONE_TO_ONE) ||
        dyn_gfx_state_dirty(cmdbuf, RS_DEPTH_CLIP_ENABLE) ||
