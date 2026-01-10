@@ -21,6 +21,10 @@
 # source file, output name, defines
 bvh_shaders = [
   [
+    'id_prefix_sum.comp',
+    'id_prefix_sum',
+  ],
+  [
     'lbvh_generate_ir.comp',
     'lbvh_generate_ir',
   ],
@@ -35,6 +39,10 @@ bvh_shaders = [
   [
     'morton.comp',
     'morton',
+  ],
+  [
+    'pair_triangles.comp',
+    'pair_triangles',
   ],
   [
     'ploc_internal.comp',

@@ -87,6 +87,7 @@ struct vk_ir_header {
    int32_t min_bounds[3];
    int32_t max_bounds[3];
    uint32_t active_leaf_count;
+   uint32_t tmp_active_leaf_count;
    /* Indirect dispatch dimensions for the encoder.
     * ir_internal_node_count is the thread count in the X dimension,
     * while Y and Z are always set to 1. */
@@ -499,6 +500,26 @@ struct hploc_args {
    REF(key32_id_pair) ids;
    VOID_REF ranges;
    uint32_t internal_node_base;
+};
+
+#define PAIR_TRIANGLES_WORKGROUP_SIZE 256
+
+#define VK_PAIR_TRIANGLES_BUILD_FLAGS (VK_BUILD_FLAG_64BIT_KEYS)
+
+struct pair_triangles_args {
+   VOID_REF bvh;
+   REF(vk_ir_header) header;
+   VOID_REF src_ids;
+   REF(vk_prefix_scan_partition) prefix_scan_partitions;
+};
+
+#define VK_ID_PREFIX_SUM_BUILD_FLAGS (VK_BUILD_FLAG_64BIT_KEYS)
+
+struct id_prefix_sum_args {
+   REF(vk_ir_header) header;
+   VOID_REF src_ids;
+   VOID_REF dst_ids;
+   REF(vk_prefix_scan_partition) prefix_scan_partitions;
 };
 
 #endif
