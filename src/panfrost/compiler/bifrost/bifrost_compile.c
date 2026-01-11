@@ -1256,7 +1256,7 @@ bi_emit_store_vary(bi_builder *b, nir_intrinsic_instr *instr)
       I->table = va_res_fold_table_idx(61);
       I->index = 0;
 
-      /* On Avalon, the hardware-controlled buffer is at index 1 for varyings */
+      /* On 5th Gen, the hardware-controlled buffer is at index 1 for varyings */
       if (pan_arch(b->shader->inputs->gpu_id) >= 12 &&
           output_type == VA_SHADER_OUTPUT_VARY) {
          I->index = 1;
@@ -7111,7 +7111,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
    pan_nir_collect_varyings(nir, info, PAN_MEDIUMP_VARY_32BIT);
 
    if (nir->info.stage == MESA_SHADER_VERTEX && info->vs.idvs) {
-      /* On Avalon, IDVS is only in one binary */
+      /* On 5th Gen, IDVS is only in one binary */
       if (pan_arch(inputs->gpu_id) >= 12)
          bi_compile_variant(nir, inputs, binary, info, BI_IDVS_ALL);
       else {
@@ -7334,7 +7334,7 @@ pan_stats_verbose(FILE *f, const char *prefix, bi_context *ctx, const struct pan
       "Lima", "Lima", "Lima", /* 1-3 */
       "Utgard", "Midgard", "Bifrost", "Bifrost", /* 4-7 */
       "Valhall", "Valhall", "Valhall", "Valhall", /* 8-11 */
-      "Avalon",          /* 12 */
+      "Arm 5th Gen", /* 12 */
    };
 
    fprintf(f, "\n");

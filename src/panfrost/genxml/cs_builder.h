@@ -37,7 +37,7 @@
 extern "C" {
 #endif
 
-/* Before Avalon, RUN_IDVS could use a selector but as we only hardcode the same
+/* Before 5th Gen, RUN_IDVS could use a selector but as we only hardcode the same
  * configuration, we match v12+ naming here */
 
 #if PAN_ARCH <= 11

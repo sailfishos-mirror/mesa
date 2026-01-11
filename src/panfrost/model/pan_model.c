@@ -54,7 +54,7 @@
    MODEL(gpu_prod_id << 16, ARCH_MAJOR | ARCH_MINOR | PRODUCT_MAJOR,           \
          gpu_variant, shortname, counters, ##__VA_ARGS__)
 
-#define AVALON_MODEL(gpu_prod_id, gpu_variant, shortname, counters, ...)       \
+#define FIFTHGEN_MODEL(gpu_prod_id, gpu_variant, shortname, counters, ...)     \
    MODEL(gpu_prod_id << 16, ARCH_MAJOR | ARCH_MINOR | PRODUCT_MAJOR,           \
          gpu_variant, shortname, counters, ##__VA_ARGS__)
 
@@ -116,9 +116,9 @@ const struct pan_model pan_model_list[] = {
    VALHALL_MODEL(0xac04, 4, "G310v5",   "TVAx", MODEL_ANISO(ALL),  MODEL_TB_SIZES(32768, 16384),
                                               MODEL_RATES(4, 8,  64)),
 
-   AVALON_MODEL( 0xc800, 4, "G720",   "TTIx", MODEL_ANISO(ALL),  MODEL_TB_SIZES(65536, 32768),
+   FIFTHGEN_MODEL(0xc800, 4, "G720",  "TTIx", MODEL_ANISO(ALL),  MODEL_TB_SIZES(65536, 32768),
                                               MODEL_RATES(4, 8, 128)),
-   AVALON_MODEL( 0xd800, 4, "G725",   "TKRx", MODEL_ANISO(ALL),  MODEL_TB_SIZES(65536, 65536),
+   FIFTHGEN_MODEL(0xd800, 4, "G725",  "TKRx", MODEL_ANISO(ALL),  MODEL_TB_SIZES(65536, 65536),
                                               MODEL_RATES(4, 8, 128)),
 };
 /* clang-format on */
@@ -132,7 +132,7 @@ const struct pan_model pan_model_list[] = {
 #undef MIDGARD_MODEL
 #undef BIFROST_MODEL
 #undef VALHALL_MODEL
-#undef AVALON_MODEL
+#undef FIFTHGEN_MODEL
 #undef MODEL
 
 #undef MODEL_ANISO

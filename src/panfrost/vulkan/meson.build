@@ -65,9 +65,9 @@ valhall_archs = [9, 10]
 valhall_inc_dir = ['valhall']
 valhall_files = []
 
-avalon_archs = [12, 13]
-avalon_inc_dir = ['avalon']
-avalon_files = []
+fifthgen_archs = [12, 13]
+fifthgen_inc_dir = ['fifthgen']
+fifthgen_files = []
 
 jm_archs = [6, 7]
 jm_inc_dir = ['jm']
@@ -135,9 +135,9 @@ foreach arch : [6, 7, 10, 12, 13]
   elif arch in valhall_archs
     inc_panvk_per_arch += valhall_inc_dir
     per_arch_files += valhall_files
-  elif arch in avalon_archs
-    inc_panvk_per_arch += avalon_inc_dir
-    per_arch_files += avalon_files
+  elif arch in fifthgen_archs
+    inc_panvk_per_arch += fifthgen_inc_dir
+    per_arch_files += fifthgen_files
   endif
 
   if arch in jm_archs

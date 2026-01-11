@@ -729,7 +729,7 @@ panfrost_emit_viewport(struct panfrost_batch *batch)
    panfrost_batch_union_scissor(batch, minx, miny, maxx, maxy);
    batch->scissor_culls_everything = (minx >= maxx || miny >= maxy);
 
-   pan_cast_and_pack(&batch->avalon_viewport, VIEWPORT, cfg) {
+   pan_cast_and_pack(&batch->fifthgen_viewport, VIEWPORT, cfg) {
       /* Clamp viewport to valid range */
       cfg.min_x = CLAMP(minx, 0, UINT16_MAX);
       cfg.min_y = CLAMP(miny, 0, UINT16_MAX);

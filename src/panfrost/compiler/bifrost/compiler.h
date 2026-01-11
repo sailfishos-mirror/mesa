@@ -1162,7 +1162,7 @@ enum bir_fau {
    BIR_FAU_WLS_PTR = 17,
    BIR_FAU_PROGRAM_COUNTER = 18,
 
-   /* Avalon only */
+   /* 5th Gen only */
    BIR_FAU_SHADER_OUTPUT = (1 << 9),
 
    BIR_FAU_UNIFORM = (1 << 7),
