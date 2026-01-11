@@ -3328,7 +3328,12 @@ static void si_emit_msaa_config(struct si_context *sctx, unsigned index)
       S_028A4C_OUT_OF_ORDER_PRIMITIVE_ENABLE(out_of_order_rast) |
       S_028A4C_OUT_OF_ORDER_WATER_MARK(sctx->gfx_level >= GFX12 ? 0 : 0x7) |
       /* This should also be 0 when the VRS image is enabled. */
-      S_028A4C_WALK_ALIGN8_PRIM_FITS_ST(!sctx->framebuffer.has_hiz_his) |
+      S_028A4C_WALK_ALIGN8_PRIM_FITS_ST(!sctx->framebuffer.has_hiz_his &&
+                                        /* The rule is that we can't be within 3 tiles (24 pixels)
+                                         * away from the 64K viewport boundary. Use 100 because
+                                         * it's more. */
+                                        sctx->framebuffer.state.width <= 65536 - 100 &&
+                                        sctx->framebuffer.state.height <= 65536 - 100) |
       /* always 1: */
       S_028A4C_SUPERTILE_WALK_ORDER_ENABLE(1) |
       S_028A4C_TILE_WALK_ORDER_ENABLE(1) | S_028A4C_MULTI_SHADER_ENGINE_PRIM_DISCARD_ENABLE(1) |
