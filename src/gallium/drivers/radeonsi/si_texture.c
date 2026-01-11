@@ -2359,9 +2359,6 @@ void vi_disable_dcc_if_incompatible_format(struct si_context *sctx, struct pipe_
 static struct pipe_surface *si_create_surface(struct pipe_context *pipe, struct pipe_resource *tex,
                                               const struct pipe_surface *templ)
 {
-   unsigned level = templ->level;
-   unsigned width = u_minify(tex->width0, level);
-   unsigned height = u_minify(tex->height0, level);
    unsigned width0 = tex->width0;
    unsigned height0 = tex->height0;
 
@@ -2375,12 +2372,6 @@ static struct pipe_surface *si_create_surface(struct pipe_context *pipe, struct 
        * height is changed. */
       if (tex_desc->block.width != templ_desc->block.width ||
           tex_desc->block.height != templ_desc->block.height) {
-         unsigned nblks_x = util_format_get_nblocksx(tex->format, width);
-         unsigned nblks_y = util_format_get_nblocksy(tex->format, height);
-
-         width = nblks_x * templ_desc->block.width;
-         height = nblks_y * templ_desc->block.height;
-
          width0 = util_format_get_nblocksx(tex->format, width0);
          height0 = util_format_get_nblocksy(tex->format, height0);
       }
