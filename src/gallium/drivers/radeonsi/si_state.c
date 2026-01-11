@@ -2621,8 +2621,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
          zstex->force_disable_hiz_his = true;
 
       if (sctx->gfx_level >= GFX12) {
-         sctx->framebuffer.has_hiz_his = (zstex->surface.u.gfx9.zs.hiz.offset ||
-                                          zstex->surface.u.gfx9.zs.his.offset) &&
+         sctx->framebuffer.has_hiz_his = zstex->surface.u.gfx9.zs.hiz.offset &&
                                          !zstex->force_disable_hiz_his;
       }
    }
@@ -3221,20 +3220,13 @@ static void gfx12_emit_framebuffer_state(struct si_context *sctx, unsigned index
 
       if (tex->force_disable_hiz_his) {
          gfx12_set_context_reg(R_028B94_PA_SC_HIZ_INFO, S_028B94_SURFACE_ENABLE(0));
-         gfx12_set_context_reg(R_028B98_PA_SC_HIS_INFO, S_028B98_SURFACE_ENABLE(0));
       } else {
          gfx12_set_context_reg(R_028B94_PA_SC_HIZ_INFO, zb->ds.u.gfx12.hiz_info);
-         gfx12_set_context_reg(R_028B98_PA_SC_HIS_INFO, zb->ds.u.gfx12.his_info);
 
          if (zb->ds.u.gfx12.hiz_info) {
             gfx12_set_context_reg(R_028B9C_PA_SC_HIZ_BASE, zb->ds.u.gfx12.hiz_base);
             gfx12_set_context_reg(R_028BA0_PA_SC_HIZ_BASE_EXT, zb->ds.u.gfx12.hiz_base >> 32);
             gfx12_set_context_reg(R_028BA4_PA_SC_HIZ_SIZE_XY, zb->ds.u.gfx12.hiz_size_xy);
-         }
-         if (zb->ds.u.gfx12.his_info) {
-            gfx12_set_context_reg(R_028BA8_PA_SC_HIS_BASE, zb->ds.u.gfx12.his_base);
-            gfx12_set_context_reg(R_028BAC_PA_SC_HIS_BASE_EXT, zb->ds.u.gfx12.his_base >> 32);
-            gfx12_set_context_reg(R_028BB0_PA_SC_HIS_SIZE_XY, zb->ds.u.gfx12.his_size_xy);
          }
       }
    } else if (sctx->framebuffer.dirty_zsbuf) {

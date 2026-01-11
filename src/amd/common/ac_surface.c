@@ -3382,11 +3382,6 @@ static bool gfx12_compute_miptree(struct ac_addrlib *addrlib, const struct radeo
       surf->u.gfx9.zs.stencil_offset = align(surf->surf_size, out.baseAlign);
       surf->surf_alignment_log2 = MAX2(surf->surf_alignment_log2, util_logbase2(out.baseAlign));
       surf->surf_size = surf->u.gfx9.zs.stencil_offset + out.surfSize;
-
-      if (info->chip_rev >= 2 &&
-          !gfx12_compute_hiz_his_info(addrlib, info, config, surf, &surf->u.gfx9.zs.his, in))
-         return false;
-
       return true;
    }
 
@@ -3579,8 +3574,6 @@ static bool gfx12_compute_surface(struct ac_addrlib *addrlib, const struct radeo
    if (surf->flags & RADEON_SURF_Z_OR_SBUFFER) {
       surf->u.gfx9.zs.hiz.offset = 0;
       surf->u.gfx9.zs.hiz.size = 0;
-      surf->u.gfx9.zs.his.offset = 0;
-      surf->u.gfx9.zs.his.size = 0;
    }
 
    if (surf->u.gfx9.gfx12_enable_dcc) {
@@ -3821,14 +3814,6 @@ int ac_compute_surface(struct ac_addrlib *addrlib, const struct radeon_info *inf
             surf->surf_alignment_log2 = MAX2(surf->surf_alignment_log2,
                                              surf->u.gfx9.zs.hiz.alignment_log2);
             surf->total_size = surf->u.gfx9.zs.hiz.offset + surf->u.gfx9.zs.hiz.size;
-         }
-
-         if (surf->u.gfx9.zs.his.size) {
-            surf->u.gfx9.zs.his.offset = align64(surf->total_size,
-                                                 1ull << surf->u.gfx9.zs.his.alignment_log2);
-            surf->surf_alignment_log2 = MAX2(surf->surf_alignment_log2,
-                                             surf->u.gfx9.zs.his.alignment_log2);
-            surf->total_size = surf->u.gfx9.zs.his.offset + surf->u.gfx9.zs.his.size;
          }
       }
 
@@ -4897,13 +4882,6 @@ void ac_surface_print_info(FILE *out, const struct radeon_info *info,
                     "    HiZ: offset=%" PRIu64 ", size=%u, swmode=%u, width_in_tiles=%u, height_in_tiles=%u\n",
                     surf->u.gfx9.zs.hiz.offset, surf->u.gfx9.zs.hiz.size, surf->u.gfx9.zs.hiz.swizzle_mode,
                     surf->u.gfx9.zs.hiz.width_in_tiles, surf->u.gfx9.zs.hiz.height_in_tiles);
-         }
-
-         if (surf->u.gfx9.zs.his.size) {
-            fprintf(out,
-                    "    HiS: offset=%" PRIu64 ", size=%u, swmode=%u, width_in_tiles=%u, height_in_tiles=%u\n",
-                    surf->u.gfx9.zs.his.offset, surf->u.gfx9.zs.his.size, surf->u.gfx9.zs.his.swizzle_mode,
-                    surf->u.gfx9.zs.his.width_in_tiles, surf->u.gfx9.zs.his.height_in_tiles);
          }
       }
    } else {

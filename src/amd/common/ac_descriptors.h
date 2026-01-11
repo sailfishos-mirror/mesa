@@ -207,9 +207,6 @@ struct ac_ds_surface {
          uint64_t hiz_base;
          uint32_t hiz_info;
          uint32_t hiz_size_xy;
-         uint64_t his_base;
-         uint32_t his_info;
-         uint32_t his_size_xy;
          uint32_t db_depth_view1;
       } gfx12;
 

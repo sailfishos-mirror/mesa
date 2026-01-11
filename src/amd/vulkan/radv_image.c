@@ -924,9 +924,6 @@ radv_image_alloc_values(const struct radv_device *device, struct radv_image *ima
    if (pdev->info.gfx_level == GFX12) {
       const struct radeon_surf *surf = &image->planes[0].surface;
 
-      /* All production chips don't support HiS. */
-      assert(!surf->u.gfx9.zs.his.offset);
-
       /* Allocate HiZ metadata when the image has depth/stencil aspects to implement a workaround. */
       if (pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_FULL && surf->u.gfx9.zs.hiz.offset &&
           (image->vk.aspects == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))) {

@@ -1025,7 +1025,6 @@ ac_init_gfx12_ds_surface(const struct radeon_info *info, const struct ac_ds_stat
    ds->db_depth_base = state->va >> 8;
    ds->db_stencil_base = (state->va + surf->u.gfx9.zs.stencil_offset) >> 8;
    ds->u.gfx12.hiz_info = 0;
-   ds->u.gfx12.his_info = 0;
 
    /* HiZ. */
    if (surf->u.gfx9.zs.hiz.offset) {
@@ -1035,15 +1034,6 @@ ac_init_gfx12_ds_surface(const struct radeon_info *info, const struct ac_ds_stat
       ds->u.gfx12.hiz_size_xy = S_028BA4_X_MAX(surf->u.gfx9.zs.hiz.width_in_tiles - 1) |
                                 S_028BA4_Y_MAX(surf->u.gfx9.zs.hiz.height_in_tiles - 1);
       ds->u.gfx12.hiz_base = (state->va + surf->u.gfx9.zs.hiz.offset) >> 8;
-   }
-
-   /* HiS. */
-   if (surf->u.gfx9.zs.his.offset) {
-      ds->u.gfx12.his_info = S_028B98_SURFACE_ENABLE(1) |
-                             S_028B98_SW_MODE(surf->u.gfx9.zs.his.swizzle_mode);
-      ds->u.gfx12.his_size_xy = S_028BB0_X_MAX(surf->u.gfx9.zs.his.width_in_tiles - 1) |
-                                S_028BB0_Y_MAX(surf->u.gfx9.zs.his.height_in_tiles - 1);
-      ds->u.gfx12.his_base = (state->va + surf->u.gfx9.zs.his.offset) >> 8;
    }
 }
 

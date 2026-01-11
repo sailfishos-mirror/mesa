@@ -307,7 +307,7 @@ struct gfx9_surf_layout {
          uint16_t stencil_epitch;   /* gfx9 only, not on gfx10 */
          uint8_t stencil_swizzle_mode;
 
-         struct gfx12_hiz_his_layout hiz, his;
+         struct gfx12_hiz_his_layout hiz;
 
          /* For HTILE VRS. (only Gfx103-Gfx11) */
          struct gfx9_meta_equation htile_equation;
