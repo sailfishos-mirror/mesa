@@ -1610,12 +1610,12 @@ static void si_bind_dsa_state(struct pipe_context *ctx, void *state)
    struct si_texture *zstex = (struct si_texture*)sctx->framebuffer.state.zsbuf.texture;
 
    if (sctx->gfx_level == GFX12 && !sctx->screen->options.alt_hiz_logic &&
-       sctx->framebuffer.has_stencil && dsa->stencil_enabled && !zstex->force_disable_hiz_his) {
-      zstex->force_disable_hiz_his = true;
+       sctx->framebuffer.has_stencil && dsa->stencil_enabled && !zstex->gfx12_force_disable_hiz) {
+      zstex->gfx12_force_disable_hiz = true;
       si_mark_atom_dirty(sctx, &sctx->atoms.s.framebuffer);
 
-      if (sctx->framebuffer.has_hiz_his) {
-         sctx->framebuffer.has_hiz_his = false;
+      if (sctx->framebuffer.gfx12_has_hiz) {
+         sctx->framebuffer.gfx12_has_hiz = false;
          si_mark_atom_dirty(sctx, &sctx->atoms.s.msaa_config);
       }
    }
@@ -2453,7 +2453,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
    uint8_t old_db_format_index =
       old_has_zsbuf ?
       ((struct si_surface *)sctx->framebuffer.fb_zsbuf)->db_format_index : -1;
-   bool old_has_hiz_his = sctx->framebuffer.has_hiz_his;
+   bool old_gfx12_has_hiz = sctx->framebuffer.gfx12_has_hiz;
    int i;
 
    /* Reject zero-sized framebuffers due to a hw bug on GFX6 that occurs
@@ -2525,7 +2525,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
    sctx->framebuffer.min_bytes_per_pixel = 0;
    sctx->framebuffer.disable_vrs_flat_shading = false;
    sctx->framebuffer.has_stencil = false;
-   sctx->framebuffer.has_hiz_his = false;
+   sctx->framebuffer.gfx12_has_hiz = false;
 
    for (i = 0; i < state->nr_cbufs; i++) {
       if (!state->cbufs[i].texture)
@@ -2624,11 +2624,11 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
 
       if (sctx->gfx_level == GFX12 && !sctx->screen->options.alt_hiz_logic &&
           sctx->framebuffer.has_stencil && sctx->queued.named.dsa->stencil_enabled)
-         zstex->force_disable_hiz_his = true;
+         zstex->gfx12_force_disable_hiz = true;
 
-      if (sctx->gfx_level >= GFX12) {
-         sctx->framebuffer.has_hiz_his = zstex->surface.u.gfx9.zs.hiz.offset &&
-                                         !zstex->force_disable_hiz_his;
+      if (sctx->gfx_level == GFX12) {
+         sctx->framebuffer.gfx12_has_hiz = zstex->surface.u.gfx9.zs.hiz.offset &&
+                                         !zstex->gfx12_force_disable_hiz;
       }
    }
 
@@ -2644,7 +2644,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
       si_mark_atom_dirty(sctx, &sctx->atoms.s.dpbb_state);
 
    if (sctx->framebuffer.any_dst_linear != old_any_dst_linear ||
-       sctx->framebuffer.has_hiz_his != old_has_hiz_his)
+       sctx->framebuffer.gfx12_has_hiz != old_gfx12_has_hiz)
       si_mark_atom_dirty(sctx, &sctx->atoms.s.msaa_config);
 
    if (sctx->screen->info.has_out_of_order_rast &&
@@ -3224,7 +3224,7 @@ static void gfx12_emit_framebuffer_state(struct si_context *sctx, unsigned index
       gfx12_set_context_reg(R_028038_DB_STENCIL_WRITE_BASE, zb->ds.db_stencil_base);
       gfx12_set_context_reg(R_02803C_DB_STENCIL_WRITE_BASE_HI, zb->ds.db_stencil_base >> 32);
 
-      if (tex->force_disable_hiz_his) {
+      if (tex->gfx12_force_disable_hiz) {
          gfx12_set_context_reg(R_028B94_PA_SC_HIZ_INFO, S_028B94_SURFACE_ENABLE(0));
       } else {
          gfx12_set_context_reg(R_028B94_PA_SC_HIZ_INFO, zb->ds.u.gfx12.hiz_info);
@@ -3334,7 +3334,7 @@ static void si_emit_msaa_config(struct si_context *sctx, unsigned index)
       S_028A4C_OUT_OF_ORDER_PRIMITIVE_ENABLE(out_of_order_rast) |
       S_028A4C_OUT_OF_ORDER_WATER_MARK(sctx->gfx_level >= GFX12 ? 0 : 0x7) |
       /* This should also be 0 when the VRS image is enabled. */
-      S_028A4C_WALK_ALIGN8_PRIM_FITS_ST(!sctx->framebuffer.has_hiz_his &&
+      S_028A4C_WALK_ALIGN8_PRIM_FITS_ST(!sctx->framebuffer.gfx12_has_hiz &&
                                         /* The rule is that we can't be within 3 tiles (24 pixels)
                                          * away from the 64K viewport boundary. Use 100 because
                                          * it's more. */

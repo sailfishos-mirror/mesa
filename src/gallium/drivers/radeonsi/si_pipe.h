@@ -411,7 +411,7 @@ struct si_texture {
    bool can_sample_z : 1;
    bool can_sample_s : 1;
    bool need_flush_after_depth_decompression: 1;
-   bool force_disable_hiz_his : 1;
+   bool gfx12_force_disable_hiz : 1;
 
    /* We need to track DCC dirtiness, because st/dri usually calls
     * flush_resource twice per frame (not a bug) and we don't wanna
@@ -778,7 +778,7 @@ struct si_framebuffer {
    bool has_dcc_msaa;
    bool disable_vrs_flat_shading;
    bool has_stencil;
-   bool has_hiz_his;
+   bool gfx12_has_hiz;
 };
 
 enum si_quant_mode
