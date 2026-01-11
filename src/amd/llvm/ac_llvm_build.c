@@ -889,10 +889,10 @@ static void ac_build_buffer_store_common(struct ac_llvm_context *ctx, LLVMValueR
 }
 
 void ac_build_buffer_store_format(struct ac_llvm_context *ctx, LLVMValueRef rsrc, LLVMValueRef data,
-                                  LLVMValueRef vindex, LLVMValueRef voffset, enum gl_access_qualifier access,
-                                  bool may_subdword)
+                                  LLVMValueRef vindex, LLVMValueRef voffset, LLVMValueRef soffset,
+                                  enum gl_access_qualifier access, bool may_subdword)
 {
-   ac_build_buffer_store_common(ctx, rsrc, data, vindex, voffset, NULL, access, may_subdword, true);
+   ac_build_buffer_store_common(ctx, rsrc, data, vindex, voffset, soffset, access, may_subdword, true);
 }
 
 /* buffer_store_dword(,x2,x3,x4) <- the suffix is selected by the type of vdata. */
@@ -1052,10 +1052,11 @@ LLVMValueRef ac_build_buffer_load(struct ac_llvm_context *ctx, LLVMValueRef rsrc
 
 LLVMValueRef ac_build_buffer_load_format(struct ac_llvm_context *ctx, LLVMValueRef rsrc,
                                          LLVMValueRef vindex, LLVMValueRef voffset,
-                                         unsigned num_channels, enum gl_access_qualifier access,
+                                         LLVMValueRef soffset, unsigned num_channels,
+                                         enum gl_access_qualifier access,
                                          bool can_speculate, bool d16, bool tfe)
 {
-   return ac_build_buffer_load_common(ctx, rsrc, vindex, voffset, ctx->i32_0,
+   return ac_build_buffer_load_common(ctx, rsrc, vindex, voffset, soffset,
                                       num_channels, d16 ? ctx->f16 : ctx->f32, access,
                                       can_speculate, true, tfe);
 }

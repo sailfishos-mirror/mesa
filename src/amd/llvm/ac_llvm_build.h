@@ -232,7 +232,8 @@ void ac_build_buffer_store_dword(struct ac_llvm_context *ctx, LLVMValueRef rsrc,
                                  enum gl_access_qualifier access, bool may_subdword);
 
 void ac_build_buffer_store_format(struct ac_llvm_context *ctx, LLVMValueRef rsrc, LLVMValueRef data,
-                                  LLVMValueRef vindex, LLVMValueRef voffset, enum gl_access_qualifier access, bool may_subdword);
+                                  LLVMValueRef vindex, LLVMValueRef voffset, LLVMValueRef soffset,
+                                  enum gl_access_qualifier access, bool may_subdword);
 
 LLVMValueRef ac_build_buffer_load(struct ac_llvm_context *ctx, LLVMValueRef rsrc, int num_channels,
                                   LLVMValueRef vindex, LLVMValueRef voffset, LLVMValueRef soffset,
@@ -241,8 +242,9 @@ LLVMValueRef ac_build_buffer_load(struct ac_llvm_context *ctx, LLVMValueRef rsrc
 
 LLVMValueRef ac_build_buffer_load_format(struct ac_llvm_context *ctx, LLVMValueRef rsrc,
                                          LLVMValueRef vindex, LLVMValueRef voffset,
-                                         unsigned num_channels, enum gl_access_qualifier access,
-                                         bool can_speculate, bool d16, bool tfe);
+                                         LLVMValueRef soffset, unsigned num_channels,
+                                         enum gl_access_qualifier access, bool can_speculate,
+                                         bool d16, bool tfe);
 
 LLVMValueRef ac_build_buffer_load_short(struct ac_llvm_context *ctx, LLVMValueRef rsrc,
                                         LLVMValueRef voffset, LLVMValueRef soffset,

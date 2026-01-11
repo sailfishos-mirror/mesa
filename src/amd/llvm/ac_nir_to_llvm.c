@@ -2279,7 +2279,8 @@ static void visit_image_store(struct ac_nir_context *ctx, const nir_intrinsic_in
       vindex =
          LLVMBuildExtractElement(ctx->ac.builder, get_src(ctx, instr->src[1]), ctx->ac.i32_0, "");
 
-      ac_build_buffer_store_format(&ctx->ac, rsrc, src, vindex, ctx->ac.i32_0, args.access, true);
+      ac_build_buffer_store_format(&ctx->ac, rsrc, src, vindex, ctx->ac.i32_0, ctx->ac.i32_0,
+                                   args.access, true);
    } else {
       bool level_zero = nir_src_is_const(instr->src[4]) && nir_src_as_uint(instr->src[4]) == 0;
 
@@ -3038,13 +3039,14 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
 
       if (instr->intrinsic == nir_intrinsic_load_buffer_amd && uses_format) {
          assert(instr->def.bit_size == 16 || instr->def.bit_size == 32);
-         result = ac_build_buffer_load_format(&ctx->ac, descriptor, vidx, voffset,
+         result = ac_build_buffer_load_format(&ctx->ac, descriptor, vidx, voffset, addr_soffset,
                                               num_components - is_sparse, access, reorder,
                                               instr->def.bit_size == 16, is_sparse);
          result = ac_to_integer(&ctx->ac, result);
       } else if (instr->intrinsic == nir_intrinsic_store_buffer_amd && uses_format) {
          assert(instr->src[0].ssa->bit_size == 16 || instr->src[0].ssa->bit_size == 32);
-         ac_build_buffer_store_format(&ctx->ac, descriptor, store_data, vidx, voffset, access, true);
+         ac_build_buffer_store_format(&ctx->ac, descriptor, store_data, vidx, voffset,
+                                      addr_soffset, access, true);
       } else if (instr->intrinsic == nir_intrinsic_load_buffer_amd ||
                  instr->intrinsic == nir_intrinsic_load_typed_buffer_amd) {
          /* LLVM is unable to select instructions for larger than 32-bit channel types.
