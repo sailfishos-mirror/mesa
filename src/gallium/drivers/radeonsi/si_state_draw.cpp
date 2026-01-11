@@ -1923,6 +1923,76 @@ static unsigned get_vb_descriptor_sgpr_ptr_offset(void)
    return dw_offset * 4;
 }
 
+template <amd_gfx_level GFX_VERSION, si_is_draw_vertex_state IS_DRAW_VERTEX_STATE,
+          util_popcnt POPCNT> ALWAYS_INLINE
+static unsigned si_emit_VB_descriptors(struct si_context *sctx, struct si_vertex_state *vstate,
+                                       uint32_t *partial_velem_mask, struct si_vertex_elements *velems,
+                                       unsigned sh_base, unsigned count_in_user_sgprs)
+{
+   unsigned i = 0;
+
+   /* There will be future work here and this will be the else statement of that. */
+   {
+      /* Layout in user SGPRs:
+       *
+       * GFX6-8 (4-dword descriptor):
+       *    user_sgpr[12:15] = vertex buffer 0
+       *
+       * GFX9-12 (4-dword descriptors):
+       *    user_sgpr[12:15] = vertex buffer 0
+       *    user_sgpr[16:19] = vertex buffer 1
+       *    user_sgpr[20:23] = vertex buffer 2
+       *    user_sgpr[24:27] = vertex buffer 3
+       *    user_sgpr[28:31] = vertex buffer 4
+       */
+      radeon_begin(&sctx->gfx_cs);
+      radeon_set_sh_reg_seq(sh_base + SI_SGPR_VS_VB_DESCRIPTOR_FIRST * 4, count_in_user_sgprs * 4);
+
+      /* The first iteration always executes. */
+      do {
+         if (IS_DRAW_VERTEX_STATE) {
+            unsigned velem_index = get_next_vertex_state_elem<POPCNT>(&vstate->b, partial_velem_mask);
+
+            radeon_emit_array(&vstate->descriptors[velem_index * 4], 4);
+         } else {
+            unsigned vbo_index = velems->vertex_buffer_index[i];
+            const struct pipe_vertex_buffer *vb = &sctx->vertex_buffer[vbo_index];
+            uint32_t *ib_desc;
+
+            radeon_emit_array_get_ptr(4, &ib_desc);
+
+            si_set_vb_descriptor<GFX_VERSION>(velems, vb, i, ib_desc);
+         }
+      } while (++i < count_in_user_sgprs);
+      radeon_end();
+   }
+
+   return i;
+}
+
+template <amd_gfx_level GFX_VERSION, si_is_draw_vertex_state IS_DRAW_VERTEX_STATE,
+          util_popcnt POPCNT> ALWAYS_INLINE
+static void si_upload_VB_descriptors(struct si_context *sctx, struct si_vertex_state *vstate,
+                                     uint32_t *partial_velem_mask, struct si_vertex_elements *velems,
+                                     uint32_t *ptr, unsigned i, unsigned count)
+{
+   /* There will be future work here and this will be the else statement of that. */
+   {
+      /* The first iteration always executes. */
+      do {
+         if (IS_DRAW_VERTEX_STATE) {
+            unsigned velem_index = get_next_vertex_state_elem<POPCNT>(&vstate->b, partial_velem_mask);
+            memcpy(ptr, &vstate->descriptors[velem_index * 4], 16);
+         } else {
+            unsigned vbo_index = velems->vertex_buffer_index[i];
+            si_set_vb_descriptor<GFX_VERSION>(velems, &sctx->vertex_buffer[vbo_index], i, ptr);
+         }
+         ptr += 4;
+         i++;
+      } while (IS_DRAW_VERTEX_STATE ? *partial_velem_mask : i < count);
+   }
+}
+
 template <amd_gfx_level GFX_VERSION, si_has_tess HAS_TESS, si_has_gs HAS_GS, si_has_ngg NGG,
           si_is_draw_vertex_state IS_DRAW_VERTEX_STATE, si_has_sh_pairs_packed HAS_SH_PAIRS_PACKED,
           util_popcnt POPCNT> ALWAYS_INLINE
@@ -1935,6 +2005,8 @@ static bool si_upload_and_prefetch_VB_descriptors(struct si_context *sctx,
                                            sctx->num_vertex_elements;
    unsigned sh_base = si_get_user_data_base(GFX_VERSION, HAS_TESS, HAS_GS, NGG,
                                             MESA_SHADER_VERTEX);
+   unsigned vb_desc_ptr_offset =
+      sh_base + get_vb_descriptor_sgpr_ptr_offset<GFX_VERSION, HAS_TESS, HAS_GS, NGG>();
    unsigned num_vbos_in_user_sgprs = si_num_vbos_in_user_sgprs_inline(GFX_VERSION);
 
    assert(count <= SI_MAX_ATTRIBS);
@@ -1969,48 +2041,28 @@ static bool si_upload_and_prefetch_VB_descriptors(struct si_context *sctx,
          vb_descriptors_address = si_resource(upload_buf)->gpu_address + offset;
 
          /* GFX6 doesn't support the L2 prefetch. */
-         if (GFX_VERSION >= GFX7) {
-            uint64_t address = si_resource(upload_buf)->gpu_address + offset;
-            si_cp_dma_prefetch_inline<GFX_VERSION>(&sctx->gfx_cs, address, alloc_size);
-         }
+         if (GFX_VERSION >= GFX7)
+            si_cp_dma_prefetch_inline<GFX_VERSION>(&sctx->gfx_cs, vb_descriptors_address, alloc_size);
       }
 
       unsigned count_in_user_sgprs = MIN2(count, num_vbos_in_user_sgprs);
       unsigned i = 0;
 
-      if (IS_DRAW_VERTEX_STATE) {
+      if (count_in_user_sgprs) {
+         i = si_emit_VB_descriptors<GFX_VERSION, IS_DRAW_VERTEX_STATE, POPCNT>(
+                  sctx, vstate, &partial_velem_mask, velems, sh_base, count_in_user_sgprs);
+      }
+
+      if (IS_DRAW_VERTEX_STATE ? partial_velem_mask : alloc_size) {
          radeon_begin(&sctx->gfx_cs);
-
-         if (count_in_user_sgprs) {
-            radeon_set_sh_reg_seq(sh_base + SI_SGPR_VS_VB_DESCRIPTOR_FIRST * 4, count_in_user_sgprs * 4);
-
-            /* the first iteration always executes */
-            do {
-               unsigned velem_index = get_next_vertex_state_elem<POPCNT>(state, &partial_velem_mask);
-
-               radeon_emit_array(&vstate->descriptors[velem_index * 4], 4);
-            } while (++i < count_in_user_sgprs);
-         }
-
-         if (partial_velem_mask) {
-            assert(alloc_size);
-
-            unsigned vb_desc_offset =
-               sh_base + get_vb_descriptor_sgpr_ptr_offset<GFX_VERSION, HAS_TESS, HAS_GS, NGG>();
-
-            radeon_set_or_push_gfx_sh_reg(vb_desc_offset, vb_descriptors_address);
-
-            /* the first iteration always executes */
-            do {
-               unsigned velem_index = get_next_vertex_state_elem<POPCNT>(state, &partial_velem_mask);
-               uint32_t *desc = &ptr[(i - num_vbos_in_user_sgprs) * 4];
-
-               memcpy(desc, &vstate->descriptors[velem_index * 4], 16);
-               i++;
-            } while (partial_velem_mask);
-         }
+         radeon_set_or_push_gfx_sh_reg(vb_desc_ptr_offset, vb_descriptors_address);
          radeon_end();
 
+         si_upload_VB_descriptors<GFX_VERSION, IS_DRAW_VERTEX_STATE, POPCNT>(
+                  sctx, vstate, &partial_velem_mask, velems, ptr, i, count);
+      }
+
+      if (IS_DRAW_VERTEX_STATE) {
          if (vstate->b.input.vbuffer.buffer.resource != vstate->b.input.indexbuf) {
             radeon_add_to_buffer_list(sctx, &sctx->gfx_cs,
                                       si_resource(vstate->b.input.vbuffer.buffer.resource),
@@ -2020,42 +2072,6 @@ static bool si_upload_and_prefetch_VB_descriptors(struct si_context *sctx,
          /* The next draw_vbo should recompute and rebind vertex buffer descriptors. */
          sctx->vertex_buffers_dirty = sctx->num_vertex_elements > 0;
       } else {
-         if (count_in_user_sgprs) {
-            radeon_begin(&sctx->gfx_cs);
-            radeon_set_sh_reg_seq(sh_base + SI_SGPR_VS_VB_DESCRIPTOR_FIRST * 4,
-                                  count_in_user_sgprs * 4);
-
-            /* the first iteration always executes */
-            do {
-               unsigned vbo_index = velems->vertex_buffer_index[i];
-               const struct pipe_vertex_buffer *vb = &sctx->vertex_buffer[vbo_index];
-               uint32_t *desc;
-
-               radeon_emit_array_get_ptr(4, &desc);
-
-               si_set_vb_descriptor<GFX_VERSION>(velems, vb, i, desc);
-            } while (++i < count_in_user_sgprs);
-
-            radeon_end();
-         }
-
-         if (alloc_size) {
-            /* the first iteration always executes */
-            do {
-               unsigned vbo_index = velems->vertex_buffer_index[i];
-               const struct pipe_vertex_buffer *vb = &sctx->vertex_buffer[vbo_index];
-               uint32_t *desc = &ptr[(i - num_vbos_in_user_sgprs) * 4];
-
-               si_set_vb_descriptor<GFX_VERSION>(velems, vb, i, desc);
-            } while (++i < count);
-
-            unsigned vb_desc_ptr_offset =
-               sh_base + get_vb_descriptor_sgpr_ptr_offset<GFX_VERSION, HAS_TESS, HAS_GS, NGG>();
-            radeon_begin(&sctx->gfx_cs);
-            radeon_set_or_push_gfx_sh_reg(vb_desc_ptr_offset, vb_descriptors_address);
-            radeon_end();
-         }
-
          sctx->vertex_buffers_dirty = false;
       }
    }
