@@ -135,7 +135,6 @@ struct si_state_dsa {
    unsigned spi_shader_user_data_ps_alpha_ref;
    unsigned db_stencil_read_mask;
    unsigned db_stencil_write_mask;
-   unsigned db_render_override;     /* only gfx12 */
 
    /* 0 = without stencil buffer, 1 = when both Z and S buffers are present */
    struct si_dsa_order_invariance order_invariance[2];
@@ -147,6 +146,7 @@ struct si_state_dsa {
    bool stencil_write_enabled : 1;
    bool db_can_write : 1;
    bool depth_bounds_enabled : 1;
+   bool gfx12_force_stencil_valid : 1;
 };
 
 struct si_stencil_ref {

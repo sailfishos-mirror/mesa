@@ -1467,11 +1467,11 @@ static void *si_create_dsa_state(struct pipe_context *ctx,
       dsa->db_stencil_write_mask = S_028094_WRITEMASK(state->stencil[0].writemask) |
                                    S_028094_WRITEMASK_BF(state->stencil[1].writemask);
 
-      bool force_s_valid = state->stencil[0].zpass_op != state->stencil[0].zfail_op ||
-                           (state->stencil[1].enabled &&
-                            state->stencil[1].zpass_op != state->stencil[1].zfail_op);
-      dsa->db_render_override = S_02800C_FORCE_STENCIL_READ(1) |
-                                S_02800C_FORCE_STENCIL_VALID(force_s_valid);
+      if (sctx->gfx_level == GFX12) {
+         dsa->gfx12_force_stencil_valid = state->stencil[0].zpass_op != state->stencil[0].zfail_op ||
+                                          (state->stencil[1].enabled &&
+                                           state->stencil[1].zpass_op != state->stencil[1].zfail_op);
+      }
    }
 
    bool zfunc_is_ordered =
@@ -1507,8 +1507,6 @@ static void si_pm4_emit_dsa(struct si_context *sctx, unsigned index)
    if (sctx->gfx_level >= GFX12) {
       radeon_begin(&sctx->gfx_cs);
       gfx12_begin_context_regs();
-      gfx12_opt_set_context_reg(R_02800C_DB_RENDER_OVERRIDE, AC_TRACKED_DB_RENDER_OVERRIDE,
-                                state->db_render_override);
       gfx12_opt_set_context_reg(R_028070_DB_DEPTH_CONTROL, AC_TRACKED_DB_DEPTH_CONTROL,
                                 state->db_depth_control);
       if (state->stencil_enabled) {
@@ -1641,7 +1639,8 @@ static void si_bind_dsa_state(struct pipe_context *ctx, void *state)
 
    if (sctx->occlusion_query_mode == SI_OCCLUSION_QUERY_MODE_PRECISE_BOOLEAN &&
        (old_dsa->depth_enabled != dsa->depth_enabled ||
-        old_dsa->depth_write_enabled != dsa->depth_write_enabled))
+        old_dsa->depth_write_enabled != dsa->depth_write_enabled ||
+        old_dsa->gfx12_force_stencil_valid != dsa->gfx12_force_stencil_valid))
       si_mark_atom_dirty(sctx, &sctx->atoms.s.db_render_state);
 
    if (sctx->screen->dpbb_allowed && ((old_dsa->depth_enabled != dsa->depth_enabled ||
@@ -1848,6 +1847,13 @@ static void si_emit_db_render_state(struct si_context *sctx, unsigned index)
       gfx12_begin_context_regs();
       gfx12_opt_set_context_reg(R_028000_DB_RENDER_CONTROL, AC_TRACKED_DB_RENDER_CONTROL,
                                 db_render_control);
+      gfx12_opt_set_context_reg(R_02800C_DB_RENDER_OVERRIDE, AC_TRACKED_DB_RENDER_OVERRIDE,
+                                S_02800C_FORCE_STENCIL_READ(1) |
+                                /* If both MSAA Z and stencil are bound, and stencil zpass and zfail
+                                 * states are different, we must set FORCE_STENCIL_VALID=1. */
+                                S_02800C_FORCE_STENCIL_VALID(sctx->framebuffer.nr_samples > 1 &&
+                                                             sctx->framebuffer.has_stencil &&
+                                                             sctx->queued.named.dsa->gfx12_force_stencil_valid));
       gfx12_opt_set_context_reg(R_028010_DB_RENDER_OVERRIDE2, AC_TRACKED_DB_RENDER_OVERRIDE2,
                                 S_028010_DECOMPRESS_Z_ON_FLUSH(sctx->framebuffer.nr_samples >= 4) |
                                 S_028010_CENTROID_COMPUTATION_MODE(1));
