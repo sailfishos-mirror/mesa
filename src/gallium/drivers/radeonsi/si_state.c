@@ -2297,20 +2297,21 @@ static bool si_is_format_supported(struct pipe_screen *screen, enum pipe_format 
 static void si_initialize_color_surface(struct si_context *sctx, unsigned i)
 {
    struct si_cb_surface_info *cb = &sctx->framebuffer.cb[i];
+   struct pipe_surface *psurf = &sctx->framebuffer.state.cbufs[i];
    struct si_surface *surf = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
-   struct si_texture *tex = (struct si_texture *)surf->base.texture;
+   struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
    unsigned format, swap, ntype;//, endian;
 
    memset(cb, 0, sizeof(*cb));
 
-   ntype = ac_get_cb_number_type(surf->base.format);
-   format = ac_get_cb_format(sctx->gfx_level, surf->base.format);
+   ntype = ac_get_cb_number_type(psurf->format);
+   format = ac_get_cb_format(sctx->gfx_level, psurf->format);
 
    if (format == V_028C70_COLOR_INVALID) {
-      PRINT_ERR("Invalid CB format: %d, disabling CB.\n", surf->base.format);
+      PRINT_ERR("Invalid CB format: %d, disabling CB.\n", psurf->format);
    }
    assert(format != V_028C70_COLOR_INVALID);
-   swap = ac_translate_colorswap(sctx->gfx_level, surf->base.format, false);
+   swap = ac_translate_colorswap(sctx->gfx_level, psurf->format, false);
 
    if (ntype == V_028C70_NUMBER_UINT || ntype == V_028C70_NUMBER_SINT) {
       if (format == V_028C70_COLOR_8 || format == V_028C70_COLOR_8_8 ||
@@ -2322,15 +2323,15 @@ static void si_initialize_color_surface(struct si_context *sctx, unsigned i)
 
    const struct ac_cb_state cb_state = {
       .surf = &tex->surface,
-      .format = surf->base.format,
+      .format = psurf->format,
       .width = surf->width0,
       .height = surf->height0,
-      .first_layer = surf->base.first_layer,
-      .last_layer = surf->base.last_layer,
+      .first_layer = psurf->first_layer,
+      .last_layer = psurf->last_layer,
       .num_layers = util_max_layer(&tex->buffer.b.b, 0),
       .num_samples = tex->buffer.b.b.nr_samples,
       .num_storage_samples = tex->buffer.b.b.nr_storage_samples,
-      .base_level = surf->base.level,
+      .base_level = psurf->level,
       .num_levels = tex->buffer.b.b.last_level + 1,
    };
 
