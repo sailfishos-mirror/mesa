@@ -1082,8 +1082,7 @@ static void si_pm4_emit_rasterizer(struct si_context *sctx, unsigned index)
                                 state->pa_sc_edgerule);
 
       if (state->uses_poly_offset && sctx->framebuffer.state.zsbuf.texture) {
-         unsigned db_format_index =
-            ((struct si_surface *)sctx->framebuffer.fb_zsbuf)->db_format_index;
+         unsigned db_format_index = sctx->framebuffer.zs.db_format_index;
 
          gfx12_opt_set_context_reg(R_028B78_PA_SU_POLY_OFFSET_DB_FMT_CNTL,
                                    AC_TRACKED_PA_SU_POLY_OFFSET_DB_FMT_CNTL,
@@ -1127,8 +1126,7 @@ static void si_pm4_emit_rasterizer(struct si_context *sctx, unsigned index)
                                 state->pa_sc_edgerule);
 
       if (state->uses_poly_offset && sctx->framebuffer.state.zsbuf.texture) {
-         unsigned db_format_index =
-            ((struct si_surface *)sctx->framebuffer.fb_zsbuf)->db_format_index;
+         unsigned db_format_index = sctx->framebuffer.zs.db_format_index;
 
          gfx11_opt_set_context_reg(R_028B78_PA_SU_POLY_OFFSET_DB_FMT_CNTL,
                                    AC_TRACKED_PA_SU_POLY_OFFSET_DB_FMT_CNTL,
@@ -1174,8 +1172,7 @@ static void si_pm4_emit_rasterizer(struct si_context *sctx, unsigned index)
                                  state->pa_sc_edgerule);
 
       if (state->uses_poly_offset && sctx->framebuffer.state.zsbuf.texture) {
-         unsigned db_format_index =
-            ((struct si_surface *)sctx->framebuffer.fb_zsbuf)->db_format_index;
+         unsigned db_format_index = sctx->framebuffer.zs.db_format_index;
 
          radeon_opt_set_context_reg6(R_028B78_PA_SU_POLY_OFFSET_DB_FMT_CNTL,
                                      AC_TRACKED_PA_SU_POLY_OFFSET_DB_FMT_CNTL,
@@ -2352,10 +2349,12 @@ static void si_initialize_color_surface(struct si_context *sctx, unsigned i)
 
 static void si_init_depth_surface(struct si_context *sctx)
 {
-   struct si_surface *surf = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
+   struct si_zs_surface_info *zs = &sctx->framebuffer.zs;
    struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.zsbuf.texture;
    unsigned level = sctx->framebuffer.state.zsbuf.level;
    unsigned format;
+
+   memset(zs, 0, sizeof(*zs));
 
    format = ac_translate_dbformat(tex->db_render_format);
 
@@ -2370,14 +2369,14 @@ static void si_init_depth_surface(struct si_context *sctx)
     */
    switch (tex->buffer.b.b.format) {
    case PIPE_FORMAT_Z16_UNORM:
-      surf->db_format_index = 0;
+      zs->db_format_index = 0;
       break;
    default: /* 24-bit */
-      surf->db_format_index = 1;
+      zs->db_format_index = 1;
       break;
    case PIPE_FORMAT_Z32_FLOAT:
    case PIPE_FORMAT_Z32_FLOAT_S8X24_UINT:
-      surf->db_format_index = 2;
+      zs->db_format_index = 2;
       break;
    }
 
@@ -2397,9 +2396,7 @@ static void si_init_depth_surface(struct si_context *sctx)
       .htile_stencil_disabled = tex->htile_stencil_disabled,
    };
 
-   ac_init_ds_surface(&sctx->screen->info, &ds_state, &surf->ds);
-
-   surf->depth_initialized = true;
+   ac_init_ds_surface(&sctx->screen->info, &ds_state, &zs->ds);
 }
 
 static void si_dec_framebuffer_counters(const struct pipe_framebuffer_state *state)
@@ -2456,9 +2453,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
    bool old_has_stencil =
       old_has_zsbuf &&
       ((struct si_texture *)sctx->framebuffer.state.zsbuf.texture)->surface.has_stencil;
-   uint8_t old_db_format_index =
-      old_has_zsbuf ?
-      ((struct si_surface *)sctx->framebuffer.fb_zsbuf)->db_format_index : -1;
+   uint8_t old_db_format_index = old_has_zsbuf ? sctx->framebuffer.zs.db_format_index : -1;
    bool old_gfx12_has_hiz = sctx->framebuffer.gfx12_has_hiz;
    int i;
 
@@ -2603,12 +2598,9 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
    struct si_texture *zstex = NULL;
 
    if (state->zsbuf.texture) {
-      surf = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
       zstex = (struct si_texture *)state->zsbuf.texture;
 
-      if (!surf->depth_initialized) {
-         si_init_depth_surface(sctx);
-      }
+      si_init_depth_surface(sctx);
 
       if (sctx->gfx_level < GFX12 &&
           vi_tc_compat_htile_enabled(zstex, state->zsbuf.level, PIPE_MASK_ZS))
@@ -2621,7 +2613,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
 
       /* Update polygon offset based on the Z format. */
       if (sctx->queued.named.rasterizer->uses_poly_offset &&
-          surf->db_format_index != old_db_format_index)
+          sctx->framebuffer.zs.db_format_index != old_db_format_index)
          sctx->dirty_atoms |= SI_STATE_BIT(rasterizer);
 
       if (util_format_has_stencil(util_format_description(zstex->buffer.b.b.format)))
@@ -2869,7 +2861,6 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
 
    /* ZS buffer. */
    if (state->zsbuf.texture && sctx->framebuffer.dirty_zsbuf) {
-      struct si_surface *zb = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
       struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.zsbuf.texture;
 
       radeon_add_to_buffer_list(sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE |
@@ -2880,7 +2871,7 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
 
       /* Set mutable fields. */
       const struct ac_mutable_ds_state mutable_ds_state = {
-         .ds = &zb->ds,
+         .ds = &sctx->framebuffer.zs.ds,
          .format = tex->db_render_format,
          .tc_compat_htile_enabled = vi_tc_compat_htile_enabled(tex, level, PIPE_MASK_ZS),
          .zrange_precision = tex->depth_clear_value[level] != 0,
@@ -3071,7 +3062,6 @@ static void gfx11_dgpu_emit_framebuffer_state(struct si_context *sctx, unsigned 
 
    /* ZS buffer. */
    if (state->zsbuf.texture && sctx->framebuffer.dirty_zsbuf) {
-      struct si_surface *zb = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
       struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.zsbuf.texture;
 
       radeon_add_to_buffer_list(sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE |
@@ -3082,7 +3072,7 @@ static void gfx11_dgpu_emit_framebuffer_state(struct si_context *sctx, unsigned 
 
       /* Set mutable fields. */
       const struct ac_mutable_ds_state mutable_ds_state = {
-         .ds = &zb->ds,
+         .ds = &sctx->framebuffer.zs.ds,
          .format = tex->db_render_format,
          .tc_compat_htile_enabled = vi_tc_compat_htile_enabled(tex, level, PIPE_MASK_ZS),
          .zrange_precision = tex->depth_clear_value[level] != 0,
@@ -3210,7 +3200,7 @@ static void gfx12_emit_framebuffer_state(struct si_context *sctx, unsigned index
 
    /* ZS buffer. */
    if (state->zsbuf.texture && sctx->framebuffer.dirty_zsbuf) {
-      struct si_surface *zb = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
+      struct si_zs_surface_info *zb = &sctx->framebuffer.zs;
       struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.zsbuf.texture;
 
       radeon_add_to_buffer_list(sctx, &sctx->gfx_cs, &tex->buffer,
