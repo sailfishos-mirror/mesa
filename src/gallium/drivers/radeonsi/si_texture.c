@@ -2405,9 +2405,6 @@ static struct pipe_surface *si_create_surface(struct pipe_context *pipe, struct 
    surface->width0 = width0;
    surface->height0 = height0;
 
-   surface->dcc_incompatible =
-      tex->target != PIPE_BUFFER &&
-      vi_dcc_formats_are_incompatible(tex, templ->level, templ->format);
    return &surface->base;
 }
 

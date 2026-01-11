@@ -2486,17 +2486,16 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
          if (!sctx->framebuffer.state.cbufs[i].texture)
             continue;
 
-         surf = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
+         struct pipe_surface *surf = &sctx->framebuffer.state.cbufs[i];
          tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
 
-         if (!surf->dcc_incompatible)
+         if (!vi_dcc_formats_are_incompatible(sctx->framebuffer.state.cbufs[i].texture,
+                                              surf->level, surf->format))
             continue;
 
          if (vi_dcc_enabled(tex, sctx->framebuffer.state.cbufs[i].level))
             if (!si_texture_disable_dcc(sctx, tex))
                si_decompress_dcc(sctx, tex);
-
-         surf->dcc_incompatible = false;
       }
    }
 

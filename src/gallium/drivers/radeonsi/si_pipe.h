@@ -467,8 +467,6 @@ struct si_surface {
    /* These can vary with block-compressed textures. */
    unsigned width0;
    unsigned height0;
-
-   bool dcc_incompatible : 1;
 };
 
 struct si_mmio_counter {
