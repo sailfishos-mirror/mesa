@@ -461,10 +461,6 @@ struct si_zs_surface_info {
    uint8_t db_format_index : 3;
 };
 
-struct si_surface {
-   struct pipe_surface base;
-};
-
 struct si_mmio_counter {
    unsigned busy;
    unsigned idle;
@@ -751,7 +747,6 @@ struct si_framebuffer {
    struct pipe_framebuffer_state state;
    struct si_cb_surface_info cb[8];
    struct si_zs_surface_info zs;
-   PIPE_FB_SURFACES; //STOP USING THIS
    unsigned colorbuf_enabled_4bit;
    unsigned spi_shader_col_format;
    unsigned spi_shader_col_format_alpha;

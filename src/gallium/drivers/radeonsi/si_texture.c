@@ -2356,34 +2356,6 @@ void vi_disable_dcc_if_incompatible_format(struct si_context *sctx, struct pipe_
          si_decompress_dcc(sctx, stex);
 }
 
-static struct pipe_surface *si_create_surface(struct pipe_context *pipe, struct pipe_resource *tex,
-                                              const struct pipe_surface *templ)
-{
-   struct si_surface *surface = CALLOC_STRUCT(si_surface);
-
-   if (!surface)
-      return NULL;
-
-   assert(templ->first_layer <= util_max_layer(tex, templ->level));
-   assert(templ->last_layer <= util_max_layer(tex, templ->level));
-
-   pipe_reference_init(&surface->base.reference, 1);
-   pipe_resource_reference(&surface->base.texture, tex);
-   surface->base.context = pipe;
-   surface->base.format = templ->format;
-   surface->base.level = templ->level;
-   surface->base.first_layer = templ->first_layer;
-   surface->base.last_layer = templ->last_layer;
-
-   return &surface->base;
-}
-
-static void si_surface_destroy(struct pipe_context *pipe, struct pipe_surface *surface)
-{
-   pipe_resource_reference(&surface->texture, NULL);
-   FREE(surface);
-}
-
 static struct pipe_memory_object *
 si_memobj_from_handle(struct pipe_screen *screen, struct winsys_handle *whandle, bool dedicated)
 {
@@ -2564,6 +2536,4 @@ void si_init_context_texture_functions(struct si_context *sctx)
 {
    sctx->b.texture_map = si_texture_transfer_map;
    sctx->b.texture_unmap = si_texture_transfer_unmap;
-   sctx->b.create_surface = si_create_surface;
-   sctx->b.surface_destroy = si_surface_destroy;
 }

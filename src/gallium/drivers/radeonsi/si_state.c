@@ -2298,7 +2298,6 @@ static void si_initialize_color_surface(struct si_context *sctx, unsigned i)
 {
    struct si_cb_surface_info *cb = &sctx->framebuffer.cb[i];
    struct pipe_surface *psurf = &sctx->framebuffer.state.cbufs[i];
-   struct si_surface *surf = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
    struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
    unsigned format, swap, ntype;//, endian;
 
@@ -2463,7 +2462,6 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
                                      const struct pipe_framebuffer_state *state)
 {
    struct si_context *sctx = (struct si_context *)ctx;
-   struct si_surface *surf = NULL;
    struct si_texture *tex;
    bool old_any_dst_linear = sctx->framebuffer.any_dst_linear;
    unsigned old_nr_samples = sctx->framebuffer.nr_samples;
@@ -2495,7 +2493,6 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
    sctx->framebuffer.dirty_zsbuf |= !pipe_surface_equal(&sctx->framebuffer.state.zsbuf, &state->zsbuf);
 
    si_dec_framebuffer_counters(&sctx->framebuffer.state);
-   util_framebuffer_init(ctx, state, sctx->framebuffer.fb_cbufs, &sctx->framebuffer.fb_zsbuf);
    util_copy_framebuffer_state(&sctx->framebuffer.state, state);
 
    /* Disable DCC if the formats are incompatible. */
@@ -2701,8 +2698,6 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
    struct radeon_cmdbuf *cs = &sctx->gfx_cs;
    struct pipe_framebuffer_state *state = &sctx->framebuffer.state;
    unsigned i, nr_cbufs = state->nr_cbufs;
-   struct si_texture *tex = NULL;
-   struct si_surface *cb = NULL;
    bool is_msaa_resolve = state->nr_cbufs == 2 &&
                           state->cbufs[0].texture && state->cbufs[0].texture->nr_samples > 1 &&
                           state->cbufs[1].texture && state->cbufs[1].texture->nr_samples <= 1;
@@ -2732,8 +2727,9 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
       }
 
       struct pipe_surface *cb_psurf = &sctx->framebuffer.state.cbufs[i];
-      cb = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
-      if (!cb) {
+      struct si_texture *tex = (struct si_texture *)cb_psurf->texture;
+
+      if (!tex) {
          radeon_set_context_reg(R_028C70_CB_COLOR0_INFO + i * 0x3C,
                                 sctx->gfx_level >= GFX11 ?
                                    S_028C70_FORMAT_GFX11(V_028C70_COLOR_INVALID) :
@@ -2741,7 +2737,6 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
          continue;
       }
 
-      tex = (struct si_texture *)cb_psurf->texture;
       radeon_add_to_buffer_list(
          sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE | RADEON_USAGE_CB_NEEDS_IMPLICIT_SYNC |
          (tex->buffer.b.b.nr_samples > 1 ? RADEON_PRIO_COLOR_BUFFER_MSAA : RADEON_PRIO_COLOR_BUFFER));
@@ -3001,8 +2996,6 @@ static void gfx11_dgpu_emit_framebuffer_state(struct si_context *sctx, unsigned 
    struct radeon_cmdbuf *cs = &sctx->gfx_cs;
    struct pipe_framebuffer_state *state = &sctx->framebuffer.state;
    unsigned i, nr_cbufs = state->nr_cbufs;
-   struct si_texture *tex = NULL;
-   struct si_surface *cb = NULL;
    bool is_msaa_resolve = state->nr_cbufs == 2 &&
                           state->cbufs[0].texture && state->cbufs[0].texture->nr_samples > 1 &&
                           state->cbufs[1].texture && state->cbufs[1].texture->nr_samples <= 1;
@@ -3030,15 +3023,15 @@ static void gfx11_dgpu_emit_framebuffer_state(struct si_context *sctx, unsigned 
          continue;
       }
 
-      cb = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
-      if (!cb) {
+      struct pipe_surface *cb_psurf = &sctx->framebuffer.state.cbufs[i];
+      struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
+
+      if (!tex) {
          gfx11_set_context_reg(R_028C70_CB_COLOR0_INFO + i * 0x3C,
                                S_028C70_FORMAT_GFX11(V_028C70_COLOR_INVALID));
          continue;
       }
 
-      struct pipe_surface *cb_psurf = &sctx->framebuffer.state.cbufs[i];
-      tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
       radeon_add_to_buffer_list(
          sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE | RADEON_USAGE_CB_NEEDS_IMPLICIT_SYNC |
          (tex->buffer.b.b.nr_samples > 1 ? RADEON_PRIO_COLOR_BUFFER_MSAA : RADEON_PRIO_COLOR_BUFFER));
@@ -3150,8 +3143,6 @@ static void gfx12_emit_framebuffer_state(struct si_context *sctx, unsigned index
    struct radeon_cmdbuf *cs = &sctx->gfx_cs;
    struct pipe_framebuffer_state *state = &sctx->framebuffer.state;
    unsigned i, nr_cbufs = state->nr_cbufs;
-   struct si_texture *tex = NULL;
-   struct si_surface *cb = NULL;
    bool is_msaa_resolve = state->nr_cbufs == 2 &&
                           state->cbufs[0].texture && state->cbufs[0].texture->nr_samples > 1 &&
                           state->cbufs[1].texture && state->cbufs[1].texture->nr_samples <= 1;
@@ -3179,14 +3170,14 @@ static void gfx12_emit_framebuffer_state(struct si_context *sctx, unsigned index
          continue;
       }
 
-      cb = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
-      if (!cb) {
+      struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
+
+      if (!tex) {
          gfx12_set_context_reg(R_028EC0_CB_COLOR0_INFO + i * 4,
                                S_028EC0_FORMAT(V_028C70_COLOR_INVALID));
          continue;
       }
 
-      tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
       radeon_add_to_buffer_list(
          sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE | RADEON_USAGE_CB_NEEDS_IMPLICIT_SYNC |
          (tex->buffer.b.b.nr_samples > 1 ? RADEON_PRIO_COLOR_BUFFER_MSAA : RADEON_PRIO_COLOR_BUFFER));
