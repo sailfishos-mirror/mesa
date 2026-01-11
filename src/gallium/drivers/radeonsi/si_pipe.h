@@ -463,10 +463,6 @@ struct si_zs_surface_info {
 
 struct si_surface {
    struct pipe_surface base;
-
-   /* These can vary with block-compressed textures. */
-   unsigned width0;
-   unsigned height0;
 };
 
 struct si_mmio_counter {

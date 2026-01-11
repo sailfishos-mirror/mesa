@@ -2321,11 +2321,29 @@ static void si_initialize_color_surface(struct si_context *sctx, unsigned i)
          cb->color_is_int10 = true;
    }
 
+   unsigned width0 = tex->buffer.b.b.width0;
+   unsigned height0 = tex->buffer.b.b.height0;
+
+   if (psurf->format != tex->buffer.b.b.format) {
+      const struct util_format_description *tex_desc =
+         util_format_description(tex->buffer.b.b.format);
+      const struct util_format_description *surf_desc =
+         util_format_description(psurf->format);
+
+      assert(tex_desc->block.bits == surf_desc->block.bits);
+
+      if (tex_desc->block.width != surf_desc->block.width ||
+          tex_desc->block.height != surf_desc->block.height) {
+         width0 = util_format_get_nblocksx(tex->buffer.b.b.format, width0);
+         height0 = util_format_get_nblocksy(tex->buffer.b.b.format, height0);
+      }
+   }
+
    const struct ac_cb_state cb_state = {
       .surf = &tex->surface,
       .format = psurf->format,
-      .width = surf->width0,
-      .height = surf->height0,
+      .width = width0,
+      .height = height0,
       .first_layer = psurf->first_layer,
       .last_layer = psurf->last_layer,
       .num_layers = util_max_layer(&tex->buffer.b.b, 0),
