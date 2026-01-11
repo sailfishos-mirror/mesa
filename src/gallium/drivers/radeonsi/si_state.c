@@ -2295,8 +2295,9 @@ static bool si_is_format_supported(struct pipe_screen *screen, enum pipe_format 
  * framebuffer handling
  */
 
-static void si_initialize_color_surface(struct si_context *sctx, struct si_surface *surf)
+static void si_initialize_color_surface(struct si_context *sctx, unsigned i)
 {
+   struct si_surface *surf = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
    struct si_texture *tex = (struct si_texture *)surf->base.texture;
    unsigned format, swap, ntype;//, endian;
 
@@ -2345,10 +2346,11 @@ static void si_initialize_color_surface(struct si_context *sctx, struct si_surfa
    surf->color_initialized = true;
 }
 
-static void si_init_depth_surface(struct si_context *sctx, struct si_surface *surf)
+static void si_init_depth_surface(struct si_context *sctx)
 {
-   struct si_texture *tex = (struct si_texture *)surf->base.texture;
-   unsigned level = surf->base.level;
+   struct si_surface *surf = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
+   struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.zsbuf.texture;
+   unsigned level = sctx->framebuffer.state.zsbuf.level;
    unsigned format;
 
    format = ac_translate_dbformat(tex->db_render_format);
@@ -2384,8 +2386,8 @@ static void si_init_depth_surface(struct si_context *sctx, struct si_surface *su
       .level = level,
       .num_levels = tex->buffer.b.b.last_level + 1,
       .num_samples = tex->buffer.b.b.nr_samples,
-      .first_layer = surf->base.first_layer,
-      .last_layer = surf->base.last_layer,
+      .first_layer = sctx->framebuffer.state.zsbuf.first_layer,
+      .last_layer = sctx->framebuffer.state.zsbuf.last_layer,
       .allow_expclear = true,
       .htile_enabled = sctx->gfx_level < GFX12 && si_htile_enabled(tex, level, PIPE_MASK_ZS),
       .htile_stencil_disabled = tex->htile_stencil_disabled,
@@ -2485,12 +2487,12 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
             continue;
 
          surf = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
-         tex = (struct si_texture *)surf->base.texture;
+         tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
 
          if (!surf->dcc_incompatible)
             continue;
 
-         if (vi_dcc_enabled(tex, surf->base.level))
+         if (vi_dcc_enabled(tex, sctx->framebuffer.state.cbufs[i].level))
             if (!si_texture_disable_dcc(sctx, tex))
                si_decompress_dcc(sctx, tex);
 
@@ -2531,11 +2533,12 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
       if (!state->cbufs[i].texture)
          continue;
 
+      struct pipe_surface *psurf = &sctx->framebuffer.state.cbufs[i];
       surf = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
-      tex = (struct si_texture *)surf->base.texture;
+      tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
 
       if (!surf->color_initialized) {
-         si_initialize_color_surface(sctx, surf);
+         si_initialize_color_surface(sctx, i);
       }
 
       sctx->framebuffer.colorbuf_enabled_4bit |= 0xf << (i * 4);
@@ -2568,7 +2571,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
       if (tex->surface.is_linear)
          sctx->framebuffer.any_dst_linear = true;
 
-      if (vi_dcc_enabled(tex, surf->base.level)) {
+      if (vi_dcc_enabled(tex, psurf->level)) {
          sctx->framebuffer.CB_has_shader_readable_metadata = true;
 
          if (sctx->gfx_level >= GFX9 && sctx->gfx_level < GFX12 &&
@@ -2591,7 +2594,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
        */
       if ((sctx->framebuffer.nr_samples == 8 && tex->surface.bpe != 2) ||
           (tex->surface.thick_tiling && tex->surface.bpe == 4 &&
-           util_format_get_nr_components(surf->base.format) == 4))
+           util_format_get_nr_components(psurf->format) == 4))
          sctx->framebuffer.disable_vrs_flat_shading = true;
    }
 
@@ -2599,14 +2602,14 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
 
    if (state->zsbuf.texture) {
       surf = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
-      zstex = (struct si_texture *)surf->base.texture;
+      zstex = (struct si_texture *)state->zsbuf.texture;
 
       if (!surf->depth_initialized) {
-         si_init_depth_surface(sctx, surf);
+         si_init_depth_surface(sctx);
       }
 
       if (sctx->gfx_level < GFX12 &&
-          vi_tc_compat_htile_enabled(zstex, surf->base.level, PIPE_MASK_ZS))
+          vi_tc_compat_htile_enabled(zstex, state->zsbuf.level, PIPE_MASK_ZS))
          sctx->framebuffer.DB_has_shader_readable_metadata = true;
 
       /* Update the minimum but don't keep 0. */
@@ -2716,6 +2719,7 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
          continue;
       }
 
+      struct pipe_surface *cb_psurf = &sctx->framebuffer.state.cbufs[i];
       cb = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
       if (!cb) {
          radeon_set_context_reg(R_028C70_CB_COLOR0_INFO + i * 0x3C,
@@ -2725,7 +2729,7 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
          continue;
       }
 
-      tex = (struct si_texture *)cb->base.texture;
+      tex = (struct si_texture *)cb_psurf->texture;
       radeon_add_to_buffer_list(
          sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE | RADEON_USAGE_CB_NEEDS_IMPLICIT_SYNC |
          (tex->buffer.b.b.nr_samples > 1 ? RADEON_PRIO_COLOR_BUFFER_MSAA : RADEON_PRIO_COLOR_BUFFER));
@@ -2741,13 +2745,13 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
          .surf = &tex->surface,
          .cb = &cb->cb,
          .va = tex->buffer.gpu_address,
-         .base_level = cb->base.level,
-         .num_samples = cb->base.texture->nr_samples,
+         .base_level = cb_psurf->level,
+         .num_samples = tex->buffer.b.b.nr_samples,
          .fmask_enabled = !!tex->surface.fmask_offset,
          /* CMASK and fast clears are configured elsewhere. */
          .cmask_enabled = false,
          .fast_clear_enabled = false,
-         .dcc_enabled = vi_dcc_enabled(tex, cb->base.level) &&
+         .dcc_enabled = vi_dcc_enabled(tex, cb_psurf->level) &&
                         (i != 1 || !is_msaa_resolve),
       };
       struct ac_cb_surface cb_surf;
@@ -2771,7 +2775,7 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
             cb_surf.cb_color_info |= S_028C70_COMP_SWAP(swap);
          }
 
-         if (cb->base.level > 0)
+         if (cb_psurf->level > 0)
             cb_surf.cb_color_info &= C_028C70_FAST_CLEAR;
          else
             cb_surf.cb_color_cmask = tex->cmask_base_address_reg;
@@ -2864,13 +2868,13 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
    /* ZS buffer. */
    if (state->zsbuf.texture && sctx->framebuffer.dirty_zsbuf) {
       struct si_surface *zb = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
-      struct si_texture *tex = (struct si_texture *)zb->base.texture;
+      struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.zsbuf.texture;
 
       radeon_add_to_buffer_list(sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE |
-                                (zb->base.texture->nr_samples > 1 ? RADEON_PRIO_DEPTH_BUFFER_MSAA
-                                                                  : RADEON_PRIO_DEPTH_BUFFER));
+                                (tex->buffer.b.b.nr_samples > 1 ? RADEON_PRIO_DEPTH_BUFFER_MSAA
+                                                                : RADEON_PRIO_DEPTH_BUFFER));
 
-      const unsigned level = zb->base.level;
+      const unsigned level = sctx->framebuffer.state.zsbuf.level;
 
       /* Set mutable fields. */
       const struct ac_mutable_ds_state mutable_ds_state = {
@@ -3022,7 +3026,8 @@ static void gfx11_dgpu_emit_framebuffer_state(struct si_context *sctx, unsigned 
          continue;
       }
 
-      tex = (struct si_texture *)cb->base.texture;
+      struct pipe_surface *cb_psurf = &sctx->framebuffer.state.cbufs[i];
+      tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
       radeon_add_to_buffer_list(
          sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE | RADEON_USAGE_CB_NEEDS_IMPLICIT_SYNC |
          (tex->buffer.b.b.nr_samples > 1 ? RADEON_PRIO_COLOR_BUFFER_MSAA : RADEON_PRIO_COLOR_BUFFER));
@@ -3038,8 +3043,8 @@ static void gfx11_dgpu_emit_framebuffer_state(struct si_context *sctx, unsigned 
          .surf = &tex->surface,
          .cb = &cb->cb,
          .va = tex->buffer.gpu_address,
-         .num_samples = cb->base.texture->nr_samples,
-         .dcc_enabled = vi_dcc_enabled(tex, cb->base.level),
+         .num_samples = tex->buffer.b.b.nr_samples,
+         .dcc_enabled = vi_dcc_enabled(tex, cb_psurf->level),
       };
       struct ac_cb_surface cb_surf;
 
@@ -3065,13 +3070,13 @@ static void gfx11_dgpu_emit_framebuffer_state(struct si_context *sctx, unsigned 
    /* ZS buffer. */
    if (state->zsbuf.texture && sctx->framebuffer.dirty_zsbuf) {
       struct si_surface *zb = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
-      struct si_texture *tex = (struct si_texture *)zb->base.texture;
+      struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.zsbuf.texture;
 
       radeon_add_to_buffer_list(sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE |
-                                (zb->base.texture->nr_samples > 1 ? RADEON_PRIO_DEPTH_BUFFER_MSAA
-                                                                  : RADEON_PRIO_DEPTH_BUFFER));
+                                (tex->buffer.b.b.nr_samples > 1 ? RADEON_PRIO_DEPTH_BUFFER_MSAA
+                                                                : RADEON_PRIO_DEPTH_BUFFER));
 
-      const unsigned level = zb->base.level;
+      const unsigned level = sctx->framebuffer.state.zsbuf.level;
 
       /* Set mutable fields. */
       const struct ac_mutable_ds_state mutable_ds_state = {
@@ -3171,7 +3176,7 @@ static void gfx12_emit_framebuffer_state(struct si_context *sctx, unsigned index
          continue;
       }
 
-      tex = (struct si_texture *)cb->base.texture;
+      tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
       radeon_add_to_buffer_list(
          sctx, &sctx->gfx_cs, &tex->buffer, RADEON_USAGE_READWRITE | RADEON_USAGE_CB_NEEDS_IMPLICIT_SYNC |
          (tex->buffer.b.b.nr_samples > 1 ? RADEON_PRIO_COLOR_BUFFER_MSAA : RADEON_PRIO_COLOR_BUFFER));
@@ -3204,12 +3209,12 @@ static void gfx12_emit_framebuffer_state(struct si_context *sctx, unsigned index
    /* ZS buffer. */
    if (state->zsbuf.texture && sctx->framebuffer.dirty_zsbuf) {
       struct si_surface *zb = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
-      struct si_texture *tex = (struct si_texture *)zb->base.texture;
+      struct si_texture *tex = (struct si_texture *)sctx->framebuffer.state.zsbuf.texture;
 
       radeon_add_to_buffer_list(sctx, &sctx->gfx_cs, &tex->buffer,
                                 RADEON_USAGE_READWRITE | RADEON_USAGE_DB_NEEDS_IMPLICIT_SYNC |
-                                (zb->base.texture->nr_samples > 1 ? RADEON_PRIO_DEPTH_BUFFER_MSAA
-                                                                  : RADEON_PRIO_DEPTH_BUFFER));
+                                (tex->buffer.b.b.nr_samples > 1 ? RADEON_PRIO_DEPTH_BUFFER_MSAA
+                                                                : RADEON_PRIO_DEPTH_BUFFER));
       gfx12_set_context_reg(R_028004_DB_DEPTH_VIEW, zb->ds.db_depth_view);
       gfx12_set_context_reg(R_028008_DB_DEPTH_VIEW1, zb->ds.u.gfx12.db_depth_view1);
       gfx12_set_context_reg(R_028014_DB_DEPTH_SIZE_XY, zb->ds.db_depth_size);

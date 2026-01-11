@@ -813,8 +813,7 @@ void si_fb_barrier_after_rendering(struct si_context *sctx, unsigned flags)
           */
          si_make_DB_shader_coherent(sctx, 1, false, sctx->framebuffer.DB_has_shader_readable_metadata);
       } else if (sctx->screen->info.family == CHIP_NAVI33) {
-         struct si_surface *old_zsurf = (struct si_surface *)sctx->framebuffer.fb_zsbuf;
-         struct si_texture *old_ztex = (struct si_texture *)old_zsurf->base.texture;
+         struct si_texture *old_ztex = (struct si_texture *)sctx->framebuffer.state.zsbuf.texture;
 
          if (old_ztex->upgraded_depth) {
             /* TODO: some failures related to hyperz appeared after 969ed851 on nv33:
