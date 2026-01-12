@@ -139,31 +139,6 @@ ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key,
 }
 
 static void
-copy_stream_out(struct ir3_stream_output_info *i,
-                const struct pipe_stream_output_info *p)
-{
-   STATIC_ASSERT(ARRAY_SIZE(i->stride) == ARRAY_SIZE(p->stride));
-   STATIC_ASSERT(ARRAY_SIZE(i->output) == ARRAY_SIZE(p->output));
-
-   i->streams_written = 0;
-   i->num_outputs = p->num_outputs;
-   for (int n = 0; n < ARRAY_SIZE(i->stride); n++) {
-      i->stride[n] = p->stride[n];
-      if (p->stride[n])
-         i->streams_written |= BIT(n);
-   }
-
-   for (int n = 0; n < ARRAY_SIZE(i->output); n++) {
-      i->output[n].register_index = p->output[n].register_index;
-      i->output[n].start_component = p->output[n].start_component;
-      i->output[n].num_components = p->output[n].num_components;
-      i->output[n].output_buffer = p->output[n].output_buffer;
-      i->output[n].dst_offset = p->output[n].dst_offset;
-      i->output[n].stream = p->output[n].stream;
-   }
-}
-
-static void
 create_initial_variants(struct ir3_shader_state *hwcso,
                         struct util_debug_callback *debug)
 {
@@ -299,7 +274,7 @@ ir3_shader_compute_state_create(struct pipe_context *pctx,
    }
 
    struct ir3_shader *shader =
-      ir3_shader_from_nir(compiler, nir, &ir3_options, NULL);
+      ir3_shader_from_nir(compiler, nir, &ir3_options);
    shader->cs.req_local_mem = cso->static_shared_mem;
 
    struct ir3_shader_state *hwcso = calloc(1, sizeof(*hwcso));
@@ -358,9 +333,6 @@ ir3_shader_state_create(struct pipe_context *pctx,
     * This part is cheap, it doesn't compile initial variants
     */
 
-   struct ir3_stream_output_info stream_output = {};
-   copy_stream_out(&stream_output, &cso->stream_output);
-
    hwcso->shader =
       ir3_shader_from_nir(compiler, nir, &(struct ir3_shader_options){
                               /* TODO: force to single on a6xx with legacy
@@ -368,8 +340,7 @@ ir3_shader_state_create(struct pipe_context *pctx,
                                */
                               .api_wavesize = IR3_SINGLE_OR_DOUBLE,
                               .real_wavesize = IR3_SINGLE_OR_DOUBLE,
-                          },
-                          &stream_output);
+                          });
 
    /*
     * Create initial variants to avoid draw-time stalls.  This is

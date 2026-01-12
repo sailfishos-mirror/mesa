@@ -1424,46 +1424,6 @@ shared_type_info(const struct glsl_type *type, unsigned *size, unsigned *align)
    *align = comp_size;
 }
 
-static void
-tu_gather_xfb_info(nir_shader *nir, struct ir3_stream_output_info *info)
-{
-   nir_shader_gather_xfb_info(nir);
-
-   if (!nir->xfb_info)
-      return;
-
-   nir_xfb_info *xfb = nir->xfb_info;
-
-   uint8_t output_map[VARYING_SLOT_TESS_MAX];
-   memset(output_map, 0, sizeof(output_map));
-
-   nir_foreach_shader_out_variable(var, nir) {
-      unsigned slots = nir_variable_count_slots(var, var->type);
-      for (unsigned i = 0; i < slots; i++)
-         output_map[var->data.location + i] = var->data.driver_location + i;
-   }
-
-   assert(xfb->output_count <= IR3_MAX_SO_OUTPUTS);
-   info->num_outputs = xfb->output_count;
-
-   for (int i = 0; i < IR3_MAX_SO_BUFFERS; i++) {
-      info->stride[i] = xfb->buffers[i].stride / 4;
-      info->buffer_to_stream[i] = xfb->buffer_to_stream[i];
-   }
-
-   info->streams_written = xfb->streams_written;
-
-   for (int i = 0; i < xfb->output_count; i++) {
-      info->output[i].register_index = output_map[xfb->outputs[i].location];
-      info->output[i].start_component = xfb->outputs[i].component_offset;
-      info->output[i].num_components =
-                           util_bitcount(xfb->outputs[i].component_mask);
-      info->output[i].output_buffer  = xfb->outputs[i].buffer;
-      info->output[i].dst_offset = xfb->outputs[i].offset / 4;
-      info->output[i].stream = xfb->buffer_to_stream[xfb->outputs[i].buffer];
-   }
-}
-
 static uint32_t
 tu_xs_get_immediates_packet_size_dwords(const struct ir3_shader_variant *xs)
 {
@@ -2965,11 +2925,10 @@ tu_shader_create(struct tu_device *dev,
     *   stream outputs correctly.
     * - nir_assign_io_var_locations - to have valid driver_location
     */
-   struct ir3_stream_output_info so_info = {};
    if (nir->info.stage == MESA_SHADER_VERTEX ||
          nir->info.stage == MESA_SHADER_TESS_EVAL ||
          nir->info.stage == MESA_SHADER_GEOMETRY)
-      tu_gather_xfb_info(nir, &so_info);
+      nir_shader_gather_xfb_info(nir);
 
    for (unsigned i = 0; i < layout->num_sets; i++) {
       if (layout->set[i].layout) {
@@ -3020,7 +2979,7 @@ tu_shader_create(struct tu_device *dev,
    };
 
    struct ir3_shader *ir3_shader =
-      ir3_shader_from_nir(dev->compiler, nir, &options, &so_info);
+      ir3_shader_from_nir(dev->compiler, nir, &options);
 
    shader->variant =
       ir3_shader_create_variant(ir3_shader, ir3_key, executable_info);
@@ -3480,7 +3439,6 @@ tu_empty_fs_create(struct tu_device *dev, struct tu_shader **shader,
 {
    struct ir3_shader_key key = {};
    const struct ir3_shader_options options = {};
-   struct ir3_stream_output_info so_info = {};
    const nir_shader_compiler_options *nir_options =
       ir3_get_compiler_options(dev->compiler);
    nir_builder fs_b;
@@ -3500,7 +3458,7 @@ tu_empty_fs_create(struct tu_device *dev, struct tu_shader **shader,
       (*shader)->dynamic_descriptor_sizes[i] = -1;
 
    struct ir3_shader *ir3_shader =
-      ir3_shader_from_nir(dev->compiler, fs_b.shader, &options, &so_info);
+      ir3_shader_from_nir(dev->compiler, fs_b.shader, &options);
    (*shader)->variant = ir3_shader_create_variant(ir3_shader, &key, false);
    ir3_shader_destroy(ir3_shader);
 

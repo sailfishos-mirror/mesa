@@ -306,7 +306,7 @@ struct ir3_const_state {
  * A single output for vertex transform feedback.
  */
 struct ir3_stream_output {
-   unsigned register_index  : 6;  /**< 0 to 63 (OUT index) */
+   unsigned location        : 6;  /**< 0 to 63 (VARYING_SLOT_*) */
    unsigned start_component : 2;  /** 0 to 3 */
    unsigned num_components  : 3;  /** 1 to 4 */
    unsigned output_buffer   : 3;  /**< 0 to PIPE_MAX_SO_BUFFERS */
@@ -1186,8 +1186,7 @@ ir3_shader_get_variant(struct ir3_shader *shader,
 
 struct ir3_shader *
 ir3_shader_from_nir(struct ir3_compiler *compiler, nir_shader *nir,
-                    const struct ir3_shader_options *options,
-                    struct ir3_stream_output_info *stream_output);
+                    const struct ir3_shader_options *options);
 uint32_t ir3_trim_constlen(const struct ir3_shader_variant **variants,
                            const struct ir3_compiler *compiler);
 struct ir3_shader *

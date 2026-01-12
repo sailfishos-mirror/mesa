@@ -20,6 +20,9 @@
 #include "ir3_parser.h"
 #include "ir3_shader.h"
 
+#include "nir/nir.h"
+#include "nir/nir_xfb_info.h"
+
 #include "freedreno/isa/ir3-isa.h"
 #include "isa/isa.h"
 
@@ -736,7 +739,7 @@ ir3_shader_passthrough_tcs(struct ir3_shader *vs, unsigned patch_vertices)
       ir3_nir_lower_io(tcs);
 
       vs->vs.passthrough_tcs[n] =
-            ir3_shader_from_nir(vs->compiler, tcs, &ir3_options, NULL);
+            ir3_shader_from_nir(vs->compiler, tcs, &ir3_options);
 
       vs->vs.passthrough_tcs_compiled |= BITFIELD_BIT(n);
    }
@@ -913,10 +916,38 @@ ir3_trim_constlen(const struct ir3_shader_variant **variants,
    return trimmed;
 }
 
+static void
+translate_xfb_info(nir_shader *nir, struct ir3_stream_output_info *info)
+{
+   if (!nir->xfb_info)
+      return;
+
+   nir_xfb_info *xfb = nir->xfb_info;
+
+   assert(xfb->output_count <= IR3_MAX_SO_OUTPUTS);
+   info->num_outputs = xfb->output_count;
+
+   for (int i = 0; i < IR3_MAX_SO_BUFFERS; i++) {
+      info->stride[i] = xfb->buffers[i].stride / 4;
+      info->buffer_to_stream[i] = xfb->buffer_to_stream[i];
+   }
+
+   info->streams_written = xfb->streams_written;
+
+   for (int i = 0; i < xfb->output_count; i++) {
+      info->output[i].location = xfb->outputs[i].location;
+      info->output[i].start_component = xfb->outputs[i].component_offset;
+      info->output[i].num_components =
+                           util_bitcount(xfb->outputs[i].component_mask);
+      info->output[i].output_buffer  = xfb->outputs[i].buffer;
+      info->output[i].dst_offset = xfb->outputs[i].offset / 4;
+      info->output[i].stream = xfb->buffer_to_stream[xfb->outputs[i].buffer];
+   }
+}
+
 struct ir3_shader *
 ir3_shader_from_nir(struct ir3_compiler *compiler, nir_shader *nir,
-                    const struct ir3_shader_options *options,
-                    struct ir3_stream_output_info *stream_output)
+                    const struct ir3_shader_options *options)
 {
    struct ir3_shader *shader = rzalloc_size(NULL, sizeof(*shader));
 
@@ -924,9 +955,7 @@ ir3_shader_from_nir(struct ir3_compiler *compiler, nir_shader *nir,
    shader->compiler = compiler;
    shader->id = p_atomic_inc_return(&shader->compiler->shader_count);
    shader->type = nir->info.stage;
-   if (stream_output)
-      memcpy(&shader->stream_output, stream_output,
-             sizeof(shader->stream_output));
+   translate_xfb_info(nir, &shader->stream_output);
    shader->options = *options;
    shader->nir = nir;
 
@@ -1231,6 +1260,13 @@ ir3_shader_disasm_options(struct ir3_shader_variant *so, uint32_t *bin,
          so->info.preamble_instrs_count, so->info.early_preamble);
    }
 
+   for (unsigned i = 0; i < so->stream_output.num_outputs; i++) {
+      fprintf(out, "; streamout %u offset %u components %u\n",
+              so->stream_output.output[i].location,
+              so->stream_output.output[i].dst_offset,
+              so->stream_output.output[i].num_components);
+   }
+
    /* print shader type specific info: */
    switch (so->type) {
    case MESA_SHADER_VERTEX:
@@ -1333,7 +1369,7 @@ ir3_link_stream_out(struct ir3_shader_linkage *l,
     */
    for (unsigned i = 0; i < strmout->num_outputs; i++) {
       const struct ir3_stream_output *out = &strmout->output[i];
-      unsigned k = out->register_index;
+      gl_varying_slot slot = out->location;
       unsigned compmask =
          (1 << (out->num_components + out->start_component)) - 1;
       unsigned idx, nextloc = 0;
@@ -1341,19 +1377,29 @@ ir3_link_stream_out(struct ir3_shader_linkage *l,
       /* psize/pos need to be the last entries in linkage map, and will
        * get added link_stream_out, so skip over them:
        */
-      if ((v->outputs[k].slot == VARYING_SLOT_PSIZ) ||
-          (v->outputs[k].slot == VARYING_SLOT_POS))
+      if ((slot == VARYING_SLOT_PSIZ) ||
+          (slot == VARYING_SLOT_POS))
          continue;
 
       for (idx = 0; idx < l->cnt; idx++) {
-         if (l->var[idx].slot == v->outputs[k].slot)
+         if (l->var[idx].slot == slot)
             break;
          nextloc = MAX2(nextloc, l->var[idx].loc + 4);
       }
 
+      unsigned k = 0;
+      for (; k < v->outputs_count; k++) {
+         if (v->outputs[k].slot == slot)
+            break;
+      }
+
+      /* Skip it, if it's an output that was never assigned a register. */
+      if (k >= v->outputs_count || v->outputs[k].regid == INVALID_REG)
+         continue;
+
       /* add if not already in linkage map: */
       if (idx == l->cnt) {
-         ir3_link_add(l, v->outputs[k].slot, v->outputs[k].regid,
+         ir3_link_add(l, slot, v->outputs[k].regid,
                       compmask, nextloc);
       }
 

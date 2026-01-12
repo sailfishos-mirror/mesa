@@ -4839,12 +4839,24 @@ emit_stream_out(struct ir3_context *ctx)
 
    /* Generate the per-output store instructions: */
    for (unsigned i = 0; i < strmout->num_outputs; i++) {
+      unsigned output = ~0;
+
+      for (unsigned j = 0; j < ctx->so->outputs_count; j++) {
+         if (ctx->so->outputs[j].slot == strmout->output[i].location) {
+            output = j;
+            break;
+         }
+      }
+
+      assert(output != ~0);
+
       for (unsigned j = 0; j < strmout->output[i].num_components; j++) {
          unsigned c = j + strmout->output[i].start_component;
          struct ir3_instruction *base, *out, *stg;
 
+
          base = bases[strmout->output[i].output_buffer];
-         out = ctx->outputs[regid(strmout->output[i].register_index, c)];
+         out = ctx->outputs[regid(output, c)];
 
          stg = ir3_STG(
             &ctx->build, base, 0,

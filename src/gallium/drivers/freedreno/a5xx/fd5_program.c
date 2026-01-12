@@ -102,7 +102,7 @@ emit_stream_out(struct fd_ringbuffer *ring, const struct ir3_shader_variant *v,
 
    for (unsigned i = 0; i < strmout->num_outputs; i++) {
       const struct ir3_stream_output *out = &strmout->output[i];
-      unsigned k = out->register_index;
+      gl_varying_slot slot = out->location;
       unsigned idx;
 
       ncomp[out->output_buffer] += out->num_components;
@@ -111,7 +111,7 @@ emit_stream_out(struct fd_ringbuffer *ring, const struct ir3_shader_variant *v,
        * a bit less ideal here..
        */
       for (idx = 0; idx < l->cnt; idx++)
-         if (l->var[idx].slot == v->outputs[k].slot)
+         if (l->var[idx].slot == slot)
             break;
 
       assert(idx < l->cnt);

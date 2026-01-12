@@ -300,14 +300,14 @@ setup_stream_out(struct fd_context *ctx, struct fd6_program_state *state,
 
    for (unsigned i = 0; i < strmout->num_outputs; i++) {
       const struct ir3_stream_output *out = &strmout->output[i];
-      unsigned k = out->register_index;
+      gl_varying_slot slot = (gl_varying_slot) out->location;
       unsigned idx;
 
       /* linkage map sorted by order frag shader wants things, so
        * a bit less ideal here..
        */
       for (idx = 0; idx < l->cnt; idx++)
-         if (l->var[idx].slot == v->outputs[k].slot)
+         if (l->var[idx].slot == slot)
             break;
 
       assert(idx < l->cnt);

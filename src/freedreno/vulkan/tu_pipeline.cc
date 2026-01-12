@@ -510,21 +510,19 @@ tu6_setup_streamout(struct tu_cs *cs,
 
    for (unsigned i = 0; i < info->num_outputs; i++) {
       const struct ir3_stream_output *out = &info->output[i];
-      unsigned k = out->register_index;
+      gl_varying_slot slot = (gl_varying_slot) out->location;
       unsigned idx;
-
-      /* Skip it, if it's an output that was never assigned a register. */
-      if (k >= v->outputs_count || v->outputs[k].regid == INVALID_REG)
-         continue;
 
       /* linkage map sorted by order frag shader wants things, so
        * a bit less ideal here..
        */
       for (idx = 0; idx < l->cnt; idx++)
-         if (l->var[idx].slot == v->outputs[k].slot)
+         if (l->var[idx].slot == slot)
             break;
 
-      assert(idx < l->cnt);
+      /* Skip it, if it's an output that was never assigned a register. */
+      if (idx >= l->cnt)
+         continue;
 
       for (unsigned j = 0; j < out->num_components; j++) {
          unsigned c   = j + out->start_component;

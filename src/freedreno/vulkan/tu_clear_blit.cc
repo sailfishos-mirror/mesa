@@ -797,7 +797,7 @@ compile_shader(struct tu_device *dev, struct nir_shader *nir,
    ir3_nir_lower_io(nir);
 
    struct ir3_shader *sh =
-      ir3_shader_from_nir(dev->compiler, nir, &options, NULL);
+      ir3_shader_from_nir(dev->compiler, nir, &options);
 
    struct ir3_shader_key key = {};
    bool created;
