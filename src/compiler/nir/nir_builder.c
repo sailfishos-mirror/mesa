@@ -274,6 +274,15 @@ nir_build_tex_struct(nir_builder *build, nir_texop op, struct nir_tex_builder f)
          glsl_get_sampler_result_type(type));
    }
 
+   /* Fix up the opcode to allow simplified usage. This helps ergonomics. */
+   if (op == nir_texop_txf && f.ms_index) {
+      op = nir_texop_txf_ms;
+   } else if (op == nir_texop_tex && f.lod) {
+      op = nir_texop_txl;
+   } else if (op == nir_texop_tex && f.bias) {
+      op = nir_texop_txb;
+   }
+
    if (lod == NULL && nir_dim_has_lod(dim) &&
        (op == nir_texop_txs || op == nir_texop_txf)) {
 

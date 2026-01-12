@@ -2209,19 +2209,11 @@ nir_def *nir_build_tex_struct(nir_builder *build, nir_texop op,
 #define nir_tex(build, coord_, ...)                                            \
    nir_build_tex(build, nir_texop_tex, .coord = coord_, __VA_ARGS__)
 
-#define nir_txl(build, coord_, lod_, ...)                                      \
-   nir_build_tex(build, nir_texop_txl, .coord = coord_, .lod = lod_,           \
-                 __VA_ARGS__)
-
-#define nir_txb(build, coord_, bias_, ...)                                     \
-   nir_build_tex(build, nir_texop_txb, .coord = coord_, .bias = bias,          \
-                 __VA_ARGS__)
-
 #define nir_txf(build, coord_, ...)                                            \
    nir_build_tex(build, nir_texop_txf, .coord = coord_, __VA_ARGS__)
 
-#define nir_txf_ms(build, coord_, ms_index_, ...)                              \
-   nir_build_tex(build, nir_texop_txf_ms, .coord = coord_,                     \
+#define nir_txf_ms(build, coord_, ms_index_, ...)       \
+   nir_build_tex(build, nir_texop_txf, .coord = coord_, \
                  .ms_index = ms_index_, __VA_ARGS__)
 
 #define nir_txs(build, ...) nir_build_tex(build, nir_texop_txs, __VA_ARGS__)

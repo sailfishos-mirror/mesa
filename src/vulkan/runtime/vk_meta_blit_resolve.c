@@ -304,7 +304,7 @@ build_blit_shader(const struct vk_meta_blit_key *key)
 
       nir_def *val;
       if (resolve_mode == VK_RESOLVE_MODE_NONE) {
-         val = nir_txl(b, src_coord, nir_imm_float(b, 0),
+         val = nir_tex(b, src_coord, .lod = nir_imm_float(b, 0),
                        .texture_deref = t, .sampler_deref = s);
       } else {
          val = build_tex_resolve(b, t, nir_f2u32(b, src_coord),
