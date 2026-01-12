@@ -362,8 +362,6 @@ radv_meta_nir_build_blit2d_texel_fetch(nir_builder *b, uint32_t binding, nir_def
    sampler->data.descriptor_set = 0;
    sampler->data.binding = binding;
 
-   nir_def *tex_pos_3d = NULL;
-   nir_def *sample_idx = NULL;
    if (is_3d) {
       nir_def *layer = nir_load_push_constant(b, 1, 32, nir_imm_int(b, 0), .base = 16, .range = 4);
 
@@ -371,19 +369,12 @@ radv_meta_nir_build_blit2d_texel_fetch(nir_builder *b, uint32_t binding, nir_def
       chans[0] = nir_channel(b, tex_pos, 0);
       chans[1] = nir_channel(b, tex_pos, 1);
       chans[2] = layer;
-      tex_pos_3d = nir_vec(b, chans, 3);
-   }
-   if (is_multisampled) {
-      sample_idx = nir_load_sample_id(b);
+      tex_pos = nir_vec(b, chans, 3);
    }
 
-   nir_deref_instr *tex_deref = nir_build_deref_var(b, sampler);
-
-   if (is_multisampled) {
-      return nir_txf_ms(b, tex_pos, sample_idx, .texture_deref = tex_deref);
-   } else {
-      return nir_txf(b, is_3d ? tex_pos_3d : tex_pos, .texture_deref = tex_deref);
-   }
+   return nir_txf(b, tex_pos,
+                  .texture_deref = nir_build_deref_var(b, sampler),
+                  .ms_index = is_multisampled ? nir_load_sample_id(b) : NULL);
 }
 
 nir_def *
