@@ -1194,7 +1194,7 @@
         "description": "tu: Fix misleading lrz_disabled_at_draw values for RP",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d6684aedf4125d24c4a3e2d531a56fbb02249671",
         "notes": null
