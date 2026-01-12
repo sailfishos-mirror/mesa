@@ -120,7 +120,6 @@ static const struct debug_control radv_perftest_options[] = {
    {"dmashaders", RADV_PERFTEST_DMA_SHADERS},
    {"transfer_queue", RADV_PERFTEST_TRANSFER_QUEUE},
    {"nircache", RADV_PERFTEST_NIR_CACHE},
-   {"rtwave32", RADV_PERFTEST_RT_WAVE_32},
    {"video_encode", RADV_PERFTEST_VIDEO_ENCODE},
    {"nogttspill", RADV_PERFTEST_NO_GTT_SPILL},
    {"hic", RADV_PERFTEST_HIC},

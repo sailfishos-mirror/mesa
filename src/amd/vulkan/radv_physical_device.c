@@ -2489,16 +2489,13 @@ radv_physical_device_try_create(struct radv_instance *instance, drmDevicePtr drm
       if (instance->perftest_flags & RADV_PERFTEST_GE_WAVE_32)
          pdev->ge_wave_size = 32;
 
-      /* Default to 32 on RDNA1-2 as that gives better perf due to less issues with divergence.
-       * However, on RDNA3+ default to wave64 as implicit dual issuing is likely better than
-       * wave32 VOPD for VALU dependent code.
-       * (as well as the SALU count becoming more problematic with wave32)
+      /* Default to 32 on RDNA as that gives better perf due to less issues with divergence.
+       * On GFX12+, wave32 will also be required for a future dynamic VGPR allocation implementation.
        */
-      if (instance->perftest_flags & RADV_PERFTEST_RT_WAVE_32 || pdev->info.gfx_level < GFX11)
-         pdev->rt_wave_size = 32;
-
       if (radv_is_rt_wave64_enabled(instance))
          pdev->rt_wave_size = 64;
+      else
+         pdev->rt_wave_size = 32;
    }
 
    radv_probe_video_decode(pdev);

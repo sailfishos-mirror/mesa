@@ -1577,10 +1577,8 @@ RADV driver environment variables
       disable optimizations that get enabled when all VRAM is CPU visible.
    ``pswave32``
       enable wave32 for pixel shaders (GFX10+)
-   ``rtwave32``
-      enable wave32 for ray tracing shaders (GFX11+)
    ``rtwave64``
-      enable wave64 for ray tracing shaders (GFX10-10.3)
+      enable wave64 for ray tracing shaders (GFX10+)
    ``sam``
       enable optimizations to move more driver internal objects to VRAM.
    ``sparse``
