@@ -337,7 +337,7 @@ lower_cmat_load_store(nir_builder *b, nir_intrinsic_instr *intr, const lower_cma
       if (align_mul) {
          unsigned align_offset = row_iter * radv_nir_cmat_bits(desc) / 8 % align_mul;
          iter_deref = nir_build_deref_cast_with_alignment(b, &iter_deref->def, deref->modes, iter_deref->type,
-                                                          iter_deref->cast.ptr_stride, align_mul, align_offset);
+                                                          radv_nir_cmat_bits(desc) / 8, align_mul, align_offset);
       }
 
       if (is_load) {
