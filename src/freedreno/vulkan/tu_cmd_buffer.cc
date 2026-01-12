@@ -8108,21 +8108,6 @@ tu6_draw_common(struct tu_cmd_buffer *cmd,
       }
    }
 
-   struct tu_tess_params *tess_params = &cmd->state.tess_params;
-   if ((cmd->state.dirty & TU_CMD_DIRTY_TESS_PARAMS) ||
-       BITSET_TEST(cmd->vk.dynamic_graphics_state.dirty,
-                   MESA_VK_DYNAMIC_TS_DOMAIN_ORIGIN) ||
-       (cmd->state.dirty & TU_CMD_DIRTY_DRAW_STATE)) {
-      bool tess_upper_left_domain_origin =
-         (VkTessellationDomainOrigin)cmd->vk.dynamic_graphics_state.ts.domain_origin ==
-         VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT;
-      tu_cs_emit_regs(cs, PC_DS_PARAM(CHIP,
-            .spacing = tess_params->spacing,
-            .output = tess_upper_left_domain_origin ?
-               tess_params->output_upper_left :
-               tess_params->output_lower_left));
-   }
-
    if (cmd->device->physical_device->info->props.has_rt_workaround &&
        cmd->state.program.uses_ray_intersection) {
       tu_cs_emit_pkt7(cs, CP_SET_MARKER, 1);
@@ -8133,6 +8118,21 @@ tu6_draw_common(struct tu_cmd_buffer *cmd,
    uint32_t dirty = cmd->state.dirty;
    if (!dynamic_draw_state_dirty && !(dirty & ~TU_CMD_DIRTY_COMPUTE_DESC_SETS))
       return VK_SUCCESS;
+
+   struct tu_tess_params *tess_params = &cmd->state.tess_params;
+   if ((dirty & TU_CMD_DIRTY_TESS_PARAMS) ||
+       BITSET_TEST(cmd->vk.dynamic_graphics_state.dirty,
+                   MESA_VK_DYNAMIC_TS_DOMAIN_ORIGIN) ||
+       (dirty & TU_CMD_DIRTY_DRAW_STATE)) {
+      bool tess_upper_left_domain_origin =
+         (VkTessellationDomainOrigin)cmd->vk.dynamic_graphics_state.ts.domain_origin ==
+         VK_TESSELLATION_DOMAIN_ORIGIN_UPPER_LEFT;
+      tu_cs_emit_regs(cs, PC_DS_PARAM(CHIP,
+            .spacing = tess_params->spacing,
+            .output = tess_upper_left_domain_origin ?
+               tess_params->output_upper_left :
+               tess_params->output_lower_left));
+   }
 
    bool dirty_lrz =
       (dirty & TU_CMD_DIRTY_LRZ) ||
