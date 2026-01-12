@@ -372,6 +372,9 @@ brw_compile_task(const struct brw_compiler *compiler,
 
    NIR_PASS(_, nir, brw_nir_lower_launch_mesh_workgroups);
 
+   NIR_PASS(_, nir, brw_nir_lower_cs_intrinsics, compiler->devinfo,
+            NULL);
+
    brw_prog_data_init(&prog_data->base.base, &params->base);
 
    prog_data->base.local_size[0] = nir->info.workgroup_size[0];
@@ -1230,6 +1233,10 @@ brw_compile_mesh(const struct brw_compiler *compiler,
                        key->base.vue_layout,
                        apply_wa_18019110168 ? wa_18019110168_mapping : NULL);
    brw_nir_lower_mue_outputs(nir, &prog_data->map);
+
+
+   NIR_PASS(_, nir, brw_nir_lower_cs_intrinsics, compiler->devinfo,
+            NULL);
 
    prog_data->autostrip_enable = brw_mesh_autostrip_enable(compiler, nir, &prog_data->map);
 

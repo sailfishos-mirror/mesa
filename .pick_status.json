@@ -354,7 +354,7 @@
         "description": "brw: fix local_invocation_index with quad derivaties on mesh/task shaders",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d89bfb1ff750445f77717ea44884decf93adad97",
         "notes": null

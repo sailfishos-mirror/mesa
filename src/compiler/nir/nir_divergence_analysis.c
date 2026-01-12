@@ -989,6 +989,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_cmat_load_shared_nv:
    case nir_intrinsic_load_converted_output_pan:
    case nir_intrinsic_load_readonly_output_pan:
+   case nir_intrinsic_load_local_invocation_index_intel:
       is_divergent = true;
       break;
 
