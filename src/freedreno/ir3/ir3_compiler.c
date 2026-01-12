@@ -393,7 +393,7 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
 
    compiler->nir_options.support_indirect_inputs =
       BITFIELD_BIT(MESA_SHADER_TESS_CTRL) |
-      BITFIELD_BIT(MESA_SHADER_TESS_EVAL) | BITFIELD_BIT(MESA_SHADER_FRAGMENT);
+      BITFIELD_BIT(MESA_SHADER_TESS_EVAL);
    compiler->nir_options.support_indirect_outputs = (uint8_t)BITFIELD_MASK(MESA_SHADER_STAGES);
    compiler->nir_options.max_offset_shift = ir3_nir_max_offset_shift;
 
