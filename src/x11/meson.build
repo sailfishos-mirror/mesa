@@ -7,7 +7,7 @@ loader_x11_files = files(
   'x11_display.c',
 )
 
-if with_dri_platform == 'drm'
+if with_dri_platform == 'drm' or with_dri_platform == 'hurd'
   loader_x11_files += files('x11_dri3.c')
 endif
 

@@ -108,7 +108,7 @@ if with_dri
     files_egl += files('drivers/dri2/platform_x11.c')
     incs_for_egl += inc_loader_x11
     link_for_egl += libloader_x11
-    if with_dri_platform == 'drm'
+    if with_dri_platform == 'drm' or with_dri_platform == 'hurd'
       files_egl += files('drivers/dri2/platform_x11_dri3.c')
     endif
     deps_for_egl += [dep_x11_xcb, dep_xcb_xrandr, dep_xcb_xfixes, dep_xcb_shm]

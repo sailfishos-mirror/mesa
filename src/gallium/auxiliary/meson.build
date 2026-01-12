@@ -420,7 +420,7 @@ endif
 if with_platform_x11
   files_libgalliumvlwinsys += files('vl/vl_winsys_dri.c')
   links_libgalliumvlwinsys += libloader_x11
-  if with_dri_platform == 'drm'
+  if with_dri_platform == 'drm' or with_dri_platform == 'hurd'
     vlwinsys_deps += [
       dep_xcb_sync, dep_xcb_present, dep_xshmfence, dep_xcb_xfixes,
       dep_xcb_dri3,
