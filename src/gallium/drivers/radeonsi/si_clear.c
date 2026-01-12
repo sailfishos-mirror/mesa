@@ -1074,7 +1074,6 @@ static void si_fb_clear_via_compute(struct si_context *sctx, unsigned *buffers,
       unsigned i = u_bit_scan(&color_buffer_mask);
 
       struct pipe_surface *surf = &fb->cbufs[i];
-      unsigned depth = surf->last_layer - surf->first_layer + 1;
       struct si_texture *tex = (struct si_texture *)surf->texture;
 
       /* If DCC is enable (which can happen with thick tiling on gfx8, don't use compute to get
@@ -1083,8 +1082,10 @@ static void si_fb_clear_via_compute(struct si_context *sctx, unsigned *buffers,
       if (vi_dcc_enabled(tex, surf->level))
          continue;
 
-      unsigned width, height;
-      pipe_surface_size(surf, &width, &height);
+      unsigned width = u_minify(tex->buffer.b.b.width0, surf->level);
+      unsigned height = u_minify(tex->buffer.b.b.height0, surf->level);
+      unsigned depth = surf->last_layer - surf->first_layer + 1;
+
       /* Clears of thick and linear layouts are fastest with compute. */
       if (tex->surface.thick_tiling ||
           (tex->surface.is_linear && (height > 1 || depth > 1 || width >= 8192))) {
@@ -1261,8 +1262,9 @@ static bool si_try_normal_clear(struct si_context *sctx, struct pipe_surface *ds
                                 const union pipe_color_union *color,
                                 float depth, unsigned stencil)
 {
-   unsigned surf_width, surf_height;
-   pipe_surface_size(dst, &surf_width, &surf_height);
+   unsigned surf_width = u_minify(dst->texture->width0, dst->level);
+   unsigned surf_height = u_minify(dst->texture->height0, dst->level);
+
    /* This is worth it only if it's a whole image clear. */
    if (dstx == 0 && dsty == 0 &&
        width == surf_width &&
