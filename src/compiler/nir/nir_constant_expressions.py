@@ -527,7 +527,7 @@ struct ${type}${width}_vec {
             _dst_val[_i].${get_const_field(output_type)} = dst;
          % endif
 
-         % if op.name != "fquantize2f16" and type_base_type(output_type) == "float":
+         % if type_base_type(output_type) == "float":
             % if type_has_size(output_type):
                if (nir_is_denorm_flush_to_zero(execution_mode, ${type_size(output_type)})) {
                   constant_denorm_flush_to_zero(&_dst_val[_i], ${type_size(output_type)});
@@ -574,7 +574,7 @@ struct ${type}${width}_vec {
             _dst_val[${k}].${get_const_field(output_type)} = dst.${"xyzwefghijklmnop"[k]};
          % endif
 
-         % if op.name != "fquantize2f16" and type_base_type(output_type) == "float":
+         % if type_base_type(output_type) == "float":
             % if type_has_size(output_type):
                if (nir_is_denorm_flush_to_zero(execution_mode, ${type_size(output_type)})) {
                   constant_denorm_flush_to_zero(&_dst_val[${k}], ${type_size(output_type)});
