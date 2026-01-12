@@ -5076,47 +5076,6 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       break;
    }
 
-   case nir_intrinsic_image_size:
-   case nir_intrinsic_bindless_image_size: {
-      /* Cube image sizes should have previously been lowered to a 2D array */
-      assert(nir_intrinsic_image_dim(instr) != GLSL_SAMPLER_DIM_CUBE);
-
-      /* Unlike the [un]typed load and store opcodes, the TXS that this turns
-       * into will handle the binding table index for us in the geneerator.
-       * Incidentally, this means that we can handle bindless with exactly the
-       * same code.
-       */
-      brw_reg image = retype(get_nir_src_imm(ntb, instr->src[0]), BRW_TYPE_UD);
-      image = bld.emit_uniformize(image);
-
-      assert(nir_src_as_uint(instr->src[1]) == 0);
-
-      brw_reg srcs[TEX_LOGICAL_NUM_SRCS];
-      srcs[TEX_LOGICAL_SRC_SURFACE] = image;
-      srcs[TEX_LOGICAL_SRC_SAMPLER] = brw_imm_d(0);
-      srcs[TEX_LOGICAL_SRC_PAYLOAD0] = brw_imm_d(0); /* LOD (required) */
-
-      /* Since the image size is always uniform, we can just emit a SIMD8
-       * query instruction and splat the result out.
-       */
-      const brw_builder ubld = bld.scalar_group();
-
-      brw_reg tmp = ubld.vgrf(BRW_TYPE_UD, 4);
-      brw_tex_inst *inst = ubld.emit(SHADER_OPCODE_SAMPLER,
-                                     tmp, srcs,
-                                     TEX_LOGICAL_SRC_PAYLOAD0 + 1)->as_tex();
-      inst->required_params = 0x1 /* LOD */;
-      inst->sampler_opcode = BRW_SAMPLER_OPCODE_RESINFO;
-      inst->surface_bindless = instr->intrinsic == nir_intrinsic_bindless_image_size;
-      inst->size_written = 4 * REG_SIZE * reg_unit(devinfo);
-
-      for (unsigned c = 0; c < instr->def.num_components; ++c) {
-         bld.MOV(offset(retype(dest, tmp.type), bld, c),
-                 component(offset(tmp, ubld, c), 0));
-      }
-      break;
-   }
-
    case nir_intrinsic_barrier:
    case nir_intrinsic_begin_invocation_interlock:
    case nir_intrinsic_end_invocation_interlock: {
@@ -5567,67 +5526,6 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
 
       brw_combine_with_vec(bld, offset(new_dest, bld, first_component),
                            src, num_components);
-      break;
-   }
-
-   case nir_intrinsic_get_ssbo_size: {
-      assert(nir_src_num_components(instr->src[0]) == 1);
-
-      /* A resinfo's sampler message is used to get the buffer size.  The
-       * SIMD8's writeback message consists of four registers and SIMD16's
-       * writeback message consists of 8 destination registers (two per each
-       * component).  Because we are only interested on the first channel of
-       * the first returned component, where resinfo returns the buffer size
-       * for SURFTYPE_BUFFER, we can just use the SIMD8 variant regardless of
-       * the dispatch width.
-       */
-      const brw_builder ubld = bld.scalar_group();
-
-      brw_reg srcs[TEX_LOGICAL_NUM_SRCS];
-      srcs[TEX_LOGICAL_SRC_SURFACE] = get_nir_buffer_intrinsic_index(ntb, bld, instr);
-      srcs[TEX_LOGICAL_SRC_SAMPLER] = brw_imm_d(0);
-      srcs[TEX_LOGICAL_SRC_PAYLOAD0] = brw_imm_d(0); /* LOD (required) */
-
-      brw_reg tmp = ubld.vgrf(BRW_TYPE_UD, 4);
-      brw_tex_inst *inst = ubld.emit(SHADER_OPCODE_SAMPLER,
-                                     tmp, srcs,
-                                     TEX_LOGICAL_SRC_PAYLOAD0 + 1)->as_tex();
-      inst->required_params = 0x1 /* LOD */;
-      inst->sampler_opcode = BRW_SAMPLER_OPCODE_RESINFO;
-      inst->surface_bindless = get_nir_src_bindless(ntb, instr->src[0]);
-      inst->size_written = 4 * REG_SIZE * reg_unit(devinfo);
-      inst->fused_eu_disable =
-         (nir_intrinsic_access(instr) & ACCESS_FUSED_EU_DISABLE_INTEL) != 0;
-
-      for (unsigned c = 0; c < instr->def.num_components; ++c) {
-         bld.MOV(offset(retype(dest, tmp.type), bld, c),
-                 component(offset(tmp, ubld, c), 0));
-      }
-
-      /* SKL PRM, vol07, 3D Media GPGPU Engine, Bounds Checking and Faulting:
-       *
-       * "Out-of-bounds checking is always performed at a DWord granularity. If
-       * any part of the DWord is out-of-bounds then the whole DWord is
-       * considered out-of-bounds."
-       *
-       * This implies that types with size smaller than 4-bytes need to be
-       * padded if they don't complete the last dword of the buffer. But as we
-       * need to maintain the original size we need to reverse the padding
-       * calculation to return the correct size to know the number of elements
-       * of an unsized array. As we stored in the last two bits of the surface
-       * size the needed padding for the buffer, we calculate here the
-       * original buffer_size reversing the surface_size calculation:
-       *
-       * surface_size = isl_align(buffer_size, 4) +
-       *                (isl_align(buffer_size) - buffer_size)
-       *
-       * buffer_size = surface_size & ~3 - surface_size & 3
-       */
-      brw_reg size_padding  = ubld.AND(tmp, brw_imm_ud(3));
-      brw_reg size_aligned4 = ubld.AND(tmp, brw_imm_ud(~3));
-      brw_reg buffer_size   = ubld.ADD(size_aligned4, negate(size_padding));
-
-      bld.MOV(retype(dest, tmp.type), component(buffer_size, 0));
       break;
    }
 

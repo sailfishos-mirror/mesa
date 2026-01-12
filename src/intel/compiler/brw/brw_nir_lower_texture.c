@@ -36,9 +36,7 @@
  *      to sample_po_c_l instead.
  */
 static bool
-pre_lower_texture_instr(nir_builder *b,
-                        nir_tex_instr *tex,
-                        void *data)
+pre_lower_tex_instr(nir_builder *b, nir_tex_instr *tex)
 {
    switch (tex->op) {
    case nir_texop_txb: {
@@ -87,13 +85,89 @@ pre_lower_texture_instr(nir_builder *b,
    }
 }
 
+/* Lower size intrinsic to use the sampler. */
+static bool
+pre_lower_intrinsic_instr(nir_builder *b, nir_intrinsic_instr *intrin)
+{
+   enum glsl_sampler_dim dim = GLSL_SAMPLER_DIM_BUF;
+   bool is_array = false;
+
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_get_ssbo_size:
+      break;
+
+   case nir_intrinsic_bindless_image_size:
+   case nir_intrinsic_image_size:
+      dim = nir_intrinsic_image_dim(intrin);
+      is_array = nir_intrinsic_image_array(intrin);
+      break;
+
+   default:
+      return false;
+   }
+
+   b->cursor = nir_before_instr(&intrin->instr);
+
+   nir_src *surface = nir_get_io_index_src(intrin);
+   nir_intrinsic_instr *rsrc = nir_src_as_intrinsic(*surface);
+
+   bool bindless = rsrc && (nir_intrinsic_resource_access_intel(rsrc) &
+                            nir_resource_intel_bindless);
+
+   nir_def *txs = nir_txs(b, .lod = nir_imm_int(b, 0),
+                             .dim = dim, .is_array = is_array,
+                             .texture_offset = bindless ? NULL : surface->ssa,
+                             .texture_handle = bindless ? surface->ssa : NULL);
+
+   /* SKL PRM, vol07, 3D Media GPGPU Engine, Bounds Checking and Faulting:
+    *
+    * "Out-of-bounds checking is always performed at a DWord granularity. If
+    * any part of the DWord is out-of-bounds then the whole DWord is
+    * considered out-of-bounds."
+    *
+    * This implies that types with size smaller than 4-bytes need to be
+    * padded if they don't complete the last dword of the buffer. But as we
+    * need to maintain the original size we need to reverse the padding
+    * calculation to return the correct size to know the number of elements
+    * of an unsized array. As we stored in the last two bits of the surface
+    * size the needed padding for the buffer, we calculate here the
+    * original buffer_size reversing the surface_size calculation:
+    *
+    * surface_size = isl_align(buffer_size, 4) +
+    *                (isl_align(buffer_size) - buffer_size)
+    *
+    * buffer_size = surface_size & ~3 - surface_size & 3
+    */
+   if (intrin->intrinsic == nir_intrinsic_get_ssbo_size)
+      txs = nir_isub(b, txs, nir_imul_imm(b, nir_iand_imm(b, txs, 3), 2));
+
+   nir_def_replace(&intrin->def, txs);
+
+   return true;
+}
+
+static bool
+pre_lower_texture_instr(nir_builder *b, nir_instr *instr, void *data)
+{
+   switch (instr->type) {
+   case nir_instr_type_tex:
+      return pre_lower_tex_instr(b, nir_instr_as_tex(instr));
+
+   case nir_instr_type_intrinsic:
+      return pre_lower_intrinsic_instr(b, nir_instr_as_intrinsic(instr));
+
+   default:
+      return false;
+   }
+}
+
 bool
 brw_nir_pre_lower_texture(nir_shader *shader)
 {
-   return nir_shader_tex_pass(shader,
-                              pre_lower_texture_instr,
-                              nir_metadata_control_flow,
-                              NULL);
+   return nir_shader_instructions_pass(shader,
+                                       pre_lower_texture_instr,
+                                       nir_metadata_control_flow,
+                                       NULL);
 }
 
 /**
