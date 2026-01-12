@@ -2266,22 +2266,25 @@ v3dX(cmd_buffer_execute_inside_pass)(struct v3dv_cmd_buffer *primary,
              * primary's job list right after it.
              */
             v3dv_cmd_buffer_finish_job(primary);
-            v3dv_job_clone_in_cmd_buffer(secondary_job, primary);
+            struct v3dv_job *job =
+               v3dv_job_clone_in_cmd_buffer(secondary_job, primary);
+            if (!job)
+               return;
+
             if (pending_barrier.dst_mask) {
-               /* FIXME: do the same we do for primaries and only choose the
-                * relevant src masks.
-                */
-               secondary_job->serialize = pending_barrier.src_mask_graphics |
-                                          pending_barrier.src_mask_transfer |
-                                          pending_barrier.src_mask_compute;
-               if (pending_barrier.bcl_buffer_access ||
-                   pending_barrier.bcl_image_access) {
-                  secondary_job->needs_bcl_sync = true;
+               const uint8_t prev_dst_mask = pending_barrier.dst_mask;
+               v3dv_job_apply_barrier_state(job, &pending_barrier);
+
+               if ((prev_dst_mask & V3DV_BARRIER_GRAPHICS_BIT) &&
+                   !(pending_barrier.dst_mask & V3DV_BARRIER_GRAPHICS_BIT) &&
+                   (pending_barrier.bcl_buffer_access ||
+                    pending_barrier.bcl_image_access)) {
+                  job->needs_bcl_sync = true;
+                  pending_barrier.bcl_buffer_access = 0;
+                  pending_barrier.bcl_image_access = 0;
                }
             }
          }
-
-         memset(&pending_barrier, 0, sizeof(pending_barrier));
       }
 
       /* If the secondary has recorded any vkCmdEndQuery commands, we need to
