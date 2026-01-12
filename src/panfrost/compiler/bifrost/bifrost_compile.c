@@ -2168,14 +2168,15 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
          bi_make_vec_to(b, rgba, srcs, channels, 4, size);
       }
 
-      bi_blend_to(b, bi_temp(b->shader), rgba, coverage,
-                  bi_extract(b, desc, 0), bi_extract(b, desc, 1),
-                  rgba2, regfmt, sr_count, sr_count_2);
-
       nir_io_semantics io = nir_intrinsic_io_semantics(instr);
       assert(io.location >= FRAG_RESULT_DATA0);
       assert(io.location <= FRAG_RESULT_DATA7);
       unsigned rt = io.location - FRAG_RESULT_DATA0;
+
+      bi_instr *I = bi_blend_to(b, bi_temp(b->shader), rgba, coverage,
+                                bi_extract(b, desc, 0), bi_extract(b, desc, 1),
+                                rgba2, regfmt, sr_count, sr_count_2);
+      I->blend_target = rt;
 
       b->shader->info.bifrost->blend[rt].type = T;
       if (instr->intrinsic == nir_intrinsic_blend2_pan) {

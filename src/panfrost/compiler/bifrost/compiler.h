@@ -629,6 +629,7 @@ typedef struct {
       bool format;               /* LEA_TEX */
       bool z_stencil;            /* LD_TILE */
       bool scheduling_barrier;   /* NOP */
+      unsigned blend_target;     /* BLEND */
 
       struct {
          enum bi_special special;   /* FADD_RSCALE, FMA_RSCALE */

@@ -693,7 +693,7 @@ bi_collect_blend_ret_addr(bi_context *ctx, struct util_dynarray *emission,
    if (!ins || ins->op != BI_OPCODE_BLEND)
       return;
 
-   unsigned loc = tuple->regs.fau_idx - BIR_FAU_BLEND_0;
+   unsigned loc = ins->blend_target;
    assert(loc < ARRAY_SIZE(ctx->info.bifrost->blend));
    assert(!ctx->info.bifrost->blend[loc].return_offset);
    ctx->info.bifrost->blend[loc].return_offset =
