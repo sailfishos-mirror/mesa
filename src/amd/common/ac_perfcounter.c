@@ -725,6 +725,7 @@ bool ac_init_perfcounters(const struct radeon_info *info,
       blocks = ac_gfx103_get_perfcounters(&num_blocks);
       break;
    case GFX11:
+   case GFX11_5:
       blocks = ac_gfx11_get_perfcounters(&num_blocks);
       break;
    case GFX12:
