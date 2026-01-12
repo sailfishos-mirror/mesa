@@ -6326,8 +6326,8 @@ tu_CmdExecuteCommands(VkCommandBuffer commandBuffer,
           VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT) {
          assert(tu_cs_is_empty(&secondary->cs));
 
-         TU_CALLX(cmd->device, tu_lrz_flush_valid_during_renderpass)
-            (cmd, &cmd->draw_cs);
+         tu_lrz_flush_valid_at_secondary_rp_boundary(
+            cmd, secondary->state.lrz, &cmd->draw_cs);
 
          result = tu_cs_add_entries(&cmd->draw_cs, &secondary->draw_cs);
          if (result != VK_SUCCESS) {
@@ -6353,6 +6353,9 @@ tu_CmdExecuteCommands(VkCommandBuffer commandBuffer,
              secondary->state.lrz.prev_direction != TU_LRZ_UNKNOWN)
             cmd->state.lrz.prev_direction =
                secondary->state.lrz.prev_direction;
+
+         cmd->state.lrz.color_written_with_z_test |=
+            secondary->state.lrz.color_written_with_z_test;
 
          tu_clone_trace(cmd, &cmd->draw_cs, &cmd->rp_trace, &secondary->rp_trace);
          tu_render_pass_state_merge(&cmd->state.rp, &secondary->state.rp);
@@ -9572,8 +9575,8 @@ tu_CmdEndRendering2EXT(VkCommandBuffer commandBuffer,
       /* We cannot pass LRZ state to next resuming renderpass, so we have to
        * force disable it here.
        */
-      TU_CALLX(cmd_buffer->device, tu_lrz_flush_valid_during_renderpass)
-         (cmd_buffer, &cmd_buffer->draw_cs);
+      tu_lrz_flush_valid_at_suspending_rp_boundary(cmd_buffer,
+                                                   &cmd_buffer->draw_cs);
    } else {
       TU_CALLX(cmd_buffer->device, tu_emit_custom_resolve_end)(cmd_buffer);
    }
