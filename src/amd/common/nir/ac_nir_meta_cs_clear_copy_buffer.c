@@ -486,11 +486,15 @@ ac_prepare_cs_clear_copy_buffer(const struct ac_cs_clear_copy_buffer_options *op
       case GFX10:
       case GFX10_3:
       case GFX11:
-      case GFX12:
-         /* Optimal for Gfx12xx, Navi31, Navi21, Navi10. */
+      case GFX11_5:
+         /* Optimal for Navi31, Navi21, Navi10. */
          break;
 
       default:
+      case GFX12:
+         /* Optimal for Navi48. */
+         if (!is_copy && clear_value_size == 12 && info->size <= 512 * 1024)
+            dwords_per_thread = 3;
          break;
       }
    }
