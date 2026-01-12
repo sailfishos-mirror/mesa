@@ -1204,12 +1204,12 @@ tu6_patch_control_points_size(struct tu_device *dev,
    if (dev->physical_device->info->props.load_shader_consts_via_preamble) {
 #define EMIT_CONST_DWORDS(const_dwords) (6 + const_dwords + 4)
       return EMIT_CONST_DWORDS(4) +
-         EMIT_CONST_DWORDS(HS_PARAMS_SIZE) + 2 + 2 + 2;
+         EMIT_CONST_DWORDS(HS_PARAMS_SIZE) + 2 + 2;
 #undef EMIT_CONST_DWORDS
    } else {
 #define EMIT_CONST_DWORDS(const_dwords) (4 + const_dwords)
       return EMIT_CONST_DWORDS(4) +
-         EMIT_CONST_DWORDS(HS_PARAMS_SIZE) + 2 + 2 + 2;
+         EMIT_CONST_DWORDS(HS_PARAMS_SIZE) + 2 + 2;
 #undef EMIT_CONST_DWORDS
    }
 }
@@ -1287,15 +1287,6 @@ tu6_emit_patch_control_points(struct tu_cs *cs,
 
    tu_cs_emit_pkt4(cs, REG_A6XX_SP_HS_CNTL_1, 1);
    tu_cs_emit(cs, wave_input_size);
-
-   /* maximum number of patches that can fit in tess factor/param buffers */
-   uint32_t subdraw_size = MIN2(TU_TESS_FACTOR_SIZE / ir3_tess_factor_stride(tes->variant->key.tessellation),
-                        TU_TESS_PARAM_SIZE / (tcs->variant->output_size * 4));
-   /* convert from # of patches to draw count */
-   subdraw_size *= patch_control_points;
-
-   tu_cs_emit_pkt7(cs, CP_SET_SUBDRAW_SIZE, 1);
-   tu_cs_emit(cs, subdraw_size);
 }
 
 static void
