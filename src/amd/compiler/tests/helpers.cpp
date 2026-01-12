@@ -751,8 +751,10 @@ get_vk_device(enum radeon_family family)
 static struct DestroyDevices {
    ~DestroyDevices()
    {
-      DestroyDevice(vk_device, NULL);
-      DestroyInstance(vk_instance, NULL);
+      if (vk_device)
+         DestroyDevice(vk_device, NULL);
+      if (vk_instance)
+         DestroyInstance(vk_instance, NULL);
    }
 } destroy_devices;
 
