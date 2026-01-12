@@ -1474,7 +1474,7 @@
         "description": "radv/coopmat: fix deref stride",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "48fc8c8d1c934e75c6ea7da72f8639761cea98c2",
         "notes": null
