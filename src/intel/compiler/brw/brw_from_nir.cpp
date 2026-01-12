@@ -3981,16 +3981,14 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
        */
       assert(instr->def.bit_size == 32);
       unsigned base = nir_intrinsic_base(instr);
+      /* Handled with load_layer_id */
+      assert(base != VARYING_SLOT_LAYER);
       unsigned comp = nir_intrinsic_component(instr);
       unsigned num_components = instr->num_components;
 
       /* TODO(mesh): Multiview. Verify and handle these special cases for Mesh. */
 
-      if (base == VARYING_SLOT_LAYER) {
-         dest.type = BRW_TYPE_UD;
-         bld.MOV(dest, fetch_render_target_array_index(bld));
-         break;
-      } else if (base == VARYING_SLOT_VIEWPORT) {
+      if (base == VARYING_SLOT_VIEWPORT) {
          dest.type = BRW_TYPE_UD;
          bld.MOV(dest, fetch_viewport_index(bld));
          break;
