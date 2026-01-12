@@ -250,10 +250,17 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    bld.sop2(aco_opcode::s_and_b32, Definition(tmp_wg_start_y, s1), Definition(scc, s1),
             Operand(tmp_wg_id_y, s1), Operand::c32(~workgroup_height_mask));
 
-   bld.vop2(aco_opcode::v_add_u32, Definition(tmp_swizzled_id_x, v1), Operand(tmp_wg_start_x, s1),
-            Operand(tmp_swizzled_id_x, v1));
-   bld.vop2(aco_opcode::v_add_u32, Definition(tmp_swizzled_id_y, v1), Operand(tmp_wg_start_y, s1),
-            Operand(tmp_swizzled_id_y, v1));
+   if (options->gfx_level < GFX9) {
+      bld.vop2(aco_opcode::v_add_co_u32, Definition(tmp_swizzled_id_x, v1), Definition(vcc, s2),
+               Operand(tmp_wg_start_x, s1), Operand(tmp_swizzled_id_x, v1));
+      bld.vop2(aco_opcode::v_add_co_u32, Definition(tmp_swizzled_id_y, v1), Definition(vcc, s2),
+               Operand(tmp_wg_start_y, s1), Operand(tmp_swizzled_id_y, v1));
+   } else {
+      bld.vop2(aco_opcode::v_add_u32, Definition(tmp_swizzled_id_x, v1), Operand(tmp_wg_start_x, s1),
+               Operand(tmp_swizzled_id_x, v1));
+      bld.vop2(aco_opcode::v_add_u32, Definition(tmp_swizzled_id_y, v1), Operand(tmp_wg_start_y, s1),
+               Operand(tmp_swizzled_id_y, v1));
+   }
 
    /* We can only swizzle launch IDs if we run a full workgroup, and the resulting launch IDs
     * won't exceed the launch size. Calculate unswizzled launch IDs here to fall back to them
