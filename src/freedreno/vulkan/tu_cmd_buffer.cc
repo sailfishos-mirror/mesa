@@ -5322,7 +5322,10 @@ tu_bind_vs(struct tu_cmd_buffer *cmd, struct tu_shader *vs)
 static void
 tu_bind_tcs(struct tu_cmd_buffer *cmd, struct tu_shader *tcs)
 {
-   cmd->state.shaders[MESA_SHADER_TESS_CTRL] = tcs;
+   if (cmd->state.shaders[MESA_SHADER_TESS_CTRL] != tcs) {
+      cmd->state.shaders[MESA_SHADER_TESS_CTRL] = tcs;
+      cmd->state.dirty |= TU_CMD_DIRTY_TCS;
+   }
 }
 
 static void
