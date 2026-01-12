@@ -403,8 +403,6 @@ struct brw_wm_prog_key {
 
    float min_sample_shading;
 
-   uint8_t color_outputs_valid;
-
    /* Some collection of BRW_WM_IZ_* */
    unsigned nr_color_regions:5;
    bool alpha_test_replicate_alpha:1;
@@ -434,7 +432,7 @@ struct brw_wm_prog_key {
    bool ignore_sample_mask_out:1;
    bool coarse_pixel:1;
    bool api_sample_shading:1;
-   unsigned pad:4;
+   unsigned pad:12;
 };
 
 static inline bool

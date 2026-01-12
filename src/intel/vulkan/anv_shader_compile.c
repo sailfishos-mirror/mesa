@@ -480,8 +480,7 @@ populate_wm_prog_key(struct brw_wm_prog_key *key,
    populate_base_gfx_prog_key(&key->base, device, rs, state, link_stages);
 
    /* Consider all inputs as valid until look at the NIR variables. */
-   key->color_outputs_valid = rp_color_mask(state);
-   key->nr_color_regions = util_last_bit(key->color_outputs_valid);
+   key->nr_color_regions = util_last_bit(rp_color_mask(state));
 
    /* To reduce possible shader recompilations we would need to know if
     * there is a SampleMask output variable to compute if we should emit
@@ -522,7 +521,6 @@ populate_wm_prog_key(struct brw_wm_prog_key *key,
          key->ignore_sample_mask_out = !key->multisample_fbo;
    } else {
       /* Consider all inputs as valid until we look at the NIR variables. */
-      key->color_outputs_valid = BITFIELD_MASK(MAX_RTS);
       key->nr_color_regions = MAX_RTS;
 
       key->alpha_to_coverage = INTEL_SOMETIMES;
@@ -1200,9 +1198,8 @@ anv_shader_compute_fragment_rts(const struct brw_compiler *compiler,
    const unsigned num_rts = util_last_bit64(rt_mask);
    struct anv_pipeline_binding rt_bindings[MAX_RTS];
 
-   shader_data->key.wm.color_outputs_valid = rt_mask & rp_color_mask(state);
    shader_data->key.wm.nr_color_regions =
-      util_last_bit(shader_data->key.wm.color_outputs_valid);
+      util_last_bit(rt_mask & rp_color_mask(state));
 
    if (num_rts > 0) {
       for (unsigned rt = 0; rt < num_rts; rt++) {
