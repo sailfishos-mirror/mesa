@@ -83,6 +83,42 @@ vn_wsi_chain_lookup(struct vn_device *dev, VkSwapchainKHR swapchain)
    return chain;
 }
 
+static void
+vn_wsi_chains_lock(struct vn_device *dev,
+                   const VkPresentInfoKHR *pi,
+                   bool all)
+{
+   for (uint32_t i = 0; i < pi->swapchainCount; i++) {
+      struct vn_swapchain *chain =
+         vn_wsi_chain_lookup(dev, pi->pSwapchains[i]);
+
+      assert(chain);
+
+      if (all)
+         simple_mtx_lock(&chain->mutex);
+
+      simple_mtx_lock(&chain->acquire_mutex);
+   }
+}
+
+static void
+vn_wsi_chains_unlock(struct vn_device *dev,
+                     const VkPresentInfoKHR *pi,
+                     bool all)
+{
+   for (uint32_t i = 0; i < pi->swapchainCount; i++) {
+      struct vn_swapchain *chain =
+         vn_wsi_chain_lookup(dev, pi->pSwapchains[i]);
+
+      assert(chain);
+
+      simple_mtx_unlock(&chain->acquire_mutex);
+
+      if (all)
+         simple_mtx_unlock(&chain->mutex);
+   }
+}
+
 static VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
 vn_wsi_proc_addr(VkPhysicalDevice physicalDevice, const char *pName)
 {
