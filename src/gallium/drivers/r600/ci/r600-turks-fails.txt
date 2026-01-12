@@ -42,7 +42,6 @@ KHR-GLES31.core.texture_buffer.texture_buffer_max_size,Fail
 KHR-GLES31.core.texture_buffer.texture_buffer_texture_buffer_range,Fail
 
 KHR-GLES31.core.texture_cube_map_array.sampling,Fail
-KHR-GLES31.core.texture_cube_map_array.texture_size_tesselation_ev_sh,Fail
 
 KHR-GLES31.core.vertex_attrib_binding.basic-input-case5,Fail
 KHR-GLES31.core.vertex_attrib_binding.basic-input-case6,Fail
