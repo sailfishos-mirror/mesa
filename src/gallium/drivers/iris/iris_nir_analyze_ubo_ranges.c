@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "brw_eu.h"
-#include "brw_nir.h"
+#include "iris_context.h"
 #include "compiler/nir/nir.h"
+#include "compiler/nir/nir_builder.h"
 #include "util/u_dynarray.h"
 
 /**
- * \file brw_nir_analyze_ubo_ranges.c
+ * \file iris_nir_analyze_ubo_ranges.c
  *
  * This pass decides which portions of UBOs to upload as push constants,
  * so shaders can access them as part of the thread payload, rather than
@@ -30,7 +30,7 @@
 
 struct ubo_range_entry
 {
-   struct brw_ubo_range range;
+   struct iris_ubo_range range;
    int benefit;
 };
 
@@ -111,14 +111,13 @@ analyze_ubos_block(struct ubo_analysis_state *state, nir_block *block)
       if (intrin->intrinsic != nir_intrinsic_load_ubo)
          continue;
 
-      if (!brw_nir_ubo_surface_index_is_pushable(intrin->src[0]) ||
+      if (!nir_src_is_const(intrin->src[0]) ||
           !nir_src_is_const(intrin->src[1]))
          continue;
 
-      const int block = brw_nir_ubo_surface_index_get_push_block(intrin->src[0]);
+      const int block = nir_src_as_uint(intrin->src[0]);
       const unsigned byte_offset = nir_src_as_uint(intrin->src[1]);
-      const unsigned sizeof_GRF = REG_SIZE * reg_unit(state->devinfo);
-      const int offset = byte_offset / sizeof_GRF;
+      const int offset = byte_offset / state->devinfo->grf_size;
 
       /* Avoid shifting by larger than the width of our bitfield, as this
        * is undefined in C.  Even if we require multiple bits to represent
@@ -133,9 +132,9 @@ analyze_ubos_block(struct ubo_analysis_state *state, nir_block *block)
       const unsigned num_components =
          nir_def_last_component_read(&intrin->def) + 1;
       const int bytes = num_components * (intrin->def.bit_size / 8);
-      const int start = ROUND_DOWN_TO(byte_offset, sizeof_GRF);
-      const int end = align(byte_offset + bytes, sizeof_GRF);
-      const int chunks = (end - start) / sizeof_GRF;
+      const int start = ROUND_DOWN_TO(byte_offset, state->devinfo->grf_size);
+      const int end = align(byte_offset + bytes, state->devinfo->grf_size);
+      const int chunks = (end - start) / state->devinfo->grf_size;
 
       /* TODO: should we count uses in loops as higher benefit? */
 
@@ -160,16 +159,16 @@ print_ubo_entry(FILE *file,
 }
 
 void
-brw_nir_analyze_ubo_ranges(const struct brw_compiler *compiler,
-                           nir_shader *nir,
-                           struct brw_ubo_range out_ranges[4])
+iris_nir_analyze_ubo_ranges(const intel_device_info *devinfo,
+                            nir_shader *nir,
+                            struct iris_ubo_range out_ranges[4])
 {
    void *mem_ctx = ralloc_context(NULL);
 
    struct ubo_analysis_state state = {
       .blocks =
          _mesa_hash_table_create(mem_ctx, NULL, _mesa_key_pointer_equal),
-      .devinfo = compiler->devinfo,
+      .devinfo = devinfo,
    };
 
    /* Walk the IR, recording how many times each UBO block/offset is used. */
@@ -259,19 +258,12 @@ brw_nir_analyze_ubo_ranges(const struct brw_compiler *compiler,
 
    struct ubo_range_entry *entries = ranges.data;
 
-   /* Return the top 4, limited to the maximum number of push registers.
-    *
-    * The Vulkan driver sets up additional non-UBO push constants, so it may
-    * need to shrink these ranges further (see anv_nir_compute_push_layout.c).
-    * The OpenGL driver treats legacy uniforms as a UBO, so this is enough.
-    *
-    * To limit further, simply drop the tail of the list, as that's the least
-    * valuable portion.
-    */
+   /* Return the top 4, limited to the maximum number of push registers. */
    const int max_ubos = 4;
    nr_entries = MIN2(nr_entries, max_ubos);
 
-   const unsigned max_push_regs = 64 / reg_unit(compiler->devinfo);
+   const unsigned reg_unit = devinfo->grf_size / 32;
+   const unsigned max_push_regs = 64 / reg_unit;
    unsigned total_push_regs = 0;
 
    for (unsigned i = 0; i < nr_entries; i++) {
@@ -288,8 +280,8 @@ brw_nir_analyze_ubo_ranges(const struct brw_compiler *compiler,
        * values in terms of pre-Xe2 256-bit registers. Scale start and length
        * to account for this.
        */
-      out_ranges[i].start *= reg_unit(compiler->devinfo);
-      out_ranges[i].length *= reg_unit(compiler->devinfo);
+      out_ranges[i].start *= reg_unit;
+      out_ranges[i].length *= reg_unit;
    }
    for (int i = nr_entries; i < 4; i++) {
       out_ranges[i].block = 0;
@@ -306,18 +298,18 @@ lower_load_ubo_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
    if (intrin->intrinsic != nir_intrinsic_load_ubo)
       return false;
 
-   if (!brw_nir_ubo_surface_index_is_pushable(intrin->src[0]) ||
+   if (!nir_src_is_const(intrin->src[0]) ||
        !nir_src_is_const(intrin->src[1]))
       return false;
 
-   const int block = brw_nir_ubo_surface_index_get_push_block(intrin->src[0]);
+   const int block = nir_src_as_uint(intrin->src[0]);
    const unsigned byte_offset = nir_src_as_uint(intrin->src[1]);
    const unsigned num_components =
       nir_def_last_component_read(&intrin->def) + 1;
    const int bytes = num_components * (intrin->def.bit_size / 8);
 
    unsigned range_offset = 0;
-   const struct brw_ubo_range *range = data;
+   const struct iris_ubo_range *range = data;
    for (uint32_t i = 0; i < 4; i++) {
       if (range[i].block != block ||
           byte_offset < range[i].start * 32 ||
@@ -343,8 +335,8 @@ lower_load_ubo_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
 }
 
 bool
-brw_nir_lower_ubo_ranges(nir_shader *nir,
-                         struct brw_ubo_range out_ranges[4])
+iris_nir_lower_ubo_ranges(nir_shader *nir,
+                          struct iris_ubo_range out_ranges[4])
 {
    return nir_shader_intrinsics_pass(nir, lower_load_ubo_instr,
                                      nir_metadata_control_flow,

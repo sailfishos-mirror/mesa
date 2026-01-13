@@ -230,15 +230,10 @@ iris_apply_brw_gs_prog_data(struct iris_compiled_shader *shader,
 void
 iris_apply_brw_prog_data(struct iris_compiled_shader *shader,
                          struct brw_stage_prog_data *brw,
-                         struct brw_ubo_range *ubo_ranges)
+                         struct iris_ubo_range *ubo_ranges)
 {
-   if (ubo_ranges != NULL) {
-      for (int i = 0; i < ARRAY_SIZE(shader->ubo_ranges); i++) {
-         shader->ubo_ranges[i].block  = ubo_ranges[i].block;
-         shader->ubo_ranges[i].start  = ubo_ranges[i].start;
-         shader->ubo_ranges[i].length = ubo_ranges[i].length;
-      }
-   }
+   if (ubo_ranges != NULL)
+      memcpy(shader->ubo_ranges, ubo_ranges, sizeof(shader->ubo_ranges));
 
    for (int i = 0; i < ARRAY_SIZE(shader->push_sizes); i++)
       shader->push_sizes[i] = brw->push_sizes[i];
@@ -1868,18 +1863,18 @@ iris_debug_archiver_open(void *tmp_ctx, struct iris_screen *screen,
 }
 
 static void
-brw_apply_ubo_ranges(struct brw_compiler *compiler,
+brw_apply_ubo_ranges(const struct iris_screen *screen,
                      nir_shader *nir,
-                     struct brw_ubo_range ubo_ranges[4],
+                     struct iris_ubo_range ubo_ranges[4],
                      struct brw_stage_prog_data *prog_data)
 {
-   brw_nir_analyze_ubo_ranges(compiler, nir, ubo_ranges);
-   NIR_PASS(_, nir, brw_nir_lower_ubo_ranges, ubo_ranges);
+   iris_nir_analyze_ubo_ranges(screen->devinfo, nir, ubo_ranges);
+   NIR_PASS(_, nir, iris_nir_lower_ubo_ranges, ubo_ranges);
 
    if (ubo_ranges[0].length == 0 &&
        nir->info.stage == MESA_SHADER_FRAGMENT &&
-       compiler->devinfo->needs_null_push_constant_tbimr_workaround) {
-      ubo_ranges[0] = (struct brw_ubo_range) {
+       screen->devinfo->needs_null_push_constant_tbimr_workaround) {
+      ubo_ranges[0] = (struct iris_ubo_range) {
          .block = IRIS_SURFACE_NULL_PUSH_TBIMR_WA,
          .start = 0,
          .length = 1,
@@ -1939,8 +1934,8 @@ iris_compile_vs(struct iris_screen *screen,
 
       brw_prog_data->base.base.use_alt_mode = nir->info.use_legacy_math_rules;
 
-      struct brw_ubo_range ubo_ranges[4] = {};
-      brw_apply_ubo_ranges(screen->brw, nir, ubo_ranges, &brw_prog_data->base.base);
+      struct iris_ubo_range ubo_ranges[4] = {};
+      brw_apply_ubo_ranges(screen, nir, ubo_ranges, &brw_prog_data->base.base);
 
       struct brw_vs_prog_key brw_key = iris_to_brw_vs_key(screen, key);
 
@@ -2183,8 +2178,8 @@ iris_compile_tcs(struct iris_screen *screen,
       struct brw_tcs_prog_data *brw_prog_data =
          rzalloc(mem_ctx, struct brw_tcs_prog_data);
 
-      struct brw_ubo_range ubo_ranges[4] = {};
-      brw_apply_ubo_ranges(screen->brw, nir, ubo_ranges, &brw_prog_data->base.base);
+      struct iris_ubo_range ubo_ranges[4] = {};
+      brw_apply_ubo_ranges(screen, nir, ubo_ranges, &brw_prog_data->base.base);
 
       struct brw_compile_tcs_params params = {
          .base = {
@@ -2387,8 +2382,8 @@ iris_compile_tes(struct iris_screen *screen,
       struct brw_tes_prog_data *brw_prog_data =
          rzalloc(mem_ctx, struct brw_tes_prog_data);
 
-      struct brw_ubo_range ubo_ranges[4] = {};
-      brw_apply_ubo_ranges(screen->brw, nir, ubo_ranges, &brw_prog_data->base.base);
+      struct iris_ubo_range ubo_ranges[4] = {};
+      brw_apply_ubo_ranges(screen, nir, ubo_ranges, &brw_prog_data->base.base);
 
       struct intel_vue_map input_vue_map;
       brw_compute_tess_vue_map(&input_vue_map, key->inputs_read,
@@ -2582,8 +2577,8 @@ iris_compile_gs(struct iris_screen *screen,
       struct brw_gs_prog_data *brw_prog_data =
          rzalloc(mem_ctx, struct brw_gs_prog_data);
 
-      struct brw_ubo_range ubo_ranges[4] = {};
-      brw_apply_ubo_ranges(screen->brw, nir, ubo_ranges, &brw_prog_data->base.base);
+      struct iris_ubo_range ubo_ranges[4] = {};
+      brw_apply_ubo_ranges(screen, nir, ubo_ranges, &brw_prog_data->base.base);
 
       brw_compute_vue_map(devinfo,
                           &brw_prog_data->base.vue_map, nir->info.outputs_written,
@@ -2776,8 +2771,8 @@ iris_compile_fs(struct iris_screen *screen,
 
       brw_prog_data->base.use_alt_mode = nir->info.use_legacy_math_rules;
 
-      struct brw_ubo_range ubo_ranges[4] = {};
-      brw_apply_ubo_ranges(screen->brw, nir, ubo_ranges, &brw_prog_data->base);
+      struct iris_ubo_range ubo_ranges[4] = {};
+      brw_apply_ubo_ranges(screen, nir, ubo_ranges, &brw_prog_data->base);
 
       struct brw_fs_prog_key brw_key = iris_to_brw_fs_key(screen, key);
 

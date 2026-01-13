@@ -76,23 +76,6 @@ brw_nir_ubo_surface_index_is_pushable(nir_src src)
    return nir_src_is_const(src);
 }
 
-static inline unsigned
-brw_nir_ubo_surface_index_get_push_block(nir_src src)
-{
-   if (nir_src_is_const(src))
-      return nir_src_as_uint(src);
-
-   if (!brw_nir_ubo_surface_index_is_pushable(src))
-      return UINT32_MAX;
-
-   assert(nir_src_is_intrinsic(src));
-
-   nir_intrinsic_instr *intrin = nir_def_as_intrinsic(src.ssa);
-   assert(intrin->intrinsic == nir_intrinsic_resource_intel);
-
-   return nir_intrinsic_resource_block_intel(intrin);
-}
-
 /* This helper return the binding table index of a surface access (any
  * buffer/image/etc...). It works off the source of one of the intrinsics
  * (load_ubo, load_ssbo, store_ssbo, load_image, store_image, etc...).
@@ -338,13 +321,6 @@ bool brw_nir_should_vectorize_mem(unsigned align_mul, unsigned align_offset,
                                   nir_intrinsic_instr *low,
                                   nir_intrinsic_instr *high,
                                   void *data);
-
-void brw_nir_analyze_ubo_ranges(const struct brw_compiler *compiler,
-                                nir_shader *nir,
-                                struct brw_ubo_range out_ranges[4]);
-
-bool brw_nir_lower_ubo_ranges(nir_shader *nir,
-                              struct brw_ubo_range out_ranges[4]);
 
 void brw_nir_optimize(struct brw_pass_tracker *pt);
 

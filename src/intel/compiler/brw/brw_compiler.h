@@ -462,15 +462,6 @@ PRAGMA_DIAGNOSTIC_POP
 /** Max number of render targets in a shader */
 #define BRW_MAX_DRAW_BUFFERS 8
 
-struct brw_ubo_range
-{
-   uint16_t block;
-
-   /* In units of 32-byte registers */
-   uint8_t start;
-   uint8_t length;
-};
-
 /* We reserve the first 2^16 values for builtins */
 #define BRW_PARAM_IS_BUILTIN(param) (((param) & 0xffff0000) == 0)
 

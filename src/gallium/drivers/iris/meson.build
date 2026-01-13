@@ -37,6 +37,7 @@ files_libiris = files(
   'iris_measure.c',
   'iris_measure.h',
   'iris_monitor.c',
+  'iris_nir_analyze_ubo_ranges.c',
   'iris_perf.h',
   'iris_perf.c',
   'iris_performance_query.c',

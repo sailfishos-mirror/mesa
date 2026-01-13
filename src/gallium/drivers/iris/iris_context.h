@@ -25,11 +25,11 @@
 #include "iris_resource.h"
 #include "iris_screen.h"
 
+typedef struct intel_device_info intel_device_info;
 struct iris_bo;
 struct iris_context;
 struct blorp_batch;
 struct blorp_params;
-struct brw_ubo_range;
 
 #define IRIS_MAX_DRAW_BUFFERS 8
 #define IRIS_MAX_SOL_BINDINGS 64
@@ -1325,6 +1325,14 @@ void iris_flush_all_caches(struct iris_batch *batch);
 
 void iris_init_flush_functions(struct pipe_context *ctx);
 
+/* iris_nir_analyze_ubo_ranges.c */
+void iris_nir_analyze_ubo_ranges(const intel_device_info *devinfo,
+                                 nir_shader *nir,
+                                 struct iris_ubo_range out_ranges[4]);
+
+bool iris_nir_lower_ubo_ranges(nir_shader *nir,
+                               struct iris_ubo_range ranges[4]);
+
 /* iris_program.c */
 void iris_compiler_init(struct iris_screen *screen);
 void iris_upload_ubo_ssbo_surf_state(struct iris_context *ice,
@@ -1346,7 +1354,7 @@ uint32_t iris_bti_to_group_index(const struct iris_binding_table *bt,
                                  uint32_t bti);
 void iris_apply_brw_prog_data(struct iris_compiled_shader *shader,
                               struct brw_stage_prog_data *prog_data,
-                              struct brw_ubo_range *ubo_ranges);
+                              struct iris_ubo_range *ubo_ranges);
 void iris_apply_elk_prog_data(struct iris_compiled_shader *shader,
                               struct elk_stage_prog_data *prog_data);
 struct intel_cs_dispatch_info
