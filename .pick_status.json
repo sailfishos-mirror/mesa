@@ -624,7 +624,7 @@
         "description": "brw: Fix and properly use increment_a64_address()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b79e85a93f961c6396f74e63f851d9579960e8ef",
         "notes": null
