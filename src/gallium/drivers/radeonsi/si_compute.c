@@ -498,6 +498,7 @@ static void si_setup_nir_user_data(struct si_context *sctx, const struct pipe_gr
    }
 }
 
+#if 0 /* Disabled because we haven't found a case where it's faster. */
 static bool si_get_2d_interleave_size(const struct pipe_grid_info *info,
                                       unsigned *log_x, unsigned *log_y)
 {
@@ -567,6 +568,7 @@ static bool si_get_2d_interleave_size(const struct pipe_grid_info *info,
    assert(*log_x + *log_y <= 4);
    return true;
 }
+#endif
 
 static void si_emit_dispatch_packets(struct si_context *sctx, const struct pipe_grid_info *info)
 {
@@ -693,6 +695,7 @@ static void si_emit_dispatch_packets(struct si_context *sctx, const struct pipe_
        */
       unsigned dispatch_interleave = S_00B8BC_INTERLEAVE_1D(sctx->compute_dispatch_interleave ?
                                                                sctx->compute_dispatch_interleave : 256);
+#if 0 /* Disabled because we haven't found a case where it's faster. */
       unsigned log_x, log_y;
 
       /* Launch a 2D subgrid on each SE instead of a 1D subgrid. If enabled, INTERLEAVE_1D is
@@ -713,6 +716,7 @@ static void si_emit_dispatch_packets(struct si_context *sctx, const struct pipe_
                                S_00B8BC_INTERLEAVE_2D_Y_SIZE(log_y);
          dispatch_initiator |= S_00B800_INTERLEAVE_2D_EN(1);
       }
+#endif
 
       if (sctx->is_gfx_queue) {
          radeon_opt_set_sh_reg_idx(R_00B8BC_COMPUTE_DISPATCH_INTERLEAVE,
