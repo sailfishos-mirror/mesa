@@ -288,6 +288,8 @@ void build_end_with_regs(isel_context* ctx, std::vector<Operand>& regs);
 Instruction* add_startpgm(struct isel_context* ctx, bool is_callee = false);
 void finish_program(isel_context* ctx);
 
+ABI nir_abi_to_aco(unsigned nir_abi_mask);
+
 struct callee_info get_callee_info(amd_gfx_level gfx_level, unsigned wave_size, const ABI& abi,
                                    unsigned param_count, const nir_parameter* parameters,
                                    Program* program, RegisterDemand reg_limit);

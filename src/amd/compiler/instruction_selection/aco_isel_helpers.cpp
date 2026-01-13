@@ -823,6 +823,17 @@ finish_program(isel_context* ctx)
    }
 }
 
+ABI
+nir_abi_to_aco(unsigned function_attributes)
+{
+   switch (function_attributes & ACO_NIR_FUNCTION_ATTRIB_ABI_MASK) {
+   case ACO_NIR_CALL_ABI_RT_RECURSIVE: return rtRaygenABI;
+   case ACO_NIR_CALL_ABI_TRAVERSAL: return rtTraversalABI;
+   case ACO_NIR_CALL_ABI_AHIT_ISEC: return rtAnyHitABI;
+   default: UNREACHABLE("invalid abi");
+   }
+}
+
 struct param_assignment_info {
    uint16_t required_alignment;
    uint16_t provided_alignment;

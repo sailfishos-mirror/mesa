@@ -794,14 +794,8 @@ visit_call(isel_context* ctx, nir_call_instr* instr)
 {
    Builder bld(ctx->program, ctx->block);
 
-   ABI abi;
-   /* TODO: callable abi? */
-   switch (instr->callee->driver_attributes & ACO_NIR_FUNCTION_ATTRIB_ABI_MASK) {
-   case ACO_NIR_CALL_ABI_RT_RECURSIVE: abi = rtRaygenABI; break;
-   case ACO_NIR_CALL_ABI_TRAVERSAL: abi = rtTraversalABI; break;
-   case ACO_NIR_CALL_ABI_AHIT_ISEC: abi = rtAnyHitABI; break;
-   default: UNREACHABLE("invalid abi");
-   }
+   unsigned nir_abi = instr->callee->driver_attributes & ACO_NIR_FUNCTION_ATTRIB_ABI_MASK;
+   ABI abi = nir_abi_to_aco(instr->callee->driver_attributes);
 
    RegisterDemand limit = get_addr_regs_from_waves(ctx->program, ctx->program->min_waves);
 
@@ -1357,18 +1351,11 @@ select_program_rt(isel_context& ctx, unsigned shader_count, struct nir_shader* c
          break;
       }
 
-      ABI abi;
-      /* TODO: callable abi? */
-      switch (impl->function->driver_attributes & ACO_NIR_FUNCTION_ATTRIB_ABI_MASK) {
-      case ACO_NIR_CALL_ABI_RT_RECURSIVE: abi = rtRaygenABI; break;
-      case ACO_NIR_CALL_ABI_TRAVERSAL: abi = rtTraversalABI; break;
-      case ACO_NIR_CALL_ABI_AHIT_ISEC: abi = rtAnyHitABI; break;
-      default: UNREACHABLE("invalid abi");
-      }
+      unsigned nir_abi = (impl->function->driver_attributes & ACO_NIR_FUNCTION_ATTRIB_ABI_MASK);
 
       RegisterDemand limit = get_addr_regs_from_waves(ctx.program, ctx.program->min_waves);
-
-      ctx.callee_abi = abi;
+      /* TODO: callable abi? */
+      ctx.callee_abi = nir_abi_to_aco(impl->function->driver_attributes);
       ctx.program->callee_abi = ctx.callee_abi;
       ctx.callee_info =
          get_callee_info(ctx.program->gfx_level, ctx.program->wave_size, ctx.callee_abi,
