@@ -121,7 +121,8 @@ store_clipdist_output(nir_builder *b, nir_variable *out, int location, int locat
 }
 
 static void
-load_clipdist_input(nir_builder *b, nir_variable *in, int location_offset,
+load_clipdist_input(nir_builder *b, unsigned location, unsigned driver_location,
+                    int location_offset,
                     nir_def **val, bool use_load_interp)
 {
    bool compact_arrays = b->shader->options->compact_arrays;
@@ -135,8 +136,8 @@ load_clipdist_input(nir_builder *b, nir_variable *in, int location_offset,
          b, nir_intrinsic_load_barycentric_pixel, INTERP_MODE_NONE);
       load = nir_load_interpolated_input(
          b, 4, 32, barycentric, offset,
-         .base = in->data.driver_location + const_offset,
-         .io_semantics.location = in->data.location + const_offset,
+         .base = driver_location + const_offset,
+         .io_semantics.location = location + const_offset,
          /* the offset src has a different definition for compact
           * arrays, and is unfoldable (nir_validate requires that constant
           * offsets are always 0) */
@@ -144,8 +145,8 @@ load_clipdist_input(nir_builder *b, nir_variable *in, int location_offset,
 
    } else {
       load = nir_load_input(b, 4, 32, offset,
-                            .base = in->data.driver_location + const_offset,
-                            .io_semantics.location = in->data.location + const_offset,
+                            .base = driver_location + const_offset,
+                            .io_semantics.location = location + const_offset,
                             /* the offset src has a different definition for compact
                              * arrays, and is unfoldable (nir_validate requires that constant
                              * offsets are always 0) */
@@ -548,21 +549,29 @@ nir_lower_clip_gs(nir_shader *shader, unsigned ucp_enables,
 
 static void
 lower_clip_fs(nir_function_impl *impl, unsigned ucp_enables,
-              nir_variable **in, bool use_clipdist_array, bool use_load_interp)
+              unsigned *driver_location, bool use_clipdist_array, bool use_load_interp)
 {
    nir_def *clipdist[MAX_CLIP_PLANES];
    nir_builder b = nir_builder_at(nir_before_impl(impl));
 
    if (!use_clipdist_array) {
-      if (ucp_enables & 0x0f)
-         load_clipdist_input(&b, in[0], 0, &clipdist[0], use_load_interp);
-      if (ucp_enables & 0xf0)
-         load_clipdist_input(&b, in[1], 0, &clipdist[4], use_load_interp);
+      if (ucp_enables & 0x0f) {
+         load_clipdist_input(&b, VARYING_SLOT_CLIP_DIST0, driver_location[0],
+                             0, &clipdist[0], use_load_interp);
+      }
+      if (ucp_enables & 0xf0) {
+         load_clipdist_input(&b, VARYING_SLOT_CLIP_DIST1, driver_location[1],
+                             0, &clipdist[4], use_load_interp);
+      }
    } else {
-      if (ucp_enables & 0x0f)
-         load_clipdist_input(&b, in[0], 0, &clipdist[0], use_load_interp);
-      if (ucp_enables & 0xf0)
-         load_clipdist_input(&b, in[0], 1, &clipdist[4], use_load_interp);
+      if (ucp_enables & 0x0f) {
+         load_clipdist_input(&b, VARYING_SLOT_CLIP_DIST0, driver_location[0],
+                             0, &clipdist[0], use_load_interp);
+      }
+      if (ucp_enables & 0xf0) {
+         load_clipdist_input(&b, VARYING_SLOT_CLIP_DIST0, driver_location[0],
+                             1, &clipdist[4], use_load_interp);
+      }
    }
    b.shader->info.inputs_read |= update_mask(ucp_enables);
 
@@ -604,33 +613,94 @@ fs_has_clip_dist_input_var(nir_shader *shader, nir_variable **io_vars,
    return false;
 }
 
+static unsigned
+get_clipdist_driver_location(nir_shader *shader)
+{
+   if (!(shader->info.inputs_read &
+         (VARYING_BIT_CLIP_DIST0 | VARYING_BIT_CLIP_DIST1))) {
+      return ~0;
+   }
+
+   nir_foreach_block (block, nir_shader_get_entrypoint(shader)) {
+      nir_foreach_instr (instr, block) {
+         if (instr->type != nir_instr_type_intrinsic)
+            continue;
+
+         nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+
+         if (intrin->intrinsic != nir_intrinsic_load_input &&
+             intrin->intrinsic != nir_intrinsic_load_interpolated_input)
+            continue;
+
+         gl_varying_slot location = nir_intrinsic_io_semantics(intrin).location;
+         if (location == VARYING_SLOT_CLIP_DIST0)
+            return nir_intrinsic_base(intrin);
+         if (location == VARYING_SLOT_CLIP_DIST1)
+            return nir_intrinsic_base(intrin) - 1;
+      }
+   }
+
+   return ~0;
+}
+
 /* insert conditional kill based on interpolated CLIPDIST
  */
 bool
 nir_lower_clip_fs(nir_shader *shader, unsigned ucp_enables,
                   bool use_clipdist_array, bool use_load_interp)
 {
-   nir_variable *in[2] = { 0 };
+   unsigned driver_location[2] = {~0, ~0};
 
    if (!ucp_enables)
       return false;
-
-   /* this is probably broken until https://gitlab.freedesktop.org/mesa/mesa/-/issues/10826 is fixed */
-   assert(!shader->info.io_lowered);
-   shader->info.clip_distance_array_size = util_last_bit(ucp_enables);
 
    /* No hard reason to require use_clipdist_arr to work with
     * frag-shader-based gl_ClipDistance, except that the only user that does
     * not enable this does not support GL 3.0 (or EXT_clip_cull_distance).
     */
-   if (!fs_has_clip_dist_input_var(shader, in, &ucp_enables))
-      create_clipdist_vars(shader, in, ucp_enables, false, use_clipdist_array);
-   else
-      assert(use_clipdist_array);
+   if (!shader->info.io_lowered) {
+      nir_variable *in[2] = { 0 };
+      shader->info.clip_distance_array_size = util_last_bit(ucp_enables);
+      if (!fs_has_clip_dist_input_var(shader, in, &ucp_enables))
+         create_clipdist_vars(shader, in, ucp_enables, false, use_clipdist_array);
+      else
+         assert(use_clipdist_array);
+      if (in[0])
+         driver_location[0] = in[0]->data.driver_location;
+      if (in[1])
+         driver_location[1] = in[1]->data.driver_location;
+   } else {
+      if (shader->info.clip_distance_array_size) {
+         ucp_enables &= (1 << shader->info.clip_distance_array_size) - 1;
+         driver_location[0] = get_clipdist_driver_location(shader);
+      } else {
+         shader->info.clip_distance_array_size = util_last_bit(ucp_enables);
+      }
+
+      if (driver_location[0] == ~0) {
+         if (use_clipdist_array) {
+            driver_location[0] = shader->num_inputs;
+            shader->num_inputs +=
+               DIV_ROUND_UP(shader->info.clip_distance_array_size, 4);
+         } else {
+            if (ucp_enables & 0x0f) {
+               driver_location[0] = shader->num_inputs;
+               shader->num_inputs++;
+            }
+            if (ucp_enables & 0xf0) {
+               driver_location[1] = shader->num_inputs;
+               shader->num_inputs++;
+            }
+         }
+      } else {
+         if (!use_clipdist_array && (ucp_enables & 0xf0))
+            driver_location[1] = driver_location[0] + 1;
+      }
+   }
 
    nir_foreach_function_with_impl(function, impl, shader) {
       if (!strcmp(function->name, "main")) {
-         lower_clip_fs(impl, ucp_enables, in, use_clipdist_array,
+         lower_clip_fs(impl, ucp_enables, driver_location, use_clipdist_array,
                        use_load_interp);
       }
    }
