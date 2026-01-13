@@ -705,10 +705,18 @@ ir3_shader_passthrough_tcs(struct ir3_shader *vs, unsigned patch_vertices)
 
    unsigned n = patch_vertices - 1;
    if (!vs->vs.passthrough_tcs[n]) {
+      unsigned locations[MAX_VARYING];
+      unsigned num_locations = 0;
+
+      u_foreach_bit64 (slot, vs->nir->info.outputs_written) {
+         locations[num_locations++] = slot;
+      }
+
       const nir_shader_compiler_options *options =
             ir3_get_compiler_options(vs->compiler);
       nir_shader *tcs =
-            nir_create_passthrough_tcs(options, vs->nir, patch_vertices);
+            nir_create_passthrough_tcs_impl(options, locations, num_locations,
+                                            patch_vertices);
 
       /* Technically it is an internal shader but it is confusing to
        * not have it show up in debug output
