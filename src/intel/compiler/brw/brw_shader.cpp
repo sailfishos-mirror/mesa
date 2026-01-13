@@ -586,7 +586,15 @@ brw_shader::assign_curb_setup()
             ubld_mask.CMP(mask_reg, byte_offset(mask, i), offset_reg, BRW_CONDITIONAL_G);
 
             for (unsigned and_length; grf < mask_end; grf += and_length) {
-               and_length = 1u << (util_last_bit(MIN2(grf_end - grf, max_grf_writes)) - 1);
+               /* We can't have a destination/source register spanning more
+                * than 2 GRFs which would be the case on Xe2+ if we try to
+                * mask a payload register not aligned to 64B with a SIMD32
+                * instruction. In such case just reduce the SIMDness for the
+                * unaligned masking.
+                */
+               unsigned max_write = grf % reg_unit(devinfo) != 0 ? max_grf_writes / 2 : max_grf_writes;
+
+               and_length = 1u << (util_last_bit(MIN2(grf_end - grf, max_write)) - 1);
 
                if (!(want_zero & BITFIELD64_RANGE(grf - grf_start, and_length)))
                   continue;
