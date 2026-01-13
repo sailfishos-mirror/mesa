@@ -875,6 +875,59 @@ find_reg(BITSET_WORD* regs, RegClass rc, const BITSET_WORD* avoid)
 }
 
 void
+param_hint_avoid(param_assignment_hints& hints, const parameter_info& param_info)
+{
+   if (!param_info.is_reg)
+      return;
+   BITSET_SET_COUNT(hints.registers_to_avoid, param_info.def.physReg(), param_info.def.size());
+}
+
+void
+param_hint_map(param_assignment_hints& hints, const struct callee_info& traversal_info,
+               unsigned dst_param_idx, unsigned src_param_idx)
+{
+   auto& param_info = traversal_info.param_infos[src_param_idx + ACO_NIR_CALL_SYSTEM_ARG_COUNT];
+   if (!param_info.is_reg)
+      return;
+   hints.param_affinities[dst_param_idx + ACO_NIR_CALL_SYSTEM_ARG_COUNT] = param_info;
+}
+
+param_assignment_hints
+get_ahit_isec_param_hints(const struct callee_info& traversal_info)
+{
+   param_assignment_hints hints;
+   hints.stack_pointer_affinity = traversal_info.stack_ptr;
+   hints.param_affinities.resize(AHIT_ISEC_ARG_HIT_ATTRIB_PAYLOAD_BASE, {});
+
+   for (auto& info : traversal_info.param_infos)
+      param_hint_avoid(hints, info);
+   param_hint_avoid(hints, traversal_info.stack_ptr);
+
+   param_hint_map(hints, traversal_info, RT_ARG_LAUNCH_ID, RT_ARG_LAUNCH_ID);
+   param_hint_map(hints, traversal_info, RT_ARG_LAUNCH_SIZE, RT_ARG_LAUNCH_SIZE);
+   param_hint_map(hints, traversal_info, RT_ARG_DESCRIPTORS, RT_ARG_DESCRIPTORS);
+   param_hint_map(hints, traversal_info, RT_ARG_DYNAMIC_DESCRIPTORS, RT_ARG_DYNAMIC_DESCRIPTORS);
+   param_hint_map(hints, traversal_info, RT_ARG_PUSH_CONSTANTS, RT_ARG_PUSH_CONSTANTS);
+   param_hint_map(hints, traversal_info, RT_ARG_SBT_DESCRIPTORS, RT_ARG_SBT_DESCRIPTORS);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_SHADER_RECORD_PTR,
+                  TRAVERSAL_ARG_SHADER_RECORD_PTR);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_CULL_MASK_AND_FLAGS,
+                  TRAVERSAL_ARG_CULL_MASK_AND_FLAGS);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_RAY_ORIGIN, TRAVERSAL_ARG_RAY_ORIGIN);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_RAY_TMIN, TRAVERSAL_ARG_RAY_TMIN);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_RAY_DIRECTION, TRAVERSAL_ARG_RAY_DIRECTION);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_CANDIDATE_RAY_TMAX, TRAVERSAL_ARG_RAY_TMAX);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_PRIMITIVE_ADDR,
+                  TRAVERSAL_ARG_PRIMITIVE_ADDR);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_PRIMITIVE_ID, TRAVERSAL_ARG_PRIMITIVE_ID);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_INSTANCE_ADDR, TRAVERSAL_ARG_INSTANCE_ADDR);
+   param_hint_map(hints, traversal_info, AHIT_ISEC_ARG_GEOMETRY_ID_AND_FLAGS,
+                  TRAVERSAL_ARG_GEOMETRY_ID_AND_FLAGS);
+
+   return hints;
+}
+
+void
 find_param_regs(Program* program, const ABI& abi, callee_info& info,
                 std::vector<struct param_assignment_info>& params,
                 const BITSET_DECLARE(regs_to_avoid, 512), RegisterDemand reg_limit)
