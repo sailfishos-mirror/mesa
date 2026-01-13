@@ -343,7 +343,15 @@ lsc_opcode_is_store(enum lsc_opcode opcode)
 {
    return opcode == LSC_OP_STORE ||
           opcode == LSC_OP_STORE_CMASK ||
-          opcode == LSC_OP_STORE_CMASK_MSRT;
+          opcode == LSC_OP_STORE_CMASK_MSRT ||
+          opcode == LSC_OP_STORE_2D_BLOCK;
+}
+
+static inline bool
+lsc_opcode_is_2d_block(enum lsc_opcode opcode)
+{
+   return opcode == LSC_OP_LOAD_2D_BLOCK ||
+          opcode == LSC_OP_STORE_2D_BLOCK;
 }
 
 static inline bool
@@ -404,6 +412,7 @@ lsc_op_num_data_values(unsigned _op)
    case LSC_OP_ATOMIC_LOAD:
    case LSC_OP_LOAD:
    case LSC_OP_LOAD_CMASK:
+   case LSC_OP_LOAD_2D_BLOCK:
    case LSC_OP_FENCE:
    case LSC_OP_LOAD_CMASK_MSRT:
       return 0;

@@ -195,6 +195,58 @@ TEST_F(GenParseTest, ParsesExecControlWithoutSpaceAfterLscOpcode)
    EXPECT_EQ(insts[0].send.desc_imm, 0x2229e500u);
 }
 
+TEST_F(GenParseTest, ParsesBlock2dLoad)
+{
+   set_devinfo("bmg");
+
+   ASSERT_TRUE(parse(
+      "(W) load_block2d.ugm.d16t.a64 (1|M0) r10:4 [r80:1 + (8, -2)]\n"))
+      << first_error();
+
+   ASSERT_EQ(num_insts, 1);
+   EXPECT_EQ(insts[0].opcode, GEN_OP_SEND);
+   EXPECT_EQ(insts[0].send.sfid, GEN_SFID_UGM);
+
+   const gen_lsc_desc desc =
+      gen_lsc_desc_decode(&devinfo, insts[0].send.desc_imm);
+   EXPECT_EQ(desc.op, LSC_OP_LOAD_2D_BLOCK);
+   EXPECT_EQ(desc.data_size, LSC_DATA_SIZE_D16);
+   EXPECT_TRUE(desc.transpose);
+   EXPECT_FALSE(desc.vnni);
+
+   const gen_message_desc msg =
+      gen_message_desc_decode(&devinfo, insts[0].send.desc_imm);
+   EXPECT_EQ(msg.msg_length, 1u);
+   EXPECT_EQ(msg.response_length, 4u);
+
+   const gen_lsc_ex_desc ex_desc = gen_lsc_ex_desc_decode(
+      &devinfo, LSC_OP_LOAD_2D_BLOCK, LSC_ADDR_SURFTYPE_FLAT,
+      insts[0].send.ex_desc_imm, 0);
+   EXPECT_EQ(ex_desc.block2d.x_off, 8);
+   EXPECT_EQ(ex_desc.block2d.y_off, -2);
+}
+
+TEST_F(GenParseTest, RejectsMisalignedBlock2dOffsets)
+{
+   set_devinfo("bmg");
+
+   /* offset * data size must be dword aligned in bytes */
+   EXPECT_FALSE(parse(
+      "(W) load_block2d.ugm.d8.a64 (1|M0) r10:4 [r80:1 + (0, 2)]\n"));
+   EXPECT_FALSE(parse(
+      "(W) load_block2d.ugm.d16.a64 (1|M0) r10:4 [r80:1 + (0, 1)]\n"));
+   EXPECT_FALSE(parse(
+      "(W) load_block2d.ugm.d16.a64 (1|M0) r10:4 [r80:1 + (3, 0)]\n"));
+
+   /* signed 10-bit range */
+   EXPECT_FALSE(parse(
+      "(W) load_block2d.ugm.d32.a64 (1|M0) r10:4 [r80:1 + (512, 0)]\n"));
+
+   /* response length is not derivable from the mnemonic */
+   EXPECT_FALSE(parse(
+      "(W) load_block2d.ugm.d32.a64 (1|M0) r10 [r80:1]\n"));
+}
+
 TEST_F(GenParseTest, ParsesInstructionOptions)
 {
    set_devinfo("tgl");

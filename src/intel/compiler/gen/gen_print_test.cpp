@@ -1654,6 +1654,33 @@ TEST_F(GenPrintTest, LscDescDecodeEncode)
    EXPECT_EQ(gen_lsc_desc_encode(&devinfo, &desc), raw_desc);
 }
 
+TEST_F(GenPrintTest, LscBlock2dDescDecodeEncode)
+{
+   set_devinfo("bmg");
+   gen_lsc_desc expected = {
+      .op = LSC_OP_LOAD_2D_BLOCK,
+      .addr_type = LSC_ADDR_SURFTYPE_FLAT,
+      .data_size = LSC_DATA_SIZE_D16,
+      .cache_ctrl = XE2_LSC_CACHE_LOAD_L1UC_L3C,
+      .transpose = true,
+      .vnni = true,
+   };
+
+   const uint32_t raw_desc = gen_lsc_desc_encode(&devinfo, &expected);
+
+   const gen_lsc_desc desc = gen_lsc_desc_decode(&devinfo, raw_desc);
+
+   EXPECT_EQ(desc.op, LSC_OP_LOAD_2D_BLOCK);
+   EXPECT_EQ(desc.addr_type, LSC_ADDR_SURFTYPE_FLAT);
+   EXPECT_EQ((unsigned)desc.addr_size, 0u);
+   EXPECT_EQ(desc.data_size, LSC_DATA_SIZE_D16);
+   EXPECT_EQ(desc.cache_ctrl, XE2_LSC_CACHE_LOAD_L1UC_L3C);
+   EXPECT_TRUE(desc.vnni);
+   EXPECT_TRUE(desc.transpose);
+
+   EXPECT_EQ(gen_lsc_desc_encode(&devinfo, &desc), raw_desc);
+}
+
 TEST_F(GenPrintTest, LscFenceDescDecodeEncode)
 {
    set_devinfo("mtl");

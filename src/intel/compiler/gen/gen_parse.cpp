@@ -193,6 +193,7 @@ struct gen_parser {
          .cache_ctrl = 0,
          .vect_size = LSC_VECT_SIZE_V1,
          .transpose = false,
+         .vnni = false,
          .cmask = LSC_CMASK_X,
          .fence = {
             .scope = LSC_FENCE_LOCAL,
@@ -410,6 +411,9 @@ struct gen_parser {
          if (lsc.desc.op == LSC_OP_FENCE) {
             if (!parse_lsc_fence_suffixes())
                return false;
+         } else if (lsc_opcode_is_2d_block(lsc.desc.op)) {
+            if (!parse_lsc_block2d_suffixes())
+               return false;
          } else {
             if (!parse_lsc_memory_suffixes())
                return false;
@@ -520,6 +524,70 @@ struct gen_parser {
       return true;
    }
 
+   void
+   parse_lsc_cache_ctrl_suffix()
+   {
+      const auto saved = line;
+      bool valid = false;
+      bool ok = false;
+
+      if (consume('.')) {
+         const auto a = consume_ident_token();
+         if (consume('.')) {
+            const auto b = consume_ident_token();
+            std::string name(a);
+            name += '.';
+            name += b;
+            const unsigned cc =
+               gen_lsc_cache_ctrl_from_string(devinfo, lsc.desc.op,
+                                              SV_ARGS(name), &valid);
+            if (valid) {
+               lsc.desc.cache_ctrl = cc;
+               ok = true;
+            }
+         }
+      }
+
+      if (!ok)
+         line = saved;
+   }
+
+   bool
+   parse_lsc_block2d_suffixes()
+   {
+      bool valid;
+
+      if (inst.send.sfid != GEN_SFID_UGM)
+         return errorf("block2d symbolic syntax requires UGM");
+
+      /* Data descriptor: dN[t][v]. */
+      consume('.');
+      auto data_name =
+         consume_while([](char c) { return c == 'd' || is_digit(c); });
+      lsc.desc.data_size = gen_lsc_data_size_from_string(SV_ARGS(data_name), &valid);
+      if (!valid) {
+         return errorf("malformed block2d data descriptor '%.*s'",
+                       SV_FMT(data_name));
+      }
+
+      lsc.desc.vect_size = LSC_VECT_SIZE_V1;
+      lsc.desc.transpose = consume('t');
+      lsc.desc.vnni = consume('v');
+      if ((lsc.desc.transpose || lsc.desc.vnni) &&
+          lsc.desc.op != LSC_OP_LOAD_2D_BLOCK)
+         return errorf("block2d store does not take transform suffixes");
+
+      /* Flat/A64 is implied by UGM and not encoded in the descriptor. */
+      if (!consume(".a64"))
+         return errorf("block2d UGM symbolic syntax requires '.a64'");
+
+      parse_lsc_cache_ctrl_suffix();
+
+      lsc.desc.addr_type = LSC_ADDR_SURFTYPE_FLAT;
+      lsc.desc.addr_size = (enum lsc_addr_size)0;
+      return true;
+   }
+
    bool
    parse_lsc_memory_suffixes()
    {
@@ -565,32 +633,7 @@ struct gen_parser {
       if (!valid)
          return errorf("unknown LSC address size '%.*s'", SV_FMT(addr_size));
 
-      /* Optional cache control: ".l1xx.l3yy" form. Try to consume two
-       * dotted ident tokens; if they don't form a valid cache_ctrl, restore
-       * line so the dot is left for the surface selector below.
-       */
-      {
-         const auto saved = line;
-         bool ok = false;
-         if (consume('.')) {
-            const auto a = consume_ident_token();
-            if (consume('.')) {
-               const auto b = consume_ident_token();
-               std::string name(a);
-               name += '.';
-               name += b;
-               const unsigned cc =
-                  gen_lsc_cache_ctrl_from_string(devinfo, lsc.desc.op,
-                                                 SV_ARGS(name), &valid);
-               if (valid) {
-                  lsc.desc.cache_ctrl = cc;
-                  ok = true;
-               }
-            }
-         }
-         if (!ok)
-            line = saved;
-      }
+      parse_lsc_cache_ctrl_suffix();
 
       /* Optional surface selector. */
       lsc.desc.addr_type = LSC_ADDR_SURFTYPE_FLAT;
@@ -860,6 +903,24 @@ struct gen_parser {
          return false;
 
       uint64_t v = 0;
+      const char *begin = line.data();
+      const char *end = line.data() + line.size();
+      const auto result = std::from_chars(begin, end, v, 10);
+      if (result.ptr == begin || result.ec != std::errc())
+         return false;
+
+      line.remove_prefix(result.ptr - begin);
+      value = v;
+      return true;
+   }
+
+   bool
+   consume_int(int &value)
+   {
+      if (!is_digit(peek()) && peek() != '-')
+         return false;
+
+      int v = 0;
       const char *begin = line.data();
       const char *end = line.data() + line.size();
       const auto result = std::from_chars(begin, end, v, 10);
@@ -1611,10 +1672,120 @@ struct gen_parser {
    }
 
    bool
+   parse_block2d_send_format()
+   {
+      const bool has_dst = lsc_symbolic_send_has_dst();
+      const bool has_src1 = send_has_symbolic_src1(lsc.desc.op);
+
+      int dst_length = -1;
+      int src0_length = -1;
+      int src1_length = -1;
+
+      inst.dst.file = GEN_ARF;
+      inst.dst.nr = GEN_ARF_NULL;
+      inst.dst.type = GEN_TYPE_UD;
+
+      if (has_dst) {
+         if (!parse_send_reg(inst.dst, &dst_length))
+            return false;
+      }
+
+      skip_ws();
+      if (!consume('['))
+         return errorf("expected block2d address payload '[rN:1]'");
+      if (!parse_send_reg(inst.src[0], &src0_length))
+         return false;
+
+      int x_off = 0, y_off = 0;
+      skip_ws();
+      if (consume('+')) {
+         skip_ws();
+         if (!consume('('))
+            return errorf("expected '(x, y)' block2d offset");
+         skip_ws();
+         if (!consume_int(x_off))
+            return errorf("malformed block2d X offset");
+         skip_ws();
+         if (!consume(','))
+            return errorf("expected ',' in block2d offset");
+         skip_ws();
+         if (!consume_int(y_off))
+            return errorf("malformed block2d Y offset");
+         skip_ws();
+         if (!consume(')'))
+            return errorf("expected ')' after block2d offset");
+         skip_ws();
+      }
+      if (!consume(']'))
+         return errorf("expected ']' after block2d address payload");
+
+      inst.src[1].file = GEN_ARF;
+      inst.src[1].nr = GEN_ARF_NULL;
+
+      if (has_src1) {
+         if (!parse_send_reg(inst.src[1], &src1_length))
+            return false;
+      }
+
+      if (x_off < -512 || x_off > 511 || y_off < -512 || y_off > 511)
+         return errorf("block2d offset out of signed 10-bit range");
+
+      const unsigned element_bytes = lsc_data_size_bytes(lsc.desc.data_size);
+      if ((x_off * (int)element_bytes) % 4 != 0 ||
+          (y_off * (int)element_bytes) % 4 != 0)
+         return errorf("block2d offset must be dword aligned in bytes");
+
+      /* The address payload is one GRF. */
+      const unsigned mlen = 1;
+      if (src0_length >= 0 && (unsigned)src0_length != mlen) {
+         return errorf("block2d address payload length ':%d' must be 1",
+                       src0_length);
+      }
+
+      unsigned rlen = 0;
+      if (has_dst && !is_null(inst.dst)) {
+         if (dst_length < 0)
+            return errorf("block2d load destination requires ':rlen'");
+         rlen = dst_length;
+      }
+
+      unsigned ex_mlen = 0;
+      if (has_src1) {
+         if (src1_length < 0)
+            return errorf("block2d store data requires ':mlen'");
+         ex_mlen = src1_length;
+      }
+
+      inst.send.desc_is_reg = false;
+
+      gen_lsc_ex_desc ex_desc = {};
+      ex_desc.addr_type = LSC_ADDR_SURFTYPE_FLAT;
+      ex_desc.block2d.x_off = x_off;
+      ex_desc.block2d.y_off = y_off;
+      inst.send.ex_desc_imm =
+         gen_lsc_ex_desc_encode(devinfo, lsc.desc.op, &ex_desc, NULL);
+      if (ex_mlen > 0)
+         inst.send.ex_desc_imm |= gen_message_ex_desc(devinfo, ex_mlen);
+      inst.send.ex_desc_imm_extra = 0;
+      inst.send.src1_len = ex_mlen;
+
+      const gen_message_desc msg = {
+         .msg_length = mlen,
+         .response_length = rlen,
+      };
+      inst.send.desc_imm = gen_message_desc_encode(devinfo, &msg) |
+                           gen_lsc_desc_encode(devinfo, &lsc.desc);
+      return true;
+   }
+
+   bool
    parse_send_format()
    {
       if (inst.exec_size == 0)
          inst.exec_size = 1;
+
+      if (lsc.valid && lsc_opcode_is_2d_block(lsc.desc.op))
+         return parse_block2d_send_format();
 
       int dst_length = -1;
       int src0_length = -1;

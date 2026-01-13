@@ -1945,6 +1945,22 @@ static const struct {
    { "send.ugm (8) null r1 null:0 a0.0 a0.0", VALID, { .ge = 200, .has_lsc = true } },
 
 
+   { "send.ugm (1) r10 r80 null:0 0x0 0x02400403",
+     "LSC 2D block messages require Xe2+.", { .lt = 200, .has_lsc = true }
+   },
+   { "send.ugm (1) r10 r80 null:0 0x0 0x02400403", VALID, { .ge = 200, .has_lsc = true } },
+   { "send.tgm (1) r10 r80 null:0 0x0 0x02400403", VALID, { .ge = 200, .has_lsc = true } },
+   { "send.slm (1) r10 r80 null:0 0x0 0x02400403",
+     "LSC 2D block messages must use UGM or TGM.", { .ge = 200, .has_lsc = true }
+   },
+   { "send.ugm (1) r10 r80 null:0 0x0 0x22400403",
+     "UGM 2D block messages require flat A64 addressing.", { .ge = 200, .has_lsc = true }
+   },
+   { "send.ugm (1) r10 r80 null:0 0x0 0x02400803",
+     "UGM 2D block messages require d8, d16, d32, or d64 data size.", { .ge = 200, .has_lsc = true }
+   },
+
+
    /* ARF scalar register restrictions. */
 
    { "mov (1) s0 r1<0>",
