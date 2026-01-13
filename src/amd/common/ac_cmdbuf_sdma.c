@@ -224,6 +224,8 @@ ac_sdma_get_tiled_info_dword(const struct radeon_info *info,
 {
    const uint32_t swizzle_mode = tiled->surf->has_stencil ? tiled->surf->u.gfx9.zs.stencil_swizzle_mode
                                                           : tiled->surf->u.gfx9.swizzle_mode;
+   const uint16_t epitch = tiled->surf->has_stencil ? tiled->surf->u.gfx9.zs.stencil_epitch
+                                                    : tiled->surf->u.gfx9.epitch;
    const enum gfx9_resource_type dimension =
       ac_sdma_get_tiled_resource_dim(info->sdma_ip_version, tiled);
    const uint32_t mip_max = MAX2(tiled->num_levels, 1);
@@ -240,7 +242,7 @@ ac_sdma_get_tiled_info_dword(const struct radeon_info *info,
       } else if (info->sdma_ip_version >= SDMA_5_0) {
          return info_dword | dimension << 9 | (mip_max - 1) << 16 | mip_id << 20;
       } else {
-         return info_dword | dimension << 9 | tiled->surf->u.gfx9.epitch << 16;
+         return info_dword | dimension << 9 | epitch << 16;
       }
    } else {
       const uint32_t tile_index = tiled->surf->u.legacy.tiling_index[0];
