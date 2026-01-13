@@ -1212,6 +1212,17 @@ iris_setup_uniforms(ASSERTED const struct intel_device_info *devinfo,
    assert(num_cbufs < PIPE_MAX_CONSTANT_BUFFERS);
    nir_validate_shader(nir, "after remap");
 
+#ifdef INTEL_USE_ELK
+   /* We don't use params[] but gallium leaves num_uniforms set.  We use this
+    * to detect when cbuf0 exists but we don't need it anymore when we get
+    * here.  Instead, zero it out so that the back-end doesn't get confused
+    * when nr_params * 4 != num_uniforms != nr_params * 4.
+    *
+    * Elk still depends on this behavior.
+    */
+   nir->num_uniforms = 0;
+#endif
+
    *out_system_values = system_values;
    *out_num_system_values = num_system_values;
    *out_num_cbufs = num_cbufs;
