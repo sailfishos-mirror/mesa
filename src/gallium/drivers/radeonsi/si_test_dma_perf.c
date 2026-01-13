@@ -9,7 +9,7 @@
 #include "util/streaming-load-memcpy.h"
 
 #define MIN_SIZE   512
-#define MAX_SIZE   (128 * 1024 * 1024)
+#define MAX_SIZE   (256 * 1024 * 1024)
 #define SIZE_SHIFT 1
 #define WARMUP_RUNS 16
 #define NUM_RUNS   32
