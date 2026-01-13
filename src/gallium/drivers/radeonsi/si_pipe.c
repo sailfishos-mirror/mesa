@@ -532,7 +532,7 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen, unsign
       return NULL;
    }
 
-   sctx->is_gfx_queue = sscreen->info.has_cs_regalloc_hang_bug ||
+   sctx->is_gfx_queue = sscreen->info.gfx_level == GFX6 ||
                         /* Compute queues hang on Raven and derivatives, see:
                          * https://gitlab.freedesktop.org/mesa/mesa/-/issues/12310 */
                         ((sscreen->info.family == CHIP_RAVEN ||
