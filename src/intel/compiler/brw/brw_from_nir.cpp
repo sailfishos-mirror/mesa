@@ -4711,7 +4711,7 @@ increment_a64_address(const brw_builder &_bld, brw_reg address, uint32_t v, bool
    const brw_builder bld = use_no_mask ? _bld.exec_all().group(8, 0) : _bld;
 
    if (bld.shader->devinfo->has_64bit_int) {
-      return bld.ADD(address, brw_imm_int(address.type, v));
+      return bld.ADD(retype(address, BRW_TYPE_UQ), brw_imm_ud(v));
    } else {
       brw_reg dst = bld.vgrf(BRW_TYPE_UQ);
       brw_reg dst_low = subscript(dst, BRW_TYPE_UD, 0);
@@ -4721,8 +4721,9 @@ increment_a64_address(const brw_builder &_bld, brw_reg address, uint32_t v, bool
 
       /* Add low and if that overflows, add carry to high. */
       bld.ADD(dst_low, src_low, brw_imm_ud(v))->conditional_mod = BRW_CONDITIONAL_O;
-      bld.ADD(dst_high, src_high, brw_imm_ud(0x1))->predicate = BRW_PREDICATE_NORMAL;
-      return dst_low;
+      bld.MOV(dst_high, src_high);
+      bld.ADD(dst_high, dst_high, brw_imm_ud(0x1))->predicate = BRW_PREDICATE_NORMAL;
+      return dst;
    }
 }
 
@@ -6371,8 +6372,9 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          mem->flags = flags;
 
          if (brw_type_size_bits(srcs[MEMORY_LOGICAL_ADDRESS].type) == 64) {
-            increment_a64_address(ubld, srcs[MEMORY_LOGICAL_ADDRESS],
-                                  block_bytes, no_mask_handle);
+            srcs[MEMORY_LOGICAL_ADDRESS] =
+               increment_a64_address(ubld, srcs[MEMORY_LOGICAL_ADDRESS],
+                                     block_bytes, no_mask_handle);
          } else {
             srcs[MEMORY_LOGICAL_ADDRESS] =
                ubld.ADD(retype(srcs[MEMORY_LOGICAL_ADDRESS], BRW_TYPE_UD),
