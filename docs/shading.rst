@@ -150,13 +150,30 @@ emit :ext:`GL_ARB_vertex_program`-style instructions:
 
 Options include
 
--  **--dump-ast** - dump source syntax tree
--  **--dump-hir** - dump high-level IR code
--  **--dump-lir** - dump low-level IR code
--  **--link** - link shaders
--  **--just-log** - display only shader / linker info if exist, without
+..  option:: --dump-ast
+
+   dump source syntax tree
+
+.. option:: --dump-hir
+
+   dump high-level IR code
+
+.. option:: --dump-lir
+
+   dump low-level IR code
+
+.. option:: --link
+
+   link shaders
+
+.. option:: --just-log
+
+   display only shader / linker info if exist, without
    any header or separator
--  **--version** - [Mandatory] define the GLSL version to use
+
+.. option:: --version
+
+   [Mandatory] define the GLSL version to use
 
 Compiler Implementation
 -----------------------
