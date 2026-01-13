@@ -47,8 +47,11 @@ build_cube_select(nir_builder *b, nir_def *ma, nir_def *id, nir_def *deriv,
       nir_bcsel(b, is_ma_positive, nir_imm_float(b, 1.0), nir_imm_float(b, -1.0));
    nir_def *neg_sgn_ma = nir_fneg(b, sgn_ma);
 
-   nir_def *is_ma_z = nir_fge_imm(b, id, 4.0);
-   nir_def *is_ma_y = nir_fge_imm(b, id, 2.0);
+   nir_def *face_id_half = nir_fmul_imm(b, id, 0.5);
+   nir_def *face_id_pos = nir_ftrunc(b, face_id_half);
+   nir_def *face_neg = nir_fneu(b, face_id_pos, face_id_half);
+   nir_def *is_ma_z = nir_fge_imm(b, face_id_pos, 2.0);
+   nir_def *is_ma_y = nir_fge_imm(b, face_id_pos, 1.0);
    is_ma_y = nir_iand(b, is_ma_y, nir_inot(b, is_ma_z));
    nir_def *is_not_ma_x = nir_ior(b, is_ma_z, is_ma_y);
 
@@ -65,7 +68,10 @@ build_cube_select(nir_builder *b, nir_def *ma, nir_def *id, nir_def *deriv,
 
    /* Select ma */
    tmp = nir_bcsel(b, is_ma_z, deriv_z, nir_bcsel(b, is_ma_y, deriv_y, deriv_x));
-   *out_ma = nir_fmul_imm(b, nir_fabs(b, tmp), 2.0);
+   sgn = nir_bcsel(b, face_neg, nir_imm_float(b, -1.0), sgn_ma);
+   *out_ma = nir_fmul(b, tmp, sgn);
+
+   *out_ma = nir_fmul_imm(b, *out_ma, 2.0);
 }
 
 static void
