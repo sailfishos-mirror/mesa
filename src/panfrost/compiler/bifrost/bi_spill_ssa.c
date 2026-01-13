@@ -220,6 +220,11 @@ struct spill_ctx {
 
    /* architecture */
    unsigned arch;
+
+   /* In cmp_dist, only prefer remats if their next_use is at least this
+    * value.
+    */
+   dist_t cmp_dist_min_remat_dst;
 };
 
 static inline struct spill_block *
@@ -496,6 +501,7 @@ cmp_dist(const void *left_, const void *right_, void *ctx_)
    const struct candidate *right = right_;
    unsigned ldist = left->dist;
    unsigned rdist = right->dist;
+   unsigned min_remat_dst = ctx->cmp_dist_min_remat_dst;
    /* We assume that rematerializing - even before every instruction - is
     * cheaper than spilling. As long as one of the nodes is rematerializable
     * (with distance > 0), we choose it over spilling. Within a class of nodes
@@ -503,8 +509,8 @@ cmp_dist(const void *left_, const void *right_, void *ctx_)
     */
    assert(left->node < ctx->n_alloc);
    assert(right->node < ctx->n_alloc);
-   bool remat_left = ctx->remat[left->node] != NULL && ldist > 0;
-   bool remat_right = ctx->remat[right->node] != NULL && rdist > 0;
+   bool remat_left = ctx->remat[left->node] != NULL && ldist > min_remat_dst;
+   bool remat_right = ctx->remat[right->node] != NULL && rdist > min_remat_dst;
 
    if (remat_left != remat_right)
       return remat_left ? 1 : -1;
@@ -1170,8 +1176,18 @@ limit(struct spill_ctx *ctx, bi_instr *I, unsigned m)
       };
    }
 
+   dist_t dst_next_use = ctx->ip;
+   bi_foreach_ssa_dest(I, d) {
+      uint32_t dest = I->dest[d].value;
+      dst_next_use = MAX2(ctx->next_uses[dest], dst_next_use);
+   }
+
    /* Sort by next-use distance */
+   ctx->cmp_dist_min_remat_dst = dst_next_use - ctx->ip;
    util_qsort_r(candidates, j, sizeof(struct candidate), cmp_dist, ctx);
+
+   /* Restore default for everything else. */
+   ctx->cmp_dist_min_remat_dst = 0;
 
    /* Evict what doesn't fit */
    unsigned new_weight = 0;
@@ -1513,6 +1529,7 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
          .ssa_defs = ssa_defs,
          .ssa_def_blocks = ssa_def_blocks,
          .arch = ctx->arch,
+         .cmp_dist_min_remat_dst = 0,
       };
 
       compute_w_entry(&sctx);
@@ -1543,6 +1560,7 @@ bi_spill_ssa(bi_context *ctx, unsigned k, unsigned spill_base)
          .ssa_defs = ssa_defs,
          .ssa_def_blocks = ssa_def_blocks,
          .arch = ctx->arch,
+         .cmp_dist_min_remat_dst = 0,
       };
 
       bi_foreach_predecessor(block, pred) {
