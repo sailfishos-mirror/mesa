@@ -242,6 +242,7 @@ radv_sdma_get_tiled_info_dword(const struct radv_device *const device, const str
    const uint32_t bpe = radv_sdma_get_bpe(image, subresource.aspectMask);
    const uint32_t element_size = util_logbase2(bpe);
    const uint32_t swizzle_mode = surf->has_stencil ? surf->u.gfx9.zs.stencil_swizzle_mode : surf->u.gfx9.swizzle_mode;
+   const uint16_t epitch = surf->has_stencil ? surf->u.gfx9.zs.stencil_epitch : surf->u.gfx9.epitch;
    const enum gfx9_resource_type dimension = radv_sdma_surface_resource_type(device, surf);
    uint32_t info = element_size | swizzle_mode << 3;
    const enum sdma_version ver = pdev->info.sdma_ip_version;
@@ -253,7 +254,7 @@ radv_sdma_get_tiled_info_dword(const struct radv_device *const device, const str
    } else if (ver >= SDMA_5_0) {
       return info | dimension << 9 | (mip_max - 1) << 16 | mip_id << 20;
    } else if (ver >= SDMA_4_0) {
-      return info | dimension << 9 | surf->u.gfx9.epitch << 16;
+      return info | dimension << 9 | epitch << 16;
    } else {
       UNREACHABLE("unsupported SDMA version");
    }
