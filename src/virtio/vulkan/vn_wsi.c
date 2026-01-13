@@ -333,6 +333,7 @@ vn_wsi_sync_wait(struct vn_device *dev, int fd)
    }
 
    if (queue) {
+      simple_mtx_unlock(&queue->async_present.queue_mutex);
       vn_wsi_chains_unlock(dev, queue->async_present.info, /*all=*/false);
    }
 
@@ -340,6 +341,7 @@ vn_wsi_sync_wait(struct vn_device *dev, int fd)
 
    if (queue) {
       vn_wsi_chains_lock(dev, queue->async_present.info, /*all=*/false);
+      simple_mtx_lock(&queue->async_present.queue_mutex);
    }
 }
 
@@ -357,8 +359,8 @@ vn_wsi_flush(struct vn_queue *queue)
    /* Being able to acquire the lock ensures async present queue access
     * has completed.
     */
-   mtx_lock(&queue->async_present.mutex);
-   mtx_unlock(&queue->async_present.mutex);
+   simple_mtx_lock(&queue->async_present.queue_mutex);
+   simple_mtx_unlock(&queue->async_present.queue_mutex);
 }
 
 static VkPresentInfoKHR *
@@ -607,6 +609,7 @@ vn_wsi_present_thread(void *data)
       if (queue->async_present.join)
          break;
 
+      simple_mtx_lock(&queue->async_present.queue_mutex);
       vn_wsi_chains_lock(dev, queue->async_present.info, /*all=*/true);
 
       queue->async_present.pending = false;
@@ -616,6 +619,7 @@ vn_wsi_present_thread(void *data)
                                   queue_vk, queue->async_present.info);
 
       vn_wsi_chains_unlock(dev, queue->async_present.info, /*all=*/true);
+      simple_mtx_unlock(&queue->async_present.queue_mutex);
 
       vk_free(alloc, queue->async_present.info);
       queue->async_present.info = NULL;
@@ -633,6 +637,7 @@ vn_wsi_present_async(struct vn_device *dev,
    VkResult result = VK_SUCCESS;
 
    if (unlikely(!queue->async_present.initialized)) {
+      simple_mtx_init(&queue->async_present.queue_mutex, mtx_plain);
       mtx_init(&queue->async_present.mutex, mtx_plain);
       cnd_init(&queue->async_present.cond);
 
@@ -653,7 +658,7 @@ vn_wsi_present_async(struct vn_device *dev,
    queue->async_present.result = VK_SUCCESS;
    mtx_unlock(&queue->async_present.mutex);
 
-   /* Ensure async present thread has acquired the present lock. */
+   /* Ensure async present thread has acquired the queue and present locks. */
    while (queue->async_present.pending)
       thrd_yield();
 

@@ -39,10 +39,9 @@ struct vn_queue {
 
    /* for async queue present */
    struct {
-      /* This mutex protects below:
-       * - state transitions: initialized, pending and join
-       * - VkQueue host access being externally synchronized
-       */
+      /* Protects VkQueue host access except async present states. */
+      simple_mtx_t queue_mutex;
+      /* Protects state transitions: initialized, pending and join. */
       mtx_t mutex;
       /* Wake up async present thread upon presentation. */
       cnd_t cond;

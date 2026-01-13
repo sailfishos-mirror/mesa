@@ -35,6 +35,7 @@ vn_queue_fini(struct vn_queue *queue)
 
       thrd_join(queue->async_present.thread, NULL);
 
+      simple_mtx_destroy(&queue->async_present.queue_mutex);
       mtx_destroy(&queue->async_present.mutex);
       cnd_destroy(&queue->async_present.cond);
    }
