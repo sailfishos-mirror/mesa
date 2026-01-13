@@ -196,8 +196,7 @@ nir_recompute_io_bases(nir_shader *nir, nir_variable_mode modes)
 
 
    if (modes & nir_var_shader_in) {
-      unsigned num_inputs = BITSET_COUNT(inputs) + BITSET_COUNT(color_inputs) +
-                            BITSET_COUNT(per_prim_inputs);
+      unsigned num_inputs = num_normal_inputs + BITSET_COUNT(per_prim_inputs);
 
       if (nir->num_inputs != num_inputs) {
          nir->num_inputs = num_inputs;
