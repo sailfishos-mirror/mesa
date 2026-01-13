@@ -13,6 +13,7 @@
 #include "nir.h"
 
 #include <array>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -26,6 +27,14 @@ struct parameter_info {
       Definition def;
       unsigned scratch_offset;
    };
+};
+
+struct param_assignment_hints {
+   param_assignment_hints() { BITSET_ZERO(registers_to_avoid); }
+
+   std::vector<std::optional<parameter_info>> param_affinities;
+   std::optional<parameter_info> stack_pointer_affinity;
+   BITSET_DECLARE(registers_to_avoid, 512);
 };
 
 struct call_info {
@@ -290,9 +299,12 @@ void finish_program(isel_context* ctx);
 
 ABI nir_abi_to_aco(unsigned nir_abi_mask);
 
+param_assignment_hints get_ahit_isec_param_hints(const struct callee_info& traversal_info);
+
 struct callee_info get_callee_info(amd_gfx_level gfx_level, unsigned wave_size, const ABI& abi,
                                    unsigned param_count, const nir_parameter* parameters,
-                                   Program* program, RegisterDemand reg_limit);
+                                   Program* program, RegisterDemand reg_limit,
+                                   const param_assignment_hints& param_hints = {});
 void load_scratch_param(isel_context* ctx, Builder& bld, const parameter_info& param,
                         Temp stack_ptr, unsigned scratch_param_size, Temp dst);
 void store_scratch_param(isel_context* ctx, Builder& bld, const parameter_info& param,
