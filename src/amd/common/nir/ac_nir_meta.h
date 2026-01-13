@@ -182,6 +182,7 @@ struct ac_cs_clear_copy_buffer_dispatch {
    unsigned num_ssbos;
    unsigned workgroup_size;
    unsigned num_threads;
+   unsigned dispatch_interleave; /* COMPUTE_DISPATCH_INTERLEAVE.INTERLEAVE/INTERLEAVE_1D */
 
    struct {
       unsigned offset;

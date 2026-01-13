@@ -605,5 +605,14 @@ ac_prepare_cs_clear_copy_buffer(const struct ac_cs_clear_copy_buffer_options *op
    out->num_ssbos = is_copy ? 2 : 1;
    out->workgroup_size = 64;
    out->num_threads = start_thread + num_threads;
+
+   /* Determine optimal COMPUTE_DISPATCH_INTERLEAVE.INTERLEAVE/INTERLEAVE_1D.
+    * Verified on Navi48.
+    */
+   if (is_copy)
+      out->dispatch_interleave = info->size <= 2048 ? 64 : 256;
+   else
+      out->dispatch_interleave = info->size <= 256 * 1024 ? 64 : 256;
+
    return true;
 }

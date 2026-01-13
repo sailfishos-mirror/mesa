@@ -201,12 +201,15 @@ bool si_compute_clear_copy_buffer(struct si_context *sctx, struct pipe_resource 
    }
 
    memcpy(sctx->cs_user_data, dispatch.user_data, sizeof(dispatch.user_data));
+   sctx->compute_dispatch_interleave = dispatch.dispatch_interleave;
 
    struct pipe_grid_info grid = {};
    set_work_size(&grid, dispatch.workgroup_size, 1, 1, dispatch.num_threads, 1, 1);
 
    si_launch_grid_internal_ssbos(sctx, &grid, shader, dispatch.num_ssbos, sb,
                                  is_copy ? 0x2 : 0x1, render_condition_enable);
+
+   sctx->compute_dispatch_interleave = 0; /* this will restore the default value */
    return true;
 }
 

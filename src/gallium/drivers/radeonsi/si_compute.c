@@ -691,7 +691,8 @@ static void si_emit_dispatch_packets(struct si_context *sctx, const struct pipe_
        * Only these values are valid: 0 (disabled), 64, 128, 256, 512
        * 64 = RT, 256 = non-RT (run benchmarks to be sure)
        */
-      unsigned dispatch_interleave = S_00B8BC_INTERLEAVE_1D(256);
+      unsigned dispatch_interleave = S_00B8BC_INTERLEAVE_1D(sctx->compute_dispatch_interleave ?
+                                                               sctx->compute_dispatch_interleave : 256);
       unsigned log_x, log_y;
 
       /* Launch a 2D subgrid on each SE instead of a 1D subgrid. If enabled, INTERLEAVE_1D is

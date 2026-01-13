@@ -1081,6 +1081,7 @@ struct si_context {
    unsigned num_vertex_elements;  /* 0 if the VS uses blit SGPRs to compute VS inputs */
    unsigned cs_max_waves_per_sh;
    uint32_t compute_tmpring_size;
+   uint16_t compute_dispatch_interleave;
    uint16_t dirty_shaders_mask; /* 0: vs, 1: tcs, 2: tes, 3: gs, 4: ps, 5: cs, 6: ts, 7: ms, 8: misc (e.g. sqtt) */
    bool vertex_elements_but_no_buffers;
    bool uses_nontrivial_vs_inputs;
