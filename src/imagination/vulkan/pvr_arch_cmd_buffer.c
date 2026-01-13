@@ -1738,7 +1738,8 @@ static VkResult pvr_sub_cmd_gfx_job_init(const struct pvr_device_info *dev_info,
    render_target = pvr_get_render_target(hw_render, rstate);
    job->view_state.rt_datasets = &render_target->rt_dataset[0];
 
-   if (cmd_buffer->state.current_sub_cmd->is_dynamic_render) {
+   if (cmd_buffer->state.current_sub_cmd->is_dynamic_render &&
+       !cmd_buffer->state.current_sub_cmd->is_resume) {
       result =
          pvr_render_targets_dataset_init(cmd_buffer->device, rstate, hw_render);
       if (result != VK_SUCCESS) {

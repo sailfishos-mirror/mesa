@@ -730,7 +730,8 @@ static VkResult pvr_process_event_cmd(struct pvr_device *device,
 
 static VkResult pvr_process_cmd_buffer(struct pvr_device *device,
                                        struct pvr_queue *queue,
-                                       struct pvr_cmd_buffer *cmd_buffer)
+                                       struct pvr_cmd_buffer *cmd_buffer,
+                                       struct pvr_rt_dataset ***suspended_rts)
 {
    VkResult result;
 
@@ -765,6 +766,17 @@ static VkResult pvr_process_cmd_buffer(struct pvr_device *device,
                break;
          }
 
+         if (*suspended_rts) {
+            sub_cmd->gfx.job.view_state.rt_datasets = *suspended_rts;
+
+            if (sub_cmd->gfx.job.geometry_terminate)
+               *suspended_rts = NULL;
+
+         } else if (!sub_cmd->gfx.job.geometry_terminate) {
+            *suspended_rts = sub_cmd->gfx.job.view_state.rt_datasets;
+         }
+
+         assert(sub_cmd->gfx.job.view_state.rt_datasets);
          result =
             pvr_process_graphics_cmd(device, queue, cmd_buffer, &sub_cmd->gfx);
          break;
@@ -999,14 +1011,19 @@ static VkResult pvr_driver_queue_submit(struct vk_queue *queue,
          return result;
    }
 
+   struct pvr_rt_dataset **suspended_rts = NULL;
+
    for (uint32_t i = 0U; i < submit->command_buffer_count; i++) {
       result = pvr_process_cmd_buffer(
          device,
          driver_queue,
-         container_of(submit->command_buffers[i], struct pvr_cmd_buffer, vk));
+         container_of(submit->command_buffers[i], struct pvr_cmd_buffer, vk),
+         &suspended_rts);
       if (result != VK_SUCCESS)
          return result;
    }
+
+   assert(suspended_rts == NULL && "suspended graphics job never resumed");
 
    result = pvr_process_queue_signals(driver_queue,
                                       submit->signals,
