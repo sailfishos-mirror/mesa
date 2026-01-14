@@ -2270,10 +2270,10 @@ si_set_rasterized_prim(struct si_context *sctx, enum mesa_prim rast_prim,
  * 2) sctx->barrier_flags |= ...; // multiple times
  *    si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier); // deferred
  *
- * 3) sctx->flags |= ...;
+ * 3) sctx->barrier_flags |= ...;
  *    si_emit_barrier_direct(sctx); // immediate
  *
- * 4) sctx->flags |= ...;
+ * 4) sctx->barrier_flags |= ...;
  *    sctx->emit_barrier(sctx, cs); // immediate (2 is better though)
  */
 static inline void si_emit_barrier_direct(struct si_context *sctx)
