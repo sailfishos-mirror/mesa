@@ -5739,8 +5739,10 @@ bi_fp32_varying_mask(nir_shader *nir)
    assert(nir->info.stage == MESA_SHADER_FRAGMENT);
 
    nir_foreach_shader_in_variable(var, nir) {
-      if (var->data.interpolation == INTERP_MODE_FLAT)
-         mask |= BITFIELD64_BIT(var->data.location);
+      if (var->data.interpolation == INTERP_MODE_FLAT) {
+         unsigned slots = glsl_count_attribute_slots(var->type, false);
+         mask |= BITFIELD64_RANGE(var->data.location, slots);
+      }
    }
 
    nir_shader_instructions_pass(nir, bi_gather_texcoords, nir_metadata_all,
