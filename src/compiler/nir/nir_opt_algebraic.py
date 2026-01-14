@@ -3846,10 +3846,10 @@ late_optimizations.extend([
 
    (('fsqrt', ('fsat(is_used_once)', 'a(cannot_add_output_modifier)')), ('fsat', ('fsqrt', a))),
 
-   (('fdot2', a, b), ('fdot2_replicated', a, b), 'options->fdot_replicates', TestStatus.UNSUPPORTED),
-   (('fdot3', a, b), ('fdot3_replicated', a, b), 'options->fdot_replicates', TestStatus.UNSUPPORTED),
-   (('fdot4', a, b), ('fdot4_replicated', a, b), 'options->fdot_replicates', TestStatus.UNSUPPORTED),
-   (('fdph', a, b), ('fdph_replicated', a, b), 'options->fdot_replicates', TestStatus.UNSUPPORTED),
+   (('fdot2', a, b), ('fdot2_replicated', a, b), 'options->fdot_replicates'),
+   (('fdot3', a, b), ('fdot3_replicated', a, b), 'options->fdot_replicates'),
+   (('fdot4', a, b), ('fdot4_replicated', a, b), 'options->fdot_replicates'),
+   (('fdph', a, b), ('fdph_replicated', a, b), 'options->fdot_replicates'),
 
    (('~flrp', ('fadd(is_used_once)', a, b), ('fadd(is_used_once)', a, c), d), ('fadd', ('flrp', b, c, d), a)),
 
@@ -4145,9 +4145,9 @@ distribute_src_mods = [
    # Try to remove some spurious negations rather than pushing them down.
    (('fmul', ('fneg', a), ('fneg', b)), ('fmul', a, b)),
    (('ffma', ('fneg', a), ('fneg', b), c), ('ffma', a, b, c)),
-   (('fdot2_replicated', ('fneg', a), ('fneg', b)), ('fdot2_replicated', a, b), 'true', TestStatus.UNSUPPORTED),
-   (('fdot3_replicated', ('fneg', a), ('fneg', b)), ('fdot3_replicated', a, b), 'true', TestStatus.UNSUPPORTED),
-   (('fdot4_replicated', ('fneg', a), ('fneg', b)), ('fdot4_replicated', a, b), 'true', TestStatus.UNSUPPORTED),
+   (('fdot2_replicated', ('fneg', a), ('fneg', b)), ('fdot2_replicated', a, b)),
+   (('fdot3_replicated', ('fneg', a), ('fneg', b)), ('fdot3_replicated', a, b)),
+   (('fdot4_replicated', ('fneg', a), ('fneg', b)), ('fdot4_replicated', a, b)),
    (('fneg(is_only_used_as_float)', ('fneg', a)), a),
 
    (('fneg', ('fmul(is_used_once)', a, b)), ('fmul', ('fneg', a), b)),
@@ -4162,13 +4162,13 @@ distribute_src_mods = [
    (('fneg', ('fmin(is_used_once)', a, b)), ('fmax', ('fneg', a), ('fneg', b))),
    (('fneg', ('fmax(is_used_once)', a, b)), ('fmin', ('fneg', a), ('fneg', b))),
 
-   (('fneg', ('fdot2_replicated(is_used_once)', a, b)), ('fdot2_replicated', ('fneg', a), b), 'true', TestStatus.UNSUPPORTED),
-   (('fneg', ('fdot3_replicated(is_used_once)', a, b)), ('fdot3_replicated', ('fneg', a), b), 'true', TestStatus.UNSUPPORTED),
-   (('fneg', ('fdot4_replicated(is_used_once)', a, b)), ('fdot4_replicated', ('fneg', a), b), 'true', TestStatus.UNSUPPORTED),
+   (('fneg', ('fdot2_replicated(is_used_once)', a, b)), ('fdot2_replicated', ('fneg', a), b), 'true', TestStatus.XFAIL), # -fdot2(-1, 0) replacement produces 0 instead of -0.
+   (('fneg', ('fdot3_replicated(is_used_once)', a, b)), ('fdot3_replicated', ('fneg', a), b), 'true', TestStatus.XFAIL),
+   (('fneg', ('fdot4_replicated(is_used_once)', a, b)), ('fdot4_replicated', ('fneg', a), b), 'true', TestStatus.XFAIL),
 
    # fdph works mostly like fdot, but to get the correct result, the negation
    # must be applied to the second source.
-   (('fneg', ('fdph_replicated(is_used_once)', a, b)), ('fdph_replicated', a, ('fneg', b)), 'true', TestStatus.UNSUPPORTED),
+   (('fneg', ('fdph_replicated(is_used_once)', a, b)), ('fdph_replicated', a, ('fneg', b)), 'true', TestStatus.XFAIL),
 
    (('fneg', ('fsign(is_used_once)', a)), ('fsign', ('fneg', a))),
    (('fabs', ('fsign(is_used_once)', a)), ('fsign', ('fabs', a))),

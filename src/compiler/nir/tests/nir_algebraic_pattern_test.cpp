@@ -287,6 +287,10 @@ evaluate_expression(nir_algebraic_pattern_test *test, nir_instr *instr)
          assert(intrinsic->src[0].ssa->bit_size == intrinsic->src[1].ssa->bit_size);
          uint32_t bit_size = intrinsic->src[0].ssa->bit_size;
 
+         /* Note: fdot*_replicates replacements generate more channels than the
+          * original pattern, but we care that the usable channels of the search
+          * expression match.
+          */
          assert(intrinsic->src[0].ssa->num_components == intrinsic->src[1].ssa->num_components);
          uint32_t num_components = intrinsic->src[0].ssa->num_components;
 

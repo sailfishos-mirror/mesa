@@ -1299,7 +1299,14 @@ TEST_F(${pass_name}_pattern_test, ${test_name})
 % for xform_def in xform_defs:
    ${xform_def}
 % endfor
-   nir_unit_test_assert_eq(b, ${search_def}, ${replace_def});
+<%
+   # Note that fdot_replicated replacements will generate more channels than the search
+   # side, and that's OK -- nir_opt_algebraic allows that in patterns.  But
+   # nir_unit_test_assert_eq wants equality.
+%>
+   unsigned mask = BITFIELD_MASK(MIN2(${search_def}->num_components, ${replace_def}->num_components));
+   nir_unit_test_assert_eq(b, nir_channels(b, ${search_def}, mask),
+                              nir_channels(b, ${replace_def}, mask));
 % for cond in expr_conds:
    ${cond}
 % endfor
@@ -1341,8 +1348,6 @@ def expression_is_unsupported(expr):
     broken_opcodes = [
         # medium precision means that the compiler can do whatever it wants which makes it unsuitable for testing.
         "f2fmp", "i2imp", "f2imp", "f2ump", "i2fmp", "u2fmp",
-        # _replicated OPs do not have nir_builder functions.
-        "fdot2_replicated", "fdot3_replicated", "fdot4_replicated", "fdph_replicated",
     ]
 
     if expr.opcode in broken_opcodes:

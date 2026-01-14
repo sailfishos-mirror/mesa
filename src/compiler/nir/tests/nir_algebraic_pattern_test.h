@@ -71,4 +71,45 @@ class nir_algebraic_pattern_test : public nir_test {
    std::vector<nir_const_value> tmp_values;
 };
 
+/* Builders that aren't auto-generated for nir_builder.h, due to not being
+ * having a defined dest size (3 or 4 components, independent of src args).
+ * Just pick 4 and get some coverage.
+ */
+static inline nir_def *
+nir_fdot_replicated(nir_builder *b, nir_op op, nir_def *x, nir_def *y)
+{
+   nir_alu_instr *alu = nir_alu_instr_create(b->shader, op);
+   alu->src[0].src = nir_src_for_ssa(x);
+   alu->src[1].src = nir_src_for_ssa(y);
+   alu->fp_math_ctrl = b->fp_math_ctrl;
+   nir_def_init(&alu->instr, &alu->def, 4, x->bit_size);
+   nir_builder_instr_insert(b, &alu->instr);
+
+   return &alu->def;
+}
+
+static inline nir_def *
+nir_fdot2_replicated(nir_builder *b, nir_def *x, nir_def *y)
+{
+   return nir_fdot_replicated(b, nir_op_fdot2_replicated, x, y);
+}
+
+static inline nir_def *
+nir_fdot3_replicated(nir_builder *b, nir_def *x, nir_def *y)
+{
+   return nir_fdot_replicated(b, nir_op_fdot3_replicated, x, y);
+}
+
+static inline nir_def *
+nir_fdot4_replicated(nir_builder *b, nir_def *x, nir_def *y)
+{
+   return nir_fdot_replicated(b, nir_op_fdot4_replicated, x, y);
+}
+
+static inline nir_def *
+nir_fdph_replicated(nir_builder *b, nir_def *x, nir_def *y)
+{
+   return nir_fdot_replicated(b, nir_op_fdph_replicated, x, y);
+}
+
 #endif
