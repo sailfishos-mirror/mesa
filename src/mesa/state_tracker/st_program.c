@@ -1259,6 +1259,9 @@ st_create_fp_variant(struct st_context *st,
       NIR_PASS(_, state.ir.nir, nir_unlower_io_to_vars, false);
       gl_nir_opts(state.ir.nir);
       finalize = true;
+   } else {
+      NIR_PASS(_, state.ir.nir, nir_recompute_io_bases,
+               nir_var_shader_in | nir_var_shader_out);
    }
 
    if (finalize || !st->allow_st_finalize_nir_twice) {
