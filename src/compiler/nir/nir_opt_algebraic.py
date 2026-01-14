@@ -2048,7 +2048,7 @@ for pack, bits, compbits in [('pack_64_2x32', 64, 32), ('pack_32_2x16', 32, 16)]
         ((unpack, (pack + '_split', a, b)), ('vec2', a, b)),
         ((unpack, (pack, a)), a),
         ((pack + '_split', (unpack + '_split_x', a), (unpack + '_split_y', a)), a),
-        ((pack + '_split', (unpack, a), (unpack + '.y', a)), a, 'true', TestStatus.UNSUPPORTED),
+        ((pack + '_split', (unpack, a), (unpack + '.y', a)), a),
         ((pack, ('vec2', (unpack + '_split_x', a), (unpack + '_split_y', a))), a),
         ((pack, (unpack, a)), a),
     ]
@@ -2180,13 +2180,13 @@ optimizations.extend([
 
    # Mixed 16-bit/8-bit loads vectorized to 8-bit vector load and then lowered to 32-bit
    (('ior', ('u2u16', ('unpack_32_4x8', a)), ('ishl', ('u2u16', ('unpack_32_4x8.y', a)), 8)),
-    ('unpack_32_2x16_split_x', a), '!options->lower_unpack_32_2x16_split', TestStatus.UNSUPPORTED),
+    ('unpack_32_2x16_split_x', a), '!options->lower_unpack_32_2x16_split'),
    (('ior', ('u2u16', ('unpack_32_4x8.z', a)), ('ishl', ('u2u16', ('unpack_32_4x8.w', a)), 8)),
-    ('unpack_32_2x16_split_y', a), '!options->lower_unpack_32_2x16_split', TestStatus.UNSUPPORTED),
+    ('unpack_32_2x16_split_y', a), '!options->lower_unpack_32_2x16_split'),
 
    # Prefer 16bit unpack/extract because it's easier to vectorize
-   (('i2i16', ('unpack_32_4x8(xz_components_unused).y', a)), ('extract_i8', ('unpack_32_2x16.x', a), 1), '!options->lower_extract_byte', TestStatus.UNSUPPORTED),
-   (('i2i16', ('unpack_32_4x8(xz_components_unused).w', a)), ('extract_i8', ('unpack_32_2x16.y', a), 1), '!options->lower_extract_byte', TestStatus.UNSUPPORTED),
+   (('i2i16', ('unpack_32_4x8(xz_components_unused).y', a)), ('extract_i8', ('unpack_32_2x16.x', a), 1), '!options->lower_extract_byte'),
+   (('i2i16', ('unpack_32_4x8(xz_components_unused).w', a)), ('extract_i8', ('unpack_32_2x16.y', a), 1), '!options->lower_extract_byte'),
 
    (('extract_u16', ('extract_i16', a, b), 0), ('extract_u16', a, b)),
    (('extract_u16', ('extract_u16', a, b), 0), ('extract_u16', a, b)),
