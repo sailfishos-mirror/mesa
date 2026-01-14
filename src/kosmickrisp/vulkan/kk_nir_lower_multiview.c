@@ -60,6 +60,12 @@ kk_nir_lower_vs_multiview(nir_shader *nir, uint32_t view_mask)
    nir_function_impl *entrypoint = nir_shader_get_entrypoint(nir);
    nir_builder b = nir_builder_at(nir_before_impl(entrypoint));
 
+   if (view_count == 0u) {
+      return nir_shader_intrinsics_pass(nir, replace_view_id_with_value,
+                                        nir_metadata_control_flow,
+                                        nir_imm_int(&b, 0u));
+   }
+
    /* Create array and initialize */
    nir_variable *view_indices = nir_local_variable_create(
       entrypoint, glsl_array_type(glsl_uint_type(), view_count, 0),
