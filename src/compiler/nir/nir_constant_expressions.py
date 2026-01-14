@@ -91,6 +91,15 @@ constant_denorm_flush_to_zero(nir_const_value *value, unsigned bit_size)
     }
 }
 
+static double
+get_float_source(nir_const_value value, unsigned execution_mode, unsigned bit_size)
+{
+    if (nir_is_denorm_flush_to_zero(execution_mode, bit_size))
+        constant_denorm_flush_to_zero(&value, bit_size);
+
+    return nir_const_value_as_float(value, bit_size);
+}
+
 /**
  * Evaluate one component of packSnorm4x8.
  */
@@ -455,8 +464,8 @@ struct ${type}${width}_vec {
          % if input_types[j] == "int1":
              /* 1-bit integers use a 0/-1 convention */
              -(int1_t)_src[${j}][${k}].b,
-         % elif input_types[j] == "float16":
-            _mesa_half_to_float(_src[${j}][${k}].u16),
+         % elif type_base_type(input_types[j]) == "float":
+            get_float_source(_src[${j}][${k}], execution_mode, ${type_size(input_types[j])}),
          % else:
             _src[${j}][${k}].${get_const_field(input_types[j])},
          % endif
@@ -481,9 +490,9 @@ struct ${type}${width}_vec {
             % elif input_types[j] == "int1":
                /* 1-bit integers use a 0/-1 convention */
                const int1_t src${j} = -(int1_t)_src[${j}][_i].b;
-            % elif input_types[j] == "float16":
-               const float src${j} =
-                  _mesa_half_to_float(_src[${j}][_i].u16);
+            % elif type_base_type(input_types[j]) == "float":
+               const ${input_types[j]}_t src${j} =
+                  get_float_source(_src[${j}][_i], execution_mode, ${type_size(input_types[j])});
             % else:
                const ${input_types[j]}_t src${j} =
                   _src[${j}][_i].${get_const_field(input_types[j])};
