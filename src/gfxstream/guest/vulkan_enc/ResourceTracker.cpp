@@ -177,12 +177,11 @@ struct StagingInfo {
     }
 
     ~StagingInfo() {
-        for (auto stream : streams) {
-            delete stream;
-        }
-
         for (auto encoder : encoders) {
             delete encoder;
+        }
+        for (auto stream : streams) {
+            delete stream;
         }
     }
 
