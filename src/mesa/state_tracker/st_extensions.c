@@ -1722,7 +1722,7 @@ void st_init_extensions(struct pipe_screen *screen,
             max_variable_threads_per_block;
 
          extensions->ARB_compute_variable_group_size =
-            max_variable_threads_per_block > 0;
+            max_variable_threads_per_block >= 512;
       }
    }
 
