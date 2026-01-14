@@ -438,11 +438,6 @@ radv_sqtt_init(struct radv_device *device)
    device->sqtt.buffer_size = (uint32_t)debug_get_num_option("RADV_THREAD_TRACE_BUFFER_SIZE", 32 * 1024 * 1024);
    device->sqtt.instruction_timing_enabled = radv_is_instruction_timing_enabled();
 
-   if (device->ws->reserve_vmid && device->ws->reserve_vmid(device->ws) < 0) {
-      fprintf(stderr, "radv: Failed to reserve VMID for SQTT tracing.\n");
-      return false;
-   }
-
    if (!radv_sqtt_init_bo(device))
       return false;
 
@@ -478,9 +473,6 @@ radv_sqtt_finish(struct radv_device *device)
    radv_unregister_queues(device, sqtt);
 
    ac_sqtt_finish(sqtt);
-
-   if (device->ws && device->ws->unreserve_vmid)
-      device->ws->unreserve_vmid(device->ws);
 }
 
 static bool
@@ -667,6 +659,12 @@ radv_sqtt_start_capturing(struct radv_queue *queue)
       return;
    }
 
+   /* Reserve a VMID to allow the KMD to update SPM_VMID accordingly. */
+   if (device->ws->reserve_vmid(device->ws) < 0) {
+      fprintf(stderr, "radv: Failed to reserve VMID for SQTT tracing.\n");
+      return;
+   }
+
    /* Sample CPU/GPU clocks before starting the trace. */
    if (!radv_sqtt_sample_clocks(device)) {
       fprintf(stderr, "radv: Failed to sample clocks\n");
@@ -691,6 +689,8 @@ radv_sqtt_stop_capturing(struct radv_queue *queue)
 
    /* TODO: Do something better than this whole sync. */
    device->vk.dispatch_table.QueueWaitIdle(radv_queue_to_handle(queue));
+
+   device->ws->unreserve_vmid(device->ws);
 
    if (radv_get_sqtt_trace(queue, &sqtt_trace) && (!device->spm.bo || radv_get_spm_trace(queue, &spm_trace))) {
       ac_dump_rgp_capture(&pdev->info, &sqtt_trace, device->spm.bo ? &spm_trace : NULL);
