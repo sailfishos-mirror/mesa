@@ -1964,6 +1964,7 @@ msl_optimize_nir(struct nir_shader *nir)
 {
    bool progress;
    NIR_PASS(_, nir, nir_lower_int64);
+   NIR_PASS(_, nir, nir_opt_shrink_stores, false);
    do {
       progress = false;
 
