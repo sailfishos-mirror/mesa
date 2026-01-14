@@ -243,7 +243,7 @@ loader_open_render_node_platform_devices(const char * const drivers[],
       return NULL;
    }
 
-   result = calloc(n_drivers, num_devices);
+   result = calloc(num_devices, sizeof(int));
 
    *n_devices = 0;
    for (i = 0; i < num_devices; i++) {

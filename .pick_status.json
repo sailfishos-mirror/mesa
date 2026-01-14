@@ -6234,7 +6234,7 @@
         "description": "loader: fix loader_open_render_node_platform_devices result allocation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7e76c676322d7772849ccc29b186062fb724ed7d",
         "notes": null
