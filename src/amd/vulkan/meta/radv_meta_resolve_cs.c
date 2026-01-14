@@ -130,7 +130,7 @@ get_color_resolve_pipeline(struct radv_device *device, struct radv_image_view *s
 
 static void
 emit_resolve(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_iview, struct radv_image_view *dst_iview,
-             const VkOffset2D *src_offset, const VkOffset2D *dst_offset, const VkExtent2D *resolve_extent)
+             const VkOffset2D *src_offset, const VkOffset2D *dst_offset, const VkExtent3D *resolve_extent)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    VkPipelineLayout layout;
@@ -182,7 +182,7 @@ emit_resolve(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_ivi
 
    radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
 
-   radv_unaligned_dispatch(cmd_buffer, resolve_extent->width, resolve_extent->height, 1);
+   radv_unaligned_dispatch(cmd_buffer, resolve_extent->width, resolve_extent->height, resolve_extent->depth);
 }
 
 struct radv_resolve_ds_cs_key {
@@ -279,71 +279,70 @@ radv_meta_resolve_compute_image(struct radv_cmd_buffer *cmd_buffer, struct radv_
    assert(vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource) ==
           vk_image_subresource_layer_count(&dst_image->vk, &region->dstSubresource));
 
+   const uint32_t src_base_layer = region->srcSubresource.baseArrayLayer;
    const uint32_t dst_base_layer =
       dst_image->vk.image_type == VK_IMAGE_TYPE_3D ? region->dstOffset.z : region->dstSubresource.baseArrayLayer;
 
    const struct VkExtent3D extent = vk_image_sanitize_extent(&src_image->vk, region->extent);
    const struct VkOffset3D srcOffset = vk_image_sanitize_offset(&src_image->vk, region->srcOffset);
    const struct VkOffset3D dstOffset = vk_image_sanitize_offset(&dst_image->vk, region->dstOffset);
-   const unsigned src_layer_count = vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource);
+   const unsigned layer_count = vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource);
 
-   for (uint32_t layer = 0; layer < src_layer_count; ++layer) {
-      const VkImageViewUsageCreateInfo src_iview_usage_info = {
-         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
-         .usage = VK_IMAGE_USAGE_SAMPLED_BIT,
-      };
+   const VkImageViewUsageCreateInfo src_iview_usage_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
+      .usage = VK_IMAGE_USAGE_SAMPLED_BIT,
+   };
 
-      struct radv_image_view src_iview;
-      radv_image_view_init(&src_iview, device,
-                           &(VkImageViewCreateInfo){
-                              .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                              .pNext = &src_iview_usage_info,
-                              .flags = VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA,
-                              .image = radv_image_to_handle(src_image),
-                              .viewType = VK_IMAGE_VIEW_TYPE_2D,
-                              .format = src_format,
-                              .subresourceRange =
-                                 {
-                                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                    .baseMipLevel = 0,
-                                    .levelCount = 1,
-                                    .baseArrayLayer = region->srcSubresource.baseArrayLayer + layer,
-                                    .layerCount = 1,
-                                 },
-                           },
-                           NULL);
+   struct radv_image_view src_iview;
+   radv_image_view_init(&src_iview, device,
+                        &(VkImageViewCreateInfo){
+                           .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                           .pNext = &src_iview_usage_info,
+                           .flags = VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA,
+                           .image = radv_image_to_handle(src_image),
+                           .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                           .format = src_format,
+                           .subresourceRange =
+                              {
+                                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                 .baseMipLevel = 0,
+                                 .levelCount = 1,
+                                 .baseArrayLayer = src_base_layer,
+                                 .layerCount = layer_count,
+                              },
+                        },
+                        NULL);
 
-      const VkImageViewUsageCreateInfo dst_iview_usage_info = {
-         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
-         .usage = VK_IMAGE_USAGE_STORAGE_BIT,
-      };
+   const VkImageViewUsageCreateInfo dst_iview_usage_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
+      .usage = VK_IMAGE_USAGE_STORAGE_BIT,
+   };
 
-      struct radv_image_view dst_iview;
-      radv_image_view_init(&dst_iview, device,
-                           &(VkImageViewCreateInfo){
-                              .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                              .pNext = &dst_iview_usage_info,
-                              .flags = VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA,
-                              .image = radv_image_to_handle(dst_image),
-                              .viewType = radv_meta_get_view_type(dst_image),
-                              .format = vk_format_no_srgb(dst_format),
-                              .subresourceRange =
-                                 {
-                                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                    .baseMipLevel = region->dstSubresource.mipLevel,
-                                    .levelCount = 1,
-                                    .baseArrayLayer = dst_base_layer + layer,
-                                    .layerCount = 1,
-                                 },
-                           },
-                           NULL);
+   struct radv_image_view dst_iview;
+   radv_image_view_init(&dst_iview, device,
+                        &(VkImageViewCreateInfo){
+                           .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                           .pNext = &dst_iview_usage_info,
+                           .flags = VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA,
+                           .image = radv_image_to_handle(dst_image),
+                           .viewType = radv_meta_get_view_type(dst_image),
+                           .format = vk_format_no_srgb(dst_format),
+                           .subresourceRange =
+                              {
+                                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                 .baseMipLevel = region->dstSubresource.mipLevel,
+                                 .levelCount = 1,
+                                 .baseArrayLayer = dst_base_layer,
+                                 .layerCount = layer_count,
+                              },
+                        },
+                        NULL);
 
-      emit_resolve(cmd_buffer, &src_iview, &dst_iview, &(VkOffset2D){srcOffset.x, srcOffset.y},
-                   &(VkOffset2D){dstOffset.x, dstOffset.y}, &(VkExtent2D){extent.width, extent.height});
+   emit_resolve(cmd_buffer, &src_iview, &dst_iview, &(VkOffset2D){srcOffset.x, srcOffset.y},
+                &(VkOffset2D){dstOffset.x, dstOffset.y}, &(VkExtent3D){extent.width, extent.height, layer_count});
 
-      radv_image_view_finish(&src_iview);
-      radv_image_view_finish(&dst_iview);
-   }
+   radv_image_view_finish(&src_iview);
+   radv_image_view_finish(&dst_iview);
 
    radv_meta_restore(&saved_state, cmd_buffer);
 
