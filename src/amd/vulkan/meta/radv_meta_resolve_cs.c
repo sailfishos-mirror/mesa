@@ -404,7 +404,7 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
                            .subresourceRange =
                               {
                                  .aspectMask = region->srcSubresource.aspectMask,
-                                 .baseMipLevel = region->srcSubresource.mipLevel,
+                                 .baseMipLevel = 0,
                                  .levelCount = 1,
                                  .baseArrayLayer = region->srcSubresource.baseArrayLayer,
                                  .layerCount = region->srcSubresource.layerCount,
