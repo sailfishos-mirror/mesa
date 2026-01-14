@@ -448,10 +448,7 @@ struct ${type}${width}_vec {
    % for j in range(op.num_inputs):
       % if op.input_sizes[j] == 0:
          <% continue %>
-      % elif "src" + str(j) not in op.const_expr:
-         ## Avoid unused variable warnings
-         <% continue %>
-      %endif
+      % endif
 
       const struct ${input_types[j]}_vec src${j} = {
       % for k in range(op.input_sizes[j]):
@@ -480,9 +477,6 @@ struct ${type}${width}_vec {
          ## contains the value of the current (_i'th) component.
          % for j in range(op.num_inputs):
             % if op.input_sizes[j] != 0:
-               <% continue %>
-            % elif "src" + str(j) not in op.const_expr:
-               ## Avoid unused variable warnings
                <% continue %>
             % elif input_types[j] == "int1":
                /* 1-bit integers use a 0/-1 convention */
