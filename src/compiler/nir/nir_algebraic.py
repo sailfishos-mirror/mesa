@@ -1343,9 +1343,6 @@ def expression_is_unsupported(expr):
         "f2fmp", "i2imp", "f2imp", "f2ump", "i2fmp", "u2fmp",
         # _replicated OPs do not have nir_builder functions.
         "fdot2_replicated", "fdot3_replicated", "fdot4_replicated", "fdph_replicated",
-
-        # The tests do not validate patterns with those opcodes correctly.
-        "udiv_aligned_4",
     ]
 
     if expr.opcode in broken_opcodes:
