@@ -78,6 +78,10 @@ struct assignment {
       precolor_affinity = true;
       reg = affinity_reg;
    }
+   void set_precolor_affinity(const assignment& other, int offset = 0)
+   {
+      set_precolor_affinity(other.reg.advance(offset));
+   }
 };
 
 /* Iterator type for making PhysRegInterval compatible with range-based for */
@@ -3121,11 +3125,18 @@ get_affinities(ra_ctx& ctx)
 
          /* add vector affinities */
          if (instr->opcode == aco_opcode::p_create_vector) {
+            unsigned offset = 0;
+            assignment& def = ctx.assignments[instr->definitions[0].tempId()];
             for (unsigned i = 0; i < instr->operands.size(); i++) {
                Operand op = instr->operands[i];
                if (op.isTemp() && op.isFirstKill() &&
-                   op.getTemp().type() == instr->definitions[0].getTemp().type())
+                   op.getTemp().type() == instr->definitions[0].getTemp().type()) {
                   ctx.vectors[op.tempId()] = vector_info(instr.get(), i);
+                  if (def.precolor_affinity)
+                     ctx.assignments[op.tempId()].set_precolor_affinity(def, offset);
+               }
+
+               offset += op.bytes();
             }
          } else if (instr->format == Format::MIMG && instr->operands.size() > 4 &&
                     !instr->mimg().strict_wqm) {
@@ -3145,6 +3156,15 @@ get_affinities(ra_ctx& ctx)
          } else if (instr->opcode == aco_opcode::p_split_vector &&
                     instr->operands[0].isFirstKillBeforeDef()) {
             ctx.split_vectors[instr->operands[0].tempId()] = instr.get();
+
+            int offset = 0;
+            assignment& op = ctx.assignments[instr->operands[0].tempId()];
+            for (Definition def : instr->definitions) {
+               assignment& def_assign = ctx.assignments[def.tempId()];
+               if (def_assign.precolor_affinity)
+                  op.set_precolor_affinity(def_assign, -offset);
+               offset += def.bytes();
+            }
          } else if (instr->isVOPC() && !instr->isVOP3()) {
             if (!instr->isSDWA() || ctx.program->gfx_level == GFX8)
                ctx.assignments[instr->definitions[0].tempId()].set_precolor_affinity(vcc);
@@ -3207,8 +3227,7 @@ get_affinities(ra_ctx& ctx)
 
             if (op.isTemp() && op.isFirstKillBeforeDef() && def.regClass() == op.regClass()) {
                if (ctx.assignments[def.tempId()].precolor_affinity)
-                  ctx.assignments[op.tempId()].set_precolor_affinity(
-                     ctx.assignments[def.tempId()].reg);
+                  ctx.assignments[op.tempId()].set_precolor_affinity(ctx.assignments[def.tempId()]);
                if (it != temp_to_phi_resources.end()) {
                   phi_resources[it->second].emplace_back(op.getTemp());
                   temp_to_phi_resources[op.tempId()] = it->second;
@@ -3247,7 +3266,7 @@ get_affinities(ra_ctx& ctx)
             if (op.isTemp() && op.isKill() && op.regClass() == def.regClass()) {
                affinity_related->emplace_back(op.getTemp());
                if (ctx.assignments[def.id()].precolor_affinity)
-                  ctx.assignments[op.tempId()].set_precolor_affinity(ctx.assignments[def.id()].reg);
+                  ctx.assignments[op.tempId()].set_precolor_affinity(ctx.assignments[def.id()]);
                if (block.kind & block_kind_loop_header && &op != &instr->operands[0])
                   continue;
                temp_to_phi_resources[op.tempId()] = index;
