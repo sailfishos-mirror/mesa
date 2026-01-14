@@ -1134,7 +1134,7 @@
         "description": "zink: correctly use GENERAL layout for dynamic texture clears",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "622612f67ea72298c3d85dfe53c5d54ee9f98527",
         "notes": null
