@@ -9273,8 +9273,6 @@ struct GENX(COMPUTE_WALKER_BODY) body = {
       if (grid->indirect)
          iris_load_indirect_location(ice, batch, grid);
 
-      iris_measure_snapshot(ice, batch, INTEL_SNAPSHOT_COMPUTE, NULL, NULL, NULL);
-
       ice->utrace.last_compute_walker =
          iris_emit_dwords(batch, GENX(COMPUTE_WALKER_length));
 
