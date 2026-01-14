@@ -77,4 +77,7 @@ void panvk_per_arch(cmd_meta_gfx_end)(
    struct panvk_cmd_buffer *cmdbuf,
    const struct panvk_cmd_meta_graphics_save_ctx *save_ctx);
 
+void panvk_per_arch(cmd_meta_resolve_attachments)(
+   struct panvk_cmd_buffer *cmdbuf);
+
 #endif

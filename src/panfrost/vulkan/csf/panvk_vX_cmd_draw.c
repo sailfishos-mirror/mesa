@@ -3675,7 +3675,7 @@ panvk_per_arch(CmdEndRendering)(VkCommandBuffer commandBuffer)
 
    /* If we're not suspending, we need to resolve attachments. */
    if (!suspending)
-      panvk_per_arch(cmd_resolve_attachments)(cmdbuf);
+      panvk_per_arch(cmd_meta_resolve_attachments)(cmdbuf);
 
    struct panvk_instr_end_args instr_info = {
       .render = {

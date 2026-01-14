@@ -373,7 +373,6 @@ void
 panvk_per_arch(cmd_preload_render_area_border)(struct panvk_cmd_buffer *cmdbuf,
                                                const VkRenderingInfo *render_info);
 
-void panvk_per_arch(cmd_resolve_attachments)(struct panvk_cmd_buffer *cmdbuf);
 void panvk_per_arch(cmd_select_tile_size)(struct panvk_cmd_buffer *cmdbuf);
 
 struct panvk_draw_info {
