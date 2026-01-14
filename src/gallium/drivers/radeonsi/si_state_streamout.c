@@ -361,8 +361,7 @@ void si_emit_streamout_end(struct si_context *sctx)
 
    if (sctx->gfx_level >= GFX11) {
       /* Wait for streamout to finish before reading GDS_STRMOUT registers. */
-      sctx->barrier_flags |= SI_BARRIER_SYNC_VS;
-      si_emit_barrier_direct(sctx);
+      si_emit_barrier_direct(sctx, SI_BARRIER_SYNC_VS);
    } else {
       si_flush_vgt_streamout(sctx);
    }

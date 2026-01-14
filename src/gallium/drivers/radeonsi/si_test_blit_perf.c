@@ -520,7 +520,7 @@ void si_test_blit_perf(struct si_screen *sscreen)
                                     fb.nr_cbufs = 1;
                                     fb.cbufs[0] = surf_templ;
                                     ctx->set_framebuffer_state(ctx, &fb);
-                                    si_emit_barrier_direct(sctx);
+                                    si_emit_barrier_direct(sctx, 0);
                                  }
                               }
 
@@ -646,11 +646,10 @@ void si_test_blit_perf(struct si_screen *sscreen)
                               ctx->end_query(ctx, q);
 
                               /* Wait for idle after all tests. */
-                              sctx->barrier_flags |= SI_BARRIER_SYNC_AND_INV_CB |
-                                                     SI_BARRIER_SYNC_CS |
-                                                     SI_BARRIER_INV_L2 | SI_BARRIER_INV_SMEM |
-                                                     SI_BARRIER_INV_VMEM;
-                              si_emit_barrier_direct(sctx);
+                              si_emit_barrier_direct(sctx, SI_BARRIER_SYNC_AND_INV_CB |
+                                                           SI_BARRIER_SYNC_CS |
+                                                           SI_BARRIER_INV_L2 | SI_BARRIER_INV_SMEM |
+                                                           SI_BARRIER_INV_VMEM);
 
                               /* Unbind the colorbuffer. */
                               if ((test_flavor == TEST_FB_CLEAR || test_flavor == TEST_CLEAR) &&

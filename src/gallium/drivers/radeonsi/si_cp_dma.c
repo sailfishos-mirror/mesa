@@ -128,7 +128,7 @@ static void si_cp_dma_prepare(struct si_context *sctx, struct pipe_resource *dst
     * Also wait for the previous CP DMA operations.
     */
    if (*is_first)
-      si_emit_barrier_direct(sctx);
+      si_emit_barrier_direct(sctx, 0);
 
    if (*is_first && !(*packet_flags & CP_DMA_CLEAR))
       *packet_flags |= CP_DMA_RAW_WAIT;

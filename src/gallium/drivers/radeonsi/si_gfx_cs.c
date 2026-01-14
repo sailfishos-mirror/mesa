@@ -165,10 +165,8 @@ void si_flush_gfx_cs(struct si_context *ctx, unsigned flags, struct pipe_fence_h
    }
 
    /* Wait for draw calls to finish if needed. */
-   if (wait_flags) {
-      ctx->barrier_flags |= wait_flags;
-      si_emit_barrier_direct(ctx);
-   }
+   if (wait_flags)
+      si_emit_barrier_direct(ctx, wait_flags);
    ctx->gfx_last_ib_is_busy = (wait_flags & wait_ps_cs) != wait_ps_cs;
 
    if (ctx->current_saved_cs) {

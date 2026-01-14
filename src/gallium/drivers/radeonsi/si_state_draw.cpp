@@ -993,7 +993,7 @@ static unsigned si_get_ia_multi_vgt_param(struct si_context *sctx,
          /* The cache flushes should have been emitted already. */
          assert(sctx->barrier_flags == 0);
          sctx->barrier_flags = SI_BARRIER_EVENT_VGT_FLUSH;
-         si_emit_barrier_direct(sctx);
+         si_emit_barrier_direct(sctx, 0);
       }
    }
 
