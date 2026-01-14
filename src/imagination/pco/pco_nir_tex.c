@@ -429,6 +429,9 @@ static nir_def *lower_tex_shadow(nir_builder *b,
 {
    nir_def *result_comps[NIR_MAX_VEC_COMPONENTS];
 
+   /* Need to clamp the comparator to the range 0.0 - 1.0 */
+   comparator = nir_fsat(b, comparator);
+
    for (unsigned u = 0; u < data->num_components; ++u) {
       result_comps[u] =
          nir_alphatst_pco(b, nir_channel(b, data, u), comparator, compare_op);
