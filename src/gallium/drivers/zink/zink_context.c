@@ -3506,6 +3506,7 @@ zink_batch_no_rp_safe(struct zink_context *ctx)
       ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS].resolveImageView = VK_NULL_HANDLE;
       ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS + 1].resolveImageView = VK_NULL_HANDLE;
    }
+   ctx->rp_draw = false;
 }
 
 void

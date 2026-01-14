@@ -106,9 +106,12 @@ create_ivci(struct zink_screen *screen,
 }
 
 static void
-apply_view_usage_for_format(struct zink_screen *screen, struct pipe_resource *pres, enum pipe_format format, VkImageViewCreateInfo *ivci, VkImageViewUsageCreateInfo *usage_info)
+apply_view_usage_for_format(struct zink_screen *screen, struct pipe_resource *pres, enum pipe_format format, VkImageViewCreateInfo *ivci, VkImageViewUsageCreateInfo *usage_info, bool rp_draw)
 {
    struct zink_resource *res = zink_resource(pres);
+   /* if this is a renderpass with no draws (i.e., clear-only), allow rendering to emulated alpha */
+   if (!rp_draw && zink_format_is_emulated_alpha(format))
+      format = zink_format_get_emulated_alpha(format);
    VkFormatFeatureFlags feats = res->linear ?
                                 zink_get_format_props(screen, format)->linearTilingFeatures :
                                 zink_get_format_props(screen, format)->optimalTilingFeatures;
@@ -137,6 +140,7 @@ create_surface(struct pipe_context *pctx,
                const struct zink_surface_key *templ,
                VkImageViewCreateInfo *ivci)
 {
+   struct zink_context *ctx = zink_context(pctx);
    struct zink_screen *screen = zink_screen(pctx->screen);
 
    struct zink_surface *surface = CALLOC_STRUCT(zink_surface);
@@ -145,7 +149,7 @@ create_surface(struct pipe_context *pctx,
 
    assert(ivci->image);
    VkImageViewUsageCreateInfo usage_info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO };
-   apply_view_usage_for_format(screen, pres, templ->format, ivci, &usage_info);
+   apply_view_usage_for_format(screen, pres, templ->format, ivci, &usage_info, ctx->rp_draw);
    VkResult result = VKSCR(CreateImageView)(screen->dev, ivci, NULL,
                                             &surface->image_view);
    if (result != VK_SUCCESS) {

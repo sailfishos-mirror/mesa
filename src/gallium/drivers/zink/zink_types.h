@@ -1821,6 +1821,7 @@ struct zink_context {
    VkExtent2D swapchain_size;
    bool awaiting_resolve; //from tc info
    bool in_rp; //renderpass is currently active
+   bool rp_draw; //renderpass has draws
    bool rp_changed; //force renderpass restart
    bool rp_layout_changed; //renderpass changed, maybe restart
    bool rp_loadop_changed; //renderpass changed, don't restart
