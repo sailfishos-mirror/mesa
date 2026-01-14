@@ -289,15 +289,6 @@ panvk_draw_prepare_fs_rsd(struct panvk_cmd_buffer *cmdbuf,
       if (fs) {
          pan_shader_prepare_rsd(fs_info, fs_code, &cfg);
 
-         if (binfo->shader_loads_blend_const) {
-            /* Preload the blend constant if the blend shader depends on it. */
-            cfg.preload.uniform_count =
-               MAX2(cfg.preload.uniform_count,
-                    DIV_ROUND_UP(SYSVALS_PUSH_CONST_BASE +
-                                    sizeof(struct panvk_graphics_sysvals),
-                                 8));
-         }
-
          uint8_t rt_mask = cmdbuf->state.gfx.render.bound_attachments &
                            MESA_VK_RP_ATTACHMENT_ANY_COLOR_BITS;
          uint8_t rt_written = color_attachment_written_mask(
