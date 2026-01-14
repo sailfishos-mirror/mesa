@@ -1101,8 +1101,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
     * compute is possible, the threadgroup size must be limited to 256 threads
     * on all queues to avoid the bug.
     * Only GFX6 and certain GFX7 chips are affected.
-    *
-    * FIXME: RADV doesn't limit the number of threads for async compute.
     */
    info->has_cs_regalloc_hang_bug = info->gfx_level == GFX6 ||
                                     info->family == CHIP_BONAIRE ||
