@@ -92,7 +92,8 @@ create_clipdist_vars(nir_shader *shader, nir_variable **io_vars,
 }
 
 static void
-store_clipdist_output(nir_builder *b, nir_variable *out, int location, int location_offset,
+store_clipdist_output(nir_builder *b, nir_variable *out, unsigned base,
+                      int location, int location_offset,
                       nir_def **val, bool use_clipdist_array)
 {
    unsigned num_slots = b->shader->info.clip_distance_array_size;
@@ -116,7 +117,7 @@ store_clipdist_output(nir_builder *b, nir_variable *out, int location, int locat
                        .write_mask = 0x1,
                        .component = i,
                        .io_semantics = semantics,
-                       .base = out ? out->data.driver_location : 0);
+                       .base = base);
    }
 }
 
@@ -276,6 +277,7 @@ struct lower_clip_state {
    nir_variable *out[2];
    unsigned ucp_enables;
    bool use_clipdist_array;
+   unsigned clip_dist0_base;
    const gl_state_index16 (*clipplane_state_tokens)[STATE_LENGTH];
 
    /* This holds the current CLIP_VERTEX value for GS. */
@@ -324,7 +326,7 @@ lower_clip_vertex_var(nir_builder *b, const struct lower_clip_state *state)
 }
 
 static void
-lower_clip_vertex_intrin(nir_builder *b, const struct lower_clip_state *state)
+lower_clip_vertex_intrin(nir_builder *b, struct lower_clip_state *state)
 {
    nir_def *clipdist[MAX_CLIP_PLANES] = { NULL };
    nir_def *cv;
@@ -352,18 +354,22 @@ lower_clip_vertex_intrin(nir_builder *b, const struct lower_clip_state *state)
 
    if (state->use_clipdist_array) {
       /* Always emit the first vec4. */
-      store_clipdist_output(b, state->out[0], VARYING_SLOT_CLIP_DIST0, 0,
+      store_clipdist_output(b, state->out[0], state->clip_dist0_base,
+                            VARYING_SLOT_CLIP_DIST0, 0,
                             &clipdist[0], state->use_clipdist_array);
       if (state->ucp_enables & 0xf0) {
-         store_clipdist_output(b, state->out[0], VARYING_SLOT_CLIP_DIST0, 1,
+         store_clipdist_output(b, state->out[0], state->clip_dist0_base,
+                               VARYING_SLOT_CLIP_DIST0, 1,
                                &clipdist[4], state->use_clipdist_array);
       }
    } else {
       /* Always emit the first vec4. */
-      store_clipdist_output(b, state->out[0], VARYING_SLOT_CLIP_DIST0, 0,
+      store_clipdist_output(b, state->out[0], state->clip_dist0_base,
+                            VARYING_SLOT_CLIP_DIST0, 0,
                             &clipdist[0], state->use_clipdist_array);
       if (state->ucp_enables & 0xf0) {
-         store_clipdist_output(b, state->out[1], VARYING_SLOT_CLIP_DIST1, 0,
+         store_clipdist_output(b, state->out[1], state->clip_dist0_base + 1,
+                               VARYING_SLOT_CLIP_DIST1, 0,
                                &clipdist[4], state->use_clipdist_array);
       }
    }
@@ -425,6 +431,12 @@ nir_lower_clip_vs(nir_shader *shader, unsigned ucp_enables, bool use_vars,
       if (!shader->info.io_lowered) {
          create_clipdist_vars(shader, state.out, ucp_enables, true,
                               use_clipdist_array);
+         state.clip_dist0_base = state.out[0]->data.driver_location;
+      } else {
+         unsigned slots =
+            DIV_ROUND_UP(shader->info.clip_distance_array_size, 4);
+         state.clip_dist0_base = shader->num_outputs;
+         shader->num_outputs += slots;
       }
 
       lower_clip_vertex_intrin(&b, &state);
@@ -444,8 +456,8 @@ nir_lower_clip_vs(nir_shader *shader, unsigned ucp_enables, bool use_vars,
 static bool
 lower_clip_vertex_gs(nir_builder *b, nir_intrinsic_instr *intr, void *opaque)
 {
-   const struct lower_clip_state *state =
-      (const struct lower_clip_state *)opaque;
+   struct lower_clip_state *state =
+      (struct lower_clip_state *)opaque;
 
    switch (intr->intrinsic) {
    case nir_intrinsic_emit_vertex_with_counter:
@@ -529,6 +541,9 @@ nir_lower_clip_gs(nir_shader *shader, unsigned ucp_enables,
       state.clipvertex_gs_temp =
          nir_local_variable_create(nir_shader_get_entrypoint(shader),
                                    glsl_vec4_type(), "clipvertex_gs_temp");
+      unsigned slots = DIV_ROUND_UP(shader->info.clip_distance_array_size, 4);
+      state.clip_dist0_base = shader->num_outputs;
+      shader->num_outputs += slots;
       if (!nir_shader_intrinsics_pass(shader, save_clipvertex_to_temp_gs,
                                       nir_metadata_control_flow, &state))
          return false;
@@ -536,6 +551,7 @@ nir_lower_clip_gs(nir_shader *shader, unsigned ucp_enables,
       /* insert CLIPDIST outputs */
       create_clipdist_vars(shader, state.out, ucp_enables, true,
                            use_clipdist_array);
+      state.clip_dist0_base = state.out[0]->data.driver_location;
    }
 
    nir_shader_intrinsics_pass(shader, lower_clip_vertex_gs,
