@@ -577,8 +577,10 @@ gfx10_init_graphics_preamble_state(const struct ac_preamble_state *state,
                   S_028C48_MAX_ALLOC_COUNT(info->pbb_max_alloc_count - gfx10_one) |
                   S_028C48_MAX_PRIM_PER_BATCH(1023));
    if (info->gfx_level >= GFX11) {
-      ac_pm4_set_reg(pm4, R_028C54_PA_SC_BINNER_CNTL_2,
-                     S_028C54_ENABLE_PING_PONG_BIN_ORDER(info->gfx_level >= GFX11_5));
+      /* Ping pong binning order is supported on GFX11.5 but it seems to
+       * cause rendering issues. Might be a hardware bug.
+       */
+      ac_pm4_set_reg(pm4, R_028C54_PA_SC_BINNER_CNTL_2, S_028C54_ENABLE_PING_PONG_BIN_ORDER(0));
    }
 
    /* Break up a pixel wave if it contains deallocs for more than
