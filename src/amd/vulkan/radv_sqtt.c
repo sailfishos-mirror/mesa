@@ -810,6 +810,7 @@ radv_sqtt_start_capturing(struct radv_queue *queue)
    /* Sample CPU/GPU clocks before starting the trace. */
    if (!radv_sqtt_sample_clocks(device)) {
       fprintf(stderr, "radv: Failed to sample clocks\n");
+      return;
    }
 
    radv_begin_sqtt(queue);
