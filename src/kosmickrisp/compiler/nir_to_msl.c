@@ -2064,7 +2064,7 @@ predeclare_ssa_values(struct nir_to_msl_ctx *ctx, nir_function_impl *impl)
 }
 
 char *
-nir_to_msl(nir_shader *shader, void *mem_ctx, uint64_t disabled_workarounds)
+nir_to_msl(nir_shader *shader, struct nir_to_msl_options *options)
 {
    /* Need to rename the entrypoint here since hardcoded shaders used by vk_meta
     * don't go through the preprocess step since we are the ones creating them.
@@ -2073,8 +2073,8 @@ nir_to_msl(nir_shader *shader, void *mem_ctx, uint64_t disabled_workarounds)
 
    struct nir_to_msl_ctx ctx = {
       .shader = shader,
-      .text = _mesa_string_buffer_create(mem_ctx, 1024),
-      .disabled_workarounds = disabled_workarounds,
+      .text = _mesa_string_buffer_create(options->mem_ctx, 1024),
+      .disabled_workarounds = options->disabled_workarounds,
    };
    nir_function_impl *impl = nir_shader_get_entrypoint(shader);
    msl_gather_info(&ctx);
@@ -2109,7 +2109,7 @@ nir_to_msl(nir_shader *shader, void *mem_ctx, uint64_t disabled_workarounds)
    P(&ctx, "}\n");
    char *ret = ctx.text->buf;
    _mesa_hash_table_destroy(ctx.types, NULL);
-   ralloc_steal(mem_ctx, ctx.text->buf);
+   ralloc_steal(options->mem_ctx, ctx.text->buf);
    ralloc_free(ctx.text);
    return ret;
 }

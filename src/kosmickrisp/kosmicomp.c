@@ -177,7 +177,11 @@ main(int argc, char **argv)
    optimize(shader);
    nir_print_shader(shader, stdout);
 
-   char *msl_text = nir_to_msl(shader, shader, 0u);
+   struct nir_to_msl_options translate_options = {
+      .mem_ctx = shader,
+      .disabled_workarounds = 0u,
+   };
+   char *msl_text = nir_to_msl(shader, &translate_options);
 
    fputs(msl_text, stdout);
 
