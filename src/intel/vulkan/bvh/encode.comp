@@ -496,6 +496,13 @@ main()
                child_aabb = DEREF(REF(vk_ir_node)NODE_OFFSET(child)).aabb;
 
             uint32_t type = ir_id_to_type(child);
+	    if (child != VK_BVH_INVALID_NODE &&
+                (type == vk_ir_node_triangle || type == vk_ir_node_aabb)) {
+               uint32_t ir_offset = ir_id_to_offset(child);
+               uint32_t leaf_id = ir_offset / intermediate_leaf_node_size;
+               DEREF(INDEX(uint32_t, args.leaf_block_offset_map, leaf_id)) = child_block;
+            }
+
             /* Track each children's parent in the map. */
             if (child != VK_BVH_INVALID_NODE && type != vk_ir_node_instance) {
                uint32_t pcm_val = 0;

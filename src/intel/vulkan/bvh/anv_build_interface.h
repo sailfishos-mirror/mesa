@@ -31,6 +31,7 @@ struct encode_args {
    uint32_t geometry_type;
 
    VOID_REF parent_child_map;
+   VOID_REF leaf_block_offset_map;
 };
 
 struct header_args {

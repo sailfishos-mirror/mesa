@@ -325,6 +325,8 @@ struct anv_instance_leaf {
 | For a BLAS, nothing here      |
 |-------------------------------| bvh_layout.parent_child_map_offset
 | Parent - child map            |
+|-------------------------------| bvh_layout.leaf_block_map_offset
+| Leaf block offset map         |
 |-------------------------------|
 | padding to align to           |
 | 64 bytes boundary             | bvh_layout.size
@@ -346,6 +348,9 @@ struct bvh_layout {
     * upper 6bits  - parent child slot index
     * */
    uint64_t parent_child_map_offset;
+
+   /* This map stores BVH block index for each leaf id (IR ID) */
+   uint64_t leaf_block_map_offset;
 
    /* Total size = bvh_offset + leaves + internal_nodes (assuming there's no
     * internal node collpased)
