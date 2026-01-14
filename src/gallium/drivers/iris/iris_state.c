@@ -9119,30 +9119,6 @@ static bool iris_emit_indirect_dispatch_supported(const struct intel_device_info
 
 #if GFX_VERx10 >= 125
 
-static void iris_emit_execute_indirect_dispatch(struct iris_context *ice,
-                                                struct iris_batch *batch,
-                                                const struct pipe_grid_info *grid,
-                                                struct GENX(COMPUTE_WALKER_BODY) *body)
-{
-   const struct iris_screen *screen = batch->screen;
-   struct iris_bo *indirect = iris_resource_bo(grid->indirect);
-
-   body->ThreadGroupIDXDimension = 0;
-   body->ThreadGroupIDYDimension = 0;
-   body->ThreadGroupIDZDimension = 0;
-
-   struct iris_address indirect_bo = ro_bo(indirect, grid->indirect_offset);
-   iris_emit_cmd(batch, GENX(EXECUTE_INDIRECT_DISPATCH), ind) {
-      ind.PredicateEnable            =
-         ice->state.predicate == IRIS_PREDICATE_STATE_USE_BIT;
-      ind.MaxCount                   = 1;
-      ind.body                       = *body;
-      ind.ArgumentBufferStartAddress = indirect_bo;
-      ind.MOCS                       =
-         iris_mocs(indirect_bo.bo, &screen->isl_dev, 0);
-   }
-}
-
 static void
 iris_upload_compute_walker(struct iris_context *ice,
                            struct iris_batch *batch,
@@ -9268,7 +9244,22 @@ struct GENX(COMPUTE_WALKER_BODY) body = {
    iris_measure_snapshot(ice, batch, INTEL_SNAPSHOT_COMPUTE, NULL, NULL, NULL);
 
    if (iris_emit_indirect_dispatch_supported(devinfo) && grid->indirect) {
-      iris_emit_execute_indirect_dispatch(ice, batch, grid, &body);
+      struct iris_bo *indirect = iris_resource_bo(grid->indirect);
+      struct iris_address indirect_bo = ro_bo(indirect, grid->indirect_offset);
+
+      body.ThreadGroupIDXDimension = 0;
+      body.ThreadGroupIDYDimension = 0;
+      body.ThreadGroupIDZDimension = 0;
+
+      iris_emit_cmd(batch, GENX(EXECUTE_INDIRECT_DISPATCH), ind) {
+         ind.PredicateEnable            =
+            ice->state.predicate == IRIS_PREDICATE_STATE_USE_BIT;
+         ind.MaxCount                   = 1;
+         ind.body                       = body;
+         ind.ArgumentBufferStartAddress = indirect_bo;
+         ind.MOCS                       =
+            iris_mocs(indirect_bo.bo, &screen->isl_dev, 0);
+      }
    } else {
       if (grid->indirect)
          iris_load_indirect_location(ice, batch, grid);
