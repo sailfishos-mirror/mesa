@@ -485,7 +485,8 @@ d3d12_video_encoder_negotiate_current_h264_slices_configuration(struct d3d12_vid
                            "D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_ROWS_PER_SUBREGION with "
                            "%d macroblocks rows per slice.\n",
                            requestedSlicesConfig.NumberOfRowsPerSlice);
-         } else if (d3d12_video_encoder_check_subregion_mode_support(
+         } else if (bSliceAligned &&
+                    d3d12_video_encoder_check_subregion_mode_support(
                      pD3D12Enc,
                      D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_UNIFORM_PARTITIONING_SUBREGIONS_PER_FRAME)) {
                requestedSlicesMode =
