@@ -1345,7 +1345,6 @@ def expression_is_unsupported(expr):
         "fdot2_replicated", "fdot3_replicated", "fdot4_replicated", "fdph_replicated",
 
         # The tests do not validate patterns with those opcodes correctly.
-        "imul24_relaxed", "umad24_relaxed", "umul24_relaxed",
         "udiv_aligned_4",
     ]
 

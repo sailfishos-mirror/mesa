@@ -2796,18 +2796,12 @@ optimizations.extend([
     '!options->has_umad24'),
 
    # Relaxed 24bit ops
-   (('imul24_relaxed', a, b), ('imul24', a, b),
-    '!options->has_mul24_relaxed && options->has_imul24', TestStatus.UNSUPPORTED),
-   (('imul24_relaxed', a, b), ('imul', a, b),
-    '!options->has_mul24_relaxed && !options->has_imul24', TestStatus.UNSUPPORTED),
-   (('umad24_relaxed', a, b, c), ('umad24', a, b, c),
-    'options->has_umad24', TestStatus.UNSUPPORTED),
-   (('umad24_relaxed', a, b, c), ('iadd', ('umul24_relaxed', a, b), c),
-    '!options->has_umad24', TestStatus.UNSUPPORTED),
-   (('umul24_relaxed', a, b), ('umul24', a, b),
-    '!options->has_mul24_relaxed && options->has_umul24', TestStatus.UNSUPPORTED),
-   (('umul24_relaxed', a, b), ('imul', a, b),
-    '!options->has_mul24_relaxed && !options->has_umul24', TestStatus.UNSUPPORTED),
+   (('imul24_relaxed', a, b), ('imul24', a, b), '!options->has_mul24_relaxed && options->has_imul24'),
+   (('imul24_relaxed', a, b), ('imul', a, b), '!options->has_mul24_relaxed && !options->has_imul24'),
+   (('umad24_relaxed', a, b, c), ('umad24', a, b, c),  'options->has_umad24'),
+   (('umad24_relaxed', a, b, c), ('iadd', ('umul24_relaxed', a, b), c), '!options->has_umad24'),
+   (('umul24_relaxed', a, b), ('umul24', a, b), '!options->has_mul24_relaxed && options->has_umul24'),
+   (('umul24_relaxed', a, b), ('imul', a, b), '!options->has_mul24_relaxed && !options->has_umul24'),
 
    (('imad24_ir3', a, b, 0), ('imul24', a, b)),
    (('imad24_ir3', a, 0, c), (c)),
@@ -2825,8 +2819,8 @@ optimizations.extend([
    (('imul24', a, '#b@32(is_neg_power_of_two)'), ('ineg', ('ishl', a, ('find_lsb', ('iabs', b)))), '!options->lower_bitops'),
    (('imul24', a, 0), (0)),
 
-   (('imul_high@16', a, b), ('i2i16', ('ishr', ('imul24_relaxed', ('i2i32', a), ('i2i32', b)), 16)), 'options->lower_mul_high16', TestStatus.UNSUPPORTED),
-   (('umul_high@16', a, b), ('u2u16', ('ushr', ('umul24_relaxed', ('u2u32', a), ('u2u32', b)), 16)), 'options->lower_mul_high16', TestStatus.UNSUPPORTED),
+   (('imul_high@16', a, b), ('i2i16', ('ishr', ('imul24_relaxed', ('i2i32', a), ('i2i32', b)), 16)), 'options->lower_mul_high16'),
+   (('umul_high@16', a, b), ('u2u16', ('ushr', ('umul24_relaxed', ('u2u32', a), ('u2u32', b)), 16)), 'options->lower_mul_high16'),
 
    # Optimize vec2 unsigned comparison predicates to usub_sat with clamp.
    (('b2i16', ('vec2', ('ult', 'a@16', b), ('ult', 'c@16', d))),
