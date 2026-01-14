@@ -1361,7 +1361,7 @@ dst = (((int32_t)(((uint32_t)src0 & 0x0000ffff) << 16) * (src1 & 0xffff0000)) >>
 #
 # 24b multiply into 32b result (with sign extension) plus 32b int
 triop("imad24_ir3", tint32, _2src_commutative,
-      "(((int32_t)src0 << 8) >> 8) * (((int32_t)src1 << 8) >> 8) + src2")
+      "util_mask_sign_extend(src0, 24) * util_mask_sign_extend(src1, 24) + src2")
 
 def triop_shift_ir3(name, shift_op, bit_op):
     opcode(name, 0, tuint, [0, 0, 0], [tuint, tuint32, tuint], False, "",
