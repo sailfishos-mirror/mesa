@@ -1679,17 +1679,11 @@ static void si_set_active_query_state(struct pipe_context *ctx, bool enable)
    /* Pipeline stat & streamout queries. */
    if (enable) {
       /* Disable pipeline stats if there are no active queries. */
-      if (sctx->num_hw_pipestat_streamout_queries) {
-         sctx->barrier_flags &= ~SI_BARRIER_EVENT_PIPELINESTAT_STOP;
-         sctx->barrier_flags |= SI_BARRIER_EVENT_PIPELINESTAT_START;
-         si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
-      }
+      if (sctx->num_hw_pipestat_streamout_queries)
+         si_clear_and_set_barrier_flags(sctx, SI_BARRIER_EVENT_PIPELINESTAT_STOP, SI_BARRIER_EVENT_PIPELINESTAT_START);
    } else {
-      if (sctx->num_hw_pipestat_streamout_queries) {
-         sctx->barrier_flags &= ~SI_BARRIER_EVENT_PIPELINESTAT_START;
-         sctx->barrier_flags |= SI_BARRIER_EVENT_PIPELINESTAT_STOP;
-         si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
-      }
+      if (sctx->num_hw_pipestat_streamout_queries)
+         si_clear_and_set_barrier_flags(sctx, SI_BARRIER_EVENT_PIPELINESTAT_START, SI_BARRIER_EVENT_PIPELINESTAT_STOP);
    }
 
    /* Occlusion queries. */

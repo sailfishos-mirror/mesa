@@ -1378,6 +1378,12 @@ static inline void si_set_barrier_flags(struct si_context *sctx, unsigned flags)
    sctx->barrier_flags |= flags;
    si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
 }
+static inline void si_clear_and_set_barrier_flags(struct si_context *sctx, unsigned clear, unsigned set)
+{
+   sctx->barrier_flags &= ~clear;
+   sctx->barrier_flags |= set;
+   si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
+}
 
 void si_barrier_before_internal_op(struct si_context *sctx, unsigned flags,
                                    unsigned num_buffers,
@@ -2263,17 +2269,19 @@ si_set_rasterized_prim(struct si_context *sctx, enum mesa_prim rast_prim,
    }
 }
 
-/* There are 4 ways to flush caches and all of them are correct.
+/* There are 5 ways to flush caches and all of them are correct.
  *
  * 1) si_set_barrier_flags(sctx, ...); // deferred
  *
- * 2) sctx->barrier_flags |= ...; // multiple times
+ * 2) si_clear_and_set_barrier_flags(sctx, ..., ...); // deferred
+ *
+ * 3) sctx->barrier_flags |= ...; // multiple times
  *    si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier); // deferred
  *
- * 3) sctx->barrier_flags |= ...;
+ * 4) sctx->barrier_flags |= ...;
  *    si_emit_barrier_direct(sctx); // immediate
  *
- * 4) sctx->barrier_flags |= ...;
+ * 5) sctx->barrier_flags |= ...;
  *    sctx->emit_barrier(sctx, cs); // immediate (2 is better though)
  */
 static inline void si_emit_barrier_direct(struct si_context *sctx)

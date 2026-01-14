@@ -895,15 +895,12 @@ static void si_update_hw_pipeline_stats(struct si_context *sctx, unsigned type, 
       sctx->num_hw_pipestat_streamout_queries += diff;
 
       /* Enable/disable pipeline stats if we have any queries. */
-      if (diff == 1 && sctx->num_hw_pipestat_streamout_queries == 1) {
-         sctx->barrier_flags &= ~SI_BARRIER_EVENT_PIPELINESTAT_STOP;
-         sctx->barrier_flags |= SI_BARRIER_EVENT_PIPELINESTAT_START;
-         si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
-      } else if (diff == -1 && sctx->num_hw_pipestat_streamout_queries == 0) {
-         sctx->barrier_flags &= ~SI_BARRIER_EVENT_PIPELINESTAT_START;
-         sctx->barrier_flags |= SI_BARRIER_EVENT_PIPELINESTAT_STOP;
-         si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
-      }
+      if (diff == 1 && sctx->num_hw_pipestat_streamout_queries == 1)
+         si_clear_and_set_barrier_flags(sctx, SI_BARRIER_EVENT_PIPELINESTAT_STOP,
+                                        SI_BARRIER_EVENT_PIPELINESTAT_START);
+      else if (diff == -1 && sctx->num_hw_pipestat_streamout_queries == 0)
+         si_clear_and_set_barrier_flags(sctx, SI_BARRIER_EVENT_PIPELINESTAT_START,
+                                        SI_BARRIER_EVENT_PIPELINESTAT_STOP);
    }
 }
 
