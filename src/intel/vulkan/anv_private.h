@@ -4413,6 +4413,12 @@ struct anv_attachment {
    const struct anv_image_view *resolve_iview;
    VkImageLayout resolve_layout;
 
+   bool clear;
+   bool fast_clear;
+   union isl_color_value clear_color;
+   /* Clear rectangle relative to the image */
+   VkClearRect image_clear_rect;
+
    bool skip_srgb_decode;
 };
 
