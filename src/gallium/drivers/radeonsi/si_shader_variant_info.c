@@ -525,11 +525,16 @@ void si_fixup_spi_ps_input_config(struct si_shader *shader)
 
    /* At least one pair of barycentric coordinates or LINE_STIPPLE_TEX_ENA must be enabled.
     * Since LINE_STIPPLE_TEX_ENA is the only one that loads only 1 VGPR, use it.
+    *
+    * We can't set LINE_STIPPLE_TEX_ENA on GFX12 because it reduces primitive throughput to only
+    * 1 SE. Other gens are fine (tested on Navi10, Navi21, Navi31).
+    * TODO: Test Strix Halo.
     */
    if (!(shader->config.spi_ps_input_ena & 0x7f) &&
        !G_0286CC_LINE_STIPPLE_TEX_ENA(shader->config.spi_ps_input_ena)) {
       /* LLVM sets PERSP_SAMPLE_ENA in this case, so we have to do the same. */
-      if (shader->selector->info.base.use_aco_amd)
+      if (shader->selector->info.base.use_aco_amd &&
+          shader->selector->screen->info.gfx_level != GFX12)
          shader->config.spi_ps_input_ena |= S_0286CC_LINE_STIPPLE_TEX_ENA(1);
       else
          shader->config.spi_ps_input_ena |= S_0286CC_PERSP_SAMPLE_ENA(1);

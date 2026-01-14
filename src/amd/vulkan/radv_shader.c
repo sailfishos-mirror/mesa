@@ -3739,8 +3739,15 @@ radv_compute_spi_ps_input(const struct radv_physical_device *pdev, const struct 
       /* At least one of PERSP_* (0xF) or LINEAR_* (0x70) or LINE_STIPPLE_TEX must be enabled.
        * LINE_STIPPLE_TEX uses the least number of initialized VGPRs, so let's use it because
        * pixel throughput is limited by the number of initialized VGPRs.
+       *
+       * We can't set LINE_STIPPLE_TEX on GFX12 because it reduces primitive throughput to only
+       * 1 SE. Other gens are fine (tested on Navi10, Navi21, Navi31).
+       * TODO: Test Strix Halo.
        */
-      spi_ps_input |= S_0286CC_LINE_STIPPLE_TEX_ENA(1);
+      if (pdev->info.gfx_level == GFX12)
+         spi_ps_input |= S_0286CC_PERSP_SAMPLE_ENA(1);
+      else
+         spi_ps_input |= S_0286CC_LINE_STIPPLE_TEX_ENA(1);
    }
 
    return spi_ps_input;
