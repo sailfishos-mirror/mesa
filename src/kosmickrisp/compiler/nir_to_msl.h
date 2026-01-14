@@ -13,6 +13,12 @@ enum pipe_format;
 struct nir_to_msl_options {
    void *mem_ctx;
    uint64_t disabled_workarounds;
+
+   /* Required to correctly declare fragment outputs. Shader may contain
+    * shrinked writes which can lead to writting less components than the ones
+    * the render target has. This leads to an incorrect calculation of the
+    * component count for the render target formats. */
+   uint8_t rts_component_count[MAX_DRAW_BUFFERS];
 };
 
 /* Assumes nir_shader_gather_info has been called beforehand. */

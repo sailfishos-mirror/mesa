@@ -685,6 +685,18 @@ kk_compile_shader(struct kk_device *dev, struct vk_shader_compile_info *info,
       .mem_ctx = NULL,
       .disabled_workarounds = dev->disabled_workarounds,
    };
+   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      for (uint32_t i = 0u; i < MAX_DRAW_BUFFERS; ++i) {
+         enum pipe_format format =
+            vk_format_to_pipe_format(state->rp->color_attachment_formats[i]);
+
+         /* If the attachment is unused, default to 4 to avoid issues with alpha
+          * to coverage with unused attachments. */
+         translate_options.rts_component_count[i] =
+            format == PIPE_FORMAT_NONE ? 4u
+                                       : util_format_get_nr_components(format);
+      }
+   }
    shader->msl_code = nir_to_msl(nir, &translate_options);
    const char *entrypoint_name = nir_shader_get_entrypoint(nir)->function->name;
 
