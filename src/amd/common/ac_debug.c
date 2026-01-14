@@ -453,3 +453,13 @@ void ac_print_gpuvm_fault_status(FILE *output, enum amd_gfx_level gfx_level,
       fprintf(output, "VM_CONTEXT1_PROTECTION_FAULT_STATUS: 0x%x\n", status);
    }
 }
+
+void
+ac_dump_texture_descriptor(FILE *output, enum amd_gfx_level gfx_level,
+                           enum radeon_family family, uint32_t desc[8])
+{
+   const uint32_t base_reg = gfx_level >= GFX10 ? R_00A000_SQ_IMG_RSRC_WORD0 : R_008F10_SQ_IMG_RSRC_WORD0;
+
+   for (uint32_t i = 0; i < 8; i++)
+      ac_dump_reg(output, gfx_level, family, base_reg + i * 4,  desc[i], ~0);
+}
