@@ -1152,8 +1152,7 @@ static void gfx6_clear(struct pipe_context *ctx, unsigned buffers,
             if ((zstex->depth_clear_value[level] != 0) != (depth != 0)) {
                /* ZRANGE_PRECISION register of a bound surface will change so we
                 * must flush the DB caches. */
-               sctx->barrier_flags |= SI_BARRIER_SYNC_AND_INV_DB;
-               si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
+               si_set_barrier_flags(sctx, SI_BARRIER_SYNC_AND_INV_DB);
             }
             /* Update DB_DEPTH_CLEAR. */
             zstex->depth_clear_value[level] = depth;
@@ -1187,10 +1186,8 @@ static void gfx6_clear(struct pipe_context *ctx, unsigned buffers,
       /* TODO: This hack fixes dEQP-GLES[23].functional.fragment_ops.random.* on Navi31.
        * The root cause is unknown.
        */
-      if (sctx->gfx_level == GFX11 || sctx->gfx_level == GFX11_5) {
-         sctx->barrier_flags |= SI_BARRIER_SYNC_VS;
-         si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
-      }
+      if (sctx->gfx_level == GFX11 || sctx->gfx_level == GFX11_5)
+         si_set_barrier_flags(sctx, SI_BARRIER_SYNC_VS);
    }
 
    if (unlikely(sctx->sqtt_enabled)) {

@@ -541,7 +541,7 @@ void si_test_blit_perf(struct si_screen *sscreen)
                                     case METHOD_DEFAULT:
                                        if (test_flavor == TEST_FB_CLEAR) {
                                           ctx->clear(ctx, PIPE_CLEAR_COLOR, NULL, clear_color, 0, 0);
-                                          sctx->barrier_flags |= SI_BARRIER_SYNC_AND_INV_CB | SI_BARRIER_INV_L2;
+                                          si_set_barrier_flags(sctx, SI_BARRIER_SYNC_AND_INV_CB | SI_BARRIER_INV_L2);
                                        } else {
                                           ctx->clear_render_target(ctx, &surf_templ, clear_color,
                                                                    dst_box.x, dst_box.y,

@@ -15,10 +15,8 @@
 static void si_compute_begin_internal(struct si_context *sctx, bool render_condition_enabled)
 {
    sctx->barrier_flags &= ~SI_BARRIER_EVENT_PIPELINESTAT_START;
-   if (sctx->num_hw_pipestat_streamout_queries) {
-      sctx->barrier_flags |= SI_BARRIER_EVENT_PIPELINESTAT_STOP;
-      si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
-   }
+   if (sctx->num_hw_pipestat_streamout_queries)
+      si_set_barrier_flags(sctx, SI_BARRIER_EVENT_PIPELINESTAT_STOP);
 
    if (!render_condition_enabled)
       sctx->render_cond_enabled = false;
@@ -33,10 +31,8 @@ static void si_compute_begin_internal(struct si_context *sctx, bool render_condi
 static void si_compute_end_internal(struct si_context *sctx)
 {
    sctx->barrier_flags &= ~SI_BARRIER_EVENT_PIPELINESTAT_STOP;
-   if (sctx->num_hw_pipestat_streamout_queries) {
-      sctx->barrier_flags |= SI_BARRIER_EVENT_PIPELINESTAT_START;
-      si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
-   }
+   if (sctx->num_hw_pipestat_streamout_queries)
+      si_set_barrier_flags(sctx, SI_BARRIER_EVENT_PIPELINESTAT_START);
 
    sctx->render_cond_enabled = sctx->render_cond;
    sctx->blitter_running = false;
@@ -345,8 +341,7 @@ void si_retile_dcc(struct si_context *sctx, struct si_texture *tex)
    assert(sctx->gfx_level < GFX12);
 
    /* Flush and wait for CB before retiling DCC. */
-   sctx->barrier_flags |= SI_BARRIER_SYNC_AND_INV_CB;
-   si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
+   si_set_barrier_flags(sctx, SI_BARRIER_SYNC_AND_INV_CB);
 
    /* Set the DCC buffer. */
    assert(tex->surface.meta_offset && tex->surface.meta_offset <= UINT_MAX);

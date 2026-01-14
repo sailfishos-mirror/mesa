@@ -1890,6 +1890,7 @@ static void si_upload_bindless_descriptors(struct si_context *sctx)
       (*img_handle)->desc_dirty = false;
    }
 
+   assert(sctx->dirty_atoms & si_get_atom_bit(sctx, &sctx->atoms.s.barrier));
    /* Invalidate scalar L0 because the cache doesn't know that L2 changed. */
    sctx->barrier_flags |= SI_BARRIER_INV_SMEM;
 

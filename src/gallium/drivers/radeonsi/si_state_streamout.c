@@ -247,9 +247,7 @@ static void si_set_streamout_targets(struct pipe_context *ctx, unsigned num_targ
       /* All readers of the streamout targets need to be finished before we can
        * start writing to them.
        */
-      sctx->barrier_flags |= SI_BARRIER_SYNC_PS | SI_BARRIER_SYNC_CS |
-                             SI_BARRIER_PFP_SYNC_ME;
-      si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
+      si_set_barrier_flags(sctx, SI_BARRIER_SYNC_PS | SI_BARRIER_SYNC_CS | SI_BARRIER_PFP_SYNC_ME);
    } else {
       si_set_atom_dirty(sctx, &sctx->atoms.s.streamout_begin, false);
       si_set_streamout_enable(sctx, false);
@@ -379,8 +377,7 @@ void si_emit_streamout_end(struct si_context *sctx)
                          COPY_DATA_REG, NULL,
                          (R_031088_GDS_STRMOUT_DWORDS_WRITTEN_0 >> 2) + i);
          /* For DrawTF reading buf_filled_size: */
-         sctx->barrier_flags |= SI_BARRIER_PFP_SYNC_ME;
-         si_mark_atom_dirty(sctx, &sctx->atoms.s.barrier);
+         si_set_barrier_flags(sctx, SI_BARRIER_PFP_SYNC_ME);
       } else {
          uint64_t va = t[i]->buf_filled_size->gpu_address + t[i]->buf_filled_size_offset;
 
