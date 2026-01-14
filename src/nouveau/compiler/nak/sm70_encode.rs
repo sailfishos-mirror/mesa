@@ -108,11 +108,52 @@ impl SM70Encoder<'_> {
         }
     }
 
+    fn set_reg_addr(
+        &mut self,
+        range: Range<usize>,
+        src: &Src,
+        size_bit: usize,
+    ) {
+        assert!(src.is_unmodified());
+        match src.src_ref {
+            SrcRef::Zero => {
+                self.set_reg(range, self.zero_reg(RegFile::GPR));
+                // We always treat a zero GPR as 32 bits, so the UGPR source
+                // can be 32 bits.
+                self.set_bit(size_bit, false);
+            }
+            SrcRef::Reg(reg) => {
+                self.set_reg(range, reg);
+                assert!(reg.comps() <= 2);
+                self.set_bit(size_bit, reg.comps() == 2);
+            }
+            _ => panic!("Not a register"),
+        }
+    }
+
     fn set_ureg_src(&mut self, start: usize, src: &Src) {
         assert!(src.src_mod.is_none());
         match src.src_ref {
             SrcRef::Zero => self.set_ureg(start, self.zero_reg(RegFile::UGPR)),
             SrcRef::Reg(reg) => self.set_ureg(start, reg),
+            _ => panic!("Not a register"),
+        }
+    }
+
+    fn set_ureg_addr(&mut self, start: usize, src: &Src, size_bit: usize) {
+        assert!(src.src_mod.is_none());
+        match src.src_ref {
+            SrcRef::Zero => {
+                self.set_ureg(start, self.zero_reg(RegFile::UGPR));
+                // We always treat a zero UGPR as 64 bits, so the GPR source
+                // can be 64 bit.
+                self.set_bit(size_bit, true);
+            }
+            SrcRef::Reg(reg) => {
+                self.set_ureg(start, reg);
+                assert!(reg.comps() <= 2);
+                self.set_bit(size_bit, reg.comps() == 2);
+            }
             _ => panic!("Not a register"),
         }
     }
@@ -3009,13 +3050,6 @@ impl SM70Encoder<'_> {
     }
 
     fn set_mem_access(&mut self, access: &MemAccess) {
-        self.set_field(
-            72..73,
-            match access.space.addr_type() {
-                MemAddrType::A32 => 0_u8,
-                MemAddrType::A64 => 1_u8,
-            },
-        );
         self.set_mem_type(73..76, access.mem_type);
         self.set_mem_order(&access.order);
         self.set_eviction_priority(&access.eviction_priority);
@@ -3179,7 +3213,7 @@ impl SM70Op for OpLd {
         }
 
         e.set_dst(&self.dst);
-        e.set_reg_src(24..32, &self.addr);
+        e.set_reg_addr(24..32, &self.addr, 72);
         e.set_field(40..64, self.offset);
     }
 }
@@ -3314,7 +3348,7 @@ impl SM70Op for OpSt {
             }
         }
 
-        e.set_reg_src(24..32, &self.addr);
+        e.set_reg_addr(24..32, &self.addr, 72);
         e.set_reg_src(32..40, &self.data);
         e.set_field(40..64, self.offset);
     }
@@ -3421,14 +3455,6 @@ impl SM70Op for OpAtom {
                     e.set_atom_op(87..91, self.atom_op);
                 }
 
-                e.set_field(
-                    72..73,
-                    match self.mem_space.addr_type() {
-                        MemAddrType::A32 => 0_u8,
-                        MemAddrType::A64 => 1_u8,
-                    },
-                );
-
                 e.set_mem_order(&self.mem_order);
                 e.set_eviction_priority(&self.mem_eviction_priority);
                 assert_eq!(self.addr_stride, OffsetStride::X1);
@@ -3468,7 +3494,7 @@ impl SM70Op for OpAtom {
         }
 
         e.set_dst(&self.dst);
-        e.set_reg_src(24..32, &self.addr);
+        e.set_reg_addr(24..32, &self.addr, 72);
         e.set_field(40..64, self.addr_offset);
         e.set_atom_type(self.atom_type, false);
     }
