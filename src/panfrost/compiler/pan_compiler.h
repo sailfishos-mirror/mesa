@@ -238,6 +238,13 @@ struct pan_shader_info {
          bool early_fragment_tests;
          bool can_early_z, can_fpk;
          bool untyped_color_outputs;
+         struct {
+            bool ld_tile;
+            bool wait_or_tile_access_before_atest_zsemit;
+            bool rasterizer_coverage_read;
+            bool centroid_interpolation;
+            bool varying_before_atest_zsemit;
+         } hsr;
          uint32_t outputs_read;
       } fs;
 

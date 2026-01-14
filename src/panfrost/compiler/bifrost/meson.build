@@ -37,6 +37,7 @@ libpanfrost_bifrost_files = files(
   'bifrost/bi_pack.c',
   'bifrost/bi_schedule.c',
   'bifrost/bi_scoreboard.c',
+  'valhall/va_gather_hsr_info.c',
   'valhall/va_insert_flow.c',
   'valhall/va_lower_constants.c',
   'valhall/va_lower_isel.c',
