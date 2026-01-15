@@ -734,7 +734,7 @@
         "description": "vulkan/wsi: avoid host stage when blit to foreign queue",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "153857fb64b7d2521a8b402854afed97bf247b39",
         "notes": null

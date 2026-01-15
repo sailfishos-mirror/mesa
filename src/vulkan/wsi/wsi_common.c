@@ -2170,7 +2170,9 @@ wsi_cmd_blit_image_to_buffer(VkCommandBuffer cmd_buffer,
    };
    wsi->CmdPipelineBarrier(cmd_buffer,
                            VK_PIPELINE_STAGE_TRANSFER_BIT,
-                           VK_PIPELINE_STAGE_HOST_BIT,
+                           image->blit.to_foreign_queue
+                              ? VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+                              : VK_PIPELINE_STAGE_HOST_BIT,
                            0,
                            0, NULL,
                            1, &buf_mem_barrier,
