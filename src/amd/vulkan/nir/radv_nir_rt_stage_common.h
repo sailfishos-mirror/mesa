@@ -101,6 +101,8 @@ bool radv_nir_lower_rt_storage(nir_shader *shader, nir_variable **hit_attribs, n
                                nir_variable **payload_out, uint32_t workgroup_size);
 
 void radv_nir_param_from_type(nir_parameter *param, const glsl_type *type, bool uniform, unsigned driver_attribs);
+void radv_nir_return_param_from_type(nir_parameter *param, const glsl_type *type, bool uniform,
+                                     unsigned driver_attribs);
 
 /*
  *

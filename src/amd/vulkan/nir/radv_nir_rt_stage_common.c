@@ -240,3 +240,14 @@ radv_nir_param_from_type(nir_parameter *param, const glsl_type *type, bool unifo
    param->is_uniform = uniform;
    param->driver_attributes = driver_attribs;
 }
+
+void
+radv_nir_return_param_from_type(nir_parameter *param, const glsl_type *type, bool uniform, unsigned driver_attribs)
+{
+   param->num_components = 1;
+   param->bit_size = 32;
+   param->type = type;
+   param->is_uniform = uniform;
+   param->driver_attributes = driver_attribs;
+   param->is_return = true;
+}

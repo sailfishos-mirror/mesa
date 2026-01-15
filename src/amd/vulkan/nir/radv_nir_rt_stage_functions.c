@@ -118,12 +118,8 @@ radv_nir_init_rt_function_params(nir_function *function, mesa_shader_stage stage
    }
 
    if (payload_base != -1u) {
-      for (unsigned i = 0; i < DIV_ROUND_UP(payload_size, 4); ++i) {
-         function->params[payload_base + i].num_components = 1;
-         function->params[payload_base + i].bit_size = 32;
-         function->params[payload_base + i].is_return = true;
-         function->params[payload_base + i].type = glsl_uint_type();
-      }
+      for (unsigned i = 0; i < DIV_ROUND_UP(payload_size, 4); ++i)
+         radv_nir_return_param_from_type(function->params + payload_base + i, glsl_uint_type(), false, 0);
    }
 
    /* Entrypoints can't have parameters. Consider RT stages as callable functions */
