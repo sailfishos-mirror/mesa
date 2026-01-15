@@ -270,6 +270,10 @@ nir_blend_logicop(nir_builder *b,
     */
    if (util_format_is_float(format) || util_format_is_srgb(format))
       return src;
+   else if (func == PIPE_LOGICOP_COPY)
+      return src;
+   else if (func == PIPE_LOGICOP_NOOP)
+      return dst;
 
    nir_alu_type type =
       util_format_is_pure_integer(format) ? nir_type_uint : nir_type_float;
