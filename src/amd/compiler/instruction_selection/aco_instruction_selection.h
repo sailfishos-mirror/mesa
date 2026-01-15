@@ -288,9 +288,9 @@ void build_end_with_regs(isel_context* ctx, std::vector<Operand>& regs);
 Instruction* add_startpgm(struct isel_context* ctx, bool is_callee = false);
 void finish_program(isel_context* ctx);
 
-struct callee_info get_callee_info(amd_gfx_level gfx_level, const ABI& abi, unsigned param_count,
-                                   const nir_parameter* parameters, Program* program,
-                                   RegisterDemand reg_limit);
+struct callee_info get_callee_info(amd_gfx_level gfx_level, unsigned wave_size, const ABI& abi,
+                                   unsigned param_count, const nir_parameter* parameters,
+                                   Program* program, RegisterDemand reg_limit);
 void load_scratch_param(isel_context* ctx, Builder& bld, const parameter_info& param,
                         Temp stack_ptr, unsigned scratch_param_size, Temp dst);
 void store_scratch_param(isel_context* ctx, Builder& bld, const parameter_info& param,

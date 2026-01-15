@@ -806,8 +806,8 @@ visit_call(isel_context* ctx, nir_call_instr* instr)
    RegisterDemand limit = get_addr_regs_from_waves(ctx->program, ctx->program->min_waves);
 
    struct callee_info info =
-      get_callee_info(ctx->program->gfx_level, abi, instr->callee->num_params,
-                      instr->callee->params, nullptr, limit);
+      get_callee_info(ctx->program->gfx_level, ctx->program->wave_size, abi,
+                      instr->callee->num_params, instr->callee->params, nullptr, limit);
    std::vector<parameter_info> return_infos;
 
    /* Before setting up the call itself, set up parameters stored in scratch memory.
@@ -891,7 +891,7 @@ visit_call(isel_context* ctx, nir_call_instr* instr)
       Operand& op = call_instr->operands[reg_param_idx + extra_param_count];
       op.setPrecolored(info.param_infos[i].def.physReg());
 
-      if (instr->callee->params[i].is_uniform)
+      if (instr->callee->params[i].is_uniform || instr->callee->params[i].bit_size == 1)
          op.setTemp(bld.as_uniform(get_ssa_temp(ctx, instr->params[i].ssa)));
       else
          op.setTemp(as_vgpr(ctx, get_ssa_temp(ctx, instr->params[i].ssa)));
@@ -1371,8 +1371,8 @@ select_program_rt(isel_context& ctx, unsigned shader_count, struct nir_shader* c
       ctx.callee_abi = abi;
       ctx.program->callee_abi = ctx.callee_abi;
       ctx.callee_info =
-         get_callee_info(ctx.program->gfx_level, ctx.callee_abi, impl->function->num_params,
-                         impl->function->params, ctx.program, limit);
+         get_callee_info(ctx.program->gfx_level, ctx.program->wave_size, ctx.callee_abi,
+                         impl->function->num_params, impl->function->params, ctx.program, limit);
       ctx.program->is_callee = true;
 
       Instruction* startpgm = add_startpgm(&ctx, true);

@@ -985,7 +985,7 @@ find_param_regs(Program* program, const ABI& abi, callee_info& info,
 }
 
 struct callee_info
-get_callee_info(amd_gfx_level gfx_level, const ABI& abi, unsigned param_count,
+get_callee_info(amd_gfx_level gfx_level, unsigned wave_size, const ABI& abi, unsigned param_count,
                 const nir_parameter* parameters, Program* program, RegisterDemand reg_limit)
 {
    struct callee_info info = {};
@@ -1052,6 +1052,10 @@ get_callee_info(amd_gfx_level gfx_level, const ABI& abi, unsigned param_count,
    for (unsigned i = 0; i < param_count; ++i) {
       RegType type = parameters[i].is_uniform ? RegType::sgpr : RegType::vgpr;
       unsigned byte_size = align(parameters[i].bit_size, 32) / 8 * parameters[i].num_components;
+      if (parameters[i].bit_size == 1) {
+         type = RegType::sgpr;
+         byte_size = wave_size / 8;
+      }
       RegClass rc = RegClass(type, byte_size / 4);
 
       Temp dst = program ? program->allocateTmp(rc) : Temp();

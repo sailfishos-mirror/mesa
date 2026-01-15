@@ -34,8 +34,9 @@ select_rt_prolog(Program* program, ac_shader_config* config,
 
    RegisterDemand limit = get_addr_regs_from_waves(program, program->min_waves);
 
-   struct callee_info raygen_info = get_callee_info(program->gfx_level, rtRaygenABI,
-                                                    raygen_param_count, raygen_params, NULL, limit);
+   struct callee_info raygen_info =
+      get_callee_info(program->gfx_level, program->wave_size, rtRaygenABI, raygen_param_count,
+                      raygen_params, NULL, limit);
 
    /* Inputs:
     * Ring offsets:                s[0-1]
