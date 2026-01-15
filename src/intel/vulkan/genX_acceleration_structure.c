@@ -150,21 +150,29 @@ add_bvh_dump(struct anv_cmd_buffer *cmd_buffer,
 static void
 debug_record_as_to_bvh_dump(struct anv_cmd_buffer *cmd_buffer,
                             VkDeviceAddress header_addr,
-                            uint64_t bvh_anv_size,
+                            struct bvh_layout bvh_layout,
                             VkDeviceAddress intermediate_header_addr,
                             VkDeviceAddress intermediate_as_addr,
                             uint32_t leaf_count,
                             VkGeometryTypeKHR geometry_type)
 {
+   if (INTEL_DEBUG(DEBUG_BVH_PCREL_MAP) &&
+       geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR) {
+      add_bvh_dump(cmd_buffer, header_addr + bvh_layout.parent_child_map_offset,
+                   bvh_layout.leaf_block_map_offset - bvh_layout.parent_child_map_offset,
+                   geometry_type,
+                   BVH_ANV_PCREL);
+   }
+
    if (INTEL_DEBUG(DEBUG_BVH_BLAS) &&
        geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR) {
-      add_bvh_dump(cmd_buffer, header_addr, bvh_anv_size, geometry_type,
+      add_bvh_dump(cmd_buffer, header_addr, bvh_layout.size, geometry_type,
                    BVH_ANV);
    }
 
    if (INTEL_DEBUG(DEBUG_BVH_TLAS) &&
        geometry_type == VK_GEOMETRY_TYPE_INSTANCES_KHR) {
-      add_bvh_dump(cmd_buffer, header_addr, bvh_anv_size, geometry_type,
+      add_bvh_dump(cmd_buffer, header_addr, bvh_layout.size, geometry_type,
                    BVH_ANV);
    }
 
@@ -489,7 +497,7 @@ anv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_stru
    vk_common_CmdDispatch(commandBuffer, 1, 1, 1);
 
    if (INTEL_DEBUG_BVH_ANY) {
-      debug_record_as_to_bvh_dump(cmd_buffer, header_addr, bvh_layout.size,
+      debug_record_as_to_bvh_dump(cmd_buffer, header_addr, bvh_layout,
                                   intermediate_header_addr, intermediate_bvh_addr,
                                   state->leaf_node_count, geometry_type);
    }

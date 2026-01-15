@@ -2535,7 +2535,8 @@ enum anv_object_key_bvh_type {
 enum bvh_dump_type {
    BVH_ANV,
    BVH_IR_HDR,
-   BVH_IR_AS
+   BVH_IR_AS,
+   BVH_ANV_PCREL,
 };
 
 struct anv_bvh_dump {
