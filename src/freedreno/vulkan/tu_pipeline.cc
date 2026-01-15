@@ -4045,6 +4045,15 @@ tu_pipeline_builder_emit_state(struct tu_pipeline_builder *builder,
    /* Vertex buffer state needs to know the max valid binding */
    BITSET_SET(keep, MESA_VK_DYNAMIC_VI_BINDINGS_VALID);
 
+   /* We might re-emit TU_DYNAMIC_STATE_DS or TU_DYNAMIC_STATE_RB_DEPTH_CNTL
+    * depending on render pass attachments. Some of these overlap with the
+    * state needed by LRZ above.
+    */
+   for (unsigned i = 0; i < ARRAY_SIZE(tu_ds_state); i++)
+      BITSET_SET(keep, tu_ds_state[i]);
+   for (unsigned i = 0; i < ARRAY_SIZE(tu_rb_depth_cntl_state); i++)
+      BITSET_SET(keep, tu_rb_depth_cntl_state[i]);
+
    /* Remove state which has been emitted and we no longer need to set when
     * binding the pipeline by making it "dynamic".
     */

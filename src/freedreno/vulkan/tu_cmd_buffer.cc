@@ -5575,15 +5575,26 @@ tu_CmdBindPipeline(VkCommandBuffer commandBuffer,
       cmd->state.bandwidth = pipeline->bandwidth;
    cmd->state.pipeline_bandwidth = pipeline->bandwidth.valid;
 
-   struct tu_cs *cs = &cmd->draw_cs;
+   /* Ignore pipeline's enabled depth/stencil state if render pass doesn't provide
+    * depth/stencil attachments, or if pipeline was bound outside of renderpass.
+    * That way the correct state can be computed based on the presence of the
+    * relevant attachments.
+    */
+   uint32_t set_state_mask = pipeline->set_state_mask;
+   if (cmd->vk.dynamic_graphics_state.ds.depth.test_enable &&
+       (!cmd->state.pass || !(cmd->state.vk_rp.attachments & MESA_VK_RP_ATTACHMENT_DEPTH_BIT)))
+      set_state_mask &= ~(1u << TU_DYNAMIC_STATE_RB_DEPTH_CNTL);
+   if (cmd->vk.dynamic_graphics_state.ds.stencil.test_enable &&
+       (!cmd->state.pass || !(cmd->state.vk_rp.attachments & MESA_VK_RP_ATTACHMENT_STENCIL_BIT)))
+      set_state_mask &= ~(1u << TU_DYNAMIC_STATE_DS);
 
    /* note: this also avoids emitting draw states before renderpass clears,
     * which may use the 3D clear path (for MSAA cases)
     */
    if (!(cmd->state.dirty & TU_CMD_DIRTY_DRAW_STATE)) {
-      uint32_t mask = pipeline->set_state_mask;
+      struct tu_cs *cs = &cmd->draw_cs;
 
-      tu_cs_emit_pkt7(cs, CP_SET_DRAW_STATE, 3 * (10 + util_bitcount(mask)));
+      tu_cs_emit_pkt7(cs, CP_SET_DRAW_STATE, 3 * (10 + util_bitcount(set_state_mask)));
       tu_cs_emit_draw_state(cs, TU_DRAW_STATE_PROGRAM_CONFIG, pipeline->program.config_state);
       tu_cs_emit_draw_state(cs, TU_DRAW_STATE_VS, pipeline->program.vs_state);
       tu_cs_emit_draw_state(cs, TU_DRAW_STATE_VS_BINNING, pipeline->program.vs_binning_state);
@@ -5595,12 +5606,12 @@ tu_CmdBindPipeline(VkCommandBuffer commandBuffer,
       tu_cs_emit_draw_state(cs, TU_DRAW_STATE_VPC, pipeline->program.vpc_state);
       tu_cs_emit_draw_state(cs, TU_DRAW_STATE_PRIM_MODE_GMEM, pipeline->prim_order.state_gmem);
 
-      u_foreach_bit(i, mask)
+      u_foreach_bit(i, set_state_mask)
          tu_cs_emit_draw_state(cs, TU_DRAW_STATE_DYNAMIC + i, pipeline->dynamic_state[i]);
    }
 
-   cmd->state.pipeline_draw_states = pipeline->set_state_mask;
-   u_foreach_bit(i, pipeline->set_state_mask)
+   cmd->state.pipeline_draw_states = set_state_mask;
+   u_foreach_bit(i, set_state_mask)
       cmd->state.dynamic_state[i] = pipeline->dynamic_state[i];
 
    if (pipeline->shaders[MESA_SHADER_FRAGMENT]->fs.has_fdm !=
