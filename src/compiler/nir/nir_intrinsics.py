@@ -1671,18 +1671,22 @@ intrinsic("load_frag_coord_zw_pan", [2], dest_comp=1, indices=[COMPONENT], flags
 # src[] = { sampler_index }
 load("sampler_lod_parameters", [1], flags=[CAN_ELIMINATE, CAN_REORDER])
 
-# Like load_output but using a specified render target and conversion descriptor
-# src[] = { target, sample, conversion }
-# target must be in the [0..7] range when io_semantics.location is FRAG_RESULT_DATA0
-# and is ignored otherwise
-load("converted_output_pan", [1, 1, 1], indices=[ACCESS, DEST_TYPE, IO_SEMANTICS], flags=[CAN_ELIMINATE])
+# Maps to LD_TILE
+#
+# rt must be in the [0..7] range when and io_semantics.location is not
+# GL_FRAG_RESULT_DEPTH or GL_FRAG_RESULT_STENCIL
+#
+# src[] = { rt_sample_pixel, coverage_offset, conversion }
+load("tile_pan", [1, 1, 1], indices=[ACCESS, DEST_TYPE, IO_SEMANTICS],
+     flags=[CAN_ELIMINATE])
 
-# Like converted_output_pan but for case where the output is never written by the shader
-# This is used to relax waits on tile-buffer accesses and the target is read-only
-# src[] = { target, sample, conversion }
-# target must be in the [0..7] range when io_semantics.location is FRAG_RESULT_DATA0
-# and is ignored otherwise
-load("readonly_output_pan", [1, 1, 1], indices=[ACCESS, DEST_TYPE, IO_SEMANTICS], flags=[CAN_ELIMINATE])
+# Like load_tile_pan except it relies on resource tracking through
+# resource_read/write_mask for dependencies instead of ensuring absolute
+# pixel ordering like load_tile_pan does.
+#
+# src[] = { rt_sample_pixel, coverage_offset, conversion }
+load("tile_res_pan", [1, 1, 1], indices=[ACCESS, DEST_TYPE, IO_SEMANTICS],
+     flags=[CAN_ELIMINATE, CAN_REORDER])
 
 # Load converted memory given an address and a conversion descriptor
 # src[] = { address, conversion }

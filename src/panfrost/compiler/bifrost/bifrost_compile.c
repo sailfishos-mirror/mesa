@@ -1928,40 +1928,19 @@ bi_emit_ld_tile(bi_builder *b, nir_intrinsic_instr *instr)
    bi_index dest = bi_def_index(&instr->def);
    nir_alu_type T = nir_intrinsic_dest_type(instr);
    nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
-   bool is_zs = bi_is_zs(sem.location);
    enum bi_register_format regfmt = bi_reg_fmt_for_nir(T);
    unsigned size = instr->def.bit_size;
    unsigned nr = instr->num_components;
-   unsigned target = 0, sample = 0;
 
-   if (sem.location == FRAG_RESULT_DEPTH) {
-      target = 255;
-   } else if (sem.location == FRAG_RESULT_STENCIL) {
-      target = 254;
-   } else if (nir_src_is_const(instr->src[0])) {
-      target = nir_src_as_uint(instr->src[0]);
-      assert(target < 8);
-   }
+   bi_index pi = bi_src_index(&instr->src[0]);
+   bi_index coverage = bi_src_index(&instr->src[1]);
+   bi_index conversion = bi_src_index(&instr->src[2]);
 
-   if (nir_src_is_const(instr->src[1]))
-      sample = nir_src_as_uint(instr->src[1]);
+   bi_instr *I = bi_ld_tile_to(b, dest, pi, coverage, conversion,
+                               regfmt, nr - 1);
+   I->z_stencil = bi_is_zs(sem.location);
 
-   bi_index pi = bi_pixel_indices(b, target, sample);
-
-   if (!is_zs && !nir_src_is_const(instr->src[0]))
-      pi = bi_lshift_or(b, 32, bi_src_index(&instr->src[0]), pi, bi_imm_u8(8));
-
-   if (!nir_src_is_const(instr->src[1])) {
-      pi = bi_mux_i32(b, bi_src_index(&instr->src[1]), pi,
-                      bi_imm_u32(0x1f), BI_MUX_BIT);
-   }
-
-   bi_instr *I = bi_ld_tile_to(b, dest, pi, bi_coverage(b),
-                               bi_src_index(&instr->src[2]), regfmt, nr - 1);
-   if (is_zs)
-      I->z_stencil = true;
-
-   if (instr->intrinsic == nir_intrinsic_load_readonly_output_pan)
+   if (instr->intrinsic == nir_intrinsic_load_tile_res_pan)
       I->wait_resource = true;
 
    bi_emit_cached_split(b, dest, size * nr);
@@ -2378,8 +2357,8 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       bi_emit_store_converted_mem(b, instr);
       break;
 
-   case nir_intrinsic_load_converted_output_pan:
-   case nir_intrinsic_load_readonly_output_pan:
+   case nir_intrinsic_load_tile_pan:
+   case nir_intrinsic_load_tile_res_pan:
       bi_emit_ld_tile(b, instr);
       break;
 
@@ -6184,9 +6163,11 @@ bi_lower_load_output(nir_builder *b, nir_intrinsic_instr *intr,
    nir_def *conversion = nir_load_rt_conversion_pan(
       b, .base = rt, .src_type = nir_intrinsic_dest_type(intr));
 
-   nir_def *lowered = nir_load_converted_output_pan(
-      b, intr->def.num_components, intr->def.bit_size, nir_imm_int(b, rt),
-      nir_imm_int(b, 0), conversion, .dest_type = nir_intrinsic_dest_type(intr),
+   nir_def *lowered = nir_load_tile_pan(
+      b, intr->def.num_components, intr->def.bit_size,
+      pan_nir_tile_location_sample(b, loc, nir_imm_int(b, 0)),
+      pan_nir_tile_default_coverage(b),
+      conversion, .dest_type = nir_intrinsic_dest_type(intr),
       .io_semantics = nir_intrinsic_io_semantics(intr));
 
    nir_def_rewrite_uses(&intr->def, lowered);

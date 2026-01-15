@@ -812,10 +812,13 @@ lower_rt_intrin(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 
       b->cursor = nir_after_instr(&intr->instr);
 
-      nir_def *lowered = nir_load_converted_output_pan(
+      nir_def *sample_id =
+         nr_samples > 1 ? nir_load_sample_id(b) : nir_imm_int(b, 0);
+
+      nir_def *lowered = nir_load_tile_pan(
          b, intr->def.num_components, intr->def.bit_size,
-         nir_imm_int(b, rt),
-         nr_samples > 1 ? nir_load_sample_id(b) : nir_imm_int(b, 0),
+         pan_nir_tile_rt_sample(b, nir_imm_int(b, rt), sample_id),
+         pan_nir_tile_default_coverage(b),
          nir_imm_int(b, blend_desc >> 32),
          .dest_type = dest_type,
          .io_semantics = io);

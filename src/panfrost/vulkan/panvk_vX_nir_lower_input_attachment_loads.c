@@ -34,6 +34,7 @@
 
 #include "nir.h"
 #include "nir_builder.h"
+#include "pan_nir.h"
 
 struct panvk_lower_input_attachment_load_ctx {
    uint32_t ro_color_mask;
@@ -161,16 +162,20 @@ lower_input_attachment_load(nir_builder *b, nir_intrinsic_instr *intr,
          iosem.location = FRAG_RESULT_DATA0;
          nir_push_if(b, is_read_only);
 	 {
-            load_ro_color = nir_load_readonly_output_pan(
-               b, intr->def.num_components, intr->def.bit_size, target,
-               intr->src[2].ssa, conversion, .dest_type = dest_type,
+            load_ro_color = nir_load_tile_res_pan(
+               b, intr->def.num_components, intr->def.bit_size,
+               pan_nir_tile_rt_sample(b, target, intr->src[2].ssa),
+               pan_nir_tile_default_coverage(b),
+               conversion, .dest_type = dest_type,
                .access = nir_intrinsic_access(intr), .io_semantics = iosem);
          }
          nir_push_else(b, NULL);
          {
-            load_rw_color = nir_load_converted_output_pan(
-               b, intr->def.num_components, intr->def.bit_size, target,
-               intr->src[2].ssa, conversion, .dest_type = dest_type,
+            load_rw_color = nir_load_tile_pan(
+               b, intr->def.num_components, intr->def.bit_size,
+               pan_nir_tile_rt_sample(b, target, intr->src[2].ssa),
+               pan_nir_tile_default_coverage(b),
+               conversion, .dest_type = dest_type,
                .access = nir_intrinsic_access(intr), .io_semantics = iosem);
          }
          nir_pop_if(b, NULL);
@@ -201,9 +206,11 @@ lower_input_attachment_load(nir_builder *b, nir_intrinsic_instr *intr,
          iosem.location = dest_type == nir_type_float32 ? FRAG_RESULT_DEPTH
                                                         : FRAG_RESULT_STENCIL;
          target = nir_imm_int(b, 0);
-         load_zs = nir_load_converted_output_pan(
-            b, intr->def.num_components, intr->def.bit_size, target,
-            intr->src[2].ssa, conversion, .dest_type = dest_type,
+         load_zs = nir_load_tile_pan(
+            b, intr->def.num_components, intr->def.bit_size,
+            pan_nir_tile_location_sample(b, iosem.location, intr->src[2].ssa),
+            pan_nir_tile_default_coverage(b),
+            conversion, .dest_type = dest_type,
             .access = nir_intrinsic_access(intr), .io_semantics = iosem);
 
          /* If we loaded the stencil value, the upper 24 bits might contain
