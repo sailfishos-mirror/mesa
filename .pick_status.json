@@ -724,7 +724,7 @@
         "description": "vulkan/wsi: fix present wait support and present id creation condition",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bf285c3be99e13f26b8d4c5c3b71a0e6aff7899b",
         "notes": null
