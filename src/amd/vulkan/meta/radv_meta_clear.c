@@ -29,10 +29,9 @@ radv_is_clear_rect_full(const struct radv_image_view *iview, const VkClearRect *
    if (view_mask && (image->vk.array_layers >= 32 || (1u << image->vk.array_layers) - 1u != view_mask))
       return false;
 
-   if (!view_mask && clear_rect->baseArrayLayer != 0)
-      return false;
-
-   if (!view_mask && clear_rect->layerCount != image->vk.array_layers)
+   /* All slices must be fast-cleared when comp-to-single isn't supported. */
+   const bool all_slices = clear_rect->baseArrayLayer == 0 && clear_rect->layerCount == image->vk.array_layers;
+   if (!view_mask && !all_slices && !image->support_comp_to_single)
       return false;
 
    return true;
