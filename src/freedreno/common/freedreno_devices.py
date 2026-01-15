@@ -1457,6 +1457,9 @@ a8xx_gen2 = GPUProps(
         gmem_ccu_depth_cache_fraction = CCUColorCacheFraction.FULL.value,
         gmem_per_ccu_depth_cache_size = 256 * 1024,
         has_fs_tex_prefetch = False,
+
+        # tbd if this applies to a8xx_gen1 as well:
+        has_salu_int_narrowing_quirk = True
 )
 
 # Totally fake, just to get cffdump to work:

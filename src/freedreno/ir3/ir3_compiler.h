@@ -238,6 +238,8 @@ struct ir3_compiler {
    bool predtf_nop_quirk;
    bool prede_nop_quirk;
 
+   bool has_salu_int_narrowing_quirk;
+
    /* MAX_COMPUTE_VARIABLE_GROUP_INVOCATIONS_ARB */
    uint32_t max_variable_workgroup_size;
 

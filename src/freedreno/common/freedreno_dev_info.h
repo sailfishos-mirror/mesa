@@ -410,6 +410,11 @@ struct fd_dev_info {
 
       /* Whether the (eolm) and (eogm) nop flags are supported. */
       bool has_eolm_eogm;
+
+      /* integer narrowing convert from GPR to uGPR does not behave as
+       * expected:
+       */
+      bool has_salu_int_narrowing_quirk;
    } props;
 };
 

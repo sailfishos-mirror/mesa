@@ -343,6 +343,16 @@ validate_instr(struct ir3_validate_ctx *ctx, struct ir3_instruction *instr)
     */
    switch (opc_cat(instr->opc)) {
    case 1: /* move instructions */
+      if (ctx->ir->compiler->has_salu_int_narrowing_quirk &&
+          (instr->opc == OPC_MOV) &&
+          (instr->cat1.dst_type != instr->cat1.src_type) &&
+          (type_size(instr->cat1.dst_type) <
+           type_size(instr->cat1.src_type)) &&
+          !type_float(instr->cat1.dst_type) &&
+          (instr->dsts[0]->flags & IR3_REG_SHARED)) {
+         validate_assert(ctx, instr->srcs[0]->flags &
+                              (IR3_REG_CONST | IR3_REG_IMMED | IR3_REG_SHARED));
+      }
       if (instr->opc == OPC_MOVMSK || instr->opc == OPC_BALLOT_MACRO) {
          validate_assert(ctx, instr->dsts_count == 1);
          validate_assert(ctx, instr->dsts[0]->flags & IR3_REG_SHARED);

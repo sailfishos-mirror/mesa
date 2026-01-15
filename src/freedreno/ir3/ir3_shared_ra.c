@@ -848,6 +848,19 @@ can_demote_src(struct ir3_instruction *instr)
    case OPC_META_COLLECT:
       return false;
    case OPC_MOV:
+      if (instr->block->shader->compiler->has_salu_int_narrowing_quirk) {
+         /* Avoid demoting something that would cause narrowin integer
+          * conversion from GPR to uGPR:
+          */
+         if ((instr->cat1.dst_type != instr->cat1.src_type) &&
+             (type_size(instr->cat1.dst_type) <
+              type_size(instr->cat1.src_type)) &&
+             !type_float(instr->cat1.dst_type) &&
+             (instr->dsts[0]->flags & IR3_REG_SHARED)) {
+            return false;
+         }
+      }
+
       /* non-shared -> shared floating-point conversions and
        * 8-bit sign extension don't work.
        */

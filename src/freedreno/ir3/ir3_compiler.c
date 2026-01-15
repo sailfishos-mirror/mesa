@@ -255,6 +255,7 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
       compiler->has_predication = true;
       compiler->predtf_nop_quirk = dev_info->props.predtf_nop_quirk;
       compiler->prede_nop_quirk = dev_info->props.prede_nop_quirk;
+      compiler->has_salu_int_narrowing_quirk = dev_info->props.has_salu_int_narrowing_quirk;
       compiler->has_scalar_alu = dev_info->props.has_scalar_alu;
       compiler->has_scalar_predicates = dev_info->props.has_scalar_predicates;
       compiler->has_isam_v = dev_info->props.has_isam_v;
