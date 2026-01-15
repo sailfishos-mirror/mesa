@@ -66,6 +66,10 @@
 #include <llvm/Support/VirtualFileSystem.h>
 #endif
 
+#if LLVM_VERSION_MAJOR >= 22
+#include <clang/Options/OptionUtils.h>
+#endif
+
 /* We have to include our own headers after LLVM/clang as they seem to use
  * `UNUSED` within enum definitions:
  * https://github.com/llvm/llvm-project/blob/ea443eeb2ab8ed49ffb783c2025fed6629a36f10/clang/include/clang/Basic/OffloadArch.h#L19
@@ -919,7 +923,9 @@ clc_compile_to_llvm_module(LLVMContext &llvm_ctx,
    // GetResourcePath is a way to retrieve the actual libclang resource dir based on a given binary
    // or library.
    auto tmp_res_path =
-#if LLVM_VERSION_MAJOR >= 20
+#if LLVM_VERSION_MAJOR >= 22
+      clang::GetResourcesPath(std::string(clang_path));
+#elif LLVM_VERSION_MAJOR >= 20
       Driver::GetResourcesPath(std::string(clang_path));
 #else
       Driver::GetResourcesPath(std::string(clang_path), CLANG_RESOURCE_DIR);
