@@ -1067,6 +1067,18 @@ struct RegisterDemand {
       return vgpr > other.vgpr || sgpr > other.sgpr;
    }
 
+   constexpr bool empty() const noexcept { return !exceeds(RegisterDemand()); }
+
+   constexpr const int16_t& operator[](RegType type) const noexcept
+   {
+      return type == RegType::vgpr ? vgpr : sgpr;
+   }
+
+   constexpr int16_t& operator[](RegType type) noexcept
+   {
+      return type == RegType::vgpr ? vgpr : sgpr;
+   }
+
    constexpr RegisterDemand operator+(const Temp t) const noexcept
    {
       if (t.type() == RegType::sgpr)
