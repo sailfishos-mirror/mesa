@@ -669,19 +669,6 @@ etna_emit_state(struct etna_context *ctx)
 
    ctx->emit_texture_state(ctx);
 
-   /* We need to update the uniform cache only if one of the following bits are
-    * set in ctx->dirty:
-    * - ETNA_DIRTY_SHADER
-    * - ETNA_DIRTY_CONSTBUF
-    * - uniforms_dirty_bits
-    *
-    * In case of ETNA_DIRTY_SHADER we need load all uniforms from the cache. In
-    * all
-    * other cases we can load on the changed uniforms.
-    */
-   static const uint32_t uniform_dirty_bits =
-      ETNA_DIRTY_SHADER | ETNA_DIRTY_CONSTBUF;
-
    /**** Large dynamically-sized state ****/
    bool need_steering = screen->info->halti < 5 &&
                         (screen->specs.has_unified_instmem ||
@@ -800,13 +787,13 @@ etna_emit_state(struct etna_context *ctx)
          etna_stall(stream, SYNC_RECIPIENT_RA, SYNC_RECIPIENT_PE);
       }
    } else {
-      if (dirty & (uniform_dirty_bits | ctx->shader.vs->uniforms_dirty_bits)) {
+      if (dirty & (ETNA_DIRTY_CONSTBUF | ctx->shader.vs->uniforms_dirty_bits)) {
          if (need_steering)
             etna_set_state(stream, VIVS_SH_CONTROL, 0x0);
          etna_uniforms_write(ctx, ctx->shader.vs, ctx->constant_buffer[MESA_SHADER_VERTEX].cb);
       }
 
-      if (dirty & (uniform_dirty_bits | ctx->shader.fs->uniforms_dirty_bits)) {
+      if (dirty & (ETNA_DIRTY_CONSTBUF | ctx->shader.fs->uniforms_dirty_bits)) {
          if (need_steering)
             etna_set_state(stream, VIVS_SH_CONTROL, VIVS_SH_CONTROL_PS_UNIFORM);
          etna_uniforms_write(ctx, ctx->shader.fs, ctx->constant_buffer[MESA_SHADER_FRAGMENT].cb);
