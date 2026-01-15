@@ -1729,6 +1729,14 @@ blorp_exec_compute(struct blorp_batch *batch, const struct blorp_params *params)
    assert(params->num_layers >= 1);
    uint32_t group_z1 = params->num_samples * params->num_layers;
    assert(cs_prog_data->local_size[2] == 1);
+   uint32_t push_const_offset;
+   unsigned push_const_size;
+
+   uint32_t surfaces_offset = blorp_setup_binding_table(batch, params);
+   uint32_t samplers_offset =
+      params->src.enabled ? blorp_emit_sampler_state(batch) : 0;
+   blorp_get_compute_push_const(batch, params, dispatch.threads,
+                                &push_const_offset, &push_const_size);
 
 #if GFX_VERx10 >= 125
 
@@ -1764,15 +1772,6 @@ blorp_exec_compute(struct blorp_batch *batch, const struct blorp_params *params)
    }
 #endif /* GFX_VERx10 < 300 */
 
-   uint32_t surfaces_offset = blorp_setup_binding_table(batch, params);
-
-   uint32_t samplers_offset =
-      params->src.enabled ? blorp_emit_sampler_state(batch) : 0;
-
-   uint32_t push_const_offset;
-   unsigned push_const_size;
-   blorp_get_compute_push_const(batch, params, dispatch.threads,
-                                &push_const_offset, &push_const_size);
    struct GENX(COMPUTE_WALKER_BODY) body = {
       .SIMDSize                       = dispatch.simd_size / 16,
       .MessageSIMD                    = dispatch.simd_size / 16,
@@ -1873,20 +1872,10 @@ blorp_exec_compute(struct blorp_batch *batch, const struct blorp_params *params)
       vfe.CURBEAllocationSize = vfe_curbe_allocation;
    }
 
-   uint32_t push_const_offset;
-   unsigned push_const_size;
-   blorp_get_compute_push_const(batch, params, dispatch.threads,
-                                &push_const_offset, &push_const_size);
-
    blorp_emit(batch, GENX(MEDIA_CURBE_LOAD), curbe) {
       curbe.CURBETotalDataLength = push_const_size;
       curbe.CURBEDataStartAddress = push_const_offset;
    }
-
-   uint32_t surfaces_offset = blorp_setup_binding_table(batch, params);
-
-   uint32_t samplers_offset =
-      params->src.enabled ? blorp_emit_sampler_state(batch) : 0;
 
    struct GENX(INTERFACE_DESCRIPTOR_DATA) idd = {
       .KernelStartPointer = params->cs_prog_kernel,
