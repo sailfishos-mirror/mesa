@@ -21,49 +21,49 @@ const struct si_reg *ac_find_register(enum amd_gfx_level gfx_level, enum radeon_
    switch (gfx_level) {
    case GFX12:
       table = gfx12_reg_table;
-      table_size = ARRAY_SIZE(gfx12_reg_table);
+      table_size = gfx12_reg_table_size;
       break;
    case GFX11_5:
       table = gfx115_reg_table;
-      table_size = ARRAY_SIZE(gfx115_reg_table);
+      table_size = gfx115_reg_table_size;
       break;
    case GFX11:
       table = gfx11_reg_table;
-      table_size = ARRAY_SIZE(gfx11_reg_table);
+      table_size = gfx11_reg_table_size;
       break;
    case GFX10_3:
       table = gfx103_reg_table;
-      table_size = ARRAY_SIZE(gfx103_reg_table);
+      table_size = gfx103_reg_table_size;
       break;
    case GFX10:
       table = gfx10_reg_table;
-      table_size = ARRAY_SIZE(gfx10_reg_table);
+      table_size = gfx10_reg_table_size;
       break;
    case GFX9:
       if (family == CHIP_GFX940) {
          table = gfx940_reg_table;
-         table_size = ARRAY_SIZE(gfx940_reg_table);
+         table_size = gfx940_reg_table_size;
          break;
       }
       table = gfx9_reg_table;
-      table_size = ARRAY_SIZE(gfx9_reg_table);
+      table_size = gfx9_reg_table_size;
       break;
    case GFX8:
       if (family == CHIP_STONEY) {
          table = gfx81_reg_table;
-         table_size = ARRAY_SIZE(gfx81_reg_table);
+         table_size = gfx81_reg_table_size;
          break;
       }
       table = gfx8_reg_table;
-      table_size = ARRAY_SIZE(gfx8_reg_table);
+      table_size = gfx8_reg_table_size;
       break;
    case GFX7:
       table = gfx7_reg_table;
-      table_size = ARRAY_SIZE(gfx7_reg_table);
+      table_size = gfx7_reg_table_size;
       break;
    case GFX6:
       table = gfx6_reg_table;
-      table_size = ARRAY_SIZE(gfx6_reg_table);
+      table_size = gfx6_reg_table_size;
       break;
    default:
       return NULL;

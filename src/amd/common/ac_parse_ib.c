@@ -6,6 +6,7 @@
 
 #include "ac_debug.h"
 #include "sid.h"
+#define SID_TABLE_IMPLEMENTATION
 #include "sid_tables.h"
 #include "ac_vcn.h"
 #include "ac_vcn_dec.h"
@@ -272,14 +273,14 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
    unsigned tmp;
 
    /* Print the name first. */
-   for (i = 0; i < ARRAY_SIZE(packet3_table); i++)
+   for (i = 0; i < packet3_table_size; i++)
       if (packet3_table[i].op == op)
          break;
 
    char unknown_name[32];
    const char *pkt_name;
 
-   if (i < ARRAY_SIZE(packet3_table)) {
+   if (i < packet3_table_size) {
       pkt_name = sid_strings + packet3_table[i].name_offset;
    } else {
       snprintf(unknown_name, sizeof(unknown_name), "UNKNOWN(0x%02X)", op);
@@ -291,7 +292,7 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
       color = O_COLOR_PURPLE;
    else if (strstr(pkt_name, "SET") == pkt_name && strstr(pkt_name, "REG"))
       color = O_COLOR_CYAN;
-   else if (i >= ARRAY_SIZE(packet3_table))
+   else if (i >= packet3_table_size)
       color = O_COLOR_RED;
    else
       color = O_COLOR_GREEN;
