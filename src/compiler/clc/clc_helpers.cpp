@@ -28,8 +28,6 @@
 #include <sstream>
 #include <mutex>
 
-#include "util/ralloc.h"
-#include "util/set.h"
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/IR/DiagnosticPrinter.h>
 #include <llvm/IR/DiagnosticInfo.h>
@@ -68,7 +66,13 @@
 #include <llvm/Support/VirtualFileSystem.h>
 #endif
 
+/* We have to include our own headers after LLVM/clang as they seem to use
+ * `UNUSED` within enum definitions:
+ * https://github.com/llvm/llvm-project/blob/ea443eeb2ab8ed49ffb783c2025fed6629a36f10/clang/include/clang/Basic/OffloadArch.h#L19
+ */
 #include "util/macros.h"
+#include "util/ralloc.h"
+#include "util/set.h"
 #include "util/u_dl.h"
 #include "glsl_types.h"
 
