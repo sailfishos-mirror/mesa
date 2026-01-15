@@ -94,7 +94,7 @@
         "description": "etnaviv: check all necessary dirty bits when marking constbufs during draw",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a40a6e551ef0fa4335db9da5329094ced9e6f8b1",
         "notes": null
