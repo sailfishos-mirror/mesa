@@ -111,11 +111,11 @@ ror             { yylval.integer = BRW_OPCODE_ROR; return ROR; }
 sel             { yylval.integer = BRW_OPCODE_SEL; return SEL; }
 send            {
                    yylval.integer = BRW_OPCODE_SEND;
-                   return p->devinfo->ver < 12 ? SEND_GFX4 : SEND_GFX12;
+                   return parser->devinfo->ver < 12 ? SEND_GFX4 : SEND_GFX12;
                 }
 sendc           {
                    yylval.integer = BRW_OPCODE_SENDC;
-                   return  p->devinfo->ver < 12 ? SENDC_GFX4 : SENDC_GFX12;
+                   return parser->devinfo->ver < 12 ? SENDC_GFX4 : SENDC_GFX12;
                 }
 sends           { yylval.integer = BRW_OPCODE_SENDS; return SENDS; }
 sendsc          { yylval.integer = BRW_OPCODE_SENDSC; return SENDSC; }
@@ -396,7 +396,7 @@ sr[0-9]+        { yylval.integer = atoi(yytext + 2); return STATEREG; }
 
  /* jump label target */
 [a-zA-Z_][0-9a-zA-Z_]*":" {
-        yylval.string = ralloc_strdup(p->mem_ctx, yytext);
+        yylval.string = ralloc_strdup(parser->p->mem_ctx, yytext);
         /* Stomp the trailing ':' */
         yylval.string[yyleng - 1] = '\0';
         return JUMP_LABEL_TARGET;
@@ -404,7 +404,7 @@ sr[0-9]+        { yylval.integer = atoi(yytext + 2); return STATEREG; }
 
  /* jump label */
 <LABEL>[a-zA-Z_][0-9a-zA-Z_]* {
-        yylval.string = ralloc_strdup(p->mem_ctx, yytext);
+        yylval.string = ralloc_strdup(parser->p->mem_ctx, yytext);
         BEGIN(INITIAL);
         return JUMP_LABEL;
 }

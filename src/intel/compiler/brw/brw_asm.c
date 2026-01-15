@@ -14,7 +14,6 @@
 extern FILE *yyin;
 
 struct brw_asm_parser *parser;
-struct brw_codegen *p;
 
 typedef struct {
    char *name;
@@ -47,12 +46,14 @@ void
 brw_asm_label_set(const char *name)
 {
    brw_asm_label *label = brw_asm_label_lookup(name);
-   label->offset = p->next_insn_offset;
+   label->offset = parser->p->next_insn_offset;
 }
 
 void
 brw_asm_label_use_jip(const char *name)
 {
+   struct brw_codegen *p = parser->p;
+
    brw_asm_label *label = brw_asm_label_lookup(name);
    int offset = p->next_insn_offset - sizeof(brw_eu_inst);
    util_dynarray_append(&label->jip_uses, offset);
@@ -63,6 +64,8 @@ brw_asm_label_use_jip(const char *name)
 void
 brw_asm_label_use_uip(const char *name)
 {
+   struct brw_codegen *p = parser->p;
+
    brw_asm_label *label = brw_asm_label_lookup(name);
    int offset = p->next_insn_offset - sizeof(brw_eu_inst);
    util_dynarray_append(&label->uip_uses, offset);
@@ -74,7 +77,7 @@ static bool
 brw_postprocess_labels()
 {
    unsigned unknown = 0;
-   void *store = p->store;
+   void *store = parser->p->store;
 
    hash_table_foreach(parser->labels, entry) {
       brw_asm_label *label = entry->data;
@@ -87,12 +90,12 @@ brw_postprocess_labels()
 
       util_dynarray_foreach(&label->jip_uses, int, use_offset) {
          brw_eu_inst *inst = store + *use_offset;
-         brw_eu_inst_set_jip(p->devinfo, inst, label->offset - *use_offset);
+         brw_eu_inst_set_jip(parser->devinfo, inst, label->offset - *use_offset);
       }
 
       util_dynarray_foreach(&label->uip_uses, int, use_offset) {
          brw_eu_inst *inst = store + *use_offset;
-         brw_eu_inst_set_uip(p->devinfo, inst, label->offset - *use_offset);
+         brw_eu_inst_set_uip(parser->devinfo, inst, label->offset - *use_offset);
       }
    }
 
@@ -107,22 +110,26 @@ brw_assemble(void *mem_ctx, const struct intel_device_info *devinfo,
 {
    brw_assemble_result result = {0};
 
+   struct brw_isa_info isa;
+   brw_init_isa_info(&isa, devinfo);
+
+   /* This is allocated separatedly from the parser since will outlive
+    * the parser state.
+    */
+   struct brw_codegen *p = rzalloc(mem_ctx, struct brw_codegen);
+   brw_init_codegen(&isa, p, p);
+
    assert(parser == NULL);
    parser = rzalloc(mem_ctx, brw_asm_parser);
    parser->devinfo = devinfo;
    parser->labels = _mesa_string_hash_table_create(parser);
-
-   struct brw_isa_info isa;
-   brw_init_isa_info(&isa, devinfo);
-
-   p = rzalloc(mem_ctx, struct brw_codegen);
-   brw_init_codegen(&isa, p, p);
+   parser->p = p;
 
    yyin = f;
    parser->input_filename = filename;
 
    parser->compaction_warning_given = false;
-   int err = yyparse();
+   int err = yyparse(parser->p);
    if (err || parser->errors)
       goto end;
 

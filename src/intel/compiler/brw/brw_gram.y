@@ -282,37 +282,39 @@ static void
 i965_asm_set_instruction_options(struct brw_codegen *p,
                                  struct options options)
 {
-   brw_eu_inst_set_access_mode(p->devinfo, brw_last_inst,
+   const struct intel_device_info *devinfo = parser->devinfo;
+
+   brw_eu_inst_set_access_mode(devinfo, brw_last_inst,
                                options.access_mode);
-   brw_eu_inst_set_mask_control(p->devinfo, brw_last_inst,
+   brw_eu_inst_set_mask_control(devinfo, brw_last_inst,
                                 options.mask_control);
-   if (p->devinfo->ver < 12) {
-      brw_eu_inst_set_thread_control(p->devinfo, brw_last_inst,
+   if (devinfo->ver < 12) {
+      brw_eu_inst_set_thread_control(devinfo, brw_last_inst,
                                      options.thread_control);
-      brw_eu_inst_set_no_dd_check(p->devinfo, brw_last_inst,
+      brw_eu_inst_set_no_dd_check(devinfo, brw_last_inst,
                                   options.no_dd_check);
-      brw_eu_inst_set_no_dd_clear(p->devinfo, brw_last_inst,
+      brw_eu_inst_set_no_dd_clear(devinfo, brw_last_inst,
                                   options.no_dd_clear);
    } else {
       enum opcode opcode = brw_eu_inst_opcode(p->isa, brw_last_inst);
-      brw_eu_inst_set_swsb(p->devinfo, brw_last_inst,
-                           tgl_swsb_encode(p->devinfo, options.depinfo, opcode));
+      brw_eu_inst_set_swsb(devinfo, brw_last_inst,
+                           tgl_swsb_encode(devinfo, options.depinfo, opcode));
    }
-   brw_eu_inst_set_debug_control(p->devinfo, brw_last_inst,
+   brw_eu_inst_set_debug_control(devinfo, brw_last_inst,
                                  options.debug_control);
-   if (brw_has_branch_ctrl(p->devinfo, brw_eu_inst_opcode(p->isa, brw_last_inst))) {
+   if (brw_has_branch_ctrl(devinfo, brw_eu_inst_opcode(p->isa, brw_last_inst))) {
       if (options.acc_wr_control)
          error(NULL, "Instruction does not support AccWrEnable\n");
 
-      brw_eu_inst_set_branch_control(p->devinfo, brw_last_inst,
+      brw_eu_inst_set_branch_control(devinfo, brw_last_inst,
                                      options.branch_control);
    } else if (options.branch_control) {
       error(NULL, "Instruction does not support BranchCtrl\n");
-   } else if (p->devinfo->ver < 20) {
-      brw_eu_inst_set_acc_wr_control(p->devinfo, brw_last_inst,
+   } else if (devinfo->ver < 20) {
+      brw_eu_inst_set_acc_wr_control(devinfo, brw_last_inst,
                                      options.acc_wr_control);
    }
-   brw_eu_inst_set_cmpt_control(p->devinfo, brw_last_inst,
+   brw_eu_inst_set_cmpt_control(devinfo, brw_last_inst,
                                 options.compaction);
 }
 
@@ -662,6 +664,7 @@ relocatableinstruction:
 illegalinstruction:
    ILLEGAL execsize instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $1);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $2);
       i965_asm_set_instruction_options(p, $3);
@@ -672,6 +675,7 @@ illegalinstruction:
 unaryinstruction:
    predicate unaryopcodes saturate cond_mod execsize dst srcaccimm   instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_set_default_access_mode(p, $8.access_mode);
       i965_asm_unary_instruction($2, p, $6, $7);
       brw_pop_insn_state(p);
@@ -721,6 +725,7 @@ unaryopcodes:
 binaryinstruction:
    predicate binaryopcodes saturate cond_mod execsize dst srcimm srcimm instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_set_default_access_mode(p, $9.access_mode);
       i965_asm_binary_instruction($2, p, $6, $7, $8);
       i965_asm_set_instruction_options(p, $9);
@@ -767,6 +772,7 @@ binaryopcodes:
 binaryaccinstruction:
    predicate binaryaccopcodes saturate cond_mod execsize dst srcacc srcimm instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_set_default_access_mode(p, $9.access_mode);
       i965_asm_binary_instruction($2, p, $6, $7, $8);
       brw_pop_insn_state(p);
@@ -810,6 +816,7 @@ binaryaccopcodes:
 mathinstruction:
    predicate MATH saturate math_function execsize dst src srcimm instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_set_default_access_mode(p, $9.access_mode);
       gfx6_math(p, $6, $4, $7, $8);
       i965_asm_set_instruction_options(p, $9);
@@ -842,6 +849,7 @@ math_function:
 nopinstruction:
    NOP
    {
+      struct brw_codegen *p = parser->p;
       brw_NOP(p);
    }
    ;
@@ -850,6 +858,7 @@ nopinstruction:
 ternaryinstruction:
    predicate ternaryopcodes saturate cond_mod execsize dst srcimm src srcimm instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_set_default_access_mode(p, $10.access_mode);
       i965_asm_ternary_instruction($2, p, $6, $7, $8, $9);
       brw_pop_insn_state(p);
@@ -874,6 +883,7 @@ ternaryinstruction:
    |
    predicate DPAS DPAS_PARAMS saturate cond_mod execsize dst src src src instoptions
    {
+      struct brw_codegen *p = parser->p;
       assert(p->devinfo->verx10 >= 125);
 
       brw_set_default_access_mode(p, $11.access_mode);
@@ -907,6 +917,7 @@ ternaryopcodes:
 waitinstruction:
    WAIT execsize dst instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $1);
       i965_asm_set_instruction_options(p, $4);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $2);
@@ -926,6 +937,7 @@ waitinstruction:
 sendinstruction:
    predicate sendopcode execsize dst payload exp2 sharedfunction msgdesc instoptions
    {
+      struct brw_codegen *p = parser->p;
       i965_asm_set_instruction_options(p, $9);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
       brw_set_dest(p, brw_last_inst, $4);
@@ -941,6 +953,7 @@ sendinstruction:
    }
    | predicate sendopcode execsize dst payload payload exp2 sharedfunction msgdesc instoptions
    {
+      struct brw_codegen *p = parser->p;
       assert(p->devinfo->ver < 12);
 
       i965_asm_set_instruction_options(p, $10);
@@ -962,6 +975,7 @@ sendinstruction:
    }
    | predicate sendsopcode execsize dst payload payload desc ex_desc sharedfunction msgdesc instoptions
    {
+      struct brw_codegen *p = parser->p;
       i965_asm_set_instruction_options(p, $11);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
       brw_set_dest(p, brw_last_inst, $4);
@@ -996,7 +1010,8 @@ sendinstruction:
    }
    | predicate sendsopcode execsize dst GENREGFILE LSQUARE scalarreg RSQUARE desc ex_desc sharedfunction msgdesc instoptions
    {
-                assert(p->devinfo->ver >= 30);
+      struct brw_codegen *p = parser->p;
+      assert(p->devinfo->ver >= 30);
 
       i965_asm_set_instruction_options(p, $13);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
@@ -1045,11 +1060,11 @@ sendsop:
    ;
 
 sendopcode:
-   sendop   { $$ = brw_next_insn(p, $1); }
+   sendop   { $$ = brw_next_insn(parser->p, $1); }
    ;
 
 sendsopcode:
-   sendsop  { $$ = brw_next_insn(p, $1); }
+   sendsop  { $$ = brw_next_insn(parser->p, $1); }
    ;
 
 sharedfunction:
@@ -1104,6 +1119,7 @@ reg32a:
 jumpinstruction:
    predicate JMPI execsize relativelocation2 instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
       i965_asm_set_instruction_options(p, $5);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
@@ -1120,6 +1136,7 @@ jumpinstruction:
 branchinstruction:
    predicate ENDIF execsize JIP JUMP_LABEL instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
       brw_asm_label_use_jip($5);
       brw_eu_inst_set_unused_uip(p->devinfo, brw_last_inst);
@@ -1130,6 +1147,7 @@ branchinstruction:
    }
    | ELSE execsize JIP JUMP_LABEL UIP JUMP_LABEL instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $1);
       brw_asm_label_use_jip($4);
       brw_asm_label_use_uip($6);
@@ -1138,6 +1156,7 @@ branchinstruction:
    }
    | predicate IF execsize JIP JUMP_LABEL UIP JUMP_LABEL instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
       i965_asm_set_instruction_options(p, $8);
       brw_asm_label_use_jip($5);
@@ -1148,6 +1167,7 @@ branchinstruction:
    }
    | predicate GOTO execsize JIP JUMP_LABEL UIP JUMP_LABEL instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
       brw_asm_label_use_jip($5);
       brw_asm_label_use_uip($7);
@@ -1161,6 +1181,7 @@ branchinstruction:
 joininstruction:
    predicate JOIN execsize JIP JUMP_LABEL instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
       brw_asm_label_use_jip($5);
       brw_eu_inst_set_unused_uip(p->devinfo, brw_last_inst);
@@ -1175,6 +1196,7 @@ joininstruction:
 breakinstruction:
    predicate BREAK execsize JIP JUMP_LABEL UIP JUMP_LABEL instoptions
    {
+      struct brw_codegen *p = parser->p;
 
       brw_next_insn(p, $2);
       brw_asm_label_use_jip($5);
@@ -1186,6 +1208,7 @@ breakinstruction:
    }
    | predicate HALT execsize JIP JUMP_LABEL UIP JUMP_LABEL instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
       brw_asm_label_use_jip($5);
       brw_asm_label_use_uip($7);
@@ -1196,6 +1219,7 @@ breakinstruction:
    }
    | predicate CONT execsize JIP JUMP_LABEL UIP JUMP_LABEL instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
       brw_asm_label_use_jip($5);
       brw_asm_label_use_uip($7);
@@ -1210,6 +1234,7 @@ breakinstruction:
 loopinstruction:
    predicate WHILE execsize JIP JUMP_LABEL instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
       brw_asm_label_use_jip($5);
       brw_eu_inst_set_unused_uip(p->devinfo, brw_last_inst);
@@ -1220,6 +1245,7 @@ loopinstruction:
    }
    | DO execsize instoptions
    {
+      struct brw_codegen *p = parser->p;
       brw_next_insn(p, $1);
    }
    ;
@@ -1228,6 +1254,7 @@ loopinstruction:
 syncinstruction:
    predicate SYNC sync_function execsize sync_arg instoptions
    {
+      struct brw_codegen *p = parser->p;
       if (p->devinfo->ver < 12) {
          error(&@2, "sync instruction is supported only on gfx12+\n");
       }
@@ -1570,7 +1597,7 @@ directgenreg:
    {
       memset(&$$, '\0', sizeof($$));
       $$.file = FIXED_GRF;
-      $$.nr = $1 * reg_unit(p->devinfo);
+      $$.nr = $1 * reg_unit(parser->devinfo);
       $$.subnr = $2;
    }
    ;
@@ -1652,7 +1679,7 @@ maskreg:
 notifyreg:
    NOTIFYREG subregnum
    {
-      int subnr = (p->devinfo->ver >= 11) ? 2 : 3;
+      int subnr = (parser->devinfo->ver >= 11) ? 2 : 3;
       if ($2 > subnr)
          error(&@2, "Notification sub register number %d"
                " out of range\n", $2);
@@ -1730,7 +1757,7 @@ performancereg:
    PERFORMANCEREG subregnum
    {
       int subnr;
-      if (p->devinfo->ver >= 10)
+      if (parser->devinfo->ver >= 10)
          subnr = 5;
       else
          subnr = 4;
@@ -1940,6 +1967,7 @@ chansel:
 predicate:
    /* empty */
    {
+      struct brw_codegen *p = parser->p;
       brw_push_insn_state(p);
       brw_set_default_predicate_control(p, BRW_PREDICATE_NONE);
       brw_set_default_flag_reg(p, 0, 0);
@@ -1947,6 +1975,7 @@ predicate:
    }
    | LPAREN predstate flagreg predctrl RPAREN
    {
+      struct brw_codegen *p = parser->p;
       brw_push_insn_state(p);
       brw_set_default_predicate_inverse(p, $2);
       brw_set_default_flag_reg(p, $3.nr, $3.subnr);
@@ -2165,7 +2194,7 @@ instoption:
    | ALIGN16       { $$.type = INSTOPTION_FLAG; $$.uint_value = ALIGN16; }
    | ACCWREN
    {
-      if (p->devinfo->ver >= 20)
+      if (parser->devinfo->ver >= 20)
          error(&@1, "AccWrEnable not supported in Xe2+\n");
       $$.type = INSTOPTION_FLAG;
       $$.uint_value = ACCWREN;
@@ -2186,7 +2215,7 @@ instoption:
    | QTR_2H        { $$.type = INSTOPTION_CHAN_OFFSET; $$.uint_value = 16; }
    | QTR_2N
    {
-      if (p->devinfo->ver >= 20)
+      if (parser->devinfo->ver >= 20)
          error(&@1, "Channel offset must be multiple of 8 in Xe2+\n");
       $$.type = INSTOPTION_CHAN_OFFSET;
       $$.uint_value = 4;
@@ -2194,21 +2223,21 @@ instoption:
    | QTR_3N        { $$.type = INSTOPTION_CHAN_OFFSET; $$.uint_value = 8; }
    | QTR_4N
    {
-      if (p->devinfo->ver >= 20)
+      if (parser->devinfo->ver >= 20)
          error(&@1, "Channel offset must be multiple of 8 in Xe2+\n");
       $$.type = INSTOPTION_CHAN_OFFSET; $$.uint_value = 12;
    }
    | QTR_5N        { $$.type = INSTOPTION_CHAN_OFFSET; $$.uint_value = 16; }
    | QTR_6N
    {
-      if (p->devinfo->ver >= 20)
+      if (parser->devinfo->ver >= 20)
          error(&@1, "Channel offset must be multiple of 8 in Xe2+\n");
       $$.type = INSTOPTION_CHAN_OFFSET; $$.uint_value = 20;
    }
    | QTR_7N        { $$.type = INSTOPTION_CHAN_OFFSET; $$.uint_value = 24; }
    | QTR_8N
    {
-      if (p->devinfo->ver >= 20)
+      if (parser->devinfo->ver >= 20)
          error(&@1, "Channel offset must be multiple of 8 in Xe2+\n");
       $$.type = INSTOPTION_CHAN_OFFSET; $$.uint_value = 28;
    }

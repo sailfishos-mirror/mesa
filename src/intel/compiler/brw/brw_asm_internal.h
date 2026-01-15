@@ -24,6 +24,7 @@
 
 typedef struct brw_asm_parser {
    const struct intel_device_info *devinfo;
+   struct brw_codegen *p;
    const char *input_filename;
    int errors;
    bool compaction_warning_given;
@@ -38,14 +39,13 @@ typedef struct brw_asm_parser {
  * to set various bits on an instruction without having to create temporary
  * variable and assign the emitted instruction to those.
  */
-#define brw_last_inst (&p->store[p->nr_insn - 1])
+#define brw_last_inst brw_eu_last_inst(parser->p)
 
-int yyparse(void);
+int yyparse();
 int yylex(void);
 char *lex_text(void);
 
 extern struct brw_asm_parser *parser;
-extern struct brw_codegen *p;
 
 struct condition {
    unsigned cond_modifier:4;
