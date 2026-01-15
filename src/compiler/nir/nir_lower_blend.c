@@ -193,13 +193,15 @@ nir_blend_factor(
 
 /* Given a colormask, "blend" with the destination */
 
-static nir_def *
-nir_color_mask(
-   nir_builder *b,
-   unsigned mask,
-   nir_def *src,
-   nir_def *dst)
+nir_def *
+nir_color_mask(nir_builder *b, nir_def *src, nir_def *dst, unsigned mask)
 {
+   mask &= 0xf;
+   if (mask == 0)
+      return dst;
+   else if (mask == 0xf)
+      return src;
+
    return nir_vec4(b,
                    nir_channel(b, (mask & (1 << 0)) ? src : dst, 0),
                    nir_channel(b, (mask & (1 << 1)) ? src : dst, 1),
@@ -251,10 +253,9 @@ nir_logicop_func(
    UNREACHABLE("Invalid logciop function");
 }
 
-static nir_def *
-nir_blend_logicop(nir_builder *b,
-                  enum pipe_format format, enum pipe_logicop func,
-                  nir_def *src, nir_def *dst)
+nir_def *
+nir_color_logicop(nir_builder *b, nir_def *src, nir_def *dst,
+                  enum pipe_logicop func, enum pipe_format format)
 {
    unsigned bit_size = src->bit_size;
    const struct util_format_description *format_desc =
@@ -330,17 +331,37 @@ channel_exists(const struct util_format_description *desc, unsigned i)
           desc->channel[i].type != UTIL_FORMAT_TYPE_VOID;
 }
 
+/*
+ * Test if the blending options for a given channel encode the "replace" blend
+ * mode: dest = source. In this case, blending may be specially optimized.
+ */
+static bool
+nir_blend_replace_channel(const nir_lower_blend_channel *c)
+{
+   return (c->func == PIPE_BLEND_ADD) &&
+          (c->src_factor == PIPE_BLENDFACTOR_ONE) &&
+          (c->dst_factor == PIPE_BLENDFACTOR_ZERO);
+}
+
+static bool
+nir_blend_replace_rt(const nir_lower_blend_rt *rt)
+{
+   return nir_blend_replace_channel(&rt->rgb) &&
+          nir_blend_replace_channel(&rt->alpha);
+}
+
+
 /* Given a blend state, the source color, and the destination color,
  * return the blended color
  */
 
-static nir_def *
-nir_blend(
-   nir_builder *b,
-   const nir_lower_blend_options *options,
-   unsigned rt,
-   nir_def *src, nir_def *src1, nir_def *dst)
+nir_def *
+nir_color_blend(nir_builder *b, nir_def *src, nir_def *src1, nir_def *dst,
+                const nir_lower_blend_rt *rt, bool scalar_blend_const)
 {
+   if (util_format_is_pure_integer(rt->format) || nir_blend_replace_rt(rt))
+      return src;
+
    /* Don't crash if src1 isn't written. It doesn't matter what dual colour we
     * blend with in that case, as long as we don't dereference NULL.
     */
@@ -349,7 +370,7 @@ nir_blend(
 
    /* Grab the blend constant ahead of time */
    nir_def *bconst;
-   if (options->scalar_blend_const) {
+   if (scalar_blend_const) {
       bconst = nir_vec4(b,
                         nir_load_blend_const_color_r_float(b),
                         nir_load_blend_const_color_g_float(b),
@@ -364,22 +385,19 @@ nir_blend(
       src1 = nir_f2f16(b, src1);
    }
 
-   /* Fixed-point framebuffers require their inputs clamped. */
-   enum pipe_format format = options->rt[rt].format;
-
    /* The input colours need to be clamped to the format. Contrary to the
     * OpenGL/Vulkan specs, it really is the inputs that get clamped and not the
     * intermediate blend factors. This matches the CTS and hardware behaviour.
     */
-   src = nir_fsat_to_format(b, src, format);
-   bconst = nir_fsat_to_format(b, bconst, format);
+   src = nir_fsat_to_format(b, src, rt->format);
+   bconst = nir_fsat_to_format(b, bconst, rt->format);
 
    if (src1)
-      src1 = nir_fsat_to_format(b, src1, format);
+      src1 = nir_fsat_to_format(b, src1, rt->format);
 
    /* DST_ALPHA reads back 1.0 if there is no alpha channel */
    const struct util_format_description *desc =
-      util_format_description(format);
+      util_format_description(rt->format);
 
    nir_def *zero = nir_imm_floatN_t(b, 0.0, dst->bit_size);
    nir_def *one = nir_imm_floatN_t(b, 1.0, dst->bit_size);
@@ -395,8 +413,7 @@ nir_blend(
 
    for (unsigned c = 0; c < 4; ++c) {
       /* Decide properties based on channel */
-      nir_lower_blend_channel chan =
-         (c < 3) ? options->rt[rt].rgb : options->rt[rt].alpha;
+      nir_lower_blend_channel chan = (c < 3) ? rt->rgb : rt->alpha;
 
       nir_def *psrc = nir_channel(b, src, c);
       nir_def *pdst = nir_channel(b, dst, c);
@@ -405,12 +422,12 @@ nir_blend(
          psrc = nir_blend_factor(
             b, psrc,
             src, src1, dst, bconst, c,
-            chan.src_factor, format);
+            chan.src_factor, rt->format);
 
          pdst = nir_blend_factor(
             b, pdst,
             src, src1, dst, bconst, c,
-            chan.dst_factor, format);
+            chan.dst_factor, rt->format);
       }
 
       channels[c] = nir_blend_func(b, chan.func, psrc, pdst);
@@ -429,25 +446,6 @@ color_index_for_location(unsigned location)
       return -1;
    else
       return location - FRAG_RESULT_DATA0;
-}
-
-/*
- * Test if the blending options for a given channel encode the "replace" blend
- * mode: dest = source. In this case, blending may be specially optimized.
- */
-static bool
-nir_blend_replace_channel(const nir_lower_blend_channel *c)
-{
-   return (c->func == PIPE_BLEND_ADD) &&
-          (c->src_factor == PIPE_BLENDFACTOR_ONE) &&
-          (c->dst_factor == PIPE_BLENDFACTOR_ZERO);
-}
-
-static bool
-nir_blend_replace_rt(const nir_lower_blend_rt *rt)
-{
-   return nir_blend_replace_channel(&rt->rgb) &&
-          nir_blend_replace_channel(&rt->alpha);
 }
 
 static bool
@@ -543,16 +541,16 @@ nir_lower_blend_instr(nir_builder *b, nir_intrinsic_instr *store, void *data)
    nir_def *blended = src;
 
    if (options->logicop_enable) {
-      blended = nir_blend_logicop(b, format, logicop_func, src, dst);
+      blended = nir_color_logicop(b, src, dst, options->logicop_func, format);
    } else if (!util_format_is_pure_integer(format) &&
               !nir_blend_replace_rt(&options->rt[rt])) {
       assert(!util_format_is_scaled(format));
-      blended = nir_blend(b, options, rt, src, ctx->src1[rt], dst);
+      blended = nir_color_blend(b, src, ctx->src1[rt], dst, &options->rt[rt],
+                                options->scalar_blend_const);
    }
 
    /* Apply a colormask if necessary */
-   if (options->rt[rt].colormask != BITFIELD_MASK(4))
-      blended = nir_color_mask(b, options->rt[rt].colormask, blended, dst);
+   blended = nir_color_mask(b, blended, dst, options->rt[rt].colormask);
 
    /* Shave off any components we don't want to store */
    const unsigned num_components = util_format_get_nr_components(format);
