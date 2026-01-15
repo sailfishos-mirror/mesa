@@ -297,6 +297,11 @@ lower_call_abi_for_callee(nir_function *function, unsigned wave_size)
                   nir_instr_remove(instr);
                   progress = true;
                   break;
+               } else if (param_idx >= ACO_NIR_CALL_SYSTEM_ARG_COUNT) {
+                  b.cursor = nir_before_instr(instr);
+                  nir_def_replace(&intr->def, nir_load_var(&b, param_infos[param_idx].param_var));
+                  progress = true;
+                  break;
                }
             }
          }
