@@ -40,6 +40,8 @@ typedef struct {
 } nir_lower_blend_channel;
 
 typedef struct {
+   enum pipe_format format;
+
    nir_lower_blend_channel rgb;
    nir_lower_blend_channel alpha;
 
@@ -49,7 +51,6 @@ typedef struct {
 
 typedef struct {
    nir_lower_blend_rt rt[8];
-   enum pipe_format format[8];
 
    bool logicop_enable;
    enum pipe_logicop logicop_func;

@@ -890,8 +890,8 @@ GENX(pan_blend_create_shader)(const struct pan_blend_state *state,
       .logicop_func = state->logicop_func,
    };
 
+   options.rt[rt].format = rt_state->format;
    options.rt[rt].colormask = rt_state->equation.color_mask;
-   options.format[rt] = rt_state->format;
 
    if (!rt_state->equation.blend_enable) {
       static const nir_lower_blend_channel replace = {

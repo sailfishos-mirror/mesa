@@ -361,7 +361,7 @@ nir_blend(
    }
 
    /* Fixed-point framebuffers require their inputs clamped. */
-   enum pipe_format format = options->format[rt];
+   enum pipe_format format = options->rt[rt].format;
 
    /* The input colours need to be clamped to the format. Contrary to the
     * OpenGL/Vulkan specs, it really is the inputs that get clamped and not the
@@ -458,7 +458,7 @@ nir_lower_blend_instr(nir_builder *b, nir_intrinsic_instr *store, void *data)
    int rt = color_index_for_location(sem.location);
 
    /* No blend lowering requested on this RT */
-   if (rt < 0 || options->format[rt] == PIPE_FORMAT_NONE)
+   if (rt < 0 || options->rt[rt].format == PIPE_FORMAT_NONE)
       return false;
 
    /* Only process stores once. Pass flags are cleared by consume_dual_stores */
@@ -472,7 +472,7 @@ nir_lower_blend_instr(nir_builder *b, nir_intrinsic_instr *store, void *data)
     */
    b->cursor = nir_after_block(store->instr.block);
 
-   const enum pipe_format format = options->format[rt];
+   const enum pipe_format format = options->rt[rt].format;
    enum pipe_logicop logicop_func = options->logicop_func;
 
    /* From the Vulkan spec ("Logical operations"):

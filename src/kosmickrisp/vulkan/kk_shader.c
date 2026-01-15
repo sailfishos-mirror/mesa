@@ -343,13 +343,15 @@ kk_lower_fs_blend(nir_shader *nir,
       .logicop_func = vk_logic_op_to_pipe(state->cb->logic_op),
    };
 
-   static_assert(ARRAY_SIZE(opts.format) == 8, "max RTs out of sync");
+   static_assert(ARRAY_SIZE(opts.rt) == 8, "max RTs out of sync");
 
-   for (unsigned i = 0; i < ARRAY_SIZE(opts.format); ++i) {
-      opts.format[i] =
+   for (unsigned i = 0; i < ARRAY_SIZE(opts.rt); ++i) {
+      enum pipe_format format =
          vk_format_to_pipe_format(state->rp->color_attachment_formats[i]);
       if (state->cb->attachments[i].blend_enable) {
          opts.rt[i] = (nir_lower_blend_rt){
+            .format = format,
+
             .rgb.src_factor = vk_blend_factor_to_pipe(
                state->cb->attachments[i].src_color_blend_factor),
             .rgb.dst_factor = vk_blend_factor_to_pipe(
@@ -368,6 +370,8 @@ kk_lower_fs_blend(nir_shader *nir,
          };
       } else {
          opts.rt[i] = (nir_lower_blend_rt){
+            .format = format,
+
             .rgb.src_factor = PIPE_BLENDFACTOR_ONE,
             .rgb.dst_factor = PIPE_BLENDFACTOR_ZERO,
             .rgb.func = PIPE_BLEND_ADD,

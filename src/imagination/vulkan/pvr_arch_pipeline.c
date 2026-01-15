@@ -2144,7 +2144,7 @@ static void pvr_init_fs_blend(pco_data *data,
    for (unsigned u = 0; u < count; ++u) {
       const struct vk_color_blend_attachment_state *rt = &cb->attachments[u];
       gl_frag_result location = FRAG_RESULT_DATA0 + u;
-      blend_opts->format[u] = data->fs.output_formats[location];
+      blend_opts->rt[u].format = data->fs.output_formats[location];
 
       if (cb->logic_op_enable) {
          /* No blending, but we get the colour mask below */
