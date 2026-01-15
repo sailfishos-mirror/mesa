@@ -46,6 +46,7 @@ const struct nir_shader_compiler_options brw_scalar_nir_options = {
    .has_f2u_sat = true,
    .has_pack_32_4x8 = true,
    .has_uclz = true,
+   .has_pixel_coord = true,
    .lower_base_vertex = true,
    .lower_bitfield_extract = true,
    .lower_bitfield_extract8 = true,
