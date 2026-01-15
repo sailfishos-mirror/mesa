@@ -675,14 +675,6 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
                      load_may_tear(state, instr);
       break;
 
-   case nir_intrinsic_load_converted_output_pan:
-   case nir_intrinsic_load_readonly_output_pan:
-      is_divergent = ((src_divergent(instr->src[0], state) ||
-                       src_divergent(instr->src[2], state)) &&
-                      (nir_intrinsic_access(instr) & ACCESS_NON_UNIFORM)) ||
-                     src_divergent(instr->src[1], state);
-      break;
-
    case nir_intrinsic_optimization_barrier_vgpr_amd:
       is_divergent = src_divergent(instr->src[0], state);
       break;
@@ -1019,6 +1011,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_bvh_stack_rtn_amd:
    case nir_intrinsic_cmat_load_shared_nv:
    case nir_intrinsic_cmat_mov_transpose_nv:
+   case nir_intrinsic_load_converted_output_pan:
+   case nir_intrinsic_load_readonly_output_pan:
    case nir_intrinsic_load_cumulative_coverage_pan:
    case nir_intrinsic_load_blend_input_pan:
    case nir_intrinsic_atest_pan:
