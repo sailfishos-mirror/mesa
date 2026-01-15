@@ -3044,7 +3044,7 @@ prep_fb_attachment(struct zink_context *ctx, struct zink_resource *res, unsigned
 }
 
 static unsigned
-begin_rendering(struct zink_context *ctx, bool check_msaa_expand)
+begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
 {
    unsigned clear_buffers = 0;
    struct zink_screen *screen = zink_screen(ctx->base.screen);
@@ -3061,7 +3061,7 @@ begin_rendering(struct zink_context *ctx, bool check_msaa_expand)
    bool use_tc_info = !ctx->blitting && ctx->track_renderpasses;
    enum pipe_format pformats[PIPE_MAX_COLOR_BUFS];
    bool formats_changed = false;
-   uint32_t msaa_expand_mask = 0;
+   uint32_t attachment_shadow_mask = 0;
    /* j/k this is super nonconformant */
    bool very_legal_and_conformant_msaa_opt = ctx->dynamic_fb.tc_info.has_resolve && ctx->dynamic_fb.tc_info.ended && (zink_debug & ZINK_DEBUG_MSAAOPT);
    ctx->dynamic_fb.attachments[0].pNext = NULL;
@@ -3083,7 +3083,7 @@ begin_rendering(struct zink_context *ctx, bool check_msaa_expand)
                ctx->dynamic_fb.attachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
          }
          if (!ctx->blitting && ctx->dynamic_fb.attachments[i].loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
-            msaa_expand_mask |= BITFIELD_BIT(i);
+            attachment_shadow_mask |= BITFIELD_BIT(i);
          pformats[i] = ctx->fb_state.cbufs[i].format;
       }
 
@@ -3113,7 +3113,7 @@ begin_rendering(struct zink_context *ctx, bool check_msaa_expand)
 
          /* maybe TODO but also not handled by legacy rp...
          if (ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS].loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
-            msaa_expand_mask |= BITFIELD_BIT(PIPE_MAX_COLOR_BUFS);
+            attachment_shadow_mask |= BITFIELD_BIT(PIPE_MAX_COLOR_BUFS);
          */
          /* stencil may or may not be used but init it anyway */
          ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS+1].loadOp = ctx->dynamic_fb.attachments[PIPE_MAX_COLOR_BUFS].loadOp;
@@ -3196,9 +3196,9 @@ begin_rendering(struct zink_context *ctx, bool check_msaa_expand)
       ctx->rp_loadop_changed = false;
       ctx->rp_layout_changed = false;
    }
-   msaa_expand_mask &= ctx->transient_attachments;
-   if (!has_msrtss && msaa_expand_mask && check_msaa_expand) {
-      zink_render_msaa_expand(ctx, msaa_expand_mask);
+   attachment_shadow_mask &= ctx->transient_attachments;
+   if (!has_msrtss && attachment_shadow_mask && check_attachment_shadow) {
+      zink_render_attachment_shadow(ctx, attachment_shadow_mask);
       return begin_rendering(ctx, false);
    }
    /* always assemble clear_buffers mask:
