@@ -1946,6 +1946,22 @@ bi_emit_ld_tile(bi_builder *b, nir_intrinsic_instr *instr)
    bi_emit_cached_split(b, dest, size * nr);
 }
 
+static void
+bi_emit_st_tile(bi_builder *b, nir_intrinsic_instr *instr)
+{
+   nir_alu_type T = nir_intrinsic_src_type(instr);
+   assert(!bi_is_zs(nir_intrinsic_io_semantics(instr).location));
+   enum bi_register_format regfmt = bi_reg_fmt_for_nir(T);
+   unsigned nr = instr->num_components;
+
+   bi_index rgba = bi_src_index(&instr->src[0]);
+   bi_index pi = bi_src_index(&instr->src[1]);
+   bi_index coverage = bi_src_index(&instr->src[2]);
+   bi_index conversion = bi_src_index(&instr->src[3]);
+
+   bi_st_tile(b, rgba, pi, coverage, conversion, regfmt, nr - 1);
+}
+
 /*
  * Older Bifrost hardware has a limited CLPER instruction. Add a safe helper
  * that uses the hardware functionality if available and lowers otherwise.
@@ -2360,6 +2376,10 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_tile_pan:
    case nir_intrinsic_load_tile_res_pan:
       bi_emit_ld_tile(b, instr);
+      break;
+
+   case nir_intrinsic_store_tile_pan:
+      bi_emit_st_tile(b, instr);
       break;
 
    case nir_intrinsic_demote_if:

@@ -1688,6 +1688,10 @@ load("tile_pan", [1, 1, 1], indices=[ACCESS, DEST_TYPE, IO_SEMANTICS],
 load("tile_res_pan", [1, 1, 1], indices=[ACCESS, DEST_TYPE, IO_SEMANTICS],
      flags=[CAN_ELIMINATE, CAN_REORDER])
 
+# Maps to ST_TILE
+# src[] = { rt_sample_pixel, coverage_offset, conversion }
+store("tile_pan", [1, 1, 1], indices=[ACCESS, SRC_TYPE, IO_SEMANTICS])
+
 # Load converted memory given an address and a conversion descriptor
 # src[] = { address, conversion }
 load("converted_mem_pan", [1, 1], indices=[DEST_TYPE, IO_SEMANTICS], flags=[CAN_ELIMINATE])
