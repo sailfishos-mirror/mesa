@@ -513,9 +513,9 @@ zink_blit(struct pipe_context *pctx,
       zink_select_draw_vbo(ctx);
    }
    zink_blit_begin(ctx, ZINK_BLIT_SAVE_FB | ZINK_BLIT_SAVE_FS | ZINK_BLIT_SAVE_TEXTURES);
-   if (zink_format_needs_mutable(info->src.format, info->src.resource->format))
+   if (zink_format_needs_mutable(info->src.format, info->src.resource->format, (src->obj->vkflags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) > 0))
       zink_resource_object_init_mutable(ctx, src);
-   if (zink_format_needs_mutable(info->dst.format, info->dst.resource->format))
+   if (zink_format_needs_mutable(info->dst.format, info->dst.resource->format, (dst->obj->vkflags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) > 0))
       zink_resource_object_init_mutable(ctx, dst);
    zink_blit_barriers(ctx, use_src, dst, whole);
    /* if clears can't be stored, set blit barriers for all attachments because clears will be flushed */

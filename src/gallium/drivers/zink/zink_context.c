@@ -3340,7 +3340,7 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
          enum pipe_format format = res->base.b.format;
          if (!ctx->fb_state.resolve)
             format = is_depth ? ctx->fb_state.zsbuf.format : ctx->fb_state.cbufs[0].format;
-         if (zink_format_needs_mutable(res->base.b.format, format))
+         if (zink_format_needs_mutable(res->base.b.format, format, (res->obj->vkflags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) > 0))
             /* mutable not set by default */
             zink_resource_object_init_mutable(ctx, res);
          struct pipe_surface tmpl = {
@@ -3992,7 +3992,7 @@ static bool
 framebuffer_surface_needs_mutable(const struct pipe_resource *pres, const struct pipe_surface *templ)
 {
    const struct zink_resource *res = (const struct zink_resource*)pres;
-   if (!res->obj->dt && zink_format_needs_mutable(pres->format, templ->format))
+   if (!res->obj->dt && zink_format_needs_mutable(pres->format, templ->format, (res->obj->vkflags & VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) > 0))
       /* mutable not set by default */
       return !(res->base.b.bind & ZINK_BIND_MUTABLE);
    return false;
