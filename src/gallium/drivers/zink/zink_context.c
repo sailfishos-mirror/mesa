@@ -3059,6 +3059,8 @@ begin_rendering(struct zink_context *ctx, bool check_msaa_expand)
    bool zsbuf_used = zink_is_zsbuf_used(ctx);
    bool has_msrtss = screen->info.have_EXT_multisampled_render_to_single_sampled;
    bool use_tc_info = !ctx->blitting && ctx->track_renderpasses;
+   enum pipe_format pformats[PIPE_MAX_COLOR_BUFS];
+   bool formats_changed = false;
    uint32_t msaa_expand_mask = 0;
    /* j/k this is super nonconformant */
    bool very_legal_and_conformant_msaa_opt = ctx->dynamic_fb.tc_info.has_resolve && ctx->dynamic_fb.tc_info.ended && (zink_debug & ZINK_DEBUG_MSAAOPT);
@@ -3082,6 +3084,7 @@ begin_rendering(struct zink_context *ctx, bool check_msaa_expand)
          }
          if (!ctx->blitting && ctx->dynamic_fb.attachments[i].loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
             msaa_expand_mask |= BITFIELD_BIT(i);
+         pformats[i] = ctx->fb_state.cbufs[i].format;
       }
 
       /* unset depth and stencil info: reset below */
@@ -3137,6 +3140,11 @@ begin_rendering(struct zink_context *ctx, bool check_msaa_expand)
          /* these are no-ops */
          if (!ctx->fb_state.cbufs[i].texture || !zink_fb_clear_enabled(ctx, i))
             continue;
+         if (!ctx->rp_draw && ctx->fb_state.cbufs[i].format != ctx->fb_state.cbufs[i].texture->format) {
+            formats_changed = true;
+            zink_fb_clear_rewrite(ctx, i, ctx->fb_state.cbufs[i].format, ctx->fb_state.cbufs[i].texture->format);
+            ctx->fb_state.cbufs[i].format = ctx->fb_state.cbufs[i].texture->format;
+         }
          /* these need actual clear calls inside the rp */
          struct zink_framebuffer_clear_data *clear = zink_fb_clear_element(&ctx->fb_clears[i], 0);
          if (zink_fb_clear_needs_explicit(&ctx->fb_clears[i])) {
@@ -3380,6 +3388,10 @@ begin_rendering(struct zink_context *ctx, bool check_msaa_expand)
 
    VKCTX(CmdBeginRendering)(ctx->bs->cmdbuf, &ctx->dynamic_fb.info);
    ctx->in_rp = true;
+   if (formats_changed) {
+      for (unsigned i = 0; i < ctx->fb_state.nr_cbufs; i++)
+         ctx->fb_state.cbufs[i].format = pformats[i];
+   }
    return clear_buffers;
 }
 
