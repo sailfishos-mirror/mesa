@@ -82,6 +82,9 @@ struct ethosu_kernel {
    bool is_signed;
    unsigned zero_point;
    float scale;
+   /* Per-channel quantization (NULL for per-tensor) */
+   float *scales;
+   int *zero_points;
 };
 
 struct ethosu_padding {

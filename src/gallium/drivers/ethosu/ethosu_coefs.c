@@ -22,7 +22,9 @@ fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation 
 
    for (unsigned i = 0; i < operation->ofm.shape.depth; i++) {
       uint64_t bias = biases[i];
-      double conv_scale = ((double)operation->ifm.scale * (double)operation->kernel.scale) / (double)operation->ofm.scale;
+      double kernel_scale = (operation->kernel.scales != NULL) ?
+                             operation->kernel.scales[i] : operation->kernel.scale;
+      double conv_scale = ((double)operation->ifm.scale * kernel_scale) / (double)operation->ofm.scale;
       uint32_t shift;
       int scale = ethosu_quantize_scale(conv_scale, &shift);
 
