@@ -1262,7 +1262,7 @@ struct zink_resource {
    enum pipe_format internal_format:16;
 
    struct zink_resource_object *obj;
-   struct zink_resource *transient; //for msrtt without EXT_multisampled_render_to_single_sampled
+   struct zink_resource *transient; //for msrtt without EXT_multisampled_render_to_single_sampled and format view shadowing
    uint32_t queue;
    union {
       struct {
@@ -1315,6 +1315,7 @@ struct zink_resource {
    bool deleted; //resource_release
    bool swapchain;
    bool dmabuf;
+   bool unflushed_transient; //format view transient has newer data than parent
    bool subdata; //doing subdata call
    unsigned dt_stride;
 
@@ -1761,6 +1762,7 @@ struct zink_context {
    struct zink_rasterizer_state *rast_state;
    struct zink_depth_stencil_alpha_state *dsa_state;
 
+   bool transient_msrtss; //transient_attachments is for msrtss
    bool has_swapchain;
    bool pipeline_changed[ZINK_PIPELINE_MAX]; //gfx, compute, mesh
 

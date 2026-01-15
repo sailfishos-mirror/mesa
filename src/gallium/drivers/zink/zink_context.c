@@ -2917,7 +2917,7 @@ find_rp_state(struct zink_context *ctx)
 {
    bool found = false;
    /* calc the state idx using the samples to account for msrtss */
-   unsigned idx = zink_screen(ctx->base.screen)->info.have_EXT_multisampled_render_to_single_sampled && ctx->transient_attachments ? 
+   unsigned idx = zink_screen(ctx->base.screen)->info.have_EXT_multisampled_render_to_single_sampled && ctx->transient_msrtss ?
                   util_logbase2_ceil(ctx->gfx_pipeline_state.rast_samples + 1) : 0;
    struct set_entry *he = _mesa_set_search_or_add(&ctx->rendering_state_cache[idx], &ctx->gfx_pipeline_state.rendering_info, &found);
    struct zink_rendering_info *info;
@@ -3197,7 +3197,8 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
       ctx->rp_layout_changed = false;
    }
    attachment_shadow_mask &= ctx->transient_attachments;
-   if (!has_msrtss && attachment_shadow_mask && check_attachment_shadow) {
+   /* both msrtss emulation and format view shadowing use this path to populate the transient image */
+   if (((!ctx->transient_msrtss && ctx->rp_draw) || (ctx->transient_msrtss && !has_msrtss)) && attachment_shadow_mask && check_attachment_shadow) {
       zink_render_attachment_shadow(ctx, attachment_shadow_mask);
       return begin_rendering(ctx, false);
    }
@@ -3246,10 +3247,17 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
       VkImageView iv = VK_NULL_HANDLE;
       struct zink_resource *res = zink_resource(ctx->fb_state.cbufs[i].texture);
       if (res) {
+         if (!ctx->transient_msrtss && ctx->transient_attachments & BITFIELD_BIT(i) && ctx->rp_draw) {
+            res = res->transient;
+            res->unflushed_transient = true;
+         }
          /* swapchain acquire can fail */
-         if (prep_fb_attachment(ctx, res, i))
+         if (prep_fb_attachment(ctx, res, i)) {
+            struct pipe_surface templ = ctx->fb_state.cbufs[i];
+            templ.texture = &res->base.b;
             /* swapchain acquire can change this surface */
-            iv = zink_create_fb_surface(&ctx->base, &ctx->fb_state.cbufs[i])->image_view;
+            iv = zink_create_fb_surface(&ctx->base, &templ)->image_view;
+         }
          if (ctx->fb_state.cbufs[i].nr_samples && !has_msrtss && !ctx->blitting) {
             ctx->dynamic_fb.attachments[i].resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
             ctx->dynamic_fb.attachments[i].resolveImageView = iv;
@@ -3384,7 +3392,7 @@ begin_rendering(struct zink_context *ctx, bool check_attachment_shadow)
       VK_TRUE,
       ctx->gfx_pipeline_state.rast_samples + 1,
    };
-   ctx->dynamic_fb.info.pNext = ctx->transient_attachments && !ctx->blitting && has_msrtss ? &msrtss : NULL;
+   ctx->dynamic_fb.info.pNext = ctx->transient_msrtss && !ctx->blitting && has_msrtss ? &msrtss : NULL;
 
    VKCTX(CmdBeginRendering)(ctx->bs->cmdbuf, &ctx->dynamic_fb.info);
    ctx->in_rp = true;
@@ -4073,6 +4081,7 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
    util_copy_framebuffer_state(&ctx->fb_state, state);
    ctx->rp_changed |= zink_update_fbfetch(ctx);
    ctx->transient_attachments = 0;
+   ctx->transient_msrtss = false;
    ctx->fb_layer_mismatch = 0;
 
    ctx->dynamic_fb.info.renderArea.offset.x = 0;
@@ -4094,10 +4103,17 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
       ctx->fb_formats[i] = zink_get_format(screen, ctx->fb_state.cbufs[i].format);
       if (res) {
          ctx->has_swapchain |= zink_is_swapchain(res);
-         if (framebuffer_surface_needs_mutable(psurf->texture, psurf))
-            zink_resource_object_init_mutable(ctx, res);
-         if (ctx->fb_state.cbufs[i].nr_samples)
+         if (framebuffer_surface_needs_mutable(psurf->texture, psurf)) {
+            /* immutable handle cannot have format views */
+            if (res->obj->immutable_handle)
+               ctx->transient_attachments |= BITFIELD_BIT(i);
+            else
+               zink_resource_object_init_mutable(ctx, res);
+         }
+         if (ctx->fb_state.cbufs[i].nr_samples) {
             ctx->transient_attachments |= BITFIELD_BIT(i);
+            ctx->transient_msrtss = true;
+         }
          if (!samples)
             samples = MAX3(ctx->fb_state.cbufs[i].nr_samples, psurf->texture->nr_samples, 1);
          if (psurf->last_layer - psurf->first_layer > layers)
@@ -4127,8 +4143,10 @@ zink_set_framebuffer_state(struct pipe_context *pctx,
       if (framebuffer_surface_needs_mutable(psurf->texture, psurf))
          zink_resource_object_init_mutable(ctx, res);
       ctx->fb_formats[PIPE_MAX_COLOR_BUFS] = zink_get_format(screen, ctx->fb_state.zsbuf.format);
-      if (ctx->fb_state.zsbuf.nr_samples)
+      if (ctx->fb_state.zsbuf.nr_samples) {
          ctx->transient_attachments |= BITFIELD_BIT(PIPE_MAX_COLOR_BUFS);
+         ctx->transient_msrtss = true;
+      }
       if (!samples)
          samples = MAX3(ctx->fb_state.zsbuf.nr_samples, psurf->texture->nr_samples, 1);
       if (psurf->last_layer - psurf->first_layer > layers)
@@ -4526,6 +4544,18 @@ zink_flush_resource(struct pipe_context *pctx,
 {
    struct zink_context *ctx = zink_context(pctx);
    struct zink_resource *res = zink_resource(pres);
+   if (res->unflushed_transient) {
+      /* only ever flush the transient back to the main surface for presentation, otherwise just pass the transient to the API instead */
+      for (unsigned i = 0; i <= res->base.b.last_level; i++) {
+         struct pipe_box box;
+         u_box_3d(0, 0, 0,
+                  u_minify(res->base.b.width0, i),
+                  u_minify(res->base.b.height0, i), res->base.b.array_size, &box);
+         box.depth = util_num_layers(&res->base.b, i);
+         ctx->base.resource_copy_region(&ctx->base, &res->base.b, i, 0, 0, 0, &res->transient->base.b, i, &box);
+      }
+      res->unflushed_transient = false;
+   }
    if (res->obj->dt) {
       if (zink_kopper_acquired(res->obj->dt, res->obj->dt_idx) && (!ctx->clears_enabled || !res->fb_bind_count)) {
          zink_batch_no_rp_safe(ctx);
@@ -5101,6 +5131,10 @@ zink_resource_copy_region(struct pipe_context *pctx,
    struct zink_resource *dst = zink_resource(pdst);
    struct zink_resource *src = zink_resource(psrc);
    struct zink_context *ctx = zink_context(pctx);
+   if (src->unflushed_transient)
+      src = src->transient;
+   if (dst->unflushed_transient && src != dst->transient)
+      dst = dst->transient;
    if (dst->base.b.target != PIPE_BUFFER && src->base.b.target != PIPE_BUFFER) {
       VkImageCopy region;
       /* fill struct holes */

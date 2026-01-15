@@ -359,8 +359,12 @@ zink_blit(struct pipe_context *pctx,
    const struct util_format_description *dst_desc = util_format_description(info->dst.format);
 
    struct zink_resource *src = zink_resource(info->src.resource);
+   if (src->unflushed_transient)
+      src = src->transient;
    struct zink_resource *use_src = src;
    struct zink_resource *dst = zink_resource(info->dst.resource);
+   if (dst->unflushed_transient)
+      dst = dst->transient;
    bool needs_present_readback = false;
 
    if (ctx->awaiting_resolve && ctx->in_rp && ctx->dynamic_fb.tc_info.has_resolve) {
