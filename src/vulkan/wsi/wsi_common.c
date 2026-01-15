@@ -160,8 +160,9 @@ wsi_device_init(struct wsi_device *wsi,
    wsi->has_import_memory_host =
       supported_extensions->EXT_external_memory_host;
    wsi->khr_present_wait =
-      supported_extensions->KHR_present_id &&
-      supported_extensions->KHR_present_wait;
+      supported_extensions->KHR_present_wait ||
+      supported_extensions->KHR_present_wait2;
+
    wsi->has_timeline_semaphore =
       supported_extensions->KHR_timeline_semaphore;
 
@@ -1079,7 +1080,9 @@ wsi_CreateSwapchainKHR(VkDevice _device,
       return VK_ERROR_OUT_OF_HOST_MEMORY;
    }
 
-   if (wsi_device->khr_present_wait) {
+   if (device->enabled_features.presentWait ||
+       device->enabled_features.presentWait2) {
+      assert(wsi_device->khr_present_wait);
       const VkSemaphoreTypeCreateInfo type_info = {
          .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
          .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
@@ -1567,13 +1570,18 @@ wsi_common_queue_present(const struct wsi_device *wsi,
       }
       if (present_id > 0) {
          image_signal_infos[i].present_id = present_id;
-         const VkSemaphoreSubmitInfo sem_info = {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-            .semaphore = swapchain->present_id_timeline,
-            .value = present_id,
-            .stageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-         };
-         wsi_image_signal_info_add_semaphore(&image_signal_infos[i], sem_info);
+
+         if (dev->enabled_features.presentWait ||
+             dev->enabled_features.presentWait2) {
+            const VkSemaphoreSubmitInfo sem_info = {
+               .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+               .semaphore = swapchain->present_id_timeline,
+               .value = present_id,
+               .stageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            };
+            wsi_image_signal_info_add_semaphore(&image_signal_infos[i],
+                                                sem_info);
+         }
       }
 
       /* The present fence guards all client-allocated resources and GPU
