@@ -2067,6 +2067,7 @@ zink_resource_from_handle(struct pipe_screen *pscreen,
          res->valid = true;
       else
          tc_buffer_disable_cpu_storage(pres);
+      res->obj->immutable_handle = true;
       res->internal_format = whandle->format;
    }
    return pres;

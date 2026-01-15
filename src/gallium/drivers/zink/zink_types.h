@@ -1252,6 +1252,7 @@ struct zink_resource_object {
    bool host_visible;
    bool coherent;
    bool is_aux;
+   bool immutable_handle;
 };
 
 /* "gfx" includes mesh here */
