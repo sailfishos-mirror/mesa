@@ -13,15 +13,8 @@
 
 extern FILE *yyin;
 
+struct brw_asm_parser *parser;
 struct brw_codegen *p;
-const char *input_filename;
-int errors;
-bool compaction_warning_given;
-
-/*
- * Label tracking.
- */
-static struct hash_table *brw_asm_labels;
 
 typedef struct {
    char *name;
@@ -35,15 +28,15 @@ brw_asm_label_lookup(const char *name)
 {
    uint32_t h = _mesa_hash_string(name);
    struct hash_entry *entry =
-      _mesa_hash_table_search_pre_hashed(brw_asm_labels, h, name);
+      _mesa_hash_table_search_pre_hashed(parser->labels, h, name);
    if (!entry) {
-      void *mem_ctx = brw_asm_labels;
+      void *mem_ctx = parser->labels;
       brw_asm_label *label = rzalloc(mem_ctx, brw_asm_label);
       label->name = ralloc_strdup(mem_ctx, name);
       label->offset = -1;
       util_dynarray_init(&label->jip_uses, mem_ctx);
       util_dynarray_init(&label->uip_uses, mem_ctx);
-      entry = _mesa_hash_table_insert_pre_hashed(brw_asm_labels,
+      entry = _mesa_hash_table_insert_pre_hashed(parser->labels,
                                                  h, name, label);
    }
    assert(entry);
@@ -83,7 +76,7 @@ brw_postprocess_labels()
    unsigned unknown = 0;
    void *store = p->store;
 
-   hash_table_foreach(brw_asm_labels, entry) {
+   hash_table_foreach(parser->labels, entry) {
       brw_asm_label *label = entry->data;
 
       if (label->offset == -1) {
@@ -114,8 +107,10 @@ brw_assemble(void *mem_ctx, const struct intel_device_info *devinfo,
 {
    brw_assemble_result result = {0};
 
-   void *tmp_ctx = ralloc_context(mem_ctx);
-   brw_asm_labels = _mesa_string_hash_table_create(tmp_ctx);
+   assert(parser == NULL);
+   parser = rzalloc(mem_ctx, brw_asm_parser);
+   parser->devinfo = devinfo;
+   parser->labels = _mesa_string_hash_table_create(parser);
 
    struct brw_isa_info isa;
    brw_init_isa_info(&isa, devinfo);
@@ -124,11 +119,11 @@ brw_assemble(void *mem_ctx, const struct intel_device_info *devinfo,
    brw_init_codegen(&isa, p, p);
 
    yyin = f;
-   input_filename = filename;
+   parser->input_filename = filename;
 
-   compaction_warning_given = false;
+   parser->compaction_warning_given = false;
    int err = yyparse();
-   if (err || errors)
+   if (err || parser->errors)
       goto end;
 
    if (!brw_postprocess_labels())
@@ -167,11 +162,10 @@ brw_assemble(void *mem_ctx, const struct intel_device_info *devinfo,
 end:
    /* Reset internal state. */
    yyin = NULL;
-   input_filename = NULL;
    p = NULL;
-   brw_asm_labels = NULL;
 
-   ralloc_free(tmp_ctx);
+   ralloc_free(parser);
+   parser = NULL;
 
    return result;
 }

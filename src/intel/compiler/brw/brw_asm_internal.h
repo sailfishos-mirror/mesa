@@ -22,14 +22,24 @@
 /* glibc < 2.27 defines OVERFLOW in /usr/include/math.h. */
 #undef OVERFLOW
 
+typedef struct brw_asm_parser {
+   const struct intel_device_info *devinfo;
+   const char *input_filename;
+   int errors;
+   bool compaction_warning_given;
+   struct hash_table *labels;
+
+   /* Lexer state. */
+   int yycolumn;
+   int saved_state;
+} brw_asm_parser;
+
 int yyparse(void);
 int yylex(void);
 char *lex_text(void);
 
+extern struct brw_asm_parser *parser;
 extern struct brw_codegen *p;
-extern int errors;
-extern bool compaction_warning_given;
-extern const char *input_filename;
 
 struct condition {
    unsigned cond_modifier:4;

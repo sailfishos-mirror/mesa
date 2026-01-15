@@ -62,11 +62,11 @@ message(enum message_level level, YYLTYPE *location,
    va_list args;
 
    if (location)
-      fprintf(stderr, "%s:%d:%d: %s: ", input_filename,
+      fprintf(stderr, "%s:%d:%d: %s: ", parser->input_filename,
               location->first_line,
               location->first_column, level_str[level]);
    else
-      fprintf(stderr, "%s:%s: ", input_filename, level_str[level]);
+      fprintf(stderr, "%s:%s: ", parser->input_filename, level_str[level]);
 
    va_start(args, fmt);
    vfprintf(stderr, fmt, args);
@@ -606,11 +606,11 @@ add_instruction_option(struct options *options, struct instoption opt)
        * assemble things later will set the flag if it decides to
        * compact instructions.
        */
-      if (!compaction_warning_given) {
-         compaction_warning_given = true;
+      if (!parser->compaction_warning_given) {
+         parser->compaction_warning_given = true;
          fprintf(stderr, "%s: ignoring 'compacted' "
                  "annotations for text assembly "
-                 "instructions\n", input_filename);
+                 "instructions\n", parser->input_filename);
       }
       break;
    case ACCWREN:
@@ -2228,6 +2228,6 @@ yyerror(char *msg)
 #endif
 {
    fprintf(stderr, "%s: %d: %s at \"%s\"\n",
-           input_filename, yylineno, msg, lex_text());
-   ++errors;
+           parser->input_filename, yylineno, msg, lex_text());
+   ++parser->errors;
 }

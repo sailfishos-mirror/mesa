@@ -6,18 +6,16 @@
 #undef ALIGN16
 #include "brw_gram.tab.h"
 
-/* Locations */
 int yycolumn = 1;
 
-int saved_state = 0;
-extern const char *input_filename;
-
 #define YY_NO_INPUT
+
 #define YY_USER_ACTION                                          \
         yylloc.first_line = yylloc.last_line = yylineno;        \
         yylloc.first_column = yycolumn;                         \
         yylloc.last_column = yycolumn + yyleng - 1;             \
         yycolumn += yyleng;
+
 %}
 
 %x BLOCK_COMMENT
@@ -33,9 +31,9 @@ extern const char *input_filename;
 \/\/.*[\r\n]    { yycolumn = 1; }
 
  /* eat up multiline comment */
-\/\*            { saved_state = YYSTATE; BEGIN(BLOCK_COMMENT); }
+\/\*            { parser->saved_state = YYSTATE; BEGIN(BLOCK_COMMENT); }
 
-<BLOCK_COMMENT>\*\/     { BEGIN(saved_state); }
+<BLOCK_COMMENT>\*\/     { BEGIN(parser->saved_state); }
 
 <BLOCK_COMMENT>.        { }
 <BLOCK_COMMENT>[\r\n]   { }
@@ -44,7 +42,7 @@ extern const char *input_filename;
                            char *name = malloc(yyleng - 1);
                            memmove(name, yytext + 1, yyleng - 2);
                            name[yyleng-1] = '\0';
-                           input_filename = name;
+                           parser->input_filename = name;
                         }
 
  /* null register */
@@ -435,7 +433,7 @@ sr[0-9]+        { yylval.integer = atoi(yytext + 2); return STATEREG; }
 
 .       {
            fprintf(stderr, "%s: %d: %s: at \"%s\"\n",
-                   input_filename, yylineno,
+                   parser->input_filename, yylineno,
                    "unexpected token", lex_text());
         }
 %%
