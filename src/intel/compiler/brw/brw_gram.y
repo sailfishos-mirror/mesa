@@ -22,19 +22,12 @@
  * IN THE SOFTWARE.
  */
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include "brw_asm_internal.h"
-
-#undef yyerror
-#ifdef YYBYACC
-struct YYLTYPE;
-void yyerror (struct YYLTYPE *, char *);
-#else
-void yyerror (char *);
-#endif
 
 #undef ALIGN16
 
@@ -47,16 +40,16 @@ typedef struct YYLTYPE
    int last_column;
 } YYLTYPE;
 
+void yyerror (YYLTYPE *, struct brw_asm_parser *parser, const char *);
+
 enum message_level {
    WARN,
    ERROR,
 };
 
-int yydebug = 1;
-
 static void
-message(enum message_level level, YYLTYPE *location,
-        const char *fmt, ...)
+message(struct brw_asm_parser *parser, enum message_level level,
+        YYLTYPE *location, const char *fmt, ...)
 {
    static const char *level_str[] = { "warning", "error" };
    va_list args;
@@ -73,15 +66,15 @@ message(enum message_level level, YYLTYPE *location,
    va_end(args);
 }
 
-#define warn(flag, l, fmt, ...)                 \
-   do {                                         \
-      if (warning_flags & WARN_ ## flag)        \
-         message(WARN, l, fmt, ## __VA_ARGS__); \
+#define warn(flag, l, fmt, ...)                         \
+   do {                                                 \
+      if (warning_flags & WARN_ ## flag)                \
+         message(parser, WARN, l, fmt, ## __VA_ARGS__); \
    } while (0)
 
-#define error(l, fmt, ...)                      \
-   do {                                         \
-      message(ERROR, l, fmt, ## __VA_ARGS__);   \
+#define error(l, fmt, ...)                              \
+   do {                                                 \
+      message(parser, ERROR, l, fmt, ## __VA_ARGS__);   \
    } while (0)
 
 static bool
@@ -279,10 +272,11 @@ i965_asm_ternary_instruction(int opcode,
 }
 
 static void
-i965_asm_set_instruction_options(struct brw_codegen *p,
+i965_asm_set_instruction_options(struct brw_asm_parser *parser,
                                  struct options options)
 {
    const struct intel_device_info *devinfo = parser->devinfo;
+   const struct brw_isa_info *isa = parser->p->isa;
 
    brw_eu_inst_set_access_mode(devinfo, brw_last_inst,
                                options.access_mode);
@@ -296,13 +290,13 @@ i965_asm_set_instruction_options(struct brw_codegen *p,
       brw_eu_inst_set_no_dd_clear(devinfo, brw_last_inst,
                                   options.no_dd_clear);
    } else {
-      enum opcode opcode = brw_eu_inst_opcode(p->isa, brw_last_inst);
+      enum opcode opcode = brw_eu_inst_opcode(isa, brw_last_inst);
       brw_eu_inst_set_swsb(devinfo, brw_last_inst,
                            tgl_swsb_encode(devinfo, options.depinfo, opcode));
    }
    brw_eu_inst_set_debug_control(devinfo, brw_last_inst,
                                  options.debug_control);
-   if (brw_has_branch_ctrl(devinfo, brw_eu_inst_opcode(p->isa, brw_last_inst))) {
+   if (brw_has_branch_ctrl(devinfo, brw_eu_inst_opcode(isa, brw_last_inst))) {
       if (options.acc_wr_control)
          error(NULL, "Instruction does not support AccWrEnable\n");
 
@@ -319,6 +313,10 @@ i965_asm_set_instruction_options(struct brw_codegen *p,
 }
 
 %}
+
+%pure-parser
+%lex-param { struct brw_asm_parser *parser }
+%parse-param { struct brw_asm_parser *parser }
 
 %locations
 
@@ -340,6 +338,18 @@ i965_asm_set_instruction_options(struct brw_codegen *p,
    struct tgl_swsb depinfo;
    struct { int sdepth; int rcount; } dpas_params;
    brw_eu_inst *instruction;
+}
+
+%code {
+int brw_asm_lex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param,
+                yyscan_t yyscanner);
+
+static int
+yylex(YYSTYPE *yylval_param, YYLTYPE *yylloc_param,
+      struct brw_asm_parser *parser)
+{
+   return brw_asm_lex(yylval_param, yylloc_param, parser->scanner);
+}
 }
 
 %token ABS
@@ -555,7 +565,8 @@ i965_asm_set_instruction_options(struct brw_codegen *p,
 %code {
 
 static void
-add_instruction_option(struct options *options, struct instoption opt)
+add_instruction_option(struct brw_asm_parser *parser,
+                       struct options *options, struct instoption opt)
 {
    if (opt.type == INSTOPTION_DEP_INFO) {
       if (opt.depinfo_value.regdist) {
@@ -667,7 +678,8 @@ illegalinstruction:
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $1);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $2);
-      i965_asm_set_instruction_options(p, $3);
+      i965_asm_set_instruction_options(parser, $3);
+      (void) yynerrs;
    }
    ;
 
@@ -679,7 +691,7 @@ unaryinstruction:
       brw_set_default_access_mode(p, $8.access_mode);
       i965_asm_unary_instruction($2, p, $6, $7);
       brw_pop_insn_state(p);
-      i965_asm_set_instruction_options(p, $8);
+      i965_asm_set_instruction_options(parser, $8);
       if ($4.cond_modifier) {
          brw_eu_inst_set_cond_modifier(p->devinfo,
                                        brw_last_inst,
@@ -728,7 +740,7 @@ binaryinstruction:
       struct brw_codegen *p = parser->p;
       brw_set_default_access_mode(p, $9.access_mode);
       i965_asm_binary_instruction($2, p, $6, $7, $8);
-      i965_asm_set_instruction_options(p, $9);
+      i965_asm_set_instruction_options(parser, $9);
       if ($4.cond_modifier) {
          brw_eu_inst_set_cond_modifier(p->devinfo,
                                        brw_last_inst,
@@ -776,7 +788,7 @@ binaryaccinstruction:
       brw_set_default_access_mode(p, $9.access_mode);
       i965_asm_binary_instruction($2, p, $6, $7, $8);
       brw_pop_insn_state(p);
-      i965_asm_set_instruction_options(p, $9);
+      i965_asm_set_instruction_options(parser, $9);
       if ($4.cond_modifier) {
          brw_eu_inst_set_cond_modifier(p->devinfo,
                                        brw_last_inst,
@@ -819,7 +831,7 @@ mathinstruction:
       struct brw_codegen *p = parser->p;
       brw_set_default_access_mode(p, $9.access_mode);
       gfx6_math(p, $6, $4, $7, $8);
-      i965_asm_set_instruction_options(p, $9);
+      i965_asm_set_instruction_options(parser, $9);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $5);
       brw_eu_inst_set_saturate(p->devinfo, brw_last_inst, $3);
       brw_eu_inst_set_group(p->devinfo, brw_last_inst, $9.chan_offset);
@@ -862,7 +874,7 @@ ternaryinstruction:
       brw_set_default_access_mode(p, $10.access_mode);
       i965_asm_ternary_instruction($2, p, $6, $7, $8, $9);
       brw_pop_insn_state(p);
-      i965_asm_set_instruction_options(p, $10);
+      i965_asm_set_instruction_options(parser, $10);
       if ($4.cond_modifier) {
          brw_eu_inst_set_cond_modifier(p->devinfo,
                                        brw_last_inst,
@@ -890,7 +902,7 @@ ternaryinstruction:
 
       brw_DPAS(p, translate_systolic_depth($3.sdepth), $3.rcount, $7, $8, $9, $10);
       brw_pop_insn_state(p);
-      i965_asm_set_instruction_options(p, $11);
+      i965_asm_set_instruction_options(parser, $11);
       if ($5.cond_modifier) {
          brw_eu_inst_set_cond_modifier(p->devinfo,
                                        brw_last_inst,
@@ -919,7 +931,7 @@ waitinstruction:
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $1);
-      i965_asm_set_instruction_options(p, $4);
+      i965_asm_set_instruction_options(parser, $4);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $2);
       brw_set_default_access_mode(p, $4.access_mode);
       struct brw_reg dest = $3;
@@ -938,7 +950,8 @@ sendinstruction:
    predicate sendopcode execsize dst payload exp2 sharedfunction msgdesc instoptions
    {
       struct brw_codegen *p = parser->p;
-      i965_asm_set_instruction_options(p, $9);
+
+      i965_asm_set_instruction_options(parser, $9);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
       brw_set_dest(p, brw_last_inst, $4);
       brw_set_src0(p, brw_last_inst, $5);
@@ -956,7 +969,7 @@ sendinstruction:
       struct brw_codegen *p = parser->p;
       assert(p->devinfo->ver < 12);
 
-      i965_asm_set_instruction_options(p, $10);
+      i965_asm_set_instruction_options(parser, $10);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
       brw_set_dest(p, brw_last_inst, $4);
       brw_set_src0(p, brw_last_inst, $5);
@@ -976,8 +989,9 @@ sendinstruction:
    | predicate sendsopcode execsize dst payload payload desc ex_desc sharedfunction msgdesc instoptions
    {
       struct brw_codegen *p = parser->p;
-      i965_asm_set_instruction_options(p, $11);
-      brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
+
+      i965_asm_set_instruction_options(parser, $11);
+      brw_eu_inst_set_exec_size(parser->devinfo, brw_last_inst, $3);
       brw_set_dest(p, brw_last_inst, $4);
       brw_set_src0(p, brw_last_inst, $5);
       brw_set_src1(p, brw_last_inst, $6);
@@ -1013,7 +1027,7 @@ sendinstruction:
       struct brw_codegen *p = parser->p;
       assert(p->devinfo->ver >= 30);
 
-      i965_asm_set_instruction_options(p, $13);
+      i965_asm_set_instruction_options(parser, $13);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
       brw_set_dest(p, brw_last_inst, $4);
       brw_set_src0(p, brw_last_inst, $7);
@@ -1121,7 +1135,7 @@ jumpinstruction:
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
-      i965_asm_set_instruction_options(p, $5);
+      i965_asm_set_instruction_options(parser, $5);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
       brw_set_dest(p, brw_last_inst, brw_ip_reg());
       brw_set_src0(p, brw_last_inst, brw_ip_reg());
@@ -1138,9 +1152,9 @@ branchinstruction:
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
-      brw_asm_label_use_jip($5);
+      brw_asm_label_use_jip(parser, $5);
       brw_eu_inst_set_unused_uip(p->devinfo, brw_last_inst);
-      i965_asm_set_instruction_options(p, $6);
+      i965_asm_set_instruction_options(parser, $6);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
 
       brw_pop_insn_state(p);
@@ -1149,18 +1163,18 @@ branchinstruction:
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $1);
-      brw_asm_label_use_jip($4);
-      brw_asm_label_use_uip($6);
-      i965_asm_set_instruction_options(p, $7);
+      brw_asm_label_use_jip(parser, $4);
+      brw_asm_label_use_uip(parser, $6);
+      i965_asm_set_instruction_options(parser, $7);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $2);
    }
    | predicate IF execsize JIP JUMP_LABEL UIP JUMP_LABEL instoptions
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
-      i965_asm_set_instruction_options(p, $8);
-      brw_asm_label_use_jip($5);
-      brw_asm_label_use_uip($7);
+      i965_asm_set_instruction_options(parser, $8);
+      brw_asm_label_use_jip(parser, $5);
+      brw_asm_label_use_uip(parser, $7);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
 
       brw_pop_insn_state(p);
@@ -1169,9 +1183,9 @@ branchinstruction:
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
-      brw_asm_label_use_jip($5);
-      brw_asm_label_use_uip($7);
-      i965_asm_set_instruction_options(p, $8);
+      brw_asm_label_use_jip(parser, $5);
+      brw_asm_label_use_uip(parser, $7);
+      i965_asm_set_instruction_options(parser, $8);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
 
       brw_pop_insn_state(p);
@@ -1183,9 +1197,9 @@ joininstruction:
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
-      brw_asm_label_use_jip($5);
+      brw_asm_label_use_jip(parser, $5);
       brw_eu_inst_set_unused_uip(p->devinfo, brw_last_inst);
-      i965_asm_set_instruction_options(p, $6);
+      i965_asm_set_instruction_options(parser, $6);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
 
       brw_pop_insn_state(p);
@@ -1199,9 +1213,9 @@ breakinstruction:
       struct brw_codegen *p = parser->p;
 
       brw_next_insn(p, $2);
-      brw_asm_label_use_jip($5);
-      brw_asm_label_use_uip($7);
-      i965_asm_set_instruction_options(p, $8);
+      brw_asm_label_use_jip(parser, $5);
+      brw_asm_label_use_uip(parser, $7);
+      i965_asm_set_instruction_options(parser, $8);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
 
       brw_pop_insn_state(p);
@@ -1210,9 +1224,9 @@ breakinstruction:
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
-      brw_asm_label_use_jip($5);
-      brw_asm_label_use_uip($7);
-      i965_asm_set_instruction_options(p, $8);
+      brw_asm_label_use_jip(parser, $5);
+      brw_asm_label_use_uip(parser, $7);
+      i965_asm_set_instruction_options(parser, $8);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
 
       brw_pop_insn_state(p);
@@ -1221,9 +1235,9 @@ breakinstruction:
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
-      brw_asm_label_use_jip($5);
-      brw_asm_label_use_uip($7);
-      i965_asm_set_instruction_options(p, $8);
+      brw_asm_label_use_jip(parser, $5);
+      brw_asm_label_use_uip(parser, $7);
+      i965_asm_set_instruction_options(parser, $8);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
 
       brw_pop_insn_state(p);
@@ -1236,9 +1250,9 @@ loopinstruction:
    {
       struct brw_codegen *p = parser->p;
       brw_next_insn(p, $2);
-      brw_asm_label_use_jip($5);
+      brw_asm_label_use_jip(parser, $5);
       brw_eu_inst_set_unused_uip(p->devinfo, brw_last_inst);
-      i965_asm_set_instruction_options(p, $6);
+      i965_asm_set_instruction_options(parser, $6);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $3);
 
       brw_pop_insn_state(p);
@@ -1267,7 +1281,7 @@ syncinstruction:
 
       brw_set_default_access_mode(p, $6.access_mode);
       brw_SYNC(p, $3);
-      i965_asm_set_instruction_options(p, $6);
+      i965_asm_set_instruction_options(parser, $6);
       brw_eu_inst_set_exec_size(p->devinfo, brw_last_inst, $4);
       brw_set_src0(p, brw_last_inst, $5);
       brw_eu_inst_set_eot(p->devinfo, brw_last_inst, $6.end_of_thread);
@@ -1307,7 +1321,7 @@ relativelocation2:
 jumplabeltarget:
    JUMP_LABEL_TARGET
    {
-      brw_asm_label_set($1);
+      brw_asm_label_set(parser, $1);
    }
    ;
 
@@ -2113,13 +2127,13 @@ instoption_list:
    {
       memset(&$$, 0, sizeof($$));
       $$ = $1;
-      add_instruction_option(&$$, $3);
+      add_instruction_option(parser, &$$, $3);
    }
    | instoption_list instoption
    {
       memset(&$$, 0, sizeof($$));
       $$ = $1;
-      add_instruction_option(&$$, $2);
+      add_instruction_option(parser, &$$, $2);
    }
    | /* empty */
    {
@@ -2246,17 +2260,11 @@ instoption:
 
 %%
 
-extern int yylineno;
-
-#ifdef YYBYACC
 void
-yyerror(YYLTYPE *ltype, char *msg)
-#else
-void
-yyerror(char *msg)
-#endif
+yyerror(YYLTYPE *loc, struct brw_asm_parser *parser, const char *msg)
 {
    fprintf(stderr, "%s: %d: %s at \"%s\"\n",
-           parser->input_filename, yylineno, msg, lex_text());
+           parser->input_filename, loc->first_line, msg,
+           brw_asm_get_text(parser->scanner));
    ++parser->errors;
 }
