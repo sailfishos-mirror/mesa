@@ -159,15 +159,14 @@ wsi_device_init(struct wsi_device *wsi,
       &vk_physical_device_from_handle(pdevice)->supported_extensions;
    wsi->has_import_memory_host =
       supported_extensions->EXT_external_memory_host;
-   wsi->khr_present_wait =
-      supported_extensions->KHR_present_wait ||
-      supported_extensions->KHR_present_wait2;
+   wsi->has_present_wait = supported_extensions->KHR_present_wait ||
+                           supported_extensions->KHR_present_wait2;
 
    wsi->has_timeline_semaphore =
       supported_extensions->KHR_timeline_semaphore;
 
    /* We cannot expose KHR_present_wait without timeline semaphores. */
-   assert(!wsi->khr_present_wait || supported_extensions->KHR_timeline_semaphore);
+   assert(!wsi->has_present_wait || wsi->has_timeline_semaphore);
 
    list_inithead(&wsi->hotplug_fences);
 
@@ -211,7 +210,7 @@ wsi_device_init(struct wsi_device *wsi,
    WSI_GET_CB(WaitForFences);
    WSI_GET_CB(MapMemory);
    WSI_GET_CB(UnmapMemory);
-   if (wsi->khr_present_wait)
+   if (wsi->has_present_wait)
       WSI_GET_CB(WaitSemaphores);
 #undef WSI_GET_CB
 
@@ -1082,7 +1081,7 @@ wsi_CreateSwapchainKHR(VkDevice _device,
 
    if (device->enabled_features.presentWait ||
        device->enabled_features.presentWait2) {
-      assert(wsi_device->khr_present_wait);
+      assert(wsi_device->has_present_wait);
       const VkSemaphoreTypeCreateInfo type_info = {
          .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
          .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,

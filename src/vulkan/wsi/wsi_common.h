@@ -157,7 +157,7 @@ struct wsi_device {
     * In this case, we have to create an extra timeline semaphore
     * to be able to synchronize with the WSI present semaphore being unsignalled.
     * This requires VK_KHR_timeline_semaphore. */
-   bool khr_present_wait;
+   bool has_present_wait;
 
    struct {
       /* Don't use the commit-timing protocol for pacing */
