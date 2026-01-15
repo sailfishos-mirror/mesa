@@ -169,6 +169,12 @@ struct spill_ctx {
       return next_spill_id++;
    }
 
+   std::pair<int, float> get_score(Temp var, RegisterDemand spills_needed)
+   {
+      int wasted = MAX2((int)var.size() - spills_needed[var.type()], 0);
+      return {-wasted, ssa_infos[var.id()].score()};
+   }
+
    uint32_t next_spill_id = 0;
 };
 
@@ -373,7 +379,7 @@ init_live_in_vars(spill_ctx& ctx, Block* block, unsigned block_idx)
       spills_needed.update(loop_call_spills);
       while (!spills_needed.empty()) {
          RegType type = get_spill_regtype(spills_needed);
-         float score = 0.0;
+         std::pair<int, float> score{INT_MIN, 0.0};
          unsigned remat = 0;
          Temp to_spill;
          for (unsigned t : live_in) {
@@ -383,14 +389,15 @@ init_live_in_vars(spill_ctx& ctx, Block* block, unsigned block_idx)
                continue;
 
             unsigned can_remat = ctx.remat.count(var);
-            if (can_remat > remat || (can_remat == remat && ctx.ssa_infos[t].score() > score)) {
+            std::pair<int, float> var_score = ctx.get_score(var, spills_needed);
+            if (can_remat > remat || (can_remat == remat && var_score > score)) {
                to_spill = var;
-               score = ctx.ssa_infos[t].score();
+               score = var_score;
                remat = can_remat;
             }
          }
 
-         if (score == 0.0) {
+         if (score.second == 0.0) {
             spills_needed[type] = 0;
             continue;
          }
@@ -414,7 +421,7 @@ init_live_in_vars(spill_ctx& ctx, Block* block, unsigned block_idx)
 
       spills_needed = reg_pressure - ctx.target_pressure;
       while (!spills_needed.empty()) {
-         float score = 0;
+         std::pair<int, float> score{INT_MIN, 0.0};
          Temp to_spill = Temp();
          RegType type = get_spill_regtype(spills_needed);
          for (aco_ptr<Instruction>& phi : block->instructions) {
@@ -423,10 +430,11 @@ init_live_in_vars(spill_ctx& ctx, Block* block, unsigned block_idx)
             if (!phi->definitions[0].isTemp() || phi->definitions[0].isKill())
                continue;
             Temp var = phi->definitions[0].getTemp();
+            std::pair<int, float> var_score = ctx.get_score(var, spills_needed);
             if (var.type() == type && !ctx.spills_entry[block_idx].count(var) &&
-                ctx.ssa_infos[var.id()].score() > score && is_spillable(ctx, var)) {
+                var_score > score && is_spillable(ctx, var)) {
                to_spill = var;
-               score = ctx.ssa_infos[var.id()].score();
+               score = var_score;
             }
          }
          assert(to_spill != Temp());
@@ -554,16 +562,17 @@ init_live_in_vars(spill_ctx& ctx, Block* block, unsigned block_idx)
       std::map<Temp, bool>::iterator it = partial_spills.begin();
       Temp to_spill = Temp();
       bool is_partial_spill = false;
-      float score = 0.0;
+      std::pair<int, float> score{INT_MIN, 0.0};
       RegType type = get_spill_regtype(spills_needed);
 
       while (it != partial_spills.end()) {
          assert(!ctx.spills_entry[block_idx].count(it->first));
 
+         std::pair<int, float> var_score = ctx.get_score(it->first, spills_needed);
          if (it->first.type() == type && is_spillable(ctx, it->first) &&
              ((it->second && !is_partial_spill) ||
-              (it->second == is_partial_spill && ctx.ssa_infos[it->first.id()].score() > score))) {
-            score = ctx.ssa_infos[it->first.id()].score();
+              (it->second == is_partial_spill && var_score > score))) {
+            score = var_score;
             to_spill = it->first;
             is_partial_spill = it->second;
          }
