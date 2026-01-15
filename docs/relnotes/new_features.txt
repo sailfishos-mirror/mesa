@@ -24,3 +24,4 @@ VK_KHR_pipeline_binary on HoneyKrisp
 VK_KHR_incremental_present on pvr
 VK_KHR_xcb_surface on pvr
 VK_KHR_xlib_surface on pvr
+VK_KHR_robustness2 on panvk v10+
