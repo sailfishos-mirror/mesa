@@ -467,6 +467,8 @@ radv_rt_nir_to_asm(struct radv_device *device, struct vk_pipeline_cache *cache,
       NIR_PASS(_, stage->nir, radv_nir_lower_call_abi, stage->info.wave_size);
       NIR_PASS(_, stage->nir, nir_lower_global_vars_to_local);
       NIR_PASS(_, stage->nir, nir_lower_vars_to_ssa);
+      NIR_PASS(_, stage->nir, nir_opt_copy_prop);
+      NIR_PASS(_, stage->nir, nir_opt_remove_phis);
       if (!stage->key.optimisations_disabled)
          NIR_PASS(_, stage->nir, nir_minimize_call_live_states);
 
