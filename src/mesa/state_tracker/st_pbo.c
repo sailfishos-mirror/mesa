@@ -569,7 +569,7 @@ create_fs(struct st_context *st, bool download,
                             .image_dim = GLSL_SAMPLER_DIM_BUF);
    } else {
       nir_store_output(&b, result, nir_imm_int(&b, 0),
-                       .io_semantics.location = FRAG_RESULT_COLOR);
+                       .io_semantics.location = FRAG_RESULT_COLOR, .src_type = tex->dest_type);
    }
 
    return st_nir_finish_builtin_shader(st, b.shader);
