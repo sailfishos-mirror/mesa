@@ -573,18 +573,8 @@ pvr_srv_winsys_device_info_init(struct pvr_winsys *ws,
 {
    struct pvr_srv_winsys *srv_ws = to_pvr_srv_winsys(ws);
    VkResult result;
-   int ret;
 
-   ret = pvr_device_info_init(dev_info, srv_ws->bvnc);
-   if (ret) {
-      return vk_errorf(NULL,
-                       VK_ERROR_INCOMPATIBLE_DRIVER,
-                       "Unsupported BVNC: %u.%u.%u.%u\n",
-                       PVR_BVNC_UNPACK_B(srv_ws->bvnc),
-                       PVR_BVNC_UNPACK_V(srv_ws->bvnc),
-                       PVR_BVNC_UNPACK_N(srv_ws->bvnc),
-                       PVR_BVNC_UNPACK_C(srv_ws->bvnc));
-   }
+   *dev_info = srv_ws->dev_info;
 
    runtime_info->min_free_list_size = pvr_srv_get_min_free_list_size(dev_info);
    runtime_info->max_free_list_size = PVR_SRV_FREE_LIST_MAX_SIZE;
@@ -713,12 +703,21 @@ VkResult pvr_srv_winsys_create(const int render_fd,
       goto err_pvr_srv_connection_destroy;
    }
 
+   int ret = pvr_device_info_init(&srv_ws->dev_info, bvnc);
+   if (ret) {
+      return vk_errorf(NULL,
+                       VK_ERROR_INCOMPATIBLE_DRIVER,
+                       "Unsupported BVNC: %u.%u.%u.%u\n",
+                       PVR_BVNC_UNPACK_B(bvnc),
+                       PVR_BVNC_UNPACK_V(bvnc),
+                       PVR_BVNC_UNPACK_N(bvnc),
+                       PVR_BVNC_UNPACK_C(bvnc));
+   }
+
    srv_ws->base.ops = &srv_winsys_ops;
    srv_ws->base.render_fd = render_fd;
    srv_ws->base.display_fd = display_fd;
    srv_ws->base.alloc = alloc;
-
-   srv_ws->bvnc = bvnc;
 
    srv_ws->base.syncobj_type = pvr_srv_sync_type;
    srv_ws->base.sync_types[0] = &srv_ws->base.syncobj_type;
