@@ -4756,9 +4756,8 @@ get_spacing(enum gl_tess_spacing spacing)
 }
 
 struct spirv_shader *
-nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, const struct zink_screen *screen)
+nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_t spirv_version, bool has_demote_to_helper)
 {
-   const uint32_t spirv_version = screen->spirv_version;
    struct spirv_shader *ret = NULL;
 
    struct ntv_context ctx = {0};
@@ -4786,14 +4785,14 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, const s
       if (s->info.fs.uses_sample_shading)
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilitySampleRateShading);
 
-      if (s->info.fs.uses_discard && screen->info.have_EXT_shader_demote_to_helper_invocation) {
+      if (s->info.fs.uses_discard && has_demote_to_helper) {
          if (!ctx.have_spirv16)
             spirv_builder_emit_extension(&ctx.builder, "SPV_EXT_demote_to_helper_invocation");
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilityDemoteToHelperInvocation);
       }
 
       if (BITSET_TEST(s->info.system_values_read, SYSTEM_VALUE_HELPER_INVOCATION) &&
-          screen->info.have_EXT_shader_demote_to_helper_invocation && !ctx.have_spirv16) {
+          has_demote_to_helper && !ctx.have_spirv16) {
          spirv_builder_emit_extension(&ctx.builder, "SPV_EXT_demote_to_helper_invocation");
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilityDemoteToHelperInvocation);
       }

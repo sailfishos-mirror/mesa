@@ -3860,7 +3860,7 @@ compile_module(struct zink_screen *screen, struct zink_shader *zs, nir_shader *n
    }
 
    struct zink_shader_object obj = {0};
-   struct spirv_shader *spirv = nir_to_spirv(nir, sinfo, screen);
+   struct spirv_shader *spirv = nir_to_spirv(nir, sinfo, screen->spirv_version, screen->info.have_EXT_shader_demote_to_helper_invocation);
    if (spirv)
       obj = zink_shader_spirv_compile(screen, zs, spirv, can_shobj, pg);
 
