@@ -27,7 +27,7 @@ rustfmt:
     - shopt -s globstar
     - source "$HOME/.cargo/env"
     - rustfmt --version
-    - rustfmt --verbose src/**/lib.rs
+    - rustfmt --verbose src/**/*.rs
 
 shader-db:
   stage: code-validation
