@@ -579,7 +579,8 @@ fdl6_buffer_view_init(uint32_t *descriptor, enum pipe_format format,
       descriptor[3] = A8XX_TEX_MEMOBJ_3_FMT(fd6_texture_format(format, TILE6_LINEAR, false)) |
                       A8XX_TEX_MEMOBJ_3_SWAP(fd6_texture_swap(format, TILE6_LINEAR, false)) |
                       fdl6_texswiz<CHIP>(&args, false);
-      descriptor[4] = A8XX_TEX_MEMOBJ_4_TILE_MODE(TILE6_LINEAR);
+      descriptor[4] = A8XX_TEX_MEMOBJ_4_TILE_MODE(TILE6_LINEAR) |
+                      COND(util_format_is_srgb(format), A8XX_TEX_MEMOBJ_4_SRGB);
    }
 }
 FD_GENX(fdl6_buffer_view_init);
