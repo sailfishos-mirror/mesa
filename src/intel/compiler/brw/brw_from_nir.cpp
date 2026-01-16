@@ -5043,6 +5043,8 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       brw_urb_inst *urb = bld.URB_WRITE(srcs, ARRAY_SIZE(srcs));
       urb->components = instr->src[0].ssa->num_components;
       urb->offset = urb_global_offset;
+
+      assert(urb->components == 4 || urb->components == 8);
       break;
    }
 
