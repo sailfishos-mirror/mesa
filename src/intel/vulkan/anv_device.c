@@ -51,6 +51,7 @@
 
 #include "genxml/gen70_pack.h"
 #include "genxml/genX_bits.h"
+#include "wsi_common_private.h"
 
 const struct gfx8_border_color anv_default_border_colors[] = {
    [VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK] =  { .float32 = { 0.0, 0.0, 0.0, 0.0 } },
@@ -2079,6 +2080,18 @@ is_gpu_time_domain(VkTimeDomainKHR domain)
    return domain == VK_TIME_DOMAIN_DEVICE_KHR;
 }
 
+static VkTimeDomainKHR
+get_effective_time_domain(const VkCalibratedTimestampInfoKHR *timestamp)
+{
+   if (timestamp->timeDomain == VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT) {
+      const VkSwapchainCalibratedTimestampInfoEXT *swap =
+         vk_find_struct_const(timestamp->pNext, SWAPCHAIN_CALIBRATED_TIMESTAMP_INFO_EXT);
+      return wsi_common_get_time_domain(swap->swapchain, swap->presentStage, swap->timeDomainId);
+   } else {
+      return timestamp->timeDomain;
+   }
+}
+
 VkResult anv_GetCalibratedTimestampsKHR(
    VkDevice                                     _device,
    uint32_t                                     timestampCount,
@@ -2099,7 +2112,7 @@ VkResult anv_GetCalibratedTimestampsKHR(
    begin = end = vk_clock_gettime(anv_get_default_cpu_clock_id());
 
    for (d = 0, increment = 1; d < timestampCount; d += increment) {
-      const VkTimeDomainKHR current = pTimestampInfos[d].timeDomain;
+      const VkTimeDomainKHR current = get_effective_time_domain(&pTimestampInfos[d]);
       /* If we have a request pattern like this :
        * - domain0 = VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR or VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_KHR
        * - domain1 = VK_TIME_DOMAIN_DEVICE_KHR
@@ -2108,7 +2121,7 @@ VkResult anv_GetCalibratedTimestampsKHR(
        * We can combine all of those into a single ioctl for maximum accuracy.
        */
       if (has_correlate_timestamp && (d + 1) < timestampCount) {
-         const VkTimeDomainKHR next = pTimestampInfos[d + 1].timeDomain;
+         const VkTimeDomainKHR next = get_effective_time_domain(&pTimestampInfos[d + 1]);
 
          if ((is_cpu_time_domain(current) && is_gpu_time_domain(next)) ||
              (is_gpu_time_domain(current) && is_cpu_time_domain(next))) {
@@ -2144,7 +2157,7 @@ VkResult anv_GetCalibratedTimestampsKHR(
             /* If we can consume a third element */
             if ((d + 2) < timestampCount &&
                 is_cpu_time_domain(current) &&
-                current == pTimestampInfos[d + 2].timeDomain) {
+                current == get_effective_time_domain(&pTimestampInfos[d + 2])) {
                pTimestamps[d + 2] = cpu_end_timestamp;
                increment++;
             }
@@ -2186,6 +2199,23 @@ VkResult anv_GetCalibratedTimestampsKHR(
       default:
          pTimestamps[d] = 0;
          break;
+      }
+   }
+
+   for (uint32_t i = 0; i < timestampCount; i++) {
+      if (pTimestampInfos[i].timeDomain == VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT) {
+         /* Need to rescale device timestamps to nanoseconds. */
+         const VkSwapchainCalibratedTimestampInfoEXT *swap =
+               vk_find_struct_const(pTimestampInfos[i].pNext, SWAPCHAIN_CALIBRATED_TIMESTAMP_INFO_EXT);
+         if (wsi_common_get_time_domain(swap->swapchain, swap->presentStage, swap->timeDomainId) ==
+             VK_TIME_DOMAIN_DEVICE_KHR) {
+            pTimestamps[i] = (uint64_t)((double)pTimestamps[i] * 1e9 / (double)device->physical->info.timestamp_frequency);
+         }
+
+         /* Timestamps in QueueOperationsEnd are always derived from a device timestamp,
+          * even if the reported time domain is not. */
+         if (swap->presentStage == VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT)
+            max_clock_period = MAX2(max_clock_period, device_period);
       }
    }
 
