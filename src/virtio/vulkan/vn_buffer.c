@@ -19,7 +19,7 @@
 
 /* buffer commands */
 
-static inline uint64_t
+static uint64_t
 vn_buffer_get_cache_index(const VkBufferCreateInfo *create_info,
                           struct vn_buffer_reqs_cache *cache)
 {
@@ -29,13 +29,15 @@ vn_buffer_get_cache_index(const VkBufferCreateInfo *create_info,
     *
     * Combine sharing mode, flags and usage bits to form a unique index.
     *
-    * Btw, we assume VkBufferCreateFlagBits won't exhaust all 32bits, at least
-    * no earlier than VkBufferUsageFlagBits.
-    *
     * TODO: extend cache to cover VkBufferUsageFlags2CreateInfo (introduced in
     * VK_KHR_maintenance5 and promoted to 1.4).
     */
-   assert(!(create_info->flags & 0x80000000));
+
+   /* Only 7 bits are taken for VkBufferCreateFlagBits as of spec 1.4.339. We
+    * preserve 12 bits for the create flags.
+    */
+   if (create_info->flags & 0xFFFFF000)
+      return 0;
 
    const bool is_exclusive =
       create_info->sharingMode == VK_SHARING_MODE_EXCLUSIVE;
@@ -45,7 +47,7 @@ vn_buffer_get_cache_index(const VkBufferCreateInfo *create_info,
    if (create_info->size <= cache->max_buffer_size &&
        create_info->pNext == NULL && (is_exclusive || is_concurrent)) {
       return (uint64_t)is_concurrent << 63 |
-             (uint64_t)create_info->flags << 32 | create_info->usage;
+             (uint64_t)create_info->flags << 51 | create_info->usage;
    }
 
    /* index being zero suggests uncachable since usage must not be zero */
