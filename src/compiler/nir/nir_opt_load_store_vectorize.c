@@ -42,6 +42,7 @@
  * This probably doesn't handle big-endian GPUs correctly.
  */
 
+#include "util/ralloc.h"
 #include "util/u_dynarray.h"
 #include "nir.h"
 #include "nir_builder.h"
@@ -198,6 +199,7 @@ struct entry {
 };
 
 struct vectorize_ctx {
+   linear_ctx *linear_mem_ctx;
    nir_shader *shader;
    const nir_load_store_vectorize_options *options;
    unsigned (*round_up_components)(unsigned);
@@ -267,13 +269,6 @@ entry_key_equals(const void *a_, const void *b_)
       return false;
 
    return true;
-}
-
-static void
-delete_entry_dynarray(struct hash_entry *entry)
-{
-   struct util_dynarray *arr = (struct util_dynarray *)entry->data;
-   ralloc_free(arr);
 }
 
 static int64_t
@@ -535,9 +530,9 @@ fill_in_offset_defs(struct vectorize_ctx *ctx, struct entry *entry,
 {
    struct entry_key *key = entry->key;
    key->offset_def_count = count;
-   key->offset_defs = ralloc_array(entry, nir_scalar, count);
-   key->offset_defs_mul = ralloc_array(entry, uint64_t, count);
-   key->offset_def_num_lsbz = ralloc_array(entry, uint8_t, count);
+   key->offset_defs = linear_alloc_array(ctx->linear_mem_ctx, nir_scalar, count);
+   key->offset_defs_mul = linear_alloc_array(ctx->linear_mem_ctx, uint64_t, count);
+   key->offset_def_num_lsbz = linear_alloc_array(ctx->linear_mem_ctx, uint8_t, count);
    for (unsigned i = 0; i < count; i++) {
       key->offset_defs[i] = terms[i].s;
       key->offset_defs_mul[i] = terms[i].mul;
@@ -565,7 +560,7 @@ create_entry_key_from_deref(struct vectorize_ctx *ctx, struct entry *entry,
       terms = malloc(path_len * sizeof(struct offset_term));
    unsigned term_count = 0;
 
-   struct entry_key *key = ralloc(entry, struct entry_key);
+   struct entry_key *key = linear_alloc(ctx->linear_mem_ctx, struct entry_key);
    key->resource = NULL;
    key->var = NULL;
 
@@ -653,7 +648,7 @@ static void
 create_entry_key_from_offset(struct vectorize_ctx *ctx, struct entry *entry,
                              nir_def *base, uint64_t base_mul)
 {
-   struct entry_key *key = ralloc(entry, struct entry_key);
+   struct entry_key *key = linear_alloc(ctx->linear_mem_ctx, struct entry_key);
    key->resource = NULL;
    key->var = NULL;
    key->offset_defs = NULL;
@@ -741,7 +736,7 @@ calc_alignment(struct entry *entry)
 }
 
 static struct entry *
-create_entry(void *mem_ctx, struct vectorize_ctx *ctx,
+create_entry(struct vectorize_ctx *ctx,
              const struct intrinsic_info *info,
              nir_intrinsic_instr *intrin)
 {
@@ -751,7 +746,7 @@ create_entry(void *mem_ctx, struct vectorize_ctx *ctx,
    bool is_shared_append = intrin->intrinsic == nir_intrinsic_shared_append_amd ||
                            intrin->intrinsic == nir_intrinsic_shared_consume_amd;
 
-   struct entry *entry = rzalloc(mem_ctx, struct entry);
+   struct entry *entry = linear_zalloc(ctx->linear_mem_ctx, struct entry);
    entry->intrin = intrin;
    entry->instr = &intrin->instr;
    entry->info = info;
@@ -1708,7 +1703,7 @@ vectorize_entries(struct vectorize_ctx *ctx, nir_function_impl *impl, struct has
       }
    }
 
-   _mesa_hash_table_clear(ht, delete_entry_dynarray);
+   _mesa_hash_table_clear(ht, NULL);
 
    return progress;
 }
@@ -1792,9 +1787,9 @@ process_block(nir_function_impl *impl, struct vectorize_ctx *ctx, nir_block *blo
    for (unsigned i = 0; i < nir_num_variable_modes; i++) {
       list_inithead(&ctx->entries[i]);
       if (ctx->loads[i])
-         _mesa_hash_table_clear(ctx->loads[i], delete_entry_dynarray);
+         _mesa_hash_table_clear(ctx->loads[i], NULL);
       if (ctx->stores[i])
-         _mesa_hash_table_clear(ctx->stores[i], delete_entry_dynarray);
+         _mesa_hash_table_clear(ctx->stores[i], NULL);
    }
 
    /* create entries */
@@ -1825,7 +1820,7 @@ process_block(nir_function_impl *impl, struct vectorize_ctx *ctx, nir_block *blo
       unsigned mode_index = mode_to_index(mode);
 
       /* create entry */
-      struct entry *entry = create_entry(ctx, ctx, info, intrin);
+      struct entry *entry = create_entry(ctx, info, intrin);
       entry->index = next_index;
 
       list_addtail(&entry->head, &ctx->entries[mode_index]);
@@ -1849,8 +1844,8 @@ process_block(nir_function_impl *impl, struct vectorize_ctx *ctx, nir_block *blo
       if (adj_entry && adj_entry->data) {
          arr = (struct util_dynarray *)adj_entry->data;
       } else {
-         arr = ralloc(ctx, struct util_dynarray);
-         util_dynarray_init(arr, arr);
+         arr = linear_alloc(ctx->linear_mem_ctx, struct util_dynarray);
+         util_dynarray_init(arr, ctx);
          _mesa_hash_table_insert_pre_hashed(adj_ht, key_hash, entry->key, arr);
       }
       util_dynarray_append(arr, entry);
@@ -1871,6 +1866,7 @@ nir_opt_load_store_vectorize(nir_shader *shader, const nir_load_store_vectorize_
    bool progress = false;
 
    struct vectorize_ctx *ctx = rzalloc(NULL, struct vectorize_ctx);
+   ctx->linear_mem_ctx = linear_context(ctx);
    ctx->shader = shader;
    ctx->numlsb_ht = _mesa_pointer_hash_table_create(ctx);
    ctx->options = options;
@@ -1913,9 +1909,8 @@ opt_load_store_update_alignments_callback(struct nir_builder *b,
    if (!info)
       return false;
 
-   struct entry *entry = create_entry(NULL, s, info, intrin);
+   struct entry *entry = create_entry(s, info, intrin);
    const bool progress = update_align(entry);
-   ralloc_free(entry);
 
    return progress;
 }
@@ -1925,6 +1920,8 @@ nir_opt_load_store_update_alignments(nir_shader *shader)
 {
    struct vectorize_ctx ctx;
    ctx.numlsb_ht = _mesa_pointer_hash_table_create(NULL);
+   ctx.linear_mem_ctx = linear_context(ctx.numlsb_ht);
+
    bool progress = nir_shader_intrinsics_pass(shader,
                                               opt_load_store_update_alignments_callback,
                                               nir_metadata_control_flow |
