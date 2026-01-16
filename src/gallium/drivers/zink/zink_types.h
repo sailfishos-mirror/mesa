@@ -773,12 +773,14 @@ struct zink_shader_info {
    bool have_vulkan_memory_model;
    bool have_workgroup_memory_explicit_layout;
    bool broken_arbitary_type_const;
+   bool has_demote_to_helper;
    struct {
       uint8_t flush_denorms:3; // 16, 32, 64
       uint8_t preserve_denorms:3; // 16, 32, 64
       bool denorms_32_bit_independence:1;
       bool denorms_all_independence:1;
    } float_controls;
+   uint32_t spirv_version;
    unsigned bindless_set_idx;
 };
 

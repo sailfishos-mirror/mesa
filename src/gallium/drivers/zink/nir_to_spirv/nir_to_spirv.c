@@ -4756,7 +4756,7 @@ get_spacing(enum gl_tess_spacing spacing)
 }
 
 struct spirv_shader *
-nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_t spirv_version, bool has_demote_to_helper)
+nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo)
 {
    struct spirv_shader *ret = NULL;
 
@@ -4764,9 +4764,9 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_
    ctx.mem_ctx = ralloc_context(NULL);
    ctx.nir = s;
    ctx.builder.mem_ctx = ctx.mem_ctx;
-   assert(spirv_version >= SPIRV_VERSION(1, 0));
-   ctx.spirv_1_4_interfaces = spirv_version >= SPIRV_VERSION(1, 4);
-   ctx.have_spirv16 = spirv_version >= SPIRV_VERSION(1, 6);
+   assert(sinfo->spirv_version >= SPIRV_VERSION(1, 0));
+   ctx.spirv_1_4_interfaces = sinfo->spirv_version >= SPIRV_VERSION(1, 4);
+   ctx.have_spirv16 = sinfo->spirv_version >= SPIRV_VERSION(1, 6);
 
    ctx.bindless_set_idx = sinfo->bindless_set_idx;
    ctx.glsl_types[0] = _mesa_pointer_hash_table_create(ctx.mem_ctx);
@@ -4785,14 +4785,14 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_
       if (s->info.fs.uses_sample_shading)
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilitySampleRateShading);
 
-      if (s->info.fs.uses_discard && has_demote_to_helper) {
+      if (s->info.fs.uses_discard && sinfo->has_demote_to_helper) {
          if (!ctx.have_spirv16)
             spirv_builder_emit_extension(&ctx.builder, "SPV_EXT_demote_to_helper_invocation");
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilityDemoteToHelperInvocation);
       }
 
       if (BITSET_TEST(s->info.system_values_read, SYSTEM_VALUE_HELPER_INVOCATION) &&
-          has_demote_to_helper && !ctx.have_spirv16) {
+          sinfo->has_demote_to_helper && !ctx.have_spirv16) {
          spirv_builder_emit_extension(&ctx.builder, "SPV_EXT_demote_to_helper_invocation");
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilityDemoteToHelperInvocation);
       }
@@ -4804,7 +4804,7 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_
           BITSET_TEST(s->info.system_values_read, SYSTEM_VALUE_DRAW_ID) ||
           BITSET_TEST(s->info.system_values_read, SYSTEM_VALUE_BASE_INSTANCE) ||
           BITSET_TEST(s->info.system_values_read, SYSTEM_VALUE_BASE_VERTEX)) {
-         if (spirv_version < SPIRV_VERSION(1, 3))
+         if (sinfo->spirv_version < SPIRV_VERSION(1, 3))
             spirv_builder_emit_extension(&ctx.builder, "SPV_KHR_shader_draw_parameters");
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilityDrawParameters);
       }
@@ -4830,7 +4830,7 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_
    if (s->info.stage < MESA_SHADER_GEOMETRY) {
       if (s->info.outputs_written & VARYING_BIT_LAYER ||
           s->info.inputs_read & VARYING_BIT_LAYER) {
-         if (spirv_version >= SPIRV_VERSION(1, 5))
+         if (sinfo->spirv_version >= SPIRV_VERSION(1, 5))
             spirv_builder_emit_cap(&ctx.builder, SpvCapabilityShaderLayer);
          else {
             spirv_builder_emit_extension(&ctx.builder, "SPV_EXT_shader_viewport_index_layer");
@@ -4846,7 +4846,7 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilityGeometry);
    }
 
-   if (s->info.num_ssbos && spirv_version < SPIRV_VERSION(1, 1))
+   if (s->info.num_ssbos && sinfo->spirv_version < SPIRV_VERSION(1, 1))
       spirv_builder_emit_extension(&ctx.builder, "SPV_KHR_storage_buffer_storage_class");
 
    if (s->info.stage < MESA_SHADER_FRAGMENT &&
@@ -5147,7 +5147,7 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_
          spirv_builder_emit_name(&ctx.builder, ctx.local_group_size_var, "gl_LocalGroupSizeARB");
 
          /* WorkgroupSize is deprecated in SPIR-V 1.6 */
-         if (spirv_version >= SPIRV_VERSION(1, 6)) {
+         if (sinfo->spirv_version >= SPIRV_VERSION(1, 6)) {
             spirv_builder_emit_exec_mode_id3(&ctx.builder, entry_point,
                                                   SpvExecutionModeLocalSizeId,
                                                   sizes);
@@ -5220,7 +5220,7 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_
       spirv_builder_label(&ctx.builder, label);
 
       /* kill is deprecated in SPIR-V 1.6, use terminate instead */
-      if (spirv_version >= SPIRV_VERSION(1, 6))
+      if (sinfo->spirv_version >= SPIRV_VERSION(1, 6))
          spirv_builder_emit_terminate(&ctx.builder);
       else
          spirv_builder_emit_kill(&ctx.builder);
@@ -5303,7 +5303,7 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo, uint32_
    if (!ret->words)
       goto fail;
 
-   ret->num_words = spirv_builder_get_words(&ctx.builder, ret->words, num_words, spirv_version, &tcs_vertices_out_word);
+   ret->num_words = spirv_builder_get_words(&ctx.builder, ret->words, num_words, sinfo->spirv_version, &tcs_vertices_out_word);
    ret->tcs_vertices_out_word = tcs_vertices_out_word;
    assert(ret->num_words == num_words);
 

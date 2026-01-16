@@ -3860,7 +3860,7 @@ compile_module(struct zink_screen *screen, struct zink_shader *zs, nir_shader *n
    }
 
    struct zink_shader_object obj = {0};
-   struct spirv_shader *spirv = nir_to_spirv(nir, sinfo, screen->spirv_version, screen->info.have_EXT_shader_demote_to_helper_invocation);
+   struct spirv_shader *spirv = nir_to_spirv(nir, sinfo);
    if (spirv)
       obj = zink_shader_spirv_compile(screen, zs, spirv, can_shobj, pg);
 
@@ -6122,7 +6122,9 @@ zink_shader_create(struct zink_screen *screen, struct nir_shader *nir)
 
    zs->sinfo.have_vulkan_memory_model = screen->info.have_KHR_vulkan_memory_model;
    zs->sinfo.have_workgroup_memory_explicit_layout = screen->info.have_KHR_workgroup_memory_explicit_layout;
+   zs->sinfo.has_demote_to_helper = screen->info.have_EXT_shader_demote_to_helper_invocation;
    zs->sinfo.broken_arbitary_type_const = screen->driver_compiler_workarounds.broken_const;
+   zs->sinfo.spirv_version = screen->spirv_version;
    if (screen->info.have_KHR_shader_float_controls) {
       if (screen->info.props12.shaderDenormFlushToZeroFloat16)
          zs->sinfo.float_controls.flush_denorms |= 0x1;
