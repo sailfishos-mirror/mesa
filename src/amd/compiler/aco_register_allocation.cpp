@@ -1619,21 +1619,24 @@ get_reg_specified(ra_ctx& ctx, const RegisterFile& reg_file, RegClass rc,
    return true;
 }
 
+void
+decrease_num_waves(ra_ctx& ctx)
+{
+   assert(ctx.program->num_waves > ctx.program->min_waves);
+   ctx.program->num_waves--;
+   ctx.program->max_reg_demand = get_addr_regs_from_waves(ctx.program, ctx.program->num_waves);
+   ctx.sgpr_bounds = ctx.program->max_reg_demand.sgpr;
+   ctx.vgpr_bounds = ctx.program->max_reg_demand.vgpr;
+}
+
 bool
 increase_register_file(ra_ctx& ctx, RegClass rc)
 {
    if (rc.type() == RegType::vgpr && ctx.num_linear_vgprs == 0 &&
        ctx.vgpr_bounds < ctx.limit.vgpr) {
-      /* If vgpr_bounds is less than max_reg_demand.vgpr, this should be a no-op. */
-      update_vgpr_sgpr_demand(
-         ctx.program, RegisterDemand(ctx.vgpr_bounds + 1, ctx.program->max_reg_demand.sgpr));
-
-      ctx.vgpr_bounds = ctx.program->max_reg_demand.vgpr;
-   } else if (rc.type() == RegType::sgpr && ctx.program->max_reg_demand.sgpr < ctx.limit.sgpr) {
-      update_vgpr_sgpr_demand(
-         ctx.program, RegisterDemand(ctx.program->max_reg_demand.vgpr, ctx.sgpr_bounds + 1));
-
-      ctx.sgpr_bounds = ctx.program->max_reg_demand.sgpr;
+      decrease_num_waves(ctx);
+   } else if (rc.type() == RegType::sgpr && ctx.sgpr_bounds < ctx.limit.sgpr) {
+      decrease_num_waves(ctx);
    } else {
       return false;
    }
