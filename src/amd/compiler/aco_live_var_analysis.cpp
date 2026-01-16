@@ -680,7 +680,7 @@ max_suitable_waves(Program* program, uint16_t waves)
 }
 
 void
-update_vgpr_sgpr_demand(Program* program, const RegisterDemand new_demand)
+update_vgpr_sgpr_demand(Program* program, RegisterDemand new_demand)
 {
    assert(program->min_waves >= 1);
    RegisterDemand limit = get_addr_regs_from_waves(program, program->min_waves);
@@ -690,6 +690,8 @@ update_vgpr_sgpr_demand(Program* program, const RegisterDemand new_demand)
       program->num_waves = 0;
       program->max_reg_demand = new_demand;
    } else {
+      new_demand.update(program->fixed_reg_demand);
+
       program->num_waves = program->dev.physical_sgprs / get_sgpr_alloc(program, new_demand.sgpr);
       uint16_t vgpr_demand =
          get_vgpr_alloc(program, new_demand.vgpr) + program->config->num_shared_vgprs / 2;
@@ -724,8 +726,6 @@ live_var_analysis(Program* program)
    while (ctx.worklist >= 0) {
       process_live_temps_per_block(ctx, &program->blocks[ctx.worklist--]);
    }
-
-   program->max_reg_demand.update(program->fixed_reg_demand);
 
    /* calculate the program's register demand and number of waves */
    if (program->progress < CompilationProgress::after_ra)
