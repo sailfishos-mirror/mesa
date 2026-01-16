@@ -679,7 +679,7 @@ brw_shader::assign_curb_setup()
 
          brw_reg addr;
 
-         if (i != 0) {
+         if (i != 0 && devinfo->ver < 20) {
             if (pull_constants_a64) {
                dirty_bits |= BRW_DEPENDENCY_VARIABLES;
                /* We need to do the carry manually as when this pass is run,
@@ -709,7 +709,10 @@ brw_shader::assign_curb_setup()
                             BRW_TYPE_UD);
 
          send->src[SEND_SRC_DESC]     = brw_imm_ud(0);
-         send->src[SEND_SRC_EX_DESC]  = brw_imm_ud(0);
+         send->src[SEND_SRC_EX_DESC]  = devinfo->ver >= 20 ?
+                                        brw_imm_ud(lsc_flat_ex_desc(devinfo,
+                                                                    i * REG_SIZE)) :
+                                        brw_imm_ud(0);
          send->src[SEND_SRC_PAYLOAD1] = addr;
          send->src[SEND_SRC_PAYLOAD2] = brw_reg();
 
