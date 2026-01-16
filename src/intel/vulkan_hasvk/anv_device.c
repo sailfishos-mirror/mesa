@@ -244,6 +244,7 @@ get_device_extensions(const struct anv_physical_device *device,
 #endif
       .KHR_push_descriptor                   = true,
       .KHR_relaxed_block_layout              = true,
+      .KHR_robustness2                       = true,
       .KHR_sampler_mirror_clamp_to_edge      = true,
       .KHR_sampler_ycbcr_conversion          = true,
       .KHR_separate_depth_stencil_layouts    = true,
@@ -570,7 +571,7 @@ get_features(const struct anv_physical_device *pdevice,
       .provokingVertexLast = true,
       .transformFeedbackPreservesProvokingVertex = true,
 
-      /* VK_EXT_robustness2 */
+      /* VK_KHR_robustness2 */
       .robustBufferAccess2 = true,
       .robustImageAccess2 = true,
       .nullDescriptor = true,
@@ -1207,7 +1208,7 @@ get_properties(const struct anv_physical_device *pdevice,
       props->transformFeedbackPreservesTriangleFanProvokingVertex = false;
    }
 
-   /* VK_EXT_robustness2 */
+   /* VK_KHR_robustness2 */
    {
       props->robustStorageBufferAccessSizeAlignment =
          ANV_SSBO_BOUNDS_CHECK_ALIGNMENT;
