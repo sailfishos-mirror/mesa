@@ -75,7 +75,7 @@ zink_sampler_type(const struct glsl_type *type)
    default:
       UNREACHABLE("unimplemented");
    }
-   return 0;
+   return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 }
 
 static inline VkDescriptorType
@@ -96,7 +96,7 @@ zink_image_type(const struct glsl_type *type)
    default:
       UNREACHABLE("unimplemented");
    }
-   return 0;
+   return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 }
 
 bool
