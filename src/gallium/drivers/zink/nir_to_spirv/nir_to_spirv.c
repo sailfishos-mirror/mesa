@@ -54,7 +54,7 @@ struct ntv_context {
    SpvId GLSL_std_450;
 
    mesa_shader_stage stage;
-   const struct zink_shader_info *sinfo;
+   const struct ntv_info *sinfo;
 
    SpvId ubos[PIPE_MAX_CONSTANT_BUFFERS][5]; //8, 16, 32, unused, 64
    nir_variable *ubo_vars[PIPE_MAX_CONSTANT_BUFFERS];
@@ -4779,7 +4779,7 @@ get_spacing(enum gl_tess_spacing spacing)
 }
 
 struct spirv_shader *
-nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo)
+nir_to_spirv(struct nir_shader *s, const struct ntv_info *sinfo)
 {
    struct spirv_shader *ret = NULL;
 

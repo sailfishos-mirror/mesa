@@ -1358,6 +1358,35 @@ zink_screen_init_compiler(struct zink_screen *screen)
                                                  BITFIELD_BIT(MESA_SHADER_TESS_EVAL) |
                                                  BITFIELD_BIT(MESA_SHADER_FRAGMENT);
    screen->nir_options.support_indirect_outputs = (uint8_t)BITFIELD_MASK(MESA_SHADER_STAGES);
+
+   screen->ntv_info.have_vulkan_memory_model = screen->info.have_KHR_vulkan_memory_model;
+   screen->ntv_info.have_workgroup_memory_explicit_layout = screen->info.have_KHR_workgroup_memory_explicit_layout;
+   screen->ntv_info.has_demote_to_helper = screen->info.have_EXT_shader_demote_to_helper_invocation;
+   screen->ntv_info.broken_arbitary_type_const = screen->driver_compiler_workarounds.broken_const;
+   screen->ntv_info.spirv_version = screen->spirv_version;
+   if (screen->info.have_KHR_shader_float_controls) {
+      if (screen->info.props12.shaderDenormFlushToZeroFloat16)
+         screen->ntv_info.float_controls.flush_denorms |= 0x1;
+      if (screen->info.props12.shaderDenormFlushToZeroFloat32)
+         screen->ntv_info.float_controls.flush_denorms |= 0x2;
+      if (screen->info.props12.shaderDenormFlushToZeroFloat64)
+         screen->ntv_info.float_controls.flush_denorms |= 0x4;
+
+      if (screen->info.props12.shaderDenormPreserveFloat16)
+         screen->ntv_info.float_controls.preserve_denorms |= 0x1;
+      if (screen->info.props12.shaderDenormPreserveFloat32)
+         screen->ntv_info.float_controls.preserve_denorms |= 0x2;
+      if (screen->info.props12.shaderDenormPreserveFloat64)
+         screen->ntv_info.float_controls.preserve_denorms |= 0x4;
+
+      screen->ntv_info.float_controls.denorms_all_independence =
+         screen->info.props12.denormBehaviorIndependence == VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL;
+
+      screen->ntv_info.float_controls.denorms_32_bit_independence =
+         screen->ntv_info.float_controls.denorms_all_independence ||
+         screen->info.props12.denormBehaviorIndependence == VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY;
+   }
+   screen->ntv_info.bindless_set_idx = screen->desc_set_id[ZINK_DESCRIPTOR_BINDLESS];
 }
 
 struct nir_shader *
@@ -3846,7 +3875,6 @@ add_derefs(nir_shader *nir)
 static struct zink_shader_object
 compile_module(struct zink_screen *screen, struct zink_shader *zs, nir_shader *nir, bool can_shobj, struct zink_program *pg)
 {
-   struct zink_shader_info *sinfo = &zs->sinfo;
    prune_io(nir);
 
    NIR_PASS(_, nir, nir_convert_from_ssa, true, false);
@@ -3860,7 +3888,7 @@ compile_module(struct zink_screen *screen, struct zink_shader *zs, nir_shader *n
    }
 
    struct zink_shader_object obj = {0};
-   struct spirv_shader *spirv = nir_to_spirv(nir, sinfo);
+   struct spirv_shader *spirv = nir_to_spirv(nir, &screen->ntv_info);
    if (spirv)
       obj = zink_shader_spirv_compile(screen, zs, spirv, can_shobj, pg);
 
@@ -6112,35 +6140,6 @@ zink_shader_create(struct zink_screen *screen, struct nir_shader *nir)
 
    zs->has_edgeflags = nir->info.stage == MESA_SHADER_VERTEX &&
                        nir->info.outputs_written & VARYING_BIT_EDGE;
-
-   zs->sinfo.have_vulkan_memory_model = screen->info.have_KHR_vulkan_memory_model;
-   zs->sinfo.have_workgroup_memory_explicit_layout = screen->info.have_KHR_workgroup_memory_explicit_layout;
-   zs->sinfo.has_demote_to_helper = screen->info.have_EXT_shader_demote_to_helper_invocation;
-   zs->sinfo.broken_arbitary_type_const = screen->driver_compiler_workarounds.broken_const;
-   zs->sinfo.spirv_version = screen->spirv_version;
-   if (screen->info.have_KHR_shader_float_controls) {
-      if (screen->info.props12.shaderDenormFlushToZeroFloat16)
-         zs->sinfo.float_controls.flush_denorms |= 0x1;
-      if (screen->info.props12.shaderDenormFlushToZeroFloat32)
-         zs->sinfo.float_controls.flush_denorms |= 0x2;
-      if (screen->info.props12.shaderDenormFlushToZeroFloat64)
-         zs->sinfo.float_controls.flush_denorms |= 0x4;
-
-      if (screen->info.props12.shaderDenormPreserveFloat16)
-         zs->sinfo.float_controls.preserve_denorms |= 0x1;
-      if (screen->info.props12.shaderDenormPreserveFloat32)
-         zs->sinfo.float_controls.preserve_denorms |= 0x2;
-      if (screen->info.props12.shaderDenormPreserveFloat64)
-         zs->sinfo.float_controls.preserve_denorms |= 0x4;
-
-      zs->sinfo.float_controls.denorms_all_independence =
-         screen->info.props12.denormBehaviorIndependence == VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL;
-
-      zs->sinfo.float_controls.denorms_32_bit_independence =
-         zs->sinfo.float_controls.denorms_all_independence ||
-         screen->info.props12.denormBehaviorIndependence == VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY;
-   }
-   zs->sinfo.bindless_set_idx = screen->desc_set_id[ZINK_DESCRIPTOR_BINDLESS];
 
    util_queue_fence_init(&zs->precompile.fence);
    util_dynarray_init(&zs->pipeline_libs, zs);
