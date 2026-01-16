@@ -3151,6 +3151,36 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       return;
    }
 
+   case nir_op_pack_32_4x8: {
+      assert(comps == 1);
+
+      bi_index idx = bi_src_index(&instr->src[0].src);
+      bi_index srcs[4] = {idx, idx, idx, idx};
+      unsigned channels[4] = {instr->src[0].swizzle[0],
+                              instr->src[0].swizzle[1],
+                              instr->src[0].swizzle[2],
+                              instr->src[0].swizzle[3]};
+
+      bi_make_vec_to(b, dst, srcs, channels, 4, 8);
+      return;
+   }
+
+   case nir_op_pack_32_4x8_split: {
+      assert(comps == 1);
+
+      bi_index srcs[4] = {bi_src_index(&instr->src[0].src),
+                          bi_src_index(&instr->src[1].src),
+                          bi_src_index(&instr->src[2].src),
+                          bi_src_index(&instr->src[3].src)};
+      unsigned channels[4] = {instr->src[0].swizzle[0],
+                              instr->src[1].swizzle[0],
+                              instr->src[2].swizzle[0],
+                              instr->src[3].swizzle[0]};
+
+      bi_make_vec_to(b, dst, srcs, channels, 4, 8);
+      return;
+   }
+
    case nir_op_f2f16:
    case nir_op_f2f16_rtz:
    case nir_op_f2f16_rtne: {

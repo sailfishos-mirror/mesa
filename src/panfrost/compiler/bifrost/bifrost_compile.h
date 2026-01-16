@@ -155,6 +155,7 @@ valhal_writes_extended_fifo(uint64_t outputs_written,
       .lower_unpack_snorm_2x16 = true,                                         \
       .lower_unpack_unorm_4x8 = true,                                          \
       .lower_unpack_snorm_4x8 = true,                                          \
+      .has_pack_32_4x8 = true,                                                 \
                                                                                \
       .lower_doubles_options =                                                 \
          nir_lower_dmod, /* TODO: Don't lower supported 64-bit operations */   \
