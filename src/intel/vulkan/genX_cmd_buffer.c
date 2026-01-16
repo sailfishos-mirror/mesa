@@ -2128,7 +2128,8 @@ genX(emit_apply_pipe_flushes)(struct anv_batch *batch,
       emit_resource_barrier(batch, device->info,
                             src_stages, dst_stages, bits,
                             signal_addr, wait_addr);
-      *emitted_flush_bits = 0;
+      if (emitted_flush_bits)
+         *emitted_flush_bits = 0;
       return 0;
    }
 #endif
