@@ -674,7 +674,7 @@
         "description": "nvk: Disable large pages for now",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cabfdb4404ad65b2a6a2a3b469e5e09d9b63f96a",
         "notes": null
