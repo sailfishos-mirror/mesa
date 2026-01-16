@@ -23,15 +23,9 @@ static uint64_t
 vn_buffer_get_cache_index(const VkBufferCreateInfo *create_info,
                           struct vn_buffer_reqs_cache *cache)
 {
-   /* For simplicity, cache only when below conditions are met:
-    * - pNext is NULL
-    * - VK_SHARING_MODE_EXCLUSIVE or VK_SHARING_MODE_CONCURRENT across all
-    *
-    * Combine sharing mode, flags and usage bits to form a unique index.
-    *
-    * TODO: extend cache to cover VkBufferUsageFlags2CreateInfo (introduced in
-    * VK_KHR_maintenance5 and promoted to 1.4).
-    */
+   /* No need to cache for size exceeding the limit. */
+   if (create_info->size > cache->max_buffer_size)
+      return 0;
 
    /* Only 7 bits are taken for VkBufferCreateFlagBits as of spec 1.4.339. We
     * preserve 12 bits for the create flags.
@@ -39,19 +33,24 @@ vn_buffer_get_cache_index(const VkBufferCreateInfo *create_info,
    if (create_info->flags & 0xFFFFF000)
       return 0;
 
+   /* VK_SHARING_MODE_EXCLUSIVE or VK_SHARING_MODE_CONCURRENT across all */
    const bool is_exclusive =
       create_info->sharingMode == VK_SHARING_MODE_EXCLUSIVE;
    const bool is_concurrent =
       create_info->sharingMode == VK_SHARING_MODE_CONCURRENT &&
       create_info->queueFamilyIndexCount == cache->queue_family_count;
-   if (create_info->size <= cache->max_buffer_size &&
-       create_info->pNext == NULL && (is_exclusive || is_concurrent)) {
-      return (uint64_t)is_concurrent << 63 |
-             (uint64_t)create_info->flags << 51 | create_info->usage;
-   }
+   if (!is_exclusive && !is_concurrent)
+      return 0;
 
-   /* index being zero suggests uncachable since usage must not be zero */
-   return 0;
+   /* TODO: extend cache to cover VkBufferUsageFlags2CreateInfo (introduced in
+    * VK_KHR_maintenance5 and promoted to 1.4).
+    */
+   if (create_info->pNext)
+      return 0;
+
+   /* Combine sharing mode, flags and usage bits to form a unique index. */
+   return (uint64_t)is_concurrent << 63 | (uint64_t)create_info->flags << 51 |
+          create_info->usage;
 }
 
 static inline uint64_t
