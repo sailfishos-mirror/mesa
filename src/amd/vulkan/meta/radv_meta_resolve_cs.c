@@ -392,6 +392,10 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
       .usage = VK_IMAGE_USAGE_SAMPLED_BIT,
    };
 
+   assert(vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource) ==
+          vk_image_subresource_layer_count(&dst_image->vk, &region->dstSubresource));
+   const unsigned layer_count = vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource);
+
    struct radv_image_view src_iview;
    radv_image_view_init(&src_iview, device,
                         &(VkImageViewCreateInfo){
@@ -407,7 +411,7 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
                                  .baseMipLevel = 0,
                                  .levelCount = 1,
                                  .baseArrayLayer = region->srcSubresource.baseArrayLayer,
-                                 .layerCount = region->srcSubresource.layerCount,
+                                 .layerCount = layer_count,
                               },
                         },
                         NULL);
@@ -432,7 +436,7 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
                                  .baseMipLevel = region->dstSubresource.mipLevel,
                                  .levelCount = 1,
                                  .baseArrayLayer = region->dstSubresource.baseArrayLayer,
-                                 .layerCount = region->dstSubresource.layerCount,
+                                 .layerCount = layer_count,
                               },
                         },
                         NULL);
@@ -476,7 +480,7 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
 
    radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
 
-   radv_unaligned_dispatch(cmd_buffer, region->extent.width, region->extent.height, region->extent.depth);
+   radv_unaligned_dispatch(cmd_buffer, region->extent.width, region->extent.height, layer_count);
 
    radv_image_view_finish(&src_iview);
    radv_image_view_finish(&dst_iview);
