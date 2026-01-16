@@ -107,7 +107,7 @@ static nir_shader *
 get_fp64_nir(struct blorp_context *context)
 {
    struct anv_device *device = context->driver_ctx;
-   return device->fp64_nir;
+   return anv_ensure_fp64_shader(device);
 }
 
 static uint64_t

@@ -1920,8 +1920,8 @@ anv_device_upload_nir(struct anv_device *device,
                       const struct nir_shader *nir,
                       unsigned char blake3_key[BLAKE3_KEY_LEN]);
 
-void
-anv_load_fp64_shader(struct anv_device *device);
+nir_shader *
+anv_ensure_fp64_shader(struct anv_device *device);
 
 /**
  * This enum tracks the various HW instructions that hold graphics state
@@ -2727,6 +2727,7 @@ struct anv_device {
 
     struct intel_ds_device                       ds;
 
+    simple_mtx_t                                 fp64_mutex;
     nir_shader                                  *fp64_nir;
 
     uint32_t                                    draw_call_count;

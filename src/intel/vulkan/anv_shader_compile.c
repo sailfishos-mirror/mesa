@@ -1434,14 +1434,16 @@ anv_shader_lower_nir(struct anv_device *device,
 
    /* Workaround for apps that need fp64 support */
    if (device->fp64_nir) {
-      NIR_PASS(_, nir, nir_lower_doubles, device->fp64_nir,
+      nir_shader *fp64_nir = anv_ensure_fp64_shader(device);
+
+      NIR_PASS(_, nir, nir_lower_doubles, fp64_nir,
                nir->options->lower_doubles_options);
 
       bool fp_conv = false;
       NIR_PASS(fp_conv, nir, nir_lower_int64_float_conversions);
       if (fp_conv) {
          NIR_PASS(_, nir, nir_opt_algebraic);
-         NIR_PASS(_, nir, nir_lower_doubles, device->fp64_nir,
+         NIR_PASS(_, nir, nir_lower_doubles, fp64_nir,
                   nir->options->lower_doubles_options);
       }
    }

@@ -1118,10 +1118,6 @@ VkResult anv_CreateDevice(
       goto fail_default_pipeline_cache;
    }
 
-   /* The device (currently is ICL/TGL) does not have float64 support. */
-   if (!device->info->has_64bit_float)
-      anv_load_fp64_shader(device);
-
    if (anv_needs_printf_buffer()) {
       result = anv_device_print_init(device);
       if (result != VK_SUCCESS)
@@ -1244,6 +1240,7 @@ VkResult anv_CreateDevice(
    device->vk.disable_lto = device->physical->instance->disable_lto;
 
    simple_mtx_init(&device->accel_struct_build.mutex, mtx_plain);
+   simple_mtx_init(&device->fp64_mutex, mtx_plain);
 
    *pDevice = anv_device_to_handle(device);
 
@@ -1469,6 +1466,7 @@ void anv_DestroyDevice(
    pthread_mutex_destroy(&device->mutex);
 
    simple_mtx_destroy(&device->accel_struct_build.mutex);
+   simple_mtx_destroy(&device->fp64_mutex);
 
    ralloc_free(device->fp64_nir);
 

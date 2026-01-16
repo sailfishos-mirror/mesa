@@ -35,6 +35,7 @@
 #include "vk_enum_to_str.h"
 
 #include "compiler/brw/brw_nir_rt.h"
+#include "shaders/float64_spv.h"
 
 #ifdef NO_REGEX
 typedef int regex_t;
@@ -666,4 +667,72 @@ anv_cmd_buffer_dump_commands(struct anv_cmd_buffer *cmd_buffer,
                              0,
                              "post gfx cmd dump");
    anv_genX(device->info, cmd_buffer_apply_pipe_flushes)(cmd_buffer);
+}
+
+nir_shader *
+anv_ensure_fp64_shader(struct anv_device *device)
+{
+   assert(!device->info->has_64bit_float);
+
+   if (device->fp64_nir)
+      return device->fp64_nir;
+
+   simple_mtx_unlock(&device->fp64_mutex);
+
+   if (!device->fp64_nir) {
+      const nir_shader_compiler_options *nir_options =
+         &device->physical->compiler->nir_options[MESA_SHADER_VERTEX];
+
+      const char* shader_name = "float64_spv_lib";
+      blake3_hasher blake3_ctx;
+      uint8_t blake3[BLAKE3_KEY_LEN];
+      _mesa_blake3_init(&blake3_ctx);
+      _mesa_blake3_update(&blake3_ctx, shader_name, strlen(shader_name));
+      _mesa_blake3_final(&blake3_ctx, blake3);
+
+      device->fp64_nir =
+         anv_device_search_for_nir(device, device->internal_cache,
+                                   nir_options, blake3, NULL);
+
+      /* The shader found, no need to call spirv_to_nir() again. */
+      if (!device->fp64_nir) {
+         const struct spirv_capabilities spirv_caps = {
+            .Addresses = true,
+            .Float64 = true,
+            .Int8 = true,
+            .Int16 = true,
+            .Int64 = true,
+            .Shader = true,
+         };
+
+         struct spirv_to_nir_options spirv_options = {
+            .capabilities = &spirv_caps,
+            .environment = NIR_SPIRV_VULKAN,
+            .create_library = true
+         };
+
+         nir_shader* nir =
+            spirv_to_nir(float64_spv_source, sizeof(float64_spv_source) / 4,
+                         NULL, MESA_SHADER_VERTEX, "main",
+                         &spirv_options, nir_options);
+
+         assert(nir != NULL);
+
+         nir_validate_shader(nir, "after spirv_to_nir");
+
+         NIR_PASS(_, nir, nir_lower_variable_initializers, nir_var_function_temp);
+         NIR_PASS(_, nir, nir_lower_returns);
+         NIR_PASS(_, nir, nir_inline_functions);
+
+         nir_sweep(nir);
+
+         anv_device_upload_nir(device, device->internal_cache, nir, blake3);
+
+         device->fp64_nir = nir;
+      }
+   }
+
+   simple_mtx_unlock(&device->fp64_mutex);
+
+   return device->fp64_nir;
 }
