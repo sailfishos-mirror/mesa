@@ -802,9 +802,6 @@ init_ici(struct zink_screen *screen, VkImageCreateInfo *ici, const struct pipe_r
       ici->flags |= VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT;
    ici->sharingMode = VK_SHARING_MODE_EXCLUSIVE;
    ici->initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-   if (templ->target == PIPE_TEXTURE_CUBE)
-      ici->arrayLayers *= 6;
 }
 
 static const VkImageAspectFlags plane_aspects[] = {
