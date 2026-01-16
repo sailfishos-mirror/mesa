@@ -2224,6 +2224,14 @@ brw_disassemble_inst(FILE *file, const struct brw_isa_info *isa,
             /* show the indirect descriptor source */
             err |= src_send_desc_ia(file, devinfo,
                                     brw_eu_inst_send_ex_desc_ia_subreg_nr(devinfo, inst));
+            if (devinfo->ver >= 20) {
+               imm_ex_desc |=
+                  SET_BITS(brw_eu_inst_bits(inst, 127, 124), 31, 28) |
+                  SET_BITS(brw_eu_inst_bits(inst, 97, 96), 27, 26) |
+                  SET_BITS(brw_eu_inst_bits(inst, 65, 64), 25, 24) |
+                  SET_BITS(brw_eu_inst_bits(inst, 47, 43), 23, 19) |
+                  SET_BITS(brw_eu_inst_bits(inst, 39, 36), 15, 12);
+            }
          } else {
             has_imm_ex_desc = true;
             imm_ex_desc = brw_eu_inst_sends_ex_desc(devinfo, inst,
