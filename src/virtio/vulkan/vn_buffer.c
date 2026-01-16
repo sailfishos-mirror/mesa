@@ -42,15 +42,46 @@ vn_buffer_get_cache_index(const VkBufferCreateInfo *create_info,
    if (!is_exclusive && !is_concurrent)
       return 0;
 
-   /* TODO: extend cache to cover VkBufferUsageFlags2CreateInfo (introduced in
-    * VK_KHR_maintenance5 and promoted to 1.4).
+   /* Per spec:
+    *
+    * VkBufferCreateInfo:
+    * If the pNext chain includes a VkBufferUsageFlags2CreateInfo structure,
+    * VkBufferUsageFlags2CreateInfo::usage from that structure is used instead
+    * of usage from this structure.
+    *
+    * VUID-VkBufferCreateInfo-None-09500
+    * If the pNext chain does not include a VkBufferUsageFlags2CreateInfo
+    * structure, usage must not be 0
+    *
+    * VUID-VkBufferUsageFlags2CreateInfo-usage-requiredbitmask
+    * usage must not be 0
     */
-   if (create_info->pNext)
+   uint64_t usage = (uint64_t)create_info->usage;
+   vk_foreach_struct_const(pnext, create_info->pNext) {
+      switch (pnext->sType) {
+      case VK_STRUCTURE_TYPE_BUFFER_USAGE_FLAGS_2_CREATE_INFO: {
+         const VkBufferUsageFlags2CreateInfo *usage2 = (void *)pnext;
+         usage = (uint64_t)usage2->usage;
+         break;
+      }
+      default:
+         /* Other pNext structs are not cacheable. */
+         return 0;
+      }
+   }
+
+   /* Only 34 bits are taken for VkBufferUsageFlagBits2 as of spec 1.4.339. We
+    * preserve 51 bits for the usage flags.
+    */
+   if (usage & 0xFFF8000000000000ULL)
       return 0;
 
-   /* Combine sharing mode, flags and usage bits to form a unique index. */
+   /* Combine sharing mode, flags and usage bits to form a unique index:
+    *
+    * | 63: concurrent | 51 ~ 62: create flags | 0 ~ 50: usage |
+    */
    return (uint64_t)is_concurrent << 63 | (uint64_t)create_info->flags << 51 |
-          create_info->usage;
+          usage;
 }
 
 static inline uint64_t
