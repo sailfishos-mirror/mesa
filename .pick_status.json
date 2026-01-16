@@ -574,7 +574,7 @@
         "description": "ci/tu: Clear stale xfails from the nightlies.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "63243bcc3ea603ab4ae2f00653e50280ca3448e1",
         "notes": null
