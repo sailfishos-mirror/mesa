@@ -135,8 +135,9 @@ static uint32_t setup_pck_info(VkFormat vk_format)
       break;
    }
 
+   /* Invalidate the format bits, but clear the rest so they can still be set. */
    if (pck_format == ~0)
-      return pck_format;
+      pck_format = 0b11111;
 
    uint32_t pck_info = pck_format;
    if (split)
@@ -147,6 +148,9 @@ static uint32_t setup_pck_info(VkFormat vk_format)
 
    if (roundzero)
       pck_info |= BITFIELD_BIT(7);
+
+   if (util_format_is_unorm(format))
+      pck_info |= BITFIELD_BIT(8);
 
    return pck_info;
 }

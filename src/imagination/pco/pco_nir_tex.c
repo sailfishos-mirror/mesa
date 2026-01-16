@@ -429,9 +429,6 @@ static nir_def *lower_tex_shadow(nir_builder *b,
 {
    nir_def *result_comps[NIR_MAX_VEC_COMPONENTS];
 
-   /* Need to clamp the comparator to the range 0.0 - 1.0 */
-   comparator = nir_fsat(b, comparator);
-
    for (unsigned u = 0; u < data->num_components; ++u) {
       result_comps[u] =
          nir_alphatst_pco(b, nir_channel(b, data, u), comparator, compare_op);
@@ -744,6 +741,21 @@ static nir_def *lower_tex(nir_builder *b, nir_instr *instr, void *cb_data)
                                .desc_set = smp_desc_set,
                                .binding = smp_binding,
                                .component = PCO_SAMPLER_META_COMPARE_OP);
+
+      /*
+       * From the Vulkan 1.4.339 spec, 17.2.4. Depth Compare Operation:
+       *
+       * "If the image being sampled has an unsigned normalized fixed-point
+       * format, then Dref is clamped to [0,1] before the compare operation."
+       *
+       * -> Clamp the comparator to the range 0.0 - 1.0 for unorm formats.
+       */
+
+      nir_def *pck_info = nir_channel(b, tex_meta, PCO_IMAGE_META_PCK_INFO);
+      nir_def *is_unorm = nir_ubitfield_extract_imm(b, pck_info, 8, 1);
+      is_unorm = nir_ine_imm(b, is_unorm, 0);
+
+      comparator = nir_bcsel(b, is_unorm, nir_fsat(b, comparator), comparator);
 
       result = lower_tex_shadow(b, result, comparator, compare_op);
    }
