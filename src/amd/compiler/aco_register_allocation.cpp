@@ -3972,6 +3972,11 @@ register_allocation(Program* program, ra_test_policy policy)
 
             ctx.assignments[definition.tempId()].set(definition);
             register_file.fill(definition);
+
+            if (instr->opcode != aco_opcode::p_startpgm) {
+               for (unsigned j = 0; j < definition.size(); j++)
+                  BITSET_CLEAR(ctx.preserved, definition.physReg() + j);
+            }
          }
 
          /* handle normal definitions */
@@ -3980,6 +3985,8 @@ register_allocation(Program* program, ra_test_policy policy)
 
             if (definition->isFixed() || !definition->isTemp() || i < tied_defs.size())
                continue;
+
+            bool clear_preserved = instr->opcode != aco_opcode::p_startpgm;
 
             /* find free reg */
             if (instr->opcode == aco_opcode::p_start_linear_vgpr ||
@@ -3995,6 +4002,7 @@ register_allocation(Program* program, ra_test_policy policy)
                   reg.reg_b += instr->definitions[j].bytes();
                if (get_reg_specified(ctx, register_file, rc, instr, reg, -1, false)) {
                   definition->setFixed(reg);
+                  clear_preserved = false;
                } else if (i == 0) {
                   RegClass vec_rc = RegClass::get(rc.type(), instr->operands[0].bytes());
                   DefInfo info(ctx, ctx.pseudo_dummy, vec_rc, -1);
@@ -4013,14 +4021,18 @@ register_allocation(Program* program, ra_test_policy policy)
                PhysReg reg = instr->operands[i].physReg();
                if (instr->operands[i].isTemp() &&
                    instr->operands[i].getTemp().type() == definition->getTemp().type() &&
-                   !register_file.test(reg, definition->bytes()))
+                   !register_file.test(reg, definition->bytes())) {
                   definition->setFixed(reg);
+                  clear_preserved = false;
+               }
             } else if (instr->opcode == aco_opcode::p_extract_vector) {
                PhysReg reg = instr->operands[0].physReg();
                reg.reg_b += definition->bytes() * instr->operands[1].constantValue();
                if (get_reg_specified(ctx, register_file, definition->regClass(), instr, reg, -1,
-                                     false))
+                                     false)) {
                   definition->setFixed(reg);
+                  clear_preserved = false;
+               }
             } else if (instr->opcode == aco_opcode::p_create_vector) {
                PhysReg reg = get_reg_create_vector(ctx, register_file, definition->getTemp(),
                                                    parallelcopy, instr);
@@ -4056,6 +4068,11 @@ register_allocation(Program* program, ra_test_policy policy)
                 (definition->getTemp().type() != RegType::vgpr && definition->physReg() < 256)));
             ctx.assignments[definition->tempId()].set(*definition);
             register_file.fill(*definition);
+
+            if (clear_preserved) {
+               for (unsigned j = 0; j < definition->size(); j++)
+                  BITSET_CLEAR(ctx.preserved, definition->physReg() + j);
+            }
          }
 
          if (!ctx.vector_operands.empty())
@@ -4080,6 +4097,11 @@ register_allocation(Program* program, ra_test_policy policy)
                register_file.clear(op);
             if (op.isTemp() && op.physReg().byte() != 0)
                add_subdword_operand(ctx, instr, i, op.physReg().byte(), op.regClass());
+         }
+
+         for (auto copy : parallelcopy) {
+            for (unsigned j = 0; j < copy.def.size(); j++)
+               BITSET_CLEAR(ctx.preserved, copy.def.physReg() + j);
          }
 
          emit_parallel_copy(ctx, parallelcopy, instr, instructions, temp_in_scc, register_file);
