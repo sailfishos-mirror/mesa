@@ -46,7 +46,7 @@ nir_opt_algebraic = custom_target(
   input : 'nir_opt_algebraic.py',
   output : ['nir_opt_algebraic.c'] + (with_tests ? ['nir_opt_algebraic_pattern_test.cpp'] : []),
   command : [prog_python, '@INPUT@', '--out', '@OUTPUT0@'] +
-            (with_tests ? ['--build-tests', '--out-tests', '@OUTPUT1@'] : []),
+            (with_tests ? ['--out-tests', '@OUTPUT1@'] : []),
   depend_files : nir_algebraic_depends,
 )
 nir_opt_algebraic_c = nir_opt_algebraic[0]

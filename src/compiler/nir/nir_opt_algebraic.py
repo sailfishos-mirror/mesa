@@ -4283,57 +4283,55 @@ for s in [8, 16]:
 parser = argparse.ArgumentParser()
 parser.add_argument('--out', required=True)
 parser.add_argument('--out-tests')
-parser.add_argument('--build-tests', action='store_true')
 args = parser.parse_args()
 
-if args.build_tests and not args.out_tests:
-    parser.error("--build-tests requires --out-tests")
+build_tests = args.out_tests is not None
 
 passes = []
 
 passes.append(nir_algebraic.AlgebraicPass(
     "nir_opt_algebraic",
     optimizations,
-    build_tests=args.build_tests
+    build_tests=build_tests
 ))
 
 passes.append(nir_algebraic.AlgebraicPass(
     "nir_opt_algebraic_before_ffma",
     before_ffma_optimizations,
-    build_tests=args.build_tests
+    build_tests=build_tests
 ))
 
 passes.append(nir_algebraic.AlgebraicPass(
     "nir_opt_algebraic_before_lower_int64",
     before_lower_int64_optimizations,
-    build_tests=args.build_tests
+    build_tests=build_tests
 ))
 
 passes.append(nir_algebraic.AlgebraicPass(
     "nir_opt_algebraic_late",
     late_optimizations,
-    build_tests=args.build_tests
+    build_tests=build_tests
 ))
 
 passes.append(nir_algebraic.AlgebraicPass(
     "nir_opt_algebraic_distribute_src_mods",
     distribute_src_mods,
-    build_tests=args.build_tests
+    build_tests=build_tests
 ))
 
 passes.append(nir_algebraic.AlgebraicPass(
     "nir_opt_algebraic_integer_promotion",
     integer_promotion_optimizations,
-    build_tests=args.build_tests
+    build_tests=build_tests
 ))
 
 passes.append(nir_algebraic.AlgebraicPass(
     "nir_opt_reassociate_matrix_mul",
     mat_mul_optimizations,
-    build_tests=args.build_tests
+    build_tests=build_tests
 ))
 
-if args.build_tests:
+if build_tests:
     with open(args.out_tests, "w", encoding='utf-8') as f:
         for p in passes:
             f.write(p.render_tests())
