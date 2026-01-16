@@ -4659,10 +4659,6 @@ scan_nir(struct zink_screen *screen, nir_shader *shader, struct zink_shader *zs)
    nir_foreach_function_impl(impl, shader) {
       nir_foreach_block_safe(block, impl) {
          nir_foreach_instr_safe(instr, block) {
-            if (instr->type == nir_instr_type_tex) {
-               nir_tex_instr *tex = nir_instr_as_tex(instr);
-               zs->sinfo.have_sparse |= tex->is_sparse;
-            }
             if (instr->type != nir_instr_type_intrinsic)
                continue;
             nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
@@ -4684,9 +4680,6 @@ scan_nir(struct zink_screen *screen, nir_shader *shader, struct zink_shader *zs)
                 BITSET_SET_COUNT(shader->info.images_used, var->data.binding,
                                 MAX2(size, 1));
             }
-            if (intr->intrinsic == nir_intrinsic_is_sparse_texels_resident ||
-                intr->intrinsic == nir_intrinsic_image_deref_sparse_load)
-               zs->sinfo.have_sparse = true;
 
             bool is_load = false;
             bool is_input = false;

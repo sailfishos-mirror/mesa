@@ -42,6 +42,7 @@ struct ntv_context {
    bool have_spirv16;
 
    bool explicit_lod; //whether to set lod=0 for texture()
+   bool have_sparse;
 
    struct spirv_builder builder;
    nir_shader *nir;
@@ -3568,6 +3569,22 @@ emit_launch_mesh_workgroups(struct ntv_context *ctx, nir_intrinsic_instr *intr)
 }
 
 static void
+init_sparse_resident(struct ntv_context *ctx)
+{
+   if (ctx->have_sparse)
+      return;
+
+   spirv_builder_emit_cap(&ctx->builder, SpvCapabilitySparseResidency);
+   /* this could be huge, so only alloc if needed since it's extremely unlikely to
+      * ever be used by anything except cts
+      */
+   ctx->resident_defs = rzalloc_array_size(ctx->mem_ctx,
+                                           sizeof(SpvId),
+                                           nir_shader_get_entrypoint(ctx->nir)->ssa_alloc);
+   ctx->have_sparse = true;
+}
+
+static void
 emit_intrinsic(struct ntv_context *ctx, nir_intrinsic_instr *intr)
 {
    switch (intr->intrinsic) {
@@ -3731,6 +3748,8 @@ emit_intrinsic(struct ntv_context *ctx, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_image_deref_sparse_load:
+      init_sparse_resident(ctx);
+      FALLTHROUGH;
    case nir_intrinsic_image_deref_load:
       emit_image_deref_load(ctx, intr);
       break;
@@ -3827,6 +3846,7 @@ emit_intrinsic(struct ntv_context *ctx, nir_intrinsic_instr *intr)
       break;
 
    case nir_intrinsic_is_sparse_resident_zink:
+      init_sparse_resident(ctx);
       emit_is_sparse_texels_resident(ctx, intr);
       break;
 
@@ -4209,6 +4229,9 @@ emit_tex(struct ntv_context *ctx, nir_tex_instr *tex)
           tex->op == nir_texop_tg4 ||
           tex->op == nir_texop_texture_samples ||
           tex->op == nir_texop_query_levels);
+
+   if (tex->is_sparse)
+      init_sparse_resident(ctx);
 
    struct spriv_tex_src tex_src = {0};
    unsigned coord_components = 0;
@@ -5241,16 +5264,7 @@ nir_to_spirv(struct nir_shader *s, const struct zink_shader_info *sinfo)
                                      sizeof(nir_alu_type), entry->ssa_alloc);
    if (!ctx.defs || !ctx.def_types)
       goto fail;
-   if (sinfo->have_sparse) {
-      spirv_builder_emit_cap(&ctx.builder, SpvCapabilitySparseResidency);
-      /* this could be huge, so only alloc if needed since it's extremely unlikely to
-       * ever be used by anything except cts
-       */
-      ctx.resident_defs = rzalloc_array_size(ctx.mem_ctx,
-                                            sizeof(SpvId), entry->ssa_alloc);
-      if (!ctx.resident_defs)
-         goto fail;
-   }
+
    ctx.num_defs = entry->ssa_alloc;
 
    SpvId *block_ids = ralloc_array_size(ctx.mem_ctx,
