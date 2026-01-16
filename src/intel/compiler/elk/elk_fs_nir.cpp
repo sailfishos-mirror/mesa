@@ -5383,8 +5383,8 @@ fs_nir_emit_intrinsic(nir_to_elk_state &ntb,
       unsigned num_components = instr->num_components;
       unsigned first_component = nir_intrinsic_component(instr);
 
-      elk_fs_reg new_dest = retype(offset(s.outputs[instr->const_index[0]], bld,
-                                      4 * store_offset), src.type);
+      elk_fs_reg new_dest = retype(offset(s.outputs[nir_intrinsic_base(instr)], bld,
+                                   4 * store_offset), src.type);
       for (unsigned j = 0; j < num_components; j++) {
          bld.MOV(offset(new_dest, bld, j + first_component),
                  offset(src, bld, j));

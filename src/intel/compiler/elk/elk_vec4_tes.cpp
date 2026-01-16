@@ -133,7 +133,7 @@ vec4_tes_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
    case nir_intrinsic_load_per_vertex_input: {
       assert(instr->def.bit_size == 32);
       src_reg indirect_offset = get_indirect_offset(instr);
-      unsigned imm_offset = instr->const_index[0];
+      unsigned imm_offset = nir_intrinsic_base(instr);
       src_reg header = input_read_header;
       unsigned first_component = nir_intrinsic_component(instr);
 
