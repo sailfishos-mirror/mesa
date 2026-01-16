@@ -1598,7 +1598,8 @@ get_reg_impl(ra_ctx& ctx, const RegisterFile& reg_file, std::vector<parallelcopy
 
 bool
 get_reg_specified(ra_ctx& ctx, const RegisterFile& reg_file, RegClass rc,
-                  aco_ptr<Instruction>& instr, PhysReg reg, int operand)
+                  aco_ptr<Instruction>& instr, PhysReg reg, int operand,
+                  bool check_preserved = true)
 {
    /* catch out-of-range registers */
    if (reg >= PhysReg{512})
@@ -1630,6 +1631,9 @@ get_reg_specified(ra_ctx& ctx, const RegisterFile& reg_file, RegClass rc,
    }
 
    if (reg_file.test(reg, info.rc.bytes()))
+      return false;
+
+   if (check_preserved && BITSET_TEST_RANGE(ctx.preserved, reg.reg(), reg.reg() + reg_win.size - 1))
       return false;
 
    adjust_max_used_regs(ctx, info.rc, reg_win.lo());
@@ -2001,7 +2005,7 @@ get_reg(ra_ctx& ctx, const RegisterFile& reg_file, Temp temp,
    }
    if (ctx.assignments[temp.id()].precolor_affinity) {
       if (get_reg_specified(ctx, reg_file, temp.regClass(), instr, ctx.assignments[temp.id()].reg,
-                            operand_index))
+                            operand_index, false))
          return ctx.assignments[temp.id()].reg;
    }
 
@@ -2662,7 +2666,7 @@ get_regs_for_phis(ra_ctx& ctx, Block& block, RegisterFile& register_file,
       if (!all_same)
          continue;
 
-      if (!get_reg_specified(ctx, register_file, definition.regClass(), phi, reg, -1))
+      if (!get_reg_specified(ctx, register_file, definition.regClass(), phi, reg, -1, false))
          continue;
 
       definition.setFixed(reg);
@@ -3989,7 +3993,7 @@ register_allocation(Program* program, ra_test_policy policy)
                RegClass rc = definition->regClass();
                for (unsigned j = 0; j < i; j++)
                   reg.reg_b += instr->definitions[j].bytes();
-               if (get_reg_specified(ctx, register_file, rc, instr, reg, -1)) {
+               if (get_reg_specified(ctx, register_file, rc, instr, reg, -1, false)) {
                   definition->setFixed(reg);
                } else if (i == 0) {
                   RegClass vec_rc = RegClass::get(rc.type(), instr->operands[0].bytes());
@@ -3997,8 +4001,7 @@ register_allocation(Program* program, ra_test_policy policy)
                   std::optional<std::pair<PhysReg, uint32_t>> res =
                      get_reg_simple(ctx, register_file, info);
                   /* Prefer using the normal get_reg() path over using a preserved VGPR. */
-                  if (res && (res->second == 0 || rc.type() == RegType::sgpr) &&
-                      get_reg_specified(ctx, register_file, rc, instr, res->first, -1))
+                  if (res && (res->second == 0 || rc.type() == RegType::sgpr))
                      definition->setFixed(res->first);
                } else if (instr->definitions[i - 1].isFixed()) {
                   reg = instr->definitions[i - 1].physReg();
@@ -4015,7 +4018,8 @@ register_allocation(Program* program, ra_test_policy policy)
             } else if (instr->opcode == aco_opcode::p_extract_vector) {
                PhysReg reg = instr->operands[0].physReg();
                reg.reg_b += definition->bytes() * instr->operands[1].constantValue();
-               if (get_reg_specified(ctx, register_file, definition->regClass(), instr, reg, -1))
+               if (get_reg_specified(ctx, register_file, definition->regClass(), instr, reg, -1,
+                                     false))
                   definition->setFixed(reg);
             } else if (instr->opcode == aco_opcode::p_create_vector) {
                PhysReg reg = get_reg_create_vector(ctx, register_file, definition->getTemp(),
