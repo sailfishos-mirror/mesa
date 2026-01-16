@@ -41,6 +41,10 @@
 #include "util/ralloc.h"
 #include "util/timespec.h"
 
+/* Breaks linking cycles since WSI common depends on runtime,
+ * and Meson does not allow runtime to depend on WSI common. */
+#include "vulkan/wsi/wsi_common_private.h"
+
 static enum vk_device_timeline_mode
 get_timeline_mode(struct vk_physical_device *physical_device)
 {
@@ -852,7 +856,12 @@ vk_common_GetCalibratedTimestampsKHR(
    result =
       vk_device_get_timestamp(device, device->calibrate_time_domain, &begin);
    for (uint32_t i = 0; i < timestampCount; i++) {
-      const VkTimeDomainKHR domain = pTimestampInfos[i].timeDomain;
+      VkTimeDomainKHR domain = pTimestampInfos[i].timeDomain;
+      if (domain == VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT) {
+         const VkSwapchainCalibratedTimestampInfoEXT *swap =
+               vk_find_struct_const(pTimestampInfos[i].pNext, SWAPCHAIN_CALIBRATED_TIMESTAMP_INFO_EXT);
+         domain = wsi_common_get_time_domain(swap->swapchain, swap->presentStage, swap->timeDomainId);
+      }
       if (domain == device->calibrate_time_domain)
          pTimestamps[i] = begin;
       else
@@ -866,8 +875,26 @@ vk_common_GetCalibratedTimestampsKHR(
 
    uint64_t max_clock_period = 0;
    for (uint32_t i = 0; i < timestampCount; i++) {
-      const VkTimeDomainKHR domain = pTimestampInfos[i].timeDomain;
-      const uint64_t period = domain == VK_TIME_DOMAIN_DEVICE_KHR
+      VkTimeDomainKHR domain = pTimestampInfos[i].timeDomain;
+
+      bool domain_is_device_derived = domain == VK_TIME_DOMAIN_DEVICE_KHR;
+
+      if (domain == VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT) {
+         /* Need to rescale device timestamps to nanoseconds. */
+         const VkSwapchainCalibratedTimestampInfoEXT *swap =
+               vk_find_struct_const(pTimestampInfos[i].pNext, SWAPCHAIN_CALIBRATED_TIMESTAMP_INFO_EXT);
+         if (wsi_common_get_time_domain(swap->swapchain, swap->presentStage, swap->timeDomainId) ==
+             VK_TIME_DOMAIN_DEVICE_KHR) {
+            pTimestamps[i] = (uint64_t)((double)pTimestamps[i] * (double)device->physical->properties.timestampPeriod);
+         }
+
+         /* Timestamps in QueueOperationsEnd are always derived from a device timestamp,
+          * even if the reported time domain is not. */
+         if (swap->presentStage == VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT)
+            domain_is_device_derived = true;
+      }
+
+      const uint64_t period = domain_is_device_derived
          ? device->device_time_domain_period
          : domain != device->calibrate_time_domain ? 1 : 0;
       max_clock_period = MAX2(max_clock_period, period);

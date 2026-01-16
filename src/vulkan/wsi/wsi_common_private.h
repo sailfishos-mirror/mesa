@@ -544,6 +544,19 @@ void wsi_headless_finish_wsi(struct wsi_device *wsi_device,
 VK_DEFINE_NONDISP_HANDLE_CASTS(wsi_swapchain, base, VkSwapchainKHR,
                                VK_OBJECT_TYPE_SWAPCHAIN_KHR)
 
+/* This should be static inline here since this can be called by runtime,
+ * and we cannot create cyclic dependencies. */
+static inline VkTimeDomainKHR
+wsi_common_get_time_domain(VkSwapchainKHR _swapchain,
+                           VkPresentStageFlagBitsEXT stage,
+                           uint64_t time_domain_id)
+{
+   VK_FROM_HANDLE(wsi_swapchain, swapchain, _swapchain);
+   return stage == VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT
+             ? VK_TIME_DOMAIN_DEVICE_KHR
+             : swapchain->present_timing.time_domain;
+}
+
 #if defined(VK_USE_PLATFORM_METAL_EXT)
 struct wsi_metal_image_params {
    struct wsi_base_image_params base;

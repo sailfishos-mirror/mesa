@@ -1463,14 +1463,6 @@ wsi_common_get_memory(VkSwapchainKHR _swapchain, uint32_t index)
    return swapchain->get_wsi_image(swapchain, index)->memory;
 }
 
-VkTimeDomainKHR
-wsi_common_get_time_domain(VkSwapchainKHR _swapchain, VkPresentStageFlagBitsEXT stage, uint64_t time_domain_id)
-{
-   VK_FROM_HANDLE(wsi_swapchain, swapchain, _swapchain);
-   return stage == VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT ?
-         VK_TIME_DOMAIN_DEVICE_KHR : swapchain->present_timing.time_domain;
-}
-
 VKAPI_ATTR VkResult VKAPI_CALL
 wsi_GetSwapchainImagesKHR(VkDevice device,
                           VkSwapchainKHR _swapchain,
