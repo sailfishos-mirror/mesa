@@ -1885,7 +1885,7 @@ update_so_info(struct zink_shader *zs, nir_shader *nir, uint64_t outputs_written
       const nir_xfb_output_info *output = &nir->xfb_info->outputs[i];
       unsigned xfb_components = util_bitcount(output->component_mask);
       /* always set stride to be used during draw */
-      zs->sinfo.stride[output->buffer] = nir->xfb_info->buffers[output->buffer].stride;
+      zs->xfb_stride[output->buffer] = nir->xfb_info->buffers[output->buffer].stride;
       for (unsigned c = 0; !is_inlined(inlined[output->location], output) && c < xfb_components; c++) {
          unsigned slot = output->location;
          if (inlined[slot][output->component_offset + c])
@@ -1920,7 +1920,7 @@ update_so_info(struct zink_shader *zs, nir_shader *nir, uint64_t outputs_written
                (num_components > xfb_components && xfb_components == 4))) {
             var->data.explicit_xfb_buffer = 1;
             var->data.xfb.buffer = output->buffer;
-            var->data.xfb.stride = zs->sinfo.stride[output->buffer];
+            var->data.xfb.stride = zs->xfb_stride[output->buffer];
             var->data.offset = (output->offset + c * sizeof(uint32_t));
             var->data.stream = nir->xfb_info->buffer_to_stream[output->buffer];
             for (unsigned j = 0; j < MIN2(num_components, xfb_components); j++)
@@ -1990,7 +1990,7 @@ update_so_info(struct zink_shader *zs, nir_shader *nir, uint64_t outputs_written
       /* this output can be consolidated: blast out all the data inlined */
       var->data.explicit_xfb_buffer = 1;
       var->data.xfb.buffer = output->buffer;
-      var->data.xfb.stride = zs->sinfo.stride[output->buffer];
+      var->data.xfb.stride = zs->xfb_stride[output->buffer];
       var->data.offset = output->offset;
       var->data.stream = nir->xfb_info->buffer_to_stream[output->buffer];
       /* mark all slot components inlined to skip subsequent loop iterations */

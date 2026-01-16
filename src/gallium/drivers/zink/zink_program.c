@@ -2859,7 +2859,7 @@ zink_set_primitive_emulation_keys(struct zink_context *ctx)
             shader->non_fs.is_generated = true;
             shader->non_fs.parent = ctx->gfx_stages[prev_vertex_stage];
             shader->can_inline = true;
-            memcpy(shader->sinfo.stride, ctx->gfx_stages[prev_vertex_stage]->sinfo.stride, sizeof(shader->sinfo.stride));
+            memcpy(shader->xfb_stride, ctx->gfx_stages[prev_vertex_stage]->xfb_stride, sizeof(shader->xfb_stride));
          }
 
          ctx->base.bind_gs_state(&ctx->base,

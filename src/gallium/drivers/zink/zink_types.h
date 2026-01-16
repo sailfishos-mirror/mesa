@@ -769,8 +769,6 @@ struct zink_framebuffer_clear {
 
 /** compiler types */
 struct zink_shader_info {
-   uint16_t stride[PIPE_MAX_SO_BUFFERS];
-   uint32_t sampler_mask;
    bool have_sparse;
    bool have_vulkan_memory_model;
    bool have_workgroup_memory_explicit_layout;
@@ -808,6 +806,7 @@ struct zink_shader {
    nir_shader *nir;
 
    struct zink_shader_info sinfo;
+   uint16_t xfb_stride[PIPE_MAX_SO_BUFFERS];
 
    struct {
       int index;
