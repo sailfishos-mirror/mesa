@@ -29,3 +29,4 @@ VK_KHR_robustness2 on HoneyKrisp
 VK_KHR_robustness2 on hasvk
 VK_KHR_robustness2 on NVK
 VK_KHR_robustness2 on Turnip
+VK_KHR_robustness2 on lavapipe
