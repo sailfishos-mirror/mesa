@@ -1403,7 +1403,9 @@ static struct pipe_screen *radeonsi_screen_create_impl(struct radeon_winsys *ws,
    sscreen->b.destroy = si_destroy_screen;
    sscreen->b.set_max_shader_compiler_threads = si_set_max_shader_compiler_threads;
    sscreen->b.is_parallel_shader_compilation_finished = si_is_parallel_shader_compilation_finished;
+#ifdef HAVE_GFX_COMPUTE
    sscreen->b.finalize_nir = si_finalize_nir;
+#endif
 
    sscreen->nir_options = CALLOC_STRUCT(nir_shader_compiler_options);
 
@@ -1494,7 +1496,7 @@ static struct pipe_screen *radeonsi_screen_create_impl(struct radeon_winsys *ws,
       num_comp_lo_threads = 1;
    }
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(HAVE_GFX_COMPUTE)
    nir_process_debug_variable();
 
    /* Use a single compilation thread if NIR printing is enabled to avoid
