@@ -4206,6 +4206,8 @@ static void
 zink_set_min_samples(struct pipe_context *pctx, unsigned min_samples)
 {
    struct zink_context *ctx = zink_context(pctx);
+   if (ctx->gfx_pipeline_state.min_samples == (min_samples - 1))
+      return;
    ctx->gfx_pipeline_state.min_samples = min_samples - 1;
    ctx->gfx_pipeline_state.dirty = ctx->gfx_pipeline_state.mesh_dirty = true;
 }
