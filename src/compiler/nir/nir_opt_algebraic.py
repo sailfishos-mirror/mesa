@@ -4282,9 +4282,12 @@ for s in [8, 16]:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--out', required=True)
-parser.add_argument('--out-tests', required=True)
+parser.add_argument('--out-tests')
 parser.add_argument('--build-tests', action='store_true')
 args = parser.parse_args()
+
+if args.build_tests and not args.out_tests:
+    parser.error("--build-tests requires --out-tests")
 
 passes = []
 

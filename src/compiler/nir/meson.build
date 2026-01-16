@@ -44,13 +44,12 @@ nir_opcodes_c = custom_target(
 nir_opt_algebraic = custom_target(
   'nir_opt_algebraic',
   input : 'nir_opt_algebraic.py',
-  output : ['nir_opt_algebraic.c', 'nir_opt_algebraic_pattern_test.cpp'],
-  command : [prog_python, '@INPUT@', '--out', '@OUTPUT0@', '--out-tests', '@OUTPUT1@'] +
-            (with_tests ? ['--build-tests'] : []),
+  output : ['nir_opt_algebraic.c'] + (with_tests ? ['nir_opt_algebraic_pattern_test.cpp'] : []),
+  command : [prog_python, '@INPUT@', '--out', '@OUTPUT0@'] +
+            (with_tests ? ['--build-tests', '--out-tests', '@OUTPUT1@'] : []),
   depend_files : nir_algebraic_depends,
 )
 nir_opt_algebraic_c = nir_opt_algebraic[0]
-nir_opt_algebraic_pattern_test_cpp = nir_opt_algebraic[1]
 
 nir_intrinsics_h = custom_target(
   'nir_intrinsics.h',
@@ -411,6 +410,7 @@ if with_tests
 
   # Split the compile of nir_opt_algebraic_pattern_tests into multiple compilation
   # units, as it takes about of minute of compile time all together.
+  nir_opt_algebraic_pattern_test_cpp = nir_opt_algebraic[1]
   nir_opt_algebraic_pattern_tests = []
   foreach i : range(8)
     nir_opt_algebraic_pattern_tests += static_library(
