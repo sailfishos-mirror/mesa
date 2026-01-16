@@ -727,6 +727,7 @@ blorp_fast_clear(struct blorp_batch *batch,
          assert(isl_surf.logical_level0_px.h == 32);
          isl_surf.logical_level0_px.h = unaligned_bottom_rows;
          isl_surf.phys_level0_sa.h = unaligned_bottom_rows;
+         isl_surf.row_pitch_B = align(isl_surf.row_pitch_B, 16 * 128);
          fast_clear_surf(batch, &mem_surf, isl_surf.format, swizzle,
                          0, 0, isl_surf.logical_level0_px.a);
       }
