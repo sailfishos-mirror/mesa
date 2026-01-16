@@ -1602,6 +1602,7 @@ static void
 vn_image_format_cache_debug_dump(
    struct vn_image_format_properties_cache *cache)
 {
+   vn_log(NULL, "dumping image format cache statistics");
    vn_log(NULL, "  hit %u\n", cache->debug.cache_hit_count);
    vn_log(NULL, "  miss %u\n", cache->debug.cache_miss_count);
    vn_log(NULL, "  skip %u\n", cache->debug.cache_skip_count);
