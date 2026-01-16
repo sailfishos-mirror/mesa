@@ -48,6 +48,7 @@ libpanfrost_lib_files = files(
   'pan_tiler.c',
   'pan_layout.c',
   'pan_scratch.c',
+  'pan_trace.c',
   'pan_props.c',
   'pan_util.c',
   'pan_afbc.c',
