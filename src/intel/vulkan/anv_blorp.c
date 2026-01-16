@@ -595,7 +595,7 @@ anv_blorp_execute_on_companion(struct anv_cmd_buffer *cmd_buffer,
       if (devinfo->ver < 30)
          return true;
       /* Even on Xe3, no support for MSAA on BCS. */
-      if (anv_cmd_buffer_is_compute_queue(cmd_buffer))
+      if (anv_cmd_buffer_is_blitter_queue(cmd_buffer))
          return true;
    }
 
