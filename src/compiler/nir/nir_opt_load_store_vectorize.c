@@ -200,6 +200,7 @@ struct entry {
 struct vectorize_ctx {
    nir_shader *shader;
    const nir_load_store_vectorize_options *options;
+   unsigned (*round_up_components)(unsigned);
    struct hash_table *numlsb_ht;
    struct list_head entries[nir_num_variable_modes];
    struct hash_table *loads[nir_num_variable_modes];
@@ -838,7 +839,7 @@ calc_new_num_components(const struct vectorize_ctx *ctx,
     */
    if (!e->is_store ||
        (ctx->options->round_up_store_components && has_write_mask(e->intrin))) {
-      new_num_components = nir_round_up_components(new_num_components);
+      new_num_components = ctx->round_up_components(new_num_components);
    }
 
    return new_num_components;
@@ -1873,6 +1874,15 @@ nir_opt_load_store_vectorize(nir_shader *shader, const nir_load_store_vectorize_
    ctx->shader = shader;
    ctx->numlsb_ht = _mesa_pointer_hash_table_create(ctx);
    ctx->options = options;
+
+   /* By default, we round up load/store components to the next valid
+    * NIR vector size, using nir_round_up_components.  However, backends
+    * may supply a callback that allows more control, so they can round
+    * up to their next supported load/store vector width instead.
+    */
+   ctx->round_up_components = nir_round_up_components;
+   if (ctx->options->round_up_components)
+      ctx->round_up_components = ctx->options->round_up_components;
 
    nir_shader_index_vars(shader, options->modes);
 

@@ -5534,6 +5534,7 @@ typedef bool (*nir_should_vectorize_mem_func)(unsigned align_mul,
 
 typedef struct nir_load_store_vectorize_options {
    nir_should_vectorize_mem_func callback;
+   unsigned (*round_up_components)(unsigned);
    nir_variable_mode modes;
    nir_variable_mode robust_modes;
    void *cb_data;
