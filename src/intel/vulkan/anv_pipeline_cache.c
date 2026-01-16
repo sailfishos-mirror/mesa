@@ -365,6 +365,8 @@ anv_load_fp64_shader(struct anv_device *device)
    NIR_PASS(_, nir, nir_lower_returns);
    NIR_PASS(_, nir, nir_inline_functions);
 
+   nir_sweep(nir);
+
    anv_device_upload_nir(device, device->internal_cache,
                          nir, blake3);
 
