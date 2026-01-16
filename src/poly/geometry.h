@@ -112,7 +112,8 @@ struct poly_heap {
    DEVICE(uchar) base;
    uint32_t bottom, size;
 } PACKED;
-static_assert(sizeof(struct poly_heap) == 4 * 4);
+static_assert(sizeof(struct poly_heap) == 4 * 4,
+              "struct poly_heap must be 4 words");
 
 #ifdef __OPENCL_VERSION__
 static inline uint
@@ -192,7 +193,8 @@ struct poly_vertex_params {
    /* Mask of outputs present in the output buffer */
    uint64_t outputs;
 } PACKED;
-static_assert(sizeof(struct poly_vertex_params) == 16 * 4);
+static_assert(sizeof(struct poly_vertex_params) == 16 * 4,
+              "struct poly_vertex_params must be 16 words");
 
 static inline void
 poly_vertex_params_init(struct poly_vertex_params *p,
@@ -241,7 +243,8 @@ struct poly_indirect_draw {
    };
    uint32_t zeros[2];
 };
-static_assert(sizeof(struct poly_indirect_draw) == 5 * 4);
+static_assert(sizeof(struct poly_indirect_draw) == 5 * 4,
+              "struct poly_indirect_draw must be 5 words");
 
 struct poly_geometry_params {
    /* Address of count buffer. For an indirect draw, this will be written by the
@@ -312,7 +315,8 @@ struct poly_geometry_params {
     */
    uint32_t input_topology;
 } PACKED;
-static_assert(sizeof(struct poly_geometry_params) == 79 * 4);
+static_assert(sizeof(struct poly_geometry_params) == 79 * 4,
+              "struct poly_geometry_params must be 79 words");
 
 static inline void
 poly_geometry_params_init(struct poly_geometry_params *p,
@@ -432,8 +436,10 @@ poly_tcs_out_stride(uint nr_patch_out, uint out_patch_size,
 static inline uint
 poly_compact_prim(enum mesa_prim prim)
 {
-   static_assert(MESA_PRIM_QUAD_STRIP == MESA_PRIM_QUADS + 1);
-   static_assert(MESA_PRIM_POLYGON == MESA_PRIM_QUADS + 2);
+   static_assert(MESA_PRIM_QUAD_STRIP == MESA_PRIM_QUADS + 1,
+                 "MESA_PRIM_QUAD_STRIP must be immediately after MESA_PRIM_QUADS");
+   static_assert(MESA_PRIM_POLYGON == MESA_PRIM_QUADS + 2,
+                 "MESA_PRIM_POLYGON must be immediately after MESA_PRIM_QUAD_STRIP");
 
 #ifndef __OPENCL_VERSION__
    assert(prim != MESA_PRIM_QUADS);

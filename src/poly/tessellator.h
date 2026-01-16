@@ -25,7 +25,8 @@ struct poly_tess_point {
    uint32_t u;
    uint32_t v;
 };
-static_assert(sizeof(struct poly_tess_point) == 8);
+static_assert(sizeof(struct poly_tess_point) == 8,
+              "struct poly_tess_point must be 8 bytes");
 
 struct poly_tess_params {
    /* Heap to allocate tessellator outputs in */
@@ -100,4 +101,5 @@ struct poly_tess_params {
     */
    uint32_t ccw;
 } PACKED;
-static_assert(sizeof(struct poly_tess_params) == 34 * 4);
+static_assert(sizeof(struct poly_tess_params) == 34 * 4,
+              "struct poly_tess_params must be 34 words");
