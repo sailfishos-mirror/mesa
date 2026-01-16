@@ -34,6 +34,12 @@ typedef struct brw_asm_parser {
    int saved_state;
 } brw_asm_parser;
 
+/* A helper for accessing the last instruction emitted.  This makes it easy
+ * to set various bits on an instruction without having to create temporary
+ * variable and assign the emitted instruction to those.
+ */
+#define brw_last_inst (&p->store[p->nr_insn - 1])
+
 int yyparse(void);
 int yylex(void);
 char *lex_text(void);

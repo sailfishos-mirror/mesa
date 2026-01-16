@@ -79,13 +79,6 @@ struct brw_insn_state {
    bool acc_wr_control:1;
 };
 
-
-/* A helper for accessing the last instruction emitted.  This makes it easy
- * to set various bits on an instruction without having to create temporary
- * variable and assign the emitted instruction to those.
- */
-#define brw_last_inst (&p->store[p->nr_insn - 1])
-
 struct brw_codegen {
    brw_eu_inst *store;
    int store_size;
@@ -131,6 +124,12 @@ struct brw_label {
    int number;
    struct brw_label *next;
 };
+
+static inline brw_eu_inst *
+brw_eu_last_inst(struct brw_codegen *p)
+{
+   return &p->store[p->nr_insn - 1];
+}
 
 void brw_pop_insn_state( struct brw_codegen *p );
 void brw_push_insn_state( struct brw_codegen *p );

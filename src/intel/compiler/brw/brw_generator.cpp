@@ -138,7 +138,7 @@ brw_generator::generate_send(brw_send_inst *inst,
       assert(!inst->ex_desc_imm);
       brw_send_indirect_message(p, inst->sfid, dst, payload, desc, inst->eot, gather);
       if (inst->check_tdr)
-         brw_eu_inst_set_opcode(p->isa, brw_last_inst, BRW_OPCODE_SENDC);
+         brw_eu_inst_set_opcode(p->isa, brw_eu_last_inst(p), BRW_OPCODE_SENDC);
    } else {
       /* If we have any sort of extended descriptor, then we need SENDS.  This
        * also covers the dual-payload case because ex_mlen goes in ex_desc.
@@ -149,13 +149,13 @@ brw_generator::generate_send(brw_send_inst *inst,
                                       inst->ex_mlen, ex_bso,
                                       inst->eot, gather);
       if (inst->check_tdr)
-         brw_eu_inst_set_opcode(p->isa, brw_last_inst,
+         brw_eu_inst_set_opcode(p->isa, brw_eu_last_inst(p),
                              devinfo->ver >= 12 ? BRW_OPCODE_SENDC : BRW_OPCODE_SENDSC);
    }
 
    /* Serialize messages if needed */
    if (devinfo->ver == 12 && inst->fused_eu_disable)
-      brw_eu_inst_set_fusion_ctrl(devinfo, brw_last_inst, true);
+      brw_eu_inst_set_fusion_ctrl(devinfo, brw_eu_last_inst(p), true);
 }
 
 void
@@ -729,8 +729,8 @@ brw_generator::generate_code(const brw_shader &s,
        */
       if (devinfo->ver <= 9 &&
           p->nr_insn > 1 &&
-          brw_eu_inst_opcode(p->isa, brw_last_inst) == BRW_OPCODE_MATH &&
-          brw_eu_inst_math_function(devinfo, brw_last_inst) == BRW_MATH_FUNCTION_POW &&
+          brw_eu_inst_opcode(p->isa, brw_eu_last_inst(p)) == BRW_OPCODE_MATH &&
+          brw_eu_inst_math_function(devinfo, brw_eu_last_inst(p)) == BRW_MATH_FUNCTION_POW &&
           inst->dst.component_size(inst->exec_size) > REG_SIZE) {
          brw_NOP(p);
          last_insn_offset = p->next_insn_offset;
