@@ -728,7 +728,7 @@ zink_draw(struct pipe_context *pctx,
    if (have_streamout && ctx->dirty_so_targets)
       zink_emit_stream_output_targets(pctx);
 
-   bool pipeline_changed = rp_state != ctx->gfx_pipeline_state.rp_state || ctx->gfx_dirty || ctx->dirty_gfx_stages || prim_changed || BATCH_CHANGED ?
+   bool pipeline_changed = ctx->gfx_pipeline_state.dirty || rp_state != ctx->gfx_pipeline_state.rp_state || ctx->gfx_dirty || ctx->dirty_gfx_stages || prim_changed || BATCH_CHANGED ?
                            update_gfx_pipeline<DYNAMIC_STATE, BATCH_CHANGED>(ctx, bs, mode) :
                            false;
 
