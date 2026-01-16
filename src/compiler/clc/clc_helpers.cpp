@@ -963,6 +963,12 @@ clc_compile_to_llvm_module(LLVMContext &llvm_ctx,
    c->getPreprocessorOpts().addMacroDef("cl_khr_expect_assume=1");
 
    bool needs_opencl_c_h = false;
+   if (args->features.atomic_order_seq_cst) {
+      c->getTargetOpts().OpenCLExtensionsAsWritten.push_back("+__opencl_c_atomic_order_seq_cst");
+   }
+   if (args->features.atomic_scope_device) {
+      c->getTargetOpts().OpenCLExtensionsAsWritten.push_back("+__opencl_c_atomic_scope_device");
+   }
    if (args->features.extended_bit_ops) {
       c->getPreprocessorOpts().addMacroDef("cl_khr_extended_bit_ops=1");
    }
@@ -972,6 +978,9 @@ clc_compile_to_llvm_module(LLVMContext &llvm_ctx,
    if (args->features.fp64) {
       c->getTargetOpts().OpenCLExtensionsAsWritten.push_back("+cl_khr_fp64");
       c->getTargetOpts().OpenCLExtensionsAsWritten.push_back("+__opencl_c_fp64");
+   }
+   if (args->features.generic_address_space) {
+      c->getTargetOpts().OpenCLExtensionsAsWritten.push_back("+__opencl_c_generic_address_space");
    }
    if (args->features.int64) {
       c->getTargetOpts().OpenCLExtensionsAsWritten.push_back("+cles_khr_int64");
