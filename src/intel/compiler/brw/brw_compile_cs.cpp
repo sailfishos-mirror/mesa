@@ -178,6 +178,8 @@ brw_compile_cs(const struct brw_compiler *compiler,
       NIR_PASS(_, shader, brw_nir_lower_simd, dispatch_width);
 
       brw_nir_optimize(shader, devinfo);
+      /* brw_nir_optimize undoes late lowerings. */
+      NIR_PASS(_, shader, nir_opt_algebraic_late);
       brw_postprocess_nir_out_of_ssa(shader, dispatch_width,
                                      params->base.archiver, debug_enabled);
 
