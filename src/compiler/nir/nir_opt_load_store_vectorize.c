@@ -1445,6 +1445,15 @@ can_vectorize(struct vectorize_ctx *ctx, struct entry *first, struct entry *seco
    if (check_for_aliasing(ctx, first, second))
       return false;
 
+   if (first->index == -1 && !(get_variable_mode(first) & ctx->options->bounds_checked_modes)) {
+      /* For non bounds-checked modes, only allow to vectorize with entries
+       * which can speculate. We could do better if we check alignment or
+       * if the second entry's block post-dominates the first's block.
+       */
+      if (!nir_instr_can_speculate(second->instr))
+         return false;
+   }
+
    /* we can only vectorize non-volatile loads/stores of the same type and with
     * the same access */
    if (first->info != second->info || first->access != second->access ||
@@ -1928,12 +1937,7 @@ process_block(nir_function_impl *impl, struct vectorize_ctx *ctx, nir_block *blo
        */
       if (!list_is_empty(&ctx->entries[i])) {
          struct entry *entry = list_entry(ctx->entries[i].prev, struct entry, head);
-
-         /* For now, only allow per-component bounds-checked modes. We can do better
-          * if we check alignment, whether the second entry can speculate or if the
-          * second entry's block post-dominates the instruction's block.
-          */
-         if (!entry->is_store && (get_variable_mode(entry) & ctx->options->bounds_checked_modes))
+         if (!entry->is_store)
             ctx->per_block_ctx[block->index].last_entry[i] = entry;
       }
    }
