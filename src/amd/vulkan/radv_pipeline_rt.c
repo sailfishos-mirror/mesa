@@ -931,7 +931,7 @@ static void
 compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *pipeline)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   struct nir_function raygen_stub = {};
+   struct nir_function raygen_stub = {0};
    uint32_t push_constant_size = 0;
 
    /* Create a dummy function signature for raygen shaders in order to pass parameter info to the prolog */
