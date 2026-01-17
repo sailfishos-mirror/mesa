@@ -128,10 +128,14 @@ emit_blt_clearimage(struct etna_cmd_stream *stream, const struct blt_clear_op *o
     * behaving stragely, it's something to look at.
     */
    etna_set_state(stream, VIVS_BLT_DEST_STRIDE, blt_compute_stride_bits(&op->dest));
-   etna_set_state(stream, VIVS_BLT_DEST_CONFIG, blt_compute_dest_img_config_bits(&op->dest));
+   etna_set_state(stream, VIVS_BLT_DEST_CONFIG,
+           blt_compute_dest_img_config_bits(&op->dest) |
+           COND(op->dest.bpp == 8, BLT_DEST_IMAGE_CONFIG_64BPP_FORMAT));
    etna_set_state_reloc(stream, VIVS_BLT_DEST_ADDR, &op->dest.addr);
    etna_set_state(stream, VIVS_BLT_SRC_STRIDE, blt_compute_stride_bits(&op->dest));
-   etna_set_state(stream, VIVS_BLT_SRC_CONFIG, blt_compute_src_img_config_bits(&op->dest));
+   etna_set_state(stream, VIVS_BLT_SRC_CONFIG,
+           blt_compute_src_img_config_bits(&op->dest) |
+           COND(op->dest.bpp == 8, BLT_SRC_IMAGE_CONFIG_64BPP_FORMAT));
    etna_set_state_reloc(stream, VIVS_BLT_SRC_ADDR, &op->dest.addr);
    etna_set_state(stream, VIVS_BLT_DEST_POS, VIVS_BLT_DEST_POS_X(op->rect_x) | VIVS_BLT_DEST_POS_Y(op->rect_y));
    etna_set_state(stream, VIVS_BLT_IMAGE_SIZE, VIVS_BLT_IMAGE_SIZE_WIDTH(op->rect_w) | VIVS_BLT_IMAGE_SIZE_HEIGHT(op->rect_h));
@@ -167,7 +171,9 @@ emit_blt_copyimage(struct etna_cmd_stream *stream, const struct blt_imgcopy_op *
            VIVS_BLT_CONFIG_SRC_ENDIAN(op->src.endian_mode) |
            VIVS_BLT_CONFIG_DEST_ENDIAN(op->dest.endian_mode));
    etna_set_state(stream, VIVS_BLT_SRC_STRIDE, blt_compute_stride_bits(&op->src));
-   etna_set_state(stream, VIVS_BLT_SRC_CONFIG, blt_compute_src_img_config_bits(&op->src));
+   etna_set_state(stream, VIVS_BLT_SRC_CONFIG,
+           blt_compute_src_img_config_bits(&op->src) |
+           COND(op->src.bpp == 8, BLT_SRC_IMAGE_CONFIG_64BPP_FORMAT));
    etna_set_state(stream, VIVS_BLT_SWIZZLE,
            blt_compute_swizzle_bits(&op->src, false) |
            blt_compute_swizzle_bits(&op->dest, true));
@@ -722,6 +728,7 @@ etna_try_blt_blit(struct pipe_context *pctx,
       op.src.addr.bo = src->bo;
       op.src.addr.offset = src_lev->offset + blit_info->src.box.z * src_lev->layer_stride;
       op.src.addr.flags = ETNA_RELOC_READ;
+      op.src.bpp = util_format_get_blocksize(blit_info->src.format);
       op.src.format = format;
       op.src.stride = src_lev->stride;
       op.src.tiling = src->layout;
