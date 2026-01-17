@@ -143,7 +143,6 @@ spec@ext_framebuffer_multisample@draw-buffers-alpha-to-coverage 8,Fail
 spec@ext_framebuffer_multisample@sample-alpha-to-coverage 16 color,Fail
 spec@ext_framebuffer_multisample@sample-alpha-to-coverage 6 color,Fail
 spec@ext_framebuffer_multisample@sample-alpha-to-coverage 8 color,Fail
-spec@ext_framebuffer_object@fbo-blending-format-quirks,Fail
 spec@ext_framebuffer_object@fbo-blending-formats,Fail
 spec@ext_framebuffer_object@fbo-blending-formats@GL_ALPHA4,Fail
 spec@ext_framebuffer_object@fbo-blending-formats@GL_ALPHA8,Fail

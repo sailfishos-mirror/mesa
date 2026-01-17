@@ -62,7 +62,6 @@ spec@egl_khr_gl_image@egl_khr_gl_renderbuffer_image-clear-shared-image gl_rgba,F
 spec@egl_khr_surfaceless_context@viewport,Fail
 spec@egl_mesa_configless_context@basic,Fail
 spec@ext_framebuffer_blit@fbo-blit-check-limits,Fail
-spec@ext_framebuffer_object@fbo-blending-format-quirks,Fail
 spec@ext_framebuffer_object@fbo-blending-formats,Fail
 spec@ext_framebuffer_object@fbo-blending-formats@GL_ALPHA4,Fail
 spec@ext_framebuffer_object@fbo-blending-formats@GL_ALPHA8,Fail
@@ -318,7 +317,6 @@ afbcp-spec@egl_khr_gl_image@egl_khr_gl_renderbuffer_image-clear-shared-image gl_
 afbcp-spec@egl_khr_surfaceless_context@viewport,Fail
 afbcp-spec@egl_mesa_configless_context@basic,Fail
 afbcp-spec@ext_framebuffer_blit@fbo-blit-check-limits,Fail
-afbcp-spec@ext_framebuffer_object@fbo-blending-format-quirks,Fail
 afbcp-spec@ext_framebuffer_object@fbo-blending-formats,Fail
 afbcp-spec@ext_framebuffer_object@fbo-blending-formats@GL_ALPHA4,Fail
 afbcp-spec@ext_framebuffer_object@fbo-blending-formats@GL_ALPHA8,Fail

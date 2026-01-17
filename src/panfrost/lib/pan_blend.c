@@ -791,70 +791,6 @@ get_equation_str(const struct pan_blend_rt_state *rt_state, char *str,
    }
 }
 
-#if PAN_ARCH >= 6
-static bool
-lower_rt_intrin(nir_builder *b, nir_intrinsic_instr *intr, void *data)
-{
-   const struct pan_blend_state *state = data;
-
-   switch (intr->intrinsic) {
-   case nir_intrinsic_load_output: {
-      nir_io_semantics io = nir_intrinsic_io_semantics(intr);
-      assert(io.location >= FRAG_RESULT_DATA0);
-      unsigned rt = io.location - FRAG_RESULT_DATA0;
-      enum pipe_format format = state->rts[rt].format;
-      unsigned nr_samples = state->rts[rt].nr_samples;
-
-      nir_alu_type dest_type = nir_intrinsic_dest_type(intr);
-      unsigned size = nir_alu_type_get_type_size(dest_type);
-      uint64_t blend_desc =
-         GENX(pan_blend_get_internal_desc)(format, rt, size, false);
-
-      b->cursor = nir_after_instr(&intr->instr);
-
-      nir_def *sample_id =
-         nr_samples > 1 ? nir_load_sample_id(b) : nir_imm_int(b, 0);
-
-      nir_def *lowered = nir_load_tile_pan(
-         b, intr->def.num_components, intr->def.bit_size,
-         pan_nir_tile_rt_sample(b, nir_imm_int(b, rt), sample_id),
-         pan_nir_tile_default_coverage(b),
-         nir_imm_int(b, blend_desc >> 32),
-         .dest_type = dest_type,
-         .io_semantics = io);
-
-      nir_def_replace(&intr->def, lowered);
-      return true;
-   }
-
-   case nir_intrinsic_store_output: {
-      nir_io_semantics io = nir_intrinsic_io_semantics(intr);
-      assert(io.location >= FRAG_RESULT_DATA0);
-      unsigned rt = io.location - FRAG_RESULT_DATA0;
-      enum pipe_format format = state->rts[rt].format;
-
-      nir_alu_type src_type = nir_intrinsic_src_type(intr);
-      unsigned size = nir_alu_type_get_type_size(src_type);
-      uint64_t blend_desc =
-         GENX(pan_blend_get_internal_desc)(format, rt, size, false);
-
-      b->cursor = nir_instr_remove(&intr->instr);
-
-      assert(nir_intrinsic_component(intr) == 0);
-      nir_blend_pan(b, nir_load_cumulative_coverage_pan(b),
-                    nir_imm_int64(b, blend_desc),
-                    nir_pad_vec4(b, intr->src[0].ssa),
-                    .io_semantics = io,
-                    .src_type = src_type);
-      return true;
-   }
-
-   default:
-      return false;
-   }
-}
-#endif
-
 nir_shader *
 GENX(pan_blend_create_shader)(const struct pan_blend_state *state,
                               nir_alu_type src0_type, nir_alu_type src1_type,
@@ -865,111 +801,142 @@ GENX(pan_blend_create_shader)(const struct pan_blend_state *state,
 
    get_equation_str(rt_state, equation_str, sizeof(equation_str));
 
-   nir_builder b = nir_builder_init_simple_shader(
+   nir_builder builder = nir_builder_init_simple_shader(
       MESA_SHADER_FRAGMENT, pan_get_nir_shader_compiler_options(PAN_ARCH),
       "pan_blend(rt=%d,fmt=%s,nr_samples=%d,%s=%s)", rt,
       util_format_name(rt_state->format), rt_state->nr_samples,
       state->logicop_enable ? "logicop" : "equation",
       state->logicop_enable ? logicop_str(state->logicop_func) : equation_str);
+   nir_builder *b = &builder;
 
+   const enum pipe_format format = rt_state->format;
    const struct util_format_description *format_desc =
-      util_format_description(rt_state->format);
-   nir_alu_type nir_type = pan_unpacked_type_for_format(format_desc);
+      util_format_description(format);
 
-   /* Bifrost/Valhall support 16-bit and 32-bit register formats for
-    * LD_TILE/ST_TILE/BLEND, but do not support 8-bit. Rather than making
-    * the fragment output 8-bit and inserting extra conversions in the
-    * compiler, promote the output to 16-bit. The larger size is still
-    * compatible with correct conversion semantics.
+   /* Choose a type which is not going to lead to precision loss while
+    * blending.  If we're not dual-source blending, src1_type will be
+    * nir_type_invalid which has a size of zero.
     */
-   if (PAN_ARCH >= 6 && nir_alu_type_get_type_size(nir_type) == 8)
-      nir_type = nir_alu_type_get_base_type(nir_type) | 16;
+   nir_alu_type dest_type = pan_unpacked_type_for_format(format_desc);
+   if (PAN_ARCH >= 6 && nir_alu_type_get_type_size(dest_type) == 8)
+      dest_type = nir_alu_type_get_base_type(dest_type) | 16;
 
-   nir_lower_blend_options options = {
-      .logicop_enable = state->logicop_enable,
-      .logicop_func = state->logicop_func,
-   };
+   const unsigned dest_bit_size = nir_alu_type_get_type_size(dest_type);
+   const nir_alu_type dest_base_type = nir_alu_type_get_base_type(dest_type);
 
-   options.rt[rt].format = rt_state->format;
-   options.rt[rt].colormask = rt_state->equation.color_mask;
+   /* Midgard doesn't always provide types at all but it's always float32 */
+   src0_type = src0_type ?: nir_type_float32;
+   src1_type = src1_type ?: nir_type_float32;
 
-   if (!rt_state->equation.blend_enable) {
-      static const nir_lower_blend_channel replace = {
-         .func = PIPE_BLEND_ADD,
-         .src_factor = PIPE_BLENDFACTOR_ONE,
-         .dst_factor = PIPE_BLENDFACTOR_ZERO,
-      };
+   nir_def *src0 = nir_load_blend_input_pan(b,
+      4, nir_alu_type_get_type_size(src0_type),
+      .io_semantics.location = FRAG_RESULT_DATA0 + rt,
+      .io_semantics.dual_source_blend_index = 0,
+      .io_semantics.num_slots = 1,
+      .dest_type = src0_type);
 
-      options.rt[rt].rgb = replace;
-      options.rt[rt].alpha = replace;
-   } else {
-      options.rt[rt].rgb.func = rt_state->equation.rgb_func;
-      options.rt[rt].rgb.src_factor = rt_state->equation.rgb_src_factor;
-      options.rt[rt].rgb.dst_factor = rt_state->equation.rgb_dst_factor;
-      options.rt[rt].alpha.func = rt_state->equation.alpha_func;
-      options.rt[rt].alpha.src_factor = rt_state->equation.alpha_src_factor;
-      options.rt[rt].alpha.dst_factor = rt_state->equation.alpha_dst_factor;
+   nir_def *src1 = nir_load_blend_input_pan(b,
+      4, nir_alu_type_get_type_size(src1_type),
+      .io_semantics.location = FRAG_RESULT_DATA0 + rt,
+      .io_semantics.dual_source_blend_index = 1,
+      .io_semantics.num_slots = 1,
+      .dest_type = src1_type);
+
+   /* Make sure everyone is the same type.  We assume the destination type
+    * here because TGSI sometimes gives us bogus types.  When they're not
+    * bogus, shader types are required to match the format anyway.
+    *
+    * On Midgard, the blend shader is responsible for format conversion.
+    * As the OpenGL spec requires integer conversions to saturate, we must
+    * saturate ourselves here. On Bifrost and later, the conversion
+    * hardware handles this automatically.
+    */
+   bool should_saturate = PAN_ARCH <= 5 && dest_base_type != nir_type_float;
+   src0 = nir_convert_with_rounding(b, src0, dest_base_type, dest_type,
+                                    nir_rounding_mode_undef, should_saturate);
+   src1 = nir_convert_with_rounding(b, src1, dest_base_type, dest_type,
+                                    nir_rounding_mode_undef, should_saturate);
+
+   if (state->alpha_to_one && dest_base_type == nir_type_float) {
+      nir_def *one = nir_imm_floatN_t(b, 1.0, dest_bit_size);
+      src0 = nir_vector_insert_imm(b, src0, one, 3);
+      src1 = nir_vector_insert_imm(b, src1, one, 3);
    }
-
-   nir_def *zero = nir_imm_int(&b, 0);
-
-   for (unsigned i = 0; i < 2; ++i) {
-      nir_alu_type src_type =
-         (i == 1 ? src1_type : src0_type) ?: nir_type_float32;
-
-      /* HACK: workaround buggy TGSI shaders (u_blitter) */
-      src_type = nir_alu_type_get_base_type(nir_type) |
-                 nir_alu_type_get_type_size(src_type);
-
-      nir_def *src = nir_load_blend_input_pan(
-         &b, 4, nir_alu_type_get_type_size(src_type),
-         .io_semantics.location = FRAG_RESULT_DATA0 + rt,
-         .io_semantics.dual_source_blend_index = i,
-         .io_semantics.num_slots = 1, .dest_type = src_type);
-
-      if (state->alpha_to_one && src_type == nir_type_float32) {
-         /* force alpha to 1 */
-         src = nir_vector_insert_imm(&b, src,
-                                     nir_imm_floatN_t(&b, 1.0, src->bit_size),
-                                     3);
-      }
-
-      /* On Midgard, the blend shader is responsible for format conversion.
-       * As the OpenGL spec requires integer conversions to saturate, we must
-       * saturate ourselves here. On Bifrost and later, the conversion
-       * hardware handles this automatically.
-       */
-      nir_alu_type T = nir_alu_type_get_base_type(nir_type);
-      bool should_saturate = (PAN_ARCH <= 5) && (T != nir_type_float);
-      src = nir_convert_with_rounding(&b, src, T, nir_type,
-                                      nir_rounding_mode_undef, should_saturate);
-
-      nir_store_output(&b, src, zero, .write_mask = BITFIELD_MASK(4),
-                       .src_type = nir_type,
-                       .io_semantics.location = FRAG_RESULT_DATA0 + rt,
-                       .io_semantics.num_slots = 1,
-                       .io_semantics.dual_source_blend_index = i);
-   }
-
-   b.shader->info.io_lowered = true;
-
-   NIR_PASS(_, b.shader, nir_lower_blend, &options);
 
 #if PAN_ARCH >= 6
-   /* On bifrost+ we use the NIR blend/load intrinsics directly */
-   NIR_PASS(_, b.shader, nir_shader_intrinsics_pass,
-            lower_rt_intrin, nir_metadata_control_flow, (void *)state);
-
-   /* And we put a blend_return_pan at the end.
-    *
-    * We have to do this here because nir_lower_blend assumes it can stick
-    * stuff at the end of the shader, after the blend_return_pan.
-    */
-   b = nir_builder_at(nir_after_impl(nir_shader_get_entrypoint(b.shader)));
-   nir_blend_return_pan(&b);
+   const uint64_t opaque_blend_desc =
+      GENX(pan_blend_get_internal_desc)(format, rt, dest_bit_size, false);
+#else
+   const uint64_t opaque_blend_desc = 0;
 #endif
 
-   return b.shader;
+   nir_def *dest;
+   if (PAN_ARCH >= 6) {
+      nir_def *sample_id =
+         rt_state->nr_samples > 1 ? nir_load_sample_id(b) : nir_imm_int(b, 0);
+      dest = nir_load_tile_pan(b,
+         4, dest_bit_size,
+         pan_nir_tile_rt_sample(b, nir_imm_int(b, rt), sample_id),
+         pan_nir_tile_default_coverage(b),
+         nir_imm_int(b, opaque_blend_desc >> 32),
+         .dest_type = dest_type,
+         .io_semantics.location = FRAG_RESULT_DATA0 + rt,
+         .io_semantics.num_slots = 1);
+   } else {
+      dest = nir_load_output(b,
+         4, dest_bit_size,
+         nir_imm_int(b, 0),
+         .dest_type = dest_type,
+         .io_semantics.location = FRAG_RESULT_DATA0 + rt,
+         .io_semantics.num_slots = 1);
+   }
+
+   nir_def *color = src0;
+   if (state->logicop_enable) {
+      color = nir_color_logicop(b, src0, dest, state->logicop_func, format);
+   } else if (rt_state->equation.blend_enable) {
+      const nir_lower_blend_rt nir_rt = {
+         .format = format,
+         .rgb.func = rt_state->equation.rgb_func,
+         .rgb.src_factor = rt_state->equation.rgb_src_factor,
+         .rgb.dst_factor = rt_state->equation.rgb_dst_factor,
+         .alpha.func = rt_state->equation.alpha_func,
+         .alpha.src_factor = rt_state->equation.alpha_src_factor,
+         .alpha.dst_factor = rt_state->equation.alpha_dst_factor,
+         .colormask = rt_state->equation.color_mask,
+      };
+      color = nir_color_blend(b, src0, src1, dest, &nir_rt, false);
+   }
+
+   color = nir_color_mask(b, color, dest, rt_state->equation.color_mask);
+
+   /* Throw away any channels we don't need */
+   color = nir_color_mask(b, color, nir_undef(b, 4, dest_bit_size),
+                          util_format_colormask(format_desc));
+
+   /* Only write the destination if it changed */
+   if (color != dest) {
+      if (PAN_ARCH >= 6) {
+         nir_blend_pan(b, nir_load_cumulative_coverage_pan(b),
+                       nir_imm_int64(b, opaque_blend_desc),
+                       color,
+                       .src_type = dest_type,
+                       .io_semantics.location = FRAG_RESULT_DATA0 + rt,
+                       .io_semantics.num_slots = 1);
+      } else {
+         nir_store_output(b, color, nir_imm_int(b, 0),
+                          .src_type = dest_type,
+                          .io_semantics.location = FRAG_RESULT_DATA0 + rt,
+                          .io_semantics.num_slots = 1);
+      }
+   }
+
+   if (PAN_ARCH >= 6)
+      nir_blend_return_pan(b);
+
+   b->shader->info.io_lowered = true;
+
+   return builder.shader;
 }
 
 #if PAN_ARCH >= 6
