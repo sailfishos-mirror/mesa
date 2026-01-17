@@ -2704,7 +2704,6 @@ tu_CreateDevice(VkPhysicalDevice physicalDevice,
       break;
    case 8:
       /* gen8 TODO: */
-      tu_env.debug |= TU_DEBUG_NOLRZ;     /* WRITE iova faults from UCHE */
       tu_env.debug |= TU_DEBUG_FLUSHALL;  /* dEQP-VK.draw.\*from_compute\* */
       vk_device_dispatch_table_from_entrypoints(
          &dispatch_table, &tu_device_entrypoints_a8xx, false);
