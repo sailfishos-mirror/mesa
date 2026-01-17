@@ -475,6 +475,9 @@ bool panfrost_nir_lower_sysvals(nir_shader *s, unsigned arch,
 bool panfrost_nir_lower_res_indices(nir_shader *shader,
                                     struct pan_compile_inputs *inputs);
 
+bool panfrost_nir_lower_pls(nir_shader *shader,
+                            struct panfrost_screen *screen);
+
 /** (Vertex buffer index, divisor) tuple that will become an Attribute Buffer
  * Descriptor at draw-time on Midgard
  */

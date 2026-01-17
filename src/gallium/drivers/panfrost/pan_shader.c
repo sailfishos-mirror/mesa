@@ -143,7 +143,6 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    struct pan_compile_inputs inputs = {
       .gpu_id = panfrost_device_gpu_id(dev),
       .gpu_variant = dev->kmod.dev->props.gpu_variant,
-      .get_conv_desc = screen->vtbl.get_conv_desc,
    };
 
    /* Lower this early so the backends don't have to worry about it */
@@ -194,6 +193,9 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
 
       NIR_PASS(_, s, nir_shader_intrinsics_pass,
                lower_sample_mask_writes, nir_metadata_control_flow, NULL);
+
+      if (s->info.fs.accesses_pixel_local_storage)
+         NIR_PASS(_, s, panfrost_nir_lower_pls, screen);
    }
 
    if (dev->arch <= 5 && s->info.stage == MESA_SHADER_FRAGMENT) {
