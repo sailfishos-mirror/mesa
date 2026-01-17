@@ -5530,6 +5530,7 @@ typedef struct nir_load_store_vectorize_options {
    unsigned (*round_up_components)(unsigned);
    nir_variable_mode modes;
    nir_variable_mode robust_modes;
+   nir_variable_mode bounds_checked_modes; /* modes with per-component bounds-checking */
    void *cb_data;
    bool has_shared2_amd;
    bool round_up_store_components;
