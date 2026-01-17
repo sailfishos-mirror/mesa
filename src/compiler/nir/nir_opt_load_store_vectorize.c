@@ -1779,6 +1779,35 @@ handle_barrier(struct vectorize_ctx *ctx, bool *progress, nir_function_impl *imp
    return true;
 }
 
+static void
+add_entry_to_hash_table(struct vectorize_ctx *ctx, struct entry *entry)
+{
+   struct hash_table *adj_ht = NULL;
+   unsigned mode_index = mode_to_index(get_variable_mode(entry));
+
+   if (entry->is_store) {
+      if (!ctx->stores[mode_index])
+         ctx->stores[mode_index] = _mesa_hash_table_create(ctx, &hash_entry_key, &entry_key_equals);
+      adj_ht = ctx->stores[mode_index];
+   } else {
+      if (!ctx->loads[mode_index])
+         ctx->loads[mode_index] = _mesa_hash_table_create(ctx, &hash_entry_key, &entry_key_equals);
+      adj_ht = ctx->loads[mode_index];
+   }
+
+   uint32_t key_hash = hash_entry_key(entry->key);
+   struct hash_entry *adj_entry = _mesa_hash_table_search_pre_hashed(adj_ht, key_hash, entry->key);
+   struct util_dynarray *arr;
+   if (adj_entry && adj_entry->data) {
+      arr = (struct util_dynarray *)adj_entry->data;
+   } else {
+      arr = linear_alloc(ctx->linear_mem_ctx, struct util_dynarray);
+      util_dynarray_init(arr, ctx);
+      _mesa_hash_table_insert_pre_hashed(adj_ht, key_hash, entry->key, arr);
+   }
+   util_dynarray_append(arr, entry);
+}
+
 static bool
 process_block(nir_function_impl *impl, struct vectorize_ctx *ctx, nir_block *block)
 {
@@ -1824,31 +1853,7 @@ process_block(nir_function_impl *impl, struct vectorize_ctx *ctx, nir_block *blo
       entry->index = next_index;
 
       list_addtail(&entry->head, &ctx->entries[mode_index]);
-
-      /* add the entry to a hash table */
-
-      struct hash_table *adj_ht = NULL;
-      if (entry->is_store) {
-         if (!ctx->stores[mode_index])
-            ctx->stores[mode_index] = _mesa_hash_table_create(ctx, &hash_entry_key, &entry_key_equals);
-         adj_ht = ctx->stores[mode_index];
-      } else {
-         if (!ctx->loads[mode_index])
-            ctx->loads[mode_index] = _mesa_hash_table_create(ctx, &hash_entry_key, &entry_key_equals);
-         adj_ht = ctx->loads[mode_index];
-      }
-
-      uint32_t key_hash = hash_entry_key(entry->key);
-      struct hash_entry *adj_entry = _mesa_hash_table_search_pre_hashed(adj_ht, key_hash, entry->key);
-      struct util_dynarray *arr;
-      if (adj_entry && adj_entry->data) {
-         arr = (struct util_dynarray *)adj_entry->data;
-      } else {
-         arr = linear_alloc(ctx->linear_mem_ctx, struct util_dynarray);
-         util_dynarray_init(arr, ctx);
-         _mesa_hash_table_insert_pre_hashed(adj_ht, key_hash, entry->key, arr);
-      }
-      util_dynarray_append(arr, entry);
+      add_entry_to_hash_table(ctx, entry);
    }
 
    /* sort and combine entries */
