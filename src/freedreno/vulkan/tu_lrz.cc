@@ -139,7 +139,7 @@ tu6_emit_lrz_buffer(struct tu_cs *cs, struct tu_image *depth_image)
    if (CHIP >= A7XX) {
       crb.add(GRAS_LRZ_DEPTH_BUFFER_INFO(CHIP, .depth_format = tu6_pipe2depth(
                                                  depth_image->vk.format)));
-      crb.add(GRAS_LRZ_CB_CNTL(CHIP, .double_buffer_stride =
+      crb.add(GRAS_LRZ_CB_CNTL(CHIP, .double_buffer_pitch =
                                    depth_image->lrz_layout.lrz_buffer_size));
    }
 }
