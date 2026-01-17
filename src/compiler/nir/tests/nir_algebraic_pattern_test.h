@@ -75,12 +75,23 @@ class nir_algebraic_pattern_test : public nir_test {
    bool evaluate_expression(nir_instr *instr);
    bool skip_test(nir_alu_instr *alu, uint32_t bit_size,
                   nir_const_value tmp, int32_t src_index);
+   void handle_signed_zero(nir_const_value *val, uint32_t bit_size);
 
  public:
    nir_const_value *tmp_value(nir_def *def);
 
    std::vector<nir_algebraic_pattern_test_input> inputs;
    uint32_t fuzzing_bits;
+
+   /* Iteration count for signed 0 non-preservation search -- we set up
+    * signed_zero_count during the first iteration, and during other iterations
+    * we'll flip signs to try to see if the pattern ever matches.
+    */
+   uint32_t signed_zero_iter;
+
+   /* Number of 0.0s encountered in the current signed_zero_iter. */
+   uint32_t signed_zero_count;
+
    bool exact = true;
    enum result expected_result = PASS;
    const char *expression_cond_failed = NULL;

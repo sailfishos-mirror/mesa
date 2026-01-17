@@ -268,10 +268,10 @@ optimizations = [
    (('fadd', a, a), ('fmul', a, 2.0)),
    (('fadd(contract)', a, ('fadd(is_used_once)', a, b)), ('fadd', b, ('fmul', a, 2.0))),
    (('~fmul', a, 0.0), 0.0),
-   (('~fmul', a, -0.0), 0.0, 'true', TestStatus.UNSUPPORTED), # No support for inexactly testing -0.0 inputs
+   (('~fmul', a, -0.0), 0.0),
    # The only effect a*0.0 should have is when 'a' is infinity, -0.0 or NaN
    (('fmul(nsz,nnan)', 'a', 0.0), 0.0),
-   (('fmul(nsz,nnan)', 'a', -0.0), 0.0, 'true', TestStatus.UNSUPPORTED), # No support for nsz testing -0.0 inputs
+   (('fmul(nsz,nnan)', 'a', -0.0), 0.0),
    (('fmulz', a, 0.0), 0.0),
    (('fmulz', a, -0.0), 0.0),
    (('fmulz(nsz)', a, 'b(is_finite_not_zero)'), ('fmul', a, b)),
@@ -294,7 +294,7 @@ optimizations = [
    (('fmul', ('fsign', a), ('fmul', a, a)), ('fmul', ('fabs', a), a)),
    (('fmul', ('fmul', ('fsign', a), a), a), ('fmul', ('fabs', a), a)),
    (('ffma(nsz,nnan)', 0.0, a, b), ('fcanonicalize', b)),
-   (('ffma(nsz,nnan)', -0.0, a, b), ('fcanonicalize', b), 'true', TestStatus.UNSUPPORTED), # No support for nsz testing -0.0 inputs
+   (('ffma(nsz,nnan)', -0.0, a, b), ('fcanonicalize', b)),
    (('ffmaz', 0.0, a, b), ('fadd', 0.0, b)),
    (('ffmaz', -0.0, a, b), ('fadd', 0.0, b)),
    (('ffma(nsz)', a, b, 0.0), ('fmul', a, b)),
@@ -308,11 +308,11 @@ optimizations = [
    (('~ffma', '#a', '#b', c), ('fadd', ('fmul', a, b), c)),
    (('~ffmaz', '#a', '#b', c), ('fadd', ('fmulz', a, b), c)),
    (('flrp(nnan,nsz)', a, b, 0.0), ('fcanonicalize', a)),
-   (('flrp(nnan,nsz)', a, b, -0.0), ('fcanonicalize', a), 'true', TestStatus.UNSUPPORTED), # No support for nsz testing -0.0 inputs
+   (('flrp(nnan,nsz)', a, b, -0.0), ('fcanonicalize', a)),
    (('flrp(nnan,nsz)', a, b, 1.0), ('fcanonicalize', b)),
    (('~flrp', a, a, b), ('fcanonicalize', a)),
    (('flrp(nnan,nsz)', 0.0, a, b), ('fmul', a, b)),
-   (('flrp(nnan,nsz)', -0.0, a, b), ('fmul', a, b), 'true', TestStatus.UNSUPPORTED), # No support for nsz testing -0.0 inputs
+   (('flrp(nnan,nsz)', -0.0, a, b), ('fmul', a, b)),
 
    # flrp(a, a + b, c) => a + flrp(0, b, c) => a + (b * c)
    (('~flrp', a, ('fadd(is_used_once)', a, b), c), ('fadd', ('fmul', b, c), a)),
@@ -974,8 +974,8 @@ optimizations.extend([
    (('fneg', ('fmin(is_used_once)', ('fneg', a), ('fneg', b))), ('fmax', a, b)),
    (('fneg', ('fmax(is_used_once)', ('fneg', a), '#b')), ('fmin', a, ('fneg', b))),
    (('fneg', ('fmin(is_used_once)', ('fneg', a), '#b')), ('fmax', a, ('fneg', b))),
-   (('fmin(nsz)', a, -0.0), ('fmin', a, 0.0), 'true', TestStatus.UNSUPPORTED), # No support for nsz testing -0.0 inputs
-   (('fmax(nsz)', a, -0.0), ('fmax', a, 0.0), 'true', TestStatus.UNSUPPORTED), # No support for nsz testing -0.0 inputs
+   (('fmin(nsz)', a, -0.0), ('fmin', a, 0.0)),
+   (('fmax(nsz)', a, -0.0), ('fmax', a, 0.0)),
 ])
 
 for op in ['ine', 'ieq', 'ilt', 'ige', 'ult', 'uge', 'bitz', 'bitnz',
@@ -3463,7 +3463,7 @@ optimizations.extend([
      ('bcsel', ('!flt', ('!fabs', a), math.ldexp(1.0, -14)),
                ('iand', a, 1 << 31),
                ('!f2f32', ('!f2f16_rtne', a))),
-     'options->lower_fquantize2f16', TestStatus.UNSUPPORTED), # All test inputs skipped.
+     'options->lower_fquantize2f16'),
     ])
 
 for s in range(0, 31):
@@ -4182,8 +4182,6 @@ for t in ['f', 'i']:
    add_used_once = '~{}add(is_used_once)'.format(t)
    add = '~{}add'.format(t)
    mul = '~{}mul'.format(t)
-   # With so many inputs, we always get an inf or a nan in testing.
-   expected = TestStatus.UNSUPPORTED if t == 'f' else TestStatus.PASS
 
    # Variable names used below were selected based on these layouts:
    #     mat4             mat4         vec4
@@ -4203,10 +4201,10 @@ for t in ['f', 'i']:
    step8 = (add, (add, (add, (mul, 'cc', 'gg'), (mul, 'dd', 'hh')), (mul, 'ee', 'ii')), (mul, 'ff', 'jj'))
 
    # This finds and replaces common (mat4*mat4)*vec4 with something that will get optimised down to mat4*(mat4*vec4)
-   mat_mul_optimizations += [((add_first, (add, (add, (mul, step1, 'gg'), (mul, step2, 'hh')), (mul, step3, 'ii')), (mul, step4, 'jj')), (add, (add, (add, (mul, step5, 'a'), (mul, step6, 'b')), (mul, step7, 'c')), (mul, step8, 'd')), 'true', expected)]
+   mat_mul_optimizations += [((add_first, (add, (add, (mul, step1, 'gg'), (mul, step2, 'hh')), (mul, step3, 'ii')), (mul, step4, 'jj')), (add, (add, (add, (mul, step5, 'a'), (mul, step6, 'b')), (mul, step7, 'c')), (mul, step8, 'd')))]
 
    # This helps propagate the above improvement further up the mul chain e.g. mat4*mat4*mat4*vec4 to (mat4*vec4)*mat4*mat4
-   mat_mul_optimizations += [((add_first, (add, (add, (mul, 'gg', step1), (mul,'hh', step2)), (mul, 'ii', step3)), (mul, 'jj', step4)), (add, (add, (add, (mul, step5, 'a'), (mul, step6, 'b')), (mul, step7, 'c')), (mul, step8, 'd')), 'true', expected)]
+   mat_mul_optimizations += [((add_first, (add, (add, (mul, 'gg', step1), (mul,'hh', step2)), (mul, 'ii', step3)), (mul, 'jj', step4)), (add, (add, (add, (mul, step5, 'a'), (mul, step6, 'b')), (mul, step7, 'c')), (mul, step8, 'd')))]
 
    # Below handles a real world shader that looks like this mat4*mat4*vec4(xyz, 1.0) where the the multiplication of the 1.0 constant has been optimised away
    step5_no_w_mul = (add, (add, (add, (mul, 'q', 'gg'), (mul, 'r', 'hh')), (mul, 's', 'ii')), 't')
@@ -4214,7 +4212,7 @@ for t in ['f', 'i']:
    step7_no_w_mul = (add, (add, (add, (mul, 'y', 'gg'), (mul, 'z', 'hh')), (mul, 'aa', 'ii')), 'bb')
    step8_no_w_mul = (add, (add, (add, (mul, 'cc', 'gg'), (mul, 'dd', 'hh')), (mul, 'ee', 'ii')), 'ff')
 
-   mat_mul_optimizations += [((add_first, (add, (add, (mul, step1, 'gg'), (mul, step2, 'hh')), (mul, step3, 'ii')), step4), (add, (add, (add, (mul, step5_no_w_mul, 'a'), (mul, step6_no_w_mul, 'b')), (mul, step7_no_w_mul, 'c')), (mul, step8_no_w_mul, 'd')), 'true', expected)]
+   mat_mul_optimizations += [((add_first, (add, (add, (mul, step1, 'gg'), (mul, step2, 'hh')), (mul, step3, 'ii')), step4), (add, (add, (add, (mul, step5_no_w_mul, 'a'), (mul, step6_no_w_mul, 'b')), (mul, step7_no_w_mul, 'c')), (mul, step8_no_w_mul, 'd')))]
 
    # Below handles a real world shader that looks like this mat4*mat4*vec4(xy, 0.0, 1.0) where the the multiplication of the 0.0 and 1.0 constants have been optimised away
    step5_zero_z_no_w_mul = (add, (add, (mul, 'q', 'gg'), (mul, 'r', 'hh')), 't')
@@ -4222,7 +4220,7 @@ for t in ['f', 'i']:
    step7_zero_z_no_w_mul = (add, (add, (mul, 'y', 'gg'), (mul, 'z', 'hh')), 'bb')
    step8_zero_z_no_w_mul = (add, (add, (mul, 'cc', 'gg'), (mul, 'dd', 'hh')), 'ff')
 
-   mat_mul_optimizations += [((add_first, (add, (mul, step1, 'gg'), step4), (mul, step2, 'hh')), (add, (add, (add, (mul, step5_zero_z_no_w_mul, 'a'), (mul, step6_zero_z_no_w_mul, 'b')), (mul, step7_zero_z_no_w_mul, 'c')), (mul, step8_zero_z_no_w_mul, 'd')), 'true', expected)]
+   mat_mul_optimizations += [((add_first, (add, (mul, step1, 'gg'), step4), (mul, step2, 'hh')), (add, (add, (add, (mul, step5_zero_z_no_w_mul, 'a'), (mul, step6_zero_z_no_w_mul, 'b')), (mul, step7_zero_z_no_w_mul, 'c')), (mul, step8_zero_z_no_w_mul, 'd')))]
 
 before_lower_int64_optimizations = [
     # The i2i64(a) implies that 'a' has at most 32-bits of data.

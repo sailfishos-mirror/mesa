@@ -199,6 +199,37 @@ static const double float_inputs[INPUT_VALUE_COUNT] = {
    DBL_MIN,
 };
 
+void
+nir_algebraic_pattern_test::handle_signed_zero(nir_const_value *val, uint32_t bit_size)
+{
+   if (bit_size < 16 || nir_const_value_as_float(*val, bit_size) != 0.0)
+      return;
+
+   /* If we're preserving signed zeroes, no need to do any of this work. */
+   if (exact && (fp_math_ctrl & nir_fp_preserve_signed_zero))
+      return;
+
+   if (signed_zero_iter != 0) {
+      if (signed_zero_count < 32 &&
+          (1u << signed_zero_count) & signed_zero_iter) {
+         switch (bit_size) {
+         case 16:
+            val->u16 ^= 0x8000;
+            break;
+         case 32:
+            val->f32 = -val->f32;
+            break;
+         case 64:
+            val->f64 = -val->f64;
+            break;
+         default:
+            UNREACHABLE("bad bit size");
+         }
+      }
+   }
+   signed_zero_count++;
+}
+
 bool
 nir_algebraic_pattern_test::skip_test(nir_alu_instr *alu, uint32_t bit_size,
                                       nir_const_value tmp, int32_t src_index)
@@ -206,18 +237,6 @@ nir_algebraic_pattern_test::skip_test(nir_alu_instr *alu, uint32_t bit_size,
    /* Always pass the test for signed zero/nan/inf sources if they are not preserved. */
    if (bit_size >= 16) {
       double val = nir_const_value_as_float(tmp, bit_size);
-      if ((!exact || !(fp_math_ctrl & nir_fp_preserve_signed_zero)) && val == 0.0 && signbit(val)) {
-         /* TODO: Could be more permissive in covering input values -- right now
-          * we skip if either before or after ever consume or produce a -0.0,
-          * but if the result was unchanged by the 0.0 signs of the srcs, or if
-          * the two sides agreed about the sign of 0.0s produced, we could test
-          * that the rest of the expression evaluated correctly.
-          *
-          * Also, the fp preserve flags should probably not apply to non-float
-          * uses/outputs!
-          */
-         return true;
-      }
       if ((!exact || !(fp_math_ctrl & nir_fp_preserve_nan)) && isnan(val))
          return true;
       if ((!exact || !(fp_math_ctrl & nir_fp_preserve_inf)) && isinf(val))
@@ -344,8 +363,10 @@ nir_algebraic_pattern_test::evaluate_expression(nir_instr *instr)
 
       for (uint32_t j = 0; j < nir_ssa_alu_instr_src_components(alu, i); j++) {
          nir_const_value tmp = tmp_value(alu->src[i].src.ssa)[alu->src[i].swizzle[j]];
-         src[i][j] = tmp;
+         if (nir_alu_type_get_base_type(nir_op_infos[alu->op].input_types[i]) == nir_type_float)
+            handle_signed_zero(&tmp, alu->src[i].src.ssa->bit_size);
 
+         src[i][j] = tmp;
          if (skip_test(alu, alu->src[i].src.ssa->bit_size, tmp, i))
             return true;
       }
@@ -372,6 +393,8 @@ nir_algebraic_pattern_test::evaluate_expression(nir_instr *instr)
       return true;
 
    for (uint32_t comp = 0; comp < alu->def.num_components; comp++) {
+      if (nir_alu_type_get_base_type(nir_op_infos[alu->op].output_type) == nir_type_float)
+         handle_signed_zero(&dest[comp], alu->def.bit_size);
       if (skip_test(alu, bit_size, dest[comp], -1))
          return true;
    }
@@ -491,26 +514,59 @@ nir_algebraic_pattern_test::validate_pattern()
       if (!check_variable_conds())
          continue;
 
-      nir_foreach_instr(instr, block) {
-         bool is_assert = (instr->type == nir_instr_type_intrinsic &&
-                           nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_unit_test_assert_eq);
-         if (evaluate_expression(instr)) {
-            if (is_assert) {
-               if (result == UNSUPPORTED)
-                  result = PASS;
+      /* Loop over the set of 0.0 sign flips we want to try to see if the
+       * pattern works that way, given the NIR spec for
+       * !nir_fp_preserve_signed_zero of "any -0.0 or +0.0 output can have
+       * either sign, and any zero input can be treated as having opposite sign.
+       */
+      uint32_t saved_signed_zero_count = 0;
+      enum result seed_result = UNSUPPORTED;
+      for (signed_zero_iter = 0; signed_zero_iter < 1u << MIN2(4, saved_signed_zero_count); signed_zero_iter++) {
+         /* This will get incremented as we evaluate the instrs. */
+         signed_zero_count = 0;
+
+         /* Loop over the instructions evaluating them given the inputs and this set of signed zero flips. */
+         nir_foreach_instr(instr, block) {
+            bool is_assert = (instr->type == nir_instr_type_intrinsic &&
+                              nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_unit_test_assert_eq);
+
+            if (evaluate_expression(instr)) {
+               if (is_assert)
+                  seed_result = PASS;
+               break;
+            } else {
+               if (is_assert) {
+                  seed_result = FAIL;
+               }
             }
-            break;
-         } else if (is_assert) {
-            result = FAIL;
          }
+
+         if (signed_zero_iter == 0)
+            saved_signed_zero_count = signed_zero_count;
+
+         if (seed_result == PASS)
+            break;
       }
 
-      /* If we found a fail, break out so we can print the shader with the
-       * failing values.  Otherwise, continue iterating over input values to
-       * find any broken ones.
-       */
-      if (result == FAIL)
-         break;
+      if (seed_result == PASS) {
+         result = PASS;
+         /* Don't break out of the loop that feeds us new inputs -- we want to continue to test the rest to find a failure. */
+      } else if (seed_result == UNSUPPORTED) {
+         /* The test skipped for these inputs, don't change the final result. */
+      } else {
+         bool sz_non_exhaustive = saved_signed_zero_count > 31 || signed_zero_iter < (1u << saved_signed_zero_count);
+         if (sz_non_exhaustive) {
+            /* We don't seem to trigger this case in practice. */
+            printf("Skipping test input due to too many signed zeroes to exhaustively test.\n");
+         } else {
+            /* We got a fail result with every combination of
+             * nir_fp_preserve_signed_zero bit flips applied. Break out so we
+             * can print the shader with the failing values.
+             */
+            result = FAIL;
+            break;
+         }
+      }
    }
 
    ASSERT_EQ(result, expected_result);
