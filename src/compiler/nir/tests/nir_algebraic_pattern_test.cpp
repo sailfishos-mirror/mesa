@@ -88,17 +88,6 @@ nir_algebraic_pattern_test::~nir_algebraic_pattern_test()
 }
 
 static bool
-count_input(nir_builder *b, nir_intrinsic_instr *intrinsic, void *data)
-{
-   nir_algebraic_pattern_test *test = (nir_algebraic_pattern_test *)data;
-
-   if (intrinsic->intrinsic == nir_intrinsic_unit_test_uniform_input)
-      test->input_count = MAX2(test->input_count, (uint32_t)nir_intrinsic_base(intrinsic) + 1);
-
-   return false;
-}
-
-static bool
 nir_def_is_used_as(nir_def *def, nir_alu_type type)
 {
    nir_foreach_use(use, def) {
@@ -393,12 +382,12 @@ evaluate_expression(nir_algebraic_pattern_test *test, nir_instr *instr)
 void
 nir_algebraic_pattern_test::set_inputs(uint32_t seed)
 {
-   for (uint32_t i = 0; i < input_count; i++) {
-      nir_load_const_instr *load = inputs[i].instr;
-      uint32_t seed_bit_size = get_seed_bit_size(inputs[i].ty);
+   for (auto input: inputs) {
+      nir_load_const_instr *load = input.instr;
+      uint32_t seed_bit_size = get_seed_bit_size(input.ty);
 
       for (uint32_t comp = 0; comp < load->def.num_components; comp++) {
-         uint32_t val = seed >> ((inputs[i].fuzzing_start_bit + seed_bit_size * comp) % 32);
+         uint32_t val = seed >> ((input.fuzzing_start_bit + seed_bit_size * comp) % 32);
 
          if (load->def.bit_size == 1) {
             load->value[comp].b = val & 1;
@@ -408,7 +397,7 @@ nir_algebraic_pattern_test::set_inputs(uint32_t seed)
          /* Zero out the rest of the field. */
          load->value[comp].u64 = 0;
 
-         switch (inputs[i].ty) {
+         switch (input.ty) {
          case BOOL:
             /* Single path here sets the bit pattern for any size of bool. */
             load->value[comp].u64 = (val & 1) ? ~0llu : 0;
@@ -459,14 +448,12 @@ nir_algebraic_pattern_test::check_variable_conds()
 void
 nir_algebraic_pattern_test::validate_pattern()
 {
-   input_count = 0;
    fuzzing_bits = 0;
 
    nir_function_impl *impl = nir_shader_get_entrypoint(b->shader);
 
    nir_validate_shader(b->shader, "validate_pattern");
 
-   nir_shader_intrinsics_pass(b->shader, count_input, nir_metadata_all, this);
    nir_shader_intrinsics_pass(b->shader, map_input, nir_metadata_all, this);
 
    nir_index_ssa_defs(impl);

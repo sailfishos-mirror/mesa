@@ -58,7 +58,6 @@ class nir_algebraic_pattern_test : public nir_test {
    void validate_pattern();
 
  public:
-   uint32_t input_count;
    std::vector<nir_algebraic_pattern_test_input> inputs;
    uint32_t fuzzing_bits;
    bool exact = true;
