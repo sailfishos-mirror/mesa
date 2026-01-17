@@ -42,11 +42,27 @@ class nir_algebraic_pattern_test_input {
    uint32_t fuzzing_start_bit;
 };
 
-enum expected_result {
+enum result {
    PASS,
-   XFAIL,
+   FAIL,
    UNSUPPORTED,
 };
+
+// Pretty prints for gtest output.
+static inline std::ostream &
+operator<<(std::ostream &out, enum result r)
+{
+   switch (r) {
+   case PASS:
+      return out << "PASS";
+   case FAIL:
+      return out << "FAIL";
+   case UNSUPPORTED:
+      return out << "UNSUPPORTED";
+   default:
+      UNREACHABLE("bad result");
+   }
+}
 
 class nir_algebraic_pattern_test : public nir_test {
  protected:
@@ -66,7 +82,7 @@ class nir_algebraic_pattern_test : public nir_test {
    std::vector<nir_algebraic_pattern_test_input> inputs;
    uint32_t fuzzing_bits;
    bool exact = true;
-   enum expected_result expected_result = PASS;
+   enum result expected_result = PASS;
    const char *expression_cond_failed = NULL;
    nir_fp_math_control fp_math_ctrl = (nir_fp_math_control)(nir_fp_preserve_signed_zero |
                                                             nir_fp_preserve_inf |

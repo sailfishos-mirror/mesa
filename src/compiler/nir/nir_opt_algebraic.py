@@ -3482,7 +3482,7 @@ for s in range(0, 31):
 # NaN propagation: Binary opcodes. If any operand is NaN, replace it with NaN.
 # (unary opcodes with NaN are evaluated by nir_opt_constant_folding, not here)
 for op in ['fadd', 'fdiv', 'fmod', 'fmul', 'fpow', 'frem', 'fsub']:
-    optimizations += [((op, '#a(is_nan)', b), NAN, 'true', TestStatus.UNSUPPORTED if op == 'fpow' else TestStatus.PASS)] # All inputs skipped in the fpow case.
+    optimizations += [((op, '#a(is_nan)', b), NAN, 'true', TestStatus.XFAIL if op == 'fpow' else TestStatus.PASS)] # XFAIL is fpow(NaN, 0.0) producing NaN instead of 1.0.
     optimizations += [((op, a, '#b(is_nan)'), NAN, 'true', TestStatus.XFAIL if op == 'fpow' else TestStatus.PASS)] # some opcodes are not commutative.  XFAIL is fpow(1.0, NaN) producing NaN instead of 1.0.
 
 # NaN propagation: Trinary opcodes. If any operand is NaN, replace it with NaN.
@@ -3496,7 +3496,7 @@ for op in ['fmin', 'fmax']:
     optimizations += [((op, '#a(is_nan)', b), b)] # commutative
 
 # NaN propagation: ldexp is NaN if the first operand is NaN.
-optimizations += [(('ldexp', '#a(is_nan)', b), NAN, 'true', TestStatus.UNSUPPORTED)] # all inputs skipped
+optimizations += [(('ldexp', '#a(is_nan)', b), NAN, 'true', TestStatus.XFAIL)] # XFAIL is ldexp(NaN, 0.0) producing NaN instead of 0.0.
 
 # NaN propagation: Dot opcodes. If any component is NaN, replace it with NaN.
 for op in ['fdot2', 'fdot3', 'fdot4', 'fdot5', 'fdot8', 'fdot16']:

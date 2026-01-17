@@ -1294,7 +1294,7 @@ TEST_F(${pass_name}_pattern_test, ${test_name})
 {
    b->shader->info.name = "${verbose_name}";
 % if expected_result == test_status.XFAIL:
-   expected_result = XFAIL;
+   expected_result = FAIL;
 % elif expected_result == test_status.UNSUPPORTED:
    expected_result = UNSUPPORTED;
 % endif

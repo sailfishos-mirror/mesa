@@ -465,7 +465,7 @@ nir_algebraic_pattern_test::validate_pattern()
       return;
    }
 
-   bool result = true;
+   enum result result = UNSUPPORTED; /* Default state if all input values get skipped */
 
    bool overflow = fuzzing_bits > 16;
    if (overflow)
@@ -473,7 +473,6 @@ nir_algebraic_pattern_test::validate_pattern()
 
    nir_block *block = nir_impl_last_block(impl);
 
-   bool all_skipped = true;
    uint32_t iterations = 1 << fuzzing_bits;
    for (uint32_t i = 0; i < iterations; i++) {
       uint32_t seed;
@@ -486,28 +485,27 @@ nir_algebraic_pattern_test::validate_pattern()
       if (!check_variable_conds())
          continue;
 
-      bool passed_or_skipped = false;
       nir_foreach_instr(instr, block) {
+         bool is_assert = (instr->type == nir_instr_type_intrinsic &&
+                           nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_unit_test_assert_eq);
          if (evaluate_expression(instr)) {
-            passed_or_skipped = true;
-            if (instr->type == nir_instr_type_intrinsic) {
-               if (nir_instr_as_intrinsic(instr)->intrinsic == nir_intrinsic_unit_test_assert_eq)
-                  all_skipped = false;
+            if (is_assert) {
+               if (result == UNSUPPORTED)
+                  result = PASS;
             }
             break;
+         } else if (is_assert) {
+            result = FAIL;
          }
       }
 
-      if (!passed_or_skipped) {
-         result = false;
+      /* If we found a fail, break out so we can print the shader with the
+       * failing values.  Otherwise, continue iterating over input values to
+       * find any broken ones.
+       */
+      if (result == FAIL)
          break;
-      }
    }
-   /* If no values produced a passing reuslt, make sure the test is marked
-    * unsupported (and that nothing is marked unsupported that *was* supported).
-    */
-   ASSERT_EQ(all_skipped, expected_result == UNSUPPORTED);
-   if (expected_result != UNSUPPORTED) {
-      ASSERT_EQ(result, expected_result == PASS);
-   }
+
+   ASSERT_EQ(result, expected_result);
 }
