@@ -1419,12 +1419,16 @@ iris_bo_set_prime_fd(struct iris_bo *bo)
    struct iris_bufmgr *bufmgr = bo->bufmgr;
 
    if (needs_prime_fd(bufmgr) && bo->real.prime_fd == -1) {
-      if (drmPrimeHandleToFD(bufmgr->fd, bo->gem_handle,
-                             DRM_CLOEXEC | DRM_RDWR, &bo->real.prime_fd)) {
+      struct drm_prime_handle prime_arg = {
+         .handle = bo->gem_handle,
+         .flags = DRM_CLOEXEC | DRM_RDWR,
+      };
+      if (intel_ioctl(bufmgr->fd, DRM_IOCTL_PRIME_HANDLE_TO_FD, &prime_arg)) {
          fprintf(stderr, "Failed to get prime fd for bo %s/%u\n",
                  bo->name, bo->gem_handle);
          return false;
       }
+      bo->real.prime_fd = prime_arg.fd;
    }
 
    return true;
@@ -1973,13 +1977,16 @@ iris_bo_import_dmabuf(struct iris_bufmgr *bufmgr, int prime_fd,
    assert(!(flags & BO_ALLOC_NO_VMA));
 
    simple_mtx_lock(&bufmgr->lock);
-   int ret = drmPrimeFDToHandle(bufmgr->fd, prime_fd, &handle);
-   if (ret) {
+   struct drm_prime_handle prime_arg = {
+      .fd = prime_fd,
+   };
+   if (intel_ioctl(bufmgr->fd, DRM_IOCTL_PRIME_FD_TO_HANDLE, &prime_arg)) {
       DBG("import_dmabuf: failed to obtain handle from fd: %s\n",
           strerror(errno));
       simple_mtx_unlock(&bufmgr->lock);
       return NULL;
    }
+   handle = prime_arg.handle;
 
    /*
     * See if the kernel has already returned this buffer to us. Just as
@@ -2001,7 +2008,7 @@ iris_bo_import_dmabuf(struct iris_bufmgr *bufmgr, int prime_fd,
     * later, we can lseek on the prime fd to get the size.  Older
     * kernels will just fail, in which case we fall back to the
     * provided (estimated or guess size). */
-   ret = lseek(prime_fd, 0, SEEK_END);
+   int ret = lseek(prime_fd, 0, SEEK_END);
    if (ret != -1)
       bo->size = ret;
 
@@ -2124,9 +2131,14 @@ iris_bo_export_dmabuf(struct iris_bo *bo, int *prime_fd)
    /* We cannot export suballocated BOs. */
    assert(iris_bo_is_real(bo));
 
-   if (drmPrimeHandleToFD(bufmgr->fd, bo->gem_handle,
-                          DRM_CLOEXEC | DRM_RDWR, prime_fd) != 0)
+   struct drm_prime_handle prime_arg = {
+      .handle = bo->gem_handle,
+      .flags = DRM_CLOEXEC | DRM_RDWR,
+   };
+   if (intel_ioctl(bufmgr->fd, DRM_IOCTL_PRIME_HANDLE_TO_FD, &prime_arg))
       return -errno;
+
+   *prime_fd = prime_arg.fd;
 
    iris_bo_mark_exported(bo);
 
