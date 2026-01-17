@@ -6,13 +6,13 @@
 #ifndef NIR_ALGEBRAIC_PATTERN_TEST_H
 #define NIR_ALGEBRAIC_PATTERN_TEST_H
 
-#include "nir.h"
-#include "nir_test.h"
-#include "nir_search.h"
 #include "gtest/gtest-spi.h"
+#include "nir.h"
+#include "nir_search.h"
+#include "nir_test.h"
 
 class nir_algebraic_pattern_test_variable_cond {
-public:
+ public:
    nir_algebraic_pattern_test_variable_cond(nir_alu_instr *alu, unsigned src_index, const nir_search_variable_cond cond)
        : alu(alu), src_index(src_index), cond(cond)
    {
@@ -56,8 +56,13 @@ class nir_algebraic_pattern_test : public nir_test {
    void set_inputs(uint32_t seed);
    bool check_variable_conds();
    void validate_pattern();
+   bool evaluate_expression(nir_instr *instr);
+   bool skip_test(nir_alu_instr *alu, uint32_t bit_size,
+                  nir_const_value tmp, int32_t src_index);
 
  public:
+   nir_const_value *tmp_value(nir_def *def);
+
    std::vector<nir_algebraic_pattern_test_input> inputs;
    uint32_t fuzzing_bits;
    bool exact = true;
