@@ -159,7 +159,7 @@ map_input(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       ty = INT;
    test->inputs.push_back(nir_algebraic_pattern_test_input(nir_instr_as_load_const(nir_def_instr(load)),
                                                            ty, test->fuzzing_bits));
-   test->fuzzing_bits += get_seed_bit_size(ty);
+   test->fuzzing_bits += get_seed_bit_size(ty) * intr->def.num_components;
 
    nir_def_replace(&intr->def, load);
 

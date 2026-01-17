@@ -541,19 +541,19 @@ optimizations.extend([
    (('fdot4', ('vec4', a, 0.0, 0.0, 0.0), b), ('fmul', a, 'b.x'), 'true', TestStatus.XFAIL), # XFAIL is that fdot(vec(-1.0, 0.0...), 0.0) produces -0.0 instead of 0.0.
    (('fdot4', ('vec4', a, b,   0.0, 0.0), c), ('fdot2', ('vec2', a, b), c), 'true', TestStatus.XFAIL),
    (('fdot4', ('vec4', a, b,   c,   0.0), d), ('fdot3', ('vec3', a, b, c), d), 'true', TestStatus.XFAIL),
-   (('fdot4', 'a(w_is_zero)', b), ('fdot3', 'a.xyz', 'b.xyz')),
-   (('fdot4', 'a(z_is_zero)', b), ('fdot3', 'a.xyw', 'b.xyw')),
-   (('fdot4', 'a(y_is_zero)', b), ('fdot3', 'a.xzw', 'b.xzw')),
-   (('fdot4', 'a(x_is_zero)', b), ('fdot3', 'a.yzw', 'b.yzw')),
+   (('fdot4', 'a(w_is_zero)', b), ('fdot3', 'a.xyz', 'b.xyz'), 'true', TestStatus.XFAIL), # XFAIL is that fdot((1,-1,0,0), (0,.12345,1,inf) produces -.12345 instead of -nan)
+   (('fdot4', 'a(z_is_zero)', b), ('fdot3', 'a.xyw', 'b.xyw'), 'true', TestStatus.XFAIL),
+   (('fdot4', 'a(y_is_zero)', b), ('fdot3', 'a.xzw', 'b.xzw'), 'true', TestStatus.XFAIL),
+   (('fdot4', 'a(x_is_zero)', b), ('fdot3', 'a.yzw', 'b.yzw'), 'true', TestStatus.XFAIL),
 
    (('fdot3', ('vec3', a, 0.0, 0.0), b), ('fmul', a, 'b.x'), 'true', TestStatus.XFAIL),
    (('fdot3', ('vec3', a, b,   0.0), c), ('fdot2', ('vec2', a, b), c), 'true', TestStatus.XFAIL),
-   (('fdot3', 'a(x_is_zero)', b), ('fdot2', 'a.yz', 'b.yz')),
-   (('fdot3', 'a(y_is_zero)', b), ('fdot2', 'a.xz', 'b.xz')),
+   (('fdot3', 'a(x_is_zero)', b), ('fdot2', 'a.yz', 'b.yz'), 'true', TestStatus.XFAIL),
+   (('fdot3', 'a(y_is_zero)', b), ('fdot2', 'a.xz', 'b.xz'), 'true', TestStatus.XFAIL),
    (('fdot3', 'a(z_is_zero)', b), ('fdot2', 'a.xy', 'b.xy'), 'true', TestStatus.XFAIL),
 
    (('fdot2', ('vec2', a, 0.0), b), ('fmul', a, 'b.x'), 'true', TestStatus.XFAIL),
-   (('fdot2', 'a(x_is_zero)', b), ('fmul', 'a.y', 'b.y')),
+   (('fdot2', 'a(x_is_zero)', b), ('fmul', 'a.y', 'b.y'), 'true', TestStatus.XFAIL),
    (('fdot2', 'a(y_is_zero)', b), ('fmul', 'a.x', 'b.x'), 'true', TestStatus.XFAIL),
    (('fdot2', a, 1.0), ('fadd', 'a.x', 'a.y')),
 
@@ -1536,12 +1536,12 @@ optimizations.extend([
    (('fall_equal3', a, b), ('seq', ('fany_nequal3', a, b), 0.0), 'options->lower_vector_cmp'),
    (('fall_equal4', a, b), ('seq', ('fany_nequal4', a, b), 0.0), 'options->lower_vector_cmp'),
    (('fall_equal8', a, b), ('seq', ('fany_nequal8', a, b), 0.0), 'options->lower_vector_cmp'),
-   (('fall_equal16', a, b), ('seq', ('fany_nequal16', a, b), 0.0), 'options->lower_vector_cmp'),
+   (('fall_equal16', a, b), ('seq', ('fany_nequal16', a, b), 0.0), 'options->lower_vector_cmp', TestStatus.UNSUPPORTED), # all test inputs skipped
    (('fany_nequal2', a, b), ('fmax', ('sne', 'a.x', 'b.x'), ('sne', 'a.y', 'b.y')), 'options->lower_vector_cmp'),
    (('fany_nequal3', a, b), ('fsat', ('fdot3', ('sne', a, b), ('sne', a, b))), 'options->lower_vector_cmp'),
    (('fany_nequal4', a, b), ('fsat', ('fdot4', ('sne', a, b), ('sne', a, b))), 'options->lower_vector_cmp'),
    (('fany_nequal8', a, b), ('fsat', ('fdot8', ('sne', a, b), ('sne', a, b))), 'options->lower_vector_cmp'),
-   (('fany_nequal16', a, b), ('fsat', ('fdot16', ('sne', a, b), ('sne', a, b))), 'options->lower_vector_cmp'),
+   (('fany_nequal16', a, b), ('fsat', ('fdot16', ('sne', a, b), ('sne', a, b))), 'options->lower_vector_cmp', TestStatus.UNSUPPORTED), # all test inputs skipped
 
    # Vulkan allows us to use any rounding mode, so choose rtz because it's simple.
    # Avoid some NaNs being converted to Inf if the lsb are cut off.
