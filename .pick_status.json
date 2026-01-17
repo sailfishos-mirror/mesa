@@ -2934,7 +2934,7 @@
         "description": "freedreno/lrz: Correct lrz fc layout for gen8",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "14a23e8b3e5560f79ff84f790f986d613356cca2",
         "notes": null
