@@ -1794,7 +1794,7 @@
         "description": "nir: fix nir_fixup_is_exported for LLVM-22",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
