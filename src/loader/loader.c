@@ -264,7 +264,9 @@ loader_open_render_node_platform_devices(const char * const drivers[],
          }
 
          for (j = 0; j < n_drivers; j++) {
-            if (strcmp(version->name, drivers[j]) == 0) {
+            /* Always try to open the render device with Zink if requested */
+            if (strcmp("zink", drivers[j]) == 0 ||
+                strcmp(version->name, drivers[j]) == 0) {
                found = true;
                break;
             }

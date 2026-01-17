@@ -509,6 +509,9 @@ const driOptionDescription kmsro_driconf[] = {
 #ifdef GALLIUM_LIMA
       #include "lima/driinfo_lima.h"
 #endif
+#ifdef GALLIUM_ZINK
+      #include "zink/driinfo_zink.h"
+#endif
 };
 DRM_DRIVER_DESCRIPTOR(kmsro, kmsro_driconf, ARRAY_SIZE(kmsro_driconf))
 

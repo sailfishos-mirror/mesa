@@ -389,6 +389,9 @@ pipe_loader_get_compatible_render_capable_device_fds(int kms_only_fd, unsigned i
 #if defined GALLIUM_VC4
       "vc4",
 #endif
+#if defined GALLIUM_ZINK
+      "zink",
+#endif
    };
 
    if (!pipe_loader_drm_probe_fd(&dev, kms_only_fd, false))
