@@ -1437,7 +1437,7 @@ def get_expression_def(expr, name, value_comps, variable_map, defs, expr_conds, 
 
         if isinstance(expr.value, bool):
             defs.append(
-                f"nir_def *{def_name} = nir_imm_{"true" if expr.value else "false"}(b);")
+                f"nir_def *{def_name} = nir_imm_{'true' if expr.value else 'false'}(b);")
         elif isinstance(expr.value, int):
             defs.append(
                 f"nir_def *{def_name} = nir_imm_intN_t(b, {expr.value}llu, {bit_size});")
@@ -1477,7 +1477,7 @@ def get_expression_def(expr, name, value_comps, variable_map, defs, expr_conds, 
     if expr.ninf:
         fp_math_ctrl.add("nir_fp_preserve_inf")
 
-    defs.append(f"nir_def *{def_name} = nir_{opcode}(b, {", ".join(srcs)});")
+    defs.append(f"nir_def *{def_name} = nir_{opcode}(b, {', '.join(srcs)});")
 
     if expr.cond != None and isinstance(expr, Expression):
         # These do not matter for correctness
@@ -1600,7 +1600,7 @@ class AlgebraicPass(object):
 
             if fp_math_ctrl:
                 xform_defs.append(
-                    f"fp_math_ctrl = (nir_fp_math_control) (fp_math_ctrl & ~({" | ".join(fp_math_ctrl)}));")
+                    f"fp_math_ctrl = (nir_fp_math_control) (fp_math_ctrl & ~({' | '.join(fp_math_ctrl)}));")
 
             # Do a little setup before our unit_test_assert_eq so some top-level expression conditions pass and
             # we get better coverage.
