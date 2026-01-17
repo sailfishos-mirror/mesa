@@ -284,6 +284,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
       .callback = ac_nir_mem_vectorize_callback,
       .cb_data = &(struct ac_nir_config){gfx_level, !use_llvm},
       .robust_modes = 0,
+      .bounds_checked_modes = nir_var_mem_ssbo | nir_var_mem_ubo | nir_var_mem_shared,
       /* Only vectorize shared2 during late optimizations. */
       .has_shared2_amd = false,
    };
@@ -511,6 +512,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
          .callback = ac_nir_mem_vectorize_callback,
          .cb_data = &(struct ac_nir_config){gfx_level, !use_llvm},
          .robust_modes = 0,
+         .bounds_checked_modes = nir_var_mem_ssbo | nir_var_mem_ubo | nir_var_mem_shared,
          .has_shared2_amd = true,
       };
       NIR_PASS(_, stage->nir, nir_opt_load_store_vectorize, &late_vectorize_opts);
