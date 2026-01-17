@@ -40,6 +40,11 @@
 #include "util/pb_slab.h"
 
 #include "util/blob.h"
+
+#ifdef HAVE_LIBDRM
+#include "renderonly/renderonly.h"
+#endif
+
 #include "util/disk_cache.h"
 #include "util/hash_table.h"
 #include "util/list.h"
@@ -1323,6 +1328,10 @@ struct zink_resource {
 
    uint8_t modifiers_count;
    uint64_t *modifiers;
+
+#ifdef HAVE_LIBDRM
+   struct renderonly_scanout *ro_scanout;
+#endif
 };
 
 static inline struct zink_resource *
@@ -1398,6 +1407,9 @@ struct zink_screen {
 
    bool device_lost;
    int drm_fd;
+#ifdef HAVE_LIBDRM
+   struct renderonly *ro;
+#endif
 
    struct slab_parent_pool transfer_pool;
    struct disk_cache *disk_cache;

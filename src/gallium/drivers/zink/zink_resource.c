@@ -255,6 +255,12 @@ zink_resource_destroy(struct pipe_screen *pscreen,
    struct zink_resource *res = zink_resource(pres);
    /* prevent double-free when unrefing internal surfaces */
    res->base.b.reference.count = 999;
+
+#ifdef HAVE_LIBDRM
+   if (res->ro_scanout)
+      renderonly_scanout_destroy(res->ro_scanout, screen->ro);
+#endif
+
    if (pres->target == PIPE_BUFFER) {
       util_range_destroy(&res->valid_buffer_range);
       util_idalloc_mt_free(&screen->buffer_ids, res->base.buffer_id_unique);
@@ -1610,8 +1616,52 @@ resource_create(struct pipe_screen *pscreen,
    if (templ2.flags & PIPE_RESOURCE_FLAG_SPARSE &&
        (util_res_sample_count(templ) == 1 || screen->info.feats.features.shaderStorageImageMultisample))
       templ2.bind |= PIPE_BIND_SHADER_IMAGE;
+
+#ifdef HAVE_LIBDRM
+   if (!whandle && screen->ro && (templ2.bind & PIPE_BIND_SCANOUT)) {
+      struct winsys_handle handle;
+
+      assert(screen->info.have_EXT_image_drm_format_modifier);
+
+      /* Only LINEAR is considered the appropriate modifier for scaning out
+       * now, so sort out it if it's present, and fail if a modifier list is
+       * present but does not include LINEAR.
+       */
+      for (int i = 0; i < modifiers_count; i++) {
+         if (res->modifiers[i] == DRM_FORMAT_MOD_LINEAR) {
+            res->modifiers[0] = DRM_FORMAT_MOD_LINEAR;
+            res->modifiers_count = 1;
+            break;
+         }
+      }
+
+      if (modifiers_count > 0 && res->modifiers[0] != DRM_FORMAT_MOD_LINEAR) {
+         /* Failed to find LINEAR in the modifier list */
+         free(res->modifiers);
+         FREE_CL(res);
+         return NULL;
+      }
+
+      res->ro_scanout =
+         renderonly_scanout_for_resource(&templ2, screen->ro, &handle);
+
+      if (!res->ro_scanout) {
+         free(res->modifiers);
+         FREE_CL(res);
+         return NULL;
+      }
+      assert(handle.type == WINSYS_HANDLE_TYPE_FD);
+      assert(handle.modifier == DRM_FORMAT_MOD_LINEAR);
+      whandle = &handle;
+   }
+#endif
+
    res->obj = resource_object_create(screen, &templ2, whandle, &linear, res->modifiers, res->modifiers_count, loader_private, user_mem);
    if (!res->obj) {
+#ifdef HAVE_LIBDRM
+      if (res->ro_scanout)
+         renderonly_scanout_destroy(res->ro_scanout, screen->ro);
+#endif
       free(res->modifiers);
       FREE_CL(res);
       return NULL;
@@ -1852,6 +1902,12 @@ zink_resource_get_param(struct pipe_screen *pscreen, struct pipe_context *pctx,
       break;
 
    case PIPE_RESOURCE_PARAM_STRIDE: {
+#ifdef HAVE_LIBDRM
+      if (res->ro_scanout) {
+         *value = res->ro_scanout->stride;
+         break;
+      }
+#endif
       VkImageSubresource sub_res = {0};
       VkSubresourceLayout sub_res_layout = {0};
 
@@ -1864,6 +1920,12 @@ zink_resource_get_param(struct pipe_screen *pscreen, struct pipe_context *pctx,
    }
 
    case PIPE_RESOURCE_PARAM_OFFSET: {
+#ifdef HAVE_LIBDRM
+         if (res->ro_scanout) {
+            *value = 0;
+            break;
+         }
+#endif
          VkImageSubresource isr = {
             aspect,
             level,
@@ -1941,6 +2003,10 @@ zink_resource_get_handle(struct pipe_screen *pscreen,
 {
    if (tex->target == PIPE_BUFFER)
       tc_buffer_disable_cpu_storage(tex);
+#ifdef HAVE_LIBDRM
+   if (whandle->type == WINSYS_HANDLE_TYPE_KMS && zink_screen(pscreen)->ro)
+      return renderonly_get_handle(zink_resource(tex)->ro_scanout, whandle);
+#endif
    if (whandle->type == WINSYS_HANDLE_TYPE_FD || whandle->type == WINSYS_HANDLE_TYPE_KMS) {
 #ifdef ZINK_USE_DMABUF
       while (whandle->plane && tex->next && !zink_resource_is_aux_plane(tex->next)) {
@@ -2036,8 +2102,10 @@ zink_resource_from_handle(struct pipe_screen *pscreen,
                  unsigned usage)
 {
 #ifdef ZINK_USE_DMABUF
+   struct zink_screen *screen = zink_screen(pscreen);
+
    if (whandle->modifier != DRM_FORMAT_MOD_INVALID &&
-       !zink_screen(pscreen)->info.have_EXT_image_drm_format_modifier)
+       !screen->info.have_EXT_image_drm_format_modifier)
       return NULL;
 
    struct pipe_resource templ2 = *templ;
@@ -2070,6 +2138,19 @@ zink_resource_from_handle(struct pipe_screen *pscreen,
       res->obj->immutable_handle = true;
       res->internal_format = whandle->format;
    }
+
+#ifdef HAVE_LIBDRM
+   if (screen->ro) {
+      struct zink_resource *res = zink_resource(pres);
+
+      /* Make sure that renderonly has a handle to our buffer in the display's
+       * fd, so that a later renderonly_get_handle() returns correct handles
+       * or GEM names.
+       */
+      res->ro_scanout = renderonly_create_gpu_import_for_resource(pres, screen->ro, NULL);
+   }
+#endif
+
    return pres;
 #else
    return NULL;

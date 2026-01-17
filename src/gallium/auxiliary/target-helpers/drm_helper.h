@@ -421,7 +421,7 @@ static struct pipe_screen *
 pipe_zink_create_screen(int fd, const struct pipe_screen_config *config)
 {
    struct pipe_screen *screen;
-   screen = zink_drm_create_screen(fd, config);
+   screen = zink_drm_create_screen(fd, config, NULL);
    return screen ? debug_screen_wrap(screen) : NULL;
 }
 

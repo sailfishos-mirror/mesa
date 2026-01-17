@@ -169,6 +169,14 @@ zink_get_device_vendor(struct pipe_screen *pscreen)
    return zink_screen(pscreen)->vendor_name;
 }
 
+static int
+zink_get_screen_fd(struct pipe_screen *pscreen)
+{
+   struct zink_screen *screen = zink_screen(pscreen);
+
+   return screen->drm_fd;
+}
+
 static const char *
 zink_get_name(struct pipe_screen *pscreen)
 {
@@ -1661,6 +1669,11 @@ zink_destroy_screen(struct pipe_screen *pscreen)
 
    if (screen->loader_lib)
       util_dl_close(screen->loader_lib);
+
+#ifdef HAVE_LIBDRM
+   if (screen->ro)
+      screen->ro->destroy(screen->ro);
+#endif
 
    if (screen->drm_fd != -1)
       close(screen->drm_fd);
@@ -3613,6 +3626,7 @@ zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev
    for (unsigned i = 0; i < ARRAY_SIZE(screen->base.nir_options); i++)
       screen->base.nir_options[i] = &screen->nir_options;
 
+   screen->base.get_screen_fd = zink_get_screen_fd;
    screen->base.get_name = zink_get_name;
    if (screen->instance_info->have_KHR_external_memory_capabilities) {
       screen->base.get_device_uuid = zink_get_device_uuid;
@@ -3869,25 +3883,44 @@ free_device:
 }
 
 struct pipe_screen *
-zink_drm_create_screen(int fd, const struct pipe_screen_config *config)
+zink_drm_create_screen(int fd, const struct pipe_screen_config *config, struct renderonly *ro)
 {
    int64_t dev_major, dev_minor;
-   struct zink_screen *ret;
+   struct zink_screen *ret = NULL;
 
    if (zink_render_rdev(fd, &dev_major, &dev_minor))
       return NULL;
 
    ret = zink_internal_create_screen(config, dev_major, dev_minor, 0);
-
-   if (ret)
-      ret->drm_fd = os_dupfd_cloexec(fd);
-   if (ret && !ret->info.have_KHR_external_memory_fd) {
-      debug_printf("ZINK: KHR_external_memory_fd required!\n");
-      zink_destroy_screen(&ret->base);
+   if (!ret)
       return NULL;
+
+   ret->drm_fd = os_dupfd_cloexec(fd);
+#ifdef HAVE_LIBDRM
+   ret->ro = ro;
+#else
+   assert(!ro);
+#endif
+
+   if (!ret->info.have_KHR_external_memory_fd) {
+      debug_printf("ZINK: KHR_external_memory_fd required!\n");
+      goto fail;
+   }
+
+   /*
+    * Renderonly device may allocate buffers with arbitrary stride that
+    * can only be supported with EXT_image_drm_format_modifier.
+    */
+   if (ro && !ret->info.have_EXT_image_drm_format_modifier) {
+      debug_printf("ZINK: EXT_image_drm_format_modifier required for renderonly GPUs!\n");
+      goto fail;
    }
 
    return &ret->base;
+
+fail:
+   zink_destroy_screen(&ret->base);
+   return NULL;
 }
 
 struct pipe_screen *
