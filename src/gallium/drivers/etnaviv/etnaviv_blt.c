@@ -76,23 +76,32 @@ blt_compute_stride_bits(const struct blt_imginfo *img)
 }
 
 static inline uint32_t
-blt_compute_img_config_bits(const struct blt_imginfo *img, bool for_dest)
+blt_compute_dest_img_config_bits(const struct blt_imginfo *img)
 {
-   uint32_t tiling_bits = 0;
-   if (img->tiling == ETNA_LAYOUT_SUPER_TILED) {
-      tiling_bits |= for_dest ? BLT_IMAGE_CONFIG_TO_SUPER_TILED : BLT_IMAGE_CONFIG_FROM_SUPER_TILED;
-   }
+   return BLT_DEST_IMAGE_CONFIG_TS_MODE(img->ts_mode) |
+          COND(img->use_ts, BLT_DEST_IMAGE_CONFIG_TS) |
+          COND(img->use_ts && img->ts_compress_fmt >= 0, BLT_DEST_IMAGE_CONFIG_COMPRESSION) |
+          BLT_DEST_IMAGE_CONFIG_COMPRESSION_FORMAT(img->ts_compress_fmt) |
+          BLT_DEST_IMAGE_CONFIG_UNK22 |
+          BLT_DEST_IMAGE_CONFIG_SWIZ_R(0) | /* not used? */
+          BLT_DEST_IMAGE_CONFIG_SWIZ_G(1) |
+          BLT_DEST_IMAGE_CONFIG_SWIZ_B(2) |
+          BLT_DEST_IMAGE_CONFIG_SWIZ_A(3) |
+          COND(img->tiling == ETNA_LAYOUT_SUPER_TILED, BLT_DEST_IMAGE_CONFIG_TO_SUPER_TILED);
+}
 
-   return BLT_IMAGE_CONFIG_TS_MODE(img->ts_mode) |
-          COND(img->use_ts, BLT_IMAGE_CONFIG_TS) |
-          COND(img->use_ts && img->ts_compress_fmt >= 0, BLT_IMAGE_CONFIG_COMPRESSION) |
-          BLT_IMAGE_CONFIG_COMPRESSION_FORMAT(img->ts_compress_fmt) |
-          COND(for_dest, BLT_IMAGE_CONFIG_UNK22) |
-          BLT_IMAGE_CONFIG_SWIZ_R(0) | /* not used? */
-          BLT_IMAGE_CONFIG_SWIZ_G(1) |
-          BLT_IMAGE_CONFIG_SWIZ_B(2) |
-          BLT_IMAGE_CONFIG_SWIZ_A(3) |
-          tiling_bits;
+static inline uint32_t
+blt_compute_src_img_config_bits(const struct blt_imginfo *img)
+{
+   return BLT_SRC_IMAGE_CONFIG_TS_MODE(img->ts_mode) |
+          COND(img->use_ts, BLT_SRC_IMAGE_CONFIG_TS) |
+          COND(img->use_ts && img->ts_compress_fmt >= 0, BLT_SRC_IMAGE_CONFIG_COMPRESSION) |
+          BLT_SRC_IMAGE_CONFIG_COMPRESSION_FORMAT(img->ts_compress_fmt) |
+          BLT_SRC_IMAGE_CONFIG_SWIZ_R(0) | /* not used? */
+          BLT_SRC_IMAGE_CONFIG_SWIZ_G(1) |
+          BLT_SRC_IMAGE_CONFIG_SWIZ_B(2) |
+          BLT_SRC_IMAGE_CONFIG_SWIZ_A(3) |
+          COND(img->tiling == ETNA_LAYOUT_SUPER_TILED, BLT_SRC_IMAGE_CONFIG_FROM_SUPER_TILED);
 }
 
 static inline uint32_t
@@ -119,10 +128,10 @@ emit_blt_clearimage(struct etna_cmd_stream *stream, const struct blt_clear_op *o
     * behaving stragely, it's something to look at.
     */
    etna_set_state(stream, VIVS_BLT_DEST_STRIDE, blt_compute_stride_bits(&op->dest));
-   etna_set_state(stream, VIVS_BLT_DEST_CONFIG, blt_compute_img_config_bits(&op->dest, true));
+   etna_set_state(stream, VIVS_BLT_DEST_CONFIG, blt_compute_dest_img_config_bits(&op->dest));
    etna_set_state_reloc(stream, VIVS_BLT_DEST_ADDR, &op->dest.addr);
    etna_set_state(stream, VIVS_BLT_SRC_STRIDE, blt_compute_stride_bits(&op->dest));
-   etna_set_state(stream, VIVS_BLT_SRC_CONFIG, blt_compute_img_config_bits(&op->dest, false));
+   etna_set_state(stream, VIVS_BLT_SRC_CONFIG, blt_compute_src_img_config_bits(&op->dest));
    etna_set_state_reloc(stream, VIVS_BLT_SRC_ADDR, &op->dest.addr);
    etna_set_state(stream, VIVS_BLT_DEST_POS, VIVS_BLT_DEST_POS_X(op->rect_x) | VIVS_BLT_DEST_POS_Y(op->rect_y));
    etna_set_state(stream, VIVS_BLT_IMAGE_SIZE, VIVS_BLT_IMAGE_SIZE_WIDTH(op->rect_w) | VIVS_BLT_IMAGE_SIZE_HEIGHT(op->rect_h));
@@ -158,7 +167,7 @@ emit_blt_copyimage(struct etna_cmd_stream *stream, const struct blt_imgcopy_op *
            VIVS_BLT_CONFIG_SRC_ENDIAN(op->src.endian_mode) |
            VIVS_BLT_CONFIG_DEST_ENDIAN(op->dest.endian_mode));
    etna_set_state(stream, VIVS_BLT_SRC_STRIDE, blt_compute_stride_bits(&op->src));
-   etna_set_state(stream, VIVS_BLT_SRC_CONFIG, blt_compute_img_config_bits(&op->src, false));
+   etna_set_state(stream, VIVS_BLT_SRC_CONFIG, blt_compute_src_img_config_bits(&op->src));
    etna_set_state(stream, VIVS_BLT_SWIZZLE,
            blt_compute_swizzle_bits(&op->src, false) |
            blt_compute_swizzle_bits(&op->dest, true));
@@ -172,8 +181,8 @@ emit_blt_copyimage(struct etna_cmd_stream *stream, const struct blt_imgcopy_op *
    etna_set_state_reloc(stream, VIVS_BLT_SRC_ADDR, &op->src.addr);
    etna_set_state(stream, VIVS_BLT_DEST_STRIDE, blt_compute_stride_bits(&op->dest));
    etna_set_state(stream, VIVS_BLT_DEST_CONFIG,
-         blt_compute_img_config_bits(&op->dest, true) |
-         COND(op->flip_y, BLT_IMAGE_CONFIG_FLIP_Y));
+         blt_compute_dest_img_config_bits(&op->dest) |
+         COND(op->flip_y, BLT_DEST_IMAGE_CONFIG_FLIP_Y));
    assert(!op->dest.use_ts); /* Dest TS path doesn't work for copies? */
    if (op->dest.use_ts) {
       etna_set_state_reloc(stream, VIVS_BLT_DEST_TS, &op->dest.ts_addr);
@@ -232,10 +241,10 @@ emit_blt_genmipmap(struct etna_cmd_stream *stream, const struct blt_genmipmap_op
    etna_set_state(stream, VIVS_BLT_ENABLE, 0x00000001);
 
    etna_set_state(stream, VIVS_BLT_SRC_STRIDE, blt_compute_stride_bits(&op->src));
-   etna_set_state(stream, VIVS_BLT_SRC_CONFIG, blt_compute_img_config_bits(&op->src, false));
+   etna_set_state(stream, VIVS_BLT_SRC_CONFIG, blt_compute_src_img_config_bits(&op->src));
    etna_set_state_reloc(stream, VIVS_BLT_SRC_ADDR, &op->src.addr);
 
-   etna_set_state(stream, VIVS_BLT_DEST_CONFIG, blt_compute_img_config_bits(&op->src, true));
+   etna_set_state(stream, VIVS_BLT_DEST_CONFIG, blt_compute_dest_img_config_bits(&op->src));
    etna_set_state(stream, VIVS_BLT_DEST_STRIDE, blt_compute_stride_bits(&op->src));
 
    etna_set_state(stream, VIVS_BLT_IMAGE_SIZE,
