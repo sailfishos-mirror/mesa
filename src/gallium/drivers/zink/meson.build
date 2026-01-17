@@ -99,9 +99,14 @@ libzink = static_library(
   c_args: zink_c_args,
 )
 
+zink_deps = [libzink]
+if not with_platform_windows
+  zink_deps += libzinkwinsys
+endif
+
 driver_zink = declare_dependency(
   compile_args : '-DGALLIUM_ZINK',
-  link_with : [libzink],
+  link_with : zink_deps,
 )
 
 if with_tests
