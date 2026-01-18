@@ -719,10 +719,19 @@ CDX12EncHMFT::GetCodecPrivateData( LPBYTE pSPSPPSData, DWORD dwSPSPPSDataLen, LP
    h265_pic_desc.seq.pic_height_in_luma_samples = static_cast<uint16_t>( alignedHeight );
 
    // Rate Control
-   h265_pic_desc.rc[0].rate_ctrl_method = PIPE_H2645_ENC_RATE_CONTROL_METHOD_DISABLE;
-   h265_pic_desc.rc[0].frame_rate_num = m_FrameRate.Numerator;
-   h265_pic_desc.rc[0].frame_rate_den = m_FrameRate.Denominator;
-   h265_pic_desc.rc[0].vbr_quality_factor = static_cast<unsigned int>( ( ( ( 100 - m_uiQuality[0] ) / 100.0 ) * 50 ) + 1 );
+   if( m_uiRateControlMode == eAVEncCommonRateControlMode_CBR )
+   {
+      h265_pic_desc.rc[0].rate_ctrl_method = PIPE_H2645_ENC_RATE_CONTROL_METHOD_CONSTANT;
+      h265_pic_desc.rc[0].target_bitrate = m_bMeanBitRateSet ? m_uiMeanBitRate : m_uiOutputBitrate;
+      h265_pic_desc.rc[0].peak_bitrate = m_bMeanBitRateSet ? m_uiMeanBitRate : m_uiOutputBitrate;
+   }
+   else
+   {
+      h265_pic_desc.rc[0].rate_ctrl_method = PIPE_H2645_ENC_RATE_CONTROL_METHOD_DISABLE;
+      h265_pic_desc.rc[0].frame_rate_num = m_FrameRate.Numerator;
+      h265_pic_desc.rc[0].frame_rate_den = m_FrameRate.Denominator;
+      h265_pic_desc.rc[0].vbr_quality_factor = static_cast<unsigned int>( ( ( ( 100 - m_uiQuality[0] ) / 100.0 ) * 50 ) + 1 );
+   }
    // Set default valid CQP 26 with 30 fps, doesn't affect header building
    // but needs to be valid, otherwise some drivers segfault
    h265_pic_desc.rc[0].quant_i_frames = m_uiEncodeFrameTypeIQP[0];
