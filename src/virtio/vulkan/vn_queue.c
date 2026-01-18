@@ -1229,42 +1229,45 @@ vn_queue_submit_2_to_1(struct vn_device *dev,
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
-vn_QueueSubmit2(VkQueue queue,
+vn_QueueSubmit2(VkQueue _queue,
                 uint32_t submitCount,
                 const VkSubmitInfo2 *pSubmits,
                 VkFence fence)
 {
    VN_TRACE_FUNC();
 
-   VK_FROM_HANDLE(vk_queue, queue_vk, queue);
+   VK_FROM_HANDLE(vk_queue, queue_vk, _queue);
    struct vn_device *dev = vn_device_from_vk(queue_vk->base.device);
+   struct vn_queue *queue = vn_queue_from_handle(_queue);
+   VkResult result;
 
    vn_tls_set_async_pipeline_create();
-   vn_wsi_flush(vn_queue_from_handle(queue));
+   vn_wsi_flush(queue);
 
-   if (!dev->has_sync2) {
+   if (dev->has_sync2) {
+      struct vn_queue_submission submit = {
+         .batch_type = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+         .queue_handle = _queue,
+         .batch_count = submitCount,
+         .submit2_batches = pSubmits,
+         .fence_handle = fence,
+      };
+      result = vn_queue_submit(&submit);
+      if (result != VK_SUCCESS)
+         return result;
+   } else {
       VN_TRACE_SCOPE("2->1");
 
       for (uint32_t i = 0; i < submitCount; i++) {
-         VkResult result = vn_queue_submit_2_to_1(
-            dev, queue, &pSubmits[i],
+         result = vn_queue_submit_2_to_1(
+            dev, _queue, &pSubmits[i],
             i == submitCount - 1 ? fence : VK_NULL_HANDLE);
          if (result != VK_SUCCESS)
             return result;
       }
-
-      return VK_SUCCESS;
    }
 
-   struct vn_queue_submission submit = {
-      .batch_type = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-      .queue_handle = queue,
-      .batch_count = submitCount,
-      .submit2_batches = pSubmits,
-      .fence_handle = fence,
-   };
-
-   return vn_queue_submit(&submit);
+   return VK_SUCCESS;
 }
 
 static VkResult
