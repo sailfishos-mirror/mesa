@@ -545,6 +545,10 @@ with_egl = get_option('egl') \
   .disable_auto_if(with_platform_haiku) \
   .allowed()
 
+if with_gbm
+  pre_args += '-DHAVE_LIBGBM'
+endif
+
 if with_egl
   _platforms += 'surfaceless'
   if with_gbm and not with_platform_android
