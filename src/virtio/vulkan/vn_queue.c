@@ -1267,7 +1267,7 @@ vn_QueueSubmit2(VkQueue _queue,
       }
    }
 
-   return VK_SUCCESS;
+   return vn_wsi_fence_wait(dev, queue);
 }
 
 static VkResult

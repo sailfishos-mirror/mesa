@@ -59,6 +59,8 @@ struct vn_queue {
       VkPresentInfoKHR *info;
       /* Track the result of the presentation. */
       VkResult result;
+      /* This is used by vtest to properly wait before present. */
+      VkFence fence;
    } async_present;
 };
 VK_DEFINE_HANDLE_CASTS(vn_queue, base.vk.base, VkQueue, VK_OBJECT_TYPE_QUEUE)

@@ -38,6 +38,8 @@ vn_queue_fini(struct vn_queue *queue)
       simple_mtx_destroy(&queue->async_present.queue_mutex);
       mtx_destroy(&queue->async_present.mutex);
       cnd_destroy(&queue->async_present.cond);
+
+      vn_DestroyFence(dev_handle, queue->async_present.fence, NULL);
    }
 
    if (queue->wait_fence != VK_NULL_HANDLE) {

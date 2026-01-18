@@ -316,6 +316,62 @@ vn_wsi_validate_image_format_info(struct vn_physical_device *physical_dev,
    return true;
 }
 
+VkResult
+vn_wsi_fence_wait(struct vn_device *dev, struct vn_queue *queue)
+{
+   /* External sync is supported by virtgpu backend but not vtest backend. For
+    * vtest, common wsi will skip the implicit out fence installation due to
+    * the lack of external SYNC_FD semaphore support. So we'll detect async
+    * present thread and properly wait inside the wsi queue submit.
+    */
+   if (dev->renderer->info.has_external_sync ||
+       dev->renderer->info.has_implicit_fencing)
+      return VK_SUCCESS;
+
+   if (!queue->async_present.initialized ||
+       queue->async_present.tid != vn_gettid())
+      return VK_SUCCESS;
+
+   /* lazily create wsi wait fence for present fence waiting */
+   VkDevice dev_handle = vn_device_to_handle(dev);
+   VkResult result;
+   if (queue->async_present.fence == VK_NULL_HANDLE) {
+      const VkFenceCreateInfo create_info = {
+         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+      };
+      result = vn_CreateFence(dev_handle, &create_info, NULL,
+                              &queue->async_present.fence);
+      if (result != VK_SUCCESS)
+         return result;
+   }
+
+   VkQueue queue_handle = vn_queue_to_handle(queue);
+   result = vn_QueueSubmit(queue_handle, 0, NULL, queue->async_present.fence);
+   if (result != VK_SUCCESS)
+      return result;
+
+   /* Common wsi does queue submit for each chain, so here we can only safely
+    * unlock the queue mutex if presenting to a single chain.
+    */
+   const bool can_unlock_queue =
+      queue->async_present.info->swapchainCount == 1;
+   if (can_unlock_queue)
+      simple_mtx_unlock(&queue->async_present.queue_mutex);
+   vn_wsi_chains_unlock(dev, queue->async_present.info, /*all=*/false);
+
+   result = vn_WaitForFences(dev_handle, 1, &queue->async_present.fence, true,
+                             UINT64_MAX);
+
+   vn_wsi_chains_lock(dev, queue->async_present.info, /*all=*/false);
+   if (can_unlock_queue)
+      simple_mtx_lock(&queue->async_present.queue_mutex);
+
+   if (result != VK_SUCCESS)
+      return result;
+
+   return vn_ResetFences(dev_handle, 1, &queue->async_present.fence);
+}
+
 void
 vn_wsi_sync_wait(struct vn_device *dev, int fd)
 {
