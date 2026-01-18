@@ -229,11 +229,11 @@ vk_acceleration_structure_build_state_init(struct vk_acceleration_structure_buil
    /* Internal sorting data is not needed when PLOC/LBVH are invoked,
     * save space by aliasing them */
    state->scratch.ploc_prefix_sum_partition_offset = offset;
-   offset += MAX2(requirements.internal_size, ploc_scratch_space);
-
    state->scratch.lbvh_node_offset = offset;
+   offset += MAX3(requirements.internal_size, ploc_scratch_space, lbvh_node_space);
+
    state->scratch.hploc_ranges_offset = offset;
-   offset += MAX2(hploc_scratch_space, lbvh_node_space);
+   offset += hploc_scratch_space;
 
    /* Make sure encode scratch space does not overlap the BVH. */
    offset = MAX2(offset, encode_scratch_end);
