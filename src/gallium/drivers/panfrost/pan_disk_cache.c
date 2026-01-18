@@ -16,6 +16,7 @@
 #include "util/mesa-sha1.h"
 
 #include "pan_context.h"
+#include "pan_trace.h"
 
 #ifdef ENABLE_SHADER_CACHE
 static bool debug = false;
@@ -57,7 +58,7 @@ panfrost_disk_cache_store(struct disk_cache *cache,
    if (!cache)
       return;
 
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_GL_DISK_CACHE);
 
    cache_key cache_key;
    panfrost_disk_cache_compute_key(cache, uncompiled, key, cache_key);
@@ -101,7 +102,7 @@ panfrost_disk_cache_retrieve(struct disk_cache *cache,
    if (!cache)
       return false;
 
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_GL_DISK_CACHE);
 
    cache_key cache_key;
    panfrost_disk_cache_compute_key(cache, uncompiled, key, cache_key);

@@ -18,7 +18,6 @@
 #include "util/u_sample_positions.h"
 #include "util/u_vbuf.h"
 #include "util/u_viewport.h"
-#include "util/perf/cpu_trace.h"
 
 #include "decode.h"
 
@@ -43,6 +42,7 @@
 #include "pan_texture.h"
 #include "pan_util.h"
 #include "pan_desc.h"
+#include "pan_trace.h"
 
 /* JOBX() is used to select the job backend helpers to call from generic
  * functions. */
@@ -3597,7 +3597,7 @@ panfrost_draw_vbo(struct pipe_context *pipe, const struct pipe_draw_info *info,
                   const struct pipe_draw_start_count_bias *draws,
                   unsigned num_draws)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CMDSTREAM);
 
    struct panfrost_context *ctx = pan_context(pipe);
 
@@ -3740,7 +3740,7 @@ panfrost_afbc_size(struct panfrost_batch *batch, struct panfrost_resource *src,
                    struct panfrost_bo *layout, unsigned offset,
                    unsigned level)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CMDSTREAM);
 
    struct pan_image_slice_layout *slice = &src->plane.layout.slices[level];
    struct panfrost_afbc_size_info consts = {
@@ -3768,7 +3768,7 @@ panfrost_afbc_pack(struct panfrost_batch *batch, struct panfrost_resource *src,
                    struct panfrost_bo *layout, unsigned layout_offset_B,
                    unsigned level)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CMDSTREAM);
 
    struct panfrost_device *dev = pan_device(src->base.screen);
    struct pan_image_slice_layout *src_slice = &src->plane.layout.slices[level];
@@ -3801,7 +3801,7 @@ panfrost_afbc_pack(struct panfrost_batch *batch, struct panfrost_resource *src,
 static void
 panfrost_mtk_detile_compute(struct panfrost_context *ctx, struct pipe_blit_info *info)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CMDSTREAM);
 
    struct pipe_context *pipe = &ctx->base;
    struct pipe_resource *y_src = info->src.resource;

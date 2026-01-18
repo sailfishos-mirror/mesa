@@ -15,6 +15,8 @@
 #include "panvk_queue.h"
 #include "panvk_utrace.h"
 
+#include "pan_trace.h"
+
 #include "util/bitscan.h"
 #include "vk_drm_syncobj.h"
 #include "vk_log.h"
@@ -779,7 +781,7 @@ static void
 panvk_queue_submit_init(struct panvk_queue_submit *submit,
                         struct vk_queue *vk_queue)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_VK_CSF);
    struct vk_device *vk_dev = vk_queue->base.device;
 
    *submit = (struct panvk_queue_submit){
@@ -800,7 +802,7 @@ panvk_queue_submit_init_storage(
    struct panvk_queue_submit *submit, const struct vk_queue_submit *vk_submit,
    struct panvk_queue_submit_stack_storage *stack_storage)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_VK_CSF);
    submit->utrace.first_subqueue = PANVK_SUBQUEUE_COUNT;
    VkPipelineStageFlags2 cmd_stage_mask = VK_PIPELINE_STAGE_2_NONE;
    for (uint32_t i = 0; i < vk_submit->command_buffer_count; i++) {
@@ -933,7 +935,7 @@ static void
 panvk_queue_submit_init_utrace(struct panvk_queue_submit *submit,
                                const struct vk_queue_submit *vk_submit)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_VK_CSF);
 
    if (!submit->utrace.queue_mask)
       return;
@@ -985,7 +987,7 @@ static void
 panvk_queue_submit_init_waits(struct panvk_queue_submit *submit,
                               const struct vk_queue_submit *vk_submit)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_VK_CSF);
    if (!submit->wait_queue_mask)
       return;
 
@@ -1018,7 +1020,7 @@ static void
 panvk_queue_submit_init_cmdbufs(struct panvk_queue_submit *submit,
                                 const struct vk_queue_submit *vk_submit)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_VK_CSF);
    struct panvk_device *dev = submit->dev;
 
    for (uint32_t i = 0; i < vk_submit->command_buffer_count; i++) {
@@ -1105,7 +1107,7 @@ static void
 panvk_queue_submit_init_signals(struct panvk_queue_submit *submit,
                                 const struct vk_queue_submit *vk_submit)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_VK_CSF);
    struct panvk_gpu_queue *queue = submit->queue;
 
    uint32_t signal_op = 0;
@@ -1288,7 +1290,7 @@ panvk_queue_submit_process_debug(const struct panvk_queue_submit *submit,
 VkResult
 panvk_per_arch(gpu_queue_submit)(struct vk_queue *vk_queue, struct vk_queue_submit *vk_submit)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_VK_CSF);
    struct panvk_queue_submit_stack_storage stack_storage;
    struct panvk_queue_submit submit;
    VkResult result = VK_SUCCESS;

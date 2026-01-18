@@ -4,7 +4,7 @@
  */
 
 #include "pan_afbc.h"
-#include "util/perf/cpu_trace.h"
+#include "pan_trace.h"
 #include "util/detect_arch.h"
 #include "util/u_cpu_detect.h"
 
@@ -27,7 +27,7 @@ pan_afbc_payload_layout_packed(unsigned arch,
                                uint32_t nr_blocks, enum pipe_format format,
                                uint64_t modifier)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_AFBC);
 
    uint32_t uncompressed_size =
       pan_afbc_payload_uncompressed_size(format, modifier);
@@ -99,7 +99,7 @@ pan_afbc_payload_layout_packed(unsigned arch,
                                uint32_t nr_blocks, enum pipe_format format,
                                uint64_t modifier)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_AFBC);
 
    uint32_t uncompressed_size =
       pan_afbc_payload_uncompressed_size(format, modifier);

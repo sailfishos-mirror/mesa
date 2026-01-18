@@ -5,9 +5,9 @@
  */
 
 #include "util/format/u_format.h"
-#include "util/perf/cpu_trace.h"
 #include "pan_context.h"
 #include "pan_resource.h"
+#include "pan_trace.h"
 #include "pan_util.h"
 
 void
@@ -63,7 +63,7 @@ void
 panfrost_blit_no_afbc_legalization(struct pipe_context *pipe,
                                    const struct pipe_blit_info *info)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
    struct panfrost_context *ctx = pan_context(pipe);
 
@@ -76,7 +76,7 @@ panfrost_blit_no_afbc_legalization(struct pipe_context *pipe,
 void
 panfrost_blit(struct pipe_context *pipe, const struct pipe_blit_info *info)
 {
-   MESA_TRACE_FUNC();
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
    struct panfrost_context *ctx = pan_context(pipe);
 

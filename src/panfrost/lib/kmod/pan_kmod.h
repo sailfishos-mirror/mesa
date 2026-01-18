@@ -34,9 +34,9 @@
 #include "util/sparse_array.h"
 #include "util/u_atomic.h"
 #include "util/u_dynarray.h"
-#include "util/perf/cpu_trace.h"
 
 #include "kmod/panthor_kmod.h"
+#include "pan_trace.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -554,7 +554,7 @@ struct pan_kmod_dev {
 
 #define pan_kmod_ioctl(fd, op, arg)                                          \
    ({                                                                        \
-      MESA_TRACE_SCOPE("pan_kmod_ioctl op=" #op);                            \
+      PAN_TRACE_SCOPE(PAN_TRACE_LIB_KMOD, "pan_kmod_ioctl op=" #op);         \
       drmIoctl(fd, op, arg);                                                 \
    })
 
