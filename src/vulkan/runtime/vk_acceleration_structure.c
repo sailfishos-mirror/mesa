@@ -961,7 +961,7 @@ lbvh_build_internal(VkCommandBuffer commandBuffer,
          .bvh = pInfos[i].scratchData.deviceAddress + bvh_states[i].vk.scratch.ir_offset,
          .src_ids = pInfos[i].scratchData.deviceAddress + src_scratch_offset,
          .node_info = pInfos[i].scratchData.deviceAddress + bvh_states[i].vk.scratch.lbvh_node_offset,
-         .id_count = bvh_states[i].vk.leaf_node_count,
+         .header = pInfos[i].scratchData.deviceAddress + bvh_states[i].vk.scratch.header_offset,
          .internal_node_base = bvh_states[i].vk.scratch.internal_node_offset - bvh_states[i].vk.scratch.ir_offset,
       };
 
