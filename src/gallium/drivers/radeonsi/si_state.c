@@ -104,10 +104,12 @@ static void si_emit_cb_render_state(struct si_context *sctx, unsigned index)
                                          blend->cb_target_enabled_4bit) / 4;
 
       for (i = 0; i < num_cbufs; i++) {
-         struct si_surface *surf = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
+         bool has_surf = sctx->framebuffer.state.cbufs[i].texture != NULL;
 
-         ac_set_sx_downconvert_state_for_mrt(sctx->gfx_level, !surf, surf ? surf->cb.cb_color_info : 0,
-                                             surf ? surf->cb.cb_color_attrib : 0, spi_shader_col_format,
+         ac_set_sx_downconvert_state_for_mrt(sctx->gfx_level, !has_surf,
+                                             has_surf ? sctx->framebuffer.cb[i].cb.cb_color_info : 0,
+                                             has_surf ? sctx->framebuffer.cb[i].cb.cb_color_attrib : 0,
+                                             spi_shader_col_format,
                                              cb_target_mask, i, &sx_ps_downconvert,
                                              &sx_blend_opt_epsilon, &sx_blend_opt_control,
                                              &cb_target_mask);
@@ -2297,9 +2299,12 @@ static bool si_is_format_supported(struct pipe_screen *screen, enum pipe_format 
 
 static void si_initialize_color_surface(struct si_context *sctx, unsigned i)
 {
+   struct si_cb_surface_info *cb = &sctx->framebuffer.cb[i];
    struct si_surface *surf = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
    struct si_texture *tex = (struct si_texture *)surf->base.texture;
    unsigned format, swap, ntype;//, endian;
+
+   memset(cb, 0, sizeof(*cb));
 
    ntype = ac_get_cb_number_type(surf->base.format);
    format = ac_get_cb_format(sctx->gfx_level, surf->base.format);
@@ -2313,9 +2318,9 @@ static void si_initialize_color_surface(struct si_context *sctx, unsigned i)
    if (ntype == V_028C70_NUMBER_UINT || ntype == V_028C70_NUMBER_SINT) {
       if (format == V_028C70_COLOR_8 || format == V_028C70_COLOR_8_8 ||
           format == V_028C70_COLOR_8_8_8_8)
-         surf->color_is_int8 = true;
+         cb->color_is_int8 = true;
       else if (format == V_028C70_COLOR_10_10_10_2 || format == V_028C70_COLOR_2_10_10_10)
-         surf->color_is_int10 = true;
+         cb->color_is_int10 = true;
    }
 
    const struct ac_cb_state cb_state = {
@@ -2332,18 +2337,17 @@ static void si_initialize_color_surface(struct si_context *sctx, unsigned i)
       .num_levels = tex->buffer.b.b.last_level + 1,
    };
 
-   ac_init_cb_surface(&sctx->screen->info, &cb_state, &surf->cb);
+   ac_init_cb_surface(&sctx->screen->info, &cb_state, &cb->cb);
 
    /* Determine pixel shader export format */
    struct ac_spi_color_formats formats = {};
    const bool rbplus = sctx->screen->info.rbplus_allowed;
    ac_choose_spi_color_formats(format, swap, ntype, tex->is_depth, rbplus, &formats);
 
-   surf->spi_shader_col_format = formats.normal;
-   surf->spi_shader_col_format_alpha = formats.alpha;
-   surf->spi_shader_col_format_blend = formats.blend;
-   surf->spi_shader_col_format_blend_alpha = formats.blend_alpha;
-   surf->color_initialized = true;
+   cb->spi_shader_col_format = formats.normal;
+   cb->spi_shader_col_format_alpha = formats.alpha;
+   cb->spi_shader_col_format_blend = formats.blend;
+   cb->spi_shader_col_format_blend_alpha = formats.blend_alpha;
 }
 
 static void si_init_depth_surface(struct si_context *sctx)
@@ -2533,24 +2537,22 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
       if (!state->cbufs[i].texture)
          continue;
 
+      struct si_cb_surface_info *cb = &sctx->framebuffer.cb[i];
       struct pipe_surface *psurf = &sctx->framebuffer.state.cbufs[i];
-      surf = (struct si_surface *)sctx->framebuffer.fb_cbufs[i];
       tex = (struct si_texture *)sctx->framebuffer.state.cbufs[i].texture;
 
-      if (!surf->color_initialized) {
-         si_initialize_color_surface(sctx, i);
-      }
+      si_initialize_color_surface(sctx, i);
 
       sctx->framebuffer.colorbuf_enabled_4bit |= 0xf << (i * 4);
-      sctx->framebuffer.spi_shader_col_format |= surf->spi_shader_col_format << (i * 4);
-      sctx->framebuffer.spi_shader_col_format_alpha |= surf->spi_shader_col_format_alpha << (i * 4);
-      sctx->framebuffer.spi_shader_col_format_blend |= surf->spi_shader_col_format_blend << (i * 4);
-      sctx->framebuffer.spi_shader_col_format_blend_alpha |= surf->spi_shader_col_format_blend_alpha
+      sctx->framebuffer.spi_shader_col_format |= cb->spi_shader_col_format << (i * 4);
+      sctx->framebuffer.spi_shader_col_format_alpha |= cb->spi_shader_col_format_alpha << (i * 4);
+      sctx->framebuffer.spi_shader_col_format_blend |= cb->spi_shader_col_format_blend << (i * 4);
+      sctx->framebuffer.spi_shader_col_format_blend_alpha |= cb->spi_shader_col_format_blend_alpha
                                                              << (i * 4);
 
-      if (surf->color_is_int8)
+      if (cb->color_is_int8)
          sctx->framebuffer.color_is_int8 |= 1 << i;
-      if (surf->color_is_int10)
+      if (cb->color_is_int10)
          sctx->framebuffer.color_is_int10 |= 1 << i;
 
       if (tex->surface.fmask_offset)
@@ -2743,7 +2745,7 @@ static void gfx6_emit_framebuffer_state(struct si_context *sctx, unsigned index)
       /* Compute mutable surface parameters. */
       const struct ac_mutable_cb_state mutable_cb_state = {
          .surf = &tex->surface,
-         .cb = &cb->cb,
+         .cb = &sctx->framebuffer.cb[i].cb,
          .va = tex->buffer.gpu_address,
          .base_level = cb_psurf->level,
          .num_samples = tex->buffer.b.b.nr_samples,
@@ -3041,7 +3043,7 @@ static void gfx11_dgpu_emit_framebuffer_state(struct si_context *sctx, unsigned 
       /* Compute mutable surface parameters. */
       const struct ac_mutable_cb_state mutable_cb_state = {
          .surf = &tex->surface,
-         .cb = &cb->cb,
+         .cb = &sctx->framebuffer.cb[i].cb,
          .va = tex->buffer.gpu_address,
          .num_samples = tex->buffer.b.b.nr_samples,
          .dcc_enabled = vi_dcc_enabled(tex, cb_psurf->level),
@@ -3184,7 +3186,7 @@ static void gfx12_emit_framebuffer_state(struct si_context *sctx, unsigned index
       /* Compute mutable surface parameters. */
       const struct ac_mutable_cb_state mutable_cb_state = {
          .surf = &tex->surface,
-         .cb = &cb->cb,
+         .cb = &sctx->framebuffer.cb[i].cb,
          .va = tex->buffer.gpu_address,
       };
       struct ac_cb_surface cb_surf;

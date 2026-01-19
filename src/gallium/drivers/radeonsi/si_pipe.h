@@ -443,23 +443,7 @@ struct si_auxiliary_texture {
    uint32_t stride;
 };
 
-struct si_surface {
-   struct pipe_surface base;
-
-   /* These can vary with block-compressed textures. */
-   unsigned width0;
-   unsigned height0;
-
-   bool color_initialized : 1;
-   bool depth_initialized : 1;
-
-   /* Misc. color flags. */
-   bool color_is_int8 : 1;
-   bool color_is_int10 : 1;
-   bool dcc_incompatible : 1;
-   uint8_t db_format_index : 3;
-
-   /* Color registers. */
+struct si_cb_surface_info {
    struct ac_cb_surface cb;
 
    unsigned spi_shader_col_format : 8;             /* no blending, no alpha-to-coverage. */
@@ -467,7 +451,21 @@ struct si_surface {
    unsigned spi_shader_col_format_blend : 8;       /* blending without alpha. */
    unsigned spi_shader_col_format_blend_alpha : 8; /* blending with alpha. */
 
-   /* DB registers. */
+   bool color_is_int8 : 1;
+   bool color_is_int10 : 1;
+};
+
+struct si_surface {
+   struct pipe_surface base;
+
+   /* These can vary with block-compressed textures. */
+   unsigned width0;
+   unsigned height0;
+
+   bool depth_initialized : 1;
+   bool dcc_incompatible : 1;
+   uint8_t db_format_index : 3;
+
    struct ac_ds_surface ds;
 };
 
@@ -755,6 +753,7 @@ struct si_images {
 
 struct si_framebuffer {
    struct pipe_framebuffer_state state;
+   struct si_cb_surface_info cb[8];
    PIPE_FB_SURFACES; //STOP USING THIS
    unsigned colorbuf_enabled_4bit;
    unsigned spi_shader_col_format;
