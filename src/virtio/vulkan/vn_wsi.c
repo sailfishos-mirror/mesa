@@ -854,17 +854,43 @@ vn_AcquireNextImage2KHR(VkDevice device,
       return vn_error(dev->instance, result);
 
    /* XXX this relies on renderer side doing implicit fencing */
+   int sync_fd = -1;
+
+   int sem_fd = -1, fence_fd = -1;
+   if (sync_fd >= 0) {
+      if (pAcquireInfo->semaphore != VK_NULL_HANDLE &&
+          pAcquireInfo->fence != VK_NULL_HANDLE) {
+         sem_fd = sync_fd;
+         fence_fd = dup(sync_fd);
+         if (fence_fd < 0) {
+            result = errno == EMFILE ? VK_ERROR_TOO_MANY_OBJECTS
+                                     : VK_ERROR_OUT_OF_HOST_MEMORY;
+            close(sync_fd);
+            return vn_error(dev->instance, result);
+         }
+      } else if (pAcquireInfo->semaphore != VK_NULL_HANDLE) {
+         sem_fd = sync_fd;
+      } else {
+         assert(pAcquireInfo->fence != VK_NULL_HANDLE);
+         fence_fd = sync_fd;
+      }
+   }
+
    if (pAcquireInfo->semaphore != VK_NULL_HANDLE) {
       const VkImportSemaphoreFdInfoKHR info = {
          .sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
          .semaphore = pAcquireInfo->semaphore,
          .flags = VK_SEMAPHORE_IMPORT_TEMPORARY_BIT,
          .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT,
-         .fd = -1,
+         .fd = sem_fd,
       };
       VkResult ret = vn_ImportSemaphoreFdKHR(device, &info);
-      if (ret != VK_SUCCESS)
-         return vn_error(dev->instance, ret);
+      if (ret == VK_SUCCESS) {
+         sem_fd = -1;
+      } else {
+         result = ret;
+         goto out;
+      }
    }
 
    if (pAcquireInfo->fence != VK_NULL_HANDLE) {
@@ -873,12 +899,22 @@ vn_AcquireNextImage2KHR(VkDevice device,
          .fence = pAcquireInfo->fence,
          .flags = VK_FENCE_IMPORT_TEMPORARY_BIT,
          .handleType = VK_EXTERNAL_FENCE_HANDLE_TYPE_SYNC_FD_BIT,
-         .fd = -1,
+         .fd = fence_fd,
       };
       VkResult ret = vn_ImportFenceFdKHR(device, &info);
-      if (ret != VK_SUCCESS)
-         return vn_error(dev->instance, ret);
+      if (ret == VK_SUCCESS) {
+         fence_fd = -1;
+      } else {
+         result = ret;
+         goto out;
+      }
    }
+
+out:
+   if (sem_fd >= 0)
+      close(sem_fd);
+   if (fence_fd >= 0)
+      close(fence_fd);
 
    return vn_result(dev->instance, result);
 }
