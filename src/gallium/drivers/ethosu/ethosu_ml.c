@@ -161,9 +161,17 @@ ethosu_ml_operation_supported(struct pipe_context *pcontext,
    case PIPE_ML_OPERATION_TYPE_POOLING:
    case PIPE_ML_OPERATION_TYPE_STRIDED_SLICE:
    case PIPE_ML_OPERATION_TYPE_PAD:
-   case PIPE_ML_OPERATION_TYPE_RESIZE:
       supported = true;
       break;
+   case PIPE_ML_OPERATION_TYPE_RESIZE: {
+      /* NPU only supports 2x nearest neighbor upscaling */
+      struct pipe_tensor *input = operation->input_tensors[0];
+      struct pipe_tensor *output = operation->output_tensors[0];
+      bool is_2x_height = (output->dims[1] == 2 * input->dims[1]);
+      bool is_2x_width = (output->dims[2] == 2 * input->dims[2]);
+      supported = is_2x_height && is_2x_width;
+      break;
+   }
    case PIPE_ML_OPERATION_TYPE_CONCATENATION:
       supported = operation->conc.axis == 3 ||
                   operation->conc.axis == -1;

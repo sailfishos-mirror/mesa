@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "ethosu_device.h"
 #include "ethosu_lower.h"
 #include "ethosu_coefs.h"
 #include "ethosu_sched.h"
@@ -261,8 +262,6 @@ ethosu_lower_resize(struct ethosu_subgraph *subgraph,
    operation->pooling.avg = true;
 
    set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
-   operation->ifm.zero_point = 0;
-   operation->ofm.zero_point = 0;
 
    operation->kernel.height = 1;
    operation->kernel.width = 1;
@@ -271,7 +270,7 @@ ethosu_lower_resize(struct ethosu_subgraph *subgraph,
    operation->kernel.dilation_y = 1;
    operation->kernel.dilation_x = 1;
 
-   operation->upscale = true;
+   operation->upscale = ETHOSU_UPSCALE_NEAREST;
 
    allocate_feature_maps(subgraph, operation);
    ethosu_sched_operation(subgraph, operation);
@@ -287,8 +286,6 @@ ethosu_lower_strided_slice(struct ethosu_subgraph *subgraph,
 
    set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
    operation->ifm.shape = operation->ofm.shape;
-   operation->ifm.zero_point = 0;
-   operation->ofm.zero_point = 0;
 
    operation->kernel.height = 1;
    operation->kernel.width = 1;

@@ -62,6 +62,13 @@ enum ethosu_rounding_mode {
    ETHOSU_ROUNDING_TRUNCATE,
    ETHOSU_ROUNDING_NATURAL,
 };
+
+enum ethosu_upscale_mode {
+   ETHOSU_UPSCALE_NONE = 0,
+   ETHOSU_UPSCALE_NEAREST = 1,
+   ETHOSU_UPSCALE_ZEROS = 2,
+};
+
 struct ethosu_feature_map {
    unsigned tensor_idx;
    struct ethosu_block shape;
@@ -158,7 +165,7 @@ struct ethosu_operation {
 
    struct ethosu_kernel kernel;
    struct ethosu_padding pad;
-   bool upscale;
+   enum ethosu_upscale_mode upscale;
    enum ethosu_rounding_mode round_mode;
 
    struct ethosu_address_range read_accesses[MAX_MEMORY_ACCESSES];
