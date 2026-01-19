@@ -1129,9 +1129,7 @@ kk_shader_serialize(struct vk_device *vk_dev, const struct vk_shader *vk_shader,
 
    /* We are building a new shader into the cache so we need to retain resources
     */
-   if (shader->info.stage == MESA_SHADER_COMPUTE)
-      mtl_retain(shader->pipeline.cs);
-   else if (shader->info.stage == MESA_SHADER_VERTEX) {
+   if (shader->info.stage == MESA_SHADER_VERTEX) {
       mtl_retain(shader->pipeline.gfx.handle);
       if (shader->pipeline.gfx.mtl_depth_stencil_state_handle)
          mtl_retain(shader->pipeline.gfx.mtl_depth_stencil_state_handle);
@@ -1185,8 +1183,9 @@ kk_deserialize_shader(struct vk_device *vk_dev, struct blob_reader *blob,
    }
 
    /* We are building a new shader so we need to retain resources */
+   VkResult result = VK_SUCCESS;
    if (info.stage == MESA_SHADER_COMPUTE)
-      mtl_retain(shader->pipeline.cs);
+      result = kk_compile_compute_pipeline(dev, shader);
    else if (info.stage == MESA_SHADER_VERTEX) {
       mtl_retain(shader->pipeline.gfx.handle);
       if (shader->pipeline.gfx.mtl_depth_stencil_state_handle)
@@ -1195,7 +1194,7 @@ kk_deserialize_shader(struct vk_device *vk_dev, struct blob_reader *blob,
 
    *shader_out = &shader->vk;
 
-   return VK_SUCCESS;
+   return result;
 }
 
 static void
