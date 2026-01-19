@@ -423,8 +423,6 @@ process_live_temps_per_block(live_ctx& ctx, Block* block)
           * live concurrently with operands.
           */
          operand_demand += insn->definitions[0].getTemp();
-         if (insn->definitions[1].physReg() == vcc)
-            operand_demand += insn->definitions[1].getTemp();
 
          RegisterDemand limit = get_addr_regs_from_waves(ctx.program, ctx.program->min_waves);
          insn->call().callee_preserved_limit = RegisterDemand();
