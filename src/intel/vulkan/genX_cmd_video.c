@@ -3342,12 +3342,6 @@ anv_vp9_decode_video(struct anv_cmd_buffer *cmd_buffer,
          pic.SegmentationUpdateMap = segmentation->flags.segmentation_update_map;
          pic.SegmentIDStreamOutEnable = pic.SegmentationUpdateMap;
 
-         if (!segmentation->flags.segmentation_update_map)
-            pic.SegmentIDStreamInEnable = true;
-         else if (segmentation->flags.segmentation_temporal_update)
-            pic.SegmentIDStreamInEnable = true;
-
-         pic.SegmentIDStreamOutEnable = segmentation->flags.segmentation_update_map;
          pic.SegmentIDStreamInEnable = !segmentation->flags.segmentation_update_map ||
                                        segmentation->flags.segmentation_temporal_update;
       }
