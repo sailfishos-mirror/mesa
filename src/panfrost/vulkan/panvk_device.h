@@ -59,6 +59,8 @@ struct panvk_device {
    struct {
       simple_mtx_t lock;
       struct util_vma_heap heap;
+      struct util_vma_heap *priv_heap;
+      bool extended_range;
    } as;
 
    struct {

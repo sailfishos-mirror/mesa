@@ -49,6 +49,7 @@ static const struct debug_control panvk_debug_options[] = {
    {"no_wb_mmap", PANVK_DEBUG_NO_WB_MMAP},
    {"no_user_mmap_sync", PANVK_DEBUG_NO_USER_MMAP_SYNC},
    {"coherent_before_cached", PANVK_DEBUG_COHERENT_BEFORE_CACHED},
+   {"no_extended_va_range", PANVK_DEBUG_NO_EXTENDED_VA_RANGE},
    {NULL, 0},
 };
 

@@ -408,13 +408,14 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
    if (PANVK_DEBUG(TRACE) || PANVK_DEBUG(SYNC) || PANVK_DEBUG(DUMP))
       device->debug.decode_ctx = pandecode_create_context(false);
 
-   /* 32bit address space, with the lower 32MB reserved. We clamp
+   /* 48bit address space, with the lower 32MB reserved. We clamp
     * things so it matches kmod VA range limitations.
     */
    uint64_t user_va_start = pan_clamp_to_usable_va_range(
       device->kmod.dev, PANVK_VA_RESERVE_BOTTOM);
+   const uint64_t user_va_bits = PANVK_DEBUG(NO_EXTENDED_VA_RANGE) ? 32 : 48;
    uint64_t user_va_end =
-      pan_clamp_to_usable_va_range(device->kmod.dev, 1ull << 32);
+      pan_clamp_to_usable_va_range(device->kmod.dev, 1ull << user_va_bits);
    uint32_t vm_flags = PAN_ARCH < 9 ? PAN_KMOD_VM_FLAG_AUTO_VA : 0;
 
    device->kmod.vm =
@@ -447,8 +448,27 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
 #endif
 
    simple_mtx_init(&device->as.lock, mtx_plain);
-   util_vma_heap_init(&device->as.heap, user_va_start,
-                      user_va_end - user_va_start);
+
+   const uint64_t low_va_end = 1ull << 32;
+   if (user_va_end <= low_va_end) {
+      /* if panthor doesn't let us have >32bit addresses, no need to extend the
+       * range. */
+      util_vma_heap_init(&device->as.heap, user_va_start,
+                         user_va_end - user_va_start);
+      device->as.priv_heap = &device->as.heap;
+      device->as.extended_range = false;
+   } else {
+      util_vma_heap_init(&device->as.heap, low_va_end,
+                         user_va_end - low_va_end);
+      device->as.priv_heap = malloc(sizeof(*device->as.priv_heap));
+      if (device->as.priv_heap == NULL) {
+         result = panvk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+         goto err_free_heaps;
+      }
+      util_vma_heap_init(device->as.priv_heap, user_va_start,
+                         low_va_end - user_va_start);
+      device->as.extended_range = true;
+   }
 
    panvk_device_init_mempools(device);
 
@@ -607,8 +627,14 @@ err_free_priv_bos:
    panvk_priv_bo_unref(device->tiler_heap);
    panvk_device_cleanup_mempools(device);
    vk_free(&device->vk.alloc, device->dump_region_size);
+err_free_heaps:
    pan_kmod_vm_destroy(device->kmod.vm);
    util_vma_heap_finish(&device->as.heap);
+   if (device->as.extended_range) {
+      util_vma_heap_finish(device->as.priv_heap);
+      free(device->as.priv_heap);
+      device->as.priv_heap = NULL;
+   }
    simple_mtx_destroy(&device->as.lock);
 
 err_destroy_kdev:
@@ -661,6 +687,11 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
    vk_free(&device->vk.alloc, device->dump_region_size);
    pan_kmod_vm_destroy(device->kmod.vm);
    util_vma_heap_finish(&device->as.heap);
+   if (device->as.extended_range && (device->as.priv_heap != NULL)) {
+      util_vma_heap_finish(device->as.priv_heap);
+      free(device->as.priv_heap);
+      device->as.priv_heap = NULL;
+   }
    simple_mtx_destroy(&device->as.lock);
 
    if (device->debug.decode_ctx)
