@@ -381,150 +381,62 @@ emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
 }
 
 /*
-def generate_scaling_for_elementwise(emit: CommandStreamEmitter, npu_op: NpuElementWiseOperation) -> int:
-        input_scale = npu_op.ifm.quantization.scale_f32 if npu_op.ifm.quantization else None
-        input2_scale = npu_op.ifm2.quantization.scale_f32 if npu_op.ifm2.quantization else None
-        output_scale = npu_op.ofm.quantization.scale_f32 if npu_op.ofm.quantization else None
-
-        if npu_op.activation is not None and npu_op.activation.op_type in (
-            NpuActivationOp.SIGMOID,
-            NpuActivationOp.TANH,
-        ):
-            output_scale = 1 / 0x3000
-
-        if npu_op.sub_op_type == NpuElementWiseOp.MUL:
-            if npu_op.rescale:
-                ofm_scale, shift = npu_op.rescale
-            elif None in (input_scale, input2_scale, output_scale):
-                ofm_scale = 1
-                shift = 0
-            else:
-                ofm_scale, shift = scaling.elementwise_mul_scale(input_scale, input2_scale, output_scale)
-        else:  # Add/Sub
-            # Default operand scaling is no scaling
-            opa_scale = opb_scale = 1
-            opa_shift = 0
-            bitdepth = npu_op.ifm.data_type.size_in_bits()
-            use_advanced_scaling = False
-            if npu_op.rescale is not None:
-                # Explicit ofm scaling
-                ofm_scale, shift = npu_op.rescale
-            elif None in (input_scale, input2_scale, output_scale):
-                # No ofm scaling
-                ofm_scale = 1
-                shift = 0
-            elif input_scale == input2_scale and bitdepth == 16:
-                # int16 same scaling
-                opa_scale, opb_scale, ofm_scale, shift = scaling.simplified_elementwise_add_sub_scale(
-                    input_scale, input2_scale, output_scale
-                )
-                # align the double rounding with that of advanced scaling
-                opa_scale //= 2
-                opb_scale //= 2
-                shift -= 1
-                opa_shift = 0  # Unused for this case
-            elif input_scale == input2_scale:
-                # Same scaling
-                opa_scale, opb_scale, ofm_scale, shift = scaling.simplified_elementwise_add_sub_scale(
-                    input_scale, input2_scale, output_scale
-                )
-                opa_shift = 0  # Unused for this case
-                # For 8 bit we can't guarantee double rounding with simplified scaling will always be
-                # the same as with advanced scaling due to different shifts. When the ofm scale fulfils
-                # the following we know that double rounding will have no effect for advanced scaling
-                # no matter the input, so we can safely use simplified scaling with double rounding disabled.
-                use_advanced_scaling = int(ofm_scale) & 0xFFF != 0
-            else:
-                use_advanced_scaling = True
-            if use_advanced_scaling:
-                # Use advanced implementation only when input/output scales differ,
-                # or when we can't guarantee the absence of rounding errors
-                (
-                    opa_scale,
-                    opa_shift,
-                    ofm_scale,
-                    shift,
-                    op_to_scale,
-                ) = scaling.advanced_elementwise_add_sub_scale(input_scale, input2_scale, output_scale, bitdepth)
-                opb_scale = 0  # Unused for this case
-                if npu_op.reversed_operands:
-                    # If the operand order is reversed we also have to swap which operand is scaled
-                    if op_to_scale == scaling.OperandToScale.OPa:
-                        op_to_scale = scaling.OperandToScale.OPb
-                    else:
-                        op_to_scale = scaling.OperandToScale.OPa
-            emit.cmd1_with_offset(cmd1.NPU_SET_OPA_SCALE, opa_scale, opa_shift)
-            emit.cmd1_with_offset(cmd1.NPU_SET_OPB_SCALE, opb_scale)
-*/
-
-static void
-simplified_elementwise_add_sub_scale(
+ * Elementwise ADD/SUB scaling from Vela advanced_elementwise_add_sub_scale().
+ * Scale up the operand with smaller scale to match the larger one.
+ * OPA_SCALE has the input scaling, OPB_SCALE is 0.
+ * op_to_scale in IFM_PRECISION tells NPU which operand to scale.
+ */
+static enum ethosu_op_to_scale
+advanced_elementwise_add_sub_scale(
+   struct ethosu_subgraph *subgraph,
    double input1_scale,
    double input2_scale,
-   double output_scale,
-   uint32_t input_shift,
-   double *out_input1_rescale,
-   double *out_input2_rescale,
-   uint32_t *out_out_scale,
-   uint32_t *out_out_shift)
+   double output_scale)
 {
    double max_input_scale = MAX2(input1_scale, input2_scale);
-   double input_shift_val = (double)(1LL << input_shift); /* Use 1LL for large shifts */
-
-   *out_input1_rescale = input1_scale * input_shift_val / (2.0 * max_input_scale);
-   *out_input2_rescale = input2_scale * input_shift_val / (2.0 * max_input_scale);
-
-   /*
-    * Be careful with division by zero or very small output_scale if output_scale
-    * can be zero or close to zero.
-    */
-   double output_rescale_val;
-   if (output_scale == 0.0) {
-      /* Handle error or return specific value */
-      output_rescale_val = 0.0; /* Or INFINITY, depending on desired behavior */
-   } else {
-      output_rescale_val = (2.0 * max_input_scale) / (output_scale * input_shift_val);
-   }
-
-   *out_out_scale = ethosu_quantize_scale(output_rescale_val, out_out_shift);
-}
-
-static enum ethosu_op_to_scale
-eltwise_emit_ofm_scaling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
-{
-   double max_input_scale = MAX2(operation->ifm.scale, operation->ifm2.scale);
-   double min_input_scale = MIN2(operation->ifm.scale, operation->ifm2.scale);
+   double min_input_scale = MIN2(input1_scale, input2_scale);
    unsigned bitdepth = 8;
    uint32_t input_shift = (bitdepth == 8) ? 20 : 15;
-   double input1_rescale_tmp;
-   double input2_rescale_tmp;
-   unsigned ofm_scale, ofm_shift;
-   unsigned opa_scale, opa_shift;
+   double input_shift_val = (double)(1ULL << input_shift);
+   enum ethosu_op_to_scale op_to_scale;
+   uint32_t opa_scale, opa_shift;
+   uint32_t ofm_scale, ofm_shift;
+   double input_rescale, output_rescale;
 
-   simplified_elementwise_add_sub_scale(
-      min_input_scale, max_input_scale, operation->ofm.scale, input_shift,
-      &input1_rescale_tmp, &input2_rescale_tmp,
-      &ofm_scale, &ofm_shift);
+   /* Scale the operand with smaller scale */
+   if (input1_scale < input2_scale)
+      op_to_scale = OP_A;
+   else
+      op_to_scale = OP_B;
 
-   opa_scale = ethosu_quantize_scale(input1_rescale_tmp, &opa_shift);
+   /* From Vela simplified_elementwise_add_sub_scale:
+    * input1_rescale = input1_scale * (1 << input_shift) / (2 * max_input_scale)
+    * output_rescale = (2 * max_input_scale) / (output_scale * (1 << input_shift))
+    */
+   input_rescale = min_input_scale * input_shift_val / (2.0 * max_input_scale);
+   output_rescale = (2.0 * max_input_scale) / (output_scale * input_shift_val);
+
+   opa_scale = ethosu_quantize_scale(input_rescale, &opa_shift);
+   ofm_scale = ethosu_quantize_scale(output_rescale, &ofm_shift);
 
    EMIT1(NPU_SET_OPA_SCALE, opa_shift, opa_scale);
    EMIT1(NPU_SET_OPB_SCALE, 0x0, 0x0);
    EMIT1(NPU_SET_OFM_SCALE, ofm_shift, ofm_scale);
 
-   if (operation->ifm.scale < operation->ifm2.scale)
-      return OP_A;
-   else
-      return OP_B;
+   return op_to_scale;
 }
 
 static void
 emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
    bool has_scalar = false;
-   enum ethosu_op_to_scale op_to_scale = OP_NONE;
+   enum ethosu_op_to_scale op_to_scale;
 
-   op_to_scale = eltwise_emit_ofm_scaling(subgraph, operation);
+   op_to_scale = advanced_elementwise_add_sub_scale(
+      subgraph,
+      operation->ifm.scale,
+      operation->ifm2.scale,
+      operation->ofm.scale);
 
    emit_common(subgraph, operation, op_to_scale);
 
