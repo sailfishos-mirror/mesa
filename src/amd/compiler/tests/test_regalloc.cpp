@@ -1677,3 +1677,27 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.partially_blocked.v6b)
 
    finish_ra_test(ra_test_policy());
 END_TEST
+
+BEGIN_TEST(regalloc.call.params.split_blocking_vecs)
+   if (!setup_cs("", GFX11))
+      return;
+
+   /* tmp0 + tmp1 + tmp2 + vgpr_call_target */
+   program->dev.vgpr_limit = 6;
+
+   //>> v1: %tmp0:v[0] = p_unit_test
+   //! v1: %tmp1:v[1] = p_unit_test
+   //! v2: %tmp2:v[2-3] = p_unit_test
+   Temp tmp0 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v1, PhysReg(256 + 0)));
+   Temp tmp1 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v1, PhysReg(256 + 1)));
+   Temp tmp2 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v2, PhysReg(256 + 2)));
+   //>> v1: %tmp2x:v[2], v1: %tmp2y:v[3] = p_split_vector %tmp2:v[2-3]
+   //! v1: %tmp1_2:v[2], v1: %tmp2x_2:v[1] = p_parallelcopy %tmp1:v[1], %tmp2x:v[2]
+   //! s2: %_:s[0-1], s2: %_:vcc = p_call %_:s[2], 0, %_:v[4-5], %_:s[4-5], %tmp0:v[0], %tmp1_2:v[2]
+   create_call({Operand(tmp0, PhysReg(256 + 0)), Operand(tmp1, PhysReg(256 + 2))}, {}, 4);
+   //! v2: %tmp2_2:v[1-2] = p_create_vector %tmp2x_2:v[1], %tmp2y:v[3]
+   //! p_unit_test %tmp2_2:v[1-2]
+   bld.pseudo(aco_opcode::p_unit_test, tmp2);
+
+   finish_ra_test(ra_test_policy());
+END_TEST

@@ -2388,12 +2388,14 @@ split_blocking_vectors(ra_ctx& ctx, std::vector<unsigned>& vars, RegisterFile& r
 
 void
 handle_fixed_operands(ra_ctx& ctx, RegisterFile& register_file,
+                      std::vector<Instruction*>& vector_splits,
                       std::vector<parallelcopy>& parallelcopy, aco_ptr<Instruction>& instr)
 {
    assert(instr->operands.size() <= 128);
    assert(parallelcopy.empty());
 
    RegisterFile tmp_file(register_file);
+   std::vector<struct parallelcopy> copies;
 
    BITSET_DECLARE(live_reg_assigned, 128) = {0};
    BITSET_DECLARE(mask, 128) = {0};
@@ -2455,7 +2457,7 @@ handle_fixed_operands(ra_ctx& ctx, RegisterFile& register_file,
       }
 
       /* An instruction can have at most one operand precolored to the same register. */
-      assert(std::none_of(parallelcopy.begin(), parallelcopy.end(),
+      assert(std::none_of(copies.begin(), copies.end(),
                           [&](auto copy) { return copy.def.physReg() == op.physReg(); }));
 
       /* clear from register_file so fixed operands are not collected by collect_vars(), but if src
@@ -2469,7 +2471,7 @@ handle_fixed_operands(ra_ctx& ctx, RegisterFile& register_file,
       Operand pc_op(instr->operands[i].getTemp());
       pc_op.setFixed(src);
       Definition pc_def = Definition(op.physReg(), pc_op.regClass());
-      parallelcopy.emplace_back(pc_op, pc_def, op.isCopyKill() ? i : -1);
+      copies.emplace_back(pc_op, pc_def, op.isCopyKill() ? i : -1);
    }
 
    if (BITSET_IS_EMPTY(mask))
@@ -2487,8 +2489,14 @@ handle_fixed_operands(ra_ctx& ctx, RegisterFile& register_file,
       tmp_file.block(op.physReg(), op.regClass());
    }
 
-   get_regs_for_copies(ctx, tmp_file, parallelcopy, blocking_vars, instr, PhysRegInterval());
-   update_renames(ctx, register_file, parallelcopy, instr, true);
+   if (get_regs_for_copies(ctx, tmp_file, copies, blocking_vars, instr, PhysRegInterval())) {
+      parallelcopy.insert(parallelcopy.end(), copies.begin(), copies.end());
+      update_renames(ctx, register_file, parallelcopy, instr, true);
+   } else {
+      assert(vector_splits.empty());
+      vector_splits = split_blocking_vectors(ctx, blocking_vars, register_file);
+      handle_fixed_operands(ctx, register_file, vector_splits, parallelcopy, instr);
+   }
 }
 
 void
@@ -3847,7 +3855,7 @@ register_allocation(Program* program, ra_test_policy policy)
       for (; instr_it != block.instructions.end(); ++instr_it) {
          aco_ptr<Instruction>& instr = *instr_it;
          std::vector<parallelcopy> parallelcopy;
-         std::vector<Instruction*> vector_splits;
+         std::vector<Instruction*> pre_vector_splits, post_vector_splits;
          assert(!is_phi(instr));
 
          /* handle operands */
@@ -3885,7 +3893,7 @@ register_allocation(Program* program, ra_test_policy policy)
          }
 
          if (fixed)
-            handle_fixed_operands(ctx, register_file, parallelcopy, instr);
+            handle_fixed_operands(ctx, register_file, pre_vector_splits, parallelcopy, instr);
 
          for (unsigned i = 0; i < instr->operands.size(); ++i) {
             auto& operand = instr->operands[i];
@@ -3948,7 +3956,7 @@ register_allocation(Program* program, ra_test_policy policy)
             BITSET_CLEAR_RANGE(call_clobbered_regs, 256 + ctx.vgpr_bounds - ctx.num_linear_vgprs,
                                256 + ctx.vgpr_bounds);
 
-            handle_call(ctx, instr, call_clobbered_regs, vector_splits, parallelcopy,
+            handle_call(ctx, instr, call_clobbered_regs, post_vector_splits, parallelcopy,
                         register_file);
          }
 
@@ -4123,9 +4131,12 @@ register_allocation(Program* program, ra_test_policy policy)
                BITSET_CLEAR(ctx.preserved, copy.def.physReg() + j);
          }
 
+         for (auto split : pre_vector_splits)
+            instructions.emplace_back(split);
+
          emit_parallel_copy(ctx, parallelcopy, instr, instructions, temp_in_scc, register_file);
 
-         for (auto split : vector_splits)
+         for (auto split : post_vector_splits)
             instructions.emplace_back(split);
 
          /* some instructions need VOP3 encoding if operand/definition is not assigned to VCC */
@@ -4189,8 +4200,10 @@ register_allocation(Program* program, ra_test_policy policy)
           * having to split vectors because of register space constraints is a theoretical edge case
           * that isn't really hit in practice, so spending effort on it wouldn't yield any benefit.
           */
-         if (!vector_splits.empty())
-            recreate_blocking_vectors(ctx, vector_splits, instructions, register_file);
+         if (!pre_vector_splits.empty())
+            recreate_blocking_vectors(ctx, pre_vector_splits, instructions, register_file);
+         if (!post_vector_splits.empty())
+            recreate_blocking_vectors(ctx, post_vector_splits, instructions, register_file);
       } /* end for Instr */
 
       if ((block.kind & block_kind_top_level) && block.linear_succs.empty()) {
