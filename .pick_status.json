@@ -3864,7 +3864,7 @@
         "description": "venus: add vn_renderer_bo_export_sync_file helper",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
