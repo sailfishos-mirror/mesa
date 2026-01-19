@@ -186,11 +186,15 @@ void pvr_srv_render_target_dataset_destroy(
 }
 
 static void pvr_srv_render_ctx_fw_static_state_init(
+   enum pvr_device_arch arch,
    struct pvr_winsys_render_ctx_create_info *create_info,
    struct rogue_fwif_static_rendercontext_state *static_state)
 {
-   struct pvr_winsys_render_ctx_static_state *ws_static_state =
-      &create_info->static_state;
+   /* TODO: handle non-rogue GPUs */
+   assert(arch == PVR_DEVICE_ARCH_ROGUE);
+   struct pvr_rogue_winsys_render_ctx_static_state *ws_static_state =
+      &create_info->static_state.rogue;
+
    struct rogue_fwif_ta_regs_cswitch *regs =
       &static_state->ctx_switch_geom_regs[0];
 
@@ -247,7 +251,9 @@ VkResult pvr_srv_winsys_render_ctx_create(
    if (result != VK_SUCCESS)
       goto err_close_timeline_geom;
 
-   pvr_srv_render_ctx_fw_static_state_init(create_info, &static_state);
+   pvr_srv_render_ctx_fw_static_state_init(dev_info->ident.arch,
+                                           create_info,
+                                           &static_state);
 
    /* TODO: Add support for reset framework. Currently we subtract
     * reset_cmd.regs size from reset_cmd size to only pass empty flags field.

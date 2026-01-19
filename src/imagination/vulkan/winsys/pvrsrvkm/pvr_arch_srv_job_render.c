@@ -432,8 +432,13 @@ static void pvr_srv_render_ctx_fw_static_state_init(
    struct pvr_winsys_render_ctx_create_info *create_info,
    struct rogue_fwif_static_rendercontext_state *static_state)
 {
-   struct pvr_winsys_render_ctx_static_state *ws_static_state =
-      &create_info->static_state;
+#if defined(PVR_BUILD_ARCH_ROGUE)
+   struct pvr_rogue_winsys_render_ctx_static_state *ws_static_state =
+      &create_info->static_state.rogue;
+#else
+#   error "Missing arch"
+#endif
+
    struct rogue_fwif_ta_regs_cswitch *regs =
       &static_state->ctx_switch_geom_regs[0];
 

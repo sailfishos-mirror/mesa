@@ -143,12 +143,16 @@ void pvr_drm_winsys_free_list_destroy(struct pvr_winsys_free_list *free_list)
 }
 
 static void pvr_drm_render_ctx_static_state_init(
+   enum pvr_device_arch arch,
    struct pvr_winsys_render_ctx_create_info *create_info,
    uint8_t *stream_ptr_start,
    uint32_t *stream_len_ptr)
 {
-   struct pvr_winsys_render_ctx_static_state *ws_static_state =
-      &create_info->static_state;
+   /* TODO: handle non-rogue GPUs */
+   assert(arch == PVR_DEVICE_ARCH_ROGUE);
+   struct pvr_rogue_winsys_render_ctx_static_state *ws_static_state =
+      &create_info->static_state.rogue;
+
    uint64_t *stream_ptr = (uint64_t *)stream_ptr_start;
 
    /* Leave space for stream header. */
@@ -231,7 +235,8 @@ VkResult pvr_drm_winsys_render_ctx_create(
       goto err_free_ctx;
    }
 
-   pvr_drm_render_ctx_static_state_init(create_info,
+   pvr_drm_render_ctx_static_state_init(dev_info->ident.arch,
+                                        create_info,
                                         static_ctx_state_fw_stream,
                                         &ctx_args.static_context_state_len);
 

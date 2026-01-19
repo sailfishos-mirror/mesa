@@ -190,19 +190,21 @@ struct pvr_winsys_render_ctx_create_info {
    enum pvr_winsys_ctx_priority priority;
    pvr_dev_addr_t vdm_callstack_addr;
 
-   struct pvr_winsys_render_ctx_static_state {
-      uint64_t vdm_ctx_state_base_addr;
-      uint64_t geom_ctx_state_base_addr;
+   union {
+      struct pvr_rogue_winsys_render_ctx_static_state {
+         uint64_t vdm_ctx_state_base_addr;
+         uint64_t geom_ctx_state_base_addr;
 
-      struct {
-         uint64_t vdm_ctx_store_task0;
-         uint32_t vdm_ctx_store_task1;
-         uint64_t vdm_ctx_store_task2;
+         struct {
+            uint64_t vdm_ctx_store_task0;
+            uint32_t vdm_ctx_store_task1;
+            uint64_t vdm_ctx_store_task2;
 
-         uint64_t vdm_ctx_resume_task0;
-         uint32_t vdm_ctx_resume_task1;
-         uint64_t vdm_ctx_resume_task2;
-      } geom_state[2];
+            uint64_t vdm_ctx_resume_task0;
+            uint32_t vdm_ctx_resume_task1;
+            uint64_t vdm_ctx_resume_task2;
+         } geom_state[2];
+      } rogue;
    } static_state;
 };
 

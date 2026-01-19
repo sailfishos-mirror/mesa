@@ -771,7 +771,7 @@ pvr_rogue_get_geom_state_stream_out_words(struct pvr_pds_upload *pds_program,
 
 static void pvr_render_ctx_ws_static_state_init(
    struct pvr_render_ctx *ctx,
-   struct pvr_winsys_render_ctx_static_state *static_state)
+   struct PVR_PER_ARCH(winsys_render_ctx_static_state) * static_state)
 {
    uint64_t *q_dst;
    uint32_t *d_dst;
@@ -850,7 +850,11 @@ static void pvr_render_ctx_ws_create_info_init(
    create_info->priority = priority;
    create_info->vdm_callstack_addr = ctx->vdm_callstack_bo->vma->dev_addr;
 
-   pvr_render_ctx_ws_static_state_init(ctx, &create_info->static_state);
+#if defined(PVR_BUILD_ARCH_ROGUE)
+   pvr_render_ctx_ws_static_state_init(ctx, &create_info->static_state.rogue);
+#else
+#   error "Missing arch"
+#endif
 }
 
 VkResult pvr_arch_render_ctx_create(struct pvr_device *device,
