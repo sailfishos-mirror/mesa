@@ -5275,18 +5275,6 @@ struct anv_shader_internal {
 
    struct genisa_stats stats[3];
    uint32_t num_stats;
-
-   struct nir_xfb_info *xfb_info;
-
-   struct anv_push_descriptor_info push_desc_info;
-
-   struct anv_pipeline_bind_map bind_map;
-
-   /* Not saved in the pipeline cache.
-    *
-    * Array of pointers of length bind_map.embedded_sampler_count
-    */
-   struct anv_embedded_sampler **embedded_samplers;
 };
 
 static inline struct anv_shader_internal *

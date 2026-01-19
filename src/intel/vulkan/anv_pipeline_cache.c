@@ -56,9 +56,6 @@ anv_shader_internal_destroy(struct vk_device *_device,
    struct anv_shader_internal *shader =
       container_of(object, struct anv_shader_internal, base);
 
-   for (uint32_t i = 0; i < shader->bind_map.embedded_sampler_count; i++)
-      anv_embedded_sampler_unref(device, shader->embedded_samplers[i]);
-
    anv_shader_heap_free(&device->shader_heap, shader->kernel);
    vk_pipeline_cache_object_finish(&shader->base);
    vk_free(&device->vk.alloc, shader);
@@ -82,10 +79,7 @@ anv_shader_internal_create(struct anv_device *device,
                            const void *kernel_data, uint32_t kernel_size,
                            const struct brw_stage_prog_data *prog_data_in,
                            uint32_t prog_data_size,
-                           const struct genisa_stats *stats, uint32_t num_stats,
-                           const nir_xfb_info *xfb_info_in,
-                           const struct anv_pipeline_bind_map *bind_map,
-                           const struct anv_push_descriptor_info *push_desc_info)
+                           const struct genisa_stats *stats, uint32_t num_stats)
 {
    VK_MULTIALLOC(ma);
    VK_MULTIALLOC_DECL(&ma, struct anv_shader_internal, shader, 1);
@@ -95,20 +89,6 @@ anv_shader_internal_create(struct anv_device *device,
    VK_MULTIALLOC_DECL(&ma, struct intel_shader_reloc, prog_data_relocs,
                            prog_data_in->num_relocs);
    VK_MULTIALLOC_DECL(&ma, void, code, kernel_size);
-
-   VK_MULTIALLOC_DECL_SIZE(&ma, nir_xfb_info, xfb_info,
-                                xfb_info_in == NULL ? 0 :
-                                nir_xfb_info_size(xfb_info_in->output_count));
-
-   VK_MULTIALLOC_DECL(&ma, struct anv_pipeline_binding, surface_to_descriptor,
-                           bind_map->surface_count);
-   VK_MULTIALLOC_DECL(&ma, struct anv_pipeline_binding, sampler_to_descriptor,
-                      bind_map->sampler_count);
-   VK_MULTIALLOC_DECL(&ma, struct anv_pipeline_embedded_sampler_binding,
-                      embedded_sampler_to_binding,
-                      bind_map->embedded_sampler_count);
-   VK_MULTIALLOC_DECL(&ma, struct anv_embedded_sampler *, embedded_samplers,
-                      bind_map->embedded_sampler_count);
 
    if (!vk_multialloc_zalloc(&ma, &device->vk.alloc,
                              VK_SYSTEM_ALLOCATION_SCOPE_DEVICE))
@@ -136,16 +116,6 @@ anv_shader_internal_create(struct anv_device *device,
 
    shader->kernel_size = kernel_size;
 
-   if (bind_map->embedded_sampler_count > 0) {
-      shader->embedded_samplers = embedded_samplers;
-      if (anv_device_get_embedded_samplers(device, embedded_samplers, bind_map) != VK_SUCCESS) {
-         anv_shader_heap_free(&device->shader_heap, shader->kernel);
-         vk_pipeline_cache_object_finish(&shader->base);
-         vk_free(&device->vk.alloc, shader);
-         return NULL;
-      }
-   }
-
    memcpy(prog_data, prog_data_in, prog_data_size);
    typed_memcpy(prog_data_relocs, prog_data_in->relocs,
                 prog_data_in->num_relocs);
@@ -157,35 +127,6 @@ anv_shader_internal_create(struct anv_device *device,
    assert((stats != NULL) || (num_stats == 0));
    typed_memcpy(shader->stats, stats, num_stats);
    shader->num_stats = num_stats;
-
-   if (xfb_info_in) {
-      *xfb_info = *xfb_info_in;
-      typed_memcpy(xfb_info->outputs, xfb_info_in->outputs,
-                   xfb_info_in->output_count);
-      shader->xfb_info = xfb_info;
-   } else {
-      shader->xfb_info = NULL;
-   }
-
-   typed_memcpy(&shader->push_desc_info, push_desc_info, 1);
-
-   shader->bind_map = *bind_map;
-
-   typed_memcpy(surface_to_descriptor, bind_map->surface_to_descriptor,
-                bind_map->surface_count);
-   shader->bind_map.surface_to_descriptor = surface_to_descriptor;
-
-   typed_memcpy(sampler_to_descriptor, bind_map->sampler_to_descriptor,
-                bind_map->sampler_count);
-   shader->bind_map.sampler_to_descriptor = sampler_to_descriptor;
-
-   typed_memcpy(embedded_sampler_to_binding, bind_map->embedded_sampler_to_binding,
-                bind_map->embedded_sampler_count);
-   shader->bind_map.embedded_sampler_to_binding = embedded_sampler_to_binding;
-
-   typed_memcpy(shader->bind_map.input_attachments,
-                bind_map->input_attachments,
-                ARRAY_SIZE(bind_map->input_attachments));
 
    return shader;
 }
@@ -217,43 +158,6 @@ anv_shader_internal_serialize(struct vk_pipeline_cache_object *object,
    blob_write_uint32(blob, shader->num_stats);
    blob_write_bytes(blob, shader->stats,
                     shader->num_stats * sizeof(shader->stats[0]));
-
-   if (shader->xfb_info) {
-      uint32_t xfb_info_size =
-         nir_xfb_info_size(shader->xfb_info->output_count);
-      blob_write_uint32(blob, xfb_info_size);
-      blob_write_bytes(blob, shader->xfb_info, xfb_info_size);
-   } else {
-      blob_write_uint32(blob, 0);
-   }
-
-   blob_write_uint32(blob, shader->push_desc_info.used_descriptors);
-   blob_write_uint32(blob, shader->push_desc_info.fully_promoted_ubo_descriptors);
-   blob_write_uint8(blob, shader->push_desc_info.push_set_buffer);
-
-   blob_write_bytes(blob, shader->bind_map.surface_sha1,
-                    sizeof(shader->bind_map.surface_sha1));
-   blob_write_bytes(blob, shader->bind_map.sampler_sha1,
-                    sizeof(shader->bind_map.sampler_sha1));
-   blob_write_bytes(blob, shader->bind_map.push_sha1,
-                    sizeof(shader->bind_map.push_sha1));
-   blob_write_uint32(blob, shader->bind_map.layout_type);
-   blob_write_uint32(blob, shader->bind_map.surface_count);
-   blob_write_uint32(blob, shader->bind_map.sampler_count);
-   blob_write_uint32(blob, shader->bind_map.embedded_sampler_count);
-   blob_write_bytes(blob, shader->bind_map.surface_to_descriptor,
-                    shader->bind_map.surface_count *
-                    sizeof(*shader->bind_map.surface_to_descriptor));
-   blob_write_bytes(blob, shader->bind_map.sampler_to_descriptor,
-                    shader->bind_map.sampler_count *
-                    sizeof(*shader->bind_map.sampler_to_descriptor));
-   blob_write_bytes(blob, shader->bind_map.embedded_sampler_to_binding,
-                    shader->bind_map.embedded_sampler_count *
-                    sizeof(*shader->bind_map.embedded_sampler_to_binding));
-   blob_write_bytes(blob, shader->bind_map.input_attachments,
-                    sizeof(shader->bind_map.input_attachments));
-   blob_write_bytes(blob, shader->bind_map.push_ranges,
-                    sizeof(shader->bind_map.push_ranges));
 
    return !blob->out_of_memory;
 }
@@ -288,37 +192,6 @@ anv_shader_internal_deserialize(struct vk_pipeline_cache *cache,
    const struct genisa_stats *stats =
       blob_read_bytes(blob, num_stats * sizeof(stats[0]));
 
-   const nir_xfb_info *xfb_info = NULL;
-   uint32_t xfb_size = blob_read_uint32(blob);
-   if (xfb_size)
-      xfb_info = blob_read_bytes(blob, xfb_size);
-
-   struct anv_push_descriptor_info push_desc_info = {};
-   push_desc_info.used_descriptors = blob_read_uint32(blob);
-   push_desc_info.fully_promoted_ubo_descriptors = blob_read_uint32(blob);
-   push_desc_info.push_set_buffer = blob_read_uint8(blob);
-
-   struct anv_pipeline_bind_map bind_map = {};
-   blob_copy_bytes(blob, bind_map.surface_sha1, sizeof(bind_map.surface_sha1));
-   blob_copy_bytes(blob, bind_map.sampler_sha1, sizeof(bind_map.sampler_sha1));
-   blob_copy_bytes(blob, bind_map.push_sha1, sizeof(bind_map.push_sha1));
-   bind_map.layout_type = blob_read_uint32(blob);
-   bind_map.surface_count = blob_read_uint32(blob);
-   bind_map.sampler_count = blob_read_uint32(blob);
-   bind_map.embedded_sampler_count = blob_read_uint32(blob);
-   bind_map.surface_to_descriptor = (void *)
-      blob_read_bytes(blob, bind_map.surface_count *
-                            sizeof(*bind_map.surface_to_descriptor));
-   bind_map.sampler_to_descriptor = (void *)
-      blob_read_bytes(blob, bind_map.sampler_count *
-                            sizeof(*bind_map.sampler_to_descriptor));
-   bind_map.embedded_sampler_to_binding = (void *)
-      blob_read_bytes(blob, bind_map.embedded_sampler_count *
-                            sizeof(*bind_map.embedded_sampler_to_binding));
-   blob_copy_bytes(blob, bind_map.input_attachments,
-                   sizeof(bind_map.input_attachments));
-   blob_copy_bytes(blob, bind_map.push_ranges, sizeof(bind_map.push_ranges));
-
    if (blob->overrun) {
       ralloc_free(mem_ctx);
       return NULL;
@@ -329,8 +202,7 @@ anv_shader_internal_deserialize(struct vk_pipeline_cache *cache,
                                  key_data, key_size,
                                  kernel_data, kernel_size,
                                  &prog_data.base, prog_data_size,
-                                 stats, num_stats, xfb_info, &bind_map,
-                                 &push_desc_info);
+                                 stats, num_stats);
 
    ralloc_free(mem_ctx);
 
@@ -384,10 +256,7 @@ anv_device_upload_kernel(struct anv_device *device,
                                  params->prog_data,
                                  params->prog_data_size,
                                  params->stats,
-                                 params->num_stats,
-                                 params->xfb_info,
-                                 params->bind_map,
-                                 params->push_desc_info);
+                                 params->num_stats);
    if (shader == NULL)
       return NULL;
 
