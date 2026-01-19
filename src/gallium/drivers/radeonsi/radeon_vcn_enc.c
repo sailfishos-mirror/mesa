@@ -11,7 +11,7 @@
 #include "ac_debug.h"
 
 #include "si_video.h"
-#include "radeonsi/si_pipe.h"
+#include "si_pipe.h"
 #include "util/u_memory.h"
 #include "util/u_video.h"
 #include "vl/vl_video_buffer.h"
