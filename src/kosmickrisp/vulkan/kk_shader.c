@@ -988,7 +988,7 @@ kk_compile_graphics_pipeline(struct kk_device *device,
          pipeline_descriptor, max_amplification);
    }
 
-   vertex_shader->pipeline.gfx.sample_count = 1u;
+   vertex_shader->info.vs.sample_count = 1u;
    if (state->ms) {
       mtl_render_pipeline_descriptor_set_raster_sample_count(
          pipeline_descriptor, state->ms->rasterization_samples);
@@ -996,15 +996,14 @@ kk_compile_graphics_pipeline(struct kk_device *device,
          pipeline_descriptor, state->ms->alpha_to_coverage_enable);
       mtl_render_pipeline_descriptor_set_alpha_to_one(
          pipeline_descriptor, state->ms->alpha_to_one_enable);
-      vertex_shader->pipeline.gfx.sample_count =
-         state->ms->rasterization_samples;
+      vertex_shader->info.vs.sample_count = state->ms->rasterization_samples;
    }
 
    vertex_shader->pipeline.gfx.handle =
       mtl_new_render_pipeline(device->mtl_handle, pipeline_descriptor);
    if (vertex_shader->pipeline.gfx.handle == NULL)
       result = VK_ERROR_INVALID_SHADER_NV;
-   vertex_shader->pipeline.gfx.primitive_type =
+   vertex_shader->info.vs.primitive_type =
       vk_primitive_topology_to_mtl_primitive_type(
          state->ia->primitive_topology);
 
@@ -1231,7 +1230,7 @@ kk_cmd_bind_graphics_shader(struct kk_cmd_buffer *cmd,
    if (stage != MESA_SHADER_VERTEX)
       return;
 
-   cmd->state.gfx.primitive_type = shader->pipeline.gfx.primitive_type;
+   cmd->state.gfx.primitive_type = shader->info.vs.primitive_type;
    cmd->state.gfx.pipeline_state = shader->pipeline.gfx.handle;
    cmd->state.gfx.vb.attribs_read = shader->info.vs.attribs_read;
 
@@ -1254,7 +1253,7 @@ kk_cmd_bind_graphics_shader(struct kk_cmd_buffer *cmd,
    cmd->state.gfx.dirty |= KK_DIRTY_PIPELINE;
    cmd->state.gfx.dirty |= KK_DIRTY_VB;
 
-   cmd->state.gfx.sample_count = shader->pipeline.gfx.sample_count;
+   cmd->state.gfx.sample_count = shader->info.vs.sample_count;
 }
 
 static void
