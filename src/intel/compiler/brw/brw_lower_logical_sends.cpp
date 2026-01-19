@@ -1984,9 +1984,16 @@ lower_btd_logical_send(const brw_builder &bld, brw_inst *inst)
       brw_reg global_addr = inst->src[0];
       assert(brw_type_size_bytes(global_addr.type) == 8 &&
              global_addr.stride == 0);
-      global_addr.type = BRW_TYPE_UD;
-      global_addr.stride = 1;
-      ubld.group(2, 0).MOV(header, global_addr);
+      if (global_addr.file != UNIFORM) {
+         global_addr.type = BRW_TYPE_UD;
+         global_addr.stride = 1;
+         ubld.group(2, 0).MOV(header, global_addr);
+      } else {
+         ubld.group(1, 0).MOV(byte_offset(header, 0),
+                              subscript(global_addr, BRW_TYPE_UD, 0));
+         ubld.group(1, 0).MOV(byte_offset(header, 4),
+                              subscript(global_addr, BRW_TYPE_UD, 1));
+      }
 
       /* XXX - There is a Registers Per Thread field in the BTD spawn
        *       header starting on Xe3, it doesn't appear to be needed
