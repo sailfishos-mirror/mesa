@@ -2351,6 +2351,41 @@ operand_can_use_reg(amd_gfx_level gfx_level, aco_ptr<Instruction>& instr, unsign
    }
 }
 
+std::vector<Instruction*>
+split_blocking_vectors(ra_ctx& ctx, std::vector<unsigned>& vars, RegisterFile& register_file)
+{
+   std::vector<Instruction*> splits;
+
+   for (unsigned id : vars) {
+      RegClass rc = ctx.program->temp_rc[id];
+      if (rc.size() == 1)
+         continue;
+
+      Operand split_op(Temp(id, rc), ctx.assignments[id].reg);
+      small_vec<Definition, 8> defs;
+      for (unsigned offset = 0; offset < rc.bytes();) {
+         PhysReg reg = split_op.physReg().advance(offset);
+         unsigned size = MIN2(4, rc.bytes() - offset) - reg.byte();
+         Definition def(ctx.program->allocateTmp(RegClass::get(rc.type(), size)), reg);
+
+         defs.push_back(def);
+         ctx.assignments.emplace_back(def.physReg(), def.regClass());
+         register_file.fill(def);
+
+         offset += def.bytes();
+      }
+
+      aco_ptr<Instruction> split = aco_ptr<Instruction>(
+         create_instruction(aco_opcode::p_split_vector, Format::PSEUDO, 1, defs.size()));
+      split->operands[0] = split_op;
+      std::copy(defs.begin(), defs.end(), split->definitions.begin());
+
+      splits.push_back(split.release());
+   }
+
+   return splits;
+}
+
 void
 handle_fixed_operands(ra_ctx& ctx, RegisterFile& register_file,
                       std::vector<parallelcopy>& parallelcopy, aco_ptr<Instruction>& instr)
@@ -3658,41 +3693,6 @@ emit_parallel_copy(ra_ctx& ctx, std::vector<parallelcopy>& copies,
                                register_file);
    emit_parallel_copy_internal(ctx, copies, instr, instructions, temp_in_scc,
                                register_file);
-}
-
-std::vector<Instruction*>
-split_blocking_vectors(ra_ctx& ctx, std::vector<unsigned>& vars, RegisterFile& register_file)
-{
-   std::vector<Instruction*> splits;
-
-   for (unsigned id : vars) {
-      RegClass rc = ctx.program->temp_rc[id];
-      if (rc.size() == 1)
-         continue;
-
-      Operand split_op(Temp(id, rc), ctx.assignments[id].reg);
-      small_vec<Definition, 8> defs;
-      for (unsigned offset = 0; offset < rc.bytes();) {
-         PhysReg reg = split_op.physReg().advance(offset);
-         unsigned size = MIN2(4, rc.bytes() - offset) - reg.byte();
-         Definition def(ctx.program->allocateTmp(RegClass::get(rc.type(), size)), reg);
-
-         defs.push_back(def);
-         ctx.assignments.emplace_back(def.physReg(), def.regClass());
-         register_file.fill(def);
-
-         offset += def.bytes();
-      }
-
-      aco_ptr<Instruction> split = aco_ptr<Instruction>(
-         create_instruction(aco_opcode::p_split_vector, Format::PSEUDO, 1, defs.size()));
-      split->operands[0] = split_op;
-      std::copy(defs.begin(), defs.end(), split->definitions.begin());
-
-      splits.push_back(split.release());
-   }
-
-   return splits;
 }
 
 void
