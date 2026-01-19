@@ -15,6 +15,7 @@
 #include "pan_csf.h"
 #include "pan_fb_preload.h"
 #include "pan_job.h"
+#include "pan_trace.h"
 
 #if PAN_ARCH < 10
 #error "CSF helpers are only used for gen >= 10"
@@ -207,6 +208,8 @@ fail:
 void
 GENX(csf_cleanup_batch)(struct panfrost_batch *batch)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    if (batch->csf.cs.builder) {
       cs_builder_fini(batch->csf.cs.builder);
       free(batch->csf.cs.builder);
@@ -226,6 +229,8 @@ alloc_fbd(struct panfrost_batch *batch)
 int
 GENX(csf_init_batch)(struct panfrost_batch *batch)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    struct panfrost_device *dev = pan_device(batch->ctx->base.screen);
 
    /* Initialize the CS chunk pool. */
@@ -627,6 +632,8 @@ csf_submit_wait_and_dump(struct panfrost_batch *batch,
 int
 GENX(csf_submit_batch)(struct panfrost_batch *batch)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    int ret;
 
    /* Close the batch before submitting. */
@@ -739,6 +746,8 @@ GENX(csf_prepare_tiler)(struct panfrost_batch *batch, struct pan_fb_info *fb)
 void
 GENX(csf_preload_fb)(struct panfrost_batch *batch, struct pan_fb_info *fb)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    struct panfrost_device *dev = pan_device(batch->ctx->base.screen);
 
    GENX(pan_preload_fb)
@@ -755,6 +764,8 @@ void
 GENX(csf_emit_fbds)(struct panfrost_batch *batch, struct pan_fb_info *fb,
                     struct pan_tls_info *tls)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    struct panfrost_device *dev = pan_device(batch->ctx->base.screen);
 
    /* Default framebuffer descriptor */
@@ -831,6 +842,8 @@ void
 GENX(csf_emit_fragment_job)(struct panfrost_batch *batch,
                             const struct pan_fb_info *pfb)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    struct cs_builder *b = batch->csf.cs.builder;
    struct pan_csf_tiler_oom_ctx *oom_ctx = batch->csf.tiler_oom_ctx.cpu;
 
@@ -910,6 +923,8 @@ void
 GENX(csf_launch_grid)(struct panfrost_batch *batch,
                       const struct pipe_grid_info *info)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    /* Empty compute programs are invalid and don't make sense */
    if (batch->rsd[MESA_SHADER_COMPUTE] == 0)
       return;
@@ -1032,6 +1047,8 @@ void
 GENX(csf_launch_xfb)(struct panfrost_batch *batch,
                      const struct pipe_draw_info *info, unsigned count)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    struct cs_builder *b = batch->csf.cs.builder;
 
    cs_move64_to(b, cs_sr_reg64(b, COMPUTE, TSD_0), batch->tls.gpu);
@@ -1357,6 +1374,8 @@ GENX(csf_launch_draw)(struct panfrost_batch *batch,
                       const struct pipe_draw_start_count_bias *draw,
                       unsigned vertex_count)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    struct cs_builder *b = batch->csf.cs.builder;
 
    uint32_t flags_override = csf_emit_draw_state(batch, info, drawid_offset);
@@ -1393,6 +1412,8 @@ GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
                                unsigned drawid_offset,
                                const struct pipe_draw_indirect_info *indirect)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    struct cs_builder *b = batch->csf.cs.builder;
 
    uint32_t flags_override = csf_emit_draw_state(batch, info, drawid_offset);
@@ -1469,6 +1490,8 @@ get_device_reset_status(struct pipe_context *pctx)
 int
 GENX(csf_init_context)(struct panfrost_context *ctx)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    struct panfrost_screen *screen = pan_screen(ctx->base.screen);
    struct panfrost_device *dev = pan_device(ctx->base.screen);
    struct drm_panthor_queue_create qc[] = {{
@@ -1636,6 +1659,8 @@ err_group_create:
 void
 GENX(csf_cleanup_context)(struct panfrost_context *ctx)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CSF);
+
    if (!ctx->csf.is_init)
       return;
 

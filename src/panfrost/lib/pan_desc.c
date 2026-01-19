@@ -13,6 +13,7 @@
 #include "pan_encoder.h"
 #include "pan_props.h"
 #include "pan_texture.h"
+#include "pan_trace.h"
 #include "pan_util.h"
 
 #define PAN_BIN_LEVEL_COUNT 12
@@ -1091,6 +1092,8 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
                    const struct pan_tls_info *tls,
                    const struct pan_tiler_context *tiler_ctx, void *out)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_DESC);
+
    check_fb_attachments(fb);
 
    void *fbd = out;
@@ -1294,6 +1297,8 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
                    const struct pan_tls_info *tls,
                    const struct pan_tiler_context *tiler_ctx, void *fbd)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_DESC);
+
    assert(fb->rt_count <= 1);
 
    GENX(pan_emit_tls)(tls, pan_section_ptr(fbd, FRAMEBUFFER, LOCAL_STORAGE));

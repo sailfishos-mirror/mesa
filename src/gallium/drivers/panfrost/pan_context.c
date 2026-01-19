@@ -533,6 +533,8 @@ panfrost_render_condition(struct pipe_context *pipe, struct pipe_query *query,
 static void
 panfrost_destroy(struct pipe_context *pipe)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CONTEXT);
+
    struct panfrost_context *panfrost = pan_context(pipe);
    struct panfrost_device *dev = pan_device(pipe->screen);
 
@@ -982,6 +984,8 @@ static const struct debug_named_value panfrost_prio_options[] = {
 struct pipe_context *
 panfrost_create_context(struct pipe_screen *screen, void *priv, unsigned flags)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_CONTEXT);
+
    struct panfrost_context *ctx = rzalloc(NULL, struct panfrost_context);
 
    if (!ctx)

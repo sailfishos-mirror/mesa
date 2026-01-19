@@ -15,6 +15,7 @@
 #include "pan_jm.h"
 #include "pan_job.h"
 #include "pan_precomp.h"
+#include "pan_trace.h"
 
 #if PAN_ARCH >= 10
 #error "JM helpers are only used for gen < 10"
@@ -23,6 +24,8 @@
 int
 GENX(jm_init_batch)(struct panfrost_batch *batch)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    /* Reserve the framebuffer and local storage descriptors */
    batch->framebuffer =
 #if PAN_ARCH == 4
@@ -186,6 +189,8 @@ jm_submit_jc(struct panfrost_batch *batch, uint64_t first_job_desc,
 int
 GENX(jm_submit_batch)(struct panfrost_batch *batch)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    struct pipe_screen *pscreen = batch->ctx->base.screen;
    struct panfrost_device *dev = pan_device(pscreen);
    bool has_draws = batch->jm.jobs.vtc_jc.first_job;
@@ -229,6 +234,8 @@ done:
 void
 GENX(jm_preload_fb)(struct panfrost_batch *batch, struct pan_fb_info *fb)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    struct panfrost_device *dev = pan_device(batch->ctx->base.screen);
    struct pan_ptr preload_jobs[2];
 
@@ -248,6 +255,8 @@ void
 GENX(jm_emit_fbds)(struct panfrost_batch *batch, struct pan_fb_info *fb,
                    struct pan_tls_info *tls)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    batch->framebuffer.gpu |= GENX(pan_emit_fbd)(
       fb, 0, tls, &batch->tiler_ctx, batch->framebuffer.cpu);
 }
@@ -256,6 +265,8 @@ void
 GENX(jm_emit_fragment_job)(struct panfrost_batch *batch,
                            const struct pan_fb_info *pfb)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    struct pan_ptr transfer =
       pan_pool_alloc_desc(&batch->pool.base, FRAGMENT_JOB);
 
@@ -290,6 +301,8 @@ void
 GENX(jm_launch_grid)(struct panfrost_batch *batch,
                      const struct pipe_grid_info *info)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    struct pan_ptr t = pan_pool_alloc_desc(&batch->pool.base, COMPUTE_JOB);
 
    /* Invoke according to the grid info */
@@ -850,6 +863,8 @@ void
 GENX(jm_launch_xfb)(struct panfrost_batch *batch,
                     const struct pipe_draw_info *info, unsigned count)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    struct pan_ptr t = pan_pool_alloc_desc(&batch->pool.base, COMPUTE_JOB);
 
 #if PAN_ARCH == 9
@@ -923,6 +938,8 @@ GENX(jm_launch_draw)(struct panfrost_batch *batch,
                      const struct pipe_draw_start_count_bias *draw,
                      unsigned vertex_count)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    struct panfrost_context *ctx = batch->ctx;
    struct panfrost_compiled_shader *vs = ctx->prog[MESA_SHADER_VERTEX];
    bool secondary_shader = vs->info.vs.secondary_enable;
@@ -1007,6 +1024,8 @@ void
 GENX(jm_emit_write_timestamp)(struct panfrost_batch *batch,
                               struct panfrost_resource *dst, unsigned offset)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    struct pan_ptr job = pan_pool_alloc_desc(&batch->pool.base, WRITE_VALUE_JOB);
 
    pan_section_pack(job.cpu, WRITE_VALUE_JOB, PAYLOAD, cfg) {
@@ -1022,6 +1041,8 @@ GENX(jm_emit_write_timestamp)(struct panfrost_batch *batch,
 int
 GENX(jm_init_context)(struct panfrost_context *ctx)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    /* The default context is medium prio, so we use that one. */
    if (!(ctx->flags &
          (PIPE_CONTEXT_HIGH_PRIORITY | PIPE_CONTEXT_LOW_PRIORITY))) {
@@ -1056,6 +1077,8 @@ GENX(jm_init_context)(struct panfrost_context *ctx)
 void
 GENX(jm_cleanup_context)(struct panfrost_context *ctx)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_JM);
+
    if (!ctx->jm.handle)
       return;
 

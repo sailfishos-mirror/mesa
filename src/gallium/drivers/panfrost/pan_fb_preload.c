@@ -16,6 +16,7 @@
 #include "pan_pool.h"
 #include "pan_shader.h"
 #include "pan_texture.h"
+#include "pan_trace.h"
 #include "compiler/pan_compiler.h"
 #include "compiler/pan_nir.h"
 
@@ -1317,6 +1318,8 @@ unsigned
 GENX(pan_preload_fb)(struct pan_fb_preload_cache *cache, struct pan_pool *pool,
                      struct pan_fb_info *fb, uint64_t tsd, struct pan_ptr *jobs)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_FB_PRELOAD);
+
    bool preload_zs = pan_preload_needed(fb, true);
    bool preload_rts = pan_preload_needed(fb, false);
    uint64_t coords;

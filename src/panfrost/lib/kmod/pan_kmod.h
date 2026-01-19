@@ -634,6 +634,8 @@ struct pan_kmod_bo *pan_kmod_bo_import(struct pan_kmod_dev *dev, int fd,
 static inline int
 pan_kmod_bo_export(struct pan_kmod_bo *bo)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
+
    int fd;
 
    if (drmPrimeHandleToFD(bo->dev->fd, bo->handle, DRM_CLOEXEC | DRM_RDWR,
@@ -655,6 +657,8 @@ static inline bool
 pan_kmod_bo_wait(struct pan_kmod_bo *bo, int64_t timeout_ns,
                  bool for_read_only_access)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
+
    return bo->dev->ops->bo_wait(bo, timeout_ns, for_read_only_access);
 }
 
@@ -678,6 +682,8 @@ static inline void *
 pan_kmod_bo_mmap(struct pan_kmod_bo *bo, off_t bo_offset, size_t size, int prot,
                  int flags, void *host_addr)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
+
    off_t mmap_offset;
 
    /* Don't bother trying an mmap() if it's not allowed. */
@@ -716,6 +722,8 @@ void pan_kmod_flush_bo_map_syncs(struct pan_kmod_dev *dev);
 static inline void
 pan_kmod_set_bo_label(struct pan_kmod_dev *dev, struct pan_kmod_bo *bo, const char *label)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
+
    if (dev->ops->bo_set_label)
       dev->ops->bo_set_label(dev, bo, label);
 }
@@ -736,12 +744,16 @@ static inline struct pan_kmod_vm *
 pan_kmod_vm_create(struct pan_kmod_dev *dev, uint32_t flags, uint64_t va_start,
                    uint64_t va_range)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
+
    return dev->ops->vm_create(dev, flags, va_start, va_range);
 }
 
 static inline void
 pan_kmod_vm_destroy(struct pan_kmod_vm *vm)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
+
    vm->dev->ops->vm_destroy(vm);
 }
 
@@ -749,6 +761,8 @@ static inline int
 pan_kmod_vm_bind(struct pan_kmod_vm *vm, enum pan_kmod_vm_op_mode mode,
                  struct pan_kmod_vm_op *ops, uint32_t op_count)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
+
    return vm->dev->ops->vm_bind(vm, mode, ops, op_count);
 }
 

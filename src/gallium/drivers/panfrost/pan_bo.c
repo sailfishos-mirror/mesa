@@ -471,6 +471,8 @@ panfrost_bo_unreference(struct panfrost_bo *bo)
 struct panfrost_bo *
 panfrost_bo_import(struct panfrost_device *dev, int fd)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BO);
+
    struct panfrost_bo *bo;
    ASSERTED int ret;
    unsigned gem_handle;
@@ -534,6 +536,8 @@ panfrost_bo_import(struct panfrost_device *dev, int fd)
 int
 panfrost_bo_export(struct panfrost_bo *bo)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BO);
+
    int ret = pan_kmod_bo_export(bo->kmod_bo);
    if (ret >= 0)
       bo->flags |= PAN_BO_SHARED;

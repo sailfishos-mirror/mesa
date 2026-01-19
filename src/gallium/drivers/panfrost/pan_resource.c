@@ -42,6 +42,8 @@ panfrost_clear_depth_stencil(struct pipe_context *pipe,
                              unsigned dsty, unsigned width, unsigned height,
                              bool render_condition_enabled)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_RESOURCE);
+
    struct panfrost_context *ctx = pan_context(pipe);
 
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
@@ -65,6 +67,8 @@ panfrost_clear_render_target(struct pipe_context *pipe,
                              unsigned dsty, unsigned width, unsigned height,
                              bool render_condition_enabled)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_RESOURCE);
+
    struct panfrost_context *ctx = pan_context(pipe);
 
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
@@ -328,6 +332,8 @@ panfrost_resource_from_handle(struct pipe_screen *pscreen,
                               const struct pipe_resource *templat,
                               struct winsys_handle *whandle, unsigned usage)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_RESOURCE);
+
    struct panfrost_device *dev = pan_device(pscreen);
    struct panfrost_resource *rsc;
    struct pipe_resource *prsc;
@@ -2476,6 +2482,8 @@ panfrost_generate_mipmap(struct pipe_context *pctx, struct pipe_resource *prsrc,
                          unsigned last_level, unsigned first_layer,
                          unsigned last_layer)
 {
+   PAN_TRACE_FUNC(PAN_TRACE_GL_RESOURCE);
+
    struct panfrost_resource *rsrc = pan_resource(prsrc);
 
    perf_debug(pan_context(pctx), "Unoptimized mipmap generation");
