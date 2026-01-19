@@ -18,8 +18,14 @@
 struct kk_shader_info {
    mesa_shader_stage stage;
    union {
+      /* Vertex shader is the pipeline, store all relevant data here. */
       struct {
+         /* Data needed to start render pass and bind pipeline. */
          uint32_t attribs_read;
+         uint32_t sample_count;
+         enum mtl_primitive_type primitive_type;
+
+         /* Data needed for serialization. */
       } vs;
 
       struct {
@@ -30,23 +36,21 @@ struct kk_shader_info {
 
 struct kk_shader {
    struct vk_shader vk;
-   const char *entrypoint_name;
-   const char *msl_code;
 
-   struct kk_shader_info info;
-
-   /* Pipeline resources. Only stored in compute or vertex shaders */
+   /* Metal handles for binding. */
    struct {
       union {
          struct {
             mtl_render_pipeline_state *handle;
             mtl_depth_stencil_state *mtl_depth_stencil_state_handle;
-            enum mtl_primitive_type primitive_type;
-            uint32_t sample_count;
          } gfx;
          mtl_compute_pipeline_state *cs;
       };
    } pipeline;
+
+   struct kk_shader_info info;
+   const char *entrypoint_name;
+   const char *msl_code;
 };
 
 VK_DEFINE_NONDISP_HANDLE_CASTS(kk_shader, vk.base, VkShaderEXT,
