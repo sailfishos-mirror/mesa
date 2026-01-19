@@ -24,7 +24,7 @@
         "description": "venus: fix aliased image memory requirement caching",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "63cac09d748d66efeca34da2c213a9cc476345d6",
         "notes": null
