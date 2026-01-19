@@ -70,6 +70,9 @@ struct intel_device_info;
 #define BRW_SWIZZLE_Z 2
 #define BRW_SWIZZLE_W 3
 
+/** Special value to treat inline parameter values like UNIFORM */
+#define BRW_INLINE_PARAM_REG (65535)
+
 #define BRW_SWIZZLE4(a,b,c,d) (((a)<<0) | ((b)<<2) | ((c)<<4) | ((d)<<6))
 #define BRW_GET_SWZ(swz, idx) (((swz) >> ((idx)*2)) & 0x3)
 

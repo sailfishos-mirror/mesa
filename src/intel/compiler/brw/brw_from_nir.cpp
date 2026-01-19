@@ -4313,15 +4313,12 @@ brw_from_nir_emit_cs_intrinsic(nir_to_brw_state &ntb,
       break;
 
    case nir_intrinsic_load_inline_data_intel: {
-      const brw_cs_thread_payload &payload = s.cs_payload();
       unsigned inline_stride = brw_type_size_bytes(dest.type);
       for (unsigned c = 0; c < instr->def.num_components; c++) {
          xbld.MOV(offset(dest, xbld, c),
-                  retype(
-                     byte_offset(payload.inline_parameter,
-                                 nir_intrinsic_base(instr) +
-                                 c * inline_stride),
-                     dest.type));
+                  byte_offset(brw_uniform_reg(BRW_INLINE_PARAM_REG, dest.type),
+                              nir_intrinsic_base(instr) +
+                              c * inline_stride));
       }
       break;
    }

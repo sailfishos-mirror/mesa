@@ -750,26 +750,32 @@ brw_shader::assign_curb_setup()
    /* Map the offsets in the UNIFORM file to fixed HW regs. */
    foreach_block_and_inst(block, brw_inst, inst, cfg) {
       for (unsigned int i = 0; i < inst->sources; i++) {
-	 if (inst->src[i].file == UNIFORM) {
+	 if (inst->src[i].file != UNIFORM)
+            continue;
+
+         struct brw_reg brw_reg;
+         if (inst->src[i].nr == BRW_INLINE_PARAM_REG) {
+            brw_reg = cs_payload().inline_parameter;
+         } else {
             assert(inst->src[i].nr < 64);
             used |= BITFIELD64_BIT(inst->src[i].nr);
 
             assert(inst->src[i].nr < this->push_data_size);
 
-	    struct brw_reg brw_reg = brw_vec1_grf(payload().num_regs +
-						  inst->src[i].nr, 0);
-            brw_reg.abs = inst->src[i].abs;
-            brw_reg.negate = inst->src[i].negate;
+            brw_reg = brw_vec1_grf(payload().num_regs + inst->src[i].nr, 0);
+         }
 
-            /* The combination of is_scalar for load_uniform, copy prop, and
-             * lower_btd_logical_send can generate a MOV from a UNIFORM with
-             * exec size 2 and stride of 1.
-             */
-            assert(inst->src[i].stride == 0 || inst->exec_size == 2);
-            inst->src[i] = byte_offset(
-               retype(brw_reg, inst->src[i].type),
-               inst->src[i].offset);
-	 }
+         brw_reg.abs = inst->src[i].abs;
+         brw_reg.negate = inst->src[i].negate;
+
+         /* The combination of is_scalar for load_uniform, copy prop, and
+          * lower_btd_logical_send can generate a MOV from a UNIFORM with exec
+          * size 2 and stride of 1.
+          */
+         assert(inst->src[i].stride == 0 || inst->exec_size == 2);
+         inst->src[i] = byte_offset(
+            retype(brw_reg, inst->src[i].type),
+            inst->src[i].offset);
       }
    }
 
