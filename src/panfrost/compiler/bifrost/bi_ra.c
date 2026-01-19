@@ -1,10 +1,6 @@
 /*
  * Copyright (C) 2020,2025 Collabora Ltd.
  * SPDX-License-Identifier: MIT
- *
- * Authors (Collabora):
- *      Alyssa Rosenzweig <alyssa.rosenzweig@collabora.com>
- *      Eric R. Smith <eric.smith@collabora.com>
  */
 
 #include "util/u_memory.h"

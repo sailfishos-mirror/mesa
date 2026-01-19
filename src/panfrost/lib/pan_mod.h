@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2025 Collabora, Ltd.
- *
  * SPDX-License-Identifier: MIT
  */
 

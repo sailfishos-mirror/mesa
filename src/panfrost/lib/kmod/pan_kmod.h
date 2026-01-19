@@ -1,8 +1,9 @@
 /*
  * Copyright © 2023 Collabora, Ltd.
- *
  * SPDX-License-Identifier: MIT
- *
+ */
+
+/*
  * This file exposes some core KMD functionalities in a driver-agnostic way.
  * The drivers are still assumed to be regular DRM drivers, such that some
  * operations can be handled generically.
