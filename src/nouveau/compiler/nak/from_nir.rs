@@ -1533,6 +1533,14 @@ impl<'a> ShaderFromNir<'a> {
                     b.shr(srcs(0), srcs(1), true).into()
                 }
             }
+            nir_op_urol => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.urol(srcs(0), srcs(1)).into()
+            }
+            nir_op_uror => {
+                assert!(alu.get_src(0).bit_size() == 32);
+                b.uror(srcs(0), srcs(1)).into()
+            }
             nir_op_lea_nv => {
                 let src_a = srcs(1);
                 let src_b = srcs(0);

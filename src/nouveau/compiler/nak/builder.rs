@@ -241,6 +241,42 @@ pub trait SSABuilder: Builder {
         dst
     }
 
+    fn urol(&mut self, x: Src, shift: Src) -> SSAValue {
+        let dst = self.alloc_ssa(RegFile::GPR);
+        assert!(self.sm() >= 32);
+
+        self.push_op(OpShf {
+            dst: dst.into(),
+            low: x.clone(),
+            high: x,
+            shift: shift,
+            right: false,
+            wrap: true,
+            data_type: IntType::U32,
+            dst_high: true,
+        });
+
+        dst
+    }
+
+    fn uror(&mut self, x: Src, shift: Src) -> SSAValue {
+        let dst = self.alloc_ssa(RegFile::GPR);
+        assert!(self.sm() >= 32);
+
+        self.push_op(OpShf {
+            dst: dst.into(),
+            low: x.clone(),
+            high: x,
+            shift: shift,
+            right: true,
+            wrap: true,
+            data_type: IntType::U32,
+            dst_high: false,
+        });
+
+        dst
+    }
+
     fn fadd(&mut self, x: Src, y: Src) -> SSAValue {
         let dst = self.alloc_ssa(RegFile::GPR);
         self.push_op(OpFAdd {
