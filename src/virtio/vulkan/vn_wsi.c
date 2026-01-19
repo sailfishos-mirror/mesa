@@ -853,8 +853,25 @@ vn_AcquireNextImage2KHR(VkDevice device,
    if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
       return vn_error(dev->instance, result);
 
-   /* XXX this relies on renderer side doing implicit fencing */
    int sync_fd = -1;
+   if (!dev->renderer->info.has_implicit_fencing) {
+      VkDeviceMemory mem_handle =
+         wsi_common_get_memory(pAcquireInfo->swapchain, *pImageIndex);
+      struct vn_device_memory *mem = vn_device_memory_from_handle(mem_handle);
+      struct vn_image *img = mem->dedicated_img;
+
+      if (img->wsi.is_prime_blit_src)
+         mem = img->wsi.blit_mem;
+
+      /* Only image buffer blit is tracked (both cpu and prime), so we use if
+       * condition below for potential new blit path supported on non-Linux
+       * platforms.
+       */
+      if (mem) {
+         sync_fd =
+            vn_renderer_bo_export_sync_file(dev->renderer, mem->base_bo);
+      }
+   }
 
    int sem_fd = -1, fence_fd = -1;
    if (sync_fd >= 0) {
