@@ -992,7 +992,7 @@ static VkResult pvr_pds_sr_fence_terminate_program_create_and_upload(
 static void pvr_compute_ctx_ws_static_state_init(
    const struct pvr_device_info *const dev_info,
    const struct pvr_compute_ctx *const ctx,
-   struct pvr_winsys_compute_ctx_static_state *const static_state)
+   struct PVR_PER_ARCH(winsys_compute_ctx_static_state) *const static_state)
 {
    const struct pvr_compute_ctx_switch *const ctx_switch = &ctx->ctx_switch;
 
@@ -1102,9 +1102,13 @@ static void pvr_compute_ctx_ws_create_info_init(
 {
    create_info->priority = priority;
 
+#if defined(PVR_BUILD_ARCH_ROGUE)
    pvr_compute_ctx_ws_static_state_init(&ctx->device->pdevice->dev_info,
                                         ctx,
-                                        &create_info->static_state);
+                                        &create_info->static_state.rogue);
+#else
+#   error "Missing arch"
+#endif
 }
 
 VkResult pvr_arch_compute_ctx_create(struct pvr_device *const device,

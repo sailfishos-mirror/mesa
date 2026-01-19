@@ -215,16 +215,18 @@ struct pvr_winsys_render_ctx {
 struct pvr_winsys_compute_ctx_create_info {
    enum pvr_winsys_ctx_priority priority;
 
-   struct pvr_winsys_compute_ctx_static_state {
-      uint64_t cdm_ctx_store_pds0;
-      uint64_t cdm_ctx_store_pds0_b;
-      uint32_t cdm_ctx_store_pds1;
+   union {
+      struct pvr_rogue_winsys_compute_ctx_static_state {
+         uint64_t cdm_ctx_store_pds0;
+         uint64_t cdm_ctx_store_pds0_b;
+         uint32_t cdm_ctx_store_pds1;
 
-      uint64_t cdm_ctx_terminate_pds;
-      uint32_t cdm_ctx_terminate_pds1;
+         uint64_t cdm_ctx_terminate_pds;
+         uint32_t cdm_ctx_terminate_pds1;
 
-      uint64_t cdm_ctx_resume_pds0;
-      uint64_t cdm_ctx_resume_pds0_b;
+         uint64_t cdm_ctx_resume_pds0;
+         uint64_t cdm_ctx_resume_pds0_b;
+      } rogue;
    } static_state;
 };
 

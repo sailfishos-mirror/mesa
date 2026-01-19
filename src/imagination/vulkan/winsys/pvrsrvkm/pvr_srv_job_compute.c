@@ -50,19 +50,22 @@ VkResult pvr_srv_winsys_compute_ctx_create(
    const struct pvr_device_info *dev_info,
    struct pvr_winsys_compute_ctx **const ctx_out)
 {
+   /* TODO: handle non-rogue GPUs */
+   assert(dev_info->ident.arch == PVR_DEVICE_ARCH_ROGUE);
+   const struct pvr_rogue_winsys_compute_ctx_static_state *rogue_state =
+      &create_info->static_state.rogue;
+
    struct rogue_fwif_static_computecontext_state static_state = {
 		.ctx_switch_regs = {
-			.cdm_context_pds0 = create_info->static_state.cdm_ctx_store_pds0,
-			.cdm_context_pds0_b =
-				create_info->static_state.cdm_ctx_store_pds0_b,
-			.cdm_context_pds1 = create_info->static_state.cdm_ctx_store_pds1,
+			.cdm_context_pds0 = rogue_state->cdm_ctx_store_pds0,
+			.cdm_context_pds0_b = rogue_state->cdm_ctx_store_pds0_b,
+			.cdm_context_pds1 = rogue_state->cdm_ctx_store_pds1,
 
-			.cdm_terminate_pds = create_info->static_state.cdm_ctx_terminate_pds,
-			.cdm_terminate_pds1 =
-				create_info->static_state.cdm_ctx_terminate_pds1,
+			.cdm_terminate_pds = rogue_state->cdm_ctx_terminate_pds,
+			.cdm_terminate_pds1 = rogue_state->cdm_ctx_terminate_pds1,
 
-			.cdm_resume_pds0 = create_info->static_state.cdm_ctx_resume_pds0,
-			.cdm_resume_pds0_b = create_info->static_state.cdm_ctx_resume_pds0_b,
+			.cdm_resume_pds0 = rogue_state->cdm_ctx_resume_pds0,
+			.cdm_resume_pds0_b = rogue_state->cdm_ctx_resume_pds0_b,
 		},
 	};
 
