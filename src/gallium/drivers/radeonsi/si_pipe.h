@@ -2333,6 +2333,8 @@ si_emit_all_states(struct si_context *sctx, uint64_t skip_atom_mask)
             sctx->atoms.array[i].emit(sctx, i);
          }
       }
+      /* We don't want any emit function to mark atoms dirty. */
+      assert(!(sctx->dirty_atoms & ~skip_atom_mask));
    }
 }
 
