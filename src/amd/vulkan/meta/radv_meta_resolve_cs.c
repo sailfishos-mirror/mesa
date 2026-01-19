@@ -67,7 +67,7 @@ create_layout(struct radv_device *device, VkPipelineLayout *layout_out)
 
    const VkPushConstantRange pc_range = {
       .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .size = 16,
+      .size = 20,
    };
 
    return vk_meta_get_pipeline_layout(&device->vk, &device->meta_state.device, &desc_info, &pc_range, &key, sizeof(key),
@@ -130,7 +130,7 @@ get_color_resolve_pipeline(struct radv_device *device, struct radv_image_view *s
 
 static void
 emit_resolve(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_iview, struct radv_image_view *dst_iview,
-             const VkOffset2D *src_offset, const VkOffset2D *dst_offset, const VkExtent3D *resolve_extent)
+             const VkOffset2D *src_offset, const VkOffset3D *dst_offset, const VkExtent3D *resolve_extent)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    VkPipelineLayout layout;
@@ -164,11 +164,8 @@ emit_resolve(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_ivi
 
    radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
-   unsigned push_constants[4] = {
-      src_offset->x,
-      src_offset->y,
-      dst_offset->x,
-      dst_offset->y,
+   unsigned push_constants[5] = {
+      src_offset->x, src_offset->y, dst_offset->x, dst_offset->y, dst_offset->z,
    };
 
    const VkPushConstantsInfoKHR pc_info = {
@@ -339,7 +336,8 @@ radv_meta_resolve_compute_image(struct radv_cmd_buffer *cmd_buffer, struct radv_
                         NULL);
 
    emit_resolve(cmd_buffer, &src_iview, &dst_iview, &(VkOffset2D){srcOffset.x, srcOffset.y},
-                &(VkOffset2D){dstOffset.x, dstOffset.y}, &(VkExtent3D){extent.width, extent.height, layer_count});
+                &(VkOffset3D){dstOffset.x, dstOffset.y, dstOffset.z},
+                &(VkExtent3D){extent.width, extent.height, layer_count});
 
    radv_image_view_finish(&src_iview);
    radv_image_view_finish(&dst_iview);
