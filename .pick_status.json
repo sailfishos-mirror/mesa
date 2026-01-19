@@ -1554,7 +1554,7 @@
         "description": "r600: fix rv770 clamp to max_texel_buffer_elements",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1a441ad5cb58e8169a0d83dd63a7c38462cdb18b",
         "notes": null

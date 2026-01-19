@@ -1466,8 +1466,11 @@ static void r600_setup_buffer_constants(struct r600_context *rctx, int shader_ty
 			} else
 				constants[offset + 4] = 0;
 
-			constants[offset + 5] = samplers->views.views[i]->base.u.buf.size /
-				            util_format_get_blocksize(samplers->views.views[i]->base.format);
+			constants[offset + 5] = MIN2(util_format_get_blocksize(samplers->views.views[i]->base.format) *
+						     rctx->screen->b.b.caps.max_texel_buffer_elements,
+						     samplers->views.views[i]->base.u.buf.size) /
+				util_format_get_blocksize(samplers->views.views[i]->base.format);
+
 			constants[offset + 6] = samplers->views.views[i]->base.texture->array_size / 6;
 		}
 	}
