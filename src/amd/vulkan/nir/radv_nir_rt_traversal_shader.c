@@ -523,8 +523,8 @@ lower_any_hit_for_intersection(nir_shader *any_hit)
 /* Inline the any_hit shader into the intersection shader so we don't have
  * to implement yet another shader call interface here. Neither do any recursion.
  */
-static void
-nir_lower_intersection_shader(nir_shader *intersection, nir_shader *any_hit)
+void
+radv_nir_lower_intersection_shader(nir_shader *intersection, nir_shader *any_hit)
 {
    void *dead_ctx = ralloc_context(NULL);
 
@@ -609,7 +609,8 @@ nir_lower_intersection_shader(nir_shader *intersection, nir_shader *any_hit)
    NIR_PASS(_, intersection, nir_opt_deref);
 
    /* Reflect the scratch memory required by the inlined any-hit shader */
-   intersection->scratch_size += any_hit->scratch_size;
+   if (any_hit)
+      intersection->scratch_size += any_hit->scratch_size;
 
    ralloc_free(dead_ctx);
 }
@@ -670,7 +671,7 @@ radv_build_isec_case(nir_builder *b, nir_def *sbt_idx, struct radv_ray_tracing_g
 
       params->preprocess(any_hit_stage, params->preprocess_data);
 
-      nir_lower_intersection_shader(nir_stage, any_hit_stage);
+      radv_nir_lower_intersection_shader(nir_stage, any_hit_stage);
       ralloc_free(any_hit_stage);
    }
 
