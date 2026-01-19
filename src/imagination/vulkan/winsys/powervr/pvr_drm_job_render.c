@@ -30,7 +30,6 @@
 #include <xf86drm.h>
 
 #include "drm-uapi/pvr_drm.h"
-#include "pvr_csb.h"
 #include "pvr_drm.h"
 #include "pvr_drm_bo.h"
 #include "pvr_drm_job_common.h"
