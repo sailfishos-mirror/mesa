@@ -243,6 +243,12 @@ vn_wsi_memory_info_init(struct vn_device_memory *mem,
       struct vn_buffer *buf = vn_buffer_from_handle(dedicated_info->buffer);
       buf->wsi.mem = mem;
    }
+
+   /* wsi_memory_allocate_info is not chained for prime blit src */
+   if (dedicated_info && dedicated_info->image != VK_NULL_HANDLE) {
+      struct vn_image *img = vn_image_from_handle(dedicated_info->image);
+      mem->dedicated_img = img;
+   }
 }
 
 static uint32_t
