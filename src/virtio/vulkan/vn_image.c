@@ -97,20 +97,6 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
    if (!dev->image_reqs_cache.ht)
       return false;
 
-   /* Strip the alias bit as the memory requirements are identical.
-    *
-    * Except on:
-    * - ANV: https://gitlab.freedesktop.org/mesa/mesa/-/issues/14671
-    */
-   VkImageCreateInfo local_info;
-   if ((create_info->flags & VK_IMAGE_CREATE_ALIAS_BIT) &&
-       (dev->physical_device->renderer_driver_id !=
-        VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA)) {
-      local_info = *create_info;
-      local_info.flags &= ~VK_IMAGE_CREATE_ALIAS_BIT;
-      create_info = &local_info;
-   }
-
    _mesa_sha1_init(&sha1_ctx);
 
    /* Hash relevant fields in the pNext chain */
