@@ -99,21 +99,6 @@ anv_shader_internal_create(struct anv_device *device,
                                  &anv_shader_internal_ops, obj_key_data, key_size);
 
    shader->stage = stage;
-
-   shader->code = code;
-   memcpy(shader->code, kernel_data, kernel_size);
-
-   shader->kernel = anv_shader_heap_alloc(&device->shader_heap,
-                                          kernel_size, 64, false, 0);
-   if (shader->kernel.alloc_size == 0) {
-      vk_pipeline_cache_object_finish(&shader->base);
-      vk_free(&device->vk.alloc, shader);
-      return NULL;
-   }
-
-   anv_shader_heap_upload(&device->shader_heap, shader->kernel,
-                          kernel_data, kernel_size);
-
    shader->kernel_size = kernel_size;
 
    memcpy(prog_data, prog_data_in, prog_data_size);
@@ -127,6 +112,45 @@ anv_shader_internal_create(struct anv_device *device,
    assert((stats != NULL) || (num_stats == 0));
    typed_memcpy(shader->stats, stats, num_stats);
    shader->num_stats = num_stats;
+
+   shader->code = code;
+   memcpy(shader->code, kernel_data, kernel_size);
+
+   if (INTEL_DEBUG(DEBUG_SHADER_PRINT)) {
+      struct intel_shader_reloc_value reloc_values[3];
+      uint32_t rv_count = 0;
+
+      struct anv_bo *bo = device->printf.bo;
+      assert(bo != NULL);
+
+      reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+         .id = BRW_SHADER_RELOC_PRINTF_BUFFER_ADDR_LOW,
+         .value = bo->offset & 0xffffffff,
+      };
+      reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+         .id = BRW_SHADER_RELOC_PRINTF_BUFFER_ADDR_HIGH,
+         .value = bo->offset >> 32,
+      };
+      reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+         .id = BRW_SHADER_RELOC_PRINTF_BUFFER_SIZE,
+         .value = anv_printf_buffer_size(),
+      };
+
+      brw_write_shader_relocs(&device->physical->compiler->isa,
+                              shader->code, shader->prog_data,
+                              reloc_values, rv_count);
+   }
+
+   shader->kernel = anv_shader_heap_alloc(&device->shader_heap,
+                                          kernel_size, 64, false, 0);
+   if (shader->kernel.alloc_size == 0) {
+      vk_pipeline_cache_object_finish(&shader->base);
+      vk_free(&device->vk.alloc, shader);
+      return NULL;
+   }
+
+   anv_shader_heap_upload(&device->shader_heap, shader->kernel,
+                          kernel_data, kernel_size);
 
    return shader;
 }
