@@ -181,19 +181,21 @@ panvk_get_gpu_page_size(const struct panvk_device *device)
 }
 
 static inline uint64_t
-panvk_as_alloc(struct panvk_device *device, uint64_t size, uint64_t alignment)
+panvk_as_alloc(struct panvk_device *device, struct util_vma_heap *heap,
+               uint64_t size, uint64_t alignment)
 {
    simple_mtx_lock(&device->as.lock);
-   uint64_t address = util_vma_heap_alloc(&device->as.heap, size, alignment);
+   uint64_t address = util_vma_heap_alloc(heap, size, alignment);
    simple_mtx_unlock(&device->as.lock);
    return address;
 }
 
 static inline void
-panvk_as_free(struct panvk_device *device, uint64_t address, uint64_t size)
+panvk_as_free(struct panvk_device *device, struct util_vma_heap *heap,
+              uint64_t address, uint64_t size)
 {
    simple_mtx_lock(&device->as.lock);
-   util_vma_heap_free(&device->as.heap, address, size);
+   util_vma_heap_free(heap, address, size);
    simple_mtx_unlock(&device->as.lock);
 }
 

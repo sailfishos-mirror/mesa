@@ -168,7 +168,8 @@ panvk_AllocateMemory(VkDevice _device,
    };
 
    if (!(device->kmod.vm->flags & PAN_KMOD_VM_FLAG_AUTO_VA)) {
-      op.va.start = panvk_as_alloc(device, op.va.size,
+      op.va.start = panvk_as_alloc(
+         device, &device->as.heap, op.va.size,
          pan_choose_gpu_va_alignment(device->kmod.vm, op.va.size));
       if (!op.va.start) {
          result = panvk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
@@ -222,7 +223,7 @@ panvk_AllocateMemory(VkDevice _device,
 
 err_return_va:
    if (!(device->kmod.vm->flags & PAN_KMOD_VM_FLAG_AUTO_VA)) {
-      panvk_as_free(device, op.va.start, op.va.size);
+      panvk_as_free(device, &device->as.heap, op.va.start, op.va.size);
    }
 
 err_put_bo:
@@ -268,7 +269,7 @@ panvk_FreeMemory(VkDevice _device, VkDeviceMemory _mem,
    assert(!ret);
 
    if (!(device->kmod.vm->flags & PAN_KMOD_VM_FLAG_AUTO_VA)) {
-      panvk_as_free(device, op.va.start, op.va.size);
+      panvk_as_free(device, &device->as.heap, op.va.start, op.va.size);
    }
 
    panvk_memory_emit_report(device, mem, /* alloc_info */ NULL, VK_SUCCESS);
