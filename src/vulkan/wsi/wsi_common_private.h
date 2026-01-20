@@ -207,6 +207,7 @@ struct wsi_swapchain {
     * first pixel being scanned out.
     */
    VkSemaphore present_id_timeline;
+   bool present_wait_enabled;
 
    int signal_dma_buf_from_semaphore;
    /**

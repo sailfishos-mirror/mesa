@@ -479,6 +479,9 @@ wsi_swapchain_init(const struct wsi_device *wsi,
    chain->device = _device;
    chain->alloc = *pAllocator;
    chain->blit.type = get_blit_type(wsi, image_params, _device);
+   chain->present_wait_enabled =
+      device->enabled_features.presentWait ||
+      (pCreateInfo->flags & VK_SWAPCHAIN_CREATE_PRESENT_WAIT_2_BIT_KHR);
 
    chain->blit.queue = NULL;
    if (chain->blit.type != WSI_SWAPCHAIN_NO_BLIT) {
@@ -1079,8 +1082,7 @@ wsi_CreateSwapchainKHR(VkDevice _device,
       return VK_ERROR_OUT_OF_HOST_MEMORY;
    }
 
-   if (device->enabled_features.presentWait ||
-       device->enabled_features.presentWait2) {
+   if (swapchain->present_wait_enabled) {
       assert(wsi_device->has_present_wait);
       const VkSemaphoreTypeCreateInfo type_info = {
          .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
@@ -1570,8 +1572,7 @@ wsi_common_queue_present(const struct wsi_device *wsi,
       if (present_id > 0) {
          image_signal_infos[i].present_id = present_id;
 
-         if (dev->enabled_features.presentWait ||
-             dev->enabled_features.presentWait2) {
+         if (swapchain->present_wait_enabled) {
             const VkSemaphoreSubmitInfo sem_info = {
                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
                .semaphore = swapchain->present_id_timeline,
