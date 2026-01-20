@@ -41,7 +41,7 @@ def_annotate_value(nir_def *def, void *data)
 
    fprintf(output, "// ");
    if (def->num_components == 1) {
-      fprintf(output, "0x%0" PRIx64, value->u64);
+      fprintf(output, "0x%0" PRIx64, nir_const_value_as_uint(value[0], def->bit_size));
       if (def->bit_size >= 16)
          fprintf(output, " = %f", nir_const_value_as_float(value[0], def->bit_size));
 
@@ -50,7 +50,7 @@ def_annotate_value(nir_def *def, void *data)
       for (uint32_t comp = 0; comp < def->num_components; comp++) {
          if (comp > 0)
             fprintf(output, ", ");
-         fprintf(output, "0x%0" PRIx64, value[comp].u64);
+         fprintf(output, "0x%0" PRIx64, nir_const_value_as_uint(value[comp], def->bit_size));
       }
       fprintf(output, ")");
       if (def->bit_size >= 16) {
