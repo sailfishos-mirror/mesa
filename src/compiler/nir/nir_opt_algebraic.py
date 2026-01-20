@@ -2805,12 +2805,12 @@ optimizations.extend([
 
    (('imad24_ir3', a, b, 0), ('imul24', a, b)),
    (('imad24_ir3', a, 0, c), (c)),
-   (('imad24_ir3', a, 1, c), ('iadd', a, c)),
+   (('imad24_ir3', a, 1, c), ('iadd', a, c)), # this is not correct -- a's sign extension gets dropped.
 
    # if first two srcs are const, crack apart the imad so constant folding
    # can clean up the imul:
    # TODO ffma should probably get a similar rule:
-   (('imad24_ir3', '#a', '#b', c), ('iadd', ('imul', a, b), c)),
+   (('imad24_ir3', '#a', '#b', c), ('iadd', ('imul24', a, b), c)),
 
    # These will turn 24b address/offset calc back into 32b shifts, but
    # it should be safe to get back some of the bits of precision that we
