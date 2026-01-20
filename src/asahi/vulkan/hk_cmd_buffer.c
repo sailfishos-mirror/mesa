@@ -378,13 +378,8 @@ hk_bind_descriptor_sets(UNUSED struct hk_cmd_buffer *cmd,
     * it changes set_dynamic_buffer_start[s], this binding is implicitly
     * invalidated.
     */
-   uint8_t dyn_buffer_start = 0u;
-   for (uint32_t i = 0u; i < info->firstSet; ++i) {
-      const struct hk_descriptor_set_layout *set_layout =
-         vk_to_hk_descriptor_set_layout(pipeline_layout->set_layouts[i]);
-      if (set_layout)
-         dyn_buffer_start += set_layout->vk.dynamic_descriptor_count;
-   }
+   uint8_t dyn_buffer_start =
+      pipeline_layout->dynamic_descriptor_offset[info->firstSet];
 
    uint32_t next_dyn_offset = 0;
    for (uint32_t i = 0; i < info->descriptorSetCount; ++i) {
