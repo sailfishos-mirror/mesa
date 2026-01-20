@@ -50,7 +50,6 @@ struct anyhit_shader_vars {
    nir_variable *shader_record_ptr;
 
    /* Only used in intersection shaders */
-   nir_variable *terminated;
    nir_variable *opaque;
 
    /* Original parameters to traversal. Needed in any-hit/intersection inlining */
@@ -190,7 +189,6 @@ init_anyhit_vars(nir_shader *shader, struct anyhit_shader_vars *vars)
    vars->ahit_terminate = nir_variable_create(shader, nir_var_shader_temp, glsl_bool_type(), "ahit_terminate");
    vars->shader_record_ptr =
       nir_variable_create(shader, nir_var_shader_temp, glsl_uint64_t_type(), "ahit_shader_record");
-   vars->terminated = nir_variable_create(shader, nir_var_shader_temp, glsl_bool_type(), "intersection_terminate");
    vars->opaque = nir_variable_create(shader, nir_var_shader_temp, glsl_bool_type(), "intersection_opaque");
    vars->origin =
       nir_variable_create(shader, nir_var_shader_temp, glsl_vector_type(GLSL_TYPE_FLOAT, 3), "param_origin");
@@ -208,7 +206,6 @@ map_anyhit_vars(struct hash_table *var_remap, const struct anyhit_shader_vars *s
    _mesa_hash_table_insert(var_remap, src->ahit_accept, dst->ahit_accept);
    _mesa_hash_table_insert(var_remap, src->ahit_terminate, dst->ahit_terminate);
    _mesa_hash_table_insert(var_remap, src->shader_record_ptr, dst->shader_record_ptr);
-   _mesa_hash_table_insert(var_remap, src->terminated, dst->terminated);
    _mesa_hash_table_insert(var_remap, src->opaque, dst->opaque);
    _mesa_hash_table_insert(var_remap, src->origin, dst->origin);
    _mesa_hash_table_insert(var_remap, src->dir, dst->dir);
@@ -308,26 +305,36 @@ lower_ahit_isec_intrinsics(nir_builder *b, nir_intrinsic_instr *intr, void *_par
       nir_store_var(b, params->anyhit_vars->ahit_accept, nir_imm_true(b), 0x1);
       nir_store_var(b, params->anyhit_vars->ahit_terminate, nir_imm_true(b), 0x1);
 
-      /* The if is a workaround to avoid having to fix up control flow manually */
-      nir_push_if(b, nir_imm_true(b));
-      nir_jump(b, nir_jump_return);
-      nir_pop_if(b, NULL);
+      /* If we're compiling an intersection shader that has an inlined any-hit shader,
+       * nir_lower_intersection_shader will already have inserted the return back to the
+       * intersection shader for us. Only insert a return if we're compiling just an any-hit
+       * shader.
+       */
+      if (b->shader->info.stage == MESA_SHADER_ANY_HIT) {
+         /* The if is a workaround to avoid having to fix up control flow manually */
+         nir_push_if(b, nir_imm_true(b));
+         nir_jump(b, nir_jump_return);
+         nir_pop_if(b, NULL);
+      }
       nir_instr_remove(&intr->instr);
       return true;
    }
    case nir_intrinsic_report_ray_intersection: {
       nir_def *in_range = nir_iand(b, nir_fge(b, nir_load_var(b, params->trav_vars->result.tmax), intr->src[0].ssa),
                                    nir_fge(b, intr->src[0].ssa, nir_load_var(b, params->anyhit_vars->tmin)));
-      nir_def *terminated = nir_load_var(b, params->anyhit_vars->terminated);
-      nir_push_if(b, nir_iand(b, in_range, nir_inot(b, terminated)));
+      nir_push_if(b, in_range);
       {
          nir_store_var(b, params->anyhit_vars->ahit_accept, nir_imm_true(b), 0x1);
          nir_store_var(b, params->candidate->tmax, intr->src[0].ssa, 1);
          nir_store_var(b, params->candidate->hit_kind, intr->src[1].ssa, 1);
          nir_def *terminate_on_first_hit =
             nir_test_mask(b, nir_load_var(b, params->anyhit_vars->cull_mask_and_flags), SpvRayFlagsTerminateOnFirstHitKHRMask);
-         nir_store_var(b, params->anyhit_vars->terminated,
-                       nir_ior(b, terminate_on_first_hit, nir_load_var(b, params->anyhit_vars->ahit_terminate)), 1);
+         nir_def *terminate = nir_ior(b, terminate_on_first_hit, nir_load_var(b, params->anyhit_vars->ahit_terminate));
+         nir_store_var(b, params->anyhit_vars->ahit_terminate, terminate, 1);
+
+         nir_push_if(b, terminate);
+         nir_jump(b, nir_jump_return);
+         nir_pop_if(b, NULL);
       }
       nir_pop_if(b, NULL);
       nir_instr_remove(&intr->instr);
@@ -457,9 +464,13 @@ lower_any_hit_for_intersection(nir_shader *any_hit)
                break;
 
             case nir_intrinsic_terminate_ray:
-               /* The "normal" handling of terminateRay works fine in
-                * intersection shaders.
+               b->cursor = nir_after_instr(instr);
+               /* Insert a return from the any-hit shader here, so that we jump back to the intersection shader.
+                * Keep the intrinsic so the intersection shader lowering can use it to update state variables.
                 */
+               nir_push_if(b, nir_imm_true(b));
+               nir_jump(b, nir_jump_return);
+               nir_pop_if(b, NULL);
                break;
 
             case nir_intrinsic_load_ray_t_max:
@@ -938,7 +949,6 @@ handle_candidate_aabb(nir_builder *b, struct radv_leaf_intersection *intersectio
    nir_store_var(b, ahit_vars.dir, data->params->direction, 0x7);
    nir_store_var(b, ahit_vars.tmin, data->params->tmin, 0x1);
    nir_store_var(b, ahit_vars.cull_mask_and_flags, data->params->cull_mask_and_flags, 0x1);
-   nir_store_var(b, ahit_vars.terminated, nir_imm_false(b), 0x1);
    nir_store_var(b, ahit_vars.opaque, intersection->opaque, 0x1);
 
    if (data->trav_vars.ahit_isec_count)
@@ -972,7 +982,7 @@ handle_candidate_aabb(nir_builder *b, struct radv_leaf_intersection *intersectio
    nir_push_if(b, nir_load_var(b, ahit_vars.ahit_accept));
    {
       copy_traversal_result(b, &data->trav_vars.result, &candidate_result);
-      nir_break_if(b, nir_load_var(b, ahit_vars.terminated));
+      nir_break_if(b, nir_load_var(b, ahit_vars.ahit_terminate));
    }
    nir_pop_if(b, NULL);
 }
