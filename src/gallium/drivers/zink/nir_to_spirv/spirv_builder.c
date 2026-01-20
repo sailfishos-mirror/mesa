@@ -32,7 +32,6 @@
 #include "util/hash_table.h"
 #define XXH_INLINE_ALL
 #include "util/xxhash.h"
-#include "vk_util.h"
 
 #include <stdbool.h>
 #include <inttypes.h>
