@@ -745,6 +745,10 @@ iris_screen_create(int fd, const struct pipe_screen_config *config)
       driQueryOptionb(config->options, "intel_enable_wa_14018912822");
    screen->driconf.intel_enable_wa_14024015672_msaa =
       driQueryOptionb(config->options, "intel_enable_wa_14024015672_msaa");
+   screen->driconf.force_sampler_prefetch =
+      driQueryOptionb(config->options, "intel_force_sampler_prefetch");
+   screen->driconf.force_compute_surface_prefetch =
+      driQueryOptionb(config->options, "intel_force_compute_surface_prefetch");
    screen->driconf.enable_tbimr =
       driQueryOptionb(config->options, "intel_tbimr");
    screen->driconf.enable_vf_distribution =

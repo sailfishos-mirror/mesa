@@ -27,15 +27,36 @@
         }))
 
 static uint32_t
-get_sampler_count(const struct anv_shader *shader)
+get_surface_count(const struct anv_device *device,
+                  const struct anv_shader *shader)
 {
-   uint32_t count_by_4 = DIV_ROUND_UP(shader->bind_map.sampler_count, 4);
+#if GFX_VERx10 >= 125
+   if (shader->vk.stage == MESA_SHADER_COMPUTE &&
+       !device->physical->instance->force_compute_surface_prefetch)
+      return 0;
+#endif
+   return shader->bind_map.surface_count;
+}
 
-   /* We can potentially have way more than 32 samplers and that's ok.
-    * However, the 3DSTATE_XS packets only have 3 bits to specify how
-    * many to pre-fetch and all values above 4 are marked reserved.
+static uint32_t
+get_sampler_count(const struct anv_device *device,
+                  const struct anv_shader *shader)
+{
+#if GFX_VER == 11
+   /* Wa_1606682166:
+    *
+    * Incorrect TDL's SSP address shift in SARB for 16:6 & 18:8 modes. Disable
+    * the Sampler state prefetch functionality in the SARB by programming
+    * 0xB000[30] to '1'.
     */
-   return MIN2(count_by_4, 4);
+   return 0;
+#else
+   if (!device->physical->instance->force_sampler_prefetch)
+      return 0;
+
+   return DIV_ROUND_UP(
+      CLAMP(shader->bind_map.sampler_count, 0, 16), 4);
+#endif
 }
 
 static UNUSED struct anv_address
@@ -557,13 +578,8 @@ emit_vs_shader(struct anv_batch *batch,
       vs.SingleVertexDispatch       = false;
 #endif
       vs.VectorMaskEnable           = false;
-      /* Wa_1606682166:
-       * Incorrect TDL's SSP address shift in SARB for 16:6 & 18:8 modes.
-       * Disable the Sampler state prefetch functionality in the SARB by
-       * programming 0xB000[30] to '1'.
-       */
-      vs.SamplerCount               = GFX_VER == 11 ? 0 : get_sampler_count(shader);
-      vs.BindingTableEntryCount     = shader->bind_map.surface_count;
+      vs.SamplerCount               = get_sampler_count(device, shader);
+      vs.BindingTableEntryCount     = get_surface_count(device, shader);
       vs.FloatingPointMode          = IEEE754;
       vs.IllegalOpcodeExceptionEnable = false;
       vs.SoftwareExceptionEnable    = false;
@@ -619,9 +635,8 @@ emit_hs_shader(struct anv_batch *batch,
       hs.Enable = true;
       hs.StatisticsEnable = true;
       hs.KernelStartPointer = shader->kernel.offset;
-      /* Wa_1606682166 */
-      hs.SamplerCount = GFX_VER == 11 ? 0 : get_sampler_count(shader);
-      hs.BindingTableEntryCount = shader->bind_map.surface_count;
+      hs.SamplerCount = get_sampler_count(device, shader);
+      hs.BindingTableEntryCount = get_surface_count(device, shader);
 
 #if GFX_VER >= 12
       /* Wa_1604578095:
@@ -724,9 +739,8 @@ emit_ds_shader(struct anv_batch *batch,
       ds.Enable = true;
       ds.StatisticsEnable = true;
       ds.KernelStartPointer = shader->kernel.offset;
-      /* Wa_1606682166 */
-      ds.SamplerCount = GFX_VER == 11 ? 0 : get_sampler_count(shader);
-      ds.BindingTableEntryCount = shader->bind_map.surface_count;
+      ds.SamplerCount = get_sampler_count(device, shader);
+      ds.BindingTableEntryCount = get_surface_count(device, shader);
       ds.MaximumNumberofThreads = devinfo->max_tes_threads - 1;
 
       ds.PatchURBEntryReadLength = tes_prog_data->base.urb_read_length;
@@ -799,9 +813,8 @@ emit_gs_shader(struct anv_batch *batch,
 
       gs.SingleProgramFlow       = false;
       gs.VectorMaskEnable        = false;
-      /* Wa_1606682166 */
-      gs.SamplerCount            = GFX_VER == 11 ? 0 : get_sampler_count(shader);
-      gs.BindingTableEntryCount  = shader->bind_map.surface_count;
+      gs.SamplerCount            = get_sampler_count(device, shader);
+      gs.BindingTableEntryCount  = get_surface_count(device, shader);
       gs.IncludeVertexHandles    = gs_prog_data->base.include_vue_handles;
       gs.IncludePrimitiveID      = gs_prog_data->include_primitive_id;
 
@@ -1060,9 +1073,8 @@ emit_ps_shader(struct anv_batch *batch,
 
       ps.SingleProgramFlow          = false;
       ps.VectorMaskEnable           = wm_prog_data->uses_vmask;
-      /* Wa_1606682166 */
-      ps.SamplerCount               = GFX_VER == 11 ? 0 : get_sampler_count(shader);
-      ps.BindingTableEntryCount     = shader->bind_map.surface_count;
+      ps.SamplerCount               = get_sampler_count(device, shader);
+      ps.BindingTableEntryCount     = get_surface_count(device, shader);
 #if GFX_VER < 20
       ps.PushConstantEnable         = wm_prog_data->base.push_sizes[0] > 0;
 #endif
@@ -1177,11 +1189,8 @@ emit_cs_shader(struct anv_batch *batch,
       },
       .InterfaceDescriptor            = {
          .KernelStartPointer                = shader->kernel.offset,
-         .SamplerCount                      = DIV_ROUND_UP(
-            CLAMP(shader->bind_map.sampler_count, 0, 16), 4),
-         /* Typically set to 0 to avoid prefetching on every thread dispatch. */
-         .BindingTableEntryCount            = devinfo->verx10 == 125 ?
-                                              0 : 1 + MIN2(shader->bind_map.surface_count, 30),
+         .SamplerCount                      = get_sampler_count(device, shader),
+         .BindingTableEntryCount            = MIN2(get_surface_count(device, shader), 31),
          .NumberofThreadsinGPGPUThreadGroup = dispatch.threads,
          .SharedLocalMemorySize             = intel_compute_slm_encode_size(
             GFX_VER, cs_prog_data->base.total_shared),
@@ -1231,16 +1240,8 @@ emit_cs_shader(struct anv_batch *batch,
          shader->kernel.offset +
          brw_cs_prog_data_prog_offset(cs_prog_data, dispatch.simd_size),
 
-      /* Wa_1606682166 */
-      .SamplerCount           = GFX_VER == 11 ? 0 : get_sampler_count(shader),
-
-      /* We add 1 because the CS indirect parameters buffer isn't accounted
-       * for in bind_map.surface_count.
-       *
-       * Typically set to 0 to avoid prefetching on every thread dispatch.
-       */
-      .BindingTableEntryCount = devinfo->verx10 == 125 ?
-         0 : MIN2(shader->bind_map.surface_count, 30),
+      .SamplerCount           = get_sampler_count(device, shader),
+      .BindingTableEntryCount = MIN2(get_surface_count(device, shader), 31),
       .BarrierEnable          = cs_prog_data->uses_barrier,
       .SharedLocalMemorySize  =
          intel_compute_slm_encode_size(GFX_VER, cs_prog_data->base.total_shared),

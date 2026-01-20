@@ -36,6 +36,8 @@ static const driOptionDescription anv_dri_options[] = {
       DRI_CONF_ANV_FORCE_INDIRECT_DESCRIPTORS(false)
       DRI_CONF_ANV_DISABLE_LINK_TIME_OPTIMIZATION(false)
       DRI_CONF_SHADER_SPILLING_RATE(11)
+      DRI_CONFIG_INTEL_FORCE_COMPUTE_SURFACE_PREFETCH(false)
+      DRI_CONFIG_INTEL_FORCE_SAMPLER_PREFETCH(false)
       DRI_CONFIG_INTEL_TBIMR(true)
       DRI_CONFIG_INTEL_VF_DISTRIBUTION(true)
       DRI_CONFIG_INTEL_TE_DISTRIBUTION(true)
@@ -200,6 +202,10 @@ anv_init_dri_options(struct anv_instance *instance)
        driQueryOptioni(&instance->dri_options, "force_vk_vendor");
     instance->has_fake_sparse =
        driQueryOptionb(&instance->dri_options, "fake_sparse");
+    instance->force_sampler_prefetch =
+       driQueryOptionb(&instance->dri_options, "intel_force_sampler_prefetch");
+    instance->force_compute_surface_prefetch =
+       driQueryOptionb(&instance->dri_options, "intel_force_compute_surface_prefetch");
     instance->enable_tbimr = driQueryOptionb(&instance->dri_options, "intel_tbimr");
     instance->enable_vf_distribution =
        driQueryOptionb(&instance->dri_options, "intel_vf_distribution");

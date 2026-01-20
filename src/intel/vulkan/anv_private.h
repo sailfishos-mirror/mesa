@@ -1782,6 +1782,8 @@ struct anv_instance {
     bool                                        custom_border_colors_without_format;
     bool                                        vf_component_packing;
     bool                                        large_workgroup_non_coherent_image_workaround;
+    bool                                        force_sampler_prefetch;
+    bool                                        force_compute_surface_prefetch;
 
     /* HW workarounds */
     bool                                        no_16bit;

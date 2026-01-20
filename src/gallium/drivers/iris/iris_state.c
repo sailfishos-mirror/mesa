@@ -5111,20 +5111,40 @@ iris_populate_cs_key(const struct iris_context *ice,
 }
 
 static inline uint32_t
-encode_sampler_count(const struct iris_compiled_shader *shader)
+encode_sampler_count(const struct iris_screen *screen,
+                     const struct iris_compiled_shader *shader)
 {
+#if GFX_VER == 11
+   /* Wa_1606682166 */
+   return 0;
+#else
+   if (!screen->driconf.force_sampler_prefetch)
+      return 0;
    /* We can potentially have way more than 32 samplers and that's ok.
     * However, the 3DSTATE_XS packets only have 3 bits to specify how
     * many to pre-fetch and all values above 4 are marked reserved.
     */
    uint32_t count = util_last_bit64(shader->bt.samplers_used_mask);
    return DIV_ROUND_UP(CLAMP(count, 0, 16), 4);
+#endif
+}
+
+static inline uint32_t
+encode_surface_count(const struct iris_screen *screen,
+                     const struct iris_compiled_shader *shader)
+{
+#if GFX_VERx10 >= 125
+   if (shader->stage == MESA_SHADER_COMPUTE &&
+       !screen->driconf.force_compute_surface_prefetch)
+      return 0;
+#endif
+   return shader->bt.size_bytes / 4;
 }
 
 #define INIT_THREAD_DISPATCH_FIELDS(pkt, prefix, stage)                   \
    pkt.KernelStartPointer = KSP(shader);                                  \
-   pkt.BindingTableEntryCount = shader->bt.size_bytes / 4;                \
-   pkt.SamplerCount = encode_sampler_count(shader);                       \
+   pkt.BindingTableEntryCount = encode_surface_count(screen, shader);     \
+   pkt.SamplerCount = encode_sampler_count(screen, shader);               \
    pkt.FloatingPointMode = shader->use_alt_mode;                          \
                                                                           \
    pkt.DispatchGRFStartRegisterForURBData =                               \
@@ -5180,9 +5200,10 @@ encode_sampler_count(const struct iris_compiled_shader *shader)
  * Encode most of 3DSTATE_VS based on the compiled shader.
  */
 static void
-iris_store_vs_state(const struct intel_device_info *devinfo,
+iris_store_vs_state(const struct iris_screen *screen,
                     struct iris_compiled_shader *shader)
 {
+   const struct intel_device_info *devinfo = screen->devinfo;
    struct iris_vue_data *vue_data = iris_vue_data(shader);
 
    iris_pack_command(GENX(3DSTATE_VS), shader->derived_data, vs) {
@@ -5203,9 +5224,10 @@ iris_store_vs_state(const struct intel_device_info *devinfo,
  * Encode most of 3DSTATE_HS based on the compiled shader.
  */
 static void
-iris_store_tcs_state(const struct intel_device_info *devinfo,
+iris_store_tcs_state(const struct iris_screen *screen,
                      struct iris_compiled_shader *shader)
 {
+   const struct intel_device_info *devinfo = screen->devinfo;
    struct iris_tcs_data *tcs_data = iris_tcs_data(shader);
    struct iris_vue_data *vue_data = &tcs_data->base;
 
@@ -5252,9 +5274,10 @@ iris_store_tcs_state(const struct intel_device_info *devinfo,
  * Encode 3DSTATE_TE and most of 3DSTATE_DS based on the compiled shader.
  */
 static void
-iris_store_tes_state(const struct intel_device_info *devinfo,
+iris_store_tes_state(const struct iris_screen *screen,
                      struct iris_compiled_shader *shader)
 {
+   const struct intel_device_info *devinfo = screen->devinfo;
    struct iris_tes_data *tes_data = iris_tes_data(shader);
    struct iris_vue_data *vue_data = &tes_data->base;
 
@@ -5319,9 +5342,10 @@ iris_store_tes_state(const struct intel_device_info *devinfo,
  * Encode most of 3DSTATE_GS based on the compiled shader.
  */
 static void
-iris_store_gs_state(const struct intel_device_info *devinfo,
+iris_store_gs_state(const struct iris_screen *screen,
                     struct iris_compiled_shader *shader)
 {
+   const struct intel_device_info *devinfo = screen->devinfo;
    struct iris_gs_data *gs_data = iris_gs_data(shader);
    struct iris_vue_data *vue_data = &gs_data->base;
 
@@ -5367,9 +5391,10 @@ iris_store_gs_state(const struct intel_device_info *devinfo,
  * Encode most of 3DSTATE_PS and 3DSTATE_PS_EXTRA based on the shader.
  */
 static void
-iris_store_fs_state(const struct intel_device_info *devinfo,
+iris_store_fs_state(const struct iris_screen *screen,
                     struct iris_compiled_shader *shader)
 {
+   const struct intel_device_info *devinfo = screen->devinfo;
    struct iris_fs_data *fs_data = iris_fs_data(shader);
 
    uint32_t *ps_state = (void *) shader->derived_data;
@@ -5377,8 +5402,8 @@ iris_store_fs_state(const struct intel_device_info *devinfo,
 
    iris_pack_command(GENX(3DSTATE_PS), ps_state, ps) {
       ps.VectorMaskEnable = fs_data->uses_vmask;
-      ps.BindingTableEntryCount = shader->bt.size_bytes / 4;
-      ps.SamplerCount = encode_sampler_count(shader);
+      ps.BindingTableEntryCount = encode_surface_count(screen, shader);
+      ps.SamplerCount = encode_sampler_count(screen, shader);
       ps.FloatingPointMode = shader->use_alt_mode;
       ps.MaximumNumberofThreadsPerPSD =
          devinfo->max_threads_per_psd - (GFX_VER == 8 ? 2 : 1);
@@ -5453,7 +5478,7 @@ iris_store_fs_state(const struct intel_device_info *devinfo,
  * This must match the data written by the iris_store_xs_state() functions.
  */
 static void
-iris_store_cs_state(const struct intel_device_info *devinfo,
+iris_store_cs_state(const struct iris_screen *screen,
                     struct iris_compiled_shader *shader)
 {
    struct iris_cs_data *cs_data = iris_cs_data(shader);
@@ -5471,10 +5496,8 @@ iris_store_cs_state(const struct intel_device_info *devinfo,
 #if GFX_VERx10 <= 125
       desc.BarrierEnable = cs_data->uses_barrier;
 #endif
-      /* Typically set to 0 to avoid prefetching on every thread dispatch. */
-      desc.BindingTableEntryCount = devinfo->verx10 == 125 ?
-         0 : MIN2(shader->bt.size_bytes / 4, 31);
-      desc.SamplerCount = encode_sampler_count(shader);
+      desc.BindingTableEntryCount = MIN2(encode_surface_count(screen, shader), 31);
+      desc.SamplerCount = encode_sampler_count(screen, shader);
       /* TODO: Check if we are missing workarounds and enable mid-thread
        * preemption.
        *
@@ -5522,28 +5545,28 @@ iris_derived_program_state_size(enum iris_program_cache_id cache_id)
  * get most of the state packet without having to reconstruct it.
  */
 static void
-iris_store_derived_program_state(const struct intel_device_info *devinfo,
+iris_store_derived_program_state(const struct iris_screen *screen,
                                  enum iris_program_cache_id cache_id,
                                  struct iris_compiled_shader *shader)
 {
    switch (cache_id) {
    case IRIS_CACHE_VS:
-      iris_store_vs_state(devinfo, shader);
+      iris_store_vs_state(screen, shader);
       break;
    case IRIS_CACHE_TCS:
-      iris_store_tcs_state(devinfo, shader);
+      iris_store_tcs_state(screen, shader);
       break;
    case IRIS_CACHE_TES:
-      iris_store_tes_state(devinfo, shader);
+      iris_store_tes_state(screen, shader);
       break;
    case IRIS_CACHE_GS:
-      iris_store_gs_state(devinfo, shader);
+      iris_store_gs_state(screen, shader);
       break;
    case IRIS_CACHE_FS:
-      iris_store_fs_state(devinfo, shader);
+      iris_store_fs_state(screen, shader);
       break;
    case IRIS_CACHE_CS:
-      iris_store_cs_state(devinfo, shader);
+      iris_store_cs_state(screen, shader);
       break;
    case IRIS_CACHE_BLORP:
       break;
@@ -9248,11 +9271,9 @@ iris_upload_compute_walker(struct iris_context *ice,
                                                    dispatch.group_size,
                                                    dispatch.simd_size);
    idd.SamplerStatePointer = shs->sampler_table.offset;
-   idd.SamplerCount = encode_sampler_count(shader),
+   idd.SamplerCount = encode_sampler_count(screen, shader),
    idd.BindingTablePointer = binder->bt_offset[MESA_SHADER_COMPUTE];
-   /* Typically set to 0 to avoid prefetching on every thread dispatch. */
-   idd.BindingTableEntryCount = devinfo->verx10 == 125 ?
-      0 : MIN2(shader->bt.size_bytes / 4, 31);
+   idd.BindingTableEntryCount = MIN2(encode_surface_count(screen, shader), 31);
    idd.NumberOfBarriers = cs_data->uses_barrier;
 #if GFX_VER >= 30
    idd.RegistersPerThread = ptl_register_blocks(shader->brw_prog_data->grf_used);

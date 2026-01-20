@@ -353,6 +353,14 @@
 #define DRI_CONFIG_INTEL_TBIMR(def) \
    DRI_CONF_OPT_B(intel_tbimr, def, "Enable TBIMR tiled rendering")
 
+#define DRI_CONFIG_INTEL_FORCE_COMPUTE_SURFACE_PREFETCH(def) \
+   DRI_CONF_OPT_B(intel_force_compute_surface_prefetch, def, \
+                  "Enable binding table surface prefteching for compute shaders")
+
+#define DRI_CONFIG_INTEL_FORCE_SAMPLER_PREFETCH(def) \
+   DRI_CONF_OPT_B(intel_force_sampler_prefetch, def, \
+                  "Enable binding table sampler prefteching")
+
 #define DRI_CONFIG_INTEL_VF_DISTRIBUTION(def) \
    DRI_CONF_OPT_B(intel_vf_distribution, def, "Enable geometry distribution")
 
