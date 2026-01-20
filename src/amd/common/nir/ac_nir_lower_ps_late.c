@@ -272,6 +272,65 @@ get_ps_color_export_target(lower_ps_state *s)
    return target;
 }
 
+static void
+cse_packed_outputs(lower_ps_state *s)
+{
+   u_foreach_bit(mrt_index, s->colors_written) {
+      unsigned spi_shader_col_format = (s->spi_shader_col_format >> (mrt_index * 4)) & 0xf;
+
+      switch (spi_shader_col_format) {
+         case V_028714_SPI_SHADER_FP16_ABGR:
+         case V_028714_SPI_SHADER_UINT16_ABGR:
+         case V_028714_SPI_SHADER_SINT16_ABGR:
+         case V_028714_SPI_SHADER_UNORM16_ABGR:
+         case V_028714_SPI_SHADER_SNORM16_ABGR:
+            break;
+         default:
+            continue;
+      }
+
+      for (unsigned pck_idx = 0; pck_idx < 2; pck_idx++) {
+         nir_def *lo = s->color[mrt_index][pck_idx * 2];
+         nir_def *hi = s->color[mrt_index][pck_idx * 2 + 1];
+
+         /* Skip all/none undef components. */
+         if ((lo == NULL) == (hi == NULL))
+            continue;
+
+         /* Look for a export to another mrt/idx which uses the same
+          * format and where the non undefined component is the same.
+          * If the other component there is not undefined, use it instead
+          * of undef for the current MRT, to allow nir_opt_cse to unify both packs.
+          */
+         u_foreach_bit(other_mrt, s->colors_written) {
+            unsigned other_col_format = (s->spi_shader_col_format >> (other_mrt * 4)) & 0xf;
+            if (other_col_format != spi_shader_col_format)
+               continue;
+
+            bool found = false;
+            for (unsigned other_idx = 0; other_idx < 2; other_idx++) {
+               nir_def *other_lo = s->color[other_mrt][other_idx * 2];
+               nir_def *other_hi = s->color[other_mrt][other_idx * 2 + 1];
+
+               if (!other_lo || !other_hi)
+                  continue;
+
+               if (other_lo != lo && other_hi != hi)
+                  continue;
+
+               s->color[mrt_index][pck_idx * 2] = other_lo;
+               s->color[mrt_index][pck_idx * 2 + 1] = other_hi;
+               found = true;
+               break;
+            }
+
+            if (found)
+               break;
+         }
+      }
+   }
+}
+
 static bool
 emit_ps_color_export(nir_builder *b, lower_ps_state *s, unsigned output_index, unsigned mrt_index)
 {
@@ -621,6 +680,8 @@ export_ps_outputs(nir_builder *b, lower_ps_state *s)
          UNREACHABLE("unexpected number of color outputs for dual source blending");
       }
    }
+
+   cse_packed_outputs(s);
 
    if (s->writes_all_cbufs && s->colors_written == 0x1) {
       /* This will do nothing for color buffers with SPI_SHADER_COL_FORMAT=ZERO, so always
