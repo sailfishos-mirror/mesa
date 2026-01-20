@@ -454,19 +454,22 @@ nir_algebraic_pattern_test::check_variable_conds()
       .numlsb_ht = _mesa_pointer_hash_table_create(NULL),
    };
 
+   bool result = true;
    for (auto cond : variable_conds) {
       uint8_t swiz[NIR_MAX_VEC_COMPONENTS];
       int num_components = nir_ssa_alu_instr_src_components(cond.alu, cond.src_index);
       for (int i = 0; i < num_components; i++)
          swiz[i] = i;
-      if (!cond.cond(&state, cond.alu, cond.src_index, num_components, swiz))
-         return false;
+      if (!cond.cond(&state, cond.alu, cond.src_index, num_components, swiz)) {
+         result = false;
+         break;
+      }
    }
 
-   _mesa_hash_table_fini(state.numlsb_ht, NULL);
-   _mesa_hash_table_fini(state.range_ht, NULL);
+   _mesa_hash_table_destroy(state.numlsb_ht, NULL);
+   _mesa_hash_table_destroy(state.range_ht, NULL);
 
-   return true;
+   return result;
 }
 
 void
