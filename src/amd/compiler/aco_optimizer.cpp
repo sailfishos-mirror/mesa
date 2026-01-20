@@ -4126,6 +4126,14 @@ pop_def_cb(opt_ctx& ctx, alu_opt_info& info)
 }
 
 bool
+pop_op_cb(opt_ctx& ctx, alu_opt_info& info)
+{
+   assert(info.operands.size() >= 2);
+   info.operands.pop_back();
+   return true;
+}
+
+bool
 check_constant(opt_ctx& ctx, alu_opt_info& info, unsigned idx, uint32_t expected)
 {
    assert(idx < info.operands.size());
@@ -4571,6 +4579,10 @@ combine_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
    } else if (info.opcode == aco_opcode::v_cndmask_b32) {
       add_opt(s_not_b64, v_cndmask_b32, 0x4, "102");
       add_opt(s_not_b32, v_cndmask_b32, 0x4, "102");
+   } else if (info.opcode == aco_opcode::v_alignbyte_b32) {
+      /* GFX6/7 lowered pack(undef, f2f16_rtz(a)) -> v_cvt_pkrtz_f16_f32(0, a) */
+      add_opt(v_cvt_pkrtz_f16_f32, v_cvt_pkrtz_f16_f32, 0x1, "0231",
+              and_cb<and_cb<check_const_cb<0, 0>, remove_const_cb<2>>, pop_op_cb>);
    }
 
    if (match_and_apply_patterns(ctx, info, patterns)) {
