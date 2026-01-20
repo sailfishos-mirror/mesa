@@ -1172,13 +1172,22 @@ init_aux_map_state(struct iris_batch *batch);
 static void
 iris_disable_rhwo_optimization(struct iris_batch *batch, bool disable)
 {
-   assert(batch->screen->devinfo->verx10 == 120);
+   assert(batch->screen->devinfo->verx10 >= 120);
 #if GFX_VERx10 == 120
    iris_emit_reg(batch, GENX(COMMON_SLICE_CHICKEN1), c1) {
       c1.RCCRHWOOptimizationDisable = disable;
       c1.RCCRHWOOptimizationDisableMask = true;
    };
 #endif
+#if INTEL_WA_14024015672_GFX_VER
+   if (intel_needs_workaround(batch->screen->devinfo, 14024015672)) {
+      iris_emit_cmd(batch, GENX(3DSTATE_3D_MODE), p) {
+         p.RCCRHWOOptimizationDisable = disable;
+         p.RCCRHWOOptimizationDisableMask = true;
+      }
+   };
+#endif
+   batch->ice->state.rhwo_disabled = disable;
 }
 
 static void
@@ -1384,7 +1393,7 @@ iris_init_render_context(struct iris_batch *batch)
    }
 #endif
 
-#if INTEL_NEEDS_WA_1508744258
+#if INTEL_WA_1508744258_GFX_VER || INTEL_WA_14024015672_GFX_VER
    /* The suggested workaround is:
     *
     *    Disable RHWO by setting 0x7010[14] by default except during resolve
@@ -1424,19 +1433,27 @@ iris_init_render_context(struct iris_batch *batch)
    };
 #endif
 
-#if GFX_VER >= 20
+#if GFX_VERx10 >= 125
    iris_emit_cmd(batch, GENX(3DSTATE_3D_MODE), p) {
-      p.DX10OGLBorderModeforYCRCB = true;
-      p.DX10OGLBorderModeforYCRCBMask = true;
+      if (devinfo->verx10 > 125 ||
+          intel_device_info_is_mtl_or_arl(devinfo)) {
+         p.DX10OGLBorderModeforYCRCB = true;
+         p.DX10OGLBorderModeforYCRCBMask = true;
+      }
+      p.RCCRHWOOptimizationDisable =
+         intel_needs_workaround(devinfo, 14024015672);
+      p.RCCRHWOOptimizationDisableMask = true;
    }
 
+#if GFX_VER >= 20
    if (intel_device_info_is_bmg_g31(devinfo)) {
       iris_emit_reg(batch, GENX(CACHE_MODE_0), reg) {
          reg.MsaaFastClearEnabled = true;
          reg.MsaaFastClearEnabledMask = true;
       }
    }
-#endif
+#endif /* GFX_VER >= 20 */
+#endif /* GFX_VERx10 >= 125 */
 
 #if GFX_VER >= 30
    iris_emit_cmd(batch, GENX(STATE_COMPUTE_MODE), cm) {
@@ -7406,6 +7423,24 @@ iris_upload_dirty_render_state(struct iris_context *ice,
       iris_use_pinned_bo(batch, border_color_pool->bo, false, IRIS_DOMAIN_NONE);
 
    if (dirty & IRIS_DIRTY_MULTISAMPLE) {
+#if INTEL_WA_14024015672_GFX_VER
+      /* With Wa_14024015672, RHWO is initially disabled. We enable it for MSAA
+       * draws and disable for single sample  unless explicitly disabled via
+       * drirc key.
+       */
+      bool rhwo_disabled =
+         intel_needs_workaround(screen->devinfo, 14024015672) &&
+         (ice->state.framebuffer.base.samples == 1 ||
+          screen->driconf.intel_enable_wa_14024015672_msaa);
+      if (batch->ice->state.rhwo_disabled != rhwo_disabled) {
+         iris_emit_pipe_control_flush(batch, "RHWO state change",
+                                      PIPE_CONTROL_STALL_AT_SCOREBOARD |
+                                      PIPE_CONTROL_CS_STALL);
+         batch->screen->vtbl.disable_rhwo_optimization(
+            batch, rhwo_disabled);
+      }
+#endif
+
       iris_emit_cmd(batch, GENX(3DSTATE_MULTISAMPLE), ms) {
          ms.PixelLocation =
             ice->state.cso_rast->half_pixel_center ? CENTER : UL_CORNER;

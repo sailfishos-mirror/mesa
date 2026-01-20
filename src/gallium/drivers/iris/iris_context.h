@@ -1083,6 +1083,10 @@ struct iris_context {
       /** State for Wa_14024997852. */
       bool autostrip_state;
 
+      /** State for Wa_14024015672 */
+      bool intel_enable_wa_14024015672_msaa;
+      bool rhwo_disabled;
+
       /** Do we have integer RT in current framebuffer state? */
       bool has_integer_rt;
 

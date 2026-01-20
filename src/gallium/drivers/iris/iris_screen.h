@@ -203,6 +203,7 @@ struct iris_screen {
       bool limit_trig_input_range;
       float lower_depth_range_rate;
       bool intel_enable_wa_14018912822;
+      bool intel_enable_wa_14024015672_msaa;
       bool enable_tbimr;
       bool enable_vf_distribution;
       bool enable_te_distribution;

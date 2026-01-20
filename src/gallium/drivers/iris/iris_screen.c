@@ -743,6 +743,8 @@ iris_screen_create(int fd, const struct pipe_screen_config *config)
       driQueryOptionf(config->options, "lower_depth_range_rate");
    screen->driconf.intel_enable_wa_14018912822 =
       driQueryOptionb(config->options, "intel_enable_wa_14018912822");
+   screen->driconf.intel_enable_wa_14024015672_msaa =
+      driQueryOptionb(config->options, "intel_enable_wa_14024015672_msaa");
    screen->driconf.enable_tbimr =
       driQueryOptionb(config->options, "intel_tbimr");
    screen->driconf.enable_vf_distribution =
