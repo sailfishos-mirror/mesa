@@ -1079,4 +1079,11 @@ is_created_as_float(const nir_search_state *state, const nir_alu_instr *instr, u
    return nir_alu_type_get_base_type(output_type) == nir_type_float;
 }
 
+static inline bool
+is_undef(const nir_search_state *state, const nir_alu_instr *instr, unsigned src,
+         UNUSED unsigned num_components, UNUSED const uint8_t *swizzle)
+{
+   return nir_src_is_undef(instr->src[src].src);
+}
+
 #endif /* _NIR_SEARCH_ */
