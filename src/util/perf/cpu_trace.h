@@ -174,7 +174,7 @@ _mesa_trace_scope_begin(const char *format, ...)
 
 static inline void *
 _mesa_trace_scope_flow_begin(const char *name,
-			     struct mesa_trace_flow *flow)
+                             struct mesa_trace_flow *flow)
 {
    void *scope = NULL;
 
