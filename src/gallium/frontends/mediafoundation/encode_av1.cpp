@@ -29,7 +29,7 @@ extern DWORD
 CalculateQualityFromQP( DWORD QP );
 
 HRESULT
-CDX12EncHMFT::PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext, bool dirtyRectFrameNumSet, uint32_t dirtyRectFrameNum )
+CDX12EncHMFT::PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext, bool dirtyRectFrameNumSet, uint32_t dirtyRectFrameNum, bool moveRegionFrameNumSet, uint32_t moveRegionFrameNum )
 {
    HRESULT hr = S_OK;
    // done:

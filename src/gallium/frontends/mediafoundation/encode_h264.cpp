@@ -192,7 +192,7 @@ UpdateH264EncPictureDesc( pipe_h264_enc_picture_desc *pPicInfo,
 
 // internal function which contains the codec specific portion of PrepareForEncode
 HRESULT
-CDX12EncHMFT::PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext, bool dirtyRectFrameNumSet, uint32_t dirtyRectFrameNum )
+CDX12EncHMFT::PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext, bool dirtyRectFrameNumSet, uint32_t dirtyRectFrameNum, bool moveRegionFrameNumSet, uint32_t moveRegionFrameNum )
 {
    HRESULT hr = S_OK;
    const reference_frames_tracker_frame_descriptor_h264 *cur_frame_desc = nullptr;
@@ -397,6 +397,65 @@ CDX12EncHMFT::PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext, bo
                   pPicInfo->dirty_info.rects[i].bottom = pDirtyRectInfo->DirtyRects[i].bottom;
                   pPicInfo->dirty_info.rects[i].left = pDirtyRectInfo->DirtyRects[i].left;
                   pPicInfo->dirty_info.rects[i].right = pDirtyRectInfo->DirtyRects[i].right;
+               }
+            }
+         }
+      }
+   }
+
+   // ----------------------------
+   // Move Regions (motion hints)
+   // ----------------------------
+
+   // Always reset per-frame optional hint structures
+   memset( &pPicInfo->move_info, 0, sizeof( pPicInfo->move_info ) );
+
+   if( moveRegionFrameNumSet && m_EncoderCapabilities.m_HWSupportMoveRects.bits.max_motion_hints > 0 &&
+       m_EncoderCapabilities.m_HWSupportMoveRects.bits.supports_precision_full_pixel &&
+       pPicInfo->picture_type == PIPE_H2645_ENC_PICTURE_TYPE_P )   // P-frames only
+   {
+      uint32_t current_poc = pPicInfo->pic_order_cnt;
+
+      // Validate frame number first
+      if( moveRegionFrameNum != current_poc )
+      {
+         debug_printf( "[dx12 hmft 0x%p] MoveRegions frame mismatch (MRFN=%u, cur POC=%u), ignoring\n",
+                       this,
+                       moveRegionFrameNum,
+                       current_poc );
+      }
+      else
+      {
+         MOVEREGION_INFO *pMoveInfo = reinterpret_cast<MOVEREGION_INFO *>( m_pMoveRegionBlob.data() );
+         uint32_t maxRects = m_EncoderCapabilities.m_HWSupportMoveRects.bits.max_motion_hints;
+         uint32_t numRects = std::min( pMoveInfo->NumMoveRegions, maxRects );
+
+         if( numRects > 0 )
+         {
+            uint8_t surfaceIndex = pPicInfo->ref_list0[0];
+
+            if( surfaceIndex == PIPE_H2645_LIST_REF_INVALID_ENTRY )
+            {
+               debug_printf( "[dx12 hmft 0x%p] MoveRegions: invalid L0 reference, ignoring\n", this );
+            }
+            else
+            {
+               pPicInfo->move_info.input_mode = PIPE_ENC_MOVE_INFO_INPUT_MODE_RECTS;
+               pPicInfo->move_info.num_rects = numRects;
+               pPicInfo->move_info.dpb_reference_index = surfaceIndex;
+               pPicInfo->move_info.precision = PIPE_ENC_MOVE_INFO_PRECISION_UNIT_FULL_PIXEL;
+
+               for( uint32_t i = 0; i < numRects; i++ )
+               {
+                  const MOVE_RECT &mr = pMoveInfo->MoveRegions[i];
+
+                  pPicInfo->move_info.rects[i].source_point.x = mr.SourcePoint.x;
+                  pPicInfo->move_info.rects[i].source_point.y = mr.SourcePoint.y;
+
+                  pPicInfo->move_info.rects[i].dest_rect.left = mr.DestRect.left;
+                  pPicInfo->move_info.rects[i].dest_rect.top = mr.DestRect.top;
+                  pPicInfo->move_info.rects[i].dest_rect.right = mr.DestRect.right;
+                  pPicInfo->move_info.rects[i].dest_rect.bottom = mr.DestRect.bottom;
                }
             }
          }

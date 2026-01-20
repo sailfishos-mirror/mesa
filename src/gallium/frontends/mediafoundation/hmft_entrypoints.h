@@ -841,10 +841,11 @@ class __declspec( uuid( HMFT_GUID ) ) CDX12EncHMFT : CMFD3DManager,
    bool m_bUnlocked = false;
    HRESULT IsUnlocked( void );
 
-   HRESULT PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext, bool dirtyRectFrameNumSet, uint32_t dirtyRectFrameNum );
+   HRESULT PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext, bool dirtyRectFrameNumSet, uint32_t dirtyRectFrameNum, bool moveRegionFrameNumSet, uint32_t moveRegionFrameNum );
    HRESULT PrepareForEncode( IMFSample *pSample, LPDX12EncodeContext *ppDX12EncodeContext );
 
    std::vector<BYTE> m_pDirtyRectBlob = std::vector<BYTE>( sizeof( DIRTYRECT_INFO ) );
+   std::vector<BYTE> m_pMoveRegionBlob = std::vector<BYTE>( sizeof( MOVEREGION_INFO ) );
 
  public:
    CDX12EncHMFT();
