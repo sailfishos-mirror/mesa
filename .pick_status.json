@@ -2164,7 +2164,7 @@
         "description": "aco/optimizer: fix parsing salu p_insert as shift",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "88f7e3fff3dfc31f97ebc944ce0f638b9a3a5437",
         "notes": null
