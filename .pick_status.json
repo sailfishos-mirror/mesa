@@ -1044,7 +1044,7 @@
         "description": "panvk: Free drm device in can_present_on_device",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "08da41f2f198571d7aac23c75bcf076517047226",
         "notes": null
