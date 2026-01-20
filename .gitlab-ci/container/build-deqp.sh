@@ -70,6 +70,8 @@ gles_cts_commits_to_backport=(
   e09e0a210b041d0bf7b525620d0068eab3ffa66a
   # Add an option to print to logcat in Android executable builds
   fc51668efdfd0dffa30b3eddee34aa26172969fb
+  # Fix EGL render tests for rgba16 and rgb16 unorm fixed point
+  b5ed8718f19492781f8e9be3eb9d3346e961efa9
 )
 
 # shellcheck disable=SC2034
