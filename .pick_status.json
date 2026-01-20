@@ -1,5 +1,95 @@
 [
     {
+        "sha": "71f54341429535d406dcdf58961d03ed23d137ee",
+        "description": "radv: optimize layered fast clear colors when comp-to-single is supported",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8781dd85c213d20177953206757b955519d31819",
+        "description": "radv/meta: add support for fast clearing color images with non-zero baseArrayLayer",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2e683eb7385c54f872acc47b371210d2282bc103",
+        "description": "venus: fix aliased image memory requirement caching",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "63cac09d748d66efeca34da2c213a9cc476345d6",
+        "notes": null
+    },
+    {
+        "sha": "52ddc40a759c1a9a1002ecca6ba6c64b3b09ed66",
+        "description": "pco: restrict shadow sampler comparator clamping to unorm formats",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "69a56d33defaf97bc4817b4a50bf745ae824a035",
+        "notes": null
+    },
+    {
+        "sha": "adec216eb08e32aed8e364b89d4bcc7e769be7a2",
+        "description": "meson,gfxstream: add Android support via meson2hermetic",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "6e9b1ed53a7307bcb9b553df30b254acac154f13",
+        "description": "meson: add dependency on android-hwvulkan-headers",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4bb3b80b8f5ea83f29e5cd525c6b1ca2a589149e",
+        "description": "meson: avoid calling nm.full_path() when tool is not found",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "2f652e0b3691e94d6a81e37985741d35561b2312",
+        "notes": null
+    },
+    {
+        "sha": "4baae4c4d4e5bc47b6c8c33d51813934337d0305",
+        "description": "meson: check for <poll.h>",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f38a25fd6bd82e27b4300d820f6ed591fdc23c2d",
+        "description": "virtio/kumquat: fixes to enable meson2hermetic",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
         "sha": "cf3f55631210137f8d9c276b44b97dd75827016a",
         "description": "freedreno: check dependencies before running custom_target(..)",
         "nominated": false,
