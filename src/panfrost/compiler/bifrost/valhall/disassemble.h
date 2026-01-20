@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2021 Collabora Ltd.
+ * SPDX-License-Identifier: MIT
+ */
+
 #ifndef __DISASM_H
 #define __DISASM_H
 

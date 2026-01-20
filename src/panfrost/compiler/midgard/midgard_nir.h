@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2019 Alyssa Rosenzweig (alyssa@rosenzweig.io)
+ * SPDX-License-Identifier: MIT
+ */
+
 #include <stdbool.h>
 #include "nir.h"
 
