@@ -2897,7 +2897,7 @@
         "resolution": 0,
         "main_sha": null,
         "because_sha": null,
-        "notes": null
+        "notes": "traversal_stack doesn't exist on stable"
     },
     {
         "sha": "7e8ef76ef787032b686f085eb5d38e26e2275219",
