@@ -1743,6 +1743,8 @@ RadeonSI driver environment variables
       Disable DPBB. Overrules the dpbb enable option.
    ``noefc``
       Disable hardware based encoder color format conversion
+   ``lowlatencydec``
+      Enable low latency decoding
    ``lowlatencyenc``
       Enable low latency encoding
    ``notiling``

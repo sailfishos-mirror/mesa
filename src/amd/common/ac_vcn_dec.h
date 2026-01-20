@@ -163,6 +163,7 @@
 /* *** decode flags *** */
 #define RDECODE_FLAGS_USE_DYNAMIC_DPB_MASK                  0x00000001
 #define RDECODE_FLAGS_USE_PAL_MASK                          0x00000008
+#define RDECODE_FLAGS_LOW_LATENCY_MASK                      0x00000080
 #define RDECODE_FLAGS_DPB_RESIZE_MASK                       0x00000100
 #define RDECODE_FLAGS_UNIFIED_DT_MASK                       0x00000200
 
