@@ -188,7 +188,7 @@ kk_bind_descriptor_sets(struct kk_descriptor_state *desc,
       const struct kk_descriptor_set_layout *set_layout =
          vk_to_kk_descriptor_set_layout(pipeline_layout->set_layouts[i]);
       if (set_layout)
-         dyn_buffer_start += set_layout->dynamic_buffer_count;
+         dyn_buffer_start += set_layout->vk.dynamic_descriptor_count;
    }
 
    uint32_t next_dyn_offset = 0;
@@ -214,16 +214,16 @@ kk_bind_descriptor_sets(struct kk_descriptor_state *desc,
          const struct kk_descriptor_set_layout *set_layout =
             vk_to_kk_descriptor_set_layout(pipeline_layout->set_layouts[s]);
 
-         if (set != NULL && set_layout->dynamic_buffer_count > 0) {
-            for (uint32_t j = 0; j < set_layout->dynamic_buffer_count; j++) {
+         if (set != NULL && set_layout->vk.dynamic_descriptor_count > 0) {
+            for (uint32_t j = 0; j < set_layout->vk.dynamic_descriptor_count; j++) {
                struct kk_buffer_address addr = set->dynamic_buffers[j];
                addr.base_addr += info->pDynamicOffsets[next_dyn_offset + j];
                desc->root.dynamic_buffers[dyn_buffer_start + j] = addr;
             }
-            next_dyn_offset += set->layout->dynamic_buffer_count;
+            next_dyn_offset += set->layout->vk.dynamic_descriptor_count;
          }
 
-         dyn_buffer_start += set_layout->dynamic_buffer_count;
+         dyn_buffer_start += set_layout->vk.dynamic_descriptor_count;
       } else {
          assert(set == NULL);
       }

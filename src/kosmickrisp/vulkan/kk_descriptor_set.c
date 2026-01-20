@@ -554,7 +554,7 @@ kk_descriptor_set_create(struct kk_device *dev, struct kk_descriptor_pool *pool,
 
    uint32_t mem_size =
       sizeof(struct kk_descriptor_set) +
-      layout->dynamic_buffer_count * sizeof(struct kk_buffer_address);
+      layout->vk.dynamic_descriptor_count * sizeof(struct kk_buffer_address);
    set =
       vk_object_zalloc(&dev->vk, NULL, mem_size, VK_OBJECT_TYPE_DESCRIPTOR_SET);
    if (!set)
