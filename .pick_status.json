@@ -6277,7 +6277,7 @@
         "resolution": 0,
         "main_sha": null,
         "because_sha": null,
-        "notes": null
+        "notes": "Missing pvr_format->bind and PVR_BIND_RENDER_TARGET"
     },
     {
         "sha": "b273a5c10c74ce12c7c3d2bebe7790ce99951c2b",
