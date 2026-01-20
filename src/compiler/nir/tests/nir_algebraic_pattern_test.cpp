@@ -7,6 +7,7 @@
 #include "nir_builder.h"
 #include "nir_constant_expressions.h"
 
+#include "util/compiler.h"
 #include "util/memstream.h"
 
 #include <float.h>
@@ -476,10 +477,15 @@ nir_algebraic_pattern_test::validate_pattern()
    uint32_t iterations = 1 << fuzzing_bits;
    for (uint32_t i = 0; i < iterations; i++) {
       uint32_t seed;
-      if (overflow)
-         seed = _mesa_hash_u32(&i);
-      else
+      if (overflow) {
+         /* Make sure we have the same test inputs on big-endian, since the hash
+          * is byte-wise.
+          */
+         uint32_t hash_input = CPU_TO_LE32(i);
+         seed = _mesa_hash_u32(&hash_input);
+      } else {
          seed = i;
+      }
 
       set_inputs(seed);
       if (!check_variable_conds())
