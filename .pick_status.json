@@ -8767,7 +8767,7 @@
         "resolution": 0,
         "main_sha": null,
         "because_sha": null,
-        "notes": null
+        "notes": "There are three missing functions, `radv_spm_trace_enabled`, `ac_cmdbuf_event_write`, `ac_cmdbuf_set_sh_reg`"
     },
     {
         "sha": "e03461f3bd432daf6e0bfa31a2e83c3ba7bd8ab1",
