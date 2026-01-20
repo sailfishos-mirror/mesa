@@ -91,6 +91,8 @@ SUPPORTED_FEATURES = [
     "VK_EXT_depth_clip_enable",
     "VK_EXT_robustness2",
     "VK_KHR_multiview",
+    "VK_EXT_blend_operation_advanced",
+    "VK_EXT_frame_boundary",
     # see aosp/2736079 + b/268351352
     "VK_EXT_swapchain_maintenance1",
     "VK_KHR_maintenance5",
