@@ -4551,10 +4551,8 @@ choose_block_size_dwords(const intel_device_info *devinfo, unsigned dwords)
 }
 
 static brw_reg
-increment_a64_address(const brw_builder &_bld, brw_reg address, uint32_t v, bool use_no_mask)
+increment_a64_address(const brw_builder &bld, brw_reg address, uint32_t v)
 {
-   const brw_builder bld = use_no_mask ? _bld.exec_all().group(8, 0) : _bld;
-
    if (bld.shader->devinfo->has_64bit_int) {
       return bld.ADD(retype(address, BRW_TYPE_UQ), brw_imm_ud(v));
    } else {
@@ -6125,7 +6123,7 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
             if (brw_type_size_bits(srcs[MEMORY_LOGICAL_ADDRESS].type) == 64) {
                srcs[MEMORY_LOGICAL_ADDRESS] =
                   increment_a64_address(ubld, srcs[MEMORY_LOGICAL_ADDRESS],
-                                        block_bytes, no_mask_handle);
+                                        block_bytes);
             } else {
                srcs[MEMORY_LOGICAL_ADDRESS] =
                   ubld.ADD(retype(srcs[MEMORY_LOGICAL_ADDRESS], BRW_TYPE_UD),
