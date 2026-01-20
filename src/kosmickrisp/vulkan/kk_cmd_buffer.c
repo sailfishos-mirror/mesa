@@ -181,10 +181,7 @@ kk_bind_descriptor_sets(struct kk_descriptor_state *desc,
     *
     * This means that, if some earlier set gets bound in such a way that
     * it changes set_dynamic_buffer_start[s], this binding is implicitly
-    * invalidated.  Therefore, we can always look at the current value
-    * of set_dynamic_buffer_start[s] as the base of our dynamic buffer
-    * range and it's only our responsibility to adjust all
-    * set_dynamic_buffer_start[p] for p > s as needed.
+    * invalidated.
     */
    uint8_t dyn_buffer_start = 0u;
    for (uint32_t i = 0u; i < info->firstSet; ++i) {
