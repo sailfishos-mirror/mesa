@@ -484,7 +484,11 @@ nir_algebraic_pattern_test::validate_pattern()
    nir_shader_intrinsics_pass(b->shader, map_input, nir_metadata_all, this);
 
    nir_index_ssa_defs(impl);
-   tmp_values.assign(NIR_MAX_VEC_COMPONENTS * impl->ssa_alloc, nir_const_value{ 0 });
+   /* Write an obvious dummy value -- In the event that all inputs are
+    * unexpectedly skipped, dummy values will show up in annotation after the
+    * skip point.
+    */
+   tmp_values.assign(NIR_MAX_VEC_COMPONENTS * impl->ssa_alloc, nir_const_value{ .u64 = 0xd0d0d0d0d0d0d0d0 });
 
    if (expected_result != UNSUPPORTED) {
       ASSERT_EQ(expression_cond_failed, (char *)NULL);
