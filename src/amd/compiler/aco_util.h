@@ -275,7 +275,7 @@ public:
       }
 
       /* create new larger buffer */
-      uint32_t total_size = buffer->data_size + sizeof(Buffer);
+      size_t total_size = buffer->data_size + sizeof(Buffer);
       do {
          total_size *= 2;
       } while (total_size - sizeof(Buffer) < size);
@@ -303,8 +303,8 @@ public:
 private:
    struct Buffer {
       Buffer* next;
-      uint32_t current_idx;
-      uint32_t data_size;
+      size_t current_idx;
+      size_t data_size;
       uint8_t data[];
    };
 
@@ -334,7 +334,7 @@ public:
    /* Memory Allocation */
    T* allocate(size_t size)
    {
-      uint32_t bytes = sizeof(T) * size;
+      size_t bytes = sizeof(T) * size;
       return (T*)memory_resource.get().allocate(bytes, alignof(T));
    }
 
