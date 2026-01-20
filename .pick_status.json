@@ -8084,7 +8084,7 @@
         "description": "Revert \"radeonsi: use nir_opt_large_constants earlier\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "df2eaba4119e827a59596709373ad2491c4fbab4",
         "notes": null
