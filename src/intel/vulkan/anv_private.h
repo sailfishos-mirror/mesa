@@ -1789,6 +1789,7 @@ struct anv_instance {
     /* HW workarounds */
     bool                                        no_16bit;
     bool                                        intel_enable_wa_14018912822;
+    bool                                        intel_enable_wa_14024015672_msaa;
 
     /**
      * Ray tracing configuration.
@@ -4732,7 +4733,7 @@ struct anv_cmd_state {
    enum isl_aux_op                              color_aux_op;
 
    /**
-    * Whether RHWO optimization is enabled (Wa_1508744258).
+    * Whether RHWO optimization is enabled (Wa_1508744258 and Wa_14024015672).
     */
    bool                                         rhwo_optimization_enabled;
 

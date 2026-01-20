@@ -366,6 +366,10 @@
    DRI_CONF_OPT_B(intel_enable_wa_14018912822, def, \
                   "Intel workaround for using zero blend constants")
 
+#define DRI_CONF_INTEL_ENABLE_WA_14024015672_MSAA(def) \
+   DRI_CONF_OPT_B(intel_enable_wa_14024015672_msaa, def, \
+                  "Intel workaround for RHWO MSAA")
+
 #define DRI_CONF_INTEL_SAMPLER_ROUTE_TO_LSC(def) \
    DRI_CONF_OPT_B(intel_sampler_route_to_lsc, def, \
                   "Intel specific toggle to enable sampler route to LSC")

@@ -790,6 +790,19 @@ cmd_buffer_flush_gfx_state(struct anv_cmd_buffer *cmd_buffer)
        (cmd_buffer->state.gfx.dirty & ANV_CMD_DIRTY_PS))
       cmd_buffer_maybe_flush_rt_writes(cmd_buffer, gfx, dyn);
 
+   /* With Wa_14024015672, RHWO is initially disabled. We enable it for MSAA
+    * draws and disable for single sample  unless explicitly disabled via
+    * drirc key.
+    */
+#if INTEL_WA_14024015672_GFX_VER
+   if (intel_needs_workaround(device->info, 14024015672) &&
+       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES)) {
+      cmd_buffer->state.pending_rhwo_optimization_enabled =
+         !device->physical->instance->intel_enable_wa_14024015672_msaa &&
+         dyn->ms.rasterization_samples > 1;
+   }
+#endif
+
    /* Apply any pending pipeline flushes we may have.  We want to apply them
     * now because, if any of those flushes are for things like push constants,
     * the GPU will read the state at weird times.

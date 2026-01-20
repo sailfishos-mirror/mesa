@@ -29,6 +29,7 @@ static const driOptionDescription anv_dri_options[] = {
       DRI_CONF_ANV_GENERATED_INDIRECT_RING_THRESHOLD(100)
       DRI_CONF_NO_16BIT(false)
       DRI_CONF_INTEL_ENABLE_WA_14018912822(false)
+      DRI_CONF_INTEL_ENABLE_WA_14024015672_MSAA(false)
       DRI_CONF_INTEL_SAMPLER_ROUTE_TO_LSC(false)
       DRI_CONF_ANV_QUERY_CLEAR_WITH_BLORP_THRESHOLD(6)
       DRI_CONF_ANV_QUERY_COPY_WITH_SHADER_THRESHOLD(6)
@@ -180,6 +181,8 @@ anv_init_dri_options(struct anv_instance *instance)
        driQueryOptionb(&instance->dri_options, "no_16bit");
     instance->intel_enable_wa_14018912822 =
        driQueryOptionb(&instance->dri_options, "intel_enable_wa_14018912822");
+    instance->intel_enable_wa_14024015672_msaa =
+       driQueryOptionb(&instance->dri_options, "intel_enable_wa_14024015672_msaa");
     instance->emulate_read_without_format =
        driQueryOptionb(&instance->dri_options, "anv_emulate_read_without_format");
     instance->fp64_workaround_enabled =

@@ -2435,7 +2435,7 @@ genX(emit_apply_pipe_flushes)(struct anv_batch *batch,
 ALWAYS_INLINE void
 genX(cmd_buffer_apply_pipe_flushes)(struct anv_cmd_buffer *cmd_buffer)
 {
-#if INTEL_NEEDS_WA_1508744258
+#if INTEL_WA_1508744258_GFX_VER || INTEL_WA_14024015672_GFX_VER
    /* If we're changing the state of the RHWO optimization, we need to have
     * sb_stall+cs_stall.
     */
@@ -2510,18 +2510,27 @@ genX(cmd_buffer_apply_pipe_flushes)(struct anv_cmd_buffer *cmd_buffer)
                                     &emitted_bits);
    anv_cmd_buffer_update_pending_query_bits(cmd_buffer, emitted_bits);
 
-#if INTEL_NEEDS_WA_1508744258
+#if INTEL_WA_1508744258_GFX_VER || INTEL_WA_14024015672_GFX_VER
    if (rhwo_opt_change) {
+#if GFX_VERx10 == 120
       anv_batch_write_reg(&cmd_buffer->batch, GENX(COMMON_SLICE_CHICKEN1), c1) {
          c1.RCCRHWOOptimizationDisable =
             !cmd_buffer->state.pending_rhwo_optimization_enabled;
          c1.RCCRHWOOptimizationDisableMask = true;
       }
+#else
+      if (intel_needs_workaround(cmd_buffer->device->info, 14024015672)) {
+         anv_batch_emit(&cmd_buffer->batch, GENX(3DSTATE_3D_MODE), p) {
+            p.RCCRHWOOptimizationDisable =
+               !cmd_buffer->state.pending_rhwo_optimization_enabled;
+            p.RCCRHWOOptimizationDisableMask = true;
+         }
+      }
+#endif
       cmd_buffer->state.rhwo_optimization_enabled =
          cmd_buffer->state.pending_rhwo_optimization_enabled;
    }
 #endif
-
 }
 
 static inline struct anv_state
