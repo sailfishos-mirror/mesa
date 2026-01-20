@@ -3047,7 +3047,7 @@
         "resolution": 0,
         "main_sha": null,
         "because_sha": null,
-        "notes": null
+        "notes": "This patch is massive on stable, follow up to make sure that's expected"
     },
     {
         "sha": "bb5521e88ab8466b7bb38d0c0f99b1390479e7b3",
