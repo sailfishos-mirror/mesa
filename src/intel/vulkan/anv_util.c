@@ -297,6 +297,9 @@ create_bvh_dump_file(struct anv_bvh_dump *bvh)
    case BVH_ANV_PCREL:
       dump_sub_directory = "BVH_ANV_PCREL";
       break;
+   case BVH_ANV_UPDATE:
+      dump_sub_directory = "BVH_ANV_UPDATE";
+      break;
    default:
       UNREACHABLE("invalid dump type");
    }

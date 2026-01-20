@@ -174,8 +174,15 @@ debug_record_as_to_bvh_dump(struct anv_cmd_buffer *cmd_buffer,
                             VkDeviceAddress intermediate_header_addr,
                             VkDeviceAddress intermediate_as_addr,
                             uint32_t leaf_count,
-                            VkGeometryTypeKHR geometry_type)
+                            VkGeometryTypeKHR geometry_type,
+                            bool after_update)
 {
+   if (INTEL_DEBUG(DEBUG_BVH_UPDATE_AS) && after_update &&
+       geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR) {
+      add_bvh_dump(cmd_buffer, header_addr, bvh_layout.size, geometry_type,
+                   BVH_ANV_UPDATE);
+   }
+
    if (INTEL_DEBUG(DEBUG_BVH_PCREL_MAP) &&
        geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR) {
       add_bvh_dump(cmd_buffer, header_addr + bvh_layout.parent_child_map_offset,
@@ -554,7 +561,8 @@ anv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_stru
    if (INTEL_DEBUG_BVH_ANY) {
       debug_record_as_to_bvh_dump(cmd_buffer, header_addr, bvh_layout,
                                   intermediate_header_addr, intermediate_bvh_addr,
-                                  state->leaf_node_count, geometry_type);
+                                  state->leaf_node_count, geometry_type,
+                                  false /* after update */);
    }
 }
 
@@ -687,6 +695,14 @@ anv_update_as(VkCommandBuffer commandBuffer,
          (commandBuffer, build_range_info->primitiveCount, 1, 1);
 
       first_id += build_range_info->primitiveCount;
+   }
+
+   if (INTEL_DEBUG_BVH_ANY) {
+      debug_record_as_to_bvh_dump(cmd_buffer, vk_acceleration_structure_get_va(dst),
+                                  bvh_layout, 0, 0,
+                                  state->leaf_node_count,
+                                  vk_get_as_geometry_type(state->build_info),
+                                  true /* after update */);
    }
 }
 

@@ -95,6 +95,7 @@ enum intel_debug_flag {
    DEBUG_BVH_BLAS_IR_AS,
    DEBUG_BVH_TLAS_IR_AS,
    DEBUG_BVH_PCREL_MAP,
+   DEBUG_BVH_UPDATE_AS,
    DEBUG_BVH_NO_BUILD,
    DEBUG_NO_SEND_GATHER,
    DEBUG_NO_VRT,
@@ -136,6 +137,7 @@ extern BITSET_WORD intel_debug[BITSET_WORDS(INTEL_DEBUG_MAX)];
                                       INTEL_DEBUG(DEBUG_BVH_TLAS_IR_HDR) || \
                                       INTEL_DEBUG(DEBUG_BVH_BLAS_IR_AS) || \
                                       INTEL_DEBUG(DEBUG_BVH_TLAS_IR_AS) || \
+                                      INTEL_DEBUG(DEBUG_BVH_UPDATE_AS) || \
                                       INTEL_DEBUG(DEBUG_BVH_PCREL_MAP)))
 
 extern uint64_t intel_simd;
