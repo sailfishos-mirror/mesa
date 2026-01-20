@@ -564,7 +564,9 @@ zink_blit(struct pipe_context *pctx,
    if (ctx->unordered_blitting) {
       zink_batch_no_rp(ctx);
       ctx->in_rp = in_rp;
-      ctx->gfx_pipeline_state.rp_state = zink_update_rendering_info(ctx);
+      uint32_t rp_state = zink_update_rendering_info(ctx);
+      ctx->gfx_pipeline_state.dirty |= (ctx->gfx_pipeline_state.rp_state != rp_state);
+      ctx->gfx_pipeline_state.rp_state = rp_state;
       ctx->rp_changed = rp_changed;
       ctx->rp_tc_info_updated |= rp_tc_info_updated;
       ctx->queries_disabled = queries_disabled;
