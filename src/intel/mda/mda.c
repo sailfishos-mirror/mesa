@@ -71,6 +71,8 @@ typedef struct context {
    mesa_archive **archives;
    int            archives_count;
 
+   bool keep_going;
+
    struct {
       enum diff_mode mode;
       int            param;
@@ -661,6 +663,57 @@ cmd_diff(context *ctx)
 }
 
 static int
+cmd_difflog(context *ctx)
+{
+   if (ctx->args_count != 2) {
+      fprintf(stderr, "mda: difflog requires two patterns\n");
+      return 1;
+   }
+
+   match a = find_one(ctx, ctx->args[0]);
+   if (!a.object)
+      return 1;
+
+   match b = find_one(ctx, ctx->args[1]);
+   if (!b.object)
+      return 1;
+
+   int a_idx = a.content ? (int)(a.content - a.object->versions) : 0;
+   int b_idx = b.content ? (int)(b.content - b.object->versions) : 0;
+
+   const int count = MAX2(a.object->versions_count - a_idx,
+                          b.object->versions_count - b_idx);
+
+   for (int i = 0; i < count; i++) {
+      /* Repeat the last version when an object has less versions than the other. */
+      int curr_a_idx = MIN2(a_idx + i, a.object->versions_count - 1);
+      int curr_b_idx = MIN2(b_idx + i, b.object->versions_count - 1);
+
+      content *a_ver = &a.object->versions[curr_a_idx];
+      content *b_ver = &b.object->versions[curr_b_idx];
+
+      slice a_data = get_content_data(ctx, a.object->ma, a_ver);
+      slice b_data = get_content_data(ctx, b.object->ma, b_ver);
+
+      /* Check if the data differs. */
+      if (!slice_equal(a_data, b_data)) {
+         int x = printf("# A: %.*s\n", SLICE_FMT(a_ver->fullname));
+         int y = printf("# B: %.*s\n", SLICE_FMT(b_ver->fullname));
+         print_separator(MAX2(x, y));
+         printf("\n");
+
+         diff(ctx, a_data, b_data);
+         printf("\n");
+
+         if (!ctx->keep_going)
+            break;
+      }
+   }
+
+   return 0;
+}
+
+static int
 cmd_log(context *ctx)
 {
    if (ctx->args_count != 1 && ctx->args_count != 2) {
@@ -1036,7 +1089,7 @@ open_manual()
       "",
       ".SH SYNOPSIS",
       "",
-      "mda [[-f PATH]... [-U[nnn]] [-Y[nnn]]] COMMAND [args]",
+      "mda [[-f PATH]... [-U[nnn]] [-Y[nnn]] [-k]] COMMAND [args]",
       "",
       ".SH DESCRIPTION",
       "",
@@ -1051,8 +1104,10 @@ open_manual()
       "",
       "Objects may have multiple versions, e.g. multiple steps",
       "of a shader generated during optimization.  When not",
-      "specified in the PATTERN, commands pick a relevant version,",
-      "either first or last).",
+      "specified in the PATTERN, commands pick a relevant version",
+      "(either first or last). When a PATTERN matches a specific",
+      "version name, commands that iterate versions start from that",
+      "version.",
       "",
       "By default all *.mda.tar files in the current directory are read.",
       "To specify which files or directories to read use one or more `-f PATH`",
@@ -1079,6 +1134,8 @@ open_manual()
       "",
       "    diff        PATTERN PATTERN    compare two objects",
       "",
+      "    difflog     PATTERN PATTERN    compare objects version-by-version",
+      "",
       "    search      STRING [PATTERN]   search latest versions for string",
       "",
       "    searchall   STRING [PATTERN]   search all versions for string",
@@ -1094,6 +1151,8 @@ open_manual()
       "    -U[nnn]                        use unified diff (default: 5 context lines)",
       "",
       "    -Y[nnn]                        use side-by-side diff (default: 240 width)",
+      "",
+      "    -k                             keep going after first difference in difflog",
       "",
       "The -U and -Y options are mutually exclusive. If neither is specified,",
       "-U5 is used by default.",
@@ -1133,7 +1192,7 @@ open_manual()
 static void
 print_help()
 {
-   printf("mda [[-f PATH]... [-U[nnn]] [-Y[nnn]]] CMD [ARGS...]\n"
+   printf("mda [[-f PATH]... [-U[nnn]] [-Y[nnn]] [-k]] CMD [ARGS...]\n"
           "\n"
           "OPTIONS\n"
           "\n"
@@ -1142,6 +1201,7 @@ print_help()
           "                                   If no -f provided, current directory is used.\n"
           "    -U[nnn]                        use unified diff (default: 5 context lines)\n"
           "    -Y[nnn]                        use side-by-side diff (default: 240 width)\n"
+          "    -k                             keep going after first difference in difflog\n"
           "\n"
           "COMMANDS\n"
           "\n"
@@ -1154,6 +1214,7 @@ print_help()
           "    logfull     PATTERN [PATTERN]  print full contents of versions of an object\n"
           "    log1        PATTERN [PATTERN]  print names of the versions of an object\n"
           "    diff        PATTERN PATTERN    compare two objects\n"
+          "    difflog     PATTERN PATTERN    compare objects version-by-version\n"
           "    search      STRING [PATTERN]   search latest versions for string\n"
           "    searchall   STRING [PATTERN]   search all versions for string\n"
           "    info                           print metadata about the archive\n"
@@ -1318,6 +1379,9 @@ main(int argc, char *argv[])
             ctx->diff.param = ctx->diff.mode == DIFF_UNIFIED ? 5 : 240;
 
          cur_arg++;
+      } else if (!strcmp(argv[cur_arg], "-k")) {
+         ctx->keep_going = true;
+         cur_arg++;
       } else {
          /* Unknown flag, stop parsing flags */
          break;
@@ -1348,6 +1412,7 @@ main(int argc, char *argv[])
 
    static const struct command cmds[] = {
       { "diff",       cmd_diff },
+      { "difflog",    cmd_difflog },
       { "info",       cmd_info, .skip_pager = true },
       { "list",       cmd_list },
       { "listall",    cmd_list },
