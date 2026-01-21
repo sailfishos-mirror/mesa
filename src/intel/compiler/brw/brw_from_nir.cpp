@@ -6328,7 +6328,7 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          bld.emit_uniformize(srcs[MEMORY_LOGICAL_ADDRESS]);
 
       const brw_builder ubld = bld.uniform();
-      unsigned total, done;
+      unsigned total;
       unsigned first_read_component = 0;
 
       if (convergent_block_load) {
@@ -6357,10 +6357,9 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
 
       brw_reg src = srcs[MEMORY_LOGICAL_DATA0];
 
-      unsigned block_comps = components;
-
-      for (done = 0; done < total; done += block_comps) {
-         block_comps = choose_block_size_dwords(devinfo, total - done);
+      unsigned done = 0;
+      while (done < total) {
+         unsigned block_comps = choose_block_size_dwords(devinfo, total - done);
          const unsigned block_bytes = block_comps * (nir_bit_size / 8);
 
          brw_reg dst_offset = is_store ? brw_reg() :
@@ -6384,14 +6383,18 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          mem->alignment = alignment;
          mem->flags = flags;
 
-         if (brw_type_size_bits(srcs[MEMORY_LOGICAL_ADDRESS].type) == 64) {
-            srcs[MEMORY_LOGICAL_ADDRESS] =
-               increment_a64_address(ubld, srcs[MEMORY_LOGICAL_ADDRESS],
-                                     block_bytes, no_mask_handle);
-         } else {
-            srcs[MEMORY_LOGICAL_ADDRESS] =
-               ubld.ADD(retype(srcs[MEMORY_LOGICAL_ADDRESS], BRW_TYPE_UD),
-                        brw_imm_ud(block_bytes));
+         done += block_comps;
+
+         if (done < total) {
+            if (brw_type_size_bits(srcs[MEMORY_LOGICAL_ADDRESS].type) == 64) {
+               srcs[MEMORY_LOGICAL_ADDRESS] =
+                  increment_a64_address(ubld, srcs[MEMORY_LOGICAL_ADDRESS],
+                                        block_bytes, no_mask_handle);
+            } else {
+               srcs[MEMORY_LOGICAL_ADDRESS] =
+                  ubld.ADD(retype(srcs[MEMORY_LOGICAL_ADDRESS], BRW_TYPE_UD),
+                           brw_imm_ud(block_bytes));
+            }
          }
       }
       assert(done == total);
