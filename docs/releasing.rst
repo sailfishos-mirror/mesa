@@ -256,8 +256,8 @@ Create a new Merge Request, with ``staging/X.Y`` targeting the ``X.Y`` branch.
 Be sure to rename the merge request, something like ``merge staging/X.Y in to
 X.Y for the X.Y.Z release``. Ensure that ``delete source branch`` is **not**
 checked, and set the label to ``release-maintainer`` and ``mesa-release``.
-(this prevents the autotagger from running on this MR, which would otherwise
-spam labels with a PR that watches of those labels probably don't care about).
+(this prevents the auto-labeller from running on this MR, which would otherwise
+spam labels which a dev who watches those probably doesn't care about).
 Assign to ``@marge-bot`` immediately.
 
 
