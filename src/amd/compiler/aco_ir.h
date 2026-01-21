@@ -2145,6 +2145,7 @@ enum block_kind {
    block_kind_export_end = 1 << 13,
    block_kind_end_with_regs = 1 << 14,
    block_kind_contains_call = 1 << 15,
+   block_kind_loop_latch = 1 << 16,
 };
 
 /* CFG */
