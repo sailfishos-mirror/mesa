@@ -193,6 +193,8 @@ get_demand_for_reg(live_ctx& ctx, T op_or_def)
 void
 process_live_temps_per_block(live_ctx& ctx, Block* block)
 {
+   ctx.m.release_reallocate();
+
    RegisterDemand new_demand;
    unsigned num_linear_vgprs = 0;
    block->register_demand = RegisterDemand();
