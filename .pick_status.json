@@ -1,5 +1,175 @@
 [
     {
+        "sha": "1b1e38ffd518933ea065cf485ad0a7871433b3fc",
+        "description": "kk: Update kk_bind_descriptor_sets comment to reflect updated binding",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "aaf4405507deb685ac7d57b1400e999465b54227",
+        "description": "hk: Handle unbound sets that contain dynamic buffers",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "80a076f5d06dd9f5dae74d5a85029f4e8b9a3e8f",
+        "description": "nvk: Handle unbound sets that contain dynamic buffers",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8846c0246d721e9ca4a66506ecd0138aad320c93",
+        "description": "docs/releasing: skip ci when creating the branchpoint",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f43bab301f67a958ee9c5523338c9aba576ffa23",
+        "description": "docs/releasing: rephrase sentence about not letting the mr label script run",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3f9f7f864f0ea53a4b6880f62366f109e3830bad",
+        "description": "docs/releasing: s/pull request/merge request/",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "5bfd522c9a5763cd3513fdf321bc1d707f1e5d47",
+        "description": "docs: reset new_features.txt",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ab3cc1d0a05c99556b4f4d6feac0127edfd9e2b7",
+        "description": "VERSION: bump to 26.1",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "87a8d19b5136aca48fe120fcb29b5e06423d4e25",
+        "description": "ac/gpu_info: Remove FIXME from regalloc hang description",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d7f3096ee9b5363853569f7d196c8f97927947f3",
+        "description": "radeonsi: Remove previous mitigation of CS regalloc hang bug",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "fc0827126f4b7473caf0a170096e2068ca176df2",
+        "description": "radv: Remove previous mitigation of CS regalloc hang bug",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f3e8e939068d5bc7d06b2dc9d5eb74c33d2f0615",
+        "description": "radeonsi: Allow using compute queue with regalloc hang bug on GFX7",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "86ff28b3dab847d699eac6418857fbebe2ee82e0",
+        "description": "radv: Allow using compute queue with CS regalloc hang bug on GFX7",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0961aba8a7cdd0ad25925403bd93b3782b82ee2a",
+        "description": "radeonsi: Lower larger workgroups to 256 for CS regalloc bug",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d31b4451f2968592050c76c39b01d7c534fc049a",
+        "description": "radv: Lower larger workgroups to 256 for CS regalloc bug",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "dc4102351006f73326f66b90ecdfbed576332de6",
+        "description": "radeonsi: Limit variable workgroup size to 256 for CS regalloc bug",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3d934c79517f0792c3267824cf6225d9897f7490",
+        "description": "mesa: Require at least 512 variable invocations for ARB_compute_variable_group_size",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
         "sha": "e58b32a8c1f6540883bcc0d8347611bd6985758e",
         "description": "zink: handle split DS blits with zink_blit calls",
         "nominated": true,
