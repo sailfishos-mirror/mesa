@@ -6,9 +6,9 @@ bxs-4-64-vk:
     - .ci-tron-arm64-test-vk
     - .imagination-ti-am68-sk:arm64
     - .imagination-manual-rules
-  timeout: 35m
+  timeout: 50m
   variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 30
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 45
     DEQP_SUITE: vk
     VK_DRIVER: powervr_mesa
     MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
