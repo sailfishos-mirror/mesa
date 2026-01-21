@@ -4084,7 +4084,7 @@
         "description": "ac/sdma: fix stencil only copies on GFX9",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 3,
         "main_sha": null,
         "because_sha": null,
         "notes": "This patch is massive on stable, follow up to make sure that's expected"
