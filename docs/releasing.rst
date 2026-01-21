@@ -211,7 +211,7 @@ the branches:
    git push origin $VERSION-branchpoint
    git checkout $VERSION-branchpoint
    git push origin HEAD:refs/heads/$VERSION
-   git push origin HEAD:refs/heads/staging/$VERSION
+   git push origin HEAD:refs/heads/staging/$VERSION --push-option ci.skip
    git checkout staging/$VERSION
    git branch --set-upstream-to origin/staging/$VERSION
 
