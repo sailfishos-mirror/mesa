@@ -10586,6 +10586,7 @@ radv_cs_emit_dispatch_taskmesh_indirect_multi_ace_packet(const struct radv_devic
    const uint32_t ring_entry_reg = radv_get_user_sgpr(task_shader, AC_UD_TASK_RING_ENTRY);
    const uint32_t xyz_dim_reg = radv_get_user_sgpr(task_shader, AC_UD_CS_GRID_SIZE);
    const uint32_t draw_id_reg = radv_get_user_sgpr(task_shader, AC_UD_CS_TASK_DRAW_ID);
+   const bool sqtt_en = !!device->sqtt.bo;
 
    radeon_begin(ace_cs);
    radeon_emit(PKT3(PKT3_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE, 9, 0) | PKT3_SHADER_TYPE_S(1));
@@ -10593,7 +10594,8 @@ radv_cs_emit_dispatch_taskmesh_indirect_multi_ace_packet(const struct radv_devic
    radeon_emit(data_va >> 32);
    radeon_emit(S_AD2_RING_ENTRY_REG(ring_entry_reg));
    radeon_emit(S_AD3_COUNT_INDIRECT_ENABLE(!!count_va) | S_AD3_DRAW_INDEX_ENABLE(!!draw_id_reg) |
-               S_AD3_XYZ_DIM_ENABLE(!!xyz_dim_reg) | S_AD3_DRAW_INDEX_REG(draw_id_reg));
+               S_AD3_XYZ_DIM_ENABLE(!!xyz_dim_reg) | S_AD3_DRAW_INDEX_REG(draw_id_reg) |
+               S_AD3_THREAD_TRACE_MARKER_ENABLE(sqtt_en));
    radeon_emit(S_AD4_XYZ_DIM_REG(xyz_dim_reg));
    radeon_emit(draw_count);
    radeon_emit(count_va);
@@ -11109,9 +11111,6 @@ radv_emit_indirect_taskmesh_draw_packets(const struct radv_device *device, struc
          radv_cs_emit_dispatch_taskmesh_direct_ace_packet(device, cmd_state, ace_cs, 0, 0, 0);
       }
    }
-
-   if (device->sqtt.bo)
-      radv_emit_thread_trace_marker(device, ace_cs, cmd_state->predicating);
 }
 
 static void

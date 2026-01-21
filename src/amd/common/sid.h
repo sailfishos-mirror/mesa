@@ -266,6 +266,7 @@
 #define PKT3_DISPATCH_TASKMESH_DIRECT_ACE          0xAA /* Direct task + mesh shader dispatch [ACE side], GFX10.3+ */
 #define PKT3_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE  0xAD /* Indirect task + mesh shader dispatch [ACE side], GFX10.3+ */
 #define   S_AD2_RING_ENTRY_REG(x)                     ((x & 0xFFFF))
+#define   S_AD3_THREAD_TRACE_MARKER_ENABLE(x)         ((x & 1) << 0)
 #define   S_AD3_COUNT_INDIRECT_ENABLE(x)              ((x & 1) << 1)
 #define   S_AD3_DRAW_INDEX_ENABLE(x)                  ((x & 1) << 2)
 #define   S_AD3_XYZ_DIM_ENABLE(x)                     ((x & 1) << 3)

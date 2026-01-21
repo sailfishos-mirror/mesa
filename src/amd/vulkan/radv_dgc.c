@@ -2483,7 +2483,9 @@ dgc_emit_draw_mesh_tasks_ace(struct dgc_cmdbuf *ace_cs, nir_def *stream_addr)
 static void
 dgc_emit_draw_mesh_tasks_with_count_ace(struct dgc_cmdbuf *ace_cs, nir_def *stream_addr, nir_def *sequence_id)
 {
+   const struct radv_device *device = ace_cs->dev;
    const struct radv_indirect_command_layout *layout = ace_cs->layout;
+   const bool sqtt_en = !!device->sqtt.bo;
    nir_builder *b = ace_cs->b;
 
    nir_def *draw_data = nir_load_global(b, 4, 32, nir_iadd_imm(b, stream_addr, layout->vk.draw_src_offset_B),
@@ -2509,7 +2511,9 @@ dgc_emit_draw_mesh_tasks_with_count_ace(struct dgc_cmdbuf *ace_cs, nir_def *stre
    dgc_cs_emit(va_lo);
    dgc_cs_emit(va_hi);
    dgc_cs_emit(ring_entry_reg);
-   dgc_cs_emit(nir_ior(b, draw_index_enable, nir_ior(b, xyz_dim_enable, nir_ishl_imm(b, draw_id_reg, 16))));
+   dgc_cs_emit(nir_ior_imm(b,
+                           nir_ior(b, draw_index_enable, nir_ior(b, xyz_dim_enable, nir_ishl_imm(b, draw_id_reg, 16))),
+                           S_AD3_THREAD_TRACE_MARKER_ENABLE(sqtt_en)));
    dgc_cs_emit(xyz_dim_reg);
    dgc_cs_emit(draw_count);
    dgc_cs_emit_imm(0);
@@ -2517,8 +2521,6 @@ dgc_emit_draw_mesh_tasks_with_count_ace(struct dgc_cmdbuf *ace_cs, nir_def *stre
    dgc_cs_emit(stride);
    dgc_cs_emit(dispatch_initiator);
    dgc_cs_end();
-
-   dgc_emit_sqtt_thread_trace_marker(ace_cs);
 }
 
 /**
