@@ -2334,6 +2334,7 @@ dgc_emit_draw_mesh_tasks_with_count_gfx(struct dgc_cmdbuf *cs, nir_def *stream_a
    const struct radv_indirect_command_layout *layout = cs->layout;
    const struct radv_device *device = cs->dev;
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   const bool sqtt_en = !!device->sqtt.bo;
    nir_builder *b = cs->b;
 
    nir_push_if(b, nir_ieq_imm(b, load_param8(b, has_task_shader), 1));
@@ -2379,10 +2380,12 @@ dgc_emit_draw_mesh_tasks_with_count_gfx(struct dgc_cmdbuf *cs, nir_def *stream_a
       dgc_cs_emit(
          nir_ior(b, nir_iand_imm(b, xyz_dim_reg, 0xFFFF), nir_ishl_imm(b, nir_iand_imm(b, draw_id_reg, 0xFFFF), 16)));
       if (pdev->info.gfx_level >= GFX11) {
-         dgc_cs_emit(nir_ior_imm(b, nir_ior(b, draw_index_enable, xyz_dim_enable),
-                                 S_4C2_MODE1_ENABLE(!pdev->info.mesh_fast_launch_2)));
+         dgc_cs_emit(nir_ior_imm(b,
+                                 nir_ior_imm(b, nir_ior(b, draw_index_enable, xyz_dim_enable),
+                                             S_4C2_MODE1_ENABLE(!pdev->info.mesh_fast_launch_2)),
+                                 S_4C2_THREAD_TRACE_MARKER_ENABLE(sqtt_en)));
       } else {
-         dgc_cs_emit(draw_index_enable);
+         dgc_cs_emit(nir_ior_imm(b, draw_index_enable, S_4C2_THREAD_TRACE_MARKER_ENABLE(sqtt_en)));
       }
       dgc_cs_emit(draw_count);
       dgc_cs_emit_imm(0);
@@ -2391,7 +2394,8 @@ dgc_emit_draw_mesh_tasks_with_count_gfx(struct dgc_cmdbuf *cs, nir_def *stream_a
       dgc_cs_emit_imm(V_0287F0_DI_SRC_SEL_AUTO_INDEX);
       dgc_cs_end();
 
-      dgc_emit_after_draw(cs, ApiCmdDrawMeshTasksIndirectCountEXT);
+      dgc_gfx12_emit_hiz_wa(cs);
+      dgc_emit_sqtt_end_api_marker(cs, ApiCmdDrawMeshTasksIndirectCountEXT);
    }
    nir_pop_if(b, NULL);
 }
