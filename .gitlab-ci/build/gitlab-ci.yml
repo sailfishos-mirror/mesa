@@ -203,7 +203,6 @@ debian-release:
   variables:
     UNWIND: "enabled"
     C_ARGS: >
-      -Wno-error=stringop-overread
       -Wno-error=deprecated-declarations
     CPP_ARGS: >
       -Wno-error=deprecated-declarations
