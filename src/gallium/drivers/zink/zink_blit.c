@@ -406,27 +406,23 @@ zink_blit(struct pipe_context *pctx,
 
    bool stencil_blit = false;
    if (!util_blitter_is_blit_supported(ctx->blitter, info)) {
-      if (util_format_is_depth_or_stencil(info->src.resource->format)) {
-         if (info->mask & PIPE_MASK_Z) {
-            struct pipe_blit_info depth_blit = *info;
-            depth_blit.mask = PIPE_MASK_Z;
-            if (util_blitter_is_blit_supported(ctx->blitter, &depth_blit)) {
-               zink_blit_begin(ctx, ZINK_BLIT_SAVE_FB | ZINK_BLIT_SAVE_FS | ZINK_BLIT_SAVE_TEXTURES);
-               util_blitter_blit(ctx->blitter, &depth_blit, NULL);
-            } else {
-               mesa_loge("ZINK: depth blit unsupported %s -> %s",
-                         util_format_short_name(info->src.resource->format),
-                         util_format_short_name(info->dst.resource->format));
-            }
-         }
-         if (info->mask & PIPE_MASK_S)
-            stencil_blit = true;
-      }
-      if (!stencil_blit) {
+      /* D/S blits could still work when split. stencil only blits are workaroundable. otherwise, nope out. */
+      if ((info->mask & PIPE_MASK_S) == 0) {
          mesa_loge("ZINK: blit unsupported %s -> %s",
-                 util_format_short_name(info->src.resource->format),
-                 util_format_short_name(info->dst.resource->format));
+            util_format_short_name(info->src.resource->format),
+            util_format_short_name(info->dst.resource->format));
          goto end;
+      } else if (info->mask == PIPE_MASK_S) {
+         stencil_blit = true;
+      } else {
+         assert(util_format_is_depth_or_stencil(info->src.resource->format));
+         struct pipe_blit_info split_blit = *info;
+         split_blit.mask = PIPE_MASK_Z;
+         zink_blit(pctx, &split_blit);
+
+         split_blit.mask = PIPE_MASK_S;
+         zink_blit(pctx, &split_blit);
+         return;
       }
    }
 
