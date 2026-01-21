@@ -553,7 +553,8 @@ blorp_fast_clear(struct blorp_batch *batch,
    int64_t size_B = 0;
    int unaligned_height = 0;
    struct blorp_address addr = surf->addr;
-   if (surf->surf->samples == 1) {
+   if (ISL_GFX_VERX10(batch->blorp->isl_dev) == 125 &&
+       surf->surf->samples == 1) {
       uint64_t start_tile_B, end_tile_B;
       if (isl_surf_image_has_unique_tiles(surf->surf, level,
                                           start_layer, num_layers,
@@ -568,8 +569,7 @@ blorp_fast_clear(struct blorp_batch *batch,
          assert(surf->surf->levels > 1 ||
                 surf->surf->logical_level0_px.d != num_layers);
       } else if (level == 0 && start_layer == 0 && num_layers == 1) {
-         assert(surf->surf->tiling == ISL_TILING_4 ||
-                surf->surf->tiling == ISL_TILING_Y0);
+         assert(surf->surf->tiling == ISL_TILING_4);
          assert(surf->surf->levels > 1 ||
                 surf->surf->logical_level0_px.d > 1 ||
                 surf->surf->logical_level0_px.a > 1);
