@@ -162,6 +162,7 @@ NON_AUTOGEN_ENTRYPOINTS = [
     "vkQueueSubmitAsync2GOOGLE",
     "vkGetSemaphoreGOOGLE",
     "vkTraceAsyncGOOGLE",
+    "vkSetDebugMetadataAsyncGOOGLE",
 ]
 
 # Handles that need to be translated to/from their corresponding gfxstream object types
