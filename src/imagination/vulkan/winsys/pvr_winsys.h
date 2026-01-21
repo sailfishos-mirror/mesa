@@ -43,6 +43,9 @@
 #include "vk_sync.h"
 #include "vk_sync_timeline.h"
 
+#define PVR_DRM_DRIVER_NAME "powervr"
+#define PVR_SRV_DRIVER_NAME "pvr"
+
 struct pvr_device_info;
 struct pvr_device_runtime_info;
 
