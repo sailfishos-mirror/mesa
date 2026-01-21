@@ -60,7 +60,6 @@ debian-x86_64-asan:
     VULKAN_DRIVERS: "swrast,amd,intel"
     GALLIUM_DRIVERS: "llvmpipe,softpipe,zink,r300"
     C_ARGS: >
-      -Wno-error=stringop-truncation
       -Wno-error=deprecated-declarations
     EXTRA_OPTION: >
       -D intel-elk=false
@@ -149,7 +148,6 @@ debian-x86_64-ubsan:
   variables:
     C_ARGS: >
       -Wno-error=stringop-overflow
-      -Wno-error=stringop-truncation
       -Wno-error=deprecated-declarations
     CPP_ARGS: >
       -Wno-error=array-bounds
@@ -533,7 +531,6 @@ debian-arm64-ubsan:
     C_ARGS: >
       -Wno-error=array-bounds
       -Wno-error=stringop-overflow
-      -Wno-error=stringop-truncation
       -Wno-error=deprecated-declarations
     CPP_ARGS: >
       -Wno-error=array-bounds
