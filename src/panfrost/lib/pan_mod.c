@@ -195,6 +195,10 @@ pan_mod_afbc_test_props(const struct pan_kmod_dev_props *dprops,
    if (iusage && iusage->bind & PAN_BIND_STORAGE_IMAGE)
       return PAN_MOD_NOT_SUPPORTED;
 
+   /* We don't implement mapping individual tiles with AFBC. */
+   if (iusage && iusage->standard_sparse_mapping_granularity)
+      return PAN_MOD_NOT_SUPPORTED;
+
    /* AFBC not supported. */
    if (!pan_query_afbc(dprops))
       return PAN_MOD_NOT_SUPPORTED;
@@ -310,6 +314,10 @@ pan_mod_afrc_test_props(const struct pan_kmod_dev_props *dprops,
 
    /* No image store. */
    if (iusage && iusage->bind & PAN_BIND_STORAGE_IMAGE)
+      return PAN_MOD_NOT_SUPPORTED;
+
+   /* We don't implement mapping individual tiles with AFRC. */
+   if (iusage && iusage->standard_sparse_mapping_granularity)
       return PAN_MOD_NOT_SUPPORTED;
 
    /* We can't write to an AFRC resource directly. */
@@ -445,6 +453,10 @@ pan_mod_u_tiled_test_props(const struct pan_kmod_dev_props *dprops,
    if (pan_format_is_yuv(iprops->format))
       return PAN_MOD_NOT_SUPPORTED;
 
+   /* We don't implement mapping individual tiles in this layout. */
+   if (iusage && iusage->standard_sparse_mapping_granularity)
+      return PAN_MOD_NOT_SUPPORTED;
+
    /* The purpose of tiling is improving locality in both X- and
     * Y-directions. If there is only a single pixel in either direction,
     * tiling does not make sense; using a linear layout instead is optimal
@@ -574,6 +586,103 @@ pan_mod_u_tiled_init_slice_layout(
 #define pan_mod_u_tiled_emit_zs_attachment GENX(pan_emit_u_tiled_zs_attachment)
 #define pan_mod_u_tiled_emit_s_attachment  GENX(pan_emit_u_tiled_s_attachment)
 
+#if PAN_ARCH >= 10
+#define pan_mod_interleaved_64k_init_plane_layout NULL
+
+static bool
+pan_mod_interleaved_64k_init_slice_layout(
+   const struct pan_image_props *props, unsigned plane_idx,
+   struct pan_image_extent mip_extent_px,
+   const struct pan_image_layout_constraints *layout_constraints,
+   struct pan_image_slice_layout *slayout)
+{
+   assert(!(layout_constraints && layout_constraints->wsi_row_pitch_B));
+
+   struct pan_image_block_size tile_extent_el =
+      pan_interleaved_64k_tile_size_el(props->format);
+   struct pan_image_block_size tile_extent_px = {
+      tile_extent_el.width * util_format_get_blockwidth(props->format),
+      tile_extent_el.height * util_format_get_blockheight(props->format),
+   };
+   uint64_t tile_size_B = 65536;
+
+   struct pan_image_extent mip_extent_tiles = {
+      DIV_ROUND_UP(mip_extent_px.width, tile_extent_px.width),
+      DIV_ROUND_UP(mip_extent_px.height, tile_extent_px.height),
+      mip_extent_px.depth,
+   };
+
+   uint64_t row_stride_B = mip_extent_tiles.width * tile_size_B;
+   uint64_t surf_stride_B = mip_extent_tiles.height * row_stride_B;
+
+   slayout->offset_B = layout_constraints ? layout_constraints->offset_B : 0;
+   slayout->size_B = mip_extent_tiles.depth * surf_stride_B;
+   slayout->tiled_or_linear.row_stride_B = row_stride_B;
+   slayout->tiled_or_linear.surface_stride_B = surf_stride_B;
+
+   if (slayout->size_B > MAX_SIZE_B ||
+       slayout->tiled_or_linear.surface_stride_B > MAX_SLICE_STRIDE_B)
+      return false;
+
+   return true;
+}
+
+static uint32_t
+pan_mod_interleaved_64k_get_wsi_row_pitch(const struct pan_image *image,
+                                          unsigned plane_idx, unsigned mip_level)
+{
+   UNREACHABLE("interleaved 64k cannot be used for wsi");
+}
+
+static bool
+pan_mod_interleaved_64k_match(uint64_t mod)
+{
+   return mod == DRM_FORMAT_MOD_ARM_INTERLEAVED_64K;
+}
+
+static enum pan_mod_support
+pan_mod_interleaved_64k_test_props(const struct pan_kmod_dev_props *dprops,
+                                   const struct pan_image_props *iprops,
+                                   const struct pan_image_usage *iusage)
+{
+   assert(GENX(pan_format_from_pipe_format)(iprops->format)->hw);
+
+   /* YUV not supported. */
+   if (pan_format_is_yuv(iprops->format))
+      return PAN_MOD_NOT_SUPPORTED;
+
+   /* Non-po2 byte texel blocks not supported. */
+   if (!util_is_power_of_two_nonzero(util_format_get_blocksize(iprops->format)))
+      return PAN_MOD_NOT_SUPPORTED;
+
+   /* We don't implement multisampling with this layout. */
+   if (iprops->nr_samples > 1)
+      return PAN_MOD_NOT_SUPPORTED;
+
+   /* We don't implement tiling/detiling of this layout on host. */
+   if (iusage->host_copy)
+      return PAN_MOD_NOT_SUPPORTED;
+
+   /* We don't respect wsi_row_pitch_B so this layout is not usable for WSI. */
+   if (iusage->wsi)
+      return PAN_MOD_NOT_SUPPORTED;
+
+   if (iusage->standard_sparse_mapping_granularity)
+      return PAN_MOD_OPTIMAL;
+
+   /* This layout doesn't offer perf benefits over plain U-interleaved but uses
+    * more memory. */
+   return PAN_MOD_NOT_OPTIMAL;
+}
+
+#define pan_mod_interleaved_64k_emit_tex_payload_entry                                 \
+   GENX(pan_tex_emit_interleaved_64k_payload_entry)
+#define pan_mod_interleaved_64k_emit_color_attachment                                  \
+   GENX(pan_emit_interleaved_64k_color_attachment)
+#define pan_mod_interleaved_64k_emit_zs_attachment GENX(pan_emit_interleaved_64k_zs_attachment)
+#define pan_mod_interleaved_64k_emit_s_attachment  GENX(pan_emit_interleaved_64k_s_attachment)
+#endif
+
 static bool
 pan_mod_linear_match(uint64_t mod)
 {
@@ -586,6 +695,11 @@ pan_mod_linear_test_props(const struct pan_kmod_dev_props *dprops,
                           const struct pan_image_usage *iusage)
 {
    assert(GENX(pan_format_from_pipe_format)(iprops->format)->hw);
+
+   /* We can't implement mapping of tiles at standard sparse granularity using
+    * this layout. */
+   if (iusage && iusage->standard_sparse_mapping_granularity)
+      return PAN_MOD_NOT_SUPPORTED;
 
    switch (iprops->format) {
    /* AFBC-only formats. */
@@ -724,6 +838,7 @@ static const struct pan_mod_handler pan_mod_handlers[] = {
    PAN_MOD_DEF(u_tiled),
    PAN_MOD_DEF(linear),
 #if PAN_ARCH >= 10
+   PAN_MOD_DEF(interleaved_64k),
    PAN_MOD_DEF(afrc),
 #endif
 };

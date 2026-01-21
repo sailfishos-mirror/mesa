@@ -290,6 +290,18 @@ void GENX(pan_emit_afbc_s_attachment)(const struct pan_fb_info *fb,
 #endif
 
 #if PAN_ARCH >= 10
+void
+GENX(pan_emit_interleaved_64k_color_attachment)(const struct pan_fb_info *fb,
+                                                unsigned rt_idx,
+                                                unsigned layer_or_z_slice,
+                                                unsigned cbuf_offset, void *payload);
+void GENX(pan_emit_interleaved_64k_zs_attachment)(const struct pan_fb_info *fb,
+                                                  unsigned layer_or_z_slice,
+                                                  void *payload);
+void GENX(pan_emit_interleaved_64k_s_attachment)(const struct pan_fb_info *fb,
+                                                 unsigned layer_or_z_slice,
+                                                 void *payload);
+
 void GENX(pan_emit_afrc_color_attachment)(const struct pan_fb_info *fb,
                                           unsigned rt_idx,
                                           unsigned layer_or_z_slice,

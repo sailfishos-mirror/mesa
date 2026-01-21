@@ -401,6 +401,13 @@ panfrost_walk_dmabuf_modifiers(struct pipe_screen *screen,
    for (unsigned i = 0; i < ARRAY_SIZE(native_mods); ++i) {
       uint64_t mod =  native_mods[i];
 
+      /* We don't implement the WSI interface for
+       * DRM_FORMAT_MOD_ARM_INTERLEAVED_64K so let's just not advertise images
+       * using this modifier, which will take care of it being advertised for
+       * WSI. */
+      if (mod == DRM_FORMAT_MOD_ARM_INTERLEAVED_64K)
+         continue;
+
       if ((dev->debug & PAN_DBG_NO_AFBC) && drm_is_afbc(mod))
          continue;
 

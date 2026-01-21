@@ -573,6 +573,8 @@ format_can_do_mod(unsigned arch, enum pipe_format format, unsigned plane_idx,
       return pan_afbc_format(arch, format, plane_idx) != PAN_AFBC_MODE_INVALID;
    } else if (drm_is_afrc(modifier)) {
       return arch >= 10 && pan_afrc_supports_format(format);
+   } else if (modifier == DRM_FORMAT_MOD_ARM_INTERLEAVED_64K) {
+      return false;
    } else {
       assert(modifier == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED ||
              modifier == DRM_FORMAT_MOD_LINEAR);

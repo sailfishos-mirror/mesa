@@ -69,6 +69,10 @@ void GENX(pan_tex_emit_afbc_payload_entry)(const struct pan_image_view *iview,
                                            unsigned sample, void **payload);
 
 #if PAN_ARCH >= 10
+void GENX(pan_tex_emit_interleaved_64k_payload_entry)(
+      const struct pan_image_view *iview, unsigned mip_level,
+      unsigned layer_or_z_slice, unsigned sample, void **payload);
+
 void GENX(pan_tex_emit_afrc_payload_entry)(
       const struct pan_image_view *iview, unsigned mip_level,
       unsigned layer_or_z_slice, unsigned sample, void **payload);

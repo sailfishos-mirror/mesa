@@ -255,6 +255,9 @@ struct pan_image_usage {
    /* PAN_BIND_xxx flags. */
    uint32_t bind;
 
+   /* Image needs to be mappable at standard sparse block granularity. */
+   bool standard_sparse_mapping_granularity;
+
    /* Image filled directly from the CPU. */
    bool host_copy;
 

@@ -292,6 +292,23 @@ pan_clump_format(enum pipe_format format)
    }
 }
 
+static enum mali_clump_ordering
+modifier_clump_ordering(uint64_t modifier)
+{
+   switch (modifier) {
+   case DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED:
+      return MALI_CLUMP_ORDERING_TILED_U_INTERLEAVED;
+#if PAN_ARCH >= 10
+   case DRM_FORMAT_MOD_ARM_INTERLEAVED_64K:
+      return MALI_CLUMP_ORDERING_INTERLEAVED_64K;
+#endif
+   case DRM_FORMAT_MOD_LINEAR:
+      return MALI_CLUMP_ORDERING_LINEAR;
+   default:
+      UNREACHABLE("");
+   }
+}
+
 static enum mali_afbc_superblock_size
 translate_superblock_size(uint64_t modifier)
 {
@@ -391,6 +408,7 @@ emit_generic_plane(const struct pan_image_view *iview, int plane_idx,
    /* 3-planar formats must use Chroma 2p planes for the U V planes. */
    assert(plane_idx == 0 || desc->layout != UTIL_FORMAT_LAYOUT_PLANAR3);
    assert(props->modifier == DRM_FORMAT_MOD_LINEAR ||
+          props->modifier == DRM_FORMAT_MOD_ARM_INTERLEAVED_64K ||
           props->modifier == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED);
 
    get_linear_or_u_tiled_plane_props(iview, plane_idx, mip_level,
@@ -398,10 +416,7 @@ emit_generic_plane(const struct pan_image_view *iview, int plane_idx,
                                      &slice_stride, &plane_size);
 
    pan_cast_and_pack(payload, GENERIC_PLANE, cfg) {
-      cfg.clump_ordering =
-         props->modifier == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED
-            ? MALI_CLUMP_ORDERING_TILED_U_INTERLEAVED
-            : MALI_CLUMP_ORDERING_LINEAR;
+      cfg.clump_ordering = modifier_clump_ordering(props->modifier);
       cfg.clump_format = pan_clump_format(iview->format);
       PLANE_SET_SIZE(cfg, plane_size);
       cfg.pointer = plane_addr;
@@ -434,6 +449,7 @@ emit_astc_plane(const struct pan_image_view *iview, int plane_idx,
 
    assert(desc->layout == UTIL_FORMAT_LAYOUT_ASTC && desc->block.depth == 1);
    assert(props->modifier == DRM_FORMAT_MOD_LINEAR ||
+          props->modifier == DRM_FORMAT_MOD_ARM_INTERLEAVED_64K ||
           props->modifier == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED);
 
    get_linear_or_u_tiled_plane_props(iview, plane_idx, mip_level,
@@ -441,10 +457,7 @@ emit_astc_plane(const struct pan_image_view *iview, int plane_idx,
                                      &slice_stride, &plane_size);
 
 #define ASTC_PLANE_SET_COMMON_PROPS()                                          \
-   cfg.clump_ordering =                                                        \
-      props->modifier == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED          \
-         ? MALI_CLUMP_ORDERING_TILED_U_INTERLEAVED                             \
-         : MALI_CLUMP_ORDERING_LINEAR;                                         \
+   cfg.clump_ordering = modifier_clump_ordering(props->modifier);              \
    cfg.decode_hdr = iview->astc.hdr;                                           \
    cfg.decode_wide = wide;                                                     \
    PLANE_SET_SIZE(cfg, plane_size);                                            \
@@ -518,13 +531,11 @@ emit_linear_or_u_tiled_chroma_2p_plane(const struct pan_image_view *iview,
 
    assert(desc->layout == UTIL_FORMAT_LAYOUT_PLANAR3);
    assert(props->modifier == DRM_FORMAT_MOD_LINEAR ||
+          props->modifier == DRM_FORMAT_MOD_ARM_INTERLEAVED_64K ||
           props->modifier == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED);
 
    pan_cast_and_pack(payload, CHROMA_2P_PLANE, cfg) {
-      cfg.clump_ordering =
-         props->modifier == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED
-            ? MALI_CLUMP_ORDERING_TILED_U_INTERLEAVED
-            : MALI_CLUMP_ORDERING_LINEAR;
+      cfg.clump_ordering = modifier_clump_ordering(props->modifier);
       cfg.clump_format = pan_clump_format(iview->format);
       PLANE_SET_SIZE(cfg, cplane1_size);
       cfg.pointer = cplane1_addr;
@@ -747,6 +758,16 @@ emit_afrc_chroma_2p_plane(const struct pan_image_view *iview,
                        u_minify(props->extent_px.height, mip_level));
       cfg.secondary_pointer = cplane2_addr;
    }
+}
+
+#define emit_interleaved_64k_plane emit_linear_or_u_tiled_plane
+
+static void
+emit_interleaved_64k_chroma_2p_plane(const struct pan_image_view *iview,
+                                     unsigned mip_level,
+                                     unsigned layer_or_z_slice, void *payload)
+{
+   UNREACHABLE("not implemented");
 }
 #endif
 
@@ -1005,6 +1026,7 @@ PAN_TEX_EMIT_HELPER(linear)
 PAN_TEX_EMIT_HELPER(u_tiled)
 PAN_TEX_EMIT_HELPER(afbc)
 #if PAN_ARCH >= 10
+PAN_TEX_EMIT_HELPER(interleaved_64k)
 PAN_TEX_EMIT_HELPER(afrc)
 #endif
 
