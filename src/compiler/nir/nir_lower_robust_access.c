@@ -7,6 +7,39 @@
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir_intrinsics_indices.h"
+#include "util/format/u_format.h"
+
+/*
+ * The robustImageAccess2 specification says: "Reads, atomic
+ * read-modify-write operations, or fetches from images outside of the
+ * checked dimensions will return zero values, with (0,0,1) values
+ * inserted for missing G, B, or A components based on the format."
+ *
+ * This means, an out-of-bounds access to an R, RG, or RGB format will return
+ * (0, 0, 0, 1). For an RGBA format, such as VK_FORMAT_R8G8B8A8_UNORM,
+ * it will return (0, 0, 0, 0) as no components are missing.
+ */
+static nir_def *
+image_robust2_oob_value(nir_builder *b, nir_intrinsic_instr *instr)
+{
+   unsigned num_components = instr->def.num_components;
+   unsigned bit_size = instr->def.bit_size;
+   nir_alu_type dest_type = nir_intrinsic_dest_type(instr);
+   enum pipe_format format = nir_intrinsic_format(instr);
+   nir_def *zero = nir_imm_zero(b, 1, bit_size);
+   nir_def *one;
+   if (nir_alu_type_get_base_type(dest_type) == nir_type_float)
+      one = nir_imm_floatN_t(b, 1, bit_size);
+   else
+      one = nir_imm_intN_t(b, 1, bit_size);
+
+   const struct util_format_description *desc = util_format_description(format);
+   nir_def *components[NIR_MAX_VEC_COMPONENTS];
+   for (unsigned i = 0; i < num_components; i++)
+      components[i] = desc->swizzle[i] == PIPE_SWIZZLE_1 ? one : zero;
+
+   return nir_vec(b, components, num_components);
+}
 
 static void
 rewrite_offset(nir_builder *b, nir_intrinsic_instr *instr,
@@ -31,14 +64,14 @@ rewrite_offset(nir_builder *b, nir_intrinsic_instr *instr,
  * intrinsic produces a destination, it will be zero in the invalid case.
  */
 static void
-wrap_in_if(nir_builder *b, nir_intrinsic_instr *instr, nir_def *valid)
+wrap_in_if(nir_builder *b, nir_intrinsic_instr *instr, nir_def *valid, bool is_load)
 {
    bool has_dest = nir_intrinsic_infos[instr->intrinsic].has_dest;
    nir_def *res, *zero;
 
    if (has_dest) {
-      zero = nir_imm_zero(b, instr->def.num_components,
-                          instr->def.bit_size);
+         zero = is_load ? image_robust2_oob_value(b, instr) :
+               nir_imm_zero(b, instr->def.num_components, instr->def.bit_size);
    }
 
    nir_push_if(b, valid);
@@ -109,7 +142,7 @@ lower_buffer_shared(nir_builder *b, nir_intrinsic_instr *instr)
 }
 
 static void
-lower_image(nir_builder *b, nir_intrinsic_instr *instr, bool deref)
+lower_image(nir_builder *b, nir_intrinsic_instr *instr, bool deref, bool is_load)
 {
    enum glsl_sampler_dim dim = nir_intrinsic_image_dim(instr);
    uint32_t num_coords = nir_image_intrinsic_coord_components(instr);
@@ -151,7 +184,7 @@ lower_image(nir_builder *b, nir_intrinsic_instr *instr, bool deref)
    }
 
    /* Only execute if coordinates are in-bounds. Otherwise, return zero. */
-   wrap_in_if(b, instr, in_bounds);
+   wrap_in_if(b, instr, in_bounds, is_load);
 }
 
 struct pass_opts {
@@ -170,17 +203,21 @@ lower(nir_builder *b, nir_intrinsic_instr *intr, void *_opts)
 
    switch (intr->intrinsic) {
    case nir_intrinsic_image_load:
+      lower_image(b, intr, false, true);
+      return true;
    case nir_intrinsic_image_store:
    case nir_intrinsic_image_atomic:
    case nir_intrinsic_image_atomic_swap:
-      lower_image(b, intr, false);
+      lower_image(b, intr, false, false);
       return true;
 
    case nir_intrinsic_image_deref_load:
+      lower_image(b, intr, true, true);
+      return true;
    case nir_intrinsic_image_deref_store:
    case nir_intrinsic_image_deref_atomic:
    case nir_intrinsic_image_deref_atomic_swap:
-      lower_image(b, intr, true);
+      lower_image(b, intr, true, false);
       return true;
 
    case nir_intrinsic_load_ubo:
