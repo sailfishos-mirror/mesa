@@ -466,6 +466,7 @@ void si_make_buffer_descriptor(struct si_screen *screen, struct si_resource *buf
                                enum pipe_format format, unsigned offset, unsigned num_elements,
                                uint32_t *state);
 void si_mark_display_dcc_dirty(struct si_context *sctx, struct si_texture *tex);
+void si_ps_key_update_framebuffer(struct si_context *sctx);
 void si_update_ps_iter_samples(struct si_context *sctx);
 void si_save_qbo_state(struct si_context *sctx, struct si_qbo_state *st);
 void si_restore_qbo_state(struct si_context *sctx, struct si_qbo_state *st);
@@ -498,7 +499,6 @@ unsigned si_get_input_prim(const struct si_shader_selector *gs, const union si_s
 unsigned si_get_num_vertices_per_output_prim(struct si_shader *shader);
 bool si_update_ngg(struct si_context *sctx);
 void si_vs_ps_key_update_rast_prim_smooth_stipple(struct si_context *sctx);
-void si_ps_key_update_framebuffer(struct si_context *sctx);
 void si_ps_key_update_framebuffer_blend_dsa_rasterizer(struct si_context *sctx);
 void si_ps_key_update_rasterizer(struct si_context *sctx);
 void si_ps_key_update_dsa(struct si_context *sctx);

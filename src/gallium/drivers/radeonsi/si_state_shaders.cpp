@@ -2601,35 +2601,6 @@ static void si_clear_vs_key_outputs(struct si_context *sctx, struct si_shader_se
    key->ge.mono.write_pos_to_clipvertex = 0;
 }
 
-void si_ps_key_update_framebuffer(struct si_context *sctx)
-{
-   struct si_shader_selector *sel = sctx->shader.ps.cso;
-   union si_shader_key *key = &sctx->shader.ps.key;
-
-   if (!sel)
-      return;
-
-   /* ps_uses_fbfetch is true only if the color buffer is bound. */
-   if (sctx->ps_uses_fbfetch) {
-      struct pipe_surface *cb0 = &sctx->framebuffer.state.cbufs[0];
-      struct pipe_resource *tex = cb0->texture;
-
-      /* 1D textures are allocated and used as 2D on GFX9. */
-      key->ps.mono.fbfetch_msaa = sctx->framebuffer.nr_samples > 1;
-      key->ps.mono.fbfetch_is_1D =
-         sctx->gfx_level != GFX9 &&
-         (tex->target == PIPE_TEXTURE_1D || tex->target == PIPE_TEXTURE_1D_ARRAY);
-      key->ps.mono.fbfetch_layered =
-         tex->target == PIPE_TEXTURE_1D_ARRAY || tex->target == PIPE_TEXTURE_2D_ARRAY ||
-         tex->target == PIPE_TEXTURE_CUBE || tex->target == PIPE_TEXTURE_CUBE_ARRAY ||
-         tex->target == PIPE_TEXTURE_3D;
-   } else {
-      key->ps.mono.fbfetch_msaa = 0;
-      key->ps.mono.fbfetch_is_1D = 0;
-      key->ps.mono.fbfetch_layered = 0;
-   }
-}
-
 void si_ps_key_update_framebuffer_blend_dsa_rasterizer(struct si_context *sctx)
 {
    struct si_shader_selector *sel = sctx->shader.ps.cso;
