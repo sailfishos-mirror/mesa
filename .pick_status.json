@@ -3654,7 +3654,7 @@
         "description": "anv: Set TRANSFER_DST_BIT for HiZ operations",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "08e82b28e83b406a9b7e6f083520af1a90c3c156",
         "notes": null
