@@ -1307,7 +1307,6 @@ gl_lcdblendmodes,Fail
 gl_lcdtextsize,Fail
 gl_localmatriximagefilter,Fail
 gl_mipmap_srgb,Fail
-gl_multipicturedraw_sierpinski_tiled,Fail
 gl_nested_bw,Fail
 gl_patch_alpha,Fail
 gl_patch_primitive,Fail
