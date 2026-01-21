@@ -3814,7 +3814,7 @@
         "description": "pco: update formatless skip check",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "52ddc40a759c1a9a1002ecca6ba6c64b3b09ed66",
         "notes": null
