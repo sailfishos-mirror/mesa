@@ -166,6 +166,14 @@ spirv_builder_emit_member_offset(struct spirv_builder *b, SpvId target,
                                  uint32_t member, uint32_t offset);
 
 void
+spirv_builder_emit_member_matrix_stride(struct spirv_builder *b, SpvId target,
+                                        uint32_t member, uint32_t stride);
+
+void
+spirv_builder_emit_member_matrix_major(struct spirv_builder *b, SpvId target,
+                                       uint32_t member, bool rowmajor);
+
+void
 spirv_builder_emit_entry_point(struct spirv_builder *b,
                                SpvExecutionModel exec_model, SpvId entry_point,
                                const char *name, const SpvId interfaces[],

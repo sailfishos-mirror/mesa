@@ -637,6 +637,14 @@ get_glsl_type(struct ntv_context *ctx, const struct glsl_type *type, bool implic
          int32_t offset = glsl_get_struct_field_offset(type, i);
          if (offset >= 0 && !implicit_stride)
             spirv_builder_emit_member_offset(&ctx->builder, ret, i, offset);
+
+         const struct glsl_type *field = glsl_get_struct_field(type, i);
+         if (glsl_type_is_matrix(field) && !implicit_stride) {
+            unsigned bit_size = glsl_get_bit_size(field);
+            unsigned stride = (bit_size >> 3) * glsl_get_vector_elements(field);
+            spirv_builder_emit_member_matrix_stride(&ctx->builder, ret, i, stride);
+            spirv_builder_emit_member_matrix_major(&ctx->builder, ret, i, glsl_matrix_type_is_row_major(field));
+         }
       }
    } else
       UNREACHABLE("Unhandled GLSL type");

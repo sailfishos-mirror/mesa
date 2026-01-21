@@ -397,6 +397,22 @@ spirv_builder_emit_member_offset(struct spirv_builder *b, SpvId target,
                           args, ARRAY_SIZE(args));
 }
 
+void
+spirv_builder_emit_member_matrix_stride(struct spirv_builder *b, SpvId target,
+                                        uint32_t member, uint32_t stride)
+{
+   uint32_t args[] = { stride };
+   emit_member_decoration(b, target, member, SpvDecorationMatrixStride,
+                          args, ARRAY_SIZE(args));
+}
+
+void
+spirv_builder_emit_member_matrix_major(struct spirv_builder *b, SpvId target,
+                                       uint32_t member, bool rowmajor)
+{
+   emit_member_decoration(b, target, member, rowmajor ? SpvDecorationRowMajor : SpvDecorationColMajor, NULL, 0);
+}
+
 SpvId
 spirv_builder_emit_undef(struct spirv_builder *b, SpvId result_type)
 {
