@@ -9804,7 +9804,7 @@
         "description": "radv: fix capturing performance counters with SPM",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 3,
         "main_sha": null,
         "because_sha": null,
         "notes": "There are three missing functions, `radv_spm_trace_enabled`, `ac_cmdbuf_event_write`, `ac_cmdbuf_set_sh_reg`"
