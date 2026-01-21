@@ -4864,7 +4864,7 @@
         "description": "tu: handle DS_DEPTH_BOUNDS_TEST_BOUNDS state under TU_DYNAMIC_STATE_RB_DEPTH_CNTL",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "979cf7bac04fd833c13407b98851e7a4f15d8d33",
         "notes": null
