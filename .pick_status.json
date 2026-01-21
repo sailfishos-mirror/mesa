@@ -3824,7 +3824,7 @@
         "description": "vulkan: fix missing begin debug marker for HPLOC",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "091b43b970f3cc996f27314cccc64cee0aa9155a",
         "notes": null

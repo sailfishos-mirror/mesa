@@ -482,6 +482,9 @@ vk_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PLOC_BUILD_INTERNAL:
       snprintf(name, sizeof(name), "ploc_build_internal");
       break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_HPLOC_BUILD_INTERNAL:
+      snprintf(name, sizeof(name), "hploc_build_internal");
+      break;
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_ENCODE:
    case VK_ACCELERATION_STRUCTURE_BUILD_STEP_UPDATE: {
       const char *type = marker->step == VK_ACCELERATION_STRUCTURE_BUILD_STEP_ENCODE ? "encode" : "update";
