@@ -749,7 +749,18 @@ struct ir3_block {
 
    uint16_t start_ip, end_ip;
 
+   /**
+    * Is the block a reconvergence point within a wave:
+    */
    bool reconvergence_point;
+
+   /**
+    * If the block is not a recoverngence point within a wave, it may
+    * still be a point where parallel waves recoverge.  This should
+    * be considered for (jp) marking and branchstack, but need not be
+    * considered for constructing physical edges for uGPR allocation.
+    */
+   bool wave_reconvergence_point;
 
    bool in_early_preamble;
 

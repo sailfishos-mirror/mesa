@@ -1224,7 +1224,7 @@ static void
 mark_xvergence_points(struct ir3 *ir)
 {
    foreach_block (block, &ir->block_list) {
-      if (block->reconvergence_point)
+      if (block->reconvergence_point || block->wave_reconvergence_point)
          mark_jp(block);
    }
 }

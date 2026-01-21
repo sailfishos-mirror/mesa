@@ -227,6 +227,15 @@ struct fd_dev_info {
 
       bool supports_double_threadsize;
 
+      /* Dual-wave dispatch replaces THREAD128 (supports_double_threadsize)
+       * on newer devices.
+       *
+       * This has some implications for marking join-points (jp), because
+       * while a wave may not diverge, a pair of waves might, for example
+       * subgroup-ops.
+       */
+      bool has_dual_wave_dispatch;
+
       bool has_sampler_minmax;
 
       bool has_astc_hdr;
