@@ -20,6 +20,7 @@
 #include "util/ralloc.h"
 #include "util/u_dynarray.h"
 
+#include "mda_private.h"
 #include "slice.h"
 #include "tar.h"
 
@@ -398,60 +399,6 @@ typedef struct {
    int    matches_count;
 } find_all_result;
 
-enum match_flags {
-   /* Up until first slash in the pattern, consider a prefix match, then
-    * fuzzy for the remaining of the pattern.
-    *
-    * This works better for the common case of mda.tar files with names
-    * containing hashes.  Trying to disambiguate by a prefix might end up
-    * also fuzzy matching the middle of other hashes.
-    */
-   MATCH_PREFIX_FIRST_SLASH = 1 << 0,
-};
-
-static bool
-is_match(slice name_slice, const char *pattern, unsigned match_flags)
-{
-   assert(!slice_is_empty(name_slice));
-
-   slice pattern_slice = slice_from_cstr(pattern);
-
-   /* Non-fuzzy matching first. */
-   if (slice_contains_str(name_slice, pattern_slice))
-      return true;
-
-   slice s = name_slice;
-   slice p = pattern_slice;
-
-   if (match_flags & MATCH_PREFIX_FIRST_SLASH) {
-      slice_cut_result pattern_cut = slice_cut(pattern_slice, '/');
-      if (pattern_cut.found) {
-         slice_cut_result name_cut = slice_cut(name_slice, '/');
-         if (!name_cut.found || !slice_starts_with(name_cut.before, pattern_cut.before))
-            return false;
-
-         /* Update s and p to continue from after the slash. */
-         s = name_cut.after;
-         p = pattern_cut.after;
-      }
-   }
-
-   bool matched = false;
-   int s_idx = 0, p_idx = 0;
-   while (s_idx < s.len && p_idx < p.len) {
-      if (s.data[s_idx] == p.data[p_idx]) {
-         p_idx++;
-         if (p_idx == p.len) {
-            matched = true;
-            break;
-         }
-      }
-      s_idx++;
-   }
-
-   return matched;
-}
-
 static void
 append_match(context *ctx, find_all_result *r, object *obj, content *c)
 {
@@ -471,42 +418,30 @@ find_all(context *ctx, const char *pattern)
    if (!pattern)
       pattern = "";
 
-   unsigned round_flags[2] = {};
-   unsigned rounds = 1;
-   if (strchr(pattern, '/')) {
-      /* See comment on the enum definition. */
-      round_flags[0] = MATCH_PREFIX_FIRST_SLASH;
-      rounds++;
+   slice pattern_slice = slice_from_cstr(pattern);
+
+   for (int i = 0; i < ctx->archives_count; i++) {
+      mesa_archive *ma = ctx->archives[i];
+
+      foreach_object(obj, ma) {
+         if (is_match(obj->fullname, pattern_slice, MATCH_FLAG_NONE))
+            append_match(ctx, &r, obj, NULL);
+      }
    }
 
-   for (int round = 0; round < rounds; round++) {
-      unsigned match_flags = round_flags[round];
+   if (r.matches_count > 0)
+      return r;
 
-      for (int i = 0; i < ctx->archives_count; i++) {
-         mesa_archive *ma = ctx->archives[i];
+   for (int i = 0; i < ctx->archives_count; i++) {
+      mesa_archive *ma = ctx->archives[i];
 
-         foreach_object(obj, ma) {
-            if (is_match(obj->fullname, pattern, match_flags))
-               append_match(ctx, &r, obj, NULL);
+      foreach_object(obj, ma) {
+         foreach_version(c, obj) {
+            if (is_match(c->fullname, pattern_slice,
+                         MATCH_FLAG_SUBSTRING_LAST))
+               append_match(ctx, &r, obj, c);
          }
       }
-
-      if (r.matches_count > 0)
-         return r;
-
-      for (int i = 0; i < ctx->archives_count; i++) {
-         mesa_archive *ma = ctx->archives[i];
-
-         foreach_object(obj, ma) {
-            foreach_version(c, obj) {
-               if (is_match(c->fullname, pattern, match_flags))
-                  append_match(ctx, &r, obj, c);
-            }
-         }
-      }
-
-      if (r.matches_count > 0)
-         return r;
    }
 
    return r;
@@ -1099,8 +1034,10 @@ open_manual()
       "",
       "Without command, all the objects are listed, an object can",
       "be a particular internal shader form or other metadata.",
-      "Objects are identified by fuzzy matching a PATTERN with their",
-      "names.  Names can be seen in 'list' commands.",
+      "Objects are identified by prefix matching PATTERN segments against their",
+      "names in order; intermediate name segments may be skipped. Version names",
+      "allow substring matching on the last segment.",
+      "Names can be seen in 'list' commands.",
       "",
       "Objects may have multiple versions, e.g. multiple steps",
       "of a shader generated during optimization.  When not",
