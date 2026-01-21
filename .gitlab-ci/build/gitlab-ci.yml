@@ -462,10 +462,6 @@ debian-arm64:
     - .ci-deqp-artifacts
     - .meson-build-for-tests
   variables:
-    C_ARGS: >
-      -Wno-error=array-bounds
-      -Wno-error=stringop-truncation
-      -Wno-error=deprecated-declarations
     GALLIUM_DRIVERS: "etnaviv,freedreno,lima,panfrost,v3d,vc4,zink"
     VULKAN_DRIVERS: "broadcom,freedreno,imagination,panfrost"
     DRI_LOADERS:
@@ -489,8 +485,6 @@ debian-arm64-asan:
   variables:
     VULKAN_DRIVERS: "broadcom,freedreno,panfrost"
     GALLIUM_DRIVERS: "freedreno,vc4,v3d,panfrost"
-    C_ARGS: >
-      -Wno-error=deprecated-declarations
     DRI_LOADERS:
       -D glvnd=disabled
     EXTRA_OPTION: >
@@ -512,11 +506,6 @@ debian-arm64-ubsan:
     GALLIUM_DRIVERS: "v3d,vc4"
     C_ARGS: >
       -Wno-error=array-bounds
-      -Wno-error=stringop-overflow
-      -Wno-error=deprecated-declarations
-    CPP_ARGS: >
-      -Wno-error=array-bounds
-      -fno-var-tracking-assignments
     DRI_LOADERS:
       -D glvnd=disabled
     EXTRA_OPTION: >
@@ -546,10 +535,6 @@ debian-arm64-release:
   variables:
     BUILDTYPE: release
     S3_ARTIFACT_NAME: mesa-arm64-default-${BUILDTYPE}
-    C_ARGS: >
-      -Wno-error=array-bounds
-      -Wno-error=stringop-overread
-      -Wno-error=deprecated-declarations
   script:
     - !reference [.meson-build-only, script]
     - 'if [ -n "$MESA_CI_PERFORMANCE_ENABLED" ]; then .gitlab-ci/prepare-artifacts.sh; fi'
