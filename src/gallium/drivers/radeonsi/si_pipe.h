@@ -1560,18 +1560,21 @@ void si_cp_acquire_mem(struct si_context *sctx, struct radeon_cmdbuf *cs, unsign
 void si_cp_pfp_sync_me(struct radeon_cmdbuf *cs);
 
 /* si_debug.c */
-void si_gather_context_rolls(struct si_context *sctx);
 void si_save_cs(struct radeon_winsys *ws, struct radeon_cmdbuf *cs, struct radeon_saved_cs *saved,
                 bool get_buffer_list);
 void si_destroy_saved_cs(struct si_saved_cs *scs);
 void si_auto_log_cs(void *data, struct u_log_context *log);
 void si_log_hw_flush(struct si_context *sctx);
-void si_log_draw_state(struct si_context *sctx, struct u_log_context *log);
-void si_log_compute_state(struct si_context *sctx, struct u_log_context *log);
 void si_init_debug_functions(struct si_context *sctx);
 void si_check_vm_faults(struct si_context *sctx, struct radeon_saved_cs *saved);
-bool si_replace_shader(unsigned num, struct si_shader_binary *binary);
 void si_print_current_ib(struct si_context *sctx, FILE *f);
+
+/* si_debug_gfx_compute.c */
+bool si_replace_shader(unsigned num, struct si_shader_binary *binary);
+void si_dump_annotated_shaders(struct si_context *sctx, FILE *f);
+void si_log_draw_state(struct si_context *sctx, struct u_log_context *log);
+void si_gather_context_rolls(struct si_context *sctx);
+void si_log_compute_state(struct si_context *sctx, struct u_log_context *log);
 
 /* si_fence.c */
 void si_cp_release_mem(struct si_context *ctx, struct radeon_cmdbuf *cs, unsigned event,

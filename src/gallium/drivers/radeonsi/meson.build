@@ -33,6 +33,7 @@ files_libradeonsi = files(
   'si_cp_reg_shadowing.c',
   'si_cp_utils.c',
   'si_debug.c',
+  'si_debug_gfx_compute.c',
   'si_descriptors.c',
   'si_fence.c',
   'si_get.c',
