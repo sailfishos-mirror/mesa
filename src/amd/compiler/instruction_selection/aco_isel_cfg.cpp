@@ -352,16 +352,17 @@ void
 begin_divergent_if_else(isel_context* ctx, if_context* ic, nir_selection_control sel_ctrl)
 {
    Block* BB_then_logical = ctx->block;
-   if (!ctx->cf_info.has_divergent_branch) {
-      append_logical_end(ctx);
-      add_logical_edge(BB_then_logical->index, &ic->BB_endif);
-   }
+   if (ctx->cf_info.has_divergent_branch)
+      return;
+
+   append_logical_end(ctx);
 
    /* branch from logical then block to invert block */
    aco_ptr<Instruction> branch;
    branch.reset(create_instruction(aco_opcode::p_branch, Format::PSEUDO_BRANCH, 0, 0));
    BB_then_logical->instructions.emplace_back(std::move(branch));
    add_linear_edge(BB_then_logical->index, &ic->BB_invert);
+   add_logical_edge(BB_then_logical->index, &ic->BB_endif);
    BB_then_logical->kind |= block_kind_uniform;
    assert(!ctx->cf_info.has_branch);
    ctx->cf_info.has_divergent_branch = false;
@@ -420,12 +421,16 @@ end_divergent_if(isel_context* ctx, if_context* ic)
    ctx->program->next_divergent_if_logical_depth--;
 
    assert(!ctx->cf_info.has_branch);
-   ctx->cf_info.has_divergent_branch = false;
 
    /** emit linear else block */
    Block* BB_else_linear = ctx->program->create_and_insert_block();
    BB_else_linear->kind |= block_kind_uniform;
-   add_linear_edge(ic->invert_idx, BB_else_linear);
+   if (ctx->cf_info.has_divergent_branch) {
+      add_linear_edge(ic->BB_if_idx, BB_else_linear);
+      add_logical_edge(ic->BB_if_idx, &ic->BB_endif);
+   } else {
+      add_linear_edge(ic->invert_idx, BB_else_linear);
+   }
 
    /* branch from linear else block to endif block */
    branch.reset(create_instruction(aco_opcode::p_branch, Format::PSEUDO_BRANCH, 0, 0));
@@ -436,6 +441,7 @@ end_divergent_if(isel_context* ctx, if_context* ic)
    ctx->block = ctx->program->insert_block(std::move(ic->BB_endif));
    append_logical_start(ctx->block);
 
+   ctx->cf_info.has_divergent_branch = false;
    ctx->cf_info.parent_if = ic->cf_info_old.parent_if;
    ctx->cf_info.had_divergent_discard |= ic->cf_info_old.had_divergent_discard;
    ctx->cf_info.in_divergent_cf = ic->cf_info_old.in_divergent_cf ||
