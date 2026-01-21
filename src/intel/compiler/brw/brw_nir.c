@@ -2350,7 +2350,7 @@ get_mem_access_size_align(nir_intrinsic_op intrin, uint8_t bytes,
        * two 32bit single vector access since it supports direct 64bit data
        * operation.
        */
-      if (devinfo->has_lsc && align == 8 && bit_size == 64) {
+      if (devinfo->has_lsc && align == 8 && bit_size == 64 && !is_scratch) {
          return (nir_mem_access_size_align) {
             .bit_size = bit_size,
             .num_components = bytes / 8,
