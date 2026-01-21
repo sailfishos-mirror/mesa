@@ -2924,7 +2924,7 @@
         "description": "radv/sqtt: delay VMID reservation at capture time",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 3,
         "main_sha": null,
         "because_sha": "a7a4abc8d87a05279197ed5d8271656197399a98",
         "notes": null
