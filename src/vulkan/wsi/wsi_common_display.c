@@ -2969,6 +2969,7 @@ wsi_display_surface_create_swapchain(
    VkIcdSurfaceDisplay *surface = (VkIcdSurfaceDisplay *) icd_surface;
    wsi_display_mode *display_mode =
       wsi_display_mode_from_handle(surface->displayMode);
+   VkResult result = VK_SUCCESS;
 
    assert(create_info->sType == VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR);
 
@@ -3002,21 +3003,20 @@ wsi_display_surface_create_swapchain(
 
    int ret = mtx_init(&chain->present_id_mutex, mtx_plain);
    if (ret != thrd_success) {
-      vk_free(allocator, chain);
-      return VK_ERROR_OUT_OF_HOST_MEMORY;
+      result = VK_ERROR_OUT_OF_HOST_MEMORY;
+      goto fail_free;
    }
 
    ret = u_cnd_monotonic_init(&chain->present_id_cond);
    if (ret != thrd_success) {
-      mtx_destroy(&chain->present_id_mutex);
-      vk_free(allocator, chain);
-      return VK_ERROR_OUT_OF_HOST_MEMORY;
+      result = VK_ERROR_OUT_OF_HOST_MEMORY;
+      goto fail_mtx_destroy;
    }
 
-   VkResult result =
+   result =
       wsi_display_setup_connector(display_mode->connector, display_mode);
    if (result != VK_SUCCESS)
-      return result;
+      goto fail_cond_destroy;
 
    uint32_t num_modifiers = 0;
    const uint64_t *modifiers = NULL;
@@ -3035,12 +3035,8 @@ wsi_display_surface_create_swapchain(
                                create_info, &image_params.base,
                                allocator);
    free((void *)modifiers);
-   if (result != VK_SUCCESS) {
-      u_cnd_monotonic_destroy(&chain->present_id_cond);
-      mtx_destroy(&chain->present_id_mutex);
-      vk_free(allocator, chain);
-      return result;
-   }
+   if (result != VK_SUCCESS)
+      goto fail_cond_destroy;
 
    chain->base.destroy = wsi_display_swapchain_destroy;
    chain->base.get_wsi_image = wsi_display_get_wsi_image;
@@ -3076,11 +3072,7 @@ wsi_display_surface_create_swapchain(
             wsi_display_image_finish(&chain->base,
                                      &chain->images[image]);
          }
-         u_cnd_monotonic_destroy(&chain->present_id_cond);
-         mtx_destroy(&chain->present_id_mutex);
-         wsi_swapchain_finish(&chain->base);
-         vk_free(allocator, chain);
-         goto fail_init_images;
+         goto fail_swapchain_fini;
       }
    }
 
@@ -3097,7 +3089,14 @@ wsi_display_surface_create_swapchain(
 
    return VK_SUCCESS;
 
-fail_init_images:
+fail_swapchain_fini:
+   wsi_swapchain_finish(&chain->base);
+fail_cond_destroy:
+   u_cnd_monotonic_destroy(&chain->present_id_cond);
+fail_mtx_destroy:
+   mtx_destroy(&chain->present_id_mutex);
+fail_free:
+   vk_free(allocator, chain);
    return result;
 }
 
