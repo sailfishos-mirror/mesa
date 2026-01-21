@@ -121,7 +121,6 @@ debian-x86_64-msan:
       -Wno-error=overloaded-virtual
       -Wno-error=tautological-constant-out-of-range-compare
       -Wno-error=unused-private-field
-      -Wno-error=vla-cxx-extension
       -Wno-error=deprecated-declarations
     RUN_MESON_TESTS: "false"  # just too slow
     # Do a host build for mesa-clc and precomp-compiler (msan complains about uninitialized
