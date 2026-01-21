@@ -3544,7 +3544,7 @@
         "description": "iris: fix incorrect intrinsic usage on ELK",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "faa857a061febb9b8b708c703ceae7031b9febb2",
         "notes": null
