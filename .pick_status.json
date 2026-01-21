@@ -2914,7 +2914,7 @@
         "description": "Revert \"anv,brw: Allow multiple ray queries without spilling to a shadow stack\"",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1f1de7ebd63cbe55972e01a0e7f5509e9e232917",
         "notes": null
