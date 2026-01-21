@@ -1233,6 +1233,7 @@ static const char *sampler_dim_name[] = {
    [GLSL_SAMPLER_DIM_CUBE] = "Cube",
    [GLSL_SAMPLER_DIM_RECT] = "Rect",
    [GLSL_SAMPLER_DIM_BUF] = "Buf",
+   [GLSL_SAMPLER_DIM_EXTERNAL] = "External",
    [GLSL_SAMPLER_DIM_MS] = "2D-MSAA",
    [GLSL_SAMPLER_DIM_SUBPASS] = "Subpass",
    [GLSL_SAMPLER_DIM_SUBPASS_MS] = "Subpass-MSAA",
