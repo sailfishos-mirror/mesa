@@ -93,6 +93,7 @@
 #define PKT3_INDEX_TYPE                            0x2A /* GFX6-8 */
 #define PKT3_DRAW_INDIRECT_MULTI                   0x2C
 #define   R_2C3_DRAW_INDEX_LOC                     0x2C3
+#define   S_2C3_THREAD_TRACE_MARKER_ENABLE(x)         (((unsigned)(x)&0x1) << 29)
 #define   S_2C3_COUNT_INDIRECT_ENABLE(x)              (((unsigned)(x)&0x1) << 30)
 #define   S_2C3_DRAW_INDEX_ENABLE(x)                  (((unsigned)(x)&0x1) << 31)
 #define PKT3_DRAW_INDEX_AUTO                       0x2D
