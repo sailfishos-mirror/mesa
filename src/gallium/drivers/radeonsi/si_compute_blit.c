@@ -7,7 +7,6 @@
 #include "si_pipe.h"
 #include "util/format/u_format.h"
 #include "util/format_srgb.h"
-#include "util/helpers.h"
 #include "util/hash_table.h"
 #include "util/u_pack_color.h"
 #include "ac_nir_meta.h"
@@ -214,38 +213,6 @@ bool si_compute_clear_copy_buffer(struct si_context *sctx, struct pipe_resource 
    return true;
 }
 
-void si_clear_buffer(struct si_context *sctx, struct pipe_resource *dst,
-                     uint64_t offset, uint64_t size, uint32_t *clear_value,
-                     uint32_t clear_value_size, enum si_clear_method method,
-                     bool render_condition_enable)
-{
-   if (!size)
-      return;
-
-   ASSERTED unsigned clear_alignment = MIN2(clear_value_size, 4);
-
-   assert(clear_value_size != 3 && clear_value_size != 6); /* 12 is allowed. */
-   assert(offset % clear_alignment == 0);
-   assert(size % clear_alignment == 0);
-   assert(offset < (UINT32_MAX & ~0x3)); /* the limit of pipe_shader_buffer::buffer_size */
-   assert(align(size, 16) < UINT32_MAX); /* we round up the size to 16 for compute */
-
-   uint32_t clamped;
-   if (util_lower_clearsize_to_dword(clear_value, (int*)&clear_value_size, &clamped))
-      clear_value = &clamped;
-
-   if (si_compute_clear_copy_buffer(sctx, dst, offset, NULL, 0, size, clear_value,
-                                    clear_value_size, 0, render_condition_enable,
-                                    method == SI_AUTO_SELECT_CLEAR_METHOD))
-      return;
-
-   /* Compute handles all unaligned sizes, so this is always aligned. */
-   assert(offset % 4 == 0 && size % 4 == 0 && clear_value_size == 4);
-   assert(!render_condition_enable);
-
-   si_cp_dma_clear_buffer(sctx, &sctx->gfx_cs, dst, offset, size, *clear_value);
-}
-
 static void si_pipe_clear_buffer(struct pipe_context *ctx, struct pipe_resource *dst,
                                  unsigned offset, unsigned size, const void *clear_value,
                                  int clear_value_size)
@@ -256,19 +223,6 @@ static void si_pipe_clear_buffer(struct pipe_context *ctx, struct pipe_resource 
    si_clear_buffer(sctx, dst, offset, size, (uint32_t *)clear_value, clear_value_size,
                    SI_AUTO_SELECT_CLEAR_METHOD, false);
    si_barrier_after_simple_buffer_op(sctx, 0, dst, NULL);
-}
-
-void si_copy_buffer(struct si_context *sctx, struct pipe_resource *dst, struct pipe_resource *src,
-                    uint64_t dst_offset, uint64_t src_offset, unsigned size)
-{
-   if (!size)
-      return;
-
-   if (si_compute_clear_copy_buffer(sctx, dst, dst_offset, src, src_offset, size, NULL, 0, 0,
-                                    false, true))
-      return;
-
-   si_cp_dma_copy_buffer(sctx, dst, src, dst_offset, src_offset, size);
 }
 
 void si_compute_shorten_ubyte_buffer(struct si_context *sctx, struct pipe_resource *dst, struct pipe_resource *src,

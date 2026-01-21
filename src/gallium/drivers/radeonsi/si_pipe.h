@@ -1438,6 +1438,16 @@ bool si_reallocate_buffer_change_flags(struct si_context *sctx, struct pipe_reso
                                        unsigned usage, unsigned bind);
 void si_init_screen_buffer_functions(struct si_screen *sscreen);
 void si_init_buffer_functions(struct si_context *sctx);
+enum si_clear_method {
+  SI_COMPUTE_CLEAR_METHOD,
+  SI_AUTO_SELECT_CLEAR_METHOD
+};
+void si_clear_buffer(struct si_context *sctx, struct pipe_resource *dst,
+                     uint64_t offset, uint64_t size, uint32_t *clear_value,
+                     uint32_t clear_value_size, enum si_clear_method method,
+                     bool render_condition_enable);
+void si_copy_buffer(struct si_context *sctx, struct pipe_resource *dst, struct pipe_resource *src,
+                    uint64_t dst_offset, uint64_t src_offset, unsigned size);
 
 /* si_clear.c */
 #define SI_CLEAR_TYPE_CMASK  (1 << 0)
@@ -1492,19 +1502,9 @@ bool si_compute_clear_copy_buffer(struct si_context *sctx, struct pipe_resource 
                                   const uint32_t *clear_value, unsigned clear_value_size,
                                   unsigned dwords_per_thread, bool render_condition_enable,
                                   bool fail_if_slow);
-enum si_clear_method {
-  SI_COMPUTE_CLEAR_METHOD,
-  SI_AUTO_SELECT_CLEAR_METHOD
-};
-void si_clear_buffer(struct si_context *sctx, struct pipe_resource *dst,
-                     uint64_t offset, uint64_t size, uint32_t *clear_value,
-                     uint32_t clear_value_size, enum si_clear_method method,
-                     bool render_condition_enable);
 void si_compute_clear_buffer_rmw(struct si_context *sctx, struct pipe_resource *dst,
                                  unsigned dst_offset, unsigned size, uint32_t clear_value,
                                  uint32_t writebitmask, bool render_condition_enable);
-void si_copy_buffer(struct si_context *sctx, struct pipe_resource *dst, struct pipe_resource *src,
-                    uint64_t dst_offset, uint64_t src_offset, unsigned size);
 void si_compute_shorten_ubyte_buffer(struct si_context *sctx, struct pipe_resource *dst, struct pipe_resource *src,
                                      uint64_t dst_offset, uint64_t src_offset, unsigned size,
                                      bool render_condition_enable);
