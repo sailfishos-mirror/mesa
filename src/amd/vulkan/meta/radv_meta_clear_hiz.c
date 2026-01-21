@@ -108,10 +108,6 @@ radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
       return 0;
    }
 
-   cmd_buffer->state.flush_bits |=
-      radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0, image, range);
-
    radv_meta_save(&saved_state, cmd_buffer,
                   RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_DESCRIPTORS | RADV_META_SAVE_CONSTANTS);
 
