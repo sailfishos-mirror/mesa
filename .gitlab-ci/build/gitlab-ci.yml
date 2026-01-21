@@ -566,9 +566,6 @@ debian-no-libdrm:
     VULKAN_DRIVERS: freedreno
     GALLIUM_DRIVERS: "zink,llvmpipe"
     BUILDTYPE: release
-    C_ARGS: >
-      -Wno-error=stringop-overread
-      -Wno-error=deprecated-declarations
     EXTRA_OPTION: >
       -D freedreno-kmds=kgsl
       -D glx=disabled
