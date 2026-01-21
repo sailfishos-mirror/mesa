@@ -550,7 +550,8 @@ emit_depthstencil_clear(struct radv_cmd_buffer *cmd_buffer, VkClearDepthStencilV
          .layerCount = iview->vk.layer_count,
       };
 
-      radv_clear_hiz(cmd_buffer, iview->image, &range, radv_gfx12_get_hiz_initial_value());
+      cmd_buffer->state.flush_bits |=
+         radv_clear_hiz(cmd_buffer, iview->image, &range, radv_gfx12_get_hiz_initial_value());
 
       radv_update_hiz_metadata(cmd_buffer, iview->image, &range, true);
    }
