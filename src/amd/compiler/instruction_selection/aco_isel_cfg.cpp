@@ -99,7 +99,6 @@ emit_loop_jump(isel_context* ctx, bool is_break)
 
    Block* continue_block = ctx->program->create_and_insert_block();
    add_linear_edge(idx, continue_block);
-   append_logical_start(continue_block);
    ctx->block = continue_block;
 }
 
@@ -158,13 +157,14 @@ end_loop(isel_context* ctx, loop_context* lc)
    if (!ctx->cf_info.has_branch) {
       unsigned loop_header_idx = ctx->cf_info.parent_loop.header_idx;
       Builder bld(ctx->program, ctx->block);
-      append_logical_end(ctx);
 
       ctx->block->kind |= (block_kind_continue | block_kind_uniform);
-      if (!ctx->cf_info.has_divergent_branch)
+      if (!ctx->cf_info.has_divergent_branch) {
+         append_logical_end(ctx);
          add_edge(ctx->block->index, &ctx->program->blocks[loop_header_idx]);
-      else
+      } else {
          add_linear_edge(ctx->block->index, &ctx->program->blocks[loop_header_idx]);
+      }
 
       bld.reset(ctx->block);
       bld.branch(aco_opcode::p_branch);
@@ -239,7 +239,8 @@ begin_uniform_if_else(isel_context* ctx, if_context* ic, bool logical_else)
    Block* BB_then = ctx->block;
 
    if (!ctx->cf_info.has_branch) {
-      append_logical_end(ctx);
+      if (!ctx->cf_info.has_divergent_branch)
+         append_logical_end(ctx);
       /* branch from then block to endif block */
       aco_ptr<Instruction> branch;
       branch.reset(create_instruction(aco_opcode::p_branch, Format::PSEUDO_BRANCH, 0, 0));
@@ -346,14 +347,16 @@ void
 begin_divergent_if_else(isel_context* ctx, if_context* ic, nir_selection_control sel_ctrl)
 {
    Block* BB_then_logical = ctx->block;
-   append_logical_end(ctx);
+   if (!ctx->cf_info.has_divergent_branch) {
+      append_logical_end(ctx);
+      add_logical_edge(BB_then_logical->index, &ic->BB_endif);
+   }
+
    /* branch from logical then block to invert block */
    aco_ptr<Instruction> branch;
    branch.reset(create_instruction(aco_opcode::p_branch, Format::PSEUDO_BRANCH, 0, 0));
    BB_then_logical->instructions.emplace_back(std::move(branch));
    add_linear_edge(BB_then_logical->index, &ic->BB_invert);
-   if (!ctx->cf_info.has_divergent_branch)
-      add_logical_edge(BB_then_logical->index, &ic->BB_endif);
    BB_then_logical->kind |= block_kind_uniform;
    assert(!ctx->cf_info.has_branch);
    ctx->cf_info.has_divergent_branch = false;
@@ -398,15 +401,16 @@ void
 end_divergent_if(isel_context* ctx, if_context* ic)
 {
    Block* BB_else_logical = ctx->block;
-   append_logical_end(ctx);
+   if (!ctx->cf_info.has_divergent_branch) {
+      append_logical_end(ctx);
+      add_logical_edge(BB_else_logical->index, &ic->BB_endif);
+   }
 
    /* branch from logical else block to endif block */
    aco_ptr<Instruction> branch;
    branch.reset(create_instruction(aco_opcode::p_branch, Format::PSEUDO_BRANCH, 0, 0));
    BB_else_logical->instructions.emplace_back(std::move(branch));
    add_linear_edge(BB_else_logical->index, &ic->BB_endif);
-   if (!ctx->cf_info.has_divergent_branch)
-      add_logical_edge(BB_else_logical->index, &ic->BB_endif);
    BB_else_logical->kind |= block_kind_uniform;
    ctx->program->next_divergent_if_logical_depth--;
 

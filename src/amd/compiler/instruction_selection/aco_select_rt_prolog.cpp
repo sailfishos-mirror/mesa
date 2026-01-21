@@ -447,6 +447,7 @@ select_rt_prolog(Program* program, ac_shader_config* config,
    program->config->float_mode = program->blocks[0].fp_mode.val;
    program->config->num_vgprs = get_vgpr_alloc(program, num_vgprs);
    program->config->num_sgprs = get_sgpr_alloc(program, num_sgprs);
+   program->progress = CompilationProgress::after_lower_to_hw;
 }
 
 } // namespace aco
