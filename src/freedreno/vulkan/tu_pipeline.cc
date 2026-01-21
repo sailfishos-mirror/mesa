@@ -3554,7 +3554,6 @@ static const enum mesa_vk_dynamic_graphics_state tu_ds_state[] = {
    MESA_VK_DYNAMIC_DS_STENCIL_COMPARE_MASK,
    MESA_VK_DYNAMIC_DS_STENCIL_WRITE_MASK,
    MESA_VK_DYNAMIC_DS_STENCIL_REFERENCE,
-   MESA_VK_DYNAMIC_DS_DEPTH_BOUNDS_TEST_BOUNDS,
 };
 
 template <chip CHIP>
@@ -3563,7 +3562,7 @@ tu6_ds_size(struct tu_device *dev,
                  const struct vk_depth_stencil_state *ds,
                  const struct vk_render_pass_state *rp)
 {
-   return 13;
+   return 10;
 }
 
 template <chip CHIP>
@@ -3613,10 +3612,6 @@ tu6_emit_ds(struct tu_cs *cs,
    tu_cs_emit_regs(cs, A6XX_RB_STENCIL_REF_CNTL(
       .ref = ds->stencil.front.reference,
       .bfref = ds->stencil.back.reference));
-
-   tu_cs_emit_regs(cs,
-                   A6XX_RB_DEPTH_BOUND_MIN(ds->depth.bounds_test.min),
-                   A6XX_RB_DEPTH_BOUND_MAX(ds->depth.bounds_test.max));
 }
 
 static const enum mesa_vk_dynamic_graphics_state tu_rb_depth_cntl_state[] = {
@@ -3624,6 +3619,7 @@ static const enum mesa_vk_dynamic_graphics_state tu_rb_depth_cntl_state[] = {
    MESA_VK_DYNAMIC_DS_DEPTH_WRITE_ENABLE,
    MESA_VK_DYNAMIC_DS_DEPTH_COMPARE_OP,
    MESA_VK_DYNAMIC_DS_DEPTH_BOUNDS_TEST_ENABLE,
+   MESA_VK_DYNAMIC_DS_DEPTH_BOUNDS_TEST_BOUNDS,
    MESA_VK_DYNAMIC_RS_DEPTH_CLAMP_ENABLE,
 };
 
@@ -3634,7 +3630,7 @@ tu6_rb_depth_cntl_size(struct tu_device *dev,
                        const struct vk_render_pass_state *rp,
                        const struct vk_rasterization_state *rs)
 {
-   return 4;
+   return 7;
 }
 
 template <chip CHIP>
@@ -3674,9 +3670,15 @@ tu6_emit_rb_depth_cntl(struct tu_cs *cs,
          .o_depth_01_clamp_en = CHIP >= A8XX,
       ));
       tu_cs_emit_regs(cs, GRAS_SU_DEPTH_CNTL(CHIP, depth_test));
+      tu_cs_emit_regs(cs,
+                      A6XX_RB_DEPTH_BOUND_MIN(ds->depth.bounds_test.min),
+                      A6XX_RB_DEPTH_BOUND_MAX(ds->depth.bounds_test.max));
    } else {
       tu_cs_emit_regs(cs, A6XX_RB_DEPTH_CNTL());
       tu_cs_emit_regs(cs, GRAS_SU_DEPTH_CNTL(CHIP));
+      tu_cs_emit_regs(cs,
+                      A6XX_RB_DEPTH_BOUND_MIN(),
+                      A6XX_RB_DEPTH_BOUND_MAX());
    }
 }
 
