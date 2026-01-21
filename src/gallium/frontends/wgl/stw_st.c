@@ -48,6 +48,7 @@ struct stw_st_framebuffer {
 
    struct stw_framebuffer *fb;
    struct st_visual stvis;
+   unsigned pfd_flags;
 
    struct pipe_resource *textures[ST_ATTACHMENT_COUNT];
    struct pipe_resource *msaa_textures[ST_ATTACHMENT_COUNT];
@@ -177,6 +178,11 @@ stw_st_framebuffer_validate_locked(struct st_context *st,
       else
          mask |= ST_ATTACHMENT_BACK_LEFT_MASK;
    }
+
+   /* If we're being asked to use a copy swap mode, make sure we have a front buffer */
+   if ((mask & ST_ATTACHMENT_BACK_LEFT_MASK) &&
+      (stwfb->pfd_flags & PFD_SWAP_COPY))
+      mask |= ST_ATTACHMENT_FRONT_LEFT_MASK;
 
    /* remove outdated textures */
    if (stwfb->texture_width != width || stwfb->texture_height != height) {
@@ -530,6 +536,7 @@ stw_st_create_framebuffer(struct stw_framebuffer *fb, struct pipe_frontend_scree
 
    stwfb->fb = fb;
    stwfb->stvis = fb->pfi->stvis;
+   stwfb->pfd_flags = fb->pfi->pfd.dwFlags;
    stwfb->base.ID = p_atomic_inc_return(&stwfb_ID);
    stwfb->base.fscreen = fscreen;
 
@@ -568,7 +575,8 @@ stw_st_destroy_framebuffer_locked(struct pipe_frontend_drawable *drawable)
  * Swap the buffers of the given framebuffer.
  */
 bool
-stw_st_swap_framebuffer_locked(HDC hdc,
+stw_st_swap_framebuffer_locked(struct st_context *st,
+                               HDC hdc,
                                struct pipe_frontend_drawable *drawable)
 {
    struct stw_st_framebuffer *stwfb = stw_st_framebuffer(drawable);
@@ -589,7 +597,19 @@ stw_st_swap_framebuffer_locked(HDC hdc,
    ptex = stwfb->msaa_textures[front];
    stwfb->msaa_textures[front] = stwfb->msaa_textures[back];
    stwfb->msaa_textures[back] = ptex;
-
+   
+   /* If doing a copy swap, blit front to back after swapping to preserve back contents.
+    * This is best effort. Most likely the app doesn't actually care about this copy-back,
+    * so if they do a swap with no context bound, and somehow still care about this,
+    * that's on them or we'll need to figure out another solution.
+    */
+   if ((stwfb->pfd_flags & PFD_SWAP_COPY) && st) {
+      assert((stwfb->texture_mask & (front | back)) == (front | back));
+      if (stwfb->stvis.samples > 1)
+         stw_pipe_blit(st->pipe, stwfb->msaa_textures[back], stwfb->textures[front]);
+      else
+         stw_pipe_blit(st->pipe, stwfb->textures[back], stwfb->textures[front]);
+   }
 
    /* Fake front texture is now dirty */
    if (stwfb->needs_fake_front)
