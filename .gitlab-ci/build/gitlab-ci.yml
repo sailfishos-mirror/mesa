@@ -59,8 +59,6 @@ debian-x86_64-asan:
   variables:
     VULKAN_DRIVERS: "swrast,amd,intel"
     GALLIUM_DRIVERS: "llvmpipe,softpipe,zink,r300"
-    C_ARGS: >
-      -Wno-error=deprecated-declarations
     EXTRA_OPTION: >
       -D intel-elk=false
       -D intel-rt=false
@@ -145,11 +143,6 @@ debian-x86_64-ubsan:
     - .meson-build-for-tests
     - .build-run-long
   variables:
-    C_ARGS: >
-      -Wno-error=stringop-overflow
-      -Wno-error=deprecated-declarations
-    CPP_ARGS: >
-      -Wno-error=array-bounds
     GALLIUM_DRIVERS: "llvmpipe,softpipe"
     VULKAN_DRIVERS: "swrast"
     EXTRA_OPTION: >
