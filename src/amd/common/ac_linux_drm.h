@@ -323,24 +323,9 @@ extern "C" {
 
 /* All functions are static inline stubs on Windows. */
 #ifdef _WIN32
-#define PROC static inline
-#define TAIL                                                                                       \
-   {                                                                                               \
-      return -1;                                                                                   \
-   }
-#define TAILV                                                                                      \
-   {                                                                                               \
-   }
-#define TAILPTR                                                                                    \
-   {                                                                                               \
-      return NULL;                                                                                 \
-   }
-#else
-#define PROC
-#define TAIL
-#define TAILV
-#define TAILPTR
+#define __U_STUB__
 #endif
+#include "u_stub.h"
 
 struct ac_drm_device;
 typedef struct ac_drm_device ac_drm_device;
