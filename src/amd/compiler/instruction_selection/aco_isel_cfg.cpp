@@ -278,13 +278,13 @@ end_uniform_if(isel_context* ctx, if_context* ic, bool logical_else)
       branch.reset(create_instruction(aco_opcode::p_branch, Format::PSEUDO_BRANCH, 0, 0));
       BB_else->instructions.emplace_back(std::move(branch));
       add_linear_edge(BB_else->index, &ic->BB_endif);
-      if (logical_else && !ctx->cf_info.has_divergent_branch)
+      if (logical_else)
          add_logical_edge(BB_else->index, &ic->BB_endif);
       BB_else->kind |= block_kind_uniform;
    }
 
+   assert(!ctx->cf_info.has_divergent_branch);
    ctx->cf_info.has_branch = false;
-   ctx->cf_info.has_divergent_branch = false;
    ctx->cf_info.had_divergent_discard |= ic->cf_info_old.had_divergent_discard;
    ctx->cf_info.parent_loop.has_divergent_continue |=
       ic->cf_info_old.parent_loop.has_divergent_continue;
