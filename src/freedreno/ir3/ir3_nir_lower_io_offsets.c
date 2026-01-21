@@ -325,7 +325,7 @@ ir3_nir_max_imm_offset(nir_intrinsic_instr *intrin, const void *data)
 {
    const struct ir3_compiler *compiler = data;
 
-   if (!compiler->has_ssbo_imm_offsets)
+   if (!compiler->info->props.has_ssbo_imm_offsets)
       return 0;
 
    switch (intrin->intrinsic) {

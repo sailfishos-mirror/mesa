@@ -963,7 +963,7 @@ apply_push_consts_load_macro(struct ir3_legalize_ctx *ctx,
          stsc->cat6.iim_val = n->push_consts.src_size;
          stsc->cat6.type = TYPE_U32;
 
-         if (ctx->compiler->stsc_duplication_quirk) {
+         if (ctx->compiler->info->props.stsc_duplication_quirk) {
             struct ir3_builder build = ir3_builder_at(ir3_after_instr(stsc));
             struct ir3_instruction *nop = ir3_NOP(&build);
             nop->flags |= IR3_INSTR_SS;
@@ -1353,11 +1353,11 @@ add_predication_workaround(struct ir3_compiler *compiler,
                            struct ir3_instruction *predtf,
                            struct ir3_instruction *prede)
 {
-   if (predtf && compiler->predtf_nop_quirk) {
+   if (predtf && compiler->info->props.predtf_nop_quirk) {
       add_nop_before_block(predtf->block->predecessors[0]->successors[1], 4);
    }
 
-   if (compiler->prede_nop_quirk) {
+   if (compiler->info->props.prede_nop_quirk) {
       add_nop_before_block(prede->block->successors[0], 6);
    }
 }
@@ -2509,7 +2509,7 @@ ir3_legalize(struct ir3 *ir, struct ir3_shader_variant *so, int *max_bary)
 
    so->early_preamble = has_preamble && !gpr_in_preamble &&
       !pred_in_preamble && !relative_in_preamble &&
-      ir->compiler->has_early_preamble &&
+      ir->compiler->info->props.has_early_preamble &&
       !(ir3_shader_debug & IR3_DBG_NOEARLYPREAMBLE);
 
    /* On a7xx, sync behavior for a1.x is different in the early preamble. RaW
@@ -2567,7 +2567,7 @@ ir3_legalize(struct ir3 *ir, struct ir3_shader_variant *so, int *max_bary)
       kill_sched(ir, so);
 
    if ((so->type == MESA_SHADER_FRAGMENT || so->type == MESA_SHADER_COMPUTE) &&
-       so->compiler->has_eolm_eogm) {
+       so->compiler->info->props.has_eolm_eogm) {
       feature_usage_sched(ctx, ir, so, needs_eolm, is_cheap_for_eolm_eogm,
                           IR3_INSTR_EOLM);
       feature_usage_sched(ctx, ir, so, needs_eogm, is_cheap_for_eolm_eogm,

@@ -47,7 +47,7 @@ ir3_const_ensure_imm_size(struct ir3_shader_variant *v, unsigned size)
     * should be the same for the binning and non-binning variants. Make sure
     * we don't increase the size beyond that of the non-binning variant.
     */
-   if (v->binning_pass && !v->compiler->load_shader_consts_via_preamble &&
+   if (v->binning_pass && !v->compiler->info->props.load_shader_consts_via_preamble &&
        size > v->nonbinning->imm_state.size) {
       return false;
    }
@@ -1333,10 +1333,10 @@ ir3_shader_get_subgroup_size(const struct ir3_compiler *compiler,
 {
    switch (options->api_wavesize) {
    case IR3_SINGLE_ONLY:
-      *subgroup_size = *max_subgroup_size = compiler->threadsize_base;
+      *subgroup_size = *max_subgroup_size = compiler->info->threadsize_base;
       break;
    case IR3_DOUBLE_ONLY:
-      *subgroup_size = *max_subgroup_size = compiler->threadsize_base * 2;
+      *subgroup_size = *max_subgroup_size = compiler->info->threadsize_base * 2;
       break;
    case IR3_SINGLE_OR_DOUBLE:
       /* For vertex stages, we know the wavesize will never be doubled.
@@ -1345,10 +1345,10 @@ ir3_shader_get_subgroup_size(const struct ir3_compiler *compiler,
        * a driver param.
        */
       if (stage != MESA_SHADER_COMPUTE && stage != MESA_SHADER_FRAGMENT) {
-         *subgroup_size = *max_subgroup_size = compiler->threadsize_base;
+         *subgroup_size = *max_subgroup_size = compiler->info->threadsize_base;
       } else {
          *subgroup_size = 0;
-         *max_subgroup_size = compiler->threadsize_base * 2;
+         *max_subgroup_size = compiler->info->threadsize_base * 2;
       }
       break;
    }

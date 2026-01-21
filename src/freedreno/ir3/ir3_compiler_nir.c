@@ -349,7 +349,7 @@ create_cov(struct ir3_context *ctx, unsigned nrpt,
     */
    if (src_type == TYPE_U8 && full_type(dst_type) == TYPE_U32) {
       struct ir3_instruction_rpt mask = create_immed_typed_shared_rpt(
-         &ctx->build, nrpt, 0xff, TYPE_U8, ctx->compiler->has_scalar_alu);
+         &ctx->build, nrpt, 0xff, TYPE_U8, ctx->compiler->info->props.has_scalar_alu);
       struct ir3_instruction_rpt cov =
          ir3_AND_B_rpt(&ctx->build, nrpt, src, 0, mask, 0);
       set_dst_flags(cov.rpts, nrpt, type_flags(dst_type));
@@ -367,7 +367,8 @@ create_cov(struct ir3_context *ctx, unsigned nrpt,
       struct ir3_instruction_rpt cov;
       if (op == nir_op_u2f16 || op == nir_op_u2f32) {
          struct ir3_instruction_rpt mask = create_immed_typed_shared_rpt(
-            &ctx->build, nrpt, 0xff, TYPE_U8, ctx->compiler->has_scalar_alu);
+            &ctx->build, nrpt, 0xff, TYPE_U8,
+            ctx->compiler->info->props.has_scalar_alu);
          cov = ir3_AND_B_rpt(&ctx->build, nrpt, src, 0, mask, 0);
          set_dst_flags(cov.rpts, nrpt, IR3_REG_HALF);
          cov = ir3_COV_rpt(&ctx->build, nrpt, cov, TYPE_U16, dst_type);
@@ -432,7 +433,7 @@ emit_alu_dot_4x8_as_dp4acc(struct ir3_context *ctx, nir_alu_instr *alu,
                            struct ir3_instruction **dst,
                            struct ir3_instruction **src)
 {
-   if (ctx->compiler->has_compliant_dp4acc) {
+   if (ctx->compiler->info->props.has_compliant_dp4acc) {
       dst[0] = ir3_DP4ACC(&ctx->build, src[0], 0, src[1], 0, src[2], 0);
 
       /* This is actually the LHS signedness attribute.
@@ -576,7 +577,7 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
    assert(dst_sz == 1 || ir3_supports_vectorized_nir_op(alu->op));
 
    bool use_shared = !alu->def.divergent &&
-      ctx->compiler->has_scalar_alu &&
+      ctx->compiler->info->props.has_scalar_alu &&
       /* it probably isn't worth emulating these with scalar-only ops */
       alu->op != nir_op_udot_4x8_uadd &&
       alu->op != nir_op_udot_4x8_uadd_sat &&
@@ -1126,9 +1127,9 @@ emit_alu(struct ir3_context *ctx, nir_alu_instr *alu)
       struct ir3_instruction *src_rpt0[] = {src[0].rpts[0], src[1].rpts[0],
                                             src[2].rpts[0]};
 
-      if (ctx->compiler->has_dp4acc) {
+      if (ctx->compiler->info->props.has_dp4acc) {
          emit_alu_dot_4x8_as_dp4acc(ctx, alu, dst.rpts, src_rpt0);
-      } else if (ctx->compiler->has_dp2acc) {
+      } else if (ctx->compiler->info->props.has_dp2acc) {
          emit_alu_dot_4x8_as_dp2acc(ctx, alu, dst.rpts, src_rpt0);
       } else {
          ir3_context_error(ctx, "ALU op should have been lowered: %s\n",
@@ -1180,7 +1181,7 @@ emit_intrinsic_load_ubo_ldc(struct ir3_context *ctx, nir_intrinsic_instr *intr,
    assert(nir_intrinsic_base(intr) == 0);
 
    unsigned ncomp = intr->num_components;
-   bool use_shared = !intr->def.divergent && ctx->compiler->has_scalar_alu;
+   bool use_shared = !intr->def.divergent && ctx->compiler->info->props.has_scalar_alu;
    struct ir3_instruction *offset =
       ir3_get_src_shared(ctx, &intr->src[1], use_shared)[0];
    struct ir3_instruction *idx =
@@ -1215,7 +1216,7 @@ emit_intrinsic_copy_ubo_to_uniform(struct ir3_context *ctx,
 
    struct ir3_instruction *addr1 = ir3_create_addr1(&ctx->build, base);
 
-   bool use_shared = ctx->compiler->has_scalar_alu;
+   bool use_shared = ctx->compiler->info->props.has_scalar_alu;
    struct ir3_instruction *offset =
       ir3_get_src_shared(ctx, &intr->src[1], use_shared)[0];
    struct ir3_instruction *idx =
@@ -1454,7 +1455,7 @@ emit_intrinsic_load_shared_ir3(struct ir3_context *ctx,
                    create_immed(b, intr->num_components), 0);
 
    /* for a650, use LDL for tess ctrl inputs: */
-   if (ctx->so->type == MESA_SHADER_TESS_CTRL && ctx->compiler->tess_use_shared)
+   if (ctx->so->type == MESA_SHADER_TESS_CTRL && ctx->compiler->info->props.tess_use_shared)
       load->opc = OPC_LDL;
 
    load->cat6.type = utype_def(&intr->def);
@@ -1484,7 +1485,7 @@ emit_intrinsic_store_shared_ir3(struct ir3_context *ctx,
 
    /* for a650, use STL for vertex outputs used by tess ctrl shader: */
    if (ctx->so->type == MESA_SHADER_VERTEX && ctx->so->key.tessellation &&
-       ctx->compiler->tess_use_shared)
+       ctx->compiler->info->props.tess_use_shared)
       store->opc = OPC_STL;
 
    store->cat6.dst_offset = nir_intrinsic_base(intr);
@@ -1969,7 +1970,7 @@ emit_readonly_load_uav(struct ir3_context *ctx,
    struct tex_src_info info = get_image_ssbo_samp_tex_src(ctx, index, false);
 
    struct ir3_instruction *src1;
-   if (ctx->compiler->has_isam_v && !uav_load) {
+   if (ctx->compiler->info->props.has_isam_v && !uav_load) {
       src1 = create_immed(b, imm_offset);
    } else {
       assert(imm_offset == 0);
@@ -1988,7 +1989,7 @@ emit_readonly_load_uav(struct ir3_context *ctx,
 
    ir3_split_dest(b, dst, sam, 0, num_components);
 
-   if (ctx->compiler->has_isam_v && !uav_load) {
+   if (ctx->compiler->info->props.has_isam_v && !uav_load) {
       sam->flags |= (IR3_INSTR_V | IR3_INSTR_INV_1D);
 
       if (imm_offset) {
@@ -2011,7 +2012,7 @@ emit_intrinsic_load_ssbo(struct ir3_context *ctx,
     * Note: isam also can't handle 8-bit loads.
     */
    if (!(nir_intrinsic_access(intr) & ACCESS_CAN_REORDER) ||
-       (intr->def.num_components > 1 && !ctx->compiler->has_isam_v) ||
+       (intr->def.num_components > 1 && !ctx->compiler->info->props.has_isam_v) ||
        (ctx->compiler->options.storage_8bit && intr->def.bit_size == 8) ||
        !ctx->compiler->has_isam_ssbo) {
       ctx->funcs->emit_intrinsic_load_ssbo(ctx, intr, dst);
@@ -2023,7 +2024,7 @@ emit_intrinsic_load_ssbo(struct ir3_context *ctx,
    struct ir3_instruction *coords = NULL;
    unsigned imm_offset = 0;
 
-   if (ctx->compiler->has_isam_v) {
+   if (ctx->compiler->info->props.has_isam_v) {
       ir3_lower_imm_offset(ctx, intr, offset_src, 8, &coords, &imm_offset);
    } else {
       coords =
@@ -2619,7 +2620,7 @@ apply_mov_half_shared_quirk(struct ir3_context *ctx,
                             struct ir3_instruction *src,
                             struct ir3_instruction *dst)
 {
-   if (!ctx->compiler->mov_half_shared_quirk) {
+   if (!ctx->compiler->info->props.mov_half_shared_quirk) {
       return dst;
    }
 
@@ -2642,7 +2643,7 @@ apply_mov_half_shared_quirk(struct ir3_context *ctx,
       } else {
          dst = ir3_MOV(&ctx->build, dst, TYPE_U32);
       }
-      if (!ctx->compiler->has_scalar_alu)
+      if (!ctx->compiler->info->props.has_scalar_alu)
          dst->dsts[0]->flags &= ~IR3_REG_SHARED;
    }
 
@@ -2752,8 +2753,8 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
          }
          create_rpt = true;
       } else {
-         src = ctx->compiler->has_scalar_alu ?
-            ir3_get_src_maybe_shared(ctx, &intr->src[0]) : 
+         src = ctx->compiler->info->props.has_scalar_alu ?
+            ir3_get_src_maybe_shared(ctx, &intr->src[0]) :
             ir3_get_src(ctx, &intr->src[0]);
          for (int i = 0; i < dest_components; i++) {
             dst[i] = create_uniform_indirect(
@@ -2764,7 +2765,7 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
              * registers, manually make it shared. Optimizations can undo this if
              * the user can't use shared regs.
              */
-            if (ctx->compiler->has_scalar_alu && !intr->def.divergent)
+            if (ctx->compiler->info->props.has_scalar_alu && !intr->def.divergent)
                dst[i]->dsts[0]->flags |= IR3_REG_SHARED;
          }
 
@@ -3092,7 +3093,7 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
       dst[0] = create_driver_param(ctx, IR3_DP_CS(work_dim));
       break;
    case nir_intrinsic_load_subgroup_invocation:
-      assert(ctx->compiler->has_getfiberid);
+      assert(ctx->compiler->info->props.has_getfiberid);
       dst[0] = ir3_GETFIBERID(b);
       dst[0]->cat6.type = TYPE_U32;
       __ssa_dst(dst[0]);
@@ -3166,7 +3167,7 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
       } else {
          /* unconditional discard: */
          cond = create_immed_typed_shared(b, 1, ctx->compiler->bool_type,
-                                          ctx->compiler->has_scalar_alu);
+                                          ctx->compiler->info->props.has_scalar_alu);
       }
 
       cond = ir3_get_predicate(ctx, cond);
@@ -3381,7 +3382,7 @@ emit_intrinsic(struct ir3_context *ctx, nir_intrinsic_instr *intr)
 
       struct ir3_instruction *src =
          ir3_create_collect(b, ir3_get_src_shared(ctx, &intr->src[0],
-                                                  ctx->compiler->has_scalar_alu),
+                                                  ctx->compiler->info->props.has_scalar_alu),
                             components);
       ir3_store_const(ctx->so, b, src, dst);
       break;
@@ -4172,7 +4173,7 @@ emit_phi(struct ir3_context *ctx, nir_phi_instr *nphi)
       phi->phi.nphi = nphi;
       phi->phi.comp = i;
 
-      if (ctx->compiler->has_scalar_alu && !nphi->def.divergent)
+      if (ctx->compiler->info->props.has_scalar_alu && !nphi->def.divergent)
          phi->dsts[0]->flags |= IR3_REG_SHARED;
 
       dst[i] = phi;
@@ -5442,7 +5443,7 @@ emit_instructions(struct ir3_context *ctx)
    emit_function(ctx, fxn);
 
    if (ctx->so->type == MESA_SHADER_TESS_CTRL &&
-       ctx->compiler->tess_use_shared) {
+       ctx->compiler->info->props.tess_use_shared) {
       /* Anything before shpe seems to be ignored in the main shader when early
        * preamble is enabled on a7xx, so we have to put the barrier after.
        */
@@ -5671,7 +5672,7 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
 
    if (so->type == MESA_SHADER_FRAGMENT && so->reads_shading_rate &&
        !so->reads_smask &&
-       compiler->reading_shading_rate_requires_smask_quirk) {
+       compiler->info->props.reading_shading_rate_requires_smask_quirk) {
       create_sysval_input(ctx, SYSTEM_VALUE_SAMPLE_MASK_IN, 0x1);
    }
 
@@ -5858,7 +5859,7 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
     * for the binning variant, ir3_const_add_imm will ensure we don't add more
     * immediates than allowed.
     */
-   if (so->binning_pass && !compiler->load_shader_consts_via_preamble &&
+   if (so->binning_pass && !compiler->info->props.load_shader_consts_via_preamble &&
        so->nonbinning->imm_state.size) {
       ASSERTED bool success =
          ir3_const_ensure_imm_size(so, so->nonbinning->imm_state.size);
@@ -6091,7 +6092,7 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
    }
 
    if (ctx->so->type == MESA_SHADER_FRAGMENT &&
-       compiler->fs_must_have_non_zero_constlen_quirk) {
+       compiler->info->props.fs_must_have_non_zero_constlen_quirk) {
       so->constlen = MAX2(so->constlen, 4);
    }
 

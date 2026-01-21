@@ -149,7 +149,7 @@ ir3_nir_should_scalarize_mem(const nir_intrinsic_instr *intrin, const void *data
     */
    if ((intrin->intrinsic == nir_intrinsic_load_ssbo) &&
        (nir_intrinsic_access(intrin) & ACCESS_CAN_REORDER) &&
-       compiler->has_isam_ssbo && !compiler->has_isam_v) {
+       compiler->has_isam_ssbo && !compiler->info->props.has_isam_v) {
       return true;
    }
 
@@ -187,7 +187,7 @@ ir3_nir_should_vectorize_mem(unsigned align_mul, unsigned align_offset,
     */
    if ((low->intrinsic == nir_intrinsic_load_ssbo) &&
        (nir_intrinsic_access(low) & ACCESS_CAN_REORDER) &&
-       compiler->has_isam_ssbo && !compiler->has_isam_v) {
+       compiler->has_isam_ssbo && !compiler->info->props.has_isam_v) {
       return false;
    }
 
@@ -910,12 +910,12 @@ ir3_nir_post_finalize(struct ir3_shader *shader)
       NIR_PASS(_, s, ir3_nir_move_varying_inputs);
       NIR_PASS(_, s, nir_lower_fb_read);
       NIR_PASS(_, s, ir3_nir_lower_layer_id);
-      if (!compiler->shading_rate_matches_vk)
+      if (!compiler->info->props.shading_rate_matches_vk)
          NIR_PASS(_, s, ir3_nir_lower_frag_shading_rate);
    }
 
    if (s->info.stage == MESA_SHADER_VERTEX || s->info.stage == MESA_SHADER_GEOMETRY) {
-      if (!compiler->shading_rate_matches_vk)
+      if (!compiler->info->props.shading_rate_matches_vk)
          NIR_PASS(_, s, ir3_nir_lower_primitive_shading_rate);
    }
 
@@ -981,7 +981,7 @@ ir3_nir_post_finalize(struct ir3_shader *shader)
 
       if (!((s->info.stage == MESA_SHADER_COMPUTE) ||
             (s->info.stage == MESA_SHADER_KERNEL) ||
-            compiler->has_getfiberid)) {
+            compiler->info->props.has_getfiberid)) {
          options.subgroup_size = 1;
          options.lower_vote_trivial = true;
       }
@@ -1323,7 +1323,7 @@ ir3_nir_set_threadsize(struct ir3_shader_variant *v, const nir_shader *s)
        * might make different barrier choices).
        */
       if (!info->workgroup_size_variable) {
-         if (threads_per_wg <= compiler->threadsize_base)
+         if (threads_per_wg <= compiler->info->threadsize_base)
             v->shader_options.real_wavesize = IR3_SINGLE_ONLY;
       }
 
@@ -1338,7 +1338,7 @@ ir3_nir_set_threadsize(struct ir3_shader_variant *v, const nir_shader *s)
        */
       if (compiler->gen < 6 &&
           (info->workgroup_size_variable ||
-           threads_per_wg > compiler->threadsize_base * compiler->max_waves)) {
+           threads_per_wg > compiler->info->threadsize_base * compiler->info->max_waves)) {
          v->shader_options.real_wavesize = IR3_DOUBLE_ONLY;
       };
    }
@@ -1463,7 +1463,7 @@ ir3_nir_lower_variant(struct ir3_shader_variant *so,
 
    progress |= OPT(s, ir3_nir_opt_subgroups, so);
 
-   if (so->compiler->load_shader_consts_via_preamble)
+   if (so->compiler->info->props.load_shader_consts_via_preamble)
       progress |= OPT(s, ir3_nir_lower_driver_params_to_ubo, so);
 
    if (!so->binning_pass) {
@@ -1503,7 +1503,7 @@ ir3_nir_lower_variant(struct ir3_shader_variant *so,
        !(ir3_shader_debug & IR3_DBG_NOPREAMBLE))
       progress |= OPT(s, ir3_nir_opt_preamble, so);
 
-   if (so->compiler->load_shader_consts_via_preamble)
+   if (so->compiler->info->props.load_shader_consts_via_preamble)
       progress |= OPT(s, ir3_nir_lower_driver_params_to_ubo, so);
 
    /* Do matrix reassociate after preamble, because we want uniform matrix
@@ -1891,7 +1891,7 @@ ir3_setup_const_state(nir_shader *nir, struct ir3_shader_variant *v,
                               align(IR3_MAX_SO_BUFFERS * ptrsz, 4) / 4, 1);
    }
 
-   if (!compiler->load_shader_consts_via_preamble) {
+   if (!compiler->info->props.load_shader_consts_via_preamble) {
       switch (v->type) {
       case MESA_SHADER_TESS_CTRL:
       case MESA_SHADER_TESS_EVAL:

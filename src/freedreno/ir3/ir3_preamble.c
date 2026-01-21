@@ -11,7 +11,7 @@
 bool
 ir3_imm_const_to_preamble(struct ir3 *ir, struct ir3_shader_variant *so)
 {
-   if (!ir->compiler->load_shader_consts_via_preamble) {
+   if (!ir->compiler->info->props.load_shader_consts_via_preamble) {
       return false;
    }
 

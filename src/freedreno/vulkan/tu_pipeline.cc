@@ -5070,7 +5070,7 @@ tu_GetPipelineExecutablePropertiesKHR(
          VK_COPY_STR(props->description, _mesa_shader_stage_to_string(stage));
 
          props->subgroupSize =
-            dev->compiler->threadsize_base * (exe->stats.double_threadsize ? 2 : 1);
+            dev->compiler->info->threadsize_base * (exe->stats.double_threadsize ? 2 : 1);
       }
    }
 

@@ -1794,7 +1794,7 @@ tu6_emit_tile_select(struct tu_cmd_buffer *cmd,
        * UCHE because the FS param patchpoint is read through UCHE.
        */
       tu_cs_emit_pkt7(cs, CP_WAIT_MEM_WRITES, 0);
-      if (cmd->device->compiler->load_shader_consts_via_preamble) {
+      if (cmd->device->compiler->info->props.load_shader_consts_via_preamble) {
          tu_emit_event_write<CHIP>(cmd, cs, FD_CACHE_INVALIDATE);
          tu_cs_emit_wfi(cs);
       }
@@ -8094,7 +8094,7 @@ tu7_emit_fs_params(struct tu_cmd_buffer *cmd)
 static void
 tu_emit_fs_params(struct tu_cmd_buffer *cmd)
 {
-   if (cmd->device->compiler->load_shader_consts_via_preamble)
+   if (cmd->device->compiler->info->props.load_shader_consts_via_preamble)
       tu7_emit_fs_params(cmd);
    else
       tu6_emit_fs_params(cmd);

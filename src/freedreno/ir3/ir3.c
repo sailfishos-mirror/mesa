@@ -213,7 +213,7 @@ ir3_should_double_threadsize(struct ir3_shader_variant *v, unsigned regs_count)
     * in a wave. Thus, doubling the threadsize is only possible if we don't
     * exceed the branchstack size limit.
     */
-   if (MIN2(v->branchstack, compiler->threadsize_base * 2) >
+   if (MIN2(v->branchstack, compiler->info->threadsize_base * 2) >
        compiler->branchstack_size) {
       return false;
    }
@@ -259,13 +259,13 @@ ir3_get_reg_independent_max_waves(struct ir3_shader_variant *v,
                                   bool double_threadsize)
 {
    const struct ir3_compiler *compiler = v->compiler;
-   unsigned max_waves = compiler->max_waves;
+   unsigned max_waves = compiler->info->max_waves;
 
    /* Compute the limit based on branchstack */
    if (v->branchstack > 0) {
       unsigned branchstack_max_waves = compiler->branchstack_size /
                                        v->branchstack *
-                                       compiler->wave_granularity;
+                                       compiler->info->wave_granularity;
       max_waves = MIN2(max_waves, branchstack_max_waves);
    }
 
@@ -275,17 +275,17 @@ ir3_get_reg_independent_max_waves(struct ir3_shader_variant *v,
       unsigned threads_per_wg =
          v->local_size[0] * v->local_size[1] * v->local_size[2];
       unsigned waves_per_wg =
-         DIV_ROUND_UP(threads_per_wg, compiler->threadsize_base *
+         DIV_ROUND_UP(threads_per_wg, compiler->info->threadsize_base *
                                          (double_threadsize ? 2 : 1) *
-                                         compiler->wave_granularity);
+                                         compiler->info->wave_granularity);
 
       /* Shared is allocated in chunks of 1k */
       unsigned shared_per_wg = ALIGN_POT(v->shared_size, 1024);
       if (shared_per_wg > 0 && !v->local_size_variable) {
-         unsigned wgs_per_core = compiler->local_mem_size / shared_per_wg;
+         unsigned wgs_per_core = compiler->info->cs_shared_mem_size / shared_per_wg;
 
          max_waves = MIN2(max_waves, waves_per_wg * wgs_per_core *
-                                        compiler->wave_granularity);
+                                        compiler->info->wave_granularity);
       }
 
       /* If we have a compute shader that has a big workgroup, a barrier, and
@@ -316,8 +316,8 @@ ir3_get_reg_dependent_max_waves(const struct ir3_compiler *compiler,
 {
    return reg_count ? (compiler->reg_size_vec4 /
                        (reg_count * (double_threadsize ? 2 : 1)) *
-                       compiler->wave_granularity)
-                    : compiler->max_waves;
+                       compiler->info->wave_granularity)
+                    : compiler->info->max_waves;
 }
 
 void
@@ -569,7 +569,7 @@ ir3_collect_info(struct ir3_shader_variant *v)
    unsigned reg_dependent_max_waves = ir3_get_reg_dependent_max_waves(
       compiler, regs_count, info->double_threadsize);
    info->max_waves = MIN2(reg_independent_max_waves, reg_dependent_max_waves);
-   assert(info->max_waves <= v->compiler->max_waves);
+   assert(info->max_waves <= v->compiler->info->max_waves);
 
    ralloc_free(mem_ctx);
 }
@@ -1362,7 +1362,7 @@ is_scalar_alu(struct ir3_instruction *instr,
        * supported, so that we treat them like vector->scalar mov instructions
        * (such as requiring (ss)).
        */
-      compiler->has_scalar_alu &&
+      compiler->info->props.has_scalar_alu &&
       /* moves from normal to shared seem to use a separate ALU as before and
        * require a (ss) on dependent instructions.
        */
@@ -1712,7 +1712,7 @@ ir3_valid_flags(struct ir3_instruction *instr, unsigned n, unsigned flags)
          /* Conversions seem not to work in shared->shared copies before scalar
           * ALU is supported.
           */
-         if (!compiler->has_scalar_alu &&
+         if (!compiler->info->props.has_scalar_alu &&
              (flags & IR3_REG_SHARED) &&
              (instr->dsts[0]->flags & IR3_REG_SHARED) &&
              instr->cat1.src_type != instr->cat1.dst_type)
@@ -2124,7 +2124,7 @@ ir3_cat3_absneg(struct ir3_compiler *compiler, opc_t opc, unsigned src_n)
 
    case OPC_SEL_B16:
    case OPC_SEL_B32:
-      return compiler->has_sel_b_fneg ? IR3_REG_FNEG : 0;
+      return compiler->info->props.has_sel_b_fneg ? IR3_REG_FNEG : 0;
 
    case OPC_SAD_S16:
    case OPC_SAD_S32:

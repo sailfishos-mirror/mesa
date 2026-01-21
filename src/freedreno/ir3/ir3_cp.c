@@ -311,7 +311,7 @@ reg_cp(struct ir3_cp_ctx *ctx, struct ir3_instruction *instr,
        * 0xffff depending on whether src_type is signed or unsigned.
        * Float conversions behave as expected.
        */
-      if (ctx->shader->compiler->has_salu_int_narrowing_quirk &&
+      if (ctx->shader->compiler->info->props.has_salu_int_narrowing_quirk &&
           (instr->opc == OPC_MOV) &&
           (instr->cat1.dst_type != instr->cat1.src_type) &&
           (type_size(instr->cat1.dst_type) <

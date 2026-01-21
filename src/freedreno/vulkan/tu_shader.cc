@@ -349,7 +349,7 @@ lower_vulkan_resource_index(struct tu_device *dev, nir_builder *b,
           */
          base = nir_imm_int(b, binding_layout->dynamic_offset_offset / (4 * FDL6_TEX_CONST_DWORDS));
          nir_def *dynamic_offset_start;
-         if (compiler->load_shader_consts_via_preamble) {
+         if (compiler->info->props.load_shader_consts_via_preamble) {
             dynamic_offset_start =
                ir3_load_driver_ubo(b, 1, &shader->const_state.dynamic_offsets_ubo, set);
          } else {
@@ -646,7 +646,7 @@ lower_intrinsic(nir_builder *b, nir_intrinsic_instr *instr,
    case nir_intrinsic_load_frag_offset_ir3:
    case nir_intrinsic_load_gmem_frag_scale_ir3:
    case nir_intrinsic_load_gmem_frag_offset_ir3: {
-      if (!dev->compiler->load_shader_consts_via_preamble)
+      if (!dev->compiler->info->props.load_shader_consts_via_preamble)
          return false;
 
       unsigned param;
@@ -679,7 +679,7 @@ lower_intrinsic(nir_builder *b, nir_intrinsic_instr *instr,
       return true;
    }
    case nir_intrinsic_load_frag_invocation_count: {
-      if (!dev->compiler->load_shader_consts_via_preamble)
+      if (!dev->compiler->info->props.load_shader_consts_via_preamble)
          return false;
 
       nir_def *result =
@@ -3365,10 +3365,10 @@ tu_shader_key_subgroup_size(struct tu_shader_key *key,
          api_wavesize = real_wavesize = IR3_SINGLE_OR_DOUBLE;
       } else {
          if (subgroup_info) {
-            if (subgroup_info->requiredSubgroupSize == dev->compiler->threadsize_base) {
+            if (subgroup_info->requiredSubgroupSize == dev->compiler->info->threadsize_base) {
                api_wavesize = IR3_SINGLE_ONLY;
             } else {
-               assert(subgroup_info->requiredSubgroupSize == dev->compiler->threadsize_base * 2);
+               assert(subgroup_info->requiredSubgroupSize == dev->compiler->info->threadsize_base * 2);
                api_wavesize = IR3_DOUBLE_ONLY;
             }
          } else {

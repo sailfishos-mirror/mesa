@@ -617,7 +617,7 @@ ir3_nir_analyze_ubo_ranges(nir_shader *nir, struct ir3_shader_variant *v)
                               ptrs_vec4, 1);
    }
 
-   uint32_t align_vec4 = compiler->load_shader_consts_via_preamble
+   uint32_t align_vec4 = compiler->info->props.load_shader_consts_via_preamble
                             ? 1
                             : compiler->const_upload_unit;
 

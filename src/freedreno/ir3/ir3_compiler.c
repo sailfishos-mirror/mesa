@@ -163,15 +163,12 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
    compiler->gen = fd_dev_gen(dev_id);
    compiler->is_64bit = fd_dev_64b(dev_id);
    compiler->options = *options;
+   compiler->info = dev_info;
 
    /* TODO see if older GPU's were different here */
    compiler->branchstack_size = 64;
-   compiler->wave_granularity = dev_info->wave_granularity;
-   compiler->max_waves = dev_info->max_waves;
 
    compiler->max_variable_workgroup_size = 1024;
-
-   compiler->local_mem_size = dev_info->cs_shared_mem_size;
 
    compiler->num_predicates = 1;
    compiler->bitops_can_write_predicates = false;
@@ -227,16 +224,6 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
 
       compiler->has_preamble = true;
 
-      compiler->tess_use_shared = dev_info->props.tess_use_shared;
-
-      compiler->has_getfiberid = dev_info->props.has_getfiberid;
-      compiler->mov_half_shared_quirk = dev_info->props.mov_half_shared_quirk;
-      compiler->has_movs = dev_info->props.has_movs;
-
-      compiler->has_dp2acc = dev_info->props.has_dp2acc;
-      compiler->has_dp4acc = dev_info->props.has_dp4acc;
-      compiler->has_compliant_dp4acc = dev_info->props.has_compliant_dp4acc;
-
       if (compiler->gen == 6 && options->shared_push_consts) {
          compiler->shared_consts_base_offset = 504;
          compiler->shared_consts_size = 8;
@@ -247,32 +234,13 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
          compiler->geom_shared_consts_size_quirk = 0;
       }
 
-      compiler->has_fs_tex_prefetch = dev_info->props.has_fs_tex_prefetch;
-      compiler->stsc_duplication_quirk = dev_info->props.stsc_duplication_quirk;
-      compiler->load_shader_consts_via_preamble = dev_info->props.load_shader_consts_via_preamble;
-      compiler->load_inline_uniforms_via_preamble_ldgk = dev_info->props.load_inline_uniforms_via_preamble_ldgk;
       compiler->num_predicates = 4;
       compiler->bitops_can_write_predicates = true;
       compiler->has_branch_and_or = true;
       compiler->has_predication = true;
-      compiler->predtf_nop_quirk = dev_info->props.predtf_nop_quirk;
-      compiler->prede_nop_quirk = dev_info->props.prede_nop_quirk;
-      compiler->has_salu_int_narrowing_quirk = dev_info->props.has_salu_int_narrowing_quirk;
-      compiler->has_scalar_alu = dev_info->props.has_scalar_alu;
-      compiler->has_scalar_predicates = dev_info->props.has_scalar_predicates;
-      compiler->has_isam_v = dev_info->props.has_isam_v;
-      compiler->has_ssbo_imm_offsets = dev_info->props.has_ssbo_imm_offsets;
-      compiler->fs_must_have_non_zero_constlen_quirk = dev_info->props.fs_must_have_non_zero_constlen_quirk;
-      compiler->has_early_preamble = dev_info->props.has_early_preamble;
       compiler->has_rpt_bary_f = true;
       compiler->has_shfl = true;
-      compiler->reading_shading_rate_requires_smask_quirk =
-         dev_info->props.reading_shading_rate_requires_smask_quirk;
-      compiler->shading_rate_matches_vk = dev_info->props.shading_rate_matches_vk;
-      compiler->has_alias_rt = dev_info->props.has_alias_rt;
       compiler->mergedregs = true;
-      compiler->has_sel_b_fneg = dev_info->props.has_sel_b_fneg;
-      compiler->has_eolm_eogm = dev_info->props.has_eolm_eogm;
 
       compiler->has_alias_tex = (compiler->gen >= 7);
 
@@ -291,11 +259,6 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
        * earlier gen's.
        */
       compiler->max_const_safe = 256;
-
-      compiler->has_scalar_alu = false;
-      compiler->has_isam_v = false;
-      compiler->has_ssbo_imm_offsets = false;
-      compiler->has_early_preamble = false;
    }
 
    if (dev_info->compute_lb_size) {
@@ -303,7 +266,7 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
    } else {
       compiler->compute_lb_size =
          compiler->max_const_compute * 16 /* bytes/vec4 */ *
-         compiler->wave_granularity + compiler->local_mem_size;
+         compiler->info->wave_granularity + compiler->info->cs_shared_mem_size;
    }
 
    /* This is just a guess for a4xx. */
@@ -324,8 +287,6 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
       /* TODO: confirm this */
       compiler->reg_size_vec4 = 96;
    }
-
-   compiler->threadsize_base = dev_info->threadsize_base;
 
    if (compiler->gen >= 4) {
       /* need special handling for "flat" */

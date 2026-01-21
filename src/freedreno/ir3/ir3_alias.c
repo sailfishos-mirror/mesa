@@ -746,7 +746,7 @@ create_output_aliases(struct ir3_shader_variant *v, struct ir3_instruction *end)
 bool
 ir3_create_alias_rt(struct ir3 *ir, struct ir3_shader_variant *v)
 {
-   if (!ir->compiler->has_alias_rt)
+   if (!ir->compiler->info->props.has_alias_rt)
       return false;
    if (ir3_shader_debug & IR3_DBG_NOALIASRT)
       return false;

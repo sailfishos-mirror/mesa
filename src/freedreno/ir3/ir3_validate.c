@@ -67,7 +67,7 @@ validate_reg(struct ir3_validate_ctx *ctx, struct ir3_register *reg)
    }
 
    if (reg->flags & IR3_REG_UNIFORM) {
-      validate_assert(ctx, ctx->ir->compiler->has_scalar_predicates);
+      validate_assert(ctx, ctx->ir->compiler->info->props.has_scalar_predicates);
       validate_assert(ctx, reg->flags & IR3_REG_PREDICATE);
    }
 
@@ -334,7 +334,7 @@ validate_instr(struct ir3_validate_ctx *ctx, struct ir3_instruction *instr)
    if ((opc_cat(instr->opc) == 2 || opc_cat(instr->opc) == 3 ||
         opc_cat(instr->opc) == 4)) {
       validate_assert(ctx, !(instr->dsts[0]->flags & IR3_REG_SHARED) ||
-                      ctx->ir->compiler->has_scalar_alu);
+                      ctx->ir->compiler->info->props.has_scalar_alu);
    }
 
    /* Check that src/dst types match the register types, and for
@@ -343,7 +343,7 @@ validate_instr(struct ir3_validate_ctx *ctx, struct ir3_instruction *instr)
     */
    switch (opc_cat(instr->opc)) {
    case 1: /* move instructions */
-      if (ctx->ir->compiler->has_salu_int_narrowing_quirk &&
+      if (ctx->ir->compiler->info->props.has_salu_int_narrowing_quirk &&
           (instr->opc == OPC_MOV) &&
           (instr->cat1.dst_type != instr->cat1.src_type) &&
           (type_size(instr->cat1.dst_type) <

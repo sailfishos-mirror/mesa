@@ -848,7 +848,7 @@ can_demote_src(struct ir3_instruction *instr)
    case OPC_META_COLLECT:
       return false;
    case OPC_MOV:
-      if (instr->block->shader->compiler->has_salu_int_narrowing_quirk) {
+      if (instr->block->shader->compiler->info->props.has_salu_int_narrowing_quirk) {
          /* Avoid demoting something that would cause narrowin integer
           * conversion from GPR to uGPR:
           */

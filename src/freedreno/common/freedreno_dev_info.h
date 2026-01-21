@@ -32,8 +32,14 @@ struct fd_dev_info {
 
    uint32_t num_vsc_pipes;
 
+   /* The size of local memory in bytes */
    uint32_t cs_shared_mem_size;
 
+   /* On at least a6xx, waves are always launched in pairs. In calculations
+    * about occupancy, we pretend that each wave pair is actually one wave,
+    * which simplifies many of the calculations, but means we have to
+    * multiply threadsize_base by this number.
+    */
    int wave_granularity;
 
    /* These are fallback values that should match what drm/msm programs, for
@@ -47,8 +53,12 @@ struct fd_dev_info {
    /* Information for private memory calculations */
    uint32_t fibers_per_sp;
 
+   /* The base number of threads per wave. Some stages may be able to double
+    * this.
+    */
    uint32_t threadsize_base;
 
+   /* The maximum number of simultaneous waves per core. */
    uint32_t max_waves;
 
    /* Local Memory (i.e. shared memory in GL/Vulkan) and compute shader
@@ -105,6 +115,7 @@ struct fd_dev_info {
       bool concurrent_resolve;
       bool has_z24uint_s8uint;
 
+      /* on a650, vertex shader <-> tess control io uses LDL/STL */
       bool tess_use_shared;
 
       /* Does the hw support GL_QCOM_shading_rate? */
@@ -149,8 +160,16 @@ struct fd_dev_info {
 
       bool has_lpac;
 
+      /* True if getfiberid, getlast.w8, brcst.active, and quad_shuffle
+       * instructions are supported which are necessary to support
+       * subgroup quad and arithmetic operations.
+       */
       bool has_getfiberid;
+
+      /* Whether half register shared->non-shared moves are broken. */
       bool mov_half_shared_quirk;
+
+      /* Whether movs is supported for subgroupBroadcast. */
       bool has_movs;
 
       bool has_dp2acc;
@@ -214,14 +233,31 @@ struct fd_dev_info {
 
       bool broken_ds_ubwc_quirk;
 
-      /* See ir3_compiler::has_scalar_alu. */
+      /* True if there is a scalar ALU capable of executing a subset of
+       * cat2-cat4 instructions with a shared register destination. This also
+       * implies expanded MOV/COV capability when writing to shared registers,
+       * as MOV/COV is now executed on the scalar ALU except when reading from a
+       * normal register, as well as the ability for ldc to write to a shared
+       * register.
+       */
       bool has_scalar_alu;
-      /* See ir3_compiler::has_scalar_predicates. */
+
+      /* True if cat2 instructions can write predicate registers from the scalar
+       * ALU.
+       */
       bool has_scalar_predicates;
-      /* See ir3_compiler::has_early_preamble. */
+
+      /* On all generations that support scalar ALU, there is also a copy of the
+       * scalar ALU and some other HW units in HLSQ that can execute preambles
+       * before work is dispatched to the SPs, called "early preamble". We detect
+       * whether the shader can use early preamble in ir3.
+       */
       bool has_early_preamble;
 
+      /* Whether isam.v is supported to sample multiple components from SSBOs */
       bool has_isam_v;
+
+      /* Whether isam/stib/ldib have immediate offsets. */
       bool has_ssbo_imm_offsets;
 
       /* Whether writing to UBWC attachment and reading the same image as input

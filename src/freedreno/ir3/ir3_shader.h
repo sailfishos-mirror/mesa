@@ -1073,7 +1073,7 @@ static inline unsigned
 ir3_max_const_compute(const struct ir3_shader_variant *v,
                       const struct ir3_compiler *compiler)
 {
-   unsigned lm_size = v->local_size_variable ? compiler->local_mem_size :
+   unsigned lm_size = v->local_size_variable ? compiler->info->cs_shared_mem_size :
       v->cs.req_local_mem;
 
    /* The LB is divided between consts and local memory. LB is split into
@@ -1088,7 +1088,7 @@ ir3_max_const_compute(const struct ir3_shader_variant *v,
     * configuration where there is enough space for LM.
     */
    unsigned lb_const_size =
-      ((compiler->compute_lb_size - lm_size) / compiler->wave_granularity) /
+      ((compiler->compute_lb_size - lm_size) / compiler->info->wave_granularity) /
       16 /* bytes per vec4 */;
    if (lb_const_size < compiler->max_const_compute) {
       const uint32_t lb_const_sizes[] = { 128, 192, 256, 512 };

@@ -2708,7 +2708,7 @@ calc_limit_pressure_for_cs_with_barrier(struct ir3_shader_variant *v,
 
    if (v->local_size_variable) {
       if (v->type == MESA_SHADER_KERNEL) {
-         threads_per_wg = compiler->threadsize_base * (double_threadsize ? 2 : 1);
+         threads_per_wg = compiler->info->threadsize_base * (double_threadsize ? 2 : 1);
       } else {
          /* We have to expect the worst case. */
          threads_per_wg = compiler->max_variable_workgroup_size;
@@ -2726,8 +2726,8 @@ calc_limit_pressure_for_cs_with_barrier(struct ir3_shader_variant *v,
     */
 
    unsigned waves_per_wg = DIV_ROUND_UP(
-      threads_per_wg, compiler->threadsize_base * (double_threadsize ? 2 : 1) *
-                         compiler->wave_granularity);
+      threads_per_wg, compiler->info->threadsize_base * (double_threadsize ? 2 : 1) *
+                         compiler->info->wave_granularity);
 
    uint32_t vec4_regs_per_thread =
       compiler->reg_size_vec4 / (waves_per_wg * (double_threadsize ? 2 : 1));

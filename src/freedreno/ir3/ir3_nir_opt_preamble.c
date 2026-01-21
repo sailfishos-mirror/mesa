@@ -238,7 +238,7 @@ rewrite_cost(nir_def *def, const void *data)
          nir_intrinsic_instr *parent_intrin =
             nir_instr_as_intrinsic(parent_instr);
 
-         if (v->compiler->has_alias_rt && v->type == MESA_SHADER_FRAGMENT &&
+         if (v->compiler->info->props.has_alias_rt && v->type == MESA_SHADER_FRAGMENT &&
              parent_intrin->intrinsic == nir_intrinsic_store_output &&
              def->bit_size == 32) {
             /* For FS outputs, alias.rt can use const registers without a mov.

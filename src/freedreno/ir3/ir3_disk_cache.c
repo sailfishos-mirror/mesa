@@ -128,7 +128,7 @@ retrieve_variant(struct blob_reader *blob, struct ir3_shader_variant *v)
       blob_copy_bytes(blob, v->const_state, sizeof(*v->const_state));
    }
 
-   if (!v->compiler->load_shader_consts_via_preamble) {
+   if (!v->compiler->info->props.load_shader_consts_via_preamble) {
       v->imm_state.size = blob_read_uint32(blob);
       v->imm_state.count = v->imm_state.size;
       uint32_t immeds_sz = v->imm_state.size * sizeof(v->imm_state.values[0]);
@@ -157,7 +157,7 @@ store_variant(struct blob *blob, const struct ir3_shader_variant *v)
    /* When load_shader_consts_via_preamble, immediates are loaded in the
     * preamble and hence part of bin.
     */
-   if (!v->compiler->load_shader_consts_via_preamble) {
+   if (!v->compiler->info->props.load_shader_consts_via_preamble) {
       blob_write_uint32(blob, v->imm_state.size);
       uint32_t immeds_sz = v->imm_state.size * sizeof(v->imm_state.values[0]);
       blob_write_bytes(blob, v->imm_state.values, immeds_sz);
