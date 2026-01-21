@@ -580,7 +580,3 @@ dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed99,Fail
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed99_multiview,Fail
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed9,Fail
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed9_multiview,Crash
-
-# regressions from !38490
-spec@arb_shading_language_420pack@active sampler conflict,Crash
-spec@arb_texture_buffer_object@render-no-bo,Crash
