@@ -175,7 +175,6 @@ dump_vgprs_to_mem(isel_context* ctx, Builder& bld, Operand rsrc)
       {
          emit_loop_break(ctx);
       }
-      begin_uniform_if_else(ctx, &loop_break);
       end_uniform_if(ctx, &loop_break);
    }
    end_loop(ctx, &lc);
@@ -273,7 +272,6 @@ dump_lds_to_mem(isel_context* ctx, Builder& bld, Operand rsrc)
          {
             emit_loop_break(ctx);
          }
-         begin_uniform_if_else(ctx, &loop_break);
          end_uniform_if(ctx, &loop_break);
       }
       end_loop(ctx, &lc);

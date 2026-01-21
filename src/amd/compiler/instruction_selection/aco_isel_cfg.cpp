@@ -236,20 +236,22 @@ begin_uniform_if_then(isel_context* ctx, if_context* ic, Temp cond)
 void
 begin_uniform_if_else(isel_context* ctx, if_context* ic, bool logical_else)
 {
+   if (ctx->cf_info.has_branch)
+      return;
+
    Block* BB_then = ctx->block;
 
-   if (!ctx->cf_info.has_branch) {
-      if (!ctx->cf_info.has_divergent_branch)
-         append_logical_end(ctx);
-      /* branch from then block to endif block */
-      aco_ptr<Instruction> branch;
-      branch.reset(create_instruction(aco_opcode::p_branch, Format::PSEUDO_BRANCH, 0, 0));
-      BB_then->instructions.emplace_back(std::move(branch));
-      add_linear_edge(BB_then->index, &ic->BB_endif);
-      if (!ctx->cf_info.has_divergent_branch)
-         add_logical_edge(BB_then->index, &ic->BB_endif);
-      BB_then->kind |= block_kind_uniform;
-   }
+   if (!ctx->cf_info.has_divergent_branch)
+      append_logical_end(ctx);
+
+   /* branch from then block to endif block */
+   aco_ptr<Instruction> branch;
+   branch.reset(create_instruction(aco_opcode::p_branch, Format::PSEUDO_BRANCH, 0, 0));
+   BB_then->instructions.emplace_back(std::move(branch));
+   add_linear_edge(BB_then->index, &ic->BB_endif);
+   if (!ctx->cf_info.has_divergent_branch)
+      add_logical_edge(BB_then->index, &ic->BB_endif);
+   BB_then->kind |= block_kind_uniform;
 
    ctx->cf_info.has_branch = false;
    ctx->cf_info.has_divergent_branch = false;
@@ -271,7 +273,10 @@ end_uniform_if(isel_context* ctx, if_context* ic, bool logical_else)
 {
    Block* BB_else = ctx->block;
 
-   if (!ctx->cf_info.has_branch) {
+   if (ctx->cf_info.has_branch) {
+      /* If there is branch, it must be on the THEN side. No need to emit the ELSE. */
+      add_edge(ic->BB_if_idx, &ic->BB_endif);
+   } else {
       if (logical_else)
          append_logical_end(ctx);
       /* branch from then block to endif block */
@@ -447,6 +452,7 @@ void
 end_empty_exec_skip(isel_context* ctx)
 {
    if (ctx->skipping_empty_exec) {
+      assert(!ctx->cf_info.has_branch);
       begin_uniform_if_else(ctx, &ctx->empty_exec_skip, false);
       end_uniform_if(ctx, &ctx->empty_exec_skip, false);
       ctx->skipping_empty_exec = false;

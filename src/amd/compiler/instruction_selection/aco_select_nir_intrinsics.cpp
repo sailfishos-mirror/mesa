@@ -3786,7 +3786,6 @@ pops_await_overlapped_waves(isel_context* ctx)
    begin_uniform_if_then(ctx, &newest_overlapped_wave_exited_if_context,
                          newest_overlapped_wave_exited);
    emit_loop_break(ctx);
-   begin_uniform_if_else(ctx, &newest_overlapped_wave_exited_if_context);
    end_uniform_if(ctx, &newest_overlapped_wave_exited_if_context);
    bld.reset(ctx->block);
 

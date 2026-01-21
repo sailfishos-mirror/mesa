@@ -271,9 +271,7 @@ BEGIN_TEST(isel.cf.unreachable_continue.uniform_break)
       {
          /* The contents of this branch is moved to the merge block. */
          //>> BB3
-         //! /* logical preds: BB1, / linear preds: BB1, / kind: uniform, */
-         //>> BB4
-         //! /* logical preds: BB3, / linear preds: BB3, / kind: uniform, break, */
+         //! /* logical preds: BB1, / linear preds: BB1, / kind: uniform, break, */
          //! p_logical_start
          //! s1: %_ = p_unit_test 5
          //! p_logical_end
@@ -395,7 +393,7 @@ BEGIN_TEST(isel.cf.unreachable_break.uniform_continue)
    nir_push_loop(nb);
    {
       //>> BB1
-      //! /* logical preds: BB0, BB2, BB7, / linear preds: BB0, BB2, BB7, / kind: uniform, loop-header, */
+      //! /* logical preds: BB0, BB2, BB5, / linear preds: BB0, BB2, BB5, / kind: uniform, loop-header, */
       nir_push_if(nb, nir_unit_test_uniform_input(nb, 1, 1, .base=2));
       {
          //>> BB2
@@ -409,20 +407,16 @@ BEGIN_TEST(isel.cf.unreachable_break.uniform_continue)
           */
          //>> BB3
          //! /* logical preds: BB1, / linear preds: BB1, / kind: uniform, */
-         //>> BB4
-         //! /* logical preds: BB3, / linear preds: BB3, / kind: uniform, */
          //! p_logical_start
          //! s1: %_ = p_unit_test 5
          //! s2: %zero = p_parallelcopy 0
          //! s2: %_, s1: %cond:scc = s_and_b64 %zero, %0:exec
          //! p_logical_end
          //! p_cbranch_z %cond:scc
-         //! BB5
-         //! /* logical preds: BB4, / linear preds: BB4, / kind: uniform, break, */
-         //>> BB6
-         //! /* logical preds: BB4, / linear preds: BB4, / kind: uniform, */
-         //>> BB7
-         //! /* logical preds: BB6, / linear preds: BB6, / kind: uniform, continue, */
+         //! BB4
+         //! /* logical preds: BB3, / linear preds: BB3, / kind: uniform, break, */
+         //>> BB5
+         //! /* logical preds: BB3, / linear preds: BB3, / kind: uniform, continue, */
          nir_unit_test_uniform_input(nb, 1, 32, .base=5);
          nir_jump(nb, nir_jump_continue);
       }
@@ -434,8 +428,8 @@ BEGIN_TEST(isel.cf.unreachable_break.uniform_continue)
       nir_jump(nb, nir_jump_break);
    }
    nir_pop_loop(nb, NULL);
-   //>> BB8
-   //! /* logical preds: BB5, / linear preds: BB5, / kind: uniform, top-level, loop-exit, */
+   //>> BB6
+   //! /* logical preds: BB4, / linear preds: BB4, / kind: uniform, top-level, loop-exit, */
 
    //>> p_unit_test 0, %val0
    //! p_unit_test 1, %val1
@@ -492,26 +486,24 @@ BEGIN_TEST(isel.cf.unreachable_continue.mixed_break)
       {
          /* The contents of this branch is moved to the merge block. */
          //>> BB3
-         //! /* logical preds: BB1, / linear preds: BB1, / kind: uniform, */
-         //>> BB4
-         //! /* logical preds: BB3, / linear preds: BB3, / kind: branch, */
+         //! /* logical preds: BB1, / linear preds: BB1, / kind: branch, */
          //! p_logical_start
          //! s2: %cond = p_unit_test 5
          //! p_logical_end
          //! p_cbranch_z %cond
          nir_push_if(nb, nir_unit_test_divergent_input(nb, 1, 1, .base=5));
          {
-            //>> BB5
-            //! /* logical preds: BB4, / linear preds: BB4, / kind: break, */
+            //>> BB4
+            //! /* logical preds: BB3, / linear preds: BB3, / kind: break, */
             nir_jump(nb, nir_jump_break);
          }
          nir_push_else(nb, NULL);
          {
             /* The contents of this branch is moved to the merge block. */
-            //>> BB10
-            //! /* logical preds: BB4, / linear preds: BB9, / kind: uniform, */
-            //>> BB12
-            //! /* logical preds: BB10, / linear preds: BB10, BB11, / kind: uniform, break, merge, */
+            //>> BB9
+            //! /* logical preds: BB3, / linear preds: BB8, / kind: uniform, */
+            //>> BB11
+            //! /* logical preds: BB9, / linear preds: BB9, BB10, / kind: uniform, break, merge, */
             //! p_logical_start
             //! s1: %_ = p_unit_test 6
             nir_unit_test_uniform_input(nb, 1, 32, .base=6);
@@ -528,8 +520,8 @@ BEGIN_TEST(isel.cf.unreachable_continue.mixed_break)
       nir_phi_instr_add_src(phi[1], nir_loop_last_block(loop), cont1);
    }
    nir_pop_loop(nb, NULL);
-   //>> BB13
-   //! /* logical preds: BB2, BB5, BB12, / linear preds: BB2, BB6, BB12, / kind: uniform, top-level, loop-exit, */
+   //>> BB12
+   //! /* logical preds: BB2, BB4, BB11, / linear preds: BB2, BB5, BB11, / kind: uniform, top-level, loop-exit, */
 
    nb->cursor = nir_after_phis(nir_loop_first_block(loop));
    nir_builder_instr_insert(nb, &phi[0]->instr);
@@ -592,8 +584,6 @@ BEGIN_TEST(isel.cf.unreachable_continue.nested_mixed_break)
          /* The contents of this branch is moved to the merge block. */
          //>> BB3
          //! /* logical preds: BB1, / linear preds: BB1, / kind: uniform, */
-         //>> BB4
-         //! /* logical preds: BB3, / linear preds: BB3, / kind: uniform, */
          //! p_logical_start
          //! s2: %cond1 = p_unit_test 4
          //! s2: %_,  s1: %_:scc = s_and_b64 %cond1, %0:exec
@@ -601,34 +591,32 @@ BEGIN_TEST(isel.cf.unreachable_continue.nested_mixed_break)
          //! p_cbranch_z %_:scc
          nir_push_if(nb, nir_unit_test_uniform_input(nb, 1, 1, .base=4));
          {
-            //>> BB5
-            //! /* logical preds: BB4, / linear preds: BB4, / kind: uniform, break, */
+            //>> BB4
+            //! /* logical preds: BB3, / linear preds: BB3, / kind: uniform, break, */
             nir_jump(nb, nir_jump_break);
          }
          nir_push_else(nb, NULL);
          {
             /* The contents of this branch is moved to the merge block. */
-            //>> BB6
-            //! /* logical preds: BB4, / linear preds: BB4, / kind: uniform, */
-            //>> BB7
-            //! /* logical preds: BB6, / linear preds: BB6, / kind: branch, */
+            //>> BB5
+            //! /* logical preds: BB3, / linear preds: BB3, / kind: branch, */
             //! p_logical_start
             //! s2: %cond2 = p_unit_test 5
             //! p_logical_end
             //! p_cbranch_z %cond2
             nir_push_if(nb, nir_unit_test_divergent_input(nb, 1, 1, .base=5));
             {
-               //>> BB8
-               //! /* logical preds: BB7, / linear preds: BB7, / kind: break, */
+               //>> BB6
+               //! /* logical preds: BB5, / linear preds: BB5, / kind: break, */
                nir_jump(nb, nir_jump_break);
             }
             nir_push_else(nb, NULL);
             {
                /* The contents of this branch is moved to the merge block. */
+               //>> BB11
+               //! /* logical preds: BB5, / linear preds: BB10, / kind: uniform, */
                //>> BB13
-               //! /* logical preds: BB7, / linear preds: BB12, / kind: uniform, */
-               //>> BB15
-               //! /* logical preds: BB13, / linear preds: BB13, BB14, / kind: uniform, break, merge, */
+               //! /* logical preds: BB11, / linear preds: BB11, BB12, / kind: uniform, break, merge, */
                nir_jump(nb, nir_jump_break);
             }
             nir_pop_if(nb, NULL);
@@ -667,15 +655,15 @@ BEGIN_TEST(isel.cf.unreachable_loop_exit)
    {
       /* A dummy break is inserted before the continue so that the loop has an exit. */
       //>> BB1
-      //! /* logical preds: BB0, BB4, / linear preds: BB0, BB4, / kind: uniform, loop-header, */
+      //! /* logical preds: BB0, BB3, / linear preds: BB0, BB3, / kind: uniform, loop-header, */
       //>> s1: %_ = p_unit_test 0
       //>> s2: %zero = p_parallelcopy 0
       //>> s2: %_,  s1: %cond:scc = s_and_b64 %zero, %0:exec
       //>> p_cbranch_z %cond:scc
       //! BB2
       //! /* logical preds: BB1, / linear preds: BB1, / kind: uniform, break, */
-      //>> BB4
-      //! /* logical preds: BB3, / linear preds: BB3, / kind: uniform, continue, */
+      //>> BB3
+      //! /* logical preds: BB1, / linear preds: BB1, / kind: uniform, continue, */
       nir_unit_test_uniform_input(nb, 1, 32, .base=0);
       nir_jump(nb, nir_jump_continue);
    }
@@ -1222,39 +1210,39 @@ BEGIN_TEST(isel.cf.empty_exec.loop_continue)
    {
       nir_break_if(nb, nir_imm_false(nb));
 
-      //>> BB4
+      //>> BB3
       //>> p_unit_test 0, %_
       //>> s2: %_ = p_unit_test 1
       nir_unit_test_output(nb, nir_undef(nb, 1, 32), .base = 0);
       nir_push_if(nb, nir_unit_test_divergent_input(nb, 1, 1, .base = 1));
       {
-         //>> BB5
+         //>> BB4
          //>> s2: %_ = p_unit_test 2
          nir_push_if(nb, nir_unit_test_divergent_input(nb, 1, 1, .base = 2));
          {
-            //>> BB6
-            //>> /* logical preds: BB5, / linear preds: BB5, / kind: continue, */
+            //>> BB5
+            //>> /* logical preds: BB4, / linear preds: BB4, / kind: continue, */
             nir_jump(nb, nir_jump_continue);
          }
          nir_pop_if(nb, NULL);
-         //>> BB13
-         //! /* logical preds: BB11, / linear preds: BB11, BB12, / kind: uniform, merge, */
+         //>> BB12
+         //! /* logical preds: BB10, / linear preds: BB10, BB11, / kind: uniform, merge, */
 
          //>> p_cbranch_z %0:exec rarely_taken
-         //>> BB14
+         //>> BB13
          //>> p_unit_test 3, %_
          nir_unit_test_output(nb, nir_undef(nb, 1, 32), .base = 3);
       }
       nir_pop_if(nb, NULL);
-      //>> BB21
-      //! /* logical preds: BB16, BB19, / linear preds: BB19, BB20, / kind: uniform, continue, merge, */
+      //>> BB20
+      //! /* logical preds: BB15, BB18, / linear preds: BB18, BB19, / kind: uniform, continue, merge, */
       //! p_logical_start
 
       //! p_unit_test 4, %_
       nir_unit_test_output(nb, nir_undef(nb, 1, 32), .base = 4);
    }
    nir_pop_loop(nb, NULL);
-   //>> BB22
+   //>> BB21
    //! /* logical preds: BB2, / linear preds: BB2, / kind: uniform, top-level, loop-exit, */
    //! p_logical_start
 
@@ -1449,13 +1437,13 @@ BEGIN_TEST(isel.cf.empty_exec.terminate_then_loop)
       {
          nir_break_if(nb, nir_imm_false(nb));
 
-         //>> BB6
-         //! /* logical preds: BB5, / linear preds: BB5, / kind: uniform, continue, */
+         //>> BB5
+         //! /* logical preds: BB3, / linear preds: BB3, / kind: uniform, continue, */
          //>> p_unit_test 2, %1
          nir_unit_test_output(nb, nir_undef(nb, 1, 32), .base = 2);
       }
       nir_pop_loop(nb, NULL);
-      //>> BB7
+      //>> BB6
       //! /* logical preds: BB4, / linear preds: BB4, / kind: uniform, loop-exit, */
    }
 
