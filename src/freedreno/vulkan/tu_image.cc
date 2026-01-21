@@ -1428,8 +1428,8 @@ tu_fragment_density_map_sample(const struct tu_image_view *fdm,
 {
    assert(fdm->image->layout[0].tile_mode == TILE6_LINEAR);
 
-   uint32_t fdm_shift_x = util_logbase2_ceil(DIV_ROUND_UP(width, fdm->vk.extent.width));
-   uint32_t fdm_shift_y = util_logbase2_ceil(DIV_ROUND_UP(height, fdm->vk.extent.height));
+   uint32_t fdm_shift_x = util_logbase2_ceil(width / fdm->vk.extent.width);
+   uint32_t fdm_shift_y = util_logbase2_ceil(height / fdm->vk.extent.height);
 
    fdm_shift_x = CLAMP(fdm_shift_x, MIN_FDM_TEXEL_SIZE_LOG2, MAX_FDM_TEXEL_SIZE_LOG2);
    fdm_shift_y = CLAMP(fdm_shift_y, MIN_FDM_TEXEL_SIZE_LOG2, MAX_FDM_TEXEL_SIZE_LOG2);
