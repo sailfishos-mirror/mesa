@@ -1187,10 +1187,7 @@ static nir_def *lower_image(nir_builder *b, nir_instr *instr, void *cb_data)
          image_dim = GLSL_SAMPLER_DIM_2D;
          is_array = true;
       } else if (image_dim == GLSL_SAMPLER_DIM_BUF) {
-         image_dim = GLSL_SAMPLER_DIM_2D;
-         coords = nir_vec2(b,
-                           nir_umod_imm(b, coords, 8192),
-                           nir_udiv_imm(b, coords, 8192));
+         image_dim = GLSL_SAMPLER_DIM_1D;
       }
 
       nir_def *twiddled_offset = NULL;
