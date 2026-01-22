@@ -9,6 +9,8 @@
 #ifndef _AC_VCN_DEC_H
 #define _AC_VCN_DEC_H
 
+#include "ac_video_dec.h"
+
 /* VCN programming information shared between gallium/vulkan */
 #define RDECODE_PKT_TYPE_S(x)        (((unsigned)(x)&0x3) << 30)
 #define RDECODE_PKT_TYPE_G(x)        (((x) >> 30) & 0x3)
@@ -1147,6 +1149,18 @@ typedef struct rvcn_dec_feedback_profiling_s {
    unsigned int dmaHwCrc32Value2;
 } rvcn_dec_feedback_profiling_t;
 
+typedef struct rvcn_dec_avc_its_s {
+   unsigned char scaling_list_4x4[6][16];
+   unsigned char scaling_list_8x8[2][64];
+} rvcn_dec_avc_its_t;
+
+typedef struct rvcn_dec_hevc_its_s {
+   unsigned char scaling_list_4x4[6][16];
+   unsigned char scaling_list_8x8[6][64];
+   unsigned char scaling_list_16x16[6][64];
+   unsigned char scaling_list_32x32[2][64];
+} rvcn_dec_hevc_its_t;
+
 typedef struct rvcn_dec_vp9_nmv_ctx_mask_s {
    unsigned short classes_mask[2];
    unsigned short bits_mask[2];
@@ -1271,5 +1285,9 @@ void ac_vcn_vp9_fill_probs_table(void *ptr);
 unsigned ac_vcn_dec_calc_ctx_size_av1(unsigned av1_version);
 void ac_vcn_av1_init_probs(unsigned av1_version, uint8_t *prob);
 void ac_vcn_av1_init_film_grain_buffer(unsigned av1_version, rvcn_dec_film_grain_params_t *fg_params, rvcn_dec_av1_fg_init_buf_t *fg_buf);
+
+uint32_t ac_vcn_dec_dpb_size(const struct radeon_info *info, struct ac_video_dec_session_param *param);
+uint32_t ac_vcn_dec_dpb_alignment(const struct radeon_info *info, struct ac_video_dec_session_param *param);
+struct ac_video_dec *ac_vcn_create_video_decoder(const struct radeon_info *info, struct ac_video_dec_session_param *param);
 
 #endif
