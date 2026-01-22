@@ -569,9 +569,9 @@ kk_shader_destroy(struct vk_device *vk_dev, struct vk_shader *vk_shader,
    struct kk_device *dev = container_of(vk_dev, struct kk_device, vk);
    struct kk_shader *shader = container_of(vk_shader, struct kk_shader, vk);
 
-   if (shader->pipeline.cs) {
+   if (shader->info.stage == MESA_SHADER_COMPUTE) {
       mtl_release(shader->pipeline.cs);
-   } else if (shader->pipeline.gfx.handle) {
+   } else if (shader->info.stage == MESA_SHADER_VERTEX) {
       mtl_release(shader->pipeline.gfx.handle);
       if (shader->pipeline.gfx.mtl_depth_stencil_state_handle)
          mtl_release(shader->pipeline.gfx.mtl_depth_stencil_state_handle);
