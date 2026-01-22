@@ -286,7 +286,7 @@ handle_alu_instr(struct vtn_builder *b, uint32_t opcode,
 {
    assert(w_dest);
 
-   vtn_handle_fp_fast_math(b, vtn_untyped_value(b, w_dest[1]));
+   vtn_handle_fp_fast_math(b, vtn_untyped_value(b, w_dest[2]), vtn_untyped_value(b, w_src[0]));
 
    handle_instr(b, opcode, w_src, num_srcs, w_dest, handler);
 

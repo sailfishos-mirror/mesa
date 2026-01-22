@@ -459,18 +459,18 @@ fp_math_ctrl_for_type(struct vtn_builder *b, struct vtn_type *type)
 }
 
 void
-vtn_handle_fp_fast_math(struct vtn_builder *b, struct vtn_value *val)
+vtn_handle_fp_fast_math(struct vtn_builder *b, struct vtn_value *dest_val, struct vtn_value *src0_val)
 {
-   /* Take the NaN/Inf/SZ preserve bits from the execution mode and set them
-    * on the builder, so the generated instructions can take it from it.
-    * We only care about some of them, check nir_alu_instr for details.
+   /* Take union of the fp_math_ctrl bits from the dest and source types.
+    * Assume any additional float source would have the same type as the
+    * first one.
     */
+   b->nb.fp_math_ctrl = fp_math_ctrl_for_type(b, dest_val->type);
+   b->nb.fp_math_ctrl |= fp_math_ctrl_for_type(b, src0_val->type);
 
-   b->nb.fp_math_ctrl = fp_math_ctrl_for_type(b, val->type);
+   vtn_foreach_decoration(b, dest_val, handle_fp_fast_math, NULL);
 
-   vtn_foreach_decoration(b, val, handle_fp_fast_math, NULL);
-
-   if (b->exact || vtn_has_decoration(b, val, SpvDecorationNoContraction))
+   if (b->exact || vtn_has_decoration(b, dest_val, SpvDecorationNoContraction))
       b->nb.fp_math_ctrl |= nir_fp_exact;
 }
 
@@ -748,7 +748,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
       return;
    }
 
-   vtn_handle_fp_fast_math(b, dest_val);
+   vtn_handle_fp_fast_math(b, dest_val, vtn_untyped_value(b, w[3]));
 
    bool mediump_16bit = vtn_alu_op_mediump_16bit(b, opcode, dest_val);
 
