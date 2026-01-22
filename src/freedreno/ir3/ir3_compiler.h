@@ -161,7 +161,7 @@ struct ir3_compiler {
     */
    uint32_t reg_size_vec4;
 
-   /* The number of total branch stack entries, divided by wave_granularity. */
+   /* The number of total branch stack entries. */
    uint32_t branchstack_size;
 
    /* The maximum number of branch stack entries per wave. */

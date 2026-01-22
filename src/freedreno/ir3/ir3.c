@@ -263,9 +263,9 @@ ir3_get_reg_independent_max_waves(struct ir3_shader_variant *v,
 
    /* Compute the limit based on branchstack */
    if (v->branchstack > 0) {
+      unsigned branchstack = ir3_shader_branchstack_hw(v);
       unsigned branchstack_max_waves = compiler->branchstack_size /
-                                       v->branchstack *
-                                       compiler->info->wave_granularity;
+                                       branchstack;
       max_waves = MIN2(max_waves, branchstack_max_waves);
    }
 
