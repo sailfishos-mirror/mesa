@@ -226,6 +226,10 @@ struct wsi_display {
    pthread_t                    hotplug_thread;
 
    struct list_head             connectors; /* list of all discovered connectors */
+   /* Flag that we've called wsi_get_connectors() with the current fd.
+    */
+   bool                         get_connectors_current;
+   mtx_t                        connectors_mutex;
 
    /* A unique monotonically increasing value to associate with an individual
     * colorimetry outcome on the output. This is used to avoid propagating
@@ -893,13 +897,18 @@ wsi_get_connectors(VkPhysicalDevice physicalDevice)
    struct wsi_display *wsi =
       (struct wsi_display *) wsi_device->wsi[VK_ICD_WSI_PLATFORM_DISPLAY];
 
-   if (wsi->fd < 0)
+   mtx_lock(&wsi->connectors_mutex);
+   if (wsi->fd < 0 || wsi->get_connectors_current) {
+      mtx_unlock(&wsi->connectors_mutex);
       return VK_SUCCESS;
+   }
 
    drmModeResPtr mode_res = drmModeGetResources(wsi->fd);
 
-   if (!mode_res)
+   if (!mode_res) {
+      mtx_unlock(&wsi->connectors_mutex);
       return VK_ERROR_OUT_OF_HOST_MEMORY;
+   }
 
    /* Get current information */
    for (int c = 0; c < mode_res->count_connectors; c++) {
@@ -908,9 +917,13 @@ wsi_get_connectors(VkPhysicalDevice physicalDevice)
                mode_res->connectors[c]);
       if (!connector) {
          drmModeFreeResources(mode_res);
+         mtx_unlock(&wsi->connectors_mutex);
          return VK_ERROR_OUT_OF_HOST_MEMORY;
       }
    }
+
+   wsi->get_connectors_current = true;
+   mtx_unlock(&wsi->connectors_mutex);
 
    drmModeFreeResources(mode_res);
    return VK_SUCCESS;
@@ -3509,6 +3522,9 @@ udev_event_listener_thread(void *data)
              * and wsi_display_wait_for_event.
              */
             mtx_lock(&wsi->wait_mutex);
+            mtx_lock(&wsi->connectors_mutex);
+            wsi->get_connectors_current = false;
+            mtx_unlock(&wsi->connectors_mutex);
             u_cnd_monotonic_broadcast(&wsi->hotplug_cond);
             list_for_each_entry(struct wsi_display_fence, fence,
                                 &wsi_device->hotplug_fences, link) {
@@ -3591,6 +3607,12 @@ wsi_display_init_wsi(struct wsi_device *wsi_device,
       goto fail_mutex;
    }
 
+   ret = mtx_init(&wsi->connectors_mutex, mtx_plain);
+   if (ret != thrd_success) {
+      result = VK_ERROR_OUT_OF_HOST_MEMORY;
+      goto fail_mutex2;
+   }
+
    ret = u_cnd_monotonic_init(&wsi->wait_cond);
    if (ret != thrd_success) {
       result = VK_ERROR_OUT_OF_HOST_MEMORY;
@@ -3618,6 +3640,8 @@ wsi_display_init_wsi(struct wsi_device *wsi_device,
 fail_hotplug_cond:
    u_cnd_monotonic_destroy(&wsi->wait_cond);
 fail_cond:
+   mtx_destroy(&wsi->connectors_mutex);
+fail_mutex2:
    mtx_destroy(&wsi->wait_mutex);
 fail_mutex:
    vk_free(alloc, wsi);
@@ -3643,6 +3667,7 @@ wsi_display_finish_wsi(struct wsi_device *wsi_device,
          pthread_join(wsi->hotplug_thread, NULL);
       }
 
+      mtx_destroy(&wsi->connectors_mutex);
       mtx_destroy(&wsi->wait_mutex);
       u_cnd_monotonic_destroy(&wsi->wait_cond);
       u_cnd_monotonic_destroy(&wsi->hotplug_cond);
@@ -3670,6 +3695,7 @@ wsi_ReleaseDisplayEXT(VkPhysicalDevice physicalDevice,
       if (wsi->fd != wsi->device_fd)
          close(wsi->fd);
       wsi->fd = wsi->device_fd;
+      wsi->get_connectors_current = false;
    }
 
    struct wsi_display_connector *connector =
