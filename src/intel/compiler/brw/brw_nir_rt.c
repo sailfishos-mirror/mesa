@@ -506,6 +506,8 @@ brw_nir_create_raygen_trampoline(const struct brw_compiler *compiler,
    };
 
    brw_nir_optimize(&pt);
+   /* brw_nir_optimize undoes late lowerings. */
+   NIR_PASS(_, nir, nir_opt_algebraic_late);
 
    return nir;
 }
