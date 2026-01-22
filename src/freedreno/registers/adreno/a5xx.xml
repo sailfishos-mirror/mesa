@@ -2475,7 +2475,7 @@ bit 7 for RECTLIST (clear) when z32s8 (used for clear of depth32?  not set
 		<bitfield name="VARYING" pos="16" type="boolean"/>
 		<bitfield name="PIXLODENABLE" pos="20" type="boolean"/>
 		<!-- seems to be nesting level for flow control:.. -->
-		<bitfield name="BRANCHSTACK" low="25" high="31" type="uint"/>
+		<bitfield name="BRANCHSTACK" low="24" high="31" type="uint"/>
 	</bitset>
 	<!-- assuming things appear in same relative order as a4xx: -->
 	<!-- duplicated exactly w/ corresponding HLSQ_ regs starting at 0xe78b.. -->

@@ -3601,10 +3601,8 @@ by a particular renderpass/blit.
 		 -->
 		<bitfield name="HALFREGFOOTPRINT" low="1" high="6" type="uint"/>
 		<bitfield name="FULLREGFOOTPRINT" low="7" high="12" type="uint"/>
-		<!-- could it be a low bit of branchstack? -->
-		<bitfield name="UNK13" pos="13" type="boolean"/>
 		<!-- seems to be nesting level for flow control:.. -->
-		<bitfield name="BRANCHSTACK" low="14" high="19" type="uint"/>
+		<bitfield name="BRANCHSTACK" low="13" high="19" type="uint"/>
 
 		<!-- gen8: -->
 		<bitfield name="FULLREGFOOTPRINT_LSB" pos="27" type="uint" variants="A8XX-"/>
