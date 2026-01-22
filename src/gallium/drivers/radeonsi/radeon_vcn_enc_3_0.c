@@ -13,7 +13,7 @@
 #include "util/u_video.h"
 
 #include "si_pipe.h"
-#include "radeon_video.h"
+#include "si_video.h"
 #include "radeon_vcn_enc.h"
 
 #define RENCODE_FW_INTERFACE_MAJOR_VERSION   1

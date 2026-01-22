@@ -8,7 +8,7 @@
 
 #include "pipe/p_video_codec.h"
 #include "radeon_vcn_enc.h"
-#include "radeon_video.h"
+#include "si_video.h"
 #include "si_pipe.h"
 #include "util/u_video.h"
 

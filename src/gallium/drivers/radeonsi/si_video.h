@@ -7,7 +7,28 @@
 #ifndef SI_VIDEO_H
 #define SI_VIDEO_H
 
-#include "pipe/p_context.h"
+#include "si_pipe.h"
+#include "pipe/p_video_codec.h"
+
+#define RVID_ERR(fmt, args...)                                                                     \
+   mesa_loge("%s:%d %s UVD - " fmt, __FILE__, __LINE__, __func__, ##args)
+
+#define UVD_FW_1_66_16 ((1 << 24) | (66 << 16) | (16 << 8))
+
+/* video buffer offset info representation */
+struct rvid_buf_offset_info {
+   unsigned num_units;
+   unsigned old_offset;
+   unsigned new_offset;
+};
+
+/* generate a stream handle */
+unsigned si_vid_alloc_stream_handle(void);
+
+/* reallocate a buffer, preserving its content */
+bool si_vid_resize_buffer(struct pipe_context *context,
+                          struct si_resource **buf, unsigned new_size,
+                          struct rvid_buf_offset_info *buf_ofst_info);
 
 struct pipe_video_buffer *si_video_buffer_create(struct pipe_context *pipe,
                                                  const struct pipe_video_buffer *tmpl);

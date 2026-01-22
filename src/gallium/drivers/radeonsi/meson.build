@@ -102,8 +102,6 @@ files_libradeonsi = files(
   'radeon_vcn_enc_3_0.c',
   'radeon_vcn_enc_4_0.c',
   'radeon_vcn_enc_5_0.c',
-  'radeon_video.c',
-  'radeon_video.h',
   'radeon_bitstream.h',
   'radeon_bitstream.c',
 )

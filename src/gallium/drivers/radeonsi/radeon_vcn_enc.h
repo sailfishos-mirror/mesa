@@ -12,6 +12,7 @@
 #include "radeon_vcn.h"
 #include "util/macros.h"
 #include "radeon_bitstream.h"
+#include "pipe/p_video_codec.h"
 
 #include "ac_vcn_enc.h"
 

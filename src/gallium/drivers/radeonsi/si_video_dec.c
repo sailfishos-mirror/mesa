@@ -6,9 +6,10 @@
 
 #include "si_video_dec.h"
 #include "si_pipe.h"
-#include "radeon_video.h"
+#include "si_video.h"
 #include "util/u_video.h"
 #include "util/vl_zscan_data.h"
+#include "vl/vl_video_buffer.h"
 #include "ac_debug.h"
 
 #define ERROR(fmt, args...) \

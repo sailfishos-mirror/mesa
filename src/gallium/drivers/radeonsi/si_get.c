@@ -10,7 +10,7 @@
 #include "ac_shader_util.h"
 #include "radeon_uvd_enc.h"
 #include "radeon_vce.h"
-#include "radeon_video.h"
+#include "si_video.h"
 #include "si_pipe.h"
 #include "util/u_cpu_detect.h"
 #include "util/u_screen.h"

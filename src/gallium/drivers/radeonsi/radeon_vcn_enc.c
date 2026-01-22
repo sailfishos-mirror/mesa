@@ -10,8 +10,7 @@
 #include "ac_vcn_enc_av1_default_cdf.h"
 #include "ac_debug.h"
 
-#include "pipe/p_video_codec.h"
-#include "radeon_video.h"
+#include "si_video.h"
 #include "radeonsi/si_pipe.h"
 #include "util/u_memory.h"
 #include "util/u_video.h"

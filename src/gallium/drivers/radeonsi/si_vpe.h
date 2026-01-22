@@ -30,8 +30,9 @@
 
 #include "pipe/p_screen.h"
 #include "pipe/p_video_codec.h"
+#include "vl/vl_video_buffer.h"
 #include "vpelib/inc/vpelib.h"
-#include "radeon_video.h"
+#include "si_video.h"
 
 /* The buffer size of cmd_buf and emb_buf in bytes
  *

@@ -9,7 +9,6 @@
 #include "radeon_vce.h"
 
 #include "pipe/p_video_codec.h"
-#include "radeon_video.h"
 #include "radeon_bitstream.h"
 #include "radeonsi/si_pipe.h"
 #include "util/u_memory.h"
