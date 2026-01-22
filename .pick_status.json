@@ -294,7 +294,7 @@
         "description": "tu: Fix typo in min bounds calculation of FDM scissors",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fec372dfa502f588e894c19e9c2a8ba2c73d6c9a",
         "notes": null
