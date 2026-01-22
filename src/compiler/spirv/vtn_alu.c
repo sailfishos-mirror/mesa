@@ -425,6 +425,39 @@ handle_fp_fast_math(struct vtn_builder *b, UNUSED struct vtn_value *val,
       b->nb.fp_math_ctrl |= nir_fp_preserve_inf;
 }
 
+unsigned *
+vtn_fp_math_ctrl_for_base_type(struct vtn_builder *b, enum glsl_base_type base_type)
+{
+   switch (base_type) {
+   case GLSL_TYPE_FLOAT16: return &b->fp_math_ctrl[0];
+   case GLSL_TYPE_FLOAT: return &b->fp_math_ctrl[1];
+   case GLSL_TYPE_DOUBLE: return &b->fp_math_ctrl[2];
+   case GLSL_TYPE_BFLOAT16: return &b->fp_math_ctrl[3];
+   case GLSL_TYPE_FLOAT_E4M3FN: return &b->fp_math_ctrl[4];
+   case GLSL_TYPE_FLOAT_E5M2: return &b->fp_math_ctrl[5];
+   default: return NULL;
+   }
+}
+
+static unsigned
+fp_math_ctrl_for_type(struct vtn_builder *b, struct vtn_type *type)
+{
+   if (!type)
+      return nir_fp_fast_math;
+
+   enum glsl_base_type base_type;
+
+   /* Some ALU like modf and frexp return a struct of two values. */
+   if (glsl_type_is_struct(type->type))
+      base_type = glsl_get_base_type(type->type->fields.structure[0].type);
+   else
+      base_type = glsl_get_base_type(type->type);
+
+   unsigned *fp_math_ctrl = vtn_fp_math_ctrl_for_base_type(b, base_type);
+
+   return fp_math_ctrl ? *fp_math_ctrl : nir_fp_fast_math;
+}
+
 void
 vtn_handle_fp_fast_math(struct vtn_builder *b, struct vtn_value *val)
 {
@@ -432,23 +465,8 @@ vtn_handle_fp_fast_math(struct vtn_builder *b, struct vtn_value *val)
     * on the builder, so the generated instructions can take it from it.
     * We only care about some of them, check nir_alu_instr for details.
     */
-   unsigned bit_size;
 
-   /* Some ALU like modf and frexp return a struct of two values. */
-   if (!val->type)
-      bit_size = 0;
-   else if (glsl_type_is_struct(val->type->type))
-      bit_size = glsl_get_bit_size(val->type->type->fields.structure[0].type);
-   else
-      bit_size = glsl_get_bit_size(val->type->type);
-
-
-   switch (bit_size) {
-   case 16: b->nb.fp_math_ctrl = b->fp_math_ctrl_fp16; break;
-   case 32: b->nb.fp_math_ctrl = b->fp_math_ctrl_fp32; break;
-   case 64: b->nb.fp_math_ctrl = b->fp_math_ctrl_fp64; break;
-   default: b->nb.fp_math_ctrl = 0; break;
-   }
+   b->nb.fp_math_ctrl = fp_math_ctrl_for_type(b, val->type);
 
    vtn_foreach_decoration(b, val, handle_fp_fast_math, NULL);
 

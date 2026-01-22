@@ -5734,9 +5734,15 @@ vtn_handle_execution_mode(struct vtn_builder *b, struct vtn_value *entry_point,
       b->shader->info.fs.sample_interlock_unordered = true;
       break;
 
+   case SpvExecutionModeSignedZeroInfNanPreserve: {
+      const struct glsl_type *type = glsl_floatN_t_type(mode->operands[0]);
+      unsigned *fp_math_ctrl = vtn_fp_math_ctrl_for_base_type(b, glsl_get_base_type(type));
+      *fp_math_ctrl |= nir_fp_preserve_sz_inf_nan;
+      break;
+   }
+
    case SpvExecutionModeDenormPreserve:
    case SpvExecutionModeDenormFlushToZero:
-   case SpvExecutionModeSignedZeroInfNanPreserve:
    case SpvExecutionModeRoundingModeRTE:
    case SpvExecutionModeRoundingModeRTZ: {
       unsigned execution_mode = 0;
@@ -5754,14 +5760,6 @@ vtn_handle_execution_mode(struct vtn_builder *b, struct vtn_value *entry_point,
          case 16: execution_mode = FLOAT_CONTROLS_DENORM_FLUSH_TO_ZERO_FP16; break;
          case 32: execution_mode = FLOAT_CONTROLS_DENORM_FLUSH_TO_ZERO_FP32; break;
          case 64: execution_mode = FLOAT_CONTROLS_DENORM_FLUSH_TO_ZERO_FP64; break;
-         default: vtn_fail("Floating point type not supported");
-         }
-         break;
-      case SpvExecutionModeSignedZeroInfNanPreserve:
-         switch (mode->operands[0]) {
-         case 16: b->fp_math_ctrl_fp16 |= nir_fp_preserve_sz_inf_nan; break;
-         case 32: b->fp_math_ctrl_fp32 |= nir_fp_preserve_sz_inf_nan; break;
-         case 64: b->fp_math_ctrl_fp64 |= nir_fp_preserve_sz_inf_nan; break;
          default: vtn_fail("Floating point type not supported");
          }
          break;
@@ -5925,6 +5923,12 @@ vtn_handle_execution_mode_id(struct vtn_builder *b, struct vtn_value *entry_poin
       struct vtn_type *type = vtn_get_type(b, mode->operands[0]);
       SpvFPFastMathModeMask flags = vtn_constant_uint(b, mode->operands[1]);
 
+      enum glsl_base_type base_type = glsl_get_base_type(type->type);
+      unsigned *fp_math_ctrl = vtn_fp_math_ctrl_for_base_type(b, base_type);
+
+      if (!fp_math_ctrl)
+         vtn_fail("Unkown float type for FPFastMathDefault");
+
       SpvFPFastMathModeMask can_fast_math =
          SpvFPFastMathModeAllowRecipMask |
          SpvFPFastMathModeAllowContractMask |
@@ -5933,27 +5937,15 @@ vtn_handle_execution_mode_id(struct vtn_builder *b, struct vtn_value *entry_poin
       if ((flags & can_fast_math) != can_fast_math)
          b->exact = true;
 
-      if (!(flags & SpvFPFastMathModeNotNaNMask)) {
-         switch (glsl_get_bit_size(type->type)) {
-         case 16: b->fp_math_ctrl_fp16 |= nir_fp_preserve_nan; break;
-         case 32: b->fp_math_ctrl_fp32 |= nir_fp_preserve_nan; break;
-         case 64: b->fp_math_ctrl_fp64 |= nir_fp_preserve_nan; break;
-         }
-      }
-      if (!(flags & SpvFPFastMathModeNotInfMask)) {
-         switch (glsl_get_bit_size(type->type)) {
-         case 16: b->fp_math_ctrl_fp16 |= nir_fp_preserve_inf; break;
-         case 32: b->fp_math_ctrl_fp32 |= nir_fp_preserve_inf; break;
-         case 64: b->fp_math_ctrl_fp64 |= nir_fp_preserve_inf; break;
-         }
-      }
-      if (!(flags & SpvFPFastMathModeNSZMask)) {
-         switch (glsl_get_bit_size(type->type)) {
-         case 16: b->fp_math_ctrl_fp16 |= nir_fp_preserve_signed_zero; break;
-         case 32: b->fp_math_ctrl_fp32 |= nir_fp_preserve_signed_zero; break;
-         case 64: b->fp_math_ctrl_fp64 |= nir_fp_preserve_signed_zero; break;
-         }
-      }
+      if (!(flags & SpvFPFastMathModeNotNaNMask))
+         *fp_math_ctrl |= nir_fp_preserve_nan;
+
+      if (!(flags & SpvFPFastMathModeNotInfMask))
+         *fp_math_ctrl |= nir_fp_preserve_inf;
+
+      if (!(flags & SpvFPFastMathModeNSZMask))
+         *fp_math_ctrl |= nir_fp_preserve_signed_zero;
+
       break;
    }
 
