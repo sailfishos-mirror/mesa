@@ -143,33 +143,6 @@ static LLVMValueRef emit_intrin_1f_param(struct ac_llvm_context *ctx, const char
    return ac_build_intrinsic(ctx, name, result_type, params, 1, 0);
 }
 
-static LLVMValueRef emit_intrin_1f_param_scalar(struct ac_llvm_context *ctx, const char *intrin,
-                                                LLVMTypeRef result_type, LLVMValueRef src0)
-{
-   if (LLVMGetTypeKind(result_type) != LLVMVectorTypeKind)
-      return emit_intrin_1f_param(ctx, intrin, result_type, src0);
-
-   LLVMTypeRef elem_type = LLVMGetElementType(result_type);
-   LLVMValueRef ret = LLVMGetUndef(result_type);
-
-   /* Scalarize the intrinsic, because vectors are not supported. */
-   for (unsigned i = 0; i < LLVMGetVectorSize(result_type); i++) {
-      char name[64], type[64];
-      LLVMValueRef params[] = {
-         ac_to_float(ctx, ac_llvm_extract_elem(ctx, src0, i)),
-      };
-
-      ac_build_type_name_for_intr(LLVMTypeOf(params[0]), type, sizeof(type));
-      ASSERTED const int length = snprintf(name, sizeof(name), "%s.%s", intrin, type);
-      assert(length < sizeof(name));
-      ret = LLVMBuildInsertElement(
-         ctx->builder, ret,
-         ac_build_intrinsic(ctx, name, elem_type, params, 1, 0),
-         LLVMConstInt(ctx->i32, i, 0), "");
-   }
-   return ret;
-}
-
 static LLVMValueRef emit_intrin_2f_param(struct ac_llvm_context *ctx, const char *intrin,
                                          LLVMTypeRef result_type, LLVMValueRef src0,
                                          LLVMValueRef src1)
@@ -649,8 +622,8 @@ static bool visit_alu(struct ac_nir_context *ctx, const nir_alu_instr *instr)
                                   src, 2, 0);
       break;
    case nir_op_frcp:
-      result = emit_intrin_1f_param_scalar(&ctx->ac, "llvm.amdgcn.rcp",
-                                           ac_to_float_type(&ctx->ac, def_type), src[0]);
+      result = emit_intrin_1f_param(&ctx->ac, "llvm.amdgcn.rcp",
+                                    ac_to_float_type(&ctx->ac, def_type), src[0]);
       if (ctx->abi->clamp_div_by_zero)
          result = ac_build_fmin(&ctx->ac, result,
                                 LLVMConstReal(ac_to_float_type(&ctx->ac, def_type), FLT_MAX));
@@ -787,15 +760,15 @@ static bool visit_alu(struct ac_nir_context *ctx, const nir_alu_instr *instr)
          emit_intrin_1f_param(&ctx->ac, "llvm.rint", ac_to_float_type(&ctx->ac, def_type), src[0]);
       break;
    case nir_op_ffract:
-      result = emit_intrin_1f_param_scalar(&ctx->ac, "llvm.amdgcn.fract",
-                                           ac_to_float_type(&ctx->ac, def_type), src[0]);
+      result = emit_intrin_1f_param(&ctx->ac, "llvm.amdgcn.fract",
+                                    ac_to_float_type(&ctx->ac, def_type), src[0]);
       break;
    case nir_op_fsin_amd:
    case nir_op_fcos_amd:
       /* before GFX9, v_sin_f32 and v_cos_f32 had a valid input domain of [-256, +256] */
       if (ctx->ac.gfx_level < GFX9)
-         src[0] = emit_intrin_1f_param_scalar(&ctx->ac, "llvm.amdgcn.fract",
-                                              ac_to_float_type(&ctx->ac, def_type), src[0]);
+         src[0] = emit_intrin_1f_param(&ctx->ac, "llvm.amdgcn.fract",
+                                       ac_to_float_type(&ctx->ac, def_type), src[0]);
       result =
          emit_intrin_1f_param(&ctx->ac, instr->op == nir_op_fsin_amd ? "llvm.amdgcn.sin" : "llvm.amdgcn.cos",
                               ac_to_float_type(&ctx->ac, def_type), src[0]);
@@ -814,8 +787,8 @@ static bool visit_alu(struct ac_nir_context *ctx, const nir_alu_instr *instr)
          emit_intrin_1f_param(&ctx->ac, "llvm.log2", ac_to_float_type(&ctx->ac, def_type), src[0]);
       break;
    case nir_op_frsq:
-      result = emit_intrin_1f_param_scalar(&ctx->ac, "llvm.amdgcn.rsq",
-                                           ac_to_float_type(&ctx->ac, def_type), src[0]);
+      result = emit_intrin_1f_param(&ctx->ac, "llvm.amdgcn.rsq",
+                                    ac_to_float_type(&ctx->ac, def_type), src[0]);
       if (ctx->abi->clamp_div_by_zero)
          result = ac_build_fmin(&ctx->ac, result,
                                 LLVMConstReal(ac_to_float_type(&ctx->ac, def_type), FLT_MAX));
