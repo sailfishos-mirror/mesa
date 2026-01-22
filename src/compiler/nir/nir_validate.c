@@ -733,12 +733,16 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
    case nir_intrinsic_global_atomic_swap_nv:
    case nir_intrinsic_shared_atomic_nv:
    case nir_intrinsic_shared_atomic_swap_nv:
+   case nir_intrinsic_ldc_nv:
+   case nir_intrinsic_ldcx_nv:
    case nir_intrinsic_load_global_nv:
    case nir_intrinsic_load_scratch_nv:
    case nir_intrinsic_load_shared_nv:
    case nir_intrinsic_store_global_nv:
    case nir_intrinsic_store_scratch_nv:
-   case nir_intrinsic_store_shared_nv: {
+   case nir_intrinsic_store_shared_nv:
+   case nir_intrinsic_store_shared_unlock_nv:
+   case nir_intrinsic_vild_nv: {
       int base = nir_intrinsic_base(instr);
       nir_src src = *nir_get_io_offset_src(instr);
       unsigned const_bits = nir_get_io_base_size_nv(instr);

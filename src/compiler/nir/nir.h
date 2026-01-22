@@ -5606,10 +5606,17 @@ nir_get_io_base_size_nv(const nir_intrinsic_instr *intr)
    case nir_intrinsic_load_global_nv:
    case nir_intrinsic_load_scratch_nv:
    case nir_intrinsic_load_shared_nv:
+   case nir_intrinsic_load_shared_lock_nv:
    case nir_intrinsic_store_global_nv:
    case nir_intrinsic_store_scratch_nv:
    case nir_intrinsic_store_shared_nv:
+   case nir_intrinsic_store_shared_unlock_nv:
       return 24;
+   case nir_intrinsic_ldc_nv:
+   case nir_intrinsic_ldcx_nv:
+      return 16;
+   case nir_intrinsic_vild_nv:
+      return 8;
    default:
       UNREACHABLE("unknown nvidia intrinsic");
       return -1;

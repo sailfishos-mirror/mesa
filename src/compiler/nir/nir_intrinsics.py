@@ -2717,7 +2717,7 @@ intrinsic("convert_cmat_intel", dest_comp=0, src_comp=[-1],
 # NVIDIA-specific intrinsics
 # src[] = { index, offset }.
 intrinsic("ldc_nv", dest_comp=0, src_comp=[1, 1],
-          indices=[ACCESS, ALIGN_MUL, ALIGN_OFFSET],
+          indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 # [Un]pins an LDCX handle around non-uniform control-flow sections
 # src[] = { handle }.
@@ -2725,14 +2725,15 @@ intrinsic("pin_cx_handle_nv", src_comp=[1])
 intrinsic("unpin_cx_handle_nv", src_comp=[1])
 # src[] = { handle, offset }.
 intrinsic("ldcx_nv", dest_comp=0, src_comp=[1, 1],
-          indices=[ACCESS, ALIGN_MUL, ALIGN_OFFSET],
+          indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 intrinsic("load_sysval_nv", dest_comp=1, src_comp=[], bit_sizes=[32, 64],
           indices=[ACCESS, BASE, DIVERGENT], flags=[CAN_ELIMINATE])
 intrinsic("isberd_nv", dest_comp=1, src_comp=[1], bit_sizes=[32],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 intrinsic("vild_nv", dest_comp=1, src_comp=[1], bit_sizes=[32],
-          flags=[CAN_ELIMINATE, CAN_REORDER])
+          flags=[CAN_ELIMINATE, CAN_REORDER],
+          indices=[BASE])
 intrinsic("al2p_nv", dest_comp=1, src_comp=[1], bit_sizes=[32],
           indices=[BASE, FLAGS], flags=[CAN_ELIMINATE, CAN_REORDER])
 # src[] = { vtx, offset }.
@@ -2779,8 +2780,8 @@ intrinsic("sustga_nv", src_comp=[2, 1, 1, 0],
           indices=[ACCESS, FLAGS], bit_sizes=[32])
 # Nvidia Kepler specific load-lock store-unlock
 # used to lower shared atomics.
-intrinsic("load_shared_lock_nv", src_comp=[1], dest_comp=2)
-intrinsic("store_shared_unlock_nv", src_comp=[1, 1], dest_comp=1)
+intrinsic("load_shared_lock_nv", src_comp=[1], dest_comp=2, indices=[BASE])
+intrinsic("store_shared_unlock_nv", src_comp=[1, 1], dest_comp=1, indices=[BASE])
 
 # NVIDIA-specific Geometry Shader intrinsics.
 # These contain an additional integer source and destination with the primitive handle input/output.
