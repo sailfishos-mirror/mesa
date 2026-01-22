@@ -7087,6 +7087,7 @@ vtn_handle_body_instruction(struct vtn_builder *b, SpvOp opcode,
       vtn_fail_with_opcode("Unhandled opcode", opcode);
    }
 
+   vtn_assert(b->nb.fp_math_ctrl == nir_fp_fast_math);
    return true;
 }
 
