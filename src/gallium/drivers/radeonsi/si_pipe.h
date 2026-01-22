@@ -1679,17 +1679,6 @@ void si_test_copy_buffer(struct si_screen *sscreen);
 /* si_test_blit_perf.c */
 void si_test_blit_perf(struct si_screen *sscreen);
 
-/* si_uvd.c */
-struct pipe_video_codec *si_video_codec_create(struct pipe_context *context,
-                                               const struct pipe_video_codec *templ);
-
-struct pipe_video_buffer *si_video_buffer_create(struct pipe_context *pipe,
-                                                 const struct pipe_video_buffer *tmpl);
-struct pipe_video_buffer *si_video_buffer_create_with_modifiers(struct pipe_context *pipe,
-                                                                const struct pipe_video_buffer *tmpl,
-                                                                const uint64_t *modifiers,
-                                                                unsigned int modifiers_count);
-
 /* si_state_viewport.c */
 void si_update_vs_viewport_state(struct si_context *ctx);
 void si_init_viewport_functions(struct si_context *ctx);

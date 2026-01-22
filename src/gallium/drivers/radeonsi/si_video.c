@@ -6,6 +6,7 @@
  *
  **************************************************************************/
 
+#include "si_video.h"
 #include "drm-uapi/drm_fourcc.h"
 #include "radeon_uvd_enc.h"
 #include "radeon_vce.h"

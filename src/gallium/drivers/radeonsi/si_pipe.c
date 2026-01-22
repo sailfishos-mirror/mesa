@@ -22,6 +22,7 @@
 #include "util/u_upload_mgr.h"
 #include "util/xmlconfig.h"
 #include "si_utrace.h"
+#include "si_video.h"
 
 #include "aco_interface.h"
 
