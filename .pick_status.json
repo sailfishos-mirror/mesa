@@ -2764,7 +2764,7 @@
         "description": "brw: Use lookup tables for Gfx12+ 3src type encoding/decoding",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d1d4e3d5305b6f079bba08a4322a5d724b678cf9",
         "notes": null
