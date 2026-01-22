@@ -451,6 +451,9 @@ vtn_handle_fp_fast_math(struct vtn_builder *b, struct vtn_value *val)
    }
 
    vtn_foreach_decoration(b, val, handle_fp_fast_math, NULL);
+
+   if (b->exact || vtn_has_decoration(b, val, SpvDecorationNoContraction))
+      b->nb.fp_math_ctrl |= nir_fp_exact;
 }
 
 nir_rounding_mode
@@ -729,8 +732,6 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
 
    vtn_handle_fp_fast_math(b, dest_val);
 
-   if (b->exact || vtn_has_decoration(b, dest_val, SpvDecorationNoContraction))
-      b->nb.fp_math_ctrl |= nir_fp_exact;
    bool mediump_16bit = vtn_alu_op_mediump_16bit(b, opcode, dest_val);
 
    /* Collect the various SSA sources */
