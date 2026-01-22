@@ -61,7 +61,7 @@ static void si_dec_decode_bitstream(struct pipe_video_codec *decoder, struct pip
          }
          si_resource_reference(&vid->bs_buffers[vid->cur_buffer], NULL);
          vid->bs_buffers[vid->cur_buffer] = buf;
-      } else if (!si_vid_resize_buffer(vid->base.context, &vid->bs_buffers[vid->cur_buffer], total_bs_size, NULL)) {
+      } else if (!si_vid_resize_buffer(vid->base.context, &vid->bs_buffers[vid->cur_buffer], total_bs_size)) {
          ERROR("Can't resize bitstream buffer!");
          return;
       }

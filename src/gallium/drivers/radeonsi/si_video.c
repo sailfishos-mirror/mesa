@@ -27,8 +27,7 @@ unsigned si_vid_alloc_stream_handle()
 }
 
 bool si_vid_resize_buffer(struct pipe_context *context,
-                          struct si_resource **buf, unsigned new_size,
-                          struct rvid_buf_offset_info *buf_ofst_info)
+                          struct si_resource **buf, unsigned new_size)
 {
    struct si_context *sctx = (struct si_context *)context;
    struct si_screen *sscreen = (struct si_screen *)context->screen;
@@ -51,37 +50,18 @@ bool si_vid_resize_buffer(struct pipe_context *context,
       if (!dst)
          goto error;
 
-      if (buf_ofst_info) {
+      memcpy(dst, src, bytes);
+      if (new_size > bytes) {
+         new_size -= bytes;
+         dst += bytes;
          memset(dst, 0, new_size);
-         for(int i =0; i < buf_ofst_info->num_units; i++) {
-             memcpy(dst, src, buf_ofst_info->old_offset);
-             dst += buf_ofst_info->new_offset;
-             src += buf_ofst_info->old_offset;
-         }
-      } else {
-         memcpy(dst, src, bytes);
-         if (new_size > bytes) {
-            new_size -= bytes;
-            dst += bytes;
-            memset(dst, 0, new_size);
-         }
       }
       ws->buffer_unmap(ws, new_buf->buf);
       ws->buffer_unmap(ws, old_buf->buf);
    } else {
       si_barrier_before_simple_buffer_op(sctx, 0, &new_buf->b.b, &old_buf->b.b);
-      if (buf_ofst_info) {
-         uint64_t dst_offset = 0, src_offset = 0;
-         for (int i = 0; i < buf_ofst_info->num_units; i++) {
-            si_copy_buffer(sctx, &new_buf->b.b, &old_buf->b.b,
-                           dst_offset, src_offset, buf_ofst_info->old_offset);
-            dst_offset += buf_ofst_info->new_offset;
-            src_offset += buf_ofst_info->old_offset;
-         }
-      } else {
-         bytes = MIN2(new_buf->b.b.width0, old_buf->b.b.width0);
-         si_copy_buffer(sctx, &new_buf->b.b, &old_buf->b.b, 0, 0, bytes);
-      }
+      bytes = MIN2(new_buf->b.b.width0, old_buf->b.b.width0);
+      si_copy_buffer(sctx, &new_buf->b.b, &old_buf->b.b, 0, 0, bytes);
       context->flush(context, NULL, 0);
    }
 

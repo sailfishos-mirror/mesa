@@ -933,7 +933,7 @@ static void radeon_uvd_enc_begin_frame(struct pipe_video_codec *encoder,
             RVID_ERR("Can't create DPB buffer.\n");
             return;
          }
-      } else if (!si_vid_resize_buffer(enc->base.context, &enc->dpb, dpb_size, NULL)) {
+      } else if (!si_vid_resize_buffer(enc->base.context, &enc->dpb, dpb_size)) {
          RVID_ERR("Can't resize DPB buffer.\n");
          return;
       }
