@@ -1120,9 +1120,9 @@ kk_shader_serialize(struct vk_device *vk_dev, const struct vk_shader *vk_shader,
 
    blob_write_bytes(blob, &shader->info, sizeof(shader->info));
    uint32_t entrypoint_length = strlen(shader->entrypoint_name) + 1;
-   blob_write_bytes(blob, &entrypoint_length, sizeof(entrypoint_length));
    uint32_t code_length = strlen(shader->msl_code) + 1;
-   blob_write_bytes(blob, &code_length, sizeof(code_length));
+   blob_write_uint32(blob, entrypoint_length);
+   blob_write_uint32(blob, code_length);
    blob_write_bytes(blob, shader->entrypoint_name, entrypoint_length);
    blob_write_bytes(blob, shader->msl_code, code_length);
    blob_write_bytes(blob, &shader->pipeline, sizeof(shader->pipeline));
