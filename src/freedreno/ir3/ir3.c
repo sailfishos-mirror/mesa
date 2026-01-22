@@ -277,15 +277,15 @@ ir3_get_reg_independent_max_waves(struct ir3_shader_variant *v,
       unsigned waves_per_wg =
          DIV_ROUND_UP(threads_per_wg, compiler->info->threadsize_base *
                                          (double_threadsize ? 2 : 1) *
-                                         compiler->info->wave_granularity);
+                                         compiler->info->wave_granularity) *
+         compiler->info->wave_granularity;
 
       /* Shared is allocated in chunks of 1k */
       unsigned shared_per_wg = ALIGN_POT(v->shared_size, 1024);
       if (shared_per_wg > 0 && !v->local_size_variable) {
          unsigned wgs_per_core = compiler->info->cs_shared_mem_size / shared_per_wg;
 
-         max_waves = MIN2(max_waves, waves_per_wg * wgs_per_core *
-                                        compiler->info->wave_granularity);
+         max_waves = MIN2(max_waves, waves_per_wg * wgs_per_core);
       }
 
       /* If we have a compute shader that has a big workgroup, a barrier, and
