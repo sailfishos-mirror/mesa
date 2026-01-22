@@ -290,7 +290,7 @@ handle_alu_instr(struct vtn_builder *b, uint32_t opcode,
 
    handle_instr(b, opcode, w_src, num_srcs, w_dest, handler);
 
-   b->nb.fp_math_ctrl = b->exact ? nir_fp_exact : nir_fp_fast_math;
+   b->nb.fp_math_ctrl = nir_fp_fast_math;
 }
 
 static nir_op

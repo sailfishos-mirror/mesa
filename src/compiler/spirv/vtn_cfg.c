@@ -366,7 +366,6 @@ vtn_cfg_handle_prepass_instruction(struct vtn_builder *b, SpvOp opcode,
        */
       nir_function_impl *impl = nir_function_impl_create(func);
       b->nb = nir_builder_at(nir_before_impl(impl));
-      b->nb.fp_math_ctrl = b->exact ? nir_fp_exact : nir_fp_fast_math;
 
       b->func_param_idx = 0;
 
@@ -774,7 +773,6 @@ vtn_function_emit(struct vtn_builder *b, struct vtn_function *func,
    nir_function_impl *impl = func->nir_func->impl;
    b->nb = nir_builder_at(nir_after_impl(impl));
    b->func = func;
-   b->nb.fp_math_ctrl = b->exact ? nir_fp_exact : nir_fp_fast_math;
    b->phi_table = _mesa_pointer_hash_table_create(b);
 
    if (b->shader->info.stage == MESA_SHADER_KERNEL || force_unstructured) {

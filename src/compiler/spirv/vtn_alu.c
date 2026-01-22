@@ -470,7 +470,7 @@ vtn_handle_fp_fast_math(struct vtn_builder *b, struct vtn_value *dest_val, struc
 
    vtn_foreach_decoration(b, dest_val, handle_fp_fast_math, NULL);
 
-   if (b->exact || vtn_has_decoration(b, dest_val, SpvDecorationNoContraction))
+   if (vtn_has_decoration(b, dest_val, SpvDecorationNoContraction))
       b->nb.fp_math_ctrl |= nir_fp_exact;
 }
 
@@ -769,7 +769,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
          vtn_mediump_upconvert_value(b, dest);
 
       vtn_push_ssa_value(b, w[2], dest);
-      b->nb.fp_math_ctrl = b->exact ? nir_fp_exact : nir_fp_fast_math;
+      b->nb.fp_math_ctrl = nir_fp_fast_math;
       return;
    }
 
@@ -1118,7 +1118,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
       vtn_mediump_upconvert_value(b, dest);
    vtn_push_ssa_value(b, w[2], dest);
 
-   b->nb.fp_math_ctrl = b->exact ? nir_fp_exact : nir_fp_fast_math;
+   b->nb.fp_math_ctrl = nir_fp_fast_math;
 }
 
 void

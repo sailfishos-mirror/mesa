@@ -734,6 +734,6 @@ vtn_handle_glsl450_instruction(struct vtn_builder *b, SpvOp ext_opcode,
       break;
    }
 
-   b->nb.fp_math_ctrl = b->exact ? nir_fp_exact : nir_fp_fast_math;
+   b->nb.fp_math_ctrl = nir_fp_fast_math;
    return true;
 }

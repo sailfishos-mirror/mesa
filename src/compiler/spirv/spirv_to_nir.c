@@ -5693,11 +5693,13 @@ vtn_handle_execution_mode(struct vtn_builder *b, struct vtn_value *entry_point,
       break; /* OpenCL */
 
    case SpvExecutionModeContractionOff:
-      if (b->shader->info.stage != MESA_SHADER_KERNEL)
+      if (b->shader->info.stage != MESA_SHADER_KERNEL) {
          vtn_warn("ExectionMode only allowed for CL-style kernels: %s",
                   spirv_executionmode_to_string(mode->exec_mode));
-      else
-         b->exact = true;
+      } else {
+         for (unsigned i = 0; i < ARRAY_SIZE(b->fp_math_ctrl); i++)
+            b->fp_math_ctrl[i] |= nir_fp_exact;
+      }
       break;
 
    case SpvExecutionModeStencilRefReplacingEXT:
@@ -5935,7 +5937,7 @@ vtn_handle_execution_mode_id(struct vtn_builder *b, struct vtn_value *entry_poin
          SpvFPFastMathModeAllowReassocMask |
          SpvFPFastMathModeAllowTransformMask;
       if ((flags & can_fast_math) != can_fast_math)
-         b->exact = true;
+         *fp_math_ctrl |= nir_fp_exact;
 
       if (!(flags & SpvFPFastMathModeNotNaNMask))
          *fp_math_ctrl |= nir_fp_preserve_nan;

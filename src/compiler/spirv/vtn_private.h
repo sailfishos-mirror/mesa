@@ -707,9 +707,6 @@ struct vtn_builder {
    /* Current function parameter index */
    unsigned func_param_idx;
 
-   /* false by default, set to true by the ContractionOff execution mode */
-   bool exact;
-
    unsigned fp_math_ctrl[6];
 
    /* when a physical memory model is choosen */
