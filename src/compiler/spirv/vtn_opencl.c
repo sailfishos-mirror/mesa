@@ -280,6 +280,19 @@ handle_instr(struct vtn_builder *b, uint32_t opcode,
    }
 }
 
+static void
+handle_alu_instr(struct vtn_builder *b, uint32_t opcode,
+                 const uint32_t *w_src, unsigned num_srcs, const uint32_t *w_dest, nir_handler handler)
+{
+   assert(w_dest);
+
+   vtn_handle_fp_fast_math(b, vtn_untyped_value(b, w_dest[1]));
+
+   handle_instr(b, opcode, w_src, num_srcs, w_dest, handler);
+
+   b->nb.fp_math_ctrl = b->exact ? nir_fp_exact : nir_fp_fast_math;
+}
+
 static nir_op
 nir_alu_op_for_opencl_opcode(struct vtn_builder *b,
                              enum OpenCLstd_Entrypoints opcode)
@@ -1117,7 +1130,7 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, SpvOp ext_opcode,
    case OpenCLstd_Half_recip:
    case OpenCLstd_FMin_common:
    case OpenCLstd_FMax_common:
-      handle_instr(b, ext_opcode, w + 5, count - 5, w + 1, handle_alu);
+      handle_alu_instr(b, ext_opcode, w + 5, count - 5, w + 1, handle_alu);
       return true;
    case OpenCLstd_SAbs_diff:
    case OpenCLstd_UAbs_diff:
@@ -1224,7 +1237,7 @@ vtn_handle_opencl_instruction(struct vtn_builder *b, SpvOp ext_opcode,
    case OpenCLstd_Half_powr:
    case OpenCLstd_Half_sin:
    case OpenCLstd_Half_tan:
-      handle_instr(b, ext_opcode, w + 5, count - 5, w + 1, handle_special);
+      handle_alu_instr(b, ext_opcode, w + 5, count - 5, w + 1, handle_special);
       return true;
    case OpenCLstd_Vloadn:
    case OpenCLstd_Vload_half:
