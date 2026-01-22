@@ -385,12 +385,53 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, const ac_nir_lower_image_tex_optio
 }
 
 static bool
+lower_image(nir_builder *b, nir_intrinsic_instr *intr, const ac_nir_lower_image_tex_options *options)
+{
+   /* unexpected intrinsics */
+   assert(intr->intrinsic != nir_intrinsic_image_load &&
+          intr->intrinsic != nir_intrinsic_image_sparse_load);
+
+   if (nir_intrinsic_has_image_dim(intr) &&
+       nir_intrinsic_image_dim(intr) == GLSL_SAMPLER_DIM_BUF &&
+       (intr->intrinsic == nir_intrinsic_image_deref_load ||
+        intr->intrinsic == nir_intrinsic_image_deref_sparse_load ||
+        intr->intrinsic == nir_intrinsic_bindless_image_load ||
+        intr->intrinsic == nir_intrinsic_bindless_image_sparse_load)) {
+      b->cursor = nir_before_instr(&intr->instr);
+
+      nir_deref_instr *deref = NULL;
+      nir_def *handle = NULL;
+
+      if (intr->intrinsic == nir_intrinsic_image_deref_load ||
+          intr->intrinsic == nir_intrinsic_image_deref_sparse_load)
+         deref = nir_instr_as_deref(nir_def_instr(intr->src[0].ssa));
+      else
+         handle = intr->src[0].ssa;
+
+      bool is_sparse = intr->intrinsic == nir_intrinsic_image_deref_sparse_load ||
+                       intr->intrinsic == nir_intrinsic_bindless_image_sparse_load;
+      unsigned access = nir_intrinsic_access(intr) | (is_sparse ? ACCESS_SPARSE : 0);
+      nir_def *vindex = nir_channel(b, intr->src[1].ssa, 0);
+
+      replace_with_formatted_load_buffer_amd(b, &intr->def, deref, handle, vindex, access,
+                                             nir_var_image, AC_NIR_TEX_BACKEND_FLAG_IS_IMAGE,
+                                             nir_intrinsic_dest_type(intr));
+      return true;
+   }
+
+   return false;
+}
+
+static bool
 lower_image_tex(nir_builder *b, nir_instr *instr, void *options_)
 {
    const ac_nir_lower_image_tex_options *options = options_;
 
    if (instr->type == nir_instr_type_tex)
       return lower_tex(b, nir_instr_as_tex(instr), options);
+
+   if (instr->type == nir_instr_type_intrinsic)
+      return lower_image(b, nir_instr_as_intrinsic(instr), options);
 
    return false;
 }
