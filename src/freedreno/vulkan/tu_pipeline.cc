@@ -2889,7 +2889,7 @@ fdm_apply_scissors(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
 
       VkOffset2D min = {
          scissor.offset.x / frag_area.width + offset.x,
-         scissor.offset.y / frag_area.width + offset.y,
+         scissor.offset.y / frag_area.height + offset.y,
       };
       VkOffset2D max = {
          DIV_ROUND_UP(scissor.offset.x + scissor.extent.width, frag_area.width) + offset.x,
