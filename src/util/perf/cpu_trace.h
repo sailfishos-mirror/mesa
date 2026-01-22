@@ -192,9 +192,9 @@ _mesa_trace_scope_flow_begin(const char *name,
 static inline void
 _mesa_trace_scope_end(UNUSED void **scope)
 {
+   _MESA_SYSPROF_TRACE_END(scope);
    _MESA_GPUVIS_TRACE_END();
    _MESA_TRACE_END();
-   _MESA_SYSPROF_TRACE_END(scope);
 }
 
 #else
