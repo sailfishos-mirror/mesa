@@ -264,6 +264,9 @@ add_color_format_variants(const struct stw_pf_color_info *color_formats,
       bind_flags |= PIPE_BIND_DISPLAY_TARGET;
    }
 
+   bool require_gdi_compat =
+      driQueryOptionb(&stw_dev->option_cache, "wgl_require_gdi_compat");
+
    for (ms = 0; ms < ARRAY_SIZE(stw_pf_multisample); ms++) {
       unsigned samples = stw_pf_multisample[ms];
 
@@ -288,6 +291,8 @@ add_color_format_variants(const struct stw_pf_color_info *color_formats,
             }
 
             for (f = 0; f < ARRAY_SIZE(stw_pf_flag); f++) {
+               if (require_gdi_compat && (stw_pf_flag[f] & PFD_SUPPORT_GDI) == 0)
+                  continue;
                for (acc = 0; acc < 2; acc++) {
                   stw_pixelformat_add(stw_dev, extended, &color_formats[cfmt],
                                        depth, acc * 16, stw_pf_flag[f], samples);

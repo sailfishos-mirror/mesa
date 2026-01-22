@@ -581,6 +581,10 @@
    DRI_CONF_OPT_I(wgl_swap_interval, def, 1, 4, \
                   "Override default swap interval")
 
+#define DRI_CONF_WGL_REQUIRE_GDI_COMPAT(def) \
+   DRI_CONF_OPT_B(wgl_require_gdi_compat, def, \
+                  "Require all pixel formats to have PFD_SUPPORT_GDI flag")
+
 /**
  * \brief virgl specific configuration options
  */
