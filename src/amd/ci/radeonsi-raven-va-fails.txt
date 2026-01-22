@@ -360,7 +360,6 @@ GStreamer-H.265-VAAPI-Gst1.0@Main_422_10_B_RExt_Sony_2,Crash
 GStreamer-H.265-VAAPI-Gst1.0@NONVUI_A_QUALCOMM_1,Crash
 GStreamer-H.265-VAAPI-Gst1.0@NONVUI_B_QUALCOMM_1,Crash
 GStreamer-H.265-VAAPI-Gst1.0@NONVUI_C_QUALCOMM_1,Crash
-GStreamer-H.265-VAAPI-Gst1.0@NUT_A_ericsson_5,Fail
 GStreamer-H.265-VAAPI-Gst1.0@OLS_A_NOKIA_1,Crash
 GStreamer-H.265-VAAPI-Gst1.0@OLS_B_NOKIA_1,Crash
 GStreamer-H.265-VAAPI-Gst1.0@OLS_C_NOKIA_1,Crash

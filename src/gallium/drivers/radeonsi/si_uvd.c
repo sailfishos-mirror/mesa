@@ -16,6 +16,7 @@
 #include "si_pipe.h"
 #include "si_vpe.h"
 #include "util/u_video.h"
+#include "si_video_dec.h"
 
 /**
  * creates a video buffer with an UVD compatible memory layout
@@ -168,10 +169,5 @@ struct pipe_video_codec *si_uvd_create_decoder(struct pipe_context *context,
               templ->entrypoint == PIPE_VIDEO_ENTRYPOINT_PROCESSING)
       return si_vpe_create_processor(context, templ);
 
-   if (vcn) {
-      codec = radeon_create_decoder(context, templ);
-      ctx->vcn_has_ctx = si_vcn_need_context(ctx);
-      return codec;
-   }
-   return si_common_uvd_create_decoder(context, templ, si_uvd_set_dtb);
+   return si_create_video_decoder(context, templ);
 }
