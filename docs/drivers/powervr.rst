@@ -96,6 +96,31 @@ dispatch macros and make sure to instantiate it once per architecture.
 To avoid confusion, please do not add functions that are prefixed with
 ``pvr_arch_`` if they are not part of the system described here.
 
+drm-shim
+--------
+
+PowerVR implements ``drm-shim``, stubbing out the powervr DRM kernel interface.
+This allows for use-cases such as offline compiler testing and control-stream
+dumping.
+
+To build Mesa with the PowerVR drm-shim, configure Meson with
+``-Dvulkan-drivers=imagination`` and ``-Dtools=drm-shim``.
+The drm-shim binary will be built to
+``build/src/imagination/drm-shim/libpowervr_noop_drm_shim.so``.
+
+To use, set the ``LD_PRELOAD`` environment variable to the drm-shim binary.
+
+By default, drm-shim mocks a BXS-4-64 with a BVNC of 36.53.104.796,
+however this can be overridden by setting the ``PVR_SHIM_DEVICE_BVNC``
+environment variable. The value to set should match those found in the
+``struct pvr_device_ident`` instances defined in
+``src/imagination/common/device_info/*.h``.
+
+The reported quirks and enhancements can be overridden by setting the
+``PVR_SHIM_MUSTHAVE_QUIRKS``, ``PVR_SHIM_QUIRKS``, and ``PVR_SHIM_ENHANCEMENTS``
+environment variables. These should be set to a comma/semicolon-separated list
+of quirk/enhancement IDs.
+
 Chat
 ----
 
