@@ -594,7 +594,7 @@
         "description": "d3d12: Add missing using Microsoft::WRL:ComPtr in d3d12_context_common",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b06b2fbaba0902885bb97f4d0fe643a8f2d82993",
         "notes": null
