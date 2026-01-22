@@ -3504,7 +3504,7 @@
         "description": "d3d12: Add HAVE_GALLIUM_D3D12_VIDEO guards for d3d12_video_encoder_set_max_async_queue_depth/d3d12_video_encoder_get_last_slice_completion_fence",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e55b2b506492f692db37a568d317fe175290528d",
         "notes": null
