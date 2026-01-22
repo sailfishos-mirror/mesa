@@ -672,7 +672,7 @@ build_end_with_regs(isel_context* ctx, std::vector<Operand>& regs)
 Instruction*
 add_startpgm(struct isel_context* ctx, bool is_callee)
 {
-   ctx->program->scratch_arg_size += ctx->callee_info.scratch_param_size;
+   ctx->program->scratch_arg_size += ctx->callee_info.scratch_param_size * ctx->program->wave_size;
 
    unsigned def_count = 0;
    for (unsigned i = 0; i < ctx->args->arg_count; i++) {
