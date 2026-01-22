@@ -204,6 +204,12 @@ get_push_range_address(struct anv_cmd_buffer *cmd_buffer,
    case ANV_DESCRIPTOR_SET_PER_PRIM_PADDING:
       return cmd_buffer->device->workaround_address;
 
+   case ANV_DESCRIPTOR_SET_PUSH_POINTER: {
+      uint64_t address =  *((uint64_t *)&gfx_state->base.push_constants.client_data[range->index]);
+      assert(address % ANV_UBO_ALIGNMENT == 0);
+      return anv_address_from_u64(address);
+   }
+
    default: {
       assert(range->set < MAX_SETS);
       struct anv_descriptor_set *set =
@@ -274,6 +280,7 @@ get_push_range_bound_size(struct anv_cmd_buffer *cmd_buffer,
    case ANV_DESCRIPTOR_SET_NULL:
    case ANV_DESCRIPTOR_SET_PUSH_CONSTANTS:
    case ANV_DESCRIPTOR_SET_PER_PRIM_PADDING:
+   case ANV_DESCRIPTOR_SET_PUSH_POINTER:
       return (range->start + range->length) * 32;
 
    default: {

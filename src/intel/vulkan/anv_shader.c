@@ -314,6 +314,12 @@ get_shader_bind_map_text(const struct anv_device *device,
             fprintf(stream, "Per primitive alignment (gfx libs & mesh)");
             break;
 
+         case ANV_DESCRIPTOR_SET_PUSH_POINTER:
+            fprintf(stream, "pushed pointer (push_constant_offset=%dB start=%dB)",
+                    bind_map->push_ranges[i].index,
+                    bind_map->push_ranges[i].start * 32);
+            break;
+
          default:
             fprintf(stream, "UBO (set=%d binding=%d start=%dB)",
                     bind_map->push_ranges[i].set,
