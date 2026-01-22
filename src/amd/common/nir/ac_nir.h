@@ -401,10 +401,10 @@ typedef struct {
     */
    bool fix_derivs_in_divergent_cf;
    unsigned max_wqm_vgprs;
-} ac_nir_lower_tex_options;
+} ac_nir_lower_image_tex_options;
 
 bool
-ac_nir_lower_tex(nir_shader *nir, const ac_nir_lower_tex_options *options);
+ac_nir_lower_image_tex(nir_shader *nir, const ac_nir_lower_image_tex_options *options);
 
 void
 ac_nir_store_debug_log_amd(nir_builder *b, nir_def *uvec4);

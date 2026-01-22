@@ -76,7 +76,7 @@ build_cube_select(nir_builder *b, nir_def *ma, nir_def *id, nir_def *deriv,
 
 static void
 prepare_cube_coords(nir_builder *b, nir_tex_instr *tex, nir_def **coord, nir_src *ddx,
-                    nir_src *ddy, const ac_nir_lower_tex_options *options)
+                    nir_src *ddy, const ac_nir_lower_image_tex_options *options)
 {
    nir_def *coords[NIR_MAX_VEC_COMPONENTS] = {0};
    for (unsigned i = 0; i < (*coord)->num_components; i++)
@@ -179,7 +179,7 @@ lower_array_layer_round_even(nir_builder *b, nir_tex_instr *tex, nir_def **coord
 
 static bool
 lower_tex_coords(nir_builder *b, nir_tex_instr *tex, nir_def **coords,
-                 const ac_nir_lower_tex_options *options)
+                 const ac_nir_lower_image_tex_options *options)
 {
    bool progress = false;
    if ((options->lower_array_layer_round_even || tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE) &&
@@ -200,24 +200,31 @@ lower_tex_coords(nir_builder *b, nir_tex_instr *tex, nir_def **coords,
 }
 
 static bool
-lower_tex(nir_builder *b, nir_instr *instr, void *options_)
+lower_tex(nir_builder *b, nir_tex_instr *tex, const ac_nir_lower_image_tex_options *options)
 {
-   const ac_nir_lower_tex_options *options = options_;
-   if (instr->type != nir_instr_type_tex)
-      return false;
-
-   nir_tex_instr *tex = nir_instr_as_tex(instr);
    int coord_idx = nir_tex_instr_src_index(tex, nir_tex_src_coord);
    if (coord_idx < 0 || nir_tex_instr_src_index(tex, nir_tex_src_backend1) >= 0)
       return false;
 
-   b->cursor = nir_before_instr(instr);
+   b->cursor = nir_before_instr(&tex->instr);
+
    nir_def *coords = tex->src[coord_idx].src.ssa;
    if (lower_tex_coords(b, tex, &coords, options)) {
       tex->coord_components = coords->num_components;
       nir_src_rewrite(&tex->src[coord_idx].src, coords);
       return true;
    }
+
+   return false;
+}
+
+static bool
+lower_image_tex(nir_builder *b, nir_instr *instr, void *options_)
+{
+   const ac_nir_lower_image_tex_options *options = options_;
+
+   if (instr->type == nir_instr_type_tex)
+      return lower_tex(b, nir_instr_as_tex(instr), options);
 
    return false;
 }
@@ -280,7 +287,7 @@ static bool can_move_coord(nir_scalar scalar, coord_info *info, nir_block *tople
 }
 
 struct move_tex_coords_state {
-   const ac_nir_lower_tex_options *options;
+   const ac_nir_lower_image_tex_options *options;
    unsigned num_wqm_vgprs;
    nir_builder toplevel_b;
 };
@@ -561,9 +568,10 @@ static bool move_coords_from_divergent_cf(struct move_tex_coords_state *state,
 }
 
 bool
-ac_nir_lower_tex(nir_shader *nir, const ac_nir_lower_tex_options *options)
+ac_nir_lower_image_tex(nir_shader *nir, const ac_nir_lower_image_tex_options *options)
 {
    bool progress = false;
+
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       nir_function_impl *impl = nir_shader_get_entrypoint(nir);
       nir_metadata_require(
@@ -582,7 +590,7 @@ ac_nir_lower_tex(nir_shader *nir, const ac_nir_lower_tex_options *options)
    }
 
    progress |= nir_shader_instructions_pass(
-      nir, lower_tex, nir_metadata_control_flow, (void *)options);
+      nir, lower_image_tex, nir_metadata_control_flow, (void *)options);
 
    return progress;
 }
