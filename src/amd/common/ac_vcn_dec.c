@@ -16,6 +16,7 @@
 #include "ac_vcn_vp9_default.h"
 #include "ac_uvd_dec.h"
 #include "ac_cmdbuf.h"
+#include "amd/addrlib/inc/addrtypes.h"
 
 #define AES_BLOCK_SIZE 16
 #define KEY_SIZE_128 16
@@ -2369,6 +2370,439 @@ ac_vcn_create_video_decoder(const struct radeon_info *info, struct ac_video_dec_
       dec->base.init_session_buf = vcn_init_session_buf;
    dec->base.build_create_cmd = vcn_build_create_cmd;
    dec->base.build_decode_cmd = vcn_build_decode_cmd;
+
+   return &dec->base;
+}
+
+#define RDECODE_JPEG_VER_1 0
+#define RDECODE_JPEG_VER_2 1
+#define RDECODE_JPEG_VER_3 2
+
+#define set_reg(reg, cond, type, val) do { \
+   ac_cmdbuf_emit(RDECODE_PKTJ((reg), (cond), (type))); \
+   ac_cmdbuf_emit(val); \
+} while (0);
+
+struct ac_vcn_jpeg_decoder {
+   struct ac_video_dec base;
+
+   enum amd_gfx_level gfx_level;
+   enum vcn_version vcn_version;
+   uint32_t jpeg_version;
+   struct ac_video_dec_session_param session_param;
+
+   struct {
+      uint32_t jpeg_dec_soft_rst;
+      uint32_t jrbc_ib_cond_rd_timer;
+      uint32_t jrbc_ib_ref_data;
+      uint32_t lmi_jpeg_read_64bit_bar_high;
+      uint32_t lmi_jpeg_read_64bit_bar_low;
+      uint32_t jpeg_rb_base;
+      uint32_t jpeg_rb_size;
+      uint32_t jpeg_rb_wptr;
+      uint32_t jpeg_pitch;
+      uint32_t jpeg_uv_pitch;
+      uint32_t dec_addr_mode;
+      uint32_t dec_y_tiling_surface;
+      uint32_t dec_uv_tiling_surface;
+      uint32_t lmi_jpeg_write_64bit_bar_high;
+      uint32_t lmi_jpeg_write_64bit_bar_low;
+      uint32_t jpeg_tier_cntl2;
+      uint32_t jpeg_outbuf_rptr;
+      uint32_t jpeg_outbuf_cntl;
+      uint32_t jpeg_int_en;
+      uint32_t jpeg_cntl;
+      uint32_t jpeg_rb_rptr;
+      uint32_t jpeg_outbuf_wptr;
+      uint32_t jpeg_luma_base0_0;
+      uint32_t jpeg_chroma_base0_0;
+      uint32_t jpeg_chromav_base0_0;
+      uint32_t jpeg_index;
+      uint32_t jpeg_data;
+   } reg;
+};
+
+static int
+vcn_jpeg_build_decode_cmd(struct ac_video_dec *decoder, struct ac_video_dec_decode_cmd *cmd)
+{
+   struct ac_vcn_jpeg_decoder *dec = (struct ac_vcn_jpeg_decoder *)decoder;
+   uint32_t dt_top_offset[3] = {0, 0, 0};
+   uint32_t dt_pitch[3] = {0, 0, 0};
+   uint32_t dt_addr_mode = 0;
+   uint32_t fc_sps_info = 0;
+   uint32_t crop_x = ROUND_DOWN_TO(cmd->codec_param.mjpeg.crop_x, 16);
+   uint32_t crop_y = ROUND_DOWN_TO(cmd->codec_param.mjpeg.crop_y, 16);
+   uint32_t crop_width = align(cmd->codec_param.mjpeg.crop_width, 16);
+   uint32_t crop_height = align(cmd->codec_param.mjpeg.crop_height, 16);
+
+   for (uint32_t i = 0; i < cmd->decode_surface.num_planes; i++) {
+      struct radeon_surf *surf = cmd->decode_surface.planes[i].surf;
+      dt_top_offset[i] = surf->u.gfx9.surf_offset | (surf->tile_swizzle << 8);
+      dt_pitch[i] = surf->u.gfx9.surf_pitch * (i == 0 ? surf->blk_w : surf->bpe);
+   }
+
+   switch (cmd->decode_surface.format) {
+   case PIPE_FORMAT_R8_G8_B8_UNORM:
+      fc_sps_info = 1 | (1 << 5) | (0xff << 8);
+      break;
+   case PIPE_FORMAT_R8G8B8A8_UNORM:
+      fc_sps_info = 1 | (1 << 4) | (0xff << 8);
+      break;
+   case PIPE_FORMAT_A8R8G8B8_UNORM:
+      fc_sps_info = 1 | (1 << 4) | (1 << 5) | (0xff << 8);
+      break;
+   default:
+      break;
+   }
+
+   if (dec->gfx_level >= GFX12) {
+      switch (cmd->decode_surface.planes[0].surf->u.gfx9.swizzle_mode) {
+      case ADDR3_256B_2D:
+      case ADDR3_4KB_2D:
+      case ADDR3_64KB_2D:
+      case ADDR3_256KB_2D:
+         dt_addr_mode = RDECODE_TILE_8X8;
+         break;
+      case ADDR3_LINEAR:
+      default:
+         dt_addr_mode = RDECODE_TILE_LINEAR;
+         break;
+      }
+   } else {
+      switch (cmd->decode_surface.planes[0].surf->u.gfx9.swizzle_mode) {
+      case ADDR_SW_256B_D:
+      case ADDR_SW_4KB_D:
+      case ADDR_SW_64KB_D:
+      case ADDR_SW_4KB_D_X:
+      case ADDR_SW_64KB_D_X:
+      case ADDR_SW_256KB_S_X:
+      case ADDR_SW_256KB_D_X:
+      case ADDR_SW_256KB_R_X:
+         dt_addr_mode = RDECODE_TILE_8X8;
+         break;
+      case ADDR_SW_256B_S:
+      case ADDR_SW_4KB_S:
+      case ADDR_SW_64KB_S:
+      case ADDR_SW_4KB_S_X:
+      case ADDR_SW_64KB_S_X:
+      case ADDR_SW_64KB_R_X:
+         dt_addr_mode = RDECODE_TILE_32AS8;
+         break;
+      case ADDR_SW_LINEAR:
+      default:
+         dt_addr_mode = RDECODE_TILE_LINEAR;
+         break;
+      }
+   }
+
+   struct ac_cmdbuf cs = {
+      .buf = cmd->cmd_buffer,
+      .max_dw = decoder->max_decode_cmd_dw,
+   };
+
+   ac_cmdbuf_begin(&cs);
+
+   if (dec->jpeg_version == RDECODE_JPEG_VER_1) {
+      /* jpeg soft reset */
+      set_reg(dec->reg.jpeg_cntl, COND0, TYPE0, 1);
+
+      /* ensuring the Reset is asserted in SCLK domain */
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x01C2);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, 0x01400200);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x01C3);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, 1 << 9);
+      set_reg(SOC15_REG_ADDR(mmUVD_SOFT_RESET), COND0, TYPE3, 1 << 9);
+
+      /* wait mem */
+      set_reg(dec->reg.jpeg_cntl, COND0, TYPE0, 0);
+
+      /* ensuring the Reset is de-asserted in SCLK domain */
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x01C3);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, 0 << 9);
+      set_reg(SOC15_REG_ADDR(mmUVD_SOFT_RESET), COND0, TYPE3, 1 << 9);
+   } else {
+      /* jpeg soft reset */
+      set_reg(dec->reg.jpeg_dec_soft_rst, COND0, TYPE0, 1);
+
+      /* ensuring the Reset is asserted in SCLK domain */
+      set_reg(dec->reg.jrbc_ib_cond_rd_timer, COND0, TYPE0, 0x01400200);
+      set_reg(dec->reg.jrbc_ib_ref_data, COND0, TYPE0, (0x1 << 0x10));
+      set_reg(dec->reg.jpeg_dec_soft_rst, COND3, TYPE3, (0x1 << 0x10));
+
+      /* wait mem */
+      set_reg(dec->reg.jpeg_dec_soft_rst, COND0, TYPE0, 0);
+
+      /* ensuring the Reset is de-asserted in SCLK domain */
+      set_reg(dec->reg.jrbc_ib_ref_data, COND0, TYPE0, (0 << 0x10));
+      set_reg(dec->reg.jpeg_dec_soft_rst, COND3, TYPE3, (0x1 << 0x10));
+   }
+
+   /* set UVD_LMI_JPEG_READ_64BIT_BAR_LOW/HIGH based on bitstream buffer address */
+   set_reg(dec->reg.lmi_jpeg_read_64bit_bar_high, COND0, TYPE0, cmd->bitstream_va >> 32);
+   set_reg(dec->reg.lmi_jpeg_read_64bit_bar_low, COND0, TYPE0, cmd->bitstream_va);
+
+   /* set jpeg_rb_base */
+   set_reg(dec->reg.jpeg_rb_base, COND0, TYPE0, 0);
+
+   /* set jpeg_rb_base */
+   set_reg(dec->reg.jpeg_rb_size, COND0, TYPE0, 0xfffffff0);
+
+   /* set jpeg_rb_wptr */
+   set_reg(dec->reg.jpeg_rb_wptr, COND0, TYPE0, cmd->bitstream_size >> 2);
+
+   if (dec->jpeg_version == RDECODE_JPEG_VER_3 && fc_sps_info) {
+      set_reg(dec->reg.jpeg_pitch, COND0, TYPE0, dt_pitch[0]);
+      set_reg(dec->reg.jpeg_uv_pitch, COND0, TYPE0, dt_pitch[1]);
+   } else {
+      set_reg(dec->reg.jpeg_pitch, COND0, TYPE0, dt_pitch[0] >> 4);
+      set_reg(dec->reg.jpeg_uv_pitch, COND0, TYPE0, dt_pitch[1] >> 4);
+   }
+
+   if (dec->jpeg_version == RDECODE_JPEG_VER_1) {
+      uint32_t tiling = dt_addr_mode | (cmd->decode_surface.planes[0].surf->u.gfx9.swizzle_mode << 3);
+      set_reg(dec->reg.dec_y_tiling_surface, COND0, TYPE0, tiling);
+      set_reg(dec->reg.dec_uv_tiling_surface, COND0, TYPE0, tiling);
+   } else {
+      uint32_t tiling = cmd->decode_surface.planes[0].surf->u.gfx9.swizzle_mode;
+      set_reg(dec->reg.dec_addr_mode, COND0, TYPE0, dt_addr_mode | (dt_addr_mode << 2));
+      set_reg(dec->reg.dec_y_tiling_surface, COND0, TYPE0, tiling);
+      set_reg(dec->reg.dec_uv_tiling_surface, COND0, TYPE0, tiling);
+   }
+
+   /* set UVD_LMI_JPEG_WRITE_64BIT_BAR_LOW/HIGH based on target buffer address */
+   set_reg(dec->reg.lmi_jpeg_write_64bit_bar_high, COND0, TYPE0, cmd->decode_surface.planes[0].va >> 32);
+   set_reg(dec->reg.lmi_jpeg_write_64bit_bar_low, COND0, TYPE0, cmd->decode_surface.planes[0].va);
+
+   /* set output buffer data address */
+   if (dec->jpeg_version <= RDECODE_JPEG_VER_2) {
+      set_reg(dec->reg.jpeg_index, COND0, TYPE0, 0);
+      set_reg(dec->reg.jpeg_data, COND0, TYPE0, dt_top_offset[0]);
+      set_reg(dec->reg.jpeg_index, COND0, TYPE0, 1);
+      set_reg(dec->reg.jpeg_data, COND0, TYPE0, dt_top_offset[1]);
+      if (dec->jpeg_version == RDECODE_JPEG_VER_2) {
+         set_reg(dec->reg.jpeg_index, COND0, TYPE0, 2);
+         set_reg(dec->reg.jpeg_data, COND0, TYPE0, dt_top_offset[2]);
+         set_reg(dec->reg.jpeg_tier_cntl2, COND0, 0, 0);
+      } else {
+         set_reg(dec->reg.jpeg_tier_cntl2, COND0, TYPE3, 0);
+      }
+   } else {
+      set_reg(dec->reg.jpeg_luma_base0_0, COND0, TYPE0, dt_top_offset[0]);
+      set_reg(dec->reg.jpeg_chroma_base0_0, COND0, TYPE0, dt_top_offset[1]);
+      set_reg(dec->reg.jpeg_chromav_base0_0, COND0, TYPE0, dt_top_offset[2]);
+      if (crop_width && crop_height) {
+         set_reg(vcnipUVD_JPEG_ROI_CROP_POS_START, COND0, TYPE0, (crop_y << 16) | crop_x);
+         set_reg(vcnipUVD_JPEG_ROI_CROP_POS_STRIDE, COND0, TYPE0, (crop_height << 16) | crop_width);
+      } else {
+         set_reg(vcnipUVD_JPEG_ROI_CROP_POS_START, COND0, TYPE0, (0 << 16) | 0);
+         set_reg(vcnipUVD_JPEG_ROI_CROP_POS_STRIDE, COND0, TYPE0, (1 << 16) | 1);
+      }
+      if (fc_sps_info) {
+         /* set fc timeout control */
+         set_reg(vcnipUVD_JPEG_FC_TMEOUT_CNT, COND0, TYPE0, 4244373504);
+         /* set alpha position and packed format */
+         set_reg(vcnipUVD_JPEG_FC_SPS_INFO, COND0, TYPE0, fc_sps_info);
+         /* coefs */
+         set_reg(vcnipUVD_JPEG_FC_R_COEF, COND0, TYPE0, 256 | (0 << 10) | (403 << 20));
+         set_reg(vcnipUVD_JPEG_FC_G_COEF, COND0, TYPE0, 256 | (976 << 10) | (904 << 20));
+         set_reg(vcnipUVD_JPEG_FC_B_COEF, COND0, TYPE0, 256 | (475 << 10) | (0 << 20));
+         set_reg(vcnipUVD_JPEG_FC_VUP_COEF_CNTL0, COND0, TYPE0, 128 | (384 << 16));
+         set_reg(vcnipUVD_JPEG_FC_VUP_COEF_CNTL1, COND0, TYPE0, 384 | (128 << 16));
+         set_reg(vcnipUVD_JPEG_FC_VUP_COEF_CNTL2, COND0, TYPE0, 128 | (384 << 16));
+         set_reg(vcnipUVD_JPEG_FC_VUP_COEF_CNTL3, COND0, TYPE0, 384 | (128 << 16));
+         set_reg(vcnipUVD_JPEG_FC_HUP_COEF_CNTL0, COND0, TYPE0, 128 | (384 << 16));
+         set_reg(vcnipUVD_JPEG_FC_HUP_COEF_CNTL1, COND0, TYPE0, 384 | (128 << 16));
+         set_reg(vcnipUVD_JPEG_FC_HUP_COEF_CNTL2, COND0, TYPE0, 128 | (384 << 16));
+         set_reg(vcnipUVD_JPEG_FC_HUP_COEF_CNTL3, COND0, TYPE0, 384 | (128 << 16));
+      } else {
+         set_reg(vcnipUVD_JPEG_FC_SPS_INFO, COND0, TYPE0, 1 | (1 << 5) | (255 << 8));
+      }
+      set_reg(dec->reg.jpeg_tier_cntl2, COND0, 0, 0);
+   }
+
+   /* set output buffer read pointer */
+   set_reg(dec->reg.jpeg_outbuf_rptr, COND0, TYPE0, 0);
+   if (dec->jpeg_version > RDECODE_JPEG_VER_1)
+      set_reg(dec->reg.jpeg_outbuf_cntl, COND0, TYPE0, (0x00001587 & ~0x00000180) | (0x1 << 0x7) | (0x1 << 0x6));
+
+   /* enable error interrupts */
+   set_reg(dec->reg.jpeg_int_en, COND0, TYPE0, 0xfffffffe);
+
+   /* start engine command */
+   uint32_t val = 0x6;
+   if (dec->jpeg_version == RDECODE_JPEG_VER_3) {
+      if (crop_width && crop_height)
+         val = val | (0x1 << 24);
+      if (fc_sps_info)
+         val = val | (1 << 16) | (1 << 18);
+   }
+   set_reg(dec->reg.jpeg_cntl, COND0, TYPE0, val);
+
+   if (dec->jpeg_version == RDECODE_JPEG_VER_1) {
+      /* wait for job completion, wait for job JBSI fetch done */
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x01C3);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, cmd->bitstream_size >> 2);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x01C2);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, 0x01400200);
+      set_reg(dec->reg.jpeg_rb_rptr, COND0, TYPE3, 0xFFFFFFFF);
+
+      /* wait for job jpeg outbuf idle */
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x01C3);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, 0xFFFFFFFF);
+      set_reg(dec->reg.jpeg_outbuf_wptr, COND0, TYPE3, 0x00000001);
+
+      /* stop engine */
+      set_reg(dec->reg.jpeg_cntl, COND0, TYPE0, 0x4);
+
+      /* asserting jpeg lmi drop */
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x0005);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, (1 << 23 | 1 << 0));
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE1, 0);
+
+      /* asserting jpeg reset */
+      set_reg(dec->reg.jpeg_cntl, COND0, TYPE0, 1);
+
+      /* ensure reset is asserted in sclk domain */
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x01C3);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, (1 << 9));
+      set_reg(SOC15_REG_ADDR(mmUVD_SOFT_RESET), COND0, TYPE3, (1 << 9));
+
+      /* de-assert jpeg reset */
+      set_reg(dec->reg.jpeg_cntl, COND0, TYPE0, 0);
+
+      /* ensure reset is de-asserted in sclk domain */
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x01C3);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, (0 << 9));
+      set_reg(SOC15_REG_ADDR(mmUVD_SOFT_RESET), COND0, TYPE3, (1 << 9));
+
+      /* de-asserting jpeg lmi drop */
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_INDEX), COND0, TYPE0, 0x0005);
+      set_reg(SOC15_REG_ADDR(mmUVD_CTX_DATA), COND0, TYPE0, 0);
+   } else {
+      /* wait for job completion, wait for job JBSI fetch done */
+      set_reg(dec->reg.jrbc_ib_ref_data, COND0, TYPE0, cmd->bitstream_size >> 2);
+      set_reg(dec->reg.jrbc_ib_cond_rd_timer, COND0, TYPE0, 0x01400200);
+      set_reg(dec->reg.jpeg_rb_rptr, COND3, TYPE3, 0xffffffff);
+
+      /* wait for job jpeg outbuf idle */
+      set_reg(dec->reg.jrbc_ib_ref_data, COND0, TYPE0, 0xffffffff);
+      set_reg(dec->reg.jpeg_outbuf_wptr, COND3, TYPE3, 0x00000001);
+
+      if (dec->jpeg_version == RDECODE_JPEG_VER_3 && fc_sps_info) {
+         val = val | (0x7 << 16);
+         set_reg(dec->reg.jrbc_ib_ref_data, COND0, TYPE0, 0);
+         set_reg(vcnipUVD_JPEG_INT_STAT, COND3, TYPE3, val);
+      }
+
+      /* stop engine */
+      set_reg(dec->reg.jpeg_cntl, COND0, TYPE0, 0x4);
+   }
+
+   ac_cmdbuf_end();
+
+   cmd->out.cmd_dw = cs.cdw;
+   return 0;
+}
+
+static void
+vcn_jpeg_dec_destroy(struct ac_video_dec *decoder)
+{
+   struct ac_vcn_jpeg_decoder *dec = (struct ac_vcn_jpeg_decoder *)decoder;
+
+   FREE(dec);
+}
+
+struct ac_video_dec *
+ac_vcn_create_jpeg_decoder(const struct radeon_info *info, struct ac_video_dec_session_param *param)
+{
+   struct ac_vcn_jpeg_decoder *dec = CALLOC_STRUCT(ac_vcn_jpeg_decoder);
+   if (!dec)
+      return NULL;
+
+   dec->gfx_level = info->gfx_level;
+   dec->vcn_version = info->vcn_ip_version;
+   dec->session_param = *param;
+
+   if (dec->vcn_version >= VCN_5_0_0 || dec->vcn_version == VCN_4_0_3)
+      dec->jpeg_version = RDECODE_JPEG_VER_3;
+   else if (dec->vcn_version >= VCN_2_0_0)
+      dec->jpeg_version = RDECODE_JPEG_VER_2;
+   else
+      dec->jpeg_version = RDECODE_JPEG_VER_1;
+
+   if (dec->jpeg_version == RDECODE_JPEG_VER_1) {
+      dec->reg.lmi_jpeg_read_64bit_bar_high = SOC15_REG_ADDR(mmUVD_LMI_JPEG_READ_64BIT_BAR_HIGH);
+      dec->reg.lmi_jpeg_read_64bit_bar_low = SOC15_REG_ADDR(mmUVD_LMI_JPEG_READ_64BIT_BAR_LOW);
+      dec->reg.jpeg_rb_base = SOC15_REG_ADDR(mmUVD_JPEG_RB_BASE);
+      dec->reg.jpeg_rb_size = SOC15_REG_ADDR(mmUVD_JPEG_RB_SIZE);
+      dec->reg.jpeg_rb_wptr = SOC15_REG_ADDR(mmUVD_JPEG_RB_WPTR);
+      dec->reg.jpeg_pitch = SOC15_REG_ADDR(mmUVD_JPEG_PITCH);
+      dec->reg.jpeg_uv_pitch = SOC15_REG_ADDR(mmUVD_JPEG_UV_PITCH);
+      dec->reg.dec_y_tiling_surface = SOC15_REG_ADDR(mmUVD_JPEG_TILING_CTRL);
+      dec->reg.dec_uv_tiling_surface = SOC15_REG_ADDR(mmUVD_JPEG_UV_TILING_CTRL);
+      dec->reg.lmi_jpeg_write_64bit_bar_high = SOC15_REG_ADDR(mmUVD_LMI_JPEG_WRITE_64BIT_BAR_HIGH);
+      dec->reg.lmi_jpeg_write_64bit_bar_low = SOC15_REG_ADDR(mmUVD_LMI_JPEG_WRITE_64BIT_BAR_LOW);
+      dec->reg.jpeg_tier_cntl2 = SOC15_REG_ADDR(mmUVD_JPEG_TIER_CNTL2);
+      dec->reg.jpeg_outbuf_rptr = SOC15_REG_ADDR(mmUVD_JPEG_OUTBUF_RPTR);
+      dec->reg.jpeg_int_en = SOC15_REG_ADDR(mmUVD_JPEG_INT_EN);
+      dec->reg.jpeg_cntl = SOC15_REG_ADDR(mmUVD_JPEG_CNTL);
+      dec->reg.jpeg_rb_rptr = SOC15_REG_ADDR(mmUVD_JPEG_RB_RPTR);
+      dec->reg.jpeg_outbuf_wptr = SOC15_REG_ADDR(mmUVD_JPEG_OUTBUF_WPTR);
+      dec->reg.jpeg_index = SOC15_REG_ADDR(mmUVD_JPEG_INDEX);
+      dec->reg.jpeg_data = SOC15_REG_ADDR(mmUVD_JPEG_DATA);
+   } else {
+      dec->reg.jrbc_ib_cond_rd_timer = vcnipUVD_JRBC_IB_COND_RD_TIMER;
+      dec->reg.jrbc_ib_ref_data = vcnipUVD_JRBC_IB_REF_DATA;
+      dec->reg.jpeg_rb_base = vcnipUVD_JPEG_RB_BASE;
+      dec->reg.jpeg_rb_size = vcnipUVD_JPEG_RB_SIZE;
+      dec->reg.jpeg_rb_wptr = vcnipUVD_JPEG_RB_WPTR;
+      dec->reg.jpeg_int_en = vcnipUVD_JPEG_INT_EN;
+      dec->reg.jpeg_cntl = vcnipUVD_JPEG_CNTL;
+      dec->reg.jpeg_rb_rptr = vcnipUVD_JPEG_RB_RPTR;
+      if (dec->jpeg_version == RDECODE_JPEG_VER_2) {
+         dec->reg.jpeg_dec_soft_rst = vcnipUVD_JPEG_DEC_SOFT_RST;
+         dec->reg.lmi_jpeg_read_64bit_bar_high = vcnipUVD_LMI_JPEG_READ_64BIT_BAR_HIGH;
+         dec->reg.lmi_jpeg_read_64bit_bar_low = vcnipUVD_LMI_JPEG_READ_64BIT_BAR_LOW;
+         dec->reg.jpeg_pitch = vcnipUVD_JPEG_PITCH;
+         dec->reg.jpeg_uv_pitch = vcnipUVD_JPEG_UV_PITCH;
+         dec->reg.dec_addr_mode = vcnipJPEG_DEC_ADDR_MODE;
+         dec->reg.dec_y_tiling_surface = vcnipJPEG_DEC_Y_GFX10_TILING_SURFACE;
+         dec->reg.dec_uv_tiling_surface = vcnipJPEG_DEC_UV_GFX10_TILING_SURFACE;
+         dec->reg.lmi_jpeg_write_64bit_bar_high = vcnipUVD_LMI_JPEG_WRITE_64BIT_BAR_HIGH;
+         dec->reg.lmi_jpeg_write_64bit_bar_low = vcnipUVD_LMI_JPEG_WRITE_64BIT_BAR_LOW;
+         dec->reg.jpeg_tier_cntl2 = vcnipUVD_JPEG_TIER_CNTL2;
+         dec->reg.jpeg_outbuf_cntl = vcnipUVD_JPEG_OUTBUF_CNTL;
+         dec->reg.jpeg_outbuf_rptr = vcnipUVD_JPEG_OUTBUF_RPTR;
+         dec->reg.jpeg_outbuf_wptr = vcnipUVD_JPEG_OUTBUF_WPTR;
+         dec->reg.jpeg_index = vcnipUVD_JPEG_INDEX;
+         dec->reg.jpeg_data = vcnipUVD_JPEG_DATA;
+      } else if (dec->jpeg_version == RDECODE_JPEG_VER_3) {
+         dec->reg.jpeg_dec_soft_rst = vcnipUVD_JPEG_DEC_SOFT_RST_1;
+         dec->reg.lmi_jpeg_read_64bit_bar_high = vcnipUVD_LMI_JPEG_READ_64BIT_BAR_HIGH_1;
+         dec->reg.lmi_jpeg_read_64bit_bar_low = vcnipUVD_LMI_JPEG_READ_64BIT_BAR_LOW_1;
+         dec->reg.jpeg_pitch = vcnipUVD_JPEG_PITCH_1;
+         dec->reg.jpeg_uv_pitch = vcnipUVD_JPEG_UV_PITCH_1;
+         dec->reg.dec_addr_mode = vcnipJPEG_DEC_ADDR_MODE_1;
+         dec->reg.dec_y_tiling_surface = vcnipJPEG_DEC_Y_GFX10_TILING_SURFACE_1;
+         dec->reg.dec_uv_tiling_surface = vcnipJPEG_DEC_UV_GFX10_TILING_SURFACE_1;
+         dec->reg.lmi_jpeg_write_64bit_bar_high = vcnipUVD_LMI_JPEG_WRITE_64BIT_BAR_HIGH_1;
+         dec->reg.lmi_jpeg_write_64bit_bar_low = vcnipUVD_LMI_JPEG_WRITE_64BIT_BAR_LOW_1;
+         dec->reg.jpeg_tier_cntl2 = vcnipUVD_JPEG_TIER_CNTL2_1;
+         dec->reg.jpeg_outbuf_cntl = vcnipUVD_JPEG_OUTBUF_CNTL_1;
+         dec->reg.jpeg_outbuf_rptr = vcnipUVD_JPEG_OUTBUF_RPTR_1;
+         dec->reg.jpeg_outbuf_wptr = vcnipUVD_JPEG_OUTBUF_WPTR_1;
+         dec->reg.jpeg_luma_base0_0 = vcnipUVD_JPEG_LUMA_BASE0_0;
+         dec->reg.jpeg_chroma_base0_0 = vcnipUVD_JPEG_CHROMA_BASE0_0;
+         dec->reg.jpeg_chromav_base0_0 = vcnipUVD_JPEG_CHROMAV_BASE0_0;
+      }
+   }
+
+   dec->base.ip_type = AMD_IP_VCN_JPEG;
+   dec->base.param = *param;
+   dec->base.max_decode_cmd_dw = 128;
+
+   dec->base.destroy = vcn_jpeg_dec_destroy;
+   dec->base.build_decode_cmd = vcn_jpeg_build_decode_cmd;
 
    return &dec->base;
 }

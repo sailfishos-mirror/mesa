@@ -1289,5 +1289,6 @@ void ac_vcn_av1_init_film_grain_buffer(unsigned av1_version, rvcn_dec_film_grain
 uint32_t ac_vcn_dec_dpb_size(const struct radeon_info *info, struct ac_video_dec_session_param *param);
 uint32_t ac_vcn_dec_dpb_alignment(const struct radeon_info *info, struct ac_video_dec_session_param *param);
 struct ac_video_dec *ac_vcn_create_video_decoder(const struct radeon_info *info, struct ac_video_dec_session_param *param);
+struct ac_video_dec *ac_vcn_create_jpeg_decoder(const struct radeon_info *info, struct ac_video_dec_session_param *param);
 
 #endif
