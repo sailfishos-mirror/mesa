@@ -1559,6 +1559,8 @@ RADV driver environment variables
 
    a comma-separated list of named flags, which do various things:
 
+   ``bfloat16``
+      enable bfloat16 cooperative matrix support on GFX11-11.5
    ``cswave32``
       enable wave32 for compute shaders (GFX10+)
    ``dccmsaa``

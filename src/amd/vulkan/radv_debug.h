@@ -100,6 +100,7 @@ enum {
    RADV_PERFTEST_HIC = 1u << 16,
    RADV_PERFTEST_SPARSE = 1u << 17,
    RADV_PERFTEST_RT_CPS = 1u << 18,
+   RADV_PERFTEST_BFLOAT16 = 1u << 19,
 };
 
 enum {

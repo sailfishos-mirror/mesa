@@ -179,6 +179,18 @@ radv_cooperative_matrix2_nv_enabled(const struct radv_physical_device *pdev)
 }
 
 static bool
+radv_bfloat16_enabled(const struct radv_physical_device *pdev)
+{
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+
+   if (pdev->info.gfx_level < GFX11)
+      return false;
+
+   /* GFX11-11.5 has precision issues. */
+   return (instance->perftest_flags & RADV_PERFTEST_BFLOAT16) || pdev->info.gfx_level >= GFX12;
+}
+
+static bool
 radv_shader_fp16_enabled(const struct radv_physical_device *pdev)
 {
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
@@ -680,7 +692,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_sampler_ycbcr_conversion = true,
       .KHR_separate_depth_stencil_layouts = true,
       .KHR_shader_atomic_int64 = true,
-      .KHR_shader_bfloat16 = pdev->info.gfx_level >= GFX12, /* GFX11 has precision issues. */
+      .KHR_shader_bfloat16 = radv_bfloat16_enabled(pdev),
       .KHR_shader_clock = true,
       .KHR_shader_draw_parameters = true,
       .KHR_shader_expect_assume = true,
@@ -1430,7 +1442,7 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
 
       /* VK_KHR_shader_bfloat16 */
       .shaderBFloat16Type = true,
-      .shaderBFloat16DotProduct = true,
+      .shaderBFloat16DotProduct = pdev->info.gfx_level >= GFX12,
       .shaderBFloat16CooperativeMatrix = radv_cooperative_matrix_enabled(pdev),
 
       /* VK_EXT_zero_initialize_device_memory */
@@ -3288,8 +3300,8 @@ fill_array_sizes_structs(const struct radv_physical_device *pdev, struct __vk_ou
          prop.a_type = prop.b_type = bfloat ? VK_COMPONENT_TYPE_BFLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT16_KHR;
          prop.c_type = prop.r_type = fp32 ? VK_COMPONENT_TYPE_FLOAT32_KHR : prop.a_type;
 
-         if (pdev->info.gfx_level < GFX12 && bfloat)
-            continue; /* BF16 isn't working precisely on GFX11. */
+         if (!radv_bfloat16_enabled(pdev) && bfloat)
+            continue;
 
          (*array_size_cb)(base, &prop);
       }
