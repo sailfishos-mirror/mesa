@@ -167,6 +167,7 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
 
    /* TODO see if older GPU's were different here */
    compiler->branchstack_size = 64;
+   compiler->max_branchstack = 64;
 
    compiler->max_variable_workgroup_size = 1024;
 

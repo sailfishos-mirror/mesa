@@ -1458,7 +1458,7 @@ ir3_shader_branchstack_hw(const struct ir3_shader_variant *v)
    if (v->compiler->gen < 5)
       return v->branchstack;
 
-   return align(MIN2(v->branchstack, v->compiler->branchstack_size), 2);
+   return align(MIN2(v->branchstack, v->compiler->max_branchstack), 2);
 }
 
 ENDC;
