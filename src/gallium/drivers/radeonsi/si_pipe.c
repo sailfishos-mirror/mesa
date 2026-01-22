@@ -8,7 +8,6 @@
 #include "si_pipe.h"
 
 #include "driver_ddebug/dd_util.h"
-#include "radeon_uvd.h"
 #include "si_public.h"
 #include "sid.h"
 #include "ac_shader_util.h"

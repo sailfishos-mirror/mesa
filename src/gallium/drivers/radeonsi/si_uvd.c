@@ -7,10 +7,8 @@
  **************************************************************************/
 
 #include "drm-uapi/drm_fourcc.h"
-#include "radeon_uvd.h"
 #include "radeon_uvd_enc.h"
 #include "radeon_vce.h"
-#include "radeon_vcn_dec.h"
 #include "radeon_vcn_enc.h"
 #include "radeon_video.h"
 #include "si_pipe.h"
@@ -101,20 +99,6 @@ struct pipe_video_buffer *si_video_buffer_create(struct pipe_context *pipe,
    vidbuf.bind |= PIPE_BIND_LINEAR;
 
    return vl_video_buffer_create_as_resource(pipe, &vidbuf, modifiers, modifiers_count);
-}
-
-/* set the decoding target buffer offsets */
-static struct pb_buffer_lean *si_uvd_set_dtb(struct ruvd_msg *msg, struct vl_video_buffer *buf)
-{
-   struct si_screen *sscreen = (struct si_screen *)buf->base.context->screen;
-   struct si_texture *luma = (struct si_texture *)buf->resources[0];
-   struct si_texture *chroma = (struct si_texture *)buf->resources[1];
-   enum ruvd_surface_type type =
-      (sscreen->info.gfx_level >= GFX9) ? RUVD_SURFACE_TYPE_GFX9 : RUVD_SURFACE_TYPE_LEGACY;
-
-   si_uvd_set_dt_surfaces(msg, &luma->surface, (chroma) ? &chroma->surface : NULL, type);
-
-   return luma->buffer.buf;
 }
 
 /* get the radeon resources for VCE */
