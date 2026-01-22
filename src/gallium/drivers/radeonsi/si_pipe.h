@@ -1680,7 +1680,7 @@ void si_test_copy_buffer(struct si_screen *sscreen);
 void si_test_blit_perf(struct si_screen *sscreen);
 
 /* si_uvd.c */
-struct pipe_video_codec *si_uvd_create_decoder(struct pipe_context *context,
+struct pipe_video_codec *si_video_codec_create(struct pipe_context *context,
                                                const struct pipe_video_codec *templ);
 
 struct pipe_video_buffer *si_video_buffer_create(struct pipe_context *pipe,

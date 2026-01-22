@@ -128,10 +128,7 @@ static bool si_vcn_need_context(struct si_context *ctx)
    return ctx->screen->info.ip[AMD_IP_VCN_ENC].num_instances > 1;
 }
 
-/**
- * creates an UVD compatible decoder
- */
-struct pipe_video_codec *si_uvd_create_decoder(struct pipe_context *context,
+struct pipe_video_codec *si_video_codec_create(struct pipe_context *context,
                                                const struct pipe_video_codec *templ)
 {
    struct si_context *ctx = (struct si_context *)context;
