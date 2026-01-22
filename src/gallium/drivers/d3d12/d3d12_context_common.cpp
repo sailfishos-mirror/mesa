@@ -62,6 +62,11 @@
 #include <string.h>
 #include "d3d12_interop_public.h"
 
+#ifndef _GAMING_XBOX
+#include <wrl/client.h>
+using Microsoft::WRL::ComPtr;
+#endif
+
 static void
 d3d12_context_destroy(struct pipe_context *pctx)
 {
