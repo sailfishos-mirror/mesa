@@ -270,8 +270,8 @@ panvk_image_can_use_mod(struct panvk_image *image,
        * sampled/storage image, frag_coord patching for color attachments). Let's
        * keep things simple for now and make all compressed images that
        * have VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT set linear. */
-      return !(image->vk.create_flags &
-               VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT);
+      if (image->vk.create_flags & VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT)
+         return false;
    }
 
    /* Defer the rest of the checks to the mod handler. */
