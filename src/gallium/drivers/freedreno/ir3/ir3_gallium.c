@@ -243,6 +243,11 @@ ir3_shader_compute_state_create(struct pipe_context *pctx,
    enum ir3_wavesize_option api_wavesize = IR3_SINGLE_OR_DOUBLE;
    enum ir3_wavesize_option real_wavesize = IR3_SINGLE_OR_DOUBLE;
 
+   if (ctx->screen->gen >= 6 && !ctx->screen->info->props.supports_double_threadsize) {
+      api_wavesize = IR3_SINGLE_ONLY;
+      real_wavesize = IR3_SINGLE_ONLY;
+   }
+
    const struct ir3_shader_options ir3_options = {
       /* TODO: force to single on a6xx with legacy ballot extension that uses
        * 64-bit masks
@@ -267,11 +272,6 @@ ir3_shader_compute_state_create(struct pipe_context *pctx,
 
    if (ctx->screen->gen >= 6)
       ir3_nir_lower_io_to_bindless(nir);
-
-   if (ctx->screen->gen >= 6 && !ctx->screen->info->props.supports_double_threadsize) {
-      api_wavesize = IR3_SINGLE_ONLY;
-      real_wavesize = IR3_SINGLE_ONLY;
-   }
 
    struct ir3_shader *shader =
       ir3_shader_from_nir(compiler, nir, &ir3_options);
@@ -327,6 +327,14 @@ ir3_shader_state_create(struct pipe_context *pctx,
    if (ctx->screen->gen >= 6)
       ir3_nir_lower_io_to_bindless(nir);
 
+   enum ir3_wavesize_option api_wavesize = IR3_SINGLE_OR_DOUBLE;
+   enum ir3_wavesize_option real_wavesize = IR3_SINGLE_OR_DOUBLE;
+
+   if (ctx->screen->gen >= 6 && !ctx->screen->info->props.supports_double_threadsize) {
+      api_wavesize = IR3_SINGLE_ONLY;
+      real_wavesize = IR3_SINGLE_ONLY;
+   }
+
    /*
     * Create ir3_shader:
     *
@@ -338,8 +346,8 @@ ir3_shader_state_create(struct pipe_context *pctx,
                               /* TODO: force to single on a6xx with legacy
                                * ballot extension that uses 64-bit masks
                                */
-                              .api_wavesize = IR3_SINGLE_OR_DOUBLE,
-                              .real_wavesize = IR3_SINGLE_OR_DOUBLE,
+                              .api_wavesize = api_wavesize,
+                              .real_wavesize = real_wavesize,
                           });
 
    /*
