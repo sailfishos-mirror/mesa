@@ -589,7 +589,8 @@ brw_alu3(struct brw_codegen *p, unsigned opcode, struct brw_reg dest,
 
    if (brw_eu_inst_access_mode(devinfo, inst) == BRW_ALIGN_1) {
       assert(dest.file == FIXED_GRF ||
-             brw_reg_is_arf(dest, BRW_ARF_ACCUMULATOR));
+             brw_reg_is_arf(dest, BRW_ARF_ACCUMULATOR) ||
+             brw_reg_is_arf(dest, BRW_ARF_NULL));
 
       brw_eu_inst_set_3src_a1_dst_reg_file(devinfo, inst, phys_file(dest));
       brw_eu_inst_set_3src_dst_reg_nr(devinfo, inst, phys_nr(devinfo, dest));
