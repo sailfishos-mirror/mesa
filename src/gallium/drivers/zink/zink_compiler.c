@@ -4105,8 +4105,6 @@ compile_module(struct zink_screen *screen, struct zink_shader *zs, nir_shader *n
 {
    prune_io(nir);
 
-   NIR_PASS(_, nir, nir_convert_from_ssa, true, false);
-
    if (zink_debug & (ZINK_DEBUG_NIR | ZINK_DEBUG_SPIRV))
       nir_index_ssa_defs(nir_shader_get_entrypoint(nir));
    if (zink_debug & ZINK_DEBUG_NIR) {
@@ -6247,7 +6245,6 @@ zink_shader_tcs_init(struct zink_screen *screen, struct zink_shader *zs, nir_sha
 
    optimize_nir(nir, NULL, true);
    NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
-   NIR_PASS(_, nir, nir_convert_from_ssa, true, false);
 
    *nir_ret = nir;
    zink_shader_serialize_blob(nir, &zs->blob);
