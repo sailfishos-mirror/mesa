@@ -1254,6 +1254,18 @@ enum gl_access_qualifier
     * fusion feature.
     */
    ACCESS_FUSED_EU_DISABLE_INTEL = (1 << 19),
+
+   /**
+    * Whether the last returned component describes whether the address
+    * is resident, which is an opaque value that can be interpreted by
+    * nir_intrinsic_is_sparse_texels_resident.
+    *
+    * This only applies to nir_intrinsic_load_buffer_amd for now.
+    *
+    * TODO: Consider using this everywhere instead of having separate
+    *       intrinsics for sparse.
+    */
+   ACCESS_SPARSE = (1 << 20),
 };
 
 enum gl_tess_spacing
