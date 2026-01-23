@@ -50,6 +50,35 @@ pandecode_midgard_tiler_descriptor(struct pandecode_context *ctx,
 #endif
 
 #if PAN_ARCH >= 5
+static const char *
+block_format_string(enum mali_block_format block_format)
+{
+   switch (block_format) {
+#if PAN_ARCH >= 7
+   case MALI_BLOCK_FORMAT_NO_WRITE:
+#else
+   case MALI_BLOCK_FORMAT_TILED_LINEAR:
+#endif
+   case MALI_BLOCK_FORMAT_TILED_U_INTERLEAVED:
+      return "U-Tiled";
+   case MALI_BLOCK_FORMAT_LINEAR:
+      return "Linear";
+#if PAN_ARCH >= 10
+   case MALI_BLOCK_FORMAT_INTERLEAVED_64K:
+      return "Interleaved 64K";
+#endif
+   case MALI_BLOCK_FORMAT_AFBC:
+      return "AFBC";
+#if PAN_ARCH >= 7
+   case MALI_BLOCK_FORMAT_AFBC_TILED:
+      return "AFBC-Tiled";
+#endif
+   default:
+      UNREACHABLE("unsupported block format");
+      return "???";
+   }
+}
+
 static void
 pandecode_rt(struct pandecode_context *ctx, unsigned index, uint64_t gpu_va)
 {
@@ -74,7 +103,8 @@ pandecode_rt(struct pandecode_context *ctx, unsigned index, uint64_t gpu_va)
    }
 #endif
 
-   switch (rt.rgb.writeback_block_format) {
+   enum mali_block_format writeback_block_format = rt.rgb.writeback_block_format;
+   switch (writeback_block_format) {
 #if PAN_ARCH >= 7
    case MALI_BLOCK_FORMAT_NO_WRITE:
 #else
@@ -82,19 +112,18 @@ pandecode_rt(struct pandecode_context *ctx, unsigned index, uint64_t gpu_va)
 #endif
    case MALI_BLOCK_FORMAT_TILED_U_INTERLEAVED:
    case MALI_BLOCK_FORMAT_LINEAR:
+#if PAN_ARCH >= 10
+   case MALI_BLOCK_FORMAT_INTERLEAVED_64K:
+#endif
       if (rt.rgb.yuv_enable) {
          DUMP_UNPACKED(ctx, YUV_RENDER_TARGET, rt.yuv,
                        "%s YUV Color Render Target %d:\n",
-                       rt.rgb.writeback_block_format == MALI_BLOCK_FORMAT_LINEAR
-                          ? "Linear"
-                          : "U-Tiled",
+                       block_format_string(writeback_block_format),
                        index);
       } else {
          DUMP_UNPACKED(ctx, RGB_RENDER_TARGET, rt.rgb,
                        "%s RGB Color Render Target %d:\n",
-                       rt.rgb.writeback_block_format == MALI_BLOCK_FORMAT_LINEAR
-                          ? "Linear"
-                          : "U-Tiled",
+                       block_format_string(writeback_block_format),
                        index);
       }
       break;
@@ -105,7 +134,9 @@ pandecode_rt(struct pandecode_context *ctx, unsigned index, uint64_t gpu_va)
 #if PAN_ARCH >= 6
       if (rt.rgb.yuv_enable) {
          DUMP_UNPACKED(ctx, AFBC_YUV_RENDER_TARGET, rt.afbc_yuv,
-                       "AFBC YUV Color Render Target %d:\n", index);
+                       "%s YUV Color Render Target %d:\n",
+                       block_format_string(writeback_block_format),
+                       index);
          break;
       }
 #else
@@ -113,9 +144,12 @@ pandecode_rt(struct pandecode_context *ctx, unsigned index, uint64_t gpu_va)
 #endif
 
       DUMP_UNPACKED(ctx, AFBC_RGB_RENDER_TARGET, rt.afbc_rgb,
-                    "AFBC RGB Color Render Target %d:\n", index);
+                    "%s RGB Color Render Target %d:\n",
+                    block_format_string(writeback_block_format),
+                    index);
       break;
    }
+
 }
 
 static void

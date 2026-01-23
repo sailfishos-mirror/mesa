@@ -372,6 +372,7 @@
     <!--- 16x16 block u-interleaved -->
     <value name="Tiled U-Interleaved" value="1"/>
     <value name="Linear" value="2"/>
+    <value name="Interleaved 64k" value="8"/>
     <value name="AFBC" value="12"/>
     <value name="AFBC Tiled" value="13"/>
   </enum>
@@ -1182,7 +1183,7 @@
     <field name="Divisor R" size="5" start="1:24" type="uint"/>
     <field name="Divisor E" size="1" start="1:29" type="uint"/>
     <field name="Offset" size="32" start="2:0" type="int"/>
-    <field name="Buffer index" size="32" start="3:0" type="uint"/> 
+    <field name="Buffer index" size="32" start="3:0" type="uint"/>
     <field name="Stride" size="32" start="4:0" type="uint"/>
 
     <!-- Vertex packet buffer only -->
@@ -1424,6 +1425,7 @@
   <enum name="Clump Ordering">
     <value name="Tiled U-Interleaved" value="1"/>
     <value name="Linear" value="2"/>
+    <value name="Interleaved 64k" value="8"/>
   </enum>
 
   <enum name="Clump Format">
