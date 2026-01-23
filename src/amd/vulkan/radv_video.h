@@ -15,6 +15,7 @@
 #include "vk_video.h"
 
 #include "ac_vcn.h"
+#include "ac_video_dec.h"
 
 #define VL_MACROBLOCK_WIDTH  16
 #define VL_MACROBLOCK_HEIGHT 16
@@ -56,6 +57,8 @@ struct radv_video_session {
    struct radv_vid_mem ctx;
    struct radv_vid_mem qp_map;
    struct radv_image *intra_only_dpb;
+
+   struct ac_video_dec *dec;
 
    unsigned dbg_frame_cnt;
    uint32_t enc_standard;
