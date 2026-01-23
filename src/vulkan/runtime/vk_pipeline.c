@@ -3027,12 +3027,19 @@ vk_get_rt_pipeline_compile_info(struct vk_rt_pipeline_compile_info *info,
       };
 
       if (bin_info == NULL || bin_info->binaryCount == 0) {
-         vk_pipeline_hash_precomp_shader_stage(device, pipeline_flags,
-                                               pCreateInfo->pNext, stage_info,
-                                               &info->stages[i]);
+         vk_pipeline_hash_precomp_shader_stage(
+            device,
+            pipeline_flags &
+            ~VK_PIPELINE_CREATE_2_RAY_TRACING_SHADER_GROUP_HANDLE_CAPTURE_REPLAY_BIT_KHR,
+            pCreateInfo->pNext, stage_info,
+            &info->stages[i]);
 
-         vk_pipeline_hash_rt_shader(device, pipeline_flags, pipeline_layout,
-                                    &info->stages[i]);
+         vk_pipeline_hash_rt_shader(
+            device,
+            pipeline_flags &
+            ~VK_PIPELINE_CREATE_2_RAY_TRACING_SHADER_GROUP_HANDLE_CAPTURE_REPLAY_BIT_KHR,
+            pipeline_layout,
+            &info->stages[i]);
       }
    }
 
