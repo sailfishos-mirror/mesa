@@ -225,8 +225,6 @@ mmap_calc_flags(struct anv_device *device, struct anv_bo *bo)
    case INTEL_DEVICE_INFO_MMAP_MODE_WC:
       flags = I915_MMAP_WC;
       break;
-   case INTEL_DEVICE_INFO_MMAP_MODE_UC:
-      UNREACHABLE("Missing");
    default:
       /* no flags == WB */
       flags = 0;
