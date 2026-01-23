@@ -13904,7 +13904,7 @@
         "description": "panvk: remove AFBC header zeroing",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 3,
         "main_sha": null,
         "because_sha": "c95f8993052f300069ec7a8fb67061de0f33d39d",
         "notes": null
