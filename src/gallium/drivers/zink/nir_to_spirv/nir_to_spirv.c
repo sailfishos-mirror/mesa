@@ -62,10 +62,7 @@ struct ntv_context {
    SpvId ssbos[5]; //8, 16, 32, unused, 64
    nir_variable *ssbo_vars;
 
-   SpvId images[PIPE_MAX_SHADER_IMAGES];
    struct hash_table image_types;
-   SpvId samplers[PIPE_MAX_SHADER_SAMPLER_VIEWS];
-   SpvId bindless_samplers[2];
    nir_variable *sampler_var[PIPE_MAX_SHADER_SAMPLER_VIEWS]; /* driver_location -> variable */
    nir_variable *bindless_sampler_var[2];
    unsigned last_sampler;
@@ -1279,7 +1276,6 @@ emit_image(struct ntv_context *ctx, struct nir_variable *var, SpvId image_type)
 
    bool mediump = (var->data.precision == GLSL_PRECISION_MEDIUM || var->data.precision == GLSL_PRECISION_LOW);
 
-   int index = var->data.driver_location;
    assert(!find_image_type(ctx, var));
 
    if (glsl_type_is_array(var->type)) {
@@ -1305,17 +1301,7 @@ emit_image(struct ntv_context *ctx, struct nir_variable *var, SpvId image_type)
       spirv_builder_emit_input_attachment_index(&ctx->builder, var_id, var->data.index);
 
    _mesa_hash_table_insert(ctx->vars, var, (void *)(intptr_t)var_id);
-   if (is_sampler) {
-      if (var->data.descriptor_set == ctx->bindless_set_idx) {
-         assert(!ctx->bindless_samplers[index]);
-         ctx->bindless_samplers[index] = var_id;
-      } else {
-         assert(!ctx->samplers[index]);
-         ctx->samplers[index] = var_id;
-      }
-   } else {
-      assert(!ctx->images[index]);
-      ctx->images[index] = var_id;
+   if (!is_sampler) {
       emit_access_decorations(ctx, var, var_id);
    }
    _mesa_hash_table_insert(&ctx->image_types, var, (void *)(intptr_t)image_type);
