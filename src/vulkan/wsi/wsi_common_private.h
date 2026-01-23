@@ -584,7 +584,8 @@ wsi_common_get_time_domain(VkSwapchainKHR _swapchain,
                            uint64_t time_domain_id)
 {
    VK_FROM_HANDLE(wsi_swapchain, swapchain, _swapchain);
-   return stage == VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT
+   return stage == VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT &&
+          swapchain->wsi->timestamp_bits == 64
              ? VK_TIME_DOMAIN_DEVICE_KHR
              : swapchain->present_timing.time_domain;
 }

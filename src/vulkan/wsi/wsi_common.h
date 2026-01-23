@@ -64,6 +64,7 @@ struct wsi_device {
    uint64_t queue_supports_blit;
    uint64_t queue_supports_timestamps;
    float timestamp_period;
+   uint32_t timestamp_bits;
 
    VkPhysicalDeviceDrmPropertiesEXT drm_info;
    VkPhysicalDevicePCIBusInfoPropertiesEXT pci_bus_info;

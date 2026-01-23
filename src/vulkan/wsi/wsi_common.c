@@ -125,15 +125,17 @@ wsi_device_init(struct wsi_device *wsi,
    VkPhysicalDeviceProperties properties;
    GetPhysicalDeviceProperties(pdevice, &properties);
    wsi->timestamp_period = properties.limits.timestampPeriod;
+   wsi->timestamp_bits = 64;
 
    for (unsigned i = 0; i < wsi->queue_family_count; i++) {
       VkFlags req_flags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
       if (queue_properties[i].queueFlags & req_flags)
          wsi->queue_supports_blit |= BITFIELD64_BIT(i);
 
-      /* Don't want to consider timestamp wrapping logic. */
-      if (queue_properties[i].timestampValidBits == 64)
+      if (queue_properties[i].timestampValidBits >= 32) {
          wsi->queue_supports_timestamps |= BITFIELD64_BIT(i);
+         wsi->timestamp_bits = MIN2(wsi->timestamp_bits, queue_properties[i].timestampValidBits);
+      }
    }
 
    for (VkExternalSemaphoreHandleTypeFlags handle_type = 1;
@@ -1400,9 +1402,10 @@ wsi_ReleaseSwapchainImagesKHR(VkDevice _device,
 
 static uint64_t
 wsi_swapchain_present_convert_device_to_cpu(struct wsi_swapchain *chain,
-                                            uint64_t device_timestamp_ns)
+                                            uint64_t device_timestamp,
+                                            bool is_nanoseconds_scaled)
 {
-   if (device_timestamp_ns == 0)
+   if (device_timestamp == 0)
       return 0;
 
    /* This is only relevant if application is requesting that QUEUE_DONE present stage
@@ -1427,11 +1430,18 @@ wsi_swapchain_present_convert_device_to_cpu(struct wsi_swapchain *chain,
    if (chain->wsi->GetCalibratedTimestampsKHR(chain->device, 2, infos, timestamps, &max_deviation) != VK_SUCCESS)
       return 0;
 
-   /* PRESENT_STAGE_LOCAL_EXT is in terms of nanoseconds, so we don't scale that. */
-   timestamps[0] = (uint64_t)((double)chain->wsi->timestamp_period * (double)timestamps[0]);
-   int64_t device_delta_ns = (int64_t)device_timestamp_ns - (int64_t)timestamps[0];
-   uint64_t target_timestamp = timestamps[1] + device_delta_ns;
-   return target_timestamp;
+   if (is_nanoseconds_scaled) {
+      /* PRESENT_STAGE_LOCAL_EXT is in terms of nanoseconds, so we don't scale that. */
+      assert(chain->wsi->timestamp_bits == 64);
+      timestamps[0] = (uint64_t)((double)chain->wsi->timestamp_period * (double)timestamps[0]);
+      int64_t device_delta_ns = (int64_t)device_timestamp - (int64_t)timestamps[0];
+      uint64_t target_timestamp = timestamps[1] + device_delta_ns;
+      return target_timestamp;
+   } else {
+      int64_t ticks_delta = util_mask_sign_extend(device_timestamp - timestamps[0], chain->wsi->timestamp_bits);
+      uint64_t adjusted = (uint64_t)((double)timestamps[1] + (double)ticks_delta * chain->wsi->timestamp_period);
+      return adjusted;
+   }
 }
 
 static void
@@ -1452,8 +1462,16 @@ wsi_swapchain_present_timing_sample_query_pool(struct wsi_swapchain *chain,
 
    if (chain->wsi->GetQueryPoolResults(chain->device, image->query_pool, 0, 1, sizeof(uint64_t),
                                        &queue_ts, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS) {
-      /* This is still reported in nanoseconds. */
-      timing->queue_done_time = (uint64_t)((double)queue_ts * (double)chain->wsi->timestamp_period);
+      /* This is still reported in nanoseconds.
+       * If timestampBits == 64, we don't have to consider wrapping, and we can hand an unperturbed timestamp to application.
+       * If < 64, it's unsafe to let application do any math on it, so we have to normalize it to same time domain
+       * as host. This will lead to double calibration error, but nothing we can do about it.
+       */
+
+      if (chain->wsi->timestamp_bits == 64)
+         timing->queue_done_time = (uint64_t)((double)queue_ts * (double)chain->wsi->timestamp_period);
+      else
+         timing->queue_done_time = wsi_swapchain_present_convert_device_to_cpu(chain, queue_ts, false);
    }
 }
 
@@ -2172,10 +2190,13 @@ wsi_common_queue_present(const struct wsi_device *wsi,
              * in terms of the QUEUE_OPERATIONS_END time domain, which is actually DEVICE. */
             uint64_t target_time = info->targetTime;
 
+            /* If timestamp_bits < 64, we have to do time wrapping ourselves at GetPastPresentTimings time,
+             * and there is nothing to do here. */
             if (info->targetTimeDomainPresentStage == VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT &&
+                wsi->timestamp_bits == 64 &&
                 !(info->flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_RELATIVE_TIME_BIT_EXT)) {
                /* For relative, it's all nanoseconds anyway, so no need to do anything. */
-               target_time = wsi_swapchain_present_convert_device_to_cpu(swapchain, target_time);
+               target_time = wsi_swapchain_present_convert_device_to_cpu(swapchain, target_time, true);
             }
 
             swapchain->set_timing_request(swapchain, &(struct wsi_image_timing_request) {
