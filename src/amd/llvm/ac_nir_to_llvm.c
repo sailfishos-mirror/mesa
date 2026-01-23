@@ -1465,19 +1465,7 @@ static LLVMValueRef build_tex_intrinsic(struct ac_nir_context *ctx, const nir_te
                                         struct ac_image_args *args)
 {
    assert((!args->tfe || !args->d16) && "unsupported");
-
-   if (instr->sampler_dim == GLSL_SAMPLER_DIM_BUF) {
-      unsigned mask = nir_def_components_read(&instr->def);
-
-      /* Buffers don't support A16. */
-      if (args->a16)
-         args->coords[0] = LLVMBuildZExt(ctx->ac.builder, args->coords[0], ctx->ac.i32, "");
-
-      return ac_build_buffer_load_format(&ctx->ac, args->resource, args->coords[0], ctx->ac.i32_0,
-                                         util_last_bit(mask), 0, true,
-                                         instr->def.bit_size == 16,
-                                         args->tfe);
-   }
+   assert(instr->sampler_dim != GLSL_SAMPLER_DIM_BUF);
 
    args->opcode = ac_image_sample;
 
@@ -3553,8 +3541,7 @@ static void tex_fetch_ptrs(struct ac_nir_context *ctx, nir_tex_instr *instr,
       }
    }
 
-   enum ac_descriptor_type main_descriptor =
-      instr->sampler_dim == GLSL_SAMPLER_DIM_BUF ? AC_DESC_BUFFER : AC_DESC_IMAGE;
+   enum ac_descriptor_type main_descriptor = AC_DESC_IMAGE;
 
    if (plane >= 0) {
       assert(instr->op != nir_texop_txf_ms);
@@ -3749,10 +3736,8 @@ static void visit_tex(struct ac_nir_context *ctx, nir_tex_instr *instr)
       args.dmask = BITFIELD_MASK(num_components);
    }
 
-   if (instr->sampler_dim != GLSL_SAMPLER_DIM_BUF) {
-      args.dim = ac_get_sampler_dim(ctx->ac.gfx_level, instr->sampler_dim, instr->is_array);
-      args.unorm = instr->sampler_dim == GLSL_SAMPLER_DIM_RECT;
-   }
+   args.dim = ac_get_sampler_dim(ctx->ac.gfx_level, instr->sampler_dim, instr->is_array);
+   args.unorm = instr->sampler_dim == GLSL_SAMPLER_DIM_RECT;
 
    /* Adjust the number of coordinates because we only need (x,y) for 2D
     * multisampled images and (x,y,layer) for 2D multisampled layered
