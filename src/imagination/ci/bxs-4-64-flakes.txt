@@ -41,10 +41,10 @@ dEQP-VK.pipeline.monolithic.sampler.border_swizzle.r32g32b32_uint.rgb1.opaque_wh
 dEQP-VK.pipeline.monolithic.sampler.border_swizzle.r8g8_uint.r1ba.transparent_black.no_gather.no_swizzle_hint
 dEQP-VK.pipeline.monolithic.sampler.border_swizzle.r8g8b8_uint.r1ba.transparent_black.gather_3.no_swizzle_hint
 dEQP-VK.pipeline.monolithic.sampler.view_type.2d_array.format.d32_sfloat.address_modes.uvw_mode_mirrored_repeat_mode_repeat_mode_clamp_to_border
-dEQP-VK.pipeline.monolithic.stencil.format.d24_unorm_s8_uint_separate_layouts.states.fail_repl.pass_decw.dfail_zero.comp_greater.any
-dEQP-VK.pipeline.monolithic.stencil.format.d24_unorm_s8_uint_separate_layouts.states.fail_wrap.pass_incc.dfail_decc.comp_always.any
 dEQP-VK.pipeline.monolithic.stencil.format.d24_unorm_s8_uint.states.fail_decc.pass_decc.dfail_zero.comp_always.any
 dEQP-VK.pipeline.monolithic.stencil.format.d24_unorm_s8_uint.states.fail_zero.pass_keep.dfail_repl.comp_never.any
+dEQP-VK.pipeline.monolithic.stencil.format.d24_unorm_s8_uint_separate_layouts.states.fail_repl.pass_decw.dfail_zero.comp_greater.any
+dEQP-VK.pipeline.monolithic.stencil.format.d24_unorm_s8_uint_separate_layouts.states.fail_wrap.pass_incc.dfail_decc.comp_always.any
 dEQP-VK.pipeline.monolithic.stencil.format.d32_sfloat_s8_uint_separate_layouts.states.fail_decc.pass_keep.dfail_zero.comp_equal.any
 dEQP-VK.pipeline.monolithic.stencil.format.d32_sfloat_s8_uint_separate_layouts.states.fail_keep.pass_inv.dfail_decc.comp_greater.any
 dEQP-VK.pipeline.monolithic.stencil.nocolor.format.d24_unorm_s8_uint_separate_layouts.states.fail_incc.pass_wrap.dfail_keep.comp_always.any
@@ -70,6 +70,6 @@ dEQP-VK.synchronization.signal_order.shared_timeline_semaphore.write_copy_image_
 dEQP-VK.synchronization.signal_order.timeline_semaphore.write_image_compute_indirect_read_image_compute_indirect.image_64x64x8_r32_sfloat
 dEQP-VK.synchronization.timeline_semaphore.device_host.write_copy_image_to_buffer_read_ssbo_compute.buffer_262144
 dEQP-VK.synchronization.timeline_semaphore.one_to_n.write_image_compute_indirect_read_copy_image_to_buffer.image_64x64x8_r32_sfloat
-dEQP-VK.texture.filtering.3d.combinations.linear_mipmap_nearest.linear.mirror_clamp_to_edge.mirrored_repeat.clamp_to_edge
 dEQP-VK.texture.filtering.3d.combinations.linear.nearest.clamp_to_edge.clamp_to_border.clamp_to_edge
+dEQP-VK.texture.filtering.3d.combinations.linear_mipmap_nearest.linear.mirror_clamp_to_edge.mirrored_repeat.clamp_to_edge
 dEQP-VK.ubo.single_basic_type.std430.mediump.mat3.vertex
