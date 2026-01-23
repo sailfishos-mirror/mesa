@@ -392,8 +392,12 @@ can_remove_branch(branch_ctx& ctx, Block& block, Pseudo_branch_instruction* bran
                   ctx.program->blocks[i].kind & (block_kind_break | block_kind_continue);
                bool discard_early_exit =
                   ctx.program->blocks[instr->salu().imm].kind & block_kind_discard_early_exit;
-               if (is_break_continue || discard_early_exit)
+               if (is_break_continue || discard_early_exit) {
+                  /* If the branch target is the same, we can be sure that it will be taken. */
+                  if (instr->salu().imm == target)
+                     return true;
                   continue;
+               }
             }
             return false;
          } else if (instr->isSALU()) {
