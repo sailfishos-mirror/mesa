@@ -1195,6 +1195,18 @@ ralloc_parent_of_linear_context(linear_ctx *ctx)
  * calls are different.
  */
 
+void *
+linear_memdup(linear_ctx *ctx, const void *mem, size_t n)
+{
+   void *ptr = linear_alloc_child(ctx, n);
+
+   if (unlikely(ptr == NULL))
+      return NULL;
+
+   memcpy(ptr, mem, n);
+   return ptr;
+}
+
 char *
 linear_strdup(linear_ctx *ctx, const char *str)
 {
