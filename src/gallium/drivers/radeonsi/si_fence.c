@@ -509,7 +509,9 @@ finish:
 static void si_flush_from_st(struct pipe_context *ctx, struct pipe_fence_handle **fence,
                              unsigned flags)
 {
+#ifdef HAVE_GFX_COMPUTE
    return si_flush_all_queues(ctx, fence, flags, false);
+#endif
 }
 
 static void si_fence_server_signal(struct pipe_context *ctx, struct pipe_fence_handle *fence, uint64_t value)
@@ -570,9 +572,11 @@ static void si_fence_server_sync(struct pipe_context *ctx, struct pipe_fence_han
 void si_init_fence_functions(struct si_context *ctx)
 {
    ctx->b.flush = si_flush_from_st;
+#ifdef HAVE_GFX_COMPUTE
    ctx->b.create_fence_fd = si_create_fence_fd;
    ctx->b.fence_server_sync = si_fence_server_sync;
    ctx->b.fence_server_signal = si_fence_server_signal;
+#endif
 }
 
 void si_init_screen_fence_functions(struct si_screen *screen)

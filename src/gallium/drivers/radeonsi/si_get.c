@@ -794,6 +794,10 @@ void si_init_screen_get_functions(struct si_screen *sscreen)
 
    si_init_renderer_string(sscreen);
 
+#ifndef HAVE_GFX_COMPUTE
+   return;
+#endif
+
    /*        |---------------------------------- Performance & Availability --------------------------------|
     *        |MAD/MAC/MADAK/MADMK|MAD_LEGACY|MAC_LEGACY|    FMA     |FMAC/FMAAK/FMAMK|FMA_LEGACY|PK_FMA_F16,|Best choice
     * Arch   |    F32,F16,F64    | F32,F16  | F32,F16  |F32,F16,F64 |    F32,F16     |   F32    |PK_FMAC_F16|F16,F32,F64
@@ -1070,7 +1074,6 @@ void si_init_screen_caps(struct si_screen *sscreen)
    caps->vertex_color_clamped = true;
    caps->fragment_color_clamped = true;
    caps->vs_instanceid = true;
-   caps->compute = true;
    caps->texture_buffer_objects = true;
    caps->vs_layer_viewport = true;
    caps->query_pipeline_statistics = true;
@@ -1183,7 +1186,13 @@ void si_init_screen_caps(struct si_screen *sscreen)
 
    caps->post_depth_coverage = sscreen->info.gfx_level >= GFX10;
 
+#ifdef HAVE_GFX_COMPUTE
    caps->graphics = sscreen->info.has_graphics;
+   caps->mesh_shader = enable_mesh_shader(sscreen);
+   caps->compute = true;
+#else
+   caps->graphics = caps->mesh_shader = caps->compute = false;
+#endif
 
    caps->resource_from_user_memory = !UTIL_ARCH_BIG_ENDIAN && sscreen->info.has_userptr;
 
@@ -1326,7 +1335,6 @@ void si_init_screen_caps(struct si_screen *sscreen)
    /* Conversion to nanos from cycles per millisecond */
    caps->timer_resolution = DIV_ROUND_UP(1000000, sscreen->info.clock_crystal_freq);
 
-   caps->mesh_shader = enable_mesh_shader(sscreen);
    if (caps->mesh_shader)
       si_init_mesh_caps(sscreen);
 
