@@ -294,6 +294,7 @@ struct LoadEmitInfo {
    unsigned swizzle_component_size = 0;
    memory_sync_info sync;
    Temp soffset = Temp(0, s1);
+   bool tfe = false;
 };
 
 struct EmitLoadParameters {
@@ -726,6 +727,7 @@ mubuf_load_format_callback(Builder& bld, const LoadEmitInfo& info, unsigned byte
 
    aco_opcode op = aco_opcode::num_opcodes;
    if (info.component_size == 2) {
+      assert(!info.tfe);
       switch (bytes_needed) {
       case 2: op = aco_opcode::buffer_load_format_d16_x; break;
       case 4: op = aco_opcode::buffer_load_format_d16_xy; break;
@@ -735,7 +737,7 @@ mubuf_load_format_callback(Builder& bld, const LoadEmitInfo& info, unsigned byte
       }
    } else {
       assert(info.component_size == 4);
-      switch (bytes_needed) {
+      switch (bytes_needed - info.tfe * 4) {
       case 4: op = aco_opcode::buffer_load_format_x; break;
       case 8: op = aco_opcode::buffer_load_format_xy; break;
       case 12: op = aco_opcode::buffer_load_format_xyz; break;
@@ -744,7 +746,8 @@ mubuf_load_format_callback(Builder& bld, const LoadEmitInfo& info, unsigned byte
       }
    }
 
-   aco_ptr<Instruction> mubuf{create_instruction(op, Format::MUBUF, 3, 1)};
+   aco_ptr<Instruction> mubuf{
+      create_instruction(op, Format::MUBUF, 3 + info.tfe + 2 * info.disable_wqm, 1)};
    mubuf->operands[0] = Operand(info.resource);
    mubuf->operands[1] = vaddr;
    mubuf->operands[2] = soffset;
@@ -753,8 +756,12 @@ mubuf_load_format_callback(Builder& bld, const LoadEmitInfo& info, unsigned byte
    mubuf->mubuf().cache = info.cache;
    mubuf->mubuf().sync = info.sync;
    mubuf->mubuf().offset = info.const_offset;
+   mubuf->mubuf().tfe = info.tfe;
    RegClass rc = RegClass::get(RegType::vgpr, bytes_needed);
    Temp val = rc == info.dst.regClass() ? info.dst : bld.tmp(rc);
+   if (info.tfe)
+      mubuf->operands[3] = emit_tfe_init(bld, val);
+   init_disable_wqm(bld, mubuf->mubuf(), info.disable_wqm);
    mubuf->definitions[0] = Definition(val);
    bld.insert(std::move(mubuf));
 
@@ -2747,6 +2754,8 @@ visit_load_buffer(isel_context* ctx, nir_intrinsic_instr* intrin)
    info.soffset = s_offset;
    info.const_offset = const_offset;
    info.sync = sync;
+   info.tfe = nir_intrinsic_access(intrin) & ACCESS_SPARSE;
+   info.disable_wqm = nir_intrinsic_access(intrin) & ACCESS_SKIP_HELPERS;
 
    if (intrin->intrinsic == nir_intrinsic_load_typed_buffer_amd) {
       const pipe_format format = nir_intrinsic_format(intrin);

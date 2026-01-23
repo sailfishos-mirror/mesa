@@ -338,6 +338,7 @@ intrinsic_try_skip_helpers(nir_intrinsic_instr* intr, UNUSED void* data)
    case nir_intrinsic_load_constant:
    case nir_intrinsic_load_scratch:
    case nir_intrinsic_load_global_amd:
+   case nir_intrinsic_load_buffer_amd:
    case nir_intrinsic_bindless_image_load:
    case nir_intrinsic_bindless_image_fragment_mask_load_amd:
    case nir_intrinsic_bindless_image_sparse_load:
@@ -579,8 +580,6 @@ init_context(isel_context* ctx, nir_shader* shader)
                case nir_intrinsic_shared_atomic:
                case nir_intrinsic_shared_atomic_swap:
                case nir_intrinsic_load_scratch:
-               case nir_intrinsic_load_typed_buffer_amd:
-               case nir_intrinsic_load_buffer_amd:
                case nir_intrinsic_load_initial_edgeflags_amd:
                case nir_intrinsic_gds_atomic_add_amd:
                case nir_intrinsic_bvh64_intersect_ray_amd:
