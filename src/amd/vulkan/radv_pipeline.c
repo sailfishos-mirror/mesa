@@ -640,7 +640,7 @@ radv_get_executable_count(struct radv_pipeline *pipeline)
    return ret;
 }
 
-static struct radv_shader *
+struct radv_shader *
 radv_get_shader_from_executable_index(struct radv_pipeline *pipeline, int index, mesa_shader_stage *stage)
 {
    if (pipeline->type == RADV_PIPELINE_RAY_TRACING) {

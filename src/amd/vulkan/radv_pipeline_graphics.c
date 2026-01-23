@@ -3220,7 +3220,7 @@ radv_graphics_pipeline_compile(struct radv_graphics_pipeline *pipeline, const Vk
       free(binaries[i]);
       if (stages[i].nir) {
          if (radv_can_dump_shader_stats(device, stages[i].nir) && pipeline->base.shaders[i]) {
-            radv_dump_shader_stats(device, &pipeline->base, pipeline->base.shaders[i], i, stderr);
+            radv_dump_shader_stats(device, &pipeline->base, pipeline->base.shaders[i], stderr);
          }
       }
    }

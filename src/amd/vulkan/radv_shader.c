@@ -3819,7 +3819,7 @@ radv_get_tess_wg_info(const struct radv_physical_device *pdev, const ac_nir_tess
 
 VkResult
 radv_dump_shader_stats(struct radv_device *device, struct radv_pipeline *pipeline, struct radv_shader *shader,
-                       mesa_shader_stage stage, FILE *output)
+                       FILE *output)
 {
    VkPipelineExecutablePropertiesKHR *props = NULL;
    uint32_t prop_count = 0;
@@ -3842,7 +3842,8 @@ radv_dump_shader_stats(struct radv_device *device, struct radv_pipeline *pipelin
       goto fail;
 
    for (unsigned exec_idx = 0; exec_idx < prop_count; exec_idx++) {
-      if (!(props[exec_idx].stages & mesa_to_vk_shader_stage(stage)))
+      mesa_shader_stage stage;
+      if (radv_get_shader_from_executable_index(pipeline, exec_idx, &stage) != shader)
          continue;
 
       VkPipelineExecutableStatisticKHR *stats = NULL;
