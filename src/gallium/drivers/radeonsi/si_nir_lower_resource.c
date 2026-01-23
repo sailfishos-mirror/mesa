@@ -463,10 +463,17 @@ static nir_def *load_bindless_sampler_desc(nir_builder *b, nir_def *index,
    nir_def *list = si_nir_load_addr32_arg(s->shader->selector->screen, s->args,
                                           b, s->args->bindless_samplers_and_images);
 
-   /* 64 bit to 32 bit */
-   index = nir_u2u32(b, index);
-
    return load_sampler_desc(b, list, index, desc_type, true);
+}
+
+static nir_def *load_tex_descriptor(nir_builder *b, nir_deref_instr *texture_deref,
+                                    nir_def *texture_handle, enum ac_descriptor_type desc_type,
+                                    struct lower_resource_state *s, bool return_descriptor)
+{
+   if (texture_deref)
+      return load_deref_sampler_desc(b, texture_deref, desc_type, s, return_descriptor);
+   else
+      return load_bindless_sampler_desc(b, texture_handle, desc_type, s);
 }
 
 static nir_def *fixup_sampler_desc(nir_builder *b,
@@ -510,7 +517,8 @@ static bool lower_resource_tex(nir_builder *b, nir_tex_instr *tex,
          }
          break;
       case nir_tex_src_texture_handle:
-         texture_handle = tex->src[i].src.ssa;
+         /* We use 32-bit handles. */
+         texture_handle = nir_u2u32(b, tex->src[i].src.ssa);
          break;
       case nir_tex_src_sampler_handle:
          if (has_sampler) {
@@ -532,35 +540,26 @@ static bool lower_resource_tex(nir_builder *b, nir_tex_instr *tex,
       desc_type = tex->sampler_dim == GLSL_SAMPLER_DIM_BUF ? AC_DESC_BUFFER : AC_DESC_IMAGE;
 
    if (tex->op == nir_texop_descriptor_amd) {
-      nir_def *image;
-      if (texture_deref)
-         image = load_deref_sampler_desc(b, texture_deref, desc_type, s, true);
-      else
-         image = load_bindless_sampler_desc(b, texture_handle, desc_type, s);
+      nir_def *image = load_tex_descriptor(b, texture_deref, texture_handle, desc_type, s, true);
       nir_def_replace(&tex->def, image);
       return true;
    }
 
    if (tex->op == nir_texop_sampler_descriptor_amd) {
       assert(has_sampler);
-      nir_def *sampler;
-      if (sampler_deref)
-         sampler = load_deref_sampler_desc(b, sampler_deref, AC_DESC_SAMPLER, s, true);
-      else
-         sampler = load_bindless_sampler_desc(b, sampler_handle, AC_DESC_SAMPLER, s);
+      nir_def *sampler = load_tex_descriptor(b, sampler_deref, sampler_handle, AC_DESC_SAMPLER, s,
+                                             true);
       nir_def_replace(&tex->def, sampler);
       return true;
    }
 
-   nir_def *image = texture_deref ?
-      load_deref_sampler_desc(b, texture_deref, desc_type, s, !tex->texture_non_uniform) :
-      load_bindless_sampler_desc(b, texture_handle, desc_type, s);
-
+   nir_def *image = load_tex_descriptor(b, texture_deref, texture_handle, desc_type, s,
+                                        !tex->texture_non_uniform);
    nir_def *sampler = NULL;
-   if (sampler_deref)
-      sampler = load_deref_sampler_desc(b, sampler_deref, AC_DESC_SAMPLER, s, !tex->sampler_non_uniform);
-   else if (sampler_handle)
-      sampler = load_bindless_sampler_desc(b, sampler_handle, AC_DESC_SAMPLER, s);
+   if (sampler_deref || sampler_handle) {
+      sampler = load_tex_descriptor(b, sampler_deref, sampler_handle, AC_DESC_SAMPLER, s,
+                                    !tex->sampler_non_uniform);
+   }
 
    if (sampler && sampler->num_components > 1)
       sampler = fixup_sampler_desc(b, tex, sampler, s);
