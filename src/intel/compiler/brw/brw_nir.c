@@ -178,6 +178,23 @@ urb_offset(nir_builder *b,
 }
 
 static nir_def *
+input_handle(nir_builder *b, nir_intrinsic_instr *intrin)
+{
+   const enum mesa_shader_stage stage = b->shader->info.stage;
+   nir_src *vertex = nir_get_io_arrayed_index_src(intrin);
+
+   return stage == MESA_SHADER_TESS_CTRL || stage == MESA_SHADER_GEOMETRY ?
+          nir_load_urb_input_handle_indexed_intel(b, 1, 32, vertex->ssa) :
+          nir_load_urb_input_handle_intel(b);
+}
+
+static nir_def *
+output_handle(nir_builder *b)
+{
+   return nir_load_urb_output_handle_intel(b);
+}
+
+static nir_def *
 load_urb(nir_builder *b,
          const struct brw_lower_urb_cb_data *cb_data,
          nir_intrinsic_instr *intrin,
@@ -256,7 +273,6 @@ static void
 store_urb(nir_builder *b,
           const struct brw_lower_urb_cb_data *cb_data,
           nir_intrinsic_instr *intrin,
-          nir_def *urb_handle,
           nir_def *offset)
 {
    const struct intel_device_info *devinfo = cb_data->devinfo;
@@ -268,7 +284,7 @@ store_urb(nir_builder *b,
 
    if (devinfo->ver >= 20) {
       offset = nir_ishl_imm(b, offset, cb_data->vec4_access ? 4 : 2);
-      nir_def *addr = nir_iadd(b, urb_handle, offset);
+      nir_def *addr = nir_iadd(b, output_handle(b), offset);
       while (mask) {
          int start, count;
          u_bit_scan_consecutive_range(&mask, &start, &count);
@@ -313,25 +329,8 @@ store_urb(nir_builder *b,
    nir_def *vec4_offset =
       cb_data->vec4_access ? offset : nir_ishr_imm(b, offset, 2);
 
-   nir_store_urb_vec4_intel(b, src, urb_handle, vec4_offset, channel_mask,
-                            .base = base);
-}
-
-static nir_def *
-input_handle(nir_builder *b, nir_intrinsic_instr *intrin)
-{
-   const enum mesa_shader_stage stage = b->shader->info.stage;
-   nir_src *vertex = nir_get_io_arrayed_index_src(intrin);
-
-   return stage == MESA_SHADER_TESS_CTRL || stage == MESA_SHADER_GEOMETRY ?
-          nir_load_urb_input_handle_indexed_intel(b, 1, 32, vertex->ssa) :
-          nir_load_urb_input_handle_intel(b);
-}
-
-static nir_def *
-output_handle(nir_builder *b)
-{
-   return nir_load_urb_output_handle_intel(b);
+   nir_store_urb_vec4_intel(b, src, output_handle(b), vec4_offset,
+                            channel_mask, .base = base);
 }
 
 static nir_def *
@@ -424,8 +423,7 @@ lower_urb_outputs(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
    case nir_intrinsic_store_output:
    case nir_intrinsic_store_per_vertex_output:
    case nir_intrinsic_store_per_primitive_output:
-      store_urb(b, cb_data, intrin, output_handle(b),
-                urb_offset(b, cb_data, intrin));
+      store_urb(b, cb_data, intrin, urb_offset(b, cb_data, intrin));
       break;
    case nir_intrinsic_load_per_view_output:
    case nir_intrinsic_store_per_view_output:
@@ -475,7 +473,7 @@ lower_task_payload_to_urb(nir_builder *b, nir_intrinsic_instr *io, void *data)
    nir_def *offset = nir_ishr_imm(b, nir_get_io_offset_src(io)->ssa, 2);
 
    if (io->intrinsic == nir_intrinsic_store_task_payload) {
-      store_urb(b, cb_data, io, output_handle(b), offset);
+      store_urb(b, cb_data, io, offset);
       nir_instr_remove(&io->instr);
    } else {
       const bool input = stage == MESA_SHADER_MESH;
