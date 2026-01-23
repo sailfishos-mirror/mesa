@@ -657,6 +657,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_incremental_present = true,
 #endif
       .KHR_index_type_uint8 = pdev->info.gfx_level >= GFX8,
+      .KHR_internally_synchronized_queues = true,
       .KHR_line_rasterization = true,
       .KHR_load_store_op_none = true,
       .KHR_maintenance1 = true,
@@ -1514,6 +1515,9 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .presentAtAbsoluteTime = true,
       .presentAtRelativeTime = true,
 #endif
+
+      /* VK_KHR_internally_synchronized_queues */
+      .internallySynchronizedQueues = true,
    };
 }
 
