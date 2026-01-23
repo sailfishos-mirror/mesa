@@ -1865,13 +1865,12 @@ visit_image_load(isel_context* ctx, nir_intrinsic_instr* instr)
    bool is_sparse = instr->intrinsic == nir_intrinsic_bindless_image_sparse_load;
    Temp dst = get_ssa_temp(ctx, &instr->def);
 
+   assert(dim != GLSL_SAMPLER_DIM_BUF);
    memory_sync_info sync = get_memory_sync_info(instr, storage_image, 0);
 
    unsigned result_size = instr->def.num_components - is_sparse;
    unsigned expand_mask = nir_def_components_read(&instr->def) & u_bit_consecutive(0, result_size);
    expand_mask = MAX2(expand_mask, 1); /* this can be zero in the case of sparse image loads */
-   if (dim == GLSL_SAMPLER_DIM_BUF)
-      expand_mask = (1u << util_last_bit(expand_mask)) - 1u;
    unsigned dmask = expand_mask;
    if (instr->def.bit_size == 64) {
       expand_mask &= 0x9;
@@ -1897,72 +1896,35 @@ visit_image_load(isel_context* ctx, nir_intrinsic_instr* instr)
    enum gl_access_qualifier access = nir_intrinsic_access(instr);
    bool disable_wqm = access & ACCESS_SKIP_HELPERS;
 
-   if (dim == GLSL_SAMPLER_DIM_BUF) {
-      Temp vindex = emit_extract_vector(ctx, get_ssa_temp(ctx, instr->src[1].ssa), 0, v1);
+   std::vector<Temp> coords = get_image_coords(ctx, instr);
 
-      aco_opcode opcode;
-      if (!d16) {
-         switch (util_bitcount(dmask)) {
-         case 1: opcode = aco_opcode::buffer_load_format_x; break;
-         case 2: opcode = aco_opcode::buffer_load_format_xy; break;
-         case 3: opcode = aco_opcode::buffer_load_format_xyz; break;
-         case 4: opcode = aco_opcode::buffer_load_format_xyzw; break;
-         default: UNREACHABLE(">4 channel buffer image load");
-         }
-      } else {
-         switch (util_bitcount(dmask)) {
-         case 1: opcode = aco_opcode::buffer_load_format_d16_x; break;
-         case 2: opcode = aco_opcode::buffer_load_format_d16_xy; break;
-         case 3: opcode = aco_opcode::buffer_load_format_d16_xyz; break;
-         case 4: opcode = aco_opcode::buffer_load_format_d16_xyzw; break;
-         default: UNREACHABLE(">4 channel buffer image load");
-         }
-      }
-      aco_ptr<Instruction> load{
-         create_instruction(opcode, Format::MUBUF, 3 + is_sparse + 2 * disable_wqm, 1)};
-      load->operands[0] = Operand(resource);
-      load->operands[1] = Operand(vindex);
-      load->operands[2] = Operand::c32(0);
-      load->definitions[0] = Definition(tmp);
-      load->mubuf().idxen = true;
-      load->mubuf().cache = get_cache_flags(ctx, access, ac_access_type_load);
-      load->mubuf().sync = sync;
-      load->mubuf().tfe = is_sparse;
-      if (load->mubuf().tfe)
-         load->operands[3] = emit_tfe_init(bld, tmp);
-      init_disable_wqm(bld, load->mubuf(), disable_wqm);
-      ctx->block->instructions.emplace_back(std::move(load));
+   aco_opcode opcode;
+   if (instr->intrinsic == nir_intrinsic_bindless_image_fragment_mask_load_amd) {
+      opcode = aco_opcode::image_load;
    } else {
-      std::vector<Temp> coords = get_image_coords(ctx, instr);
+      bool level_zero = nir_src_is_const(instr->src[3]) && nir_src_as_uint(instr->src[3]) == 0;
+      opcode = level_zero ? aco_opcode::image_load : aco_opcode::image_load_mip;
+   }
 
-      aco_opcode opcode;
-      if (instr->intrinsic == nir_intrinsic_bindless_image_fragment_mask_load_amd) {
-         opcode = aco_opcode::image_load;
-      } else {
-         bool level_zero = nir_src_is_const(instr->src[3]) && nir_src_as_uint(instr->src[3]) == 0;
-         opcode = level_zero ? aco_opcode::image_load : aco_opcode::image_load_mip;
-      }
+   Operand vdata = is_sparse ? emit_tfe_init(bld, tmp) : Operand(v1);
+   MIMG_instruction* load =
+      emit_mimg(bld, opcode, {tmp}, resource, Operand(s4), coords, disable_wqm, vdata);
+   load->cache = get_cache_flags(ctx, access, ac_access_type_load);
+   load->a16 = instr->src[1].ssa->bit_size == 16;
+   load->d16 = d16;
+   load->dmask = dmask;
+   load->unrm = true;
+   load->tfe = is_sparse;
 
-      Operand vdata = is_sparse ? emit_tfe_init(bld, tmp) : Operand(v1);
-      MIMG_instruction* load =
-         emit_mimg(bld, opcode, {tmp}, resource, Operand(s4), coords, disable_wqm, vdata);
-      load->cache = get_cache_flags(ctx, access, ac_access_type_load);
-      load->a16 = instr->src[1].ssa->bit_size == 16;
-      load->d16 = d16;
-      load->dmask = dmask;
-      load->unrm = true;
-      load->tfe = is_sparse;
-
-      if (instr->intrinsic == nir_intrinsic_bindless_image_fragment_mask_load_amd) {
-         load->dim = is_array ? ac_image_2darray : ac_image_2d;
-         load->da = is_array;
-         load->sync = memory_sync_info();
-      } else {
-         ac_image_dim sdim = ac_get_image_dim(ctx->options->gfx_level, dim, is_array);
-         load->dim = sdim;
-         load->da = should_declare_array(sdim);
-         load->sync = sync;
-      }
+   if (instr->intrinsic == nir_intrinsic_bindless_image_fragment_mask_load_amd) {
+      load->dim = is_array ? ac_image_2darray : ac_image_2d;
+      load->da = is_array;
+      load->sync = memory_sync_info();
+   } else {
+      ac_image_dim sdim = ac_get_image_dim(ctx->options->gfx_level, dim, is_array);
+      load->dim = sdim;
+      load->da = should_declare_array(sdim);
+      load->sync = sync;
    }
 
    if (is_sparse && instr->def.bit_size == 64) {

@@ -2263,26 +2263,9 @@ static LLVMValueRef visit_image_load(struct ac_nir_context *ctx, const nir_intri
    args.access = nir_intrinsic_access(instr);
    args.tfe = instr->intrinsic == nir_intrinsic_bindless_image_sparse_load;
 
-   if (dim == GLSL_SAMPLER_DIM_BUF) {
-      unsigned num_channels = util_last_bit(nir_def_components_read(&instr->def));
-      if (instr->def.bit_size == 64)
-         num_channels = num_channels < 4 ? 2 : 4;
-      LLVMValueRef rsrc, vindex;
+   assert(dim != GLSL_SAMPLER_DIM_BUF);
 
-      rsrc = ctx->abi->load_sampler_desc(ctx->abi, dynamic_index, AC_DESC_BUFFER);
-      vindex =
-         LLVMBuildExtractElement(ctx->ac.builder, get_src(ctx, instr->src[1]), ctx->ac.i32_0, "");
-
-      bool can_speculate = access & ACCESS_CAN_REORDER;
-      res = ac_build_buffer_load_format(&ctx->ac, rsrc, vindex, ctx->ac.i32_0, num_channels,
-                                        args.access, can_speculate,
-                                        instr->def.bit_size == 16,
-                                        args.tfe);
-      res = ac_build_expand(&ctx->ac, res, num_channels, args.tfe ? 5 : 4);
-
-      res = ac_trim_vector(&ctx->ac, res, instr->def.num_components);
-      res = ac_to_integer(&ctx->ac, res);
-   } else if (instr->intrinsic == nir_intrinsic_bindless_image_fragment_mask_load_amd) {
+   if (instr->intrinsic == nir_intrinsic_bindless_image_fragment_mask_load_amd) {
       assert(ctx->ac.gfx_level < GFX11);
 
       args.opcode = ac_image_load;
