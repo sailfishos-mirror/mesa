@@ -150,6 +150,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_maintenance3 = true,
       .KHR_map_memory2 = true,
       .KHR_multiview = true,
+      .KHR_pipeline_executable_properties = true,
       .KHR_present_id2 = PVR_USE_WSI_PLATFORM,
       .KHR_present_wait2 = PVR_USE_WSI_PLATFORM,
       .KHR_relaxed_block_layout = true,
@@ -468,6 +469,9 @@ static void pvr_physical_device_get_supported_features(
 
       /* Vulkan 1.2 / VK_KHR_dynamic_rendering */
       .dynamicRendering = true,
+
+      /* VK_KHR_pipeline_executable_properties */
+      .pipelineExecutableInfo = true,
    };
 }
 

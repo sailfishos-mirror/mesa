@@ -9,3 +9,4 @@ VK_KHR_get_display_properties2 on panvk
 VK_EXT_acquire_drm_display on panvk
 VK_KHR_present_id on panvk
 VK_KHR_present_wait on panvk
+VK_KHR_pipeline_executable_properties on pvr
