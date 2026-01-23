@@ -2194,7 +2194,7 @@
         "description": "elk: Call nir_opt_algebraic_late in elk_postprocess_nir",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "442daeb54a2e43bd450ebbb37fc05001f4acd08f",
         "notes": null
