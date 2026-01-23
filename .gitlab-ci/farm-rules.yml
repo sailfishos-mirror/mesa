@@ -43,7 +43,7 @@
 #   pengutronix      | lava                             | @hnez, @lynxeye
 #   valve-kws        | ci-tron                          | @mupuf, @eric
 #   valve-mupuf      | ci-tron                          | @mupuf, @eric
-#   vmware           | lava                             | @blu
+#   vmware           | lava                             | @mombasa, @bhenden
 
 .microsoft-farm-rules:
   rules:
