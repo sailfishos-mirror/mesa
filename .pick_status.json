@@ -2254,7 +2254,7 @@
         "description": "aco/insert_fp_mode: remove incorrect assertion",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6b9d28ab9bbd1578c06366dc792c10dbb3c366ef",
         "notes": null
