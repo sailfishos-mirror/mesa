@@ -732,18 +732,15 @@ brw_instruction_scheduler::brw_instruction_scheduler(void *mem_ctx, const brw_sh
 
       this->livein = linear_alloc_array(lin_ctx, BITSET_WORD *, block_count);
       for (int i = 0; i < block_count; i++)
-         this->livein[i] = linear_zalloc_array(lin_ctx, BITSET_WORD,
-                                         BITSET_WORDS(grf_count));
+         this->livein[i] = BITSET_LINEAR_ZALLOC(lin_ctx, grf_count);
 
       this->liveout = linear_alloc_array(lin_ctx, BITSET_WORD *, block_count);
       for (int i = 0; i < block_count; i++)
-         this->liveout[i] = linear_zalloc_array(lin_ctx, BITSET_WORD,
-                                          BITSET_WORDS(grf_count));
+         this->liveout[i] = BITSET_LINEAR_ZALLOC(lin_ctx, grf_count);
 
       this->hw_liveout = linear_alloc_array(lin_ctx, BITSET_WORD *, block_count);
       for (int i = 0; i < block_count; i++)
-         this->hw_liveout[i] = linear_zalloc_array(lin_ctx, BITSET_WORD,
-                                             BITSET_WORDS(hw_reg_count));
+         this->hw_liveout[i] = BITSET_LINEAR_ZALLOC(lin_ctx, grf_count);
 
       setup_liveness(s->cfg);
 
