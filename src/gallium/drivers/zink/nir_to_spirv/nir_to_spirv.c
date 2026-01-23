@@ -99,7 +99,8 @@ struct ntv_context {
          local_invocation_id_var, global_invocation_id_var,
          local_invocation_index_var, helper_invocation_var,
          local_group_size_var, view_index_var,
-         base_vertex_var, base_instance_var, draw_id_var;
+         base_vertex_var, base_instance_var, draw_id_var,
+         frag_coord_var, layer_var;
 
    SpvId shared_mem_size;
 
@@ -3671,6 +3672,14 @@ emit_intrinsic(struct ntv_context *ctx, nir_intrinsic_instr *intr)
 
    case nir_intrinsic_load_sample_pos:
       emit_load_vec_input(ctx, intr, &ctx->sample_pos_var, "gl_SamplePosition", SpvBuiltInSamplePosition, nir_type_float);
+      break;
+
+   case nir_intrinsic_load_frag_coord:
+      emit_load_vec_input(ctx, intr, &ctx->frag_coord_var, "gl_FragCoord", SpvBuiltInFragCoord, nir_type_float);
+      break;
+
+   case nir_intrinsic_load_layer_id:
+      emit_load_vec_input(ctx, intr, &ctx->layer_var, "gl_Layer", SpvBuiltInLayer, nir_type_uint);
       break;
 
    case nir_intrinsic_load_sample_mask_in:
