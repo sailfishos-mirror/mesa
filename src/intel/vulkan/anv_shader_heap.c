@@ -119,7 +119,7 @@ anv_shader_heap_alloc(struct anv_shader_heap *heap,
    uint64_t addr = 0;
    if (requested_addr) {
       if (util_vma_heap_alloc_addr(&heap->vma,
-                                   requested_addr, size)) {
+                                   heap->va_range.addr + requested_addr, size)) {
          addr = requested_addr;
       }
    } else {
