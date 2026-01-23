@@ -2244,7 +2244,7 @@
         "description": "spirv: Use STACK_ARRAY instead of NIR_VLA",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2a023f30a644821550e0d529078a05af12188fcb",
         "notes": null
