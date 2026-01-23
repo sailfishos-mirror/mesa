@@ -2969,7 +2969,7 @@ impl<'a> ShaderFromNir<'a> {
                 let cond = self.get_ssa(srcs[0].as_def())[0];
                 b.predicate(cond.into()).push_op(OpKill {});
             }
-            nir_intrinsic_global_atomic => {
+            nir_intrinsic_global_atomic_nv => {
                 let bit_size = intrin.def.bit_size();
                 let (addr, offset) = self.get_io_addr_offset(&srcs[0], 24);
                 let data = self.get_src(&srcs[1]);
@@ -3000,7 +3000,7 @@ impl<'a> ShaderFromNir<'a> {
                 });
                 self.set_dst(&intrin.def, dst);
             }
-            nir_intrinsic_global_atomic_swap => {
+            nir_intrinsic_global_atomic_swap_nv => {
                 assert!(intrin.atomic_op() == nir_atomic_op_cmpxchg);
                 let bit_size = intrin.def.bit_size();
                 let (addr, offset) = self.get_io_addr_offset(&srcs[0], 24);
@@ -3106,14 +3106,11 @@ impl<'a> ShaderFromNir<'a> {
             nir_intrinsic_load_barycentric_centroid => (),
             nir_intrinsic_load_barycentric_pixel => (),
             nir_intrinsic_load_barycentric_sample => (),
-            nir_intrinsic_load_global | nir_intrinsic_load_global_constant => {
+            nir_intrinsic_load_global_nv => {
                 let size_B =
                     (intrin.def.bit_size() / 8) * intrin.def.num_components();
                 assert!(u32::from(size_B) <= intrin.align());
-                let order = if intrin.intrinsic
-                    == nir_intrinsic_load_global_constant
-                    || (intrin.access() & ACCESS_CAN_REORDER) != 0
-                {
+                let order = if intrin.access() & ACCESS_CAN_REORDER != 0 {
                     MemOrder::Constant
                 } else {
                     MemOrder::Strong(MemScope::GPU)
@@ -3224,7 +3221,7 @@ impl<'a> ShaderFromNir<'a> {
                 });
                 self.set_dst(&intrin.def, dst);
             }
-            nir_intrinsic_load_scratch => {
+            nir_intrinsic_load_scratch_nv => {
                 let size_B =
                     (intrin.def.bit_size() / 8) * intrin.def.num_components();
                 assert!(u32::from(size_B) <= intrin.align());
@@ -3245,7 +3242,7 @@ impl<'a> ShaderFromNir<'a> {
                 });
                 self.set_dst(&intrin.def, dst);
             }
-            nir_intrinsic_load_shared => {
+            nir_intrinsic_load_shared_nv => {
                 let size_B =
                     (intrin.def.bit_size() / 8) * intrin.def.num_components();
                 assert!(u32::from(size_B) <= intrin.align());
@@ -3566,7 +3563,7 @@ impl<'a> ShaderFromNir<'a> {
                 });
                 self.set_dst(&intrin.def, dst.into());
             }
-            nir_intrinsic_shared_atomic => {
+            nir_intrinsic_shared_atomic_nv => {
                 let bit_size = intrin.def.bit_size();
                 let (addr, offset) = self.get_io_addr_offset(&srcs[0], 24);
                 let data = self.get_src(&srcs[1]);
@@ -3590,7 +3587,7 @@ impl<'a> ShaderFromNir<'a> {
                 });
                 self.set_dst(&intrin.def, dst);
             }
-            nir_intrinsic_shared_atomic_swap => {
+            nir_intrinsic_shared_atomic_swap_nv => {
                 assert!(intrin.atomic_op() == nir_atomic_op_cmpxchg);
                 let bit_size = intrin.def.bit_size();
                 let (addr, offset) = self.get_io_addr_offset(&srcs[0], 24);
@@ -3619,7 +3616,7 @@ impl<'a> ShaderFromNir<'a> {
                 let src = self.get_src(&srcs[0]);
                 b.push_op(OpSrcBar { src });
             }
-            nir_intrinsic_store_global => {
+            nir_intrinsic_store_global_nv => {
                 let data = self.get_src(&srcs[0]);
                 let size_B =
                     (srcs[0].bit_size() / 8) * srcs[0].num_components();
@@ -3650,7 +3647,7 @@ impl<'a> ShaderFromNir<'a> {
 
                 self.fs_out_regs[usize::from(addr / 4)] = Some(data);
             }
-            nir_intrinsic_store_scratch => {
+            nir_intrinsic_store_scratch_nv => {
                 let data = self.get_src(&srcs[0]);
                 let size_B =
                     (srcs[0].bit_size() / 8) * srcs[0].num_components();
@@ -3670,7 +3667,7 @@ impl<'a> ShaderFromNir<'a> {
                     access: access,
                 });
             }
-            nir_intrinsic_store_shared => {
+            nir_intrinsic_store_shared_nv => {
                 let data = self.get_src(&srcs[0]);
                 let size_B =
                     (srcs[0].bit_size() / 8) * srcs[0].num_components();
