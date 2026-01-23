@@ -4876,6 +4876,7 @@ tu7_generic_clear_attachment(struct tu_cmd_buffer *cmd,
       &cmd->state.pass->attachments[a];
    const VkClearValue *value = &cmd->state.clear_values[a];
    const struct tu_image_view *iview = cmd->state.attachments[a];
+   const struct tu_subpass *subpass = cmd->state.subpass;
 
    trace_start_generic_clear(&cmd->rp_trace, cs, cmd, att->format,
                              iview->view.ubwc_enabled, att->samples);
@@ -4885,6 +4886,15 @@ tu7_generic_clear_attachment(struct tu_cmd_buffer *cmd,
       uint32_t layer = i + 0;
       uint32_t mask =
          aspect_write_mask_generic_clear(format, att->clear_mask);
+      if (cmd->state.fdm_enabled) {
+         struct apply_gmem_clear_coords_state state = {
+            .view = layer,
+            .rect = cmd->state.render_area,
+            .custom_resolve = subpass->custom_resolve,
+         };
+         tu_create_fdm_bin_patchpoint(cmd, cs, 3, TU_FDM_SKIP_BINNING,
+                                      fdm_apply_gmem_clear_coords, state);
+      }
       if (att->format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
          if (att->clear_mask & VK_IMAGE_ASPECT_DEPTH_BIT) {
             uint32_t buffer_id = tu_resolve_group_include_buffer<A7XX>(resolve_group, VK_FORMAT_D32_SFLOAT);
