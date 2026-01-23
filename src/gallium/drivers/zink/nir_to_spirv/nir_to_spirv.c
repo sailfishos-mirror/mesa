@@ -501,6 +501,8 @@ get_storage_class(struct nir_variable *var)
    switch (var->data.mode) {
    case nir_var_function_temp:
       return SpvStorageClassFunction;
+   case nir_var_shader_temp:
+      return SpvStorageClassPrivate;
    case nir_var_mem_push_const:
       return SpvStorageClassPushConstant;
    case nir_var_shader_in:
@@ -4433,6 +4435,7 @@ emit_deref_array(struct ntv_context *ctx, nir_deref_instr *deref)
       }
       /* array<uint> */
       FALLTHROUGH;
+   case nir_var_shader_temp:
    case nir_var_function_temp:
    case nir_var_shader_in:
    case nir_var_shader_out:
