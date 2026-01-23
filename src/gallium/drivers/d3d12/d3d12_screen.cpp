@@ -437,6 +437,7 @@ d3d12_init_screen_caps(struct d3d12_screen *screen)
    caps->max_texture_anisotropy = D3D12_MAX_MAXANISOTROPY;
 
    caps->max_texture_lod_bias = 15.99f;
+   caps->packed_uniforms = true;
 }
 
 static bool
