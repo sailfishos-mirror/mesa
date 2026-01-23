@@ -2234,7 +2234,7 @@
         "description": "nir: Use STACK_ARRAY instead of NIR_VLA",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c11833ab24dcba26de1b0a5805e35a5d6761514e",
         "notes": null
