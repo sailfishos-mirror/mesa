@@ -821,6 +821,14 @@ if with_gallium_rusticl
   endif
 endif
 
+# Do built drivers need to include gfx/compute queues support?
+# TODO: add a separate option to allow to build a VA-API driver without the features
+# that depend on these queues. When added a lightweight decode-only VA-API driver could be built
+with_gfx_compute = with_any_opengl or get_option('vulkan-drivers').length() > 0 or with_gallium_rusticl or with_gallium_va
+if with_gfx_compute
+  pre_args += '-DHAVE_GFX_COMPUTE'
+endif
+
 with_virtgpu_kumquat = get_option('virtgpu_kumquat') and with_gfxstream_vk
 if with_gallium_rusticl or with_nouveau_vk or with_tools.contains('etnaviv') or with_virtgpu_kumquat
   # rust.bindgen() does not pass `--rust-target` to bindgen until 1.7.0.
