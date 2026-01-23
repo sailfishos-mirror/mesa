@@ -3363,7 +3363,7 @@ wsi_wl_swapchain_chain_free(struct wsi_wl_swapchain *chain,
     */
    struct wsi_wl_surface *wsi_wl_surface = chain->wsi_wl_surface;
    if (!chain->retired)
-      wl_display_flush(wsi_wl_surface->display->wl_display);
+      wl_display_roundtrip(wsi_wl_surface->display->wl_display);
 
    if (chain->frame)
       wl_callback_destroy(chain->frame);
