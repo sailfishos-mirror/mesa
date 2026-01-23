@@ -813,6 +813,7 @@ input_var_init(struct ntv_context *ctx, struct nir_variable *var)
 
    if (var->data.mode == nir_var_mem_push_const) {
       ctx->push_const_var = var_id;
+      _mesa_hash_table_insert(ctx->vars, var, (void *)(intptr_t)var_id);
 
       if (ctx->spirv_1_4_interfaces) {
          assert(ctx->num_entry_ifaces < ARRAY_SIZE(ctx->entry_ifaces));
