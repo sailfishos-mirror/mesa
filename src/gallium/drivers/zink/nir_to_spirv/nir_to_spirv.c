@@ -1323,6 +1323,15 @@ static void
 emit_sampler(struct ntv_context *ctx, nir_variable *var)
 {
    SpvId type = spirv_builder_type_sampler(&ctx->builder);
+   if (glsl_type_is_array(var->type)) {
+      SpvId stride = emit_uint_const(ctx, 32, glsl_get_aoa_size(var->type));
+      if (glsl_type_is_unsized_array(var->type)) {
+         spirv_builder_emit_cap(&ctx->builder, SpvCapabilityRuntimeDescriptorArray);
+         type = spirv_builder_type_runtime_array(&ctx->builder, type);
+      } else {
+         type = spirv_builder_type_array(&ctx->builder, type, stride);
+      }
+   }
    SpvId pointer_type = spirv_builder_type_pointer(&ctx->builder,
                                                    SpvStorageClassUniformConstant,
                                                    type);
@@ -4448,9 +4457,12 @@ emit_deref_array(struct ntv_context *ctx, nir_deref_instr *deref)
    case nir_var_image: {
       base = get_src(ctx, &deref->parent, &atype);
       const struct glsl_type *gtype = glsl_without_array(deref->type);
-      type = get_image_type(ctx, var,
-                            glsl_type_is_sampler(gtype),
-                            glsl_get_sampler_dim(gtype) == GLSL_SAMPLER_DIM_BUF);
+      if (glsl_type_is_bare_sampler(gtype))
+         type = spirv_builder_type_sampler(&ctx->builder);
+      else
+         type = get_image_type(ctx, var,
+                               glsl_type_is_sampler(gtype),
+                               glsl_get_sampler_dim(gtype) == GLSL_SAMPLER_DIM_BUF);
       break;
    }
 
