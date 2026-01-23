@@ -3132,15 +3132,16 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
       bool reorder = nir_intrinsic_can_reorder(instr);
       enum gl_access_qualifier access = nir_intrinsic_access(instr);
       bool uses_format = access & ACCESS_USES_FORMAT_AMD;
+      bool is_sparse = access & ACCESS_SPARSE;
 
       LLVMValueRef voffset = LLVMBuildAdd(ctx->ac.builder, addr_voffset,
                                           LLVMConstInt(ctx->ac.i32, const_offset, 0), "");
 
       if (instr->intrinsic == nir_intrinsic_load_buffer_amd && uses_format) {
          assert(instr->def.bit_size == 16 || instr->def.bit_size == 32);
-         result = ac_build_buffer_load_format(&ctx->ac, descriptor, vidx, voffset, num_components,
-                                              access, reorder,
-                                              instr->def.bit_size == 16, false);
+         result = ac_build_buffer_load_format(&ctx->ac, descriptor, vidx, voffset,
+                                              num_components - is_sparse, access, reorder,
+                                              instr->def.bit_size == 16, is_sparse);
          result = ac_to_integer(&ctx->ac, result);
       } else if (instr->intrinsic == nir_intrinsic_store_buffer_amd && uses_format) {
          assert(instr->src[0].ssa->bit_size == 16 || instr->src[0].ssa->bit_size == 32);
