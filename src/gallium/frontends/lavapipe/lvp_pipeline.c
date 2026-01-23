@@ -276,6 +276,8 @@ optimize(nir_shader *nir)
       NIR_PASS(progress, nir, nir_opt_deref);
       NIR_PASS(progress, nir, nir_lower_vars_to_ssa);
 
+      NIR_PASS(progress, nir, nir_opt_memcpy);
+
       NIR_PASS(progress, nir, nir_opt_copy_prop_vars);
 
       NIR_PASS(progress, nir, nir_opt_copy_prop);
@@ -455,6 +457,8 @@ lvp_shader_lower(struct lvp_device *pdevice, nir_shader *nir, struct lvp_pipelin
             nir_var_shader_out | nir_var_shader_in);
    NIR_PASS(_, nir, nir_split_var_copies);
    NIR_PASS(_, nir, nir_lower_global_vars_to_local);
+
+   NIR_PASS(_, nir, nir_lower_memcpy);
 
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_push_const,
             nir_address_format_32bit_offset);
