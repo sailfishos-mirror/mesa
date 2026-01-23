@@ -2819,32 +2819,14 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt,
    OPT(brw_nir_lower_fsign);
    OPT(brw_nir_opt_fsat);
 
-   do {
-      pt->progress = false;
-
-      OPT(nir_opt_algebraic_late);
-
-      if (pt->progress) {
-         OPT(nir_opt_constant_folding);
-         OPT(nir_opt_copy_prop);
-         OPT(nir_opt_dce);
-         OPT(nir_opt_cse);
-      }
-   } while (pt->progress);
-
    OPT(nir_lower_fp16_casts, nir_lower_fp16_split_fp64);
 
-   OPT(nir_lower_alu_to_scalar, NULL, NULL);
-
-   while (OPT(nir_opt_algebraic_distribute_src_mods)) {
+   if (OPT(nir_lower_alu_to_scalar, NULL, NULL))
       OPT(nir_opt_constant_folding);
-      OPT(nir_opt_copy_prop);
-      OPT(nir_opt_dce);
-      OPT(nir_opt_cse);
-   }
 
    OPT(nir_opt_copy_prop);
    OPT(nir_opt_dce);
+   OPT(nir_opt_cse);
 
    nir_move_options move_all = nir_move_const_undef | nir_move_load_ubo |
                                nir_move_load_input | nir_move_comparisons |
@@ -2885,6 +2867,20 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt,
     * round at the tail end.
     */
    brw_nir_lower_int64(pt);
+
+   do {
+      pt->progress = false;
+
+      OPT(nir_opt_algebraic_late);
+      OPT(nir_opt_algebraic_distribute_src_mods);
+
+      if (pt->progress) {
+         OPT(nir_opt_constant_folding);
+         OPT(nir_opt_copy_prop);
+         OPT(nir_opt_dce);
+         OPT(nir_opt_cse);
+      }
+   } while (pt->progress);
 
    /* Deal with EU fusion */
    if (devinfo->ver == 12) {
