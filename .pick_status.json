@@ -8584,7 +8584,7 @@
         "description": "pvr: check image usage features against image features",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 3,
         "main_sha": null,
         "because_sha": null,
         "notes": "Missing pvr_format->bind and PVR_BIND_RENDER_TARGET"
