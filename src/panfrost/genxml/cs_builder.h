@@ -13,6 +13,7 @@
 #include "gen_macros.h"
 
 #include "util/bitset.h"
+#include "util/fast_idiv_by_const.h"
 #include "util/u_dynarray.h"
 
 #ifdef __cplusplus
@@ -2050,6 +2051,47 @@ cs_umul64(struct cs_builder *b, struct cs_index dest, struct cs_index src,
             cs_lshift_imm64(b, dest, dest, bit - next_bit);
       }
    }
+}
+
+/* Needs 4 scratch registers */
+static inline void
+cs_udiv32(struct cs_builder *b, struct cs_index dest, struct cs_index src,
+          uint32_t imm, struct cs_index scratch)
+{
+   assert(scratch.size >= 4);
+   assert(imm != 0);
+
+   /* Fast path for power-of-two divisors */
+   if (util_is_power_of_two_nonzero(imm)) {
+      cs_rshift_imm_u32(b, dest, src, util_logbase2(imm));
+      return;
+   }
+
+   struct util_fast_udiv_info info = util_compute_fast_udiv_info(imm, 32, 32);
+
+   struct cs_index mul_src = cs_extract64(b, scratch, 0);
+   struct cs_index mul_src_lo = cs_extract32(b, scratch, 0);
+   struct cs_index mul_src_hi = cs_extract32(b, scratch, 1);
+
+   struct cs_index mul_dest = cs_extract64(b, scratch, 2);
+   struct cs_index mul_dest_hi = cs_extract32(b, mul_dest, 1);
+
+   if (info.pre_shift)
+      cs_rshift_imm_u32(b, mul_src_lo, src, info.pre_shift);
+
+   if (info.increment != 0)
+      cs_add_imm32(b, mul_src_lo, info.pre_shift ? mul_src_lo : src,
+                   info.increment);
+
+   if (!info.pre_shift && !(info.increment != 0))
+      cs_move_reg32(b, mul_src_lo, src);
+   cs_move32_to(b, mul_src_hi, 0);
+
+   cs_umul64(b, mul_dest, mul_src, info.multiplier);
+
+   /* (mul_dest << 32) implemented by taking the high register */
+
+   cs_rshift_imm_u32(b, dest, mul_dest_hi, info.post_shift);
 }
 #endif
 
