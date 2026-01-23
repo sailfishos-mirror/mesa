@@ -506,6 +506,12 @@ BITSET_RZALLOC(const void *memctx, unsigned size)
    return (BITSET_WORD *)rzalloc_size(memctx, BITSET_BYTES(size));
 }
 
+static inline BITSET_WORD *
+BITSET_LINEAR_ZALLOC(linear_ctx *memctx, unsigned size)
+{
+   return (BITSET_WORD *)linear_zalloc_child(memctx, BITSET_BYTES(size));
+}
+
 #ifdef __cplusplus
 
 /**
