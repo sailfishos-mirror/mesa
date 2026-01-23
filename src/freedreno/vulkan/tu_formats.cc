@@ -160,10 +160,11 @@ tu_physical_device_get_format_properties(
    if (supported_tex)
       buffer |= VK_FORMAT_FEATURE_2_UNIFORM_TEXEL_BUFFER_BIT;
 
-   /* We don't support D24S8 because copying just one aspect would require a
-    * special codepath and that doesn't seem worth it.
+   /* We don't support depth formats, as HIC would require disabling LRZ on
+    * the CPU.  Additionally, D24S8 would require a special codepath for copying
+    * a single aspect, and that doesn't seem worth it.
     */
-   if (!is_npot && vk_format != VK_FORMAT_D24_UNORM_S8_UINT) {
+   if (!is_npot && !util_format_has_depth(util_format_description(format))) {
       optimal |= VK_FORMAT_FEATURE_2_HOST_IMAGE_TRANSFER_BIT_EXT;
    }
 

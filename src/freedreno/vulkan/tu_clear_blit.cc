@@ -2676,13 +2676,11 @@ tu_CopyMemoryToImageEXT(VkDevice _device,
    VK_FROM_HANDLE(tu_device, device, _device);
    VK_FROM_HANDLE(tu_image, dst_image, info->dstImage);
 
+   assert(!dst_image->lrz_layout.lrz_total_size);
+
    for (unsigned i = 0; i < info->regionCount; i++) {
       tu_copy_memory_to_image(device, dst_image, &info->pRegions[i],
                               info->flags & VK_HOST_IMAGE_COPY_MEMCPY_EXT);
-   }
-
-   if (dst_image->lrz_layout.lrz_total_size) {
-      TU_CALLX(device, tu_disable_lrz_cpu)(device, dst_image);
    }
 
    return VK_SUCCESS;
@@ -3328,6 +3326,8 @@ tu_CopyImageToImageEXT(VkDevice _device,
    bool copy_memcpy = pCopyImageToImageInfo->flags &
       VK_HOST_IMAGE_COPY_MEMCPY_EXT;
 
+   assert(!dst_image->lrz_layout.lrz_total_size);
+
    for (uint32_t i = 0; i < pCopyImageToImageInfo->regionCount; ++i) {
       if (src_image->vk.format == VK_FORMAT_D32_SFLOAT_S8_UINT) {
          VkImageCopy2 info = pCopyImageToImageInfo->pRegions[i];
@@ -3343,10 +3343,6 @@ tu_CopyImageToImageEXT(VkDevice _device,
       tu_copy_image_to_image_cpu(device, src_image, dst_image,
                                  pCopyImageToImageInfo->pRegions + i,
                                  copy_memcpy);
-   }
-
-   if (dst_image->lrz_layout.lrz_total_size) {
-      TU_CALLX(device, tu_disable_lrz_cpu)(device, dst_image);
    }
 
    return VK_SUCCESS;
