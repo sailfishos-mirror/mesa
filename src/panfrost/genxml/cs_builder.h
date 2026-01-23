@@ -2018,6 +2018,39 @@ cs_rshift_s64(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
       I.source_1 = cs_src64(b, src1);
    }
 }
+
+/* reg64 * imm64 -> reg64 multiply */
+static inline void
+cs_umul64(struct cs_builder *b, struct cs_index dest, struct cs_index src,
+          uint64_t imm)
+{
+   /* src and dest registers must be different in order for the accumulation
+    * loop to work */
+   assert(memcmp(&dest, &src, sizeof(dest)) != 0);
+
+   if (imm == 0) {
+      cs_move64_to(b, dest, 0);
+      return;
+   }
+
+   /* Reverse bitscan */
+   bool first = true;
+   while (imm != 0) {
+      unsigned bit = util_last_bit64(imm) - 1;
+      imm &= ~(1 << bit);
+      unsigned next_bit = util_last_bit64(imm) == 0 ?
+         0 : util_last_bit64(imm) - 1;
+
+      if (first) {
+         cs_lshift_imm64(b, dest, src, bit - next_bit);
+         first = false;
+      } else {
+         cs_add64(b, dest, dest, src);
+         if (bit - next_bit > 0)
+            cs_lshift_imm64(b, dest, dest, bit - next_bit);
+      }
+   }
+}
 #endif
 
 static inline void
