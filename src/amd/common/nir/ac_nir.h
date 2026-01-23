@@ -36,6 +36,13 @@ enum {
    AC_EXP_FLAG_VALID_MASK = (1 << 2),
 };
 
+enum {
+   /* Whether nir_tex_instr should treat the deref or handle as an image binding
+    * (image_load lowered to tex, etc.).
+    */
+   AC_NIR_TEX_BACKEND_FLAG_IS_IMAGE = BITFIELD_BIT(0),
+};
+
 struct ac_nir_config {
    enum amd_gfx_level gfx_level;
    bool uses_aco;
