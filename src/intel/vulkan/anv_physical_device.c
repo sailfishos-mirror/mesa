@@ -715,7 +715,7 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_KHR_ray_tracing_pipeline */
       .rayTracingPipeline = rt_enabled,
-      .rayTracingPipelineShaderGroupHandleCaptureReplay = false,
+      .rayTracingPipelineShaderGroupHandleCaptureReplay = true,
       .rayTracingPipelineShaderGroupHandleCaptureReplayMixed = false,
       .rayTracingPipelineTraceRaysIndirect = rt_enabled,
       .rayTraversalPrimitiveCulling = rt_enabled,
@@ -1622,7 +1622,8 @@ get_properties(const struct anv_physical_device *pdevice,
       /* MemRay::hitGroupSRBasePtr requires 16B alignment */
       props->shaderGroupBaseAlignment = 16;
       props->shaderGroupHandleAlignment = 16;
-      props->shaderGroupHandleCaptureReplaySize = 32;
+      props->shaderGroupHandleCaptureReplaySize =
+         sizeof(struct anv_shader_group_rt_replay);
       props->maxRayDispatchInvocationCount = 1U << 30; /* required min limit */
       props->maxRayHitAttributeSize = BRW_RT_SIZEOF_HIT_ATTRIB_DATA;
    }

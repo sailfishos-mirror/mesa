@@ -105,7 +105,7 @@ anv_shader_heap_alloc(struct anv_shader_heap *heap,
                       uint64_t size,
                       uint64_t align,
                       bool capture_replay,
-                      uint64_t requested_addr)
+                      uint64_t requested_offset)
 {
    assert(align <= heap->base_chunk_size);
    assert(size <= heap->base_chunk_size);
@@ -117,10 +117,11 @@ anv_shader_heap_alloc(struct anv_shader_heap *heap,
       heap->vma.nospan_shift++;
 
    uint64_t addr = 0;
-   if (requested_addr) {
+   if (requested_offset) {
       if (util_vma_heap_alloc_addr(&heap->vma,
-                                   heap->va_range.addr + requested_addr, size)) {
-         addr = requested_addr;
+                                   heap->va_range.addr + requested_offset,
+                                   size)) {
+         addr = heap->va_range.addr + requested_offset;
       }
    } else {
       if (capture_replay) {

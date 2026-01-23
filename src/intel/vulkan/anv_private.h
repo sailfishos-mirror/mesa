@@ -1280,12 +1280,19 @@ struct anv_shader_alloc anv_shader_heap_alloc(struct anv_shader_heap *heap,
                                               uint64_t size,
                                               uint64_t align,
                                               bool capture_replay,
-                                              uint64_t requested_addr);
+                                              uint64_t requested_offset);
 void anv_shader_heap_free(struct anv_shader_heap *heap, struct anv_shader_alloc alloc);
 
 void anv_shader_heap_upload(struct anv_shader_heap *heap,
                             struct anv_shader_alloc alloc,
                             const void *data, uint64_t size);
+
+struct anv_shader_group_rt_replay {
+   uint64_t general;
+   uint64_t closest_hit;
+   uint64_t any_hit;
+   uint64_t intersection;
+};
 
 struct anv_shader {
    struct vk_shader vk;
@@ -1314,6 +1321,10 @@ struct anv_shader {
     * Array of pointers of length bind_map.embedded_sampler_count
     */
    struct anv_embedded_sampler **embedded_samplers;
+
+   /* Mutex to protect the lazy replay allocation */
+   simple_mtx_t replay_mutex;
+   struct anv_shader_alloc replay_kernel;
 
    struct anv_reloc_list relocs;
 
@@ -1390,6 +1401,23 @@ struct anv_shader {
 };
 
 extern struct vk_device_shader_ops anv_device_shader_ops;
+
+void anv_write_rt_shader_group(struct vk_device *vk_device,
+                               VkRayTracingShaderGroupTypeKHR type,
+                               const struct vk_shader **shaders,
+                               uint32_t shader_count,
+                               void *output);
+
+void anv_write_rt_shader_group_replay_handle(struct vk_device *vk_device,
+                                             const struct vk_shader **shaders,
+                                             uint32_t shader_count,
+                                             void *output);
+
+void anv_replay_rt_shader_group(struct vk_device *vk_device,
+                                VkRayTracingShaderGroupTypeKHR type,
+                                uint32_t shader_count,
+                                struct vk_shader **vk_shaders,
+                                const void *replay_data);
 
 /* Physical device */
 

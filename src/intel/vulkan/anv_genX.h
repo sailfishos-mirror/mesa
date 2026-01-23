@@ -298,7 +298,8 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
    (struct GENX(BINDLESS_SHADER_RECORD)) {                           \
       .OffsetToLocalArguments = (local_arg_offset) / 8,              \
       .BindlessShaderDispatchMode = RT_SIMD16,                       \
-      .KernelStartPointer = shader->kernel.offset,                   \
+      .KernelStartPointer = shader->replay_kernel.alloc_size != 0 ?  \
+         shader->replay_kernel.offset : shader->kernel.offset,       \
       .RegistersPerThread = ptl_register_blocks(prog_data->base.grf_used), \
    };                                                                \
 })
@@ -313,7 +314,8 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
       .OffsetToLocalArguments = (local_arg_offset) / 8,              \
       .BindlessShaderDispatchMode =                                  \
          prog_data->simd_size == 16 ? RT_SIMD16 : RT_SIMD8,          \
-      .KernelStartPointer = shader->kernel.offset,                   \
+      .KernelStartPointer = shader->replay_kernel.alloc_size != 0 ?  \
+         shader->replay_kernel.offset : shader->kernel.offset,       \
    };                                                                \
 })
 #endif

@@ -24,7 +24,10 @@ anv_shader_destroy(struct vk_device *vk_device,
       anv_embedded_sampler_unref(device, shader->embedded_samplers[i]);
 
    anv_shader_heap_free(&device->shader_heap, shader->kernel);
+   if (shader->replay_kernel.alloc_size != 0)
+      anv_shader_heap_free(&device->shader_heap, shader->replay_kernel);
    anv_reloc_list_finish(&shader->relocs);
+   simple_mtx_destroy(&shader->replay_mutex);
    vk_shader_free(vk_device, pAllocator, vk_shader);
 }
 
@@ -612,6 +615,8 @@ anv_shader_create(struct anv_device *device,
                               stage, pAllocator))
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
+   simple_mtx_init(&shader->replay_mutex, mtx_plain);
+
    VkResult result;
    if (shader_data->bind_map.embedded_sampler_count > 0) {
       shader->embedded_samplers = embedded_samplers;
@@ -720,4 +725,140 @@ anv_shader_create(struct anv_device *device,
  error_shader:
    vk_shader_free(&device->vk, pAllocator, &shader->vk);
    return result;
+}
+
+void
+anv_write_rt_shader_group(struct vk_device *vk_device,
+                          VkRayTracingShaderGroupTypeKHR type,
+                          const struct vk_shader **shaders,
+                          uint32_t shader_count,
+                          void *output)
+{
+   struct anv_device *device =
+      container_of(vk_device, struct anv_device, vk);
+
+   anv_genX(device->info, write_rt_shader_group)(device, type,
+                                                 shaders, shader_count,
+                                                 output);
+}
+
+void
+anv_write_rt_shader_group_replay_handle(struct vk_device *vk_device,
+                                        const struct vk_shader **vk_shaders,
+                                        uint32_t shader_count,
+                                        void *output)
+{
+   assert(shader_count <= 3);
+
+   struct anv_shader_group_rt_replay *replay_data = output;
+   memset(replay_data, 0, sizeof(*replay_data));
+
+   for (uint32_t i = 0; i < shader_count; i++) {
+      if (!vk_shaders[i])
+         continue;
+
+      const struct anv_shader *shader =
+         container_of(vk_shaders[i], struct anv_shader, vk);
+
+      switch (shader->vk.stage) {
+      case MESA_SHADER_RAYGEN:
+      case MESA_SHADER_CALLABLE:
+      case MESA_SHADER_MISS:
+         replay_data->general = shader->replay_kernel.offset;
+         break;
+
+      case MESA_SHADER_ANY_HIT:
+         replay_data->any_hit = shader->replay_kernel.offset;
+         break;
+
+      case MESA_SHADER_CLOSEST_HIT:
+         replay_data->closest_hit = shader->replay_kernel.offset;
+         break;
+
+      case MESA_SHADER_INTERSECTION:
+         replay_data->intersection = shader->replay_kernel.offset;
+         break;
+
+      default:
+         UNREACHABLE("invalid stage");
+      }
+   }
+}
+
+void
+anv_replay_rt_shader_group(struct vk_device *vk_device,
+                           VkRayTracingShaderGroupTypeKHR type,
+                           uint32_t shader_count,
+                           struct vk_shader **vk_shaders,
+                           const void *replay_data)
+{
+   struct anv_device *device = container_of(vk_device, struct anv_device, vk);
+   const struct anv_shader_group_rt_replay *data = replay_data;
+
+   for (uint32_t i = 0; i < shader_count; i++) {
+      struct anv_shader *shader =
+         container_of(vk_shaders[i], struct anv_shader, vk);
+
+      uint64_t offset = 0;
+      if (data != NULL) {
+         switch (shader->vk.stage) {
+         case MESA_SHADER_RAYGEN:
+         case MESA_SHADER_CALLABLE:
+         case MESA_SHADER_MISS:
+            offset = data->general;
+            break;
+
+         case MESA_SHADER_ANY_HIT:
+            offset = data->any_hit;
+            break;
+
+         case MESA_SHADER_CLOSEST_HIT:
+            offset = data->closest_hit;
+            break;
+
+         case MESA_SHADER_INTERSECTION:
+            offset = data->intersection;
+            break;
+
+         default:
+            UNREACHABLE("invalid stage");
+         }
+      }
+
+      switch (type) {
+      case VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR:
+      case VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR:
+         break;
+
+      case VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR:
+         /* Anyhit is merged into intersection */
+         if (shader->vk.stage == MESA_SHADER_ANY_HIT)
+            continue;
+         break;
+
+      default:
+         UNREACHABLE("invalid group");
+      }
+
+      simple_mtx_lock(&shader->replay_mutex);
+
+      if (shader->replay_kernel.alloc_size == 0) {
+         shader->replay_kernel = anv_shader_heap_alloc(
+            &device->shader_heap,
+            shader->prog_data->program_size,
+            64, true, offset);
+         assert(shader->replay_kernel.alloc_size != 0);
+
+         /* TODO: make a copy of the code to leave it untouched */
+         VkResult result =
+            anv_shader_reloc(device, shader->code, shader, &vk_device->alloc);
+         assert(result == VK_SUCCESS);
+
+         anv_shader_heap_upload(&device->shader_heap,
+                                shader->replay_kernel, shader->code,
+                                shader->prog_data->program_size);
+      }
+
+      simple_mtx_unlock(&shader->replay_mutex);
+   }
 }
