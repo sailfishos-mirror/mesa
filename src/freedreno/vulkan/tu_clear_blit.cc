@@ -4481,7 +4481,7 @@ tu_clear_gmem_attachments(struct tu_cmd_buffer *cmd,
 
       const VkRect2D *fdm_rect = NULL;
       if (cmd->state.fdm_enabled) {
-         if (!subpass->multiview_mask) {
+         if (!subpass->multiview_mask && !cmd->state.fdm_per_layer) {
             struct apply_gmem_clear_coords_state state = {
                .view = 0,
                .rect = rects[i].rect,
@@ -4602,7 +4602,7 @@ tu7_clear_attachment_generic_single_rect(
    if (cmd->state.fdm_enabled) {
       tu_cs_set_writeable(cs, true);
 
-      if (!subpass->multiview_mask) {
+      if (!subpass->multiview_mask && !cmd->state.fdm_per_layer) {
             struct apply_gmem_clear_coords_state state = {
                .view = 0,
                .rect = rect->rect,
@@ -4631,7 +4631,8 @@ tu7_clear_attachment_generic_single_rect(
       uint32_t mask =
          aspect_write_mask_generic_clear(format, clear_att->aspectMask);
 
-      if (cmd->state.fdm_enabled && subpass->multiview_mask) {
+      if (cmd->state.fdm_enabled && (subpass->multiview_mask ||
+                                     cmd->state.fdm_per_layer)) {
             struct apply_gmem_clear_coords_state state = {
                .view = layer,
                .rect = rect->rect,
