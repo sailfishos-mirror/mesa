@@ -174,11 +174,48 @@ panvk_bind_queue_submit_flush(struct panvk_bind_queue_submit *submit)
    return ret;
 }
 
+static bool
+panvk_try_merge_vm_bind_ops(struct drm_panthor_vm_bind_op *a,
+                            const struct drm_panthor_vm_bind_op *b)
+{
+   if (a->flags != b->flags)
+      return false;
+
+   /* See panvk_bind_queue_submit_vm_bind */
+   assert(b->syncs.count == 0);
+
+   enum drm_panthor_vm_bind_op_flags op_type = a->flags & DRM_PANTHOR_VM_BIND_OP_TYPE_MASK;
+   if (op_type != DRM_PANTHOR_VM_BIND_OP_TYPE_MAP &&
+       op_type != DRM_PANTHOR_VM_BIND_OP_TYPE_UNMAP)
+      return false;
+
+   if (a->va + a->size != b->va)
+      return false;
+
+   if (op_type == DRM_PANTHOR_VM_BIND_OP_TYPE_MAP &&
+       (a->bo_handle != b->bo_handle ||
+        a->bo_offset + a->size != b->bo_offset))
+      return false;
+
+   a->size += b->size;
+   return true;
+}
+
 static int
 panvk_bind_queue_submit_vm_bind(
    struct panvk_bind_queue_submit *submit,
    const struct drm_panthor_vm_bind_op *op)
 {
+   /* We handle all of the syncs here and in
+    * panvk_bind_queue_submit_process_signals */
+   assert(op->syncs.count == 0);
+
+   if (submit->bind_op_count > 0) {
+      struct drm_panthor_vm_bind_op *prev = &submit->bind_ops[submit->bind_op_count - 1];
+      if (panvk_try_merge_vm_bind_ops(prev, op))
+         return 0;
+   }
+
    if (submit->bind_op_count == submit->bind_op_cap) {
       int ret = panvk_bind_queue_submit_flush(submit);
       if (ret)
@@ -186,7 +223,6 @@ panvk_bind_queue_submit_vm_bind(
    }
 
    struct drm_panthor_vm_bind_op tmp = *op;
-   assert(!tmp.syncs.array);
    if (submit->sync_ops.wait_count > 0) {
       tmp.syncs = (struct drm_panthor_obj_array)DRM_PANTHOR_OBJ_ARRAY(
          submit->sync_ops.wait_count, submit->sync_ops.waits);
