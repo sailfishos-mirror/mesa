@@ -1273,9 +1273,9 @@ emit_image(struct ntv_context *ctx, struct nir_variable *var, SpvId image_type)
       return 0;
    const struct glsl_type *type = glsl_without_array(var->type);
 
-   bool is_sampler = glsl_type_is_sampler(type);
+   bool is_sampler = glsl_type_is_sampler(type) || glsl_type_is_texture(type);
    bool is_buffer = glsl_get_sampler_dim(type) == GLSL_SAMPLER_DIM_BUF;
-   SpvId var_type = is_sampler && ctx->stage != MESA_SHADER_KERNEL && !is_buffer ?
+   SpvId var_type = is_sampler && ctx->stage != MESA_SHADER_KERNEL && !is_buffer && !glsl_type_is_texture(type) ?
       spirv_builder_type_sampled_image(&ctx->builder, image_type) : image_type;
 
    bool mediump = (var->data.precision == GLSL_PRECISION_MEDIUM || var->data.precision == GLSL_PRECISION_LOW);
@@ -2313,7 +2313,7 @@ emit_load_deref(struct ntv_context *ctx, nir_intrinsic_instr *intr)
       nir_variable *var = nir_deref_instr_get_variable(deref);
       const struct glsl_type *gtype = glsl_without_array(var->type);
       type = get_image_type(ctx, var,
-                            glsl_type_is_sampler(gtype),
+                            glsl_type_is_sampler(gtype) || glsl_type_is_texture(gtype),
                             glsl_get_sampler_dim(gtype) == GLSL_SAMPLER_DIM_BUF);
       atype = nir_get_nir_type_for_glsl_base_type(glsl_get_sampler_result_type(gtype));
    } else {
@@ -4092,9 +4092,9 @@ get_tex_srcs(struct ntv_context *ctx, nir_tex_instr *tex,
 
 static SpvId
 get_texture_load(struct ntv_context *ctx, SpvId sampler_id, nir_tex_instr *tex,
-                 SpvId cl_sampler, SpvId image_type, SpvId sampled_type)
+                 SpvId cl_sampler, SpvId image_type, SpvId sampled_type, nir_variable *var)
 {
-   if (ctx->stage == MESA_SHADER_KERNEL) {
+   if (ctx->stage == MESA_SHADER_KERNEL || glsl_type_is_texture(glsl_without_array(var->type))) {
       SpvId image_load = spirv_builder_emit_load(&ctx->builder, image_type, sampler_id, false);
       if (nir_tex_instr_need_sampler(tex)) {
          SpvId sampler_load = spirv_builder_emit_load(&ctx->builder, spirv_builder_type_sampler(&ctx->builder),
@@ -4159,9 +4159,9 @@ move_tex_proj_to_coord(struct ntv_context *ctx, unsigned coord_components, struc
 }
 
 static SpvId
-get_tex_image_to_load( struct ntv_context *ctx, SpvId image_type, bool is_buffer, SpvId load)
+get_tex_image_to_load(struct ntv_context *ctx, SpvId image_type, bool is_buffer, SpvId load, nir_variable *var)
 {
-   return is_buffer || ctx->stage == MESA_SHADER_KERNEL ?
+   return is_buffer || ctx->stage == MESA_SHADER_KERNEL || glsl_type_is_texture(glsl_without_array(var->type)) ?
               load :
               spirv_builder_emit_image(&ctx->builder, image_type, load);
 }
@@ -4181,7 +4181,7 @@ emit_tex_readop(struct ntv_context *ctx, nir_variable *bindless_var, SpvId load,
    if (tex->op == nir_texop_txf ||
        tex->op == nir_texop_txf_ms ||
        tex->op == nir_texop_tg4) {
-      SpvId image = get_tex_image_to_load(ctx, image_type, is_buffer, load);
+      SpvId image = get_tex_image_to_load(ctx, image_type, is_buffer, load, var);
 
       if (tex->op == nir_texop_tg4) {
          if (tex_src->const_offset)
@@ -4260,7 +4260,7 @@ emit_tex(struct ntv_context *ctx, nir_tex_instr *tex)
       sampler_id = spirv_builder_emit_access_chain(&ctx->builder, ptr, sampler_id, &tex_src.tex_offset, 1);
    }
 
-   SpvId load = get_texture_load(ctx, sampler_id, tex, tex_src.cl_sampler, image_type, sampled_type);
+   SpvId load = get_texture_load(ctx, sampler_id, tex, tex_src.cl_sampler, image_type, sampled_type, var);
 
    if (tex->is_sparse)
       tex->def.num_components--;
@@ -4282,7 +4282,7 @@ emit_tex(struct ntv_context *ctx, nir_tex_instr *tex)
 
    switch (tex->op) {
    case nir_texop_txs: {
-      SpvId image = get_tex_image_to_load(ctx, image_type, is_buffer, load);
+      SpvId image = get_tex_image_to_load(ctx, image_type, is_buffer, load, var);
       /* Its Dim operand must be one of 1D, 2D, 3D, or Cube
        * - OpImageQuerySizeLod specification
        *
@@ -4300,13 +4300,13 @@ emit_tex(struct ntv_context *ctx, nir_tex_instr *tex)
       break;
    }
    case nir_texop_query_levels: {
-      SpvId image = get_tex_image_to_load(ctx, image_type, is_buffer, load);
+      SpvId image = get_tex_image_to_load(ctx, image_type, is_buffer, load, var);
       result = spirv_builder_emit_image_query_levels(&ctx->builder,
                                                      dest_type, image);
       break;
    }
    case nir_texop_texture_samples: {
-      SpvId image = get_tex_image_to_load(ctx, image_type, is_buffer, load);
+      SpvId image = get_tex_image_to_load(ctx, image_type, is_buffer, load, var);
       result = spirv_builder_emit_unop(&ctx->builder, SpvOpImageQuerySamples,
                                        dest_type, image);
       break;
@@ -5019,7 +5019,7 @@ nir_to_spirv(struct nir_shader *s, const struct ntv_info *sinfo)
       const struct glsl_type *type = glsl_without_array(var->type);
       if (glsl_type_is_bare_sampler(type))
          emit_sampler(&ctx, var);
-      else if (glsl_type_is_sampler(type))
+      else if (glsl_type_is_sampler(type) || glsl_type_is_texture(type))
          emit_image(&ctx, var, get_bare_image_type(&ctx, var, true));
       else if (glsl_type_is_image(type))
          emit_image(&ctx, var, get_bare_image_type(&ctx, var, false));
