@@ -279,10 +279,10 @@ lower_alu_instr_width(nir_builder *b, nir_instr *instr, void *_data)
       if (!b->shader->options->lower_unpack_half_2x16)
          return NULL;
 
-      nir_def *packed = nir_ssa_for_alu_src(b, alu, 0);
+      nir_def *unpacked = nir_unpack_32_2x16(b, nir_ssa_for_alu_src(b, alu, 0));
       return nir_vec2(b,
-                      nir_unpack_half_2x16_split_x(b, packed),
-                      nir_unpack_half_2x16_split_y(b, packed));
+                      nir_f2f32(b, nir_channel(b, unpacked, 0)),
+                      nir_f2f32(b, nir_channel(b, unpacked, 1)));
    }
 
    case nir_op_pack_uvec2_to_uint: {
