@@ -1854,7 +1854,10 @@ optimizations.extend([
    (('flog2(contract)', ('frsq', a)), ('fmul', -0.5, ('flog2', a))),
    (('flog2(contract)', ('fpow', a, b)), ('fmul', b, ('flog2', a))),
    (('~fmul', ('fexp2(is_used_once)', a), ('fexp2(is_used_once)', b)), ('fexp2', ('fadd', a, b))),
-   (('bcsel', ('flt', a, 0.0), 0.0, ('fsqrt', a)), ('fsqrt', ('fmax', a, 0.0)), 'true', TestStatus.XFAIL), # XFAIL is that bcsel(flt(NaN, 0), 0, fsqrt(NaN)) produces 0.0 instead of NaN.
+   (('bcsel', ('flt', a, 0.0), 0.0, ('fsqrt(nnan,nsz)', a)), ('fsqrt', ('fmax', a, 0.0))),
+   (('bcsel', ('fge', 0.0, a), 0.0, ('fsqrt(nnan)', a)), ('fsqrt', ('fmax', a, 0.0))),
+   (('bcsel', ('flt', 0.0, a), ('fsqrt', a), 0.0), ('fsqrt', ('fmax', a, 0.0))),
+   (('bcsel', ('fge', a, 0.0), ('fsqrt(nsz)', a), 0.0), ('fsqrt', ('fmax', a, 0.0))),
    (('fmul(contract)', ('fsqrt', a), ('fsqrt', a)), ('fabs',a)),
    (('fmulz(contract)', ('fsqrt', a), ('fsqrt', a)), ('fabs', a)),
    # Division and reciprocal
