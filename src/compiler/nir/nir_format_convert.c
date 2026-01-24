@@ -403,7 +403,7 @@ nir_format_unpack_11f11f10f(nir_builder *b, nir_def *packed)
    chans[2] = nir_mask_shift(b, packed, 0xffc00000, -17);
 
    for (unsigned i = 0; i < 3; i++)
-      chans[i] = nir_unpack_half_2x16_split_x(b, chans[i]);
+      chans[i] = nir_f2f32(b, nir_u2u16(b, chans[i]));
 
    return nir_vec(b, chans, 3);
 }
@@ -608,7 +608,7 @@ nir_format_unpack_rgba(nir_builder *b, nir_def *packed,
       case UTIL_FORMAT_TYPE_FLOAT:
          switch (chan->size) {
          case 16:
-            comps[c] = nir_unpack_half_2x16_split_x(b, raw);
+            comps[c] = nir_f2f32(b, nir_u2u16(b, raw));
             break;
 
          case 32:
