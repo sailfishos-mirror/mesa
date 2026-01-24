@@ -1874,7 +1874,7 @@
         "description": "nvk: Ignore meta ops in occlusion queries",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "052bbd65c9a48b2dba363058c7c289f24a1ad265",
         "notes": null
