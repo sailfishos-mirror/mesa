@@ -109,7 +109,7 @@ convert_color_for_load(nir_builder *b, const struct intel_device_info *devinfo,
 
    case ISL_SFLOAT:
       if (image.bits[0] == 16)
-         color = nir_unpack_half_2x16_split_x(b, color);
+         color = nir_f2f32(b, nir_u2u16(b, color));
       break;
 
    case ISL_UINT:
