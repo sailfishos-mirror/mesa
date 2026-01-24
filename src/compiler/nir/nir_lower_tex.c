@@ -1180,33 +1180,15 @@ lower_tex_packing(nir_builder *b, nir_tex_instr *tex,
       static const unsigned bits[4] = { 16, 16, 16, 16 };
 
       switch (nir_alu_type_get_base_type(tex->dest_type)) {
-      case nir_type_float:
-         switch (nir_tex_instr_dest_size(tex)) {
-         case 1:
-            assert(tex->is_shadow && tex->is_new_style_shadow);
-            color = nir_unpack_half_2x16_split_x(b, nir_channel(b, color, 0));
-            break;
-         case 2: {
-            nir_def *rg = nir_channel(b, color, 0);
-            color = nir_vec2(b,
-                             nir_unpack_half_2x16_split_x(b, rg),
-                             nir_unpack_half_2x16_split_y(b, rg));
-            break;
-         }
-         case 4: {
-            nir_def *rg = nir_channel(b, color, 0);
-            nir_def *ba = nir_channel(b, color, 1);
-            color = nir_vec4(b,
-                             nir_unpack_half_2x16_split_x(b, rg),
-                             nir_unpack_half_2x16_split_y(b, rg),
-                             nir_unpack_half_2x16_split_x(b, ba),
-                             nir_unpack_half_2x16_split_y(b, ba));
-            break;
-         }
-         default:
-            UNREACHABLE("wrong dest_size");
-         }
+      case nir_type_float: {
+         unsigned num_comp = nir_tex_instr_dest_size(tex);
+
+         assert(num_comp != 1 || (tex->is_shadow && tex->is_new_style_shadow));
+
+         color = nir_extract_bits(b, &color, 1, 0, num_comp, 16);
+         color = nir_f2f32(b, color);
          break;
+      }
 
       case nir_type_int:
          color = nir_format_unpack_sint(b, color, bits, 4);
