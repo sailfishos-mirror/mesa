@@ -462,10 +462,6 @@ alu_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr)
    case nir_op_f2f32:
       alu_funclike(ctx, instr, msl_type_for_def(ctx->types, &instr->def));
       break;
-   case nir_op_unpack_half_2x16_split_x:
-      P(ctx, "float(as_type<half>(ushort(t%d & 0x0000ffff)))",
-        instr->src[0].src.ssa->index);
-      break;
    case nir_op_frcp:
       P(ctx, "1/");
       alu_src_to_msl(ctx, instr, 0);
