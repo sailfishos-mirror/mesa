@@ -5263,16 +5263,9 @@ vtn_handle_preamble_instruction(struct vtn_builder *b, SpvOp opcode,
       vtn_handle_debug_text(b, opcode, w, count);
       break;
 
-   case SpvOpExtension: {
-      /* Implementing both NV_mesh_shader and EXT_mesh_shader
-       * is difficult without knowing which we're dealing with.
-       * TODO: remove this when we stop supporting NV_mesh_shader.
-       */
-      const char *ext_name = (const char *)&w[1];
-      if (strcmp(ext_name, "SPV_NV_mesh_shader") == 0)
-         b->shader->info.mesh.nv = true;
+   case SpvOpExtension:
+      /* Nothing to do. */
       break;
-   }
 
    case SpvOpCapability: {
       SpvCapability cap = w[1];
@@ -7428,6 +7421,12 @@ spirv_to_nir(const uint32_t *words, size_t word_count,
                                    (dxsc && !b->enabled_capabilities.DemoteToHelperInvocation) ||
                                    (is_glslang(b) && b->source_lang == SpvSourceLanguageHLSL)) &&
                                   b->supported_capabilities.DemoteToHelperInvocation;
+
+   /* Implementing both NV_mesh_shader and EXT_mesh_shader
+    * is difficult without knowing which we're dealing with.
+    * TODO: remove this when we stop supporting NV_mesh_shader.
+    */
+   b->shader->info.mesh.nv = b->enabled_capabilities.MeshShadingNV;
 
    if (!options->create_library && b->entry_point == NULL) {
       vtn_fail("Entry point not found for %s shader \"%s\"",
