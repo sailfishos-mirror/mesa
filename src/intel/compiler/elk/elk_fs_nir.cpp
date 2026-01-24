@@ -1553,14 +1553,6 @@ fs_nir_emit_alu(nir_to_elk_state &ntb, nir_alu_instr *instr,
    case nir_op_pack_half_2x16:
       UNREACHABLE("not reached: should be handled by lower_packing_builtins");
 
-   case nir_op_unpack_half_2x16_split_x:
-      inst = bld.F16TO32(result, subscript(op[0], ELK_REGISTER_TYPE_HF, 0));
-      break;
-
-   case nir_op_unpack_half_2x16_split_y:
-      inst = bld.F16TO32(result, subscript(op[0], ELK_REGISTER_TYPE_HF, 1));
-      break;
-
    case nir_op_pack_64_2x32_split:
    case nir_op_pack_32_2x16_split:
       bld.emit(ELK_FS_OPCODE_PACK, result, op[0], op[1]);

@@ -1467,8 +1467,6 @@ vec4_visitor::nir_emit_alu(nir_alu_instr *instr)
       }
       break;
 
-   case nir_op_unpack_half_2x16_split_x:
-   case nir_op_unpack_half_2x16_split_y:
    case nir_op_pack_half_2x16_split:
       UNREACHABLE("not reached: should not occur in vertex shader");
 
