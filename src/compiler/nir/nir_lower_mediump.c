@@ -521,9 +521,7 @@ can_opt_16bit_src(nir_def *ssa, nir_alu_type src_type, bool sext_matters)
          nir_alu_instr *alu = nir_def_as_alu(comp.def);
          bool is_16bit = alu->src[0].src.ssa->bit_size == 16;
 
-         if ((alu->op == nir_op_f2f32 && is_16bit) ||
-             alu->op == nir_op_unpack_half_2x16_split_x ||
-             alu->op == nir_op_unpack_half_2x16_split_y)
+         if (alu->op == nir_op_f2f32 && is_16bit)
             can_opt &= opt_f16;
          else if (alu->op == nir_op_i2i32 && is_16bit)
             can_opt &= opt_i16 || opt_i16_u16;
@@ -560,23 +558,6 @@ opt_16bit_src(nir_builder *b, nir_instr *instr, nir_src *src, nir_alu_type src_t
       } else {
          /* conversion instruction */
          new_comps[i] = nir_scalar_chase_alu_src(comp, 0);
-         if (new_comps[i].def->bit_size != 16) {
-            assert(new_comps[i].def->bit_size == 32);
-
-            nir_def *extract = nir_mov_scalar(b, new_comps[i]);
-            switch (nir_scalar_alu_op(comp)) {
-            case nir_op_unpack_half_2x16_split_x:
-               extract = nir_unpack_32_2x16_split_x(b, extract);
-               break;
-            case nir_op_unpack_half_2x16_split_y:
-               extract = nir_unpack_32_2x16_split_y(b, extract);
-               break;
-            default:
-               UNREACHABLE("unsupported alu op");
-            }
-
-            new_comps[i] = nir_get_scalar(extract, 0);
-         }
       }
    }
 
