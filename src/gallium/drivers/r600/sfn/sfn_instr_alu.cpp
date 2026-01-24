@@ -1788,6 +1788,12 @@ AluInstr::from_nir(nir_alu_instr *alu, Shader& shader)
       return emit_alu_b2x(*alu, ALU_SRC_1, shader);
    case nir_op_b2i32:
       return emit_alu_b2x(*alu, ALU_SRC_1_INT, shader);
+   case nir_op_u2u16:
+      assert(alu->src[0].src.ssa->bit_size == 32);
+      return emit_alu_op1(*alu, op1_mov, shader);
+   case nir_op_f2f32:
+      assert(alu->src[0].src.ssa->bit_size == 16);
+      return emit_alu_op1(*alu, op1_flt16_to_flt32, shader);
 
    case nir_op_bfm:
       return emit_alu_op2_int(*alu, op2_bfm_int, shader, op2_opt_none);
