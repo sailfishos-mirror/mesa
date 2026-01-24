@@ -2718,15 +2718,8 @@ emit_b2f64(struct ntd_context *ctx, nir_alu_instr *alu, const struct dxil_value 
 }
 
 static bool
-emit_f16tof32(struct ntd_context *ctx, nir_alu_instr *alu, const struct dxil_value *val, bool shift)
+emit_f16tof32(struct ntd_context *ctx, nir_alu_instr *alu, const struct dxil_value *val)
 {
-   if (shift) {
-      val = dxil_emit_binop(&ctx->mod, DXIL_BINOP_LSHR, val,
-         dxil_module_get_int32_const(&ctx->mod, 16), 0);
-      if (!val)
-         return false;
-   }
-
    const struct dxil_func *func = dxil_get_function(&ctx->mod,
                                                     "dx.op.legacyF16ToF32",
                                                     DXIL_NONE);
@@ -3015,8 +3008,7 @@ emit_alu(struct ntd_context *ctx, nir_alu_instr *alu)
    case nir_op_ubfe: return emit_tertiary_intin(ctx, alu, DXIL_INTR_UBFE, src[2], src[1], src[0]);
    case nir_op_bitfield_insert: return emit_bitfield_insert(ctx, alu, src[0], src[1], src[2], src[3]);
 
-   case nir_op_unpack_half_2x16_split_x: return emit_f16tof32(ctx, alu, src[0], false);
-   case nir_op_unpack_half_2x16_split_y: return emit_f16tof32(ctx, alu, src[0], true);
+   case nir_op_unpack_half_x_dxil: return emit_f16tof32(ctx, alu, src[0]);
    case nir_op_pack_half_2x16_split: return emit_f32tof16(ctx, alu, src[0], src[1]);
 
    case nir_op_sdot_4x8_iadd: return emit_dot4add_packed(ctx, alu, DXIL_INTR_DOT4_ADD_I8_PACKED, src[0], src[1], src[2]);

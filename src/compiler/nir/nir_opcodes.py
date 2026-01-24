@@ -1702,6 +1702,11 @@ unop_horiz("pack_double_2x32_dxil", 1, tuint64, 2, tuint32,
 unop_horiz("unpack_double_2x32_dxil", 2, tuint32, 1, tuint64,
            "dst.x = src0.x; dst.y = src0.x >> 32;")
 
+# DXIL has to support targets without native 16bit support,
+# so it needs a special f2f32 opcode that uses the low half of 32bit value.
+unop_convert("unpack_half_x_dxil", tfloat32, tuint32,
+             "unpack_half_1x16((uint16_t)(src0 & 0xffff), nir_is_denorm_flush_to_zero(execution_mode, 16))")
+
 # src0 and src1 are i8vec4 packed in an int32, and src2 is an int32.  The int8
 # components are sign-extended to 32-bits, and a dot-product is performed on
 # the resulting vectors.  src2 is added to the result of the dot-product.
