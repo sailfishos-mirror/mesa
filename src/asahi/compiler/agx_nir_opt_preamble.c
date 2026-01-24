@@ -196,8 +196,6 @@ alu_cost(nir_alu_instr *alu)
    case nir_op_fneg:
    case nir_op_fabs:
    case nir_op_f2f32:
-   case nir_op_unpack_half_2x16_split_x:
-   case nir_op_unpack_half_2x16_split_y:
       /* Float source modifiers will be propagated */
       return all_uses_float(&alu->def) ? 0.0 : 1.0;
 
