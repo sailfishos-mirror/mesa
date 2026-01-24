@@ -4,6 +4,10 @@
 %option extra-type="struct brw_asm_parser *"
 %option prefix="brw_asm_"
 %{
+/*
+ * Copyright © 2018 Intel Corporation
+ * SPDX-License-Identifier: MIT
+ */
 #include <string.h>
 #include "brw_asm_internal.h"
 #undef ALIGN16
