@@ -3411,15 +3411,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       bi_v2f32_to_v2f16_to(b, dst, s0, s1);
       break;
 
-   case nir_op_unpack_half_2x16_split_x:
-      assert(comps == 1);
-      bi_f16_to_f32_to(b, dst, bi_half(s0, false));
-      break;
-   case nir_op_unpack_half_2x16_split_y:
-      assert(comps == 1);
-      bi_f16_to_f32_to(b, dst, bi_half(s0, true));
-      break;
-
    case nir_op_ishl:
       bi_lshift_or_to(b, sz, dst, s0, bi_zero(), bi_byte(s1, 0));
       break;
