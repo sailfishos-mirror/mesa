@@ -1775,16 +1775,6 @@ ntq_emit_alu(struct v3d_compile *c, nir_alu_instr *instr)
                 result = vir_V8PACK(c, src[0], src[1]);
                 break;
 
-        case nir_op_unpack_half_2x16_split_x:
-                result = vir_FMOV(c, src[0]);
-                vir_set_unpack(c->defs[result.index], 0, V3D_QPU_UNPACK_L);
-                break;
-
-        case nir_op_unpack_half_2x16_split_y:
-                result = vir_FMOV(c, src[0]);
-                vir_set_unpack(c->defs[result.index], 0, V3D_QPU_UNPACK_H);
-                break;
-
         case nir_op_pack_2x16_to_unorm_2x8_v3d:
                 result = vir_VFTOUNORM8(c, src[0]);
                 break;
