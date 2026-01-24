@@ -2276,6 +2276,9 @@ optimizations.extend([
    (('extract_u8', ('pack_32_4x8_split', a, b, c, d), 2), ('u2u', c)),
    (('extract_u8', ('pack_32_4x8_split', a, b, c, d), 3), ('u2u', d)),
 
+   (('unpack_32_2x16', ('extract_u16', a, 0)), ('vec2', ('unpack_32_2x16.x', a), 0)),
+   (('unpack_32_2x16', ('extract_u16', a, 1)), ('vec2', ('unpack_32_2x16.y', a), 0)),
+
    # Reduce intermediate precision with int64.
    (('u2u32', ('iadd(is_used_once)', 'a@64', b)),
     ('iadd', ('u2u32', a), ('u2u32', b))),
