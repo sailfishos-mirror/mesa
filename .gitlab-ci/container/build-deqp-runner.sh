@@ -9,7 +9,7 @@ set -uex
 
 section_start deqp-runner "Building deqp-runner"
 
-DEQP_RUNNER_VERSION=0.21.0
+DEQP_RUNNER_VERSION=0.23.2
 
 commits_to_backport=(
 )
