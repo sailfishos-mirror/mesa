@@ -1467,14 +1467,6 @@ brw_from_nir_emit_alu(nir_to_brw_state &ntb, nir_alu_instr *instr,
    case nir_op_pack_half_2x16:
       UNREACHABLE("not reached: should be handled by lower_packing_builtins");
 
-   case nir_op_unpack_half_2x16_split_x:
-      bld.MOV(result, subscript(op[0], BRW_TYPE_HF, 0));
-      break;
-
-   case nir_op_unpack_half_2x16_split_y:
-      bld.MOV(result, subscript(op[0], BRW_TYPE_HF, 1));
-      break;
-
    case nir_op_pack_64_2x32_split:
    case nir_op_pack_32_2x16_split:
       bld.emit(FS_OPCODE_PACK, result, op[0], op[1]);
