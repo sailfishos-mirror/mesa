@@ -3641,11 +3641,22 @@ struct ac_llvm_pointer ac_build_main(const struct ac_shader_args *args, struct a
       .pointee_type = main_function_type
    };
 
-   /* Enable denormals for FP16 and FP64: */
-   LLVMAddTargetDependentFunctionAttr(main_function, "denormal-fp-math", "ieee,ieee");
-   /* Disable denormals for FP32: */
+   /* Enable denormals for FP16 and FP64, disable denormals for FP32 */
+#if LLVM_VERSION_MAJOR >= 23
+   LLVMAttributeRef fpenv_attr = LLVMCreateDenormalFPEnvAttribute(ctx,
+                                    LLVMDenormalModeKindIEEE,
+                                    LLVMDenormalModeKindIEEE,
+                                    LLVMDenormalModeKindPreserveSign,
+                                    LLVMDenormalModeKindPreserveSign);
+
+   LLVMAddAttributeAtIndex(main_function, LLVMAttributeFunctionIndex,
+                           fpenv_attr);
+#else
+   LLVMAddTargetDependentFunctionAttr(main_function, "denormal-fp-math",
+                                      "ieee,ieee");
    LLVMAddTargetDependentFunctionAttr(main_function, "denormal-fp-math-f32",
                                       "preserve-sign,preserve-sign");
+#endif
 
    if (convention == AC_LLVM_AMDGPU_PS) {
       LLVMAddTargetDependentFunctionAttr(main_function, "amdgpu-depth-export",
