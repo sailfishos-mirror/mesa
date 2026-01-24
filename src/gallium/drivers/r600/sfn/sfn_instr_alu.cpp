@@ -1561,11 +1561,6 @@ static bool
 emit_alu_vec2_64(const nir_alu_instr& alu, Shader& shader);
 
 static bool
-emit_unpack_32_2x16_split_x(const nir_alu_instr& alu, Shader& shader);
-static bool
-emit_unpack_32_2x16_split_y(const nir_alu_instr& alu, Shader& shader);
-
-static bool
 emit_dot(const nir_alu_instr& alu, int nelm, Shader& shader);
 static bool
 emit_dot4(const nir_alu_instr& alu, int nelm, Shader& shader);
@@ -1960,10 +1955,6 @@ AluInstr::from_nir(nir_alu_instr *alu, Shader& shader)
       return emit_unpack_64_2x32_split(*alu, 0, shader);
    case nir_op_unpack_64_2x32_split_y:
       return emit_unpack_64_2x32_split(*alu, 1, shader);
-   case nir_op_unpack_half_2x16_split_x:
-      return emit_unpack_32_2x16_split_x(*alu, shader);
-   case nir_op_unpack_half_2x16_split_y:
-      return emit_unpack_32_2x16_split_y(*alu, shader);
 
    case nir_op_ffma:
       if (!shader.has_flag(Shader::sh_legacy_math_rules))
@@ -2702,34 +2693,6 @@ emit_unpack_64_2x32_split(const nir_alu_instr& alu, int comp, Shader& shader)
    shader.emit_instruction(new AluInstr(op1_mov,
                                         value_factory.dest(alu.def, 0, pin_free),
                                         value_factory.src64(alu.src[0], 0, comp),
-                                        AluInstr::write));
-   return true;
-}
-
-static bool
-emit_unpack_32_2x16_split_x(const nir_alu_instr& alu, Shader& shader)
-{
-   auto& value_factory = shader.value_factory();
-   shader.emit_instruction(new AluInstr(op1_flt16_to_flt32,
-                                        value_factory.dest(alu.def, 0, pin_free),
-                                        value_factory.src(alu.src[0], 0),
-                                        AluInstr::write));
-   return true;
-}
-static bool
-emit_unpack_32_2x16_split_y(const nir_alu_instr& alu, Shader& shader)
-{
-   auto& value_factory = shader.value_factory();
-   auto tmp = value_factory.temp_register();
-   shader.emit_instruction(new AluInstr(op2_lshr_int,
-                                        tmp,
-                                        value_factory.src(alu.src[0], 0),
-                                        value_factory.literal(16),
-                                        AluInstr::write));
-
-   shader.emit_instruction(new AluInstr(op1_flt16_to_flt32,
-                                        value_factory.dest(alu.def, 0, pin_free),
-                                        tmp,
                                         AluInstr::write));
    return true;
 }
