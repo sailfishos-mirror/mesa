@@ -2802,14 +2802,6 @@ Converter::visit(nir_alu_instr *insn)
       mkOp3(OP_INSBF, TYPE_U32, newDefs[0], tmpH, mkImm(0x1010), tmpL);
       break;
    }
-   case nir_op_unpack_half_2x16_split_x:
-   case nir_op_unpack_half_2x16_split_y: {
-      LValues &newDefs = convert(&insn->def);
-      Instruction *cvt = mkCvt(OP_CVT, TYPE_F32, newDefs[0], TYPE_F16, getSrc(&insn->src[0]));
-      if (op == nir_op_unpack_half_2x16_split_y)
-         cvt->subOp = 1;
-      break;
-   }
    case nir_op_unpack_64_2x32: {
       LValues &newDefs = convert(&insn->def);
       mkOp1(OP_SPLIT, dType, newDefs[0], getSrc(&insn->src[0]))->setDef(1, newDefs[1]);
