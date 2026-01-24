@@ -1,7 +1,6 @@
 glx@glx-make-current,Fail
 glx@glx-multi-window-single-context,Fail
 glx@glx-swap-pixmap-bad,Fail
-glx@glx-visuals-depth,Fail
 glx@glx-visuals-stencil,Fail
 glx@glx_arb_sync_control@waitformsc,Fail
 shaders@point-vertex-id divisor,Fail

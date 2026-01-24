@@ -391,7 +391,6 @@ dEQP-GLES31.functional.atomic_counter.get_branch.8_counters_1_call_10_threads,Fa
 dEQP-GLES31.functional.atomic_counter.get_branch.8_counters_5_calls_1_thread,Fail
 dEQP-GLES31.functional.atomic_counter.get_dec.1_counter_100_calls_1_thread,Fail
 dEQP-GLES31.functional.atomic_counter.get_dec.1_counter_1_call_10_threads,Fail
-dEQP-GLES31.functional.atomic_counter.get_dec.1_counter_1_call_1_thread,Fail
 dEQP-GLES31.functional.atomic_counter.get_dec.1_counter_1_call_5000_threads,Fail
 dEQP-GLES31.functional.atomic_counter.get_dec.1_counter_5_calls_1_thread,Fail
 dEQP-GLES31.functional.atomic_counter.get_dec.4_counters_1_call_10_threads,Fail
@@ -761,8 +760,10 @@ dEQP-GLES31.functional.shaders.builtin_functions.common.frexp.vec3_lowp_compute,
 dEQP-GLES31.functional.shaders.builtin_functions.common.frexp.vec4_mediump_compute,Fail
 dEQP-GLES31.functional.shaders.builtin_functions.common.intbitstofloat.int_highp_compute,Fail
 dEQP-GLES31.functional.shaders.builtin_functions.common.intbitstofloat.ivec3_highp_compute,Fail
+dEQP-GLES31.functional.shaders.builtin_functions.common.isinf.float_mediump_compute,Fail
 dEQP-GLES31.functional.shaders.builtin_functions.common.isinf.vec4_highp_compute,Fail
 dEQP-GLES31.functional.shaders.builtin_functions.common.isnan.float_highp_compute,Fail
+dEQP-GLES31.functional.shaders.builtin_functions.common.isnan.float_mediump_compute,Fail
 dEQP-GLES31.functional.shaders.builtin_functions.common.ldexp.float_highp_compute,Fail
 dEQP-GLES31.functional.shaders.builtin_functions.common.ldexp.float_mediump_compute,Fail
 dEQP-GLES31.functional.shaders.builtin_functions.common.ldexp.vec2_highp_compute,Fail

@@ -87,9 +87,11 @@ for prefix in $({
   cat_if_exists "$prefix" fails
   add_if_exists "--flakes" "$prefix-flakes.txt"
   add_if_exists "--skips" "$prefix-skips.txt"
+  add_if_exists "--single-thread" "$prefix-single-thread.txt"
 done
 
 if [[ $CI_JOB_NAME != *full* ]]; then
+  FILE_ARGS="$FILE_ARGS --skips $INSTALL/all-slow-skips.txt"
   add_if_exists "--skips" "$GPU_VERSION-slow-skips.txt"
 fi
 

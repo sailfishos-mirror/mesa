@@ -1,3 +1,9 @@
+# Appears just beforehand:
+# 19:50:56.843: [   92.880197] panthor 48000000.gpu: [drm] *ERROR* CSG 7 update request timedout
+# 19:50:56.843: [   92.988186] panthor 48000000.gpu: [drm] *ERROR* CSG 7 update request timedout
+# 19:50:56.843: [   92.995306] panthor 48000000.gpu: [drm] *ERROR* CSG suspend failed, escalating to termination
+dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.non_resident_buffer_copy_src_alloc_partial_16777216,Crash
+
 # deqp-vk: ../src/panfrost/vulkan/panvk_image.c:346: panvk_image_get_mod_from_list: Assertion `!"Invalid modifier"' failed.
 dEQP-VK.wsi.wayland.swapchain.create.image_extent,Crash
 

@@ -10,6 +10,7 @@ x11-dEQP-EGL.functional.robustness.reset_context.shaders.infinite_loop.sync_stat
 
 spec@oes_shader_io_blocks@compiler@layout-location-aliasing.vert,Fail
 
+glx@glx-copy-sub-buffer,Fail
 glx@glx-make-current,Fail
 
 glx@glx-multi-window-single-context,Fail

@@ -109,7 +109,6 @@ dEQP-VK.fragment_operations.occlusion_query.precise_test_scissors_depth_write_st
 dEQP-VK.glsl.builtin.function.integer.findlsb.uvec2_highp_geometry
 dEQP-VK.glsl.builtin.function.pack_unpack.unpackunorm4x8_geometry
 dEQP-VK.image.mutable.2d.r8g8b8a8_sint_r16g16_sfloat_clear_load
-dEQP-VK.memory.mapping.suballocation.full.variable.implicit_unmap
 dEQP-VK.memory.pipeline_barrier.transfer_dst_uniform_texel_buffer.65536
 dEQP-VK.memory.pipeline_barrier.transfer_dst_uniform_texel_buffer.8192
 dEQP-VK.rasterization.culling.front_triangle_strip
@@ -150,7 +149,6 @@ program@execute@builtin@builtin-float-pow-1.0.generated
 program@execute@builtin@builtin-float-powr-1.0.generated
 program@execute@builtin@builtin-float-sincos-1.0.generated
 
-dEQP-VK.memory.mapping.dedicated_alloc.buffer.full.variable.implicit_unmap
 dEQP-VK.spirv_assembly.instruction.graphics.spirv_ids_abuse.lots_ids_vert
 
 api@clgetdeviceinfo
