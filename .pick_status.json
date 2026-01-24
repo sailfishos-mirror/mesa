@@ -614,7 +614,7 @@
         "description": "lima/ci: Remove erroneous skips.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e54440d15e922e428454ae64f92d62dd42814728",
         "notes": null
