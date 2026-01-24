@@ -353,21 +353,6 @@ static LLVMValueRef emit_pack_2x16(struct ac_llvm_context *ctx, LLVMValueRef src
    return LLVMBuildBitCast(ctx->builder, pack(ctx, comp), ctx->i32, "");
 }
 
-static LLVMValueRef emit_unpack_half_2x16(struct ac_llvm_context *ctx, LLVMValueRef src0)
-{
-   LLVMValueRef const16 = LLVMConstInt(ctx->i32, 16, false);
-   LLVMValueRef temps[2], val;
-   int i;
-
-   for (i = 0; i < 2; i++) {
-      val = i == 1 ? LLVMBuildLShr(ctx->builder, src0, const16, "") : src0;
-      val = LLVMBuildTrunc(ctx->builder, val, ctx->i16, "");
-      val = LLVMBuildBitCast(ctx->builder, val, ctx->f16, "");
-      temps[i] = LLVMBuildFPExt(ctx->builder, val, ctx->f32, "");
-   }
-   return ac_build_gather_values(ctx, temps, 2);
-}
-
 static LLVMValueRef emit_ddxy(struct ac_nir_context *ctx, nir_intrinsic_op op, LLVMValueRef src0)
 {
    unsigned mask;
@@ -1022,18 +1007,6 @@ static bool visit_alu(struct ac_nir_context *ctx, const nir_alu_instr *instr)
       comp[1] = LLVMBuildExtractElement(ctx->ac.builder, src[0], ctx->ac.i32_1, "");
 
       result = ac_build_cvt_pk_i16(&ctx->ac, comp, 16, false);
-      break;
-   }
-   case nir_op_unpack_half_2x16_split_x: {
-      assert(ac_get_llvm_num_components(src[0]) == 1);
-      LLVMValueRef tmp = emit_unpack_half_2x16(&ctx->ac, src[0]);
-      result = LLVMBuildExtractElement(ctx->ac.builder, tmp, ctx->ac.i32_0, "");
-      break;
-   }
-   case nir_op_unpack_half_2x16_split_y: {
-      assert(ac_get_llvm_num_components(src[0]) == 1);
-      LLVMValueRef tmp = emit_unpack_half_2x16(&ctx->ac, src[0]);
-      result = LLVMBuildExtractElement(ctx->ac.builder, tmp, ctx->ac.i32_1, "");
       break;
    }
    case nir_op_unpack_64_4x16: {
