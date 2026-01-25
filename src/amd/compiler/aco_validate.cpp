@@ -521,7 +521,7 @@ validate_ir(Program* program)
                   scalar_mask = 0x5;
 
                if (instr->isDPP())
-                  scalar_mask &= 0x4; /* TODO 0x6 for GFX11.5+ */
+                  scalar_mask &= program->gfx_level >= GFX11_5 ? 0x6 : 0x4;
 
                if (instr->isVOPC() || instr->opcode == aco_opcode::v_readfirstlane_b32 ||
                    instr->opcode == aco_opcode::v_readlane_b32 ||
