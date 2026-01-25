@@ -416,6 +416,7 @@ struct v3d_key {
         bool robust_uniform_access;
         bool robust_storage_access;
         bool robust_image_access;
+        bool robust_image_access_2;
 };
 
 struct v3d_fs_key {

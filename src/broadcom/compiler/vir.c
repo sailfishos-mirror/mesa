@@ -1791,7 +1791,7 @@ should_lower_robustness(const nir_intrinsic_instr *intr, const void *data)
         case nir_intrinsic_image_store:
         case nir_intrinsic_image_atomic:
         case nir_intrinsic_image_atomic_swap:
-                return key->robust_image_access;
+                return key->robust_image_access || key->robust_image_access_2;
 
         default:
                 return false;
@@ -1877,7 +1877,7 @@ v3d_attempt_compile(struct v3d_compile *c)
         NIR_PASS(_, c->s, nir_lower_alu);
 
         if (c->key->robust_uniform_access || c->key->robust_storage_access ||
-            c->key->robust_image_access) {
+            c->key->robust_image_access || c->key->robust_image_access_2) {
                 /* nir_lower_robust_access assumes constant buffer
                  * indices on ubo/ssbo intrinsics so run copy propagation and
                  * constant folding passes before we run the lowering to warrant
