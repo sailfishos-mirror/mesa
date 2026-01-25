@@ -4975,21 +4975,27 @@ select_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
          if (op_used_twice)
             continue;
 
+         bool dpp8 = info.parent_instr->isDPP8();
+         bool input_mods = can_use_input_modifiers(ctx.program->gfx_level, instr->opcode, i) &&
+                           get_operand_type(instr, i).bit_size == 32;
+         bool mov_uses_mods = info.parent_instr->valu().neg[0] || info.parent_instr->valu().abs[0];
+         if (((dpp8 && ctx.program->gfx_level < GFX11) || !input_mods) && mov_uses_mods)
+            continue;
+
          if (i != 0) {
             if (!can_swap_operands(instr, &instr->opcode, 0, i))
                continue;
             instr->valu().swapOperands(0, i);
          }
 
-         bool dpp8 = info.parent_instr->isDPP8();
-         if (!can_use_DPP(ctx.program->gfx_level, instr, dpp8))
+         if (!can_use_DPP(ctx.program->gfx_level, instr, dpp8)) {
+            if (i != 0) {
+               ASSERTED bool success = can_swap_operands(instr, &instr->opcode, 0, i);
+               assert(success);
+               instr->valu().swapOperands(0, i);
+            }
             continue;
-
-         bool input_mods = can_use_input_modifiers(ctx.program->gfx_level, instr->opcode, 0) &&
-                           get_operand_type(instr, 0).bit_size == 32;
-         bool mov_uses_mods = info.parent_instr->valu().neg[0] || info.parent_instr->valu().abs[0];
-         if (((dpp8 && ctx.program->gfx_level < GFX11) || !input_mods) && mov_uses_mods)
-            continue;
+         }
 
          convert_to_DPP(ctx.program->gfx_level, instr, dpp8);
 

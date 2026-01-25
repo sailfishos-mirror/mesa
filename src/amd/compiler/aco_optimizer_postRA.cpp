@@ -649,8 +649,14 @@ try_combine_dpp(pr_opt_ctx& ctx, aco_ptr<Instruction>& instr)
          instr->valu().swapOperands(0, i);
       }
 
-      if (!can_use_DPP(ctx.program->gfx_level, instr, dpp8))
+      if (!can_use_DPP(ctx.program->gfx_level, instr, dpp8)) {
+         if (i != 0) {
+            ASSERTED bool success = can_swap_operands(instr, &instr->opcode, 0, i);
+            assert(success);
+            instr->valu().swapOperands(0, i);
+         }
          continue;
+      }
 
       if (!dpp8) /* anything else doesn't make sense in SSA */
          assert(mov->dpp16().row_mask == 0xf && mov->dpp16().bank_mask == 0xf);
