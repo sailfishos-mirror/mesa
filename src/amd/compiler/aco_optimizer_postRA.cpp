@@ -643,9 +643,14 @@ try_combine_dpp(pr_opt_ctx& ctx, aco_ptr<Instruction>& instr)
       if (((dpp8 && ctx.program->gfx_level < GFX11) || !input_mods) && mov_uses_mods)
          continue;
 
+      Format old_format = instr->format;
       if (i != 0) {
-         if (!can_swap_operands(instr, &instr->opcode, 0, i))
+         if (!instr->operands[0].isOfType(RegType::vgpr) && !instr->isVOP3P())
+            instr->format = asVOP3(instr->format);
+         if (!can_swap_operands(instr, &instr->opcode, 0, i)) {
+            instr->format = old_format;
             continue;
+         }
          instr->valu().swapOperands(0, i);
       }
 
@@ -654,6 +659,7 @@ try_combine_dpp(pr_opt_ctx& ctx, aco_ptr<Instruction>& instr)
             ASSERTED bool success = can_swap_operands(instr, &instr->opcode, 0, i);
             assert(success);
             instr->valu().swapOperands(0, i);
+            instr->format = old_format;
          }
          continue;
       }

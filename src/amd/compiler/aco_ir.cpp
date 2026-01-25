@@ -484,7 +484,8 @@ can_use_DPP(amd_gfx_level gfx_level, const aco_ptr<Instruction>& instr, bool dpp
    for (unsigned i = 0; i < instr->operands.size(); i++) {
       if (instr->operands[i].isLiteral())
          return false;
-      if (!instr->operands[i].isOfType(RegType::vgpr) && i < 2)
+      if (!instr->operands[i].isOfType(RegType::vgpr) &&
+          (i == 0 || (i == 1 && gfx_level < GFX11_5)))
          return false;
    }
 
@@ -554,6 +555,9 @@ convert_to_DPP(amd_gfx_level gfx_level, aco_ptr<Instruction>& instr, bool dpp8)
    /* addc/subb/cndmask 3rd operand needs VCC without VOP3. */
    remove_vop3 &= instr->operands.size() < 3 || !instr->operands[2].isFixed() ||
                   instr->operands[2].isOfType(RegType::vgpr) || instr->operands[2].physReg() == vcc;
+
+   /* scalar src1 needs VOP3. */
+   remove_vop3 &= instr->operands.size() < 2 || instr->operands[1].isOfType(RegType::vgpr);
 
    if (remove_vop3)
       instr->format = withoutVOP3(instr->format);
