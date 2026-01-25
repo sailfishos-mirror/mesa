@@ -4959,79 +4959,81 @@ select_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
    }
 
    /* Combine DPP copies into VALU. This should be done after creating MAD/FMA. */
-   if (instr->isVALU() && !instr->isDPP()) {
-      for (unsigned i = 0; i < instr->operands.size(); i++) {
-         if (!instr->operands[i].isTemp())
-            continue;
-         ssa_info info = ctx.info[instr->operands[i].tempId()];
+   if (instr->isVALU() && std::any_of(instr->operands.begin(), instr->operands.end(),
+                                      [&](const Operand& op)
+                                      {
+                                         if (!op.isTemp())
+                                            return false;
+                                         Instruction* parent = ctx.info[op.tempId()].parent_instr;
+                                         return parent->isDPP() &&
+                                                parent->opcode == aco_opcode::v_mov_b32 &&
+                                                parent->pass_flags == instr->pass_flags;
+                                      })) {
 
-         if (!info.parent_instr->isDPP() || info.parent_instr->opcode != aco_opcode::v_mov_b32 ||
-             info.parent_instr->pass_flags != instr->pass_flags)
+      alu_opt_info input_info;
+      if (!alu_opt_gather_info(ctx, instr.get(), input_info))
+         return;
+
+      alu_opt_info dpp_info;
+      bool progress = false;
+      for (unsigned i = 0; i < input_info.operands.size(); i++) {
+         if (!input_info.operands[i].op.isTemp())
+            continue;
+         Instruction* parent = ctx.info[input_info.operands[i].op.tempId()].parent_instr;
+
+         if (!parent->isDPP() || parent->opcode != aco_opcode::v_mov_b32 ||
+             parent->pass_flags != instr->pass_flags)
             continue;
 
          /* We won't eliminate the DPP mov if the operand is used twice */
          bool op_used_twice = false;
-         for (unsigned j = 0; j < instr->operands.size(); j++)
-            op_used_twice |= i != j && instr->operands[i] == instr->operands[j];
+         for (unsigned j = 0; j < input_info.operands.size(); j++)
+            op_used_twice |= i != j && input_info.operands[i].op == input_info.operands[j].op;
          if (op_used_twice)
             continue;
 
-         bool dpp8 = info.parent_instr->isDPP8();
-         bool input_mods = can_use_input_modifiers(ctx.program->gfx_level, instr->opcode, i) &&
-                           get_operand_type(instr, i).bit_size == 32;
-         bool mov_uses_mods = info.parent_instr->valu().neg[0] || info.parent_instr->valu().abs[0];
-         if (((dpp8 && ctx.program->gfx_level < GFX11) || !input_mods) && mov_uses_mods)
+         if (input_info.operands[i].dpp16 || input_info.operands[i].dpp8)
             continue;
 
-         Format old_format = instr->format;
-         if (i != 0) {
-            if (!instr->operands[0].isOfType(RegType::vgpr) && !instr->isVOP3P())
-               instr->format = asVOP3(instr->format);
-            if (!can_swap_operands(instr, &instr->opcode, 0, i)) {
-               instr->format = old_format;
-               continue;
-            }
-            instr->valu().swapOperands(0, i);
-         }
+         alu_opt_op outer;
+         outer.op = parent->operands[0];
+         outer.neg[0] = parent->valu().neg[0];
+         outer.abs[0] = parent->valu().abs[0];
+         aco_type outer_type = {aco_base_type_uint, 1, 32};
 
-         if (!can_use_DPP(ctx.program->gfx_level, instr, dpp8)) {
-            if (i != 0) {
-               ASSERTED bool success = can_swap_operands(instr, &instr->opcode, 0, i);
-               assert(success);
-               instr->valu().swapOperands(0, i);
-               instr->format = old_format;
-            }
+         alu_opt_op inner = input_info.operands[i];
+         aco_type inner_type = get_canonical_operand_type(input_info.opcode, i);
+         if (inner.f16_to_f32)
+            inner_type.bit_size = 16;
+         if (!combine_operand(ctx, inner, inner_type, outer, outer_type, false))
             continue;
+
+         if (parent->isDPP16()) {
+            inner.dpp16 = true;
+            inner.dpp_ctrl = parent->dpp16().dpp_ctrl;
+            inner.fi = parent->dpp16().fetch_inactive;
+            inner.bc = parent->dpp16().bound_ctrl;
+            assert(parent->dpp16().row_mask == 0xf && parent->dpp16().bank_mask == 0xf);
+         } else if (parent->isDPP8()) {
+            inner.dpp8 = true;
+            inner.dpp_ctrl = parent->dpp8().lane_sel;
+            inner.fi = parent->dpp8().fetch_inactive;
          }
 
-         convert_to_DPP(ctx.program->gfx_level, instr, dpp8);
+         alu_opt_info candidate = input_info;
+         candidate.operands[i] = inner;
+         if (!alu_opt_info_is_valid(ctx, candidate))
+            continue;
 
-         if (dpp8) {
-            DPP8_instruction* dpp = &instr->dpp8();
-            dpp->lane_sel = info.parent_instr->dpp8().lane_sel;
-            dpp->fetch_inactive = info.parent_instr->dpp8().fetch_inactive;
-            if (mov_uses_mods && !instr->isVOP3P())
-               instr->format = asVOP3(instr->format);
-         } else {
-            DPP16_instruction* dpp = &instr->dpp16();
-            /* anything else doesn't make sense in SSA */
-            assert(info.parent_instr->dpp16().row_mask == 0xf &&
-                   info.parent_instr->dpp16().bank_mask == 0xf);
-            dpp->dpp_ctrl = info.parent_instr->dpp16().dpp_ctrl;
-            dpp->bound_ctrl = info.parent_instr->dpp16().bound_ctrl;
-            dpp->fetch_inactive = info.parent_instr->dpp16().fetch_inactive;
-         }
-
-         instr->valu().neg[0] ^= info.parent_instr->valu().neg[0] && !instr->valu().abs[0];
-         instr->valu().abs[0] |= info.parent_instr->valu().abs[0];
-
-         if (--ctx.uses[info.parent_instr->definitions[0].tempId()])
-            ctx.uses[info.parent_instr->operands[0].tempId()]++;
-         instr->operands[0].setTemp(info.parent_instr->operands[0].getTemp());
-         for (const Definition& def : instr->definitions)
-            ctx.info[def.tempId()].parent_instr = instr.get();
-         break;
+         if (--ctx.uses[parent->definitions[0].tempId()])
+            ctx.uses[parent->operands[0].tempId()]++;
+         input_info.operands[i] = inner;
+         dpp_info = candidate;
+         progress = true;
       }
+
+      if (progress)
+         instr.reset(alu_opt_info_to_instr(ctx, dpp_info, instr.release()));
    }
 
    /* Use v_fma_mix for f2f32/f2f16 if it has higher throughput.
