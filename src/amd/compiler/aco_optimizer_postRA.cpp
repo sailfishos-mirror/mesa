@@ -672,7 +672,7 @@ try_combine_dpp(pr_opt_ctx& ctx, aco_ptr<Instruction>& instr)
          DPP8_instruction* dpp = &instr->dpp8();
          dpp->lane_sel = mov->dpp8().lane_sel;
          dpp->fetch_inactive = mov->dpp8().fetch_inactive;
-         if (mov_uses_mods)
+         if (mov_uses_mods && !instr->isVOP3P())
             instr->format = asVOP3(instr->format);
       } else {
          DPP16_instruction* dpp = &instr->dpp16();
