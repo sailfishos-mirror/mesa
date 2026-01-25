@@ -177,6 +177,34 @@ try_fold_load_store(nir_builder *b,
    return true;
 }
 
+/* Nvidia's load/store/atomic instructions are a bit weird. If you have a constant offset, the
+ * instruction's base is an unsigned offset. If it's not constant, it's a _signed_ offset. In
+ * the ISA the difference is encoded via selection of the zero register RZ, e.g. for 24 bit:
+ *   [RZ + 0x900000] -> access at 0x900000
+ *   [R0 + 0x900000] -> access at R0 - 0x700000
+ */
+static bool
+try_fold_load_store_nv(nir_builder *b,
+                       nir_intrinsic_instr *intrin,
+                       opt_offsets_state *state)
+{
+   unsigned offset_bits = nir_get_io_base_size_nv(intrin);
+   int offset_idx = nir_get_io_offset_src_number(intrin);
+
+   assert(offset_idx >= 0);
+   nir_src src = intrin->src[offset_idx];
+
+   int32_t min = 0;
+   uint32_t max = BITFIELD_MASK(offset_bits);
+
+   if (!nir_src_is_const(src)) {
+      max >>= 1;
+      min = ~max;
+   }
+
+   return try_fold_load_store(b, intrin, state, offset_idx, min, max, false);
+}
+
 static bool
 decrease_shared2_offsets(uint32_t offset0, uint32_t offset1, uint32_t stride, uint32_t *excess)
 {
@@ -325,6 +353,25 @@ process_instr(nir_builder *b, nir_instr *instr, void *s)
       return try_fold_load_store(b, intrin, state, 1, 0, UINT32_MAX, false);
    case nir_intrinsic_store_urb_vec4_intel:
       return try_fold_load_store(b, intrin, state, 2, 0, UINT32_MAX, false);
+   case nir_intrinsic_global_atomic_nv:
+   case nir_intrinsic_global_atomic_swap_nv:
+   case nir_intrinsic_ldc_nv:
+   case nir_intrinsic_ldcx_nv:
+   case nir_intrinsic_load_global_nv:
+   case nir_intrinsic_load_scratch_nv:
+   case nir_intrinsic_load_shared_nv:
+   case nir_intrinsic_load_shared_lock_nv:
+   case nir_intrinsic_shared_atomic_nv:
+   case nir_intrinsic_shared_atomic_swap_nv:
+   case nir_intrinsic_store_global_nv:
+   case nir_intrinsic_store_scratch_nv:
+   case nir_intrinsic_store_shared_nv:
+   case nir_intrinsic_store_shared_unlock_nv:
+   case nir_intrinsic_vild_nv:
+      return try_fold_load_store_nv(b, intrin, state);
+   /* Always signed offset */
+   case nir_intrinsic_cmat_load_shared_nv:
+      return try_fold_load_store(b, intrin, state, 0, -8388608, 0x7fffff, false);
    default:
       return false;
    }
