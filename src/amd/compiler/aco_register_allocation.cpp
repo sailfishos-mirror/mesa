@@ -3059,7 +3059,8 @@ vop3_can_use_vop2acc(ra_ctx& ctx, Instruction* instr)
    }
 
    if (!instr->operands[2].isOfType(RegType::vgpr) || !instr->operands[2].isKillBeforeDef() ||
-       (!instr->operands[0].isOfType(RegType::vgpr) && !instr->operands[1].isOfType(RegType::vgpr)))
+       ((!instr->operands[0].isOfType(RegType::vgpr) || instr->isDPP()) &&
+        !instr->operands[1].isOfType(RegType::vgpr)))
       return false;
 
    if (instr->isVOP3P()) {
