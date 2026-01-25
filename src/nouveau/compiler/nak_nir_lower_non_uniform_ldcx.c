@@ -65,7 +65,8 @@ lower_ldcx_to_global(nir_builder *b, nir_intrinsic_instr *load,
          nir_iadd(b, addr, nir_u2u64(b, offset)),
          .align_mul = nir_intrinsic_align_mul(load),
          .align_offset = nir_intrinsic_align_offset(load),
-         .access = ACCESS_CAN_REORDER);
+         .access = ACCESS_CAN_REORDER,
+         .base = nir_intrinsic_base(load));
    }
    nir_pop_if(b, NULL);
    val = nir_if_phi(b, val, zero);

@@ -140,14 +140,6 @@ struct nak_xfb_info
 nak_xfb_from_nir(const struct nak_compiler *nak,
                  const struct nir_xfb_info *nir_xfb);
 
-struct nak_io_addr_offset {
-   nir_scalar base;
-   int32_t offset;
-};
-
-struct nak_io_addr_offset
-nak_get_io_addr_offset(nir_def *addr, uint8_t imm_bits);
-
 enum nak_nir_tex_ref_type {
    /** Indicates that this is a bindless texture */
    NAK_NIR_TEX_REF_TYPE_BINDLESS,

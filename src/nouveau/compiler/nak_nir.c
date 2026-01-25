@@ -1058,6 +1058,9 @@ nak_nir_lower_load_store(nir_shader *nir, const struct nak_compiler *nak)
    return progress;
 }
 
+const static struct nir_opt_offsets_options nak_offset_options = {
+};
+
 void
 nak_postprocess_nir(nir_shader *nir,
                     const struct nak_compiler *nak,
@@ -1194,6 +1197,7 @@ nak_postprocess_nir(nir_shader *nir,
    }
 
    OPT(nir, nak_nir_lower_load_store, nak);
+   OPT(nir, nir_opt_offsets, &nak_offset_options);
 
    OPT(nir, nir_lower_doubles, NULL, nak->nir_options.lower_doubles_options);
    OPT(nir, nir_lower_int64);
@@ -1281,60 +1285,4 @@ nak_postprocess_nir(nir_shader *nir,
               _mesa_shader_stage_to_string(nir->info.stage));
       nir_print_shader(nir, stderr);
    }
-}
-
-static bool
-scalar_is_imm_int(nir_scalar x, unsigned bits, bool is_signed)
-{
-   if (!nir_scalar_is_const(x))
-      return false;
-
-   if (is_signed) {
-      int64_t imm = nir_scalar_as_int(x);
-      return u_intN_min(bits) <= imm && imm <= u_intN_max(bits);
-   } else {
-      return nir_scalar_as_uint(x) < u_uintN_max(bits);
-   }
-}
-
-struct nak_io_addr_offset
-nak_get_io_addr_offset(nir_def *addr, uint8_t imm_bits)
-{
-   nir_scalar addr_s = {
-      .def = addr,
-      .comp = 0,
-   };
-
-   /* If the entire address is constant, it's an unsigned immediate */
-   if (scalar_is_imm_int(addr_s, imm_bits, false)) {
-      /* Base is a dumb name for this.  It should be offset */
-      return (struct nak_io_addr_offset) {
-         .offset = nir_scalar_as_int(addr_s),
-      };
-   }
-
-   addr_s = nir_scalar_chase_movs(addr_s);
-   if (!nir_scalar_is_alu(addr_s) ||
-       nir_scalar_alu_op(addr_s) != nir_op_iadd) {
-      return (struct nak_io_addr_offset) {
-         .base = addr_s,
-      };
-   }
-
-   for (unsigned i = 0; i < 2; i++) {
-      nir_scalar off_s = nir_scalar_chase_alu_src(addr_s, i);
-      off_s = nir_scalar_chase_movs(off_s);
-
-      /* If it's imm+indirect then the immediate is signed */
-      if (scalar_is_imm_int(off_s, imm_bits, true)) {
-         return (struct nak_io_addr_offset) {
-            .base = nir_scalar_chase_alu_src(addr_s, 1 - i),
-            .offset = nir_scalar_as_int(off_s),
-         };
-      }
-   }
-
-   return (struct nak_io_addr_offset) {
-      .base = addr_s,
-   };
 }
