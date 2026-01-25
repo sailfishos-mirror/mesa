@@ -932,8 +932,9 @@ alu_opt_info_is_valid(opt_ctx& ctx, alu_opt_info& info)
    if (is_dpp && info.operands.size() > 2 && !info.operands[1].op.isOfType(RegType::vgpr) &&
        info.operands[2].op.isOfType(RegType::vgpr))
       info.try_swap_operands(1, 2);
-   if (is_dpp && info.operands.size() > 1 && !info.operands[1].op.isOfType(RegType::vgpr))
-      return false; /* TODO: gfx11.5 */
+   if (is_dpp && info.operands.size() > 1 && !info.operands[1].op.isOfType(RegType::vgpr) &&
+       ctx.program->gfx_level < GFX11_5)
+      return false;
 
    /* dst SDWA */
    if (info.insert != SubdwordSel::dword) {
