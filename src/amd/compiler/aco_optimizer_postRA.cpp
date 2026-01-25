@@ -612,6 +612,10 @@ try_combine_dpp(pr_opt_ctx& ctx, aco_ptr<Instruction>& instr)
       if (mov->opcode != aco_opcode::v_mov_b32 || !mov->isDPP())
          continue;
 
+      /* Applying DPP with many uses is unlikely to be profitable. */
+      if (ctx.uses[mov->definitions[0].tempId()] > 3)
+         continue;
+
       /* If we aren't going to remove the v_mov_b32, we have to ensure that it doesn't overwrite
        * it's own operand before we use it.
        */

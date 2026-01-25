@@ -4979,6 +4979,9 @@ select_instruction(opt_ctx& ctx, aco_ptr<Instruction>& instr)
       for (unsigned i = 0; i < input_info.operands.size(); i++) {
          if (!input_info.operands[i].op.isTemp())
             continue;
+         /* Applying DPP with many uses is unlikely to be profitable. */
+         if (ctx.uses[input_info.operands[i].op.tempId()] > 3)
+            continue;
          Instruction* parent = ctx.info[input_info.operands[i].op.tempId()].parent_instr;
 
          if (!parent->isDPP() || parent->opcode != aco_opcode::v_mov_b32 ||
