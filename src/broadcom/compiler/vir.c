@@ -25,6 +25,7 @@
 #include "v3d_compiler.h"
 #include "compiler/nir/nir_schedule.h"
 #include "compiler/nir/nir_builder.h"
+#include "compiler/nir/nir_builtin_builder.h"
 #include "compiler/nir/nir_format_convert.h"
 #include "util/perf/cpu_trace.h"
 
@@ -1799,6 +1800,48 @@ should_lower_robustness(const nir_intrinsic_instr *intr, const void *data)
 }
 
 static bool
+v3d_lower_txf_lod_robustness_instr(nir_builder *b, nir_tex_instr *txf, void *data)
+{
+        int lod_idx = nir_tex_instr_src_index(txf, nir_tex_src_lod);
+        if (txf->op != nir_texop_txf || lod_idx < 0 ||
+            (nir_src_is_const(txf->src[lod_idx].src) &&
+             nir_src_as_const_value(txf->src[lod_idx].src)->u32 == 0)) {
+                return false;
+        }
+
+        nir_src lod_src = txf->src[lod_idx].src;
+        b->cursor = nir_before_instr(&txf->instr);
+        nir_def *lod = lod_src.ssa;
+        unsigned lod_bit_size = lod->bit_size;
+        nir_def *levels = nir_build_texture_query(b, txf,
+                                                   nir_texop_query_levels, 1,
+                                                   nir_type_uint32,
+                                                   false, false);
+        int coord_idx = nir_tex_instr_src_index(txf, nir_tex_src_coord);
+        assert(coord_idx >= 0);
+
+        nir_def *lod_in_bounds = nir_iand(b, nir_ige(b, lod,
+                                         nir_imm_intN_t(b, 0, lod_bit_size)),
+                                         nir_ilt(b, lod, levels));
+        nir_def *coord = txf->src[coord_idx].src.ssa;
+        nir_if *if_stmt = nir_push_if(b, nir_inot(b, lod_in_bounds));
+        nir_def *oob_elem = nir_imm_intN_t(b, 0x1fffffff, coord->bit_size);
+        nir_def *coord_oob = nir_vector_insert_imm(b, coord, oob_elem, 0);
+        nir_pop_if(b, if_stmt);
+        nir_def *coord_sel = nir_if_phi(b, coord_oob, coord);
+        nir_src_rewrite(&txf->src[coord_idx].src, coord_sel);
+
+        return true;
+}
+
+static bool
+v3d_nir_lower_txf_lod_robustness(nir_shader *s)
+{
+        return nir_shader_tex_pass(s, v3d_lower_txf_lod_robustness_instr,
+                                    nir_metadata_none, NULL);
+}
+
+static bool
 intrinsic_try_skip_helpers(nir_intrinsic_instr *intr, UNUSED void *data)
 {
         switch(intr->intrinsic) {
@@ -1867,6 +1910,14 @@ v3d_attempt_compile(struct v3d_compile *c)
 
         NIR_PASS(_, c->s, v3d_nir_lower_io, c);
         NIR_PASS(_, c->s, v3d_nir_lower_txf_ms);
+        /* On V3D 4.2, txf instructions with an out-of-bounds LOD do not
+         * return robust values (zero) as required by robustImageAccess2.
+         * This pass rewrites the fetch to a guaranteed out-of-bounds
+         * coordinate when LOD is invalid.
+         */
+        if (c->devinfo->ver < 71 && c->key->robust_image_access_2)
+                NIR_PASS(_, c->s, v3d_nir_lower_txf_lod_robustness);
+
         NIR_PASS(_, c->s, v3d_nir_lower_image_load_store, c);
 
         NIR_PASS(_, c->s, nir_opt_idiv_const, 8);
