@@ -489,10 +489,6 @@ can_use_DPP(amd_gfx_level gfx_level, const aco_ptr<Instruction>& instr, bool dpp
          return false;
    }
 
-   /* According to LLVM, it's unsafe to combine DPP into v_cmpx. */
-   if (instr->writes_exec())
-      return false;
-
    return opcode_supports_dpp(gfx_level, instr->opcode, instr->isVOP3P());
 }
 

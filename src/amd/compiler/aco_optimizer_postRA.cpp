@@ -1078,10 +1078,6 @@ try_optimize_branching_sequence(pr_opt_ctx& ctx, aco_ptr<Instruction>& exec_copy
          : aco_opcode::num_opcodes;
    const bool vopc = v_cmpx_op != aco_opcode::num_opcodes;
 
-   /* V_CMPX+DPP returns 0 with reads from disabled lanes, unlike V_CMP+DPP (RDNA3 ISA doc, 7.7) */
-   if (vopc && exec_val->isDPP())
-      return false;
-
    /* If s_and_saveexec is used, we'll need to insert a new instruction to save the old exec. */
    bool save_original_exec =
       exec_copy->opcode == and_saveexec && !exec_copy->definitions[0].isKill();
@@ -1157,7 +1153,7 @@ try_optimize_branching_sequence(pr_opt_ctx& ctx, aco_ptr<Instruction>& exec_copy
    if (vopc) {
       /* Add one extra definition for exec and copy the VOP3-specific fields if present. */
       if (!vcmpx_exec_only) {
-         if (exec_val->isSDWA()) {
+         if (exec_val->isSDWA() || exec_val->isDPP()) {
             /* This might work but it needs testing and more code to copy the instruction. */
             return false;
          } else {
