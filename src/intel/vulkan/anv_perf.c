@@ -270,29 +270,35 @@ VkResult anv_QueueSetPerformanceConfigurationINTEL(
    ANV_FROM_HANDLE(anv_queue, queue, _queue);
    ANV_FROM_HANDLE(anv_performance_configuration_intel, config, _configuration);
    struct anv_device *device = queue->device;
+   VkResult result = VK_SUCCESS;
 
-   if (queue != anv_device_get_perf_queue(device))
-      return VK_ERROR_UNKNOWN;
+   vk_queue_lock(&queue->vk);
 
-   if (!INTEL_DEBUG(DEBUG_NO_OACONFIG)) {
-      if (device->perf_fd < 0) {
-         device->perf_fd = anv_device_perf_open(device, queue, config->config_id);
-         if (device->perf_fd < 0)
-            return VK_ERROR_INITIALIZATION_FAILED;
-      } else {
-         uint32_t context_or_exec_queue = anv_device_perf_get_queue_context_or_exec_queue_id(device->perf_queue);
-         int ret = intel_perf_stream_set_metrics_id(device->physical->perf,
-                                                    device->fd,
-                                                    device->perf_fd,
-                                                    context_or_exec_queue,
-                                                    config->config_id,
-                                                    &device->perf_timeline);
-         if (ret < 0)
-            return vk_device_set_lost(&device->vk, "i915-perf config failed: %m");
+   if (queue == anv_device_get_perf_queue(device)) {
+      if (!INTEL_DEBUG(DEBUG_NO_OACONFIG)) {
+         if (device->perf_fd < 0) {
+            device->perf_fd = anv_device_perf_open(device, queue, config->config_id);
+            if (device->perf_fd < 0)
+               result = VK_ERROR_INITIALIZATION_FAILED;
+         } else {
+            uint32_t context_or_exec_queue = anv_device_perf_get_queue_context_or_exec_queue_id(device->perf_queue);
+            int ret = intel_perf_stream_set_metrics_id(device->physical->perf,
+                                                       device->fd,
+                                                       device->perf_fd,
+                                                       context_or_exec_queue,
+                                                       config->config_id,
+                                                       &device->perf_timeline);
+            if (ret < 0)
+               result = vk_device_set_lost(&device->vk, "i915-perf config failed: %m");
+         }
       }
+   } else {
+      result = vk_error(device, VK_ERROR_UNKNOWN);
    }
 
-   return VK_SUCCESS;
+   vk_queue_unlock(&queue->vk);
+
+   return result;
 }
 
 void anv_UninitializePerformanceApiINTEL(

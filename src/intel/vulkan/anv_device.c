@@ -350,7 +350,8 @@ VkResult anv_CreateDevice(
     * queues with flags we don't support.
     */
    for (uint32_t i = 0; i < pCreateInfo->queueCreateInfoCount; i++) {
-      if (pCreateInfo->pQueueCreateInfos[i].flags & ~VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT)
+      if (pCreateInfo->pQueueCreateInfos[i].flags & ~(VK_DEVICE_QUEUE_CREATE_PROTECTED_BIT |
+                                                      VK_DEVICE_QUEUE_CREATE_INTERNALLY_SYNCHRONIZED_BIT_KHR))
          return vk_error(physical_device, VK_ERROR_INITIALIZATION_FAILED);
 
       const struct anv_queue_family *family =

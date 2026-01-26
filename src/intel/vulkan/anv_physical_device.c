@@ -189,6 +189,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .KHR_incremental_present               = true,
 #endif
       .KHR_index_type_uint8                  = true,
+      .KHR_internally_synchronized_queues    = true,
       .KHR_line_rasterization                = true,
       .KHR_load_store_op_none                = true,
       .KHR_maintenance1                      = true,
@@ -1016,6 +1017,9 @@ get_features(const struct anv_physical_device *pdevice,
       .presentAtRelativeTime = true,
       .presentAtAbsoluteTime = true,
 #endif
+
+      /* VK_KHR_internally_synchronized_queues */
+      .internallySynchronizedQueues = true,
    };
 
    /* The new DOOM and Wolfenstein games require depthBounds without
