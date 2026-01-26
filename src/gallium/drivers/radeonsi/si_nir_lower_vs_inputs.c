@@ -494,7 +494,8 @@ load_vs_input_from_vertex_buffer(nir_builder *b, unsigned input_index,
                                        zero, zero, vertex_index,
                                        .base = fetch_stride * i,
                                        .access = ACCESS_USES_FORMAT_AMD | ACCESS_CAN_REORDER |
-                                                 ACCESS_CAN_SPECULATE);
+                                                 ACCESS_CAN_SPECULATE,
+                                       .dest_type = nir_intrinsic_dest_type(intr));
    }
 
    if (num_fetches == 1 && channels_per_fetch > 1) {

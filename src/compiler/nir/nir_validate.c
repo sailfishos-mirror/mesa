@@ -708,6 +708,16 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
       break;
    }
 
+   case nir_intrinsic_load_buffer_amd:
+      if (nir_intrinsic_access(instr) & ACCESS_USES_FORMAT_AMD) {
+         nir_alu_type dest_type = nir_intrinsic_dest_type(instr);
+         validate_assert(state, nir_alu_type_get_type_size(dest_type) &&
+                                nir_alu_type_get_base_type(dest_type));
+         validate_assert(state, nir_alu_type_get_type_size(dest_type) ==
+                                instr->def.bit_size);
+      }
+      break;
+
    case nir_intrinsic_store_buffer_amd:
       if (nir_intrinsic_access(instr) & ACCESS_USES_FORMAT_AMD) {
          unsigned writemask = nir_intrinsic_write_mask(instr);
