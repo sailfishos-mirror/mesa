@@ -1804,7 +1804,7 @@
         "description": "panvk: Fix dcd_flags1 dirty bit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a4670a67e0ea5fa4ed3885d0d3bd7b008f14abf1",
         "notes": null
