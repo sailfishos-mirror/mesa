@@ -960,8 +960,6 @@ gather_graphics_pipeline_create_info(
 
    info.vs.topology = vk_primitive_topology_to_mtl_primitive_topology_class(
       state->ia->primitive_topology);
-   info.vs.primitive_type = vk_primitive_topology_to_mtl_primitive_type(
-      state->ia->primitive_topology);
 
    /* Render pass data */
    const struct vk_render_pass_state *rp = state->rp;
@@ -1347,7 +1345,6 @@ kk_cmd_bind_graphics_shader(struct kk_cmd_buffer *cmd,
    if (stage != MESA_SHADER_VERTEX)
       return;
 
-   cmd->state.gfx.primitive_type = shader->info.vs.primitive_type;
    cmd->state.gfx.pipeline_state = shader->pipeline.gfx.handle;
    cmd->state.gfx.vb.attribs_read = shader->info.vs.attribs_read;
 
