@@ -1727,6 +1727,10 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs);
 /* si_mesh_shader.c */
 void si_init_task_mesh_shader_functions(struct si_context *sctx);
 
+/* si_nir_mediump.c */
+void si_nir_lower_mediump_io_default(nir_shader *nir);
+void si_nir_lower_mediump_io_option(nir_shader *nir);
+
 /*
  * common helpers
  */
