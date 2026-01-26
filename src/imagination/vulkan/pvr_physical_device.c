@@ -559,7 +559,8 @@ static bool pvr_physical_device_get_properties(
       /* Vulkan 1.0 */
       .apiVersion = get_api_version(),
       .driverVersion = vk_get_driver_version(),
-      .vendorID = VK_VENDOR_ID_IMAGINATION,
+      .vendorID = pdevice->instance->force_vk_vendor ?
+                  pdevice->instance->force_vk_vendor : VK_VENDOR_ID_IMAGINATION,
       .deviceID = dev_info->ident.device_id,
       .deviceType = VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU,
       /* deviceName and pipelineCacheUUID are filled below .*/
