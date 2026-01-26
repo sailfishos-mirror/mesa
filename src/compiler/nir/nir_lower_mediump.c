@@ -875,6 +875,13 @@ opt_16bit_tex_image(nir_builder *b, nir_instr *instr, void *params)
          if (options->opt_image_srcs)
             progress |= opt_16bit_image_srcs(b, intrinsic, -1);
          break;
+      case nir_intrinsic_load_buffer_amd:
+         /* Skip sparse residency and non-format loads. */
+         if (options->opt_image_dest_types &&
+             nir_intrinsic_access(intrinsic) & ACCESS_USES_FORMAT_AMD &&
+             !(nir_intrinsic_access(intrinsic) & ACCESS_SPARSE))
+            progress |= opt_16bit_image_dest(intrinsic, exec_mode, options);
+         break;
       default:
          break;
       }
