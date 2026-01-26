@@ -305,7 +305,7 @@ panvk_per_arch(get_physical_device_features)(
       .sparseBinding = has_sparse,
       .sparseResidencyBuffer = has_sparse,
       .sparseResidencyImage2D = has_sparse,
-      .sparseResidencyImage3D = false, /* https://gitlab.freedesktop.org/panfrost/mesa/-/issues/242 */
+      .sparseResidencyImage3D = has_sparse,
       .sparseResidency2Samples = false,
       .sparseResidency4Samples = false,
       .sparseResidency8Samples = false,

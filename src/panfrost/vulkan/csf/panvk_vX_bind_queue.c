@@ -364,10 +364,6 @@ panvk_bind_queue_submit_sparse_block_memory_bind(
    uint64_t resource_va = image->sparse.device_address;
    const struct panvk_image_plane *plane = &image->planes[in->plane_index];
 
-   /* 3D images are not yet supported. See
-    * https://gitlab.freedesktop.org/panfrost/mesa/-/issues/242 */
-   assert(image->vk.image_type == VK_IMAGE_TYPE_2D);
-
    /* Previously, sparse residency was implemented using block U-interleaved
     * (https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/37483).
     * Interleaved 64k offers better map and unmap performance (at most one bind
@@ -395,6 +391,8 @@ panvk_bind_queue_submit_sparse_block_memory_bind(
           in->extent.height == tile_extent_px.height &&
           in->extent.depth == 1);
    uint32_t tile_size_B = 65536;
+
+   assert(image->vk.image_type != VK_IMAGE_TYPE_3D || in->layer == 0);
 
    const struct pan_image_slice_layout *slayout = &plane->plane.layout.slices[in->level];
    VkSparseMemoryBind bind = {

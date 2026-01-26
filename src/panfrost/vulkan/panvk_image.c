@@ -1023,7 +1023,8 @@ panvk_get_sparse_block_desc(VkImageType type, VkFormat format)
    uint32_t texel_block_size_B = fmt_desc->block.bits / 8;
 
    switch (type) {
-   case VK_IMAGE_TYPE_2D: {
+   case VK_IMAGE_TYPE_2D:
+   case VK_IMAGE_TYPE_3D: {
       if (!util_is_power_of_two_nonzero(texel_block_size_B))
          break;
 
@@ -1041,7 +1042,7 @@ panvk_get_sparse_block_desc(VkImageType type, VkFormat format)
       return (struct panvk_sparse_block_desc){
          .extent = extent,
          .size_B = STANDARD_SPARSE_BLOCK_SIZE_B,
-         .standard = true,
+         .standard = type == VK_IMAGE_TYPE_2D,
       };
    }
 
