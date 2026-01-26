@@ -1560,7 +1560,7 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
 #endif
 
       .InterfaceDescriptor = (struct GENX(INTERFACE_DESCRIPTOR_DATA)) {
-         .KernelStartPointer = device->rt_trampoline->kernel.offset,
+         .KernelStartPointer = anv_shader_get_pointer(device, device->rt_trampoline),
          .NumberofThreadsinGPGPUThreadGroup = 1,
          .ThreadGroupDispatchSize =
             intel_compute_threads_group_dispatch_size(dispatch.threads),

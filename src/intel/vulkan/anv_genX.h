@@ -384,6 +384,11 @@ void genX(batch_emit_fast_color_dummy_blit)(struct anv_batch *batch,
 })
 #endif
 
+#define anv_shader_get_pointer(device, shader) \
+   ((GFX_VERx10 >= 350 && (device)->physical->uses_efficient_64bit) ? \
+    ((device)->physical->va.shader_heap.addr + (shader)->kernel.offset) : \
+    (shader)->kernel.offset)
+
 void
 genX(batch_set_preemption)(struct anv_batch *batch,
                            struct anv_device *device,

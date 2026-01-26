@@ -1034,14 +1034,14 @@ update_ps(struct anv_gfx_dynamic_state *hw_state,
                                hw_state->fs_config);
 
    SET(PS, ps.KernelStartPointer0,
-           fs->kernel.offset +
+           anv_shader_get_pointer(device, fs) +
            brw_fs_prog_data_prog_offset(fs_prog_data, ps, 0));
    SET(PS, ps.KernelStartPointer1,
-           fs->kernel.offset +
+           anv_shader_get_pointer(device, fs) +
            brw_fs_prog_data_prog_offset(fs_prog_data, ps, 1));
 #if GFX_VER < 20
    SET(PS, ps.KernelStartPointer2,
-           fs->kernel.offset +
+           anv_shader_get_pointer(device, fs) +
            brw_fs_prog_data_prog_offset(fs_prog_data, ps, 2));
 #endif
 

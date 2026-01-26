@@ -210,12 +210,14 @@ anv_shader_heap_upload(struct anv_shader_heap *heap,
                        struct anv_shader_alloc alloc,
                        const void *data, uint64_t size)
 {
+   const uint64_t shader_base_addr =
+      heap->va_range.addr + alloc.offset;
    const uint32_t bo_begin_idx = shader_bo_index(
-      heap, heap->va_range.addr + alloc.offset);
+      heap, shader_base_addr);
    const uint32_t bo_end_idx = shader_bo_index(
-      heap, heap->va_range.addr + alloc.offset + size - 1);
+      heap, shader_base_addr + size - 1);
 
-   const uint64_t upload_addr = heap->va_range.addr + alloc.offset;
+   const uint64_t upload_addr = shader_base_addr;
    for (uint32_t i = MIN2(bo_begin_idx, bo_end_idx);
         i <= MAX2(bo_begin_idx, bo_end_idx); i++) {
       const uint64_t bo_offset =

@@ -217,12 +217,15 @@ genX(emit_simpler_shader_init_fragment)(struct anv_simple_shader *state)
          brw_fs_prog_data_dispatch_grf_start_reg(prog_data, ps, 2);
 #endif
 
-      ps.KernelStartPointer0 = state->kernel->kernel.offset +
+      ps.KernelStartPointer0 =
+         anv_shader_get_pointer(device, state->kernel) +
          brw_fs_prog_data_prog_offset(prog_data, ps, 0);
-      ps.KernelStartPointer1 = state->kernel->kernel.offset +
+      ps.KernelStartPointer1 =
+         anv_shader_get_pointer(device, state->kernel) +
          brw_fs_prog_data_prog_offset(prog_data, ps, 1);
 #if GFX_VER < 20
-      ps.KernelStartPointer2 = state->kernel->kernel.offset +
+      ps.KernelStartPointer2 =
+         anv_shader_get_pointer(device, state->kernel) +
          brw_fs_prog_data_prog_offset(prog_data, ps, 2);
 #endif
 
@@ -619,7 +622,7 @@ genX(emit_simple_shader_dispatch)(struct anv_simple_shader *state,
                        TileY32bpe : Linear,
 
          .InterfaceDescriptor = (struct GENX(INTERFACE_DESCRIPTOR_DATA)) {
-            .KernelStartPointer                = state->kernel->kernel.offset +
+            .KernelStartPointer                = anv_shader_get_pointer(device, state->kernel) +
                                                  brw_cs_prog_data_prog_offset(prog_data,
                                                                               dispatch.simd_size),
             .SamplerStatePointer               = 0,
@@ -703,7 +706,7 @@ genX(emit_simple_shader_dispatch)(struct anv_simple_shader *state,
          return;
 
       struct GENX(INTERFACE_DESCRIPTOR_DATA) iface_desc = {
-         .KernelStartPointer                    = state->kernel->kernel.offset +
+         .KernelStartPointer                    = anv_shader_get_pointer(device, state->kernel) +
                                                   brw_cs_prog_data_prog_offset(prog_data,
                                                                                dispatch.simd_size),
 
