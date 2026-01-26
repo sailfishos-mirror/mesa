@@ -3957,6 +3957,9 @@ zink_shader_compile(struct zink_screen *screen, bool can_shobj, struct zink_shad
    if (nir->info.stage == MESA_SHADER_FRAGMENT && (zink_fs_key_base(key)->force_persample_interp || zink_fs_key_base(key)->fbfetch_ms)) {
       nir->info.fs.uses_sample_shading = true;
       NIR_PASS(_, nir, nir_lower_sample_shading);
+      nir_foreach_shader_in_variable(var, nir) {
+         var->data.centroid = false;
+      }
    }
 
    NIR_PASS(_, nir, add_derefs);
