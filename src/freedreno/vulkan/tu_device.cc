@@ -1305,7 +1305,9 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->sparseResidencyAlignedMipSize = false;
    props->sparseResidencyNonResidentStrict = true;
 
-   strcpy(props->deviceName, pdevice->name);
+   snprintf(props->deviceName, sizeof(props->deviceName), "%s",
+            (strlen(pdevice->instance->drirc.debug.force_vk_devicename) > 0) ?
+            pdevice->instance->drirc.debug.force_vk_devicename : pdevice->name);
    memcpy(props->pipelineCacheUUID, pdevice->cache_uuid, VK_UUID_SIZE);
 
    tu_get_physical_device_properties_1_1(pdevice, props);
