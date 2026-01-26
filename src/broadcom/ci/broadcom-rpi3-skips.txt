@@ -16,6 +16,49 @@ dEQP-GLES2.functional.fragment_ops.scissor.outside_render_line
 # list for tracking.
 dEQP-GLES2.functional.shaders.loops.*dynamic.*vertex
 
+# Same issue mentioned above: VC4 hardware doesn't have support for
+# dynamic loops. The execution of dynamic loops can cause infinite
+# loops and lead to GPU hangs. Therefore, skip those tests to avoid
+# issues with other tests running simultaneously.
+spec@glsl-1.10@execution@copy-propagation@glsl-vs-copy-propagation-1
+spec@glsl-1.10@execution@glsl-vs-if-nested-loop
+spec@glsl-1.10@execution@glsl-vs-vectorize-between-basic-blocks-loop
+spec@glsl-1.10@execution@loops@glsl-vs-loop-300
+spec@glsl-1.10@execution@loops@glsl-vs-loop-break
+spec@glsl-1.10@execution@texcoord-array
+spec@glsl-1.10@execution@vs-loop-array-index-unroll
+spec@glsl-1.10@execution@vs-loop-complex-no-unroll
+spec@glsl-1.10@execution@vs-loop-complex-unroll
+spec@glsl-1.10@execution@vs-loop-complex-unroll-cf-before-terminators
+spec@glsl-1.10@execution@vs-loop-complex-unroll-cf-inside-terminator
+spec@glsl-1.10@execution@vs-loop-complex-unroll-with-else-break
+spec@glsl-1.10@execution@vs-loop-complex-with-else-break
+spec@glsl-1.10@execution@vs-loop-partial-unroll-multiple-breaks
+spec@glsl-1.10@execution@vs-loop-partial-unroll-multiple-breaks-loop-phi
+spec@glsl-1.10@execution@vs-loop-variable-iteration-limit-unroll
+spec@glsl-1.10@execution@vs-loop-variable-iteration-limit-unroll2
+spec@glsl-1.10@execution@vs-loop-variable-iteration-limit-unroll3
+spec@glsl-1.10@execution@vs-loop-variable-iteration-limit-unroll4
+spec@glsl-1.10@execution@vs-loop-zero-iterations-two-exits
+spec@glsl-1.10@execution@vs-nested-return-sibling-loop
+spec@glsl-1.10@execution@vs-nested-return-sibling-loop2
+spec@glsl-1.10@execution@temp-array-indexing@glsl-vs-vec4-indexing-temp-dst-in-loop
+spec@glsl-1.10@execution@temp-array-indexing@glsl-vs-vec4-indexing-temp-dst-in-nested-loop-combined
+spec@glsl-1.10@execution@temp-array-indexing@glsl-vs-vec4-indexing-temp-src-in-loop
+spec@glsl-1.10@execution@temp-array-indexing@glsl-vs-vec4-indexing-temp-src-in-nested-loop-combined
+spec@glsl-1.10@execution@temp-array-indexing@glsl-vs-vec4-indexing-temp-src-in-nested-loop-inner
+spec@glsl-1.10@execution@temp-array-indexing@glsl-vs-vec4-indexing-temp-src-in-nested-loop-outer
+shaders@glsl-vs-loop
+shaders@glsl-vs-loop-nested
+shaders@glsl-uniform-interstage-limits
+
+# It causes GPU resets that can affect tests that are running
+# simultaneously.
+spec@arb_map_buffer_alignment.*
+
+# Bisected to b3133e250e1 ("gallium: add pipe_context::resource_release to eliminate buffer refcounting")
+spec@!opengl 1.1@longprim
+
 # VK tests have been disabled in 32-bit piglit builds, but it doesn't
 # matter because we never could run them anyway.
 # Piglit still complains that the tests are `Missing` though, so

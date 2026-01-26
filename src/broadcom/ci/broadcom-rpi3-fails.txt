@@ -775,9 +775,6 @@ spec@glsl-1.10@execution@glsl-vs-inline-explosion,Crash
 # stipple
 spec@!opengl 1.0@gl-1.0-no-op-paths,Fail
 
-# Bisected to b3133e250e1 ("gallium: add pipe_context::resource_release to eliminate buffer refcounting")
-spec@!opengl 1.1@longprim,Crash
-
 # Crashes in this group are CMA allocation fails
 spec@!opengl 1.1@depthstencil-default_fb-clear samples=2,Fail
 spec@!opengl 1.1@depthstencil-default_fb-clear samples=4,Fail
