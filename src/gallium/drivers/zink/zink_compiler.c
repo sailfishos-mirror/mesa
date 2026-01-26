@@ -2895,6 +2895,28 @@ scalarize_vars_instr_filter(const nir_intrinsic_instr * intrin, const void *data
    return (scalarize_var_locations & BITFIELD64_BIT(semantics.location)) != 0;
 }
 
+static void
+fix_var_int_floatness(nir_shader *producer, nir_shader *consumer)
+{
+   nir_foreach_shader_out_variable(output_var, producer) {
+      const enum glsl_base_type output_base =
+         glsl_without_array_or_matrix(output_var->type)->base_type;
+      nir_foreach_shader_in_variable(input_var, consumer) {
+         if (input_var->data.location != output_var->data.location ||
+             input_var->data.location_frac != output_var->data.location_frac)
+            continue;
+         const glsl_type *vec_type = glsl_without_array_or_matrix(input_var->type);
+         if (vec_type->base_type != output_base) {
+            const glsl_type *element =
+               glsl_vector_type(output_base, vec_type->vector_elements);
+            input_var->type = nir_is_arrayed_io(input_var, consumer->info.stage)
+               ? glsl_array_type(element, glsl_array_size(input_var->type), input_var->type->explicit_stride)
+               : element;
+         }
+      }
+   }
+}
+
 void
 zink_compiler_assign_io(struct zink_screen *screen, nir_shader *producer, nir_shader *consumer)
 {
@@ -2913,6 +2935,7 @@ zink_compiler_assign_io(struct zink_screen *screen, nir_shader *producer, nir_sh
       .patch_reserved = 0,
    };
    bool do_fixup = false;
+   fix_var_int_floatness(producer, consumer);
    nir_shader *nir = producer->info.stage == MESA_SHADER_TESS_CTRL ? producer : consumer;
    nir_variable *var = nir_find_variable_with_location(producer, nir_var_shader_out, VARYING_SLOT_PSIZ);
    if (var) {
@@ -3755,7 +3778,7 @@ add_derefs_instr(nir_builder *b, nir_intrinsic_instr *intr, void *data)
       /* filter access that isn't specific to this variable */
       if (var->data.location > location || var->data.location + slot_count <= location)
          continue;
-      if (var->data.fb_fetch_output != nir_intrinsic_io_semantics(intr).fb_fetch_output)
+      if ((var->data.fb_fetch_output != nir_intrinsic_io_semantics(intr).fb_fetch_output) && is_input)
          continue;
       if (b->shader->info.stage == MESA_SHADER_FRAGMENT && !is_load && nir_intrinsic_io_semantics(intr).dual_source_blend_index != var->data.index)
          continue;
@@ -4092,10 +4115,6 @@ zink_shader_compile(struct zink_screen *screen, bool can_shobj, struct zink_shad
          if (nir->info.fs.uses_fbfetch_output) {
             nir_variable *fbfetch = NULL;
             NIR_PASS(_, nir, lower_fbfetch, &fbfetch, zink_fs_key_base(key)->fbfetch_ms);
-            /* old variable must be deleted to avoid spirv errors */
-            fbfetch->data.mode = nir_var_shader_temp;
-            nir_fixup_deref_modes(nir);
-            NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_shader_temp, NULL);
             need_optimize = true;
          }
          nir_foreach_shader_in_variable_safe(var, nir) {
@@ -4757,21 +4776,6 @@ scan_nir(struct zink_screen *screen, nir_shader *shader, struct zink_shader *zs)
                   else
                      zs->arrayed_outputs |= BITFIELD64_BIT(s.location);
                }
-               /* TODO: delete this once #10826 is fixed */
-               if (!(is_input && shader->info.stage == MESA_SHADER_VERTEX)) {
-                  if (is_clipcull_dist(s.location)) {
-                     unsigned frac = nir_intrinsic_component(intr) + 1;
-                     if (s.location < VARYING_SLOT_CULL_DIST0) {
-                        if (s.location == VARYING_SLOT_CLIP_DIST1)
-                           frac += 4;
-                        shader->info.clip_distance_array_size = MAX3(shader->info.clip_distance_array_size, frac, s.num_slots);
-                     } else {
-                        if (s.location == VARYING_SLOT_CULL_DIST1)
-                           frac += 4;
-                        shader->info.cull_distance_array_size = MAX3(shader->info.cull_distance_array_size, frac, s.num_slots);
-                     }
-                  }
-               }
             }
 
             static bool warned = false;
@@ -5100,13 +5104,13 @@ fixup_io_locations(nir_shader *nir)
           * - any location can be present or not
           * - it just has to work
           *
-          * VAR0 is the only user varying that mesa can produce in this case, so overwrite POS
+          * VAR0/COL0 are the only user varying that mesa can produce in this case, so overwrite POS
           * since it's a builtin and yolo it with all the other legacy crap
           */
          nir_foreach_variable_with_modes(var, nir, m) {
             if (nir_slot_is_sysval_output(var->data.location, MESA_SHADER_NONE))
                continue;
-            if (var->data.location == VARYING_SLOT_VAR0)
+            if (var->data.location == VARYING_SLOT_VAR0 || var->data.location == VARYING_SLOT_COL0)
                var->data.driver_location = 0;
             else if (var->data.patch)
                var->data.driver_location = var->data.location - VARYING_SLOT_PATCH0;
@@ -5813,6 +5817,7 @@ fix_vertex_input_locations_instr(nir_builder *b, nir_intrinsic_instr *intr, void
    if (sem.location < VERT_ATTRIB_GENERIC0)
       return false;
    sem.location = VERT_ATTRIB_GENERIC0 + nir_intrinsic_base(intr);
+   sem.high_dvec2 = false; /* no 64-bit vertex inputs, that has been lowered already. */
    nir_intrinsic_set_io_semantics(intr, sem);
    return true;
 }
@@ -6175,6 +6180,51 @@ bound_image_arrays(nir_shader *nir)
    return nir_shader_instructions_pass(nir, bound_image_arrays_instr, nir_metadata_control_flow, NULL);
 }
 
+static void
+separate_clipcull_array(nir_shader *nir, nir_variable *var)
+{
+   /* if we only have cull distance, just move the var to culldist_0 */
+   if (nir->info.clip_distance_array_size == 0) {
+      var->data.location = VARYING_SLOT_CULL_DIST0;
+      return;
+   }
+
+   const glsl_type *cull_array_type = 
+      glsl_array_type(glsl_float_type(), nir->info.cull_distance_array_size, 4);
+   nir_variable* culldist_var = nir_variable_clone(var, nir);
+   culldist_var->type = nir_is_arrayed_io(var, nir->info.stage)
+                        ? glsl_array_type(cull_array_type, glsl_array_size(var->type), 0)
+                        : cull_array_type;
+   culldist_var->data.location = VARYING_SLOT_CULL_DIST0;
+   culldist_var->data.location_frac = 0;
+   culldist_var->name = "gl_CullDistance";
+   nir_shader_add_variable(nir, culldist_var);
+
+   /* shrink the original clip distance array as well */
+   const glsl_type *clip_array_type = 
+      glsl_array_type(glsl_float_type(), nir->info.clip_distance_array_size, 4);
+   var->type = nir_is_arrayed_io(var, nir->info.stage)
+               ? glsl_array_type(clip_array_type, glsl_array_size(var->type), 0)
+               : clip_array_type;
+}
+
+static void
+separate_clipcull_arrays(nir_shader *nir)
+{
+   /* if we don't have cull distances, don't touch anything. */
+   if (nir->info.cull_distance_array_size == 0)
+      return;
+   /* everything except VS inputs and FS outputs need to be separated */
+   nir_variable* output_var =
+      nir_find_variable_with_location(nir, nir_var_shader_out, VARYING_SLOT_CLIP_DIST0);
+   if (output_var && nir->info.stage != MESA_SHADER_FRAGMENT)
+      separate_clipcull_array(nir, output_var);
+   nir_variable* input_var =
+      nir_find_variable_with_location(nir, nir_var_shader_in, VARYING_SLOT_CLIP_DIST0);
+   if (input_var && nir->info.stage != MESA_SHADER_VERTEX)
+      separate_clipcull_array(nir, input_var);
+}
+
 struct zink_shader *
 zink_shader_create(struct zink_screen *screen, struct nir_shader *nir)
 {
@@ -6254,8 +6304,6 @@ zink_shader_init(struct zink_screen *screen, struct zink_shader *zs)
       NIR_PASS(_, nir, nir_lower_alu_vec8_16_srcs);
    }
 
-   NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_in | nir_var_shader_out, NULL, NULL);
-   NIR_PASS(_, nir, nir_separate_merged_clip_cull_io);
    optimize_nir(nir, NULL, true);
    NIR_PASS(_, nir, bound_image_arrays);
    NIR_PASS(_, nir, flatten_image_arrays);
@@ -6270,21 +6318,31 @@ zink_shader_init(struct zink_screen *screen, struct zink_shader *zs)
    NIR_PASS(_, nir, fix_vertex_input_locations);
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
    scan_nir(screen, nir, zs);
+
    NIR_PASS(_, nir, nir_opt_vectorize, NULL, NULL);
-   NIR_PASS(_, nir, trivial_revectorize);
    if (nir->info.io_lowered) {
-      rework_io_vars(nir, nir_var_shader_in, zs);
-      rework_io_vars(nir, nir_var_shader_out, zs);
-      nir_sort_variables_by_location(nir, nir_var_shader_in);
-      nir_sort_variables_by_location(nir, nir_var_shader_out);
+      NIR_PASS(_, nir, nir_opt_dce);
+      /* for compute and separate shaders without xfb, ignore the intrinsics and generate derefs. */
+      const bool keep_intrinsics = !(mesa_shader_stage_is_compute(nir->info.stage) || nir->info.separate_shader) ||
+                                   (nir->info.has_transform_feedback_varyings);
+      NIR_PASS(_, nir, nir_unlower_io_to_vars, keep_intrinsics);
+      optimize_nir(nir, NULL, true);
    }
+
+   /* NOTE/TODO: this can be removed after add_derefs rework */
+   const struct scalarize_vars_instr_filter_data filter_data = {
+      .location_mask = BITFIELD64_BIT(VARYING_SLOT_CLIP_DIST0) | BITFIELD64_BIT(VARYING_SLOT_CLIP_DIST1) |
+                       BITFIELD64_BIT(VARYING_SLOT_CULL_DIST0) | BITFIELD64_BIT(VARYING_SLOT_CULL_DIST1) |
+                       BITFIELD64_BIT(VARYING_SLOT_TESS_LEVEL_OUTER) | BITFIELD64_BIT(VARYING_SLOT_TESS_LEVEL_INNER)
+   };
+   NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_in | nir_var_shader_out,
+            scalarize_vars_instr_filter, (void*)&filter_data);
+   NIR_PASS(_, nir, nir_separate_merged_clip_cull_io);
+
+   separate_clipcull_arrays(nir);
 
    if (nir->info.stage < MESA_SHADER_COMPUTE)
       create_gfx_pushconst(nir);
-
-   if (nir->info.stage == MESA_SHADER_TESS_CTRL ||
-            nir->info.stage == MESA_SHADER_TESS_EVAL)
-      NIR_PASS(_, nir, nir_lower_io_array_vars_to_elements_no_indirects, false);
 
    if (nir->info.stage < MESA_SHADER_FRAGMENT)
       have_psiz = check_psiz(nir);
