@@ -2861,6 +2861,40 @@ find_max_write_components(nir_builder *b, nir_intrinsic_instr *intr, void *data)
    return false;
 }
 
+/* boop vars and check if they respond: splits IO varyings at marked locations to components if necessary. */
+static bool
+boop_vars_at_locations(nir_shader *nir, uint64_t location_mask, nir_variable_mode mode)
+{
+   bool changed = false;
+   nir_foreach_variable_with_modes_safe(var, nir, mode) {
+      if ((var->data.location > VARYING_SLOT_VAR31) ||
+          ((BITFIELD64_BIT(var->data.location) & location_mask) == 0) ||
+          var->type->vector_elements <= 1)
+         continue;
+      for (uint8_t i = 0; i < var->type->vector_elements; i++) {
+         nir_variable* new_var = nir_variable_clone(var, nir);
+         new_var->type = glsl_get_scalar_type(new_var->type);
+         new_var->data.location_frac += i;
+         nir_shader_add_variable(nir, new_var);
+      }
+      var->data.mode = nir_var_shader_temp;
+      exec_node_remove(&var->node);
+      changed = true;
+   }
+   return changed;
+}
+
+struct scalarize_vars_instr_filter_data {
+   uint64_t location_mask;
+};
+static bool
+scalarize_vars_instr_filter(const nir_intrinsic_instr * intrin, const void *data)
+{
+   const nir_io_semantics semantics = nir_intrinsic_io_semantics(intrin);
+   const uint64_t scalarize_var_locations = ((const struct scalarize_vars_instr_filter_data*)data)->location_mask;
+   return (scalarize_var_locations & BITFIELD64_BIT(semantics.location)) != 0;
+}
+
 void
 zink_compiler_assign_io(struct zink_screen *screen, nir_shader *producer, nir_shader *consumer)
 {
@@ -6159,6 +6193,39 @@ zink_shader_create(struct zink_screen *screen, struct nir_shader *nir)
    return zs;
 }
 
+static void
+boop_componenty_so_vars(nir_shader *nir)
+{
+   uint64_t boop_locations = 0;
+   for (unsigned i = 0; i < nir->xfb_info->output_count; i++) {
+      nir_xfb_output_info *output = &nir->xfb_info->outputs[i];
+      unsigned xfb_components = util_bitcount(output->component_mask);
+      nir_variable *so_var = nir_find_variable_with_location(nir, nir_var_shader_out, output->location);
+      if (!so_var && nir->info.cull_distance_array_size && (output->location == VARYING_SLOT_CLIP_DIST0)) {
+         nir_variable *cull_var = nir_find_variable_with_location(nir, nir_var_shader_out, VARYING_SLOT_CULL_DIST0);
+         /* cull distance XFB info needs to be patched with common nir passes, as they assume merged clipcull. */
+         /* TODO: remove this with the add_derefs rework, unlowering-based-dereffing might just work with this. */
+         if (cull_var) {
+            so_var = cull_var;
+            output->location = VARYING_SLOT_CULL_DIST0;
+         }
+      }
+      if (so_var && so_var->type->vector_elements != xfb_components) {
+         boop_locations |= BITFIELD64_BIT(output->location);
+         so_var->data.always_active_io = false; /* patch this to get scalarization to do something */
+      }
+   }
+   if (boop_locations) {
+      const struct scalarize_vars_instr_filter_data filter_data = {.location_mask = boop_locations};
+      NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_out, scalarize_vars_instr_filter, (void*)&filter_data);
+      boop_vars_at_locations(nir, boop_locations, nir_var_shader_out);
+   }
+   nir_foreach_variable_with_modes_safe(var, nir, nir_var_shader_out) {
+      if ((BITFIELD64_BIT(var->data.location) & boop_locations))
+         var->data.always_active_io = true; /* all of these are SO variables. */
+   }
+}
+
 void
 zink_shader_init(struct zink_screen *screen, struct zink_shader *zs)
 {
@@ -6361,8 +6428,10 @@ zink_shader_init(struct zink_screen *screen, struct zink_shader *zs)
    if (!nir->info.internal)
       nir_foreach_shader_out_variable(var, nir)
          var->data.explicit_xfb_buffer = 0;
-   if (nir->xfb_info && nir->xfb_info->output_count && nir->info.outputs_written)
+   if (nir->xfb_info && nir->xfb_info->output_count && nir->info.outputs_written) {
+      boop_componenty_so_vars(nir);
       update_so_info(zs, nir, nir->info.outputs_written, have_psiz);
+   }
    zink_shader_serialize_blob(nir, &zs->blob);
    memcpy(&zs->info, &nir->info, sizeof(nir->info));
 }
