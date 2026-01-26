@@ -854,7 +854,7 @@
         "description": "panvk: fix sparse image non-opaque binds",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "5326c45174774b2976f9f48761e75e361c433a84",
         "notes": null
