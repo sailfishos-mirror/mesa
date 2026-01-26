@@ -953,7 +953,12 @@ static bool pvr_physical_device_get_properties(
       .lineSubPixelPrecisionBits = line_sub_pixel_precision_bits,
    };
 
-   if (PVR_HAS_FEATURE(dev_info, gpu_multicore_support)) {
+   if (strlen(pdevice->instance->drirc.debug.force_vk_devicename) > 0) {
+      snprintf(properties->deviceName,
+               sizeof(properties->deviceName),
+               "%s",
+               pdevice->instance->drirc.debug.force_vk_devicename);
+   } else if (PVR_HAS_FEATURE(dev_info, gpu_multicore_support)) {
       snprintf(properties->deviceName,
                sizeof(properties->deviceName),
                "PowerVR %s %s MC%u",
