@@ -3134,6 +3134,9 @@ optimizations += [
 
    (('pack_half_2x16_rtz_split', ('b2f', 'a@1'), ('b2f', a)), ('bcsel', a, 0x3c003c00, 0)),
 
+   (('pack_half_2x16_rtz_split', ('f2f32', 'a@16'), b), ('pack_32_2x16', ('vec2', ('fcanonicalize', a), ('f2f16_rtz', b)))),
+   (('pack_half_2x16_rtz_split', a, ('f2f32', 'b@16')), ('pack_32_2x16', ('vec2', ('f2f16_rtz', a), ('fcanonicalize', b)))),
+
    (('pack_32_2x16_split', 'a(is_undef)', ('bcsel', b, '#c', d)),
     ('bcsel', b, ('pack_32_2x16_split', 0, c), ('pack_32_2x16_split', a, d)),
     'true', TestStatus.UNSUPPORTED),
