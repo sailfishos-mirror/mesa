@@ -379,6 +379,8 @@ static constexpr RegClass v3b{RegClass::v3b};
 static constexpr RegClass v4b{RegClass::v4b};
 static constexpr RegClass v6b{RegClass::v6b};
 static constexpr RegClass v8b{RegClass::v8b};
+static constexpr RegClass lv1{RegClass::v1_linear};
+static constexpr RegClass lv2{RegClass::v2_linear};
 
 /**
  * Temp Class
