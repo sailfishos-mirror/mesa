@@ -220,6 +220,7 @@ zink-tu-a750:
     GPU_VERSION: zink-tu-a750
     HWCI_START_WESTON: 1
     DRIVER_NAME: null  # Don't use freedreno skips
+    ZINK_DEBUG: optimal_keys
 
 ############### Combined testing (GL, GLES, Piglit) on NVK / RADV
 zink-nvk-ga106-valve:
