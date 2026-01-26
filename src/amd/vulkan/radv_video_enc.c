@@ -515,36 +515,50 @@ radv_enc_session_init(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoEn
    struct radv_video_session *vid = cmd_buffer->video.vid;
    VkExtent2D extent = {0, 0};
 
-   if (enc_info) {
-      extent = enc_info->srcPictureResource.codedExtent;
-   } else {
-      switch (vid->vk.op) {
-      case VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR:
-         for (uint32_t i = 0; i < cmd_buffer->video.params->h264_enc.h264_sps_count; i++) {
-            const StdVideoH264SequenceParameterSet *sps = &cmd_buffer->video.params->h264_enc.h264_sps[i].base;
-            extent.width = MAX2((sps->pic_width_in_mbs_minus1 + 1) * 16, extent.width);
-            extent.height = MAX2((sps->pic_height_in_map_units_minus1 + 1) * 16, extent.height);
+   switch (vid->vk.op) {
+   case VK_VIDEO_CODEC_OPERATION_ENCODE_H264_BIT_KHR:
+      for (uint32_t i = 0; i < cmd_buffer->video.params->h264_enc.h264_sps_count; i++) {
+         const StdVideoH264SequenceParameterSet *sps = &cmd_buffer->video.params->h264_enc.h264_sps[i].base;
+         if (enc_info) {
+            const struct VkVideoEncodeH264PictureInfoKHR *h264_picture_info =
+               vk_find_struct_const(enc_info->pNext, VIDEO_ENCODE_H264_PICTURE_INFO_KHR);
+            if (sps->seq_parameter_set_id != h264_picture_info->pStdPictureInfo->seq_parameter_set_id)
+               continue;
          }
-         break;
-      case VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR:
-         for (uint32_t i = 0; i < cmd_buffer->video.params->h265_enc.h265_sps_count; i++) {
-            const StdVideoH265SequenceParameterSet *sps = &cmd_buffer->video.params->h265_enc.h265_sps[i].base;
-            extent.width = MAX2(sps->pic_width_in_luma_samples, extent.width);
-            extent.height = MAX2(sps->pic_height_in_luma_samples, extent.height);
+         extent.width = MAX2((sps->pic_width_in_mbs_minus1 + 1) * 16, extent.width);
+         extent.height = MAX2((sps->pic_height_in_map_units_minus1 + 1) * 16, extent.height);
+      }
+      break;
+   case VK_VIDEO_CODEC_OPERATION_ENCODE_H265_BIT_KHR:
+      for (uint32_t i = 0; i < cmd_buffer->video.params->h265_enc.h265_sps_count; i++) {
+         const StdVideoH265SequenceParameterSet *sps = &cmd_buffer->video.params->h265_enc.h265_sps[i].base;
+         if (enc_info) {
+            const struct VkVideoEncodeH265PictureInfoKHR *h265_picture_info =
+               vk_find_struct_const(enc_info->pNext, VIDEO_ENCODE_H265_PICTURE_INFO_KHR);
+            if (sps->sps_seq_parameter_set_id != h265_picture_info->pStdPictureInfo->pps_seq_parameter_set_id)
+               continue;
          }
-         break;
-      case VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR: {
-         const StdVideoAV1SequenceHeader *seq = &cmd_buffer->video.params->av1_enc.seq_hdr.base;
-         extent.width = seq->max_frame_width_minus_1 + 1;
-         extent.height = seq->max_frame_height_minus_1 + 1;
-         break;
+         extent.width = MAX2(sps->pic_width_in_luma_samples, extent.width);
+         extent.height = MAX2(sps->pic_height_in_luma_samples, extent.height);
       }
-      default:
-         UNREACHABLE("Unsupported operation");
-      }
+      break;
+   case VK_VIDEO_CODEC_OPERATION_ENCODE_AV1_BIT_KHR: {
+      const StdVideoAV1SequenceHeader *seq = &cmd_buffer->video.params->av1_enc.seq_hdr.base;
+      extent.width = seq->max_frame_width_minus_1 + 1;
+      extent.height = seq->max_frame_height_minus_1 + 1;
+      break;
+   }
+   default:
+      UNREACHABLE("Unsupported operation");
    }
 
    VkExtent2D aligned_extent = radv_enc_aligned_coded_extent(pdev, vid->vk.op, extent);
+   cmd_buffer->video.enc.coded_width = aligned_extent.width;
+   cmd_buffer->video.enc.coded_height = aligned_extent.height;
+
+   if (enc_info)
+      extent = enc_info->srcPictureResource.codedExtent;
+
    uint32_t padding_width = aligned_extent.width - extent.width;
    uint32_t padding_height = aligned_extent.height - extent.height;
 
@@ -598,8 +612,8 @@ radv_enc_slice_control(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoE
       vk_find_struct_const(enc_info->pNext, VIDEO_ENCODE_H264_PICTURE_INFO_KHR);
 
    uint32_t num_mbs_in_slice;
-   uint32_t width_in_mbs = DIV_ROUND_UP(enc_info->srcPictureResource.codedExtent.width, 16);
-   uint32_t height_in_mbs = DIV_ROUND_UP(enc_info->srcPictureResource.codedExtent.height, 16);
+   uint32_t width_in_mbs = DIV_ROUND_UP(cmd_buffer->video.enc.coded_width, 16);
+   uint32_t height_in_mbs = DIV_ROUND_UP(cmd_buffer->video.enc.coded_height, 16);
    num_mbs_in_slice = DIV_ROUND_UP(width_in_mbs * height_in_mbs, h264_picture_info->naluSliceEntryCount);
 
    RADEON_ENC_BEGIN(pdev->vcn_enc_cmds.slice_control_h264);
@@ -684,8 +698,8 @@ radv_enc_slice_control_hevc(struct radv_cmd_buffer *cmd_buffer, const struct VkV
 
    uint32_t width_in_ctb, height_in_ctb, num_ctbs_in_slice;
 
-   width_in_ctb = DIV_ROUND_UP(enc_info->srcPictureResource.codedExtent.width, 64);
-   height_in_ctb = DIV_ROUND_UP(enc_info->srcPictureResource.codedExtent.height, 64);
+   width_in_ctb = DIV_ROUND_UP(cmd_buffer->video.enc.coded_width, 64);
+   height_in_ctb = DIV_ROUND_UP(cmd_buffer->video.enc.coded_height, 64);
    num_ctbs_in_slice = DIV_ROUND_UP(width_in_ctb * height_in_ctb, h265_picture_info->naluSliceSegmentEntryCount);
 
    RADEON_ENC_BEGIN(pdev->vcn_enc_cmds.slice_control_hevc);
@@ -764,21 +778,18 @@ radv_enc_spec_misc_av1(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoE
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   struct radv_video_session *vid = cmd_buffer->video.vid;
    struct vk_video_session_parameters *params = cmd_buffer->video.params;
    const struct VkVideoEncodeAV1PictureInfoKHR *av1_picture_info =
       vk_find_struct_const(enc_info->pNext, VIDEO_ENCODE_AV1_PICTURE_INFO_KHR);
    const StdVideoEncodeAV1PictureInfo *pic = av1_picture_info->pStdPictureInfo;
    const StdVideoAV1SequenceHeader *seq = &params->av1_enc.seq_hdr.base;
-   VkExtent2D aligned_extent =
-      radv_enc_aligned_coded_extent(pdev, vid->vk.op, enc_info->srcPictureResource.codedExtent);
-   uint32_t sb_w = DIV_ROUND_UP(aligned_extent.width, 64);
-   uint32_t sb_h = DIV_ROUND_UP(aligned_extent.height, 64);
+   uint32_t sb_w = DIV_ROUND_UP(cmd_buffer->video.enc.coded_width, 64);
+   uint32_t sb_h = DIV_ROUND_UP(cmd_buffer->video.enc.coded_height, 64);
    rvcn_enc_av1_tile_config_t *tile_config = &av1_state->tile_config;
 
    if (pic->pTileInfo) {
       /* 2 cols only supported for width > 4096. */
-      if (aligned_extent.width <= 4096 && pic->pTileInfo->TileCols > 1) {
+      if (cmd_buffer->video.enc.coded_width <= 4096 && pic->pTileInfo->TileCols > 1) {
          tile_config->num_tile_cols = 1;
          tile_config->num_tile_rows = MIN2(pic->pTileInfo->TileRows * pic->pTileInfo->TileCols, sb_h);
          tile_config->uniform_tile_spacing = util_is_power_of_two_or_zero(tile_config->num_tile_rows);
@@ -800,10 +811,10 @@ radv_enc_spec_misc_av1(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoE
                                                     ? RENCODE_AV1_CONTEXT_UPDATE_TILE_ID_MODE_DEFAULT
                                                     : RENCODE_AV1_CONTEXT_UPDATE_TILE_ID_MODE_CUSTOMIZED;
    } else {
-      tile_config->num_tile_cols = aligned_extent.width > 4096 ? 2 : 1;
-      uint32_t max_tile_width = DIV_ROUND_UP(aligned_extent.width, tile_config->num_tile_cols);
+      tile_config->num_tile_cols = cmd_buffer->video.enc.coded_width > 4096 ? 2 : 1;
+      uint32_t max_tile_width = DIV_ROUND_UP(cmd_buffer->video.enc.coded_width, tile_config->num_tile_cols);
       uint32_t max_tile_height = (4096 * 2304) / max_tile_width;
-      tile_config->num_tile_rows = DIV_ROUND_UP(aligned_extent.height, max_tile_height);
+      tile_config->num_tile_rows = DIV_ROUND_UP(cmd_buffer->video.enc.coded_height, max_tile_height);
       tile_config->uniform_tile_spacing = util_is_power_of_two_or_zero(tile_config->num_tile_rows);
       tile_config->context_update_tile_id = 0;
       tile_config->context_update_tile_id_mode = RENCODE_AV1_CONTEXT_UPDATE_TILE_ID_MODE_DEFAULT;
@@ -1838,11 +1849,11 @@ radv_enc_intra_refresh(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeIn
       switch (vid->vk.intra_refresh_mode) {
       case VK_VIDEO_ENCODE_INTRA_REFRESH_MODE_BLOCK_BASED_BIT_KHR:
       case VK_VIDEO_ENCODE_INTRA_REFRESH_MODE_BLOCK_ROW_BASED_BIT_KHR:
-         size_in_blocks = DIV_ROUND_UP(enc_info->srcPictureResource.codedExtent.height, block_size);
+         size_in_blocks = DIV_ROUND_UP(cmd_buffer->video.enc.coded_height, block_size);
          RADEON_ENC_CS(RENCODE_INTRA_REFRESH_MODE_CTB_MB_ROWS);
          break;
       case VK_VIDEO_ENCODE_INTRA_REFRESH_MODE_BLOCK_COLUMN_BASED_BIT_KHR:
-         size_in_blocks = DIV_ROUND_UP(enc_info->srcPictureResource.codedExtent.width, block_size);
+         size_in_blocks = DIV_ROUND_UP(cmd_buffer->video.enc.coded_width, block_size);
          RADEON_ENC_CS(RENCODE_INTRA_REFRESH_MODE_CTB_MB_COLUMNS);
          break;
       default:
@@ -2620,7 +2631,6 @@ radv_enc_av1_obu_instruction(struct radv_cmd_buffer *cmd_buffer, const VkVideoEn
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   struct radv_video_session *vid = cmd_buffer->video.vid;
    struct vk_video_session_parameters *params = cmd_buffer->video.params;
    const struct VkVideoEncodeAV1PictureInfoKHR *av1_picture_info =
       vk_find_struct_const(enc_info->pNext, VIDEO_ENCODE_AV1_PICTURE_INFO_KHR);
@@ -2631,8 +2641,6 @@ radv_enc_av1_obu_instruction(struct radv_cmd_buffer *cmd_buffer, const VkVideoEn
    bool frame_is_intra =
       av1_pic->frame_type == STD_VIDEO_AV1_FRAME_TYPE_KEY || av1_pic->frame_type == STD_VIDEO_AV1_FRAME_TYPE_INTRA_ONLY;
    bool error_resilient_mode = false;
-   VkExtent2D aligned_extent =
-      radv_enc_aligned_coded_extent(pdev, vid->vk.op, enc_info->srcPictureResource.codedExtent);
 
    radv_enc_reset(cmd_buffer);
 
@@ -2742,11 +2750,11 @@ radv_enc_av1_obu_instruction(struct radv_cmd_buffer *cmd_buffer, const VkVideoEn
       else {
          if (frame_size_override) {
             /*  frame_width_minus_1  */
-            uint32_t val = aligned_extent.width - 1;
+            uint32_t val = cmd_buffer->video.enc.coded_width - 1;
             uint32_t used_bits = radv_enc_value_bits(val);
             radv_enc_code_fixed_bits(cmd_buffer, val, used_bits);
             /*  frame_height_minus_1  */
-            val = aligned_extent.height - 1;
+            val = cmd_buffer->video.enc.coded_height - 1;
             used_bits = radv_enc_value_bits(val);
             radv_enc_code_fixed_bits(cmd_buffer, val, used_bits);
          }
@@ -2778,8 +2786,8 @@ radv_enc_av1_obu_instruction(struct radv_cmd_buffer *cmd_buffer, const VkVideoEn
 
    if (pdev->enc_hw_ver >= RADV_VIDEO_ENC_HW_5) {
       /*  tile_info  */
-      uint32_t sb_cols = DIV_ROUND_UP(aligned_extent.width, 64);
-      uint32_t sb_rows = DIV_ROUND_UP(aligned_extent.height, 64);
+      uint32_t sb_cols = DIV_ROUND_UP(cmd_buffer->video.enc.coded_width, 64);
+      uint32_t sb_rows = DIV_ROUND_UP(cmd_buffer->video.enc.coded_height, 64);
       uint32_t min_log2_tile_cols = radv_enc_av1_tile_log2(64, sb_cols);
       uint32_t min_log2_tiles = MAX2(min_log2_tile_cols, radv_enc_av1_tile_log2(64 * 36, sb_rows * sb_cols));
       uint32_t tile_cols_log2 = radv_enc_av1_tile_log2(1, av1_state->tile_config.num_tile_cols);

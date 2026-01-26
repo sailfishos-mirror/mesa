@@ -454,6 +454,8 @@ struct radv_enc_state {
    uint32_t *copy_start;
    VkVideoEncodeRateControlModeFlagBitsKHR rate_control_mode;
    uint32_t rate_control_num_layers;
+   uint32_t coded_width;
+   uint32_t coded_height;
 };
 
 struct radv_cmd_buffer_upload {
