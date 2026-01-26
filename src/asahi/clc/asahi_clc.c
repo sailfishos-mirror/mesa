@@ -319,6 +319,7 @@ main(int argc, char **argv)
          do {
             progress = false;
             NIR_PASS(progress, s, nir_opt_loop);
+            NIR_PASS(_, s, nir_opt_remove_phis);
          } while (progress);
 
          agx_preprocess_nir(s);
