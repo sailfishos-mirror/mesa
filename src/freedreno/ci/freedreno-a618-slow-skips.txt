@@ -63,4 +63,5 @@ spec@glsl-4.20@execution@conversion@frag-conversion-implicit-mat4-dmat4-zero-sig
 # Slow tests that may hit 60s timeout pre-merge, but pass otherwise.  94% CPU
 # used in ir3 create_variant, but no single pass there dominating its time.
 # Just use the scalar/vec2 cases, which are fast enough for CI.
-dEQP-VK.subgroups.clustered.compute.subgroupclustered(min|max|mul)_[iu]64vec[34].*
+dEQP-VK.subgroups.clustered.compute.subgroupclustered(min|max|mul|and|or|xor|add)_[iu]64vec[34].*
+dEQP-VK.subgroups.clustered.compute.subgroupclustered(min|max|mul|and|or|xor|add)_[iu]vec[34].*
