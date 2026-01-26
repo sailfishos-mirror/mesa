@@ -204,7 +204,7 @@
         "description": "aco: fix demote in header of single iteration loop",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "90faadae72280f0da4abef016889bfbdb6a4d3d9",
         "notes": null
