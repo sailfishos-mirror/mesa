@@ -215,7 +215,6 @@ struct radv_shader_info {
       bool load_provoking_vtx : 1;
       bool load_rasterization_prim : 1;
       bool force_sample_iter_shading_rate : 1;
-      bool uses_fbfetch_output : 1;
       bool allow_flat_shading : 1;
 
       bool has_epilog : 1;
