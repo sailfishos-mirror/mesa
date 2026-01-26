@@ -49,6 +49,22 @@ elif [ -d "/piglit" ]; then
   rm -r /piglit
 fi
 
+if [ -n "$VKD3D_PROTON_TAG" ]; then
+  # Are we using the right vkd3d-proton version?
+  ci_tag_test_time_check "VKD3D_PROTON_TAG"
+
+  export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:$INSTALL/lib/:/vkd3d-proton-tests/lib/"
+  # Set environment for Wine.
+  export WINEDEBUG="-all"
+  export WINEPREFIX="/vkd3d-proton-wine64"
+  export WINEESYNC=1
+
+  # Work around our install not using the same layout as the build tree (but
+  # vkd3d-proton.sh relies on the current layout).
+  ln -s /vkd3d-proton-tests/d3d12 /vkd3d-proton-tests/tests/d3d12
+fi
+
+
 # Ensure Mesa Shader Cache resides on tmpfs.
 SHADER_CACHE_HOME=${XDG_CACHE_HOME:-${HOME}/.cache}
 SHADER_CACHE_DIR=${MESA_SHADER_CACHE_DIR:-${SHADER_CACHE_HOME}/mesa_shader_cache}

@@ -321,6 +321,7 @@ a750-gl-cl:
 
 a750-vk:
   extends:
+    - .test-vkd3d-proton # must come before other extends, since we don't want its HWCI_TEST_SCRIPT
     - .ci-tron-arm64-test-vk
     - .a750-kws
     - .valve-turnip-rules
@@ -329,14 +330,3 @@ a750-vk:
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 16
     DEQP_SUITE: freedreno-a750-vk
-
-a750-vkd3d:
-  extends:
-    - .ci-tron-arm64-test-vk
-    - .a750-mupuf
-    - .valve-turnip-manual-rules
-    - .test-vkd3d-proton
-  timeout: 15m  # base runtime 3min
-  variables:
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 12
-    FDO_CI_CONCURRENT: 1

@@ -77,3 +77,7 @@ TU_DEBUG = "dynamic"
 # TU_DEBUG_STALE_REGS_RANGE = "0x0c00,0xbe01"
 # TU_DEBUG_STALE_REGS_FLAGS = "cmdbuf,renderpass"
 # FREEDRENO_HANGCHECK_MS = "2000"
+
+[[vkd3d]]
+vkd3d_folder = "/vkd3d-proton-tests/"
+prefix="vkd3d-" # The test names are pretty ambiguous, otherwise.

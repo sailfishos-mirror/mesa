@@ -77,3 +77,10 @@ dEQP-GLES31.functional.ssbo.layout.single_basic_type.std140.column_major_highp_m
 dEQP-GLES31.functional.ssbo.layout.single_basic_type.std140.row_major_mediump_mat4x2
 dEQP-GLES31.functional.ssbo.layout.single_basic_type.std430.highp_uvec2
 dEQP-GLES31.functional.ssbo.layout.single_basic_type.std430.mediump_mat3
+
+# test_object_interface:1615:pipeline state: Test failed: Test object has 1 references left.
+vkd3d-test_object_interface
+# "test_pipeline_library:369: Test failed: Refcount 2 != 1."
+vkd3d-test_pipeline_library
+# Aborted with malloc corruption
+vkd3d-test_read_subresource_rt
