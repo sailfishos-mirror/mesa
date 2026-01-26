@@ -189,7 +189,7 @@ int amdvgpu_device_initialize(int fd, uint32_t *drm_major, uint32_t *drm_minor,
 init_sync_provider:
    *p = vdrm_vpipe_get_sync(dev->vdev);
    if (!(*p))
-      *p = util_sync_provider_drm(fd);
+      *p = util_sync_provider_drm(dev->fd);
 
    return 0;
 }
