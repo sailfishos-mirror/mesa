@@ -1964,7 +1964,6 @@ msl_optimize_nir(struct nir_shader *nir)
 {
    bool progress;
    NIR_PASS(_, nir, nir_lower_int64);
-   NIR_PASS(_, nir, nir_opt_shrink_stores, false);
    do {
       progress = false;
 
@@ -1992,6 +1991,13 @@ msl_optimize_nir(struct nir_shader *nir)
       NIR_PASS(progress, nir, nir_lower_alu_to_scalar, kk_scalarize_filter,
                NULL);
    } while (progress);
+   /* nir_opt_shrink_stores needs to go after nir_opt_remove_phis since
+    * writes may be dependent on phis. We could have a situation such that the
+    * stored vector can be (valid,undef,undef,undef) or
+    * (undef,undef,undef,undef). After nir_opt_remove_phis this gets optimized
+    * to a single store for x, and nir_opt_shrink_stores will correctly reduce
+    * the store. */
+   NIR_PASS(_, nir, nir_opt_shrink_stores, false);
    NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
    NIR_PASS(_, nir, msl_nir_lower_algebraic_late);
    NIR_PASS(_, nir, nir_convert_from_ssa, true, false);
