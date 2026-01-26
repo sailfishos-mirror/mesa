@@ -1265,7 +1265,7 @@ zink_screen_init_compiler(struct zink_screen *screen)
 {
    static const struct nir_shader_compiler_options
    default_options = {
-      .io_options = nir_io_has_intrinsics,
+      .io_options = nir_io_has_intrinsics | nir_io_mediump_is_32bit,
       .lower_ffma16 = true,
       .lower_ffma32 = true,
       .lower_ffma64 = true,
