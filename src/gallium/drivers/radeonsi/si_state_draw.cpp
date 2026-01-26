@@ -42,6 +42,45 @@
 #define SI_VERTEX_PIPELINE_STATE_DIRTY_MASK \
    (BITFIELD_MASK(MESA_SHADER_FRAGMENT + 1) | SI_SQTT_STATE_DIRTY_BIT)
 
+static inline uint32_t hash_shader_for_sqtt(XXH64_state_t* xh, struct si_shader *shader)
+{
+   /* Hash the key. */
+   XXH64_update(xh, &shader->key, sizeof(shader->key));
+   /* Hash the main part binary. */
+   XXH64_update(xh, shader->binary.code_buffer, shader->binary.code_size);
+
+   return align_uintptr(shader->binary.uploaded_code_size, 256);
+}
+
+static inline uint32_t upload_shader_for_sqtt(struct si_context *sctx,
+                                              struct si_sqtt_fake_pipeline *pipeline,
+                                              struct si_shader *shader,
+                                              uint32_t offset,
+                                              uint64_t scratch_va)
+{
+   struct si_resource *original_bo = shader->bo;
+
+   /* Temp override for si_shader_binary_upload_at to work. */
+   shader->bo = pipeline->bo;
+
+   int size = si_shader_binary_upload_at(sctx->screen, shader, scratch_va, offset);
+
+   shader->bo = original_bo;
+
+   assert(size == (int)shader->binary.uploaded_code_size);
+
+   struct si_pm4_state *pm4 = &shader->pm4;
+
+   /* Patch the SPI_SHADER_PGM_LO_* register to point to the new bo address,
+    * with the proper offset.
+    */
+   uint64_t va_low = shader->gpu_address >> 8;
+   uint32_t reg = pm4->base.spi_shader_pgm_lo_reg;
+   ac_pm4_set_reg(&pipeline->pm4.base, reg, va_low);
+
+   return align(size, 256);
+}
+
 template <amd_gfx_level GFX_VERSION, si_has_tess HAS_TESS, si_has_gs HAS_GS, si_has_ms HAS_MS, si_has_ngg NGG>
 static bool si_update_shaders_shared_by_vertex_and_mesh_pipe(struct si_context *sctx,
                                                              struct si_shader *old_vs,
@@ -281,15 +320,23 @@ static bool si_update_shaders_shared_by_vertex_and_mesh_pipe(struct si_context *
       XXH64_state_t* xh = XXH64_createState();
       XXH64_reset(xh, scratch_bo_size);
 
-      for (int i = 0; i < SI_NUM_GRAPHICS_SHADERS; i++) {
-         struct si_shader *shader = sctx->shaders[i].current;
-         if (sctx->shaders[i].cso && shader) {
-            /* Hash the key. */
-            XXH64_update(xh, &shader->key, sizeof(shader->key));
-            /* Hash the main part binary. */
-            XXH64_update(xh, shader->binary.code_buffer, shader->binary.code_size);
+      if (HAS_MS) {
+         if (sctx->ts_shader_state.program) {
+            struct si_shader *shader = &sctx->ts_shader_state.program->shader;
+            total_size += hash_shader_for_sqtt(xh, shader);
+         }
 
-            total_size += (uint32_t)align_uintptr(shader->binary.uploaded_code_size, 256);
+         struct si_shader *shader = sctx->ms_shader_state.current;
+         total_size += hash_shader_for_sqtt(xh, shader);
+
+         shader = sctx->shader.ps.current;
+         if (sctx->shader.ps.cso && shader)
+            total_size += hash_shader_for_sqtt(xh, shader);
+      } else {
+         for (int i = 0; i < SI_NUM_GRAPHICS_SHADERS; i++) {
+            struct si_shader *shader = sctx->shaders[i].current;
+            if (sctx->shaders[i].cso && shader)
+               total_size += hash_shader_for_sqtt(xh, shader);
          }
       }
 
@@ -312,9 +359,6 @@ static bool si_update_shaders_shared_by_vertex_and_mesh_pipe(struct si_context *
                (enum pipe_map_flags)(PIPE_MAP_READ_WRITE | PIPE_MAP_UNSYNCHRONIZED | RADEON_MAP_TEMPORARY)) :
              NULL);
 
-         uint32_t offset = 0;
-         uint64_t scratch_va = sctx->scratch_buffer ? sctx->scratch_buffer->gpu_address : 0;
-
          if (ptr) {
             pipeline = (struct si_sqtt_fake_pipeline *)
                CALLOC(1, sizeof(struct si_sqtt_fake_pipeline));
@@ -325,32 +369,32 @@ static bool si_update_shaders_shared_by_vertex_and_mesh_pipe(struct si_context *
             /* Re-upload all gfx shaders and init PM4. */
             si_pm4_clear_state(&pipeline->pm4, sctx->screen, false);
 
-            uint32_t gfx_sh_offsets[SI_NUM_GRAPHICS_SHADERS] = { 0 };
-            for (int i = 0; i < SI_NUM_GRAPHICS_SHADERS; i++) {
-               struct si_shader *shader = sctx->shaders[i].current;
-               if (sctx->shaders[i].cso && shader) {
-                  struct si_resource *original_bo = shader->bo;
+            uint32_t offset = 0;
+            uint64_t scratch_va = sctx->scratch_buffer ? sctx->scratch_buffer->gpu_address : 0;
+            uint32_t gfx_sh_offsets[SI_NUM_SHADERS] = { 0 };
+            if (HAS_MS) {
+               if (sctx->ts_shader_state.program) {
+                  struct si_shader *shader = &sctx->ts_shader_state.program->shader;
+                  gfx_sh_offsets[MESA_SHADER_TASK] = offset;
+                  offset += upload_shader_for_sqtt(sctx, pipeline, shader, offset, scratch_va);
+               }
 
-                  /* Temp override for si_shader_binary_upload_at to work. */
-                  shader->bo = pipeline->bo;
+               gfx_sh_offsets[MESA_SHADER_MESH] = offset;
+               struct si_shader *shader = sctx->ms_shader_state.current;
+               offset += upload_shader_for_sqtt(sctx, pipeline, shader, offset, scratch_va);
 
-                  int size = si_shader_binary_upload_at(sctx->screen, shader, scratch_va, offset);
-
-                  shader->bo = original_bo;
-
-                  assert(size == (int)shader->binary.uploaded_code_size);
-
-                  gfx_sh_offsets[i] = offset;
-                  offset += align(size, 256);
-
-                  struct si_pm4_state *pm4 = &shader->pm4;
-
-                  /* Patch the SPI_SHADER_PGM_LO_* register to point to the new bo address,
-                   * with the proper offset.
-                   */
-                  uint64_t va_low = shader->gpu_address >> 8;
-                  uint32_t reg = pm4->base.spi_shader_pgm_lo_reg;
-                  ac_pm4_set_reg(&pipeline->pm4.base, reg, va_low);
+               shader = sctx->shader.ps.current;
+               if (sctx->shader.ps.cso && shader) {
+                  gfx_sh_offsets[MESA_SHADER_FRAGMENT] = offset;
+                  offset += upload_shader_for_sqtt(sctx, pipeline, shader, offset, scratch_va);
+               }
+            } else {
+               for (int i = 0; i < SI_NUM_GRAPHICS_SHADERS; i++) {
+                  struct si_shader *shader = sctx->shaders[i].current;
+                  if (sctx->shaders[i].cso && shader) {
+                     gfx_sh_offsets[i] = offset;
+                     offset += upload_shader_for_sqtt(sctx, pipeline, shader, offset, scratch_va);
+                  }
                }
             }
             ac_pm4_finalize(&pipeline->pm4.base);
