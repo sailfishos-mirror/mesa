@@ -2434,7 +2434,7 @@
         "description": "tu: allocate transient attachments used for LRZ",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "764b3d9161c27afb57d20536c6968fa5085f34f1",
         "notes": null

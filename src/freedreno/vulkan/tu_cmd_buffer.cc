@@ -3956,7 +3956,8 @@ tu_allocate_transient_attachments(struct tu_cmd_buffer *cmd, bool sysmem)
           (sysmem || rp->attachments[i].load ||
            rp->attachments[i].load_stencil ||
            rp->attachments[i].store ||
-           rp->attachments[i].store_stencil)) {
+           rp->attachments[i].store_stencil ||
+           iview == cmd->state.lrz.image_view)) {
          VkResult result = tu_allocate_lazy_memory(cmd->device,
                                                    iview->image->mem);
          if (result != VK_SUCCESS)
