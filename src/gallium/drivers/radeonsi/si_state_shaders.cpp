@@ -925,7 +925,7 @@ static void si_emit_shader_gs(struct si_context *sctx, unsigned index)
    radeon_end();
 }
 
-static void si_shader_gs(struct si_screen *sscreen, struct si_shader *shader)
+static void si_shader_gs_legacy(struct si_screen *sscreen, struct si_shader *shader)
 {
    struct si_shader_selector *sel = shader->selector;
    const uint8_t *num_components = shader->info.legacy_gs.num_components_per_stream;
@@ -1837,8 +1837,8 @@ static void si_emit_shader_vs(struct si_context *sctx, unsigned index)
  * If \p gs is non-NULL, it points to the geometry shader for which this shader
  * is the copy shader.
  */
-static void si_shader_vs(struct si_screen *sscreen, struct si_shader *shader,
-                         struct si_shader_selector *gs)
+static void si_shader_vs_legacy(struct si_screen *sscreen, struct si_shader *shader,
+                                struct si_shader_selector *gs)
 {
    const struct si_shader_info *info = &shader->selector->info;
    struct si_pm4_state *pm4;
@@ -2310,7 +2310,7 @@ static void si_shader_init_pm4_state(struct si_screen *sscreen, struct si_shader
       else if (shader->key.ge.as_ngg)
          gfx10_shader_ngg(sscreen, shader);
       else
-         si_shader_vs(sscreen, shader, NULL);
+         si_shader_vs_legacy(sscreen, shader, NULL);
       break;
    case MESA_SHADER_TESS_CTRL:
       si_shader_hs(sscreen, shader);
@@ -2321,15 +2321,15 @@ static void si_shader_init_pm4_state(struct si_screen *sscreen, struct si_shader
       else if (shader->key.ge.as_ngg)
          gfx10_shader_ngg(sscreen, shader);
       else
-         si_shader_vs(sscreen, shader, NULL);
+         si_shader_vs_legacy(sscreen, shader, NULL);
       break;
    case MESA_SHADER_GEOMETRY:
       if (shader->key.ge.as_ngg) {
          gfx10_shader_ngg(sscreen, shader);
       } else {
          /* VS must be initialized first because GS uses its fields. */
-         si_shader_vs(sscreen, shader->gs_copy_shader, shader->selector);
-         si_shader_gs(sscreen, shader);
+         si_shader_vs_legacy(sscreen, shader->gs_copy_shader, shader->selector);
+         si_shader_gs_legacy(sscreen, shader);
       }
       break;
    case MESA_SHADER_FRAGMENT:
