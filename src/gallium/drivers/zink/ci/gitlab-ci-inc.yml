@@ -150,7 +150,6 @@
     - !reference [.zink-common-manual-rules, rules]
 
 .zink-test:
-  timeout: 30m
   variables:
     MESA_LOADER_DRIVER_OVERRIDE: "zink"
     FLAKES_CHANNEL: "#zink-ci"
@@ -254,7 +253,6 @@
     FLAKES_CHANNEL: ""
 
 .radv-zink-test-valve:
-  timeout: 30m
   extends:
     - .ci-tron-test-amdgpu
     - .ci-tron-x86_64-test-gl
@@ -264,6 +262,5 @@
   variables:
     DRIVER_NAME: zink-radv
     DEQP_SUITE: zink-radv
-    CI_TRON_TIMEOUT__OVERALL__MINUTES: 20
     # Disable reporting, since DUTs don't have internet access
     FLAKES_CHANNEL: ""
