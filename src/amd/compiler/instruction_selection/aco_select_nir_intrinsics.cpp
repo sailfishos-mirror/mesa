@@ -3489,7 +3489,7 @@ emit_reduction_instr(isel_context* ctx, aco_opcode aco_op, ReduceOp op, unsigned
    Instruction* reduce = create_instruction(aco_op, Format::PSEUDO_REDUCTION, 3, num_defs);
    reduce->operands[0] = Operand(src);
    /* setup_reduce_temp will update these undef operands if needed */
-   reduce->operands[1] = Operand(RegClass(RegType::vgpr, dst.size()).as_linear());
+   reduce->operands[1] = Operand(lv1.resize(dst.size() * 4));
    reduce->operands[2] = Operand(lv1);
    std::copy(defs, defs + num_defs, reduce->definitions.begin());
 

@@ -539,7 +539,7 @@ emit_dpp_op(lower_context* ctx, PhysReg dst_reg, PhysReg src0_reg, PhysReg src1_
             bool bound_ctrl, Operand* identity = NULL) /* for VOP3 with sparse writes */
 {
    Builder bld(ctx->program, &ctx->instructions);
-   RegClass rc = RegClass(RegType::vgpr, size).as_linear();
+   RegClass rc = lv1.resize(size * 4);
    Definition dst(dst_reg, rc);
    Operand src0(src0_reg, rc);
    Operand src1(src1_reg, rc);
@@ -583,10 +583,9 @@ emit_op(lower_context* ctx, PhysReg dst_reg, PhysReg src0_reg, PhysReg src1_reg,
         ReduceOp op, unsigned size)
 {
    Builder bld(ctx->program, &ctx->instructions);
-   RegClass rc = RegClass(RegType::vgpr, size).as_linear();
+   RegClass rc = lv1.resize(size * 4);
    Definition dst(dst_reg, rc);
-   Operand src0(src0_reg, src0_reg.reg() >= 256 ? RegClass(RegType::vgpr, size).as_linear()
-                                                : RegClass(RegType::sgpr, size));
+   Operand src0(src0_reg, (src0_reg.reg() >= 256 ? lv1 : s1).resize(size * 4));
    Operand src1(src1_reg, rc);
 
    aco_opcode opcode = get_reduce_opcode(ctx->program->gfx_level, op);
@@ -2212,7 +2211,7 @@ lower_image_sample(lower_context* ctx, aco_ptr<Instruction>& instr)
       for (unsigned i = num_copied_vgprs; i < std::min(vaddr_size, nsa_size); i++)
          vaddr[num_vaddr++] = Operand(linear_vgpr.physReg().advance(i * 4), lv1);
       if (vaddr_size > nsa_size) {
-         RegClass rc = RegClass::get(RegType::vgpr, (vaddr_size - nsa_size) * 4).as_linear();
+         RegClass rc = lv1.resize((vaddr_size - nsa_size) * 4);
          vaddr[num_vaddr++] = Operand(PhysReg(linear_vgpr.physReg().advance(nsa_size * 4)), rc);
       }
    } else {

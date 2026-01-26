@@ -1778,8 +1778,8 @@ spill(Program* program)
             new_startpgm->definitions[i] = old_startpgm->definitions[i];
 
          unsigned abi_sgpr_spills = limit.sgpr - callee_limit.sgpr;
-         Temp abi_sgpr_spill_space = program->allocateTmp(
-            RegClass(RegType::vgpr, DIV_ROUND_UP(abi_sgpr_spills, program->wave_size)).as_linear());
+         Temp abi_sgpr_spill_space =
+            program->allocateTmp(lv1.resize(DIV_ROUND_UP(abi_sgpr_spills, program->wave_size) * 4));
 
          new_startpgm->definitions.back() = Definition(abi_sgpr_spill_space);
          old_startpgm = aco_ptr<Instruction>(new_startpgm);
