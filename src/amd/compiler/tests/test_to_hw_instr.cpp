@@ -639,8 +639,8 @@ BEGIN_TEST(to_hw_instr.copy_linear_vgpr_scc)
    //! v1: %0:v[0] = v_mov_b32 %0:v[1]
    //! s2: %0:exec,  s1: %0:scc = s_not_b64 %0:exec
    //! s1: %0:scc = s_cmp_lg_i32 %0:m0, 0
-   Instruction* instr = bld.pseudo(aco_opcode::p_parallelcopy, Definition(v0_lo, v1.as_linear()),
-                                   Operand(v1_lo, v1.as_linear()));
+   Instruction* instr =
+      bld.pseudo(aco_opcode::p_parallelcopy, Definition(v0_lo, lv1), Operand(v1_lo, lv1));
    instr->pseudo().scratch_sgpr = m0;
    instr->pseudo().needs_scratch_reg = true;
 
@@ -653,7 +653,7 @@ BEGIN_TEST(to_hw_instr.swap_linear_vgpr)
 
    PhysReg reg_v0{256};
    PhysReg reg_v1{257};
-   RegClass v1_linear = v1.as_linear();
+   RegClass v1_linear = lv1;
 
    //>> p_unit_test 0
    bld.pseudo(aco_opcode::p_unit_test, Operand::zero());
@@ -704,7 +704,7 @@ BEGIN_TEST(to_hw_instr.copy_linear_vgpr_coalesce)
    PhysReg reg_v1{256 + 1};
    PhysReg reg_v4{256 + 4};
    PhysReg reg_v5{256 + 5};
-   RegClass v1_linear = v1.as_linear();
+   RegClass v1_linear = lv1;
 
    //>> p_unit_test 0
    //! v2: %0:v[0-1] = v_lshrrev_b64 0, %0:v[4-5]

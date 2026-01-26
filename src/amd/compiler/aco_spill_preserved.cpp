@@ -203,28 +203,25 @@ emit_vgpr_spills_reloads(spill_preserved_ctx& ctx, Builder& bld,
    for (const auto& spill : spills) {
       if (ctx.program->gfx_level >= GFX9) {
          if (reload)
-            bld.scratch(aco_opcode::scratch_load_dword,
-                        Definition(spill.first, linear ? v1.as_linear() : v1), Operand(v1),
-                        Operand(stack_reg, s1), spill.second - spill_stack_base,
+            bld.scratch(aco_opcode::scratch_load_dword, Definition(spill.first, linear ? lv1 : v1),
+                        Operand(v1), Operand(stack_reg, s1), spill.second - spill_stack_base,
                         memory_sync_info(storage_vgpr_spill, semantic_private));
          else
             bld.scratch(aco_opcode::scratch_store_dword, Operand(v1), Operand(stack_reg, s1),
-                        Operand(spill.first, linear ? v1.as_linear() : v1),
-                        spill.second - spill_stack_base,
+                        Operand(spill.first, linear ? lv1 : v1), spill.second - spill_stack_base,
                         memory_sync_info(storage_vgpr_spill, semantic_private));
       } else {
          if (reload) {
-            Instruction* instr = bld.mubuf(aco_opcode::buffer_load_dword,
-                                           Definition(spill.first, linear ? v1.as_linear() : v1),
-                                           Operand(stack_reg, s4), Operand(v1), Operand::c32(0),
-                                           spill.second - spill_stack_base, false);
+            Instruction* instr =
+               bld.mubuf(aco_opcode::buffer_load_dword, Definition(spill.first, linear ? lv1 : v1),
+                         Operand(stack_reg, s4), Operand(v1), Operand::c32(0),
+                         spill.second - spill_stack_base, false);
             instr->mubuf().sync = memory_sync_info(storage_vgpr_spill, semantic_private);
             instr->mubuf().cache.value = ac_swizzled;
          } else {
-            Instruction* instr =
-               bld.mubuf(aco_opcode::buffer_store_dword, Operand(stack_reg, s4), Operand(v1),
-                         Operand::c32(0), Operand(spill.first, linear ? v1.as_linear() : v1),
-                         spill.second - spill_stack_base, false);
+            Instruction* instr = bld.mubuf(
+               aco_opcode::buffer_store_dword, Operand(stack_reg, s4), Operand(v1), Operand::c32(0),
+               Operand(spill.first, linear ? lv1 : v1), spill.second - spill_stack_base, false);
             instr->mubuf().sync = memory_sync_info(storage_vgpr_spill, semantic_private);
             instr->mubuf().cache.value = ac_swizzled;
          }
@@ -259,7 +256,7 @@ emit_sgpr_spills_reloads(spill_preserved_ctx& ctx, std::vector<aco_ptr<Instructi
    for (auto& spill : spills) {
       unsigned vgpr_idx = spill.second / ctx.program->wave_size;
       unsigned lane = spill.second % ctx.program->wave_size;
-      Operand vgpr_op = Operand(spill_reg.advance(vgpr_idx * 4), v1.as_linear());
+      Operand vgpr_op = Operand(spill_reg.advance(vgpr_idx * 4), lv1);
       if (reload)
          bld.pseudo(aco_opcode::p_reload, bld.def(s1, spill.first), vgpr_op, Operand::c32(lane));
       else

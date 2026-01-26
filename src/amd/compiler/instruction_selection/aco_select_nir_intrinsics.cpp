@@ -110,7 +110,7 @@ emit_bpermute(isel_context* ctx, Builder& bld, Temp index, Temp data)
                            bld.def(s1, scc), index_x4, data, same_half);
       } else {
          return bld.pseudo(aco_opcode::p_bpermute_permlane, bld.def(v1), bld.def(s2),
-                           bld.def(s1, scc), Operand(v1.as_linear()), index_x4, data, same_half);
+                           bld.def(s1, scc), Operand(lv1), index_x4, data, same_half);
       }
    } else {
       /* GFX6-7: there is no bpermute instruction */
@@ -3490,7 +3490,7 @@ emit_reduction_instr(isel_context* ctx, aco_opcode aco_op, ReduceOp op, unsigned
    reduce->operands[0] = Operand(src);
    /* setup_reduce_temp will update these undef operands if needed */
    reduce->operands[1] = Operand(RegClass(RegType::vgpr, dst.size()).as_linear());
-   reduce->operands[2] = Operand(v1.as_linear());
+   reduce->operands[2] = Operand(lv1);
    std::copy(defs, defs + num_defs, reduce->definitions.begin());
 
    reduce->reduction().reduce_op = op;

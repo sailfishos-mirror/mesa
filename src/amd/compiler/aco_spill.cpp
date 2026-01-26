@@ -1651,7 +1651,7 @@ assign_spill_slots(spill_ctx& ctx, unsigned spills_to_vgpr)
 
                /* check if the linear vgpr already exists */
                if (vgpr_spill_temps[spill_slot / ctx.wave_size] == Temp()) {
-                  Temp linear_vgpr = ctx.program->allocateTmp(v1.as_linear());
+                  Temp linear_vgpr = ctx.program->allocateTmp(lv1);
                   vgpr_spill_temps[spill_slot / ctx.wave_size] = linear_vgpr;
                   aco_ptr<Instruction> create{
                      create_instruction(aco_opcode::p_start_linear_vgpr, Format::PSEUDO, 0, 1)};
@@ -1696,7 +1696,7 @@ assign_spill_slots(spill_ctx& ctx, unsigned spills_to_vgpr)
 
                /* check if the linear vgpr already exists */
                if (vgpr_spill_temps[spill_slot / ctx.wave_size] == Temp()) {
-                  Temp linear_vgpr = ctx.program->allocateTmp(v1.as_linear());
+                  Temp linear_vgpr = ctx.program->allocateTmp(lv1);
                   vgpr_spill_temps[spill_slot / ctx.wave_size] = linear_vgpr;
                   aco_ptr<Instruction> create{
                      create_instruction(aco_opcode::p_start_linear_vgpr, Format::PSEUDO, 0, 1)};

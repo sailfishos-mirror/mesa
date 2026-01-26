@@ -374,9 +374,9 @@ emit_interp_instr_gfx11(isel_context* ctx, unsigned idx, unsigned component, Tem
    Builder bld(ctx->program, ctx->block);
 
    if (ctx->cf_info.in_divergent_cf || ctx->cf_info.had_divergent_discard) {
-      bld.pseudo(aco_opcode::p_interp_gfx11, Definition(dst), Operand(v1.as_linear()),
-                 Operand::c32(idx), Operand::c32(component), Operand::c32(high_16bits), coord1,
-                 coord2, bld.m0(prim_mask));
+      bld.pseudo(aco_opcode::p_interp_gfx11, Definition(dst), Operand(lv1), Operand::c32(idx),
+                 Operand::c32(component), Operand::c32(high_16bits), coord1, coord2,
+                 bld.m0(prim_mask));
       return;
    }
 
@@ -450,9 +450,8 @@ emit_interp_mov_instr(isel_context* ctx, unsigned idx, unsigned component, unsig
    if (ctx->options->gfx_level >= GFX11) {
       uint16_t dpp_ctrl = dpp_quad_perm(vertex_id, vertex_id, vertex_id, vertex_id);
       if (ctx->cf_info.in_divergent_cf || ctx->cf_info.had_divergent_discard) {
-         bld.pseudo(aco_opcode::p_interp_gfx11, Definition(tmp), Operand(v1.as_linear()),
-                    Operand::c32(idx), Operand::c32(component), Operand::c32(dpp_ctrl),
-                    bld.m0(prim_mask));
+         bld.pseudo(aco_opcode::p_interp_gfx11, Definition(tmp), Operand(lv1), Operand::c32(idx),
+                    Operand::c32(component), Operand::c32(dpp_ctrl), bld.m0(prim_mask));
       } else {
          Temp p =
             bld.ldsdir(aco_opcode::lds_param_load, bld.def(v1), bld.m0(prim_mask), idx, component);

@@ -385,10 +385,10 @@ BEGIN_TEST(regalloc.linear_vgpr.alloc.basic)
    //! lv1: %ltmp2:v[31] = p_start_linear_vgpr
    //! p_end_linear_vgpr %ltmp1:v[30]
    //! p_end_linear_vgpr %ltmp2:v[31]
-   Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-   Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
+   Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+   Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
    end_linear_vgpr(ltmp0);
-   Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
+   Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
    end_linear_vgpr(ltmp1);
    end_linear_vgpr(ltmp2);
 
@@ -405,8 +405,8 @@ BEGIN_TEST(regalloc.linear_vgpr.alloc.compact_grow)
       //! lv1: %ltmp0:v[31] = p_start_linear_vgpr
       //! lv1: %ltmp1:v[30] = p_start_linear_vgpr
       //! p_end_linear_vgpr %ltmp0:v[31]
-      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
+      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
       end_linear_vgpr(ltmp0);
 
       //! v1: %tmp:v[29] = p_parallelcopy %in0:v[0]
@@ -418,7 +418,7 @@ BEGIN_TEST(regalloc.linear_vgpr.alloc.compact_grow)
       //! lv1: %ltmp1_2:v[31] = p_parallelcopy %ltmp1:v[30]
       //! v1: %tmp_2:v[#_] = p_parallelcopy %tmp:v[29]
       //! lv2: %ltmp2:v[29-30] = p_start_linear_vgpr
-      Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v2.as_linear()));
+      Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv2));
 
       //! p_end_linear_vgpr %ltmp1_2:v[31]
       //! p_end_linear_vgpr %ltmp2:v[29-30]
@@ -447,11 +447,11 @@ BEGIN_TEST(regalloc.linear_vgpr.alloc.compact_shrink)
       //! p_end_linear_vgpr %ltmp0:v[31]
       //! p_end_linear_vgpr %ltmp2:v[29]
       //! p_end_linear_vgpr %ltmp4:v[27]
-      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp3 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp4 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
+      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp3 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp4 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
       end_linear_vgpr(ltmp0);
       end_linear_vgpr(ltmp2);
       end_linear_vgpr(ltmp4);
@@ -459,7 +459,7 @@ BEGIN_TEST(regalloc.linear_vgpr.alloc.compact_shrink)
       /* Unlike regalloc.linear_vgpr.alloc.compact_grow, this shrinks the linear VGPR area. */
       //! lv1: %ltmp3_2:v[30], lv1: %ltmp1_2:v[31] = p_parallelcopy %ltmp3:v[28], %ltmp1:v[30]
       //! lv2: %ltmp5:v[28-29] = p_start_linear_vgpr
-      Temp ltmp5 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v2.as_linear()));
+      Temp ltmp5 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv2));
 
       /* There should be enough space for 28 normal VGPRs. */
       //! v28: %_:v[0-27] = p_unit_test
@@ -486,8 +486,8 @@ BEGIN_TEST(regalloc.linear_vgpr.alloc.compact_for_normal)
       //! lv1: %ltmp0:v[31] = p_start_linear_vgpr
       //! lv1: %ltmp1:v[30] = p_start_linear_vgpr
       //! p_end_linear_vgpr %ltmp0:v[31]
-      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
+      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
       end_linear_vgpr(ltmp0);
 
       //! lv1: %ltmp1_2:v[31] = p_parallelcopy %ltmp1:v[30]
@@ -511,8 +511,8 @@ BEGIN_TEST(regalloc.linear_vgpr.alloc.compact_for_vec)
       //! lv1: %ltmp0:v[31] = p_start_linear_vgpr
       //! lv1: %ltmp1:v[30] = p_start_linear_vgpr
       //! p_end_linear_vgpr %ltmp0:v[31]
-      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
+      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
       end_linear_vgpr(ltmp0);
 
       //! lv1: %ltmp1_2:v[31] = p_parallelcopy %ltmp1:v[30]
@@ -541,7 +541,7 @@ BEGIN_TEST(regalloc.linear_vgpr.alloc.killed_op)
 
       //! lv1: %ltmp0:v[31] = p_start_linear_vgpr %tmp1:v[31]
       //! p_end_linear_vgpr %ltmp0:v[31]
-      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()), tmp1);
+      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1), tmp1);
       end_linear_vgpr(ltmp0);
 
       bld.pseudo(aco_opcode::p_unit_test, tmp0);
@@ -568,7 +568,7 @@ BEGIN_TEST(regalloc.linear_vgpr.alloc.move_killed_op)
       //~gfx8_pessimistic! v1: %tmp2_2:v[30], v1: %tmp1_2:v[31] = p_parallelcopy %tmp2:v[31], %tmp1:v[30]
       //! lv1: %ltmp0:v[31] = p_start_linear_vgpr %tmp1_2:v[31]
       //! p_end_linear_vgpr %ltmp0:v[31]
-      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()), tmp1);
+      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1), tmp1);
       end_linear_vgpr(ltmp0);
 
       //! p_unit_test %tmp0:v[0-29], %tmp2_2:v[30]
@@ -588,9 +588,9 @@ BEGIN_TEST(regalloc.linear_vgpr.compact_for_future_def)
       //! lv1: %ltmp1:v[29] = p_start_linear_vgpr
       //! lv1: %ltmp2:v[28] = p_start_linear_vgpr
       //! p_end_linear_vgpr %ltmp1:v[29]
-      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v2.as_linear()));
-      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
+      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv2));
+      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
       end_linear_vgpr(ltmp1);
 
       //! s1: %scc_tmp:scc = p_unit_test
@@ -653,9 +653,9 @@ BEGIN_TEST(regalloc.linear_vgpr.compact_for_future_phis)
       //! lv1: %ltmp1:v[30] = p_start_linear_vgpr
       //! lv1: %ltmp2:v[29] = p_start_linear_vgpr
       //! p_end_linear_vgpr %ltmp1:v[30]
-      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
-      Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(v1.as_linear()));
+      Temp ltmp0 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp1 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
+      Temp ltmp2 = bld.pseudo(aco_opcode::p_start_linear_vgpr, bld.def(lv1));
       end_linear_vgpr(ltmp1);
 
       //! lv1: %ltmp2_2:v[30] = p_parallelcopy %ltmp2:v[29]
