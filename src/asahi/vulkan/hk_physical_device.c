@@ -1042,7 +1042,9 @@ hk_get_device_properties(const struct agx_device *dev,
       .advancedBlendAllOperations = true,
    };
 
-   strncpy(properties->deviceName, dev->name, sizeof(properties->deviceName));
+   snprintf(properties->deviceName, sizeof(properties->deviceName), "%s",
+            (strlen(instance->drirc.debug.force_vk_devicename) > 0) ?
+            instance->drirc.debug.force_vk_devicename : dev->name);
 
    /* VK_EXT_shader_module_identifier */
    static_assert(sizeof(vk_shaderModuleIdentifierAlgorithmUUID) ==
