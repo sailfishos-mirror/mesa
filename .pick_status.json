@@ -1364,7 +1364,7 @@
         "description": "freedreno/a6xx: Better program state size calc",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "598928d7e75577832056826b205a34aeeffcc363",
         "notes": null
