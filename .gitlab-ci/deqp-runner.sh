@@ -58,11 +58,13 @@ findmnt -n tmpfs ${SHADER_CACHE_HOME} || findmnt -n tmpfs ${SHADER_CACHE_DIR} ||
     mount -t tmpfs -o nosuid,nodev,size=2G,mode=1755 tmpfs ${SHADER_CACHE_DIR}
 }
 
-touch /fails.txt
-touch /flakes.txt
-cat $INSTALL/all-skips.txt > /skips.txt
+FILE_ARGS=""
 
-add_if_exists() {
+touch /fails.txt
+
+# There must be a single baseline expected fails list, this lets us cat together
+# xfails from multiple possible sources. Do we actually use this, though?
+cat_if_exists() {
   prefix=$1
   kind=$2
   if [ -e "$INSTALL/$prefix-$kind.txt" ]; then
@@ -70,22 +72,29 @@ add_if_exists() {
   fi
 }
 
+add_if_exists() {
+  if [ -e "$INSTALL/$2" ]; then
+    FILE_ARGS="$FILE_ARGS $1 $INSTALL/$2"
+  fi
+}
+
 # remove duplicate values to avoid reading the same file multiple times
-{
+for prefix in $({
+  echo "all"
   echo "$DRIVER_NAME"
   echo "$GPU_VERSION"
-} | sort -u | while read -r prefix; do
-  add_if_exists "$prefix" fails
-  add_if_exists "$prefix" flakes
-  add_if_exists "$prefix" skips
+} | sort -u); do
+  cat_if_exists "$prefix" fails
+  add_if_exists "--flakes" "$prefix-flakes.txt"
+  add_if_exists "--skips" "$prefix-skips.txt"
 done
 
-if [ -e "$INSTALL/$GPU_VERSION-slow-skips.txt" ] && [[ $CI_JOB_NAME != *full* ]]; then
-    cat "$INSTALL/$GPU_VERSION-slow-skips.txt" >> /skips.txt
+if [[ $CI_JOB_NAME != *full* ]]; then
+  add_if_exists "--skips" "$GPU_VERSION-slow-skips.txt"
 fi
 
 if [ -n "${ANGLE_TAG:-}" ]; then
-    cat "$INSTALL/angle-skips.txt" >> /skips.txt
+    FILE_ARGS="$FILE_ARGS --skips $INSTALL/angle-skips.txt"
 fi
 
 # Set the path to VK validation layer settings (in case it ends up getting loaded)
@@ -137,8 +146,7 @@ deqp-runner \
     --suite $INSTALL/deqp-$DEQP_SUITE.toml \
     --output $RESULTS_DIR \
     --baseline /fails.txt \
-    --skips /skips.txt \
-    --flakes /flakes.txt \
+    $FILE_ARGS \
     --testlog-to-xml /deqp-tools/testlog-to-xml \
     --fraction-start ${CI_NODE_INDEX:-1} \
     --fraction $((CI_NODE_TOTAL * ${DEQP_FRACTION:-1})) \
