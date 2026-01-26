@@ -784,7 +784,7 @@
         "description": "radv: fix applying radv_ssbo_non_uniform=true for Crysis 2/3 remastered",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "56813236f47a8d2f8d7fe3dfb3909797176f6e82",
         "notes": null
