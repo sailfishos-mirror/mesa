@@ -226,6 +226,7 @@ foreach i : [
   [with_broadcom_vk, 'src/broadcom/vulkan', '00-v3dv-defaults.conf'],
   [with_freedreno_vk, 'src/freedreno/vulkan', '00-turnip-defaults.conf'],
   [with_virtio_vk, 'src/virtio/vulkan', '00-venus-defaults.conf'],
+  [with_swrast_vk, 'src/gallium/frontends/lavapipe', '00-lavapipe-defaults.conf'],
   [with_gallium_r300, 'src/gallium/drivers/r300', '00-r300-defaults.conf'],
   [with_gallium_iris, 'src/gallium/drivers/iris', '00-iris-defaults.conf'],
   [with_gallium_crocus, 'src/gallium/drivers/crocus', '00-crocus-defaults.conf'],

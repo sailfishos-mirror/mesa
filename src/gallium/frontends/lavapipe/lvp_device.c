@@ -1602,6 +1602,15 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_CreateInstance(
    instance->vk.physical_devices.enumerate = lvp_enumerate_physical_devices;
    instance->vk.physical_devices.destroy = lvp_destroy_physical_device;
 
+   lvp_parse_dri_options(&instance->drirc,
+                         &(driConfigFileParseParams){
+                            .driverName = "lvp",
+                            .applicationName = instance->vk.app_info.app_name,
+                            .applicationVersion = instance->vk.app_info.app_version,
+                            .engineName = instance->vk.app_info.engine_name,
+                            .engineVersion = instance->vk.app_info.engine_version,
+                         });
+
    //   VG(VALGRIND_CREATE_MEMPOOL(instance, 0, false));
 
    *pInstance = lvp_instance_to_handle(instance);
@@ -1619,6 +1628,9 @@ VKAPI_ATTR void VKAPI_CALL lvp_DestroyInstance(
       return;
 
    pipe_loader_release(&instance->devs, instance->num_devices);
+
+   driDestroyOptionCache(&instance->drirc.options);
+   driDestroyOptionInfo(&instance->drirc.available_options);
 
    vk_instance_finish(&instance->vk);
    vk_free(&instance->vk.alloc, instance);
