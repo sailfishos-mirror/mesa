@@ -5165,6 +5165,11 @@ zink_flat_flags(struct nir_shader *shader)
    nir_foreach_shader_in_variable(var, shader) {
       if (var->data.interpolation == INTERP_MODE_FLAT)
          flat_flags |= BITFIELD64_BIT(var->data.location);
+      /* FS integer inputs must have flat interpolation. unlowering sometimes misses this. */
+      else if (var->type->base_type == GLSL_TYPE_INT || var->type->base_type == GLSL_TYPE_UINT) {
+         var->data.interpolation = INTERP_MODE_FLAT;
+         flat_flags |= BITFIELD64_BIT(var->data.location);
+      }
    }
 
    return flat_flags;
