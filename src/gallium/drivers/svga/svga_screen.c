@@ -430,6 +430,7 @@ svga_init_screen_caps(struct svga_screen *svgascreen)
 
    caps->fragment_shader_texture_lod = true;
    caps->fragment_shader_derivatives = true;
+   caps->fs_fine_derivative = sws->have_sm5;
 
    caps->depth_clip_disable =
    caps->indep_blend_enable =

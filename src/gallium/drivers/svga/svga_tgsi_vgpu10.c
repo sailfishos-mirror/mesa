@@ -891,6 +891,10 @@ translate_opcode(enum tgsi_opcode opcode)
       return VGPU10_OPCODE_ELSE;
    case TGSI_OPCODE_ENDIF:
       return VGPU10_OPCODE_ENDIF;
+   case TGSI_OPCODE_DDX_FINE:
+      return VGPU10_OPCODE_DERIV_RTX_FINE;
+   case TGSI_OPCODE_DDY_FINE:
+      return VGPU10_OPCODE_DERIV_RTY_FINE;
    case TGSI_OPCODE_CEIL:
       return VGPU10_OPCODE_ROUND_PI;
    case TGSI_OPCODE_I2F:
@@ -10981,6 +10985,8 @@ emit_instruction(struct svga_shader_emitter_v10 *emit,
    case TGSI_OPCODE_DP4:
    case TGSI_OPCODE_ELSE:
    case TGSI_OPCODE_ENDIF:
+   case TGSI_OPCODE_DDX_FINE:
+   case TGSI_OPCODE_DDY_FINE:
    case TGSI_OPCODE_ENDLOOP:
    case TGSI_OPCODE_ENDSUB:
    case TGSI_OPCODE_F2I:
