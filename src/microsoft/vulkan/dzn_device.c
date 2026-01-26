@@ -156,6 +156,7 @@ dzn_physical_device_get_extensions(struct dzn_physical_device *pdev)
       .EXT_shader_subgroup_vote              = true,
       .EXT_subgroup_size_control             = true,
       .EXT_vertex_attribute_divisor          = true,
+      .EXT_memory_budget                     = true,
       .MSFT_layered_driver                   = true,
    };
 }
@@ -1936,7 +1937,31 @@ dzn_GetPhysicalDeviceMemoryProperties2(VkPhysicalDevice physicalDevice,
                                          &pMemoryProperties->memoryProperties);
 
    vk_foreach_struct(ext, pMemoryProperties->pNext) {
-      vk_debug_ignored_stype(ext->sType);
+      if(ext->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT){
+
+         VkPhysicalDeviceMemoryBudgetPropertiesEXT* vk_physical_memory_budget_properties = (VkPhysicalDeviceMemoryBudgetPropertiesEXT*)ext;
+         VK_FROM_HANDLE(dzn_physical_device, pdev, physicalDevice);
+
+         struct d3d12_memory_info memory_info;
+
+         dzn_query_memory_info(pdev->adapter, &memory_info);
+
+         memset(vk_physical_memory_budget_properties->heapBudget, 0, sizeof(VkDeviceSize) * VK_MAX_MEMORY_HEAPS);
+         memset(vk_physical_memory_budget_properties->heapUsage,  0, sizeof(VkDeviceSize) * VK_MAX_MEMORY_HEAPS);
+
+         for(int i = 0; i < pMemoryProperties->memoryProperties.memoryHeapCount; i++){
+            if(pMemoryProperties->memoryProperties.memoryHeaps[i].flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT){
+               vk_physical_memory_budget_properties->heapBudget[i] = memory_info.budget_local;
+               vk_physical_memory_budget_properties->heapUsage[i]  = memory_info.usage_local;
+            } else {
+               vk_physical_memory_budget_properties->heapBudget[i] = memory_info.budget_nonlocal;
+               vk_physical_memory_budget_properties->heapUsage[i]  = memory_info.usage_nonlocal;
+            }
+         }
+      }
+      else {
+         vk_debug_ignored_stype(ext->sType);
+      }
    }
 }
 
