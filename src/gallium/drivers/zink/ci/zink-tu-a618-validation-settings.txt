@@ -1,6 +1,6 @@
 # Please include a comment with the log message and a testcase triggering each
 # VUID at the bottom of the file.
-khronos_validation.message_id_filter = VUID-VkPhysicalDeviceProperties2-pNext-pNext,VUID-VkDeviceCreateInfo-pNext-pNext,VUID-vkDestroyDevice-device-05137,UNASSIGNED-Draw-primitiveTopologyPatchListRestart,VUID-vkQueueSubmit-pSignalSemaphores-00067,VUID-VkImageMemoryBarrier2-srcAccessMask-07454,UNASSIGNED-Threading-MultipleThreads-Read,VUID-vkAcquireNextImageKHR-semaphore-01779,VUID-VkSwapchainCreateInfoKHR-imageFormat-01273,VUID-VkRectLayerKHR-offset-04864,UNASSIGNED-Threading-MultipleThreads-Write,VUID-vkCmdDrawMultiIndexedEXT-None-10909,VUID-VkRenderingAttachmentInfo-None-12256,UNASSIGNED-GeneralParameterError-RequiredHandle,VUID-VkDescriptorGetInfoEXT-type-12223,VUID-VkImageMemoryBarrier2-image-parameter
+khronos_validation.message_id_filter = VUID-VkPhysicalDeviceProperties2-pNext-pNext,VUID-VkDeviceCreateInfo-pNext-pNext,VUID-vkDestroyDevice-device-05137,UNASSIGNED-Draw-primitiveTopologyPatchListRestart,VUID-vkQueueSubmit-pSignalSemaphores-00067,VUID-VkImageMemoryBarrier2-srcAccessMask-07454,UNASSIGNED-Threading-MultipleThreads-Read,VUID-vkAcquireNextImageKHR-semaphore-01779,VUID-VkSwapchainCreateInfoKHR-imageFormat-01273,VUID-VkRectLayerKHR-offset-04864,UNASSIGNED-Threading-MultipleThreads-Write,VUID-vkCmdDrawMultiIndexedEXT-None-10909,VUID-VkRenderingAttachmentInfo-None-12256,UNASSIGNED-GeneralParameterError-RequiredHandle,VUID-VkDescriptorGetInfoEXT-type-12223,VUID-VkImageMemoryBarrier2-image-parameter,VUID-VkGraphicsPipelineCreateInfo-pLibraries-06681
 khronos_validation.report_flags = error
 khronos_validation.debug_action = VK_DBG_LAYER_ACTION_LOG_MSG,VK_DBG_LAYER_ACTION_BREAK
 VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT
@@ -120,3 +120,14 @@ khronos_validation.log_filename = stdout
 # Validation Error: [ VUID-VkImageMemoryBarrier2-image-parameter ] | MessageID = 0xa2d5467b
 # vkCmdPipelineBarrier2(): pDependencyInfo->pImageMemoryBarriers[0].image Invalid VkImage Object 0x0.
 # The Vulkan spec states: image must be a valid VkImage handle (https://docs.vulkan.org/spec/latest/chapters/synchronization.html#VUID-VkImageMemoryBarrier2-image-parameter)
+
+# dEQP-GLES3.functional.polygon_offset.default_displacement_with_units
+#
+# Validation Error: [ VUID-VkGraphicsPipelineCreateInfo-pLibraries-06681 ] | MessageID = 0x60ffa0b
+# vkCreateGraphicsPipelines(): pCreateInfos[0] is linking libraries with pre-raster and fragment shader state. The descriptor set layout at index 0 in pSetLayouts from VkPipelineLayout 0x2c000000002c in the fragment shader state is NULL. However, the descriptor set layout at the same index (0) in VkPipelineLayout 0x310000000031 in the pre-raster state is NULL too.
+# The Vulkan spec states: If one element of VkPipelineLibraryCreateInfoKHR::pLibraries includes VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT and another element includes VK_GRAPHICS_PIPELINE_LIBRARY_FRAGMENT_SHADER_BIT_EXT, and any element of the pSetLayouts array used to create each library's layout was VK_NULL_HANDLE, then the corresponding element of the pSetLayouts array used to create the other library's layout must not be VK_NULL_HANDLE (https://docs.vulkan.org/spec/latest/chapters/pipelines.html#VUID-VkGraphicsPipelineCreateInfo-pLibraries-06681)
+# Objects: 2
+#    [0] VkPipelineLayout 0x310000000031
+#    [1] VkPipelineLayout 0x2c000000002c
+#
+# With optimal_keys forced in ZINK_DEBUG
