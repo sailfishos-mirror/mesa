@@ -1,9 +1,7 @@
+dEQP-VK.drm_format_modifiers.export_import.b10g11r11_ufloat_pack32,Fail
+
 # New crash with Xe KMD
 dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.buffer_size_2_24,Crash
-
-# This is a bug of CTS: https://gitlab.khronos.org/Tracker/vk-gl-cts/issues/6033
-dEQP-VK.video.capabilities.av1_decode_dst_video_format_support_query,Fail
-dEQP-VK.video.capabilities.av1_decode_dpb_video_format_support_query,Fail
 
 # New failures with VKCTS 1.4.4.0
 dEQP-VK.sparse_resources.buffer.ssbo.read_write.sparse_residency_non_resident_strict,Fail
