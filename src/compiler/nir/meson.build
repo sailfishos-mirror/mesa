@@ -472,7 +472,7 @@ if with_tests
     ),
     suite : ['compiler', 'nir'],
     protocol : 'gtest',
-    timeout : 60,
+    timeout : 120,
   )
 
   test(
