@@ -148,6 +148,7 @@ static void pvr_physical_device_get_supported_extensions(
       .KHR_maintenance1 = true,
       .KHR_maintenance2 = true,
       .KHR_maintenance3 = true,
+      .KHR_maintenance4 = true,
       .KHR_map_memory2 = true,
       .KHR_multiview = true,
       .KHR_pipeline_executable_properties = true,
@@ -327,6 +328,9 @@ static void pvr_physical_device_get_supported_features(
       .multiview = true,
       .multiviewGeometryShader = false,
       .multiviewTessellationShader = false,
+
+      /* Vulkan 1.3 / VK_KHR_maintenance4 */
+      .maintenance4 = true,
 
       /* Vulkan 1.1 / VK_KHR_shader_draw_parameters */
       .shaderDrawParameters = true,
@@ -803,6 +807,9 @@ static bool pvr_physical_device_get_properties(
       .storageTexelBufferOffsetSingleTexelAlignment = true,
       .uniformTexelBufferOffsetAlignmentBytes = PVR_TEXEL_BUFFER_OFFSET_ALIGNMENT,
       .uniformTexelBufferOffsetSingleTexelAlignment = false,
+
+      /* Vulkan 1.3 / VK_KHR_maintenance4 */
+      .maxBufferSize = max_memory_alloc_size,
 
       /* Vulkan 1.4 / VK_EXT_vertex_attribute_divisor / VK_KHR_vertex_attribute_divisor */
       .maxVertexAttribDivisor = UINT32_MAX,
