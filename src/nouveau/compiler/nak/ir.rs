@@ -9149,7 +9149,7 @@ pub enum TessellationSpacing {
 
 #[derive(Debug)]
 pub struct TesselationCommonShaderInfo {
-    pub spacing: TessellationSpacing,
+    pub spacing: Option<TessellationSpacing>,
     pub ccw: bool,
     pub point_mode: bool,
 }
