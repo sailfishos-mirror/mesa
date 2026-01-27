@@ -191,6 +191,47 @@ pushdecval(struct lua_State *L, struct rnn *rnn, uint64_t regval,
 }
 
 static int
+pushfield(lua_State *L, struct rnntypeinfo *info, struct rnn *rnn,
+          uint64_t offset, const char *name)
+{
+   struct rnnbitfield **bitfields;
+   int bitfieldsnum;
+   int i;
+
+   switch (info->type) {
+   case RNN_TTYPE_BITSET:
+      bitfields = info->ebitset->bitfields;
+      bitfieldsnum = info->ebitset->bitfieldsnum;
+      break;
+   case RNN_TTYPE_INLINE_BITSET:
+      bitfields = info->bitfields;
+      bitfieldsnum = info->bitfieldsnum;
+      break;
+   default:
+      printf("invalid register type: %d\n", info->type);
+      return 0;
+   }
+
+   for (i = 0; i < bitfieldsnum; i++) {
+      struct rnnbitfield *bf = bitfields[i];
+      if (!strcmp(name, bf->name)) {
+         uint32_t regval = rnn_val(rnn, offset);
+
+         regval &= typeinfo_mask(&bf->typeinfo);
+         regval >>= bf->typeinfo.low;
+         regval <<= bf->typeinfo.shr;
+
+         DBG("name=%s, info=%p, type=%d, regval=%x", name, info,
+             bf->typeinfo.type, regval);
+
+         return pushdecval(L, rnn, regval, &bf->typeinfo);
+      }
+   }
+
+   return 0;
+}
+
+static int
 l_rnn_etype(lua_State *L, struct rnn *rnn, struct rnndelem *elem,
             uint64_t offset)
 {
@@ -324,42 +365,13 @@ l_rnn_reg_meta_index(lua_State *L)
    const char *name = lua_tostring(L, 2);
    struct rnndelem *elem = rnndoff->elem;
    struct rnntypeinfo *info = &elem->typeinfo;
-   struct rnnbitfield **bitfields;
-   int bitfieldsnum;
-   int i;
 
-   switch (info->type) {
-   case RNN_TTYPE_BITSET:
-      bitfields = info->ebitset->bitfields;
-      bitfieldsnum = info->ebitset->bitfieldsnum;
-      break;
-   case RNN_TTYPE_INLINE_BITSET:
-      bitfields = info->bitfields;
-      bitfieldsnum = info->bitfieldsnum;
-      break;
-   default:
-      printf("invalid register type: %d\n", info->type);
-      return 0;
-   }
+   int ret = pushfield(L, info, rnndoff->rnn, rnndoff->offset, name);
 
-   for (i = 0; i < bitfieldsnum; i++) {
-      struct rnnbitfield *bf = bitfields[i];
-      if (!strcmp(name, bf->name)) {
-         uint32_t regval = rnn_val(rnndoff->rnn, rnndoff->offset);
+   if (!ret)
+      printf("invalid member: %s\n", name);
 
-         regval &= typeinfo_mask(&bf->typeinfo);
-         regval >>= bf->typeinfo.low;
-         regval <<= bf->typeinfo.shr;
-
-         DBG("name=%s, info=%p, subelemsnum=%d, type=%d, regval=%x", name, info,
-             rnndoff->elem->subelemsnum, bf->typeinfo.type, regval);
-
-         return pushdecval(L, rnndoff->rnn, regval, &bf->typeinfo);
-      }
-   }
-
-   printf("invalid member: %s\n", name);
-   return 0;
+   return ret;
 }
 
 static int
@@ -760,21 +772,39 @@ script_draw(const char *primtype, uint32_t nindx)
 static int
 l_rnn_meta_dom_index(lua_State *L)
 {
-   struct rnn *rnn = lua_touserdata(L, 1);
-   uint32_t offset = (uint32_t)lua_tonumber(L, 2);
-   struct rnndelem *elem;
+   struct rnndec *rnndec = lua_touserdata(L, 1);
+   struct rnn *rnn = &rnndec->base;
 
-   /* TODO might be nicer if the arg isn't a number, to search the domain
-    * for matching bitfields.. so that the script could do something like
-    * 'pkt.WIDTH' insteadl of 'pkt[1].WIDTH', ie. not have to remember the
-    * offset of the dword containing the bitfield..
-    */
+   if (lua_isnumber(L, 2)) {
+      /* index as an array, is pkt[0].FOO: */
+      uint32_t offset = (uint32_t)lua_tonumber(L, 2);
+      struct rnndelem *elem = rnn_regoff(rnn, offset);
+      if (elem)
+         return l_rnn_etype(L, rnn, elem, elem->offset);
+   } else if (lua_isstring(L, 2)) {
+      /* If not indexed like an array, search thru all
+       * the elements in the domain finding the matching
+       * subelem.
+       *
+       * This handles the pkt.FOO case
+       */
+      const char *name = lua_tostring(L, 2);
 
-   elem = rnn_regoff(rnn, offset);
-   if (!elem)
-      return 0;
+      for (unsigned i = 0; i < rnndec->sizedwords; i++) {
+         struct rnndelem *elem = rnn_regoff(rnn, i);
+         if (!elem)
+            continue;
 
-   return l_rnn_etype(L, rnn, elem, elem->offset);
+         if (!strcmp(name, elem->name))
+            return l_rnn_etype(L, rnn, elem, elem->offset);
+
+         int ret = pushfield(L, &elem->typeinfo, rnn, i, name);
+         if (ret)
+            return ret;
+      }
+   }
+
+   return 0;
 }
 
 /*
