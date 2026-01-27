@@ -254,7 +254,7 @@
         "description": "Revert \"panvk: advertise VK_EXT_primitives_generated_query on v10+\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6eadcaa851d2826eaeeacfb76f01f31d6cd2dd27",
         "notes": null
