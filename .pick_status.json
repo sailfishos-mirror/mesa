@@ -494,7 +494,7 @@
         "description": "aco: add a helper function for non supported DPP opcodes",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
