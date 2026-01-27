@@ -1671,7 +1671,7 @@ const struct nvk_mme_test_case nvk_mme_set_tess_params_tests[] = {{
       { NVK_SET_MME_SCRATCH(TESS_PARAMS), 0 },
       { }
    },
-   .params = (uint32_t[]) { 0xffff0000 },
+   .params = (uint32_t[]) { NVK_MME_VAL_MASK(0, 0xffff) },
    .expected = (struct nvk_mme_mthd_data[]) {
       { }
    },
@@ -1681,7 +1681,7 @@ const struct nvk_mme_test_case nvk_mme_set_tess_params_tests[] = {{
       { NVK_SET_MME_SCRATCH(TESS_PARAMS), 0 },
       { }
    },
-   .params = (uint32_t[]) { 0xffff0201 },
+   .params = (uint32_t[]) { NVK_MME_VAL_MASK(0x0201, 0xffff) },
    .expected = (struct nvk_mme_mthd_data[]) {
       { NVK_SET_MME_SCRATCH(TESS_PARAMS), 0x0201 },
       { NV9097_SET_TESSELLATION_PARAMETERS, 0x0201 },
@@ -1693,7 +1693,7 @@ const struct nvk_mme_test_case nvk_mme_set_tess_params_tests[] = {{
       { NVK_SET_MME_SCRATCH(TESS_PARAMS), 0x0201 },
       { }
    },
-   .params = (uint32_t[]) { 0x10001000 },
+   .params = (uint32_t[]) { NVK_MME_VAL_MASK(0x1000, 0x1000) },
    .expected = (struct nvk_mme_mthd_data[]) {
       { NVK_SET_MME_SCRATCH(TESS_PARAMS), 0x1201 },
       { NV9097_SET_TESSELLATION_PARAMETERS, 0x0301 },
@@ -1705,7 +1705,7 @@ const struct nvk_mme_test_case nvk_mme_set_tess_params_tests[] = {{
       { NVK_SET_MME_SCRATCH(TESS_PARAMS), 0x0301 },
       { }
    },
-   .params = (uint32_t[]) { 0x10001000 },
+   .params = (uint32_t[]) { NVK_MME_VAL_MASK(0x1000, 0x1000) },
    .expected = (struct nvk_mme_mthd_data[]) {
       { NVK_SET_MME_SCRATCH(TESS_PARAMS), 0x1301 },
       { NV9097_SET_TESSELLATION_PARAMETERS, 0x0201 },

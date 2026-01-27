@@ -158,6 +158,8 @@ _nvk_mme_load_to_scratch(struct mme_builder *b, enum nvk_mme_scratch scratch)
 #define nvk_mme_load_to_scratch(b, S) \
    _nvk_mme_load_to_scratch(b, NVK_MME_SCRATCH_##S)
 
+#define NVK_MME_VAL_MASK(val, mask) ((uint32_t)val) | (((uint32_t)mask) << 16)
+
 static inline uint32_t
 nvk_mme_val_mask(uint16_t val, uint16_t mask)
 {
