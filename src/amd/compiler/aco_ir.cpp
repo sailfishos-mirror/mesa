@@ -451,6 +451,48 @@ convert_to_SDWA(amd_gfx_level gfx_level, aco_ptr<Instruction>& instr)
 }
 
 bool
+opcode_supports_dpp(amd_gfx_level gfx_level, aco_opcode opcode, bool vop3p)
+{
+   switch (opcode) {
+   case aco_opcode::v_pk_fmac_f16: return gfx_level < GFX11;
+   /* there are more cases but those all take 64-bit inputs */
+   case aco_opcode::v_madmk_f32:
+   case aco_opcode::v_madak_f32:
+   case aco_opcode::v_madmk_f16:
+   case aco_opcode::v_madak_f16:
+   case aco_opcode::v_fmamk_f32:
+   case aco_opcode::v_fmaak_f32:
+   case aco_opcode::v_fmamk_f16:
+   case aco_opcode::v_fmaak_f16:
+   case aco_opcode::v_readfirstlane_b32:
+   case aco_opcode::v_cvt_f64_i32:
+   case aco_opcode::v_cvt_f64_f32:
+   case aco_opcode::v_cvt_f64_u32:
+   case aco_opcode::v_mul_lo_u32:
+   case aco_opcode::v_mul_lo_i32:
+   case aco_opcode::v_mul_hi_u32:
+   case aco_opcode::v_mul_hi_i32:
+   case aco_opcode::v_qsad_pk_u16_u8:
+   case aco_opcode::v_mqsad_pk_u16_u8:
+   case aco_opcode::v_mqsad_u32_u8:
+   case aco_opcode::v_mad_u64_u32:
+   case aco_opcode::v_mad_i64_i32:
+   case aco_opcode::v_permlane16_b32:
+   case aco_opcode::v_permlanex16_b32:
+   case aco_opcode::v_permlane64_b32:
+   case aco_opcode::v_readlane_b32_e64:
+   case aco_opcode::v_writelane_b32_e64: return false;
+   /* simpler than listing all VOP3P opcodes which do not support DPP */
+   case aco_opcode::v_fma_mix_f32:
+   case aco_opcode::v_fma_mixlo_f16:
+   case aco_opcode::v_fma_mixhi_f16:
+   case aco_opcode::v_dot2_f32_f16:
+   case aco_opcode::v_dot2_f32_bf16: return gfx_level >= GFX11;
+   default: return !vop3p;
+   }
+}
+
+bool
 can_use_DPP(amd_gfx_level gfx_level, const aco_ptr<Instruction>& instr, bool dpp8)
 {
    assert(instr->isVALU() && !instr->operands.empty());
@@ -492,39 +534,7 @@ can_use_DPP(amd_gfx_level gfx_level, const aco_ptr<Instruction>& instr, bool dpp
    if (instr->writes_exec())
       return false;
 
-   /* simpler than listing all VOP3P opcodes which do not support DPP */
-   if (instr->isVOP3P()) {
-      return instr->opcode == aco_opcode::v_fma_mix_f32 ||
-             instr->opcode == aco_opcode::v_fma_mixlo_f16 ||
-             instr->opcode == aco_opcode::v_fma_mixhi_f16 ||
-             instr->opcode == aco_opcode::v_dot2_f32_f16 ||
-             instr->opcode == aco_opcode::v_dot2_f32_bf16;
-   }
-
-   if (instr->opcode == aco_opcode::v_pk_fmac_f16)
-      return gfx_level < GFX11;
-
-   /* there are more cases but those all take 64-bit inputs */
-   return instr->opcode != aco_opcode::v_madmk_f32 && instr->opcode != aco_opcode::v_madak_f32 &&
-          instr->opcode != aco_opcode::v_madmk_f16 && instr->opcode != aco_opcode::v_madak_f16 &&
-          instr->opcode != aco_opcode::v_fmamk_f32 && instr->opcode != aco_opcode::v_fmaak_f32 &&
-          instr->opcode != aco_opcode::v_fmamk_f16 && instr->opcode != aco_opcode::v_fmaak_f16 &&
-          instr->opcode != aco_opcode::v_readfirstlane_b32 &&
-          instr->opcode != aco_opcode::v_cvt_f64_i32 &&
-          instr->opcode != aco_opcode::v_cvt_f64_f32 &&
-          instr->opcode != aco_opcode::v_cvt_f64_u32 && instr->opcode != aco_opcode::v_mul_lo_u32 &&
-          instr->opcode != aco_opcode::v_mul_lo_i32 && instr->opcode != aco_opcode::v_mul_hi_u32 &&
-          instr->opcode != aco_opcode::v_mul_hi_i32 &&
-          instr->opcode != aco_opcode::v_qsad_pk_u16_u8 &&
-          instr->opcode != aco_opcode::v_mqsad_pk_u16_u8 &&
-          instr->opcode != aco_opcode::v_mqsad_u32_u8 &&
-          instr->opcode != aco_opcode::v_mad_u64_u32 &&
-          instr->opcode != aco_opcode::v_mad_i64_i32 &&
-          instr->opcode != aco_opcode::v_permlane16_b32 &&
-          instr->opcode != aco_opcode::v_permlanex16_b32 &&
-          instr->opcode != aco_opcode::v_permlane64_b32 &&
-          instr->opcode != aco_opcode::v_readlane_b32_e64 &&
-          instr->opcode != aco_opcode::v_writelane_b32_e64;
+   return opcode_supports_dpp(gfx_level, instr->opcode, instr->isVOP3P());
 }
 
 aco_ptr<Instruction>
