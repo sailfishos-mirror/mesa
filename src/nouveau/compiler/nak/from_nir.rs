@@ -120,6 +120,8 @@ fn init_info_from_nir(nak: &nak_compiler, nir: &nir_shader) -> ShaderInfo {
                     } else {
                         TessellationPrimitives::TrianglesCW
                     },
+                    point_mode: info_tess.point_mode(),
+                    ccw: info_tess.ccw(),
                 })
             }
             _ => panic!("Unknown shader stage"),

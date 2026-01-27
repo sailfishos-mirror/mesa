@@ -191,8 +191,10 @@ struct nak_shader_info {
          enum nak_ts_domain domain;
          enum nak_ts_spacing spacing;
          enum nak_ts_prims prims;
+         bool ccw;
+         bool point_mode;
 
-         uint8_t _pad[9];
+         uint8_t _pad[7];
       } ts;
 
       /* Used to initialize the union for other stages */

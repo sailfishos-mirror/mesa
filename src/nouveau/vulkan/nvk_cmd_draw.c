@@ -1605,20 +1605,6 @@ nvk_cmd_bind_graphics_shader(struct nvk_cmd_buffer *cmd,
    cmd->state.gfx.shaders_dirty |= mesa_to_vk_shader_stage(stage);
 }
 
-uint32_t
-nvk_mme_tess_params(enum nak_ts_domain domain,
-                    enum nak_ts_spacing spacing,
-                    enum nak_ts_prims prims)
-{
-   /* This is laid out the same as SET_TESSELLATION_PARAMETERS, only with an
-    * extra bit for lower_left
-    */
-   uint16_t params = ((uint16_t)domain << 0) |
-                     ((uint16_t)spacing << 4) |
-                     ((uint16_t)prims << 8);
-   return nvk_mme_val_mask(params, 0x0fff);
-}
-
 #define NVK_MME_TESS_PARAMS(domain, spacing, prims) \
    NVDEF(NV9097, SET_TESSELLATION_PARAMETERS, DOMAIN_TYPE, domain) | \
    NVDEF(NV9097, SET_TESSELLATION_PARAMETERS, SPACING, spacing) | \
@@ -1628,6 +1614,27 @@ nvk_mme_tess_params(enum nak_ts_domain domain,
    (NVK_MME_TESS_PARAMS(domain, spacing, prims) | flags)
 
 #define LOWER_LEFT BITFIELD_BIT(12)
+#define POINT_MODE BITFIELD_BIT(13)
+#define CCW        BITFIELD_BIT(14)
+
+uint32_t
+nvk_mme_tess_params(enum nak_ts_domain domain,
+                    enum nak_ts_spacing spacing,
+                    enum nak_ts_prims prims,
+                    bool ccw, bool point_mode)
+{
+   /* This is laid out the same as SET_TESSELLATION_PARAMETERS, only with an
+    * extra bit for lower_left
+    */
+   uint16_t params = ((uint16_t)domain << 0) |
+                     ((uint16_t)spacing << 4) |
+                     ((uint16_t)prims << 8);
+   if (ccw)
+      params |= CCW;
+   if (point_mode)
+      params |= POINT_MODE;
+   return nvk_mme_val_mask(params, 0x0fff | POINT_MODE | CCW);
+}
 
 static uint32_t
 nvk_mme_tess_lower_left(bool lower_left)
@@ -1728,7 +1735,7 @@ const struct nvk_mme_test_case nvk_mme_set_tess_params_tests[] = {{
    .init = (struct nvk_mme_mthd_data[]) {
       {
          NVK_SET_MME_SCRATCH(TESS_PARAMS),
-         NVK_MME_TESS_STATE(TRIANGLE, INTEGER, TRIANGLES_CCW, 0)
+         NVK_MME_TESS_STATE(TRIANGLE, INTEGER, TRIANGLES_CCW, CCW)
       },
       { }
    },
@@ -1736,7 +1743,7 @@ const struct nvk_mme_test_case nvk_mme_set_tess_params_tests[] = {{
    .expected = (struct nvk_mme_mthd_data[]) {
       {
          NVK_SET_MME_SCRATCH(TESS_PARAMS),
-         NVK_MME_TESS_STATE(TRIANGLE, INTEGER, TRIANGLES_CCW, LOWER_LEFT)
+         NVK_MME_TESS_STATE(TRIANGLE, INTEGER, TRIANGLES_CCW, LOWER_LEFT | CCW)
       },
       {
          NV9097_SET_TESSELLATION_PARAMETERS,

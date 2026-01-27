@@ -304,6 +304,8 @@ impl ShaderBin {
                             domain: ts_info.domain as u8,
                             spacing: ts_info.spacing as u8,
                             prims: ts_info.primitives as u8,
+                            ccw: ts_info.ccw,
+                            point_mode: ts_info.point_mode,
                             _pad: Default::default(),
                         },
                     }

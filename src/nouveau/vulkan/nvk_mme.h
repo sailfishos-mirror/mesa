@@ -251,7 +251,8 @@ void nvk_mme_set_z_clamp(struct mme_builder *b);
 
 uint32_t nvk_mme_tess_params(enum nak_ts_domain domain,
                              enum nak_ts_spacing spacing,
-                             enum nak_ts_prims prims);
+                             enum nak_ts_prims prims,
+                             bool ccw, bool point_mode);
 uint32_t nvk_mme_anti_alias_min_sample_shading(float mss);
 uint32_t nvk_mme_shading_rate_control_sample_shading(bool sample_shading);
 

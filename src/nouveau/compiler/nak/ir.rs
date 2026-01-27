@@ -9161,6 +9161,8 @@ pub struct TessellationShaderInfo {
     pub domain: TessellationDomain,
     pub spacing: TessellationSpacing,
     pub primitives: TessellationPrimitives,
+    pub ccw: bool,
+    pub point_mode: bool,
 }
 
 #[derive(Debug)]
