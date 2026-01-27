@@ -996,6 +996,10 @@ alu_opt_info_is_valid(opt_ctx& ctx, alu_opt_info& info)
    if (is_dpp_or_sdwa && !format_is(info.format, Format::VOPC) && info.defs[0].size() != 1)
       return false;
 
+   if (is_dpp && !opcode_supports_dpp(ctx.program->gfx_level, info.opcode,
+                                      format_is(info.format, Format::VOP3P)))
+      return false;
+
    if (format_is(info.format, Format::VOP1) || format_is(info.format, Format::VOP2) ||
        format_is(info.format, Format::VOPC) || format_is(info.format, Format::VOP3)) {
       bool needs_vop3 = false;
@@ -1045,7 +1049,7 @@ alu_opt_info_is_valid(opt_ctx& ctx, alu_opt_info& info)
       case aco_opcode::v_writelane_b32_e64:
          if ((vmask & 0x3) || (~vmask & 0x4))
             return false;
-         if (is_dpp || format_is(info.format, Format::SDWA))
+         if (format_is(info.format, Format::SDWA))
             return false;
          if (!info.operands[2].op.isTemp())
             return false;
@@ -1058,14 +1062,7 @@ alu_opt_info_is_valid(opt_ctx& ctx, alu_opt_info& info)
       case aco_opcode::v_readlane_b32_e64:
          if ((~vmask & 0x1) || (vmask & 0x6))
             return false;
-         if (is_dpp || format_is(info.format, Format::SDWA))
-            return false;
-         break;
-      case aco_opcode::v_mul_lo_u32:
-      case aco_opcode::v_mul_lo_i32:
-      case aco_opcode::v_mul_hi_u32:
-      case aco_opcode::v_mul_hi_i32:
-         if (is_dpp)
+         if (format_is(info.format, Format::SDWA))
             return false;
          break;
       case aco_opcode::v_fma_f32:
@@ -1138,10 +1135,7 @@ alu_opt_info_is_valid(opt_ctx& ctx, alu_opt_info& info)
       bool fmamix = info.opcode == aco_opcode::v_fma_mix_f32 ||
                     info.opcode == aco_opcode::v_fma_mixlo_f16 ||
                     info.opcode == aco_opcode::p_v_fma_mixlo_f16_rtz;
-      bool dot2_f32 =
-         info.opcode == aco_opcode::v_dot2_f32_f16 || info.opcode == aco_opcode::v_dot2_f32_bf16;
-      bool supports_dpp = (fmamix || dot2_f32) && ctx.program->gfx_level >= GFX11;
-      if ((abs && !fmamix) || (is_dpp && !supports_dpp) || info.omod)
+      if ((abs && !fmamix) || info.omod)
          return false;
       if (lmask && (ctx.program->gfx_level < GFX10 || is_dpp))
          return false;
