@@ -3124,7 +3124,7 @@
         "description": "iris: Fix an assertion when importing dmabuf",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1149f1c5a18fddbc756f0d3d34cd73a9c0fe2067",
         "notes": null
