@@ -1174,6 +1174,11 @@ struct ABI {
 
       return clobbered_regs;
    }
+
+   RegisterDemand numPreserved(RegisterDemand reg_limit) const
+   {
+      return reg_limit - numClobbered(reg_limit);
+   }
 };
 
 static constexpr ABI rtRaygenABI = {

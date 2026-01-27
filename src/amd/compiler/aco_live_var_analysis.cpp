@@ -427,17 +427,10 @@ process_live_temps_per_block(live_ctx& ctx, Block* block)
          operand_demand += insn->definitions[0].getTemp();
 
          RegisterDemand limit = get_addr_regs_from_waves(ctx.program, ctx.program->min_waves);
-         insn->call().callee_preserved_limit = RegisterDemand();
+         insn->call().callee_preserved_limit = insn->call().abi.numPreserved(limit);
 
          BITSET_DECLARE(preserved_regs, 512);
          insn->call().abi.preservedRegisters(preserved_regs, limit);
-
-         RegisterDemand preserved_reg_demand;
-         preserved_reg_demand.sgpr =
-            __bitset_prefix_sum(preserved_regs, limit.sgpr, 256 / BITSET_WORDBITS);
-         preserved_reg_demand.vgpr = __bitset_prefix_sum(preserved_regs + 256 / BITSET_WORDBITS,
-                                                         limit.vgpr, 256 / BITSET_WORDBITS);
-         insn->call().callee_preserved_limit += preserved_reg_demand;
 
          /* Killed operands effectively make a preserved register unusable for temporaries which we
           * want to preserve (those included in caller_preserved_demand).
