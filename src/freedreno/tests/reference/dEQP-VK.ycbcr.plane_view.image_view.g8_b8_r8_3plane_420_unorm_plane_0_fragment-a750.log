@@ -758,40 +758,6 @@
 					{ 13 = 0 }
 					{ 14 = 0 }
 					{ 15 = 0 }
-				STORAGE/TEXEL/IMAGE[0]: (DESC_MULTI_PLANE)
-					{ TILE_MODE = TILE6_LINEAR | SWIZ_X = A6XX_TEX_X | SWIZ_Y = A6XX_TEX_ZERO | SWIZ_Z = A6XX_TEX_ZERO | SWIZ_W = A6XX_TEX_ONE | SAMPLES = MSAA_ONE | FMT = FMT6_8_UNORM | SWAP = WZYX }
-					{ WIDTH = 32 | HEIGHT = 58 }
-					{ PITCHALIGN = 0 | PITCH = 64 | TYPE = A6XX_TEX_2D }
-					{ TILE_ALL | 0x800000 }
-					{ BASE_LO = 0x181000 }
-					{ BASE_HI = 0x40 | DEPTH = 1 }
-					{ MIN_LOD_CLAMP = 0.000000 | PLANE_PITCH = 0 }
-					{ BASE_U_LO = 0 }
-					{ BASE_U_HI = 0 }
-					{ BASE_V_LO = 0 }
-					{ BASE_V_HI = 0 }
-					{ 11 = 0x181000 }
-					{ 12 = 0x40 }
-					{ 13 = 0 }
-					{ 14 = 0 }
-					{ 15 = 0 }
-				STORAGE/TEXEL/IMAGE[0]: (DESC_BUFFER)
-					{ TILE_MODE = TILE6_LINEAR | SWIZ_X = A6XX_TEX_X | SWIZ_Y = A6XX_TEX_ZERO | SWIZ_Z = A6XX_TEX_ZERO | SWIZ_W = A6XX_TEX_ONE | MIPLVLS = 0 | SAMPLES = MSAA_ONE | FMT = FMT6_8_UNORM | SWAP = WZYX }
-					{ NUM_ELEMENTS = 1900576 }
-					{ STRUCTSIZETEXELS = 512 | STARTOFFSETTEXELS = 0 | TYPE = A6XX_TEX_2D }
-					{ 0x8800000 }
-					{ BASE_LO = 0x181000 }
-					{ BASE_HI = 0x40 | 0x20000 }
-					{ 0 }
-					{ 0 }
-					{ 0 }
-					{ 0 }
-					{ 0 }
-					{ 11 = 0x181000 }
-					{ 12 = 0x40 }
-					{ 13 = 0 }
-					{ 14 = 0 }
-					{ 15 = 0 }
 				STORAGE/TEXEL/IMAGE[0]: (DESC_WEIGHT)
 					{ TILE_MODE = TILE6_LINEAR | MIPLVLS = 0 | SAMPLES = MSAA_ONE | FMT = FMT6_8_UNORM | SWAP = WZYX | 0xb200 }
 					{ WIDTH = 32 | HEIGHT = 58 }
@@ -835,40 +801,6 @@
 					{ 13 = 0 }
 					{ 14 = 0 }
 					{ 15 = 0 }
-				STORAGE/TEXEL/IMAGE[1]: (DESC_MULTI_PLANE)
-					{ TILE_MODE = TILE6_LINEAR | SWIZ_X = A6XX_TEX_Z | SWIZ_Y = A6XX_TEX_Z | SWIZ_Z = A6XX_TEX_Z | SWIZ_W = A6XX_TEX_X | SAMPLES = MSAA_ONE | FMT = 0 | SWAP = WZYX }
-					{ WIDTH = 0 | HEIGHT = 0 }
-					{ PITCHALIGN = 0 | PITCH = 0 | TYPE = A6XX_TEX_1D }
-					{ 0 }
-					{ BASE_LO = 0 }
-					{ BASE_HI = 0 | DEPTH = 0 }
-					{ MIN_LOD_CLAMP = 0.000000 | PLANE_PITCH = 0 }
-					{ BASE_U_LO = 0 }
-					{ BASE_U_HI = 0 }
-					{ BASE_V_LO = 0 }
-					{ BASE_V_HI = 0 }
-					{ 11 = 0 }
-					{ 12 = 0 }
-					{ 13 = 0 }
-					{ 14 = 0 }
-					{ 15 = 0 }
-				STORAGE/TEXEL/IMAGE[1]: (DESC_BUFFER)
-					{ TILE_MODE = TILE6_LINEAR | SWIZ_X = A6XX_TEX_Z | SWIZ_Y = A6XX_TEX_Z | SWIZ_Z = A6XX_TEX_Z | SWIZ_W = A6XX_TEX_X | MIPLVLS = 0 | SAMPLES = MSAA_ONE | FMT = 0 | SWAP = WZYX }
-					{ NUM_ELEMENTS = 0 }
-					{ STRUCTSIZETEXELS = 0 | STARTOFFSETTEXELS = 0 | TYPE = A6XX_TEX_1D }
-					{ 0 }
-					{ BASE_LO = 0 }
-					{ BASE_HI = 0 }
-					{ 0 }
-					{ 0 }
-					{ 0 }
-					{ 0 }
-					{ 0 }
-					{ 11 = 0 }
-					{ 12 = 0 }
-					{ 13 = 0 }
-					{ 14 = 0 }
-					{ 15 = 0 }
 				STORAGE/TEXEL/IMAGE[1]: (DESC_WEIGHT)
 					{ TILE_MODE = TILE6_LINEAR | MIPLVLS = 0 | SAMPLES = MSAA_ONE | FMT = 0 | SWAP = WZYX | 0x920 }
 					{ WIDTH = 0 | HEIGHT = 0 }
@@ -895,23 +827,6 @@
 				UBO[2]:
 					{ BASE_LO = 0x2405a420 }
 					{ BASE_HI = 0x10020 | SIZE = 0xe }
-				STORAGE/TEXEL/IMAGE[2]: (DESC_SINGLE_PLANE)
-					{ TILE_MODE = TILE6_LINEAR | SWIZ_X = A6XX_TEX_Z | SWIZ_Y = A6XX_TEX_X | SWIZ_Z = A6XX_TEX_Y | SWIZ_W = A6XX_TEX_ONE | MIPLVLS = 5 | SAMPLES = MSAA_ONE | FMT = FMT6_R8_G8_B8_3PLANE_420_UNORM | SWAP = WZYX }
-					{ WIDTH = 32 | HEIGHT = 58 }
-					{ PITCHALIGN = 0 | PITCH = 64 | TYPE = A6XX_TEX_2D }
-					{ ARRAY_PITCH = 0 | MIN_LAYERSZ = 0 | TILE_ALL }
-					{ BASE_LO = 0x181000 }
-					{ BASE_HI = 0x40 | DEPTH = 1 }
-					{ MIN_LOD_CLAMP = 0.000000 | 0x4000 }
-					{ FLAG_LO = 0x181e80 }
-					{ FLAG_HI = 0x40 }
-					{ FLAG_BUFFER_ARRAY_PITCH = 154624 | 0x180000 }
-					{ FLAG_BUFFER_PITCH = 4096 | FLAG_BUFFER_LOGW = 0 | FLAG_BUFFER_LOGH = 0 }
-					{ 11 = 0x181000 }
-					{ 12 = 0x40 }
-					{ 13 = 0 }
-					{ 14 = 0 }
-					{ 15 = 0 }
 				STORAGE/TEXEL/IMAGE[2]: (DESC_MULTI_PLANE)
 					{ TILE_MODE = TILE6_LINEAR | SWIZ_X = A6XX_TEX_Z | SWIZ_Y = A6XX_TEX_X | SWIZ_Z = A6XX_TEX_Y | SWIZ_W = A6XX_TEX_ONE | CHROMA_MIDPOINT_X | CHROMA_MIDPOINT_Y | SAMPLES = MSAA_ONE | FMT = FMT6_R8_G8_B8_3PLANE_420_UNORM | SWAP = WZYX }
 					{ WIDTH = 32 | HEIGHT = 58 }
@@ -924,40 +839,6 @@
 					{ BASE_U_HI = 0x40 }
 					{ BASE_V_LO = 0x1825c0 }
 					{ BASE_V_HI = 0x40 }
-					{ 11 = 0x181000 }
-					{ 12 = 0x40 }
-					{ 13 = 0 }
-					{ 14 = 0 }
-					{ 15 = 0 }
-				STORAGE/TEXEL/IMAGE[2]: (DESC_BUFFER)
-					{ TILE_MODE = TILE6_LINEAR | SWIZ_X = A6XX_TEX_Z | SWIZ_Y = A6XX_TEX_X | SWIZ_Z = A6XX_TEX_Y | SWIZ_W = A6XX_TEX_ONE | MIPLVLS = 5 | SAMPLES = MSAA_ONE | FMT = FMT6_R8_G8_B8_3PLANE_420_UNORM | SWAP = WZYX }
-					{ NUM_ELEMENTS = 1900576 }
-					{ STRUCTSIZETEXELS = 512 | STARTOFFSETTEXELS = 0 | TYPE = A6XX_TEX_2D }
-					{ 0x8000000 }
-					{ BASE_LO = 0x181000 }
-					{ BASE_HI = 0x40 | 0x20000 }
-					{ 0x4000 }
-					{ 0x181e80 }
-					{ 0x40 }
-					{ 0x1825c0 }
-					{ 0x40 }
-					{ 11 = 0x181000 }
-					{ 12 = 0x40 }
-					{ 13 = 0 }
-					{ 14 = 0 }
-					{ 15 = 0 }
-				STORAGE/TEXEL/IMAGE[2]: (DESC_WEIGHT)
-					{ TILE_MODE = TILE6_LINEAR | MIPLVLS = 5 | SAMPLES = MSAA_ONE | FMT = FMT6_R8_G8_B8_3PLANE_420_UNORM | SWAP = WZYX | 0xa420 }
-					{ WIDTH = 32 | HEIGHT = 58 }
-					{ PITCHALIGN = 0 | PITCH = 64 | TYPE = A6XX_TEX_2D }
-					{ ARRAY_PITCH = 0 | TILE_ALL }
-					{ BASE_LO = 0x181000 }
-					{ BASE_HI = 0x40 | DEPTH = 1 }
-					{ LOG2_PHASES = 0 | DILATION = 0 | 0x4000 }
-					{ 0x181e80 }
-					{ FILTER_SIZE_X = 0 | FILTER_SIZE_Y = 0 | 0x40 }
-					{ 0x1825c0 }
-					{ FILTER_OFFSET_X = 0 | FILTER_OFFSET_Y = 0 | 0x40 }
 					{ 11 = 0x181000 }
 					{ 12 = 0x40 }
 					{ 13 = 0 }
@@ -984,40 +865,6 @@
 					{ FLAG_HI = 0 }
 					{ FLAG_BUFFER_ARRAY_PITCH = 0 }
 					{ FLAG_BUFFER_PITCH = 0 | FLAG_BUFFER_LOGW = 0 | FLAG_BUFFER_LOGH = 0 }
-					{ 11 = 0 }
-					{ 12 = 0 }
-					{ 13 = 0 }
-					{ 14 = 0 }
-					{ 15 = 0 }
-				STORAGE/TEXEL/IMAGE[3]: (DESC_MULTI_PLANE)
-					{ TILE_MODE = TILE6_LINEAR | SWIZ_X = A6XX_TEX_Z | SWIZ_Y = A6XX_TEX_Z | SWIZ_Z = A6XX_TEX_Z | SWIZ_W = A6XX_TEX_X | SAMPLES = MSAA_ONE | FMT = 0 | SWAP = WZYX }
-					{ WIDTH = 0 | HEIGHT = 0 }
-					{ PITCHALIGN = 0 | PITCH = 0 | TYPE = A6XX_TEX_1D }
-					{ 0 }
-					{ BASE_LO = 0 }
-					{ BASE_HI = 0 | DEPTH = 0 }
-					{ MIN_LOD_CLAMP = 0.000000 | PLANE_PITCH = 0 }
-					{ BASE_U_LO = 0 }
-					{ BASE_U_HI = 0 }
-					{ BASE_V_LO = 0 }
-					{ BASE_V_HI = 0 }
-					{ 11 = 0 }
-					{ 12 = 0 }
-					{ 13 = 0 }
-					{ 14 = 0 }
-					{ 15 = 0 }
-				STORAGE/TEXEL/IMAGE[3]: (DESC_BUFFER)
-					{ TILE_MODE = TILE6_LINEAR | SWIZ_X = A6XX_TEX_Z | SWIZ_Y = A6XX_TEX_Z | SWIZ_Z = A6XX_TEX_Z | SWIZ_W = A6XX_TEX_X | MIPLVLS = 0 | SAMPLES = MSAA_ONE | FMT = 0 | SWAP = WZYX }
-					{ NUM_ELEMENTS = 0 }
-					{ STRUCTSIZETEXELS = 0 | STARTOFFSETTEXELS = 0 | TYPE = A6XX_TEX_1D }
-					{ 0 }
-					{ BASE_LO = 0 }
-					{ BASE_HI = 0 }
-					{ 0 }
-					{ 0 }
-					{ 0 }
-					{ 0 }
-					{ 0 }
 					{ 11 = 0 }
 					{ 12 = 0 }
 					{ 13 = 0 }

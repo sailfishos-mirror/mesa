@@ -1598,7 +1598,15 @@ dump_tex_samp(uint32_t *texsamp, enum state_src_t src, int num_unit, int level)
 static void
 dump_tex_descriptor_type(uint32_t *texmemobj, int idx, int level, const char *domain, const char *type)
 {
+   struct rnndomain *dom = rnn_finddomain(rnn->db, domain);
+
+   if (!dom)
+      return;
+
    rnn_varadd(rnn, "desctype", type);
+   if (script_show_descriptor && !script_show_descriptor(texmemobj, 16, type, rnn, dom))
+      return;
+
    printl(2, "%sSTORAGE/TEXEL/IMAGE[%u]: (%s)\n", levels[level + 1], idx, type);
    dump_domain(texmemobj, 16, level + 2, domain);
 }

@@ -21,6 +21,7 @@
 
 #include "cffdec.h"
 #include "cffdump-pkt-handler.h"
+#include "cffdump-desc-handler.h"
 #include "rnnutil.h"
 #include "script.h"
 
@@ -704,6 +705,18 @@ internal_lua_pkt_handler_load(void)
       fprintf(stderr, "%s\n", lua_tostring(iL, -1));
       exit(1);
    }
+
+   ret = luaL_loadstring(iL, cffdump_desc_handler_lua_src);
+   if (ret) {
+      fprintf(stderr, "%s\n", lua_tostring(iL, -1));
+      exit(1);
+   }
+
+   ret = lua_pcall(iL, 0, LUA_MULTRET, 0);
+   if (ret) {
+      fprintf(stderr, "%s\n", lua_tostring(iL, -1));
+      exit(1);
+   }
 }
 
 void
@@ -828,18 +841,16 @@ static const struct luaL_Reg l_meta_rnn_dom[] = {
    {NULL, NULL} /* sentinel */
 };
 
-/* called to general pm4 packet decoding, such as texture/sampler state
- */
 static bool
-handle_packet_setup(lua_State *state, uint32_t *dwords, uint32_t sizedwords,
-                    struct rnn *rnn, struct rnndomain *dom)
+setup_call(lua_State *state, uint32_t *dwords, uint32_t sizedwords,
+           const char *name, struct rnn *rnn, struct rnndomain *dom)
 {
    if (!state)
       return false;
 
    assert(state == L || state == iL);
 
-   lua_getglobal(state, dom->name);
+   lua_getglobal(state, name);
 
    /* if no handler for the packet, just ignore it: */
    if (!lua_isfunction(state, -1)) {
@@ -860,6 +871,18 @@ handle_packet_setup(lua_State *state, uint32_t *dwords, uint32_t sizedwords,
    lua_pop(state, 1);
 
    luaL_setmetatable(state, "rnnmetadom");
+
+   return true;
+}
+
+/* called to general pm4 packet decoding, such as texture/sampler state
+ */
+static bool
+handle_packet_setup(lua_State *state, uint32_t *dwords, uint32_t sizedwords,
+                    struct rnn *rnn, struct rnndomain *dom)
+{
+   if (!setup_call(state, dwords, sizedwords, dom->name, rnn, dom))
+      return false;
 
    lua_pushnumber(state, sizedwords);
 
@@ -902,6 +925,33 @@ internal_packet(uint32_t *dwords, uint32_t sizedwords, struct rnn *rnn,
    lua_pop(iL, 1);
 
    return str;
+}
+
+bool
+script_show_descriptor(uint32_t *dwords,
+                       uint32_t sizedwords,
+                       const char *type,
+                       struct rnn *rnn,
+                       struct rnndomain *dom)
+{
+   /* If we cannot call handler, fall back to showing all descriptor variants: */
+   if (!setup_call(iL, dwords, sizedwords, "show_descriptor", rnn, dom))
+      return true;
+
+   struct rnnenum *e = rnn_enumelem(rnn, "desctype");
+   pushenum(iL, rnn, rnn_enumval(rnn, "desctype", type), e);
+
+   /* 2 args, 1 result */
+   if (lua_pcall(iL, 2, 1, 0) != 0) {
+      fprintf(stderr, "error running function `f': %s\n",
+              lua_tostring(iL, -1));
+      exit(1);
+   }
+
+   bool ret = lua_toboolean(iL, -1);
+   lua_pop(iL, 1);
+
+   return ret;
 }
 
 /* helper to call fxn that takes and returns void: */

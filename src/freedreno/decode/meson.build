@@ -12,6 +12,13 @@ cffdump_pkt_handler_h = custom_target(
   command : [prog_python, '@INPUT@', '@OUTPUT@', '-n', 'cffdump_pkt_handler_lua_src'],
 )
 
+cffdump_desc_handler_h = custom_target(
+  'cffdump-desc-handler.h',
+  input : [files_xxd, 'cffdump-desc-handler.lua'],
+  output : 'cffdump-desc-handler.h',
+  command : [prog_python, '@INPUT@', '@OUTPUT@', '-n', 'cffdump_desc_handler_lua_src'],
+)
+
 # Shared cmdstream decoding:
 libfreedreno_cffdec = static_library(
   'freedreno_cffdec',
@@ -28,6 +35,7 @@ libfreedreno_cffdec = static_library(
     'script.h',
     'util.h',
     cffdump_pkt_handler_h,
+    cffdump_desc_handler_h,
     freedreno_pm4_xml_header_file,
   ],
   include_directories: [
