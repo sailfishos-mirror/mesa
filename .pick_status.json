@@ -474,7 +474,7 @@
         "description": "nir/meson: fix cpp_args of nir_opt_algebraic_pattern_tests",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4c30c44b750607d9ab41650cc5c61055af02b2c9",
         "notes": null
