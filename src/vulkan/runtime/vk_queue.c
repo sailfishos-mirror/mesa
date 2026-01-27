@@ -56,6 +56,8 @@ vk_queue_init(struct vk_queue *queue, struct vk_device *device,
    memset(queue, 0, sizeof(*queue));
    vk_object_base_init(device, &queue->base, VK_OBJECT_TYPE_QUEUE);
 
+   simple_mtx_init(&queue->lock, mtx_plain);
+
    list_addtail(&queue->link, &device->queues);
 
    queue->flags = pCreateInfo->flags;
@@ -624,7 +626,10 @@ vk_queue_submit_final(struct vk_queue *queue,
          result = vk_queue_set_lost(queue, "Failed to unwrap sync signal");
    }
 
+   vk_queue_lock(queue);
    result = queue->driver_submit(queue, submit);
+   vk_queue_unlock(queue);
+
    if (unlikely(result != VK_SUCCESS))
       return result;
 
@@ -1224,6 +1229,8 @@ vk_queue_finish(struct vk_queue *queue)
       vk_free(&queue->base.device->alloc, (void *)label->pLabelName);
    util_dynarray_fini(&queue->labels);
    list_del(&queue->link);
+
+   simple_mtx_destroy(&queue->lock);
    vk_object_base_finish(&queue->base);
 }
 
