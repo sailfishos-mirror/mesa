@@ -1430,6 +1430,9 @@ struct tu_tile_config {
    uint32_t slot_mask;
    uint32_t visible_views;
 
+   /* The tile this tile was merged with. */
+   struct tu_tile_config *merged_tile;
+
    /* For merged tiles, the extent in tiles when resolved to system memory.
     */
    VkExtent2D sysmem_extent;
@@ -3901,7 +3904,7 @@ tu_calc_bin_visibility(struct tu_cmd_buffer *cmd,
 }
 
 static bool
-try_merge_tiles(struct tu_tile_config *dst, const struct tu_tile_config *src,
+try_merge_tiles(struct tu_tile_config *dst, struct tu_tile_config *src,
                 unsigned views, bool has_abs_bin_mask, bool shared_viewport)
 {
    uint32_t slot_mask = dst->slot_mask | src->slot_mask;
@@ -3993,6 +3996,8 @@ try_merge_tiles(struct tu_tile_config *dst, const struct tu_tile_config *src,
    dst->pos = src->pos;
    dst->slot_mask = slot_mask;
 
+   src->merged_tile = dst;
+
    return true;
 }
 
@@ -4021,12 +4026,11 @@ tu_render_pipe_fdm(struct tu_cmd_buffer *cmd, uint32_t pipe,
          tile->gmem_extent = { 1, 1 };
          tile->pipe = pipe;
          tile->slot_mask = 1u << (width * y + x);
+         tile->merged_tile = NULL;
          tu_calc_bin_visibility(cmd, tile, fdm_offsets);
          tu_calc_frag_area(cmd, tile, fdm, fdm_offsets);
       }
    }
-
-   uint32_t merged_tiles = 0;
 
    /* Merge tiles */
    for (uint32_t y = 0; y < height; y++) {
@@ -4036,10 +4040,8 @@ tu_render_pipe_fdm(struct tu_cmd_buffer *cmd, uint32_t pipe,
             continue;
          if (x > 0) {
             struct tu_tile_config *prev_x_tile = &tiles[width * y + x - 1];
-            if (try_merge_tiles(tile, prev_x_tile, views, has_abs_mask,
-                                shared_viewport)) {
-               merged_tiles |= prev_x_tile->slot_mask;
-            }
+            try_merge_tiles(tile, prev_x_tile, views, has_abs_mask,
+                            shared_viewport);
          }
          if (y > 0) {
             unsigned prev_y_idx = width * (y - 1) + x;
@@ -4048,10 +4050,9 @@ tu_render_pipe_fdm(struct tu_cmd_buffer *cmd, uint32_t pipe,
             /* We can't merge prev_y_tile into tile if it's already been
              * merged horizontally into its neighbor in the previous row.
              */
-            if (!(merged_tiles & (1u << prev_y_idx)) &&
-                try_merge_tiles(tile, prev_y_tile, views, has_abs_mask,
-                                shared_viewport)) {
-               merged_tiles |= prev_y_tile->slot_mask;
+            if (!prev_y_tile->merged_tile) {
+               try_merge_tiles(tile, prev_y_tile, views, has_abs_mask,
+                               shared_viewport);
             }
          }
       }
@@ -4067,11 +4068,8 @@ tu_render_pipe_fdm(struct tu_cmd_buffer *cmd, uint32_t pipe,
             tx = x;
 
          unsigned tile_idx = y * width + tx;
-         if (merged_tiles & (1u << tile_idx))
-            continue;
-
          struct tu_tile_config *tile = &tiles[tile_idx];
-         if (tile->visible_views == 0)
+         if (tile->merged_tile || tile->visible_views == 0)
             continue;
 
          tu6_render_tile<CHIP>(cmd, &cmd->cs, tile, fdm_offsets);
