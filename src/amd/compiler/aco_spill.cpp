@@ -298,7 +298,7 @@ is_spillable(spill_ctx& ctx, Temp var)
    if (var.regClass().is_linear_vgpr())
       return false;
    auto is_current_var = [var](const Temp& test) { return var == test; };
-   return var != ctx.program->stack_ptr && var != ctx.program->static_scratch_rsrc &&
+   return var != ctx.program->stack_ptr &&
           std::none_of(ctx.program->scratch_offsets.begin(), ctx.program->scratch_offsets.end(),
                        is_current_var) &&
           std::none_of(ctx.program->private_segment_buffers.begin(),

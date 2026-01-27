@@ -1707,10 +1707,10 @@ Temp
 load_scratch_resource(Program* program, Builder& bld, unsigned resume_idx,
                       bool apply_scratch_offset)
 {
-   if (program->static_scratch_rsrc != Temp()) {
-      /* We can't apply any offsets when using a static resource. */
+   if (program->stack_ptr != Temp()) {
+      /* We can't apply any offsets when using the stack pointer as a scratch resource. */
       assert(!apply_scratch_offset || program->scratch_offsets.empty());
-      return program->static_scratch_rsrc;
+      return program->stack_ptr;
    }
    Temp private_segment_buffer;
    if (!program->private_segment_buffers.empty())

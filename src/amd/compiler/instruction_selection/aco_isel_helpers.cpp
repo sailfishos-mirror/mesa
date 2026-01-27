@@ -727,10 +727,7 @@ add_startpgm(struct isel_context* ctx, bool is_callee)
 
    if (is_callee) {
       unsigned def_idx = 0;
-      if (ctx->program->gfx_level >= GFX9)
-         ctx->program->stack_ptr = ctx->callee_info.stack_ptr.def.getTemp();
-      else
-         ctx->program->static_scratch_rsrc = ctx->callee_info.stack_ptr.def.getTemp();
+      ctx->program->stack_ptr = ctx->callee_info.stack_ptr.def.getTemp();
       startpgm->definitions[def_idx++] = ctx->callee_info.stack_ptr.def;
       startpgm->definitions[def_idx++] = ctx->callee_info.return_address.def;
 
@@ -1219,12 +1216,8 @@ void
 emit_reload_preserved(isel_context* ctx)
 {
    Builder bld(ctx->program, ctx->block);
-   Operand stack_ptr_op;
-   if (ctx->program->gfx_level >= GFX9)
-      stack_ptr_op = Operand(ctx->program->stack_ptr);
-   else
-      stack_ptr_op = Operand(load_scratch_resource(ctx->program, bld, -1u, false));
-   bld.pseudo(aco_opcode::p_reload_preserved, bld.def(bld.lm), Operand(), stack_ptr_op);
+   bld.pseudo(aco_opcode::p_reload_preserved, bld.def(bld.lm), Operand(),
+              Operand(ctx->program->stack_ptr));
 }
 
 } // namespace aco
