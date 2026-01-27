@@ -64,60 +64,88 @@ static void pvr_image_init_memlayout(struct pvr_image *image)
    }
 }
 
-static void pvr_image_init_physical_extent(struct pvr_image *image,
-                                           unsigned pbe_stride_align)
+static void pvr_image_plane_init_physical_extent(
+   struct pvr_image *image,
+   unsigned pbe_stride_align,
+   const struct vk_format_ycbcr_info *ycbcr_info,
+   uint8_t i)
 {
-   assert(image->memlayout != PVR_MEMLAYOUT_UNDEFINED);
-
+   struct pvr_image_plane *plane = &image->planes[i];
    /* clang-format off */
    if (image->vk.mip_levels > 1 ||
       image->memlayout == PVR_MEMLAYOUT_TWIDDLED ||
       image->memlayout == PVR_MEMLAYOUT_3DTWIDDLED) {
       /* clang-format on */
-      image->physical_extent.width =
+      plane->physical_extent.width =
          util_next_power_of_two(image->vk.extent.width);
-      image->physical_extent.height =
+      plane->physical_extent.height =
          util_next_power_of_two(image->vk.extent.height);
-      image->physical_extent.depth =
+      plane->physical_extent.depth =
          util_next_power_of_two(image->vk.extent.depth);
    } else {
       assert(image->memlayout == PVR_MEMLAYOUT_LINEAR);
-      image->physical_extent = image->vk.extent;
+      plane->physical_extent = image->vk.extent;
 
       /* If the image is being rendered to (written by the PBE) make sure the
        * width is aligned correctly.
        */
       if (image->vk.usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
                              VK_IMAGE_USAGE_TRANSFER_DST_BIT)) {
-         image->physical_extent.width =
-            align(image->physical_extent.width, pbe_stride_align);
+         plane->physical_extent.width =
+            align(plane->physical_extent.width, pbe_stride_align);
       }
+   }
+
+   if (ycbcr_info) {
+      plane->physical_extent.width /=
+         ycbcr_info->planes[i].denominator_scales[0];
+      plane->physical_extent.height /=
+         ycbcr_info->planes[i].denominator_scales[1];
    }
 }
 
-static void pvr_image_setup_mip_levels(struct pvr_image *image)
+static void pvr_image_init_physical_extent(struct pvr_image *image,
+                                           unsigned pbe_stride_align)
 {
+   assert(image->memlayout != PVR_MEMLAYOUT_UNDEFINED);
+
+   const struct vk_format_ycbcr_info *ycbcr_info =
+      vk_format_get_ycbcr_info(image->vk.format);
+
+   for (uint8_t plane = 0; plane < image->plane_count; plane++) {
+      pvr_image_plane_init_physical_extent(image,
+                                           pbe_stride_align,
+                                           ycbcr_info,
+                                           plane);
+   }
+}
+
+static void pvr_image_plane_setup_mip_levels(struct pvr_image *image, uint8_t i)
+{
+   struct pvr_image_plane *plane = &image->planes[i];
+   VkFormat plane_format = vk_format_get_plane_format(image->vk.format, i);
+
    const uint32_t extent_alignment =
       image->vk.image_type == VK_IMAGE_TYPE_3D ? 4 : 1;
-   const unsigned int cpp = vk_format_get_blocksize(image->vk.format);
+   const unsigned int cpp = vk_format_get_blocksize(plane_format);
    VkExtent3D extent =
-      vk_image_extent_to_elements(&image->vk, image->physical_extent);
+      vk_image_extent_to_elements(&image->vk, plane->physical_extent);
 
-   assert(image->vk.mip_levels <= ARRAY_SIZE(image->mip_levels));
+   assert(image->vk.mip_levels <= ARRAY_SIZE(plane->mip_levels));
 
-   image->layer_size = 0;
+   plane->layer_size = 0;
 
    for (uint32_t i = 0; i < image->vk.mip_levels; i++) {
-      struct pvr_mip_level *mip_level = &image->mip_levels[i];
+      struct pvr_mip_level *mip_level = &plane->mip_levels[i];
 
       mip_level->pitch = cpp * align(extent.width, extent_alignment);
       mip_level->height_pitch = align(extent.height, extent_alignment);
       mip_level->size = image->vk.samples * mip_level->pitch *
                         mip_level->height_pitch *
                         align(extent.depth, extent_alignment);
-      mip_level->offset = image->layer_size;
+      mip_level->offset = plane->layer_size;
 
-      image->layer_size += mip_level->size;
+      plane->layer_size += mip_level->size;
 
       extent.height = u_minify(extent.height, 1);
       extent.width = u_minify(extent.width, 1);
@@ -132,7 +160,7 @@ static void pvr_image_setup_mip_levels(struct pvr_image *image)
          const uint32_t height_pitch = align(extent.height, extent_alignment);
          const uint32_t pitch = cpp * align(extent.width, extent_alignment);
 
-         image->layer_size += image->vk.samples * pitch * height_pitch *
+         plane->layer_size += image->vk.samples * pitch * height_pitch *
                               align(extent.depth, extent_alignment);
 
          extent.height = u_minify(extent.height, 1);
@@ -147,9 +175,23 @@ static void pvr_image_setup_mip_levels(struct pvr_image *image)
     * requirement comes from.
     */
    if (image->vk.array_layers > 1)
-      image->layer_size = align64(image->layer_size, image->alignment);
+      plane->layer_size = align64(plane->layer_size, image->alignment);
 
-   image->size = image->layer_size * image->vk.array_layers;
+   plane->size = plane->layer_size * image->vk.array_layers;
+}
+
+static void pvr_image_setup_mip_levels(struct pvr_image *image)
+{
+   VkDeviceSize offset = 0;
+   for (uint8_t plane = 0; plane < image->plane_count; plane++) {
+      pvr_image_plane_setup_mip_levels(image, plane);
+
+      offset = align(offset, image->alignment);
+      image->planes[plane].offset = offset;
+      offset += image->planes[plane].size;
+   }
+
+   image->total_size = offset;
 }
 
 static unsigned get_pbe_stride_align(const struct pvr_device_info *dev_info);
@@ -177,6 +219,8 @@ VkResult pvr_CreateImage(VkDevice _device,
     * Refer: pvr_GetImageMemoryRequirements for further details.
     */
    image->alignment = 4096U;
+
+   image->plane_count = vk_format_get_plane_count(image->vk.format);
 
    unsigned pbe_stride_align = get_pbe_stride_align(&device->pdevice->dev_info);
 
@@ -270,7 +314,7 @@ VkResult pvr_BindImageMemory2(VkDevice _device,
       result = pvr_bind_memory(device,
                                mem,
                                offset,
-                               image->size,
+                               image->total_size,
                                image->alignment,
                                &image->vma,
                                &image->dev_addr);
@@ -292,17 +336,20 @@ void pvr_get_image_subresource_layout(const struct pvr_image *image,
                                       const VkImageSubresource *subresource,
                                       VkSubresourceLayout *layout)
 {
+   const struct pvr_image_plane *plane =
+      pvr_plane_from_aspect_const(image, subresource->aspectMask);
    const struct pvr_mip_level *mip_level =
-      &image->mip_levels[subresource->mipLevel];
+      &plane->mip_levels[subresource->mipLevel];
 
    pvr_assert(subresource->mipLevel < image->vk.mip_levels);
    pvr_assert(subresource->arrayLayer < image->vk.array_layers);
 
-   layout->offset =
-      subresource->arrayLayer * image->layer_size + mip_level->offset;
+   layout->offset = plane->offset +
+                    subresource->arrayLayer * plane->layer_size +
+                    mip_level->offset;
    layout->rowPitch = mip_level->pitch;
    layout->depthPitch = mip_level->pitch * mip_level->height_pitch;
-   layout->arrayPitch = image->layer_size;
+   layout->arrayPitch = plane->layer_size;
    layout->size = mip_level->size;
 }
 

@@ -685,6 +685,7 @@ static VkResult pvr_setup_texture_state_words(
    uint32_t view_index)
 {
    const struct pvr_image *image = vk_to_pvr_image(image_view->vk.image);
+   const struct pvr_image_plane *plane = pvr_single_plane_const(image);
    struct pvr_texture_state_info info = {
       .format = image_view->vk.format,
       .mem_layout = image->memlayout,
@@ -695,8 +696,8 @@ static VkResult pvr_setup_texture_state_words(
       .extent = image_view->vk.extent,
       .mip_levels = 1,
       .sample_count = image_view->vk.image->samples,
-      .stride = image->physical_extent.width,
-      .offset = image->layer_size * view_index,
+      .stride = plane->physical_extent.width,
+      .offset = plane->layer_size * view_index,
       .addr = image->dev_addr,
    };
    const uint8_t *const swizzle = pvr_get_format_swizzle(info.format);
@@ -1106,7 +1107,8 @@ static void pvr_setup_pbe_state(
    uint32_t view_index)
 {
    const struct pvr_image *image = pvr_image_view_get_image(iview);
-   uint32_t level_pitch = image->mip_levels[iview->vk.base_mip_level].pitch;
+   const struct pvr_image_plane *plane = pvr_single_plane_const(image);
+   uint32_t level_pitch = plane->mip_levels[iview->vk.base_mip_level].pitch;
 
    struct pvr_pbe_surf_params surface_params;
    struct pvr_pbe_render_params render_params;
@@ -1147,13 +1149,13 @@ static void pvr_setup_pbe_state(
     */
    surface_params.addr = PVR_DEV_ADDR_OFFSET(
       image->vma->dev_addr,
-      image->layer_size * view_index +
-         image->mip_levels[iview->vk.base_mip_level].offset);
+      plane->layer_size * view_index +
+         plane->mip_levels[iview->vk.base_mip_level].offset);
 
    if (!iview->vk.storage.z_slice_offset) {
       surface_params.addr =
          PVR_DEV_ADDR_OFFSET(surface_params.addr,
-                             iview->vk.base_array_layer * image->layer_size);
+                             iview->vk.base_array_layer * plane->layer_size);
    }
 
    surface_params.mem_layout = image->memlayout;
@@ -1288,13 +1290,15 @@ static bool pvr_sub_cmd_gfx_requires_ds_subtile_alignment(
 {
    const struct pvr_image *const ds_image =
       pvr_image_view_get_image(job->ds.iview);
+   const struct pvr_image_plane *const ds_plane =
+      pvr_single_plane_const(ds_image);
    uint32_t zls_tile_size_x;
    uint32_t zls_tile_size_y;
 
    rogue_get_zls_tile_size_xy(dev_info, &zls_tile_size_x, &zls_tile_size_y);
 
-   if (ds_image->physical_extent.width >= zls_tile_size_x &&
-       ds_image->physical_extent.height >= zls_tile_size_y) {
+   if (ds_plane->physical_extent.width >= zls_tile_size_x &&
+       ds_plane->physical_extent.height >= zls_tile_size_y) {
       return false;
    }
 
@@ -1325,6 +1329,8 @@ pvr_sub_cmd_gfx_align_ds_subtiles(struct pvr_cmd_buffer *const cmd_buffer,
       container_of(gfx_sub_cmd, struct pvr_sub_cmd, gfx);
    struct pvr_ds_attachment *const ds = &gfx_sub_cmd->job.ds;
    const struct pvr_image *const ds_image = pvr_image_view_get_image(ds->iview);
+   const struct pvr_image_plane *const ds_plane =
+      pvr_single_plane_const(ds_image);
    const VkFormat copy_format = pvr_get_raw_copy_format(ds_image->vk.format);
 
    struct pvr_suballoc_bo *buffer;
@@ -1354,9 +1360,9 @@ pvr_sub_cmd_gfx_align_ds_subtiles(struct pvr_cmd_buffer *const cmd_buffer,
                                        &scale.height);
 
    rounded_size = (VkExtent2D){
-      .width = ALIGN_POT(ds_image->physical_extent.width, zls_tile_size.width),
+      .width = ALIGN_POT(ds_plane->physical_extent.width, zls_tile_size.width),
       .height =
-         ALIGN_POT(ds_image->physical_extent.height, zls_tile_size.height),
+         ALIGN_POT(ds_plane->physical_extent.height, zls_tile_size.height),
    };
 
    buffer_layer_size = vk_format_get_blocksize(ds_image->vk.format) *
@@ -1767,13 +1773,14 @@ static VkResult pvr_sub_cmd_gfx_job_init(const struct pvr_device_info *dev_info,
       struct pvr_image_view *ds_iview =
          render_pass_info->attachments[hw_render->ds_attach_idx];
       const struct pvr_image *ds_image = pvr_image_view_get_image(ds_iview);
+      const struct pvr_image_plane *ds_plane = pvr_single_plane_const(ds_image);
 
       job->has_depth_attachment = vk_format_has_depth(ds_image->vk.format);
       job->has_stencil_attachment = vk_format_has_stencil(ds_image->vk.format);
 
       if (job->has_depth_attachment || job->has_stencil_attachment) {
          uint32_t level_pitch =
-            ds_image->mip_levels[ds_iview->vk.base_mip_level].pitch;
+            ds_plane->mip_levels[ds_iview->vk.base_mip_level].pitch;
          const bool render_area_is_tile_aligned =
             pvr_is_render_area_tile_aligned(cmd_buffer, ds_iview);
          bool store_was_optimised_out = false;
@@ -1787,12 +1794,12 @@ static VkResult pvr_sub_cmd_gfx_job_init(const struct pvr_device_info *dev_info,
             pvr_stride_from_pitch(level_pitch, ds_iview->vk.format);
          job->ds.height = ds_iview->vk.extent.height;
          job->ds.physical_extent = (VkExtent2D){
-            .width = u_minify(ds_image->physical_extent.width,
+            .width = u_minify(ds_plane->physical_extent.width,
                               ds_iview->vk.base_mip_level),
-            .height = u_minify(ds_image->physical_extent.height,
+            .height = u_minify(ds_plane->physical_extent.height,
                                ds_iview->vk.base_mip_level),
          };
-         job->ds.layer_size = ds_image->layer_size;
+         job->ds.layer_size = ds_plane->layer_size;
 
          job->ds_clear_value = default_ds_clear_value;
 
