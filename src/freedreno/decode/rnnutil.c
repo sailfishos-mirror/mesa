@@ -87,9 +87,7 @@ init(struct rnn *rnn, char *file, char *domain, char *variant)
    }
    rnn->variant = variant;
 
-   rnndec_varadd(rnn->vc, "chip", variant);
-   if (rnn->vc != rnn->vc_nocolor)
-      rnndec_varadd(rnn->vc_nocolor, "chip", variant);
+   rnn_varadd(rnn, "chip", variant);
    if (rnn->db->estatus)
       errx(rnn->db->estatus, "failed to parse register database");
 }
@@ -118,6 +116,14 @@ rnn_load(struct rnn *rnn, const char *gpuname)
    } else if (strstr(gpuname, "a8")) {
       init(rnn, "adreno/a6xx.xml", "A6XX", "A8XX");
    }
+}
+
+void
+rnn_varadd(struct rnn *rnn, char *varset, const char *variant)
+{
+   rnndec_varadd(rnn->vc, varset, variant);
+   if (rnn->vc != rnn->vc_nocolor)
+      rnndec_varadd(rnn->vc_nocolor, varset, variant);
 }
 
 uint32_t
