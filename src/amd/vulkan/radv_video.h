@@ -14,11 +14,7 @@
 #include "radv_event.h"
 #include "vk_video.h"
 
-#include "ac_vcn.h"
 #include "ac_video_dec.h"
-
-#define VL_MACROBLOCK_WIDTH  16
-#define VL_MACROBLOCK_HEIGHT 16
 
 struct radv_physical_device;
 struct rvcn_sq_var;
@@ -29,10 +25,9 @@ struct radv_cmd_stream;
 #define RADV_ENC_MAX_RATE_LAYER 4
 
 #define RADV_BIND_SESSION_CTX          0
-#define RADV_BIND_DECODER_CTX          1
 #define RADV_BIND_INTRA_ONLY           2
 #define RADV_BIND_ENCODE_QP_MAP        3
-#define RADV_BIND_ENCODE_AV1_CDF_STORE RADV_BIND_DECODER_CTX
+#define RADV_BIND_ENCODE_AV1_CDF_STORE 1
 
 #define RADV_ENC_FEEDBACK_STATUS_IDX 10
 
@@ -47,11 +42,7 @@ struct radv_vid_mem {
 struct radv_video_session {
    struct vk_video_session vk;
 
-   uint32_t stream_handle;
-   unsigned stream_type;
    bool encode;
-   enum { DPB_MAX_RES = 0, DPB_DYNAMIC_TIER_1, DPB_DYNAMIC_TIER_2, DPB_DYNAMIC_TIER_3 } dpb_type;
-   unsigned db_alignment;
 
    struct radv_vid_mem sessionctx;
    struct radv_vid_mem ctx;
@@ -60,7 +51,6 @@ struct radv_video_session {
 
    struct ac_video_dec *dec;
 
-   unsigned dbg_frame_cnt;
    uint32_t enc_standard;
    uint32_t enc_wa_flags;
    uint32_t enc_preset_mode;
