@@ -691,7 +691,6 @@ nvk_shader_fill_push(struct nvk_device *dev,
       P_1INC(p, NVB197, CALL_MME_MACRO(NVK_MME_SET_TESS_PARAMS));
       P_INLINE_DATA(p, nvk_mme_tess_params(shader->info.ts.domain,
                                            shader->info.ts.spacing,
-                                           shader->info.ts.prims,
                                            shader->info.ts.ccw,
                                            shader->info.ts.point_mode));
    }

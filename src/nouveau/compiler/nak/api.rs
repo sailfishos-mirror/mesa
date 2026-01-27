@@ -303,7 +303,6 @@ impl ShaderBin {
                         ts: nak_shader_info__bindgen_ty_1__bindgen_ty_3 {
                             domain: ts_info.domain as u8,
                             spacing: ts_info.spacing as u8,
-                            prims: ts_info.primitives as u8,
                             ccw: ts_info.ccw,
                             point_mode: ts_info.point_mode,
                             _pad: Default::default(),

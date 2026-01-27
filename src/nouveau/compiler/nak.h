@@ -100,13 +100,6 @@ enum ENUM_PACKED nak_ts_spacing {
    NAK_TS_SPACING_FRACT_EVEN = 2,
 };
 
-enum ENUM_PACKED nak_ts_prims {
-   NAK_TS_PRIMS_POINTS = 0,
-   NAK_TS_PRIMS_LINES = 1,
-   NAK_TS_PRIMS_TRIANGLES_CW = 2,
-   NAK_TS_PRIMS_TRIANGLES_CCW = 3,
-};
-
 struct nak_xfb_info {
    uint32_t stride[4];
    uint8_t stream[4];
@@ -190,11 +183,10 @@ struct nak_shader_info {
       struct {
          enum nak_ts_domain domain;
          enum nak_ts_spacing spacing;
-         enum nak_ts_prims prims;
          bool ccw;
          bool point_mode;
 
-         uint8_t _pad[7];
+         uint8_t _pad[8];
       } ts;
 
       /* Used to initialize the union for other stages */

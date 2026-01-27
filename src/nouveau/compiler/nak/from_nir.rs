@@ -109,17 +109,6 @@ fn init_info_from_nir(nak: &nak_compiler, nir: &nir_shader) -> ShaderInfo {
                         }
                         _ => panic!("Invalid gl_tess_spacing"),
                     },
-                    primitives: if info_tess.point_mode() {
-                        TessellationPrimitives::Points
-                    } else if info_tess._primitive_mode
-                        == TESS_PRIMITIVE_ISOLINES
-                    {
-                        TessellationPrimitives::Lines
-                    } else if info_tess.ccw() {
-                        TessellationPrimitives::TrianglesCCW
-                    } else {
-                        TessellationPrimitives::TrianglesCW
-                    },
                     point_mode: info_tess.point_mode(),
                     ccw: info_tess.ccw(),
                 })

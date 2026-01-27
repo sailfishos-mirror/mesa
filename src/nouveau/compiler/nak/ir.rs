@@ -9147,20 +9147,10 @@ pub enum TessellationSpacing {
     FractionalEven = NAK_TS_SPACING_FRACT_EVEN,
 }
 
-#[repr(u8)]
-#[derive(Clone, Copy, Debug)]
-pub enum TessellationPrimitives {
-    Points = NAK_TS_PRIMS_POINTS,
-    Lines = NAK_TS_PRIMS_LINES,
-    TrianglesCW = NAK_TS_PRIMS_TRIANGLES_CW,
-    TrianglesCCW = NAK_TS_PRIMS_TRIANGLES_CCW,
-}
-
 #[derive(Debug)]
 pub struct TessellationShaderInfo {
     pub domain: TessellationDomain,
     pub spacing: TessellationSpacing,
-    pub primitives: TessellationPrimitives,
     pub ccw: bool,
     pub point_mode: bool,
 }
