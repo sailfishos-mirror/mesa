@@ -3954,6 +3954,9 @@ register_allocation(Program* program, ra_test_policy policy)
             }
             BITSET_NOT(call_clobbered_regs);
 
+            BITSET_SET(call_clobbered_regs, instr->definitions[0].physReg().reg());
+            BITSET_SET(call_clobbered_regs, instr->definitions[0].physReg().reg() + 1);
+
             /* Allow linear VGPRs in the clobbered range.
              * Linear VGPRs are spilled in spill_preserved, and the stack pointer is always
              * guaranteed to be preserved.
