@@ -19,7 +19,24 @@ use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use std::cmp::max;
 use std::ops::Index;
 
+use compiler::bindings::shader_info__bindgen_ty_1__bindgen_ty_5 as shader_info_tess;
+
 fn init_info_from_nir(nak: &nak_compiler, nir: &nir_shader) -> ShaderInfo {
+    let tess_common =
+        |info_tess: &shader_info_tess| TesselationCommonShaderInfo {
+            spacing: match info_tess.spacing() {
+                TESS_SPACING_EQUAL => TessellationSpacing::Integer,
+                TESS_SPACING_FRACTIONAL_ODD => {
+                    TessellationSpacing::FractionalOdd
+                }
+                TESS_SPACING_FRACTIONAL_EVEN => {
+                    TessellationSpacing::FractionalEven
+                }
+                _ => panic!("Invalid gl_tess_spacing"),
+            },
+            point_mode: info_tess.point_mode(),
+            ccw: info_tess.ccw(),
+        };
     ShaderInfo {
         max_warps_per_sm: 0,
         num_gprs: 0,
@@ -99,18 +116,7 @@ fn init_info_from_nir(nak: &nak_compiler, nir: &nir_shader) -> ShaderInfo {
                         TESS_PRIMITIVE_ISOLINES => TessellationDomain::Isoline,
                         _ => panic!("Invalid tess_primitive_mode"),
                     },
-                    spacing: match info_tess.spacing() {
-                        TESS_SPACING_EQUAL => TessellationSpacing::Integer,
-                        TESS_SPACING_FRACTIONAL_ODD => {
-                            TessellationSpacing::FractionalOdd
-                        }
-                        TESS_SPACING_FRACTIONAL_EVEN => {
-                            TessellationSpacing::FractionalEven
-                        }
-                        _ => panic!("Invalid gl_tess_spacing"),
-                    },
-                    point_mode: info_tess.point_mode(),
-                    ccw: info_tess.ccw(),
+                    common: tess_common(info_tess),
                 })
             }
             _ => panic!("Unknown shader stage"),

@@ -9148,11 +9148,16 @@ pub enum TessellationSpacing {
 }
 
 #[derive(Debug)]
-pub struct TessellationShaderInfo {
-    pub domain: TessellationDomain,
+pub struct TesselationCommonShaderInfo {
     pub spacing: TessellationSpacing,
     pub ccw: bool,
     pub point_mode: bool,
+}
+
+#[derive(Debug)]
+pub struct TessellationShaderInfo {
+    pub domain: TessellationDomain,
+    pub common: TesselationCommonShaderInfo,
 }
 
 #[derive(Debug)]
