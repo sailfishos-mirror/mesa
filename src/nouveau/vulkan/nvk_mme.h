@@ -249,7 +249,8 @@ void nvk_mme_set_conservative_raster_state(struct mme_builder *b);
 void nvk_mme_set_viewport_min_max_z(struct mme_builder *b);
 void nvk_mme_set_z_clamp(struct mme_builder *b);
 
-uint32_t nvk_mme_tess_params(enum nak_ts_domain domain,
+uint32_t nvk_mme_tess_params(mesa_shader_stage stage,
+                             enum nak_ts_domain domain,
                              enum nak_ts_spacing spacing,
                              bool ccw, bool point_mode);
 uint32_t nvk_mme_anti_alias_min_sample_shading(float mss);

@@ -9125,12 +9125,6 @@ impl Default for GeometryShaderInfo {
     }
 }
 
-#[derive(Debug)]
-pub struct TessellationInitShaderInfo {
-    pub per_patch_attribute_count: u8,
-    pub threads_per_patch: u8,
-}
-
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 pub enum TessellationDomain {
@@ -9152,6 +9146,13 @@ pub struct TesselationCommonShaderInfo {
     pub spacing: Option<TessellationSpacing>,
     pub ccw: bool,
     pub point_mode: bool,
+}
+
+#[derive(Debug)]
+pub struct TessellationInitShaderInfo {
+    pub per_patch_attribute_count: u8,
+    pub threads_per_patch: u8,
+    pub common: TesselationCommonShaderInfo,
 }
 
 #[derive(Debug)]

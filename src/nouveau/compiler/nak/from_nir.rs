@@ -104,6 +104,7 @@ fn init_info_from_nir(nak: &nak_compiler, nir: &nir_shader) -> ShaderInfo {
                 ShaderStageInfo::TessellationInit(TessellationInitShaderInfo {
                     per_patch_attribute_count: 6,
                     threads_per_patch: info_tess.tcs_vertices_out,
+                    common: tess_common(info_tess),
                 })
             }
             MESA_SHADER_TESS_EVAL => {

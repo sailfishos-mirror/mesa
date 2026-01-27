@@ -631,7 +631,7 @@ nvk_max_shader_push_dw(const struct nvk_physical_device *pdev,
 
    uint16_t max_dw_count = 8;
 
-   if (stage == MESA_SHADER_TESS_EVAL)
+   if (stage == MESA_SHADER_TESS_CTRL || stage == MESA_SHADER_TESS_EVAL)
       max_dw_count += 2;
 
    if (stage == MESA_SHADER_FRAGMENT)
@@ -686,10 +686,12 @@ nvk_shader_fill_push(struct nvk_device *dev,
    P_NVC397_SET_PIPELINE_BINDING(p, idx,
       nvk_pipeline_bind_group(shader->info.stage));
 
-   if (shader->info.stage == MESA_SHADER_TESS_EVAL) {
+   if (shader->info.stage == MESA_SHADER_TESS_CTRL ||
+       shader->info.stage == MESA_SHADER_TESS_EVAL) {
       max_dw_count += 2;
       P_1INC(p, NVB197, CALL_MME_MACRO(NVK_MME_SET_TESS_PARAMS));
-      P_INLINE_DATA(p, nvk_mme_tess_params(shader->info.ts.domain,
+      P_INLINE_DATA(p, nvk_mme_tess_params(shader->info.stage,
+                                           shader->info.ts.domain,
                                            shader->info.ts.spacing,
                                            shader->info.ts.ccw,
                                            shader->info.ts.point_mode));
