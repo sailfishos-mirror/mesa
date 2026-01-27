@@ -1703,7 +1703,9 @@ nvk_mme_set_tess_params(struct mme_builder *b)
       mme_and_to(b, params, params, mme_imm(
          DRF_SMASK(NV9097_SET_TESSELLATION_PARAMETERS_DOMAIN_TYPE) |
          DRF_SMASK(NV9097_SET_TESSELLATION_PARAMETERS_SPACING)));
-      mme_merge_to(b, params, params, prims, 8, 4, 0);
+      mme_merge_to(b, params, params, prims,
+         DRF_LO(NV9097_SET_TESSELLATION_PARAMETERS_OUTPUT_PRIMITIVES),
+         DRF_BITS(NV9097_SET_TESSELLATION_PARAMETERS_OUTPUT_PRIMITIVES), 0);
       mme_free_reg(b, prims);
 
       mme_mthd(b, NV9097_SET_TESSELLATION_PARAMETERS);
