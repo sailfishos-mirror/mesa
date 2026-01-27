@@ -17,13 +17,6 @@ radv_entrypoints_gen_command += [
   '--device-prefix', 'rmv',
   '--device-prefix', 'ctx_roll',
 
-  # Application layer entrypoints
-  '--device-prefix', 'metro_exodus',
-  '--device-prefix', 'rage2',
-  '--device-prefix', 'quantic_dream',
-  '--device-prefix', 'no_mans_sky',
-  '--device-prefix', 'strange_brigade',
-
   # Command buffer annotation layer entrypoints
   '--device-prefix', 'annotate',
 ]
@@ -38,12 +31,8 @@ radv_entrypoints = custom_target(
 
 libradv_files = files(
   'bvh/bvh.h',
+  'layers/radv_app_workarounds.c',
   'layers/radv_ctx_roll_layer.c',
-  'layers/radv_metro_exodus.c',
-  'layers/radv_rage2.c',
-  'layers/radv_quantic_dream.c',
-  'layers/radv_no_mans_sky.c',
-  'layers/radv_strange_brigade.c',
   'layers/radv_rmv_layer.c',
   'layers/radv_rra_layer.c',
   'layers/radv_sqtt_layer.c',
