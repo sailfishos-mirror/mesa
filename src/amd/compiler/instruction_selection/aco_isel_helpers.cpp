@@ -1092,7 +1092,7 @@ get_callee_info(amd_gfx_level gfx_level, unsigned wave_size, const ABI& abi, uns
    return_def_info.provided_alignment = 2;
    return_def_info.rc = s2;
    return_def_info.dst_info = &info.return_address;
-   return_def_info.is_return_param = false;
+   return_def_info.is_return_param = true;
    return_def_info.is_system_param = true;
    return_def_info.force_reg = true;
    assignment_infos.push_back(return_def_info);

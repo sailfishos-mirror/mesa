@@ -1560,11 +1560,6 @@ validate_call(Program* program, std::array<unsigned, 2048>& regs,
    BITSET_DECLARE(preserved_regs, 512);
    instr->call().abi.preservedRegisters(preserved_regs, limit);
 
-   /* TODO: This is a hack. I think the return address should not be precolored to a preserved
-    * register. */
-   BITSET_CLEAR(preserved_regs, instr->definitions[0].physReg().reg());
-   BITSET_CLEAR(preserved_regs, instr->definitions[0].physReg().reg() + 1);
-
    for (unsigned i = 0; i < regs.size(); i++) {
       unsigned temp = regs[i];
       bool is_preserved = BITSET_TEST(preserved_regs, i / 4);

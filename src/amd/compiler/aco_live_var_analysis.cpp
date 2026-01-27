@@ -420,12 +420,6 @@ process_live_temps_per_block(live_ctx& ctx, Block* block)
       }
 
       if (insn->isCall()) {
-         /* For call instructions, definitions are live at the time s_setpc finishes,
-          * which continues execution in the callee. This means that all definitions are
-          * live concurrently with operands.
-          */
-         operand_demand += insn->definitions[0].getTemp();
-
          RegisterDemand limit = get_addr_regs_from_waves(ctx.program, ctx.program->min_waves);
          insn->call().callee_preserved_limit = insn->call().abi.numPreserved(limit);
 

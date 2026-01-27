@@ -1429,17 +1429,16 @@ create_call(std::vector<Operand> params, std::vector<Definition> defs, uint16_t 
    Operand stack_ptr(bld.tmp(s1));
    Operand target_sgpr(bld.tmp(s2));
    Operand target_vgpr(bld.tmp(v2));
-   for (int16_t i = 0; i < MIN2(abi.block_size.preserved_size.sgpr, 100); i += 2) {
-      if (!BITSET_TEST(used_regs, i) && !BITSET_TEST(used_regs, i + 1) &&
-          !return_addr.isPrecolored())
-         return_addr.setPrecolored(PhysReg(i));
-      else if (!BITSET_TEST(used_regs, i) && !stack_ptr.isPrecolored())
+   for (int16_t i = 0; i < MIN2(abi.block_size.preserved_size.sgpr, 100); i++) {
+      if (!BITSET_TEST(used_regs, i) && !stack_ptr.isPrecolored())
          stack_ptr.setPrecolored(PhysReg(i));
    }
    for (int16_t i = abi.block_size.preserved_size.sgpr; i < 100; i += 2) {
-      if (!BITSET_TEST(used_regs, i) && !BITSET_TEST(used_regs, i + 1) &&
-          !target_sgpr.isPrecolored())
+      bool clear = !BITSET_TEST(used_regs, i) && !BITSET_TEST(used_regs, i + 1);
+      if (clear && !target_sgpr.isPrecolored())
          target_sgpr.setPrecolored(PhysReg(i));
+      else if (clear && !return_addr.isPrecolored())
+         return_addr.setPrecolored(PhysReg(i));
    }
    for (int16_t i = 256 + preserved_vgprs; i < 511; i++) {
       if (!BITSET_TEST(used_regs, i) && !BITSET_TEST(used_regs, i + 1) &&
@@ -1472,7 +1471,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.scalar)
    //>> v1: %tmp0:v[6] = p_unit_test
    Temp tmp0 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v1, PhysReg(256 + 6)));
    //>> v1: %tmp0_2:v[0] = p_parallelcopy %tmp0:v[6]
-   //! s2: %_:s[0-1] = p_call %_:s[2], 0, %_:v[4-5], %_:s[4-5]
+   //! s2: %_:s[6-7] = p_call %_:s[0], 0, %_:v[4-5], %_:s[4-5]
    create_call({}, {}, 4);
    //! p_unit_test %tmp0_2:v[0]
    bld.pseudo(aco_opcode::p_unit_test, tmp0);
@@ -1491,7 +1490,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.vector)
    Temp tmp1 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v1, PhysReg(256 + 3)));
    Temp tmp2 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v2, PhysReg(256 + 6)));
    //>> v1: %tmp0_2:v[2], v2: %tmp2_2:v[0-1] = p_parallelcopy %tmp0:v[1], %tmp2:v[6-7]
-   //! s2: %_:s[0-1] = p_call %_:s[2], 0, %_:v[4-5], %_:s[4-5]
+   //! s2: %_:s[6-7] = p_call %_:s[0], 0, %_:v[4-5], %_:s[4-5]
    create_call({}, {}, 4);
    //! p_unit_test %tmp0_2:v[2], %tmp1:v[3], %tmp2_2:v[0-1]
    bld.pseudo(aco_opcode::p_unit_test, tmp0, tmp1, tmp2);
@@ -1506,7 +1505,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.simple)
    //>> v2: %tmp0:v[6-7] = p_unit_test
    Temp tmp0 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v2, PhysReg(256 + 6)));
    //>> v1: %tmp0x:v[1], v1: %tmp0y:v[3] = p_split_vector %tmp0:v[6-7]
-   //! s2: %_:s[0-1] = p_call %_:s[2], 0, %_:v[4-5], %_:s[4-5], %_:v[0], %_:v[2]
+   //! s2: %_:s[6-7] = p_call %_:s[0], 0, %_:v[4-5], %_:s[4-5], %_:v[0], %_:v[2]
    create_call({param(v1, 0), param(v1, 2)}, {}, 4);
    //! v2: %tmp0_2:v[1-2] = p_create_vector %tmp0x:v[1], %tmp0y:v[3]
    //! p_unit_test %tmp0_2:v[1-2]
@@ -1527,7 +1526,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.two_vecs)
    Temp tmp1 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v2, PhysReg(256 + 10)));
    //>> v1: %tmp0x:v[0], v1: %tmp0y:v[2] = p_split_vector %tmp0:v[8-9]
    //! v1: %tmp1x:v[4], v1: %tmp1y:v[5] = p_split_vector %tmp1:v[10-11]
-   //! s2: %_:s[0-1] = p_call %_:s[2], 0, %_:v[6-7], %_:s[4-5], %_:v[1], %_:v[3]
+   //! s2: %_:s[6-7] = p_call %_:s[0], 0, %_:v[6-7], %_:s[4-5], %_:v[1], %_:v[3]
    create_call({param(v1, 1), param(v1, 3)}, {}, 6);
    //! v2: %tmp0_2:v[0-1] = p_create_vector %tmp0x:v[0], %tmp0y:v[2]
    //! v2: %tmp1_2:v[4-5] = p_create_vector %tmp1x:v[4], %tmp1y:v[5]
@@ -1552,7 +1551,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.renamed_vec)
    //!    v1: %_:v[2] = %_:v[3]
    //!    v2: %tmp0_3:v[6-7] = %tmp0_2:v[0-1]
    //! v1: %tmp0x:v[1], v1: %tmp0y:v[3] = p_split_vector %tmp0_3:v[6-7]
-   //! s2: %_:s[0-1] = p_call %_:s[2], 0, %_:v[4-5], %_:s[4-5], %_:v[0], %_:v[2]
+   //! s2: %_:s[6-7] = p_call %_:s[0], 0, %_:v[4-5], %_:s[4-5], %_:v[0], %_:v[2]
    create_call({param(v1, 0), param(v1, 2)}, {}, 4);
    //! v2: %tmp0_4:v[1-2] = p_create_vector %tmp0x:v[1], %tmp0y:v[3]
    //! p_unit_test %tmp0_4:v[1-2]
@@ -1579,7 +1578,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.moved_vec_unused)
    //!    v1: %_:v[2] = %param1:v[7]
    //!    v2: %tmp0_2:v[6-7] = %tmp0:v[0-1]
    //! v1: %tmp0x:v[1], v1: %tmp0y:v[3] = p_split_vector %tmp0_2:v[6-7]
-   //! s2: %_:s[0-1] = p_call %_:s[2], 0, %_:v[4-5], %_:s[4-5], %_:v[0], %_:v[2]
+   //! s2: %_:s[6-7] = p_call %_:s[0], 0, %_:v[4-5], %_:s[4-5], %_:v[0], %_:v[2]
    create_call({Operand(param0, PhysReg(256 + 0)), Operand(param1, PhysReg(256 + 2))}, {}, 4);
    //! v2: %tmp0_3:v[1-2] = p_create_vector %tmp0x:v[1], %tmp0y:v[3]
    //! p_unit_test %tmp0_3:v[1-2]
@@ -1597,7 +1596,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.moved_vec_param_correct_pos)
    //>> v2: %tmp0:v[4-5] = p_unit_test
    Temp tmp0 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v2, PhysReg(256 + 4)));
    //>> v1: %tmp0x:v[1], v1: %tmp0y:v[3] = p_split_vector %tmp0:v[4-5]
-   //! s2: %_:s[0-1], v2: %_:v[4-5] = p_call %_:s[2], 0, %_:v[6-7], %_:s[4-5], %_:v[0], %_:v[2], %tmp0:v[4-5]
+   //! s2: %_:s[6-7], v2: %_:v[4-5] = p_call %_:s[0], 0, %_:v[6-7], %_:s[4-5], %_:v[0], %_:v[2], %tmp0:v[4-5]
    create_call({param(v1, 0), param(v1, 2), Operand(tmp0, PhysReg(256 + 4))},
                {bld.def(v2, PhysReg(256 + 4))}, 4);
    //! v2: %tmp0_2:v[1-2] = p_create_vector %tmp0x:v[1], %tmp0y:v[3]
@@ -1615,7 +1614,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.moved_vec_param_wrong_pos)
    Temp tmp0 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v2, PhysReg(256 + 8)));
    //>> v2: %tmp0_2:v[4-5] = p_parallelcopy %tmp0:v[8-9]
    //! v1: %tmp0x:v[1], v1: %tmp0y:v[3] = p_split_vector %tmp0_2:v[4-5]
-   //! s2: %_:s[0-1], v2: %_:v[4-5] = p_call %_:s[2], 0, %_:v[6-7], %_:s[4-5], %_:v[0], %_:v[2], %tmp0_2:v[4-5]
+   //! s2: %_:s[6-7], v2: %_:v[4-5] = p_call %_:s[0], 0, %_:v[6-7], %_:s[4-5], %_:v[0], %_:v[2], %tmp0_2:v[4-5]
    create_call({param(v1, 0), param(v1, 2), Operand(tmp0, PhysReg(256 + 4))},
                {bld.def(v2, PhysReg(256 + 4))}, 4);
    //! v2: %tmp0_3:v[1-2] = p_create_vector %tmp0x:v[1], %tmp0y:v[3]
@@ -1633,7 +1632,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.copy_kill)
    Temp tmp0 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v2, PhysReg(256 + 10)));
    //>> v2: %tmp0_2:v[4-5], v2: %tmp0_3:v[6-7] = p_parallelcopy %tmp0:v[10-11], %tmp0:v[10-11]
    //! v1: %tmp0x:v[1], v1: %tmp0y:v[3] = p_split_vector %tmp0_2:v[4-5]
-   //! s2: %_:s[0-1], v2: %_:v[4-5], v2: %_:v[6-7] = p_call %_:s[2], 0, %_:v[8-9], %_:s[4-5], %_:v[0], %_:v[2], %tmp0x_2:v[4-5], %tmp0x_3:v[6-7]
+   //! s2: %_:s[6-7], v2: %_:v[4-5], v2: %_:v[6-7] = p_call %_:s[0], 0, %_:v[8-9], %_:s[4-5], %_:v[0], %_:v[2], %tmp0x_2:v[4-5], %tmp0x_3:v[6-7]
    create_call({param(v1, 0), param(v1, 2), Operand(tmp0, PhysReg(256 + 4)),
                 Operand(tmp0, PhysReg(256 + 6))},
                {bld.def(v2, PhysReg(256 + 4)), bld.def(v2, PhysReg(256 + 6))}, 4);
@@ -1651,7 +1650,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.partially_blocked.v2)
    //>> v2: %tmp0:v[3-4] = p_unit_test
    Temp tmp0 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v2, PhysReg(256 + 3)));
    //>> v1: %tmp0x:v[3], v1: %tmp0y:v[1] = p_split_vector %tmp0:v[3-4]
-   //! s2: %_:s[0-1] = p_call %_:s[2], 0, %_:v[5-6], %_:s[4-5], %_:v[0], %_:v[2]
+   //! s2: %_:s[6-7] = p_call %_:s[0], 0, %_:v[5-6], %_:s[4-5], %_:v[0], %_:v[2]
    create_call({param(v1, 0), param(v1, 2)}, {}, 4, {param(v2, 3)});
    //! v2: %tmp0_2:v[3-4] = p_create_vector %tmp0x:v[3], %tmp0y:v[1]
    //! p_unit_test %tmp0_2:v[3-4]
@@ -1668,7 +1667,7 @@ BEGIN_TEST(regalloc.call.clear_clobbered_regs.split.partially_blocked.v6b)
    PhysReg reg = PhysReg(256 + 3).advance(2);
    Temp tmp0 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v6b, reg));
    //>> v2b: %tmp0x:v[3][16:32], v1: %tmp0y:v[1] = p_split_vector %tmp0:v[3-4][16:64]
-   //! s2: %_:s[0-1] = p_call %_:s[2], 0, %_:v[5-6], %_:s[4-5], %_:v[0], %_:v[2]
+   //! s2: %_:s[6-7] = p_call %_:s[0], 0, %_:v[5-6], %_:s[4-5], %_:v[0], %_:v[2]
    create_call({param(v1, 0), param(v1, 2)}, {}, 4, {Operand(reg, v6b)});
    //! v6b: %tmp0_2:v[2-3][0:48] = p_create_vector %tmp0x:v[3][16:32], %tmp0y:v[1]
    //! p_unit_test %tmp0_2:v[2-3][0:48]
@@ -1692,7 +1691,7 @@ BEGIN_TEST(regalloc.call.params.split_blocking_vecs)
    Temp tmp2 = bld.pseudo(aco_opcode::p_unit_test, bld.def(v2, PhysReg(256 + 2)));
    //>> v1: %tmp2x:v[2], v1: %tmp2y:v[3] = p_split_vector %tmp2:v[2-3]
    //! v1: %tmp1_2:v[2], v1: %tmp2x_2:v[1] = p_parallelcopy %tmp1:v[1], %tmp2x:v[2]
-   //! s2: %_:s[0-1] = p_call %_:s[2], 0, %_:v[4-5], %_:s[4-5], %tmp0:v[0], %tmp1_2:v[2]
+   //! s2: %_:s[6-7] = p_call %_:s[0], 0, %_:v[4-5], %_:s[4-5], %tmp0:v[0], %tmp1_2:v[2]
    create_call({Operand(tmp0, PhysReg(256 + 0)), Operand(tmp1, PhysReg(256 + 2))}, {}, 4);
    //! v2: %tmp2_2:v[1-2] = p_create_vector %tmp2x_2:v[1], %tmp2y:v[3]
    //! p_unit_test %tmp2_2:v[1-2]
