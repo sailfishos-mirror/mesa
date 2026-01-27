@@ -1704,7 +1704,7 @@
         "description": "vulkan: Limit the number of LBVH invocations",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0817551f00bd38abba63188328af9cb8b96e0f20",
         "notes": null

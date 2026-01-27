@@ -91,6 +91,10 @@ main()
    }
 
    int32_t id = int32_t(gl_GlobalInvocationID.x);
+   uint32_t internal_node_count = max(active_leaf_count, 2) - 1;
+   if (id >= internal_node_count)
+      return;
+
    uint32_t id_key = DEREF(INDEX(key_id_pair, args.src_ids, id)).key;
 
    int32_t left_lcp = longest_common_prefix(id, id_key, id - 1, active_leaf_count);
