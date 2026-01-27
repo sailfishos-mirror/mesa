@@ -6,17 +6,17 @@
  */
 
 #include "util/bitscan.h"
-#include "hk_shader.h"
+#include "poly_nir.h"
 #include "nir.h"
 #include "nir_builder.h"
 #include "nir_xfb_info.h"
 #include "shader_enums.h"
 
 void
-hk_nir_passthrough_gs(nir_builder *b, const void *key_)
+poly_nir_passthrough_gs(nir_builder *b, const void *key_)
 {
    nir_shader *s = b->shader;
-   const struct hk_passthrough_gs_key *key = key_;
+   const struct poly_passthrough_gs_key *key = key_;
    assert(key->prim == u_decomposed_prim(key->prim));
    assert(key->prim != MESA_PRIM_PATCHES && "tessellation consumes patches");
 
