@@ -473,6 +473,19 @@ etna_emit_state(struct etna_context *ctx)
    if (unlikely(VIV_FEATURE(screen, ETNA_FEATURE_MSAA_FRAGMENT_OPERATION) &&
                 (dirty & ETNA_DIRTY_BLEND))) {
       /*01054*/ EMIT_STATE(PS_MSAA_CONFIG, etna_blend_state(ctx->blend)->PS_MSAA_CONFIG);
+
+      if (ctx->blend->alpha_to_coverage &&
+          !ctx->alpha_coverage_dither_emitted) {
+         /*01058*/ EMIT_STATE(PS_ALPHA_TO_COVERAGE_DITHER(0), 0x6e80e680);
+         /*0105C*/ EMIT_STATE(PS_ALPHA_TO_COVERAGE_DITHER(1), 0x2ac42a4c);
+         /*01060*/ EMIT_STATE(PS_ALPHA_TO_COVERAGE_DITHER(2), 0x15fb5d3b);
+         /*01064*/ EMIT_STATE(PS_ALPHA_TO_COVERAGE_DITHER(3), 0x9d7391f7);
+         /*01068*/ EMIT_STATE(PS_ALPHA_TO_COVERAGE_DITHER(4), 0x08e691f7);
+         /*0106C*/ EMIT_STATE(PS_ALPHA_TO_COVERAGE_DITHER(5), 0x4ca25d3b);
+         /*01070*/ EMIT_STATE(PS_ALPHA_TO_COVERAGE_DITHER(6), 0xbf512a4c);
+         /*01074*/ EMIT_STATE(PS_ALPHA_TO_COVERAGE_DITHER(7), 0x37d9e680);
+         ctx->alpha_coverage_dither_emitted = true;
+      }
    }
    if (unlikely(dirty & (ETNA_DIRTY_ZSA | ETNA_DIRTY_FRAMEBUFFER))) {
       /*01400*/ EMIT_STATE(PE_DEPTH_CONFIG, (etna_zsa_state(ctx->zsa)->PE_DEPTH_CONFIG |
