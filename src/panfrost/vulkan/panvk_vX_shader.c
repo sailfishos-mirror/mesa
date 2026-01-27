@@ -2075,26 +2075,6 @@ get_varying_format(mesa_shader_stage stage, gl_varying_slot loc,
    }
 }
 
-struct varyings_info {
-   enum pipe_format fmts[VARYING_SLOT_MAX];
-   BITSET_DECLARE(active, VARYING_SLOT_MAX);
-};
-
-static void
-collect_varyings_info(const struct pan_shader_varying *varyings,
-                      unsigned varying_count, struct varyings_info *info)
-{
-   for (unsigned i = 0; i < varying_count; i++) {
-      gl_varying_slot loc = varyings[i].location;
-
-      if (varyings[i].format == PIPE_FORMAT_NONE)
-         continue;
-
-      info->fmts[loc] = varyings[i].format;
-      BITSET_SET(info->active, loc);
-   }
-}
-
 static inline enum panvk_varying_buf_id
 varying_buf_id(gl_varying_slot loc)
 {
@@ -2132,10 +2112,11 @@ varying_format(gl_varying_slot loc, enum pipe_format pfmt)
 
 static VkResult
 emit_varying_attrs(struct panvk_pool *desc_pool,
-                   const struct pan_shader_varying *varyings,
-                   unsigned varying_count, const struct varyings_info *info,
-                   unsigned *buf_offsets, struct panvk_priv_mem *mem)
+                   const struct pan_varying_layout *varyings,
+                   const unsigned *bit_sizes, const unsigned *buf_offsets,
+                   struct panvk_priv_mem *mem)
 {
+   const unsigned varying_count = varyings->count;
    if (!varying_count) {
       *mem = (struct panvk_priv_mem){0};
       return VK_SUCCESS;
@@ -2151,12 +2132,25 @@ emit_varying_attrs(struct panvk_pool *desc_pool,
 
       for (unsigned i = 0; i < varying_count; i++) {
          pan_pack(&attrs[attr_idx++], ATTRIBUTE, cfg) {
-            gl_varying_slot loc = varyings[i].location;
-            enum pipe_format pfmt = varyings[i].format != PIPE_FORMAT_NONE
-                                       ? info->fmts[loc]
-                                       : PIPE_FORMAT_NONE;
+            const struct pan_varying_slot *slot =
+               pan_varying_layout_slot_at(varyings, i);
+            if (!slot)
+               continue;
 
-            if (pfmt == PIPE_FORMAT_NONE) {
+            gl_varying_slot loc = slot->location;
+
+            enum pipe_format pfmt = PIPE_FORMAT_NONE;
+            bool is_hw = loc < VARYING_SLOT_VAR0;
+            bool is_present = is_hw || bit_sizes[loc] != 0;
+
+            if (is_present && !is_hw) {
+               nir_alu_type base_type =
+                  nir_alu_type_get_base_type(slot->alu_type);
+               pfmt =
+                  pan_varying_format(base_type | bit_sizes[loc], slot->ncomps);
+            }
+
+            if (!is_present) {
 #if PAN_ARCH >= 7
                cfg.format =
                   (MALI_CONSTANT << 12) | MALI_RGB_COMPONENT_ORDER_0000;
@@ -2166,7 +2160,7 @@ emit_varying_attrs(struct panvk_pool *desc_pool,
             } else {
                cfg.buffer_index = varying_buf_id(loc);
                cfg.offset = buf_offsets[loc];
-               cfg.format = varying_format(loc, info->fmts[loc]);
+               cfg.format = varying_format(loc, pfmt);
             }
             cfg.offset_enable = false;
          }
@@ -2182,84 +2176,72 @@ panvk_per_arch(link_shaders)(struct panvk_pool *desc_pool,
                              const struct panvk_shader_variant *fs,
                              struct panvk_shader_link *link)
 {
-   BITSET_DECLARE(active_attrs, VARYING_SLOT_MAX) = {0};
    unsigned buf_strides[PANVK_VARY_BUF_MAX] = {0};
    unsigned buf_offsets[VARYING_SLOT_MAX] = {0};
-   struct varyings_info out_vars = {0};
-   struct varyings_info in_vars = {0};
-   unsigned loc;
+   unsigned buf_sizes[VARYING_SLOT_MAX] = {0};
 
-   assert(vs);
-   assert(vs->info.stage == MESA_SHADER_VERTEX);
-
-   collect_varyings_info(vs->info.varyings.output,
-                         vs->info.varyings.output_count, &out_vars);
-
-   if (fs) {
-      assert(fs->info.stage == MESA_SHADER_FRAGMENT);
-      collect_varyings_info(fs->info.varyings.input,
-                            fs->info.varyings.input_count, &in_vars);
-   }
-
-   BITSET_OR(active_attrs, in_vars.active, out_vars.active);
+   assert(vs && vs->info.stage == MESA_SHADER_VERTEX);
+   assert(!fs || fs->info.stage == MESA_SHADER_FRAGMENT);
+   const struct pan_varying_layout *vs_layout = &vs->info.varyings.formats;
+   pan_varying_layout_require_layout(vs_layout);
 
    /* Handle the position and point size buffers explicitly, as they are
     * passed through separate buffer pointers to the tiler job.
     */
-   if (BITSET_TEST(out_vars.active, VARYING_SLOT_POS)) {
-      buf_strides[PANVK_VARY_BUF_POSITION] = sizeof(float) * 4;
-      BITSET_CLEAR(active_attrs, VARYING_SLOT_POS);
-   }
+   const struct pan_varying_slot *vs_pos_slot =
+      pan_varying_layout_find_slot(vs_layout, VARYING_SLOT_POS);
+   const struct pan_varying_slot *vs_psiz_slot =
+      pan_varying_layout_find_slot(vs_layout, VARYING_SLOT_PSIZ);
 
-   if (BITSET_TEST(out_vars.active, VARYING_SLOT_PSIZ)) {
+   if (vs_pos_slot) {
+      buf_strides[PANVK_VARY_BUF_POSITION] = sizeof(uint32_t) * 4;
+      buf_sizes[VARYING_SLOT_POS] =
+         nir_alu_type_get_type_size(vs_pos_slot->alu_type);
+   }
+   if (vs_psiz_slot) {
       buf_strides[PANVK_VARY_BUF_PSIZ] = sizeof(uint16_t);
-      BITSET_CLEAR(active_attrs, VARYING_SLOT_PSIZ);
+      buf_sizes[VARYING_SLOT_PSIZ] =
+         nir_alu_type_get_type_size(vs_psiz_slot->alu_type);
    }
+   buf_strides[PANVK_VARY_BUF_GENERAL] = vs_layout->generic_size_B;
 
-   BITSET_FOREACH_SET(loc, active_attrs, VARYING_SLOT_MAX) {
-      /* We expect the VS to write to all inputs read by the FS, and the
-       * FS to read all inputs written by the VS. If that's not the
-       * case, we keep PIPE_FORMAT_NONE to reflect the fact we should use a
-       * sink attribute (writes are discarded, reads return zeros).
-       */
-      if (in_vars.fmts[loc] == PIPE_FORMAT_NONE ||
-          out_vars.fmts[loc] == PIPE_FORMAT_NONE) {
-         in_vars.fmts[loc] = PIPE_FORMAT_NONE;
-         out_vars.fmts[loc] = PIPE_FORMAT_NONE;
+   /* When no fragment shader is present we can just ignore all
+    * generic varyings writes.
+    */
+   const uint32_t fs_var_count = fs ? fs->info.varyings.formats.count : 0;
+   for (uint32_t i = 0; i < fs_var_count; i++) {
+      const struct pan_varying_slot *fs_var =
+         pan_varying_layout_slot_at(&fs->info.varyings.formats, i);
+      if (!fs_var)
          continue;
-      }
 
-      unsigned out_size = util_format_get_blocksize(out_vars.fmts[loc]);
-      unsigned buf_idx = varying_buf_id(loc);
-
-      /* Always trust the VS input format, so we can:
-       * - discard components that are never read
-       * - use float types for interpolated fragment shader inputs
-       * - use fp16 for floats with mediump
-       * - make sure components that are not written by the FS are set to zero
-       */
-      out_vars.fmts[loc] = in_vars.fmts[loc];
+      const gl_varying_slot pos = fs_var->location;
+      /* Skip special varyings. */
+      if (pos < VARYING_SLOT_VAR0)
+         continue;
 
       /* Special buffers are handled explicitly before this loop, everything
        * else should be laid out in the general varying buffer.
        */
-      assert(buf_idx == PANVK_VARY_BUF_GENERAL);
+      assert(varying_buf_id(pos) == PANVK_VARY_BUF_GENERAL);
 
-      /* Keep things aligned a 32-bit component. */
-      buf_offsets[loc] = buf_strides[buf_idx];
-      buf_strides[buf_idx] += ALIGN_POT(out_size, 4);
+      const struct pan_varying_slot *vs_slot =
+         pan_varying_layout_find_slot(vs_layout, fs_var->location);
+      if (vs_slot) {
+         buf_offsets[pos] = vs_slot->offset;
+         buf_sizes[pos] = nir_alu_type_get_type_size(vs_slot->alu_type);
+      }
    }
 
-   VkResult result = emit_varying_attrs(
-      desc_pool, vs->info.varyings.output, vs->info.varyings.output_count,
-      &out_vars, buf_offsets, &link->vs.attribs);
+   VkResult result = emit_varying_attrs(desc_pool, vs_layout, buf_sizes,
+                                        buf_offsets, &link->vs.attribs);
    if (result != VK_SUCCESS)
       return result;
 
    if (fs) {
-      result = emit_varying_attrs(desc_pool, fs->info.varyings.input,
-                                  fs->info.varyings.input_count, &in_vars,
-                                  buf_offsets, &link->fs.attribs);
+      pan_varying_layout_require_format(&fs->info.varyings.formats);
+      result = emit_varying_attrs(desc_pool, &fs->info.varyings.formats,
+                                  buf_sizes, buf_offsets, &link->fs.attribs);
       if (result != VK_SUCCESS)
          return result;
    }
