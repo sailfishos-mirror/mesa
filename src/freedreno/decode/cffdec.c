@@ -1596,6 +1596,26 @@ dump_tex_samp(uint32_t *texsamp, enum state_src_t src, int num_unit, int level)
 }
 
 static void
+dump_tex_descriptor_type(uint32_t *texmemobj, int idx, int level, const char *domain, const char *type)
+{
+   rnn_varadd(rnn, "desctype", type);
+   printl(2, "%sSTORAGE/TEXEL/IMAGE[%u]: (%s)\n", levels[level + 1], idx, type);
+   dump_domain(texmemobj, 16, level + 2, domain);
+}
+
+static void
+dump_tex_descriptor(uint32_t *texmemobj, int idx, int level, const char *domain)
+{
+   dump_tex_descriptor_type(texmemobj, idx, level, domain, "DESC_SINGLE_PLANE");
+   dump_tex_descriptor_type(texmemobj, idx, level, domain, "DESC_MULTI_PLANE");
+   dump_tex_descriptor_type(texmemobj, idx, level, domain, "DESC_BUFFER");
+   /* Don't bother dumping weight descriptors if unsupported by GPU: */
+   if (options->info->props.has_image_processing)
+      dump_tex_descriptor_type(texmemobj, idx, level, domain, "DESC_WEIGHT");
+   rnn_varadd(rnn, "desctype", "DESC_NONE");
+}
+
+static void
 dump_tex_const(uint32_t *texconst, int num_unit, int level)
 {
    for (int i = 0; i < num_unit; i++) {
@@ -1628,7 +1648,7 @@ dump_tex_const(uint32_t *texconst, int num_unit, int level)
          dump_hex(texconst, 12, level + 1);
          texconst += 12;
       } else if ((6 <= options->info->chip) && (options->info->chip < 8)) {
-         dump_domain(texconst, 16, level + 2, "A6XX_TEX_MEMOBJ");
+         dump_tex_descriptor(texconst, i, level, "A6XX_TEX_MEMOBJ");
          if (options->dump_textures) {
             uint64_t addr =
                (((uint64_t)texconst[5] & 0x1ffff) << 32) | texconst[4];
@@ -1637,7 +1657,7 @@ dump_tex_const(uint32_t *texconst, int num_unit, int level)
          dump_hex(texconst, 16, level + 1);
          texconst += 16;
       } else if ((8 <= options->info->chip) && (options->info->chip < 9)) {
-         dump_domain(texconst, 16, level + 2, "A8XX_TEX_MEMOBJ");
+         dump_tex_descriptor(texconst, i, level, "A8XX_TEX_MEMOBJ");
          if (options->dump_textures) {
             uint64_t addr =
                (((uint64_t)texconst[1] & 0x1ffff) << 32) | texconst[0];
@@ -1672,7 +1692,7 @@ dump_bindless_descriptors(bool is_compute, int level)
       if (!reg)
          break;
 
-      printl(2, "%sset[%u]:\n", levels[level + 1], i);
+      printl(2, "%s    set[%u]:\n", levels[level], i);
 
       if (!reg_written(reg))
          continue;
@@ -1701,8 +1721,11 @@ dump_bindless_descriptors(bool is_compute, int level)
             printl(2, "%sUBO[%u]:\n", levels[level + 1], desc_idx);
             dump_domain(contents, 2, level + 2, "A6XX_UBO");
 
-            printl(2, "%sSTORAGE/TEXEL/IMAGE[%u]:\n", levels[level + 1], desc_idx);
-            dump_tex_const(contents, 1, level);
+            if ((6 <= options->info->chip) && (options->info->chip < 8)) {
+               dump_tex_descriptor(contents, desc_idx, level, "A6XX_TEX_MEMOBJ");
+            } else if ((8 <= options->info->chip) && (options->info->chip < 9)) {
+               dump_tex_descriptor(contents, desc_idx, level, "A8XX_TEX_MEMOBJ");
+            }
 
             printl(2, "%sSAMPLER[%u]:\n", levels[level + 1], desc_idx);
             dump_tex_samp(contents, STATE_SRC_BINDLESS, 1, level);
