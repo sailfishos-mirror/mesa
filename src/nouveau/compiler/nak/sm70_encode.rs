@@ -1924,13 +1924,16 @@ impl SM70Op for OpF2F {
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
         assert!(!self.integer_rnd);
+
+        // The swizzle is handled by the .high bit below.
+        let src = self.src.clone().without_swizzle();
         if self.src_type.bits() <= 32 && self.dst_type.bits() <= 32 {
-            e.encode_alu(0x104, Some(&self.dst), None, Some(&self.src), None)
+            e.encode_alu(0x104, Some(&self.dst), None, Some(&src), None)
         } else {
-            e.encode_alu(0x110, Some(&self.dst), None, Some(&self.src), None)
+            e.encode_alu(0x110, Some(&self.dst), None, Some(&src), None)
         };
 
-        if self.high {
+        if self.is_high() {
             e.set_field(60..62, 1_u8); // .H1
         }
 

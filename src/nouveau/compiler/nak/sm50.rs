@@ -1760,19 +1760,21 @@ impl SM50Op for OpF2F {
     }
 
     fn encode(&self, e: &mut SM50Encoder<'_>) {
-        match &self.src.src_ref {
+        // The swizzle is handled by the .high bit below.
+        let src = self.src.clone().without_swizzle();
+        match &src.src_ref {
             SrcRef::Zero | SrcRef::Reg(_) => {
                 e.set_opcode(0x5ca8);
-                e.set_reg_fmod_src(20..28, 49, 45, &self.src);
+                e.set_reg_fmod_src(20..28, 49, 45, &src);
             }
             SrcRef::Imm32(imm32) => {
                 e.set_opcode(0x38a8);
                 e.set_src_imm_i20(20..39, 56, *imm32);
-                assert!(self.src.is_unmodified());
+                assert!(src.is_unmodified());
             }
             SrcRef::CBuf(_) => {
                 e.set_opcode(0x4ca8);
-                e.set_cb_fmod_src(20..39, 49, 45, &self.src);
+                e.set_cb_fmod_src(20..39, 49, 45, &src);
             }
             src => panic!("Invalid f2f src: {src}"),
         }
@@ -1786,7 +1788,7 @@ impl SM50Op for OpF2F {
         e.set_field(10..12, (self.src_type.bits() / 8).ilog2());
 
         e.set_rnd_mode(39..41, self.rnd_mode);
-        e.set_bit(41, self.high);
+        e.set_bit(41, self.is_high());
         e.set_bit(42, self.integer_rnd);
         e.set_bit(44, self.ftz);
         e.set_bit(50, false); // saturate

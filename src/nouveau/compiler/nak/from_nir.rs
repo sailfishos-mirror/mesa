@@ -841,7 +841,7 @@ impl<'a> ShaderFromNir<'a> {
                     } else {
                         self.float_ctl[dst_type].ftz
                     },
-                    high: false,
+                    dst_high: false,
                     integer_rnd: false,
                 });
                 dst
@@ -976,7 +976,7 @@ impl<'a> ShaderFromNir<'a> {
                         rnd_mode,
                         ftz,
                         integer_rnd: true,
-                        high: false,
+                        dst_high: false,
                     });
                 }
                 dst.into()
@@ -1216,7 +1216,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type: FloatType::F16,
                     rnd_mode: FRndMode::NearestEven,
                     ftz: true,
-                    high: false,
+                    dst_high: false,
                     integer_rnd: false,
                 });
                 assert!(alu.def.bit_size() == 32);
@@ -1228,7 +1228,7 @@ impl<'a> ShaderFromNir<'a> {
                     dst_type: FloatType::F32,
                     rnd_mode: FRndMode::NearestEven,
                     ftz: true,
-                    high: false,
+                    dst_high: false,
                     integer_rnd: false,
                 });
                 if b.sm() < 70 {
@@ -1574,7 +1574,7 @@ impl<'a> ShaderFromNir<'a> {
                         dst_type: FloatType::F16,
                         rnd_mode: rnd_mode,
                         ftz: false,
-                        high: false,
+                        dst_high: false,
                         integer_rnd: false,
                     });
 
@@ -1588,7 +1588,7 @@ impl<'a> ShaderFromNir<'a> {
                         dst_type: FloatType::F16,
                         rnd_mode: rnd_mode,
                         ftz: false,
-                        high: false,
+                        dst_high: false,
                         integer_rnd: false,
                     });
 
@@ -1734,14 +1734,20 @@ impl<'a> ShaderFromNir<'a> {
                 assert!(alu.def.bit_size() == 32);
                 let dst = b.alloc_ssa(RegFile::GPR);
 
+                let swizzle = if alu.op == nir_op_unpack_half_2x16_split_x {
+                    SrcSwizzle::Xx
+                } else {
+                    SrcSwizzle::Yy
+                };
+
                 b.push_op(OpF2F {
                     dst: dst.into(),
-                    src: srcs(0),
+                    src: srcs(0).swizzle(swizzle),
                     src_type: FloatType::F16,
                     dst_type: FloatType::F32,
                     rnd_mode: FRndMode::NearestEven,
                     ftz: false,
-                    high: alu.op == nir_op_unpack_half_2x16_split_y,
+                    dst_high: false,
                     integer_rnd: false,
                 });
 
@@ -2327,7 +2333,7 @@ impl<'a> ShaderFromNir<'a> {
                                     dst_type,
                                     rnd_mode,
                                     ftz: self.float_ctl[src_type].ftz,
-                                    high: false,
+                                    dst_high: false,
                                     integer_rnd: false,
                                 });
                             }

@@ -1449,7 +1449,7 @@ impl SM20Op for OpF2F {
         e.set_field(23..25, (self.src_type.bits() / 8).ilog2());
         e.set_rnd_mode(49..51, self.rnd_mode);
         e.set_bit(55, self.ftz);
-        e.set_bit(56, self.high);
+        e.set_bit(56, self.is_high());
     }
 }
 
