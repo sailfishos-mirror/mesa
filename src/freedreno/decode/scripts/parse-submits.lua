@@ -253,7 +253,7 @@ function CP_EVENT_WRITE(pkt, size)
 	end
 end
 
-function A6XX_TEX_CONST(pkt, size)
+function A6XX_TEX_MEMOBJ(pkt, size)
 	push_source(pkt[0].FMT,
 		pkt[1].WIDTH, pkt[1].HEIGHT,
 		pkt[0].SAMPLES,

@@ -45,7 +45,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="3" name="3"/>
 </domain>
 
-<domain name="A6XX_TEX_CONST" width="32" varset="chip">
+<domain name="A6XX_TEX_MEMOBJ" width="32" varset="chip">
 	<doc>Texture constant dwords</doc>
 	<reg32 offset="0" name="0">
 		<bitfield name="TILE_MODE" low="0" high="1" type="a6xx_tile_mode"/>

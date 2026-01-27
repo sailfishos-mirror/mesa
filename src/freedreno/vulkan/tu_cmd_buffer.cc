@@ -4984,7 +4984,7 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                         va += offset;
                      } else {
                         uint32_t desc_offset = pkt_field_get(
-                           A6XX_TEX_CONST_2_STARTOFFSETTEXELS, dst_desc[2]);
+                           A6XX_TEX_MEMOBJ_2_STARTOFFSETTEXELS, dst_desc[2]);
 
                         /* Use descriptor's format to determine the shift amount
                         * that's to be used on the offset value.
@@ -5009,7 +5009,7 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                         unsigned new_offset = (va & 0x3f) >> offset_shift;
                         va &= ~0x3full;
                         dst_desc[2] =
-                           pkt_field_set(A6XX_TEX_CONST_2_STARTOFFSETTEXELS,
+                           pkt_field_set(A6XX_TEX_MEMOBJ_2_STARTOFFSETTEXELS,
                                        dst_desc[2], new_offset);
                      }
                      tu_desc_set_addr<CHIP>(dst_desc, va);

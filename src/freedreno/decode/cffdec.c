@@ -1628,7 +1628,7 @@ dump_tex_const(uint32_t *texconst, int num_unit, int level)
          dump_hex(texconst, 12, level + 1);
          texconst += 12;
       } else if ((6 <= options->info->chip) && (options->info->chip < 8)) {
-         dump_domain(texconst, 16, level + 2, "A6XX_TEX_CONST");
+         dump_domain(texconst, 16, level + 2, "A6XX_TEX_MEMOBJ");
          if (options->dump_textures) {
             uint64_t addr =
                (((uint64_t)texconst[5] & 0x1ffff) << 32) | texconst[4];
@@ -1863,7 +1863,7 @@ cp_load_state(uint32_t *dwords, uint32_t sizedwords, int level)
             dump_domain(ssboconst, 4, level + 2, "A5XX_SSBO_0");
          } else if ((6 <= options->info->chip) && (options->info->chip < 8)) {
             sz = 16;
-            dump_domain(ssboconst, 16, level + 2, "A6XX_TEX_CONST");
+            dump_domain(ssboconst, 16, level + 2, "A6XX_TEX_MEMOBJ");
          }
          dump_hex(ssboconst, sz, level + 1);
          ssboconst += sz;

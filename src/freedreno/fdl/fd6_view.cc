@@ -138,10 +138,10 @@ fdl6_texswiz(const struct fdl_view_args *args, bool has_z24uint_s8uint)
       return 0;
 
    if (CHIP <= A7XX) {
-      return A6XX_TEX_CONST_0_SWIZ_X(fdl6_swiz(swiz[0])) |
-             A6XX_TEX_CONST_0_SWIZ_Y(fdl6_swiz(swiz[1])) |
-             A6XX_TEX_CONST_0_SWIZ_Z(fdl6_swiz(swiz[2])) |
-             A6XX_TEX_CONST_0_SWIZ_W(fdl6_swiz(swiz[3]));
+      return A6XX_TEX_MEMOBJ_0_SWIZ_X(fdl6_swiz(swiz[0])) |
+             A6XX_TEX_MEMOBJ_0_SWIZ_Y(fdl6_swiz(swiz[1])) |
+             A6XX_TEX_MEMOBJ_0_SWIZ_Z(fdl6_swiz(swiz[2])) |
+             A6XX_TEX_MEMOBJ_0_SWIZ_W(fdl6_swiz(swiz[3]));
    } else if (CHIP >= A8XX) {
       return A8XX_TEX_MEMOBJ_3_SWIZ_X(fdl8_swiz(swiz[0])) |
              A8XX_TEX_MEMOBJ_3_SWIZ_Y(fdl8_swiz(swiz[1])) |
@@ -245,33 +245,33 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
 
    if (CHIP <= A7XX) {
       view->descriptor[0] =
-         A6XX_TEX_CONST_0_TILE_MODE(tile_mode) |
-         COND(util_format_is_srgb(args->format), A6XX_TEX_CONST_0_SRGB) |
-         A6XX_TEX_CONST_0_FMT(texture_format) |
-         A6XX_TEX_CONST_0_SAMPLES((enum a3xx_msaa_samples)util_logbase2(layout->nr_samples)) |
-         A6XX_TEX_CONST_0_SWAP(swap) |
+         A6XX_TEX_MEMOBJ_0_TILE_MODE(tile_mode) |
+         COND(util_format_is_srgb(args->format), A6XX_TEX_MEMOBJ_0_SRGB) |
+         A6XX_TEX_MEMOBJ_0_FMT(texture_format) |
+         A6XX_TEX_MEMOBJ_0_SAMPLES((enum a3xx_msaa_samples)util_logbase2(layout->nr_samples)) |
+         A6XX_TEX_MEMOBJ_0_SWAP(swap) |
          fdl6_texswiz<CHIP>(args, has_z24uint_s8uint) |
-         A6XX_TEX_CONST_0_MIPLVLS(args->level_count - 1);
+         A6XX_TEX_MEMOBJ_0_MIPLVLS(args->level_count - 1);
       view->descriptor[1] =
-         A6XX_TEX_CONST_1_WIDTH(width) | A6XX_TEX_CONST_1_HEIGHT(height) |
-         COND(is_mutable, A6XX_TEX_CONST_1_MUTABLEEN);
+         A6XX_TEX_MEMOBJ_1_WIDTH(width) | A6XX_TEX_MEMOBJ_1_HEIGHT(height) |
+         COND(is_mutable, A6XX_TEX_MEMOBJ_1_MUTABLEEN);
       view->descriptor[2] =
-         A6XX_TEX_CONST_2_PITCHALIGN(layout->pitchalign - 6) |
-         A6XX_TEX_CONST_2_PITCH(pitch) |
-         A6XX_TEX_CONST_2_TYPE(fdl6_tex_type(args->type, false));
-      view->descriptor[3] = A6XX_TEX_CONST_3_ARRAY_PITCH(layer_size);
+         A6XX_TEX_MEMOBJ_2_PITCHALIGN(layout->pitchalign - 6) |
+         A6XX_TEX_MEMOBJ_2_PITCH(pitch) |
+         A6XX_TEX_MEMOBJ_2_TYPE(fdl6_tex_type(args->type, false));
+      view->descriptor[3] = A6XX_TEX_MEMOBJ_3_ARRAY_PITCH(layer_size);
       view->descriptor[4] = base_addr;
-      view->descriptor[5] = (base_addr >> 32) | A6XX_TEX_CONST_5_DEPTH(depth);
+      view->descriptor[5] = (base_addr >> 32) | A6XX_TEX_MEMOBJ_5_DEPTH(depth);
       if (args->filter_width) {
-         view->descriptor[6] = A6XX_TEX_CONST_6_LOG2_PHASES(
+         view->descriptor[6] = A6XX_TEX_MEMOBJ_6_LOG2_PHASES(
                                   util_logbase2_ceil(args->filter_num_phases) / 2) |
-                               A6XX_TEX_CONST_6_DILATION(1);
+                               A6XX_TEX_MEMOBJ_6_DILATION(1);
       } else {
-         view->descriptor[6] = A6XX_TEX_CONST_6_MIN_LOD_CLAMP(args->min_lod_clamp - args->base_miplevel);
+         view->descriptor[6] = A6XX_TEX_MEMOBJ_6_MIN_LOD_CLAMP(args->min_lod_clamp - args->base_miplevel);
       }
 
       if (layout->tile_all)
-         view->descriptor[3] |= A6XX_TEX_CONST_3_TILE_ALL;
+         view->descriptor[3] |= A6XX_TEX_MEMOBJ_3_TILE_ALL;
 
       if (args->format == PIPE_FORMAT_R8_G8B8_420_UNORM ||
           args->format == PIPE_FORMAT_G8_B8R8_420_UNORM ||
@@ -279,14 +279,14 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
          /* chroma offset re-uses MIPLVLS bits */
          assert(args->level_count == 1);
          if (args->chroma_offsets[0] == FDL_CHROMA_LOCATION_MIDPOINT)
-            view->descriptor[0] |= A6XX_TEX_CONST_0_CHROMA_MIDPOINT_X;
+            view->descriptor[0] |= A6XX_TEX_MEMOBJ_0_CHROMA_MIDPOINT_X;
          if (args->chroma_offsets[1] == FDL_CHROMA_LOCATION_MIDPOINT)
-            view->descriptor[0] |= A6XX_TEX_CONST_0_CHROMA_MIDPOINT_Y;
+            view->descriptor[0] |= A6XX_TEX_MEMOBJ_0_CHROMA_MIDPOINT_Y;
 
          uint64_t base_addr[3];
 
          if (ubwc_enabled) {
-            view->descriptor[3] |= A6XX_TEX_CONST_3_FLAG;
+            view->descriptor[3] |= A6XX_TEX_MEMOBJ_3_FLAG;
             /* no separate ubwc base, image must have the expected layout */
             for (uint32_t i = 0; i < 3; i++) {
                base_addr[i] = args->iova +
@@ -302,7 +302,7 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
          view->descriptor[4] = base_addr[0];
          view->descriptor[5] |= base_addr[0] >> 32;
          view->descriptor[6] =
-            A6XX_TEX_CONST_6_PLANE_PITCH(fdl_pitch(layouts[1], args->base_miplevel));
+            A6XX_TEX_MEMOBJ_6_PLANE_PITCH(fdl_pitch(layouts[1], args->base_miplevel));
          view->descriptor[7] = base_addr[1];
          view->descriptor[8] = base_addr[1] >> 32;
          view->descriptor[9] = base_addr[2];
@@ -312,30 +312,30 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
          return;
       } else if (args->filter_width) {
          view->descriptor[8] =
-            (A6XX_TEX_CONST_8_FILTER_SIZE_X(args->filter_width) |
-             A6XX_TEX_CONST_8_FILTER_SIZE_Y(args->filter_height));
+            (A6XX_TEX_MEMOBJ_8_FILTER_SIZE_X(args->filter_width) |
+             A6XX_TEX_MEMOBJ_8_FILTER_SIZE_Y(args->filter_height));
          view->descriptor[10] =
-            (A6XX_TEX_CONST_10_FILTER_OFFSET_X(args->filter_center_x) |
-             A6XX_TEX_CONST_10_FILTER_OFFSET_Y(args->filter_center_y));
+            (A6XX_TEX_MEMOBJ_10_FILTER_OFFSET_X(args->filter_center_x) |
+             A6XX_TEX_MEMOBJ_10_FILTER_OFFSET_Y(args->filter_center_y));
       }
 
       if (ubwc_enabled) {
          uint32_t block_width, block_height;
          fdl6_get_ubwc_blockwidth(layout, &block_width, &block_height);
 
-         view->descriptor[3] |= A6XX_TEX_CONST_3_FLAG;
+         view->descriptor[3] |= A6XX_TEX_MEMOBJ_3_FLAG;
          view->descriptor[7] = ubwc_addr;
          view->descriptor[8] = ubwc_addr >> 32;
-         view->descriptor[9] |= A6XX_TEX_CONST_9_FLAG_BUFFER_ARRAY_PITCH(layout->ubwc_layer_size >> 2);
+         view->descriptor[9] |= A6XX_TEX_MEMOBJ_9_FLAG_BUFFER_ARRAY_PITCH(layout->ubwc_layer_size >> 2);
          view->descriptor[10] |=
-            A6XX_TEX_CONST_10_FLAG_BUFFER_PITCH(ubwc_pitch) |
-            A6XX_TEX_CONST_10_FLAG_BUFFER_LOGW(util_logbase2_ceil(DIV_ROUND_UP(width, block_width))) |
-            A6XX_TEX_CONST_10_FLAG_BUFFER_LOGH(util_logbase2_ceil(DIV_ROUND_UP(height, block_height)));
+            A6XX_TEX_MEMOBJ_10_FLAG_BUFFER_PITCH(ubwc_pitch) |
+            A6XX_TEX_MEMOBJ_10_FLAG_BUFFER_LOGW(util_logbase2_ceil(DIV_ROUND_UP(width, block_width))) |
+            A6XX_TEX_MEMOBJ_10_FLAG_BUFFER_LOGH(util_logbase2_ceil(DIV_ROUND_UP(height, block_height)));
       }
 
       if (args->type == FDL_VIEW_TYPE_3D) {
          view->descriptor[3] |=
-            A6XX_TEX_CONST_3_MIN_LAYERSZ(layout->slices[layout->mip_levels - 1].size0);
+            A6XX_TEX_MEMOBJ_3_MIN_LAYERSZ(layout->slices[layout->mip_levels - 1].size0);
       }
    } else if (CHIP >= A8XX) {
       uint32_t *descriptor = view->descriptor;
@@ -498,18 +498,18 @@ fdl6_view_init(struct fdl6_view *view, const struct fdl_layout **layouts,
 
    if (CHIP <= A7XX) {
       view->storage_descriptor[0] =
-         A6XX_TEX_CONST_0_FMT(storage_format) |
-         COND(util_format_is_srgb(args->format), A6XX_TEX_CONST_0_SRGB) |
+         A6XX_TEX_MEMOBJ_0_FMT(storage_format) |
+         COND(util_format_is_srgb(args->format), A6XX_TEX_MEMOBJ_0_SRGB) |
          fdl6_texswiz<CHIP>(args, has_z24uint_s8uint) |
-         A6XX_TEX_CONST_0_TILE_MODE(tile_mode) |
-         A6XX_TEX_CONST_0_SWAP(color_swap);
+         A6XX_TEX_MEMOBJ_0_TILE_MODE(tile_mode) |
+         A6XX_TEX_MEMOBJ_0_SWAP(color_swap);
       view->storage_descriptor[1] = view->descriptor[1];
       view->storage_descriptor[2] =
-         A6XX_TEX_CONST_2_PITCH(pitch) |
-         A6XX_TEX_CONST_2_TYPE(fdl6_tex_type(args->type, true));
+         A6XX_TEX_MEMOBJ_2_PITCH(pitch) |
+         A6XX_TEX_MEMOBJ_2_TYPE(fdl6_tex_type(args->type, true));
       view->storage_descriptor[3] = view->descriptor[3];
       view->storage_descriptor[4] = base_addr;
-      view->storage_descriptor[5] = (base_addr >> 32) | A6XX_TEX_CONST_5_DEPTH(storage_depth);
+      view->storage_descriptor[5] = (base_addr >> 32) | A6XX_TEX_MEMOBJ_5_DEPTH(storage_depth);
       for (unsigned i = 6; i <= 10; i++)
          view->storage_descriptor[i] = view->descriptor[i];
    } else if (CHIP >= A8XX) {
@@ -585,16 +585,16 @@ fdl6_buffer_view_init(uint32_t *descriptor, enum pipe_format format,
       unsigned texel_offset = (iova & 0x3f) / elem_size;
 
       descriptor[0] =
-         A6XX_TEX_CONST_0_TILE_MODE(TILE6_LINEAR) |
-         A6XX_TEX_CONST_0_SWAP(fd6_texture_swap(format, TILE6_LINEAR, false)) |
-         A6XX_TEX_CONST_0_FMT(fd6_texture_format(format, TILE6_LINEAR, false)) |
-         A6XX_TEX_CONST_0_MIPLVLS(0) | fdl6_texswiz<CHIP>(&args, false) |
-         COND(util_format_is_srgb(format), A6XX_TEX_CONST_0_SRGB);
-      descriptor[1] = A6XX_TEX_CONST_1_WIDTH(elements & ((1 << 15) - 1)) |
-                     A6XX_TEX_CONST_1_HEIGHT(elements >> 15);
-      descriptor[2] = A6XX_TEX_CONST_2_STRUCTSIZETEXELS(struct_size_texels) |
-                     A6XX_TEX_CONST_2_STARTOFFSETTEXELS(texel_offset) |
-                     A6XX_TEX_CONST_2_TYPE(A6XX_TEX_BUFFER);
+         A6XX_TEX_MEMOBJ_0_TILE_MODE(TILE6_LINEAR) |
+         A6XX_TEX_MEMOBJ_0_SWAP(fd6_texture_swap(format, TILE6_LINEAR, false)) |
+         A6XX_TEX_MEMOBJ_0_FMT(fd6_texture_format(format, TILE6_LINEAR, false)) |
+         A6XX_TEX_MEMOBJ_0_MIPLVLS(0) | fdl6_texswiz<CHIP>(&args, false) |
+         COND(util_format_is_srgb(format), A6XX_TEX_MEMOBJ_0_SRGB);
+      descriptor[1] = A6XX_TEX_MEMOBJ_1_WIDTH(elements & ((1 << 15) - 1)) |
+                     A6XX_TEX_MEMOBJ_1_HEIGHT(elements >> 15);
+      descriptor[2] = A6XX_TEX_MEMOBJ_2_STRUCTSIZETEXELS(struct_size_texels) |
+                     A6XX_TEX_MEMOBJ_2_STARTOFFSETTEXELS(texel_offset) |
+                     A6XX_TEX_MEMOBJ_2_TYPE(A6XX_TEX_BUFFER);
       descriptor[4] = base_iova;
       descriptor[5] = base_iova >> 32;
    } else if (CHIP >= A8XX) {

@@ -1199,7 +1199,7 @@ r3d_src_buffer(struct tu_cmd_buffer *cmd,
    if (CHIP >= A8XX) {
       desc[4] = COND(util_format_is_srgb(format), A8XX_TEX_MEMOBJ_4_SRGB);
    } else {
-      desc[0] = COND(util_format_is_srgb(format), A6XX_TEX_CONST_0_SRGB);
+      desc[0] = COND(util_format_is_srgb(format), A6XX_TEX_MEMOBJ_0_SRGB);
    }
 
    tu_desc_set_dim<CHIP>(desc, width, height);
