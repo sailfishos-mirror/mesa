@@ -120,19 +120,12 @@ static const struct luaL_Reg l_meta_rnn_enum[] = {
 };
 
 static void
-pushenum(struct lua_State *L, int val, struct rnnenum *info)
+pushenum(struct lua_State *L, struct rnn *rnn, int val, struct rnnenum *info)
 {
    struct rnndenum *e = lua_newuserdata(L, sizeof(*e));
 
    e->val = val;
-   e->str = NULL;
-
-   for (int i = 0; i < info->valsnum; i++) {
-      if (info->vals[i]->valvalid && (info->vals[i]->value == val)) {
-         e->str = info->vals[i]->name;
-         break;
-      }
-   }
+   e->str = rnn_enumname(rnn, info->name, val);
 
    luaL_newmetatable(L, "rnnmetaenum");
    luaL_setfuncs(L, l_meta_rnn_enum, 0);
@@ -173,7 +166,7 @@ pushdecval(struct lua_State *L, struct rnn *rnn, uint64_t regval,
    switch (rnn_decodelem(rnn, info, regval, &val)) {
    case RNN_TTYPE_ENUM:
    case RNN_TTYPE_INLINE_ENUM:
-      pushenum(L, val.i, info->eenum);
+      pushenum(L, rnn, val.i, info->eenum);
       return 1;
    case RNN_TTYPE_INT:
       lua_pushinteger(L, val.i);
@@ -419,6 +412,52 @@ l_rnn_etype_reg(lua_State *L, struct rnn *rnn, struct rnndelem *elem,
 }
 
 /*
+ * Enum type element
+ */
+
+struct rnndenumtype {
+   struct rnnenum *e;
+   struct rnn *rnn;
+};
+
+static int
+l_rnn_enumtype_meta_index(lua_State *L)
+{
+   struct rnndenumtype *et = lua_touserdata(L, 1);
+   const char *name = lua_tostring(L, 2);
+
+   int val = rnn_enumval(et->rnn, et->e->name, name);
+   if (val < 0)
+      return 0;
+
+   pushenum(L, et->rnn, val, et->e);
+
+   return 1;
+}
+
+static const struct luaL_Reg l_meta_rnn_enumtype[] = {
+   {"__index", l_rnn_enumtype_meta_index},
+   {NULL, NULL} /* sentinel */
+};
+
+static int
+l_rnn_etype_enumtype(lua_State *L, struct rnn *rnn, struct rnnenum *e)
+{
+   struct rnndenumtype *et = lua_newuserdata(L, sizeof(*e));
+
+   et->e = e;
+   et->rnn = rnn;
+
+   luaL_newmetatable(L, "rnnmetaenumtype");
+   luaL_setfuncs(L, l_meta_rnn_enumtype, 0);
+   lua_pop(L, 1);
+
+   luaL_setmetatable(L, "rnnmetaenumtype");
+
+   return 1;
+}
+
+/*
  *
  */
 
@@ -427,13 +466,16 @@ l_rnn_meta_index(lua_State *L)
 {
    struct rnn *rnn = lua_touserdata(L, 1);
    const char *name = lua_tostring(L, 2);
-   struct rnndelem *elem;
 
-   elem = rnn_regelem(rnn, name);
-   if (!elem)
-      return 0;
+   struct rnndelem *elem = rnn_regelem(rnn, name);
+   if (elem)
+      return l_rnn_etype(L, rnn, elem, elem->offset);
 
-   return l_rnn_etype(L, rnn, elem, elem->offset);
+   struct rnnenum *e = rnn_enumelem(rnn, name);
+   if (e)
+      return l_rnn_etype_enumtype(L, rnn, e);
+
+   return 0;
 }
 
 static int

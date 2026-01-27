@@ -184,6 +184,12 @@ rnn_enumval(struct rnn *rnn, const char *enumname, const char *enumval)
    return rnndec_decode_enum_value(rnn->vc, enumname, enumval);
 }
 
+struct rnnenum *
+rnn_enumelem(struct rnn *rnn, const char *enumname)
+{
+	return rnn_findenum(rnn->vc->db, enumname);
+}
+
 static struct rnndelem *
 regelem(struct rnndeccontext *ctx, struct rnndomain *domain, const char *name)
 {
