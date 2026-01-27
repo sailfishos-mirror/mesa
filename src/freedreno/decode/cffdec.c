@@ -1640,7 +1640,7 @@ dump_tex_const(uint32_t *texconst, int num_unit, int level)
          dump_domain(texconst, 16, level + 2, "A8XX_TEX_MEMOBJ");
          if (options->dump_textures) {
             uint64_t addr =
-               (((uint64_t)texconst[5] & 0x1ffff) << 32) | texconst[4];
+               (((uint64_t)texconst[1] & 0x1ffff) << 32) | texconst[0];
             dump_gpuaddr_size(addr, level - 2, hostlen(addr) / 4, 3);
          }
          dump_hex(texconst, 16, level + 1);
