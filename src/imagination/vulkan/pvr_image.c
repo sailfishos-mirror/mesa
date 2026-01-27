@@ -270,10 +270,6 @@ VkResult pvr_CreateImage(VkDevice _device,
 {
    VK_FROM_HANDLE(pvr_device, device, _device);
    struct pvr_image *image;
-   uint64_t modifier = DRM_FORMAT_MOD_INVALID;
-   VkResult res;
-
-   unsigned pbe_stride_align = get_pbe_stride_align(&device->pdevice->dev_info);
 
    if (wsi_common_is_swapchain_image(pCreateInfo)) {
       return wsi_common_create_swapchain_image(&device->pdevice->wsi_device,
@@ -281,32 +277,12 @@ VkResult pvr_CreateImage(VkDevice _device,
                                                pImage);
    }
 
-   if (pCreateInfo->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
-      res = pvr_pick_modifier(pCreateInfo, pbe_stride_align,
-                              &modifier);
-      if (res != VK_SUCCESS)
-         return vk_error(device, res);
-
-      assert(modifier == DRM_FORMAT_MOD_LINEAR);
-   }
-
    image =
       vk_image_create(&device->vk, pCreateInfo, pAllocator, sizeof(*image));
    if (!image)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   if (image->vk.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
-      image->vk.drm_format_mod = modifier;
-   }
-
-   image->alignment = device->pdevice->ws->page_size;
-
-   image->plane_count = vk_format_get_plane_count(image->vk.format);
-
-   /* Initialize the image using the saved information from pCreateInfo */
-   pvr_image_init_memlayout(image);
-   pvr_image_init_physical_extent(image, pCreateInfo, pbe_stride_align);
-   pvr_image_setup_mip_levels(image);
+   pvr_image_init(device, pCreateInfo, image);
 
    *pImage = pvr_image_to_handle(image);
 
@@ -323,10 +299,38 @@ void pvr_DestroyImage(VkDevice _device,
    if (!image)
       return;
 
+   pvr_image_fini(device, image);
+   vk_image_destroy(&device->vk, pAllocator, &image->vk);
+}
+
+void pvr_image_init(struct pvr_device *device,
+                    const VkImageCreateInfo *pCreateInfo,
+                    struct pvr_image *image)
+{
+   unsigned pbe_stride_align = get_pbe_stride_align(&device->pdevice->dev_info);
+
+   image->plane_count = vk_format_get_plane_count(image->vk.format);
+   image->alignment = device->pdevice->ws->page_size;
+
+   if (pCreateInfo->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+      VkResult res = pvr_pick_modifier(pCreateInfo,
+                                       pbe_stride_align,
+                                       &image->vk.drm_format_mod);
+      if (res != VK_SUCCESS)
+         assert(res == VK_SUCCESS);
+
+      assert(image->vk.drm_format_mod == DRM_FORMAT_MOD_LINEAR);
+   }
+
+   pvr_image_init_memlayout(image);
+   pvr_image_init_physical_extent(image, pCreateInfo, pbe_stride_align);
+   pvr_image_setup_mip_levels(image);
+}
+
+void pvr_image_fini(struct pvr_device *device, struct pvr_image *image)
+{
    if (image->vma)
       pvr_unbind_memory(device, image->vma);
-
-   vk_image_destroy(&device->vk, pAllocator, &image->vk);
 }
 
 /* clang-format off */

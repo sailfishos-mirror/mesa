@@ -23,6 +23,8 @@
 
 #define PVR_MAX_PLANE_COUNT 3
 
+struct pvr_device;
+
 struct pvr_mip_level {
    /* Offset of the mip level in bytes */
    uint32_t offset;
@@ -166,5 +168,10 @@ pvr_image_view_get_image(const struct pvr_image_view *const iview)
 void pvr_get_image_subresource_layout(const struct pvr_image *image,
                                       const VkImageSubresource *subresource,
                                       VkSubresourceLayout *layout);
+
+void pvr_image_init(struct pvr_device *device,
+                    const VkImageCreateInfo *pCreateInfo,
+                    struct pvr_image *image);
+void pvr_image_fini(struct pvr_device *device, struct pvr_image *image);
 
 #endif /* PVR_IMAGE_H */
