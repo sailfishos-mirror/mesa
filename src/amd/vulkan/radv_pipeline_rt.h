@@ -100,6 +100,7 @@ struct radv_ray_tracing_stage {
    struct radv_shader *shader;
    mesa_shader_stage stage;
    uint32_t stack_size;
+   bool needs_nir;
 
    struct radv_ray_tracing_stage_info info;
 

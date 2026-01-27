@@ -268,8 +268,10 @@ static void
 radv_rt_fill_stage_info(const VkRayTracingPipelineCreateInfoKHR *pCreateInfo, struct radv_ray_tracing_stage *stages)
 {
    uint32_t idx;
-   for (idx = 0; idx < pCreateInfo->stageCount; idx++)
+   for (idx = 0; idx < pCreateInfo->stageCount; idx++) {
       stages[idx].stage = vk_to_mesa_shader_stage(pCreateInfo->pStages[idx].stage);
+      stages[idx].needs_nir = true;
+   }
 
    if (pCreateInfo->pLibraryInfo) {
       for (unsigned i = 0; i < pCreateInfo->pLibraryInfo->libraryCount; ++i) {
@@ -674,7 +676,7 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
    bool can_use_monolithic = !library && pipeline->stage_count < 50;
 
    for (uint32_t i = 0; i < pCreateInfo->stageCount; i++) {
-      if (rt_stages[i].nir)
+      if (rt_stages[i].nir || !rt_stages[i].needs_nir)
          continue;
 
       int64_t stage_start = os_time_get_nano();
@@ -749,7 +751,7 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
    inline_any_hit_shaders |= raygen_lowering_mode == RADV_RT_LOWERING_MODE_MONOLITHIC && !raygen_imported;
 
    for (uint32_t idx = 0; idx < pCreateInfo->stageCount; idx++) {
-      if (rt_stages[idx].nir)
+      if (rt_stages[idx].nir || !rt_stages[idx].needs_nir)
          continue;
 
       int64_t stage_start = os_time_get_nano();
