@@ -341,8 +341,9 @@ bool si_init_sqtt(struct si_context *sctx)
 
    const char *trigger = os_get_option("AMD_THREAD_TRACE_TRIGGER");
    if (trigger) {
-      sctx->sqtt->start_frame = atoi(trigger);
-      if (sctx->sqtt->start_frame <= 0) {
+      char *endptr;
+      sctx->sqtt->start_frame = strtol(trigger, &endptr, 0);
+      if (trigger == endptr) {
          /* This isn't a frame number, must be a file */
          sctx->sqtt->trigger_file = strdup(trigger);
          sctx->sqtt->start_frame = -1;
@@ -455,8 +456,9 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
 
       if (frame_trigger || file_trigger) {
          /* Wait for last submission */
-         sctx->ws->fence_wait(sctx->ws, sctx->last_gfx_fence,
-                              OS_TIMEOUT_INFINITE);
+         if (sctx->last_gfx_fence)
+            sctx->ws->fence_wait(sctx->ws, sctx->last_gfx_fence,
+                                 OS_TIMEOUT_INFINITE);
 
          /* Start SQTT */
          si_begin_sqtt(sctx, rcs);

@@ -221,6 +221,9 @@ static void si_destroy_context(struct pipe_context *context)
 
    if (sctx->sqtt) {
       struct si_screen *sscreen = sctx->screen;
+
+      si_handle_sqtt(sctx, &sctx->gfx_cs);
+
       if (sscreen->b.num_contexts == 1 && !(sctx->context_flags & SI_CONTEXT_FLAG_AUX))
           sscreen->ws->cs_set_pstate(&sctx->gfx_cs, RADEON_CTX_PSTATE_NONE);
 
@@ -960,25 +963,31 @@ static struct pipe_context *si_pipe_create_context(struct pipe_screen *screen, v
 {
    struct si_screen *sscreen = (struct si_screen *)screen;
    struct pipe_context *ctx;
+   struct si_context *sctx;
 
    if (sscreen->debug_flags & DBG(CHECK_VM))
       flags |= PIPE_CONTEXT_DEBUG;
 
    ctx = si_create_context(screen, flags);
+   sctx = (struct si_context *)ctx;
 
    if (ctx && sscreen->info.gfx_level >= GFX9 && sscreen->debug_flags & DBG(SQTT)) {
       /* Auto-enable stable performance profile if possible. */
       if (screen->num_contexts == 1)
-          sscreen->ws->cs_set_pstate(&((struct si_context *)ctx)->gfx_cs, RADEON_CTX_PSTATE_PEAK);
+          sscreen->ws->cs_set_pstate(&sctx->gfx_cs, RADEON_CTX_PSTATE_PEAK);
 
       if (ac_check_profile_state(&sscreen->info)) {
          mesa_loge("Canceling RGP trace request as a hang condition has been "
                    "detected. Force the GPU into a profiling mode with e.g. "
                    "\"echo profile_peak  > "
                    "/sys/class/drm/card0/device/power_dpm_force_performance_level\"");
-      } else if (!si_init_sqtt((struct si_context *)ctx)) {
-         FREE(ctx);
-         return NULL;
+      } else {
+         if (!si_init_sqtt(sctx)) {
+            FREE(ctx);
+            return NULL;
+         }
+
+         si_handle_sqtt(sctx, &sctx->gfx_cs);
       }
    }
 
@@ -1006,7 +1015,7 @@ static struct pipe_context *si_pipe_create_context(struct pipe_screen *screen, v
                                  .driver_calls_flush_notify = true,
                                  .unsynchronized_create_fence_fd = true,
                               },
-                              &((struct si_context *)ctx)->tc);
+                              &sctx->tc);
 
    if (tc && tc != ctx)
       threaded_context_init_bytes_mapped_limit((struct threaded_context *)tc, 4);
