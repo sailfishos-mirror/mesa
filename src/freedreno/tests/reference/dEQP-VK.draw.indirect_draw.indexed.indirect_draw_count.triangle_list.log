@@ -1237,6 +1237,12 @@ cmdstream[0]: 265 dwords
 			draw 1:
 0000000001162030:				0000: 00000003 00000001 00000005 0000000d 00000000 fffffffc fffffffe fffffff5
 0000000001162050:				0020: 00000009 fffffff9 fffffffc fffffffe fffffff5 00000009 fffffff9 fffffffc
+			draw[2] bindless descriptors
+				set[0]:
+				set[1]:
+				set[2]:
+				set[3]:
+				set[4]:
 			draw[2] register values
 !+	000000c0			GRAS_CL_CNTL: { ZERO_GB_SCALE_Z | VP_CLIP_CODE_IGNORE }
  +	00000000			GRAS_CL_VS_CLIP_CULL_DISTANCE: { CLIP_MASK = 0 | CULL_MASK = 0 }

@@ -846,6 +846,12 @@ cmdstream[0]: 1023 dwords
 				{ NUM_INDICES = 4 }
 			mode: RM6_BIN_VISIBILITY
 			skip_ib2: g=0, l=0
+			draw[0] bindless descriptors
+				set[0]:
+				set[1]:
+				set[2]:
+				set[3]:
+				set[4]:
 			draw[0] register values
 !+	00000001			CP_SCRATCH[0x5].REG: 1
 			:0,1,11,2
@@ -5064,6 +5070,12 @@ cmdstream[0]: 1023 dwords
 				{ NUM_INDICES = 4 }
 			mode: RM6_BIN_RENDER_START
 			skip_ib2: g=1, l=0
+			draw[2] bindless descriptors
+				set[0]:
+				set[1]:
+				set[2]:
+				set[3]:
+				set[4]:
 			draw[2] register values
  +	00000001			CP_SCRATCH[0x5].REG: 1
 			:0,1,17,2
