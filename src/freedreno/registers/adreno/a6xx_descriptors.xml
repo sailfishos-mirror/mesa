@@ -70,7 +70,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="1" name="1">
 		<bitfield name="WIDTH" low="0" high="14" type="uint"/>
 		<bitfield name="HEIGHT" low="15" high="29" type="uint"/>
-		<bitfield name="MUTABLEEN" pos="31" type="boolean" variants="A7XX-"/>
+		<bitfield name="MUTABLEEN" pos="31" type="boolean"/> <!-- a7xx+ -->
 	</reg32>
 	<reg32 offset="2" name="2">
 		<!--
