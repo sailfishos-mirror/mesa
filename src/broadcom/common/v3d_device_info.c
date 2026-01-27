@@ -21,12 +21,14 @@
  * IN THE SOFTWARE.
  */
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "common/v3d_device_info.h"
 #include "drm-uapi/v3d_drm.h"
+#include "util/os_misc.h"
 
 bool
 v3d_get_device_info(int fd, struct v3d_device_info* devinfo, v3d_ioctl_fun drm_ioctl) {
@@ -73,16 +75,19 @@ v3d_get_device_info(int fd, struct v3d_device_info* devinfo, v3d_ioctl_fun drm_i
 
     devinfo->has_accumulators = devinfo->ver < 71;
 
+    uint64_t os_page_size;
+    os_get_page_size(&os_page_size);
+    assert(os_page_size <= UINT32_MAX);
+    devinfo->cle_buffer_min_size = (uint32_t)os_page_size;
+
     switch (devinfo->ver) {
     case 42:
             devinfo->clipper_xy_granularity = 256.0f;
             devinfo->cle_readahead = 256u;
-            devinfo->cle_buffer_min_size = 4096u;
             break;
     case 71:
             devinfo->clipper_xy_granularity = 64.0f;
             devinfo->cle_readahead = 1024u;
-            devinfo->cle_buffer_min_size = 16384u;
             break;
     default:
             fprintf(stderr,
