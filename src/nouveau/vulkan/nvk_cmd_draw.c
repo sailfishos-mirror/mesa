@@ -1615,13 +1615,13 @@ nvk_cmd_bind_graphics_shader(struct nvk_cmd_buffer *cmd,
    NVDEF(NV9097, SET_TESSELLATION_PARAMETERS, SPACING, spacing) | \
    flags
 
-#define LOWER_LEFT_BIT 12
-#define POINT_MODE_BIT 13
-#define CCW_BIT        14
+#define POINT_MODE_BIT 2
+#define CCW_BIT        3
+#define LOWER_LEFT_BIT 6
 
-#define LOWER_LEFT BITFIELD_BIT(LOWER_LEFT_BIT)
 #define POINT_MODE BITFIELD_BIT(POINT_MODE_BIT)
 #define CCW        BITFIELD_BIT(CCW_BIT)
+#define LOWER_LEFT BITFIELD_BIT(LOWER_LEFT_BIT)
 
 uint32_t
 nvk_mme_tess_params(enum nak_ts_domain domain,
@@ -1637,7 +1637,10 @@ nvk_mme_tess_params(enum nak_ts_domain domain,
       params |= CCW;
    if (point_mode)
       params |= POINT_MODE;
-   return nvk_mme_val_mask(params, 0x0fff | POINT_MODE | CCW);
+   return nvk_mme_val_mask(params,
+      DRF_SMASK(NV9097_SET_TESSELLATION_PARAMETERS_DOMAIN_TYPE) |
+      DRF_SMASK(NV9097_SET_TESSELLATION_PARAMETERS_SPACING) |
+      POINT_MODE | CCW);
 }
 
 static uint32_t
@@ -1696,8 +1699,10 @@ nvk_mme_set_tess_params(struct mme_builder *b)
       }
       mme_free_reg(b, point_mode);
 
-      /* Only the bottom 12 bits are valid to put in HW */
-      mme_merge_to(b, params, mme_zero(), params, 0, 8, 0);
+      /* Mask off bits that are valid to put in HW */
+      mme_and_to(b, params, params, mme_imm(
+         DRF_SMASK(NV9097_SET_TESSELLATION_PARAMETERS_DOMAIN_TYPE) |
+         DRF_SMASK(NV9097_SET_TESSELLATION_PARAMETERS_SPACING)));
       mme_merge_to(b, params, params, prims, 8, 4, 0);
       mme_free_reg(b, prims);
 
