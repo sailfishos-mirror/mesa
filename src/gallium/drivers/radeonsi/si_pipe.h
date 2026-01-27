@@ -692,6 +692,9 @@ struct si_screen {
 
    /* mesh shader */
    struct ac_task_info task_info;
+
+   /* To sync different context print IB */
+   simple_mtx_t print_ib_mutex;
 };
 
 struct si_compute {

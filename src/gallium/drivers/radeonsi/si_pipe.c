@@ -1106,6 +1106,7 @@ void si_destroy_screen(struct pipe_screen *pscreen)
    simple_mtx_destroy(&sscreen->gpu_load_mutex);
    simple_mtx_destroy(&sscreen->gds_mutex);
    simple_mtx_destroy(&sscreen->tess_ring_lock);
+   simple_mtx_destroy(&sscreen->print_ib_mutex);
 
    radeon_bo_reference(sscreen->ws, &sscreen->gds_oa, NULL);
 
@@ -1452,6 +1453,7 @@ static struct pipe_screen *radeonsi_screen_create_impl(struct radeon_winsys *ws,
    (void)simple_mtx_init(&sscreen->gpu_load_mutex, mtx_plain);
    (void)simple_mtx_init(&sscreen->gds_mutex, mtx_plain);
    (void)simple_mtx_init(&sscreen->tess_ring_lock, mtx_plain);
+   (void)simple_mtx_init(&sscreen->print_ib_mutex, mtx_plain);
 
    si_init_gs_info(sscreen);
    if (!si_init_shader_cache(sscreen)) {

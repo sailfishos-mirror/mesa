@@ -399,6 +399,8 @@ static void si_parse_current_ib(FILE *f, struct radeon_cmdbuf *cs, unsigned begi
 
 void si_print_current_ib(struct si_context *sctx, FILE *f)
 {
+   simple_mtx_lock(&sctx->screen->print_ib_mutex);
+
    si_parse_current_ib(f, &sctx->gfx_cs, 0, sctx->gfx_cs.prev_dw + sctx->gfx_cs.current.cdw,
                        NULL, 0, si_get_context_ip_type(sctx), sctx->gfx_level,
                        sctx->family);
@@ -410,6 +412,8 @@ void si_print_current_ib(struct si_context *sctx, FILE *f)
          si_parse_current_ib(f, gang_cs, 0, end, NULL, 0, AMD_IP_COMPUTE,
                              sctx->gfx_level, sctx->family);
    }
+
+   simple_mtx_unlock(&sctx->screen->print_ib_mutex);
 }
 
 static void si_log_chunk_type_cs_print(void *data, FILE *f)
