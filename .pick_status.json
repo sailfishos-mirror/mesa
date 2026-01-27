@@ -1864,7 +1864,7 @@
         "description": "radv/video: Fix maxActiveReferencePictures for H265 decode",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ee535aa039495071ae541de91fa6ffb47662e44d",
         "notes": null
