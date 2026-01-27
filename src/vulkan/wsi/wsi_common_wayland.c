@@ -409,6 +409,8 @@ wsi_wl_display_add_drm_format_modifier(struct wsi_wl_display *display,
                                        uint32_t drm_format, uint64_t modifier)
 {
    VK_FROM_HANDLE(vk_physical_device, pdevice, display->wsi_wl->physical_device);
+   struct wsi_device *wsi_device = pdevice->wsi_device;
+
    /* From Vulkan 1.3 onwards, we can always try adding the 4444 formats.
     * If the format isn't supported or isn't renderable,
     * wsi_wl_display_add_vk_format() will reject it via
@@ -567,16 +569,34 @@ wsi_wl_display_add_drm_format_modifier(struct wsi_wl_display *display,
     * linear -> nonlinear SRGB colorspace conversion before the data is stored.
     * The inverse function is applied when sampling from SRGB images.
     * From Wayland's perspective nothing changes, the difference is just how
-    * Vulkan interprets the pixel data. */
+    * Vulkan interprets the pixel data.
+    *
+    * For bonus points, 24bpp VkFormats may appear as 32bpp, depending on the
+    * driver.
+    */
+   case DRM_FORMAT_BGR888:
+      if (!wsi_device->emulate_24as32) {
+         wsi_wl_display_add_vk_format_modifier(display, formats,
+                                               VK_FORMAT_R8G8B8_SRGB,
+                                               WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
+                                               modifier);
+         wsi_wl_display_add_vk_format_modifier(display, formats,
+                                               VK_FORMAT_R8G8B8_UNORM,
+                                               WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
+                                               modifier);
+      }
+      break;
    case DRM_FORMAT_XBGR8888:
-      wsi_wl_display_add_vk_format_modifier(display, formats,
-                                            VK_FORMAT_R8G8B8_SRGB,
-                                            WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
-                                            modifier);
-      wsi_wl_display_add_vk_format_modifier(display, formats,
-                                            VK_FORMAT_R8G8B8_UNORM,
-                                            WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
-                                            modifier);
+      if (wsi_device->emulate_24as32) {
+         wsi_wl_display_add_vk_format_modifier(display, formats,
+                                               VK_FORMAT_R8G8B8_SRGB,
+                                               WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
+                                               modifier);
+         wsi_wl_display_add_vk_format_modifier(display, formats,
+                                               VK_FORMAT_R8G8B8_UNORM,
+                                               WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
+                                               modifier);
+      }
       wsi_wl_display_add_vk_format_modifier(display, formats,
                                             VK_FORMAT_R8G8B8A8_SRGB,
                                             WSI_WL_FMT_OPAQUE, modifier);
@@ -592,15 +612,29 @@ wsi_wl_display_add_drm_format_modifier(struct wsi_wl_display *display,
                                             VK_FORMAT_R8G8B8A8_UNORM,
                                             WSI_WL_FMT_ALPHA, modifier);
       break;
+   case DRM_FORMAT_RGB888:
+      if (!wsi_device->emulate_24as32) {
+         wsi_wl_display_add_vk_format_modifier(display, formats,
+                                               VK_FORMAT_B8G8R8_SRGB,
+                                               WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
+                                               modifier);
+         wsi_wl_display_add_vk_format_modifier(display, formats,
+                                               VK_FORMAT_B8G8R8_UNORM,
+                                               WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
+                                               modifier);
+      }
+      break;
    case DRM_FORMAT_XRGB8888:
-      wsi_wl_display_add_vk_format_modifier(display, formats,
-                                            VK_FORMAT_B8G8R8_SRGB,
-                                            WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
-                                            modifier);
-      wsi_wl_display_add_vk_format_modifier(display, formats,
-                                            VK_FORMAT_B8G8R8_UNORM,
-                                            WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
-                                            modifier);
+      if (wsi_device->emulate_24as32) {
+         wsi_wl_display_add_vk_format_modifier(display, formats,
+                                               VK_FORMAT_B8G8R8_SRGB,
+                                               WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
+                                               modifier);
+         wsi_wl_display_add_vk_format_modifier(display, formats,
+                                               VK_FORMAT_B8G8R8_UNORM,
+                                               WSI_WL_FMT_ALPHA | WSI_WL_FMT_OPAQUE,
+                                               modifier);
+      }
       wsi_wl_display_add_vk_format_modifier(display, formats,
                                             VK_FORMAT_B8G8R8A8_SRGB,
                                             WSI_WL_FMT_OPAQUE, modifier);
@@ -645,7 +679,8 @@ wsi_wl_display_add_wl_shm_format(struct wsi_wl_display *display,
 }
 
 static uint32_t
-wl_drm_format_for_vk_format(VkFormat vk_format, bool alpha)
+wl_drm_format_for_vk_format(struct wsi_device *wsi_device,
+                            VkFormat vk_format, bool alpha)
 {
    switch (vk_format) {
    case VK_FORMAT_A4R4G4B4_UNORM_PACK16:
@@ -678,13 +713,13 @@ wl_drm_format_for_vk_format(VkFormat vk_format, bool alpha)
 #endif
    case VK_FORMAT_R8G8B8_UNORM:
    case VK_FORMAT_R8G8B8_SRGB:
-      return DRM_FORMAT_XBGR8888;
+      return wsi_device->emulate_24as32 ? DRM_FORMAT_XBGR8888 : DRM_FORMAT_BGR888;
    case VK_FORMAT_R8G8B8A8_UNORM:
    case VK_FORMAT_R8G8B8A8_SRGB:
       return alpha ? DRM_FORMAT_ABGR8888 : DRM_FORMAT_XBGR8888;
    case VK_FORMAT_B8G8R8_UNORM:
    case VK_FORMAT_B8G8R8_SRGB:
-      return DRM_FORMAT_BGRX8888;
+      return wsi_device->emulate_24as32 ? DRM_FORMAT_XRGB8888 : DRM_FORMAT_RGB888;
    case VK_FORMAT_B8G8R8A8_UNORM:
    case VK_FORMAT_B8G8R8A8_SRGB:
       return alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888;
@@ -696,9 +731,12 @@ wl_drm_format_for_vk_format(VkFormat vk_format, bool alpha)
 }
 
 static enum wl_shm_format
-wl_shm_format_for_vk_format(VkFormat vk_format, bool alpha)
+wl_shm_format_for_vk_format(struct wsi_device *wsi_device,
+                            VkFormat vk_format, bool alpha)
 {
-   uint32_t drm_format = wl_drm_format_for_vk_format(vk_format, alpha);
+   uint32_t drm_format =
+      wl_drm_format_for_vk_format(wsi_device, vk_format, alpha);
+
    if (drm_format == DRM_FORMAT_INVALID) {
       return 0;
    }
@@ -3799,9 +3837,11 @@ wsi_wl_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    chain->vk_format = pCreateInfo->imageFormat;
    chain->buffer_type = buffer_type;
    if (buffer_type == WSI_WL_BUFFER_NATIVE) {
-      chain->drm_format = wl_drm_format_for_vk_format(chain->vk_format, alpha);
+      chain->drm_format = wl_drm_format_for_vk_format(wsi_device,
+                                                      chain->vk_format, alpha);
    } else {
-      chain->shm_format = wl_shm_format_for_vk_format(chain->vk_format, alpha);
+      chain->shm_format = wl_shm_format_for_vk_format(wsi_device,
+                                                      chain->vk_format, alpha);
    }
    chain->num_drm_modifiers = num_drm_modifiers;
    if (num_drm_modifiers) {

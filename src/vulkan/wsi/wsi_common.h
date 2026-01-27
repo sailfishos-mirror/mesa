@@ -75,6 +75,14 @@ struct wsi_device {
    bool has_import_memory_host;
    bool has_timeline_semaphore;
 
+   /** Whether the device uses 32bpp formats for 24bpp
+    *
+    * If true, VkImages created with R8G8B8/B8G8R8 formats will be
+    * exported as 32bpp to the window system, as if they were B8G8R8A8
+    * or R8G8B8A8
+    */
+   bool emulate_24as32;
+
    /** Indicates if wsi_image_create_info::scanout is supported
     *
     * If false, WSI will always use either modifiers or the prime blit path.
@@ -253,6 +261,7 @@ typedef PFN_vkVoidFunction (VKAPI_PTR *WSI_FN_GetPhysicalDeviceProcAddr)(VkPhysi
 struct wsi_device_options {
    bool sw_device;
    bool extra_xwayland_image;
+   bool emulate_24as32;
 };
 
 VkResult
