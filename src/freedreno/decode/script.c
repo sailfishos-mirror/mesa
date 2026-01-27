@@ -84,6 +84,7 @@ error(const char *fmt)
  */
 
 struct rnndenum {
+   struct rnnenum *e;
    const char *str;
    int val;
 };
@@ -102,20 +103,21 @@ l_meta_rnn_enum_tostring(lua_State *L)
    return 1;
 }
 
-/* so, this doesn't actually seem to be implemented yet, but hopefully
- * some day lua comes to it's senses
- */
 static int
-l_meta_rnn_enum_tonumber(lua_State *L)
+l_meta_rnn_enum_eq(lua_State *L)
 {
-   struct rnndenum *e = lua_touserdata(L, 1);
-   lua_pushinteger(L, e->val);
+   struct rnndenum *e1 = lua_touserdata(L, 1);
+   struct rnndenum *e2 = lua_touserdata(L, 2);
+
+   /* Do the enum type+value match: */
+   lua_pushboolean(L, (e1->e == e2->e) && (e1->val == e2->val));
+
    return 1;
 }
 
 static const struct luaL_Reg l_meta_rnn_enum[] = {
    {"__tostring", l_meta_rnn_enum_tostring},
-   {"__tonumber", l_meta_rnn_enum_tonumber},
+   {"__eq",       l_meta_rnn_enum_eq},
    {NULL, NULL} /* sentinel */
 };
 
@@ -124,6 +126,7 @@ pushenum(struct lua_State *L, struct rnn *rnn, int val, struct rnnenum *info)
 {
    struct rnndenum *e = lua_newuserdata(L, sizeof(*e));
 
+   e->e = info;
    e->val = val;
    e->str = rnn_enumname(rnn, info->name, val);
 
@@ -377,22 +380,9 @@ l_rnn_reg_meta_tostring(lua_State *L)
    return 1;
 }
 
-static int
-l_rnn_reg_meta_tonumber(lua_State *L)
-{
-   struct rnndoff *rnndoff = lua_touserdata(L, 1);
-   uint32_t regval = rnn_val(rnndoff->rnn, rnndoff->offset);
-
-   regval <<= rnndoff->elem->typeinfo.shr;
-
-   lua_pushnumber(L, regval);
-   return 1;
-}
-
 static const struct luaL_Reg l_meta_rnn_reg[] = {
    {"__index", l_rnn_reg_meta_index},
    {"__tostring", l_rnn_reg_meta_tostring},
-   {"__tonumber", l_rnn_reg_meta_tonumber},
    {NULL, NULL} /* sentinel */
 };
 
