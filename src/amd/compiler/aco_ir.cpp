@@ -454,6 +454,21 @@ bool
 opcode_supports_dpp(amd_gfx_level gfx_level, aco_opcode opcode, bool vop3p)
 {
    switch (opcode) {
+   /* reverse integer subtract and shift seem to apply dpp to src1 instead of src0 */
+   case aco_opcode::v_subrev_co_u32:
+   case aco_opcode::v_subrev_co_u32_e64:
+   case aco_opcode::v_subbrev_co_u32:
+   case aco_opcode::v_subrev_u16:
+   case aco_opcode::v_subrev_u32:
+   case aco_opcode::v_ashrrev_i32:
+   case aco_opcode::v_lshrrev_b32:
+   case aco_opcode::v_lshlrev_b32:
+   case aco_opcode::v_ashrrev_i16:
+   case aco_opcode::v_lshrrev_b16:
+   case aco_opcode::v_lshlrev_b16:
+   case aco_opcode::v_ashrrev_i16_e64:
+   case aco_opcode::v_lshrrev_b16_e64:
+   case aco_opcode::v_lshlrev_b16_e64: return false;
    case aco_opcode::v_pk_fmac_f16: return gfx_level < GFX11;
    /* there are more cases but those all take 64-bit inputs */
    case aco_opcode::v_madmk_f32:
