@@ -1,5 +1,515 @@
 [
     {
+        "sha": "50a3699552e3ba3efbf7fca301a92f5fa470fc3f",
+        "description": "radv: advertise VK_KHR_internally_synchronized_queues",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d8ef386f98789d48197efe4d4678b27576df8304",
+        "description": "vulkan: add support for VK_KHR_internally_synchronized_queues",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8a4a369795957558f5603ab85707783c05f85da2",
+        "description": "kk: Move nir_opt_shrink_stores after nir_opt_remove_phis for correct shrink",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "bed1576b141a5d4398c71abeec5af3674b390aa0",
+        "description": "pvr: preliminary EXT_image_drm_format_modifier support",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "cf68dc570b4125de9148b421daf94554bd96179c",
+        "description": "ntv: stop tracking ubo variables",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "36d9f5a4bff9980bf5d65b47b52ae99b7b06a153",
+        "description": "ntv: add a simple pass to convert vulkan descriptor access to direct derefs",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "aad9a26de30e62e9bf6e1d284afe2f830036aacb",
+        "description": "pvr: enable sampler ycbcr conversion",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "5eeac2118148190ae1fd591adeca2b36f0121738",
+        "description": "pvr: add ycbcr formats",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0a01f7aeeba693b24d08e2005f90b1e905fa551f",
+        "description": "pvr: workaround hardware clamping for YCBCR_IDENTITY conversion",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3204e8b1a21cfaafaff67679a9a66273ecc16def",
+        "description": "pvr: implement chroma swap",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3495831d729b25292c33bf6fb9af7f167627a637",
+        "description": "pvr: setup csc tables",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c856d3405621c4a1d4428cfcfc43f64b9329b15e",
+        "description": "pvr: handle plane addresses for ycbcr images.",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f8e3e893b9d38fa37da08e4afee1a078c0e4e462",
+        "description": "pvr: handle ycbcr swizzle",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4baf6d304376cbde7f48adcaaf465472f9eb9e4f",
+        "description": "pvr: handle packing texstate for ycbcr images",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "fa6704a523edf7c0da62df1734d9aa54141e4ed4",
+        "description": "pvr: add multiplanar format support",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "7be87ca82a498cb2f33f6bda09d02b71c9b4f1cf",
+        "description": "pvr/csbgen: fix packing multiple addresses",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "60c1a0cf8643ae6a5fb558fd9f9d037a569cd8bb",
+        "description": "pvr: add initial yuv tex/smp state words",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "71ecc9430cdc2cd198c4040055e9be5eaa4b1271",
+        "description": "pvr: fix transfer double stride",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "abaa4a80adb4d883efdd30e6768e5cd809eee6f4",
+        "description": "vulkan/runtime: use nir_shader_tex_pass for ycbcr lowering",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b4457dd5d0e83e00267a070a4d336976f0e14b98",
+        "description": "vulkan: add plane aspect format helper",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "a05fc97bc958bb9d1d485520c6989b98cb775dde",
+        "description": "anv/iris: add drirc to enable sampler state & compute surface state prefetch",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2f0d18f6afede0895b8585905fd5ad80a4f7597e",
+        "description": "radv/video: Use coded size from session params instead of codedExtent",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "83fabf7d416ab2dd5996c53a5b83e72c80561c72",
+        "description": "radv: rework app workarounds implemented using internal layers",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "875b6ab951687d9e294e793219d3c2b49982b98c",
+        "description": "radv/sqtt: reduce the number of timed cmdbufs",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4508518f8e16b0b138aaf2f26e387fe21b83f7f9",
+        "description": "radv/sqtt: rework acquiring timed cmdbufs",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "553179ab731148d43df9bcb00f113d962f23e886",
+        "description": "radv/sqtt: rework acquiring GPU timestamps",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "a8fac76ea697fda9d2931b704ff4ef2c959060a9",
+        "description": "kk: Enable vertexPipelineStoresAndAtomics",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "079377c767a424dff5b0eb088b26c83e0e7cacee",
+        "description": "pco: Fix for atomic operations on an image buffer",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "6dc5e1e1094554c291239b955a1dc39c6e4c017b",
+        "notes": null
+    },
+    {
+        "sha": "4959f45e99e62619cf334b972337abc526632f8a",
+        "description": "Revert \"panvk: advertise VK_EXT_primitives_generated_query on v10+\"",
+        "nominated": false,
+        "nomination_type": 3,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "6eadcaa851d2826eaeeacfb76f01f31d6cd2dd27",
+        "notes": null
+    },
+    {
+        "sha": "1240444e63a8b0c30beeae90b05a052e844acdd5",
+        "description": "spirv: assert fp_math_ctrl was reset after use",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3deb57b6548abed00d8905787d673ac2b1821822",
+        "description": "spirv: remove vtn_builder::exact",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "51d30d0f96f2535afd812249dc7dac4bd620336c",
+        "description": "spirv: consider both source and dest type for fast math",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "46a617884e23ffc34a9126f1eed349d221ca4f78",
+        "description": "spirv: use base type instead of bit size to determine fp_math_ctrl",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "565f37b98c0c9b6f515baa997517f6ccb9254177",
+        "description": "spirv: handle fast_math for opencl opcodes",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "836efa8c3cc68eae82bd6008b048ca4bafdf105f",
+        "description": "spirv: move NoContraction handling into vtn_handle_fp_fast_math",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "5b48805b42739dffbc52805cb4a3eddca7314a05",
+        "description": "brw: fix local_invocation_index with quad derivaties on mesh/task shaders",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "d89bfb1ff750445f77717ea44884decf93adad97",
+        "notes": null
+    },
+    {
+        "sha": "eb990cd81ef194922fdeca1e6fdaac5a1179b5c9",
+        "description": "nir: Bump test timeouts.",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d19460ffc4dd28ee914023a12621d366e8b25653",
+        "description": "etnaviv: Emit alpha_to_coverage dither table only when needed",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2d38da94d4829b339f580e3170744936c3d8a0dd",
+        "description": "aco: allow v_cmpx with DPP",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "1c1bd9d090eee4d4fe838eb2a65aecf5ff108a71",
+        "description": "aco: only apply DPP with 3 or less uses",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "bb6a3e28918d56a4c18a4ebb5919f4ca830bfabe",
+        "description": "aco/optimizer: rework how dpp is applied",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "228cb29daeb011c87f42fa8250f64711c4be9525",
+        "description": "aco/optimizer: allow DPP with scalar src1 in alu_opt_info_is_valid",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d4c0318f482bc51bb56432239b2ac4d20d66edc6",
+        "description": "aco: apply DPP with scalar src1 on gfx11.5+",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3fe329b3d007783132c83c0004787967fc217a75",
+        "description": "aco/ra: don't move sgpr into v_fmac_f32_dpp src0",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "903d940fa9663c991d7837a029683ef1bf1332af",
+        "description": "aco: don't convert VOP3P to VOP3 when applying DPP",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8ac7b9fc373bbc843b2d922dc81bb20cee5894b7",
+        "description": "aco: undo operand swap if applying DPP fails",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "531228159f4c798e4cd3c71768d6d991caac16eb",
+        "description": "aco/validate: allow dpp with scalar src1 on gfx11.5+",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "140ca3bb50a1dd5bb1c190653bdc18244a6fe54e",
+        "description": "aco: disable DPP for rev integer subs and shifts",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "510dbbae7f94da4d514d27454d40b2069db5622a",
+        "description": "aco/optimizer: use opcode_supports_dpp",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8e99bf53805c4fa3e40817c0aeb441a02a8814de",
+        "description": "aco: add a helper function for non supported DPP opcodes",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d12e3454e658150482fb3aa51e936e15703e9de5",
+        "description": "nir/meson: fix cpp_args of nir_opt_algebraic_pattern_tests",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "4c30c44b750607d9ab41650cc5c61055af02b2c9",
+        "notes": null
+    },
+    {
         "sha": "4512d815590ffd4d4cc12a2edf6f0aa964b783cd",
         "description": "intel/blorp: Bump pitch when clearing unaligned bottom rows",
         "nominated": false,
