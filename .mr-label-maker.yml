@@ -286,6 +286,7 @@ merge_requests:
         '^src/microsoft/compiler/': ['d3d12']
         '^src/microsoft/spirv_to_dxil/': ['dozen']
         '^src/microsoft/vulkan/': ['dozen']
+        '^src/nouveau/ci/.*nvk.*': ['NVK']
         '^src/nouveau/codegen/': ['nouveau']
         '^src/nouveau/compiler/': ['NAK']
         '^src/nouveau/drm-shim/': ['nouveau']
