@@ -444,7 +444,7 @@
         "description": "nir/opt_algebraic: use correct syntax to create exact fsat",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3b06824e4c489a6e7f6f1ba1a89b1878d40dc23e",
         "notes": null
