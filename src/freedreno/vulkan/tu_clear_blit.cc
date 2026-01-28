@@ -3048,6 +3048,8 @@ tu_copy_image_to_image(struct tu_cmd_buffer *cmd,
          .array_size = layer_count,
          .tile_mode = TILE6_LINEAR,
          .is_3d = extent.depth > 1,
+         .plane = tu6_plane_index(src_image->vk.format,
+                                  info->srcSubresource.aspectMask),
       };
 
       fdl6_layout_image(&staging_layout, &cmd->device->physical_device->dev_info,

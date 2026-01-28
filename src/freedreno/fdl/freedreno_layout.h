@@ -111,6 +111,8 @@ struct fdl_image_params {
    bool sparse;
 
    bool force_disable_linear_fallback;
+
+   uint32_t plane;
 };
 
 /**
@@ -174,6 +176,7 @@ struct fdl_layout {
    uint64_t size;       /* Size of the whole image, in bytes. */
    uint32_t base_align; /* Alignment of the base address, in bytes. */
    uint8_t pitchalign;  /* log2(pitchalign) */
+   uint32_t plane;
 };
 
 static inline uint32_t

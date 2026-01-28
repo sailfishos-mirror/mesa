@@ -34,14 +34,17 @@ fdl6_get_ubwc_blockwidth(const struct fdl_layout *layout,
       {  0, 0 }, /* cpp = 128 */
    };
 
-   /* special case for r8g8: */
-   if (fdl6_is_r8g8_layout(layout)) {
+   /* special case for r8g8 and plane 1 of r8_g8b8_420_unorm (NV12) */
+   if (fdl6_is_r8g8_layout(layout) ||
+      ((layout->format == PIPE_FORMAT_R8_G8B8_420_UNORM) && (layout->plane == 1))) {
       *blockwidth = 16;
       *blockheight = 8;
       return;
    }
 
-   if (layout->format == PIPE_FORMAT_Y8_UNORM) {
+   /* special handling for y8_unorm and plane 0 of r8_g8b8_420_unorm (NV12) */
+   if ((layout->format == PIPE_FORMAT_Y8_UNORM) ||
+      ((layout->format == PIPE_FORMAT_R8_G8B8_420_UNORM) && (layout->plane == 0))) {
       *blockwidth = 32;
       *blockheight = 8;
       return;
@@ -132,6 +135,7 @@ fdl6_layout_image(struct fdl_layout *layout, const struct fd_dev_info *info,
 
    layout->ubwc = params->ubwc;
    layout->tile_mode = params->tile_mode;
+   layout->plane = params->plane;
    uint32_t sparse_blocksize = 65536;
 
    if (!util_is_power_of_two_or_zero(layout->cpp)) {

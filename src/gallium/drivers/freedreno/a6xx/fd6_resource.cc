@@ -262,7 +262,7 @@ fd6_layout_resource(struct fd_resource *rsc, enum fd_layout_type type)
    if (ubwc && !ok_ubwc_format(prsc->screen, prsc->format, prsc->nr_samples))
       ubwc = false;
 
-   struct fdl_image_params params = fd_image_params(prsc, ubwc, tile_mode);
+   struct fdl_image_params params = fd_image_params(prsc, ubwc, tile_mode, 0);
 
    fdl6_layout_image(&rsc->layout, screen->info, &params, NULL);
 
@@ -289,7 +289,8 @@ layout_resource_for_handle(struct fd_resource *rsc, struct winsys_handle *handle
       return false;
    }
 
-   struct fdl_image_params params = fd_image_params(prsc, ubwc, tile_mode);
+   struct fdl_image_params params = fd_image_params(prsc, ubwc,
+					tile_mode, handle->plane);
 
    if (!fdl6_layout_image(&rsc->layout, screen->info, &params, &l)) {
       if (FD_DBG(LAYOUT))
