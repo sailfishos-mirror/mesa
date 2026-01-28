@@ -568,16 +568,16 @@ void
 kill(wait_imm& imm, depctr_wait& depctr, Instruction* instr, wait_ctx& ctx,
      memory_sync_info sync_info)
 {
-   if (instr->opcode == aco_opcode::s_setpc_b64 || (debug_flags & DEBUG_FORCE_WAITCNT)) {
+   if (debug_flags & DEBUG_FORCE_WAITCNT) {
       /* Force emitting waitcnt states right after the instruction if there is
        * something to wait for. This is also applied for s_setpc_b64 to ensure
        * waitcnt states are inserted before jumping to the PS epilog.
        */
       force_waitcnt(ctx, imm);
    }
-   if (instr->opcode == aco_opcode::s_swappc_b64) {
-      u_foreach_bit (i, ctx.nonzero & ~counter_vs)
-         imm[i] = 0;
+   if (instr->opcode == aco_opcode::s_setpc_b64 || instr->opcode == aco_opcode::s_swappc_b64) {
+      for (std::pair<const PhysReg, wait_entry>& e : ctx.gpr_map)
+         imm.combine(e.second.imm);
    }
 
    check_instr(ctx, imm, instr);
@@ -1033,8 +1033,10 @@ handle_block(Program* program, Block& block, wait_ctx& ctx)
    /* For last block of a program which has succeed shader part, wait all memory ops done
     * before go to next shader part.
     */
-   if (block.kind & block_kind_end_with_regs)
-      force_waitcnt(ctx, queued_imm);
+   if (block.kind & block_kind_end_with_regs) {
+      for (std::pair<const PhysReg, wait_entry>& e : ctx.gpr_map)
+         queued_imm.combine(e.second.imm);
+   }
 
    if (!queued_imm.empty())
       emit_waitcnt(ctx, new_instructions, queued_imm);
