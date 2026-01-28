@@ -2927,7 +2927,7 @@ tu_trace_end_render_pass(struct tu_cmd_buffer *cmd, bool gmem)
 }
 
 static void
-tu_emit_renderpass_begin(struct tu_cmd_buffer *cmd)
+tu_renderpass_begin(struct tu_cmd_buffer *cmd)
 {
    /* We need to re-emit any draw states that are patched in order for them to
     * be correctly added to the per-renderpass patchpoint list, even if they
@@ -6729,7 +6729,7 @@ tu_CmdBeginRenderPass2(VkCommandBuffer commandBuffer,
    tu_lrz_begin_renderpass<CHIP>(cmd);
 
    tu_fill_render_pass_state(&cmd->state.vk_rp, pass, cmd->state.subpass);
-   tu_emit_renderpass_begin(cmd);
+   tu_renderpass_begin(cmd);
    tu_emit_subpass_begin<CHIP>(cmd);
 
    cmd->patchpoints_ctx = ralloc_context(NULL);
@@ -6915,9 +6915,10 @@ tu_CmdBeginRendering(VkCommandBuffer commandBuffer,
 
    tu_fill_render_pass_state(&cmd->state.vk_rp, cmd->state.pass, cmd->state.subpass);
 
+   tu_renderpass_begin(cmd);
+
    if (!resuming) {
       cmd->patchpoints_ctx = ralloc_context(NULL);
-      tu_emit_renderpass_begin(cmd);
       tu_emit_subpass_begin<CHIP>(cmd);
    }
 
