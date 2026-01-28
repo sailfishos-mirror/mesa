@@ -1506,9 +1506,6 @@ brw_nir_optimize(brw_pass_tracker *pt)
       LOOP_OPT(nir_lower_pack);
    } while (pt->progress);
 
-   /* Workaround Gfxbench unused local sampler variable which will trigger an
-    * assert in the opt_large_constants pass.
-    */
    OPT(nir_remove_dead_variables, nir_var_function_temp, NULL);
 }
 
