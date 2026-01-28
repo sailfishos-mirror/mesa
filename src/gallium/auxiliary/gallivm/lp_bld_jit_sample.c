@@ -449,6 +449,10 @@ lp_bld_llvm_image_soa_emit_op(const struct lp_build_image_soa *base,
 {
    LLVMBuilderRef builder = gallivm->builder;
 
+   uint32_t flags = params->packed_op / LP_IMAGE_OP_COUNT;
+   bool ms = flags & LP_IMAGE_OP_MS;
+   bool is64 = flags & LP_IMAGE_OP_64;
+
    if (params->resource) {
       const struct util_format_description *desc = util_format_description(params->format);
       struct lp_type texel_type = lp_build_texel_type(params->type, desc);
@@ -479,10 +483,6 @@ lp_bld_llvm_image_soa_emit_op(const struct lp_build_image_soa *base,
       LLVMValueRef image_base_ptr = load_texture_functions_ptr(
          gallivm, params->resource, offsetof(struct lp_descriptor, functions),
          offsetof(struct lp_texture_functions, image_functions));
-
-      uint32_t flags = params->packed_op / LP_IMAGE_OP_COUNT;
-      bool ms = flags & LP_IMAGE_OP_MS;
-      bool is64 = flags & LP_IMAGE_OP_64;
 
       LLVMTypeRef image_function_type = lp_build_image_function_type(gallivm, params, ms, is64);
       LLVMTypeRef image_function_ptr_type = LLVMPointerType(image_function_type, 0);
@@ -578,13 +578,13 @@ lp_bld_llvm_image_soa_emit_op(const struct lp_build_image_soa *base,
       for (unsigned i = 0; i < image->nr_images; i++) {
          lp_build_image_op_array_case(&switch_info, i,
                                       &image->dynamic_state.static_state[i].image_state,
-                                      &image->dynamic_state.base);
+                                      &image->dynamic_state.base, is64);
       }
       lp_build_image_op_array_fini_soa(&switch_info);
    } else {
       lp_build_img_op_soa(&image->dynamic_state.static_state[image_index].image_state,
                           &image->dynamic_state.base,
-                          gallivm, params, params->outdata);
+                          gallivm, params, is64, params->outdata);
    }
 }
 

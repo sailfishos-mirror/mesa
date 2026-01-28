@@ -449,7 +449,7 @@ compile_image_function(struct llvmpipe_context *ctx, struct lp_static_texture_st
    LLVMPositionBuilderAtEnd(gallivm->builder, block);
 
    LLVMValueRef outdata[5] = { 0 };
-   lp_build_img_op_soa(&local_texture, lp_build_image_soa_dynamic_state(image_soa), gallivm, &params, outdata);
+   lp_build_img_op_soa(&local_texture, lp_build_image_soa_dynamic_state(image_soa), gallivm, &params, is64, outdata);
 
    for (uint32_t i = 1; i < 4; i++)
       if (!outdata[i])

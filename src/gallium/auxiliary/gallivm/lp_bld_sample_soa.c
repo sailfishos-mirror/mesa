@@ -4641,18 +4641,28 @@ lp_build_do_atomic_soa(struct gallivm_state *gallivm,
 static void
 lp_build_img_op_no_format(struct gallivm_state *gallivm,
                           const struct lp_img_params *params,
+                          bool is64,
                           LLVMValueRef outdata[4])
 {
    /*
     * If there's nothing bound, format is NONE, and we must return
     * all zero as mandated by d3d10 in this case.
     */
-   if (params->img_op != LP_IMG_STORE) {
-      LLVMValueRef zero = lp_build_zero(gallivm, params->type);
-      for (unsigned chan = 0; chan < (params->img_op == LP_IMG_LOAD ? 4 : 1);
-           chan++) {
-         outdata[chan] = zero;
-      }
+   if (params->img_op == LP_IMG_STORE) {
+      return;
+   }
+
+   enum pipe_format format = params->format;
+   if (is64 && format == PIPE_FORMAT_NONE)
+      format = PIPE_FORMAT_R64G64B64A64_UINT;
+
+   const struct util_format_description *desc = util_format_description(format);
+   const struct lp_type component_type = lp_build_texel_type(params->type, desc);
+
+   LLVMValueRef zero = lp_build_zero(gallivm, component_type);
+   for (unsigned chan = 0; chan < (params->img_op == LP_IMG_LOAD ? 4 : 1);
+         chan++) {
+      outdata[chan] = zero;
    }
 }
 
@@ -4662,6 +4672,7 @@ lp_build_img_op_soa(const struct lp_static_texture_state *static_texture_state,
                     struct lp_sampler_dynamic_state *dynamic_state,
                     struct gallivm_state *gallivm,
                     const struct lp_img_params *params,
+                    bool is64,
                     LLVMValueRef *outdata)
 {
    const enum pipe_texture_target target = params->target;
@@ -4680,7 +4691,7 @@ lp_build_img_op_soa(const struct lp_static_texture_state *static_texture_state,
    lp_build_context_init(&int_coord_bld, gallivm, int_coord_type);
 
    if (static_texture_state->format == PIPE_FORMAT_NONE) {
-      lp_build_img_op_no_format(gallivm, params, outdata);
+      lp_build_img_op_no_format(gallivm, params, is64, outdata);
       return;
 
    }
@@ -4968,7 +4979,8 @@ void
 lp_build_image_op_array_case(struct lp_build_img_op_array_switch *switch_info,
                             int idx,
                             const struct lp_static_texture_state *static_texture_state,
-                            struct lp_sampler_dynamic_state *dynamic_state)
+                            struct lp_sampler_dynamic_state *dynamic_state,
+                            bool is64)
 {
    struct gallivm_state *gallivm = switch_info->gallivm;
    LLVMBasicBlockRef this_block = lp_build_insert_new_block(gallivm, "img");
@@ -4981,7 +4993,8 @@ lp_build_image_op_array_case(struct lp_build_img_op_array_switch *switch_info,
    switch_info->params.image_index = idx;
 
    lp_build_img_op_soa(static_texture_state, dynamic_state,
-                       switch_info->gallivm, &switch_info->params, tex_ret);
+                       switch_info->gallivm, &switch_info->params, is64,
+                       tex_ret);
 
    if (switch_info->params.img_op != LP_IMG_STORE) {
       for (unsigned i = 0;
