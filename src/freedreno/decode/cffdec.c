@@ -1655,6 +1655,10 @@ dump_bindless_descriptors(bool is_compute, int level)
    if (!options->dump_bindless)
       return;
 
+   /* Skip for devices which do not support bindless: */
+   if (options->info->chip < 6)
+      return;
+
    printl(2, "%sdraw[%i] bindless descriptors\n", levels[level], draw_count);
 
    for (unsigned i = 0; i < 128; i++) {
