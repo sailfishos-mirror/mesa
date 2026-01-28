@@ -363,6 +363,11 @@ try_load_push_input(nir_builder *b,
       return NULL;
 
    if (stage == MESA_SHADER_GEOMETRY) {
+      /* GS vertex index isn't part of the offset */
+      nir_src *index = nir_get_io_arrayed_index_src(io);
+      if (!nir_src_is_const(*index))
+         return NULL;
+
       /* GS push inputs still use load_per_vertex_input */
       const nir_io_semantics io_sem = nir_intrinsic_io_semantics(io);
       const int slot = cb_data->varying_to_slot[io_sem.location];
