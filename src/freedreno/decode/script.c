@@ -461,6 +461,91 @@ l_rnn_etype_enumtype(lua_State *L, struct rnn *rnn, struct rnnenum *e)
 }
 
 /*
+ * rnn domain based decoding of _something_ (a pm4 packet,
+ * a descriptor, etc)
+ */
+
+static int
+l_rnn_meta_dom_index(lua_State *L)
+{
+   struct rnndec *rnndec = lua_touserdata(L, 1);
+   struct rnn *rnn = &rnndec->base;
+
+   if (lua_isnumber(L, 2)) {
+      /* index as an array, is pkt[0].FOO: */
+      uint32_t offset = (uint32_t)lua_tonumber(L, 2);
+      struct rnndelem *elem = rnn_regoff(rnn, offset);
+      if (elem)
+         return l_rnn_etype(L, rnn, elem, elem->offset);
+   } else if (lua_isstring(L, 2)) {
+      /* If not indexed like an array, search thru all
+       * the elements in the domain finding the matching
+       * subelem.
+       *
+       * This handles the pkt.FOO case
+       */
+      const char *name = lua_tostring(L, 2);
+
+      for (unsigned i = 0; i < rnndec->sizedwords; i++) {
+         struct rnndelem *elem = rnn_regoff(rnn, i);
+         if (!elem)
+            continue;
+
+         if (!strcmp(name, elem->name))
+            return l_rnn_etype(L, rnn, elem, elem->offset);
+
+         int ret = pushfield(L, &elem->typeinfo, rnn, i, name);
+         if (ret)
+            return ret;
+      }
+   }
+
+   return 0;
+}
+
+/*
+ * A wrapper object for rnndomain based decoding of an array of dwords
+ * (ie. for pm4 packet decoding).  Mostly re-uses the register-value
+ * decoding for the individual dwords and bitfields.
+ */
+
+static int
+l_rnn_meta_dom_gc(lua_State *L)
+{
+   // TODO
+   // struct rnn *rnn = lua_touserdata(L, 1);
+   // rnn_deinit(rnn);
+   return 0;
+}
+
+static const struct luaL_Reg l_meta_rnn_dom[] = {
+   {"__index", l_rnn_meta_dom_index},
+   {"__gc", l_rnn_meta_dom_gc},
+   {NULL, NULL} /* sentinel */
+};
+
+static int
+l_rnn_dom(lua_State *L, uint32_t *dwords, uint32_t sizedwords,
+          struct rnn *rnn, struct rnndomain *dom)
+{
+   struct rnndec *rnndec = lua_newuserdata(L, sizeof(*rnndec));
+
+   rnndec->base = *rnn;
+   rnndec->base.dom[0] = dom;
+   rnndec->base.dom[1] = NULL;
+   rnndec->dwords = dwords;
+   rnndec->sizedwords = sizedwords;
+
+   luaL_newmetatable(L, "rnnmetadom");
+   luaL_setfuncs(L, l_meta_rnn_dom, 0);
+   lua_pop(L, 1);
+
+   luaL_setmetatable(L, "rnnmetadom");
+
+   return 1;
+}
+
+/*
  *
  */
 
@@ -782,64 +867,9 @@ script_draw(const char *primtype, uint32_t nindx)
       error("error running function `f': %s\n");
 }
 
-static int
-l_rnn_meta_dom_index(lua_State *L)
-{
-   struct rnndec *rnndec = lua_touserdata(L, 1);
-   struct rnn *rnn = &rnndec->base;
-
-   if (lua_isnumber(L, 2)) {
-      /* index as an array, is pkt[0].FOO: */
-      uint32_t offset = (uint32_t)lua_tonumber(L, 2);
-      struct rnndelem *elem = rnn_regoff(rnn, offset);
-      if (elem)
-         return l_rnn_etype(L, rnn, elem, elem->offset);
-   } else if (lua_isstring(L, 2)) {
-      /* If not indexed like an array, search thru all
-       * the elements in the domain finding the matching
-       * subelem.
-       *
-       * This handles the pkt.FOO case
-       */
-      const char *name = lua_tostring(L, 2);
-
-      for (unsigned i = 0; i < rnndec->sizedwords; i++) {
-         struct rnndelem *elem = rnn_regoff(rnn, i);
-         if (!elem)
-            continue;
-
-         if (!strcmp(name, elem->name))
-            return l_rnn_etype(L, rnn, elem, elem->offset);
-
-         int ret = pushfield(L, &elem->typeinfo, rnn, i, name);
-         if (ret)
-            return ret;
-      }
-   }
-
-   return 0;
-}
-
 /*
- * A wrapper object for rnndomain based decoding of an array of dwords
- * (ie. for pm4 packet decoding).  Mostly re-uses the register-value
- * decoding for the individual dwords and bitfields.
+ * Packet/etc handlers:
  */
-
-static int
-l_rnn_meta_dom_gc(lua_State *L)
-{
-   // TODO
-   // struct rnn *rnn = lua_touserdata(L, 1);
-   // rnn_deinit(rnn);
-   return 0;
-}
-
-static const struct luaL_Reg l_meta_rnn_dom[] = {
-   {"__index", l_rnn_meta_dom_index},
-   {"__gc", l_rnn_meta_dom_gc},
-   {NULL, NULL} /* sentinel */
-};
 
 static bool
 setup_call(lua_State *state, uint32_t *dwords, uint32_t sizedwords,
@@ -858,21 +888,7 @@ setup_call(lua_State *state, uint32_t *dwords, uint32_t sizedwords,
       return false;
    }
 
-   struct rnndec *rnndec = lua_newuserdata(state, sizeof(*rnndec));
-
-   rnndec->base = *rnn;
-   rnndec->base.dom[0] = dom;
-   rnndec->base.dom[1] = NULL;
-   rnndec->dwords = dwords;
-   rnndec->sizedwords = sizedwords;
-
-   luaL_newmetatable(state, "rnnmetadom");
-   luaL_setfuncs(state, l_meta_rnn_dom, 0);
-   lua_pop(state, 1);
-
-   luaL_setmetatable(state, "rnnmetadom");
-
-   return true;
+   return l_rnn_dom(state, dwords, sizedwords, rnn, dom);
 }
 
 /* called to general pm4 packet decoding, such as texture/sampler state
