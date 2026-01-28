@@ -4001,49 +4001,29 @@ try_merge_tiles(struct tu_tile_config *dst, struct tu_tile_config *src,
    return true;
 }
 
-template <chip CHIP>
-void
-tu_render_pipe_fdm(struct tu_cmd_buffer *cmd, uint32_t pipe,
-                   uint32_t tx1, uint32_t ty1, uint32_t tx2, uint32_t ty2,
-                   const struct tu_image_view *fdm,
-                   const VkOffset2D *fdm_offsets)
+static void
+tu_merge_tiles(struct tu_cmd_buffer *cmd, const struct tu_vsc_config *vsc,
+               struct tu_tile_config *tiles,
+               uint32_t tx1, uint32_t ty1, uint32_t tx2, uint32_t ty2)
 {
-   uint32_t width = tx2 - tx1;
-   uint32_t height = ty2 - ty1;
-   unsigned views = tu_fdm_num_layers(cmd);
    bool has_abs_mask =
       cmd->device->physical_device->info->props.has_abs_bin_mask;
+   unsigned views = tu_fdm_num_layers(cmd);
    bool shared_viewport = cmd->state.rp.shared_viewport;
+   uint32_t width = vsc->tile_count.width;
 
-   struct tu_tile_config tiles[width * height];
-
-   /* Initialize tiles and sample fragment density map */
-   for (uint32_t y = 0; y < height; y++) {
-      for (uint32_t x = 0; x < width; x++) {
-         struct tu_tile_config *tile = &tiles[width * y + x];
-         tile->pos = { x + tx1, y + ty1 };
-         tile->sysmem_extent = { 1, 1 };
-         tile->gmem_extent = { 1, 1 };
-         tile->pipe = pipe;
-         tile->slot_mask = 1u << (width * y + x);
-         tile->merged_tile = NULL;
-         tu_calc_bin_visibility(cmd, tile, fdm_offsets);
-         tu_calc_frag_area(cmd, tile, fdm, fdm_offsets);
-      }
-   }
-
-   /* Merge tiles */
-   for (uint32_t y = 0; y < height; y++) {
-      for (uint32_t x = 0; x < width; x++) {
-         struct tu_tile_config *tile = &tiles[width * y + x];
+   for (uint32_t y = ty1; y < ty2; y++) {
+      for (uint32_t x = tx1; x < tx2; x++) {
+         struct tu_tile_config *tile =
+            &tiles[width * y + x];
          if (tile->visible_views == 0)
             continue;
-         if (x > 0) {
+         if (x > tx1) {
             struct tu_tile_config *prev_x_tile = &tiles[width * y + x - 1];
             try_merge_tiles(tile, prev_x_tile, views, has_abs_mask,
                             shared_viewport);
          }
-         if (y > 0) {
+         if (y > ty1) {
             unsigned prev_y_idx = width * (y - 1) + x;
             struct tu_tile_config *prev_y_tile = &tiles[prev_y_idx];
 
@@ -4057,24 +4037,59 @@ tu_render_pipe_fdm(struct tu_cmd_buffer *cmd, uint32_t pipe,
          }
       }
    }
+}
 
-   /* Finally, iterate over tiles and draw them */
-   for (uint32_t y = 0; y < height; y++) {
-      for (uint32_t x = 0; x < width; x++) {
-         uint32_t tx;
-         if (y & 1)
-            tx = width - 1 - x;
-         else
-            tx = x;
+static struct tu_tile_config *
+tu_calc_tile_config(struct tu_cmd_buffer *cmd, const struct tu_vsc_config *vsc,
+                    const struct tu_image_view *fdm, const VkOffset2D *fdm_offsets)
+{
+   struct tu_tile_config *tiles = (struct tu_tile_config *)
+      calloc(vsc->tile_count.width * vsc->tile_count.height,
+             sizeof(struct tu_tile_config));
 
-         unsigned tile_idx = y * width + tx;
-         struct tu_tile_config *tile = &tiles[tile_idx];
-         if (tile->merged_tile || tile->visible_views == 0)
-            continue;
+   for (uint32_t py = 0; py < vsc->pipe_count.height; py++) {
+      uint32_t ty1 = py * vsc->pipe0.height;
+      uint32_t ty2 = MIN2(ty1 + vsc->pipe0.height, vsc->tile_count.height);
+      for (uint32_t px = 0; px < vsc->pipe_count.width; px++) {
+         uint32_t tx1 = px * vsc->pipe0.width;
+         uint32_t tx2 = MIN2(tx1 + vsc->pipe0.width, vsc->tile_count.width);
+         uint32_t pipe_width = tx2 - tx1;
+         uint32_t pipe = py * vsc->pipe_count.width + px;
 
-         tu6_render_tile<CHIP>(cmd, &cmd->cs, tile, fdm_offsets);
+         /* Initialize tiles and sample fragment density map */
+         for (uint32_t y = ty1; y < ty2; y++) {
+            for (uint32_t x = tx1; x < tx2; x++) {
+               uint32_t tx = x - tx1;
+               uint32_t ty = y - ty1;
+               struct tu_tile_config *tile = &tiles[vsc->tile_count.width * y + x];
+
+               tile->pos = { x, y };
+               tile->sysmem_extent = { 1, 1 };
+               tile->gmem_extent = { 1, 1 };
+               tile->pipe = pipe;
+               tile->slot_mask = 1u << (pipe_width * ty + tx);
+               tile->merged_tile = NULL;
+               tu_calc_bin_visibility(cmd, tile, fdm_offsets);
+               tu_calc_frag_area(cmd, tile, fdm, fdm_offsets);
+            }
+         }
+
+         /* Merge tiles */
+         /* TODO: we should also be able to merge tiles when only
+          * per_view_render_areas is used without FDM. That requires using
+          * another method to force disable draws since we don't want to force
+          * the viewport to be re-emitted, like overriding the view mask. It
+          * would also require disabling stores, and adding patchpoints for
+          * CmdClearAttachments in secondaries or making it use the view mask.
+          */
+         if (!TU_DEBUG(NO_BIN_MERGING) &&
+             cmd->device->physical_device->info->props.has_bin_mask) {
+            tu_merge_tiles(cmd, vsc, tiles, tx1, ty1, tx2, ty2);
+         }
       }
    }
+
+   return tiles;
 }
 
 static VkResult
@@ -4129,19 +4144,14 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
    }
 
    bool has_fdm = fdm || (TU_DEBUG(FDM) && cmd->state.pass->has_fdm);
-   /* TODO: we should also be able to merge tiles when only
-    * per_view_render_areas is used without FDM. That requires using another
-    * method to force disable draws since we don't want to force the viewport
-    * to be re-emitted, like overriding the view mask. It would also require
-    * disabling stores, and adding patchpoints for CmdClearAttachments in
-    * secondaries or making it use the view mask.
-    */
-   bool merge_tiles = has_fdm && !TU_DEBUG(NO_BIN_MERGING) &&
-      cmd->device->physical_device->info->props.has_bin_mask;
 
    /* If not using FDM make sure not to accidentally apply the offsets */
    if (!has_fdm)
       fdm_offsets = NULL;
+
+   struct tu_tile_config *tiles = NULL;
+   if (has_fdm)
+      tiles = tu_calc_tile_config(cmd, vsc, fdm, fdm_offsets);
 
    /* Create gmem stores now (at EndRenderPass time)) because they needed to
     * know whether to allow their conditional execution, which was tied to a
@@ -4171,12 +4181,6 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
          uint32_t tx2 = MIN2(tx1 + vsc->pipe0.width, vsc->tile_count.width);
          uint32_t ty2 = MIN2(ty1 + vsc->pipe0.height, vsc->tile_count.height);
 
-         if (merge_tiles) {
-            tu_render_pipe_fdm<CHIP>(cmd, pipe, tx1, ty1, tx2, ty2, fdm,
-                                     fdm_offsets);
-            continue;
-         }
-
          uint32_t tile_row_stride = tx2 - tx1;
          uint32_t slot_row = 0;
          for (uint32_t ty = ty1; ty < ty2; ty++) {
@@ -4187,20 +4191,24 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
                else
                   tx = tile_row_i;
 
-               struct tu_tile_config tile = {
+               struct tu_tile_config _tile = {
                   .pos = { tx1 + tx, ty },
                   .pipe = pipe,
                   .slot_mask = 1u << (slot_row + tx),
                   .sysmem_extent = { 1, 1 },
                   .gmem_extent = { 1, 1 },
                };
-               tu_calc_bin_visibility(cmd, &tile, fdm_offsets);
-               if (has_fdm)
-                  tu_calc_frag_area(cmd, &tile, fdm, fdm_offsets);
-               else
-                  tu_identity_frag_area(cmd, &tile);
+               struct tu_tile_config *tile = &_tile;
+               if (has_fdm) {
+                  tile = &tiles[ty * vsc->tile_count.width + (tx1 + tx)];
+                  if (tile->merged_tile || !tile->visible_views)
+                     continue;
+               } else {
+                  tu_calc_bin_visibility(cmd, tile, fdm_offsets);
+                  tu_identity_frag_area(cmd, tile);
+               }
 
-               tu6_render_tile<CHIP>(cmd, &cmd->cs, &tile, fdm_offsets);
+               tu6_render_tile<CHIP>(cmd, &cmd->cs, tile, fdm_offsets);
             }
             slot_row += tile_row_stride;
          }
@@ -4222,6 +4230,8 @@ tu_cmd_render_tiles(struct tu_cmd_buffer *cmd,
     * does its own stores.
     */
    tu_cs_discard_entries(&cmd->tile_store_cs);
+
+   free(tiles);
 }
 
 template <chip CHIP>
