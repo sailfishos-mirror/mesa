@@ -314,14 +314,6 @@ main(int argc, char **argv)
          NIR_PASS(_, s, nir_lower_explicit_io, nir_var_mem_shared,
                   nir_address_format_62bit_generic);
 
-         /* Unroll loops before lowering indirects */
-         bool progress = false;
-         do {
-            progress = false;
-            NIR_PASS(progress, s, nir_opt_loop);
-            NIR_PASS(_, s, nir_opt_remove_phis);
-         } while (progress);
-
          agx_preprocess_nir(s);
 
          NIR_PASS(_, s, nir_opt_deref);

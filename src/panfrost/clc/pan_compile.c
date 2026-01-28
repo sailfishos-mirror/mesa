@@ -419,14 +419,6 @@ main(int argc, const char **argv)
          NIR_PASS(_, s, nir_lower_vars_to_explicit_types, nir_var_mem_shared,
                   glsl_get_cl_type_size_align);
 
-         /* Unroll loops before lowering indirects */
-         bool progress = false;
-         do {
-            progress = false;
-            NIR_PASS(progress, s, nir_opt_loop);
-            NIR_PASS(_, s, nir_opt_remove_phis);
-         } while (progress);
-
          pan_preprocess_nir(s, inputs.gpu_id);
          pan_nir_lower_texture_early(s, inputs.gpu_id);
          pan_postprocess_nir(s, inputs.gpu_id);

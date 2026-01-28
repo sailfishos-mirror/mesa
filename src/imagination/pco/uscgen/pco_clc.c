@@ -471,13 +471,6 @@ int main(int argc, char *argv[argc])
                      nir_var_mem_shared | nir_var_mem_global,
                   nir_address_format_62bit_generic);
 
-         /* Unroll loops before lowering indirects */
-         bool progress;
-         do {
-            progress = false;
-            NIR_PASS(progress, s, nir_opt_loop);
-         } while (progress);
-
          for (unsigned d = 0; d < num_devices; ++d) {
             if (is_common && d != (num_devices - 1))
                continue;
