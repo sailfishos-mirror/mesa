@@ -48,6 +48,7 @@ libtu_files = files(
   'tu_rmv.cc',
   'tu_shader.cc',
   'tu_suballoc.cc',
+  'tu_tile_config.cc',
   'tu_util.cc',
 )
 
