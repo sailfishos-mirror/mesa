@@ -998,7 +998,7 @@ download_texture_compute(struct st_context *st,
             .ir.nir = nir,
          };
          cs = st_create_nir_shader(st, &state);
-         he = _mesa_hash_table_insert(st->pbo.shaders, (void*)(uintptr_t)hash_key, cs);
+         _mesa_hash_table_insert(st->pbo.shaders, (void*)(uintptr_t)hash_key, cs);
       }
    }
    assert(cs);
@@ -1185,7 +1185,6 @@ copy_converted_buffer(struct gl_context * ctx,
                     struct gl_pixelstore_attrib *pack,
                     enum pipe_texture_target view_target,
                     struct pipe_resource *dst, enum pipe_format dst_format,
-                    GLint xoffset, GLint yoffset, GLint zoffset,
                     GLsizei width, GLsizei height, GLint depth,
                     GLenum format, GLenum type, void *pixels)
 {
@@ -1202,8 +1201,6 @@ copy_converted_buffer(struct gl_context * ctx,
       if (view_target == PIPE_TEXTURE_1D_ARRAY) {
          depth = height;
          height = 1;
-         zoffset = yoffset;
-         yoffset = 0;
       }
 
       struct gl_pixelstore_attrib packing = *pack;
@@ -1328,8 +1325,8 @@ st_GetTexSubImage_shader(struct gl_context * ctx,
       return false;
 
    if (!can_copy_direct(&ctx->Pack) || !ctx->Pack.BufferObj) {
-      copy_converted_buffer(ctx, &ctx->Pack, view_target, dst, dst_format, xoffset, yoffset, zoffset,
-                          width, height, depth, format, type, pixels);
+      copy_converted_buffer(ctx, &ctx->Pack, view_target, dst, dst_format, width, height, depth, format,
+                            type, pixels);
 
       pipe_resource_reference(&dst, NULL);
    }
