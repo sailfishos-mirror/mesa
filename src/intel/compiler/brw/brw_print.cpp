@@ -648,30 +648,28 @@ brw_print_instruction(const brw_shader &s, const brw_inst *inst, FILE *file, con
          fprintf(file, ", residency");
    }
 
-   fprintf(file, " ");
-
    if (inst->force_writemask_all)
-      fprintf(file, "NoMask ");
+      fprintf(file, " NoMask");
 
    if (inst->exec_size != s.dispatch_width)
-      fprintf(file, "group%d ", inst->group);
+      fprintf(file, " group%d", inst->group);
 
    if (inst->has_no_mask_send_params)
-      fprintf(file, "NoMaskParams ");
+      fprintf(file, " NoMaskParams");
 
    if (send && send->desc)
-      fprintf(file, "Desc 0x%08x ", send->desc);
+      fprintf(file, " Desc 0x%08x", send->desc);
 
    if (send && send->ex_desc)
-      fprintf(file, "ExDesc 0x%08x ", send->ex_desc);
+      fprintf(file, " ExDesc 0x%08x", send->ex_desc);
 
    if (send && send->ex_desc_imm)
-      fprintf(file, "ExDescImmInst 0x%08x ", send->offset);
+      fprintf(file, " ExDescImmInst 0x%08x", send->offset);
 
    if (inst->sched.regdist || inst->sched.mode) {
-      fprintf(file, "{ ");
+      fprintf(file, " { ");
       brw_print_swsb(file, s.devinfo, inst->sched);
-      fprintf(file, " } ");
+      fprintf(file, " }");
    }
 
    fprintf(file, "\n");
