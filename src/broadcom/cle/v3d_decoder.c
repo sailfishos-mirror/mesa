@@ -672,6 +672,7 @@ v3d_spec_load(const struct v3d_device_info *devinfo)
                                     sizeof(compress_genxmls),
                                     (void **) &text_data);
         assert(text_offset + text_length <= total_length);
+        assert(text_data);
 
         buf = XML_GetBuffer(ctx.parser, text_length);
         memcpy(buf, &text_data[text_offset], text_length);
