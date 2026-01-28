@@ -398,7 +398,8 @@ class Variable(Value):
 
 
 _opcode_re = re.compile(r"(?P<inexact>~)?(?P<exact>!)?(?P<opcode>\w+)(?:@(?P<bits>\d+))?"
-                        r"(?P<cond>\([^\)]+\))?(?P<swizzle>\.[xyzwabcdefghijklmnop])?")
+                        r"(?P<cond>\([^\)]+\))?(?P<swizzle>\.[xyzwabcdefghijklmnop])?"
+                        r"$")
 
 
 class Expression(Value):
