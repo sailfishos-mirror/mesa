@@ -574,4 +574,7 @@ VkResult panvk_per_arch(create_shader_from_binary)(
    struct pan_compute_dim local_size, const void *bin_ptr, size_t bin_size,
    struct panvk_shader **shader_out);
 
+VkResult panvk_per_arch(create_shader)(
+   struct panvk_device *dev, nir_shader *nir, struct panvk_shader **shader_out);
+
 #endif

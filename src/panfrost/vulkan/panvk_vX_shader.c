@@ -2515,3 +2515,32 @@ err_free_shader:
    vk_shader_free(&dev->vk, NULL, &shader->vk);
    return result;
 }
+
+VkResult panvk_per_arch(create_shader)(
+   struct panvk_device *dev, nir_shader *nir, struct panvk_shader **shader_out)
+{
+   const struct vk_pipeline_robustness_state rs = {
+      .images = VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DISABLED_EXT,
+      .storage_buffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT,
+      .uniform_buffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT,
+      .vertex_inputs = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT,
+   };
+
+   struct vk_shader_compile_info info = {
+      .stage = nir->info.stage,
+      .nir = nir,
+      .robustness = &rs,
+   };
+
+   panvk_preprocess_nir(dev->vk.physical, nir, &rs);
+
+   struct vk_shader *vk_shader;
+   VkResult result = panvk_compile_shader(dev, &info, NULL, NULL, NULL, NULL,
+                                          &vk_shader);
+   if (result != VK_SUCCESS)
+      return result;
+
+   *shader_out = container_of(vk_shader, struct panvk_shader, vk);
+
+   return VK_SUCCESS;
+}
