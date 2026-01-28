@@ -184,19 +184,6 @@ radv_enc_set_emulation_prevention(struct radv_cmd_buffer *cmd_buffer, bool set)
    }
 }
 
-static uint32_t
-radv_enc_value_bits(uint32_t value)
-{
-   uint32_t i = 1;
-
-   while (value > 1) {
-      i++;
-      value >>= 1;
-   }
-
-   return i;
-}
-
 static const unsigned index_to_shifts[4] = {24, 16, 8, 0};
 
 static void
@@ -546,6 +533,12 @@ radv_enc_session_init(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoEn
       const StdVideoAV1SequenceHeader *seq = &cmd_buffer->video.params->av1_enc.seq_hdr.base;
       extent.width = seq->max_frame_width_minus_1 + 1;
       extent.height = seq->max_frame_height_minus_1 + 1;
+      if (enc_info) {
+         const struct VkVideoEncodeAV1PictureInfoKHR *av1_picture_info =
+            vk_find_struct_const(enc_info->pNext, VIDEO_ENCODE_AV1_PICTURE_INFO_KHR);
+         if (av1_picture_info->pStdPictureInfo->flags.frame_size_override_flag)
+            extent = enc_info->srcPictureResource.codedExtent;
+      }
       break;
    }
    default:
@@ -2696,8 +2689,8 @@ radv_enc_av1_obu_instruction(struct radv_cmd_buffer *cmd_buffer, const VkVideoEn
       frame_size_override = true;
    else if (!seq->flags.reduced_still_picture_header) {
       /*  frame_size_override_flag  */
-      frame_size_override = false;
-      radv_enc_code_fixed_bits(cmd_buffer, 0, 1);
+      frame_size_override = av1_pic->flags.frame_size_override_flag;
+      radv_enc_code_fixed_bits(cmd_buffer, frame_size_override, 1);
    }
 
    if (seq->flags.enable_order_hint)
@@ -2721,6 +2714,13 @@ radv_enc_av1_obu_instruction(struct radv_cmd_buffer *cmd_buffer, const VkVideoEn
    }
 
    if (frame_is_intra) {
+      if (frame_size_override) {
+         /*  frame_width_minus_1  */
+         radv_enc_code_fixed_bits(cmd_buffer, cmd_buffer->video.enc.coded_width - 1, seq->frame_width_bits_minus_1 + 1);
+         /*  frame_height_minus_1  */
+         radv_enc_code_fixed_bits(cmd_buffer, cmd_buffer->video.enc.coded_height - 1,
+                                  seq->frame_height_bits_minus_1 + 1);
+      }
       /*  render_and_frame_size_different  */
       radv_enc_code_fixed_bits(cmd_buffer, av1_pic->flags.render_and_frame_size_different, 1);
       if (av1_pic->flags.render_and_frame_size_different) {
@@ -2750,13 +2750,11 @@ radv_enc_av1_obu_instruction(struct radv_cmd_buffer *cmd_buffer, const VkVideoEn
       else {
          if (frame_size_override) {
             /*  frame_width_minus_1  */
-            uint32_t val = cmd_buffer->video.enc.coded_width - 1;
-            uint32_t used_bits = radv_enc_value_bits(val);
-            radv_enc_code_fixed_bits(cmd_buffer, val, used_bits);
+            radv_enc_code_fixed_bits(cmd_buffer, cmd_buffer->video.enc.coded_width - 1,
+                                     seq->frame_width_bits_minus_1 + 1);
             /*  frame_height_minus_1  */
-            val = cmd_buffer->video.enc.coded_height - 1;
-            used_bits = radv_enc_value_bits(val);
-            radv_enc_code_fixed_bits(cmd_buffer, val, used_bits);
+            radv_enc_code_fixed_bits(cmd_buffer, cmd_buffer->video.enc.coded_height - 1,
+                                     seq->frame_height_bits_minus_1 + 1);
          }
          /*  render_and_frame_size_different  */
          radv_enc_code_fixed_bits(cmd_buffer, av1_pic->flags.render_and_frame_size_different, 1);
