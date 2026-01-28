@@ -1393,6 +1393,7 @@ brw_generator::generate_code(const brw_shader &s,
                  "%d:%d spills:fills, %u sends, "
                  "scheduled with mode %s. "
                  "Promoted %u constants. "
+                 "GRF registers: %u. "
                  "Non-SSA regs (after NIR): %u. "
                  "Compacted %d to %d bytes (%.0f%%)\n",
                  shader_name, params->source_hash, sha1buf,
@@ -1404,6 +1405,7 @@ brw_generator::generate_code(const brw_shader &s,
                  send_count,
                  shader_stats.scheduler_mode,
                  shader_stats.promoted_constants,
+                 s.grf_used,
                  shader_stats.non_ssa_registers_after_nir,
                  before_size, after_size,
                  100.0f * (before_size - after_size) / before_size);
