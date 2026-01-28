@@ -1033,8 +1033,7 @@ find_param_regs(Program* program, const ABI& abi, callee_info& info,
 
             param_demand += Temp(0, it2->rc);
 
-            it2->dst_info->needs_explicit_preservation =
-               regs == clobbered_regs && !it2->dst_info->discardable;
+            it2->dst_info->needs_explicit_preservation = regs == clobbered_regs;
             it2->dst_info->def.setPrecolored(*next_reg);
             for (unsigned i = 0; i < it2->rc.size(); ++i)
                BITSET_CLEAR(regs, next_reg->reg() + i);
@@ -1050,8 +1049,7 @@ find_param_regs(Program* program, const ABI& abi, callee_info& info,
             next_reg = next_reg->advance(required_padding * 4);
       }
       if (next_reg) {
-         params.back().dst_info->needs_explicit_preservation =
-            regs == clobbered_regs && !params.back().dst_info->discardable;
+         params.back().dst_info->needs_explicit_preservation = regs == clobbered_regs;
          param_demand += Temp(0, params.back().rc);
          params.back().dst_info->def.setPrecolored(*next_reg);
          BITSET_CLEAR_COUNT(regs, next_reg->reg(), params.back().rc.size());
