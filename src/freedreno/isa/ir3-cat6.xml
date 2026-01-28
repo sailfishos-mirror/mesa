@@ -587,7 +587,7 @@ SOFTWARE.
 
 <bitset name="resinfo" extends="#instruction-cat6-a3xx">
 	<display>
-		{SY}{JP}{NAME}.{TYPE}.{D}d {DST}, g[{SSBO}]
+		{SY}{JP}{NAME}.{TYPE}.{D}d {DST}, g[{UAV}]
 	</display>
 	<derived name="D" expr="#cat6-d" type="uint"/>
 
@@ -600,16 +600,16 @@ SOFTWARE.
 	<pattern low="24" high="31">xxxxxxxx</pattern>  <!-- SRC2 -->
 	<field   low="32" high="39" name="DST" type="#reg-gpr"/>
 	<pattern pos="40"          >0</pattern>
-	<field   low="41" high="48" name="SSBO" type="#cat6-src">   <!-- SSBO/image binding point -->
-		<param name="SSBO_IM" as="SRC_IM"/>
+	<field   low="41" high="48" name="UAV" type="#cat6-src">   <!-- SSBO/image binding point -->
+		<param name="UAV_IM" as="SRC_IM"/>
 	</field>
 	<pattern pos="52"          >x</pattern>         <!-- G -->
-	<field   pos="53"          name="SSBO_IM" type="bool"/>
+	<field   pos="53"          name="UAV_IM" type="bool"/>
 	<pattern low="54" high="58">01111</pattern>  <!-- OPC -->
 	<encode>
 		<map name="D_MINUS_ONE">src->cat6.d - 1</map>
-		<map name="SSBO">src->srcs[0]</map>
-		<map name="SSBO_IM">!!(src->srcs[0]->flags &amp; IR3_REG_IMMED)</map>
+		<map name="UAV">src->srcs[0]</map>
+		<map name="UAV_IM">!!(src->srcs[0]->flags &amp; IR3_REG_IMMED)</map>
 	</encode>
 </bitset>
 
@@ -621,23 +621,23 @@ SOFTWARE.
 	<field   low="9"  high="10" name="D_MINUS_ONE" type="uint"/>
 	<field   pos="11"           name="TYPED" type="#cat6-typed"/>
 	<field   low="12" high="13" name="TYPE_SIZE_MINUS_ONE" type="uint"/>
-	<field   low="41" high="48" name="SSBO" type="#cat6-src">   <!-- SSBO/image binding point -->
-		<param name="SSBO_IM" as="SRC_IM"/>
+	<field   low="41" high="48" name="UAV" type="#cat6-src">   <!-- SSBO/image binding point -->
+		<param name="UAV_IM" as="SRC_IM"/>
 	</field>
 	<pattern pos="52"          >x</pattern>         <!-- G -->
-	<field   pos="53"          name="SSBO_IM" type="bool"/>
+	<field   pos="53"          name="UAV_IM" type="bool"/>
 	<encode>
 		<map name="D_MINUS_ONE">src->cat6.d - 1</map>
 		<map name="TYPED">src</map>
 		<map name="TYPE_SIZE_MINUS_ONE">src->cat6.iim_val - 1</map>
-		<map name="SSBO">src->srcs[0]</map>
-		<map name="SSBO_IM">!!(src->srcs[0]->flags &amp; IR3_REG_IMMED)</map>
+		<map name="UAV">src->srcs[0]</map>
+		<map name="UAV_IM">!!(src->srcs[0]->flags &amp; IR3_REG_IMMED)</map>
 	</encode>
 </bitset>
 
 <bitset name="#instruction-cat6-a3xx-ibo-load" extends="#instruction-cat6-a3xx-ibo">
 	<display>
-		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE} {DST}, g[{SSBO}], {SRC1}, {SRC2}
+		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE} {DST}, g[{UAV}], {SRC1}, {SRC2}
 	</display>
 	<gen max="599"/>
 
@@ -679,7 +679,7 @@ SOFTWARE.
 
 <bitset name="#instruction-cat6-a3xx-ibo-store" extends="#instruction-cat6-a3xx-ibo">
 	<display>
-		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE} g[{SSBO}], {SRC1}, {SRC2}, {SRC3}
+		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE} g[{UAV}], {SRC1}, {SRC2}, {SRC3}
 	</display>
 	<gen max="599"/>
 
@@ -778,7 +778,7 @@ SOFTWARE.
 	<pattern low="41" high="48" >00000000</pattern> <!-- SSBO/image binding point -->
 	<field   low="49" high="51" name="TYPE" type="#type"/>
 	<pattern pos="52"           >0</pattern> <!-- "G" -->
-	<pattern pos="53"           >0</pattern> <!-- SSBO_IM -->
+	<pattern pos="53"           >0</pattern> <!-- UAV_IM -->
 </bitset>
 
 <bitset name="#instruction-cat6-a3xx-atomic-1src" extends="#instruction-cat6-a3xx-atomic-local">
@@ -841,20 +841,20 @@ SOFTWARE.
 	<gen max="599"/>
 
 	<display>
-		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE}.g {DST}, g[{SSBO}], {SRC1}, {SRC2}, {SRC3}
+		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE}.g {DST}, g[{UAV}], {SRC1}, {SRC2}, {SRC3}
 	</display>
 
 	<field   low="1"  high="8"  name="SRC3" type="#reg-gpr"/>
-	<field   low="41" high="48" name="SSBO" type="#cat6-src">   <!-- SSBO/image binding point -->
-		<param name="SSBO_IM" as="SRC_IM"/>
+	<field   low="41" high="48" name="UAV" type="#cat6-src">   <!-- SSBO/image binding point -->
+		<param name="UAV_IM" as="SRC_IM"/>
 	</field>
 	<field   low="49" high="51" name="TYPE" type="#type-atomic"/>
 	<pattern pos="52" >1</pattern> <!-- "G" -->
-	<field   pos="53" name="SSBO_IM" type="bool"/>
+	<field   pos="53" name="UAV_IM" type="bool"/>
 
 	<encode>
-		<map name="SSBO">src->srcs[0]</map>
-		<map name="SSBO_IM">!!(src->srcs[0]->flags &amp; IR3_REG_IMMED)</map>
+		<map name="UAV">src->srcs[0]</map>
+		<map name="UAV_IM">!!(src->srcs[0]->flags &amp; IR3_REG_IMMED)</map>
 		<map name="SRC3">extract_cat6_SRC(src, 2)</map>
 		<map name="SRC3_IM">!!(extract_cat6_SRC(src, 2)->flags &amp; IR3_REG_IMMED)</map>
 	</encode>
@@ -994,7 +994,7 @@ SOFTWARE.
 	<pattern low="41" high="48" >00000000</pattern> <!-- SSBO/image binding point -->
 	<field   low="49" high="51" name="TYPE" type="#type-atomic"/>
 	<pattern pos="52"           >1</pattern> <!-- "G" -->
-	<pattern pos="53"           >0</pattern> <!-- SSBO_IM -->
+	<pattern pos="53"           >0</pattern> <!-- UAV_IM -->
 </bitset>
 
 <bitset name="atomic.g.add" extends="#instruction-cat6-a6xx-atomic-global">
@@ -1124,7 +1124,7 @@ SOFTWARE.
 	<pattern pos="22">1</pattern>
 	<field   pos="23"           name="SRC1_IM" type="bool"/>
 	<derived name="SRC2_IM" expr="#cat6-direct" type="bool"/>
-	<field   low="41" high="48" name="SRC2" type="#cat6-src">
+	<field   low="41" high="48" name="UBO" type="#cat6-src">
 		<param name="SRC2_IM" as="SRC_IM"/>
 	</field>
 	<field   low="24" high="31" name="SRC1" type="#cat6-src-sp">
@@ -1136,7 +1136,7 @@ SOFTWARE.
 		<map name="SRC1_IM">!!(src->srcs[1]->flags &amp; IR3_REG_IMMED)</map>
 		<map name="SRC1">src->srcs[1]</map>
 		<map name="SP">ISA_GPU_ID() &gt;= 800</map>
-		<map name="SRC2">src->srcs[0]</map>
+		<map name="UBO">src->srcs[0]</map>
 	</encode>
 </bitset>
 
@@ -1155,7 +1155,7 @@ SOFTWARE.
 		LOAD_SIZE.
 	</doc>
 	<display>
-		{SY}{JP}ldc.{LOAD_SIZE}.k.{MODE}{BASE} c[a1.x], {SRC1}, {SRC2}
+		{SY}{JP}ldc.{LOAD_SIZE}.k.{MODE}{BASE} c[a1.x], {SRC1}, {UBO}
 	</display>
 
 	<pattern pos="11">x</pattern>
@@ -1179,7 +1179,7 @@ SOFTWARE.
 	meaning?  Maybe I don't have enough ldc examples from deqp-glesN
 	 -->
 	<display>
-		{SY}{JP}{NAME}{U}.offset{OFFSET}.{TYPE_SIZE}.{MODE}{BASE} {DST}, {SRC1}, {SRC2}
+		{SY}{JP}{NAME}{U}.offset{OFFSET}.{TYPE_SIZE}.{MODE}{BASE} {DST}, {SRC1}, {UBO}
 	</display>
 	<field   pos="11" name="U" type="bool" display=".u"/>
 	<field   low="9"  high="10" name="OFFSET" type="uint"/>   <!-- D_MINUS_ONE -->
@@ -1259,7 +1259,7 @@ SOFTWARE.
 		RESourceINFO - returns image/ssbo dimensions (3 components)
 	</doc>
 	<display>
-		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE}.{MODE}{BASE} {DST}, {SSBO}
+		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE}.{MODE}{BASE} {DST}, {UAV}
 	</display>
 
 	<derived name="D" expr="#cat6-d" type="uint"/>
@@ -1271,16 +1271,16 @@ SOFTWARE.
 	<pattern low="20" high="23">0110</pattern>
 	<pattern low="24" high="31">xxxxxxxx</pattern>    <!-- SRC2 -->
 	<field   low="32" high="39" name="DST" type="#reg-gpr"/>
-	<field   low="41" high="48" name="SSBO" type="#cat6-src">   <!-- SSBO/image binding point -->
-		<param name="SSBO_IM" as="SRC_IM"/>
+	<field   low="41" high="48" name="UAV" type="#cat6-src">   <!-- SSBO/image binding point -->
+		<param name="UAV_IM" as="SRC_IM"/>
 	</field>
-	<derived name="SSBO_IM" expr="#cat6-direct" type="bool"/>
+	<derived name="UAV_IM" expr="#cat6-direct" type="bool"/>
 	<field   low="49" high="51" name="TYPE" type="#type"/>
 	<pattern low="52" high="53">1x</pattern>
 	<encode>
 		<map name="D_MINUS_ONE">src->cat6.d - 1</map>
 		<map name="TYPED">src</map>
-		<map name="SSBO">src->srcs[0]</map>
+		<map name="UAV">src->srcs[0]</map>
 		<map name="SRC1">src->srcs[1]</map>
 	</encode>
 </bitset>
@@ -1304,7 +1304,7 @@ SOFTWARE.
 		UAV (ie. Image/SSBO) instructions
 	</doc>
 	<display>
-		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}{RCK}.{TYPE_SIZE}.{MODE}{BASE} {TYPE_HALF}{SRC1}, {SRC2}{OFFSET}, {SSBO}
+		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}{RCK}.{TYPE_SIZE}.{MODE}{BASE} {TYPE_HALF}{SRC1}, {SRC2}{OFFSET}, {UAV}
 	</display>
 
 	<derived name="D" expr="#cat6-d" type="uint"/>
@@ -1317,14 +1317,14 @@ SOFTWARE.
 	<field   low="24" high="31" name="SRC2" type="#reg-gpr"/>
 	<field   low="32" high="39" name="SRC1" type="#reg-gpr"/>
 	<field   pos="40" name="RCK" type="bool" display=".rck"/>
-	<field   low="41" high="48" name="SSBO" type="#cat6-src">   <!-- SSBO/image binding point -->
-		<param name="SSBO_IM" as="SRC_IM"/>
+	<field   low="41" high="48" name="UAV" type="#cat6-src">   <!-- SSBO/image binding point -->
+		<param name="UAV_IM" as="SRC_IM"/>
 	</field>
-	<derived name="SSBO_IM" expr="#cat6-direct" type="bool"/>
+	<derived name="UAV_IM" expr="#cat6-direct" type="bool"/>
 	<encode>
 		<map name="TYPED">src</map>
 		<map name="D_MINUS_ONE">src->cat6.d - 1</map>
-		<map name="SSBO">src->srcs[0]</map>
+		<map name="UAV">src->srcs[0]</map>
 		<map name="SRC1">src->srcs[2]</map>
 		<map name="SRC2">src->srcs[1]</map>
 	</encode>
@@ -1363,7 +1363,7 @@ SOFTWARE.
 <bitset name="#instruction-cat6-a6xx-ibo-atomic" extends="#instruction-cat6-a6xx-ibo">
 	<field   low="49" high="51" name="TYPE" type="#type-atomic"/>
 	<display>
-		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE}.{MODE}{BASE} {SRC1}, {SRC2}, {SSBO}
+		{SY}{JP}{NAME}.{TYPED}.{D}d.{TYPE}.{TYPE_SIZE}.{MODE}{BASE} {SRC1}, {SRC2}, {UAV}
 	</display>
 </bitset>
 
