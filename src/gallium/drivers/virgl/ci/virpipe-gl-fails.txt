@@ -535,6 +535,8 @@ spec@egl 1.4@eglcreatepbuffersurface and then glclear,Crash
 spec@egl 1.4@largest possible eglcreatepbuffersurface and then glclear,Crash
 spec@ext_framebuffer_multisample@interpolation 6 centroid-edges,Fail
 spec@ext_framebuffer_multisample@no-color 6 depth single,Fail
+spec@ext_framebuffer_multisample@no-color 6 depth-computed single,Fail
+spec@ext_framebuffer_multisample@no-color 8 depth single,Fail
 spec@ext_framebuffer_multisample@no-color 8 depth-computed single,Fail
 spec@ext_packed_float@texwrap formats bordercolor,Fail
 spec@ext_packed_float@texwrap formats bordercolor-swizzled,Fail

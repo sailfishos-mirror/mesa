@@ -89,7 +89,6 @@ spec@arb_occlusion_query@occlusion_query_conform@GetObjivAval_multi2,Fail
 spec@arb_pixel_buffer_object@cubemap npot pbo,Fail
 spec@arb_pixel_buffer_object@cubemap pbo,Fail
 spec@arb_pixel_buffer_object@fbo-pbo-readpixels-small,Fail
-spec@arb_pixel_buffer_object@pbo-getteximage,Fail
 spec@arb_pixel_buffer_object@texsubimage-unpack pbo,Fail
 spec@arb_point_sprite@arb_point_sprite-checkerboard,Fail
 spec@arb_point_sprite@arb_point_sprite-mipmap,Fail

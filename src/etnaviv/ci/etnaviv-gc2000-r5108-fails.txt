@@ -642,9 +642,6 @@ spec@glsl-1.10@execution@variable-indexing@fs-input-array-vec2-index-rd,Fail
 
 # uprev Piglit in Mesa
 spec@!opengl 1.1@push-pop-color-material,Fail
-spec@!opengl 1.1@teximage-scale-bias,Fail
-spec@ext_texture_compression_s3tc@fbo-generatemipmap-formats,Fail
-spec@glsl-1.10@execution@built-in-functions@fs-op-selection-bool-bvec4-bvec4,Fail
 
 # Nightly run expectations update
 spec@!opengl 1.0@gl-1.0-scissor-many,Fail

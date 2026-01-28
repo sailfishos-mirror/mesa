@@ -496,3 +496,4 @@ spec@glsl-1.10@execution@samplers@glsl-fs-texture2dproj-bias
 spec@glsl-1.10@execution@samplers@in-parameter
 spec@glsl-1.10@execution@samplers@in-parameter-nested-struct
 spec@oes_compressed_etc1_rgb8_texture@miptree
+spec@glsl-1.10@execution@samplers@uniform-structs

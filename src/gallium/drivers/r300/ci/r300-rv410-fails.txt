@@ -626,7 +626,6 @@ spec@arb_occlusion_query@occlusion_query_order,Fail
 
 spec@arb_pixel_buffer_object@cubemap npot pbo,Fail
 spec@arb_pixel_buffer_object@fbo-pbo-readpixels-small,Fail
-spec@arb_pixel_buffer_object@pbo-getteximage,Fail
 
 spec@arb_point_sprite@arb_point_sprite-mipmap,Fail
 
@@ -1279,4 +1278,6 @@ spec@glsl-1.10@execution@glsl-fs-texture2d-mipmap-const-bias-01,Fail
 spec@glsl-1.10@execution@glsl-fs-texture2d-mipmap-const-bias-04,Fail
 spec@glsl-1.10@execution@glsl-fs-texture2d-mipmap-const-bias-05,Fail
 shaders@glsl-max-varyings,Fail
+spec@!opengl 1.2@tex3d-maxsize,Fail
 spec@!opengl 1.5@depth-tex-compare,Fail
+

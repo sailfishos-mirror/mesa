@@ -451,7 +451,6 @@ spec@arb_occlusion_query@occlusion_query_order,Fail
 
 spec@arb_pixel_buffer_object@cubemap npot pbo,Fail
 spec@arb_pixel_buffer_object@fbo-pbo-readpixels-small,Fail
-spec@arb_pixel_buffer_object@pbo-getteximage,Fail
 
 spec@arb_point_sprite@arb_point_sprite-mipmap,Fail
 
