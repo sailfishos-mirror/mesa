@@ -5126,11 +5126,14 @@ nir_to_spirv(struct nir_shader *s, const struct ntv_info *sinfo)
 
    uint32_t tcs_vertices_out_word = 0;
 
-   unsigned ubo_counter[2] = {0};
-   nir_foreach_variable_with_modes(var, s, nir_var_mem_ubo)
-      ubo_counter[var->data.driver_location != 0]++;
-   nir_foreach_variable_with_modes(var, s, nir_var_mem_ubo)
-      emit_bo(&ctx, var, ubo_counter[var->data.driver_location != 0] > 1);
+   nir_foreach_variable_with_modes(var, s, nir_var_mem_ubo) {
+      bool aliased = false;
+      nir_foreach_variable_with_modes(testvar, s, nir_var_mem_ubo) {
+         if (var->data.descriptor_set == testvar->data.descriptor_set && var->data.binding == testvar->data.binding)
+            aliased = true;
+      }
+      emit_bo(&ctx, var, aliased);
+   }
 
    unsigned ssbo_counter = 0;
    nir_foreach_variable_with_modes(var, s, nir_var_mem_ssbo)
