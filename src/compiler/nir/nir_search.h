@@ -128,28 +128,16 @@ typedef struct {
    nir_search_value value;
 
    /* When set on a search expression, the expression will only match an SSA
-    * value that does *not* have the exact bit set.  If unset, the exact bit
-    * on the SSA value is ignored.
+    * value that does *not* have these float control bits set.  If unset,
+    * the bits on the instruction are ignored for matching.
     */
-   bool inexact : 1;
+   unsigned fp_math_ctrl_exclude : NIR_FP_MATH_CONTROL_BIT_COUNT;
 
    /** In a replacement, requests that the instruction be marked exact. */
    bool exact : 1;
 
    /** Don't make the replacement exact if the search expression is exact. */
    bool ignore_exact : 1;
-
-   /** Replacement does not preserve signed of zero. */
-   bool nsz : 1;
-
-   /** Replacement does not preserve NaN. */
-   bool nnan : 1;
-
-   /** Replacement does not preserve infinities. */
-   bool ninf : 1;
-
-   /** Replacement contracts an expression */
-   bool contract : 1;
 
    /** Whether the second source is a nir_search_value_constant */
    bool src1_is_const : 1;

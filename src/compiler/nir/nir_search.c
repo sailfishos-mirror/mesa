@@ -32,7 +32,7 @@
 
 struct match_state {
    bool inexact_match;
-   bool has_exact_alu;
+   unsigned fp_math_ctrl;
    uint8_t comm_op_direction;
    unsigned variables_seen;
 
@@ -376,15 +376,6 @@ match_expression(const nir_algebraic_table *table, const nir_search_expression *
    if (expr->cond_index != -1 && !table->expression_cond[expr->cond_index](instr))
       return false;
 
-   if (expr->nsz && nir_alu_instr_is_signed_zero_preserve(instr))
-      return false;
-
-   if (expr->nnan && nir_alu_instr_is_nan_preserve(instr))
-      return false;
-
-   if (expr->ninf && nir_alu_instr_is_inf_preserve(instr))
-      return false;
-
    if (!nir_op_matches_search_op(instr->op, expr->opcode))
       return false;
 
@@ -392,9 +383,14 @@ match_expression(const nir_algebraic_table *table, const nir_search_expression *
        instr->def.bit_size != expr->value.bit_size)
       return false;
 
-   state->inexact_match |= expr->inexact || expr->contract;
-   state->has_exact_alu |= nir_alu_instr_is_exact(instr) && !expr->ignore_exact;
-   if (state->inexact_match && state->has_exact_alu)
+   unsigned fp_math_ctrl = instr->fp_math_ctrl & ~(expr->ignore_exact ? nir_fp_exact : 0);
+
+   if (expr->fp_math_ctrl_exclude & fp_math_ctrl)
+      return false;
+
+   state->inexact_match |= expr->fp_math_ctrl_exclude & nir_fp_exact;
+   state->fp_math_ctrl |= fp_math_ctrl;
+   if (state->inexact_match && (state->fp_math_ctrl & nir_fp_exact))
       return false;
 
    assert(nir_op_infos[instr->op].num_inputs > 0);
@@ -486,7 +482,7 @@ construct_value(nir_builder *build,
        * replacement should be exact.
        */
       alu->fp_math_ctrl = nir_instr_as_alu(instr)->fp_math_ctrl;
-      if (state->has_exact_alu || expr->exact)
+      if ((state->fp_math_ctrl & nir_fp_exact) || expr->exact)
          alu->fp_math_ctrl |= nir_fp_exact;
 
       for (unsigned i = 0; i < nir_op_infos[op].num_inputs; i++) {
@@ -618,7 +614,7 @@ dump_value(const nir_algebraic_table *table, const nir_search_value *val)
    case nir_search_value_expression: {
       const nir_search_expression *expr = nir_search_value_as_expression(val);
       fprintf(stderr, "(");
-      if (expr->inexact)
+      if (expr->fp_math_ctrl_exclude & nir_fp_exact)
          fprintf(stderr, "~");
       switch (expr->opcode) {
 #define CASE(n)            \
@@ -711,8 +707,8 @@ nir_replace_instr(nir_builder *build, nir_alu_instr *instr,
       swizzle[i] = i;
 
    struct match_state state;
+   state.fp_math_ctrl = nir_fp_fast_math;
    state.inexact_match = false;
-   state.has_exact_alu = false;
    state.state = search_state;
    state.pass_op_table = table->pass_op_table;
    state.table = table;
@@ -886,15 +882,12 @@ nir_algebraic_instr(nir_builder *build, nir_instr *instr,
 
    nir_alu_instr *alu = nir_instr_as_alu(instr);
 
-   const bool ignore_inexact = nir_alu_instr_is_signed_zero_inf_nan_preserve(alu);
-
    int xform_idx = *util_dynarray_element(states, uint16_t,
                                           alu->def.index);
    for (const struct transform *xform = &table->transforms[table->transform_offsets[xform_idx]];
         xform->condition_offset != ~0;
         xform++) {
       if (condition_flags[xform->condition_offset] &&
-          !(table->values[xform->search].expression.inexact && ignore_inexact) &&
           nir_replace_instr(build, alu, state, states, table,
                             &table->values[xform->search].expression,
                             &table->values[xform->replace].value, worklist, dead_instrs)) {

@@ -1490,14 +1490,13 @@ nir_op_is_selection(nir_op op)
 {
    return (nir_op_infos[op].algebraic_properties & NIR_OP_IS_SELECTION) != 0;
 }
+
+#define NIR_FP_MATH_CONTROL_BIT_COUNT 4
 /**
  * Floating point fast math control.
  *
  * All new bits must restrict optimizations when they are set, not when they
  * are missing. This means a bitwise OR always produces a no less restrictive set.
- *
- * See also nir_alu_instr::exact, which should (and hopefully will be) moved
- * to this enum in the future.
  */
 typedef enum {
    /**
@@ -1538,7 +1537,7 @@ typedef enum {
                                 nir_fp_preserve_nan,
 
    nir_fp_fast_math = 0,
-   nir_fp_no_fast_math = BITFIELD_MASK(4),
+   nir_fp_no_fast_math = BITFIELD_MASK(NIR_FP_MATH_CONTROL_BIT_COUNT),
 } nir_fp_math_control;
 
 /***/
@@ -1569,7 +1568,7 @@ typedef struct nir_alu_instr {
     * that have no float_controls2 equivalent (rounding mode and denorm handling)
     * remain in the execution mode only.
     */
-   uint32_t fp_math_ctrl : 4;
+   uint32_t fp_math_ctrl : NIR_FP_MATH_CONTROL_BIT_COUNT;
 
    /** Sources
     *
