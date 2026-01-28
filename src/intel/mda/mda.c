@@ -60,6 +60,7 @@ typedef struct mesa_archive {
 
 enum diff_mode {
    DIFF_UNIFIED,
+   DIFF_WORDS,
    DIFF_SIDE_BY_SIDE,
 };
 
@@ -147,10 +148,22 @@ diff(context *ctx, slice a, slice b)
 
    const char *diff_cmd = os_get_option("MDA_DIFF_COMMAND");
    if (!diff_cmd) {
-      if (ctx->diff.mode == DIFF_UNIFIED) {
-         diff_cmd = ralloc_asprintf(mem_ctx, "git diff --no-index --color-words -U%d -- %%s %%s | tail -n +5", ctx->diff.param);
-      } else {
-         diff_cmd = ralloc_asprintf(mem_ctx, "diff -y -W%d %%s %%s", ctx->diff.param);
+      switch (ctx->diff.mode) {
+      case DIFF_WORDS:
+         diff_cmd = ralloc_asprintf(mem_ctx,
+                                    "git diff --no-index --color-words -U%d -- %%s %%s | tail -n +5",
+                                    ctx->diff.param);
+         break;
+      case DIFF_UNIFIED:
+         diff_cmd = ralloc_asprintf(mem_ctx,
+                                    "git diff --no-index --color=always -U%d -- %%s %%s | tail -n +5",
+                                    ctx->diff.param);
+         break;
+      case DIFF_SIDE_BY_SIDE:
+         diff_cmd = ralloc_asprintf(mem_ctx,
+                                    "diff --color=always -y -W%d %%s %%s",
+                                    ctx->diff.param);
+         break;
       }
    }
 
@@ -1024,7 +1037,7 @@ open_manual()
       "",
       ".SH SYNOPSIS",
       "",
-      "mda [[-f PATH]... [-U[nnn]] [-Y[nnn]] [-k]] COMMAND [args]",
+      "mda [[-f PATH]... [-W[nnn]] [-U[nnn]] [-Y[nnn]] [-k]] COMMAND [args]",
       "",
       ".SH DESCRIPTION",
       "",
@@ -1085,23 +1098,27 @@ open_manual()
       "                                   non-recursively.  Multiple -f can be used.",
       "                                   If no -f provided, current directory is used.",
       "",
+      "    -W[nnn]                        use unified diff with color words",
+      "                                   (default: 5 context lines)",
+      "",
       "    -U[nnn]                        use unified diff (default: 5 context lines)",
       "",
       "    -Y[nnn]                        use side-by-side diff (default: 240 width)",
       "",
       "    -k                             keep going after first difference in difflog",
       "",
-      "The -U and -Y options are mutually exclusive. If neither is specified,",
-      "-U5 is used by default.",
+      "The -W, -U and -Y options are mutually exclusive. If neither is specified,",
+      "-W5 (unified with color words and 5 lines of context) is used by default.",
       "",
       ".SH ENVIRONMENT VARIABLES",
       "",
       "The diff program used by mda can be configured by setting",
       "the MDA_DIFF_COMMAND environment variable, which overrides",
-      "the -U and -Y options. Without MDA_DIFF_COMMAND:",
+      "the -W, -U and -Y options. Without MDA_DIFF_COMMAND set:",
       "",
-      "    -U uses: git diff --no-index --color-words -Unnn -- %s %s | tail -n +5",
-      "    -Y uses: diff -y -Wnnn %s %s",
+      "    -W uses: git diff --no-index --color-words -Unnn -- %s %s | tail -n +5",
+      "    -U uses: git diff --no-index --color=always -Unnn -- %s %s | tail -n +5",
+      "    -Y uses: diff --color=always -y -Wnnn %s %s",
       "",
       "When showing SPIR-V files, spirv-dis tool is used.",
       ""
@@ -1129,13 +1146,15 @@ open_manual()
 static void
 print_help()
 {
-   printf("mda [[-f PATH]... [-U[nnn]] [-Y[nnn]] [-k]] CMD [ARGS...]\n"
+   printf("mda [[-f PATH]... [-W[nnn]] [-U[nnn]] [-Y[nnn]] [-k]] CMD [ARGS...]\n"
           "\n"
           "OPTIONS\n"
           "\n"
           "    -f PATH                        read a file, or mda.tar files in a directory\n"
           "                                   non-recursively.  Multiple -f can be used.\n"
           "                                   If no -f provided, current directory is used.\n"
+          "    -W[nnn]                        use unified diff with color words\n"
+          "                                   (default: 5 context lines)\n"
           "    -U[nnn]                        use unified diff (default: 5 context lines)\n"
           "    -Y[nnn]                        use side-by-side diff (default: 240 width)\n"
           "    -k                             keep going after first difference in difflog\n"
@@ -1158,9 +1177,9 @@ print_help()
           "\n"
           "ENVIRONMENT VARIABLES\n"
           "\n"
-          "    MDA_DIFF_COMMAND               custom diff command (overrides -U/-Y)\n"
+          "    MDA_DIFF_COMMAND               custom diff command (overrides -W/-U/-Y)\n"
           "\n"
-          "Default diff mode is -U5 (unified diff with 5 context lines).\n"
+          "Default diff mode is -W5 (unified with color words and 5 lines of context).\n"
           "For more details, use 'mda help' to open the manual.\n");
 }
 
@@ -1267,7 +1286,7 @@ main(int argc, char *argv[])
    }
 
    context *ctx = rzalloc(NULL, context);
-   ctx->diff.mode = DIFF_UNIFIED;
+   ctx->diff.mode = DIFF_WORDS;
    ctx->diff.param = 5;
 
    bool diff_set = false;
@@ -1302,18 +1321,24 @@ main(int argc, char *argv[])
          } else {
             failf("mda: path is not a file or directory: %s\n", path);
          }
-      } else if (argv[cur_arg][1] == 'U' || argv[cur_arg][1] == 'Y') {
+      } else if (argv[cur_arg][1] == 'W' ||
+                 argv[cur_arg][1] == 'U' ||
+                 argv[cur_arg][1] == 'Y') {
          if (diff_set)
-            failf("mda: -U and -Y options are mutually exclusive\n");
+            failf("mda: -W, -U and -Y options are mutually exclusive\n");
 
          diff_set = true;
-         ctx->diff.mode = (argv[cur_arg][1] == 'U') ? DIFF_UNIFIED : DIFF_SIDE_BY_SIDE;
+         switch (argv[cur_arg][1]) {
+         case 'W': ctx->diff.mode = DIFF_WORDS; break;
+         case 'U': ctx->diff.mode = DIFF_UNIFIED; break;
+         case 'Y': ctx->diff.mode = DIFF_SIDE_BY_SIDE; break;
+         }
 
          /* Parse optional numeric parameter. */
          if (argv[cur_arg][2] != '\0')
             ctx->diff.param = atoi(&argv[cur_arg][2]);
          else
-            ctx->diff.param = ctx->diff.mode == DIFF_UNIFIED ? 5 : 240;
+            ctx->diff.param = ctx->diff.mode == DIFF_SIDE_BY_SIDE ? 240 : 5;
 
          cur_arg++;
       } else if (!strcmp(argv[cur_arg], "-k")) {
