@@ -9760,23 +9760,9 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
 
       device->ws->cs_execute_secondary(primary_cs->b, secondary_cs->b, allow_ib2);
 
-      /* When the secondary command buffer is compute only we don't
-       * need to re-emit the current graphics pipeline.
-       */
-      if (secondary->state.emitted_graphics_pipeline) {
-         primary->state.emitted_graphics_pipeline = secondary->state.emitted_graphics_pipeline;
-      }
-
-      /* When the secondary command buffer is graphics only we don't
-       * need to re-emit the current compute pipeline.
-       */
-      if (secondary->state.emitted_compute_pipeline) {
-         primary->state.emitted_compute_pipeline = secondary->state.emitted_compute_pipeline;
-      }
-
-      if (secondary->state.emitted_rt_pipeline) {
-         primary->state.emitted_rt_pipeline = secondary->state.emitted_rt_pipeline;
-      }
+      primary->state.emitted_graphics_pipeline = secondary->state.emitted_graphics_pipeline;
+      primary->state.emitted_compute_pipeline = secondary->state.emitted_compute_pipeline;
+      primary->state.emitted_rt_pipeline = secondary->state.emitted_rt_pipeline;
 
       if (secondary->state.last_ia_multi_vgt_param) {
          primary->state.last_ia_multi_vgt_param = secondary->state.last_ia_multi_vgt_param;
