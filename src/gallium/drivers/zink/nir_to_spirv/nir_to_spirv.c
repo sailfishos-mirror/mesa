@@ -601,6 +601,14 @@ get_glsl_basetype(struct ntv_context *ctx, enum glsl_base_type type)
 }
 
 static SpvId
+get_glsl_type_cached(struct ntv_context *ctx, const struct glsl_type *type, bool implicit_stride)
+{
+   struct hash_entry *entry =
+      _mesa_hash_table_search(ctx->glsl_types[implicit_stride], type);
+   return entry ? (SpvId)(uintptr_t)entry->data : 0;
+}
+
+static SpvId
 get_glsl_type(struct ntv_context *ctx, const struct glsl_type *type, bool implicit_stride)
 {
    assert(type);
@@ -1420,8 +1428,13 @@ get_bo_struct_type(struct ntv_context *ctx, struct nir_variable *var)
    if (he)
       return (SpvId)(uintptr_t)he->data;
    SpvId struct_type = 0;
+   bool needs_block = true;
    if (ctx->sinfo->is_native_vulkan) {
-      struct_type = get_glsl_type(ctx, var->type, false);
+      struct_type = get_glsl_type_cached(ctx, var->type, false);
+      if (struct_type)
+         needs_block = false;
+      else
+         struct_type = get_glsl_type(ctx, var->type, false);
    } else {
       const struct glsl_type *bare_type = glsl_without_array(var->type);
       unsigned bitsize = glsl_get_bit_size(glsl_get_array_element(glsl_get_struct_field(bare_type, 0)));
@@ -1450,8 +1463,9 @@ get_bo_struct_type(struct ntv_context *ctx, struct nir_variable *var)
       spirv_builder_emit_name(&ctx->builder, struct_type, struct_name);
    }
 
-   spirv_builder_emit_decoration(&ctx->builder, struct_type,
-                                 SpvDecorationBlock);
+   if (needs_block)
+      spirv_builder_emit_decoration(&ctx->builder, struct_type,
+                                    SpvDecorationBlock);
 
    return struct_type;
 }
