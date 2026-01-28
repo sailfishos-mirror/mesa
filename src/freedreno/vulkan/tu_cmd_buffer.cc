@@ -1735,7 +1735,7 @@ tu6_emit_tile_select(struct tu_cmd_buffer *cmd,
          tu_cs_emit_pkt7(cs, CP_MEM_WRITE, 2 + patch->size);
          tu_cs_emit_qw(cs, patch->iova);
          patch->apply(cmd, cs, patch->data, (VkOffset2D) { x1, y1 },
-                      frag_offsets, views, tile->frag_areas, bins, false);
+                      frag_offsets, views, tile, bins, false);
       }
 
       /* Make the CP wait until the CP_MEM_WRITE's to the command buffers
@@ -2520,11 +2520,11 @@ tu6_emit_binning_pass(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
    if ((!(cmd->usage_flags & VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT) ||
         fdm_offsets) && cmd->fdm_bin_patchpoints.size != 0) {
       unsigned num_views = tu_fdm_num_layers(cmd);
-      VkExtent2D unscaled_frag_areas[num_views];
+      struct tu_tile_config dummy_config = {};
       VkRect2D bins[num_views];
       VkOffset2D frag_offsets[num_views];
       for (unsigned i = 0; i < num_views; i++) {
-         unscaled_frag_areas[i] = (VkExtent2D) { 1, 1 };
+         dummy_config.frag_areas[i] = (VkExtent2D) { 1, 1 };
          frag_offsets[i] = (VkOffset2D) { 0, 0 };
          if (fdm_offsets && !cmd->state.rp.shared_viewport) {
             /* We need to shift over the viewport and scissor during the
@@ -2559,7 +2559,7 @@ tu6_emit_binning_pass(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
          tu_cs_emit_pkt7(cs, CP_MEM_WRITE, 2 + patch->size);
          tu_cs_emit_qw(cs, patch->iova);
          patch->apply(cmd, cs, patch->data, (VkOffset2D) {0, 0}, frag_offsets,
-                      num_views, unscaled_frag_areas, bins, true);
+                      num_views, &dummy_config, bins, true);
       }
 
       tu_cs_emit_pkt7(cs, CP_WAIT_MEM_WRITES, 0);
@@ -7659,7 +7659,7 @@ fdm_apply_fs_params(struct tu_cmd_buffer *cmd,
                     VkOffset2D common_bin_offset,
                     const VkOffset2D *hw_viewport_offsets,
                     unsigned views,
-                    const VkExtent2D *frag_areas,
+                    const struct tu_tile_config *config,
                     const VkRect2D *bins,
                     bool binning)
 {
@@ -7672,7 +7672,7 @@ fdm_apply_fs_params(struct tu_cmd_buffer *cmd,
        * in which case views will be 1 and we have to replicate the one view
        * to all of the layers.
        */
-      VkExtent2D area = frag_areas[MIN2(i, views - 1)];
+      VkExtent2D area = config->frag_areas[MIN2(i, views - 1)];
       VkRect2D bin = bins[MIN2(i, views - 1)];
       VkOffset2D offset = tu_fdm_per_bin_offset(area, bin, common_bin_offset);
 

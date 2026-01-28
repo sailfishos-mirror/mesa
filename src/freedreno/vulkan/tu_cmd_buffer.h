@@ -19,6 +19,7 @@
 #include "tu_pass.h"
 #include "tu_pipeline.h"
 #include "tu_image.h"
+#include "tu_tile_config.h"
 
 enum tu_draw_state_group_id
 {
@@ -865,7 +866,7 @@ typedef void (*tu_fdm_bin_apply_t)(struct tu_cmd_buffer *cmd,
                                    VkOffset2D common_bin_offset,
                                    const VkOffset2D *hw_viewport_offsets,
                                    unsigned views,
-                                   const VkExtent2D *frag_areas,
+                                   const struct tu_tile_config *tile_config,
                                    const VkRect2D *bins,
                                    bool binning);
 
@@ -924,18 +925,18 @@ _tu_create_fdm_bin_patchpoint(struct tu_cmd_buffer *cmd,
     * sysmem is required, and uses up the dwords that have been reserved.
     */
    unsigned num_views = MAX2(cmd->state.pass->num_views, 1);
-   VkExtent2D unscaled_frag_areas[num_views];
+   struct tu_tile_config dummy_config = {};
    VkOffset2D hw_viewport_offsets[num_views];
    VkRect2D bins[num_views];
    for (unsigned i = 0; i < num_views; i++) {
-      unscaled_frag_areas[i] = (VkExtent2D) { 1, 1 };
+      dummy_config.frag_areas[i] = (VkExtent2D) { 1, 1 };
       bins[i] = (VkRect2D) {
          { 0, 0 },
          { MAX_VIEWPORT_SIZE, MAX_VIEWPORT_SIZE },
       };
       hw_viewport_offsets[i] = (VkOffset2D) { 0, 0 };
    }
-   apply(cmd, cs, state, (VkOffset2D) {0, 0}, hw_viewport_offsets, num_views, unscaled_frag_areas, bins, false);
+   apply(cmd, cs, state, (VkOffset2D) {0, 0}, hw_viewport_offsets, num_views, &dummy_config, bins, false);
    assert(tu_cs_get_cur_iova(cs) == patch.iova + patch.size * sizeof(uint32_t));
 
    util_dynarray_append(&cmd->fdm_bin_patchpoints, patch);

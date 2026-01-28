@@ -2714,7 +2714,7 @@ fdm_apply_viewports(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
                     VkOffset2D common_bin_offset,
                     const VkOffset2D *hw_viewport_offsets,
                     unsigned views,
-                    const VkExtent2D *frag_areas, const VkRect2D *bins,
+                    const struct tu_tile_config *tile, const VkRect2D *bins,
                     bool binning)
 {
    const struct apply_viewport_state *state =
@@ -2733,7 +2733,7 @@ fdm_apply_viewports(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
        * view to every view.
        */
       VkExtent2D frag_area =
-         (state->share_scale || views == 1) ? frag_areas[0] : frag_areas[i];
+         (state->share_scale || views == 1) ? tile->frag_areas[0] : tile->frag_areas[i];
       VkRect2D bin =
          (state->share_scale || views == 1) ? bins[0] : bins[i];
       VkOffset2D hw_viewport_offset =
@@ -2852,7 +2852,7 @@ fdm_apply_scissors(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
                    VkOffset2D common_bin_offset,
                    const VkOffset2D *hw_viewport_offsets,
                    unsigned views,
-                   const VkExtent2D *frag_areas, const VkRect2D *bins,
+                   const struct tu_tile_config *tile, const VkRect2D *bins,
                    bool binning)
 {
    const struct apply_viewport_state *state =
@@ -2862,7 +2862,7 @@ fdm_apply_scissors(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
 
    for (unsigned i = 0; i < vp.scissor_count; i++) {
       VkExtent2D frag_area =
-         (state->share_scale || views == 1) ? frag_areas[0] : frag_areas[i];
+         (state->share_scale || views == 1) ? tile->frag_areas[0] : tile->frag_areas[i];
       VkRect2D bin =
          (state->share_scale || views == 1) ? bins[0] : bins[i];
       VkRect2D scissor =

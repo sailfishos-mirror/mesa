@@ -4083,14 +4083,14 @@ fdm_apply_sysmem_clear_coords(struct tu_cmd_buffer *cmd,
                               VkOffset2D common_bin_offset,
                               const VkOffset2D *hw_viewport_offsets,
                               unsigned views,
-                              const VkExtent2D *frag_areas,
+                              const struct tu_tile_config *tile,
                               const VkRect2D *bins,
                               bool binning)
 {
    const struct apply_sysmem_clear_coords_state *state =
       (const struct apply_sysmem_clear_coords_state *)data;
 
-   VkExtent2D frag_area = frag_areas[MIN2(state->view, views - 1)];
+   VkExtent2D frag_area = tile->frag_areas[MIN2(state->view, views - 1)];
    VkRect2D bin = bins[MIN2(state->view, views - 1)];
    /* On a7xx, GRAS_BIN_FOVEAT_OFFSET_* is applied per-viewport. We only use
     * viewport 0 in the 3d blit so use offset 0.
@@ -4380,14 +4380,14 @@ fdm_apply_gmem_clear_coords(struct tu_cmd_buffer *cmd,
                             VkOffset2D common_bin_offset,
                             const VkOffset2D *hw_viewport_offsets,
                             unsigned views,
-                            const VkExtent2D *frag_areas,
+                            const struct tu_tile_config *tile,
                             const VkRect2D *bins,
                             bool binning)
 {
    const struct apply_gmem_clear_coords_state *state =
       (const struct apply_gmem_clear_coords_state *)data;
 
-   VkExtent2D frag_area = frag_areas[MIN2(state->view, views - 1)];
+   VkExtent2D frag_area = tile->frag_areas[MIN2(state->view, views - 1)];
    VkRect2D bin = bins[MIN2(state->view, views - 1)];
 
    VkOffset2D offset = tu_fdm_per_bin_offset(frag_area, bin, common_bin_offset);
@@ -5084,13 +5084,13 @@ fdm_apply_load_coords(struct tu_cmd_buffer *cmd,
                       VkOffset2D common_bin_offset,
                       const VkOffset2D *hw_viewport_offsets,
                       unsigned views,
-                      const VkExtent2D *frag_areas,
+                      const struct tu_tile_config *tile,
                       const VkRect2D *bins,
                       bool binning)
 {
    const struct apply_load_coords_state *state =
       (const struct apply_load_coords_state *)data;
-   VkExtent2D frag_area = frag_areas[MIN2(state->view, views - 1)];
+   VkExtent2D frag_area = tile->frag_areas[MIN2(state->view, views - 1)];
    VkRect2D bin = bins[MIN2(state->view, views - 1)];
    /* On a7xx, GRAS_BIN_FOVEAT_OFFSET_* is applied per-viewport. We only use
     * viewport 0 in the 3d blit so use offset 0.
@@ -5601,13 +5601,13 @@ fdm_apply_store_coords(struct tu_cmd_buffer *cmd,
                        VkOffset2D common_bin_offset,
                        const VkOffset2D *hw_viewport_offsets,
                        unsigned views,
-                       const VkExtent2D *frag_areas,
+                       const struct tu_tile_config *tile,
                        const VkRect2D *bins,
                        bool binning)
 {
    const struct apply_store_coords_state *state =
       (const struct apply_store_coords_state *)data;
-   VkExtent2D frag_area = frag_areas[MIN2(state->view, views - 1)];
+   VkExtent2D frag_area = tile->frag_areas[MIN2(state->view, views - 1)];
    VkRect2D bin = bins[MIN2(state->view, views - 1)];
 
    /* The bin width/height must be a multiple of the frag_area to make sure
