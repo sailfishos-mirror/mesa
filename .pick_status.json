@@ -684,7 +684,7 @@
         "description": "broadcom/cle: bump up gen version for v3d",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9c4829473a11a0cd5daff92cb68db6eef20c7650",
         "notes": null
