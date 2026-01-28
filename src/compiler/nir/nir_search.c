@@ -481,8 +481,8 @@ construct_value(nir_builder *build,
        * expression we are replacing has any exact values, the entire
        * replacement should be exact.
        */
-      alu->fp_math_ctrl = nir_instr_as_alu(instr)->fp_math_ctrl;
-      if ((state->fp_math_ctrl & nir_fp_exact) || expr->exact)
+      alu->fp_math_ctrl = state->fp_math_ctrl;
+      if (expr->exact)
          alu->fp_math_ctrl |= nir_fp_exact;
 
       for (unsigned i = 0; i < nir_op_infos[op].num_inputs; i++) {
