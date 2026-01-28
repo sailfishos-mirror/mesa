@@ -153,6 +153,17 @@ static void dump_tex_samp(uint32_t *texsamp, enum state_src_t src, int num_unit,
                           int level);
 static void dump_tex_const(uint32_t *texsamp, int num_unit, int level);
 
+static struct shader_stats shader_stats[MESA_SHADER_STAGES];
+
+static void
+decode_shader_ir3(uint32_t *dwords, uint32_t sizedwords, int level,
+                  enum mesa_shader_stage stage)
+{
+   try_disasm_a3xx_stat(dwords, sizedwords, level, stdout,
+                        options->info->chip * 100,
+                        &shader_stats[stage]);
+}
+
 static bool
 highlight_addr(uint32_t *hostaddr)
 {
@@ -437,23 +448,36 @@ disasm_gpuaddr(const char *name, uint64_t gpuaddr, int level)
    buf = hostptr(gpuaddr);
    if (buf) {
       uint32_t sizedwords = hostlen(gpuaddr) / 4;
+      enum mesa_shader_stage stage = 0;
       const char *ext;
 
       dump_hex(buf, MIN2(64, sizedwords), level + 1);
-      try_disasm_a3xx(buf, sizedwords, level + 2, stdout, options->info->chip * 100);
 
       /* this is a bit ugly way, but oh well.. */
-      if (strstr(name, "SP_VS_OBJ")) {
+      if (strstr(name, "SP_VS")) {
          ext = "vo3";
-      } else if (strstr(name, "SP_FS_OBJ")) {
-         ext = "fo3";
-      } else if (strstr(name, "SP_GS_OBJ")) {
+         stage = MESA_SHADER_VERTEX;
+      } else if (strstr(name, "SP_HS")) {
+         ext = "ho3";
+         stage = MESA_SHADER_TESS_CTRL;
+      } else if (strstr(name, "SP_DS")) {
+         ext = "do3";
+         stage = MESA_SHADER_TESS_EVAL;
+      } else if (strstr(name, "SP_GS")) {
          ext = "go3";
-      } else if (strstr(name, "SP_CS_OBJ")) {
+         stage = MESA_SHADER_GEOMETRY;
+      } else if (strstr(name, "SP_FS") ||
+                 strstr(name, "SP_PS")) {
+         ext = "fo3";
+         stage = MESA_SHADER_FRAGMENT;
+      } else if (strstr(name, "SP_CS")) {
          ext = "co3";
+         stage = MESA_SHADER_COMPUTE;
       } else {
          ext = NULL;
       }
+
+      decode_shader_ir3(buf, sizedwords, level + 2, stage);
 
       if (ext)
          dump_shader(ext, buf, sizedwords * 4);
@@ -1600,11 +1624,18 @@ dump_tex_descriptor_type(uint32_t *texmemobj, int idx, int level, const char *do
 {
    struct rnndomain *dom = rnn_finddomain(rnn->db, domain);
 
+   /* Earlier gens don't have bindless, or use descriptor variants.  And
+    * extracting info about used (or maybe used) descriptors from the
+    * shaders is not well tested for the pre-a6xx instruction encodings.
+    */
+   assert(options->info->chip >= 6);
+
    if (!dom)
       return;
 
    rnn_varadd(rnn, "desctype", type);
-   if (script_show_descriptor && !script_show_descriptor(texmemobj, 16, type, rnn, dom))
+   if (script_show_descriptor &&
+       !script_show_descriptor(texmemobj, 16, type, rnn, dom))
       return;
 
    printl(2, "%sSTORAGE/TEXEL/IMAGE[%u]: (%s)\n", levels[level + 1], idx, type);
@@ -1832,8 +1863,7 @@ cp_load_state(uint32_t *dwords, uint32_t sizedwords, int level)
       }
 
       if (contents)
-         try_disasm_a3xx(contents, num_unit * 2, level + 2, stdout,
-                         options->info->chip * 100);
+         decode_shader_ir3(contents, num_unit * 2, level + 2, stage);
 
       /* dump raw shader: */
       if (ext)

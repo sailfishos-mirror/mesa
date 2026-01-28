@@ -35,6 +35,10 @@ SOFTWARE.
 	 '.g' - "global" atomics that operate on raw iova addresses
 	 '.s' - "ssbo" pre-a6xx image/ssbo atomics
 	 '.k' - "constants" load into constant reg file
+
+TODO s/ibo/uav/g
+TODO rename UAV src to "UAV" so disasm_field_cb can find it easily?
+
  -->
 
 <bitset name="#const-dst-imm" extends="#const-dst">

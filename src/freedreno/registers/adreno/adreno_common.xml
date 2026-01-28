@@ -14,6 +14,18 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="A8XX" value="8"/>
 </enum>
 
+<!--
+we could use fmt to differentiate planar from single-plane.. but I think we need
+runtime usage to determine other types?
+
+Maybe just use lua hook to tell cffdec which descriptor types a descriptor
+definitely is _not_ (ie. looking at FMT for multiplaner vs single plane..
+and we could probably rule out a weight descriptor based on FMT/SWIZ/etc?).
+Also looking at implausible field values might be a way to rule out some.
+
+Also, align="" should give us some asserts for iova's with pack builders.
+-->
+
 <enum name="desctype" bare="yes">
 	<value name="DESC_NONE" value="0"/>
 	<doc>
@@ -429,5 +441,26 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value value="6" name="PIPE_DDE_BR"/>
 	<value value="7" name="PIPE_DDE_BV"/>
 </enum>
+
+<!--
+   A fake domain for giving lua scripts access to the shader_stats struct
+ -->
+<domain name="ir3_shader_stats" width="32">
+	<!-- indx 0 is bindful, indx N+1 is .baseN -->
+	<array offset="0" name="descriptor_stats" stride="8" length="9">
+		<reg64 offset="0" name="img"/>
+		<reg64 offset="2" name="tex"/>
+		<reg64 offset="4" name="samp"/>
+		<reg64 offset="6" name="ubo"/>
+	</array>
+	<reg32 offset="72" name="has_img"/>
+	<reg32 offset="73" name="has_tex"/>
+	<reg32 offset="74" name="has_samp"/>
+	<reg32 offset="74" name="has_ubo"/>
+	<!--
+		other following fields can be added as needed, but we
+		might need to take care of padding/alignment.
+	 -->
+</domain>
 
 </database>
