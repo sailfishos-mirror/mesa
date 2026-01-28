@@ -57,9 +57,6 @@ struct ntv_context {
    mesa_shader_stage stage;
    const struct ntv_info *sinfo;
 
-   SpvId ubos[PIPE_MAX_CONSTANT_BUFFERS][5]; //8, 16, 32, unused, 64
-   nir_variable *ubo_vars[PIPE_MAX_CONSTANT_BUFFERS];
-
    SpvId ssbos[5]; //8, 16, 32, unused, 64
    nir_variable *ssbo_vars;
 
@@ -1486,10 +1483,6 @@ emit_bo(struct ntv_context *ctx, struct nir_variable *var, bool aliased)
       ctx->ssbos[idx] = var_id;
       if (bitsize == 32)
          ctx->ssbo_vars = var;
-   } else {
-      assert(!ctx->ubos[var->data.driver_location][idx]);
-      ctx->ubos[var->data.driver_location][idx] = var_id;
-      ctx->ubo_vars[var->data.driver_location] = var;
    }
    if (ctx->spirv_1_4_interfaces) {
       assert(ctx->num_entry_ifaces < ARRAY_SIZE(ctx->entry_ifaces));
