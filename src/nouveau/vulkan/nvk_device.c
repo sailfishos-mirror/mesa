@@ -12,6 +12,7 @@
 #include "nvk_shader.h"
 #include "nvkmd/nvkmd.h"
 
+#include "vk_common_entrypoints.h"
 #include "vk_drm_syncobj.h"
 #include "vk_pipeline_cache.h"
 #include "vk_debug_utils.h"
@@ -171,6 +172,37 @@ nvk_device_get_timestamp(struct vk_device *vk_dev, uint64_t *timestamp)
    return VK_SUCCESS;
 }
 
+struct dispatch_table_builder {
+   struct vk_device_dispatch_table *tables[NVK_DISPATCH_TABLE_COUNT];
+   bool used[NVK_DISPATCH_TABLE_COUNT];
+   bool initialized[NVK_DISPATCH_TABLE_COUNT];
+};
+
+static void
+add_entrypoints(struct dispatch_table_builder *b, const struct vk_device_entrypoint_table *entrypoints,
+                enum nvk_dispatch_table table)
+{
+   for (int32_t i = table - 1; i >= NVK_DEVICE_DISPATCH_TABLE; i--) {
+      if (i == NVK_DEVICE_DISPATCH_TABLE || b->used[i]) {
+         vk_device_dispatch_table_from_entrypoints(b->tables[i], entrypoints, !b->initialized[i]);
+         b->initialized[i] = true;
+      }
+   }
+
+   if (table < NVK_DISPATCH_TABLE_COUNT)
+      b->used[table] = true;
+}
+static void
+init_dispatch_tables(struct nvk_device *dev)
+{
+   struct dispatch_table_builder b = {0};
+   b.tables[NVK_DEVICE_DISPATCH_TABLE] = &dev->vk.dispatch_table;
+
+   add_entrypoints(&b, &nvk_device_entrypoints, NVK_DISPATCH_TABLE_COUNT);
+   add_entrypoints(&b, &wsi_device_entrypoints, NVK_DISPATCH_TABLE_COUNT);
+   add_entrypoints(&b, &vk_common_device_entrypoints, NVK_DISPATCH_TABLE_COUNT);
+}
+
 VKAPI_ATTR VkResult VKAPI_CALL
 nvk_CreateDevice(VkPhysicalDevice physicalDevice,
                  const VkDeviceCreateInfo *pCreateInfo,
@@ -186,16 +218,11 @@ nvk_CreateDevice(VkPhysicalDevice physicalDevice,
    if (!dev)
       return vk_error(pdev, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   struct vk_device_dispatch_table dispatch_table;
-   vk_device_dispatch_table_from_entrypoints(&dispatch_table,
-                                             &nvk_device_entrypoints, true);
-   vk_device_dispatch_table_from_entrypoints(&dispatch_table,
-                                             &wsi_device_entrypoints, false);
-
-   result = vk_device_init(&dev->vk, &pdev->vk, &dispatch_table,
-                           pCreateInfo, pAllocator);
+   result = vk_device_init(&dev->vk, &pdev->vk, NULL, pCreateInfo, pAllocator);
    if (result != VK_SUCCESS)
       goto fail_alloc;
+
+   init_dispatch_tables(dev);
 
    dev->vk.shader_ops = &nvk_device_shader_ops;
    dev->vk.check_status = &nvk_device_check_status;
