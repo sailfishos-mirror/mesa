@@ -288,6 +288,14 @@ brw_compile_gs(const struct brw_compiler *compiler,
    prog_data->output_vertex_size_hwords =
       align(output_vertex_size_bytes, 32) / 32;
 
+   const unsigned starting_urb_offset =
+      2 * prog_data->control_data_header_size_hwords +
+      ((prog_data->static_vertex_count == -1) ? 2 : 0);
+
+   BRW_NIR_PASS(brw_nir_lower_deferred_urb_writes, compiler->devinfo,
+                &prog_data->base.vue_map, starting_urb_offset,
+                2 * prog_data->output_vertex_size_hwords);
+
    /* Compute URB entry size.  The maximum allowed URB entry size is 32k.
     * That divides up as follows:
     *

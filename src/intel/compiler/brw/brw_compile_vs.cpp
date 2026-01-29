@@ -214,8 +214,6 @@ run_vs(brw_shader &s)
    if (s.failed)
       return false;
 
-   s.emit_urb_writes();
-
    brw_calculate_cfg(s);
 
    ASSERTED bool eot = s.mark_last_urb_write_with_eot();
@@ -299,6 +297,9 @@ brw_compile_vs(const struct brw_compiler *compiler,
 
    brw_postprocess_nir(pt, debug_enabled,
                        key->base.robust_flags);
+
+   BRW_NIR_PASS(brw_nir_lower_deferred_urb_writes, compiler->devinfo,
+                &prog_data->base.vue_map, 0, 0);
 
    unsigned nr_attribute_slots = util_bitcount64(prog_data->inputs_read);
    /* gl_VertexID and gl_InstanceID are system values, but arrive via an

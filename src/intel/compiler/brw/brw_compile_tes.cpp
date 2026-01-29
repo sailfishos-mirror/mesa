@@ -40,8 +40,6 @@ run_tes(brw_shader &s)
    if (s.failed)
       return false;
 
-   s.emit_urb_writes();
-
    brw_calculate_cfg(s);
 
    s.emit_tes_terminate();
@@ -131,6 +129,9 @@ brw_compile_tes(const struct brw_compiler *compiler,
    BRW_NIR_PASS(intel_nir_lower_patch_vertices_tes);
 
    brw_postprocess_nir(pt, debug_enabled, key->base.robust_flags);
+
+   BRW_NIR_PASS(brw_nir_lower_deferred_urb_writes, devinfo,
+                &prog_data->base.vue_map, 0, 0);
 
    unsigned output_size_bytes = prog_data->base.vue_map.num_slots * 4 * 4;
 

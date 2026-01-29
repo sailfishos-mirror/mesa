@@ -88,7 +88,6 @@ public:
    void fail(const char *msg, ...);
    void limit_dispatch_width(unsigned n, const char *msg);
 
-   void emit_urb_writes(const brw_reg &gs_vertex_count = brw_reg());
    void emit_gs_control_data_bits(const brw_reg &vertex_count);
    brw_reg gs_urb_channel_mask(const brw_reg &dword_index);
    brw_reg gs_urb_per_slot_dword_index(const brw_reg &vertex_count);

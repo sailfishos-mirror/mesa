@@ -219,6 +219,11 @@ struct brw_lower_urb_cb_data {
 bool brw_nir_lower_inputs_to_urb_intrinsics(nir_shader *, const struct brw_lower_urb_cb_data *);
 
 bool brw_nir_lower_outputs_to_urb_intrinsics(nir_shader *, const struct brw_lower_urb_cb_data *);
+bool brw_nir_lower_deferred_urb_writes(nir_shader *nir,
+                                       const struct intel_device_info *devinfo,
+                                       const struct intel_vue_map *vue_map,
+                                       unsigned extra_urb_slot_offset,
+                                       unsigned gs_vertex_stride);
 
 void brw_nir_opt_vectorize_urb(struct brw_pass_tracker *pt);
 

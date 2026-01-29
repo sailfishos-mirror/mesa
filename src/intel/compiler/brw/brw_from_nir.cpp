@@ -78,56 +78,6 @@ setup_imm_b(const brw_builder &bld, int8_t v)
    return tmp;
 }
 
-static void
-brw_from_nir_setup_outputs(nir_to_brw_state &ntb)
-{
-   brw_shader &s = ntb.s;
-
-   if (s.stage == MESA_SHADER_TESS_CTRL ||
-       s.stage == MESA_SHADER_TASK ||
-       s.stage == MESA_SHADER_MESH ||
-       s.stage == MESA_SHADER_FRAGMENT ||
-       s.stage == MESA_SHADER_COMPUTE)
-      return;
-
-   unsigned vec4s[VARYING_SLOT_TESS_MAX] = { 0, };
-
-   /* Calculate the size of output registers in a separate pass, before
-    * allocating them.  With ARB_enhanced_layouts, multiple output variables
-    * may occupy the same slot, but have different type sizes.
-    */
-   nir_foreach_shader_out_variable(var, s.nir) {
-      const int loc = var->data.driver_location;
-      const unsigned var_vec4s = nir_variable_count_slots(var, var->type);
-      vec4s[loc] = MAX2(vec4s[loc], var_vec4s);
-   }
-
-   for (unsigned loc = 0; loc < ARRAY_SIZE(vec4s);) {
-      if (vec4s[loc] == 0) {
-         loc++;
-         continue;
-      }
-
-      unsigned reg_size = vec4s[loc];
-
-      /* Check if there are any ranges that start within this range and extend
-       * past it. If so, include them in this allocation.
-       */
-      for (unsigned i = 1; i < reg_size; i++) {
-         assert(i + loc < ARRAY_SIZE(vec4s));
-         reg_size = MAX2(vec4s[i + loc] + i, reg_size);
-      }
-
-      brw_reg reg = ntb.bld.vgrf(BRW_TYPE_F, 4 * reg_size);
-      for (unsigned i = 0; i < reg_size; i++) {
-         assert(loc + i < ARRAY_SIZE(s.outputs));
-         s.outputs[loc + i] = offset(reg, ntb.bld, 4 * i);
-      }
-
-      loc += reg_size;
-   }
-}
-
 static brw_reg
 emit_work_group_id_setup(nir_to_brw_state &ntb)
 {
@@ -2647,8 +2597,6 @@ emit_gs_vertex(nir_to_brw_state &ntb, const nir_src &vertex_count_nir_src,
       abld.emit(BRW_OPCODE_ENDIF);
    }
 
-   s.emit_urb_writes(vertex_count);
-
    /* In stream mode we have to set control data bits for all vertices
     * unless we have disabled control data bits completely (which we do
     * do for MESA_PRIM_POINTS outputs that don't use streams).
@@ -3143,13 +3091,6 @@ brw_from_nir_emit_gs_intrinsic(nir_to_brw_state &ntb,
 
    case nir_intrinsic_emit_vertex_with_counter:
       emit_gs_vertex(ntb, instr->src[0], nir_intrinsic_stream_id(instr));
-
-      /* After an EmitVertex() call, the values of all outputs are undefined.
-       * If this is not in control flow, recreate a fresh set of output
-       * registers to keep their live ranges separate.
-       */
-      if (instr->instr.block->cf_node.parent->type == nir_cf_node_function)
-         brw_from_nir_setup_outputs(ntb);
       break;
 
    case nir_intrinsic_end_primitive_with_counter:
@@ -5520,22 +5461,6 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       break;
    }
 
-   case nir_intrinsic_store_output: {
-      assert(nir_src_bit_size(instr->src[0]) == 32);
-      brw_reg src = get_nir_src(ntb, instr->src[0], -1);
-
-      unsigned store_offset = nir_src_as_uint(instr->src[1]);
-      unsigned num_components = instr->num_components;
-      unsigned first_component = nir_intrinsic_component(instr);
-
-      brw_reg new_dest = retype(offset(s.outputs[instr->const_index[0]], bld,
-                                      4 * store_offset), src.type);
-
-      brw_combine_with_vec(bld, offset(new_dest, bld, first_component),
-                           src, num_components);
-      break;
-   }
-
    case nir_intrinsic_load_subgroup_size:
       /* This should only happen for fragment shaders because every other case
        * is lowered in NIR so we can optimize on it.
@@ -6949,7 +6874,6 @@ brw_from_nir(brw_shader *s)
    /* emit the arrays used for inputs and outputs - load/store intrinsics will
     * be converted to reads/writes of these arrays
     */
-   brw_from_nir_setup_outputs(ntb);
    brw_from_nir_emit_system_values(ntb);
    ntb.s.last_scratch = align(ntb.nir->scratch_size, 4) * ntb.s.dispatch_width;
 
