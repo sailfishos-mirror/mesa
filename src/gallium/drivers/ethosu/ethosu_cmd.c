@@ -151,9 +151,9 @@ emit_strides(
       tensor_y = tensor->shape.width * tensor_x;
    }
 
-   EMIT1(cmd_stride_c, 0x0, tensor_c);
    EMIT1(cmd_stride_y, 0x0, tensor_y);
    EMIT1(cmd_stride_x, 0x0, tensor_x);
+   EMIT1(cmd_stride_c, 0x0, tensor_c);
 }
 
 static void
@@ -192,7 +192,8 @@ emit_ifm_precision(struct ethosu_subgraph *subgraph,
    if (feature_map->is_signed)
       prec |= NPU_SET_IFM_PRECISION_ACTIVATION(1); // signed activation
 
-   prec |= NPU_SET_IFM_PRECISION_SCALE_MODE(op_to_scale);
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      prec |= NPU_SET_IFM_PRECISION_SCALE_MODE(op_to_scale);
 
    EMIT0(precision_cmd, prec);
 }
@@ -217,11 +218,19 @@ emit_ofm(struct ethosu_subgraph *subgraph, struct ethosu_feature_map *feature_ma
       NPU_SET_OFM_BASE1,
       NPU_SET_OFM_BASE2,
       NPU_SET_OFM_BASE3);
-   emit_tiles(
-      subgraph, feature_map, NPU_SET_OFM_HEIGHT0_M1, NPU_SET_OFM_HEIGHT1_M1, NPU_SET_OFM_WIDTH0_M1);
+
    EMIT0(NPU_SET_OFM_HEIGHT_M1, feature_map->shape.height - 1);
    EMIT0(NPU_SET_OFM_WIDTH_M1, feature_map->shape.width - 1);
-   EMIT0(NPU_SET_OFM_DEPTH_M1, feature_map->shape.depth - 1);
+
+   if (!ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      EMIT0(NPU_SET_OFM_DEPTH_M1, feature_map->shape.depth - 1);
+
+   emit_tiles(
+      subgraph, feature_map, NPU_SET_OFM_HEIGHT0_M1, NPU_SET_OFM_HEIGHT1_M1, NPU_SET_OFM_WIDTH0_M1);
+
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      EMIT0(NPU_SET_OFM_DEPTH_M1, feature_map->shape.depth - 1);
+
    emit_strides(subgraph, feature_map, NPU_SET_OFM_STRIDE_C, NPU_SET_OFM_STRIDE_Y, NPU_SET_OFM_STRIDE_X);
    EMIT0(NPU_SET_OFM_ZERO_POINT, feature_map->zero_point);
 }
@@ -268,6 +277,9 @@ emit_kernel(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation
 static void
 emit_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
+   if (!ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      EMIT0(NPU_SET_WEIGHT_FORMAT, 0x0);
+
    EMIT0(NPU_SET_WEIGHT_REGION, operation->conv.weights.region);
    EMIT1(NPU_SET_WEIGHT_BASE, 0x0, operation->conv.weights.address);
    EMIT1(NPU_SET_WEIGHT_LENGTH, 0x0, operation->conv.weights.size);
@@ -366,16 +378,23 @@ emit_acc_format(struct ethosu_subgraph *subgraph, struct ethosu_operation *opera
 static void
 emit_common(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, enum ethosu_op_to_scale op_to_scale)
 {
+   if (!ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      emit_ifm_precision(subgraph, &operation->ifm, op_to_scale, NPU_SET_IFM_PRECISION);
    emit_ifm(subgraph, &operation->ifm);
-   emit_ifm_precision(subgraph, &operation->ifm, op_to_scale, NPU_SET_IFM_PRECISION);
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      emit_ifm_precision(subgraph, &operation->ifm, op_to_scale, NPU_SET_IFM_PRECISION);
    EMIT0(NPU_SET_IFM_UPSCALE, operation->upscale);
 
    if (operation->type != ETHOSU_OPERATION_TYPE_ELTWISE)
       emit_padding(subgraph, operation);
 
+   if (!ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      emit_ofm_precision(subgraph, operation);
+
    emit_ofm(subgraph, &operation->ofm);
 
-   emit_ofm_precision(subgraph, operation);
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      emit_ofm_precision(subgraph, operation);
 
    if (operation->type != ETHOSU_OPERATION_TYPE_ELTWISE)
       emit_kernel(subgraph, operation);
@@ -386,17 +405,14 @@ emit_common(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation
    }
 
    emit_activation(subgraph, operation);
-
-   emit_block_config(subgraph, operation);
-   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
-      emit_shram_registers(subgraph, operation);
-   else
-      EMIT0(NPU_SET_ACC_FORMAT, 0x300); // FIXME should be based on # of MACs, only works for >=256 MACs
 }
 
 static void
 emit_convolution(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
+   if (!ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(operation->conv.shift), operation->conv.scale);
+
    operation->ifm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm.tensor_idx);
    operation->ifm.tiles.height_0 = operation->ifm.shape.height;
    operation->ifm.tiles.height_1 = operation->ifm.shape.height;
@@ -408,6 +424,12 @@ emit_convolution(struct ethosu_subgraph *subgraph, struct ethosu_operation *oper
    operation->ofm.tiles.width_0 = operation->ofm.shape.width;
 
    emit_common(subgraph, operation, false);
+
+   emit_block_config(subgraph, operation);
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      emit_shram_registers(subgraph, operation);
+   else
+      emit_acc_format(subgraph, operation);
 }
 
 static unsigned
@@ -532,6 +554,14 @@ emit_ifm2(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, 
 }
 
 static void
+emit_ifm_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, bool has_scalar)
+{
+   unsigned ifm_broadcast = 0;
+
+   EMIT0(NPU_SET_IFM_BROADCAST, ifm_broadcast);
+}
+
+static void
 emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, bool has_scalar)
 {
    unsigned ifm2_broadcast = 0;
@@ -620,8 +650,19 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    emit_common(subgraph, operation, op_to_scale);
 
    emit_ifm2(subgraph, operation, has_scalar);
-   emit_ifm_precision(subgraph, &operation->ifm2, OP_NONE, NPU_SET_IFM2_PRECISION);
+
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      emit_ifm_precision(subgraph, &operation->ifm2, OP_NONE, NPU_SET_IFM2_PRECISION);
+   else
+      emit_ifm_broadcast(subgraph, operation, false);
+
    emit_ifm2_broadcast(subgraph, operation, has_scalar);
+
+   emit_block_config(subgraph, operation);
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      emit_shram_registers(subgraph, operation);
+   else
+      emit_acc_format(subgraph, operation);
 }
 
 static void
