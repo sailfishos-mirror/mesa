@@ -20,6 +20,7 @@ enum ethosu_dbg {
    ETHOSU_DBG_ZERO = BITFIELD_BIT(2),
    ETHOSU_DBG_DISABLE_NHCWB16 = BITFIELD_BIT(3),
    ETHOSU_DBG_DISABLE_SRAM = BITFIELD_BIT(4),
+   ETHOSU_DBG_FORCE_U85 = BITFIELD_BIT(5),
 };
 
 extern int ethosu_debug;
@@ -58,7 +59,10 @@ ethosu_screen(struct pipe_screen *p)
 static inline bool
 ethosu_is_u65(struct ethosu_screen *e)
 {
-   return DRM_ETHOSU_ARCH_MAJOR(e->info.id) == 1;
+   if (DBG_ENABLED(ETHOSU_DBG_FORCE_U85))
+      return false;
+   else
+      return DRM_ETHOSU_ARCH_MAJOR(e->info.id) == 1;
 }
 
 struct ethosu_context {
