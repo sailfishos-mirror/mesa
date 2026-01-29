@@ -2975,7 +2975,8 @@ impl<'a> ShaderFromNir<'a> {
             nir_intrinsic_global_atomic_nv => {
                 let bit_size = intrin.def.bit_size();
                 let addr = self.get_src(&srcs[0]);
-                let data = self.get_src(&srcs[1]);
+                let uaddr = self.get_src(&srcs[1]);
+                let data = self.get_src(&srcs[2]);
                 let atom_type = self.get_atomic_type(intrin);
                 let atom_op = self.get_atomic_op(intrin, AtomCmpSrc::Separate);
 
@@ -2992,7 +2993,7 @@ impl<'a> ShaderFromNir<'a> {
                         dst.clone().into()
                     },
                     addr: addr,
-                    uniform_address: Src::ZERO,
+                    uniform_address: uaddr,
                     cmpr: 0.into(),
                     data: data,
                     atom_op: atom_op,
@@ -3220,13 +3221,14 @@ impl<'a> ShaderFromNir<'a> {
                         .get_eviction_priority(intrin.access()),
                 };
                 let addr = self.get_src(&srcs[0]);
-                let pred = self.get_src(&srcs[1]);
+                let uaddr = self.get_src(&srcs[1]);
+                let pred = self.get_src(&srcs[2]);
                 let dst = b.alloc_ssa_vec(RegFile::GPR, size_B.div_ceil(4));
 
                 b.push_op(OpLd {
                     dst: dst.clone().into(),
                     addr: addr,
-                    uniform_addr: Src::ZERO,
+                    uniform_addr: uaddr,
                     pred: pred,
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
@@ -3333,12 +3335,13 @@ impl<'a> ShaderFromNir<'a> {
                     eviction_priority: MemEvictionPriority::Normal,
                 };
                 let addr = self.get_src(&srcs[0]);
+                let uaddr = self.get_src(&srcs[1]);
                 let dst = b.alloc_ssa_vec(RegFile::GPR, size_B.div_ceil(4));
 
                 b.push_op(OpLd {
                     dst: dst.clone().into(),
                     addr: addr,
-                    uniform_addr: Src::ZERO,
+                    uniform_addr: uaddr,
                     pred: true.into(),
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
@@ -3357,12 +3360,14 @@ impl<'a> ShaderFromNir<'a> {
                     eviction_priority: MemEvictionPriority::Normal,
                 };
                 let addr = self.get_src(&srcs[0]);
+                let uaddr = self.get_src(&srcs[1]);
+
                 let dst = b.alloc_ssa_vec(RegFile::GPR, size_B.div_ceil(4));
 
                 b.push_op(OpLd {
                     dst: dst.clone().into(),
                     addr: addr,
-                    uniform_addr: Src::ZERO,
+                    uniform_addr: uaddr,
                     pred: true.into(),
                     offset: intrin.base(),
                     stride: intrin.offset_shift_nv().try_into().unwrap(),
@@ -3673,7 +3678,8 @@ impl<'a> ShaderFromNir<'a> {
             nir_intrinsic_shared_atomic_nv => {
                 let bit_size = intrin.def.bit_size();
                 let addr = self.get_src(&srcs[0]);
-                let data = self.get_src(&srcs[1]);
+                let uaddr = self.get_src(&srcs[1]);
+                let data = self.get_src(&srcs[2]);
                 let atom_type = self.get_atomic_type(intrin);
                 let atom_op = self.get_atomic_op(intrin, AtomCmpSrc::Separate);
 
@@ -3683,7 +3689,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpAtom {
                     dst: dst.clone().into(),
                     addr: addr,
-                    uniform_address: Src::ZERO,
+                    uniform_address: uaddr,
                     cmpr: 0.into(),
                     data: data,
                     atom_op: atom_op,
@@ -3740,10 +3746,11 @@ impl<'a> ShaderFromNir<'a> {
                         .get_eviction_priority(intrin.access()),
                 };
                 let addr = self.get_src(&srcs[1]);
+                let uaddr = self.get_src(&srcs[2]);
 
                 b.push_op(OpSt {
                     addr: addr,
-                    uniform_addr: Src::ZERO,
+                    uniform_addr: uaddr,
                     data: data,
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
@@ -3772,10 +3779,11 @@ impl<'a> ShaderFromNir<'a> {
                     eviction_priority: MemEvictionPriority::Normal,
                 };
                 let addr = self.get_src(&srcs[1]);
+                let uaddr = self.get_src(&srcs[2]);
 
                 b.push_op(OpSt {
                     addr: addr,
-                    uniform_addr: Src::ZERO,
+                    uniform_addr: uaddr,
                     data: data,
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
@@ -3794,10 +3802,11 @@ impl<'a> ShaderFromNir<'a> {
                     eviction_priority: MemEvictionPriority::Normal,
                 };
                 let addr = self.get_src(&srcs[1]);
+                let uaddr = self.get_src(&srcs[2]);
 
                 b.push_op(OpSt {
                     addr: addr,
-                    uniform_addr: Src::ZERO,
+                    uniform_addr: uaddr,
                     data: data,
                     offset: intrin.base(),
                     stride: intrin.offset_shift_nv().try_into().unwrap(),
@@ -3912,12 +3921,13 @@ impl<'a> ShaderFromNir<'a> {
                 };
                 let dst = b.alloc_ssa_vec(RegFile::GPR, comps);
                 let addr = self.get_src(&srcs[0]);
+                let uaddr = self.get_src(&srcs[1]);
                 b.push_op(OpLdsm {
                     dst: dst.clone().into(),
                     mat_size,
                     mat_count,
                     addr,
-                    uniform_addr: Src::ZERO,
+                    uniform_addr: uaddr,
                     offset: intrin.base(),
                 });
                 self.set_dst(&intrin.def, dst);

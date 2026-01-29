@@ -5829,11 +5829,13 @@ nir_lower_shader_calls(nir_shader *shader,
                        void *mem_ctx);
 
 int nir_get_io_offset_src_number(const nir_intrinsic_instr *instr);
+int nir_get_io_uniform_offset_src_number(const nir_intrinsic_instr *instr);
 int nir_get_io_index_src_number(const nir_intrinsic_instr *instr);
 int nir_get_io_data_src_number(const nir_intrinsic_instr *instr);
 int nir_get_io_arrayed_index_src_number(const nir_intrinsic_instr *instr);
 
 nir_src *nir_get_io_offset_src(nir_intrinsic_instr *instr);
+nir_src *nir_get_io_uniform_offset_src(nir_intrinsic_instr *instr);
 nir_src *nir_get_io_index_src(nir_intrinsic_instr *instr);
 nir_src *nir_get_io_data_src(nir_intrinsic_instr *instr);
 nir_src *nir_get_io_arrayed_index_src(nir_intrinsic_instr *instr);
@@ -5843,7 +5845,6 @@ static inline unsigned
 nir_get_io_base_size_nv(const nir_intrinsic_instr *intr)
 {
    switch (intr->intrinsic) {
-   case nir_intrinsic_global_atomic_nv:
    case nir_intrinsic_global_atomic_swap_nv:
    case nir_intrinsic_shared_atomic_nv:
    case nir_intrinsic_shared_atomic_swap_nv:
@@ -5856,6 +5857,9 @@ nir_get_io_base_size_nv(const nir_intrinsic_instr *intr)
    case nir_intrinsic_store_shared_nv:
    case nir_intrinsic_store_shared_unlock_nv:
       return 24;
+   case nir_intrinsic_global_atomic_nv:
+      /* TODO: SM100+ only has 23 bits for the UGPR + GPR form */
+      return 23;
    case nir_intrinsic_ldc_nv:
    case nir_intrinsic_ldcx_nv:
       return 16;

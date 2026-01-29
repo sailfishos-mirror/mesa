@@ -941,7 +941,8 @@ intrinsic("load_vulkan_descriptor", src_comp=[-1], dest_comp=0,
 # The offset is sign-extended or zero-extended based on the SIGN_EXTEND index.
 #
 # NV variants all come with a 24 bit base, that is unsigned with a constant 0 address,
-# signed otherwise.
+# signed otherwise. Non swap atomic also comes with an additional uniform address source
+# right after the non uniform memory address.
 #
 # PCO global variants use a vec3 for the memory address and data, where component X
 # has the low 32 address bits, component Y has the high 32 address bits, and component Z
@@ -950,13 +951,13 @@ intrinsic("load_vulkan_descriptor", src_comp=[-1], dest_comp=0,
 intrinsic("deref_atomic",  src_comp=[-1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP])
 intrinsic("ssbo_atomic",  src_comp=[-1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP, OFFSET_SHIFT])
 intrinsic("shared_atomic",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("shared_atomic_nv",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP, OFFSET_SHIFT_NV])
+intrinsic("shared_atomic_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP, OFFSET_SHIFT_NV])
 intrinsic("task_payload_atomic",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic",  src_comp=[1, 1], dest_comp=1, indices=[ATOMIC_OP])
 intrinsic("global_atomic_2x32",  src_comp=[2, 1], dest_comp=1, indices=[ATOMIC_OP])
 intrinsic("global_atomic_amd",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic_agx",  src_comp=[1, 1, 1], dest_comp=1, indices=[ATOMIC_OP, SIGN_EXTEND])
-intrinsic("global_atomic_nv",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
+intrinsic("global_atomic_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic_pco",  src_comp=[3], dest_comp=1, indices=[ATOMIC_OP], bit_sizes=[32])
 
 intrinsic("deref_atomic_swap",  src_comp=[-1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP])
@@ -1946,15 +1947,15 @@ load("global_amd", [1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flag
 # src[] = { value, address, unsigned 32-bit offset }.
 store("global_amd", [1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET, WRITE_MASK])
 
-# src[] = { address }. BASE is a 24 bit unsigned offset if a constant 0 address is given,
-# signed otherwise.
+# src[] = { address, uniform_address }. BASE is a 24 bit unsigned offset if a constant 0 address and
+# a constant 0 uniform_address is given, signed otherwise.
 # load_global_nv has an additional boolean input that makes the load return 0 on false.
-load("global_nv", [1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
-store("global_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
-load("scratch_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
-store("scratch_nv", [1], indices=[BASE, ALIGN_MUL, ALIGN_OFFSET])
-load("shared_nv", [1], indices=[BASE, OFFSET_SHIFT_NV, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
-store("shared_nv", [1], indices=[BASE, OFFSET_SHIFT_NV, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
+load("global_nv", [1, 1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
+store("global_nv", [1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
+load("scratch_nv", [1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
+store("scratch_nv", [1, 1], indices=[BASE, ALIGN_MUL, ALIGN_OFFSET])
+load("shared_nv", [1, 1], indices=[BASE, OFFSET_SHIFT_NV, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
+store("shared_nv", [1, 1], indices=[BASE, OFFSET_SHIFT_NV, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
 
 # Same as shared_atomic_add, but with GDS. src[] = {store_val, gds_addr, m0}
 intrinsic("gds_atomic_add_amd",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE])
@@ -2979,7 +2980,8 @@ intrinsic("ssa_bar_nv", src_comp=[1])
 intrinsic("cmat_muladd_nv", src_comp=[-1, -1, -1], dest_comp=0, bit_sizes=src2,
           indices=[FLAGS], flags=[CAN_ELIMINATE])
 
-intrinsic("cmat_load_shared_nv", src_comp=[1], dest_comp=0, indices=[NUM_MATRICES, MATRIX_LAYOUT, BASE], flags=[CAN_ELIMINATE])
+# src[] = { address, uniform_address }
+intrinsic("cmat_load_shared_nv", src_comp=[1, 1], dest_comp=0, indices=[NUM_MATRICES, MATRIX_LAYOUT, BASE], flags=[CAN_ELIMINATE])
 
 # Moves a 8x8 16bit matrix with transposition within a subgroup
 intrinsic("cmat_mov_transpose_nv", src_comp=[2], dest_comp=2, bit_sizes=[16], flags=[CAN_ELIMINATE, CAN_REORDER, SUBGROUP])

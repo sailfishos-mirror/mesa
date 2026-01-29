@@ -761,9 +761,11 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
    case nir_intrinsic_vild_nv: {
       int base = nir_intrinsic_base(instr);
       nir_src src = *nir_get_io_offset_src(instr);
+      nir_src *uniform_src = nir_get_io_uniform_offset_src(instr);
       unsigned const_bits = nir_get_io_base_size_nv(instr);
 
-      if (nir_src_is_const(src) && nir_src_as_int(src) == 0) {
+      if (nir_src_is_const(src) && nir_src_as_int(src) == 0 &&
+          (!uniform_src || (nir_src_is_const(*uniform_src) && nir_src_as_int(*uniform_src) == 0))) {
          validate_assert(state, base >= 0 && base < BITFIELD_MASK(const_bits));
       } else {
          int32_t max = BITFIELD_MASK(const_bits - 1);
@@ -771,8 +773,11 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
          validate_assert(state, base >= min && base < max);
       }
 
+      if (uniform_src)
+         validate_assert(state, uniform_src->ssa->bit_size >= src.ssa->bit_size);
+
       if (instr->intrinsic == nir_intrinsic_load_global_nv) {
-         validate_assert(state, instr->src[1].ssa->bit_size == 1);
+         validate_assert(state, instr->src[2].ssa->bit_size == 1);
       }
 
       break;

@@ -1110,6 +1110,39 @@ nir_get_io_offset_src(nir_intrinsic_instr *instr)
    case nir_intrinsic_image_heap_##name
 
 /**
+ * Return the uniform offset source number for a load/store intrinsic or -1 if there's no offset.
+ */
+int
+nir_get_io_uniform_offset_src_number(const nir_intrinsic_instr *instr)
+{
+   switch (instr->intrinsic) {
+   case nir_intrinsic_cmat_load_shared_nv:
+   case nir_intrinsic_global_atomic_nv:
+   case nir_intrinsic_load_global_nv:
+   case nir_intrinsic_load_scratch_nv:
+   case nir_intrinsic_load_shared_nv:
+   case nir_intrinsic_shared_atomic_nv:
+      return 1;
+   case nir_intrinsic_store_global_nv:
+   case nir_intrinsic_store_scratch_nv:
+   case nir_intrinsic_store_shared_nv:
+      return 2;
+   default:
+      return -1;
+   }
+}
+
+/**
+ * Return the uniform offset source for a load/store intrinsic.
+ */
+nir_src *
+nir_get_io_uniform_offset_src(nir_intrinsic_instr *instr)
+{
+   const int idx = nir_get_io_uniform_offset_src_number(instr);
+   return idx >= 0 ? &instr->src[idx] : NULL;
+}
+
+/**
  * Return the index or handle source number for a load/store intrinsic or -1
  * if there's no index or handle.
  */
