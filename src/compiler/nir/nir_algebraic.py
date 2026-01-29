@@ -123,8 +123,6 @@ class Value(object):
 
         if isinstance(val, tuple):
             return Expression(val, name_base, varset, algebraic_pass)
-        elif isinstance(val, Expression):
-            return val
         elif isinstance(val, str):
             return Variable(val, name_base, varset, algebraic_pass)
         elif isinstance(val, (bool, float, int)):
