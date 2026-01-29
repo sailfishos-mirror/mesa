@@ -2424,7 +2424,7 @@
         "description": "anv: route clear operations on compute to companion",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ab9d3528dc839a7b3a7c0c960dcba78bbd9e4a4c",
         "notes": null
