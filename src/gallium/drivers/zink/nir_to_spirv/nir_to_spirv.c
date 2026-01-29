@@ -2654,6 +2654,7 @@ create_builtin_var(struct ntv_context *ctx, SpvId var_type,
       switch (builtin) {
       case SpvBuiltInSampleId:
       case SpvBuiltInSubgroupLocalInvocationId:
+      case SpvBuiltInViewIndex:
          spirv_builder_emit_decoration(&ctx->builder, var, SpvDecorationFlat);
          break;
       default:
