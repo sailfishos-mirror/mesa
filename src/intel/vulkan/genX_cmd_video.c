@@ -2673,7 +2673,7 @@ anv_av1_calculate_xstep_qn(struct anv_cmd_buffer *cmd_buffer,
          }
 
 
-         int32_t mi_col_end = tile_col_end_sb >> mib_size_log2;
+         int32_t mi_col_end = tile_col_end_sb << mib_size_log2;
          mi_col_end = MIN2(mi_col_end, mi_cols);
 
          int32_t downscaled_x1 = mi_col_end << (av1_mi_size_log2 - ssx);
