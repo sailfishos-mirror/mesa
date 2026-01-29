@@ -35,7 +35,7 @@ struct cffdec_options {
    int summary;
    int allregs;
    int dump_textures;
-   int dump_bindless;
+   int dump_all_bindless;
    int decode_markers;
    char *script;
 

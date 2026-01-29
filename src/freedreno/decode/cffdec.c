@@ -1638,6 +1638,9 @@ static bool
 show_descriptor(uint32_t *desc, int sizedwords, int base, int idx,
                 const char *domain, const char *type)
 {
+   if (options->dump_all_bindless)
+      return true;
+
    struct rnndomain *dom = rnn_finddomain(rnn->db, domain);
 
    /* Earlier gens don't have bindless, or use descriptor variants.  And
@@ -1741,9 +1744,6 @@ dump_tex_const(uint32_t *texconst, int num_unit, int level)
 static void
 dump_bindless_descriptors(bool is_compute, int level)
 {
-   if (!options->dump_bindless)
-      return;
-
    /* Skip for devices which do not support bindless: */
    if (options->info->chip < 6)
       return;

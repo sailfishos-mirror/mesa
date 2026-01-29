@@ -8715,6 +8715,12 @@ got cmdszdw=38
 					{ NUM_INDICES = 6 }
 				mode: RM6_DIRECT_RENDER
 				skip_ib2: g=0, l=0
+				draw[11] bindless descriptors
+				    set[0]:
+				    set[1]:
+				    set[2]:
+				    set[3]:
+				    set[4]:
 				draw[11] register values
 !+	000000c0				GRAS_CL_CNTL: { ZERO_GB_SCALE_Z | VP_CLIP_CODE_IGNORE }
  +	00000000				GRAS_CL_VS_CLIP_CULL_DISTANCE: { CLIP_MASK = 0 | CULL_MASK = 0 }
@@ -9398,6 +9404,12 @@ got cmdszdw=38
 					{ NUM_INDICES = 6 }
 				mode: RM6_DIRECT_RENDER
 				skip_ib2: g=0, l=0
+				draw[15] bindless descriptors
+				    set[0]:
+				    set[1]:
+				    set[2]:
+				    set[3]:
+				    set[4]:
 				draw[15] register values
  +	000000c0				GRAS_CL_CNTL: { ZERO_GB_SCALE_Z | VP_CLIP_CODE_IGNORE }
  +	00000000				GRAS_CL_VS_CLIP_CULL_DISTANCE: { CLIP_MASK = 0 | CULL_MASK = 0 }
@@ -10091,6 +10103,12 @@ got cmdszdw=38
 					{ NUM_INDICES = 6 }
 				mode: RM6_DIRECT_RENDER
 				skip_ib2: g=0, l=0
+				draw[19] bindless descriptors
+				    set[0]:
+				    set[1]:
+				    set[2]:
+				    set[3]:
+				    set[4]:
 				draw[19] register values
  +	000000c0				GRAS_CL_CNTL: { ZERO_GB_SCALE_Z | VP_CLIP_CODE_IGNORE }
  +	00000000				GRAS_CL_VS_CLIP_CULL_DISTANCE: { CLIP_MASK = 0 | CULL_MASK = 0 }
@@ -10708,6 +10726,12 @@ ESTIMATED CRASH LOCATION!
 					{ NUM_INDICES = 6 }
 				mode: RM6_DIRECT_RENDER
 				skip_ib2: g=0, l=0
+				draw[20] bindless descriptors
+				    set[0]:
+				    set[1]:
+				    set[2]:
+				    set[3]:
+				    set[4]:
 				draw[20] register values
  +	000000c0				GRAS_CL_CNTL: { ZERO_GB_SCALE_Z | VP_CLIP_CODE_IGNORE }
  +	00000000				GRAS_CL_VS_CLIP_CULL_DISTANCE: { CLIP_MASK = 0 | CULL_MASK = 0 }

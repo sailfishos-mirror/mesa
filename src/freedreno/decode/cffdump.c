@@ -105,7 +105,7 @@ static const struct option opts[] = {
       { "no-pager",        no_argument, &interactive,           0 },
       { "pager",           no_argument, &interactive,           1 },
       { "textures",        no_argument, &options.dump_textures, 1 },
-      { "bindless",        no_argument, &options.dump_bindless, 1 },
+      { "bindless",        no_argument, &options.dump_all_bindless, 1 },
       { "show-compositor", no_argument, &show_comp,             1 },
       { "query-all",       no_argument, &options.query_mode,    QUERY_ALL },
       { "query-written",   no_argument, &options.query_mode,    QUERY_WRITTEN },
