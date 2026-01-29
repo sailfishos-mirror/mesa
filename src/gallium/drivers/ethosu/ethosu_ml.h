@@ -130,6 +130,17 @@ struct ethosu_block_config {
    bool is_partkernel;
 };
 
+enum ethosu_pooling_type {
+   ETHOSU_POOLING_TYPE_MAX = 0,
+   ETHOSU_POOLING_TYPE_AVG,
+   ETHOSU_POOLING_TYPE_REDUCE_SUM,
+   ETHOSU_POOLING_TYPE_SUM,
+   ETHOSU_POOLING_TYPE_NONE,
+   ETHOSU_POOLING_TYPE_MIN,
+   ETHOSU_POOLING_TYPE_ARGMAX_X,
+   ETHOSU_POOLING_TYPE_ARGMAX_Y,
+};
+
 #define MAX_MEMORY_ACCESSES 5 /* IFM, IFM2, Scales, Weights, LUT*/
 
 struct ethosu_operation {
@@ -147,7 +158,7 @@ struct ethosu_operation {
       } conv;
 
       struct {
-         bool avg; /* true for avg, false for max */
+         enum ethosu_pooling_type type;
       } pooling;
 
       struct {

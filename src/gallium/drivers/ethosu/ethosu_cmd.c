@@ -24,6 +24,16 @@ enum ethosu_op_to_scale {
    OP_B = 2,
 };
 
+enum ethosu_microblock {
+   MICROBLOCK_U1X1 = 0,
+   MICROBLOCK_U1X2 = 1,
+   MICROBLOCK_U1X4 = 2,
+   MICROBLOCK_U2X2 = 3,
+   MICROBLOCK_U2X4 = 4,
+   MICROBLOCK_U4X4 = 5,
+   MICROBLOCK_U2X1 = 6, /* U85 elementwise ublock */
+};
+
 static void
 ethosu_ensure_cmdstream(struct ethosu_subgraph *subgraph)
 {
@@ -311,6 +321,49 @@ emit_shram_registers(struct ethosu_subgraph *subgraph, struct ethosu_operation *
 }
 
 static void
+emit_acc_format(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
+{
+   /* Currently only 8-bit quantized operations are supported, so
+    * acc_format=INT_32 (0), acc_input=I8 (0), acc_output=I8 (0).
+    * These would need to vary for 16-bit or mixed-precision ops. */
+   unsigned acc_format = 0;
+   unsigned acc_input = 0;
+   unsigned acc_output = 0;
+   enum ethosu_microblock block = MICROBLOCK_U1X1;
+
+   switch (operation->block_config.ofm_ublock.height << 4 | operation->block_config.ofm_ublock.width) {
+   case 0x11:
+      block = MICROBLOCK_U1X1;
+      break;
+   case 0x12:
+      block = MICROBLOCK_U1X2;
+      break;
+   case 0x14:
+      block = MICROBLOCK_U1X4;
+      break;
+   case 0x21:
+      block = MICROBLOCK_U2X1;
+      break;
+   case 0x22:
+      block = MICROBLOCK_U2X2;
+      break;
+   case 0x24:
+      block = MICROBLOCK_U2X4;
+      break;
+   case 0x44:
+      block = MICROBLOCK_U4X4;
+      break;
+   default:
+      assert(false && "Invalid microblock");
+   }
+
+   EMIT0(NPU_SET_ACC_FORMAT, NPU_SET_ACC_FORMAT_ACC_FORMAT(acc_format) |
+                                NPU_SET_ACC_FORMAT_ACC_INPUT(acc_input) |
+                                NPU_SET_ACC_FORMAT_ACC_OUTPUT(acc_output) |
+                                NPU_SET_ACC_FORMAT_MICROBLOCK(block));
+}
+
+static void
 emit_common(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, enum ethosu_op_to_scale op_to_scale)
 {
    emit_ifm(subgraph, &operation->ifm);
@@ -393,6 +446,28 @@ pooling_emit_ofm_scaling(
    return scale;
 }
 
+static unsigned
+sum_emit_ofm_scaling(double input1_scale, double output_scale, unsigned kernel_height, unsigned kernel_width, uint32_t *out_shift)
+{
+   int kernel_elements = kernel_height * kernel_width;
+   double rescale = input1_scale / output_scale;
+   int rescale_bits = 0;
+   int N = 31;
+   int exp;
+
+   frexp((double)(kernel_elements - 1), &exp);
+
+   int n = (N - 1) - rescale_bits;
+   uint64_t numerator = (1ULL << (n + exp)) + (1ULL << exp);
+   uint32_t scale = (uint32_t)ceil(rescale * (double)numerator / kernel_elements);
+   int shift = n + exp;
+
+   assert(shift >= 0 && shift < 64);
+
+   *out_shift = shift;
+   return scale;
+}
+
 static void
 emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
@@ -401,7 +476,15 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 
    emit_common(subgraph, operation, false);
 
-   if (operation->pooling.avg) {
+   switch (operation->pooling.type) {
+   case ETHOSU_POOLING_TYPE_MAX: {
+      if (!ethosu_is_u65(ethosu_screen(subgraph->base.context->screen))) {
+         EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_ROUND_MODE(1), 1);
+         break;
+      } else
+         FALLTHROUGH;
+   }
+   case ETHOSU_POOLING_TYPE_AVG: {
       scale = pooling_emit_ofm_scaling(
          operation->ifm.scale,
          operation->ofm.scale,
@@ -409,8 +492,29 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
          operation->kernel.width,
          &scale_shift);
 
-      EMIT1(NPU_SET_OFM_SCALE, scale_shift, scale);
+      EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift), scale);
+      break;
    }
+   case ETHOSU_POOLING_TYPE_SUM: {
+      scale = sum_emit_ofm_scaling(
+         operation->ifm.scale,
+         operation->ofm.scale,
+         operation->kernel.height,
+         operation->kernel.width,
+         &scale_shift);
+
+      EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(scale_shift) | NPU_SET_OFM_SCALE_ROUND_MODE(1), scale);
+      break;
+   }
+   default:
+      UNREACHABLE("Invalid pooling type");
+   }
+
+   emit_block_config(subgraph, operation);
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      emit_shram_registers(subgraph, operation);
+   else
+      emit_acc_format(subgraph, operation);
 }
 
 static void
@@ -543,7 +647,7 @@ emit_operation_code(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
 
       break;
    case ETHOSU_OPERATION_TYPE_POOLING:
-      EMIT0(NPU_OP_POOL, operation->pooling.avg);
+      EMIT0(NPU_OP_POOL, operation->pooling.type);
       break;
    case ETHOSU_OPERATION_TYPE_ELTWISE:
       EMIT0(NPU_OP_ELEMENTWISE, 0x1);

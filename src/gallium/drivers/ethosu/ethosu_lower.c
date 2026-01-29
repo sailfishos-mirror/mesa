@@ -166,7 +166,17 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
                      struct ethosu_operation *operation)
 {
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
-   operation->pooling.avg = poperation->pooling.type == PIPE_ML_POOLING_TYPE_AVG;
+
+   switch (poperation->pooling.type) {
+   case PIPE_ML_POOLING_TYPE_MAX:
+      operation->pooling.type = ETHOSU_POOLING_TYPE_MAX;
+      break;
+   case PIPE_ML_POOLING_TYPE_AVG:
+      operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
+      break;
+   default:
+      assert(0 && "Unsupported pooling type");
+   }
 
    set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
@@ -203,12 +213,15 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
                            struct ethosu_operation *operation)
 {
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
-   operation->pooling.avg = true;
+
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen))) {
+      operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
+      operation->round_mode = ETHOSU_ROUNDING_NATURAL;
+   } else
+      operation->pooling.type = ETHOSU_POOLING_TYPE_SUM;
 
    set_feature_maps(poperation->input_tensors[input_idx], poperation->output_tensors[0], operation);
    operation->ofm.shape.depth = operation->ifm.shape.depth;
-
-   operation->round_mode = ETHOSU_ROUNDING_NATURAL;
 
    operation->kernel.height = 1;
    operation->kernel.width = 1;
@@ -238,7 +251,7 @@ ethosu_lower_resize(struct ethosu_subgraph *subgraph,
                     struct ethosu_operation *operation)
 {
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
-   operation->pooling.avg = true;
+   operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
 
    set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
 
@@ -261,7 +274,7 @@ ethosu_lower_strided_slice(struct ethosu_subgraph *subgraph,
                            struct ethosu_operation *operation)
 {
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
-   operation->pooling.avg = true;
+   operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
 
    set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
    operation->ifm.shape = operation->ofm.shape;
