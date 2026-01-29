@@ -393,6 +393,10 @@ impl nir_intrinsic_instr {
     pub fn num_matrices(&self) -> u8 {
         self.get_const_index(NIR_INTRINSIC_NUM_MATRICES) as u8
     }
+
+    pub fn offset_shift_nv(&self) -> u8 {
+        self.get_const_index(NIR_INTRINSIC_OFFSET_SHIFT_NV) as u8
+    }
 }
 
 impl nir_intrinsic_info {

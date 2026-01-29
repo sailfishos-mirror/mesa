@@ -228,6 +228,9 @@ index("unsigned", "align_offset")
 # other than bytes (i.e., where the shift is implicit).
 index("unsigned", "offset_shift")
 
+# Similar to offset_shift except it is applied only to the non uniform offset src, not the base.
+index("unsigned", "offset_shift_nv")
+
 # The Vulkan descriptor type for a vulkan_resource_[re]index intrinsic.
 index("unsigned", "desc_type")
 
@@ -915,7 +918,7 @@ intrinsic("load_vulkan_descriptor", src_comp=[-1], dest_comp=0,
 intrinsic("deref_atomic",  src_comp=[-1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP])
 intrinsic("ssbo_atomic",  src_comp=[-1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP, OFFSET_SHIFT])
 intrinsic("shared_atomic",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("shared_atomic_nv",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
+intrinsic("shared_atomic_nv",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP, OFFSET_SHIFT_NV])
 intrinsic("task_payload_atomic",  src_comp=[1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic",  src_comp=[1, 1], dest_comp=1, indices=[ATOMIC_OP])
 intrinsic("global_atomic_2x32",  src_comp=[2, 1], dest_comp=1, indices=[ATOMIC_OP])
@@ -927,7 +930,7 @@ intrinsic("global_atomic_pco",  src_comp=[3], dest_comp=1, indices=[ATOMIC_OP], 
 intrinsic("deref_atomic_swap",  src_comp=[-1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP])
 intrinsic("ssbo_atomic_swap",  src_comp=[-1, 1, 1, 1], dest_comp=1, indices=[ACCESS, ATOMIC_OP, OFFSET_SHIFT])
 intrinsic("shared_atomic_swap",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
-intrinsic("shared_atomic_swap_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
+intrinsic("shared_atomic_swap_nv",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP, OFFSET_SHIFT_NV])
 intrinsic("task_payload_atomic_swap",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE, ATOMIC_OP])
 intrinsic("global_atomic_swap",  src_comp=[1, 1, 1], dest_comp=1, indices=[ATOMIC_OP])
 intrinsic("global_atomic_swap_2x32",  src_comp=[2, 1, 1], dest_comp=1, indices=[ATOMIC_OP])
@@ -1838,8 +1841,8 @@ load("global_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[C
 store("global_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
 load("scratch_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
 store("scratch_nv", [1], indices=[BASE, ALIGN_MUL, ALIGN_OFFSET])
-load("shared_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
-store("shared_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
+load("shared_nv", [1], indices=[BASE, OFFSET_SHIFT_NV, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
+store("shared_nv", [1], indices=[BASE, OFFSET_SHIFT_NV, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
 
 # Same as shared_atomic_add, but with GDS. src[] = {store_val, gds_addr, m0}
 intrinsic("gds_atomic_add_amd",  src_comp=[1, 1, 1], dest_comp=1, indices=[BASE])

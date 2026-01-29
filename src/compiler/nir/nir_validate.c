@@ -938,6 +938,11 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
       unsigned min_align = 1 << nir_intrinsic_offset_shift(instr);
       validate_assert(state, nir_intrinsic_align(instr) >= min_align);
    }
+
+   if (nir_intrinsic_has_offset_shift_nv(instr)) {
+      unsigned shift = nir_intrinsic_offset_shift_nv(instr);
+      validate_assert(state, shift == 0 || (shift >= 2 && shift <= 4));
+   }
 }
 
 static void
