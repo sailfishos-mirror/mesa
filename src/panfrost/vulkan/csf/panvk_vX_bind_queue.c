@@ -15,6 +15,7 @@
 #include "panvk_queue.h"
 #include "panvk_utrace.h"
 #include "panvk_sparse.h"
+#include "pan_layout.h"
 
 #include "util/bitscan.h"
 #include "vk_drm_syncobj.h"
@@ -362,67 +363,52 @@ panvk_bind_queue_submit_sparse_block_memory_bind(
 {
    uint64_t resource_va = image->sparse.device_address;
    const struct panvk_image_plane *plane = &image->planes[in->plane_index];
-   int ret;
 
    /* 3D images are not yet supported. See
     * https://gitlab.freedesktop.org/panfrost/mesa/-/issues/242 */
    assert(image->vk.image_type == VK_IMAGE_TYPE_2D);
 
-   /*
-    * Right now we only handle U interleaved, but it would be beneficial to use
-    * 64K interleaved for sparse partially-resident images. See
-    * https://gitlab.freedesktop.org/panfrost/mesa/-/issues/244 for details.
+   /* Previously, sparse residency was implemented using block U-interleaved
+    * (https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/37483).
+    * Interleaved 64k offers better map and unmap performance (at most one bind
+    * op per tile, as opposed to 4 to 16 with U-interleaved), and no worse
+    * access performance.
+    *
+    * Note that interleaved 64k is not a thing on pre-v10 hardware. If at any
+    * point there's a desire for sparse residency on pre-v10 hardware, resurrect
+    * the code linked above.
     */
-   assert(image->vk.drm_format_mod == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED);
-   VkExtent3D oblock_clumps =
-      vk_format_is_block_compressed(image->vk.format)
-         ? (VkExtent3D){4, 4, 1}
-         : (VkExtent3D){16, 16, 1};
-   VkExtent3D oblock_extent = {
-      oblock_clumps.width * vk_format_get_blockwidth(image->vk.format),
-      oblock_clumps.height * vk_format_get_blockheight(image->vk.format),
-      oblock_clumps.depth * 1,
+   assert(image->vk.drm_format_mod == DRM_FORMAT_MOD_ARM_INTERLEAVED_64K);
+
+   struct pan_image_block_size tile_extent_el =
+      pan_interleaved_64k_tile_size_el(vk_format_to_pipe_format(image->vk.format));
+   struct pan_image_block_size tile_extent_px = {
+      tile_extent_el.width * vk_format_get_blockwidth(image->vk.format),
+      tile_extent_el.height * vk_format_get_blockheight(image->vk.format),
    };
-   uint32_t oblock_size_B =
-      oblock_clumps.width * oblock_clumps.height * oblock_clumps.depth *
-         vk_format_get_blocksize(image->vk.format);
-
-   VkOffset3D offset_oblocks = {
-      in->offset.x / oblock_extent.width,
-      in->offset.y / oblock_extent.height,
-      in->offset.z / oblock_extent.depth,
+   VkOffset3D offset_tiles = {
+      in->offset.x / tile_extent_px.width,
+      in->offset.y / tile_extent_px.height,
+      in->offset.z,
    };
-   VkExtent3D extent_oblocks = {
-      DIV_ROUND_UP(in->extent.width, oblock_extent.width),
-      DIV_ROUND_UP(in->extent.height, oblock_extent.height),
-      DIV_ROUND_UP(in->extent.depth, oblock_extent.depth),
+   assert(in->extent.width == tile_extent_px.width &&
+          in->extent.height == tile_extent_px.height &&
+          in->extent.depth == 1);
+   uint32_t tile_size_B = 65536;
+
+   const struct pan_image_slice_layout *slayout = &plane->plane.layout.slices[in->level];
+   VkSparseMemoryBind bind = {
+      .resourceOffset =
+         in->layer * plane->plane.layout.array_stride_B +
+         slayout->offset_B +
+         offset_tiles.z * slayout->tiled_or_linear.surface_stride_B +
+         offset_tiles.y * slayout->tiled_or_linear.row_stride_B +
+         offset_tiles.x * tile_size_B,
+      .size = tile_size_B,
+      .memory = in->mem,
+      .memoryOffset = in->mem_offset,
    };
-
-   assert(offset_oblocks.z == 0 && extent_oblocks.depth == 1);
-
-   uint32_t max_y = offset_oblocks.y + extent_oblocks.height;
-
-   uint64_t mem_offset = in->mem_offset;
-   for (uint32_t y = offset_oblocks.y; y < max_y; y++) {
-      const struct pan_image_slice_layout *slayout = &plane->plane.layout.slices[in->level];
-
-      VkSparseMemoryBind bind = {
-         .resourceOffset =
-            in->layer * plane->plane.layout.array_stride_B +
-            slayout->offset_B +
-            y * slayout->tiled_or_linear.row_stride_B +
-            offset_oblocks.x * oblock_size_B,
-         .size = extent_oblocks.width * oblock_size_B,
-         .memory = in->mem,
-         .memoryOffset = mem_offset,
-      };
-      ret = panvk_bind_queue_submit_sparse_memory_bind(submit, resource_va, &bind);
-      if (ret)
-         return ret;
-      mem_offset += bind.size;
-   }
-
-   return 0;
+   return panvk_bind_queue_submit_sparse_memory_bind(submit, resource_va, &bind);
 }
 
 static int
