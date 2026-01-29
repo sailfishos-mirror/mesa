@@ -406,6 +406,13 @@ static void
 kk_lower_fs(struct kk_device *dev, nir_shader *nir,
             const struct vk_graphics_pipeline_state *state)
 {
+   /* msl_nir_lower_sample_shading needs to go before blending since
+    * nir_lower_blend will always set uses_sample_shading to true if there's any
+    * output read. I believe we do not need to lower it always, that is why it
+    * goes here but need to double check. */
+   if (nir->info.fs.uses_sample_shading)
+      NIR_PASS(_, nir, msl_nir_lower_sample_shading);
+
    if (state->cb)
       kk_lower_fs_blend(nir, state);
 
@@ -425,8 +432,19 @@ kk_lower_fs(struct kk_device *dev, nir_shader *nir,
    NIR_PASS(_, nir, msl_nir_fs_io_types);
 
    if (state->ms && state->ms->rasterization_samples &&
-       state->ms->sample_mask != UINT16_MAX)
+       state->ms->sample_mask != UINT16_MAX) {
+
+      /* KK_WORKAROUND_7 */
+      if (!(dev->disabled_workarounds & BITFIELD64_BIT(7))) {
+         if (!nir->info.fs.early_fragment_tests) {
+            nir_function_impl *entrypoint = nir_shader_get_entrypoint(nir);
+            nir_builder b = nir_builder_at(nir_after_impl(entrypoint));
+            nir_discard_if(&b,
+                           nir_ieq_imm(&b, nir_load_sample_mask_in(&b), 0u));
+         }
+      }
       NIR_PASS(_, nir, msl_lower_static_sample_mask, state->ms->sample_mask);
+   }
    /* Check https://github.com/KhronosGroup/Vulkan-Portability/issues/54 for
     * explanation on why we need this. */
    else if (nir->info.fs.needs_full_quad_helper_invocations ||

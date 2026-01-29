@@ -131,8 +131,10 @@ msl_replace_load_sample_mask_in_for_static_sample_mask(
    if (intr->intrinsic != nir_intrinsic_load_sample_mask_in)
       return false;
 
-   nir_def *sample_mask = (nir_def *)data;
-   nir_def_rewrite_uses(&intr->def, sample_mask);
+   b->cursor = nir_after_instr(&intr->instr);
+   nir_def *static_sample_mask = (nir_def *)data;
+   nir_def *sample_mask = nir_iand(b, &intr->def, static_sample_mask);
+   nir_def_rewrite_uses_after(&intr->def, sample_mask);
    return true;
 }
 
@@ -150,14 +152,15 @@ msl_lower_static_sample_mask(nir_shader *nir, uint32_t sample_mask)
       .location = FRAG_RESULT_SAMPLE_MASK,
       .num_slots = 1u,
    };
-   nir_def *sample_mask_def = nir_imm_int(&b, sample_mask);
-   nir_store_output(&b, sample_mask_def, nir_imm_int(&b, 0u), .base = 0u,
-                    .range = 1u, .write_mask = 0x1, .component = 0u,
+   nir_def *static_sample_mask = nir_imm_int(&b, sample_mask);
+   nir_store_output(&b, nir_load_sample_mask_in(&b), nir_imm_int(&b, 0u),
+                    .base = 0u, .range = 1u, .write_mask = 0x1, .component = 0u,
                     .src_type = nir_type_uint32, .io_semantics = io_semantics);
+   BITSET_SET(nir->info.system_values_read, SYSTEM_VALUE_SAMPLE_MASK_IN);
 
-   return nir_shader_intrinsics_pass(
+   nir_shader_intrinsics_pass(
       nir, msl_replace_load_sample_mask_in_for_static_sample_mask,
-      nir_metadata_control_flow, sample_mask_def);
+      nir_metadata_control_flow, static_sample_mask);
 
    return true;
 }
@@ -307,6 +310,73 @@ msl_nir_fake_guard_for_discards(struct nir_shader *nir)
 
    return nir_shader_intrinsics_pass(nir, fake_guard_for_discards,
                                      nir_metadata_control_flow, NULL);
+}
+
+/* Returns true if gl_SampleID is required. */
+static bool
+gather_fs_input_interpolant_usage(nir_builder *b, nir_intrinsic_instr *intr,
+                                  void *data)
+{
+   if (intr->intrinsic != nir_intrinsic_load_interpolated_input)
+      return false;
+
+   bool *uses_interpolant = (bool *)data;
+   struct nir_io_semantics io = nir_intrinsic_io_semantics(intr);
+   nir_intrinsic_instr *interpolation = nir_src_as_intrinsic(intr->src[0]);
+   bool at_sample =
+      interpolation->intrinsic == nir_intrinsic_load_barycentric_at_sample;
+   uses_interpolant[io.location] |=
+      at_sample ||
+      interpolation->intrinsic == nir_intrinsic_load_barycentric_at_offset;
+   return at_sample;
+}
+
+static bool
+lower_sample_shading(nir_builder *b, nir_intrinsic_instr *intr, void *data)
+{
+   if (intr->intrinsic == nir_intrinsic_load_frag_coord) {
+      b->cursor = nir_after_instr(&intr->instr);
+      nir_def *offset =
+         nir_fadd(b, nir_load_sample_pos_from_id(b, 32u, nir_load_sample_id(b)),
+                  nir_imm_vec2(b, -0.5f, -0.5f));
+      nir_def *sample_position =
+         nir_fadd(b, &intr->def, nir_pad_vector_imm_int(b, offset, 0u, 4u));
+      nir_def_rewrite_uses_after(&intr->def, sample_position);
+      return true;
+   }
+
+   if (intr->intrinsic != nir_intrinsic_load_interpolated_input)
+      return false;
+
+   bool *uses_interpolant = (bool *)data;
+   struct nir_io_semantics io = nir_intrinsic_io_semantics(intr);
+   nir_intrinsic_instr *interpolation = nir_src_as_intrinsic(intr->src[0]);
+   if (!uses_interpolant[io.location] ||
+       interpolation->intrinsic != nir_intrinsic_load_barycentric_sample)
+      return false;
+
+   b->cursor = nir_before_instr(&intr->instr);
+   nir_def *def = nir_load_barycentric_at_sample(
+      b, intr->def.bit_size, nir_load_sample_id(b),
+      .interp_mode = nir_intrinsic_interp_mode(interpolation));
+   nir_def_rewrite_uses_after(&interpolation->def, def);
+   nir_instr_remove(&interpolation->instr);
+   return false;
+}
+
+bool
+msl_nir_lower_sample_shading(nir_shader *nir)
+{
+   assert(nir->info.stage == MESA_SHADER_FRAGMENT);
+
+   bool uses_interpolant[NUM_TOTAL_VARYING_SLOTS] = {};
+
+   if (nir_shader_intrinsics_pass(nir, gather_fs_input_interpolant_usage,
+                                  nir_metadata_all, uses_interpolant))
+      BITSET_SET(nir->info.system_values_read, SYSTEM_VALUE_SAMPLE_ID);
+
+   return nir_shader_intrinsics_pass(
+      nir, lower_sample_shading, nir_metadata_control_flow, uses_interpolant);
 }
 
 static bool

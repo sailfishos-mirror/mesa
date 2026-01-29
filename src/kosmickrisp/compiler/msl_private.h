@@ -15,6 +15,7 @@ struct io_slot_info {
    unsigned num_components;
    bool centroid;
    bool sample;
+   bool uses_interpolant;
 };
 
 struct nir_to_msl_ctx {

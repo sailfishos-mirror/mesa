@@ -49,6 +49,36 @@ info on what was updated.
 Workarounds
 ===========
 
+KK_WORKAROUND_7
+---------------
+| macOS version: 26.0.1
+| Metal ticket: Not reported
+| Metal ticket status:
+| CTS test failure: ``dEQP-VK.renderpasses.renderpass2.depth_stencil_resolve.image_2d_*testing_stencil_samplemask``
+| Comments:
+
+Metal seems to ignore sample_mask out for cases for the stencil attachment
+where we have no color attachments, a multisample depth_stencil attachment
+with at least 2 samples and a fragment shader that only writes the depth and
+a static sample_mask out.
+
+My conclusion is that they may try to prematurely optimize by doing early
+fragment testing disregarding completely the sample_mask out and applying
+the value to all stencil samples.
+
+The failing tests do something along the lines of, start render pass with
+depth_stencil cleared to 0.0f and 0 respectively, if depth test passes set
+stencil to 1. Sample mask out is 1 (first sample). Draw framebuffer size square
+with 0.5f depth. End render pass storing values. Start render pass loading the
+previous output but if depth passes stencil will be set to 255. Sample mask out
+is 2 (second sample). Draw framebuffer size square with 0.5f depth.
+
+In a similar fashion to 2 workarounds below this one, we do a conditional
+discard at the end discarding fragments not covered by the coverage_mask.
+
+| Log:
+| 2026-02-05: Workaround implemented
+
 KK_WORKAROUND_6
 ---------------
 | macOS version: 26.0.1

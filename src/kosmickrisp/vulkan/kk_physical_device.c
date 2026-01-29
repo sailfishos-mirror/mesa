@@ -171,6 +171,7 @@ kk_get_device_features(
       .occlusionQueryPrecise = true,
       .robustBufferAccess = true,
       .samplerAnisotropy = true,
+      .sampleRateShading = true,
       .shaderClipDistance = true,
       .shaderImageGatherExtended = true,
       .shaderInt16 = true,

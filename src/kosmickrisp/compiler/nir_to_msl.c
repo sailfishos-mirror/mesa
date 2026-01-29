@@ -853,13 +853,43 @@ memory_modes_to_msl(struct nir_to_msl_ctx *ctx, nir_variable_mode modes)
 }
 
 static void
+msl_interpolant_method(struct nir_to_msl_ctx *ctx, nir_src *src)
+{
+   nir_intrinsic_instr *interpolation_intrin = nir_src_as_intrinsic(*src);
+   switch (interpolation_intrin->intrinsic) {
+   case nir_intrinsic_load_barycentric_at_offset:
+      P(ctx, ".interpolate_at_offset(")
+      src_to_msl(ctx, &interpolation_intrin->src[0u]);
+      /* Need to add 0.5f since GLSL.std.450 marks the pixel center as the
+       * coordinate while Metal is at top-left. */
+      P(ctx, " + 0.5f)");
+      break;
+   case nir_intrinsic_load_barycentric_centroid:
+      P(ctx, ".interpolate_at_centroid()");
+      break;
+   case nir_intrinsic_load_barycentric_at_sample:
+      P(ctx, ".interpolate_at_sample(");
+      src_to_msl(ctx, &interpolation_intrin->src[0u]);
+      P(ctx, ")");
+      break;
+   case nir_intrinsic_load_barycentric_pixel:
+      P(ctx, ".interpolate_at_center()");
+      break;
+   default:
+      break;
+   }
+}
+
+static void
 intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
 {
    /* These instructions are only used to understand interpolation modes, they
     * don't generate any code. */
    if (instr->intrinsic == nir_intrinsic_load_barycentric_pixel ||
        instr->intrinsic == nir_intrinsic_load_barycentric_centroid ||
-       instr->intrinsic == nir_intrinsic_load_barycentric_sample)
+       instr->intrinsic == nir_intrinsic_load_barycentric_sample ||
+       instr->intrinsic == nir_intrinsic_load_barycentric_at_sample ||
+       instr->intrinsic == nir_intrinsic_load_barycentric_at_offset)
       return;
 
    const nir_intrinsic_info *info = &nir_intrinsic_infos[instr->intrinsic];
@@ -978,7 +1008,10 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       P(ctx, "gl_SampleID;\n");
       break;
    case nir_intrinsic_load_sample_mask_in:
-      P(ctx, "gl_SampleMask;\n");
+      P(ctx, "gl_SampleMask & (1u << gl_SampleID);\n");
+      break;
+   case nir_intrinsic_load_sample_pos:
+      P(ctx, "get_sample_position(gl_SampleID);\n");
       break;
    case nir_intrinsic_load_amplification_id_kk:
       P(ctx, "mtl_AmplificationID;\n");
@@ -990,6 +1023,8 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
       uint32_t location = io.location + idx;
 
       msl_input_name(ctx, location, component);
+      if (ctx->inputs_info[location].uses_interpolant)
+         msl_interpolant_method(ctx, &instr->src[0u]);
       if (instr->num_components < msl_input_num_components(ctx, location)) {
          P(ctx, ".");
          for (unsigned i = 0; i < instr->num_components; i++)
@@ -1011,6 +1046,12 @@ intrinsic_to_msl(struct nir_to_msl_ctx *ctx, nir_intrinsic_instr *instr)
             P(ctx, "%c", "xyzw"[component + i]);
       }
       P(ctx, ";\n");
+      break;
+   }
+   case nir_intrinsic_load_sample_pos_from_id: {
+      P(ctx, "get_sample_position(");
+      src_to_msl(ctx, &instr->src[0]);
+      P(ctx, ");\n");
       break;
    }
    case nir_intrinsic_load_output: {
@@ -2043,6 +2084,25 @@ msl_gather_info(struct nir_to_msl_ctx *ctx, struct nir_to_msl_options *options)
       msl_gather_io_info(ctx, ctx->inputs_info, ctx->outputs_info);
 
       if (ctx->shader->info.stage == MESA_SHADER_FRAGMENT) {
+         /* Metal does not have a system value for sample position but an
+          * entrypoint "get_sample_position" that take the sample index aka
+          * sample id. Ensure we have the required system values present. */
+         if (BITSET_TEST(ctx->shader->info.system_values_read,
+                         SYSTEM_VALUE_SAMPLE_POS)) {
+            BITSET_CLEAR(ctx->shader->info.system_values_read,
+                         SYSTEM_VALUE_SAMPLE_POS);
+            BITSET_SET(ctx->shader->info.system_values_read,
+                       SYSTEM_VALUE_SAMPLE_ID);
+         }
+
+         /* Metal's sample mask has all the bits when we only care about the bit
+          * the fragment was generated for. This is why we need to compute it
+          * using sample id. */
+         if (BITSET_TEST(ctx->shader->info.system_values_read,
+                         SYSTEM_VALUE_SAMPLE_MASK_IN))
+            BITSET_SET(ctx->shader->info.system_values_read,
+                       SYSTEM_VALUE_SAMPLE_ID);
+
          for (uint32_t i = 0u; i < MAX_DRAW_BUFFERS; ++i) {
             uint32_t location = i + FRAG_RESULT_DATA0;
             ctx->outputs_info[location].num_components =
