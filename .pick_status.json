@@ -2044,7 +2044,7 @@
         "description": "anv/video: fix a typo in Vulkan AV1 decoding.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e510efed05d08d7c6c0010c0f80526f3ed8dcddb",
         "notes": null
