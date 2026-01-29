@@ -31,7 +31,6 @@
 #define NIR_SEARCH_MAX_COMM_OPS 8
 
 struct match_state {
-   bool inexact_match;
    unsigned fp_math_ctrl;
    uint8_t comm_op_direction;
    unsigned variables_seen;
@@ -388,10 +387,7 @@ match_expression(const nir_algebraic_table *table, const nir_search_expression *
    if (expr->fp_math_ctrl_exclude & fp_math_ctrl)
       return false;
 
-   state->inexact_match |= expr->fp_math_ctrl_exclude & nir_fp_exact;
    state->fp_math_ctrl |= fp_math_ctrl;
-   if (state->inexact_match && (state->fp_math_ctrl & nir_fp_exact))
-      return false;
 
    assert(nir_op_infos[instr->op].num_inputs > 0);
 
@@ -708,7 +704,6 @@ nir_replace_instr(nir_builder *build, nir_alu_instr *instr,
 
    struct match_state state;
    state.fp_math_ctrl = nir_fp_fast_math;
-   state.inexact_match = false;
    state.state = search_state;
    state.pass_op_table = table->pass_op_table;
    state.table = table;
