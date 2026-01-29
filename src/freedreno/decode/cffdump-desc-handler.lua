@@ -8,6 +8,11 @@
 -- If it is ambiguous, be conservative and show the specified decoding.
 function show_descriptor(desc, type, pkt, base, idx)
 
+	if (type == r.desctype.DESC_SAMPLER) or (type == r.desctype.DESC_UBO) then
+		-- Everything below here only applies to TEX_MEMOBJ descriptors
+		return true
+	end
+
 	if type == r.desctype.DESC_BUFFER then
 		return r.a6xx_tex_type.A6XX_TEX_BUFFER == desc.TYPE
 	end

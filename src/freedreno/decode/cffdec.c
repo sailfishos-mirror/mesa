@@ -1787,17 +1787,27 @@ dump_bindless_descriptors(bool is_compute, int level)
       unsigned desc_count = length / (16 * sizeof(uint32_t));
       for (unsigned desc_idx = 0; desc_idx < desc_count; desc_idx++) {
          if (memcmp(contents, empty_contents, sizeof(empty_contents))) {
-            printl(2, "%sUBO[%u]:\n", levels[level + 1], desc_idx);
-            dump_domain(contents, 2, level + 2, "A6XX_UBO");
+
+            if (show_descriptor(contents, 2, i + 1, desc_idx, "A6XX_UBO", "DESC_UBO")) {
+               printl(2, "%sUBO[%u]:\n", levels[level + 1], desc_idx);
+               dump_domain(contents, 2, level + 2, "A6XX_UBO");
+            }
 
             if ((6 <= options->info->chip) && (options->info->chip < 8)) {
                dump_tex_descriptor(contents, i + 1, desc_idx, level, "A6XX_TEX_MEMOBJ");
+
+               if (show_descriptor(contents, 16, i + 1, desc_idx, "A6XX_TEX_SAMP", "DESC_SAMPLER")) {
+                  printl(2, "%sSAMPLER[%u]:\n", levels[level + 1], desc_idx);
+                  dump_tex_samp(contents, STATE_SRC_BINDLESS, 1, level);
+               }
             } else if ((8 <= options->info->chip) && (options->info->chip < 9)) {
                dump_tex_descriptor(contents, i + 1, desc_idx, level, "A8XX_TEX_MEMOBJ");
-            }
 
-            printl(2, "%sSAMPLER[%u]:\n", levels[level + 1], desc_idx);
-            dump_tex_samp(contents, STATE_SRC_BINDLESS, 1, level);
+               if (show_descriptor(contents, 4, i + 1, desc_idx, "A8XX_TEX_SAMP", "DESC_SAMPLER")) {
+                  printl(2, "%sSAMPLER[%u]:\n", levels[level + 1], desc_idx);
+                  dump_tex_samp(contents, STATE_SRC_BINDLESS, 1, level);
+               }
+            }
          }
          contents += 16;
       }
