@@ -777,7 +777,7 @@ jm_emit_malloc_vertex_job(struct panfrost_batch *batch,
 
    pan_section_pack(job, MALLOC_VERTEX_JOB, ALLOCATION, cfg) {
       if (secondary_shader) {
-         unsigned sz = panfrost_vertex_attribute_stride(vs, fs);
+         unsigned sz = vs->info.varyings.formats.generic_size_B;
          cfg.vertex_packet_stride = sz + 16;
          cfg.vertex_attribute_stride = sz;
       } else {
