@@ -4,6 +4,7 @@
  */
 
 #include "ethosu_sched.h"
+#include "ethosu_sched_u85.h"
 
 static int
 required_input_size(int value, int stride, int border)
@@ -204,5 +205,10 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
 void
 ethosu_sched_operation(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   operation->block_config = find_block_config(subgraph, operation);
+   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
+
+   if (ethosu_is_u65(screen))
+      operation->block_config = find_block_config(subgraph, operation);
+   else
+      operation->block_config = find_block_config_u85(subgraph, operation);
 }
