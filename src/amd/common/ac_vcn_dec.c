@@ -137,7 +137,8 @@ struct cmd_buffer {
    void *it_probs_ptr;
 };
 
-void ac_vcn_vp9_fill_probs_table(void *ptr)
+static void
+ac_vcn_vp9_fill_probs_table(void *ptr)
 {
    rvcn_dec_vp9_probs_t *probs = (rvcn_dec_vp9_probs_t *)ptr;
 
@@ -172,7 +173,7 @@ ac_vcn_dec_frame_ctx_size_av1(unsigned av1_version)
       : align(sizeof(rvcn_av1_vcn4_frame_context_t), 2048);
 }
 
-unsigned
+static unsigned
 ac_vcn_dec_calc_ctx_size_av1(unsigned av1_version)
 {
    unsigned frame_ctxt_size = ac_vcn_dec_frame_ctx_size_av1(av1_version);
@@ -509,7 +510,7 @@ ac_vcn_vcn4_av1_default_coef_probs(void *prob, int index)
    memcpy(fc->eob_flag_cdf1024, av1_default_eob_multi1024_cdfs[index], sizeof(av1_default_eob_multi1024_cdfs[index]));
 }
 
-void
+static void
 ac_vcn_av1_init_probs(unsigned av1_version, uint8_t *prob)
 {
    unsigned frame_ctxt_size = ac_vcn_dec_frame_ctx_size_av1(av1_version);
@@ -573,7 +574,7 @@ radv_vcn_av1_film_grain_init_scaling(uint8_t scaling_points[][2], uint8_t num, s
       scaling_lut[i] = scaling_points[num - 1][1];
 }
 
-void
+static void
 ac_vcn_av1_init_film_grain_buffer(unsigned av1_version, rvcn_dec_film_grain_params_t *fg_params, rvcn_dec_av1_fg_init_buf_t *fg_buf)
 {
    const int32_t luma_block_size_y = LUMA_BLOCK_SIZE_Y;
