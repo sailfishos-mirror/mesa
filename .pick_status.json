@@ -494,7 +494,7 @@
         "description": "anv: Fix clear state of WSI blit sources during presentation",
         "nominated": false,
         "nomination_type": 2,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "811c413f98792e72e3749c04c05f8890f7e9515f",
         "notes": null
