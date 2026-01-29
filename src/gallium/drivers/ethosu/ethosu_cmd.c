@@ -693,49 +693,179 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
    }
 }
 
-static bool
-fm_ranges_overlap(struct ethosu_subgraph *subgraph,
-                  struct ethosu_feature_map *a, struct ethosu_feature_map *b)
+/* Box structure for spatial overlap detection */
+struct box {
+   int start_h, start_w, start_d;
+   int end_h, end_w, end_d;
+};
+
+/* Check if two 1D ranges overlap */
+static inline bool
+range_overlaps(int start1, int end1, int start2, int end2)
 {
-   struct ethosu_tensor *ta = ethosu_find_tensor(subgraph, a->tensor_idx);
-   struct ethosu_tensor *tb = ethosu_find_tensor(subgraph, b->tensor_idx);
+   return start1 < end2 && start2 < end1;
+}
 
-   if (!ta || !tb || ta->size == 0 || tb->size == 0)
-      return false;
+/* Check if two boxes overlap in 3D space */
+static bool
+box_overlaps(const struct box *a, const struct box *b)
+{
+   return range_overlaps(a->start_h, a->end_h, b->start_h, b->end_h) &&
+          range_overlaps(a->start_w, a->end_w, b->start_w, b->end_w) &&
+          range_overlaps(a->start_d, a->end_d, b->start_d, b->end_d);
+}
 
-   return ta->offset < tb->offset + tb->size &&
-          tb->offset < ta->offset + ta->size;
+/* Calculate IFM job shape from OFM block considering kernel properties */
+static void
+calc_ifm_job_shape(const struct ethosu_block *ofm_block,
+                   const struct ethosu_kernel *kernel,
+                   int ifm_block_depth,
+                   struct ethosu_block *ifm_job)
+{
+   /* Calculate dilated kernel size */
+   int dilated_h = (kernel->height - 1) * kernel->dilation_y + 1;
+   int dilated_w = (kernel->width - 1) * kernel->dilation_x + 1;
+
+   /* Calculate required input size */
+   int h = (ofm_block->height - 1) * kernel->stride_y + dilated_h;
+   int w = (ofm_block->width - 1) * kernel->stride_x + dilated_w;
+
+   ifm_job->height = h;
+   ifm_job->width = w;
+   ifm_job->depth = ifm_block_depth;
+}
+
+/* Get jobs (blocks) from a feature map area
+ * area: total work area (feature map dimensions)
+ * job_shape: size of each job/block
+ * max_jobs: maximum number of jobs to retrieve
+ * from_start: if true get first jobs, if false get last jobs
+ * jobs: output array to fill
+ * Returns: number of jobs added
+ */
+static int
+get_jobs(const struct ethosu_block *area,
+         const struct ethosu_block *job_shape,
+         int max_jobs,
+         bool from_start,
+         struct box *jobs)
+{
+   /* Calculate how many jobs needed in each dimension */
+   int job_split_h = (area->height + job_shape->height - 1) / job_shape->height;
+   int job_split_w = (area->width + job_shape->width - 1) / job_shape->width;
+   int job_split_d = (area->depth + job_shape->depth - 1) / job_shape->depth;
+
+   int total_jobs = job_split_h * job_split_w * job_split_d;
+
+   int first_job = from_start ? 0 : MAX2(0, total_jobs - max_jobs);
+   int last_job = from_start ? MIN2(total_jobs, max_jobs) : total_jobs;
+   int count = 0;
+
+   /* Iterate jobs in z, x, y order (depth, width, height) */
+   for (int i = first_job; i < last_job; i++) {
+      int h_idx = i / (job_split_d * job_split_w);
+      int w_idx = (i / job_split_d) % job_split_w;
+      int d_idx = i % job_split_d;
+
+      jobs[count].start_h = h_idx * job_shape->height;
+      jobs[count].start_w = w_idx * job_shape->width;
+      jobs[count].start_d = d_idx * job_shape->depth;
+
+      jobs[count].end_h = MIN2(jobs[count].start_h + job_shape->height, area->height);
+      jobs[count].end_w = MIN2(jobs[count].start_w + job_shape->width, area->width);
+      jobs[count].end_d = MIN2(jobs[count].start_d + job_shape->depth, area->depth);
+
+      count++;
+   }
+
+   return count;
 }
 
 static unsigned
 calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op, struct ethosu_operation *operation)
 {
+   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
+
    if (!prev_op)
       return 0;
 
-   // Check if the reserved shram will be used in current/prev op
-   bool prev_uses_lut = false; // prev_op->activation && prev_op->activation->op_type == NpuActivationOp.TABLE_LOOKUP;
-   bool curr_uses_lut = false; // operation->activation && operation->activation->op_type == NpuActivationOp.TABLE_LOOKUP;
-   if (prev_uses_lut && SHRAM_RESERVED_UNUSED_BANKS == 0 && !curr_uses_lut)
+   /* Check if previous OFM matches current IFM (same tensor) */
+   int ifm_index = 0;
+   if (operation->ifm2.tensor_idx != 0 &&
+       operation->ifm2.tensor_idx == prev_op->ofm.tensor_idx) {
+      ifm_index = 1;
+   } else if (operation->ifm.tensor_idx != prev_op->ofm.tensor_idx) {
+      /* Previous operation doesn't produce current operation's IFM */
+      return screen->max_concurrent_blocks;
+   }
+
+   const struct ethosu_feature_map *ifm = (ifm_index == 0) ? &operation->ifm : &operation->ifm2;
+   const struct ethosu_feature_map *prev_ofm = &prev_op->ofm;
+
+   /* Check if shapes match (no reshape between operations) */
+   if (ifm->shape.height != prev_ofm->shape.height ||
+       ifm->shape.width != prev_ofm->shape.width ||
+       ifm->shape.depth != prev_ofm->shape.depth) {
+      /* OFM has been reshaped; overlap calculations don't work */
+      return 0;
+   }
+
+   /* For operations with 1:1 IFM/OFM block mapping (elementwise, pooling, depthwise),
+    * always use BLOCKDEP=0 for safety */
+   if (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE ||
+       operation->type == ETHOSU_OPERATION_TYPE_POOLING ||
+       (operation->type == ETHOSU_OPERATION_TYPE_CONVOLUTION && operation->conv.depthwise) ||
+       prev_op->type == ETHOSU_OPERATION_TYPE_ELTWISE ||
+       prev_op->type == ETHOSU_OPERATION_TYPE_POOLING ||
+       (prev_op->type == ETHOSU_OPERATION_TYPE_CONVOLUTION && prev_op->conv.depthwise))
       return 0;
 
-   /* If the previous op writes to the same buffer that the current op
-    * reads from, we need to wait for it to finish first.
-    */
-   bool ifm_overlaps = fm_ranges_overlap(subgraph, &prev_op->ofm, &operation->ifm);
-   bool ifm2_overlaps = operation->type == ETHOSU_OPERATION_TYPE_ELTWISE &&
-                         fm_ranges_overlap(subgraph, &prev_op->ofm, &operation->ifm2);
+   /* Calculate block shapes */
+   struct ethosu_block prev_block = prev_op->block_config.ofm_block;
+   struct ethosu_block curr_ifm_job;
+   calc_ifm_job_shape(&operation->block_config.ofm_block,
+                      &operation->kernel,
+                      operation->block_config.ifm_block.depth,
+                      &curr_ifm_job);
 
-   if (ifm_overlaps || ifm2_overlaps)
-      return 0;
+   /* Get last jobs from previous operation */
+   int max_jobs = screen->max_concurrent_blocks;
+   assert(max_jobs <= 8);
+   struct box last_prev_jobs[8];
+   int prev_count = get_jobs(&prev_ofm->shape, &prev_block, max_jobs, false, last_prev_jobs);
 
-   return ethosu_screen(subgraph->base.context->screen)->max_concurrent_blocks; /* TODO: Check if there is actually overlap between the FMs */
+   /* Get first jobs from current operation */
+   struct box first_curr_jobs[8];
+   int curr_count = get_jobs(&ifm->shape, &curr_ifm_job, max_jobs, true, first_curr_jobs);
+
+   /* Find highest blockdep with no overlap between jobs */
+   int min_count = MIN2(prev_count, curr_count);
+   int prev_last_idx = prev_count - 1;
+
+   for (int blockdep = 0; blockdep < min_count; blockdep++) {
+      bool overlaps = false;
+
+      /* Check if any combination of jobs within blockdep range overlaps */
+      for (int i = 0; !overlaps && i <= blockdep; i++) {
+         for (int j = blockdep - i; !overlaps && i + j <= blockdep; j++) {
+            if (box_overlaps(&first_curr_jobs[i], &last_prev_jobs[prev_last_idx - j])) {
+               overlaps = true;
+            }
+         }
+      }
+
+      if (overlaps) {
+         return blockdep;
+      }
+   }
+
+   /* No overlap found */
+   return min_count;
 }
 
 void
 ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
 {
-   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
    struct ethosu_operation *prev_op = NULL;
    struct util_dynarray outstanding_dma_ops;
    struct util_dynarray outstanding_npu_ops;
@@ -751,7 +881,7 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
 
    /* Compile */
 
-   if (ethosu_is_u65(screen))
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
       EMIT0(NPU_SET_PARALLEL_MODE, 0x0);
 
    util_dynarray_foreach (&subgraph->operations, struct ethosu_operation, operation) {
@@ -778,7 +908,6 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
 
       if (operation->type != ETHOSU_OPERATION_TYPE_DMA) {
          unsigned blockdep = calc_blockdep(subgraph, prev_op, operation);
-         blockdep = MIN2(blockdep, screen->max_concurrent_blocks);
          EMIT0(NPU_SET_BLOCKDEP, blockdep);
 
          prev_op = operation;
