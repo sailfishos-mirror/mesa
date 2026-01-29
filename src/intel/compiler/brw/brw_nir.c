@@ -92,10 +92,17 @@ io_component(nir_intrinsic_instr *io,
       const int offset = cb_data->per_primitive_byte_offsets[sem.location];
       assert(offset != -1);
       c += (offset % 16) / 4;
-   } else if (nir_intrinsic_has_io_semantics(io) &&
-              nir_intrinsic_io_semantics(io).location == VARYING_SLOT_PSIZ) {
-      /* Point Size lives in component .w of the VUE header */
-      c += 3;
+   } else if (nir_intrinsic_has_io_semantics(io)) {
+      const nir_io_semantics sem = nir_intrinsic_io_semantics(io);
+      /* The VUE header stores Primitive Shading Rate (.x), Layer (.y),
+       * Viewport (.z), and Point Size (.w) in a single vec4.
+       */
+      if (sem.location == VARYING_SLOT_LAYER)
+         c += 1;
+      else if (sem.location == VARYING_SLOT_VIEWPORT)
+         c += 2;
+      else if (sem.location == VARYING_SLOT_PSIZ)
+         c += 3;
    }
 
    return c;
