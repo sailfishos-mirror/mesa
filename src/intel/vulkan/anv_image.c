@@ -3480,31 +3480,35 @@ anv_layout_to_aux_state(const struct intel_device_info * const devinfo,
       if (!image->from_wsi)
          break;
 
+      /* If this is a WSI blit source, it will never be scanout directly to
+       * display but will be copied to a dma-buf that can be scanout.
+       */
+      if (image->wsi_blit_src) {
+         return anv_layout_to_aux_state(devinfo, image, aspect,
+                                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                        queue_flags);
+      }
+
+      assert(image->vk.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT);
       enum isl_aux_state aux_state =
          isl_drm_modifier_get_default_aux_state(image->vk.drm_format_mod);
 
       switch (aux_state) {
       case ISL_AUX_STATE_AUX_INVALID:
          /* The modifier does not support compression. But, if we arrived
-          * here, then we have enabled compression on it anyway. If this is a
-          * WSI blit source, keep compression as we can do a compressed to
-          * uncompressed copy.
-          */
-         assert(devinfo->ver <= 11);
-         if (image->wsi_blit_src)
-            return ISL_AUX_STATE_COMPRESSED_CLEAR;
-
-         /* If this is not a WSI blit source, we must resolve the aux surface
-          * before we release ownership to the presentation engine (because,
-          * having no modifier, the presentation engine will not be aware of
-          * the aux surface). The presentation engine will not access the aux
-          * surface (because it is unware of it), and so the aux surface will
-          * still be resolved when we re-acquire ownership.
+          * here, then we have enabled compression on it anyway, in which case
+          * we must resolve the aux surface before we release ownership to the
+          * presentation engine (because, having no modifier, the presentation
+          * engine will not be aware of the aux surface). The presentation
+          * engine will not access the aux surface (because it is unware of
+          * it), and so the aux surface will still be resolved when we
+          * re-acquire ownership.
           *
           * Therefore, at ownership transfers in either direction, there does
           * exist an aux surface despite the lack of modifier and its state is
           * pass-through.
           */
+         assert(devinfo->ver <= 11);
          return ISL_AUX_STATE_PASS_THROUGH;
       case ISL_AUX_STATE_COMPRESSED_CLEAR:
          return ISL_AUX_STATE_COMPRESSED_CLEAR;
