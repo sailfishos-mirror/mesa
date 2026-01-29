@@ -242,7 +242,7 @@ void ethosu_ml_subgraph_read_outputs(struct pipe_context *pcontext,
 void ethosu_ml_subgraph_destroy(struct pipe_context *context,
                                 struct pipe_ml_subgraph *psubgraph);
 
-void ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, struct ethosu_feature_map *feature_map);
+unsigned ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, unsigned tensor_idx);
 
 void ethosu_register_tensor(struct ethosu_subgraph *subgraph, const struct pipe_tensor *ptensor);
 

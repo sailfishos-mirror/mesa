@@ -8,6 +8,7 @@
 #include "ethosu_device.h"
 #include "ethosu_lower.h"
 #include "ethosu_coefs.h"
+#include "ethosu_ml.h"
 #include "ethosu_sched.h"
 
 static bool
@@ -71,15 +72,15 @@ ethosu_find_first_consumer(const struct pipe_ml_operation *poperations,
 static void
 allocate_feature_maps(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   ethosu_allocate_feature_map(subgraph, &operation->ifm);
-   operation->ifm.tiles.height_0 = operation->ifm.shape.height;
-   operation->ifm.tiles.height_1 = operation->ifm.shape.height;
-   operation->ifm.tiles.width_0 = operation->ifm.shape.width;
-
-   ethosu_allocate_feature_map(subgraph, &operation->ofm);
+   operation->ofm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ofm.tensor_idx);
    operation->ofm.tiles.height_0 = operation->ofm.shape.height;
    operation->ofm.tiles.height_1 = operation->ofm.shape.height;
    operation->ofm.tiles.width_0 = operation->ofm.shape.width;
+
+   operation->ifm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm.tensor_idx);
+   operation->ifm.tiles.height_0 = operation->ifm.shape.height;
+   operation->ifm.tiles.height_1 = operation->ifm.shape.height;
+   operation->ifm.tiles.width_0 = operation->ifm.shape.width;
 }
 
 static const struct pipe_ml_operation *
@@ -368,7 +369,7 @@ ethosu_lower_add(struct ethosu_subgraph *subgraph,
 
    allocate_feature_maps(subgraph, operation);
 
-   ethosu_allocate_feature_map(subgraph, &operation->ifm2);
+   operation->ifm2.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm2.tensor_idx);
    operation->ifm2.tiles.height_0 = operation->ifm2.shape.height;
    operation->ifm2.tiles.height_1 = operation->ifm2.shape.height;
    operation->ifm2.tiles.width_0 = operation->ifm2.shape.width;

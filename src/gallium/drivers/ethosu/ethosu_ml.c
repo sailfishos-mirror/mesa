@@ -59,10 +59,10 @@ ethosu_register_tensor(struct ethosu_subgraph *subgraph,
    util_dynarray_append(&subgraph->tensors, new_tensor);
 }
 
-void
-ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, struct ethosu_feature_map *feature_map)
+unsigned
+ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, unsigned tensor_idx)
 {
-   struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, feature_map->tensor_idx);
+   struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, tensor_idx);
    unsigned size;
 
    if (tensor->layout == ETHOSU_LAYOUT_NHWC) {
@@ -77,16 +77,14 @@ ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, struct ethosu_feat
 
    assert(tensor);
 
-   if (tensor->size > 0) {
-      feature_map->tiles.addresses[0] = tensor->offset;
-      return;
-   }
+   if (tensor->size > 0)
+      return tensor->offset;
 
    tensor->offset = subgraph->io_used;
    tensor->size = size;
    subgraph->io_used += ALIGN_POT(size, 16);
 
-   feature_map->tiles.addresses[0] = tensor->offset;
+   return tensor->offset;
 }
 
 struct ethosu_tensor *
