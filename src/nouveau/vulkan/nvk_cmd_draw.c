@@ -278,6 +278,11 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
    P_IMMD(p, NV9097, SET_SINGLE_ROP_CONTROL, ENABLE_FALSE);
    P_IMMD(p, NV9097, SET_TWO_SIDED_STENCIL_TEST, ENABLE_TRUE);
 
+   P_IMMD(p, NV9097, SET_ALPHA_TO_COVERAGE_OVERRIDE, {
+      .qualify_by_anti_alias_enable = true,
+      .qualify_by_ps_sample_mask_output = false,
+   });
+
    P_IMMD(p, NV9097, SET_SHADE_MODE, V_OGL_SMOOTH);
 
    P_IMMD(p, NV9097, SET_API_VISIBLE_CALL_LIMIT, V__128);
