@@ -2302,6 +2302,29 @@ PowerVR driver environment variables
    Color is forced off if set to ``off``/``0`` or on if set to ``on``/``1``.
    Defaults to ``auto``.
 
+.. envvar:: PDSC_DEBUG
+
+   A comma-separated list of named flags for the PDS compiler,
+   which control various compilation options:
+
+   ``val_skip``
+      Skip IR validation.
+
+   ``print``
+      Print the PDS IR.
+
+   ``raw_regs``
+      Print raw regs, not names.
+
+   ``print_binary``
+      Print the PDS binary.
+
+.. envvar:: PDSC_COLOR
+
+   if set to ``auto`` PDSC IR will be colorized if stdout is not a pipe.
+   Color is forced off if set to ``off``/``0`` or on if set to ``on``/``1``.
+   Defaults to ``auto``.
+
 i915 driver environment variables
 ---------------------------------
 
