@@ -26,6 +26,11 @@
 extern struct ethosu_block ARCH_OFM_BLOCK_MAX;
 extern struct ethosu_block SUB_KERNEL_MAX;
 
+/* Maximum register index for state tracking arrays.
+ * All CMD0 offsets are ≤ 0x18F and CMD1 offsets are ≤ 0x1A0,
+ * so 512 entries covers the full range. */
+#define ETHOSU_MAX_REG_INDEX 512
+
 #define COEFS_REGION   0
 #define IO_REGION      1
 #define SCRATCH_REGION 2
@@ -196,6 +201,12 @@ struct ethosu_subgraph {
    uint8_t *coefs;
    struct pipe_resource *coefs_rsrc;
    unsigned coefs_used;
+
+   /* Register state tracking to avoid emitting unchanged values */
+   uint16_t *cmd0_state; /* Array of last values for CMD0 registers (16-bit) */
+   uint64_t *cmd1_state; /* Array of last values for CMD1 registers */
+   bool *cmd0_valid;     /* Track which CMD0 registers have been set */
+   bool *cmd1_valid;     /* Track which CMD1 registers have been set */
 };
 
 bool

@@ -36,21 +36,66 @@ ethosu_ensure_cmdstream(struct ethosu_subgraph *subgraph)
    subgraph->cmdstream_used += 32;
 }
 
-#define EMIT0(cmd, param)                                                                      \
-   do {                                                                                        \
-      ethosu_ensure_cmdstream(subgraph);                                                       \
-      *(subgraph->cursor++) = cmd | (((param) & 0xFFFF) << 16);                                \
-      if (DBG_ENABLED(ETHOSU_DBG_MSGS))                                                        \
-         fprintf(stderr, "emit0(%s, 0x%x);\n", ethosu_get_cmd_name(0, cmd), (param) & 0xFFFF); \
+/* Check if a CMD0 register value has changed - returns true if should emit */
+static bool
+ethosu_cmd0_changed(struct ethosu_subgraph *subgraph, uint16_t reg, uint16_t value)
+{
+   assert(reg < ETHOSU_MAX_REG_INDEX);
+
+   if (subgraph->cmd0_valid[reg] && subgraph->cmd0_state[reg] == value)
+      return false;
+
+   subgraph->cmd0_state[reg] = value;
+   subgraph->cmd0_valid[reg] = true;
+   return true;
+}
+
+/* Check if a CMD1 register value has changed - returns true if should emit */
+static bool
+ethosu_cmd1_changed(struct ethosu_subgraph *subgraph, uint16_t reg, uint64_t value)
+{
+   assert(reg < ETHOSU_MAX_REG_INDEX);
+
+   if (subgraph->cmd1_valid[reg] && subgraph->cmd1_state[reg] == value)
+      return false;
+
+   subgraph->cmd1_state[reg] = value;
+   subgraph->cmd1_valid[reg] = true;
+   return true;
+}
+
+/* Check if this is an operation command (always emit, never deduplicate).
+ * NPU_OP_* commands occupy offsets 0x00–0x13: STOP=0, IRQ=1, CONV=2,
+ * DEPTHWISE=3, POOL=5, ELEMENTWISE=6, RESIZE=7, DMA_START=16,
+ * DMA_WAIT=17, KERNEL_WAIT=18, PMU_MASK=19.
+ * Configuration registers (NPU_SET_*) start at 0x100. */
+static bool
+ethosu_is_op_cmd(uint16_t cmd)
+{
+   return (cmd <= 0x13);
+}
+
+#define EMIT0(cmd, param)                                                               \
+   do {                                                                                 \
+      uint16_t _value = (param) & 0xFFFF;                                               \
+      if (ethosu_is_op_cmd(cmd) || ethosu_cmd0_changed(subgraph, cmd, _value)) {        \
+         ethosu_ensure_cmdstream(subgraph);                                             \
+         *(subgraph->cursor++) = cmd | ((uint32_t)_value << 16);                        \
+         if (DBG_ENABLED(ETHOSU_DBG_MSGS))                                              \
+            fprintf(stderr, "emit0(%s, 0x%x);\n", ethosu_get_cmd_name(0, cmd), _value); \
+      }                                                                                 \
    } while (0)
 
-#define EMIT1(cmd, param, offset)                                                                                   \
-   do {                                                                                                             \
-      ethosu_ensure_cmdstream(subgraph);                                                                            \
-      *(subgraph->cursor++) = cmd | 0x4000 | (((param) & 0xFFFF) << 16);                                            \
-      *(subgraph->cursor++) = (offset) & 0xFFFFFFFF;                                                                \
-      if (DBG_ENABLED(ETHOSU_DBG_MSGS))                                                                             \
-         fprintf(stderr, "emit1(%s, 0x%x, 0x%x);\n", ethosu_get_cmd_name(1, cmd), (param) & 0xFFFF, (int)(offset)); \
+#define EMIT1(cmd, param, offset)                                                                                      \
+   do {                                                                                                                \
+      uint64_t _value = (((uint64_t)(param) & 0xFFFF) << 32) | ((uint64_t)(offset) & 0xFFFFFFFF);                      \
+      if (ethosu_cmd1_changed(subgraph, cmd, _value)) {                                                                \
+         ethosu_ensure_cmdstream(subgraph);                                                                            \
+         *(subgraph->cursor++) = cmd | 0x4000 | (((param) & 0xFFFF) << 16);                                            \
+         *(subgraph->cursor++) = (offset) & 0xFFFFFFFF;                                                                \
+         if (DBG_ENABLED(ETHOSU_DBG_MSGS))                                                                             \
+            fprintf(stderr, "emit1(%s, 0x%x, 0x%x);\n", ethosu_get_cmd_name(1, cmd), (param) & 0xFFFF, (int)(offset)); \
+      }                                                                                                                \
    } while (0)
 
 static void

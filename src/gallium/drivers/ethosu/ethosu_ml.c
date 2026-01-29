@@ -199,6 +199,21 @@ ethosu_ml_subgraph_create(struct pipe_context *pcontext,
    subgraph->tensors = UTIL_DYNARRAY_INIT;
    subgraph->operations = UTIL_DYNARRAY_INIT;
 
+   /* Allocate register state tracking arrays */
+   subgraph->cmd0_state = calloc(ETHOSU_MAX_REG_INDEX, sizeof(*subgraph->cmd0_state));
+   subgraph->cmd1_state = calloc(ETHOSU_MAX_REG_INDEX, sizeof(*subgraph->cmd1_state));
+   subgraph->cmd0_valid = calloc(ETHOSU_MAX_REG_INDEX, sizeof(bool));
+   subgraph->cmd1_valid = calloc(ETHOSU_MAX_REG_INDEX, sizeof(bool));
+   if (!subgraph->cmd0_state || !subgraph->cmd1_state ||
+       !subgraph->cmd0_valid || !subgraph->cmd1_valid) {
+      free(subgraph->cmd0_state);
+      free(subgraph->cmd1_state);
+      free(subgraph->cmd0_valid);
+      free(subgraph->cmd1_valid);
+      free(subgraph);
+      return NULL;
+   }
+
    ethosu_lower_graph(subgraph, poperations, count);
 
    ethosu_emit_cmdstream(subgraph);
@@ -355,6 +370,11 @@ ethosu_ml_subgraph_destroy(struct pipe_context *pcontext,
    util_dynarray_fini(&subgraph->operations);
 
    util_dynarray_fini(&subgraph->tensors);
+
+   free(subgraph->cmd0_state);
+   free(subgraph->cmd1_state);
+   free(subgraph->cmd0_valid);
+   free(subgraph->cmd1_valid);
 
    free(subgraph);
 }
