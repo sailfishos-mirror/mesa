@@ -64,7 +64,7 @@
         "description": "Revert \"meson: static link spirv-tools for darwin\"",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f21d0f2cbeafb2d36217bf30732b5a95dc7fd385",
         "notes": null
