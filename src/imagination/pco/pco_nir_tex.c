@@ -452,6 +452,7 @@ static nir_def *lower_tex(nir_builder *b, nir_instr *instr, void *cb_data)
    struct state *state = cb_data;
    pco_data *data = state->data;
    pco_ctx *ctx = state->ctx;
+   const struct pvr_device_info *dev_info = ctx->dev_info;
 
    unsigned tex_desc_set;
    unsigned tex_binding;
@@ -462,7 +463,10 @@ static nir_def *lower_tex(nir_builder *b, nir_instr *instr, void *cb_data)
    pco_unpack_desc(tex->sampler_index, &smp_desc_set, &smp_binding);
 
    bool hw_array_support = false;
-   bool hw_int_support = false;
+   bool hw_int_support =
+      PCO_DEBUG(INT_SMP)
+         ? PVR_HAS_FEATURE(dev_info, tpu_extended_integer_lookup)
+         : false;
 
    b->cursor = nir_before_instr(instr);
 
@@ -555,43 +559,11 @@ static nir_def *lower_tex(nir_builder *b, nir_instr *instr, void *cb_data)
       is_2d_view_of_3d = true;
    }
 
-   nir_def *float_coords;
-   nir_def *int_coords;
-   nir_def *float_array_index;
-   nir_def *int_array_index;
-   process_coords(b,
-                  tex->is_array && tex->op != nir_texop_lod,
-                  tex_src_is_float(tex, nir_tex_src_coord),
-                  tex_srcs[nir_tex_src_coord],
-                  &float_coords,
-                  &int_coords,
-                  &float_array_index,
-                  &int_array_index);
-
-   bool use_int_coords = !tex_src_is_float(tex, nir_tex_src_coord) &&
-                         hw_int_support;
-
-   params.int_mode = use_int_coords,
-
-   assert(BITSET_TEST(tex_src_set, nir_tex_src_coord));
-   if (BITSET_TEST(tex_src_set, nir_tex_src_coord)) {
-      params.coords = use_int_coords ? int_coords : float_coords;
-      BITSET_CLEAR(tex_src_set, nir_tex_src_coord);
-   }
-
-   nir_def *proj = NULL;
-   if (BITSET_TEST(tex_src_set, nir_tex_src_projector)) {
-      assert(tex_src_is_float(tex, nir_tex_src_projector));
-      proj = tex_srcs[nir_tex_src_projector];
-      params.proj = use_int_coords ? nir_f2i32(b, proj) : proj;
-      BITSET_CLEAR(tex_src_set, nir_tex_src_projector);
-   }
-
    assert((BITSET_TEST(tex_src_set, nir_tex_src_bias) +
            BITSET_TEST(tex_src_set, nir_tex_src_lod) +
            BITSET_TEST(tex_src_set, nir_tex_src_ddx)) < 2);
 
-   ASSERTED bool lod_set = false;
+   bool lod_set = false;
    if (BITSET_TEST(tex_src_set, nir_tex_src_bias)) {
       params.lod_bias = tex_src_is_float(tex, nir_tex_src_bias)
                            ? tex_srcs[nir_tex_src_bias]
@@ -629,6 +601,44 @@ static nir_def *lower_tex(nir_builder *b, nir_instr *instr, void *cb_data)
       BITSET_CLEAR(tex_src_set, nir_tex_src_ddy);
    }
 
+   /* Disable integer coordinate support if LOD is present due to lack of
+    * clamping in this scenario.
+    */
+   if (lod_set)
+      hw_int_support = false;
+
+   nir_def *float_coords;
+   nir_def *int_coords;
+   nir_def *float_array_index;
+   nir_def *int_array_index;
+   process_coords(b,
+                  tex->is_array && tex->op != nir_texop_lod,
+                  tex_src_is_float(tex, nir_tex_src_coord),
+                  tex_srcs[nir_tex_src_coord],
+                  &float_coords,
+                  &int_coords,
+                  &float_array_index,
+                  &int_array_index);
+
+   bool use_int_coords = !tex_src_is_float(tex, nir_tex_src_coord) &&
+                         hw_int_support;
+
+   params.int_mode = use_int_coords,
+
+   assert(BITSET_TEST(tex_src_set, nir_tex_src_coord));
+   if (BITSET_TEST(tex_src_set, nir_tex_src_coord)) {
+      params.coords = use_int_coords ? int_coords : float_coords;
+      BITSET_CLEAR(tex_src_set, nir_tex_src_coord);
+   }
+
+   nir_def *proj = NULL;
+   if (BITSET_TEST(tex_src_set, nir_tex_src_projector)) {
+      assert(tex_src_is_float(tex, nir_tex_src_projector));
+      proj = tex_srcs[nir_tex_src_projector];
+      params.proj = use_int_coords ? nir_f2i32(b, proj) : proj;
+      BITSET_CLEAR(tex_src_set, nir_tex_src_projector);
+   }
+
    if (tex->op == nir_texop_tg4) {
       assert(!lod_set);
       params.lod_replace = nir_imm_int(b, 0);
@@ -643,6 +653,7 @@ static nir_def *lower_tex(nir_builder *b, nir_instr *instr, void *cb_data)
    if (tex->is_array && tex->op != nir_texop_lod) {
       if (hw_array_support) {
          params.array_index = int_array_index;
+         UNREACHABLE("Hardware support for array indexing not implemented");
       } else {
          nir_def *array_index = int_array_index;
          assert(array_index);
@@ -712,7 +723,7 @@ static nir_def *lower_tex(nir_builder *b, nir_instr *instr, void *cb_data)
 
    case nir_texop_txf:
    case nir_texop_txf_ms:
-      params.nncoords = true;
+      params.nncoords = !use_int_coords;
       FALLTHROUGH;
 
    case nir_texop_tex:
@@ -830,8 +841,10 @@ static enum pipe_format nir_type_to_pipe_format(nir_alu_type nir_type,
 static nir_def *lower_image(nir_builder *b, nir_instr *instr, void *cb_data)
 {
    nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
-   pco_data *data = cb_data;
-
+   struct state *state = cb_data;
+   pco_data *data = state->data;
+   pco_ctx *ctx = state->ctx;
+   const struct pvr_device_info *dev_info = ctx->dev_info;
    enum glsl_sampler_dim image_dim = nir_intrinsic_image_dim(intr);
    bool is_array = nir_intrinsic_image_array(intr);
    enum pipe_format format = nir_intrinsic_format(intr);
@@ -914,6 +927,10 @@ static nir_def *lower_image(nir_builder *b, nir_instr *instr, void *cb_data)
                             : NULL;
 
    bool hw_array_support = false;
+   bool hw_int_support =
+      PCO_DEBUG(INT_SMP)
+         ? PVR_HAS_FEATURE(dev_info, tpu_extended_integer_lookup)
+         : false;
 
    if (write_data) {
       assert(intr->num_components == 4);
@@ -1313,8 +1330,8 @@ static nir_def *lower_image(nir_builder *b, nir_instr *instr, void *cb_data)
 
       .sampler_dim = image_dim,
 
-      .nncoords = true,
-      .coords = float_coords,
+      .nncoords = !hw_int_support,
+      .coords = hw_int_support ? int_coords : float_coords,
 
       .ms_index = sample_index,
 
@@ -1325,11 +1342,13 @@ static nir_def *lower_image(nir_builder *b, nir_instr *instr, void *cb_data)
       .sample_components = intr->intrinsic == nir_intrinsic_image_deref_load
                               ? intr->def.num_components
                               : 0,
+      .int_mode = hw_int_support,
    };
 
    if (is_array) {
       if (hw_array_support) {
          params.array_index = int_array_index;
+         UNREACHABLE("Hardware support for array indexing not implemented");
       } else {
          nir_def *array_index = int_array_index;
          assert(array_index);
@@ -1391,7 +1410,11 @@ static bool is_image(const nir_instr *instr, UNUSED const void *cb_data)
    return false;
 }
 
-bool pco_nir_lower_images(nir_shader *shader, pco_data *data)
+bool pco_nir_lower_images(nir_shader *shader, pco_data *data, pco_ctx *ctx)
 {
-   return nir_shader_lower_instructions(shader, is_image, lower_image, data);
+   struct state state = {
+      .data = data,
+      .ctx = ctx,
+   };
+   return nir_shader_lower_instructions(shader, is_image, lower_image, &state);
 }

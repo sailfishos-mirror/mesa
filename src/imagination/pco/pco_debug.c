@@ -29,6 +29,9 @@ static const struct debug_named_value pco_debug_options[] = {
    { "alloc_extra_vtxins",
      PCO_DEBUG_ALLOC_EXTRA_VTXINS,
      "Allocates additional vertex input registers." },
+   { "int_smp",
+     PCO_DEBUG_INT_SMP,
+     "Enable integer coordinate support for sampler instructions." },
    DEBUG_NAMED_VALUE_END,
 };
 
