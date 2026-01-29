@@ -765,10 +765,14 @@ kk_flush_draw_state(struct kk_cmd_buffer *cmd)
                  cmd->vk.dynamic_graphics_state.rs.front_face));
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_DEPTH_BIAS_FACTORS)) {
-      mtl_set_depth_bias(enc, dyn->rs.depth_bias.constant_factor,
-                         dyn->rs.depth_bias.slope_factor,
-                         dyn->rs.depth_bias.clamp);
+   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_DEPTH_BIAS_FACTORS) ||
+       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_DEPTH_BIAS_ENABLE)) {
+      if (dyn->rs.depth_bias.enable)
+         mtl_set_depth_bias(enc, dyn->rs.depth_bias.constant_factor,
+                            dyn->rs.depth_bias.slope_factor,
+                            dyn->rs.depth_bias.clamp);
+      else
+         mtl_set_depth_bias(enc, 0.0f, 0.0f, 0.0f);
    }
 
    if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_DEPTH_CLAMP_ENABLE)) {

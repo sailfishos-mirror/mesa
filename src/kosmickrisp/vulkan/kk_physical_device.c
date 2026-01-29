@@ -155,6 +155,7 @@ kk_get_device_features(
    *features = (struct vk_features){
       /* Vulkan 1.0 */
       .alphaToOne = true,
+      .depthBiasClamp = true,
       .depthClamp = true,
       .drawIndirectFirstInstance = true,
       .dualSrcBlend = true,
