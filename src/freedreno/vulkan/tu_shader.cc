@@ -2702,7 +2702,8 @@ tu_shader_init(struct tu_device *dev, const void *key_data, size_t key_size)
                              VK_SYSTEM_ALLOCATION_SCOPE_DEVICE))
       return NULL;
 
-   memcpy(obj_key_data, key_data, key_size);
+   if (key_size > 0)
+      memcpy(obj_key_data, key_data, key_size);
 
    vk_pipeline_cache_object_init(&dev->vk, &shader->base,
                                  &tu_shader_ops, obj_key_data, key_size);

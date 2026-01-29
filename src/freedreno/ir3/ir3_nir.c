@@ -1304,6 +1304,11 @@ ir3_filter_vars_to_scratch_single_instr_limit(struct set *set, uint32_t limit,
       util_dynarray_append(&candidate_nonspilled, var);
    }
 
+   if (util_dynarray_num_elements(&candidate_nonspilled, const nir_variable *) == 0) {
+      util_dynarray_fini(&candidate_nonspilled);
+      return;
+   }
+
    qsort(
       util_dynarray_begin(&candidate_nonspilled),
       util_dynarray_num_elements(&candidate_nonspilled, const nir_variable *),

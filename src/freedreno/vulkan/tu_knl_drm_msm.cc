@@ -1336,8 +1336,9 @@ msm_queue_submit(struct tu_queue *queue, void *_submit,
        * the memory required for page tables. Sort the entries to make sure
        * that neighboring mappings are next to each other.
        */
-      qsort(submit->binds.data, nr_ops, sizeof(struct drm_msm_vm_bind_op),
-            compare_binds);
+      if (nr_ops > 1)
+         qsort(submit->binds.data, nr_ops, sizeof(struct drm_msm_vm_bind_op),
+               compare_binds);
 
       u_rwlock_rdlock(&queue->device->vm_bind_fence_lock);
 

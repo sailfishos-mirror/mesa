@@ -1971,7 +1971,7 @@ ir3_valid_immediate(struct ir3_instruction *instr, int32_t immed)
    }
 
    /* Other than cat1 (mov) we can only encode up to 10 bits, sign-extended: */
-   return !(immed & ~0x1ff) || !(-immed & ~0x1ff);
+   return !(immed & ~0x1ff) || !(-(uint32_t)immed & ~0x1ff);
 }
 
 struct ir3_instruction *

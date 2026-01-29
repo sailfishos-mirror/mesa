@@ -856,8 +856,9 @@ ir3_nir_lower_preamble(nir_shader *nir, struct ir3_shader_variant *v)
    unsigned preamble_size =
       const_state->allocs.consts[IR3_CONST_ALLOC_PREAMBLE].size_vec4 * 4;
 
-   BITSET_DECLARE(promoted_to_float, preamble_size);
-   memset(promoted_to_float, 0, sizeof(promoted_to_float));
+   /* Avoid zero-size VLA. */
+   BITSET_DECLARE(promoted_to_float, preamble_size > 0 ? preamble_size : 1);
+   BITSET_ZERO(promoted_to_float);
 
    nir_builder builder_main = nir_builder_create(main);
    nir_builder *b = &builder_main;

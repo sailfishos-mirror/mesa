@@ -233,20 +233,27 @@ fdl6_layout_image(struct fdl_layout *layout, const struct fd_dev_info *info,
    uint32_t ubwc_width0 = params->width0;
    uint32_t ubwc_height0 = params->height0;
    uint32_t ubwc_tile_height_alignment = RGB_TILE_HEIGHT_ALIGNMENT;
-   if (params->mip_levels > 1) {
-      /* With mipmapping enabled, UBWC layout is power-of-two sized,
-       * specified in log2 width/height in the descriptors.  The height
-       * alignment is 64 for mipmapping, but for buffer sharing (always
-       * single level) other participants expect 16.
-       */
-      ubwc_width0 = util_next_power_of_two(params->width0);
-      ubwc_height0 = util_next_power_of_two(params->height0);
-      ubwc_tile_height_alignment = 64;
+   if (layout->ubwc) {
+      if (params->mip_levels > 1) {
+         /* With mipmapping enabled, UBWC layout is power-of-two sized,
+          * specified in log2 width/height in the descriptors.  The height
+          * alignment is 64 for mipmapping, but for buffer sharing (always
+          * single level) other participants expect 16.
+          */
+         ubwc_width0 = util_next_power_of_two(params->width0);
+         ubwc_height0 = util_next_power_of_two(params->height0);
+         ubwc_tile_height_alignment = 64;
+      }
+
+      layout->ubwc_width0 = align(DIV_ROUND_UP(ubwc_width0, ubwc_blockwidth),
+                                  RGB_TILE_WIDTH_ALIGNMENT);
+      ubwc_height0 = align(DIV_ROUND_UP(ubwc_height0, ubwc_blockheight),
+                           ubwc_tile_height_alignment);
+   } else {
+      layout->ubwc_width0 = 0;
+      ubwc_height0 = 0;
+      layout->ubwc_layer_size = 0;
    }
-   layout->ubwc_width0 = align(DIV_ROUND_UP(ubwc_width0, ubwc_blockwidth),
-                               RGB_TILE_WIDTH_ALIGNMENT);
-   ubwc_height0 = align(DIV_ROUND_UP(ubwc_height0, ubwc_blockheight),
-                        ubwc_tile_height_alignment);
 
    uint32_t min_3d_layer_size = 0;
    bool in_sparse_miptail = false;

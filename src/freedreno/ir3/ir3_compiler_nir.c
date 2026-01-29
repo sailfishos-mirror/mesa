@@ -5842,8 +5842,9 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
       chsh->barrier_conflict = IR3_BARRIER_EVERYTHING;
    } else {
       assert((ctx->noutputs % 4) == 0);
-      unsigned outidxs[ctx->noutputs / 4];
-      struct ir3_instruction *outputs[ctx->noutputs / 4];
+      unsigned alloc_noutputs = ctx->noutputs == 0 ? 1 : ctx->noutputs / 4;
+      unsigned outidxs[alloc_noutputs];
+      struct ir3_instruction *outputs[alloc_noutputs];
       unsigned outputs_count = 0;
 
       struct ir3_block *b = ctx->block;

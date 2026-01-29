@@ -8435,8 +8435,13 @@ tu6_draw_common(struct tu_cmd_buffer *cmd,
       const struct tu_shader *tcs = cmd->state.shaders[MESA_SHADER_TESS_CTRL];
 
       /* maximum number of patches that can fit in tess factor/param buffers */
-      uint32_t subdraw_size = MIN2(TU_TESS<CHIP>::FACTOR_SIZE / ir3_tess_factor_stride(tes->variant->key.tessellation),
-                           TU_TESS<CHIP>::PARAM_SIZE / (tcs->variant->output_size * 4));
+      uint32_t subdraw_size =
+         tcs->variant->output_size != 0
+            ? MIN2(
+                 TU_TESS<CHIP>::FACTOR_SIZE /
+                    ir3_tess_factor_stride(tes->variant->key.tessellation),
+                 TU_TESS<CHIP>::PARAM_SIZE / (tcs->variant->output_size * 4))
+            : 0;
       /* convert from # of patches to draw count */
       subdraw_size *= cmd->vk.dynamic_graphics_state.ts.patch_control_points;
 

@@ -1280,9 +1280,9 @@ tu6_emit_patch_control_points(struct tu_cs *cs,
                          tcs->variant->tess.tcs_vertices_out);
    }
 
-   uint32_t patches_per_wave =
-      MIN2(vs_hs_local_mem_size / (patch_local_mem_size_16b * 16),
-           max_patches_per_wave);
+   uint32_t patches_per_wave = patch_local_mem_size_16b == 0
+                                  ? 0
+                                  : MIN2(vs_hs_local_mem_size / (patch_local_mem_size_16b * 16), max_patches_per_wave);
 
    uint32_t wave_input_size = DIV_ROUND_UP(
       patches_per_wave * patch_local_mem_size_16b * 16, 256);

@@ -92,7 +92,7 @@ class Field(object):
             val = var_name
         elif self.type == "fixed":
             type = "float"
-            val = "((int32_t)(%s * %d.0))" % (var_name, 1 << self.radix)
+            val = "(uint32_t)((int32_t)(%s * %d.0))" % (var_name, 1 << self.radix)
         elif self.type == "ufixed":
             type = "float"
             val = "((uint32_t)(%s * %d.0))" % (var_name, 1 << self.radix)

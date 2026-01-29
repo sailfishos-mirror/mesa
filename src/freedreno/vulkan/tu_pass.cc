@@ -169,6 +169,9 @@ static void
 tu_render_pass_add_implicit_deps(struct tu_render_pass *pass,
                                  const VkRenderPassCreateInfo2 *info)
 {
+   if (pass->attachment_count == 0)
+      return;
+
    const VkAttachmentDescription2* att = info->pAttachments;
    bool has_external_src[info->subpassCount];
    bool has_external_dst[info->subpassCount];
@@ -406,6 +409,9 @@ tu_render_pass_add_implicit_deps(struct tu_render_pass *pass,
 static void
 tu_render_pass_patch_input_gmem(struct tu_render_pass *pass)
 {
+   if (pass->attachment_count == 0)
+      return;
+
    bool written[pass->attachment_count];
 
    memset(written, 0, sizeof(written));
@@ -752,6 +758,9 @@ static void
 tu_render_pass_gmem_config(struct tu_render_pass *pass,
                            const struct tu_physical_device *phys_dev)
 {
+   if (pass->attachment_count == 0)
+      return;
+
    for (enum tu_gmem_layout layout = (enum tu_gmem_layout) 0;
         layout < TU_GMEM_LAYOUT_COUNT;
         layout = (enum tu_gmem_layout)(layout + 1)) {

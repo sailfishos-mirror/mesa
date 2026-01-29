@@ -378,6 +378,7 @@ tu_cs_alloc(struct tu_cs *cs,
        */
       memory->map = NULL;
       memory->iova = 0xdead0000;
+      memory->writeable = false;
       return VK_SUCCESS;
    }
 
