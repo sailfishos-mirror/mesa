@@ -1848,7 +1848,6 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
    const struct wsi_image_create_info *wsi_info =
       vk_find_struct_const(pCreateInfo->pNext, WSI_IMAGE_CREATE_INFO_MESA);
    image->from_wsi = wsi_info != NULL;
-   image->wsi_blit_src = wsi_info && wsi_info->blit_src;
 
    /* Non-intermediate WSI images are displayable. */
    if (wsi_info && !wsi_info->blit_src)
@@ -3486,7 +3485,9 @@ anv_layout_to_aux_state(const struct intel_device_info * const devinfo,
        * manner. Although this is against spec, it's easy enough to deal with
        * it here.
        */
-      if (!image->from_wsi || image->wsi_blit_src) {
+      const isl_surf_usage_flags_t surf_usage =
+         image->planes[plane].primary_surface.isl.usage;
+      if (!image->from_wsi || !isl_surf_usage_is_display(surf_usage)) {
          return anv_layout_to_aux_state(devinfo, image, aspect,
                                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                         queue_flags);
