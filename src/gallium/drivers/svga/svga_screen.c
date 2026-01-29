@@ -440,6 +440,7 @@ svga_init_screen_caps(struct svga_screen *svgascreen)
    caps->vertex_element_instance_divisor =
    caps->seamless_cube_map =
    caps->fake_sw_msaa = sws->have_vgpu10;
+   caps->conditional_render_inverted = sws->have_set_predication_cmd;
 
    caps->max_stream_output_buffers = sws->have_vgpu10 ? SVGA3D_DX_MAX_SOTARGETS : 0;
    caps->max_stream_output_separate_components = sws->have_vgpu10 ? 4 : 0;
