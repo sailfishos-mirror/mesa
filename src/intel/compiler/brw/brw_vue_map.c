@@ -273,6 +273,11 @@ brw_compute_vue_map(const struct intel_device_info *devinfo,
       }
    }
 
+   assert(vue_map->varying_to_slot[VARYING_SLOT_PSIZ] == 0);
+   vue_map->varying_to_slot[VARYING_SLOT_PRIMITIVE_SHADING_RATE] = 0;
+   vue_map->varying_to_slot[VARYING_SLOT_LAYER] = 0;
+   vue_map->varying_to_slot[VARYING_SLOT_VIEWPORT] = 0;
+
    vue_map->num_slots = slot;
    vue_map->num_pos_slots = pos_slots;
    vue_map->num_per_vertex_slots = 0;
