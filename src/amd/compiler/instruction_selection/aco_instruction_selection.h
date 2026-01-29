@@ -130,6 +130,18 @@ struct loop_context {
    cf_context cf_info_old;
 };
 
+enum cf_traversal_phase {
+   CF_TRAVERSAL_PHASE_ENTER,
+   CF_TRAVERSAL_PHASE_IN_ELSE,
+   CF_TRAVERSAL_PHASE_LEAVE
+};
+
+struct cf_traversal_state {
+   nir_cf_node* node;
+   enum cf_traversal_phase phase;
+   bool saved_skipping_empty_exec;
+};
+
 struct isel_context {
    const struct aco_compiler_options* options;
    const struct ac_shader_args* args;
@@ -145,6 +157,7 @@ struct isel_context {
    cf_context cf_info;
    bool skipping_empty_exec = false;
 
+   std::vector<cf_traversal_state> traversal_stack;
    std::vector<if_context> if_stack;
    std::vector<loop_context> loop_stack;
 

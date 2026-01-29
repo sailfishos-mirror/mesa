@@ -18,8 +18,6 @@
 namespace aco {
 namespace {
 
-void visit_cf_list(struct isel_context* ctx, struct exec_list* list);
-
 void
 visit_load_const(isel_context* ctx, nir_load_const_instr* instr)
 {
@@ -900,6 +898,44 @@ visit_debug_info(isel_context* ctx, nir_instr_debug_info* instr_info)
 }
 
 void
+push_cf_list(isel_context* ctx, struct exec_list* l)
+{
+   if (nir_cf_list_is_empty_block(l))
+      return;
+
+   nir_cf_node* node = exec_node_data_head(nir_cf_node, l, node);
+
+   cf_traversal_state state;
+   state.phase = CF_TRAVERSAL_PHASE_ENTER;
+   state.node = node;
+   state.saved_skipping_empty_exec = ctx->skipping_empty_exec;
+   ctx->skipping_empty_exec = false;
+
+   ctx->traversal_stack.push_back(std::move(state));
+}
+
+void
+pop_cf_list(isel_context* ctx)
+{
+   end_empty_exec_skip(ctx);
+   cf_traversal_state& head = ctx->traversal_stack.back();
+   ctx->skipping_empty_exec = head.saved_skipping_empty_exec;
+   ctx->traversal_stack.pop_back();
+}
+
+void
+advance_cf_list(isel_context* ctx, nir_cf_node* node)
+{
+   if (!nir_cf_node_is_last(node)) {
+      cf_traversal_state& head = ctx->traversal_stack.back();
+      head.node = nir_cf_node_next(node);
+      head.phase = CF_TRAVERSAL_PHASE_ENTER;
+   } else {
+      pop_cf_list(ctx);
+   }
+}
+
+void
 visit_block(isel_context* ctx, nir_block* block)
 {
    if (ctx->block->kind & block_kind_top_level) {
@@ -935,123 +971,137 @@ visit_block(isel_context* ctx, nir_block* block)
       default: isel_err(instr, "Unknown NIR instr type");
       }
    }
+
+   advance_cf_list(ctx, (nir_cf_node*)block);
 }
 
 void
-visit_loop(isel_context* ctx, nir_loop* loop)
+visit_loop(isel_context* ctx, nir_loop* loop, cf_traversal_phase phase)
 {
-   assert(!nir_loop_has_continue_construct(loop));
+   if (phase == CF_TRAVERSAL_PHASE_ENTER) {
+      assert(!nir_loop_has_continue_construct(loop));
 
-   begin_loop(ctx);
-   ctx->cf_info.parent_loop.has_divergent_break =
-      loop->divergent_break && nir_block_num_preds(nir_loop_first_block(loop)) > 1;
-   ctx->cf_info.in_divergent_cf |= ctx->cf_info.parent_loop.has_divergent_break;
+      begin_loop(ctx);
 
-   visit_cf_list(ctx, &loop->body);
+      ctx->cf_info.parent_loop.has_divergent_break =
+         loop->divergent_break && nir_block_num_preds(nir_loop_first_block(loop)) > 1;
+      ctx->cf_info.in_divergent_cf |= ctx->cf_info.parent_loop.has_divergent_break;
 
-   end_loop(ctx);
+      ctx->traversal_stack.back().phase = CF_TRAVERSAL_PHASE_LEAVE;
+      push_cf_list(ctx, &loop->body);
+      return; /* Return to driver to process body */
+   } else if (phase == CF_TRAVERSAL_PHASE_LEAVE) {
+      end_loop(ctx);
+
+      advance_cf_list(ctx, (nir_cf_node*)loop);
+   }
 }
 
+/**
+ * Uniform conditionals are represented in the following way*) :
+ *
+ * The linear and logical CFG:
+ *                        BB_IF
+ *                        /    \
+ *       BB_THEN (logical)      BB_ELSE (logical)
+ *                        \    /
+ *                        BB_ENDIF
+ *
+ * *) Exceptions may be due to break and continue statements within loops
+ *    If a break/continue happens within uniform control flow, it branches
+ *    to the loop exit/entry block. Otherwise, it branches to the next
+ *    merge block.
+ *
+ * To maintain a logical and linear CFG without critical edges,
+ * non-uniform conditionals are represented in the following way*) :
+ *
+ * The linear CFG:
+ *                        BB_IF
+ *                        /    \
+ *       BB_THEN (logical)      BB_THEN (linear)
+ *                        \    /
+ *                        BB_INVERT (linear)
+ *                        /    \
+ *       BB_ELSE (logical)      BB_ELSE (linear)
+ *                        \    /
+ *                        BB_ENDIF
+ *
+ * The logical CFG:
+ *                        BB_IF
+ *                        /    \
+ *       BB_THEN (logical)      BB_ELSE (logical)
+ *                        \    /
+ *                        BB_ENDIF
+ *
+ *
+ * Exceptions may be due to break and continue statements within loops:
+ *
+ * The linear CFG:
+ *                        BB_IF
+ *                        /    \
+ *       BB_THEN (logical)      \
+ *           /    \              \
+ *    BB_JUMP    BB_CONTINUE    BB_ELSE     (all linear)
+ *                        \      /
+ *                        BB_ENDIF
+ **/
 void
-visit_if(isel_context* ctx, nir_if* if_stmt)
+visit_if(isel_context* ctx, nir_if* if_stmt, cf_traversal_phase phase)
 {
-   Temp cond = get_ssa_temp(ctx, if_stmt->condition.ssa);
-   Builder bld(ctx->program, ctx->block);
-   aco_ptr<Instruction> branch;
+   if (phase == CF_TRAVERSAL_PHASE_ENTER) {
+      Temp cond = get_ssa_temp(ctx, if_stmt->condition.ssa);
 
-   if (!nir_src_is_divergent(&if_stmt->condition)) { /* uniform condition */
-      /**
-       * Uniform conditionals are represented in the following way*) :
-       *
-       * The linear and logical CFG:
-       *                        BB_IF
-       *                        /    \
-       *       BB_THEN (logical)      BB_ELSE (logical)
-       *                        \    /
-       *                        BB_ENDIF
-       *
-       * *) Exceptions may be due to break and continue statements within loops
-       *    If a break/continue happens within uniform control flow, it branches
-       *    to the loop exit/entry block. Otherwise, it branches to the next
-       *    merge block.
-       **/
+      if (!nir_src_is_divergent(&if_stmt->condition)) {
+         assert(cond.regClass() == ctx->program->lane_mask);
+         cond = bool_to_scalar_condition(ctx, cond);
+         begin_uniform_if_then(ctx, cond);
+      } else {
+         begin_divergent_if_then(ctx, cond, if_stmt->control);
+      }
+      ctx->traversal_stack.back().phase = CF_TRAVERSAL_PHASE_IN_ELSE;
+      push_cf_list(ctx, &if_stmt->then_list);
+      return; /* Return to driver to process then_list */
+   }
 
-      assert(cond.regClass() == ctx->program->lane_mask);
-      cond = bool_to_scalar_condition(ctx, cond);
+   if (phase == CF_TRAVERSAL_PHASE_IN_ELSE) {
+      if (!nir_src_is_divergent(&if_stmt->condition)) {
+         begin_uniform_if_else(ctx);
+      } else {
+         begin_divergent_if_else(ctx, if_stmt->control);
+      }
 
-      begin_uniform_if_then(ctx, cond);
-      visit_cf_list(ctx, &if_stmt->then_list);
+      ctx->traversal_stack.back().phase = CF_TRAVERSAL_PHASE_LEAVE;
+      push_cf_list(ctx, &if_stmt->else_list);
+      return; /* Return to driver to process else_list */
+   }
 
-      begin_uniform_if_else(ctx);
-      visit_cf_list(ctx, &if_stmt->else_list);
+   if (phase == CF_TRAVERSAL_PHASE_LEAVE) {
+      if (!nir_src_is_divergent(&if_stmt->condition)) {
+         end_uniform_if(ctx);
+      } else {
+         end_divergent_if(ctx);
+      }
 
-      end_uniform_if(ctx);
-   } else { /* non-uniform condition */
-      /**
-       * To maintain a logical and linear CFG without critical edges,
-       * non-uniform conditionals are represented in the following way*) :
-       *
-       * The linear CFG:
-       *                        BB_IF
-       *                        /    \
-       *       BB_THEN (logical)      BB_THEN (linear)
-       *                        \    /
-       *                        BB_INVERT (linear)
-       *                        /    \
-       *       BB_ELSE (logical)      BB_ELSE (linear)
-       *                        \    /
-       *                        BB_ENDIF
-       *
-       * The logical CFG:
-       *                        BB_IF
-       *                        /    \
-       *       BB_THEN (logical)      BB_ELSE (logical)
-       *                        \    /
-       *                        BB_ENDIF
-       *
-       *
-       * Exceptions may be due to break and continue statements within loops:
-       *
-       * The linear CFG:
-       *                        BB_IF
-       *                        /    \
-       *       BB_THEN (logical)      \
-       *           /    \              \
-       *    BB_JUMP    BB_CONTINUE    BB_ELSE     (all linear)
-       *                        \      /
-       *                        BB_ENDIF
-       **/
-
-      begin_divergent_if_then(ctx, cond, if_stmt->control);
-      visit_cf_list(ctx, &if_stmt->then_list);
-
-      begin_divergent_if_else(ctx, if_stmt->control);
-      visit_cf_list(ctx, &if_stmt->else_list);
-
-      end_divergent_if(ctx);
+      advance_cf_list(ctx, (nir_cf_node*)if_stmt);
    }
 }
 
 void
-visit_cf_list(isel_context* ctx, struct exec_list* list)
+visit_function_impl(isel_context* ctx, struct nir_function_impl* impl)
 {
-   if (nir_cf_list_is_empty_block(list))
-      return;
+   push_cf_list(ctx, &impl->body);
 
-   bool skipping_empty_exec_old = ctx->skipping_empty_exec;
-   ctx->skipping_empty_exec = false;
+   while (!ctx->traversal_stack.empty()) {
+      nir_cf_node* node = ctx->traversal_stack.back().node;
+      cf_traversal_phase phase = ctx->traversal_stack.back().phase;
 
-   foreach_list_typed (nir_cf_node, node, node, list) {
       switch (node->type) {
       case nir_cf_node_block: visit_block(ctx, nir_cf_node_as_block(node)); break;
-      case nir_cf_node_if: visit_if(ctx, nir_cf_node_as_if(node)); break;
-      case nir_cf_node_loop: visit_loop(ctx, nir_cf_node_as_loop(node)); break;
+      case nir_cf_node_if: visit_if(ctx, nir_cf_node_as_if(node), phase); break;
+      case nir_cf_node_loop: visit_loop(ctx, nir_cf_node_as_loop(node), phase); break;
       default: UNREACHABLE("unimplemented cf list type");
       }
    }
-
-   end_empty_exec_skip(ctx);
-   ctx->skipping_empty_exec = skipping_empty_exec_old;
 }
 
 void
@@ -1354,7 +1404,7 @@ select_program_rt(isel_context& ctx, unsigned shader_count, struct nir_shader* c
 
       append_logical_start(ctx.block);
       split_arguments(&ctx, startpgm);
-      visit_cf_list(&ctx, &impl->body);
+      visit_function_impl(&ctx, impl);
       /* This block doesn't need a p_reload_preserved, we add it manually after p_return */
       append_logical_end(&ctx, false);
       ctx.block->kind |= block_kind_uniform;
@@ -1477,7 +1527,7 @@ select_shader(isel_context& ctx, nir_shader* nir, const bool need_startpgm, cons
    }
 
    nir_function_impl* func = nir_shader_get_entrypoint(nir);
-   visit_cf_list(&ctx, &func->body);
+   visit_function_impl(&ctx, func);
 
    if (ctx.program->info.ps.has_epilog) {
       if (ctx.stage == fragment_fs) {
