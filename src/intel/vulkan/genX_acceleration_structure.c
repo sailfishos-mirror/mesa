@@ -239,9 +239,12 @@ static const uint32_t copy_spv[] = {
 };
 
 static void
-get_bvh_layout(VkGeometryTypeKHR geometry_type, uint32_t leaf_count,
+get_bvh_layout(const struct vk_acceleration_structure_build_state *state,
                struct bvh_layout *layout)
 {
+   VkGeometryTypeKHR geometry_type = vk_get_as_geometry_type(state->build_info);
+   uint32_t leaf_count = state->leaf_node_count;
+
    uint32_t internal_count = MAX2(leaf_count, 2) - 1;
 
    uint64_t offset = ANV_RT_BVH_HEADER_SIZE;
@@ -287,7 +290,7 @@ static VkDeviceSize
 anv_get_as_size(VkDevice device, const struct vk_acceleration_structure_build_state *state)
 {
    struct bvh_layout layout;
-   get_bvh_layout(vk_get_as_geometry_type(state->build_info), state->leaf_node_count, &layout);
+   get_bvh_layout(state, &layout);
    return layout.size;
 }
 
@@ -390,7 +393,7 @@ anv_encode_as(VkCommandBuffer commandBuffer, const struct vk_acceleration_struct
 
    struct bvh_layout bvh_layout;
    VkGeometryTypeKHR geometry_type = vk_get_as_geometry_type(state->build_info);
-   get_bvh_layout(geometry_type, state->leaf_node_count, &bvh_layout);
+   get_bvh_layout(state, &bvh_layout);
 
    if (INTEL_DEBUG(DEBUG_BVH_NO_BUILD)) {
       /* Zero out the whole BVH when we run with BVH_NO_BUILD debug option. */
@@ -454,7 +457,7 @@ anv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_stru
    VkGeometryTypeKHR geometry_type = vk_get_as_geometry_type(state->build_info);
 
    struct bvh_layout bvh_layout;
-   get_bvh_layout(geometry_type, state->leaf_node_count, &bvh_layout);
+   get_bvh_layout(state, &bvh_layout);
 
    VkDeviceAddress header_addr = vk_acceleration_structure_get_va(dst);
 
