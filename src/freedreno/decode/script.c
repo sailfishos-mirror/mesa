@@ -22,6 +22,7 @@
 #include "cffdec.h"
 #include "cffdump-pkt-handler.h"
 #include "cffdump-desc-handler.h"
+#include "disasm.h"
 #include "rnnutil.h"
 #include "script.h"
 
@@ -39,9 +40,10 @@ static lua_State *iL;
    } while (0)
 #endif
 
+static int l_rnn_shaderstat(lua_State *L, struct rnn *rnn);
+
 /* An rnn based decoder, which can either be decoding current register
  * values, or domain based decoding of a pm4 packet.
- *
  */
 struct rnndec {
    struct rnn base;
@@ -552,6 +554,63 @@ l_rnn_dom(lua_State *L, uint32_t *dwords, uint32_t sizedwords,
 }
 
 /*
+ * Shader stats object
+ */
+
+static int
+l_rnn_meta_shaderstat_index(lua_State *L)
+{
+   struct rnn *rnn = lua_touserdata(L, 1);
+   const char *name = lua_tostring(L, 2);
+   enum mesa_shader_stage stage;
+   struct rnndomain *dom = rnn_finddomain(rnn->db, "ir3_shader_stats");
+
+   if (!dom)
+      error("No domain: ir3_shader_stats");
+
+   if (!strcmp(name, "vs")) {
+      stage = MESA_SHADER_VERTEX;
+   } else if (!strcmp(name, "hs")) {
+      stage = MESA_SHADER_TESS_CTRL;
+   } else if (!strcmp(name, "ds")) {
+      stage = MESA_SHADER_TESS_EVAL;
+   } else if (!strcmp(name, "gs")) {
+      stage = MESA_SHADER_GEOMETRY;
+   } else if (!strcmp(name, "fs")) {
+      stage = MESA_SHADER_FRAGMENT;
+   } else if (!strcmp(name, "cs")) {
+      stage = MESA_SHADER_COMPUTE;
+   } else {
+      return 0;
+   }
+
+   struct shader_stats *stats = get_shader_stats(stage);
+
+   return l_rnn_dom(L, (uint32_t *)stats, DIV_ROUND_UP(sizeof(*stats), 4), rnn, dom);
+}
+
+static const struct luaL_Reg l_meta_rnn_shaderstat[] = {
+   {"__index", l_rnn_meta_shaderstat_index},
+   {NULL, NULL} /* sentinel */
+};
+
+static int
+l_rnn_shaderstat(lua_State *L, struct rnn *rnn)
+{
+   struct rnndec *rnndec = lua_newuserdata(L, sizeof(*rnndec));
+
+   rnndec->base = *rnn;
+
+   luaL_newmetatable(L, "rnnmetadom");
+   luaL_setfuncs(L, l_meta_rnn_shaderstat, 0);
+   lua_pop(L, 1);
+
+   luaL_setmetatable(L, "rnnmetadom");
+
+   return 1;
+}
+
+/*
  *
  */
 
@@ -560,6 +619,9 @@ l_rnn_meta_index(lua_State *L)
 {
    struct rnn *rnn = lua_touserdata(L, 1);
    const char *name = lua_tostring(L, 2);
+
+   if (!strcmp(name, "shaderstat"))
+      return l_rnn_shaderstat(L, rnn);
 
    struct rnndelem *elem = rnn_regelem(rnn, name);
    if (elem)
@@ -961,6 +1023,7 @@ script_show_descriptor(uint32_t *dwords,
       return true;
 
    struct rnnenum *e = rnn_enumelem(rnn, "desctype");
+   assert(e);
    pushenum(iL, rnn, rnn_enumval(rnn, "desctype", type), e);
 
    /* 2 args, 1 result */

@@ -116,6 +116,9 @@ void cffdec_finish(void);
 void dump_register_val(struct regacc *r, int level);
 void dump_commands(uint32_t *dwords, uint32_t sizedwords, int level);
 
+enum mesa_shader_stage;
+struct shader_stats *get_shader_stats(enum mesa_shader_stage stage);
+
 /*
  * Packets (mostly) fall into two categories, "write one or more registers"
  * (type0 or type4 depending on generation) or "packet with opcode and

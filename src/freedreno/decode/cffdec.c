@@ -164,6 +164,16 @@ decode_shader_ir3(uint32_t *dwords, uint32_t sizedwords, int level,
                         &shader_stats[stage]);
 }
 
+struct shader_stats *
+get_shader_stats(enum mesa_shader_stage stage)
+{
+   /* TODO in summary mode we might need to trigger silent shader disasm
+    * to have up to date stats?  Maybe we need to track whether the stats
+    * are valid?
+    */
+   return &shader_stats[stage];
+}
+
 static bool
 highlight_addr(uint32_t *hostaddr)
 {
