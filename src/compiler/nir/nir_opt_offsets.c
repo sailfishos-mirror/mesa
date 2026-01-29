@@ -202,6 +202,15 @@ try_fold_load_store_nv(nir_builder *b,
       min = ~max;
    }
 
+   /* We rely on opt_algebraic to order things so that nir_opt_offset can fold
+    * constant offsets into instructions first without having to take the offset
+    * shift into account. */
+   if (nir_intrinsic_has_offset_shift_nv(intrin) &&
+       nir_intrinsic_offset_shift_nv(intrin) != 0) {
+      assert(!"nir_opt_offset encountered non 0 offset_shift_nv");
+      return false;
+   }
+
    return try_fold_load_store(b, intrin, state, offset_idx, min, max, false);
 }
 

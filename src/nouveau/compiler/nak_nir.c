@@ -1058,6 +1058,51 @@ nak_nir_lower_load_store(nir_shader *nir, const struct nak_compiler *nak)
    return progress;
 }
 
+static bool
+nak_nir_opt_offset_shift_nv_impl(struct nir_builder *b,
+                                 nir_intrinsic_instr *intrin, void *data)
+{
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_load_shared_nv:
+   case nir_intrinsic_store_shared_nv:
+   case nir_intrinsic_shared_atomic_nv:
+   case nir_intrinsic_shared_atomic_swap_nv: {
+      nir_src *addr = nir_get_io_offset_src(intrin);
+      nir_alu_instr *addr_alu = nir_def_as_alu_or_null(addr->ssa);
+
+      if (!addr_alu || addr_alu->op != nir_op_ishl ||
+          !nir_src_is_const(addr_alu->src[1].src))
+         return false;
+
+      uint32_t shift_const = nir_alu_src_as_uint(addr_alu->src[1]) +
+         nir_intrinsic_offset_shift_nv(intrin);
+
+      if (shift_const < 2 || shift_const > 4)
+         return false;
+
+      nir_intrinsic_set_offset_shift_nv(intrin, shift_const);
+      b->cursor = nir_before_instr(&intrin->instr);
+      nir_def *new_addr = nir_ssa_for_alu_src(b, addr_alu, 0);
+      nir_src_rewrite(addr, new_addr);
+      return true;
+   }
+   default:
+      return false;
+   }
+}
+
+static bool
+nak_nir_opt_offset_shift_nv(nir_shader *nir, const struct nak_compiler *nak)
+{
+   assert(nak->sm >= 75);
+   return nir_shader_intrinsics_pass(
+      nir,
+      nak_nir_opt_offset_shift_nv_impl,
+      nir_metadata_control_flow,
+      NULL
+   );
+}
+
 const static struct nir_opt_offsets_options nak_offset_options = {
 };
 
@@ -1190,6 +1235,8 @@ nak_postprocess_nir(nir_shader *nir,
 
    case MESA_SHADER_COMPUTE:
    case MESA_SHADER_KERNEL:
+      /* system value lowering can leave constant address chains around */
+      OPT(nir, nir_opt_constant_folding);
       break;
 
    default:
@@ -1198,6 +1245,11 @@ nak_postprocess_nir(nir_shader *nir,
 
    OPT(nir, nak_nir_lower_load_store, nak);
    OPT(nir, nir_opt_offsets, &nak_offset_options);
+
+   /* Should run after nir_opt_offsets, because nir_opt_algebraic will move
+    * iadds down the chain */
+   if (nak->sm >= 75 && nir->info.shared_size)
+      OPT(nir, nak_nir_opt_offset_shift_nv, nak);
 
    OPT(nir, nir_lower_doubles, NULL, nak->nir_options.lower_doubles_options);
    OPT(nir, nir_lower_int64);
