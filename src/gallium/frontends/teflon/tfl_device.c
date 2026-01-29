@@ -808,6 +808,7 @@ PrepareDelegate(TfLiteContext *tf_context, TfLiteDelegate *tf_delegate)
 
    for (int i = 0; i < tf_context->tensors_size; i++)
       fill_tensor(delegate, tf_context, &delegate->tensors[i], i);
+   delegate->tensor_count = tf_context->tensors_size;
 
    teflon_debug("%3s %-15s %3s %-11s %s\n", "idx", "type", "ver", "support", "inputs");
    teflon_debug("================================================================================================\n");
@@ -1004,9 +1005,14 @@ tflite_plugin_destroy_delegate(TfLiteDelegate *tf_delegate)
    }
 
    for (int i = 0; i < delegate->tensor_count; i++) {
-      free(delegate->tensors[i].scales);
-      free(delegate->tensors[i].zero_points);
-      pipe_resource_reference(&delegate->tensors[i].resource, NULL);
+      if (delegate->tensors[i].scales)
+         free(delegate->tensors[i].scales);
+
+      if (delegate->tensors[i].zero_points)
+         free(delegate->tensors[i].zero_points);
+
+      if (delegate->tensors[i].resource)
+         pipe_resource_reference(&delegate->tensors[i].resource, NULL);
    }
    free(delegate->tensors);
 
