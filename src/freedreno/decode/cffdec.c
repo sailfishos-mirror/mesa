@@ -88,6 +88,9 @@ static int ib;
 static int draw_count;
 static int current_draw_count;
 
+/* Name of current pm4 packet being parsed: */
+static const char *current_pkt;
+
 /* query mode.. to handle symbolic register name queries, we need to
  * defer parsing query string until after gpu_id is know and rnn db
  * loaded:
@@ -1629,8 +1632,11 @@ dump_tex_samp(uint32_t *texsamp, enum state_src_t src, int num_unit, int level)
    }
 }
 
-static void
-dump_tex_descriptor_type(uint32_t *texmemobj, int idx, int level, const char *domain, const char *type)
+/* base=0 for bindful, N+1 for bindless .baseN
+ */
+static bool
+show_descriptor(uint32_t *desc, int sizedwords, int base, int idx,
+                const char *domain, const char *type)
 {
    struct rnndomain *dom = rnn_finddomain(rnn->db, domain);
 
@@ -1641,27 +1647,41 @@ dump_tex_descriptor_type(uint32_t *texmemobj, int idx, int level, const char *do
    assert(options->info->chip >= 6);
 
    if (!dom)
-      return;
+      return false;
+
+   if (!script_show_descriptor)
+      return true;
 
    rnn_varadd(rnn, "desctype", type);
-   if (script_show_descriptor &&
-       !script_show_descriptor(texmemobj, 16, type, rnn, dom))
-      return;
+   bool ret = script_show_descriptor(desc, sizedwords, base, idx, type,
+                                     current_pkt, rnn, dom);
+   rnn_varadd(rnn, "desctype", "DESC_NONE");
 
-   printl(2, "%sSTORAGE/TEXEL/IMAGE[%u]: (%s)\n", levels[level + 1], idx, type);
-   dump_domain(texmemobj, 16, level + 2, domain);
+   return ret;
 }
 
 static void
-dump_tex_descriptor(uint32_t *texmemobj, int idx, int level, const char *domain)
+dump_tex_descriptor_type(uint32_t *texmemobj, int base, int idx, int level,
+                         const char *domain, const char *type)
 {
-   dump_tex_descriptor_type(texmemobj, idx, level, domain, "DESC_SINGLE_PLANE");
-   dump_tex_descriptor_type(texmemobj, idx, level, domain, "DESC_MULTI_PLANE");
-   dump_tex_descriptor_type(texmemobj, idx, level, domain, "DESC_BUFFER");
+   if (!show_descriptor(texmemobj, 16, base, idx, domain, type))
+      return;
+
+   printl(2, "%sSTORAGE/TEXEL/IMAGE[%u]: (%s)\n", levels[level + 1], idx, type);
+   rnn_varadd(rnn, "desctype", type);
+   dump_domain(texmemobj, 16, level + 2, domain);
+   rnn_varadd(rnn, "desctype", "DESC_NONE");
+}
+
+static void
+dump_tex_descriptor(uint32_t *texmemobj, int base, int idx, int level, const char *domain)
+{
+   dump_tex_descriptor_type(texmemobj, base, idx, level, domain, "DESC_SINGLE_PLANE");
+   dump_tex_descriptor_type(texmemobj, base, idx, level, domain, "DESC_MULTI_PLANE");
+   dump_tex_descriptor_type(texmemobj, base, idx, level, domain, "DESC_BUFFER");
    /* Don't bother dumping weight descriptors if unsupported by GPU: */
    if (options->info->props.has_image_processing)
-      dump_tex_descriptor_type(texmemobj, idx, level, domain, "DESC_WEIGHT");
-   rnn_varadd(rnn, "desctype", "DESC_NONE");
+      dump_tex_descriptor_type(texmemobj, base, idx, level, domain, "DESC_WEIGHT");
 }
 
 static void
@@ -1697,7 +1717,7 @@ dump_tex_const(uint32_t *texconst, int num_unit, int level)
          dump_hex(texconst, 12, level + 1);
          texconst += 12;
       } else if ((6 <= options->info->chip) && (options->info->chip < 8)) {
-         dump_tex_descriptor(texconst, i, level, "A6XX_TEX_MEMOBJ");
+         dump_tex_descriptor(texconst, 0, i, level, "A6XX_TEX_MEMOBJ");
          if (options->dump_textures) {
             uint64_t addr =
                (((uint64_t)texconst[5] & 0x1ffff) << 32) | texconst[4];
@@ -1706,7 +1726,7 @@ dump_tex_const(uint32_t *texconst, int num_unit, int level)
          dump_hex(texconst, 16, level + 1);
          texconst += 16;
       } else if ((8 <= options->info->chip) && (options->info->chip < 9)) {
-         dump_tex_descriptor(texconst, i, level, "A8XX_TEX_MEMOBJ");
+         dump_tex_descriptor(texconst, 0, i, level, "A8XX_TEX_MEMOBJ");
          if (options->dump_textures) {
             uint64_t addr =
                (((uint64_t)texconst[1] & 0x1ffff) << 32) | texconst[0];
@@ -1771,9 +1791,9 @@ dump_bindless_descriptors(bool is_compute, int level)
             dump_domain(contents, 2, level + 2, "A6XX_UBO");
 
             if ((6 <= options->info->chip) && (options->info->chip < 8)) {
-               dump_tex_descriptor(contents, desc_idx, level, "A6XX_TEX_MEMOBJ");
+               dump_tex_descriptor(contents, i + 1, desc_idx, level, "A6XX_TEX_MEMOBJ");
             } else if ((8 <= options->info->chip) && (options->info->chip < 9)) {
-               dump_tex_descriptor(contents, desc_idx, level, "A8XX_TEX_MEMOBJ");
+               dump_tex_descriptor(contents, i + 1, desc_idx, level, "A8XX_TEX_MEMOBJ");
             }
 
             printl(2, "%sSAMPLER[%u]:\n", levels[level + 1], desc_idx);
@@ -3275,7 +3295,9 @@ dump_commands(uint32_t *dwords, uint32_t sizedwords, int level)
          assert(val < regcnt());
          printl(3, "%swrite %s (%04x)\n", levels[level + 1], regname(val, 1),
                 val);
+         current_pkt = "PKT4";
          dump_registers(val, dwords + 1, count - 1, level + 2);
+         current_pkt = NULL;
          if (!quiet(3))
             dump_hex(dwords, count, level + 1);
 #if 0
@@ -3309,7 +3331,9 @@ dump_commands(uint32_t *dwords, uint32_t sizedwords, int level)
                name = "CP_LOAD_STATE6";
             dump_domain(dwords + 1, count - 1, level + 2, name);
          }
+         current_pkt = name;
          op->fxn(dwords + 1, count - 1, level + 1);
+         current_pkt = NULL;
          if (!quiet(2))
             dump_hex(dwords, count, level + 1);
       } else if (pkt_is_type2(dwords[0])) {

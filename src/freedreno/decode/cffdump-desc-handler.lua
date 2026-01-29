@@ -6,7 +6,7 @@
 -- Should the given descriptor be shown decoded with the specified descriptor
 -- type.  Some combinations can be ruled out, based on TYPE or FMT, for example.
 -- If it is ambiguous, be conservative and show the specified decoding.
-function show_descriptor(desc, type)
+function show_descriptor(desc, type, pkt, base, idx)
 
 	if type == r.desctype.DESC_BUFFER then
 		return r.a6xx_tex_type.A6XX_TEX_BUFFER == desc.TYPE

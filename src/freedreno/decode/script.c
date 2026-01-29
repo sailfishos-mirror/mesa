@@ -1014,7 +1014,9 @@ internal_packet(uint32_t *dwords, uint32_t sizedwords, struct rnn *rnn,
 bool
 script_show_descriptor(uint32_t *dwords,
                        uint32_t sizedwords,
+                       int base, int idx,
                        const char *type,
+                       const char *pm4_pkt,
                        struct rnn *rnn,
                        struct rnndomain *dom)
 {
@@ -1026,8 +1028,15 @@ script_show_descriptor(uint32_t *dwords,
    assert(e);
    pushenum(iL, rnn, rnn_enumval(rnn, "desctype", type), e);
 
-   /* 2 args, 1 result */
-   if (lua_pcall(iL, 2, 1, 0) != 0) {
+   e = rnn_enumelem(rnn, "adreno_pm4_type3_packets");
+   assert(e);
+   pushenum(iL, rnn, rnn_enumval(rnn, "adreno_pm4_type3_packets", pm4_pkt), e);
+
+   lua_pushinteger(iL, base);
+   lua_pushinteger(iL, idx);
+
+   /* 5 args, 1 result */
+   if (lua_pcall(iL, 5, 1, 0) != 0) {
       fprintf(stderr, "error running function `f': %s\n",
               lua_tostring(iL, -1));
       exit(1);

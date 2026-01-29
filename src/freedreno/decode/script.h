@@ -49,7 +49,9 @@ const char * internal_packet(uint32_t *dwords, uint32_t sizedwords,
 __attribute__((weak))
 bool script_show_descriptor(uint32_t *dwords,
                             uint32_t sizedwords,
+                            int base, int idx,
                             const char *type,
+                            const char *pm4_pkt,
                             struct rnn *rnn,
                             struct rnndomain *dom);
 
