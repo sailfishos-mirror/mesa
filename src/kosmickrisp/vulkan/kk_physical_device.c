@@ -262,6 +262,7 @@ kk_get_device_features(
       .vulkanMemoryModelDeviceScope = true,
 
       /* Vulkan 1.4 */
+      .pushDescriptor = true,
       .vertexAttributeInstanceRateDivisor = true,
       .vertexAttributeInstanceRateZeroDivisor = true,
 
