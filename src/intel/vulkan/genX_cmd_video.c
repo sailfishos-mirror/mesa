@@ -1376,7 +1376,7 @@ find_cdf_index(const struct anv_video_session *vid,
    return 0;
 }
 
-#if GFX_VER == 12
+#if INTEL_WA_1508208842_GFX_VER
 static void
 anv_av1_decode_dummy(struct anv_cmd_buffer *cmd_buffer)
 {
@@ -3296,9 +3296,9 @@ anv_av1_decode_video(struct anv_cmd_buffer *cmd_buffer,
    anv_av1_tiles_info(frame_info, seq_hdr, &tile_col_start_sb, &tile_row_start_sb);
    anv_av1_calculate_xstep_qn(cmd_buffer, frame_info, seq_hdr, tile_col_start_sb);
 
-#if GFX_VER == 12
-   /* TODO: Use workaround infrastructure Wa_1508208842 */
-   anv_av1_decode_dummy(cmd_buffer);
+#if INTEL_WA_1508208842_GFX_VER
+   if (intel_needs_workaround(cmd_buffer->device->info, 1508208842))
+      anv_av1_decode_dummy(cmd_buffer);
 #endif
 
    for (unsigned t = 0; t < av1_pic_info->tileCount; t++) {
