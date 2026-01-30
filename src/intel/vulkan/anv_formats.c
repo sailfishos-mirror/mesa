@@ -1731,10 +1731,13 @@ anv_get_image_format_properties(
        (info->usage & VK_IMAGE_USAGE_HOST_TRANSFER_BIT_EXT))
       goto unsupported;
 
+   bool ccs_mod = false;
    if (info->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
       isl_mod_info = isl_drm_modifier_get_info(modifier_info->drmFormatModifier);
       if (isl_mod_info == NULL)
          goto unsupported;
+
+      ccs_mod = isl_drm_modifier_has_aux(isl_mod_info->modifier);
 
       /* only allow Y-tiling/Tile4 for video decode. */
       if (info->usage & VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR) {
@@ -1875,7 +1878,7 @@ anv_get_image_format_properties(
          goto unsupported;
       }
 
-      if (isl_drm_modifier_has_aux(isl_mod_info->modifier) &&
+      if (ccs_mod &&
           !anv_formats_ccs_e_compatible(physical_device, info->flags, info->format,
                                         info->tiling, format_list_info)) {
          goto unsupported;
@@ -1939,8 +1942,7 @@ anv_get_image_format_properties(
           goto unsupported;
       }
 
-      if (info->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT &&
-          isl_drm_modifier_has_aux(isl_mod_info->modifier)) {
+      if (ccs_mod) {
          /* Rejection DISJOINT for consistency with the GL driver. In
           * eglCreateImage, we require that the dma_buf for the primary surface
           * and the dma_buf for its aux surface refer to the same bo.
