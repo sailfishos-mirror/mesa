@@ -130,7 +130,7 @@ uint32_t
 rnn_regbase(struct rnn *rnn, const char *name)
 {
    uint32_t regbase = rnndec_decodereg(rnn->vc_nocolor, rnn->dom[0], name);
-   if (!regbase)
+   if (!regbase && rnn->dom[1])
       regbase = rnndec_decodereg(rnn->vc_nocolor, rnn->dom[1], name);
    return regbase;
 }
@@ -211,7 +211,9 @@ rnn_regelem(struct rnn *rnn, const char *name)
    struct rnndelem *elem = regelem(rnn->vc, rnn->dom[0], name);
    if (elem)
       return elem;
-   return regelem(rnn->vc, rnn->dom[1], name);
+   if (rnn->dom[1])
+      return regelem(rnn->vc, rnn->dom[1], name);
+   return NULL;
 }
 
 static struct rnndelem *
@@ -235,7 +237,9 @@ rnn_regoff(struct rnn *rnn, uint32_t offset)
    struct rnndelem *elem = regoff(rnn->vc, rnn->dom[0], offset);
    if (elem)
       return elem;
-   return regoff(rnn->vc, rnn->dom[1], offset);
+   if (rnn->dom[1])
+      return regoff(rnn->vc, rnn->dom[1], offset);
+   return NULL;
 }
 
 enum rnnttype
