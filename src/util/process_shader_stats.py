@@ -76,7 +76,8 @@ TYPE_MAP = {
     'i64': ('int64_t', 'i64', '" PRId64 "'),
     'u64': ('uint64_t', 'u64', '" PRIu64 "'),
     'float': ('float', 'f64', 'f'),
-    'bool': ('bool', 'bool', 'u')
+    'bool': ('bool', 'bool', 'u'),
+    'str': ('const char *', 'str', 's'),
 }
 
 class Stat:
