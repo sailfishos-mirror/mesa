@@ -296,40 +296,15 @@ radv_get_hiz_valid_va(const struct radv_image *image, uint32_t base_level)
 static inline uint32_t
 radv_get_htile_initial_value(const struct radv_device *device, const struct radv_image *image)
 {
-   uint32_t initial_value;
-
    if (radv_image_tile_stencil_disabled(device, image)) {
-      /* Z only (no stencil):
-       *
-       * |31     18|17      4|3     0|
-       * +---------+---------+-------+
-       * |  Max Z  |  Min Z  | ZMask |
-       */
-      initial_value = 0xfffc000f;
+      return HTILE_Z_UNCOMPRESSED;
    } else {
-      /* Z and stencil:
-       *
-       * |31       12|11 10|9    8|7   6|5   4|3     0|
-       * +-----------+-----+------+-----+-----+-------+
-       * |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
-       *
-       * SR0/SR1 contains the stencil test results. Initializing
-       * SR0/SR1 to 0x3 means the stencil test result is unknown.
-       *
-       * Z, stencil and 4 bit VRS encoding:
-       * |31       12|11        10|9    8|7          6|5   4|3     0|
-       * +-----------+------------+------+------------+-----+-------+
-       * |  Z Range  | VRS y-rate | SMem | VRS x-rate | SR0 | ZMask |
-       */
       if (radv_image_has_vrs_htile(device, image)) {
-         /* Initialize the VRS x-rate value at 0, so the hw interprets it as 1 sample. */
-         initial_value = 0xfffff33f;
+         return HTILE_ZS_VRS_UNCOMPRESSED;
       } else {
-         initial_value = 0xfffff3ff;
+         return HTILE_ZS_UNCOMPRESSED;
       }
    }
-
-   return initial_value;
 }
 
 static inline uint32_t

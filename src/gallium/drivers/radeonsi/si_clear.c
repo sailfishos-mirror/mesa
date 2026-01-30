@@ -573,52 +573,10 @@ static void si_set_optimal_micro_tile_mode(struct si_screen *sscreen, struct si_
 
 static uint32_t si_get_htile_clear_value(struct si_texture *tex, float depth)
 {
-   /* Maximum 14-bit UINT value. */
-   const uint32_t max_z_value = 0x3FFF;
-
-   /* For clears, Zmask and Smem will always be set to zero. */
-   const uint32_t zmask = 0;
-   const uint32_t smem  = 0;
-
-   /* Convert depthValue to 14-bit zmin/zmax uint values. */
-   const uint32_t zmin = lroundf(depth * max_z_value);
-   const uint32_t zmax = zmin;
-
-   if (tex->htile_stencil_disabled) {
-      /* Z-only HTILE is laid out as follows:
-       * |31     18|17      4|3     0|
-       * +---------+---------+-------+
-       * |  Max Z  |  Min Z  | ZMask |
-       */
-      return ((zmax & 0x3FFF) << 18) |
-             ((zmin & 0x3FFF) << 4) |
-             ((zmask & 0xF) << 0);
-   } else {
-      /* Z+S HTILE is laid out as-follows:
-       * |31       12|11 10|9    8|7   6|5   4|3     0|
-       * +-----------+-----+------+-----+-----+-------+
-       * |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
-       *
-       * The base value for zRange is either zMax or zMin, depending on ZRANGE_PRECISION.
-       * For a fast clear, zMin == zMax == clearValue. This means that the base will
-       * always be the clear value (converted to 14-bit UINT).
-       *
-       * When abs(zMax-zMin) < 16, the delta is equal to the difference. In the case of
-       * fast clears, where zMax == zMin, the delta is always zero.
-       */
-      const uint32_t delta = 0;
-      const uint32_t zrange = (zmax << 6) | delta;
-
-      /* SResults 0 & 1 are set based on the stencil compare state.
-       * For fast-clear, the default value of sr0 and sr1 are both 0x3.
-       */
-      const uint32_t sresults = 0xf;
-
-      return ((zrange & 0xFFFFF) << 12) |
-             ((smem & 0x3) <<  8) |
-             ((sresults & 0xF) <<  4) |
-             ((zmask & 0xF) <<  0);
-   }
+   if (tex->htile_stencil_disabled)
+      return HTILE_Z_CLEAR_REG(depth);
+   else
+      return HTILE_ZS_CLEAR_REG(depth);
 }
 
 static bool si_can_fast_clear_depth(struct si_texture *zstex, unsigned level, float depth,

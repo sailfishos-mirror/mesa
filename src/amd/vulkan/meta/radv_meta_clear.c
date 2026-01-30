@@ -679,47 +679,14 @@ static uint32_t
 radv_get_htile_fast_clear_value(const struct radv_device *device, const struct radv_image *image,
                                 VkClearDepthStencilValue value)
 {
-   uint32_t max_zval = 0x3fff; /* maximum 14-bit value. */
-   uint32_t zmask = 0, smem = 0;
-   uint32_t htile_value;
-   uint32_t zmin, zmax;
-
-   /* Convert the depth value to 14-bit zmin/zmax values. */
-   zmin = lroundf(value.depth * max_zval);
-   zmax = zmin;
-
    if (radv_image_tile_stencil_disabled(device, image)) {
-      /* Z only (no stencil):
-       *
-       * |31     18|17      4|3     0|
-       * +---------+---------+-------+
-       * |  Max Z  |  Min Z  | ZMask |
-       */
-      htile_value = (((zmax & 0x3fff) << 18) | ((zmin & 0x3fff) << 4) | ((zmask & 0xf) << 0));
+      return HTILE_Z_CLEAR_REG(value.depth);
    } else {
-
-      /* Z and stencil:
-       *
-       * |31       12|11 10|9    8|7   6|5   4|3     0|
-       * +-----------+-----+------+-----+-----+-------+
-       * |  Z Range  |     | SMem | SR1 | SR0 | ZMask |
-       *
-       * Z, stencil, 4 bit VRS encoding:
-       * |31       12| 11      10 |9    8|7         6 |5   4|3     0|
-       * +-----------+------------+------+------------+-----+-------+
-       * |  Z Range  | VRS Y-rate | SMem | VRS X-rate | SR0 | ZMask |
-       */
-      uint32_t delta = 0;
-      uint32_t zrange = ((zmax << 6) | delta);
-      uint32_t sresults = 0xf; /* SR0/SR1 both as 0x3. */
-
       if (radv_image_has_vrs_htile(device, image))
-         sresults = 0x3;
-
-      htile_value = (((zrange & 0xfffff) << 12) | ((smem & 0x3) << 8) | ((sresults & 0xf) << 4) | ((zmask & 0xf) << 0));
+         return HTILE_ZS_VRS_CLEAR_REG(value.depth);
+      else
+         return HTILE_ZS_CLEAR_REG(value.depth);
    }
-
-   return htile_value;
 }
 
 static uint32_t
@@ -727,32 +694,52 @@ radv_get_htile_mask(struct radv_cmd_buffer *cmd_buffer, const struct radv_image 
                     bool is_clear)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   uint32_t mask = 0;
 
    if (radv_image_tile_stencil_disabled(device, image)) {
       /* All the HTILE buffer is used when there is no stencil. */
-      mask = UINT32_MAX;
+      return UINT32_MAX;
    } else {
-      if (aspects & VK_IMAGE_ASPECT_DEPTH_BIT)
-         mask |= 0xfffffc0f;
-      if (aspects & VK_IMAGE_ASPECT_STENCIL_BIT)
-         mask |= 0x000003f0;
-
-      /* Preserve VRS rates during clears but not during initialization. */
-      if (is_clear && radv_image_has_vrs_htile(device, image)) {
-         mask &= ~(0x3 << 6);  /* VRS X-rate */
-         mask &= ~(0x3 << 10); /* VRS Y-rate */
-      }
-
       if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
          /* Clear both aspects on SDMA, it's not ideal but there is no other way to initialize the
           * HTILE buffer.
           */
-         mask = UINT32_MAX;
+         return UINT32_MAX;
       }
-   }
 
-   return mask;
+      uint32_t mask = 0;
+
+      if (radv_image_has_vrs_htile(device, image)) {
+         /* Preserve VRS rates during clears but not during initialization. */
+         uint32_t vrs_mask = is_clear ? 0 : 0x3;
+
+         if (aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
+            mask |= HTILE_ZS_VRS_CODE(.zmask = 0xF,
+                                      .zdelta = 0x3F,
+                                      .zbase = 0x3FFF,
+                                      .vrs_x = vrs_mask,
+                                      .vrs_y = vrs_mask);
+         }
+         if (aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
+            mask |= HTILE_ZS_VRS_CODE(.sr0 = 0x3,
+                                      .smem = 0x3,
+                                      .vrs_x = vrs_mask,
+                                      .vrs_y = vrs_mask);
+         }
+      } else {
+         if (aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
+            mask |= HTILE_ZS_CODE(.zmask = 0xF,
+                                  .zdelta = 0x3F,
+                                  .zbase = 0x3FFF);
+         }
+         if (aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
+            mask |= HTILE_ZS_CODE(.sr0 = 0x3,
+                                  .sr1 = 0x3,
+                                  .smem = 0x3);
+         }
+      }
+
+      return mask;
+   }
 }
 
 static bool

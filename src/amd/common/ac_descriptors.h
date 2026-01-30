@@ -67,6 +67,100 @@ enum {
    CMASK_8xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED  = CMASK_MSAA_CODE(3, 3),
 };
 
+typedef union {
+   /* Z only */
+   struct {
+      unsigned zmask : 4;
+      unsigned minz : 14;
+      unsigned maxz : 14;
+   } z;
+
+   struct {
+      unsigned zmask : 4;
+      /* SR0/SR1 contain stencil pretest results. */
+      unsigned sr0 : 2;
+      unsigned sr1 : 2;
+      unsigned smem : 2;
+      unsigned unused : 2;
+      /* The Z Range consists of a 6-bit delta and 14-bit base.
+       * ZRANGE_PRECISION determines whether zbase means minZ or maxZ.
+       */
+      unsigned zdelta : 6;
+      unsigned zbase : 14;
+   } zs;
+
+   /* Z + VRS. VRS fields are 0-based: (0, 0) means VRS 1x1. */
+   struct {
+      unsigned zmask : 4;
+      unsigned sr0 : 2;
+      unsigned vrs_x : 2;
+      unsigned smem : 2;
+      unsigned vrs_y : 2;
+      unsigned zdelta : 6;
+      unsigned zbase : 14;
+   } zs_vrs;
+
+   uint32_t dword;
+} ac_htile_dword;
+
+#define HTILE_Z_CODE(...)        ((ac_htile_dword){.z = {__VA_ARGS__}}).dword
+#define HTILE_ZS_CODE(...)       ((ac_htile_dword){.zs = {__VA_ARGS__}}).dword
+#define HTILE_ZS_VRS_CODE(...)   ((ac_htile_dword){.zs_vrs = {__VA_ARGS__}}).dword
+
+/* depth must be in [0, 1]. This only clears HiZ and sets the Z/S state to "cleared".
+ * The DB register contain the full clear values.
+ */
+#define HTILE_Z_CLEAR_REG(depth)  HTILE_Z_CODE( \
+   .zmask = 0, \
+   .minz = lroundf((depth) * 0x3FFF), \
+   .maxz = lroundf((depth) * 0x3FFF))
+
+#define HTILE_ZS_CLEAR_REG(depth)  HTILE_ZS_CODE( \
+   .zmask = 0, \
+   .sr0 = 0x3, \
+   .sr1 = 0x3, \
+   .smem = 0, \
+   .zdelta = 0, \
+   .zbase = lroundf((depth) * 0x3FFF))
+
+#define HTILE_ZS_VRS_CLEAR_REG(depth)  HTILE_ZS_VRS_CODE( \
+   .zmask = 0, \
+   .sr0 = 0x3, \
+   .smem = 0, \
+   .zdelta = 0, \
+   .zbase = lroundf((depth) * 0x3FFF), \
+   .vrs_x = 0, /* VRS = 1x1 (0-based) */ \
+   .vrs_y = 0)
+
+/* Zmask = Z uncompressed, minZ = 0, maxZ = 1. */
+#define HTILE_Z_UNCOMPRESSED  HTILE_Z_CODE( \
+   .zmask = 0xF, \
+   .minz = 0, \
+   .maxz = 0x3FFF)
+
+/* Zmask = Z uncompressed, SR0/SR1 = Stencil pretest is unknown, Smem = Stencil uncompressed,
+ * ZRange = [0, 1].
+ */
+#define HTILE_ZS_UNCOMPRESSED  HTILE_ZS_CODE( \
+   .zmask = 0xF, \
+   .sr0 = 0x3, \
+   .sr1 = 0x3, \
+   .smem = 0x3, \
+   .zdelta = 0x3F, \
+   .zbase = 0x3FFF)
+
+/* Zmask = Z uncompressed, SR0 = Stencil pretest is unknown, Smem = Stencil uncompressed,
+ * ZRange = [0, 1], VRS = 1x1 (0-based).
+ */
+#define HTILE_ZS_VRS_UNCOMPRESSED  HTILE_ZS_VRS_CODE( \
+   .zmask = 0xF, \
+   .sr0 = 0x3, \
+   .smem = 0x3, \
+   .zdelta = 0x3F, \
+   .zbase = 0x3FFF, \
+   .vrs_x = 0, /* VRS = 1x1 (0-based) */ \
+   .vrs_y = 0)
+
 unsigned
 ac_map_swizzle(unsigned swizzle);
 
