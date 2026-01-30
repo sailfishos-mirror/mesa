@@ -697,6 +697,8 @@ typedef struct {
          bool divzero;                /* FRSQ_APPROX, FRSQ */
       };
    };
+
+   const nir_instr_debug_info *debug_info;
 } bi_instr;
 
 /*
@@ -1705,6 +1707,7 @@ bi_before_function(bi_context *ctx)
 typedef struct {
    bi_context *shader;
    bi_cursor cursor;
+   const nir_instr_debug_info *debug_info;
 } bi_builder;
 
 static inline bi_builder

@@ -4998,6 +4998,7 @@ emit_block(bi_context *ctx, nir_block *block)
    ctx->indexed_nir_blocks[block->index] = ctx->current_block;
 
    nir_foreach_instr(instr, block) {
+      _b.debug_info = instr->has_debug_info ? nir_instr_get_debug_info(instr) : NULL;
       bi_emit_instr(&_b, instr);
    }
 

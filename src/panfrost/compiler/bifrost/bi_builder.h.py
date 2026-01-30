@@ -88,6 +88,7 @@ bi_instr * bi_${opcode.replace('.', '_').lower()}${to_suffix(ops[opcode])}(${sig
     I->nr_srcs = ${nr_srcs};
     I->dest = (bi_index *) (&I[1]);
     I->src = I->dest + ${nr_dests};
+    I->debug_info = b->debug_info;
 
 % if not op["variable_dests"]:
 % for dest in range(op["dests"]):
