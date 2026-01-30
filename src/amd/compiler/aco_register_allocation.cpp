@@ -2786,17 +2786,16 @@ get_regs_for_phis(ra_ctx& ctx, Block& block, RegisterFile& register_file,
       if (definition.isFixed())
          continue;
 
-      /* use affinity if available */
+      /* Preferring the more expensive to copy operands doesn't do much for logical phis on GFX11+
+       * because it creates a waitcnt anyway. */
+      bool avoid_heavy_copies =
+         ctx.program->gfx_level < GFX11 || phi->opcode == aco_opcode::p_linear_phi;
+      small_vec<std::tuple<unsigned, unsigned, PhysReg>, 4> affinities;
+
       if (ctx.assignments[definition.tempId()].affinity &&
           ctx.assignments[ctx.assignments[definition.tempId()].affinity].assigned) {
          assignment& affinity = ctx.assignments[ctx.assignments[definition.tempId()].affinity];
-         assert(affinity.rc == definition.regClass());
-         if (get_reg_specified(ctx, register_file, definition.regClass(), phi, affinity.reg, -1)) {
-            definition.setFixed(affinity.reg);
-            register_file.fill(definition);
-            ctx.assignments[definition.tempId()].set(definition);
-            continue;
-         }
+         affinities.emplace_back(0, UINT_MAX, affinity.reg);
       }
 
       /* by going backwards, we aim to avoid copies in else-blocks */
@@ -2804,8 +2803,18 @@ get_regs_for_phis(ra_ctx& ctx, Block& block, RegisterFile& register_file,
          const Operand& op = phi->operands[i];
          if (!op.isTemp() || !op.isFixed())
             continue;
+         unsigned weight = ctx.assignments[op.tempId()].weight;
+         /* For non-zero weight, prefer larger SSA IDs (which often correlate with more recent
+          * writes), since those are more likely to have no been used on yet. */
+         affinities.emplace_back(weight, weight > 0 ? op.tempId() : i, op.physReg());
+      }
 
-         PhysReg reg = op.physReg();
+      /* If avoid_heavy_copies=false, then this is already sorted how we want it to be. */
+      if (avoid_heavy_copies)
+         std::sort(affinities.begin(), affinities.end(), std::greater());
+
+      for (auto pair : affinities) {
+         PhysReg reg = std::get<2>(pair);
          if (get_reg_specified(ctx, register_file, definition.regClass(), phi, reg, -1)) {
             definition.setFixed(reg);
             register_file.fill(definition);
