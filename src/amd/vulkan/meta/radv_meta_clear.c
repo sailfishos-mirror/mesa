@@ -1981,7 +1981,7 @@ radv_cmd_clear_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *imag
       enum radv_cmd_flush_bits flush_bits = 0;
       for (unsigned i = 0; i < range_count; i++) {
          if (radv_dcc_enabled(image, ranges[i].baseMipLevel))
-            flush_bits |= radv_clear_dcc(cmd_buffer, image, &ranges[i], 0xffffffffu);
+            flush_bits |= radv_clear_dcc(cmd_buffer, image, &ranges[i], DCC_UNCOMPRESSED);
       }
       cmd_buffer->state.flush_bits |= flush_bits;
    }

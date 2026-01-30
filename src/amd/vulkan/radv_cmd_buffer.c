@@ -14379,10 +14379,10 @@ radv_init_color_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_i
    }
 
    if (radv_dcc_enabled(image, range->baseMipLevel)) {
-      uint32_t value = 0xffffffffu; /* Fully expanded mode. */
+      uint32_t value = DCC_UNCOMPRESSED; /* Fully expanded mode. */
 
       if (radv_layout_dcc_compressed(device, image, range->baseMipLevel, dst_layout, dst_queue_mask)) {
-         value = 0u;
+         value = DCC_CLEAR_0000;
       }
 
       flush_bits |= radv_init_dcc(cmd_buffer, image, range, value);
@@ -14443,7 +14443,7 @@ radv_handle_color_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
 
    if (radv_dcc_enabled(image, range->baseMipLevel)) {
       if (src_layout == VK_IMAGE_LAYOUT_PREINITIALIZED) {
-         cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, image, range, 0xffffffffu);
+         cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, image, range, DCC_UNCOMPRESSED);
       } else if (radv_layout_dcc_compressed(device, image, range->baseMipLevel, src_layout, src_queue_mask) &&
                  !radv_layout_dcc_compressed(device, image, range->baseMipLevel, dst_layout, dst_queue_mask)) {
          needs_dcc_decompress = true;

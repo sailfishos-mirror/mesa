@@ -357,7 +357,7 @@ radv_meta_resolve_compute_image(struct radv_cmd_buffer *cmd_buffer, struct radv_
          .layerCount = vk_image_subresource_layer_count(&dst_image->vk, &region->dstSubresource),
       };
 
-      cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, dst_image, &range, 0xffffffff);
+      cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, dst_image, &range, DCC_UNCOMPRESSED);
    }
 }
 

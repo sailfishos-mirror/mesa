@@ -279,7 +279,7 @@ radv_meta_resolve_hardware_image(struct radv_cmd_buffer *cmd_buffer, struct radv
          .layerCount = 1,
       };
 
-      cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, dst_image, &range, 0xffffffff);
+      cmd_buffer->state.flush_bits |= radv_init_dcc(cmd_buffer, dst_image, &range, DCC_UNCOMPRESSED);
    }
 
    VkRect2D resolve_area = {
