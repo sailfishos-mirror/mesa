@@ -144,7 +144,7 @@ union ac_cs_clear_copy_buffer_key {
       bool is_clear:1;
       unsigned dwords_per_thread:3; /* 1..4 allowed */
       bool clear_value_size_is_12:1;
-      bool src_is_sparse:1;
+      bool src_scalarize_for_sparse:1;
       /* Unaligned clears and copies. */
       unsigned src_align_offset:2; /* how much is the source address unaligned */
       unsigned dst_align_offset:4; /* the first thread shouldn't write this many bytes */

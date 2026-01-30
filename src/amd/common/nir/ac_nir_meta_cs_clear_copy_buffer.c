@@ -52,7 +52,7 @@ ac_create_clear_copy_buffer_cs(struct ac_cs_clear_copy_buffer_options *options,
       fprintf(stderr, "   key.is_clear = %u\n", key->is_clear);
       fprintf(stderr, "   key.dwords_per_thread = %u\n", key->dwords_per_thread);
       fprintf(stderr, "   key.clear_value_size_is_12 = %u\n", key->clear_value_size_is_12);
-      fprintf(stderr, "   key.src_is_sparse = %u\n", key->src_is_sparse);
+      fprintf(stderr, "   key.src_scalarize_for_sparse = %u\n", key->src_scalarize_for_sparse);
       fprintf(stderr, "   key.src_align_offset = %u\n", key->src_align_offset);
       fprintf(stderr, "   key.dst_align_offset = %u\n", key->dst_align_offset);
       fprintf(stderr, "   key.dst_last_thread_bytes = %u\n", key->dst_last_thread_bytes);
@@ -167,7 +167,7 @@ ac_create_clear_copy_buffer_cs(struct ac_cs_clear_copy_buffer_options *options,
                                          .access = ACCESS_RESTRICT,
                                          .align_mul = 4,
                                          .align_offset = 0
-                                      }, key->src_is_sparse);
+                                      }, key->src_scalarize_for_sparse);
 
             /* Add the components that we didn't load as undef. */
             nir_def *comps[16];
@@ -189,7 +189,7 @@ ac_create_clear_copy_buffer_cs(struct ac_cs_clear_copy_buffer_options *options,
                                   .access = ACCESS_RESTRICT,
                                   .align_mul = 4,
                                   .align_offset = (unsigned)realign_offset % 4
-                               }, key->src_is_sparse);
+                               }, key->src_scalarize_for_sparse);
 
 
       if (if_first_thread) {
@@ -557,7 +557,18 @@ ac_prepare_cs_clear_copy_buffer(const struct ac_cs_clear_copy_buffer_options *op
    assert(dwords_per_thread && dwords_per_thread <= 4);
    out->shader_key.dwords_per_thread = dwords_per_thread;
    out->shader_key.clear_value_size_is_12 = !is_copy && clear_value_size == 12;
-   out->shader_key.src_is_sparse = info->src_is_sparse;
+   /* If the src load size is aligned to 2^n and the src load address in every invocation is aligned
+    * to the load size, loads are guaranteed to never be partially non-resident, so we don't have to
+    * scalarize them. Every sparse buffer is aligned to a page, so we don't need to check whether the
+    * buffer base address is aligned.
+    */
+   out->shader_key.src_scalarize_for_sparse =
+      is_copy && info->src_is_sparse &&
+      /* Each invocation must increment the offset by 2^n. */
+      (!util_is_power_of_two_nonzero(dwords_per_thread) ||
+       /* The buffer range bounds must be divisible by the copy size per invocation. */
+       ((info->src_offset - src_align_offset) % (dwords_per_thread * 4) != 0 ||
+        (info->src_offset + info->size) % (dwords_per_thread * 4) != 0));
    out->shader_key.src_align_offset = src_align_offset;
    out->shader_key.dst_align_offset = dst_align_offset;
 
