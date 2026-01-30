@@ -1209,27 +1209,11 @@ radv_clear_htile(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *im
    return flush_bits;
 }
 
-enum {
-   RADV_DCC_CLEAR_0000 = 0x00000000U,
-   RADV_DCC_GFX8_CLEAR_0001 = 0x40404040U,
-   RADV_DCC_GFX8_CLEAR_1110 = 0x80808080U,
-   RADV_DCC_GFX8_CLEAR_1111 = 0xC0C0C0C0U,
-   RADV_DCC_GFX8_CLEAR_REG = 0x20202020U,
-   RADV_DCC_GFX9_CLEAR_SINGLE = 0x10101010U,
-   RADV_DCC_GFX11_CLEAR_SINGLE = 0x01010101U,
-   RADV_DCC_GFX11_CLEAR_0000 = 0x00000000U,
-   RADV_DCC_GFX11_CLEAR_1111_UNORM = 0x02020202U,
-   RADV_DCC_GFX11_CLEAR_1111_FP16 = 0x04040404U,
-   RADV_DCC_GFX11_CLEAR_1111_FP32 = 0x06060606U,
-   RADV_DCC_GFX11_CLEAR_0001_UNORM = 0x08080808U,
-   RADV_DCC_GFX11_CLEAR_1110_UNORM = 0x0A0A0A0AU,
-};
-
 static uint32_t
 radv_dcc_single_clear_value(const struct radv_device *device)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   return pdev->info.gfx_level >= GFX11 ? RADV_DCC_GFX11_CLEAR_SINGLE : RADV_DCC_GFX9_CLEAR_SINGLE;
+   return pdev->info.gfx_level >= GFX11 ? GFX11_DCC_CLEAR_SINGLE : GFX9_DCC_CLEAR_SINGLE;
 }
 
 static void
@@ -1247,10 +1231,10 @@ gfx8_get_fast_clear_parameters(struct radv_device *device, const struct radv_ima
 
    /* comp-to-single allows to perform DCC fast clears without requiring a FCE. */
    if (iview->image->support_comp_to_single) {
-      *reset_value = RADV_DCC_GFX9_CLEAR_SINGLE;
+      *reset_value = GFX9_DCC_CLEAR_SINGLE;
       *can_avoid_fast_clear_elim = true;
    } else {
-      *reset_value = RADV_DCC_GFX8_CLEAR_REG;
+      *reset_value = GFX8_DCC_CLEAR_REG;
       *can_avoid_fast_clear_elim = false;
    }
 
@@ -1319,14 +1303,14 @@ gfx8_get_fast_clear_parameters(struct radv_device *device, const struct radv_ima
 
    if (main_value) {
       if (extra_value)
-         *reset_value = RADV_DCC_GFX8_CLEAR_1111;
+         *reset_value = GFX8_DCC_CLEAR_1111;
       else
-         *reset_value = RADV_DCC_GFX8_CLEAR_1110;
+         *reset_value = GFX8_DCC_CLEAR_1110;
    } else {
       if (extra_value)
-         *reset_value = RADV_DCC_GFX8_CLEAR_0001;
+         *reset_value = GFX8_DCC_CLEAR_0001;
       else
-         *reset_value = RADV_DCC_CLEAR_0000;
+         *reset_value = DCC_CLEAR_0000;
    }
 }
 
@@ -1384,44 +1368,44 @@ gfx11_get_fast_clear_parameters(struct radv_device *device, const struct radv_im
 
    if (all_bits_are_0 || all_bits_are_1 || all_words_are_fp16_1 || all_words_are_fp32_1) {
       if (all_bits_are_0)
-         *reset_value = RADV_DCC_CLEAR_0000;
+         *reset_value = DCC_CLEAR_0000;
       else if (all_bits_are_1)
-         *reset_value = RADV_DCC_GFX11_CLEAR_1111_UNORM;
+         *reset_value = GFX11_DCC_CLEAR_1111_UNORM;
       else if (all_words_are_fp16_1)
-         *reset_value = RADV_DCC_GFX11_CLEAR_1111_FP16;
+         *reset_value = GFX11_DCC_CLEAR_1111_FP16;
       else if (all_words_are_fp32_1)
-         *reset_value = RADV_DCC_GFX11_CLEAR_1111_FP32;
+         *reset_value = GFX11_DCC_CLEAR_1111_FP32;
       return true;
    }
 
    if (desc->nr_channels == 2 && desc->channel[0].size == 8) {
       if (value.ub[0] == 0x00 && value.ub[1] == 0xff) {
-         *reset_value = RADV_DCC_GFX11_CLEAR_0001_UNORM;
+         *reset_value = GFX11_DCC_CLEAR_0001_UNORM;
          return true;
       } else if (value.ub[0] == 0xff && value.ub[1] == 0x00) {
-         *reset_value = RADV_DCC_GFX11_CLEAR_1110_UNORM;
+         *reset_value = GFX11_DCC_CLEAR_1110_UNORM;
          return true;
       }
    } else if (desc->nr_channels == 4 && desc->channel[0].size == 8) {
       if (value.ub[0] == 0x00 && value.ub[1] == 0x00 && value.ub[2] == 0x00 && value.ub[3] == 0xff) {
-         *reset_value = RADV_DCC_GFX11_CLEAR_0001_UNORM;
+         *reset_value = GFX11_DCC_CLEAR_0001_UNORM;
          return true;
       } else if (value.ub[0] == 0xff && value.ub[1] == 0xff && value.ub[2] == 0xff && value.ub[3] == 0x00) {
-         *reset_value = RADV_DCC_GFX11_CLEAR_1110_UNORM;
+         *reset_value = GFX11_DCC_CLEAR_1110_UNORM;
          return true;
       }
    } else if (desc->nr_channels == 4 && desc->channel[0].size == 16) {
       if (value.us[0] == 0x0000 && value.us[1] == 0x0000 && value.us[2] == 0x0000 && value.us[3] == 0xffff) {
-         *reset_value = RADV_DCC_GFX11_CLEAR_0001_UNORM;
+         *reset_value = GFX11_DCC_CLEAR_0001_UNORM;
          return true;
       } else if (value.us[0] == 0xffff && value.us[1] == 0xffff && value.us[2] == 0xffff && value.us[3] == 0x0000) {
-         *reset_value = RADV_DCC_GFX11_CLEAR_1110_UNORM;
+         *reset_value = GFX11_DCC_CLEAR_1110_UNORM;
          return true;
       }
    }
 
    if (iview->image->support_comp_to_single) {
-      *reset_value = RADV_DCC_GFX11_CLEAR_SINGLE;
+      *reset_value = GFX11_DCC_CLEAR_SINGLE;
       return true;
    }
 
