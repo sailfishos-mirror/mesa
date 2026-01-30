@@ -47,6 +47,7 @@ static const struct debug_named_value bifrost_debug_options[] = {
    {"nossara",    BIFROST_DBG_NOSSARA,    "Disable SSA in register allocation"},
    {"statsabs",   BIFROST_DBG_STATSABS,   "Don't normalize statistics"},
    {"statsfull",  BIFROST_DBG_STATSFULL,  "Print verbose statistics"},
+   {"debuginfo",  BIFROST_DBG_DEBUGINFO,  "Print debug information"},
    DEBUG_NAMED_VALUE_END
 };
 /* clang-format on */
@@ -65,6 +66,13 @@ bifrost_will_dump_shaders(void)
 {
    bifrost_debug = debug_get_option_bifrost_debug();
    return bifrost_debug & BIFROST_DBG_SHADERS;
+}
+
+bool
+bifrost_want_debug_info(void)
+{
+   bifrost_debug = debug_get_option_bifrost_debug();
+   return bifrost_debug & BIFROST_DBG_DEBUGINFO;
 }
 
 static bi_block *emit_cf_list(bi_context *ctx, struct exec_list *list);

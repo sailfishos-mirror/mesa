@@ -34,6 +34,7 @@ extern "C" {
 #define BIFROST_DBG_NOSSARA    0x4000
 #define BIFROST_DBG_STATSABS   0x8000
 #define BIFROST_DBG_STATSFULL 0x10000
+#define BIFROST_DBG_DEBUGINFO 0x20000
 
 extern unsigned bifrost_debug;
 

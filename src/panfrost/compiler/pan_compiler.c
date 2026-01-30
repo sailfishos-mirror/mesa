@@ -23,6 +23,15 @@ pan_will_dump_shaders(unsigned arch)
       return midgard_will_dump_shaders();
 }
 
+bool
+pan_want_debug_info(unsigned arch)
+{
+   if (arch >= 6)
+      return bifrost_want_debug_info();
+   else
+      return false;
+}
+
 const nir_shader_compiler_options *
 pan_get_nir_shader_compiler_options(unsigned arch)
 {

@@ -18,6 +18,7 @@
 struct pan_shader_info;
 
 bool pan_will_dump_shaders(unsigned arch);
+bool pan_want_debug_info(unsigned arch);
 
 const nir_shader_compiler_options *
 pan_get_nir_shader_compiler_options(unsigned arch);
