@@ -68,9 +68,7 @@ radv_enable_tier3(struct radv_physical_device *pdev, VkVideoCodecOperationFlagBi
 static bool
 radv_enable_tier2(struct radv_physical_device *pdev)
 {
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
-
-   if (pdev->info.vcn_ip_version >= VCN_3_0_0 && !(instance->debug_flags & RADV_DEBUG_VIDEO_ARRAY_PATH))
+   if (pdev->info.vcn_ip_version >= VCN_3_0_0)
       return true;
    return false;
 }
