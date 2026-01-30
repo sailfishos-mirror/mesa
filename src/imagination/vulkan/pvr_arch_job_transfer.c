@@ -1121,7 +1121,7 @@ static uint64_t pvr_pbe_byte_mask(const struct pvr_device_info *dev_info,
 {
    uint32_t flags = pvr_get_blit_flags(transfer_cmd);
 
-   assert(PVR_HAS_ERN(dev_info, 42064));
+   assert(PVR_HAS_ENHANCEMENT(dev_info, 42064));
 
    if (flags & PVR_TRANSFER_CMD_FLAGS_DSMERGE) {
       uint32_t mask = 0U;
@@ -1277,7 +1277,7 @@ static VkResult pvr_pbe_setup(const struct pvr_transfer_cmd *transfer_cmd,
              .pbe_wordx_mrty[i * ROGUE_NUM_PBESTATE_REG_WORDS_FOR_TRANSFER];
       pbe_words = &pbe_setup_words[i * ROGUE_NUM_PBESTATE_STATE_WORDS];
 
-      if (PVR_HAS_ERN(dev_info, 42064))
+      if (PVR_HAS_ENHANCEMENT(dev_info, 42064))
          pbe_regs[2U] = 0UL;
 
       if (i == 0U) {
@@ -1306,7 +1306,7 @@ static VkResult pvr_pbe_setup(const struct pvr_transfer_cmd *transfer_cmd,
                               pbe_words,
                               pbe_regs);
 
-      if (PVR_HAS_ERN(dev_info, 42064)) {
+      if (PVR_HAS_ENHANCEMENT(dev_info, 42064)) {
          uint64_t temp_reg;
 
          pvr_csb_pack (&temp_reg, PBESTATE_REG_WORD2, reg) {
@@ -3410,7 +3410,7 @@ static void pvr_isp_prim_block_pds_state(const struct pvr_device_info *dev_info,
          ALIGN_POT(state->common_ptr,
                    ROGUE_TA_STATE_PDS_SIZEINFO2_USC_SHAREDSIZE_UNIT_SIZE) /
          ROGUE_TA_STATE_PDS_SIZEINFO2_USC_SHAREDSIZE_UNIT_SIZE;
-      info.pds_tri_merge_disable = !PVR_HAS_ERN(dev_info, 42307);
+      info.pds_tri_merge_disable = !PVR_HAS_ENHANCEMENT(dev_info, 42307);
       info.pds_batchnum = 0U;
    }
    cs_ptr++;
@@ -5725,7 +5725,7 @@ static VkResult pvr_3d_copy_blit(struct pvr_transfer_ctx *ctx,
       /* PBE byte mask could be used for DS merge with FastScale. Clearing the
        * other channel on a DS merge requires Clip blit.
        */
-      if (!PVR_HAS_ERN(dev_info, 42064) ||
+      if (!PVR_HAS_ENHANCEMENT(dev_info, 42064) ||
           ((transfer_cmd->flags & PVR_TRANSFER_CMD_FLAGS_FILL) != 0U)) {
          return pvr_reroute_to_clip(ctx,
                                     active_cmd,

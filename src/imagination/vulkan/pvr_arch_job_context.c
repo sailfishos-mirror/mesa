@@ -398,7 +398,7 @@ static VkResult pvr_pds_compute_ctx_sr_program_create_and_upload(
    uint32_t code_offset;
 
    pvr_pds_ctx_sr_program_setup(device->pdevice->dev_runtime_info.core_count,
-                                PVR_HAS_ERN(dev_info, 35421),
+                                PVR_HAS_ENHANCEMENT(dev_info, 35421),
                                 usc_program_upload_offset,
                                 usc_temps,
                                 sr_addr,

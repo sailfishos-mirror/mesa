@@ -59,7 +59,7 @@
 
 #define PVR_NEED_SW_COMPUTE_PDS_BARRIER(dev_info)       \
    PVR_HAS_FEATURE(dev_info, compute_morton_capable) && \
-      !PVR_HAS_ERN(dev_info, 45493)
+      !PVR_HAS_ENHANCEMENT(dev_info, 45493)
 
 /* FIXME: Change BIL to SPV. */
 /* Any variable location can have at most 4 32-bit components. */

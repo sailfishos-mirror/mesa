@@ -339,7 +339,7 @@ rogue_get_compute_max_work_group_size(const struct pvr_device_info *dev_info)
     */
    const uint32_t max_tasks_per_usc = 16U;
 
-   if (!PVR_HAS_ERN(dev_info, 35421)) {
+   if (!PVR_HAS_ENHANCEMENT(dev_info, 35421)) {
       /* Barriers on work-groups > 32 instances aren't supported. */
       return ROGUE_MAX_INSTANCES_PER_TASK;
    }

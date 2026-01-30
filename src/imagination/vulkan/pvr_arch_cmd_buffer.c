@@ -6822,7 +6822,7 @@ pvr_calculate_final_depth_bias_contant_factor(struct pvr_device_info *dev_info,
 
    float nudge_factor;
 
-   if (PVR_HAS_ERN(dev_info, 42307)) {
+   if (PVR_HAS_ENHANCEMENT(dev_info, 42307)) {
       switch (format) {
       case VK_FORMAT_D16_UNORM:
          return depth_bias / (1 << 15);

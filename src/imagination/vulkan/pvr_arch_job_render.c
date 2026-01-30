@@ -553,7 +553,7 @@ static void pvr_rt_dataset_ws_create_info_init(
    create_info->layers = rt_dataset->layers;
 
    /* ISP register values. */
-   if (PVR_HAS_ERN(dev_info, 42307) &&
+   if (PVR_HAS_ENHANCEMENT(dev_info, 42307) &&
        !(PVR_HAS_FEATURE(dev_info, roguexe) && mtile_info->tile_size_x == 16)) {
       float value;
 
@@ -1149,7 +1149,7 @@ static void pvr_frag_state_stream_init(struct pvr_render_ctx *ctx,
        * depth bias values and specify them as integers. In this mode a depth
        * bias factor of 1.0 equates to 1 ULP of increase to the depth value.
        */
-      value.dbias_is_int = PVR_HAS_ERN(dev_info, 42307) &&
+      value.dbias_is_int = PVR_HAS_ENHANCEMENT(dev_info, 42307) &&
                            pvr_zls_format_type_is_int(job->ds.zls_format);
 
       if (PVR_HAS_FEATURE(dev_info, gpu_multicore_support)) {

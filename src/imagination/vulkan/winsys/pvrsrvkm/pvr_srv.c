@@ -530,10 +530,10 @@ pvr_srv_get_max_coeffs(const struct pvr_device_info *dev_info)
       pending_allocation_coeff_regs = 2U * 1024U;
    }
 
-   if (PVR_HAS_ERN(dev_info, 38748))
+   if (PVR_HAS_ENHANCEMENT(dev_info, 38748))
       pending_allocation_shared_regs = 0U;
 
-   if (PVR_HAS_ERN(dev_info, 38020)) {
+   if (PVR_HAS_ENHANCEMENT(dev_info, 38020)) {
       max_coeff_additional_portion +=
          rogue_max_compute_shared_registers(dev_info);
    }

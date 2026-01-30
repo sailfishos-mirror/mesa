@@ -226,7 +226,8 @@ enum pvr_device_arch {
  *  * true if the enhancement is present in the hardware.
  *  * false if the enhancement is not present in the hardware.
  */
-#define PVR_HAS_ERN(dev_info, number) ((dev_info)->enhancements.has_ern##number)
+#define PVR_HAS_ENHANCEMENT(dev_info, number) \
+   ((dev_info)->enhancements.has_ern##number)
 
 /**
  * Tests whether a physical device has a given quirk.
