@@ -136,6 +136,9 @@
          <stat name="Instructions" display="Instrs">
             Number of GEN instructions in the final generated shader executable.
          </stat>
+         <stat name="Code size">
+            Code size in bytes
+         </stat>
          <stat name="SENDs" display="Sends">
             Number of instructions in the final generated shader executable
             which access external units such as the constant cache or the sampler.

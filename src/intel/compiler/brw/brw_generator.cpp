@@ -1448,6 +1448,7 @@ brw_generator::generate_code(const brw_shader &s,
       stats->dispatch_width = dispatch_width;
       stats->max_polygons = s.max_polygons;
       stats->instrs = before_size / 16 - nop_count - sync_nop_count;
+      stats->code_size = after_size;
       stats->sends = send_count;
       stats->loops = loop_count;
       stats->cycles = perf.latency;
