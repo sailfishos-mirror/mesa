@@ -14368,7 +14368,12 @@ radv_init_color_image_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_i
                                                          VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, image, range);
 
    if (radv_image_has_cmask(image)) {
-      static const uint32_t cmask_clear_values[4] = {0xffffffff, 0xdddddddd, 0xeeeeeeee, 0xffffffff};
+      static const uint32_t cmask_clear_values[4] = {
+         CMASK_NOAA_COLOR_EXPANDED,
+         CMASK_2xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED,
+         CMASK_4xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED,
+         CMASK_8xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED
+      };
       uint32_t log2_samples = util_logbase2(image->vk.samples);
 
       flush_bits |= radv_init_cmask(cmd_buffer, image, range, cmask_clear_values[log2_samples]);

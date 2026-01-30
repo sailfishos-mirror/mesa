@@ -853,14 +853,16 @@ radv_fast_clear_depth(struct radv_cmd_buffer *cmd_buffer, const struct radv_imag
 static uint32_t
 radv_get_cmask_fast_clear_value(const struct radv_image *image)
 {
-   uint32_t value = 0; /* Default value when no DCC. */
+   /* Default value when no DCC. */
+   uint32_t value = image->vk.samples > 1 ? CMASK_MSAA_FMASK_CLEAR_0_COLOR_CLEAR_REG :
+                                            CMASK_NOAA_COLOR_CLEAR_REG;
 
    /* The fast-clear value is different for images that have both DCC and
     * CMASK metadata.
     */
    if (radv_image_has_dcc(image)) {
-      /* DCC fast clear with MSAA should clear CMASK to 0xC. */
-      return image->vk.samples > 1 ? 0xcccccccc : 0xffffffff;
+      return image->vk.samples > 1 ? CMASK_MSAA_FMASK_CLEAR_0_COLOR_EXPANDED :
+                                     CMASK_NOAA_COLOR_EXPANDED;
    }
 
    return value;

@@ -17,7 +17,12 @@
 extern "C" {
 #endif
 
-#define DCC_CODE(x) (((x) << 24) | ((x) << 16) | ((x) << 8) | (x))
+#define DUPL_8BITS_IN_DWORD(x) (((x) << 24) | ((x) << 16) | ((x) << 8) | (x))
+#define DUPL_4BITS_IN_DWORD(x) DUPL_8BITS_IN_DWORD((x) | ((x) << 4))
+
+#define DCC_CODE                       DUPL_8BITS_IN_DWORD
+#define CMASK_NOAA_CODE                DUPL_4BITS_IN_DWORD
+#define CMASK_MSAA_CODE(fmask, color)  DUPL_4BITS_IN_DWORD((fmask) | ((color) << 2))
 
 enum
 {
@@ -43,6 +48,23 @@ enum
    GFX11_DCC_CLEAR_0001_UNORM = DCC_CODE(0x08),
    /* Color bits are 1, alpha bits are 0, only 88, 8888, 16161616 */
    GFX11_DCC_CLEAR_1110_UNORM = DCC_CODE(0x0A),
+};
+
+enum {
+   /* Legacy color clear and FMASK clear/compression.
+    * CMASK determines whether color is cleared to a clear color in a register.
+    * CMASK with MSAA also handles FMASK clears and compression.
+    */
+   CMASK_NOAA_COLOR_CLEAR_REG = CMASK_NOAA_CODE(0x0), /* only valid on gfx6-9, illegal with DCC */
+   CMASK_NOAA_COLOR_EXPANDED  = CMASK_NOAA_CODE(0xF), /* only valid on gfx6-9 */
+
+   /* The first value is FMASK compression code, the second value is fast clear. */
+   CMASK_MSAA_FMASK_CLEAR_0_COLOR_CLEAR_REG        = CMASK_MSAA_CODE(0, 0), /* illegal with DCC */
+   CMASK_MSAA_FMASK_CLEAR_0_COLOR_EXPANDED         = CMASK_MSAA_CODE(0, 3),
+   /* Different MSAA modes require different CMASK codes for "FMASK uncompressed". */
+   CMASK_2xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED  = CMASK_MSAA_CODE(1, 3),
+   CMASK_4xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED  = CMASK_MSAA_CODE(2, 3),
+   CMASK_8xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED  = CMASK_MSAA_CODE(3, 3),
 };
 
 unsigned
