@@ -4307,7 +4307,7 @@ tu_create_cmd_buffer(struct vk_command_pool *pool,
    struct tu_cmd_buffer *cmd_buffer;
 
    cmd_buffer = (struct tu_cmd_buffer *) vk_zalloc2(
-      &device->vk.alloc, NULL, sizeof(*cmd_buffer), 8,
+      &device->vk.alloc, &pool->alloc, sizeof(*cmd_buffer), 8,
       VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
 
    if (cmd_buffer == NULL)
