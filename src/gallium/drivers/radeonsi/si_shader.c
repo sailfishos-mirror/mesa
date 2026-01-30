@@ -1098,6 +1098,7 @@ static void si_postprocess_nir(struct si_nir_shader_ctx *ctx)
             &(nir_load_store_vectorize_options){
                .modes = nir_var_mem_ssbo | nir_var_mem_ubo | nir_var_mem_shared | nir_var_mem_global |
                         nir_var_shader_temp,
+               .bounds_checked_modes = nir_var_mem_ssbo | nir_var_mem_ubo | nir_var_mem_shared,
                .callback = ac_nir_mem_vectorize_callback,
                .cb_data = &(struct ac_nir_config){sel->screen->info.gfx_level, sel->info.base.use_aco_amd},
                .has_shared2_amd = true,
