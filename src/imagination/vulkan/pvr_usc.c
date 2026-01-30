@@ -697,6 +697,9 @@ static nir_def *pvr_uscgen_tq_frag_conv(nir_builder *b,
                       nir_undef(b, 1, 32),
                       nir_ushr_imm(b, nir_channel(b, src, 0), 24));
 
+   case PVR_TRANSFER_PBE_PIXEL_SRC_SMRG_D32S8_D32S8:
+      return nir_vec2(b, nir_undef(b, 1, 32), nir_channel(b, src, 1));
+
    case PVR_TRANSFER_PBE_PIXEL_SRC_SWAP_LMSB:
       return nir_ushr_imm(b, nir_channel(b, src, 0), 24);
 
