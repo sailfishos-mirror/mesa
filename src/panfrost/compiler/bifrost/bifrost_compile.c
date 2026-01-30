@@ -6719,7 +6719,7 @@ bi_compile_variant_nir(nir_shader *nir,
 
       util_qsort_r(sorted, const_amount, sizeof(uint32_t), compare_u32, NULL);
       uint32_t max_amount = MIN2(const_amount, ctx->inputs->fau_consts.max_amount);
-      uint32_t min_count_for_fau = max_amount > 0 ? sorted[max_amount - 1] : 0; 
+      uint32_t min_count_for_fau = max_amount > 0 ? sorted[max_amount - 1] : 0;
       ralloc_free(sorted);
 
       bi_foreach_instr_global_safe(ctx, I) {
