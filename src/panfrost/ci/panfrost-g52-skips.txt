@@ -106,14 +106,17 @@ dEQP-VK.graphicsfuzz.spv-composites
 dEQP-VK.api.command_buffers.many_indirect_draws_on_secondary
 
 # Slow tests (>= 30s)
+afbcp-spec@arb_texture_multisample@texelfetch fs sampler2dms 4 1x130-501x130
+afbcp-spec@arb_texture_multisample@texelfetch fs sampler2dms 4 1x71-501x71
 dEQP-VK.api.external.fence.sync_fd.export_multiple_times_temporary
 dEQP-VK.api.external.semaphore.sync_fd.export_multiple_times_temporary
 dEQP-VK.wsi.wayland.swapchain.simulate_oom.image_extent
-afbcp-spec@arb_texture_multisample@texelfetch fs sampler2dms 4 1x130-501x130
 glx@glx_arb_sync_control@swapbuffersmsc-return swap_interval 0
+spec@!opengl 1.1@copypixels-draw-sync
 spec@!opengl 1.1@copypixels-sync
 spec@!opengl 1.1@draw-sync
 spec@arb_texture_multisample@texelfetch fs sampler2dms 4 1x130-501x130
+spec@arb_texture_multisample@texelfetch fs sampler2dmsarray 4 98x1x9-98x129x9
 spec@egl_khr_gl_colorspace@linear
 spec@ext_framebuffer_blit@fbo-blit-check-limits
 spec@glsl-1.30@execution@texelfetch fs sampler2d 1x281-501x281
