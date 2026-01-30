@@ -60,10 +60,10 @@ brw_assign_regs_trivial(brw_shader &s)
 }
 
 extern "C" void
-brw_alloc_reg_sets(struct brw_compiler *compiler)
+brw_alloc_reg_sets(struct brw_compiler *compiler, int debug)
 {
    const struct intel_device_info *devinfo = compiler->devinfo;
-   int base_reg_count = (devinfo->ver >= 30 && !INTEL_DEBUG(DEBUG_NO_VRT) ?
+   int base_reg_count = (devinfo->ver >= 30 && debug == 0 && !INTEL_DEBUG(DEBUG_NO_VRT) ?
                          XE3_MAX_GRF / reg_unit(devinfo) :
                          BRW_MAX_GRF);
 
@@ -108,11 +108,14 @@ brw_alloc_reg_sets(struct brw_compiler *compiler)
 
    ra_set_finalize(regs, NULL);
 
-   compiler->reg_set.regs = regs;
-   for (unsigned i = 0; i < ARRAY_SIZE(compiler->reg_set.classes); i++)
-      compiler->reg_set.classes[i] = NULL;
+   struct brw_reg_set *reg_set = debug ?
+                                 &compiler->reg_set_debug :
+                                 &compiler->reg_set;
+   reg_set->regs = regs;
+   for (unsigned i = 0; i < ARRAY_SIZE(reg_set->classes); i++)
+      reg_set->classes[i] = NULL;
    for (int i = 0; i < REG_CLASS_COUNT; i++)
-      compiler->reg_set.classes[class_sizes[i] - 1] = classes[i];
+      reg_set->classes[class_sizes[i] - 1] = classes[i];
 }
 
 static int
@@ -261,6 +264,7 @@ public:
       spill_vgrf_ip = NULL;
       spill_vgrf_ip_alloc = 0;
       spill_node_count = 0;
+      debug_limit_registers = 0;
 
       /* Manually managed scratch space (e.g. NIR scratch) is not used for
        * spilling.
@@ -342,6 +346,7 @@ private:
    int *spill_vgrf_ip;
    int spill_vgrf_ip_alloc;
    int spill_node_count;
+   bool debug_limit_registers;
 
    /* Scratch byte ranges assigned to spilled VGRFs. */
    struct spill_scratch_assignment {
@@ -748,7 +753,10 @@ brw_reg_alloc::build_interference_graph(bool allow_spilling)
                                 payload_last_use_ip);
 
    assert(g == NULL);
-   g = ra_alloc_interference_graph(compiler->reg_set.regs, node_count);
+   brw_reg_set const *reg_set = debug_limit_registers ?
+                                &compiler->reg_set_debug :
+                                &compiler->reg_set;
+   g = ra_alloc_interference_graph(reg_set->regs, node_count);
    ralloc_steal(mem_ctx, g);
 
    /* Set up the payload nodes */
@@ -763,15 +771,14 @@ brw_reg_alloc::build_interference_graph(bool allow_spilling)
       unsigned size = DIV_ROUND_UP(fs->alloc.sizes[i], reg_unit(devinfo));
 
 #ifndef NDEBUG
-      assert(size <= ARRAY_SIZE(compiler->reg_set.classes) &&
+      assert(size <= ARRAY_SIZE(reg_set->classes) &&
              "Register allocation relies on split_virtual_grfs()");
 #else
-      if (size > ARRAY_SIZE(compiler->reg_set.classes))
+      if (size > ARRAY_SIZE(reg_set->classes))
          return false;
 #endif
 
-      ra_set_node_class(g, first_vgrf_node + i,
-                        compiler->reg_set.classes[size - 1]);
+      ra_set_node_class(g, first_vgrf_node + i, reg_set->classes[size - 1]);
    }
 
    /* Add interference based on the live range of the register */
@@ -1131,7 +1138,10 @@ brw_reg_alloc::alloc_spill_reg(unsigned size, int ip)
 {
    int vgrf = brw_allocate_vgrf_units(*fs, align(size, reg_unit(devinfo))).nr;
    int class_idx = DIV_ROUND_UP(size, reg_unit(devinfo)) - 1;
-   int n = ra_add_node(g, compiler->reg_set.classes[class_idx]);
+   ra_class *c = debug_limit_registers ?
+                 compiler->reg_set_debug.classes[class_idx] :
+                 compiler->reg_set.classes[class_idx];
+   int n = ra_add_node(g, c);
    assert(n == first_vgrf_node + vgrf);
    assert(n == first_spill_node + spill_node_count);
 

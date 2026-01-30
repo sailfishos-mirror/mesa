@@ -42,6 +42,16 @@ struct brw_storage_format {
    uint32_t isl_formats[3];
 };
 
+struct brw_reg_set {
+   struct ra_regs *regs;
+
+   /**
+    * Array of the ra classes for the unaligned contiguous register
+    * block sizes used, indexed by register size.
+    */
+   struct ra_class *classes[REG_CLASS_COUNT];
+};
+
 struct brw_compiler {
    const struct intel_device_info *devinfo;
 
@@ -52,15 +62,8 @@ struct brw_compiler {
 
    struct brw_isa_info isa;
 
-   struct {
-      struct ra_regs *regs;
-
-      /**
-       * Array of the ra classes for the unaligned contiguous register
-       * block sizes used, indexed by register size.
-       */
-      struct ra_class *classes[REG_CLASS_COUNT];
-   } reg_set;
+   struct brw_reg_set reg_set;
+   struct brw_reg_set reg_set_debug;
 
    void (*shader_debug_log)(void *, unsigned *id, const char *str, ...) PRINTFLIKE(3, 4);
    void (*shader_perf_log)(void *, unsigned *id, const char *str, ...) PRINTFLIKE(3, 4);

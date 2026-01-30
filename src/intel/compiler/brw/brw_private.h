@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /* brw_reg_allocate.cpp */
-void brw_alloc_reg_sets(struct brw_compiler *compiler);
+void brw_alloc_reg_sets(struct brw_compiler *compiler, int debug);
 
 /* brw_disasm.c */
 extern const char *const conditional_modifier[16];
