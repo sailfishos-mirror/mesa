@@ -2080,6 +2080,11 @@ anv_get_image_format_properties(
                 * interchangeable here.
                 */
                external_props->externalMemoryProperties = opaque_fd_dma_buf_props;
+               /* CCS modifiers require dedicated allocation. */
+               if (ccs_mod) {
+                  external_props->externalMemoryProperties.externalMemoryFeatures |=
+                     VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT;
+               }
             } else {
                /* With an implicit memory layout, we must rely on deviceUUID
                 * and driverUUID to determine the layout. Therefore DMA_BUF is
@@ -2100,8 +2105,14 @@ anv_get_image_format_properties(
           * the image belongs too. Both OPAQUE_FD and DMA_BUF are
           * interchangeable here.
           */
-         if (external_props)
+         if (external_props) {
             external_props->externalMemoryProperties = opaque_fd_dma_buf_props;
+            /* CCS modifiers require dedicated allocation. */
+            if (ccs_mod) {
+               external_props->externalMemoryProperties.externalMemoryFeatures |=
+                  VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT;
+            }
+         }
          break;
       case VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT:
          /* This memory handle has no restrictions on driverUUID nor deviceUUID,
