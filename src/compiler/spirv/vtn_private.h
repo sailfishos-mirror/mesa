@@ -43,6 +43,7 @@ extern uint32_t mesa_spirv_debug;
 #define MESA_SPIRV_DEBUG_VALUES         (1u << 1)
 #define MESA_SPIRV_DEBUG_ASM            (1u << 2)
 #define MESA_SPIRV_DEBUG_COLOR          (1u << 3)
+#define MESA_SPIRV_DEBUG_OFFSETS        (1u << 4)
 
 struct vtn_builder;
 struct vtn_decoration;

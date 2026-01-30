@@ -44,6 +44,9 @@ spirv_print_asm(FILE *fp, const uint32_t *words, size_t word_count)
    if (MESA_SPIRV_DEBUG(COLOR))
       options |= SPV_BINARY_TO_TEXT_OPTION_COLOR;
 
+   if (MESA_SPIRV_DEBUG(OFFSETS))
+      options |= SPV_BINARY_TO_TEXT_OPTION_SHOW_BYTE_OFFSET;
+
    spv_text text = NULL;
    spv_diagnostic diagnostic = NULL;
    spv_result_t res = spvBinaryToText(ctx, words, word_count, options,

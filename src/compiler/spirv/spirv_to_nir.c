@@ -232,6 +232,7 @@ static const struct debug_named_value mesa_spirv_debug_control[] = {
    { "values", MESA_SPIRV_DEBUG_VALUES,
      "Print information of the SPIR-V values" },
    { "asm", MESA_SPIRV_DEBUG_ASM, "Print the SPIR-V assembly" },
+   { "offsets", MESA_SPIRV_DEBUG_OFFSETS, "Print the SPIR-V assembly with offsets" },
    { "color", MESA_SPIRV_DEBUG_COLOR, "Debug in color, if available" },
    DEBUG_NAMED_VALUE_END,
 };
