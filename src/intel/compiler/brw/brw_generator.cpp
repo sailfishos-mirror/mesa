@@ -1448,11 +1448,11 @@ brw_generator::generate_code(const brw_shader &s,
       stats->dispatch_width = dispatch_width;
       stats->max_polygons = s.max_polygons;
       stats->instrs = before_size / 16 - nop_count - sync_nop_count;
-      stats->send_messages = send_count;
-      stats->loop_count = loop_count;
-      stats->cycle_count = perf.latency;
-      stats->spill_count = shader_stats.spill_count;
-      stats->fill_count = shader_stats.fill_count;
+      stats->sends = send_count;
+      stats->loops = loop_count;
+      stats->cycles = perf.latency;
+      stats->spills = shader_stats.spill_count;
+      stats->fills = shader_stats.fill_count;
       stats->max_live_registers = shader_stats.max_register_pressure;
       stats->non_ssa_regs_after_nir = shader_stats.non_ssa_registers_after_nir;
       stats->source_hash = prog_data->source_hash;

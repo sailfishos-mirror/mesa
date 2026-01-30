@@ -51,9 +51,9 @@ lower_base_workgroup_id(nir_builder *b, nir_intrinsic_instr *intrin,
 static void
 check_sends(struct genisa_stats *stats, unsigned send_count)
 {
-   assert(stats->spill_count == 0);
-   assert(stats->fill_count == 0);
-   assert(stats->send_messages == send_count);
+   assert(stats->spills == 0);
+   assert(stats->fills == 0);
+   assert(stats->sends == send_count);
 }
 
 static struct anv_shader_internal *
