@@ -1,5 +1,455 @@
 [
     {
+        "sha": "29e7a1fff9a1db14494fa64b6f38695b2a02a2d8",
+        "description": "pan/decode/jm: IDVS decode improvements",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "aec8132b8bec5f5ae11b54089a627c42f55ac1f5",
+        "description": "panfrost/bi: Fix unbound texel buffers",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "a21ee564e2051e5e6827ce333da1f85b8b828e1d",
+        "notes": null
+    },
+    {
+        "sha": "73fd587e0ee267a666c321b7a504c50d15f37d99",
+        "description": "radv/video: Support AV1 encode frame size override",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "7607aeefa68b150ec94dca7396f2f844111f03d2",
+        "description": "radv/video: Fix maxActiveReferencePictures for H265 decode",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "ee535aa039495071ae541de91fa6ffb47662e44d",
+        "notes": null
+    },
+    {
+        "sha": "0daffc79b07c367392cbd4226650a8a3d1ec1e64",
+        "description": "nvk: reorder exposed coop matrix types",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4ecd2b136faf243a3e2cf76504749e75a05c7392",
+        "description": "tu: Allocate cmd_buffer from its pool",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "342a5ba44e8784ed9b4a3736ee19e985857a9d3f",
+        "description": "Revert \"meson: static link spirv-tools for darwin\"",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "f21d0f2cbeafb2d36217bf30732b5a95dc7fd385",
+        "notes": null
+    },
+    {
+        "sha": "26b059b411dec4c0b841fb6fa1a6aadeec9517c0",
+        "description": "doc: Added documentation for imagination tree",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c2d0a0eff72d342005b0d2206fc1f46a47e74e3d",
+        "description": "pan/ci: skip a few more slow tests",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "bb8d9fc069e734efc2b8bd6012ac3d9f67632a01",
+        "description": "pan/ci: mark new xfails",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "73251033542b4bc0b0c81a0d5a9ab05d47668744",
+        "description": "v3d: move a failure to a flake",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3a9a69bcbd6d3ef5d4a92e5cdb0475eafd999a89",
+        "description": "panfrost: expose the prefer_persp cap",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ad5a863f0926e28aac8f9b9829084e3b699164ae",
+        "description": "gallium: make needless linear interpolation optional",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "fbfed84fd6f7e4399158c221932f26eb4753ef56",
+        "description": "gallium/aux: do not hard-code linear interpolation",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0444b5877f0697ac7b8dcb9485f96199b102dd75",
+        "description": "lavapipe: Implement VK_EXT_blend_operation_advanced",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "9ad02b572445fabe805d2640d4836b455016ad8a",
+        "description": "radv: fix tracking of pipelines used in secondaries",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "fa4da581c6854fbceed8f7c58b69b628c53180e6",
+        "description": "radv: zero-initialize image view objects",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "260908cecb3b1362dea27430df9ffa6cd30198db",
+        "description": "anv: Add dummy workload for AV1 decode on affected platforms (Wa_1508208842)",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c431eaad63a5537f0be076b09ad1ab480326b537",
+        "description": "ac/llvm: Use new denormal_fpenv attribute for llvm >= 23",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ec9df376d8f9e9a2e8e2d7736883f78243c658d1",
+        "description": "ac/llvm: Remove -promote-alloca workaround",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8e9fec8e4001c23dab6bedd6e34cf083e6985ddd",
+        "description": "anv/video: Compute AV1 tile positions internally",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8004f46466b07a8af89bb7de2140f22a486c84b8",
+        "description": "anv/video: fix a typo in Vulkan AV1 decoding.",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "e510efed05d08d7c6c0010c0f80526f3ed8dcddb",
+        "notes": null
+    },
+    {
+        "sha": "26592623352ea54dc9c379a38763f32993bce8f2",
+        "description": "freedreno/decode: Add lua handler to filter descriptors",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ebde70cdce7408f505c593b84fe2b70818d7059d",
+        "description": "freedreno/decode: Allow direct access to domain bitfield",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "6d7a056c8bc978653bb20a1eb6effc5ea2d8cde5",
+        "description": "freedreno/decode: Replace/remove __tonumber()",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "cdb8c6a14cac10339603eb5560d18eaa7a2f68b0",
+        "description": "freedreno/decode: Add script support for enum types",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8ab30de2638df137bc3ed2357d046b6e9cd13053",
+        "description": "freedreno/registers: Descriptor variants",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4555692e44773829e2c0bc1ebda93a36391c1f94",
+        "description": "freedreno/decode: Decode all descriptor variants",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d9261e6422e3e3872d1b8c838f367cf61f137733",
+        "description": "freedreno/decode: Extract out helper to set varset",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8335a4a0b45e571b56b9ef0b842b3123709f5757",
+        "description": "freedreno/decode: Fix gen8 descriptor address",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "55c8aa8cbd84b7014245dbdb8b5e5da4905b2ebd",
+        "description": "freedreno/registers: Rename A6XX_TEX_MEMOBJ",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "74ecf3d0d09a9d8a140ea34e8bf8aeb9ef9ea962",
+        "description": "freedreno/registers: Drop a6xx descriptor chip use",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c9d21ff6fd001da914d81c5321182fa7a19fe600",
+        "description": "freedreno/decode: Add multi-plane descriptor coverage",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "7d373bcdd826e73d9dc20ee35485b223c7c3e6b1",
+        "description": "freedreno/decode: Enable --bindless for cffdump tests",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b0b16af6d67422f131ac7b85f9969caaecee365d",
+        "description": "freedreno/decode: Skip bindless dumps on pre-bindless hw",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "042348895560dea1109617facb61bdd618967284",
+        "description": "vulkan/wsi: Fix realloc error handling in wsi_get_modifiers_for_format",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "50f4a79d98d0bd997b178ab297460a1be9e600d5",
+        "description": "ci: Update vmware farm admins.",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "e6ea2bef6b8e4c22a51e46f676de55dd4dfdb2ba",
+        "description": "nak: implement uror and urol using shf",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "9e7f757f0f49ba3fe3ae658880ce6180a7c29115",
+        "description": "svga: Implement GL_ARB_conditional_render_inverted",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "db4bc5407f7031a23c85a1cd1b81fd8fc3ee5b8d",
+        "description": "brw: Print \"GRF registers\" in INTEL_DEBUG=shaders output",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0d19fc8256a9f2ae807d3f5c80d2099edae64ffa",
+        "description": "brw: Fix \"GRF registers\" stats output",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "7fd43d6e3576b7cf72fbc73dcb5ce9819bbc59d2",
+        "description": "svga: Increase max_combined_shader_output_resources and SSBO limit to 16",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "a309932429565cb2d2b46ef6efe1c0a41dd518e1",
+        "description": "zink/ci: Enable optimal_keys for zink-tu-a750",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d5c040ca9d19842c928c994d546f5f4a69685998",
+        "description": "zink/ci: Re-enable optimal_keys for zink-tu-a618",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "275e5e064dc5320277d89ac7fa51489aad65041f",
+        "description": "zink/ci: Fix a few job timeouts",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
         "sha": "237e2d7b32c84523df48a8539cbc72cc49bcacfa",
         "description": "panvk: implement sparseResidencyImage3D",
         "nominated": false,
