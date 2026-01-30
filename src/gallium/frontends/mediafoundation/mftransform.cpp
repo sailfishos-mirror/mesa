@@ -22,13 +22,13 @@
  */
 
 #include <numeric>
+#include "gallium/drivers/d3d12/d3d12_interop_public.h"
 #include "d3d12_suballoc_mediabuffer.h"
 #include "dpb_buffer_manager.h"
 #include "hmft_entrypoints.h"
 #include "mfbufferhelp.h"
 #include "mfpipeinterop.h"
 #include "wpptrace.h"
-#include "gallium/drivers/d3d12/d3d12_interop_public.h"
 
 #include "mftransform.tmh"
 
@@ -1187,7 +1187,7 @@ CDX12EncHMFT::ConfigureAsyncStatsMetadataOutputSampleAttributes( IMFSample *pSam
                                                                                    pPipeResourceQPMapStats,
                                                                                    pSyncObjectQueue,
                                                                                    pSample ),
-         done );
+                    done );
    }
 
    // Conditionally attach output bits used map (d3d12resource), tracking will be added to the d3d12resource and when
@@ -1342,7 +1342,7 @@ CDX12EncHMFT::FinalizeAndEmitOutputSample( LPDX12EncodeContext pDX12EncodeContex
    // Check if codec units are non-contiguous in memory
    // If they are not contiguous, we need to copy them to a contiguous buffer
    // to match the reported nalu length information
-   assert (CodecUnitMetadataCount > 0);
+   assert( CodecUnitMetadataCount > 0 );
    bool bNonContiguousNALs = false;
    for( unsigned i = 0; i < CodecUnitMetadataCount - 1; i++ )
    {
@@ -1350,9 +1350,9 @@ CDX12EncHMFT::FinalizeAndEmitOutputSample( LPDX12EncodeContext pDX12EncodeContex
       {
          bNonContiguousNALs = true;
          debug_printf( "[dx12 hmft 0x%p] FinalizeAndEmitOutputSample - Non-contiguous codec unit %i detected, "
-                        "performing copy into a contiguous buffer for MFT output\n",
-                        this,
-                        i );
+                       "performing copy into a contiguous buffer for MFT output\n",
+                       this,
+                       i );
       }
    }
 
@@ -1512,8 +1512,9 @@ CDX12EncHMFT::xThreadProc( void *pCtx )
          HANDLE fence_handle = (HANDLE) pThis->m_pPipeContext->screen->fence_get_win32_handle( pThis->m_pPipeContext->screen,
                                                                                                pDX12EncodeContext->pAsyncFence,
                                                                                                &ResolveStatsCompletionFenceValue );
-         if (!fence_handle ||
-            FAILED(pThis->m_spDevice->OpenSharedHandle(fence_handle, IID_PPV_ARGS(pDX12EncodeContext->spAsyncFence.ReleaseAndGetAddressOf()))))
+         if( !fence_handle || FAILED( pThis->m_spDevice->OpenSharedHandle(
+                                 fence_handle,
+                                 IID_PPV_ARGS( pDX12EncodeContext->spAsyncFence.ReleaseAndGetAddressOf() ) ) ) )
          {
             debug_printf( "[dx12 hmft 0x%p] Failed to open frame pAsyncFence\n", pThis );
             MFE_ERROR( "[dx12 hmft 0x%p] Failed to open frame pAsyncFence", pThis );
@@ -2630,19 +2631,20 @@ CDX12EncHMFT::ProcessInput( DWORD dwInputStreamIndex, IMFSample *pSample, DWORD 
          if( !m_bLowLatency )
          {
             debug_printf( "[dx12 hmft 0x%p] Zero copy read only reconstructed picture is ONLY supported in low latency mode\n",
-                           this );
+                          this );
             assert( m_bLowLatency );
             CHECKHR_GOTO( E_FAIL, done );
          }
 
          // Get read-only handle directly from the video buffer
          struct d3d12_interop_video_buffer_associated_data *associated_data =
-               static_cast<struct d3d12_interop_video_buffer_associated_data *>( src_buffer->associated_data );
-         if(associated_data->get_read_only_resource &&
-            (!associated_data->get_read_only_resource( src_buffer,
+            static_cast<struct d3d12_interop_video_buffer_associated_data *>( src_buffer->associated_data );
+         if( associated_data->get_read_only_resource &&
+             ( !associated_data->get_read_only_resource( src_buffer,
                                                          m_pPipeContext,
                                                          &pDX12EncodeContext->pPipeResourceReconstructedPicture,
-                                                         &pDX12EncodeContext->PipeResourceReconstructedPictureSubresource ) || !pDX12EncodeContext->pPipeResourceReconstructedPicture) )
+                                                         &pDX12EncodeContext->PipeResourceReconstructedPictureSubresource ) ||
+               !pDX12EncodeContext->pPipeResourceReconstructedPicture ) )
          {
             debug_printf( "[dx12 hmft 0x%p] Failed to get read-only resource from reference video buffer\n", this );
          }
@@ -2673,8 +2675,7 @@ CDX12EncHMFT::ProcessInput( DWORD dwInputStreamIndex, IMFSample *pSample, DWORD 
          whandle.type = WINSYS_HANDLE_TYPE_D3D12_RES;
          whandle.modifier = 2;   // Expected by video_buffer_from_handle to place a pipe_resource in the pipe_video_buffer
          whandle.com_obj = (void *) pDX12EncodeContext->pPipeResourceReconstructedPicture;
-         struct pipe_video_buffer *dst_buffer =
-            m_pPipeContext->video_buffer_from_handle( m_pPipeContext, src_buffer, &whandle, 0 );
+         struct pipe_video_buffer *dst_buffer = m_pPipeContext->video_buffer_from_handle( m_pPipeContext, src_buffer, &whandle, 0 );
          assert( dst_buffer );
          pDX12EncodeContext->PipeResourceReconstructedPictureSubresource = 0;
 
@@ -2701,11 +2702,10 @@ CDX12EncHMFT::ProcessInput( DWORD dwInputStreamIndex, IMFSample *pSample, DWORD 
             &pDX12EncodeContext->ReconstructedPictureCompletionFenceValue );
          if( fence_handle )
          {
-            CHECKHR_GOTO(
-               m_spDevice->OpenSharedHandle(
-                  fence_handle,
-                  IID_PPV_ARGS( pDX12EncodeContext->spReconstructedPictureCompletionFence.ReleaseAndGetAddressOf() ) ),
-               done );
+            CHECKHR_GOTO( m_spDevice->OpenSharedHandle(
+                             fence_handle,
+                             IID_PPV_ARGS( pDX12EncodeContext->spReconstructedPictureCompletionFence.ReleaseAndGetAddressOf() ) ),
+                          done );
             CloseHandle( fence_handle );
          }
       }

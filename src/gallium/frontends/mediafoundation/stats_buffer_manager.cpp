@@ -275,8 +275,7 @@ stats_buffer_manager::stats_buffer_manager( void *logId,
 }
 
 stats_buffer_manager::~stats_buffer_manager()
-{
-}
+{ }
 
 // callback from IMFTrackSample (i.e. application)
 IFACEMETHODIMP

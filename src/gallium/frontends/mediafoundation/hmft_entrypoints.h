@@ -393,7 +393,8 @@ DEFINE_CODECAPI_GUID( AVEncVideoD3D12ReconstructedPictureOutputMode,
                       0xc5,
                       0xa7,
                       0xd3 )
-#define CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode DEFINE_CODECAPI_GUIDNAMED( AVEncVideoD3D12ReconstructedPictureOutputMode )
+#define CODECAPI_AVEncVideoD3D12ReconstructedPictureOutputMode                                                                     \
+   DEFINE_CODECAPI_GUIDNAMED( AVEncVideoD3D12ReconstructedPictureOutputMode )
 
 #endif
 
@@ -841,7 +842,28 @@ class __declspec( uuid( HMFT_GUID ) ) CDX12EncHMFT : CMFD3DManager,
    bool m_bUnlocked = false;
    HRESULT IsUnlocked( void );
 
-   HRESULT PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext, bool dirtyRectFrameNumSet, uint32_t dirtyRectFrameNum, bool moveRegionFrameNumSet, uint32_t moveRegionFrameNum );
+#if MFT_CODEC_H264ENC
+   HRESULT UpdateH264EncPictureDesc( pipe_h264_enc_picture_desc *pPicInfo, const uint32_t intra_period, const uint32_t ip_period );
+#endif
+
+#if MFT_CODEC_H265ENC
+   HRESULT UpdateH265EncPictureDesc( pipe_h265_enc_picture_desc *pPicInfo,
+                                     const uint32_t intra_period,
+                                     const uint32_t ip_period,
+                                     const uint8_t log2_max_pic_order_cnt_lsb_minus4,
+                                     const uint16_t pic_width_in_luma_samples,
+                                     const uint16_t pic_height_in_luma_samples );
+#endif
+
+#if MFT_CODEC_AV1ENC
+   HRESULT UpdateAV1EncPictureDesc( pipe_av1_enc_picture_desc *pPicInfo );
+#endif
+
+   HRESULT PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext,
+                                   bool dirtyRectFrameNumSet,
+                                   uint32_t dirtyRectFrameNum,
+                                   bool moveRegionFrameNumSet,
+                                   uint32_t moveRegionFrameNum );
    HRESULT PrepareForEncode( IMFSample *pSample, LPDX12EncodeContext *ppDX12EncodeContext );
 
    std::vector<BYTE> m_pDirtyRectBlob = std::vector<BYTE>( sizeof( DIRTYRECT_INFO ) );

@@ -326,7 +326,8 @@ CDX12EncHMFT::PrepareForEncode( IMFSample *pSample, LPDX12EncodeContext *ppDX12E
    }
 
    // Try to get MFSampleExtension_MoveRegions blob only when the HW supports it.
-   if( m_EncoderCapabilities.m_HWSupportMoveRects.bits.supports_precision_full_pixel && m_EncoderCapabilities.m_HWSupportMoveRects.bits.max_motion_hints > 0)
+   if( m_EncoderCapabilities.m_HWSupportMoveRects.bits.supports_precision_full_pixel &&
+       m_EncoderCapabilities.m_HWSupportMoveRects.bits.max_motion_hints > 0 )
    {
       UINT32 cMoveRegionBlob = 0;
       pSample->GetBlobSize( MFSampleExtension_MoveRegions, &cMoveRegionBlob );
@@ -336,7 +337,8 @@ CDX12EncHMFT::PrepareForEncode( IMFSample *pSample, LPDX12EncodeContext *ppDX12E
          {
             m_pMoveRegionBlob.resize( cMoveRegionBlob );
          }
-         if( S_OK == pSample->GetBlob( MFSampleExtension_MoveRegions, m_pMoveRegionBlob.data(), cMoveRegionBlob, &cMoveRegionBlob ) )
+         if( S_OK ==
+             pSample->GetBlob( MFSampleExtension_MoveRegions, m_pMoveRegionBlob.data(), cMoveRegionBlob, &cMoveRegionBlob ) )
          {
             MOVEREGION_INFO *pMoveRegionInfo = (MOVEREGION_INFO *) m_pMoveRegionBlob.data();
             moveRegionFrameNum = pMoveRegionInfo->FrameNumber;
@@ -491,9 +493,6 @@ CDX12EncHMFT::PrepareForEncode( IMFSample *pSample, LPDX12EncodeContext *ppDX12E
       }
    }
 
-   // pDX12EncodeContext->encoderPicInfo is initialized to zero in DX12EncodeContext constructor already
-   pDX12EncodeContext->encoderPicInfo.base.profile = m_outputPipeProfile;
-
    // Encode region of interest
    // When m_bVideoROIEnabled, app can (or not) set MFSampleExtension_ROIRectangle on separate frames optionally
    if( m_bVideoROIEnabled )
@@ -559,7 +558,12 @@ CDX12EncHMFT::PrepareForEncode( IMFSample *pSample, LPDX12EncodeContext *ppDX12E
    // Call the helper for encoder specific work
    pDX12EncodeContext->encoderPicInfo.base.in_fence = pPipeEncoderInputFenceHandle;
    pDX12EncodeContext->encoderPicInfo.base.in_fence_value = pipeEncoderInputFenceHandleValue;
-   CHECKHR_GOTO( PrepareForEncodeHelper( pDX12EncodeContext, bReceivedDirtyRectBlob, dirtyRectFrameNum, bReceivedMoveRegionBlob, moveRegionFrameNum ), done );
+   CHECKHR_GOTO( PrepareForEncodeHelper( pDX12EncodeContext,
+                                         bReceivedDirtyRectBlob,
+                                         dirtyRectFrameNum,
+                                         bReceivedMoveRegionBlob,
+                                         moveRegionFrameNum ),
+                 done );
 
    // Needs to be run after PrepareForEncodeHelper to know if current frame is used as reference
    // Only allocate reconstructed picture copy buffer if feature is enabled and supported
