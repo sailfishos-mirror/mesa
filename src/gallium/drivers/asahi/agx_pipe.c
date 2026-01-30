@@ -2042,7 +2042,7 @@ agx_init_screen_caps(struct pipe_screen *pscreen)
    caps->shader_subgroup_size = 32;
    caps->shader_subgroup_supported_stages = BITFIELD_MASK(MESA_SHADER_STAGES);
    caps->shader_subgroup_supported_features =
-      BITFIELD_MASK(PIPE_SHADER_SUBGROUP_NUM_FEATURES);
+      BITFIELD_MASK(PIPE_SHADER_SUBGROUP_FEATURE_MASK);
    caps->shader_subgroup_quad_all_stages = true;
 
    caps->sampler_view_target = true;

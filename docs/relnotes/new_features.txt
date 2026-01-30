@@ -28,4 +28,4 @@ cl_khr_subgroup_clustered_reduce on asahi, llvmpipe, radeonsi and zink
 cl_khr_subgroup_extended_types on asahi, iris, llvmpipe, radeonsi and zink
 cl_khr_subgroup_non_uniform_arithmetic on asahi, llvmpipe, radeonsi and zink
 cl_khr_subgroup_non_uniform_vote on asahi, iris, llvmpipe, radeonsi and zink
-cl_khr_subgroup_rotate on llvmpipe and zink
+cl_khr_subgroup_rotate on asahi, llvmpipe and zink
