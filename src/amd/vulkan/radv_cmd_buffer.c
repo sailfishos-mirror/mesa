@@ -14298,7 +14298,12 @@ radv_init_cmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, co
 uint32_t
 radv_init_fmask(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range)
 {
-   static const uint32_t fmask_clear_values[4] = {0x00000000, 0x02020202, 0xE4E4E4E4, 0x76543210};
+   static const uint32_t fmask_clear_values[4] = {
+      0, /* unused */
+      FMASK_2xMSAA_EXPANDED,
+      FMASK_4xMSAA_EXPANDED,
+      FMASK_8xMSAA_EXPANDED,
+   };
    uint32_t log2_samples = util_logbase2(image->vk.samples);
    uint32_t value = fmask_clear_values[log2_samples];
    struct radv_barrier_data barrier = {0};

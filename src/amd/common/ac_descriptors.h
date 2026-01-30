@@ -17,6 +17,7 @@
 extern "C" {
 #endif
 
+#define DUPL_16BITS_IN_DWORD(x) (((x) << 16) | (x))
 #define DUPL_8BITS_IN_DWORD(x) (((x) << 24) | ((x) << 16) | ((x) << 8) | (x))
 #define DUPL_4BITS_IN_DWORD(x) DUPL_8BITS_IN_DWORD((x) | ((x) << 4))
 
@@ -65,6 +66,45 @@ enum {
    CMASK_2xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED  = CMASK_MSAA_CODE(1, 3),
    CMASK_4xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED  = CMASK_MSAA_CODE(2, 3),
    CMASK_8xMSAA_FMASK_UNCOMPRESSED_COLOR_EXPANDED  = CMASK_MSAA_CODE(3, 3),
+};
+
+enum {
+   /* Don't ever use this. Clear CMASK instead. */
+   FMASK_CLEAR_0 = 0,
+
+   /* These can be used only if FMASK is uncompressed in CMASK.
+    *
+    * Uncompressed doesn't mean expanded.
+    * - FMASK compression only affects bandwidth, not stored values. The compression is done by CMASK.
+    * - Expanded FMASK means that specific values are stored in it such that FMASK has no effect.
+    *   FMASK expansion is a layout transition only required before MSAA image stores.
+    * - CB_FMASK_DECOMPRESS is a layout transition required before any shader access, and does:
+    *     1. FMASK decompression: Eliminating CMASK compression.
+    *     2. CMASK fast color clear elimination: Writing the clear value in CB_COLORi_CLEAR_WORDj
+    *        registers to cleared areas of the color image.
+    *     ! It doesn't do FMASK expansion, which must be done by a compute shader.
+    * - GFX8-10.3: To avoid CB_FMASK_DECOMPRESS before shader access (except MSAA image stores):
+    *    - Use FMASK with TC-compatible CMASK. (enabled by FMASK_COMPRESS_1FRAG_ONLY)
+    *    - Use DCC for fast MSAA color clears instead of CMASK.
+    */
+   FMASK_2xMSAA_EXPANDED = DUPL_8BITS_IN_DWORD(0x02),
+   FMASK_4xMSAA_EXPANDED = DUPL_8BITS_IN_DWORD(0xE4),
+   FMASK_8xMSAA_EXPANDED = 0x76543210,
+
+   FMASK_EQAA_2S_1F_EXPANDED = FMASK_2xMSAA_EXPANDED,
+   FMASK_EQAA_4S_1F_EXPANDED = DUPL_8BITS_IN_DWORD(0x0E),
+   FMASK_EQAA_8S_1F_EXPANDED = DUPL_8BITS_IN_DWORD(0xFE),
+   FMASK_EQAA_16S_1F_EXPANDED = DUPL_16BITS_IN_DWORD(0xFFFE),
+
+   FMASK_EQAA_4S_2F_EXPANDED = DUPL_8BITS_IN_DWORD(0xA4),
+   FMASK_EQAA_8S_2F_EXPANDED = DUPL_16BITS_IN_DWORD(0xAAA4),
+   FMASK_EQAA_16S_2F_EXPANDED = 0xAAAAAAA4,
+
+   FMASK_EQAA_8S_4F_EXPANDED = 0x44443210,
+   FMASK_EQAA_16S_4F_EXPANDED = 0x4444444444443210ull, /* 8-byte clear value */
+
+   /* Enums don't allow such large numbers. */
+   #define FMASK_EQAA_16S_8F_EXPANDED 0x8888888876543210ull /* 8-byte clear value */
 };
 
 typedef union {

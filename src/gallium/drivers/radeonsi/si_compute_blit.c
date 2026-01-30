@@ -481,14 +481,26 @@ void si_compute_expand_fmask(struct pipe_context *ctx, struct pipe_resource *tex
    pipe_resource_reference(&saved_image.resource, NULL);
 
    /* Array of fully expanded FMASK values, arranged by [log2(fragments)][log2(samples)-1]. */
-#define INVALID 0 /* never used */
-   static const uint64_t fmask_expand_values[][4] = {
-      /* samples */
-      /* 2 (8 bpp) 4 (8 bpp)   8 (8-32bpp) 16 (16-64bpp)      fragments */
-      {0x02020202, 0x0E0E0E0E, 0xFEFEFEFE, 0xFFFEFFFE},      /* 1 */
-      {0x02020202, 0xA4A4A4A4, 0xAAA4AAA4, 0xAAAAAAA4},      /* 2 */
-      {INVALID, 0xE4E4E4E4, 0x44443210, 0x4444444444443210}, /* 4 */
-      {INVALID, INVALID, 0x76543210, 0x8888888876543210},    /* 8 */
+   static const uint64_t fmask_expand_values[4][4] = {
+      {FMASK_EQAA_2S_1F_EXPANDED,
+       FMASK_EQAA_4S_1F_EXPANDED,
+       FMASK_EQAA_8S_1F_EXPANDED,
+       FMASK_EQAA_16S_1F_EXPANDED},
+
+      {FMASK_2xMSAA_EXPANDED,
+       FMASK_EQAA_4S_2F_EXPANDED,
+       FMASK_EQAA_8S_2F_EXPANDED,
+       FMASK_EQAA_16S_2F_EXPANDED},
+
+      {0,  /* unused */
+       FMASK_4xMSAA_EXPANDED,
+       FMASK_EQAA_8S_4F_EXPANDED,
+       FMASK_EQAA_16S_4F_EXPANDED},
+
+      {0,  /* unused */
+       0,  /* unused */
+       FMASK_8xMSAA_EXPANDED,
+       FMASK_EQAA_16S_8F_EXPANDED},
    };
 
    /* Clear FMASK to identity. */
