@@ -1415,10 +1415,8 @@ void bi_calc_dominance(bi_context *ctx);
 bool bi_block_dominates(bi_block *parent, bi_block *child);
 
 void bi_print_instr(const bi_instr *I, FILE *fp);
+void bi_print_instr_impl(const bi_instr *I, FILE *fp);
 void bi_print_slots(bi_registers *regs, FILE *fp);
-void bi_print_tuple(bi_tuple *tuple, FILE *fp);
-void bi_print_clause(bi_clause *clause, FILE *fp);
-void bi_print_block(bi_block *block, FILE *fp);
 void bi_print_shader(bi_context *ctx, FILE *fp);
 
 /* BIR passes */

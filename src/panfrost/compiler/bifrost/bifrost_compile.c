@@ -6638,8 +6638,13 @@ bi_compile_variant_nir(nir_shader *nir,
    bool skip_internal = nir->info.internal;
    skip_internal &= !(bifrost_debug & BIFROST_DBG_INTERNAL);
 
-   if (bifrost_debug & BIFROST_DBG_SHADERS && !skip_internal)
+   if (bifrost_debug & BIFROST_DBG_SHADERS && !skip_internal) {
+      /* Assign lines. Must be done last. */
+      if (bifrost_debug & BIFROST_DBG_DEBUGINFO)
+         ralloc_free(nir_shader_gather_debug_info(nir, "", 1));
+
       nir_print_shader(nir, stderr);
+   }
 
    ctx->allocated_vec = _mesa_hash_table_u64_create(ctx);
 

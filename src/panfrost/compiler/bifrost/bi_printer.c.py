@@ -151,7 +151,7 @@ bi_${mod}_as_str(enum bi_${mod} ${mod})
 </%def>
 
 void
-bi_print_instr(const bi_instr *I, FILE *fp)
+bi_print_instr_impl(const bi_instr *I, FILE *fp)
 {
     fputs("   ", fp);
 

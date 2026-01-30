@@ -28,6 +28,31 @@ bi_reg_op_name(enum bifrost_reg_op op)
    }
 }
 
+static void
+print_debug_info(const struct nir_instr_debug_info *di, FILE *w)
+{
+   fprintf(w, "0x%08x", di->spirv_offset);
+
+   if (di->filename)
+      fprintf(w, " %s:%u:%u", di->filename, di->line, di->column);
+
+   if (di->nir_line)
+      fprintf(w, " nir:%u", di->nir_line);
+}
+
+void
+bi_print_instr(const bi_instr *I, FILE *w)
+{
+   const struct nir_instr_debug_info *debug_info = I->debug_info;
+   if (debug_info) {
+      fprintf(w, "   // ");
+      print_debug_info(debug_info, w);
+      fprintf(w, "\n");
+   }
+
+   bi_print_instr_impl(I, w);
+}
+
 void
 bi_print_slots(bi_registers *regs, FILE *fp)
 {
@@ -48,71 +73,97 @@ bi_print_slots(bi_registers *regs, FILE *fp)
    }
 }
 
-void
-bi_print_tuple(bi_tuple *tuple, FILE *fp)
+struct printer {
+   FILE *w;
+
+   struct nir_instr_debug_info last_debug_info;
+};
+
+static void
+print_instr(const bi_instr *I, struct printer *p)
+{
+   const struct nir_instr_debug_info *debug_info = I->debug_info;
+   if (debug_info) {
+      bool changed = p->last_debug_info.spirv_offset != debug_info->spirv_offset;
+      changed |= p->last_debug_info.nir_line != debug_info->nir_line;
+
+      if (changed && debug_info->spirv_offset) {
+         fprintf(p->w, "   // ");
+         print_debug_info(debug_info, p->w);
+         fprintf(p->w, "\n");
+      }
+
+      p->last_debug_info = *debug_info;
+   }
+
+   bi_print_instr_impl(I, p->w);
+}
+
+static void
+print_tuple(bi_tuple *tuple, struct printer *p)
 {
    bi_instr *ins[2] = {tuple->fma, tuple->add};
 
    for (unsigned i = 0; i < 2; ++i) {
-      fprintf(fp, (i == 0) ? "\t* " : "\t+ ");
+      fprintf(p->w, (i == 0) ? "\t* " : "\t+ ");
 
       if (ins[i])
-         bi_print_instr(ins[i], fp);
+         print_instr(ins[i], p);
       else
-         fprintf(fp, "NOP\n");
+         fprintf(p->w, "NOP\n");
    }
-}
-
-void
-bi_print_clause(bi_clause *clause, FILE *fp)
-{
-   fprintf(fp, "id(%u)", clause->scoreboard_id);
-
-   if (clause->dependencies) {
-      fprintf(fp, " wait(");
-
-      for (unsigned i = 0; i < 8; ++i) {
-         if (clause->dependencies & (1 << i))
-            fprintf(fp, "%u ", i);
-      }
-
-      fprintf(fp, ")");
-   }
-
-   fprintf(fp, " %s", bi_flow_control_name(clause->flow_control));
-
-   if (!clause->next_clause_prefetch)
-      fprintf(fp, " no_prefetch");
-
-   if (clause->staging_barrier)
-      fprintf(fp, " osrb");
-
-   if (clause->td)
-      fprintf(fp, " td");
-
-   if (clause->pcrel_idx != ~0)
-      fprintf(fp, " pcrel(%u)", clause->pcrel_idx);
-
-   fprintf(fp, "\n");
-
-   for (unsigned i = 0; i < clause->tuple_count; ++i)
-      bi_print_tuple(&clause->tuples[i], fp);
-
-   if (clause->constant_count) {
-      for (unsigned i = 0; i < clause->constant_count; ++i)
-         fprintf(fp, "%" PRIx64 " ", clause->constants[i]);
-
-      if (clause->branch_constant)
-         fprintf(fp, "*");
-
-      fprintf(fp, "\n");
-   }
-
-   fprintf(fp, "\n");
 }
 
 static void
-bi_print_scoreboard_line(unsigned slot, const char *name, uint64_t mask,
+print_clause(bi_clause *clause, struct printer *p)
+{
+   fprintf(p->w, "id(%u)", clause->scoreboard_id);
+
+   if (clause->dependencies) {
+      fprintf(p->w, " wait(");
+
+      for (unsigned i = 0; i < 8; ++i) {
+         if (clause->dependencies & (1 << i))
+            fprintf(p->w, "%u ", i);
+      }
+
+      fprintf(p->w, ")");
+   }
+
+   fprintf(p->w, " %s", bi_flow_control_name(clause->flow_control));
+
+   if (!clause->next_clause_prefetch)
+      fprintf(p->w, " no_prefetch");
+
+   if (clause->staging_barrier)
+      fprintf(p->w, " osrb");
+
+   if (clause->td)
+      fprintf(p->w, " td");
+
+   if (clause->pcrel_idx != ~0)
+      fprintf(p->w, " pcrel(%u)", clause->pcrel_idx);
+
+   fprintf(p->w, "\n");
+
+   for (unsigned i = 0; i < clause->tuple_count; ++i)
+      print_tuple(&clause->tuples[i], p);
+
+   if (clause->constant_count) {
+      for (unsigned i = 0; i < clause->constant_count; ++i)
+         fprintf(p->w, "%" PRIx64 " ", clause->constants[i]);
+
+      if (clause->branch_constant)
+         fprintf(p->w, "*");
+
+      fprintf(p->w, "\n");
+   }
+
+   fprintf(p->w, "\n");
+}
+
+static void
+print_scoreboard_line(unsigned slot, const char *name, uint64_t mask,
                          FILE *fp)
 {
    if (!mask)
@@ -127,30 +178,32 @@ bi_print_scoreboard_line(unsigned slot, const char *name, uint64_t mask,
 }
 
 static void
-bi_print_scoreboard(struct bi_scoreboard_state *state, FILE *fp)
+print_scoreboard(struct bi_scoreboard_state *state, FILE *fp)
 {
    for (unsigned i = 0; i < BI_NUM_SLOTS; ++i) {
-      bi_print_scoreboard_line(i, "reads", state->read[i], fp);
-      bi_print_scoreboard_line(i, "writes", state->write[i], fp);
+      print_scoreboard_line(i, "reads", state->read[i], fp);
+      print_scoreboard_line(i, "writes", state->write[i], fp);
    }
 }
 
-void
-bi_print_block(bi_block *block, FILE *fp)
+static void
+print_block(bi_block *block, FILE *fp)
 {
    if (block->scheduled) {
-      bi_print_scoreboard(&block->scoreboard_in, fp);
+      print_scoreboard(&block->scoreboard_in, fp);
       fprintf(fp, "\n");
    }
 
    fprintf(fp, "block%u {\n", block->index);
 
+   struct printer printer = {.w = fp};
+
    if (block->scheduled) {
       bi_foreach_clause_in_block(block, clause)
-         bi_print_clause(clause, fp);
+         print_clause(clause, &printer);
    } else {
       bi_foreach_instr_in_block(block, ins)
-         bi_print_instr((bi_instr *)ins, fp);
+         print_instr((bi_instr *)ins, &printer);
    }
 
    fprintf(fp, "}");
@@ -171,7 +224,7 @@ bi_print_block(bi_block *block, FILE *fp)
 
    if (block->scheduled) {
       fprintf(fp, "\n");
-      bi_print_scoreboard(&block->scoreboard_out, fp);
+      print_scoreboard(&block->scoreboard_out, fp);
    }
 
    fprintf(fp, "\n\n");
@@ -181,5 +234,5 @@ void
 bi_print_shader(bi_context *ctx, FILE *fp)
 {
    bi_foreach_block(ctx, block)
-      bi_print_block(block, fp);
+      print_block(block, fp);
 }
