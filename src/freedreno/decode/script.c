@@ -478,22 +478,28 @@ l_rnn_meta_dom_index(lua_State *L)
       if (elem)
          return l_rnn_etype(L, rnn, elem, elem->offset);
    } else if (lua_isstring(L, 2)) {
+      const char *name = lua_tostring(L, 2);
+
+      struct rnndelem *elem = rnn_regelem(rnn, name);
+      if (elem)
+         return l_rnn_etype(L, rnn, elem, elem->offset);
+
       /* If not indexed like an array, search thru all
        * the elements in the domain finding the matching
        * subelem.
        *
        * This handles the pkt.FOO case
        */
-      const char *name = lua_tostring(L, 2);
 
       for (unsigned i = 0; i < rnndec->sizedwords; i++) {
-         struct rnndelem *elem = rnn_regoff(rnn, i);
+         elem = rnn_regoff(rnn, i);
          if (!elem)
             continue;
 
          if (!strcmp(name, elem->name))
             return l_rnn_etype(L, rnn, elem, elem->offset);
 
+         /* Try to find and push named field within the element: */
          int ret = pushfield(L, &elem->typeinfo, rnn, i, name);
          if (ret)
             return ret;
