@@ -240,7 +240,6 @@ ac_translate_nir_to_llvm(struct ac_llvm_compiler *ac_llvm, const struct radv_nir
    ctx.abi.load_sampler_desc = radv_get_sampler_desc;
    ctx.abi.clamp_shadow_reference = false;
    ctx.abi.robust_buffer_access = options->robust_buffer_access_llvm;
-   ctx.abi.load_grid_size_from_user_sgpr = args->load_grid_size_from_user_sgpr;
 
    bool is_ngg = is_pre_gs_stage(shaders[0]->info.stage) && info->is_ngg;
    if (shader_count >= 2 || is_ngg)

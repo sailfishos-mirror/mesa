@@ -148,7 +148,6 @@ struct aco_compiler_options {
    bool record_ir;
    bool record_stats;
    bool has_ls_vgpr_init_bug;
-   bool load_grid_size_from_user_sgpr;
    bool optimisations_disabled;
    uint8_t enable_mrt_output_nan_fixup;
    bool wgp_mode;

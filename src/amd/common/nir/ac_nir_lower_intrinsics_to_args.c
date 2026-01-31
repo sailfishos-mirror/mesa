@@ -184,6 +184,14 @@ lower_intrinsic_to_arg(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
          UNREACHABLE("unexpected shader stage");
       }
       break;
+   case nir_intrinsic_load_num_workgroups:
+      if (s->options->load_grid_size_from_user_sgpr) {
+         replacement = ac_nir_load_arg(b, s->args, s->args->num_work_groups);
+      } else {
+         nir_def *addr = nir_pack_64_2x32(b, ac_nir_load_arg(b, s->args, s->args->num_work_groups));
+         replacement = ac_nir_load_smem(b, 3, addr, nir_imm_int(b, 0), 4, ACCESS_CAN_SPECULATE);
+      }
+      break;
    case nir_intrinsic_load_pixel_coord:
       replacement = nir_unpack_32_2x16(b, ac_nir_load_arg(b, s->args, s->args->pos_fixed_pt));
       break;

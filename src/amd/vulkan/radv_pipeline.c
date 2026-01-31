@@ -497,6 +497,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
                .wave_size = stage->info.wave_size,
                .workgroup_size = stage->info.workgroup_size,
                .use_llvm = radv_use_llvm_for_stage(pdev, stage->stage),
+               .load_grid_size_from_user_sgpr = device->load_grid_size_from_user_sgpr,
             });
    NIR_PASS(_, stage->nir, radv_nir_lower_abi, gfx_level, stage, gfx_state, pdev->info.address32_hi);
 

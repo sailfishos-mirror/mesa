@@ -121,7 +121,6 @@ struct radv_shader_args {
 
    bool explicit_scratch_args;
    bool remap_spi_ps_input;
-   bool load_grid_size_from_user_sgpr;
 };
 
 static inline struct radv_shader_args *

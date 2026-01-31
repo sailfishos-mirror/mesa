@@ -96,6 +96,7 @@ typedef struct {
    unsigned wave_size;
    unsigned workgroup_size;
    bool use_llvm;
+   bool load_grid_size_from_user_sgpr;
 } ac_nir_lower_intrinsics_to_args_options;
 
 bool ac_nir_lower_intrinsics_to_args(nir_shader *shader, const struct ac_shader_args *ac_args,

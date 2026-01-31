@@ -312,7 +312,6 @@ radv_init_shader_args(const struct radv_device *device, mesa_shader_stage stage,
 
    args->explicit_scratch_args = !radv_use_llvm_for_stage(pdev, stage);
    args->remap_spi_ps_input = !radv_use_llvm_for_stage(pdev, stage);
-   args->load_grid_size_from_user_sgpr = device->load_grid_size_from_user_sgpr;
 
    for (int i = 0; i < MAX_SETS; i++)
       args->user_sgprs_locs.descriptor_sets[i].sgpr_idx = -1;
@@ -543,7 +542,7 @@ declare_shader_args(const struct radv_device *device, const struct radv_graphics
       declare_global_input_sgprs(gfx_level, info, user_sgpr_info, args);
 
       if (info->cs.uses_grid_size) {
-         if (args->load_grid_size_from_user_sgpr)
+         if (device->load_grid_size_from_user_sgpr)
             add_ud_arg(args, 3, AC_ARG_VALUE, &args->ac.num_work_groups, AC_UD_CS_GRID_SIZE);
          else
             add_ud_arg(args, 2, AC_ARG_CONST_ADDR, &args->ac.num_work_groups, AC_UD_CS_GRID_SIZE);

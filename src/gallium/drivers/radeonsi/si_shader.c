@@ -1144,6 +1144,7 @@ static void si_postprocess_nir(struct si_nir_shader_ctx *ctx)
                .wave_size = shader->wave_size,
                .workgroup_size = si_get_max_workgroup_size(shader),
                .use_llvm = !nir->info.use_aco_amd,
+               .load_grid_size_from_user_sgpr = true,
             });
 
    /* LLVM keep non-uniform sampler as index, so can't do this in NIR.

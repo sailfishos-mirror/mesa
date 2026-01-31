@@ -2669,17 +2669,6 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
    case nir_intrinsic_is_helper_invocation:
       result = ac_build_load_helper_invocation(&ctx->ac);
       break;
-   case nir_intrinsic_load_num_workgroups:
-      if (ctx->abi->load_grid_size_from_user_sgpr) {
-         result = ac_get_arg(&ctx->ac, ctx->args->num_work_groups);
-      } else {
-         struct ac_llvm_pointer ptr;
-         ptr.pointee_type = ctx->ac.v3i32;
-         ptr.value = ac_get_arg(&ctx->ac, ctx->args->num_work_groups);
-
-         result = ac_build_load_invariant(&ctx->ac, ptr, ctx->ac.i32_0);
-      }
-      break;
    case nir_intrinsic_load_subgroup_id:
       assert(mesa_shader_stage_is_compute(ctx->stage) && ctx->ac.gfx_level >= GFX12);
       result = ac_build_intrinsic(&ctx->ac, "llvm.amdgcn.wave.id", ctx->ac.i32, NULL, 0, 0);
