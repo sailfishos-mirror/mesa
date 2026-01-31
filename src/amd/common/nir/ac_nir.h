@@ -89,10 +89,17 @@ ac_nir_load_smem(nir_builder *b, unsigned num_components, nir_def *addr, nir_def
 
 bool ac_nir_lower_sin_cos(nir_shader *shader);
 
-bool ac_nir_lower_intrinsics_to_args(nir_shader *shader, const enum amd_gfx_level gfx_level,
-                                     bool has_ls_vgpr_init_bug, const enum ac_hw_stage hw_stage,
-                                     unsigned wave_size, unsigned workgroup_size, bool use_llvm,
-                                     const struct ac_shader_args *ac_args);
+typedef struct {
+   enum amd_gfx_level gfx_level;
+   bool has_ls_vgpr_init_bug;
+   const enum ac_hw_stage hw_stage;
+   unsigned wave_size;
+   unsigned workgroup_size;
+   bool use_llvm;
+} ac_nir_lower_intrinsics_to_args_options;
+
+bool ac_nir_lower_intrinsics_to_args(nir_shader *shader, const struct ac_shader_args *ac_args,
+                                     const ac_nir_lower_intrinsics_to_args_options *options);
 
 nir_xfb_info *ac_nir_get_sorted_xfb_info(const nir_shader *nir);
 

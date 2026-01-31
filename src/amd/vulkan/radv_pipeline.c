@@ -489,10 +489,15 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
                .allow_fp16 = gfx_level >= GFX9,
             });
 
-   NIR_PASS(_, stage->nir, ac_nir_lower_intrinsics_to_args, gfx_level,
-            pdev->info.has_ls_vgpr_init_bug && gfx_state && !gfx_state->vs.has_prolog,
-            radv_select_hw_stage(&stage->info, gfx_level), stage->info.wave_size, stage->info.workgroup_size,
-            radv_use_llvm_for_stage(pdev, stage->stage), &stage->args.ac);
+   NIR_PASS(_, stage->nir, ac_nir_lower_intrinsics_to_args, &stage->args.ac,
+            &(ac_nir_lower_intrinsics_to_args_options){
+               .gfx_level = gfx_level,
+               .has_ls_vgpr_init_bug = pdev->info.has_ls_vgpr_init_bug && gfx_state && !gfx_state->vs.has_prolog,
+               .hw_stage = radv_select_hw_stage(&stage->info, gfx_level),
+               .wave_size = stage->info.wave_size,
+               .workgroup_size = stage->info.workgroup_size,
+               .use_llvm = radv_use_llvm_for_stage(pdev, stage->stage),
+            });
    NIR_PASS(_, stage->nir, radv_nir_lower_abi, gfx_level, stage, gfx_state, pdev->info.address32_hi);
 
    if (!stage->key.optimisations_disabled) {
