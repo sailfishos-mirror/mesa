@@ -3117,7 +3117,10 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
    case nir_intrinsic_store_buffer_amd: {
       unsigned src_base = instr->intrinsic == nir_intrinsic_store_buffer_amd ? 1 : 0;
       bool idxen = !nir_src_is_const(instr->src[src_base + 3]) ||
-                   nir_src_as_uint(instr->src[src_base + 3]);
+                   nir_src_as_uint(instr->src[src_base + 3]) ||
+                   /* GFX9 uses IDXEN to select bounds checking behavior */
+                   (ctx->ac.gfx_level == GFX9 &&
+                    nir_intrinsic_access(instr) & ACCESS_USES_FORMAT_AMD);
 
       LLVMValueRef store_data = get_src(ctx, instr->src[0]);
       LLVMValueRef descriptor = get_src(ctx, instr->src[src_base + 0]);
