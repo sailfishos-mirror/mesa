@@ -133,8 +133,8 @@ typedef struct {
     */
    unsigned fp_math_ctrl_exclude : NIR_FP_MATH_CONTROL_BIT_COUNT;
 
-   /** In a replacement, requests that the instruction be marked exact. */
-   bool exact : 1;
+   /** In a replacement, add these fp_math_ctrl flags to the instruction. */
+   unsigned fp_math_ctrl_add : NIR_FP_MATH_CONTROL_BIT_COUNT;
 
    /** Don't make the replacement exact if the search expression is exact. */
    bool ignore_exact : 1;

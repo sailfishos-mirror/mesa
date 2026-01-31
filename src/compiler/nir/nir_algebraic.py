@@ -207,7 +207,7 @@ class Value(object):
       ${val.swizzle()},
 % elif isinstance(val, Expression):
       ${val.fp_math_ctrl_exclude()},
-      ${'true' if val.exact else 'false'},
+      ${val.fp_math_ctrl_add()},
       ${'true' if val.ignore_exact else 'false'},
       ${'true' if len(val.sources) > 1 and isinstance(val.sources[1], Constant) else 'false'},
       ${val.swizzle},
@@ -404,6 +404,11 @@ class Expression(Value):
         self.ninf = cond.pop('ninf', False)
         self.contract = cond.pop('contract', False) or fp_ctrl == ForceFpCtrl.Contract
         self.ignore_exact = cond.pop('ignore_exact', False)
+        self.preserve_nan_inf = cond.pop('preserve_nan_inf', False)
+        self.preserve_sz = cond.pop('preserve_sz', False)
+        if cond.pop('preserve_nan_inf_sz', False):
+           self.preserve_nan_inf = True
+           self.preserve_sz = True
 
         # Single component index of the swizzle of the output of this
         # expression, or -1 if no swizzle (all components)
@@ -516,6 +521,24 @@ class Expression(Value):
             return "nir_fp_fast_math"
 
         return ' | '.join(sorted(list(exclude)))
+
+    def fp_math_ctrl_add(self):
+        add = set()
+
+        if self.exact:
+            add.add("nir_fp_exact")
+
+        if self.preserve_nan_inf:
+            add.add("nir_fp_preserve_nan")
+            add.add("nir_fp_preserve_inf")
+
+        if self.preserve_sz:
+            add.add("nir_fp_preserve_signed_zero")
+
+        if not add:
+            return "nir_fp_fast_math"
+
+        return ' | '.join(sorted(list(add)))
 
 
 class BitSizeValidator(object):

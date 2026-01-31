@@ -478,8 +478,7 @@ construct_value(nir_builder *build,
        * replacement should be exact.
        */
       alu->fp_math_ctrl = state->fp_math_ctrl;
-      if (expr->exact)
-         alu->fp_math_ctrl |= nir_fp_exact;
+      alu->fp_math_ctrl |= expr->fp_math_ctrl_add;
 
       for (unsigned i = 0; i < nir_op_infos[op].num_inputs; i++) {
          /* If the source is an explicitly sized source, then we need to reset
