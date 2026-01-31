@@ -747,10 +747,8 @@ else if (nir_is_rounding_mode_rtz(execution_mode, 32))
 else
    dst = src0 * src1;
 """, description = """
-Unlike :nir:alu-op:`fmul`, anything (even infinity or NaN) multiplied by zero is
-always zero. ``fmulz(0.0, inf)`` and ``fmulz(0.0, nan)`` must be +/-0.0, even
-if ``INF_PRESERVE/NAN_PRESERVE`` is not used. If ``SIGNED_ZERO_PRESERVE`` is
-used, then the result must be a positive zero if either operand is zero.
+Unlike :nir:alu-op:`fmul`, anything (even infinity or NaN) multiplied by +/-0.0 is
+always +0.0.
 """)
 
 
@@ -1115,11 +1113,9 @@ else
 """, description = """
 Floating-point multiply-add with modified zero handling.
 
-Unlike :nir:alu-op:`ffma`, anything (even infinity or NaN) multiplied by zero is
-always zero. ``ffmaz(0.0, inf, src2)`` and ``ffmaz(0.0, nan, src2)`` must be
-``+/-0.0 + src2``, even if ``INF_PRESERVE/NAN_PRESERVE`` is not used. If
-``SIGNED_ZERO_PRESERVE`` is used, then the result must be a positive
-zero plus src2 if either src0 or src1 is zero.
+Unlike :nir:alu-op:`ffma`, anything (even infinity or NaN) multiplied by +/-0.0 is
++0.0. ``ffmaz(0.0, inf, src2)`` and ``ffmaz(0.0, nan, src2)`` must be
+``+0.0 + src2``.
 """)
 
 triop("flrp", tfloat, "", "src0 * (1 - src2) + src1 * src2")

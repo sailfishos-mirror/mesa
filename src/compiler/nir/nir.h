@@ -1525,10 +1525,6 @@ typedef enum {
     * it must ensure that the resulting value is bit-for-bit identical to the
     * original, with the exception of undefindness allowed by other
     * nir_fp_math_control bits and NaN patterns.
-    *
-    * TODO This is currently also used to control NaN behavior of
-    * floating point comparisons and fmin/fmax/fsat.
-    * This should be changed to only depend on nir_fp_preserve_nan.
     */
    nir_fp_exact = BITFIELD_BIT(3),
 
