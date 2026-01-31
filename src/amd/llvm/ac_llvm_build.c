@@ -783,12 +783,6 @@ LLVMValueRef ac_build_gep0(struct ac_llvm_context *ctx, struct ac_llvm_pointer p
    return LLVMBuildGEP2(ctx->builder, ptr.t, ptr.v, indices, 2, "");
 }
 
-void ac_build_indexed_store(struct ac_llvm_context *ctx, struct ac_llvm_pointer ptr, LLVMValueRef index,
-                            LLVMValueRef value)
-{
-   LLVMBuildStore(ctx->builder, value, ac_build_gep0(ctx, ptr, index));
-}
-
 /**
  * Build an LLVM bytecode indexed load using LLVMBuildGEP + LLVMBuildLoad.
  * It's equivalent to doing a load from &base_ptr[index].
@@ -1912,16 +1906,6 @@ LLVMValueRef ac_build_imad(struct ac_llvm_context *ctx, LLVMValueRef s0, LLVMVal
    return LLVMBuildAdd(ctx->builder, LLVMBuildMul(ctx->builder, s0, s1, ""), s2, "");
 }
 
-LLVMValueRef ac_build_fmad(struct ac_llvm_context *ctx, LLVMValueRef s0, LLVMValueRef s1,
-                           LLVMValueRef s2)
-{
-   /* FMA is better on GFX10, because it has FMA units instead of MUL-ADD units. */
-   if (ctx->gfx_level >= GFX10)
-      return ac_build_intrinsic(ctx, "llvm.fma.f32", ctx->f32, (LLVMValueRef[]){s0, s1, s2}, 3, 0);
-
-   return LLVMBuildFAdd(ctx->builder, LLVMBuildFMul(ctx->builder, s0, s1, ""), s2, "");
-}
-
 void ac_build_waitcnt(struct ac_llvm_context *ctx, unsigned wait_flags)
 {
    if (!wait_flags)
@@ -2024,28 +2008,6 @@ LLVMValueRef ac_build_fsat(struct ac_llvm_context *ctx, LLVMValueRef src,
    }
 
    return result;
-}
-
-LLVMValueRef ac_build_fract(struct ac_llvm_context *ctx, LLVMValueRef src0, unsigned bitsize)
-{
-   LLVMTypeRef type;
-   char *intr;
-
-   if (bitsize == 16) {
-      intr = "llvm.amdgcn.fract.f16";
-      type = ctx->f16;
-   } else if (bitsize == 32) {
-      intr = "llvm.amdgcn.fract.f32";
-      type = ctx->f32;
-   } else {
-      intr = "llvm.amdgcn.fract.f64";
-      type = ctx->f64;
-   }
-
-   LLVMValueRef params[] = {
-      src0,
-   };
-   return ac_build_intrinsic(ctx, intr, type, params, 1, 0);
 }
 
 LLVMValueRef ac_const_uint_vec(struct ac_llvm_context *ctx, LLVMTypeRef type, uint64_t value)
