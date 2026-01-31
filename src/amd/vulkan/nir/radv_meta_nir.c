@@ -1088,7 +1088,8 @@ radv_meta_nir_build_dcc_retile_compute_shader(struct radv_device *dev, const str
                                              nir_channel(&b, coord, 1), zero, zero, zero);
 
    nir_def *dcc_val = nir_image_deref_load(&b, 1, 32, input_dcc_ref, nir_vec4(&b, src, src, src, src),
-                                           nir_undef(&b, 1, 32), nir_imm_int(&b, 0), .image_dim = dim);
+                                           nir_undef(&b, 1, 32), nir_imm_int(&b, 0), .image_dim = dim,
+                                           .dest_type = nir_type_uint32);
 
    nir_image_deref_store(&b, output_dcc_ref, nir_vec4(&b, dst, dst, dst, dst), nir_undef(&b, 1, 32), dcc_val,
                          nir_imm_int(&b, 0), .image_dim = dim);
@@ -1122,7 +1123,8 @@ radv_meta_nir_build_expand_depth_stencil_compute_shader(struct radv_device *dev)
    nir_def *global_id = nir_iadd(&b, nir_imul(&b, wg_id, block_size), invoc_id);
 
    nir_def *data = nir_image_deref_load(&b, 4, 32, &nir_build_deref_var(&b, input_img)->def, global_id,
-                                        nir_undef(&b, 1, 32), nir_imm_int(&b, 0), .image_dim = GLSL_SAMPLER_DIM_2D);
+                                        nir_undef(&b, 1, 32), nir_imm_int(&b, 0), .image_dim = GLSL_SAMPLER_DIM_2D,
+                                        .dest_type = nir_type_uint32);
 
    /* We need a SCOPE_DEVICE memory_scope because ACO will avoid
     * creating a vmcnt(0) because it expects the L1 cache to keep memory
@@ -1159,7 +1161,8 @@ radv_meta_nir_build_dcc_decompress_compute_shader(struct radv_device *dev)
                                  nir_undef(&b, 1, 32));
 
    nir_def *data = nir_image_deref_load(&b, 4, 32, &nir_build_deref_var(&b, input_img)->def, img_coord,
-                                        nir_undef(&b, 1, 32), nir_imm_int(&b, 0), .image_dim = GLSL_SAMPLER_DIM_2D);
+                                        nir_undef(&b, 1, 32), nir_imm_int(&b, 0), .image_dim = GLSL_SAMPLER_DIM_2D,
+                                        .dest_type = nir_type_uint32);
 
    /* We need a SCOPE_DEVICE memory_scope because ACO will avoid
     * creating a vmcnt(0) because it expects the L1 cache to keep memory

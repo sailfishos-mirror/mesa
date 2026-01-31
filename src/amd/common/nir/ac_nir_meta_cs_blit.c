@@ -363,7 +363,8 @@ ac_create_blit_cs(const struct ac_cs_blit_options *options, const union ac_cs_bl
                                               nir_channel(&b, coord_src[i * src_samples],
                                                           num_src_coords - 1), zero_lod,
                                               .image_dim = img_src->type->sampler_dimensionality,
-                                              .image_array = img_src->type->sampler_array);
+                                              .image_array = img_src->type->sampler_array,
+                                              .dest_type = nir_type_uint | bit_size);
          }
          nir_push_else(&b, if_identical);
       }
@@ -374,7 +375,8 @@ ac_create_blit_cs(const struct ac_cs_blit_options *options, const union ac_cs_bl
                                          deref_ssa(&b, img_src), coord_src[i],
                                          nir_channel(&b, coord_src[i], num_src_coords - 1), zero_lod,
                                          .image_dim = img_src->type->sampler_dimensionality,
-                                         .image_array = img_src->type->sampler_array);
+                                         .image_array = img_src->type->sampler_array,
+                                         .dest_type = nir_type_uint | bit_size);
       }
 
       /* Resolve MSAA if necessary. */
