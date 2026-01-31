@@ -211,7 +211,7 @@ opt_uniform_subgroup_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *_s
 
       if (intrin->intrinsic == nir_intrinsic_vote_feq) {
          nir_def *x = intrin->src[0].ssa;
-         b->fp_math_ctrl = nir_fp_exact;
+         b->fp_math_ctrl = nir_fp_preserve_nan | nir_fp_preserve_inf;
          replacement = nir_feq(b, x, x);
          b->fp_math_ctrl = nir_fp_fast_math;
       } else if (intrin->intrinsic == nir_intrinsic_vote_ieq) {
