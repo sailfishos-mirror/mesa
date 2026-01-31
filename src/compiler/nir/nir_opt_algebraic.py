@@ -1827,7 +1827,7 @@ optimizations.extend([
    (('fexp2(contract)', ('flog2', a)), ('fcanonicalize', a)), # 2^lg2(a) = a
    (('flog2(contract)', ('fexp2', a)), ('fcanonicalize', a)), # lg2(2^a) = a
    # 32-bit fpow should use fmulz to fix https://gitlab.freedesktop.org/mesa/mesa/-/issues/11464 (includes apitrace)
-   (('fpow@32', a, b), ('fexp2', ('fmulz', ('flog2', a), b)), 'options->lower_fpow && ' + has_fmulz), # a^b = 2^(lg2(a)*b)
+   (('fpow@32', a, b), ('fexp2', ('fmulz(preserve_nan_inf)', ('flog2', a), b)), 'options->lower_fpow && ' + has_fmulz), # a^b = 2^(lg2(a)*b)
    (('fpow', a, b), ('fexp2', ('fmul', ('flog2', a), b)), 'options->lower_fpow'), # a^b = 2^(lg2(a)*b)
    (('fexp2(contract)', ('fmul', ('flog2', a), b)), ('fpow', a, b), '!options->lower_fpow'), # 2^(lg2(a)*b) = a^b
    (('~fexp2', ('fadd', ('fmul', ('flog2', a), b), ('fmul', ('flog2', c), d))),
