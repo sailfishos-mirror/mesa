@@ -788,8 +788,8 @@ optimizations.extend([
 
    (('bcsel(is_only_used_as_float)', ('feq', a, 'b(is_not_zero)'), b, a), a),
    (('bcsel(is_only_used_as_float)', ('fneu', a, 'b(is_not_zero)'), a, b), a),
-   (('bcsel', ('feq(ignore_exact)', a, 0), 0, ('fsat', ('fmul', a, 'b(is_a_number)'))), ('!fsat', ('fmul', a, b))),
-   (('bcsel', ('fneu(ignore_exact)', a, 0), ('fsat', ('fmul', a, 'b(is_a_number)')), 0), ('!fsat', ('fmul', a, b))),
+   (('bcsel', ('feq(ignore_exact)', a, 0), 0, ('fsat', ('fmul', a, 'b(is_a_number)'))), ('fsat(preserve_sz)', ('fmul', a, b))),
+   (('bcsel', ('fneu(ignore_exact)', a, 0), ('fsat', ('fmul', a, 'b(is_a_number)')), 0), ('fsat(preserve_sz)', ('fmul', a, b))),
    (('bcsel', ('feq(ignore_exact)', a, 0), b, ('fadd', a, 'b(is_not_zero)')), ('fadd', a, b)),
    (('bcsel', ('fneu(ignore_exact)', a, 0), ('fadd', a, 'b(is_not_zero)'), b), ('fadd', a, b)),
 
@@ -1054,7 +1054,7 @@ optimizations.extend([
    (('~fmax', ('fmin', a,  0.0), -1.0), ('fneg', ('fsat', ('fneg', a))), '!options->lower_fsat'),
    # fsat(fsign(NaN)) = fsat(0) = 0, and b2f(0 < NaN) = b2f(False) = 0. Mark
    # the new comparison precise to prevent it being changed to 'a != 0'.
-   (('fsat', ('fsign', a)), ('b2f', ('!flt', 0.0, a))),
+   (('fsat', ('fsign', a)), ('b2f', ('flt(preserve_nan_inf)', 0.0, a))),
    (('fsat', ('b2f', a)), ('b2f', a)),
    (('fsat', a), ('fmin', ('fmax', a, 0.0), 1.0), 'options->lower_fsat'),
    (('fsat', ('fsat', a)), ('fsat', a)),
@@ -1109,17 +1109,16 @@ optimizations.extend([
 
    # The ior versions are exact because fmin and fmax will always pick a
    # non-NaN value, if one exists.  Therefore (a < NaN) || (a < c) == a <
-   # fmax(NaN, c) == a < c.  Mark the fmin or fmax in the replacement as exact
-   # to prevent other optimizations from ruining the "NaN clensing" property
-   # of the fmin or fmax.
-   (('ior', ('flt(is_used_once)', a, b), ('flt', a, c)), ('flt', a, ('!fmax', b, c))),
-   (('ior', ('flt(is_used_once)', a, c), ('flt', b, c)), ('flt', ('!fmin', a, b), c)),
-   (('ior', ('fge(is_used_once)', a, b), ('fge', a, c)), ('fge', a, ('!fmin', b, c))),
-   (('ior', ('fge(is_used_once)', a, c), ('fge', b, c)), ('fge', ('!fmax', a, b), c)),
-   (('ior', ('flt', a, '#b'), ('flt', a, '#c')), ('flt', a, ('!fmax', b, c))),
-   (('ior', ('flt', '#a', c), ('flt', '#b', c)), ('flt', ('!fmin', a, b), c)),
-   (('ior', ('fge', a, '#b'), ('fge', a, '#c')), ('fge', a, ('!fmin', b, c))),
-   (('ior', ('fge', '#a', c), ('fge', '#b', c)), ('fge', ('!fmax', a, b), c)),
+   # fmax(NaN, c) == a < c. If the source comparisons were NaN preserving,
+   # so should be the replacement, which prevents further optimizations
+   (('ior', ('flt(is_used_once)', a, b), ('flt', a, c)), ('flt', a, ('fmax', b, c))),
+   (('ior', ('flt(is_used_once)', a, c), ('flt', b, c)), ('flt', ('fmin', a, b), c)),
+   (('ior', ('fge(is_used_once)', a, b), ('fge', a, c)), ('fge', a, ('fmin', b, c))),
+   (('ior', ('fge(is_used_once)', a, c), ('fge', b, c)), ('fge', ('fmax', a, b), c)),
+   (('ior', ('flt', a, '#b'), ('flt', a, '#c')), ('flt', a, ('fmax', b, c))),
+   (('ior', ('flt', '#a', c), ('flt', '#b', c)), ('flt', ('fmin', a, b), c)),
+   (('ior', ('fge', a, '#b'), ('fge', a, '#c')), ('fge', a, ('fmin', b, c))),
+   (('ior', ('fge', '#a', c), ('fge', '#b', c)), ('fge', ('fmax', a, b), c)),
    (('~iand', ('flt(is_used_once)', a, b), ('flt', a, c)), ('flt', a, ('fmin', b, c))),
    (('~iand', ('flt(is_used_once)', a, c), ('flt', b, c)), ('flt', ('fmax', a, b), c)),
    (('~iand', ('fge(is_used_once)', a, b), ('fge', a, c)), ('fge', a, ('fmax', b, c))),
@@ -1138,10 +1137,10 @@ optimizations.extend([
    # single step.  Doing just the replacement can lead to an infinite loop as
    # the pattern is repeatedly applied to the result of the previous
    # application of the pattern.
-   (('ior', ('ior(is_used_once)', ('flt(is_used_once)', a, c), d), ('flt', b, c)), ('ior', ('flt', ('!fmin', a, b), c), d)),
-   (('ior', ('ior(is_used_once)', ('flt', a, c), d), ('flt(is_used_once)', b, c)), ('ior', ('flt', ('!fmin', a, b), c), d)),
-   (('ior', ('ior(is_used_once)', ('flt(is_used_once)', a, b), d), ('flt', a, c)), ('ior', ('flt', a, ('!fmax', b, c)), d)),
-   (('ior', ('ior(is_used_once)', ('flt', a, b), d), ('flt(is_used_once)', a, c)), ('ior', ('flt', a, ('!fmax', b, c)), d)),
+   (('ior', ('ior(is_used_once)', ('flt(is_used_once)', a, c), d), ('flt', b, c)), ('ior', ('flt', ('fmin', a, b), c), d)),
+   (('ior', ('ior(is_used_once)', ('flt', a, c), d), ('flt(is_used_once)', b, c)), ('ior', ('flt', ('fmin', a, b), c), d)),
+   (('ior', ('ior(is_used_once)', ('flt(is_used_once)', a, b), d), ('flt', a, c)), ('ior', ('flt', a, ('fmax', b, c)), d)),
+   (('ior', ('ior(is_used_once)', ('flt', a, b), d), ('flt(is_used_once)', a, c)), ('ior', ('flt', a, ('fmax', b, c)), d)),
 
    # This is how SpvOpFOrdNotEqual might be implemented.  If both values are
    # numbers, then it can be replaced with fneu.
@@ -1192,14 +1191,10 @@ for s in [16, 32, 64]:
        # For all other values of 'a', the original and replacement behave as
        # copysign.
        #
-       # Marking the replacement comparisons as precise prevents any future
-       # optimizations from replacing either of the comparisons with the
-       # logical-not of the other.
-       #
        # Note: Use b2i32 in the replacement because some platforms that
        # support fp16 don't support int16.
        (('bcsel@{}'.format(s), ('feq', a, 0.0), 1.0, ('i2f{}'.format(s), ('iadd', ('b2i{}'.format(s), ('flt', 0.0, 'a@{}'.format(s))), ('ineg', ('b2i{}'.format(s), ('flt', 'a@{}'.format(s), 0.0)))))),
-        ('i2f{}'.format(s), ('iadd', ('b2i32', ('!fge', a, 0.0)), ('ineg', ('b2i32', ('!flt', a, 0.0)))))),
+        ('i2f{}'.format(s), ('iadd', ('b2i32', ('fge', a, 0.0)), ('ineg', ('b2i32', ('flt', a, 0.0)))))),
 
        # Signed pow() used in Control. It's not enough to match just the
        # copysign piece because we would require extra instructions to handle
@@ -1209,7 +1204,7 @@ for s in [16, 32, 64]:
          ('i2f', ('iadd',           ('b2i', ('flt', 0.0, a)),
                           ('ineg', ('b2i', ('flt', a, 0.0)))))),
 
-        ('bcsel', ('!flt', a, 0.0),
+        ('bcsel', ('flt', a, 0.0),
          ('fneg', ('fexp2', ('fmul', ('flog2', ('fabs', a)), b))),
                   ('fexp2', ('fmul', ('flog2', ('fabs', a)), b))), 'true', TestStatus.XFAIL), # XFAIL is that a=0.0, b=-1.0 ends up producing inf instead of NaN (thanks to eliding an fmul(inf, 0.0))
 
@@ -1550,7 +1545,7 @@ optimizations.extend([
 
    # Vulkan allows us to use any rounding mode, so choose rtz because it's simple.
    # Avoid some NaNs being converted to Inf if the lsb are cut off.
-   (('f2bf', a), ('bcsel', ('!fneu', a, a), -1, ('unpack_32_2x16_split_y', a)), 'options->lower_bfloat16_conversions', TestStatus.UNSUPPORTED), # all test inputs skipped
+   (('f2bf', a), ('bcsel', ('fneu(preserve_nan_inf)', a, a), -1, ('unpack_32_2x16_split_y', a)), 'options->lower_bfloat16_conversions', TestStatus.UNSUPPORTED), # all test inputs skipped
    (('bf2f', a), ('pack_32_2x16', ('vec2', 0, a)), 'options->lower_bfloat16_conversions'),
 ])
 
@@ -2765,8 +2760,8 @@ optimizations.extend([
    # float(0 < NaN) - float(NaN < 0) = float(False) - float(False) = 0 - 0 = 0
    # Mark the new comparisons precise to prevent them being changed to 'a !=
    # 0' or 'a == 0'.
-   (('fsign', a), ('fsub', ('b2f', ('!flt', 0.0, a)), ('b2f', ('!flt', a, 0.0))), 'options->lower_fsign'),
-   (('fsign', 'a@64'), ('fsub', ('b2f', ('!flt', 0.0, a)), ('b2f', ('!flt', a, 0.0))), 'options->lower_doubles_options & nir_lower_dsign'),
+   (('fsign', a), ('fsub', ('b2f', ('flt(preserve_nan_inf)', 0.0, a)), ('b2f', ('flt(preserve_nan_inf)', a, 0.0))), 'options->lower_fsign'),
+   (('fsign', 'a@64'), ('fsub', ('b2f', ('flt(preserve_nan_inf)', 0.0, a)), ('b2f', ('flt(preserve_nan_inf)', a, 0.0))), 'options->lower_doubles_options & nir_lower_dsign'),
 
    # Address/offset calculations:
    # Drivers supporting imul24 should use a pass like nir_lower_amul(), this
@@ -3472,7 +3467,7 @@ optimizations.extend([
 """
 optimizations.extend([
     (('fquantize2f16', 'a@32'),
-     ('bcsel', ('!flt', ('!fabs', a), math.ldexp(1.0, -14)),
+     ('bcsel', ('flt(preserve_nan_inf)', ('fabs(preserve_nan_inf)', a), math.ldexp(1.0, -14)),
                ('iand', a, 1 << 31),
                ('!f2f32', ('!f2f16_rtne', a))),
      'options->lower_fquantize2f16'),
@@ -3659,12 +3654,12 @@ late_optimizations = [
 
    # This is how SpvOpFOrdNotEqual might be implemented.  Replace it with
    # SpvOpLessOrGreater.
-   *add_fabs_fneg((('iand', ('fneu', 'ma', 'mb'), ('iand', ('feq', a, a), ('feq', b, b))), ('ior', ('!flt', 'ma', 'mb'), ('!flt', 'mb', 'ma'))), {'ma' : a, 'mb' : b}),
-   (('iand', ('fneu', a, 0.0), ('feq', a, a)), ('!flt', 0.0, ('fabs', a))),
+   *add_fabs_fneg((('iand', ('fneu', 'ma', 'mb'), ('iand', ('feq', a, a), ('feq', b, b))), ('ior', ('flt', 'ma', 'mb'), ('flt', 'mb', 'ma'))), {'ma' : a, 'mb' : b}),
+   (('iand', ('fneu', a, 0.0), ('feq', a, a)), ('flt', 0.0, ('fabs', a))),
 
    # This is how SpvOpFUnordEqual might be implemented.  Replace it with
    # !SpvOpLessOrGreater.
-   *add_fabs_fneg((('ior', ('feq', 'ma', 'mb'), ('ior', ('fneu', a, a), ('fneu', b, b))), ('inot', ('ior', ('!flt', 'ma', 'mb'), ('!flt', 'mb', 'ma')))), {'ma' : a, 'mb' : b}),
+   *add_fabs_fneg((('ior', ('feq', 'ma', 'mb'), ('ior', ('fneu', a, a), ('fneu', b, b))), ('inot', ('ior', ('flt', 'ma', 'mb'), ('flt', 'mb', 'ma')))), {'ma' : a, 'mb' : b}),
    (('ior', ('feq', a, 0.0), ('fneu', a, a)), ('inot', ('!flt', 0.0, ('fabs', a)))),
 
    *add_fabs_fneg((('ior', ('flt', 'ma', 'mb'), ('ior', ('fneu', a, a), ('fneu', b, b))), ('inot', ('fge', 'ma', 'mb'))), {'ma' : a, 'mb' : b}, False),
