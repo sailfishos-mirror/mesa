@@ -455,11 +455,10 @@ nir_format_pack_r9g9b9e5(nir_builder *b, nir_def *color)
    /* See also float3_to_rgb9e5 */
 
    /* First, we need to clamp it to range. The fmax(color, 0) will also flush
-    * NaN to 0.  We set exact to ensure that nothing optimizes this behavior
-    * away from us.
+    * NaN to 0.  We set fp_math_ctrl to ensure this.
     */
    unsigned old_fp_math_ctrl = b->fp_math_ctrl;
-   b->fp_math_ctrl |= nir_fp_exact;
+   b->fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
    nir_def *clamped =
       nir_fmin(b, nir_fmax(b, color, nir_imm_float(b, 0)),
                nir_imm_float(b, MAX_RGB9E5));
