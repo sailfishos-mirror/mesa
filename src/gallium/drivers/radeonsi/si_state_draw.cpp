@@ -2022,7 +2022,7 @@ static bool si_upload_and_prefetch_VB_descriptors(struct si_context *sctx,
       uint64_t vb_descriptors_address = 0;
       uint32_t *ptr;
 
-      if (alloc_size) {
+      if (alloc_size && (!IS_DRAW_VERTEX_STATE || count > num_vbos_in_user_sgprs)) {
          struct pipe_resource *upload_buf, *release_buf;
          unsigned offset;
 
