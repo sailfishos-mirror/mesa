@@ -554,7 +554,6 @@ init_context(isel_context* ctx, nir_shader* shader)
                switch (intrinsic->intrinsic) {
                case nir_intrinsic_load_push_constant:
                case nir_intrinsic_load_num_workgroups:
-               case nir_intrinsic_load_subgroup_id:
                case nir_intrinsic_load_num_subgroups:
                case nir_intrinsic_vote_all:
                case nir_intrinsic_vote_any:

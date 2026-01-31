@@ -4026,12 +4026,6 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
       emit_split_vector(ctx, dst, 3);
       break;
    }
-   case nir_intrinsic_load_subgroup_id: {
-      assert(ctx->options->gfx_level >= GFX12 && ctx->stage.hw == AC_HW_COMPUTE_SHADER);
-      bld.sop2(aco_opcode::s_bfe_u32, Definition(get_ssa_temp(ctx, &instr->def)), bld.def(s1, scc),
-               Operand(PhysReg(108 + 8 /*ttmp8*/), s1), Operand::c32(25 | (5 << 16)));
-      break;
-   }
    case nir_intrinsic_ddx:
    case nir_intrinsic_ddy:
    case nir_intrinsic_ddx_fine:

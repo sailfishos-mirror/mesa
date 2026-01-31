@@ -53,15 +53,19 @@ load_subgroup_id_lowered(lower_intrinsics_to_args_state *s, nir_builder *b)
    if (s->workgroup_size <= s->wave_size) {
       return nir_imm_int(b, 0);
    } else if (s->hw_stage == AC_HW_COMPUTE_SHADER) {
-      assert(s->gfx_level < GFX12 && s->args->tg_size.used);
-
-      if (s->gfx_level >= GFX10_3) {
+      if (s->gfx_level >= GFX12) {
+         assert(!s->use_llvm);
+         nir_def *ttmp8 = nir_load_ttmp_register_amd(b, .base = 8);
+         return nir_ubfe_imm(b, ttmp8, 25, 5);
+      } else if (s->gfx_level >= GFX10_3) {
+         assert(s->args->tg_size.used);
          return ac_nir_unpack_arg(b, s->args, s->args->tg_size, 20, 5);
       } else {
          /* GFX6-10 don't actually support a wave id, but we can
           * use the ordered id because ORDERED_APPEND_* is set to
           * zero in the compute dispatch initiator.
           */
+         assert(s->args->tg_size.used);
          return ac_nir_unpack_arg(b, s->args, s->args->tg_size, 6, 6);
       }
    } else if (s->hw_stage == AC_HW_HULL_SHADER) {
@@ -112,8 +116,10 @@ lower_intrinsic_to_arg(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
 
    switch (intrin->intrinsic) {
    case nir_intrinsic_load_subgroup_id:
-      if (s->gfx_level >= GFX12 && s->hw_stage == AC_HW_COMPUTE_SHADER)
-         return false; /* Lowered in backend compilers. */
+      /* LLVM uses an intrinsic to get this on gfx12. */
+      if (s->gfx_level >= GFX12 && s->hw_stage == AC_HW_COMPUTE_SHADER && s->use_llvm)
+         return false;
+
       replacement = load_subgroup_id_lowered(s, b);
       break;
    case nir_intrinsic_load_num_subgroups: {
@@ -503,7 +509,8 @@ lower_intrinsic_to_arg(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
       } else {
          nir_def *subgroup_id;
 
-         if (s->gfx_level >= GFX12 && s->hw_stage == AC_HW_COMPUTE_SHADER) {
+         /* LLVM uses an intrinsic to get this on gfx12. */
+         if (s->gfx_level >= GFX12 && s->hw_stage == AC_HW_COMPUTE_SHADER && s->use_llvm) {
             subgroup_id = nir_load_subgroup_id(b);
          } else {
             subgroup_id = load_subgroup_id_lowered(s, b);
