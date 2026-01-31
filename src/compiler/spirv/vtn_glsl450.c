@@ -209,10 +209,19 @@ static nir_op
 vtn_nir_alu_op_for_spirv_glsl_opcode(struct vtn_builder *b,
                                      enum GLSLstd450 opcode,
                                      unsigned execution_mode,
-                                     bool *exact)
+                                     unsigned *extra_fp_math_ctrl)
 {
-   *exact = false;
+   *extra_fp_math_ctrl = nir_fp_fast_math;
    switch (opcode) {
+   case GLSLstd450NMin:
+   case GLSLstd450NMax: {
+      *extra_fp_math_ctrl = nir_fp_preserve_nan | nir_fp_preserve_inf;
+      switch (opcode) {
+      case GLSLstd450NMin: return nir_op_fmin;
+      case GLSLstd450NMax: return nir_op_fmax;
+      default: UNREACHABLE("unhandled");
+      }
+   }
    case GLSLstd450Round:         return nir_op_fround_even;
    case GLSLstd450RoundEven:     return nir_op_fround_even;
    case GLSLstd450Trunc:         return nir_op_ftrunc;
@@ -230,11 +239,9 @@ vtn_nir_alu_op_for_spirv_glsl_opcode(struct vtn_builder *b,
    case GLSLstd450Log2:          return nir_op_flog2;
    case GLSLstd450Sqrt:          return nir_op_fsqrt;
    case GLSLstd450InverseSqrt:   return nir_op_frsq;
-   case GLSLstd450NMin:          *exact = true; return nir_op_fmin;
    case GLSLstd450FMin:          return nir_op_fmin;
    case GLSLstd450UMin:          return nir_op_umin;
    case GLSLstd450SMin:          return nir_op_imin;
-   case GLSLstd450NMax:          *exact = true; return nir_op_fmax;
    case GLSLstd450FMax:          return nir_op_fmax;
    case GLSLstd450UMax:          return nir_op_umax;
    case GLSLstd450SMax:          return nir_op_imax;
@@ -393,7 +400,7 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
        * results for NaN.  Instead, we use the identity b2f(!x) = 1 - b2f(x).
        */
       const unsigned save_math_ctrl = nb->fp_math_ctrl;
-      nb->fp_math_ctrl |= nir_fp_exact;
+      nb->fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
 
       nir_def *cmp = nir_slt(nb, src[1], src[0]);
 
@@ -425,7 +432,7 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
       break;
    case GLSLstd450NClamp: {
       const unsigned save_math_ctrl = nb->fp_math_ctrl;
-      nb->fp_math_ctrl |= nir_fp_exact;
+      nb->fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
 
       dest->def = nir_fclamp(nb, src[0], src[1], src[2]);
 
@@ -536,10 +543,12 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
        */
       const unsigned save_math_ctrl = nb->fp_math_ctrl;
 
-      nb->fp_math_ctrl |= nir_fp_exact;
+      nb->fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
       nir_def *is_regular = nir_flt(nb,
                                         nir_imm_floatN_t(nb, 0, bit_size),
                                         nir_fabs(nb, src[0]));
+
+      nb->fp_math_ctrl = save_math_ctrl;
 
       /* The extra 1.0*s ensures that subnormal inputs are flushed to zero
        * when that is selected by the shader.
@@ -547,7 +556,6 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
       nir_def *flushed = nir_fmul(nb,
                                       src[0],
                                       nir_imm_floatN_t(nb, 1.0, bit_size));
-      nb->fp_math_ctrl = save_math_ctrl;
 
       dest->def = nir_bcsel(nb,
                             is_regular,
@@ -626,11 +634,9 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
    default: {
       unsigned execution_mode =
          b->shader->info.float_controls_execution_mode;
-      bool exact;
-      nir_op op = vtn_nir_alu_op_for_spirv_glsl_opcode(b, entrypoint, execution_mode, &exact);
-      /* don't override explicit decoration */
-      if (exact)
-         b->nb.fp_math_ctrl |= nir_fp_exact;
+      unsigned extra_fp_math_ctrl;
+      nir_op op = vtn_nir_alu_op_for_spirv_glsl_opcode(b, entrypoint, execution_mode, &extra_fp_math_ctrl);
+      b->nb.fp_math_ctrl |= extra_fp_math_ctrl;
       dest->def = nir_build_alu(&b->nb, op, src[0], src[1], src[2], NULL);
       break;
    }
