@@ -1139,7 +1139,8 @@ static void si_postprocess_nir(struct si_nir_shader_ctx *ctx)
    NIR_PASS(progress, nir, ac_nir_lower_intrinsics_to_args, sel->screen->info.gfx_level,
             sel->screen->info.has_ls_vgpr_init_bug,
             si_select_hw_stage(nir->info.stage, key, sel->screen->info.gfx_level),
-            shader->wave_size, si_get_max_workgroup_size(shader), &ctx->args.ac);
+            shader->wave_size, si_get_max_workgroup_size(shader), !nir->info.use_aco_amd,
+            &ctx->args.ac);
 
    /* LLVM keep non-uniform sampler as index, so can't do this in NIR.
     * Must be done after si_nir_lower_resource().
@@ -1367,7 +1368,7 @@ si_nir_generate_gs_copy_shader(struct si_screen *sscreen,
    NIR_PASS(_, nir, si_nir_lower_abi, shader, &linked.consumer.args);
    NIR_PASS(_, nir, ac_nir_lower_intrinsics_to_args, sscreen->info.gfx_level,
             sscreen->info.has_ls_vgpr_init_bug, AC_HW_VERTEX_SHADER, 64, 64,
-            &linked.consumer.args.ac);
+            !nir->info.use_aco_amd, &linked.consumer.args.ac);
 
    NIR_PASS(_, nir, ac_nir_lower_global_access);
    NIR_PASS(_, nir, nir_lower_int64);

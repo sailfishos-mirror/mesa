@@ -298,6 +298,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_force_vrs_rates_amd:
    case nir_intrinsic_load_tess_level_inner_default:
    case nir_intrinsic_load_tess_level_outer_default:
+   case nir_intrinsic_load_ttmp_register_amd:
    case nir_intrinsic_load_scalar_arg_amd:
    case nir_intrinsic_load_resume_shader_address_amd:
    case nir_intrinsic_load_reloc_const_intel:

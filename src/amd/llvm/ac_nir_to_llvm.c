@@ -2652,17 +2652,14 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
       result = ac_build_readlane(&ctx->ac, get_src(ctx, instr->src[0]), NULL);
       break;
    case nir_intrinsic_load_workgroup_id: {
+      assert(ctx->ac.gfx_level >= GFX12);
       LLVMValueRef values[3] = {ctx->ac.i32_0, ctx->ac.i32_0, ctx->ac.i32_0};
 
       for (int i = 0; i < 3; i++) {
          if (ctx->args->workgroup_ids[i].used) {
-            if (ctx->ac.gfx_level >= GFX12) {
-               char intr_name[256];
-               snprintf(intr_name, sizeof(intr_name), "llvm.amdgcn.workgroup.id.%c", "xyz"[i]);
-               values[i] = ac_build_intrinsic(&ctx->ac, intr_name, ctx->ac.i32, NULL, 0, 0);
-            } else {
-               values[i] = ac_get_arg(&ctx->ac, ctx->args->workgroup_ids[i]);
-            }
+            char intr_name[256];
+            snprintf(intr_name, sizeof(intr_name), "llvm.amdgcn.workgroup.id.%c", "xyz"[i]);
+            values[i] = ac_build_intrinsic(&ctx->ac, intr_name, ctx->ac.i32, NULL, 0, 0);
          }
       }
       result = ac_build_gather_values(&ctx->ac, values, 3);

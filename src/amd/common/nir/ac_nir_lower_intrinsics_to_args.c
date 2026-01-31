@@ -13,6 +13,7 @@
 typedef struct {
    const struct ac_shader_args *const args;
    const enum amd_gfx_level gfx_level;
+   bool use_llvm;
    bool has_ls_vgpr_init_bug;
    unsigned wave_size;
    unsigned workgroup_size;
@@ -140,8 +141,46 @@ lower_intrinsic_to_arg(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
          replacement = nir_vec3(b, nir_extract_u16(b, xy, nir_imm_int(b, 0)),
                                 nir_extract_u16(b, xy, nir_imm_int(b, 1)),
                                 nir_extract_u16(b, z, nir_imm_int(b, 1)));
+      } else if (s->hw_stage == AC_HW_COMPUTE_SHADER) {
+         nir_def *undef = nir_undef(b, 1, 32);
+         nir_def *ids[3] = {undef, undef, undef};
+
+         if (s->gfx_level >= GFX12) {
+            /* LLVM uses intrinsics to get workgroup IDs on gfx12. */
+            if (s->use_llvm)
+               return false;
+
+            if (s->args->workgroup_ids[0].used)
+               ids[0] = nir_load_ttmp_register_amd(b, .base = 9);
+
+            if (s->args->workgroup_ids[1].used || s->args->workgroup_ids[2].used) {
+               unsigned ttmp7_upper_bound = s->args->workgroup_ids[2].used ? 0 : 0xffff;
+               nir_def *ttmp7 =
+                  nir_load_ttmp_register_amd(b, .base = 7,
+                                             .arg_upper_bound_u32_amd = ttmp7_upper_bound);
+
+               if (s->args->workgroup_ids[1].used) {
+                  if (s->args->workgroup_ids[2].used)
+                     ids[1] = nir_iand_imm(b, ttmp7, 0xffff);
+                  else
+                     ids[1] = ttmp7;
+               }
+
+               if (s->args->workgroup_ids[2].used)
+                  ids[2] = nir_ushr_imm(b, ttmp7, 16);
+            }
+         } else {
+            for (unsigned i = 0; i < 3; i++) {
+               if (s->args->workgroup_ids[i].used) {
+                  ids[i] = ac_nir_load_arg_upper_bound(b, s->args, s->args->workgroup_ids[i],
+                                                       i >= 1 ? 0xffff : 0);
+               }
+            }
+         }
+
+         replacement = nir_vec(b, ids, 3);
       } else {
-         return false;
+         UNREACHABLE("unexpected shader stage");
       }
       break;
    case nir_intrinsic_load_pixel_coord:
@@ -499,11 +538,12 @@ lower_intrinsic_to_arg(nir_builder *b, nir_intrinsic_instr *intrin, void *state)
 bool
 ac_nir_lower_intrinsics_to_args(nir_shader *shader, const enum amd_gfx_level gfx_level,
                                 bool has_ls_vgpr_init_bug, const enum ac_hw_stage hw_stage,
-                                unsigned wave_size, unsigned workgroup_size,
+                                unsigned wave_size, unsigned workgroup_size, bool use_llvm,
                                 const struct ac_shader_args *ac_args)
 {
    lower_intrinsics_to_args_state state = {
       .gfx_level = gfx_level,
+      .use_llvm = use_llvm,
       .hw_stage = hw_stage,
       .has_ls_vgpr_init_bug = has_ls_vgpr_init_bug,
       .wave_size = wave_size,

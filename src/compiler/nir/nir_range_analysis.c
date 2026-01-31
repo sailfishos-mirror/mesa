@@ -1801,6 +1801,7 @@ get_intrinsic_uub(struct analysis_state *state, struct scalar_query q, uint32_t 
       *result = desc->channel[q.scalar.comp].pure_integer ? chan_max : fui(chan_max);
       break;
    }
+   case nir_intrinsic_load_ttmp_register_amd:
    case nir_intrinsic_load_scalar_arg_amd:
    case nir_intrinsic_load_vector_arg_amd: {
       uint32_t upper_bound = nir_intrinsic_arg_upper_bound_u32_amd(intrin);
