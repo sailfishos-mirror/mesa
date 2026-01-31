@@ -279,7 +279,8 @@ vtn_convert_op_dst_type(SpvOp opcode)
 
 nir_op
 vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
-                                SpvOp opcode, bool *swap, bool *exact,
+                                SpvOp opcode, bool *swap,
+                                unsigned *extra_fp_math_ctrl,
                                 const glsl_type *src_type,
                                 const glsl_type *dst_type)
 {
@@ -291,7 +292,7 @@ vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
     */
    *swap = false;
 
-   *exact = false;
+   *extra_fp_math_ctrl = nir_fp_fast_math;
 
    switch (opcode) {
    case SpvOpSNegate:            return nir_op_ineg;
@@ -350,28 +351,53 @@ vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
     * the logical operator to use since they also need to check if operands are
     * ordered.
     */
-   case SpvOpFOrdEqual:                            *exact = true;  return nir_op_feq;
-   case SpvOpFUnordEqual:                          *exact = true;  return nir_op_feq;
-   case SpvOpINotEqual:                                            return nir_op_ine;
-   case SpvOpLessOrGreater:                        /* Deprecated, use OrdNotEqual */
-   case SpvOpFOrdNotEqual:                         *exact = true;  return nir_op_fneu;
-   case SpvOpFUnordNotEqual:                       *exact = true;  return nir_op_fneu;
-   case SpvOpULessThan:                                            return nir_op_ult;
-   case SpvOpSLessThan:                                            return nir_op_ilt;
-   case SpvOpFOrdLessThan:                         *exact = true;  return nir_op_flt;
-   case SpvOpFUnordLessThan:                       *exact = true;  return nir_op_flt;
-   case SpvOpUGreaterThan:          *swap = true;                  return nir_op_ult;
-   case SpvOpSGreaterThan:          *swap = true;                  return nir_op_ilt;
-   case SpvOpFOrdGreaterThan:       *swap = true;  *exact = true;  return nir_op_flt;
-   case SpvOpFUnordGreaterThan:     *swap = true;  *exact = true;  return nir_op_flt;
-   case SpvOpULessThanEqual:        *swap = true;                  return nir_op_uge;
-   case SpvOpSLessThanEqual:        *swap = true;                  return nir_op_ige;
-   case SpvOpFOrdLessThanEqual:     *swap = true;  *exact = true;  return nir_op_fge;
-   case SpvOpFUnordLessThanEqual:   *swap = true;  *exact = true;  return nir_op_fge;
-   case SpvOpUGreaterThanEqual:                                    return nir_op_uge;
-   case SpvOpSGreaterThanEqual:                                    return nir_op_ige;
-   case SpvOpFOrdGreaterThanEqual:                 *exact = true;  return nir_op_fge;
-   case SpvOpFUnordGreaterThanEqual:               *exact = true;  return nir_op_fge;
+   case SpvOpFOrdEqual:
+   case SpvOpFUnordEqual:
+   case SpvOpLessOrGreater:
+   case SpvOpFOrdNotEqual:
+   case SpvOpFUnordNotEqual:
+   case SpvOpFOrdLessThan:
+   case SpvOpFUnordLessThan:
+   case SpvOpFOrdGreaterThan:
+   case SpvOpFUnordGreaterThan:
+   case SpvOpFOrdLessThanEqual:
+   case SpvOpFUnordLessThanEqual:
+   case SpvOpFOrdGreaterThanEqual:
+   case SpvOpFUnordGreaterThanEqual:
+   case SpvOpIsNormal:
+   case SpvOpIsFinite: {
+      *extra_fp_math_ctrl = nir_fp_preserve_nan | nir_fp_preserve_inf;
+
+      switch (opcode) {
+      case SpvOpFOrdEqual:                           return nir_op_feq;
+      case SpvOpFUnordEqual:                         return nir_op_feq;
+      case SpvOpLessOrGreater: /* Deprecated, use OrdNotEqual */
+      case SpvOpFOrdNotEqual:                        return nir_op_fneu;
+      case SpvOpFUnordNotEqual:                      return nir_op_fneu;
+      case SpvOpFOrdLessThan:                        return nir_op_flt;
+      case SpvOpFUnordLessThan:                      return nir_op_flt;
+      case SpvOpFOrdGreaterThan:       *swap = true; return nir_op_flt;
+      case SpvOpFUnordGreaterThan:     *swap = true; return nir_op_flt;
+      case SpvOpFOrdLessThanEqual:     *swap = true; return nir_op_fge;
+      case SpvOpFUnordLessThanEqual:   *swap = true; return nir_op_fge;
+      case SpvOpFOrdGreaterThanEqual:                return nir_op_fge;
+      case SpvOpFUnordGreaterThanEqual:              return nir_op_fge;
+      case SpvOpIsNormal:                            return nir_op_fisnormal;
+      case SpvOpIsFinite:                            return nir_op_fisfinite;
+      default: UNREACHABLE("unhandled op");
+      }
+   }
+
+
+   case SpvOpINotEqual:                    return nir_op_ine;
+   case SpvOpULessThan:                    return nir_op_ult;
+   case SpvOpSLessThan:                    return nir_op_ilt;
+   case SpvOpUGreaterThan:   *swap = true; return nir_op_ult;
+   case SpvOpSGreaterThan:   *swap = true; return nir_op_ilt;
+   case SpvOpULessThanEqual: *swap = true; return nir_op_uge;
+   case SpvOpSLessThanEqual: *swap = true; return nir_op_ige;
+   case SpvOpUGreaterThanEqual:            return nir_op_uge;
+   case SpvOpSGreaterThanEqual:            return nir_op_ige;
 
    /* Conversions: */
    case SpvOpQuantizeToF16:         return nir_op_fquantize2f16;
@@ -389,9 +415,6 @@ vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
 
    case SpvOpPtrCastToGeneric:   return nir_op_mov;
    case SpvOpGenericCastToPtr:   return nir_op_mov;
-
-   case SpvOpIsNormal:     return nir_op_fisnormal;
-   case SpvOpIsFinite:     return nir_op_fisfinite;
 
    default:
       vtn_fail("No NIR equivalent: %u", opcode);
@@ -861,7 +884,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    case SpvOpIsNan:{
       const unsigned save_fp_math_ctrl = b->nb.fp_math_ctrl;
 
-      b->nb.fp_math_ctrl |= nir_fp_exact;
+      b->nb.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
       dest->def = nir_fneu(&b->nb, src[0], src[0]);
       b->nb.fp_math_ctrl = save_fp_math_ctrl;
       break;
@@ -870,7 +893,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    case SpvOpOrdered: {
       const unsigned save_fp_math_ctrl = b->nb.fp_math_ctrl;
 
-      b->nb.fp_math_ctrl |= nir_fp_exact;
+      b->nb.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
       dest->def = nir_iand(&b->nb, nir_feq(&b->nb, src[0], src[0]),
                                    nir_feq(&b->nb, src[1], src[1]));
       b->nb.fp_math_ctrl = save_fp_math_ctrl;
@@ -880,7 +903,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    case SpvOpUnordered: {
       const unsigned save_fp_math_ctrl = b->nb.fp_math_ctrl;
 
-      b->nb.fp_math_ctrl |= nir_fp_exact;
+      b->nb.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
       dest->def = nir_ior(&b->nb, nir_fneu(&b->nb, src[0], src[0]),
                                   nir_fneu(&b->nb, src[1], src[1]));
       b->nb.fp_math_ctrl = save_fp_math_ctrl;
@@ -890,7 +913,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    case SpvOpIsInf: {
       const unsigned save_fp_math_ctrl = b->nb.fp_math_ctrl;
 
-      b->nb.fp_math_ctrl = nir_fp_no_fast_math;
+      b->nb.fp_math_ctrl = nir_fp_preserve_nan | nir_fp_preserve_inf;
       nir_def *inf = nir_imm_floatN_t(&b->nb, INFINITY, src[0]->bit_size);
       dest->def = nir_feq(&b->nb, nir_fabs(&b->nb, src[0]), inf);
 
@@ -901,7 +924,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    case SpvOpFUnordEqual: {
       const unsigned save_fp_math_ctrl = b->nb.fp_math_ctrl;
 
-      b->nb.fp_math_ctrl |= nir_fp_exact;
+      b->nb.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
 
       /* This could also be implemented as !(a < b || b < a).  If one or both
        * of the source are numbers, later optimization passes can easily
@@ -926,9 +949,9 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    case SpvOpFUnordLessThanEqual:
    case SpvOpFUnordGreaterThanEqual: {
       bool swap;
-      bool unused_exact;
+      unsigned unused_fp_math_ctrl;;
       nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap,
-                                                  &unused_exact,
+                                                  &unused_fp_math_ctrl,
                                                   vtn_src[0]->type, dest_type);
 
       if (swap) {
@@ -939,7 +962,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
 
       const unsigned save_fp_math_ctrl = b->nb.fp_math_ctrl;
 
-      b->nb.fp_math_ctrl |= nir_fp_exact;
+      b->nb.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
 
       /* Use the property FUnordLessThan(a, b) ≡ !FOrdGreaterThanEqual(a, b). */
       switch (op) {
@@ -964,7 +987,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
        */
       const unsigned save_fp_math_ctrl = b->nb.fp_math_ctrl;
 
-      b->nb.fp_math_ctrl |= nir_fp_exact;
+      b->nb.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
 
       /* This could also be implemented as (a < b || b < a).  If one or both
        * of the source are numbers, later optimization passes can easily
@@ -1004,11 +1027,11 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    case SpvOpShiftRightArithmetic:
    case SpvOpShiftRightLogical: {
       bool swap;
-      bool exact;
-      nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &exact,
+      unsigned extra_fp_math_ctrl;
+      nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl,
                                                   vtn_src[0]->type, dest_type);
 
-      assert(!exact);
+      assert(!extra_fp_math_ctrl);
 
       assert (op == nir_op_ushr || op == nir_op_ishr || op == nir_op_ishl ||
               op == nir_op_bitfield_insert || op == nir_op_ubitfield_extract ||
@@ -1062,9 +1085,9 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
 
    default: {
       bool swap;
-      bool exact;
+      unsigned extra_fp_math_ctrl;
       nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap,
-                                                  &exact,
+                                                  &extra_fp_math_ctrl,
                                                   vtn_src[0]->type, dest_type);
 
       if (swap) {
@@ -1086,8 +1109,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
 
       const bool save_fp_math_ctrl = b->nb.fp_math_ctrl;
 
-      if (exact)
-         b->nb.fp_math_ctrl |= nir_fp_exact;
+      b->nb.fp_math_ctrl |= extra_fp_math_ctrl;
 
       dest->def = nir_build_alu(&b->nb, op, src[0], src[1], src[2], src[3]);
 

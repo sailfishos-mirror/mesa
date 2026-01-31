@@ -975,7 +975,8 @@ nir_alu_type vtn_convert_op_src_type(SpvOp opcode);
 nir_alu_type vtn_convert_op_dst_type(SpvOp opcode);
 
 nir_op vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
-                                       SpvOp opcode, bool *swap, bool *exact,
+                                       SpvOp opcode, bool *swap,
+                                       unsigned *extra_fp_math_ctrl,
                                        const glsl_type *src_type,
                                        const glsl_type *dst_type);
 

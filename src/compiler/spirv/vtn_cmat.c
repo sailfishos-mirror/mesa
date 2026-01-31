@@ -319,8 +319,9 @@ vtn_handle_cooperative_alu(struct vtn_builder *b, struct vtn_value *dest_val,
          struct vtn_type *dst_type = vtn_get_type(b, w[1]);
          nir_deref_instr *src = vtn_get_cmat_deref(b, w[3]);
 
-         bool ignored = false;
-         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &ignored, &ignored,
+         bool swap = false;
+         unsigned extra_fp_math_ctrl = nir_fp_fast_math;
+         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl,
                                                      glsl_get_cmat_element(src->type),
                                                      glsl_get_cmat_element(dst_type->type));
 
@@ -340,13 +341,14 @@ vtn_handle_cooperative_alu(struct vtn_builder *b, struct vtn_value *dest_val,
       case SpvOpIMul:
       case SpvOpSDiv:
       case SpvOpUDiv: {
-         bool ignored = false;
+         bool swap = false;
+         unsigned extra_fp_math_ctrl = nir_fp_fast_math;
 
          struct vtn_type *dst_type = vtn_get_type(b, w[1]);
          nir_deref_instr *mat_a = vtn_get_cmat_deref(b, w[3]);
          nir_deref_instr *mat_b = vtn_get_cmat_deref(b, w[4]);
 
-         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &ignored, &ignored,
+         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl,
                                                      glsl_get_cmat_element(mat_a->type),
                                                      glsl_get_cmat_element(dst_type->type));
 
