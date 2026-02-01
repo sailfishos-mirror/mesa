@@ -384,7 +384,7 @@
         "description": "radv/bvh: Make sure internal nodes are collapsed when possible",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "95a89f7b334479e9184eafa6289c3ea54a733933",
         "notes": null
