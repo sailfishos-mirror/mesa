@@ -2439,7 +2439,7 @@ optimizations.extend([
    (('fmulz(nsz)', ('bcsel(is_used_once)', c, 1.0, -1.0), b), ('bcsel', c, ('fcanonicalize', b), ('fneg', b))),
    (('fabs', ('bcsel(is_used_once)', b, ('fneg', a), a)), ('fabs', a)),
    (('fabs', ('bcsel(is_used_once)', b, a, ('fneg', a))), ('fabs', a)),
-   (('~bcsel', ('flt', a, 0.0), ('fneg', a), a), ('fabs', a)),
+   (('bcsel(is_only_used_as_float_nsz)', ('flt', a, 0.0), ('fneg', a), a), ('fabs', a)),
 
    (('bcsel', a, ('bcsel(is_used_once)', b, c, d), d), ('bcsel', ('iand', a, b), c, d)),
    (('bcsel', a, ('bcsel(is_used_once)', b, d, c), d), ('bcsel', ('iand', a, ('inot', b)), c, d)),
