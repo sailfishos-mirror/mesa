@@ -564,7 +564,7 @@ optimizations.extend([
    # If x >= 0 and x <= 1: fsat(1 - x) == 1 - fsat(x) trivially
    # If x < 0: 1 - fsat(x) => 1 - 0 => 1 and fsat(1 - x) => fsat(> 1) => 1
    # If x > 1: 1 - fsat(x) => 1 - 1 => 0 and fsat(1 - x) => fsat(< 0) => 0
-   (('~fadd', ('fneg(is_used_once)', ('fsat(is_used_once)', 'a(is_not_fmul)')), 1.0), ('fsat', ('fadd', 1.0, ('fneg', a)))),
+   (('fadd', ('fneg(is_used_once)', ('fsat(is_used_once,nnan)', 'a(is_not_fmul)')), 1.0), ('fsat', ('fadd', 1.0, ('fneg', a)))),
 
    # (a * #b + #c) << #d
    # ((a * #b) << #d) + (#c << #d)
@@ -3848,7 +3848,7 @@ late_optimizations.extend([
    (('ior', a, a), a),
    (('iand', a, a), a),
 
-   (('~fadd', ('fneg(is_used_once)', ('fsat(is_used_once)', 'a(is_not_fmul)')), 1.0), ('fsat', ('fadd', 1.0, ('fneg', a)))),
+   (('fadd', ('fneg(is_used_once)', ('fsat(is_used_once,nnan)', 'a(is_not_fmul)')), 1.0), ('fsat', ('fadd', 1.0, ('fneg', a)))),
 
    (('fsqrt', ('fsat(is_used_once)', 'a(cannot_add_output_modifier)')), ('fsat', ('fsqrt', a))),
 
