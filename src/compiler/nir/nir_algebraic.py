@@ -501,9 +501,6 @@ class Expression(Value):
         exclude = set()
         if self.inexact:
             exclude.add("nir_fp_exact")
-            exclude.add("nir_fp_preserve_signed_zero")
-            exclude.add("nir_fp_preserve_inf")
-            exclude.add("nir_fp_preserve_nan")
 
         if self.contract:
             exclude.add("nir_fp_exact")
