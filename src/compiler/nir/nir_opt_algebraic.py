@@ -1033,19 +1033,17 @@ optimizations.extend([
    (('imax', a, ('iabs', a)), ('iabs', a)),
    (('fmax', a, ('fneg', a)), ('fabs', a)),
    (('imax', a, ('ineg', a)), ('iabs', a), '!options->lower_iabs'),
-   (('~fmax', ('fabs', a), 0.0), ('fabs', a)),
+   (('fmax(nnan)', ('fabs', a), 0.0), ('fabs', a)),
    (('fmin', ('fmax', a, 0.0), 1.0), ('fsat', a), '!options->lower_fsat'),
-   # fmax(fmin(a, 1.0), 0.0) is inexact because it returns 1.0 on NaN, while
+   # fmax(fmin(a, 1.0), 0.0) is not NaN correct because it returns 1.0 on NaN, while
    # fsat(a) returns 0.0.
-   (('~fmax', ('fmin', a, 1.0), 0.0), ('fsat', a), '!options->lower_fsat'),
-   # fmin(fmax(a, -1.0), 0.0) is inexact because it returns -1.0 on NaN, while
+   (('fmax', ('fmin(nnan)', a, 1.0), 0.0), ('fsat', a), '!options->lower_fsat'),
+   # fmin(fmax(a, -1.0), 0.0) is not NaN/signed zero correct because it returns -1.0 on NaN, while
    # fneg(fsat(fneg(a))) returns -0.0 on NaN.
-   (('~fmin', ('fmax', a, -1.0),  0.0), ('fneg', ('fsat', ('fneg', a))), '!options->lower_fsat'),
+   (('fmin(nsz)', ('fmax(nnan)', a, -1.0),  0.0), ('fneg', ('fsat', ('fneg', a))), '!options->lower_fsat'),
    # fmax(fmin(a, 0.0), -1.0) is inexact because it returns 0.0 on NaN, while
-   # fneg(fsat(fneg(a))) returns -0.0 on NaN. This only matters if
-   # SignedZeroInfNanPreserve is set, but we don't currently have any way of
-   # representing this in the optimizations other than the usual ~.
-   (('~fmax', ('fmin', a,  0.0), -1.0), ('fneg', ('fsat', ('fneg', a))), '!options->lower_fsat'),
+   # fneg(fsat(fneg(a))) returns -0.0 on NaN.
+   (('fmax', ('fmin(nsz)', a,  0.0), -1.0), ('fneg', ('fsat', ('fneg', a))), '!options->lower_fsat'),
    # fsat(fsign(NaN)) = fsat(0) = 0, and b2f(0 < NaN) = b2f(False) = 0. Mark
    # the new comparison precise to prevent it being changed to 'a != 0'.
    (('fsat', ('fsign', a)), ('b2f', ('flt(preserve_nan_inf)', 0.0, a))),
@@ -1063,12 +1061,12 @@ optimizations.extend([
    (('fmax', ('fsat', a), '#b(is_zero_to_one)'), ('fsat', ('fmax', a, b))),
    (('fmax', ('fsat(is_used_once)', a), ('fsat(is_used_once)', b)), ('fsat', ('fmax', a, b))),
    # The left pattern is 0.0 when isnan(a) (because fmin(fsat(NaN), b) ->
-   # fmin(0.0, b)) while the right one is "b", so this optimization is inexact.
-   (('~fmin', ('fsat', a), '#b(is_zero_to_one)'), ('fsat', ('fmin', a, b))),
+   # fmin(0.0, b)) while the right one is "b", so this optimization is not NaN correct.
+   (('fmin(nsz)', ('fsat(nnan)', a), '#b(is_zero_to_one)'), ('fsat', ('fmin', a, b))),
 
    # If a >= 0 ... 1 + a >= 1 ... so fsat(1 + a) = 1
    # But 1 + NaN is NaN and fsat(NaN) = 0.
-   (('~fsat', ('fadd', 1.0, 'a(is_not_negative)')), 1.0),
+   (('fsat(nnan)', ('fadd', 1.0, 'a(is_not_negative)')), 1.0),
    (('fsat', ('fadd', 1.0, 'a(is_a_number_not_negative)')), 1.0),
 
    # Let constant folding do its job. This can have emergent behaviour.
@@ -1978,8 +1976,8 @@ optimizations.extend([
    (('iabs', 'a(is_not_negative)'), a),
    (('fsat', 'a(is_not_positive)'), 0.0),
 
-   (('~fmin', 'a(is_not_negative)', 1.0), ('fsat', a), '!options->lower_fsat'),
-   (('fmin', 'a(is_a_number_not_negative)', 1.0), ('fsat', a), '!options->lower_fsat'),
+   (('fmin(nnan,nsz)', 'a(is_not_negative)', 1.0), ('fsat', a), '!options->lower_fsat'),
+   (('fmin(nsz)', 'a(is_a_number_not_negative)', 1.0), ('fsat', a), '!options->lower_fsat'),
 
    # The result of the multiply must be in [-1, 0], so the result of the ffma
    # must be in [0, 1].
