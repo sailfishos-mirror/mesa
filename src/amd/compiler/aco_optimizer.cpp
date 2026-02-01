@@ -4004,9 +4004,8 @@ create_med3_cb(opt_ctx& ctx, alu_opt_info& info)
 {
    aco_type type = instr_info.alu_opcode_infos[(int)info.opcode].def_types[0];
 
-   /* NaN correctness needs max first, then min. TODO only use isNaNPreserve */
-   if (!max_first && type.base_type == aco_base_type_float &&
-       (info.defs[0].isPrecise() || info.defs[0].isNaNPreserve()))
+   /* NaN correctness needs max first, then min. */
+   if (!max_first && type.base_type == aco_base_type_float && info.defs[0].isNaNPreserve())
       return false;
 
    uint64_t upper = 0;
