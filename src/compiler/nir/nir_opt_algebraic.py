@@ -218,7 +218,7 @@ for op in ['idiv', 'udiv', 'umod', 'umod', 'irem']:
     optimizations += [((op, a, ('bcsel', b, '#c', '#d')), ('bcsel', b, (op, a, c), (op, a, d)))]
 
 optimizations += [
-   (('~fmul', ('fsign', a), ('ffloor', ('fadd', ('fabs', a), 0.5))), ('ftrunc', ('fadd', a, ('fmul', ('fsign', a), 0.5))), '!options->lower_ftrunc || options->lower_ffloor'),
+   (('fmul', ('fsign', a), ('ffloor', ('fadd', ('fabs', a), 0.5))), ('ftrunc', ('fadd', a, ('fmul', ('fsign', a), 0.5))), '!options->lower_ftrunc || options->lower_ffloor'),
 
    (('fneg', ('fneg', a)), ('fcanonicalize', a)),
    (('ineg', ('ineg', a)), a),
