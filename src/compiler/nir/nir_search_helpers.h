@@ -549,7 +549,7 @@ is_used_by_non_ldc_nv(const nir_alu_instr *instr)
 }
 
 static inline bool
-is_only_used_as_float_impl(const nir_alu_instr *instr, unsigned depth)
+is_only_used_as_float_impl(const nir_alu_instr *instr, bool nsz, unsigned depth)
 {
    nir_foreach_use(src, &instr->def) {
       const nir_instr *const user_instr = nir_src_parent_instr(src);
@@ -563,6 +563,8 @@ is_only_used_as_float_impl(const nir_alu_instr *instr, unsigned depth)
             case nir_intrinsic_ddy_fine:
             case nir_intrinsic_ddx_coarse:
             case nir_intrinsic_ddy_coarse:
+               if (nsz)
+                  return false;
                continue;
             default:
                break;
@@ -577,6 +579,7 @@ is_only_used_as_float_impl(const nir_alu_instr *instr, unsigned depth)
                return false;
 
             unsigned idx = tex_src - tex->src;
+            /* Float tex sources don't care about signed zeros. */
             if (nir_tex_instr_src_type(tex, idx) == nir_type_float)
                continue;
          }
@@ -599,12 +602,14 @@ is_only_used_as_float_impl(const nir_alu_instr *instr, unsigned depth)
       bool is_mov = (user_alu->op == nir_op_bcsel && index != 0) ||
                     nir_op_is_vec_or_mov(user_alu->op);
       if (is_mov && depth < 8) {
-         if (is_only_used_as_float_impl(user_alu, depth + 1))
+         if (is_only_used_as_float_impl(user_alu, nsz, depth + 1))
             continue;
       }
 
       nir_alu_type type = nir_op_infos[user_alu->op].input_types[index];
       if (nir_alu_type_get_base_type(type) != nir_type_float)
+         return false;
+      if (nir_alu_instr_is_signed_zero_preserve(user_alu) && nsz)
          return false;
    }
 
@@ -614,7 +619,13 @@ is_only_used_as_float_impl(const nir_alu_instr *instr, unsigned depth)
 static inline bool
 is_only_used_as_float(const nir_alu_instr *instr)
 {
-   return is_only_used_as_float_impl(instr, 0);
+   return is_only_used_as_float_impl(instr, false, 0);
+}
+
+static inline bool
+is_only_used_as_float_nsz(const nir_alu_instr *instr)
+{
+   return is_only_used_as_float_impl(instr, true, 0);
 }
 
 static inline bool

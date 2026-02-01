@@ -1643,7 +1643,7 @@ class AlgebraicPass(object):
                     xform_defs.append(
                         f"  nir_def *replace_{bits} = nir_u2u{bits}(b, {replace_def});")
                     replace_def = f"replace_{bits}"
-            if xform.search.cond == "is_only_used_as_float":
+            if xform.search.cond == "is_only_used_as_float" or xform.search.cond == "is_only_used_as_float_nsz":
                 xform_defs.append(
                     f"  nir_def *search_float = nir_fadd_imm(b, {search_def}, 0.0);")
                 search_def = "search_float"

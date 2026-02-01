@@ -197,14 +197,18 @@ lower_alu_instr(nir_builder *b, nir_alu_instr *instr, UNUSED void *cb_data)
                 */
                lowered = fminmax;
             } else if (pos_zero && max) {
+               b->fp_math_ctrl &= ~nir_fp_preserve_signed_zero;
                /* max(x, +0.0) = +0.0 < x ? x : +0.0 */
                lowered = nir_bcsel(b, nir_flt(b, zero, other), other, zero);
             } else if (neg_zero && !max) {
+               b->fp_math_ctrl &= ~nir_fp_preserve_signed_zero;
                /* min(x, -0.0) = x < -0.0 ? x : -0.0 */
                lowered = nir_bcsel(b, nir_flt(b, other, zero), other, zero);
             }
          }
       }
+
+      b->fp_math_ctrl = instr->fp_math_ctrl;
 
       /* Fallback on the emulation */
       if (!lowered) {
