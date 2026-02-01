@@ -279,7 +279,7 @@ optimizations += [
    (('fmulz', a, 0.0), 0.0),
    (('fmulz', a, -0.0), 0.0),
    (('fmulz(nsz)', a, 'b(is_finite_not_zero)'), ('fmul', a, b)),
-   (('fmulz', 'a(is_finite)', 'b(is_finite)'), ('fmul', a, b), 'true', TestStatus.XFAIL), # XFAIL is fmulz(-1.0, 0.0) being -0.0 instead of +0.0
+   (('fmulz(nsz)', 'a(is_finite)', 'b(is_finite)'), ('fmul', a, b)),
    (('fmulz', a, a), ('fmul', a, a)),
    (('ffmaz(nsz)', a, 'b(is_finite_not_zero)', c), ('ffma', a, b, c)),
    (('ffmaz', 'a(is_finite)', 'b(is_finite)', c), ('ffma', a, b, c)),
