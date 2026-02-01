@@ -839,14 +839,10 @@ optimizations.extend([
    (('~fge', ('fadd', a, b), a), ('fge', b, 0.0)),
    (('~feq', ('fadd', a, b), a), ('feq', b, 0.0)),
    (('~fneu', ('fadd', a, b), a), ('fneu', b, 0.0)),
-   (('~flt',                        ('fadd(is_used_once)', a, '#b'),  '#c'), ('flt', a, ('fadd', c, ('fneg', b)))),
-   (('~flt', ('fneg(is_used_once)', ('fadd(is_used_once)', a, '#b')), '#c'), ('flt', ('fneg', ('fadd', c, b)), a)),
-   (('~fge',                        ('fadd(is_used_once)', a, '#b'),  '#c'), ('fge', a, ('fadd', c, ('fneg', b)))),
-   (('~fge', ('fneg(is_used_once)', ('fadd(is_used_once)', a, '#b')), '#c'), ('fge', ('fneg', ('fadd', c, b)), a)),
-   (('~feq',                        ('fadd(is_used_once)', a, '#b'),  '#c'), ('feq', a, ('fadd', c, ('fneg', b)))),
-   (('~feq', ('fneg(is_used_once)', ('fadd(is_used_once)', a, '#b')), '#c'), ('feq', ('fneg', ('fadd', c, b)), a)),
-   (('~fneu',                        ('fadd(is_used_once)', a, '#b'),  '#c'), ('fneu', a, ('fadd', c, ('fneg', b)))),
-   (('~fneu', ('fneg(is_used_once)', ('fadd(is_used_once)', a, '#b')), '#c'), ('fneu', ('fneg', ('fadd', c, b)), a)),
+   (('~flt',  ('fadd(is_used_once)', a, '#b'),  '#c'), ('flt', a,  ('fadd', c, ('fneg', b)))),
+   (('~fge',  ('fadd(is_used_once)', a, '#b'),  '#c'), ('fge', a,  ('fadd', c, ('fneg', b)))),
+   (('~feq',  ('fadd(is_used_once)', a, '#b'),  '#c'), ('feq', a,  ('fadd', c, ('fneg', b)))),
+   (('~fneu', ('fadd(is_used_once)', a, '#b'),  '#c'), ('fneu', a, ('fadd', c, ('fneg', b)))),
 
    # Cannot remove the addition from ilt or ige due to overflow.
    (('ieq', ('iadd', a, b), a), ('ieq', b, 0)),
