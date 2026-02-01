@@ -394,7 +394,7 @@
         "description": "vulkan: Make sure no NaNs end up in the BVH",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "20322687e08a78f66c005a2075e1f2df89c2b7b4",
         "notes": null

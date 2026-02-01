@@ -54,9 +54,13 @@ build_triangle(inout vk_aabb bounds, VOID_REF dst_ptr, vk_bvh_geometry_data geom
     * representation, then all triangles are considered active.
     */
    if (any(isnan(vertices.vertex[0])) || any(isnan(vertices.vertex[1])) || any(isnan(vertices.vertex[2]))) {
-      is_valid = false;
       if (!VK_BUILD_FLAG(VK_BUILD_FLAG_ALWAYS_ACTIVE))
          return false;
+
+      is_valid = false;
+      vertices.vertex[0] = vec4(0);
+      vertices.vertex[1] = vec4(0);
+      vertices.vertex[2] = vec4(0);
    }
 
    REF(vk_ir_triangle_node) node = REF(vk_ir_triangle_node)(dst_ptr);
@@ -99,9 +103,12 @@ build_aabb(inout vk_aabb bounds, VOID_REF src_ptr, VOID_REF dst_ptr, uint32_t ge
     * to filter out NaNs.
     */
    if (any(isnan(bounds.min)) || any(isnan(bounds.max))) {
-      is_valid = false;
       if (!VK_BUILD_FLAG(VK_BUILD_FLAG_ALWAYS_ACTIVE))
          return false;
+
+      is_valid = false;
+      bounds.min = vec3(0);
+      bounds.max = vec3(0);
    }
 
    DEREF(node).base.aabb = bounds;
@@ -151,9 +158,6 @@ build_instance(inout vk_aabb bounds, VOID_REF src_ptr, VOID_REF dst_ptr, uint32_
 
    bounds = calculate_instance_node_bounds(blas_aabb, mat3x4(transform));
 
-   if (any(isnan(bounds.min)) || any(isnan(bounds.max)))
-      return false;
-
 #ifdef CALCULATE_FINE_INSTANCE_NODE_BOUNDS
    vec3 blas_aabb_extent = blas_aabb.max - blas_aabb.min;
    float blas_aabb_volume = blas_aabb_extent.x * blas_aabb_extent.y * blas_aabb_extent.z;
@@ -170,6 +174,9 @@ build_instance(inout vk_aabb bounds, VOID_REF src_ptr, VOID_REF dst_ptr, uint32_
    if (bounds_volume > 1.4f * blas_aabb_volume)
       bounds = CALCULATE_FINE_INSTANCE_NODE_BOUNDS(instance.accelerationStructureReference, mat3x4(transform));
 #endif
+
+   if (any(isnan(bounds.min)) || any(isnan(bounds.max)))
+      return false;
 
    DEREF(node).base.aabb = bounds;
    DEREF(node).custom_instance_and_mask = instance.custom_instance_and_mask;
@@ -233,12 +240,8 @@ main(void)
       is_active = build_instance(bounds, src_ptr, dst_ptr, global_id);
    }
 
-   if (VK_BUILD_FLAG(VK_BUILD_FLAG_ALWAYS_ACTIVE) &&
-       !is_active && args.geom_data.geometry_type != VK_GEOMETRY_TYPE_INSTANCES_KHR) {
-      bounds.min = vec3(0.0);
-      bounds.max = vec3(0.0);
+   if (VK_BUILD_FLAG(VK_BUILD_FLAG_ALWAYS_ACTIVE))
       is_active = true;
-   }
 
    DEREF(id_ptr).id = is_active ? pack_ir_node_id(dst_offset, node_type) : VK_BVH_INVALID_NODE;
 
