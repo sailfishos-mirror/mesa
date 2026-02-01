@@ -875,20 +875,12 @@ optimizations.extend([
    # fabs(a) > 0.0
    # fabs(a) != 0.0 because fabs(a) must be >= 0
    # a != 0.0
-   (('~flt', 0.0, ('fabs', a)), ('fneu', a, 0.0)),
-
-   # -fabs(a) < 0.0
-   # fabs(a) > 0.0
-   (('~flt', ('fneg', ('fabs', a)), 0.0), ('fneu', a, 0.0)),
+   (('flt(nnan)', 0.0, ('fabs', a)), ('fneu', a, 0.0)),
 
    # 0.0 >= fabs(a)
    # 0.0 == fabs(a)   because fabs(a) must be >= 0
    # 0.0 == a
    (('fge', 0.0, ('fabs', a)), ('feq', a, 0.0)),
-
-   # -fabs(a) >= 0.0
-   # 0.0 >= fabs(a)
-   (('fge', ('fneg', ('fabs', a)), 0.0), ('feq', a, 0.0)),
 
    # (a >= 0.0) && (a <= 1.0) -> fsat(a) == a
    #
