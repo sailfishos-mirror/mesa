@@ -825,7 +825,7 @@ PVR_PER_ARCH(CreateRenderPass2)(VkDevice _device,
       const VkAttachmentDescription2 *desc = &pCreateInfo->pAttachments[i];
       struct pvr_render_pass_attachment *attachment = &pass->attachments[i];
 
-      pvr_assert(!(desc->flags & ~VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT));
+      assert(!(desc->flags & ~VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT));
 
       attachment->load_op = desc->loadOp;
       attachment->store_op = desc->storeOp;

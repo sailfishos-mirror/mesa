@@ -49,17 +49,6 @@
       _buffer[__offset / __nr_dwords] = __value;                 \
    } while (0)
 
-/* A non-fatal assert. Useful for debugging. */
-#if MESA_DEBUG
-#   define pvr_assert(x)                                           \
-      ({                                                           \
-         if (unlikely(!(x)))                                       \
-            mesa_loge("%s:%d ASSERT: %s", __FILE__, __LINE__, #x); \
-      })
-#else
-#   define pvr_assert(x)
-#endif
-
 #define PVR_ARCH_NAME(name, arch) pvr_##arch##_##name
 
 #define PVR_ARCH_DISPATCH(name, arch, ...)        \
