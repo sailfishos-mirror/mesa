@@ -549,7 +549,8 @@ pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
    uint32_t max_slices;
    uint32_t flags = 0U;
 
-   if (src->vk.format == VK_FORMAT_D24_UNORM_S8_UINT &&
+   if (pvr_vk_format_is_combined_ds(src->vk.format) &&
+       pvr_vk_format_is_combined_ds(dst->vk.format) &&
        region->srcSubresource.aspectMask !=
           (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) {
       /* Takes the stencil of the source and the depth of the destination and

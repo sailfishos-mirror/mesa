@@ -273,6 +273,12 @@ static inline bool pvr_vk_format_is_fully_normalized(VkFormat vk_format)
    return true;
 }
 
+static inline bool
+pvr_vk_format_is_combined_ds(VkFormat format)
+{
+   return vk_format_has_depth(format) && vk_format_has_stencil(format);
+}
+
 static inline uint32_t
 pvr_vk_format_get_common_color_channel_count(VkFormat src_format,
                                              VkFormat dst_format)
