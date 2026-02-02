@@ -110,8 +110,8 @@ static nir_def *
 convert_use(nir_builder *b, nir_def *src, enum glsl_cmat_use src_use,
             enum glsl_cmat_use dst_use)
 {
-   nir_def *comps[NIR_MAX_VEC_COMPONENTS] = {};
-   nir_def *out_comps[NIR_MAX_VEC_COMPONENTS] = {};
+   nir_def *comps[NIR_MAX_VEC_COMPONENTS] = {0};
+   nir_def *out_comps[NIR_MAX_VEC_COMPONENTS] = {0};
    unsigned num_comps = src->num_components;
    for (unsigned i = 0; i < num_comps; i++) {
       comps[i] = nir_channel(b, src, i);
