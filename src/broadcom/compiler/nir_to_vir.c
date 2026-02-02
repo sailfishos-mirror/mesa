@@ -1321,6 +1321,7 @@ f2f16_rtz(struct v3d_compile *c, struct qreg f32)
 /**
  * Takes the result value of a signed integer width conversion from a smaller
  * type to a larger type and if needed, it applies sign extension to it.
+ * This is destructive: the return qreg is the same as the source qreg.
  */
 static struct qreg
 sign_extend(struct v3d_compile *c,
@@ -1330,24 +1331,22 @@ sign_extend(struct v3d_compile *c,
 {
         assert(src_bit_size < dst_bit_size);
 
-        struct qreg tmp = vir_MOV(c, value);
-
         /* Do we need to sign-extend? */
         uint32_t sign_mask = 1 << (src_bit_size - 1);
         struct qinst *sign_check =
                 vir_AND_dest(c, vir_nop_reg(),
-                             tmp, vir_uniform_ui(c, sign_mask));
+                             value, vir_uniform_ui(c, sign_mask));
         vir_set_pf(c, sign_check, V3D_QPU_PF_PUSHZ);
 
         /* If so, fill in leading sign bits */
         uint32_t extend_bits = ~(((1 << src_bit_size) - 1)) &
                                ((1ull << dst_bit_size) - 1);
         struct qinst *extend_inst =
-                vir_OR_dest(c, tmp, tmp,
+                vir_OR_dest(c, value, value,
                             vir_uniform_ui(c, extend_bits));
         vir_set_cond(extend_inst, V3D_QPU_COND_IFNA);
 
-        return tmp;
+        return value;
 }
 
 static void
