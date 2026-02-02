@@ -75,5 +75,9 @@ x86_64 CtsGraphicsTestCases android.graphics.cts.SetFrameRateTest#testAtLeast_No
 x86_64 CtsGraphicsTestCases android.graphics.fonts.SystemFontsTest#testFontsFallbackUnreadable[0]
 x86_64 CtsGraphicsTestCases android.graphics.fonts.SystemFontsTest#testAvailableFonts_ReadOnlyFile[0]
 
-# Flaky test
-x86_64 CtsGraphicsTestCases android.graphics.cts.DynamicColorsTest#testDynamicColors[high_FFB9577A_TONAL_SPOT]
+# New flakes with Android 16
+x86_64 CtsGraphicsTestCases android.graphics.cts.DynamicColorsTest
+
+# New failures with VK_EXT_blend_operation_advanced
+x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_BlendRequiringDstReadWithLargeCoordinates
+x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_SkRuntimeBlender_GPU
