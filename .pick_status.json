@@ -1444,7 +1444,7 @@
         "description": "meson: Restore .clang-format for ninja clang-format target",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "efe60d29408a2ce94ab8c1f9f273d633fd92c484",
         "notes": null
