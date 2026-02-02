@@ -32,6 +32,74 @@
 
 #include <vulkan/vulkan_core.h>
 
+void panvk_per_arch(cmd_signal_barrier)(
+   struct panvk_cmd_buffer *cmdbuf, enum panvk_csf_barrier barrier)
+{
+   struct cs_builder *b = panvk_get_cs_builder(cmdbuf, PANVK_SUBQUEUE_COMPUTE);
+
+   switch (barrier) {
+   case PANVK_CSF_BARRIER_SYNC : {
+#if PAN_ARCH >= 11
+      struct cs_index sync_addr = cs_scratch_reg64(b, 0);
+      struct cs_index add_val = cs_scratch_reg64(b, 2);
+
+      cs_load64_to(b, sync_addr, cs_subqueue_ctx_reg(b),
+                   offsetof(struct panvk_cs_subqueue_context, syncobjs));
+
+      cs_add_imm64(b, sync_addr, sync_addr,
+               PANVK_SUBQUEUE_COMPUTE * sizeof(struct panvk_cs_sync64));
+      cs_move64_to(b, add_val, 1);
+      panvk_instr_sync64_add(cmdbuf, PANVK_SUBQUEUE_COMPUTE, true,
+                             MALI_CS_SYNC_SCOPE_CSG, add_val, sync_addr,
+                             cs_defer_indirect());
+#else
+      struct cs_index sync_addr = cs_scratch_reg64(b, 0);
+      struct cs_index iter_sb = cs_scratch_reg32(b, 2);
+      struct cs_index cmp_scratch = cs_scratch_reg32(b, 3);
+      struct cs_index add_val = cs_scratch_reg64(b, 4);
+
+      cs_load_to(b, cs_scratch_reg_tuple(b, 0, 3), cs_subqueue_ctx_reg(b),
+                 BITFIELD_MASK(3),
+                 offsetof(struct panvk_cs_subqueue_context, syncobjs));
+
+      cs_add_imm64(b, sync_addr, sync_addr,
+               PANVK_SUBQUEUE_COMPUTE * sizeof(struct panvk_cs_sync64));
+      cs_move64_to(b, add_val, 1);
+
+      cs_match_iter_sb(b, x, iter_sb, cmp_scratch) {
+         panvk_instr_sync64_add(cmdbuf, PANVK_SUBQUEUE_COMPUTE, true,
+                                MALI_CS_SYNC_SCOPE_CSG, add_val, sync_addr,
+                                cs_defer(SB_WAIT_ITER(x), SB_ID(DEFERRED_SYNC)));
+      }
+#endif
+
+      ++cmdbuf->state.cs[PANVK_SUBQUEUE_COMPUTE].relative_sync_point;
+
+      break;
+   }
+
+   case PANVK_CSF_BARRIER_WAIT: {
+#if PAN_ARCH >= 11
+      cs_wait_indirect(b);
+#else
+      struct cs_index iter_sb = cs_scratch_reg32(b, 0);
+      struct cs_index cmp_scratch = cs_scratch_reg32(b, 1);
+
+      cs_load32_to(b, iter_sb, cs_subqueue_ctx_reg(b),
+                   offsetof(struct panvk_cs_subqueue_context, iter_sb));
+
+      cs_match_iter_sb(b, x, iter_sb, cmp_scratch)
+         cs_wait_slot(b, SB_ITER(x));
+#endif
+
+      break;
+   }
+
+   default:
+      UNREACHABLE("invalid CSF barrier type");
+   }
+}
+
 static VkResult
 prepare_driver_set(struct panvk_cmd_buffer *cmdbuf)
 {
@@ -257,41 +325,8 @@ panvk_per_arch(cmd_dispatch_shader)(
       }
    }
 
-#if PAN_ARCH >= 11
-   struct cs_index sync_addr = cs_scratch_reg64(b, 0);
-   struct cs_index add_val = cs_scratch_reg64(b, 2);
+   panvk_per_arch(cmd_signal_barrier)(cmdbuf, info->barrier);
 
-   cs_load64_to(b, sync_addr, cs_subqueue_ctx_reg(b),
-                offsetof(struct panvk_cs_subqueue_context, syncobjs));
-
-   cs_add_imm64(b, sync_addr, sync_addr,
-                PANVK_SUBQUEUE_COMPUTE * sizeof(struct panvk_cs_sync64));
-   cs_move64_to(b, add_val, 1);
-   panvk_instr_sync64_add(cmdbuf, PANVK_SUBQUEUE_COMPUTE, true,
-                          MALI_CS_SYNC_SCOPE_CSG, add_val, sync_addr,
-                          cs_defer_indirect());
-#else
-   struct cs_index sync_addr = cs_scratch_reg64(b, 0);
-   struct cs_index iter_sb = cs_scratch_reg32(b, 2);
-   struct cs_index cmp_scratch = cs_scratch_reg32(b, 3);
-   struct cs_index add_val = cs_scratch_reg64(b, 4);
-
-   cs_load_to(b, cs_scratch_reg_tuple(b, 0, 3), cs_subqueue_ctx_reg(b),
-              BITFIELD_MASK(3),
-              offsetof(struct panvk_cs_subqueue_context, syncobjs));
-
-   cs_add_imm64(b, sync_addr, sync_addr,
-                PANVK_SUBQUEUE_COMPUTE * sizeof(struct panvk_cs_sync64));
-   cs_move64_to(b, add_val, 1);
-
-   cs_match_iter_sb(b, x, iter_sb, cmp_scratch) {
-      panvk_instr_sync64_add(cmdbuf, PANVK_SUBQUEUE_COMPUTE, true,
-                             MALI_CS_SYNC_SCOPE_CSG, add_val, sync_addr,
-                             cs_defer(SB_WAIT_ITER(x), SB_ID(DEFERRED_SYNC)));
-   }
-#endif
-
-   ++cmdbuf->state.cs[PANVK_SUBQUEUE_COMPUTE].relative_sync_point;
    clear_dirty_after_dispatch(cmdbuf);
 }
 
@@ -380,6 +415,7 @@ panvk_per_arch(CmdDispatchBase)(VkCommandBuffer commandBuffer,
    struct panvk_dispatch_info info = {
       .wg_base = {baseGroupX, baseGroupY, baseGroupZ},
       .direct.wg_count = {groupCountX, groupCountY, groupCountZ},
+      .barrier = PANVK_CSF_BARRIER_SYNC,
    };
 
    panvk_per_arch(panvk_instr_begin_work)(PANVK_SUBQUEUE_COMPUTE, cmdbuf,
@@ -414,6 +450,7 @@ panvk_per_arch(CmdDispatchIndirect)(VkCommandBuffer commandBuffer,
    uint64_t buffer_gpu = panvk_buffer_gpu_ptr(buffer, offset);
    struct panvk_dispatch_info info = {
       .indirect.buffer_dev_addr = buffer_gpu,
+      .barrier = PANVK_CSF_BARRIER_SYNC,
    };
 
    panvk_per_arch(panvk_instr_begin_work)(
