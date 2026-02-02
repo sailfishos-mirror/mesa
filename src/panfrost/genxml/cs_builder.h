@@ -1689,8 +1689,8 @@ cs_finish_fragment(struct cs_builder *b, bool increment_frag_completed,
 }
 
 static inline void
-cs_add32(struct cs_builder *b, struct cs_index dest, struct cs_index src,
-         int32_t imm)
+cs_add_imm32(struct cs_builder *b, struct cs_index dest, struct cs_index src,
+             int32_t imm)
 {
    cs_emit(b, ADD_IMM32, I) {
       I.destination = cs_dst32(b, dest);
@@ -1700,8 +1700,8 @@ cs_add32(struct cs_builder *b, struct cs_index dest, struct cs_index src,
 }
 
 static inline void
-cs_add64(struct cs_builder *b, struct cs_index dest, struct cs_index src,
-         int32_t imm)
+cs_add_imm64(struct cs_builder *b, struct cs_index dest, struct cs_index src,
+             int32_t imm)
 {
    cs_emit(b, ADD_IMM64, I) {
       I.destination = cs_dst64(b, dest);
@@ -1730,7 +1730,7 @@ cs_move_reg32(struct cs_builder *b, struct cs_index dest, struct cs_index src)
       I.source = cs_src32(b, src);
    }
 #else
-   cs_add32(b, dest, src, 0);
+   cs_add_imm32(b, dest, src, 0);
 #endif
 }
 
@@ -2224,7 +2224,7 @@ cs_match_case(struct cs_builder *b, struct cs_match *match, uint32_t id)
    }
 
    if (id)
-      cs_add32(b, match->scratch_reg, match->val, -id);
+      cs_add_imm32(b, match->scratch_reg, match->val, -id);
 
    cs_branch_label(b, &match->next_case_label, MALI_CS_CONDITION_NEQUAL,
                    id ? match->scratch_reg : match->val);
@@ -2481,7 +2481,7 @@ cs_trace_preamble(struct cs_builder *b, const struct cs_tracing_ctx *ctx,
     * access. Use cs_trace_field_offset() to get an offset taking this
     * pre-increment into account. */
    cs_load64_to(b, tracebuf_addr, ctx->ctx_reg, ctx->tracebuf_addr_offset);
-   cs_add64(b, tracebuf_addr, tracebuf_addr, trace_size);
+   cs_add_imm64(b, tracebuf_addr, tracebuf_addr, trace_size);
    cs_store64(b, tracebuf_addr, ctx->ctx_reg, ctx->tracebuf_addr_offset);
    cs_flush_stores(b);
 }
@@ -2826,11 +2826,11 @@ cs_single_link_list_add_tail(struct cs_builder *b, struct cs_index list_base,
    /* If the list is empty (head == NULL), set the head, otherwise append to the
     * last node. */
    cs_if(b, MALI_CS_CONDITION_EQUAL, head)
-      cs_add64(b, head, new_node_gpu, 0);
+      cs_add_imm64(b, head, new_node_gpu, 0);
    cs_else(b)
       cs_store64(b, new_node_gpu, tail, offset_next);
 
-   cs_add64(b, tail, new_node_gpu, 0);
+   cs_add_imm64(b, tail, new_node_gpu, 0);
    cs_store(b, head_tail, list_base, BITFIELD_MASK(4), list_offset);
    cs_flush_stores(b);
 }

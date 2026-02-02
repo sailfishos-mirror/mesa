@@ -696,8 +696,8 @@ cs_iter_sb_update_start(struct panvk_cmd_buffer *cmdbuf,
                 offsetof(struct panvk_cs_subqueue_context, iter_sb));
 
    /* Select next scoreboard entry and wrap around if we get past the limit */
-   cs_add32(b, next_sb, next_sb, 1);
-   cs_add32(b, cmp_scratch, next_sb, -SB_ITER(dev->csf.sb.iter_count));
+   cs_add_imm32(b, next_sb, next_sb, 1);
+   cs_add_imm32(b, cmp_scratch, next_sb, -SB_ITER(dev->csf.sb.iter_count));
 
    cs_if(b, MALI_CS_CONDITION_GEQUAL, cmp_scratch) {
       cs_move32_to(b, next_sb, SB_ITER(0));

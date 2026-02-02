@@ -89,8 +89,8 @@ flush_sync_points(struct panvk_cmd_buffer *cmdbuf)
             if (!rel_sync_point)
                continue;
 
-            cs_add64(b, cs_progress_seqno_reg(b, j), cs_progress_seqno_reg(b, j),
-                     rel_sync_point);
+            cs_add_imm64(b, cs_progress_seqno_reg(b, j),
+                         cs_progress_seqno_reg(b, j), rel_sync_point);
          }
       }
    }
@@ -548,10 +548,10 @@ emit_barrier_insert_waits(struct cs_builder *b, struct panvk_cmd_buffer *cmdbuf,
 
       cs_load64_to(b, sync_addr, cs_subqueue_ctx_reg(b),
                    offsetof(struct panvk_cs_subqueue_context, syncobjs));
-      cs_add64(b, sync_addr, sync_addr, sizeof(struct panvk_cs_sync64) * j);
+      cs_add_imm64(b, sync_addr, sync_addr, sizeof(struct panvk_cs_sync64) * j);
 
-      cs_add64(b, wait_val, cs_progress_seqno_reg(b, j),
-               cs_state->relative_sync_point);
+      cs_add_imm64(b, wait_val, cs_progress_seqno_reg(b, j),
+                   cs_state->relative_sync_point);
 
       panvk_instr_sync64_wait(cmdbuf, i, false, MALI_CS_CONDITION_GREATER,
                               wait_val, sync_addr);
@@ -617,7 +617,8 @@ panvk_per_arch(emit_barrier)(struct panvk_cmd_buffer *cmdbuf,
 
          cs_load64_to(b, sync_addr, cs_subqueue_ctx_reg(b),
                       offsetof(struct panvk_cs_subqueue_context, syncobjs));
-         cs_add64(b, sync_addr, sync_addr, sizeof(struct panvk_cs_sync64) * i);
+         cs_add_imm64(b, sync_addr, sync_addr,
+                      sizeof(struct panvk_cs_sync64) * i);
          cs_move64_to(b, add_val, 1);
          panvk_instr_sync64_add(cmdbuf, i, true, MALI_CS_SYNC_SCOPE_CSG,
                                 add_val, sync_addr, cs_now());

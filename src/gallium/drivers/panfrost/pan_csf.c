@@ -350,7 +350,7 @@ csf_oom_handler_init(struct panfrost_context *ctx)
       cs_wait_slot(&b, 3);
 
       /* Increment counter */
-      cs_add32(&b, counter, counter, 1);
+      cs_add_imm32(&b, counter, counter, 1);
       cs_store32(&b, counter, tiler_oom_ctx, FIELD_OFFSET(counter));
 
       /* Load completed chunks */
@@ -1719,10 +1719,10 @@ GENX(csf_launch_draw_indirect)(struct panfrost_batch *batch,
                   cs_shader_res_sel(2, 2, 2, 0), drawid);
 #endif
 
-      cs_add64(b, address, address, indirect->stride);
-      cs_add32(b, counter, counter, (unsigned int)-1);
+      cs_add_imm64(b, address, address, indirect->stride);
+      cs_add_imm32(b, counter, counter, (unsigned int)-1);
       if (drawid.type != CS_INDEX_UNDEF)
-         cs_add32(b, drawid, drawid, 1);
+         cs_add_imm32(b, drawid, drawid, 1);
    }
 }
 
