@@ -1,4 +1,11 @@
-// iris specific driconf options
+/*
+ * Copyright © 2019 Intel Corporation
+ * SPDX-License-Identifier: MIT
+ *
+ * @file driinfo_iris.h
+ *
+ * iris specific driconf options
+ */
 
 DRI_CONF_SECTION_DEBUG
    DRI_CONF_DUAL_COLOR_BLEND_BY_LOCATION(false)
