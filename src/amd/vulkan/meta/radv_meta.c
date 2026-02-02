@@ -355,7 +355,8 @@ radv_device_init_meta(struct radv_device *device)
 
    if (pdev->emulate_astc) {
       result = vk_texcompress_astc_init(&device->vk, &device->meta_state.alloc, device->meta_state.cache,
-                                        &device->meta_state.astc_decode);
+                                        &device->meta_state.astc_decode,
+                                        vk_texcompress_astc_default_params(&device->vk));
       if (result != VK_SUCCESS)
          return result;
    }

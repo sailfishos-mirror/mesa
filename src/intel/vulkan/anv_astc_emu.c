@@ -493,9 +493,10 @@ anv_device_init_astc_emu(struct anv_device *device)
       simple_mtx_init(&astc_emu->mutex, mtx_plain);
 
    if (device->physical->emu_astc_ldr) {
-      result = vk_texcompress_astc_init(&device->vk, &device->vk.alloc,
-                                        VK_NULL_HANDLE,
-                                        &astc_emu->texcompress);
+      result = vk_texcompress_astc_init(
+         &device->vk, &device->vk.alloc, VK_NULL_HANDLE,
+         &astc_emu->texcompress,
+         vk_texcompress_astc_default_params(&device->vk));
    }
 
    return result;
