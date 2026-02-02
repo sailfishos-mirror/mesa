@@ -60,6 +60,7 @@ extern "C" {
 #define MAX_LINE_SIZE 1024 // without 16 pixels for the seams
 #define MAX_LINE_CNT  4
 
+#define VPE_NO_ALIGNMENT 1
 enum vpe_cmd_ops {
     VPE_CMD_OPS_BLENDING,
     VPE_CMD_OPS_BG,

@@ -88,7 +88,7 @@ struct resource {
     uint16_t (*get_bg_stream_idx)(struct vpe_priv *vpe_priv);
 
     uint16_t (*find_bg_gaps)(struct vpe_priv *vpe_priv, const struct vpe_rect *target_rect,
-        struct vpe_rect *gaps, uint16_t max_gaps);
+        struct vpe_rect *gaps, uint32_t alignment, uint16_t max_gaps);
 
     void (*create_bg_segments)(
         struct vpe_priv *vpe_priv, struct vpe_rect *gaps, uint16_t gaps_cnt, enum vpe_cmd_ops ops);
@@ -189,6 +189,8 @@ bool vpe_rec_is_equal(struct vpe_rect rec1, struct vpe_rect rec2);
 const struct vpe_caps *vpe_get_capability(enum vpe_ip_level ip_level);
 
 void vpe_setup_check_funcs(struct vpe_check_support_funcs *funcs, enum vpe_ip_level ip_level);
+
+uint32_t vpe_get_recout_width_alignment(const struct vpe_build_param *params);
 
 #ifdef __cplusplus
 }

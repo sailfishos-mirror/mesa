@@ -360,7 +360,6 @@ static enum vpe_status populate_bg_stream(struct vpe_priv *vpe_priv, const struc
 
     if (param->dst_surface.plane_size.surface_size.width < VPE_MIN_VIEWPORT_SIZE ||
         param->dst_surface.plane_size.surface_size.height < VPE_MIN_VIEWPORT_SIZE ||
-        param->dst_surface.plane_size.surface_pitch < 256 / 4 || // 256bytes, 4bpp
         param->target_rect.width < VPE_MIN_VIEWPORT_SIZE ||
         param->target_rect.height < VPE_MIN_VIEWPORT_SIZE) {
         return VPE_STATUS_ERROR;
@@ -370,26 +369,16 @@ static enum vpe_status populate_bg_stream(struct vpe_priv *vpe_priv, const struc
     surface_info                      = &stream->surface_info;
     scaling_info                      = &stream->scaling_info;
     polyphaseCoeffs                   = &stream->polyphase_scaling_coeffs;
-    surface_info->address.type        = param->dst_surface.address.type;
-    surface_info->address.tmz_surface = param->dst_surface.address.tmz_surface;
-    surface_info->address.grph.addr.quad_part =
-        param->dst_surface.address.grph.addr.quad_part;
 
-    surface_info->swizzle                   = param->dst_surface.swizzle; // treat it as linear for simple
+    memcpy(surface_info, &param->dst_surface, sizeof(struct vpe_surface_info));
+
     surface_info->plane_size.surface_size.x = 0;
     surface_info->plane_size.surface_size.y = 0;
-    // min width & height in pixels
     surface_info->plane_size.surface_size.width     = VPE_MIN_VIEWPORT_SIZE;
     surface_info->plane_size.surface_size.height    = VPE_MIN_VIEWPORT_SIZE;
-    surface_info->plane_size.surface_pitch          = param->dst_surface.plane_size.surface_pitch;
-    surface_info->plane_size.surface_aligned_height = param->dst_surface.plane_size.surface_aligned_height;
     surface_info->dcc.enable                        = false;
-    surface_info->format                            = param->dst_surface.format;
-    surface_info->cs.encoding                       = param->dst_surface.cs.encoding;
-    surface_info->cs.range                          = param->dst_surface.cs.range;
-    surface_info->cs.tf                             = param->dst_surface.cs.tf;
-    surface_info->cs.cositing                       = param->dst_surface.cs.cositing;
-    surface_info->cs.primaries                      = param->dst_surface.cs.primaries;
+
+    // min width & height in pixels
     scaling_info->src_rect.x                        = 0;
     scaling_info->src_rect.y                        = 0;
     scaling_info->src_rect.width                    = VPE_MIN_VIEWPORT_SIZE;

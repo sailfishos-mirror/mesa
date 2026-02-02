@@ -667,6 +667,7 @@ enum vpe_status vpe10_calculate_segments(
     const uint32_t      max_downscale_factor = vpe_priv->pub.caps->plane_caps.max_downscale_factor;
     struct dpp         *dpp                  = vpe_priv->resource.dpp[0];
     const uint32_t      max_lb_size          = dpp->funcs->get_line_buffer_size();
+    uint16_t            alignment            = 1;
 
     for (stream_idx = 0; stream_idx < vpe_priv->num_streams; stream_idx++) {
         stream_ctx = &vpe_priv->stream_ctx[stream_idx];
@@ -747,7 +748,8 @@ enum vpe_status vpe10_calculate_segments(
     if (!gaps)
         return VPE_STATUS_NO_MEMORY;
 
-    gaps_cnt = vpe_priv->resource.find_bg_gaps(vpe_priv, &(params->target_rect), gaps, max_gaps);
+    gaps_cnt = vpe_priv->resource.find_bg_gaps(
+        vpe_priv, &(params->target_rect), gaps, alignment, max_gaps);
 
     if (gaps_cnt > 0)
         vpe_priv->resource.create_bg_segments(vpe_priv, gaps, gaps_cnt, VPE_CMD_OPS_BG);

@@ -105,6 +105,8 @@ enum vpe_status vpe_check_blending_support(
 
 uint8_t vpe_get_element_size_in_bytes(enum vpe_surface_pixel_format format, int plane_idx);
 
+uint32_t vpe_align_seg(uint32_t seg_size, uint32_t alignment);
+
 #ifdef __cplusplus
 }
 #endif
