@@ -3519,6 +3519,32 @@ zink_batch_no_rp_safe(struct zink_context *ctx)
    if (!ctx->queries_disabled)
       zink_query_renderpass_suspend(ctx);
    VKCTX(CmdEndRendering)(ctx->bs->cmdbuf);
+   if (zink_debug & ZINK_DEBUG_RPSTORES) {
+      bool zap = false;
+      for (unsigned i = 0; i < ARRAY_SIZE(ctx->dynamic_fb.attachments); i++) {
+         if (ctx->dynamic_fb.attachments[i].storeOp != VK_ATTACHMENT_STORE_OP_DONT_CARE) {
+            ctx->dynamic_fb.attachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_NONE;
+            ctx->dynamic_fb.attachments[i].storeOp = VK_ATTACHMENT_STORE_OP_NONE;
+            continue;
+         }
+         zap = true;
+         ctx->dynamic_fb.attachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+         ctx->dynamic_fb.attachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+         if (i >= PIPE_MAX_COLOR_BUFS) {
+            ctx->dynamic_fb.attachments[i].clearValue.depthStencil.depth = 0.0;
+            ctx->dynamic_fb.attachments[i].clearValue.depthStencil.stencil = 0;
+         } else {
+            ctx->dynamic_fb.attachments[i].clearValue.color.float32[0] = 1.0;
+            ctx->dynamic_fb.attachments[i].clearValue.color.float32[1] = 0.0;
+            ctx->dynamic_fb.attachments[i].clearValue.color.float32[2] = 0.0;
+            ctx->dynamic_fb.attachments[i].clearValue.color.float32[3] = 1.0;
+         }
+      }
+      if (zap) {
+         VKCTX(CmdBeginRendering)(ctx->bs->cmdbuf, &ctx->dynamic_fb.info);
+         VKCTX(CmdEndRendering)(ctx->bs->cmdbuf);
+      }
+   }
    ctx->in_rp = false;
    for (unsigned i = 0; i < ctx->fb_state.nr_cbufs; i++)
       ctx->dynamic_fb.attachments[i].resolveImageView = VK_NULL_HANDLE;

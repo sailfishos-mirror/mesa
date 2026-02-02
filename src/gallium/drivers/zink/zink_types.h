@@ -257,6 +257,7 @@ enum zink_debug {
    ZINK_DEBUG_MSAAOPT = (1<<20),
    ZINK_DEBUG_RPLOADS = (1<<21),
    ZINK_DEBUG_NOGENERAL = (1<<22),
+   ZINK_DEBUG_RPSTORES = (1<<23),
 };
 
 enum zink_pv_emulation_primitive {
