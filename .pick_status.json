@@ -1,5 +1,475 @@
 [
     {
+        "sha": "693a3e1c50efa35f53be3cdfee92513b71fd78d3",
+        "description": "Revert \"ci: disable Collabora's farm due to maintenance\"",
+        "nominated": false,
+        "nomination_type": 3,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "353bc835b8b2203e272b38320f8aee03f78a8a2d",
+        "notes": null
+    },
+    {
+        "sha": "def66055ad18f0c72aef5d937f813335c8c1c3a3",
+        "description": "zink: track which stages a sampler gets bound to",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2093c448354b4444173fd34a58ca860637fe90c4",
+        "description": "zink: add an rpstores debug option",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "9c5e15e6f5b49a9882fe82d2aa9909ee20d84bdd",
+        "description": "r600: improve vs_as_ls switch reliability",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "25f96c1120f0675cc1b1680f7ba3121c9935b169",
+        "notes": null
+    },
+    {
+        "sha": "1f61b1c36744885c4a8642aa1d06675acc0b4d6a",
+        "description": "intel/brw: Add BRW_DEPENDENCY_INSTRUCTIONS invalidation when instructions are added or removed in brw_opt_split_virtual_grfs()",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "e49e4945a3a6f131039730e514126be28ab7e212",
+        "description": "docs/pvr: add drm-shim documentation",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ba104d3e923aeb14e4faf75db9c8a3e8313ecd48",
+        "description": "pvr: add support for drm-shim",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "1a0956440701960b6cc2bb91dde1ed6579b17d48",
+        "description": "pvr: rename PVR_HAS_ERN to PVR_HAS_ENHANCEMENT",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "449261b6bad3d2aff27831d0e7ebed0781f574e7",
+        "description": "meson: Restore .clang-format for ninja clang-format target",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "efe60d29408a2ce94ab8c1f9f273d633fd92c484",
+        "notes": null
+    },
+    {
+        "sha": "464daaab90e4d1f6ffcb16007f5b236665a8e9ff",
+        "description": "broadcom/ci: skip tests that causes GPU resets/hangs in RPi 3",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "1e2cbd2c290d0bd5e6dba32f92b8ec7002f91b20",
+        "description": "vulkan/runtime: Fix gnu-empty-initializer error in vk_pipeline.c",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "51966cc4525c0fcc41ac6e95f8dd6cb9cba2f6b2",
+        "notes": null
+    },
+    {
+        "sha": "184747e24000f15a1f084a9b67edfd0ff23ea5bf",
+        "description": "lavapipe/ci: Update Android CTS expectations",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0edb6483ee76b415ae1bcfe2a20f4d421fbd9060",
+        "description": "docs/pvr: some minor improvements",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "861e62e9a9ce827b4d1b74677be20913589938e5",
+        "description": "docs/pvr: fix some typos and wording",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "353bc835b8b2203e272b38320f8aee03f78a8a2d",
+        "description": "ci: disable Collabora's farm due to maintenance",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8cda43497b6d52ef4a9c9316602d983dbf818bab",
+        "description": "panvk: Support VK_KHR_present_id and present_wait",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "6e4902855f0e0fce75b741057139c78a5049f582",
+        "description": "panvk: Support VK_EXT_acquire_drm_display",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b15de1ed97bff9fc84fc52b6ea08595ebb7f1c00",
+        "description": "panvk: Support VK_KHR_get_display_properties2",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3abe9b24459af72c61eab0a392a333328aa19313",
+        "description": "panvk: Support VK_KHR_get_surface_capabilities2",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0e9d29f51850e96b8dc1fc0b299017f5958a9a9f",
+        "description": "nvk: Report additional host_image_copy layouts",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "d5df263ac91bb06b2f422a7e4a1806cd7a7de821",
+        "notes": null
+    },
+    {
+        "sha": "bdc084aae5a66512b3ecabd4f41101d6d4859d50",
+        "description": "nir/algebraic: make subexpression inexact on creation",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "293d2e3b0dbbe1c34a883b9af537429831d53f7e",
+        "description": "nir/algebraic: remove ability to create Value from Expression",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ad6f8291bffd68fd6435d8555712195b3d95ad86",
+        "description": "nir/opt_algebraic: rework ignore_exact to work like other internal conditions",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "a879b9a5d594837b064860cf12f7145deb5409a8",
+        "description": "nir/search: preserve nan/inf/sz if any alu in a replaced expression did",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "575affaf487fc23f3d3b98c0f714d1325c8a6fb1",
+        "description": "nir/search: gather union of all fp_math_ctrl",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3275be503c39d3f572cce8ed52fe648751041084",
+        "description": "radv/rt: Fix discardable attributes on chit and traversal shaders",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0d7705c2062af89bee09d0407f6941e6c54eb2d1",
+        "description": "radv/rt: Fix some tail-call compatibility checks",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ad23e02a2809c33693c358336dbc9459cbab831f",
+        "description": "aco: Don't exclude discardable parameters from register preservation",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "62254ab0be3ba29dbf6d5b60367ba2910532f405",
+        "description": "radv/rt: Refactor shader group stack size calculation to include traversal stack",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f234d15924dbc9724379a29cf02ee7796c76b598",
+        "description": "svga: Update ci failure expectations.",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b57885dbd577ead34c832e3ee182e727cf8dc0ef",
+        "description": "mediafoundation: remove published codecapi",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b755999108db6a7a868ed8ced1e5b272218f10f0",
+        "description": "mediafoundation: refactor update picture desc",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "5e4cdc21a97a276346f2553b50581b75947a4191",
+        "description": "zink/kopper: Allow surface creation for Pixmaps (non-window surfaces)",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8d7f14620b3bbe1d977dc1c272c02af463fb8f62",
+        "description": "nvk: Initialize SET_ALPHA_TO_COVERAGE_OVERRIDE",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "529c83a134a4ee64ea6615a62d0377b4c2445e5d",
+        "description": "vulkan: Limit the number of LBVH invocations",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "0817551f00bd38abba63188328af9cb8b96e0f20",
+        "notes": null
+    },
+    {
+        "sha": "d90fbdf4a5d8c47efd3d85fd03100259eae405b9",
+        "description": "rusticl/program: accept and ignore Intel's 4G memory flags",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b09be51a25a01fe740ea0adec66a2da05cc42d08",
+        "description": "rusticl/platform: add rusticl_warn_once macro",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "137e87204d759acccbff64e2984fc3169c411a1d",
+        "description": "include: synchronize OpenCL headers",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "e055f8d34bcbce40ce1cc2626eadba63ff760e06",
+        "description": "khronos-update: add Intel's OpenCL header",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "1a5bbb7519b7583444ed8bfcff6f87399ce4a614",
+        "description": "khronos-update: synchronize OpenCL header file list",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "e185f40fc3a12cd8bfbfe163ee87abb6b6586bb1",
+        "description": "tu: Handle VkDrmFormatModifierPropertiesList2EXT",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4b9536382c8cbff744df1ba7b17b54efaa4c4dd0",
+        "description": "util/u_trace: Fix usage of variable-sized strings in non-queued case",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "dc03f94e070900365cc1ad91437db178d4d40573",
+        "description": "clc: fix compile compatability with LLVM-22",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "24d20df3d6be4917d1d221246632279d06e8c61e",
+        "description": "nir: fix nir_fixup_is_exported for LLVM-22",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "6eda573a8aa03e75fe82668b9b7a57f67ece26fd",
+        "description": "clc: enable generic address space and seq_cst and device scope atomic features",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "01e139213946eb4d18edd80a818d2cba189b500e",
+        "description": "clc: support some atomic and generic address space features",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "7f9a7ed5533e2bbc759d667075cccec024490d04",
+        "description": "clc: reorder headers to fix compilation errors due to UNUSED",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
         "sha": "29e7a1fff9a1db14494fa64b6f38695b2a02a2d8",
         "description": "pan/decode/jm: IDVS decode improvements",
         "nominated": false,
