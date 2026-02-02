@@ -474,7 +474,7 @@
         "description": "anv: Don't set the display flag on WSI blit sources",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2c00b7d1e6ef86ce750228f7be79da377a5f53db",
         "notes": null

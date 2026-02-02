@@ -1868,6 +1868,10 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
    image->from_wsi = wsi_info != NULL;
    image->wsi_blit_src = wsi_info && wsi_info->blit_src;
 
+   /* Non-intermediate WSI images are displayable. */
+   if (wsi_info && !wsi_info->blit_src)
+      isl_extra_usage_flags |= ISL_SURF_USAGE_DISPLAY_BIT;
+
    /* The Vulkan 1.2.165 glossary says:
     *
     *    A disjoint image consists of multiple disjoint planes, and is created
@@ -1927,10 +1931,6 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
       anv_perf_warn(VK_LOG_OBJS(&image->vk.base), "Enable multi-LOD HiZ");
       isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
    }
-
-   /* Mark WSI images with the right surf usage. */
-   if (image->from_wsi)
-      isl_extra_usage_flags |= ISL_SURF_USAGE_DISPLAY_BIT;
 
    const VkImageFormatListCreateInfo *fmt_list =
       vk_find_struct_const(pCreateInfo->pNext,
