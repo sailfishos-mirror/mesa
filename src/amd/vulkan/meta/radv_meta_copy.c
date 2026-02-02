@@ -165,19 +165,23 @@ radv_fixup_copy_dst_htile_metadata(struct radv_cmd_buffer *cmd_buffer, struct ra
          radv_describe_barrier_end(cmd_buffer);
       }
    } else {
-      /* Fixup HTILE after a copy on compute. */
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE;
+      if (!is_partial_copy) {
+         /* Fixup HTILE after a copy on compute, but not for partial copies because decompressing the
+          * image also means that HTILE is re-initialized to its uncompressed state.
+          */
+         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE;
 
-      const VkImageSubresourceRange range = {
-         .aspectMask = subresource->aspectMask,
-         .baseMipLevel = subresource->mipLevel,
-         .levelCount = 1,
-         .baseArrayLayer = subresource->baseArrayLayer,
-         .layerCount = vk_image_subresource_layer_count(&image->vk, subresource),
-      };
-      const uint32_t htile_value = radv_get_htile_initial_value(device, image);
+         const VkImageSubresourceRange range = {
+            .aspectMask = subresource->aspectMask,
+            .baseMipLevel = subresource->mipLevel,
+            .levelCount = 1,
+            .baseArrayLayer = subresource->baseArrayLayer,
+            .layerCount = vk_image_subresource_layer_count(&image->vk, subresource),
+         };
+         const uint32_t htile_value = radv_get_htile_initial_value(device, image);
 
-      cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, &range, htile_value, false);
+         cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, &range, htile_value, false);
+      }
    }
 }
 
