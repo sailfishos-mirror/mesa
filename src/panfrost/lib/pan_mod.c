@@ -661,12 +661,20 @@ pan_mod_interleaved_64k_test_props(const struct pan_kmod_dev_props *dprops,
    if (iusage->wsi)
       return PAN_MOD_NOT_SUPPORTED;
 
-   if (iusage->standard_sparse_mapping_granularity)
-      return PAN_MOD_OPTIMAL;
+   struct pan_image_block_size tile_extent_el =
+      pan_interleaved_64k_tile_size_el(iprops->format);
+   struct pan_image_block_size tile_extent_px = {
+      tile_extent_el.width * util_format_get_blockwidth(iprops->format),
+      tile_extent_el.height * util_format_get_blockheight(iprops->format),
+   };
 
-   /* This layout doesn't offer perf benefits over plain U-interleaved but uses
-    * more memory. */
-   return PAN_MOD_NOT_OPTIMAL;
+   /* If our image is too thin it might make more sense to use U-interleaved or
+    * even linear */
+   if (iprops->extent_px.width < tile_extent_px.width / 2 ||
+       iprops->extent_px.height < tile_extent_px.height / 2)
+      return PAN_MOD_NOT_OPTIMAL;
+
+   return PAN_MOD_OPTIMAL;
 }
 
 #define pan_mod_interleaved_64k_emit_tex_payload_entry                                 \
