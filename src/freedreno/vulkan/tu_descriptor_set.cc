@@ -194,30 +194,6 @@ tu_CreateDescriptorSetLayout(
       set_layout->binding[b].dynamic_offset_offset = dynamic_offset_size;
       set_layout->binding[b].shader_stages = binding->stageFlags;
 
-      if (binding->descriptorType == VK_DESCRIPTOR_TYPE_MUTABLE_EXT) {
-         /* For mutable descriptor types we must allocate a size that fits the
-          * largest descriptor type that the binding can mutate to.
-          */
-         set_layout->binding[b].size =
-            mutable_descriptor_size(device, &mutable_info->pMutableDescriptorTypeLists[j]);
-      } else {
-         set_layout->binding[b].size =
-            descriptor_size(device, binding, binding->descriptorType);
-      }
-
-      if (binding->descriptorType == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK)
-         set_layout->has_inline_uniforms = true;
-
-      if (variable_flags && j < variable_flags->bindingCount &&
-          (variable_flags->pBindingFlags[j] &
-           VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)) {
-         assert(!binding->pImmutableSamplers); /* Terribly ill defined  how
-                                                  many samplers are valid */
-         assert(binding->binding == num_bindings - 1);
-
-         set_layout->has_variable_descriptors = true;
-      }
-
       if ((binding->descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
            binding->descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER) &&
           binding->pImmutableSamplers) {
@@ -250,6 +226,30 @@ tu_CreateDescriptorSetLayout(
          } else {
             set_layout->binding[b].ycbcr_samplers_offset = 0;
          }
+      }
+
+      if (binding->descriptorType == VK_DESCRIPTOR_TYPE_MUTABLE_EXT) {
+         /* For mutable descriptor types we must allocate a size that fits the
+          * largest descriptor type that the binding can mutate to.
+          */
+         set_layout->binding[b].size =
+            mutable_descriptor_size(device, &mutable_info->pMutableDescriptorTypeLists[j]);
+      } else {
+         set_layout->binding[b].size =
+            descriptor_size(device, binding, binding->descriptorType);
+      }
+
+      if (binding->descriptorType == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK)
+         set_layout->has_inline_uniforms = true;
+
+      if (variable_flags && j < variable_flags->bindingCount &&
+          (variable_flags->pBindingFlags[j] &
+           VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)) {
+         assert(!binding->pImmutableSamplers); /* Terribly ill defined  how
+                                                  many samplers are valid */
+         assert(binding->binding == num_bindings - 1);
+
+         set_layout->has_variable_descriptors = true;
       }
 
       uint32_t size =
