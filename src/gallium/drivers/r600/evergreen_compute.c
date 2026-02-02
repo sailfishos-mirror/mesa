@@ -346,7 +346,7 @@ static void compute_emit_cs(struct r600_context *rctx,
 	r600_need_cs_space(rctx, 0, true, global_atomic_count);
 
 	if (need_buf_const) {
-		eg_setup_buffer_constants(rctx, MESA_SHADER_COMPUTE);
+		rctx->setup_buffer_constants(rctx, MESA_SHADER_COMPUTE);
 	}
 	r600_update_driver_const_buffers(rctx, true);
 

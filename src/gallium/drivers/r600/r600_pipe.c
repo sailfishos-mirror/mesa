@@ -181,6 +181,7 @@ static struct pipe_context *r600_create_context(struct pipe_screen *screen,
 					   rctx->b.family == CHIP_RV710);
 
 		rctx->b.r600_pre_eg_cbzs = CALLOC_STRUCT(r600_pre_eg_cbzs);
+		rctx->setup_buffer_constants = r600_setup_buffer_constants;
 		break;
 	case EVERGREEN:
 	case CAYMAN:
@@ -201,6 +202,7 @@ static struct pipe_context *r600_create_context(struct pipe_screen *screen,
 
 		rctx->append_fence = pipe_buffer_create(rctx->b.b.screen, PIPE_BIND_CUSTOM,
 							 PIPE_USAGE_DEFAULT, 32);
+		rctx->setup_buffer_constants = r600_palm_to_aruba_setup_buffer_constants;
 		break;
 	default:
 		R600_ERR("Unsupported gfx level %d.\n", rctx->b.gfx_level);

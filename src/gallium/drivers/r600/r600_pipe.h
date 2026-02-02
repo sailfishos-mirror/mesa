@@ -612,6 +612,8 @@ struct r600_context {
 
 	struct r600_scratch_buffer scratch_buffers[MAX2(R600_NUM_HW_STAGES, EG_NUM_HW_STAGES)];
 
+	void (*setup_buffer_constants)(struct r600_context *rctx, int shader_type);
+
 	/* Debug state. */
 	bool			is_debug;
 	struct radeon_saved_cs	last_gfx;
@@ -1121,6 +1123,7 @@ void evergreen_emit_atomic_buffer_save(struct r600_context *rctx,
 				       const unsigned global_atomic_count);
 void r600_update_compressed_resource_state(struct r600_context *rctx, bool compute_only);
 
-void eg_setup_buffer_constants(struct r600_context *rctx, int shader_type);
+void r600_palm_to_aruba_setup_buffer_constants(struct r600_context *rctx, int shader_type);
+void r600_setup_buffer_constants(struct r600_context *rctx, int shader_type);
 void r600_update_driver_const_buffers(struct r600_context *rctx, bool compute_only);
 #endif

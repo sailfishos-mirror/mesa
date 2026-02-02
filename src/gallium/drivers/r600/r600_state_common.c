@@ -1429,7 +1429,7 @@ static void *r600_alloc_buf_consts(struct r600_context *rctx, int shader_type,
  * We use a 6th constant to store the txq buffer size in
  * we use 7th slot for number of cube layers in a cube map array.
  */
-static void r600_setup_buffer_constants(struct r600_context *rctx, int shader_type)
+void r600_setup_buffer_constants(struct r600_context *rctx, int shader_type)
 {
 	struct r600_textures_info *samplers = &rctx->samplers[shader_type];
 	int bits;
@@ -1480,7 +1480,7 @@ static void r600_setup_buffer_constants(struct r600_context *rctx, int shader_ty
 /* On evergreen we store one value
  * 1. number of cube layers in a cube map array.
  */
-void eg_setup_buffer_constants(struct r600_context *rctx, int shader_type)
+void r600_palm_to_aruba_setup_buffer_constants(struct r600_context *rctx, int shader_type)
 {
 	struct r600_textures_info *samplers = &rctx->samplers[shader_type];
 	struct r600_image_state *images = NULL;
@@ -1994,30 +1994,21 @@ static bool r600_update_derived_state(struct r600_context *rctx)
 	if (rctx->ps_shader) {
 		need_buf_const = rctx->ps_shader->current->shader.uses_tex_buffers || rctx->ps_shader->current->shader.has_txq_cube_array_z_comp;
 		if (need_buf_const) {
-			if (rctx->b.gfx_level < EVERGREEN)
-				r600_setup_buffer_constants(rctx, MESA_SHADER_FRAGMENT);
-			else
-				eg_setup_buffer_constants(rctx, MESA_SHADER_FRAGMENT);
+			rctx->setup_buffer_constants(rctx, MESA_SHADER_FRAGMENT);
 		}
 	}
 
 	if (rctx->vs_shader) {
 		need_buf_const = rctx->vs_shader->current->shader.uses_tex_buffers || rctx->vs_shader->current->shader.has_txq_cube_array_z_comp;
 		if (need_buf_const) {
-			if (rctx->b.gfx_level < EVERGREEN)
-				r600_setup_buffer_constants(rctx, MESA_SHADER_VERTEX);
-			else
-				eg_setup_buffer_constants(rctx, MESA_SHADER_VERTEX);
+			rctx->setup_buffer_constants(rctx, MESA_SHADER_VERTEX);
 		}
 	}
 
 	if (rctx->gs_shader) {
 		need_buf_const = rctx->gs_shader->current->shader.uses_tex_buffers || rctx->gs_shader->current->shader.has_txq_cube_array_z_comp;
 		if (need_buf_const) {
-			if (rctx->b.gfx_level < EVERGREEN)
-				r600_setup_buffer_constants(rctx, MESA_SHADER_GEOMETRY);
-			else
-				eg_setup_buffer_constants(rctx, MESA_SHADER_GEOMETRY);
+			rctx->setup_buffer_constants(rctx, MESA_SHADER_GEOMETRY);
 		}
 	}
 
@@ -2026,13 +2017,13 @@ static bool r600_update_derived_state(struct r600_context *rctx)
 		need_buf_const = rctx->tes_shader->current->shader.uses_tex_buffers ||
 				 rctx->tes_shader->current->shader.has_txq_cube_array_z_comp;
 		if (need_buf_const) {
-			eg_setup_buffer_constants(rctx, MESA_SHADER_TESS_EVAL);
+			rctx->setup_buffer_constants(rctx, MESA_SHADER_TESS_EVAL);
 		}
 		if (rctx->tcs_shader) {
 			need_buf_const = rctx->tcs_shader->current->shader.uses_tex_buffers ||
 					 rctx->tcs_shader->current->shader.has_txq_cube_array_z_comp;
 			if (need_buf_const) {
-				eg_setup_buffer_constants(rctx, MESA_SHADER_TESS_CTRL);
+				rctx->setup_buffer_constants(rctx, MESA_SHADER_TESS_CTRL);
 			}
 		}
 	}
