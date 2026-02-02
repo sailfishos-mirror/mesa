@@ -1888,9 +1888,10 @@ nir_visitor::visit(ir_assignment *ir)
    unsigned num_components = ir->lhs->type->vector_elements;
    unsigned write_mask = ir->write_mask;
 
-   b.fp_math_ctrl = ir->lhs->variable_referenced()->data.invariant ||
-                    ir->lhs->variable_referenced()->data.precise ?
-                       nir_fp_exact : nir_fp_fast_math;
+   bool exact = ir->lhs->variable_referenced()->data.invariant ||
+                  ir->lhs->variable_referenced()->data.precise;
+   b.fp_math_ctrl = exact ? nir_fp_exact | nir_fp_preserve_nan | nir_fp_preserve_inf
+                          : nir_fp_fast_math;
 
    if ((ir->rhs->as_dereference() || ir->rhs->as_constant()) &&
        (write_mask == BITFIELD_MASK(num_components) || write_mask == 0)) {
