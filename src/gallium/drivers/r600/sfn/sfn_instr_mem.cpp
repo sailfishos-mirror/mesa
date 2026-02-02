@@ -937,8 +937,6 @@ RatInstr::emit_image_load_or_atomic(nir_intrinsic_instr *intrin, Shader& shader)
    return true;
 }
 
-#define R600_SHADER_BUFFER_INFO_SEL (512 + R600_BUFFER_INFO_OFFSET / 16)
-
 bool
 RatInstr::emit_image_size(nir_intrinsic_instr *intrin, Shader& shader)
 {

@@ -603,7 +603,7 @@ TexInstr::emit_buf_txf(nir_tex_instr *tex, Inputs& src, Shader& shader)
 
    if (shader.chip_class() < ISA_CC_EVERGREEN) {
       auto tmp_w = vf.temp_register();
-      int buf_sel = (512 + R600_BUFFER_INFO_OFFSET / 16) + 2 * tex->texture_index;
+      int buf_sel = R600_SHADER_BUFFER_INFO_SEL + 2 * tex->texture_index;
       AluInstr *ir = nullptr;
       for (int i = 0; i < 4; ++i) {
          auto d = i < 3 ? dst[i] : tmp_w;
@@ -658,7 +658,7 @@ TexInstr::emit_tex_txs(nir_tex_instr *tex,
          shader.emit_instruction(new QueryBufferSizeInstr(
             dest, {0, 7, 7, 7}, tex->texture_index + R600_MAX_CONST_BUFFERS));
       } else {
-         int id = 2 * tex->texture_index + (512 + R600_BUFFER_INFO_OFFSET / 16) + 1;
+         int id = 2 * tex->texture_index + R600_SHADER_BUFFER_INFO_SEL + 1;
          auto src = vf.uniform(id, 1, R600_BUFFER_INFO_CONST_BUFFER);
          shader.emit_instruction(new AluInstr(op1_mov, dest[0], src, AluInstr::write));
          shader.set_flag(Shader::sh_uses_tex_buffer);
@@ -684,9 +684,10 @@ TexInstr::emit_tex_txs(nir_tex_instr *tex,
       shader.emit_instruction(ir);
 
       if (tex->is_array && tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE) {
-         auto src_loc = vf.uniform(512 + R600_BUFFER_INFO_OFFSET / 16 + (tex->texture_index >> 2),
-                                   tex->texture_index & 3,
-                                   R600_BUFFER_INFO_CONST_BUFFER);
+         auto src_loc =
+            vf.uniform(R600_SHADER_BUFFER_INFO_SEL + (tex->texture_index >> 2),
+                       tex->texture_index & 3,
+                       R600_BUFFER_INFO_CONST_BUFFER);
 
          auto alu = new AluInstr(op1_mov, dest[2], src_loc, AluInstr::write);
          shader.emit_instruction(alu);
