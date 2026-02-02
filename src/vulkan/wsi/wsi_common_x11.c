@@ -2400,13 +2400,20 @@ wsi_x11_get_dri3_modifiers(struct wsi_x11_connection *wsi_conn,
 out:
    *num_tranches_in = 0;
 }
+
+static bool
+use_modifiers(const struct wsi_device *wsi_device)
+{
+   return wsi_device->supports_modifiers && !wsi_device->x11.ignore_suboptimal;
+}
+
 #ifdef HAVE_X11_DRM
 static bool
 wsi_x11_swapchain_query_dri3_modifiers_changed(struct x11_swapchain *chain)
 {
    const struct wsi_device *wsi_device = chain->base.wsi;
 
-   if (wsi_device->sw || !wsi_device->supports_modifiers)
+   if (wsi_device->sw || !use_modifiers(wsi_device))
       return false;
 
    struct wsi_drm_image_params drm_image_params;
@@ -2714,7 +2721,7 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
             false,
 #endif
       };
-      if (wsi_device->supports_modifiers) {
+      if (use_modifiers(wsi_device)) {
          wsi_x11_get_dri3_modifiers(wsi_conn, conn, window, bit_depth, 32,
                                     modifiers, num_modifiers,
                                     &drm_image_params.num_modifier_lists,
