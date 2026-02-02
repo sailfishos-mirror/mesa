@@ -85,7 +85,7 @@ struct r600_shader {
 	bool			vs_out_layer;
 	bool			vs_out_viewport;
 	bool			vs_out_edgeflag;
-	bool			has_txq_cube_array_z_comp;
+	bool			has_resinfo_via_uniform;
 	bool			uses_tex_buffers;
 	bool                 gs_prim_id_input;
 	bool                 gs_tri_strip_adj_fix;

@@ -974,7 +974,7 @@ RatInstr::emit_image_size(nir_intrinsic_instr *intrin, Shader& shader)
                                               res_id,
                                               dyn_offset));
 
-         shader.set_flag(Shader::sh_txs_cube_array_comp);
+         shader.set_flag(Shader::sh_resinfo_via_uniform);
 
          if (const_offset) {
             unsigned lookup_resid = (res_id - R600_IMAGE_REAL_RESOURCE_OFFSET) +

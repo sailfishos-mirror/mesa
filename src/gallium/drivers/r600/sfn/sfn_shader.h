@@ -219,7 +219,7 @@ public:
       sh_uses_images,
       sh_uses_tex_buffer,
       sh_writes_memory,
-      sh_txs_cube_array_comp,
+      sh_resinfo_via_uniform,
       sh_indirect_atomic,
       sh_mem_barrier,
       sh_legacy_math_rules,

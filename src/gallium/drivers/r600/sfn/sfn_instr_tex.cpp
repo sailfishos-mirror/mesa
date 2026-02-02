@@ -691,7 +691,7 @@ TexInstr::emit_tex_txs(nir_tex_instr *tex,
 
          auto alu = new AluInstr(op1_mov, dest[2], src_loc, AluInstr::write);
          shader.emit_instruction(alu);
-         shader.set_flag(Shader::sh_txs_cube_array_comp);
+         shader.set_flag(Shader::sh_resinfo_via_uniform);
       }
    }
 

@@ -1992,21 +1992,21 @@ static bool r600_update_derived_state(struct r600_context *rctx)
 	/* on R600 we stuff masks + txq info into one constant buffer */
 	/* on evergreen we only need a txq info one */
 	if (rctx->ps_shader) {
-		need_buf_const = rctx->ps_shader->current->shader.uses_tex_buffers || rctx->ps_shader->current->shader.has_txq_cube_array_z_comp;
+		need_buf_const = rctx->ps_shader->current->shader.uses_tex_buffers || rctx->ps_shader->current->shader.has_resinfo_via_uniform;
 		if (need_buf_const) {
 			rctx->setup_buffer_constants(rctx, MESA_SHADER_FRAGMENT);
 		}
 	}
 
 	if (rctx->vs_shader) {
-		need_buf_const = rctx->vs_shader->current->shader.uses_tex_buffers || rctx->vs_shader->current->shader.has_txq_cube_array_z_comp;
+		need_buf_const = rctx->vs_shader->current->shader.uses_tex_buffers || rctx->vs_shader->current->shader.has_resinfo_via_uniform;
 		if (need_buf_const) {
 			rctx->setup_buffer_constants(rctx, MESA_SHADER_VERTEX);
 		}
 	}
 
 	if (rctx->gs_shader) {
-		need_buf_const = rctx->gs_shader->current->shader.uses_tex_buffers || rctx->gs_shader->current->shader.has_txq_cube_array_z_comp;
+		need_buf_const = rctx->gs_shader->current->shader.uses_tex_buffers || rctx->gs_shader->current->shader.has_resinfo_via_uniform;
 		if (need_buf_const) {
 			rctx->setup_buffer_constants(rctx, MESA_SHADER_GEOMETRY);
 		}
@@ -2015,13 +2015,13 @@ static bool r600_update_derived_state(struct r600_context *rctx)
 	if (rctx->tes_shader) {
 		assert(rctx->b.gfx_level >= EVERGREEN);
 		need_buf_const = rctx->tes_shader->current->shader.uses_tex_buffers ||
-				 rctx->tes_shader->current->shader.has_txq_cube_array_z_comp;
+				 rctx->tes_shader->current->shader.has_resinfo_via_uniform;
 		if (need_buf_const) {
 			rctx->setup_buffer_constants(rctx, MESA_SHADER_TESS_EVAL);
 		}
 		if (rctx->tcs_shader) {
 			need_buf_const = rctx->tcs_shader->current->shader.uses_tex_buffers ||
-					 rctx->tcs_shader->current->shader.has_txq_cube_array_z_comp;
+					 rctx->tcs_shader->current->shader.has_resinfo_via_uniform;
 			if (need_buf_const) {
 				rctx->setup_buffer_constants(rctx, MESA_SHADER_TESS_CTRL);
 			}
