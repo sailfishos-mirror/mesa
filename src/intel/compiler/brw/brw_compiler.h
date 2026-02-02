@@ -138,6 +138,13 @@ struct brw_compiler {
     */
    uint32_t num_lowered_storage_formats;
    uint32_t *lowered_storage_formats;
+
+   /**
+    * Debug flag for forcing minimum number of threads per EU for shader.
+    * Can optionally only apply to shaders matching source hash.
+    */
+   uint32_t threads_per_eu_min;
+   uint64_t threads_per_eu_srchash;
 };
 
 #define brw_shader_debug_log(compiler, data, fmt, ... ) do {    \
@@ -1516,6 +1523,8 @@ brw_compute_sbe_per_primitive_urb_read(uint64_t inputs_read,
 
 #define BRW_TASK_MESH_PUSH_CONSTANTS_SIZE_DW \
    (BRW_TASK_MESH_INLINE_DATA_SIZE_DW - BRW_TASK_MESH_PUSH_CONSTANTS_START_DW)
+
+#define BRW_SRCHASH_EMPTY (uint64_t)-1
 
 /**
  * This enum is used as the base indice of the nir_load_topology_id_intel

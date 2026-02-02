@@ -25,6 +25,15 @@ assign_reg(const struct intel_device_info *devinfo,
    }
 }
 
+static uint32_t
+debug_vrt_max_reg_count(struct brw_compiler *compiler, int debug)
+{
+   if (unlikely(debug)) {
+      return ROUND_DOWN_TO(XE3_MAX_GRF * 2 / compiler->threads_per_eu_min, 32);
+   }
+   return -1;
+}
+
 void
 brw_assign_regs_trivial(brw_shader &s)
 {
@@ -63,9 +72,10 @@ extern "C" void
 brw_alloc_reg_sets(struct brw_compiler *compiler, int debug)
 {
    const struct intel_device_info *devinfo = compiler->devinfo;
-   int base_reg_count = (devinfo->ver >= 30 && debug == 0 && !INTEL_DEBUG(DEBUG_NO_VRT) ?
-                         XE3_MAX_GRF / reg_unit(devinfo) :
-                         BRW_MAX_GRF);
+   int base_reg_count = (devinfo->ver < 30 || INTEL_DEBUG(DEBUG_NO_VRT)) ?
+                        BRW_MAX_GRF :
+                        MIN2(XE3_MAX_GRF / reg_unit(devinfo),
+                             debug_vrt_max_reg_count(compiler, debug));
 
    /* The registers used to make up almost all values handled in the compiler
     * are a scalar value occupying a single register (or 2 registers in the
@@ -264,7 +274,22 @@ public:
       spill_vgrf_ip = NULL;
       spill_vgrf_ip_alloc = 0;
       spill_node_count = 0;
-      debug_limit_registers = 0;
+      debug_limit_registers =
+         compiler->threads_per_eu_min != (uint32_t)-1 &&
+         (compiler->threads_per_eu_srchash == BRW_SRCHASH_EMPTY ||
+          compiler->threads_per_eu_srchash == fs->prog_data->source_hash);
+      if (unlikely(debug_limit_registers)) {
+         if (compiler->threads_per_eu_min < 4 ||
+             compiler->threads_per_eu_min > 10) {
+            fprintf(stderr, "INTEL_THREADS_PER_EU_MIN = %u is outside valid "
+                    "range [4, 10]. Ignoring\n", compiler->threads_per_eu_min);
+            debug_limit_registers = false;
+         } else {
+            fprintf(stderr,
+                    "INTEL_THREADS_PER_EU: min=%u for src_hash=0x%" PRIx64 "\n",
+                    compiler->threads_per_eu_min, fs->prog_data->source_hash);
+         }
+      }
 
       /* Manually managed scratch space (e.g. NIR scratch) is not used for
        * spilling.
