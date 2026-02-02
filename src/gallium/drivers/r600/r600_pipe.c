@@ -202,7 +202,9 @@ static struct pipe_context *r600_create_context(struct pipe_screen *screen,
 
 		rctx->append_fence = pipe_buffer_create(rctx->b.b.screen, PIPE_BIND_CUSTOM,
 							 PIPE_USAGE_DEFAULT, 32);
-		rctx->setup_buffer_constants = r600_palm_to_aruba_setup_buffer_constants;
+		rctx->setup_buffer_constants = rctx->b.family >= CHIP_PALM ?
+		                               r600_palm_to_aruba_setup_buffer_constants :
+		                               r600_cedar_to_hemlock_setup_buffer_constants;
 		break;
 	default:
 		R600_ERR("Unsupported gfx level %d.\n", rctx->b.gfx_level);

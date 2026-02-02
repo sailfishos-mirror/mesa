@@ -1477,7 +1477,7 @@ void r600_setup_buffer_constants(struct r600_context *rctx, int shader_type)
 
 }
 
-/* On evergreen we store one value
+/* On palm to aruba we store one value
  * 1. number of cube layers in a cube map array.
  */
 void r600_palm_to_aruba_setup_buffer_constants(struct r600_context *rctx, int shader_type)
@@ -1527,6 +1527,84 @@ void r600_palm_to_aruba_setup_buffer_constants(struct r600_context *rctx, int sh
 				uint32_t offset = (base_offset / 4) + i;
 				constants[offset] = (G_038014_LAST_ARRAY(images->views[idx].resource_words[5]) -
 						     G_038014_BASE_ARRAY(images->views[idx].resource_words[5]) + 1) / 6;
+			}
+		}
+	}
+}
+
+
+/* On cedar to hemlock we store two values using the same location
+ * 1. number of cube layers in a cube map array.
+ * 2. buffer size
+ */
+void r600_cedar_to_hemlock_setup_buffer_constants(struct r600_context *rctx, int shader_type)
+{
+	struct r600_textures_info *const samplers = &rctx->samplers[shader_type];
+	struct r600_image_state *images = NULL;
+	struct r600_image_state *buffers = NULL;
+
+	if (shader_type == MESA_SHADER_FRAGMENT) {
+		images = &rctx->fragment_images;
+		buffers = &rctx->fragment_buffers;
+	} else if (shader_type == MESA_SHADER_COMPUTE) {
+		images = &rctx->compute_images;
+		buffers = &rctx->compute_buffers;
+	}
+
+	if (!samplers->views.dirty_buffer_constants &&
+	    !(images && images->dirty_buffer_constants) &&
+	    !(buffers && buffers->dirty_buffer_constants))
+		return;
+
+	if (images)
+		images->dirty_buffer_constants = false;
+	if (buffers)
+		buffers->dirty_buffer_constants = false;
+	samplers->views.dirty_buffer_constants = false;
+
+	const unsigned sview_bits = util_last_bit(samplers->views.enabled_mask);
+	unsigned bits = sview_bits;
+	if (images)
+		bits += util_last_bit(images->enabled_mask);
+	const unsigned img_bits = bits;
+	if (buffers)
+		bits += util_last_bit(buffers->enabled_mask);
+
+	const uint32_t array_size = bits * sizeof(uint32_t);
+	uint32_t base_offset;
+	uint32_t *const constants = r600_alloc_buf_consts(rctx, shader_type, array_size,
+							  &base_offset);
+
+	for (unsigned i = 0; i < sview_bits; i++) {
+		if (samplers->views.enabled_mask & (1 << i)) {
+			uint32_t offset = (base_offset / 4) + i;
+			if (samplers->views.views[i]->tex_resource->b.b.target == PIPE_BUFFER) {
+				constants[offset] = samplers->views.views[i]->tex_resource_words[4];
+			} else {
+				constants[offset] = samplers->views.views[i]->base.texture->array_size / 6;
+			}
+		}
+	}
+	if (images) {
+		for (unsigned i = sview_bits; i < img_bits; i++) {
+			int idx = i - sview_bits;
+			if (images->enabled_mask & (1 << idx)) {
+				uint32_t offset = (base_offset / 4) + i;
+				if (images->views[idx].base.resource->target == PIPE_BUFFER) {
+					constants[offset] = images->views[idx].resource_words[4];
+				} else {
+					constants[offset] = (G_038014_LAST_ARRAY(images->views[idx].resource_words[5]) -
+							     G_038014_BASE_ARRAY(images->views[idx].resource_words[5]) + 1) / 6;
+				}
+			}
+		}
+	}
+	if (buffers) {
+		for (unsigned i = img_bits; i < bits; i++) {
+			int idx = i - img_bits;
+			if (buffers->enabled_mask & (1 << idx)) {
+				uint32_t offset = (base_offset / 4) + i;
+				constants[offset] = buffers->views[idx].resource_words[4];
 			}
 		}
 	}

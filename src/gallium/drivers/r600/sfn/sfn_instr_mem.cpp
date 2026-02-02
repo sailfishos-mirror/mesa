@@ -797,7 +797,19 @@ RatInstr::emit_ssbo_size(nir_intrinsic_instr *intr, Shader& shader)
    else
       assert(0 && "dynamic buffer offset not supported in buffer_size");
 
-   shader.emit_instruction(new QueryBufferSizeInstr(dest, {0, 1, 2, 3}, res_id));
+   if (shader.chip_family() >= CHIP_PALM) {
+      shader.emit_instruction(new QueryBufferSizeInstr(dest, {0, 1, 2, 3}, res_id));
+   } else {
+      const unsigned index = res_id - R600_IMAGE_REAL_RESOURCE_OFFSET;
+      shader.set_flag(Shader::sh_resinfo_via_uniform);
+      shader.emit_instruction(new AluInstr(op1_mov,
+                                           dest[0],
+                                           vf.uniform(index / 4 +
+                                                         R600_SHADER_BUFFER_INFO_SEL,
+                                                      index % 4,
+                                                      R600_BUFFER_INFO_CONST_BUFFER),
+                                           AluInstr::write));
+   }
    return true;
 }
 
@@ -957,7 +969,24 @@ RatInstr::emit_image_size(nir_intrinsic_instr *intrin, Shader& shader)
 
    if (nir_intrinsic_image_dim(intrin) == GLSL_SAMPLER_DIM_BUF) {
       auto dest = vf.dest_vec4(intrin->def, pin_group);
-      shader.emit_instruction(new QueryBufferSizeInstr(dest, {0, 1, 2, 3}, res_id));
+      if (shader.chip_family() >= CHIP_PALM) {
+         shader.emit_instruction(new QueryBufferSizeInstr(dest, {0, 1, 2, 3}, res_id));
+      } else {
+         if (const_offset) {
+            shader.set_flag(Shader::sh_resinfo_via_uniform);
+            unsigned lookup_resid = (res_id - R600_IMAGE_REAL_RESOURCE_OFFSET) +
+                                    shader.image_size_const_offset();
+            shader.emit_instruction(
+               new AluInstr(op1_mov,
+                            dest[0],
+                            vf.uniform(lookup_resid / 4 + R600_SHADER_BUFFER_INFO_SEL,
+                                       lookup_resid % 4,
+                                       R600_BUFFER_INFO_CONST_BUFFER),
+                            AluInstr::write));
+         } else {
+            assert(0);
+         }
+      }
       return true;
    } else {
 

@@ -654,14 +654,25 @@ TexInstr::emit_tex_txs(nir_tex_instr *tex,
    auto dest = vf.dest_vec4(tex->def, pin_group);
 
    if (tex->sampler_dim == GLSL_SAMPLER_DIM_BUF) {
-      if (shader.chip_class() >= ISA_CC_EVERGREEN) {
-         shader.emit_instruction(new QueryBufferSizeInstr(
-            dest, {0, 7, 7, 7}, tex->texture_index + R600_MAX_CONST_BUFFERS));
-      } else {
+      if (shader.chip_family() >= CHIP_PALM) {
+         shader.emit_instruction(new QueryBufferSizeInstr(dest,
+                                                          {0, 7, 7, 7},
+                                                          tex->texture_index +
+                                                             R600_MAX_CONST_BUFFERS));
+      } else if (shader.chip_family() < CHIP_CEDAR) {
          int id = 2 * tex->texture_index + R600_SHADER_BUFFER_INFO_SEL + 1;
          auto src = vf.uniform(id, 1, R600_BUFFER_INFO_CONST_BUFFER);
          shader.emit_instruction(new AluInstr(op1_mov, dest[0], src, AluInstr::write));
          shader.set_flag(Shader::sh_uses_tex_buffer);
+      } else {
+         shader.set_flag(Shader::sh_resinfo_via_uniform);
+         shader.emit_instruction(new AluInstr(op1_mov,
+                                              dest[0],
+                                              vf.uniform(tex->texture_index / 4 +
+                                                            R600_SHADER_BUFFER_INFO_SEL,
+                                                         tex->texture_index % 4,
+                                                         R600_BUFFER_INFO_CONST_BUFFER),
+                                              AluInstr::write));
       }
    } else {
 

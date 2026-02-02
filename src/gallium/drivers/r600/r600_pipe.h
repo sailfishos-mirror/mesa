@@ -1124,6 +1124,7 @@ void evergreen_emit_atomic_buffer_save(struct r600_context *rctx,
 void r600_update_compressed_resource_state(struct r600_context *rctx, bool compute_only);
 
 void r600_palm_to_aruba_setup_buffer_constants(struct r600_context *rctx, int shader_type);
+void r600_cedar_to_hemlock_setup_buffer_constants(struct r600_context *rctx, int shader_type);
 void r600_setup_buffer_constants(struct r600_context *rctx, int shader_type);
 void r600_update_driver_const_buffers(struct r600_context *rctx, bool compute_only);
 #endif

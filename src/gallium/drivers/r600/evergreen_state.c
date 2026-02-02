@@ -4551,6 +4551,7 @@ static void evergreen_set_shader_buffers(struct pipe_context *ctx,
 	}
 
 	istate->atom.num_dw = util_bitcount(istate->enabled_mask) * 46;
+	istate->dirty_buffer_constants = true;
 
 	if (old_mask != istate->enabled_mask)
 		r600_mark_atom_dirty(rctx, &rctx->cb_state.atom);
