@@ -2471,19 +2471,24 @@ nir_visitor::visit(ir_expression *ir)
          result = nir_uge(&b, srcs[0], srcs[1]);
       break;
    case ir_binop_equal:
-      if (type_is_float(types[0]))
+      if (type_is_float(types[0])) {
+         b.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
          result = nir_feq(&b, srcs[0], srcs[1]);
-      else
+      } else {
          result = nir_ieq(&b, srcs[0], srcs[1]);
+      }
       break;
    case ir_binop_nequal:
-      if (type_is_float(types[0]))
+      if (type_is_float(types[0])) {
+         b.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
          result = nir_fneu(&b, srcs[0], srcs[1]);
-      else
+      } else {
          result = nir_ine(&b, srcs[0], srcs[1]);
+      }
       break;
    case ir_binop_all_equal:
       if (type_is_float(types[0])) {
+         b.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
          switch (ir->operands[0]->type->vector_elements) {
             case 1: result = nir_feq(&b, srcs[0], srcs[1]); break;
             case 2: result = nir_ball_fequal2(&b, srcs[0], srcs[1]); break;
@@ -2505,6 +2510,7 @@ nir_visitor::visit(ir_expression *ir)
       break;
    case ir_binop_any_nequal:
       if (type_is_float(types[0])) {
+         b.fp_math_ctrl |= nir_fp_preserve_nan | nir_fp_preserve_inf;
          switch (ir->operands[0]->type->vector_elements) {
             case 1: result = nir_fneu(&b, srcs[0], srcs[1]); break;
             case 2: result = nir_bany_fnequal2(&b, srcs[0], srcs[1]); break;
