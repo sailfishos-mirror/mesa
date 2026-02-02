@@ -191,6 +191,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_vertex_input_dynamic_state = true,
       .EXT_ycbcr_2plane_444_formats = PAN_ARCH >= 10,
       .EXT_ycbcr_image_arrays = PAN_ARCH >= 10,
+      .EXT_zero_initialize_device_memory = true,
       .EXT_inline_uniform_block = true,
       .ANDROID_external_memory_android_hardware_buffer = has_gralloc,
       .ANDROID_native_buffer = has_gralloc,
@@ -539,6 +540,9 @@ panvk_per_arch(get_physical_device_features)(
       .unifiedImageLayouts = true,
       /* Video is not currently supported, so set to false */
       .unifiedImageLayoutsVideo = false,
+
+      /* VK_EXT_zero_initialize_device_memory */
+      .zeroInitializeDeviceMemory = true,
 
       /* VK_EXT_mutable_descriptor_type */
       .mutableDescriptorType = PAN_ARCH >= 9,
@@ -1147,6 +1151,7 @@ panvk_per_arch(get_physical_device_properties)(
       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
       VK_IMAGE_LAYOUT_PREINITIALIZED,
+      VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT,
 
       /* Only if vk1.1+ is supported */
 #if PAN_ARCH >= 10
