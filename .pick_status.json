@@ -924,7 +924,7 @@
         "description": "radeonsi: fix mesh shader outputs kill",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e6e21dfbf23b863079c6d63e1b39497867a5f5ca",
         "notes": null
