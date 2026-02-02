@@ -454,7 +454,7 @@ lower_cmat_reduce_finish_call(nir_builder *b, nir_cmat_call_instr *call)
 
    assert(src_desc.use == GLSL_CMAT_USE_ACCUMULATOR);
 
-   nir_def *comps[NIR_MAX_VEC_COMPONENTS] = {};
+   nir_def *comps[NIR_MAX_VEC_COMPONENTS] = {0};
 
    if (reduce & NIR_CMAT_REDUCE_COLUMN) {
       nir_variable *col_tmp = nir_local_variable_create(b->impl, glsl_get_bare_type(fnptr->params[0].type), "col_tmp");
@@ -503,7 +503,7 @@ lower_cmat_reduce_call(nir_builder *b, nir_cmat_call_instr *call)
 
    assert(src_desc.use == GLSL_CMAT_USE_ACCUMULATOR);
 
-   nir_def *comps[NIR_MAX_VEC_COMPONENTS] = {};
+   nir_def *comps[NIR_MAX_VEC_COMPONENTS] = {0};
    for (unsigned i = 0; i < CMAT_LEN; ++i) {
       comps[i] = nir_channel(b, src, i);
    }
