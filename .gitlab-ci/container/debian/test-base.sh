@@ -11,7 +11,7 @@ set -e
 
 set -o xtrace
 
-uncollapsed_section_start debian_setup "Base Debian system setup"
+section_start debian_setup "Base Debian system setup"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -242,7 +242,7 @@ fi
 
 ############### Uninstall the build software
 
-uncollapsed_section_switch debian_cleanup "Cleaning up base Debian system"
+section_switch debian_cleanup "Cleaning up base Debian system"
 
 apt-get purge -y "${EPHEMERAL[@]}"
 

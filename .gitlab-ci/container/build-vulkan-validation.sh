@@ -6,7 +6,7 @@
 
 set -uex
 
-uncollapsed_section_start vulkan-validation "Building Vulkan validation layers"
+section_start vulkan-validation "Building Vulkan validation layers"
 
 VALIDATION_TAG="snapshot-2026wk06"
 

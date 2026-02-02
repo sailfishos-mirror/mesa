@@ -3,7 +3,7 @@
 
 set -uex
 
-uncollapsed_section_start wayland "Building Wayland"
+section_start wayland "Building Wayland"
 
 # When changing this file, you need to bump the following
 # .gitlab-ci/image-tags.yml tags:

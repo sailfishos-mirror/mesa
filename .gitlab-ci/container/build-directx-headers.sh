@@ -7,7 +7,7 @@
 
 set -uex
 
-uncollapsed_section_start directx-headers "Building directx-headers"
+section_start directx-headers "Building directx-headers"
 
 git clone https://github.com/microsoft/DirectX-Headers -b v1.618.1 --depth 1
 pushd DirectX-Headers
