@@ -1104,7 +1104,7 @@
         "description": "radv/bvh: Prefer selecting quads as the first pair of a HW node",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c18a7d0e2b639659f97c29d54268e3d800ac5d5f",
         "notes": null
