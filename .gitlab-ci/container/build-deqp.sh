@@ -107,7 +107,18 @@ git checkout FETCH_HEAD
 DEQP_COMMIT=$(git rev-parse FETCH_HEAD)
 
 if [ "$DEQP_VERSION" = "$DEQP_MAIN_COMMIT" ]; then
-  merge_base="$(curl-with-retry -s https://api.github.com/repos/KhronosGroup/VK-GL-CTS/compare/main...$DEQP_MAIN_COMMIT | jq -r .merge_base_commit.sha)"
+  for i in {5..1}; do
+    if merge_base=$(curl-with-retry -s https://api.github.com/repos/KhronosGroup/VK-GL-CTS/compare/main...$DEQP_MAIN_COMMIT | jq -e -r .merge_base_commit.sha); then
+      break
+    fi
+
+    if [ "$i" -eq 1 ]; then
+      echo "Final attempt to fetch merge base from GitHub failed. VK-GL-CTS GitHub API might be down or rate-limited."
+      exit 1
+    fi
+    sleep 10
+  done
+
   if [[ "$merge_base" != "$DEQP_MAIN_COMMIT" ]]; then
     echo "VK-GL-CTS commit $DEQP_MAIN_COMMIT is not a commit from the main branch."
     exit 1
