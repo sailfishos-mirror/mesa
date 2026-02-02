@@ -2672,9 +2672,7 @@ vc4_get_compiled_shader(struct vc4_context *vc4, enum qstage stage,
         }
 
         shader->failed = c->failed;
-        if (c->failed) {
-                shader->failed = true;
-        } else {
+        if (!shader->failed) {
                 copy_uniform_state_to_shader(shader, c);
                 shader->bo = vc4_bo_alloc_shader(vc4->screen, c->qpu_insts,
                                                  c->qpu_inst_count *
