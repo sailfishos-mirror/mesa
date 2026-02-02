@@ -3471,19 +3471,14 @@ anv_layout_to_aux_state(const struct intel_device_info * const devinfo,
    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: {
       assert(image->vk.aspects == VK_IMAGE_ASPECT_COLOR_BIT);
 
-      /* Handle transition to present layout for non wsi images just like
-       * normal images. Some apps like gfx-reconstruct incorrectly use this
-       * layout on non-wsi image which is against spec. It's easy enough to
-       * deal with it here and potentially avoid unnecessary resolve
-       * operations.
-       */
-      if (!image->from_wsi)
-         break;
-
       /* If this is a WSI blit source, it will never be scanout directly to
        * display but will be copied to a dma-buf that can be scanout.
+       *
+       * GFXReconstruct's Virtual Swapchain feature behaves in a similar
+       * manner. Although this is against spec, it's easy enough to deal with
+       * it here.
        */
-      if (image->wsi_blit_src) {
+      if (!image->from_wsi || image->wsi_blit_src) {
          return anv_layout_to_aux_state(devinfo, image, aspect,
                                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                         queue_flags);

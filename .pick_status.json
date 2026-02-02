@@ -1174,7 +1174,7 @@
         "description": "anv: Treat non-WSI PRESENT_SRC as TRANSFER_SRC",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c5cad407f8ddb29f52b4da7ce99ac073a731339d",
         "notes": null
