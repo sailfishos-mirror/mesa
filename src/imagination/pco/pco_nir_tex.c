@@ -1353,10 +1353,13 @@ static nir_def *lower_image(nir_builder *b, nir_instr *instr, void *cb_data)
                                    .num_slots = 1,
                                 });
 
-         nir_get_variable_with_location(b->shader,
-                                        nir_var_shader_in,
-                                        data->fs.view_index_slot,
-                                        glsl_uint_type());
+         nir_variable *view_index_var =
+            nir_get_variable_with_location(b->shader,
+                                           nir_var_shader_in,
+                                           data->fs.view_index_slot,
+                                           glsl_uint_type());
+
+         view_index_var->data.interpolation = INTERP_MODE_FLAT;
       }
 
       coords = nir_pad_vector(b, coords, 3);
