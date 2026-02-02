@@ -15,6 +15,7 @@ dEQP-GLES3.functional.occlusion_query.conservative_depth_clear
 dEQP-GLES3.functional.occlusion_query.conservative_scissor_depth_clear_stencil_clear
 dEQP-GLES3.functional.occlusion_query.conservative_stencil_clear
 dEQP-GLES3.functional.occlusion_query.depth_write_depth_clear_stencil_write_stencil_clear
+dEQP-GLES3.functional.occlusion_query.scissor_depth_write_depth_clear_stencil_write
 dEQP-GLES3.functional.occlusion_query.scissor_depth_write_stencil_write
 dEQP-GLES31.functional.fbo.no_attachments.maximums.all
 dEQP-GLES31.functional.texture.gather.offset.min_required_offset.2d.rgba8i.size_pot.clamp_to_edge_repeat

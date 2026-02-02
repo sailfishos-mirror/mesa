@@ -30,6 +30,7 @@ KHR-GL46.gpu_shader5_gl.function_overloading
 KHR-GL46.gpu_shader_fp64.builtin.abs_double
 KHR-GL46.gpu_shader_fp64.builtin.clamp_dvec2
 KHR-GL46.gpu_shader_fp64.builtin.distance_dvec3
+KHR-GL46.gpu_shader_fp64.builtin.dot_dvec2
 KHR-GL46.gpu_shader_fp64.builtin.dot_dvec4
 KHR-GL46.gpu_shader_fp64.builtin.equal_dvec3
 KHR-GL46.gpu_shader_fp64.builtin.fma_dvec2
@@ -59,6 +60,7 @@ KHR-GL46.gpu_shader_fp64.builtin.outerproduct_dmat4x2
 KHR-GL46.gpu_shader_fp64.builtin.outerproduct_dmat4x3
 KHR-GL46.gpu_shader_fp64.builtin.packdouble2x32_double
 KHR-GL46.gpu_shader_fp64.builtin.refract_dvec3
+KHR-GL46.gpu_shader_fp64.builtin.round_dvec4
 KHR-GL46.gpu_shader_fp64.builtin.smoothstep_against_scalar_dvec3
 KHR-GL46.gpu_shader_fp64.builtin.smoothstep_dvec3
 KHR-GL46.gpu_shader_fp64.builtin.step_dvec2
