@@ -7300,8 +7300,8 @@ iris_upload_dirty_render_state(struct iris_context *ice,
                       96, 64, &blend_offset);
 
       /* Copy of blend entries for merging dynamic changes. */
-      uint32_t blend_entries[4 * rt_dwords];
-      memcpy(blend_entries, &cso_blend->blend_state[1], sizeof(blend_entries));
+      uint32_t blend_entries[rt_dwords];
+      typed_memcpy(blend_entries, &cso_blend->blend_state[1], rt_dwords);
 
       unsigned cbufs = MAX2(cso_fb->nr_cbufs, 1);
 
@@ -7351,7 +7351,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
       }
 
       blend_map[0] = blend_state_header | cso_blend->blend_state[0];
-      memcpy(&blend_map[1], blend_entries, 4 * rt_dwords);
+      typed_memcpy(&blend_map[1], blend_entries, rt_dwords);
 
       iris_emit_cmd(batch, GENX(3DSTATE_BLEND_STATE_POINTERS), ptr) {
          ptr.BlendStatePointer = blend_offset;
