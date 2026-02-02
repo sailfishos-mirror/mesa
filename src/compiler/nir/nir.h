@@ -5194,9 +5194,6 @@ void nir_find_inlinable_uniforms(nir_shader *shader);
 bool nir_inline_uniforms(nir_shader *shader, unsigned num_uniforms,
                          const uint32_t *uniform_values,
                          const uint16_t *uniform_dw_offsets);
-void nir_add_inlinable_uniforms(const nir_src *cond, nir_loop_info *info,
-                                uint32_t *uni_offsets, uint8_t *num_offsets,
-                                unsigned max_num_bo, unsigned max_offset);
 
 bool nir_inline_sysval(nir_shader *shader, nir_intrinsic_op op, uint64_t imm);
 
