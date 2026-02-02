@@ -226,13 +226,6 @@ brw_shader::emit_urb_writes(const brw_reg &gs_vertex_count)
 
          brw_urb_inst *urb = abld.URB_WRITE(srcs, ARRAY_SIZE(srcs));
          urb->components = length;
-
-         /* For Wa_1805992985 one needs additional write in the end. */
-         if (intel_needs_workaround(devinfo, 1805992985) && stage == MESA_SHADER_TESS_EVAL)
-            urb->eot = false;
-         else
-            urb->eot = slot == last_slot && stage != MESA_SHADER_GEOMETRY;
-
          urb->offset = urb_offset * (devinfo->ver >= 20 ? 16 : 1);
          urb_offset = starting_urb_offset + slot + 1;
          length = 0;
@@ -271,11 +264,16 @@ brw_shader::emit_urb_writes(const brw_reg &gs_vertex_count)
       srcs[URB_LOGICAL_SRC_DATA] = payload;
 
       brw_urb_inst *urb = bld.URB_WRITE(srcs, ARRAY_SIZE(srcs));
-      urb->eot = true;
       urb->offset = devinfo->ver >= 20 ? 16 : 1;
       urb->components = 1;
       return;
    }
+}
+
+void
+brw_shader::emit_tes_terminate()
+{
+   assert(stage == MESA_SHADER_TESS_EVAL);
 
    /* Wa_1805992985:
     *
@@ -283,8 +281,10 @@ brw_shader::emit_urb_writes(const brw_reg &gs_vertex_count)
     * send cycle, which is a urb write with an eot must be 4 phases long and
     * all 8 lanes must valid.
     */
-   if (intel_needs_workaround(devinfo, 1805992985) && stage == MESA_SHADER_TESS_EVAL) {
+   if (intel_needs_workaround(devinfo, 1805992985)) {
       assert(dispatch_width == 8);
+      const brw_builder bld = brw_builder(this);
+      brw_reg urb_handle = tes_payload().urb_output;
       brw_reg uniform_urb_handle = retype(brw_allocate_vgrf_units(*this, 1), BRW_TYPE_UD);
       brw_reg uniform_mask = retype(brw_allocate_vgrf_units(*this, 1), BRW_TYPE_UD);
       brw_reg payload = retype(brw_allocate_vgrf_units(*this, 4), BRW_TYPE_UD);
@@ -325,6 +325,9 @@ brw_shader::emit_urb_writes(const brw_reg &gs_vertex_count)
       urb->eot = true;
       urb->offset = 0;
       urb->components = 4;
+   } else {
+      ASSERTED bool eot = mark_last_urb_write_with_eot();
+      assert(eot);
    }
 }
 

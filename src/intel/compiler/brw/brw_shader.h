@@ -93,6 +93,7 @@ public:
    brw_reg gs_urb_channel_mask(const brw_reg &dword_index);
    brw_reg gs_urb_per_slot_dword_index(const brw_reg &vertex_count);
    bool mark_last_urb_write_with_eot();
+   void emit_tes_terminate();
    void emit_cs_terminate();
 
    const struct brw_compiler *compiler;

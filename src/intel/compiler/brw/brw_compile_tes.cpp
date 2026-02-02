@@ -44,6 +44,8 @@ run_tes(brw_shader &s)
 
    brw_calculate_cfg(s);
 
+   s.emit_tes_terminate();
+
    brw_optimize(s);
 
    s.assign_curb_setup();

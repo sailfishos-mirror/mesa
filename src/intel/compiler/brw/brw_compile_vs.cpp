@@ -218,6 +218,9 @@ run_vs(brw_shader &s)
 
    brw_calculate_cfg(s);
 
+   ASSERTED bool eot = s.mark_last_urb_write_with_eot();
+   assert(eot);
+
    brw_optimize(s);
 
    s.assign_curb_setup();
