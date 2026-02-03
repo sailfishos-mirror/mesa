@@ -5317,9 +5317,9 @@ nir_to_spirv(struct nir_shader *s, const struct ntv_info *sinfo)
 
          /* WorkgroupSize is deprecated in SPIR-V 1.6 */
          if (sinfo->spirv_version >= SPIRV_VERSION(1, 6)) {
-            spirv_builder_emit_exec_mode_id3(&ctx.builder, entry_point,
-                                                  SpvExecutionModeLocalSizeId,
-                                                  sizes);
+            spirv_builder_emit_exec_mode_id(&ctx.builder, entry_point,
+                                            SpvExecutionModeLocalSizeId,
+                                            sizes, 3);
          } else {
             spirv_builder_emit_builtin(&ctx.builder, ctx.local_group_size_var, SpvBuiltInWorkgroupSize);
          }
