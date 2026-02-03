@@ -273,10 +273,10 @@ driwindowsCreateDrawable(struct glx_screen *base, XID xDrawable,
       HBITMAP
    */
 
-   unsigned int type;
+   unsigned int drawable_type;
    void *handle;
 
-   if (!XWindowsDRIQueryDrawable(psc->base.dpy, base->scr, drawable, &type, &handle))
+   if (!XWindowsDRIQueryDrawable(psc->base.dpy, base->scr, drawable, &drawable_type, &handle))
    {
       free(pdp);
       return NULL;
@@ -289,7 +289,7 @@ driwindowsCreateDrawable(struct glx_screen *base, XID xDrawable,
    }
 
    /* Create a new drawable */
-   pdp->windowsDrawable = windows_create_drawable(type, handle);
+   pdp->windowsDrawable = windows_create_drawable(drawable_type, handle);
 
    if (!pdp->windowsDrawable) {
       free(pdp);

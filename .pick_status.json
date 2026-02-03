@@ -3744,7 +3744,7 @@
         "description": "glx/windows: Avoid shadowing 'type' parameter of driwindowsCreateDrawable()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "887f5a6320460008c0169bf56eae5ea87d2f62c7",
         "notes": null
