@@ -1849,19 +1849,6 @@ nir_deref_instr_parent(const nir_deref_instr *instr)
       return nir_src_as_deref(instr->parent);
 }
 
-static inline nir_variable *
-nir_deref_instr_get_variable(const nir_deref_instr *instr)
-{
-   while (instr->deref_type != nir_deref_type_var) {
-      if (instr->deref_type == nir_deref_type_cast)
-         return NULL;
-
-      instr = nir_deref_instr_parent(instr);
-   }
-
-   return instr->var;
-}
-
 bool nir_deref_instr_has_indirect(nir_deref_instr *instr);
 bool nir_deref_instr_is_known_out_of_bounds(nir_deref_instr *instr);
 
@@ -1988,12 +1975,6 @@ typedef struct nir_intrinsic_instr {
 
    nir_src src[];
 } nir_intrinsic_instr;
-
-static inline nir_variable *
-nir_intrinsic_get_var(const nir_intrinsic_instr *intrin, unsigned i)
-{
-   return nir_deref_instr_get_variable(nir_src_as_deref(intrin->src[i]));
-}
 
 typedef enum {
    /* Memory ordering. */
@@ -4133,6 +4114,26 @@ nir_shader_get_function_for_name(const nir_shader *shader, const char *name)
    }
 
    return NULL;
+}
+
+static inline nir_variable *
+nir_deref_instr_get_variable(const nir_deref_instr *instr)
+{
+   while (instr->deref_type != nir_deref_type_var) {
+      if (instr->deref_type == nir_deref_type_cast &&
+          !nir_def_is_deref(instr->parent.ssa))
+         return NULL;
+
+      instr = nir_deref_instr_parent(instr);
+   }
+
+   return instr->var;
+}
+
+static inline nir_variable *
+nir_intrinsic_get_var(const nir_intrinsic_instr *intrin, unsigned i)
+{
+   return nir_deref_instr_get_variable(nir_src_as_deref(intrin->src[i]));
 }
 
 /*
