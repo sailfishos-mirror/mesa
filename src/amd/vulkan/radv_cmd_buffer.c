@@ -3813,14 +3813,17 @@ gfx103_emit_vrs_state(struct radv_cmd_buffer *cmd_buffer)
       radeon_begin(cs);
       if (pdev->info.gfx_level >= GFX12) {
          gfx12_begin_context_regs();
-         gfx12_set_context_reg(R_0283D0_PA_SC_VRS_OVERRIDE_CNTL, pa_sc_vrs_override_cntl);
+         gfx12_opt_set_context_reg(R_0283D0_PA_SC_VRS_OVERRIDE_CNTL, AC_TRACKED_PA_SC_VRS_OVERRIDE_CNTL,
+                                   pa_sc_vrs_override_cntl);
          gfx12_end_context_regs();
       } else if (pdev->info.has_set_context_pairs_packed) {
          gfx11_begin_packed_context_regs();
-         gfx11_set_context_reg(R_0283D0_PA_SC_VRS_OVERRIDE_CNTL, pa_sc_vrs_override_cntl);
+         gfx11_opt_set_context_reg(R_0283D0_PA_SC_VRS_OVERRIDE_CNTL, AC_TRACKED_PA_SC_VRS_OVERRIDE_CNTL,
+                                   pa_sc_vrs_override_cntl);
          gfx11_end_packed_context_regs();
       } else {
-         radeon_set_context_reg(R_0283D0_PA_SC_VRS_OVERRIDE_CNTL, pa_sc_vrs_override_cntl);
+         radeon_opt_set_context_reg(R_0283D0_PA_SC_VRS_OVERRIDE_CNTL, AC_TRACKED_PA_SC_VRS_OVERRIDE_CNTL,
+                                    pa_sc_vrs_override_cntl);
       }
       radeon_end();
    } else {

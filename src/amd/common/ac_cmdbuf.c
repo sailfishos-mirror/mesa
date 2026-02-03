@@ -988,6 +988,8 @@ ac_set_tracked_regs_to_clear_state(struct ac_tracked_regs *tracked_regs,
    tracked_regs->reg_value[AC_TRACKED_CB_DCC_CONTROL] = 0;
    tracked_regs->reg_value[AC_TRACKED_CB_COLOR_CONTROL] = 0;
 
+   tracked_regs->reg_value[AC_TRACKED_PA_SC_VRS_OVERRIDE_CNTL] = 0;
+
    /* Set all cleared context registers to saved. */
    BITSET_SET_COUNT(tracked_regs->reg_saved_mask, 0, AC_NUM_TRACKED_CONTEXT_REGS);
 }
