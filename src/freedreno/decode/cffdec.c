@@ -1276,7 +1276,7 @@ __do_query(const char *primtype, uint32_t num_indices)
 {
    int n = 0;
 
-   if ((5 <= options->info->chip) && (options->info->chip < 7)) {
+   if ((5 <= options->info->chip) && (options->info->chip < 9)) {
       uint32_t scissor_tl = reg_val(regbase("GRAS_SC_WINDOW_SCISSOR_TL"));
       uint32_t scissor_br = reg_val(regbase("GRAS_SC_WINDOW_SCISSOR_BR"));
 
