@@ -103,3 +103,11 @@ dEQP-VK.sparse_resources.shader_intrinsics.2d_sparse_read.r12x4g12x4_unorm_2pack
 dEQP-VK.sparse_resources.shader_intrinsics.2d_sparse_read.r12x4g12x4_unorm_2pack16.128_128_1,Crash
 dEQP-VK.sparse_resources.shader_intrinsics.2d_sparse_read.r12x4g12x4_unorm_2pack16.503_137_1,Crash
 dEQP-VK.sparse_resources.shader_intrinsics.2d_sparse_read.r12x4g12x4_unorm_2pack16.512_256_1,Crash
+
+dEQP-VK.wsi.direct.colorspace.hdr,Fail
+dEQP-VK.wsi.direct.maintenance1.release_images.fifo.no_scaling.resize_window,Fail
+dEQP-VK.wsi.direct_drm.maintenance1.release_images.fifo.no_scaling.resize_window,Fail
+dEQP-VK.wsi.direct_drm.maintenance1.release_images.fifo.no_scaling.resize_window_after_acquire_release_before_retire,Fail
+
+# deqp-vk: ../src/vulkan/wsi/wsi_common.c:2579: wsi_common_create_swapchain_image: Assertion `pCreateInfo->extent.width == swcInfo->extent.width' failed.
+dEQP-VK.wsi.direct.swapchain.simulate_oom.image_swapchain_create_info_concurrent,Crash

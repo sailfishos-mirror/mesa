@@ -1,7 +1,3 @@
-# Exclude WSI related tests.
-dEQP-VK.image.swapchain_mutable.*
-dEQP-VK.wsi.*
-
 # Exclude these memory tests that usually take more than 30s to complete.
 dEQP-VK.memory.mapping.dedicated_alloc.image.full.1048577.*
 dEQP-VK.memory.pipeline_barrier.all.1048576_vertex_buffer_stride_2
