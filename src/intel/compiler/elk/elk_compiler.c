@@ -31,9 +31,6 @@ elk_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
 
    compiler->has_negative_rhw_bug = devinfo->verx10 == 40;
 
-   /* Default to the sampler since that's what we've done since forever */
-   compiler->indirect_ubos_use_sampler = true;
-
    /* There is no vec4 mode on Gfx10+, and we don't use it at all on Gfx8+. */
    for (int i = MESA_SHADER_VERTEX; i < MESA_ALL_SHADER_STAGES; i++) {
       compiler->scalar_stage[i] = devinfo->ver >= 8 ||

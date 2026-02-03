@@ -1499,7 +1499,6 @@ static void
 lower_varying_pull_constant_logical_send(const fs_builder &bld, elk_fs_inst *inst)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
-   const elk_compiler *compiler = bld.shader->compiler;
 
    if (devinfo->ver >= 7) {
       elk_fs_reg surface = inst->src[PULL_VARYING_CONSTANT_SRC_SURFACE];
@@ -1513,9 +1512,6 @@ lower_varying_pull_constant_logical_send(const fs_builder &bld, elk_fs_inst *ins
       elk_fs_reg ubo_offset = bld.vgrf(ELK_REGISTER_TYPE_UD);
       bld.MOV(ubo_offset, offset_B);
 
-      assert(inst->src[PULL_VARYING_CONSTANT_SRC_ALIGNMENT].file == ELK_IMMEDIATE_VALUE);
-      unsigned alignment = inst->src[PULL_VARYING_CONSTANT_SRC_ALIGNMENT].ud;
-
       inst->opcode = ELK_SHADER_OPCODE_SEND;
       inst->mlen = inst->exec_size / 8;
       inst->resize_sources(3);
@@ -1523,57 +1519,15 @@ lower_varying_pull_constant_logical_send(const fs_builder &bld, elk_fs_inst *ins
       /* src[0] is filled by setup_surface_descriptors() */
       inst->src[1] = ubo_offset; /* payload */
 
-      if (compiler->indirect_ubos_use_sampler) {
-         const unsigned simd_mode =
-            inst->exec_size <= 8 ? ELK_SAMPLER_SIMD_MODE_SIMD8 :
-                                   ELK_SAMPLER_SIMD_MODE_SIMD16;
-         const uint32_t desc = elk_sampler_desc(devinfo, 0, 0,
-                                                GFX5_SAMPLER_MESSAGE_SAMPLE_LD,
-                                                simd_mode, 0);
+      const unsigned simd_mode =
+         inst->exec_size <= 8 ? ELK_SAMPLER_SIMD_MODE_SIMD8 :
+                                ELK_SAMPLER_SIMD_MODE_SIMD16;
+      const uint32_t desc = elk_sampler_desc(devinfo, 0, 0,
+                                             GFX5_SAMPLER_MESSAGE_SAMPLE_LD,
+                                             simd_mode, 0);
 
-         inst->sfid = ELK_SFID_SAMPLER;
-         setup_surface_descriptors(bld, inst, desc, surface, surface_handle);
-      } else if (alignment >= 4) {
-         const uint32_t desc =
-            elk_dp_untyped_surface_rw_desc(devinfo, inst->exec_size,
-                                           4, /* num_channels */
-                                           false   /* write */);
-
-         inst->sfid = (devinfo->verx10 >= 75 ?
-                       HSW_SFID_DATAPORT_DATA_CACHE_1 :
-                       GFX7_SFID_DATAPORT_DATA_CACHE);
-         setup_surface_descriptors(bld, inst, desc, surface, surface_handle);
-      } else {
-         const uint32_t desc =
-            elk_dp_byte_scattered_rw_desc(devinfo, inst->exec_size,
-                                          32,     /* bit_size */
-                                          false   /* write */);
-
-         inst->sfid = GFX7_SFID_DATAPORT_DATA_CACHE;
-         setup_surface_descriptors(bld, inst, desc, surface, surface_handle);
-
-         /* The byte scattered messages can only read one dword at a time so
-          * we have to duplicate the message 4 times to read the full vec4.
-          * Hopefully, dead code will clean up the mess if some of them aren't
-          * needed.
-          */
-         assert(inst->size_written == 16 * inst->exec_size);
-         inst->size_written /= 4;
-         for (unsigned c = 1; c < 4; c++) {
-            /* Emit a copy of the instruction because we're about to modify
-             * it.  Because this loop starts at 1, we will emit copies for the
-             * first 3 and the final one will be the modified instruction.
-             */
-            bld.emit(*inst);
-
-            /* Offset the source */
-            inst->src[1] = bld.vgrf(ELK_REGISTER_TYPE_UD);
-            bld.ADD(inst->src[1], ubo_offset, elk_imm_ud(c * 4));
-
-            /* Offset the destination */
-            inst->dst = offset(inst->dst, bld, 1);
-         }
-      }
+      inst->sfid = ELK_SFID_SAMPLER;
+      setup_surface_descriptors(bld, inst, desc, surface, surface_handle);
    } else {
       elk_fs_reg surface = inst->src[PULL_VARYING_CONSTANT_SRC_SURFACE];
       elk_fs_reg offset = inst->src[PULL_VARYING_CONSTANT_SRC_OFFSET];

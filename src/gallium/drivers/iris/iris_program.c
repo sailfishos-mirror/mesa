@@ -4051,16 +4051,7 @@ iris_use_tcs_multi_patch(struct iris_screen *screen)
 bool
 iris_indirect_ubos_use_sampler(struct iris_screen *screen)
 {
-   if (screen->brw) {
-      return screen->brw->indirect_ubos_use_sampler;
-   } else {
-#ifdef INTEL_USE_ELK
-      assert(screen->elk);
-      return screen->elk->indirect_ubos_use_sampler;
-#else
-      UNREACHABLE("no elk support");
-#endif
-   }
+   return screen->brw && screen->brw->indirect_ubos_use_sampler;
 }
 
 static void
