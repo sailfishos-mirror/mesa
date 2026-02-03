@@ -1028,11 +1028,11 @@ ac_cmdbuf_flush_vgt_streamout(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level
    } else if (gfx_level >= GFX7) {
       reg_strmout_cntl = R_0300FC_CP_STRMOUT_CNTL;
 
-      ac_cmdbuf_set_uconfig_reg(reg_strmout_cntl, 0);
+      ac_cmdbuf_set_ucfg_reg(reg_strmout_cntl, 0);
    } else {
       reg_strmout_cntl = R_0084FC_CP_STRMOUT_CNTL;
 
-      ac_cmdbuf_set_config_reg(reg_strmout_cntl, 0);
+      ac_cmdbuf_set_cfg_reg(reg_strmout_cntl, 0);
    }
 
    ac_cmdbuf_event_write(V_028A90_SO_VGTSTREAMOUT_FLUSH);

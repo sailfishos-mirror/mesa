@@ -313,16 +313,16 @@ struct ac_tracked_regs {
    } while (0)
 
 /* Packet building helpers for CONFIG registers. */
-#define ac_cmdbuf_set_config_reg_seq(reg, num) __ac_cmdbuf_set_reg_seq(reg, num, 0, SI_CONFIG, PKT3_SET_CONFIG_REG, 0)
+#define ac_cmdbuf_set_cfg_reg_seq(reg, num) __ac_cmdbuf_set_reg_seq(reg, num, 0, SI_CONFIG, PKT3_SET_CONFIG_REG, 0)
 
-#define ac_cmdbuf_set_config_reg(reg, value) __ac_cmdbuf_set_reg(reg, 0, value, SI_CONFIG, PKT3_SET_CONFIG_REG)
+#define ac_cmdbuf_set_cfg_reg(reg, value) __ac_cmdbuf_set_reg(reg, 0, value, SI_CONFIG, PKT3_SET_CONFIG_REG)
 
 /* Packet building helpers for UCONFIG registers. */
-#define ac_cmdbuf_set_uconfig_reg_seq(reg, num) __ac_cmdbuf_set_reg_seq(reg, num, 0, CIK_UCONFIG, PKT3_SET_UCONFIG_REG, 0)
+#define ac_cmdbuf_set_ucfg_reg_seq(reg, num) __ac_cmdbuf_set_reg_seq(reg, num, 0, CIK_UCONFIG, PKT3_SET_UCONFIG_REG, 0)
 
-#define ac_cmdbuf_set_uconfig_reg(reg, value) __ac_cmdbuf_set_reg(reg, 0, value, CIK_UCONFIG, PKT3_SET_UCONFIG_REG)
+#define ac_cmdbuf_set_ucfg_reg(reg, value) __ac_cmdbuf_set_reg(reg, 0, value, CIK_UCONFIG, PKT3_SET_UCONFIG_REG)
 
-#define ac_cmdbuf_set_uconfig_reg_idx(info, reg, idx, value)                                       \
+#define ac_cmdbuf_set_ucfg_reg_idx(info, reg, idx, value)                                          \
    do {                                                                                            \
       assert((idx));                                                                               \
       unsigned __opcode = PKT3_SET_UCONFIG_REG_INDEX;                                              \
@@ -336,24 +336,24 @@ struct ac_tracked_regs {
  * to not taking correctly into account the fields from the GRBM_GFX_INDEX.
  * With this __filter_cam_workaround bit we can force the write.
  */
-#define ac_cmdbuf_set_uconfig_perfctr_reg_seq(gfx_level, ip_type, reg, num)                              \
+#define ac_cmdbuf_set_ucfg_perfctr_reg_seq(gfx_level, ip_type, reg, num)                                 \
    do {                                                                                                  \
       const bool __filter_cam_workaround = (gfx_level) >= GFX10 && (ip_type) == AMD_IP_GFX;              \
       __ac_cmdbuf_set_reg_seq(reg, num, 0, CIK_UCONFIG, PKT3_SET_UCONFIG_REG, __filter_cam_workaround);  \
    } while (0)
 
-#define ac_cmdbuf_set_uconfig_perfctr_reg(gfx_level, ip_type, reg, value)  \
-   do {                                                                    \
-      ac_cmdbuf_set_uconfig_perfctr_reg_seq(gfx_level, ip_type, reg, 1);   \
-      ac_cmdbuf_emit(value);                                               \
+#define ac_cmdbuf_set_ucfg_perfctr_reg(gfx_level, ip_type, reg, value)  \
+   do {                                                                 \
+      ac_cmdbuf_set_ucfg_perfctr_reg_seq(gfx_level, ip_type, reg, 1);   \
+      ac_cmdbuf_emit(value);                                            \
    } while (0)
 
 /* Packet building helpers for CONTEXT registers. */
-#define ac_cmdbuf_set_context_reg_seq(reg, num) __ac_cmdbuf_set_reg_seq(reg, num, 0, SI_CONTEXT, PKT3_SET_CONTEXT_REG, 0)
+#define ac_cmdbuf_set_ctx_reg_seq(reg, num) __ac_cmdbuf_set_reg_seq(reg, num, 0, SI_CONTEXT, PKT3_SET_CONTEXT_REG, 0)
 
-#define ac_cmdbuf_set_context_reg(reg, value) __ac_cmdbuf_set_reg(reg, 0, value, SI_CONTEXT, PKT3_SET_CONTEXT_REG)
+#define ac_cmdbuf_set_ctx_reg(reg, value) __ac_cmdbuf_set_reg(reg, 0, value, SI_CONTEXT, PKT3_SET_CONTEXT_REG)
 
-#define ac_cmdbuf_set_context_reg_idx(reg, idx, value) __ac_cmdbuf_set_reg(reg, idx, value, SI_CONTEXT, PKT3_SET_CONTEXT_REG)
+#define ac_cmdbuf_set_ctx_reg_idx(reg, idx, value) __ac_cmdbuf_set_reg(reg, idx, value, SI_CONTEXT, PKT3_SET_CONTEXT_REG)
 
 /* Packet building helpers for SH registers. */
 #define ac_cmdbuf_set_sh_reg_seq(reg, num) __ac_cmdbuf_set_reg_seq(reg, num, 0, SI_SH, PKT3_SET_SH_REG, 0)
@@ -395,7 +395,7 @@ struct ac_tracked_regs {
 
 #define ac_cmdbuf_event_write(event_type) ac_cmdbuf_event_write_predicate(event_type, false)
 
-#define ac_cmdbuf_set_privileged_config_reg(reg, value)                                      \
+#define ac_cmdbuf_set_privileged_cfg_reg(reg, value)                                         \
    do {                                                                                      \
       assert((reg) < CIK_UCONFIG_REG_OFFSET);                                                \
       ac_cmdbuf_emit(PKT3(PKT3_COPY_DATA, 4, 0));                                            \
@@ -419,19 +419,19 @@ struct ac_tracked_regs {
 /* GFX11 packet building helpers for SET_CONTEXT_REG_PAIRS_PACKED.
  * Registers are buffered on the stack and then copied to the command buffer at the end.
  */
-#define ac_gfx11_begin_packed_context_regs()       \
+#define ac_gfx11_begin_packed_ctx_regs()           \
    struct ac_gfx11_reg_pair __cs_context_regs[50]; \
    unsigned __cs_context_reg_count = 0;
 
-#define ac_gfx11_set_context_reg(reg, value)                                              \
+#define ac_gfx11_set_ctx_reg(reg, value)                                               \
    ac_gfx11_push_reg(reg, value, SI_CONTEXT, __cs_context_regs, __cs_context_reg_count)
 
-#define ac_gfx11_end_packed_context_regs()                                                                  \
+#define ac_gfx11_end_packed_ctx_regs()                                                                      \
    do {                                                                                                     \
       if (__cs_context_reg_count >= 2) {                                                                    \
          /* Align the count to 2 by duplicating the first register. */                                      \
          if (__cs_context_reg_count % 2 == 1) {                                                             \
-            ac_gfx11_set_context_reg(SI_CONTEXT_REG_OFFSET + __cs_context_regs[0].reg_offset[0] * 4,        \
+            ac_gfx11_set_ctx_reg(SI_CONTEXT_REG_OFFSET + __cs_context_regs[0].reg_offset[0] * 4,            \
                                      __cs_context_regs[0].reg_value[0]);                                    \
          }                                                                                                  \
          assert(__cs_context_reg_count % 2 == 0);                                                           \
@@ -470,11 +470,11 @@ struct ac_tracked_regs {
    } while (0)
 
 /* GFX12 packet building helpers for PAIRS packets. */
-#define ac_gfx12_begin_context_regs() __ac_gfx12_begin_regs(__cs_context_reg_header)
+#define ac_gfx12_begin_ctx_regs() __ac_gfx12_begin_regs(__cs_context_reg_header)
 
-#define ac_gfx12_set_context_reg(reg, value) ac_gfx12_set_reg(reg, value, SI_CONTEXT_REG_OFFSET)
+#define ac_gfx12_set_ctx_reg(reg, value) ac_gfx12_set_reg(reg, value, SI_CONTEXT_REG_OFFSET)
 
-#define ac_gfx12_end_context_regs() __ac_gfx12_end_regs(__cs_context_reg_header, PKT3_SET_CONTEXT_REG_PAIRS)
+#define ac_gfx12_end_ctx_regs() __ac_gfx12_end_regs(__cs_context_reg_header, PKT3_SET_CONTEXT_REG_PAIRS)
 
 /* GFX12 generic packet building helpers for buffered registers. */
 #define __ac_gfx12_push_reg(buf_regs, reg, value, base_offset)             \
@@ -501,19 +501,19 @@ struct ac_tracked_regs {
    } while (0)
 
 /* Tracked registers. */
-#define ac_cmdbuf_opt_set_context_reg(tracked_regs, reg, reg_enum, value)  \
+#define ac_cmdbuf_opt_set_ctx_reg(tracked_regs, reg, reg_enum, value)      \
    do {                                                                    \
       const uint32_t __value = (value);                                    \
       if (!BITSET_TEST(tracked_regs->reg_saved_mask, (reg_enum)) ||        \
           tracked_regs->reg_value[(reg_enum)] != __value) {                \
-         ac_cmdbuf_set_context_reg(reg, __value);                          \
+         ac_cmdbuf_set_ctx_reg(reg, __value);                              \
          BITSET_SET(tracked_regs->reg_saved_mask, (reg_enum));             \
          tracked_regs->reg_value[(reg_enum)] = __value;                    \
          __cs->context_roll = true;                                        \
       }                                                                    \
    } while (0)
 
-#define ac_cmdbuf_opt_set_context_reg2(tracked_regs, reg, reg_enum, v1, v2)                                 \
+#define ac_cmdbuf_opt_set_ctx_reg2(tracked_regs, reg, reg_enum, v1, v2)                                     \
    do {                                                                                                     \
       static_assert(BITSET_BITWORD(reg_enum) == BITSET_BITWORD(reg_enum + 1),                               \
                     "bit range crosses dword boundary");                                                    \
@@ -521,7 +521,7 @@ struct ac_tracked_regs {
       const uint32_t __v2 = (v2);                                                                           \
       if (!BITSET_TEST_RANGE_INSIDE_WORD(tracked_regs->reg_saved_mask, (reg_enum), (reg_enum) + 1, 0x3) ||  \
           tracked_regs->reg_value[(reg_enum)] != __v1 || tracked_regs->reg_value[(reg_enum) + 1] != __v2) { \
-         ac_cmdbuf_set_context_reg_seq(reg, 2);                                                             \
+         ac_cmdbuf_set_ctx_reg_seq(reg, 2);                                                                 \
          ac_cmdbuf_emit(__v1);                                                                              \
          ac_cmdbuf_emit(__v2);                                                                              \
          BITSET_SET_RANGE_INSIDE_WORD(tracked_regs->reg_saved_mask, (reg_enum), (reg_enum) + 1);            \
@@ -531,7 +531,7 @@ struct ac_tracked_regs {
       }                                                                                                     \
    } while (0)
 
-#define ac_cmdbuf_opt_set_context_reg3(tracked_regs, reg, reg_enum, v1, v2, v3)                             \
+#define ac_cmdbuf_opt_set_ctx_reg3(tracked_regs, reg, reg_enum, v1, v2, v3)                                 \
    do {                                                                                                     \
       static_assert(BITSET_BITWORD(reg_enum) == BITSET_BITWORD(reg_enum + 2),                               \
                     "bit range crosses dword boundary");                                                    \
@@ -541,7 +541,7 @@ struct ac_tracked_regs {
       if (!BITSET_TEST_RANGE_INSIDE_WORD(tracked_regs->reg_saved_mask, (reg_enum), (reg_enum) + 2, 0x7) ||  \
           tracked_regs->reg_value[(reg_enum)] != __v1 || tracked_regs->reg_value[(reg_enum) + 1] != __v2 || \
           tracked_regs->reg_value[(reg_enum) + 2] != __v3) {                                                \
-         ac_cmdbuf_set_context_reg_seq(reg, 3);                                                             \
+         ac_cmdbuf_set_ctx_reg_seq(reg, 3);                                                                 \
          ac_cmdbuf_emit(__v1);                                                                              \
          ac_cmdbuf_emit(__v2);                                                                              \
          ac_cmdbuf_emit(__v3);                                                                              \
@@ -553,7 +553,7 @@ struct ac_tracked_regs {
       }                                                                                                     \
    } while (0)
 
-#define ac_cmdbuf_opt_set_context_reg4(tracked_regs, reg, reg_enum, v1, v2, v3, v4)                               \
+#define ac_cmdbuf_opt_set_ctx_reg4(tracked_regs, reg, reg_enum, v1, v2, v3, v4)                                   \
    do {                                                                                                           \
       static_assert(BITSET_BITWORD((reg_enum)) == BITSET_BITWORD((reg_enum) + 3),                                 \
                     "bit range crosses dword boundary");                                                          \
@@ -564,7 +564,7 @@ struct ac_tracked_regs {
       if (!BITSET_TEST_RANGE_INSIDE_WORD(tracked_regs->reg_saved_mask, (reg_enum), (reg_enum) + 3, 0xf) ||        \
           tracked_regs->reg_value[(reg_enum)] != __v1 || tracked_regs->reg_value[(reg_enum) + 1] != __v2 ||       \
           tracked_regs->reg_value[(reg_enum) + 2] != __v3 || tracked_regs->reg_value[(reg_enum) + 3] != __v4) {   \
-         ac_cmdbuf_set_context_reg_seq(reg, 4);                                                                   \
+         ac_cmdbuf_set_ctx_reg_seq(reg, 4);                                                                       \
          ac_cmdbuf_emit(__v1);                                                                                    \
          ac_cmdbuf_emit(__v2);                                                                                    \
          ac_cmdbuf_emit(__v3);                                                                                    \
@@ -578,10 +578,10 @@ struct ac_tracked_regs {
       }                                                                                                           \
    } while (0)
 
-#define ac_cmdbuf_opt_set_context_regn(reg, values, saved_values, num)  \
+#define ac_cmdbuf_opt_set_ctx_regn(reg, values, saved_values, num)      \
    do {                                                                 \
       if (memcmp(values, saved_values, sizeof(uint32_t) * (num))) {     \
-         ac_cmdbuf_set_context_reg_seq(reg, num);                       \
+         ac_cmdbuf_set_ctx_reg_seq(reg, num);                           \
          ac_cmdbuf_emit_array(values, num);                             \
          memcpy(saved_values, values, sizeof(uint32_t) * (num));        \
          __cs->context_roll = true;                                     \
@@ -642,10 +642,10 @@ struct ac_tracked_regs {
       }                                                                                                           \
    } while (0)
 
-#define ac_gfx11_opt_set_context_reg(tracked_regs, reg, reg_enum, value)                                             \
+#define ac_gfx11_opt_set_ctx_reg(tracked_regs, reg, reg_enum, value)                                             \
    ac_gfx11_opt_push_reg(tracked_regs, reg, reg_enum, value, SI_CONTEXT, __cs_context_regs, __cs_context_reg_count)
 
-#define ac_gfx11_opt_set_context_reg2(tracked_regs, reg, reg_enum, v1, v2)                                           \
+#define ac_gfx11_opt_set_ctx_reg2(tracked_regs, reg, reg_enum, v1, v2)                                           \
    ac_gfx11_opt_push_reg2(tracked_regs, reg, reg_enum, v1, v2, SI_CONTEXT, __cs_context_regs, __cs_context_reg_count)
 
 /* GFX12 */

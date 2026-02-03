@@ -294,7 +294,7 @@ ac_emit_cp_gfx11_ge_rings(struct ac_cmdbuf *cs, const struct radeon_info *info,
 
    ac_cmdbuf_begin(cs);
 
-   ac_cmdbuf_set_uconfig_reg_seq(R_031110_SPI_GS_THROTTLE_CNTL1, 4);
+   ac_cmdbuf_set_ucfg_reg_seq(R_031110_SPI_GS_THROTTLE_CNTL1, 4);
    ac_cmdbuf_emit(0x12355123);
    ac_cmdbuf_emit(0x1544D);
    ac_cmdbuf_emit(attr_ring_va >> 16);
@@ -307,7 +307,7 @@ ac_emit_cp_gfx11_ge_rings(struct ac_cmdbuf *cs, const struct radeon_info *info,
       const uint64_t prim_va = attr_ring_va + info->prim_ring_offset;
 
       /* When one of these 4 registers is updated, all 4 must be updated. */
-      ac_cmdbuf_set_uconfig_reg_seq(R_0309A0_GE_POS_RING_BASE, 4);
+      ac_cmdbuf_set_ucfg_reg_seq(R_0309A0_GE_POS_RING_BASE, 4);
       ac_cmdbuf_emit(pos_va >> 16);
       ac_cmdbuf_emit(S_0309A4_MEM_SIZE(info->pos_ring_size_per_se >> 5));
       ac_cmdbuf_emit(prim_va >> 16);
@@ -351,22 +351,22 @@ ac_emit_cp_tess_rings(struct ac_cmdbuf *cs, const struct radeon_info *info,
    ac_cmdbuf_begin(cs);
 
    if (info->gfx_level >= GFX7) {
-      ac_cmdbuf_set_uconfig_reg_seq(R_030938_VGT_TF_RING_SIZE, 3);
+      ac_cmdbuf_set_ucfg_reg_seq(R_030938_VGT_TF_RING_SIZE, 3);
       ac_cmdbuf_emit(S_030938_SIZE(tf_ring_size));
       ac_cmdbuf_emit(info->hs_offchip_param);
       ac_cmdbuf_emit(va >> 8);
 
       if (info->gfx_level >= GFX12) {
-         ac_cmdbuf_set_uconfig_reg(R_03099C_VGT_TF_MEMORY_BASE_HI, S_03099C_BASE_HI(va >> 40));
+         ac_cmdbuf_set_ucfg_reg(R_03099C_VGT_TF_MEMORY_BASE_HI, S_03099C_BASE_HI(va >> 40));
       } else if (info->gfx_level >= GFX10) {
-         ac_cmdbuf_set_uconfig_reg(R_030984_VGT_TF_MEMORY_BASE_HI, S_030984_BASE_HI(va >> 40));
+         ac_cmdbuf_set_ucfg_reg(R_030984_VGT_TF_MEMORY_BASE_HI, S_030984_BASE_HI(va >> 40));
       } else if (info->gfx_level == GFX9) {
-         ac_cmdbuf_set_uconfig_reg(R_030944_VGT_TF_MEMORY_BASE_HI, S_030944_BASE_HI(va >> 40));
+         ac_cmdbuf_set_ucfg_reg(R_030944_VGT_TF_MEMORY_BASE_HI, S_030944_BASE_HI(va >> 40));
       }
    } else {
-      ac_cmdbuf_set_config_reg(R_008988_VGT_TF_RING_SIZE, S_008988_SIZE(tf_ring_size));
-      ac_cmdbuf_set_config_reg(R_0089B8_VGT_TF_MEMORY_BASE, va >> 8);
-      ac_cmdbuf_set_config_reg(R_0089B0_VGT_HS_OFFCHIP_PARAM, info->hs_offchip_param);
+      ac_cmdbuf_set_cfg_reg(R_008988_VGT_TF_RING_SIZE, S_008988_SIZE(tf_ring_size));
+      ac_cmdbuf_set_cfg_reg(R_0089B8_VGT_TF_MEMORY_BASE, va >> 8);
+      ac_cmdbuf_set_cfg_reg(R_0089B0_VGT_HS_OFFCHIP_PARAM, info->hs_offchip_param);
    }
 
    ac_cmdbuf_end();
@@ -379,12 +379,12 @@ ac_emit_cp_gfx_scratch(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
    ac_cmdbuf_begin(cs);
 
    if (gfx_level >= GFX11) {
-      ac_cmdbuf_set_context_reg_seq(R_0286E8_SPI_TMPRING_SIZE, 3);
+      ac_cmdbuf_set_ctx_reg_seq(R_0286E8_SPI_TMPRING_SIZE, 3);
       ac_cmdbuf_emit(size);
       ac_cmdbuf_emit(va >> 8);
       ac_cmdbuf_emit(va >> 40);
    } else {
-      ac_cmdbuf_set_context_reg(R_0286E8_SPI_TMPRING_SIZE, size);
+      ac_cmdbuf_set_ctx_reg(R_0286E8_SPI_TMPRING_SIZE, size);
    }
 
    ac_cmdbuf_end();
@@ -584,11 +584,11 @@ ac_emit_cp_inhibit_clockgating(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_leve
 
    ac_cmdbuf_begin(cs);
    if (gfx_level >= GFX10) {
-      ac_cmdbuf_set_uconfig_reg(R_037390_RLC_PERFMON_CLK_CNTL,
-                                S_037390_PERFMON_CLOCK_STATE(inhibit));
+      ac_cmdbuf_set_ucfg_reg(R_037390_RLC_PERFMON_CLK_CNTL,
+                             S_037390_PERFMON_CLOCK_STATE(inhibit));
    } else if (gfx_level >= GFX8) {
-      ac_cmdbuf_set_uconfig_reg(R_0372FC_RLC_PERFMON_CLK_CNTL,
-                                S_0372FC_PERFMON_CLOCK_STATE(inhibit));
+      ac_cmdbuf_set_ucfg_reg(R_0372FC_RLC_PERFMON_CLK_CNTL,
+                             S_0372FC_PERFMON_CLOCK_STATE(inhibit));
    }
    ac_cmdbuf_end();
 }
@@ -599,9 +599,9 @@ ac_emit_cp_spi_config_cntl(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
 {
    ac_cmdbuf_begin(cs);
    if (gfx_level >= GFX12) {
-      ac_cmdbuf_set_uconfig_reg(R_031120_SPI_SQG_EVENT_CTL,
-                                S_031120_ENABLE_SQG_TOP_EVENTS(enable) |
-                                S_031120_ENABLE_SQG_BOP_EVENTS(enable));
+      ac_cmdbuf_set_ucfg_reg(R_031120_SPI_SQG_EVENT_CTL,
+                             S_031120_ENABLE_SQG_TOP_EVENTS(enable) |
+                             S_031120_ENABLE_SQG_BOP_EVENTS(enable));
    } else if (gfx_level >= GFX9) {
       uint32_t spi_config_cntl = S_031100_GPR_WRITE_PRIORITY(0x2c688) |
                                  S_031100_EXP_PRIORITY_ORDER(3) |
@@ -611,12 +611,12 @@ ac_emit_cp_spi_config_cntl(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
       if (gfx_level >= GFX10)
          spi_config_cntl |= S_031100_PS_PKR_PRIORITY_CNTL(3);
 
-      ac_cmdbuf_set_uconfig_reg(R_031100_SPI_CONFIG_CNTL, spi_config_cntl);
+      ac_cmdbuf_set_ucfg_reg(R_031100_SPI_CONFIG_CNTL, spi_config_cntl);
    } else {
       /* SPI_CONFIG_CNTL is a protected register on GFX6-GFX8. */
-      ac_cmdbuf_set_privileged_config_reg(R_009100_SPI_CONFIG_CNTL,
-                                          S_009100_ENABLE_SQG_TOP_EVENTS(enable) |
-                                          S_009100_ENABLE_SQG_BOP_EVENTS(enable));
+      ac_cmdbuf_set_privileged_cfg_reg(R_009100_SPI_CONFIG_CNTL,
+                                       S_009100_ENABLE_SQG_TOP_EVENTS(enable) |
+                                       S_009100_ENABLE_SQG_BOP_EVENTS(enable));
    }
    ac_cmdbuf_end();
 }

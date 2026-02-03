@@ -1801,14 +1801,14 @@ ac_emit_spm_muxsel(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
 
       ac_cmdbuf_begin(cs);
 
-      ac_cmdbuf_set_uconfig_reg(R_030800_GRBM_GFX_INDEX, grbm_gfx_index);
+      ac_cmdbuf_set_ucfg_reg(R_030800_GRBM_GFX_INDEX, grbm_gfx_index);
 
       for (unsigned l = 0; l < spm->num_muxsel_lines[s]; l++) {
          uint32_t *data = (uint32_t *)spm->muxsel_lines[s][l].muxsel;
 
          /* Select MUXSEL_ADDR to point to the next muxsel. */
-         ac_cmdbuf_set_uconfig_perfctr_reg(gfx_level, ip_type, rlc_muxsel_addr,
-                                           l * AC_SPM_MUXSEL_LINE_SIZE);
+         ac_cmdbuf_set_ucfg_perfctr_reg(gfx_level, ip_type, rlc_muxsel_addr,
+                                        l * AC_SPM_MUXSEL_LINE_SIZE);
 
          /* Write the muxsel line configuration with MUXSEL_DATA. */
          ac_cmdbuf_emit(PKT3(PKT3_WRITE_DATA, 2 + AC_SPM_MUXSEL_LINE_SIZE, 0));
@@ -1838,14 +1838,14 @@ ac_emit_spm_counters(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
             continue;
 
          ac_cmdbuf_begin(cs);
-         ac_cmdbuf_set_uconfig_reg(R_030800_GRBM_GFX_INDEX, spm->sq_wgp[instance].grbm_gfx_index);
+         ac_cmdbuf_set_ucfg_reg(R_030800_GRBM_GFX_INDEX, spm->sq_wgp[instance].grbm_gfx_index);
 
          for (uint32_t b = 0; b < num_counters; b++) {
             const struct ac_spm_counter_select *cntr_sel = &spm->sq_wgp[instance].counters[b];
             uint32_t reg_base = R_036700_SQ_PERFCOUNTER0_SELECT;
 
-            ac_cmdbuf_set_uconfig_perfctr_reg_seq(gfx_level, ip_type,
-                                                  reg_base + b * 4, 1);
+            ac_cmdbuf_set_ucfg_perfctr_reg_seq(gfx_level, ip_type,
+                                               reg_base + b * 4, 1);
             ac_cmdbuf_emit(cntr_sel->sel0);
          }
 
@@ -1860,16 +1860,16 @@ ac_emit_spm_counters(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
          continue;
 
       ac_cmdbuf_begin(cs);
-      ac_cmdbuf_set_uconfig_reg(R_030800_GRBM_GFX_INDEX, S_030800_SH_BROADCAST_WRITES(1) |
-                                                         S_030800_INSTANCE_BROADCAST_WRITES(1) |
-                                                         S_030800_SE_INDEX(instance));
+      ac_cmdbuf_set_ucfg_reg(R_030800_GRBM_GFX_INDEX, S_030800_SH_BROADCAST_WRITES(1) |
+                                                      S_030800_INSTANCE_BROADCAST_WRITES(1) |
+                                                      S_030800_SE_INDEX(instance));
 
       for (uint32_t b = 0; b < num_counters; b++) {
          const struct ac_spm_counter_select *cntr_sel = &spm->sqg[instance].counters[b];
          uint32_t reg_base = R_036700_SQ_PERFCOUNTER0_SELECT;
 
-         ac_cmdbuf_set_uconfig_perfctr_reg_seq(gfx_level, ip_type,
-                                               reg_base + b * 4, 1);
+         ac_cmdbuf_set_ucfg_perfctr_reg_seq(gfx_level, ip_type,
+                                            reg_base + b * 4, 1);
          ac_cmdbuf_emit(cntr_sel->sel0 | S_036700_SQC_BANK_MASK(0xf)); /* SQC_BANK_MASK only gfx10 */
       }
 
@@ -1884,7 +1884,7 @@ ac_emit_spm_counters(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
          struct ac_spm_block_instance *block_instance = &block_sel->instances[i];
 
          ac_cmdbuf_begin(cs);
-         ac_cmdbuf_set_uconfig_reg(R_030800_GRBM_GFX_INDEX, block_instance->grbm_gfx_index);
+         ac_cmdbuf_set_ucfg_reg(R_030800_GRBM_GFX_INDEX, block_instance->grbm_gfx_index);
 
          for (unsigned c = 0; c < block_instance->num_counters; c++) {
             const struct ac_spm_counter_select *cntr_sel = &block_instance->counters[c];
@@ -1892,10 +1892,10 @@ ac_emit_spm_counters(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
             if (!cntr_sel->active)
                continue;
 
-            ac_cmdbuf_set_uconfig_perfctr_reg_seq(gfx_level, ip_type, regs->select0[c], 1);
+            ac_cmdbuf_set_ucfg_perfctr_reg_seq(gfx_level, ip_type, regs->select0[c], 1);
             ac_cmdbuf_emit(cntr_sel->sel0);
 
-            ac_cmdbuf_set_uconfig_perfctr_reg_seq(gfx_level, ip_type, regs->select1[c], 1);
+            ac_cmdbuf_set_ucfg_perfctr_reg_seq(gfx_level, ip_type, regs->select1[c], 1);
             ac_cmdbuf_emit(cntr_sel->sel1);
          }
 
@@ -1905,9 +1905,9 @@ ac_emit_spm_counters(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
 
    /* Restore global broadcasting. */
    ac_cmdbuf_begin(cs);
-   ac_cmdbuf_set_uconfig_reg(R_030800_GRBM_GFX_INDEX, S_030800_SE_BROADCAST_WRITES(1) |
-                                                      S_030800_SH_BROADCAST_WRITES(1) |
-                                                      S_030800_INSTANCE_BROADCAST_WRITES(1));
+   ac_cmdbuf_set_ucfg_reg(R_030800_GRBM_GFX_INDEX, S_030800_SE_BROADCAST_WRITES(1) |
+                                                   S_030800_SH_BROADCAST_WRITES(1) |
+                                                   S_030800_INSTANCE_BROADCAST_WRITES(1));
    ac_cmdbuf_end();
 }
 
@@ -1924,13 +1924,13 @@ ac_emit_spm_setup(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
    ac_cmdbuf_begin(cs);
 
    /* Configure the SPM ring buffer. */
-   ac_cmdbuf_set_uconfig_reg(R_037200_RLC_SPM_PERFMON_CNTL,
-                             S_037200_PERFMON_RING_MODE(0) | /* no stall and no interrupt on overflow */
-                             S_037200_PERFMON_SAMPLE_INTERVAL(spm->sample_interval)); /* in sclk */
-   ac_cmdbuf_set_uconfig_reg(R_037204_RLC_SPM_PERFMON_RING_BASE_LO, va);
-   ac_cmdbuf_set_uconfig_reg(R_037208_RLC_SPM_PERFMON_RING_BASE_HI,
-                             S_037208_RING_BASE_HI(va >> 32));
-   ac_cmdbuf_set_uconfig_reg(R_03720C_RLC_SPM_PERFMON_RING_SIZE, spm->buffer_size);
+   ac_cmdbuf_set_ucfg_reg(R_037200_RLC_SPM_PERFMON_CNTL,
+                          S_037200_PERFMON_RING_MODE(0) | /* no stall and no interrupt on overflow */
+                          S_037200_PERFMON_SAMPLE_INTERVAL(spm->sample_interval)); /* in sclk */
+   ac_cmdbuf_set_ucfg_reg(R_037204_RLC_SPM_PERFMON_RING_BASE_LO, va);
+   ac_cmdbuf_set_ucfg_reg(R_037208_RLC_SPM_PERFMON_RING_BASE_HI,
+                          S_037208_RING_BASE_HI(va >> 32));
+   ac_cmdbuf_set_ucfg_reg(R_03720C_RLC_SPM_PERFMON_RING_SIZE, spm->buffer_size);
 
    /* Configure the muxsel. */
    uint32_t total_muxsel_lines = 0;
@@ -1938,25 +1938,25 @@ ac_emit_spm_setup(struct ac_cmdbuf *cs, enum amd_gfx_level gfx_level,
       total_muxsel_lines += spm->num_muxsel_lines[s];
    }
 
-   ac_cmdbuf_set_uconfig_reg(R_03726C_RLC_SPM_ACCUM_MODE, 0);
+   ac_cmdbuf_set_ucfg_reg(R_03726C_RLC_SPM_ACCUM_MODE, 0);
 
    if (gfx_level >= GFX11) {
-      ac_cmdbuf_set_uconfig_reg(R_03721C_RLC_SPM_PERFMON_SEGMENT_SIZE,
-                                S_03721C_TOTAL_NUM_SEGMENT(total_muxsel_lines) |
-                                S_03721C_GLOBAL_NUM_SEGMENT(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_GLOBAL]) |
-                                S_03721C_SE_NUM_SEGMENT(spm->max_se_muxsel_lines));
+      ac_cmdbuf_set_ucfg_reg(R_03721C_RLC_SPM_PERFMON_SEGMENT_SIZE,
+                             S_03721C_TOTAL_NUM_SEGMENT(total_muxsel_lines) |
+                             S_03721C_GLOBAL_NUM_SEGMENT(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_GLOBAL]) |
+                             S_03721C_SE_NUM_SEGMENT(spm->max_se_muxsel_lines));
 
-      ac_cmdbuf_set_uconfig_reg(R_037210_RLC_SPM_RING_WRPTR, 0);
+      ac_cmdbuf_set_ucfg_reg(R_037210_RLC_SPM_RING_WRPTR, 0);
    } else {
-      ac_cmdbuf_set_uconfig_reg(R_037210_RLC_SPM_PERFMON_SEGMENT_SIZE, 0);
-      ac_cmdbuf_set_uconfig_reg(R_03727C_RLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE,
-                                S_03727C_SE0_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_SE0]) |
-                                S_03727C_SE1_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_SE1]) |
-                                S_03727C_SE2_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_SE2]) |
-                                S_03727C_SE3_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_SE3]));
-      ac_cmdbuf_set_uconfig_reg(R_037280_RLC_SPM_PERFMON_GLB_SEGMENT_SIZE,
-                                S_037280_PERFMON_SEGMENT_SIZE(total_muxsel_lines) |
-                                S_037280_GLOBAL_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_GLOBAL]));
+      ac_cmdbuf_set_ucfg_reg(R_037210_RLC_SPM_PERFMON_SEGMENT_SIZE, 0);
+      ac_cmdbuf_set_ucfg_reg(R_03727C_RLC_SPM_PERFMON_SE3TO0_SEGMENT_SIZE,
+                             S_03727C_SE0_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_SE0]) |
+                             S_03727C_SE1_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_SE1]) |
+                             S_03727C_SE2_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_SE2]) |
+                             S_03727C_SE3_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_SE3]));
+      ac_cmdbuf_set_ucfg_reg(R_037280_RLC_SPM_PERFMON_GLB_SEGMENT_SIZE,
+                             S_037280_PERFMON_SEGMENT_SIZE(total_muxsel_lines) |
+                             S_037280_GLOBAL_NUM_LINE(spm->num_muxsel_lines[AC_SPM_SEGMENT_TYPE_GLOBAL]));
    }
 
    ac_cmdbuf_end();
@@ -1974,9 +1974,9 @@ ac_emit_spm_start(struct ac_cmdbuf *cs, enum amd_ip_type ip_type,
 {
    /* Start SPM counters. */
    ac_cmdbuf_begin(cs);
-   ac_cmdbuf_set_uconfig_reg(R_036020_CP_PERFMON_CNTL,
-                             S_036020_PERFMON_STATE(V_036020_CP_PERFMON_STATE_DISABLE_AND_RESET) |
-                                S_036020_SPM_PERFMON_STATE(V_036020_STRM_PERFMON_STATE_START_COUNTING));
+   ac_cmdbuf_set_ucfg_reg(R_036020_CP_PERFMON_CNTL,
+                          S_036020_PERFMON_STATE(V_036020_CP_PERFMON_STATE_DISABLE_AND_RESET) |
+                          S_036020_SPM_PERFMON_STATE(V_036020_STRM_PERFMON_STATE_START_COUNTING));
    ac_cmdbuf_end();
 
    /* Start windowed performance counters. */
@@ -1992,11 +1992,11 @@ ac_emit_spm_stop(struct ac_cmdbuf *cs, enum amd_ip_type ip_type,
 
    /* Stop SPM counters. */
    ac_cmdbuf_begin(cs);
-   ac_cmdbuf_set_uconfig_reg(R_036020_CP_PERFMON_CNTL,
-                             S_036020_PERFMON_STATE(V_036020_CP_PERFMON_STATE_DISABLE_AND_RESET) |
-                             S_036020_SPM_PERFMON_STATE(info->never_stop_sq_perf_counters ?
-                                V_036020_STRM_PERFMON_STATE_START_COUNTING :
-                                V_036020_STRM_PERFMON_STATE_STOP_COUNTING));
+   ac_cmdbuf_set_ucfg_reg(R_036020_CP_PERFMON_CNTL,
+                          S_036020_PERFMON_STATE(V_036020_CP_PERFMON_STATE_DISABLE_AND_RESET) |
+                          S_036020_SPM_PERFMON_STATE(info->never_stop_sq_perf_counters ?
+                             V_036020_STRM_PERFMON_STATE_START_COUNTING :
+                             V_036020_STRM_PERFMON_STATE_STOP_COUNTING));
    ac_cmdbuf_end();
 }
 
@@ -2004,8 +2004,8 @@ void
 ac_emit_spm_reset(struct ac_cmdbuf *cs)
 {
    ac_cmdbuf_begin(cs);
-   ac_cmdbuf_set_uconfig_reg(R_036020_CP_PERFMON_CNTL,
-                             S_036020_PERFMON_STATE(V_036020_CP_PERFMON_STATE_DISABLE_AND_RESET) |
-                             S_036020_SPM_PERFMON_STATE(V_036020_STRM_PERFMON_STATE_DISABLE_AND_RESET));
+   ac_cmdbuf_set_ucfg_reg(R_036020_CP_PERFMON_CNTL,
+                          S_036020_PERFMON_STATE(V_036020_CP_PERFMON_STATE_DISABLE_AND_RESET) |
+                          S_036020_SPM_PERFMON_STATE(V_036020_STRM_PERFMON_STATE_DISABLE_AND_RESET));
    ac_cmdbuf_end();
 }
