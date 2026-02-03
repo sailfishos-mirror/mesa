@@ -2951,6 +2951,40 @@ fix_var_int_floatness(nir_shader *producer, nir_shader *consumer)
    }
 }
 
+static const int clip0_relocate_target = VARYING_SLOT_VAR30;
+
+static bool
+move_clip_intrins(nir_builder *b, nir_intrinsic_instr *intr, void *unused)
+{
+   bool is_load = false, is_input = false, is_interp = false;
+   if (!filter_io_instr(intr, &is_load, &is_input, &is_interp) ||
+       (b->shader->info.stage == MESA_SHADER_VERTEX && is_load))
+      return false;
+   nir_io_semantics io_sem = nir_intrinsic_io_semantics(intr);
+   if (!is_clipcull_dist(io_sem.location))
+      return false;
+   io_sem.location = clip0_relocate_target + (io_sem.location == VARYING_SLOT_CLIP_DIST1);
+   io_sem.num_slots = 1;
+   io_sem.no_varying = false;
+   nir_intrinsic_set_io_semantics(intr, io_sem);
+   b->shader->info.outputs_written |= BITFIELD64_BIT(io_sem.location);
+   return true;
+}
+
+static void
+lower_clip_fs(nir_shader *producer, nir_shader *fs)
+{
+   fs->info.clip_distance_array_size = producer->info.clip_distance_array_size;
+   NIR_PASS(_, fs, nir_lower_clip_fs, BITFIELD_RANGE(0, fs->info.clip_distance_array_size), false, true);
+   NIR_PASS(_, fs, nir_lower_discard_if, nir_lower_demote_if_to_cf | nir_lower_terminate_if_to_cf);
+   NIR_PASS(_, fs, nir_shader_intrinsics_pass, move_clip_intrins, nir_metadata_control_flow, NULL);
+   nir_get_variable_with_location(fs, nir_var_shader_in, clip0_relocate_target, 
+      glsl_vec_type(MIN2(fs->info.clip_distance_array_size, 4)));
+   if (fs->info.clip_distance_array_size > 4)
+      nir_get_variable_with_location(fs, nir_var_shader_in, clip0_relocate_target + 1, 
+         glsl_vec_type(fs->info.clip_distance_array_size - 4));
+}
+
 void
 zink_compiler_assign_io(struct zink_screen *screen, nir_shader *producer, nir_shader *consumer)
 {
@@ -2969,6 +3003,12 @@ zink_compiler_assign_io(struct zink_screen *screen, nir_shader *producer, nir_sh
       .patch_reserved = 0,
    };
    bool do_fixup = false;
+
+   if (!screen->info.feats.features.shaderClipDistance && consumer->info.stage == MESA_SHADER_FRAGMENT &&
+       (producer->info.clip_distance_array_size > 0)) {
+      lower_clip_fs(producer, consumer);
+      do_fixup = true;
+   }
    fix_var_int_floatness(producer, consumer);
    nir_shader *nir = producer->info.stage == MESA_SHADER_TESS_CTRL ? producer : consumer;
    nir_variable *var = nir_find_variable_with_location(producer, nir_var_shader_out, VARYING_SLOT_PSIZ);
@@ -5580,6 +5620,19 @@ zink_shader_init(struct zink_screen *screen, struct zink_shader *zs)
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
    scan_nir(screen, nir, zs);
 
+   const struct scalarize_vars_instr_filter_data filter_data = {
+      .location_mask = BITFIELD64_RANGE(VARYING_SLOT_CLIP_DIST0, 4) |
+                       BITFIELD64_RANGE(VARYING_SLOT_TESS_LEVEL_OUTER, 2)
+   };
+   NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_in | nir_var_shader_out,
+            scalarize_vars_instr_filter, (void*)&filter_data);
+
+   if (!screen->info.feats.features.shaderClipDistance && nir->info.clip_distance_array_size) {
+      if (nir->info.stage == MESA_SHADER_FRAGMENT)
+         NIR_PASS(_, nir, nir_lower_io_indirect_loads, nir_var_shader_in);
+      NIR_PASS(_, nir, nir_shader_intrinsics_pass, move_clip_intrins, nir_metadata_control_flow, NULL);
+   }
+
    NIR_PASS(_, nir, nir_opt_vectorize, NULL, NULL);
    if (nir->info.io_lowered) {
       NIR_PASS(_, nir, nir_opt_dce);
@@ -5590,17 +5643,10 @@ zink_shader_init(struct zink_screen *screen, struct zink_shader *zs)
       optimize_nir(nir, NULL, true);
    }
 
-   /* NOTE/TODO: this can be removed after add_derefs rework */
-   const struct scalarize_vars_instr_filter_data filter_data = {
-      .location_mask = BITFIELD64_BIT(VARYING_SLOT_CLIP_DIST0) | BITFIELD64_BIT(VARYING_SLOT_CLIP_DIST1) |
-                       BITFIELD64_BIT(VARYING_SLOT_CULL_DIST0) | BITFIELD64_BIT(VARYING_SLOT_CULL_DIST1) |
-                       BITFIELD64_BIT(VARYING_SLOT_TESS_LEVEL_OUTER) | BITFIELD64_BIT(VARYING_SLOT_TESS_LEVEL_INNER)
-   };
-   NIR_PASS(_, nir, nir_lower_io_to_scalar, nir_var_shader_in | nir_var_shader_out,
-            scalarize_vars_instr_filter, (void*)&filter_data);
-   NIR_PASS(_, nir, nir_separate_merged_clip_cull_io);
-
-   separate_clipcull_arrays(nir);
+   if (screen->info.feats.features.shaderClipDistance) {
+      NIR_PASS(_, nir, nir_separate_merged_clip_cull_io);
+      separate_clipcull_arrays(nir);
+   }
 
    if (nir->info.stage < MESA_SHADER_COMPUTE)
       create_gfx_pushconst(nir);
