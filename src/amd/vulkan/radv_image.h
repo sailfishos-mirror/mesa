@@ -227,6 +227,33 @@ radv_image_has_tc_compat_zrange_metadata(const struct radv_device *device, const
                                                           : pdev->info.has_htile_tc_z_clear_bug_with_stencil;
 }
 
+/**
+ * Return whether the image can decompress HTILE on image stores (ie. write the uncompressed DWORD
+ * to HTILE) when the descriptor sets COMPRESSION_EN=1.
+ */
+static inline bool
+radv_image_decompress_htile_on_image_stores(const struct radv_device *device, const struct radv_image *image)
+{
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
+   if (!radv_image_has_htile(image))
+      return false;
+
+   /* This is supported on GFX10-10.3 but according to PAL there are issues. */
+   if (pdev->info.gfx_level < GFX11)
+      return false;
+
+   /* Only single-sampled images are supported. */
+   if (image->vk.samples > 1)
+      return false;
+
+   /* Only depth or stencil (not both) images are supported. */
+   if (image->vk.aspects == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
+      return false;
+
+   return true;
+}
+
 static inline bool
 radv_image_has_clear_value(const struct radv_image *image)
 {

@@ -451,7 +451,9 @@ radv_image_view_make_descriptor(struct radv_image_view *iview, struct radv_devic
    }
 
    bool enable_write_compression = radv_image_use_dcc_image_stores(device, image);
-   if (is_storage_image && !(enable_write_compression || enable_compression))
+   bool decompress_htile_on_image_stores = radv_image_decompress_htile_on_image_stores(device, image);
+
+   if (is_storage_image && !(enable_write_compression || enable_compression || decompress_htile_on_image_stores))
       disable_compression = true;
 
    radv_set_mutable_tex_desc_fields(device, image, base_level_info, plane_id,
