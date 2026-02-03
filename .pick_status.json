@@ -3884,7 +3884,7 @@
         "description": "vl: Also disable MPEG2 Main profile when mpeg12 decode is disabled",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f4959c16c82cec630b68a43b5d6ea06c1748c606",
         "notes": null
