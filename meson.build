@@ -45,6 +45,12 @@ endif
 
 if get_option('b_lto')
   project_version += '-lto'
+  # LTO causes random issues that are nearly impossible to debug, so bug reports from LTO builds have been
+  # rejected for a long time now.
+  # Explicitly reject LTO when building to prevent more people from running into bugs that end up inactionable.
+  if not get_option('allow-broken-lto')
+     error('Building Mesa with LTO is not supported. Please disable LTO for building Mesa.')
+  endif
 endif
 
 with_llvm = get_option('llvm')
