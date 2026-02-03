@@ -172,8 +172,6 @@ radv_fixup_copy_dst_htile_metadata(struct radv_cmd_buffer *cmd_buffer, struct ra
          /* Fixup HTILE after a copy on compute, but not for partial copies because decompressing the
           * image also means that HTILE is re-initialized to its uncompressed state.
           */
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE;
-
          const VkImageSubresourceRange range = {
             .aspectMask = subresource->aspectMask,
             .baseMipLevel = subresource->mipLevel,
