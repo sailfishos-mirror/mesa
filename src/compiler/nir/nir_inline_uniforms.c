@@ -135,14 +135,7 @@ collect_src_uniforms(const nir_src *src, int component,
           nir_src_as_uint(intr->src[1]) <= max_offset &&
           /* TODO: Can't handle other bit sizes for now. */
           intr->def.bit_size == 32) {
-         /* num_offsets can be NULL if-and-only-if uni_offsets is NULL. */
-         assert((num_offsets == NULL) == (uni_offsets == NULL));
-
-         /* If we're just checking that it's a uniform load, don't check (or
-          * add to) the table.
-          */
-         if (uni_offsets == NULL)
-            return true;
+         assert((num_offsets != NULL) && (uni_offsets != NULL));
 
          uint32_t offset = nir_src_as_uint(intr->src[1]) + component * 4;
          assert(offset < MAX_OFFSET);
