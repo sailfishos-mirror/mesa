@@ -487,20 +487,22 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
                                    radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                                          VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
 
-   const uint32_t queue_mask = radv_image_queue_family_mask(dst_image, cmd_buffer->qf, cmd_buffer->qf);
+   if (!radv_image_decompress_htile_on_image_stores(device, dst_image)) {
+      const uint32_t queue_mask = radv_image_queue_family_mask(dst_image, cmd_buffer->qf, cmd_buffer->qf);
 
-   if (radv_layout_is_htile_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout,
-                                       queue_mask)) {
-      VkImageSubresourceRange range = {
-         .aspectMask = region->dstSubresource.aspectMask,
-         .baseMipLevel = region->dstSubresource.mipLevel,
-         .levelCount = 1,
-         .baseArrayLayer = region->dstSubresource.baseArrayLayer,
-         .layerCount = region->dstSubresource.layerCount,
-      };
+      if (radv_layout_is_htile_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout,
+                                          queue_mask)) {
+         VkImageSubresourceRange range = {
+            .aspectMask = region->dstSubresource.aspectMask,
+            .baseMipLevel = region->dstSubresource.mipLevel,
+            .levelCount = 1,
+            .baseArrayLayer = region->dstSubresource.baseArrayLayer,
+            .layerCount = region->dstSubresource.layerCount,
+         };
 
-      uint32_t htile_value = radv_get_htile_initial_value(device, dst_image);
+         uint32_t htile_value = radv_get_htile_initial_value(device, dst_image);
 
-      cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, dst_image, &range, htile_value, false);
+         cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, dst_image, &range, htile_value, false);
+      }
    }
 }

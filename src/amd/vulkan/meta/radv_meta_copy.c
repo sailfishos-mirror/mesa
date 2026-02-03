@@ -138,6 +138,9 @@ radv_fixup_copy_dst_htile_metadata(struct radv_cmd_buffer *cmd_buffer, struct ra
    if (!radv_layout_is_htile_compressed(device, image, subresource->mipLevel, image_layout, queue_mask))
       return;
 
+   if (radv_image_decompress_htile_on_image_stores(device, image))
+      return;
+
    const bool is_partial_copy = offset->x || offset->y || offset->z || extent->width != image->vk.extent.width ||
                                 extent->height != image->vk.extent.height || extent->depth != image->vk.extent.depth;
 
