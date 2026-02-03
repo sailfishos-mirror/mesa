@@ -48,6 +48,7 @@ struct spirv_shader {
 struct ntv_info {
    bool have_vulkan_memory_model;
    bool have_workgroup_memory_explicit_layout;
+   bool have_float_controls2;
    bool broken_arbitary_type_const;
    bool has_demote_to_helper;
    bool is_native_vulkan; //ignore zink-isms

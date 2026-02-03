@@ -231,6 +231,14 @@ spirv_builder_emit_decoration(struct spirv_builder *b, SpvId target,
 }
 
 void
+spirv_builder_emit_fp_fast_math_mode(struct spirv_builder *b, SpvId target,
+                                     SpvFPFastMathModeMask fp_mode)
+{
+   uint32_t args[] = { fp_mode };
+   emit_decoration(b, target, SpvDecorationFPFastMathMode, args, ARRAY_SIZE(args));
+}
+
+void
 spirv_builder_emit_rounding_mode(struct spirv_builder *b, SpvId target,
                                  SpvFPRoundingMode rounding)
 {

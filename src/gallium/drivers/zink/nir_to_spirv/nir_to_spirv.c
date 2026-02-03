@@ -33,6 +33,15 @@
 
 #define SLOT_UNSET ((unsigned char) -1)
 
+static const SpvFPFastMathModeMask default_fp_mode =
+   SpvFPFastMathModeNSZMask |
+   SpvFPFastMathModeNotInfMask |
+   SpvFPFastMathModeNotNaNMask |
+   SpvFPFastMathModeAllowRecipMask |
+   SpvFPFastMathModeAllowContractMask |
+   SpvFPFastMathModeAllowReassocMask |
+   SpvFPFastMathModeAllowTransformMask;
+
 struct ntv_context {
    void *mem_ctx;
 
@@ -2286,8 +2295,39 @@ emit_alu(struct ntv_context *ctx, nir_alu_instr *alu)
       UNREACHABLE("unsupported opcode");
       return;
    }
-   if (nir_alu_instr_is_exact(alu))
-      spirv_builder_emit_decoration(&ctx->builder, result, SpvDecorationNoContraction);
+
+   if (ctx->sinfo->have_float_controls2) {
+      bool any_float = nir_alu_type_get_base_type(atype) == nir_type_float;
+      for (unsigned i = 0; i < nir_op_infos[alu->op].num_inputs; i++)
+         any_float |= nir_alu_type_get_base_type(stype[i]) == nir_type_float;
+
+      if (any_float) {
+         SpvFPFastMathModeMask fp_mode = 0;
+
+         if (!nir_alu_instr_is_signed_zero_preserve(alu))
+            fp_mode |= SpvFPFastMathModeNSZMask;
+
+         if (!nir_alu_instr_is_inf_preserve(alu))
+            fp_mode |= SpvFPFastMathModeNotInfMask;
+
+         if (!nir_alu_instr_is_nan_preserve(alu))
+            fp_mode |= SpvFPFastMathModeNotNaNMask;
+
+         if (!nir_alu_instr_is_exact(alu)) {
+            fp_mode |=
+               SpvFPFastMathModeAllowRecipMask |
+               SpvFPFastMathModeAllowContractMask |
+               SpvFPFastMathModeAllowReassocMask |
+               SpvFPFastMathModeAllowTransformMask;
+         }
+
+         if (fp_mode != default_fp_mode)
+            spirv_builder_emit_fp_fast_math_mode(&ctx->builder, result, fp_mode);
+      }
+   } else {
+      if (nir_alu_instr_is_exact(alu))
+         spirv_builder_emit_decoration(&ctx->builder, result, SpvDecorationNoContraction);
+   }
 
    store_alu_result(ctx, alu, result, atype);
 }
@@ -5229,6 +5269,20 @@ nir_to_spirv(struct nir_shader *s, const struct ntv_info *sinfo)
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilityDenormFlushToZero);
       if (emit_cap_preserve)
          spirv_builder_emit_cap(&ctx.builder, SpvCapabilityDenormPreserve);
+   }
+
+   if (sinfo->have_float_controls2 && s->info.bit_sizes_float) {
+      spirv_builder_emit_extension(&ctx.builder, "SPV_KHR_float_controls2");
+      spirv_builder_emit_cap(&ctx.builder, SpvCapabilityFloatControls2);
+
+      SpvId defaults = spirv_builder_const_uint(&ctx.builder, 32, default_fp_mode);
+      u_foreach_bit(log_size, s->info.bit_sizes_float) {
+         SpvId float_type = spirv_builder_type_float(&ctx.builder, 1 << log_size);
+         SpvId params[2] = {float_type, defaults};
+         spirv_builder_emit_exec_mode_id(&ctx.builder, entry_point,
+                                          SpvExecutionModeFPFastMathDefault,
+                                          params, 2);
+      }
    }
 
    switch (s->info.stage) {

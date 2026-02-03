@@ -340,6 +340,10 @@ EXTENSIONS = [
               conditions=["$feats.shaderDemoteToHelperInvocation"]),
     Extension("VK_KHR_shader_float_controls",
               alias="float_controls"),
+    Extension("VK_KHR_shader_float_controls2",
+              alias="float_controls2",
+              features=True,
+              conditions=["$feats.shaderFloatControls2"]),
     Extension("VK_KHR_format_feature_flags2"),
 ]
 

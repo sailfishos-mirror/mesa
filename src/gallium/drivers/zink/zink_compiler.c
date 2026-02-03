@@ -1386,6 +1386,7 @@ zink_screen_init_compiler(struct zink_screen *screen)
          screen->ntv_info.float_controls.denorms_all_independence ||
          screen->info.props12.denormBehaviorIndependence == VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_32_BIT_ONLY;
    }
+   screen->ntv_info.have_float_controls2 = screen->info.have_KHR_shader_float_controls2;
    screen->ntv_info.bindless_set_idx = screen->desc_set_id[ZINK_DESCRIPTOR_BINDLESS];
 }
 
