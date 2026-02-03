@@ -840,10 +840,24 @@ LLVMValueRef ac_build_load_to_sgpr(struct ac_llvm_context *ctx, struct ac_llvm_p
    return ac_build_load_custom(ctx, ptr.t, ptr.v, index, true, true, true);
 }
 
-static unsigned get_cache_flags(struct ac_llvm_context *ctx, enum gl_access_qualifier access,
-                                enum ac_access_type type)
+unsigned ac_get_llvm_cache_flags(struct ac_llvm_context *ctx, enum gl_access_qualifier access,
+                                 enum ac_access_type type)
 {
-   return ac_get_hw_cache_flags(ctx->gfx_level, access, type).value;
+   union ac_hw_cache_flags flags = ac_get_hw_cache_flags(ctx->gfx_level, access, type);
+   unsigned llvm_flags;
+
+   if (ctx->gfx_level >= GFX12) {
+      llvm_flags = (uint32_t)flags.gfx12.temporal_hint |
+                   ((uint32_t)flags.gfx12.scope << 3) |
+                   ((uint32_t)flags.gfx12.swizzled << 6);
+   } else {
+      llvm_flags = (uint32_t)!!(flags.value & ac_glc) |
+                   ((uint32_t)!!(flags.value & ac_slc) << 1) |
+                   ((uint32_t)!!(flags.value & ac_dlc) << 2) |
+                   ((uint32_t)!!(flags.value & ac_swizzled) << 3);
+   }
+
+   return llvm_flags;
 }
 
 static void ac_build_buffer_store_common(struct ac_llvm_context *ctx, LLVMValueRef rsrc,
@@ -860,7 +874,7 @@ static void ac_build_buffer_store_common(struct ac_llvm_context *ctx, LLVMValueR
       args[idx++] = vindex ? vindex : ctx->i32_0;
    args[idx++] = voffset ? voffset : ctx->i32_0;
    args[idx++] = soffset ? soffset : ctx->i32_0;
-   args[idx++] = LLVMConstInt(ctx->i32, get_cache_flags(ctx, access, type), 0);
+   args[idx++] = LLVMConstInt(ctx->i32, ac_get_llvm_cache_flags(ctx, access, type), 0);
    const char *indexing_kind = vindex ? "struct" : "raw";
    char name[256], type_name[8];
 
@@ -924,7 +938,7 @@ static LLVMValueRef ac_build_buffer_load_common(struct ac_llvm_context *ctx, LLV
       args[idx++] = vindex;
    args[idx++] = voffset ? voffset : ctx->i32_0;
    args[idx++] = soffset ? soffset : ctx->i32_0;
-   args[idx++] = LLVMConstInt(ctx->i32, get_cache_flags(ctx, access, ac_access_type_load), 0);
+   args[idx++] = LLVMConstInt(ctx->i32, ac_get_llvm_cache_flags(ctx, access, ac_access_type_load), 0);
    unsigned return_channels =
       !ac_has_vec3_support(ctx->gfx_level, use_format) && num_channels == 3 ? 4 : num_channels;
    const char *indexing_kind = vindex ? "struct" : "raw";
@@ -1010,7 +1024,8 @@ LLVMValueRef ac_build_buffer_load(struct ac_llvm_context *ctx, LLVMValueRef rsrc
          LLVMValueRef args[3] = {
             rsrc,
             offset,
-            LLVMConstInt(ctx->i32, get_cache_flags(ctx, access | ACCESS_SMEM_AMD, ac_access_type_load), 0),
+            LLVMConstInt(ctx->i32, ac_get_llvm_cache_flags(ctx, access | ACCESS_SMEM_AMD,
+                                                           ac_access_type_load), 0),
          };
          result[i] = ac_build_intrinsic(ctx, name, channel_type, args, 3, AC_ATTR_INVARIANT_LOAD);
       }
@@ -1063,7 +1078,7 @@ static LLVMValueRef ac_build_tbuffer_load(struct ac_llvm_context *ctx, LLVMValue
    args[idx++] = voffset ? voffset : ctx->i32_0;
    args[idx++] = soffset ? soffset : ctx->i32_0;
    args[idx++] = LLVMConstInt(ctx->i32, tbuffer_format, 0);
-   args[idx++] = LLVMConstInt(ctx->i32, get_cache_flags(ctx, access, ac_access_type_load), 0);
+   args[idx++] = LLVMConstInt(ctx->i32, ac_get_llvm_cache_flags(ctx, access, ac_access_type_load), 0);
    const char *indexing_kind = vindex ? "struct" : "raw";
    char name[256], type_name[8];
 
@@ -1680,10 +1695,9 @@ LLVMValueRef ac_build_image_opcode(struct ac_llvm_context *ctx, struct ac_image_
 
    args[num_args++] = a->tfe ? ctx->i32_1 : ctx->i32_0; /* texfailctrl */
    args[num_args++] = LLVMConstInt(
-      ctx->i32, get_cache_flags(ctx,
-                                a->access,
-                                (atomic ? ac_access_type_atomic :
-                                 load ? ac_access_type_load : ac_access_type_store_subdword)),
+      ctx->i32, ac_get_llvm_cache_flags(ctx, a->access,
+                                        (atomic ? ac_access_type_atomic :
+                                                  load ? ac_access_type_load : ac_access_type_store_subdword)),
       false);
 
    const char *name;

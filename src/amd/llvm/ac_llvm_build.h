@@ -493,6 +493,9 @@ void ac_build_dual_src_blend_swizzle(struct ac_llvm_context *ctx,
                                      struct ac_export_args *mrt0,
                                      struct ac_export_args *mrt1);
 
+unsigned ac_get_llvm_cache_flags(struct ac_llvm_context *ctx, enum gl_access_qualifier access,
+                                 enum ac_access_type type);
+
 #ifdef __cplusplus
 }
 #endif

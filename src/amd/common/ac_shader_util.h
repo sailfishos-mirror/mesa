@@ -45,8 +45,8 @@ enum ac_access_type {
    ac_access_type_atomic,
 };
 
-/* GFX6-11. The meaning of these enums is different between chips. They match LLVM definitions,
- * but they can also be used by ACO. Use ac_get_hw_cache_flags to get these.
+/* GFX6-11. The meaning of these enums is different between chips.
+ * Use ac_get_hw_cache_flags to get these.
  */
 enum ac_cache_flags
 {
@@ -149,7 +149,6 @@ enum gfx12_speculative_data_read
 union ac_hw_cache_flags
 {
    struct {
-      /* This matches LLVM, but it can also be used by ACO for translation of ac_memop_flags. */
       uint8_t temporal_hint:3;   /* gfx12_{load,store,atomic}_temporal_hint */
       uint8_t scope:2;           /* gfx12_scope */
       uint8_t _reserved:1;

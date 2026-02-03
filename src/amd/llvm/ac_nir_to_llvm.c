@@ -1751,8 +1751,7 @@ static LLVMValueRef visit_atomic_ssbo(struct ac_nir_context *ctx, nir_intrinsic_
       }
 
       unsigned cache_flags =
-         ac_get_hw_cache_flags(ctx->ac.gfx_level,
-                               nir_intrinsic_access(instr), ac_access_type_atomic).value;
+         ac_get_llvm_cache_flags(&ctx->ac, nir_intrinsic_access(instr), ac_access_type_atomic);
 
       params[arg_count++] = data;
       params[arg_count++] = descriptor;
@@ -2414,8 +2413,7 @@ static LLVMValueRef visit_image_atomic(struct ac_nir_context *ctx, const nir_int
          LLVMTypeRef data_type = LLVMTypeOf(params[0]);
          char type[8];
          unsigned cache_flags =
-            ac_get_hw_cache_flags(ctx->ac.gfx_level,
-                                  nir_intrinsic_access(instr), ac_access_type_atomic).value;
+            ac_get_llvm_cache_flags(&ctx->ac, nir_intrinsic_access(instr), ac_access_type_atomic);
 
          params[param_count++] = ctx->ac.i32_0; /* soffset */
          params[param_count++] = LLVMConstInt(ctx->ac.i32, cache_flags, 0);
