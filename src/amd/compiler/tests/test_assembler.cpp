@@ -505,8 +505,8 @@ BEGIN_TEST(assembler.smem)
       //! s_load_b32 s4, s[16:17], s8 offset:0x2a                     ; f4000108 1000002a
       bld.smem(aco_opcode::s_load_dword, dst, op_s2, Operand::c32(42), op_s1);
 
-      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0, 0}};
+      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0}};
       if (gfx >= GFX12) {
          cache_coherent.gfx12.scope = gfx12_scope_device;
          cache_non_temporal.gfx12.temporal_hint = gfx12_load_non_temporal;
@@ -587,10 +587,10 @@ BEGIN_TEST(assembler.mubuf)
       bld.mubuf(aco_opcode::buffer_load_dword, dst, op_s4, Operand(v1), op_s1, 84, false);
 
       /* Various flags */
-      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_sys_coherent = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_atomic_rtn = {{0, 0, 0, 0, 0}};
+      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_sys_coherent = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_atomic_rtn = {{0, 0, 0, 0}};
       if (gfx >= GFX12) {
          cache_coherent.gfx12.scope = gfx12_scope_device;
          cache_sys_coherent.gfx12.scope = gfx12_scope_memory;
@@ -715,9 +715,9 @@ BEGIN_TEST(assembler.mtbuf)
                 false);
 
       /* Various flags */
-      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_sys_coherent = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0, 0}};
+      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_sys_coherent = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0}};
       if (gfx >= GFX12) {
          cache_coherent.gfx12.scope = gfx12_scope_device;
          cache_sys_coherent.gfx12.scope = gfx12_scope_memory;
@@ -823,10 +823,10 @@ BEGIN_TEST(assembler.mimg)
          0x1;
 
       /* Various flags */
-      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_sys_coherent = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_atomic_rtn = {{0, 0, 0, 0, 0}};
+      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_sys_coherent = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_atomic_rtn = {{0, 0, 0, 0}};
       if (gfx >= GFX12) {
          cache_coherent.gfx12.scope = gfx12_scope_device;
          cache_sys_coherent.gfx12.scope = gfx12_scope_memory;
@@ -998,10 +998,10 @@ BEGIN_TEST(assembler.flat)
       bld.global(aco_opcode::global_load_dword, dst_v1, op_v2, Operand(s1), 84);
 
       /* Various flags */
-      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_sys_coherent = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0, 0}};
-      ac_hw_cache_flags cache_atomic_rtn = {{0, 0, 0, 0, 0}};
+      ac_hw_cache_flags cache_coherent = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_sys_coherent = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_non_temporal = {{0, 0, 0, 0}};
+      ac_hw_cache_flags cache_atomic_rtn = {{0, 0, 0, 0}};
       if (gfx >= GFX12) {
          cache_coherent.gfx12.scope = gfx12_scope_device;
          cache_sys_coherent.gfx12.scope = gfx12_scope_memory;

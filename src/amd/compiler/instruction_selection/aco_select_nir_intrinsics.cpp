@@ -288,7 +288,7 @@ struct LoadEmitInfo {
    nir_src* offset_src = NULL; /* should be equal to offset or NULL */
    isel_context* ctx;
 
-   ac_hw_cache_flags cache = {{0, 0, 0, 0, 0}};
+   ac_hw_cache_flags cache = {{0, 0, 0, 0}};
    bool split_by_component_stride = true;
    bool disable_wqm = false;
    unsigned swizzle_component_size = 0;

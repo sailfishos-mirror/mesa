@@ -151,9 +151,8 @@ union ac_hw_cache_flags
    struct {
       uint8_t temporal_hint:3;   /* gfx12_{load,store,atomic}_temporal_hint */
       uint8_t scope:2;           /* gfx12_scope */
-      uint8_t _reserved:1;
       uint8_t swizzled:1;        /* for swizzled buffer access (attribute ring) */
-      uint8_t _pad:1;
+      uint8_t _already_reserved_for_future:2;
    } gfx12;
 
    uint8_t value; /* ac_cache_flags (GFX6-11) or the gfx12 structure */
