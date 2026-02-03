@@ -1840,6 +1840,52 @@ cs_wait_indirect(struct cs_builder *b)
 }
 #endif
 
+#if PAN_ARCH >= 13
+static inline void
+cs_add32(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+         struct cs_index src1)
+{
+   cs_emit(b, ADD32, I) {
+      I.destination = cs_dst32(b, dest);
+      I.source_0 = cs_src32(b, src0);
+      I.source_1 = cs_src32(b, src1);
+   }
+}
+
+static inline void
+cs_sub32(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+         struct cs_index src1)
+{
+   cs_emit(b, SUB32, I) {
+      I.destination = cs_dst32(b, dest);
+      I.source_0 = cs_src32(b, src0);
+      I.source_1 = cs_src32(b, src1);
+   }
+}
+
+static inline void
+cs_add64(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+         struct cs_index src1)
+{
+   cs_emit(b, ADD64, I) {
+      I.destination = cs_dst64(b, dest);
+      I.source_0 = cs_src64(b, src0);
+      I.source_1 = cs_src64(b, src1);
+   }
+}
+
+static inline void
+cs_sub64(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+         struct cs_index src1)
+{
+   cs_emit(b, SUB64, I) {
+      I.destination = cs_dst64(b, dest);
+      I.source_0 = cs_src64(b, src0);
+      I.source_1 = cs_src64(b, src1);
+   }
+}
+#endif
+
 static inline void
 cs_load_to(struct cs_builder *b, struct cs_index dest, struct cs_index address,
            unsigned mask, int offset)
