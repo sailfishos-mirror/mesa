@@ -396,6 +396,7 @@ spec@arb_shader_image_load_store@shader-mem-barrier@Tessellation control shader/
 spec@arb_shader_image_load_store@shader-mem-barrier@Tessellation control shader/'volatile' qualifier memory barrier test/modulus=64,Fail
 spec@arb_shader_storage_buffer_object@array-ssbo-auto-binding,Fail
 spec@arb_shader_storage_buffer_object@array-ssbo-binding,Crash
+spec@arb_shader_storage_buffer_object@maxblocks,Fail
 spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgrad,Fail
 spec@arb_shader_texture_lod@execution@arb_shader_texture_lod-texgradcube,Fail
 spec@arb_tessellation_shader@arb_tessellation_shader-tes-gs-max-output -small -scan 1 50,Fail
