@@ -193,7 +193,7 @@ iris_emit_buffer_barrier_for(struct iris_batch *batch,
       [IRIS_DOMAIN_VF_READ] = PIPE_CONTROL_VF_CACHE_INVALIDATE,
       [IRIS_DOMAIN_SAMPLER_READ] = PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE,
       [IRIS_DOMAIN_PULL_CONSTANT_READ] = PIPE_CONTROL_CONST_CACHE_INVALIDATE |
-         (iris_indirect_ubos_use_sampler(batch->screen) ?
+         (intel_indirect_ubos_use_sampler(devinfo) ?
           PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE :
           PIPE_CONTROL_DATA_CACHE_FLUSH),
    };

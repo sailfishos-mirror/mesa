@@ -690,7 +690,8 @@ iris_upload_ubo_ssbo_surf_state(struct iris_context *ice,
    struct iris_bo *surf_bo = iris_resource_bo(surf_state->res);
    surf_state->offset += iris_bo_offset_from_base_address(surf_bo);
 
-   const bool dataport = ssbo || !iris_indirect_ubos_use_sampler(screen);
+   const bool dataport =
+      ssbo || !intel_indirect_ubos_use_sampler(screen->devinfo);
 
    isl_buffer_fill_state(&screen->isl_dev, map,
                          .address = res->bo->address + res->offset +
@@ -4046,12 +4047,6 @@ bool
 iris_use_tcs_multi_patch(struct iris_screen *screen)
 {
    return screen->brw && screen->brw->use_tcs_multi_patch;
-}
-
-bool
-iris_indirect_ubos_use_sampler(struct iris_screen *screen)
-{
-   return screen->brw && screen->brw->indirect_ubos_use_sampler;
 }
 
 static void

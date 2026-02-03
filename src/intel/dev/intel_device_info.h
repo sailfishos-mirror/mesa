@@ -214,6 +214,18 @@ enum intel_wa_steppings intel_device_info_wa_stepping(struct intel_device_info *
 uint32_t intel_device_info_get_max_slm_size(const struct intel_device_info *devinfo);
 uint32_t intel_device_info_get_max_preferred_slm_size(const struct intel_device_info *devinfo);
 
+/**
+ * Whether indirect UBO loads should use the sampler or go through the
+ * data/constant cache.  For the sampler, UBO surface states have to be set
+ * up with VK_FORMAT_R32G32B32A32_FLOAT whereas if it's going through the
+ * constant or data cache, UBOs must use VK_FORMAT_RAW.
+ */
+static inline bool
+intel_indirect_ubos_use_sampler(const struct intel_device_info *devinfo)
+{
+   return devinfo->ver < 12;
+}
+
 #ifdef __cplusplus
 }
 #endif

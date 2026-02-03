@@ -75,14 +75,6 @@ struct brw_compiler {
    bool precise_trig;
 
    /**
-    * Whether indirect UBO loads should use the sampler or go through the
-    * data/constant cache.  For the sampler, UBO surface states have to be set
-    * up with VK_FORMAT_R32G32B32A32_FLOAT whereas if it's going through the
-    * constant or data cache, UBOs must use VK_FORMAT_RAW.
-    */
-   bool indirect_ubos_use_sampler;
-
-   /**
     * Gfx12.5+ has a bit in the SEND instruction extending the bindless
     * surface offset range from 20 to 26 bits, effectively giving us 4Gb of
     * bindless surface descriptors instead of 64Mb previously.

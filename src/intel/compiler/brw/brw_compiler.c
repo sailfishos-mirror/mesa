@@ -94,8 +94,6 @@ brw_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
    compiler->extended_bindless_surface_offset = devinfo->verx10 >= 125;
    compiler->use_tcs_multi_patch = devinfo->ver >= 12;
 
-   compiler->indirect_ubos_use_sampler = devinfo->ver < 12;
-
    compiler->lower_dpas = !devinfo->has_systolic ||
                           debug_get_bool_option("INTEL_LOWER_DPAS", false);
 

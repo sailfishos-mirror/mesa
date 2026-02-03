@@ -1368,7 +1368,6 @@ uint32_t
 iris_fs_barycentric_modes(const struct iris_compiled_shader *shader,
                           enum intel_fs_config pushed_fs_config);
 bool iris_use_tcs_multi_patch(struct iris_screen *screen);
-bool iris_indirect_ubos_use_sampler(struct iris_screen *screen);
 const struct nir_shader_compiler_options *
 iris_get_compiler_options(struct pipe_screen *pscreen,
                           mesa_shader_stage pstage);

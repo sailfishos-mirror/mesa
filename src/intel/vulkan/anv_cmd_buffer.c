@@ -995,7 +995,7 @@ anv_isl_format_for_descriptor_type(const struct anv_device *device,
    switch (type) {
    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-      return device->physical->compiler->indirect_ubos_use_sampler ?
+      return intel_indirect_ubos_use_sampler(device->info) ?
              ISL_FORMAT_R32G32B32A32_FLOAT : ISL_FORMAT_RAW;
 
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:

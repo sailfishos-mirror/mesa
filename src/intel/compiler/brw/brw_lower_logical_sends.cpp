@@ -1674,7 +1674,6 @@ lower_lsc_varying_pull_constant_logical_send(const brw_builder &bld,
                                              brw_inst *inst)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
-   ASSERTED const brw_compiler *compiler = bld.shader->compiler;
 
    assert(inst->src[PULL_VARYING_CONSTANT_SRC_BINDING_TYPE].file == IMM);
    enum lsc_addr_surface_type surf_type =
@@ -1699,7 +1698,7 @@ lower_lsc_varying_pull_constant_logical_send(const brw_builder &bld,
 
    send->sfid = BRW_SFID_UGM;
 
-   assert(!compiler->indirect_ubos_use_sampler);
+   assert(!intel_indirect_ubos_use_sampler(devinfo));
 
    send->src[SEND_SRC_DESC]     = brw_imm_ud(0);
    send->src[SEND_SRC_EX_DESC]  = brw_imm_ud(0);
@@ -1746,7 +1745,6 @@ static void
 lower_varying_pull_constant_logical_send(const brw_builder &bld, brw_inst *inst)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
-   const brw_compiler *compiler = bld.shader->compiler;
 
    assert(inst->src[PULL_VARYING_CONSTANT_SRC_BINDING_TYPE].file == IMM);
    enum lsc_addr_surface_type surf_type =
@@ -1777,7 +1775,7 @@ lower_varying_pull_constant_logical_send(const brw_builder &bld, brw_inst *inst)
    send->src[SEND_SRC_PAYLOAD1] = ubo_offset;
    send->src[SEND_SRC_PAYLOAD2] = brw_reg();
 
-   if (compiler->indirect_ubos_use_sampler) {
+   if (intel_indirect_ubos_use_sampler(devinfo)) {
       const unsigned simd_mode =
          send->exec_size <= 8 ? BRW_SAMPLER_SIMD_MODE_SIMD8 :
                                 BRW_SAMPLER_SIMD_MODE_SIMD16;
@@ -2314,7 +2312,7 @@ brw_lower_logical_sends(brw_shader &s)
       }
 
       case FS_OPCODE_VARYING_PULL_CONSTANT_LOAD_LOGICAL:
-         if (devinfo->has_lsc && !s.compiler->indirect_ubos_use_sampler)
+         if (devinfo->has_lsc)
             lower_lsc_varying_pull_constant_logical_send(ibld, inst);
          else
             lower_varying_pull_constant_logical_send(ibld, inst);

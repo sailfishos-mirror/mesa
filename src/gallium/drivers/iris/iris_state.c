@@ -9862,7 +9862,7 @@ batch_mark_sync_for_pipe_control(struct iris_batch *batch, uint32_t flags)
    /* Technically, to invalidate IRIS_DOMAIN_PULL_CONSTANT_READ, we need
     * both "Constant Cache Invalidate" and either "Texture Cache Invalidate"
     * or "Data Cache Flush" set, depending on the setting of
-    * iris_indirect_ubos_use_sampler().
+    * intel_indirect_ubos_use_sampler().
     *
     * However, "Data Cache Flush" and "Constant Cache Invalidate" will never
     * appear in the same PIPE_CONTROL command, because one is bottom-of-pipe
