@@ -515,7 +515,12 @@ panvk_image_pre_mod_select_meta_adjustments(struct panvk_image *image)
         (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)) &&
        vk_format_is_compressed(image->vk.format)) {
       /* We need to be able to create RGBA views of compressed formats for
-       * vk_meta copies. */
+       * vk_meta copies.
+       *
+       * FIXME: this might cause LINEAR to be used instead of a better modifier.
+       * See https://gitlab.freedesktop.org/panfrost/mesa/-/issues/271 for
+       * details.
+       */
       image->vk.create_flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT |
                                 VK_IMAGE_CREATE_BLOCK_TEXEL_VIEW_COMPATIBLE_BIT;
    }
