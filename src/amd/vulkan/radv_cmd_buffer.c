@@ -9685,6 +9685,9 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
          if (primary->state.dirty & RADV_CMD_DIRTY_FBFETCH_OUTPUT) {
             radv_handle_fbfetch_output(primary);
             primary->state.dirty &= ~RADV_CMD_DIRTY_FBFETCH_OUTPUT;
+
+            /* Emit pending flushes if a late decompression was performed. */
+            radv_emit_cache_flush(primary);
          }
 
          if (primary->state.render.active && (primary->state.dirty & RADV_CMD_DIRTY_FRAMEBUFFER)) {
