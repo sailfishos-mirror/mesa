@@ -2103,8 +2103,8 @@ emit_alu(struct ntv_context *ctx, nir_alu_instr *alu)
       result = emit_builtin_binop(ctx, spirv_op, dest_type, src[0], src[1]); \
       break;
 
-   BUILTIN_BINOP(nir_op_fmin, GLSLstd450FMin)
-   BUILTIN_BINOP(nir_op_fmax, GLSLstd450FMax)
+   BUILTIN_BINOP(nir_op_fmin, nir_alu_instr_is_nan_preserve(alu) ? GLSLstd450NMin : GLSLstd450FMin)
+   BUILTIN_BINOP(nir_op_fmax, nir_alu_instr_is_nan_preserve(alu) ? GLSLstd450NMax : GLSLstd450FMax)
    BUILTIN_BINOP(nir_op_imin, GLSLstd450SMin)
    BUILTIN_BINOP(nir_op_imax, GLSLstd450SMax)
    BUILTIN_BINOP(nir_op_umin, GLSLstd450UMin)
