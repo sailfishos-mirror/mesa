@@ -1884,6 +1884,140 @@ cs_sub64(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
       I.source_1 = cs_src64(b, src1);
    }
 }
+
+static inline void
+cs_lshift_imm32(struct cs_builder *b, struct cs_index dest, struct cs_index src,
+                uint8_t imm)
+{
+   cs_emit(b, LSHIFT_IMM32, I) {
+      I.destination = cs_dst32(b, dest);
+      I.source = cs_src32(b, src);
+      I.shift_amount = imm;
+   }
+}
+
+static inline void
+cs_lshift32(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+            struct cs_index src1)
+{
+   cs_emit(b, LSHIFT32, I) {
+      I.destination = cs_dst32(b, dest);
+      I.source_0 = cs_src32(b, src0);
+      I.source_1 = cs_src32(b, src1);
+   }
+}
+
+static inline void
+cs_rshift_imm_u32(struct cs_builder *b, struct cs_index dest,
+                  struct cs_index src, uint8_t imm)
+{
+   cs_emit(b, RSHIFT_IMM_U32, I) {
+      I.destination = cs_dst32(b, dest);
+      I.source = cs_src32(b, src);
+      I.shift_amount = imm;
+   }
+}
+
+static inline void
+cs_rshift_imm_s32(struct cs_builder *b, struct cs_index dest,
+                  struct cs_index src, int8_t imm)
+{
+   cs_emit(b, RSHIFT_IMM_S32, I) {
+      I.destination = cs_dst32(b, dest);
+      I.source = cs_src32(b, src);
+      I.shift_amount = imm;
+   }
+}
+
+
+static inline void
+cs_rshift_u32(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+              struct cs_index src1)
+{
+   cs_emit(b, RSHIFT_U32, I) {
+      I.destination = cs_dst32(b, dest);
+      I.source_0 = cs_src32(b, src0);
+      I.source_1 = cs_src32(b, src1);
+   }
+}
+
+static inline void
+cs_rshift_s32(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+              struct cs_index src1)
+{
+   cs_emit(b, RSHIFT_S32, I) {
+      I.destination = cs_dst32(b, dest);
+      I.source_0 = cs_src32(b, src0);
+      I.source_1 = cs_src32(b, src1);
+   }
+}
+
+static inline void
+cs_lshift_imm64(struct cs_builder *b, struct cs_index dest, struct cs_index src,
+                uint8_t imm)
+{
+   cs_emit(b, LSHIFT_IMM64, I) {
+      I.destination = cs_dst64(b, dest);
+      I.source = cs_src64(b, src);
+      I.shift_amount = imm;
+   }
+}
+
+static inline void
+cs_lshift64(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+            struct cs_index src1)
+{
+   cs_emit(b, LSHIFT64, I) {
+      I.destination = cs_dst64(b, dest);
+      I.source_0 = cs_src64(b, src0);
+      I.source_1 = cs_src64(b, src1);
+   }
+}
+
+static inline void
+cs_rshift_imm_u64(struct cs_builder *b, struct cs_index dest,
+                  struct cs_index src, uint8_t imm)
+{
+   cs_emit(b, RSHIFT_IMM_U64, I) {
+      I.destination = cs_dst64(b, dest);
+      I.source = cs_src64(b, src);
+      I.shift_amount = imm;
+   }
+}
+
+static inline void
+cs_rshift_imm_s64(struct cs_builder *b, struct cs_index dest,
+                  struct cs_index src, int8_t imm)
+{
+   cs_emit(b, RSHIFT_IMM_S64, I) {
+      I.destination = cs_dst64(b, dest);
+      I.source = cs_src64(b, src);
+      I.shift_amount = imm;
+   }
+}
+
+
+static inline void
+cs_rshift_u64(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+              struct cs_index src1)
+{
+   cs_emit(b, RSHIFT_U64, I) {
+      I.destination = cs_dst64(b, dest);
+      I.source_0 = cs_src64(b, src0);
+      I.source_1 = cs_src64(b, src1);
+   }
+}
+
+static inline void
+cs_rshift_s64(struct cs_builder *b, struct cs_index dest, struct cs_index src0,
+              struct cs_index src1)
+{
+   cs_emit(b, RSHIFT_S64, I) {
+      I.destination = cs_dst64(b, dest);
+      I.source_0 = cs_src64(b, src0);
+      I.source_1 = cs_src64(b, src1);
+   }
+}
 #endif
 
 static inline void
