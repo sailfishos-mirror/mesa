@@ -1347,13 +1347,48 @@ v3d_instr_delay_cb(nir_instr *instr, void *data)
    switch (instr->type) {
    case nir_instr_type_undef:
    case nir_instr_type_load_const:
-   case nir_instr_type_alu:
    case nir_instr_type_deref:
    case nir_instr_type_jump:
    case nir_instr_type_call:
    case nir_instr_type_cmat_call:
    case nir_instr_type_phi:
       return 1;
+
+   case nir_instr_type_alu: {
+      nir_alu_instr *alu = nir_instr_as_alu(instr);
+      switch (alu->op) {
+      /* We implement integer downcasts with a MOV, which can be copy
+       * propagated in the backend.
+       */
+      case nir_op_u2u16:
+      case nir_op_i2i16:
+            return nir_src_bit_size(alu->src[0].src) == 32 ? 0 : 1;
+      case nir_op_u2u8:
+      case nir_op_i2i8:
+         return 0;
+
+      /* This is a FMOV with unpack which can be copy propagated in the
+       * backend.
+       */
+      case nir_op_f2f32:
+         return 0;
+
+      /* We assume ushr by const 16 is probably part of a common NIR sequence
+       * to extract the high or low 16-bit of a 2x16-bit value, wich will
+       * optimized away by the backend.
+       */
+      case nir_op_ushr: {
+         nir_scalar s = nir_get_scalar(alu->src[1].src.ssa, 0);
+         if (!nir_scalar_is_const(s))
+            return false;
+
+         return nir_scalar_as_uint(s) == 16u;
+      }
+
+      default:
+         return 1;
+      }
+   }
 
    /* We should not use very large delays for TMU instructions. Typically,
     * thread switches will be sufficient to hide all or most of the latency,
