@@ -4824,8 +4824,7 @@ static void
 iris_emit_sbe_swiz(struct iris_batch *batch,
                    const struct iris_context *ice,
                    const struct intel_vue_map *vue_map,
-                   unsigned urb_read_offset,
-                   unsigned sprite_coord_enables)
+                   unsigned urb_read_offset)
 {
    struct GENX(SF_OUTPUT_ATTRIBUTE_DETAIL) attr_overrides[16] = {};
    const struct iris_fs_data *fs_data =
@@ -4843,9 +4842,6 @@ iris_emit_sbe_swiz(struct iris_batch *batch,
       struct GENX(SF_OUTPUT_ATTRIBUTE_DETAIL) *attr =
          &attr_overrides[input_index];
       int slot = vue_map->varying_to_slot[fs_attr];
-
-      if (sprite_coord_enables & (1 << input_index))
-         continue;
 
       /* If there was only a back color written but not front, use back
        * as the color instead of undefined.
@@ -4972,8 +4968,7 @@ iris_emit_sbe(struct iris_batch *batch, const struct iris_context *ice)
       }
    }
 
-   iris_emit_sbe_swiz(batch, ice, last_vue_map, urb_read_offset,
-                      sprite_coord_overrides);
+   iris_emit_sbe_swiz(batch, ice, last_vue_map, urb_read_offset);
 }
 
 /* ------------------------------------------------------------------- */
