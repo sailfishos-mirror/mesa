@@ -1489,7 +1489,9 @@ by a particular renderpass/blit.
 	</bitset>
 
 	<reg32 offset="0x8008" name="GRAS_BIN_FOVEAT" type="a6xx_gras_bin_foveat" variants="A7XX" usage="cmd"/>
-	<reg32 offset="0x8206" name="GRAS_BIN_FOVEAT" type="a6xx_gras_bin_foveat" variants="A8XX-" usage="cmd"/>
+	<reg32 offset="0x8206" name="GRAS_BIN_FOVEAT" type="a6xx_gras_bin_foveat" variants="A8XX-" usage="cmd">
+		<bitfield name="FDM_OFFSET_EN" pos="7" type="boolean"/>
+	</reg32>
 
 	<reg32 offset="0x8009" name="GRAS_BIN_FOVEAT_OFFSET_0" variants="A7XX" usage="cmd">
 		<bitfield name="XOFFSET_0" low="0" high="9" shr="2" type="uint"/>
