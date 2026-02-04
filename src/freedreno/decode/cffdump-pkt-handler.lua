@@ -54,3 +54,13 @@ function CP_REG_RMW(pkt, size)
 		             dst_reg_str, dst_reg_str, src0_str, rotate,
 		             op_str, src1_str)
 end
+
+function CP_MEM_WRITE(pkt, size)
+	local addr = pkt.ADDR
+
+	for i = 2, size - 1 do
+		dbg("write: %x %x\n", addr, pkt[i])
+		bos.write(addr, pkt[i])
+		addr = addr + 4
+	end
+end

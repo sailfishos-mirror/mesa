@@ -2758,6 +2758,9 @@ cp_wfi(uint32_t *dwords, uint32_t sizedwords, int level)
 static void
 cp_mem_write(uint32_t *dwords, uint32_t sizedwords, int level)
 {
+   struct rnndomain *domain = rnn_finddomain(rnn->db, "CP_MEM_WRITE");
+   internal_packet(dwords, sizedwords, rnn, domain);
+
    if (quiet(2))
       return;
 
@@ -2784,7 +2787,6 @@ cp_rmw(uint32_t *dwords, uint32_t sizedwords, int level)
    domain = rnn_finddomain(rnn->db, "CP_REG_RMW");
    str = internal_packet(dwords, sizedwords, rnn, domain);
 
-   
    printl(3, "%srmw %s", levels[level], str);
    if (needs_wfi)
       printl(2, "NEEDS WFI: rmw %s", str);
