@@ -299,10 +299,7 @@ VkResult pvr_CreateImage(VkDevice _device,
       image->vk.drm_format_mod = modifier;
    }
 
-   /* All images aligned to 4k, in case of arrays/CEM.
-    * Refer: pvr_GetImageMemoryRequirements for further details.
-    */
-   image->alignment = 4096U;
+   image->alignment = device->pdevice->ws->page_size;
 
    image->plane_count = vk_format_get_plane_count(image->vk.format);
 

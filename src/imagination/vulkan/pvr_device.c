@@ -701,7 +701,7 @@ VkResult pvr_CreateBuffer(VkDevice _device,
                           VkBuffer *pBuffer)
 {
    VK_FROM_HANDLE(pvr_device, device, _device);
-   const uint32_t alignment = 4096;
+   const uint32_t alignment = device->pdevice->ws->page_size;
    struct pvr_buffer *buffer;
 
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
