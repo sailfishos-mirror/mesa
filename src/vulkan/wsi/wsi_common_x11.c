@@ -1434,8 +1434,8 @@ x11_present_to_x11_dri3(struct x11_swapchain *chain, uint32_t image_index,
    int64_t divisor = 0;
    int64_t remainder = 0;
 
-   struct wsi_x11_connection *wsi_conn =
-      wsi_x11_get_connection((struct wsi_device*)chain->base.wsi, chain->conn);
+   struct wsi_device *wsi_device = (struct wsi_device*)chain->base.wsi;
+   struct wsi_x11_connection *wsi_conn = wsi_x11_get_connection(wsi_device, chain->conn);
    if (!wsi_conn)
       return VK_ERROR_OUT_OF_HOST_MEMORY;
 
@@ -1449,7 +1449,8 @@ x11_present_to_x11_dri3(struct x11_swapchain *chain, uint32_t image_index,
       && chain->has_async_may_tear)
       options |= XCB_PRESENT_OPTION_ASYNC_MAY_TEAR;
 
-   if (chain->has_dri3_modifiers)
+   if (chain->has_dri3_modifiers &&
+       !wsi_device->x11.ignore_suboptimal)
       options |= XCB_PRESENT_OPTION_SUBOPTIMAL;
 
    xshmfence_reset(image->shm_fence);
