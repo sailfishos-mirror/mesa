@@ -2035,9 +2035,6 @@ radv_CmdClearAttachments(VkCommandBuffer commandBuffer, uint32_t attachmentCount
    enum radv_cmd_flush_bits pre_flush = 0;
    enum radv_cmd_flush_bits post_flush = 0;
 
-   if (!cmd_buffer->state.render.active)
-      return;
-
    radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_GRAPHICS_PIPELINE | RADV_META_SAVE_CONSTANTS);
 
    /* FINISHME: We can do better than this dumb loop. It thrashes too much
