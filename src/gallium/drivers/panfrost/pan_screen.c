@@ -754,6 +754,7 @@ panfrost_init_screen_caps(struct panfrost_screen *screen)
    caps->packed_uniforms = true;
    caps->image_load_formatted = true;
    caps->image_store_formatted = true;
+   caps->image_atomic_inc_wrap = true;
    caps->cube_map_array = true;
    caps->compute = true;
    caps->int64 = true;
