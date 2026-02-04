@@ -4844,27 +4844,6 @@ iris_emit_sbe_swiz(struct iris_batch *batch,
          &attr_overrides[input_index];
       int slot = vue_map->varying_to_slot[fs_attr];
 
-      /* Viewport and Layer are stored in the VUE header.  We need to override
-       * them to zero if earlier stages didn't write them, as GL requires that
-       * they read back as zero when not explicitly set.
-       */
-      switch (fs_attr) {
-      case VARYING_SLOT_VIEWPORT:
-      case VARYING_SLOT_LAYER:
-         attr->ComponentOverrideX = true;
-         attr->ComponentOverrideW = true;
-         attr->ConstantSource = CONST_0000;
-
-         if (!(vue_map->slots_valid & VARYING_BIT_LAYER))
-            attr->ComponentOverrideY = true;
-         if (!(vue_map->slots_valid & VARYING_BIT_VIEWPORT))
-            attr->ComponentOverrideZ = true;
-         continue;
-
-      default:
-         break;
-      }
-
       if (sprite_coord_enables & (1 << input_index))
          continue;
 
