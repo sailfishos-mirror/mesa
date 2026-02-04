@@ -2555,6 +2555,7 @@ brw_vectorize_lower_mem_access(brw_pass_tracker *pt)
 
    nir_lower_mem_access_bit_sizes_options mem_access_options = {
       .modes = nir_var_mem_ssbo |
+               nir_var_mem_ubo |
                nir_var_mem_constant |
                nir_var_mem_task_payload |
                nir_var_shader_temp |
