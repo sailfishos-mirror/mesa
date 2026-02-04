@@ -5104,7 +5104,7 @@
         "description": "rusticl: fix flag validation when creating an image",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3386e1425f1c4fa52c8fae9511f6c31d2713dac8",
         "notes": null
