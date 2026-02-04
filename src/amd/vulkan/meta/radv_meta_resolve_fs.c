@@ -387,9 +387,8 @@ radv_meta_resolve_fragment_image(struct radv_cmd_buffer *cmd_buffer, struct radv
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_meta_saved_state saved_state;
 
-   radv_meta_save(
-      &saved_state, cmd_buffer,
-      RADV_META_SAVE_GRAPHICS_PIPELINE | RADV_META_SAVE_CONSTANTS | RADV_META_SAVE_DESCRIPTORS | RADV_META_SAVE_RENDER);
+   radv_meta_save(&saved_state, cmd_buffer,
+                  RADV_META_SAVE_GRAPHICS_PIPELINE | RADV_META_SAVE_CONSTANTS | RADV_META_SAVE_DESCRIPTORS);
 
    assert(region->srcSubresource.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
    assert(region->dstSubresource.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
@@ -520,8 +519,7 @@ radv_meta_resolve_depth_stencil_fs(struct radv_cmd_buffer *cmd_buffer, struct ra
       return;
    }
 
-   radv_meta_save(&saved_state, cmd_buffer,
-                  RADV_META_SAVE_GRAPHICS_PIPELINE | RADV_META_SAVE_DESCRIPTORS | RADV_META_SAVE_RENDER);
+   radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_GRAPHICS_PIPELINE | RADV_META_SAVE_DESCRIPTORS);
 
    const VkImageViewUsageCreateInfo src_iview_usage_info = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
