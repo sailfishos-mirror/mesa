@@ -389,6 +389,56 @@ radv_meta_resolve_hardware_image(struct radv_cmd_buffer *cmd_buffer, struct radv
    radv_meta_restore(&saved_state, cmd_buffer);
 }
 
+/**
+ * Decompress CMask/FMask before resolving a multisampled source image.
+ */
+static void
+radv_decompress_resolve_src(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image,
+                            VkImageLayout src_image_layout, const VkImageResolve2 *region)
+{
+   VkImageMemoryBarrier2 barrier = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+      .srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+      .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+      .dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+      .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+      .oldLayout = src_image_layout,
+      .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+      .image = radv_image_to_handle(src_image),
+      .subresourceRange = (VkImageSubresourceRange){
+         .aspectMask = region->srcSubresource.aspectMask,
+         .baseMipLevel = 0,
+         .levelCount = 1,
+         .baseArrayLayer = region->srcSubresource.baseArrayLayer,
+         .layerCount = vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource),
+      }};
+
+   VkSampleLocationsInfoEXT sample_loc_info;
+   if (src_image->vk.create_flags & VK_IMAGE_CREATE_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT) {
+      /* If the depth/stencil image uses different sample
+       * locations, we need them during HTILE decompressions.
+       */
+      struct radv_sample_locations_state *sample_locs = &cmd_buffer->state.render.sample_locations;
+
+      sample_loc_info = (VkSampleLocationsInfoEXT){
+         .sType = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT,
+         .sampleLocationsPerPixel = sample_locs->per_pixel,
+         .sampleLocationGridSize = sample_locs->grid_size,
+         .sampleLocationsCount = sample_locs->count,
+         .pSampleLocations = sample_locs->locations,
+      };
+      barrier.pNext = &sample_loc_info;
+   }
+
+   VkDependencyInfo dep_info = {
+      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+      .imageMemoryBarrierCount = 1,
+      .pImageMemoryBarriers = &barrier,
+   };
+
+   radv_CmdPipelineBarrier2(radv_cmd_buffer_to_handle(cmd_buffer), &dep_info);
+}
+
 static void
 resolve_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image, VkImageLayout src_image_layout,
               struct radv_image *dst_image, VkImageLayout dst_image_layout, const VkImageResolve2 *region,
@@ -725,54 +775,4 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer)
    }
 
    radv_describe_end_render_pass_resolve(cmd_buffer);
-}
-
-/**
- * Decompress CMask/FMask before resolving a multisampled source image.
- */
-void
-radv_decompress_resolve_src(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image,
-                            VkImageLayout src_image_layout, const VkImageResolve2 *region)
-{
-   VkImageMemoryBarrier2 barrier = {
-      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-      .srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-      .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-      .dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-      .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
-      .oldLayout = src_image_layout,
-      .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-      .image = radv_image_to_handle(src_image),
-      .subresourceRange = (VkImageSubresourceRange){
-         .aspectMask = region->srcSubresource.aspectMask,
-         .baseMipLevel = 0,
-         .levelCount = 1,
-         .baseArrayLayer = region->srcSubresource.baseArrayLayer,
-         .layerCount = vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource),
-      }};
-
-   VkSampleLocationsInfoEXT sample_loc_info;
-   if (src_image->vk.create_flags & VK_IMAGE_CREATE_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT) {
-      /* If the depth/stencil image uses different sample
-       * locations, we need them during HTILE decompressions.
-       */
-      struct radv_sample_locations_state *sample_locs = &cmd_buffer->state.render.sample_locations;
-
-      sample_loc_info = (VkSampleLocationsInfoEXT){
-         .sType = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT,
-         .sampleLocationsPerPixel = sample_locs->per_pixel,
-         .sampleLocationGridSize = sample_locs->grid_size,
-         .sampleLocationsCount = sample_locs->count,
-         .pSampleLocations = sample_locs->locations,
-      };
-      barrier.pNext = &sample_loc_info;
-   }
-
-   VkDependencyInfo dep_info = {
-      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-      .imageMemoryBarrierCount = 1,
-      .pImageMemoryBarriers = &barrier,
-   };
-
-   radv_CmdPipelineBarrier2(radv_cmd_buffer_to_handle(cmd_buffer), &dep_info);
 }
