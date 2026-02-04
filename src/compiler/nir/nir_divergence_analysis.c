@@ -812,7 +812,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_depth_texture_kk:
    case nir_intrinsic_load_sampler_handle_kk:
    case nir_intrinsic_load_texture_scale:
-   case nir_intrinsic_load_inline_data_intel: {
+   case nir_intrinsic_load_inline_data_intel:
+   case nir_intrinsic_resource_intel: {
       unsigned num_srcs = nir_intrinsic_infos[instr->intrinsic].num_srcs;
       for (unsigned i = 0; i < num_srcs; i++) {
          if (src_divergent(instr->src[i], state)) {
@@ -822,27 +823,6 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
       }
       break;
    }
-
-   case nir_intrinsic_resource_intel:
-      /* Not having the non_uniform flag with divergent sources is undefined
-       * behavior. The Intel driver defines it pick the lowest numbered live
-       * SIMD lane (via emit_uniformize).
-       *
-       * When gather the divergence across subgroups, we need propagate the
-       * divergence from the sources.
-       */
-      if ((nir_intrinsic_resource_access_intel(instr) &
-           nir_resource_intel_non_uniform) != 0 ||
-          (state->options & nir_divergence_across_subgroups)) {
-         unsigned num_srcs = nir_intrinsic_infos[instr->intrinsic].num_srcs;
-         for (unsigned i = 0; i < num_srcs; i++) {
-            if (src_divergent(instr->src[i], state)) {
-               is_divergent = true;
-               break;
-            }
-         }
-      }
-      break;
 
    case nir_intrinsic_shuffle:
       is_divergent = src_divergent(instr->src[0], state) &&
