@@ -191,17 +191,28 @@ rnn_enumelem(struct rnn *rnn, const char *enumname)
 }
 
 static struct rnndelem *
-regelem(struct rnndeccontext *ctx, struct rnndomain *domain, const char *name)
+__find_elem(struct rnndeccontext *ctx, struct rnndelem **elems, unsigned elemsnum,
+            const char *name)
 {
-   int i;
-   for (i = 0; i < domain->subelemsnum; i++) {
-      struct rnndelem *elem = domain->subelems[i];
+   for (int i = 0; i < elemsnum; i++) {
+      struct rnndelem *elem = elems[i];
       if (!rnndec_varmatch(ctx, &elem->varinfo))
          continue;
-      if (!strcmp(elem->name, name))
+      if (elem->type == RNN_ETYPE_STRIPE) {
+         elem = __find_elem(ctx, elem->subelems, elem->subelemsnum, name);
+         if (elem)
+            return elem;
+      } else if (!strcmp(elem->name, name)) {
          return elem;
+      }
    }
    return NULL;
+}
+
+static struct rnndelem *
+regelem(struct rnndeccontext *ctx, struct rnndomain *domain, const char *name)
+{
+   return __find_elem(ctx, domain->subelems, domain->subelemsnum, name);
 }
 
 /* Lookup rnndelem by name: */
@@ -217,17 +228,28 @@ rnn_regelem(struct rnn *rnn, const char *name)
 }
 
 static struct rnndelem *
-regoff(struct rnndeccontext *ctx, struct rnndomain *domain, uint32_t offset)
+__find_off(struct rnndeccontext *ctx, struct rnndelem **elems, unsigned elemsnum,
+           uint32_t offset)
 {
-   int i;
-   for (i = 0; i < domain->subelemsnum; i++) {
-      struct rnndelem *elem = domain->subelems[i];
+   for (int i = 0; i < elemsnum; i++) {
+      struct rnndelem *elem = elems[i];
       if (!rnndec_varmatch(ctx, &elem->varinfo))
          continue;
-      if (elem->offset == offset)
+      if (elem->type == RNN_ETYPE_STRIPE) {
+         elem = __find_off(ctx, elem->subelems, elem->subelemsnum, offset);
+         if (elem)
+            return elem;
+      } else if (elem->offset == offset) {
          return elem;
+      }
    }
    return NULL;
+}
+
+static struct rnndelem *
+regoff(struct rnndeccontext *ctx, struct rnndomain *domain, uint32_t offset)
+{
+   return __find_off(ctx, domain->subelems, domain->subelemsnum, offset);
 }
 
 /* Lookup rnndelem by offset: */
