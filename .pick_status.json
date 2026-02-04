@@ -274,7 +274,7 @@
         "description": "Revert \"ci: disable vmware farm\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "1d120c1bf24714f59204e10ff41f95039dbb6bb6",
         "notes": null
