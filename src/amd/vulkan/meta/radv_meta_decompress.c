@@ -412,7 +412,7 @@ radv_expand_depth_stencil_compute(struct radv_cmd_buffer *cmd_buffer, struct rad
                                                       .baseArrayLayer = subresourceRange->baseArrayLayer + s,
                                                       .layerCount = 1},
                               },
-                              &(struct radv_image_view_extra_create_info){.disable_compression = true});
+                              NULL);
 
          radv_meta_bind_descriptors(
             cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layout, 2,
