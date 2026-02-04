@@ -43,6 +43,7 @@
 #include "util/ralloc.h"
 #include "util/range_minimum_query.h"
 #include "util/set.h"
+#include "util/simple_mtx.h"
 #include "util/sparse_bitset.h"
 #include "util/u_math.h"
 #include "nir_defines.h"
@@ -4012,6 +4013,8 @@ typedef struct nir_shader {
    u_printf_info *printf_info;
 
    bool has_debug_info;
+   uint32_t nir_pass_depth;
+   bool nir_pass_recursed;
 } nir_shader;
 
 #define nir_foreach_function(func, shader) \
@@ -4975,24 +4978,39 @@ should_print_nir(UNUSED nir_shader *shader)
 #define NIR_STRINGIZE_INNER(x) #x
 #define NIR_STRINGIZE(x)       NIR_STRINGIZE_INNER(x)
 
+extern simple_mtx_t nir_print_lock;
+
 #define NIR_PASS(progress, nir, pass, ...) _PASS(pass, nir, {                            \
    nir_metadata_set_validation_flag(nir);                                                \
-   if (should_print_nir(nir))                                                            \
+   if (should_print_nir(nir)) {                                                          \
+      if ((nir)->nir_pass_depth++ == 0) {                                                \
+         simple_mtx_lock(&nir_print_lock);                                               \
+      } else {                                                                           \
+         (nir)->nir_pass_recursed = true;                                                \
+      }                                                                                  \
       printf("%s\n", #pass);                                                             \
+   }                                                                                     \
    static const char *when = "after " #pass " in " __FILE__ ":" NIR_STRINGIZE(__LINE__); \
    struct blob blob_before = nir_validate_progress_setup(nir);                           \
    if (pass(nir, ##__VA_ARGS__)) {                                                       \
       nir_validate_shader(nir, when);                                                    \
       UNUSED bool _;                                                                     \
       progress = true;                                                                   \
-      if (should_print_nir(nir))                                                         \
+      if (should_print_nir(nir)) {                                                       \
+         if ((nir)->nir_pass_recursed)                                                   \
+            printf("%s (finished)\n", #pass);                                            \
          nir_print_shader(nir, stdout);                                                  \
+      }                                                                                  \
       nir_metadata_check_validation_flag(nir);                                           \
       nir_validate_progress_finish(nir, &blob_before, true, when);                       \
    } else {                                                                              \
       if (NIR_DEBUG(EXTENDED_VALIDATION))                                                \
          nir_validate_shader(nir, when);                                                 \
       nir_validate_progress_finish(nir, &blob_before, false, when);                      \
+   }                                                                                     \
+   if (should_print_nir(nir) && --(nir)->nir_pass_depth == 0) {                          \
+      simple_mtx_unlock(&nir_print_lock);                                                \
+      (nir)->nir_pass_recursed = false;                                                  \
    }                                                                                     \
 })
 

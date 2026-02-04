@@ -38,6 +38,8 @@
 #include "nir.h"
 #include "nir_builder.h"
 
+simple_mtx_t nir_print_lock = SIMPLE_MTX_INITIALIZER;
+
 static void
 print_indentation(unsigned levels, FILE *fp)
 {
