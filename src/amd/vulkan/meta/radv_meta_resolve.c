@@ -401,6 +401,8 @@ resolve_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image, 
          depth_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
          depth_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
+         radv_decompress_resolve_src(cmd_buffer, src_image, src_image_layout, &depth_region);
+
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_meta_resolve_depth_stencil_fs(cmd_buffer, src_image, src_image->vk.format, src_image_layout, dst_image,
                                                dst_image->vk.format, dst_image_layout, resolve_mode_info->resolveMode,
@@ -418,6 +420,8 @@ resolve_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image, 
          VkImageResolve2 stencil_region = *region;
          stencil_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
          stencil_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+
+         radv_decompress_resolve_src(cmd_buffer, src_image, src_image_layout, &stencil_region);
 
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_meta_resolve_depth_stencil_fs(cmd_buffer, src_image, src_image->vk.format, src_image_layout, dst_image,
@@ -587,6 +591,8 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer)
          depth_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
          depth_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
+         radv_decompress_resolve_src(cmd_buffer, src_iview->image, render->ds_att.layout, &depth_region);
+
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_meta_resolve_depth_stencil_fs(cmd_buffer, src_iview->image, src_iview->vk.format,
                                                render->ds_att.layout, dst_iview->image, dst_iview->vk.format,
@@ -605,6 +611,8 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer)
          VkImageResolve2 stencil_region = region;
          stencil_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
          stencil_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+
+         radv_decompress_resolve_src(cmd_buffer, src_iview->image, render->ds_att.stencil_layout, &stencil_region);
 
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_meta_resolve_depth_stencil_fs(cmd_buffer, src_iview->image, src_iview->vk.format,
