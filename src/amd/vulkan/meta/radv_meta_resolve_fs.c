@@ -379,57 +379,6 @@ emit_resolve(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_ivi
                             VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0, dst_iview->image, &dst_range);
 }
 
-static void
-emit_depth_stencil_resolve(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_iview,
-                           struct radv_image_view *dst_iview, const VkOffset2D *resolve_offset,
-                           const VkExtent2D *resolve_extent, VkImageAspectFlags aspects,
-                           VkResolveModeFlagBits resolve_mode)
-{
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const uint32_t samples = src_iview->image->vk.samples;
-   VkPipelineLayout layout;
-   VkPipeline pipeline;
-   VkResult result;
-
-   result = get_depth_stencil_resolve_pipeline(device, samples, aspects, resolve_mode, &pipeline, &layout);
-   if (result != VK_SUCCESS) {
-      vk_command_buffer_set_error(&cmd_buffer->vk, result);
-      return;
-   }
-
-   radv_meta_bind_descriptors(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 1,
-                              (VkDescriptorGetInfoEXT[]){
-                                 {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT,
-                                  .type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                                  .data.pSampledImage =
-                                     (VkDescriptorImageInfo[]){
-                                        {
-                                           .sampler = VK_NULL_HANDLE,
-                                           .imageView = radv_image_view_to_handle(src_iview),
-                                           .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
-                                        },
-                                     }},
-                              });
-
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-
-   radv_CmdSetViewport(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
-                       &(VkViewport){.x = resolve_offset->x,
-                                     .y = resolve_offset->y,
-                                     .width = resolve_extent->width,
-                                     .height = resolve_extent->height,
-                                     .minDepth = 0.0f,
-                                     .maxDepth = 1.0f});
-
-   radv_CmdSetScissor(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
-                      &(VkRect2D){
-                         .offset = *resolve_offset,
-                         .extent = *resolve_extent,
-                      });
-
-   radv_CmdDraw(radv_cmd_buffer_to_handle(cmd_buffer), 3, 1, 0, 0);
-}
-
 void
 radv_meta_resolve_fragment_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image, VkFormat src_format,
                                  VkImageLayout src_image_layout, struct radv_image *dst_image, VkFormat dst_format,
