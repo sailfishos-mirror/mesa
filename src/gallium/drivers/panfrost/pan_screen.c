@@ -117,6 +117,8 @@ pipe_to_pan_bind_flags(uint32_t pipe_bind_flags)
       pan_bind_flags |= PAN_BIND_VERTEX_BUFFER;
    if (pipe_bind_flags & PIPE_BIND_SAMPLER_VIEW)
       pan_bind_flags |= PAN_BIND_SAMPLER_VIEW;
+   if (pipe_bind_flags & PIPE_BIND_SHADER_IMAGE)
+      pan_bind_flags |= PAN_BIND_STORAGE_IMAGE;
 
    return pan_bind_flags;
 }
