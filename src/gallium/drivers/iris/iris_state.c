@@ -4855,20 +4855,13 @@ iris_emit_sbe_swiz(struct iris_batch *batch,
       if (slot == -1 && fs_attr == VARYING_SLOT_COL1)
          slot = vue_map->varying_to_slot[VARYING_SLOT_BFC1];
 
-      /* Not written by the previous stage - undefined. */
-      if (slot == -1) {
-         attr->ComponentOverrideX = true;
-         attr->ComponentOverrideY = true;
-         attr->ComponentOverrideZ = true;
-         attr->ComponentOverrideW = true;
-         attr->ConstantSource = CONST_0001_FLOAT;
+      if (slot == -1)
          continue;
-      }
 
       /* Compute the location of the attribute relative to the read offset,
        * which is counted in 256-bit increments (two 128-bit VUE slots).
        */
-      const int source_attr = slot - 2 * urb_read_offset;
+      const int source_attr = slot - 2 * (int) urb_read_offset;
       assert(source_attr >= 0 && source_attr <= 32);
       attr->SourceAttribute = source_attr;
 
