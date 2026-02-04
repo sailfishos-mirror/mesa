@@ -544,7 +544,7 @@
         "description": "radv/rt: Only use ds_bvh_stack_rtn if the stack base is possible to encode",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
