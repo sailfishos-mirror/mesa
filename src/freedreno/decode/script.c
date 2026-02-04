@@ -772,6 +772,7 @@ static const struct luaL_Reg l_priv[] = {
 
 uint64_t gpubaseaddr(uint64_t gpuaddr);
 unsigned hostlen(uint64_t gpuaddr);
+void *hostptr(uint64_t gpuaddr);
 
 /* given address, return base-address of buffer: */
 static int
@@ -791,8 +792,37 @@ l_bo_size(lua_State *L)
    return 1;
 }
 
+static int
+l_bo_write(lua_State *L)
+{
+   uint64_t addr = (uint64_t)lua_tonumber(L, 1);
+   uint32_t val = (uint32_t)lua_tonumber(L, 2);
+   uint32_t *ptr = hostptr(addr);
+
+   if (ptr)
+      *ptr = val;
+
+   lua_pushboolean(L, !!ptr);
+   return 1;
+}
+
+static int
+l_bo_index(lua_State *L)
+{
+   uint64_t addr = (uint64_t)lua_tonumber(L, 1);
+   uint32_t *ptr = hostptr(addr);
+   if (!ptr)
+      return 0;
+   lua_pushnumber(L, *ptr);
+   return 1;
+}
+
 static const struct luaL_Reg l_bos[] = {
-   {"base", l_bo_base}, {"size", l_bo_size}, {NULL, NULL} /* sentinel */
+   {"base", l_bo_base},
+   {"size", l_bo_size},
+   {"write", l_bo_write},
+   {"__index", l_bo_index},
+   {NULL, NULL} /* sentinel */
 };
 
 static void
