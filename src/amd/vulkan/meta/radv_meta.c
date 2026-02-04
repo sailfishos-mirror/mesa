@@ -143,11 +143,6 @@ radv_meta_save(struct radv_meta_saved_state *state, struct radv_cmd_buffer *cmd_
       memcpy(state->push_constants, cmd_buffer->push_constants, MAX_PUSH_CONSTANTS_SIZE);
    }
 
-   if (state->flags & RADV_META_SAVE_RENDER) {
-      state->render = cmd_buffer->state.render;
-      radv_cmd_buffer_reset_rendering(cmd_buffer);
-   }
-
    radv_suspend_queries(state, cmd_buffer);
 }
 
@@ -218,11 +213,6 @@ radv_meta_restore(const struct radv_meta_saved_state *state, struct radv_cmd_buf
       };
 
       radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
-   }
-
-   if (state->flags & RADV_META_SAVE_RENDER) {
-      cmd_buffer->state.render = state->render;
-      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FRAMEBUFFER;
    }
 
    radv_resume_queries(state, cmd_buffer);
