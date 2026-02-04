@@ -777,7 +777,7 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
       sampler_bindless || is_high_sampler(devinfo, sampler) ||
       tex->residency;
 
-   unsigned header_size = needs_header ? reg_unit(devinfo) : 0, length = 0;
+   unsigned header_size = 0, length = 0;
    brw_reg sources[1 + MAX_SAMPLER_MESSAGE_SIZE];
 
    for (unsigned i = 0; i < ARRAY_SIZE(sources); i++)
