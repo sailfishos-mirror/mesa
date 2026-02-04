@@ -2504,7 +2504,7 @@
         "description": "freedreno/common: set has_astc_hdr true for a7xx targets",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "dc07473524af4da8b8fd123c124cb166f67cd2f2",
         "notes": null
