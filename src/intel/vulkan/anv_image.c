@@ -644,9 +644,6 @@ add_aux_state_tracking_buffer(struct anv_device *device,
       }
    }
 
-   enum anv_image_memory_binding binding =
-      ANV_IMAGE_MEMORY_BINDING_PLANE_0 + plane;
-
    const struct isl_drm_modifier_info *mod_info =
       isl_drm_modifier_get_info(image->vk.drm_format_mod);
 
@@ -654,16 +651,17 @@ add_aux_state_tracking_buffer(struct anv_device *device,
     * it will be exported along with main surface. Otherwise, place the
     * aux-tracking state in a separate, suballocated buffer to achieve better
     * memory utilization.
-    */
-   if (!mod_info || !mod_info->supports_clear_color)
-      binding = ANV_IMAGE_MEMORY_BINDING_PRIVATE;
-
-   /* The indirect clear color BO requires 64B-alignment on gfx11+. If we're
+    *
+    * The indirect clear color BO requires 64B-alignment on gfx11+. If we're
     * using a modifier with clear color, then some kernels might require a 4k
     * alignment.
     */
-   const uint32_t clear_color_alignment =
-      (mod_info && mod_info->supports_clear_color) ? 4096 : 64;
+   enum anv_image_memory_binding binding = ANV_IMAGE_MEMORY_BINDING_PRIVATE;
+   uint32_t clear_color_alignment = 64;
+   if (mod_info && mod_info->supports_clear_color) {
+      binding = ANV_IMAGE_MEMORY_BINDING_PLANE_0 + plane;
+      clear_color_alignment = 4096;
+   }
 
    return image_binding_grow(device, image, binding,
                              state_offset, state_size, clear_color_alignment,
