@@ -120,6 +120,7 @@ struct aco_shader_info {
       bool tcs_in_out_eq;
       bool any_tcs_inputs_via_lds;
       bool has_prolog;
+      bool preserve_s2;
    } vs;
    struct {
       uint32_t num_inputs;

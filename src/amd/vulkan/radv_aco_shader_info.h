@@ -44,6 +44,11 @@ radv_aco_convert_shader_info(struct aco_shader_info *aco_info, const struct radv
                              const struct radv_shader_args *radv_args, const struct radv_device_cache_key *radv_key,
                              const enum amd_gfx_level gfx_level)
 {
+   bool ngg_wave_id_en = radv->ngg_wave_id_en;
+   /* Separately compiled shader, where the next stage might use NGG streamout. */
+   ngg_wave_id_en |= radv->is_ngg && radv->merged_shader_compiled_separately &&
+                     radv->next_stage == MESA_SHADER_GEOMETRY && gfx_level >= GFX11;
+
    ASSIGN_FIELD(wave_size);
    ASSIGN_FIELD(workgroup_size);
    ASSIGN_FIELD(ps.has_epilog);
@@ -53,6 +58,8 @@ radv_aco_convert_shader_info(struct aco_shader_info *aco_info, const struct radv
    ASSIGN_FIELD(ps.num_inputs);
    ASSIGN_FIELD(cs.uses_full_subgroups);
    aco_info->vs.any_tcs_inputs_via_lds = radv->vs.tcs_inputs_via_lds != 0;
+   /* S2 must not be modified for correct hang recovery when NGG_WAVE_ID_EN=1. */
+   aco_info->vs.preserve_s2 = ngg_wave_id_en && gfx_level < GFX12;
    aco_info->ps.spi_ps_input_ena = radv->ps.spi_ps_input_ena;
    aco_info->ps.spi_ps_input_addr = radv->ps.spi_ps_input_addr;
    aco_info->ps.has_prolog = false;

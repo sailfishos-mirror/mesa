@@ -2341,6 +2341,7 @@ public:
    bool wgp_mode;
 
    bool needs_vcc = false;
+   bool preserve_s2 = false;
 
    CompilationProgress progress;
 

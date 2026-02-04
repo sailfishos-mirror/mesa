@@ -165,6 +165,7 @@ struct ra_ctx {
    PhysRegIterator rr_vgpr_it;
    BITSET_DECLARE(preserved, 512) = {};
 
+   uint16_t sgpr_start;
    uint16_t sgpr_bounds;
    uint16_t vgpr_bounds;
    uint16_t num_linear_vgprs;
@@ -183,6 +184,7 @@ struct ra_ctx {
       if (program->is_callee)
          program->callee_abi.preservedRegisters(preserved);
 
+      sgpr_start = program->preserve_s2 ? 4 : 0;
       sgpr_bounds = program->max_reg_demand.sgpr;
       vgpr_bounds = program->max_reg_demand.vgpr;
       num_linear_vgprs = 0;
@@ -256,7 +258,7 @@ get_reg_bounds(ra_ctx& ctx, RegType type, bool linear_vgpr)
    } else if (type == RegType::vgpr) {
       return PhysRegInterval{PhysReg(256), linear_vgpr_start};
    } else {
-      return PhysRegInterval{PhysReg(0), ctx.sgpr_bounds};
+      return PhysRegInterval{PhysReg(ctx.sgpr_start), ctx.sgpr_bounds};
    }
 }
 
