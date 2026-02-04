@@ -4843,14 +4843,6 @@ iris_emit_sbe_swiz(struct iris_batch *batch,
          &attr_overrides[input_index];
       int slot = vue_map->varying_to_slot[fs_attr];
 
-      /* If there was only a back color written but not front, use back
-       * as the color instead of undefined.
-       */
-      if (slot == -1 && fs_attr == VARYING_SLOT_COL0)
-         slot = vue_map->varying_to_slot[VARYING_SLOT_BFC0];
-      if (slot == -1 && fs_attr == VARYING_SLOT_COL1)
-         slot = vue_map->varying_to_slot[VARYING_SLOT_BFC1];
-
       if (slot == -1)
          continue;
 
