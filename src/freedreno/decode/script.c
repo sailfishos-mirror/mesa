@@ -479,6 +479,12 @@ l_rnn_meta_dom_index(lua_State *L)
       struct rnndelem *elem = rnn_regoff(rnn, offset);
       if (elem)
          return l_rnn_etype(L, rnn, elem, elem->offset);
+
+      /* Just return the raw value if not defined as an element */
+      if (offset < rnndec->sizedwords) {
+         lua_pushnumber(L, rnndec->dwords[offset]);
+         return 1;
+      }
    } else if (lua_isstring(L, 2)) {
       const char *name = lua_tostring(L, 2);
 
