@@ -136,6 +136,7 @@ kk_get_device_extensions(const struct kk_instance *instance,
 
       .EXT_calibrated_timestamps = true,
       .EXT_external_memory_metal = true,
+      .EXT_image_2d_view_of_3d = true,
       .EXT_load_store_op_none = true,
       .EXT_mutable_descriptor_type = true,
       .EXT_shader_atomic_float = true,
@@ -295,6 +296,10 @@ kk_get_device_features(
       /* EXT_4444_formats */
       .formatA4R4G4B4 = true,
       .formatA4B4G4R4 = true,
+
+      /* EXT_image_2d_view_of_3d */
+      .image2DViewOf3D = true,
+      .sampler2DViewOf3D = true,
 
       /* VK_EXT_shader_replicated_composites */
       .shaderReplicatedComposites = true,

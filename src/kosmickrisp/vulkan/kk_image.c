@@ -605,7 +605,8 @@ kk_CreateImage(VkDevice _device, const VkImageCreateInfo *pCreateInfo,
    VkResult result;
 
    if (wsi_common_is_swapchain_image(pCreateInfo))
-      return wsi_common_create_swapchain_image(&pdev->wsi_device, pCreateInfo, pImage);
+      return wsi_common_create_swapchain_image(&pdev->wsi_device, pCreateInfo,
+                                               pImage);
 
    image = vk_zalloc2(&dev->vk.alloc, pAllocator, sizeof(*image), 8,
                       VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
@@ -844,12 +845,11 @@ kk_image_plane_bind(struct kk_device *dev, struct kk_image *image,
    /* Create auxiliary 2D array texture for 3D images so we can use 2D views of
     * it */
    if (plane->layout.type == MTL_TEXTURE_TYPE_3D &&
-       (image->vk.create_flags & VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT)) {
+       (image->vk.create_flags &
+        (VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT |
+         VK_IMAGE_CREATE_2D_VIEW_COMPATIBLE_BIT_EXT))) {
       struct kk_image_layout array_layout = plane->layout;
       array_layout.type = MTL_TEXTURE_TYPE_2D_ARRAY;
-      // TODO_KOSMICKRISP We need to make sure that this doesn't go over Metal's
-      // layer maximum which is 2048. Probably by limiting the dimensions and
-      // layers for 3D images
       array_layout.layers = array_layout.layers * array_layout.depth_px;
       array_layout.depth_px = 1u;
       plane->mtl_handle_array = mtl_new_texture_with_descriptor(
