@@ -1478,6 +1478,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	<value value="1" name="POLL_MEMORY"/>
 	<value value="2" name="POLL_SCRATCH"/>
 	<value value="3" name="POLL_ON_CHIP" varset="chip" variants="A7XX-"/>
+	<value value="4" name="POLL_SYSTEM_VARIABLE" varset="chip" variants="A8XX-"/>
 </enum>
 
 <domain name="CP_COND_WRITE5" width="32">
@@ -1485,7 +1486,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="FUNCTION" low="0" high="2" type="cp_cond_function"/>
 		<bitfield name="SIGNED_COMPARE" pos="3" type="boolean"/>
 		<!-- POLL_REGISTER polls a register at POLL_ADDR_LO. -->
-		<bitfield name="POLL" low="4" high="5" type="poll_memory_type"/>
+		<bitfield name="POLL" low="4" high="6" type="poll_memory_type"/>
 		<bitfield name="WRITE_MEMORY" pos="8" type="boolean"/>
 	</reg32>
 	<reg64 offset="1" name="POLL_ADDR" type="address"/>
