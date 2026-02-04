@@ -1422,7 +1422,16 @@ panvk_GetPhysicalDeviceImageFormatProperties2(
          physical_device, base_info->format, usage, base_info->type,
          base_info->tiling, base_info->flags);
       hic_props->optimalDeviceAccess = !can_use_afbc;
-      hic_props->identicalMemoryLayout = !can_use_afbc;
+
+      /* FIXME: we only support host transfer with certain modifiers and for now
+       * there's no easy way to know whether the presence of HOST_TRANSFER will
+       * be the thing that causes the modifier to be filtered out, and thus
+       * causing a difference in memory layout.
+       *
+       * See https://gitlab.freedesktop.org/panfrost/mesa/-/issues/281 for
+       * details.
+       */
+      hic_props->identicalMemoryLayout = false;
    }
 
    const struct vk_format_ycbcr_info *ycbcr_info =
