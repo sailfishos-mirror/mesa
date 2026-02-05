@@ -4713,7 +4713,7 @@ radv_gfx11_emit_fb_ds_state(struct radv_cmd_buffer *cmd_buffer, const struct rad
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   uint32_t db_render_control = ds->db_render_control | cmd_buffer->state.db_render_control;
+   uint32_t db_render_control = ds->db_render_control;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    if (!depth_compressed)
@@ -4774,7 +4774,7 @@ radv_gfx6_emit_fb_ds_state(struct radv_cmd_buffer *cmd_buffer, const struct radv
    const struct radv_physical_device *pdev = radv_device_physical(device);
    uint64_t db_htile_data_base = ds->ac.u.gfx6.db_htile_data_base;
    uint32_t db_htile_surface = ds->ac.u.gfx6.db_htile_surface;
-   uint32_t db_render_control = ds->db_render_control | cmd_buffer->state.db_render_control;
+   uint32_t db_render_control = ds->db_render_control;
    uint32_t db_z_info = ds->ac.db_z_info;
 
    if (!depth_compressed)
@@ -8818,11 +8818,6 @@ radv_bind_graphics_pipeline(struct radv_cmd_buffer *cmd_buffer, struct radv_grap
    radv_bind_multisample_state(cmd_buffer, &graphics_pipeline->ms);
 
    radv_bind_custom_blend_mode(cmd_buffer, graphics_pipeline->custom_blend_mode);
-
-   if (cmd_buffer->state.db_render_control != graphics_pipeline->db_render_control) {
-      cmd_buffer->state.db_render_control = graphics_pipeline->db_render_control;
-      cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FRAMEBUFFER;
-   }
 
    if (cmd_buffer->state.uses_out_of_order_rast != graphics_pipeline->uses_out_of_order_rast ||
        cmd_buffer->state.uses_vrs_attachment != graphics_pipeline->uses_vrs_attachment) {
@@ -15496,11 +15491,6 @@ radv_reset_pipeline_state(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoin
       }
       if (cmd_buffer->state.emitted_graphics_pipeline) {
          radv_bind_custom_blend_mode(cmd_buffer, 0);
-
-         if (cmd_buffer->state.db_render_control) {
-            cmd_buffer->state.db_render_control = 0;
-            cmd_buffer->state.dirty |= RADV_CMD_DIRTY_FRAMEBUFFER;
-         }
 
          if (cmd_buffer->state.spi_shader_col_format || cmd_buffer->state.spi_shader_z_format ||
              cmd_buffer->state.cb_shader_mask) {

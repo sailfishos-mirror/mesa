@@ -3352,11 +3352,6 @@ radv_pipeline_init_extra(struct radv_graphics_pipeline *pipeline, const VkGraphi
                          const struct vk_graphics_pipeline_state *state)
 {
    pipeline->custom_blend_mode = radv_info->custom_blend_mode;
-
-   if (radv_pipeline_has_ds_attachments(state->rp)) {
-      pipeline->db_render_control |= S_028000_DEPTH_COMPRESS_DISABLE(radv_info->depth_compress_disable);
-      pipeline->db_render_control |= S_028000_STENCIL_COMPRESS_DISABLE(radv_info->stencil_compress_disable);
-   }
 }
 
 bool

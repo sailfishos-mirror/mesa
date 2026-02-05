@@ -556,7 +556,8 @@ radv_initialise_color_surface(struct radv_device *device, struct radv_color_buff
 
 static void
 radv_initialise_ds_surface(const struct radv_device *device, struct radv_ds_buffer_info *ds,
-                           struct radv_image_view *iview, VkImageAspectFlags ds_aspects)
+                           struct radv_image_view *iview, VkImageAspectFlags ds_aspects, bool depth_compress_disable,
+                           bool stencil_compress_disable)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    unsigned level = iview->vk.base_mip_level;
@@ -606,6 +607,10 @@ radv_initialise_ds_surface(const struct radv_device *device, struct radv_ds_buff
    if (pdev->info.gfx_level >= GFX11) {
       radv_gfx11_set_db_render_control(device, iview->image->vk.samples, &ds->db_render_control);
    }
+
+   /* For depth/stencil expand on graphics. */
+   ds->db_render_control |= S_028000_DEPTH_COMPRESS_DISABLE(depth_compress_disable) |
+                            S_028000_STENCIL_COMPRESS_DISABLE(stencil_compress_disable);
 }
 
 void
@@ -774,6 +779,8 @@ radv_image_view_init(struct radv_image_view *iview, struct radv_device *device,
    iview->disable_dcc_mrt = extra_create_info ? extra_create_info->disable_dcc_mrt : false;
    iview->disable_tc_compat_cmask_mrt = extra_create_info ? extra_create_info->disable_tc_compat_cmask_mrt : false;
 
+   const bool depth_compress_disable = extra_create_info ? extra_create_info->depth_compress_disable : false;
+   const bool stencil_compress_disable = extra_create_info ? extra_create_info->stencil_compress_disable : false;
    bool disable_compression = extra_create_info ? extra_create_info->disable_compression : false;
    bool enable_compression = extra_create_info ? extra_create_info->enable_compression : false;
    for (unsigned i = 0; i < plane_count; ++i) {
@@ -790,11 +797,14 @@ radv_image_view_init(struct radv_image_view *iview, struct radv_device *device,
    if (iview->vk.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
       if (vk_format_has_depth(image->vk.format) && vk_format_has_stencil(image->vk.format))
          radv_initialise_ds_surface(device, &iview->depth_stencil_desc, iview,
-                                    VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+                                    VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, depth_compress_disable,
+                                    stencil_compress_disable);
       if (vk_format_has_depth(image->vk.format))
-         radv_initialise_ds_surface(device, &iview->depth_only_desc, iview, VK_IMAGE_ASPECT_DEPTH_BIT);
+         radv_initialise_ds_surface(device, &iview->depth_only_desc, iview, VK_IMAGE_ASPECT_DEPTH_BIT,
+                                    depth_compress_disable, stencil_compress_disable);
       if (vk_format_has_stencil(image->vk.format))
-         radv_initialise_ds_surface(device, &iview->stencil_only_desc, iview, VK_IMAGE_ASPECT_STENCIL_BIT);
+         radv_initialise_ds_surface(device, &iview->stencil_only_desc, iview, VK_IMAGE_ASPECT_STENCIL_BIT,
+                                    depth_compress_disable, stencil_compress_disable);
    }
 }
 

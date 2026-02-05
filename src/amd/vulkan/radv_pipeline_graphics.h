@@ -28,8 +28,6 @@
 typedef struct VkGraphicsPipelineCreateInfoRADV {
    VkStructureType sType;
    const void *pNext;
-   VkBool32 depth_compress_disable;
-   VkBool32 stencil_compress_disable;
    uint32_t custom_blend_mode;
 } VkGraphicsPipelineCreateInfoRADV;
 
@@ -139,7 +137,6 @@ struct radv_graphics_pipeline {
 
    struct radv_multisample_state ms;
    struct radv_ia_multi_vgt_param_helpers ia_multi_vgt_param;
-   uint32_t db_render_control;
 
    /* Last pre-PS API stage */
    mesa_shader_stage last_vgt_api_stage;

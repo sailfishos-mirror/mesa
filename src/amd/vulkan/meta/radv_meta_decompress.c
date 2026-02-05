@@ -46,15 +46,8 @@ get_pipeline_gfx(struct radv_device *device, struct radv_image *image, VkPipelin
       .sampleLocationsEnable = false,
    };
 
-   const VkGraphicsPipelineCreateInfoRADV radv_info = {
-      .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO_RADV,
-      .depth_compress_disable = true,
-      .stencil_compress_disable = true,
-   };
-
    const VkGraphicsPipelineCreateInfo pipeline_create_info = {
       .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-      .pNext = &radv_info,
       .stageCount = 2,
       .pStages =
          (VkPipelineShaderStageCreateInfo[]){
@@ -167,24 +160,25 @@ radv_process_depth_image_layer(struct radv_cmd_buffer *cmd_buffer, struct radv_i
       .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
    };
 
-   radv_image_view_init(&iview, device,
-                        &(VkImageViewCreateInfo){
-                           .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                           .pNext = &iview_usage_info,
-                           .flags = VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA,
-                           .image = radv_image_to_handle(image),
-                           .viewType = radv_meta_get_view_type(image),
-                           .format = image->vk.format,
-                           .subresourceRange =
-                              {
-                                 .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-                                 .baseMipLevel = range->baseMipLevel + level,
-                                 .levelCount = 1,
-                                 .baseArrayLayer = range->baseArrayLayer + layer,
-                                 .layerCount = 1,
-                              },
-                        },
-                        NULL);
+   radv_image_view_init(
+      &iview, device,
+      &(VkImageViewCreateInfo){
+         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+         .pNext = &iview_usage_info,
+         .flags = VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA,
+         .image = radv_image_to_handle(image),
+         .viewType = radv_meta_get_view_type(image),
+         .format = image->vk.format,
+         .subresourceRange =
+            {
+               .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+               .baseMipLevel = range->baseMipLevel + level,
+               .levelCount = 1,
+               .baseArrayLayer = range->baseArrayLayer + layer,
+               .layerCount = 1,
+            },
+      },
+      &(struct radv_image_view_extra_create_info){.depth_compress_disable = true, .stencil_compress_disable = true});
 
    const VkRenderingAttachmentInfo depth_att = {
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,

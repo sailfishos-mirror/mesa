@@ -413,7 +413,6 @@ struct radv_cmd_state {
 
    /* Custom blend mode for internal operations. */
    unsigned custom_blend_mode;
-   unsigned db_render_control;
 
    unsigned last_cb_target_mask;
 

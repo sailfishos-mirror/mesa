@@ -77,6 +77,8 @@ struct radv_image_view_extra_create_info {
    bool enable_compression;
    bool disable_dcc_mrt;
    bool disable_tc_compat_cmask_mrt;
+   bool depth_compress_disable;
+   bool stencil_compress_disable;
    bool from_client; /**< Set only if this came from vkCreateImage */
 };
 
