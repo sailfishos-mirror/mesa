@@ -669,6 +669,7 @@ blorp_fast_clear(struct blorp_batch *batch,
          assert(isl_surf.image_alignment_el.h == valign);
          assert(isl_surf.logical_level0_px.h == 32);
 
+         isl_surf.array_pitch_el_rows = valign;
          isl_surf.logical_level0_px.h = valign;
          isl_surf.phys_level0_sa.h = valign;
          isl_surf.logical_level0_px.a = 32 / valign;
