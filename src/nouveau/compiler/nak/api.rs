@@ -284,7 +284,7 @@ impl ShaderBin {
                                 cs_info.local_size[2],
                             ],
                             smem_size: cs_info.smem_size,
-                            _pad: Default::default(),
+                            _pad: [0; 132],
                         },
                     }
                 }
@@ -300,7 +300,7 @@ impl ShaderBin {
                             post_depth_coverage: fs_info.post_depth_coverage,
                             uses_sample_shading: fs_info.uses_sample_shading,
                             early_fragment_tests: fs_info.early_fragment_tests,
-                            _pad: Default::default(),
+                            _pad: [0; 135],
                         },
                     }
                 }
@@ -314,7 +314,7 @@ impl ShaderBin {
                                 .map_or(0, |x| x as u8),
                             ccw: ts_info.common.ccw,
                             point_mode: ts_info.common.point_mode,
-                            _pad: Default::default(),
+                            _pad: [0; 136],
                         },
                     }
                 }
@@ -328,13 +328,11 @@ impl ShaderBin {
                                 .map_or(0, |x| x as u8),
                             ccw: ts_info.common.ccw,
                             point_mode: ts_info.common.point_mode,
-                            _pad: Default::default(),
+                            _pad: [0; 136],
                         },
                     }
                 }
-                _ => nak_shader_info__bindgen_ty_1 {
-                    _pad: Default::default(),
-                },
+                _ => nak_shader_info__bindgen_ty_1 { _pad: [0; 140] },
             },
             vtg: match &info.io {
                 ShaderIoInfo::Vtg(io) => nak_shader_info__bindgen_ty_2 {

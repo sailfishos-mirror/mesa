@@ -112,6 +112,11 @@ struct nvk_shader {
     */
    uint64_t hdr_addr;
 
+   /* Address of the GS shader header (or 0 if not present) for mesh
+    * shaders.
+    */
+   uint64_t gs_hdr_addr;
+
    /* Address of the start of the shader data section */
    uint64_t data_addr;
 

@@ -578,7 +578,8 @@ nvk_shader_get_shader_alignment(struct nvk_device *dev)
 
 static uint32_t
 nvk_shader_get_shader_size(struct nvk_device *dev, struct nvk_shader *shader,
-                           uint32_t *out_hdr_offset, uint32_t *out_code_offset)
+                           uint32_t *out_hdr_offset, uint32_t *out_code_offset,
+                           uint32_t *out_gs_hdr_offset)
 {
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
    const uint32_t hdr_size = nvk_shader_get_hdr_size(dev, shader);
@@ -606,6 +607,18 @@ nvk_shader_get_shader_size(struct nvk_device *dev, struct nvk_shader *shader,
 
    total_size += shader->code_size;
 
+   const bool has_mesh_gs_sph = shader->info.stage == MESA_SHADER_MESH &&
+                                shader->info.mesh.has_gs_sph;
+
+   if (out_gs_hdr_offset)
+      *out_gs_hdr_offset = 0;
+   if (has_mesh_gs_sph) {
+      total_size = align(total_size, nvk_min_cbuf_alignment(&pdev->info));
+      if (out_gs_hdr_offset)
+         *out_gs_hdr_offset = total_size;
+      total_size += hdr_size;
+   }
+
    return total_size;
 }
 
@@ -614,12 +627,15 @@ nvk_shader_upload(struct nvk_device *dev, struct nvk_shader *shader)
 {
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
 
+   const bool has_mesh_gs_sph = shader->info.stage == MESA_SHADER_MESH &&
+                                shader->info.mesh.has_gs_sph;
    const uint32_t hdr_size = nvk_shader_get_hdr_size(dev, shader);
    uint32_t hdr_offset;
    uint32_t code_offset;
+   uint32_t gs_hdr_offset;
 
    uint32_t total_size = nvk_shader_get_shader_size(dev, shader, &hdr_offset,
-                                                    &code_offset);
+                                                    &code_offset, &gs_hdr_offset);
    uint32_t alignment = nvk_shader_get_shader_alignment(dev);
 
    uint32_t data_offset = 0;
@@ -638,6 +654,8 @@ nvk_shader_upload(struct nvk_device *dev, struct nvk_shader *shader)
    assert(hdr_size <= sizeof(shader->info.hdr));
    memcpy(data + hdr_offset, shader->info.hdr, hdr_size);
    memcpy(data + code_offset, shader->code_ptr, shader->code_size);
+   if (has_mesh_gs_sph)
+      memcpy(data + gs_hdr_offset, shader->info.mesh.gs_hdr, hdr_size);
    if (shader->data_size > 0)
       memcpy(data + data_offset, shader->data_ptr, shader->data_size);
 
@@ -659,6 +677,7 @@ nvk_shader_upload(struct nvk_device *dev, struct nvk_shader *shader)
          assert(shader->upload_addr - heap_base_addr < UINT32_MAX);
          shader->hdr_addr -= heap_base_addr;
       }
+      shader->gs_hdr_addr = shader->upload_addr + gs_hdr_offset;
       shader->data_addr = shader->upload_addr + data_offset;
    }
    free(data);
@@ -744,7 +763,7 @@ nvk_shader_fill_push(struct nvk_device *dev,
        * shader. */
       if (pdev->info.cls_eng3d >= AMPERE_B) {
          uint32_t shader_size =
-            nvk_shader_get_shader_size(dev, shader, NULL, NULL);
+            nvk_shader_get_shader_size(dev, shader, NULL, NULL, NULL);
          uint32_t shader_prefetch_size_in_blocks =
             MIN2(DIV_ROUND_UP(shader_size, 256), 127);
          P_NVC797_SET_PIPELINE_PROGRAM_PREFETCH(p, idx,
