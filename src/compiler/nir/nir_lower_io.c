@@ -1147,6 +1147,9 @@ nir_get_io_index_src_number(const nir_intrinsic_instr *instr)
    IMG_CASE(order):
    IMG_CASE(fragment_mask_load_amd):
       return 0;
+   case nir_intrinsic_image_deref_load_param_intel:
+   case nir_intrinsic_image_heap_load_param_intel:
+      return 0;
    case nir_intrinsic_store_ssbo:
    case nir_intrinsic_store_per_vertex_output:
    case nir_intrinsic_store_per_view_output:
