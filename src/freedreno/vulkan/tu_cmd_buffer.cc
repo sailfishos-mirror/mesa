@@ -4306,8 +4306,8 @@ tu_create_cmd_buffer(struct vk_command_pool *pool,
       container_of(pool->base.device, struct tu_device, vk);
    struct tu_cmd_buffer *cmd_buffer;
 
-   cmd_buffer = (struct tu_cmd_buffer *) vk_zalloc2(
-      &device->vk.alloc, &pool->alloc, sizeof(*cmd_buffer), 8,
+   cmd_buffer = (struct tu_cmd_buffer *) vk_zalloc(
+      &pool->alloc, sizeof(*cmd_buffer), 8,
       VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
 
    if (cmd_buffer == NULL)
@@ -4316,7 +4316,7 @@ tu_create_cmd_buffer(struct vk_command_pool *pool,
    VkResult result = vk_command_buffer_init(pool, &cmd_buffer->vk,
                                             &tu_cmd_buffer_ops, level);
    if (result != VK_SUCCESS) {
-      vk_free2(&device->vk.alloc, &pool->alloc, cmd_buffer);
+      vk_free(&pool->alloc, cmd_buffer);
       return result;
    }
 
@@ -4423,8 +4423,7 @@ tu_cmd_buffer_destroy(struct vk_command_buffer *vk_cmd_buffer)
    util_dynarray_fini(&cmd_buffer->vis_stream_cs_bos);
 
    vk_command_buffer_finish(&cmd_buffer->vk);
-   vk_free2(&cmd_buffer->device->vk.alloc, &cmd_buffer->vk.pool->alloc,
-            cmd_buffer);
+   vk_free(&cmd_buffer->vk.pool->alloc, cmd_buffer);
 }
 
 static void
