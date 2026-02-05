@@ -48,8 +48,15 @@ nvk_last_vtgm_shader_stage(VkShaderStageFlags stages)
 }
 
 static inline uint32_t
-nvk_cbuf_binding_for_stage(mesa_shader_stage stage)
+nvk_cbuf_binding_for_stage(mesa_shader_stage stage, bool has_task_shader)
 {
+   if (stage == MESA_SHADER_MESH && !has_task_shader)
+      return MESA_SHADER_VERTEX;
+   else if (stage == MESA_SHADER_MESH)
+      return MESA_SHADER_TESS_EVAL;
+   else if (stage == MESA_SHADER_TASK)
+      return MESA_SHADER_VERTEX;
+
    return stage;
 }
 
@@ -155,6 +162,6 @@ nvk_compile_nir_shader(struct nvk_device *dev, nir_shader *nir,
                        struct nvk_shader **shader_out);
 
 uint32_t mesa_to_nv9097_shader_type(mesa_shader_stage stage);
-uint32_t nvk_pipeline_bind_group(mesa_shader_stage stage);
+uint32_t nvk_pipeline_bind_group(mesa_shader_stage stage, bool has_task_shader);
 
 #endif

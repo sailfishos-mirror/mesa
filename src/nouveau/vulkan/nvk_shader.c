@@ -700,8 +700,15 @@ mesa_to_nv9097_shader_type(mesa_shader_stage stage)
 }
 
 uint32_t
-nvk_pipeline_bind_group(mesa_shader_stage stage)
+nvk_pipeline_bind_group(mesa_shader_stage stage, bool has_task_shader)
 {
+   if (stage == MESA_SHADER_MESH && !has_task_shader)
+      return MESA_SHADER_VERTEX;
+   else if (stage == MESA_SHADER_MESH)
+      return MESA_SHADER_TESS_EVAL;
+   else if (stage == MESA_SHADER_TASK)
+      return MESA_SHADER_VERTEX;
+
    return stage;
 }
 
@@ -741,6 +748,8 @@ nvk_shader_fill_push(struct nvk_device *dev,
    nv_push_init(&push, push_dw, ARRAY_SIZE(push_dw),
                 nvk_queue_subchannels_from_engines(NVKMD_ENGINE_3D));
 
+   bool has_task_shader = shader->info.stage == MESA_SHADER_MESH &&
+                          shader->info.mesh.has_task_shader;
    const uint32_t type = mesa_to_nv9097_shader_type(shader->info.stage);
 
    /* We always map index == type */
@@ -778,7 +787,7 @@ nvk_shader_fill_push(struct nvk_device *dev,
    P_MTHD(p, NVC397, SET_PIPELINE_REGISTER_COUNT(idx));
    P_NVC397_SET_PIPELINE_REGISTER_COUNT(p, idx, shader->info.num_gprs);
    P_NVC397_SET_PIPELINE_BINDING(p, idx,
-      nvk_pipeline_bind_group(shader->info.stage));
+      nvk_pipeline_bind_group(shader->info.stage, has_task_shader));
 
    if (shader->info.stage == MESA_SHADER_TESS_CTRL ||
        shader->info.stage == MESA_SHADER_TESS_EVAL) {

@@ -2219,6 +2219,11 @@ nvk_cmd_flush_gfx_shaders(struct nvk_cmd_buffer *cmd)
    struct nvk_shader *type_shader[6] = { NULL, };
    uint32_t types_dirty = 0;
 
+   const struct nvk_shader *mesh_shader =
+      cmd->state.gfx.shaders[MESA_SHADER_MESH];
+   const bool has_task_shader =
+      mesh_shader != NULL && mesh_shader->info.mesh.has_task_shader;
+
    u_foreach_bit(s, cmd->state.gfx.shaders_dirty &
                     NVK_SHADER_STAGE_GRAPHICS_BITS) {
       mesa_shader_stage stage = vk_to_mesa_shader_stage(1 << s);
@@ -2234,9 +2239,14 @@ nvk_cmd_flush_gfx_shaders(struct nvk_cmd_buffer *cmd)
          assert(type_shader[type] == NULL);
          type_shader[type] = shader;
 
+         /* In case of passthrough GS with mesh, we already handled binding of the geometry stage */
+         if (stage == MESA_SHADER_MESH && shader->info.mesh.has_gs_sph)
+            types_dirty &= ~BITFIELD_BIT(NV9097_SET_PIPELINE_SHADER_TYPE_GEOMETRY);
+
          const struct nvk_cbuf_map *cbuf_map = &shader->cbuf_map;
          struct nvk_cbuf_group *cbuf_group =
-            &cmd->state.gfx.cbuf_groups[nvk_cbuf_binding_for_stage(stage)];
+            &cmd->state.gfx.cbuf_groups[nvk_cbuf_binding_for_stage(
+               stage, has_task_shader)];
          for (uint32_t i = 0; i < cbuf_map->cbuf_count; i++) {
             if (memcmp(&cbuf_group->cbufs[i], &cbuf_map->cbufs[i],
                        sizeof(cbuf_group->cbufs[i])) != 0) {
@@ -2245,6 +2255,20 @@ nvk_cmd_flush_gfx_shaders(struct nvk_cmd_buffer *cmd)
             }
          }
       }
+
+      if (stage == MESA_SHADER_MESH) {
+         /* If we change the mesh stage, this could also affect the tesselation
+          * stage */
+         types_dirty |=
+            BITFIELD_BIT(NV9097_SET_PIPELINE_SHADER_TYPE_TESSELLATION);
+
+         /* If we unbind the mesh stage, this could also affect the geometry
+          * stage (for per primitive passthrough header) */
+         if (shader == NULL)
+            types_dirty |=
+               BITFIELD_BIT(NV9097_SET_PIPELINE_SHADER_TYPE_GEOMETRY);
+      }
+
    }
 
    u_foreach_bit(type, types_dirty) {
@@ -4204,14 +4228,19 @@ nvk_cmd_flush_gfx_cbufs(struct nvk_cmd_buffer *cmd)
    const uint32_t min_cbuf_alignment = nvk_min_cbuf_alignment(&pdev->info);
    struct nvk_descriptor_state *desc = &cmd->state.gfx.descriptors;
 
+   const struct nvk_shader *mesh_shader =
+      cmd->state.gfx.shaders[MESA_SHADER_MESH];
+   const bool has_task_shader =
+      mesh_shader != NULL && mesh_shader->info.mesh.has_task_shader;
+
    /* Find cbuf maps for the 5 cbuf groups */
    const struct nvk_shader *cbuf_shaders[5] = { NULL, };
-   for (mesa_shader_stage stage = 0; stage < MESA_SHADER_STAGES; stage++) {
+   for (mesa_shader_stage stage = 0; stage < MESA_SHADER_MESH_STAGES; stage++) {
       const struct nvk_shader *shader = cmd->state.gfx.shaders[stage];
       if (shader == NULL)
          continue;
 
-      uint32_t group = nvk_cbuf_binding_for_stage(stage);
+      uint32_t group = nvk_cbuf_binding_for_stage(stage, has_task_shader);
       assert(group < ARRAY_SIZE(cbuf_shaders));
       cbuf_shaders[group] = shader;
    }
