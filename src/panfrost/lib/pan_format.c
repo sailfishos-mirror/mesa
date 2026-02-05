@@ -163,7 +163,7 @@ const struct pan_blendable_format
 #define FMTC(pipe, texfeat, interchange, swizzle, srgb)                        \
    [PIPE_FORMAT_##pipe] = {                                                    \
       .hw = MALI_PACK_FMT(texfeat, swizzle, srgb),                             \
-      .bind = (PAN_BIND_SAMPLER_VIEW | PAN_BIND_STORAGE_IMAGE),                \
+      .bind = (PAN_BIND_SAMPLER_VIEW),                                         \
       .texfeat_bit = MALI_##texfeat,                                           \
    }
 #else
@@ -173,7 +173,7 @@ const struct pan_blendable_format
 #define FMTC(pipe, texfeat, interchange, swizzle, srgb)                        \
    [PIPE_FORMAT_##pipe] = {                                                    \
       .hw = MALI_PACK_FMT(interchange, swizzle, srgb),                         \
-      .bind = (PAN_BIND_SAMPLER_VIEW | PAN_BIND_STORAGE_IMAGE),                \
+      .bind = (PAN_BIND_SAMPLER_VIEW),                                         \
       .texfeat_bit = MALI_##texfeat,                                           \
    }
 #endif
