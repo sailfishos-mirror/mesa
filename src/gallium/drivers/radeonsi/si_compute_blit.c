@@ -155,7 +155,7 @@ bool si_compute_clear_copy_buffer(struct si_context *sctx, struct pipe_resource 
                                   bool fail_if_slow)
 {
    assert(dst->target != PIPE_BUFFER || dst_offset + size <= dst->width0);
-   assert(!src || src_offset + size <= src->width0);
+   assert(!src || src->target != PIPE_BUFFER || src_offset + size <= src->width0);
    bool is_copy = src != NULL;
 
    struct ac_cs_clear_copy_buffer_options options = {
