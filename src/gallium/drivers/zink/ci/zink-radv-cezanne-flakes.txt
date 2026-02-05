@@ -8,78 +8,10 @@ KHR-GL46.es_31_compatibility.shader_storage_buffer_object.basic-stdLayout-case2-
 KHR-GL46.es_31_compatibility.shader_storage_buffer_object.basic-stdLayout_UBO_SSBO-case2-vs
 KHR-GL46.explicit_uniform_location.uniform-loc-mix-with-implicit-max
 KHR-GL46.geometry_shader.rendering.rendering.triangles_with_adjacency_input_points_output_triangle_strip_adjacency_drawcall
-KHR-GL46.gpu_shader_fp64.builtin.abs_dvec3
-KHR-GL46.gpu_shader_fp64.builtin.clamp_against_scalar_dvec4
-KHR-GL46.gpu_shader_fp64.builtin.clamp_dvec4
-KHR-GL46.gpu_shader_fp64.builtin.cross_dvec3
-KHR-GL46.gpu_shader_fp64.builtin.fma_dvec3
-KHR-GL46.gpu_shader_fp64.builtin.ldexp_dvec2
-KHR-GL46.gpu_shader_fp64.builtin.min_dvec4
-KHR-GL46.gpu_shader_fp64.builtin.mix_dvec3
-KHR-GL46.gpu_shader_fp64.builtin.mod_against_scalar_dvec2
-KHR-GL46.gpu_shader_fp64.builtin.mod_dvec4
-KHR-GL46.gpu_shader_fp64.builtin.modf_dvec4
-KHR-GL46.gpu_shader_fp64.builtin.normalize_dvec3
-KHR-GL46.gpu_shader_fp64.builtin.outerproduct_dmat3
-KHR-GL46.gpu_shader_fp64.builtin.refract_dvec4
-KHR-GL46.gpu_shader_fp64.builtin.smoothstep_against_scalar_dvec2
-KHR-GL46.gpu_shader_fp64.builtin.unpackdouble2x32_double
+KHR-GL46.gpu_shader_fp64.builtin.*
 KHR-GL46.packed_pixels.pbo_rectangle.rg8i_format_bgra_integer
 KHR-GL46.packed_pixels.rectangle.rg16f_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.compressed_red_rgtc1_format_red
-KHR-GL46.packed_pixels.varied_rectangle.compressed_rg_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.compressed_rg_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.compressed_rgb_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.compressed_signed_rg_rgtc2_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.compressed_srgb_format_red
-KHR-GL46.packed_pixels.varied_rectangle.r11f_g11f_b10f_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.r16_format_red
-KHR-GL46.packed_pixels.varied_rectangle.r16_format_rgba
-KHR-GL46.packed_pixels.varied_rectangle.r16_snorm_format_red
-KHR-GL46.packed_pixels.varied_rectangle.r16i_format_red_integer
-KHR-GL46.packed_pixels.varied_rectangle.r32i_format_red_integer
-KHR-GL46.packed_pixels.varied_rectangle.r8_format_blue
-KHR-GL46.packed_pixels.varied_rectangle.r8_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.r8_snorm_format_green
-KHR-GL46.packed_pixels.varied_rectangle.r8_snorm_format_red
-KHR-GL46.packed_pixels.varied_rectangle.red_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.rg16_snorm_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.rg16f_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.rg32f_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.rg8_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.rg8ui_format_bgra_integer
-KHR-GL46.packed_pixels.varied_rectangle.rg8ui_format_rg_integer
-KHR-GL46.packed_pixels.varied_rectangle.rg_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.rgb10_a2_format_rgba
-KHR-GL46.packed_pixels.varied_rectangle.rgb12_format_bgra
-KHR-GL46.packed_pixels.varied_rectangle.rgb12_format_red
-KHR-GL46.packed_pixels.varied_rectangle.rgb16_format_bgra
-KHR-GL46.packed_pixels.varied_rectangle.rgb16_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.rgb16f_format_red
-KHR-GL46.packed_pixels.varied_rectangle.rgb16ui_format_rgba_integer
-KHR-GL46.packed_pixels.varied_rectangle.rgb32f_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.rgb32ui_format_green_integer
-KHR-GL46.packed_pixels.varied_rectangle.rgb4_format_rgba
-KHR-GL46.packed_pixels.varied_rectangle.rgb5_a1_format_bgr
-KHR-GL46.packed_pixels.varied_rectangle.rgb5_a1_format_bgra
-KHR-GL46.packed_pixels.varied_rectangle.rgb5_a1_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.rgb8_snorm_format_rg
-KHR-GL46.packed_pixels.varied_rectangle.rgb8_snorm_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.rgb9_e5_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.rgba12_format_rgba
-KHR-GL46.packed_pixels.varied_rectangle.rgba16_format_blue
-KHR-GL46.packed_pixels.varied_rectangle.rgba16_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.rgba16_snorm_format_rgba
-KHR-GL46.packed_pixels.varied_rectangle.rgba16f_format_green
-KHR-GL46.packed_pixels.varied_rectangle.rgba16f_format_rgba
-KHR-GL46.packed_pixels.varied_rectangle.rgba16ui_format_rgba_integer
-KHR-GL46.packed_pixels.varied_rectangle.rgba32f_format_bgra
-KHR-GL46.packed_pixels.varied_rectangle.rgba32f_format_rgba
-KHR-GL46.packed_pixels.varied_rectangle.rgba4_format_bgra
-KHR-GL46.packed_pixels.varied_rectangle.rgba4_format_green
-KHR-GL46.packed_pixels.varied_rectangle.rgba4_format_rgb
-KHR-GL46.packed_pixels.varied_rectangle.rgba4_format_rgba
-KHR-GL46.packed_pixels.varied_rectangle.rgba8_snorm_format_rgb
+KHR-GL46.packed_pixels.varied_rectangle.*
 KHR-GL46.pixelstoragemodes.teximage3d.rgba16f.1_0_0
 KHR-GL46.shader_image_load_store.basic-allTargets-loadStoreGS
 KHR-GL46.shading_language_420pack.implicit_conversions_case_t1_dvec2_t2_uvec2
@@ -173,6 +105,7 @@ glx@glx-visuals-stencil
 
 spec@!opengl 1.1@clipflat
 spec@!opengl 1.1@depthstencil-default_fb-copypixels samples=6
+spec@!opengl 1.1@draw-sync
 spec@!opengl 1.1@getteximage-formats
 spec@!opengl 1.1@polygon-mode
 spec@!opengl 1.1@teximage-colors gl_r16

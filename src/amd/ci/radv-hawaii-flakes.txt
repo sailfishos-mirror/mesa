@@ -22,6 +22,7 @@ dEQP-VK.pipeline.monolithic.vertex_input.multiple_attributes.binding_one_to_one.
 dEQP-VK.pipeline.pipeline_library.multisample.*.(sub|whole)_framebuffer
 dEQP-VK.pipeline.pipeline_library.multisample.z_export.depth_dynamic_atc
 dEQP-VK.pipeline.pipeline_library.multisample.z_export.sample_mask_dynamic_atc
+dEQP-VK.pipeline.pipeline_library.multisample.z_export.stencil_static_atc_dynamic_rendering
 dEQP-VK.pipeline.shader_object_linked_binary.multisample.*.(sub|whole)_framebuffer
 dEQP-VK.pipeline.shader_object_linked_binary.multisample.z_export.depth_stencil_dynamic_atc
 dEQP-VK.pipeline.shader_object_linked_spirv.multisample.*.(sub|whole)_framebuffer
