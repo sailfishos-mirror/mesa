@@ -1622,7 +1622,6 @@ radv_layout_is_htile_compressed(const struct radv_device *device, const struct r
    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
       return radv_tc_compat_htile_enabled(image, level) ||
              (radv_htile_enabled(image, level) && queue_mask == (1u << RADV_QUEUE_GENERAL));
-   case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR:
    case VK_IMAGE_LAYOUT_GENERAL:
       /* It should be safe to enable TC-compat HTILE with
        * VK_IMAGE_LAYOUT_GENERAL if we are not in a render loop and
