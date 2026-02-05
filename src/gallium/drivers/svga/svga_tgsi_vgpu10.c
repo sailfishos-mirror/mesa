@@ -1052,9 +1052,7 @@ translate_opcode(enum tgsi_opcode opcode)
        */
       FALLTHROUGH;
    case TGSI_OPCODE_SAMPLE_INFO:
-      /* NOTE: we never actually get this opcode because the GLSL compiler
-       * implements the gl_NumSamples variable with a simple constant in the
-       * constant buffer.
+      /* NOTE: We never actually get this opcode because TXQS is used instead.
        */
       FALLTHROUGH;
    default:
@@ -10569,6 +10567,26 @@ emit_resq(struct svga_shader_emitter_v10 *emit,
    return true;
 }
 
+static bool
+emit_txqs(struct svga_shader_emitter_v10 *emit,
+          const struct tgsi_full_instruction *inst)
+{
+      const unsigned unit = inst->Src[0].Register.Index;
+      begin_emit_instruction(emit);
+
+      VGPU10OpcodeToken0 token;
+
+      token.value = 0;  /* init all fields to zero */
+      token.opcodeType = VGPU10_OPCODE_SAMPLE_INFO;
+      token.instructionLength = 0; /* Filled in by end_emit_instruction() */
+      token.instReturnType = VGPU10_INSTRUCTION_RETURN_UINT;
+
+      emit_dword(emit, token.value);
+      emit_dst_register(emit, &inst->Dst[0]);
+      emit_resource_register(emit, unit);
+      end_emit_instruction(emit);
+      return true;
+}
 
 static bool
 emit_instruction(struct svga_shader_emitter_v10 *emit,
@@ -10750,6 +10768,8 @@ emit_instruction(struct svga_shader_emitter_v10 *emit,
       return emit_txl2(emit, inst);
    case TGSI_OPCODE_TXQ:
       return emit_txq(emit, inst);
+   case TGSI_OPCODE_TXQS:
+      return emit_txqs(emit, inst);
    case TGSI_OPCODE_UIF:
       return emit_if(emit, &inst->Src[0]);
    case TGSI_OPCODE_UMUL_HI:
