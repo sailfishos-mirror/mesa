@@ -23,6 +23,7 @@ libnak_c_files = files(
   'nak_nir_lower_fs_inputs.c',
   'nak_nir_lower_gs_intrinsics.c',
   'nak_nir_lower_image_addrs.c',
+  'nak_nir_lower_mesh_intrinsics.c',
   'nak_nir_lower_non_uniform_ldcx.c',
   'nak_nir_lower_scan_reduce.c',
   'nak_nir_lower_shared_atomics.c',

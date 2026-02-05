@@ -109,7 +109,8 @@ const extern struct nak_constant_offset_info nak_const_offsets_turing_graphics;
 
 void nak_postprocess_nir(nir_shader *nir, const struct nak_compiler *nak,
                          nir_variable_mode robust2_modes,
-                         const struct nak_fs_key *fs_key);
+                         const struct nak_fs_key *fs_key,
+                         bool has_task_shader);
 
 enum ENUM_PACKED nak_ts_domain {
    NAK_TS_DOMAIN_ISOLINE = 0,

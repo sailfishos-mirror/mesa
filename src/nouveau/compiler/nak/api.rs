@@ -485,7 +485,9 @@ fn nak_compile_shader_internal(
     fs_key: *const nak_fs_key,
     has_task_shader: bool,
 ) -> *mut nak_shader_bin {
-    unsafe { nak_postprocess_nir(nir, nak, robust2_modes, fs_key) };
+    unsafe {
+        nak_postprocess_nir(nir, nak, robust2_modes, fs_key, has_task_shader)
+    };
     let nak = unsafe { &*nak };
     let nir = unsafe { &*nir };
     let fs_key = if fs_key.is_null() {

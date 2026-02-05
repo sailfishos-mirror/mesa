@@ -3748,6 +3748,11 @@ impl<'a> ShaderFromNir<'a> {
                 self.set_dst(&intrin.def, dst.into());
             }
             nir_intrinsic_shared_atomic_nv => {
+                assert!(
+                    self.nir.info.stage() == MESA_SHADER_COMPUTE
+                        || self.nir.info.stage() == MESA_SHADER_KERNEL
+                );
+
                 let bit_size = intrin.def.bit_size();
                 let addr = self.get_src(&srcs[0]);
                 let uaddr = self.get_src(&srcs[1]);
@@ -3775,6 +3780,11 @@ impl<'a> ShaderFromNir<'a> {
                 self.set_dst(&intrin.def, dst);
             }
             nir_intrinsic_shared_atomic_swap_nv => {
+                assert!(
+                    self.nir.info.stage() == MESA_SHADER_COMPUTE
+                        || self.nir.info.stage() == MESA_SHADER_KERNEL
+                );
+
                 assert!(intrin.atomic_op() == nir_atomic_op_cmpxchg);
                 let bit_size = intrin.def.bit_size();
                 let addr = self.get_src(&srcs[0]);

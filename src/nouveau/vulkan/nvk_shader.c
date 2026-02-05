@@ -382,8 +382,10 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
             lookup_ycbcr_conversion, &ycbcr_state);
 
    nir_lower_compute_system_values_options csv_options = {
-      .has_base_workgroup_id = true,
+      .has_base_workgroup_id = mesa_shader_stage_is_compute(nir->info.stage),
       .lower_local_invocation_index = mesa_shader_stage_is_compute(nir->info.stage),
+      .lower_workgroup_id_to_index = mesa_shader_stage_is_mesh(nir->info.stage),
+      .lower_cs_local_id_to_index = mesa_shader_stage_is_mesh(nir->info.stage),
    };
    NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
 
@@ -461,19 +463,43 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
    NIR_PASS(_, nir, nir_shader_intrinsics_pass,
             lower_load_intrinsic, nir_metadata_none, pdev);
 
-   if (mesa_shader_stage_is_compute(nir->info.stage)) {
-      NIR_PASS(_, nir, nir_lower_vars_to_explicit_types,
-               nir_var_mem_shared, shared_var_info);
-      NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_shared,
+   if (mesa_shader_stage_uses_workgroup(nir->info.stage)) {
+      nir_variable_mode var_modes = nir_var_mem_shared;
+
+      if (mesa_shader_stage_is_mesh(nir->info.stage))
+         var_modes |= nir_var_mem_task_payload;
+
+      NIR_PASS(_, nir, nir_lower_vars_to_explicit_types, var_modes,
+               shared_var_info);
+      NIR_PASS(_, nir, nir_lower_explicit_io, var_modes,
                nir_address_format_32bit_offset);
 
+      if (nir->info.stage == MESA_SHADER_TASK)
+         NIR_PASS(_, nir, nvk_nir_lower_task_shader);
+      else if (nir->info.stage == MESA_SHADER_MESH)
+         NIR_PASS(_, nir, nvk_nir_lower_mesh_shader, shader_flags);
+
       if (nir->info.zero_initialize_shared_memory && nir->info.shared_size > 0) {
-         /* QMD::SHARED_MEMORY_SIZE requires an alignment of 256B so it's safe to
-         * align everything up to 16B so we can write whole vec4s.
-         */
-         nir->info.shared_size = align(nir->info.shared_size, 16);
+         uint32_t alignment;
+         uint32_t chunk_size;
+
+         if (mesa_shader_stage_is_mesh(nir->info.stage)) {
+            /* With task/mesh shaders, shared is in ISBE attribute space and is
+             * allocated in "lines" of 128 bytes. Additionally, we ISBE I/O
+             * instructions only support 1B and 4B granualities.*/
+            alignment = 128;
+            chunk_size = 4;
+         } else {
+            /* QMD::SHARED_MEMORY_SIZE requires an alignment of 256B so it's
+             * safe to align everything up to 16B so we can write whole vec4s.
+             */
+            alignment = 16;
+            chunk_size = 16;
+         }
+
+         nir->info.shared_size = align(nir->info.shared_size, alignment);
          NIR_PASS(_, nir, nir_zero_initialize_shared_memory,
-                  nir->info.shared_size, 16);
+                  nir->info.shared_size, chunk_size);
 
          /* We need to call lower_compute_system_values again because
          * nir_zero_initialize_shared_memory generates load_invocation_id which

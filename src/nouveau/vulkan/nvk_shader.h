@@ -158,6 +158,9 @@ nvk_nir_lower_descriptors(nir_shader *nir,
                           struct vk_descriptor_set_layout * const *set_layouts,
                           struct nvk_cbuf_map *cbuf_map_out);
 
+bool nvk_nir_lower_mesh_shader(nir_shader *nir, VkShaderCreateFlagsEXT shader_flags);
+bool nvk_nir_lower_task_shader(nir_shader *nir);
+
 VkResult
 nvk_compile_nir_shader(struct nvk_device *dev, nir_shader *nir,
                        const VkAllocationCallbacks *alloc,
