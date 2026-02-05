@@ -2402,6 +2402,12 @@ get_mem_access_size_align(nir_intrinsic_op intrin, uint8_t bytes,
       if (bytes == 3)
          bytes = is_load ? 4 : 2;
 
+      /* Ensure we split into aligned pieces. We cannot blindly turn an i8vec4
+       * into i32 due to the alignment requirements. It might be possible to
+       * relax this later, though.
+       */
+      bytes = MIN2(bytes, align);
+
       if (is_scratch) {
          /* The way scratch address swizzling works in the back-end, it
           * happens at a DWORD granularity so we can't have a single load
@@ -2418,7 +2424,7 @@ get_mem_access_size_align(nir_intrinsic_op intrin, uint8_t bytes,
       return (nir_mem_access_size_align) {
          .bit_size = bytes * 8,
          .num_components = 1,
-         .align = 1,
+         .align = MIN2(align, 4),
          .shift = nir_mem_access_shift_method_scalar,
       };
    } else {
