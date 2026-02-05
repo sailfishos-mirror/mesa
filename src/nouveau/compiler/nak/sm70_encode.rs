@@ -3751,8 +3751,8 @@ impl SM70Op for OpCS2R {
 }
 
 impl SM70Op for OpIsberd {
-    fn legalize(&mut self, _b: &mut LegalizeBuilder) {
-        // Nothing to do
+    fn legalize(&mut self, b: &mut LegalizeBuilder) {
+        b.copy_src_if_uniform(&mut self.idx);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
