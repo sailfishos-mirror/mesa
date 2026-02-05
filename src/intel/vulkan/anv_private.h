@@ -1314,6 +1314,12 @@ struct anv_shader_group_rt_replay {
 struct anv_shader {
    struct vk_shader vk;
 
+   /**
+    * Code of the shader on the host
+    *
+    * This is before relocations are applied so that can always return the
+    * same blob of data for serialization.
+    */
    void *code;
 
    struct anv_shader_alloc kernel;
