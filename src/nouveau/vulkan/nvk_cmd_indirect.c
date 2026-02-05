@@ -500,7 +500,8 @@ build_gfx_set_exec(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr,
          if (stage != MESA_SHADER_FRAGMENT)
             last_vtgm = stage;
 
-         uint32_t type = mesa_to_nv9097_shader_type(stage);
+         uint32_t type = mesa_to_nv9097_shader_type(
+            stage, token->shaderStages & VK_SHADER_STAGE_TASK_BIT_EXT);
          type_stage[type] = stage;
          type_shader_idx[type] = load_global_dw(b, token_addr, i++);
       }
@@ -1150,7 +1151,8 @@ nvk_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer,
          uint8_t set_types = 0;
          u_foreach_bit(s, layout->set_stages) {
             mesa_shader_stage stage = vk_to_mesa_shader_stage(1 << s);
-            uint32_t type = mesa_to_nv9097_shader_type(stage);
+            uint32_t type = mesa_to_nv9097_shader_type(
+               stage, layout->set_stages & VK_SHADER_STAGE_TASK_BIT_EXT);
             set_types |= BITFIELD_BIT(type);
          }
 

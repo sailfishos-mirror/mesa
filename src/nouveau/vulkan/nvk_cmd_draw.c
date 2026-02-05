@@ -1893,6 +1893,15 @@ nvk_cmd_bind_graphics_shader(struct nvk_cmd_buffer *cmd,
    if (cmd->state.gfx.shaders[stage] == shader)
       return;
 
+   /* IA state changes depending on whether a mesh shader is bound (see
+    * nvk_flush_ia_state) */
+   if (stage == MESA_SHADER_MESH &&
+       (cmd->state.gfx.shaders[stage] == NULL) != (shader == NULL)) {
+      struct vk_dynamic_graphics_state *dyn = &cmd->vk.dynamic_graphics_state;
+      BITSET_SET(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_TOPOLOGY);
+      BITSET_SET(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE);
+   }
+
    cmd->state.gfx.shaders[stage] = shader;
    cmd->state.gfx.shaders_dirty |= mesa_to_vk_shader_stage(stage);
 }
@@ -2227,7 +2236,7 @@ nvk_cmd_flush_gfx_shaders(struct nvk_cmd_buffer *cmd)
    u_foreach_bit(s, cmd->state.gfx.shaders_dirty &
                     NVK_SHADER_STAGE_GRAPHICS_BITS) {
       mesa_shader_stage stage = vk_to_mesa_shader_stage(1 << s);
-      uint32_t type = mesa_to_nv9097_shader_type(stage);
+      uint32_t type = mesa_to_nv9097_shader_type(stage, has_task_shader);
       types_dirty |= BITFIELD_BIT(type);
 
       /* Only copy non-NULL shaders because mesh/task alias with vertex and
@@ -2478,16 +2487,26 @@ nvk_flush_ia_state(struct nvk_cmd_buffer *cmd)
    const struct vk_dynamic_graphics_state *dyn =
       &cmd->vk.dynamic_graphics_state;
 
+   /* Mesh shaders are affected by IA state:
+    * - SET_PRIMITIVE_TOPOLOGY takes precedence over SET_MESH_SHADER_A topology.
+    * - SET_DA_PRIMITIVE_RESTART affects mesh shaders.
+    *
+    * So in case we have mesh shader enabled, we disable primitive restart and
+    * force point list like what the proprietary driver does.
+    */
+   const bool has_mesh_shader = cmd->state.gfx.shaders[MESA_SHADER_MESH];
    if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_TOPOLOGY)) {
+      uint8_t topology = has_mesh_shader ? VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+                                         : dyn->ia.primitive_topology;
       struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
       P_MTHD(p, NV9097, SET_PRIMITIVE_TOPOLOGY);
-      P_INLINE_DATA(p, vk_to_nv9097_primitive_topology(dyn->ia.primitive_topology));
+      P_INLINE_DATA(p, vk_to_nv9097_primitive_topology(topology));
    }
 
    if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE)) {
       struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
       P_IMMD(p, NV9097, SET_DA_PRIMITIVE_RESTART,
-             dyn->ia.primitive_restart_enable);
+             dyn->ia.primitive_restart_enable && !has_mesh_shader);
    }
 }
 

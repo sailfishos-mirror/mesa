@@ -34,7 +34,9 @@ struct vk_shader_module;
    (VK_SHADER_STAGE_VERTEX_BIT | \
     VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT | \
     VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT | \
-    VK_SHADER_STAGE_GEOMETRY_BIT)
+    VK_SHADER_STAGE_GEOMETRY_BIT | \
+    VK_SHADER_STAGE_TASK_BIT_EXT | \
+    VK_SHADER_STAGE_MESH_BIT_EXT)
 
 #define NVK_SHADER_STAGE_GRAPHICS_BITS \
    (NVK_SHADER_STAGE_VTGM_BITS | VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -161,7 +163,7 @@ nvk_compile_nir_shader(struct nvk_device *dev, nir_shader *nir,
                        const VkAllocationCallbacks *alloc,
                        struct nvk_shader **shader_out);
 
-uint32_t mesa_to_nv9097_shader_type(mesa_shader_stage stage);
+uint32_t mesa_to_nv9097_shader_type(mesa_shader_stage stage, bool has_task_shader);
 uint32_t nvk_pipeline_bind_group(mesa_shader_stage stage, bool has_task_shader);
 
 #endif

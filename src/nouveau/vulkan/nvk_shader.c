@@ -32,6 +32,7 @@
 #include "nv_push_cl9097.h"
 #include "nv_push_clb197.h"
 #include "nv_push_clc397.h"
+#include "nv_push_clc597.h"
 #include "nv_push_clc797.h"
 
 const struct nak_constant_offset_info nak_const_offsets_base = {
@@ -686,14 +687,19 @@ nvk_shader_upload(struct nvk_device *dev, struct nvk_shader *shader)
 }
 
 uint32_t
-mesa_to_nv9097_shader_type(mesa_shader_stage stage)
+mesa_to_nv9097_shader_type(mesa_shader_stage stage, bool has_task_shader)
 {
+   if (stage == MESA_SHADER_MESH && !has_task_shader)
+      stage = MESA_SHADER_TASK;
+
    static const uint32_t mesa_to_nv9097[] = {
       [MESA_SHADER_VERTEX]    = NV9097_SET_PIPELINE_SHADER_TYPE_VERTEX,
       [MESA_SHADER_TESS_CTRL] = NV9097_SET_PIPELINE_SHADER_TYPE_TESSELLATION_INIT,
       [MESA_SHADER_TESS_EVAL] = NV9097_SET_PIPELINE_SHADER_TYPE_TESSELLATION,
       [MESA_SHADER_GEOMETRY]  = NV9097_SET_PIPELINE_SHADER_TYPE_GEOMETRY,
       [MESA_SHADER_FRAGMENT]  = NV9097_SET_PIPELINE_SHADER_TYPE_PIXEL,
+      [MESA_SHADER_TASK]      = NV9097_SET_PIPELINE_SHADER_TYPE_VERTEX,
+      [MESA_SHADER_MESH]      = NV9097_SET_PIPELINE_SHADER_TYPE_TESSELLATION,
    };
    assert(stage < ARRAY_SIZE(mesa_to_nv9097));
    return mesa_to_nv9097[stage];
@@ -721,11 +727,21 @@ nvk_max_shader_push_dw(const struct nvk_physical_device *pdev,
 
    uint16_t max_dw_count = 9;
 
+   if (stage == MESA_SHADER_VERTEX || stage == MESA_SHADER_TASK ||
+       stage == MESA_SHADER_MESH)
+      max_dw_count += 2;
+
    if (stage == MESA_SHADER_TESS_CTRL || stage == MESA_SHADER_TESS_EVAL)
       max_dw_count += 2;
 
    if (stage == MESA_SHADER_FRAGMENT)
       max_dw_count += 13;
+
+   if (stage == MESA_SHADER_TASK)
+      max_dw_count += 2;
+
+   if (stage == MESA_SHADER_MESH)
+      max_dw_count += 15;
 
    if (last_vtgm) {
       max_dw_count += 8;
@@ -750,7 +766,8 @@ nvk_shader_fill_push(struct nvk_device *dev,
 
    bool has_task_shader = shader->info.stage == MESA_SHADER_MESH &&
                           shader->info.mesh.has_task_shader;
-   const uint32_t type = mesa_to_nv9097_shader_type(shader->info.stage);
+   const uint32_t type =
+      mesa_to_nv9097_shader_type(shader->info.stage, has_task_shader);
 
    /* We always map index == type */
    const uint32_t idx = type;
@@ -800,7 +817,74 @@ nvk_shader_fill_push(struct nvk_device *dev,
                                            shader->info.ts.point_mode));
    }
 
-   if (shader->info.stage == MESA_SHADER_FRAGMENT) {
+   bool could_be_first_stage = shader->info.stage == MESA_SHADER_VERTEX ||
+                               shader->info.stage == MESA_SHADER_TASK ||
+                               shader->info.stage == MESA_SHADER_MESH;
+   bool is_first_stage =
+      could_be_first_stage && (shader->info.stage != MESA_SHADER_MESH ||
+                               !shader->info.mesh.has_task_shader);
+
+   if (could_be_first_stage) {
+      max_dw_count += 2;
+
+      if (pdev->info.cls_eng3d >= TURING_A && is_first_stage)
+         P_IMMD(p, NVC597, SET_MESH_CONTROL,
+                shader->info.stage != MESA_SHADER_VERTEX);
+   }
+
+   if (shader->info.stage == MESA_SHADER_TASK) {
+      max_dw_count += 2;
+      uint16_t smem_lines = DIV_ROUND_UP(shader->info.task.smem_size, 128);
+      uint16_t task_smem_lines = DIV_ROUND_UP(shader->info.task.payload_smem_size, 128);
+
+      /* Task payload should be part of shared memory */
+      assert(task_smem_lines <= smem_lines);
+
+      P_IMMD(p, NVC597, SET_MESH_INIT_SHADER, {
+         .thread_count = shader->info.task.local_size,
+         .local_buffer_lines = smem_lines,
+         .output_to_m_s_lines = task_smem_lines,
+      });
+   } else if (shader->info.stage == MESA_SHADER_MESH) {
+      max_dw_count += 15;
+
+      assert(shader->info.mesh.max_vertices != 0);
+      assert(shader->info.mesh.max_primitives != 0);
+
+      /* On Turing only, if a task+mesh pipeline was previously bound and we
+       * bind a mesh only pipeline after it, the hardware will misbehave in
+       * TRACK_WITH_FILTER mode and assume that the vertex stage has a task
+       * shader instead.
+       *
+       * NVIDIA proprietary driver apply this workaround on all generations so
+       * we also do the same here just in case.
+       */
+      P_IMMD(p, NV9097, SET_MME_SHADOW_RAM_CONTROL, MODE_METHOD_TRACK);
+      P_MTHD(p, NVC597, SET_MESH_SHADER_A);
+      P_NVC597_SET_MESH_SHADER_A(p, {
+         .output_topology = shader->info.mesh.topology,
+         .max_vertex = shader->info.mesh.max_vertices,
+         .max_primitive = shader->info.mesh.max_primitives,
+      });
+      P_NVC597_SET_MESH_SHADER_B(p, {
+         .shared_mem_lines = DIV_ROUND_UP(shader->info.mesh.smem_size, 128),
+         .thread_count = shader->info.mesh.local_size,
+      });
+      P_IMMD(p, NV9097, SET_MME_SHADOW_RAM_CONTROL, MODE_METHOD_TRACK_WITH_FILTER);
+
+      if (shader->info.mesh.has_gs_sph) {
+         P_IMMD(p, NV9097, SET_PIPELINE_SHADER(NV9097_SET_PIPELINE_SHADER_TYPE_GEOMETRY), {
+            .enable  = shader->info.mesh.has_gs_sph,
+            .type    = TYPE_GEOMETRY,
+         });
+
+         uint64_t gs_hdr_addr = shader->gs_hdr_addr;
+         P_MTHD(p, NVC397, SET_PIPELINE_PROGRAM_ADDRESS_A(NV9097_SET_PIPELINE_SHADER_TYPE_GEOMETRY));
+         P_NVC397_SET_PIPELINE_PROGRAM_ADDRESS_A(p, NV9097_SET_PIPELINE_SHADER_TYPE_GEOMETRY, gs_hdr_addr >> 32);
+         P_NVC397_SET_PIPELINE_PROGRAM_ADDRESS_B(p, NV9097_SET_PIPELINE_SHADER_TYPE_GEOMETRY, gs_hdr_addr);
+         P_IMMD(p, NVC397, SET_GS_MODE, TYPE_ANY);
+      }
+   } else if (shader->info.stage == MESA_SHADER_FRAGMENT) {
       max_dw_count += 13;
 
       P_MTHD(p, NVC397, SET_SUBTILING_PERF_KNOB_A);
