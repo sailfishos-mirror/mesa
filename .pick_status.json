@@ -1214,7 +1214,7 @@
         "description": "nir/opt_vectorize_load_store: allow sizes unaligned with high offset for loads",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2ed79f80ba894bba0d340708c326ac9d59d5795e",
         "notes": null
