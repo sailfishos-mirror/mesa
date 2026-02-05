@@ -257,6 +257,21 @@ struct nak_nir_imadsp_flags {
 
 bool nak_nir_lower_vtg_io(nir_shader *nir, const struct nak_compiler *nak);
 
+enum nak_isbe_mode {
+   NAK_ISBE_MODE_MAP,
+   NAK_ISBE_MODE_PATCH,
+   NAK_ISBE_MODE_PRIM,
+   NAK_ISBE_MODE_ATTR,
+};
+
+struct nak_nir_isbe_flags {
+   enum nak_isbe_mode mode : 2;
+   bool output : 1;
+   bool skew : 1;
+   bool per_primitive : 1;
+   uint32_t pad : 27;
+};
+
 enum nak_interp_mode {
    NAK_INTERP_MODE_PERSPECTIVE,
    NAK_INTERP_MODE_SCREEN_LINEAR,

@@ -3033,6 +3033,19 @@ impl<'a> ShaderFromNir<'a> {
                 self.set_dst(&intrin.def, dst.into());
             }
             nir_intrinsic_isberd_nv => {
+                let flags = intrin.flags();
+                let flags: nak_nir_isbe_flags =
+                    unsafe { std::mem::transmute_copy(&flags) };
+
+                // TODO: Implement 16 and 32 bits in ISBERD
+                assert!(
+                    intrin.def.bit_size() == 8
+                        && intrin.def.num_components == 1
+                );
+
+                // TODO: Implement mode in ISBERD
+                assert!(flags.mode() == NAK_ISBE_MODE_MAP);
+
                 let dst = b.alloc_ssa(RegFile::GPR);
                 b.push_op(OpIsberd {
                     dst: dst.into(),
