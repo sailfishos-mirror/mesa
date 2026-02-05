@@ -7233,22 +7233,107 @@ impl DisplayOp for OpCS2R {
 }
 impl_display_for_op!(OpCS2R);
 
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+pub enum IsbeAccessType {
+    Map,
+    Patch,
+    Primitive,
+    Attribute,
+}
+
+impl fmt::Display for IsbeAccessType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IsbeAccessType::Map => write!(f, "map"),
+            IsbeAccessType::Patch => write!(f, "patch"),
+            IsbeAccessType::Primitive => write!(f, "prim"),
+            IsbeAccessType::Attribute => write!(f, "attr"),
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(SrcsAsSlice, DstsAsSlice)]
 pub struct OpIsberd {
     #[dst_type(GPR)]
     pub dst: Dst,
 
-    #[src_type(SSA)]
-    pub idx: Src,
+    #[src_type(GPR)]
+    pub offset: Src,
+
+    pub imm_offset: u16,
+    pub mem_type: MemType,
+    pub access_type: IsbeAccessType,
+    pub output: bool,
+    pub skew: bool,
 }
 
 impl DisplayOp for OpIsberd {
     fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "isberd [{}]", self.idx)
+        write!(f, "isberd")?;
+
+        if self.output {
+            write!(f, ".o")?;
+        }
+
+        write!(f, ".{}", self.access_type)?;
+
+        if self.skew {
+            write!(f, ".skew")?;
+        }
+
+        write!(f, "{} {}", self.mem_type, self.dst)?;
+
+        if self.imm_offset != 0 {
+            write!(f, " [{}+0x{:x}]", self.offset, self.imm_offset)
+        } else {
+            write!(f, " [{}]", self.offset)
+        }
     }
 }
 impl_display_for_op!(OpIsberd);
+
+#[repr(C)]
+#[derive(SrcsAsSlice, DstsAsSlice)]
+pub struct OpIsbewr {
+    #[src_type(GPR)]
+    pub offset: Src,
+
+    #[src_type(GPR)]
+    pub data: Src,
+
+    pub imm_offset: u16,
+    pub mem_type: MemType,
+    pub access_type: IsbeAccessType,
+    pub output: bool,
+    pub skew: bool,
+}
+
+impl DisplayOp for OpIsbewr {
+    fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "isbewr")?;
+
+        if self.output {
+            write!(f, ".o")?;
+        }
+
+        write!(f, ".{}", self.access_type)?;
+
+        if self.skew {
+            write!(f, ".skew")?;
+        }
+
+        write!(f, "{}", self.mem_type)?;
+        if self.imm_offset != 0 {
+            write!(f, " [{}+0x{:x}]", self.offset, self.imm_offset)?;
+        } else {
+            write!(f, " [{}]", self.offset)?;
+        }
+
+        write!(f, " {}", self.data)
+    }
+}
+impl_display_for_op!(OpIsbewr);
 
 /// Vertex Index Load
 /// (Only available in Kepler)
@@ -8094,6 +8179,7 @@ pub enum Op {
     TexDepBar(Box<OpTexDepBar>),
     CS2R(Box<OpCS2R>),
     Isberd(Box<OpIsberd>),
+    Isbewr(Box<OpIsbewr>),
     ViLd(Box<OpViLd>),
     Kill(Box<OpKill>),
     Nop(OpNop),
@@ -8279,6 +8365,7 @@ impl Op {
             | Op::TexDepBar(_)
             | Op::CS2R(_)
             | Op::Isberd(_)
+            | Op::Isbewr(_)
             | Op::ViLd(_)
             | Op::Kill(_)
             | Op::PixLd(_)
@@ -8461,6 +8548,7 @@ impl Op {
             | Op::TexDepBar(_)
             | Op::CS2R(_)
             | Op::Isberd(_)
+            | Op::Isbewr(_)
             | Op::ViLd(_)
             | Op::Kill(_)
             | Op::PixLd(_)
@@ -8856,6 +8944,7 @@ impl Instr {
             | Op::RegOut(_)
             | Op::Out(_)
             | Op::OutFinal(_)
+            | Op::Isbewr(_)
             | Op::Annotate(_) => false,
             Op::BMov(op) => !op.clear,
             _ => true,
@@ -9662,8 +9751,14 @@ impl IsbeSpaceSharingStateTracker {
     }
 
     pub fn visit_instr(&mut self, instr: &Instr) {
-        // Track attribute store. (XXX: ISBEWR)
-        self.has_attribute_store |= matches!(instr.op, Op::ASt(_));
+        // Track attribute store.
+        match &instr.op {
+            Op::ASt(_) => self.has_attribute_store = true,
+            Op::Isbewr(op) if op.access_type == IsbeAccessType::Attribute => {
+                self.has_attribute_store = true;
+            }
+            _ => {}
+        }
 
         // Track attribute load.
         if matches!(instr.op, Op::ALd(_) | Op::Isberd(_)) {

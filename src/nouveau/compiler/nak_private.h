@@ -257,15 +257,15 @@ struct nak_nir_imadsp_flags {
 
 bool nak_nir_lower_vtg_io(nir_shader *nir, const struct nak_compiler *nak);
 
-enum nak_isbe_mode {
-   NAK_ISBE_MODE_MAP,
-   NAK_ISBE_MODE_PATCH,
-   NAK_ISBE_MODE_PRIM,
-   NAK_ISBE_MODE_ATTR,
+enum nak_isbe_access {
+   NAK_ISBE_ACCESS_MAP,
+   NAK_ISBE_ACCESS_PATCH,
+   NAK_ISBE_ACCESS_PRIM,
+   NAK_ISBE_ACCESS_ATTR,
 };
 
 struct nak_nir_isbe_flags {
-   enum nak_isbe_mode mode : 2;
+   enum nak_isbe_access access : 2;
    bool output : 1;
    bool skew : 1;
    bool per_primitive : 1;

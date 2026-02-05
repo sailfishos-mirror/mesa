@@ -146,7 +146,7 @@ lower_vtg_io_intrin(nir_builder *b,
          nir_def *idx = nir_iadd(b, nir_imul(b, lo, hi), vtx);
 
          const struct nak_nir_isbe_flags flags = {
-            .mode = NAK_ISBE_MODE_MAP,
+            .access = NAK_ISBE_ACCESS_MAP,
             .output = false,
             .skew = false,
             .per_primitive = false,

@@ -3033,25 +3033,103 @@ impl<'a> ShaderFromNir<'a> {
                 self.set_dst(&intrin.def, dst.into());
             }
             nir_intrinsic_isberd_nv => {
+                let base = u16::try_from(intrin.range_base()).unwrap();
+                let range = u16::try_from(intrin.range()).unwrap();
+                let range = base..(base + range);
+
                 let flags = intrin.flags();
                 let flags: nak_nir_isbe_flags =
                     unsafe { std::mem::transmute_copy(&flags) };
 
-                // TODO: Implement 16 and 32 bits in ISBERD
-                assert!(
-                    intrin.def.bit_size() == 8
-                        && intrin.def.num_components == 1
-                );
+                assert!(intrin.def.num_components() == 1);
 
-                // TODO: Implement mode in ISBERD
-                assert!(flags.mode() == NAK_ISBE_MODE_MAP);
+                let size_B = intrin.def.bit_size() / 8;
+
+                let access_type = match flags.access() {
+                    NAK_ISBE_ACCESS_MAP => IsbeAccessType::Map,
+                    NAK_ISBE_ACCESS_PATCH => IsbeAccessType::Patch,
+                    NAK_ISBE_ACCESS_PRIM => IsbeAccessType::Primitive,
+                    NAK_ISBE_ACCESS_ATTR => IsbeAccessType::Attribute,
+                    _ => panic!("Invalid ISBE access {}", flags.access()),
+                };
+
+                if matches!(access_type, IsbeAccessType::Attribute)
+                    && !flags.per_primitive()
+                    && !range.is_empty()
+                {
+                    if let ShaderIoInfo::Vtg(io) = &mut self.info.io {
+                        if flags.output() {
+                            io.mark_attrs_written(range);
+                        } else {
+                            io.mark_attrs_read(range);
+                        }
+                    } else {
+                        panic!("Must be a VTG stage");
+                    }
+                }
 
                 let dst = b.alloc_ssa(RegFile::GPR);
                 b.push_op(OpIsberd {
                     dst: dst.into(),
-                    idx: self.get_src(&srcs[0]),
+                    offset: self.get_src(&srcs[0]),
+                    imm_offset: 0,
+                    output: flags.output(),
+                    skew: flags.skew(),
+                    mem_type: MemType::from_size(size_B, false),
+                    access_type,
                 });
                 self.set_dst(&intrin.def, dst.into());
+            }
+            nir_intrinsic_isbewr_nv => {
+                let base = u16::try_from(intrin.range_base()).unwrap();
+                let range = u16::try_from(intrin.range()).unwrap();
+                let range = base..(base + range);
+
+                let flags = intrin.flags();
+                let flags: nak_nir_isbe_flags =
+                    unsafe { std::mem::transmute_copy(&flags) };
+
+                assert!(srcs[0].num_components() == 1);
+
+                let size_B = srcs[0].bit_size() / 8;
+
+                let access_type = match flags.access() {
+                    NAK_ISBE_ACCESS_MAP => IsbeAccessType::Map,
+                    NAK_ISBE_ACCESS_PATCH => {
+                        panic!("PATCH access is invalid in ISBEWR")
+                    }
+                    NAK_ISBE_ACCESS_PRIM => {
+                        panic!("PRIM access is invalid in ISBEWR")
+                    }
+                    NAK_ISBE_ACCESS_ATTR => IsbeAccessType::Attribute,
+                    _ => panic!("Invalid ISBE access {}", flags.access()),
+                };
+
+                if matches!(access_type, IsbeAccessType::Attribute)
+                    && !flags.per_primitive()
+                    && !range.is_empty()
+                {
+                    if let ShaderIoInfo::Vtg(io) = &mut self.info.io {
+                        if flags.output() {
+                            io.mark_store_req(range.clone());
+                            io.mark_attrs_written(range);
+                        } else {
+                            io.mark_attrs_read(range);
+                        }
+                    } else {
+                        panic!("Must be a VTG stage");
+                    }
+                }
+
+                b.push_op(OpIsbewr {
+                    offset: self.get_src(&srcs[1]),
+                    imm_offset: 0,
+                    data: self.get_src(&srcs[0]),
+                    output: flags.output(),
+                    skew: flags.skew(),
+                    mem_type: MemType::from_size(size_B, false),
+                    access_type,
+                });
             }
             nir_intrinsic_vild_nv => {
                 let dst = b.alloc_ssa(RegFile::GPR);

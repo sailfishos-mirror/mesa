@@ -3153,9 +3153,13 @@ impl SM50Op for OpIsberd {
     }
 
     fn encode(&self, e: &mut SM50Encoder<'_>) {
+        assert!(
+            self.access_type == IsbeAccessType::Map && self.imm_offset == 0
+        );
+
         e.set_opcode(0xefd0);
         e.set_dst(&self.dst);
-        e.set_reg_src(8..16, &self.idx);
+        e.set_reg_src(8..16, &self.offset);
     }
 }
 

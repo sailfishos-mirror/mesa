@@ -243,6 +243,7 @@ impl RegLatencySM80 {
             Op::SuAtom(_) => Decoupled,
             Op::PixLd(_) => DecoupledAgu,
             Op::Isberd(_) => DecoupledAgu,
+            Op::Isbewr(_) => DecoupledAgu,
             Op::LdTram(_) => DecoupledAgu,
             Op::Shfl(_) => DecoupledAgu,
             Op::Ldsm(_) => DecoupledAgu,

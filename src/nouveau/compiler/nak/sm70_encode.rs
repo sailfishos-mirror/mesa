@@ -3752,13 +3752,75 @@ impl SM70Op for OpCS2R {
 
 impl SM70Op for OpIsberd {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        b.copy_src_if_uniform(&mut self.idx);
+        b.copy_src_if_uniform(&mut self.offset);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
+        // The immediate offset is only supported on SM86+
+        assert!(e.sm >= 86 || self.imm_offset == 0);
+
         e.set_opcode(0x923);
         e.set_dst(&self.dst);
-        e.set_reg_src(24..32, &self.idx);
+        e.set_reg_src(24..32, &self.offset);
+        e.set_field(40..56, self.imm_offset);
+        e.set_field(
+            74..76,
+            match self.mem_type {
+                MemType::U8 => 0_u8,
+                MemType::U16 => 1_u8,
+                MemType::B32 => 2_u8,
+                _ => panic!("Invalid ISBERD mem type"),
+            },
+        );
+        e.set_field(
+            76..78,
+            match self.access_type {
+                IsbeAccessType::Map => 0_u8,
+                IsbeAccessType::Patch => 1_u8,
+                IsbeAccessType::Primitive => 2_u8,
+                IsbeAccessType::Attribute => 3_u8,
+            },
+        );
+        e.set_bit(78, self.skew);
+        e.set_bit(79, self.output);
+    }
+}
+
+impl SM70Op for OpIsbewr {
+    fn legalize(&mut self, b: &mut LegalizeBuilder) {
+        b.copy_src_if_uniform(&mut self.offset);
+        b.copy_src_if_uniform(&mut self.data);
+    }
+
+    fn encode(&self, e: &mut SM70Encoder<'_>) {
+        assert!(e.sm >= 75);
+
+        // The immediate offset is only supported on SM86+
+        assert!(e.sm >= 86 || self.imm_offset == 0);
+
+        e.set_opcode(0x927);
+        e.set_reg_src(24..32, &self.offset);
+        e.set_reg_src(32..40, &self.data);
+        e.set_field(40..56, self.imm_offset);
+        e.set_field(
+            74..76,
+            match self.mem_type {
+                MemType::U8 => 0_u8,
+                MemType::U16 => 1_u8,
+                MemType::B32 => 2_u8,
+                _ => panic!("Invalid ISBEWR mem type"),
+            },
+        );
+        e.set_field(
+            76..78,
+            match self.access_type {
+                IsbeAccessType::Map => 0_u8,
+                IsbeAccessType::Attribute => 3_u8,
+                _ => panic!("Invalid ISBEWR access type"),
+            },
+        );
+        e.set_bit(78, self.skew);
+        e.set_bit(79, self.output);
     }
 }
 
@@ -4156,6 +4218,7 @@ macro_rules! sm70_op_match {
             Op::Bar($x) => $y,
             Op::CS2R($x) => $y,
             Op::Isberd($x) => $y,
+            Op::Isbewr($x) => $y,
             Op::Kill($x) => $y,
             Op::Nop($x) => $y,
             Op::PixLd($x) => $y,

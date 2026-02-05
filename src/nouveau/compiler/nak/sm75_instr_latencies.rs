@@ -194,6 +194,7 @@ impl RegLatencySM75 {
             Op::SuAtom(_) => Decoupled,
             Op::PixLd(_) => Decoupled,
             Op::Isberd(_) => Decoupled,
+            Op::Isbewr(_) => Decoupled,
             Op::LdTram(_) => Decoupled,
             Op::Shfl(_) => Decoupled,
             Op::Ldsm(_) => Decoupled,
