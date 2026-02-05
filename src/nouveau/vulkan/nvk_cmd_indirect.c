@@ -703,6 +703,34 @@ build_draw_indexed_count(nir_builder *b, struct nvk_nir_push *p,
 }
 
 static void
+build_draw_mesh_tasks(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr)
+{
+   nir_def *group_count_x = load_global_dw(b, token_addr, 0);
+   nir_def *group_count_y = load_global_dw(b, token_addr, 1);
+   nir_def *group_count_z = load_global_dw(b, token_addr, 2);
+
+   nvk_nir_P_1INC(b, p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH), 3);
+   nvk_nir_push_dw(b, p, group_count_x);
+   nvk_nir_push_dw(b, p, group_count_y);
+   nvk_nir_push_dw(b, p, group_count_z);
+}
+
+static void
+build_draw_mesh_tasks_count(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr)
+{
+   nir_def *addr_lo = load_global_dw(b, token_addr, 0);
+   nir_def *addr_hi = load_global_dw(b, token_addr, 1);
+   nir_def *stride  = load_global_dw(b, token_addr, 2);
+   nir_def *count   = load_global_dw(b, token_addr, 3);
+
+   nvk_nir_P_1INC(b, p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH_INDIRECT), 4);
+   nvk_nir_push_dw(b, p, addr_hi);
+   nvk_nir_push_dw(b, p, addr_lo);
+   nvk_nir_push_dw(b, p, count);
+   nvk_nir_push_dw(b, p, stride);
+}
+
+static void
 build_process_gfx_cmd_seq(nir_builder *b, struct nvk_nir_push *p,
                           nir_def *in_addr, nir_def *seq_idx,
                           struct process_cmd_in *in,
@@ -752,6 +780,14 @@ build_process_gfx_cmd_seq(nir_builder *b, struct nvk_nir_push *p,
 
       case VK_INDIRECT_COMMANDS_TOKEN_TYPE_DRAW_COUNT_EXT:
          build_draw_count(b, p, token_addr);
+         break;
+
+      case VK_INDIRECT_COMMANDS_TOKEN_TYPE_DRAW_MESH_TASKS_EXT:
+         build_draw_mesh_tasks(b, p, token_addr);
+         break;
+
+      case VK_INDIRECT_COMMANDS_TOKEN_TYPE_DRAW_MESH_TASKS_COUNT_EXT:
+         build_draw_mesh_tasks_count(b, p, token_addr);
          break;
 
       default:

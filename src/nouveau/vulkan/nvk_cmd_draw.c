@@ -693,6 +693,9 @@ nvk_push_draw_state_init(struct nvk_queue *queue, struct nv_push *p)
    P_IMMD(p, NV9097, SET_GLOBAL_BASE_INSTANCE_INDEX, 0);
    P_MTHD(p, NV9097, SET_MME_SHADOW_SCRATCH(NVK_MME_SCRATCH_CB0_FIRST_VERTEX));
    P_NV9097_SET_MME_SHADOW_SCRATCH(p, NVK_MME_SCRATCH_CB0_FIRST_VERTEX, 0);
+   P_NV9097_SET_MME_SHADOW_SCRATCH(p, NVK_MME_SCRATCH_CB0_MESH_GROUP_COUNT_X, 0);
+   P_NV9097_SET_MME_SHADOW_SCRATCH(p, NVK_MME_SCRATCH_CB0_MESH_GROUP_COUNT_Y, 0);
+   P_NV9097_SET_MME_SHADOW_SCRATCH(p, NVK_MME_SCRATCH_CB0_MESH_GROUP_COUNT_Z, 0);
    P_NV9097_SET_MME_SHADOW_SCRATCH(p, NVK_MME_SCRATCH_CB0_DRAW_INDEX, 0);
    P_NV9097_SET_MME_SHADOW_SCRATCH(p, NVK_MME_SCRATCH_CB0_VIEW_INDEX, 0);
 
@@ -4675,10 +4678,10 @@ static void
 nvk_mme_build_set_draw_params(struct mme_builder *b,
                               const struct mme_draw_params *p)
 {
-   nvk_mme_set_cb0_scratch(b, nvk_root_descriptor_offset(draw.base_vertex),
+   nvk_mme_set_cb0_scratch(b, nvk_root_descriptor_offset(draw.vs.base_vertex),
                            NVK_MME_SCRATCH_CB0_FIRST_VERTEX,
                            p->first_vertex);
-   nvk_mme_set_cb0_mthd(b, nvk_root_descriptor_offset(draw.base_instance),
+   nvk_mme_set_cb0_mthd(b, nvk_root_descriptor_offset(draw.vs.base_instance),
                         NV9097_SET_GLOBAL_BASE_INSTANCE_INDEX,
                         p->first_instance);
    nvk_mme_set_cb0_scratch(b, nvk_root_descriptor_offset(draw.draw_index),
@@ -5522,6 +5525,261 @@ nvk_CmdDrawIndirectByteCountEXT(VkCommandBuffer commandBuffer,
       nv_push_update_count(p, 1);
       nvk_cmd_buffer_push_indirect(cmd, counter_addr, 4);
    }
+}
+
+struct mme_draw_mesh_params {
+   struct mme_value group_count_x;
+   struct mme_value group_count_y;
+   struct mme_value group_count_z;
+   struct mme_value draw_index;
+};
+
+static void
+nvk_mme_build_set_draw_mesh_params(struct mme_builder *b,
+                                   const struct mme_draw_mesh_params *p)
+{
+   nvk_mme_set_cb0_scratch(b, nvk_root_descriptor_offset(draw.mesh.group_count[0]),
+                           NVK_MME_SCRATCH_CB0_MESH_GROUP_COUNT_X,
+                           p->group_count_x);
+   nvk_mme_set_cb0_scratch(b, nvk_root_descriptor_offset(draw.mesh.group_count[1]),
+                           NVK_MME_SCRATCH_CB0_MESH_GROUP_COUNT_Y,
+                           p->group_count_y);
+   nvk_mme_set_cb0_scratch(b, nvk_root_descriptor_offset(draw.mesh.group_count[2]),
+                           NVK_MME_SCRATCH_CB0_MESH_GROUP_COUNT_Z,
+                           p->group_count_z);
+   nvk_mme_set_cb0_scratch(b, nvk_root_descriptor_offset(draw.draw_index),
+                           NVK_MME_SCRATCH_CB0_DRAW_INDEX,
+                           p->draw_index);
+   nvk_mme_set_cb0_scratch(b, nvk_root_descriptor_offset(draw.view_index),
+                           NVK_MME_SCRATCH_CB0_VIEW_INDEX,
+                           mme_zero());
+}
+
+
+static void
+nvk_mme_build_set_draw_control_mesh(struct mme_builder *b,
+                                    struct mme_value task_count)
+{
+   assert(b->devinfo->cls_eng3d >= TURING_A);
+
+   uint32_t draw_control_a_flags;
+
+   V_NVC597_SET_DRAW_CONTROL_A(draw_control_a_flags, {
+      .topology = TOPOLOGY_POINTS,
+      .primitive_id = PRIMITIVE_ID_FIRST,
+      .instance_id = INSTANCE_ID_FIRST,
+      .split_mode = SPLIT_MODE_NORMAL_BEGIN_NORMAL_END,
+      .instance_iterate_enable = false,
+      .ignore_global_base_vertex_index = true,
+      .ignore_global_base_instance_index = true,
+   });
+   mme_mthd(b, NVC597_SET_DRAW_CONTROL_A);
+   mme_emit(b, mme_imm(draw_control_a_flags));
+
+   mme_mthd(b, NVC597_DRAW_VERTEX_ARRAY_BEGIN_END_A);
+   mme_emit(b, mme_imm(0));
+   mme_emit(b, task_count);
+}
+
+static void
+nvk_mme_build_draw_mesh(struct mme_builder *b,
+                        struct mme_value draw_index)
+{
+   assert(b->devinfo->cls_eng3d >= TURING_A);
+
+   /* These are in VkDrawMeshTasksIndirectCommandEXT order */
+   struct mme_value group_count_x = mme_load(b);
+   struct mme_value group_count_y = mme_load(b);
+   struct mme_value group_count_z = mme_load(b);
+
+   struct mme_draw_mesh_params params = {
+      .group_count_x = group_count_x,
+      .group_count_y = group_count_y,
+      .group_count_z = group_count_z,
+      .draw_index = draw_index,
+   };
+   nvk_mme_build_set_draw_mesh_params(b, &params);
+
+   /* Ensure the vertex id base is 0 as this affect mesh shaders */
+   mme_mthd(b, NV9097_SET_VERTEX_ID_BASE);
+   mme_emit(b, mme_imm(0));
+
+   struct mme_value tmp = mme_mul(b, group_count_x, group_count_y);
+   struct mme_value task_count = mme_mul(b, tmp, group_count_z);
+   mme_free_reg(b, tmp);
+   mme_free_reg(b, group_count_x);
+   mme_free_reg(b, group_count_y);
+   mme_free_reg(b, group_count_z);
+
+   struct mme_value view_mask = nvk_mme_load_scratch(b, VIEW_MASK);
+   mme_if(b, ieq, view_mask, mme_zero()) {
+      mme_free_reg(b, view_mask);
+
+      nvk_mme_build_set_draw_control_mesh(b, task_count);
+   }
+
+   view_mask = nvk_mme_load_scratch(b, VIEW_MASK);
+   mme_if(b, ine, view_mask, mme_zero()) {
+      mme_free_reg(b, view_mask);
+
+      struct mme_value view = mme_mov(b, mme_zero());
+      mme_while(b, ine, view, mme_imm(32)) {
+         view_mask = nvk_mme_load_scratch(b, VIEW_MASK);
+         struct mme_value has_view = mme_bfe(b, view_mask, view, 1);
+         mme_free_reg(b, view_mask);
+         mme_if(b, ine, has_view, mme_zero()) {
+            mme_free_reg(b, has_view);
+            nvk_mme_emit_view_index(b, view);
+            nvk_mme_build_set_draw_control_mesh(b, task_count);
+         }
+
+         mme_add_to(b, view, view, mme_imm(1));
+      }
+      mme_free_reg(b, view);
+   }
+
+   mme_free_reg(b, task_count);
+}
+
+void
+nvk_mme_draw_mesh(struct mme_builder *b)
+{
+   if (b->devinfo->cls_eng3d < TURING_A)
+      return;
+
+   nvk_mme_build_draw_mesh(b, mme_zero());
+}
+
+VKAPI_ATTR void VKAPI_CALL
+nvk_CmdDrawMeshTasksEXT(VkCommandBuffer commandBuffer, uint32_t x, uint32_t y, uint32_t z)
+{
+   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
+
+   assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
+
+   nvk_cmd_flush_gfx_state(cmd);
+
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 4);
+   P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH));
+   P_INLINE_DATA(p, x);
+   P_INLINE_DATA(p, y);
+   P_INLINE_DATA(p, z);
+}
+
+void
+nvk_mme_draw_mesh_indirect(struct mme_builder *b)
+{
+   if (b->devinfo->cls_eng3d < TURING_A)
+      return;
+
+   struct mme_value64 draw_addr = mme_load_addr64(b);
+   struct mme_value draw_count = mme_load(b);
+   struct mme_value stride = mme_load(b);
+
+   struct mme_value draw = mme_mov(b, mme_zero());
+   mme_while(b, ult, draw, draw_count) {
+      mme_tu104_read_fifoed(b, draw_addr, mme_imm(3));
+
+      nvk_mme_build_draw_mesh(b, draw);
+
+      mme_add_to(b, draw, draw, mme_imm(1));
+      mme_add64_to(b, draw_addr, draw_addr, mme_value64(stride, mme_zero()));
+   }
+}
+
+VKAPI_ATTR void VKAPI_CALL
+nvk_CmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkDeviceSize offset,
+                                uint32_t drawCount, uint32_t stride)
+{
+   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
+   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
+
+   assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
+
+   /* From the Vulkan 1.3.272 spec:
+    *
+    *    VUID-vkCmdDrawMeshTasksIndirectEXT-drawCount-07088
+    *
+    *    "If drawCount is greater than 1, stride must be a multiple of 4 and
+    *     must be greater than or equal to sizeof(VkDrawMeshTasksIndirectCommandEXT)"
+    *
+    * and
+    *
+    *    "If drawCount is less than or equal to one, stride is ignored."
+    */
+   if (drawCount > 1) {
+      assert(stride % 4 == 0);
+      assert(stride >= sizeof(VkDrawMeshTasksIndirectCommandEXT));
+   } else {
+      stride = sizeof(VkDrawMeshTasksIndirectCommandEXT);
+   }
+
+   nvk_cmd_flush_gfx_state(cmd);
+
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 5);
+   P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH_INDIRECT));
+   uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
+   P_INLINE_DATA(p, draw_addr >> 32);
+   P_INLINE_DATA(p, draw_addr);
+   P_INLINE_DATA(p, drawCount);
+   P_INLINE_DATA(p, stride);
+}
+
+void
+nvk_mme_draw_mesh_indirect_count(struct mme_builder *b)
+{
+   if (b->devinfo->cls_eng3d < TURING_A)
+      return;
+
+   struct mme_value64 draw_addr = mme_load_addr64(b);
+   struct mme_value64 draw_count_addr = mme_load_addr64(b);
+   struct mme_value draw_max = mme_load(b);
+   struct mme_value stride = mme_load(b);
+
+   mme_tu104_read_fifoed(b, draw_count_addr, mme_imm(1));
+   mme_free_reg64(b, draw_count_addr);
+   struct mme_value draw_count_buf = mme_load(b);
+
+   mme_if(b, ule, draw_count_buf, draw_max) {
+      mme_mov_to(b, draw_max, draw_count_buf);
+   }
+   mme_free_reg(b, draw_count_buf);
+
+   struct mme_value draw = mme_mov(b, mme_zero());
+   mme_while(b, ult, draw, draw_max) {
+      mme_tu104_read_fifoed(b, draw_addr, mme_imm(3));
+
+      nvk_mme_build_draw_mesh(b, draw);
+
+      mme_add_to(b, draw, draw, mme_imm(1));
+      mme_add64_to(b, draw_addr, draw_addr, mme_value64(stride, mme_zero()));
+   }
+}
+
+VKAPI_ATTR void VKAPI_CALL
+nvk_CmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkDeviceSize offset,
+                                     VkBuffer _countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount,
+                                     uint32_t stride)
+{
+   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
+   VK_FROM_HANDLE(nvk_buffer, buffer, _buffer);
+   VK_FROM_HANDLE(nvk_buffer, count_buffer, _countBuffer);
+
+   assert(nvk_cmd_buffer_3d_cls(cmd) >= TURING_A);
+
+   nvk_cmd_flush_gfx_state(cmd);
+
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 7);
+   P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_DRAW_MESH_INDIRECT_COUNT));
+   uint64_t draw_addr = vk_buffer_address(&buffer->vk, offset);
+   P_INLINE_DATA(p, draw_addr >> 32);
+   P_INLINE_DATA(p, draw_addr);
+   uint64_t draw_count_addr = vk_buffer_address(&count_buffer->vk,
+                                                countBufferOffset);
+   P_INLINE_DATA(p, draw_count_addr >> 32);
+   P_INLINE_DATA(p, draw_count_addr);
+   P_INLINE_DATA(p, maxDrawCount);
+   P_INLINE_DATA(p, stride);
 }
 
 VKAPI_ATTR void VKAPI_CALL
