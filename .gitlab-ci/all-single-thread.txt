@@ -1,6 +1,6 @@
 # These tests require DRM master priveleges (sole access to the device),
 # otherwise they return Skip.
-dEQP-VK.wsi.direct_drm.*
+dEQP-VK.wsi.direct.*
 dEQP-VK.wsi.acquire_drm.*
 
 # These tests try to allocate up to half of the device memory, which doesn't go
