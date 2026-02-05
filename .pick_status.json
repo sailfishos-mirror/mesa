@@ -1024,7 +1024,7 @@
         "description": "pan/kmod: drop pan_kmod_bo_check_import_flags validation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1c7793ea0bba93295ed6149152d00e5efa8a7267",
         "notes": null
