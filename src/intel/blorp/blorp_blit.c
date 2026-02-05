@@ -1811,6 +1811,12 @@ blorp_surf_convert_to_single_level_tile(const struct isl_device *isl_dev,
    if (info->aux_usage == ISL_AUX_USAGE_NONE)
       usage |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
 
+   /* Aux-tt alignment only applies to the beginning of the resource. We
+    * might be pointing to some other subresource however.
+    */
+   if (offset_B > 0)
+      usage |= ISL_SURF_USAGE_NO_AUX_TT_ALIGNMENT_BIT;
+
    struct isl_surf *scaled_surf = &info->surf;
    struct isl_view *scaled_view = &info->view;
    bool ok UNUSED;
@@ -3070,6 +3076,151 @@ blorp_copy_get_formats(const struct isl_device *isl_dev,
    }
 }
 
+static int
+get_max_format_scale(const struct isl_device *isl_dev,
+                     const struct blorp_surface_info *info,
+                     uint32_t x, uint32_t width, uint32_t height)
+{
+   const bool full_width = u_minify(info->surf.logical_level0_px.width,
+                                    info->view.base_level) == width;
+   const bool full_height = u_minify(info->surf.logical_level0_px.height,
+                                     info->view.base_level) == height;
+
+   if (info->aux_usage != ISL_AUX_USAGE_NONE) {
+      /* CCS_D, MCS and HIZ don't support changing the format bpb. FCV_CCS_E
+       * could be supported, but it requires more collaboration between BLORP
+       * and drivers.
+       */
+      if (info->aux_usage != ISL_AUX_USAGE_CCS_E)
+         return 1;
+
+      /* CCS_E on gfx9-11 requires the surface's bpc not change. */
+      if (isl_dev->info->ver <= 11)
+         return 1;
+
+      /* On gfx12, CCS_E can survive a change in the format bpb. However, the
+       * RenderCompressionFormat must not change.
+       */
+      if (isl_dev->info->ver == 12) {
+         if (info->view.usage & (ISL_SURF_USAGE_RENDER_TARGET_BIT |
+                                 ISL_SURF_USAGE_STORAGE_BIT)) {
+            /* For some destinations, the clear color can be ignored only if
+             * the entire slice is covered.
+             */
+            if (!full_width || !full_height)
+               return 1;
+         } else if (info->view.usage & ISL_SURF_USAGE_TEXTURE_BIT) {
+            /* For textures, a replicated pixel must have been provided. */
+            if (!info->has_replicated_pixel)
+               return 1;
+         }
+      }
+   }
+
+   /* We don't support depth/stencil. */
+   if (isl_surf_usage_is_depth_or_stencil(info->surf.usage))
+      return 1;
+
+   /* We don't support NPOT formats */
+   const struct isl_format_layout *surf_fmtl =
+      isl_format_get_layout(info->surf.format);
+   if (surf_fmtl->bpb % 3 == 0)
+      return 1;
+
+   struct isl_tile_info surf_tile_info;
+   isl_surf_get_tile_info(&info->surf, &surf_tile_info);
+   uint32_t lod1_w = u_minify(info->surf.logical_level0_px.width, 1);
+   uint32_t phys_lod1_w = align(lod1_w, info->surf.image_alignment_el.w);
+
+   /* Find the format size which satisfies alignment requirements. */
+   for (int max_bpb = 128; max_bpb >= surf_fmtl->bpb; max_bpb /= 2) {
+      if (info->view.base_level >= 1 &&
+          phys_lod1_w * surf_fmtl->bpb % max_bpb)
+         continue;
+
+      if (x * surf_fmtl->bpb % max_bpb)
+         continue;
+
+      if (info->tile_x_sa * surf_fmtl->bpb % max_bpb)
+         continue;
+
+      if (width * surf_fmtl->bpb % max_bpb) {
+         /* For buffers/linear surfaces, don't ignore the width. Doing so may
+          * lead to accessing buffer memory out of bounds.
+          */
+         if (info->surf.tiling == ISL_TILING_LINEAR)
+            continue;
+
+         /* Partial width copies must be aligned to avoid stomping on
+          * neighboring pixels.
+          */
+         if (!full_width)
+            continue;
+
+         /* No need to scale the format if we'd only add more padding. */
+         if (width * surf_fmtl->bpb < max_bpb)
+            continue;
+      }
+
+      if (!(info->view.usage & ISL_SURF_USAGE_TEXTURE_BIT)) {
+         /* All surface types except for textures need their row pitch aligned
+          * to the pixel block size.
+          */
+         if (info->surf.row_pitch_B * 8 % max_bpb)
+            continue;
+      }
+
+      if (info->view.usage & (ISL_SURF_USAGE_RENDER_TARGET_BIT |
+                              ISL_SURF_USAGE_STORAGE_BIT)) {
+         /* Some destinations require the base address be aligned to the pixel
+          * block size.
+          */
+         if (info->addr.offset * 8 % max_bpb)
+            continue;
+      }
+
+      struct isl_tile_info tile_info;
+      isl_tiling_get_info(info->surf.tiling, info->surf.dim,
+                          info->surf.msaa_layout, max_bpb, info->surf.samples,
+                          &tile_info);
+      assert(surf_tile_info.swiz_count == tile_info.swiz_count);
+      if (memcmp(surf_tile_info.swiz, tile_info.swiz, tile_info.swiz_count))
+         continue;
+
+      if (info->surf.miptail_start_level < info->view.base_level &&
+          surf_tile_info.max_miptail_levels != tile_info.max_miptail_levels)
+         continue;
+
+      return max_bpb / surf_fmtl->bpb;
+   }
+
+   UNREACHABLE("Invalid loop condition above");
+}
+
+static void
+format_scale_copy(const struct isl_device *isl_dev,
+                  struct blorp_surface_info *info,
+                  uint32_t *x, uint32_t *width, int scale)
+{
+   uint32_t orig_fmt_bpb = isl_format_get_layout(info->surf.format)->bpb;
+   info->view.format = get_copy_format_for_bpb(isl_dev, orig_fmt_bpb * scale);
+
+   if (isl_tiling_is_64(info->surf.tiling) ||
+       isl_tiling_is_std_y(info->surf.tiling)) {
+      blorp_surf_convert_to_single_level_tile(isl_dev, info, true);
+   } else {
+      blorp_surf_convert_to_single_slice(isl_dev, info);
+
+      assert(info->surf.logical_level0_px.w == info->surf.phys_level0_sa.w);
+      info->surf.logical_level0_px.w = info->surf.phys_level0_sa.w =
+         DIV_ROUND_UP(info->surf.logical_level0_px.w, scale);
+      info->tile_x_sa /= scale;
+      info->surf.format = info->view.format;
+   }
+
+   *x /= scale;
+   *width = DIV_ROUND_UP(*width, scale);
+}
 
 void
 blorp_copy(struct blorp_batch *batch,
@@ -3167,11 +3318,37 @@ blorp_copy(struct blorp_batch *batch,
       key.need_dst_offset = true;
    }
 
-   /* Once both surfaces are stompped to uncompressed as needed, the
-    * destination size is the same as the source size.
+   /* Once both surfaces are stomped to uncompressed as needed, the
+    * destination size is the same as the source size unless we're copying
+    * between YUV and color images. We'll remove any differences in the
+    * process of using the largest format possible for the copy.
     */
    uint32_t dst_width = src_width;
    uint32_t dst_height = src_height;
+   if (isl_format_is_yuv(src_fmtl->format) !=
+       isl_format_is_yuv(dst_fmtl->format))
+      dst_width *= src_fmtl->bpb / dst_fmtl->bpb;
+
+   int max_fmt_scale_src = get_max_format_scale(isl_dev, &params.src, src_x,
+                                                src_width, src_height);
+   int max_fmt_scale_dst = get_max_format_scale(isl_dev, &params.dst, dst_x,
+                                                dst_width, dst_height);
+   int copy_fmt_bpb = MIN2(src_fmtl->bpb * max_fmt_scale_src,
+                           dst_fmtl->bpb * max_fmt_scale_dst);
+
+   if (src_fmtl->bpb < copy_fmt_bpb) {
+      format_scale_copy(isl_dev, &params.src, &src_x, &src_width,
+                        copy_fmt_bpb / src_fmtl->bpb);
+      key.need_src_offset = true;
+   }
+
+   if (dst_fmtl->bpb < copy_fmt_bpb) {
+      format_scale_copy(isl_dev, &params.dst, &dst_x, &dst_width,
+                        copy_fmt_bpb / dst_fmtl->bpb);
+      key.need_dst_offset = true;
+   }
+
+   assert(src_width == dst_width);
 
    if (params.src.view.format != params.dst.view.format) {
       enum isl_format src_cast_format = params.src.view.format;
