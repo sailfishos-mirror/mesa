@@ -257,6 +257,7 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
       .EXT_legacy_vertex_attributes = true,
       .EXT_line_rasterization = true,
       .EXT_load_store_op_none = true,
+      .EXT_mesh_shader = info->cls_eng3d >= TURING_A,
       .EXT_map_memory_placed = true,
       .EXT_memory_budget = true,
       .EXT_multi_draw = true,
@@ -692,6 +693,14 @@ nvk_get_device_features(const struct nv_device_info *info,
       .memoryMapRangePlaced = false,
       .memoryUnmapReserve = true,
 
+      /* VK_EXT_mesh_shader */
+      .taskShader = info->cls_eng3d >= TURING_A,
+      .meshShader = info->cls_eng3d >= TURING_A,
+      .multiviewMeshShader = info->cls_eng3d >= TURING_A,
+      .primitiveFragmentShadingRateMeshShader = info->cls_eng3d >= TURING_A,
+      /* TODO: Implement TASK_SHADER_INVOCATIONS_BIT_EXT & MESH_SHADER_INVOCATIONS_BIT_EXT */
+      .meshShaderQueries = false,
+
       /* VK_EXT_multi_draw */
       .multiDraw = true,
 
@@ -950,12 +959,9 @@ nvk_get_device_properties(const struct nvk_instance *instance,
 
       /* Vulkan 1.1 properties */
       .subgroupSize = 32,
-      .subgroupSupportedStages = VK_SHADER_STAGE_VERTEX_BIT |
-                                 VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT |
-                                 VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT |
-                                 VK_SHADER_STAGE_GEOMETRY_BIT |
-                                 VK_SHADER_STAGE_FRAGMENT_BIT |
-                                 VK_SHADER_STAGE_COMPUTE_BIT,
+      .subgroupSupportedStages =
+         VK_SHADER_STAGE_ALL_GRAPHICS | VK_SHADER_STAGE_COMPUTE_BIT |
+         VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_TASK_BIT_EXT,
       .subgroupSupportedOperations = VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
                                      VK_SUBGROUP_FEATURE_BALLOT_BIT |
                                      VK_SUBGROUP_FEATURE_BASIC_BIT |
@@ -1204,6 +1210,36 @@ nvk_get_device_properties(const struct nvk_instance *instance,
 
       /* VK_EXT_multi_draw */
       .maxMultiDrawCount = UINT32_MAX,
+
+      /* VK_EXT_mesh_shader */
+      .maxTaskWorkGroupTotalCount = 1 << 22,
+      .maxTaskWorkGroupCount = {1 << 22, UINT16_MAX, UINT16_MAX},
+      .maxTaskWorkGroupInvocations = 128,
+      .maxTaskWorkGroupSize = {128, 128, 128},
+      .maxTaskPayloadSize = 1 << 14,
+      .maxTaskSharedMemorySize = 1 << 15,
+      .maxTaskPayloadAndSharedMemorySize = 1 << 15,
+      .maxMeshWorkGroupTotalCount = 1 << 22,
+      .maxMeshWorkGroupCount = {1 << 22, UINT16_MAX, UINT16_MAX},
+      .maxMeshWorkGroupInvocations = 128,
+      .maxMeshWorkGroupSize = {128, 128, 128},
+      .maxMeshSharedMemorySize = 28672,
+      .maxMeshPayloadAndSharedMemorySize = 28672,
+      .maxMeshOutputMemorySize = 1 << 15,
+      .maxMeshPayloadAndOutputMemorySize = 48128,
+      .maxMeshOutputComponents = 128,
+      .maxMeshOutputVertices = 256,
+      .maxMeshOutputPrimitives = 256,
+      .maxMeshOutputLayers = 2048,
+      .maxMeshMultiviewViewCount = 4,
+      .meshOutputPerVertexGranularity = 32,
+      .meshOutputPerPrimitiveGranularity = 32,
+      .maxPreferredTaskWorkGroupInvocations = 32,
+      .maxPreferredMeshWorkGroupInvocations = 32,
+      .prefersLocalInvocationVertexOutput = false,
+      .prefersLocalInvocationPrimitiveOutput = false,
+      .prefersCompactVertexOutput = false,
+      .prefersCompactPrimitiveOutput = true,
 
       /* VK_EXT_nested_command_buffer */
       .maxCommandBufferNestingLevel = UINT32_MAX,
