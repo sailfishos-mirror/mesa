@@ -139,7 +139,6 @@ fn nir_options(dev: &nv_device_info) -> nir_shader_compiler_options {
         lower_unpack_snorm_4x8: true,
         lower_insert_byte: true,
         lower_insert_word: true,
-        lower_cs_local_index_to_id: true,
         lower_device_index_to_zero: true,
         lower_isign: true,
         lower_uadd_sat: dev.sm < 70,

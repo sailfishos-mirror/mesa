@@ -383,6 +383,7 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
 
    nir_lower_compute_system_values_options csv_options = {
       .has_base_workgroup_id = true,
+      .lower_local_invocation_index = mesa_shader_stage_is_compute(nir->info.stage),
    };
    NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
 
@@ -477,7 +478,10 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
        * nir_zero_initialize_shared_memory generates load_invocation_id which
        * has to be lowered to load_invocation_index.
        */
-      NIR_PASS(_, nir, nir_lower_compute_system_values, NULL);
+      nir_lower_compute_system_values_options csv_options = {
+         .lower_local_invocation_index = mesa_shader_stage_is_compute(nir->info.stage),
+      };
+      NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
    }
 }
 
