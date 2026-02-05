@@ -516,6 +516,9 @@ nvk_compile_nir(struct nvk_device *dev, nir_shader *nir,
    const bool dump_asm =
       shader_flags & VK_SHADER_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_MESA;
 
+   const bool has_task_shader =
+      (shader_flags & VK_SHADER_CREATE_NO_TASK_SHADER_BIT_EXT) == 0;
+
    nir_variable_mode robust2_modes = 0;
    if (rs->uniform_buffers == VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2_EXT)
       robust2_modes |= nir_var_mem_ubo;
@@ -523,7 +526,7 @@ nvk_compile_nir(struct nvk_device *dev, nir_shader *nir,
       robust2_modes |= nir_var_mem_ssbo;
 
    shader->nak = nak_compile_shader(nir, dump_asm, pdev->nak,
-                                    robust2_modes, fs_key);
+                                    robust2_modes, fs_key, has_task_shader);
    if (!shader->nak)
       return vk_errorf(pdev, VK_ERROR_UNKNOWN, "Internal compiler error in NAK");
 

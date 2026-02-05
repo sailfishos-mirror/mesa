@@ -9404,6 +9404,25 @@ pub struct TessellationShaderInfo {
 }
 
 #[derive(Debug)]
+pub struct TaskShaderInfo {
+    pub local_size: u16,
+    pub payload_smem_size: u16,
+    pub smem_size: u16,
+}
+
+#[derive(Debug)]
+pub struct MeshShaderInfo {
+    pub has_task_shader: bool,
+    pub has_gs_sph: bool,
+    pub primitive_io: VtgIoInfo,
+    pub max_vertices: u16,
+    pub max_primitives: u16,
+    pub output_topology: nak_mesh_topology,
+    pub local_size: u16,
+    pub smem_size: u16,
+}
+
+#[derive(Debug)]
 pub enum ShaderStageInfo {
     Compute(ComputeShaderInfo),
     Vertex(VertexShaderInfo),
@@ -9411,6 +9430,8 @@ pub enum ShaderStageInfo {
     Geometry(GeometryShaderInfo),
     TessellationInit(TessellationInitShaderInfo),
     Tessellation(TessellationShaderInfo),
+    Task(TaskShaderInfo),
+    Mesh(MeshShaderInfo),
 }
 
 #[derive(Debug, Default)]

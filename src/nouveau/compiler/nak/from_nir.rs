@@ -21,7 +21,11 @@ use std::ops::Index;
 
 use compiler::bindings::shader_info__bindgen_ty_1__bindgen_ty_5 as shader_info_tess;
 
-fn init_info_from_nir(nak: &nak_compiler, nir: &nir_shader) -> ShaderInfo {
+fn init_info_from_nir(
+    nak: &nak_compiler,
+    nir: &nir_shader,
+    has_task_shader: bool,
+) -> ShaderInfo {
     let tess_common =
         |info_tess: &shader_info_tess| TesselationCommonShaderInfo {
             spacing: match info_tess.spacing() {
@@ -121,6 +125,53 @@ fn init_info_from_nir(nak: &nak_compiler, nir: &nir_shader) -> ShaderInfo {
                     common: tess_common(info_tess),
                 })
             }
+            MESA_SHADER_TASK => ShaderStageInfo::Task(TaskShaderInfo {
+                local_size: nir.info.workgroup_size[0]
+                    * nir.info.workgroup_size[1]
+                    * nir.info.workgroup_size[2],
+                payload_smem_size: nir
+                    .info
+                    .task_payload_size
+                    .try_into()
+                    .unwrap(),
+                smem_size: nir.info.shared_size.try_into().unwrap(),
+            }),
+            MESA_SHADER_MESH => {
+                let info_mesh = unsafe { &nir.info.__bindgen_anon_1.mesh };
+
+                ShaderStageInfo::Mesh(MeshShaderInfo {
+                    has_task_shader,
+                    has_gs_sph: false,
+                    primitive_io: VtgIoInfo {
+                        sysvals_in: SysValInfo::default(),
+                        sysvals_in_d: 0,
+                        sysvals_out: SysValInfo::default(),
+                        sysvals_out_d: 0,
+                        attr_in: [0; 4],
+                        attr_out: [0; 4],
+                        store_req_start: u8::MAX,
+                        store_req_end: 0,
+                        clip_enable: 0,
+                        cull_enable: 0,
+                        xfb: None,
+                    },
+                    max_vertices: info_mesh.max_vertices_out,
+                    max_primitives: info_mesh.max_primitives_out,
+                    local_size: nir.info.workgroup_size[0]
+                        * nir.info.workgroup_size[1]
+                        * nir.info.workgroup_size[2],
+                    smem_size: nir.info.shared_size.try_into().unwrap(),
+                    output_topology: match info_mesh.primitive_type {
+                        MESA_PRIM_POINTS => NAK_MESH_TOPOLOGY_POINTS,
+                        MESA_PRIM_LINES => NAK_MESH_TOPOLOGY_LINES,
+                        MESA_PRIM_TRIANGLES => NAK_MESH_TOPOLOGY_TRIANGLES,
+                        _ => panic!(
+                            "Invalid MESH primitive type {}",
+                            info_mesh.primitive_type
+                        ),
+                    },
+                })
+            }
             _ => panic!("Unknown shader stage"),
         },
         io: match nir.info.stage() {
@@ -142,7 +193,9 @@ fn init_info_from_nir(nak: &nak_compiler, nir: &nir_shader) -> ShaderInfo {
             MESA_SHADER_VERTEX
             | MESA_SHADER_GEOMETRY
             | MESA_SHADER_TESS_CTRL
-            | MESA_SHADER_TESS_EVAL => {
+            | MESA_SHADER_TESS_EVAL
+            | MESA_SHADER_TASK
+            | MESA_SHADER_MESH => {
                 let num_clip = nir.info.clip_distance_array_size();
                 let num_cull = nir.info.cull_distance_array_size();
                 let clip_enable = (1_u32 << num_clip) - 1;
@@ -338,11 +391,12 @@ impl<'a> ShaderFromNir<'a> {
         nak: &nak_compiler,
         nir: &'a nir_shader,
         sm: &'a ShaderModelInfo,
+        has_task_shader: bool,
     ) -> Self {
         Self {
             nir: nir,
             sm: sm,
-            info: init_info_from_nir(nak, nir),
+            info: init_info_from_nir(nak, nir, has_task_shader),
             float_ctl: ShaderFloatControls::from_nir(nir),
             cfg: CFGBuilder::new(),
             label_alloc: LabelAllocator::new(),
@@ -3113,10 +3167,19 @@ impl<'a> ShaderFromNir<'a> {
                 };
 
                 if matches!(access_type, IsbeAccessType::Attribute)
-                    && !flags.per_primitive()
                     && !range.is_empty()
                 {
-                    if let ShaderIoInfo::Vtg(io) = &mut self.info.io {
+                    if flags.per_primitive() {
+                        let ShaderStageInfo::Mesh(stage) = &mut self.info.stage
+                        else {
+                            panic!("isberd_nv per primitive attributes can only be used for mesh shaders");
+                        };
+
+                        // Per primitive always imply output
+                        assert!(flags.output());
+                        stage.primitive_io.mark_attrs_written(range);
+                        stage.has_gs_sph = true;
+                    } else if let ShaderIoInfo::Vtg(io) = &mut self.info.io {
                         if flags.output() {
                             io.mark_attrs_written(range);
                         } else {
@@ -3165,10 +3228,19 @@ impl<'a> ShaderFromNir<'a> {
                 };
 
                 if matches!(access_type, IsbeAccessType::Attribute)
-                    && !flags.per_primitive()
                     && !range.is_empty()
                 {
-                    if let ShaderIoInfo::Vtg(io) = &mut self.info.io {
+                    if flags.per_primitive() {
+                        let ShaderStageInfo::Mesh(stage) = &mut self.info.stage
+                        else {
+                            panic!("isbewr_nv per primitives attributes can only be used for mesh shaders");
+                        };
+
+                        // Per primitive always imply output
+                        assert!(flags.output());
+                        stage.primitive_io.mark_attrs_written(range);
+                        stage.has_gs_sph = true;
+                    } else if let ShaderIoInfo::Vtg(io) = &mut self.info.io {
                         if flags.output() {
                             io.mark_store_req(range.clone());
                             io.mark_attrs_written(range);
@@ -4551,6 +4623,7 @@ pub fn nak_shader_from_nir<'a>(
     nak: &nak_compiler,
     ns: &'a nir_shader,
     sm: &'a ShaderModelInfo,
+    has_task_shader: bool,
 ) -> Shader<'a> {
-    ShaderFromNir::new(nak, ns, sm).parse_shader()
+    ShaderFromNir::new(nak, ns, sm, has_task_shader).parse_shader()
 }
