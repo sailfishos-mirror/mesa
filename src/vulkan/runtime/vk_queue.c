@@ -147,7 +147,8 @@ vk_queue_submit_alloc(struct vk_queue *queue,
                       uint32_t image_bind_count,
                       uint32_t bind_entry_count,
                       uint32_t image_bind_entry_count,
-                      uint32_t signal_count)
+                      uint32_t signal_count,
+                      bool is_protected)
 {
    VK_MULTIALLOC(ma);
    VK_MULTIALLOC_DECL(&ma, struct vk_queue_submit, submit, 1);
@@ -191,6 +192,7 @@ vk_queue_submit_alloc(struct vk_queue *queue,
    submit->_wait_temps     = wait_temps;
    submit->_wait_points    = wait_points;
    submit->_signal_points  = signal_points;
+   submit->is_protected    = is_protected;
 
    return submit;
 }
@@ -457,6 +459,9 @@ vk_queue_submits_merge(struct vk_queue *queue,
       return second;
    }
 
+   if (first->is_protected != second->is_protected)
+      return NULL;
+
    struct vk_queue_submit *merged = vk_queue_submit_alloc(queue,
       first->wait_count + second->wait_count,
       first->command_buffer_count + second->command_buffer_count,
@@ -465,7 +470,8 @@ vk_queue_submits_merge(struct vk_queue *queue,
       first->image_bind_count + second->image_bind_count,
       first->_bind_entry_count + second->_bind_entry_count,
       first->_image_bind_entry_count + second->_image_bind_entry_count,
-      first->signal_count + second->signal_count);
+      first->signal_count + second->signal_count,
+      first->is_protected);
    if (merged == NULL)
       return NULL;
 
@@ -846,6 +852,8 @@ struct vulkan_submit_info {
    const VkSparseImageMemoryBindInfo *image_binds;
 
    struct vk_fence *fence;
+
+   bool is_protected;
 };
 
 static VkResult
@@ -877,7 +885,8 @@ vk_queue_submit_create(struct vk_queue *queue,
                             info->image_bind_count,
                             sparse_memory_bind_entry_count,
                             sparse_memory_image_bind_entry_count,
-                            signal_count);
+                            signal_count,
+                            info->is_protected);
    if (unlikely(submit == NULL))
       return vk_error(queue, VK_ERROR_OUT_OF_HOST_MEMORY);
 
@@ -1169,7 +1178,7 @@ vk_queue_signal_sync(struct vk_queue *queue,
                      uint32_t signal_value)
 {
    struct vk_queue_submit *submit = vk_queue_submit_alloc(queue, 0, 0, 0, 0, 0,
-                                                          0, 0, 1);
+                                                          0, 0, 1, false);
    if (unlikely(submit == NULL))
       return vk_error(queue, VK_ERROR_OUT_OF_HOST_MEMORY);
 
@@ -1265,7 +1274,8 @@ vk_common_QueueSubmit2(VkQueue _queue,
          .waits = pSubmits[i].pWaitSemaphoreInfos,
          .signal_count = pSubmits[i].signalSemaphoreInfoCount,
          .signals = pSubmits[i].pSignalSemaphoreInfos,
-         .fence = i == submitCount - 1 ? fence : NULL
+         .fence = i == submitCount - 1 ? fence : NULL,
+         .is_protected = !!(pSubmits[i].flags & VK_SUBMIT_PROTECTED_BIT),
       };
       struct vk_queue_submit *submit;
       result = vk_queue_submit_create(queue, &info, &submit);
