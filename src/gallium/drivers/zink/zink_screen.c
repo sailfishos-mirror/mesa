@@ -3149,6 +3149,16 @@ init_driver_workarounds(struct zink_screen *screen)
 
    if (!screen->resizable_bar)
       screen->info.have_EXT_host_image_copy = false;
+
+   /* msrtss being enabled for all singlesampled images has a massive memory usage implication on this
+    * driver. temporary, could be removed after the driver handles shadow images better. */
+   switch (zink_driverid(screen)) {
+   case VK_DRIVER_ID_MESA_PANVK:
+      screen->info.have_EXT_multisampled_render_to_single_sampled = false;
+      break;
+   default:
+      break;
+   }
 }
 
 static void
