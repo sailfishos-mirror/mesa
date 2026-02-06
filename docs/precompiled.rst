@@ -27,3 +27,22 @@ you know how to recover if you can't get a graphical session anymore.
 - Debian/Ubuntu based distributions - PPA: xorg-edgers, oibaf and padoka
 - Fedora - Copr: erp and che
 - OpenSuse/SLES - OBS: X11:XOrg and pontostroy:X11
+
+
+Debug packages
+--------------
+
+Most distributions provide debug packages that contain among other things the
+symbols corresponding to the precompiled package they provide.
+
+Installing them will allow you to see the symbol (functions, variables, etc.)
+names in situations like a backtrace.
+**If you want to report an issue, we recommend installing these packages first
+as these symbols allow us to know what is going on.**
+
+Please refer to the corresponding documentation:
+
+- Arch Linux: https://wiki.archlinux.org/title/Debugging/Getting_traces
+- Debian: https://wiki.debian.org/HowToGetABacktrace/
+- Fedora: https://docs.fedoraproject.org/en-US/quick-docs/bugzilla-providing-a-stacktrace/
+- Ubuntu: https://documentation.ubuntu.com/server/how-to/debugging/debug-symbol-packages/
