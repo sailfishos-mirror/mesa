@@ -1,7 +1,7 @@
 Shading Language
 ================
 
-This page describes the features and status of Mesa's support for the
+This page describes some tools for working with Mesa's support for the
 `OpenGL Shading Language <https://wikis.khronos.org/opengl/OpenGL_Shading_Language>`__.
 
 .. _envvars:
@@ -63,69 +63,13 @@ which compiler developers can use to gather statistics about shaders
 Notably, this captures linked GLSL shaders - with all stages together -
 as well as ARB programs.
 
-GLSL Version
-------------
-
-The GLSL compiler currently supports version 3.30 of the shading
-language.
-
-Several GLSL extensions are also supported:
-
--  :ext:`GL_ARB_draw_buffers`
--  :ext:`GL_ARB_fragment_coord_conventions`
--  :ext:`GL_ARB_shader_bit_encoding`
-
-Unsupported Features
---------------------
-
-XXX update this section
-
-The following features of the shading language are not yet fully
-supported in Mesa:
-
--  Linking of multiple shaders does not always work. Currently, linking
-   is implemented through shader concatenation and re-compiling. This
-   doesn't always work because of some #pragma and preprocessor issues.
--  The gl_Color and gl_SecondaryColor varying vars are interpolated
-   without perspective correction
-
-All other major features of the shading language should function.
-
 Implementation Notes
 --------------------
 
--  Shading language programs are compiled into low-level programs very
-   similar to those of :ext:`GL_ARB_vertex_program` /
-   :ext:`GL_ARB_fragment_program`.
--  All vector types (vec2, vec3, vec4, bvec2, etc) currently occupy full
-   float[4] registers.
--  Float constants and variables are packed so that up to four floats
-   can occupy one program parameter/register.
+-  Shading language programs are compiled first into an AST-related high level
+   IR, then into the NIR common shading langauge IR for optimization and
+   transformation before going to a backend driver's shader compiler.
 -  All function calls are inlined.
--  Shaders which use too many registers will not compile.
--  The quality of generated code is pretty good, register usage is fair.
--  Shader error detection and reporting of errors (InfoLog) is not very
-   good yet.
--  The ftransform() function doesn't necessarily match the results of
-   fixed-function transformation.
-
-These issues will be addressed/resolved in the future.
-
-Programming Hints
------------------
-
--  Use the built-in library functions whenever possible. For example,
-   instead of writing this:
-
-   .. code-block:: glsl
-
-      float x = 1.0 / sqrt(y);
-
-   Write this:
-
-   .. code-block:: glsl
-
-      float x = inversesqrt(y);
 
 Stand-alone GLSL Compiler
 -------------------------
@@ -141,8 +85,7 @@ This tool is useful for:
 After building Mesa with the ``-Dtools=glsl`` meson option, the compiler will be
 installed as the binary ``glsl_compiler``.
 
-Here's an example of using the compiler to compile a vertex shader and
-emit :ext:`GL_ARB_vertex_program`-style instructions:
+Here's an example of using the compiler to compile a vertex shader.
 
 .. code-block:: sh
 
@@ -180,20 +123,3 @@ Compiler Implementation
 
 The source code for Mesa's shading language compiler is in the
 ``src/compiler/glsl/`` directory.
-
-XXX provide some info about the compiler....
-
-The final vertex and fragment programs may be interpreted in software
-(see prog_execute.c) or translated into a specific hardware architecture
-(see drivers/dri/i915/i915_fragprog.c for example).
-
-Compiler Validation
--------------------
-
-Developers working on the GLSL compiler should test frequently to avoid
-regressions.
-
-The `Piglit <https://piglit.freedesktop.org/>`__ project has many GLSL
-tests.
-
-The Mesa demos repository also has some good GLSL tests.
