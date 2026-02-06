@@ -129,12 +129,12 @@ SOFTWARE.
 <bitset name="#instruction-cat3-base" extends="#instruction">
 	<override expr="#cat2-cat3-nop-encoding">
 		<display>
-			{SY}{SS}{JP}{SAT}(nop{NOP}) {UL}{NAME} {DST_HALF}{DST}, {SRC1_NEG}{SRC1}, {SRC2_NEG}{HALF}{SRC2}, {SRC3_NEG}{SRC3}
+			{SY}{SS}{JP}(nop{NOP}) {UL}{NAME} {SAT}{DST_HALF}{DST}, {SRC1_NEG}{SRC1}, {SRC2_NEG}{HALF}{SRC2}, {SRC3_NEG}{SRC3}
 		</display>
 		<derived name="NOP" expr="#cat2-cat3-nop-value" type="uint"/>
 	</override>
 	<display>
-		{SY}{SS}{JP}{SAT}{REPEAT}{UL}{NAME} {DST_HALF}{DST}, {SRC1_NEG}{SRC1_R}{SRC1}, {SRC2_NEG}{SRC2_R}{HALF}{SRC2}, {SRC3_NEG}{SRC3_R}{SRC3}
+		{SY}{SS}{JP}{REPEAT}{UL}{NAME} {SAT}{DST_HALF}{DST}, {SRC1_NEG}{SRC1_R}{SRC1}, {SRC2_NEG}{SRC2_R}{HALF}{SRC2}, {SRC3_NEG}{SRC3_R}{SRC3}
 	</display>
 	<field name="SRC2_R" pos="15" type="bool" display="(r)"/>
 	<field name="SRC3_R" pos="29" type="bool" display="(r)"/>
@@ -415,12 +415,12 @@ SOFTWARE.
 
 	<override expr="#cat2-cat3-nop-encoding">
 		<display>
-			{SY}{SS}{JP}{SAT}(nop{NOP}) {UL}{NAME}{SRC_SIGN}{SRC_PACK} {DST}, {SRC1}, {SRC2}, {SRC3_NEG}{SRC3_R}{SRC3}
+			{SY}{SS}{JP}(nop{NOP}) {UL}{NAME}{SRC_SIGN}{SRC_PACK} {SAT}{DST}, {SRC1}, {SRC2}, {SRC3_NEG}{SRC3_R}{SRC3}
 		</display>
 		<derived name="NOP" expr="#cat2-cat3-nop-value" type="uint"/>
 	</override>
 	<display>
-		{SY}{SS}{JP}{SAT}{UL}{NAME}{SRC_SIGN}{SRC_PACK} {DST}, {SRC1_R}{SRC1}, {SRC2_R}{SRC2}, {SRC3_NEG}{SRC3_R}{SRC3}
+		{SY}{SS}{JP}{UL}{NAME}{SRC_SIGN}{SRC_PACK} {SAT}{DST}, {SRC1_R}{SRC1}, {SRC2_R}{SRC2}, {SRC3_NEG}{SRC3_R}{SRC3}
 	</display>
 
 	<derived name="FULL" expr="#true" type="bool"/>

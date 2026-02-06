@@ -82,7 +82,7 @@ SOFTWARE.
 		<map name="UL">!!(src->flags &amp; IR3_INSTR_UL)</map>
 		<map name="DST_REL">!!(src->dsts[0]->flags &amp; IR3_REG_RELATIV)</map>
 		<map name="ROUND">src->cat1.round</map>
-		<map name="DM">src->cat1.sat</map>
+		<map name="DM">!!(src->flags &amp; IR3_INSTR_SAT)</map>
 	</encode>
 </bitset>
 

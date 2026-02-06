@@ -611,7 +611,6 @@ iflag:             T_SY   { iflags.flags |= IR3_INSTR_SY; }
 |                  T_SS   { iflags.flags |= IR3_INSTR_SS; }
 |                  T_JP   { iflags.flags |= IR3_INSTR_JP; }
 |                  T_EQ_FLAG { iflags.flags |= IR3_INSTR_EQ; }
-|                  T_SAT  { iflags.flags |= IR3_INSTR_SAT; }
 |                  T_RPT  { iflags.repeat = $1; }
 |                  T_UL   { iflags.flags |= IR3_INSTR_UL; }
 |                  T_NOP  { iflags.nop = $1; }
@@ -732,7 +731,7 @@ cat1_mova:         T_OP_MOVA cat1_mova_flags T_A0 ',' {
                    } mova_src
 
 cat1_mova_dst_flags:
-|                  T_SAT { instr->cat1.sat = true; }
+|                  T_SAT { instr->flags |= IR3_INSTR_SAT; }
 
 cat1_mova_r:       T_OP_MOVA cat1_mova_flags '.' 'r' { new_instr(OPC_MOV); } cat1_mova_dst_flags T_A0 ',' mova_src ',' integer ',' integer {
                        instr->cat1.src_type = TYPE_S16;
@@ -1350,7 +1349,7 @@ const:             T_CONSTANT     { $$ = new_src($1, IR3_REG_CONST); }
 dst_reg_flag:      T_EVEN         { instr->cat1.round = ROUND_EVEN; }
 |                  T_POS_INFINITY { instr->cat1.round = ROUND_POS_INF; }
 |                  T_NEG_INFINITY { instr->cat1.round = ROUND_NEG_INF; }
-|                  T_SAT          { instr->cat1.sat = true; }
+|                  T_SAT          { instr->flags |= IR3_INSTR_SAT; }
 |                  T_EI           { rflags.flags |= IR3_REG_EI; }
 |                  T_WRMASK       { rflags.wrmask = $1; }
 

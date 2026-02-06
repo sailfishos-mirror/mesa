@@ -4008,7 +4008,7 @@ shader-blocks:
   - type: A6XX_HLSQ_INST_RAM
     - bank: 0
       size: 2048
-	:2:0000:0000[40846422x_d81251c5x] (sat)(ul)sign.f r8.z, (neg)hc113.y	; dontcare bits in sign.f: 00040000d8120000
+	:2:0000:0000[40846422x_d81251c5x] (ul)sign.f (sat)r8.z, (neg)hc113.y	; dontcare bits in sign.f: 00040000d8120000
 	:4:0001:0001[938a16e2x_520c369ax] no match: 938a16e2520c369a
 	:1:0002:0002[200a00c1x_094864d2x] no match: 200a00c1094864d2
 	:2:0003:0003[44109084x_4a201507x] no match: 441090844a201507
