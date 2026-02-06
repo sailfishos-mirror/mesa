@@ -3321,9 +3321,10 @@ VkResult anv_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(
    ANV_FROM_HANDLE(anv_physical_device, pdevice, physicalDevice);
    const struct intel_device_info *devinfo = &pdevice->info;
 
-   assert(anv_has_cooperative_matrix(pdevice));
-
    VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixPropertiesKHR, out, pProperties, pPropertyCount);
+
+   if (!anv_has_cooperative_matrix(pdevice))
+      return vk_outarray_status(&out);
 
    for (int i = 0; i < ARRAY_SIZE(devinfo->cooperative_matrix_configurations); i++) {
       const struct intel_cooperative_matrix_configuration *cfg =
