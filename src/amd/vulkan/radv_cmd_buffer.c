@@ -1178,6 +1178,16 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
          radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->upload.upload_bo);
       }
 
+      if (cmd_buffer->gfx9_fence_bo_tmz) {
+         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->gfx9_fence_bo_tmz);
+         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->gfx9_fence_bo_tmz);
+      }
+
+      if (cmd_buffer->gfx9_eop_bug_bo_tmz) {
+         radv_rmv_log_command_buffer_bo_destroy(device, cmd_buffer->gfx9_eop_bug_bo_tmz);
+         radv_bo_destroy(device, &cmd_buffer->vk.base, cmd_buffer->gfx9_eop_bug_bo_tmz);
+      }
+
       if (cmd_buffer->cs)
          radv_destroy_cmd_stream(device, cmd_buffer->cs);
       if (cmd_buffer->gang.cs)
@@ -1289,6 +1299,14 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
    if (cmd_buffer->upload.upload_bo)
       radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->upload.upload_bo);
    cmd_buffer->upload.offset = 0;
+
+   if (cmd_buffer->gfx9_fence_bo_tmz) {
+      radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->gfx9_fence_bo_tmz);
+   }
+
+   if (cmd_buffer->gfx9_eop_bug_bo_tmz) {
+      radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->gfx9_eop_bug_bo_tmz);
+   }
 
    for (unsigned i = 0; i < MAX_BIND_POINTS; i++) {
       cmd_buffer->descriptors[i].dirty = 0;
@@ -7847,32 +7865,75 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
 
    if (pdev->info.gfx_level >= GFX9 && cmd_buffer->qf == RADV_QUEUE_GENERAL) {
       unsigned num_db = pdev->info.max_render_backends;
-      unsigned fence_offset, eop_bug_offset;
-      void *fence_ptr;
+      bool is_secure = cmd_buffer->vk.pool->flags & VK_COMMAND_POOL_CREATE_PROTECTED_BIT;
+      if (!is_secure) {
+         unsigned fence_offset;
+         void *fence_ptr;
 
-      if (!radv_cmd_buffer_upload_alloc(cmd_buffer, 8, &fence_offset, &fence_ptr)) {
-         vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
-         return VK_ERROR_OUT_OF_HOST_MEMORY;
+         if (!radv_cmd_buffer_upload_alloc(cmd_buffer, 8, &fence_offset, &fence_ptr)) {
+            vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
+            return VK_ERROR_OUT_OF_HOST_MEMORY;
+         }
+         memset(fence_ptr, 0, 8);
+         cmd_buffer->gfx9_fence_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
+         cmd_buffer->gfx9_fence_va += fence_offset;
+      } else if (!cmd_buffer->gfx9_fence_bo_tmz) {
+         struct radeon_winsys_bo *fence_bo = NULL;
+
+         result = radv_bo_create(device, &cmd_buffer->vk.base, 8, 4096, device->ws->cs_domain(device->ws),
+                                 RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_32BIT |
+                                    RADEON_FLAG_GTT_WC | RADEON_FLAG_ENCRYPTED,
+                                 RADV_BO_PRIORITY_UPLOAD_BUFFER, 0, true, &fence_bo);
+
+         if (result != VK_SUCCESS) {
+            vk_command_buffer_set_error(&cmd_buffer->vk, result);
+            return result;
+         }
+
+         cmd_buffer->gfx9_fence_bo_tmz = fence_bo;
+         cmd_buffer->gfx9_fence_va = radv_buffer_get_va(cmd_buffer->gfx9_fence_bo_tmz);
+
+         radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, fence_bo);
+         radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->gfx9_fence_bo_tmz, 0, 8, 0);
       }
-      memset(fence_ptr, 0, 8);
-
-      cmd_buffer->gfx9_fence_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
-      cmd_buffer->gfx9_fence_va += fence_offset;
 
       radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, cmd_buffer->gfx9_fence_va, 8);
 
       if (pdev->info.gfx_level == GFX9) {
-         /* Allocate a buffer for the EOP bug on GFX9. */
-         if (!radv_cmd_buffer_upload_alloc(cmd_buffer, 16 * num_db, &eop_bug_offset, &fence_ptr)) {
-            vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
-            return VK_ERROR_OUT_OF_HOST_MEMORY;
+         const uint32_t eop_bug_bo_size = 16 * num_db;
+         if (!is_secure) {
+            /* Allocate a buffer for the EOP bug on GFX9. */
+            unsigned eop_bug_offset;
+            void *eop_bug_ptr;
+            if (!radv_cmd_buffer_upload_alloc(cmd_buffer, eop_bug_bo_size, &eop_bug_offset, &eop_bug_ptr)) {
+               vk_command_buffer_set_error(&cmd_buffer->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
+               return VK_ERROR_OUT_OF_HOST_MEMORY;
+            }
+
+            memset(eop_bug_ptr, 0, eop_bug_bo_size);
+            cmd_buffer->gfx9_eop_bug_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
+            cmd_buffer->gfx9_eop_bug_va += eop_bug_offset;
+         } else if (!cmd_buffer->gfx9_eop_bug_bo_tmz) {
+            struct radeon_winsys_bo *eop_bug_bo = NULL;
+            result =
+               radv_bo_create(device, &cmd_buffer->vk.base, eop_bug_bo_size, 4096, device->ws->cs_domain(device->ws),
+                              RADEON_FLAG_CPU_ACCESS | RADEON_FLAG_NO_INTERPROCESS_SHARING | RADEON_FLAG_32BIT |
+                                 RADEON_FLAG_GTT_WC | RADEON_FLAG_ENCRYPTED,
+                              RADV_BO_PRIORITY_UPLOAD_BUFFER, 0, true, &eop_bug_bo);
+
+            if (result != VK_SUCCESS) {
+               vk_command_buffer_set_error(&cmd_buffer->vk, result);
+               return result;
+            }
+
+            cmd_buffer->gfx9_eop_bug_bo_tmz = eop_bug_bo;
+            cmd_buffer->gfx9_eop_bug_va = radv_buffer_get_va(cmd_buffer->gfx9_eop_bug_bo_tmz);
+
+            radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, eop_bug_bo);
+            radv_rmv_log_command_buffer_bo_create(device, cmd_buffer->gfx9_eop_bug_bo_tmz, 0, eop_bug_bo_size, 0);
          }
 
-         memset(fence_ptr, 0, 16 * num_db);
-         cmd_buffer->gfx9_eop_bug_va = radv_buffer_get_va(cmd_buffer->upload.upload_bo);
-         cmd_buffer->gfx9_eop_bug_va += eop_bug_offset;
-
-         radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, cmd_buffer->gfx9_eop_bug_va, 16 * num_db);
+         radv_emit_clear_data(cmd_buffer, V_371_PREFETCH_PARSER, cmd_buffer->gfx9_eop_bug_va, eop_bug_bo_size);
       }
    }
 
