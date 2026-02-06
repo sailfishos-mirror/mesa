@@ -188,6 +188,37 @@ static VkResult pvr_alloc_mrt(const struct pvr_device_info *dev_info,
 }
 
 VkResult
+pvr_arch_mrt_setup_partial_init(struct pvr_device *const device,
+                                struct usc_mrt_setup *mrt_setup,
+                                uint32_t num_renger_targets,
+                                uint32_t num_output_regs,
+                                uint32_t num_tile_buffers)
+{
+   struct usc_mrt_resource *mrt_resources = NULL;
+
+   if (num_renger_targets) {
+      const uint32_t size =
+         num_renger_targets * sizeof(*mrt_setup->mrt_resources);
+
+      mrt_resources = vk_zalloc(&device->vk.alloc,
+                                size,
+                                8,
+                                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      if (!mrt_resources)
+         return VK_ERROR_OUT_OF_HOST_MEMORY;
+   }
+
+   *mrt_setup = (struct usc_mrt_setup){
+      .num_render_targets = num_renger_targets,
+      .num_output_regs = num_output_regs,
+      .num_tile_buffers = num_tile_buffers,
+      .mrt_resources = mrt_resources,
+   };
+
+   return VK_SUCCESS;
+}
+
+VkResult
 pvr_arch_init_usc_mrt_setup(struct pvr_device *device,
                             uint32_t attachment_count,
                             const VkFormat attachment_formats[attachment_count],
