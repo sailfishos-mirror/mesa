@@ -553,7 +553,7 @@ enum vpe_status vpe_check_support(
     }
 
 
-    if (status == VPE_STATUS_OK) {  
+    if (status == VPE_STATUS_OK) {
         // output checking - check per asic support
         status = vpe_check_output_support(vpe, param);
         if (status != VPE_STATUS_OK) {

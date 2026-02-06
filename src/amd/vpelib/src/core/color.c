@@ -34,6 +34,7 @@
 #include "3dlut_builder.h"
 #include "shaper_builder.h"
 #include "geometric_scaling.h"
+#include "conversion.h"
 
 static void color_check_input_cm_update(struct vpe_priv *vpe_priv, struct stream_ctx *stream_ctx,
     const struct vpe_color_space *vcs, const struct vpe_color_adjust *adjustments,
@@ -702,15 +703,15 @@ enum vpe_status vpe_color_update_color_space_and_tf(
     return status;
 }
 
-enum vpe_status vpe_color_tm_update_hdr_mult(uint16_t shaper_in_exp_max, uint32_t peak_white,
-    struct fixed31_32 *hdr_multiplier, bool enable3dlut, bool is_fp16)
+enum vpe_status vpe_color_tm_update_hdr_mult(
+    uint32_t peak_white, struct fixed31_32 *hdr_multiplier, bool enable3dlut, bool is_g10)
 {
     if (enable3dlut) {
         struct fixed31_32 shaper_in_gain;
         struct fixed31_32 pq_norm_gain;
 
-        shaper_in_gain = vpe_fixpt_from_int((long long)1 << shaper_in_exp_max);
-        if (is_fp16) {
+        shaper_in_gain = vpe_fixpt_from_int((long long)1 << SHAPER_EXP_MAX_IN);
+        if (is_g10) {
             *hdr_multiplier = vpe_fixpt_div_int(shaper_in_gain, CCCS_NORM);
         } else {
             // HDRMULT = 2^shaper_in_exp_max*(1/PQ(x))
@@ -859,7 +860,7 @@ enum vpe_status vpe_color_update_movable_cm(
 
             // Update the HDR multiplier based on the shaper normalization factor and other
             // parameters.
-            vpe_color_tm_update_hdr_mult(SHAPER_EXP_MAX_IN, shaper_norm_factor,
+            vpe_color_tm_update_hdr_mult(shaper_norm_factor,
                 &stream_ctx->lut3d_func->hdr_multiplier, enable_3dlut,
                 stream_ctx->stream.surface_info.cs.tf == VPE_TF_G10);
 

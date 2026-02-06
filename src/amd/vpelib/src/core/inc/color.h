@@ -275,8 +275,8 @@ void vpe_convert_full_range_color_enum(enum color_space *cs);
 enum vpe_status vpe_color_update_whitepoint(
     const struct vpe_priv *vpe_priv, const struct vpe_build_param *param);
 
-enum vpe_status vpe_color_tm_update_hdr_mult(uint16_t shaper_in_exp_max, uint32_t peak_white,
-    struct fixed31_32 *hdr_multiplier, bool enable_3dlut, bool is_fp16);
+enum vpe_status vpe_color_tm_update_hdr_mult(
+    uint32_t peak_white, struct fixed31_32 *hdr_multiplier, bool enable_3dlut, bool is_fp16);
 
 enum vpe_status vpe_color_build_shaper_cs(const struct vpe_tonemap_params *tm_params,
     struct vpe_surface_info *surface_info, struct vpe_color_space *tm_out_cs);
