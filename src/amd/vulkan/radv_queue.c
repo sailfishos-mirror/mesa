@@ -215,6 +215,7 @@ radv_queue_submit_empty(struct radv_queue *queue, struct vk_queue_submit *submis
    struct radv_winsys_submit_info submit = {
       .ip_type = radv_queue_ring(queue),
       .queue_index = queue->vk.index_in_family,
+      .secure = submission->is_protected,
    };
 
    return device->ws->cs_submit(ctx, &submit, submission->wait_count, submission->waits, submission->signal_count,
@@ -1713,6 +1714,7 @@ radv_queue_submit_normal(struct radv_queue *queue, struct vk_queue_submit *submi
       .continue_preamble_cs = continue_preambles,
       .postamble_cs = postambles,
       .uses_shadow_regs = queue->state.uses_shadow_regs,
+      .secure = submission->is_protected,
    };
 
    for (uint32_t j = 0, advance; j < cmd_buffer_count; j += advance) {

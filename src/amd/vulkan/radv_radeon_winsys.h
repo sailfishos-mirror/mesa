@@ -186,6 +186,7 @@ struct radv_winsys_submit_info {
    struct ac_cmdbuf **continue_preamble_cs;
    struct ac_cmdbuf **postamble_cs;
    bool uses_shadow_regs;
+   bool secure;
 };
 
 /* Kernel effectively allows 0-31. This sets some priorities for fixed
