@@ -1037,7 +1037,7 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .multiviewTessellationShader = true,
       .variablePointersStorageBuffer = true,
       .variablePointers = true,
-      .protectedMemory = false,
+      .protectedMemory = radv_tmz_enabled(pdev),
       .samplerYcbcrConversion = true,
       .shaderDrawParameters = true,
 
