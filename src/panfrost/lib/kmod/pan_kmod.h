@@ -421,7 +421,7 @@ struct pan_kmod_ops {
     * Return NULL if the import fails for any reason.
     */
    struct pan_kmod_bo *(*bo_import)(struct pan_kmod_dev *dev, uint32_t handle,
-                                    uint64_t size, uint32_t flags);
+                                    uint64_t size);
 
    /* Post export operations.
     * Return 0 on success, -1 otherwise.
@@ -628,8 +628,7 @@ pan_kmod_bo_get_user_priv(const struct pan_kmod_bo *bo)
    return bo->user_priv;
 }
 
-struct pan_kmod_bo *pan_kmod_bo_import(struct pan_kmod_dev *dev, int fd,
-                                       uint32_t flags);
+struct pan_kmod_bo *pan_kmod_bo_import(struct pan_kmod_dev *dev, int fd);
 
 static inline int
 pan_kmod_bo_export(struct pan_kmod_bo *bo)

@@ -318,8 +318,8 @@ panfrost_kmod_bo_free(struct pan_kmod_bo *bo)
 }
 
 static struct pan_kmod_bo *
-panfrost_kmod_bo_import(struct pan_kmod_dev *dev, uint32_t handle, uint64_t size,
-                        uint32_t flags)
+panfrost_kmod_bo_import(struct pan_kmod_dev *dev, uint32_t handle,
+                        uint64_t size)
 {
    struct panfrost_kmod_bo *panfrost_bo =
       pan_kmod_dev_alloc(dev, sizeof(*panfrost_bo));
@@ -339,6 +339,7 @@ panfrost_kmod_bo_import(struct pan_kmod_dev *dev, uint32_t handle, uint64_t size
 
    panfrost_bo->offset = get_bo_offset.offset;
 
+   uint32_t flags = PAN_KMOD_BO_FLAG_IMPORTED;
    if (pan_kmod_driver_version_at_least(&dev->driver, 1, 6)) {
       struct drm_panfrost_query_bo_info args = {
          .handle = handle,
@@ -357,8 +358,7 @@ panfrost_kmod_bo_import(struct pan_kmod_dev *dev, uint32_t handle, uint64_t size
          flags |= PAN_KMOD_BO_FLAG_NO_MMAP;
    }
 
-   pan_kmod_bo_init(&panfrost_bo->base, dev, NULL, size,
-                    flags | PAN_KMOD_BO_FLAG_IMPORTED, handle);
+   pan_kmod_bo_init(&panfrost_bo->base, dev, NULL, size, flags, handle);
    return &panfrost_bo->base;
 
 err_free_bo:

@@ -485,7 +485,7 @@ panfrost_bo_import(struct panfrost_device *dev, int fd)
 
    if (!bo->dev) {
       bo->dev = dev;
-      bo->kmod_bo = pan_kmod_bo_import(dev->kmod.dev, fd, 0);
+      bo->kmod_bo = pan_kmod_bo_import(dev->kmod.dev, fd);
 
       struct pan_kmod_vm_op vm_op = {
          .type = PAN_KMOD_VM_OP_TYPE_MAP,

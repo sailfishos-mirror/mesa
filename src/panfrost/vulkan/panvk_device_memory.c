@@ -129,7 +129,7 @@ panvk_AllocateMemory(VkDevice _device,
          fd_info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT ||
          fd_info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
 
-      mem->bo = pan_kmod_bo_import(device->kmod.dev, fd_info->fd, 0);
+      mem->bo = pan_kmod_bo_import(device->kmod.dev, fd_info->fd);
       if (!mem->bo) {
          result = panvk_error(device, VK_ERROR_INVALID_EXTERNAL_HANDLE);
          goto err_destroy_mem;
@@ -417,7 +417,7 @@ panvk_GetMemoryFdPropertiesKHR(VkDevice _device,
 
    assert(handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT);
 
-   struct pan_kmod_bo *bo = pan_kmod_bo_import(device->kmod.dev, fd, 0);
+   struct pan_kmod_bo *bo = pan_kmod_bo_import(device->kmod.dev, fd);
    if (!bo)
       return VK_ERROR_INVALID_EXTERNAL_HANDLE;
 

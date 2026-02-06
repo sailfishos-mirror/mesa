@@ -140,7 +140,7 @@ pan_kmod_bo_put(struct pan_kmod_bo *bo)
 }
 
 struct pan_kmod_bo *
-pan_kmod_bo_import(struct pan_kmod_dev *dev, int fd, uint32_t flags)
+pan_kmod_bo_import(struct pan_kmod_dev *dev, int fd)
 {
    struct pan_kmod_bo *bo = NULL;
    struct pan_kmod_bo **slot;
@@ -167,7 +167,7 @@ pan_kmod_bo_import(struct pan_kmod_dev *dev, int fd, uint32_t flags)
          goto err_close_handle;
       }
 
-      bo = dev->ops->bo_import(dev, handle, size, flags);
+      bo = dev->ops->bo_import(dev, handle, size);
       if (!bo)
          goto err_close_handle;
 
