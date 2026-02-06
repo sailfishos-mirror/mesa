@@ -16,7 +16,7 @@ Hardware drivers include:
 -  AMD Radeon series. See
    `RadeonFeature <https://www.x.org/wiki/RadeonFeature>`__
 -  NVIDIA GPUs (Maxwell and later). See :doc:`NVK <drivers/nvk>`
--  Qualcomm Adreno 2xx-6xx. See :doc:`Freedreno
+-  Qualcomm Adreno 2xx-8xx. See :doc:`Freedreno
    <drivers/freedreno>`
 -  Broadcom VideoCore 4 and 5. See :doc:`VC4 <drivers/vc4>` and
    :doc:`V3D <drivers/v3d>`
@@ -28,7 +28,7 @@ Hardware drivers include:
    Wiki <https://nouveau.freedesktop.org>`__
 -  NVIDIA Tegra (K1 and later).
 
-Layered driver include:
+Layered drivers include:
 
 -  :doc:`D3D12 <drivers/d3d12>` - driver providing OpenGL on top of
    Microsoft's Direct3D 12 API.
@@ -42,7 +42,7 @@ Software drivers include:
 
 -  :doc:`LLVMpipe <drivers/llvmpipe>` - uses LLVM for JIT code generation
    and is multi-threaded
--  Softpipe - a reference Gallium driver
+-  Softpipe - a reference Gallium driver with a shader interpreter.
 
 Additional driver information:
 
