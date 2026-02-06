@@ -50,7 +50,7 @@ ir3_parser = custom_target(
   input: 'ir3_parser.y',
   output: ['ir3_parser.c', 'ir3_parser.h'],
   command: [
-    prog_bison, '@INPUT@', '--name-prefix=ir3_yy', '--defines=@OUTPUT1@', '--output=@OUTPUT0@'
+    prog_bison, '@INPUT@', '--name-prefix=ir3_yy', '--defines=@OUTPUT1@', '--output=@OUTPUT0@', '-Werror', '-Wcounterexamples'
   ]
 )
 
