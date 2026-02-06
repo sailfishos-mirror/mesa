@@ -52,6 +52,7 @@ enum radeon_bo_flag { /* bitfield */
                       RADEON_FLAG_GFX12_ALLOW_DCC = (1 << 13),
                       RADEON_FLAG_VM_UPDATE_WAIT = (1 << 14),
                       RADEON_FLAG_VM_PAD_1PAGE = (1 << 15),
+                      RADEON_FLAG_ENCRYPTED = (1 << 16),
 };
 
 enum radeon_ctx_priority {

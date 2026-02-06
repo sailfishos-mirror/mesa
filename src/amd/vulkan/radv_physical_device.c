@@ -571,6 +571,58 @@ radv_physical_device_init_mem_types(struct radv_physical_device *pdev)
    }
    pdev->memory_properties.memoryTypeCount = type_count;
 
+   if (radv_tmz_enabled(pdev)) {
+      if (vram_index >= 0 || visible_vram_index >= 0) {
+         pdev->memory_domains[type_count] = RADEON_DOMAIN_VRAM;
+         pdev->memory_flags[type_count] = RADEON_FLAG_ENCRYPTED | RADEON_FLAG_NO_CPU_ACCESS;
+         pdev->memory_properties.memoryTypes[type_count++] = (VkMemoryType){
+            .propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_PROTECTED_BIT,
+            .heapIndex = vram_index >= 0 ? vram_index : visible_vram_index,
+         };
+
+         pdev->memory_domains[type_count] = RADEON_DOMAIN_VRAM;
+         pdev->memory_flags[type_count] = RADEON_FLAG_ENCRYPTED | RADEON_FLAG_NO_CPU_ACCESS | RADEON_FLAG_32BIT;
+         pdev->memory_properties.memoryTypes[type_count++] = (VkMemoryType){
+            .propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_PROTECTED_BIT,
+            .heapIndex = vram_index >= 0 ? vram_index : visible_vram_index,
+         };
+      }
+
+      if (visible_vram_index >= 0) {
+         pdev->memory_domains[type_count] = RADEON_DOMAIN_VRAM;
+         pdev->memory_flags[type_count] = RADEON_FLAG_ENCRYPTED;
+         pdev->memory_properties.memoryTypes[type_count++] = (VkMemoryType){
+            .propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_PROTECTED_BIT,
+            .heapIndex = visible_vram_index,
+         };
+
+         pdev->memory_domains[type_count] = RADEON_DOMAIN_VRAM;
+         pdev->memory_flags[type_count] = RADEON_FLAG_ENCRYPTED | RADEON_FLAG_32BIT;
+         pdev->memory_properties.memoryTypes[type_count++] = (VkMemoryType){
+            .propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_PROTECTED_BIT,
+            .heapIndex = visible_vram_index,
+         };
+      }
+
+      if (gart_index >= 0) {
+         pdev->memory_domains[type_count] = RADEON_DOMAIN_GTT;
+         pdev->memory_flags[type_count] = RADEON_FLAG_ENCRYPTED;
+         pdev->memory_properties.memoryTypes[type_count++] = (VkMemoryType){
+            .propertyFlags = VK_MEMORY_PROPERTY_PROTECTED_BIT,
+            .heapIndex = gart_index,
+         };
+
+         pdev->memory_domains[type_count] = RADEON_DOMAIN_GTT;
+         pdev->memory_flags[type_count] = RADEON_FLAG_ENCRYPTED | RADEON_FLAG_32BIT;
+         pdev->memory_properties.memoryTypes[type_count++] = (VkMemoryType){
+            .propertyFlags = VK_MEMORY_PROPERTY_PROTECTED_BIT,
+            .heapIndex = gart_index,
+         };
+      }
+
+      pdev->memory_properties.memoryTypeCount = type_count;
+   }
+
    if (pdev->info.has_l2_uncached) {
       for (int i = 0; i < pdev->memory_properties.memoryTypeCount; i++) {
          VkMemoryType mem_type = pdev->memory_properties.memoryTypes[i];

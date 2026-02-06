@@ -509,6 +509,11 @@ radv_amdgpu_winsys_bo_create(struct radeon_winsys *_ws, uint64_t size, unsigned 
       request.flags |= AMDGPU_GEM_CREATE_GFX12_DCC;
    }
 
+   if (flags & RADEON_FLAG_ENCRYPTED) {
+      assert(ws->info.has_tmz_support);
+      request.flags |= AMDGPU_GEM_CREATE_ENCRYPTED;
+   }
+
    r = ac_drm_bo_alloc(ws->dev, &request, &buf_handle);
    if (r) {
       fprintf(stderr, "radv/amdgpu: Failed to allocate a buffer:\n");
@@ -913,6 +918,8 @@ radv_amdgpu_bo_get_flags_from_fd(struct radeon_winsys *_ws, int fd, enum radeon_
       *flags |= RADEON_FLAG_DISCARDABLE;
    if (info.alloc_flags & AMDGPU_GEM_CREATE_GFX12_DCC)
       *flags |= RADEON_FLAG_GFX12_ALLOW_DCC;
+   if (info.alloc_flags & AMDGPU_GEM_CREATE_ENCRYPTED)
+      *flags |= RADEON_FLAG_ENCRYPTED;
    return true;
 }
 
