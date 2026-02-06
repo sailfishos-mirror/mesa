@@ -664,11 +664,10 @@ void radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipelin
 struct radv_vgt_shader_key {
    uint8_t tess : 1;
    uint8_t gs : 1;
-   uint8_t mesh_scratch_ring : 1;
    uint8_t mesh : 1;
    uint8_t ngg_passthrough : 1;
    uint8_t ngg : 1; /* gfx10+ */
-   uint8_t ngg_streamout : 1;
+   uint8_t ngg_wave_id_en : 1;
    uint8_t hs_wave32 : 1;
    uint8_t gs_wave32 : 1;
    uint8_t vs_wave32 : 1;

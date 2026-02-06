@@ -1008,6 +1008,7 @@ radv_lower_ngg(struct radv_device *device, struct radv_shader_stage *ngg_stage,
                options.has_param_exports, &scratch_ring, info->wave_size, hw_workgroup_size,
                gfx_state->has_multiview_view_index, info->ms.has_query);
       ngg_stage->info.ms.needs_ms_scratch_ring = scratch_ring;
+      ngg_stage->info.ngg_wave_id_en = scratch_ring;
    } else {
       UNREACHABLE("invalid SW stage passed to radv_lower_ngg");
    }

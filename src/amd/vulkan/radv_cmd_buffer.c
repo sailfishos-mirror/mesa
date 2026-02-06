@@ -3672,12 +3672,11 @@ radv_emit_vgt_reuse(struct radv_cmd_buffer *cmd_buffer, const struct radv_vgt_sh
 static void
 radv_emit_vgt_shader_config_gfx12(struct radv_cmd_buffer *cmd_buffer, const struct radv_vgt_shader_key *key)
 {
-   const bool ngg_wave_id_en = key->ngg_streamout || (key->mesh && key->mesh_scratch_ring);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint32_t stages = 0;
 
    stages |= S_028A98_GS_EN(key->gs) | S_028A98_GS_FAST_LAUNCH(key->mesh) | S_028A98_GS_W32_EN(key->gs_wave32) |
-             S_028A98_NGG_WAVE_ID_EN(ngg_wave_id_en) | S_028A98_PRIMGEN_PASSTHRU_NO_MSG(key->ngg_passthrough);
+             S_028A98_NGG_WAVE_ID_EN(key->ngg_wave_id_en) | S_028A98_PRIMGEN_PASSTHRU_NO_MSG(key->ngg_passthrough);
 
    if (key->tess)
       stages |= S_028A98_HS_EN(1) | S_028A98_HS_W32_EN(key->hs_wave32);
@@ -3711,13 +3710,13 @@ radv_emit_vgt_shader_config_gfx6(struct radv_cmd_buffer *cmd_buffer, const struc
       assert(!key->ngg_passthrough);
       unsigned gs_fast_launch = pdev->info.mesh_fast_launch_2 ? 2 : 1;
       stages |=
-         S_028B54_GS_EN(1) | S_028B54_GS_FAST_LAUNCH(gs_fast_launch) | S_028B54_NGG_WAVE_ID_EN(key->mesh_scratch_ring);
+         S_028B54_GS_EN(1) | S_028B54_GS_FAST_LAUNCH(gs_fast_launch) | S_028B54_NGG_WAVE_ID_EN(key->ngg_wave_id_en);
    } else if (key->ngg) {
       stages |= S_028B54_ES_EN(V_028B54_ES_STAGE_REAL);
    }
 
    if (key->ngg) {
-      stages |= S_028B54_PRIMGEN_EN(1) | S_028B54_NGG_WAVE_ID_EN(key->ngg_streamout) |
+      stages |= S_028B54_PRIMGEN_EN(1) | S_028B54_NGG_WAVE_ID_EN(key->ngg_wave_id_en) |
                 S_028B54_PRIMGEN_PASSTHRU_EN(key->ngg_passthrough) |
                 S_028B54_PRIMGEN_PASSTHRU_NO_MSG(key->ngg_passthrough && pdev->info.family >= CHIP_NAVI23);
    } else if (key->gs) {

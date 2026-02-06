@@ -1027,8 +1027,10 @@ radv_nir_shader_info_pass(struct radv_device *device, const struct nir_shader *n
    }
 
    if (nir->info.stage == MESA_SHADER_VERTEX || nir->info.stage == MESA_SHADER_TESS_EVAL ||
-       nir->info.stage == MESA_SHADER_GEOMETRY)
+       nir->info.stage == MESA_SHADER_GEOMETRY) {
       gather_xfb_info(nir, info);
+      info->ngg_wave_id_en = info->is_ngg && info->so.enabled_stream_buffers_mask;
+   }
 
    if (nir->info.stage == MESA_SHADER_VERTEX || nir->info.stage == MESA_SHADER_TESS_EVAL ||
        nir->info.stage == MESA_SHADER_GEOMETRY || nir->info.stage == MESA_SHADER_MESH) {

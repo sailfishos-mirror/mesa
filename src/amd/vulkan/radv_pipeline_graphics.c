@@ -3262,14 +3262,11 @@ radv_get_vgt_shader_key(const struct radv_device *device, struct radv_shader **s
 
    key.tess = !!shaders[MESA_SHADER_TESS_CTRL];
    key.gs = !!shaders[MESA_SHADER_GEOMETRY];
+   key.mesh = !!shaders[MESA_SHADER_MESH];
    if (last_vgt_shader->info.is_ngg) {
       key.ngg = 1;
       key.ngg_passthrough = last_vgt_shader->info.is_ngg_passthrough;
-      key.ngg_streamout = !!last_vgt_shader->info.so.enabled_stream_buffers_mask;
-   }
-   if (shaders[MESA_SHADER_MESH]) {
-      key.mesh = 1;
-      key.mesh_scratch_ring = shaders[MESA_SHADER_MESH]->info.ms.needs_ms_scratch_ring;
+      key.ngg_wave_id_en = last_vgt_shader->info.ngg_wave_id_en;
    }
 
    key.hs_wave32 = hs_size == 32;
