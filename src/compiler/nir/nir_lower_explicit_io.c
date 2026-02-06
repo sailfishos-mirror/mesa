@@ -1690,7 +1690,7 @@ lower_explicit_io_array_length(nir_builder *b, nir_intrinsic_instr *intrin,
       offset = addr_to_offset(b, addr, addr_format);
       nir_def *index = addr_to_index(b, addr, addr_format);
       unsigned access = nir_intrinsic_access(intrin);
-      size = nir_get_ssbo_size(b, index, .access = access);
+      size = nir_get_ssbo_size(b, 32, index, .access = access);
       break;
    }
 

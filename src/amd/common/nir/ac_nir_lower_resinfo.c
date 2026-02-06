@@ -246,7 +246,7 @@ static bool lower_resinfo(nir_builder *b, nir_instr *instr, void *data)
 
       nir_def *desc = nir_ssbo_descriptor_amd(b, intr->src[0].ssa,
                                               .access = nir_intrinsic_access(intr));
-      result = nir_channel(b, desc, 2);
+      result = nir_u2uN(b, nir_channel(b, desc, 2), nir_instr_def(instr)->bit_size);
    } else if (instr->type == nir_instr_type_intrinsic) {
       nir_intrinsic_instr *intr = nir_instr_as_intrinsic(instr);
       const struct glsl_type *type;

@@ -68,7 +68,7 @@ lower_buffer_load(nir_builder *b, nir_intrinsic_instr *instr)
    if (instr->intrinsic == nir_intrinsic_load_ubo) {
       size = nir_get_ubo_size(b, 32, index);
    } else {
-      size = nir_get_ssbo_size(b, index);
+      size = nir_get_ssbo_size(b, 32, index);
    }
 
    rewrite_offset(b, instr, type_sz, 1, size);
@@ -79,13 +79,13 @@ lower_buffer_store(nir_builder *b, nir_intrinsic_instr *instr)
 {
    uint32_t type_sz = nir_src_bit_size(instr->src[0]) / 8;
    rewrite_offset(b, instr, type_sz, 2,
-                  nir_get_ssbo_size(b, instr->src[1].ssa));
+                  nir_get_ssbo_size(b, 32, instr->src[1].ssa));
 }
 
 static void
 lower_buffer_atomic(nir_builder *b, nir_intrinsic_instr *instr)
 {
-   rewrite_offset(b, instr, 4, 1, nir_get_ssbo_size(b, instr->src[0].ssa));
+   rewrite_offset(b, instr, 4, 1, nir_get_ssbo_size(b, 32, instr->src[0].ssa));
 }
 
 static void
