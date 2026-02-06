@@ -650,6 +650,8 @@ radv_physical_device_init_mem_types(struct radv_physical_device *pdev)
          pdev->memory_types_32bit |= BITFIELD_BIT(i);
       if (pdev->memory_flags[i] & RADEON_FLAG_CPU_ACCESS)
          pdev->memory_types_host_visible |= BITFIELD_BIT(i);
+      if (pdev->memory_flags[i] & RADEON_FLAG_ENCRYPTED)
+         pdev->memory_types_protected |= BITFIELD_BIT(i);
    }
 }
 

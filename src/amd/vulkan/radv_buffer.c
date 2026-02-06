@@ -188,6 +188,9 @@ radv_get_buffer_memory_requirements(struct radv_device *device, VkDeviceSize siz
         VK_BUFFER_USAGE_2_PREPROCESS_BUFFER_BIT_EXT | VK_BUFFER_USAGE_2_DESCRIPTOR_HEAP_BIT_EXT))
       pMemoryRequirements->memoryRequirements.memoryTypeBits = pdev->memory_types_32bit;
 
+   if (flags & VK_BUFFER_CREATE_PROTECTED_BIT)
+      pMemoryRequirements->memoryRequirements.memoryTypeBits &= pdev->memory_types_protected;
+
    if (flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT) {
       pMemoryRequirements->memoryRequirements.alignment = 4096;
    } else {
