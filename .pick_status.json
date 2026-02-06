@@ -984,7 +984,7 @@
         "description": "nir/lower_bool_to_bit_size: Use the correct num_components for conversions",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3180656bbc9d9494418ba2b827691559d729ee80",
         "notes": null
