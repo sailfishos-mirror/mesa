@@ -790,8 +790,8 @@ void pvr_rogue_CmdCopyImage2(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(pvr_image, src, pCopyImageInfo->srcImage);
    VK_FROM_HANDLE(pvr_image, dst, pCopyImageInfo->dstImage);
 
-   const bool can_merge_ds = src->vk.format == VK_FORMAT_D24_UNORM_S8_UINT &&
-                             dst->vk.format == VK_FORMAT_D24_UNORM_S8_UINT;
+   const bool can_merge_ds = pvr_vk_format_is_combined_ds(src->vk.format) &&
+                             pvr_vk_format_is_combined_ds(dst->vk.format);
 
    PVR_CHECK_COMMAND_BUFFER_BUILDING_STATE(cmd_buffer);
 
