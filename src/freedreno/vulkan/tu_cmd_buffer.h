@@ -551,6 +551,7 @@ struct tu_cmd_state
       const struct tu_framebuffer *framebuffer;
       VkRect2D render_areas[MAX_VIEWS];
       bool per_layer_render_area;
+      bool fdm_subsampled;
       enum tu_gmem_layout gmem_layout;
 
       const struct tu_image_view **attachments;
@@ -560,6 +561,7 @@ struct tu_cmd_state
    } suspended_pass;
 
    bool fdm_enabled;
+   bool fdm_subsampled;
 
    bool tessfactor_addr_set;
    bool predication_active;

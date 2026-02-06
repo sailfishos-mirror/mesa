@@ -21,6 +21,7 @@
 #include "tu_lrz.h"
 #include "tu_pipeline.h"
 #include "tu_rmv.h"
+#include "tu_subsampled_image.h"
 
 #include <initializer_list>
 
@@ -506,7 +507,7 @@ lower_ssbo_ubo_intrinsic(struct tu_device *dev,
 
 static nir_def *
 build_bindless(struct tu_device *dev, nir_builder *b,
-               nir_deref_instr *deref, bool is_sampler,
+               nir_deref_instr *deref, unsigned combined_descriptor_offset,
                struct tu_shader *shader,
                const struct tu_pipeline_layout *layout,
                uint32_t read_only_input_attachments,
@@ -568,9 +569,8 @@ build_bindless(struct tu_device *dev, nir_builder *b,
    /* Samplers come second in combined image/sampler descriptors, see
       * write_combined_image_sampler_descriptor().
       */
-   if (is_sampler && bind_layout->type ==
-         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-      offset = 1;
+   if (bind_layout->type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+      offset = combined_descriptor_offset;
    }
    desc_offset =
       nir_imm_int(b, (bind_layout->offset / (4 * FDL6_TEX_CONST_DWORDS)) +
@@ -594,7 +594,7 @@ lower_image_deref(struct tu_device *dev, nir_builder *b,
                   const struct tu_pipeline_layout *layout)
 {
    nir_deref_instr *deref = nir_src_as_deref(instr->src[0]);
-   nir_def *bindless = build_bindless(dev, b, deref, false, shader, layout, 0, false);
+   nir_def *bindless = build_bindless(dev, b, deref, 0, shader, layout, 0, false);
    nir_rewrite_image_intrinsic(instr, bindless, true);
 }
 
@@ -697,42 +697,93 @@ lower_intrinsic(nir_builder *b, nir_intrinsic_instr *instr,
 }
 
 static void
-lower_tex_ycbcr(const struct tu_pipeline_layout *layout,
+lower_tex_subsampled(const struct tu_sampler *sampler,
+                     struct tu_device *dev,
+                     struct tu_shader *shader,
+                     const struct tu_pipeline_layout *layout,
+                     nir_builder *b,
+                     nir_tex_instr *tex)
+{
+   /* Only these ops are allowed with subsampled images */
+   if (tex->op != nir_texop_tex &&
+       tex->op != nir_texop_txl)
+      return;
+
+   b->cursor = nir_before_instr(&tex->instr);
+
+   int tex_src_idx = nir_tex_instr_src_index(tex, nir_tex_src_texture_deref);
+   assert(tex_src_idx >= 0);
+   nir_deref_instr *deref = nir_src_as_deref(tex->src[tex_src_idx].src);
+   nir_def *bindless = build_bindless(dev, b, deref, 2, shader, layout,
+                                      0, /* read_only_input_attachments (not used) */
+                                      false /* dynamic_renderpass (not used)*/
+                                      );
+
+   nir_def *coord = nir_steal_tex_src(tex, nir_tex_src_coord);
+   nir_def *coord_xy = nir_channels(b, coord, 0x3);
+   nir_def *layer = NULL;
+   if (coord->num_components > 2)
+      layer = nir_channel(b, coord, 2);
+
+   /* In order to avoid problems in the math for finding the bin with
+    * an x or y coordinate of exactly 1.0, where we would overflow into the
+    * next bin, we have to clamp to some 1.0 - epsilon. The largest possible
+    * framebuffer is 2^14 pixels currently, and we cannot shift the coordinate
+    * to before the pixel center, so we use 2^-15.
+    */
+   const float epsilon = 0x1p-15f;
+   nir_def *clamped_coord_xy =
+      nir_fmax(b, nir_fmin(b, coord_xy, nir_imm_float(b, 1.0f - epsilon)),
+               nir_imm_float(b, 0.0));
+
+   nir_def *clamped_coord = clamped_coord_xy;
+   if (layer) {
+      clamped_coord = nir_vec3(b, nir_channel(b, clamped_coord_xy, 0),
+                               nir_channel(b, clamped_coord_xy, 1),
+                               layer);
+   }
+
+   nir_def *transformed_coord_xy =
+      tu_get_subsampled_coordinates(b, clamped_coord, bindless);
+
+   /* Due to VUID-VkSamplerCreateInfo-flags-02577 we only have to handle
+    * CLAMP_TO_EDGE and CLAMP_TO_BORDER. We implicitly do CLAMP_TO_EDGE to
+    * prevent OOB accesses to the metadata anyway, so we just fixup the
+    * coordinates to pass the original coordinates if OOB.
+    */
+   if (sampler->vk.address_mode_u == VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER) {
+      nir_def *x = nir_channel(b, coord, 0);
+      nir_def *oob = nir_fneu(b, nir_fsat(b, x), x);
+      transformed_coord_xy =
+         nir_vec2(b, nir_bcsel(b, oob, x,
+                               nir_channel(b, transformed_coord_xy, 0)),
+                  nir_channel(b, transformed_coord_xy, 1));
+   }
+
+   if (sampler->vk.address_mode_v == VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER) {
+      nir_def *y = nir_channel(b, coord, 1);
+      nir_def *oob = nir_fneu(b, nir_fsat(b, y), y);
+      transformed_coord_xy =
+         nir_vec2(b, nir_channel(b, transformed_coord_xy, 0),
+                  nir_bcsel(b, oob, y,
+                               nir_channel(b, transformed_coord_xy, 1)));
+   }
+
+   nir_def *transformed_coord = transformed_coord_xy;
+   if (layer) {
+      transformed_coord = nir_vec3(b, nir_channel(b, transformed_coord_xy, 0),
+                                   nir_channel(b, transformed_coord_xy, 1),
+                                   layer);
+   }
+
+   nir_tex_instr_add_src(tex, nir_tex_src_coord, transformed_coord);
+}
+
+static void
+lower_tex_ycbcr(const struct vk_ycbcr_conversion_state *ycbcr_sampler,
                 nir_builder *builder,
                 nir_tex_instr *tex)
 {
-   int deref_src_idx = nir_tex_instr_src_index(tex, nir_tex_src_texture_deref);
-   assert(deref_src_idx >= 0);
-   nir_deref_instr *deref = nir_src_as_deref(tex->src[deref_src_idx].src);
-
-   nir_variable *var = nir_deref_instr_get_variable(deref);
-   const struct tu_descriptor_set_layout *set_layout =
-      layout->set[var->data.descriptor_set].layout;
-   const struct tu_descriptor_set_binding_layout *binding =
-      &set_layout->binding[var->data.binding];
-   const struct vk_ycbcr_conversion_state *ycbcr_samplers =
-      tu_immutable_ycbcr_samplers(set_layout, binding);
-
-   if (!ycbcr_samplers)
-      return;
-
-   /* For the following instructions, we don't apply any change */
-   if (tex->op == nir_texop_txs ||
-       tex->op == nir_texop_query_levels ||
-       tex->op == nir_texop_lod)
-      return;
-
-   assert(tex->texture_index == 0);
-   unsigned array_index = 0;
-   if (deref->deref_type != nir_deref_type_var) {
-      assert(deref->deref_type == nir_deref_type_array);
-      if (!nir_src_is_const(deref->arr.index))
-         return;
-      array_index = nir_src_as_uint(deref->arr.index);
-      array_index = MIN2(array_index, binding->array_size - 1);
-   }
-   const struct vk_ycbcr_conversion_state *ycbcr_sampler = ycbcr_samplers + array_index;
-
    if (ycbcr_sampler->ycbcr_model == VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY)
       return;
 
@@ -756,6 +807,55 @@ lower_tex_ycbcr(const struct tu_pipeline_layout *layout,
    builder->cursor = nir_before_instr(&tex->instr);
 }
 
+static void
+lower_tex_immutable(struct tu_device *dev,
+                    struct tu_shader *shader,
+                    const struct tu_pipeline_layout *layout,
+                    nir_builder *builder,
+                    nir_tex_instr *tex)
+{
+   int deref_src_idx = nir_tex_instr_src_index(tex, nir_tex_src_texture_deref);
+   assert(deref_src_idx >= 0);
+   nir_deref_instr *deref = nir_src_as_deref(tex->src[deref_src_idx].src);
+
+   nir_variable *var = nir_deref_instr_get_variable(deref);
+   const struct tu_descriptor_set_layout *set_layout =
+      layout->set[var->data.descriptor_set].layout;
+   const struct tu_descriptor_set_binding_layout *binding =
+      &set_layout->binding[var->data.binding];
+
+   /* For the following instructions, we don't apply any change */
+   if (tex->op == nir_texop_txs ||
+       tex->op == nir_texop_query_levels ||
+       tex->op == nir_texop_lod)
+      return;
+
+   assert(tex->texture_index == 0);
+   unsigned array_index = 0;
+   if (deref->deref_type != nir_deref_type_var) {
+      assert(deref->deref_type == nir_deref_type_array);
+      if (!nir_src_is_const(deref->arr.index))
+         return;
+      array_index = nir_src_as_uint(deref->arr.index);
+      array_index = MIN2(array_index, binding->array_size - 1);
+   }
+
+   const struct vk_ycbcr_conversion_state *ycbcr_samplers =
+      tu_immutable_ycbcr_samplers(set_layout, binding);
+   if (ycbcr_samplers) {
+      const struct vk_ycbcr_conversion_state *ycbcr_sampler = ycbcr_samplers + array_index;
+      lower_tex_ycbcr(ycbcr_sampler, builder, tex);
+   }
+
+   const struct tu_sampler *samplers =
+      tu_immutable_samplers(set_layout, binding);
+   if (samplers) {
+      const struct tu_sampler *sampler = samplers + array_index;
+      if (sampler->vk.flags & VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT)
+         lower_tex_subsampled(sampler, dev, shader, layout, builder, tex);
+   }
+}
+
 static bool
 lower_tex_impl(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
           struct tu_shader *shader, const struct tu_pipeline_layout *layout,
@@ -765,7 +865,7 @@ lower_tex_impl(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
    int sampler_src_idx = nir_tex_instr_src_index(tex, ref ? nir_tex_src_sampler_2_deref : nir_tex_src_sampler_deref);
    if (sampler_src_idx >= 0) {
       nir_deref_instr *deref = nir_src_as_deref(tex->src[sampler_src_idx].src);
-      nir_def *bindless = build_bindless(dev, b, deref, true, shader, layout,
+      nir_def *bindless = build_bindless(dev, b, deref, 1, shader, layout,
                                          read_only_input_attachments,
                                          dynamic_renderpass);
       nir_src_rewrite(&tex->src[sampler_src_idx].src, bindless);
@@ -775,7 +875,7 @@ lower_tex_impl(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
    int tex_src_idx = nir_tex_instr_src_index(tex, ref ? nir_tex_src_texture_2_deref : nir_tex_src_texture_deref);
    if (tex_src_idx >= 0) {
       nir_deref_instr *deref = nir_src_as_deref(tex->src[tex_src_idx].src);
-      nir_def *bindless = build_bindless(dev, b, deref, false, shader, layout,
+      nir_def *bindless = build_bindless(dev, b, deref, 0, shader, layout,
                                          read_only_input_attachments,
                                          dynamic_renderpass);
       nir_src_rewrite(&tex->src[tex_src_idx].src, bindless);
@@ -800,7 +900,7 @@ lower_tex(nir_builder *b, nir_tex_instr *tex, struct tu_device *dev,
       lower_tex_impl(b, tex, dev, shader, layout, read_only_input_attachments, dynamic_renderpass, false);
       lower_tex_impl(b, tex, dev, shader, layout, read_only_input_attachments, dynamic_renderpass, true);
    } else {
-      lower_tex_ycbcr(layout, b, tex);
+      lower_tex_immutable(dev, shader, layout, b, tex);
       lower_tex_impl(b, tex, dev, shader, layout, read_only_input_attachments, dynamic_renderpass, false);
    }
 

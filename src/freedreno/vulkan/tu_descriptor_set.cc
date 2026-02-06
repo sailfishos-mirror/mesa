@@ -32,6 +32,7 @@
 #include "tu_image.h"
 #include "tu_formats.h"
 #include "tu_rmv.h"
+#include "tu_subsampled_image.h"
 #include "bvh/tu_build_interface.h"
 
 static inline uint8_t *
@@ -43,7 +44,8 @@ pool_base(struct tu_descriptor_pool *pool)
 static uint32_t
 descriptor_size(struct tu_device *dev,
                 const VkDescriptorSetLayoutBinding *binding,
-                VkDescriptorType type)
+                VkDescriptorType type,
+                bool subsampled)
 {
    switch (type) {
    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
@@ -54,7 +56,7 @@ descriptor_size(struct tu_device *dev,
        * descriptors which are less than 16 dwords. However combined images
        * and samplers are actually two descriptors, so they have size 2.
        */
-      return FDL6_TEX_CONST_DWORDS * 4 * 2;
+      return FDL6_TEX_CONST_DWORDS * 4 * (subsampled ? 3 : 2);
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
       /* isam.v allows using a single 16-bit descriptor for both 16-bit and
@@ -80,7 +82,8 @@ mutable_descriptor_size(struct tu_device *dev,
    uint32_t max_size = 0;
 
    for (uint32_t i = 0; i < list->descriptorTypeCount; i++) {
-      uint32_t size = descriptor_size(dev, NULL, list->pDescriptorTypes[i]);
+      uint32_t size = descriptor_size(dev, NULL, list->pDescriptorTypes[i],
+                                      false);
       max_size = MAX2(max_size, size);
    }
 
@@ -194,6 +197,7 @@ tu_CreateDescriptorSetLayout(
       set_layout->binding[b].dynamic_offset_offset = dynamic_offset_size;
       set_layout->binding[b].shader_stages = binding->stageFlags;
 
+      bool has_subsampled_sampler = false;
       if ((binding->descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
            binding->descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER) &&
           binding->pImmutableSamplers) {
@@ -208,8 +212,12 @@ tu_CreateDescriptorSetLayout(
 
          bool has_ycbcr_sampler = false;
          for (unsigned i = 0; i < pCreateInfo->pBindings[j].descriptorCount; ++i) {
-            if (tu_sampler_from_handle(binding->pImmutableSamplers[i])->vk.ycbcr_conversion)
+            VK_FROM_HANDLE(tu_sampler, sampler,
+                           binding->pImmutableSamplers[i]);
+            if (sampler->vk.ycbcr_conversion)
                has_ycbcr_sampler = true;
+            if (sampler->vk.flags & VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT)
+               has_subsampled_sampler = true;
          }
 
          if (has_ycbcr_sampler) {
@@ -236,7 +244,8 @@ tu_CreateDescriptorSetLayout(
             mutable_descriptor_size(device, &mutable_info->pMutableDescriptorTypeLists[j]);
       } else {
          set_layout->binding[b].size =
-            descriptor_size(device, binding, binding->descriptorType);
+            descriptor_size(device, binding, binding->descriptorType,
+                            has_subsampled_sampler);
       }
 
       if (binding->descriptorType == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK)
@@ -365,7 +374,19 @@ tu_GetDescriptorSetLayoutSupport(
          descriptor_sz =
             mutable_descriptor_size(device, &mutable_info->pMutableDescriptorTypeLists[i]);
       } else {
-         descriptor_sz = descriptor_size(device, binding, binding->descriptorType);
+         bool has_subsampled_sampler = false;
+         if (binding->pImmutableSamplers) {
+            for (unsigned i = 0; i < binding->descriptorType; i++) {
+               VK_FROM_HANDLE(tu_sampler, sampler,
+                              binding->pImmutableSamplers[i]);
+               if (sampler->vk.flags & VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT) {
+                  has_subsampled_sampler = true;
+                  break;
+               }
+            }
+         }
+         descriptor_sz = descriptor_size(device, binding, binding->descriptorType,
+                                         has_subsampled_sampler);
       }
       uint64_t descriptor_alignment = 4 * FDL6_TEX_CONST_DWORDS;
 
@@ -453,12 +474,25 @@ sha1_update_descriptor_set_binding_layout(struct mesa_sha1 *ctx,
    SHA1_UPDATE_VALUE(ctx, layout->dynamic_offset_offset);
    SHA1_UPDATE_VALUE(ctx, layout->immutable_samplers_offset);
 
+   const struct tu_sampler *samplers =
+      tu_immutable_samplers(set_layout, layout);
+
    const struct vk_ycbcr_conversion_state *ycbcr_samplers =
       tu_immutable_ycbcr_samplers(set_layout, layout);
 
    if (ycbcr_samplers) {
       for (unsigned i = 0; i < layout->array_size; i++)
          sha1_update_ycbcr_sampler(ctx, ycbcr_samplers + i);
+   }
+
+   if (samplers) {
+      for (unsigned i = 0; i < layout->array_size; i++) {
+         if (samplers[i].vk.flags & VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT) {
+            SHA1_UPDATE_VALUE(ctx, i);
+            SHA1_UPDATE_VALUE(ctx, samplers[i].vk.address_mode_u);
+            SHA1_UPDATE_VALUE(ctx, samplers[i].vk.address_mode_v);
+         }
+      }
    }
 }
 
@@ -721,7 +755,7 @@ tu_CreateDescriptorPool(VkDevice _device,
       switch (pool_size->type) {
       case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
       case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-         dynamic_size += descriptor_size(device, NULL, pool_size->type) *
+         dynamic_size += descriptor_size(device, NULL, pool_size->type, false) *
             pool_size->descriptorCount;
          break;
       case VK_DESCRIPTOR_TYPE_MUTABLE_EXT:
@@ -740,7 +774,11 @@ tu_CreateDescriptorPool(VkDevice _device,
          bo_size += pool_size->descriptorCount;
          break;
       default:
-         bo_size += descriptor_size(device, NULL, pool_size->type) *
+         /* We don't know whether this pool will be used with subsampled
+          * images, so we have to assume it may be.
+          */
+         bo_size += descriptor_size(device, NULL, pool_size->type,
+                                    device->vk.enabled_features.fragmentDensityMap) *
                               pool_size->descriptorCount;
          break;
       }
@@ -1084,14 +1122,34 @@ static void
 write_combined_image_sampler_descriptor(uint32_t *dst,
                                         VkDescriptorType descriptor_type,
                                         const VkDescriptorImageInfo *image_info,
-                                        bool has_sampler)
+                                        bool write_sampler,
+                                        const struct tu_sampler *immutable_sampler)
 {
    write_image_descriptor(dst, descriptor_type, image_info);
-   /* copy over sampler state */
-   if (has_sampler) {
-      VK_FROM_HANDLE(tu_sampler, sampler, image_info->sampler);
 
+   /* copy over sampler state */
+   if (write_sampler) {
+      VK_FROM_HANDLE(tu_sampler, sampler, image_info->sampler);
       memcpy(dst + FDL6_TEX_CONST_DWORDS, sampler->descriptor, sizeof(sampler->descriptor));
+   }
+
+   /* It's technically legal to sample from a mismatched descriptor (i.e. only
+    * the sampler or only the image has SUBSAMPLED_BIT) but it gives undefined
+    * results. So we have to make sure not to crash or disturb other
+    * descriptors. Therefore we check the sampler, because that's what
+    * triggers allocating extra space in the descriptor set.
+    */
+   if (immutable_sampler &&
+       (immutable_sampler->vk.flags & VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT)) {
+      VK_FROM_HANDLE(tu_image_view, iview, image_info->imageView);
+      VkDescriptorAddressInfoEXT info = {
+         .address = iview->image->iova +
+            iview->image->subsampled_metadata_offset +
+            iview->vk.base_array_layer * sizeof(struct tu_subsampled_metadata),
+         .range =
+            iview->vk.layer_count * sizeof(struct tu_subsampled_metadata),
+      };
+      write_ubo_descriptor_addr(dst + 2 * FDL6_TEX_CONST_DWORDS, &info);
    }
 }
 
@@ -1156,12 +1214,15 @@ tu_GetDescriptorEXT(
       write_image_descriptor(dest, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                              pDescriptorInfo->data.pStorageImage);
       break;
-   case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+   case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
+      VK_FROM_HANDLE(tu_sampler, sampler,
+                     pDescriptorInfo->data.pCombinedImageSampler->sampler);
       write_combined_image_sampler_descriptor(dest,
                                               VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                               pDescriptorInfo->data.pCombinedImageSampler,
-                                              true);
+                                              true, sampler);
       break;
+   }
    case VK_DESCRIPTOR_TYPE_SAMPLER:
       write_sampler_descriptor(dest, *pDescriptorInfo->data.pSampler);
       break;
@@ -1285,7 +1346,8 @@ tu_update_descriptor_sets(const struct tu_device *device,
             write_combined_image_sampler_descriptor(ptr,
                                                     writeset->descriptorType,
                                                     writeset->pImageInfo + j,
-                                                    !binding_layout->immutable_samplers_offset);
+                                                    !samplers,
+                                                    samplers ? &samplers[writeset->dstArrayElement + j] : NULL);
 
             if (copy_immutable_samplers)
                write_sampler_push(ptr + FDL6_TEX_CONST_DWORDS, &samplers[writeset->dstArrayElement + j]);
@@ -1636,7 +1698,8 @@ tu_update_descriptor_set_with_template(
             write_combined_image_sampler_descriptor(ptr,
                                                     templ->entry[i].descriptor_type,
                                                     (const VkDescriptorImageInfo *) src,
-                                                    !samplers);
+                                                    !samplers,
+                                                    samplers ? &samplers[j] : NULL);
             if (templ->entry[i].copy_immutable_samplers)
                write_sampler_push(ptr + FDL6_TEX_CONST_DWORDS, &samplers[j]);
             break;

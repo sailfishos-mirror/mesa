@@ -100,4 +100,14 @@ tu_cmd_fill_buffer_addr(VkCommandBuffer commandBuffer,
                         VkDeviceSize fillSize,
                         uint32_t data);
 
+template <chip CHIP>
+void
+tu_blit_subsampled_apron(struct tu_cmd_buffer *cmd,
+                         struct tu_cs *cs,
+                         const struct tu_image_view *iview,
+                         unsigned layer,
+                         const VkRect2D *dst_coord,
+                         const tu_rect2d_float *src_coord,
+                         unsigned count);
+
 #endif /* TU_CLEAR_BLIT_H */

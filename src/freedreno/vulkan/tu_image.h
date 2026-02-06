@@ -34,6 +34,7 @@ struct tu_image
    struct vk_image vk;
 
    struct fdl_layout layout[3];
+   uint64_t subsampled_metadata_offset;
    uint64_t total_size;
 
    /* Set when bound */

@@ -2732,30 +2732,44 @@ fdm_apply_viewports(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
        * renderpass, views will be 1 and we also have to replicate the 0'th
        * view to every view.
        */
-      VkExtent2D frag_area =
-         (state->share_scale || views == 1) ? tile->frag_areas[0] : tile->frag_areas[i];
-      VkRect2D bin =
-         (state->share_scale || views == 1) ? bins[0] : bins[i];
-      VkOffset2D hw_viewport_offset =
-         (state->share_scale || views == 1) ? hw_viewport_offsets[0] :
-         hw_viewport_offsets[i];
+      unsigned view = (state->share_scale || views == 1) ? 0 : i;
+      VkExtent2D frag_area = tile->frag_areas[view];
+      VkRect2D bin = bins[view];
+      VkOffset2D hw_viewport_offset = hw_viewport_offsets[view];
       /* Implement fake_single_viewport by replicating viewport 0 across all
        * views.
        */
       VkViewport viewport =
          state->fake_single_viewport ? state->vp.viewports[0] : state->vp.viewports[i];
-      if ((frag_area.width == 1 && frag_area.height == 1 &&
-           common_bin_offset.x == bin.offset.x &&
-           common_bin_offset.y == bin.offset.y) ||
-          /* When in a custom resolve operation (TODO: and using
-           * non-subsampled images) we switch to framebuffer coordinates so we
-           * shouldn't apply the transform.  However the binning pass isn't
-           * aware of this, so we have to keep applying the transform for
-           * binning.
-           */
-          (state->custom_resolve && !binning)) {
+      if (frag_area.width == 1 && frag_area.height == 1 &&
+          common_bin_offset.x == bin.offset.x &&
+          common_bin_offset.y == bin.offset.y) {
          vp.viewports[i] = viewport;
          continue;
+      }
+
+      /* When custom resolve is enabled, we need to apply the viewport
+       * transform so that we render to where we would've blitted the tile to.
+       * Without subsampled images, this the framebuffer space bin (so there
+       * is effectively no transform). With subsampled images, this is
+       * subsampled space, which may not be the same as rendering space if
+       * we had to shift the tile or with FDM offset.
+       */
+      VkOffset2D tile_start = common_bin_offset;
+      if (state->custom_resolve && !binning) {
+         if (tile->subsampled)
+            tile_start = tile->subsampled_pos[view].offset;
+         else
+            tile_start = bin.offset;
+      }
+
+      /* When in a custom resolve operation without subsampling we shouldn't
+       * scale the viewport down.  However the binning pass isn't aware of
+       * this, so we have to keep applying the transform for binning.
+       */
+      if (state->custom_resolve &&
+          !(tile->subsampled_views & (1u << view)) && !binning) {
+         frag_area = (VkExtent2D) {1, 1};
       }
 
       float scale_x = (float) 1.0f / frag_area.width;
@@ -2767,9 +2781,12 @@ fdm_apply_viewports(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
       vp.viewports[i].height = viewport.height * scale_y;
 
       VkOffset2D offset = tu_fdm_per_bin_offset(frag_area, bin,
-                                                common_bin_offset);
-      offset.x -= hw_viewport_offset.x;
-      offset.y -= hw_viewport_offset.y;
+                                                tile_start);
+      /* FDM offsets are disabled with custom resolve. */
+      if (!state->custom_resolve) {
+         offset.x -= hw_viewport_offset.x;
+         offset.y -= hw_viewport_offset.y;
+      }
 
       vp.viewports[i].x = scale_x * viewport.x + offset.x;
       vp.viewports[i].y = scale_y * viewport.y + offset.y;
@@ -2861,15 +2878,33 @@ fdm_apply_scissors(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
    struct vk_viewport_state vp = state->vp;
 
    for (unsigned i = 0; i < vp.scissor_count; i++) {
-      VkExtent2D frag_area =
-         (state->share_scale || views == 1) ? tile->frag_areas[0] : tile->frag_areas[i];
-      VkRect2D bin =
-         (state->share_scale || views == 1) ? bins[0] : bins[i];
+      unsigned view = (state->share_scale || views == 1) ? 0 : i;
+      VkExtent2D frag_area = tile->frag_areas[view];
+      VkRect2D bin = bins[view];
       VkRect2D scissor =
          state->fake_single_viewport ? state->vp.scissors[0] : state->vp.scissors[i];
-      VkOffset2D hw_viewport_offset =
-         (state->share_scale || views == 1) ? hw_viewport_offsets[0] :
-         hw_viewport_offsets[i];
+      VkOffset2D hw_viewport_offset = hw_viewport_offsets[view];
+
+      VkOffset2D tile_start = common_bin_offset;
+      if (state->custom_resolve && !binning) {
+         if (tile->subsampled)
+            tile_start = tile->subsampled_pos[view].offset;
+         else
+            tile_start = bin.offset;
+      }
+
+      /* Disable scaling when doing a custom resolve to a non-subsampled image
+       * and not in the binning pass, because we use framebuffer coordinates.
+       */
+      if (state->custom_resolve &&
+          !(tile->subsampled_views & (1u << view)) && !binning) {
+         frag_area = (VkExtent2D) {1, 1};
+      }
+
+      if (!state->custom_resolve) {
+         tile_start.x -= hw_viewport_offset.x;
+         tile_start.y -= hw_viewport_offset.y;
+      }
 
       /* Transform the scissor following the viewport. It's unclear how this
        * is supposed to handle cases where the scissor isn't aligned to the
@@ -2878,22 +2913,7 @@ fdm_apply_scissors(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
        * isn't aligned to the fragment area.
        */
       VkOffset2D offset = tu_fdm_per_bin_offset(frag_area, bin,
-                                                common_bin_offset);
-      offset.x -= hw_viewport_offset.x;
-      offset.y -= hw_viewport_offset.y;
-
-      /* Disable scaling and offset when doing a custom resolve to a
-       * non-subsampled image and not in the binning pass, because we
-       * use framebuffer coordinates.
-       *
-       * TODO: When we support subsampled images, only do this for
-       * non-subsampled images.
-       */
-      if (state->custom_resolve && !binning) {
-         offset = (VkOffset2D) {};
-         frag_area = (VkExtent2D) {1, 1};
-      }
-
+                                                tile_start);
       VkOffset2D min = {
          scissor.offset.x / frag_area.width + offset.x,
          scissor.offset.y / frag_area.height + offset.y,
@@ -2904,26 +2924,17 @@ fdm_apply_scissors(struct tu_cmd_buffer *cmd, struct tu_cs *cs, void *data,
       };
 
       /* Intersect scissor with the scaled bin, this essentially replaces the
-       * window scissor. With custom resolve (TODO: and non-subsampled images)
-       * we have to use the unscaled bin instead.
+       * window scissor. With custom resolve we have to use the unscaled bin
+       * instead.
        */
       uint32_t scaled_width = bin.extent.width / frag_area.width;
       uint32_t scaled_height = bin.extent.height / frag_area.height;
-      int32_t bin_x;
-      int32_t bin_y;
-      if (state->custom_resolve && !binning) {
-         bin_x = bin.offset.x;
-         bin_y = bin.offset.y;
-      } else {
-         bin_x = common_bin_offset.x - hw_viewport_offset.x;
-         bin_y = common_bin_offset.y - hw_viewport_offset.y;
-      }
-      vp.scissors[i].offset.x = MAX2(min.x, bin_x);
-      vp.scissors[i].offset.y = MAX2(min.y, bin_y);
+      vp.scissors[i].offset.x = MAX2(min.x, tile_start.x);
+      vp.scissors[i].offset.y = MAX2(min.y, tile_start.y);
       vp.scissors[i].extent.width =
-         MIN2(max.x, bin_x + scaled_width) - vp.scissors[i].offset.x;
+         MIN2(max.x, tile_start.x + scaled_width) - vp.scissors[i].offset.x;
       vp.scissors[i].extent.height =
-         MIN2(max.y, bin_y + scaled_height) - vp.scissors[i].offset.y;
+         MIN2(max.y, tile_start.y + scaled_height) - vp.scissors[i].offset.y;
    }
 
    TU_CALLX(cs->device, tu6_emit_scissor)(cs, &vp);
