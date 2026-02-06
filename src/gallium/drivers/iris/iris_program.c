@@ -3124,6 +3124,7 @@ iris_compile_cs(struct iris_screen *screen,
       if (subgroup_id_lowered) {
          brw_prog_data->base.push_sizes[0] = 4;
          brw_cs_fill_push_const_info(devinfo, brw_prog_data, 0);
+         brw_prog_data->base.push_sizes[0] = align(4, REG_SIZE);
       } else {
          brw_cs_fill_push_const_info(devinfo, brw_prog_data, -1);
       }

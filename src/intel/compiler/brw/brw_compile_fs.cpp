@@ -1232,13 +1232,9 @@ brw_assign_urb_setup(brw_shader &s)
 
    struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
 
-   uint32_t push_size = 0;
-   for (uint32_t i = 0; i < 4; i++)
-      push_size += prog_data->base.push_sizes[i];
-
    const int urb_start =
       s.payload().num_regs +
-      DIV_ROUND_UP(align(push_size, REG_SIZE * reg_unit(s.devinfo)), REG_SIZE);
+      (align(s.push_data_size, REG_SIZE * reg_unit(s.devinfo)) / REG_SIZE);
    bool read_attribute_payload = false;
 
    /* Offset all the urb_setup[] index by the actual position of the

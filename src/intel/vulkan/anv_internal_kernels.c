@@ -170,6 +170,7 @@ compile_shader(struct anv_device *device,
          .key = &key.fs,
          .prog_data = &prog_data.fs,
       };
+      prog_data.base.push_sizes[0] = align(prog_data.base.push_sizes[0], REG_SIZE);
       program = brw_compile_fs(compiler, &params);
 
       if (!INTEL_DEBUG(DEBUG_SHADER_PRINT)) {
@@ -187,6 +188,7 @@ compile_shader(struct anv_device *device,
       }
    } else {
       brw_cs_fill_push_const_info(device->info, &prog_data.cs, -1);
+      prog_data.base.push_sizes[0] = align(prog_data.base.push_sizes[0], REG_SIZE);
 
       struct genisa_stats stats;
       struct brw_compile_cs_params params = {

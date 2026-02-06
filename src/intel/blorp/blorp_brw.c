@@ -167,6 +167,7 @@ blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
 
    brw_cs_fill_push_const_info(compiler->devinfo, cs_prog_data,
                                offsetof(struct blorp_wm_inputs, subgroup_id) / 4);
+   cs_prog_data->base.push_sizes[0] = align(cs_prog_data->base.push_sizes[0], REG_SIZE);
 
    NIR_PASS(_, nir, brw_nir_lower_cs_intrinsics, compiler->devinfo,
               cs_prog_data);

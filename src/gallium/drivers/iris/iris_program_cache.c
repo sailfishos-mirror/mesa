@@ -354,6 +354,7 @@ iris_ensure_indirect_generation_shader(struct iris_batch *batch)
 
    uint32_t uniform_size =
       screen->vtbl.call_generation_shader(screen, &b);
+   uniform_size = align(uniform_size, REG_SIZE);
 
    nir_shader *nir = b.shader;
 

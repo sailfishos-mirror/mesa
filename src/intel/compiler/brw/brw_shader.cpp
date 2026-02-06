@@ -361,7 +361,8 @@ brw_shader::assign_curb_setup()
    this->push_data_size = 0;
    for (uint32_t i = 0; i < 4; i++) {
       ranges_start[i] = this->push_data_size / REG_SIZE;
-      this->push_data_size += align(prog_data->push_sizes[i], REG_SIZE);
+      assert(prog_data->push_sizes[i] == align(prog_data->push_sizes[i], REG_SIZE));
+      this->push_data_size += prog_data->push_sizes[i];
    }
 
    uint64_t used = 0;
