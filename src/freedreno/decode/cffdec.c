@@ -1252,6 +1252,16 @@ skip_query(void)
    return true;
 }
 
+static const char *
+deprefix(const char *str, const char *prefix)
+{
+   if (!str)
+      return "";
+   if (str == strstr(str, prefix))
+      str += strlen(prefix);
+   return str;
+}
+
 static void
 __do_query(const char *primtype, uint32_t num_indices)
 {
@@ -1279,12 +1289,14 @@ __do_query(const char *primtype, uint32_t num_indices)
          if (regacc_push(&r, regbase + d, reg_val(regbase + d)))
             break;
 
-      printf("%4d: %s(%u,%u-%u,%u):%u:", draw_count, primtype, bin_x1,
-             bin_y1, bin_x2, bin_y2, num_indices);
+      printf("%4d: %s(%u,%u-%u,%u):%u:", draw_count,
+             deprefix(primtype, "DI_PT_"),
+             bin_x1, bin_y1, bin_x2, bin_y2,
+             num_indices);
       if (options->info->chip >= 5)
-         printf("%s:", render_mode);
+         printf("%s:", deprefix(render_mode, "RM6_"));
       if (thread)
-         printf("%s:", thread);
+         printf("%s:", deprefix(thread, "CP_SET_THREAD_"));
       printf("\t%08"PRIx64, r.value);
       if (r.value != lastvals[regbase]) {
          printf("!");
