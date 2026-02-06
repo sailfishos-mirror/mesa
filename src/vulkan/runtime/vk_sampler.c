@@ -190,6 +190,10 @@ vk_sampler_init(struct vk_device *device,
 
    vk_sampler_state_init(&state, pCreateInfo);
 
+   sampler->flags = state.flags;
+   sampler->address_mode_u = state.address_mode_u;
+   sampler->address_mode_v = state.address_mode_v;
+   sampler->address_mode_w = state.address_mode_w;
    sampler->format = state.format;
    sampler->border_color = state.border_color;
    sampler->border_color_value = state.border_color_value;

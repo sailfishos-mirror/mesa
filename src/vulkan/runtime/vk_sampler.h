@@ -116,6 +116,12 @@ void vk_sampler_state_init(struct vk_sampler_state *state,
 struct vk_sampler {
    struct vk_object_base base;
 
+   /** VkSamplerCreateInfo::flags */
+   VkSamplerCreateFlags flags;
+
+   /** VkSamplerCreateInfo::addressModeU,V,W */
+   VkSamplerAddressMode address_mode_u, address_mode_v, address_mode_w;
+
    /** Format of paired image views or VK_FORMAT_UNDEFINED
     *
     * This is taken either from VkSamplerYcbcrConversionCreateInfo::format or
