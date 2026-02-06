@@ -5587,8 +5587,10 @@ bi_vectorize_filter(const nir_instr *instr, const void *data)
       break;
    }
 
-   int dst_bit_size = alu->def.bit_size;
-   if (dst_bit_size == 8)
+   const uint8_t bit_size = nir_alu_instr_is_comparison(alu)
+                            ? nir_src_bit_size(alu->src[0].src)
+                            : alu->def.bit_size;
+   if (bit_size == 8)
       switch (alu->op) {
       case nir_op_imul:
       case nir_op_i2i8:
@@ -5597,7 +5599,7 @@ bi_vectorize_filter(const nir_instr *instr, const void *data)
       default:
          return 2;
       }
-   else if (dst_bit_size == 16)
+   else if (bit_size == 16)
       return 2;
    else
       return 1;
