@@ -9927,7 +9927,7 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
          assert(!(pRenderingInfo->flags & VK_RENDERING_RESUMING_BIT));
          radv_handle_rendering_image_transition(cmd_buffer, color_att[i].iview, pRenderingInfo->layerCount,
                                                 pRenderingInfo->viewMask, initial_layout, VK_IMAGE_LAYOUT_UNDEFINED,
-                                                color_att[i].layout, VK_IMAGE_LAYOUT_UNDEFINED, &sample_locations);
+                                                color_att[i].layout, VK_IMAGE_LAYOUT_UNDEFINED, NULL);
       }
 
       if (pdev->info.gfx_level >= GFX9 && iview->image->dcc_sign_reinterpret) {
@@ -10012,9 +10012,9 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
 
       if (initial_depth_layout != ds_att.layout || initial_stencil_layout != ds_att.stencil_layout) {
          assert(!(pRenderingInfo->flags & VK_RENDERING_RESUMING_BIT));
-         radv_handle_rendering_image_transition(cmd_buffer, ds_att.iview, pRenderingInfo->layerCount,
-                                                pRenderingInfo->viewMask, initial_depth_layout, initial_stencil_layout,
-                                                ds_att.layout, ds_att.stencil_layout, &sample_locations);
+         radv_handle_rendering_image_transition(
+            cmd_buffer, ds_att.iview, pRenderingInfo->layerCount, pRenderingInfo->viewMask, initial_depth_layout,
+            initial_stencil_layout, ds_att.layout, ds_att.stencil_layout, sample_locs_info ? &sample_locations : NULL);
       }
 
       screen_scissor.width = MIN2(screen_scissor.width, ds_att.iview->vk.extent.width);
