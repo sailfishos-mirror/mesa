@@ -549,36 +549,6 @@ pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
    uint32_t max_slices;
    uint32_t flags = 0U;
 
-   if (pvr_vk_format_is_combined_ds(src->vk.format) &&
-       pvr_vk_format_is_combined_ds(dst->vk.format) &&
-       region->srcSubresource.aspectMask !=
-          (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) {
-      /* Takes the stencil of the source and the depth of the destination and
-       * combines the two interleaved.
-       */
-      flags |= PVR_TRANSFER_CMD_FLAGS_DSMERGE;
-
-      if (region->srcSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) {
-         /* Takes the depth of the source and the stencil of the destination and
-          * combines the two interleaved.
-          */
-         flags |= PVR_TRANSFER_CMD_FLAGS_PICKD;
-      }
-   }
-
-   if (src->vk.samples > 1U && dst->vk.samples < 2U) {
-      /* Blend is not defined for integer formats */
-      if (resolve_op == PVR_RESOLVE_BLEND && vk_format_is_int(src->vk.format)) {
-         /* Override for either color or DS */
-         resolve_op = PVR_RESOLVE_SAMPLE0;
-      }
-   } else {
-      assert(!ds_transfer_cmd ||
-             ds_transfer_cmd->sources[0].resolve_op == PVR_RESOLVE_DEFAULT);
-      /* Override for either color or DS */
-      resolve_op = PVR_RESOLVE_DEFAULT;
-   }
-
    src_extent = region->extent;
    dst_extent = region->extent;
 
@@ -616,6 +586,36 @@ pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
             vk_format_get_plane_aspect_format(src->vk.format,
                                               region->srcSubresource.aspectMask));
       src_format = dst_format;
+   }
+
+   if (pvr_vk_format_is_combined_ds(src_format) &&
+       pvr_vk_format_is_combined_ds(dst_format) &&
+       region->srcSubresource.aspectMask !=
+          (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) {
+      /* Takes the stencil of the source and the depth of the destination and
+       * combines the two interleaved.
+       */
+      flags |= PVR_TRANSFER_CMD_FLAGS_DSMERGE;
+
+      if (region->srcSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) {
+         /* Takes the depth of the source and the stencil of the destination and
+          * combines the two interleaved.
+          */
+         flags |= PVR_TRANSFER_CMD_FLAGS_PICKD;
+      }
+   }
+
+   if (src->vk.samples > 1U && dst->vk.samples < 2U) {
+      /* Blend is not defined for integer formats */
+      if (resolve_op == PVR_RESOLVE_BLEND && vk_format_is_int(src_format)) {
+         /* Override for either color or DS */
+         resolve_op = PVR_RESOLVE_SAMPLE0;
+      }
+   } else {
+      assert(!ds_transfer_cmd ||
+             ds_transfer_cmd->sources[0].resolve_op == PVR_RESOLVE_DEFAULT);
+      /* Override for either color or DS */
+      resolve_op = PVR_RESOLVE_DEFAULT;
    }
 
    src_layers =
