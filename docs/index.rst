@@ -65,7 +65,6 @@ Linux, FreeBSD, and other operating systems.
    egl
    opengles
    envvars
-   debugging
    perf
    gpu-perf-tracing
    extensions
