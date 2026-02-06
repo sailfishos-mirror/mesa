@@ -61,7 +61,7 @@ Linux, FreeBSD, and other operating systems.
    :caption: User Topics
    :hidden:
 
-   shading
+   glsl
    egl
    opengles
    envvars
