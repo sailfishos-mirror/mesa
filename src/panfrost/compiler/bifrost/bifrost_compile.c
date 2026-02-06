@@ -5590,7 +5590,9 @@ bi_vectorize_filter(const nir_instr *instr, const void *data)
    const uint8_t bit_size = nir_alu_instr_is_comparison(alu)
                             ? nir_src_bit_size(alu->src[0].src)
                             : alu->def.bit_size;
-   if (bit_size == 8)
+   if (bit_size == 1)
+      return 0;
+   else if (bit_size == 8)
       switch (alu->op) {
       case nir_op_imul:
       case nir_op_i2i8:
@@ -5871,9 +5873,9 @@ bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust2_mode
    if (pan_arch(gpu_id) < 9)
       NIR_PASS(_, nir, bifrost_nir_opt_boolean_bitwise);
 
+   NIR_PASS(_, nir, nir_lower_bool_to_bitsize);
    NIR_PASS(_, nir, nir_lower_alu_width, bi_vectorize_filter, &gpu_id);
    NIR_PASS(_, nir, nir_opt_vectorize, bi_vectorize_filter, &gpu_id);
-   NIR_PASS(_, nir, nir_lower_bool_to_bitsize);
 
    /* Prepass to simplify instruction selection */
    bool late_algebraic_progress = true;
