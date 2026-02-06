@@ -185,7 +185,6 @@ radv_get_update_scratch_layout(struct radv_device *device, const struct vk_accel
                                struct update_scratch_layout *scratch)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   uint32_t internal_count = MAX2(state->leaf_node_count, 2) - 1;
    uint32_t offset = 0;
 
    memset(scratch, 0, sizeof(*scratch));
@@ -195,11 +194,11 @@ radv_get_update_scratch_layout(struct radv_device *device, const struct vk_accel
       offset += sizeof(struct vk_bvh_geometry_data) * state->build_info->geometryCount;
 
       scratch->bounds_offsets = offset;
-      offset += sizeof(vk_aabb) * internal_count;
+      offset += sizeof(vk_aabb) * state->internal_node_count;
    }
 
    scratch->internal_ready_count_offset = offset;
-   offset += sizeof(uint32_t) * internal_count;
+   offset += sizeof(uint32_t) * state->internal_node_count;
 
    scratch->size = offset;
 }
@@ -509,11 +508,9 @@ radv_encode_as_gfx12(VkCommandBuffer commandBuffer, const struct vk_acceleration
    };
    radv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
 
-   uint32_t internal_count = MAX2(state->leaf_node_count, 2) - 1;
-
    struct radv_dispatch_info dispatch = {
       .ordered = true,
-      .blocks = {DIV_ROUND_UP(internal_count * 8, 64), 1, 1},
+      .blocks = {DIV_ROUND_UP(state->internal_node_count * 8, 64), 1, 1},
    };
 
    radv_compute_dispatch(cmd_buffer, &dispatch);

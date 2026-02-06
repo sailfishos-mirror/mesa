@@ -128,6 +128,7 @@ struct vk_acceleration_structure_build_state {
    const VkAccelerationStructureBuildGeometryInfoKHR *build_info;
    const VkAccelerationStructureBuildRangeInfoKHR *build_range_infos;
    uint32_t leaf_node_count;
+   uint32_t internal_node_count;
    struct vk_scratch_layout scratch;
    struct vk_build_config config;
 };
