@@ -2942,9 +2942,11 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       return;
    }
 
+   case nir_op_unpack_32_4x8:
    case nir_op_unpack_32_2x16: {
       /* Should have been scalarized */
-      assert(comps == 2 && sz == 16);
+      assert(sz == 8 || sz == 16);
+      assert(comps * sz == 32);
 
       bi_index vec = bi_src_index(&instr->src[0].src);
       unsigned chan = instr->src[0].swizzle[0];
