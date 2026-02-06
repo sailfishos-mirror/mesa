@@ -1485,13 +1485,11 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
             subpass->unresolve_attachments[i].attachment = att_idx;
          else
             subpass->unresolve_attachments[i].attachment = VK_ATTACHMENT_UNUSED;
-         if (att_info->storeOp == VK_ATTACHMENT_STORE_OP_STORE) {
+         if (att_info->storeOp == VK_ATTACHMENT_STORE_OP_STORE)
             subpass->resolve_attachments[i].attachment = att_idx;
-            att->will_be_resolved = true;
-         } else {
+         else
             subpass->resolve_attachments[i].attachment = VK_ATTACHMENT_UNUSED;
-            att->will_be_resolved = false;
-         }
+         att->will_be_resolved = false;
          attachment_set_ops(device, att, VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                             VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                             att_info->storeOp,
@@ -1594,15 +1592,13 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
             if (store) {
                unsigned i = subpass->resolve_count++;
                subpass->resolve_attachments[i].attachment = att_idx;
-               att->will_be_resolved = true;
                subpass->resolve_depth_stencil = true;
-            } else {
-               att->will_be_resolved = false;
             }
             attachment_set_ops(device, att, VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                                VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                                store_op, stencil_store_op);
             att_is_msrtss = true;
+            att->will_be_resolved = false;
             subpass->samples = msrtss->rasterizationSamples;
          } else {
             att->gmem = true;
@@ -1736,6 +1732,8 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
                                VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                VK_ATTACHMENT_STORE_OP_DONT_CARE);
             subpass->color_attachments[i].attachment = att_idx;
+            att->will_be_resolved =
+               att_info->storeOp == VK_ATTACHMENT_STORE_OP_STORE;
          }
       }
 
@@ -1769,6 +1767,13 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
                att->used_views = info->viewMask;
                att->user_att = subpass->depth_stencil_attachment.attachment;
                subpass->depth_stencil_attachment.attachment = att_idx;
+               att->will_be_resolved =
+                  (info->pDepthAttachment &&
+                   info->pDepthAttachment->imageView &&
+                   info->pDepthAttachment->storeOp == VK_ATTACHMENT_STORE_OP_STORE) ||
+                  (info->pStencilAttachment &&
+                   info->pStencilAttachment->imageView &&
+                   info->pStencilAttachment->storeOp == VK_ATTACHMENT_STORE_OP_STORE);
             }
          }
       }
