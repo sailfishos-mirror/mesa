@@ -218,7 +218,7 @@ struct radv_attachment {
 struct radv_rendering_state {
    bool active;
    bool has_image_views;
-   bool has_custom_resolves;
+   VkRenderingFlags flags;
    VkRect2D area;
    uint32_t layer_count;
    uint32_t view_mask;

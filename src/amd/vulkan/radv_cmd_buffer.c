@@ -10020,7 +10020,7 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
    struct radv_rendering_state *render = &cmd_buffer->state.render;
    render->active = true;
    render->has_image_views = true;
-   render->has_custom_resolves = !!(pRenderingInfo->flags & VK_RENDERING_CUSTOM_RESOLVE_BIT_EXT);
+   render->flags = pRenderingInfo->flags;
    render->area = pRenderingInfo->renderArea;
    render->view_mask = pRenderingInfo->viewMask;
    render->layer_count = pRenderingInfo->layerCount;
@@ -10229,7 +10229,7 @@ radv_CmdEndRendering2KHR(VkCommandBuffer commandBuffer, const VkRenderingEndInfo
       .pStencilAttachment = &stencil_att,
    };
 
-   if (render->has_custom_resolves)
+   if (render->flags & (VK_RENDERING_SUSPENDING_BIT | VK_RENDERING_CUSTOM_RESOLVE_BIT_EXT))
       need_resolve = false;
 
    radv_cmd_buffer_reset_rendering(cmd_buffer);
