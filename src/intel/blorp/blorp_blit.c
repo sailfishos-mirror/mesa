@@ -1549,7 +1549,7 @@ blorp_get_blit_kernel_fs(struct blorp_batch *batch,
    struct blorp_context *blorp = batch->blorp;
 
    if (blorp->lookup_shader(batch, key, sizeof(*key),
-                            &params->wm_prog_kernel, &params->wm_prog_data))
+                            &params->wm_prog_kernel, &params->fs_prog_data))
       return true;
 
    void *mem_ctx = ralloc_context(NULL);
@@ -1570,7 +1570,7 @@ blorp_get_blit_kernel_fs(struct blorp_batch *batch,
                            key, sizeof(*key),
                            p.kernel, p.kernel_size,
                            p.prog_data, p.prog_data_size,
-                           &params->wm_prog_kernel, &params->wm_prog_data);
+                           &params->wm_prog_kernel, &params->fs_prog_data);
 
    ralloc_free(mem_ctx);
    return result;

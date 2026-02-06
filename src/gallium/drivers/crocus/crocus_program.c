@@ -1812,8 +1812,8 @@ crocus_compile_fs(struct crocus_context *ice,
    struct crocus_screen *screen = (struct crocus_screen *)ice->ctx.screen;
    const struct elk_compiler *compiler = screen->compiler;
    void *mem_ctx = ralloc_context(NULL);
-   struct elk_wm_prog_data *fs_prog_data =
-      rzalloc(mem_ctx, struct elk_wm_prog_data);
+   struct elk_fs_prog_data *fs_prog_data =
+      rzalloc(mem_ctx, struct elk_fs_prog_data);
    struct elk_stage_prog_data *prog_data = &fs_prog_data->base;
    enum elk_param_builtin *system_values;
    const struct intel_device_info *devinfo = &screen->devinfo;
@@ -2070,12 +2070,12 @@ crocus_update_compiled_clip(struct crocus_context *ice)
    struct crocus_compiled_shader *old = ice->shaders.clip_prog;
    memset(&key, 0, sizeof(key));
 
-   const struct elk_wm_prog_data *wm_prog_data = elk_wm_prog_data(ice->shaders.prog[MESA_SHADER_FRAGMENT]->prog_data);
-   if (wm_prog_data) {
-      key.contains_flat_varying = wm_prog_data->contains_flat_varying;
+   const struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(ice->shaders.prog[MESA_SHADER_FRAGMENT]->prog_data);
+   if (fs_prog_data) {
+      key.contains_flat_varying = fs_prog_data->contains_flat_varying;
       key.contains_noperspective_varying =
-         wm_prog_data->contains_noperspective_varying;
-      memcpy(key.interp_mode, wm_prog_data->interp_mode, sizeof(key.interp_mode));
+         fs_prog_data->contains_noperspective_varying;
+      memcpy(key.interp_mode, fs_prog_data->interp_mode, sizeof(key.interp_mode));
    }
 
    key.primitive = ice->state.reduced_prim_mode;
@@ -2244,10 +2244,10 @@ crocus_update_compiled_sf(struct crocus_context *ice)
 
    struct pipe_rasterizer_state *rs_state = crocus_get_rast_state(ice);
    key.userclip_active = rs_state->clip_plane_enable != 0;
-   const struct elk_wm_prog_data *wm_prog_data = elk_wm_prog_data(ice->shaders.prog[MESA_SHADER_FRAGMENT]->prog_data);
-   if (wm_prog_data) {
-      key.contains_flat_varying = wm_prog_data->contains_flat_varying;
-      memcpy(key.interp_mode, wm_prog_data->interp_mode, sizeof(key.interp_mode));
+   const struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(ice->shaders.prog[MESA_SHADER_FRAGMENT]->prog_data);
+   if (fs_prog_data) {
+      key.contains_flat_varying = fs_prog_data->contains_flat_varying;
+      memcpy(key.interp_mode, fs_prog_data->interp_mode, sizeof(key.interp_mode));
    }
 
    key.do_twoside_color = rs_state->light_twoside;
@@ -2257,7 +2257,7 @@ crocus_update_compiled_sf(struct crocus_context *ice)
       key.point_sprite_coord_replace = rs_state->sprite_coord_enable & 0xff;
       if (rs_state->sprite_coord_enable & (1 << 8))
          key.do_point_coord = 1;
-      if (wm_prog_data && wm_prog_data->urb_setup[VARYING_SLOT_PNTC] != -1)
+      if (fs_prog_data && fs_prog_data->urb_setup[VARYING_SLOT_PNTC] != -1)
          key.do_point_coord = 1;
    }
 

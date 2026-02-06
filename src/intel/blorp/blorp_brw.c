@@ -26,7 +26,7 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
 {
    const struct brw_compiler *compiler = blorp->compiler->brw;
 
-   struct brw_wm_prog_data *wm_prog_data = rzalloc(mem_ctx, struct brw_wm_prog_data);
+   struct brw_fs_prog_data *fs_prog_data = rzalloc(mem_ctx, struct brw_fs_prog_data);
 
    struct brw_nir_compiler_opts opts = {
       .softfp64 = blorp->get_fp64_nir ? blorp->get_fp64_nir(blorp) : NULL,
@@ -53,7 +53,7 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
          .debug_flag = DEBUG_BLORP,
       },
       .key = &wm_key,
-      .prog_data = wm_prog_data,
+      .prog_data = fs_prog_data,
 
       .use_rep_send = use_repclear,
       .max_polygons = 1,
@@ -62,9 +62,9 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
    const unsigned *kernel = brw_compile_fs(compiler, &params);
    return (struct blorp_program){
       .kernel         = kernel,
-      .kernel_size    = wm_prog_data->base.program_size,
-      .prog_data      = wm_prog_data,
-      .prog_data_size = sizeof(*wm_prog_data),
+      .kernel_size    = fs_prog_data->base.program_size,
+      .prog_data      = fs_prog_data,
+      .prog_data_size = sizeof(*fs_prog_data),
    };
 }
 
@@ -222,9 +222,9 @@ blorp_params_get_layer_offset_vs_brw(struct blorp_batch *batch,
       .base = BLORP_BASE_KEY_INIT(BLORP_SHADER_TYPE_LAYER_OFFSET_VS),
    };
 
-   struct brw_wm_prog_data *wm_prog_data = params->wm_prog_data;
-   if (wm_prog_data)
-      blorp_key.num_inputs = wm_prog_data->num_varying_inputs;
+   struct brw_fs_prog_data *fs_prog_data = params->fs_prog_data;
+   if (fs_prog_data)
+      blorp_key.num_inputs = fs_prog_data->num_varying_inputs;
 
    if (blorp->lookup_shader(batch, &blorp_key, sizeof(blorp_key),
                             &params->vs_prog_kernel, &params->vs_prog_data))

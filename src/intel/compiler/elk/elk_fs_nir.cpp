@@ -1965,8 +1965,8 @@ emit_pixel_interpolater_send(const fs_builder &bld,
                              const elk_fs_reg &flag_reg,
                              glsl_interp_mode interpolation)
 {
-   struct elk_wm_prog_data *wm_prog_data =
-      elk_wm_prog_data(bld.shader->stage_prog_data);
+   struct elk_fs_prog_data *fs_prog_data =
+      elk_fs_prog_data(bld.shader->stage_prog_data);
 
    elk_fs_reg srcs[INTERP_NUM_SRCS];
    srcs[INTERP_SRC_OFFSET]       = src;
@@ -1982,10 +1982,10 @@ emit_pixel_interpolater_send(const fs_builder &bld,
        *     This field cannot be set to "Linear Interpolation"
        *     unless Non-Perspective Barycentric Enable in 3DSTATE_CLIP is enabled"
        */
-      wm_prog_data->uses_nonperspective_interp_modes = true;
+      fs_prog_data->uses_nonperspective_interp_modes = true;
    }
 
-   wm_prog_data->pulls_bary = true;
+   fs_prog_data->pulls_bary = true;
 
    return inst;
 }
@@ -3345,13 +3345,13 @@ emit_samplepos_setup(nir_to_elk_state &ntb)
    elk_fs_visitor &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   struct elk_wm_prog_data *wm_prog_data = elk_wm_prog_data(s.prog_data);
+   struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(s.prog_data);
    assert(devinfo->ver >= 6);
 
    const fs_builder abld = bld.annotate("compute sample position");
    elk_fs_reg pos = abld.vgrf(ELK_REGISTER_TYPE_F, 2);
 
-   if (wm_prog_data->persample_dispatch == ELK_NEVER) {
+   if (fs_prog_data->persample_dispatch == ELK_NEVER) {
       /* From ARB_sample_shading specification:
        * "When rendering to a non-multisample buffer, or if multisample
        *  rasterization is disabled, gl_SamplePosition will always be
@@ -3386,8 +3386,8 @@ emit_samplepos_setup(nir_to_elk_state &ntb)
       abld.MUL(offset(pos, abld, i), tmp_f, elk_imm_f(1 / 16.0f));
    }
 
-   if (wm_prog_data->persample_dispatch == ELK_SOMETIMES) {
-      check_dynamic_fs_config(abld, wm_prog_data,
+   if (fs_prog_data->persample_dispatch == ELK_SOMETIMES) {
+      check_dynamic_fs_config(abld, fs_prog_data,
                               INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
       for (unsigned i = 0; i < 2; i++) {
          set_predicate(ELK_PREDICATE_NORMAL,
@@ -3408,7 +3408,7 @@ emit_sampleid_setup(nir_to_elk_state &ntb)
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
    ASSERTED elk_wm_prog_key *key = (elk_wm_prog_key*) s.key;
-   struct elk_wm_prog_data *wm_prog_data = elk_wm_prog_data(s.prog_data);
+   struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(s.prog_data);
    assert(devinfo->ver >= 6);
 
    const fs_builder abld = bld.annotate("compute sample id");
@@ -3508,7 +3508,7 @@ emit_sampleid_setup(nir_to_elk_state &ntb)
    }
 
    if (key->multisample_fbo == ELK_SOMETIMES) {
-      check_dynamic_fs_config(abld, wm_prog_data,
+      check_dynamic_fs_config(abld, fs_prog_data,
                               INTEL_FS_CONFIG_MULTISAMPLE_FBO);
       set_predicate(ELK_PREDICATE_NORMAL,
                     abld.SEL(sample_id, sample_id, elk_imm_ud(0)));
@@ -3525,13 +3525,13 @@ emit_samplemaskin_setup(nir_to_elk_state &ntb)
    elk_fs_visitor &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   struct elk_wm_prog_data *wm_prog_data = elk_wm_prog_data(s.prog_data);
+   struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(s.prog_data);
    assert(devinfo->ver >= 6);
 
    elk_fs_reg coverage_mask =
       fetch_payload_reg(bld, s.fs_payload().sample_mask_in_reg, ELK_REGISTER_TYPE_D);
 
-   if (wm_prog_data->persample_dispatch == ELK_NEVER)
+   if (fs_prog_data->persample_dispatch == ELK_NEVER)
       return coverage_mask;
 
    /* gl_SampleMaskIn[] comes from two sources: the input coverage mask,
@@ -3556,10 +3556,10 @@ emit_samplemaskin_setup(nir_to_elk_state &ntb)
    elk_fs_reg mask = bld.vgrf(ELK_REGISTER_TYPE_D);
    abld.AND(mask, enabled_mask, coverage_mask);
 
-   if (wm_prog_data->persample_dispatch == ELK_ALWAYS)
+   if (fs_prog_data->persample_dispatch == ELK_ALWAYS)
       return mask;
 
-   check_dynamic_fs_config(abld, wm_prog_data,
+   check_dynamic_fs_config(abld, fs_prog_data,
                            INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
    set_predicate(ELK_PREDICATE_NORMAL, abld.SEL(mask, mask, coverage_mask));
 
@@ -3833,10 +3833,10 @@ fs_nir_emit_fs_intrinsic(nir_to_elk_state &ntb,
       elk_fs_reg flag_reg;
       struct elk_wm_prog_key *wm_prog_key = (struct elk_wm_prog_key *) s.key;
       if (wm_prog_key->multisample_fbo == ELK_SOMETIMES) {
-         struct elk_wm_prog_data *wm_prog_data = elk_wm_prog_data(s.prog_data);
+         struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(s.prog_data);
 
          check_dynamic_fs_config(bld.exec_all().group(8, 0),
-                                 wm_prog_data,
+                                 fs_prog_data,
                                  INTEL_FS_CONFIG_MULTISAMPLE_FBO);
          flag_reg = elk_flag_reg(0, 0);
       }

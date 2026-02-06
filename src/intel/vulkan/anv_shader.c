@@ -337,11 +337,11 @@ get_shader_isa_text(struct anv_device *device,
    FILE *stream = open_memstream(&stream_data, &stream_size);
 
    if (shader->vk.stage == MESA_SHADER_FRAGMENT) {
-      const struct brw_wm_prog_data *wm_prog_data = get_shader_wm_prog_data(shader);
+      const struct brw_fs_prog_data *fs_prog_data = get_shader_fs_prog_data(shader);
 
-      int simd8_index = (wm_prog_data->dispatch_8 || wm_prog_data->dispatch_multi) ? 0 : -1;
-      int simd16_index = wm_prog_data->dispatch_16 ? (simd8_index + 1) : -1;
-      int simd32_index = wm_prog_data->dispatch_32 ? (MAX2(simd8_index, simd16_index) + 1) : -1;
+      int simd8_index = (fs_prog_data->dispatch_8 || fs_prog_data->dispatch_multi) ? 0 : -1;
+      int simd16_index = fs_prog_data->dispatch_16 ? (simd8_index + 1) : -1;
+      int simd32_index = fs_prog_data->dispatch_32 ? (MAX2(simd8_index, simd16_index) + 1) : -1;
 
       if (executable_index == simd8_index) {
          brw_disassemble_with_errors(&device->physical->compiler->isa,
@@ -349,11 +349,11 @@ get_shader_isa_text(struct anv_device *device,
       } else if (executable_index == simd16_index) {
          brw_disassemble_with_errors(&device->physical->compiler->isa,
                                      shader->code,
-                                     wm_prog_data->prog_offset_16, NULL, stream);
+                                     fs_prog_data->prog_offset_16, NULL, stream);
       } else if (executable_index == simd32_index) {
          brw_disassemble_with_errors(&device->physical->compiler->isa,
                                      shader->code,
-                                     wm_prog_data->prog_offset_32, NULL, stream);
+                                     fs_prog_data->prog_offset_32, NULL, stream);
       }
    } else {
       brw_disassemble_with_errors(&device->physical->compiler->isa,

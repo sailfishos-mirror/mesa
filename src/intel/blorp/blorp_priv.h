@@ -291,7 +291,7 @@ struct blorp_params
    /* These are pointers to struct {brw,elk}_stage_prog_data. */
    void *vs_prog_data;
    void *sf_prog_data;
-   void *wm_prog_data;
+   void *fs_prog_data;
    void *cs_prog_data;
 
    enum blorp_shader_type shader_type;

@@ -270,30 +270,30 @@ sample_mask_flag_subreg(const brw_shader &s)
 }
 
 inline brw_reg
-brw_dynamic_fs_config(const struct brw_wm_prog_data *wm_prog_data)
+brw_dynamic_fs_config(const struct brw_fs_prog_data *fs_prog_data)
 {
    return byte_offset(
       brw_uniform_reg(
-         wm_prog_data->fs_config_param / REG_SIZE, BRW_TYPE_UD),
-      wm_prog_data->fs_config_param % REG_SIZE);
+         fs_prog_data->fs_config_param / REG_SIZE, BRW_TYPE_UD),
+      fs_prog_data->fs_config_param % REG_SIZE);
 }
 
 inline brw_reg
-brw_dynamic_per_primitive_remap(const struct brw_wm_prog_data *wm_prog_data)
+brw_dynamic_per_primitive_remap(const struct brw_fs_prog_data *fs_prog_data)
 {
    return byte_offset(
       brw_uniform_reg(
-         wm_prog_data->per_primitive_remap_param / REG_SIZE, BRW_TYPE_UD),
-      wm_prog_data->per_primitive_remap_param % REG_SIZE);
+         fs_prog_data->per_primitive_remap_param / REG_SIZE, BRW_TYPE_UD),
+      fs_prog_data->per_primitive_remap_param % REG_SIZE);
 }
 
 enum intel_barycentric_mode brw_barycentric_mode(const struct brw_wm_prog_key *key,
                                                  nir_intrinsic_instr *intr);
 
 uint32_t brw_fb_write_msg_control(const brw_inst *inst,
-                                  const struct brw_wm_prog_data *prog_data);
+                                  const struct brw_fs_prog_data *prog_data);
 
-void brw_compute_urb_setup_index(struct brw_wm_prog_data *wm_prog_data);
+void brw_compute_urb_setup_index(struct brw_fs_prog_data *fs_prog_data);
 
 void brw_from_nir(brw_shader *s);
 

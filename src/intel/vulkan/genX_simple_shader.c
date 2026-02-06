@@ -44,8 +44,8 @@ genX(emit_simpler_shader_init_fragment)(struct anv_simple_shader *state)
 
    struct anv_batch *batch = state->batch;
    struct anv_device *device = state->device;
-   const struct brw_wm_prog_data *prog_data =
-      brw_wm_prog_data_const(state->kernel->prog_data);
+   const struct brw_fs_prog_data *prog_data =
+      brw_fs_prog_data_const(state->kernel->prog_data);
 
    uint32_t *dw = anv_batch_emitn(batch,
                                   1 + 2 * GENX(VERTEX_ELEMENT_STATE_length),
@@ -209,21 +209,21 @@ genX(emit_simpler_shader_init_fragment)(struct anv_simple_shader *state)
 #endif
 
       ps.DispatchGRFStartRegisterForConstantSetupData0 =
-         brw_wm_prog_data_dispatch_grf_start_reg(prog_data, ps, 0);
+         brw_fs_prog_data_dispatch_grf_start_reg(prog_data, ps, 0);
       ps.DispatchGRFStartRegisterForConstantSetupData1 =
-         brw_wm_prog_data_dispatch_grf_start_reg(prog_data, ps, 1);
+         brw_fs_prog_data_dispatch_grf_start_reg(prog_data, ps, 1);
 #if GFX_VER < 20
       ps.DispatchGRFStartRegisterForConstantSetupData2 =
-         brw_wm_prog_data_dispatch_grf_start_reg(prog_data, ps, 2);
+         brw_fs_prog_data_dispatch_grf_start_reg(prog_data, ps, 2);
 #endif
 
       ps.KernelStartPointer0 = state->kernel->kernel.offset +
-         brw_wm_prog_data_prog_offset(prog_data, ps, 0);
+         brw_fs_prog_data_prog_offset(prog_data, ps, 0);
       ps.KernelStartPointer1 = state->kernel->kernel.offset +
-         brw_wm_prog_data_prog_offset(prog_data, ps, 1);
+         brw_fs_prog_data_prog_offset(prog_data, ps, 1);
 #if GFX_VER < 20
       ps.KernelStartPointer2 = state->kernel->kernel.offset +
-         brw_wm_prog_data_prog_offset(prog_data, ps, 2);
+         brw_fs_prog_data_prog_offset(prog_data, ps, 2);
 #endif
 
 #if GFX_VER >= 30

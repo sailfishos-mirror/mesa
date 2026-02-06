@@ -18,7 +18,7 @@ static char const *get_qual_name(int mode)
 }
 
 static void
-gfx4_frag_prog_set_interp_modes(struct elk_wm_prog_data *prog_data,
+gfx4_frag_prog_set_interp_modes(struct elk_fs_prog_data *prog_data,
                                 const struct intel_vue_map *vue_map,
                                 unsigned location, unsigned slot_count,
                                 enum glsl_interp_mode interp)
@@ -40,7 +40,7 @@ gfx4_frag_prog_set_interp_modes(struct elk_wm_prog_data *prog_data,
 /* Set up interpolation modes for every element in the VUE */
 void
 elk_setup_vue_interpolation(const struct intel_vue_map *vue_map, nir_shader *nir,
-                            struct elk_wm_prog_data *prog_data)
+                            struct elk_fs_prog_data *prog_data)
 {
    /* Initialise interp_mode. INTERP_MODE_NONE == 0 */
    memset(prog_data->interp_mode, 0, sizeof(prog_data->interp_mode));

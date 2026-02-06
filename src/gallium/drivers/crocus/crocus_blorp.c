@@ -391,7 +391,7 @@ crocus_blorp_exec(struct blorp_batch *blorp_batch,
    if (blorp_batch->flags & BLORP_BATCH_NO_EMIT_DEPTH_STENCIL)
       skip_bits |= CROCUS_DIRTY_DEPTH_BUFFER;
 
-   if (!params->wm_prog_data)
+   if (!params->fs_prog_data)
       skip_bits |= CROCUS_DIRTY_GEN6_BLEND_STATE;
 
    ice->state.dirty |= ~skip_bits;

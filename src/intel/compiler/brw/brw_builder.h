@@ -1107,7 +1107,7 @@ brw_fetch_barycentric_reg(const brw_builder &bld, uint8_t regs[2]);
 
 void
 brw_check_dynamic_fs_config(const brw_builder &bld,
-                            const struct brw_wm_prog_data *wm_prog_data,
+                            const struct brw_fs_prog_data *fs_prog_data,
                             enum intel_fs_config flag);
 
 inline brw_inst *

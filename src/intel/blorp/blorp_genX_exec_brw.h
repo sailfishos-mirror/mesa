@@ -140,7 +140,7 @@ blorp_emit_post_draw(struct blorp_batch *batch,
                      const struct blorp_params *params);
 
 static inline unsigned
-brw_blorp_get_urb_length(const struct brw_wm_prog_data *prog_data)
+brw_blorp_get_urb_length(const struct brw_fs_prog_data *prog_data)
 {
    if (prog_data == NULL)
       return 1;
@@ -264,9 +264,9 @@ emit_urb_config(struct blorp_batch *batch,
     *
     * where 'n' stands for number of varying inputs expressed as vec4s.
     */
-   struct brw_wm_prog_data *wm_prog_data = params->wm_prog_data;
+   struct brw_fs_prog_data *fs_prog_data = params->fs_prog_data;
    const unsigned num_varyings =
-      wm_prog_data ? wm_prog_data->num_varying_inputs : 0;
+      fs_prog_data ? fs_prog_data->num_varying_inputs : 0;
    const unsigned total_needed = 16 + 16 + num_varyings * 16;
 
    /* The URB size is expressed in units of 64 bytes (512 bits) */
@@ -347,9 +347,9 @@ blorp_emit_input_varying_data(struct blorp_batch *batch,
    const unsigned vec4_size_in_bytes = 4 * sizeof(float);
    const unsigned max_num_varyings =
       DIV_ROUND_UP(sizeof(params->wm_inputs), vec4_size_in_bytes);
-   struct brw_wm_prog_data *wm_prog_data = params->wm_prog_data;
+   struct brw_fs_prog_data *fs_prog_data = params->fs_prog_data;
    const unsigned num_varyings =
-      wm_prog_data ? wm_prog_data->num_varying_inputs : 0;
+      fs_prog_data ? fs_prog_data->num_varying_inputs : 0;
 
    *size = 16 + num_varyings * vec4_size_in_bytes;
 
@@ -364,7 +364,7 @@ blorp_emit_input_varying_data(struct blorp_batch *batch,
    memcpy(inputs, &params->vs_inputs, sizeof(params->vs_inputs));
    inputs += 4;
 
-   if (params->wm_prog_data) {
+   if (params->fs_prog_data) {
       /* Walk over the attribute slots, determine if the attribute is used by
        * the program and when necessary copy the values from the input storage
        * to the vertex data buffer.
@@ -372,7 +372,7 @@ blorp_emit_input_varying_data(struct blorp_batch *batch,
       for (unsigned i = 0; i < max_num_varyings; i++) {
          const gl_varying_slot attr = VARYING_SLOT_VAR0 + i;
 
-         const int input_index = wm_prog_data->urb_setup[attr];
+         const int input_index = fs_prog_data->urb_setup[attr];
          if (input_index < 0)
             continue;
 
@@ -459,9 +459,9 @@ static void
 blorp_emit_vertex_elements(struct blorp_batch *batch,
                            const struct blorp_params *params)
 {
-   struct brw_wm_prog_data *wm_prog_data = params->wm_prog_data;
+   struct brw_fs_prog_data *fs_prog_data = params->fs_prog_data;
    const unsigned num_varyings =
-      wm_prog_data ? wm_prog_data->num_varying_inputs : 0;
+      fs_prog_data ? fs_prog_data->num_varying_inputs : 0;
    const unsigned num_elements = 2 + num_varyings;
 
    struct GENX(VERTEX_ELEMENT_STATE) ve[num_elements];
@@ -721,7 +721,7 @@ blorp_emit_sf_config(struct blorp_batch *batch,
                      const struct blorp_params *params,
                      const struct intel_urb_config *urb_cfg)
 {
-   const struct brw_wm_prog_data *prog_data = params->wm_prog_data;
+   const struct brw_fs_prog_data *prog_data = params->fs_prog_data;
 
    /* 3DSTATE_SF
     *
@@ -774,7 +774,7 @@ static void
 blorp_emit_ps_config(struct blorp_batch *batch,
                      const struct blorp_params *params)
 {
-   const struct brw_wm_prog_data *prog_data = params->wm_prog_data;
+   const struct brw_fs_prog_data *prog_data = params->fs_prog_data;
 
    /* Even when thread dispatch is disabled, max threads (dw5.25:31) must be
     * nonzero to prevent the GPU from hanging.  While the documentation doesn't
@@ -894,21 +894,21 @@ blorp_emit_ps_config(struct blorp_batch *batch,
                                      0 /* fs_config */);
 
          ps.DispatchGRFStartRegisterForConstantSetupData0 =
-            brw_wm_prog_data_dispatch_grf_start_reg(prog_data, ps, 0);
+            brw_fs_prog_data_dispatch_grf_start_reg(prog_data, ps, 0);
          ps.DispatchGRFStartRegisterForConstantSetupData1 =
-            brw_wm_prog_data_dispatch_grf_start_reg(prog_data, ps, 1);
+            brw_fs_prog_data_dispatch_grf_start_reg(prog_data, ps, 1);
 #if GFX_VER < 20
          ps.DispatchGRFStartRegisterForConstantSetupData2 =
-            brw_wm_prog_data_dispatch_grf_start_reg(prog_data, ps, 2);
+            brw_fs_prog_data_dispatch_grf_start_reg(prog_data, ps, 2);
 #endif
 
          ps.KernelStartPointer0 = params->wm_prog_kernel +
-                                  brw_wm_prog_data_prog_offset(prog_data, ps, 0);
+                                  brw_fs_prog_data_prog_offset(prog_data, ps, 0);
          ps.KernelStartPointer1 = params->wm_prog_kernel +
-                                  brw_wm_prog_data_prog_offset(prog_data, ps, 1);
+                                  brw_fs_prog_data_prog_offset(prog_data, ps, 1);
 #if GFX_VER < 20
          ps.KernelStartPointer2 = params->wm_prog_kernel +
-                                  brw_wm_prog_data_prog_offset(prog_data, ps, 2);
+                                  brw_fs_prog_data_prog_offset(prog_data, ps, 2);
 #endif
 
 #if GFX_VER >= 30
@@ -1101,7 +1101,7 @@ blorp_emit_pipeline(struct blorp_batch *batch,
    struct intel_urb_config urb_cfg;
    emit_urb_config(batch, params, &urb_cfg);
 
-   if (params->wm_prog_data) {
+   if (params->fs_prog_data) {
       blorp_emit_blend_state(batch, params);
    }
    blorp_emit_color_calc_state(batch, params);

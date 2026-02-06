@@ -1054,15 +1054,15 @@ emit_ps_shader(struct anv_batch *batch,
                struct anv_shader *shader)
 {
    const struct intel_device_info *devinfo = device->info;
-   const struct brw_wm_prog_data *wm_prog_data =
-      get_shader_wm_prog_data(shader);
+   const struct brw_fs_prog_data *fs_prog_data =
+      get_shader_fs_prog_data(shader);
 
    uint32_t ps_dwords[GENX(3DSTATE_PS_length)];
    anv_shader_emit_tmp(batch, ps_dwords, GENX(3DSTATE_PS), ps) {
 #if GFX_VER == 12
-      assert(wm_prog_data->dispatch_multi == 0 ||
-             (wm_prog_data->dispatch_multi == 16 && wm_prog_data->max_polygons == 2));
-      ps.DualSIMD8DispatchEnable = wm_prog_data->dispatch_multi;
+      assert(fs_prog_data->dispatch_multi == 0 ||
+             (fs_prog_data->dispatch_multi == 16 && fs_prog_data->max_polygons == 2));
+      ps.DualSIMD8DispatchEnable = fs_prog_data->dispatch_multi;
       /* XXX - No major improvement observed from enabling
        *       overlapping subspans, but it could be helpful
        *       in theory when the requirements listed on the
@@ -1072,17 +1072,17 @@ emit_ps_shader(struct anv_batch *batch,
 #endif
 
       ps.SingleProgramFlow          = false;
-      ps.VectorMaskEnable           = wm_prog_data->uses_vmask;
+      ps.VectorMaskEnable           = fs_prog_data->uses_vmask;
       ps.SamplerCount               = get_sampler_count(device, shader);
       ps.BindingTableEntryCount     = get_surface_count(device, shader);
 #if GFX_VER < 20
-      ps.PushConstantEnable         = wm_prog_data->base.push_sizes[0] > 0;
+      ps.PushConstantEnable         = fs_prog_data->base.push_sizes[0] > 0;
 #endif
 
       ps.MaximumNumberofThreadsPerPSD = devinfo->max_threads_per_psd - 1;
 
 #if GFX_VER >= 30
-      ps.RegistersPerThread = ptl_register_blocks(wm_prog_data->base.grf_used);
+      ps.RegistersPerThread = ptl_register_blocks(fs_prog_data->base.grf_used);
 #endif
    }
 
@@ -1109,29 +1109,29 @@ emit_ps_shader(struct anv_batch *batch,
    anv_shader_emit(batch, shader, ps.ps_extra, GENX(3DSTATE_PS_EXTRA), ps) {
       ps.PixelShaderValid              = true;
 #if GFX_VER < 20
-      ps.AttributeEnable               = wm_prog_data->num_varying_inputs > 0;
+      ps.AttributeEnable               = fs_prog_data->num_varying_inputs > 0;
 #endif
-      ps.oMaskPresenttoRenderTarget    = wm_prog_data->uses_omask;
-      ps.PixelShaderComputedDepthMode  = wm_prog_data->computed_depth_mode;
-      ps.PixelShaderUsesSourceDepth    = wm_prog_data->uses_src_depth;
-      ps.PixelShaderUsesSourceW        = wm_prog_data->uses_src_w;
+      ps.oMaskPresenttoRenderTarget    = fs_prog_data->uses_omask;
+      ps.PixelShaderComputedDepthMode  = fs_prog_data->computed_depth_mode;
+      ps.PixelShaderUsesSourceDepth    = fs_prog_data->uses_src_depth;
+      ps.PixelShaderUsesSourceW        = fs_prog_data->uses_src_w;
 
-      ps.PixelShaderComputesStencil    = wm_prog_data->computed_stencil;
+      ps.PixelShaderComputesStencil    = fs_prog_data->computed_stencil;
 #if GFX_VER >= 20
-      assert(!wm_prog_data->pulls_bary);
+      assert(!fs_prog_data->pulls_bary);
 #else
-      ps.PixelShaderPullsBary          = wm_prog_data->pulls_bary;
+      ps.PixelShaderPullsBary          = fs_prog_data->pulls_bary;
 #endif
 
 #if GFX_VER >= 11
       ps.PixelShaderRequiresSubpixelSampleOffsets =
-         wm_prog_data->uses_sample_offsets;
+         fs_prog_data->uses_sample_offsets;
       ps.PixelShaderRequiresNonPerspectiveBaryPlaneCoefficients =
-         wm_prog_data->uses_npc_bary_coefficients;
+         fs_prog_data->uses_npc_bary_coefficients;
       ps.PixelShaderRequiresPerspectiveBaryPlaneCoefficients =
-         wm_prog_data->uses_pc_bary_coefficients;
+         fs_prog_data->uses_pc_bary_coefficients;
       ps.PixelShaderRequiresSourceDepthandorWPlaneCoefficients =
-         wm_prog_data->uses_depth_w_coefficients;
+         fs_prog_data->uses_depth_w_coefficients;
 #endif
    }
 
@@ -1141,9 +1141,9 @@ emit_ps_shader(struct anv_batch *batch,
       wm.LineAntialiasingRegionWidth         = _10pixels;
       wm.PointRasterizationRule              = RASTRULE_UPPER_LEFT;
 
-      if (wm_prog_data->early_fragment_tests) {
+      if (fs_prog_data->early_fragment_tests) {
          wm.EarlyDepthStencilControl         = EDSC_PREPS;
-      } else if (wm_prog_data->has_side_effects) {
+      } else if (fs_prog_data->has_side_effects) {
          wm.EarlyDepthStencilControl         = EDSC_PSEXEC;
       } else {
          wm.EarlyDepthStencilControl         = EDSC_NORMAL;

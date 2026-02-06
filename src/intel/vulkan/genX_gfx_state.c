@@ -298,11 +298,11 @@ has_ds_feedback_loop(const struct anv_pipeline_bind_map *bind_map,
 }
 
 static bool
-kill_pixel(const struct brw_wm_prog_data *wm_prog_data,
+kill_pixel(const struct brw_fs_prog_data *fs_prog_data,
            const struct vk_dynamic_graphics_state *dyn)
 {
-   return wm_prog_data->uses_kill ||
-          wm_prog_data->uses_omask ||
+   return fs_prog_data->uses_kill ||
+          fs_prog_data->uses_omask ||
           dyn->ms.alpha_to_coverage_enable;
 }
 
@@ -380,8 +380,8 @@ want_stencil_pma_fix(const struct vk_dynamic_graphics_state *dyn,
       return false;
 
    /* !(3DSTATE_WM::EDSC_Mode == 2) */
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
-   if (wm_prog_data->early_fragment_tests)
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
+   if (fs_prog_data->early_fragment_tests)
       return false;
 
    /* We never use anv_pipeline for HiZ ops so this is trivially true:
@@ -403,7 +403,7 @@ want_stencil_pma_fix(const struct vk_dynamic_graphics_state *dyn,
    const bool stc_write_en = ds->stencil.write_enable;
 
    /* STC_TEST_EN && 3DSTATE_PS_EXTRA::PixelShaderComputesStencil */
-   const bool comp_stc_en = stc_test_en && wm_prog_data->computed_stencil;
+   const bool comp_stc_en = stc_test_en && fs_prog_data->computed_stencil;
 
    /* COMP_STC_EN || STC_WRITE_EN */
    if (!(comp_stc_en || stc_write_en))
@@ -419,9 +419,9 @@ want_stencil_pma_fix(const struct vk_dynamic_graphics_state *dyn,
     */
    struct anv_shader *fs = gfx->shaders[MESA_SHADER_FRAGMENT];
 
-   return kill_pixel(wm_prog_data, dyn) ||
+   return kill_pixel(fs_prog_data, dyn) ||
           has_ds_feedback_loop(&fs->bind_map, dyn) ||
-          wm_prog_data->computed_depth_mode != PSCDEPTH_OFF;
+          fs_prog_data->computed_depth_mode != PSCDEPTH_OFF;
 }
 
 static inline bool
@@ -845,24 +845,24 @@ update_fs_config(struct anv_gfx_dynamic_state *hw_state,
                  const struct vk_dynamic_graphics_state *dyn,
                  const struct anv_cmd_graphics_state *gfx)
 {
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
 
-   if (!wm_prog_data)
+   if (!fs_prog_data)
       return;
 
    /* If we have any dynamic bits here, we might need to update the value
     * in the push constant for the shader.
     */
-   if (!brw_wm_prog_data_is_dynamic(wm_prog_data))
+   if (!brw_fs_prog_data_is_dynamic(fs_prog_data))
       return;
 
    const struct brw_mesh_prog_data *mesh_prog_data = get_gfx_mesh_prog_data(gfx);
 
    enum intel_fs_config fs_config =
       intel_fs_config((struct intel_fs_params) {
-            .shader_sample_shading     = wm_prog_data->sample_shading,
-            .shader_min_sample_shading = wm_prog_data->min_sample_shading,
-            .state_sample_shading      = wm_prog_data->api_sample_shading,
+            .shader_sample_shading     = fs_prog_data->sample_shading,
+            .shader_min_sample_shading = fs_prog_data->min_sample_shading,
+            .state_sample_shading      = fs_prog_data->api_sample_shading,
             .rasterization_samples     = dyn->ms.rasterization_samples,
             .coarse_pixel              = !vk_fragment_shading_rate_is_disabled(&dyn->fsr),
             .alpha_to_coverage         = dyn->ms.alpha_to_coverage_enable,
@@ -879,21 +879,21 @@ update_fs_config(struct anv_gfx_dynamic_state *hw_state,
 static bool
 sbe_primitive_id_override(const struct anv_cmd_graphics_state *gfx)
 {
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
-   if (!wm_prog_data)
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
+   if (!fs_prog_data)
       return false;
 
    if (anv_gfx_has_stage(gfx, MESA_SHADER_MESH)) {
       const struct brw_mesh_prog_data *mesh_prog_data =
          get_gfx_mesh_prog_data(gfx);
       const struct brw_mue_map *mue = &mesh_prog_data->map;
-      return (wm_prog_data->inputs & VARYING_BIT_PRIMITIVE_ID) &&
+      return (fs_prog_data->inputs & VARYING_BIT_PRIMITIVE_ID) &&
               mue->per_primitive_offsets[VARYING_SLOT_PRIMITIVE_ID] == -1;
    }
 
    const struct intel_vue_map *vue_map = get_gfx_last_vue_map(gfx);
 
-   return (wm_prog_data->inputs & VARYING_BIT_PRIMITIVE_ID) &&
+   return (fs_prog_data->inputs & VARYING_BIT_PRIMITIVE_ID) &&
           (vue_map->slots_valid & VARYING_BIT_PRIMITIVE_ID) == 0;
 }
 
@@ -902,8 +902,8 @@ update_sbe(struct anv_gfx_dynamic_state *hw_state,
            const struct anv_cmd_graphics_state *gfx,
            const struct anv_device *device)
 {
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
-   if (wm_prog_data == NULL)
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
+   if (fs_prog_data == NULL)
       return;
 
    const struct brw_mesh_prog_data *mesh_prog_data =
@@ -915,7 +915,7 @@ update_sbe(struct anv_gfx_dynamic_state *hw_state,
    brw_compute_sbe_per_vertex_urb_read(
       vue_map, mesh_prog_data != NULL,
       mesh_prog_data ? mesh_prog_data->map.wa_18019110168_active : false,
-      wm_prog_data,
+      fs_prog_data,
       &vertex_read_offset, &vertex_read_length, &vertex_varyings,
       &hw_state->primitive_id_index, &flat_inputs);
 
@@ -929,12 +929,12 @@ update_sbe(struct anv_gfx_dynamic_state *hw_state,
    SET(SBE, sbe.PointSpriteTextureCoordinateOrigin, UPPERLEFT);
    SET(SBE, sbe.NumberofSFOutputAttributes, vertex_varyings);
    SET(SBE, sbe.ConstantInterpolationEnable, flat_inputs);
-   SET(SBE, sbe.VertexAttributesBypass, wm_prog_data->vertex_attributes_bypass);
+   SET(SBE, sbe.VertexAttributesBypass, fs_prog_data->vertex_attributes_bypass);
 
    if (mesh_prog_data == NULL) {
-      for (uint8_t idx = 0; idx < wm_prog_data->urb_setup_attribs_count; idx++) {
-         gl_varying_slot attr = wm_prog_data->urb_setup_attribs[idx];
-         int input_index = wm_prog_data->urb_setup[attr];
+      for (uint8_t idx = 0; idx < fs_prog_data->urb_setup_attribs_count; idx++) {
+         gl_varying_slot attr = fs_prog_data->urb_setup_attribs[idx];
+         int input_index = fs_prog_data->urb_setup[attr];
 
          assert(0 <= input_index);
 
@@ -975,7 +975,7 @@ update_sbe(struct anv_gfx_dynamic_state *hw_state,
     */
    const bool prim_id_override = sbe_primitive_id_override(gfx);
    SET(SBE, sbe.PrimitiveIDOverrideAttributeSelect,
-       prim_id_override ? wm_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID] : 0);
+       prim_id_override ? fs_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID] : 0);
    SET(SBE, sbe.PrimitiveIDOverrideComponentX, prim_id_override);
    SET(SBE, sbe.PrimitiveIDOverrideComponentY, prim_id_override);
    SET(SBE, sbe.PrimitiveIDOverrideComponentZ, prim_id_override);
@@ -987,8 +987,8 @@ update_sbe(struct anv_gfx_dynamic_state *hw_state,
       SET(SBE_MESH, sbe_mesh.PerVertexURBEntryOutputReadLength, vertex_read_length);
 
       uint32_t prim_read_offset, prim_read_length;
-      brw_compute_sbe_per_primitive_urb_read(wm_prog_data->per_primitive_inputs,
-                                             wm_prog_data->num_per_primitive_inputs,
+      brw_compute_sbe_per_primitive_urb_read(fs_prog_data->per_primitive_inputs,
+                                             fs_prog_data->num_per_primitive_inputs,
                                              &mesh_prog_data->map,
                                              &prim_read_offset,
                                              &prim_read_length);
@@ -1005,9 +1005,9 @@ update_ps(struct anv_gfx_dynamic_state *hw_state,
           const struct vk_dynamic_graphics_state *dyn,
           const struct anv_cmd_graphics_state *gfx)
 {
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
 
-   if (!wm_prog_data) {
+   if (!fs_prog_data) {
 #if GFX_VER < 20
       SET(PS, ps._8PixelDispatchEnable,  false);
       SET(PS, ps._16PixelDispatchEnable, false);
@@ -1021,29 +1021,29 @@ update_ps(struct anv_gfx_dynamic_state *hw_state,
 
    const struct anv_shader *fs = gfx->shaders[MESA_SHADER_FRAGMENT];
    struct GENX(3DSTATE_PS) ps = {};
-   intel_set_ps_dispatch_state(&ps, device->info, wm_prog_data,
+   intel_set_ps_dispatch_state(&ps, device->info, fs_prog_data,
                                MAX2(dyn->ms.rasterization_samples, 1),
                                hw_state->fs_config);
 
    SET(PS, ps.KernelStartPointer0,
            fs->kernel.offset +
-           brw_wm_prog_data_prog_offset(wm_prog_data, ps, 0));
+           brw_fs_prog_data_prog_offset(fs_prog_data, ps, 0));
    SET(PS, ps.KernelStartPointer1,
            fs->kernel.offset +
-           brw_wm_prog_data_prog_offset(wm_prog_data, ps, 1));
+           brw_fs_prog_data_prog_offset(fs_prog_data, ps, 1));
 #if GFX_VER < 20
    SET(PS, ps.KernelStartPointer2,
            fs->kernel.offset +
-           brw_wm_prog_data_prog_offset(wm_prog_data, ps, 2));
+           brw_fs_prog_data_prog_offset(fs_prog_data, ps, 2));
 #endif
 
    SET(PS, ps.DispatchGRFStartRegisterForConstantSetupData0,
-           brw_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 0));
+           brw_fs_prog_data_dispatch_grf_start_reg(fs_prog_data, ps, 0));
    SET(PS, ps.DispatchGRFStartRegisterForConstantSetupData1,
-           brw_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 1));
+           brw_fs_prog_data_dispatch_grf_start_reg(fs_prog_data, ps, 1));
 #if GFX_VER < 20
    SET(PS, ps.DispatchGRFStartRegisterForConstantSetupData2,
-           brw_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 2));
+           brw_fs_prog_data_dispatch_grf_start_reg(fs_prog_data, ps, 2));
 #endif
 
 #if GFX_VER < 20
@@ -1060,8 +1060,8 @@ update_ps(struct anv_gfx_dynamic_state *hw_state,
 #endif
 
    SET(PS, ps.PositionXYOffsetSelect,
-           !wm_prog_data->uses_pos_offset ? POSOFFSET_NONE :
-           brw_wm_prog_data_is_persample(wm_prog_data,
+           !fs_prog_data->uses_pos_offset ? POSOFFSET_NONE :
+           brw_fs_prog_data_is_persample(fs_prog_data,
                                          hw_state->fs_config) ?
            POSOFFSET_SAMPLE : POSOFFSET_CENTROID);
 }
@@ -1070,19 +1070,19 @@ ALWAYS_INLINE static void
 update_ps_extra_wm(struct anv_gfx_dynamic_state *hw_state,
                    const struct anv_cmd_graphics_state *gfx)
 {
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
 
-   if (!wm_prog_data)
+   if (!fs_prog_data)
       return;
 
    UNUSED const bool uses_coarse_pixel =
-      brw_wm_prog_data_is_coarse(wm_prog_data, hw_state->fs_config);
+      brw_fs_prog_data_is_coarse(fs_prog_data, hw_state->fs_config);
 
    uint32_t InputCoverageMaskState = ICMS_NONE;
-   assert(!wm_prog_data->inner_coverage); /* Not available in SPIR-V */
-   if (!wm_prog_data->uses_sample_mask)
+   assert(!fs_prog_data->inner_coverage); /* Not available in SPIR-V */
+   if (!fs_prog_data->uses_sample_mask)
       InputCoverageMaskState = ICMS_NONE;
-   else if (wm_prog_data->post_depth_coverage)
+   else if (fs_prog_data->post_depth_coverage)
       InputCoverageMaskState = ICMS_DEPTH_COVERAGE;
    else
       InputCoverageMaskState = ICMS_NORMAL;
@@ -1090,7 +1090,7 @@ update_ps_extra_wm(struct anv_gfx_dynamic_state *hw_state,
    SET(PS_EXTRA, ps_extra.InputCoverageMaskState, InputCoverageMaskState);
 
    SET(PS_EXTRA, ps_extra.PixelShaderIsPerSample,
-                 brw_wm_prog_data_is_persample(wm_prog_data,
+                 brw_fs_prog_data_is_persample(fs_prog_data,
                                                hw_state->fs_config));
 #if GFX_VER >= 11
    SET(PS_EXTRA, ps_extra.PixelShaderIsPerCoarsePixel, uses_coarse_pixel);
@@ -1103,7 +1103,7 @@ update_ps_extra_wm(struct anv_gfx_dynamic_state *hw_state,
 #endif
 
    SET(WM, wm.BarycentricInterpolationMode,
-           wm_prog_data_barycentric_modes(wm_prog_data, hw_state->fs_config));
+           fs_prog_data_barycentric_modes(fs_prog_data, hw_state->fs_config));
 
 #if INTEL_WA_18038825448_GFX_VER
    SET(WA_18038825448, coarse_state, uses_coarse_pixel ?
@@ -1116,7 +1116,7 @@ ALWAYS_INLINE static void
 update_ps_extra_has_uav(struct anv_gfx_dynamic_state *hw_state,
                         const struct anv_cmd_graphics_state *gfx)
 {
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
 
    /* Force fragment shader execution if occlusion queries are active to
     * ensure PS_DEPTH_COUNT is correct. Otherwise a fragment shader with
@@ -1125,7 +1125,7 @@ update_ps_extra_has_uav(struct anv_gfx_dynamic_state *hw_state,
     * established that depth-test is passing.
     */
    SET_STAGE(PS_EXTRA, ps_extra.PixelShaderHasUAV,
-                       wm_prog_data && (wm_prog_data->has_side_effects ||
+                       fs_prog_data && (fs_prog_data->has_side_effects ||
                                         gfx->n_occlusion_queries > 0),
                        FRAGMENT);
 }
@@ -1136,12 +1136,12 @@ update_ps_extra_kills_pixel(struct anv_gfx_dynamic_state *hw_state,
                             const struct anv_cmd_graphics_state *gfx)
 {
    struct anv_shader *fs = gfx->shaders[MESA_SHADER_FRAGMENT];
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
 
    SET_STAGE(PS_EXTRA, ps_extra.PixelShaderKillsPixel,
-                       wm_prog_data &&
+                       fs_prog_data &&
                        (has_ds_feedback_loop(&fs->bind_map, dyn) ||
-                        wm_prog_data->uses_kill),
+                        fs_prog_data->uses_kill),
                        FRAGMENT);
 }
 
@@ -1240,16 +1240,16 @@ update_provoking_vertex(struct anv_gfx_dynamic_state *hw_state,
                         const struct anv_cmd_graphics_state *gfx)
 {
 #if GFX_VERx10 >= 200
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
 
    /* In order to respect the table indicated by Vulkan 1.4.312,
     * 28.9. Barycentric Interpolation, we need to program the provoking
     * vertex state differently depending on whether we need to set
     * vertex_attributes_bypass or not.
     * At this point we only deal with full pipelines, so if we don't have
-    * a wm_prog_data, there is no fragment shader and none of this matters.
+    * a fs_prog_data, there is no fragment shader and none of this matters.
     */
-   if (wm_prog_data && wm_prog_data->vertex_attributes_bypass) {
+   if (fs_prog_data && fs_prog_data->vertex_attributes_bypass) {
       SETUP_PROVOKING_VERTEX_FSB(SF, sf, dyn->rs.provoking_vertex);
       SETUP_PROVOKING_VERTEX_FSB(CLIP, clip, dyn->rs.provoking_vertex);
    } else {
@@ -1568,9 +1568,9 @@ update_clip_raster(struct anv_gfx_dynamic_state *hw_state,
                VK_CONSERVATIVE_RASTERIZATION_MODE_DISABLED_EXT);
 
 #if GFX_VERx10 >= 200
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
    SET(RASTER, raster.LegacyBaryAssignmentDisable,
-       wm_prog_data && wm_prog_data->vertex_attributes_bypass);
+       fs_prog_data && fs_prog_data->vertex_attributes_bypass);
 #endif
 }
 
@@ -1590,11 +1590,11 @@ ALWAYS_INLINE static void
 update_clip_non_perspective_barycentrics(struct anv_gfx_dynamic_state *hw_state,
                                          const struct anv_cmd_graphics_state *gfx)
 {
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
 
    SET(CLIP, clip.NonPerspectiveBarycentricEnable,
-       wm_prog_data ?
-       wm_prog_data->uses_nonperspective_interp_modes : 0);
+       fs_prog_data ?
+       fs_prog_data->uses_nonperspective_interp_modes : 0);
 }
 
 ALWAYS_INLINE static void
@@ -2489,11 +2489,11 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_CB_WRITE_MASKS) ||
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_CB_BLEND_ENABLES) ||
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_CB_BLEND_EQUATIONS)) {
-      const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+      const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
       update_blend_state(hw_state, dyn, gfx, device,
-                         wm_prog_data != NULL,
-                         wm_prog_data != NULL ?
-                         wm_prog_data->dual_src_blend : false);
+                         fs_prog_data != NULL,
+                         fs_prog_data != NULL ?
+                         fs_prog_data->dual_src_blend : false);
    }
 
    if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_CB_BLEND_CONSTANTS))
@@ -2525,11 +2525,11 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
    if (intel_needs_workaround(device->info, 14018283232) &&
        ((gfx->dirty & ANV_CMD_DIRTY_PS) ||
         BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_DS_DEPTH_BOUNDS_TEST_ENABLE))) {
-      const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
+      const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
       SET(WA_14018283232, wa_14018283232_toggle,
           dyn->ds.depth.bounds_test.enable &&
-          wm_prog_data &&
-          wm_prog_data->uses_kill);
+          fs_prog_data &&
+          fs_prog_data->uses_kill);
    }
 #endif
 
@@ -4048,11 +4048,11 @@ genX(cmd_buffer_flush_gfx_hw_state)(struct anv_cmd_buffer *cmd_buffer)
    }
 
 #if INTEL_WA_18038825448_GFX_VER
-   const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
-   if (wm_prog_data) {
+   const struct brw_fs_prog_data *fs_prog_data = get_gfx_fs_prog_data(gfx);
+   if (fs_prog_data) {
       genX(cmd_buffer_set_coarse_pixel_active)(
          cmd_buffer,
-         brw_wm_prog_data_is_coarse(wm_prog_data, hw_state->fs_config));
+         brw_fs_prog_data_is_coarse(fs_prog_data, hw_state->fs_config));
    }
 #endif
 

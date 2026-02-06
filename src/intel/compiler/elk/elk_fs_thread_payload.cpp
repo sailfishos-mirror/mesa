@@ -141,7 +141,7 @@ setup_fs_payload_gfx6(elk_fs_thread_payload &payload,
                       const elk_fs_visitor &v,
                       bool &source_depth_to_render_target)
 {
-   struct elk_wm_prog_data *prog_data = elk_wm_prog_data(v.prog_data);
+   struct elk_fs_prog_data *prog_data = elk_fs_prog_data(v.prog_data);
 
    const unsigned payload_width = MIN2(16, v.dispatch_width);
    assert(v.dispatch_width % payload_width == 0);
@@ -297,7 +297,7 @@ setup_fs_payload_gfx4(elk_fs_thread_payload &payload,
 {
    assert(v.dispatch_width <= 16);
 
-   struct elk_wm_prog_data *prog_data = elk_wm_prog_data(v.prog_data);
+   struct elk_fs_prog_data *prog_data = elk_fs_prog_data(v.prog_data);
    elk_wm_prog_key *key = (elk_wm_prog_key *) v.key;
 
    GLuint reg = 1;

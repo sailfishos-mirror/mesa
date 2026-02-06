@@ -259,7 +259,7 @@ setup_color_payload(const brw_builder &bld, brw_reg *dst, brw_reg color,
 
 static void
 lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
-                            const struct brw_wm_prog_data *prog_data,
+                            const struct brw_fs_prog_data *prog_data,
                             const brw_wm_prog_key *key,
                             const brw_fs_thread_payload &fs_payload)
 {
@@ -505,7 +505,7 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
 
 static void
 lower_fb_read_logical_send(const brw_builder &bld, brw_inst *inst,
-                           const struct brw_wm_prog_data *wm_prog_data)
+                           const struct brw_fs_prog_data *fs_prog_data)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
    const brw_builder &ubld = bld.exec_all().group(8, 0);
@@ -570,7 +570,7 @@ lower_fb_read_logical_send(const brw_builder &bld, brw_inst *inst,
       (send->group / 16) << 11 | /* rt slot group */
       brw_fb_read_desc(devinfo, target,
                        0 /* msg_control */, send->exec_size,
-                       wm_prog_data->persample_dispatch);
+                       fs_prog_data->persample_dispatch);
 }
 
 static bool
@@ -1826,7 +1826,7 @@ lower_varying_pull_constant_logical_send(const brw_builder &bld, brw_inst *inst)
 static void
 lower_interpolator_logical_send(const brw_builder &bld, brw_inst *inst,
                                 const struct brw_wm_prog_key *wm_prog_key,
-                                const struct brw_wm_prog_data *wm_prog_data)
+                                const struct brw_fs_prog_data *fs_prog_data)
 {
    assert(inst->src[INTERP_SRC_NOPERSPECTIVE].file == IMM);
 
@@ -1872,14 +1872,14 @@ lower_interpolator_logical_send(const brw_builder &bld, brw_inst *inst,
                             false /* coarse_pixel_rate */,
                             inst->exec_size, inst->group);
 
-   if (wm_prog_data->coarse_pixel_dispatch == INTEL_ALWAYS) {
+   if (fs_prog_data->coarse_pixel_dispatch == INTEL_ALWAYS) {
       desc_imm |= (1 << 15);
-   } else if (wm_prog_data->coarse_pixel_dispatch == INTEL_SOMETIMES) {
+   } else if (fs_prog_data->coarse_pixel_dispatch == INTEL_SOMETIMES) {
       STATIC_ASSERT(INTEL_FS_CONFIG_COARSE_PI_MSG == (1 << 15));
       brw_reg orig_desc = desc;
       const brw_builder &ubld = bld.exec_all().group(8, 0);
       desc = ubld.vgrf(BRW_TYPE_UD);
-      ubld.AND(desc, brw_dynamic_fs_config(wm_prog_data),
+      ubld.AND(desc, brw_dynamic_fs_config(fs_prog_data),
                brw_imm_ud(INTEL_FS_CONFIG_COARSE_PI_MSG));
 
       /* And, if it's AT_OFFSET, we might have a non-trivial descriptor */
@@ -2283,13 +2283,13 @@ brw_lower_logical_sends(brw_shader &s)
       case FS_OPCODE_FB_WRITE_LOGICAL:
          assert(s.stage == MESA_SHADER_FRAGMENT);
          lower_fb_write_logical_send(ibld, inst->as_fb_write(),
-                                     brw_wm_prog_data(s.prog_data),
+                                     brw_fs_prog_data(s.prog_data),
                                      (const brw_wm_prog_key *)s.key,
                                      s.fs_payload());
          break;
 
       case FS_OPCODE_FB_READ_LOGICAL:
-         lower_fb_read_logical_send(ibld, inst, brw_wm_prog_data(s.prog_data));
+         lower_fb_read_logical_send(ibld, inst, brw_fs_prog_data(s.prog_data));
          break;
 
       case SHADER_OPCODE_SAMPLER:
@@ -2320,7 +2320,7 @@ brw_lower_logical_sends(brw_shader &s)
       case FS_OPCODE_INTERPOLATE_AT_PER_SLOT_OFFSET:
          lower_interpolator_logical_send(ibld, inst,
                                          (const brw_wm_prog_key *)s.key,
-                                         brw_wm_prog_data(s.prog_data));
+                                         brw_fs_prog_data(s.prog_data));
          break;
 
       case SHADER_OPCODE_BTD_SPAWN_LOGICAL:

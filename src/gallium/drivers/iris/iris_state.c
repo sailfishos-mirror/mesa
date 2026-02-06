@@ -4738,7 +4738,7 @@ iris_compute_first_urb_slot_required(struct iris_compiled_shader *fs_shader,
    brw_compute_sbe_per_vertex_urb_read(prev_stage_vue_map,
                                        false /* mesh*/,
                                        false /* per_primitive_remapping */,
-                                       brw_wm_prog_data(fs_shader->brw_prog_data),
+                                       brw_fs_prog_data(fs_shader->brw_prog_data),
                                        &read_offset, &read_length, &num_varyings,
                                        &primid_offset, &flat_inputs);
    return 2 * read_offset;
@@ -7519,12 +7519,12 @@ iris_upload_dirty_render_state(struct iris_context *ice,
             uint32_t ps_state[GENX(3DSTATE_PS_length)] = {0};
             _iris_pack_command(batch, GENX(3DSTATE_PS), ps_state, ps) {
 #if GFX_VER >= 9
-               struct brw_wm_prog_data *wm_prog_data = brw_wm_prog_data(shader->brw_prog_data);
+               struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(shader->brw_prog_data);
 #else
-               struct elk_wm_prog_data *wm_prog_data = elk_wm_prog_data(shader->elk_prog_data);
+               struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(shader->elk_prog_data);
 #endif
                intel_set_ps_dispatch_state(&ps, batch->screen->devinfo,
-                                           wm_prog_data, util_framebuffer_get_num_samples(cso_fb),
+                                           fs_prog_data, util_framebuffer_get_num_samples(cso_fb),
                                            0 /* fs_config */);
 
 #if GFX_VER == 12
@@ -7541,36 +7541,36 @@ iris_upload_dirty_render_state(struct iris_context *ice,
 
 #if GFX_VER >= 9
                ps.DispatchGRFStartRegisterForConstantSetupData0 =
-                  brw_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 0);
+                  brw_fs_prog_data_dispatch_grf_start_reg(fs_prog_data, ps, 0);
                ps.DispatchGRFStartRegisterForConstantSetupData1 =
-                  brw_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 1);
+                  brw_fs_prog_data_dispatch_grf_start_reg(fs_prog_data, ps, 1);
 #if GFX_VER < 20
                ps.DispatchGRFStartRegisterForConstantSetupData2 =
-                  brw_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 2);
+                  brw_fs_prog_data_dispatch_grf_start_reg(fs_prog_data, ps, 2);
 #endif
 
                ps.KernelStartPointer0 = KSP(shader) +
-                  brw_wm_prog_data_prog_offset(wm_prog_data, ps, 0);
+                  brw_fs_prog_data_prog_offset(fs_prog_data, ps, 0);
                ps.KernelStartPointer1 = KSP(shader) +
-                  brw_wm_prog_data_prog_offset(wm_prog_data, ps, 1);
+                  brw_fs_prog_data_prog_offset(fs_prog_data, ps, 1);
 #if GFX_VER < 20
                ps.KernelStartPointer2 = KSP(shader) +
-                  brw_wm_prog_data_prog_offset(wm_prog_data, ps, 2);
+                  brw_fs_prog_data_prog_offset(fs_prog_data, ps, 2);
 #endif
 #else
                ps.DispatchGRFStartRegisterForConstantSetupData0 =
-                  elk_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 0);
+                  elk_fs_prog_data_dispatch_grf_start_reg(fs_prog_data, ps, 0);
                ps.DispatchGRFStartRegisterForConstantSetupData1 =
-                  elk_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 1);
+                  elk_fs_prog_data_dispatch_grf_start_reg(fs_prog_data, ps, 1);
                ps.DispatchGRFStartRegisterForConstantSetupData2 =
-                  elk_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 2);
+                  elk_fs_prog_data_dispatch_grf_start_reg(fs_prog_data, ps, 2);
 
                ps.KernelStartPointer0 = KSP(shader) +
-                  elk_wm_prog_data_prog_offset(wm_prog_data, ps, 0);
+                  elk_fs_prog_data_prog_offset(fs_prog_data, ps, 0);
                ps.KernelStartPointer1 = KSP(shader) +
-                  elk_wm_prog_data_prog_offset(wm_prog_data, ps, 1);
+                  elk_fs_prog_data_prog_offset(fs_prog_data, ps, 1);
                ps.KernelStartPointer2 = KSP(shader) +
-                  elk_wm_prog_data_prog_offset(wm_prog_data, ps, 2);
+                  elk_fs_prog_data_prog_offset(fs_prog_data, ps, 2);
 #endif
 
 #if GFX_VERx10 >= 125

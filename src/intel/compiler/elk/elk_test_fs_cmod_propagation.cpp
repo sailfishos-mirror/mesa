@@ -19,7 +19,7 @@ protected:
    struct elk_compile_params params;
    struct intel_device_info *devinfo;
    void *ctx;
-   struct elk_wm_prog_data *prog_data;
+   struct elk_fs_prog_data *prog_data;
    struct gl_shader_program *shader_prog;
    elk_fs_visitor *v;
    fs_builder bld;
@@ -41,7 +41,7 @@ class cmod_propagation_fs_visitor : public elk_fs_visitor
 public:
    cmod_propagation_fs_visitor(struct elk_compiler *compiler,
                                struct elk_compile_params *params,
-                               struct elk_wm_prog_data *prog_data,
+                               struct elk_fs_prog_data *prog_data,
                                nir_shader *shader)
       : elk_fs_visitor(compiler, params, NULL,
                    &prog_data->base, shader, 8, false, false) {}
@@ -59,7 +59,7 @@ cmod_propagation_test::cmod_propagation_test()
    params = {};
    params.mem_ctx = ctx;
 
-   prog_data = ralloc(ctx, struct elk_wm_prog_data);
+   prog_data = ralloc(ctx, struct elk_fs_prog_data);
    nir_shader *shader = nir_shader_create(ctx, MESA_SHADER_FRAGMENT, NULL);
 
    v = new cmod_propagation_fs_visitor(compiler, &params, prog_data, shader);

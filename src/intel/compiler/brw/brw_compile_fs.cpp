@@ -26,7 +26,7 @@ brw_emit_single_fb_write(brw_shader &s, const brw_builder &bld,
                          bool null_rt)
 {
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   struct brw_wm_prog_data *prog_data = brw_wm_prog_data(s.prog_data);
+   struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
 
    brw_reg sources[FB_WRITE_LOGICAL_NUM_SRCS];
    sources[FB_WRITE_LOGICAL_SRC_COLOR0]     = color0;
@@ -58,7 +58,7 @@ brw_emit_single_fb_write(brw_shader &s, const brw_builder &bld,
 static void
 brw_do_emit_fb_writes(brw_shader &s, int nr_color_regions, bool replicate_alpha)
 {
-   struct brw_wm_prog_data *prog_data = brw_wm_prog_data(s.prog_data);
+   struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
    const brw_builder bld = brw_builder(&s);
 
    brw_fb_write_inst *write = NULL;
@@ -119,7 +119,7 @@ brw_emit_fb_writes(brw_shader &s)
 {
    const struct intel_device_info *devinfo = s.devinfo;
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   struct brw_wm_prog_data *prog_data = brw_wm_prog_data(s.prog_data);
+   struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
    brw_wm_prog_key *key = (brw_wm_prog_key*) s.key;
 
    if (s.nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL)) {
@@ -186,7 +186,7 @@ brw_emit_interpolation_setup(brw_shader &s)
    const brw_builder bld = brw_builder(&s);
    brw_builder abld = bld.annotate("compute pixel centers");
    const struct brw_wm_prog_key *wm_key = (brw_wm_prog_key*) s.key;
-   struct brw_wm_prog_data *wm_prog_data = brw_wm_prog_data(s.prog_data);
+   struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
 
    brw_reg ub_cps_width, ub_cps_height;
    {
@@ -197,12 +197,12 @@ brw_emit_interpolation_setup(brw_shader &s)
       const brw_reg r1_0 = retype(brw_vec1_reg(FIXED_GRF, 1, 0), BRW_TYPE_UD);
 
       brw_reg cps_size = ubld.vgrf(BRW_TYPE_UD);
-      switch (wm_prog_data->coarse_pixel_dispatch) {
+      switch (fs_prog_data->coarse_pixel_dispatch) {
       case INTEL_NEVER:
          ubld.MOV(cps_size, brw_imm_ud(0x00000101));
          break;
       case INTEL_SOMETIMES:
-         brw_check_dynamic_fs_config(ubld, wm_prog_data,
+         brw_check_dynamic_fs_config(ubld, fs_prog_data,
                                      INTEL_FS_CONFIG_COARSE_RT_WRITES);
 
          set_predicate_inv(BRW_PREDICATE_NORMAL, false,
@@ -228,7 +228,7 @@ brw_emit_interpolation_setup(brw_shader &s)
    brw_reg int_sample_offset_x, int_sample_offset_y; /* Used on Gen12HP+ */
    brw_reg int_sample_offset_xy; /* Used on Gen8+ */
    brw_reg half_int_sample_offset_x, half_int_sample_offset_y;
-   if (wm_prog_data->coarse_pixel_dispatch != INTEL_ALWAYS) {
+   if (fs_prog_data->coarse_pixel_dispatch != INTEL_ALWAYS) {
       /* The thread payload only delivers subspan locations (ss0, ss1,
        * ss2, ...). Since subspans covers 2x2 pixels blocks, we need to
        * generate 4 pixel coordinates out of each subspan location. We do this
@@ -277,7 +277,7 @@ brw_emit_interpolation_setup(brw_shader &s)
    brw_reg int_coarse_offset_x, int_coarse_offset_y; /* Used on Gen12HP+ */
    brw_reg int_coarse_offset_xy; /* Used on Gen8+ */
    brw_reg half_int_coarse_offset_x, half_int_coarse_offset_y;
-   if (wm_prog_data->coarse_pixel_dispatch != INTEL_NEVER) {
+   if (fs_prog_data->coarse_pixel_dispatch != INTEL_NEVER) {
       /* In coarse pixel dispatch we have to do the same ADD instruction that
        * we do in normal per pixel dispatch, except this time we're not adding
        * 1 in each direction, but instead the coarse pixel size.
@@ -322,7 +322,7 @@ brw_emit_interpolation_setup(brw_shader &s)
    brw_reg int_pixel_offset_x, int_pixel_offset_y; /* Used on Gen12HP+ */
    brw_reg int_pixel_offset_xy; /* Used on Gen8+ */
    brw_reg half_int_pixel_offset_x, half_int_pixel_offset_y;
-   switch (wm_prog_data->coarse_pixel_dispatch) {
+   switch (fs_prog_data->coarse_pixel_dispatch) {
    case INTEL_NEVER:
       int_pixel_offset_x = int_sample_offset_x;
       int_pixel_offset_y = int_sample_offset_y;
@@ -335,7 +335,7 @@ brw_emit_interpolation_setup(brw_shader &s)
       const brw_builder dbld =
          abld.exec_all().group(MIN2(16, s.dispatch_width) * 2, 0);
 
-      brw_check_dynamic_fs_config(dbld, wm_prog_data,
+      brw_check_dynamic_fs_config(dbld, fs_prog_data,
                                   INTEL_FS_CONFIG_COARSE_RT_WRITES);
 
       int_pixel_offset_x = dbld.vgrf(BRW_TYPE_UW);
@@ -412,12 +412,12 @@ brw_emit_interpolation_setup(brw_shader &s)
                   brw_reg(stride(suboffset(gi_uw, 5), 2, 8, 0)),
                   int_pixel_offset_y);
 
-         if (wm_prog_data->coarse_pixel_dispatch != INTEL_NEVER) {
+         if (fs_prog_data->coarse_pixel_dispatch != INTEL_NEVER) {
             brw_inst *addx = dbld.ADD(int_pixel_x_4b, int_pixel_x_4b,
                                       horiz_stride(half_int_pixel_offset_x, 0));
             brw_inst *addy = dbld.ADD(int_pixel_y_4b, int_pixel_y_4b,
                                       horiz_stride(half_int_pixel_offset_y, 0));
-            if (wm_prog_data->coarse_pixel_dispatch != INTEL_ALWAYS) {
+            if (fs_prog_data->coarse_pixel_dispatch != INTEL_ALWAYS) {
                addx->predicate = BRW_PREDICATE_NORMAL;
                addy->predicate = BRW_PREDICATE_NORMAL;
             }
@@ -451,7 +451,7 @@ brw_emit_interpolation_setup(brw_shader &s)
       }
    }
 
-   if (wm_prog_data->uses_depth_w_coefficients) {
+   if (fs_prog_data->uses_depth_w_coefficients) {
       brw_reg coef_payload = brw_vec8_grf(payload.depth_w_coef_reg, 0);
       s.x_start = devinfo->ver >= 20 ?
          brw_vec1_grf(coef_payload.nr, 6) :
@@ -470,10 +470,10 @@ brw_emit_interpolation_setup(brw_shader &s)
          brw_vec1_grf(coef_payload.nr, 3);
    }
 
-   if (wm_prog_data->uses_src_depth)
+   if (fs_prog_data->uses_src_depth)
       s.pixel_z = brw_fetch_payload_reg(bld, payload.source_depth_reg);
 
-   if (wm_prog_data->uses_src_w) {
+   if (fs_prog_data->uses_src_w) {
       abld = bld.annotate("compute pos.w");
       s.pixel_w = brw_fetch_payload_reg(abld, payload.source_w_reg);
       s.wpos_w = bld.vgrf(BRW_TYPE_F);
@@ -485,24 +485,24 @@ brw_emit_interpolation_setup(brw_shader &s)
       bool loaded_flag = false;
 
       for (int i = 0; i < INTEL_BARYCENTRIC_MODE_COUNT; ++i) {
-         if (!(wm_prog_data->barycentric_interp_modes & BITFIELD_BIT(i)))
+         if (!(fs_prog_data->barycentric_interp_modes & BITFIELD_BIT(i)))
             continue;
 
          /* The sample mode will always be the top bit set in the perspective
           * or non-perspective section.  In the case where no SAMPLE mode was
-          * requested, wm_prog_data_barycentric_modes() will swap out the top
+          * requested, fs_prog_data_barycentric_modes() will swap out the top
           * mode for SAMPLE so this works regardless of whether SAMPLE was
           * requested or not.
           */
          int sample_mode;
          if (BITFIELD_BIT(i) & INTEL_BARYCENTRIC_NONPERSPECTIVE_BITS) {
-            sample_mode = util_last_bit(wm_prog_data->barycentric_interp_modes &
+            sample_mode = util_last_bit(fs_prog_data->barycentric_interp_modes &
                                         INTEL_BARYCENTRIC_NONPERSPECTIVE_BITS) - 1;
          } else {
-            sample_mode = util_last_bit(wm_prog_data->barycentric_interp_modes &
+            sample_mode = util_last_bit(fs_prog_data->barycentric_interp_modes &
                                         INTEL_BARYCENTRIC_PERSPECTIVE_BITS) - 1;
          }
-         assert(wm_prog_data->barycentric_interp_modes &
+         assert(fs_prog_data->barycentric_interp_modes &
                 BITFIELD_BIT(sample_mode));
 
          if (i == sample_mode)
@@ -514,7 +514,7 @@ brw_emit_interpolation_setup(brw_shader &s)
          assert(barys[0] && sample_barys[0]);
 
          if (!loaded_flag) {
-            brw_check_dynamic_fs_config(ubld, wm_prog_data,
+            brw_check_dynamic_fs_config(ubld, fs_prog_data,
                                         INTEL_FS_CONFIG_PERSAMPLE_INTERP);
          }
 
@@ -605,7 +605,7 @@ brw_emit_repclear_shader(brw_shader &s)
 static void
 calculate_urb_setup(const struct intel_device_info *devinfo,
                     const struct brw_wm_prog_key *key,
-                    struct brw_wm_prog_data *prog_data,
+                    struct brw_fs_prog_data *prog_data,
                     nir_shader *nir,
                     const struct brw_mue_map *mue_map,
                     int *per_primitive_offsets)
@@ -819,7 +819,7 @@ brw_compute_offset_barycentric_interp_modes(const struct brw_wm_prog_key *key,
 }
 
 static void
-brw_compute_flat_inputs(struct brw_wm_prog_data *prog_data,
+brw_compute_flat_inputs(struct brw_fs_prog_data *prog_data,
                         const nir_shader *shader)
 {
    prog_data->flat_inputs = 0;
@@ -872,10 +872,10 @@ computed_depth_mode(const nir_shader *shader)
 }
 
 static void
-brw_nir_populate_wm_prog_data(nir_shader *shader,
+brw_nir_populate_fs_prog_data(nir_shader *shader,
                               const struct intel_device_info *devinfo,
                               const struct brw_wm_prog_key *key,
-                              struct brw_wm_prog_data *prog_data,
+                              struct brw_fs_prog_data *prog_data,
                               const struct brw_mue_map *mue_map,
                               int *per_primitive_offsets)
 {
@@ -1062,23 +1062,23 @@ brw_nir_populate_wm_prog_data(nir_shader *shader,
  * overhead.
  */
 static void
-gfx9_ps_header_only_workaround(struct brw_wm_prog_data *wm_prog_data)
+gfx9_ps_header_only_workaround(struct brw_fs_prog_data *fs_prog_data)
 {
-   if (wm_prog_data->num_varying_inputs)
+   if (fs_prog_data->num_varying_inputs)
       return;
 
-   if (wm_prog_data->base.push_sizes[0] > 0)
+   if (fs_prog_data->base.push_sizes[0] > 0)
       return;
 
-   wm_prog_data->urb_setup[VARYING_SLOT_LAYER] = 0;
-   wm_prog_data->num_varying_inputs = 1;
+   fs_prog_data->urb_setup[VARYING_SLOT_LAYER] = 0;
+   fs_prog_data->num_varying_inputs = 1;
 
-   brw_compute_urb_setup_index(wm_prog_data);
+   brw_compute_urb_setup_index(fs_prog_data);
 }
 
 static brw_reg
 remap_attr_reg(brw_shader &s,
-               struct brw_wm_prog_data *prog_data,
+               struct brw_fs_prog_data *prog_data,
                const brw_reg &src,
                unsigned urb_start,
                unsigned exec_size)
@@ -1238,7 +1238,7 @@ brw_assign_urb_setup(brw_shader &s)
 {
    assert(s.stage == MESA_SHADER_FRAGMENT);
 
-   struct brw_wm_prog_data *prog_data = brw_wm_prog_data(s.prog_data);
+   struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
 
    uint32_t push_size = 0;
    for (uint32_t i = 0; i < 4; i++)
@@ -1303,7 +1303,7 @@ static bool
 run_fs(brw_shader &s, bool allow_spilling, bool do_rep_send)
 {
    const struct intel_device_info *devinfo = s.devinfo;
-   struct brw_wm_prog_data *wm_prog_data = brw_wm_prog_data(s.prog_data);
+   struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
    const brw_builder bld = brw_builder(&s);
    const nir_shader *nir = s.nir;
 
@@ -1333,7 +1333,7 @@ run_fs(brw_shader &s, bool allow_spilling, bool do_rep_send)
            (BITSET_TEST(nir->info.system_values_read,
                         SYSTEM_VALUE_HELPER_INVOCATION) ||
             nir->info.writes_memory)) ||
-          wm_prog_data->uses_kill) {
+          fs_prog_data->uses_kill) {
 
          const unsigned lower_width = MIN2(s.dispatch_width, 16);
          for (unsigned i = 0; i < s.dispatch_width / lower_width; i++) {
@@ -1351,7 +1351,7 @@ run_fs(brw_shader &s, bool allow_spilling, bool do_rep_send)
       }
 
       if (nir->info.writes_memory)
-         wm_prog_data->has_side_effects = true;
+         fs_prog_data->has_side_effects = true;
 
       brw_from_nir(&s);
 
@@ -1369,7 +1369,7 @@ run_fs(brw_shader &s, bool allow_spilling, bool do_rep_send)
       s.assign_curb_setup();
 
       if (devinfo->ver == 9)
-         gfx9_ps_header_only_workaround(wm_prog_data);
+         gfx9_ps_header_only_workaround(fs_prog_data);
 
       brw_assign_urb_setup(s);
 
@@ -1385,7 +1385,7 @@ run_fs(brw_shader &s, bool allow_spilling, bool do_rep_send)
 }
 
 static void
-brw_print_fs_urb_setup(FILE *fp, const struct brw_wm_prog_data *prog_data,
+brw_print_fs_urb_setup(FILE *fp, const struct brw_fs_prog_data *prog_data,
                        int *per_primitive_offsets)
 {
    fprintf(fp, "FS URB (inputs=0x%016" PRIx64 ", flat_inputs=0x%08x):\n",
@@ -1423,7 +1423,7 @@ brw_print_fs_urb_setup(FILE *fp, const struct brw_wm_prog_data *prog_data,
 }
 
 static void
-brw_nir_cleanup_pre_wm_prog_data(brw_pass_tracker *pt)
+brw_nir_cleanup_pre_fs_prog_data(brw_pass_tracker *pt)
 {
    pass_tracker_new_loop(pt);
 
@@ -1443,7 +1443,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
 {
    struct nir_shader *nir = params->base.nir;
    const struct brw_wm_prog_key *key = params->key;
-   struct brw_wm_prog_data *prog_data = params->prog_data;
+   struct brw_fs_prog_data *prog_data = params->prog_data;
    bool allow_spilling = params->allow_spilling;
    const bool debug_enabled =
       brw_should_print_shader(nir, params->base.debug_flag ?
@@ -1489,18 +1489,18 @@ brw_compile_fs(const struct brw_compiler *compiler,
    if (!brw_can_coherent_fb_fetch(devinfo))
       BRW_NIR_PASS(brw_nir_lower_fs_load_output, key);
 
-   /* Do this lowering before brw_nir_populate_wm_prog_data(). */
+   /* Do this lowering before brw_nir_populate_fs_prog_data(). */
    BRW_NIR_PASS(nir_opt_frag_coord_to_pixel_coord);
    BRW_NIR_PASS(nir_lower_frag_coord_to_pixel_coord);
 
    BRW_NIR_PASS(brw_nir_move_interpolation_to_top);
 
-   brw_nir_cleanup_pre_wm_prog_data(pt);
+   brw_nir_cleanup_pre_fs_prog_data(pt);
 
    int per_primitive_offsets[VARYING_SLOT_MAX];
    memset(per_primitive_offsets, -1, sizeof(per_primitive_offsets));
 
-   brw_nir_populate_wm_prog_data(nir, compiler->devinfo, key, prog_data,
+   brw_nir_populate_fs_prog_data(nir, compiler->devinfo, key, prog_data,
                                  params->mue_map,
                                  per_primitive_offsets);
 
@@ -1935,7 +1935,7 @@ extern "C" void
 brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_map,
                                     bool mesh,
                                     bool per_primitive_remapping,
-                                    const struct brw_wm_prog_data *wm_prog_data,
+                                    const struct brw_fs_prog_data *fs_prog_data,
                                     uint32_t *out_read_offset,
                                     uint32_t *out_read_length,
                                     uint32_t *out_num_varyings,
@@ -1947,7 +1947,7 @@ brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_m
    /* Ignore PrimitiveID in mesh pipelines, this value is coming from the
     * per-primitive block.
     */
-   uint64_t inputs_read = wm_prog_data->inputs;
+   uint64_t inputs_read = fs_prog_data->inputs;
    if (mesh)
       inputs_read &= ~VARYING_BIT_PRIMITIVE_ID;
 
@@ -1977,7 +1977,7 @@ brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_m
    assert((first_slot == INT32_MAX && last_slot == -1) ||
           (first_slot >= 0 && last_slot >= 0 && last_slot >= first_slot));
 
-   uint32_t num_varyings = wm_prog_data->num_varying_inputs;
+   uint32_t num_varyings = fs_prog_data->num_varying_inputs;
    uint32_t remapped_flat_inputs = 0;
 
    /* When using INTEL_VUE_LAYOUT_SEPARATE_MESH, the location of the
@@ -1987,7 +1987,7 @@ brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_m
     */
    *out_primitive_id_offset = 0;
    if (prev_stage_vue_map->layout == INTEL_VUE_LAYOUT_SEPARATE_MESH) {
-      if (per_primitive_remapping && wm_prog_data->per_primitive_inputs != 0) {
+      if (per_primitive_remapping && fs_prog_data->per_primitive_inputs != 0) {
          /* When the mesh shader remaps per-primitive slots to per-vertex
           * ones, read the entire set of slots.
           */
@@ -2001,7 +2001,7 @@ brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_m
          num_varyings = prev_stage_vue_map->num_slots - first_slot;
       } else if (mesh) {
          /* When using Mesh, the PrimitiveID is in the per-primitive block. */
-         if (wm_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID] >= 0)
+         if (fs_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID] >= 0)
             num_varyings--;
          *out_primitive_id_offset = INTEL_FS_CONFIG_PRIMITIVE_ID_INDEX_MESH;
       } else if (inputs_read & VARYING_BIT_PRIMITIVE_ID) {
@@ -2014,17 +2014,17 @@ brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_m
              * If the FS shader already has a slot of the PrimitiveID value,
              * use that.
              */
-            if (wm_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID] >= 0) {
+            if (fs_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID] >= 0) {
                if (first_slot == INT32_MAX) {
                   first_slot =
-                     wm_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID];
+                     fs_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID];
                }
                /* urb_setup[VARYING_SLOT_PRIMITIVE_ID] is relative to the
                 * first read slot, so bring primitive_id_slot back into the
                 * absolute indexing of the VUE.
                 */
                primitive_id_slot = first_slot +
-                  wm_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID];
+                  fs_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID];
             } else {
                primitive_id_slot = ++last_slot;
             }
@@ -2053,7 +2053,7 @@ brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_m
       *out_num_varyings = num_varyings;
    }
 
-   *out_flat_inputs = wm_prog_data->flat_inputs | remapped_flat_inputs;
+   *out_flat_inputs = fs_prog_data->flat_inputs | remapped_flat_inputs;
 }
 
 extern "C" void

@@ -878,7 +878,7 @@ anv_pipeline_compile_fs(const struct elk_compiler *compiler,
          .mem_ctx = mem_ctx,
       },
       .key = &fs_stage->key.wm,
-      .prog_data = &fs_stage->prog_data.wm,
+      .prog_data = &fs_stage->prog_data.fs,
 
       .allow_spilling = true,
    };
@@ -888,9 +888,9 @@ anv_pipeline_compile_fs(const struct elk_compiler *compiler,
 
    fs_stage->code = elk_compile_fs(compiler, &params);
 
-   fs_stage->num_stats = (uint32_t)fs_stage->prog_data.wm.dispatch_8 +
-                         (uint32_t)fs_stage->prog_data.wm.dispatch_16 +
-                         (uint32_t)fs_stage->prog_data.wm.dispatch_32;
+   fs_stage->num_stats = (uint32_t)fs_stage->prog_data.fs.dispatch_8 +
+                         (uint32_t)fs_stage->prog_data.fs.dispatch_16 +
+                         (uint32_t)fs_stage->prog_data.fs.dispatch_32;
 }
 
 static void
@@ -999,22 +999,22 @@ anv_pipeline_add_executables(struct anv_pipeline *pipeline,
        * the anv_pipeline_stage may not be fully populated if we successfully
        * looked up the shader in a cache.
        */
-      const struct elk_wm_prog_data *wm_prog_data =
-         (const struct elk_wm_prog_data *)bin->prog_data;
+      const struct elk_fs_prog_data *fs_prog_data =
+         (const struct elk_fs_prog_data *)bin->prog_data;
       struct elk_compile_stats *stats = bin->stats;
 
-      if (wm_prog_data->dispatch_8) {
+      if (fs_prog_data->dispatch_8) {
          anv_pipeline_add_executable(pipeline, stage, stats++, 0);
       }
 
-      if (wm_prog_data->dispatch_16) {
+      if (fs_prog_data->dispatch_16) {
          anv_pipeline_add_executable(pipeline, stage, stats++,
-                                     wm_prog_data->prog_offset_16);
+                                     fs_prog_data->prog_offset_16);
       }
 
-      if (wm_prog_data->dispatch_32) {
+      if (fs_prog_data->dispatch_32) {
          anv_pipeline_add_executable(pipeline, stage, stats++,
-                                     wm_prog_data->prog_offset_32);
+                                     fs_prog_data->prog_offset_32);
       }
    } else {
       anv_pipeline_add_executable(pipeline, stage, bin->stats, 0);

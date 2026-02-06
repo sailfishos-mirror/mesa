@@ -1979,8 +1979,8 @@ emit_pixel_interpolater_send(const brw_builder &bld,
                              const brw_reg &flag_reg,
                              glsl_interp_mode interpolation)
 {
-   struct brw_wm_prog_data *wm_prog_data =
-      brw_wm_prog_data(bld.shader->prog_data);
+   struct brw_fs_prog_data *fs_prog_data =
+      brw_fs_prog_data(bld.shader->prog_data);
 
    brw_reg srcs[INTERP_NUM_SRCS];
 
@@ -2002,14 +2002,14 @@ emit_pixel_interpolater_send(const brw_builder &bld,
        *     This field cannot be set to "Linear Interpolation"
        *     unless Non-Perspective Barycentric Enable in 3DSTATE_CLIP is enabled"
        */
-      wm_prog_data->uses_nonperspective_interp_modes = true;
+      fs_prog_data->uses_nonperspective_interp_modes = true;
    }
 
    brw_inst *inst = bld.emit(opcode, dst, srcs, INTERP_NUM_SRCS);
    /* 2 floats per slot returned */
    inst->size_written = 2 * dst.component_size(inst->exec_size);
 
-   wm_prog_data->pulls_bary = true;
+   fs_prog_data->pulls_bary = true;
 
    return inst;
 }
@@ -2074,16 +2074,16 @@ emit_pixel_interpolater_alu_at_offset(const brw_builder &bld,
    assert(devinfo->ver >= 11);
 
    const brw_fs_thread_payload &payload = shader->fs_payload();
-   const struct brw_wm_prog_data *wm_prog_data =
-      brw_wm_prog_data(shader->prog_data);
+   const struct brw_fs_prog_data *fs_prog_data =
+      brw_fs_prog_data(shader->prog_data);
 
    if (interpolation == INTERP_MODE_NOPERSPECTIVE) {
-      assert(wm_prog_data->uses_npc_bary_coefficients &&
-             wm_prog_data->uses_nonperspective_interp_modes);
+      assert(fs_prog_data->uses_npc_bary_coefficients &&
+             fs_prog_data->uses_nonperspective_interp_modes);
    } else {
       assert(interpolation == INTERP_MODE_SMOOTH);
-      assert(wm_prog_data->uses_pc_bary_coefficients &&
-             wm_prog_data->uses_depth_w_coefficients);
+      assert(fs_prog_data->uses_pc_bary_coefficients &&
+             fs_prog_data->uses_depth_w_coefficients);
    }
 
    /* Account for half-pixel X/Y coordinate offset. */
@@ -2209,11 +2209,11 @@ emit_pixel_interpolater_alu_at_sample(const brw_builder &bld,
                                       glsl_interp_mode interpolation)
 {
    const brw_fs_thread_payload &payload = bld.shader->fs_payload();
-   const struct brw_wm_prog_data *wm_prog_data =
-      brw_wm_prog_data(bld.shader->prog_data);
+   const struct brw_fs_prog_data *fs_prog_data =
+      brw_fs_prog_data(bld.shader->prog_data);
    const brw_builder ubld = bld.exec_all().group(16, 0);
    const brw_reg sample_offs_xy = ubld.vgrf(BRW_TYPE_UD);
-   assert(wm_prog_data->uses_sample_offsets);
+   assert(fs_prog_data->uses_sample_offsets);
 
    /* Interleave the X/Y coordinates of each sample in order to allow
     * a single indirect look-up, by using a MOV for the 16 X
@@ -3407,12 +3407,12 @@ emit_samplepos_setup(nir_to_brw_state &ntb)
    brw_shader &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   struct brw_wm_prog_data *wm_prog_data = brw_wm_prog_data(s.prog_data);
+   struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
 
    const brw_builder abld = bld.annotate("compute sample position");
    brw_reg pos = abld.vgrf(BRW_TYPE_F, 2);
 
-   if (wm_prog_data->persample_dispatch == INTEL_NEVER) {
+   if (fs_prog_data->persample_dispatch == INTEL_NEVER) {
       /* From ARB_sample_shading specification:
        * "When rendering to a non-multisample buffer, or if multisample
        *  rasterization is disabled, gl_SamplePosition will always be
@@ -3447,8 +3447,8 @@ emit_samplepos_setup(nir_to_brw_state &ntb)
       abld.MUL(offset(pos, abld, i), tmp_f, brw_imm_f(1 / 16.0f));
    }
 
-   if (wm_prog_data->persample_dispatch == INTEL_SOMETIMES) {
-      brw_check_dynamic_fs_config(abld, wm_prog_data,
+   if (fs_prog_data->persample_dispatch == INTEL_SOMETIMES) {
+      brw_check_dynamic_fs_config(abld, fs_prog_data,
                                   INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
       for (unsigned i = 0; i < 2; i++) {
          set_predicate(BRW_PREDICATE_NORMAL,
@@ -3469,7 +3469,7 @@ emit_sampleid_setup(nir_to_brw_state &ntb)
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
    ASSERTED brw_wm_prog_key *key = (brw_wm_prog_key*) s.key;
-   struct brw_wm_prog_data *wm_prog_data = brw_wm_prog_data(s.prog_data);
+   struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
 
    const brw_builder abld = bld.annotate("compute sample id");
    brw_reg sample_id = abld.vgrf(BRW_TYPE_UD);
@@ -3522,7 +3522,7 @@ emit_sampleid_setup(nir_to_brw_state &ntb)
    abld.AND(sample_id, tmp, brw_imm_w(0xf));
 
    if (key->multisample_fbo == INTEL_SOMETIMES) {
-      brw_check_dynamic_fs_config(abld, wm_prog_data,
+      brw_check_dynamic_fs_config(abld, fs_prog_data,
                                   INTEL_FS_CONFIG_MULTISAMPLE_FBO);
       set_predicate(BRW_PREDICATE_NORMAL,
                     abld.SEL(sample_id, sample_id, brw_imm_ud(0)));
@@ -3539,18 +3539,18 @@ emit_samplemaskin_setup(nir_to_brw_state &ntb)
    brw_shader &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   struct brw_wm_prog_data *wm_prog_data = brw_wm_prog_data(s.prog_data);
+   struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
 
    /* DG2 should support this, but Wa_22012766191 says there are issues
     * with CPS 1x1 + MSAA + FS writing to oMask.
     */
    assert(devinfo->verx10 >= 200 ||
-          wm_prog_data->coarse_pixel_dispatch != INTEL_ALWAYS);
+          fs_prog_data->coarse_pixel_dispatch != INTEL_ALWAYS);
 
    brw_reg coverage_mask =
       brw_fetch_payload_reg(bld, s.fs_payload().sample_mask_in_reg, BRW_TYPE_UD);
 
-   if (wm_prog_data->persample_dispatch == INTEL_NEVER)
+   if (fs_prog_data->persample_dispatch == INTEL_NEVER)
       return coverage_mask;
 
    /* gl_SampleMaskIn[] comes from two sources: the input coverage mask,
@@ -3572,10 +3572,10 @@ emit_samplemaskin_setup(nir_to_brw_state &ntb)
       abld.SHL(brw_imm_ud(1), ntb.system_values[SYSTEM_VALUE_SAMPLE_ID]);
    brw_reg mask = abld.AND(enabled_mask, coverage_mask);
 
-   if (wm_prog_data->persample_dispatch == INTEL_ALWAYS)
+   if (fs_prog_data->persample_dispatch == INTEL_ALWAYS)
       return mask;
 
-   brw_check_dynamic_fs_config(abld, wm_prog_data,
+   brw_check_dynamic_fs_config(abld, fs_prog_data,
                                INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
    set_predicate(BRW_PREDICATE_NORMAL, abld.SEL(mask, mask, coverage_mask));
 
@@ -3590,13 +3590,13 @@ emit_shading_rate_setup(nir_to_brw_state &ntb)
 
    assert(devinfo->ver >= 11);
 
-   struct brw_wm_prog_data *wm_prog_data =
-      brw_wm_prog_data(bld.shader->prog_data);
+   struct brw_fs_prog_data *fs_prog_data =
+      brw_fs_prog_data(bld.shader->prog_data);
 
    /* Coarse pixel shading size fields overlap with other fields of not in
     * coarse pixel dispatch mode, so report 0 when that's not the case.
     */
-   if (wm_prog_data->coarse_pixel_dispatch == INTEL_NEVER)
+   if (fs_prog_data->coarse_pixel_dispatch == INTEL_NEVER)
       return brw_imm_ud(0);
 
    const brw_builder abld = bld.annotate("compute fragment shading rate");
@@ -3617,10 +3617,10 @@ emit_shading_rate_setup(nir_to_brw_state &ntb)
 
    brw_reg rate = abld.OR(abld.SHL(int_rate_x, brw_imm_ud(2)), int_rate_y);
 
-   if (wm_prog_data->coarse_pixel_dispatch == INTEL_ALWAYS)
+   if (fs_prog_data->coarse_pixel_dispatch == INTEL_ALWAYS)
       return rate;
 
-   brw_check_dynamic_fs_config(abld, wm_prog_data,
+   brw_check_dynamic_fs_config(abld, fs_prog_data,
                                INTEL_FS_CONFIG_COARSE_RT_WRITES);
    set_predicate(BRW_PREDICATE_NORMAL, abld.SEL(rate, rate, brw_imm_ud(0)));
 
@@ -3645,7 +3645,7 @@ brw_interp_reg(const brw_builder &bld, unsigned location,
    assert((BITFIELD64_BIT(location) & ~s.nir->info.per_primitive_inputs) ||
           location == VARYING_SLOT_PRIMITIVE_ID);
 
-   const struct brw_wm_prog_data *prog_data = brw_wm_prog_data(s.prog_data);
+   const struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
 
    assert(prog_data->urb_setup[location] >= 0);
    unsigned nr = prog_data->urb_setup[location];
@@ -3681,7 +3681,7 @@ brw_per_primitive_reg(const brw_builder &bld, int location, unsigned comp)
    assert((BITFIELD64_BIT(location) & s.nir->info.per_primitive_inputs) ||
           location == VARYING_SLOT_PRIMITIVE_ID);
 
-   const struct brw_wm_prog_data *prog_data = brw_wm_prog_data(s.prog_data);
+   const struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
 
    comp += (s.fs.per_primitive_offsets[location] % 16) / 4;
 
@@ -4037,10 +4037,10 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
          brw_reg flag_reg;
          struct brw_wm_prog_key *wm_prog_key = (struct brw_wm_prog_key *) s.key;
          if (wm_prog_key->multisample_fbo == INTEL_SOMETIMES) {
-            struct brw_wm_prog_data *wm_prog_data = brw_wm_prog_data(s.prog_data);
+            struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
 
             brw_check_dynamic_fs_config(bld.exec_all().group(8, 0),
-                                        wm_prog_data,
+                                        fs_prog_data,
                                         INTEL_FS_CONFIG_MULTISAMPLE_FBO);
             flag_reg = brw_flag_reg(0, 0);
          }
@@ -4131,7 +4131,7 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
 
    case nir_intrinsic_load_fs_config_intel:
       bld.MOV(retype(dest, BRW_TYPE_UD),
-              brw_dynamic_fs_config(brw_wm_prog_data(s.prog_data)));
+              brw_dynamic_fs_config(brw_fs_prog_data(s.prog_data)));
       break;
 
    case nir_intrinsic_load_max_polygon_intel:
@@ -4140,7 +4140,7 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
 
    case nir_intrinsic_load_per_primitive_remap_intel:
       bld.MOV(retype(dest, BRW_TYPE_UD),
-              brw_dynamic_per_primitive_remap(brw_wm_prog_data(s.prog_data)));
+              brw_dynamic_per_primitive_remap(brw_fs_prog_data(s.prog_data)));
       break;
 
    default:
@@ -6789,7 +6789,7 @@ brw_test_dispatch_packing(const brw_builder &bld)
    const mesa_shader_stage stage = shader->stage;
    const bool uses_vmask =
       stage == MESA_SHADER_FRAGMENT &&
-      brw_wm_prog_data(shader->prog_data)->uses_vmask;
+      brw_fs_prog_data(shader->prog_data)->uses_vmask;
 
    if (brw_stage_has_packed_dispatch(shader->devinfo, stage,
                                      shader->max_polygons,

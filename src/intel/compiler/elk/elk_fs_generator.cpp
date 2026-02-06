@@ -326,7 +326,7 @@ elk_fs_generator::fire_fb_write(elk_fs_inst *inst,
                             struct elk_reg implied_header,
                             GLuint nr)
 {
-   struct elk_wm_prog_data *prog_data = elk_wm_prog_data(this->prog_data);
+   struct elk_fs_prog_data *prog_data = elk_fs_prog_data(this->prog_data);
 
    if (devinfo->ver < 6) {
       elk_push_insn_state(p);

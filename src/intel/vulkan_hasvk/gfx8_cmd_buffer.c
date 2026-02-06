@@ -137,8 +137,8 @@ want_depth_pma_fix(struct anv_cmd_buffer *cmd_buffer,
       return false;
 
    /* !(3DSTATE_WM::EDSC_Mode == EDSC_PREPS) */
-   const struct elk_wm_prog_data *wm_prog_data = get_wm_prog_data(pipeline);
-   if (wm_prog_data->early_fragment_tests)
+   const struct elk_fs_prog_data *fs_prog_data = get_fs_prog_data(pipeline);
+   if (fs_prog_data->early_fragment_tests)
       return false;
 
    /* We never use anv_pipeline for HiZ ops so this is trivially true:
@@ -167,7 +167,7 @@ want_depth_pma_fix(struct anv_cmd_buffer *cmd_buffer,
     */
    return (pipeline->kill_pixel && (ds->depth.write_enable ||
                                     ds->stencil.write_enable)) ||
-          wm_prog_data->computed_depth_mode != PSCDEPTH_OFF;
+          fs_prog_data->computed_depth_mode != PSCDEPTH_OFF;
 }
 
 void

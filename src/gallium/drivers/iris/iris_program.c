@@ -71,8 +71,8 @@ get_new_program_id(struct iris_screen *screen)
 }
 
 static void
-iris_apply_brw_wm_prog_data(struct iris_compiled_shader *shader,
-                            const struct brw_wm_prog_data *brw)
+iris_apply_brw_fs_prog_data(struct iris_compiled_shader *shader,
+                            const struct brw_fs_prog_data *brw)
 {
    assert(shader->stage == MESA_SHADER_FRAGMENT);
    struct iris_fs_data *iris = &shader->fs;
@@ -115,7 +115,7 @@ iris_apply_brw_wm_prog_data(struct iris_compiled_shader *shader,
 
    iris->uses_nonperspective_interp_modes = brw->uses_nonperspective_interp_modes;
 
-   iris->is_per_sample = brw_wm_prog_data_is_persample(brw, 0);
+   iris->is_per_sample = brw_fs_prog_data_is_persample(brw, 0);
 }
 
 static void
@@ -253,7 +253,7 @@ iris_apply_brw_prog_data(struct iris_compiled_shader *shader,
 
    switch (shader->stage) {
    case MESA_SHADER_FRAGMENT:
-      iris_apply_brw_wm_prog_data(shader, brw_wm_prog_data_const(brw));
+      iris_apply_brw_fs_prog_data(shader, brw_fs_prog_data_const(brw));
       break;
    case MESA_SHADER_COMPUTE:
       iris_apply_brw_cs_prog_data(shader, brw_cs_prog_data_const(brw));
@@ -283,8 +283,8 @@ iris_apply_brw_prog_data(struct iris_compiled_shader *shader,
 #ifdef INTEL_USE_ELK
 
 static void
-iris_apply_elk_wm_prog_data(struct iris_compiled_shader *shader,
-                            const struct elk_wm_prog_data *elk)
+iris_apply_elk_fs_prog_data(struct iris_compiled_shader *shader,
+                            const struct elk_fs_prog_data *elk)
 {
    assert(shader->stage == MESA_SHADER_FRAGMENT);
    struct iris_fs_data *iris = &shader->fs;
@@ -322,7 +322,7 @@ iris_apply_elk_wm_prog_data(struct iris_compiled_shader *shader,
 
    iris->uses_nonperspective_interp_modes = elk->uses_nonperspective_interp_modes;
 
-   iris->is_per_sample = elk_wm_prog_data_is_persample(elk, 0);
+   iris->is_per_sample = elk_fs_prog_data_is_persample(elk, 0);
 }
 
 static void
@@ -454,7 +454,7 @@ iris_apply_elk_prog_data(struct iris_compiled_shader *shader,
 
    switch (shader->stage) {
    case MESA_SHADER_FRAGMENT:
-      iris_apply_elk_wm_prog_data(shader, elk_wm_prog_data_const(elk));
+      iris_apply_elk_fs_prog_data(shader, elk_fs_prog_data_const(elk));
       break;
    case MESA_SHADER_COMPUTE:
       iris_apply_elk_cs_prog_data(shader, elk_cs_prog_data_const(elk));
@@ -2771,8 +2771,8 @@ iris_compile_fs(struct iris_screen *screen,
    const unsigned *program;
 
    if (screen->brw) {
-      struct brw_wm_prog_data *brw_prog_data =
-         rzalloc(mem_ctx, struct brw_wm_prog_data);
+      struct brw_fs_prog_data *brw_prog_data =
+         rzalloc(mem_ctx, struct brw_fs_prog_data);
 
       brw_prog_data->base.use_alt_mode = nir->info.use_legacy_math_rules;
 
@@ -2805,8 +2805,8 @@ iris_compile_fs(struct iris_screen *screen,
       }
    } else {
 #ifdef INTEL_USE_ELK
-      struct elk_wm_prog_data *elk_prog_data =
-         rzalloc(mem_ctx, struct elk_wm_prog_data);
+      struct elk_fs_prog_data *elk_prog_data =
+         rzalloc(mem_ctx, struct elk_fs_prog_data);
 
       elk_prog_data->base.use_alt_mode = nir->info.use_legacy_math_rules;
 
@@ -4034,12 +4034,12 @@ iris_fs_barycentric_modes(const struct iris_compiled_shader *shader,
                           enum intel_fs_config pushed_fs_config)
 {
    if (shader->brw_prog_data) {
-      return wm_prog_data_barycentric_modes(brw_wm_prog_data(shader->brw_prog_data),
+      return fs_prog_data_barycentric_modes(brw_fs_prog_data(shader->brw_prog_data),
                                             pushed_fs_config);
    } else {
 #ifdef INTEL_USE_ELK
       assert(shader->elk_prog_data);
-      return elk_wm_prog_data_barycentric_modes(elk_wm_prog_data(shader->elk_prog_data),
+      return elk_fs_prog_data_barycentric_modes(elk_fs_prog_data(shader->elk_prog_data),
                                                 pushed_fs_config);
 #else
       UNREACHABLE("no elk support");

@@ -429,20 +429,20 @@ anv_nir_compute_push_layout(nir_shader *nir,
       break;
 
    case MESA_SHADER_FRAGMENT: {
-      struct brw_wm_prog_data *wm_prog_data =
-         container_of(prog_data, struct brw_wm_prog_data, base);
+      struct brw_fs_prog_data *fs_prog_data =
+         container_of(prog_data, struct brw_fs_prog_data, base);
 
       if (push_info->fragment_dynamic) {
          const uint32_t fs_config_offset =
             anv_drv_const_offset(gfx.fs_config);
          assert(fs_config_offset >= push_start);
-         wm_prog_data->fs_config_param = fs_config_offset - push_start;
+         fs_prog_data->fs_config_param = fs_config_offset - push_start;
       }
       if (needs_wa_18019110168) {
          const uint32_t fs_per_prim_remap_offset =
             anv_drv_const_offset(gfx.fs_per_prim_remap_offset);
          assert(fs_per_prim_remap_offset >= push_start);
-         wm_prog_data->per_primitive_remap_param =
+         fs_prog_data->per_primitive_remap_param =
             fs_per_prim_remap_offset - push_start;
       }
       break;

@@ -153,7 +153,7 @@ public:
    elk_fs_visitor(const struct elk_compiler *compiler,
               const struct elk_compile_params *params,
               const elk_wm_prog_key *key,
-              struct elk_wm_prog_data *prog_data,
+              struct elk_fs_prog_data *prog_data,
               const nir_shader *shader,
               unsigned dispatch_width,
               bool needs_register_pressure,
@@ -517,15 +517,15 @@ namespace elk {
    fetch_barycentric_reg(const elk::fs_builder &bld, uint8_t regs[2]);
 
    inline elk_fs_reg
-   dynamic_fs_config(const struct elk_wm_prog_data *wm_prog_data)
+   dynamic_fs_config(const struct elk_fs_prog_data *fs_prog_data)
    {
-      return elk_fs_reg(UNIFORM, wm_prog_data->fs_config_param,
+      return elk_fs_reg(UNIFORM, fs_prog_data->fs_config_param,
                     ELK_REGISTER_TYPE_UD);
    }
 
    void
    check_dynamic_fs_config(const fs_builder &bld,
-                           const struct elk_wm_prog_data *wm_prog_data,
+                           const struct elk_fs_prog_data *fs_prog_data,
                            enum intel_fs_config flag);
 
    bool
@@ -550,9 +550,9 @@ elk_fs_reg elk_setup_imm_ub(const elk::fs_builder &bld,
 enum elk_barycentric_mode elk_barycentric_mode(nir_intrinsic_instr *intr);
 
 uint32_t elk_fb_write_msg_control(const elk_fs_inst *inst,
-                                  const struct elk_wm_prog_data *prog_data);
+                                  const struct elk_fs_prog_data *prog_data);
 
-void elk_compute_urb_setup_index(struct elk_wm_prog_data *wm_prog_data);
+void elk_compute_urb_setup_index(struct elk_fs_prog_data *fs_prog_data);
 
 bool elk_nir_lower_simd(nir_shader *nir, unsigned dispatch_width);
 

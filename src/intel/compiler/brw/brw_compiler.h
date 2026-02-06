@@ -616,7 +616,7 @@ enum brw_pixel_shader_computed_depth_mode {
  * corresponding to a different brw_wm_prog_key struct, with different
  * compiled programs.
  */
-struct brw_wm_prog_data {
+struct brw_fs_prog_data {
    struct brw_stage_prog_data base;
 
    /**
@@ -785,7 +785,7 @@ struct brw_wm_prog_data {
 };
 
 static inline bool
-brw_wm_prog_data_is_dynamic(const struct brw_wm_prog_data *prog_data)
+brw_fs_prog_data_is_dynamic(const struct brw_fs_prog_data *prog_data)
 {
    return prog_data->mesh_input == INTEL_SOMETIMES ||
       (prog_data->vertex_attributes_bypass &&
@@ -809,7 +809,7 @@ brw_wm_prog_data_is_dynamic(const struct brw_wm_prog_data *prog_data)
  * If the given KSP is enabled, a SIMD width of 8, 16, or 32 is
  * returned.  Note that for a multipolygon dispatch kernel 8 is always
  * returned, since multipolygon kernels use the "_8" fields from
- * brw_wm_prog_data regardless of their SIMD width.  If the KSP is
+ * brw_fs_prog_data regardless of their SIMD width.  If the KSP is
  * invalid, 0 is returned.
  */
 static inline unsigned
@@ -872,7 +872,7 @@ brw_fs_simd_width_for_ksp(unsigned ksp_idx, bool simd8_enabled,
    (brw_wm_state_simd_width_for_ksp((wm_state), (ksp_idx)) != 0)
 
 static inline uint32_t
-_brw_wm_prog_data_prog_offset(const struct brw_wm_prog_data *prog_data,
+_brw_fs_prog_data_prog_offset(const struct brw_fs_prog_data *prog_data,
                               unsigned simd_width)
 {
    switch (simd_width) {
@@ -883,12 +883,12 @@ _brw_wm_prog_data_prog_offset(const struct brw_wm_prog_data *prog_data,
    }
 }
 
-#define brw_wm_prog_data_prog_offset(prog_data, wm_state, ksp_idx) \
-   _brw_wm_prog_data_prog_offset(prog_data, \
+#define brw_fs_prog_data_prog_offset(prog_data, wm_state, ksp_idx) \
+   _brw_fs_prog_data_prog_offset(prog_data, \
       brw_wm_state_simd_width_for_ksp(wm_state, ksp_idx))
 
 static inline uint8_t
-_brw_wm_prog_data_dispatch_grf_start_reg(const struct brw_wm_prog_data *prog_data,
+_brw_fs_prog_data_dispatch_grf_start_reg(const struct brw_fs_prog_data *prog_data,
                                          unsigned simd_width)
 {
    switch (simd_width) {
@@ -899,12 +899,12 @@ _brw_wm_prog_data_dispatch_grf_start_reg(const struct brw_wm_prog_data *prog_dat
    }
 }
 
-#define brw_wm_prog_data_dispatch_grf_start_reg(prog_data, wm_state, ksp_idx) \
-   _brw_wm_prog_data_dispatch_grf_start_reg(prog_data, \
+#define brw_fs_prog_data_dispatch_grf_start_reg(prog_data, wm_state, ksp_idx) \
+   _brw_fs_prog_data_dispatch_grf_start_reg(prog_data, \
       brw_wm_state_simd_width_for_ksp(wm_state, ksp_idx))
 
 static inline bool
-brw_wm_prog_data_is_persample(const struct brw_wm_prog_data *prog_data,
+brw_fs_prog_data_is_persample(const struct brw_fs_prog_data *prog_data,
                               enum intel_fs_config pushed_fs_config)
 {
    return intel_fs_is_persample(prog_data->persample_dispatch,
@@ -913,7 +913,7 @@ brw_wm_prog_data_is_persample(const struct brw_wm_prog_data *prog_data,
 }
 
 static inline uint32_t
-wm_prog_data_barycentric_modes(const struct brw_wm_prog_data *prog_data,
+fs_prog_data_barycentric_modes(const struct brw_fs_prog_data *prog_data,
                                enum intel_fs_config pushed_fs_config)
 {
    return intel_fs_barycentric_modes(prog_data->persample_dispatch,
@@ -922,7 +922,7 @@ wm_prog_data_barycentric_modes(const struct brw_wm_prog_data *prog_data,
 }
 
 static inline bool
-brw_wm_prog_data_is_coarse(const struct brw_wm_prog_data *prog_data,
+brw_fs_prog_data_is_coarse(const struct brw_fs_prog_data *prog_data,
                            enum intel_fs_config pushed_fs_config)
 {
    return intel_fs_is_coarse(prog_data->coarse_pixel_dispatch,
@@ -1291,7 +1291,7 @@ union brw_any_prog_data {
    struct brw_tcs_prog_data tcs;
    struct brw_tes_prog_data tes;
    struct brw_gs_prog_data gs;
-   struct brw_wm_prog_data wm;
+   struct brw_fs_prog_data fs;
    struct brw_cs_prog_data cs;
    struct brw_bs_prog_data bs;
    struct brw_task_prog_data task;
@@ -1318,7 +1318,7 @@ DEFINE_PROG_DATA_DOWNCAST(vs,  prog_data->stage == MESA_SHADER_VERTEX)
 DEFINE_PROG_DATA_DOWNCAST(tcs, prog_data->stage == MESA_SHADER_TESS_CTRL)
 DEFINE_PROG_DATA_DOWNCAST(tes, prog_data->stage == MESA_SHADER_TESS_EVAL)
 DEFINE_PROG_DATA_DOWNCAST(gs,  prog_data->stage == MESA_SHADER_GEOMETRY)
-DEFINE_PROG_DATA_DOWNCAST(wm,  prog_data->stage == MESA_SHADER_FRAGMENT)
+DEFINE_PROG_DATA_DOWNCAST(fs,  prog_data->stage == MESA_SHADER_FRAGMENT)
 DEFINE_PROG_DATA_DOWNCAST(cs,  mesa_shader_stage_uses_workgroup(prog_data->stage))
 DEFINE_PROG_DATA_DOWNCAST(bs,  brw_shader_stage_is_bindless(prog_data->stage))
 
@@ -1569,7 +1569,7 @@ struct brw_compile_fs_params {
    struct brw_compile_params base;
 
    const struct brw_wm_prog_key *key;
-   struct brw_wm_prog_data *prog_data;
+   struct brw_fs_prog_data *prog_data;
 
    const struct intel_vue_map *vue_map;
    const struct brw_mue_map *mue_map;
@@ -1698,11 +1698,11 @@ brw_stage_has_packed_dispatch(ASSERTED const struct intel_device_info *devinfo,
        * the SIMD thread, so dispatch of unlit samples cannot be avoided in
        * general and we should return false.
        */
-      const struct brw_wm_prog_data *wm_prog_data =
-         (const struct brw_wm_prog_data *)prog_data;
+      const struct brw_fs_prog_data *fs_prog_data =
+         (const struct brw_fs_prog_data *)prog_data;
       return devinfo->verx10 < 125 &&
-             !wm_prog_data->persample_dispatch &&
-             wm_prog_data->uses_vmask &&
+             !fs_prog_data->persample_dispatch &&
+             fs_prog_data->uses_vmask &&
              max_polygons < 2;
    }
    case MESA_SHADER_COMPUTE:
@@ -1739,7 +1739,7 @@ brw_compute_first_fs_urb_slot_required(uint64_t inputs_read,
 void
 brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_map,
                                     bool mesh, bool per_primitive_remapping,
-                                    const struct brw_wm_prog_data *wm_prog_data,
+                                    const struct brw_fs_prog_data *fs_prog_data,
                                     uint32_t *out_first_slot,
                                     uint32_t *num_slots,
                                     uint32_t *out_num_varyings,

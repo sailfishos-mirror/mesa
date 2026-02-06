@@ -171,7 +171,7 @@ bool elk_nir_lower_cs_intrinsics(nir_shader *nir,
                                  struct elk_cs_prog_data *prog_data);
 bool elk_nir_lower_alpha_to_coverage(nir_shader *shader,
                                      const struct elk_wm_prog_key *key,
-                                     const struct elk_wm_prog_data *prog_data);
+                                     const struct elk_fs_prog_data *prog_data);
 void elk_nir_lower_vs_inputs(nir_shader *nir,
                              bool edgeflag_is_last,
                              const uint8_t *vs_attrib_wa_flags);

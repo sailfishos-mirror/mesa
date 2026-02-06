@@ -419,7 +419,7 @@ brw_lower_find_live_channel(brw_shader &s)
                                     s.prog_data);
    bool vmask =
       s.stage == MESA_SHADER_FRAGMENT &&
-      brw_wm_prog_data(s.prog_data)->uses_vmask;
+      brw_fs_prog_data(s.prog_data)->uses_vmask;
 
    foreach_block_and_inst_safe(block, brw_inst, inst, s.cfg) {
       if (inst->opcode != SHADER_OPCODE_FIND_LIVE_CHANNEL &&

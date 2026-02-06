@@ -1048,7 +1048,7 @@ anv_shader_compile_fs(struct anv_device *device,
          .archiver = shader_data->archiver,
       },
       .key = &shader_data->key.wm,
-      .prog_data = &shader_data->prog_data.wm,
+      .prog_data = &shader_data->prog_data.fs,
       .mue_map = shader_data->mue_map,
 
       .allow_spilling = true,
@@ -1058,10 +1058,10 @@ anv_shader_compile_fs(struct anv_device *device,
    shader_data->code = (void *)brw_compile_fs(compiler, &params);
    *error_str = params.base.error_str;
 
-   shader_data->num_stats = (uint32_t)!!shader_data->prog_data.wm.dispatch_multi +
-                            (uint32_t)shader_data->prog_data.wm.dispatch_8 +
-                            (uint32_t)shader_data->prog_data.wm.dispatch_16 +
-                            (uint32_t)shader_data->prog_data.wm.dispatch_32;
+   shader_data->num_stats = (uint32_t)!!shader_data->prog_data.fs.dispatch_multi +
+                            (uint32_t)shader_data->prog_data.fs.dispatch_8 +
+                            (uint32_t)shader_data->prog_data.fs.dispatch_16 +
+                            (uint32_t)shader_data->prog_data.fs.dispatch_32;
    assert(shader_data->num_stats <= ARRAY_SIZE(shader_data->stats));
 
    /* Update the push constant padding range now that we know the amount of
@@ -1070,7 +1070,7 @@ anv_shader_compile_fs(struct anv_device *device,
    for (unsigned i = 0; i < ARRAY_SIZE(shader_data->bind_map.push_ranges); i++) {
       if (shader_data->bind_map.push_ranges[i].set == ANV_DESCRIPTOR_SET_PER_PRIM_PADDING) {
          shader_data->bind_map.push_ranges[i].length = MAX2(
-            shader_data->prog_data.wm.num_per_primitive_inputs / 2,
+            shader_data->prog_data.fs.num_per_primitive_inputs / 2,
             shader_data->bind_map.push_ranges[i].length);
          break;
       }

@@ -63,7 +63,7 @@ build_dither_mask(nir_builder *b, nir_def *color)
 bool
 elk_nir_lower_alpha_to_coverage(nir_shader *shader,
                                 const struct elk_wm_prog_key *key,
-                                const struct elk_wm_prog_data *prog_data)
+                                const struct elk_fs_prog_data *prog_data)
 {
    assert(shader->info.stage == MESA_SHADER_FRAGMENT);
    assert(key->alpha_to_coverage != ELK_NEVER);

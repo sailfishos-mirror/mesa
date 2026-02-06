@@ -124,7 +124,7 @@ setup_fs_payload_gfx20(brw_fs_thread_payload &payload,
                        const brw_shader &v,
                        bool &source_depth_to_render_target)
 {
-   struct brw_wm_prog_data *prog_data = brw_wm_prog_data(v.prog_data);
+   struct brw_fs_prog_data *prog_data = brw_fs_prog_data(v.prog_data);
    const unsigned payload_width = 16;
    assert(v.dispatch_width % payload_width == 0);
    assert(v.devinfo->ver >= 20);
@@ -213,7 +213,7 @@ setup_fs_payload_gfx9(brw_fs_thread_payload &payload,
                       const brw_shader &v,
                       bool &source_depth_to_render_target)
 {
-   struct brw_wm_prog_data *prog_data = brw_wm_prog_data(v.prog_data);
+   struct brw_fs_prog_data *prog_data = brw_fs_prog_data(v.prog_data);
 
    const unsigned payload_width = MIN2(16, v.dispatch_width);
    assert(v.dispatch_width % payload_width == 0);
