@@ -2826,6 +2826,22 @@ radv_physical_device_destroy(struct vk_physical_device *vk_device)
    vk_free(&instance->vk.alloc, pdev);
 }
 
+static VkQueueFlags
+radv_queue_family_protected_flag(const struct radv_physical_device *pdev, enum radv_queue_family qf)
+{
+   if (!radv_tmz_enabled(pdev))
+      return 0;
+
+   switch (qf) {
+   /* Only GFX and SDMA support TMZ. */
+   case RADV_QUEUE_GENERAL:
+   case RADV_QUEUE_TRANSFER:
+      return VK_QUEUE_PROTECTED_BIT;
+   default:
+      return 0;
+   }
+}
+
 static void
 radv_get_physical_device_queue_family_properties(struct radv_physical_device *pdev, uint32_t *pCount,
                                                  VkQueueFamilyProperties **pQueueFamilyProperties)
@@ -2867,7 +2883,7 @@ radv_get_physical_device_queue_family_properties(struct radv_physical_device *pd
          VkQueueFlags gfx_flags =
             VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT | VK_QUEUE_SPARSE_BINDING_BIT;
          *pQueueFamilyProperties[idx] = (VkQueueFamilyProperties){
-            .queueFlags = gfx_flags,
+            .queueFlags = gfx_flags | radv_queue_family_protected_flag(pdev, RADV_QUEUE_GENERAL),
             .queueCount = 1,
             .timestampValidBits = 64,
             .minImageTransferGranularity = (VkExtent3D){1, 1, 1},
@@ -2880,7 +2896,7 @@ radv_get_physical_device_queue_family_properties(struct radv_physical_device *pd
       VkQueueFlags compute_flags = VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT | VK_QUEUE_SPARSE_BINDING_BIT;
       if (*pCount > idx) {
          *pQueueFamilyProperties[idx] = (VkQueueFamilyProperties){
-            .queueFlags = compute_flags,
+            .queueFlags = compute_flags | radv_queue_family_protected_flag(pdev, RADV_QUEUE_COMPUTE),
             .queueCount = pdev->info.ip[AMD_IP_COMPUTE].num_queues,
             .timestampValidBits = 64,
             .minImageTransferGranularity = (VkExtent3D){1, 1, 1},
@@ -2892,7 +2908,7 @@ radv_get_physical_device_queue_family_properties(struct radv_physical_device *pd
    if (radv_video_decode_queue_enabled(pdev)) {
       if (*pCount > idx) {
          *pQueueFamilyProperties[idx] = (VkQueueFamilyProperties){
-            .queueFlags = VK_QUEUE_VIDEO_DECODE_BIT_KHR,
+            .queueFlags = VK_QUEUE_VIDEO_DECODE_BIT_KHR | radv_queue_family_protected_flag(pdev, RADV_QUEUE_VIDEO_DEC),
             .queueCount = pdev->info.ip[pdev->vid_decode_ip].num_queues,
             .timestampValidBits = 0,
             .minImageTransferGranularity = (VkExtent3D){1, 1, 1},
@@ -2904,7 +2920,8 @@ radv_get_physical_device_queue_family_properties(struct radv_physical_device *pd
    if (radv_transfer_queue_enabled(pdev)) {
       if (*pCount > idx) {
          *pQueueFamilyProperties[idx] = (VkQueueFamilyProperties){
-            .queueFlags = VK_QUEUE_TRANSFER_BIT | VK_QUEUE_SPARSE_BINDING_BIT,
+            .queueFlags = VK_QUEUE_TRANSFER_BIT | VK_QUEUE_SPARSE_BINDING_BIT |
+                          radv_queue_family_protected_flag(pdev, RADV_QUEUE_TRANSFER),
             .queueCount = pdev->info.ip[AMD_IP_SDMA].num_queues,
             .timestampValidBits = 64,
             .minImageTransferGranularity = (VkExtent3D){16, 16, 8},
@@ -2916,7 +2933,7 @@ radv_get_physical_device_queue_family_properties(struct radv_physical_device *pd
    if (radv_video_encode_queue_enabled(pdev)) {
       if (*pCount > idx) {
          *pQueueFamilyProperties[idx] = (VkQueueFamilyProperties){
-            .queueFlags = VK_QUEUE_VIDEO_ENCODE_BIT_KHR,
+            .queueFlags = VK_QUEUE_VIDEO_ENCODE_BIT_KHR | radv_queue_family_protected_flag(pdev, RADV_QUEUE_VIDEO_ENC),
             .queueCount = pdev->info.ip[AMD_IP_VCN_ENC].num_queues,
             .timestampValidBits = 0,
             .minImageTransferGranularity = (VkExtent3D){1, 1, 1},
@@ -2928,7 +2945,7 @@ radv_get_physical_device_queue_family_properties(struct radv_physical_device *pd
    if (radv_dedicated_sparse_queue_enabled(pdev)) {
       if (*pCount > idx) {
          *pQueueFamilyProperties[idx] = (VkQueueFamilyProperties){
-            .queueFlags = VK_QUEUE_SPARSE_BINDING_BIT,
+            .queueFlags = VK_QUEUE_SPARSE_BINDING_BIT | radv_queue_family_protected_flag(pdev, RADV_QUEUE_SPARSE),
             .queueCount = 1,
             .timestampValidBits = 0,
             .minImageTransferGranularity = (VkExtent3D){1, 1, 1},
