@@ -4046,37 +4046,6 @@ pvr_can_pbe_resolve_ds_attachment(const struct pvr_device_info *dev_info,
    return pvr_arch_format_is_pbe_downscalable(dev_info, vk_format);
 }
 
-static inline VkResult
-pvr_mrt_setup_partial_init(struct pvr_device *const device,
-                           struct usc_mrt_setup *mrt_setup,
-                           uint32_t num_renger_targets,
-                           uint32_t num_output_regs,
-                           uint32_t num_tile_buffers)
-{
-   struct usc_mrt_resource *mrt_resources = NULL;
-
-   if (num_renger_targets) {
-      const uint32_t size =
-         num_renger_targets * sizeof(*mrt_setup->mrt_resources);
-
-      mrt_resources = vk_zalloc(&device->vk.alloc,
-                                size,
-                                8,
-                                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-      if (!mrt_resources)
-         return VK_ERROR_OUT_OF_HOST_MEMORY;
-   }
-
-   *mrt_setup = (struct usc_mrt_setup){
-      .num_render_targets = num_renger_targets,
-      .num_output_regs = num_output_regs,
-      .num_tile_buffers = num_tile_buffers,
-      .mrt_resources = mrt_resources,
-   };
-
-   return VK_SUCCESS;
-}
-
 static void pvr_dynamic_rendering_output_attachments_cleanup(
    const struct pvr_device *device,
    const VkAllocationCallbacks *const allocator,
@@ -4297,11 +4266,12 @@ static VkResult pvr_dynamic_rendering_output_attachments_setup(
    dr_info->hw_render.tile_buffers_count = mrt_setup.num_tile_buffers;
    dr_info->hw_render.output_regs_count = mrt_setup.num_output_regs;
 
-   result = pvr_mrt_setup_partial_init(cmd_buffer->device,
-                                       dr_info->mrt_setup,
-                                       pRenderingInfo->colorAttachmentCount,
-                                       dr_info->hw_render.output_regs_count,
-                                       dr_info->hw_render.tile_buffers_count);
+   result =
+      pvr_arch_mrt_setup_partial_init(cmd_buffer->device,
+                                      dr_info->mrt_setup,
+                                      pRenderingInfo->colorAttachmentCount,
+                                      dr_info->hw_render.output_regs_count,
+                                      dr_info->hw_render.tile_buffers_count);
    if (result != VK_SUCCESS) {
       pvr_arch_destroy_mrt_setup(device, &mrt_setup);
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
@@ -4321,22 +4291,24 @@ static VkResult pvr_dynamic_rendering_output_attachments_setup(
       }
    }
 
-   result = pvr_mrt_setup_partial_init(cmd_buffer->device,
-                                       &dr_info->hw_render.init_setup,
-                                       dr_info->hw_render.color_init_count,
-                                       dr_info->hw_render.output_regs_count,
-                                       dr_info->hw_render.tile_buffers_count);
+   result =
+      pvr_arch_mrt_setup_partial_init(cmd_buffer->device,
+                                      &dr_info->hw_render.init_setup,
+                                      dr_info->hw_render.color_init_count,
+                                      dr_info->hw_render.output_regs_count,
+                                      dr_info->hw_render.tile_buffers_count);
    if (result != VK_SUCCESS) {
       pvr_arch_destroy_mrt_setup(device, &mrt_setup);
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       goto err_finish_mrt_setup;
    }
 
-   result = pvr_mrt_setup_partial_init(cmd_buffer->device,
-                                       &dr_info->hw_render.eot_setup,
-                                       eot_mrt_count,
-                                       dr_info->hw_render.output_regs_count,
-                                       dr_info->hw_render.tile_buffers_count);
+   result =
+      pvr_arch_mrt_setup_partial_init(cmd_buffer->device,
+                                      &dr_info->hw_render.eot_setup,
+                                      eot_mrt_count,
+                                      dr_info->hw_render.output_regs_count,
+                                      dr_info->hw_render.tile_buffers_count);
    if (result != VK_SUCCESS) {
       pvr_arch_destroy_mrt_setup(device, &mrt_setup);
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
@@ -5056,11 +5028,12 @@ static void pvr_cmd_buffer_state_from_dynamic_inheritance(
       goto err_free_attachments;
    }
 
-   result = pvr_mrt_setup_partial_init(cmd_buffer->device,
-                                       dr_info->mrt_setup,
-                                       inheritance_info->colorAttachmentCount,
-                                       mrt_setup.num_output_regs,
-                                       mrt_setup.num_tile_buffers);
+   result =
+      pvr_arch_mrt_setup_partial_init(cmd_buffer->device,
+                                      dr_info->mrt_setup,
+                                      inheritance_info->colorAttachmentCount,
+                                      mrt_setup.num_output_regs,
+                                      mrt_setup.num_tile_buffers);
    if (result != VK_SUCCESS) {
       pvr_arch_destroy_mrt_setup(device, &mrt_setup);
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
