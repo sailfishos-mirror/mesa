@@ -9494,16 +9494,12 @@ radv_CmdSetRenderingInputAttachmentIndices(VkCommandBuffer commandBuffer,
 }
 
 static void
-radv_handle_color_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, uint32_t index)
+radv_handle_color_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, struct radv_attachment *att, uint32_t layer_count,
+                                 uint32_t view_mask)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_rendering_state *render = &cmd_buffer->state.render;
-   struct radv_attachment *att = &render->color_att[index];
 
-   if (!att->iview)
-      return;
-
-   if (!(att->flags & VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR))
+   if (!device->vk.enabled_features.dynamicRenderingLocalRead)
       return;
 
    const struct radv_image *image = att->iview->image;
@@ -9526,7 +9522,7 @@ radv_handle_color_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, uint32_t in
 
    /* Force a transition to FEEDBACK_LOOP_OPTIMAL to decompress DCC. */
    radv_handle_rendering_image_transition(
-      cmd_buffer, att->iview, render->layer_count, render->view_mask, att->layout, VK_IMAGE_LAYOUT_UNDEFINED,
+      cmd_buffer, att->iview, layer_count, view_mask, att->layout, VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT, VK_IMAGE_LAYOUT_UNDEFINED, NULL);
 
    radv_describe_barrier_end(cmd_buffer);
@@ -9539,16 +9535,12 @@ radv_handle_color_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, uint32_t in
 }
 
 static void
-radv_handle_depth_fbfetch_output(struct radv_cmd_buffer *cmd_buffer)
+radv_handle_depth_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, struct radv_attachment *att, uint32_t layer_count,
+                                 uint32_t view_mask, struct radv_sample_locations_state *sample_locs)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_rendering_state *render = &cmd_buffer->state.render;
-   struct radv_attachment *att = &render->ds_att;
 
-   if (!att->iview)
-      return;
-
-   if (!(att->flags & VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR))
+   if (!device->vk.enabled_features.dynamicRenderingLocalRead)
       return;
 
    if (!radv_layout_is_htile_compressed(
@@ -9566,10 +9558,9 @@ radv_handle_depth_fbfetch_output(struct radv_cmd_buffer *cmd_buffer)
    radv_describe_barrier_start(cmd_buffer, RGP_BARRIER_UNKNOWN_REASON);
 
    /* Force a transition to FEEDBACK_LOOP_OPTIMAL to decompress HTILE. */
-   radv_handle_rendering_image_transition(cmd_buffer, att->iview, render->layer_count, render->view_mask, att->layout,
+   radv_handle_rendering_image_transition(cmd_buffer, att->iview, layer_count, view_mask, att->layout,
                                           att->stencil_layout, VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT,
-                                          VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT,
-                                          render->sample_locations.count > 0 ? &render->sample_locations : NULL);
+                                          VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT, sample_locs);
 
    radv_describe_barrier_end(cmd_buffer);
 
@@ -9580,20 +9571,6 @@ radv_handle_depth_fbfetch_output(struct radv_cmd_buffer *cmd_buffer)
       radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                             VK_ACCESS_2_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT, 0,
                             att->iview->image, &range);
-}
-
-static void
-radv_handle_fbfetch_output(struct radv_cmd_buffer *cmd_buffer)
-{
-   const struct radv_rendering_state *render = &cmd_buffer->state.render;
-
-   /* Check if any color attachments are compressed and also used as input attachments. */
-   for (uint32_t i = 0; i < render->color_att_count; i++) {
-      radv_handle_color_fbfetch_output(cmd_buffer, i);
-   }
-
-   /* Check if the depth/stencil attachment is compressed and also used as input attachment. */
-   radv_handle_depth_fbfetch_output(cmd_buffer);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -9869,7 +9846,6 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    VkExtent2D screen_scissor = {pdev->image_props.max_dims.width, pdev->image_props.max_dims.height};
-   bool has_input_attachment_concurrent_writes = false;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    bool disable_constant_encode_ac01 = false;
 
@@ -9940,8 +9916,10 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
       screen_scissor.width = MIN2(screen_scissor.width, iview->vk.extent.width);
       screen_scissor.height = MIN2(screen_scissor.height, iview->vk.extent.height);
 
-      if (color_att[i].flags & VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR)
-         has_input_attachment_concurrent_writes = true;
+      if (color_att[i].flags & VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR) {
+         radv_handle_color_fbfetch_output(cmd_buffer, &color_att[i], pRenderingInfo->layerCount,
+                                          pRenderingInfo->viewMask);
+      }
    }
 
    struct radv_attachment ds_att = {.iview = NULL};
@@ -10020,8 +9998,10 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
       screen_scissor.width = MIN2(screen_scissor.width, ds_att.iview->vk.extent.width);
       screen_scissor.height = MIN2(screen_scissor.height, ds_att.iview->vk.extent.height);
 
-      if (ds_att.flags & VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR)
-         has_input_attachment_concurrent_writes = true;
+      if (ds_att.flags & VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR) {
+         radv_handle_depth_fbfetch_output(cmd_buffer, &ds_att, pRenderingInfo->layerCount, pRenderingInfo->viewMask,
+                                          sample_locs_info ? &sample_locations : NULL);
+      }
    }
    if (cmd_buffer->vk.render_pass)
       radv_describe_barrier_end(cmd_buffer);
@@ -10162,9 +10142,6 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
 
    if (!(pRenderingInfo->flags & VK_RENDERING_RESUMING_BIT))
       radv_cmd_buffer_clear_rendering(cmd_buffer, pRenderingInfo);
-
-   if (device->vk.enabled_features.dynamicRenderingLocalRead && has_input_attachment_concurrent_writes)
-      radv_handle_fbfetch_output(cmd_buffer);
 }
 
 VKAPI_ATTR void VKAPI_CALL
