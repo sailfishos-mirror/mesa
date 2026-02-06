@@ -34,6 +34,7 @@ struct ac_sdma_surf {
    } offset;
 
    bool is_compressed;
+   bool is_secure;
 
    /* Linear */
    struct {
