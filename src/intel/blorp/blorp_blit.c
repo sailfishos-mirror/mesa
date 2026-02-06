@@ -3023,6 +3023,25 @@ blorp_copy(struct blorp_batch *batch,
              isl_get_sampler_clear_field_offset(devinfo, src_surf_fmt, hiz));
    }
 
+   if (src_fmtl->bw > 1 || src_fmtl->bh > 1) {
+      blorp_surf_convert_to_uncompressed(batch->blorp->isl_dev, &params.src,
+                                         &src_x, &src_y,
+                                         &src_width, &src_height);
+      key.need_src_offset = true;
+   }
+
+   if (dst_fmtl->bw > 1 || dst_fmtl->bh > 1) {
+      blorp_surf_convert_to_uncompressed(batch->blorp->isl_dev, &params.dst,
+                                         &dst_x, &dst_y, NULL, NULL);
+      key.need_dst_offset = true;
+   }
+
+   /* Once both surfaces are stompped to uncompressed as needed, the
+    * destination size is the same as the source size.
+    */
+   uint32_t dst_width = src_width;
+   uint32_t dst_height = src_height;
+
    if (params.src.view.format != params.dst.view.format) {
       enum isl_format src_cast_format = params.src.view.format;
       enum isl_format dst_cast_format = params.dst.view.format;
@@ -3043,25 +3062,6 @@ blorp_copy(struct blorp_batch *batch,
          key.dst_format = dst_cast_format;
       }
    }
-
-   if (src_fmtl->bw > 1 || src_fmtl->bh > 1) {
-      blorp_surf_convert_to_uncompressed(batch->blorp->isl_dev, &params.src,
-                                         &src_x, &src_y,
-                                         &src_width, &src_height);
-      key.need_src_offset = true;
-   }
-
-   if (dst_fmtl->bw > 1 || dst_fmtl->bh > 1) {
-      blorp_surf_convert_to_uncompressed(batch->blorp->isl_dev, &params.dst,
-                                         &dst_x, &dst_y, NULL, NULL);
-      key.need_dst_offset = true;
-   }
-
-   /* Once both surfaces are stompped to uncompressed as needed, the
-    * destination size is the same as the source size.
-    */
-   uint32_t dst_width = src_width;
-   uint32_t dst_height = src_height;
 
    if (batch->flags & BLORP_BATCH_USE_BLITTER) {
       if (devinfo->verx10 < 125) {
