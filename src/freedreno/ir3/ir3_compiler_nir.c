@@ -4610,8 +4610,20 @@ instr_can_be_predicated(nir_instr *instr)
 static bool
 block_can_be_predicated(nir_block *block)
 {
+   unsigned num_instrs = 0;
+
    nir_foreach_instr (instr, block) {
       if (!instr_can_be_predicated(instr)) {
+         return false;
+      }
+
+      /* Limit the size of predicated blocks: even when the branch condition is
+       * divergent, it may still be uniform within a wave. When this happens for
+       * very large blocks, predication causes a large overhead because the
+       * instructions in the false block are not simply jumped over. Therefore,
+       * we fall back to normal branches for large blocks.
+       */
+      if (++num_instrs > 32) {
          return false;
       }
    }
