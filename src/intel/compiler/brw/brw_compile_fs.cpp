@@ -611,7 +611,6 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
                     int *per_primitive_offsets)
 {
    memset(prog_data->urb_setup, -1, sizeof(prog_data->urb_setup));
-   memset(prog_data->urb_setup_channel, 0, sizeof(prog_data->urb_setup_channel));
 
    int urb_next = 0; /* in vec4s */
 
@@ -1393,8 +1392,8 @@ brw_print_fs_urb_setup(FILE *fp, const struct brw_fs_prog_data *prog_data,
    fprintf(fp, "  URB setup:\n");
    for (uint32_t i = 0; i < ARRAY_SIZE(prog_data->urb_setup); i++) {
       if (prog_data->urb_setup[i] >= 0) {
-         fprintf(fp, "   [%02d]: %i channel=%u (%s)\n",
-                 i, prog_data->urb_setup[i], prog_data->urb_setup_channel[i],
+         fprintf(fp, "   [%02d]: %i (%s)\n",
+                 i, prog_data->urb_setup[i],
                  gl_varying_slot_name_for_stage((gl_varying_slot)i,
                                                 MESA_SHADER_FRAGMENT));
       }
