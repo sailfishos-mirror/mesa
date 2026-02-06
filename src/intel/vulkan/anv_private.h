@@ -6939,12 +6939,6 @@ anv_device_utrace_emit_gfx_copy_buffer(struct u_trace_context *utctx,
                                        void *ts_to, uint64_t to_offset_B,
                                        uint64_t size_B);
 
-static bool
-anv_has_cooperative_matrix(const struct anv_physical_device *device)
-{
-   return device->has_cooperative_matrix && (device->info.has_systolic || debug_get_bool_option("INTEL_LOWER_DPAS", false));
-}
-
 #define ANV_FROM_HANDLE(__anv_type, __name, __handle) \
    VK_FROM_HANDLE(__anv_type, __name, __handle)
 

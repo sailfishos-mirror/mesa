@@ -128,20 +128,6 @@ get_device_descriptor_limits(const struct anv_physical_device *device,
 }
 
 
-static const bool
-anv_device_has_bfloat16_cooperative_matrix(const struct anv_physical_device *pdevice)
-{
-   const struct intel_device_info *devinfo = &pdevice->info;
-
-   for (int i = 0; i < ARRAY_SIZE(devinfo->cooperative_matrix_configurations); i++) {
-      const struct intel_cooperative_matrix_configuration *cfg =
-         &devinfo->cooperative_matrix_configurations[i];
-      if (cfg->a == INTEL_CMAT_BFLOAT16 || cfg->b == INTEL_CMAT_BFLOAT16)
-         return true;
-   }
-   return false;
-}
-
 static void
 get_device_extensions(const struct anv_physical_device *device,
                       struct vk_device_extension_table *ext)
@@ -161,7 +147,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .KHR_buffer_device_address             = true,
       .KHR_calibrated_timestamps             = device->has_reg_timestamp,
       .KHR_compute_shader_derivatives        = true,
-      .KHR_cooperative_matrix                = anv_has_cooperative_matrix(device),
+      .KHR_cooperative_matrix                = device->has_cooperative_matrix,
       .KHR_copy_commands2                    = true,
       .KHR_create_renderpass2                = true,
       .KHR_dedicated_allocation              = true,
@@ -895,7 +881,7 @@ get_features(const struct anv_physical_device *pdevice,
       .nestedCommandBufferSimultaneousUse = false,
 
       /* VK_KHR_cooperative_matrix */
-      .cooperativeMatrix = anv_has_cooperative_matrix(pdevice),
+      .cooperativeMatrix = pdevice->has_cooperative_matrix,
 
       /* VK_KHR_shader_maximal_reconvergence */
       .shaderMaximalReconvergence = true,
@@ -980,8 +966,8 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_KHR_shader_bfloat16 */
       .shaderBFloat16Type = pdevice->info.has_bfloat16,
-      .shaderBFloat16CooperativeMatrix =
-         anv_device_has_bfloat16_cooperative_matrix(pdevice),
+      .shaderBFloat16CooperativeMatrix = pdevice->info.has_bfloat16 &&
+                                         pdevice->has_cooperative_matrix,
       .shaderBFloat16DotProduct = pdevice->info.has_bfloat16,
 
       /* VK_KHR_fragment_shader_barycentric */
@@ -2773,6 +2759,7 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       goto fail_base;
 
    device->has_cooperative_matrix =
+      (device->info.has_systolic || debug_get_bool_option("INTEL_LOWER_DPAS", false)) &&
       device->info.cooperative_matrix_configurations[0].scope != INTEL_CMAT_SCOPE_NONE;
 
    if (is_virtio) {
@@ -3323,7 +3310,7 @@ VkResult anv_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(
 
    VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixPropertiesKHR, out, pProperties, pPropertyCount);
 
-   if (!anv_has_cooperative_matrix(pdevice))
+   if (!pdevice->has_cooperative_matrix)
       return vk_outarray_status(&out);
 
    for (int i = 0; i < ARRAY_SIZE(devinfo->cooperative_matrix_configurations); i++) {
