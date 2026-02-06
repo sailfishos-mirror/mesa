@@ -668,46 +668,6 @@ fn op_gpr(op: &impl DstsAsSlice) -> RegFile {
     }
 }
 
-/// Helper to legalize extended or external instructions
-///
-/// These are instructions which reach out external units such as load/store
-/// and texture ops.  They typically can't take anything but GPRs and are the
-/// only types of instructions that support vectors.  They also can never be
-/// uniform so we always evict uniform sources.
-///
-fn legalize_ext_instr(op: &mut impl SrcsAsSlice, b: &mut LegalizeBuilder) {
-    let src_types = op.src_types();
-    for (i, src) in op.srcs_as_mut_slice().iter_mut().enumerate() {
-        match src_types[i] {
-            SrcType::SSA | SrcType::GPR => match &mut src.src_ref {
-                SrcRef::Zero | SrcRef::True | SrcRef::False => {
-                    assert!(src_types[i] != SrcType::SSA);
-                }
-                SrcRef::SSA(ssa) => {
-                    b.copy_ssa_ref_if_uniform(ssa);
-                }
-                _ => panic!("Unsupported source reference"),
-            },
-            SrcType::ALU
-            | SrcType::F16
-            | SrcType::F16v2
-            | SrcType::F32
-            | SrcType::F64
-            | SrcType::I32
-            | SrcType::B32 => {
-                panic!("ALU srcs must be legalized explicitly");
-            }
-            SrcType::Pred => {
-                panic!("Predicates must be legalized explicitly");
-            }
-            SrcType::Carry => {
-                panic!("Carry is invalid on Volta+");
-            }
-            SrcType::Bar => (),
-        }
-    }
-}
-
 //
 // Implementations of SM70Op for each op we support on Volta+
 //
@@ -2951,7 +2911,8 @@ impl SM70Encoder<'_> {
 
 impl SM70Op for OpSuLd {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.handle);
+        b.copy_src_if_uniform(&mut self.coord);
 
         // suld.constant doesn't exist on Volta or Turing but it's always safe
         // to silently degrade to suld.weak
@@ -2988,7 +2949,9 @@ impl SM70Op for OpSuLd {
 
 impl SM70Op for OpSuSt {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.handle);
+        b.copy_src_if_uniform(&mut self.coord);
+        b.copy_src_if_uniform(&mut self.data);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3018,7 +2981,9 @@ impl SM70Op for OpSuSt {
 
 impl SM70Op for OpSuAtom {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.handle);
+        b.copy_src_if_uniform(&mut self.coord);
+        b.copy_src_if_uniform(&mut self.data);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3053,7 +3018,7 @@ impl SM70Op for OpSuAtom {
 
 impl SM70Op for OpLd {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.addr);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3190,7 +3155,8 @@ impl SM70Op for OpLdc {
 
 impl SM70Op for OpSt {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.addr);
+        b.copy_src_if_uniform(&mut self.data);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3298,7 +3264,9 @@ impl SM70Encoder<'_> {
 
 impl SM70Op for OpAtom {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.addr);
+        b.copy_src_if_uniform(&mut self.cmpr);
+        b.copy_src_if_uniform(&mut self.data);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3387,7 +3355,7 @@ impl SM70Op for OpAtom {
 
 impl SM70Op for OpAL2P {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.offset);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3404,7 +3372,8 @@ impl SM70Op for OpAL2P {
 
 impl SM70Op for OpALd {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.vtx);
+        b.copy_src_if_uniform(&mut self.offset);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3424,7 +3393,9 @@ impl SM70Op for OpALd {
 
 impl SM70Op for OpASt {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.data);
+        b.copy_src_if_uniform(&mut self.vtx);
+        b.copy_src_if_uniform(&mut self.offset);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3443,7 +3414,7 @@ impl SM70Op for OpASt {
 
 impl SM70Op for OpIpa {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.offset);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3483,9 +3454,7 @@ impl SM70Op for OpIpa {
 }
 
 impl SM70Op for OpLdTram {
-    fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
-    }
+    fn legalize(&mut self, _: &mut LegalizeBuilder) {}
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
         e.set_opcode(0x3ad);
@@ -3504,7 +3473,7 @@ impl SM70Op for OpLdTram {
 
 impl SM70Op for OpCCtl {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.addr);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3902,7 +3871,7 @@ impl SM70Op for OpVote {
 
 impl SM70Op for OpMatch {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.src);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3929,7 +3898,9 @@ impl SM70Op for OpMatch {
 
 impl SM70Op for OpImma {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.srcs[0]);
+        b.copy_src_if_uniform(&mut self.srcs[1]);
+        b.copy_src_if_uniform(&mut self.srcs[2]);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3984,7 +3955,9 @@ impl SM70Op for OpImma {
 
 impl SM70Op for OpHmma {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.srcs[0]);
+        b.copy_src_if_uniform(&mut self.srcs[1]);
+        b.copy_src_if_uniform(&mut self.srcs[2]);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -4027,7 +4000,7 @@ impl SM70Op for OpHmma {
 
 impl SM70Op for OpLdsm {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.addr);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -4061,7 +4034,7 @@ impl SM70Op for OpLdsm {
 
 impl SM70Op for OpMovm {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
-        legalize_ext_instr(self, b);
+        b.copy_src_if_uniform(&mut self.src);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {

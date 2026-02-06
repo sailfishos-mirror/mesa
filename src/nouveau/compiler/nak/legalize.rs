@@ -374,6 +374,14 @@ pub trait LegalizeBuildHelpers: SSABuilder {
             }
         }
     }
+
+    fn copy_src_if_uniform(&mut self, src: &mut Src) {
+        match &mut src.src_ref {
+            SrcRef::SSA(ssa) => self.copy_ssa_ref_if_uniform(ssa),
+            SrcRef::Imm32(_) | SrcRef::False | SrcRef::True | SrcRef::Zero => {}
+            _ => panic!("Unsupported source reference"),
+        }
+    }
 }
 
 pub struct LegalizeBuilder<'a> {
