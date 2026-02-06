@@ -1106,9 +1106,9 @@ brw_reg
 brw_fetch_barycentric_reg(const brw_builder &bld, uint8_t regs[2]);
 
 void
-brw_check_dynamic_msaa_flag(const brw_builder &bld,
+brw_check_dynamic_fs_config(const brw_builder &bld,
                             const struct brw_wm_prog_data *wm_prog_data,
-                            enum intel_msaa_flags flag);
+                            enum intel_fs_config flag);
 
 inline brw_inst *
 brw_transform_inst(const brw_builder &bld, brw_inst *inst,

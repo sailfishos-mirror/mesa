@@ -2643,8 +2643,8 @@ load("push_data_intel", [1], [BASE, RANGE, ACCESS], [CAN_ELIMINATE, CAN_REORDER]
 # Dynamic tesselation parameters (see intel_tess_config).
 system_value("tess_config_intel", 1)
 
-# Dynamic fragment shader parameters (see intel_msaa_flags) .
-system_value("fs_msaa_intel", 1)
+# Dynamic fragment shader parameters (see intel_fs_config) .
+system_value("fs_config_intel", 1)
 
 # Per primitive remapping table offset.
 system_value("per_primitive_remap_intel", 1)

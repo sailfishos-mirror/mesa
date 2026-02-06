@@ -441,8 +441,8 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
          const brw_builder &ubld =
             bld.scalar_group().annotate("Coarse bit");
          brw_reg coarse_bit =
-            ubld.AND(brw_dynamic_msaa_flags(prog_data),
-                     brw_imm_ud(INTEL_MSAA_FLAG_COARSE_RT_WRITES));
+            ubld.AND(brw_dynamic_fs_config(prog_data),
+                     brw_imm_ud(INTEL_FS_CONFIG_COARSE_RT_WRITES));
          desc_reg = component(coarse_bit, 0);
       }
    } else {
@@ -485,8 +485,8 @@ lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
    send->has_side_effects = true;
 
    if (double_rt_writes) {
-      brw_check_dynamic_msaa_flag(bld, prog_data,
-                                  INTEL_MSAA_FLAG_COARSE_RT_WRITES);
+      brw_check_dynamic_fs_config(bld, prog_data,
+                                  INTEL_FS_CONFIG_COARSE_RT_WRITES);
       bld.IF(BRW_PREDICATE_NORMAL);
       {
          brw_send_inst *coarse_inst = brw_clone_inst(*bld.shader, send)->as_send();
@@ -1875,12 +1875,12 @@ lower_interpolator_logical_send(const brw_builder &bld, brw_inst *inst,
    if (wm_prog_data->coarse_pixel_dispatch == INTEL_ALWAYS) {
       desc_imm |= (1 << 15);
    } else if (wm_prog_data->coarse_pixel_dispatch == INTEL_SOMETIMES) {
-      STATIC_ASSERT(INTEL_MSAA_FLAG_COARSE_PI_MSG == (1 << 15));
+      STATIC_ASSERT(INTEL_FS_CONFIG_COARSE_PI_MSG == (1 << 15));
       brw_reg orig_desc = desc;
       const brw_builder &ubld = bld.exec_all().group(8, 0);
       desc = ubld.vgrf(BRW_TYPE_UD);
-      ubld.AND(desc, brw_dynamic_msaa_flags(wm_prog_data),
-               brw_imm_ud(INTEL_MSAA_FLAG_COARSE_PI_MSG));
+      ubld.AND(desc, brw_dynamic_fs_config(wm_prog_data),
+               brw_imm_ud(INTEL_FS_CONFIG_COARSE_PI_MSG));
 
       /* And, if it's AT_OFFSET, we might have a non-trivial descriptor */
       if (orig_desc.file == IMM) {

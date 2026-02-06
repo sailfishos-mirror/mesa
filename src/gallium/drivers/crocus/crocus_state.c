@@ -6461,7 +6461,7 @@ crocus_upload_dirty_render_state(struct crocus_context *ice,
          intel_set_ps_dispatch_state(&ps, &batch->screen->devinfo,
                                      wm_prog_data,
                                      ice->state.framebuffer.samples,
-                                     0 /* msaa_flags */);
+                                     0 /* fs_config */);
 
          ps.DispatchGRFStartRegisterForConstantSetupData0 =
             elk_wm_prog_data_dispatch_grf_start_reg(wm_prog_data, ps, 0);

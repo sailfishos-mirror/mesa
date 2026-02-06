@@ -3448,8 +3448,8 @@ emit_samplepos_setup(nir_to_brw_state &ntb)
    }
 
    if (wm_prog_data->persample_dispatch == INTEL_SOMETIMES) {
-      brw_check_dynamic_msaa_flag(abld, wm_prog_data,
-                                  INTEL_MSAA_FLAG_PERSAMPLE_DISPATCH);
+      brw_check_dynamic_fs_config(abld, wm_prog_data,
+                                  INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
       for (unsigned i = 0; i < 2; i++) {
          set_predicate(BRW_PREDICATE_NORMAL,
                        bld.SEL(offset(pos, abld, i), offset(pos, abld, i),
@@ -3522,8 +3522,8 @@ emit_sampleid_setup(nir_to_brw_state &ntb)
    abld.AND(sample_id, tmp, brw_imm_w(0xf));
 
    if (key->multisample_fbo == INTEL_SOMETIMES) {
-      brw_check_dynamic_msaa_flag(abld, wm_prog_data,
-                                  INTEL_MSAA_FLAG_MULTISAMPLE_FBO);
+      brw_check_dynamic_fs_config(abld, wm_prog_data,
+                                  INTEL_FS_CONFIG_MULTISAMPLE_FBO);
       set_predicate(BRW_PREDICATE_NORMAL,
                     abld.SEL(sample_id, sample_id, brw_imm_ud(0)));
    }
@@ -3575,8 +3575,8 @@ emit_samplemaskin_setup(nir_to_brw_state &ntb)
    if (wm_prog_data->persample_dispatch == INTEL_ALWAYS)
       return mask;
 
-   brw_check_dynamic_msaa_flag(abld, wm_prog_data,
-                               INTEL_MSAA_FLAG_PERSAMPLE_DISPATCH);
+   brw_check_dynamic_fs_config(abld, wm_prog_data,
+                               INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
    set_predicate(BRW_PREDICATE_NORMAL, abld.SEL(mask, mask, coverage_mask));
 
    return mask;
@@ -3620,8 +3620,8 @@ emit_shading_rate_setup(nir_to_brw_state &ntb)
    if (wm_prog_data->coarse_pixel_dispatch == INTEL_ALWAYS)
       return rate;
 
-   brw_check_dynamic_msaa_flag(abld, wm_prog_data,
-                               INTEL_MSAA_FLAG_COARSE_RT_WRITES);
+   brw_check_dynamic_fs_config(abld, wm_prog_data,
+                               INTEL_FS_CONFIG_COARSE_RT_WRITES);
    set_predicate(BRW_PREDICATE_NORMAL, abld.SEL(rate, rate, brw_imm_ud(0)));
 
    return rate;
@@ -4039,9 +4039,9 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
          if (wm_prog_key->multisample_fbo == INTEL_SOMETIMES) {
             struct brw_wm_prog_data *wm_prog_data = brw_wm_prog_data(s.prog_data);
 
-            brw_check_dynamic_msaa_flag(bld.exec_all().group(8, 0),
+            brw_check_dynamic_fs_config(bld.exec_all().group(8, 0),
                                         wm_prog_data,
-                                        INTEL_MSAA_FLAG_MULTISAMPLE_FBO);
+                                        INTEL_FS_CONFIG_MULTISAMPLE_FBO);
             flag_reg = brw_flag_reg(0, 0);
          }
 
@@ -4129,9 +4129,9 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
       break;
    }
 
-   case nir_intrinsic_load_fs_msaa_intel:
+   case nir_intrinsic_load_fs_config_intel:
       bld.MOV(retype(dest, BRW_TYPE_UD),
-              brw_dynamic_msaa_flags(brw_wm_prog_data(s.prog_data)));
+              brw_dynamic_fs_config(brw_wm_prog_data(s.prog_data)));
       break;
 
    case nir_intrinsic_load_max_polygon_intel:

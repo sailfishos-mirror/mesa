@@ -285,8 +285,8 @@ elk_fs_visitor::emit_interpolation_setup_gfx6()
          assert(barys[0] && sample_barys[0]);
 
          if (!loaded_flag) {
-            check_dynamic_msaa_flag(ubld, wm_prog_data,
-                                    INTEL_MSAA_FLAG_PERSAMPLE_INTERP);
+            check_dynamic_fs_config(ubld, wm_prog_data,
+                                    INTEL_FS_CONFIG_PERSAMPLE_INTERP);
          }
 
          for (unsigned j = 0; j < dispatch_width / 8; j++) {

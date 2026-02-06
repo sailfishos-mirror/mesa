@@ -270,12 +270,12 @@ sample_mask_flag_subreg(const brw_shader &s)
 }
 
 inline brw_reg
-brw_dynamic_msaa_flags(const struct brw_wm_prog_data *wm_prog_data)
+brw_dynamic_fs_config(const struct brw_wm_prog_data *wm_prog_data)
 {
    return byte_offset(
       brw_uniform_reg(
-         wm_prog_data->msaa_flags_param / REG_SIZE, BRW_TYPE_UD),
-      wm_prog_data->msaa_flags_param % REG_SIZE);
+         wm_prog_data->fs_config_param / REG_SIZE, BRW_TYPE_UD),
+      wm_prog_data->fs_config_param % REG_SIZE);
 }
 
 inline brw_reg

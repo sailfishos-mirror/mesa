@@ -517,16 +517,16 @@ namespace elk {
    fetch_barycentric_reg(const elk::fs_builder &bld, uint8_t regs[2]);
 
    inline elk_fs_reg
-   dynamic_msaa_flags(const struct elk_wm_prog_data *wm_prog_data)
+   dynamic_fs_config(const struct elk_wm_prog_data *wm_prog_data)
    {
-      return elk_fs_reg(UNIFORM, wm_prog_data->msaa_flags_param,
+      return elk_fs_reg(UNIFORM, wm_prog_data->fs_config_param,
                     ELK_REGISTER_TYPE_UD);
    }
 
    void
-   check_dynamic_msaa_flag(const fs_builder &bld,
+   check_dynamic_fs_config(const fs_builder &bld,
                            const struct elk_wm_prog_data *wm_prog_data,
-                           enum intel_msaa_flags flag);
+                           enum intel_fs_config flag);
 
    bool
    lower_src_modifiers(elk_fs_visitor *v, elk_bblock_t *block, elk_fs_inst *inst, unsigned i);

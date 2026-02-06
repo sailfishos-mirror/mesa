@@ -84,7 +84,7 @@ iris_apply_brw_wm_prog_data(struct iris_compiled_shader *shader,
    iris->urb_setup_attribs_count = brw->urb_setup_attribs_count;
 
    iris->num_varying_inputs   = brw->num_varying_inputs;
-   iris->msaa_flags_param     = brw->msaa_flags_param;
+   iris->fs_config_param      = brw->fs_config_param;
    iris->flat_inputs          = brw->flat_inputs;
    iris->inputs               = brw->inputs;
    iris->computed_depth_mode  = brw->computed_depth_mode;
@@ -296,7 +296,7 @@ iris_apply_elk_wm_prog_data(struct iris_compiled_shader *shader,
    iris->urb_setup_attribs_count = elk->urb_setup_attribs_count;
 
    iris->num_varying_inputs   = elk->num_varying_inputs;
-   iris->msaa_flags_param     = elk->msaa_flags_param;
+   iris->fs_config_param      = elk->fs_config_param;
    iris->flat_inputs          = elk->flat_inputs;
    iris->inputs               = elk->inputs;
    iris->computed_depth_mode  = elk->computed_depth_mode;
@@ -4031,16 +4031,16 @@ iris_cs_push_const_total_size(const struct iris_compiled_shader *shader,
 
 uint32_t
 iris_fs_barycentric_modes(const struct iris_compiled_shader *shader,
-                          enum intel_msaa_flags pushed_msaa_flags)
+                          enum intel_fs_config pushed_fs_config)
 {
    if (shader->brw_prog_data) {
       return wm_prog_data_barycentric_modes(brw_wm_prog_data(shader->brw_prog_data),
-                                            pushed_msaa_flags);
+                                            pushed_fs_config);
    } else {
 #ifdef INTEL_USE_ELK
       assert(shader->elk_prog_data);
       return elk_wm_prog_data_barycentric_modes(elk_wm_prog_data(shader->elk_prog_data),
-                                                pushed_msaa_flags);
+                                                pushed_fs_config);
 #else
       UNREACHABLE("no elk support");
 #endif

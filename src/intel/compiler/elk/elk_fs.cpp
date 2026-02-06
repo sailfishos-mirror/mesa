@@ -7250,12 +7250,12 @@ namespace elk {
    }
 
    void
-   check_dynamic_msaa_flag(const fs_builder &bld,
+   check_dynamic_fs_config(const fs_builder &bld,
                            const struct elk_wm_prog_data *wm_prog_data,
-                           enum intel_msaa_flags flag)
+                           enum intel_fs_config flag)
    {
       elk_fs_inst *inst = bld.AND(bld.null_reg_ud(),
-                              dynamic_msaa_flags(wm_prog_data),
+                              dynamic_fs_config(wm_prog_data),
                               elk_imm_ud(flag));
       inst->conditional_mod = ELK_CONDITIONAL_NZ;
    }

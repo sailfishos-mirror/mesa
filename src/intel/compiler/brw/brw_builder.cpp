@@ -244,12 +244,12 @@ brw_fetch_barycentric_reg(const brw_builder &bld, uint8_t regs[2])
 }
 
 void
-brw_check_dynamic_msaa_flag(const brw_builder &bld,
+brw_check_dynamic_fs_config(const brw_builder &bld,
                         const struct brw_wm_prog_data *wm_prog_data,
-                        enum intel_msaa_flags flag)
+                        enum intel_fs_config flag)
 {
    brw_inst *inst = bld.AND(bld.null_reg_ud(),
-                            brw_dynamic_msaa_flags(wm_prog_data),
+                            brw_dynamic_fs_config(wm_prog_data),
                             brw_imm_ud(flag));
    inst->conditional_mod = BRW_CONDITIONAL_NZ;
 }

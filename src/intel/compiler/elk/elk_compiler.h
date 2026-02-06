@@ -799,7 +799,7 @@ struct elk_wm_prog_data {
     */
    enum elk_sometimes alpha_to_coverage;
 
-   unsigned msaa_flags_param;
+   unsigned fs_config_param;
 
    /**
     * Mask of which interpolation modes are required by the fragment shader.
@@ -938,21 +938,21 @@ _elk_wm_prog_data_reg_blocks(const struct elk_wm_prog_data *prog_data,
 
 static inline bool
 elk_wm_prog_data_is_persample(const struct elk_wm_prog_data *prog_data,
-                              enum intel_msaa_flags pushed_msaa_flags)
+                              enum intel_fs_config pushed_fs_config)
 {
-   if (pushed_msaa_flags & INTEL_MSAA_FLAG_ENABLE_DYNAMIC) {
-      if (!(pushed_msaa_flags & INTEL_MSAA_FLAG_MULTISAMPLE_FBO))
+   if (pushed_fs_config & INTEL_FS_CONFIG_ENABLE_DYNAMIC) {
+      if (!(pushed_fs_config & INTEL_FS_CONFIG_MULTISAMPLE_FBO))
          return false;
 
       if (prog_data->sample_shading)
-         assert(pushed_msaa_flags & INTEL_MSAA_FLAG_PERSAMPLE_DISPATCH);
+         assert(pushed_fs_config & INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
 
-      if (pushed_msaa_flags & INTEL_MSAA_FLAG_PERSAMPLE_DISPATCH)
+      if (pushed_fs_config & INTEL_FS_CONFIG_PERSAMPLE_DISPATCH)
          assert(prog_data->persample_dispatch != ELK_NEVER);
       else
          assert(prog_data->persample_dispatch != ELK_ALWAYS);
 
-      return (pushed_msaa_flags & INTEL_MSAA_FLAG_PERSAMPLE_DISPATCH) != 0;
+      return (pushed_fs_config & INTEL_FS_CONFIG_PERSAMPLE_DISPATCH) != 0;
    }
 
    assert(prog_data->persample_dispatch == ELK_ALWAYS ||
@@ -963,19 +963,19 @@ elk_wm_prog_data_is_persample(const struct elk_wm_prog_data *prog_data,
 
 static inline uint32_t
 elk_wm_prog_data_barycentric_modes(const struct elk_wm_prog_data *prog_data,
-                               enum intel_msaa_flags pushed_msaa_flags)
+                               enum intel_fs_config pushed_fs_config)
 {
    uint32_t modes = prog_data->barycentric_interp_modes;
 
    /* In the non dynamic case, we can just return the computed modes from
     * compilation time.
     */
-   if (!(pushed_msaa_flags & INTEL_MSAA_FLAG_ENABLE_DYNAMIC))
+   if (!(pushed_fs_config & INTEL_FS_CONFIG_ENABLE_DYNAMIC))
       return modes;
 
-   if (pushed_msaa_flags & INTEL_MSAA_FLAG_PERSAMPLE_INTERP) {
+   if (pushed_fs_config & INTEL_FS_CONFIG_PERSAMPLE_INTERP) {
       assert(prog_data->persample_dispatch == ELK_ALWAYS ||
-             (pushed_msaa_flags & INTEL_MSAA_FLAG_PERSAMPLE_DISPATCH));
+             (pushed_fs_config & INTEL_FS_CONFIG_PERSAMPLE_DISPATCH));
 
       /* Making dynamic per-sample interpolation work is a bit tricky.  The
        * hardware will hang if SAMPLE is requested but per-sample dispatch is

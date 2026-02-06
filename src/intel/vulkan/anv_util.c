@@ -206,7 +206,7 @@ anv_gfx_state_bit_to_str(enum anv_gfx_state_bits state)
       NAME(WA_18019816803);
       NAME(WA_14018283232);
       NAME(TBIMR_TILE_PASS_INFO);
-      NAME(FS_MSAA_FLAGS);
+      NAME(FS_CONFIG);
       NAME(TESS_CONFIG);
       NAME(MESH_PROVOKING_VERTEX);
    default: UNREACHABLE("invalid state");

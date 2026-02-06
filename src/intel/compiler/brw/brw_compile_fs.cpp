@@ -202,8 +202,8 @@ brw_emit_interpolation_setup(brw_shader &s)
          ubld.MOV(cps_size, brw_imm_ud(0x00000101));
          break;
       case INTEL_SOMETIMES:
-         brw_check_dynamic_msaa_flag(ubld, wm_prog_data,
-                                     INTEL_MSAA_FLAG_COARSE_RT_WRITES);
+         brw_check_dynamic_fs_config(ubld, wm_prog_data,
+                                     INTEL_FS_CONFIG_COARSE_RT_WRITES);
 
          set_predicate_inv(BRW_PREDICATE_NORMAL, false,
                            ubld.MOV(cps_size, r1_0));
@@ -335,8 +335,8 @@ brw_emit_interpolation_setup(brw_shader &s)
       const brw_builder dbld =
          abld.exec_all().group(MIN2(16, s.dispatch_width) * 2, 0);
 
-      brw_check_dynamic_msaa_flag(dbld, wm_prog_data,
-                                  INTEL_MSAA_FLAG_COARSE_RT_WRITES);
+      brw_check_dynamic_fs_config(dbld, wm_prog_data,
+                                  INTEL_FS_CONFIG_COARSE_RT_WRITES);
 
       int_pixel_offset_x = dbld.vgrf(BRW_TYPE_UW);
       set_predicate(BRW_PREDICATE_NORMAL,
@@ -514,8 +514,8 @@ brw_emit_interpolation_setup(brw_shader &s)
          assert(barys[0] && sample_barys[0]);
 
          if (!loaded_flag) {
-            brw_check_dynamic_msaa_flag(ubld, wm_prog_data,
-                                        INTEL_MSAA_FLAG_PERSAMPLE_INTERP);
+            brw_check_dynamic_fs_config(ubld, wm_prog_data,
+                                        INTEL_FS_CONFIG_PERSAMPLE_INTERP);
          }
 
          for (unsigned j = 0; j < s.dispatch_width / 8; j++) {
@@ -1524,23 +1524,23 @@ brw_compile_fs(const struct brw_compiler *compiler,
       uint32_t f = 0;
 
       if (key->multisample_fbo == INTEL_ALWAYS)
-         f |= INTEL_MSAA_FLAG_MULTISAMPLE_FBO;
+         f |= INTEL_FS_CONFIG_MULTISAMPLE_FBO;
 
       if (key->alpha_to_coverage == INTEL_ALWAYS)
-         f |= INTEL_MSAA_FLAG_ALPHA_TO_COVERAGE;
+         f |= INTEL_FS_CONFIG_ALPHA_TO_COVERAGE;
 
       if (key->provoking_vertex_last == INTEL_ALWAYS)
-         f |= INTEL_MSAA_FLAG_PROVOKING_VERTEX_LAST;
+         f |= INTEL_FS_CONFIG_PROVOKING_VERTEX_LAST;
 
       if (key->persample_interp == INTEL_ALWAYS) {
-         f |= INTEL_MSAA_FLAG_PERSAMPLE_DISPATCH |
-              INTEL_MSAA_FLAG_PERSAMPLE_INTERP;
+         f |= INTEL_FS_CONFIG_PERSAMPLE_DISPATCH |
+              INTEL_FS_CONFIG_PERSAMPLE_INTERP;
       }
 
       if (prog_data->coarse_pixel_dispatch == INTEL_ALWAYS)
-         f |= INTEL_MSAA_FLAG_COARSE_RT_WRITES;
+         f |= INTEL_FS_CONFIG_COARSE_RT_WRITES;
 
-      BRW_NIR_PASS(nir_inline_sysval, nir_intrinsic_load_fs_msaa_intel, f);
+      BRW_NIR_PASS(nir_inline_sysval, nir_intrinsic_load_fs_config_intel, f);
    }
 
    brw_postprocess_nir_opts(pt, key->base.robust_flags);
@@ -1997,13 +1997,13 @@ brw_compute_sbe_per_vertex_urb_read(const struct intel_vue_map *prev_stage_vue_m
             ~((1u << last_slot) - 1);
          *out_flat_inputs |= remapped_flat_inputs;
          last_slot = prev_stage_vue_map->num_slots - 1;
-         *out_primitive_id_offset = INTEL_MSAA_FLAG_PRIMITIVE_ID_INDEX_MESH;
+         *out_primitive_id_offset = INTEL_FS_CONFIG_PRIMITIVE_ID_INDEX_MESH;
          num_varyings = prev_stage_vue_map->num_slots - first_slot;
       } else if (mesh) {
          /* When using Mesh, the PrimitiveID is in the per-primitive block. */
          if (wm_prog_data->urb_setup[VARYING_SLOT_PRIMITIVE_ID] >= 0)
             num_varyings--;
-         *out_primitive_id_offset = INTEL_MSAA_FLAG_PRIMITIVE_ID_INDEX_MESH;
+         *out_primitive_id_offset = INTEL_FS_CONFIG_PRIMITIVE_ID_INDEX_MESH;
       } else if (inputs_read & VARYING_BIT_PRIMITIVE_ID) {
          int primitive_id_slot;
          if (prev_stage_vue_map->varying_to_slot[VARYING_SLOT_PRIMITIVE_ID] < 0) {

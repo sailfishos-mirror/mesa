@@ -841,9 +841,9 @@ update_urb_config(struct anv_gfx_dynamic_state *hw_state,
 }
 
 ALWAYS_INLINE static void
-update_fs_msaa_flags(struct anv_gfx_dynamic_state *hw_state,
-                     const struct vk_dynamic_graphics_state *dyn,
-                     const struct anv_cmd_graphics_state *gfx)
+update_fs_config(struct anv_gfx_dynamic_state *hw_state,
+                 const struct vk_dynamic_graphics_state *dyn,
+                 const struct anv_cmd_graphics_state *gfx)
 {
    const struct brw_wm_prog_data *wm_prog_data = get_gfx_wm_prog_data(gfx);
 
@@ -858,8 +858,8 @@ update_fs_msaa_flags(struct anv_gfx_dynamic_state *hw_state,
 
    const struct brw_mesh_prog_data *mesh_prog_data = get_gfx_mesh_prog_data(gfx);
 
-   enum intel_msaa_flags fs_msaa_flags =
-      intel_fs_msaa_flags((struct intel_fs_params) {
+   enum intel_fs_config fs_config =
+      intel_fs_config((struct intel_fs_params) {
             .shader_sample_shading     = wm_prog_data->sample_shading,
             .shader_min_sample_shading = wm_prog_data->min_sample_shading,
             .state_sample_shading      = wm_prog_data->api_sample_shading,
@@ -873,7 +873,7 @@ update_fs_msaa_flags(struct anv_gfx_dynamic_state *hw_state,
                                          mesh_prog_data->map.wa_18019110168_active,
          });
 
-   SET(FS_MSAA_FLAGS, fs_msaa_flags, fs_msaa_flags);
+   SET(FS_CONFIG, fs_config, fs_config);
 }
 
 static bool
@@ -1023,7 +1023,7 @@ update_ps(struct anv_gfx_dynamic_state *hw_state,
    struct GENX(3DSTATE_PS) ps = {};
    intel_set_ps_dispatch_state(&ps, device->info, wm_prog_data,
                                MAX2(dyn->ms.rasterization_samples, 1),
-                               hw_state->fs_msaa_flags);
+                               hw_state->fs_config);
 
    SET(PS, ps.KernelStartPointer0,
            fs->kernel.offset +
@@ -1062,7 +1062,7 @@ update_ps(struct anv_gfx_dynamic_state *hw_state,
    SET(PS, ps.PositionXYOffsetSelect,
            !wm_prog_data->uses_pos_offset ? POSOFFSET_NONE :
            brw_wm_prog_data_is_persample(wm_prog_data,
-                                         hw_state->fs_msaa_flags) ?
+                                         hw_state->fs_config) ?
            POSOFFSET_SAMPLE : POSOFFSET_CENTROID);
 }
 
@@ -1076,7 +1076,7 @@ update_ps_extra_wm(struct anv_gfx_dynamic_state *hw_state,
       return;
 
    UNUSED const bool uses_coarse_pixel =
-      brw_wm_prog_data_is_coarse(wm_prog_data, hw_state->fs_msaa_flags);
+      brw_wm_prog_data_is_coarse(wm_prog_data, hw_state->fs_config);
 
    uint32_t InputCoverageMaskState = ICMS_NONE;
    assert(!wm_prog_data->inner_coverage); /* Not available in SPIR-V */
@@ -1091,7 +1091,7 @@ update_ps_extra_wm(struct anv_gfx_dynamic_state *hw_state,
 
    SET(PS_EXTRA, ps_extra.PixelShaderIsPerSample,
                  brw_wm_prog_data_is_persample(wm_prog_data,
-                                               hw_state->fs_msaa_flags));
+                                               hw_state->fs_config));
 #if GFX_VER >= 11
    SET(PS_EXTRA, ps_extra.PixelShaderIsPerCoarsePixel, uses_coarse_pixel);
 #endif
@@ -1103,7 +1103,7 @@ update_ps_extra_wm(struct anv_gfx_dynamic_state *hw_state,
 #endif
 
    SET(WM, wm.BarycentricInterpolationMode,
-           wm_prog_data_barycentric_modes(wm_prog_data, hw_state->fs_msaa_flags));
+           wm_prog_data_barycentric_modes(wm_prog_data, hw_state->fs_config));
 
 #if INTEL_WA_18038825448_GFX_VER
    SET(WA_18038825448, coarse_state, uses_coarse_pixel ?
@@ -2306,7 +2306,7 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
    assert(gfx->shaders[gfx->streamout_stage] != NULL);
    assert(gfx->instance_multiplier != 0);
 
-   /* Do this before update_fs_msaa_flags() for primitive_id_index */
+   /* Do this before update_fs_config() for primitive_id_index */
    if (gfx->dirty & ANV_CMD_DIRTY_ALL_SHADERS(device))
       update_sbe(hw_state, gfx, device);
 
@@ -2315,7 +2315,7 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES) ||
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_RS_PROVOKING_VERTEX) ||
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_FSR))
-      update_fs_msaa_flags(hw_state, dyn, gfx);
+      update_fs_config(hw_state, dyn, gfx);
 
    if (gfx->dirty & ANV_CMD_DIRTY_PRERASTER_SHADERS)
       update_urb_config(hw_state, gfx, device);
@@ -2326,7 +2326,7 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
 #endif
 
    if ((gfx->dirty & ANV_CMD_DIRTY_PS) ||
-       BITSET_TEST(hw_state->pack_dirty, ANV_GFX_STATE_FS_MSAA_FLAGS)) {
+       BITSET_TEST(hw_state->pack_dirty, ANV_GFX_STATE_FS_CONFIG)) {
       update_ps(hw_state, device, dyn, gfx);
       update_ps_extra_wm(hw_state, gfx);
    }
@@ -3659,8 +3659,8 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
       cmd_buffer->state.push_constants_dirty |= VK_SHADER_STAGE_MESH_BIT_EXT;
 #endif
 
-   if (IS_DIRTY(FS_MSAA_FLAGS)) {
-      push_consts->gfx.fs_msaa_flags = hw_state->fs_msaa_flags;
+   if (IS_DIRTY(FS_CONFIG)) {
+      push_consts->gfx.fs_config = hw_state->fs_config;
 
       const struct brw_mesh_prog_data *mesh_prog_data = get_gfx_mesh_prog_data(gfx);
       if (mesh_prog_data) {
@@ -4052,7 +4052,7 @@ genX(cmd_buffer_flush_gfx_hw_state)(struct anv_cmd_buffer *cmd_buffer)
    if (wm_prog_data) {
       genX(cmd_buffer_set_coarse_pixel_active)(
          cmd_buffer,
-         brw_wm_prog_data_is_coarse(wm_prog_data, hw_state->fs_msaa_flags));
+         brw_wm_prog_data_is_coarse(wm_prog_data, hw_state->fs_config));
    }
 #endif
 

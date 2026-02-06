@@ -308,7 +308,7 @@ struct iris_fs_data {
    uint64_t inputs;
    unsigned num_varying_inputs;
 
-   unsigned msaa_flags_param;
+   unsigned fs_config_param;
    uint32_t flat_inputs;
 
    uint8_t computed_depth_mode;
@@ -1358,7 +1358,7 @@ iris_cs_push_const_total_size(const struct iris_compiled_shader *shader,
                               unsigned threads);
 uint32_t
 iris_fs_barycentric_modes(const struct iris_compiled_shader *shader,
-                          enum intel_msaa_flags pushed_msaa_flags);
+                          enum intel_fs_config pushed_fs_config);
 bool iris_use_tcs_multi_patch(struct iris_screen *screen);
 bool iris_indirect_ubos_use_sampler(struct iris_screen *screen);
 const struct nir_shader_compiler_options *

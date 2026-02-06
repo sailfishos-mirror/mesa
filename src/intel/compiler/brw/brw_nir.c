@@ -1334,22 +1334,22 @@ brw_nir_lower_fs_inputs(nir_shader *nir,
                nir_shader_get_entrypoint(nir)))), *b = &_b;
       nir_def *index = nir_ubitfield_extract_imm(
          b,
-         nir_load_fs_msaa_intel(b),
-         INTEL_MSAA_FLAG_PRIMITIVE_ID_INDEX_OFFSET,
-         INTEL_MSAA_FLAG_PRIMITIVE_ID_INDEX_SIZE);
+         nir_load_fs_config_intel(b),
+         INTEL_FS_CONFIG_PRIMITIVE_ID_INDEX_OFFSET,
+         INTEL_FS_CONFIG_PRIMITIVE_ID_INDEX_SIZE);
      nir_def *per_vertex_offset =
          nir_iadd_imm(
             b,
             brw_nir_vertex_attribute_offset(
                b, nir_imul_imm(b, index, 4), devinfo),
             devinfo->grf_size);
-      /* When the attribute index is INTEL_MSAA_FLAG_PRIMITIVE_ID_MESH_INDEX,
+      /* When the attribute index is INTEL_FS_CONFIG_PRIMITIVE_ID_MESH_INDEX,
        * it means the value is coming from the per-primitive block. We always
        * lay out PrimitiveID at offset 0 in the per-primitive block.
        */
       nir_def *attribute_offset = nir_bcsel(
          b,
-         nir_ieq_imm(b, index, INTEL_MSAA_FLAG_PRIMITIVE_ID_INDEX_MESH),
+         nir_ieq_imm(b, index, INTEL_FS_CONFIG_PRIMITIVE_ID_INDEX_MESH),
          nir_imm_int(b, 0), per_vertex_offset);
       indirect_primitive_id =
          nir_load_attribute_payload_intel(b, 1, 32, attribute_offset);

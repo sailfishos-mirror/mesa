@@ -1692,7 +1692,7 @@ emit_3dstate_ps(struct anv_graphics_pipeline *pipeline,
    anv_batch_emit(&pipeline->base.batch, GENX(3DSTATE_PS), ps) {
       intel_set_ps_dispatch_state(&ps, devinfo, wm_prog_data,
                                   ms != NULL ? ms->rasterization_samples : 1,
-                                  0 /* msaa_flags */);
+                                  0 /* fs_config */);
 
       ps.KernelStartPointer0 = fs_bin->kernel.offset +
                                elk_wm_prog_data_prog_offset(wm_prog_data, ps, 0);

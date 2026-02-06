@@ -731,10 +731,10 @@ struct brw_wm_prog_data {
    enum intel_sometimes provoking_vertex_last;
 
    /**
-    * Push constant location of intel_msaa_flags (dynamic configuration of the
+    * Push constant location of intel_fs_config (dynamic configuration of the
     * pixel shader) in bytes.
     */
-   unsigned msaa_flags_param;
+   unsigned fs_config_param;
 
    /**
     * Push constant location of the remapping offset in the instruction heap
@@ -905,28 +905,28 @@ _brw_wm_prog_data_dispatch_grf_start_reg(const struct brw_wm_prog_data *prog_dat
 
 static inline bool
 brw_wm_prog_data_is_persample(const struct brw_wm_prog_data *prog_data,
-                              enum intel_msaa_flags pushed_msaa_flags)
+                              enum intel_fs_config pushed_fs_config)
 {
    return intel_fs_is_persample(prog_data->persample_dispatch,
                                 prog_data->sample_shading,
-                                pushed_msaa_flags);
+                                pushed_fs_config);
 }
 
 static inline uint32_t
 wm_prog_data_barycentric_modes(const struct brw_wm_prog_data *prog_data,
-                               enum intel_msaa_flags pushed_msaa_flags)
+                               enum intel_fs_config pushed_fs_config)
 {
    return intel_fs_barycentric_modes(prog_data->persample_dispatch,
                                      prog_data->barycentric_interp_modes,
-                                     pushed_msaa_flags);
+                                     pushed_fs_config);
 }
 
 static inline bool
 brw_wm_prog_data_is_coarse(const struct brw_wm_prog_data *prog_data,
-                           enum intel_msaa_flags pushed_msaa_flags)
+                           enum intel_fs_config pushed_fs_config)
 {
    return intel_fs_is_coarse(prog_data->coarse_pixel_dispatch,
-                             pushed_msaa_flags);
+                             pushed_fs_config);
 }
 
 struct brw_push_const_block {

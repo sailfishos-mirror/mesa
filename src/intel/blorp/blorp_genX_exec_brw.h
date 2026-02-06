@@ -891,7 +891,7 @@ blorp_emit_ps_config(struct blorp_batch *batch,
 
          intel_set_ps_dispatch_state(&ps, devinfo, prog_data,
                                      params->num_samples,
-                                     0 /* msaa_flags */);
+                                     0 /* fs_config */);
 
          ps.DispatchGRFStartRegisterForConstantSetupData0 =
             brw_wm_prog_data_dispatch_grf_start_reg(prog_data, ps, 0);

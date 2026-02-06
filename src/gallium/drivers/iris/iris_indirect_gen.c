@@ -293,7 +293,7 @@ emit_indirect_generate_draw(struct iris_batch *batch,
 #endif
       intel_set_ps_dispatch_state(&ps, devinfo, wm_prog_data,
                                   1 /* rasterization_samples */,
-                                  0 /* msaa_flags */);
+                                  0 /* fs_config */);
 
       ps.VectorMaskEnable       = fs_data->uses_vmask;
 

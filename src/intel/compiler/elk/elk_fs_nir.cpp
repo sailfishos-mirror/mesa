@@ -3387,8 +3387,8 @@ emit_samplepos_setup(nir_to_elk_state &ntb)
    }
 
    if (wm_prog_data->persample_dispatch == ELK_SOMETIMES) {
-      check_dynamic_msaa_flag(abld, wm_prog_data,
-                              INTEL_MSAA_FLAG_PERSAMPLE_DISPATCH);
+      check_dynamic_fs_config(abld, wm_prog_data,
+                              INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
       for (unsigned i = 0; i < 2; i++) {
          set_predicate(ELK_PREDICATE_NORMAL,
                        bld.SEL(offset(pos, abld, i), offset(pos, abld, i),
@@ -3508,8 +3508,8 @@ emit_sampleid_setup(nir_to_elk_state &ntb)
    }
 
    if (key->multisample_fbo == ELK_SOMETIMES) {
-      check_dynamic_msaa_flag(abld, wm_prog_data,
-                              INTEL_MSAA_FLAG_MULTISAMPLE_FBO);
+      check_dynamic_fs_config(abld, wm_prog_data,
+                              INTEL_FS_CONFIG_MULTISAMPLE_FBO);
       set_predicate(ELK_PREDICATE_NORMAL,
                     abld.SEL(sample_id, sample_id, elk_imm_ud(0)));
    }
@@ -3559,8 +3559,8 @@ emit_samplemaskin_setup(nir_to_elk_state &ntb)
    if (wm_prog_data->persample_dispatch == ELK_ALWAYS)
       return mask;
 
-   check_dynamic_msaa_flag(abld, wm_prog_data,
-                           INTEL_MSAA_FLAG_PERSAMPLE_DISPATCH);
+   check_dynamic_fs_config(abld, wm_prog_data,
+                           INTEL_FS_CONFIG_PERSAMPLE_DISPATCH);
    set_predicate(ELK_PREDICATE_NORMAL, abld.SEL(mask, mask, coverage_mask));
 
    return mask;
@@ -3835,9 +3835,9 @@ fs_nir_emit_fs_intrinsic(nir_to_elk_state &ntb,
       if (wm_prog_key->multisample_fbo == ELK_SOMETIMES) {
          struct elk_wm_prog_data *wm_prog_data = elk_wm_prog_data(s.prog_data);
 
-         check_dynamic_msaa_flag(bld.exec_all().group(8, 0),
+         check_dynamic_fs_config(bld.exec_all().group(8, 0),
                                  wm_prog_data,
-                                 INTEL_MSAA_FLAG_MULTISAMPLE_FBO);
+                                 INTEL_FS_CONFIG_MULTISAMPLE_FBO);
          flag_reg = elk_flag_reg(0, 0);
       }
 

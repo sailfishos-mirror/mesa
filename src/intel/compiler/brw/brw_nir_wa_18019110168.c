@@ -558,16 +558,16 @@ brw_nir_frag_convert_attrs_prim_to_vert_indirect(struct nir_shader *nir,
 
    per_primitive_stride = align(per_primitive_stride, devinfo->grf_size);
 
-   nir_def *msaa_flags = nir_load_fs_msaa_intel(b);
+   nir_def *fs_config = nir_load_fs_config_intel(b);
    nir_def *needs_remapping = nir_test_mask(
-      b, msaa_flags, INTEL_MSAA_FLAG_PER_PRIMITIVE_REMAPPING);
+      b, fs_config, INTEL_FS_CONFIG_PER_PRIMITIVE_REMAPPING);
    nir_push_if(b, needs_remapping);
    {
       nir_def *first_slot =
          nir_ubitfield_extract_imm(
-            b, msaa_flags,
-            INTEL_MSAA_FLAG_FIRST_VUE_SLOT_OFFSET,
-            INTEL_MSAA_FLAG_FIRST_VUE_SLOT_SIZE);
+            b, fs_config,
+            INTEL_FS_CONFIG_FIRST_VUE_SLOT_OFFSET,
+            INTEL_FS_CONFIG_FIRST_VUE_SLOT_SIZE);
       nir_def *remap_table_addr =
          nir_pack_64_2x32_split(
             b,

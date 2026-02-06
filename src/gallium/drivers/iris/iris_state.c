@@ -7525,7 +7525,7 @@ iris_upload_dirty_render_state(struct iris_context *ice,
 #endif
                intel_set_ps_dispatch_state(&ps, batch->screen->devinfo,
                                            wm_prog_data, util_framebuffer_get_num_samples(cso_fb),
-                                           0 /* msaa_flags */);
+                                           0 /* fs_config */);
 
 #if GFX_VER == 12
                assert(fs_data->dispatch_multi == 0 ||

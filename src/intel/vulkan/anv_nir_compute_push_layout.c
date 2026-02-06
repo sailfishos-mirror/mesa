@@ -195,13 +195,13 @@ anv_nir_compute_push_layout(nir_shader *nir,
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       if (push_info->fragment_dynamic) {
-         const uint32_t fs_msaa_flags_start =
-            anv_drv_const_offset(gfx.fs_msaa_flags);
-         const uint32_t fs_msaa_flags_end =
-            fs_msaa_flags_start +
-            anv_drv_const_size(gfx.fs_msaa_flags);
-         push_start = MIN2(push_start, fs_msaa_flags_start);
-         push_end = MAX2(push_end, fs_msaa_flags_end);
+         const uint32_t fs_config_start =
+            anv_drv_const_offset(gfx.fs_config);
+         const uint32_t fs_config_end =
+            fs_config_start +
+            anv_drv_const_size(gfx.fs_config);
+         push_start = MIN2(push_start, fs_config_start);
+         push_end = MAX2(push_end, fs_config_end);
       }
 
       if (needs_wa_18019110168) {
@@ -303,7 +303,7 @@ anv_nir_compute_push_layout(nir_shader *nir,
     * To solve that issue we push an additional dummy push constant buffer in
     * legacy pipelines to align everything. The compiler then adds a SEL
     * instruction to source the PrimitiveID from the right location based on a
-    * dynamic bit in fs_msaa_intel.
+    * dynamic bit in fs_config_intel.
     */
    const bool needs_padding_per_primitive =
       needs_wa_18019110168 ||
@@ -433,10 +433,10 @@ anv_nir_compute_push_layout(nir_shader *nir,
          container_of(prog_data, struct brw_wm_prog_data, base);
 
       if (push_info->fragment_dynamic) {
-         const uint32_t fs_msaa_flags_offset =
-            anv_drv_const_offset(gfx.fs_msaa_flags);
-         assert(fs_msaa_flags_offset >= push_start);
-         wm_prog_data->msaa_flags_param = fs_msaa_flags_offset - push_start;
+         const uint32_t fs_config_offset =
+            anv_drv_const_offset(gfx.fs_config);
+         assert(fs_config_offset >= push_start);
+         wm_prog_data->fs_config_param = fs_config_offset - push_start;
       }
       if (needs_wa_18019110168) {
          const uint32_t fs_per_prim_remap_offset =
