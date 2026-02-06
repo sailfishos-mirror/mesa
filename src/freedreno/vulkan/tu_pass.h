@@ -103,6 +103,9 @@ struct tu_render_pass_attachment
     * determine which views to apply loadOp/storeOp to.
     */
    uint32_t used_views;
+   /* All views where this attachment is used as a resolve attachment.
+    */
+   uint32_t resolve_views;
    /* The internal MSRTSS attachment to clear when the user says to clear
     * this attachment. Clear values must be remapped to this attachment.
     */
