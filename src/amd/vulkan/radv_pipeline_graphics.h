@@ -28,8 +28,6 @@
 typedef struct VkGraphicsPipelineCreateInfoRADV {
    VkStructureType sType;
    const void *pNext;
-   VkBool32 db_depth_clear;
-   VkBool32 db_stencil_clear;
    VkBool32 depth_compress_disable;
    VkBool32 stencil_compress_disable;
    uint32_t custom_blend_mode;
