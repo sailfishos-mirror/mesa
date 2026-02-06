@@ -924,6 +924,19 @@ r3d_common(struct tu_cmd_buffer *cmd, struct tu_cs *cs, enum r3d_type type,
                       .persp_division_disable = 1,));
    tu_cs_emit_regs(cs, GRAS_SU_CNTL(CHIP)); // XXX msaa enable?
 
+   tu_cs_emit_regs(cs, VPC_RAST_CNTL(CHIP, POLYMODE6_TRIANGLES));
+
+   tu_cs_emit_regs(cs,
+                   PC_DGEN_RAST_CNTL(CHIP, POLYMODE6_TRIANGLES));
+
+   if (CHIP >= A8XX)
+      tu_cs_emit_regs(cs, GRAS_RAST_CNTL(CHIP, POLYMODE6_TRIANGLES));
+
+   if (CHIP >= A7XX || cs->device->physical_device->info->props.is_a702) {
+      tu_cs_emit_regs(cs, VPC_PS_RAST_CNTL(CHIP, POLYMODE6_TRIANGLES));
+   }
+
+
    if (CHIP >= A8XX) {
       tu_cs_emit_regs(cs, GRAS_SU_STEREO_CNTL(CHIP));
    }
