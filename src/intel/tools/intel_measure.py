@@ -24,6 +24,10 @@ class Line:
         self.is_begin: bool = begin_or_end == 'begin'
         self.valid: bool = True
 
+    @property
+    def is_end(self) -> bool:
+        return not self.is_begin
+
 
 class Annotations:
     class List:
@@ -174,8 +178,13 @@ class Utrace_Parser:
         if self.func == 'cmd_buffer':
             if self.prev_end_ts_ns == 0:
                 self.prev_end_ts_ns = line.timestamp
-            self.last_eop = line.timestamp
-            return None
+            empty_cmd_buffer_ended = line.is_end and self.idx == 0
+
+            # Only report empty cmd buffers. Non-empty cmd buffers are implicitly
+            # reported through events in the cmd buffer.
+            if not empty_cmd_buffer_ended:
+                self.last_eop = line.timestamp
+                return None
 
         if self.annotations:
             if self.func == 'cmd_buffer_annotation':
