@@ -652,6 +652,12 @@ ir_print_visitor::visit(ir_loop *ir)
       inst->accept(this);
       fprintf(f, "\n");
    }
+   fprintf(stderr, ") continue (\n");
+   ir_foreach_in_list(ir_instruction, inst, &ir->continue_instructions) {
+      indent();
+      inst->accept(this);
+      fprintf(f, "\n");
+   }
    indentation--;
    indent();
    fprintf(f, "))\n");

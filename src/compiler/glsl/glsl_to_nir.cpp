@@ -189,6 +189,8 @@ glsl_to_nir(struct gl_shader *gl_shader,
    ralloc_free(gl_shader->ir);
    gl_shader->ir = NULL;
 
+   nir_lower_continue_constructs(shader);
+
    nir_validate_shader(shader, "after glsl to nir, before function inline");
    if (should_print_nir(shader)) {
       printf("glsl_to_nir\n");
@@ -789,6 +791,8 @@ nir_visitor::visit(ir_loop *ir)
 {
    nir_push_loop(&b);
    visit_exec_list(&ir->body_instructions, this);
+   nir_push_continue(&b, NULL);
+   visit_exec_list(&ir->continue_instructions, this);
    nir_pop_loop(&b, NULL);
 }
 

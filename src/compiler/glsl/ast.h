@@ -1224,8 +1224,6 @@ public:
    ast_node *condition;
    ast_expression *rest_expression;
 
-   ir_exec_list rest_instructions;
-
    ast_node *body;
 
    /**

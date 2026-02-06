@@ -1466,6 +1466,8 @@ public:
 
    /** List of ir_instruction that make up the body of the loop. */
    ir_exec_list body_instructions;
+   /** List of ir_instruction that make up the continue construct. */
+   ir_exec_list continue_instructions;
 };
 
 
