@@ -6,9 +6,6 @@ OpenGL programs which use the GLX API can render to any X display, even
 those that don't support the GLX extension. Effectively, the Xlib driver
 converts all OpenGL rendering into Xlib calls.
 
-The Xlib driver is the oldest Mesa driver and the most mature of Mesa's
-software-only drivers.
-
 Since the Xlib driver *emulates* the GLX extension, it's not totally
 conformant with a true GLX implementation. The differences are fairly
 obscure, however.
