@@ -9,6 +9,8 @@
 
 #include "tu_device.h"
 
+#include "ir3/ir3_nir.h"
+
 /* Some a6xx variants cannot support a non-contiguous multiview mask. Instead,
  * inside the shader something like this needs to be inserted:
  *
@@ -105,6 +107,15 @@ tu_nir_lower_multiview(nir_shader *nir, uint32_t mask, struct tu_device *dev)
       NIR_PASS(progress, nir, lower_multiview_mask, &options.view_mask);
 
       NIR_PASS(_, nir, nir_lower_multiview, options);
+
+      /* nir_lower_multiview creates a loop that loops over the view mask and
+       * uses indirect stores. Since we only support direct
+       * store_per_view_output, we have to make sure these indirects are gone.
+       * Lowering the IO vars to temporaries will replace them with indirects
+       * on registers.
+       */
+      ir3_nir_lower_io_vars_to_temporaries(nir);
+
       progress = true;
    }
 
