@@ -181,7 +181,7 @@ traces:
     gl-zink-anv-tgl:
       checksum: 68f20f660b9d812083066342398fe1b0
     zink-radv-vangogh:
-      checksum: 0ac0c9af59e9f269bdef3af1f903d49c
+      checksum: 12a801d2fb5458c76101af537f98dadb
     zink-radv-gfx1201:
       checksum: 0ac0c9af59e9f269bdef3af1f903d49c
 

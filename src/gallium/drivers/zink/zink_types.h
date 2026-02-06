@@ -1806,6 +1806,7 @@ struct zink_context {
       VkRenderingInfo info;
       struct tc_renderpass_info tc_info;
       VkAttachmentFeedbackLoopInfoEXT fbfetch_att[PIPE_MAX_COLOR_BUFS + 2]; //+depth, +stencil
+      VkRenderingAttachmentFlagsInfoKHR flags[PIPE_MAX_COLOR_BUFS + 2]; //+depth, +stencil
    } dynamic_fb;
    uint32_t fb_layer_mismatch; //bitmask
    struct set rendering_state_cache[6]; //[util_logbase2_ceil(msrtss samplecount)]

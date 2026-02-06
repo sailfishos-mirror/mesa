@@ -408,6 +408,7 @@
                 "VK_KHR_maintenance6": 1,
                 "VK_KHR_maintenance7": 1,
                 "VK_KHR_maintenance8": 1,
+                "VK_KHR_maintenance10": 1,
                 "VK_KHR_shader_float_controls2": 1
             },
             "features": {
@@ -459,6 +460,9 @@
                 },
                 "VkPhysicalDeviceMaintenance8FeaturesKHR": {
                     "maintenance8": true
+                },
+                "VkPhysicalDeviceMaintenance10FeaturesKHR": {
+                    "maintenance10": true
                 }
             },
             "properties": {
