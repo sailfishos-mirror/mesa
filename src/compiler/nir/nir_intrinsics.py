@@ -453,7 +453,7 @@ intrinsic("deref_implicit_array_length", src_comp=[-1], dest_comp=1,
 intrinsic("get_ssbo_size", src_comp=[-1], dest_comp=1, bit_sizes=[32],
           indices=[ACCESS], flags=[CAN_ELIMINATE, CAN_REORDER])
 intrinsic("get_ubo_size", src_comp=[-1], dest_comp=1,
-          flags=[CAN_ELIMINATE, CAN_REORDER])
+          indices=[ACCESS], flags=[CAN_ELIMINATE, CAN_REORDER])
 
 intrinsic("ssbo_descriptor_amd", src_comp=[-1], dest_comp=4, bit_sizes=[32],
           indices=[ACCESS], flags=[CAN_ELIMINATE, CAN_REORDER])
