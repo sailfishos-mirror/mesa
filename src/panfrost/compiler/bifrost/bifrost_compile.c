@@ -5839,7 +5839,6 @@ bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust2_mode
       vectorize_opts.modes |= nir_var_mem_ubo;
 
    NIR_PASS(_, nir, nir_opt_load_store_vectorize, &vectorize_opts);
-   NIR_PASS(_, nir, nir_lower_pack);
 
    /* nir_lower_pack can generate split operations, execute algebraic again to
     * handle them */
