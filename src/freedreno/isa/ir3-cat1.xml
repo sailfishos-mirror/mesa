@@ -168,7 +168,7 @@ SOFTWARE.
 	<override>
 		<expr>({SRC_TYPE} == 4 /* s16 */) &amp;&amp; ({DST_TYPE} == 4)</expr>
 		<display>
-			{SY}{SS}{JP}{REPEAT}{UL}mova{U}.r {ROUND}{DM}a0.x, {SRC}, {R0}, {R1}
+			{SY}{SS}{JP}{REPEAT}{UL}mova.r{U} {ROUND}{DM}a0.x, {SRC}, {R0}, {R1}
 		</display>
 	</override>
 	<display>error</display>

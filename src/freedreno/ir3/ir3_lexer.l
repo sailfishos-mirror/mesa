@@ -226,6 +226,7 @@ static int parse_reg(const char *str)
 "movmsk"                          return TOKEN(T_OP_MOVMSK);
 "mova1"                           return TOKEN(T_OP_MOVA1);
 "mova"                            return TOKEN(T_OP_MOVA);
+"mova.r"                          return TOKEN(T_OP_MOVA_R);
 "mov"                             return TOKEN(T_OP_MOV);
 "cov"                             return TOKEN(T_OP_COV);
 "swz"                             return TOKEN(T_OP_SWZ);
