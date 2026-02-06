@@ -60,12 +60,22 @@ get_bool_convert_opcode(uint32_t dst_bit_size)
 static void
 make_sources_canonical(nir_builder *b, nir_alu_instr *alu, uint32_t start_idx)
 {
-   /* TODO: for now we take the bit-size of the first source as the canonical
-    * form but we could try to be smarter.
-    */
    const nir_op_info *op_info = &nir_op_infos[alu->op];
-   uint32_t bit_size = nir_src_bit_size(alu->src[start_idx].src);
-   for (uint32_t i = start_idx + 1; i < op_info->num_inputs; i++) {
+
+   /* TODO: for now we take the bit-size of the first non-const source as the
+    * canonical form but we could try to be smarter.
+    */
+   uint32_t bit_size = 0;
+   for (uint32_t i = start_idx; i < op_info->num_inputs; i++) {
+      if (!nir_src_is_const(alu->src[i].src)) {
+         bit_size = nir_src_bit_size(alu->src[i].src);
+         break;
+      }
+   }
+   if (bit_size == 0)
+      bit_size = nir_src_bit_size(alu->src[start_idx].src);
+
+   for (uint32_t i = start_idx; i < op_info->num_inputs; i++) {
       if (nir_src_bit_size(alu->src[i].src) != bit_size) {
          b->cursor = nir_before_instr(&alu->instr);
          nir_op convert_op = get_bool_convert_opcode(bit_size);
