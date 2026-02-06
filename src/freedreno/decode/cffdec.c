@@ -821,10 +821,21 @@ static struct {
 
 static struct rnn *rnn;
 
+static bool
+has_query_val(int val)
+{
+   for (int i = 0; i < nqueryvals; i++)
+      if (queryvals[i] == val)
+         return true;
+   return false;
+}
+
 static void
 add_query_val(const char *querystr, int val)
 {
    printf("querystr: %s -> 0x%x\n", querystr, val);
+   if (has_query_val(val))
+      return;
    queryvals = realloc(queryvals, (nqueryvals + 1) * sizeof(!*queryvals));
    queryvals[nqueryvals] = val;
    nqueryvals++;
@@ -853,6 +864,10 @@ add_query(const char *querystr)
       const char *name = rnn_regname(rnn, off, false);
 
       if (!name)
+         continue;
+
+      /* Skip _HI regs if we are already watching the _LO: */
+      if (endswith(name, "_HI") && has_query_val(off - 1))
          continue;
 
       ret = regexec(&regex, name, 0, NULL, 0);
