@@ -524,7 +524,8 @@ anv_pipeline_lower_nir(struct anv_pipeline *pipeline,
    NIR_PASS(_, nir, anv_nir_lower_ubo_loads);
 
    enum nir_lower_non_uniform_access_type lower_non_uniform_access_types =
-      nir_lower_non_uniform_texture_access | nir_lower_non_uniform_image_access;
+      nir_lower_non_uniform_texture_access | nir_lower_non_uniform_image_access |
+      nir_lower_non_uniform_texture_query | nir_lower_non_uniform_image_query;
 
    /* In practice, most shaders do not have non-uniform-qualified
     * accesses (see

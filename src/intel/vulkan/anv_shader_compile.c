@@ -1502,7 +1502,9 @@ anv_shader_lower_nir(struct anv_device *device,
 
    enum nir_lower_non_uniform_access_type lower_non_uniform_access_types =
       nir_lower_non_uniform_texture_access |
+      nir_lower_non_uniform_texture_query |
       nir_lower_non_uniform_image_access |
+      nir_lower_non_uniform_image_query |
       nir_lower_non_uniform_get_ssbo_size |
       (lower_non_uniform_texture_offsets ?
        nir_lower_non_uniform_texture_offset_access : 0);

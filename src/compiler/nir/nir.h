@@ -6141,7 +6141,9 @@ enum nir_lower_non_uniform_access_type {
    nir_lower_non_uniform_image_access = (1 << 3),
    nir_lower_non_uniform_get_ssbo_size = (1 << 4),
    nir_lower_non_uniform_texture_offset_access = (1 << 5),
-   nir_lower_non_uniform_access_type_count = 6,
+   nir_lower_non_uniform_texture_query = (1 << 6),
+   nir_lower_non_uniform_image_query = (1 << 7),
+   nir_lower_non_uniform_access_type_count = 8,
 };
 
 typedef bool (*nir_lower_non_uniform_src_access_callback)(const nir_tex_instr *, unsigned, void *);

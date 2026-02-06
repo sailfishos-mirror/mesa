@@ -413,7 +413,9 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
        */
       struct nir_lower_non_uniform_access_options opts = {
          .types = nir_lower_non_uniform_texture_access |
-                  nir_lower_non_uniform_image_access,
+                  nir_lower_non_uniform_texture_query |
+                  nir_lower_non_uniform_image_access |
+                  nir_lower_non_uniform_image_query,
          .callback = NULL,
       };
       /* In practice, most shaders do not have non-uniform-qualified accesses
