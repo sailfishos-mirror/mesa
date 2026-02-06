@@ -471,7 +471,7 @@ rp_color_mask(const struct vk_graphics_pipeline_state *state)
 }
 
 static void
-populate_wm_prog_key(struct brw_wm_prog_key *key,
+populate_fs_prog_key(struct brw_fs_prog_key *key,
                      const struct vk_physical_device *device,
                      const struct vk_pipeline_robustness_state *rs,
                      const struct vk_graphics_pipeline_state *state,
@@ -636,8 +636,8 @@ anv_shader_hash_state(struct vk_physical_device *device,
          _mesa_blake3_update(&blake3_ctx, &key.mesh, sizeof(key.mesh));
          break;
       case VK_SHADER_STAGE_FRAGMENT_BIT:
-         populate_wm_prog_key(&key.wm, device, NULL, state, stages);
-         _mesa_blake3_update(&blake3_ctx, &key.wm, sizeof(key.wm));
+         populate_fs_prog_key(&key.fs, device, NULL, state, stages);
+         _mesa_blake3_update(&blake3_ctx, &key.fs, sizeof(key.fs));
          break;
       case VK_SHADER_STAGE_COMPUTE_BIT:
          populate_cs_prog_key(&key.cs, device, NULL);
@@ -1047,7 +1047,7 @@ anv_shader_compile_fs(struct anv_device *device,
          .source_hash = shader_data->source_hash,
          .archiver = shader_data->archiver,
       },
-      .key = &shader_data->key.wm,
+      .key = &shader_data->key.fs,
       .prog_data = &shader_data->prog_data.fs,
       .mue_map = shader_data->mue_map,
 
@@ -1201,7 +1201,7 @@ anv_shader_compute_fragment_rts(const struct brw_compiler *compiler,
    const unsigned num_rts = util_last_bit64(rt_mask);
    struct anv_pipeline_binding rt_bindings[MAX_RTS];
 
-   shader_data->key.wm.nr_color_regions =
+   shader_data->key.fs.nr_color_regions =
       util_last_bit(rt_mask & rp_color_mask(state));
 
    if (num_rts > 0) {
@@ -1224,7 +1224,7 @@ anv_shader_compute_fragment_rts(const struct brw_compiler *compiler,
       shader_data->bind_map.surface_count = num_rts;
    } else if (brw_nir_fs_needs_null_rt(
                  compiler->devinfo, nir,
-                 shader_data->key.wm.alpha_to_coverage != INTEL_NEVER)) {
+                 shader_data->key.fs.alpha_to_coverage != INTEL_NEVER)) {
       /* Setup a null render target */
       rt_bindings[0] = (struct anv_pipeline_binding) {
          .set = ANV_DESCRIPTOR_SET_COLOR_ATTACHMENTS,
@@ -1581,9 +1581,9 @@ anv_shader_lower_nir(struct anv_device *device,
                                            (nir->info.stage == MESA_SHADER_TESS_EVAL &&
                                             shader_data->key.tes.separate_tess_vue_layout),
                   .fragment_dynamic      = nir->info.stage == MESA_SHADER_FRAGMENT &&
-                                           brw_wm_prog_key_is_dynamic(&shader_data->key.wm),
+                                           brw_fs_prog_key_is_dynamic(&shader_data->key.fs),
                   .mesh_dynamic          = nir->info.stage == MESA_SHADER_FRAGMENT &&
-                                           shader_data->key.wm.mesh_input == INTEL_SOMETIMES,
+                                           shader_data->key.fs.mesh_input == INTEL_SOMETIMES,
                },
                &shader_data->key.base,
                &shader_data->prog_data.base,
@@ -1958,7 +1958,7 @@ anv_shader_compile(struct vk_device *vk_device,
                                 info->robustness, state, stages);
          break;
       case MESA_SHADER_FRAGMENT:
-         populate_wm_prog_key(&shader_data->key.wm, vk_device->physical,
+         populate_fs_prog_key(&shader_data->key.fs, vk_device->physical,
                               info->robustness, state, stages);
          break;
       case MESA_SHADER_COMPUTE:

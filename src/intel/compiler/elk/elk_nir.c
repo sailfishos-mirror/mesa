@@ -545,7 +545,7 @@ elk_nir_lower_load_frag_coord_w_gfx4(nir_shader *shader)
 void
 elk_nir_lower_fs_inputs(nir_shader *nir,
                         const struct intel_device_info *devinfo,
-                        const struct elk_wm_prog_key *key)
+                        const struct elk_fs_prog_key *key)
 {
    nir_foreach_shader_in_variable(var, nir) {
       var->data.driver_location = var->data.location;

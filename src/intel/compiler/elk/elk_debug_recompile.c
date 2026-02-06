@@ -135,8 +135,8 @@ debug_gs_recompile(const struct elk_compiler *c, void *log,
 
 static void
 debug_fs_recompile(const struct elk_compiler *c, void *log,
-                   const struct elk_wm_prog_key *old_key,
-                   const struct elk_wm_prog_key *key)
+                   const struct elk_fs_prog_key *old_key,
+                   const struct elk_fs_prog_key *key)
 {
    bool found = false;
 
@@ -205,8 +205,8 @@ elk_debug_key_recompile(const struct elk_compiler *c, void *log,
                                  (const struct elk_gs_prog_key *)key);
       break;
    case MESA_SHADER_FRAGMENT:
-      debug_fs_recompile(c, log, (const struct elk_wm_prog_key *)old_key,
-                                 (const struct elk_wm_prog_key *)key);
+      debug_fs_recompile(c, log, (const struct elk_fs_prog_key *)old_key,
+                                 (const struct elk_fs_prog_key *)key);
       break;
    case MESA_SHADER_COMPUTE:
       debug_cs_recompile(c, log, (const struct elk_cs_prog_key *)old_key,

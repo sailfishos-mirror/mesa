@@ -170,7 +170,7 @@ bool elk_nir_lower_cs_intrinsics(nir_shader *nir,
                                  const struct intel_device_info *devinfo,
                                  struct elk_cs_prog_data *prog_data);
 bool elk_nir_lower_alpha_to_coverage(nir_shader *shader,
-                                     const struct elk_wm_prog_key *key,
+                                     const struct elk_fs_prog_key *key,
                                      const struct elk_fs_prog_data *prog_data);
 void elk_nir_lower_vs_inputs(nir_shader *nir,
                              bool edgeflag_is_last,
@@ -180,7 +180,7 @@ void elk_nir_lower_vue_inputs(nir_shader *nir,
 void elk_nir_lower_tes_inputs(nir_shader *nir, const struct intel_vue_map *vue);
 void elk_nir_lower_fs_inputs(nir_shader *nir,
                              const struct intel_device_info *devinfo,
-                             const struct elk_wm_prog_key *key);
+                             const struct elk_fs_prog_key *key);
 void elk_nir_lower_vue_outputs(nir_shader *nir);
 void elk_nir_lower_tcs_outputs(nir_shader *nir, const struct intel_vue_map *vue,
                                enum tess_primitive_mode tes_primitive_mode);

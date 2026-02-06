@@ -42,7 +42,7 @@ struct intel_vue_map;
 struct elk_tcs_prog_key;
 struct elk_tes_prog_key;
 struct elk_cs_prog_key;
-struct elk_wm_prog_key;
+struct elk_fs_prog_key;
 struct elk_vs_prog_key;
 struct elk_gs_prog_key;
 struct shader_info;
@@ -133,7 +133,7 @@ struct crocus_vtable {
                            struct elk_gs_prog_key *key);
    void (*populate_fs_key)(const struct crocus_context *ice,
                            const struct shader_info *info,
-                           struct elk_wm_prog_key *key);
+                           struct elk_fs_prog_key *key);
    void (*populate_cs_key)(const struct crocus_context *ice,
                            struct elk_cs_prog_key *key);
    void (*fill_clamp_mask)(const struct crocus_sampler_state *state,

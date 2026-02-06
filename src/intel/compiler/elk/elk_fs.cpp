@@ -1334,7 +1334,7 @@ elk_compute_urb_setup_index(struct elk_fs_prog_data *fs_prog_data)
 
 static void
 calculate_urb_setup(const struct intel_device_info *devinfo,
-                    const struct elk_wm_prog_key *key,
+                    const struct elk_fs_prog_key *key,
                     struct elk_fs_prog_data *prog_data,
                     const nir_shader *nir)
 {
@@ -2941,7 +2941,7 @@ out:
 void
 elk_fs_visitor::emit_repclear_shader()
 {
-   elk_wm_prog_key *key = (elk_wm_prog_key*) this->key;
+   elk_fs_prog_key *key = (elk_fs_prog_key*) this->key;
    elk_fs_inst *write = NULL;
 
    assert(uniforms == 0);
@@ -6234,7 +6234,7 @@ bool
 elk_fs_visitor::run_fs(bool allow_spilling, bool do_rep_send)
 {
    struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(this->prog_data);
-   elk_wm_prog_key *wm_key = (elk_wm_prog_key *) this->key;
+   elk_fs_prog_key *wm_key = (elk_fs_prog_key *) this->key;
    const fs_builder bld = fs_builder(this).at_end();
 
    assert(stage == MESA_SHADER_FRAGMENT);
@@ -6515,7 +6515,7 @@ elk_nir_move_interpolation_to_top(nir_shader *nir)
 static void
 elk_nir_populate_fs_prog_data(nir_shader *shader,
                               const struct intel_device_info *devinfo,
-                              const struct elk_wm_prog_key *key,
+                              const struct elk_fs_prog_key *key,
                               struct elk_fs_prog_data *prog_data)
 {
    /* key->alpha_test_func means simulating alpha testing via discards,
@@ -6656,7 +6656,7 @@ elk_compile_fs(const struct elk_compiler *compiler,
                struct elk_compile_fs_params *params)
 {
    struct nir_shader *nir = params->base.nir;
-   const struct elk_wm_prog_key *key = params->key;
+   const struct elk_fs_prog_key *key = params->key;
    struct elk_fs_prog_data *prog_data = params->prog_data;
    bool allow_spilling = params->allow_spilling;
    const bool debug_enabled =

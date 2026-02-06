@@ -1311,7 +1311,7 @@ fragment_top_block_or_after_wa_18019110168(nir_function_impl *impl)
 void
 brw_nir_lower_fs_inputs(nir_shader *nir,
                         const struct intel_device_info *devinfo,
-                        const struct brw_wm_prog_key *key)
+                        const struct brw_fs_prog_key *key)
 {
    /* Always pull the PrimitiveID from the per-primitive block if mesh can be
     * involved.

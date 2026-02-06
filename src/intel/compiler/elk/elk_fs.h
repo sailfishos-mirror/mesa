@@ -152,7 +152,7 @@ public:
               bool debug_enabled);
    elk_fs_visitor(const struct elk_compiler *compiler,
               const struct elk_compile_params *params,
-              const elk_wm_prog_key *key,
+              const elk_fs_prog_key *key,
               struct elk_fs_prog_data *prog_data,
               const nir_shader *shader,
               unsigned dispatch_width,

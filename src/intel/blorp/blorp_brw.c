@@ -40,7 +40,7 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
       nir->info.min_subgroup_size = 16;
    }
 
-   struct brw_wm_prog_key wm_key;
+   struct brw_fs_prog_key wm_key;
    memset(&wm_key, 0, sizeof(wm_key));
    wm_key.multisample_fbo = multisample_fbo ? INTEL_ALWAYS : INTEL_NEVER;
    wm_key.nr_color_regions = 1;

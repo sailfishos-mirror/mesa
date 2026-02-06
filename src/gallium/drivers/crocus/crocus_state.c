@@ -4793,7 +4793,7 @@ crocus_populate_gs_key(const struct crocus_context *ice,
 static void
 crocus_populate_fs_key(const struct crocus_context *ice,
                        const struct shader_info *info,
-                       struct elk_wm_prog_key *key)
+                       struct elk_fs_prog_key *key)
 {
    struct crocus_screen *screen = (void *) ice->ctx.screen;
    const struct pipe_framebuffer_state *fb = &ice->state.framebuffer;

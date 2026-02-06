@@ -1806,7 +1806,7 @@ crocus_update_compiled_gs(struct crocus_context *ice)
 static struct crocus_compiled_shader *
 crocus_compile_fs(struct crocus_context *ice,
                   struct crocus_uncompiled_shader *ish,
-                  const struct elk_wm_prog_key *key,
+                  const struct elk_fs_prog_key *key,
                   struct intel_vue_map *vue_map)
 {
    struct crocus_screen *screen = (struct crocus_screen *)ice->ctx.screen;
@@ -1847,7 +1847,7 @@ crocus_compile_fs(struct crocus_context *ice,
    if (can_push_ubo(devinfo))
       elk_nir_analyze_ubo_ranges(compiler, nir, prog_data->ubo_ranges);
 
-   struct elk_wm_prog_key key_clean = *key;
+   struct elk_fs_prog_key key_clean = *key;
    crocus_sanitize_tex_key(&key_clean.base.tex);
 
    struct elk_compile_fs_params params = {
@@ -1905,7 +1905,7 @@ crocus_update_compiled_fs(struct crocus_context *ice)
    struct crocus_shader_state *shs = &ice->state.shaders[MESA_SHADER_FRAGMENT];
    struct crocus_uncompiled_shader *ish =
       ice->shaders.uncompiled[MESA_SHADER_FRAGMENT];
-   struct elk_wm_prog_key key = { KEY_INIT() };
+   struct elk_fs_prog_key key = { KEY_INIT() };
 
    if (ish->nos & (1ull << CROCUS_NOS_TEXTURES))
       crocus_populate_sampler_prog_key_data(ice, devinfo, MESA_SHADER_FRAGMENT, ish,
@@ -2872,7 +2872,7 @@ crocus_create_fs_state(struct pipe_context *ctx,
          screen->devinfo.ver > 6 && util_bitcount64(info->inputs_read & ELK_FS_VARYING_INPUT_MASK) <= 16;
 
       const struct intel_device_info *devinfo = &screen->devinfo;
-      struct elk_wm_prog_key key = {
+      struct elk_fs_prog_key key = {
          KEY_INIT(),
          .nr_color_regions = util_bitcount(color_outputs),
          .coherent_fb_fetch = false,

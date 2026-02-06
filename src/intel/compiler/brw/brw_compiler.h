@@ -380,7 +380,7 @@ struct brw_mesh_prog_key
 };
 
 /** The program key for Fragment/Pixel Shaders. */
-struct brw_wm_prog_key {
+struct brw_fs_prog_key {
    struct brw_base_prog_key base;
 
    float min_sample_shading;
@@ -418,7 +418,7 @@ struct brw_wm_prog_key {
 };
 
 static inline bool
-brw_wm_prog_key_is_dynamic(const struct brw_wm_prog_key *key)
+brw_fs_prog_key_is_dynamic(const struct brw_fs_prog_key *key)
 {
    return
       key->mesh_input == INTEL_SOMETIMES ||
@@ -450,7 +450,7 @@ union brw_any_prog_key {
    struct brw_tcs_prog_key tcs;
    struct brw_tes_prog_key tes;
    struct brw_gs_prog_key gs;
-   struct brw_wm_prog_key wm;
+   struct brw_fs_prog_key fs;
    struct brw_cs_prog_key cs;
    struct brw_bs_prog_key bs;
    struct brw_task_prog_key task;
@@ -613,7 +613,7 @@ enum brw_pixel_shader_computed_depth_mode {
 
 /* Data about a particular attempt to compile a program.  Note that
  * there can be many of these, each in a different GL state
- * corresponding to a different brw_wm_prog_key struct, with different
+ * corresponding to a different brw_fs_prog_key struct, with different
  * compiled programs.
  */
 struct brw_fs_prog_data {
@@ -1568,7 +1568,7 @@ brw_compile_mesh(const struct brw_compiler *compiler,
 struct brw_compile_fs_params {
    struct brw_compile_params base;
 
-   const struct brw_wm_prog_key *key;
+   const struct brw_fs_prog_key *key;
    struct brw_fs_prog_data *prog_data;
 
    const struct intel_vue_map *vue_map;

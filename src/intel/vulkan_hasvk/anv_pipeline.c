@@ -268,12 +268,12 @@ populate_gs_prog_key(const struct anv_device *device,
 }
 
 static void
-populate_wm_prog_key(const struct anv_graphics_pipeline *pipeline,
+populate_fs_prog_key(const struct anv_graphics_pipeline *pipeline,
                      enum elk_robustness_flags robust_flags,
                      const BITSET_WORD *dynamic,
                      const struct vk_multisample_state *ms,
                      const struct vk_render_pass_state *rp,
-                     struct elk_wm_prog_key *key)
+                     struct elk_fs_prog_key *key)
 {
    const struct anv_device *device = pipeline->base.device;
 
@@ -802,11 +802,11 @@ anv_pipeline_link_fs(const struct elk_compiler *compiler,
                      const struct vk_render_pass_state *rp)
 {
    /* Initially the valid outputs value is set to all possible render targets
-    * valid (see populate_wm_prog_key()), before we look at the shader
+    * valid (see populate_fs_prog_key()), before we look at the shader
     * variables. Here we look at the output variables of the shader an compute
     * a correct number of render target outputs.
     */
-   stage->key.wm.color_outputs_valid = 0;
+   stage->key.fs.color_outputs_valid = 0;
    nir_foreach_shader_out_variable_safe(var, stage->nir) {
       if (var->data.location < FRAG_RESULT_DATA0)
          continue;
@@ -816,19 +816,19 @@ anv_pipeline_link_fs(const struct elk_compiler *compiler,
          glsl_type_is_array(var->type) ? glsl_get_length(var->type) : 1;
       assert(rt + array_len <= MAX_RTS);
 
-      stage->key.wm.color_outputs_valid |= BITFIELD_RANGE(rt, array_len);
+      stage->key.fs.color_outputs_valid |= BITFIELD_RANGE(rt, array_len);
    }
-   stage->key.wm.color_outputs_valid &=
+   stage->key.fs.color_outputs_valid &=
       (1u << rp->color_attachment_count) - 1;
-   stage->key.wm.nr_color_regions =
-      util_last_bit(stage->key.wm.color_outputs_valid);
+   stage->key.fs.nr_color_regions =
+      util_last_bit(stage->key.fs.color_outputs_valid);
 
    unsigned num_rt_bindings;
    struct anv_pipeline_binding rt_bindings[MAX_RTS];
-   if (stage->key.wm.nr_color_regions > 0) {
-      assert(stage->key.wm.nr_color_regions <= MAX_RTS);
-      for (unsigned rt = 0; rt < stage->key.wm.nr_color_regions; rt++) {
-         if (stage->key.wm.color_outputs_valid & BITFIELD_BIT(rt)) {
+   if (stage->key.fs.nr_color_regions > 0) {
+      assert(stage->key.fs.nr_color_regions <= MAX_RTS);
+      for (unsigned rt = 0; rt < stage->key.fs.nr_color_regions; rt++) {
+         if (stage->key.fs.color_outputs_valid & BITFIELD_BIT(rt)) {
             rt_bindings[rt] = (struct anv_pipeline_binding) {
                .set = ANV_DESCRIPTOR_SET_COLOR_ATTACHMENTS,
                .index = rt,
@@ -841,7 +841,7 @@ anv_pipeline_link_fs(const struct elk_compiler *compiler,
             };
          }
       }
-      num_rt_bindings = stage->key.wm.nr_color_regions;
+      num_rt_bindings = stage->key.fs.nr_color_regions;
    } else {
       /* Setup a null render target */
       rt_bindings[0] = (struct anv_pipeline_binding) {
@@ -877,13 +877,13 @@ anv_pipeline_compile_fs(const struct elk_compiler *compiler,
          .log_data = device,
          .mem_ctx = mem_ctx,
       },
-      .key = &fs_stage->key.wm,
+      .key = &fs_stage->key.fs,
       .prog_data = &fs_stage->prog_data.fs,
 
       .allow_spilling = true,
    };
 
-   fs_stage->key.wm.input_slots_valid =
+   fs_stage->key.fs.input_slots_valid =
       prev_stage->prog_data.vue.vue_map.slots_valid;
 
    fs_stage->code = elk_compile_fs(compiler, &params);
@@ -1067,10 +1067,10 @@ anv_graphics_pipeline_init_keys(struct anv_graphics_pipeline *pipeline,
                               &stages[s].key.gs);
          break;
       case MESA_SHADER_FRAGMENT: {
-         populate_wm_prog_key(pipeline,
+         populate_fs_prog_key(pipeline,
                               robust_flags,
                               state->dynamic, state->ms, state->rp,
-                              &stages[s].key.wm);
+                              &stages[s].key.fs);
          break;
       }
       default:

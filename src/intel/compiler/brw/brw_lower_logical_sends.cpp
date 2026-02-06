@@ -260,7 +260,7 @@ setup_color_payload(const brw_builder &bld, brw_reg *dst, brw_reg color,
 static void
 lower_fb_write_logical_send(const brw_builder &bld, brw_fb_write_inst *write,
                             const struct brw_fs_prog_data *prog_data,
-                            const brw_wm_prog_key *key,
+                            const brw_fs_prog_key *key,
                             const brw_fs_thread_payload &fs_payload)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
@@ -1825,7 +1825,7 @@ lower_varying_pull_constant_logical_send(const brw_builder &bld, brw_inst *inst)
 
 static void
 lower_interpolator_logical_send(const brw_builder &bld, brw_inst *inst,
-                                const struct brw_wm_prog_key *wm_prog_key,
+                                const struct brw_fs_prog_key *fs_prog_key,
                                 const struct brw_fs_prog_data *fs_prog_data)
 {
    assert(inst->src[INTERP_SRC_NOPERSPECTIVE].file == IMM);
@@ -2284,7 +2284,7 @@ brw_lower_logical_sends(brw_shader &s)
          assert(s.stage == MESA_SHADER_FRAGMENT);
          lower_fb_write_logical_send(ibld, inst->as_fb_write(),
                                      brw_fs_prog_data(s.prog_data),
-                                     (const brw_wm_prog_key *)s.key,
+                                     (const brw_fs_prog_key *)s.key,
                                      s.fs_payload());
          break;
 
@@ -2319,7 +2319,7 @@ brw_lower_logical_sends(brw_shader &s)
       case FS_OPCODE_INTERPOLATE_AT_SHARED_OFFSET:
       case FS_OPCODE_INTERPOLATE_AT_PER_SLOT_OFFSET:
          lower_interpolator_logical_send(ibld, inst,
-                                         (const brw_wm_prog_key *)s.key,
+                                         (const brw_fs_prog_key *)s.key,
                                          brw_fs_prog_data(s.prog_data));
          break;
 

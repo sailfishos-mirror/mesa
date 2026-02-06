@@ -287,7 +287,7 @@ brw_dynamic_per_primitive_remap(const struct brw_fs_prog_data *fs_prog_data)
       fs_prog_data->per_primitive_remap_param % REG_SIZE);
 }
 
-enum intel_barycentric_mode brw_barycentric_mode(const struct brw_wm_prog_key *key,
+enum intel_barycentric_mode brw_barycentric_mode(const struct brw_fs_prog_key *key,
                                                  nir_intrinsic_instr *intr);
 
 uint32_t brw_fb_write_msg_control(const brw_inst *inst,

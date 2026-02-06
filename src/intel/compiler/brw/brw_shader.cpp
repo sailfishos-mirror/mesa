@@ -264,7 +264,7 @@ brw_shader::limit_dispatch_width(unsigned n, const char *msg)
 }
 
 enum intel_barycentric_mode
-brw_barycentric_mode(const struct brw_wm_prog_key *key,
+brw_barycentric_mode(const struct brw_fs_prog_key *key,
                      nir_intrinsic_instr *intr)
 {
    const glsl_interp_mode mode =

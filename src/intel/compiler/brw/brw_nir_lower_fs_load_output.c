@@ -18,7 +18,7 @@ brw_nir_lower_fs_load_output_instr(nir_builder *b,
    if (intrin->intrinsic != nir_intrinsic_load_output)
       return false;
 
-   const struct brw_wm_prog_key *key = data;
+   const struct brw_fs_prog_key *key = data;
 
    const unsigned l = GET_FIELD(nir_intrinsic_base(intrin),
                                 BRW_NIR_FRAG_OUTPUT_LOCATION);
@@ -63,7 +63,7 @@ brw_nir_lower_fs_load_output_instr(nir_builder *b,
 
 bool
 brw_nir_lower_fs_load_output(nir_shader *shader,
-                             const struct brw_wm_prog_key *key)
+                             const struct brw_fs_prog_key *key)
 {
    return nir_shader_intrinsics_pass(shader,
                                      brw_nir_lower_fs_load_output_instr,

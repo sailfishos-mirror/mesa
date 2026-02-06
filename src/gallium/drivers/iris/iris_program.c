@@ -551,11 +551,11 @@ iris_to_brw_gs_key(const struct iris_screen *screen,
    };
 }
 
-static struct brw_wm_prog_key
+static struct brw_fs_prog_key
 iris_to_brw_fs_key(const struct iris_screen *screen,
                    const struct iris_fs_prog_key *key)
 {
-   return (struct brw_wm_prog_key) {
+   return (struct brw_fs_prog_key) {
       BRW_KEY_INIT(key->base, key->vue_layout),
       .nr_color_regions = key->nr_color_regions,
       .alpha_test_replicate_alpha = key->alpha_test_replicate_alpha,
@@ -630,11 +630,11 @@ iris_to_elk_gs_key(const struct iris_screen *screen,
    };
 }
 
-static struct elk_wm_prog_key
+static struct elk_fs_prog_key
 iris_to_elk_fs_key(const struct iris_screen *screen,
                    const struct iris_fs_prog_key *key)
 {
-   return (struct elk_wm_prog_key) {
+   return (struct elk_fs_prog_key) {
       ELK_KEY_INIT(screen->devinfo->ver, key->base.program_string_id,
                    key->base.limit_trig_input_range),
       .nr_color_regions = key->nr_color_regions,
@@ -1629,7 +1629,7 @@ iris_debug_recompile_brw(struct iris_screen *screen,
       old_key.gs = iris_to_brw_gs_key(screen, old_iris_key);
       break;
    case MESA_SHADER_FRAGMENT:
-      old_key.wm = iris_to_brw_fs_key(screen, old_iris_key);
+      old_key.fs = iris_to_brw_fs_key(screen, old_iris_key);
       break;
    case MESA_SHADER_COMPUTE:
       old_key.cs = iris_to_brw_cs_key(screen, old_iris_key);
@@ -1681,7 +1681,7 @@ iris_debug_recompile_elk(struct iris_screen *screen,
       old_key.gs = iris_to_elk_gs_key(screen, old_iris_key);
       break;
    case MESA_SHADER_FRAGMENT:
-      old_key.wm = iris_to_elk_fs_key(screen, old_iris_key);
+      old_key.fs = iris_to_elk_fs_key(screen, old_iris_key);
       break;
    case MESA_SHADER_COMPUTE:
       old_key.cs = iris_to_elk_cs_key(screen, old_iris_key);
@@ -2779,7 +2779,7 @@ iris_compile_fs(struct iris_screen *screen,
       struct brw_ubo_range ubo_ranges[4] = {};
       brw_apply_ubo_ranges(screen->brw, nir, ubo_ranges, &brw_prog_data->base);
 
-      struct brw_wm_prog_key brw_key = iris_to_brw_fs_key(screen, key);
+      struct brw_fs_prog_key brw_key = iris_to_brw_fs_key(screen, key);
 
       struct brw_compile_fs_params params = {
          .base = {
@@ -2812,7 +2812,7 @@ iris_compile_fs(struct iris_screen *screen,
 
       elk_nir_analyze_ubo_ranges(screen->elk, nir, elk_prog_data->base.ubo_ranges);
 
-      struct elk_wm_prog_key elk_key = iris_to_elk_fs_key(screen, key);
+      struct elk_fs_prog_key elk_key = iris_to_elk_fs_key(screen, key);
 
       struct elk_compile_fs_params params = {
          .base = {

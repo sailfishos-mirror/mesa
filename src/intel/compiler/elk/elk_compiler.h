@@ -462,7 +462,7 @@ elk_sometimes_invert(enum elk_sometimes x)
 }
 
 /** The program key for Fragment/Pixel Shaders. */
-struct elk_wm_prog_key {
+struct elk_fs_prog_key {
    struct elk_base_prog_key base;
 
    uint64_t input_slots_valid;
@@ -544,7 +544,7 @@ union elk_any_prog_key {
    struct elk_tcs_prog_key tcs;
    struct elk_tes_prog_key tes;
    struct elk_gs_prog_key gs;
-   struct elk_wm_prog_key wm;
+   struct elk_fs_prog_key fs;
    struct elk_cs_prog_key cs;
 };
 
@@ -732,7 +732,7 @@ enum elk_pixel_shader_computed_depth_mode {
 
 /* Data about a particular attempt to compile a program.  Note that
  * there can be many of these, each in a different GL state
- * corresponding to a different elk_wm_prog_key struct, with different
+ * corresponding to a different elk_fs_prog_key struct, with different
  * compiled programs.
  */
 struct elk_fs_prog_data {
@@ -1531,7 +1531,7 @@ elk_compile_clip(const struct elk_compiler *compiler,
 struct elk_compile_fs_params {
    struct elk_compile_params base;
 
-   const struct elk_wm_prog_key *key;
+   const struct elk_fs_prog_key *key;
    struct elk_fs_prog_data *prog_data;
 
    const struct intel_vue_map *vue_map;

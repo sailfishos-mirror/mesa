@@ -3270,8 +3270,8 @@ alloc_frag_output(nir_to_brw_state &ntb, unsigned location)
    brw_shader &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   const brw_wm_prog_key *const key =
-      reinterpret_cast<const brw_wm_prog_key *>(s.key);
+   const brw_fs_prog_key *const key =
+      reinterpret_cast<const brw_fs_prog_key *>(s.key);
    const unsigned l = GET_FIELD(location, BRW_NIR_FRAG_OUTPUT_LOCATION);
    const unsigned i = GET_FIELD(location, BRW_NIR_FRAG_OUTPUT_INDEX);
 
@@ -3468,7 +3468,7 @@ emit_sampleid_setup(nir_to_brw_state &ntb)
    brw_shader &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   ASSERTED brw_wm_prog_key *key = (brw_wm_prog_key*) s.key;
+   ASSERTED brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
    struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
 
    const brw_builder abld = bld.annotate("compute sample id");
@@ -4009,7 +4009,7 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
    case nir_intrinsic_load_barycentric_sample: {
       /* Use the delta_xy values computed from the payload */
       enum intel_barycentric_mode bary = brw_barycentric_mode(
-         reinterpret_cast<const brw_wm_prog_key *>(s.key), instr);
+         reinterpret_cast<const brw_fs_prog_key *>(s.key), instr);
       const brw_reg srcs[] = { offset(s.delta_xy[bary], bld, 0),
                               offset(s.delta_xy[bary], bld, 1) };
       bld.LOAD_PAYLOAD(dest, srcs, ARRAY_SIZE(srcs), 0);
@@ -4035,8 +4035,8 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
          bld.uniform().SHL(msg_data, sample_id, brw_imm_ud(4u));
 
          brw_reg flag_reg;
-         struct brw_wm_prog_key *wm_prog_key = (struct brw_wm_prog_key *) s.key;
-         if (wm_prog_key->multisample_fbo == INTEL_SOMETIMES) {
+         struct brw_fs_prog_key *fs_prog_key = (struct brw_fs_prog_key *) s.key;
+         if (fs_prog_key->multisample_fbo == INTEL_SOMETIMES) {
             struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
 
             brw_check_dynamic_fs_config(bld.exec_all().group(8, 0),
@@ -4105,7 +4105,7 @@ brw_from_nir_emit_fs_intrinsic(nir_to_brw_state &ntb,
       } else {
          /* Use the delta_xy values computed from the payload */
          enum intel_barycentric_mode bary = brw_barycentric_mode(
-            reinterpret_cast<const brw_wm_prog_key *>(s.key), bary_intrinsic);
+            reinterpret_cast<const brw_fs_prog_key *>(s.key), bary_intrinsic);
          dst_xy = s.delta_xy[bary];
       }
 

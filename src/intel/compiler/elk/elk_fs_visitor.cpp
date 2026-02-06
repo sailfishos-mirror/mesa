@@ -131,7 +131,7 @@ elk_fs_visitor::emit_interpolation_setup_gfx6()
    const fs_builder bld = fs_builder(this).at_end();
    fs_builder abld = bld.annotate("compute pixel centers");
 
-   const struct elk_wm_prog_key *wm_key = (elk_wm_prog_key*) this->key;
+   const struct elk_fs_prog_key *wm_key = (elk_fs_prog_key*) this->key;
    struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(prog_data);
 
    elk_fs_reg int_sample_offset_x, int_sample_offset_y; /* Used on Gen12HP+ */
@@ -369,7 +369,7 @@ void
 elk_fs_visitor::emit_alpha_test()
 {
    assert(stage == MESA_SHADER_FRAGMENT);
-   elk_wm_prog_key *key = (elk_wm_prog_key*) this->key;
+   elk_fs_prog_key *key = (elk_fs_prog_key*) this->key;
    const fs_builder bld = fs_builder(this).at_end();
    const fs_builder abld = bld.annotate("Alpha test");
 
@@ -487,7 +487,7 @@ elk_fs_visitor::emit_fb_writes()
 {
    assert(stage == MESA_SHADER_FRAGMENT);
    struct elk_fs_prog_data *prog_data = elk_fs_prog_data(this->prog_data);
-   elk_wm_prog_key *key = (elk_wm_prog_key*) this->key;
+   elk_fs_prog_key *key = (elk_fs_prog_key*) this->key;
 
    if (source_depth_to_render_target && devinfo->ver == 6) {
       /* For outputting oDepth on gfx6, SIMD8 writes have to be used.  This
@@ -845,7 +845,7 @@ elk_fs_visitor::elk_fs_visitor(const struct elk_compiler *compiler,
 
 elk_fs_visitor::elk_fs_visitor(const struct elk_compiler *compiler,
                        const struct elk_compile_params *params,
-                       const elk_wm_prog_key *key,
+                       const elk_fs_prog_key *key,
                        struct elk_fs_prog_data *prog_data,
                        const nir_shader *shader,
                        unsigned dispatch_width,

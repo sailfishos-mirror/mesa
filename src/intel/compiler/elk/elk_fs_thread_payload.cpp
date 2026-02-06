@@ -298,7 +298,7 @@ setup_fs_payload_gfx4(elk_fs_thread_payload &payload,
    assert(v.dispatch_width <= 16);
 
    struct elk_fs_prog_data *prog_data = elk_fs_prog_data(v.prog_data);
-   elk_wm_prog_key *key = (elk_wm_prog_key *) v.key;
+   elk_fs_prog_key *key = (elk_fs_prog_key *) v.key;
 
    GLuint reg = 1;
    bool kill_stats_promoted_workaround = false;

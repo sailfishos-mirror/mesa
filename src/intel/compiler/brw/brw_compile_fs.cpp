@@ -85,7 +85,7 @@ brw_do_emit_fb_writes(brw_shader &s, int nr_color_regions, bool replicate_alpha)
    }
 
    if (write == NULL) {
-      struct brw_wm_prog_key *key = (brw_wm_prog_key*) s.key;
+      struct brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
       /* Disable null_rt if any non color output is written or if
        * alpha_to_coverage can be enabled. Since the alpha_to_coverage bit is
        * coming from the BLEND_STATE structure and the HW will avoid reading
@@ -120,7 +120,7 @@ brw_emit_fb_writes(brw_shader &s)
    const struct intel_device_info *devinfo = s.devinfo;
    assert(s.stage == MESA_SHADER_FRAGMENT);
    struct brw_fs_prog_data *prog_data = brw_fs_prog_data(s.prog_data);
-   brw_wm_prog_key *key = (brw_wm_prog_key*) s.key;
+   brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
 
    if (s.nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_STENCIL)) {
       /* From the 'Render Target Write message' section of the docs:
@@ -185,7 +185,7 @@ brw_emit_interpolation_setup(brw_shader &s)
    const struct intel_device_info *devinfo = s.devinfo;
    const brw_builder bld = brw_builder(&s);
    brw_builder abld = bld.annotate("compute pixel centers");
-   const struct brw_wm_prog_key *wm_key = (brw_wm_prog_key*) s.key;
+   const struct brw_fs_prog_key *wm_key = (brw_fs_prog_key*) s.key;
    struct brw_fs_prog_data *fs_prog_data = brw_fs_prog_data(s.prog_data);
 
    brw_reg ub_cps_width, ub_cps_height;
@@ -541,7 +541,7 @@ brw_emit_interpolation_setup(brw_shader &s)
 static void
 brw_emit_repclear_shader(brw_shader &s)
 {
-   brw_wm_prog_key *key = (brw_wm_prog_key*) s.key;
+   brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
    brw_send_inst *write = NULL;
 
    assert(s.devinfo->ver < 20);
@@ -604,7 +604,7 @@ brw_emit_repclear_shader(brw_shader &s)
 
 static void
 calculate_urb_setup(const struct intel_device_info *devinfo,
-                    const struct brw_wm_prog_key *key,
+                    const struct brw_fs_prog_key *key,
                     struct brw_fs_prog_data *prog_data,
                     nir_shader *nir,
                     const struct brw_mue_map *mue_map,
@@ -755,7 +755,7 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
  */
 static unsigned
 brw_compute_barycentric_interp_modes(const struct intel_device_info *devinfo,
-                                     const struct brw_wm_prog_key *key,
+                                     const struct brw_fs_prog_key *key,
                                      const nir_shader *shader)
 {
    unsigned barycentric_interp_modes = 0;
@@ -796,7 +796,7 @@ brw_compute_barycentric_interp_modes(const struct intel_device_info *devinfo,
  * sample as argument.
  */
 static unsigned
-brw_compute_offset_barycentric_interp_modes(const struct brw_wm_prog_key *key,
+brw_compute_offset_barycentric_interp_modes(const struct brw_fs_prog_key *key,
                                             const nir_shader *shader)
 {
    unsigned barycentric_interp_modes = 0;
@@ -874,7 +874,7 @@ computed_depth_mode(const nir_shader *shader)
 static void
 brw_nir_populate_fs_prog_data(nir_shader *shader,
                               const struct intel_device_info *devinfo,
-                              const struct brw_wm_prog_key *key,
+                              const struct brw_fs_prog_key *key,
                               struct brw_fs_prog_data *prog_data,
                               const struct brw_mue_map *mue_map,
                               int *per_primitive_offsets)
@@ -1442,7 +1442,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
                struct brw_compile_fs_params *params)
 {
    struct nir_shader *nir = params->base.nir;
-   const struct brw_wm_prog_key *key = params->key;
+   const struct brw_fs_prog_key *key = params->key;
    struct brw_fs_prog_data *prog_data = params->prog_data;
    bool allow_spilling = params->allow_spilling;
    const bool debug_enabled =
@@ -1520,7 +1520,7 @@ brw_compile_fs(const struct brw_compiler *compiler,
    if (prog_data->coarse_pixel_dispatch != INTEL_NEVER)
       BRW_NIR_PASS(brw_nir_lower_frag_coord_z, devinfo);
 
-   if (!brw_wm_prog_key_is_dynamic(key)) {
+   if (!brw_fs_prog_key_is_dynamic(key)) {
       uint32_t f = 0;
 
       if (key->multisample_fbo == INTEL_ALWAYS)

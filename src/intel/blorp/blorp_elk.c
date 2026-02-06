@@ -38,7 +38,7 @@ blorp_compile_fs_elk(struct blorp_context *blorp, void *mem_ctx,
    nir_remove_dead_variables(nir, nir_var_shader_in, NULL);
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
 
-   struct elk_wm_prog_key wm_key;
+   struct elk_fs_prog_key wm_key;
    memset(&wm_key, 0, sizeof(wm_key));
    wm_key.multisample_fbo = multisample_fbo ? ELK_ALWAYS : ELK_NEVER;
    wm_key.nr_color_regions = 1;

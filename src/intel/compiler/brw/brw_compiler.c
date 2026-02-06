@@ -329,7 +329,7 @@ brw_prog_key_size(mesa_shader_stage stage)
       [MESA_SHADER_TESS_CTRL]    = sizeof(struct brw_tcs_prog_key),
       [MESA_SHADER_TESS_EVAL]    = sizeof(struct brw_tes_prog_key),
       [MESA_SHADER_GEOMETRY]     = sizeof(struct brw_gs_prog_key),
-      [MESA_SHADER_FRAGMENT]     = sizeof(struct brw_wm_prog_key),
+      [MESA_SHADER_FRAGMENT]     = sizeof(struct brw_fs_prog_key),
       [MESA_SHADER_COMPUTE]      = sizeof(struct brw_cs_prog_key),
       [MESA_SHADER_TASK]         = sizeof(struct brw_task_prog_key),
       [MESA_SHADER_MESH]         = sizeof(struct brw_mesh_prog_key),

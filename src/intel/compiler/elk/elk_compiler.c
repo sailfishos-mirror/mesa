@@ -190,7 +190,7 @@ elk_prog_key_size(mesa_shader_stage stage)
       [MESA_SHADER_TESS_CTRL]    = sizeof(struct elk_tcs_prog_key),
       [MESA_SHADER_TESS_EVAL]    = sizeof(struct elk_tes_prog_key),
       [MESA_SHADER_GEOMETRY]     = sizeof(struct elk_gs_prog_key),
-      [MESA_SHADER_FRAGMENT]     = sizeof(struct elk_wm_prog_key),
+      [MESA_SHADER_FRAGMENT]     = sizeof(struct elk_fs_prog_key),
       [MESA_SHADER_COMPUTE]      = sizeof(struct elk_cs_prog_key),
    };
    assert((int)stage >= 0 && stage < ARRAY_SIZE(stage_sizes));

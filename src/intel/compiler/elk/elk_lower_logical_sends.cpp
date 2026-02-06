@@ -116,7 +116,7 @@ setup_color_payload(const fs_builder &bld, elk_fs_reg *dst, elk_fs_reg color,
 static void
 lower_fb_write_logical_send(const fs_builder &bld, elk_fs_inst *inst,
                             const struct elk_fs_prog_data *prog_data,
-                            const elk_wm_prog_key *key,
+                            const elk_fs_prog_key *key,
                             const elk_fs_thread_payload &payload)
 {
    assert(inst->src[FB_WRITE_LOGICAL_SRC_COMPONENTS].file == IMM);
@@ -1626,7 +1626,7 @@ lower_math_logical_send(const fs_builder &bld, elk_fs_inst *inst)
 
 static void
 lower_interpolator_logical_send(const fs_builder &bld, elk_fs_inst *inst,
-                                const struct elk_wm_prog_key *wm_prog_key,
+                                const struct elk_fs_prog_key *fs_prog_key,
                                 const struct elk_fs_prog_data *fs_prog_data)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
@@ -1775,7 +1775,7 @@ elk_fs_visitor::lower_logical_sends()
          assert(stage == MESA_SHADER_FRAGMENT);
          lower_fb_write_logical_send(ibld, inst,
                                      elk_fs_prog_data(prog_data),
-                                     (const elk_wm_prog_key *)key,
+                                     (const elk_fs_prog_key *)key,
                                      fs_payload());
          break;
 
@@ -1902,7 +1902,7 @@ elk_fs_visitor::lower_logical_sends()
       case ELK_FS_OPCODE_INTERPOLATE_AT_SHARED_OFFSET:
       case ELK_FS_OPCODE_INTERPOLATE_AT_PER_SLOT_OFFSET:
          lower_interpolator_logical_send(ibld, inst,
-                                         (const elk_wm_prog_key *)key,
+                                         (const elk_fs_prog_key *)key,
                                          elk_fs_prog_data(prog_data));
          break;
 

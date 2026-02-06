@@ -3157,8 +3157,8 @@ emit_non_coherent_fb_read(nir_to_elk_state &ntb, const fs_builder &bld, const el
    elk_fs_visitor &s = ntb.s;
 
    assert(bld.shader->stage == MESA_SHADER_FRAGMENT);
-   const elk_wm_prog_key *wm_key =
-      reinterpret_cast<const elk_wm_prog_key *>(s.key);
+   const elk_fs_prog_key *wm_key =
+      reinterpret_cast<const elk_fs_prog_key *>(s.key);
    assert(!wm_key->coherent_fb_fetch);
 
    /* Calculate the fragment coordinates. */
@@ -3234,8 +3234,8 @@ alloc_frag_output(nir_to_elk_state &ntb, unsigned location)
    elk_fs_visitor &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   const elk_wm_prog_key *const key =
-      reinterpret_cast<const elk_wm_prog_key *>(s.key);
+   const elk_fs_prog_key *const key =
+      reinterpret_cast<const elk_fs_prog_key *>(s.key);
    const unsigned l = GET_FIELD(location, ELK_NIR_FRAG_OUTPUT_LOCATION);
    const unsigned i = GET_FIELD(location, ELK_NIR_FRAG_OUTPUT_INDEX);
 
@@ -3407,7 +3407,7 @@ emit_sampleid_setup(nir_to_elk_state &ntb)
    elk_fs_visitor &s = ntb.s;
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
-   ASSERTED elk_wm_prog_key *key = (elk_wm_prog_key*) s.key;
+   ASSERTED elk_fs_prog_key *key = (elk_fs_prog_key*) s.key;
    struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(s.prog_data);
    assert(devinfo->ver >= 6);
 
@@ -3640,7 +3640,7 @@ fs_nir_emit_fs_intrinsic(nir_to_elk_state &ntb,
       const unsigned target = l - FRAG_RESULT_DATA0 + load_offset;
       const elk_fs_reg tmp = bld.vgrf(dest.type, 4);
 
-      assert(!reinterpret_cast<const elk_wm_prog_key *>(s.key)->coherent_fb_fetch);
+      assert(!reinterpret_cast<const elk_fs_prog_key *>(s.key)->coherent_fb_fetch);
       emit_non_coherent_fb_read(ntb, bld, tmp, target);
 
       for (unsigned j = 0; j < instr->num_components; j++) {
@@ -3831,8 +3831,8 @@ fs_nir_emit_fs_intrinsic(nir_to_elk_state &ntb,
       }
 
       elk_fs_reg flag_reg;
-      struct elk_wm_prog_key *wm_prog_key = (struct elk_wm_prog_key *) s.key;
-      if (wm_prog_key->multisample_fbo == ELK_SOMETIMES) {
+      struct elk_fs_prog_key *fs_prog_key = (struct elk_fs_prog_key *) s.key;
+      if (fs_prog_key->multisample_fbo == ELK_SOMETIMES) {
          struct elk_fs_prog_data *fs_prog_data = elk_fs_prog_data(s.prog_data);
 
          check_dynamic_fs_config(bld.exec_all().group(8, 0),

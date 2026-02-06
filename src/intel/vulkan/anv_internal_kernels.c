@@ -167,7 +167,7 @@ compile_shader(struct anv_device *device,
             .stats = stats,
             .mem_ctx = temp_ctx,
          },
-         .key = &key.wm,
+         .key = &key.fs,
          .prog_data = &prog_data.fs,
       };
       program = brw_compile_fs(compiler, &params);

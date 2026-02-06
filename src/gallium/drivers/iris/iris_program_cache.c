@@ -435,7 +435,7 @@ iris_ensure_indirect_generation_shader(struct iris_batch *batch)
             .stats = stats,
             .mem_ctx = nir,
          },
-         .key = &prog_key.wm,
+         .key = &prog_key.fs,
          .prog_data = prog_data,
       };
       program = brw_compile_fs(screen->brw, &params);
@@ -461,7 +461,7 @@ iris_ensure_indirect_generation_shader(struct iris_batch *batch)
             .stats = stats,
             .mem_ctx = nir,
          },
-         .key = &prog_key.wm,
+         .key = &prog_key.fs,
          .prog_data = prog_data,
       };
       program = elk_compile_fs(screen->elk, &params);
