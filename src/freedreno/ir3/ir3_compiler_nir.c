@@ -4608,6 +4608,18 @@ instr_can_be_predicated(nir_instr *instr)
 }
 
 static bool
+block_can_be_predicated(nir_block *block)
+{
+   nir_foreach_instr (instr, block) {
+      if (!instr_can_be_predicated(instr)) {
+         return false;
+      }
+   }
+
+   return true;
+}
+
+static bool
 nif_can_be_predicated(nir_if *nif)
 {
    /* For non-divergent branches, predication is more expensive than a branch
@@ -4627,17 +4639,8 @@ nif_can_be_predicated(nir_if *nif)
       return false;
    }
 
-   nir_foreach_instr (instr, nir_if_first_then_block(nif)) {
-      if (!instr_can_be_predicated(instr))
-         return false;
-   }
-
-   nir_foreach_instr (instr, nir_if_first_else_block(nif)) {
-      if (!instr_can_be_predicated(instr))
-         return false;
-   }
-
-   return true;
+   return block_can_be_predicated(nir_if_first_then_block(nif)) &&
+          block_can_be_predicated(nir_if_first_else_block(nif));
 }
 
 /* A typical if-else block like this:
