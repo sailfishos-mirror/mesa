@@ -55,8 +55,7 @@ extern "C" {
 #endif
 
 struct fp_result_range
-nir_analyze_fp_range(struct hash_table *range_ht,
-                     const nir_alu_instr *instr, unsigned src);
+nir_analyze_fp_range(struct hash_table *range_ht, const nir_def *def);
 
 uint64_t nir_def_bits_used(const nir_def *def);
 

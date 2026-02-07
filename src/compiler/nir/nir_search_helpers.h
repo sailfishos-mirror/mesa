@@ -895,7 +895,7 @@ static inline bool
 is_integral(const nir_search_state *state, const nir_alu_instr *instr, unsigned src,
             UNUSED unsigned num_components, UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range r = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range r = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
 
    return r.is_integral;
 }
@@ -908,7 +908,7 @@ is_finite(UNUSED const nir_search_state *state, const nir_alu_instr *instr,
           unsigned src, UNUSED unsigned num_components,
           UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
 
    return v.is_finite;
 }
@@ -918,29 +918,29 @@ is_finite_not_zero(UNUSED const nir_search_state *state, const nir_alu_instr *in
                    unsigned src, UNUSED unsigned num_components,
                    UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
 
    return v.is_finite &&
           (v.range == lt_zero || v.range == gt_zero || v.range == ne_zero);
 }
 
-#define RELATION(r)                                                                       \
-   static inline bool                                                                     \
-   is_##r(const nir_search_state *state, const nir_alu_instr *instr,                      \
-          unsigned src, UNUSED unsigned num_components,                                   \
-          UNUSED const uint8_t *swizzle)                                                  \
-   {                                                                                      \
-      const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src); \
-      return v.range == r;                                                                \
-   }                                                                                      \
-                                                                                          \
-   static inline bool                                                                     \
-   is_a_number_##r(const nir_search_state *state, const nir_alu_instr *instr,             \
-                   unsigned src, UNUSED unsigned num_components,                          \
-                   UNUSED const uint8_t *swizzle)                                         \
-   {                                                                                      \
-      const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src); \
-      return v.is_a_number && v.range == r;                                               \
+#define RELATION(r)                                                                                    \
+   static inline bool                                                                                  \
+   is_##r(const nir_search_state *state, const nir_alu_instr *instr,                                   \
+          unsigned src, UNUSED unsigned num_components,                                                \
+          UNUSED const uint8_t *swizzle)                                                               \
+   {                                                                                                   \
+      const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa); \
+      return v.range == r;                                                                             \
+   }                                                                                                   \
+                                                                                                       \
+   static inline bool                                                                                  \
+   is_a_number_##r(const nir_search_state *state, const nir_alu_instr *instr,                          \
+                   unsigned src, UNUSED unsigned num_components,                                       \
+                   UNUSED const uint8_t *swizzle)                                                      \
+   {                                                                                                   \
+      const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa); \
+      return v.is_a_number && v.range == r;                                                            \
    }
 
 RELATION(lt_zero)
@@ -953,7 +953,7 @@ static inline bool
 is_not_negative(const nir_search_state *state, const nir_alu_instr *instr, unsigned src,
                 UNUSED unsigned num_components, UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
    return v.range == ge_zero || v.range == gt_zero || v.range == eq_zero;
 }
 
@@ -962,7 +962,7 @@ is_a_number_not_negative(const nir_search_state *state, const nir_alu_instr *ins
                          unsigned src, UNUSED unsigned num_components,
                          UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
    return v.is_a_number &&
           (v.range == ge_zero || v.range == gt_zero || v.range == eq_zero);
 }
@@ -971,7 +971,7 @@ static inline bool
 is_not_positive(const nir_search_state *state, const nir_alu_instr *instr, unsigned src,
                 UNUSED unsigned num_components, UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
    return v.range == le_zero || v.range == lt_zero || v.range == eq_zero;
 }
 
@@ -980,7 +980,7 @@ is_a_number_not_positive(const nir_search_state *state, const nir_alu_instr *ins
                          unsigned src, UNUSED unsigned num_components,
                          UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
    return v.is_a_number &&
           (v.range == le_zero || v.range == lt_zero || v.range == eq_zero);
 }
@@ -989,7 +989,7 @@ static inline bool
 is_not_zero(const nir_search_state *state, const nir_alu_instr *instr, unsigned src,
             UNUSED unsigned num_components, UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
    return v.range == lt_zero || v.range == gt_zero || v.range == ne_zero;
 }
 
@@ -998,7 +998,7 @@ is_a_number_not_zero(const nir_search_state *state, const nir_alu_instr *instr,
                      unsigned src, UNUSED unsigned num_components,
                      UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
    return v.is_a_number &&
           (v.range == lt_zero || v.range == gt_zero || v.range == ne_zero);
 }
@@ -1007,7 +1007,7 @@ static inline bool
 is_a_number(const nir_search_state *state, const nir_alu_instr *instr, unsigned src,
             UNUSED unsigned num_components, UNUSED const uint8_t *swizzle)
 {
-   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr, src);
+   const struct fp_result_range v = nir_analyze_fp_range(state->range_ht, instr->src[src].src.ssa);
    return v.is_a_number;
 }
 

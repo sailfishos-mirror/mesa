@@ -151,24 +151,8 @@ nir_alu_src_type(const nir_alu_instr *instr, unsigned src)
 }
 
 static struct fp_result_range
-analyze_constant(const struct nir_alu_instr *instr, unsigned src)
+analyze_fp_constant(const nir_load_const_instr *const load)
 {
-   uint8_t swizzle[NIR_MAX_VEC_COMPONENTS] = { 0, 1, 2, 3,
-                                               4, 5, 6, 7,
-                                               8, 9, 10, 11,
-                                               12, 13, 14, 15 };
-
-   /* If the source is an explicitly sized source, then we need to reset
-    * both the number of components and the swizzle.
-    */
-   const unsigned num_components = nir_ssa_alu_instr_src_components(instr, src);
-
-   for (unsigned i = 0; i < num_components; ++i)
-      swizzle[i] = instr->src[src].swizzle[i];
-
-   const nir_load_const_instr *const load =
-      nir_def_as_load_const(instr->src[src].src.ssa);
-
    struct fp_result_range r = { unknown, false, false, false };
 
    double min_value = NAN;
@@ -180,8 +164,8 @@ analyze_constant(const struct nir_alu_instr *instr, unsigned src)
    r.is_a_number = true;
    r.is_finite = true;
 
-   for (unsigned i = 0; i < num_components; ++i) {
-      const double v = nir_const_value_as_float(load->value[swizzle[i]],
+   for (unsigned i = 0; i < load->def.num_components; ++i) {
+      const double v = nir_const_value_as_float(load->value[i],
                                                 load->def.bit_size);
 
       if (floor(v) != v)
@@ -402,28 +386,25 @@ union_ranges(enum fp_ranges a, enum fp_ranges b)
 
 struct fp_query {
    struct analysis_query head;
-   const nir_alu_instr *instr;
-   unsigned src;
+   const nir_def *def;
 };
 
 static void
-push_fp_query(struct analysis_state *state, const nir_alu_instr *alu, unsigned src)
+push_fp_query(struct analysis_state *state, const nir_def *def)
 {
    struct fp_query *pushed_q = push_analysis_query(state, sizeof(struct fp_query));
-   pushed_q->instr = alu;
-   pushed_q->src = src;
+   pushed_q->def = def;
 }
 
 static uintptr_t
 get_fp_key(struct analysis_query *q)
 {
    struct fp_query *fp_q = (struct fp_query *)q;
-   const nir_src *src = &fp_q->instr->src[fp_q->src].src;
 
-   if (!nir_def_is_alu(src->ssa))
+   if (!nir_def_is_alu(fp_q->def))
       return 0;
 
-   return (uintptr_t)nir_def_as_alu(src->ssa);
+   return (uintptr_t)fp_q->def;
 }
 
 static inline bool
@@ -480,35 +461,27 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
    STATIC_ASSERT(last_range + 1 == 7);
 
    struct fp_query q = *(struct fp_query *)aq;
-   const nir_alu_instr *instr = q.instr;
-   unsigned src = q.src;
+   const nir_def *def = q.def;
 
-   if (nir_src_is_const(instr->src[src].src)) {
-      *result = pack_data(analyze_constant(instr, src));
+   if (nir_def_is_const(def)) {
+      *result = pack_data(analyze_fp_constant(nir_def_as_load_const(def)));
       return;
    }
 
-   if (!nir_src_is_alu(instr->src[src].src)) {
+   if (!nir_def_is_alu(def)) {
       *result = pack_data((struct fp_result_range){ unknown, false, false, false });
       return;
    }
 
-   const struct nir_alu_instr *const alu =
-      nir_def_as_alu(instr->src[src].src.ssa);
+   const nir_alu_instr *const alu = nir_def_as_alu(def);
 
    if (!aq->pushed_queries) {
       switch (alu->op) {
       case nir_op_bcsel:
-         push_fp_query(state, alu, 1);
-         push_fp_query(state, alu, 2);
+         push_fp_query(state, alu->src[1].src.ssa);
+         push_fp_query(state, alu->src[2].src.ssa);
          return;
       case nir_op_mov:
-         push_fp_query(state, alu, 0);
-         return;
-      case nir_op_vec2:
-         push_fp_query(state, alu, 0);
-         push_fp_query(state, alu, 1);
-         return;
       case nir_op_fabs:
       case nir_op_fexp2:
       case nir_op_frcp:
@@ -536,7 +509,7 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       case nir_op_fdot4_replicated:
       case nir_op_fdot8_replicated:
       case nir_op_fdot16_replicated:
-         push_fp_query(state, alu, 0);
+         push_fp_query(state, alu->src[0].src.ssa);
          return;
       case nir_op_fadd:
       case nir_op_fmax:
@@ -544,15 +517,16 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       case nir_op_fmul:
       case nir_op_fmulz:
       case nir_op_fpow:
-         push_fp_query(state, alu, 0);
-         push_fp_query(state, alu, 1);
+      case nir_op_vec2:
+         push_fp_query(state, alu->src[0].src.ssa);
+         push_fp_query(state, alu->src[1].src.ssa);
          return;
       case nir_op_ffma:
       case nir_op_ffmaz:
       case nir_op_flrp:
-         push_fp_query(state, alu, 0);
-         push_fp_query(state, alu, 1);
-         push_fp_query(state, alu, 2);
+         push_fp_query(state, alu->src[0].src.ssa);
+         push_fp_query(state, alu->src[1].src.ssa);
+         push_fp_query(state, alu->src[2].src.ssa);
          return;
       default:
          break;
@@ -1347,8 +1321,7 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
 #undef _______
 
 struct fp_result_range
-nir_analyze_fp_range(struct hash_table *range_ht,
-                     const nir_alu_instr *alu, unsigned src)
+nir_analyze_fp_range(struct hash_table *range_ht, const nir_def *def)
 {
    struct fp_query query_alloc[64];
    uint32_t result_alloc[64];
@@ -1361,7 +1334,7 @@ nir_analyze_fp_range(struct hash_table *range_ht,
    state.get_key = &get_fp_key;
    state.process_query = &process_fp_query;
 
-   push_fp_query(&state, alu, src);
+   push_fp_query(&state, def);
 
    return unpack_data(perform_analysis(&state));
 }
