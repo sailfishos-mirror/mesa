@@ -26,7 +26,7 @@
 #include "nir_defines.h"
 #include "util/u_hash_table.h"
 
-enum ENUM_PACKED ssa_ranges {
+enum ENUM_PACKED fp_ranges {
    unknown = 0,
    lt_zero,
    le_zero,
@@ -37,8 +37,8 @@ enum ENUM_PACKED ssa_ranges {
    last_range = eq_zero
 };
 
-struct ssa_result_range {
-   enum ssa_ranges range;
+struct fp_result_range {
+   enum fp_ranges range;
 
    /** A floating-point value that can only have integer values. */
    bool is_integral;
@@ -54,9 +54,9 @@ struct ssa_result_range {
 extern "C" {
 #endif
 
-extern struct ssa_result_range
-nir_analyze_range(struct hash_table *range_ht,
-                  const nir_alu_instr *instr, unsigned src);
+struct fp_result_range
+nir_analyze_fp_range(struct hash_table *range_ht,
+                     const nir_alu_instr *instr, unsigned src);
 
 uint64_t nir_def_bits_used(const nir_def *def);
 

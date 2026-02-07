@@ -458,7 +458,7 @@ nir_gather_tcs_info(const nir_shader *nir, nir_tcs_info *info,
                   continue;
                }
 
-               /* nir_analyze_range only accepts an ALU src, so we have to
+               /* nir_analyze_fp_range only accepts an ALU src, so we have to
                 * create a dummy ALU instruction. It's not inserted into
                 * the shader.
                 */
@@ -469,8 +469,8 @@ nir_gather_tcs_info(const nir_shader *nir, nir_tcs_info *info,
                dummy_alu->src[0].src.ssa = scalar.def;
                dummy_alu->src[0].swizzle[0] = scalar.comp;
 
-               const struct ssa_result_range r =
-                  nir_analyze_range(range_ht, dummy_alu, 0);
+               const struct fp_result_range r =
+                  nir_analyze_fp_range(range_ht, dummy_alu, 0);
 
                switch (r.range) {
                case unknown:
