@@ -151,8 +151,7 @@ nir_alu_src_type(const nir_alu_instr *instr, unsigned src)
 }
 
 static struct ssa_result_range
-analyze_constant(const struct nir_alu_instr *instr, unsigned src,
-                 nir_alu_type use_type)
+analyze_constant(const struct nir_alu_instr *instr, unsigned src)
 {
    uint8_t swizzle[NIR_MAX_VEC_COMPONENTS] = { 0, 1, 2, 3,
                                                4, 5, 6, 7,
@@ -172,122 +171,53 @@ analyze_constant(const struct nir_alu_instr *instr, unsigned src,
 
    struct ssa_result_range r = { unknown, false, false, false };
 
-   switch (nir_alu_type_get_base_type(use_type)) {
-   case nir_type_float: {
-      double min_value = NAN;
-      double max_value = NAN;
-      bool any_zero = false;
-      bool all_zero = true;
+   double min_value = NAN;
+   double max_value = NAN;
+   bool any_zero = false;
+   bool all_zero = true;
 
-      r.is_integral = true;
-      r.is_a_number = true;
-      r.is_finite = true;
+   r.is_integral = true;
+   r.is_a_number = true;
+   r.is_finite = true;
 
-      for (unsigned i = 0; i < num_components; ++i) {
-         const double v = nir_const_value_as_float(load->value[swizzle[i]],
-                                                   load->def.bit_size);
+   for (unsigned i = 0; i < num_components; ++i) {
+      const double v = nir_const_value_as_float(load->value[swizzle[i]],
+                                                load->def.bit_size);
 
-         if (floor(v) != v)
-            r.is_integral = false;
+      if (floor(v) != v)
+         r.is_integral = false;
 
-         if (isnan(v))
-            r.is_a_number = false;
+      if (isnan(v))
+         r.is_a_number = false;
 
-         if (!isfinite(v))
-            r.is_finite = false;
+      if (!isfinite(v))
+         r.is_finite = false;
 
-         any_zero = any_zero || (v == 0.0);
-         all_zero = all_zero && (v == 0.0);
-         min_value = fmin(min_value, v);
-         max_value = fmax(max_value, v);
-      }
-
-      assert(any_zero >= all_zero);
-      assert(isnan(max_value) || max_value >= min_value);
-
-      if (all_zero)
-         r.range = eq_zero;
-      else if (min_value > 0.0)
-         r.range = gt_zero;
-      else if (min_value == 0.0)
-         r.range = ge_zero;
-      else if (max_value < 0.0)
-         r.range = lt_zero;
-      else if (max_value == 0.0)
-         r.range = le_zero;
-      else if (!any_zero)
-         r.range = ne_zero;
-      else
-         r.range = unknown;
-
-      return r;
+      any_zero = any_zero || (v == 0.0);
+      all_zero = all_zero && (v == 0.0);
+      min_value = fmin(min_value, v);
+      max_value = fmax(max_value, v);
    }
 
-   case nir_type_int:
-   case nir_type_bool: {
-      int64_t min_value = INT_MAX;
-      int64_t max_value = INT_MIN;
-      bool any_zero = false;
-      bool all_zero = true;
+   assert(any_zero >= all_zero);
+   assert(isnan(max_value) || max_value >= min_value);
 
-      for (unsigned i = 0; i < num_components; ++i) {
-         const int64_t v = nir_const_value_as_int(load->value[swizzle[i]],
-                                                  load->def.bit_size);
+   if (all_zero)
+      r.range = eq_zero;
+   else if (min_value > 0.0)
+      r.range = gt_zero;
+   else if (min_value == 0.0)
+      r.range = ge_zero;
+   else if (max_value < 0.0)
+      r.range = lt_zero;
+   else if (max_value == 0.0)
+      r.range = le_zero;
+   else if (!any_zero)
+      r.range = ne_zero;
+   else
+      r.range = unknown;
 
-         any_zero = any_zero || (v == 0);
-         all_zero = all_zero && (v == 0);
-         min_value = MIN2(min_value, v);
-         max_value = MAX2(max_value, v);
-      }
-
-      assert(any_zero >= all_zero);
-      assert(max_value >= min_value);
-
-      if (all_zero)
-         r.range = eq_zero;
-      else if (min_value > 0)
-         r.range = gt_zero;
-      else if (min_value == 0)
-         r.range = ge_zero;
-      else if (max_value < 0)
-         r.range = lt_zero;
-      else if (max_value == 0)
-         r.range = le_zero;
-      else if (!any_zero)
-         r.range = ne_zero;
-      else
-         r.range = unknown;
-
-      return r;
-   }
-
-   case nir_type_uint: {
-      bool any_zero = false;
-      bool all_zero = true;
-
-      for (unsigned i = 0; i < num_components; ++i) {
-         const uint64_t v = nir_const_value_as_uint(load->value[swizzle[i]],
-                                                    load->def.bit_size);
-
-         any_zero = any_zero || (v == 0);
-         all_zero = all_zero && (v == 0);
-      }
-
-      assert(any_zero >= all_zero);
-
-      if (all_zero)
-         r.range = eq_zero;
-      else if (any_zero)
-         r.range = ge_zero;
-      else
-         r.range = gt_zero;
-
-      return r;
-   }
-
-   default:
-      UNREACHABLE("Invalid alu source type");
-   }
+   return r;
 }
 
 /**
@@ -474,16 +404,14 @@ struct fp_query {
    struct analysis_query head;
    const nir_alu_instr *instr;
    unsigned src;
-   nir_alu_type use_type;
 };
 
 static void
-push_fp_query(struct analysis_state *state, const nir_alu_instr *alu, unsigned src, nir_alu_type type)
+push_fp_query(struct analysis_state *state, const nir_alu_instr *alu, unsigned src)
 {
    struct fp_query *pushed_q = push_analysis_query(state, sizeof(struct fp_query));
    pushed_q->instr = alu;
    pushed_q->src = src;
-   pushed_q->use_type = type == nir_type_invalid ? nir_alu_src_type(alu, src) : type;
 }
 
 static uintptr_t
@@ -495,35 +423,7 @@ get_fp_key(struct analysis_query *q)
    if (!nir_def_is_alu(src->ssa))
       return 0;
 
-   uintptr_t type_encoding;
-   uintptr_t ptr = (uintptr_t) nir_def_as_alu(src->ssa);
-
-   /* The low 2 bits have to be zero or this whole scheme falls apart. */
-   assert((ptr & 0x3) == 0);
-
-   /* NIR is typeless in the sense that sequences of bits have whatever
-    * meaning is attached to them by the instruction that consumes them.
-    * However, the number of bits must match between producer and consumer.
-    * As a result, the number of bits does not need to be encoded here.
-    */
-   switch (nir_alu_type_get_base_type(fp_q->use_type)) {
-   case nir_type_int:
-      type_encoding = 0;
-      break;
-   case nir_type_uint:
-      type_encoding = 1;
-      break;
-   case nir_type_bool:
-      type_encoding = 2;
-      break;
-   case nir_type_float:
-      type_encoding = 3;
-      break;
-   default:
-      UNREACHABLE("Invalid base type.");
-   }
-
-   return ptr | type_encoding;
+   return (uintptr_t)nir_def_as_alu(src->ssa);
 }
 
 static inline bool
@@ -582,10 +482,9 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
    struct fp_query q = *(struct fp_query *)aq;
    const nir_alu_instr *instr = q.instr;
    unsigned src = q.src;
-   nir_alu_type use_type = q.use_type;
 
    if (nir_src_is_const(instr->src[src].src)) {
-      *result = pack_data(analyze_constant(instr, src, use_type));
+      *result = pack_data(analyze_constant(instr, src));
       return;
    }
 
@@ -597,40 +496,19 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
    const struct nir_alu_instr *const alu =
       nir_def_as_alu(instr->src[src].src.ssa);
 
-   /* Bail if the type of the instruction generating the value does not match
-    * the type the value will be interpreted as.  int/uint/bool can be
-    * reinterpreted trivially.  The most important cases are between float and
-    * non-float.
-    */
-   if (alu->op != nir_op_mov && alu->op != nir_op_bcsel && alu->op != nir_op_vec2) {
-      const nir_alu_type use_base_type =
-         nir_alu_type_get_base_type(use_type);
-      const nir_alu_type src_base_type =
-         nir_alu_type_get_base_type(nir_op_infos[alu->op].output_type);
-
-      if (use_base_type != src_base_type &&
-          (use_base_type == nir_type_float ||
-           src_base_type == nir_type_float)) {
-         *result = pack_data((struct ssa_result_range){ unknown, false, false, false });
-         return;
-      }
-   }
-
    if (!aq->pushed_queries) {
       switch (alu->op) {
       case nir_op_bcsel:
-         push_fp_query(state, alu, 1, use_type);
-         push_fp_query(state, alu, 2, use_type);
+         push_fp_query(state, alu, 1);
+         push_fp_query(state, alu, 2);
          return;
       case nir_op_mov:
-         push_fp_query(state, alu, 0, use_type);
+         push_fp_query(state, alu, 0);
          return;
       case nir_op_vec2:
-         push_fp_query(state, alu, 0, use_type);
-         push_fp_query(state, alu, 1, use_type);
+         push_fp_query(state, alu, 0);
+         push_fp_query(state, alu, 1);
          return;
-      case nir_op_i2f32:
-      case nir_op_u2f32:
       case nir_op_fabs:
       case nir_op_fexp2:
       case nir_op_frcp:
@@ -658,7 +536,7 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       case nir_op_fdot4_replicated:
       case nir_op_fdot8_replicated:
       case nir_op_fdot16_replicated:
-         push_fp_query(state, alu, 0, nir_type_invalid);
+         push_fp_query(state, alu, 0);
          return;
       case nir_op_fadd:
       case nir_op_fmax:
@@ -666,15 +544,15 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       case nir_op_fmul:
       case nir_op_fmulz:
       case nir_op_fpow:
-         push_fp_query(state, alu, 0, nir_type_invalid);
-         push_fp_query(state, alu, 1, nir_type_invalid);
+         push_fp_query(state, alu, 0);
+         push_fp_query(state, alu, 1);
          return;
       case nir_op_ffma:
       case nir_op_ffmaz:
       case nir_op_flrp:
-         push_fp_query(state, alu, 0, nir_type_invalid);
-         push_fp_query(state, alu, 1, nir_type_invalid);
-         push_fp_query(state, alu, 2, nir_type_invalid);
+         push_fp_query(state, alu, 0);
+         push_fp_query(state, alu, 1);
+         push_fp_query(state, alu, 2);
          return;
       default:
          break;
@@ -820,13 +698,11 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
 
    case nir_op_i2f32:
    case nir_op_u2f32:
-      r = unpack_data(src_res[0]);
-
       r.is_integral = true;
       r.is_a_number = true;
       r.is_finite = true;
 
-      if (r.range == unknown && alu->op == nir_op_u2f32)
+      if (alu->op == nir_op_u2f32)
          r.range = ge_zero;
 
       break;
@@ -1307,20 +1183,6 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       break;
    }
 
-   case nir_op_flt:
-   case nir_op_fge:
-   case nir_op_feq:
-   case nir_op_fneu:
-   case nir_op_ilt:
-   case nir_op_ige:
-   case nir_op_ieq:
-   case nir_op_ine:
-   case nir_op_ult:
-   case nir_op_uge:
-      /* Boolean results are 0 or -1. */
-      r = (struct ssa_result_range){ le_zero, false, true, false };
-      break;
-
    case nir_op_fdot2:
    case nir_op_fdot3:
    case nir_op_fdot4:
@@ -1499,7 +1361,7 @@ nir_analyze_range(struct hash_table *range_ht,
    state.get_key = &get_fp_key;
    state.process_query = &process_fp_query;
 
-   push_fp_query(&state, alu, src, nir_type_invalid);
+   push_fp_query(&state, alu, src);
 
    return unpack_data(perform_analysis(&state));
 }
