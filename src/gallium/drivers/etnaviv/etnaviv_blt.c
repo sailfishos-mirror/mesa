@@ -83,10 +83,10 @@ blt_compute_dest_img_config_bits(const struct blt_imginfo *img)
           COND(img->use_ts && img->ts_compress_fmt >= 0, BLT_DEST_IMAGE_CONFIG_COMPRESSION) |
           BLT_DEST_IMAGE_CONFIG_COMPRESSION_FORMAT(img->ts_compress_fmt) |
           BLT_DEST_IMAGE_CONFIG_UNK22 |
-          BLT_DEST_IMAGE_CONFIG_SWIZ_R(0) | /* not used? */
-          BLT_DEST_IMAGE_CONFIG_SWIZ_G(1) |
-          BLT_DEST_IMAGE_CONFIG_SWIZ_B(2) |
-          BLT_DEST_IMAGE_CONFIG_SWIZ_A(3) |
+          BLT_DEST_IMAGE_CONFIG_SWIZ_R(img->swizzle[0]) |
+          BLT_DEST_IMAGE_CONFIG_SWIZ_G(img->swizzle[1]) |
+          BLT_DEST_IMAGE_CONFIG_SWIZ_B(img->swizzle[2]) |
+          BLT_DEST_IMAGE_CONFIG_SWIZ_A(img->swizzle[3]) |
           COND(img->tiling == ETNA_LAYOUT_SUPER_TILED, BLT_DEST_IMAGE_CONFIG_TO_SUPER_TILED);
 }
 
@@ -97,10 +97,10 @@ blt_compute_src_img_config_bits(const struct blt_imginfo *img)
           COND(img->use_ts, BLT_SRC_IMAGE_CONFIG_TS) |
           COND(img->use_ts && img->ts_compress_fmt >= 0, BLT_SRC_IMAGE_CONFIG_COMPRESSION) |
           BLT_SRC_IMAGE_CONFIG_COMPRESSION_FORMAT(img->ts_compress_fmt) |
-          BLT_SRC_IMAGE_CONFIG_SWIZ_R(0) | /* not used? */
-          BLT_SRC_IMAGE_CONFIG_SWIZ_G(1) |
-          BLT_SRC_IMAGE_CONFIG_SWIZ_B(2) |
-          BLT_SRC_IMAGE_CONFIG_SWIZ_A(3) |
+          BLT_SRC_IMAGE_CONFIG_SWIZ_R(img->swizzle[0]) |
+          BLT_SRC_IMAGE_CONFIG_SWIZ_G(img->swizzle[1]) |
+          BLT_SRC_IMAGE_CONFIG_SWIZ_B(img->swizzle[2]) |
+          BLT_SRC_IMAGE_CONFIG_SWIZ_A(img->swizzle[3]) |
           COND(img->tiling == ETNA_LAYOUT_SUPER_TILED, BLT_SRC_IMAGE_CONFIG_FROM_SUPER_TILED);
 }
 
