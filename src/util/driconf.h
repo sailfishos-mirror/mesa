@@ -968,6 +968,10 @@
    DRI_CONF_OPT_B(anv_brw_disable_subgroup_size_control, def, \
                   "Disable EXT_subgroup_size_control support when using brw compiler.")
 
+#define DRI_CONF_ANV_ENABLE_SCRATCH_PAGE(def) \
+   DRI_CONF_OPT_B(anv_enable_scratch_page, def, \
+                  "Disables surface padding and suppresses all page faults, drops writes and returns zeros on reads.")
+
 /**
  * \brief HASVK specific configuration options
  */

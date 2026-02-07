@@ -1617,6 +1617,8 @@ struct anv_physical_device {
      */
     bool                                        rt_change_needs_flush;
 
+    bool                                        has_scratch_page;
+
     struct {
       uint32_t                                  family_count;
       struct anv_queue_family                   families[ANV_MAX_QUEUE_FAMILIES];
