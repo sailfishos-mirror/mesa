@@ -474,6 +474,13 @@ enum anv_bo_alloc_flags {
 
    /** Specifies that this bo is a slab parent */
    ANV_BO_ALLOC_SLAB_PARENT =             (1 << 22),
+
+   /** Specifies that the bo should be allocated from a special heap that maps
+    * all unused pages to null, we also reserved extra space at the end of the
+    * heap so that we can put batch buffers in it without the CS prefetching
+    * beyond the limit of the mapped null pages (causing a page fault).
+    */
+   ANV_BO_ALLOC_NULL_INITIALIZED_HEAP =   (1 << 23),
 };
 
 /** Specifies that the BO should be cached and coherent. */
@@ -492,12 +499,14 @@ enum anv_bo_alloc_flags {
 
 #define ANV_BO_ALLOC_BATCH_BUFFER_FLAGS (ANV_BO_ALLOC_MAPPED |               \
                                          ANV_BO_ALLOC_HOST_CACHED_COHERENT | \
-                                         ANV_BO_ALLOC_CAPTURE)
+                                         ANV_BO_ALLOC_CAPTURE |              \
+                                         ANV_BO_ALLOC_NULL_INITIALIZED_HEAP)
 
 #define ANV_BO_ALLOC_BATCH_BUFFER_INTERNAL_FLAGS (ANV_BO_ALLOC_MAPPED |        \
                                                   ANV_BO_ALLOC_HOST_COHERENT | \
                                                   ANV_BO_ALLOC_INTERNAL |      \
-                                                  ANV_BO_ALLOC_CAPTURE)
+                                                  ANV_BO_ALLOC_CAPTURE |       \
+                                                  ANV_BO_ALLOC_NULL_INITIALIZED_HEAP)
 
 struct anv_bo {
    const char *name;
@@ -1689,6 +1698,10 @@ struct anv_physical_device {
         */
        struct anv_va_range                      push_descriptor_buffer_pool;
        /**
+        * Null page initialized heap
+        */
+       struct anv_va_range                      null_initialized_heap;
+       /**
         * AUX-TT
         */
        struct anv_va_range                      aux_tt_pool;
@@ -2604,6 +2617,7 @@ struct anv_device {
     pthread_mutex_t                             vma_mutex;
     struct util_vma_heap                        vma_lo;
     struct util_vma_heap                        vma_hi;
+    struct util_vma_heap                        vma_null_initialized;
     struct util_vma_heap                        vma_desc;
     struct util_vma_heap                        vma_dynamic_visible;
     struct util_vma_heap                        vma_trtt;
