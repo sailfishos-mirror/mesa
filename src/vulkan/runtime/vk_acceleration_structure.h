@@ -29,6 +29,8 @@
 #include "vk_meta.h"
 #include "vk_object.h"
 #include "radix_sort/radix_sort_vk.h"
+#include "radix_sort/common/vk/barrier.h"
+#include "radix_sort/shaders/push.h"
 
 #include "bvh/vk_bvh.h"
 
@@ -131,6 +133,20 @@ struct vk_acceleration_structure_build_state {
    uint32_t internal_node_count;
    struct vk_scratch_layout scratch;
    struct vk_build_config config;
+
+   /* Internal state of vk_acceleration_structure.c */
+   uint32_t build_flags;
+
+   uint32_t scratch_offset;
+
+   /* Radix sort state */
+   uint32_t scatter_blocks;
+   uint32_t count_ru_scatter;
+   uint32_t histo_blocks;
+   uint32_t count_ru_histo;
+   struct rs_push_scatter push_scatter;
+
+   uint32_t last_encode_pass;
 };
 
 struct vk_acceleration_structure_build_ops {
