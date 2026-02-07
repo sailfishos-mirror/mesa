@@ -2539,6 +2539,7 @@ vir_optimize(struct v3d_compile *c)
                 OPTPASS(vir_opt_small_immediates);
                 OPTPASS(vir_opt_constant_alu);
                 OPTPASS(vir_opt_alu);
+                OPTPASS(vir_opt_redundant_setnnmode);
 
                 if (!progress)
                         break;
