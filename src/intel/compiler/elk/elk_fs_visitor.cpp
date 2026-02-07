@@ -32,45 +32,14 @@ elk_fs_visitor::interp_reg(const fs_builder &bld, unsigned location,
                        unsigned channel, unsigned comp)
 {
    assert(stage == MESA_SHADER_FRAGMENT);
-   assert(BITFIELD64_BIT(location) & ~nir->info.per_primitive_inputs);
 
    const struct elk_fs_prog_data *prog_data = elk_fs_prog_data(this->prog_data);
 
    assert(prog_data->urb_setup[location] >= 0);
-   unsigned nr = prog_data->urb_setup[location];
-   channel += prog_data->urb_setup_channel[location];
 
-   /* Adjust so we start counting from the first per_vertex input. */
-   assert(nr >= prog_data->num_per_primitive_inputs);
-   nr -= prog_data->num_per_primitive_inputs;
-
-   const unsigned per_vertex_start = prog_data->num_per_primitive_inputs;
-   const unsigned regnr = per_vertex_start + (nr * 4) + channel;
+   const unsigned regnr = 4 * prog_data->urb_setup[location] + channel;
 
    return component(elk_fs_reg(ATTR, regnr, ELK_REGISTER_TYPE_F), comp);
-}
-
-/* The register location here is relative to the start of the URB
- * data.  It will get adjusted to be a real location before
- * generate_code() time.
- */
-elk_fs_reg
-elk_fs_visitor::per_primitive_reg(const fs_builder &bld, int location, unsigned comp)
-{
-   assert(stage == MESA_SHADER_FRAGMENT);
-   assert(BITFIELD64_BIT(location) & nir->info.per_primitive_inputs);
-
-   const struct elk_fs_prog_data *prog_data = elk_fs_prog_data(this->prog_data);
-
-   comp += prog_data->urb_setup_channel[location];
-
-   assert(prog_data->urb_setup[location] >= 0);
-
-   const unsigned regnr = prog_data->urb_setup[location] + comp / 4;
-
-   assert(regnr < prog_data->num_per_primitive_inputs);
-
-   return component(elk_fs_reg(ATTR, regnr, ELK_REGISTER_TYPE_F), comp % 4);
 }
 
 /** Emits the interpolation for the varying inputs. */

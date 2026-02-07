@@ -287,8 +287,6 @@ public:
 
    elk_fs_reg interp_reg(const elk::fs_builder &bld, unsigned location,
                      unsigned channel, unsigned comp);
-   elk_fs_reg per_primitive_reg(const elk::fs_builder &bld,
-                            int location, unsigned comp);
 
    virtual void dump_instruction_to_file(const elk_backend_instruction *inst, FILE *file) const;
    virtual void dump_instructions_to_file(FILE *file) const;

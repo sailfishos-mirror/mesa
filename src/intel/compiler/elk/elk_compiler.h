@@ -738,7 +738,6 @@ enum elk_pixel_shader_computed_depth_mode {
 struct elk_fs_prog_data {
    struct elk_stage_prog_data base;
 
-   unsigned num_per_primitive_inputs;
    unsigned num_varying_inputs;
 
    uint8_t reg_blocks_8;
@@ -836,7 +835,6 @@ struct elk_fs_prog_data {
     * For varying slots that are not used by the FS, the value is -1.
     */
    int urb_setup[VARYING_SLOT_MAX];
-   int urb_setup_channel[VARYING_SLOT_MAX];
 
    /**
     * Cache structure into the urb_setup array above that contains the

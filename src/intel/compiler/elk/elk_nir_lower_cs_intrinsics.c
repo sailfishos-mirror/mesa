@@ -188,14 +188,6 @@ lower_cs_intrinsics_convert_block(struct lower_intrinsics_state *state,
          }
 
          if (!local_index) {
-            if (nir->info.stage == MESA_SHADER_TASK ||
-                nir->info.stage == MESA_SHADER_MESH) {
-               /* Will be lowered by nir_emit_task_mesh_intrinsic() using
-                * information from the payload.
-                */
-               continue;
-            }
-
             if (state->hw_generated_local_id) {
                nir_def *local_id_vec = nir_load_local_invocation_id(b);
                nir_def *local_id[3] = { nir_channel(b, local_id_vec, 0),

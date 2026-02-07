@@ -3758,11 +3758,8 @@ fs_nir_emit_fs_intrinsic(nir_to_elk_state &ntb,
       break;
    }
 
-   case nir_intrinsic_load_input:
-   case nir_intrinsic_load_per_primitive_input: {
-      /* In Fragment Shaders load_input is used either for flat inputs or
-       * per-primitive inputs.
-       */
+   case nir_intrinsic_load_input: {
+      /* In Fragment Shaders load_input is used for flat inputs */
       assert(instr->def.bit_size == 32);
       unsigned base = nir_intrinsic_base(instr);
       unsigned comp = nir_intrinsic_component(instr);
@@ -3774,18 +3771,10 @@ fs_nir_emit_fs_intrinsic(nir_to_elk_state &ntb,
       else if (base == VARYING_SLOT_VIEWPORT)
          comp = 2;
 
-      if (BITFIELD64_BIT(base) & s.nir->info.per_primitive_inputs) {
-         assert(base != VARYING_SLOT_PRIMITIVE_INDICES);
-         for (unsigned int i = 0; i < num_components; i++) {
-            bld.MOV(offset(dest, bld, i),
-                    retype(s.per_primitive_reg(bld, base, comp + i), dest.type));
-         }
-      } else {
-         const unsigned k = 3;
-         for (unsigned int i = 0; i < num_components; i++) {
-            bld.MOV(offset(dest, bld, i),
-                    retype(s.interp_reg(bld, base, comp + i, k), dest.type));
-         }
+      const unsigned k = 3;
+      for (unsigned int i = 0; i < num_components; i++) {
+         bld.MOV(offset(dest, bld, i),
+                 retype(s.interp_reg(bld, base, comp + i, k), dest.type));
       }
       break;
    }
@@ -4754,7 +4743,7 @@ fs_nir_emit_intrinsic(nir_to_elk_state &ntb,
          ugm_fence = modes & (nir_var_mem_ssbo | nir_var_mem_global);
          slm_fence = modes & nir_var_mem_shared;
          tgm_fence = modes & nir_var_image;
-         urb_fence = modes & (nir_var_shader_out | nir_var_mem_task_payload);
+         urb_fence = modes & nir_var_shader_out;
          if (nir_intrinsic_memory_scope(instr) != SCOPE_NONE)
             opcode = ELK_SHADER_OPCODE_MEMORY_FENCE;
          break;

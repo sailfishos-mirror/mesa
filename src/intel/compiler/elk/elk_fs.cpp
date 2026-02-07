@@ -1339,17 +1339,13 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
                     const nir_shader *nir)
 {
    memset(prog_data->urb_setup, -1, sizeof(prog_data->urb_setup));
-   memset(prog_data->urb_setup_channel, 0, sizeof(prog_data->urb_setup_channel));
 
    int urb_next = 0; /* in vec4s */
 
-   const uint64_t inputs_read =
-      nir->info.inputs_read & ~nir->info.per_primitive_inputs;
+   const uint64_t inputs_read = nir->info.inputs_read;
 
    /* Figure out where each of the incoming setup attributes lands. */
    if (devinfo->ver >= 6) {
-      assert(!nir->info.per_primitive_inputs);
-
       uint64_t vue_header_bits =
          VARYING_BIT_PSIZ | VARYING_BIT_LAYER | VARYING_BIT_VIEWPORT;
 
@@ -1456,7 +1452,7 @@ calculate_urb_setup(const struct intel_device_info *devinfo,
          prog_data->urb_setup[VARYING_SLOT_PNTC] = urb_next++;
    }
 
-   prog_data->num_varying_inputs = urb_next - prog_data->num_per_primitive_inputs;
+   prog_data->num_varying_inputs = urb_next;
    prog_data->inputs = inputs_read;
 
    elk_compute_urb_setup_index(prog_data);
@@ -1498,31 +1494,17 @@ elk_fs_visitor::assign_urb_setup()
             const unsigned chan_sz = 4;
             struct elk_reg reg;
 
-            /* Calculate the base register on the thread payload of
-             * either the block of vertex setup data or the block of
-             * per-primitive constant data depending on whether we're
-             * accessing a primitive or vertex input.  Also calculate
-             * the index of the input within that block.
-             */
-            const bool per_prim = inst->src[i].nr < prog_data->num_per_primitive_inputs;
-            const unsigned base = urb_start +
-               (per_prim ? 0 :
-                align(prog_data->num_per_primitive_inputs / 2,
-                      reg_unit(devinfo)));
-            const unsigned idx = per_prim ? inst->src[i].nr :
-               inst->src[i].nr - prog_data->num_per_primitive_inputs;
-
             /* Translate the offset within the param_width-wide
              * representation described above into an offset and a
              * grf, which contains the plane parameters for the first
              * polygon processed by the thread.
              *
-             * Earlier platforms and per-primitive block pack 2 logical
-             * input components per 32B register.
+             * Earlier platforms pack 2 logical input components per
+             * 32B register.
              */
-            const unsigned grf = base + idx / 2;
+            const unsigned grf = urb_start + inst->src[i].nr / 2;
             assert(inst->src[i].offset / param_width < REG_SIZE / 2);
-            const unsigned delta = (idx % 2) * (REG_SIZE / 2) +
+            const unsigned delta = (inst->src[i].nr % 2) * (REG_SIZE / 2) +
                inst->src[i].offset / (param_width * chan_sz) * chan_sz +
                inst->src[i].offset % chan_sz;
             reg = byte_offset(retype(elk_vec8_grf(grf, 0), inst->src[i].type),
@@ -1545,12 +1527,6 @@ elk_fs_visitor::assign_urb_setup()
     * dispatch.
     */
    this->first_non_payload_grf += prog_data->num_varying_inputs * 2;
-
-   /* Unlike regular attributes, per-primitive attributes have all 4 channels
-    * in the same slot, so each GRF can store two slots.
-    */
-   assert(prog_data->num_per_primitive_inputs % 2 == 0);
-   this->first_non_payload_grf += prog_data->num_per_primitive_inputs / 2;
 }
 
 void
@@ -6402,9 +6378,6 @@ elk_compute_flat_inputs(struct elk_fs_prog_data *prog_data,
    nir_foreach_shader_in_variable(var, shader) {
       /* flat shading */
       if (var->data.interpolation != INTERP_MODE_FLAT)
-         continue;
-
-      if (var->data.per_primitive)
          continue;
 
       unsigned slots = glsl_count_attribute_slots(var->type, false);
