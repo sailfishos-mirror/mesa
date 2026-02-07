@@ -1474,7 +1474,7 @@
         "description": "nir/gather_info: Add support for panfrost tile load/store intrinsics",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6fc1030e4fe7efb7b76ca07db1ab2efe727d6291",
         "notes": null
