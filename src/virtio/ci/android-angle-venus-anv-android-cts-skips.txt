@@ -17,19 +17,9 @@ x86_64 CtsDeqpTestCases dEQP-VK.wsi.android.shared_presentable_image.*
 # Appears to cause crashes with Android 16
 x86_64 CtsGraphicsTestCases android.graphics.cts.SetFrameRateTest#testFixedSource_NonSeamless_arr
 
-# New failures with Android 16
-# Results from https://gitlab.freedesktop.org/Valentine/mesa/-/jobs/90662231
-# https://valentine.pages.freedesktop.org/-/mesa/-/jobs/90662231/artifacts/results/android-cts/results/test_result.html
-x86_64 CtsDeqpTestCases dEQP-VK.wsi.android.swapchain.create#image_format
-x86_64 CtsDeqpTestCases dEQP-VK.wsi.android.colorspace#basic
-x86_64 CtsDeqpTestCases dEQP-VK.wsi.android.swapchain.private_data#image_format
-x86_64 CtsDeqpTestCases dEQP-VK.wsi.android.colorspace_compare#r16g16b16a16_sfloat
-
+# Failed due to non-gfx issues
 x86_64 CtsGraphicsTestCases android.graphics.fonts.SystemFontsTest#testFontsFallbackUnreadable[0]
 x86_64 CtsGraphicsTestCases android.graphics.fonts.SystemFontsTest#testAvailableFonts_ReadOnlyFile[0]
 
+# Instrumentation ran for longer than the configured timeout.
 x86_64 CtsNativeHardwareTestCases android.hardware.nativehardware.cts.AHardwareBufferNativeTests#AHardwareBufferTest_AllocateLockUnlockDeallocateStressTest
-
-# Hits an assert since ANGLE enabled VK_KHR_swapchain_mutable_format
-# '../src/virtio/vulkan/vn_android.c:261: VkResult vn_android_image_from_anb_internal(struct vn_device *, const VkImageCreateInfo *, const VkNativeBufferANDROID *, const VkAllocationCallbacks *, struct vn_image **): assertion "!(create_info-&gt;flags &amp; VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)" failed'
-x86_64 CtsGraphicsTestCases android.graphics.cts.CameraGpuTest#testCameraImageCaptureAndRendering
