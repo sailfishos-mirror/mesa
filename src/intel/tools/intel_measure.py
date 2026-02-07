@@ -336,7 +336,7 @@ def main():
     else:
         file = sys.stdout
 
-    with open(cl_args.utrace_log, 'r') as f:
+    with open(cl_args.utrace_log, 'r', errors='ignore') as f:
         print(parser.get_header(), file=file)
         for line in f.readlines():
             result = parser.parse_line(line)
