@@ -2001,7 +2001,7 @@ optimizations.extend([
    # (0 >= +, - >= +) == (is_not_positive >= gt_zero) -> false
    # (- >= +, - >= 0) == (lt_zero >= is_not_negative) -> false
    #
-   # The flt / ilt cases just invert the expected result.
+   # The flt cases just invert the expected result.
    #
    # The results expecting true, must be marked imprecise.  The results
    # expecting false are fine because NaN compared >= or < anything is false.
@@ -2014,18 +2014,6 @@ optimizations.extend([
    (('flt', 'a(is_a_number_not_positive)', 'b(is_a_number_gt_zero)'),      True),
    (('flt', 'a(is_a_number_lt_zero)',      'b(is_a_number_not_negative)'), True),
 
-   (('ine', 'a(is_not_zero)', 0), True),
-   (('ieq', 'a(is_not_zero)', 0), False),
-
-   (('ige', 'a(is_not_negative)', 'b(is_not_positive)'), True),
-   (('ige', 'a(is_not_positive)', 'b(is_gt_zero)'),      False),
-   (('ige', 'a(is_lt_zero)',      'b(is_not_negative)'), False),
-
-   (('ilt', 'a(is_not_negative)', 'b(is_not_positive)'), False),
-   (('ilt', 'a(is_not_positive)', 'b(is_gt_zero)'),      True),
-   (('ilt', 'a(is_lt_zero)',      'b(is_not_negative)'), True),
-
-   (('ult', 0, 'a(is_gt_zero)'), True),
    (('ult', a, 0), False),
 ])
 
