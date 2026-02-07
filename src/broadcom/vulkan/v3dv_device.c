@@ -1192,12 +1192,14 @@ get_device_properties(const struct v3dv_physical_device *device,
       .storageTexelBufferOffsetSingleTexelAlignment = false,
       .uniformTexelBufferOffsetAlignmentBytes = V3D_TMU_TEXEL_ALIGN,
       .uniformTexelBufferOffsetSingleTexelAlignment = false,
-      /* No native acceleration for integer dot product. We use NIR lowering. */
+      /* V3D 7.1+ has native v8dot instructions for 4x8-bit packed dot
+       * products (unsigned, signed, mixed signedness).
+       */
       .integerDotProduct8BitUnsignedAccelerated = false,
       .integerDotProduct8BitMixedSignednessAccelerated = false,
-      .integerDotProduct4x8BitPackedUnsignedAccelerated = false,
-      .integerDotProduct4x8BitPackedSignedAccelerated = false,
-      .integerDotProduct4x8BitPackedMixedSignednessAccelerated = false,
+      .integerDotProduct4x8BitPackedUnsignedAccelerated = device->devinfo.ver >= 71,
+      .integerDotProduct4x8BitPackedSignedAccelerated = device->devinfo.ver >= 71,
+      .integerDotProduct4x8BitPackedMixedSignednessAccelerated = device->devinfo.ver >= 71,
       .integerDotProduct16BitUnsignedAccelerated = false,
       .integerDotProduct16BitSignedAccelerated = false,
       .integerDotProduct16BitMixedSignednessAccelerated = false,

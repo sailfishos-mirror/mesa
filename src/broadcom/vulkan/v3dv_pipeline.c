@@ -224,6 +224,11 @@ v3dv_pipeline_get_nir_options(const struct v3d_device_info *devinfo)
 
    if (!initialized) {
       options.lower_fsat = devinfo->ver < 71;
+      if (devinfo->ver >= 71) {
+         options.has_udot_4x8 = true;
+         options.has_sdot_4x8 = true;
+         options.has_sudot_4x8 = true;
+      }
       initialized = true;
     }
 
