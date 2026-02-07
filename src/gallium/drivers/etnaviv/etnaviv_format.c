@@ -388,7 +388,26 @@ translate_pe_format_rb_swap(enum pipe_format fmt)
    fmt = util_format_linear(fmt);
    assert(formats[fmt].present);
 
+   if (formats[fmt].pe == ETNA_NO_MATCH)
+      return 0;
+
    return formats[fmt].pe & PE_FORMAT_RB_SWAP;
+}
+
+enum pipe_format
+translate_pe_internal_format(enum pipe_format fmt)
+{
+   if (!translate_pe_format_rb_swap(fmt))
+      return fmt;
+
+   switch (fmt) {
+   case PIPE_FORMAT_R8G8B8A8_UNORM: return PIPE_FORMAT_B8G8R8A8_UNORM;
+   case PIPE_FORMAT_R8G8B8X8_UNORM: return PIPE_FORMAT_B8G8R8X8_UNORM;
+   case PIPE_FORMAT_R8G8B8A8_SRGB:  return PIPE_FORMAT_B8G8R8A8_SRGB;
+   case PIPE_FORMAT_R8G8B8X8_SRGB:  return PIPE_FORMAT_B8G8R8X8_SRGB;
+   default:
+      UNREACHABLE("unexpected rb_swap format");
+   }
 }
 
 /* Return type flags for vertex element format */
