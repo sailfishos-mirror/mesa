@@ -71,7 +71,7 @@ fd5_emit_shader_obj(struct fd_context *ctx, struct fd_ringbuffer *ring,
    ir3_get_private_mem(ctx, so);
 
    OUT_PKT4(ring, shader_obj_reg, 6);
-   OUT_RELOC(ring, so->bo, 0, 0, 0); /* SP_VS_OBJ_START_LO/HI */
+   OUT_RELOC(ring, so->bo, 0, 0, 0); /* SP_VS_OBJ_START */
 
    uint32_t per_sp_size = ctx->pvtmem[so->pvtmem_per_wave].per_sp_size;
    OUT_RING(ring, A5XX_SP_VS_PVT_MEM_PARAM_MEMSIZEPERITEM(
@@ -493,7 +493,7 @@ fd5_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
       OUT_RING(ring, reg);
    }
 
-   fd5_emit_shader_obj(ctx, ring, s[VS].v, REG_A5XX_SP_VS_OBJ_START_LO);
+   fd5_emit_shader_obj(ctx, ring, s[VS].v, REG_A5XX_SP_VS_OBJ_START);
 
    if (s[VS].instrlen)
       fd5_emit_shader(ring, s[VS].v);
@@ -513,11 +513,11 @@ fd5_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
    fd5_context(ctx)->max_loc = l.max_loc;
 
    if (emit->binning_pass) {
-      OUT_PKT4(ring, REG_A5XX_SP_FS_OBJ_START_LO, 2);
+      OUT_PKT4(ring, REG_A5XX_SP_FS_OBJ_START, 2);
       OUT_RING(ring, 0x00000000); /* SP_FS_OBJ_START_LO */
       OUT_RING(ring, 0x00000000); /* SP_FS_OBJ_START_HI */
    } else {
-      fd5_emit_shader_obj(ctx, ring, s[FS].v, REG_A5XX_SP_FS_OBJ_START_LO);
+      fd5_emit_shader_obj(ctx, ring, s[FS].v, REG_A5XX_SP_FS_OBJ_START);
    }
 
    OUT_PKT4(ring, REG_A5XX_HLSQ_CONTROL_0_REG, 5);
