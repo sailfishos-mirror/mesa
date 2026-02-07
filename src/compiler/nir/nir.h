@@ -6502,6 +6502,8 @@ bool nir_opt_algebraic_integer_promotion(nir_shader *shader);
 bool nir_opt_reassociate_matrix_mul(nir_shader *shader);
 bool nir_opt_constant_folding(nir_shader *shader);
 
+bool nir_opt_fp_math_ctrl(nir_shader *shader);
+
 nir_def *nir_try_constant_fold_alu(nir_builder *b, nir_alu_instr *alu);
 
 /* Try to combine a and b into a.  Return true if combination was possible,

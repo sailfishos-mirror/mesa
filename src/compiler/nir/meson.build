@@ -268,6 +268,7 @@ else
   'nir_opt_dead_cf.c',
   'nir_opt_dead_write_vars.c',
   'nir_opt_find_array_copies.c',
+  'nir_opt_fp_math_ctrl.c',
   'nir_opt_frag_coord_to_pixel_coord.c',
   'nir_opt_fragdepth.c',
   'nir_opt_gcm.c',
