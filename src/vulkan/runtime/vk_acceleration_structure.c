@@ -1271,10 +1271,11 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
 
          device->write_buffer_cp(commandBuffer, pInfos[i].scratchData.deviceAddress + states[i].scratch.header_offset,
                                  &header, sizeof(header));
-      } else {
-         ops->init_update_scratch(commandBuffer, &states[i]);
       }
    }
+
+   if (batch_state.any_update)
+      ops->init_update_scratch(commandBuffer, states, infoCount);
 
    bool flushed_compute_after_init_update_scratch = false;
    bool flushed_cp_after_init_update_scratch = true;
