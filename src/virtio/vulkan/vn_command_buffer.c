@@ -925,6 +925,7 @@ struct vn_command_buffer_begin_info {
    VkCommandBufferInheritanceInfo inheritance;
    VkCommandBufferInheritanceConditionalRenderingInfoEXT conditional_rendering;
    VkRenderingInputAttachmentIndexInfo riai;
+   VkCommandBufferInheritanceDescriptorHeapInfoEXT desc_heap;
 
    bool has_inherited_pass;
    bool in_render_pass;
@@ -1003,6 +1004,10 @@ vn_fix_command_buffer_begin_info(struct vn_command_buffer *cmd,
          memcpy(&local->riai, src,
                 sizeof(VkRenderingInputAttachmentIndexInfo));
          pnext = &local->riai;
+         break;
+      case VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_DESCRIPTOR_HEAP_INFO_EXT:
+         memcpy(&local->desc_heap, src, sizeof(local->desc_heap));
+         pnext = &local->desc_heap;
          break;
       case VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_RENDERING_INFO:
       case VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_LOCATION_INFO:
