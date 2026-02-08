@@ -20,6 +20,7 @@ hwdb_h = custom_target(
   'hwdb.h',
   input: [
     'amlogic/gc_feature_database.h',
+    'd-robotics/gc_feature_database.h',
     'nxp/gc_feature_database.h',
     'st/gc_feature_database.h'
   ],
