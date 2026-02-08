@@ -143,6 +143,7 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
                            sizeof(VkImageUsageFlags));
          break;
       }
+      case VK_STRUCTURE_TYPE_OPAQUE_CAPTURE_DATA_CREATE_INFO_EXT:
       default:
          /* Skip cache for unsupported pNext */
          dev->image_reqs_cache.debug.cache_skip_count++;
