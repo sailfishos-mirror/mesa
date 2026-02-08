@@ -352,11 +352,6 @@ dEQP-VK.dynamic_rendering.primary_cmd_buff.basic.contents_secondary_2_primary_cm
 dEQP-VK.dynamic_rendering.primary_cmd_buff.basic.contents_secondary_primary_cmdbuffers_resuming,Fail
 dEQP-VK.dynamic_rendering.primary_cmd_buff.basic.single_cmdbuffer_resuming,Fail
 
-dEQP-VK.rasterization.rasterization_order_attachment_access.depth.samples_1.multi_draw_barriers,Crash
-dEQP-VK.rasterization.rasterization_order_attachment_access.depth.samples_4.multi_draw_barriers,Crash
-dEQP-VK.rasterization.rasterization_order_attachment_access.stencil.samples_1.multi_draw_barriers,Crash
-dEQP-VK.rasterization.rasterization_order_attachment_access.stencil.samples_4.multi_draw_barriers,Crash
-
 # New fails in 1.4.3.3
 dEQP-VK.pipeline.fast_linked_library.empty_fs.masked_samples,Fail
 dEQP-VK.pipeline.monolithic.empty_fs.masked_samples,Fail
