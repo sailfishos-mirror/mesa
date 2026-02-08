@@ -465,6 +465,17 @@ typedef enum VkCommandTypeEXT {
     VK_COMMAND_TYPE_vkCmdDrawMeshTasksEXT_EXT = 332,
     VK_COMMAND_TYPE_vkCmdDrawMeshTasksIndirectEXT_EXT = 333,
     VK_COMMAND_TYPE_vkCmdDrawMeshTasksIndirectCountEXT_EXT = 334,
+    VK_COMMAND_TYPE_vkWriteSamplerDescriptorMESA_EXT = 335,
+    VK_COMMAND_TYPE_vkWriteResourceDescriptorMESA_EXT = 336,
+    VK_COMMAND_TYPE_vkWriteSamplerDescriptorsEXT_EXT = 337,
+    VK_COMMAND_TYPE_vkWriteResourceDescriptorsEXT_EXT = 338,
+    VK_COMMAND_TYPE_vkCmdBindSamplerHeapEXT_EXT = 339,
+    VK_COMMAND_TYPE_vkCmdBindResourceHeapEXT_EXT = 340,
+    VK_COMMAND_TYPE_vkCmdPushDataEXT_EXT = 341,
+    VK_COMMAND_TYPE_vkGetImageOpaqueCaptureDataEXT_EXT = 342,
+    VK_COMMAND_TYPE_vkGetPhysicalDeviceDescriptorSizeEXT_EXT = 343,
+    VK_COMMAND_TYPE_vkRegisterCustomBorderColorEXT_EXT = 344,
+    VK_COMMAND_TYPE_vkUnregisterCustomBorderColorEXT_EXT = 345,
 } VkCommandTypeEXT;
 
 typedef enum VkCommandFlagBitsEXT {

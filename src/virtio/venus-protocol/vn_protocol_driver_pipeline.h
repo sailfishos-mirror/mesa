@@ -187,6 +187,442 @@ vn_encode_VkPipelineRobustnessCreateInfo(struct vn_cs_encoder *enc, const VkPipe
     vn_encode_VkPipelineRobustnessCreateInfo_self(enc, val);
 }
 
+/* struct VkDescriptorMappingSourceConstantOffsetEXT */
+
+static inline size_t
+vn_sizeof_VkDescriptorMappingSourceConstantOffsetEXT(const VkDescriptorMappingSourceConstantOffsetEXT *val)
+{
+    size_t size = 0;
+    size += vn_sizeof_uint32_t(&val->heapOffset);
+    size += vn_sizeof_uint32_t(&val->heapArrayStride);
+    size += vn_sizeof_simple_pointer(val->pEmbeddedSampler);
+    if (val->pEmbeddedSampler)
+        size += vn_sizeof_VkSamplerCreateInfo(val->pEmbeddedSampler);
+    size += vn_sizeof_uint32_t(&val->samplerHeapOffset);
+    size += vn_sizeof_uint32_t(&val->samplerHeapArrayStride);
+    return size;
+}
+
+static inline void
+vn_encode_VkDescriptorMappingSourceConstantOffsetEXT(struct vn_cs_encoder *enc, const VkDescriptorMappingSourceConstantOffsetEXT *val)
+{
+    vn_encode_uint32_t(enc, &val->heapOffset);
+    vn_encode_uint32_t(enc, &val->heapArrayStride);
+    if (vn_encode_simple_pointer(enc, val->pEmbeddedSampler))
+        vn_encode_VkSamplerCreateInfo(enc, val->pEmbeddedSampler);
+    vn_encode_uint32_t(enc, &val->samplerHeapOffset);
+    vn_encode_uint32_t(enc, &val->samplerHeapArrayStride);
+}
+
+/* struct VkDescriptorMappingSourcePushIndexEXT */
+
+static inline size_t
+vn_sizeof_VkDescriptorMappingSourcePushIndexEXT(const VkDescriptorMappingSourcePushIndexEXT *val)
+{
+    size_t size = 0;
+    size += vn_sizeof_uint32_t(&val->heapOffset);
+    size += vn_sizeof_uint32_t(&val->pushOffset);
+    size += vn_sizeof_uint32_t(&val->heapIndexStride);
+    size += vn_sizeof_uint32_t(&val->heapArrayStride);
+    size += vn_sizeof_simple_pointer(val->pEmbeddedSampler);
+    if (val->pEmbeddedSampler)
+        size += vn_sizeof_VkSamplerCreateInfo(val->pEmbeddedSampler);
+    size += vn_sizeof_VkBool32(&val->useCombinedImageSamplerIndex);
+    size += vn_sizeof_uint32_t(&val->samplerHeapOffset);
+    size += vn_sizeof_uint32_t(&val->samplerPushOffset);
+    size += vn_sizeof_uint32_t(&val->samplerHeapIndexStride);
+    size += vn_sizeof_uint32_t(&val->samplerHeapArrayStride);
+    return size;
+}
+
+static inline void
+vn_encode_VkDescriptorMappingSourcePushIndexEXT(struct vn_cs_encoder *enc, const VkDescriptorMappingSourcePushIndexEXT *val)
+{
+    vn_encode_uint32_t(enc, &val->heapOffset);
+    vn_encode_uint32_t(enc, &val->pushOffset);
+    vn_encode_uint32_t(enc, &val->heapIndexStride);
+    vn_encode_uint32_t(enc, &val->heapArrayStride);
+    if (vn_encode_simple_pointer(enc, val->pEmbeddedSampler))
+        vn_encode_VkSamplerCreateInfo(enc, val->pEmbeddedSampler);
+    vn_encode_VkBool32(enc, &val->useCombinedImageSamplerIndex);
+    vn_encode_uint32_t(enc, &val->samplerHeapOffset);
+    vn_encode_uint32_t(enc, &val->samplerPushOffset);
+    vn_encode_uint32_t(enc, &val->samplerHeapIndexStride);
+    vn_encode_uint32_t(enc, &val->samplerHeapArrayStride);
+}
+
+/* struct VkDescriptorMappingSourceIndirectIndexEXT */
+
+static inline size_t
+vn_sizeof_VkDescriptorMappingSourceIndirectIndexEXT(const VkDescriptorMappingSourceIndirectIndexEXT *val)
+{
+    size_t size = 0;
+    size += vn_sizeof_uint32_t(&val->heapOffset);
+    size += vn_sizeof_uint32_t(&val->pushOffset);
+    size += vn_sizeof_uint32_t(&val->addressOffset);
+    size += vn_sizeof_uint32_t(&val->heapIndexStride);
+    size += vn_sizeof_uint32_t(&val->heapArrayStride);
+    size += vn_sizeof_simple_pointer(val->pEmbeddedSampler);
+    if (val->pEmbeddedSampler)
+        size += vn_sizeof_VkSamplerCreateInfo(val->pEmbeddedSampler);
+    size += vn_sizeof_VkBool32(&val->useCombinedImageSamplerIndex);
+    size += vn_sizeof_uint32_t(&val->samplerHeapOffset);
+    size += vn_sizeof_uint32_t(&val->samplerPushOffset);
+    size += vn_sizeof_uint32_t(&val->samplerAddressOffset);
+    size += vn_sizeof_uint32_t(&val->samplerHeapIndexStride);
+    size += vn_sizeof_uint32_t(&val->samplerHeapArrayStride);
+    return size;
+}
+
+static inline void
+vn_encode_VkDescriptorMappingSourceIndirectIndexEXT(struct vn_cs_encoder *enc, const VkDescriptorMappingSourceIndirectIndexEXT *val)
+{
+    vn_encode_uint32_t(enc, &val->heapOffset);
+    vn_encode_uint32_t(enc, &val->pushOffset);
+    vn_encode_uint32_t(enc, &val->addressOffset);
+    vn_encode_uint32_t(enc, &val->heapIndexStride);
+    vn_encode_uint32_t(enc, &val->heapArrayStride);
+    if (vn_encode_simple_pointer(enc, val->pEmbeddedSampler))
+        vn_encode_VkSamplerCreateInfo(enc, val->pEmbeddedSampler);
+    vn_encode_VkBool32(enc, &val->useCombinedImageSamplerIndex);
+    vn_encode_uint32_t(enc, &val->samplerHeapOffset);
+    vn_encode_uint32_t(enc, &val->samplerPushOffset);
+    vn_encode_uint32_t(enc, &val->samplerAddressOffset);
+    vn_encode_uint32_t(enc, &val->samplerHeapIndexStride);
+    vn_encode_uint32_t(enc, &val->samplerHeapArrayStride);
+}
+
+/* struct VkDescriptorMappingSourceIndirectIndexArrayEXT */
+
+static inline size_t
+vn_sizeof_VkDescriptorMappingSourceIndirectIndexArrayEXT(const VkDescriptorMappingSourceIndirectIndexArrayEXT *val)
+{
+    size_t size = 0;
+    size += vn_sizeof_uint32_t(&val->heapOffset);
+    size += vn_sizeof_uint32_t(&val->pushOffset);
+    size += vn_sizeof_uint32_t(&val->addressOffset);
+    size += vn_sizeof_uint32_t(&val->heapIndexStride);
+    size += vn_sizeof_simple_pointer(val->pEmbeddedSampler);
+    if (val->pEmbeddedSampler)
+        size += vn_sizeof_VkSamplerCreateInfo(val->pEmbeddedSampler);
+    size += vn_sizeof_VkBool32(&val->useCombinedImageSamplerIndex);
+    size += vn_sizeof_uint32_t(&val->samplerHeapOffset);
+    size += vn_sizeof_uint32_t(&val->samplerPushOffset);
+    size += vn_sizeof_uint32_t(&val->samplerAddressOffset);
+    size += vn_sizeof_uint32_t(&val->samplerHeapIndexStride);
+    return size;
+}
+
+static inline void
+vn_encode_VkDescriptorMappingSourceIndirectIndexArrayEXT(struct vn_cs_encoder *enc, const VkDescriptorMappingSourceIndirectIndexArrayEXT *val)
+{
+    vn_encode_uint32_t(enc, &val->heapOffset);
+    vn_encode_uint32_t(enc, &val->pushOffset);
+    vn_encode_uint32_t(enc, &val->addressOffset);
+    vn_encode_uint32_t(enc, &val->heapIndexStride);
+    if (vn_encode_simple_pointer(enc, val->pEmbeddedSampler))
+        vn_encode_VkSamplerCreateInfo(enc, val->pEmbeddedSampler);
+    vn_encode_VkBool32(enc, &val->useCombinedImageSamplerIndex);
+    vn_encode_uint32_t(enc, &val->samplerHeapOffset);
+    vn_encode_uint32_t(enc, &val->samplerPushOffset);
+    vn_encode_uint32_t(enc, &val->samplerAddressOffset);
+    vn_encode_uint32_t(enc, &val->samplerHeapIndexStride);
+}
+
+/* struct VkDescriptorMappingSourceHeapDataEXT */
+
+static inline size_t
+vn_sizeof_VkDescriptorMappingSourceHeapDataEXT(const VkDescriptorMappingSourceHeapDataEXT *val)
+{
+    size_t size = 0;
+    size += vn_sizeof_uint32_t(&val->heapOffset);
+    size += vn_sizeof_uint32_t(&val->pushOffset);
+    return size;
+}
+
+static inline void
+vn_encode_VkDescriptorMappingSourceHeapDataEXT(struct vn_cs_encoder *enc, const VkDescriptorMappingSourceHeapDataEXT *val)
+{
+    vn_encode_uint32_t(enc, &val->heapOffset);
+    vn_encode_uint32_t(enc, &val->pushOffset);
+}
+
+/* struct VkDescriptorMappingSourceIndirectAddressEXT */
+
+static inline size_t
+vn_sizeof_VkDescriptorMappingSourceIndirectAddressEXT(const VkDescriptorMappingSourceIndirectAddressEXT *val)
+{
+    size_t size = 0;
+    size += vn_sizeof_uint32_t(&val->pushOffset);
+    size += vn_sizeof_uint32_t(&val->addressOffset);
+    return size;
+}
+
+static inline void
+vn_encode_VkDescriptorMappingSourceIndirectAddressEXT(struct vn_cs_encoder *enc, const VkDescriptorMappingSourceIndirectAddressEXT *val)
+{
+    vn_encode_uint32_t(enc, &val->pushOffset);
+    vn_encode_uint32_t(enc, &val->addressOffset);
+}
+
+/* struct VkDescriptorMappingSourceShaderRecordIndexEXT */
+
+static inline size_t
+vn_sizeof_VkDescriptorMappingSourceShaderRecordIndexEXT(const VkDescriptorMappingSourceShaderRecordIndexEXT *val)
+{
+    size_t size = 0;
+    size += vn_sizeof_uint32_t(&val->heapOffset);
+    size += vn_sizeof_uint32_t(&val->shaderRecordOffset);
+    size += vn_sizeof_uint32_t(&val->heapIndexStride);
+    size += vn_sizeof_uint32_t(&val->heapArrayStride);
+    size += vn_sizeof_simple_pointer(val->pEmbeddedSampler);
+    if (val->pEmbeddedSampler)
+        size += vn_sizeof_VkSamplerCreateInfo(val->pEmbeddedSampler);
+    size += vn_sizeof_VkBool32(&val->useCombinedImageSamplerIndex);
+    size += vn_sizeof_uint32_t(&val->samplerHeapOffset);
+    size += vn_sizeof_uint32_t(&val->samplerShaderRecordOffset);
+    size += vn_sizeof_uint32_t(&val->samplerHeapIndexStride);
+    size += vn_sizeof_uint32_t(&val->samplerHeapArrayStride);
+    return size;
+}
+
+static inline void
+vn_encode_VkDescriptorMappingSourceShaderRecordIndexEXT(struct vn_cs_encoder *enc, const VkDescriptorMappingSourceShaderRecordIndexEXT *val)
+{
+    vn_encode_uint32_t(enc, &val->heapOffset);
+    vn_encode_uint32_t(enc, &val->shaderRecordOffset);
+    vn_encode_uint32_t(enc, &val->heapIndexStride);
+    vn_encode_uint32_t(enc, &val->heapArrayStride);
+    if (vn_encode_simple_pointer(enc, val->pEmbeddedSampler))
+        vn_encode_VkSamplerCreateInfo(enc, val->pEmbeddedSampler);
+    vn_encode_VkBool32(enc, &val->useCombinedImageSamplerIndex);
+    vn_encode_uint32_t(enc, &val->samplerHeapOffset);
+    vn_encode_uint32_t(enc, &val->samplerShaderRecordOffset);
+    vn_encode_uint32_t(enc, &val->samplerHeapIndexStride);
+    vn_encode_uint32_t(enc, &val->samplerHeapArrayStride);
+}
+
+/* union VkDescriptorMappingSourceDataEXT */
+
+static inline size_t
+vn_sizeof_VkDescriptorMappingSourceDataEXT(const VkDescriptorMappingSourceDataEXT *val, VkDescriptorMappingSourceEXT tag)
+{
+    size_t size = vn_sizeof_VkDescriptorMappingSourceEXT(&tag);
+    switch (tag) {
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_CONSTANT_OFFSET_EXT:
+        size += vn_sizeof_VkDescriptorMappingSourceConstantOffsetEXT(&val->constantOffset);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT:
+        size += vn_sizeof_VkDescriptorMappingSourcePushIndexEXT(&val->pushIndex);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_INDIRECT_INDEX_EXT:
+        size += vn_sizeof_VkDescriptorMappingSourceIndirectIndexEXT(&val->indirectIndex);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_INDIRECT_INDEX_ARRAY_EXT:
+        size += vn_sizeof_VkDescriptorMappingSourceIndirectIndexArrayEXT(&val->indirectIndexArray);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_RESOURCE_HEAP_DATA_EXT:
+        size += vn_sizeof_VkDescriptorMappingSourceHeapDataEXT(&val->heapData);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_PUSH_DATA_EXT:
+        size += vn_sizeof_uint32_t(&val->pushDataOffset);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_PUSH_ADDRESS_EXT:
+        size += vn_sizeof_uint32_t(&val->pushAddressOffset);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_INDIRECT_ADDRESS_EXT:
+        size += vn_sizeof_VkDescriptorMappingSourceIndirectAddressEXT(&val->indirectAddress);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_SHADER_RECORD_INDEX_EXT:
+        size += vn_sizeof_VkDescriptorMappingSourceShaderRecordIndexEXT(&val->shaderRecordIndex);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_SHADER_RECORD_DATA_EXT:
+        size += vn_sizeof_uint32_t(&val->shaderRecordDataOffset);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_SHADER_RECORD_ADDRESS_EXT:
+        size += vn_sizeof_uint32_t(&val->shaderRecordAddressOffset);
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    return size;
+}
+
+static inline void
+vn_encode_VkDescriptorMappingSourceDataEXT(struct vn_cs_encoder *enc, const VkDescriptorMappingSourceDataEXT *val, VkDescriptorMappingSourceEXT tag)
+{
+    vn_encode_VkDescriptorMappingSourceEXT(enc, &tag);
+    switch (tag) {
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_CONSTANT_OFFSET_EXT:
+        vn_encode_VkDescriptorMappingSourceConstantOffsetEXT(enc, &val->constantOffset);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_PUSH_INDEX_EXT:
+        vn_encode_VkDescriptorMappingSourcePushIndexEXT(enc, &val->pushIndex);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_INDIRECT_INDEX_EXT:
+        vn_encode_VkDescriptorMappingSourceIndirectIndexEXT(enc, &val->indirectIndex);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_INDIRECT_INDEX_ARRAY_EXT:
+        vn_encode_VkDescriptorMappingSourceIndirectIndexArrayEXT(enc, &val->indirectIndexArray);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_RESOURCE_HEAP_DATA_EXT:
+        vn_encode_VkDescriptorMappingSourceHeapDataEXT(enc, &val->heapData);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_PUSH_DATA_EXT:
+        vn_encode_uint32_t(enc, &val->pushDataOffset);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_PUSH_ADDRESS_EXT:
+        vn_encode_uint32_t(enc, &val->pushAddressOffset);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_INDIRECT_ADDRESS_EXT:
+        vn_encode_VkDescriptorMappingSourceIndirectAddressEXT(enc, &val->indirectAddress);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_HEAP_WITH_SHADER_RECORD_INDEX_EXT:
+        vn_encode_VkDescriptorMappingSourceShaderRecordIndexEXT(enc, &val->shaderRecordIndex);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_SHADER_RECORD_DATA_EXT:
+        vn_encode_uint32_t(enc, &val->shaderRecordDataOffset);
+        break;
+    case VK_DESCRIPTOR_MAPPING_SOURCE_SHADER_RECORD_ADDRESS_EXT:
+        vn_encode_uint32_t(enc, &val->shaderRecordAddressOffset);
+        break;
+    default:
+        assert(false);
+        break;
+    }
+}
+
+/* struct VkDescriptorSetAndBindingMappingEXT chain */
+
+static inline size_t
+vn_sizeof_VkDescriptorSetAndBindingMappingEXT_pnext(const void *val)
+{
+    /* no known/supported struct */
+    return vn_sizeof_simple_pointer(NULL);
+}
+
+static inline size_t
+vn_sizeof_VkDescriptorSetAndBindingMappingEXT_self(const VkDescriptorSetAndBindingMappingEXT *val)
+{
+    size_t size = 0;
+    /* skip val->{sType,pNext} */
+    size += vn_sizeof_uint32_t(&val->descriptorSet);
+    size += vn_sizeof_uint32_t(&val->firstBinding);
+    size += vn_sizeof_uint32_t(&val->bindingCount);
+    size += vn_sizeof_VkFlags(&val->resourceMask);
+    size += vn_sizeof_VkDescriptorMappingSourceEXT(&val->source);
+    size += vn_sizeof_VkDescriptorMappingSourceDataEXT(&val->sourceData, val->source);
+    return size;
+}
+
+static inline size_t
+vn_sizeof_VkDescriptorSetAndBindingMappingEXT(const VkDescriptorSetAndBindingMappingEXT *val)
+{
+    size_t size = 0;
+
+    size += vn_sizeof_VkStructureType(&val->sType);
+    size += vn_sizeof_VkDescriptorSetAndBindingMappingEXT_pnext(val->pNext);
+    size += vn_sizeof_VkDescriptorSetAndBindingMappingEXT_self(val);
+
+    return size;
+}
+
+static inline void
+vn_encode_VkDescriptorSetAndBindingMappingEXT_pnext(struct vn_cs_encoder *enc, const void *val)
+{
+    /* no known/supported struct */
+    vn_encode_simple_pointer(enc, NULL);
+}
+
+static inline void
+vn_encode_VkDescriptorSetAndBindingMappingEXT_self(struct vn_cs_encoder *enc, const VkDescriptorSetAndBindingMappingEXT *val)
+{
+    /* skip val->{sType,pNext} */
+    vn_encode_uint32_t(enc, &val->descriptorSet);
+    vn_encode_uint32_t(enc, &val->firstBinding);
+    vn_encode_uint32_t(enc, &val->bindingCount);
+    vn_encode_VkFlags(enc, &val->resourceMask);
+    vn_encode_VkDescriptorMappingSourceEXT(enc, &val->source);
+    vn_encode_VkDescriptorMappingSourceDataEXT(enc, &val->sourceData, val->source);
+}
+
+static inline void
+vn_encode_VkDescriptorSetAndBindingMappingEXT(struct vn_cs_encoder *enc, const VkDescriptorSetAndBindingMappingEXT *val)
+{
+    assert(val->sType == VK_STRUCTURE_TYPE_DESCRIPTOR_SET_AND_BINDING_MAPPING_EXT);
+    vn_encode_VkStructureType(enc, &(VkStructureType){ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_AND_BINDING_MAPPING_EXT });
+    vn_encode_VkDescriptorSetAndBindingMappingEXT_pnext(enc, val->pNext);
+    vn_encode_VkDescriptorSetAndBindingMappingEXT_self(enc, val);
+}
+
+/* struct VkShaderDescriptorSetAndBindingMappingInfoEXT chain */
+
+static inline size_t
+vn_sizeof_VkShaderDescriptorSetAndBindingMappingInfoEXT_pnext(const void *val)
+{
+    /* no known/supported struct */
+    return vn_sizeof_simple_pointer(NULL);
+}
+
+static inline size_t
+vn_sizeof_VkShaderDescriptorSetAndBindingMappingInfoEXT_self(const VkShaderDescriptorSetAndBindingMappingInfoEXT *val)
+{
+    size_t size = 0;
+    /* skip val->{sType,pNext} */
+    size += vn_sizeof_uint32_t(&val->mappingCount);
+    if (val->pMappings) {
+        size += vn_sizeof_array_size(val->mappingCount);
+        for (uint32_t i = 0; i < val->mappingCount; i++)
+            size += vn_sizeof_VkDescriptorSetAndBindingMappingEXT(&val->pMappings[i]);
+    } else {
+        size += vn_sizeof_array_size(0);
+    }
+    return size;
+}
+
+static inline size_t
+vn_sizeof_VkShaderDescriptorSetAndBindingMappingInfoEXT(const VkShaderDescriptorSetAndBindingMappingInfoEXT *val)
+{
+    size_t size = 0;
+
+    size += vn_sizeof_VkStructureType(&val->sType);
+    size += vn_sizeof_VkShaderDescriptorSetAndBindingMappingInfoEXT_pnext(val->pNext);
+    size += vn_sizeof_VkShaderDescriptorSetAndBindingMappingInfoEXT_self(val);
+
+    return size;
+}
+
+static inline void
+vn_encode_VkShaderDescriptorSetAndBindingMappingInfoEXT_pnext(struct vn_cs_encoder *enc, const void *val)
+{
+    /* no known/supported struct */
+    vn_encode_simple_pointer(enc, NULL);
+}
+
+static inline void
+vn_encode_VkShaderDescriptorSetAndBindingMappingInfoEXT_self(struct vn_cs_encoder *enc, const VkShaderDescriptorSetAndBindingMappingInfoEXT *val)
+{
+    /* skip val->{sType,pNext} */
+    vn_encode_uint32_t(enc, &val->mappingCount);
+    if (val->pMappings) {
+        vn_encode_array_size(enc, val->mappingCount);
+        for (uint32_t i = 0; i < val->mappingCount; i++)
+            vn_encode_VkDescriptorSetAndBindingMappingEXT(enc, &val->pMappings[i]);
+    } else {
+        vn_encode_array_size(enc, 0);
+    }
+}
+
+static inline void
+vn_encode_VkShaderDescriptorSetAndBindingMappingInfoEXT(struct vn_cs_encoder *enc, const VkShaderDescriptorSetAndBindingMappingInfoEXT *val)
+{
+    assert(val->sType == VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT);
+    vn_encode_VkStructureType(enc, &(VkStructureType){ VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT });
+    vn_encode_VkShaderDescriptorSetAndBindingMappingInfoEXT_pnext(enc, val->pNext);
+    vn_encode_VkShaderDescriptorSetAndBindingMappingInfoEXT_self(enc, val);
+}
+
 /* struct VkPipelineShaderStageCreateInfo chain */
 
 static inline size_t
@@ -218,6 +654,14 @@ vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(const void *val)
             size += vn_sizeof_VkStructureType(&pnext->sType);
             size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(pnext->pNext);
             size += vn_sizeof_VkPipelineRobustnessCreateInfo_self((const VkPipelineRobustnessCreateInfo *)pnext);
+            return size;
+        case VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT:
+            if (!vn_cs_renderer_protocol_has_extension(136 /* VK_EXT_descriptor_heap */))
+                break;
+            size += vn_sizeof_simple_pointer(pnext);
+            size += vn_sizeof_VkStructureType(&pnext->sType);
+            size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkShaderDescriptorSetAndBindingMappingInfoEXT_self((const VkShaderDescriptorSetAndBindingMappingInfoEXT *)pnext);
             return size;
         default:
             /* ignore unknown/unsupported struct */
@@ -290,6 +734,14 @@ vn_encode_VkPipelineShaderStageCreateInfo_pnext(struct vn_cs_encoder *enc, const
             vn_encode_VkStructureType(enc, &pnext->sType);
             vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, pnext->pNext);
             vn_encode_VkPipelineRobustnessCreateInfo_self(enc, (const VkPipelineRobustnessCreateInfo *)pnext);
+            return;
+        case VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT:
+            if (!vn_cs_renderer_protocol_has_extension(136 /* VK_EXT_descriptor_heap */))
+                break;
+            vn_encode_simple_pointer(enc, pnext);
+            vn_encode_VkStructureType(enc, &pnext->sType);
+            vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkShaderDescriptorSetAndBindingMappingInfoEXT_self(enc, (const VkShaderDescriptorSetAndBindingMappingInfoEXT *)pnext);
             return;
         default:
             /* ignore unknown/unsupported struct */
