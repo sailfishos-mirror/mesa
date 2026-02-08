@@ -35,6 +35,7 @@ static const struct debug_control vn_debug_options[] = {
    { "no_second_queue", VN_DEBUG_NO_SECOND_QUEUE },
    { "no_ray_tracing", VN_DEBUG_NO_RAY_TRACING },
    { "mem_budget", VN_DEBUG_MEM_BUDGET },
+   { "desc_heap", VN_DEBUG_DESC_HEAP },
    { NULL, 0 },
    /* clang-format on */
 };

@@ -127,6 +127,7 @@ enum vn_debug {
    VN_DEBUG_NO_SECOND_QUEUE = 1ull << 9,
    VN_DEBUG_NO_RAY_TRACING = 1ull << 10,
    VN_DEBUG_MEM_BUDGET = 1ull << 11,
+   VN_DEBUG_DESC_HEAP = 1ull << 12,
 };
 
 enum vn_perf {
