@@ -744,7 +744,7 @@
         "description": "brw: Fix cooperative matrix constant sources other than src0",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bf9ad36f2dfffa3567e67f0da3f0f44c71a7b011",
         "notes": null
