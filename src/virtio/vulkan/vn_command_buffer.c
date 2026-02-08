@@ -2813,3 +2813,24 @@ vn_CmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer,
                   offset, countBuffer, countBufferOffset, maxDrawCount,
                   stride);
 }
+
+VKAPI_ATTR void VKAPI_CALL
+vn_CmdBindResourceHeapEXT(VkCommandBuffer commandBuffer,
+                          const VkBindHeapInfoEXT *pBindInfo)
+{
+   VN_CMD_ENQUEUE(vkCmdBindResourceHeapEXT, commandBuffer, pBindInfo);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+vn_CmdBindSamplerHeapEXT(VkCommandBuffer commandBuffer,
+                         const VkBindHeapInfoEXT *pBindInfo)
+{
+   VN_CMD_ENQUEUE(vkCmdBindSamplerHeapEXT, commandBuffer, pBindInfo);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+vn_CmdPushDataEXT(VkCommandBuffer commandBuffer,
+                  const VkPushDataInfoEXT *pPushDataInfo)
+{
+   VN_CMD_ENQUEUE(vkCmdPushDataEXT, commandBuffer, pPushDataInfo);
+}

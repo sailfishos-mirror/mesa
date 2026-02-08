@@ -3059,3 +3059,16 @@ vn_GetPhysicalDeviceMultisamplePropertiesEXT(
    vn_call_vkGetPhysicalDeviceMultisamplePropertiesEXT(
       ring, physicalDevice, samples, pMultisampleProperties);
 }
+
+VKAPI_ATTR VkDeviceSize VKAPI_CALL
+vn_GetPhysicalDeviceDescriptorSizeEXT(VkPhysicalDevice physicalDevice,
+                                      VkDescriptorType descriptorType)
+{
+   struct vn_physical_device *physical_dev =
+      vn_physical_device_from_handle(physicalDevice);
+   struct vn_ring *ring = physical_dev->instance->ring.ring;
+
+   /* TODO per-device cache */
+   return vn_call_vkGetPhysicalDeviceDescriptorSizeEXT(ring, physicalDevice,
+                                                       descriptorType);
+}
