@@ -114,275 +114,64 @@ perform_analysis(struct analysis_state *state)
    return res;
 }
 
-static bool
-is_not_negative(enum fp_ranges r)
-{
-   return r == gt_zero || r == ge_zero || r == eq_zero;
-}
-
-static bool
-is_not_zero(enum fp_ranges r)
-{
-   return r == gt_zero || r == lt_zero || r == ne_zero;
-}
-
-static uint32_t
-pack_data(const struct fp_result_range r)
-{
-   return r.range | r.is_integral << 8 | r.is_finite << 9 | r.is_a_number << 10;
-}
-
-static struct fp_result_range
-unpack_data(uint32_t v)
-{
-   return (struct fp_result_range){
-      .range = v & 0xff,
-      .is_integral = (v & 0x00100) != 0,
-      .is_finite = (v & 0x00200) != 0,
-      .is_a_number = (v & 0x00400) != 0
-   };
-}
-
-static nir_alu_type
-nir_alu_src_type(const nir_alu_instr *instr, unsigned src)
-{
-   return nir_alu_type_get_base_type(nir_op_infos[instr->op].input_types[src]) |
-          nir_src_bit_size(instr->src[src].src);
-}
-
-static struct fp_result_range
+static fp_class_mask
 analyze_fp_constant(const nir_load_const_instr *const load)
 {
-   struct fp_result_range r = { unknown, false, false, false };
-
-   double min_value = NAN;
-   double max_value = NAN;
-   bool any_zero = false;
-   bool all_zero = true;
-
-   r.is_integral = true;
-   r.is_a_number = true;
-   r.is_finite = true;
+   fp_class_mask result = 0;
 
    for (unsigned i = 0; i < load->def.num_components; ++i) {
       const double v = nir_const_value_as_float(load->value[i],
                                                 load->def.bit_size);
 
-      if (floor(v) != v)
-         r.is_integral = false;
+      if (!isnan(v) && floor(v) != v)
+         result |= FP_CLASS_NON_INTEGRAL;
 
       if (isnan(v))
-         r.is_a_number = false;
+         result |= FP_CLASS_NAN;
+      else if (v == -INFINITY)
+         result |= FP_CLASS_NEG_INF;
+      else if (v < -1.0)
+         result |= FP_CLASS_LT_NEG_ONE;
+      else if (v == -1.0)
+         result |= FP_CLASS_NEG_ONE;
+      else if (v < 0.0)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE;
+      else if (dui(v) == 0)
+         result |= FP_CLASS_POS_ZERO;
+      else if (v == 0.0)
+         result |= FP_CLASS_NEG_ZERO;
+      else if (v < 1.0)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE;
+      else if (v == 1.0)
+         result |= FP_CLASS_POS_ONE;
+      else if (v < INFINITY)
+         result |= FP_CLASS_GT_POS_ONE;
+      else
+         result |= FP_CLASS_POS_INF;
 
-      if (!isfinite(v))
-         r.is_finite = false;
-
-      any_zero = any_zero || (v == 0.0);
-      all_zero = all_zero && (v == 0.0);
-      min_value = fmin(min_value, v);
-      max_value = fmax(max_value, v);
+      if (v != 0) {
+         /* handle potential denorm flushing. */
+         bool is_denorm = false;
+         switch (load->def.bit_size) {
+         case 64:
+            is_denorm = fabs(v) < DBL_MIN;
+            break;
+         case 32:
+            is_denorm = fabs(v) < FLT_MIN;
+            break;
+         case 16:
+            is_denorm = fabs(v) < ldexp(1.0, -14);
+            break;
+         default:
+            UNREACHABLE("unsupported float size");
+         }
+         if (is_denorm)
+            result |= v < 0.0 ? FP_CLASS_NEG_ZERO : FP_CLASS_POS_ZERO;
+      }
    }
 
-   assert(any_zero >= all_zero);
-   assert(isnan(max_value) || max_value >= min_value);
-
-   if (all_zero)
-      r.range = eq_zero;
-   else if (min_value > 0.0)
-      r.range = gt_zero;
-   else if (min_value == 0.0)
-      r.range = ge_zero;
-   else if (max_value < 0.0)
-      r.range = lt_zero;
-   else if (max_value == 0.0)
-      r.range = le_zero;
-   else if (!any_zero)
-      r.range = ne_zero;
-   else
-      r.range = unknown;
-
-   return r;
+   return result;
 }
-
-/**
- * Short-hand name for use in the tables in process_fp_query.  If this name
- * becomes a problem on some compiler, we can change it to _.
- */
-#define _______ unknown
-
-#if defined(__clang__)
-/* clang wants _Pragma("unroll X") */
-#define pragma_unroll_5 _Pragma("unroll 5")
-#define pragma_unroll_7 _Pragma("unroll 7")
-/* gcc wants _Pragma("GCC unroll X") */
-#elif defined(__GNUC__)
-#if __GNUC__ >= 8
-#define pragma_unroll_5 _Pragma("GCC unroll 5")
-#define pragma_unroll_7 _Pragma("GCC unroll 7")
-#else
-#pragma GCC optimize("unroll-loops")
-#define pragma_unroll_5
-#define pragma_unroll_7
-#endif
-#else
-/* MSVC doesn't have C99's _Pragma() */
-#define pragma_unroll_5
-#define pragma_unroll_7
-#endif
-
-#ifndef NDEBUG
-#define ASSERT_TABLE_IS_COMMUTATIVE(t)                                      \
-   do {                                                                     \
-      static bool first = true;                                             \
-      if (first) {                                                          \
-         first = false;                                                     \
-         pragma_unroll_7 for (unsigned r = 0; r < ARRAY_SIZE(t); r++)       \
-         {                                                                  \
-            pragma_unroll_7 for (unsigned c = 0; c < ARRAY_SIZE(t[0]); c++) \
-               assert(t[r][c] == t[c][r]);                                  \
-         }                                                                  \
-      }                                                                     \
-   } while (false)
-
-#define ASSERT_TABLE_IS_DIAGONAL(t)                                   \
-   do {                                                               \
-      static bool first = true;                                       \
-      if (first) {                                                    \
-         first = false;                                               \
-         pragma_unroll_7 for (unsigned r = 0; r < ARRAY_SIZE(t); r++) \
-            assert(t[r][r] == r);                                     \
-      }                                                               \
-   } while (false)
-
-#else
-#define ASSERT_TABLE_IS_COMMUTATIVE(t)
-#define ASSERT_TABLE_IS_DIAGONAL(t)
-#endif /* !defined(NDEBUG) */
-
-static enum fp_ranges
-union_ranges(enum fp_ranges a, enum fp_ranges b)
-{
-   static const enum fp_ranges union_table[last_range + 1][last_range + 1] = {
-      /* left\right   unknown  lt_zero  le_zero  gt_zero  ge_zero  ne_zero  eq_zero */
-      /* unknown */ { _______, _______, _______, _______, _______, _______, _______ },
-      /* lt_zero */ { _______, lt_zero, le_zero, ne_zero, _______, ne_zero, le_zero },
-      /* le_zero */ { _______, le_zero, le_zero, _______, _______, _______, le_zero },
-      /* gt_zero */ { _______, ne_zero, _______, gt_zero, ge_zero, ne_zero, ge_zero },
-      /* ge_zero */ { _______, _______, _______, ge_zero, ge_zero, _______, ge_zero },
-      /* ne_zero */ { _______, ne_zero, _______, ne_zero, _______, ne_zero, _______ },
-      /* eq_zero */ { _______, le_zero, le_zero, ge_zero, ge_zero, _______, eq_zero },
-   };
-
-   ASSERT_TABLE_IS_COMMUTATIVE(union_table);
-   ASSERT_TABLE_IS_DIAGONAL(union_table);
-
-   return union_table[a][b];
-}
-
-#ifndef NDEBUG
-/* Verify that the 'unknown' entry in each row (or column) of the table is the
- * union of all the other values in the row (or column).
- */
-#define ASSERT_UNION_OF_OTHERS_MATCHES_UNKNOWN_2_SOURCE(t)                      \
-   do {                                                                         \
-      static bool first = true;                                                 \
-      if (first) {                                                              \
-         first = false;                                                         \
-         pragma_unroll_7 for (unsigned i = 0; i < last_range; i++)              \
-         {                                                                      \
-            enum fp_ranges col_range = t[i][unknown + 1];                       \
-            enum fp_ranges row_range = t[unknown + 1][i];                       \
-                                                                                \
-            pragma_unroll_5 for (unsigned j = unknown + 2; j < last_range; j++) \
-            {                                                                   \
-               col_range = union_ranges(col_range, t[i][j]);                    \
-               row_range = union_ranges(row_range, t[j][i]);                    \
-            }                                                                   \
-                                                                                \
-            assert(col_range == t[i][unknown]);                                 \
-            assert(row_range == t[unknown][i]);                                 \
-         }                                                                      \
-      }                                                                         \
-   } while (false)
-
-/* For most operations, the union of ranges for a strict inequality and
- * equality should be the range of the non-strict inequality (e.g.,
- * union_ranges(range(op(lt_zero), range(op(eq_zero))) == range(op(le_zero)).
- *
- * Does not apply to selection-like opcodes (bcsel, fmin, fmax, etc.).
- */
-#define ASSERT_UNION_OF_EQ_AND_STRICT_INEQ_MATCHES_NONSTRICT_1_SOURCE(t) \
-   do {                                                                  \
-      assert(union_ranges(t[lt_zero], t[eq_zero]) == t[le_zero]);        \
-      assert(union_ranges(t[gt_zero], t[eq_zero]) == t[ge_zero]);        \
-   } while (false)
-
-#define ASSERT_UNION_OF_EQ_AND_STRICT_INEQ_MATCHES_NONSTRICT_2_SOURCE(t)         \
-   do {                                                                          \
-      static bool first = true;                                                  \
-      if (first) {                                                               \
-         first = false;                                                          \
-         pragma_unroll_7 for (unsigned i = 0; i < last_range; i++)               \
-         {                                                                       \
-            assert(union_ranges(t[i][lt_zero], t[i][eq_zero]) == t[i][le_zero]); \
-            assert(union_ranges(t[i][gt_zero], t[i][eq_zero]) == t[i][ge_zero]); \
-            assert(union_ranges(t[lt_zero][i], t[eq_zero][i]) == t[le_zero][i]); \
-            assert(union_ranges(t[gt_zero][i], t[eq_zero][i]) == t[ge_zero][i]); \
-         }                                                                       \
-      }                                                                          \
-   } while (false)
-
-/* Several other unordered tuples span the range of "everything."  Each should
- * have the same value as unknown: (lt_zero, ge_zero), (le_zero, gt_zero), and
- * (eq_zero, ne_zero).  union_ranges is already commutative, so only one
- * ordering needs to be checked.
- *
- * Does not apply to selection-like opcodes (bcsel, fmin, fmax, etc.).
- *
- * In cases where this can be used, it is unnecessary to also use
- * ASSERT_UNION_OF_OTHERS_MATCHES_UNKNOWN_*_SOURCE.  For any range X,
- * union_ranges(X, X) == X.  The disjoint ranges cover all of the non-unknown
- * possibilities, so the union of all the unions of disjoint ranges is
- * equivalent to the union of "others."
- */
-#define ASSERT_UNION_OF_DISJOINT_MATCHES_UNKNOWN_1_SOURCE(t)      \
-   do {                                                           \
-      assert(union_ranges(t[lt_zero], t[ge_zero]) == t[unknown]); \
-      assert(union_ranges(t[le_zero], t[gt_zero]) == t[unknown]); \
-      assert(union_ranges(t[eq_zero], t[ne_zero]) == t[unknown]); \
-   } while (false)
-
-#define ASSERT_UNION_OF_DISJOINT_MATCHES_UNKNOWN_2_SOURCE(t)       \
-   do {                                                            \
-      static bool first = true;                                    \
-      if (first) {                                                 \
-         first = false;                                            \
-         pragma_unroll_7 for (unsigned i = 0; i < last_range; i++) \
-         {                                                         \
-            assert(union_ranges(t[i][lt_zero], t[i][ge_zero]) ==   \
-                   t[i][unknown]);                                 \
-            assert(union_ranges(t[i][le_zero], t[i][gt_zero]) ==   \
-                   t[i][unknown]);                                 \
-            assert(union_ranges(t[i][eq_zero], t[i][ne_zero]) ==   \
-                   t[i][unknown]);                                 \
-                                                                   \
-            assert(union_ranges(t[lt_zero][i], t[ge_zero][i]) ==   \
-                   t[unknown][i]);                                 \
-            assert(union_ranges(t[le_zero][i], t[gt_zero][i]) ==   \
-                   t[unknown][i]);                                 \
-            assert(union_ranges(t[eq_zero][i], t[ne_zero][i]) ==   \
-                   t[unknown][i]);                                 \
-         }                                                         \
-      }                                                            \
-   } while (false)
-
-#else
-#define ASSERT_UNION_OF_OTHERS_MATCHES_UNKNOWN_2_SOURCE(t)
-#define ASSERT_UNION_OF_EQ_AND_STRICT_INEQ_MATCHES_NONSTRICT_1_SOURCE(t)
-#define ASSERT_UNION_OF_EQ_AND_STRICT_INEQ_MATCHES_NONSTRICT_2_SOURCE(t)
-#define ASSERT_UNION_OF_DISJOINT_MATCHES_UNKNOWN_1_SOURCE(t)
-#define ASSERT_UNION_OF_DISJOINT_MATCHES_UNKNOWN_2_SOURCE(t)
-#endif /* !defined(NDEBUG) */
 
 struct fp_query {
    struct analysis_query head;
@@ -428,69 +217,510 @@ fp_insert(void *table, uint32_t key, uint32_t value)
    *(uint32_t *)util_sparse_array_get(&state->arr, key) = value;
 }
 
-static inline bool
-fmul_is_a_number(const struct fp_result_range left, const struct fp_result_range right, bool mulz)
+static fp_class_mask
+fneg_fp_class(fp_class_mask src)
 {
-   if (mulz) {
-      /* nir_op_fmulz: unlike nir_op_fmul, 0 * ±Inf is a number. */
-      return left.is_a_number && right.is_a_number;
-   } else {
-      /* Mulitpliation produces NaN for X * NaN and for 0 * ±Inf.  If both
-       * operands are numbers and either both are finite or one is finite and
-       * the other cannot be zero, then the result must be a number.
-       */
-      return  (left.is_a_number && right.is_a_number) &&
-               ((left.is_finite && right.is_finite) ||
-                (!is_not_zero(left.range) && right.is_finite) ||
-                (left.is_finite && !is_not_zero(right.range)));
-   }
+   fp_class_mask result = src & (FP_CLASS_NAN | FP_CLASS_NON_INTEGRAL);
+
+#define NEG_BIT(neg, pos)       \
+   if (src & FP_CLASS_##pos)    \
+      result |= FP_CLASS_##neg; \
+   if (src & FP_CLASS_##neg)    \
+      result |= FP_CLASS_##pos;
+
+   NEG_BIT(NEG_INF, POS_INF);
+   NEG_BIT(LT_NEG_ONE, GT_POS_ONE);
+   NEG_BIT(NEG_ONE, POS_ONE);
+   NEG_BIT(LT_ZERO_GT_NEG_ONE, GT_ZERO_LT_POS_ONE);
+   NEG_BIT(NEG_ZERO, POS_ZERO);
+
+#undef NEG_BIT
+
+   return result;
 }
 
-static inline bool
-fadd_is_a_number(const struct fp_result_range left, const struct fp_result_range right)
+static fp_class_mask
+fmul_fp_class(fp_class_mask left, fp_class_mask right, bool mulz, bool src_eq, bool src_neg_eq)
 {
+   /* For runtime performance, shortcut the common completely unknown case. */
+   if (left == FP_CLASS_UNKNOWN && right == FP_CLASS_UNKNOWN && !src_eq && !src_neg_eq)
+      return FP_CLASS_UNKNOWN;
+
+   fp_class_mask result = 0;
+
+   if (left & FP_CLASS_NAN) {
+      if (right & FP_CLASS_ANY_ZERO)
+         result |= mulz ? FP_CLASS_POS_ZERO : FP_CLASS_NAN;
+
+      if (right & (FP_CLASS_ANY_NEG | FP_CLASS_ANY_POS | FP_CLASS_NAN))
+         result |= FP_CLASS_NAN;
+   }
+
+   if (left & FP_CLASS_NEG_INF) {
+      if (right & FP_CLASS_ANY_ZERO)
+         result |= mulz ? FP_CLASS_POS_ZERO : FP_CLASS_NAN;
+
+      if (right & FP_CLASS_ANY_NEG)
+         result |= FP_CLASS_POS_INF;
+
+      if (right & FP_CLASS_ANY_POS)
+         result |= FP_CLASS_NEG_INF;
+
+      if (right & FP_CLASS_NAN)
+         result |= FP_CLASS_NAN;
+   }
+
+   if (left & FP_CLASS_POS_INF) {
+      if (right & FP_CLASS_ANY_ZERO)
+         result |= mulz ? FP_CLASS_POS_ZERO : FP_CLASS_NAN;
+
+      if (right & FP_CLASS_ANY_POS)
+         result |= FP_CLASS_POS_INF;
+
+      if (right & FP_CLASS_ANY_NEG)
+         result |= FP_CLASS_NEG_INF;
+
+      if (right & FP_CLASS_NAN)
+         result |= FP_CLASS_NAN;
+   }
+
+   if (left & FP_CLASS_ANY_NEG_FINITE) {
+      if (right & FP_CLASS_POS_ZERO)
+         result |= mulz ? FP_CLASS_POS_ZERO : FP_CLASS_NEG_ZERO;
+
+      result |= fneg_fp_class(right & (FP_CLASS_NEG_ZERO | FP_CLASS_POS_INF | FP_CLASS_NEG_INF | FP_CLASS_NAN));
+   }
+
+   if (left & FP_CLASS_ANY_POS_FINITE) {
+      if (right & FP_CLASS_NEG_ZERO)
+         result |= mulz ? FP_CLASS_POS_ZERO : FP_CLASS_NEG_ZERO;
+
+      result |= right & (FP_CLASS_POS_ZERO | FP_CLASS_POS_INF | FP_CLASS_NEG_INF | FP_CLASS_NAN);
+   }
+
+   if (left & FP_CLASS_LT_NEG_ONE) {
+      if (right & FP_CLASS_LT_NEG_ONE)
+         result |= FP_CLASS_POS_INF | FP_CLASS_GT_POS_ONE;
+
+      if (right & FP_CLASS_NEG_ONE)
+         result |= FP_CLASS_GT_POS_ONE;
+
+      if (right & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE;
+
+      if (right & FP_CLASS_GT_POS_ONE)
+         result |= FP_CLASS_NEG_INF | FP_CLASS_LT_NEG_ONE;
+
+      if (right & FP_CLASS_POS_ONE)
+         result |= FP_CLASS_LT_NEG_ONE;
+
+      if (right & FP_CLASS_GT_ZERO_LT_POS_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_NEG_ONE;
+   }
+
+   if (left & FP_CLASS_GT_POS_ONE) {
+      if (right & FP_CLASS_GT_POS_ONE)
+         result |= FP_CLASS_POS_INF | FP_CLASS_GT_POS_ONE;
+
+      if (right & FP_CLASS_POS_ONE)
+         result |= FP_CLASS_GT_POS_ONE;
+
+      if (right & FP_CLASS_GT_ZERO_LT_POS_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE;
+
+      if (right & FP_CLASS_LT_NEG_ONE)
+         result |= FP_CLASS_NEG_INF | FP_CLASS_LT_NEG_ONE;
+
+      if (right & FP_CLASS_NEG_ONE)
+         result |= FP_CLASS_LT_NEG_ONE;
+
+      if (right & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_NEG_ONE;
+   }
+
+   if (left & FP_CLASS_NEG_ONE)
+      result |= fneg_fp_class(right & ~FP_CLASS_ANY_ZERO);
+
+   if (left & FP_CLASS_POS_ONE)
+      result |= right & ~FP_CLASS_ANY_ZERO;
+
+   if (left & FP_CLASS_LT_ZERO_GT_NEG_ONE) {
+      if (right & FP_CLASS_LT_NEG_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE;
+
+      if (right & FP_CLASS_NEG_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE;
+
+      if (right & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+         result |= FP_CLASS_POS_ZERO | FP_CLASS_GT_ZERO_LT_POS_ONE;
+
+      if (right & FP_CLASS_GT_POS_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_NEG_ONE;
+
+      if (right & FP_CLASS_POS_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE;
+
+      if (right & FP_CLASS_GT_ZERO_LT_POS_ONE)
+         result |= FP_CLASS_NEG_ZERO | FP_CLASS_LT_ZERO_GT_NEG_ONE;
+   }
+
+   if (left & FP_CLASS_GT_ZERO_LT_POS_ONE) {
+      if (right & FP_CLASS_GT_POS_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE;
+
+      if (right & FP_CLASS_POS_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE;
+
+      if (right & FP_CLASS_GT_ZERO_LT_POS_ONE)
+         result |= FP_CLASS_POS_ZERO | FP_CLASS_GT_ZERO_LT_POS_ONE;
+
+      if (right & FP_CLASS_LT_NEG_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_NEG_ONE;
+
+      if (right & FP_CLASS_NEG_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE;
+
+      if (right & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+         result |= FP_CLASS_NEG_ZERO | FP_CLASS_LT_ZERO_GT_NEG_ONE;
+   }
+
+   if (left & FP_CLASS_NEG_ZERO) {
+      if (mulz) {
+         result |= FP_CLASS_POS_ZERO;
+      } else {
+         if (right & (FP_CLASS_ANY_INF | FP_CLASS_NAN))
+            result |= FP_CLASS_NAN;
+
+         if (right & (FP_CLASS_ANY_NEG_FINITE | FP_CLASS_NEG_ZERO))
+            result |= FP_CLASS_POS_ZERO;
+
+         if (right & (FP_CLASS_ANY_POS_FINITE | FP_CLASS_POS_ZERO))
+            result |= FP_CLASS_NEG_ZERO;
+      }
+   }
+
+   if (left & FP_CLASS_POS_ZERO) {
+      if (mulz) {
+         result |= FP_CLASS_POS_ZERO;
+      } else {
+         if (right & (FP_CLASS_ANY_INF | FP_CLASS_NAN))
+            result |= FP_CLASS_NAN;
+
+         if (right & (FP_CLASS_ANY_POS_FINITE | FP_CLASS_POS_ZERO))
+            result |= FP_CLASS_POS_ZERO;
+
+         if (right & (FP_CLASS_ANY_NEG_FINITE | FP_CLASS_NEG_ZERO))
+            result |= FP_CLASS_NEG_ZERO;
+      }
+   }
+
+   if (src_eq || src_neg_eq) {
+      /* This case can't create new ones. */
+      if (!(left & (FP_CLASS_POS_ONE | FP_CLASS_NEG_ONE)))
+         result &= ~(FP_CLASS_POS_ONE | FP_CLASS_NEG_ONE);
+
+      if (src_eq)
+         result &= ~(FP_CLASS_ANY_NEG | FP_CLASS_NEG_ZERO);
+      else if (src_neg_eq && mulz)
+         result &= ~FP_CLASS_ANY_POS;
+      else if (src_neg_eq)
+         result &= ~(FP_CLASS_ANY_POS | FP_CLASS_POS_ZERO);
+   }
+
+   if ((left | right) & FP_CLASS_NON_INTEGRAL) {
+      if (result & (FP_CLASS_LT_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE |
+                    FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_GT_POS_ONE))
+         result |= FP_CLASS_NON_INTEGRAL;
+   } else {
+      result &= ~(FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE);
+   }
+
+   return result;
+}
+
+static fp_class_mask
+fadd_fp_class(fp_class_mask left, fp_class_mask right)
+{
+   /* For runtime performance, shortcut the common completely unknown case. */
+   if (left == FP_CLASS_UNKNOWN && right == FP_CLASS_UNKNOWN)
+      return FP_CLASS_UNKNOWN;
+
+   fp_class_mask result = (left | right) & FP_CLASS_NAN;
    /* X + Y is NaN if either operand is NaN or if one operand is +Inf and
-    * the other is -Inf.  If neither operand is NaN and at least one of the
-    * operands is finite, then the result cannot be NaN.
-    * If the combined range doesn't contain both postive and negative values
-    * (including Infs) then the result cannot be NaN either.
+    * the other is -Inf.
     */
-   enum fp_ranges combined_range = union_ranges(left.range, right.range);
-   return left.is_a_number && right.is_a_number &&
-          (left.is_finite || right.is_finite ||
-           combined_range == eq_zero ||
-           combined_range == gt_zero ||
-           combined_range == ge_zero ||
-           combined_range == lt_zero ||
-           combined_range == le_zero);
+   if (left & FP_CLASS_NEG_INF) {
+      if (right & FP_CLASS_POS_INF)
+         result |= FP_CLASS_NAN;
+      if (right & (FP_CLASS_ANY_FINITE | FP_CLASS_NEG_INF))
+         result |= FP_CLASS_NEG_INF;
+   }
+
+   if (left & FP_CLASS_POS_INF) {
+      if (right & FP_CLASS_NEG_INF)
+         result |= FP_CLASS_NAN;
+      if (right & (FP_CLASS_ANY_FINITE | FP_CLASS_POS_INF))
+         result |= FP_CLASS_POS_INF;
+   }
+
+   if (left & FP_CLASS_LT_NEG_ONE) {
+      result |= (right & FP_CLASS_ANY_INF);
+
+      if (right & FP_CLASS_LT_NEG_ONE)
+         result |= FP_CLASS_NEG_INF | FP_CLASS_LT_NEG_ONE;
+
+      if (right & (FP_CLASS_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_ANY_ZERO))
+         result |= FP_CLASS_LT_NEG_ONE;
+
+      if (right & (FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE))
+         result |= FP_CLASS_LT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE;
+
+      if (right & FP_CLASS_GT_POS_ONE)
+         result |= FP_CLASS_ANY_FINITE;
+   }
+
+   if (left & FP_CLASS_GT_POS_ONE) {
+      result |= (right & FP_CLASS_ANY_INF);
+
+      if (right & FP_CLASS_GT_POS_ONE)
+         result |= FP_CLASS_POS_INF | FP_CLASS_GT_POS_ONE;
+
+      if (right & (FP_CLASS_POS_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_ANY_ZERO))
+         result |= FP_CLASS_GT_POS_ONE;
+
+      if (right & (FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ONE))
+         result |= FP_CLASS_GT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE;
+
+      if (right & FP_CLASS_LT_NEG_ONE)
+         result |= FP_CLASS_ANY_FINITE;
+   }
+
+   if (left & FP_CLASS_NEG_ONE) {
+      result |= (right & FP_CLASS_ANY_INF);
+
+      if (right & (FP_CLASS_LT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE))
+         result |= FP_CLASS_LT_NEG_ONE;
+
+      if (right & (FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_ANY_ZERO | FP_CLASS_GT_ZERO_LT_POS_ONE))
+         result |= FP_CLASS_NEG_ONE;
+
+      if (right & FP_CLASS_GT_ZERO_LT_POS_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE;
+
+      if (right & FP_CLASS_POS_ONE)
+         result |= FP_CLASS_POS_ZERO;
+
+      if (right & FP_CLASS_GT_POS_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE;
+   }
+
+   if (left & FP_CLASS_POS_ONE) {
+      result |= (right & FP_CLASS_ANY_INF);
+
+      if (right & (FP_CLASS_GT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE))
+         result |= FP_CLASS_GT_POS_ONE;
+
+      if (right & (FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_ANY_ZERO | FP_CLASS_LT_ZERO_GT_NEG_ONE))
+         result |= FP_CLASS_POS_ONE;
+
+      if (right & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE;
+
+      if (right & FP_CLASS_NEG_ONE)
+         result |= FP_CLASS_POS_ZERO;
+
+      if (right & FP_CLASS_LT_NEG_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_NEG_ONE;
+   }
+
+   if (left & FP_CLASS_LT_ZERO_GT_NEG_ONE) {
+      result |= (right & FP_CLASS_ANY_INF);
+
+      if (right & FP_CLASS_LT_NEG_ONE)
+         result |= FP_CLASS_LT_NEG_ONE;
+
+      if (right & FP_CLASS_NEG_ONE)
+         result |= FP_CLASS_LT_NEG_ONE | FP_CLASS_NEG_ONE;
+
+      if (right & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+         result |= FP_CLASS_LT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE;
+
+      if (right & FP_CLASS_ANY_ZERO)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE;
+
+      if (right & FP_CLASS_GT_ZERO_LT_POS_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_ANY_ZERO | FP_CLASS_GT_ZERO_LT_POS_ONE;
+
+      if (right & FP_CLASS_POS_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE;
+
+      if (right & FP_CLASS_GT_POS_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE;
+   }
+
+   if (left & FP_CLASS_GT_ZERO_LT_POS_ONE) {
+      result |= (right & FP_CLASS_ANY_INF);
+
+      if (right & FP_CLASS_GT_POS_ONE)
+         result |= FP_CLASS_GT_POS_ONE;
+
+      if (right & FP_CLASS_POS_ONE)
+         result |= FP_CLASS_GT_POS_ONE | FP_CLASS_POS_ONE;
+
+      if (right & FP_CLASS_GT_ZERO_LT_POS_ONE)
+         result |= FP_CLASS_GT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE;
+
+      if (right & FP_CLASS_ANY_ZERO)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE;
+
+      if (right & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_ANY_ZERO | FP_CLASS_LT_ZERO_GT_NEG_ONE;
+
+      if (right & FP_CLASS_NEG_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ONE;
+
+      if (right & FP_CLASS_LT_NEG_ONE)
+         result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_NEG_ONE;
+   }
+
+   if (left & FP_CLASS_NEG_ZERO) {
+      result |= right;
+   }
+
+   if (left & FP_CLASS_POS_ZERO) {
+      result |= right & ~FP_CLASS_NEG_ZERO;
+      if (right & FP_CLASS_NEG_ZERO)
+         result |= FP_CLASS_POS_ZERO;
+   }
+
+   if ((left | right) & FP_CLASS_NON_INTEGRAL) {
+      if (result & (FP_CLASS_LT_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE |
+                    FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_GT_POS_ONE))
+         result |= FP_CLASS_NON_INTEGRAL;
+   } else {
+      result &= ~(FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE);
+   }
+
+   return result;
+}
+
+static fp_class_mask
+frcp_fp_class(fp_class_mask src)
+{
+   fp_class_mask result = src & FP_CLASS_NAN;
+
+   /* Inf/Zero result in Zero/Inf.*/
+   if (src & FP_CLASS_NEG_INF)
+      result |= FP_CLASS_NEG_ZERO;
+   if (src & FP_CLASS_POS_INF)
+      result |= FP_CLASS_POS_ZERO;
+   if (src & FP_CLASS_NEG_ZERO)
+      result |= FP_CLASS_NEG_INF;
+   if (src & FP_CLASS_POS_ZERO)
+      result |= FP_CLASS_POS_INF;
+
+   /* One results in one. */
+   if (src & FP_CLASS_NEG_ONE)
+      result |= FP_CLASS_NEG_ONE;
+   if (src & FP_CLASS_POS_ONE)
+      result |= FP_CLASS_POS_ONE;
+
+   if (src & FP_CLASS_LT_NEG_ONE)
+      result |= FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ZERO | FP_CLASS_NON_INTEGRAL;
+   if (src & FP_CLASS_GT_POS_ONE)
+      result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ZERO | FP_CLASS_NON_INTEGRAL;
+
+   if (src & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+      result |= FP_CLASS_LT_NEG_ONE | FP_CLASS_NEG_INF | FP_CLASS_NON_INTEGRAL;
+   if (src & FP_CLASS_GT_ZERO_LT_POS_ONE)
+      result |= FP_CLASS_GT_POS_ONE | FP_CLASS_POS_INF | FP_CLASS_NON_INTEGRAL;
+
+   return result;
+}
+
+static fp_class_mask
+fsqrt_fp_class(fp_class_mask src)
+{
+   fp_class_mask result = src & (FP_CLASS_NAN | FP_CLASS_ANY_ZERO);
+
+   if (src & FP_CLASS_ANY_NEG)
+      result |= FP_CLASS_NAN;
+
+   if (src & FP_CLASS_GT_ZERO_LT_POS_ONE)
+      result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_NON_INTEGRAL;
+   if (src & FP_CLASS_POS_ONE)
+      result |= FP_CLASS_POS_ONE;
+   if (src & FP_CLASS_GT_POS_ONE)
+      result |= FP_CLASS_GT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_NON_INTEGRAL;
+   if (src & FP_CLASS_POS_INF)
+      result |= FP_CLASS_POS_INF;
+
+   return result;
+}
+
+static fp_class_mask
+fmin_part(fp_class_mask upper_bound, fp_class_mask value)
+{
+   /* Find the highest value in upper_bound, and return all
+    * smaller or equal values from value.
+    */
+   upper_bound &= FP_CLASS_ANY_NEG | FP_CLASS_ANY_ZERO | FP_CLASS_ANY_POS;
+   value &= FP_CLASS_ANY_NEG | FP_CLASS_ANY_ZERO | FP_CLASS_ANY_POS;
+
+   /* This works even in the case where upper_bound is 0 */
+   return value & BITFIELD_MASK(util_last_bit(upper_bound));
+}
+
+static fp_class_mask
+fmin_fp_class(fp_class_mask left, fp_class_mask right)
+{
+   fp_class_mask result = 0;
+
+   /* If one source is NaN, we have to include the whole range of the other source. */
+   if (left & FP_CLASS_NAN)
+      result |= right;
+   if (right & FP_CLASS_NAN)
+      result |= left;
+
+   result |= fmin_part(left, right);
+   result |= fmin_part(right, left);
+
+   /* Could probably do better, but meh. */
+   if ((left | right) & FP_CLASS_NON_INTEGRAL) {
+      if (result & (FP_CLASS_LT_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE |
+                    FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_GT_POS_ONE))
+         result |= FP_CLASS_NON_INTEGRAL;
+   }
+
+   return result;
+}
+
+static fp_class_mask
+handle_sz(const nir_alu_instr *alu, fp_class_mask src)
+{
+   if (nir_alu_instr_is_signed_zero_preserve(alu) || !(src & FP_CLASS_ANY_ZERO))
+      return src;
+
+   return src | FP_CLASS_ANY_ZERO;
 }
 
 /**
- * Analyze an expression to determine the range of its result
- *
- * The end result of this analysis is a token that communicates something
- * about the range of values.  There's an implicit grammar that produces
- * tokens from sequences of literal values, other tokens, and operations.
- * This function implements this grammar as a recursive-descent parser.  Some
- * (but not all) of the grammar is listed in-line in the function.
+ * Analyze an expression to determine the possible fp classes of its result
  */
 static void
 process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32_t *result,
                  const uint32_t *src_res)
 {
-   /* Ensure that the _Pragma("GCC unroll 7") above are correct. */
-   STATIC_ASSERT(last_range + 1 == 7);
-
    struct fp_query q = *(struct fp_query *)aq;
    const nir_def *def = q.def;
 
    if (nir_def_is_const(def)) {
-      *result = pack_data(analyze_fp_constant(nir_def_as_load_const(def)));
+      *result = analyze_fp_constant(nir_def_as_load_const(def));
       return;
    }
 
    if (!nir_def_is_alu(def)) {
-      *result = pack_data((struct fp_result_range){ unknown, false, false, false });
+      *result = FP_CLASS_UNKNOWN;
       return;
    }
 
@@ -554,152 +784,52 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       }
    }
 
-   struct fp_result_range r = { unknown, false, false, false };
-
-   /* ge_zero: ge_zero + ge_zero
-    *
-    * gt_zero: gt_zero + eq_zero
-    *        | gt_zero + ge_zero
-    *        | eq_zero + gt_zero   # Addition is commutative
-    *        | ge_zero + gt_zero   # Addition is commutative
-    *        | gt_zero + gt_zero
-    *        ;
-    *
-    * le_zero: le_zero + le_zero
-    *
-    * lt_zero: lt_zero + eq_zero
-    *        | lt_zero + le_zero
-    *        | eq_zero + lt_zero   # Addition is commutative
-    *        | le_zero + lt_zero   # Addition is commutative
-    *        | lt_zero + lt_zero
-    *        ;
-    *
-    * ne_zero: eq_zero + ne_zero
-    *        | ne_zero + eq_zero   # Addition is commutative
-    *        ;
-    *
-    * eq_zero: eq_zero + eq_zero
-    *        ;
-    *
-    * All other cases are 'unknown'.  The seeming odd entry is (ne_zero,
-    * ne_zero), but that could be (-5, +5) which is not ne_zero.
-    */
-   static const enum fp_ranges fadd_table[last_range + 1][last_range + 1] = {
-      /* left\right   unknown  lt_zero  le_zero  gt_zero  ge_zero  ne_zero  eq_zero */
-      /* unknown */ { _______, _______, _______, _______, _______, _______, _______ },
-      /* lt_zero */ { _______, lt_zero, lt_zero, _______, _______, _______, lt_zero },
-      /* le_zero */ { _______, lt_zero, le_zero, _______, _______, _______, le_zero },
-      /* gt_zero */ { _______, _______, _______, gt_zero, gt_zero, _______, gt_zero },
-      /* ge_zero */ { _______, _______, _______, gt_zero, ge_zero, _______, ge_zero },
-      /* ne_zero */ { _______, _______, _______, _______, _______, _______, ne_zero },
-      /* eq_zero */ { _______, lt_zero, le_zero, gt_zero, ge_zero, ne_zero, eq_zero },
-   };
-
-   ASSERT_TABLE_IS_COMMUTATIVE(fadd_table);
-   ASSERT_UNION_OF_DISJOINT_MATCHES_UNKNOWN_2_SOURCE(fadd_table);
-   ASSERT_UNION_OF_EQ_AND_STRICT_INEQ_MATCHES_NONSTRICT_2_SOURCE(fadd_table);
-
-   /* Due to flush-to-zero semanatics of floating-point numbers with very
-    * small mangnitudes, we can never really be sure a result will be
-    * non-zero.
-    *
-    * ge_zero: ge_zero * ge_zero
-    *        | ge_zero * gt_zero
-    *        | ge_zero * eq_zero
-    *        | le_zero * lt_zero
-    *        | lt_zero * le_zero  # Multiplication is commutative
-    *        | le_zero * le_zero
-    *        | gt_zero * ge_zero  # Multiplication is commutative
-    *        | eq_zero * ge_zero  # Multiplication is commutative
-    *        | a * a              # Left source == right source
-    *        | gt_zero * gt_zero
-    *        | lt_zero * lt_zero
-    *        ;
-    *
-    * le_zero: ge_zero * le_zero
-    *        | ge_zero * lt_zero
-    *        | lt_zero * ge_zero  # Multiplication is commutative
-    *        | le_zero * ge_zero  # Multiplication is commutative
-    *        | le_zero * gt_zero
-    *        | lt_zero * gt_zero
-    *        | gt_zero * lt_zero  # Multiplication is commutative
-    *        ;
-    *
-    * eq_zero: eq_zero * <any>
-    *          <any> * eq_zero    # Multiplication is commutative
-    *
-    * All other cases are 'unknown'.
-    */
-   static const enum fp_ranges fmul_table[last_range + 1][last_range + 1] = {
-      /* left\right   unknown  lt_zero  le_zero  gt_zero  ge_zero  ne_zero  eq_zero */
-      /* unknown */ { _______, _______, _______, _______, _______, _______, eq_zero },
-      /* lt_zero */ { _______, ge_zero, ge_zero, le_zero, le_zero, _______, eq_zero },
-      /* le_zero */ { _______, ge_zero, ge_zero, le_zero, le_zero, _______, eq_zero },
-      /* gt_zero */ { _______, le_zero, le_zero, ge_zero, ge_zero, _______, eq_zero },
-      /* ge_zero */ { _______, le_zero, le_zero, ge_zero, ge_zero, _______, eq_zero },
-      /* ne_zero */ { _______, _______, _______, _______, _______, _______, eq_zero },
-      /* eq_zero */ { eq_zero, eq_zero, eq_zero, eq_zero, eq_zero, eq_zero, eq_zero }
-   };
-
-   ASSERT_TABLE_IS_COMMUTATIVE(fmul_table);
-   ASSERT_UNION_OF_DISJOINT_MATCHES_UNKNOWN_2_SOURCE(fmul_table);
-   ASSERT_UNION_OF_EQ_AND_STRICT_INEQ_MATCHES_NONSTRICT_2_SOURCE(fmul_table);
-
-   static const enum fp_ranges fneg_table[last_range + 1] = {
-      /* unknown  lt_zero  le_zero  gt_zero  ge_zero  ne_zero  eq_zero */
-      _______, gt_zero, ge_zero, lt_zero, le_zero, ne_zero, eq_zero
-   };
-
-   ASSERT_UNION_OF_DISJOINT_MATCHES_UNKNOWN_1_SOURCE(fneg_table);
-   ASSERT_UNION_OF_EQ_AND_STRICT_INEQ_MATCHES_NONSTRICT_1_SOURCE(fneg_table);
+   fp_class_mask r = FP_CLASS_UNKNOWN;
 
    switch (alu->op) {
-   case nir_op_b2f32:
+   case nir_op_b2i16:
    case nir_op_b2i32:
-      /* b2f32 will generate either 0.0 or 1.0.  This case is trivial.
-       *
-       * b2i32 will generate either 0x00000000 or 0x00000001.  When those bit
+   case nir_op_b2i64:
+      /* b2i32 will generate either 0x00000000 or 0x00000001.  When those bit
        * patterns are interpreted as floating point, they are 0.0 and
-       * 1.401298464324817e-45.  The latter is subnormal, but it is finite and
-       * a number.
+       * 1.401298464324817e-45.  The latter is subnormal.
        */
-      r = (struct fp_result_range){ ge_zero, alu->op == nir_op_b2f32, true, true };
+      r = FP_CLASS_POS_ZERO | FP_CLASS_GT_ZERO_LT_POS_ONE;
       break;
 
-   case nir_op_bcsel: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-      const struct fp_result_range right = unpack_data(src_res[1]);
-
-      r.is_integral = left.is_integral && right.is_integral;
-
-      /* This could be better, but it would require a lot of work.  For
-       * example, the result of the following is a number:
-       *
-       *    bcsel(a > 0.0, a, 38.6)
-       *
-       * If the result of 'a > 0.0' is true, then the use of 'a' in the true
-       * part of the bcsel must be a number.
-       *
-       * Other cases are even more challenging.
-       *
-       *    bcsel(a > 0.5, a - 0.5, 0.0)
-       */
-      r.is_a_number = left.is_a_number && right.is_a_number;
-      r.is_finite = left.is_finite && right.is_finite;
-
-      r.range = union_ranges(left.range, right.range);
+   case nir_op_b2f16:
+   case nir_op_b2f32:
+   case nir_op_b2f64:
+      r = FP_CLASS_POS_ZERO | FP_CLASS_POS_ONE;
       break;
-   }
 
+   case nir_op_vec2:
+   case nir_op_bcsel:
+      r = src_res[0] | src_res[1];
+      break;
+
+   case nir_op_i2f16:
    case nir_op_i2f32:
+   case nir_op_i2f64:
+      r &= ~FP_CLASS_NAN;
+      r &= ~FP_CLASS_NON_INTEGRAL;
+      r &= ~FP_CLASS_GT_ZERO_LT_POS_ONE;
+      r &= ~FP_CLASS_LT_ZERO_GT_NEG_ONE;
+      r &= ~FP_CLASS_NEG_ZERO;
+      if (alu->def.bit_size > 16 || alu->src[0].src.ssa->bit_size <= 16)
+         r &= ~FP_CLASS_ANY_INF;
+      break;
+
+   case nir_op_u2f16:
    case nir_op_u2f32:
-      r.is_integral = true;
-      r.is_a_number = true;
-      r.is_finite = true;
-
-      if (alu->op == nir_op_u2f32)
-         r.range = ge_zero;
-
+   case nir_op_u2f64:
+      r &= ~FP_CLASS_NAN;
+      r &= ~FP_CLASS_NON_INTEGRAL;
+      r &= ~FP_CLASS_GT_ZERO_LT_POS_ONE;
+      r &= ~FP_CLASS_NEG_ZERO;
+      r &= ~FP_CLASS_ANY_NEG;
+      if (alu->def.bit_size > 16 || alu->src[0].src.ssa->bit_size < 16)
+         r &= ~FP_CLASS_ANY_INF;
       break;
 
    case nir_op_f2f16:
@@ -707,473 +837,254 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
    case nir_op_f2f16_rtne:
    case nir_op_f2f32:
    case nir_op_f2f64: {
-      r = unpack_data(src_res[0]);
-
-      bool rtz = alu->op == nir_op_f2f16_rtz;
-      if (alu->op != nir_op_f2f16_rtne && alu->op != nir_op_f2f16_rtz) {
-         nir_shader *shader = nir_cf_node_get_function(&alu->instr.block->cf_node)->function->shader;
-         unsigned execution_mode = shader->info.float_controls_execution_mode;
-         rtz = nir_is_rounding_mode_rtz(execution_mode, alu->def.bit_size);
-      }
+      r = handle_sz(alu, src_res[0]);
 
       if (alu->src[0].src.ssa->bit_size > alu->def.bit_size) {
+         bool rtz = alu->op == nir_op_f2f16_rtz;
+         if (alu->op != nir_op_f2f16_rtne && alu->op != nir_op_f2f16_rtz) {
+            nir_shader *shader = nir_cf_node_get_function(&alu->instr.block->cf_node)->function->shader;
+            unsigned execution_mode = shader->info.float_controls_execution_mode;
+            rtz = nir_is_rounding_mode_rtz(execution_mode, alu->def.bit_size);
+         }
+
          /* Unless we are rounding towards zero, large values can create Inf. */
-         if (!rtz && r.range != eq_zero)
-            r.is_finite = false;
+         if (r & FP_CLASS_LT_NEG_ONE) {
+            if (!rtz)
+               r |= FP_CLASS_NEG_INF;
+            r |= FP_CLASS_NEG_ONE;
+         }
+         if (r & FP_CLASS_GT_POS_ONE) {
+            if (!rtz)
+               r |= FP_CLASS_POS_INF;
+            r |= FP_CLASS_POS_ONE;
+         }
 
          /* Underflow can create new zeros. */
-         r.range = union_ranges(r.range, eq_zero);
+         if (r & FP_CLASS_LT_ZERO_GT_NEG_ONE) {
+            if (!rtz)
+               r |= FP_CLASS_NEG_ONE;
+            r |= FP_CLASS_NEG_ZERO;
+         }
+         if (r & FP_CLASS_GT_ZERO_LT_POS_ONE) {
+            if (!rtz)
+               r |= FP_CLASS_POS_ONE;
+            r |= FP_CLASS_POS_ZERO;
+         }
       }
-
-      break;
-   }
-
-   case nir_op_fabs:
-      r = unpack_data(src_res[0]);
-
-      switch (r.range) {
-      case unknown:
-      case le_zero:
-      case ge_zero:
-         r.range = ge_zero;
-         break;
-
-      case lt_zero:
-      case gt_zero:
-      case ne_zero:
-         r.range = gt_zero;
-         break;
-
-      case eq_zero:
-         break;
-      }
-
-      break;
-
-   case nir_op_fadd: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-      const struct fp_result_range right = unpack_data(src_res[1]);
-
-      r.is_integral = left.is_integral && right.is_integral;
-      r.range = fadd_table[left.range][right.range];
-      r.is_a_number = fadd_is_a_number(left, right);
-      break;
-   }
-
-   case nir_op_fexp2: {
-      /* If the parameter might be less than zero, the mathematically result
-       * will be on (0, 1).  For sufficiently large magnitude negative
-       * parameters, the result will flush to zero.
-       */
-      static const enum fp_ranges table[last_range + 1] = {
-         /* unknown  lt_zero  le_zero  gt_zero  ge_zero  ne_zero  eq_zero */
-         ge_zero, ge_zero, ge_zero, gt_zero, gt_zero, ge_zero, gt_zero
-      };
-
-      r = unpack_data(src_res[0]);
-
-      ASSERT_UNION_OF_DISJOINT_MATCHES_UNKNOWN_1_SOURCE(table);
-      ASSERT_UNION_OF_EQ_AND_STRICT_INEQ_MATCHES_NONSTRICT_1_SOURCE(table);
-
-      r.is_integral = r.is_integral && is_not_negative(r.range);
-      r.range = table[r.range];
-
-      /* Various cases can result in NaN, so assume the worst. */
-      r.is_finite = false;
-      r.is_a_number = false;
-      break;
-   }
-
-   case nir_op_fmax: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-      const struct fp_result_range right = unpack_data(src_res[1]);
-
-      r.is_integral = left.is_integral && right.is_integral;
-
-      /* This is conservative.  It may be possible to determine that the
-       * result must be finite in more cases, but it would take some effort to
-       * work out all the corners.  For example, fmax({lt_zero, finite},
-       * {lt_zero}) should result in {lt_zero, finite}.
-       */
-      r.is_finite = left.is_finite && right.is_finite;
-
-      /* If one source is NaN, fmax always picks the other source. */
-      r.is_a_number = left.is_a_number || right.is_a_number;
-
-      /* gt_zero: fmax(gt_zero, *)
-       *        | fmax(*, gt_zero)        # Treat fmax as commutative
-       *        ;
-       *
-       * ge_zero: fmax(ge_zero, ne_zero)
-       *        | fmax(ge_zero, lt_zero)
-       *        | fmax(ge_zero, le_zero)
-       *        | fmax(ge_zero, eq_zero)
-       *        | fmax(ne_zero, ge_zero)  # Treat fmax as commutative
-       *        | fmax(lt_zero, ge_zero)  # Treat fmax as commutative
-       *        | fmax(le_zero, ge_zero)  # Treat fmax as commutative
-       *        | fmax(eq_zero, ge_zero)  # Treat fmax as commutative
-       *        | fmax(ge_zero, ge_zero)
-       *        ;
-       *
-       * le_zero: fmax(le_zero, lt_zero)
-       *        | fmax(lt_zero, le_zero)  # Treat fmax as commutative
-       *        | fmax(le_zero, le_zero)
-       *        ;
-       *
-       * lt_zero: fmax(lt_zero, lt_zero)
-       *        ;
-       *
-       * ne_zero: fmax(ne_zero, lt_zero)
-       *        | fmax(lt_zero, ne_zero)  # Treat fmax as commutative
-       *        | fmax(ne_zero, ne_zero)
-       *        ;
-       *
-       * eq_zero: fmax(eq_zero, le_zero)
-       *        | fmax(eq_zero, lt_zero)
-       *        | fmax(le_zero, eq_zero)  # Treat fmax as commutative
-       *        | fmax(lt_zero, eq_zero)  # Treat fmax as commutative
-       *        | fmax(eq_zero, eq_zero)
-       *        ;
-       *
-       * All other cases are 'unknown'.
-       */
-      static const enum fp_ranges table[last_range + 1][last_range + 1] = {
-         /* left\right   unknown  lt_zero  le_zero  gt_zero  ge_zero  ne_zero  eq_zero */
-         /* unknown */ { _______, _______, _______, gt_zero, ge_zero, _______, ge_zero },
-         /* lt_zero */ { _______, lt_zero, le_zero, gt_zero, ge_zero, ne_zero, eq_zero },
-         /* le_zero */ { _______, le_zero, le_zero, gt_zero, ge_zero, _______, eq_zero },
-         /* gt_zero */ { gt_zero, gt_zero, gt_zero, gt_zero, gt_zero, gt_zero, gt_zero },
-         /* ge_zero */ { ge_zero, ge_zero, ge_zero, gt_zero, ge_zero, ge_zero, ge_zero },
-         /* ne_zero */ { _______, ne_zero, _______, gt_zero, ge_zero, ne_zero, ge_zero },
-         /* eq_zero */ { ge_zero, eq_zero, eq_zero, gt_zero, ge_zero, ge_zero, eq_zero }
-      };
-
-      /* Treat fmax as commutative. */
-      ASSERT_TABLE_IS_COMMUTATIVE(table);
-      ASSERT_TABLE_IS_DIAGONAL(table);
-      ASSERT_UNION_OF_OTHERS_MATCHES_UNKNOWN_2_SOURCE(table);
-
-      r.range = table[left.range][right.range];
-
-      /* Recall that when either value is NaN, fmax will pick the other value.
-       * This means the result range of the fmax will either be the "ideal"
-       * result range (calculated above) or the range of the non-NaN value.
-       */
-      if (!left.is_a_number)
-         r.range = union_ranges(r.range, right.range);
-
-      if (!right.is_a_number)
-         r.range = union_ranges(r.range, left.range);
-
-      break;
-   }
-
-   case nir_op_fmin: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-      const struct fp_result_range right = unpack_data(src_res[1]);
-
-      r.is_integral = left.is_integral && right.is_integral;
-
-      /* This is conservative.  It may be possible to determine that the
-       * result must be finite in more cases, but it would take some effort to
-       * work out all the corners.  For example, fmin({gt_zero, finite},
-       * {gt_zero}) should result in {gt_zero, finite}.
-       */
-      r.is_finite = left.is_finite && right.is_finite;
-
-      /* If one source is NaN, fmin always picks the other source. */
-      r.is_a_number = left.is_a_number || right.is_a_number;
-
-      /* lt_zero: fmin(lt_zero, *)
-       *        | fmin(*, lt_zero)        # Treat fmin as commutative
-       *        ;
-       *
-       * le_zero: fmin(le_zero, ne_zero)
-       *        | fmin(le_zero, gt_zero)
-       *        | fmin(le_zero, ge_zero)
-       *        | fmin(le_zero, eq_zero)
-       *        | fmin(ne_zero, le_zero)  # Treat fmin as commutative
-       *        | fmin(gt_zero, le_zero)  # Treat fmin as commutative
-       *        | fmin(ge_zero, le_zero)  # Treat fmin as commutative
-       *        | fmin(eq_zero, le_zero)  # Treat fmin as commutative
-       *        | fmin(le_zero, le_zero)
-       *        ;
-       *
-       * ge_zero: fmin(ge_zero, gt_zero)
-       *        | fmin(gt_zero, ge_zero)  # Treat fmin as commutative
-       *        | fmin(ge_zero, ge_zero)
-       *        ;
-       *
-       * gt_zero: fmin(gt_zero, gt_zero)
-       *        ;
-       *
-       * ne_zero: fmin(ne_zero, gt_zero)
-       *        | fmin(gt_zero, ne_zero)  # Treat fmin as commutative
-       *        | fmin(ne_zero, ne_zero)
-       *        ;
-       *
-       * eq_zero: fmin(eq_zero, ge_zero)
-       *        | fmin(eq_zero, gt_zero)
-       *        | fmin(ge_zero, eq_zero)  # Treat fmin as commutative
-       *        | fmin(gt_zero, eq_zero)  # Treat fmin as commutative
-       *        | fmin(eq_zero, eq_zero)
-       *        ;
-       *
-       * All other cases are 'unknown'.
-       */
-      static const enum fp_ranges table[last_range + 1][last_range + 1] = {
-         /* left\right   unknown  lt_zero  le_zero  gt_zero  ge_zero  ne_zero  eq_zero */
-         /* unknown */ { _______, lt_zero, le_zero, _______, _______, _______, le_zero },
-         /* lt_zero */ { lt_zero, lt_zero, lt_zero, lt_zero, lt_zero, lt_zero, lt_zero },
-         /* le_zero */ { le_zero, lt_zero, le_zero, le_zero, le_zero, le_zero, le_zero },
-         /* gt_zero */ { _______, lt_zero, le_zero, gt_zero, ge_zero, ne_zero, eq_zero },
-         /* ge_zero */ { _______, lt_zero, le_zero, ge_zero, ge_zero, _______, eq_zero },
-         /* ne_zero */ { _______, lt_zero, le_zero, ne_zero, _______, ne_zero, le_zero },
-         /* eq_zero */ { le_zero, lt_zero, le_zero, eq_zero, eq_zero, le_zero, eq_zero }
-      };
-
-      /* Treat fmin as commutative. */
-      ASSERT_TABLE_IS_COMMUTATIVE(table);
-      ASSERT_TABLE_IS_DIAGONAL(table);
-      ASSERT_UNION_OF_OTHERS_MATCHES_UNKNOWN_2_SOURCE(table);
-
-      r.range = table[left.range][right.range];
-
-      /* Recall that when either value is NaN, fmin will pick the other value.
-       * This means the result range of the fmin will either be the "ideal"
-       * result range (calculated above) or the range of the non-NaN value.
-       */
-      if (!left.is_a_number)
-         r.range = union_ranges(r.range, right.range);
-
-      if (!right.is_a_number)
-         r.range = union_ranges(r.range, left.range);
-
-      break;
-   }
-
-   case nir_op_fmul:
-   case nir_op_fmulz: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-      const struct fp_result_range right = unpack_data(src_res[1]);
-
-      r.is_integral = left.is_integral && right.is_integral;
-
-      /* x * x => ge_zero */
-      if (left.range != eq_zero && nir_alu_srcs_equal(alu, alu, 0, 1)) {
-         /* Even if x > 0, the result of x*x can be zero when x is, for
-          * example, a subnormal number.
-          */
-         r.range = ge_zero;
-      } else if (left.range != eq_zero && nir_alu_srcs_negative_equal(alu, alu, 0, 1)) {
-         /* -x * x => le_zero. */
-         r.range = le_zero;
-      } else {
-         r.range = fmul_table[left.range][right.range];
-      }
-
-      r.is_a_number = fmul_is_a_number(left, right, alu->op == nir_op_fmulz);
-
-      break;
-   }
-
-   case nir_op_frcp: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-
-      /* Only rcp(NaN) is NaN. */
-      r.is_a_number = left.is_a_number;
-
-      /* rcp can be zero for large values if denorms are flushed, or for Inf.
-       * Also, rcp(-0) is -Inf and rcp(+0) is Inf.
-       */
-      if (left.range == gt_zero)
-         r.range = ge_zero;
-      else if (left.range == lt_zero)
-         r.range = le_zero;
-
-      if (left.range == gt_zero || left.range == lt_zero || left.range == ne_zero)
-         r.is_finite = left.is_a_number;
-
-      break;
-   }
-
-   case nir_op_mov:
-      r = unpack_data(src_res[0]);
-      break;
-
-   case nir_op_vec2: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-      const struct fp_result_range right = unpack_data(src_res[1]);
-
-      r.range = union_ranges(left.range, right.range);
-      r.is_integral = left.is_integral && right.is_integral;
-      r.is_a_number = left.is_a_number && right.is_a_number;
-      r.is_finite = left.is_finite && right.is_finite;
       break;
    }
 
    case nir_op_fneg:
-      r = unpack_data(src_res[0]);
-      r.range = fneg_table[r.range];
+      r = fneg_fp_class(src_res[0]);
+      break;
+
+   case nir_op_fabs:
+      r = src_res[0];
+
+      r |= fneg_fp_class(r & (FP_CLASS_ANY_NEG | FP_CLASS_NEG_ZERO));
+      r &= ~(FP_CLASS_ANY_NEG | FP_CLASS_NEG_ZERO);
+      break;
+
+   case nir_op_fadd: {
+      r = fadd_fp_class(src_res[0], src_res[1]);
+      break;
+   }
+
+   case nir_op_fexp2: {
+      fp_class_mask src = src_res[0];
+      r = 0;
+
+      /* If the parameter might be less than zero, the mathematically result
+       * will be on (0, 1).  For sufficiently large magnitude negative
+       * parameters, the result will flush to zero.
+       */
+      if (src & FP_CLASS_NEG_INF)
+         r |= FP_CLASS_POS_ZERO;
+
+      if (src & FP_CLASS_LT_NEG_ONE)
+         r |= FP_CLASS_POS_ZERO | FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_NON_INTEGRAL;
+
+      if (src & (FP_CLASS_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE))
+         r |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_NON_INTEGRAL;
+
+      if (src & (FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_ANY_ZERO | FP_CLASS_GT_ZERO_LT_POS_ONE))
+         r |= FP_CLASS_POS_ONE;
+
+      if (src & (FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE))
+         r |= FP_CLASS_GT_POS_ONE;
+
+      if (src & (FP_CLASS_GT_POS_ONE))
+         r |= FP_CLASS_GT_POS_ONE | FP_CLASS_POS_INF;
+
+      if (src & FP_CLASS_POS_INF)
+         r |= FP_CLASS_POS_INF;
+
+      if (src & FP_CLASS_NON_INTEGRAL)
+         r |= FP_CLASS_NON_INTEGRAL;
+
+      if (src & FP_CLASS_NAN)
+         r |= FP_CLASS_NAN;
+      break;
+   }
+
+   case nir_op_fmax: {
+      fp_class_mask left = fneg_fp_class(src_res[0]);
+      fp_class_mask right = fneg_fp_class(src_res[1]);
+      r = fneg_fp_class(fmin_fp_class(left, right));
+      break;
+   }
+
+   case nir_op_fmin:
+      r = fmin_fp_class(src_res[0], src_res[1]);
+      break;
+
+   case nir_op_fmul:
+   case nir_op_fmulz: {
+      bool mulz = alu->op == nir_op_fmulz;
+      bool src_eq = nir_alu_srcs_equal(alu, alu, 0, 1);
+      bool src_neg_eq = !nir_src_is_const(alu->src[0].src) && nir_alu_srcs_negative_equal(alu, alu, 0, 1);
+      r = fmul_fp_class(src_res[0], src_res[1], mulz, src_eq, src_neg_eq);
+      break;
+   }
+
+   case nir_op_frcp:
+      r = frcp_fp_class(handle_sz(alu, src_res[0]));
+      break;
+
+   case nir_op_mov:
+      r = src_res[0];
       break;
 
    case nir_op_fsat: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
+      r = src_res[0];
 
-      /* fsat(NaN) = 0. */
-      r.is_a_number = true;
-      r.is_finite = true;
-
-      switch (left.range) {
-      case le_zero:
-      case lt_zero:
-      case eq_zero:
-         r.range = eq_zero;
-         r.is_integral = true;
-         break;
-
-      case gt_zero:
-         /* fsat is equivalent to fmin(fmax(X, 0.0), 1.0), so if X is not a
-          * number, the result will be 0.
-          */
-         r.range = left.is_a_number ? gt_zero : ge_zero;
-         r.is_integral = left.is_integral;
-         break;
-
-      case ge_zero:
-      case ne_zero:
-      case unknown:
-         /* Since the result must be in [0, 1], the value must be >= 0. */
-         r.range = ge_zero;
-         r.is_integral = left.is_integral;
-         break;
+      /* max(+0.0, x) */
+      if (r & (FP_CLASS_ANY_NEG | FP_CLASS_NEG_ZERO | FP_CLASS_NAN)) {
+         r &= ~(FP_CLASS_ANY_NEG | FP_CLASS_NEG_ZERO | FP_CLASS_NAN);
+         r |= FP_CLASS_POS_ZERO;
       }
+
+      /* min(+1.0, x) */
+      if (r & (FP_CLASS_GT_POS_ONE | FP_CLASS_POS_INF)) {
+         r &= ~(FP_CLASS_GT_POS_ONE | FP_CLASS_POS_INF);
+         r |= FP_CLASS_POS_ONE;
+      }
+
+      if (!(r & FP_CLASS_GT_ZERO_LT_POS_ONE))
+         r &= ~FP_CLASS_NON_INTEGRAL;
+
       break;
    }
 
    case nir_op_fsign:
-      r = (struct fp_result_range){
-         unpack_data(src_res[0]).range,
-         true,
-         true, /* fsign is -1, 0, or 1, even for NaN, so it must be a number. */
-         true  /* fsign is -1, 0, or 1, even for NaN, so it must be finite. */
-      };
+      r = 0;
+
+      if (src_res[0] & FP_CLASS_ANY_NEG)
+         r |= FP_CLASS_NEG_ONE;
+
+      if (src_res[0] & FP_CLASS_ANY_ZERO)
+         r |= FP_CLASS_ANY_ZERO;
+
+      if (src_res[0] & FP_CLASS_ANY_POS)
+         r |= FP_CLASS_POS_ONE;
+
+      /* fsign is -1, 0, or 1, even for NaN */
+      if (src_res[0] & FP_CLASS_NAN)
+         r |= FP_CLASS_NEG_ONE | FP_CLASS_ANY_ZERO | FP_CLASS_POS_ONE;
       break;
 
-   case nir_op_fsqrt: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-
-      /* sqrt(NaN) and sqrt(< 0) is NaN. */
-      if (left.range == eq_zero || left.range == ge_zero || left.range == gt_zero) {
-         r.is_a_number = left.is_a_number;
-         /* Only sqrt(Inf) is Inf. */
-         r.is_finite = left.is_finite;
-      }
-
-      if (left.range == gt_zero || left.range == ne_zero)
-         r.range = gt_zero;
-      else
-         r.range = ge_zero;
-
+   case nir_op_fsqrt:
+      r = fsqrt_fp_class(src_res[0]);
       break;
-   }
 
-   case nir_op_frsq: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-
-      /* rsq(NaN) and rsq(< 0) is NaN. */
-      if (left.range == eq_zero || left.range == ge_zero || left.range == gt_zero)
-         r.is_a_number = left.is_a_number;
-
-      /* rsq(-0) is -Inf and rsq(+0) is +Inf */
-      if (left.range == gt_zero || left.range == ne_zero) {
-         if (left.is_finite)
-            r.range = gt_zero;
-         else
-            r.range = ge_zero;
-         r.is_finite = r.is_a_number;
-      }
-
+   case nir_op_frsq:
+      r = frcp_fp_class(fsqrt_fp_class(handle_sz(alu, src_res[0])));
       break;
-   }
 
    case nir_op_ffloor: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-
-      r.is_integral = true;
-
       /* In IEEE 754, floor(NaN) is NaN, and floor(±Inf) is ±Inf. See
        * https://pubs.opengroup.org/onlinepubs/9699919799.2016edition/functions/floor.html
        */
-      r.is_a_number = left.is_a_number;
-      r.is_finite = left.is_finite;
+      r = src_res[0];
 
-      if (left.is_integral || left.range == le_zero || left.range == lt_zero)
-         r.range = left.range;
-      else if (left.range == ge_zero || left.range == gt_zero)
-         r.range = ge_zero;
-      else if (left.range == ne_zero)
-         r.range = unknown;
+      if (r & FP_CLASS_NON_INTEGRAL) {
+         if (r & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+            r |= FP_CLASS_NEG_ONE;
 
+         if (r & FP_CLASS_GT_ZERO_LT_POS_ONE)
+            r |= FP_CLASS_POS_ZERO;
+
+         if (r & FP_CLASS_GT_POS_ONE)
+            r |= FP_CLASS_POS_ONE;
+
+         r &= ~(FP_CLASS_NON_INTEGRAL | FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE);
+      }
       break;
    }
 
    case nir_op_fceil: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-
-      r.is_integral = true;
-
       /* In IEEE 754, ceil(NaN) is NaN, and ceil(±Inf) is ±Inf. See
        * https://pubs.opengroup.org/onlinepubs/9699919799.2016edition/functions/ceil.html
        */
-      r.is_a_number = left.is_a_number;
-      r.is_finite = left.is_finite;
+      r = src_res[0];
 
-      if (left.is_integral || left.range == ge_zero || left.range == gt_zero)
-         r.range = left.range;
-      else if (left.range == le_zero || left.range == lt_zero)
-         r.range = le_zero;
-      else if (left.range == ne_zero)
-         r.range = unknown;
+      if (r & FP_CLASS_NON_INTEGRAL) {
+         if (r & FP_CLASS_LT_NEG_ONE)
+            r |= FP_CLASS_NEG_ONE;
 
+         if (r & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+            r |= FP_CLASS_NEG_ZERO;
+
+         if (r & FP_CLASS_GT_ZERO_LT_POS_ONE)
+            r |= FP_CLASS_POS_ONE;
+
+         r &= ~(FP_CLASS_NON_INTEGRAL | FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE);
+      }
       break;
    }
 
    case nir_op_ftrunc: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-
-      r.is_integral = true;
-
       /* In IEEE 754, trunc(NaN) is NaN, and trunc(±Inf) is ±Inf.  See
        * https://pubs.opengroup.org/onlinepubs/9699919799.2016edition/functions/trunc.html
        */
-      r.is_a_number = left.is_a_number;
-      r.is_finite = left.is_finite;
+      r = src_res[0];
 
-      if (left.is_integral)
-         r.range = left.range;
-      else if (left.range == ge_zero || left.range == gt_zero)
-         r.range = ge_zero;
-      else if (left.range == le_zero || left.range == lt_zero)
-         r.range = le_zero;
-      else if (left.range == ne_zero)
-         r.range = unknown;
+      if (r & FP_CLASS_NON_INTEGRAL) {
+         if (r & FP_CLASS_LT_NEG_ONE)
+            r |= FP_CLASS_NEG_ONE;
 
+         if (r & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+            r |= FP_CLASS_NEG_ZERO;
+
+         if (r & FP_CLASS_GT_ZERO_LT_POS_ONE)
+            r |= FP_CLASS_POS_ZERO;
+
+         if (r & FP_CLASS_GT_POS_ONE)
+            r |= FP_CLASS_POS_ONE;
+
+         r &= ~(FP_CLASS_NON_INTEGRAL | FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE);
+      }
       break;
    }
 
    case nir_op_ffract: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
+      r = 0;
 
-      /* fract(±Inf) is NaN */
-      r.is_a_number = left.is_a_number && left.is_finite;
-      r.is_integral = left.is_integral;
-      r.is_finite = r.is_a_number;
+      /* fract(±Inf) is NaN. */
+      if (src_res[0] & (FP_CLASS_ANY_INF | FP_CLASS_NAN))
+         r |= FP_CLASS_NAN;
 
-      if (left.is_integral || left.range == eq_zero)
-         r.range = eq_zero;
-      else
-         r.range = ge_zero;
+      /* fract(non_integral) is in (0, 1). */
+      if (src_res[0] & FP_CLASS_NON_INTEGRAL)
+         r |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_NON_INTEGRAL;
+
+      /* fract(small, negative) can be 1.0. */
+      if (src_res[0] & FP_CLASS_LT_ZERO_GT_NEG_ONE)
+         r |= FP_CLASS_POS_ONE;
+
+      /* fract(integral) is +0.0. */
+      if (src_res[0] & (FP_CLASS_LT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_ANY_ZERO | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE))
+         r |= FP_CLASS_POS_ZERO;
 
       break;
    }
@@ -1188,8 +1099,6 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
    case nir_op_fdot4_replicated:
    case nir_op_fdot8_replicated:
    case nir_op_fdot16_replicated: {
-      const struct fp_result_range left = unpack_data(src_res[0]);
-
       /* If the two sources are the same SSA value, then the result is either
        * NaN or some number >= 0.  If one source is the negation of the other,
        * the result is either NaN or some number <= 0.
@@ -1199,17 +1108,26 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
        * Inf-Inf in the dot-product, the result must also be a number.
        */
       if (nir_alu_srcs_equal(alu, alu, 0, 1)) {
-         r = (struct fp_result_range){ ge_zero, false, left.is_a_number, false };
+         r = FP_CLASS_ANY_POS | FP_CLASS_POS_ZERO;
       } else if (nir_alu_srcs_negative_equal(alu, alu, 0, 1)) {
-         r = (struct fp_result_range){ le_zero, false, left.is_a_number, false };
+         r = FP_CLASS_ANY_NEG | FP_CLASS_NEG_ZERO;
       } else {
-         r = (struct fp_result_range){ unknown, false, false, false };
+         r = FP_CLASS_UNKNOWN;
       }
+
+      if (src_res[0] & FP_CLASS_NAN)
+         r |= FP_CLASS_NAN;
+
+      if (src_res[0] & FP_CLASS_NON_INTEGRAL)
+         r |= FP_CLASS_NON_INTEGRAL;
+
       break;
    }
 
    case nir_op_fpow: {
-      /* Due to flush-to-zero semanatics of floating-point numbers with very
+      /* This is a basic port of the old range analysis, the opcode is very
+       * underdefined. But improvements are likely possible.
+       * Due to flush-to-zero semanatics of floating-point numbers with very
        * small mangnitudes, we can never really be sure a result will be
        * non-zero.
        *
@@ -1248,101 +1166,78 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
        * We could do better if the right operand is a constant, integral
        * value.
        */
-      static const enum fp_ranges table[last_range + 1][last_range + 1] = {
-         /* left\right   unknown  lt_zero  le_zero  gt_zero  ge_zero  ne_zero  eq_zero */
-         /* unknown */ { _______, _______, _______, _______, _______, _______, gt_zero },
-         /* lt_zero */ { _______, _______, _______, _______, _______, _______, gt_zero },
-         /* le_zero */ { _______, _______, _______, _______, _______, _______, gt_zero },
-         /* gt_zero */ { ge_zero, ge_zero, ge_zero, ge_zero, ge_zero, ge_zero, gt_zero },
-         /* ge_zero */ { ge_zero, ge_zero, ge_zero, ge_zero, ge_zero, ge_zero, gt_zero },
-         /* ne_zero */ { _______, _______, _______, _______, _______, _______, gt_zero },
-         /* eq_zero */ { ge_zero, gt_zero, gt_zero, eq_zero, ge_zero, ge_zero, gt_zero },
-      };
 
-      const struct fp_result_range left = unpack_data(src_res[0]);
-      const struct fp_result_range right = unpack_data(src_res[1]);
+      fp_class_mask left = src_res[0];
+      fp_class_mask right = src_res[1];
 
-      ASSERT_UNION_OF_DISJOINT_MATCHES_UNKNOWN_2_SOURCE(table);
-      ASSERT_UNION_OF_EQ_AND_STRICT_INEQ_MATCHES_NONSTRICT_2_SOURCE(table);
-
-      r.is_integral = left.is_integral && right.is_integral &&
-                      is_not_negative(right.range);
-      r.range = table[left.range][right.range];
+      if (!(right & (FP_CLASS_ANY_NEG | FP_CLASS_ANY_POS))) {
+         r = FP_CLASS_ANY_POS;
+      } else if (left & (FP_CLASS_ANY_NEG | FP_CLASS_NEG_ZERO)) {
+         r = FP_CLASS_UNKNOWN;
+      } else {
+         r = FP_CLASS_ANY_POS | FP_CLASS_ANY_ZERO;
+         if ((right & (FP_CLASS_ANY_NEG | FP_CLASS_NON_INTEGRAL)) || (left & FP_CLASS_NON_INTEGRAL))
+            r |= FP_CLASS_NON_INTEGRAL;
+      }
 
       /* Various cases can result in NaN, so assume the worst. */
-      r.is_a_number = false;
+      r |= FP_CLASS_NAN;
 
       break;
    }
 
    case nir_op_ffma:
    case nir_op_ffmaz: {
-      const struct fp_result_range first = unpack_data(src_res[0]);
-      const struct fp_result_range second = unpack_data(src_res[1]);
-      const struct fp_result_range third = unpack_data(src_res[2]);
+      bool mulz = alu->op == nir_op_ffmaz;
+      bool src_eq = nir_alu_srcs_equal(alu, alu, 0, 1);
+      bool src_neg_eq = !nir_src_is_const(alu->src[0].src) && nir_alu_srcs_negative_equal(alu, alu, 0, 1);
+      fp_class_mask r_mul = fmul_fp_class(src_res[0], src_res[1], mulz, src_eq, src_neg_eq);
+      r = fadd_fp_class(r_mul, src_res[2]);
 
-      struct fp_result_range fmul_result;
-      fmul_result.is_integral = first.is_integral && second.is_integral;
-      fmul_result.is_finite = false;
-      fmul_result.is_a_number = fmul_is_a_number(first, third, alu->op == nir_op_ffmaz);
+      /* fma(a, b, +0.0) can be -0.0 if a * b underflows.
+       * When fused, the underflow is not flushed before the addition.
+       */
+      bool mul_underflow = (((src_res[0] & FP_CLASS_LT_ZERO_GT_NEG_ONE) && (src_res[1] & FP_CLASS_GT_ZERO_LT_POS_ONE)) ||
+                            ((src_res[1] & FP_CLASS_LT_ZERO_GT_NEG_ONE) && (src_res[0] & FP_CLASS_GT_ZERO_LT_POS_ONE)));
+      if (!src_eq && mul_underflow && (src_res[2] & FP_CLASS_POS_ZERO))
+         r |= FP_CLASS_NEG_ZERO;
 
-      if (first.range != eq_zero && nir_alu_srcs_equal(alu, alu, 0, 1)) {
-         /* See handling of nir_op_fmul for explanation of why ge_zero is the
-          * range.
-          */
-         fmul_result.range = ge_zero;
-      } else if (first.range != eq_zero && nir_alu_srcs_negative_equal(alu, alu, 0, 1)) {
-         /* -x * x => le_zero */
-         fmul_result.range = le_zero;
-      } else
-         fmul_result.range = fmul_table[first.range][second.range];
-
-      r.range = fadd_table[fmul_result.range][third.range];
-      r.is_integral = fmul_result.is_integral && third.is_integral;
-      r.is_a_number = fadd_is_a_number(fmul_result, third);
       break;
    }
 
    case nir_op_flrp: {
-      const struct fp_result_range first = unpack_data(src_res[0]);
-      const struct fp_result_range second = unpack_data(src_res[1]);
-      const struct fp_result_range third = unpack_data(src_res[2]);
+      /* Decompose the flrp to first + third * (second + -first) */
+      fp_class_mask inner_fadd_class =
+         fadd_fp_class(src_res[1], fneg_fp_class(src_res[0]));
 
-      r.is_integral = first.is_integral && second.is_integral &&
-                      third.is_integral;
+      fp_class_mask fmul_class =
+         fmul_fp_class(src_res[2], inner_fadd_class, false, false, false);
+
+      r = fadd_fp_class(src_res[0], fmul_class);
 
       /* Various cases can result in NaN, so assume the worst. */
-      r.is_a_number = false;
-
-      /* Decompose the flrp to first + third * (second + -first) */
-      const enum fp_ranges inner_fadd_range =
-         fadd_table[second.range][fneg_table[first.range]];
-
-      const enum fp_ranges fmul_range =
-         fmul_table[third.range][inner_fadd_range];
-
-      r.range = fadd_table[first.range][fmul_range];
+      r |= FP_CLASS_NAN;
       break;
    }
 
    default:
-      r = (struct fp_result_range){ unknown, false, false, false };
+      r = FP_CLASS_UNKNOWN;
       break;
    }
 
-   if (r.range == eq_zero)
-      r.is_integral = true;
+   if (nir_alu_type_get_base_type(nir_op_infos[alu->op].output_type) == nir_type_float)
+      r = handle_sz(alu, r);
 
-   /* Just like isfinite(), the is_finite flag implies the value is a number. */
-   assert((int)r.is_finite <= (int)r.is_a_number);
+   assert((r & FP_CLASS_UNKNOWN) == r);
+   assert((r & ~FP_CLASS_NON_INTEGRAL) != 0);
+   assert(!(r & FP_CLASS_NON_INTEGRAL) || (r & (FP_CLASS_LT_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE |
+                                                FP_CLASS_GT_POS_ONE | FP_CLASS_GT_ZERO_LT_POS_ONE)));
 
-   *result = pack_data(r);
+   *result = r;
 }
 
-#undef _______
-
-struct fp_result_range
-nir_analyze_fp_range(nir_fp_analysis_state *fp_state, const nir_def *def)
+fp_class_mask
+nir_analyze_fp_class(nir_fp_analysis_state *fp_state, const nir_def *def)
 {
    struct fp_query query_alloc[64];
    uint32_t result_alloc[64];
@@ -1359,7 +1254,35 @@ nir_analyze_fp_range(nir_fp_analysis_state *fp_state, const nir_def *def)
 
    push_fp_query(&state, def);
 
-   return unpack_data(perform_analysis(&state));
+   return perform_analysis(&state);
+}
+
+struct fp_result_range
+nir_analyze_fp_range(nir_fp_analysis_state *fp_state, const nir_def *def)
+{
+   fp_class_mask fp_class = nir_analyze_fp_class(fp_state, def);
+
+   struct fp_result_range result = {
+      unknown,
+      !(fp_class & FP_CLASS_NON_INTEGRAL),
+      !(fp_class & FP_CLASS_NAN),
+      !(fp_class & (FP_CLASS_NAN | FP_CLASS_ANY_INF)),
+   };
+
+   if (!(fp_class & (FP_CLASS_ANY_NEG | FP_CLASS_ANY_POS)))
+      result.range = eq_zero;
+   else if (!(fp_class & (FP_CLASS_ANY_POS | FP_CLASS_ANY_ZERO)))
+      result.range = lt_zero;
+   else if (!(fp_class & FP_CLASS_ANY_POS))
+      result.range = le_zero;
+   else if (!(fp_class & (FP_CLASS_ANY_NEG | FP_CLASS_ANY_ZERO)))
+      result.range = gt_zero;
+   else if (!(fp_class & FP_CLASS_ANY_NEG))
+      result.range = ge_zero;
+   else if (!(fp_class & FP_CLASS_ANY_ZERO))
+      result.range = ne_zero;
+
+   return result;
 }
 
 nir_fp_analysis_state

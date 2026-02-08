@@ -68,6 +68,40 @@ nir_fp_analysis_state nir_create_fp_analysis_state(nir_function_impl *impl);
 void nir_invalidate_fp_analysis_state(nir_fp_analysis_state *state);
 void nir_free_fp_analysis_state(nir_fp_analysis_state *state);
 
+enum fp_class_bit {
+   FP_CLASS_NEG_INF = BITFIELD_BIT(0),
+   FP_CLASS_LT_NEG_ONE = BITFIELD_BIT(1),
+   FP_CLASS_NEG_ONE = BITFIELD_BIT(2),
+   FP_CLASS_LT_ZERO_GT_NEG_ONE = BITFIELD_BIT(3),
+   FP_CLASS_NEG_ZERO = BITFIELD_BIT(4),
+   FP_CLASS_POS_ZERO = BITFIELD_BIT(5),
+   FP_CLASS_GT_ZERO_LT_POS_ONE = BITFIELD_BIT(6),
+   FP_CLASS_POS_ONE = BITFIELD_BIT(7),
+   FP_CLASS_GT_POS_ONE = BITFIELD_BIT(8),
+   FP_CLASS_POS_INF = BITFIELD_BIT(9),
+   FP_CLASS_NAN = BITFIELD_BIT(10),
+
+   /**
+    * A floating-point value that can have non integer (fractional) values.
+    * Does not replace any of the values above.
+    */
+   FP_CLASS_NON_INTEGRAL = BITFIELD_BIT(11),
+};
+
+#define FP_CLASS_UNKNOWN        BITFIELD_MASK(12)
+#define FP_CLASS_ANY_ZERO       (FP_CLASS_NEG_ZERO | FP_CLASS_POS_ZERO)
+#define FP_CLASS_ANY_INF        (FP_CLASS_NEG_INF | FP_CLASS_POS_INF)
+#define FP_CLASS_ANY_NEG_FINITE (FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_LT_NEG_ONE)
+#define FP_CLASS_ANY_NEG        (FP_CLASS_ANY_NEG_FINITE | FP_CLASS_NEG_INF)
+#define FP_CLASS_ANY_POS_FINITE (FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE)
+#define FP_CLASS_ANY_POS        (FP_CLASS_ANY_POS_FINITE | FP_CLASS_POS_INF)
+#define FP_CLASS_ANY_FINITE     (FP_CLASS_ANY_NEG_FINITE | FP_CLASS_ANY_ZERO | FP_CLASS_ANY_POS_FINITE)
+#define FP_CLASS_ANY_NUMBER     (FP_CLASS_ANY_FINITE | FP_CLASS_ANY_INF)
+
+typedef uint16_t fp_class_mask;
+
+fp_class_mask nir_analyze_fp_class(nir_fp_analysis_state *state, const nir_def *def);
+
 struct fp_result_range
 nir_analyze_fp_range(nir_fp_analysis_state *state, const nir_def *def);
 
