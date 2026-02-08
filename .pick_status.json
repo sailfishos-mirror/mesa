@@ -1334,7 +1334,7 @@
         "description": "compiler/clc: Fix const correctness in libclc_add_generic_variants",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4a08ee7ecf07b1d0cdfec4f61bdca08bf6551247",
         "notes": null
