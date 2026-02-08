@@ -1944,7 +1944,6 @@ v3d_attempt_compile(struct v3d_compile *c)
         }
 
         NIR_PASS(_, c->s, nir_lower_bool_to_int32);
-        NIR_PASS(_, c->s, nir_convert_to_lcssa, true, true);
         nir_divergence_analysis(c->s);
 
         if (c->s->info.stage == MESA_SHADER_FRAGMENT) {
