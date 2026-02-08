@@ -43,6 +43,14 @@ dEQP-GLES2.functional.texture.mipmap.2d.basic.nearest_linear_repeat_non_square,F
 # mag.  Also a line of pixels through the image in minification.
 dEQP-GLES2.functional.texture.wrap.clamp_clamp_nearest_npot_etc1,Fail
 
+# VC4 hardware doesn't have support for non-uniform loops in the vertex shader.
+# The execution of non-uniform loops in VS can cause infinite loops and lead
+# to GPU hangs. Therefore, the compiler fails shader linking in the presence of
+# divergent loops.
+spec@glsl-1.10@execution@glsl-vs-if-nested-loop,Fail
+shaders@glsl-vs-loop,Fail
+shaders@glsl-vs-loop-nested,Fail
+
 # Despite exposing GL 2.1, the HW doesn't actually support 3D textures so we set
 # 0 max levels.  These tests fail (or assertion fail) as a result.
 spec@!opengl 1.1@max-texture-size,Crash
