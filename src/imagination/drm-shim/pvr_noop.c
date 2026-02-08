@@ -488,7 +488,7 @@ static void init_overrides(void)
    const char *device_bvnc = debug_get_option("PVR_SHIM_DEVICE_BVNC", NULL);
    static const char *delims = ",;";
    unsigned b, v, n, c;
-   uint64_t bvnc;
+   uint64_t bvnc = DEFAULT_DEVICE_BVNC;
    int ret;
 
    if (device_bvnc) {
