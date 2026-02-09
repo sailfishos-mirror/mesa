@@ -229,6 +229,20 @@ emit_color_clear(struct radv_cmd_buffer *cmd_buffer, const VkClearAttachment *cl
    }
    assert(format != VK_FORMAT_UNDEFINED);
 
+   switch (format) {
+   case VK_FORMAT_R64_UINT:
+      format = VK_FORMAT_R32G32_UINT;
+      break;
+   case VK_FORMAT_R64_SINT:
+      format = VK_FORMAT_R32G32_SINT;
+      break;
+   case VK_FORMAT_R64_SFLOAT:
+      format = VK_FORMAT_R32G32_SFLOAT;
+      break;
+   default:
+      break;
+   }
+
    assert(util_is_power_of_two_nonzero(samples));
 
    result = get_color_pipeline(device, samples, clear_att->colorAttachment, format, &pipeline, &layout);
