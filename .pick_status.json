@@ -3094,7 +3094,7 @@
         "description": "wsi/metal: Expose additional color spaces if instance extension enabled",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "fd045ac99cea5bea1e9e55c4381c37ad0e824352",
         "notes": null
