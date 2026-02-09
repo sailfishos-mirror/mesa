@@ -2168,17 +2168,9 @@ nvk_flush_ia_state(struct nvk_cmd_buffer *cmd)
       &cmd->vk.dynamic_graphics_state;
 
    if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_TOPOLOGY)) {
-      uint32_t begin;
-      V_NV9097_BEGIN(begin, {
-         .op = vk_to_nv9097_primitive_topology(dyn->ia.primitive_topology),
-         .primitive_id = NV9097_BEGIN_PRIMITIVE_ID_FIRST,
-         .instance_id = NV9097_BEGIN_INSTANCE_ID_FIRST,
-         .split_mode = SPLIT_MODE_NORMAL_BEGIN_NORMAL_END,
-      });
-
       struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
-      P_MTHD(p, NV9097, SET_MME_SHADOW_SCRATCH(NVK_MME_SCRATCH_DRAW_BEGIN));
-      P_INLINE_DATA(p, begin);
+      P_MTHD(p, NV9097, SET_MME_SHADOW_SCRATCH(NVK_MME_SCRATCH_DRAW_TOPOLOGY));
+      P_INLINE_DATA(p, vk_to_nv9097_primitive_topology(dyn->ia.primitive_topology));
    }
 
    if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE)) {
@@ -4305,7 +4297,7 @@ nvk_mme_build_draw_loop(struct mme_builder *b,
                         struct mme_value first_vertex,
                         struct mme_value vertex_count)
 {
-   struct mme_value begin = nvk_mme_load_scratch(b, DRAW_BEGIN);
+   struct mme_value begin = nvk_mme_load_scratch(b, DRAW_TOPOLOGY);
 
    if (b->devinfo->cls_eng3d < PASCAL_B) {
       mme_start_loop(b, instance_count);
@@ -4450,7 +4442,7 @@ nvk_mme_build_draw_indexed_loop(struct mme_builder *b,
                                 struct mme_value first_index,
                                 struct mme_value index_count)
 {
-   struct mme_value begin = nvk_mme_load_scratch(b, DRAW_BEGIN);
+   struct mme_value begin = nvk_mme_load_scratch(b, DRAW_TOPOLOGY);
 
    if (b->devinfo->cls_eng3d < PASCAL_B) {
       mme_start_loop(b, instance_count);
@@ -4928,7 +4920,7 @@ nvk_mme_xfb_draw_indirect_loop(struct mme_builder *b,
                                struct mme_value instance_count,
                                struct mme_value counter)
 {
-   struct mme_value begin = nvk_mme_load_scratch(b, DRAW_BEGIN);
+   struct mme_value begin = nvk_mme_load_scratch(b, DRAW_TOPOLOGY);
 
    /* NVC197_BEGIN_INSTANCE_ITERATE_ENABLE seems to be incompatible with xfb.
     * Always use an mme loop instead.
