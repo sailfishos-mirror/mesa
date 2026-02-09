@@ -129,7 +129,7 @@ struct vn_physical_device {
 
    struct wsi_device wsi_device;
 
-   simple_mtx_t format_update_mutex;
+   simple_mtx_t mutex;
    struct util_sparse_array format_properties;
 
    struct vn_image_format_properties_cache image_format_cache;

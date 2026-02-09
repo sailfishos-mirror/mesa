@@ -1705,7 +1705,7 @@ vn_physical_device_init(struct vn_physical_device *physical_dev)
    if (result != VK_SUCCESS)
       goto fail;
 
-   simple_mtx_init(&physical_dev->format_update_mutex, mtx_plain);
+   simple_mtx_init(&physical_dev->mutex, mtx_plain);
    util_sparse_array_init(&physical_dev->format_properties,
                           sizeof(struct vn_format_properties_entry), 64);
 
@@ -1726,7 +1726,7 @@ vn_physical_device_fini(struct vn_physical_device *physical_dev)
 
    vn_image_format_cache_fini(physical_dev);
 
-   simple_mtx_destroy(&physical_dev->format_update_mutex);
+   simple_mtx_destroy(&physical_dev->mutex);
    util_sparse_array_finish(&physical_dev->format_properties);
 
    vn_wsi_fini(physical_dev);
@@ -2282,7 +2282,7 @@ vn_GetPhysicalDeviceFormatProperties2(VkPhysicalDevice physicalDevice,
                                                 pFormatProperties);
    vn_sanitize_format_properties(format, props, props3);
 
-   simple_mtx_lock(&physical_dev->format_update_mutex);
+   simple_mtx_lock(&physical_dev->mutex);
    if (entry && !entry->valid) {
       assert(cacheable);
       entry->props = *props;
@@ -2292,7 +2292,7 @@ vn_GetPhysicalDeviceFormatProperties2(VkPhysicalDevice physicalDevice,
          entry->srpq = *srpq;
       entry->valid = true;
    }
-   simple_mtx_unlock(&physical_dev->format_update_mutex);
+   simple_mtx_unlock(&physical_dev->mutex);
 }
 
 struct vn_physical_device_image_format_info {
