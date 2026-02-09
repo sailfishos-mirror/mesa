@@ -186,7 +186,6 @@ main(int argc, char **argv)
                     (options.nquery + 1) * sizeof(*options.querystrs));
          options.querystrs[options.nquery] = optarg;
          options.nquery++;
-         interactive = 0;
          break;
       case 'h':
       default:
