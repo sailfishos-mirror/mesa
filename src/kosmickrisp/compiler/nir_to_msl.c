@@ -1969,6 +1969,11 @@ msl_preprocess_nir(struct nir_shader *nir)
     * generate discards. */
    NIR_PASS(_, nir, nir_lower_system_values);
 
+   /* nir_lower_vars_to_ssa may remove instructions due to undef values such as
+    * store from an undef image sample. Fixes VVL test
+    * PositiveShaderImageAccess.UndefImage */
+   NIR_PASS(_, nir, nir_opt_dce);
+
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       nir_input_attachment_options input_attachment_options = {};
       NIR_PASS(_, nir, nir_lower_input_attachments, &input_attachment_options);
