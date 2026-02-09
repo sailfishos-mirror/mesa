@@ -2234,6 +2234,34 @@ radv_video_get_profile_alignments(struct radv_physical_device *pdev, const VkVid
    *height_align_out = MAX2(*height_align_out, db_alignment);
 }
 
+void
+radv_video_get_uvd_dpb_image(struct radv_physical_device *pdev, const struct VkVideoProfileListInfoKHR *profile_list,
+                             struct radv_image *image)
+{
+   const bool is_10bit = image->vk.format == VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16;
+   struct ac_video_dec_session_param param = {
+      .sub_sample = AC_VIDEO_SUBSAMPLE_420,
+      .max_width = image->vk.extent.width,
+      .max_height = image->vk.extent.height,
+      .max_bit_depth = is_10bit ? 10 : 8,
+      .max_num_ref = image->vk.array_layers,
+   };
+
+   for (uint32_t i = 0; i < profile_list->profileCount; i++) {
+      switch (profile_list->pProfiles[i].videoCodecOperation) {
+      case VK_VIDEO_CODEC_OPERATION_DECODE_H264_BIT_KHR:
+         param.codec = AC_VIDEO_CODEC_AVC;
+         break;
+      case VK_VIDEO_CODEC_OPERATION_DECODE_H265_BIT_KHR:
+         param.codec = AC_VIDEO_CODEC_HEVC;
+         break;
+      default:
+         UNREACHABLE("Invalid operation");
+      }
+      image->size = MAX2(image->size, ac_video_dec_dpb_size(&pdev->info, &param));
+   }
+}
+
 bool
 radv_video_decode_vp9_supported(const struct radv_physical_device *pdev)
 {

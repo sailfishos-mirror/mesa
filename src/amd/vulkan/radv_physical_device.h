@@ -260,10 +260,6 @@ radv_has_pops(const struct radv_physical_device *pdev)
 static inline bool
 radv_has_uvd(struct radv_physical_device *pdev)
 {
-   enum radeon_family family = pdev->info.family;
-   /* Only support UVD on TONGA+ */
-   if (family < CHIP_TONGA)
-      return false;
    return pdev->info.ip[AMD_IP_UVD].num_queues > 0;
 }
 

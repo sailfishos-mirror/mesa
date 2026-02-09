@@ -1233,8 +1233,8 @@ radv_image_create_layout(struct radv_device *device, struct radv_image_create_in
       }
 
       if (radv_has_uvd(pdev) && image->vk.usage & VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR) {
-         /* UVD and kernel demand a full DPB allocation. */
-         image_info.array_size = MIN2(16, image_info.array_size);
+         radv_video_get_uvd_dpb_image(pdev, profile_list, image);
+         return VK_SUCCESS;
       }
 
       if (image->vk.usage & VK_IMAGE_USAGE_VIDEO_ENCODE_DPB_BIT_KHR) {

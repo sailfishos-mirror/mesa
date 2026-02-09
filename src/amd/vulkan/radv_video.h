@@ -91,6 +91,8 @@ VkResult radv_video_get_encode_session_memory_requirements(struct radv_device *d
                                                            uint32_t *pMemoryRequirementsCount,
                                                            VkVideoSessionMemoryRequirementsKHR *pMemoryRequirements);
 void radv_video_patch_encode_session_parameters(struct radv_device *device, struct vk_video_session_parameters *params);
+void radv_video_get_uvd_dpb_image(struct radv_physical_device *pdev,
+                                  const struct VkVideoProfileListInfoKHR *profile_list, struct radv_image *image);
 void radv_video_get_enc_dpb_image(struct radv_device *device, const struct VkVideoProfileListInfoKHR *profile_list,
                                   struct radv_image *image, struct radv_image_create_info *create_info);
 bool radv_video_decode_vp9_supported(const struct radv_physical_device *pdev);
