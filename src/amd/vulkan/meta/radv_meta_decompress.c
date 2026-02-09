@@ -211,8 +211,7 @@ radv_process_depth_image_layer(struct radv_cmd_buffer *cmd_buffer, struct radv_i
 
 static void
 radv_process_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
-                           const VkImageSubresourceRange *subresourceRange,
-                           struct radv_sample_locations_state *sample_locs)
+                           const VkImageSubresourceRange *subresourceRange, const VkSampleLocationsInfoEXT *sample_locs)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_meta_saved_state saved_state;
@@ -238,12 +237,7 @@ radv_process_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image
        * automatic layout transitions, otherwise the depth decompress
        * pass uses the default HW locations.
        */
-      radv_CmdSetSampleLocationsEXT(cmd_buffer_h, &(VkSampleLocationsInfoEXT){
-                                                     .sampleLocationsPerPixel = sample_locs->per_pixel,
-                                                     .sampleLocationGridSize = sample_locs->grid_size,
-                                                     .sampleLocationsCount = sample_locs->count,
-                                                     .pSampleLocations = sample_locs->locations,
-                                                  });
+      radv_CmdSetSampleLocationsEXT(cmd_buffer_h, sample_locs);
    }
 
    for (uint32_t l = 0; l < vk_image_subresource_level_count(&image->vk, subresourceRange); ++l) {
@@ -459,8 +453,7 @@ radv_expand_depth_stencil_compute(struct radv_cmd_buffer *cmd_buffer, struct rad
 
 void
 radv_expand_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
-                          const VkImageSubresourceRange *subresourceRange,
-                          struct radv_sample_locations_state *sample_locs)
+                          const VkImageSubresourceRange *subresourceRange, const VkSampleLocationsInfoEXT *sample_locs)
 {
    struct radv_barrier_data barrier = {0};
 

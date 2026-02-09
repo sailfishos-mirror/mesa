@@ -395,7 +395,7 @@ radv_meta_resolve_hardware_image(struct radv_cmd_buffer *cmd_buffer, struct radv
 static void
 radv_decompress_resolve_src(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image,
                             VkImageLayout src_image_layout, const VkImageResolve2 *region,
-                            const struct radv_sample_locations_state *sample_locs)
+                            const VkSampleLocationsInfoEXT *sample_locs)
 {
    VkImageMemoryBarrier2 barrier = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
@@ -414,21 +414,12 @@ radv_decompress_resolve_src(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
          .layerCount = vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource),
       }};
 
-   VkSampleLocationsInfoEXT sample_loc_info;
    if (src_image->vk.create_flags & VK_IMAGE_CREATE_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT) {
       /* If the depth/stencil image uses different sample
        * locations, we need them during HTILE decompressions.
        */
       assert(sample_locs);
-
-      sample_loc_info = (VkSampleLocationsInfoEXT){
-         .sType = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT,
-         .sampleLocationsPerPixel = sample_locs->per_pixel,
-         .sampleLocationGridSize = sample_locs->grid_size,
-         .sampleLocationsCount = sample_locs->count,
-         .pSampleLocations = sample_locs->locations,
-      };
-      barrier.pNext = &sample_loc_info;
+      barrier.pNext = sample_locs;
    }
 
    VkDependencyInfo dep_info = {
@@ -567,7 +558,7 @@ radv_CmdResolveImage2(VkCommandBuffer commandBuffer, const VkResolveImageInfo2 *
  * Emit any needed resolves for the current subpass.
  */
 void
-radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer)
+radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkSampleLocationsInfoEXT *sample_locs)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
@@ -645,7 +636,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer)
          depth_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
          radv_decompress_resolve_src(cmd_buffer, src_iview->image, saved_render.ds_att.layout, &depth_region,
-                                     &saved_render.sample_locations);
+                                     sample_locs);
 
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_meta_resolve_depth_stencil_fs(cmd_buffer, src_iview->image, src_iview->vk.format,
@@ -668,7 +659,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer)
          stencil_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
 
          radv_decompress_resolve_src(cmd_buffer, src_iview->image, saved_render.ds_att.stencil_layout, &stencil_region,
-                                     &saved_render.sample_locations);
+                                     sample_locs);
 
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_meta_resolve_depth_stencil_fs(
