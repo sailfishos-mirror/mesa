@@ -125,8 +125,7 @@ bool anv_nir_compute_push_layout(nir_shader *nir,
                                  struct brw_base_prog_key *prog_key,
                                  struct brw_stage_prog_data *prog_data,
                                  struct anv_pipeline_bind_map *map,
-                                 const struct anv_pipeline_push_map *push_map,
-                                 void *mem_ctx);
+                                 const struct anv_pipeline_push_map *push_map);
 
 void anv_nir_validate_push_layout(const struct anv_physical_device *pdevice,
                                   struct brw_stage_prog_data *prog_data,

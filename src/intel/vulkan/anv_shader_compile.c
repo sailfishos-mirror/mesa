@@ -1587,8 +1587,7 @@ anv_shader_lower_nir(struct anv_device *device,
                },
                &shader_data->key.base,
                &shader_data->prog_data.base,
-               &shader_data->bind_map, &shader_data->push_map,
-               mem_ctx);
+               &shader_data->bind_map, &shader_data->push_map);
 
    NIR_PASS(_, nir, anv_nir_lower_resource_intel, pdevice,
                shader_data->bind_map.layout_type);
