@@ -25,6 +25,18 @@ nvk_mme_clear(struct mme_builder *b)
 
    const uint32_t arr_idx = 1 << DRF_LO(NV9097_CLEAR_SURFACE_RT_ARRAY_INDEX);
 
+   mme_if(b, ieq, view_mask, mme_zero()) {
+      struct mme_value layer_count = mme_load(b);
+
+      mme_loop(b, layer_count) {
+         mme_mthd(b, NV9097_CLEAR_SURFACE);
+         mme_emit(b, payload);
+
+         mme_add_to(b, payload, payload, mme_imm(arr_idx));
+      }
+      mme_free_reg(b, layer_count);
+   }
+
    mme_if(b, ine, view_mask, mme_zero()) {
       struct mme_value bit = mme_mov(b, mme_imm(1));
 
@@ -38,18 +50,6 @@ nvk_mme_clear(struct mme_builder *b)
          mme_sll_to(b, bit, bit, mme_imm(1));
       }
       mme_free_reg(b, bit);
-   }
-
-   mme_if(b, ieq, view_mask, mme_zero()) {
-      struct mme_value layer_count = mme_load(b);
-
-      mme_loop(b, layer_count) {
-         mme_mthd(b, NV9097_CLEAR_SURFACE);
-         mme_emit(b, payload);
-
-         mme_add_to(b, payload, payload, mme_imm(arr_idx));
-      }
-      mme_free_reg(b, layer_count);
    }
 
    mme_free_reg(b, payload);
