@@ -225,7 +225,7 @@ simplify_loop(nir_loop *loop)
 }
 
 static bool
-lower_loop_continue_block(nir_builder *b, nir_loop *loop, bool *repair_ssa)
+lower_loop_continue_block(nir_builder *b, nir_loop *loop)
 {
    if (!nir_loop_has_continue_construct(loop))
       return false;
@@ -237,67 +237,15 @@ lower_loop_continue_block(nir_builder *b, nir_loop *loop, bool *repair_ssa)
    /* Simplify the loop in order to ensure that it has at most one back-edge. */
    simplify_loop(loop);
 
-   nir_block *header = nir_loop_first_block(loop);
-   nir_block *cont = nir_loop_first_continue_block(loop);
+   nir_cf_list extracted;
+   nir_cf_list_extract(&extracted, &loop->continue_list);
 
-   /* count continue statements excluding unreachable ones */
-   unsigned num_continue = 0;
-   nir_block *single_predecessor = NULL;
-   set_foreach(&cont->predecessors, entry) {
-      nir_block *pred = (nir_block *)entry->key;
-      /* If the continue block has no predecessors, it is unreachable. */
-      if (pred->predecessors.entries == 0)
-         continue;
-
-      single_predecessor = pred;
-      if (num_continue++)
-         break;
-   }
-
-   if (num_continue == 0) {
-      /* this loop doesn't continue at all. delete the continue construct */
-      nir_cf_list extracted;
-      nir_cf_list_extract(&extracted, &loop->continue_list);
+   if (nir_loop_first_continue_block(loop)->predecessors.entries == 0) {
+      /* This loop doesn't continue at all. Delete the continue construct. */
       nir_cf_delete(&extracted);
-   } else if (num_continue == 1) {
-      /* inline the continue construct */
-      assert(single_predecessor->successors[0] == cont);
-      assert(single_predecessor->successors[1] == NULL);
-
-      nir_cf_list extracted;
-      nir_cf_list_extract(&extracted, &loop->continue_list);
-      nir_cf_reinsert(&extracted,
-                      nir_after_block_before_jump(single_predecessor));
    } else {
-      nir_lower_phis_to_regs_block(cont, false);
-      *repair_ssa = true;
-
-      /* As control flow has to re-converge before executing the continue
-       * construct, we insert it at the beginning of the loop with a flag
-       * to ensure that it doesn't get executed in the first iteration:
-       *
-       *    loop {
-       *       if (i != 0) {
-       *          continue construct
-       *       }
-       *       loop body
-       *    }
-       */
-
-      nir_variable *do_cont =
-         nir_local_variable_create(b->impl, glsl_bool_type(), "cont");
-
-      b->cursor = nir_before_cf_node(&loop->cf_node);
-      nir_store_var(b, do_cont, nir_imm_false(b), 1);
-      b->cursor = nir_before_block(header);
-      nir_if *cont_if = nir_push_if(b, nir_load_var(b, do_cont));
-      {
-         nir_cf_list extracted;
-         nir_cf_list_extract(&extracted, &loop->continue_list);
-         nir_cf_reinsert(&extracted, nir_before_cf_list(&cont_if->then_list));
-      }
-      nir_pop_if(b, cont_if);
-      nir_store_var(b, do_cont, nir_imm_true(b), 1);
+      /* Inline the continue construct before the trivial continue. */
+      nir_cf_reinsert(&extracted, nir_after_cf_list(&loop->body));
    }
 
    nir_loop_remove_continue_construct(loop);
@@ -305,7 +253,7 @@ lower_loop_continue_block(nir_builder *b, nir_loop *loop, bool *repair_ssa)
 }
 
 static bool
-visit_cf_list(nir_builder *b, struct exec_list *list, bool *repair_ssa)
+visit_cf_list(nir_builder *b, struct exec_list *list)
 {
    bool progress = false;
 
@@ -315,8 +263,8 @@ visit_cf_list(nir_builder *b, struct exec_list *list, bool *repair_ssa)
          continue;
       case nir_cf_node_if: {
          nir_if *nif = nir_cf_node_as_if(node);
-         progress |= visit_cf_list(b, &nif->then_list, repair_ssa);
-         progress |= visit_cf_list(b, &nif->else_list, repair_ssa);
+         progress |= visit_cf_list(b, &nif->then_list);
+         progress |= visit_cf_list(b, &nif->else_list);
          break;
       }
       case nir_cf_node_loop: {
@@ -324,15 +272,15 @@ visit_cf_list(nir_builder *b, struct exec_list *list, bool *repair_ssa)
          /* By first lowering inner loops, we ensure that we don't encounter
           * any continue statements which don't belong to the current loop.
           */
-         progress |= visit_cf_list(b, &loop->body, repair_ssa);
+         progress |= visit_cf_list(b, &loop->body);
 
          /* If we lower continue constructs after inlining functions, they
           * might contain nested loops.
           */
-         progress |= visit_cf_list(b, &loop->continue_list, repair_ssa);
+         progress |= visit_cf_list(b, &loop->continue_list);
 
          /* Lower continue construct. */
-         progress |= lower_loop_continue_block(b, loop, repair_ssa);
+         progress |= lower_loop_continue_block(b, loop);
          break;
       }
       case nir_cf_node_function:
@@ -347,21 +295,13 @@ static bool
 lower_continue_constructs_impl(nir_function_impl *impl)
 {
    nir_builder b = nir_builder_create(impl);
-   bool repair_ssa = false;
-   bool progress = visit_cf_list(&b, &impl->body, &repair_ssa);
+   bool progress = visit_cf_list(&b, &impl->body);
 
    if (progress) {
       nir_progress(true, impl, nir_metadata_none);
 
       /* Merge the Phis from Header and Continue Target */
       nir_lower_reg_intrinsics_to_ssa_impl(impl);
-
-      /* Re-inserting the Continue Target at the beginning of the loop
-       * violates the dominance property if instructions in the continue
-       * use SSA defs from the loop body.
-       */
-      if (repair_ssa)
-         nir_repair_ssa_impl(impl);
    } else {
       nir_no_progress(impl);
    }
