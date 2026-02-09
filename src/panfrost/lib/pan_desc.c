@@ -125,7 +125,8 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
 #if PAN_ARCH <= 6
    if (fb->rt_count == 1 && fb->rts[0].view && !fb->rts[0].discard &&
        pan_image_view_has_crc(fb->rts[0].view) &&
-       renderblock_fits_in_single_pass(fb->rts[0].view, tile_size))
+       renderblock_fits_in_single_pass(fb->rts[0].view, tile_size) &&
+       (*(fb->rts[0].crc_valid) || pan_fb_is_fully_covered(fb)))
       return 0;
 
    return -1;
