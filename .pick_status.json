@@ -1334,7 +1334,7 @@
         "description": "gallivm: fix enablement of RISC-V Zbs extension",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9dfcd141cf9b7a7d5f664fa9eda4e38e67b04483",
         "notes": null
