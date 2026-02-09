@@ -170,6 +170,7 @@ update_instr_type(struct hash_table *types, nir_instr *instr, ti_type type)
       case nir_intrinsic_store_scratch:
       case nir_intrinsic_load_shared:
       case nir_intrinsic_store_shared:
+      case nir_intrinsic_load_frag_coord:
          return false;
       case nir_intrinsic_store_global:
          set_type(types, &intr->src[0], type);
@@ -391,6 +392,7 @@ infer_types_from_intrinsic(struct hash_table *types, nir_intrinsic_instr *instr)
       break;
    case nir_intrinsic_load_point_coord:
    case nir_intrinsic_load_sample_pos:
+   case nir_intrinsic_load_frag_coord:
       set_type(types, &instr->def, TYPE_FLOAT);
       break;
    case nir_intrinsic_load_front_face:
