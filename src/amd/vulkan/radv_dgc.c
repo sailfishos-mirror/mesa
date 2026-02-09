@@ -1754,8 +1754,10 @@ dgc_alloc_push_constant(struct dgc_cmdbuf *cs, nir_def *stream_addr, nir_def *se
    nir_variable *idx = nir_variable_create(b->shader, nir_var_shader_temp, glsl_uint_type(), "idx");
    nir_store_var(b, idx, nir_imm_int(b, 0), 0x1);
 
-   nir_push_loop(b);
+   nir_loop *loop = nir_push_loop(b);
    {
+      nir_loop_add_continue_construct(loop);
+
       nir_def *cur_idx = nir_load_var(b, idx);
 
       nir_break_if(b, nir_ieq(b, cur_idx, load_param8(b, push_constant_size)));
@@ -1777,7 +1779,7 @@ dgc_alloc_push_constant(struct dgc_cmdbuf *cs, nir_def *stream_addr, nir_def *se
 
       nir_store_var(b, idx, nir_iadd_imm(b, cur_idx, 1), 0x1);
    }
-   nir_pop_loop(b, NULL);
+   nir_pop_loop(b, loop);
 
    /* Store push constants set by DGC tokens. */
    u_foreach_bit64 (i, layout->push_constant_mask) {
@@ -2025,8 +2027,10 @@ dgc_emit_vertex_buffer(struct dgc_cmdbuf *cs, nir_def *stream_addr)
    nir_variable *vbo_idx = nir_variable_create(b->shader, nir_var_shader_temp, glsl_uint_type(), "vbo_idx");
    nir_store_var(b, vbo_idx, nir_imm_int(b, 0), 0x1);
 
-   nir_push_loop(b);
+   nir_loop *loop = nir_push_loop(b);
    {
+      nir_loop_add_continue_construct(loop);
+
       nir_def *cur_idx = nir_load_var(b, vbo_idx);
 
       nir_break_if(b, nir_uge_imm(b, cur_idx, 32 /* bits in vb_desc_usage_mask */));
@@ -2097,7 +2101,7 @@ dgc_emit_vertex_buffer(struct dgc_cmdbuf *cs, nir_def *stream_addr)
 
       nir_store_var(b, vbo_idx, nir_iadd_imm(b, cur_idx, 1), 0x1);
    }
-   nir_pop_loop(b, NULL);
+   nir_pop_loop(b, loop);
 }
 
 /**
@@ -2958,6 +2962,8 @@ build_dgc_prepare_shader(struct radv_device *dev, struct radv_indirect_command_l
       build_dgc_buffer_preamble_ace(&cmd_buf, sequence_count);
    }
    nir_pop_if(&b, NULL);
+
+   nir_lower_continue_constructs(b.shader);
 
    return b.shader;
 }
