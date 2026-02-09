@@ -789,11 +789,12 @@ nir_visitor::visit(ir_function_signature *ir)
 void
 nir_visitor::visit(ir_loop *ir)
 {
-   nir_push_loop(&b);
+   nir_loop *loop = nir_push_loop(&b);
+   nir_loop_add_continue_construct(loop);
    visit_exec_list(&ir->body_instructions, this);
-   nir_push_continue(&b, NULL);
+   nir_push_continue(&b, loop);
    visit_exec_list(&ir->continue_instructions, this);
-   nir_pop_loop(&b, NULL);
+   nir_pop_loop(&b, loop);
 }
 
 void

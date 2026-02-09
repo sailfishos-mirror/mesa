@@ -278,10 +278,9 @@ block_add_normal_succs(nir_block *block)
          nir_loop *loop = nir_cf_node_as_loop(parent);
 
          nir_block *cont_block;
-         if (block == nir_loop_last_block(loop)) {
-            cont_block = nir_loop_continue_target(loop);
+         if (block == nir_loop_last_block(loop) && nir_loop_has_continue_construct(loop)) {
+            cont_block = nir_loop_first_continue_block(loop);
          } else {
-            assert(block == nir_loop_last_continue_block(loop));
             cont_block = nir_loop_first_block(loop);
          }
 
@@ -438,6 +437,7 @@ nir_loop_add_continue_construct(nir_loop *loop)
    /* change predecessors and successors */
    nir_block *header = nir_loop_first_block(loop);
    nir_block *preheader = nir_block_cf_tree_prev(header);
+   assert(header->predecessors.entries <= 2);
    set_foreach(&header->predecessors, entry) {
       nir_block *pred = (nir_block *)entry->key;
       if (pred != preheader)
@@ -455,6 +455,7 @@ nir_loop_remove_continue_construct(nir_loop *loop)
    /* change predecessors and successors */
    nir_block *header = nir_loop_first_block(loop);
    nir_block *cont = nir_loop_first_continue_block(loop);
+   assert(cont->predecessors.entries <= 2);
    set_foreach(&cont->predecessors, entry) {
       nir_block *pred = (nir_block *)entry->key;
       replace_successor(pred, cont, header);
@@ -513,7 +514,7 @@ nir_handle_add_jump(nir_block *block)
 
    case nir_jump_continue: {
       nir_loop *loop = nearest_loop(&block->cf_node);
-      nir_block *cont_block = nir_loop_continue_target(loop);
+      nir_block *cont_block = nir_loop_first_continue_block(loop);
       link_blocks(block, cont_block, NULL);
       break;
    }

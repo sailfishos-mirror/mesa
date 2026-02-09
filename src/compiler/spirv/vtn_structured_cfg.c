@@ -1658,6 +1658,9 @@ vtn_emit_cf_func_structured(struct vtn_builder *b, struct vtn_function *func,
             next->nloop = nir_push_loop(&b->nb);
             nir_store_var(&b->nb, next->continue_var, nir_imm_false(&b->nb), 1);
 
+            if (!vtn_is_single_block_loop(next))
+               nir_loop_add_continue_construct(next->nloop);
+
             next->nloop->control = vtn_loop_control(b, block->merge[3]);
 
             break;
