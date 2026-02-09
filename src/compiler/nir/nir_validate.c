@@ -1248,8 +1248,11 @@ validate_jump_instr(nir_jump_instr *instr, validate_state *state)
       validate_assert(state, state->impl->structured);
       validate_assert(state, state->loop != NULL);
       if (state->loop) {
-         nir_block *cont_block = nir_loop_continue_target(state->loop);
-         validate_assert(state, block->successors[0] == cont_block);
+         validate_assert(state, nir_loop_has_continue_construct(state->loop));
+         if (nir_loop_has_continue_construct(state->loop)) {
+            nir_block *cont_block = nir_loop_first_continue_block(state->loop);
+            validate_assert(state, block->successors[0] == cont_block);
+         }
       }
       validate_assert(state, block->successors[1] == NULL);
       validate_assert(state, instr->target == NULL);
@@ -1500,14 +1503,13 @@ validate_block(nir_block *block, validate_state *state)
       if (next == NULL) {
          switch (state->parent_node->type) {
          case nir_cf_node_loop: {
-            if (block == nir_loop_last_block(state->loop)) {
-               nir_block *cont = nir_loop_continue_target(state->loop);
-               validate_assert(state, block->successors[0] == cont);
+            if (!nir_loop_has_continue_construct(state->loop) ||
+                block == nir_loop_last_continue_block(state->loop)) {
+               nir_block *header = nir_loop_first_block(state->loop);
+               validate_assert(state, block->successors[0] == header);
             } else {
-               validate_assert(state, nir_loop_has_continue_construct(state->loop) &&
-                                         block == nir_loop_last_continue_block(state->loop));
-               nir_block *head = nir_loop_first_block(state->loop);
-               validate_assert(state, block->successors[0] == head);
+               nir_block *cont = nir_loop_first_continue_block(state->loop);
+               validate_assert(state, block->successors[0] == cont);
             }
             /* due to the hack for infinite loops, block->successors[1] may
              * point to the block after the loop.
@@ -1614,6 +1616,7 @@ validate_loop(nir_loop *loop, validate_state *state)
    validate_assert(state, next_node->type == nir_cf_node_block);
 
    validate_assert(state, !exec_list_is_empty(&loop->body));
+   validate_assert(state, nir_loop_first_block(loop)->predecessors.entries <= 2);
 
    nir_cf_node *old_parent = state->parent_node;
    state->parent_node = &loop->cf_node;

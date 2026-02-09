@@ -3831,18 +3831,6 @@ nir_loop_last_continue_block(nir_loop *loop)
 }
 
 /**
- * Return the target block of a nir_jump_continue statement
- */
-static inline nir_block *
-nir_loop_continue_target(nir_loop *loop)
-{
-   if (nir_loop_has_continue_construct(loop))
-      return nir_loop_first_continue_block(loop);
-   else
-      return nir_loop_first_block(loop);
-}
-
-/**
  * Return true if this list of cf_nodes contains a single empty block.
  */
 static inline bool
