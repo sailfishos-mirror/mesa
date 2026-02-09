@@ -534,7 +534,7 @@
         "description": "vtn: set default fp_math_ctrl values for kernels",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9da2d218041c1a9dd731c3f10ca4800c8b7c6773",
         "notes": null
