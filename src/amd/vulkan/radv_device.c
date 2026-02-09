@@ -1543,21 +1543,6 @@ radv_GetDeviceImageMemoryRequirements(VkDevice device, const VkDeviceImageMemory
    radv_DestroyImage(device, image, NULL);
 }
 
-static unsigned
-radv_get_dcc_max_uncompressed_block_size(const struct radv_device *device, const struct radv_image *image)
-{
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
-   if (pdev->info.gfx_level < GFX10 && image->vk.samples > 1) {
-      if (image->planes[0].surface.bpe == 1)
-         return V_028C78_MAX_BLOCK_SIZE_64B;
-      else if (image->planes[0].surface.bpe == 2)
-         return V_028C78_MAX_BLOCK_SIZE_128B;
-   }
-
-   return V_028C78_MAX_BLOCK_SIZE_256B;
-}
-
 void
 radv_gfx11_set_db_render_control(const struct radv_device *device, unsigned num_samples, unsigned *db_render_control)
 {
