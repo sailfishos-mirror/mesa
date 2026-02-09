@@ -365,26 +365,6 @@ unsigned radv_get_default_max_sample_dist(int log_samples);
 void radv_emit_default_sample_locations(const struct radv_physical_device *pdev, struct radv_cmd_stream *cs,
                                         int nr_samples);
 
-struct radv_color_buffer_info {
-   struct ac_cb_surface ac;
-};
-
-struct radv_ds_buffer_info {
-   struct ac_ds_surface ac;
-
-   uint32_t db_render_override2;
-   uint32_t db_render_control;
-};
-
-void radv_initialise_color_surface(struct radv_device *device, struct radv_color_buffer_info *cb,
-                                   struct radv_image_view *iview);
-
-void radv_initialise_vrs_surface(struct radv_image *image, struct radv_buffer *htile_buffer,
-                                 struct radv_ds_buffer_info *ds);
-
-void radv_initialise_ds_surface(const struct radv_device *device, struct radv_ds_buffer_info *ds,
-                                struct radv_image_view *iview, VkImageAspectFlags ds_aspects);
-
 void radv_gfx11_set_db_render_control(const struct radv_device *device, unsigned num_samples,
                                       unsigned *db_render_control);
 
