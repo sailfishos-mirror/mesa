@@ -186,6 +186,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_shader_subgroup_vote = true,
       .EXT_subgroup_size_control = has_vk1_1,
       .EXT_texel_buffer_alignment = true,
+      .EXT_astc_decode_mode = PAN_ARCH >= 9,
       .EXT_texture_compression_astc_hdr = true,
       .EXT_tooling_info = true,
       .EXT_vertex_attribute_divisor = true,
@@ -397,6 +398,10 @@ panvk_per_arch(get_physical_device_features)(
       .synchronization2 = true,
       .textureCompressionASTC_HDR = has_texture_compression_astc_hdr(device),
       .shaderZeroInitializeWorkgroupMemory = true,
+
+      /* VK_EXT_astc_decode_mode */
+      .decodeModeSharedExponent = false,
+
       .dynamicRendering = true,
       .shaderIntegerDotProduct = true,
       .maintenance4 = true,

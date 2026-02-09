@@ -343,9 +343,14 @@ panvk_per_arch(CreateImageView)(VkDevice _device,
    }
 
    enum pipe_format pfmt = vk_format_to_pipe_format(view->vk.view_format);
+   const VkImageViewASTCDecodeModeEXT *astc_decode =
+      vk_find_struct_const(pCreateInfo->pNext, IMAGE_VIEW_ASTC_DECODE_MODE_EXT);
+
    view->pview = (struct pan_image_view){
       .format = pfmt,
       .astc.hdr = util_format_is_astc_hdr(pfmt),
+      .astc.narrow = astc_decode &&
+                     astc_decode->decodeMode == VK_FORMAT_R8G8B8A8_UNORM,
       .dim = panvk_view_type_to_mali_tex_dim(view->vk.view_type),
       .nr_samples = image->vk.samples,
       .first_level = view->vk.base_mip_level,
