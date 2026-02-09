@@ -804,7 +804,7 @@
         "description": "winsys/amdgpu: Fix userq job info log on PPC",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2547fd0f59d6340c7c85641a444504b33558dd89",
         "notes": null
