@@ -4297,32 +4297,49 @@ nvk_mme_build_draw_loop(struct mme_builder *b,
                         struct mme_value first_vertex,
                         struct mme_value vertex_count)
 {
-   struct mme_value begin = nvk_mme_load_scratch(b, DRAW_TOPOLOGY);
 
-   if (b->devinfo->cls_eng3d < PASCAL_B) {
-      mme_start_loop(b, instance_count);
-   } else {
-      mme_mthd(b, NVC197_SET_INSTANCE_COUNT);
+   if (b->devinfo->cls_eng3d >= TURING_A) {
+      struct mme_value draw_control_a = nvk_mme_load_scratch(b, DRAW_TOPOLOGY);
+      mme_set_field_enum(b, draw_control_a, NVC597_SET_DRAW_CONTROL_A_INSTANCE_ITERATE_ENABLE, TRUE);
+
+      mme_mthd(b, NVC597_SET_DRAW_CONTROL_A);
+      mme_emit(b, draw_control_a);
       mme_emit(b, instance_count);
-      mme_set_field_enum(b, begin, NVC197_BEGIN_INSTANCE_ITERATE_ENABLE, TRUE);
+
+      mme_mthd(b, NVC597_DRAW_VERTEX_ARRAY_BEGIN_END_A);
+      mme_emit(b, first_vertex);
+      mme_emit(b, vertex_count);
+
+      mme_free_reg(b, draw_control_a);
+   } else {
+      struct mme_value begin = nvk_mme_load_scratch(b, DRAW_TOPOLOGY);
+
+      if (b->devinfo->cls_eng3d < PASCAL_B) {
+         mme_start_loop(b, instance_count);
+      } else {
+         mme_mthd(b, NVC197_SET_INSTANCE_COUNT);
+         mme_emit(b, instance_count);
+         mme_set_field_enum(b, begin, NVC197_BEGIN_INSTANCE_ITERATE_ENABLE, TRUE);
+      }
+
+      mme_mthd(b, NV9097_BEGIN);
+      mme_emit(b, begin);
+
+      mme_mthd(b, NV9097_SET_VERTEX_ARRAY_START);
+      mme_emit(b, first_vertex);
+      mme_emit(b, vertex_count);
+
+      mme_mthd(b, NV9097_END);
+      mme_emit(b, mme_zero());
+
+      if (b->devinfo->cls_eng3d < PASCAL_B) {
+         mme_set_field_enum(b, begin, NV9097_BEGIN_INSTANCE_ID, SUBSEQUENT);
+         mme_end_loop(b);
+      }
+
+      mme_free_reg(b, begin);
    }
 
-   mme_mthd(b, NV9097_BEGIN);
-   mme_emit(b, begin);
-
-   mme_mthd(b, NV9097_SET_VERTEX_ARRAY_START);
-   mme_emit(b, first_vertex);
-   mme_emit(b, vertex_count);
-
-   mme_mthd(b, NV9097_END);
-   mme_emit(b, mme_zero());
-
-   if (b->devinfo->cls_eng3d < PASCAL_B) {
-      mme_set_field_enum(b, begin, NV9097_BEGIN_INSTANCE_ID, SUBSEQUENT);
-      mme_end_loop(b);
-   }
-
-   mme_free_reg(b, begin);
 }
 
 static void
@@ -4442,32 +4459,46 @@ nvk_mme_build_draw_indexed_loop(struct mme_builder *b,
                                 struct mme_value first_index,
                                 struct mme_value index_count)
 {
-   struct mme_value begin = nvk_mme_load_scratch(b, DRAW_TOPOLOGY);
 
-   if (b->devinfo->cls_eng3d < PASCAL_B) {
-      mme_start_loop(b, instance_count);
-   } else {
-      mme_mthd(b, NVC197_SET_INSTANCE_COUNT);
+   if (b->devinfo->cls_eng3d >= TURING_A) {
+      struct mme_value draw_control_a = nvk_mme_load_scratch(b, DRAW_TOPOLOGY);
+      mme_set_field_enum(b, draw_control_a, NVC597_SET_DRAW_CONTROL_A_INSTANCE_ITERATE_ENABLE, TRUE);
+
+      mme_mthd(b, NVC597_SET_DRAW_CONTROL_A);
+      mme_emit(b, draw_control_a);
       mme_emit(b, instance_count);
-      mme_set_field_enum(b, begin, NVC197_BEGIN_INSTANCE_ITERATE_ENABLE, TRUE);
+      mme_emit(b, first_index);
+      mme_emit(b, index_count);
+
+      mme_free_reg(b, draw_control_a);
+   } else {
+      struct mme_value begin = nvk_mme_load_scratch(b, DRAW_TOPOLOGY);
+
+      if (b->devinfo->cls_eng3d < PASCAL_B) {
+         mme_start_loop(b, instance_count);
+      } else {
+         mme_mthd(b, NVC197_SET_INSTANCE_COUNT);
+         mme_emit(b, instance_count);
+         mme_set_field_enum(b, begin, NVC197_BEGIN_INSTANCE_ITERATE_ENABLE, TRUE);
+      }
+
+      mme_mthd(b, NV9097_BEGIN);
+      mme_emit(b, begin);
+
+      mme_mthd(b, NV9097_SET_INDEX_BUFFER_F);
+      mme_emit(b, first_index);
+      mme_emit(b, index_count);
+
+      mme_mthd(b, NV9097_END);
+      mme_emit(b, mme_zero());
+
+      if (b->devinfo->cls_eng3d < PASCAL_B) {
+         mme_set_field_enum(b, begin, NV9097_BEGIN_INSTANCE_ID, SUBSEQUENT);
+         mme_end_loop(b);
+      }
+
+      mme_free_reg(b, begin);
    }
-
-   mme_mthd(b, NV9097_BEGIN);
-   mme_emit(b, begin);
-
-   mme_mthd(b, NV9097_SET_INDEX_BUFFER_F);
-   mme_emit(b, first_index);
-   mme_emit(b, index_count);
-
-   mme_mthd(b, NV9097_END);
-   mme_emit(b, mme_zero());
-
-   if (b->devinfo->cls_eng3d < PASCAL_B) {
-      mme_set_field_enum(b, begin, NV9097_BEGIN_INSTANCE_ID, SUBSEQUENT);
-      mme_end_loop(b);
-   }
-
-   mme_free_reg(b, begin);
 }
 
 static void
