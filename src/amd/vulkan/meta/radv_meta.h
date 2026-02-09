@@ -270,7 +270,7 @@ void radv_cmd_buffer_clear_attachment(struct radv_cmd_buffer *cmd_buffer, const 
 
 void radv_cmd_buffer_clear_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRenderingInfo *render_info);
 
-void radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkSampleLocationsInfoEXT *sample_locs);
+void radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRenderingInfo *pRenderingInfo);
 
 void radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image,
                                         VkFormat src_format, VkImageLayout src_image_layout,

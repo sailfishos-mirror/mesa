@@ -10143,22 +10143,97 @@ radv_CmdEndRendering2KHR(VkCommandBuffer commandBuffer, const VkRenderingEndInfo
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    const struct radv_rendering_state *render = &cmd_buffer->state.render;
+   bool need_resolve = false;
 
    radv_mark_noncoherent_rb(cmd_buffer);
 
-   if (!render->has_custom_resolves) {
-      VkSampleLocationsInfoEXT sample_locs = {
-         .sType = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT,
-         .sampleLocationsPerPixel = render->sample_locations.per_pixel,
-         .sampleLocationGridSize = render->sample_locations.grid_size,
-         .sampleLocationsCount = render->sample_locations.count,
-         .pSampleLocations = render->sample_locations.locations,
+   VkRenderingAttachmentInfo color_atts[MAX_RTS];
+   VkRenderingAttachmentFlagsInfoKHR color_atts_flags[MAX_RTS];
+   for (uint32_t i = 0; i < render->color_att_count; i++) {
+      if (render->color_att[i].resolve_mode != VK_RESOLVE_MODE_NONE)
+         need_resolve = true;
+
+      color_atts_flags[i] = (VkRenderingAttachmentFlagsInfoKHR){
+         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
+         .flags = render->color_att[i].flags,
       };
 
-      radv_cmd_buffer_resolve_rendering(cmd_buffer, &sample_locs);
+      color_atts[i] = (VkRenderingAttachmentInfo){
+         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+         .pNext = &color_atts_flags[i],
+         .imageView = radv_image_view_to_handle(render->color_att[i].iview),
+         .imageLayout = render->color_att[i].layout,
+         .resolveMode = render->color_att[i].resolve_mode,
+         .resolveImageView = radv_image_view_to_handle(render->color_att[i].resolve_iview),
+         .resolveImageLayout = render->color_att[i].resolve_layout,
+      };
    }
 
+   const VkRenderingAttachmentFlagsInfoKHR depth_att_flags = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
+      .flags = render->ds_att.flags,
+   };
+   struct VkRenderingAttachmentInfo depth_att = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .pNext = &depth_att_flags,
+      .imageView = radv_image_view_to_handle(render->ds_att.iview),
+      .imageLayout = render->ds_att.layout,
+      .resolveMode = render->ds_att.resolve_mode,
+      .resolveImageView = radv_image_view_to_handle(render->ds_att.resolve_iview),
+      .resolveImageLayout = render->ds_att.resolve_layout,
+
+   };
+   if (render->ds_att.resolve_mode != VK_RESOLVE_MODE_NONE)
+      need_resolve = true;
+
+   const VkRenderingAttachmentFlagsInfoKHR stencil_att_flags = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_FLAGS_INFO_KHR,
+      .flags = render->ds_att.flags,
+   };
+   struct VkRenderingAttachmentInfo stencil_att = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .pNext = &stencil_att_flags,
+      .imageView = radv_image_view_to_handle(render->ds_att.iview),
+      .imageLayout = render->ds_att.stencil_layout,
+      .resolveMode = render->ds_att.stencil_resolve_mode,
+      .resolveImageView = radv_image_view_to_handle(render->ds_att.resolve_iview),
+      .resolveImageLayout = render->ds_att.stencil_resolve_layout,
+   };
+
+   if (render->ds_att.stencil_resolve_mode != VK_RESOLVE_MODE_NONE)
+      need_resolve = true;
+
+   VkSampleLocationEXT sample_locs[MAX_SAMPLE_LOCATIONS];
+   typed_memcpy(sample_locs, render->sample_locations.locations, render->sample_locations.count);
+
+   VkSampleLocationsInfoEXT sample_locs_info = {
+      .sType = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT,
+      .sampleLocationsPerPixel = render->sample_locations.per_pixel,
+      .sampleLocationGridSize = render->sample_locations.grid_size,
+      .sampleLocationsCount = render->sample_locations.count,
+      .pSampleLocations = sample_locs,
+   };
+
+   VkRenderingInfo rendering_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+      .pNext = &sample_locs_info,
+      .flags = VK_RENDERING_LOCAL_READ_CONCURRENT_ACCESS_CONTROL_BIT_KHR,
+      .renderArea = render->area,
+      .layerCount = render->layer_count,
+      .viewMask = render->view_mask,
+      .colorAttachmentCount = render->color_att_count,
+      .pColorAttachments = color_atts,
+      .pDepthAttachment = &depth_att,
+      .pStencilAttachment = &stencil_att,
+   };
+
+   if (render->has_custom_resolves)
+      need_resolve = false;
+
    radv_cmd_buffer_reset_rendering(cmd_buffer);
+
+   if (need_resolve)
+      radv_cmd_buffer_resolve_rendering(cmd_buffer, &rendering_info);
 }
 
 VKAPI_ATTR void VKAPI_CALL
