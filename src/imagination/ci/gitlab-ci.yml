@@ -9,7 +9,7 @@ bxs-4-64-vk:
   timeout: 50m
   variables:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 45
-    DEQP_SUITE: vk
+    DEQP_SUITE: pvr-vk
     VK_DRIVER: powervr_mesa
     MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
     PVR_I_WANT_A_BROKEN_VULKAN_DRIVER: 1
