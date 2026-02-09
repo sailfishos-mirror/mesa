@@ -783,7 +783,7 @@ handle_core(struct vtn_builder *b, uint32_t opcode,
        * pointers.  Fortunately, the whole function is just a barrier.
        */
       nir_barrier(&b->nb, .execution_scope = SCOPE_WORKGROUP,
-                          .memory_scope = SCOPE_WORKGROUP,
+                          .memory_scope = SCOPE_DEVICE,
                           .memory_semantics = NIR_MEMORY_ACQUIRE |
                                               NIR_MEMORY_RELEASE,
                           .memory_modes = nir_var_mem_shared |
