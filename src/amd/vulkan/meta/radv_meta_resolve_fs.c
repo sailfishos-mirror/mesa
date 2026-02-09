@@ -641,8 +641,8 @@ radv_meta_resolve_depth_stencil_fs(struct radv_cmd_buffer *cmd_buffer, struct ra
 
    radv_CmdSetViewport(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
                        &(VkViewport){
-                          .x = region->srcOffset.x,
-                          .y = region->srcOffset.y,
+                          .x = region->dstOffset.x,
+                          .y = region->dstOffset.y,
                           .width = region->extent.width,
                           .height = region->extent.height,
                           .minDepth = 0.0f,

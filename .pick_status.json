@@ -2624,7 +2624,7 @@
         "description": "radv: Fix setting the viewport for depth stencil FS resolves",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "704fbbb10867e5df29df4c5efea8c8000aa8f7df",
         "notes": null
