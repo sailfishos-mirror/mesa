@@ -94,6 +94,7 @@ struct blorp_surface_info
 
    union isl_color_value clear_color;
    struct blorp_address clear_color_addr;
+   bool has_replicated_pixel;
 
    struct isl_view view;
 

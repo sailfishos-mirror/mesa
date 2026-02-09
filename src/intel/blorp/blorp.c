@@ -174,6 +174,7 @@ blorp_surface_info_init(struct blorp_batch *batch,
 
    info->clear_color = surf->clear_color;
    info->clear_color_addr = surf->clear_color_addr;
+   info->has_replicated_pixel = surf->has_replicated_pixel;
 
    isl_surf_usage_flags_t view_usage;
    if (is_dest) {

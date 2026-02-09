@@ -220,6 +220,12 @@ struct blorp_surf
     */
    struct blorp_address clear_color_addr;
 
+   /* Whether or not the indirect clear color contains a replicated pixel
+    * value. Allows blorp_copy() to widen the surface format of compressed
+    * sources for increased performance on gfx12.
+    */
+   bool has_replicated_pixel;
+
    /* Only allowed for simple 2D non-MSAA surfaces */
    uint32_t tile_x_sa, tile_y_sa;
 };
