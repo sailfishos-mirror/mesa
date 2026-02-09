@@ -598,7 +598,9 @@ pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
    }
 
    if (src->vk.samples > dst->vk.samples) {
-      src_format = src->vk.format;
+      src_format =
+         vk_format_get_plane_aspect_format(src->vk.format,
+                                           region->srcSubresource.aspectMask);
       if (pvr_vk_format_is_combined_ds(src->vk.format) &&
           dst->vk.format != VK_FORMAT_X8_D24_UNORM_PACK32) {
          dst_format = dst->vk.format;
@@ -609,7 +611,10 @@ pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
       /* We don't care what format dst is as it's guaranteed to be size
        * compatible with src.
        */
-      dst_format = pvr_get_raw_copy_format(src->vk.format);
+      dst_format =
+         pvr_get_raw_copy_format(
+            vk_format_get_plane_aspect_format(src->vk.format,
+                                              region->srcSubresource.aspectMask));
       src_format = dst_format;
    }
 
