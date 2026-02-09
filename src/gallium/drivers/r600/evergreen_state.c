@@ -362,6 +362,7 @@ static void *evergreen_create_blend_state_mode(struct pipe_context *ctx,
 	blend->dual_src_blend = util_blend_state_is_dual(state, 0);
 	blend->cb_target_mask = target_mask;
 	blend->alpha_to_one = state->alpha_to_one;
+	blend->alpha_to_one_and_coverage = state->alpha_to_one && state->alpha_to_coverage;
 
 	if (target_mask)
 		color_control |= S_028808_MODE(mode);
@@ -3837,6 +3838,10 @@ void evergreen_update_ps_state(struct pipe_context *ctx, struct r600_pipe_shader
 			break;
 		}
 	}
+
+	if (unlikely(rctx->alpha_to_one_and_coverage))
+		exports_ps |= 1;
+
 	if (rshader->uses_kill)
 		db_shader_control |= S_02880C_KILL_ENABLE(1);
 
@@ -4137,14 +4142,17 @@ void evergreen_update_db_shader_control(struct r600_context * rctx)
 		return;
 	}
 
+	const bool alpha_to_one_and_coverage = rctx->ps_shader->current->key.ps.alpha_to_one_and_coverage;
 	dual_export = rctx->cb_state.export_16bpc &&
-		      !rctx->ps_shader->current->ps_depth_export;
+		      !rctx->ps_shader->current->ps_depth_export &&
+		      !alpha_to_one_and_coverage;
 
 	db_shader_control = rctx->ps_shader->current->db_shader_control |
 			    S_02880C_DUAL_EXPORT_ENABLE(dual_export) |
 			    S_02880C_DB_SOURCE_FORMAT(dual_export ? V_02880C_EXPORT_DB_TWO :
 								    V_02880C_EXPORT_DB_FULL) |
-			    S_02880C_ALPHA_TO_MASK_DISABLE(rctx->cb_state.cb0_is_integer);
+			    S_02880C_ALPHA_TO_MASK_DISABLE(rctx->cb_state.cb0_is_integer) |
+			    S_02880C_COVERAGE_TO_MASK_ENABLE(alpha_to_one_and_coverage);
 
 	/* When alpha test is enabled we can't trust the hw to make the proper
 	 * decision on the order in which ztest should be run related to fragment
