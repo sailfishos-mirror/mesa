@@ -1784,8 +1784,8 @@ vn_CreateComputePipelines(VkDevice device,
       struct vn_pipeline *pipeline = vn_pipeline_from_handle(pPipelines[i]);
       struct vn_pipeline_layout *layout =
          vn_pipeline_layout_from_handle(pCreateInfos[i].layout);
-      if (layout->push_descriptor_set_layout ||
-          layout->has_push_constant_ranges) {
+      if (layout && (layout->push_descriptor_set_layout ||
+                     layout->has_push_constant_ranges)) {
          pipeline->layout = vn_pipeline_layout_ref(dev, layout);
       }
 
@@ -1870,8 +1870,8 @@ vn_CreateRayTracingPipelinesKHR(
       struct vn_pipeline *pipeline = vn_pipeline_from_handle(pPipelines[i]);
       struct vn_pipeline_layout *layout =
          vn_pipeline_layout_from_handle(pCreateInfos[i].layout);
-      if (layout->push_descriptor_set_layout ||
-          layout->has_push_constant_ranges) {
+      if (layout && (layout->push_descriptor_set_layout ||
+                     layout->has_push_constant_ranges)) {
          pipeline->layout = vn_pipeline_layout_ref(dev, layout);
       }
 
