@@ -2831,11 +2831,8 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
          /* Lower FS outputs to scalar to allow dce. */
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_lower_io_to_scalar, nir_var_shader_out, NULL, NULL);
 
-         /* TODO it seems like some internal shaders use render target formats with too few components. */
-         if (!stages[MESA_SHADER_FRAGMENT].nir->info.internal) {
-            NIR_PASS(update_info, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_trim_fs_color_exports,
-                     gfx_state->ps.epilog.colors_needed);
-         }
+         NIR_PASS(update_info, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_trim_fs_color_exports,
+                  gfx_state->ps.epilog.colors_needed);
 
          NIR_PASS(update_info, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_copy_prop);
          NIR_PASS(update_info, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_dce);
