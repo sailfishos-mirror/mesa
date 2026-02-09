@@ -707,6 +707,7 @@ radv_nir_lower_ray_queries(struct nir_shader *shader, struct radv_device *device
    ralloc_free(query_ht);
 
    if (progress) {
+      NIR_PASS(_, shader, nir_lower_continue_constructs);
       NIR_PASS(_, shader, nir_split_struct_vars, nir_var_shader_temp);
       NIR_PASS(_, shader, nir_lower_global_vars_to_local);
       NIR_PASS(_, shader, nir_lower_vars_to_ssa);

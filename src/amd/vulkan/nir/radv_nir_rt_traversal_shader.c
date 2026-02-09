@@ -1275,6 +1275,7 @@ radv_build_traversal(struct radv_device *device, struct radv_ray_tracing_pipelin
       radv_build_end_trace_token(b, &data, nir_load_var(b, iteration_instance_count));
 
    nir_progress(true, b->impl, nir_metadata_none);
+   nir_lower_continue_constructs(b->shader);
    radv_nir_lower_hit_attrib_derefs(b->shader);
 
    return data.trav_vars.result;
