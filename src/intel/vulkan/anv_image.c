@@ -1959,7 +1959,8 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
             blorp_copy_get_color_format(&device->isl_dev, image_format);
          add_image_view_format(image, blorp_copy_format);
 
-         if (vk_format_is_color_depth_stencil_capable(image->vk.format))
+         if ((device->info->ver == 12 && image->vk.samples == 1) ||
+             vk_format_is_color_depth_stencil_capable(image->vk.format))
             add_image_view_format(image, ISL_FORMAT_RAW);
       } else {
          /* We don't have a blorp_copy format query for depth-stencil formats. */

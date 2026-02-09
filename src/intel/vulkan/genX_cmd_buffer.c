@@ -933,13 +933,19 @@ set_image_clear_color(struct anv_cmd_buffer *cmd_buffer,
                       const VkImageAspectFlags aspect,
                       const uint32_t *pixel)
 {
+   uint8_t replicated_pixel[16];
+   int pixel_size_B = vk_format_get_blocksize(image->vk.format);
+   for (int p = 0; p < 16 / pixel_size_B; p++)
+      memcpy(&replicated_pixel[p * pixel_size_B], pixel, pixel_size_B);
+
    for (int i = 0; i < image->num_view_formats; i++) {
       union isl_color_value clear_color;
       if (image->view_formats[i] == ISL_FORMAT_RAW) {
-         /* Only used for cross aspect copies (color <-> depth/stencil) */
-         assert(vk_format_is_color_depth_stencil_capable(image->vk.format));
-         assert(vk_format_get_blocksizebits(image->vk.format) <= 32);
-         memcpy(clear_color.u32, pixel, sizeof(clear_color.u32));
+         /* Used for cross aspect copies (color <-> depth/stencil) on all
+          * platforms and for blorp_copy() sources on gfx12 (see
+          * blorp_surf::has_replicated_pixel).
+          */
+         memcpy(clear_color.u32, replicated_pixel, sizeof(clear_color.u32));
       } else {
          isl_color_value_unpack(&clear_color, image->view_formats[i], pixel);
       }
@@ -966,8 +972,8 @@ set_image_clear_color(struct anv_cmd_buffer *cmd_buffer,
       dw[6] = clear_color.u32[3];
       dw[7] = 0;
       dw[8] = 0;
-      dw[3 + sampler_offset / 4] = pixel[0];
-      dw[4 + sampler_offset / 4] = pixel[1];
+      dw[3 + sampler_offset / 4] = ((uint32_t *)replicated_pixel)[0];
+      dw[4 + sampler_offset / 4] = ((uint32_t *)replicated_pixel)[1];
 #else
       assert(cmd_buffer->device->isl_dev.ss.clear_color_state_size == 0);
       assert(cmd_buffer->device->isl_dev.ss.clear_value_size == 16);

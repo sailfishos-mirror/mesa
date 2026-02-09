@@ -5991,6 +5991,8 @@ anv_image_get_clear_color_addr(UNUSED const struct anv_device *device,
       }
    }
 
+   /* Don't fail silently for the special raw format. */
+   assert(view_format != ISL_FORMAT_RAW);
    assert(anv_image_view_formats_incomplete(image));
    return anv_address_add(base_addr, access_offset);
 }

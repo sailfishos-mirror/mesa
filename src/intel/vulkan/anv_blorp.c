@@ -311,9 +311,9 @@ get_blorp_surf_for_anv_image(const struct anv_cmd_buffer *cmd_buffer,
    }
 
    const bool is_dest = usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+   const bool is_depth = aspect & VK_IMAGE_ASPECT_DEPTH_BIT;
    isl_surf_usage_flags_t isl_usage =
-      get_usage_flag_for_cmd_buffer(cmd_buffer, is_dest,
-                                    aspect & VK_IMAGE_ASPECT_DEPTH_BIT,
+      get_usage_flag_for_cmd_buffer(cmd_buffer, is_dest, is_depth,
                                     anv_image_is_protected(image));
    const struct anv_surface *surface = &image->planes[plane].primary_surface;
    const struct anv_address address =
@@ -344,11 +344,20 @@ get_blorp_surf_for_anv_image(const struct anv_cmd_buffer *cmd_buffer,
          };
       }
 
+      enum isl_format fmt_override = view_fmt;
+      if (cross_aspect && !is_depth) {
+         fmt_override = ISL_FORMAT_RAW;
+      } else if (!is_dest && device->info->ver == 12 &&
+                 !anv_image_view_formats_incomplete(image) &&
+                 isl_aux_usage_has_ccs_e(aux_usage)) {
+         fmt_override = ISL_FORMAT_RAW;
+      }
+
       const struct anv_address clear_color_addr =
          anv_image_get_clear_color_addr(
-            device, image, cross_aspect ? ISL_FORMAT_RAW : view_fmt, aspect,
-            !is_dest);
+            device, image, fmt_override, aspect, !is_dest);
       blorp_surf->clear_color_addr = anv_to_blorp_address(clear_color_addr);
+      blorp_surf->has_replicated_pixel = fmt_override == ISL_FORMAT_RAW;
 
       if (aspect & VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV) {
          blorp_surf->clear_color =
