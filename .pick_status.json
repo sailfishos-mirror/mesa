@@ -794,7 +794,7 @@
         "description": "venus: Fix error log on PPC",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a49b7adad883148f07308fd4d8c1e57796302857",
         "notes": null
