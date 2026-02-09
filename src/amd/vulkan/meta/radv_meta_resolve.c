@@ -759,8 +759,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer)
                                              dst_format, dst_layout, &region);
             break;
          case RESOLVE_COMPUTE:
-            radv_decompress_resolve_src(cmd_buffer, src_iview->image, src_layout, &region,
-                                        &saved_render.sample_locations);
+            radv_decompress_resolve_src(cmd_buffer, src_iview->image, src_layout, &region, NULL);
 
             radv_meta_resolve_compute_image(cmd_buffer, src_iview->image, src_format, src_layout, dst_iview->image,
                                             dst_format, dst_layout, &region);
@@ -770,8 +769,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer)
                                                                   VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
             break;
          case RESOLVE_FRAGMENT:
-            radv_decompress_resolve_src(cmd_buffer, src_iview->image, src_layout, &region,
-                                        &saved_render.sample_locations);
+            radv_decompress_resolve_src(cmd_buffer, src_iview->image, src_layout, &region, NULL);
 
             radv_meta_resolve_fragment_image(cmd_buffer, src_iview->image, src_format, src_layout, dst_iview->image,
                                              dst_format, dst_layout, &region);
