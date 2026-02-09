@@ -527,6 +527,17 @@ pvr_setup_surface_for_image(struct pvr_device *device,
    }
 }
 
+static VkFormat pvr_get_copy_or_resolve_format(VkFormat format,
+                                               VkImageAspectFlags aspects,
+                                               bool do_resolve)
+{
+   /* Resolve does filtering, never convert to SINT. */
+   if (do_resolve)
+      return vk_format_get_plane_aspect_format(format, aspects);
+
+   return pvr_get_copy_format(format, aspects);
+}
+
 static VkResult
 pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
                                  enum pvr_resolve_op resolve_op,
@@ -541,6 +552,7 @@ pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
    enum pipe_format dst_pformat = vk_format_to_pipe_format(
       vk_format_get_plane_aspect_format(dst->vk.format,
                                         region->dstSubresource.aspectMask));
+   const bool do_resolve = src->vk.samples > 1U && dst->vk.samples < 2U;
    bool src_block_compressed = util_format_is_compressed(src_pformat);
    bool dst_block_compressed = util_format_is_compressed(dst_pformat);
    VkExtent3D src_extent;
@@ -570,24 +582,32 @@ pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
       dst_extent.height = MAX2(1U, src_extent.height * block_height);
    }
 
-   if (src->vk.samples > dst->vk.samples) {
-      src_format =
-         vk_format_get_plane_aspect_format(src->vk.format,
-                                           region->srcSubresource.aspectMask);
-      if (pvr_vk_format_is_combined_ds(src->vk.format)) {
-         dst_format = dst->vk.format;
-      } else {
-         dst_format = src_format;
-      }
+   src_format = pvr_get_copy_or_resolve_format(src->vk.format,
+                                               region->srcSubresource.aspectMask,
+                                               do_resolve);
+   if (pvr_vk_format_is_combined_ds(src->vk.format)) {
+      dst_format = dst->vk.format;
+   } else if (src_block_compressed && !dst_block_compressed) {
+      src_format = dst_format =
+         pvr_get_copy_or_resolve_format(dst->vk.format,
+                                        region->srcSubresource.aspectMask,
+                                        do_resolve);
+   } else if (dst->vk.image_type == VK_IMAGE_TYPE_3D &&
+              dst_block_compressed) {
+      src_format = dst_format =
+         pvr_get_copy_or_resolve_format(dst->vk.format,
+                                        region->dstSubresource.aspectMask,
+                                        do_resolve);
+   } else if (src_block_compressed && dst_block_compressed) {
+      /* For compressed copies, only retain the size from the original
+       * source image format.
+       */
+      src_format = dst_format = pvr_get_raw_copy_format(src->vk.format);
    } else {
       /* We don't care what format dst is as it's guaranteed to be size
        * compatible with src.
        */
-      dst_format =
-         pvr_get_raw_copy_format(
-            vk_format_get_plane_aspect_format(src->vk.format,
-                                              region->srcSubresource.aspectMask));
-      src_format = dst_format;
+      dst_format = src_format;
    }
 
    if (pvr_vk_format_is_combined_ds(src_format) &&
@@ -607,7 +627,7 @@ pvr_copy_or_resolve_image_region(struct pvr_cmd_buffer *cmd_buffer,
       }
    }
 
-   if (src->vk.samples > 1U && dst->vk.samples < 2U) {
+   if (do_resolve) {
       /* Blend is not defined for integer formats */
       if (resolve_op == PVR_RESOLVE_BLEND && vk_format_is_int(src_format)) {
          /* Override for either color or DS */
