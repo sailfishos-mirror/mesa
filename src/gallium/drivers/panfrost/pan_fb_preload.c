@@ -1017,8 +1017,7 @@ pan_preload_emit_viewport(struct pan_pool *pool, uint16_t minx, uint16_t miny,
 static void
 pan_preload_emit_dcd(struct pan_fb_preload_cache *cache, struct pan_pool *pool,
                      struct pan_fb_info *fb, bool zs, uint64_t coordinates,
-                     uint64_t tsd, struct mali_draw_packed *out,
-                     bool always_write)
+                     uint64_t tsd, struct mali_draw_packed *out)
 {
    unsigned tex_count = 0;
    uint64_t textures = pan_preload_emit_textures(pool, fb, zs, &tex_count);
@@ -1030,7 +1029,7 @@ pan_preload_emit_dcd(struct pan_fb_preload_cache *cache, struct pan_pool *pool,
    /* Tiles updated by preload shaders are still considered clean (separate
     * for colour and Z/S), allowing us to suppress unnecessary writeback
     */
-   UNUSED bool clean_fragment_write = !always_write;
+   UNUSED bool clean_fragment_write = true;
 
    /* Image view used when patching stencil formats for combined
     * depth/stencil preloads.
@@ -1185,25 +1184,8 @@ pan_preload_emit_pre_frame_dcd(struct pan_fb_preload_cache *cache,
 
    void *dcd = fb->bifrost.pre_post.dcds.cpu + (dcd_idx * pan_size(DRAW));
 
-   /* We only use crc_rt to determine whether to force writes for updating
-    * the CRCs, so use a conservative tile size (16x16).
-    */
-   int crc_rt = GENX(pan_select_crc_rt)(fb, 16 * 16);
+   pan_preload_emit_dcd(cache, desc_pool, fb, zs, coords, tsd, dcd);
 
-   bool always_write = false;
-
-   /* If CRC data is currently invalid and this batch will make it valid,
-    * write even clean tiles to make sure CRC data is updated. */
-   if (crc_rt >= 0) {
-      bool *valid = fb->rts[crc_rt].crc_valid;
-      bool full = pan_fb_info_is_fully_covered(fb);
-
-      if (full && !(*valid))
-         always_write = true;
-   }
-
-   pan_preload_emit_dcd(cache, desc_pool, fb, zs, coords, tsd, dcd,
-                        always_write);
    if (zs) {
       enum pipe_format fmt = fb->zs.view.zs
                                 ? fb->zs.view.zs->planes[0].image->props.format
@@ -1263,8 +1245,7 @@ pan_preload_emit_pre_frame_dcd(struct pan_fb_preload_cache *cache,
 #endif
    } else {
       fb->bifrost.pre_post.modes[dcd_idx] =
-         always_write ? MALI_PRE_POST_FRAME_SHADER_MODE_ALWAYS
-                      : MALI_PRE_POST_FRAME_SHADER_MODE_INTERSECT;
+         MALI_PRE_POST_FRAME_SHADER_MODE_INTERSECT;
    }
 }
 #else
@@ -1279,7 +1260,7 @@ pan_preload_emit_tiler_job(struct pan_fb_preload_cache *cache,
       return (struct pan_ptr){0};
 
    pan_preload_emit_dcd(cache, desc_pool, fb, zs, coords, tsd,
-                        pan_section_ptr(job.cpu, TILER_JOB, DRAW), false);
+                        pan_section_ptr(job.cpu, TILER_JOB, DRAW));
 
    pan_section_pack(job.cpu, TILER_JOB, PRIMITIVE, cfg) {
       cfg.draw_mode = MALI_DRAW_MODE_TRIANGLE_STRIP;
