@@ -258,23 +258,6 @@ anv_nir_compute_push_layout(nir_shader *nir,
    push_start = MIN2(push_start, push_end);
    push_start = ROUND_DOWN_TO(push_start, 32);
 
-   /* For scalar, push data size needs to be aligned to a DWORD. */
-   const unsigned alignment = 4;
-   const unsigned push_size = align(push_end - push_start, alignment);
-   prog_data->push_sizes[0] = push_size;
-
-   /* Fill the compute push constant layout (cross/per thread constants) for
-    * platforms pre Gfx12.5.
-    */
-   if (nir->info.stage == MESA_SHADER_COMPUTE) {
-      const int subgroup_id_index =
-          push_end == (anv_drv_const_offset(cs.subgroup_id) +
-                       anv_drv_const_size(cs.subgroup_id)) ?
-         (anv_drv_const_offset(cs.subgroup_id) - push_start) / 4 : -1;
-      struct brw_cs_prog_data *cs_prog_data = brw_cs_prog_data(prog_data);
-      brw_cs_fill_push_const_info(devinfo, cs_prog_data, subgroup_id_index);
-   }
-
    const struct anv_push_range push_constant_range = {
       .set = ANV_DESCRIPTOR_SET_PUSH_CONSTANTS,
       .start = push_start / 32,
@@ -330,14 +313,6 @@ anv_nir_compute_push_layout(nir_shader *nir,
       }
       assert(total_push_regs <= max_push_regs);
 
-      if (robust_flags & BRW_ROBUSTNESS_UBO) {
-         const uint32_t push_reg_mask_offset =
-            anv_drv_const_offset(gfx.push_reg_mask[nir->info.stage]);
-         assert(push_reg_mask_offset >= push_start);
-         prog_data->push_reg_mask_param =
-            (push_reg_mask_offset - push_start) / 4;
-      }
-
       const unsigned max_push_buffers = needs_padding_per_primitive ? 3 : 4;
 
       for (unsigned i = 0; i < 4; i++) {
@@ -361,12 +336,6 @@ anv_nir_compute_push_layout(nir_shader *nir,
             .start = ubo_range->start,
             .length = ubo_range->length,
          };
-
-         /* We only bother to shader-zero pushed client UBOs */
-         if (binding->set < MAX_SETS &&
-             (robust_flags & BRW_ROBUSTNESS_UBO)) {
-            prog_data->robust_ubo_ranges |= (uint8_t) (1 << (n_push_ranges - 1));
-         }
       }
    }
 
@@ -385,7 +354,6 @@ anv_nir_compute_push_layout(nir_shader *nir,
          .start = 0,
          .length = 1,
       };
-      prog_data->push_sizes[0] = 32;
    }
 
    if (needs_padding_per_primitive) {
@@ -406,6 +374,30 @@ anv_nir_compute_push_layout(nir_shader *nir,
          .bind_map = map,
          .push_map = push_map,
       });
+
+   /* Do this before calling brw_cs_fill_push_const_info(), it uses the data
+    * in prog_data->push_sizes[].
+    */
+   for (uint32_t i = 0; i < 4; i++) {
+      if (map->push_ranges[i].set == ANV_DESCRIPTOR_SET_PER_PRIM_PADDING)
+         continue;
+
+      /* We only bother to shader-zero pushed client UBOs */
+      if (map->push_ranges[i].length > 0 &&
+          map->push_ranges[i].set < MAX_SETS &&
+          (robust_flags & BRW_ROBUSTNESS_UBO))
+         prog_data->robust_ubo_ranges |= (uint8_t) (1 << i);
+
+      prog_data->push_sizes[i] = map->push_ranges[i].length * 32;
+   }
+
+   if (prog_data->robust_ubo_ranges) {
+      const uint32_t push_reg_mask_offset =
+         anv_drv_const_offset(gfx.push_reg_mask[nir->info.stage]);
+      assert(push_reg_mask_offset >= push_start);
+      prog_data->push_reg_mask_param =
+         (push_reg_mask_offset - push_start) / 4;
+   }
 
    switch (nir->info.stage) {
    case MESA_SHADER_TESS_CTRL:
@@ -448,14 +440,18 @@ anv_nir_compute_push_layout(nir_shader *nir,
       break;
    }
 
-   default:
+   case MESA_SHADER_COMPUTE: {
+      const int subgroup_id_index =
+         push_end == (anv_drv_const_offset(cs.subgroup_id) +
+                      anv_drv_const_size(cs.subgroup_id)) ?
+         (anv_drv_const_offset(cs.subgroup_id) - push_start) / 4 : -1;
+      struct brw_cs_prog_data *cs_prog_data = brw_cs_prog_data(prog_data);
+      brw_cs_fill_push_const_info(devinfo, cs_prog_data, subgroup_id_index);
       break;
    }
 
-   for (uint32_t i = 0; i < 4; i++) {
-      if (map->push_ranges[i].set == ANV_DESCRIPTOR_SET_PER_PRIM_PADDING)
-         continue;
-      prog_data->push_sizes[i] = map->push_ranges[i].length * 32;
+   default:
+      break;
    }
 
 #if 0
