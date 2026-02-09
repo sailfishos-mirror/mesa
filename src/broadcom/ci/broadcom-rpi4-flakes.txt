@@ -152,3 +152,8 @@ program@execute@builtin@builtin-float-sincos-1.0.generated
 dEQP-VK.spirv_assembly.instruction.graphics.spirv_ids_abuse.lots_ids_vert
 
 api@clgetdeviceinfo
+
+dEQP-VK.memory.mapping.dedicated_alloc.buffer.full.variable.implicit_unmap
+dEQP-VK.synchronization2.op.single_queue.fence.write_ssbo_fragment_read_vertex_input.buffer_262144
+glx@glx-visuals-depth
+spec@!opengl 1.1@depthstencil-default_fb-drawpixels-float-and-ushort samples=2
