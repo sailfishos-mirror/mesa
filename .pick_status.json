@@ -1154,7 +1154,7 @@
         "description": "freedreno/decode: Fix const correctness in get_tex_count",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1ea4ef0d3be829e392922f5d26fbc89bf69a8a67",
         "notes": null
