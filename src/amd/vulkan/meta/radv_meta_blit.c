@@ -51,9 +51,9 @@ get_pipeline_layout(struct radv_device *device, VkPipelineLayout *layout_out)
 
 struct radv_blit_key {
    enum radv_meta_object_key_type type;
+   VkFormat format;
    VkImageAspectFlags aspects;
    VkImageType image_type;
-   uint32_t fs_key;
 };
 
 static VkResult
@@ -77,7 +77,7 @@ get_pipeline(struct radv_device *device, const struct radv_image_view *src_iview
    key.image_type = src_image->vk.image_type;
 
    if (src_image->vk.aspects == VK_IMAGE_ASPECT_COLOR_BIT)
-      key.fs_key = radv_format_meta_fs_key(device, dst_image->vk.format);
+      key.format = dst_image->vk.format;
 
    VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
    if (pipeline_from_cache != VK_NULL_HANDLE) {
@@ -208,7 +208,7 @@ get_pipeline(struct radv_device *device, const struct radv_image_view *src_iview
    case VK_IMAGE_ASPECT_COLOR_BIT:
       pipeline_create_info.pColorBlendState = &color_blend_info;
       render.color_attachment_count = 1;
-      render.color_attachment_formats[0] = radv_fs_key_format_exemplars[key.fs_key];
+      render.color_attachment_formats[0] = key.format;
       break;
    case VK_IMAGE_ASPECT_DEPTH_BIT:
       pipeline_create_info.pDepthStencilState = &depth_info;

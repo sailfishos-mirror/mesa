@@ -53,16 +53,15 @@ get_color_pipeline_layout(struct radv_device *device, VkPipelineLayout *layout_o
 
 struct radv_clear_color_key {
    enum radv_meta_object_key_type type;
+   VkFormat format;
    uint8_t samples;
    uint8_t frag_output;
-   uint32_t fs_key;
 };
 
 static VkResult
 get_color_pipeline(struct radv_device *device, uint32_t samples, uint32_t frag_output, VkFormat format,
                    VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
 {
-   const uint32_t fs_key = radv_format_meta_fs_key(device, format);
    struct radv_clear_color_key key;
    VkResult result;
 
@@ -72,9 +71,9 @@ get_color_pipeline(struct radv_device *device, uint32_t samples, uint32_t frag_o
 
    memset(&key, 0, sizeof(key));
    key.type = RADV_META_OBJECT_KEY_CLEAR_COLOR;
+   key.format = format;
    key.samples = samples;
    key.frag_output = frag_output;
-   key.fs_key = fs_key;
 
    VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
    if (pipeline_from_cache != VK_NULL_HANDLE) {

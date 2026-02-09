@@ -15,13 +15,12 @@
 
 struct radv_resolve_key {
    enum radv_meta_object_key_type type;
-   uint32_t fs_key;
+   VkFormat format;
 };
 
 static VkResult
-get_pipeline(struct radv_device *device, unsigned fs_key, VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
+get_pipeline(struct radv_device *device, VkFormat format, VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
 {
-   const VkFormat format = radv_fs_key_format_exemplars[fs_key];
    struct radv_resolve_key key;
    VkResult result;
 
@@ -31,7 +30,7 @@ get_pipeline(struct radv_device *device, unsigned fs_key, VkPipeline *pipeline_o
 
    memset(&key, 0, sizeof(key));
    key.type = RADV_META_OBJECT_KEY_RESOLVE_HW;
-   key.fs_key = fs_key;
+   key.format = format;
 
    VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
    if (pipeline_from_cache != VK_NULL_HANDLE) {
@@ -150,12 +149,11 @@ emit_resolve(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *src_im
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    VkCommandBuffer cmd_buffer_h = radv_cmd_buffer_to_handle(cmd_buffer);
-   unsigned fs_key = radv_format_meta_fs_key(device, vk_format);
    VkPipelineLayout layout;
    VkPipeline pipeline;
    VkResult result;
 
-   result = get_pipeline(device, fs_key, &pipeline, &layout);
+   result = get_pipeline(device, vk_format, &pipeline, &layout);
    if (result != VK_SUCCESS) {
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       return;

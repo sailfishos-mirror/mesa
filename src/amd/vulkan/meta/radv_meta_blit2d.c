@@ -495,9 +495,9 @@ create_layout(struct radv_device *device, int idx, VkPipelineLayout *layout_out)
 
 struct radv_blit2d_color_key {
    enum radv_meta_object_key_type type;
+   VkFormat format;
    enum blit2d_src_type src_type;
    uint32_t log2_samples;
-   uint32_t fs_key;
 };
 
 static VkResult
@@ -514,9 +514,9 @@ get_color_pipeline(struct radv_device *device, enum blit2d_src_type src_type, Vk
 
    memset(&key, 0, sizeof(key));
    key.type = RADV_META_OBJECT_KEY_BLIT2D_COLOR;
+   key.format = format;
    key.src_type = src_type;
    key.log2_samples = log2_samples;
-   key.fs_key = radv_format_meta_fs_key(device, format);
 
    VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
    if (pipeline_from_cache != VK_NULL_HANDLE) {

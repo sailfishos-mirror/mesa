@@ -195,6 +195,7 @@ get_depth_stencil_resolve_pipeline(struct radv_device *device, int samples, VkIm
 
 struct radv_resolve_color_fs_key {
    enum radv_meta_object_key_type type;
+   VkFormat format;
    uint32_t samples;
    uint32_t fs_key;
 };
@@ -203,9 +204,8 @@ static VkResult
 get_color_resolve_pipeline(struct radv_device *device, struct radv_image_view *src_iview,
                            struct radv_image_view *dst_iview, VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
 {
-   const unsigned fs_key = radv_format_meta_fs_key(device, dst_iview->vk.format);
    const uint32_t samples = src_iview->image->vk.samples;
-   const VkFormat format = radv_fs_key_format_exemplars[fs_key];
+   VkFormat format = dst_iview->vk.format;
    const bool is_integer = vk_format_is_int(format);
    struct radv_resolve_color_fs_key key;
    VkResult result;
@@ -216,8 +216,8 @@ get_color_resolve_pipeline(struct radv_device *device, struct radv_image_view *s
 
    memset(&key, 0, sizeof(key));
    key.type = RADV_META_OBJECT_KEY_RESOLVE_COLOR_FS;
+   key.format = format;
    key.samples = samples;
-   key.fs_key = fs_key;
 
    VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
    if (pipeline_from_cache != VK_NULL_HANDLE) {
