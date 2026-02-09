@@ -520,6 +520,9 @@ nvk_compile_nir(struct nvk_device *dev, nir_shader *nir,
       shader->data_size = data_size;
    }
 
+   if (dump_asm)
+      shader->nir_str = nir_shader_as_str(nir, NULL);
+
    return VK_SUCCESS;
 }
 
@@ -870,6 +873,7 @@ nvk_shader_destroy(struct vk_device *vk_dev,
    }
 
    free((void *)shader->data_ptr);
+   ralloc_free((void *)shader->nir_str);
 
    vk_shader_free(&dev->vk, pAllocator, &shader->vk);
 }
@@ -1272,6 +1276,15 @@ nvk_shader_get_executable_internal_representations(
    bool incomplete_text = false;
 
    assert(executable_index == 0);
+
+   if (shader->nir_str != NULL) {
+      vk_outarray_append_typed(VkPipelineExecutableInternalRepresentationKHR, &out, ir) {
+         WRITE_STR(ir->name, "NIR shader");
+         WRITE_STR(ir->description, "NIR shader");
+         if (!write_ir_text(ir, shader->nir_str))
+            incomplete_text = true;
+      }
+   }
 
    if (shader->nak != NULL && shader->nak->asm_str != NULL) {
       vk_outarray_append_typed(VkPipelineExecutableInternalRepresentationKHR, &out, ir) {
