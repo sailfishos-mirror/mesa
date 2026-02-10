@@ -61,8 +61,6 @@ static const char *sysval_table[SYSTEM_VALUE_MAX] = {
    [SYSTEM_VALUE_AMPLIFICATION_ID_KK] =
       "uint mtl_AmplificationID [[amplification_id]]",
    [SYSTEM_VALUE_FIRST_VERTEX] = "uint gl_FirstVertex [[base_vertex]]",
-   /* These are functions and not shader input variables */
-   [SYSTEM_VALUE_HELPER_INVOCATION] = "",
 };
 
 static void
@@ -71,8 +69,7 @@ emit_sysvals(struct nir_to_msl_ctx *ctx, nir_shader *shader)
    unsigned i;
    BITSET_FOREACH_SET(i, shader->info.system_values_read, SYSTEM_VALUE_MAX) {
       assert(sysval_table[i]);
-      if (sysval_table[i] && sysval_table[i][0])
-         P_IND(ctx, "%s,\n", sysval_table[i]);
+      P_IND(ctx, "%s,\n", sysval_table[i]);
    }
 }
 
@@ -2094,6 +2091,10 @@ msl_gather_info(struct nir_to_msl_ctx *ctx, struct nir_to_msl_options *options)
             BITSET_SET(ctx->shader->info.system_values_read,
                        SYSTEM_VALUE_SAMPLE_ID);
          }
+
+         /* In Metal this is a function call. */
+         BITSET_CLEAR(ctx->shader->info.system_values_read,
+                      SYSTEM_VALUE_HELPER_INVOCATION);
 
          /* Metal's sample mask has all the bits when we only care about the bit
           * the fragment was generated for. This is why we need to compute it
