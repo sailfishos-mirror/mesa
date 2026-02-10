@@ -189,7 +189,8 @@ pan_image_view_has_crc(const struct pan_image_view *iview)
    if (!p.image)
       return false;
 
-   return p.image->props.crc;
+   /* Only mip level 0 gets a CRC buffer allocated. */
+   return p.image->props.crc && iview->first_level == 0;
 }
 
 static inline struct pan_image_plane_ref
