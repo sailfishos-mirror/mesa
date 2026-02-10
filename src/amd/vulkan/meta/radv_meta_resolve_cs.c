@@ -253,11 +253,14 @@ radv_meta_resolve_compute_image(struct radv_cmd_buffer *cmd_buffer, struct radv_
     */
    uint32_t queue_mask = radv_image_queue_family_mask(dst_image, cmd_buffer->qf, cmd_buffer->qf);
 
+   const bool is_partial_resolve =
+      (region->dstOffset.x || region->dstOffset.y || region->dstOffset.z ||
+       region->extent.width != dst_image->vk.extent.width || region->extent.height != dst_image->vk.extent.height ||
+       region->extent.depth != dst_image->vk.extent.depth);
+
    if (!radv_image_use_dcc_image_stores(device, dst_image) &&
        radv_layout_dcc_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout, queue_mask) &&
-       (region->dstOffset.x || region->dstOffset.y || region->dstOffset.z ||
-        region->extent.width != dst_image->vk.extent.width || region->extent.height != dst_image->vk.extent.height ||
-        region->extent.depth != dst_image->vk.extent.depth)) {
+       is_partial_resolve) {
       radv_decompress_dcc(cmd_buffer, dst_image,
                           &(VkImageSubresourceRange){
                              .aspectMask = region->dstSubresource.aspectMask,
@@ -345,7 +348,8 @@ radv_meta_resolve_compute_image(struct radv_cmd_buffer *cmd_buffer, struct radv_
    radv_meta_restore(&saved_state, cmd_buffer);
 
    if (!radv_image_use_dcc_image_stores(device, dst_image) &&
-       radv_layout_dcc_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout, queue_mask)) {
+       radv_layout_dcc_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout, queue_mask) &&
+       !is_partial_resolve) {
 
       cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE;
 
