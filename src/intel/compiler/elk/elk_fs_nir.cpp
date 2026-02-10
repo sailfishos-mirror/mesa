@@ -1128,10 +1128,13 @@ fs_nir_emit_alu(nir_to_elk_state &ntb, nir_alu_instr *instr,
                              elk_imm_d(rnd));
       }
 
-      if (op[0].type == ELK_REGISTER_TYPE_HF)
+      if (op[0].type == ELK_REGISTER_TYPE_HF) {
          assert(type_sz(result.type) < 8); /* nir_split_conversion */
 
-      inst = bld.MOV(result, op[0]);
+         inst = bld.F16TO32(result, op[0]);
+      } else {
+         inst = bld.MOV(result, op[0]);
+      }
       break;
 
    case nir_op_fsign:
