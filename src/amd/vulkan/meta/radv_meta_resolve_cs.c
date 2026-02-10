@@ -350,9 +350,6 @@ radv_meta_resolve_compute_image(struct radv_cmd_buffer *cmd_buffer, struct radv_
    if (!radv_image_use_dcc_image_stores(device, dst_image) &&
        radv_layout_dcc_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout, queue_mask) &&
        !is_partial_resolve) {
-
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE;
-
       VkImageSubresourceRange range = {
          .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
          .baseMipLevel = region->dstSubresource.mipLevel,
