@@ -1321,6 +1321,7 @@ anv_shader_lower_nir(struct anv_device *device,
 {
    const struct anv_physical_device *pdevice = device->physical;
    const struct brw_compiler *compiler = pdevice->compiler;
+   const struct intel_device_info *devinfo = compiler->devinfo;
    struct anv_descriptor_set_layout * const *set_layouts =
       (struct anv_descriptor_set_layout * const *) shader_data->info->set_layouts;
    const uint32_t set_layout_count = shader_data->info->set_layout_count;
@@ -1374,7 +1375,7 @@ anv_shader_lower_nir(struct anv_device *device,
       nir_lower_compute_system_values_options options = {
          .lower_workgroup_id_to_index = true,
          /* nir_lower_idiv generates expensive code */
-         .shortcut_1d_workgroup_id = compiler->devinfo->verx10 >= 125,
+         .shortcut_1d_workgroup_id = devinfo->verx10 >= 125,
       };
 
       NIR_PASS(_, nir, nir_lower_compute_system_values, &options);
@@ -1399,7 +1400,7 @@ anv_shader_lower_nir(struct anv_device *device,
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
 
    /* Apply lowering for 64bit atomics pre-Xe2 */
-   const bool lower_64bit_atomics = compiler->devinfo->ver < 20;
+   const bool lower_64bit_atomics = devinfo->ver < 20;
 
    if (lower_64bit_atomics) {
       /* Ensure robustness, do this before brw_nir_lower_storage_image so that
@@ -1428,7 +1429,7 @@ anv_shader_lower_nir(struct anv_device *device,
                accept_64bit_atomic_cb, NULL);
 
       /* Detile for global */
-      NIR_PASS(_, nir, brw_nir_lower_texel_address, compiler->devinfo,
+      NIR_PASS(_, nir, brw_nir_lower_texel_address, devinfo,
                pdevice->isl_dev.shader_tiling);
    }
 
@@ -1558,7 +1559,7 @@ anv_shader_lower_nir(struct anv_device *device,
          const unsigned chunk_size = 16;
          const unsigned shared_size = align(nir->info.shared_size, chunk_size);
          assert(shared_size <=
-                intel_compute_slm_calculate_size(compiler->devinfo->ver,
+                intel_compute_slm_calculate_size(devinfo->ver,
                                                  nir->info.shared_size));
 
          NIR_PASS(_, nir, nir_zero_initialize_shared_memory,
@@ -1567,7 +1568,7 @@ anv_shader_lower_nir(struct anv_device *device,
    }
 
    if (mesa_shader_stage_is_compute(nir->info.stage)) {
-      NIR_PASS(_, nir, brw_nir_lower_cs_intrinsics, compiler->devinfo,
+      NIR_PASS(_, nir, brw_nir_lower_cs_intrinsics, devinfo,
                &shader_data->prog_data.cs);
    }
 
