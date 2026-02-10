@@ -216,12 +216,6 @@ translate_texture_filter(unsigned filter)
    }
 }
 
-static inline int
-translate_rb_src_dst_swap(enum pipe_format src, enum pipe_format dst)
-{
-   return translate_pe_format_rb_swap(src) ^ translate_pe_format_rb_swap(dst);
-}
-
 static inline uint32_t
 translate_depth_format(enum pipe_format fmt)
 {

@@ -133,15 +133,7 @@ etna_update_blend(struct etna_context *ctx)
       else
          rt = &pblend->rt[0];
 
-      if (translate_pe_format_rb_swap(pfb->cbufs[i].format)) {
-         colormask = rt->colormask & (PIPE_MASK_A | PIPE_MASK_G);
-         if (rt->colormask & PIPE_MASK_R)
-            colormask |= PIPE_MASK_B;
-         if (rt->colormask & PIPE_MASK_B)
-            colormask |= PIPE_MASK_R;
-      } else {
-         colormask = rt->colormask;
-      }
+      colormask = rt->colormask;
 
       /* Dithering a 4bpc format leads to visible artifacts due to the low
        * precision of the color channels.

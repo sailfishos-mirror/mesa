@@ -417,11 +417,6 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
    if (screen->info->halti >= 5)
       key.flatshade = ctx->rasterizer->flatshade;
 
-    for (i = 0; i < pfb->nr_cbufs; i++) {
-       if (pfb->cbufs[i].texture)
-         key.frag_rb_swap |= !!translate_pe_format_rb_swap(pfb->cbufs[i].format) << i;
-    }
-
    if (!etna_get_vs(ctx, &key) || !etna_get_fs(ctx, &key)) {
       BUG("compiled shaders are not okay");
       return;

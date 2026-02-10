@@ -788,6 +788,20 @@ etna_try_blt_blit(struct pipe_context *pctx,
       for (unsigned x=0; x<4; ++x)
          op.dest.swizzle[x] = x;
 
+      /* For transfer blits of RB_SWAP formats, apply R<->B swizzle on the
+       * linear side to convert between GPU-internal BGRA and CPU RGBA. */
+      if (ctx->in_transfer_blit &&
+          translate_pe_format_rb_swap(blit_info->src.format)) {
+         bool src_linear = src->layout == ETNA_LAYOUT_LINEAR;
+         bool dst_linear = dst->layout == ETNA_LAYOUT_LINEAR;
+
+         if (src_linear != dst_linear) {
+            uint8_t *swiz = src_linear ? op.src.swizzle : op.dest.swizzle;
+            swiz[0] = 2; /* R from B position */
+            swiz[2] = 0; /* B from R position */
+         }
+      }
+
       op.dest_x = blit_info->dst.box.x;
       op.dest_y = blit_info->dst.box.y;
       op.src_x = blit_info->src.box.x;

@@ -83,6 +83,7 @@ etna_clear_blit_pack_rgba(enum pipe_format format, const union pipe_color_union 
 {
    union util_color uc;
 
+   format = translate_pe_internal_format(format);
    util_pack_color_union(format, &uc, color);
 
    switch (util_format_get_blocksize(format)) {
