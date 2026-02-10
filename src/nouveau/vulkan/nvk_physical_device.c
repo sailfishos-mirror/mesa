@@ -123,6 +123,7 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
       .KHR_copy_memory_indirect = true,
       .KHR_create_renderpass2 = true,
       .KHR_dedicated_allocation = true,
+      .KHR_depth_clamp_zero_one = true,
       .KHR_depth_stencil_resolve = true,
       .KHR_descriptor_update_template = true,
       .KHR_device_group = true,
@@ -586,7 +587,7 @@ nvk_get_device_features(const struct nv_device_info *info,
       /* VK_EXT_depth_clamp_control */
       .depthClampControl = true,
 
-      /* VK_EXT_depth_clamp_zero_one */
+      /* VK_KHR_depth_clamp_zero_one */
       .depthClampZeroOne = true,
 
       /* VK_EXT_depth_clip_control */
