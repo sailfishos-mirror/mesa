@@ -392,6 +392,28 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
       return;
    }
 
+   const uint32_t queue_mask = radv_image_queue_family_mask(dst_image, cmd_buffer->qf, cmd_buffer->qf);
+
+   if (!radv_image_decompress_htile_on_image_stores(device, dst_image) &&
+       radv_layout_is_htile_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout,
+                                       queue_mask) &&
+       (region->dstOffset.x || region->dstOffset.y || region->dstOffset.z ||
+        region->extent.width != dst_image->vk.extent.width || region->extent.height != dst_image->vk.extent.height ||
+        region->extent.depth != dst_image->vk.extent.depth)) {
+      radv_expand_depth_stencil(cmd_buffer, dst_image,
+                                &(VkImageSubresourceRange){
+                                   .aspectMask = region->dstSubresource.aspectMask,
+                                   .baseMipLevel = region->dstSubresource.mipLevel,
+                                   .levelCount = 1,
+                                   .baseArrayLayer = region->dstSubresource.baseArrayLayer,
+                                   .layerCount = region->dstSubresource.layerCount,
+                                },
+                                NULL);
+
+      if (cmd_buffer->qf == RADV_QUEUE_GENERAL)
+         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+   }
+
    radv_meta_save(&saved_state, cmd_buffer,
                   RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_DESCRIPTORS | RADV_META_SAVE_CONSTANTS);
 
@@ -500,8 +522,6 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
                                                          VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
 
    if (!radv_image_decompress_htile_on_image_stores(device, dst_image)) {
-      const uint32_t queue_mask = radv_image_queue_family_mask(dst_image, cmd_buffer->qf, cmd_buffer->qf);
-
       if (radv_layout_is_htile_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout,
                                           queue_mask)) {
          VkImageSubresourceRange range = {

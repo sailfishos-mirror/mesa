@@ -1,5 +1,3 @@
-dEQP-VK.*.multisample.m10_resolve.*.no_flags,Fail
-
 # https://gitlab.khronos.org/Tracker/vk-gl-cts/-/issues/6256
 dEQP-VK.sparse_resources.image_sparse_residency.2d.r10x6_unorm_pack16.1024_128_1,Crash
 dEQP-VK.sparse_resources.image_sparse_residency.2d.r10x6_unorm_pack16.11_137_1,Crash
