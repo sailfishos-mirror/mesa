@@ -2181,9 +2181,9 @@ by a particular renderpass/blit.
 	<reg32 offset="0x8404" name="GRAS_A2D_SRC_YMAX" low="8" high="24" type="int" variants="A6XX-A7XX" usage="rp_blit"/>
 	<reg32 offset="0x8405" name="GRAS_A2D_DEST_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
 	<reg32 offset="0x8406" name="GRAS_A2D_DEST_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8407" name="GRAS_2D_UNKNOWN_8407" low="0" high="31"/>
-	<reg32 offset="0x8408" name="GRAS_2D_UNKNOWN_8408" low="0" high="31"/>
-	<reg32 offset="0x8409" name="GRAS_2D_UNKNOWN_8409" low="0" high="31"/>
+	<reg32 offset="0x8407" name="GRAS_A2D_UNKNOWN_8407" low="0" high="31" variants="A6XX"/>
+	<reg32 offset="0x8408" name="GRAS_A2D_UNKNOWN_8408" low="0" high="31" variants="A6XX"/>
+	<reg32 offset="0x8409" name="GRAS_A2D_UNKNOWN_8409" low="0" high="31" variants="A6XX"/>
 	<reg32 offset="0x840a" name="GRAS_A2D_SCISSOR_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
 	<reg32 offset="0x840b" name="GRAS_A2D_SCISSOR_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
 
