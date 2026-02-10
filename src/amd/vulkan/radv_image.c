@@ -1756,15 +1756,9 @@ radv_image_queue_family_mask(const struct radv_image *image, enum radv_queue_fam
 }
 
 bool
-radv_image_is_renderable(const struct radv_device *device, const struct radv_image *image)
+radv_image_is_renderable(const struct radv_image *image)
 {
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
    if (vk_format_is_96bit(image->vk.format))
-      return false;
-
-   if (pdev->info.gfx_level >= GFX9 && image->vk.image_type == VK_IMAGE_TYPE_3D &&
-       vk_format_get_blocksizebits(image->vk.format) == 128 && vk_format_is_compressed(image->vk.format))
       return false;
 
    if (image->planes[0].surface.flags & RADEON_SURF_NO_RENDER_TARGET)
