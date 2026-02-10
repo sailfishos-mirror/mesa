@@ -696,11 +696,6 @@ nir_replace_instr(nir_builder *build, nir_alu_instr *instr,
                   nir_instr_worklist *algebraic_worklist,
                   struct exec_list *dead_instrs)
 {
-   uint8_t swizzle[NIR_MAX_VEC_COMPONENTS] = { 0 };
-
-   for (unsigned i = 0; i < instr->def.num_components; ++i)
-      swizzle[i] = i;
-
    struct match_state state;
    state.fp_math_ctrl = nir_fp_fast_math;
    state.state = search_state;
@@ -722,7 +717,7 @@ nir_replace_instr(nir_builder *build, nir_alu_instr *instr,
 
       if (match_expression(table, search, instr,
                            instr->def.num_components,
-                           swizzle, &state)) {
+                           identity_swizzle, &state)) {
          found = true;
          break;
       }
