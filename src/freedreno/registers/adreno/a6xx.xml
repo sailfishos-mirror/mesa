@@ -20,6 +20,7 @@ currently there are following usages:
 		roughly corresponds to registers used in ib1 for Freedreno
 - "rp_blit" - the register is used inside renderpass or blits
 		(ib2 for Freedreno)
+- "compute" - used by compute cmds
 - "blit" - used by CP_BLIT cmds
 - "resolve" - used by CCU_RESOLVE (resolve/unresolve/clear) events
 
@@ -4064,7 +4065,7 @@ by a particular renderpass/blit.
 
 	<!-- TODO: unknown bool register at 0xa9aa, likely same as 0xa8c0-0xa8c3 but for FS -->
 
-	<reg32 offset="0xa9b0" name="SP_CS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="cmd">
+	<reg32 offset="0xa9b0" name="SP_CS_CNTL_0" type="a6xx_sp_xs_cntl_0" usage="compute">
 		<bitfield name="THREADSIZE" pos="20" type="a6xx_threadsize"/>
 		<!-- seems to make SP use less concurrent threads when possible? -->
 		<bitfield name="UNK21" pos="21" type="boolean"/>
@@ -4082,7 +4083,7 @@ by a particular renderpass/blit.
 	</enum>
 
 	<!-- set for compute shaders -->
-	<reg32 offset="0xa9b1" name="SP_CS_CNTL_1" usage="cmd">
+	<reg32 offset="0xa9b1" name="SP_CS_CNTL_1" usage="compute">
 		<bitfield name="SHARED_SIZE" low="0" high="4" type="uint">
 			<doc>
 				If 0 - all 32k of shared storage is enabled, otherwise
@@ -4102,29 +4103,29 @@ by a particular renderpass/blit.
 		</bitfield>
 		<bitfield name="ALT_LM_ENCODE" pos="26" type="boolean"/>
 	</reg32>
-	<reg32 offset="0xa9b2" name="SP_CS_BOOLEAN_CF_MASK" type="hex" usage="cmd"/>
-	<reg32 offset="0xa9b3" name="SP_CS_PROGRAM_COUNTER_OFFSET" type="uint" usage="cmd"/>
-	<reg64 offset="0xa9b4" name="SP_CS_BASE" type="address" align="32" usage="cmd"/>
-	<reg32 offset="0xa9b6" name="SP_CS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="cmd"/>
-	<reg64 offset="0xa9b7" name="SP_CS_PVT_MEM_BASE" type="waddress" align="32" usage="cmd"/>
-	<reg32 offset="0xa9b9" name="SP_CS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="cmd"/>
-	<reg32 offset="0xa9ba" name="SP_CS_TSIZE" low="0" high="7" type="uint" usage="cmd"/>
-	<reg32 offset="0xa9bb" name="SP_CS_CONFIG" type="a6xx_sp_xs_config" usage="cmd"/>
-	<reg32 offset="0xa9bc" name="SP_CS_INSTR_SIZE" low="0" high="27" type="uint" usage="cmd"/>
-	<reg32 offset="0xa9bd" name="SP_CS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="cmd"/>
-	<reg32 offset="0xa9be" name="SP_CS_HYSTERESIS" type="a6xx_sp_xs_hysteresis" variants="A6XX-A7XX"/>
-	<reg32 offset="0xa9be" name="SP_CS_HYSTERESIS" type="a8xx_sp_xs_hysteresis" variants="A8XX-"/>
+	<reg32 offset="0xa9b2" name="SP_CS_BOOLEAN_CF_MASK" type="hex" usage="compute"/>
+	<reg32 offset="0xa9b3" name="SP_CS_PROGRAM_COUNTER_OFFSET" type="uint" usage="compute"/>
+	<reg64 offset="0xa9b4" name="SP_CS_BASE" type="address" align="32" usage="compute"/>
+	<reg32 offset="0xa9b6" name="SP_CS_PVT_MEM_PARAM" type="a6xx_sp_xs_pvt_mem_param" usage="compute"/>
+	<reg64 offset="0xa9b7" name="SP_CS_PVT_MEM_BASE" type="waddress" align="32" usage="compute"/>
+	<reg32 offset="0xa9b9" name="SP_CS_PVT_MEM_SIZE" type="a6xx_sp_xs_pvt_mem_size" usage="compute"/>
+	<reg32 offset="0xa9ba" name="SP_CS_TSIZE" low="0" high="7" type="uint" usage="compute"/>
+	<reg32 offset="0xa9bb" name="SP_CS_CONFIG" type="a6xx_sp_xs_config" usage="compute"/>
+	<reg32 offset="0xa9bc" name="SP_CS_INSTR_SIZE" low="0" high="27" type="uint" usage="compute"/>
+	<reg32 offset="0xa9bd" name="SP_CS_PVT_MEM_STACK_OFFSET" type="a6xx_sp_xs_pvt_mem_stack_offset" usage="compute"/>
+	<reg32 offset="0xa9be" name="SP_CS_HYSTERESIS" type="a6xx_sp_xs_hysteresis" variants="A6XX-A7XX" usage="compute"/>
+	<reg32 offset="0xa9be" name="SP_CS_HYSTERESIS" type="a8xx_sp_xs_hysteresis" variants="A8XX-" usage="compute"/>
 	<reg32 offset="0xa9c5" name="SP_CS_VGS_CNTL" variants="A7XX-" usage="cmd"/>
 
 	<!-- new in a6xx gen4, matches SP_CS_CONST_CONFIG_0 -->
-	<reg32 offset="0xa9c2" name="SP_CS_WIE_CNTL_0" usage="cmd">
+	<reg32 offset="0xa9c2" name="SP_CS_WIE_CNTL_0" usage="compute">
 		<bitfield name="WGIDCONSTID" low="0" high="7" type="a3xx_regid"/>
 		<bitfield name="WGSIZECONSTID" low="8" high="15" type="a3xx_regid"/>
 		<bitfield name="WGOFFSETCONSTID" low="16" high="23" type="a3xx_regid"/>
 		<bitfield name="LOCALIDREGID" low="24" high="31" type="a3xx_regid"/>
 	</reg32>
 	<!-- new in a6xx gen4, matches SP_CS_WGE_CNTL -->
-	<reg32 offset="0xa9c3" name="SP_CS_WIE_CNTL_1" variants="A6XX" usage="cmd">
+	<reg32 offset="0xa9c3" name="SP_CS_WIE_CNTL_1" variants="A6XX" usage="compute">
 		<!-- gl_LocalInvocationIndex -->
 		<bitfield name="LINEARLOCALIDREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- a650 has 6 "SP cores" (but 3 "SP"). this makes it use only
@@ -4147,7 +4148,7 @@ by a particular renderpass/blit.
 		<value value="0x1" name="WORKITEMRASTORDER_TILED"/>
 	</enum>
 
-	<reg32 offset="0xa9c3" name="SP_CS_WIE_CNTL_1" variants="A7XX-" usage="cmd">
+	<reg32 offset="0xa9c3" name="SP_CS_WIE_CNTL_1" variants="A7XX-" usage="compute">
 		<!-- gl_LocalInvocationIndex -->
 		<bitfield name="LINEARLOCALIDREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- Must match SP_CS_CTRL -->
@@ -4162,9 +4163,9 @@ by a particular renderpass/blit.
 	<!-- TODO: two 64kb aligned addresses at a9d0/a9d2 -->
 
 	<reg64 offset="0xa9e0" name="SP_PS_SAMPLER_BASE" type="address" align="16" usage="rp_blit"/>
-	<reg64 offset="0xa9e2" name="SP_CS_SAMPLER_BASE" type="address" align="16" usage="cmd"/>
+	<reg64 offset="0xa9e2" name="SP_CS_SAMPLER_BASE" type="address" align="16" usage="compute"/>
 	<reg64 offset="0xa9e4" name="SP_PS_TEXMEMOBJ_BASE" type="address" align="64" usage="rp_blit"/>
-	<reg64 offset="0xa9e6" name="SP_CS_TEXMEMOBJ_BASE" type="address" align="64" usage="cmd"/>
+	<reg64 offset="0xa9e6" name="SP_CS_TEXMEMOBJ_BASE" type="address" align="64" usage="compute"/>
 
 	<enum name="a6xx_bindless_descriptor_size">
 		<doc>
@@ -4175,13 +4176,13 @@ by a particular renderpass/blit.
 		<value value="3" name="BINDLESS_DESCRIPTOR_64B"/>
 	</enum>
 
-	<array offset="0xa9e8" name="SP_CS_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="cmd">
+	<array offset="0xa9e8" name="SP_CS_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="compute">
 		<reg64 offset="0" name="DESCRIPTOR" variants="A6XX">
 			<bitfield name="DESC_SIZE" low="0" high="1" type="a6xx_bindless_descriptor_size"/>
 			<bitfield name="ADDR" low="2" high="63" shr="2" type="address"/>
 		</reg64>
 	</array>
-	<array offset="0xa9e8" name="SP_CS_BINDLESS_BASE" stride="2" length="8" variants="A7XX-" usage="cmd">
+	<array offset="0xa9e8" name="SP_CS_BINDLESS_BASE" stride="2" length="8" variants="A7XX-" usage="compute">
 		<reg64 offset="0" name="DESCRIPTOR" variants="A7XX-">
 			<bitfield name="DESC_SIZE" low="0" high="1" type="a6xx_bindless_descriptor_size"/>
 			<bitfield name="ADDR" low="2" high="63" shr="2" type="address"/>
@@ -4191,9 +4192,9 @@ by a particular renderpass/blit.
 	<!--
 	UAV state for compute shader:
 	 -->
-	<reg64 offset="0xa9f2" name="SP_CS_UAV_BASE" type="address" align="16" variants="A6XX"/>
-	<reg64 offset="0xa9f8" name="SP_CS_UAV_BASE" type="address" align="16" variants="A7XX-"/>
-	<reg32 offset="0xaa00" name="SP_CS_USIZE" low="0" high="6" type="uint"/>
+	<reg64 offset="0xa9f2" name="SP_CS_UAV_BASE" type="address" align="16" variants="A6XX" usage="compute"/>
+	<reg64 offset="0xa9f8" name="SP_CS_UAV_BASE" type="address" align="16" variants="A7XX-" usage="compute"/>
+	<reg32 offset="0xaa00" name="SP_CS_USIZE" low="0" high="6" type="uint" usage="compute"/>
 
 	<!-- Correlated with avgs/uvgs usage in FS -->
 	<reg32 offset="0xaa01" name="SP_PS_VGS_CNTL" type="uint" variants="A7XX-" usage="cmd"/>
@@ -4657,7 +4658,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0xb984" type="a6xx_sp_reg_prog_id_1" name="SP_REG_PROG_ID_1" variants="A6XX" usage="rp_blit"/>
 	<reg32 offset="0xb985" type="a6xx_sp_reg_prog_id_2" name="SP_REG_PROG_ID_2" variants="A6XX" usage="rp_blit"/>
 	<reg32 offset="0xb986" type="a6xx_sp_reg_prog_id_3" name="SP_REG_PROG_ID_3" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb987" name="SP_CS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="cmd"/>
+	<reg32 offset="0xb987" name="SP_CS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="compute"/>
 	<reg32 offset="0xa9c6" type="a6xx_sp_ps_wave_cntl" name="SP_PS_WAVE_CNTL" variants="A7XX" usage="rp_blit"/>
 	<reg32 offset="0xa9c6" name="SP_PS_WAVE_CNTL" variants="A8XX-" usage="rp_blit">
 		<bitfield name="VARYINGS" pos="1" type="boolean"/>
@@ -4675,35 +4676,35 @@ by a particular renderpass/blit.
 	<reg32 offset="0xa9c9" type="a6xx_sp_reg_prog_id_1" name="SP_REG_PROG_ID_1" variants="A7XX-" usage="rp_blit"/>
 	<reg32 offset="0xa9ca" type="a6xx_sp_reg_prog_id_2" name="SP_REG_PROG_ID_2" variants="A7XX-" usage="rp_blit"/>
 	<reg32 offset="0xa9cb" type="a6xx_sp_reg_prog_id_3" name="SP_REG_PROG_ID_3" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa9cd" name="SP_CS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="cmd"/>
+	<reg32 offset="0xa9cd" name="SP_CS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A7XX-" usage="compute"/>
 
 	<!-- TODO: what does KERNELDIM do exactly (blob sets it differently from turnip) -->
-	<reg32 offset="0xb990" name="SP_CS_NDRANGE_0" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb990" name="SP_CS_NDRANGE_0" variants="A6XX" usage="compute">
 		<bitfield name="KERNELDIM" low="0" high="1" type="uint"/>
 		<!-- localsize is value minus one: -->
 		<bitfield name="LOCALSIZEX" low="2" high="11" type="uint"/>
 		<bitfield name="LOCALSIZEY" low="12" high="21" type="uint"/>
 		<bitfield name="LOCALSIZEZ" low="22" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb991" name="SP_CS_NDRANGE_1" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb991" name="SP_CS_NDRANGE_1" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALSIZE_X" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb992" name="SP_CS_NDRANGE_2" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb992" name="SP_CS_NDRANGE_2" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALOFF_X" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb993" name="SP_CS_NDRANGE_3" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb993" name="SP_CS_NDRANGE_3" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALSIZE_Y" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb994" name="SP_CS_NDRANGE_4" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb994" name="SP_CS_NDRANGE_4" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALOFF_Y" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb995" name="SP_CS_NDRANGE_5" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb995" name="SP_CS_NDRANGE_5" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALSIZE_Z" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb996" name="SP_CS_NDRANGE_6" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb996" name="SP_CS_NDRANGE_6" variants="A6XX" usage="compute">
 		<bitfield name="GLOBALOFF_Z" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xb997" name="SP_CS_CONST_CONFIG_0" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb997" name="SP_CS_CONST_CONFIG_0" variants="A6XX" usage="compute">
 		<!-- these are all vec3. first 3 need to be high regs
 		     WGSIZECONSTID is the local size (from SP_CS_NDRANGE_0)
 		     WGOFFSETCONSTID is WGIDCONSTID*WGSIZECONSTID
@@ -4713,7 +4714,7 @@ by a particular renderpass/blit.
 		<bitfield name="WGOFFSETCONSTID" low="16" high="23" type="a3xx_regid"/>
 		<bitfield name="LOCALIDREGID" low="24" high="31" type="a3xx_regid"/>
 	</reg32>
-	<reg32 offset="0xb998" name="SP_CS_WGE_CNTL" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb998" name="SP_CS_WGE_CNTL" variants="A6XX" usage="compute">
 		<!-- gl_LocalInvocationIndex -->
 		<bitfield name="LINEARLOCALIDREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- a650 has 6 "SP cores" (but 3 "SP"). this makes it use only
@@ -4725,40 +4726,40 @@ by a particular renderpass/blit.
 		<bitfield name="THREADSIZE_SCALAR" pos="10" type="boolean"/>
 	</reg32>
 	<!--note: vulkan blob doesn't use these -->
-	<reg32 offset="0xb999" name="SP_CS_KERNEL_GROUP_X" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb99a" name="SP_CS_KERNEL_GROUP_Y" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb99b" name="SP_CS_KERNEL_GROUP_Z" variants="A6XX" usage="rp_blit"/>
+	<reg32 offset="0xb999" name="SP_CS_KERNEL_GROUP_X" variants="A6XX" usage="compute"/>
+	<reg32 offset="0xb99a" name="SP_CS_KERNEL_GROUP_Y" variants="A6XX" usage="compute"/>
+	<reg32 offset="0xb99b" name="SP_CS_KERNEL_GROUP_Z" variants="A6XX" usage="compute"/>
 
 	<!-- TODO: what does KERNELDIM do exactly (blob sets it differently from turnip) -->
-	<reg32 offset="0xa9d4" name="SP_CS_NDRANGE_0" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d4" name="SP_CS_NDRANGE_0" variants="A7XX-" usage="compute">
 		<bitfield name="KERNELDIM" low="0" high="1" type="uint"/>
 		<!-- localsize is value minus one: -->
 		<bitfield name="LOCALSIZEX" low="2" high="11" type="uint"/>
 		<bitfield name="LOCALSIZEY" low="12" high="21" type="uint"/>
 		<bitfield name="LOCALSIZEZ" low="22" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d5" name="SP_CS_NDRANGE_1" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d5" name="SP_CS_NDRANGE_1" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALSIZE_X" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d6" name="SP_CS_NDRANGE_2" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d6" name="SP_CS_NDRANGE_2" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALOFF_X" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d7" name="SP_CS_NDRANGE_3" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d7" name="SP_CS_NDRANGE_3" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALSIZE_Y" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d8" name="SP_CS_NDRANGE_4" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d8" name="SP_CS_NDRANGE_4" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALOFF_Y" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9d9" name="SP_CS_NDRANGE_5" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9d9" name="SP_CS_NDRANGE_5" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALSIZE_Z" low="0" high="31" type="uint"/>
 	</reg32>
-	<reg32 offset="0xa9da" name="SP_CS_NDRANGE_6" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9da" name="SP_CS_NDRANGE_6" variants="A7XX-" usage="compute">
 		<bitfield name="GLOBALOFF_Z" low="0" high="31" type="uint"/>
 	</reg32>
 	<!--note: vulkan blob doesn't use these -->
-	<reg32 offset="0xa9dc" name="SP_CS_KERNEL_GROUP_X" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa9dd" name="SP_CS_KERNEL_GROUP_Y" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xa9de" name="SP_CS_KERNEL_GROUP_Z" variants="A7XX-" usage="rp_blit"/>
+	<reg32 offset="0xa9dc" name="SP_CS_KERNEL_GROUP_X" variants="A7XX-" usage="compute"/>
+	<reg32 offset="0xa9dd" name="SP_CS_KERNEL_GROUP_Y" variants="A7XX-" usage="compute"/>
+	<reg32 offset="0xa9de" name="SP_CS_KERNEL_GROUP_Z" variants="A7XX-" usage="compute"/>
 
 	<enum name="a7xx_cs_yalign">
 		<value name="CS_YALIGN_1" value="8"/>
@@ -4767,7 +4768,7 @@ by a particular renderpass/blit.
 		<value name="CS_YALIGN_8" value="1"/>
 	</enum>
 
-	<reg32 offset="0xa9db" name="SP_CS_WGE_CNTL" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0xa9db" name="SP_CS_WGE_CNTL" variants="A7XX-" usage="compute">
 		<!-- gl_LocalInvocationIndex -->
 		<bitfield name="LINEARLOCALIDREGID" low="0" high="7" type="a3xx_regid"/>
 		<!-- Must match SP_CS_CTRL -->
@@ -4788,7 +4789,7 @@ by a particular renderpass/blit.
 		<bitfield name="WGTILEHEIGHT" low="26" high="31"/>
 	</reg32>
 
-	<reg32 offset="0xa9df" name="SP_CS_NDRANGE_7" variants="A7XX-" usage="cmd">
+	<reg32 offset="0xa9df" name="SP_CS_NDRANGE_7" variants="A7XX-" usage="compute">
 		<!-- The size of the last workgroup. localsize is value minus one: -->
 		<bitfield name="LOCALSIZEX" low="2" high="11" type="uint"/>
 		<bitfield name="LOCALSIZEY" low="12" high="21" type="uint"/>
@@ -4800,7 +4801,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0xb9a3" name="HLSQ_LOAD_STATE_FRAG_DATA"/>
 
 	<!-- mirror of SP_CS_BINDLESS_BASE -->
-	<array offset="0xb9c0" name="HLSQ_CS_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="rp_blit">
+	<array offset="0xb9c0" name="HLSQ_CS_BINDLESS_BASE" stride="2" length="5" variants="A6XX" usage="compute">
 		<reg64 offset="0" name="DESCRIPTOR">
 			<bitfield name="DESC_SIZE" low="0" high="1" type="a6xx_bindless_descriptor_size"/>
 			<bitfield name="ADDR" low="2" high="63" shr="2" type="address"/>
@@ -4808,7 +4809,7 @@ by a particular renderpass/blit.
 	</array>
 
 	<!-- new in a6xx gen4, mirror of SP_CS_CNTL_1? -->
-	<reg32 offset="0xb9d0" name="HLSQ_CS_CTRL_REG1" variants="A6XX" usage="cmd">
+	<reg32 offset="0xb9d0" name="HLSQ_CS_CTRL_REG1" variants="A6XX" usage="compute">
 		<bitfield name="SHARED_SIZE" low="0" high="4" type="uint"/>
 		<bitfield name="CONSTANTRAMMODE" low="5" high="6" type="a6xx_const_ram_mode"/>
 	</reg32>
@@ -4827,7 +4828,7 @@ by a particular renderpass/blit.
 		<bitfield name="EVENT" low="0" high="6" type="vgt_event_type"/>
 	</reg32>
 
-	<reg32 offset="0xbb08" name="SP_UPDATE_CNTL" variants="A6XX" usage="cmd">
+	<reg32 offset="0xbb08" name="SP_UPDATE_CNTL" variants="A6XX" usage="cmd,compute">
 		<doc>
 			This register clears pending loads queued up by
 			CP_LOAD_STATE6. Each bit resets a particular kind(s) of
@@ -4867,7 +4868,7 @@ by a particular renderpass/blit.
 		<bitfield name="EVENT" low="0" high="6" type="vgt_event_type"/>
 	</reg32>
 
-	<reg32 offset="0xab1f" name="SP_UPDATE_CNTL" variants="A7XX" usage="cmd">
+	<reg32 offset="0xab1f" name="SP_UPDATE_CNTL" variants="A7XX" usage="cmd,compute">
 		<doc>
 			This register clears pending loads queued up by
 			CP_LOAD_STATE6. Each bit resets a particular kind(s) of
@@ -4890,7 +4891,7 @@ by a particular renderpass/blit.
 		<bitfield name="GFX_BINDLESS" low="17" high="24" type="hex"/>
 	</reg32>
 
-	<reg32 offset="0xab1f" name="SP_UPDATE_CNTL" variants="A8XX" usage="cmd">
+	<reg32 offset="0xab1f" name="SP_UPDATE_CNTL" variants="A8XX" usage="cmd,compute">
 		<doc>
 			This register clears pending loads queued up by
 			CP_LOAD_STATE6. Each bit resets a particular kind(s) of
@@ -4906,7 +4907,7 @@ by a particular renderpass/blit.
 		<bitfield name="CS_STATE" pos="5" type="boolean"/>
 	</reg32>
 
-	<reg32 offset="0xa9c0" name="SP_CS_BINDLESS_INVALIDATE"/>
+	<reg32 offset="0xa9c0" name="SP_CS_BINDLESS_INVALIDATE" usage="compute"/>
 	<reg32 offset="0xab08" name="SP_GFX_BINDLESS_INVALIDATE"/>
 
 	<reg32 offset="0xbb10" name="SP_PS_CONST_CONFIG" type="a6xx_xs_const_config" variants="A6XX" usage="rp_blit"/>
@@ -4915,7 +4916,7 @@ by a particular renderpass/blit.
 	<array offset="0xab40" name="SP_SHARED_CONSTANT_GFX" stride="1" length="64" variants="A7XX"/>
 	<array offset="0xab30" name="SP_SHARED_CONSTANT_GFX" stride="1" length="128" variants="A8XX-"/>
 
-	<reg32 offset="0xbb11" name="HLSQ_SHARED_CONSTS" variants="A6XX" usage="cmd">
+	<reg32 offset="0xbb11" name="HLSQ_SHARED_CONSTS" variants="A6XX" usage="cmd,compute">
 		<doc>
 			Shared constants are intended to be used for Vulkan push
 			constants. When enabled, 8 vec4's are reserved in the FS
