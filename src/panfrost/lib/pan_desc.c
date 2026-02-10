@@ -141,9 +141,7 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
          continue;
 
       bool valid = *(fb->rts[i].crc_valid);
-      bool full = !fb->draw_extent.minx && !fb->draw_extent.miny &&
-                  fb->draw_extent.maxx == (fb->width - 1) &&
-                  fb->draw_extent.maxy == (fb->height - 1);
+      bool full = pan_fb_info_is_fully_covered(fb);
       if (!full && !valid)
          continue;
 
@@ -1261,9 +1259,7 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
 
       if (crc_rt >= 0) {
          bool *valid = fb->rts[crc_rt].crc_valid;
-         bool full = !fb->draw_extent.minx && !fb->draw_extent.miny &&
-                     fb->draw_extent.maxx == (fb->width - 1) &&
-                     fb->draw_extent.maxy == (fb->height - 1);
+         bool full = pan_fb_info_is_fully_covered(fb);
 
          /* If the CRC was valid it stays valid, if it wasn't, we must ensure
           * the render operation covers the full frame, and clean tiles are

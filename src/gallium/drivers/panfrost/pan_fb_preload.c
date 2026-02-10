@@ -1196,9 +1196,7 @@ pan_preload_emit_pre_frame_dcd(struct pan_fb_preload_cache *cache,
     * write even clean tiles to make sure CRC data is updated. */
    if (crc_rt >= 0) {
       bool *valid = fb->rts[crc_rt].crc_valid;
-      bool full = !fb->draw_extent.minx && !fb->draw_extent.miny &&
-                  fb->draw_extent.maxx == (fb->width - 1) &&
-                  fb->draw_extent.maxy == (fb->height - 1);
+      bool full = pan_fb_info_is_fully_covered(fb);
 
       if (full && !(*valid))
          always_write = true;

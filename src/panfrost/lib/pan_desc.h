@@ -166,6 +166,15 @@ struct pan_clean_tile {
 };
 
 static inline bool
+pan_fb_info_is_fully_covered(const struct pan_fb_info *fb)
+{
+   return !fb->draw_extent.minx &&
+      !fb->draw_extent.miny &&
+      fb->draw_extent.maxx == (fb->width - 1) &&
+      fb->draw_extent.maxy == (fb->height - 1);
+}
+
+static inline bool
 pan_clean_tile_write_rt_enabled(struct pan_clean_tile clean_tile,
                                 unsigned index)
 {
