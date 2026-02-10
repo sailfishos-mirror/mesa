@@ -161,8 +161,8 @@ local_only(const brw_inst *inst)
 static bool
 operands_match(const brw_inst *a, const brw_inst *b, bool *negate)
 {
-   brw_reg *xs = a->src;
-   brw_reg *ys = b->src;
+   const brw_reg *xs = a->src;
+   const brw_reg *ys = b->src;
 
    if (a->opcode == BRW_OPCODE_MAD) {
       return xs[0].equals(ys[0]) &&
@@ -175,41 +175,23 @@ operands_match(const brw_inst *a, const brw_inst *b, bool *negate)
       bool ys0_negate = ys[0].negate;
       bool ys1_negate = ys[1].file == IMM ? ys[1].f < 0.0f
                                           : ys[1].negate;
-      float xs1_imm = 0, ys1_imm = 0;
+      /* Work on copies to avoid modifying the original instructions. */
+      brw_reg src[4] = { xs[0], xs[1], ys[0], ys[1] };
 
-      xs[0].negate = false;
-      xs[1].negate = false;
-      ys[0].negate = false;
-      ys[1].negate = false;
-      /* Only access .f when the register is an immediate. When it is not,
-       * .f aliases the struct containing nr/swizzle/etc, so fabsf() could
-       * corrupt the register number by clearing bit 31.
-       */
-      if (xs[1].file == IMM) {
-         xs1_imm = xs[1].f;
-         xs[1].f = fabsf(xs1_imm);
-      }
-      if (ys[1].file == IMM) {
-         ys1_imm = ys[1].f;
-         ys[1].f = fabsf(ys1_imm);
-      }
-
-      bool ret = (xs[0].equals(ys[0]) && xs[1].equals(ys[1])) ||
-                 (xs[1].equals(ys[0]) && xs[0].equals(ys[1]));
-
-      xs[0].negate = xs0_negate;
-      xs[1].negate = xs[1].file == IMM ? false : xs1_negate;
-      ys[0].negate = ys0_negate;
-      ys[1].negate = ys[1].file == IMM ? false : ys1_negate;
-      if (xs[1].file == IMM)
-         xs[1].f = xs1_imm;
-      if (ys[1].file == IMM)
-         ys[1].f = ys1_imm;
+      src[0].negate = false;
+      src[1].negate = false;
+      src[2].negate = false;
+      src[3].negate = false;
+      if (src[1].file == IMM)
+         src[1].f = fabsf(src[1].f);
+      if (src[3].file == IMM)
+         src[3].f = fabsf(src[3].f);
 
       *negate = (xs0_negate != xs1_negate) != (ys0_negate != ys1_negate);
       if (*negate && (a->saturate || b->saturate))
          return false;
-      return ret;
+      return (src[0].equals(src[2]) && src[1].equals(src[3])) ||
+             (src[1].equals(src[2]) && src[0].equals(src[3]));
    } else if (!a->is_commutative()) {
       bool match = true;
       for (int i = 0; i < a->sources; i++) {
