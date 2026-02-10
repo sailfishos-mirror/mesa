@@ -289,22 +289,14 @@ match_value(const nir_algebraic_table *table,
          if (state->variables[var->variable].src.ssa != instr->src[src].src.ssa)
             return false;
 
-         for (unsigned i = 0; i < num_components; ++i) {
-            if (state->variables[var->variable].swizzle[i] != new_swizzle[i])
-               return false;
-         }
-
-         return true;
+         return !memcmp(state->variables[var->variable].swizzle, new_swizzle, num_components);
       } else {
          state->variables_seen |= (1 << var->variable);
-         state->variables[var->variable].src = instr->src[src].src;
+         nir_alu_src *dst = &state->variables[var->variable];
+         dst->src = instr->src[src].src;
 
-         for (unsigned i = 0; i < NIR_MAX_VEC_COMPONENTS; ++i) {
-            if (i < num_components)
-               state->variables[var->variable].swizzle[i] = new_swizzle[i];
-            else
-               state->variables[var->variable].swizzle[i] = 0;
-         }
+         memcpy(dst->swizzle, new_swizzle, num_components);
+         memset(dst->swizzle + num_components, 0, NIR_MAX_VEC_COMPONENTS - num_components);
 
          return true;
       }
@@ -405,10 +397,8 @@ match_expression(const nir_algebraic_table *table, const nir_search_expression *
          return false;
    } else {
       if (nir_op_infos[instr->op].output_size != 0) {
-         for (unsigned i = 0; i < num_components; i++) {
-            if (swizzle[i] != i)
-               return false;
-         }
+         if (memcmp(swizzle, identity_swizzle, num_components))
+            return false;
       }
    }
 
