@@ -409,9 +409,6 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
                                    .layerCount = region->dstSubresource.layerCount,
                                 },
                                 NULL);
-
-      if (cmd_buffer->qf == RADV_QUEUE_GENERAL)
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
    }
 
    radv_meta_save(&saved_state, cmd_buffer,

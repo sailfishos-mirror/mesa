@@ -438,23 +438,13 @@ radv_expand_depth_stencil_compute(struct radv_cmd_buffer *cmd_buffer, struct rad
    }
 
    radv_meta_restore(&saved_state, cmd_buffer);
-
-   cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
-                                   radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                         VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, subresourceRange);
-
-   if (!radv_image_decompress_htile_on_image_stores(device, image)) {
-      /* Initialize the HTILE metadata as "fully expanded". */
-      uint32_t htile_value = radv_get_htile_initial_value(device, image);
-
-      cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, subresourceRange, htile_value, false);
-   }
 }
 
 void
 radv_expand_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image,
                           const VkImageSubresourceRange *subresourceRange, const VkSampleLocationsInfoEXT *sample_locs)
 {
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_barrier_data barrier = {0};
 
    barrier.layout_transitions.depth_stencil_expand = 1;
@@ -462,8 +452,21 @@ radv_expand_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
 
    if (cmd_buffer->qf == RADV_QUEUE_GENERAL) {
       radv_process_depth_stencil(cmd_buffer, image, subresourceRange, sample_locs);
+
+      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB | RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
    } else {
       assert(cmd_buffer->qf == RADV_QUEUE_COMPUTE);
       radv_expand_depth_stencil_compute(cmd_buffer, image, subresourceRange);
+
+      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
+                                      radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                                            VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, subresourceRange);
+
+      if (!radv_image_decompress_htile_on_image_stores(device, image)) {
+         /* Initialize the HTILE metadata as "fully expanded". */
+         uint32_t htile_value = radv_get_htile_initial_value(device, image);
+
+         cmd_buffer->state.flush_bits |= radv_clear_htile(cmd_buffer, image, subresourceRange, htile_value, false);
+      }
    }
 }
