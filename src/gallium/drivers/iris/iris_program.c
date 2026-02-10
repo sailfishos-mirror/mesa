@@ -2279,7 +2279,7 @@ iris_update_compiled_tcs(struct iris_context *ice)
       .vue.layout = vue_layout(tcs ? tcs->nir->info.separate_shader : false),
       ._tes_primitive_mode = tes_info->tess._primitive_mode,
       .input_vertices =
-         !tcs || iris_use_tcs_multi_patch(screen) ? ice->state.vertices_per_patch : 0,
+         !tcs || intel_use_tcs_multi_patch(devinfo) ? ice->state.vertices_per_patch : 0,
       .quads_workaround = devinfo->ver < 9 &&
                           tes_info->tess._primitive_mode == TESS_PRIMITIVE_QUADS &&
                           tes_info->tess.spacing == TESS_SPACING_EQUAL,
@@ -3522,6 +3522,7 @@ iris_create_shader_state(struct pipe_context *ctx,
 {
    struct iris_context *ice = (void *) ctx;
    struct iris_screen *screen = (void *) ctx->screen;
+   const struct intel_device_info *devinfo = screen->devinfo;
    struct nir_shader *nir;
 
    if (state->type == PIPE_SHADER_IR_TGSI)
@@ -3568,7 +3569,7 @@ iris_create_shader_state(struct pipe_context *ctx,
        * and output patches are the same size.  This is a bad guess, but we
        * can't do much better.
        */
-      if (iris_use_tcs_multi_patch(screen))
+      if (intel_use_tcs_multi_patch(devinfo))
          key.tcs.input_vertices = info->tess.tcs_vertices_out;
 
       key_size = sizeof(key.tcs);
@@ -3623,8 +3624,6 @@ iris_create_shader_state(struct pipe_context *ctx,
 
       bool can_rearrange_varyings =
          util_bitcount64(info->inputs_read & BRW_FS_VARYING_INPUT_MASK) <= 16;
-
-      const struct intel_device_info *devinfo = screen->devinfo;
 
       key.fs = (struct iris_fs_prog_key) {
          KEY_INIT(base),
@@ -4041,12 +4040,6 @@ iris_fs_barycentric_modes(const struct iris_compiled_shader *shader,
       UNREACHABLE("no elk support");
 #endif
    }
-}
-
-bool
-iris_use_tcs_multi_patch(struct iris_screen *screen)
-{
-   return screen->brw && screen->brw->use_tcs_multi_patch;
 }
 
 static void

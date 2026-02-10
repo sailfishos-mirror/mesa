@@ -226,6 +226,12 @@ intel_indirect_ubos_use_sampler(const struct intel_device_info *devinfo)
    return devinfo->ver < 12;
 }
 
+static inline bool
+intel_use_tcs_multi_patch(const struct intel_device_info *devinfo)
+{
+   return devinfo->ver >= 12;
+}
+
 #ifdef __cplusplus
 }
 #endif

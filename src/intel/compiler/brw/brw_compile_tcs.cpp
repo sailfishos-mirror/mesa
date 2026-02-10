@@ -254,7 +254,7 @@ brw_compile_tcs(const struct brw_compiler *compiler,
    prog_data->output_vertices = nir->info.tess.tcs_vertices_out;
    prog_data->patch_count_threshold = get_patch_count_threshold(key->input_vertices);
 
-   if (compiler->use_tcs_multi_patch) {
+   if (intel_use_tcs_multi_patch(devinfo)) {
       vue_prog_data->dispatch_mode = INTEL_DISPATCH_MODE_TCS_MULTI_PATCH;
       prog_data->instances = nir->info.tess.tcs_vertices_out;
       prog_data->include_primitive_id = has_primitive_id;

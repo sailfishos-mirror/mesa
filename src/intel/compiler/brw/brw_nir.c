@@ -1933,7 +1933,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
     * nir_lower_system_values above.
     */
    if (nir->info.stage == MESA_SHADER_TESS_CTRL &&
-       compiler->use_tcs_multi_patch)
+       intel_use_tcs_multi_patch(devinfo))
       OPT(intel_nir_clamp_per_vertex_loads);
 
    /* Get rid of split copies */
