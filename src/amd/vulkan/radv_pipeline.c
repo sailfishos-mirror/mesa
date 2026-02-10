@@ -627,6 +627,8 @@ radv_get_executable_count(struct radv_pipeline *pipeline)
       struct radv_ray_tracing_pipeline *rt_pipeline = radv_pipeline_to_ray_tracing(pipeline);
       for (uint32_t i = 0; i < rt_pipeline->stage_count; i++)
          ret += rt_pipeline->stages[i].shader ? 1 : 0;
+      for (uint32_t i = 0; i < rt_pipeline->group_count; i++)
+         ret += rt_pipeline->groups[i].ahit_isec_shader ? 1 : 0;
    }
 
    for (int i = 0; i < MESA_VULKAN_SHADER_STAGES; ++i) {
@@ -655,6 +657,19 @@ radv_get_shader_from_executable_index(struct radv_pipeline *pipeline, int index,
          if (!index) {
             *stage = rt_stage->stage;
             return rt_stage->shader;
+         }
+
+         index--;
+      }
+      for (uint32_t i = 0; i < rt_pipeline->group_count; i++) {
+         struct radv_ray_tracing_group *rt_group = &rt_pipeline->groups[i];
+         if (!rt_group->ahit_isec_shader)
+            continue;
+
+         if (!index) {
+            *stage =
+               rt_group->intersection_shader != VK_SHADER_UNUSED_KHR ? MESA_SHADER_INTERSECTION : MESA_SHADER_ANY_HIT;
+            return rt_group->ahit_isec_shader;
          }
 
          index--;
