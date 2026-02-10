@@ -392,14 +392,17 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
       return;
    }
 
+   const bool is_partial_resolve = region->dstOffset.x || region->dstOffset.y || region->dstOffset.z ||
+                                   region->extent.width != dst_image->vk.extent.width ||
+                                   region->extent.height != dst_image->vk.extent.height ||
+                                   region->extent.depth != dst_image->vk.extent.depth;
+
    const uint32_t queue_mask = radv_image_queue_family_mask(dst_image, cmd_buffer->qf, cmd_buffer->qf);
 
    if (!radv_image_decompress_htile_on_image_stores(device, dst_image) &&
        radv_layout_is_htile_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout,
                                        queue_mask) &&
-       (region->dstOffset.x || region->dstOffset.y || region->dstOffset.z ||
-        region->extent.width != dst_image->vk.extent.width || region->extent.height != dst_image->vk.extent.height ||
-        region->extent.depth != dst_image->vk.extent.depth)) {
+       is_partial_resolve) {
       radv_expand_depth_stencil(cmd_buffer, dst_image,
                                 &(VkImageSubresourceRange){
                                    .aspectMask = region->dstSubresource.aspectMask,
@@ -518,7 +521,7 @@ radv_meta_resolve_depth_stencil_cs(struct radv_cmd_buffer *cmd_buffer, struct ra
                                    radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                                          VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
 
-   if (!radv_image_decompress_htile_on_image_stores(device, dst_image)) {
+   if (!radv_image_decompress_htile_on_image_stores(device, dst_image) && !is_partial_resolve) {
       if (radv_layout_is_htile_compressed(device, dst_image, region->dstSubresource.mipLevel, dst_image_layout,
                                           queue_mask)) {
          VkImageSubresourceRange range = {
