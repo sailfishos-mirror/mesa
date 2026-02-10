@@ -125,10 +125,11 @@ printl(int lvl, const char *fmt, ...)
 static bool
 endswith(const char *name, const char *suffix)
 {
-   const char *s = strstr(name, suffix);
-   if (!s)
+   size_t slen = strlen(suffix);
+   size_t nlen = strlen(name);
+   if (slen > nlen)
       return false;
-   return (s - strlen(name) + strlen(suffix)) == name;
+   return !strcmp(name + nlen - slen, suffix);
 }
 
 static const char *levels[] = {
