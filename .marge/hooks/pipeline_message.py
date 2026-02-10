@@ -277,6 +277,12 @@ async def process_single_job(session, project_id, job):
     job_name = job.get("name", "Unnamed Job")
     message = f"[{job_name}]({job_url})"
 
+    if job["status"] == "running":
+        return f"{message}: still running<br>"
+
+    if job["status"] == "manual":
+        return f"{message}: waiting for manual action<br>"
+
     # if a job times out it's cancelled, so worth mentioning here
     if job["status"] == "canceled":
         return f"{message}: canceled<br>"
