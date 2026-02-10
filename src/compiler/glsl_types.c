@@ -359,6 +359,8 @@ glsl_get_base_glsl_type(const glsl_type *t)
       return &glsl_type_builtin_uint64_t;
    case GLSL_TYPE_INT64:
       return &glsl_type_builtin_int64_t;
+   case GLSL_TYPE_YUV_CSC_STANDARD_EXT:
+      return &glsl_type_builtin_yuvCscStandardEXT;
    default:
       return &glsl_type_builtin_error;
    }
@@ -676,6 +678,9 @@ glsl_simple_explicit_type(unsigned base_type, unsigned rows, unsigned columns,
          return glsl_u8vec_type(rows);
       case GLSL_TYPE_INT8:
          return glsl_i8vec_type(rows);
+      case GLSL_TYPE_YUV_CSC_STANDARD_EXT:
+         assert(rows == 1);
+         return &glsl_type_builtin_yuvCscStandardEXT;
       default:
          return &glsl_type_builtin_error;
       }
