@@ -352,7 +352,7 @@ async def main(pipeline_id: str, project_id: str = "176") -> str:
                 session, project_id, pipeline_id
             )
             logging.debug(f"Pipeline status: {pipeline_status}")
-            if pipeline_status != "failed":
+            if pipeline_status == "success":
                 return message
 
             jobs = await get_jobs_for_pipeline(session, project_id, pipeline_id)
