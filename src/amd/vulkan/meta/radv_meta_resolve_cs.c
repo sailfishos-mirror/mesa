@@ -252,7 +252,7 @@ radv_fixup_resolve_dst_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_
       return;
 
    /* Nothing to do when compressed DCC writes are supported. */
-   if (radv_image_use_dcc_image_stores(device, image))
+   if (radv_image_compress_dcc_on_image_stores(device, image))
       return;
 
    const bool is_partial_resolve = offset->x || offset->y || offset->z || extent->width != image->vk.extent.width ||

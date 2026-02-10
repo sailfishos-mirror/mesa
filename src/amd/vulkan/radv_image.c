@@ -166,12 +166,12 @@ radv_image_use_fast_clear_for_image(const struct radv_device *device, const stru
    if (instance->debug_flags & RADV_DEBUG_FORCE_COMPRESS)
       return true;
 
-   return radv_image_use_fast_clear_for_image_early(device, image) && (image->exclusive ||
-                                                                       /* Enable DCC for concurrent images if stores are
-                                                                        * supported because that means we can keep DCC
-                                                                        * compressed on all layouts/queues.
-                                                                        */
-                                                                       radv_image_use_dcc_image_stores(device, image));
+   return radv_image_use_fast_clear_for_image_early(device, image) &&
+          (image->exclusive ||
+           /* Enable DCC for concurrent images if stores are supported because that means we can
+            * keep DCC compressed on all layouts/queues.
+            */
+           radv_image_compress_dcc_on_image_stores(device, image));
 }
 
 bool
@@ -329,28 +329,10 @@ radv_use_dcc_for_image_late(struct radv_device *device, struct radv_image *image
 
    /* TODO: Fix storage images with DCC without DCC image stores.
     * Disabling it for now. */
-   if ((image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT) && !radv_image_use_dcc_image_stores(device, image))
+   if ((image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT) && !radv_image_compress_dcc_on_image_stores(device, image))
       return false;
 
    return true;
-}
-
-/*
- * Whether to enable image stores with DCC compression for this image. If
- * this function returns false the image subresource should be decompressed
- * before using it with image stores.
- *
- * Note that this can have mixed performance implications, see
- * https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/6796#note_643299
- *
- * This function assumes the image uses DCC compression.
- */
-bool
-radv_image_use_dcc_image_stores(const struct radv_device *device, const struct radv_image *image)
-{
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-
-   return ac_surface_supports_dcc_image_stores(pdev->info.gfx_level, &image->planes[0].surface);
 }
 
 /*
@@ -360,7 +342,7 @@ radv_image_use_dcc_image_stores(const struct radv_device *device, const struct r
 bool
 radv_image_use_dcc_predication(const struct radv_device *device, const struct radv_image *image)
 {
-   return radv_image_has_dcc(image) && !radv_image_use_dcc_image_stores(device, image);
+   return radv_image_has_dcc(image) && !radv_image_compress_dcc_on_image_stores(device, image);
 }
 
 static inline bool
@@ -1707,7 +1689,7 @@ radv_layout_dcc_compressed(const struct radv_device *device, const struct radv_i
 
    /* Don't compress compute transfer dst when image stores are not supported. */
    if ((layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL || layout == VK_IMAGE_LAYOUT_GENERAL) &&
-       (queue_mask & (1u << RADV_QUEUE_COMPUTE)) && !radv_image_use_dcc_image_stores(device, image))
+       (queue_mask & (1u << RADV_QUEUE_COMPUTE)) && !radv_image_compress_dcc_on_image_stores(device, image))
       return false;
 
    /* Don't compress exclusive images used on transfer queues when SDMA doesn't support DCC.

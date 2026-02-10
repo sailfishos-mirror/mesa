@@ -134,6 +134,22 @@ radv_dcc_enabled(const struct radv_image *image, unsigned level)
 }
 
 /**
+ * Return whether the image can compress DCC on image stores (GFX10+).
+ *
+ * Note that this can have mixed performance implications, see
+ * https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/6796#note_643299
+ *
+ * This function assumes the image uses DCC compression.
+ */
+static inline bool
+radv_image_compress_dcc_on_image_stores(const struct radv_device *device, const struct radv_image *image)
+{
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+
+   return ac_surface_supports_dcc_image_stores(pdev->info.gfx_level, &image->planes[0].surface);
+}
+
+/**
  * Return whether the image has CB metadata.
  */
 static inline bool
@@ -370,8 +386,6 @@ radv_image_get_iterate256(const struct radv_device *device, struct radv_image *i
 
 bool radv_are_formats_dcc_compatible(const struct radv_physical_device *pdev, const void *pNext, VkFormat format,
                                      VkImageCreateFlags flags, bool *sign_reinterpret);
-
-bool radv_image_use_dcc_image_stores(const struct radv_device *device, const struct radv_image *image);
 
 bool radv_image_use_dcc_predication(const struct radv_device *device, const struct radv_image *image);
 
