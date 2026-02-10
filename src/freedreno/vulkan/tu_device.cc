@@ -2528,6 +2528,8 @@ tu_cs_dbg_stomp_regs(struct tu_cs *cs,
    } else {
       stomp_regs<CHIP>(cs, &CMD_REGS<CHIP>[0], ARRAY_SIZE(CMD_REGS<CHIP>),
                        first_reg, last_reg, inverse);
+      stomp_regs<CHIP>(cs, &RESOLVE_REGS<CHIP>[0], ARRAY_SIZE(RESOLVE_REGS<CHIP>),
+                       first_reg, last_reg, inverse);
    }
 }
 

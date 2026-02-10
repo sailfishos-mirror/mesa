@@ -21,6 +21,7 @@ currently there are following usages:
 - "rp_blit" - the register is used inside renderpass or blits
 		(ib2 for Freedreno)
 - "blit" - used by CP_BLIT cmds
+- "resolve" - used by CCU_RESOLVE (resolve/unresolve/clear) events
 
 It is expected that register with "cmd" usage may be written into only at
 the start of the command buffer (ib1), while "rp_blit" usage indicates that register
@@ -2091,7 +2092,7 @@ by a particular renderpass/blit.
 	increases beyond 1 page.  Not sure if that is an actual limit or
 	not.
 	 -->
-	<reg64 offset="0x8106" name="GRAS_LRZ_FAST_CLEAR_BUFFER_BASE" align="64" type="waddress" usage="rp_blit"/>
+	<reg64 offset="0x8106" name="GRAS_LRZ_FAST_CLEAR_BUFFER_BASE" align="64" type="waddress" usage="resolve"/>
 	<reg32 offset="0x8109" name="GRAS_LRZ_PS_SAMPLEFREQ_CNTL" usage="rp_blit">
 		<bitfield name="PER_SAMP_MODE" pos="0" type="boolean"/>
 	</reg32>
@@ -2359,7 +2360,7 @@ by a particular renderpass/blit.
 		<bitfield name="RT7_FULL_IN_GMEM" pos="19" type="boolean" variants="A8XX-"/>
 	</reg32>
 
-	<reg32 offset="0x8816" name="RB_RESOLVE_CR_CNTL" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8816" name="RB_RESOLVE_CR_CNTL" variants="A8XX-" usage="resolve"/>
 
 	<!-- 0x8813-0x8817 invalid -->
 	<!-- always 0x0 ? -->
@@ -2553,29 +2554,29 @@ by a particular renderpass/blit.
 	</array>
 
 	<!-- 0x88c2-0x88cf invalid-->
-	<reg32 offset="0x88d0" name="RB_RESOLVE_CNTL_0" usage="rp_blit">
+	<reg32 offset="0x88d0" name="RB_RESOLVE_CNTL_0" usage="resolve">
 		<bitfield name="UNK0" low="0" high="12"/>
 		<bitfield name="UNK16" low="16" high="26"/>
 	</reg32>
-	<reg32 offset="0x88d1" name="RB_RESOLVE_CNTL_1" type="a6xx_reg_xy" usage="rp_blit"/>
-	<reg32 offset="0x88d2" name="RB_RESOLVE_CNTL_2" type="a6xx_reg_xy" usage="rp_blit"/>
+	<reg32 offset="0x88d1" name="RB_RESOLVE_CNTL_1" type="a6xx_reg_xy" usage="resolve"/>
+	<reg32 offset="0x88d2" name="RB_RESOLVE_CNTL_2" type="a6xx_reg_xy" usage="resolve"/>
 	<!-- weird to duplicate other regs from same block?? -->
-	<reg32 offset="0x88d3" name="RB_RESOLVE_CNTL_3" variants="A6XX-A7XX" usage="rp_blit">
+	<reg32 offset="0x88d3" name="RB_RESOLVE_CNTL_3" variants="A6XX-A7XX" usage="resolve">
 		<bitfield name="BINW" low="0" high="5" shr="5" type="uint"/>
 		<bitfield name="BINH" low="8" high="14" shr="4" type="uint"/>
 	</reg32>
 
-	<reg32 offset="0x88d3" name="RB_RESOLVE_CNTL_3" type="a8xx_bin_size" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x88f0" name="RB_RESOLVE_CNTL_4" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x88f1" name="RB_RESOLVE_CNTL_5" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x88d3" name="RB_RESOLVE_CNTL_3" type="a8xx_bin_size" variants="A8XX-" usage="resolve"/>
+	<reg32 offset="0x88f0" name="RB_RESOLVE_CNTL_4" variants="A8XX-" usage="resolve"/>
+	<reg32 offset="0x88f1" name="RB_RESOLVE_CNTL_5" variants="A8XX-" usage="resolve"/>
 
-	<reg32 offset="0x88d4" name="RB_RESOLVE_WINDOW_OFFSET" type="a6xx_reg_xy" usage="rp_blit"/>
-	<reg32 offset="0x88d5" name="RB_RESOLVE_GMEM_BUFFER_INFO" usage="rp_blit">
+	<reg32 offset="0x88d4" name="RB_RESOLVE_WINDOW_OFFSET" type="a6xx_reg_xy" usage="resolve"/>
+	<reg32 offset="0x88d5" name="RB_RESOLVE_GMEM_BUFFER_INFO" usage="resolve">
 		<bitfield name="SAMPLES" low="3" high="4" type="a3xx_msaa_samples"/>
 	</reg32>
-	<reg32 offset="0x88d6" name="RB_RESOLVE_GMEM_BUFFER_BASE" low="12" high="31" shr="12" usage="rp_blit"/>
+	<reg32 offset="0x88d6" name="RB_RESOLVE_GMEM_BUFFER_BASE" low="12" high="31" shr="12" usage="resolve"/>
 	<!-- s/DST_FORMAT/DST_INFO/ probably: -->
-	<reg32 offset="0x88d7" name="RB_RESOLVE_SYSTEM_BUFFER_INFO" usage="rp_blit">
+	<reg32 offset="0x88d7" name="RB_RESOLVE_SYSTEM_BUFFER_INFO" usage="resolve">
 		<bitfield name="TILE_MODE" low="0" high="1" type="a6xx_tile_mode"/>
 		<bitfield name="FLAGS" pos="2" type="boolean"/>
 		<bitfield name="SAMPLES" low="3" high="4" type="a3xx_msaa_samples"/>
@@ -2584,23 +2585,23 @@ by a particular renderpass/blit.
 		<bitfield name="UNK15" pos="15" type="boolean"/>
 		<bitfield name="MUTABLEEN" pos="16" type="boolean" variants="A7XX-"/>
 	</reg32>
-	<reg64 offset="0x88d8" name="RB_RESOLVE_SYSTEM_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x88da" name="RB_RESOLVE_SYSTEM_BUFFER_PITCH" low="0" high="15" shr="6" type="uint" usage="rp_blit"/>
+	<reg64 offset="0x88d8" name="RB_RESOLVE_SYSTEM_BUFFER_BASE" type="waddress" align="64" usage="resolve"/>
+	<reg32 offset="0x88da" name="RB_RESOLVE_SYSTEM_BUFFER_PITCH" low="0" high="15" shr="6" type="uint" usage="resolve"/>
 	<!-- array-pitch is size of layer -->
-	<reg32 offset="0x88db" name="RB_RESOLVE_SYSTEM_BUFFER_ARRAY_PITCH" low="0" high="28" shr="6" type="uint" usage="rp_blit"/>
-	<reg64 offset="0x88dc" name="RB_RESOLVE_SYSTEM_FLAG_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
+	<reg32 offset="0x88db" name="RB_RESOLVE_SYSTEM_BUFFER_ARRAY_PITCH" low="0" high="28" shr="6" type="uint" usage="resolve"/>
+	<reg64 offset="0x88dc" name="RB_RESOLVE_SYSTEM_FLAG_BUFFER_BASE" type="waddress" align="64" usage="resolve"/>
 
 	<bitset name="a6xx_flag_buffer_pitch" inline="yes">
 		<bitfield name="PITCH" low="0" high="10" shr="6" type="uint"/>
 		<bitfield name="ARRAY_PITCH" low="11" high="28" shr="7" type="uint"/>
 	</bitset>
 
-	<reg32 offset="0x88de" name="RB_RESOLVE_SYSTEM_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" usage="rp_blit"/>
+	<reg32 offset="0x88de" name="RB_RESOLVE_SYSTEM_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" usage="resolve"/>
 
-	<reg32 offset="0x88df" name="RB_RESOLVE_CLEAR_COLOR_DW0" usage="rp_blit"/>
-	<reg32 offset="0x88e0" name="RB_RESOLVE_CLEAR_COLOR_DW1" usage="rp_blit"/>
-	<reg32 offset="0x88e1" name="RB_RESOLVE_CLEAR_COLOR_DW2" usage="rp_blit"/>
-	<reg32 offset="0x88e2" name="RB_RESOLVE_CLEAR_COLOR_DW3" usage="rp_blit"/>
+	<reg32 offset="0x88df" name="RB_RESOLVE_CLEAR_COLOR_DW0" usage="resolve"/>
+	<reg32 offset="0x88e0" name="RB_RESOLVE_CLEAR_COLOR_DW1" usage="resolve"/>
+	<reg32 offset="0x88e1" name="RB_RESOLVE_CLEAR_COLOR_DW2" usage="resolve"/>
+	<reg32 offset="0x88e2" name="RB_RESOLVE_CLEAR_COLOR_DW3" usage="resolve"/>
 
 	<enum name="a6xx_blit_event_type">
 		<value value="0x0" name="BLIT_EVENT_STORE"/>
@@ -2610,7 +2611,7 @@ by a particular renderpass/blit.
 	</enum>
 
 	<!-- seems somewhat similar to what we called RB_CLEAR_CNTL on a5xx: -->
-	<reg32 offset="0x88e3" name="RB_RESOLVE_OPERATION" usage="rp_blit">
+	<reg32 offset="0x88e3" name="RB_RESOLVE_OPERATION" usage="resolve">
 		<bitfield name="TYPE" low="0" high="1" type="a6xx_blit_event_type"/>
 		<bitfield name="SAMPLE_0" pos="2" type="boolean"/> <!-- takes sample 0 instead of averaging -->
 		<bitfield name="DEPTH" pos="3" type="boolean"/> <!-- z16/z32/z24s8/x24x8 clear or resolve? -->
@@ -2638,7 +2639,7 @@ by a particular renderpass/blit.
 		<value value="0x0" name="CLEAR_MODE_SYSMEM"/>
 		<value value="0x1" name="CLEAR_MODE_GMEM"/>
 	</enum>
-	<reg32 offset="0x88e4" name="RB_CLEAR_TARGET" variants="A7XX-" usage="rp_blit">
+	<reg32 offset="0x88e4" name="RB_CLEAR_TARGET" variants="A7XX-" usage="resolve">
 			<bitfield name="CLEAR_MODE" pos="0" type="a7xx_blit_clear_mode"/>
 	</reg32>
 
@@ -2680,12 +2681,12 @@ by a particular renderpass/blit.
 		<bitfield name="DEPTH_CACHE_SIZE" low="30" high="31" type="a6xx_ccu_cache_size"/>
 	</reg32>
 
-	<reg32 offset="0x88e6" name="RB_RESOLVE_GMEM_BUFFER_CNTL" variants="A8XX-">
+	<reg32 offset="0x88e6" name="RB_RESOLVE_GMEM_BUFFER_CNTL" variants="A8XX-" usage="resolve">
 		<bitfield name="FULL_IN_GMEM" pos="0" type="boolean"/>
 	</reg32>
 
 	<!-- always 0x0 ? -->
-	<reg32 offset="0x88f0" name="RB_UNKNOWN_88F0" low="0" high="11" variants="A6XX" usage="cmd"/>
+	<reg32 offset="0x88f0" name="RB_UNKNOWN_88F0" low="0" high="11" variants="A6XX" usage="resolve"/>
 	<!-- could be for separate stencil? (or may not be a flag buffer at all) -->
 	<reg64 offset="0x88f1" name="RB_UNK_FLAG_BUFFER_BASE" type="waddress" align="64" variants="A6XX"/>
 	<reg32 offset="0x88f3" name="RB_UNK_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" variants="A6XX"/>
@@ -2873,7 +2874,7 @@ by a particular renderpass/blit.
 	<!-- 0x8e26-0x8e27 invalid -->
 
 	<reg32 offset="0x8f00" name="RB_CMP_NC_MODE_CNTL" variants="A8XX-"/>
-	<reg32 offset="0x8f01" name="RB_RESOLVE_PREFETCH_CNTL" variants="A8XX-"/>
+	<reg32 offset="0x8f01" name="RB_RESOLVE_PREFETCH_CNTL" variants="A8XX-" usage="resolve"/>
 	<reg32 offset="0x8f02" name="RB_CMP_DBG_ECO_CNTL" variants="A8XX-"/>
 
 	<reg32 offset="0x8f03" name="RB_UNSLICE_STATUS" variants="A8XX-"/>

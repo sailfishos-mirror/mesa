@@ -1103,6 +1103,7 @@ fd6_emit_restore(fd_cs &cs, struct fd_batch *batch)
       fd6_emit_stomp<CHIP>(cs, &RP_BLIT_REGS<CHIP>[0], ARRAY_SIZE(RP_BLIT_REGS<CHIP>));
       fd6_emit_stomp<CHIP>(cs, &BLIT_REGS<CHIP>[0], ARRAY_SIZE(BLIT_REGS<CHIP>));
       fd6_emit_stomp<CHIP>(cs, &CMD_REGS<CHIP>[0], ARRAY_SIZE(CMD_REGS<CHIP>));
+      fd6_emit_stomp<CHIP>(cs, &RESOLVE_REGS<CHIP>[0], ARRAY_SIZE(RESOLVE_REGS<CHIP>));
    }
 
    fd_pkt7(cs, CP_SET_MODE, 1)
