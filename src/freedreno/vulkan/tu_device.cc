@@ -2494,24 +2494,10 @@ static const struct debug_named_value tu_reg_stomper_options[] = {
 };
 
 template <chip CHIP>
-static inline void
-tu_cs_dbg_stomp_regs(struct tu_cs *cs,
-                     bool is_rp_blit,
-                     uint32_t first_reg,
-                     uint32_t last_reg,
-                     bool inverse)
+static void
+stomp_regs(struct tu_cs *cs, const uint16_t *regs, size_t count,
+           uint32_t first_reg, uint32_t last_reg, bool inverse)
 {
-   const uint16_t *regs = NULL;
-   size_t count = 0;
-
-   if (is_rp_blit) {
-      regs = &RP_BLIT_REGS<CHIP>[0];
-      count = ARRAY_SIZE(RP_BLIT_REGS<CHIP>);
-   } else {
-      regs = &CMD_REGS<CHIP>[0];
-      count = ARRAY_SIZE(CMD_REGS<CHIP>);
-   }
-
    for (size_t i = 0; i < count; i++) {
       if (inverse) {
          if (regs[i] >= first_reg && regs[i] <= last_reg)
@@ -2523,6 +2509,23 @@ tu_cs_dbg_stomp_regs(struct tu_cs *cs,
 
       if (fd_reg_stomp_allowed(CHIP, regs[i]))
          tu_cs_emit_write_reg(cs, regs[i], 0xffffffff);
+   }
+}
+
+template <chip CHIP>
+static inline void
+tu_cs_dbg_stomp_regs(struct tu_cs *cs,
+                     bool is_rp_blit,
+                     uint32_t first_reg,
+                     uint32_t last_reg,
+                     bool inverse)
+{
+   if (is_rp_blit) {
+      stomp_regs<CHIP>(cs, &RP_BLIT_REGS<CHIP>[0], ARRAY_SIZE(RP_BLIT_REGS<CHIP>),
+                       first_reg, last_reg, inverse);
+   } else {
+      stomp_regs<CHIP>(cs, &CMD_REGS<CHIP>[0], ARRAY_SIZE(CMD_REGS<CHIP>),
+                       first_reg, last_reg, inverse);
    }
 }
 
