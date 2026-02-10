@@ -122,40 +122,40 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
    if (tile_size < 16 * 16)
       return -1;
 
+   int best_rt = -1;
+
 #if PAN_ARCH <= 6
    if (fb->rt_count == 1 && fb->rts[0].view && !fb->rts[0].discard &&
        pan_image_view_has_crc(fb->rts[0].view) &&
-       renderblock_fits_in_single_pass(fb->rts[0].view, tile_size) &&
-       (*(fb->rts[0].crc_valid) || pan_fb_is_fully_covered(fb)))
-      return 0;
-
-   return -1;
+       renderblock_fits_in_single_pass(fb->rts[0].view, tile_size))
+      best_rt = 0;
 #else
-   bool best_rt_valid = false;
-   int best_rt = -1;
-
    for (unsigned i = 0; i < fb->rt_count; i++) {
+      /* Skip unusable RT. */
       if (!fb->rts[i].view || fb->rts[i].discard ||
           !pan_image_view_has_crc(fb->rts[i].view) ||
           !renderblock_fits_in_single_pass(fb->rts[i].view, tile_size))
          continue;
 
-      bool valid = *(fb->rts[i].crc_valid);
-      bool full = pan_fb_info_is_fully_covered(fb);
-      if (!full && !valid)
-         continue;
-
-      if (best_rt < 0 || (valid && !best_rt_valid)) {
+      /* Select the first RT with a valid CRC buffer. */
+      if (*fb->rts[i].crc_valid) {
          best_rt = i;
-         best_rt_valid = valid;
+         break;
       }
 
-      if (valid)
-         break;
+      /* Store the first usable RT otherwise. */
+      if (best_rt == -1)
+         best_rt = i;
    }
+#endif
+
+   /* The selected RT must be fully covered for now in order to correctly
+    * initialize the CRC buffer. */
+   if (best_rt != -1 && !*fb->rts[best_rt].crc_valid &&
+       !pan_fb_info_is_fully_covered(fb))
+      best_rt = -1;
 
    return best_rt;
-#endif
 }
 
 static enum mali_zs_format
