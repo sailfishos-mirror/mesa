@@ -1088,7 +1088,7 @@ setup_lsc_surface_descriptors(const brw_builder &bld, brw_send_inst *send,
 {
    const ASSERTED intel_device_info *devinfo = bld.shader->devinfo;
 
-   assert(base_offset == 0 || devinfo->ver >= 20);
+   assert(base_offset == 0 || brw_lsc_supports_base_offset(devinfo));
 
    send->src[SEND_SRC_DESC] = brw_imm_ud(0);
    send->src[SEND_SRC_EX_DESC] = brw_imm_ud(0);

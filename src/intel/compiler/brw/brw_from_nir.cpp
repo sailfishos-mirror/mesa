@@ -4175,7 +4175,7 @@ memory_address(nir_to_brw_state &ntb,
    const brw_builder ubld = src_offset.is_scalar ? bld.scalar_group() : bld;
    brw_reg address;
 
-   if (devinfo->ver < 20 ||
+   if ((brw_lsc_supports_base_offset(devinfo) == false) ||
        (!nir_intrinsic_has_base(instr) && !nir_src_is_const(*nir_src_offset))) {
       address =
          nir_intrinsic_has_base(instr) ?

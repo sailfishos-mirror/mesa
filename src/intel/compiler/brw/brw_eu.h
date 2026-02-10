@@ -1624,6 +1624,12 @@ brw_max_immediate_offset_bits(enum lsc_addr_surface_type binding_type)
    return max_bits[binding_type];
 }
 
+static inline bool
+brw_lsc_supports_base_offset(const struct intel_device_info *devinfo)
+{
+   return devinfo->ver >= 20;
+}
+
 #ifdef __cplusplus
 }
 #endif
