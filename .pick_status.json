@@ -604,7 +604,7 @@
         "description": "anv: set missing protected bit for protected depth/stencil surfaces",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "794b0496e9467d27211d11fe7f783db3ce6a349a",
         "notes": null
