@@ -843,6 +843,8 @@ optimizations.extend([
    (('fge',  ('~fadd(is_used_once)', a, '#b(is_finite)'), '#c'), ('fge', a,  ('fadd', c, ('fneg', b)))),
    (('feq',  ('~fadd(is_used_once)', a, '#b(is_finite)'), '#c'), ('feq', a,  ('fadd', c, ('fneg', b)))),
    (('fneu', ('~fadd(is_used_once)', a, '#b(is_finite)'), '#c'), ('fneu', a, ('fadd', c, ('fneg', b)))),
+   (('flt',  '#c', ('~fadd(is_used_once)', a, '#b(is_finite)')), ('flt', ('fadd', c, ('fneg', b)), a)),
+   (('fge',  '#c', ('~fadd(is_used_once)', a, '#b(is_finite)')), ('fge', ('fadd', c, ('fneg', b)), a)),
 
 
    # Cannot remove the addition from ilt or ige due to overflow.
