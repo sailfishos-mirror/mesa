@@ -23,7 +23,6 @@ libintel_compiler_brw_files = files(
   'brw_compile_vs.cpp',
   'brw_compiler.c',
   'brw_compiler.h',
-  'brw_debug_recompile.c',
   'brw_disasm.c',
   'brw_disasm_info.cpp',
   'brw_disasm_info.h',

@@ -1614,11 +1614,6 @@ const unsigned *
 brw_compile_bs(const struct brw_compiler *compiler,
                struct brw_compile_bs_params *params);
 
-void brw_debug_key_recompile(const struct brw_compiler *c, void *log,
-                             mesa_shader_stage stage,
-                             const struct brw_base_prog_key *old_key,
-                             const struct brw_base_prog_key *key);
-
 unsigned
 brw_cs_push_const_total_size(const struct brw_cs_prog_data *cs_prog_data,
                              unsigned threads);
