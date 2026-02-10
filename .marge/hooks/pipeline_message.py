@@ -50,7 +50,7 @@ def get_problem_jobs(jobs: list[dict[str, Any]]):
     for job in jobs:
         if any(ignore.lower() in job["stage"] for ignore in ignore_stage_list):
             continue
-        if job["status"] in {"failed", "canceled"}:
+        if job["status"] != "success":
             problem_jobs.append(job)
     return problem_jobs
 
