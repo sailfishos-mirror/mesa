@@ -84,7 +84,7 @@
         "description": "gallivm: handle u16 correct on const loads.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e28cfb2bada2398a9ddcadd03fac060d5654a15e",
         "notes": null
