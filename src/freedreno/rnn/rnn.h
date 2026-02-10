@@ -207,6 +207,7 @@ struct rnndelem {
 	struct rnnenum *index;   /* for arrays, for symbolic idx values */
 	char *fullname;
 	char *file;
+	char *usage;
 };
 
 struct rnnspectype {
