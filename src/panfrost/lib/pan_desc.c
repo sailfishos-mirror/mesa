@@ -462,30 +462,28 @@ GENX(pan_emit_interleaved_64k_zs_attachment)(const struct pan_attachment_info *a
 #endif
 
 static void
-pan_prepare_crc(const struct pan_fb_info *fb, int rt_crc,
-                struct MALI_CRC *crc)
+pan_emit_crc(const struct pan_fb_info *fb, struct pan_crc *crc,
+             struct MALI_CRC *cfg)
 {
-   if (rt_crc < 0)
+   if (!pan_crc_is_enabled(crc))
       return;
 
-   assert(rt_crc < fb->rt_count);
-
-   const struct pan_image_view *rt = fb->rts[rt_crc].view;
+   const struct pan_image_view *rt = fb->rts[crc->index].view;
    const struct pan_image_plane_ref pref = pan_image_view_get_color_plane(rt);
    const struct pan_image *image = pref.image;
    const struct pan_image_plane *plane = image->planes[pref.plane_idx];
    const struct pan_image_slice_layout *slice =
       &plane->layout.slices[rt->first_level];
 
-   crc->base = plane->base + slice->crc.offset_B;
-   crc->row_stride = slice->crc.stride_B;
+   cfg->base = plane->base + slice->crc.offset_B;
+   cfg->row_stride = slice->crc.stride_B;
 
 #if PAN_ARCH >= 7
-   crc->render_target = rt_crc;
+   cfg->render_target = crc->index;
 
-   if (fb->rts[rt_crc].clear) {
-      uint32_t clear_val = fb->rts[rt_crc].clear_value[0];
-      crc->clear_color = clear_val | 0xc000000000000000 |
+   if (fb->rts[crc->index].clear) {
+      uint32_t clear_val = fb->rts[crc->index].clear_value[0];
+      cfg->clear_color = clear_val | 0xc000000000000000 |
                          (((uint64_t)clear_val & 0xffff) << 32);
    }
 #endif
@@ -493,14 +491,13 @@ pan_prepare_crc(const struct pan_fb_info *fb, int rt_crc,
 
 static void
 pan_emit_zs_crc_ext(const struct pan_fb_info *fb, unsigned layer_idx,
-                    int rt_crc,
                     struct mali_zs_crc_extension_packed *zs_crc_ext,
-                    struct pan_clean_tile clean_tile)
+                    struct pan_crc *crc, struct pan_clean_tile clean_tile)
 {
    struct mali_zs_crc_extension_packed desc;
 
    pan_pack(&desc, ZS_CRC_EXTENSION, cfg) {
-      pan_prepare_crc(fb, rt_crc, &cfg.crc);
+      pan_emit_crc(fb, crc, &cfg.crc);
 #if PAN_ARCH == 5
       cfg.zs.clean_pixel_write_enable =
          pan_clean_tile_write_zs_enabled(clean_tile);
@@ -1050,6 +1047,66 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
    *out = desc;
 }
 
+static void
+pan_crc_enable(struct pan_crc *crc)
+{
+   crc->read = true;
+   crc->write = true;
+}
+
+/* Take advantage of a full frame draw to initialize the CRC buffer by
+ * forcefully writing back all the tiles and flush the CRC values. Drawback
+ * is it only works on full frames. */
+static void
+pan_crc_maybe_enable_flushed(struct pan_crc *crc,
+                             const struct pan_fb_info *fb, bool *crc_valid)
+{
+   if (!pan_fb_info_is_fully_covered(fb))
+      return;
+
+   crc->write = true;
+   crc->force_clean_tile_write = true;
+   *crc_valid = true;
+}
+
+static struct pan_crc
+pan_get_crc_info(const struct pan_fb_info *fb)
+{
+   struct pan_crc crc = { .index = -1, };
+   const struct pan_fb_color_attachment *rt;
+
+   /* Disable TE when the tile size is smaller than 16x16. In the hardware,
+    * CRC tiles are the same size as the tiles of the framebuffer. However,
+    * our code only handles 16x16 tiles. Therefore under the current
+    * implementation, we must disable TE when 16x16 tiles are not used. This
+    * may hurt performance. However, smaller tile sizes are rare, and CRCs are
+    * more expensive at smaller tile sizes, reducing the benefit. Restricting
+    * CRC to 16x16 should work in practice. */
+   if (fb->tile_size < 16 * 16)
+      goto skip;
+
+   crc.index = GENX(pan_select_crc_rt)(fb, fb->tile_size);
+   if (crc.index == -1)
+      goto skip;
+
+   rt = &fb->rts[crc.index];
+
+   /* Transaction Elimination. */
+   if (*rt->crc_valid) {
+      pan_crc_enable(&crc);
+   } else {
+      pan_crc_maybe_enable_flushed(&crc, fb, rt->crc_valid);
+   }
+
+ skip:
+   /* Flag CRC buffer states of unselected RTs as invalid. */
+   for (unsigned i = 0; i < fb->rt_count; i++)
+      if (i != crc.index && fb->rts[i].crc_valid)
+         *fb->rts[i].crc_valid = false;
+
+   return crc;
+}
+
 /* Clean tiles must be written back for AFBC buffers (color, z/s) when either
  * one of the effective tile size dimension is smaller than the superblock
  * dimension.
@@ -1171,15 +1228,16 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
 
    check_fb_attachments(fb);
 
-   const int crc_rt = GENX(pan_select_crc_rt)(fb, fb->tile_size);
-   const bool has_zs_crc_ext = (fb->zs.view.zs || fb->zs.view.s || crc_rt >= 0);
+   struct pan_crc crc = pan_get_crc_info(fb);
    const struct pan_clean_tile clean_tile = GENX(pan_get_clean_tile_info)(fb);
+   const bool has_zs_crc_ext = (fb->zs.view.zs || fb->zs.view.s ||
+      pan_crc_is_enabled(&crc));
 
    if (has_zs_crc_ext) {
-      pan_emit_zs_crc_ext(fb, layer_idx, crc_rt, out->zs_crc, clean_tile);
+      pan_emit_zs_crc_ext(fb, layer_idx, out->zs_crc, &crc, clean_tile);
    }
 
-   pan_emit_rts(fb, layer_idx, crc_rt, out->rts, clean_tile);
+   pan_emit_rts(fb, layer_idx, crc.index, out->rts, clean_tile);
 
    return 0;
 }
@@ -1198,9 +1256,10 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
    GENX(pan_emit_tls)(tls, pan_section_ptr(out->fbd, FRAMEBUFFER, LOCAL_STORAGE));
 #endif
 
-   int crc_rt = GENX(pan_select_crc_rt)(fb, fb->tile_size);
-   bool has_zs_crc_ext = (fb->zs.view.zs || fb->zs.view.s || crc_rt >= 0);
+   struct pan_crc crc = pan_get_crc_info(fb);
    struct pan_clean_tile clean_tile = GENX(pan_get_clean_tile_info)(fb);
+   bool has_zs_crc_ext = fb->zs.view.zs || fb->zs.view.s ||
+      pan_crc_is_enabled(&crc);
 
    pan_section_pack(out->fbd, FRAMEBUFFER, PARAMETERS, cfg) {
 #if PAN_ARCH >= 6
@@ -1264,24 +1323,9 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
       cfg.s_write_enable = (fb->zs.view.s && !fb->zs.discard.s);
       cfg.has_zs_crc_extension = has_zs_crc_ext;
 
-      if (crc_rt >= 0) {
-         bool *valid = fb->rts[crc_rt].crc_valid;
-         bool full = pan_fb_info_is_fully_covered(fb);
-
-         /* If the CRC was valid it stays valid, if it wasn't, we must ensure
-          * the render operation covers the full frame, and clean tiles are
-          * pushed to memory. */
-         bool new_valid = *valid |
-            (full && pan_clean_tile_write_rt_enabled(clean_tile, crc_rt));
-
-         cfg.crc_read_enable = *valid;
-
-         /* If the data is currently invalid, still write CRC
-          * data if we are doing a full write, so that it is
-          * valid for next time. */
-         cfg.crc_write_enable = new_valid;
-
-         *valid = new_valid;
+      if (pan_crc_is_enabled(&crc)) {
+         cfg.crc_read_enable = crc.read;
+         cfg.crc_write_enable = crc.write;
       }
 
 #if PAN_ARCH >= 9
@@ -1329,10 +1373,10 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
 #endif
 
    if (has_zs_crc_ext) {
-      pan_emit_zs_crc_ext(fb, layer_idx, crc_rt, out->zs_crc, clean_tile);
+      pan_emit_zs_crc_ext(fb, layer_idx, out->zs_crc, &crc, clean_tile);
    }
 
-   pan_emit_rts(fb, layer_idx, crc_rt, out->rts, clean_tile);
+   pan_emit_rts(fb, layer_idx, crc.index, out->rts, clean_tile);
 
    struct mali_framebuffer_pointer_packed tag;
    pan_pack(&tag, FRAMEBUFFER_POINTER, cfg) {

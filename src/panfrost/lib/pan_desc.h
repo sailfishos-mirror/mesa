@@ -157,6 +157,24 @@ struct pan_fb_info {
    bool pls_enabled;
 };
 
+struct pan_crc {
+   /* Selected RT index (8 max), -1 if none. */
+   int8_t index;
+
+   /* Transaction Elimination flags */
+   bool read  : 1;
+   bool write : 1;
+
+   /* Force clean writes for CRC buffer init */
+   bool force_clean_tile_write : 1;
+};
+
+static inline bool
+pan_crc_is_enabled(struct pan_crc *crc)
+{
+   return crc->index != -1;
+}
+
 struct pan_clean_tile {
    /* clean_tile_write_enable mask on the 8 color attachments. */
    uint8_t write_rt_mask;
