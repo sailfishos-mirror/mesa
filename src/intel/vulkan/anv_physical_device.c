@@ -2782,9 +2782,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
 
    device->uses_ex_bso = device->info.verx10 >= 125;
 
-   /* For now always use indirect descriptors. We'll update this
-    * to !uses_ex_bso when all the infrastructure is built up.
-    */
    device->indirect_descriptors =
       !device->uses_ex_bso ||
       driQueryOptionb(&instance->dri_options, "force_indirect_descriptors");
