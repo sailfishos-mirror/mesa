@@ -1190,7 +1190,7 @@ shared_type_info(const struct glsl_type *type, unsigned *size, unsigned *align)
 }
 
 static void
-anv_shader_compute_fragment_rts(const struct brw_compiler *compiler,
+anv_shader_compute_fragment_rts(const struct intel_device_info *devinfo,
                                 const struct vk_graphics_pipeline_state *state,
                                 struct anv_shader_data *shader_data)
 {
@@ -1222,8 +1222,7 @@ anv_shader_compute_fragment_rts(const struct brw_compiler *compiler,
          }
       }
       shader_data->bind_map.surface_count = num_rts;
-   } else if (brw_nir_fs_needs_null_rt(
-                 compiler->devinfo, nir,
+   } else if (brw_nir_fs_needs_null_rt(devinfo, nir,
                  shader_data->key.fs.alpha_to_coverage != INTEL_NEVER)) {
       /* Setup a null render target */
       rt_bindings[0] = (struct anv_pipeline_binding) {
@@ -1446,7 +1445,7 @@ anv_shader_lower_nir(struct anv_device *device,
 
    /* Need to have render targets placed first in the bind_map */
    if (nir->info.stage == MESA_SHADER_FRAGMENT)
-      anv_shader_compute_fragment_rts(compiler, state, shader_data);
+      anv_shader_compute_fragment_rts(devinfo, state, shader_data);
 
 
    uint32_t dynamic_descriptors_offset = 0;
