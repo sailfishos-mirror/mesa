@@ -2521,7 +2521,7 @@ tu_cs_dbg_stomp_regs(struct tu_cs *cs,
                      bool inverse)
 {
    if (is_rp_blit) {
-      stomp_regs<CHIP>(cs, &RP_BLIT_REGS<CHIP>[0], ARRAY_SIZE(RP_BLIT_REGS<CHIP>),
+      stomp_regs<CHIP>(cs, &DRAW_REGS<CHIP>[0], ARRAY_SIZE(DRAW_REGS<CHIP>),
                        first_reg, last_reg, inverse);
       stomp_regs<CHIP>(cs, &BLIT_REGS<CHIP>[0], ARRAY_SIZE(BLIT_REGS<CHIP>),
                        first_reg, last_reg, inverse);
