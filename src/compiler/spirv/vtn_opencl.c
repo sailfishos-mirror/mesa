@@ -725,6 +725,16 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
    if (!ret)
       vtn_fail("No NIR equivalent");
 
+   /* libclc's cbrt() implementation fails to flush subnormal numbers to zero
+    * even when flush-to-zero is required. Manually flush its output.
+    */
+   if (opcode == OpenCLstd_Cbrt) {
+      const bool save_exact = nb->exact;
+      nb->exact = true;
+      ret = nir_fmul_imm(nb, ret, 1.0);
+      nb->exact = save_exact;
+   }
+
    return ret;
 }
 
