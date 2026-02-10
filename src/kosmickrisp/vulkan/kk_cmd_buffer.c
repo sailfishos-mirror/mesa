@@ -262,10 +262,10 @@ kk_cmd_push_descriptors(struct kk_cmd_buffer *cmd,
          vk_command_buffer_set_error(&cmd->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
          return NULL;
       }
-      desc->push[set]->layout = set_layout;
    }
 
    /* Pushing descriptors replaces whatever sets are bound */
+   desc->push[set]->layout = set_layout;
    desc->sets[set] = NULL;
    desc->push_dirty |= BITFIELD_BIT(set);
 
