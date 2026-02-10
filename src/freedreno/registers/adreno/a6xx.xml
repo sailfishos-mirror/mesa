@@ -20,6 +20,7 @@ currently there are following usages:
 		roughly corresponds to registers used in ib1 for Freedreno
 - "rp_blit" - the register is used inside renderpass or blits
 		(ib2 for Freedreno)
+- "blit" - used by CP_BLIT cmds
 
 It is expected that register with "cmd" usage may be written into only at
 the start of the command buffer (ib1), while "rp_blit" usage indicates that register
@@ -2170,32 +2171,32 @@ by a particular renderpass/blit.
 		<bitfield name="COPY" pos="30" type="boolean" variants="A7XX-"/>
 	</bitset>
 
-	<reg32 offset="0x8400" name="GRAS_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x8400" name="GRAS_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" variants="A6XX-A7XX" usage="blit"/>
 	<!-- note: the low 8 bits for src coords are valid, probably fixed point
 	     it would be a bit weird though, since we subtract 1 from BR coords
 	     apparently signed, gallium driver uses negative coords and it works?
 	 -->
-	<reg32 offset="0x8401" name="GRAS_A2D_SRC_XMIN" low="8" high="24" type="int" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8402" name="GRAS_A2D_SRC_XMAX" low="8" high="24" type="int" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8403" name="GRAS_A2D_SRC_YMIN" low="8" high="24" type="int" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8404" name="GRAS_A2D_SRC_YMAX" low="8" high="24" type="int" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8405" name="GRAS_A2D_DEST_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8406" name="GRAS_A2D_DEST_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x8407" name="GRAS_A2D_UNKNOWN_8407" low="0" high="31" variants="A6XX"/>
-	<reg32 offset="0x8408" name="GRAS_A2D_UNKNOWN_8408" low="0" high="31" variants="A6XX"/>
-	<reg32 offset="0x8409" name="GRAS_A2D_UNKNOWN_8409" low="0" high="31" variants="A6XX"/>
-	<reg32 offset="0x840a" name="GRAS_A2D_SCISSOR_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
-	<reg32 offset="0x840b" name="GRAS_A2D_SCISSOR_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="rp_blit"/>
+	<reg32 offset="0x8401" name="GRAS_A2D_SRC_XMIN" low="8" high="24" type="int" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8402" name="GRAS_A2D_SRC_XMAX" low="8" high="24" type="int" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8403" name="GRAS_A2D_SRC_YMIN" low="8" high="24" type="int" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8404" name="GRAS_A2D_SRC_YMAX" low="8" high="24" type="int" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8405" name="GRAS_A2D_DEST_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8406" name="GRAS_A2D_DEST_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x8407" name="GRAS_A2D_UNKNOWN_8407" low="0" high="31" variants="A6XX" usage="blit"/>
+	<reg32 offset="0x8408" name="GRAS_A2D_UNKNOWN_8408" low="0" high="31" variants="A6XX" usage="blit"/>
+	<reg32 offset="0x8409" name="GRAS_A2D_UNKNOWN_8409" low="0" high="31" variants="A6XX" usage="blit"/>
+	<reg32 offset="0x840a" name="GRAS_A2D_SCISSOR_TL" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="blit"/>
+	<reg32 offset="0x840b" name="GRAS_A2D_SCISSOR_BR" type="a6xx_reg_xy" variants="A6XX-A7XX" usage="blit"/>
 
-	<reg32 offset="0x8500" name="GRAS_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8501" name="GRAS_A2D_SRC_XMIN" low="8" high="24" type="int" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8502" name="GRAS_A2D_SRC_XMAX" low="8" high="24" type="int" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8503" name="GRAS_A2D_SRC_YMIN" low="8" high="24" type="int" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8504" name="GRAS_A2D_SRC_YMAX" low="8" high="24" type="int" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8505" name="GRAS_A2D_DEST_TL" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8506" name="GRAS_A2D_DEST_BR" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8507" name="GRAS_A2D_SCISSOR_TL" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
-	<reg32 offset="0x8508" name="GRAS_A2D_SCISSOR_BR" type="a6xx_reg_xy" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0x8500" name="GRAS_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8501" name="GRAS_A2D_SRC_XMIN" low="8" high="24" type="int" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8502" name="GRAS_A2D_SRC_XMAX" low="8" high="24" type="int" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8503" name="GRAS_A2D_SRC_YMIN" low="8" high="24" type="int" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8504" name="GRAS_A2D_SRC_YMAX" low="8" high="24" type="int" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8505" name="GRAS_A2D_DEST_TL" type="a6xx_reg_xy" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8506" name="GRAS_A2D_DEST_BR" type="a6xx_reg_xy" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8507" name="GRAS_A2D_SCISSOR_TL" type="a6xx_reg_xy" variants="A8XX-" usage="blit"/>
+	<reg32 offset="0x8508" name="GRAS_A2D_SCISSOR_BR" type="a6xx_reg_xy" variants="A8XX-" usage="blit"/>
 
 	<!-- always 0x880 ? (and 0 in a640/a650 traces?) -->
 	<reg32 offset="0x8600" name="GRAS_DBG_ECO_CNTL" usage="init" variants="A6XX-A7XX">
@@ -2749,8 +2750,8 @@ by a particular renderpass/blit.
 	<reg32 offset="0x8a20" name="RB_UNKNOWN_8A20" variants="A6XX" usage="rp_blit"/>
 	<reg32 offset="0x8a30" name="RB_UNKNOWN_8A30" variants="A6XX" usage="rp_blit"/>
 
-	<reg32 offset="0x8c00" name="RB_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" usage="rp_blit"/>
-	<reg32 offset="0x8c01" name="RB_A2D_PIXEL_CNTL" low="0" high="31" usage="rp_blit"/>
+	<reg32 offset="0x8c00" name="RB_A2D_BLT_CNTL" type="a6xx_a2d_blt_cntl" usage="blit"/>
+	<reg32 offset="0x8c01" name="RB_A2D_PIXEL_CNTL" low="0" high="31" usage="blit"/>
 
 	<bitset name="a6xx_a2d_src_texture_info" inline="yes">
 		<bitfield name="COLOR_FORMAT" low="0" high="7" type="a6xx_format"/>
@@ -2782,26 +2783,26 @@ by a particular renderpass/blit.
 	</bitset>
 
 	<!-- 0x8c02-0x8c16 invalid -->
-	<reg32 offset="0x8c17" name="RB_A2D_DEST_BUFFER_INFO" type="a6xx_a2d_dest_buffer_info" usage="rp_blit"/>
-	<reg64 offset="0x8c18" name="RB_A2D_DEST_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8c1a" name="RB_A2D_DEST_BUFFER_PITCH" low="0" high="15" shr="6" type="uint" usage="rp_blit"/>
+	<reg32 offset="0x8c17" name="RB_A2D_DEST_BUFFER_INFO" type="a6xx_a2d_dest_buffer_info" usage="blit"/>
+	<reg64 offset="0x8c18" name="RB_A2D_DEST_BUFFER_BASE" type="waddress" align="64" usage="blit"/>
+	<reg32 offset="0x8c1a" name="RB_A2D_DEST_BUFFER_PITCH" low="0" high="15" shr="6" type="uint" usage="blit"/>
 	<!-- this is a guess but seems likely (for NV12/IYUV): -->
-	<reg64 offset="0x8c1b" name="RB_A2D_DEST_BUFFER_BASE_1" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8c1d" name="RB_A2D_DEST_BUFFER_PITCH_1" low="0" high="15" shr="6" type="uint" usage="rp_blit"/>
-	<reg64 offset="0x8c1e" name="RB_A2D_DEST_BUFFER_BASE_2" type="waddress" align="64" usage="rp_blit"/>
+	<reg64 offset="0x8c1b" name="RB_A2D_DEST_BUFFER_BASE_1" type="waddress" align="64" usage="blit"/>
+	<reg32 offset="0x8c1d" name="RB_A2D_DEST_BUFFER_PITCH_1" low="0" high="15" shr="6" type="uint" usage="blit"/>
+	<reg64 offset="0x8c1e" name="RB_A2D_DEST_BUFFER_BASE_2" type="waddress" align="64" usage="blit"/>
 
-	<reg64 offset="0x8c20" name="RB_A2D_DEST_FLAG_BUFFER_BASE" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8c22" name="RB_A2D_DEST_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" usage="rp_blit"/>
+	<reg64 offset="0x8c20" name="RB_A2D_DEST_FLAG_BUFFER_BASE" type="waddress" align="64" usage="blit"/>
+	<reg32 offset="0x8c22" name="RB_A2D_DEST_FLAG_BUFFER_PITCH" type="a6xx_flag_buffer_pitch" usage="blit"/>
 	<!-- this is a guess but seems likely (for NV12 with UBWC): -->
-	<reg64 offset="0x8c23" name="RB_A2D_DEST_FLAG_BUFFER_BASE_1" type="waddress" align="64" usage="rp_blit"/>
-	<reg32 offset="0x8c25" name="RB_A2D_DEST_FLAG_BUFFER_PITCH_1" low="0" high="7" shr="6" type="uint" usage="rp_blit"/>
+	<reg64 offset="0x8c23" name="RB_A2D_DEST_FLAG_BUFFER_BASE_1" type="waddress" align="64" usage="blit"/>
+	<reg32 offset="0x8c25" name="RB_A2D_DEST_FLAG_BUFFER_PITCH_1" low="0" high="7" shr="6" type="uint" usage="blit"/>
 
 	<!-- TODO: 0x8c26-0x8c33 are all full 32-bit registers -->
 	<!-- unlike a5xx, these are per channel values rather than packed -->
-	<reg32 offset="0x8c2c" name="RB_A2D_CLEAR_COLOR_DW0" usage="rp_blit"/>
-	<reg32 offset="0x8c2d" name="RB_A2D_CLEAR_COLOR_DW1" usage="rp_blit"/>
-	<reg32 offset="0x8c2e" name="RB_A2D_CLEAR_COLOR_DW2" usage="rp_blit"/>
-	<reg32 offset="0x8c2f" name="RB_A2D_CLEAR_COLOR_DW3" usage="rp_blit"/>
+	<reg32 offset="0x8c2c" name="RB_A2D_CLEAR_COLOR_DW0" usage="blit"/>
+	<reg32 offset="0x8c2d" name="RB_A2D_CLEAR_COLOR_DW1" usage="blit"/>
+	<reg32 offset="0x8c2e" name="RB_A2D_CLEAR_COLOR_DW2" usage="blit"/>
+	<reg32 offset="0x8c2f" name="RB_A2D_CLEAR_COLOR_DW3" usage="blit"/>
 
 	<reg32 offset="0x8c34" name="RB_UNKNOWN_8C34" variants="A7XX-" usage="cmd"/>
 
@@ -4314,8 +4315,8 @@ by a particular renderpass/blit.
 		<bitfield name="MASK" low="12" high="15"/>
 	</bitset>
 
-	<reg32 offset="0xacc0" name="SP_A2D_OUTPUT_INFO" type="a6xx_sp_a2d_output_info" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xa9bf" name="SP_A2D_OUTPUT_INFO" type="a6xx_sp_a2d_output_info" variants="A7XX-" usage="rp_blit"/>
+	<reg32 offset="0xacc0" name="SP_A2D_OUTPUT_INFO" type="a6xx_sp_a2d_output_info" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xa9bf" name="SP_A2D_OUTPUT_INFO" type="a6xx_sp_a2d_output_info" variants="A7XX-" usage="blit"/>
 
 	<reg32 offset="0xae00" name="SP_DBG_ECO_CNTL" usage="init"/>
 	<reg32 offset="0xae01" name="SP_ADDR_MODE_CNTL" pos="0" type="a5xx_address_mode" variants="A6XX"/>
@@ -4410,7 +4411,7 @@ by a particular renderpass/blit.
 	<reg32 offset="0xb191" name="SP_UNKNOWN_B191"/>
 
 	<reg32 offset="0xb2d6" name="TPL1_A2D_BIN_SIZE" type="a8xx_bin_size" variants="A8XX-" usage="cmd"/>
-	<reg32 offset="0xb2d7" name="TPL1_A2D_FILTER_CNTL" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0xb2d7" name="TPL1_A2D_FILTER_CNTL" variants="A8XX-" usage="blit"/>
 
 	<reg32 offset="0xb300" name="TPL1_RAS_MSAA_CNTL" usage="rp_blit">
 		<bitfield name="SAMPLES" low="0" high="1" type="a3xx_msaa_samples"/>
@@ -4462,25 +4463,25 @@ by a particular renderpass/blit.
 	badly named or the functionality moved in a6xx.  But downstream kernel
 	calls this "a6xx_sp_ps_tp_2d_cluster"
 	 -->
-	<reg32 offset="0xb4c0" name="TPL1_A2D_SRC_TEXTURE_INFO" type="a6xx_a2d_src_texture_info" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb4c1" name="TPL1_A2D_SRC_TEXTURE_SIZE" variants="A6XX" usage="rp_blit">
+	<reg32 offset="0xb4c0" name="TPL1_A2D_SRC_TEXTURE_INFO" type="a6xx_a2d_src_texture_info" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4c1" name="TPL1_A2D_SRC_TEXTURE_SIZE" variants="A6XX" usage="blit">
 		<bitfield name="WIDTH" low="0" high="14" type="uint"/>
 		<bitfield name="HEIGHT" low="15" high="29" type="uint"/>
 	</reg32>
-	<reg64 offset="0xb4c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" align="16" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb4c4" name="TPL1_A2D_SRC_TEXTURE_PITCH" variants="A6XX" usage="rp_blit">
+	<reg64 offset="0xb4c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" align="16" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4c4" name="TPL1_A2D_SRC_TEXTURE_PITCH" variants="A6XX" usage="blit">
 		<bitfield name="UNK0" low="0" high="8"/>
 		<bitfield name="PITCH" low="9" high="23" shr="6" type="uint"/>
 	</reg32>
 
-	<reg32 offset="0xb2c0" name="TPL1_A2D_SRC_TEXTURE_INFO" type="a6xx_a2d_src_texture_info" variants="A7XX-" usage="rp_blit"/>
+	<reg32 offset="0xb2c0" name="TPL1_A2D_SRC_TEXTURE_INFO" type="a6xx_a2d_src_texture_info" variants="A7XX-" usage="blit"/>
 	<reg32 offset="0xb2c1" name="TPL1_A2D_SRC_TEXTURE_SIZE" variants="A7XX-">
 		<bitfield name="WIDTH" low="0" high="14" type="uint"/>
 		<bitfield name="HEIGHT" low="15" high="29" type="uint"/>
 	</reg32>
-	<reg64 offset="0xb2c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" align="16" variants="A7XX" usage="rp_blit"/>
+	<reg64 offset="0xb2c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" align="16" variants="A7XX" usage="blit"/>
 	<!-- gen8 can use an unaligned base for IMG_BUFFER: -->
-	<reg64 offset="0xb2c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" variants="A8XX-" usage="rp_blit"/>
+	<reg64 offset="0xb2c2" name="TPL1_A2D_SRC_TEXTURE_BASE" type="address" variants="A8XX-" usage="blit"/>
 	<reg32 offset="0xb2c4" name="TPL1_A2D_SRC_TEXTURE_PITCH" variants="A7XX-">
 		<!--
 		Bits from 3..9 must be zero unless 'TPL1_A2D_BLT_CNTL::TYPE'
@@ -4490,19 +4491,19 @@ by a particular renderpass/blit.
 	</reg32>
 
 	<!-- planes for NV12, etc. (TODO: not tested) -->
-	<reg64 offset="0xb4c5" name="TPL1_A2D_SRC_TEXTURE_BASE_1" type="address" align="16" variants="A6XX"/>
-	<reg32 offset="0xb4c7" name="TPL1_A2D_SRC_TEXTURE_PITCH_1" low="0" high="11" shr="6" type="uint" variants="A6XX"/>
-	<reg64 offset="0xb4c8" name="TPL1_A2D_SRC_TEXTURE_BASE_2" type="address" align="16" variants="A6XX"/>
+	<reg64 offset="0xb4c5" name="TPL1_A2D_SRC_TEXTURE_BASE_1" type="address" align="16" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4c7" name="TPL1_A2D_SRC_TEXTURE_PITCH_1" low="0" high="11" shr="6" type="uint" variants="A6XX" usage="blit"/>
+	<reg64 offset="0xb4c8" name="TPL1_A2D_SRC_TEXTURE_BASE_2" type="address" align="16" variants="A6XX" usage="blit"/>
 
-	<reg64 offset="0xb2c5" name="TPL1_A2D_SRC_TEXTURE_BASE_1" type="address" align="16" variants="A7XX-"/>
-	<reg32 offset="0xb2c7" name="TPL1_A2D_SRC_TEXTURE_PITCH_1" low="0" high="11" shr="6" type="uint" variants="A7XX-"/>
-	<reg64 offset="0xb2c8" name="TPL1_A2D_SRC_TEXTURE_BASE_2" type="address" align="16" variants="A7XX-"/>
+	<reg64 offset="0xb2c5" name="TPL1_A2D_SRC_TEXTURE_BASE_1" type="address" align="16" variants="A7XX-" usage="blit"/>
+	<reg32 offset="0xb2c7" name="TPL1_A2D_SRC_TEXTURE_PITCH_1" low="0" high="11" shr="6" type="uint" variants="A7XX-" usage="blit"/>
+	<reg64 offset="0xb2c8" name="TPL1_A2D_SRC_TEXTURE_BASE_2" type="address" align="16" variants="A7XX-" usage="blit"/>
 
-	<reg64 offset="0xb4ca" name="TPL1_A2D_SRC_TEXTURE_FLAG_BASE" type="address" align="16" variants="A6XX" usage="rp_blit"/>
-	<reg32 offset="0xb4cc" name="TPL1_A2D_SRC_TEXTURE_FLAG_PITCH" low="0" high="7" shr="6" type="uint" variants="A6XX" usage="rp_blit"/>
+	<reg64 offset="0xb4ca" name="TPL1_A2D_SRC_TEXTURE_FLAG_BASE" type="address" align="16" variants="A6XX" usage="blit"/>
+	<reg32 offset="0xb4cc" name="TPL1_A2D_SRC_TEXTURE_FLAG_PITCH" low="0" high="7" shr="6" type="uint" variants="A6XX" usage="blit"/>
 
-	<reg64 offset="0xb2ca" name="TPL1_A2D_SRC_TEXTURE_FLAG_BASE" type="address" align="16" variants="A7XX-" usage="rp_blit"/>
-	<reg32 offset="0xb2cc" name="TPL1_A2D_SRC_TEXTURE_FLAG_PITCH" low="0" high="7" shr="6" type="uint" variants="A7XX-" usage="rp_blit"/>
+	<reg64 offset="0xb2ca" name="TPL1_A2D_SRC_TEXTURE_FLAG_BASE" type="address" align="16" variants="A7XX-" usage="blit"/>
+	<reg32 offset="0xb2cc" name="TPL1_A2D_SRC_TEXTURE_FLAG_PITCH" low="0" high="7" shr="6" type="uint" variants="A7XX-" usage="blit"/>
 
 	<reg32 offset="0xb4cd" name="SP_PS_UNKNOWN_B4CD" low="6" high="31" variants="A6XX"/>
 	<reg32 offset="0xb4ce" name="SP_PS_UNKNOWN_B4CE" low="0" high="31" variants="A6XX"/>
@@ -4519,10 +4520,10 @@ by a particular renderpass/blit.
 		<bitfield name="RAW_COPY" pos="0" type="boolean"/>
 		<bitfield name="TYPE" low="29" high="31" type="a6xx_tex_type"/>
 	</bitset>
-	<reg32 offset="0xb2d2" name="TPL1_A2D_BLT_CNTL" type="a7xx_tpl1_a2d_blt_cntl" variants="A7XX" usage="rp_blit">
+	<reg32 offset="0xb2d2" name="TPL1_A2D_BLT_CNTL" type="a7xx_tpl1_a2d_blt_cntl" variants="A7XX" usage="blit">
 		<bitfield name="START_OFFSET_TEXELS" low="16" high="21"/>
 	</reg32>
-	<reg32 offset="0xb2d2" name="TPL1_A2D_BLT_CNTL" type="a7xx_tpl1_a2d_blt_cntl" variants="A8XX-" usage="rp_blit"/>
+	<reg32 offset="0xb2d2" name="TPL1_A2D_BLT_CNTL" type="a7xx_tpl1_a2d_blt_cntl" variants="A8XX-" usage="blit"/>
 	<reg32 offset="0xab21" name="SP_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A7XX" usage="cmd"/>
 	<reg32 offset="0xab07" name="SP_WINDOW_OFFSET" type="a6xx_reg_xy" variants="A8XX-" usage="cmd"/>
 

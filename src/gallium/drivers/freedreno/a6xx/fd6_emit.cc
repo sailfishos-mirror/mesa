@@ -1101,6 +1101,7 @@ fd6_emit_restore(fd_cs &cs, struct fd_batch *batch)
 
    if (FD_DBG(STOMP)) {
       fd6_emit_stomp<CHIP>(cs, &RP_BLIT_REGS<CHIP>[0], ARRAY_SIZE(RP_BLIT_REGS<CHIP>));
+      fd6_emit_stomp<CHIP>(cs, &BLIT_REGS<CHIP>[0], ARRAY_SIZE(BLIT_REGS<CHIP>));
       fd6_emit_stomp<CHIP>(cs, &CMD_REGS<CHIP>[0], ARRAY_SIZE(CMD_REGS<CHIP>));
    }
 

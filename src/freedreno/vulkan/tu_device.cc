@@ -2523,6 +2523,8 @@ tu_cs_dbg_stomp_regs(struct tu_cs *cs,
    if (is_rp_blit) {
       stomp_regs<CHIP>(cs, &RP_BLIT_REGS<CHIP>[0], ARRAY_SIZE(RP_BLIT_REGS<CHIP>),
                        first_reg, last_reg, inverse);
+      stomp_regs<CHIP>(cs, &BLIT_REGS<CHIP>[0], ARRAY_SIZE(BLIT_REGS<CHIP>),
+                       first_reg, last_reg, inverse);
    } else {
       stomp_regs<CHIP>(cs, &CMD_REGS<CHIP>[0], ARRAY_SIZE(CMD_REGS<CHIP>),
                        first_reg, last_reg, inverse);
