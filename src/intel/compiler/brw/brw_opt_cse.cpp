@@ -176,15 +176,24 @@ operands_match(const brw_inst *a, const brw_inst *b, bool *negate)
       bool ys0_negate = ys[0].negate;
       bool ys1_negate = ys[1].file == IMM ? ys[1].f < 0.0f
                                           : ys[1].negate;
-      float xs1_imm = xs[1].f;
-      float ys1_imm = ys[1].f;
+      float xs1_imm = 0, ys1_imm = 0;
 
       xs[0].negate = false;
       xs[1].negate = false;
       ys[0].negate = false;
       ys[1].negate = false;
-      xs[1].f = fabsf(xs[1].f);
-      ys[1].f = fabsf(ys[1].f);
+      /* Only access .f when the register is an immediate. When it is not,
+       * .f aliases the struct containing nr/swizzle/etc, so fabsf() could
+       * corrupt the register number by clearing bit 31.
+       */
+      if (xs[1].file == IMM) {
+         xs1_imm = xs[1].f;
+         xs[1].f = fabsf(xs1_imm);
+      }
+      if (ys[1].file == IMM) {
+         ys1_imm = ys[1].f;
+         ys[1].f = fabsf(ys1_imm);
+      }
 
       bool ret = (xs[0].equals(ys[0]) && xs[1].equals(ys[1])) ||
                  (xs[1].equals(ys[0]) && xs[0].equals(ys[1]));
@@ -193,8 +202,10 @@ operands_match(const brw_inst *a, const brw_inst *b, bool *negate)
       xs[1].negate = xs[1].file == IMM ? false : xs1_negate;
       ys[0].negate = ys0_negate;
       ys[1].negate = ys[1].file == IMM ? false : ys1_negate;
-      xs[1].f = xs1_imm;
-      ys[1].f = ys1_imm;
+      if (xs[1].file == IMM)
+         xs[1].f = xs1_imm;
+      if (ys[1].file == IMM)
+         ys[1].f = ys1_imm;
 
       *negate = (xs0_negate != xs1_negate) != (ys0_negate != ys1_negate);
       if (*negate && (a->saturate || b->saturate))
