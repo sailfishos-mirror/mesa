@@ -659,6 +659,10 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
             radv_meta_resolve_depth_stencil_cs(cmd_buffer, src_iview->image, src_iview->vk.format,
                                                depth_att->imageLayout, dst_iview->image, dst_iview->vk.format,
                                                depth_att->resolveImageLayout, depth_att->resolveMode, &depth_region);
+
+            cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
+                                            radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                                                  VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
          }
       }
 
@@ -681,6 +685,10 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
             radv_meta_resolve_depth_stencil_cs(
                cmd_buffer, src_iview->image, src_iview->vk.format, stencil_att->imageLayout, dst_iview->image,
                dst_iview->vk.format, stencil_att->resolveImageLayout, stencil_att->resolveMode, &stencil_region);
+
+            cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
+                                            radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                                                  VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
          }
       }
 
