@@ -7,9 +7,3 @@
 /build
 .venv/
 *.mda.tar
-
-# Gas Town (added by gt)
-.runtime/
-.claude/
-.beads/
-.logs/
