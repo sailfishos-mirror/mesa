@@ -823,6 +823,17 @@ static struct {
 static struct rnn *rnn;
 
 static bool
+reg_used(uint32_t regbase, const char *usage)
+{
+   struct rnndecaddrinfo *info = rnn_reginfo(rnn, regbase);
+   if (!info)
+      return false;
+   bool used = info->usage && strstr(info->usage, usage);
+   rnn_reginfo_free(info);
+   return used;
+}
+
+static bool
 has_query_val(int val)
 {
    for (int i = 0; i < nqueryvals; i++)
@@ -2221,7 +2232,7 @@ cp_set_const(uint32_t *dwords, uint32_t sizedwords, int level)
    }
 }
 
-static void dump_register_summary(int level);
+static void dump_register_summary(int level, const char *usage);
 
 static void
 cp_event_write(uint32_t *dwords, uint32_t sizedwords, int level)
@@ -2235,13 +2246,13 @@ cp_event_write(uint32_t *dwords, uint32_t sizedwords, int level)
       if (!strcmp(name, "CCU_RESOLVE") || !strcmp(name, "LRZ_CLEAR")) {
          do_query(eventname, 0);
          print_mode(level);
-         dump_register_summary(level);
+         dump_register_summary(level, "resolve");
       }
    }
 }
 
 static void
-dump_register_summary(int level)
+dump_register_summary(int level, const char *usage)
 {
    uint32_t i;
    bool saved_summary = summary;
@@ -2256,21 +2267,25 @@ dump_register_summary(int level)
 
    bool changed = false;
    bool written = false;
+   bool used = false;
 
    for (i = 0; i < regcnt(); i++) {
       uint32_t regbase = i;
       uint32_t lastval = reg_val(regbase);
-      /* skip registers that haven't been updated since last draw/blit: */
-      if (!(options->allregs || reg_rewritten(regbase)))
-         continue;
       if (!reg_written(regbase))
+         continue;
+      if (reg_used(regbase, usage))
+         used |= true;
+      if (reg_rewritten(regbase))
+         written |= true;
+      /* skip registers that haven't been updated since last draw/blit
+       * and aren't used by the current usage:
+       */
+      if (!(options->allregs || written || used))
          continue;
       if (lastval != lastvals[regbase]) {
          changed |= true;
          lastvals[regbase] = lastval;
-      }
-      if (reg_rewritten(regbase)) {
-         written |= true;
       }
       if (!quiet(2)) {
          if (regacc_push(&r, regbase, lastval)) {
@@ -2284,10 +2299,18 @@ dump_register_summary(int level)
             } else {
                printl(2, " ");
             }
+            /* Older gens don't have register usage specified */
+            if (options->info->chip >= 6) {
+               if (used) {
+                  printl(2, " ");
+               } else {
+                  printl(2, "?");
+               }
+            }
             printl(2, "\t%08"PRIx64, r.value);
             dump_register(&r, level);
 
-            changed = written = false;
+            changed = written = used = false;
          }
       }
    }
@@ -2365,7 +2388,7 @@ cp_draw_indx(uint32_t *dwords, uint32_t sizedwords, int level)
    /* don't bother dumping registers for the dummy draw_indx's.. */
    if (num_indices > 0) {
       dump_bindless_descriptors(false, level);
-      dump_register_summary(level);
+      dump_register_summary(level, "draw");
    }
 
    needs_wfi = true;
@@ -2409,7 +2432,7 @@ cp_draw_indx_2(uint32_t *dwords, uint32_t sizedwords, int level)
    /* don't bother dumping registers for the dummy draw_indx's.. */
    if (num_indices > 0) {
       dump_bindless_descriptors(false, level);
-      dump_register_summary(level);
+      dump_register_summary(level, "draw");
    }
 }
 
@@ -2425,7 +2448,7 @@ cp_draw_indx_offset(uint32_t *dwords, uint32_t sizedwords, int level)
    /* don't bother dumping registers for the dummy draw_indx's.. */
    if (num_indices > 0) {
       dump_bindless_descriptors(false, level);
-      dump_register_summary(level);
+      dump_register_summary(level, "draw");
    }
 }
 
@@ -2451,7 +2474,7 @@ cp_draw_indx_indirect(uint32_t *dwords, uint32_t sizedwords, int level)
    dump_gpuaddr_size(addr, level, 0x10, 2);
 
    dump_bindless_descriptors(false, level);
-   dump_register_summary(level);
+   dump_register_summary(level, "draw");
 }
 
 static void
@@ -2467,7 +2490,7 @@ cp_draw_indirect(uint32_t *dwords, uint32_t sizedwords, int level)
    dump_gpuaddr_size(addr, level, 0x10, 2);
 
    dump_bindless_descriptors(false, level);
-   dump_register_summary(level);
+   dump_register_summary(level, "draw");
 }
 
 static void
@@ -2527,7 +2550,7 @@ cp_draw_indirect_multi(uint32_t *dwords, uint32_t sizedwords, int level)
    }
 
    dump_bindless_descriptors(false, level);
-   dump_register_summary(level);
+   dump_register_summary(level, "draw");
 }
 
 static void
@@ -2539,14 +2562,14 @@ cp_draw_auto(uint32_t *dwords, uint32_t sizedwords, int level)
    print_mode(level);
 
    dump_bindless_descriptors(false, level);
-   dump_register_summary(level);
+   dump_register_summary(level, "draw");
 }
 
 static void
 cp_run_cl(uint32_t *dwords, uint32_t sizedwords, int level)
 {
    do_query("COMPUTE", 1);
-   dump_register_summary(level);
+   dump_register_summary(level, "compute");
 }
 
 static void
@@ -2975,7 +2998,7 @@ cp_exec_cs(uint32_t *dwords, uint32_t sizedwords, int level)
    do_query("compute", 0);
    print_mode(level);
    dump_bindless_descriptors(true, level);
-   dump_register_summary(level);
+   dump_register_summary(level, "compute");
 }
 
 static void
@@ -2995,7 +3018,7 @@ cp_exec_cs_indirect(uint32_t *dwords, uint32_t sizedwords, int level)
    do_query("compute", 0);
    print_mode(level);
    dump_bindless_descriptors(true, level);
-   dump_register_summary(level);
+   dump_register_summary(level, "compute");
 }
 
 static void
@@ -3135,7 +3158,7 @@ cp_blit(uint32_t *dwords, uint32_t sizedwords, int level)
 {
    do_query(rnn_enumname(rnn, "cp_blit_cmd", dwords[0]), 0);
    print_mode(level);
-   dump_register_summary(level);
+   dump_register_summary(level, "blit");
 }
 
 static void
