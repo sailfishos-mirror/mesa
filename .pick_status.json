@@ -4074,7 +4074,7 @@
         "description": "elk/cse: fix `operands_match` corrupting non-IMM register data",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "47c4b3854076adfe5a27b537f36262ac4ec4530d",
         "notes": null
