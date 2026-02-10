@@ -587,6 +587,16 @@ d3d12_video_encode_supported_slice_structures(const D3D12_VIDEO_ENCODER_CODEC &c
       supportedSliceStructuresBitMask |= PIPE_VIDEO_CAP_SLICE_STRUCTURE_MAX_SLICE_SIZE;
    }
 
+   capDataSubregionLayout.SubregionMode = D3D12_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE_AUTO;
+   hr = pD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_FRAME_SUBREGION_LAYOUT_MODE,
+                                                         &capDataSubregionLayout,
+                                                         sizeof(capDataSubregionLayout));
+   if (FAILED(hr)) {
+      debug_printf("CheckFeatureSupport failed with HR %x\n", (unsigned)hr);
+   } else if (capDataSubregionLayout.IsSupported) {
+      supportedSliceStructuresBitMask |= PIPE_VIDEO_CAP_SLICE_STRUCTURE_AUTO;
+   }
+
    return supportedSliceStructuresBitMask;
 }
 
