@@ -128,6 +128,7 @@ class encoder_capabilities
    bool m_bHWSupportSliceModeMB = false;
    bool m_bHWSupportSliceModeBits = false;
    bool m_bHWSupportSliceModeMBRow = false;
+   bool m_bHWSupportSliceModeAuto = false;
 
    // Two pass encode
    union pipe_enc_cap_two_pass m_TwoPassSupport = {};
