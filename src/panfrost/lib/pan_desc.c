@@ -101,7 +101,7 @@ renderblock_fits_in_single_pass(const struct pan_image_view *view,
    uint64_t mod = pref.image->props.modifier;
 
    if (!drm_is_afbc(mod))
-      return tile_size >= 16 * 16;
+      return true;
 
    struct pan_image_block_size renderblk_sz = pan_afbc_renderblock_size(mod);
    return tile_size >= renderblk_sz.width * renderblk_sz.height;
@@ -124,7 +124,8 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
 
 #if PAN_ARCH <= 6
    if (fb->rt_count == 1 && fb->rts[0].view && !fb->rts[0].discard &&
-       pan_image_view_has_crc(fb->rts[0].view))
+       pan_image_view_has_crc(fb->rts[0].view) &&
+       renderblock_fits_in_single_pass(fb->rts[0].view, tile_size))
       return 0;
 
    return -1;
@@ -134,10 +135,8 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
 
    for (unsigned i = 0; i < fb->rt_count; i++) {
       if (!fb->rts[i].view || fb->rts[i].discard ||
-          !pan_image_view_has_crc(fb->rts[i].view))
-         continue;
-
-      if (!renderblock_fits_in_single_pass(fb->rts[i].view, tile_size))
+          !pan_image_view_has_crc(fb->rts[i].view) ||
+          !renderblock_fits_in_single_pass(fb->rts[i].view, tile_size))
          continue;
 
       bool valid = *(fb->rts[i].crc_valid);
