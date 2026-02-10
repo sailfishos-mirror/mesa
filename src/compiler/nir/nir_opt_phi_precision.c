@@ -338,6 +338,9 @@ find_widening_op(nir_phi_instr *phi, unsigned *bit_size)
    if ((op == INVALID_OP) || !has_load_const)
       return op;
 
+   if (*bit_size != 16)
+      return INVALID_OP;
+
    /* If we could otherwise move widening sources, but load_const is
     * one of the phi sources (and does not have a widening conversion,
     * but could have a narrowing->widening sequence inserted without
