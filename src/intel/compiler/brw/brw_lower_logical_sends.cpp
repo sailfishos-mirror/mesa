@@ -2529,8 +2529,7 @@ brw_lower_send_descriptors(brw_shader &s)
           (ex_desc_imm & INTEL_MASK(15, 12)) != 0)
          needs_addr_reg = true;
 
-      if (send->bindless_surface &&
-          s.compiler->extended_bindless_surface_offset) {
+      if (send->bindless_surface && intel_has_extended_bindless(devinfo)) {
          needs_addr_reg = true;
          /* When using the extended bindless offset, the whole extended
           * descriptor is the surface handle.

@@ -1009,7 +1009,7 @@ brw_generator::generate_code(const brw_shader &s,
          generate_send(inst->as_send(), dst, src[SEND_SRC_DESC], src[SEND_SRC_EX_DESC],
                        src[SEND_SRC_PAYLOAD1], src[SEND_SRC_PAYLOAD2],
                        inst->as_send()->bindless_surface &&
-                       compiler->extended_bindless_surface_offset);
+                       intel_has_extended_bindless(devinfo));
          send_count++;
          break;
 
@@ -1018,7 +1018,7 @@ brw_generator::generate_code(const brw_shader &s,
                        src[SEND_GATHER_SRC_DESC], src[SEND_GATHER_SRC_EX_DESC],
                        src[SEND_GATHER_SRC_SCALAR], brw_null_reg(),
                        inst->as_send()->bindless_surface &&
-                       compiler->extended_bindless_surface_offset);
+                       intel_has_extended_bindless(devinfo));
          send_count++;
          break;
 

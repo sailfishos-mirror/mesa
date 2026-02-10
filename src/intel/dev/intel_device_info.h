@@ -215,6 +215,19 @@ uint32_t intel_device_info_get_max_slm_size(const struct intel_device_info *devi
 uint32_t intel_device_info_get_max_preferred_slm_size(const struct intel_device_info *devinfo);
 
 /**
+ * True if this device supports the Extended Bindless Surface Offset mode,
+ * which offers 26-bit surface handles, instead of 20-bit.  This effectively
+ * gives us 4GB of bindless surface descriptors instead of only 64MB.
+ *
+ * On Gfx12.5 this is enabled via an "ExBSO" bit in the SEND instruction.
+ */
+static inline bool
+intel_has_extended_bindless(const struct intel_device_info *devinfo)
+{
+   return devinfo->verx10 >= 125;
+}
+
+/**
  * Whether indirect UBO loads should use the sampler or go through the
  * data/constant cache.  For the sampler, UBO surface states have to be set
  * up with VK_FORMAT_R32G32B32A32_FLOAT whereas if it's going through the

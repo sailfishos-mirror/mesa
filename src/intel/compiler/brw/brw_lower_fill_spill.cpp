@@ -23,7 +23,7 @@ build_ex_desc(const brw_builder &bld, unsigned reg_size, bool unspill)
             brw_imm_ud(INTEL_MASK(31, 10)));
 
    const intel_device_info *devinfo = bld.shader->devinfo;
-   if (devinfo->verx10 >= 200 || bld.shader->compiler->extended_bindless_surface_offset) {
+   if (devinfo->ver >= 20 || intel_has_extended_bindless(devinfo)) {
       ubld.SHR(ex_desc, ex_desc, brw_imm_ud(4));
    } else {
       if (unspill) {

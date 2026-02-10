@@ -6108,7 +6108,7 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          const brw_builder ubld = bld.exec_all().group(8 * reg_unit(devinfo), 0);
          brw_reg bind = ubld.AND(retype(brw_vec1_grf(0, 5), BRW_TYPE_UD),
                                  brw_imm_ud(INTEL_MASK(31, 10)));
-         if (devinfo->ver >= 20 || bld.shader->compiler->extended_bindless_surface_offset)
+         if (devinfo->ver >= 20 || intel_has_extended_bindless(devinfo))
             bind = ubld.SHR(bind, brw_imm_ud(4));
 
          /* load_scratch / store_scratch cannot be is_scalar yet. */

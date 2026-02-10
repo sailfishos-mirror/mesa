@@ -1523,7 +1523,6 @@ struct anv_physical_device {
     /* true if FCV optimization should be disabled. */
     bool                                        disable_fcv;
     /**/
-    bool                                        uses_ex_bso;
 
     bool                                        always_flush_cache;
 
@@ -1735,7 +1734,7 @@ anv_physical_device_bindless_heap_size(const struct anv_physical_device *device,
     * but we have some workarounds that require 2 heaps to overlap, so the
     * size is dictated by our VA allocation.
     */
-   return device->uses_ex_bso ?
+   return intel_has_extended_bindless(&device->info) ?
       (descriptor_buffer ?
        device->va.dynamic_visible_pool.size :
        device->va.bindless_surface_state_pool.size) :
@@ -2841,7 +2840,7 @@ anv_surface_state_to_handle(struct anv_physical_device *device,
     */
    assert(state.offset >= 0);
    uint32_t offset = state.offset;
-   if (device->uses_ex_bso) {
+   if (intel_has_extended_bindless(&device->info)) {
       assert(util_is_aligned(offset, 64));
       return offset;
    } else {

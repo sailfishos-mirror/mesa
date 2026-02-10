@@ -1675,7 +1675,7 @@ get_properties(const struct anv_physical_device *pdevice,
       props->allowSamplerImageViewPostSubmitCreation = true;
       props->descriptorBufferOffsetAlignment = ANV_SURFACE_STATE_SIZE;
 
-      if (pdevice->uses_ex_bso) {
+      if (intel_has_extended_bindless(devinfo)) {
          props->maxDescriptorBufferBindings = MAX_SETS;
          props->maxResourceDescriptorBufferBindings = MAX_SETS;
          props->maxSamplerDescriptorBufferBindings = MAX_SETS;
@@ -2780,10 +2780,8 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
 
    device->vk.pipeline_cache_import_ops = anv_cache_import_ops;
 
-   device->uses_ex_bso = device->info.verx10 >= 125;
-
    device->indirect_descriptors =
-      !device->uses_ex_bso ||
+      !intel_has_extended_bindless(&devinfo) ||
       driQueryOptionb(&instance->dri_options, "force_indirect_descriptors");
 
    device->alloc_aux_tt_mem =
@@ -2823,7 +2821,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    }
    device->compiler->shader_debug_log = compiler_debug_log;
    device->compiler->shader_perf_log = compiler_perf_log;
-   device->compiler->extended_bindless_surface_offset = device->uses_ex_bso;
    device->compiler->use_bindless_sampler_offset = false;
    device->compiler->spilling_rate =
       driQueryOptioni(&instance->dri_options, "shader_spilling_rate");

@@ -3284,7 +3284,7 @@ compute_descriptor_set_surface_offset(const struct anv_cmd_buffer *cmd_buffer,
 {
    const struct anv_physical_device *device = cmd_buffer->device->physical;
 
-   if (device->uses_ex_bso) {
+   if (intel_has_extended_bindless(&device->info)) {
       int32_t buffer_index =
          pipe_state->descriptor_buffers[set_idx].buffer_index;
       uint64_t buffer_address =

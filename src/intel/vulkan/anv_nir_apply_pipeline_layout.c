@@ -601,7 +601,7 @@ build_desc_address64(nir_builder *b, nir_def *set_idx, unsigned set_idx_imm,
       anv_load_driver_uniform(b, 1, desc_surface_offsets[set_idx_imm]);
    desc_offset = nir_iand_imm(b, desc_offset, ANV_DESCRIPTOR_SET_OFFSET_MASK);
    if (state->bind_map->layout_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER &&
-       !state->pdevice->uses_ex_bso) {
+       !intel_has_extended_bindless(&state->pdevice->info)) {
       nir_def *bindless_base_offset =
          anv_load_driver_uniform(b, 1, surfaces_base_offset);
       desc_offset = nir_iadd(b, bindless_base_offset, desc_offset);

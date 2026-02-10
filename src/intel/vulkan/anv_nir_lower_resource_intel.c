@@ -122,7 +122,7 @@ lower_resource_intel(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
     */
    if (state->desc_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_DIRECT ||
        state->desc_type == ANV_PIPELINE_DESCRIPTOR_SET_LAYOUT_TYPE_BUFFER) {
-      if (!state->device->uses_ex_bso) {
+      if (!intel_has_extended_bindless(&state->device->info)) {
          /* We're trying to reduce the number of instructions in the shaders
           * to compute surface handles. The assumption is that we're using
           * more surface handles than sampler handles (UBO, SSBO, images,

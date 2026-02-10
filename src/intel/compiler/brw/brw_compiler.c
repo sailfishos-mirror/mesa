@@ -91,8 +91,6 @@ brw_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo)
 
    compiler->precise_trig = debug_get_bool_option("INTEL_PRECISE_TRIG", false);
 
-   compiler->extended_bindless_surface_offset = devinfo->verx10 >= 125;
-
    compiler->lower_dpas = !devinfo->has_systolic ||
                           debug_get_bool_option("INTEL_LOWER_DPAS", false);
 
