@@ -472,6 +472,8 @@ enum pipe_video_cap_slice_structure
    *  for all slices except for the last one, which must be equal or smaller
    *  to the previous slices. */
    PIPE_VIDEO_CAP_SLICE_STRUCTURE_EQUAL_MULTI_ROWS = 0x00000020,
+   /* Driver supports PIPE_VIDEO_SLICE_MODE_AUTO. */
+   PIPE_VIDEO_CAP_SLICE_STRUCTURE_AUTO = 0x00000040,
 };
 
 enum pipe_video_enc_intra_refresh_mode
