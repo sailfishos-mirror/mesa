@@ -122,14 +122,13 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
    if (tile_size < 16 * 16)
       return -1;
 
+#if PAN_ARCH <= 6
+   if (fb->rt_count > 1)
+      return -1;
+#endif
+
    int best_rt = -1;
 
-#if PAN_ARCH <= 6
-   if (fb->rt_count == 1 && fb->rts[0].view && !fb->rts[0].discard &&
-       pan_image_view_has_crc(fb->rts[0].view) &&
-       renderblock_fits_in_single_pass(fb->rts[0].view, tile_size))
-      best_rt = 0;
-#else
    for (unsigned i = 0; i < fb->rt_count; i++) {
       /* Skip unusable RT. */
       if (!fb->rts[i].view || fb->rts[i].discard ||
@@ -147,7 +146,6 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
       if (best_rt == -1)
          best_rt = i;
    }
-#endif
 
    /* The selected RT must be fully covered for now in order to correctly
     * initialize the CRC buffer. */
