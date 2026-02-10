@@ -129,16 +129,16 @@ def main():
     import nir_algebraic  # pylint: disable=import-error
 
     r300_nir_lower_bool_to_float = [
-        (('bcsel@32(is_only_used_as_float)', ('feq(ignore_exact)', 'a@32', 'b@32'), c, d),
+        (('bcsel@32(is_only_used_as_float)', ('feq', 'a@32', 'b@32'), c, d),
              ('fadd', ('fmul', c, ('seq', a, b)), ('fsub', d, ('fmul', d, ('seq', a, b)))),
              "!options->has_fused_comp_and_csel"),
-        (('bcsel@32(is_only_used_as_float)', ('fneu(ignore_exact)', 'a@32', 'b@32'), c, d),
+        (('bcsel@32(is_only_used_as_float)', ('fneu', 'a@32', 'b@32'), c, d),
              ('fadd', ('fmul', c, ('sne', a, b)), ('fsub', d, ('fmul', d, ('sne', a, b)))),
           "!options->has_fused_comp_and_csel"),
-        (('bcsel@32(is_only_used_as_float)', ('flt(ignore_exact)', 'a@32', 'b@32'), c, d),
+        (('bcsel@32(is_only_used_as_float)', ('flt', 'a@32', 'b@32'), c, d),
              ('fadd', ('fmul', c, ('slt', a, b)), ('fsub', d, ('fmul', d, ('slt', a, b)))),
           "!options->has_fused_comp_and_csel"),
-        (('bcsel@32(is_only_used_as_float)', ('fge(ignore_exact)', 'a@32', 'b@32'), c, d),
+        (('bcsel@32(is_only_used_as_float)', ('fge', 'a@32', 'b@32'), c, d),
              ('fadd', ('fmul', c, ('sge', a, b)), ('fsub', d, ('fmul', d, ('sge', a, b)))),
           "!options->has_fused_comp_and_csel"),
         (('bcsel@32(is_only_used_as_float)', ('feq', 'a@32', 'b@32'), c, d),
@@ -152,13 +152,13 @@ def main():
     ]
 
     r300_nir_lower_bool_to_float_fs = [
-        (('bcsel@32(r300_is_only_used_as_float)', ('feq(ignore_exact)', 'a@32', 'b@32'), c, d),
+        (('bcsel@32(r300_is_only_used_as_float)', ('feq', 'a@32', 'b@32'), c, d),
              ('fcsel_ge', ('fneg', ('fabs', ('fadd', a, ('fneg', b)))), c, d)),
-        (('bcsel@32(r300_is_only_used_as_float)', ('fneu(ignore_exact)', 'a@32', 'b@32'), c, d),
+        (('bcsel@32(r300_is_only_used_as_float)', ('fneu', 'a@32', 'b@32'), c, d),
              ('fcsel_ge', ('fneg', ('fabs', ('fadd', a, ('fneg', b)))), d, c)),
-        (('bcsel@32(r300_is_only_used_as_float)', ('flt(ignore_exact)', 'a@32', 'b@32'), c, d),
+        (('bcsel@32(r300_is_only_used_as_float)', ('flt', 'a@32', 'b@32'), c, d),
              ('fcsel_ge', ('fadd', a, ('fneg', b)), d, c)),
-        (('bcsel@32(r300_is_only_used_as_float)', ('fge(ignore_exact)', 'a@32', 'b@32'), c, d),
+        (('bcsel@32(r300_is_only_used_as_float)', ('fge', 'a@32', 'b@32'), c, d),
              ('fcsel_ge', ('fadd', a, ('fneg', b)), c, d)),
         (('b2f32', ('feq', 'a@32', 'b@32')),
              ('fcsel_ge', ('fneg', ('fabs', ('fadd', a, ('fneg', b)))), 1.0, 0.0)),

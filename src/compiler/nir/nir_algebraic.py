@@ -208,7 +208,6 @@ class Value(object):
 % elif isinstance(val, Expression):
       ${val.fp_math_ctrl_exclude()},
       ${val.fp_math_ctrl_add()},
-      ${'true' if val.ignore_exact else 'false'},
       ${'true' if len(val.sources) > 1 and isinstance(val.sources[1], Constant) else 'false'},
       ${val.swizzle},
       ${val.c_opcode()},
@@ -403,7 +402,6 @@ class Expression(Value):
         self.nnan = cond.pop('nnan', False)
         self.ninf = cond.pop('ninf', False)
         self.contract = cond.pop('contract', False) or fp_ctrl == ForceFpCtrl.Contract
-        self.ignore_exact = cond.pop('ignore_exact', False)
         self.preserve_nan_inf = cond.pop('preserve_nan_inf', False)
         self.preserve_sz = cond.pop('preserve_sz', False)
         if cond.pop('preserve_nan_inf_sz', False):
