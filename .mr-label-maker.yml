@@ -309,6 +309,9 @@ merge_requests:
         '^src/util/00-mesa-defaults.conf': ['drirc']
         '^src/vulkan/': ['vulkan']
         '^src/vulkan/wsi/': ['wsi']
+        '^src/vulkan/wsi/wsi_common_metal': ['macOS']
+        '^src/vulkan/wsi/wsi_common_wayland.c': ['wayland']
+        '^src/vulkan/wsi/wsi_common_x11.c': ['X11']
         '^VERSION$': ['mesa-release']
 
         'Android': ['android']
