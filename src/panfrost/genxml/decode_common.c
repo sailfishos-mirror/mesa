@@ -43,13 +43,13 @@ pandecode_cmp_key(const struct rb_node *lhs, const void *key)
    if (mem->gpu_va <= *gpu_va && *gpu_va < (mem->gpu_va + mem->length))
       return 0;
    else
-      return mem->gpu_va - *gpu_va;
+      return (mem->gpu_va < *gpu_va) ? -1 : 1;
 }
 
 static int
 pandecode_cmp(const struct rb_node *lhs, const struct rb_node *rhs)
 {
-   return to_mapped_memory(lhs)->gpu_va - to_mapped_memory(rhs)->gpu_va;
+   return (to_mapped_memory(lhs)->gpu_va < to_mapped_memory(rhs)->gpu_va) ? -1 : 1;
 }
 
 static struct pandecode_mapped_memory *
