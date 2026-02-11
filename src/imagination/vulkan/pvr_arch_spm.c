@@ -46,20 +46,25 @@ uint64_t pvr_arch_spm_scratch_buffer_calc_required_size(
    uint64_t dwords_per_pixel;
    uint64_t buffer_size;
 
-   /* If we're allocating an SPM scratch buffer we'll have a minimum of 1 output
-    * reg and/or tile_buffer.
+   uint32_t max_used_tile_buffers = 0;
+
+   /* The maximum number of output registers / tile buffer dwords it ever
+    * encountered when allocating space in the output registers and any tile
+    * buffers.
     */
-   uint32_t nr_tile_buffers = 1;
-   uint32_t nr_output_regs = 1;
+   uint32_t max_used_dwords = 1;
 
    for (uint32_t i = 0; i < render_count; i++) {
       const struct pvr_renderpass_hwsetup_render *hw_render = &renders[i];
 
-      nr_tile_buffers = MAX2(nr_tile_buffers, hw_render->tile_buffers_count);
-      nr_output_regs = MAX2(nr_output_regs, hw_render->output_regs_count);
+      max_used_tile_buffers = MAX2(max_used_tile_buffers, hw_render->tile_buffers_count);
+      max_used_dwords = MAX2(max_used_dwords, hw_render->output_regs_count);
    }
 
-   dwords_per_pixel = (uint64_t)sample_count * nr_output_regs * nr_tile_buffers;
+   /* Add one to the number of tile buffers to account for the output registers,
+    * which are always used 
+    */
+   dwords_per_pixel = (uint64_t)sample_count * max_used_dwords * (1 + max_used_tile_buffers);
 
    buffer_size = ALIGN_POT((uint64_t)framebuffer_width,
                            ROGUE_CR_PBE_WORD0_MRT0_LINESTRIDE_ALIGNMENT);

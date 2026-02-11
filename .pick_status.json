@@ -524,7 +524,7 @@
         "description": "pvr: Fix allocating the required scratch buffer space for tile buffers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "3457f8083a656524ffe7ce572a7d09b0c7279cf3",
         "notes": null
