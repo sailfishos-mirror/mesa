@@ -735,6 +735,7 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       case nir_op_mov:
       case nir_op_fabs:
       case nir_op_fexp2:
+      case nir_op_flog2:
       case nir_op_frcp:
       case nir_op_fsqrt:
       case nir_op_frsq:
@@ -928,6 +929,29 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
 
       if (src & FP_CLASS_NAN)
          r |= FP_CLASS_NAN;
+      break;
+   }
+
+   case nir_op_flog2: {
+      r = 0;
+
+      if (src_res[0] & (FP_CLASS_ANY_NEG | FP_CLASS_NAN))
+         r |= FP_CLASS_NAN;
+
+      if (src_res[0] & FP_CLASS_ANY_ZERO)
+         r |= FP_CLASS_NEG_INF;
+
+      if (src_res[0] & FP_CLASS_GT_ZERO_LT_POS_ONE)
+         r |= FP_CLASS_ANY_NEG | FP_CLASS_NON_INTEGRAL;
+
+      if (src_res[0] & FP_CLASS_POS_ONE)
+         r |= FP_CLASS_POS_ZERO;
+
+      if (src_res[0] & FP_CLASS_GT_POS_ONE)
+         r |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE | FP_CLASS_NON_INTEGRAL;
+
+      if (src_res[0] & FP_CLASS_POS_INF)
+         r |= FP_CLASS_POS_INF;
       break;
    }
 
