@@ -1,5 +1,125 @@
 [
     {
+        "sha": "c7603a11deb55c2f9640725dbcdbf51ee6335bea",
+        "description": "bin/gen_release_notes: fix support for python 3.14",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "41a25d0a6f26a6e8a720cf502bbfdead2ff78234",
+        "description": "Uprev VVL to snapshot-2026wk06",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ac0cec60e2636cf44add6be83f06c37fb209f615",
+        "description": "panvk: expose swapchain_mutable_format support",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d7814bcad0426c26e88874a3ef2d99d7220bcf48",
+        "description": "aco: remove redundant can_use_DPP declaration",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "fc7b5d7eedfe809abfba7ac985787c32526e4618",
+        "description": "aco/opt_postRA: don't optimize across calls",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "10b12a6ee282fa48b02602560775cd8c401d3a76",
+        "description": "aco: handle all SALU that modifies PC in needs_exec_mask",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "421a4dacf002f3bf73f7e04d46198de7e75dbde7",
+        "description": "aco/lower_branches: consider jump target of conditional branches based on vcc",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "822da92d68a537a5cb90d4e4e1eb099e15a4b137",
+        "description": "nvk: Report NIR shader in pipeline executable properties",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "a274b9c6a8500a85dd19daa50996db99b46b4106",
+        "description": "nak: Fold constant ishl into shared ld/st/atoms",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "20aa072ee559f1392a467431a9774e5d93a7e29c",
+        "description": "nak: add LDS/STS/ATOM address shift encoding",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "18bf6fb96dd57d7891b6483ef39efe42e05bbaaa",
+        "description": "nir: add nvidias shared memory non unform address shift",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c016346b50e9085b531f9bcbd7cfd63d3806a3e1",
+        "description": "gallivm: handle u16 correct on const loads.",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "e28cfb2bada2398a9ddcadd03fac060d5654a15e",
+        "notes": null
+    },
+    {
         "sha": "a1a5dd7e2f2bb594420195b40d99a7b84e6ba6a5",
         "description": "anv/ci: add cross signed zero expected fails",
         "nominated": false,
