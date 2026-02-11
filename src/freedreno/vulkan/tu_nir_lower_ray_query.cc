@@ -10,6 +10,7 @@
 #include "compiler/spirv/spirv.h"
 
 #include "nir_builder.h"
+#include "nir_control_flow.h"
 #include "nir_deref.h"
 
 enum rq_intersection_var_index {
@@ -560,8 +561,10 @@ build_ray_traversal(nir_builder *b, nir_deref_instr *rq,
    nir_variable *incomplete = nir_local_variable_create(b->impl, glsl_bool_type(), "incomplete");
    nir_store_var(b, incomplete, nir_imm_true(b), 0x1);
 
-   nir_push_loop(b);
+   nir_loop *loop = nir_push_loop(b);
    {
+      nir_loop_add_continue_construct(loop);
+
       /* Go up the stack if current_node == VK_BVH_INVALID_NODE */
       nir_push_if(b, nir_ieq_imm(b, rq_load(b, rq, current_node), VK_BVH_INVALID_NODE));
       {
@@ -928,7 +931,7 @@ build_ray_traversal(nir_builder *b, nir_deref_instr *rq,
       }
       nir_pop_if(b, NULL);
    }
-   nir_pop_loop(b, NULL);
+   nir_pop_loop(b, loop);
 
    return nir_load_var(b, incomplete);
 }
@@ -1034,6 +1037,9 @@ tu_nir_lower_ray_queries(nir_shader *shader)
    }
 
    ralloc_free(query_ht);
+
+   if (progress)
+      nir_lower_continue_constructs(shader);
 
    return progress;
 }
