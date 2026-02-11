@@ -534,7 +534,7 @@
         "description": "pvr: Fix incorrect subpass merging optimisation",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "10b6a0d567e9782ae5217f4303bdc6fd2f0610ec",
         "notes": null

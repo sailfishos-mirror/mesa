@@ -1759,16 +1759,6 @@ pvr_is_subpass_space_available(const struct pvr_device_info *dev_info,
                                                   &sp_dsts->color[i]);
          if (result != VK_SUCCESS)
             goto err_free_alloc;
-
-         /* Avoid merging subpasses which result in tile buffers having to be
-          * used. The benefit of merging must be weighed against the cost of
-          * writing/reading to tile buffers.
-          */
-         if (ctx->hw_render &&
-             sp_dsts->color[i].type != USC_MRT_RESOURCE_TYPE_OUTPUT_REG) {
-            result = vk_error(NULL, VK_ERROR_TOO_MANY_OBJECTS);
-            goto err_free_alloc;
-         }
       } else {
          sp_dsts->color[i].type = USC_MRT_RESOURCE_TYPE_INVALID;
       }
@@ -1913,6 +1903,13 @@ pvr_can_combine_with_render(const struct pvr_device_info *dev_info,
                                            new_alloc,
                                            sp_dsts);
    if (result != VK_SUCCESS)
+      return false;
+
+   /* Avoid merging subpasses which result in tile buffers having to be
+    * used. The benefit of merging must be weighed against the cost of
+    * writing/reading to tile buffers.
+    */
+   if (ctx->hw_render && new_alloc->tile_buffers_count > 0)
       return false;
 
    return true;
