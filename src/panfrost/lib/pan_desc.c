@@ -1505,11 +1505,6 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
                   DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED
                ? MALI_BLOCK_FORMAT_TILED_U_INTERLEAVED
                : MALI_BLOCK_FORMAT_LINEAR;
-
-         if (pan_image_view_has_crc(rt)) {
-            cfg.crc_buffer.row_stride = slayout->crc.stride_B;
-            cfg.crc_buffer.base = plane->base + slayout->crc.offset_B;
-         }
       }
 
       if (fb->zs.view.zs) {
