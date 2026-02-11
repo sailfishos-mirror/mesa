@@ -497,8 +497,10 @@ lvp_build_ray_traversal(nir_builder *b, const struct lvp_ray_traversal_args *arg
       .no_skip_aabbs = nir_ieq_imm(b, nir_iand_imm(b, args->flags, SpvRayFlagsSkipAABBsKHRMask), 0),
    };
 
-   nir_push_loop(b);
+   nir_loop *loop = nir_push_loop(b);
    {
+      nir_loop_add_continue_construct(loop);
+
       nir_push_if(b, nir_ieq_imm(b, nir_load_deref(b, args->vars.current_node), LVP_BVH_INVALID_NODE));
       {
          nir_push_if(b, nir_ieq_imm(b, nir_load_deref(b, args->vars.stack_ptr), 0));
@@ -607,7 +609,7 @@ lvp_build_ray_traversal(nir_builder *b, const struct lvp_ray_traversal_args *arg
       }
       nir_pop_if(b, NULL);
    }
-   nir_pop_loop(b, NULL);
+   nir_pop_loop(b, loop);
 
    return nir_load_var(b, incomplete);
 }

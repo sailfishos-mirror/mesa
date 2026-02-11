@@ -655,6 +655,7 @@ lvp_nir_lower_ray_queries(struct nir_shader *shader)
    ralloc_free(query_ht);
 
    if (progress) {
+      NIR_PASS(_, shader, nir_lower_continue_constructs);
       NIR_PASS(_, shader, nir_lower_global_vars_to_local);
       NIR_PASS(_, shader, nir_lower_vars_to_ssa);
 

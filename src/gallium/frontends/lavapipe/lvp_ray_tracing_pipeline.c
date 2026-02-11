@@ -1083,6 +1083,7 @@ lvp_compile_ray_tracing_pipeline(struct lvp_pipeline *pipeline,
 
    nir_shader_instructions_pass(b->shader, lvp_lower_ray_tracing_instr, nir_metadata_none, &compiler);
 
+   NIR_PASS(_, b->shader, nir_lower_continue_constructs);
    NIR_PASS(_, b->shader, nir_lower_returns);
 
    const struct nir_lower_compute_system_values_options compute_system_values = {0};
