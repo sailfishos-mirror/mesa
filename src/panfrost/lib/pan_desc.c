@@ -94,17 +94,24 @@ pan_warn_on_afbc_reverse_issue_order(const struct pan_attachment_info *att,
 #endif
 
 static bool
-renderblock_fits_in_single_pass(const struct pan_image_view *view,
-                                unsigned tile_size)
+pan_fb_color_attachment_should_crc(const struct pan_fb_color_attachment *rt,
+                                   unsigned tile_size)
 {
-   const struct pan_image_plane_ref pref = pan_image_view_get_first_plane(view);
-   uint64_t mod = pref.image->props.modifier;
+   uint64_t mod;
+
+   if (!rt->view || rt->discard || !pan_image_view_has_crc(rt->view))
+      return false;
+
+   mod = pan_image_view_get_first_plane(rt->view).image->props.modifier;
 
    if (!drm_is_afbc(mod))
       return true;
 
-   struct pan_image_block_size renderblk_sz = pan_afbc_renderblock_size(mod);
-   return tile_size >= renderblk_sz.width * renderblk_sz.height;
+   /* AFBC render block size must fit in a single pass. */
+   if (pan_afbc_superblock_exceeds_tile_size(mod, tile_size))
+      return false;
+
+   return true;
 }
 
 int
@@ -130,10 +137,8 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
    int best_rt = -1;
 
    for (unsigned i = 0; i < fb->rt_count; i++) {
-      /* Skip unusable RT. */
-      if (!fb->rts[i].view || fb->rts[i].discard ||
-          !pan_image_view_has_crc(fb->rts[i].view) ||
-          !renderblock_fits_in_single_pass(fb->rts[i].view, tile_size))
+      /* Skip unusable RTs. */
+      if (!pan_fb_color_attachment_should_crc(&fb->rts[i], tile_size))
          continue;
 
       /* Select the first RT with a valid CRC buffer. */
