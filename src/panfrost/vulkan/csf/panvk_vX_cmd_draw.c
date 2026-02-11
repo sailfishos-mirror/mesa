@@ -51,6 +51,7 @@
 #include "vk_render_pass.h"
 #include "poly/geometry.h"
 
+#if PAN_ARCH < 14
 static enum cs_reg_perm
 provoking_vertex_fn_reg_perm_cb(struct cs_builder *b, unsigned reg)
 {
@@ -202,6 +203,7 @@ panvk_per_arch(device_draw_context_cleanup)(struct panvk_device *dev)
    panvk_priv_bo_unref(dev->draw_ctx->fns_bo);
    vk_free(&dev->vk.alloc, dev->draw_ctx);
 }
+#endif /* PAN_ARCH < 14 */
 
 static void
 emit_vs_attrib(struct panvk_cmd_buffer *cmdbuf,
@@ -1498,9 +1500,6 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
    cs_wait_slot(b, SB_ID(LS));
 #endif /* PAN_ARCH >= 14 */
 
-   bool unset_provoking_vertex =
-      cmdbuf->state.gfx.render.first_provoking_vertex == U_TRISTATE_UNSET;
-
    if (copy_fbds) {
       struct cs_index cur_tiler = cs_reg64(b, PANVK_CS_REG_TILER_DESC_PTR);
       struct cs_index dst_fbd_ptr = cs_sr_reg64(b, FRAGMENT, FBD_POINTER);
@@ -1530,10 +1529,27 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
           * framebuffer size is aligned on 64-bytes. */
          assert(fbd_sz == ALIGN_POT(fbd_sz, 64));
 
+#if PAN_ARCH >= 14
+         for (uint32_t fbd_off = 0; fbd_off < fbd_sz; fbd_off += 64) {
+            cs_load_to(b, cs_scratch_reg_tuple(b, 0, 16), src_fbd_ptr,
+                       BITFIELD_MASK(16), fbd_off);
+
+            /* Patch the Tiler pointer. */
+            if (fbd_off == 0)
+               cs_add64(b, cs_scratch_reg64(b, 0), cur_tiler, 0);
+
+            cs_store(b, cs_scratch_reg_tuple(b, 0, 16), dst_fbd_ptr,
+                     BITFIELD_MASK(16), fbd_off);
+         }
+#else
+         bool unset_provoking_vertex =
+            cmdbuf->state.gfx.render.first_provoking_vertex == U_TRISTATE_UNSET;
          for (uint32_t fbd_off = 0; fbd_off < fbd_sz; fbd_off += 64) {
             if (fbd_off == 0) {
                cs_load_to(b, cs_scratch_reg_tuple(b, 0, 14), src_fbd_ptr,
                           BITFIELD_MASK(14), fbd_off);
+
+               /* Patch the Tiler pointer. */
                cs_add64(b, cs_scratch_reg64(b, 14), cur_tiler, 0);
 
                /* If we don't know what provoking vertex mode the
@@ -1553,6 +1569,7 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
             cs_store(b, cs_scratch_reg_tuple(b, 0, 16), dst_fbd_ptr,
                      BITFIELD_MASK(16), fbd_off);
          }
+#endif
 
          /* Finish stores to pass_dst_fbd_ptr. */
          cs_flush_stores(b);
@@ -1593,6 +1610,7 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
                       cmdbuf->state.gfx.render.tiler);
       }
 
+#if PAN_ARCH < 14
       /* If we don't know what provoking vertex mode the application wants yet,
        * leave space to patch it later */
       if (cmdbuf->state.gfx.render.first_provoking_vertex == U_TRISTATE_UNSET) {
@@ -1614,6 +1632,7 @@ get_fb_descs(struct panvk_cmd_buffer *cmdbuf)
          cs_maybe(b, &cmdbuf->state.gfx.render.maybe_set_fbds_provoking_vertex)
             cs_call(b, addr_reg, length_reg);
       }
+#endif
    }
 
    return VK_SUCCESS;
@@ -3544,6 +3563,17 @@ cs_emit_static_fragment_state(struct cs_builder *b,
       cfg.color_buffer_allocation = fb->tile_rt_alloc_B;
    }
    cs_move32_to(b, cs_sr_reg32(b, FRAGMENT, FLAGS_1), flags1.opaque[0]);
+
+   /* If we don't know what provoking vertex mode the application wants yet,
+    * leave space to patch it later */
+   if (cmdbuf->state.gfx.render.first_provoking_vertex == U_TRISTATE_UNSET) {
+      cs_maybe(b, &cmdbuf->state.gfx.render.maybe_set_fbds_provoking_vertex)
+      {
+         /* provoking_vertex flag is bit 14 of Fragment Flags 1. */
+         cs_add32(b, cs_sr_reg32(b, FRAGMENT, FLAGS_1),
+                  cs_sr_reg32(b, FRAGMENT, FLAGS_1), -(1 << 14));
+      }
+   }
 
    /* Leave the remaining RUN_FRAGMENT2 staging registers as zero. */
 }
