@@ -633,7 +633,6 @@ anv_get_format_aspect(const struct anv_physical_device *device,
 
 static VkFormatFeatureFlags2
 anv_get_image_format_features2(const struct anv_physical_device *physical_device,
-                               VkFormat vk_format,
                                const struct anv_format *anv_format,
                                VkImageTiling vk_tiling,
                                VkImageUsageFlags usage,
@@ -650,6 +649,8 @@ anv_get_image_format_features2(const struct anv_physical_device *physical_device
    if (anv_format == NULL ||
        anv_format->planes[0].isl_format == ISL_FORMAT_UNSUPPORTED)
       return 0;
+
+   const VkFormat vk_format = anv_format->vk_format;
 
    assert((isl_mod_info != NULL) ==
           (vk_tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT));
@@ -1155,7 +1156,7 @@ get_drm_format_modifier_properties_list(const struct anv_physical_device *physic
 
    isl_drm_modifier_info_for_each(isl_mod_info) {
       VkFormatFeatureFlags2 features2 =
-         anv_get_image_format_features2(physical_device, vk_format, anv_format,
+         anv_get_image_format_features2(physical_device, anv_format,
                                         VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
                                         0 /* usage */, 0 /* create_flags */,
                                         isl_mod_info);
@@ -1191,7 +1192,7 @@ get_drm_format_modifier_properties_list_2(const struct anv_physical_device *phys
 
    isl_drm_modifier_info_for_each(isl_mod_info) {
       VkFormatFeatureFlags2 features2 =
-         anv_get_image_format_features2(physical_device, vk_format, anv_format,
+         anv_get_image_format_features2(physical_device, anv_format,
                                         VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT,
                                         0 /* usage */, 0 /* create_flags */,
                                         isl_mod_info);
@@ -1224,12 +1225,12 @@ void anv_GetPhysicalDeviceFormatProperties2(
    assert(pFormatProperties->sType == VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2);
 
    VkFormatFeatureFlags2 linear2, optimal2, buffer2;
-   linear2 = anv_get_image_format_features2(physical_device, vk_format,
-                                            anv_format, VK_IMAGE_TILING_LINEAR,
+   linear2 = anv_get_image_format_features2(physical_device, anv_format,
+                                            VK_IMAGE_TILING_LINEAR,
                                             0 /* usage */,
                                             0 /* create_flags */, NULL);
-   optimal2 = anv_get_image_format_features2(physical_device, vk_format,
-                                             anv_format, VK_IMAGE_TILING_OPTIMAL,
+   optimal2 = anv_get_image_format_features2(physical_device, anv_format,
+                                             VK_IMAGE_TILING_OPTIMAL,
                                              0 /* usage */,
                                              0 /* create_flags */, NULL);
    buffer2 = get_buffer_format_features2(physical_device, vk_format, anv_format);
@@ -1450,7 +1451,6 @@ anv_formats_gather_format_features(
                                            tiling, allow_texel_compatible)) {
                VkFormatFeatureFlags2 view_format_features =
                   anv_get_image_format_features2(physical_device,
-                                                 possible_anv_format->vk_format,
                                                  possible_anv_format, tiling,
                                                  usage, create_flags,
                                                  isl_mod_info);
@@ -1469,8 +1469,7 @@ anv_formats_gather_format_features(
          const struct anv_format *anv_view_format =
             anv_get_format(physical_device, vk_view_format);
          VkFormatFeatureFlags2 view_format_features =
-            anv_get_image_format_features2(physical_device,
-                                           vk_view_format, anv_view_format,
+            anv_get_image_format_features2(physical_device, anv_view_format,
                                            tiling, usage, create_flags,
                                            isl_mod_info);
          all_formats_feature_flags |= view_format_features;
@@ -1683,7 +1682,7 @@ anv_get_image_format_properties(
     * There is one exception to this below for storage.
     */
    format_feature_flags = anv_get_image_format_features2(physical_device,
-                                                         info->format, format,
+                                                         format,
                                                          info->tiling,
                                                          info->usage,
                                                          info->flags,
