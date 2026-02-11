@@ -100,7 +100,6 @@ static void si_emit_sqtt_stop(struct si_context *sctx, struct radeon_cmdbuf *cs,
 
 static void si_sqtt_start(struct si_context *sctx, struct radeon_cmdbuf *cs)
 {
-   struct radeon_winsys *ws = sctx->ws;
    enum amd_ip_type ip_type = sctx->ws->cs_get_ip_type(cs);
 
    radeon_begin(cs);
@@ -121,11 +120,9 @@ static void si_sqtt_start(struct si_context *sctx, struct radeon_cmdbuf *cs)
    }
    radeon_end();
 
-   ws->cs_add_buffer(cs, si_resource(sctx->sqtt->bo)->buf, RADEON_USAGE_READWRITE,
-                     RADEON_DOMAIN_VRAM);
+   radeon_add_to_buffer_list(sctx, cs, si_resource(sctx->sqtt->bo), RADEON_USAGE_READWRITE);
    if (sctx->spm.bo)
-      ws->cs_add_buffer(cs, si_resource(sctx->spm.bo)->buf, RADEON_USAGE_READWRITE,
-                        RADEON_DOMAIN_VRAM);
+      radeon_add_to_buffer_list(sctx, cs, si_resource(sctx->spm.bo), RADEON_USAGE_READWRITE);
 
    si_cp_dma_wait_for_idle(sctx, cs);
 
