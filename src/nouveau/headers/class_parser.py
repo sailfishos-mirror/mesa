@@ -83,7 +83,7 @@ TEMPLATE_H = Template("""\
 
 #include <assert.h>
 #include <stdio.h>
-#include "util/u_math.h"
+#include "util/macros.h"
 
 %for mthd in methods:
 struct nv_${nvcl.lower()}_${mthd.name} {
@@ -159,6 +159,8 @@ TEMPLATE_C = Template("""\
 #include "${header}"
 
 #include <stdio.h>
+
+#include "util/u_math.h"
 
 <%def name="cases(mthd)">
   %if mthd.is_array:
