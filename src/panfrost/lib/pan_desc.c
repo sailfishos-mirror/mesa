@@ -494,12 +494,7 @@ pan_emit_crc(const struct pan_fb_info *fb, struct pan_crc *crc,
 
 #if PAN_ARCH >= 7
    cfg->render_target = crc->index;
-
-   if (fb->rts[crc->index].clear) {
-      uint32_t clear_val = fb->rts[crc->index].clear_value[0];
-      cfg->clear_color = clear_val | 0xc000000000000000 |
-                         (((uint64_t)clear_val & 0xffff) << 32);
-   }
+   cfg->clear_color = crc->clear_color;
 #endif
 }
 
@@ -1083,6 +1078,69 @@ pan_crc_maybe_enable_flushed(struct pan_crc *crc, struct pan_crc_state *state,
    state->valid = true;
 }
 
+#if PAN_ARCH >= 7
+static uint64_t
+pan_crc_clear_color(const struct pan_fb_info *fb)
+{
+   uint64_t crc_clear_flag = 1;
+   uint64_t crc_clear_base = 0;
+   uint64_t crc_init = 0;
+
+   /* When a tile is clear (i.e. no polygons intersect it), the configured
+    * crc_clear_color is written as is as CRC value by the GPU if both CRC
+    * write (crc_write_enable flag) and Empty Tile Elimination write
+    * (empty_tile_write_enable flag) are enabled. If Empty Tile Elimination
+    * read (empty_tile_read_enable flag) is enabled, this then allows to skip
+    * the pre-loading of clear tiles which were also clear at the previous
+    * render on the selected RT. It's done by comparing CRCs in the CRC buffer
+    * to the crc_clear_color.
+    *
+    * The crc_clear_flag sub-field (bit 63) is flagged set here. It's flipped
+    * by the GPU when writing standard (i.e. non-empty) CRCs.
+    *
+    * v10 introduced the crc_init sub-field (bits 15:0). v7 and v9 can use
+    * those as additional crc_clear_base bits. We don't use it for now and
+    * keep those 16 bits clear regardless of arch.
+    *
+    * This leaves 47 bits in the crc_clear_base sub-field (bits 62:16). Clear
+    * color changes on any RTs must be reflected into this field in order to
+    * properly invalidate CRCs stored this way. This is done by hashing the
+    * clear value channels of each cleared RT. Each clear color channel value
+    * is multiplied with a prime number followed by a XOR to the destination
+    * hash. Clear values in pan_fb_info struct are expected to be packed with
+    * respect to the format and dithering of the underlying RTs so that a
+    * change of format (without a clear color change) can generate a different
+    * hash. The prime number 32749 is carefully selected so that the 32 bits
+    * of each clear color channel take at most 47 bits after the mul (the next
+    * prime number 32771 takes at most 48 bits). The resulting hash value is
+    * guaranteed not to overflow and can safely be packed. */
+
+   for (unsigned i = 0; i < fb->rt_count; ++i)
+      if (fb->rts[i].clear)
+         for (unsigned j = 0; j < 4; ++j)
+            crc_clear_base ^= 32749 * fb->rts[i].clear_value[j];
+
+   return (crc_clear_flag << 63) | (crc_clear_base << 16) | crc_init;
+}
+#endif
+
+#if PAN_ARCH >= 6
+static bool
+pan_crc_has_empty_tile_elimination(struct pan_crc *crc,
+                                   const struct pan_fb_info *fb)
+{
+#if PAN_ARCH == 6
+   /* For v6, there's no details how MRT interacts with Empty Tile
+    * Elimination, especially how the clear value is generated from the color
+    * attachment clear values. The feature is disabled for that use case. */
+   if (fb->rt_count > 1)
+      return false;
+#endif
+
+   return crc->read || crc->write;
+}
+#endif
+
 static struct pan_crc
 pan_get_crc_info(const struct pan_fb_info *fb)
 {
@@ -1111,6 +1169,17 @@ pan_get_crc_info(const struct pan_fb_info *fb)
    } else {
       pan_crc_maybe_enable_flushed(&crc, rt->crc_state, fb);
    }
+
+#if PAN_ARCH >= 6
+   /* Empty Tile Elimination. */
+   if (pan_crc_has_empty_tile_elimination(&crc, fb)) {
+#if PAN_ARCH >= 7
+      crc.clear_color = pan_crc_clear_color(fb);
+#endif
+      crc.empty_tile_read = crc.read;
+      crc.empty_tile_write = crc.write;
+   }
+#endif
 
  skip:
    /* Flag CRC buffer states of unselected RTs as invalid. */
@@ -1338,6 +1407,10 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
       if (pan_crc_is_enabled(&crc)) {
          cfg.crc_read_enable = crc.read;
          cfg.crc_write_enable = crc.write;
+#if PAN_ARCH >= 7
+         cfg.empty_tile_read_enable = crc.empty_tile_read;
+         cfg.empty_tile_write_enable = crc.empty_tile_write;
+#endif
       }
 
 #if PAN_ARCH >= 9

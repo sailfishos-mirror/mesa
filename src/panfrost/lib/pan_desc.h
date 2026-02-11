@@ -163,6 +163,9 @@ struct pan_fb_info {
 };
 
 struct pan_crc {
+   /* Empty Tile Elimination clear color */
+   uint64_t clear_color;
+
    /* Selected RT index (8 max), -1 if none. */
    int8_t index;
 
@@ -172,6 +175,10 @@ struct pan_crc {
 
    /* Force clean writes for CRC buffer init */
    bool force_clean_tile_write : 1;
+
+   /* Empty Tile Elimination flags */
+   bool empty_tile_read  : 1;
+   bool empty_tile_write : 1;
 };
 
 static inline bool
