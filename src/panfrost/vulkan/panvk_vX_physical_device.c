@@ -118,6 +118,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_present_wait = true,
       .KHR_present_wait2 = true,
       .KHR_swapchain = true,
+      .KHR_swapchain_mutable_format = true,
 #endif
       .KHR_synchronization2 = true,
       .KHR_timeline_semaphore = true,

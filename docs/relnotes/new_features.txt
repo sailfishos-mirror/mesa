@@ -12,3 +12,4 @@ VK_KHR_present_wait on panvk
 VK_KHR_pipeline_executable_properties on pvr
 VK_EXT_zero_initialize_device_memory on panvk
 GL_EXT_shader_image_load_store on panfrost
+VK_KHR_swapchain_mutable_format on panvk
