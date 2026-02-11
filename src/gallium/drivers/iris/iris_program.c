@@ -2095,6 +2095,36 @@ get_unified_tess_slots(const struct iris_context *ice,
    }
 }
 
+static nir_shader *
+iris_create_passthrough_tcs(void *mem_ctx,
+                            const nir_shader_compiler_options *options,
+                            const struct iris_tcs_prog_key *key)
+{
+   assert(key->input_vertices > 0);
+
+   uint64_t inputs_read = key->outputs_written &
+      ~(VARYING_BIT_TESS_LEVEL_INNER | VARYING_BIT_TESS_LEVEL_OUTER);
+
+   unsigned locations[64];
+   unsigned num_locations = 0;
+
+   u_foreach_bit64(varying, inputs_read)
+      locations[num_locations++] = varying;
+
+   nir_shader *nir =
+      nir_create_passthrough_tcs_impl(options, locations, num_locations,
+                                      key->input_vertices);
+
+   ralloc_steal(mem_ctx, nir);
+
+   nir->info.inputs_read = inputs_read;
+   nir->info.tess._primitive_mode = key->_tes_primitive_mode;
+
+   NIR_PASS(_, nir, nir_lower_system_values);
+
+   return nir;
+}
+
 /**
  * Compile a tessellation control shader, and upload the assembly.
  */
@@ -2118,7 +2148,11 @@ iris_compile_tcs(struct iris_screen *screen,
 
    const struct iris_tcs_prog_key *const key = &shader->key.tcs;
    struct brw_tcs_prog_key brw_key = iris_to_brw_tcs_key(screen, key);
+   const struct nir_shader_compiler_options *options =
+      &screen->brw->nir_options[MESA_SHADER_TESS_CTRL];
 #ifdef INTEL_USE_ELK
+   if (!screen->brw)
+      options = screen->elk->nir_options[MESA_SHADER_TESS_CTRL];
    struct elk_tcs_prog_key elk_key = iris_to_elk_tcs_key(screen, key);
 #endif
    uint32_t source_hash;
@@ -2127,16 +2161,7 @@ iris_compile_tcs(struct iris_screen *screen,
       nir = nir_shader_clone(mem_ctx, ish->nir);
       source_hash = ish->source_hash;
    } else {
-      if (screen->brw) {
-         nir = brw_nir_create_passthrough_tcs(mem_ctx, screen->brw, &brw_key);
-      } else {
-#ifdef INTEL_USE_ELK
-         assert(screen->elk);
-         nir = elk_nir_create_passthrough_tcs(mem_ctx, screen->elk, &elk_key);
-#else
-         UNREACHABLE("no elk support");
-#endif
-      }
+      nir = iris_create_passthrough_tcs(mem_ctx, options, key);
       source_hash = *(uint32_t*)nir->info.source_blake3;
    }
 

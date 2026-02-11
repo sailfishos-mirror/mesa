@@ -324,10 +324,6 @@ bool brw_nir_should_vectorize_mem(unsigned align_mul, unsigned align_offset,
 
 void brw_nir_optimize(struct brw_pass_tracker *pt);
 
-nir_shader *brw_nir_create_passthrough_tcs(void *mem_ctx,
-                                           const struct brw_compiler *compiler,
-                                           const struct brw_tcs_prog_key *key);
-
 #define BRW_NIR_FRAG_OUTPUT_INDEX_SHIFT 0
 #define BRW_NIR_FRAG_OUTPUT_INDEX_MASK INTEL_MASK(0, 0)
 #define BRW_NIR_FRAG_OUTPUT_LOCATION_SHIFT 1

@@ -3248,38 +3248,6 @@ brw_type_for_nir_type(const struct intel_device_info *devinfo,
    return BRW_TYPE_F;
 }
 
-nir_shader *
-brw_nir_create_passthrough_tcs(void *mem_ctx, const struct brw_compiler *compiler,
-                               const struct brw_tcs_prog_key *key)
-{
-   assert(key->input_vertices > 0);
-
-   const nir_shader_compiler_options *options =
-      &compiler->nir_options[MESA_SHADER_TESS_CTRL];
-
-   uint64_t inputs_read = key->outputs_written &
-      ~(VARYING_BIT_TESS_LEVEL_INNER | VARYING_BIT_TESS_LEVEL_OUTER);
-
-   unsigned locations[64];
-   unsigned num_locations = 0;
-
-   u_foreach_bit64(varying, inputs_read)
-      locations[num_locations++] = varying;
-
-   nir_shader *nir =
-      nir_create_passthrough_tcs_impl(options, locations, num_locations,
-                                      key->input_vertices);
-
-   ralloc_steal(mem_ctx, nir);
-
-   nir->info.inputs_read = inputs_read;
-   nir->info.tess._primitive_mode = key->_tes_primitive_mode;
-
-   NIR_PASS(_, nir, nir_lower_system_values);
-
-   return nir;
-}
-
 nir_def *
 brw_nir_load_global_const(nir_builder *b, nir_intrinsic_instr *load,
       nir_def *base_addr, unsigned off)
