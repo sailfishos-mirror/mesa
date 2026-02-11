@@ -631,7 +631,7 @@ anv_get_format_aspect(const struct anv_physical_device *device,
 
 // Format capabilities
 
-VkFormatFeatureFlags2
+static VkFormatFeatureFlags2
 anv_get_image_format_features2(const struct anv_physical_device *physical_device,
                                VkFormat vk_format,
                                const struct anv_format *anv_format,
