@@ -1167,13 +1167,13 @@ svga_get_query_result(struct pipe_context *pipe,
       break;
    /* These are running total counters */
    case SVGA_QUERY_MEMORY_USED:
-      vresult->u64 = svgascreen->hud.total_resource_bytes;
+      vresult->u64 = p_atomic_read(&svgascreen->hud.total_resource_bytes);
       break;
    case SVGA_QUERY_NUM_SHADERS:
       vresult->u64 = svga->hud.num_shaders;
       break;
    case SVGA_QUERY_NUM_RESOURCES:
-      vresult->u64 = svgascreen->hud.num_resources;
+      vresult->u64 = p_atomic_read(&svgascreen->hud.num_resources);
       break;
    case SVGA_QUERY_NUM_STATE_OBJECTS:
       vresult->u64 = (svga->hud.num_blend_objects +
@@ -1190,7 +1190,7 @@ svga_get_query_result(struct pipe_context *pipe,
       vresult->u64 = svga->hud.num_generate_mipmap;
       break;
    case SVGA_QUERY_NUM_FAILED_ALLOCATIONS:
-      vresult->u64 = svgascreen->hud.num_failed_allocations;
+      vresult->u64 = p_atomic_read(&svgascreen->hud.num_failed_allocations);
       break;
    case SVGA_QUERY_NUM_COMMANDS_PER_DRAW:
       vresult->f = (float) svga->swc->num_commands
