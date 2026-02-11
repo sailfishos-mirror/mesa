@@ -101,7 +101,7 @@ __${nvcl}_${mthd.name}(uint32_t *val_out, struct nv_${nvcl.lower()}_${mthd.name}
     %if field_width == 32:
     val |= st.${field.name.lower()};
     %else:
-    assert(st.${field.name.lower()} < (1ULL << ${field_width}));
+    assert(st.${field.name.lower()} < (UINT64_C(1) << ${field_width}));
     val |= st.${field.name.lower()} << ${field.start};
     %endif
   %endfor
