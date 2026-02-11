@@ -1616,7 +1616,7 @@ brw_nir_optimize(brw_pass_tracker *pt)
 static unsigned
 lower_bit_size_callback(const nir_instr *instr, void *data)
 {
-   const struct brw_compiler *compiler = data;
+   const struct intel_device_info *devinfo = data;
 
    switch (instr->type) {
    case nir_instr_type_alu: {
@@ -1656,7 +1656,7 @@ lower_bit_size_callback(const nir_instr *instr, void *data)
           *
           * Older platforms have idiv instructions only for int32, so lower.
           */
-         return compiler->devinfo->verx10 >= 125 ? 0 : 32;
+         return devinfo->verx10 >= 125 ? 0 : 32;
       case nir_op_fceil:
       case nir_op_ffloor:
       case nir_op_ffract:
@@ -1866,7 +1866,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
           nir->options->lower_doubles_options);
    }
 
-   OPT(nir_lower_bit_size, lower_bit_size_callback, (void *)compiler);
+   OPT(nir_lower_bit_size, lower_bit_size_callback, (void *)devinfo);
 
    /* Lower a bunch of stuff */
    OPT(nir_lower_var_copies);
@@ -2720,7 +2720,7 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt,
 
    OPT(brw_nir_lower_texture);
 
-   OPT(nir_lower_bit_size, lower_bit_size_callback, (void *)compiler);
+   OPT(nir_lower_bit_size, lower_bit_size_callback, (void *)devinfo);
 
    OPT(nir_opt_combine_barriers, combine_all_memory_barriers, NULL);
 
@@ -2738,7 +2738,7 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt,
        * 8-bit integer math which needs to be lowered.
        */
       if (OPT(nir_lower_idiv, &options))
-         OPT(nir_lower_bit_size, lower_bit_size_callback, (void *)compiler);
+         OPT(nir_lower_bit_size, lower_bit_size_callback, (void *)devinfo);
    }
 
    if (devinfo->ver >= 30)
