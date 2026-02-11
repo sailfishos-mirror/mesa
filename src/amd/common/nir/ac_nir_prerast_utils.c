@@ -1050,6 +1050,8 @@ ac_nir_ngg_build_streamout_buffer_info(nir_builder *b,
 
                nir_loop *loop = nir_push_loop(b);
                {
+                  nir_loop_add_continue_construct(loop);
+
                   for (unsigned i = 0; i < NUM_ATOMICS_IN_FLIGHT; i++) {
                      int issue_index = (NUM_ATOMICS_IN_FLIGHT - 1 + i) % NUM_ATOMICS_IN_FLIGHT;
                      int read_index = i;

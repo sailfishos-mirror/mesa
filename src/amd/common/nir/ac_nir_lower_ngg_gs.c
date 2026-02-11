@@ -929,6 +929,8 @@ ac_nir_lower_ngg_gs(nir_shader *shader, const ac_nir_lower_ngg_options *options,
    nir_validate_shader(shader, "after emitting NGG GS");
 
    /* Cleanup */
+   if (state.streamout_enabled)
+      nir_lower_continue_constructs(shader);
    nir_lower_vars_to_ssa(shader);
    nir_remove_dead_variables(shader, nir_var_function_temp, NULL);
 
