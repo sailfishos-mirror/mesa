@@ -96,6 +96,7 @@ print_base_devinfo(const struct intel_device_info *devinfo)
            devinfo->ver >= 20 ? 16 : devinfo->ver >= 12 ? 8 : 4);
 
    fprintf(stdout, "   EU threads: %u\n", n_eus * devinfo->num_thread_per_eu);
+   fprintf(stdout, "   GRF size: %u\n", devinfo->grf_size);
 
    fprintf(stdout, "   LLC: %u\n", devinfo->has_llc);
    fprintf(stdout, "   threads per EU: %u\n", devinfo->num_thread_per_eu);
