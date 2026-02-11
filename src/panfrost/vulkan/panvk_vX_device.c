@@ -446,10 +446,19 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
 
    simple_mtx_init(&device->as.lock, mtx_plain);
 
+   /* capture/replay requires a separate AS for fixed allocations. */
+   if (device->vk.enabled_features.bufferDeviceAddressCaptureReplay) {
+      const uint64_t split_point = user_va_end / 2;
+      util_vma_heap_init(&device->as.fixed_heap, split_point,
+                           user_va_end - split_point);
+      device->as.split_heap = true;
+      /* shift the start of the non-fixed heap below the fixed one */
+      user_va_end = split_point;
+   }
+
    const uint64_t low_va_end = 1ull << 32;
    if (user_va_end <= low_va_end) {
-      /* if panthor doesn't let us have >32bit addresses, no need to extend the
-       * range. */
+      /* if user_va_end overlaps with the low 32bits, share the AS for both. */
       util_vma_heap_init(&device->as.heap, user_va_start,
                          user_va_end - user_va_start);
       device->as.priv_heap = &device->as.heap;
@@ -632,6 +641,8 @@ err_free_heaps:
       free(device->as.priv_heap);
       device->as.priv_heap = NULL;
    }
+   if (device->as.split_heap)
+      util_vma_heap_finish(&device->as.fixed_heap);
    simple_mtx_destroy(&device->as.lock);
 
 err_destroy_kdev:
@@ -689,6 +700,8 @@ panvk_per_arch(destroy_device)(struct panvk_device *device,
       free(device->as.priv_heap);
       device->as.priv_heap = NULL;
    }
+   if (device->as.split_heap)
+      util_vma_heap_finish(&device->as.fixed_heap);
    simple_mtx_destroy(&device->as.lock);
 
    if (device->debug.decode_ctx)

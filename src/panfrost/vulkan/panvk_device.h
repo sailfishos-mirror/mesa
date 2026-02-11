@@ -59,7 +59,9 @@ struct panvk_device {
    struct {
       simple_mtx_t lock;
       struct util_vma_heap heap;
+      struct util_vma_heap fixed_heap;
       struct util_vma_heap *priv_heap;
+      bool split_heap;
       bool extended_range;
    } as;
 
@@ -190,6 +192,17 @@ panvk_as_alloc(struct panvk_device *device, struct util_vma_heap *heap,
    uint64_t address = util_vma_heap_alloc(heap, size, alignment);
    simple_mtx_unlock(&device->as.lock);
    return address;
+}
+
+static inline uint64_t
+panvk_as_alloc_fixed_address(struct panvk_device *device,
+                             struct util_vma_heap *heap, uint64_t address,
+                             uint64_t size)
+{
+   simple_mtx_lock(&device->as.lock);
+   bool alloc_result = util_vma_heap_alloc_addr(heap, address, size);
+   simple_mtx_unlock(&device->as.lock);
+   return alloc_result ? address : 0;
 }
 
 static inline void

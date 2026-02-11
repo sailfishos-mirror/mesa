@@ -376,7 +376,9 @@ panvk_per_arch(get_physical_device_features)(
       .hostQueryReset = true,
       .timelineSemaphore = true,
       .bufferDeviceAddress = true,
-      .bufferDeviceAddressCaptureReplay = false,
+      /* only expose for CSF/panthor, and if we have extended VA ranges */
+      .bufferDeviceAddressCaptureReplay =
+         (PAN_ARCH >= 10) && (device->memory.max_supported_va > (1ull << 32)),
       .bufferDeviceAddressMultiDevice = false,
       .vulkanMemoryModel = true,
       .vulkanMemoryModelDeviceScope = true,
