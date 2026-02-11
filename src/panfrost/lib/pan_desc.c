@@ -580,26 +580,6 @@ pan_cbuf_bytes_per_pixel(const struct pan_fb_info *fb)
    return sum;
 }
 
-static unsigned
-pan_zsbuf_bytes_per_pixel(const struct pan_fb_info *fb)
-{
-   unsigned samples = fb->nr_samples;
-
-   const struct pan_image_view *zs_view = fb->zs.view.zs;
-   if (zs_view)
-      samples = zs_view->nr_samples;
-
-   const struct pan_image_view *s_view = fb->zs.view.s;
-   if (s_view)
-      samples = MAX2(samples, s_view->nr_samples);
-
-   /* Depth is always stored in a 32-bit float. Stencil requires depth to
-    * be allocated, but doesn't have it's own budget; it's tied to the
-    * depth buffer.
-    */
-   return sizeof(float) * samples;
-}
-
 /*
  * Select the largest tile size that fits within the tilebuffer budget.
  * Formally, maximize (pixels per tile) such that it is a power of two and
@@ -1065,27 +1045,6 @@ pan_emit_rt(const struct pan_fb_info *fb, unsigned layer_idx, unsigned idx,
    *out = desc;
 }
 
-#if PAN_ARCH >= 6
-/* All GPUs starting from Bifrost are affected by issue TSIX-2033:
- *
- *      Forcing clean_tile_writes breaks INTERSECT readbacks
- *
- * To workaround, use the pre-frame shader mode ALWAYS instead of INTERSECT if
- * clean_tile_write_enable is set on either one of the color, depth or stencil
- * buffers. Since INTERSECT is a hint that the hardware may ignore, this
- * cannot affect correctness, only performance. */
-
-static enum mali_pre_post_frame_shader_mode
-pan_fix_frame_shader_mode(enum mali_pre_post_frame_shader_mode mode,
-                          bool force_clean_tile)
-{
-   if (force_clean_tile && mode == MALI_PRE_POST_FRAME_SHADER_MODE_INTERSECT)
-      return MALI_PRE_POST_FRAME_SHADER_MODE_ALWAYS;
-   else
-      return mode;
-}
-#endif
-
 /* Clean tiles must be written back for AFBC buffers (color, z/s) when either
  * one of the effective tile size dimension is smaller than the superblock
  * dimension.
@@ -1112,8 +1071,8 @@ GENX(pan_force_clean_write_on)(const struct pan_image *image,
 #endif
 }
 
-static struct pan_clean_tile
-pan_get_clean_tile_info(const struct pan_fb_info *fb)
+struct pan_clean_tile
+GENX(pan_get_clean_tile_info)(const struct pan_fb_info *fb)
 {
    struct pan_clean_tile clean_tile = { 0, };
    const struct pan_image *img;
@@ -1209,7 +1168,7 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
 
    const int crc_rt = GENX(pan_select_crc_rt)(fb, fb->tile_size);
    const bool has_zs_crc_ext = (fb->zs.view.zs || fb->zs.view.s || crc_rt >= 0);
-   const struct pan_clean_tile clean_tile = pan_get_clean_tile_info(fb);
+   const struct pan_clean_tile clean_tile = GENX(pan_get_clean_tile_info)(fb);
 
    if (has_zs_crc_ext) {
       pan_emit_zs_crc_ext(fb, layer_idx, crc_rt, out->zs_crc, clean_tile);
@@ -1236,7 +1195,7 @@ GENX(pan_emit_fbd)(const struct pan_fb_info *fb, unsigned layer_idx,
 
    int crc_rt = GENX(pan_select_crc_rt)(fb, fb->tile_size);
    bool has_zs_crc_ext = (fb->zs.view.zs || fb->zs.view.s || crc_rt >= 0);
-   struct pan_clean_tile clean_tile = pan_get_clean_tile_info(fb);
+   struct pan_clean_tile clean_tile = GENX(pan_get_clean_tile_info)(fb);
 
    pan_section_pack(out->fbd, FRAMEBUFFER, PARAMETERS, cfg) {
 #if PAN_ARCH >= 6

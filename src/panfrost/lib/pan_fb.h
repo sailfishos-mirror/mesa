@@ -639,25 +639,6 @@ pan_target_has_clear(const struct pan_fb_load_target *target)
 bool GENX(pan_fb_resolve_shader_key_fill)(struct pan_fb_shader_key *key,
                                           const struct pan_fb_layout *fb,
                                           const struct pan_fb_resolve *resolve);
-
-/* All GPUs starting from Bifrost are affected by issue TSIX-2033:
- *
- *      Forcing clean_tile_writes breaks INTERSECT readbacks
- *
- * To workaround, use the pre-frame shader mode ALWAYS instead of INTERSECT if
- * clean_tile_write_enable is set on either one of the color, depth or stencil
- * buffers. Since INTERSECT is a hint that the hardware may ignore, this
- * cannot affect correctness, only performance. */
-
-static inline enum mali_pre_post_frame_shader_mode
-pan_fix_frame_shader_mode(enum mali_pre_post_frame_shader_mode mode,
-                          bool force_clean_tile)
-{
-   if (force_clean_tile && mode == MALI_PRE_POST_FRAME_SHADER_MODE_INTERSECT)
-      return MALI_PRE_POST_FRAME_SHADER_MODE_ALWAYS;
-   else
-      return mode;
-}
 #endif /* PAN_ARCH >= 6 */
 
 struct nir_shader *
