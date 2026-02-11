@@ -408,14 +408,11 @@ panvk_per_arch(create_device)(struct panvk_physical_device *physical_device,
    if (PANVK_DEBUG(TRACE) || PANVK_DEBUG(SYNC) || PANVK_DEBUG(DUMP))
       device->debug.decode_ctx = pandecode_create_context(false);
 
-   /* 48bit address space, with the lower 32MB reserved. We clamp
-    * things so it matches kmod VA range limitations.
-    */
+   /* 48bit address space clamped by the physical device limits, with the lower
+    * 32MB reserved. */
    uint64_t user_va_start = pan_clamp_to_usable_va_range(
       device->kmod.dev, PANVK_VA_RESERVE_BOTTOM);
-   const uint64_t user_va_bits = PANVK_DEBUG(NO_EXTENDED_VA_RANGE) ? 32 : 48;
-   uint64_t user_va_end =
-      pan_clamp_to_usable_va_range(device->kmod.dev, 1ull << user_va_bits);
+   uint64_t user_va_end = physical_device->memory.max_supported_va;
    uint32_t vm_flags = PAN_ARCH < 10 ? PAN_KMOD_VM_FLAG_AUTO_VA : 0;
 
    device->kmod.vm =

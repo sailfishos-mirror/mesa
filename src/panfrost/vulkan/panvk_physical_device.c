@@ -316,6 +316,11 @@ get_device_heaps(struct panvk_physical_device *device,
          host_cached_not_coherent_type;
    }
 
+   const uint64_t request_va =
+      PANVK_DEBUG(NO_EXTENDED_VA_RANGE) ? 1ull << 32 : 1ull << 48;
+   device->memory.max_supported_va =
+      pan_clamp_to_usable_va_range(device->kmod.dev, request_va);
+
    return VK_SUCCESS;
 }
 
