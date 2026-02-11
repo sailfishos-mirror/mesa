@@ -14,3 +14,4 @@ VK_EXT_zero_initialize_device_memory on panvk
 GL_EXT_shader_image_load_store on panfrost
 VK_KHR_swapchain_mutable_format on panvk
 VK_EXT_astc_decode_mode on panvk
+VK_KHR_copy_memory_indirect on nvk

@@ -79,6 +79,7 @@ nvk_files = files(
 
 nvkcl_files = files(
   'cl/nvk_query.cl',
+  'cl/nvk_copy_indirect.cl',
 )
 
 nvk_entrypoints = custom_target(
@@ -94,16 +95,19 @@ nvk_entrypoints = custom_target(
 )
 
 nvkcl_spv = custom_target(
-  input : nvkcl_files,
+  input : [nvkcl_files, libnvidia_headers],
   output : 'nvkcl.spv',
   command : [
     prog_mesa_clc, '-o', '@OUTPUT@', '--depfile', '@DEPFILE@', nvkcl_files, '--',
     '-I' + join_paths(meson.project_source_root(), 'src/compiler/libcl'),
     '-I' + join_paths(meson.current_source_dir(), '.'),
     '-I' + join_paths(meson.project_source_root(), 'src'),
+    '-I' + join_paths(meson.project_source_root(), 'src/nouveau/headers'),
+    '-I' + join_paths(meson.project_source_root(), 'src/nouveau/headers/nvidia/classes'),
+    '-I' + join_paths(meson.project_build_root(), 'src/nouveau/headers'),
     cl_args,
     ],
-  depfile : '@PLAINNAME@.d',
+  depfile : 'nvkcl.spv.d',
 )
 
 nvkcl = custom_target(

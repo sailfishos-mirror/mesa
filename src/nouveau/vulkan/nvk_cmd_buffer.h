@@ -226,6 +226,8 @@ struct nvk_cmd_buffer {
    uint32_t upload_offset;
 
    struct nvk_cmd_mem *cond_render_mem;
+   /** Array of struct nvk_cmd_mem* */
+   struct util_dynarray copy_memory_indirect_temps;
 
    struct nvk_cmd_mem *push_mem;
    uint32_t *push_mem_limit;

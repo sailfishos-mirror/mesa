@@ -120,6 +120,7 @@ nvk_get_device_extensions(const struct nvk_instance *instance,
       .KHR_compute_shader_derivatives = info->cls_eng3d >= TURING_A,
       .KHR_cooperative_matrix = info->cls_eng3d >= TURING_A,
       .KHR_copy_commands2 = true,
+      .KHR_copy_memory_indirect = true,
       .KHR_create_renderpass2 = true,
       .KHR_dedicated_allocation = true,
       .KHR_depth_stencil_resolve = true,
@@ -475,6 +476,9 @@ nvk_get_device_features(const struct nv_device_info *info,
       .pipelineRobustness = true,
       .hostImageCopy = info->cls_eng3d >= TURING_A,
       .pushDescriptor = true,
+
+      /* VK_KHR_copy_memory_indirect */
+      .indirectMemoryCopy = true,
 
       /* VK_KHR_cooperative_matrix */
       /* TU11X can run coop matrix but the performances are abysal */
@@ -1062,6 +1066,9 @@ nvk_get_device_properties(const struct nvk_instance *instance,
        * nvk_physical_device_init_pipeline_cache()
        */
       .pipelineBinaryCompressedData = false,
+
+      /* VK_KHR_copy_memory_indirect */
+      .supportedQueues = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT,
 
       /* VK_EXT_conservative_rasterization */
       .primitiveOverestimationSize = info->cls_eng3d >= VOLTA_A ? 1.0f / 512.0f : 0.0,

@@ -107,7 +107,7 @@ nv_push_class_dump_h = custom_target(
   command : [prog_python, '@INPUT0@', '--classes', flat_nv_classes, '--out-h', '@OUTPUT0@'],
 )
 
-_libnvidia_headers = static_library(
+libnvidia_headers = static_library(
   'nvidia_headers_c',
   ['nv_push.c', cl_generated, nv_push_class_dump_h],
   include_directories : ['.', 'nvidia/classes', inc_include, inc_src],
@@ -118,7 +118,7 @@ _libnvidia_headers = static_library(
 idep_nvidia_headers = declare_dependency(
   include_directories : include_directories('.', 'nvidia/classes'),
   sources : cl_generated,
-  link_with : _libnvidia_headers,
+  link_with : libnvidia_headers,
 )
 
 executable(

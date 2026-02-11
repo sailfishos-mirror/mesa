@@ -13,6 +13,9 @@
 #include "nir_builder.h"
 #include "vk_pipeline.h"
 
+#include "nvkcl.h"
+#include "cl/nvk_copy_indirect.h"
+
 #include "clcb97.h"
 #include "nv_push.h"
 #include "nv_push_cl9097.h"
@@ -1132,4 +1135,164 @@ nvk_CmdExecuteGeneratedCommandsEXT(VkCommandBuffer commandBuffer,
          cmd->state.gfx.shaders_dirty |= NVK_SHADER_STAGE_GRAPHICS_BITS;
       }
    }
+}
+
+struct nvk_copy_indirect_push {
+   uint64_t in;
+   uint64_t in_stride;
+   uint64_t out;
+   uint32_t count;
+};
+
+static nir_shader *
+build_copy_indierct_shader(void)
+{
+   nir_builder build =
+      nir_builder_init_simple_shader(MESA_SHADER_COMPUTE, NULL,
+                                     "nvk-meta-copy-indirect");
+   nir_builder *b = &build;
+
+   struct glsl_struct_field push_fields[] = {
+      { .type = glsl_uint64_t_type(), .name = "in", .offset = 0 },
+      { .type = glsl_uint64_t_type(), .name = "in_stride", .offset = 8 },
+      { .type = glsl_uint64_t_type(), .name = "out", .offset = 16 },
+      { .type = glsl_uint_type(), .name = "count", .offset = 24 },
+   };
+   const struct glsl_type *push_iface_type =
+      glsl_interface_type(push_fields, ARRAY_SIZE(push_fields),
+                          GLSL_INTERFACE_PACKING_STD140,
+                          false /* row_major */, "push");
+   nir_variable *push = nir_variable_create(b->shader, nir_var_mem_push_const,
+                                            push_iface_type, "push");
+
+   b->shader->info.workgroup_size[0] = 32;
+
+   nvk_copy_indirect(b, load_struct_var(b, push, 0),
+                     load_struct_var(b, push, 1),
+                     load_struct_var(b, push, 2),
+                     load_struct_var(b, push, 3));
+
+   return build.shader;
+}
+
+static struct nvk_shader *
+atomic_set_or_destroy_shader(struct nvk_device *dev,
+                             struct nvk_shader **shader_ptr,
+                             struct nvk_shader *shader,
+                             const VkAllocationCallbacks *alloc)
+{
+   struct nvk_shader *old_shader = p_atomic_cmpxchg(shader_ptr, NULL, shader);
+   if (old_shader == NULL) {
+      return shader;
+   } else {
+      vk_shader_destroy(&dev->vk, &shader->vk, alloc);
+      return old_shader;
+   }
+}
+
+static VkResult
+get_copy_indirect_shader(struct nvk_device *dev,
+                        struct nvk_shader **shader_out)
+{
+   struct nvk_shader *shader = p_atomic_read(&dev->copy_indirect);
+   if (shader != NULL) {
+      *shader_out = shader;
+      return VK_SUCCESS;
+   }
+
+   nir_shader *nir = build_copy_indierct_shader();
+   VkResult result = nvk_compile_nir_shader(dev, nir, &dev->vk.alloc, &shader);
+   if (result != VK_SUCCESS)
+      return result;
+
+   *shader_out = atomic_set_or_destroy_shader(dev, &dev->copy_indirect,
+                                              shader, &dev->vk.alloc);
+
+   return VK_SUCCESS;
+}
+
+VKAPI_ATTR void VKAPI_CALL
+nvk_CmdCopyMemoryIndirectKHR(VkCommandBuffer commandBuffer,
+                             const VkCopyMemoryIndirectInfoKHR* info)
+{
+   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
+   struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+   VkResult result;
+
+   if (info->copyCount == 0)
+      return;
+
+   struct nvk_shader *shader;
+   result = get_copy_indirect_shader(dev, &shader);
+   if (result != VK_SUCCESS) {
+      vk_command_buffer_set_error(&cmd->vk, result);
+      return;
+   }
+
+   const uint32_t cmds_per_buffer =
+      NVK_CMD_MEM_SIZE / NVK_COPY_INDIRECT_CMD_BYTES;
+   const uint32_t num_buffers = DIV_ROUND_UP(info->copyCount, cmds_per_buffer);
+
+   if (!util_dynarray_ensure_cap(&cmd->copy_memory_indirect_temps,
+                                 sizeof(struct nvk_cmd_mem*) * num_buffers)) {
+      vk_command_buffer_set_error(&cmd->vk, VK_ERROR_OUT_OF_HOST_MEMORY);
+      return;
+   }
+
+   while (util_dynarray_num_elements(&cmd->copy_memory_indirect_temps,
+                                     struct nvk_cmd_mem*) < num_buffers) {
+      struct nvk_cmd_mem *temp_mem;
+      result = nvk_cmd_buffer_alloc_mem(cmd, false, &temp_mem);
+      if (result != VK_SUCCESS) {
+         vk_command_buffer_set_error(&cmd->vk, result);
+         return;
+      }
+      util_dynarray_append_typed(&cmd->copy_memory_indirect_temps,
+                                 struct nvk_cmd_mem*, temp_mem);
+   }
+
+   for (int i = 0; i < info->copyCount; i += cmds_per_buffer) {
+      struct nvk_cmd_mem *temp_mem =
+         *util_dynarray_element(&cmd->copy_memory_indirect_temps,
+                                struct nvk_cmd_mem*, i / cmds_per_buffer);
+      uint32_t count = MIN2(cmds_per_buffer, info->copyCount - i);
+
+      const struct nvk_copy_indirect_push push_constants = {
+         .in = info->copyAddressRange.address + i * info->copyAddressRange.stride,
+         .in_stride = info->copyAddressRange.stride,
+         .out = temp_mem->mem->va->addr,
+         .count = count
+      };
+
+      nvk_cmd_dispatch_shader(cmd, shader,
+                              &push_constants, sizeof(push_constants),
+                              DIV_ROUND_UP(count, 32), 1, 1);
+   }
+
+   if (pdev->info.cls_eng3d >= HOPPER_A) {
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 1);
+      P_IMMD_WORD(p, NVC86F, WFI, 0);
+   } else {
+      struct nv_push *p = nvk_cmd_buffer_push(cmd, 2);
+      P_IMMD_WORD(p, NVA0C0, WAIT_FOR_IDLE, 0);
+      __push_immd(p, SUBC_NV9097, NV906F_SET_REFERENCE, 0);
+   }
+
+   for (int i = 0; i < info->copyCount; i += cmds_per_buffer) {
+      struct nvk_cmd_mem *temp_mem =
+         *util_dynarray_element(&cmd->copy_memory_indirect_temps,
+                                struct nvk_cmd_mem*, i / cmds_per_buffer);
+      uint32_t count = MIN2(cmds_per_buffer, info->copyCount - i);
+
+      nvk_cmd_buffer_push_indirect(cmd, temp_mem->mem->va->addr,
+                                   NVK_COPY_INDIRECT_CMD_BYTES * count);
+   }
+}
+
+void nvk_CmdCopyMemoryToImageIndirectKHR(VkCommandBuffer commandBuffer,
+      const VkCopyMemoryToImageIndirectInfoKHR* info)
+{
+   /* Feature unimplemented */
+   assert(false);
 }
