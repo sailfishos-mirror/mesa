@@ -812,8 +812,8 @@ static bool pvr_physical_device_get_properties(
       .maxCustomBorderColorSamplers =
          get_custom_border_color_samplers(&pdevice->dev_info),
 
-      /* VkPhysicalDeviceDrmPropertiesEXT */
-      .drmHasPrimary = true,
+      /* VK_EXT_physical_device_drm */
+      .drmHasPrimary = pdevice->has_primary,
       .drmPrimaryMajor = (int64_t) major(pdevice->primary_devid),
       .drmPrimaryMinor = (int64_t) minor(pdevice->primary_devid),
       .drmHasRender = true,
@@ -1007,14 +1007,12 @@ VkResult pvr_physical_device_init(struct pvr_physical_device *pdevice,
    }
 
    primary_path = drm_render_device->nodes[DRM_NODE_PRIMARY];
-   if (stat(primary_path, &primary_stat) != 0) {
-      result = vk_errorf(instance,
-                         VK_ERROR_INITIALIZATION_FAILED,
-                         "failed to stat DRM primary node %s",
-                         primary_path);
-      goto err_vk_free_display_path;
+   pdevice->has_primary = false;
+   pdevice->primary_devid = 0;
+   if (!stat(primary_path, &primary_stat)) {
+      pdevice->has_primary = true;
+      pdevice->primary_devid = primary_stat.st_rdev;
    }
-   pdevice->primary_devid = primary_stat.st_rdev;
 
    if (stat(render_path, &render_stat) != 0) {
       result = vk_errorf(instance,

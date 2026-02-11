@@ -44,8 +44,11 @@ struct pvr_physical_device {
 
    char *render_path;
    char *display_path;
+   bool has_primary;
 
-   /* primary node (cardN) of the render device */
+   /* primary node (cardN) of the render device
+    * Only valid when has_primary is true.
+    */
    dev_t primary_devid;
    /* render node (renderN) of the render device */
    dev_t render_devid;
