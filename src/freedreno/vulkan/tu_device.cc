@@ -1529,7 +1529,7 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->fullyCoveredFragmentShaderInputVariable = false;
    props->conservativeRasterizationPostDepthCoverage = false;
 
-   /* VK_QCOM_fragment_density_map_offset */
+   /* VK_EXT_fragment_density_map_offset */
    props->fragmentDensityOffsetGranularity = (VkExtent2D) { 
       TU_FDM_OFFSET_GRANULARITY, TU_FDM_OFFSET_GRANULARITY
    };
