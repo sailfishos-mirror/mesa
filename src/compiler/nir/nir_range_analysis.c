@@ -745,6 +745,10 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       case nir_op_fceil:
       case nir_op_ftrunc:
       case nir_op_ffract:
+      case nir_op_fsin:
+      case nir_op_fcos:
+      case nir_op_fsin_amd:
+      case nir_op_fcos_amd:
       case nir_op_f2f16:
       case nir_op_f2f16_rtz:
       case nir_op_f2f16_rtne:
@@ -1085,6 +1089,20 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       /* fract(integral) is +0.0. */
       if (src_res[0] & (FP_CLASS_LT_NEG_ONE | FP_CLASS_NEG_ONE | FP_CLASS_ANY_ZERO | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE))
          r |= FP_CLASS_POS_ZERO;
+
+      break;
+   }
+
+   case nir_op_fsin:
+   case nir_op_fcos:
+   case nir_op_fsin_amd:
+   case nir_op_fcos_amd: {
+      /* [-1, +1], and sin/cos(Inf) is NaN */
+      r = FP_CLASS_NEG_ONE | FP_CLASS_LT_ZERO_GT_NEG_ONE | FP_CLASS_ANY_ZERO |
+          FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_POS_ONE | FP_CLASS_NON_INTEGRAL;
+
+      if (src_res[0] & (FP_CLASS_NAN | FP_CLASS_ANY_INF))
+         r |= FP_CLASS_NAN;
 
       break;
    }
