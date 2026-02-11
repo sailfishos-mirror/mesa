@@ -264,9 +264,9 @@ fd6_launch_grid(struct fd_context *ctx, const struct pipe_grid_info *info) in_dt
       ));
       crb.add(SP_CS_NDRANGE_6(CHIP, .globaloff_z = 0));
 
-      crb.add(SP_CS_KERNEL_GROUP_X(CHIP, 1));
-      crb.add(SP_CS_KERNEL_GROUP_Y(CHIP, 1));
-      crb.add(SP_CS_KERNEL_GROUP_Z(CHIP, 1));
+      crb.add(SP_CS_KERNEL_GROUP_X(CHIP, num_groups[0]));
+      crb.add(SP_CS_KERNEL_GROUP_Y(CHIP, num_groups[1]));
+      crb.add(SP_CS_KERNEL_GROUP_Z(CHIP, num_groups[2]));
    }
 
    if (info->indirect) {
