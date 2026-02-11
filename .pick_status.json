@@ -404,7 +404,7 @@
         "description": "lavapipe: Fix features for nonsubsampled ycbcr formats",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "af062126ae1f26b01cad1165a4e31dc40e141b6b",
         "notes": null
