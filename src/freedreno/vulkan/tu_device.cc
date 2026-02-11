@@ -336,6 +336,7 @@ get_device_extensions(const struct tu_physical_device *device,
       .EXT_shader_module_identifier = true,
       .EXT_shader_replicated_composites = true,
       .EXT_shader_stencil_export = true,
+      .EXT_shader_uniform_buffer_unsized_array = true,
       .EXT_shader_viewport_index_layer = tu_has_multiview(device),
       .EXT_subgroup_size_control = tu_is_vk_1_1(device),
 #ifdef TU_USE_WSI_PLATFORM
@@ -789,6 +790,9 @@ tu_get_features(struct tu_physical_device *pdevice,
 
    /* VK_EXT_shader_replicated_composites */
    features->shaderReplicatedComposites = true;
+
+   /* VK_EXT_shader_uniform_buffer_unsized_array */
+   features->shaderUniformBufferUnsizedArray = true;
 
 #ifdef TU_USE_WSI_PLATFORM
    /* VK_KHR_swapchain_maintenance1 */
