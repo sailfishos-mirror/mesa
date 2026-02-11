@@ -746,7 +746,6 @@ static void
 lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
 {
    const intel_device_info *devinfo = bld.shader->devinfo;
-   const brw_compiler *compiler = bld.shader->compiler;
 
    const enum brw_sampler_opcode op = tex->sampler_opcode;
    const bool surface_bindless = tex->surface_bindless;
@@ -849,12 +848,7 @@ lower_sampler_logical_send(const brw_builder &bld, brw_tex_inst *tex)
           * address space but means we can do something more efficient in the
           * shader.
           */
-         if (compiler->use_bindless_sampler_offset) {
-            assert(devinfo->ver >= 11);
-            ubld1.OR(component(header, 3), sampler, brw_imm_ud(1));
-         } else {
-            ubld1.MOV(component(header, 3), sampler);
-         }
+         ubld1.MOV(component(header, 3), sampler);
       } else if (is_high_sampler(devinfo, sampler)) {
          brw_reg sampler_state_ptr =
             retype(brw_vec1_grf(0, 3), BRW_TYPE_UD);

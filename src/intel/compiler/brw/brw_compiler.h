@@ -74,14 +74,6 @@ struct brw_compiler {
    bool precise_trig;
 
    /**
-    * Gfx11+ has a bit in the dword 3 of the sampler message header that
-    * indicates whether the sampler handle is relative to the dynamic state
-    * base address (0) or the bindless sampler base address (1). The driver
-    * can select this.
-    */
-   bool use_bindless_sampler_offset;
-
-   /**
     * Should DPAS instructions be lowered?
     *
     * This will be set for all platforms before Gfx12.5. It may also be set

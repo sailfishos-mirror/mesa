@@ -2821,7 +2821,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    }
    device->compiler->shader_debug_log = compiler_debug_log;
    device->compiler->shader_perf_log = compiler_perf_log;
-   device->compiler->use_bindless_sampler_offset = false;
    device->compiler->spilling_rate =
       driQueryOptioni(&instance->dri_options, "shader_spilling_rate");
 
