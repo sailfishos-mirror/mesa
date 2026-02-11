@@ -99,7 +99,7 @@ pan_fb_color_attachment_should_crc(const struct pan_fb_color_attachment *rt,
 {
    uint64_t mod;
 
-   if (!rt->view || rt->discard || !rt->crc_valid ||
+   if (!rt->view || rt->discard || !rt->crc_state ||
        !pan_image_view_has_crc(rt->view))
       return false;
 
@@ -147,7 +147,7 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
          continue;
 
       /* Select the first RT with a valid CRC buffer. */
-      if (*fb->rts[i].crc_valid) {
+      if (fb->rts[i].crc_state->valid) {
          best_rt = i;
          break;
       }
@@ -159,7 +159,7 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
 
    /* The selected RT must be fully covered for now in order to correctly
     * initialize the CRC buffer. */
-   if (best_rt != -1 && !*fb->rts[best_rt].crc_valid &&
+   if (best_rt != -1 && !fb->rts[best_rt].crc_state->valid &&
        !pan_fb_info_is_fully_covered(fb))
       best_rt = -1;
 
@@ -1059,15 +1059,15 @@ pan_crc_enable(struct pan_crc *crc)
  * forcefully writing back all the tiles and flush the CRC values. Drawback
  * is it only works on full frames. */
 static void
-pan_crc_maybe_enable_flushed(struct pan_crc *crc,
-                             const struct pan_fb_info *fb, bool *crc_valid)
+pan_crc_maybe_enable_flushed(struct pan_crc *crc, struct pan_crc_state *state,
+                             const struct pan_fb_info *fb)
 {
    if (!pan_fb_info_is_fully_covered(fb))
       return;
 
    crc->write = true;
    crc->force_clean_tile_write = true;
-   *crc_valid = true;
+   state->valid = true;
 }
 
 static struct pan_crc
@@ -1093,17 +1093,17 @@ pan_get_crc_info(const struct pan_fb_info *fb)
    rt = &fb->rts[crc.index];
 
    /* Transaction Elimination. */
-   if (*rt->crc_valid) {
+   if (rt->crc_state->valid) {
       pan_crc_enable(&crc);
    } else {
-      pan_crc_maybe_enable_flushed(&crc, fb, rt->crc_valid);
+      pan_crc_maybe_enable_flushed(&crc, rt->crc_state, fb);
    }
 
  skip:
    /* Flag CRC buffer states of unselected RTs as invalid. */
    for (unsigned i = 0; i < fb->rt_count; i++)
-      if (i != crc.index && fb->rts[i].crc_valid)
-         *fb->rts[i].crc_valid = false;
+      if (i != crc.index && fb->rts[i].crc_state)
+         fb->rts[i].crc_state->valid = false;
 
    return crc;
 }
@@ -1213,8 +1213,6 @@ pan_emit_rts(const struct pan_fb_info *fb, unsigned layer_idx, int crc_rt,
                      fb->tile_size *
                      pan_image_view_get_nr_samples(fb->rts[i].view);
 
-      if (i != crc_rt && fb->rts[i].crc_valid != NULL)
-         *(fb->rts[i].crc_valid) = false;
    }
 }
 

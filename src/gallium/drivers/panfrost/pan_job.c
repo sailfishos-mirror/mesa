@@ -531,7 +531,7 @@ panfrost_batch_to_fb_info(const struct panfrost_batch *batch,
       rts[i].nr_samples =
          surf->nr_samples ?: MAX2(surf->texture->nr_samples, 1);
       memcpy(rts[i].swizzle, id_swz, sizeof(rts[i].swizzle));
-      fb->rts[i].crc_valid = &prsrc->valid.crc;
+      fb->rts[i].crc_state = &prsrc->crc_state;
       fb->rts[i].view = &rts[i];
 
       /* Preload if the RT is read or updated */

@@ -26,9 +26,14 @@ struct pan_compute_dim {
    uint32_t x, y, z;
 };
 
+struct pan_crc_state {
+   /* Is the CRC buffer valid? Implicitly refers to the first slice. */
+   bool valid;
+};
+
 struct pan_fb_color_attachment {
    const struct pan_image_view *view;
-   bool *crc_valid;
+   struct pan_crc_state *crc_state;
    bool clear;
    bool preload;
    bool discard;
@@ -190,6 +195,12 @@ pan_fb_info_is_fully_covered(const struct pan_fb_info *fb)
       !fb->draw_extent.miny &&
       fb->draw_extent.maxx == (fb->width - 1) &&
       fb->draw_extent.maxy == (fb->height - 1);
+}
+
+static inline void
+pan_crc_state_invalidate(struct pan_crc_state *state)
+{
+   state->valid = false;
 }
 
 static inline bool

@@ -2227,7 +2227,7 @@ pan_resource_afbcp_commit(struct panfrost_context *ctx,
    prsrc->plane.layout.data_size_B = prsrc->afbcp->size;
    prsrc->plane.base = prsrc->afbcp->packed_bo->ptr.gpu;
    prsrc->image.props.crc = false;
-   prsrc->valid.crc = false;
+   pan_crc_state_invalidate(&prsrc->crc_state);
 
    for (unsigned level = 0; level <= prsrc->base.last_level; ++level)
       prsrc->plane.layout.slices[level] =
@@ -2326,7 +2326,7 @@ panfrost_ptr_unmap(struct pipe_context *pctx, struct pipe_transfer *transfer)
    struct panfrost_device *dev = pan_device(pctx->screen);
 
    if (transfer->usage & PIPE_MAP_WRITE)
-      prsrc->valid.crc = false;
+      pan_crc_state_invalidate(&prsrc->crc_state);
 
    /* AFBC/AFRC will use a staging resource. `initialized` will be set when
     * the fragment job is created; this is deferred to prevent useless surface
