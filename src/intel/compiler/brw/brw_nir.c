@@ -3276,8 +3276,7 @@ brw_nir_create_passthrough_tcs(void *mem_ctx, const struct brw_compiler *compile
    nir->info.tess._primitive_mode = key->_tes_primitive_mode;
    nir_validate_shader(nir, "in brw_nir_create_passthrough_tcs");
 
-   struct brw_nir_compiler_opts opts = {};
-   brw_preprocess_nir(compiler, nir, &opts);
+   NIR_PASS(_, nir, nir_lower_system_values);
 
    return nir;
 }
