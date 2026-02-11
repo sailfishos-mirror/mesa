@@ -410,6 +410,7 @@ void
 finish_isel_test(enum ac_hw_stage hw_stage, unsigned wave_size)
 {
    nir_validate_shader(nb->shader, "in finish_isel_test");
+   nir_lower_continue_constructs(nb->shader);
 
    program.reset(new Program);
    program->debug.func = nullptr;
