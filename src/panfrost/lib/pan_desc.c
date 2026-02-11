@@ -19,6 +19,9 @@
 
 #define PAN_BIN_LEVEL_COUNT 12
 
+/* Forward declaration — defined after pan_bytes_per_pixel_tib */
+static unsigned pan_cbuf_bytes_per_pixel(const struct pan_fb_info *fb);
+
 static enum mali_msaa
 mali_sampling_mode(const struct pan_image_view *view)
 {
@@ -134,8 +137,18 @@ GENX(pan_select_crc_rt)(const struct pan_fb_info *fb, unsigned tile_size)
    if (tile_size < 16 * 16)
       return -1;
 
-#if PAN_ARCH <= 6
+#if PAN_ARCH <= 5
+   /* CRC was introduced in v4 and MRT in v5 but unlike v6 there's no details
+    * how both work together. */
    if (fb->rt_count > 1)
+      return -1;
+
+#elif PAN_ARCH == 6
+   /* On v6, all enabled RTs are used to compute a CRC (no crc_render_target
+    * field on the DBD). The write buffer size of the enabled color
+    * attachments for a tile must fit within 1600 bytes. */
+   if (fb->rt_count > 1 &&
+       pan_cbuf_bytes_per_pixel(fb) * fb->tile_size > 1600)
       return -1;
 #endif
 
