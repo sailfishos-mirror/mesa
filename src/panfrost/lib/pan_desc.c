@@ -99,7 +99,8 @@ pan_fb_color_attachment_should_crc(const struct pan_fb_color_attachment *rt,
 {
    uint64_t mod;
 
-   if (!rt->view || rt->discard || !pan_image_view_has_crc(rt->view))
+   if (!rt->view || rt->discard || !rt->crc_valid ||
+       !pan_image_view_has_crc(rt->view))
       return false;
 
    mod = pan_image_view_get_first_plane(rt->view).image->props.modifier;
