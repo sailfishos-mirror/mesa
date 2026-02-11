@@ -182,9 +182,20 @@ set -x
 
 report_load
 
-# Remove all but the first 50 individual XML files uploaded as artifacts, to
-# save fd.o space when you break everything.
+# Remove all but the first 50 individual XML, test log and caselist
+# files uploaded as artifacts, to save fd.o space and avoid job log spam
+# when you break everything.
+# Note that each of these pattern gets to keep 50 files, but there is nothing
+# making sure the remaining 50 files of each correspond to the same tests.
 find $RESULTS_DIR -name \*.xml | \
+    sort -n |
+    sed -n '1,+49!p' | \
+    xargs rm -f
+find $RESULTS_DIR -name 'c*.r*.caselist.txt' | \
+    sort -n |
+    sed -n '1,+49!p' | \
+    xargs rm -f
+find $RESULTS_DIR -name 'c*.r*.log' | \
     sort -n |
     sed -n '1,+49!p' | \
     xargs rm -f
