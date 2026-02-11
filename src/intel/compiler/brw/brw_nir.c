@@ -1897,8 +1897,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
    };
    OPT(nir_lower_subgroups, &subgroups_options);
 
-   nir_variable_mode indirect_mask =
-      brw_nir_no_indirect_mask(compiler, nir->info.stage);
+   nir_variable_mode indirect_mask = brw_nir_no_indirect_mask(nir->info.stage);
    OPT(nir_lower_indirect_derefs_to_if_else_trees, indirect_mask, UINT32_MAX);
 
    /* Even in cases where we can handle indirect temporaries via scratch, we

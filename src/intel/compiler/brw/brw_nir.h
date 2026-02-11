@@ -347,8 +347,7 @@ const struct glsl_type *brw_nir_get_var_type(const struct nir_shader *nir,
                                              nir_variable *var);
 
 static inline nir_variable_mode
-brw_nir_no_indirect_mask(const struct brw_compiler *compiler,
-                         mesa_shader_stage stage)
+brw_nir_no_indirect_mask(mesa_shader_stage stage)
 {
    nir_variable_mode indirect_mask = (nir_variable_mode) 0;
 
