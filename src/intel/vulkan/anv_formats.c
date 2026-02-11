@@ -796,48 +796,20 @@ anv_get_depth_stencil_format_features(const struct anv_physical_device *physical
 }
 
 static VkFormatFeatureFlags2
-anv_get_image_format_features2(const struct anv_physical_device *physical_device,
-                               const struct anv_format *anv_format,
-                               VkImageTiling vk_tiling,
-                               VkImageUsageFlags usage,
-                               VkImageCreateFlags create_flags,
-                               const struct isl_drm_modifier_info *isl_mod_info)
+anv_get_color_format_features(const struct anv_physical_device *physical_device,
+                              const struct anv_format *anv_format,
+                              const VkImageTiling vk_tiling,
+                              VkImageUsageFlags usage,
+                              VkImageCreateFlags create_flags,
+                              const struct isl_drm_modifier_info *isl_mod_info)
 {
    const struct intel_device_info *devinfo = &physical_device->info;
    VkFormatFeatureFlags2 flags = 0;
+   const VkFormat vk_format = anv_format->vk_format;
    const bool is_sparse = (create_flags &
                            (VK_IMAGE_CREATE_SPARSE_BINDING_BIT |
                             VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT |
                             VK_IMAGE_CREATE_SPARSE_ALIASED_BIT)) != 0;
-
-   if (anv_format == NULL ||
-       anv_format->planes[0].isl_format == ISL_FORMAT_UNSUPPORTED)
-      return 0;
-
-   const VkFormat vk_format = anv_format->vk_format;
-
-   assert((isl_mod_info != NULL) ==
-          (vk_tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT));
-
-   if (vk_tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
-      if (!isl_drm_modifier_get_score(devinfo, isl_mod_info->modifier))
-         return 0;
-   }
-
-   if (anv_is_compressed_format_emulated(physical_device, vk_format)) {
-      return anv_get_compressed_emulated_format_features(anv_format,
-                                                         vk_tiling);
-   }
-
-   const VkImageAspectFlags aspects = vk_format_aspects(vk_format);
-
-   if (aspects & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) {
-      return anv_get_depth_stencil_format_features(physical_device,
-                                                   anv_format, vk_tiling,
-                                                   aspects, isl_mod_info);
-   }
-
-   assert(aspects & VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV);
 
    if (anv_format->flags & ANV_FORMAT_FLAG_CAN_VIDEO &&
          !(create_flags & VK_IMAGE_CREATE_DISJOINT_BIT)) {
@@ -1126,6 +1098,49 @@ anv_get_image_format_features2(const struct anv_physical_device *physical_device
       flags |= VK_FORMAT_FEATURE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
 
    return flags;
+}
+
+static VkFormatFeatureFlags2
+anv_get_image_format_features2(const struct anv_physical_device *physical_device,
+                               const struct anv_format *anv_format,
+                               VkImageTiling vk_tiling,
+                               VkImageUsageFlags usage,
+                               VkImageCreateFlags create_flags,
+                               const struct isl_drm_modifier_info *isl_mod_info)
+{
+   const struct intel_device_info *devinfo = &physical_device->info;
+
+   if (anv_format == NULL ||
+       anv_format->planes[0].isl_format == ISL_FORMAT_UNSUPPORTED)
+      return 0;
+
+   const VkFormat vk_format = anv_format->vk_format;
+
+   assert((isl_mod_info != NULL) ==
+          (vk_tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT));
+
+   if (vk_tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+      if (!isl_drm_modifier_get_score(devinfo, isl_mod_info->modifier))
+         return 0;
+   }
+
+   if (anv_is_compressed_format_emulated(physical_device, vk_format)) {
+      return anv_get_compressed_emulated_format_features(anv_format,
+                                                         vk_tiling);
+   }
+
+   const VkImageAspectFlags aspects = vk_format_aspects(vk_format);
+
+   if (aspects & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) {
+      return anv_get_depth_stencil_format_features(physical_device,
+                                                   anv_format, vk_tiling,
+                                                   aspects, isl_mod_info);
+   }
+
+   assert(aspects & VK_IMAGE_ASPECT_ANY_COLOR_BIT_ANV);
+   return anv_get_color_format_features(physical_device, anv_format,
+                                        vk_tiling, usage, create_flags,
+                                        isl_mod_info);
 }
 
 static VkFormatFeatureFlags2
