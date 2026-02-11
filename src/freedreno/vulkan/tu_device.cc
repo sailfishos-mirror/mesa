@@ -174,7 +174,7 @@ get_device_extensions(const struct tu_physical_device *device,
       .KHR_bind_memory2 = true,
       .KHR_buffer_device_address = true,
       .KHR_calibrated_timestamps = device->info->props.has_persistent_counter,
-      .KHR_compute_shader_derivatives = device->info->chip >= 7,
+      .KHR_compute_shader_derivatives = true,
       .KHR_copy_commands2 = true,
       // TODO workaround for https://github.com/KhronosGroup/VK-GL-CTS/issues/525
       .KHR_create_renderpass2 = true, // tu_has_multiview(device),
@@ -356,7 +356,7 @@ get_device_extensions(const struct tu_physical_device *device,
       .GOOGLE_hlsl_functionality1 = true,
       .GOOGLE_user_type = true,
       .IMG_filter_cubic = device->info->props.has_tex_filter_cubic,
-      .NV_compute_shader_derivatives = device->info->chip >= 7,
+      .NV_compute_shader_derivatives = true,
       .QCOM_fragment_density_map_offset = true,
       .QCOM_image_processing = device->info->props.has_image_processing,
       .QCOM_multiview_per_view_render_areas = true,
@@ -532,7 +532,7 @@ tu_get_features(struct tu_physical_device *pdevice,
 
    /* VK_KHR_compute_shader_derivatives */
    features->computeDerivativeGroupQuads = pdevice->info->chip >= 7;
-   features->computeDerivativeGroupLinear = pdevice->info->chip >= 7;
+   features->computeDerivativeGroupLinear = true;
 
    /* VK_KHR_dynamic_rendering_local_read */
    features->dynamicRenderingLocalRead = true;

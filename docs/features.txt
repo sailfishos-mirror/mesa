@@ -539,7 +539,7 @@ Khronos extensions that are not part of any Vulkan version:
   VK_KHR_acceleration_structure                         DONE (anv/gfx12.5+, lvp, radv/gfx10.3+, tu/a740+, vn)
   VK_KHR_android_surface                                not started
   VK_KHR_calibrated_timestamps                          DONE (anv, hk, kk, nvk, panvk/v10+, radv, tu/a750+, vn)
-  VK_KHR_compute_shader_derivatives                     DONE (anv, lvp, nvk, radv, tu/a7xx+, vn)
+  VK_KHR_compute_shader_derivatives                     DONE (anv, lvp, nvk, radv, tu, vn)
   VK_KHR_cooperative_matrix                             DONE (anv, nvk/Turing+, radv/gfx11+, vn)
   VK_KHR_depth_clamp_zero_one                           DONE (anv, nvk, panvk, radv, vn)
   VK_KHR_deferred_host_operations                       DONE (anv, hasvk, lvp, radv, tu, vn)
@@ -693,7 +693,7 @@ Khronos extensions that are not part of any Vulkan version:
   VK_GOOGLE_hlsl_functionality1                         DONE (anv, hasvk, hk, kk, lvp, nvk, panvk, radv, tu, vn)
   VK_GOOGLE_user_type                                   DONE (anv, hasvk, hk, kk, lvp, nvk, panvk, radv, tu, vn)
   VK_IMG_filter_cubic                                   DONE (tu/a650+, vn)
-  VK_NV_compute_shader_derivatives                      DONE (anv, hasvk, nvk, radv, tu/a7xx+, vn)
+  VK_NV_compute_shader_derivatives                      DONE (anv, hasvk, nvk, radv, tu, vn)
   VK_NVX_image_view_handle                              DONE (nvk)
   VK_EXT_acquire_drm_display                            DONE (anv, hk, nvk, panvk, radv, tu, v3dv, vn)
   VK_VALVE_fragment_density_map_layered                 DONE (tu)
