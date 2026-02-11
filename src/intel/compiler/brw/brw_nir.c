@@ -2514,6 +2514,7 @@ brw_vectorize_lower_mem_access(brw_pass_tracker *pt)
       .modes = nir_var_mem_ubo | nir_var_mem_ssbo |
                nir_var_mem_global | nir_var_mem_shared |
                nir_var_mem_task_payload,
+      .round_up_components = lsc_urb_round_up_components,
       .callback = brw_nir_should_vectorize_mem,
       .robust_modes = (nir_variable_mode)0,
    };
