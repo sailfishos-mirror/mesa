@@ -4867,7 +4867,11 @@ genX(flush_pipeline_select)(struct anv_cmd_buffer *cmd_buffer,
     */
    bits |= ANV_PIPE_CS_STALL_BIT | ANV_PIPE_HDC_PIPELINE_FLUSH_BIT;
 
-   if (cmd_buffer->state.current_pipeline == _3D) {
+   if (cmd_buffer->state.current_pipeline == UINT32_MAX) {
+       bits |= ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT |
+               ANV_PIPE_DEPTH_CACHE_FLUSH_BIT |
+               ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT;
+   } else if (cmd_buffer->state.current_pipeline == _3D) {
       bits |= ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT |
               ANV_PIPE_DEPTH_CACHE_FLUSH_BIT;
    } else {

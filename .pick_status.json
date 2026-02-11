@@ -484,7 +484,7 @@
         "description": "anv: flush render caches on first pipeline select",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e6dae6ef5fc134f9ed5dd93b1a462084bc3aadfd",
         "notes": null
