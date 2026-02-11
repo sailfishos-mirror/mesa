@@ -22,11 +22,13 @@
 #ifndef __NVHW_DRF_H__
 #define __NVHW_DRF_H__
 
+#include <stdint.h>
+
 /* Helpers common to all DRF accessors. */
 #define DRF_LO(drf)    (0 ? drf)
 #define DRF_HI(drf)    (1 ? drf)
 #define DRF_BITS(drf)  (DRF_HI(drf) - DRF_LO(drf) + 1)
-#define DRF_MASK(drf)  (~0ULL >> (64 - DRF_BITS(drf)))
+#define DRF_MASK(drf)  (~UINT64_C(0) >> (64 - DRF_BITS(drf)))
 #define DRF_SMASK(drf) (DRF_MASK(drf) << DRF_LO(drf))
 
 /* Helpers for DRF-MW accessors. */
@@ -40,7 +42,7 @@
 #define DRF_LW_LO(o,drf)    (DRF_LO(DRF_MW(drf)) % DRF_MW_SIZE(o))
 #define DRF_LW_HI(o,drf)    (DRF_MW_SPANS((o),drf) ? (DRF_MW_SIZE(o) - 1) : DRF_HW_HI((o),drf))
 #define DRF_LW_BITS(o,drf)  (DRF_LW_HI((o),drf) - DRF_LW_LO((o),drf) + 1)
-#define DRF_LW_MASK(o,drf)  (~0ULL >> (64 - DRF_LW_BITS((o),drf)))
+#define DRF_LW_MASK(o,drf)  (~UINT64_C(0) >> (64 - DRF_LW_BITS((o),drf)))
 #define DRF_LW_SMASK(o,drf) (DRF_LW_MASK((o),drf) << DRF_LW_LO((o),drf))
 #define DRF_LW_GET(o,drf)   (((o)[DRF_LW_IDX((o),drf)] >> DRF_LW_LO((o),drf)) & DRF_LW_MASK((o),drf))
 #define DRF_LW_VAL(o,drf,v) (((v) & DRF_LW_MASK((o),drf)) << DRF_LW_LO((o),drf))
@@ -51,7 +53,7 @@
 #define DRF_HW_LO(o,drf)    0
 #define DRF_HW_HI(o,drf)    (DRF_HI(DRF_MW(drf)) % DRF_MW_SIZE(o))
 #define DRF_HW_BITS(o,drf)  (DRF_HW_HI((o),drf) - DRF_HW_LO((o),drf) + 1)
-#define DRF_HW_MASK(o,drf)  (~0ULL >> (64 - DRF_HW_BITS((o),drf)))
+#define DRF_HW_MASK(o,drf)  (~UINT64_C(0) >> (64 - DRF_HW_BITS((o),drf)))
 #define DRF_HW_SMASK(o,drf) (DRF_HW_MASK((o),drf) << DRF_HW_LO((o),drf))
 #define DRF_HW_GET(o,drf)   ((o)[DRF_HW_IDX(o,drf)] & DRF_HW_SMASK((o),drf))
 #define DRF_HW_VAL(o,drf,v) (((long long)(v) >> DRF_LW_BITS((o),drf)) & DRF_HW_SMASK((o),drf))
