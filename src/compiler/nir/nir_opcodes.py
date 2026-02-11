@@ -1495,13 +1495,23 @@ binop_convert("interleave", tuint32, tuint16, "", """
       be used as-is for Morton encoding.
       """)
 
-# These are like fmin/fmax, but do not flush denorms on the output which is why
-# they're modeled as conversions. AGX flushes fp32 denorms but preserves fp16
-# denorms, so fp16 fmin/fmax work without lowering.
-binop_convert("fmin_agx", tuint32, tfloat32, _2src_commutative + associative,
-              "(src0 < src1 || isnan(src1)) ? src0 : src1")
-binop_convert("fmax_agx", tuint32, tfloat32, _2src_commutative + associative,
-              "(src0 > src1 || isnan(src1)) ? src0 : src1")
+# These are like fmin/fmax, but do not flush denorms on the output. AGX flushes
+# fp16 denorms but preserves fp32 denorms, so fp16 fmin/fmax work without
+# lowering.
+binop("fmin_agx", tuint32, _2src_commutative + associative, """
+nir_const_value src0_cv = nir_const_value_for_raw_uint(src0, 32);
+nir_const_value src1_cv = nir_const_value_for_raw_uint(src1, 32);
+float src0_f = get_float_source(src0_cv, execution_mode, 32);
+float src1_f = get_float_source(src1_cv, execution_mode, 32);
+dst = (src0_f < src1_f || isnan(src1_f)) ? src0 : src1;
+""")
+binop("fmax_agx", tuint32, _2src_commutative + associative, """
+nir_const_value src0_cv = nir_const_value_for_raw_uint(src0, 32);
+nir_const_value src1_cv = nir_const_value_for_raw_uint(src1, 32);
+float src0_f = get_float_source(src0_cv, execution_mode, 32);
+float src1_f = get_float_source(src1_cv, execution_mode, 32);
+dst = (src0_f > src1_f || isnan(src1_f)) ? src0 : src1;
+""")
 
 # NVIDIA PRMT
 opcode("prmt_nv", 0, tuint32, [0, 0, 0], [tuint32, tuint32, tuint32],
