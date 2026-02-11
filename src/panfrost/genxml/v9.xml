@@ -1,5 +1,6 @@
 <!--
   Copyright (C) 2020 Collabora Ltd.
+  Copyright (C) 2026 Arm Ltd.
   SPDX-License-Identifier: MIT
 -->
 
@@ -103,6 +104,7 @@
   <enum name="Address Mode">
     <value name="Flat" value="0"/>
     <value name="Packed" value="1"/>
+    <value name="Out of bounds" value="8"/>
   </enum>
 
   <enum name="Format">
