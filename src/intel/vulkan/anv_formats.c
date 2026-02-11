@@ -631,6 +631,89 @@ anv_get_format_aspect(const struct anv_physical_device *device,
 
 // Format capabilities
 
+static bool
+anv_color_format_supports_drm_modifier_tiling(const struct anv_physical_device *physical_device,
+                                              const struct anv_format *anv_format,
+                                              const struct anv_format_plane *plane_format,
+                                              const struct isl_drm_modifier_info *isl_mod_info)
+{
+   const struct intel_device_info *devinfo = &physical_device->info;
+   const VkFormat vk_format = anv_format->vk_format;
+
+   /* Try to restrict the supported formats to those in drm_fourcc.h. The
+    * VK_EXT_image_drm_format_modifier does not require this (after all, two
+    * Vulkan apps could share an image by exchanging its VkFormat instead of a
+    * DRM_FORMAT), but there exist no users of such non-drm_fourcc formats
+    * yet. And the restriction shrinks our test surface.
+    */
+   const struct isl_format_layout *isl_layout =
+      isl_format_get_layout(plane_format->isl_format);
+
+   switch (isl_layout->colorspace) {
+   case ISL_COLORSPACE_LINEAR:
+   case ISL_COLORSPACE_SRGB:
+      /* Each DRM_FORMAT that we support uses unorm (if the DRM format name
+       * has no type suffix) or sfloat (if it has suffix F). No format
+       * contains mixed types. (as of 2021-06-14)
+       */
+      if (isl_mod_info->modifier != DRM_FORMAT_MOD_LINEAR &&
+          isl_layout->uniform_channel_type != ISL_UNORM &&
+          isl_layout->uniform_channel_type != ISL_SFLOAT)
+         return false;
+      break;
+   case ISL_COLORSPACE_YUV:
+      anv_finishme("support YUV colorspace with DRM format modifiers");
+      return false;
+   case ISL_COLORSPACE_NONE:
+      return false;
+   }
+
+   /* We could support compressed formats if we wanted to. */
+   if (isl_format_is_compressed(plane_format->isl_format))
+      return false;
+
+   /* No non-power-of-two fourcc formats exist.
+    *
+    * Even if non-power-of-two fourcc formats existed, we could support them
+    * only with DRM_FORMAT_MOD_LINEAR.  Tiled formats must be power-of-two
+    * because we implement transfers with the render pipeline.
+    */
+   if (anv_format_has_npot_plane(anv_format))
+      return false;
+
+   if (anv_format->n_planes > 1) {
+      /* VK_ANDROID_external_memory_android_hardware_buffer in Virtio-GPU
+       * Venus driver layers on top of VK_EXT_image_drm_format_modifier of
+       * the host Vulkan driver, and both VK_FORMAT_G8_B8R8_2PLANE_420_UNORM
+       * and VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM and required to support
+       * camera/media interop in Android.
+       */
+      if (vk_format != VK_FORMAT_G8_B8R8_2PLANE_420_UNORM &&
+          vk_format != VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM &&
+          vk_format != VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM &&
+          vk_format != VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM &&
+          vk_format != VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16) {
+         anv_finishme("support more multi-planar formats with DRM modifiers");
+         return false;
+      }
+
+      /* Currently there is no way to properly map memory planes to format
+       * planes and aux planes due to the lack of defined ABI for external
+       * multi-planar images.
+       */
+      if (isl_drm_modifier_has_aux(isl_mod_info->modifier)) {
+         return false;
+      }
+   }
+
+   if (isl_mod_info->supports_render_compression &&
+       !isl_format_supports_ccs_e(devinfo, plane_format->isl_format)) {
+      return false;
+   }
+
+   return true;
+}
+
 static VkFormatFeatureFlags2
 anv_get_image_format_features2(const struct anv_physical_device *physical_device,
                                const struct anv_format *anv_format,
@@ -965,79 +1048,15 @@ anv_get_image_format_features2(const struct anv_physical_device *physical_device
    }
 
    if (vk_tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
-      /* Try to restrict the supported formats to those in drm_fourcc.h. The
-       * VK_EXT_image_drm_format_modifier does not require this (after all, two
-       * Vulkan apps could share an image by exchanging its VkFormat instead of
-       * a DRM_FORMAT), but there exist no users of such non-drm_fourcc formats
-       * yet. And the restriction shrinks our test surface.
-       */
-      const struct isl_format_layout *isl_layout =
-         isl_format_get_layout(plane_format.isl_format);
-
-      switch (isl_layout->colorspace) {
-      case ISL_COLORSPACE_LINEAR:
-      case ISL_COLORSPACE_SRGB:
-         /* Each DRM_FORMAT that we support uses unorm (if the DRM format name
-          * has no type suffix) or sfloat (if it has suffix F). No format
-          * contains mixed types. (as of 2021-06-14)
-          */
-         if (isl_mod_info->modifier != DRM_FORMAT_MOD_LINEAR &&
-             isl_layout->uniform_channel_type != ISL_UNORM &&
-             isl_layout->uniform_channel_type != ISL_SFLOAT)
-            return 0;
-         break;
-      case ISL_COLORSPACE_YUV:
-         anv_finishme("support YUV colorspace with DRM format modifiers");
-         return 0;
-      case ISL_COLORSPACE_NONE:
-         return 0;
-      }
-
-      /* We could support compressed formats if we wanted to. */
-      if (isl_format_is_compressed(plane_format.isl_format))
+      if (!anv_color_format_supports_drm_modifier_tiling(physical_device,
+                                                         anv_format,
+                                                         &plane_format,
+                                                         isl_mod_info))
          return 0;
 
-      /* No non-power-of-two fourcc formats exist.
-       *
-       * Even if non-power-of-two fourcc formats existed, we could support them
-       * only with DRM_FORMAT_MOD_LINEAR.  Tiled formats must be power-of-two
-       * because we implement transfers with the render pipeline.
-       */
-      if (anv_format_has_npot_plane(anv_format))
-         return 0;
-
-      if (anv_format->n_planes > 1) {
-         /* For simplicity, keep DISJOINT disabled for multi-planar format. */
+      /* For simplicity, keep DISJOINT disabled for multi-planar format. */
+      if (anv_format->n_planes > 1)
          flags &= ~VK_FORMAT_FEATURE_2_DISJOINT_BIT;
-
-         /* VK_ANDROID_external_memory_android_hardware_buffer in Virtio-GPU
-          * Venus driver layers on top of VK_EXT_image_drm_format_modifier of
-          * the host Vulkan driver, and both VK_FORMAT_G8_B8R8_2PLANE_420_UNORM
-          * and VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM and required to support
-          * camera/media interop in Android.
-          */
-         if (vk_format != VK_FORMAT_G8_B8R8_2PLANE_420_UNORM &&
-             vk_format != VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM &&
-             vk_format != VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM &&
-             vk_format != VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM &&
-             vk_format != VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16) {
-            anv_finishme("support more multi-planar formats with DRM modifiers");
-            return 0;
-         }
-
-         /* Currently there is no way to properly map memory planes to format
-          * planes and aux planes due to the lack of defined ABI for external
-          * multi-planar images.
-          */
-         if (isl_drm_modifier_has_aux(isl_mod_info->modifier)) {
-            return 0;
-         }
-      }
-
-      if (isl_mod_info->supports_render_compression &&
-          !isl_format_supports_ccs_e(devinfo, plane_format.isl_format)) {
-         return 0;
-      }
 
       if (isl_drm_modifier_has_aux(isl_mod_info->modifier)) {
          /* Rejection DISJOINT for consistency with the GL driver. In
