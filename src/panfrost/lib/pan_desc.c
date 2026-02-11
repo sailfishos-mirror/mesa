@@ -12,6 +12,7 @@
 #include "pan_afrc.h"
 #include "pan_desc.h"
 #include "pan_encoder.h"
+#include "pan_fb.h"
 #include "pan_props.h"
 #include "pan_texture.h"
 #include "pan_trace.h"
@@ -1063,6 +1064,28 @@ pan_crc_enable(struct pan_crc *crc)
    crc->write = true;
 }
 
+#if PAN_ARCH >= 7
+/* Initialize the CRC buffer by zero'ing it. The all-zero CRC can't collide
+ * thanks to the crc_clear_color field, see pan_crc_clear_color(). Drawback is
+ * the CRC BO must be CPU mapped. */
+static void
+pan_crc_enable_zeroed(struct pan_crc *crc, struct pan_crc_state *state,
+                      const struct pan_image_view *view)
+{
+   const struct pan_image_plane_ref pref =
+      pan_image_view_get_color_plane(view);
+   const struct pan_image_plane *plane = pref.image->planes[pref.plane_idx];
+   const struct pan_image_slice_layout *slice =
+      &plane->layout.slices[view->first_level];
+
+   assert(state->ptr && state->ptr->cpu);
+   memset(state->ptr->cpu + slice->crc.offset_B, 0, slice->crc.size_B);
+
+   pan_crc_enable(crc);
+   state->valid = true;
+}
+#endif
+
 /* Take advantage of a full frame draw to initialize the CRC buffer by
  * forcefully writing back all the tiles and flush the CRC values. Drawback
  * is it only works on full frames. */
@@ -1082,8 +1105,9 @@ pan_crc_maybe_enable_flushed(struct pan_crc *crc, struct pan_crc_state *state,
 static uint64_t
 pan_crc_clear_color(const struct pan_fb_info *fb)
 {
-   uint64_t crc_clear_flag = 1;
-   uint64_t crc_clear_base = 0;
+   uint64_t base[PAN_MAX_RTS] = { 0, }; /* Compiler auto-vectorization hint */
+   uint64_t crc_clear_flag = 0;
+   uint64_t crc_clear_base = 1ull << 46;
    uint64_t crc_init = 0;
 
    /* When a tile is clear (i.e. no polygons intersect it), the configured
@@ -1095,14 +1119,18 @@ pan_crc_clear_color(const struct pan_fb_info *fb)
     * render on the selected RT. It's done by comparing CRCs in the CRC buffer
     * to the crc_clear_color.
     *
-    * The crc_clear_flag sub-field (bit 63) is flagged set here. It's flipped
-    * by the GPU when writing standard (i.e. non-empty) CRCs.
+    * The crc_clear_flag sub-field (bit 63) is flagged unset here. It's
+    * flipped by the GPU when writing standard (i.e. non-empty) CRCs. This
+    * prevents standard CRCs from using the all-zero CRC value. Empty CRCs
+    * can't use the all-zero CRC value either because crc_clear_base's most
+    * significant bit is flagged set here. This allows to invalidate a CRC
+    * buffer by zero'ing it.
     *
     * v10 introduced the crc_init sub-field (bits 15:0). v7 and v9 can use
     * those as additional crc_clear_base bits. We don't use it for now and
     * keep those 16 bits clear regardless of arch.
     *
-    * This leaves 47 bits in the crc_clear_base sub-field (bits 62:16). Clear
+    * This leaves 46 bits in the crc_clear_base sub-field (bits 62:16). Clear
     * color changes on any RTs must be reflected into this field in order to
     * properly invalidate CRCs stored this way. This is done by hashing the
     * clear value channels of each cleared RT. Each clear color channel value
@@ -1110,15 +1138,19 @@ pan_crc_clear_color(const struct pan_fb_info *fb)
     * hash. Clear values in pan_fb_info struct are expected to be packed with
     * respect to the format and dithering of the underlying RTs so that a
     * change of format (without a clear color change) can generate a different
-    * hash. The prime number 32749 is carefully selected so that the 32 bits
-    * of each clear color channel take at most 47 bits after the mul (the next
-    * prime number 32771 takes at most 48 bits). The resulting hash value is
+    * hash. The prime number 16381 is carefully selected so that the 32 bits
+    * of each clear color channel take at most 46 bits after the mul (the next
+    * prime number 16411 takes at most 47 bits). The resulting hash value is
     * guaranteed not to overflow and can safely be packed. */
 
+   static const uint64_t primes[4] = { 16381ULL, 16369ULL, 16363ULL, 16361ULL };
    for (unsigned i = 0; i < fb->rt_count; ++i)
       if (fb->rts[i].clear)
          for (unsigned j = 0; j < 4; ++j)
-            crc_clear_base ^= 32749 * fb->rts[i].clear_value[j];
+            base[i] ^= primes[j] * fb->rts[i].clear_value[j] * (i + 1);
+
+   crc_clear_base |= (base[0] ^ base[1]) ^ (base[2] ^ base[3]) ^
+      (base[4] ^ base[5]) ^ (base[6] ^ base[7]);
 
    return (crc_clear_flag << 63) | (crc_clear_base << 16) | crc_init;
 }
@@ -1167,7 +1199,14 @@ pan_get_crc_info(const struct pan_fb_info *fb)
    if (rt->crc_state->valid) {
       pan_crc_enable(&crc);
    } else {
+#if PAN_ARCH >= 7
+      if (rt->crc_state->ptr && rt->crc_state->ptr->cpu)
+         pan_crc_enable_zeroed(&crc, rt->crc_state, rt->view);
+      else
+         pan_crc_maybe_enable_flushed(&crc, rt->crc_state, fb);
+#else
       pan_crc_maybe_enable_flushed(&crc, rt->crc_state, fb);
+#endif
    }
 
 #if PAN_ARCH >= 6
@@ -1176,7 +1215,11 @@ pan_get_crc_info(const struct pan_fb_info *fb)
 #if PAN_ARCH >= 7
       crc.clear_color = pan_crc_clear_color(fb);
 #endif
-      crc.empty_tile_read = crc.read;
+      /* Only enable empty tile elimination with a single RT. ETE will stop
+       * processing of an entire tile including all RTs. This could be
+       * improved to skip tiles where we know it's safe in the future.
+       */
+      crc.empty_tile_read = crc.read && (fb->rt_count == 1);
       crc.empty_tile_write = crc.write;
    }
 #endif

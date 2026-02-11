@@ -27,6 +27,9 @@ struct pan_compute_dim {
 };
 
 struct pan_crc_state {
+   /* Pointer to BO mapping. */
+   struct pan_ptr *ptr;
+
    /* Is the CRC buffer valid? Implicitly refers to the first slice. */
    bool valid;
 };
@@ -208,6 +211,12 @@ static inline void
 pan_crc_state_invalidate(struct pan_crc_state *state)
 {
    state->valid = false;
+}
+
+static inline void
+pan_crc_state_set_ptr(struct pan_crc_state *state, struct pan_ptr *ptr)
+{
+   state->ptr = ptr;
 }
 
 static inline bool
