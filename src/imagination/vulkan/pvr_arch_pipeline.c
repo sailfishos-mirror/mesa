@@ -1547,8 +1547,11 @@ static void pvr_graphics_pipeline_setup_fragment_coeff_program(
       assert(vtxout_range->count > 0);
       assert(vtxout_range->start >= 4);
 
-      assert(vtxout_range->count ==
-             cf_range->count / ROGUE_USC_COEFFICIENT_SET_SIZE);
+      if (vtxout_range->count !=
+          cf_range->count / ROGUE_USC_COEFFICIENT_SET_SIZE) {
+         pvr_finishme("Mismatch in vs output/fs input counts; "
+                      "amend nir var linking.");
+      }
 
       unsigned count = vtxout_range->count;
 
