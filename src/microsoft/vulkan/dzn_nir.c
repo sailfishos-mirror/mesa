@@ -374,7 +374,8 @@ dzn_nir_triangle_fan_prim_restart_rewrite_index_shader(uint8_t old_index_size)
     * TODO: Might be a good thing to use use the CL compiler we have and turn
     * those shaders into CL kernels.
     */
-   nir_push_loop(&b);
+   nir_loop *loop = nir_push_loop(&b);
+   nir_loop_add_continue_construct(loop);
 
    old_index_ptr = nir_load_var(&b, old_index_ptr_var);
    nir_def *index0 = nir_load_var(&b, index0_var);
@@ -444,6 +445,8 @@ dzn_nir_triangle_fan_prim_restart_rewrite_index_shader(uint8_t old_index_size)
    nir_store_ssbo(&b, nir_load_var(&b, new_index_ptr_var),
                   new_index_count_ptr_desc, nir_imm_int(&b, 0),
                   .write_mask = 1, .access = ACCESS_NON_READABLE, .align_mul = 4);
+
+   nir_lower_continue_constructs(b.shader);
 
    return b.shader;
 }
