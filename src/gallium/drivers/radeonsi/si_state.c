@@ -1831,10 +1831,14 @@ static void si_emit_db_render_state(struct si_context *sctx, unsigned index)
    }
 
    unsigned db_render_override2 =
-         S_028010_DISABLE_ZMASK_EXPCLEAR_OPTIMIZATION(sctx->db_depth_disable_expclear) |
-         S_028010_DISABLE_SMEM_EXPCLEAR_OPTIMIZATION(sctx->db_stencil_disable_expclear) |
          S_028010_DECOMPRESS_Z_ON_FLUSH(sctx->framebuffer.nr_samples >= 4) |
          S_028010_CENTROID_COMPUTATION_MODE(sctx->gfx_level >= GFX10_3 ? 1 : 0);
+
+   if (sctx->gfx_level <= GFX11_5) {
+      db_render_override2 |=
+         S_028010_DISABLE_ZMASK_EXPCLEAR_OPTIMIZATION(sctx->db_depth_disable_expclear) |
+         S_028010_DISABLE_SMEM_EXPCLEAR_OPTIMIZATION(sctx->db_stencil_disable_expclear);
+   }
 
    if (sctx->gfx_level >= GFX12) {
       radeon_begin(&sctx->gfx_cs);
@@ -2406,7 +2410,7 @@ static void si_init_depth_surface(struct si_context *sctx)
       .num_samples = tex->buffer.b.b.nr_samples,
       .first_layer = sctx->framebuffer.state.zsbuf.first_layer,
       .last_layer = sctx->framebuffer.state.zsbuf.last_layer,
-      .allow_expclear = true,
+      .allow_expclear = sctx->gfx_level <= GFX11_5,
       .htile_enabled = sctx->gfx_level < GFX12 && si_htile_enabled(tex, level, PIPE_MASK_ZS),
       .htile_stencil_disabled = tex->htile_stencil_disabled,
    };
