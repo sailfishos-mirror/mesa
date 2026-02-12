@@ -80,17 +80,6 @@ vk_cmd_push_descriptor_set_with_template2_free(
 
    vk_descriptor_update_template_unref(device, templ);
    vk_pipeline_layout_unref(device, layout);
-
-   if (info->pNext) {
-      VkPipelineLayoutCreateInfo *pnext = (void *)info->pNext;
-
-      vk_free(queue->alloc, (void *)pnext->pSetLayouts);
-      vk_free(queue->alloc, (void *)pnext->pPushConstantRanges);
-      vk_free(queue->alloc, pnext);
-   }
-
-   vk_free(queue->alloc, (void *)info->pData);
-   vk_free(queue->alloc, info);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -102,9 +91,7 @@ vk_cmd_enqueue_CmdPushDescriptorSetWithTemplate2(
 
    struct vk_cmd_queue *queue = &cmd_buffer->cmd_queue;
 
-   struct vk_cmd_queue_entry *cmd =
-      vk_zalloc(cmd_buffer->cmd_queue.alloc, sizeof(*cmd), 8,
-                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   struct vk_cmd_queue_entry *cmd = linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*cmd));
    if (!cmd)
       return;
 
@@ -113,9 +100,7 @@ vk_cmd_enqueue_CmdPushDescriptorSetWithTemplate2(
    list_addtail(&cmd->cmd_link, &cmd_buffer->cmd_queue.cmds);
 
    VkPushDescriptorSetWithTemplateInfoKHR *info =
-      vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                sizeof(VkPushDescriptorSetWithTemplateInfoKHR), 8,
-                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(VkPushDescriptorSetWithTemplateInfoKHR));
 
    cmd->u.push_descriptor_set_with_template2
       .push_descriptor_set_with_template_info = info;
@@ -165,8 +150,7 @@ vk_cmd_enqueue_CmdPushDescriptorSetWithTemplate2(
       data_size = MAX2(data_size, end);
    }
 
-   uint8_t *out_pData = vk_zalloc(cmd_buffer->cmd_queue.alloc, data_size, 8,
-                                  VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   uint8_t *out_pData = linear_alloc_child(cmd_buffer->cmd_queue.ctx, data_size);
    const uint8_t *pData = pPushDescriptorSetWithTemplateInfo->pData;
 
    /* Now walk the template again, copying what we actually need */
@@ -282,8 +266,7 @@ vk_cmd_enqueue_CmdDrawMultiEXT(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
 
    struct vk_cmd_queue_entry *cmd =
-      vk_zalloc(cmd_buffer->cmd_queue.alloc, sizeof(*cmd), 8,
-                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*cmd));
    if (!cmd)
       return;
 
@@ -294,9 +277,8 @@ vk_cmd_enqueue_CmdDrawMultiEXT(VkCommandBuffer commandBuffer,
    if (pVertexInfo) {
       unsigned i = 0;
       cmd->u.draw_multi_ext.vertex_info =
-         vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                   sizeof(*cmd->u.draw_multi_ext.vertex_info) * drawCount, 8,
-                   VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         linear_alloc_child(cmd_buffer->cmd_queue.ctx,
+                            sizeof(*cmd->u.draw_multi_ext.vertex_info) * drawCount);
 
       vk_foreach_multi_draw(draw, i, pVertexInfo, drawCount, stride) {
          memcpy(&cmd->u.draw_multi_ext.vertex_info[i], draw,
@@ -320,8 +302,7 @@ vk_cmd_enqueue_CmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
 
    struct vk_cmd_queue_entry *cmd =
-      vk_zalloc(cmd_buffer->cmd_queue.alloc, sizeof(*cmd), 8,
-                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*cmd));
    if (!cmd)
       return;
 
@@ -333,9 +314,8 @@ vk_cmd_enqueue_CmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer,
    if (pIndexInfo) {
       unsigned i = 0;
       cmd->u.draw_multi_indexed_ext.index_info =
-         vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                   sizeof(*cmd->u.draw_multi_indexed_ext.index_info) * drawCount, 8,
-                   VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         linear_alloc_child(cmd_buffer->cmd_queue.ctx,
+                            sizeof(*cmd->u.draw_multi_indexed_ext.index_info) * drawCount);
 
       vk_foreach_multi_draw_indexed(draw, i, pIndexInfo, drawCount, stride) {
          cmd->u.draw_multi_indexed_ext.index_info[i].firstIndex = draw->firstIndex;
@@ -351,9 +331,8 @@ vk_cmd_enqueue_CmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer,
 
    if (pVertexOffset) {
       cmd->u.draw_multi_indexed_ext.vertex_offset =
-         vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                   sizeof(*cmd->u.draw_multi_indexed_ext.vertex_offset), 8,
-                   VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         linear_alloc_child(cmd_buffer->cmd_queue.ctx,
+                            sizeof(*cmd->u.draw_multi_indexed_ext.vertex_offset));
 
       memcpy(cmd->u.draw_multi_indexed_ext.vertex_offset, pVertexOffset,
              sizeof(*cmd->u.draw_multi_indexed_ext.vertex_offset));
@@ -370,30 +349,6 @@ push_descriptors_set_free(struct vk_cmd_queue *queue,
 
    VK_FROM_HANDLE(vk_pipeline_layout, vk_layout, pds->layout);
    vk_pipeline_layout_unref(cmd_buffer->base.device, vk_layout);
-
-  for (unsigned i = 0; i < pds->descriptor_write_count; i++) {
-    VkWriteDescriptorSet *entry = &pds->descriptor_writes[i];
-    switch (entry->descriptorType) {
-    case VK_DESCRIPTOR_TYPE_SAMPLER:
-    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-    case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-    case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-       vk_free(queue->alloc, (void *)entry->pImageInfo);
-       break;
-    case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-       vk_free(queue->alloc, (void *)entry->pTexelBufferView);
-       break;
-    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-    default:
-       vk_free(queue->alloc, (void *)entry->pBufferInfo);
-       break;
-    }
-  }
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -408,8 +363,7 @@ vk_cmd_enqueue_CmdPushDescriptorSet(VkCommandBuffer commandBuffer,
    struct vk_cmd_push_descriptor_set *pds;
 
    struct vk_cmd_queue_entry *cmd =
-      vk_zalloc(cmd_buffer->cmd_queue.alloc, sizeof(*cmd), 8,
-                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*cmd));
    if (!cmd)
       return;
 
@@ -432,9 +386,8 @@ vk_cmd_enqueue_CmdPushDescriptorSet(VkCommandBuffer commandBuffer,
 
    if (pDescriptorWrites) {
       pds->descriptor_writes =
-         vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                   sizeof(*pds->descriptor_writes) * descriptorWriteCount, 8,
-                   VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         linear_alloc_child(cmd_buffer->cmd_queue.ctx,
+                            sizeof(*pds->descriptor_writes) * descriptorWriteCount);
       memcpy(pds->descriptor_writes,
              pDescriptorWrites,
              sizeof(*pds->descriptor_writes) * descriptorWriteCount);
@@ -447,9 +400,8 @@ vk_cmd_enqueue_CmdPushDescriptorSet(VkCommandBuffer commandBuffer,
          case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
          case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
             pds->descriptor_writes[i].pImageInfo =
-               vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                         sizeof(VkDescriptorImageInfo) * pds->descriptor_writes[i].descriptorCount, 8,
-                         VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+               linear_alloc_child(cmd_buffer->cmd_queue.ctx,
+                                  sizeof(VkDescriptorImageInfo) * pds->descriptor_writes[i].descriptorCount);
             memcpy((VkDescriptorImageInfo *)pds->descriptor_writes[i].pImageInfo,
                    pDescriptorWrites[i].pImageInfo,
                    sizeof(VkDescriptorImageInfo) * pds->descriptor_writes[i].descriptorCount);
@@ -457,9 +409,8 @@ vk_cmd_enqueue_CmdPushDescriptorSet(VkCommandBuffer commandBuffer,
          case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
          case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
             pds->descriptor_writes[i].pTexelBufferView =
-               vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                         sizeof(VkBufferView) * pds->descriptor_writes[i].descriptorCount, 8,
-                         VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+               linear_alloc_child(cmd_buffer->cmd_queue.ctx,
+                                  sizeof(VkBufferView) * pds->descriptor_writes[i].descriptorCount);
             memcpy((VkBufferView *)pds->descriptor_writes[i].pTexelBufferView,
                    pDescriptorWrites[i].pTexelBufferView,
                    sizeof(VkBufferView) * pds->descriptor_writes[i].descriptorCount);
@@ -470,9 +421,8 @@ vk_cmd_enqueue_CmdPushDescriptorSet(VkCommandBuffer commandBuffer,
          case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
          default:
             pds->descriptor_writes[i].pBufferInfo =
-               vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                         sizeof(VkDescriptorBufferInfo) * pds->descriptor_writes[i].descriptorCount, 8,
-                         VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+               linear_zalloc_child(cmd_buffer->cmd_queue.ctx,
+                                   sizeof(VkDescriptorBufferInfo) * pds->descriptor_writes[i].descriptorCount);
             memcpy((VkDescriptorBufferInfo *)pds->descriptor_writes[i].pBufferInfo,
                    pDescriptorWrites[i].pBufferInfo,
                    sizeof(VkDescriptorBufferInfo) * pds->descriptor_writes[i].descriptorCount);
@@ -509,8 +459,7 @@ vk_cmd_enqueue_CmdBindDescriptorSets(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
 
    struct vk_cmd_queue_entry *cmd =
-      vk_zalloc(cmd_buffer->cmd_queue.alloc, sizeof(*cmd), 8,
-                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*cmd));
    if (!cmd)
       return;
 
@@ -530,9 +479,8 @@ vk_cmd_enqueue_CmdBindDescriptorSets(VkCommandBuffer commandBuffer,
    cmd->u.bind_descriptor_sets.descriptor_set_count = descriptorSetCount;
    if (pDescriptorSets) {
       cmd->u.bind_descriptor_sets.descriptor_sets =
-         vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                   sizeof(*cmd->u.bind_descriptor_sets.descriptor_sets) * descriptorSetCount, 8,
-                   VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         linear_alloc_child(cmd_buffer->cmd_queue.ctx,
+                            sizeof(*cmd->u.bind_descriptor_sets.descriptor_sets) * descriptorSetCount);
 
       memcpy(cmd->u.bind_descriptor_sets.descriptor_sets, pDescriptorSets,
              sizeof(*cmd->u.bind_descriptor_sets.descriptor_sets) * descriptorSetCount);
@@ -540,9 +488,8 @@ vk_cmd_enqueue_CmdBindDescriptorSets(VkCommandBuffer commandBuffer,
    cmd->u.bind_descriptor_sets.dynamic_offset_count = dynamicOffsetCount;
    if (pDynamicOffsets) {
       cmd->u.bind_descriptor_sets.dynamic_offsets =
-         vk_zalloc(cmd_buffer->cmd_queue.alloc,
-                   sizeof(*cmd->u.bind_descriptor_sets.dynamic_offsets) * dynamicOffsetCount, 8,
-                   VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         linear_alloc_child(cmd_buffer->cmd_queue.ctx,
+                            sizeof(*cmd->u.bind_descriptor_sets.dynamic_offsets) * dynamicOffsetCount);
 
       memcpy(cmd->u.bind_descriptor_sets.dynamic_offsets, pDynamicOffsets,
              sizeof(*cmd->u.bind_descriptor_sets.dynamic_offsets) * dynamicOffsetCount);
@@ -550,19 +497,6 @@ vk_cmd_enqueue_CmdBindDescriptorSets(VkCommandBuffer commandBuffer,
 }
 
 #ifdef VK_ENABLE_BETA_EXTENSIONS
-static void
-dispatch_graph_amdx_free(struct vk_cmd_queue *queue, struct vk_cmd_queue_entry *cmd)
-{
-   VkDispatchGraphCountInfoAMDX *count_info = cmd->u.dispatch_graph_amdx.count_info;
-   void *infos = (void *)count_info->infos.hostAddress;
-
-   for (uint32_t i = 0; i < count_info->count; i++) {
-      VkDispatchGraphInfoAMDX *info = (void *)((const uint8_t *)infos + i * count_info->stride);
-      vk_free(queue->alloc, (void *)info->payloads.hostAddress);
-   }
-
-   vk_free(queue->alloc, infos);
-}
 
 VKAPI_ATTR void VKAPI_CALL
 vk_cmd_enqueue_CmdDispatchGraphAMDX(VkCommandBuffer commandBuffer, VkDeviceAddress scratch,
@@ -575,31 +509,30 @@ vk_cmd_enqueue_CmdDispatchGraphAMDX(VkCommandBuffer commandBuffer, VkDeviceAddre
       return;
 
    VkResult result = VK_SUCCESS;
-   const VkAllocationCallbacks *alloc = cmd_buffer->cmd_queue.alloc;
+   linear_ctx *ctx = cmd_buffer->cmd_queue.ctx;
 
-   struct vk_cmd_queue_entry *cmd =
-      vk_zalloc(alloc, sizeof(struct vk_cmd_queue_entry), 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   struct vk_cmd_queue_entry *cmd = linear_zalloc_child(ctx, sizeof(struct vk_cmd_queue_entry));
    if (!cmd) {
       result = VK_ERROR_OUT_OF_HOST_MEMORY;
-      goto err;
+      goto finish;
    }
 
    cmd->type = VK_CMD_DISPATCH_GRAPH_AMDX;
-   cmd->driver_free_cb = dispatch_graph_amdx_free;
 
    cmd->u.dispatch_graph_amdx.scratch = scratch;
    cmd->u.dispatch_graph_amdx.scratch_size = scratchSize;
 
-   cmd->u.dispatch_graph_amdx.count_info =
-      vk_zalloc(alloc, sizeof(VkDispatchGraphCountInfoAMDX), 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-   if (cmd->u.dispatch_graph_amdx.count_info == NULL)
-      goto err;
+   cmd->u.dispatch_graph_amdx.count_info = linear_alloc_child(ctx, sizeof(VkDispatchGraphCountInfoAMDX));
+   if (cmd->u.dispatch_graph_amdx.count_info == NULL) {
+      result = VK_ERROR_OUT_OF_HOST_MEMORY;
+      goto finish;
+   }
 
    memcpy((void *)cmd->u.dispatch_graph_amdx.count_info, pCountInfo,
           sizeof(VkDispatchGraphCountInfoAMDX));
 
    uint32_t infos_size = pCountInfo->count * pCountInfo->stride;
-   void *infos = vk_zalloc(alloc, infos_size, 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   void *infos = linear_alloc_child(ctx, infos_size);
    cmd->u.dispatch_graph_amdx.count_info->infos.hostAddress = infos;
    memcpy(infos, pCountInfo->infos.hostAddress, infos_size);
 
@@ -607,37 +540,17 @@ vk_cmd_enqueue_CmdDispatchGraphAMDX(VkCommandBuffer commandBuffer, VkDeviceAddre
       VkDispatchGraphInfoAMDX *info = (void *)((const uint8_t *)infos + i * pCountInfo->stride);
 
       uint32_t payloads_size = info->payloadCount * info->payloadStride;
-      void *dst_payload = vk_zalloc(alloc, payloads_size, 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      void *dst_payload = linear_alloc_child(ctx, payloads_size);
       memcpy(dst_payload, info->payloads.hostAddress, payloads_size);
       info->payloads.hostAddress = dst_payload;
    }
 
    list_addtail(&cmd->cmd_link, &cmd_buffer->cmd_queue.cmds);
-   goto finish;
-err:
-   if (cmd) {
-      vk_free(alloc, cmd);
-      dispatch_graph_amdx_free(&cmd_buffer->cmd_queue, cmd);
-   }
-
 finish:
    if (unlikely(result != VK_SUCCESS))
       vk_command_buffer_set_error(cmd_buffer, result);
 }
 #endif
-
-static void
-vk_cmd_build_acceleration_structures_khr_free(struct vk_cmd_queue *queue,
-                                              struct vk_cmd_queue_entry *cmd)
-{
-   struct vk_cmd_build_acceleration_structures_khr *build =
-      &cmd->u.build_acceleration_structures_khr;
-   
-   for (uint32_t i = 0; i < build->info_count; i++) {
-      vk_free(queue->alloc, (void *)build->infos[i].pGeometries);
-      vk_free(queue->alloc, (void *)build->pp_build_range_infos[i]);
-   }
-}
 
 VKAPI_ATTR void VKAPI_CALL
 vk_cmd_enqueue_CmdBuildAccelerationStructuresKHR(
@@ -653,21 +566,18 @@ vk_cmd_enqueue_CmdBuildAccelerationStructuresKHR(
    struct vk_cmd_queue *queue = &cmd_buffer->cmd_queue;
 
    struct vk_cmd_queue_entry *cmd =
-      vk_zalloc(queue->alloc, vk_cmd_queue_type_sizes[VK_CMD_BUILD_ACCELERATION_STRUCTURES_KHR], 8,
-                VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      linear_zalloc_child(queue->ctx, vk_cmd_queue_type_sizes[VK_CMD_BUILD_ACCELERATION_STRUCTURES_KHR]);
    if (!cmd)
       goto err;
 
    cmd->type = VK_CMD_BUILD_ACCELERATION_STRUCTURES_KHR;
-   cmd->driver_free_cb = vk_cmd_build_acceleration_structures_khr_free;
 
    struct vk_cmd_build_acceleration_structures_khr *build =
       &cmd->u.build_acceleration_structures_khr;
 
    build->info_count = infoCount;
    if (pInfos) {
-      build->infos = vk_zalloc(queue->alloc, sizeof(*build->infos) * infoCount, 8,
-                               VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      build->infos = linear_alloc_child(queue->ctx, sizeof(*build->infos) * infoCount);
       if (!build->infos)
          goto err;
 
@@ -677,8 +587,7 @@ vk_cmd_enqueue_CmdBuildAccelerationStructuresKHR(
       for (uint32_t i = 0; i < infoCount; i++) {
          uint32_t geometries_size =
             build->infos[i].geometryCount * sizeof(VkAccelerationStructureGeometryKHR);
-         VkAccelerationStructureGeometryKHR *geometries =
-            vk_zalloc(queue->alloc, geometries_size, 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         VkAccelerationStructureGeometryKHR *geometries = linear_alloc_child(queue->ctx, geometries_size);
          if (!geometries)
             goto err;
 
@@ -694,8 +603,7 @@ vk_cmd_enqueue_CmdBuildAccelerationStructuresKHR(
    }
    if (ppBuildRangeInfos) {
       build->pp_build_range_infos =
-         vk_zalloc(queue->alloc, sizeof(*build->pp_build_range_infos) * infoCount, 8,
-                   VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         linear_alloc_child(queue->ctx, sizeof(*build->pp_build_range_infos) * infoCount);
       if (!build->pp_build_range_infos)
          goto err;
 
@@ -706,7 +614,7 @@ vk_cmd_enqueue_CmdBuildAccelerationStructuresKHR(
          uint32_t build_range_size =
             build->infos[i].geometryCount * sizeof(VkAccelerationStructureBuildRangeInfoKHR);
          VkAccelerationStructureBuildRangeInfoKHR *p_build_range_infos =
-            vk_zalloc(queue->alloc, build_range_size, 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+            linear_alloc_child(queue->ctx, build_range_size);
          if (!p_build_range_infos)
             goto err;
 
@@ -720,9 +628,6 @@ vk_cmd_enqueue_CmdBuildAccelerationStructuresKHR(
    return;
 
 err:
-   if (cmd)
-      vk_cmd_build_acceleration_structures_khr_free(queue, cmd);
-
    vk_command_buffer_set_error(cmd_buffer, VK_ERROR_OUT_OF_HOST_MEMORY);
 }
 
@@ -733,17 +638,15 @@ VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushConstants2(
    VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
    struct vk_cmd_queue *queue = &cmd_buffer->cmd_queue;
 
-   struct vk_cmd_queue_entry *cmd = vk_zalloc(queue->alloc, vk_cmd_queue_type_sizes[VK_CMD_PUSH_CONSTANTS2], 8,
-                                              VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   struct vk_cmd_queue_entry *cmd =
+      linear_zalloc_child(queue->ctx, vk_cmd_queue_type_sizes[VK_CMD_PUSH_CONSTANTS2]);
    if (!cmd)
       return;
 
    cmd->type = VK_CMD_PUSH_CONSTANTS2;
 
-   VkPushConstantsInfoKHR *info = vk_zalloc(queue->alloc, sizeof(*info), 8,
-                                            VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-   void *pValues = vk_zalloc(queue->alloc, pPushConstantsInfo->size, 8,
-                             VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   VkPushConstantsInfoKHR *info = linear_alloc_child(queue->ctx, sizeof(*info));
+   void *pValues = linear_alloc_child(queue->ctx, pPushConstantsInfo->size);
 
    memcpy(info, pPushConstantsInfo, sizeof(*info));
    memcpy(pValues, pPushConstantsInfo->pValues, pPushConstantsInfo->size);
@@ -754,31 +657,19 @@ VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushConstants2(
    list_addtail(&cmd->cmd_link, &cmd_buffer->cmd_queue.cmds);
 }
 
-static void
-vk_free_cmd_push_descriptor_set2(struct vk_cmd_queue *queue,
-                                 struct vk_cmd_queue_entry *cmd)
-{
-   ralloc_free(cmd->driver_data);
-
-   vk_free(queue->alloc, (void *)cmd->u.push_descriptor_set2.push_descriptor_set_info->pDescriptorWrites);
-   vk_free(queue->alloc, cmd->u.push_descriptor_set2.push_descriptor_set_info);
-}
-
 VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushDescriptorSet2(
     VkCommandBuffer                             commandBuffer,
     const VkPushDescriptorSetInfoKHR*           pPushDescriptorSetInfo)
 {
    VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
-   struct vk_cmd_queue_entry *cmd = vk_zalloc(cmd_buffer->cmd_queue.alloc, vk_cmd_queue_type_sizes[VK_CMD_PUSH_DESCRIPTOR_SET2], 8,
-                                              VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+   struct vk_cmd_queue_entry *cmd =
+      linear_zalloc_child(cmd_buffer->cmd_queue.ctx, vk_cmd_queue_type_sizes[VK_CMD_PUSH_DESCRIPTOR_SET2]);
 
    cmd->type = VK_CMD_PUSH_DESCRIPTOR_SET2;
-   cmd->driver_free_cb = vk_free_cmd_push_descriptor_set2;
 
-   void *ctx = cmd->driver_data = ralloc_context(NULL);
    if (pPushDescriptorSetInfo) {
-      cmd->u.push_descriptor_set2.push_descriptor_set_info = vk_zalloc(cmd_buffer->cmd_queue.alloc, sizeof(VkPushDescriptorSetInfoKHR), 8,
-                                                                           VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+      cmd->u.push_descriptor_set2.push_descriptor_set_info =
+         linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(VkPushDescriptorSetInfoKHR));
 
       memcpy((void*)cmd->u.push_descriptor_set2.push_descriptor_set_info, pPushDescriptorSetInfo, sizeof(VkPushDescriptorSetInfoKHR));
       VkPushDescriptorSetInfoKHR *tmp_dst1 = (void *) cmd->u.push_descriptor_set2.push_descriptor_set_info; (void) tmp_dst1;
@@ -789,18 +680,20 @@ VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushDescriptorSet2(
          switch ((int32_t)pnext->sType) {
          case VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO:
             if (pnext) {
-               tmp_dst1->pNext = rzalloc(ctx, VkPipelineLayoutCreateInfo);
+               tmp_dst1->pNext = linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(VkPipelineLayoutCreateInfo));
 
                memcpy((void*)tmp_dst1->pNext, pnext, sizeof(VkPipelineLayoutCreateInfo));
                VkPipelineLayoutCreateInfo *tmp_dst2 = (void *) tmp_dst1->pNext; (void) tmp_dst2;
                VkPipelineLayoutCreateInfo *tmp_src2 = (void *) pnext; (void) tmp_src2;
                if (tmp_src2->pSetLayouts) {
-                  tmp_dst2->pSetLayouts = rzalloc_array_size(ctx, sizeof(*tmp_dst2->pSetLayouts), tmp_dst2->setLayoutCount);
+                  tmp_dst2->pSetLayouts =
+                     linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*tmp_dst2->pSetLayouts) * tmp_dst2->setLayoutCount);
 
                   memcpy((void*)tmp_dst2->pSetLayouts, tmp_src2->pSetLayouts, sizeof(*tmp_dst2->pSetLayouts) * tmp_dst2->setLayoutCount);
                }
                if (tmp_src2->pPushConstantRanges) {
-                  tmp_dst2->pPushConstantRanges = rzalloc_array_size(ctx, sizeof(*tmp_dst2->pPushConstantRanges), tmp_dst2->pushConstantRangeCount);
+                  tmp_dst2->pPushConstantRanges =
+                     linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*tmp_dst2->pPushConstantRanges) * tmp_dst2->pushConstantRangeCount);
 
                   memcpy((void*)tmp_dst2->pPushConstantRanges, tmp_src2->pPushConstantRanges, sizeof(*tmp_dst2->pPushConstantRanges) * tmp_dst2->pushConstantRangeCount);
                }
@@ -812,8 +705,8 @@ VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushDescriptorSet2(
          }
       }
       if (tmp_src1->pDescriptorWrites) {
-         tmp_dst1->pDescriptorWrites = vk_zalloc(cmd_buffer->cmd_queue.alloc, sizeof(*tmp_dst1->pDescriptorWrites) * tmp_dst1->descriptorWriteCount, 8,
-                                                 VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
+         tmp_dst1->pDescriptorWrites =
+            linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*tmp_dst1->pDescriptorWrites) * tmp_dst1->descriptorWriteCount);
 
          memcpy((void*)tmp_dst1->pDescriptorWrites, tmp_src1->pDescriptorWrites, sizeof(*tmp_dst1->pDescriptorWrites) * tmp_dst1->descriptorWriteCount);
          for (unsigned i = 0; i < tmp_src1->descriptorWriteCount; i++) {
@@ -823,9 +716,10 @@ VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushDescriptorSet2(
             case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK: {
                const VkWriteDescriptorSetInlineUniformBlock *uniform_data = vk_find_struct_const(write->pNext, WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK);
                assert(uniform_data);
-               VkWriteDescriptorSetInlineUniformBlock *dst = rzalloc(ctx, VkWriteDescriptorSetInlineUniformBlock);
+               VkWriteDescriptorSetInlineUniformBlock *dst =
+                  linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(VkWriteDescriptorSetInlineUniformBlock));
                memcpy((void*)dst, uniform_data, sizeof(*uniform_data));
-               dst->pData = ralloc_size(ctx, uniform_data->dataSize);
+               dst->pData = linear_alloc_child(cmd_buffer->cmd_queue.ctx, uniform_data->dataSize);
                memcpy((void*)dst->pData, uniform_data->pData, uniform_data->dataSize);
                dstwrite->pNext = dst;
                break;
@@ -836,7 +730,7 @@ VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushDescriptorSet2(
             case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
             case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
             case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-               dstwrite->pImageInfo = rzalloc_array(ctx, VkDescriptorImageInfo, write->descriptorCount);
+               dstwrite->pImageInfo = linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(VkDescriptorImageInfo) * write->descriptorCount);
                {
                   VkDescriptorImageInfo *arr = (void*)dstwrite->pImageInfo;
                   typed_memcpy(arr, write->pImageInfo, write->descriptorCount);
@@ -845,7 +739,7 @@ VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushDescriptorSet2(
 
             case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
             case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-               dstwrite->pTexelBufferView = rzalloc_array(ctx, VkBufferView, write->descriptorCount);
+               dstwrite->pTexelBufferView = linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(VkBufferView) * write->descriptorCount);
                {
                   VkBufferView *arr = (void*)dstwrite->pTexelBufferView;
                   typed_memcpy(arr, write->pTexelBufferView, write->descriptorCount);
@@ -856,7 +750,7 @@ VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushDescriptorSet2(
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-               dstwrite->pBufferInfo = rzalloc_array(ctx, VkDescriptorBufferInfo, write->descriptorCount);
+               dstwrite->pBufferInfo = linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(VkDescriptorBufferInfo) * write->descriptorCount);
                {
                   VkDescriptorBufferInfo *arr = (void*)dstwrite->pBufferInfo;
                   typed_memcpy(arr, write->pBufferInfo, write->descriptorCount);
@@ -869,8 +763,9 @@ VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushDescriptorSet2(
 
                uint32_t accel_structs_size = sizeof(VkAccelerationStructureKHR) * accel_structs->accelerationStructureCount;
                VkWriteDescriptorSetAccelerationStructureKHR *write_accel_structs =
-                  rzalloc_size(ctx, sizeof(VkWriteDescriptorSetAccelerationStructureKHR) + accel_structs_size);
+                  linear_alloc_child(cmd_buffer->cmd_queue.ctx, sizeof(VkWriteDescriptorSetAccelerationStructureKHR) + accel_structs_size);
 
+               write_accel_structs->pNext = NULL;
                write_accel_structs->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
                write_accel_structs->accelerationStructureCount = accel_structs->accelerationStructureCount;
                write_accel_structs->pAccelerationStructures = (void *)&write_accel_structs[1];

@@ -44,7 +44,7 @@ vk_command_buffer_init(struct vk_command_pool *pool,
    vk_dynamic_graphics_state_init(&command_buffer->dynamic_graphics_state);
    command_buffer->state = MESA_VK_COMMAND_BUFFER_STATE_INITIAL;
    command_buffer->record_result = VK_SUCCESS;
-   vk_cmd_queue_init(&command_buffer->cmd_queue, &pool->alloc);
+   vk_cmd_queue_init(&command_buffer->cmd_queue);
    vk_meta_object_list_init(&command_buffer->meta_objects);
    command_buffer->labels = UTIL_DYNARRAY_INIT;
    command_buffer->region_begin = true;
