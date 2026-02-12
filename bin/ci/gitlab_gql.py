@@ -74,7 +74,7 @@ class GitlabGQL:
         self._transport = RequestsHTTPTransport(url=self.url, headers=headers)
 
         # Create a GraphQL client using the defined transport
-        self.client = Client(transport=self._transport, fetch_schema_from_transport=True)
+        self.client = Client(transport=self._transport, fetch_schema_from_transport=False)
 
     def query(
         self,
