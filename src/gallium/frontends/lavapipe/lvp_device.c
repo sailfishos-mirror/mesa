@@ -1177,7 +1177,7 @@ lvp_get_properties(const struct lvp_physical_device *device, struct vk_propertie
       .maxTransformFeedbackBufferDataStride = 2048,
       .transformFeedbackQueries = true,
       .transformFeedbackStreamsLinesTriangles = false,
-      .transformFeedbackRasterizationStreamSelect = false,
+      .transformFeedbackRasterizationStreamSelect = true,
       .transformFeedbackDraw = true,
 
       /* VK_EXT_extended_dynamic_state3 */

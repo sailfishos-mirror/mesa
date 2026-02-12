@@ -338,6 +338,15 @@ fetch_pipeline_generic(struct draw_pt_middle_end *middle,
     */
    draw_pt_so_emit(fpme->so_emit, num_vertex_streams, vert_info, prim_info);
 
+   /* rasterization stream selection */
+   if ((fpme->opt & PT_SHADE) && gshader) {
+      unsigned rs = draw->rasterizer->rasterization_stream;
+      if (rs < gshader->num_vertex_streams) {
+         vert_info = &gs_vert_info[rs];
+         prim_info = &gs_prim_info[rs];
+      }
+   }
+
    draw_stats_clipper_primitives(draw, prim_info);
 
    /*

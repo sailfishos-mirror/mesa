@@ -868,6 +868,9 @@ static void handle_graphics_pipeline(struct lvp_pipeline *pipeline,
       if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_RS_RASTERIZER_DISCARD_ENABLE))
          state->rs_state.rasterizer_discard = ps->rs->rasterizer_discard_enable;
 
+      if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_RS_RASTERIZATION_STREAM))
+         state->rs_state.rasterization_stream = ps->rs->rasterization_stream;
+
       if (!BITSET_TEST(ps->dynamic, MESA_VK_DYNAMIC_RS_LINE_MODE)) {
          state->rs_state.line_smooth = pipeline->line_smooth;
          state->rs_state.line_rectangular = pipeline->line_rectangular;
