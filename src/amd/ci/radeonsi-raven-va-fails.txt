@@ -451,7 +451,6 @@ GStreamer-VP9-VAAPI-Gst1.0@vp90-2-02-size-64x08.webm,Crash
 GStreamer-VP9-VAAPI-Gst1.0@vp90-2-02-size-64x10.webm,Crash
 GStreamer-VP9-VAAPI-Gst1.0@vp90-2-02-size-66x08.webm,Crash
 GStreamer-VP9-VAAPI-Gst1.0@vp90-2-02-size-66x10.webm,Crash
-GStreamer-VP9-VAAPI-Gst1.0@vp90-2-22-svc_1280x720_3.ivf,Fail
 GStreamer-VP9-VAAPI-Gst1.0@vp91-2-04-yuv422.webm,Crash
 GStreamer-VP9-VAAPI-Gst1.0@vp91-2-04-yuv444.webm,Crash
 GStreamer-VP9-VAAPI-Gst1.0@vp92-2-20-12bit-yuv420.webm,Fail

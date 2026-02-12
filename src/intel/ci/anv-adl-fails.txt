@@ -329,7 +329,7 @@ GStreamer-H.265-Vulkan-Gst1.0@CONFCROP_A_VIDYO_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@CONFCROP_B_VIDYO_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@CONFCROP_C_VIDYO_3,Crash
 GStreamer-H.265-Vulkan-Gst1.0@CONFWIN_A_Sony_1,Fail
-GStreamer-H.265-Vulkan-Gst1.0@DBLK_A_MAIN10_VIXS_4,Crash
+GStreamer-H.265-Vulkan-Gst1.0@DBLK_A_MAIN10_VIXS_4,Fail
 GStreamer-H.265-Vulkan-Gst1.0@DBLK_C_SONY_3,Fail
 GStreamer-H.265-Vulkan-Gst1.0@DBLK_D_VIXS_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@DEPTH_A_NOKIA_1,Crash
@@ -373,13 +373,10 @@ GStreamer-H.265-Vulkan-Gst1.0@IBF_Disabled_A_MediaTek_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@IBF_Disabled_B_MediaTek_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@INACTIVE_A_QCOM_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@INBLD_A_NOKIA_2,Crash
-GStreamer-H.265-Vulkan-Gst1.0@INITQP_B_Main10_Sony_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@IPCM_A_RExt_NEC_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@IPCM_B_RExt_NEC,Crash
-GStreamer-H.265-Vulkan-Gst1.0@IPRED_B_Nokia_3,Crash
 GStreamer-H.265-Vulkan-Gst1.0@LAYERID63_A_HHI_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@LAYERID_A_NOKIA_2,Crash
-GStreamer-H.265-Vulkan-Gst1.0@LTRPSPS_A_Qualcomm_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@MAXTID_A_ETRI_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@MAXTID_B_ETRI_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@MAXTID_C_ETRI_2,Crash
@@ -406,7 +403,10 @@ GStreamer-H.265-Vulkan-Gst1.0@OLS_A_NOKIA_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@OLS_B_NOKIA_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@OLS_C_NOKIA_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@PERSIST_RPARAM_A_RExt_Sony_3,Crash
-GStreamer-H.265-Vulkan-Gst1.0@PICSIZE_A_Bossen_1,Fail
+GStreamer-H.265-Vulkan-Gst1.0@PICSIZE_A_Bossen_1,Crash
+GStreamer-H.265-Vulkan-Gst1.0@PICSIZE_B_Bossen_1,Crash
+GStreamer-H.265-Vulkan-Gst1.0@PICSIZE_C_Bossen_1,Crash
+GStreamer-H.265-Vulkan-Gst1.0@PICSIZE_D_Bossen_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@POC_A_Ericsson_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@POC_B_Ericsson_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@PPI_A_InterDigital_2,Crash
@@ -425,8 +425,7 @@ GStreamer-H.265-Vulkan-Gst1.0@REPFMT_B_VIDYO_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@REPFMT_C_VIDYO_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@RESCHANGE_A_VIDYO_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@RESPHASE_A_SAMSUNG_2,Crash
-GStreamer-H.265-Vulkan-Gst1.0@RPLM_A_qualcomm_4,Crash
-GStreamer-H.265-Vulkan-Gst1.0@RPLM_B_qualcomm_4,Crash
+GStreamer-H.265-Vulkan-Gst1.0@RPLM_B_qualcomm_4,Fail
 GStreamer-H.265-Vulkan-Gst1.0@RPS_B_qualcomm_5,Crash
 GStreamer-H.265-Vulkan-Gst1.0@RPS_C_ericsson_5,Crash
 GStreamer-H.265-Vulkan-Gst1.0@RPS_E_qualcomm_5,Crash
@@ -436,9 +435,9 @@ GStreamer-H.265-Vulkan-Gst1.0@SCREFOFF_A_QCOM_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@SIM_A_IDCC_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@SIM_B_IDCC_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@SLIST_A_Sony_5,Fail
-GStreamer-H.265-Vulkan-Gst1.0@SLIST_B_Sony_9,Crash
+GStreamer-H.265-Vulkan-Gst1.0@SLIST_B_Sony_9,Fail
 GStreamer-H.265-Vulkan-Gst1.0@SLIST_C_Sony_4,Fail
-GStreamer-H.265-Vulkan-Gst1.0@SLIST_D_Sony_9,Crash
+GStreamer-H.265-Vulkan-Gst1.0@SLIST_D_Sony_9,Fail
 GStreamer-H.265-Vulkan-Gst1.0@SLLEV_A_VIDYO_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@SNR_A_IDCC_1,Crash
 GStreamer-H.265-Vulkan-Gst1.0@SNR_B_IDCC_1,Crash
@@ -485,8 +484,6 @@ GStreamer-H.265-Vulkan-Gst1.0@WPP_E_ericsson_MAIN_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@WPP_F_ericsson_MAIN10_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@WPP_F_ericsson_MAIN_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@WPP_HIGH_TP_444_8BIT_RExt_Apple_2,Crash
-GStreamer-H.265-Vulkan-Gst1.0@WP_A_MAIN10_Toshiba_3,Crash
-GStreamer-H.265-Vulkan-Gst1.0@WP_MAIN10_B_Toshiba_3,Crash
 GStreamer-H.265-Vulkan-Gst1.0@Zero_and_One_Palette_Size_A_Canon_2,Crash
 GStreamer-H.265-Vulkan-Gst1.0@cip_B_NEC_3,Fail
 GStreamer-H.265-Vulkan-Gst1.0@ipcm_A_NEC_3,Fail
