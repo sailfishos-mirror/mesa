@@ -28,29 +28,9 @@
 #include "util/u_hash_table.h"
 #include "nir_defines.h"
 
-enum ENUM_PACKED fp_ranges {
-   unknown = 0,
-   lt_zero,
-   le_zero,
-   gt_zero,
-   ge_zero,
-   ne_zero,
-   eq_zero,
-   last_range = eq_zero
-};
-
-struct fp_result_range {
-   enum fp_ranges range;
-
-   /** A floating-point value that can only have integer values. */
-   bool is_integral;
-
-   /** A floating-point value that cannot be NaN. */
-   bool is_a_number;
-
-   /** Is the value known to be a finite number? */
-   bool is_finite;
-};
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
    nir_function_impl *impl;
@@ -59,10 +39,6 @@ typedef struct {
    uint32_t size;
    int32_t max;
 } nir_fp_analysis_state;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 nir_fp_analysis_state nir_create_fp_analysis_state(nir_function_impl *impl);
 void nir_invalidate_fp_analysis_state(nir_fp_analysis_state *state);
@@ -101,9 +77,6 @@ enum fp_class_bit {
 typedef uint16_t fp_class_mask;
 
 fp_class_mask nir_analyze_fp_class(nir_fp_analysis_state *state, const nir_def *def);
-
-struct fp_result_range
-nir_analyze_fp_range(nir_fp_analysis_state *state, const nir_def *def);
 
 uint64_t nir_def_bits_used(const nir_def *def);
 

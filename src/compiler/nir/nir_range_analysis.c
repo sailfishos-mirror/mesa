@@ -1388,34 +1388,6 @@ nir_analyze_fp_class(nir_fp_analysis_state *fp_state, const nir_def *def)
    return perform_analysis(&state);
 }
 
-struct fp_result_range
-nir_analyze_fp_range(nir_fp_analysis_state *fp_state, const nir_def *def)
-{
-   fp_class_mask fp_class = nir_analyze_fp_class(fp_state, def);
-
-   struct fp_result_range result = {
-      unknown,
-      !(fp_class & FP_CLASS_NON_INTEGRAL),
-      !(fp_class & FP_CLASS_NAN),
-      !(fp_class & (FP_CLASS_NAN | FP_CLASS_ANY_INF)),
-   };
-
-   if (!(fp_class & (FP_CLASS_ANY_NEG | FP_CLASS_ANY_POS)))
-      result.range = eq_zero;
-   else if (!(fp_class & (FP_CLASS_ANY_POS | FP_CLASS_ANY_ZERO)))
-      result.range = lt_zero;
-   else if (!(fp_class & FP_CLASS_ANY_POS))
-      result.range = le_zero;
-   else if (!(fp_class & (FP_CLASS_ANY_NEG | FP_CLASS_ANY_ZERO)))
-      result.range = gt_zero;
-   else if (!(fp_class & FP_CLASS_ANY_NEG))
-      result.range = ge_zero;
-   else if (!(fp_class & FP_CLASS_ANY_ZERO))
-      result.range = ne_zero;
-
-   return result;
-}
-
 nir_fp_analysis_state
 nir_create_fp_analysis_state(nir_function_impl *impl)
 {
