@@ -974,4 +974,10 @@
 #define DRI_CONF_DZN_DISABLE(def) \
    DRI_CONF_OPT_B(dzn_disable, def, "Fail instance creation")
 
+/**
+ * \brief NVK specific configuration options
+ */
+
+ #define DRI_CONF_NVK_APP_LAYER() DRI_CONF_OPT_S_NODEF(nvk_app_layer, "Select an application layer.")
+
 #endif

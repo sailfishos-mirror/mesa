@@ -10,6 +10,7 @@
 #include "nvk_physical_device.h"
 #include "nvk_sampler.h"
 #include "nvk_shader.h"
+#include "layers/nvk_app_workarounds.h"
 #include "nvkmd/nvkmd.h"
 
 #include "vk_common_entrypoints.h"
@@ -192,11 +193,31 @@ add_entrypoints(struct dispatch_table_builder *b, const struct vk_device_entrypo
    if (table < NVK_DISPATCH_TABLE_COUNT)
       b->used[table] = true;
 }
+
+static void
+init_app_workarounds_entrypoints(struct nvk_device *device, struct dispatch_table_builder *b)
+{
+   const struct nvk_physical_device *pdev = nvk_device_physical(device);
+   const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
+   struct vk_device_entrypoint_table table = {0};
+
+#define SET_ENTRYPOINT(app_layer, entrypoint) table.entrypoint = app_layer##_##entrypoint;
+   if (!strcmp(instance->app_layer, "metroexodus")) {
+      SET_ENTRYPOINT(metro_exodus, GetSemaphoreCounterValue);
+   }
+#undef SET_ENTRYPOINT
+
+   add_entrypoints(b, &table, NVK_APP_DISPATCH_TABLE);
+}
+
 static void
 init_dispatch_tables(struct nvk_device *dev)
 {
    struct dispatch_table_builder b = {0};
    b.tables[NVK_DEVICE_DISPATCH_TABLE] = &dev->vk.dispatch_table;
+   b.tables[NVK_APP_DISPATCH_TABLE] = &dev->layer_dispatch.app;
+
+   init_app_workarounds_entrypoints(dev, &b);
 
    add_entrypoints(&b, &nvk_device_entrypoints, NVK_DISPATCH_TABLE_COUNT);
    add_entrypoints(&b, &wsi_device_entrypoints, NVK_DISPATCH_TABLE_COUNT);
