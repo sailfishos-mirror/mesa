@@ -9,6 +9,8 @@
 #include "aco_instruction_selection.h"
 #include "aco_ir.h"
 
+#include "nir_range_analysis.h"
+
 namespace aco {
 namespace {
 
@@ -2272,12 +2274,35 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
          Instruction* mul = bld.vop3(aco_opcode::v_mul_f64_e64, Definition(dst), src,
                                      Operand::c64(0x3FF0000000000000));
          mul->valu().clamp = true;
-      } else if (dst.regClass() == s1 && instr->def.bit_size == 16) {
-         Temp low = bld.sop2(aco_opcode::s_max_f16, bld.def(s1), src, Operand::c16(0));
-         bld.sop2(aco_opcode::s_min_f16, Definition(dst), low, Operand::c16(0x3C00));
-      } else if (dst.regClass() == s1 && instr->def.bit_size == 32) {
-         Temp low = bld.sop2(aco_opcode::s_max_f32, bld.def(s1), src, Operand::c32(0));
-         bld.sop2(aco_opcode::s_min_f32, Definition(dst), low, Operand::c32(0x3f800000));
+      } else if (dst.regClass() == s1) {
+         assert(instr->def.bit_size == 16 || instr->def.bit_size == 32);
+         fp_class_mask fp_class = nir_analyze_fp_class(&ctx->fp_class_ht, instr->src[0].src.ssa);
+         bool needs_max = fp_class & FP_CLASS_ANY_NEG;
+         if (nir_alu_instr_is_signed_zero_preserve(instr))
+            needs_max |= (fp_class & FP_CLASS_NEG_ZERO) != 0;
+         if (nir_alu_instr_is_nan_preserve(instr))
+            needs_max |= (fp_class & FP_CLASS_NAN) != 0;
+
+         bool needs_min = fp_class & (FP_CLASS_GT_POS_ONE | FP_CLASS_POS_INF);
+
+         if (needs_max) {
+            if (instr->def.bit_size == 16)
+               src = bld.sop2(aco_opcode::s_max_f16, bld.def(s1), src, Operand::c16(0));
+            else
+               src = bld.sop2(aco_opcode::s_max_f32, bld.def(s1), src, Operand::c32(0));
+         }
+
+         if (needs_min) {
+            if (instr->def.bit_size == 16)
+               bld.sop2(aco_opcode::s_min_f16, Definition(dst), src, Operand::c16(0x3C00));
+            else
+               bld.sop2(aco_opcode::s_min_f32, Definition(dst), src, Operand::c32(0x3f800000));
+         } else {
+            if (instr->def.bit_size == 16)
+               bld.sop2(aco_opcode::s_mul_f16, Definition(dst), src, Operand::c16(0x3C00));
+            else
+               bld.sop2(aco_opcode::s_mul_f32, Definition(dst), src, Operand::c32(0x3f800000));
+         }
       } else {
          isel_err(&instr->instr, "Unimplemented NIR instr bit size");
       }

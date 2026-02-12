@@ -381,6 +381,7 @@ init_context(isel_context* ctx, nir_shader* shader)
    /* Init NIR range analysis. */
    ctx->range_ht = _mesa_pointer_hash_table_create(NULL);
    ctx->numlsb_ht = _mesa_pointer_hash_table_create(NULL);
+   ctx->fp_class_ht = nir_create_fp_analysis_state(impl);
 
    uint32_t options =
       shader->options->divergence_analysis_options | nir_divergence_ignore_undef_if_phi_srcs;
@@ -741,6 +742,7 @@ cleanup_context(isel_context* ctx)
 {
    _mesa_hash_table_destroy(ctx->numlsb_ht, NULL);
    _mesa_hash_table_destroy(ctx->range_ht, NULL);
+   nir_free_fp_analysis_state(&ctx->fp_class_ht);
 }
 
 isel_context
