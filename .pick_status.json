@@ -2794,7 +2794,7 @@
         "description": "nir/clone: Fix cloning indirect call instructions",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "bb40284f76e1b2151b79b4bfa015110f8239144e",
         "notes": null
