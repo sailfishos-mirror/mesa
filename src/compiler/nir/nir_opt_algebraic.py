@@ -1055,10 +1055,11 @@ optimizations.extend([
    # fmin(0.0, b)) while the right one is "b", so this optimization is not NaN correct.
    (('fmin(nsz)', ('fsat(nnan)', a), '#b(is_zero_to_one)'), ('fsat', ('fmin', a, b))),
 
-   # If a >= 0 ... 1 + a >= 1 ... so fsat(1 + a) = 1
-   # But 1 + NaN is NaN and fsat(NaN) = 0.
-   (('fsat(nnan)', ('fadd', 1.0, 'a(is_not_negative)')), 1.0),
-   (('fsat', ('fadd', 1.0, 'a(is_a_number_not_negative)')), 1.0),
+   (('fsat(nnan)', 'a(is_ge_pos_one)'), 1.0),
+   (('fsat', 'a(is_a_number_ge_pos_one)'), 1.0),
+
+   (('fsat(nnan,nsz)', 'a(is_zero_to_one)'), ('fcanonicalize', a)),
+   (('fsat(nsz)', 'a(is_a_number_zero_to_one)'), ('fcanonicalize', a)),
 
    # Let constant folding do its job. This can have emergent behaviour.
    (('fneg', ('bcsel(is_used_once)', a, '#b', '#c')), ('bcsel', a, ('fneg', b), ('fneg', c))),
