@@ -41,53 +41,77 @@ msl_nir_fs_remove_depth_write(nir_builder *b, nir_intrinsic_instr *intrin,
    return false;
 }
 
+static bool
+fs_force_output_type(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
+{
+   if (intrin->intrinsic != nir_intrinsic_store_output)
+      return false;
+
+   nir_io_semantics io = nir_intrinsic_io_semantics(intrin);
+   if (io.location < FRAG_RESULT_DATA0 || FRAG_RESULT_DATA7 < io.location)
+      return false;
+
+   enum pipe_format *render_target_formats = (enum pipe_format *)data;
+   enum pipe_format format =
+      render_target_formats[io.location - FRAG_RESULT_DATA0];
+   nir_alu_type type = nir_intrinsic_src_type(intrin);
+   if (util_format_is_float(format) || util_format_is_unorm(format)) {
+      if (type & nir_type_uint) {
+         b->cursor = nir_before_instr(&intrin->instr);
+         nir_def *value =
+            nir_u2fN(b, intrin->src[0].ssa, nir_src_bit_size(intrin->src[0]));
+         nir_src_rewrite(&intrin->src[0], value);
+         type ^= (nir_type_float | nir_type_uint);
+         nir_intrinsic_set_src_type(intrin, type);
+         return true;
+      } else if (type & nir_type_int) {
+         b->cursor = nir_before_instr(&intrin->instr);
+         nir_def *value =
+            nir_u2fN(b, intrin->src[0].ssa, nir_src_bit_size(intrin->src[0]));
+         nir_src_rewrite(&intrin->src[0], value);
+         type ^= (nir_type_float | nir_type_int);
+         nir_intrinsic_set_src_type(intrin, type);
+         return true;
+      }
+   } else if (util_format_is_pure_sint(format)) {
+      if (type & nir_type_uint) {
+         type ^= (nir_type_uint | nir_type_int);
+         nir_intrinsic_set_src_type(intrin, type);
+         return true;
+      } else if (type & nir_type_float) {
+         b->cursor = nir_before_instr(&intrin->instr);
+         nir_def *value =
+            nir_f2uN(b, intrin->src[0].ssa, nir_src_bit_size(intrin->src[0]));
+         nir_src_rewrite(&intrin->src[0], value);
+         type ^= (nir_type_float | nir_type_int);
+         nir_intrinsic_set_src_type(intrin, type);
+         return true;
+      }
+   } else if (util_format_is_pure_uint(format)) {
+      if (type & nir_type_int) {
+         type ^= (nir_type_int | nir_type_uint);
+         nir_intrinsic_set_src_type(intrin, type);
+         return true;
+      } else if (type & nir_type_float) {
+         b->cursor = nir_before_instr(&intrin->instr);
+         nir_def *value =
+            nir_f2uN(b, intrin->src[0].ssa, nir_src_bit_size(intrin->src[0]));
+         nir_src_rewrite(&intrin->src[0], value);
+         type ^= (nir_type_float | nir_type_uint);
+         nir_intrinsic_set_src_type(intrin, type);
+         return true;
+      }
+   }
+   return false;
+}
+
 bool
 msl_nir_fs_force_output_signedness(
    nir_shader *nir, enum pipe_format render_target_formats[MAX_DRAW_BUFFERS])
 {
-   assert(nir->info.stage == MESA_SHADER_FRAGMENT);
-
-   bool update_derefs = false;
-   nir_foreach_variable_with_modes(var, nir, nir_var_shader_out) {
-      if (FRAG_RESULT_DATA0 <= var->data.location &&
-          var->data.location <= FRAG_RESULT_DATA7 &&
-          glsl_type_is_integer(var->type)) {
-         unsigned int slot = var->data.location - FRAG_RESULT_DATA0;
-
-         if (glsl_type_is_uint_16_32_64(var->type) &&
-             util_format_is_pure_sint(render_target_formats[slot])) {
-            var->type = glsl_ivec_type(var->type->vector_elements);
-            update_derefs = true;
-         } else if (glsl_type_is_int_16_32_64(var->type) &&
-                    util_format_is_pure_uint(render_target_formats[slot])) {
-            var->type = glsl_uvec_type(var->type->vector_elements);
-            update_derefs = true;
-         }
-      }
-   }
-
-   if (update_derefs) {
-      nir_foreach_function_impl(impl, nir) {
-         nir_foreach_block(block, impl) {
-            nir_foreach_instr(instr, block) {
-               switch (instr->type) {
-               case nir_instr_type_deref: {
-                  nir_deref_instr *deref = nir_instr_as_deref(instr);
-                  if (deref->deref_type == nir_deref_type_var) {
-                     deref->type = deref->var->type;
-                  }
-                  break;
-               }
-               default:
-                  break;
-               }
-            }
-         }
-         nir_progress(update_derefs, impl, nir_metadata_control_flow);
-      }
-   }
-
-   return update_derefs;
+   return nir_shader_intrinsics_pass(nir, fs_force_output_type,
+                                     nir_metadata_control_flow,
+                                     render_target_formats);
 }
 
 bool
