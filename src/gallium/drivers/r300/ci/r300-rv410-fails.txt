@@ -593,9 +593,6 @@ spec@arb_framebuffer_object@fbo-luminance-alpha,Fail
 spec@arb_framebuffer_object@fbo-mipmap-copypix,Fail
 spec@arb_framebuffer_object@same-attachment-tex2d-depth_stencil,Fail
 
-spec@arb_occlusion_query@occlusion_query_meta_fragments,Fail
-spec@arb_occlusion_query@occlusion_query_meta_no_fragments,Fail
-spec@arb_occlusion_query@occlusion_query_meta_save,Fail
 spec@arb_occlusion_query@occlusion_query_order,Fail
 
 spec@arb_pixel_buffer_object@cubemap npot pbo,Fail

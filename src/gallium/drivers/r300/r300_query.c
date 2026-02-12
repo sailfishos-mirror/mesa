@@ -194,6 +194,19 @@ static void r300_render_condition(struct pipe_context *pipe,
 static void
 r300_set_active_query_state(struct pipe_context *pipe, bool enable)
 {
+    struct r300_context *r300 = r300_context(pipe);
+
+    if (enable) {
+        if (r300->blitter_saved_query && !r300->query_current) {
+            r300_resume_query(r300, r300->blitter_saved_query);
+            r300->blitter_saved_query = NULL;
+        }
+    } else {
+        if (r300->query_current && !r300->blitter_saved_query) {
+            r300->blitter_saved_query = r300->query_current;
+            r300_stop_query(r300);
+        }
+    }
 }
 
 void r300_init_query_functions(struct r300_context* r300)
