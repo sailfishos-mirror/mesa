@@ -181,6 +181,9 @@ struct vk_acceleration_structure_build_ops {
 
    const uint32_t *leaf_spirv_override;
    size_t leaf_spirv_override_size;
+
+   const uint32_t *pair_triangles_spirv_override;
+   size_t pair_triangles_spirv_override_size;
 };
 
 typedef VkResult (*vk_build_stage_cb)(VkCommandBuffer commandBuffer, struct vk_device *device,

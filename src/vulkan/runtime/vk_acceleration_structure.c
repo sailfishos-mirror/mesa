@@ -957,8 +957,16 @@ pair_triangles(VkCommandBuffer commandBuffer, struct vk_device *device,
    VkPipeline pipeline;
    VkPipelineLayout layout;
 
+   const uint32_t *spirv = pair_triangles_spv;
+   size_t spirv_size = sizeof(pair_triangles_spv);
+
+   if (device->as_build_ops->pair_triangles_spirv_override) {
+      spirv = device->as_build_ops->pair_triangles_spirv_override;
+      spirv_size = device->as_build_ops->pair_triangles_spirv_override_size;
+   }
+
    VkResult result = vk_get_bvh_build_pipeline_spv(device, meta, VK_META_OBJECT_KEY_PAIR_TRIANGLES,
-                                                   pair_triangles_spv, sizeof(pair_triangles_spv),
+                                                   spirv, spirv_size,
                                                    sizeof(struct pair_triangles_args), args, build_flags,
                                                    &pipeline,
                                                    false /* unaligned_dispatch */);
