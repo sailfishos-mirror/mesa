@@ -467,13 +467,6 @@ struct radeon_winsys {
                          uint64_t offset, uint64_t size, bool commit);
 
    /**
-    * Calc size of the first committed part of the given sparse buffer.
-    * \note Only implemented by the amdgpu winsys.
-    * \return the skipped count if the range_offset fall into a hole.
-    */
-   unsigned (*buffer_find_next_committed_memory)(struct pb_buffer_lean *buf,
-                        uint64_t range_offset, unsigned *range_size);
-   /**
     * Return the virtual address of a buffer.
     *
     * When virtual memory is not in use, this is the offset relative to the

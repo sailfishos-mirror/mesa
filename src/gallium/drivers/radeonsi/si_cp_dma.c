@@ -29,12 +29,6 @@ static inline unsigned cp_dma_max_byte_count(struct si_context *sctx)
    return max & ~(SI_CPDMA_ALIGNMENT - 1);
 }
 
-/* should cp dma skip the hole in sparse bo */
-static inline bool cp_dma_sparse_wa(struct si_context *sctx, struct si_resource *sdst)
-{
-   return sctx->gfx_level == GFX9 && sdst->flags & RADEON_FLAG_SPARSE;
-}
-
 /* Emit a CP DMA packet to do a copy from one buffer to another, or to clear
  * a buffer. The size must fit in bits [20:0]. If CP_DMA_CLEAR is set, src_va is a 32-bit
  * clear value.
@@ -165,14 +159,6 @@ void si_cp_dma_clear_buffer(struct si_context *sctx, struct radeon_cmdbuf *cs,
       unsigned byte_count = MIN2(size, cp_dma_max_byte_count(sctx));
       unsigned dma_flags = CP_DMA_CLEAR;
 
-      if (cp_dma_sparse_wa(sctx, sdst)) {
-         unsigned skip_count =
-            sctx->ws->buffer_find_next_committed_memory(sdst->buf,
-                  va - sdst->gpu_address, &byte_count);
-         va += skip_count;
-         size -= skip_count;
-      }
-
       if (!byte_count)
          continue;
 
@@ -288,24 +274,6 @@ void si_cp_dma_copy_buffer(struct si_context *sctx, struct pipe_resource *dst,
    while (size) {
       unsigned byte_count = MIN2(size, cp_dma_max_byte_count(sctx));
       unsigned dma_flags = 0;
-
-      if (cp_dma_sparse_wa(sctx, si_resource(dst))) {
-         unsigned skip_count =
-            sctx->ws->buffer_find_next_committed_memory(si_resource(dst)->buf,
-                  main_dst_offset - si_resource(dst)->gpu_address, &byte_count);
-         main_dst_offset += skip_count;
-         main_src_offset += skip_count;
-         size -= skip_count;
-      }
-
-      if (cp_dma_sparse_wa(sctx, si_resource(src))) {
-         unsigned skip_count =
-            sctx->ws->buffer_find_next_committed_memory(si_resource(src)->buf,
-                  main_src_offset - si_resource(src)->gpu_address, &byte_count);
-         main_dst_offset += skip_count;
-         main_src_offset += skip_count;
-         size -= skip_count;
-      }
 
       if (!byte_count)
          continue;
