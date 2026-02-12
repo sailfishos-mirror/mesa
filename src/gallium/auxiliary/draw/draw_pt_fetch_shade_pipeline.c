@@ -358,7 +358,12 @@ fetch_pipeline_generic(struct draw_pt_middle_end *middle,
          emit(fpme->emit, vert_info, prim_info);
       }
    }
-   FREE(vert_info->verts);
+   if ((fpme->opt & PT_SHADE) && gshader) {
+      for (unsigned i = 0; i < gshader->num_vertex_streams; i++)
+         FREE(gs_vert_info[i].verts);
+   } else {
+      FREE(vert_info->verts);
+   }
    if (free_prim_info) {
       FREE(prim_info->primitive_lengths);
    }
