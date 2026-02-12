@@ -704,6 +704,45 @@ handle_sz(const nir_alu_instr *alu, fp_class_mask src)
    return src | FP_CLASS_ANY_ZERO;
 }
 
+static fp_class_mask
+intrinsic_fp_class(const nir_intrinsic_instr *intrin)
+{
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_load_typed_buffer_amd: {
+      const enum pipe_format format = nir_intrinsic_format(intrin);
+      if (format == PIPE_FORMAT_NONE)
+         return FP_CLASS_UNKNOWN;
+      const struct util_format_description *desc = util_format_description(format);
+
+      int i = util_format_get_first_non_void_channel(format);
+      if (i == -1)
+         return FP_CLASS_UNKNOWN;
+
+      bool is_signed = desc->channel[i].type == UTIL_FORMAT_TYPE_SIGNED;
+      bool is_unsigned = desc->channel[i].type == UTIL_FORMAT_TYPE_UNSIGNED;
+      bool normalized = desc->channel[i].normalized;
+      if ((!is_signed && !is_unsigned) || desc->channel[i].pure_integer)
+         return FP_CLASS_UNKNOWN;
+
+      fp_class_mask result = FP_CLASS_POS_ZERO | FP_CLASS_POS_ONE;
+      result |= is_signed ? FP_CLASS_NEG_ONE : 0;
+
+      if (normalized) {
+         result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_NON_INTEGRAL;
+         result |= is_signed ? FP_CLASS_LT_ZERO_GT_NEG_ONE : 0;
+      } else {
+         result |= FP_CLASS_GT_POS_ONE;
+         result |= is_signed ? FP_CLASS_LT_NEG_ONE : 0;
+      }
+      return result;
+   }
+   case nir_intrinsic_load_front_face_fsign:
+      return FP_CLASS_POS_ONE | FP_CLASS_NEG_ONE;
+   default:
+      return FP_CLASS_UNKNOWN;
+   }
+}
+
 /**
  * Analyze an expression to determine the possible fp classes of its result
  */
@@ -717,9 +756,10 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
    if (nir_def_is_const(def)) {
       *result = analyze_fp_constant(nir_def_as_load_const(def));
       return;
-   }
-
-   if (!nir_def_is_alu(def)) {
+   } else if (nir_def_is_intrinsic(def)) {
+      *result = intrinsic_fp_class(nir_def_as_intrinsic(def));
+      return;
+   } else if (!nir_def_is_alu(def)) {
       *result = FP_CLASS_UNKNOWN;
       return;
    }
