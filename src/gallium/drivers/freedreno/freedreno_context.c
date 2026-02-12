@@ -34,6 +34,14 @@ fd_context_flush(struct pipe_context *pctx, struct pipe_fence_handle **fencep,
    DBG("%p: %p: flush: flags=%x, fencep=%p", ctx, batch, flags, fencep);
 
    if (fencep && !batch) {
+      if (!(flags & TC_FLUSH_ASYNC) && ctx->last_fence &&
+          (fd_pipe_fence_is_fd(ctx->last_fence) ||
+           !(flags & PIPE_FLUSH_FENCE_FD))) {
+         fd_pipe_fence_ref(&fence, ctx->last_fence);
+         fd_bc_dump(ctx, "%p: reuse last_fence, remaining:\n", ctx);
+         goto out;
+      }
+      fd_bc_dump(ctx, "need fence, last_fence=%p", ctx->last_fence);
       batch = fd_context_batch(ctx);
    } else if (!batch) {
       return;
