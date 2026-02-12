@@ -314,6 +314,18 @@ radv-gfx1201-vkcts:
     RADV_PERFTEST: transfer_queue,hic
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 20
 
+radv-gfx1201-fluster:
+  extends:
+    - .ci-tron-x86_64-test-video
+    - .ci-tron-test-radv
+    - .gfx1201-test-valve
+    - .radv-valve-manual-rules
+    - .test-fluster
+  timeout: 10m
+  variables:
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 8  # normal runtime: 50-60sec, but let's leave room for more tests
+    DEQP_SUITE: radv-fluster
+
 ############### Fossilize
 radv-fossils:
   extends:
