@@ -721,7 +721,7 @@ nir_mov_alu(nir_builder *build, nir_alu_src src, unsigned num_components)
    nir_alu_instr *mov = nir_alu_instr_create(build->shader, nir_op_mov);
    nir_def_init(&mov->instr, &mov->def, num_components,
                 nir_src_bit_size(src.src));
-   mov->fp_math_ctrl = build->fp_math_ctrl;
+   assert(nir_op_infos[nir_op_mov].valid_fp_math_ctrl == 0);
    mov->src[0] = src;
    nir_builder_instr_insert(build, &mov->instr);
 

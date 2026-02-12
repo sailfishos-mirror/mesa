@@ -307,6 +307,7 @@ lower_alu_instr(nir_builder *b, nir_alu_instr *alu)
    }
 
    alu->op = opcode;
+   alu->fp_math_ctrl = nir_op_valid_fp_math_ctrl(opcode, alu->fp_math_ctrl);
 
    if (alu->def.bit_size == 1)
       alu->def.bit_size = bit_size;

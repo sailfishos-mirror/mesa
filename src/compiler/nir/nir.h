@@ -1481,6 +1481,8 @@ typedef struct nir_op_info {
 
    /** Whether this represents a numeric conversion opcode */
    bool is_conversion;
+
+   uint8_t valid_fp_math_ctrl;
 } nir_op_info;
 
 /** Metadata for each nir_op, indexed by opcode */
@@ -1602,6 +1604,12 @@ static inline bool
 nir_alu_instr_is_exact(const nir_alu_instr *alu)
 {
    return alu->fp_math_ctrl & nir_fp_exact;
+}
+
+static inline unsigned
+nir_op_valid_fp_math_ctrl(nir_op op, unsigned fp_math_ctrl)
+{
+   return fp_math_ctrl & nir_op_infos[op].valid_fp_math_ctrl;
 }
 
 void nir_alu_src_copy(nir_alu_src *dest, const nir_alu_src *src);

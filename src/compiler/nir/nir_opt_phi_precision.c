@@ -255,6 +255,7 @@ try_move_narrowing_dst(nir_builder *b, nir_phi_instr *phi)
        */
       nir_alu_instr *alu = nir_instr_as_alu(nir_src_parent_instr(use));
       alu->op = nir_op_mov;
+      alu->fp_math_ctrl = nir_op_valid_fp_math_ctrl(alu->op, alu->fp_math_ctrl);
    }
    nir_def_rewrite_uses(&phi->def, &new_phi->def);
 

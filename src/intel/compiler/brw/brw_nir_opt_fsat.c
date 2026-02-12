@@ -235,6 +235,7 @@ brw_nir_opt_fsat(nir_shader *shader)
                 * the move.
                 */
                alu->op = nir_op_mov;
+               alu->fp_math_ctrl = nir_op_valid_fp_math_ctrl(alu->op, alu->fp_math_ctrl);
                progress_impl = true;
             }
          }

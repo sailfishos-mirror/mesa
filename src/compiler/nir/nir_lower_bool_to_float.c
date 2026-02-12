@@ -188,6 +188,7 @@ lower_alu_instr(nir_builder *b, nir_alu_instr *alu, bool has_fcsel_ne,
    } else {
       if (alu->def.bit_size == 1)
          alu->def.bit_size = 32;
+      alu->fp_math_ctrl = nir_op_valid_fp_math_ctrl(alu->op, alu->fp_math_ctrl);
    }
 
    return true;

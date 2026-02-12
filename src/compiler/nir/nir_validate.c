@@ -297,6 +297,8 @@ validate_alu_instr(nir_alu_instr *instr, validate_state *state)
    }
 
    validate_def(&instr->def, state);
+
+   validate_assert(state, (instr->fp_math_ctrl & ~nir_op_infos[instr->op].valid_fp_math_ctrl) == 0);
 }
 
 static void

@@ -244,6 +244,7 @@ lower_alu_instr(nir_builder *b, nir_alu_instr *alu)
       }
       return false;
    }
+   alu->fp_math_ctrl = nir_op_valid_fp_math_ctrl(alu->op, alu->fp_math_ctrl);
 
    if (rep) {
       /* We've emitted a replacement instruction */

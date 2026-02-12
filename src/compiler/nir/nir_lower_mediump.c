@@ -684,6 +684,7 @@ opt_16bit_destination(nir_def *ssa, nir_alu_type dest_type, unsigned exec_mode,
       default:
          UNREACHABLE("unsupported conversion op");
       };
+      alu->fp_math_ctrl = nir_op_valid_fp_math_ctrl(alu->op, alu->fp_math_ctrl);
    }
 
    ssa->bit_size = 16;
