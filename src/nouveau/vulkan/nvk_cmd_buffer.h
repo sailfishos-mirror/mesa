@@ -70,6 +70,10 @@ struct nvk_root_descriptor_table {
 #define nvk_root_descriptor_offset(member)\
    offsetof(struct nvk_root_descriptor_table, member)
 
+/* Push constants should be aligned properly */
+static_assert(nvk_root_descriptor_offset(push) % 8 == 0,
+              "Push constants should be aligned properly");
+
 enum ENUM_PACKED nvk_descriptor_set_type {
    NVK_DESCRIPTOR_SET_TYPE_NONE,
    NVK_DESCRIPTOR_SET_TYPE_SET,
