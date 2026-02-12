@@ -227,7 +227,8 @@ gen_alu(Instruction* instr, delay_ctx& ctx)
 {
    Instruction_cycle_info cycle_info = get_cycle_info(*ctx.program, *instr);
    bool is_valu = instr->isVALU();
-   bool is_trans = instr->isTrans();
+   bool is_trans = instr->isTrans() && instr_info.classes[(int)instr->opcode] !=
+                                          instr_class::valu_double_transcendental;
 
    if (is_trans || is_valu || instr->isSALU()) {
       alu_delay_info delay;
