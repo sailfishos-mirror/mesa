@@ -1857,6 +1857,13 @@ add_entries_from_predecessor(struct vectorize_ctx *ctx, nir_block *block)
          /* If this is a loop header, just take the last entries of the preheader. */
          nir_block *preheader = nir_block_cf_tree_prev(block);
          entry = ctx->per_block_ctx[preheader->index].last_entry[i];
+
+         /* If this isn't reorderable, we would have to consider the loop back-edges to safely use
+          * it, in case there is an interfering store in the loop. */
+         bool has_continue = block->predecessors.entries > 1 ||
+                             _mesa_set_next_entry(&block->predecessors, NULL)->key != preheader;
+         if (entry && !(entry->access & ACCESS_CAN_REORDER) && has_continue)
+            entry = NULL;
       } else {
          /* If all predecessor entries are the same, the entry dominates the block. */
          bool first_entry = true;
