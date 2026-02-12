@@ -166,7 +166,10 @@ public:
    brw_builder
    uniform() const
    {
-      return exec_all().group(1, 0);
+      brw_builder bld = exec_all();
+      bld._group = 0;
+      bld._dispatch_width = 1;
+      return bld;
    }
 
    /**
