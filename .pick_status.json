@@ -1174,7 +1174,7 @@
         "description": "st/glsl_to_nir: make sure the variant has the correct locations set",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "891d46f517ce451c7df3f0d46f907b30308721b1",
         "notes": null
