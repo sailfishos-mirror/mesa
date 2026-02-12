@@ -282,18 +282,18 @@ fd_bc_dump(struct fd_context *ctx, const char *fmt, ...)
 
    va_list ap;
    va_start(ap, fmt);
-   vprintf(fmt, ap);
+   vfprintf(stderr, fmt, ap);
    va_end(ap);
 
    for (int i = 0; i < ARRAY_SIZE(cache->batches); i++) {
       struct fd_batch *batch = cache->batches[i];
       if (batch) {
-         printf("  %p<%u>%s\n", batch, batch->seqno,
+         fprintf(stderr, "  %p<%u>%s\n", batch, batch->seqno,
                 batch->needs_flush ? ", NEEDS FLUSH" : "");
       }
    }
 
-   printf("----\n");
+   fprintf(stderr, "----\n");
 
    fd_screen_unlock(ctx->screen);
 }
