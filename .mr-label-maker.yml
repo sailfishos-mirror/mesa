@@ -122,6 +122,7 @@ merge_requests:
     paths:
         '^.gitlab/issue_templates/': ['docs']
         '^.gitlab-ci': ['CI']
+        '^bin/ci/': ['CI']
         '^.*/gitlab-ci(-inc)?.yml': ['CI']
         '^.*/ci/deqp-.*\.toml': ['CI']
         '^.*/ci/.*-(fails|flakes|skips)\.txt': ['CI-Expectations']
