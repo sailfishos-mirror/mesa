@@ -203,7 +203,7 @@ libvulkan_lite_runtime = static_library(
   vulkan_lite_runtime_files,
   include_directories : [inc_include, inc_src],
   dependencies : vulkan_lite_runtime_deps,
-  c_args : c_msvc_compat_args,
+  c_args : [c_msvc_compat_args, '-DMESA_VK_LOG=@0@'.format(get_option('debug').to_int())],
   gnu_symbol_visibility : 'hidden',
   build_by_default : false,
 )
