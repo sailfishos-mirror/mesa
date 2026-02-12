@@ -41,6 +41,10 @@ enum msl_tex_access_flag {
 static inline enum msl_tex_access_flag
 msl_convert_access_flag(enum gl_access_qualifier qual)
 {
+   enum gl_access_qualifier readwrite =
+      (ACCESS_NON_WRITEABLE | ACCESS_NON_READABLE);
+   if ((qual & readwrite) == readwrite)
+      return MSL_ACCESS_READ_WRITE;
    if (qual & ACCESS_NON_WRITEABLE)
       return MSL_ACCESS_READ;
    if (qual & ACCESS_NON_READABLE)

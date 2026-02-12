@@ -478,6 +478,11 @@ kk_lower_nir(struct kk_device *dev, nir_shader *nir,
    if (KK_DEBUG(FORCE_ROBUSTNESS))
       rs = &rs_all_supported;
 
+   const nir_opt_access_options access_options = {
+      .is_vulkan = true,
+   };
+   NIR_PASS(_, nir, nir_opt_access, &access_options);
+
    /* Massage IO related variables to please Metal */
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, kk_nir_lower_vs_multiview, state->rp->view_mask);
