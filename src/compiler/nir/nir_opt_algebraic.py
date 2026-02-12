@@ -1069,20 +1069,8 @@ optimizations.extend([
    (('fmax', ('fneg', ('fmin', b, a)), b), ('fmax', ('fabs', b), ('fneg', a))),
    (('fmin', ('fneg', ('fmax', b, a)), b), ('fmin', ('fneg', ('fabs', b)), ('fneg', a))),
 
-   # If a in [-b,0] then a+b is in [0,b].  Since b in [0,1], max(a+b, 0) =
-   # fsat(a+b).
-   #
-   # If a < -b, then a+b < 0 and max(a+b, 0) = fsat(a+b) = 0
-   #
    # This should be NaN safe since max(NaN, 0) = fsat(NaN) = 0.
-   (('fmax', ('fadd(is_used_once)', 'a(is_not_positive)', '#b(is_zero_to_one)'), 0.0),
-    ('fsat', ('fadd', a, b)), '!options->lower_fsat'),
-
-   # ffma variants of the pattern above.
-   (('fmax', ('ffma(is_used_once)', 'a(is_not_positive)', 'b(is_not_negative)', '#c(is_zero_to_one)'), 0.0),
-    ('fsat', ('ffma', a, b, c)), '!options->lower_fsat'),
-   (('fmax', ('ffma(is_used_once)', 'a', ('fneg', a), '#b(is_zero_to_one)'), 0.0),
-    ('fsat', ('ffma', a, ('fneg', a), b)), '!options->lower_fsat'),
+   (('fmax', 'a(is_le_pos_one)', 0.0), ('fsat', a), '!options->lower_fsat'),
 
    (('fsat', ('fmax', a, 'b(is_not_positive)')), ('fsat', a)),
 
