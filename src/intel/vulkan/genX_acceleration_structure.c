@@ -231,6 +231,7 @@ debug_record_as_to_bvh_dump(struct anv_cmd_buffer *cmd_buffer,
 #define HEADER_SPV_PATH STRINGIFY(bvh/genX(header).spv.h)
 #define COPY_SPV_PATH STRINGIFY(bvh/genX(copy).spv.h)
 #define UPDATE_SPV_PATH STRINGIFY(bvh/genX(update).spv.h)
+#define PAIR_TRIANGLES_SPV_PATH STRINGIFY(bvh/genX(pair_triangles).spv.h)
 
 static const uint32_t encode_spv[] = {
 #include ENCODE_SPV_PATH
@@ -246,6 +247,10 @@ static const uint32_t copy_spv[] = {
 
 static const uint32_t update_spv[] = {
 #include UPDATE_SPV_PATH
+};
+
+static const uint32_t pair_triangles_spv[] = {
+#include PAIR_TRIANGLES_SPV_PATH
 };
 
 static void
@@ -723,6 +728,8 @@ static const struct vk_acceleration_structure_build_ops anv_build_ops = {
    .get_update_scratch_size = anv_get_update_scratch_size,
    .init_update_scratch = anv_init_update_scratch,
    .encode = anv_encode,
+   .pair_triangles_spirv_override = pair_triangles_spv,
+   .pair_triangles_spirv_override_size = sizeof(pair_triangles_spv),
 };
 
 static VkResult
