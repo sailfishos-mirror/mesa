@@ -208,7 +208,7 @@ static bool r300_setup_atoms(struct r300_context* r300)
     R300_INIT_ATOM(zmask_clear, r300->screen->caps.zmask_ram > 0 ? 4 : 0);
     R300_INIT_ATOM(cmask_clear, 4);
     /* ZB (unpipelined), SU. */
-    R300_INIT_ATOM(query_start, 4);
+    R300_INIT_ATOM(query_start, 14);
 
     /* Replace emission functions for r500. */
     if (is_r500) {

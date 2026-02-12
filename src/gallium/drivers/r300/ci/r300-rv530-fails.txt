@@ -405,7 +405,6 @@ spec@!opengl 1.4@triangle-rasterization-fbo,Fail
 
 spec@!opengl 2.0@gl-2.0-edgeflag,Fail
 spec@!opengl 2.0@gl-2.0-edgeflag-immediate,Fail
-spec@!opengl 2.0@occlusion-query-discard,Fail
 spec@!opengl 2.0@tex3d-npot,Fail
 
 spec@!opengl 2.1@pbo,Fail
@@ -549,8 +548,6 @@ spec@ext_framebuffer_object@getteximage-formats init-by-rendering,Fail
 
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-export,Fail
 
-spec@ext_occlusion_query_boolean@any-samples,Fail
-
 spec@ext_texture_compression_rgtc@rgtc-teximage-01,Fail
 spec@ext_texture_compression_rgtc@rgtc-teximage-02,Fail
 
@@ -693,13 +690,6 @@ spec@khr_texture_compression_astc@miptree-gl srgb-fp,Fail
 spec@khr_texture_compression_astc@miptree-gl srgb-fp@sRGB decode full precision,Fail
 spec@khr_texture_compression_astc@miptree-gles srgb,Fail
 spec@khr_texture_compression_astc@miptree-gles srgb-fp,Fail
-
-spec@nv_conditional_render@bitmap,Fail
-spec@nv_conditional_render@clear,Fail
-spec@nv_conditional_render@copypixels,Fail
-spec@nv_conditional_render@dlist,Fail
-spec@nv_conditional_render@drawpixels,Fail
-spec@nv_conditional_render@vertex_array,Fail
 
 # https://gitlab.freedesktop.org/mesa/mesa/-/issues/10557
 dEQP-GLES2.functional.texture.mipmap.2d.projected.nearest_nearest_mirror,Fail

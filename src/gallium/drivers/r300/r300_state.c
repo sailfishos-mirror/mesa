@@ -980,6 +980,10 @@ void r300_mark_fb_state_dirty(struct r300_context *r300,
         r300_mark_atom_dirty(r300, &r300->fb_state_pipelined);
     }
 
+    if (r300->query_current) {
+        r300_mark_atom_dirty(r300, &r300->query_start);
+    }
+
     /* Now compute the fb_state atom size. */
     r300->fb_state.size = 2 + (8 * state->nr_cbufs);
 

@@ -565,7 +565,6 @@ spec@!opengl 1.4@triangle-rasterization,Fail
 spec@!opengl 1.4@triangle-rasterization-fbo,Fail
 
 spec@!opengl 2.0@gl-2.0-two-sided-stencil,Fail
-spec@!opengl 2.0@occlusion-query-discard,Fail
 
 spec@!opengl 2.1@pbo,Fail
 spec@!opengl 2.1@pbo@test_polygon_stip,Fail
@@ -726,8 +725,6 @@ spec@ext_framebuffer_object@getteximage-formats init-by-clear-and-render,Fail
 spec@ext_framebuffer_object@getteximage-formats init-by-rendering,Fail
 
 spec@ext_image_dma_buf_import@ext_image_dma_buf_import-export,Fail
-
-spec@ext_occlusion_query_boolean@any-samples,Fail
 
 spec@ext_texture_format_bgra8888@api-errors,Fail
 
@@ -1160,13 +1157,6 @@ spec@khr_texture_compression_astc@miptree-gl srgb-fp,Fail
 spec@khr_texture_compression_astc@miptree-gl srgb-fp@sRGB decode full precision,Fail
 spec@khr_texture_compression_astc@miptree-gles srgb,Fail
 spec@khr_texture_compression_astc@miptree-gles srgb-fp,Fail
-
-spec@nv_conditional_render@bitmap,Fail
-spec@nv_conditional_render@clear,Fail
-spec@nv_conditional_render@copypixels,Fail
-spec@nv_conditional_render@dlist,Fail
-spec@nv_conditional_render@drawpixels,Fail
-spec@nv_conditional_render@vertex_array,Fail
 
 spec@nv_primitive_restart@primitive-restart-draw-mode-lines,Fail
 spec@nv_primitive_restart@primitive-restart-draw-mode-quad_strip,Fail
