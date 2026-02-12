@@ -47,18 +47,6 @@ enum {
    DRI_CONF_BO_REUSE_ALL
 };
 
-enum iris_param_domain {
-   ELK_PARAM_DOMAIN_BUILTIN = 0,
-   ELK_PARAM_DOMAIN_IMAGE,
-};
-
-#define ELK_PARAM(domain, val)   (ELK_PARAM_DOMAIN_##domain << 24 | (val))
-#define ELK_PARAM_DOMAIN(param)  ((uint32_t)(param) >> 24)
-#define ELK_PARAM_VALUE(param)   ((uint32_t)(param) & 0x00ffffff)
-#define ELK_PARAM_IMAGE(idx, offset) ELK_PARAM(IMAGE, ((idx) << 8) | (offset))
-#define ELK_PARAM_IMAGE_IDX(value)   (ELK_PARAM_VALUE(value) >> 8)
-#define ELK_PARAM_IMAGE_OFFSET(value)(ELK_PARAM_VALUE(value) & 0xf)
-
 /**
  * Dirty flags.  When state changes, we flag some combination of these
  * to indicate that particular GPU commands need to be re-emitted.
@@ -625,6 +613,33 @@ struct iris_binding_table {
    /** Whether the first render target is a null fb surface */
    uint8_t use_null_rt;
 };
+
+#define IRIS_SYSVAL_CLIP_PLANE(plane, component) \
+   (IRIS_SYSVAL_CLIP_PLANE_START + ((plane) * 4) + (component))
+
+#define IRIS_SYSVALS_PER_IMAGE (4 * ISL_IMAGE_PARAM_SIZE)
+
+enum iris_sysval {
+   IRIS_SYSVAL_ZERO,
+   IRIS_SYSVAL_WORK_DIM,
+   IRIS_SYSVAL_WORK_GROUP_SIZE_X,
+   IRIS_SYSVAL_WORK_GROUP_SIZE_Y,
+   IRIS_SYSVAL_WORK_GROUP_SIZE_Z,
+   IRIS_SYSVAL_PATCH_VERTICES_IN,
+   IRIS_SYSVAL_TESS_LEVEL_INNER_X,
+   IRIS_SYSVAL_TESS_LEVEL_INNER_Y,
+   IRIS_SYSVAL_TESS_LEVEL_OUTER_X,
+   IRIS_SYSVAL_TESS_LEVEL_OUTER_Y,
+   IRIS_SYSVAL_TESS_LEVEL_OUTER_Z,
+   IRIS_SYSVAL_TESS_LEVEL_OUTER_W,
+   IRIS_SYSVAL_CLIP_PLANE_START,
+   IRIS_SYSVAL_CLIP_PLANE_LAST =
+      IRIS_SYSVAL_CLIP_PLANE(IRIS_MAX_CLIP_PLANES - 1, 3),
+   IRIS_SYSVAL_IMAGE_START,
+   IRIS_SYSVAL_IMAGE_LAST =
+      IRIS_SYSVAL_IMAGE_START + IRIS_MAX_IMAGES * IRIS_SYSVALS_PER_IMAGE,
+};
+
 
 /**
  * A compiled shader variant, containing a pointer to the GPU assembly,

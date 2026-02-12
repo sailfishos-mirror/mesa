@@ -898,11 +898,14 @@ setup_vec4_image_sysval(uint32_t *sysvals, uint32_t idx,
 #ifdef INTEL_USE_ELK
    assert(offset % sizeof(uint32_t) == 0);
 
-   for (unsigned i = 0; i < n; ++i)
-      sysvals[i] = ELK_PARAM_IMAGE(idx, offset / sizeof(uint32_t) + i);
+   for (unsigned i = 0; i < n; ++i) {
+      sysvals[i] = IRIS_SYSVAL_IMAGE_START +
+                   idx * IRIS_SYSVALS_PER_IMAGE +
+                   offset / sizeof(uint32_t) + i;
+   }
 
    for (unsigned i = n; i < 4; ++i)
-      sysvals[i] = ELK_PARAM_BUILTIN_ZERO;
+      sysvals[i] = IRIS_SYSVAL_ZERO;
 #else
    UNREACHABLE("no elk support");
 #endif
@@ -1006,7 +1009,7 @@ iris_setup_uniforms(ASSERTED const struct intel_device_info *devinfo,
 
             for (int i = 0; i < 4; i++) {
                system_values[ucp_idx[ucp] + i] =
-                  BRW_PARAM_BUILTIN_CLIP_PLANE(ucp, i);
+                  IRIS_SYSVAL_CLIP_PLANE(ucp, i);
             }
 
             b.cursor = nir_before_instr(instr);
@@ -1017,8 +1020,7 @@ iris_setup_uniforms(ASSERTED const struct intel_device_info *devinfo,
             if (patch_vert_idx == -1)
                patch_vert_idx = num_system_values++;
 
-            system_values[patch_vert_idx] =
-               BRW_PARAM_BUILTIN_PATCH_VERTICES_IN;
+            system_values[patch_vert_idx] = IRIS_SYSVAL_PATCH_VERTICES_IN;
 
             b.cursor = nir_before_instr(instr);
             offset = nir_imm_int(&b, patch_vert_idx * sizeof(uint32_t));
@@ -1031,7 +1033,7 @@ iris_setup_uniforms(ASSERTED const struct intel_device_info *devinfo,
 
             for (int i = 0; i < 4; i++) {
                system_values[tess_outer_default_idx + i] =
-                  BRW_PARAM_BUILTIN_TESS_LEVEL_OUTER_X + i;
+                  IRIS_SYSVAL_TESS_LEVEL_OUTER_X + i;
             }
 
             b.cursor = nir_before_instr(instr);
@@ -1045,7 +1047,7 @@ iris_setup_uniforms(ASSERTED const struct intel_device_info *devinfo,
 
             for (int i = 0; i < 2; i++) {
                system_values[tess_inner_default_idx + i] =
-                  BRW_PARAM_BUILTIN_TESS_LEVEL_INNER_X + i;
+                  IRIS_SYSVAL_TESS_LEVEL_INNER_X + i;
             }
 
             b.cursor = nir_before_instr(instr);
@@ -1101,7 +1103,7 @@ iris_setup_uniforms(ASSERTED const struct intel_device_info *devinfo,
                num_system_values += 3;
                for (int i = 0; i < 3; i++) {
                   system_values[variable_group_size_idx + i] =
-                     BRW_PARAM_BUILTIN_WORK_GROUP_SIZE_X + i;
+                     IRIS_SYSVAL_WORK_GROUP_SIZE_X + i;
                }
             }
 
@@ -1112,7 +1114,7 @@ iris_setup_uniforms(ASSERTED const struct intel_device_info *devinfo,
          case nir_intrinsic_load_work_dim: {
             if (work_dim_idx == -1) {
                work_dim_idx = num_system_values++;
-               system_values[work_dim_idx] = BRW_PARAM_BUILTIN_WORK_DIM;
+               system_values[work_dim_idx] = IRIS_SYSVAL_WORK_DIM;
             }
             b.cursor = nir_before_instr(instr);
             offset = nir_imm_int(&b, work_dim_idx * sizeof(uint32_t));

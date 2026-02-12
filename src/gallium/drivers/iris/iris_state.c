@@ -4078,29 +4078,30 @@ upload_sysvals(struct iris_context *ice,
       uint32_t sysval = shader->system_values[i];
       uint32_t value = 0;
 
-#if GFX_VER >= 9
-      #define COMPILER(x) BRW_##x
-#else
-      #define COMPILER(x) ELK_##x
-#endif
-
-      if (ELK_PARAM_DOMAIN(sysval) == ELK_PARAM_DOMAIN_IMAGE) {
+      switch (sysval) {
 #if GFX_VER == 8
-         unsigned img = ELK_PARAM_IMAGE_IDX(sysval);
-         unsigned offset = ELK_PARAM_IMAGE_OFFSET(sysval);
+      case IRIS_SYSVAL_IMAGE_START ... IRIS_SYSVAL_IMAGE_LAST: {
+         unsigned dw_per_img = 4 * ISL_IMAGE_PARAM_SIZE;
+         unsigned img = (sysval - IRIS_SYSVAL_IMAGE_START) / dw_per_img;
+         unsigned offset = (sysval - IRIS_SYSVAL_IMAGE_START) % dw_per_img;
          struct isl_image_param *param =
             &genx->shaders[stage].image_param[img];
 
          assert(offset < sizeof(struct isl_image_param));
          value = ((uint32_t *) param)[offset];
+         break;
+      }
 #endif
-      } else if (sysval == COMPILER(PARAM_BUILTIN_ZERO)) {
+      case IRIS_SYSVAL_ZERO:
          value = 0;
-      } else if (COMPILER(PARAM_BUILTIN_IS_CLIP_PLANE(sysval))) {
-         int plane = COMPILER(PARAM_BUILTIN_CLIP_PLANE_IDX(sysval));
-         int comp  = COMPILER(PARAM_BUILTIN_CLIP_PLANE_COMP(sysval));
+         break;
+      case IRIS_SYSVAL_CLIP_PLANE_START ... IRIS_SYSVAL_CLIP_PLANE_LAST: {
+         const int plane = (sysval - IRIS_SYSVAL_CLIP_PLANE_START) / 4;
+         const int comp  = (sysval - IRIS_SYSVAL_CLIP_PLANE_START) % 4;
          value = fui(ice->state.clip_planes.ucp[plane][comp]);
-      } else if (sysval == COMPILER(PARAM_BUILTIN_PATCH_VERTICES_IN)) {
+         break;
+      }
+      case IRIS_SYSVAL_PATCH_VERTICES_IN:
          if (stage == MESA_SHADER_TESS_CTRL) {
             value = ice->state.vertices_per_patch;
          } else {
@@ -4112,22 +4113,27 @@ upload_sysvals(struct iris_context *ice,
             else
                value = ice->state.vertices_per_patch;
          }
-      } else if (sysval >= COMPILER(PARAM_BUILTIN_TESS_LEVEL_OUTER_X) &&
-                 sysval <= COMPILER(PARAM_BUILTIN_TESS_LEVEL_OUTER_W)) {
-         unsigned i = sysval - COMPILER(PARAM_BUILTIN_TESS_LEVEL_OUTER_X);
+         break;
+      case IRIS_SYSVAL_TESS_LEVEL_OUTER_X ... IRIS_SYSVAL_TESS_LEVEL_OUTER_W: {
+         unsigned i = sysval - IRIS_SYSVAL_TESS_LEVEL_OUTER_X;
          value = fui(ice->state.default_outer_level[i]);
-      } else if (sysval == COMPILER(PARAM_BUILTIN_TESS_LEVEL_INNER_X)) {
-         value = fui(ice->state.default_inner_level[0]);
-      } else if (sysval == COMPILER(PARAM_BUILTIN_TESS_LEVEL_INNER_Y)) {
-         value = fui(ice->state.default_inner_level[1]);
-      } else if (sysval >= COMPILER(PARAM_BUILTIN_WORK_GROUP_SIZE_X) &&
-                 sysval <= COMPILER(PARAM_BUILTIN_WORK_GROUP_SIZE_Z)) {
-         unsigned i = sysval - COMPILER(PARAM_BUILTIN_WORK_GROUP_SIZE_X);
+         break;
+      }
+      case IRIS_SYSVAL_TESS_LEVEL_INNER_X ... IRIS_SYSVAL_TESS_LEVEL_INNER_Y: {
+         unsigned i = sysval - IRIS_SYSVAL_TESS_LEVEL_INNER_X;
+         value = fui(ice->state.default_inner_level[i]);
+         break;
+      }
+      case IRIS_SYSVAL_WORK_GROUP_SIZE_X ... IRIS_SYSVAL_WORK_GROUP_SIZE_Z: {
+         unsigned i = sysval - IRIS_SYSVAL_WORK_GROUP_SIZE_X;
          value = ice->state.last_block[i];
-      } else if (sysval == COMPILER(PARAM_BUILTIN_WORK_DIM)) {
+         break;
+      }
+      case IRIS_SYSVAL_WORK_DIM:
          value = grid->work_dim;
-      } else {
-         assert(!"unhandled system value");
+         break;
+      default:
+         UNREACHABLE("unhandled system value");
       }
 
       *sysval_map++ = value;
