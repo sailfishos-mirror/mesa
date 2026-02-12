@@ -170,6 +170,11 @@ __push_immd(struct nv_push *push, int subc, uint32_t mthd, uint32_t val)
    __push_hdr(push, NVC0_FIFO_PKHDR_IL(subc, mthd, val));
 }
 
+/**
+ * P_IMMD() pushes a command and its arguments. Note that this always
+ * takes two words in unoptimized builds but may sometimes take one word
+ * with optimizations on.
+ */
 #define P_IMMD(push, class, mthd, args...) do {                         \
    uint32_t __val;                                                      \
    VA_##class##_##mthd(__val, args);                                    \
@@ -179,6 +184,17 @@ __push_immd(struct nv_push *push, int subc, uint32_t mthd, uint32_t val)
       __push_mthd_size(push, SUBC_##class, class##_##mthd, 0);          \
       nv_push_val(push, class##_##mthd, __val);                        \
    }                                                                    \
+} while(0)
+
+/**
+ * P_IMMD_WORD is the same as P_IMMD, except that it always takes exactly
+ * one word of space (and asserts if two words would be needed)
+ */
+#define P_IMMD_WORD(push, class, mthd, args...) do {                    \
+   uint32_t __val;                                                      \
+   VA_##class##_##mthd(__val, args);                                    \
+   assert(!(__val & ~0x1fff));                                          \
+   __push_immd(push, SUBC_##class, class##_##mthd, __val);              \
 } while(0)
 
 static inline uint32_t
