@@ -351,8 +351,11 @@ ac_prepare_cs_clear_copy_buffer(const struct ac_cs_clear_copy_buffer_options *op
 
    /* This doesn't fail very often because the only possible fallback is CP DMA, which doesn't
     * support the render condition.
+    *
+    * CP DMA doesn't support sparse on GFX6-9, so we must use compute for that.
     */
    if (options->fail_if_slow && !info->render_condition_enabled && options->info->has_cp_dma &&
+       ((!info->src_is_sparse && !info->dst_is_sparse) || options->info->cp_dma_supports_sparse) &&
        !options->info->cp_sdma_ge_use_system_memory_scope) {
       switch (options->info->gfx_level) {
       /* GFX6-8: CP DMA clears are so slow that we risk getting a GPU timeout. CP DMA copies

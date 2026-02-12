@@ -174,6 +174,7 @@ bool si_compute_clear_copy_buffer(struct si_context *sctx, struct pipe_resource 
       .render_condition_enabled = render_condition_enable,
       .dst_is_vram = si_resource(dst)->domains & RADEON_DOMAIN_VRAM,
       .src_is_vram = src && si_resource(src)->domains & RADEON_DOMAIN_VRAM,
+      .dst_is_sparse = dst->flags & PIPE_RESOURCE_FLAG_SPARSE,
       .src_is_sparse = src && src->flags & PIPE_RESOURCE_FLAG_SPARSE,
    };
    memcpy(info.clear_value, clear_value, clear_value_size);

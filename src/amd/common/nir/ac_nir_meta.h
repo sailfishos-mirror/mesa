@@ -173,6 +173,7 @@ struct ac_cs_clear_copy_buffer_info {
    bool render_condition_enabled;
    bool dst_is_vram;
    bool src_is_vram;
+   bool dst_is_sparse;
    bool src_is_sparse;
 };
 
