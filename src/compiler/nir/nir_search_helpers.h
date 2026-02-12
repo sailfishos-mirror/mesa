@@ -169,64 +169,6 @@ MULTIPLE(16)
 MULTIPLE(32)
 MULTIPLE(64)
 
-static inline bool
-is_zero_to_one(UNUSED const nir_search_state *state, const nir_alu_instr *instr,
-               unsigned src, unsigned num_components,
-               const uint8_t *swizzle)
-{
-   /* only constant srcs: */
-   if (!nir_src_is_const(instr->src[src].src))
-      return false;
-
-   for (unsigned i = 0; i < num_components; i++) {
-      nir_alu_type type = nir_op_infos[instr->op].input_types[src];
-      switch (nir_alu_type_get_base_type(type)) {
-      case nir_type_float: {
-         double val = nir_src_comp_as_float(instr->src[src].src, swizzle[i]);
-         if (isnan(val) || val < 0.0f || val > 1.0f)
-            return false;
-         break;
-      }
-      default:
-         return false;
-      }
-   }
-
-   return true;
-}
-
-/**
- * Exclusive compare with (0, 1).
- *
- * This differs from \c is_zero_to_one because that function tests 0 <= src <=
- * 1 while this function tests 0 < src < 1.
- */
-static inline bool
-is_gt_0_and_lt_1(UNUSED const nir_search_state *state, const nir_alu_instr *instr,
-                 unsigned src, unsigned num_components,
-                 const uint8_t *swizzle)
-{
-   /* only constant srcs: */
-   if (!nir_src_is_const(instr->src[src].src))
-      return false;
-
-   for (unsigned i = 0; i < num_components; i++) {
-      nir_alu_type type = nir_op_infos[instr->op].input_types[src];
-      switch (nir_alu_type_get_base_type(type)) {
-      case nir_type_float: {
-         double val = nir_src_comp_as_float(instr->src[src].src, swizzle[i]);
-         if (isnan(val) || val <= 0.0f || val >= 1.0f)
-            return false;
-         break;
-      }
-      default:
-         return false;
-      }
-   }
-
-   return true;
-}
-
 /**
  * x & 1 != 0
  */
@@ -930,6 +872,9 @@ RELATION_AND_NUM(not_positive, FP_CLASS_ANY_POS)
 RELATION_AND_NUM(gt_zero, FP_CLASS_ANY_NEG | FP_CLASS_ANY_ZERO)
 RELATION_AND_NUM(not_negative, FP_CLASS_ANY_NEG)
 RELATION_AND_NUM(not_zero, FP_CLASS_ANY_ZERO)
+RELATION_AND_NUM(zero_to_one, FP_CLASS_ANY_NEG | FP_CLASS_GT_POS_ONE | FP_CLASS_POS_INF)
+RELATION_AND_NUM(le_pos_one, FP_CLASS_GT_POS_ONE | FP_CLASS_POS_INF)
+RELATION_AND_NUM(gt_0_and_lt_1, FP_CLASS_ANY_NEG | FP_CLASS_ANY_ZERO | FP_CLASS_POS_ONE | FP_CLASS_GT_POS_ONE | FP_CLASS_POS_INF)
 RELATION(a_number, FP_CLASS_NAN)
 RELATION(finite, FP_CLASS_ANY_INF | FP_CLASS_NAN)
 RELATION(finite_not_zero, FP_CLASS_ANY_INF | FP_CLASS_NAN | FP_CLASS_ANY_ZERO)
