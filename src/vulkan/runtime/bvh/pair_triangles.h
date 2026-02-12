@@ -17,6 +17,12 @@ layout(push_constant) uniform CONSTS {
 shared uint32_t subgroup_sums[PAIR_TRIANGLES_WORKGROUP_SIZE / SUBGROUP_SIZE];
 shared uint32_t shared_aggregate_sum;
 
+/* specialization: Assure if we can really merge the primitives with driver
+ * specific constraints.
+ */
+void
+driver_should_merge_primitives(inout bool should_merge, uint32_t tri0_id, uint32_t tri1_id);
+
 void
 main(void)
 {
@@ -51,6 +57,7 @@ main(void)
 
       while (true) {
          uint32_t target_invocation = subgroupBallotFindLSB(subgroupBallot(true));
+         uint32_t target_id = subgroupShuffle(triangle.triangle_id, target_invocation);
          uint32_t target_geometry_id_and_flags = subgroupShuffle(triangle.geometry_id_and_flags, target_invocation);
          if (triangle.geometry_id_and_flags != target_geometry_id_and_flags)
             continue;
@@ -83,6 +90,7 @@ main(void)
          vec3 v3 = vec3(triangle.coords[v3_index][0], triangle.coords[v3_index][1], triangle.coords[v3_index][2]);
 
          bool should_merge = shared_edges != 0xffffffff && gl_SubgroupInvocationID != target_invocation;
+         driver_should_merge_primitives(should_merge, target_id, triangle.triangle_id);
          if (should_merge) {
             vk_aabb merged_aabb;
             merged_aabb.min = min(bounds.min, v3);
