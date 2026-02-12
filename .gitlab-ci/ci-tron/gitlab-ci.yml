@@ -109,6 +109,17 @@
     - job: debian-build-x86_64
       artifacts: false
 
+.ci-tron-x86_64-test-video:
+  extends:
+    - .use-debian/x86_64_test-video
+    - .ci-tron-x86_64-test
+  needs:
+    - job: debian/x86_64_test-video
+      artifacts: false
+      optional: true
+    - job: debian-x86_64
+      artifacts: false
+
 .ci-tron-x86_64-test-gl:
   extends:
     - .use-debian/x86_64_test-gl
