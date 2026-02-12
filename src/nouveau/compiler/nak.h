@@ -58,6 +58,12 @@ struct nak_fs_key {
    bool force_sample_shading;
    bool uses_underestimate;
 
+   uint8_t pad;
+};
+PRAGMA_DIAGNOSTIC_POP
+static_assert(sizeof(struct nak_fs_key) == 4, "This struct has no holes");
+
+struct nak_constant_offset_info {
    /**
     * The constant buffer index and offset at which the sample locations and
     * pass sample masks tables lives.
@@ -80,9 +86,7 @@ struct nak_fs_key {
     */
    uint32_t sample_masks_offset;
 };
-PRAGMA_DIAGNOSTIC_POP
-static_assert(sizeof(struct nak_fs_key) == 12, "This struct has no holes");
-
+const extern struct nak_constant_offset_info nak_const_offsets;
 
 void nak_postprocess_nir(nir_shader *nir, const struct nak_compiler *nak,
                          nir_variable_mode robust2_modes,
