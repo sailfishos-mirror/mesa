@@ -145,6 +145,12 @@ struct pipe_rasterizer_state
    unsigned rasterizer_discard:1;
 
    /**
+    * Which vertex stream to rasterize (0-3).
+    * Only meaningful with geometry shaders and stream output.
+    */
+   unsigned rasterization_stream:2;
+
+   /**
     * Exposed by pipe_caps.tile_raster_order.  When true,
     * tile_raster_order_increasing_* indicate the order that the rasterizer
     * should render tiles, to meet the requirements of
