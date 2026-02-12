@@ -1428,6 +1428,26 @@ encode_map(O_ATOMIC,
 
 encode_map(O_SMP,
    encodings=[
+      (I_SMP_EXTABC, [
+         ('fcnorm', OM_FCNORM),
+         ('drc', ('pco_ref_get_drc', SRC(0))),
+         ('dmn', OM_DIM),
+         ('chan', ('pco_ref_get_imm', SRC(5))),
+         ('lodm', OM_LOD_MODE),
+         ('pplod', OM_PPLOD),
+         ('proj', OM_PROJ),
+         ('sbmode', OM_SB_MODE),
+         ('nncoords', OM_NNCOORDS),
+         ('sno', OM_SNO),
+         ('soo', OM_SOO),
+         ('tao', OM_TAO),
+         ('f16', OM_F16),
+         ('swap', OM_SCHEDSWAP),
+         ('cachemode_ld', OM_MCU_CACHE_MODE_LD),
+         ('w', OM_WRT),
+         ('integer', OM_INTEGER),
+         ('array', OM_ARRAY),
+      ]),
       (I_SMP_EXTAB, [
          ('fcnorm', OM_FCNORM),
          ('drc', ('pco_ref_get_drc', SRC(0))),
@@ -1445,6 +1465,9 @@ encode_map(O_SMP,
          ('swap', OM_SCHEDSWAP),
          ('cachemode_ld', OM_MCU_CACHE_MODE_LD),
          ('w', OM_WRT)
+      ], [
+         (OM_INTEGER, '== false'),
+         (OM_ARRAY, '== false')
       ]),
       (I_SMP_EXTA, [
          ('fcnorm', OM_FCNORM),
@@ -1460,6 +1483,8 @@ encode_map(O_SMP,
          ('soo', OM_SOO),
          ('tao', OM_TAO)
       ], [
+         (OM_INTEGER, '== false'),
+         (OM_ARRAY, '== false'),
          (OM_F16, '== false'),
          (OM_SCHEDSWAP, '== PCO_SCHEDSWAP_NONE'),
          (OM_MCU_CACHE_MODE_LD, '== PCO_CACHEMODE_LD_NORMAL'),
@@ -1472,6 +1497,8 @@ encode_map(O_SMP,
          ('chan', ('pco_ref_get_imm', SRC(5))),
          ('lodm', OM_LOD_MODE)
       ], [
+         (OM_INTEGER, '== false'),
+         (OM_ARRAY, '== false'),
          (OM_F16, '== false'),
          (OM_SCHEDSWAP, '== PCO_SCHEDSWAP_NONE'),
          (OM_MCU_CACHE_MODE_LD, '== PCO_CACHEMODE_LD_NORMAL'),
