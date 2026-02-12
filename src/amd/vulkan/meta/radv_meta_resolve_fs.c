@@ -679,6 +679,22 @@ radv_meta_resolve_depth_stencil_fs(struct radv_cmd_buffer *cmd_buffer, struct ra
 
    radv_CmdSetScissor(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1, &resolve_area);
 
+   const uint32_t push_constants[2] = {
+      region->srcOffset.x - region->dstOffset.x,
+      region->srcOffset.y - region->dstOffset.y,
+   };
+
+   const VkPushConstantsInfoKHR push_constants_info = {
+      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+      .layout = layout,
+      .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+      .offset = 0,
+      .size = sizeof(push_constants),
+      .pValues = push_constants,
+   };
+
+   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &push_constants_info);
+
    radv_CmdDraw(radv_cmd_buffer_to_handle(cmd_buffer), 3, 1, 0, 0);
 
    const VkRenderingEndInfoKHR end_info = {
