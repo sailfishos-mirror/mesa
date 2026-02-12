@@ -1287,6 +1287,31 @@ anv_h264_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
 
 }
 
+#if GFX_VER >= 12
+static const uint8_t hcp_transform_skip_coeffs_tbl[4][2][2][2][2] =
+{
+   { { { { 42, 37 },{ 32, 40 } },{ { 40, 40 },{ 32, 45 } } },
+     { { { 29, 48 },{ 26, 53 } },{ { 26, 56 },{ 24, 62 } } } },
+   { { { { 42, 40 },{ 32, 45 } },{ { 40, 46 },{ 32, 48 } } },
+     { { { 26, 53 },{ 24, 58 } },{ { 32, 53 },{ 26, 64 } } } },
+   { { { { 38, 42 },{ 32, 51 } },{ { 43, 43 },{ 35, 46 } } },
+     { { { 26, 56 },{ 24, 64 } },{ { 35, 50 },{ 32, 57 } } } },
+   { { { { 35, 46 },{ 32, 52 } },{ { 51, 42 },{ 38, 53 } } },
+     { { { 29, 56 },{ 29, 70 } },{ { 38, 47 },{ 37, 64 } } } },
+};
+
+static const uint16_t hcp_transform_skip_lambda_tbl[52] =
+{
+   149, 149, 149, 149, 149, 149, 149, 149,
+   149, 149, 149, 149, 149, 149, 149, 149,
+   149, 149, 149, 149, 149, 149, 149, 149,
+   149, 162, 174, 186, 199, 211, 224, 236,
+   249, 261, 273, 286, 298, 298, 298, 298,
+   298, 298, 298, 298, 298, 298, 298, 298,
+   298, 298, 298, 298
+};
+#endif // GFX_VER >= 12
+
 static uint8_t
 anv_h265_get_ref_poc(const VkVideoEncodeInfoKHR *enc_info,
                      const StdVideoEncodeH265ReferenceListsInfo* ref_lists,
@@ -2341,11 +2366,30 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          slice.HeaderInsertionPresent = true;
 
          slice.IndirectPAKBSEDataStartOffset = 0;
-         slice.TransformSkipLambda = 162;
-         slice.TransformSkipNumberofZeroCoeffsFactor0 = 42;
-         slice.TransformSkipNumberofNonZeroCoeffsFactor0 = 72;
-         slice.TransformSkipNumberofZeroCoeffsFactor1 = 32;
-         slice.TransformSkipNumberofNonZeroCoeffsFactor1 = 77;
+         slice.TransformSkipLambda = hcp_transform_skip_lambda_tbl[slice_qp];
+
+         int qp_idx = 0;
+         if (slice_qp <= 22) {
+            qp_idx = 0;
+         } else if (slice_qp <= 27) {
+            qp_idx = 1;
+         } else if (slice_qp <= 32) {
+            qp_idx = 2;
+         } else {
+            qp_idx = 3;
+         }
+
+         if (anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) == 0) {
+            slice.TransformSkipNumberofZeroCoeffsFactor0 = hcp_transform_skip_coeffs_tbl[qp_idx][0][0][0][0];
+            slice.TransformSkipNumberofZeroCoeffsFactor1 = hcp_transform_skip_coeffs_tbl[qp_idx][0][0][1][0];
+            slice.TransformSkipNumberofNonZeroCoeffsFactor0 = hcp_transform_skip_coeffs_tbl[qp_idx][0][0][0][1] + 32;
+            slice.TransformSkipNumberofNonZeroCoeffsFactor1 = hcp_transform_skip_coeffs_tbl[qp_idx][0][0][1][1] + 32;
+         } else {
+            slice.TransformSkipNumberofZeroCoeffsFactor0 = hcp_transform_skip_coeffs_tbl[qp_idx][1][0][0][0];
+            slice.TransformSkipNumberofZeroCoeffsFactor1 = hcp_transform_skip_coeffs_tbl[qp_idx][1][0][1][0];
+            slice.TransformSkipNumberofNonZeroCoeffsFactor0 = hcp_transform_skip_coeffs_tbl[qp_idx][1][0][0][1] + 32;
+            slice.TransformSkipNumberofNonZeroCoeffsFactor1 = hcp_transform_skip_coeffs_tbl[qp_idx][1][0][1][1] + 32;
+         }
 
          slice.OriginalSliceStartCtbX = slice_header->slice_segment_address % ctb_w;
          slice.OriginalSliceStartCtbY = slice_header->slice_segment_address / ctb_w;
