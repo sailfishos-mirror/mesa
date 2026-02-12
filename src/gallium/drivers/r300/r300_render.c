@@ -799,6 +799,39 @@ r300_update_clip_discard_distance(struct r300_context *r300, unsigned prim)
     }
 }
 
+static bool
+r300_rasterizer_emits_points(struct r300_context *r300, unsigned prim)
+{
+    struct r300_rs_state *rs = (struct r300_rs_state*)r300->rs_state.state;
+
+    if (prim == MESA_PRIM_POINTS)
+        return true;
+
+    switch (prim) {
+    case MESA_PRIM_TRIANGLES:
+    case MESA_PRIM_TRIANGLE_STRIP:
+    case MESA_PRIM_TRIANGLE_FAN:
+    case MESA_PRIM_QUADS:
+    case MESA_PRIM_QUAD_STRIP:
+    case MESA_PRIM_POLYGON:
+        break;
+    default:
+        return false;
+    }
+
+    if (!rs)
+        return false;
+
+    bool front_rasterized = !(rs->rs.cull_face & PIPE_FACE_FRONT);
+    bool back_rasterized = !(rs->rs.cull_face & PIPE_FACE_BACK);
+
+    if (front_rasterized && rs->rs.fill_front != PIPE_POLYGON_MODE_POINT)
+        return false;
+    if (back_rasterized && rs->rs.fill_back != PIPE_POLYGON_MODE_POINT)
+        return false;
+
+    return front_rasterized || back_rasterized;
+}
 
 static void r300_draw_vbo(struct pipe_context* pipe,
                           const struct pipe_draw_info *dinfo,
@@ -823,11 +856,13 @@ static void r300_draw_vbo(struct pipe_context* pipe,
 
     r300_update_clip_discard_distance(r300, info.mode);
 
-    if (r300->sprite_coord_enable != 0)
-        if ((info.mode == MESA_PRIM_POINTS) != r300->is_point) {
-            r300->is_point = !r300->is_point;
+    if (r300->sprite_coord_enable != 0) {
+        bool is_point = r300_rasterizer_emits_points(r300, info.mode);
+        if (is_point != r300->is_point) {
+            r300->is_point = is_point;
             r300_mark_atom_dirty(r300, &r300->rs_block_state);
         }
+    }
 
     r300_update_derived_state(r300);
 
@@ -910,11 +945,13 @@ static void r300_swtcl_draw_vbo(struct pipe_context* pipe,
                          info->index_size, ~0);
     }
 
-    if (r300->sprite_coord_enable != 0)
-        if ((info->mode == MESA_PRIM_POINTS) != r300->is_point) {
-            r300->is_point = !r300->is_point;
+    if (r300->sprite_coord_enable != 0) {
+        bool is_point = r300_rasterizer_emits_points(r300, info->mode);
+        if (is_point != r300->is_point) {
+            r300->is_point = is_point;
             r300_mark_atom_dirty(r300, &r300->rs_block_state);
         }
+    }
 
     r300_update_derived_state(r300);
 
