@@ -59,6 +59,7 @@ vk_bvh_include_dir = dir_source_root + '/src/vulkan/runtime/bvh'
 
 vk_bvh_includes = files(
   'leaf.h',
+  'pair_triangles.h',
   'vk_bvh_defines.h',
   'vk_bvh_helpers.h',
   'vk_debug.h',
