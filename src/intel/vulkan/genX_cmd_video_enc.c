@@ -2105,7 +2105,7 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       cmd2.Values21 &= 0xfffffff;
       cmd2.Values22 = 0x1f001102;
       cmd2.Values23 = 0xaaaa1f00;
-      cmd2.Values27 = (cmd2.Values27 & 0xffff0000) | 0x1a1a;
+      cmd2.QpPrimeYAc = pps->init_qp_minus26 + 26;
 
       cmd2.FrameWidthInPixelsMinusOne = width_in_pix - 1;
       cmd2.FrameHeightInPixelsMinusOne = height_in_pix - 1;
