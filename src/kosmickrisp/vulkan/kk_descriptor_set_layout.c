@@ -65,7 +65,7 @@ kk_descriptor_stride_align_for_type(
 
    case VK_DESCRIPTOR_TYPE_MUTABLE_EXT:
       *stride = *alignment = 0;
-      if (type_list == NULL)
+      if (type_list == NULL || type_list->descriptorTypeCount == 0u)
          *stride = *alignment = KK_MAX_DESCRIPTOR_SIZE;
       for (unsigned i = 0; type_list && i < type_list->descriptorTypeCount;
            i++) {
