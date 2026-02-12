@@ -211,6 +211,7 @@ struct vectorize_ctx {
    struct list_head entries[nir_num_variable_modes];
    struct hash_table *loads[nir_num_variable_modes];
    struct hash_table *stores[nir_num_variable_modes];
+   int prev_load_barrier[nir_num_variable_modes];
    struct block_ctx *per_block_ctx;
 };
 
@@ -1801,8 +1802,10 @@ handle_barrier(struct vectorize_ctx *ctx, bool *progress, nir_function_impl *imp
          continue;
       }
 
-      if (acquire)
+      if (acquire) {
          *progress |= vectorize_entries(ctx, impl, ctx->loads[mode_index]);
+         ctx->prev_load_barrier[mode_index] = instr->index;
+      }
       if (release)
          *progress |= vectorize_entries(ctx, impl, ctx->stores[mode_index]);
    }
@@ -1899,6 +1902,7 @@ process_block(nir_function_impl *impl, struct vectorize_ctx *ctx, nir_block *blo
          _mesa_hash_table_clear(ctx->loads[i], NULL);
       if (ctx->stores[i])
          _mesa_hash_table_clear(ctx->stores[i], NULL);
+      ctx->prev_load_barrier[i] = INT_MIN;
    }
 
    add_entries_from_predecessor(ctx, block);
@@ -1948,7 +1952,7 @@ process_block(nir_function_impl *impl, struct vectorize_ctx *ctx, nir_block *blo
        */
       if (!list_is_empty(&ctx->entries[i])) {
          struct entry *entry = list_entry(ctx->entries[i].prev, struct entry, head);
-         if (!entry->is_store)
+         if (!entry->is_store && entry->index > ctx->prev_load_barrier[i])
             ctx->per_block_ctx[block->index].last_entry[i] = entry;
       }
    }
