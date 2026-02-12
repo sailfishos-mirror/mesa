@@ -2284,7 +2284,7 @@
         "description": "pvr: Fix alloc callbacks usage when freeing frame buffers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "146364ab9f159a5552a1db2f44acae9127bf01ef",
         "notes": null
@@ -2844,7 +2844,7 @@
         "description": "pvr/ci: move some timing out tests from fails to skips",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 1,
+        "resolution": 4,
         "main_sha": null,
         "because_sha": null,
         "notes": null
