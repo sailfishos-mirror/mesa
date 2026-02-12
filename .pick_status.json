@@ -1,5 +1,705 @@
 [
     {
+        "sha": "5d4f977573ac92ebbd756ff9108b0f24799dd1ff",
+        "description": "radv/video: Support UVD decode on hawaii and older",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "24c74f522cc10d2622b35341ee9c286e42dfcc45",
+        "description": "ac/vcn_dec: Make the helper functions static",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "7ad4f501faeb40570d3162b1005f784bd3cd50c4",
+        "description": "radv: Drop videoarraypath debug option",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "19a8b7121eef91d1720ea3791e23097635eb9ca3",
+        "description": "radv/video: Remove old VCN and UVD decode implementation",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "6aed906410403f98f1bcf268c706573057296950",
+        "description": "radv/video: Use ac_video_dec for decode",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2130df7c2a2cc2cd0544602700cc4f4804629b5c",
+        "description": "radeonsi/video: Drop offsets parameter for si_vid_resize_buffer",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "af5b9d7a4e732836b3559c6ce65a571e08c71ebb",
+        "description": "radeonsi: Move functions from radeon_video.c to si_video.c",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "528b5c56d23fae5177c4b8db23589f468c2e5da8",
+        "description": "radeonsi: Rename si_uvd.c to si_video.c",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0f48b667b23a1dd71fedc03b657aa891dc6cfc36",
+        "description": "radeonsi: Rename si_uvd_create_decoder to si_video_codec_create",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "1fad2ae6e132443df2a5ce88c636458335c4edd5",
+        "description": "radeonsi/video: Remove old VCN and UVD decode implementation",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "26979becec30cc402df52e540fd516aa5795ec09",
+        "description": "radeonsi/video: Add video decoder using ac_video_dec",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "cb1dde2cc360b34d85e019f8878ab00a9c590319",
+        "description": "radeonsi: Don't assert when using src texture in si_compute_clear_copy_buffer",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4d06fb9acd12ba3978b2732f7376c1bd73c6b7ee",
+        "description": "ac: Add UVD ac_video_dec implementation",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "9608abb26b447adf29de3a33501a7bda618cb2f4",
+        "description": "ac: Add VCN JPEG ac_video_dec implementation",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "79af03556ce365a108577b713dfa4056f794a2c1",
+        "description": "ac: Add VCN ac_video_dec implementation",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b5028e84c853cb15f23acaab7da62ecfaf5c1cca",
+        "description": "ac: Add video decode interface",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "02a2451e1f2a4af5ef50b61d21e97d0a3d99a4af",
+        "description": "radv: rename radv_image_use_dcc_image_stores()",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d58080f787ff8d7443a53bfdae487de0ed9afa50",
+        "description": "radv/meta: add a function to fixup DCC metadata for compute resolves",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ed166804f69c62802d07d69383b552cc823114f6",
+        "description": "radv/meta: remove an useless barrier when fixing up DCC for compute resolves",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "a673c9e414f8db2ebf054464bbea88ddcd3b5a41",
+        "description": "radv/meta: stop fixing up DCC after a partial resolve using compute",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "fa5d4174c4c2bfff748629dbdbbc543d78c661ec",
+        "description": "nir/search: use memcmp/memcpy/memset",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "5d9294224123f6008daf32c914156f2221a64f55",
+        "description": "nir/search: remove creation of swizzle",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f574de2249a9b085786f7be1af2478cb4c0066a7",
+        "description": "radv: Fix setting the viewport for depth stencil FS resolves",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "704fbbb10867e5df29df4c5efea8c8000aa8f7df",
+        "notes": null
+    },
+    {
+        "sha": "bc86c5adae11db136081184cac543c9427ab8bba",
+        "description": "radv: Stop saving descriptors before acceleration structure OPs",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "7c9b4fc524f3bef9e12ce831d1f40e01f40b0a90",
+        "description": "panvk: BDA capture/replay support on v10+",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3a853e0ba4de0ed43eaeff14c5d2a9a6773e7bee",
+        "description": "panvk: add max supported va to physical device",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "a1b2d2293fa730528d15373c965e46b7b3586711",
+        "description": "panvk: use AUTO_VA with v9",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f16d17a45486ad2b5f071fdf40581f84401ceddc",
+        "description": "nir/opt_phi_precision: Fix bit size mismatch when moving widening conversions",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d42268f3e58d87a7587962249e7ea6c2ba2fdec0",
+        "description": "amd/vpelib: Adding new wrapper for register profiling",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2a5124a09f1dde43b319a7f1f1218191bdc9259b",
+        "description": "amd/vpelib: Fix crash during encoding test",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "39187b36b522773aec3e2841e729d83bc48286c5",
+        "description": "amd/vpelib: Add RGB 601 Primaires to BG Color",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "edf352a71ae507aae1b6ec587d195bbbe324b5ea",
+        "description": "amd/vpelib: Embedded Buffer Size for 3DLUT FL",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "dd7c2f952898cf6a6c51d8611102c069b75e52d1",
+        "description": "amd/vpelib: Reorder function pointers",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "e33bbe7ee7c601a362ccf2f6fd3b996993adec74",
+        "description": "amd/vpelib: refactor minor change",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3d750ed88142973a98f2501bdc15f88912a10307",
+        "description": "amd/vpelib: fix uninitialized variable",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3216b0c193258a527ecc547190f8104d8538135a",
+        "description": "amd/vpelib: coding style rectify",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "58c544a9bd85f4fc83ddda771beb3ff5fe80a9f1",
+        "description": "amd/vpelib: Fix potential overflow calculation",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "dbff0fabf07f6746acd998e4417aec2bb536ceeb",
+        "description": "amd/vpelib: Augment swizzling modes",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f3db1d5f461fc526d731e79d40a5b32af062a67e",
+        "description": "amd/vpelib: update 3dlut and shaper FL",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4ffd5a1c31cd005a79b167c212017b8181a2fdd6",
+        "description": "amd/vpelib: avoid using reg_update for multi-thread",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "39a94e4868bcc72c76aaedecc24f5f5249e22539",
+        "description": "mr-label-maker: add label CI to bin/ci/*",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c811348dc2e14dbf4f174d8b619652beff609ebb",
+        "description": "radv: include ahit/isec shaders in radv_get_shader_from_executable_index",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "e231405de28b274a462f51e7cb08448ea52be531",
+        "description": "radeonsi/sqtt: use radeon_add_to_buffer_list",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "e1081603ae99eb60c848c34a4af50099932f9d8f",
+        "description": "radeonsi/sqtt: allocate BOs in VRAM",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2f849f7f6519746ff2ecd2e7894c258555bc1e97",
+        "description": "radeonsi/sqtt: use pipe_buffer_map instead of ws->buffer_map",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8f7f7a90b78d1636e9194bde40df9ecbde57262c",
+        "description": "radeonsi/sqtt: use pipe_aligned_buffer_create to allocate bo",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "6ffcb2f47e405e2d713ed98abf83f54bf1aeb8ec",
+        "description": "radeonsi/sqtt: retrieve sqtt data after the flush ended",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4014a20da33d1a22a6e311a2783bf98cbe073ea8",
+        "description": "ci/deqp-runner: also limit the number of test log and caselist files",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "888ac904a34da1e467a3943d555336edda444ada",
+        "description": "anv: flush render caches on first pipeline select",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "e6dae6ef5fc134f9ed5dd93b1a462084bc3aadfd",
+        "notes": null
+    },
+    {
+        "sha": "9a6ec08960910de12a2e4b5a51a4de9265b127b8",
+        "description": "radv: enable trimming FS color exports for internal shaders",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "dbad9144f2bbde35e3330c2583f99e0d259c4da1",
+        "description": "radv/meta: use R32G32 formats for R64 slow color clears",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "db89f9444164695eecd8e0f6bf9bba61e0a4d8c6",
+        "description": "radv/meta: stop trying to reduce the number of format variants",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "e58ef1b3bc2ae65b8dd348923cab214709d7e202",
+        "description": "radv: do not set the resume rendering flag for custom resolves",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "cbf981e99a3dc1422f49a2ed1c3ce3ae489b2eba",
+        "description": "radv: do not resolve when rendering is suspended",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c1c031ca91ff2cc5790972bf938e5927ac5e7a0b",
+        "description": "radv: make sure rendering isn't already active in CmdBeginRendering()",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "99344bdfe57c62cf4d8728dd8a796d2236cc3911",
+        "description": "radv: clear rendering state before performing resolves",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "4c18a3676565fa28c1032c2c051ef2a1e0d36e47",
+        "description": "radv: pass VkSampleLocationsInfoEXT for depth/stencil expand",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "6f279445e7048b17fbab46f08a06a874194dc280",
+        "description": "radv/meta: stop using custom sample locations for color resolves",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b651fd90d2d3166fba1c5821ed857a33a82e20e5",
+        "description": "v3dv: serialize all the tests causing OOM",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "238437001b892f1c3e00e00c1cdec0c17e549da2",
+        "description": "svga: Make svga_screen::hud members atomic",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f84ed620c26ea3d74ec792ce6c70ad628f667d40",
+        "description": "anv: set missing protected bit for protected depth/stencil surfaces",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "794b0496e9467d27211d11fe7f783db3ce6a349a",
+        "notes": null
+    },
+    {
+        "sha": "a16d36304ecf432528dd7ee821aecf3880449bca",
+        "description": "panvk: Support VK_EXT_astc_decode_mode",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "604d3ed7d2c4aa8b021f7e9a1503ad4452bcd8ed",
+        "description": "anv, hasvk: handle MSAA resolving to a 3D slice",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2d7185082092a9f2ff825cd0921760004c1d18a8",
+        "description": "docs: add sha sum for 26.0.0",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "6412b95931cc08c0e4cfac704c906c0f26347341",
+        "description": "docs: add release notes for 26.0.0",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "362d6cede1ff53f90acc227a33904bd932db3616",
+        "description": "docs: add release calendar for the 26.0.x cycle",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "14c65322e8504c498115fe6c11b095d555e03f2d",
+        "description": "elk/cse: use copies in `operands_match` instead of in-place modification",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "47c4b3854076adfe5a27b537f36262ac4ec4530d",
+        "notes": null
+    },
+    {
+        "sha": "93f39f87c46976e7b05b194fd805b750c89f001e",
+        "description": "elk/cse: fix `operands_match` corrupting non-IMM register data",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "47c4b3854076adfe5a27b537f36262ac4ec4530d",
+        "notes": null
+    },
+    {
+        "sha": "b302faad8b6878811758eef087cee7228e9801a0",
+        "description": "brw/cse: use copies in `operands_match` instead of in-place modification",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "47c4b3854076adfe5a27b537f36262ac4ec4530d",
+        "notes": null
+    },
+    {
+        "sha": "f5e0f632168929684653677738adbfcc2679e76e",
+        "description": "brw/cse: fix `operands_match` corrupting non-IMM register data",
+        "nominated": true,
+        "nomination_type": 2,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": "47c4b3854076adfe5a27b537f36262ac4ec4530d",
+        "notes": null
+    },
+    {
         "sha": "c7603a11deb55c2f9640725dbcdbf51ee6335bea",
         "description": "bin/gen_release_notes: fix support for python 3.14",
         "nominated": true,
