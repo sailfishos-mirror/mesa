@@ -8,8 +8,6 @@ dEQP-VK.api.info.image_format_properties.2d.optimal.d32_sfloat,Fail
 dEQP-VK.api.info.image_format_properties.2d.optimal.d32_sfloat_s8_uint,Fail
 dEQP-VK.api.info.image_format_properties.2d.optimal.s8_uint,Fail
 dEQP-VK.api.info.image_format_properties.2d.optimal.x8_d24_unorm_pack32,Fail
-dEQP-VK.api.object_management.alloc_callback_fail.framebuffer,Fail
-dEQP-VK.api.object_management.single_alloc_callbacks.framebuffer,Fail
 dEQP-VK.binding_model.unused_invalid_descriptor.copy.combined_image_sampler,Crash
 dEQP-VK.binding_model.unused_invalid_descriptor.copy.sampled_image,Crash
 dEQP-VK.binding_model.unused_invalid_descriptor.copy.storage_buffer,Crash

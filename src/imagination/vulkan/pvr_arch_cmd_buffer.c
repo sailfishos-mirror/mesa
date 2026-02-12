@@ -4882,7 +4882,7 @@ void PVR_PER_ARCH(CmdBeginRendering)(VkCommandBuffer commandBuffer,
    return;
 
 err_cleanup_render_state:
-   pvr_render_state_cleanup(device, state->render_pass_info.rstate);
+   pvr_render_state_cleanup(device, &device->vk.alloc, state->render_pass_info.rstate);
 
 err_cleanup_tile_buffers:
    pvr_device_free_tile_buffer_state(device);
