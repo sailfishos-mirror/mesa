@@ -1118,9 +1118,6 @@ linear_context_with_opts(void *ralloc_ctx, const linear_opts *opts)
 {
    linear_ctx *ctx;
 
-   if (unlikely(!ralloc_ctx))
-      return NULL;
-
    const unsigned default_min_buffer_size = 2048;
    const unsigned min_buffer_size =
       MAX2(ALIGN_POT(opts->min_buffer_size, default_min_buffer_size),
