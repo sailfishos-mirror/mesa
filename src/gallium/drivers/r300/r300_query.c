@@ -4,6 +4,7 @@
  */
 
 #include "util/u_memory.h"
+#include "util/os_time.h"
 
 #include "r300_context.h"
 #include "r300_screen.h"
@@ -140,6 +141,27 @@ static bool r300_get_query_result(struct pipe_context* pipe,
             vresult->b = r300->rws->buffer_wait(r300->rws, q->buf, 0, RADEON_USAGE_READWRITE);
         }
         return vresult->b;
+    }
+
+    if (q->num_results == 0) {
+        if (wait) {
+            struct pipe_fence_handle *fence = NULL;
+
+            r300_flush(pipe, PIPE_FLUSH_ASYNC, &fence);
+            if (fence) {
+                pipe->screen->fence_finish(pipe->screen, pipe, fence,
+                                           OS_TIMEOUT_INFINITE);
+                pipe->screen->fence_reference(pipe->screen, &fence, NULL);
+            }
+        }
+
+        if (q->type == PIPE_QUERY_OCCLUSION_PREDICATE ||
+            q->type == PIPE_QUERY_OCCLUSION_PREDICATE_CONSERVATIVE) {
+            vresult->b = false;
+        } else {
+            vresult->u64 = 0;
+        }
+        return true;
     }
 
     map = r300->rws->buffer_map(r300->rws, q->buf, &r300->cs,
