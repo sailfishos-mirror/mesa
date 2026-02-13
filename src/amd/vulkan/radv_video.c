@@ -815,7 +815,7 @@ radv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice, cons
       ext->maxL1ReferenceCount = pdev->enc_hw_ver >= RADV_VIDEO_ENC_HW_3 ? 1 : 0;
       ext->maxTemporalLayerCount = 4;
       ext->expectDyadicTemporalLayerPattern = false;
-      ext->minQp = 0;
+      ext->minQp = pdev->info.vcn_ip_version >= VCN_5_0_0 ? 0 : 1;
       ext->maxQp = 51;
       ext->prefersGopRemainingFrames = false;
       ext->requiresGopRemainingFrames = false;
@@ -955,7 +955,10 @@ radv_GetPhysicalDeviceVideoCapabilitiesKHR(VkPhysicalDevice physicalDevice, cons
       ext->maxTemporalLayerCount = 4;
       ext->maxSpatialLayerCount = 1;
       ext->maxOperatingPoints = 4;
-      ext->minQIndex = 1;
+      ext->minQIndex = (pdev->info.vcn_ip_version == VCN_4_0_2 ||
+                        pdev->info.vcn_ip_version == VCN_4_0_5 ||
+                        pdev->info.vcn_ip_version == VCN_4_0_6) ?
+                        8 : 1;
       ext->maxQIndex = 255;
       ext->prefersGopRemainingFrames = false;
       ext->requiresGopRemainingFrames = false;
