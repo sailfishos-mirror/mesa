@@ -1812,6 +1812,7 @@ vcn_build_decode_cmd(struct ac_video_dec *decoder, struct ac_video_dec_decode_cm
    uint32_t offset_drm_keyblob = 0;
    uint32_t offset_dynamic_dpb = 0;
    uint32_t offset_codec = 0;
+   uint32_t ref_id_size = 0;
    uint32_t *ref_id_list = NULL;
    uint8_t *emb = cmd->embedded_ptr;
    void *codec;
@@ -1966,21 +1967,25 @@ vcn_build_decode_cmd(struct ac_video_dec *decoder, struct ac_video_dec_decode_cm
       index_codec->message_id = RDECODE_MESSAGE_AVC;
       codec_size = build_avc_msg(&cmd_buf, cmd, codec);
       ref_id_list = cmd->codec_param.avc.ref_frame_id_list;
+      ref_id_size = cmd->codec_param.avc.curr_pic_ref_frame_num;
       break;
    case AC_VIDEO_CODEC_HEVC:
       index_codec->message_id = RDECODE_MESSAGE_HEVC;
       codec_size = build_hevc_msg(&cmd_buf, cmd, codec);
       ref_id_list = cmd->codec_param.hevc.ref_pic_id_list;
+      ref_id_size = cmd->codec_param.hevc.sps_max_dec_pic_buffering_minus1 + 1;
       break;
    case AC_VIDEO_CODEC_VP9:
       index_codec->message_id = RDECODE_MESSAGE_VP9;
       codec_size = build_vp9_msg(&cmd_buf, cmd, codec);
       ref_id_list = cmd->codec_param.vp9.ref_frame_id_list;
+      ref_id_size = VP9_NUM_REF_FRAMES;
       break;
    case AC_VIDEO_CODEC_AV1:
       index_codec->message_id = RDECODE_MESSAGE_AV1;
       codec_size = build_av1_msg(&cmd_buf, cmd, codec);
       ref_id_list = cmd->codec_param.av1.ref_frame_id_list;
+      ref_id_size = AV1_NUM_REF_FRAMES;
       break;
    case AC_VIDEO_CODEC_MPEG2:
       index_codec->message_id = RDECODE_MESSAGE_MPEG2_VLD;
@@ -2024,16 +2029,20 @@ vcn_build_decode_cmd(struct ac_video_dec *decoder, struct ac_video_dec_decode_cm
       struct ac_video_surface *cur = NULL;
 
       for (uint32_t i = 0; i < cmd->num_refs; i++) {
-         if (cmd->ref_id[i] == cmd->cur_id)
-            cur = &cmd->ref_surfaces[i];
+         bool found = false;
 
-         for (uint32_t j = 0; j < cmd->num_refs; ++j) {
+         for (uint32_t j = 0; j < ref_id_size; ++j) {
             if (cmd->ref_id[i] != ref_id_list[j])
                continue;
             dynamic_dpb_t2->dpbAddrLo[j] = cmd->ref_surfaces[i].planes[0].va;
             dynamic_dpb_t2->dpbAddrHi[j] = cmd->ref_surfaces[i].planes[0].va >> 32;
-            dynamic_dpb_t2->dpbArraySize++;
+            found = true;
          }
+
+         if (cmd->ref_id[i] == cmd->cur_id)
+            cur = &cmd->ref_surfaces[i];
+         else if (!found)
+            return 1;
       }
 
       if (!cur)
@@ -2042,6 +2051,7 @@ vcn_build_decode_cmd(struct ac_video_dec *decoder, struct ac_video_dec_decode_cm
       decode_flags |= RDECODE_FLAGS_USE_DYNAMIC_DPB_MASK;
       decode->db_swizzle_mode = cur->planes[0].surf->u.gfx9.swizzle_mode;
 
+      dynamic_dpb_t2->dpbArraySize = ref_id_size;
       dynamic_dpb_t2->dpbCurrLo = cur->planes[0].va;
       dynamic_dpb_t2->dpbCurrHi = cur->planes[0].va >> 32;
       dynamic_dpb_t2->dpbLumaPitch = cur->planes[0].surf->u.gfx9.surf_pitch;
