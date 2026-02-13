@@ -429,8 +429,6 @@ resolve_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image, 
          depth_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
          depth_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
-         radv_decompress_resolve_src(cmd_buffer, src_image, src_image_layout, &depth_region, NULL);
-
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_gfx_resolve_image(cmd_buffer, src_image, src_image->vk.format, src_image_layout, dst_image,
                                    dst_image->vk.format, dst_image_layout, resolve_mode_info->resolveMode,
@@ -448,8 +446,6 @@ resolve_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image, 
          VkImageResolve2 stencil_region = *region;
          stencil_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
          stencil_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
-
-         radv_decompress_resolve_src(cmd_buffer, src_image, src_image_layout, &stencil_region, NULL);
 
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_gfx_resolve_image(cmd_buffer, src_image, src_image->vk.format, src_image_layout, dst_image,
@@ -480,14 +476,10 @@ resolve_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image, 
                                           dst_image_layout, region);
          break;
       case RESOLVE_FRAGMENT:
-         radv_decompress_resolve_src(cmd_buffer, src_image, src_image_layout, region, NULL);
-
          radv_gfx_resolve_image(cmd_buffer, src_image, src_format, src_image_layout, dst_image, dst_format,
                                 dst_image_layout, resolve_mode, region);
          break;
       case RESOLVE_COMPUTE:
-         radv_decompress_resolve_src(cmd_buffer, src_image, src_image_layout, region, NULL);
-
          radv_compute_resolve_image(cmd_buffer, src_image, src_format, src_image_layout, dst_image, dst_format,
                                     dst_image_layout, resolve_mode, region);
          break;
