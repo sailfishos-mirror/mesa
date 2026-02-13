@@ -12200,9 +12200,8 @@ radv_emit_cb_render_state(struct radv_cmd_buffer *cmd_buffer)
    }
 
    if (pdev->info.has_rbplus) {
-      /* RB+ doesn't work with dual source blending, logic op and CB_RESOLVE. */
-      cb_color_control |= S_028808_DISABLE_DUAL_QUAD(mrt0_is_dual_src || d->vk.cb.logic_op_enable ||
-                                                     cmd_buffer->state.custom_blend_mode == V_028808_CB_RESOLVE);
+      /* RB+ doesn't work with dual source blending and logic op. */
+      cb_color_control |= S_028808_DISABLE_DUAL_QUAD(mrt0_is_dual_src || d->vk.cb.logic_op_enable);
 
       if (mrt0_is_dual_src) {
          for (unsigned i = 0; i < MAX_RTS; i++) {
