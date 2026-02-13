@@ -244,7 +244,6 @@ iris_apply_brw_prog_data(struct iris_compiled_shader *shader,
    shader->const_data_offset      = brw->const_data_offset;
    shader->dispatch_grf_start_reg = brw->dispatch_grf_start_reg;
    shader->has_ubo_pull           = brw->has_ubo_pull;
-   shader->use_alt_mode           = brw->use_alt_mode;
 
    switch (shader->stage) {
    case MESA_SHADER_FRAGMENT:
@@ -1910,8 +1909,6 @@ iris_compile_vs(struct iris_screen *screen,
       struct brw_vs_prog_data *brw_prog_data =
          rzalloc(mem_ctx, struct brw_vs_prog_data);
 
-      brw_prog_data->base.base.use_alt_mode = nir->info.use_legacy_math_rules;
-
       struct iris_ubo_range ubo_ranges[4] = {};
       brw_apply_ubo_ranges(screen, nir, ubo_ranges, &brw_prog_data->base.base);
 
@@ -1987,6 +1984,7 @@ iris_compile_vs(struct iris_screen *screen,
    }
 
    shader->compilation_failed = false;
+   shader->use_alt_mode = nir->info.use_legacy_math_rules;
 
    uint32_t *so_decls =
       screen->vtbl.create_so_decl_list(&ish->stream_output,
@@ -2772,8 +2770,6 @@ iris_compile_fs(struct iris_screen *screen,
       struct brw_fs_prog_data *brw_prog_data =
          rzalloc(mem_ctx, struct brw_fs_prog_data);
 
-      brw_prog_data->base.use_alt_mode = nir->info.use_legacy_math_rules;
-
       struct iris_ubo_range ubo_ranges[4] = {};
       brw_apply_ubo_ranges(screen, nir, ubo_ranges, &brw_prog_data->base);
 
@@ -2851,6 +2847,7 @@ iris_compile_fs(struct iris_screen *screen,
    }
 
    shader->compilation_failed = false;
+   shader->use_alt_mode = nir->info.use_legacy_math_rules;
 
    iris_finalize_program(shader, NULL, system_values,
                          num_system_values, num_cbufs, &bt);

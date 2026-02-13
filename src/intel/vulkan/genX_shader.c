@@ -573,7 +573,6 @@ emit_vs_shader(struct anv_batch *batch,
          vs_prog_data->base.dispatch_mode == DISPATCH_MODE_SIMD8;
 #endif
 
-      assert(!vs_prog_data->base.base.use_alt_mode);
 #if GFX_VER < 11
       vs.SingleVertexDispatch       = false;
 #endif
