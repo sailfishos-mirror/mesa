@@ -550,6 +550,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
    enum radv_resolve_method resolve_method = pdev->info.gfx_level >= GFX11 ? RESOLVE_FRAGMENT : RESOLVE_HW;
    uint32_t layer_count = pRenderingInfo->layerCount;
    VkRect2D resolve_area = pRenderingInfo->renderArea;
+   bool used_compute = false;
 
    if (pRenderingInfo->viewMask)
       layer_count = util_last_bit(pRenderingInfo->viewMask);
@@ -647,10 +648,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
             radv_compute_resolve_image(cmd_buffer, src_iview->image, src_iview->vk.format, depth_att->imageLayout,
                                        dst_iview->image, dst_iview->vk.format, depth_att->resolveImageLayout,
                                        depth_att->resolveMode, &depth_region);
-
-            cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
-                                            radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                                  VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
+            used_compute = true;
          }
       }
 
@@ -672,10 +670,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
             radv_compute_resolve_image(cmd_buffer, src_iview->image, src_iview->vk.format, stencil_att->imageLayout,
                                        dst_iview->image, dst_iview->vk.format, stencil_att->resolveImageLayout,
                                        stencil_att->resolveMode, &stencil_region);
-
-            cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
-                                            radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                                  VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
+            used_compute = true;
          }
       }
 
@@ -763,10 +758,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
 
             radv_compute_resolve_image(cmd_buffer, src_iview->image, src_format, src_layout, dst_iview->image,
                                        dst_format, dst_layout, att->resolveMode, &region);
-
-            cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
-                                            radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                                                  VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
+            used_compute = true;
             break;
          case RESOLVE_FRAGMENT: {
             radv_decompress_resolve_src(cmd_buffer, src_iview->image, src_layout, &region, NULL);
@@ -784,4 +776,11 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
    radv_meta_end(cmd_buffer);
 
    radv_describe_end_render_pass_resolve(cmd_buffer);
+
+   if (used_compute) {
+      /* Make sure to synchronize resolves using compute shaders. */
+      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
+                                      radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                                            VK_ACCESS_2_SHADER_WRITE_BIT, 0, NULL, NULL);
+   }
 }
