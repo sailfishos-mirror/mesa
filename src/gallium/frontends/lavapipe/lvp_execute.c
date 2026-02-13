@@ -4842,7 +4842,7 @@ handle_trace_rays_indirect2(struct vk_cmd_queue_entry *cmd, struct rendering_sta
 static void
 handle_write_buffer_cp(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
 {
-   struct lvp_cmd_write_buffer_cp *write = cmd->driver_data;
+   struct lvp_cmd_write_buffer_cp *write = (struct lvp_cmd_write_buffer_cp *)cmd;
 
    finish_fence(state);
 
@@ -4878,7 +4878,7 @@ handle_dispatch_unaligned(struct vk_cmd_queue_entry *cmd, struct rendering_state
 static void
 handle_fill_buffer_addr(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
 {
-   struct lvp_cmd_fill_buffer_addr *fill = cmd->driver_data;
+   struct lvp_cmd_fill_buffer_addr *fill = (struct lvp_cmd_fill_buffer_addr *)cmd;
 
    finish_fence(state);
 
@@ -4891,7 +4891,7 @@ handle_fill_buffer_addr(struct vk_cmd_queue_entry *cmd, struct rendering_state *
 static void
 handle_encode_as(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
 {
-   struct lvp_cmd_encode_as *encode = cmd->driver_data;
+   struct lvp_cmd_encode_as *encode = (struct lvp_cmd_encode_as *)cmd;
 
    finish_fence(state);
 

@@ -105,27 +105,19 @@ lvp_write_buffer_cp(VkCommandBuffer cmdbuf, VkDeviceAddress addr,
 {
    VK_FROM_HANDLE(lvp_cmd_buffer, cmd_buffer, cmdbuf);
 
-   struct vk_cmd_queue_entry *entry =
-      linear_zalloc_child(cmd_buffer->vk.cmd_queue.ctx, sizeof(struct vk_cmd_queue_entry));
-   if (!entry)
-      return;
-
-   entry->type = LVP_CMD_WRITE_BUFFER_CP;
-
-   struct lvp_cmd_write_buffer_cp *cmd =
+   struct lvp_cmd_write_buffer_cp *entry =
       linear_zalloc_child(cmd_buffer->vk.cmd_queue.ctx, sizeof(struct lvp_cmd_write_buffer_cp) + size);
    if (!entry)
       return;
 
-   cmd->addr = addr;
-   cmd->data = cmd + 1;
-   cmd->size = size;
+   entry->base.type = LVP_CMD_WRITE_BUFFER_CP;
+   entry->addr = addr;
+   entry->data = entry + 1;
+   entry->size = size;
 
-   memcpy(cmd->data, data, size);
+   memcpy(entry->data, data, size);
 
-   entry->driver_data = cmd;
-
-   list_addtail(&entry->cmd_link, &cmd_buffer->vk.cmd_queue.cmds);
+   list_addtail(&entry->base.cmd_link, &cmd_buffer->vk.cmd_queue.cmds);
 }
 
 static void
@@ -159,25 +151,17 @@ lvp_cmd_fill_buffer_addr(VkCommandBuffer cmdbuf, VkDeviceAddress addr,
 {
    VK_FROM_HANDLE(lvp_cmd_buffer, cmd_buffer, cmdbuf);
 
-   struct vk_cmd_queue_entry *entry =
-      linear_zalloc_child(cmd_buffer->vk.cmd_queue.ctx, sizeof(struct vk_cmd_queue_entry));
-   if (!entry)
-      return;
-
-   entry->type = LVP_CMD_FILL_BUFFER_ADDR;
-
-   struct lvp_cmd_fill_buffer_addr *cmd =
+   struct lvp_cmd_fill_buffer_addr *entry =
       linear_zalloc_child(cmd_buffer->vk.cmd_queue.ctx, sizeof(struct lvp_cmd_write_buffer_cp));
    if (!entry)
       return;
 
-   cmd->addr = addr;
-   cmd->size = size;
-   cmd->data = data;
+   entry->base.type = LVP_CMD_FILL_BUFFER_ADDR;
+   entry->addr = addr;
+   entry->size = size;
+   entry->data = data;
 
-   entry->driver_data = cmd;
-
-   list_addtail(&entry->cmd_link, &cmd_buffer->vk.cmd_queue.cmds);
+   list_addtail(&entry->base.cmd_link, &cmd_buffer->vk.cmd_queue.cmds);
 }
 
 static void
@@ -186,30 +170,23 @@ lvp_enqueue_encode_as(VkCommandBuffer commandBuffer, const struct vk_acceleratio
    VK_FROM_HANDLE(lvp_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
 
-   struct vk_cmd_queue_entry *entry =
-      linear_zalloc_child(cmd_buffer->vk.cmd_queue.ctx, sizeof(struct vk_cmd_queue_entry));
-   if (!entry)
-      return;
-
-   entry->type = LVP_CMD_ENCODE_AS;
-
-   struct lvp_cmd_encode_as *cmd =
+   struct lvp_cmd_encode_as *entry =
       linear_zalloc_child(cmd_buffer->vk.cmd_queue.ctx, sizeof(struct lvp_cmd_encode_as));
    if (!entry)
       return;
 
+   entry->base.type = LVP_CMD_ENCODE_AS;
+
    uint64_t intermediate_header_addr = state->build_info->scratchData.deviceAddress + state->scratch.header_offset;
    uint64_t intermediate_bvh_addr = state->build_info->scratchData.deviceAddress + state->scratch.ir_offset;
 
-   cmd->dst = dst;
-   cmd->intermediate_as_addr = intermediate_bvh_addr;
-   cmd->intermediate_header_addr = intermediate_header_addr;
-   cmd->leaf_count = state->leaf_node_count;
-   cmd->geometry_type = vk_get_as_geometry_type(state->build_info);
+   entry->dst = dst;
+   entry->intermediate_as_addr = intermediate_bvh_addr;
+   entry->intermediate_header_addr = intermediate_header_addr;
+   entry->leaf_count = state->leaf_node_count;
+   entry->geometry_type = vk_get_as_geometry_type(state->build_info);
 
-   entry->driver_data = cmd;
-
-   list_addtail(&entry->cmd_link, &cmd_buffer->vk.cmd_queue.cmds);
+   list_addtail(&entry->base.cmd_link, &cmd_buffer->vk.cmd_queue.cmds);
 }
 
 static uint32_t
