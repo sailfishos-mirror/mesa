@@ -5151,17 +5151,10 @@ encode_surface_count(const struct iris_screen *screen,
       INIT_THREAD_SCRATCH_SIZE(pkt)                                       \
    }
 
-/* Note that on Gfx12HP we pass a scratch space surface state offset
- * shifted by 2 relative to the value specified on the BSpec, since
- * that allows the compiler to save a shift instruction while
- * constructing the extended descriptor for SS addressing.  That
- * worked because we limit the scratch surface state pool to 8 MB and
- * because we relied on the legacy (ExBSO=0) encoding of the extended
- * descriptor in order to save the shift, which is no longer supported
- * for the UGM shared function on Xe2 platforms, so we no longer
- * attempt to do that trick.
+/* Format expected for payload delivery, see 3DSTATE_(VS|HS|DS|GS|PS),
+ * 3DSTATE_BTD & CFE_STATE instruction definitions.
  */
-#define SCRATCH_SPACE_BUFFER_SHIFT (GFX_VER >= 20 ? 6 : 4)
+#define SCRATCH_SPACE_BUFFER_SHIFT (6)
 
 #if GFX_VERx10 >= 125
 #define INIT_THREAD_SCRATCH_SIZE(pkt)
