@@ -488,12 +488,14 @@ public:
       if (!post_ra && (!b.op.hasRegClass() || b.op.regClass().type() == RegType::sgpr))
          b = copy(def(v1), b);
 
+      carry_out |= program->gfx_level < GFX9 || !carry_in.op.isUndefined();
+      Definition carry = carry_out ? (post_ra ? vcc(def(lm)) : def(lm)) : Definition();
       if (!carry_in.op.isUndefined())
-         return vop2(aco_opcode::v_addc_co_u32, Definition(dst), def(lm), a, b, carry_in);
+         return vop2(aco_opcode::v_addc_co_u32, Definition(dst), carry, a, b, carry_in);
       else if (program->gfx_level >= GFX10 && carry_out)
-         return vop3(aco_opcode::v_add_co_u32_e64, Definition(dst), def(lm), a, b);
-      else if (program->gfx_level < GFX9 || carry_out)
-         return vop2(aco_opcode::v_add_co_u32, Definition(dst), def(lm), a, b);
+         return vop3(aco_opcode::v_add_co_u32_e64, Definition(dst), carry, a, b);
+      else if (carry_out)
+         return vop2(aco_opcode::v_add_co_u32, Definition(dst), carry, a, b);
       else
          return vop2(aco_opcode::v_add_u32, Definition(dst), a, b);
    }
