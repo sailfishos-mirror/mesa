@@ -743,6 +743,24 @@ intrinsic_fp_class(const nir_intrinsic_instr *intrin)
    }
 }
 
+static fp_class_mask
+tex_fp_class(nir_tex_instr *tex)
+{
+   /* Not much to analyze, except shadow compare. */
+   if (!tex->is_shadow)
+      return FP_CLASS_UNKNOWN;
+
+   fp_class_mask result = FP_CLASS_POS_ZERO | FP_CLASS_POS_ONE;
+
+   /* Gather returns 0 or 1, other ops  can interpolate.
+    * Cube corners are special even for gathers.
+    */
+   if (tex->op != nir_texop_tg4 || tex->sampler_dim == GLSL_SAMPLER_DIM_CUBE)
+      result |= FP_CLASS_GT_ZERO_LT_POS_ONE | FP_CLASS_NON_INTEGRAL;
+
+   return result;
+}
+
 /**
  * Analyze an expression to determine the possible fp classes of its result
  */
@@ -758,6 +776,9 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
       return;
    } else if (nir_def_is_intrinsic(def)) {
       *result = intrinsic_fp_class(nir_def_as_intrinsic(def));
+      return;
+   } else if (nir_def_is_tex(def)) {
+      *result = tex_fp_class(nir_def_as_tex(def));
       return;
    } else if (!nir_def_is_alu(def)) {
       *result = FP_CLASS_UNKNOWN;
