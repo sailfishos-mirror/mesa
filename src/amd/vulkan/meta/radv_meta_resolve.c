@@ -674,25 +674,20 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
          }
       }
 
-      /* From the Vulkan spec 1.2.165:
+      /* From the Vulkan spec 1.4.343:
        *
-       * "VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT specifies
-       *  write access to a color, resolve, or depth/stencil
-       *  resolve attachment during a render pass or via
-       *  certain subpass load and store operations."
+       * "VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT specifies write access to a color, resolve, or
+       *  depth/stencil resolve attachment during a render pass or via certain render pass load and
+       *  store operations. Such access occurs in the VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+       *  pipeline stage."
        *
-       * Yes, it's counterintuitive but it makes sense because ds
-       * resolve operations happen late at the end of the subpass.
-       *
-       * That said, RADV is wrong because it executes the subpass
-       * end barrier *before* any subpass resolves instead of after.
-       *
-       * TODO: Fix this properly by executing subpass end barriers
-       * after subpass resolves.
+       * This is a special case for depth/stencil resolves, and emitting the barrier here seems more
+       * optimal that flushing DB for COLOR_ATTACHMENT_WRITE unconditionally.
        */
-      cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB;
-      if (radv_htile_enabled(dst_iview->image, dst_iview->vk.base_mip_level))
-         cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_FLUSH_AND_INV_DB_META;
+      const VkImageSubresourceRange dst_range = vk_image_view_subresource_range(&dst_iview->vk);
+      cmd_buffer->state.flush_bits |=
+         radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                               VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0, dst_iview->image, &dst_range);
    }
 
    if (has_color_resolve) {
