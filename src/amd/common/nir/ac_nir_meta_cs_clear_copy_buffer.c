@@ -506,6 +506,17 @@ ac_prepare_cs_clear_copy_buffer(const struct ac_cs_clear_copy_buffer_options *op
    if (!is_copy)
       dwords_per_thread = MAX2(dwords_per_thread, clear_value_size / 4);
 
+   if (info->dst_is_sparse) {
+      /* If dst is sparse, stores mustn't straddle a page boundary, which means the store size must
+       * be 2^n. It can only be a non-power-of-two and 3 with GL buffer clears because VK doesn't
+       * have 12-byte clear values.
+       */
+      if (dwords_per_thread == 3)
+         dwords_per_thread = 4;
+
+      assert(util_is_power_of_two_nonzero(dwords_per_thread));
+   }
+
    /* Validate dwords_per_thread. */
    if (dwords_per_thread > 4) {
       assert(!"dwords_per_thread must be <= 4");
