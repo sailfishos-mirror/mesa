@@ -20,8 +20,6 @@ enum
    SI_BLIT = SI_SAVE_FRAMEBUFFER | SI_SAVE_TEXTURES | SI_SAVE_FRAGMENT_STATE,
 
    SI_DECOMPRESS = SI_SAVE_FRAMEBUFFER | SI_SAVE_FRAGMENT_STATE | SI_DISABLE_RENDER_COND,
-
-   SI_COLOR_RESOLVE = SI_SAVE_FRAMEBUFFER | SI_SAVE_FRAGMENT_STATE
 };
 
 void si_blitter_begin(struct si_context *sctx, enum si_blitter_op op)
@@ -1036,163 +1034,6 @@ void si_gfx_copy_image(struct si_context *sctx, struct pipe_resource *dst,
    pipe_sampler_view_reference(&src_view, NULL);
 }
 
-static void si_do_CB_resolve(struct si_context *sctx, const struct pipe_blit_info *info,
-                             struct pipe_resource *dst, unsigned dst_level, unsigned dst_z,
-                             enum pipe_format format)
-{
-   /* Required before and after CB_RESOLVE. */
-   si_set_barrier_flags(sctx, SI_BARRIER_SYNC_AND_INV_CB);
-
-   si_blitter_begin(
-      sctx, SI_COLOR_RESOLVE | (info->render_condition_enable ? 0 : SI_DISABLE_RENDER_COND));
-   util_blitter_custom_resolve_color(sctx->blitter, dst, dst_level, dst_z, info->src.resource,
-                                     info->src.box.z, ~0, sctx->custom_blend_resolve, format);
-   si_blitter_end(sctx);
-
-   /* Flush caches for possible texturing. */
-   si_make_CB_shader_coherent(sctx, 1, false, true /* no DCC */);
-}
-
-static bool resolve_formats_compatible(enum pipe_format src, enum pipe_format dst,
-                                       bool src_swaps_rgb_to_bgr, bool *need_rgb_to_bgr)
-{
-   *need_rgb_to_bgr = false;
-
-   if (src_swaps_rgb_to_bgr) {
-      /* We must only check the swapped format. */
-      enum pipe_format swapped_src = util_format_rgb_to_bgr(src);
-      assert(swapped_src);
-      return util_is_format_compatible(util_format_description(swapped_src),
-                                       util_format_description(dst));
-   }
-
-   if (util_is_format_compatible(util_format_description(src), util_format_description(dst)))
-      return true;
-
-   enum pipe_format swapped_src = util_format_rgb_to_bgr(src);
-   *need_rgb_to_bgr = util_is_format_compatible(util_format_description(swapped_src),
-                                                util_format_description(dst));
-   return *need_rgb_to_bgr;
-}
-
-bool si_msaa_resolve_blit_via_CB(struct pipe_context *ctx, const struct pipe_blit_info *info,
-                                 bool fail_if_slow)
-{
-   struct si_context *sctx = (struct si_context *)ctx;
-
-   /* Gfx11 doesn't have CB_RESOLVE. */
-   if (sctx->gfx_level >= GFX11)
-      return false;
-
-   struct si_texture *src = (struct si_texture *)info->src.resource;
-   struct si_texture *dst = (struct si_texture *)info->dst.resource;
-   unsigned dst_width = u_minify(info->dst.resource->width0, info->dst.level);
-   unsigned dst_height = u_minify(info->dst.resource->height0, info->dst.level);
-   enum pipe_format format = info->src.format;
-   unsigned num_channels = util_format_description(format)->nr_channels;
-
-   /* Check basic requirements for hw resolve. */
-   if (!(info->src.resource->nr_samples > 1 && info->dst.resource->nr_samples <= 1 &&
-         !util_format_is_pure_integer(format) && !util_format_is_depth_or_stencil(format) &&
-         util_max_layer(info->src.resource, 0) == 0))
-      return false;
-
-   /* Return if this is slower than alternatives. */
-   if (fail_if_slow) {
-      /* CB_RESOLVE is much slower without FMASK. */
-      if (sctx->screen->debug_flags & DBG(NO_FMASK))
-         return false;
-
-      /* Verified on: Tahiti, Hawaii, Tonga, Vega10, Navi10, Navi21 */
-      switch (sctx->gfx_level) {
-      case GFX6:
-         return false;
-
-      case GFX7:
-         if (src->surface.bpe != 16)
-            return false;
-         break;
-
-      case GFX8:
-      case GFX9:
-      case GFX10:
-         return false;
-
-      case GFX10_3:
-         if (!(src->surface.bpe == 8 && src->buffer.b.b.nr_samples == 8 && num_channels == 4) &&
-             !(src->surface.bpe == 16 && src->buffer.b.b.nr_samples == 4))
-            return false;
-         break;
-
-      default:
-         UNREACHABLE("unexpected gfx version");
-      }
-   }
-
-   /* Hardware MSAA resolve doesn't work if SPI format = NORM16_ABGR and
-    * the format is R16G16. Use R16A16, which does work.
-    */
-   if (format == PIPE_FORMAT_R16G16_UNORM)
-      format = PIPE_FORMAT_R16A16_UNORM;
-   if (format == PIPE_FORMAT_R16G16_SNORM)
-      format = PIPE_FORMAT_R16A16_SNORM;
-
-   bool need_rgb_to_bgr = false;
-
-   /* Check the remaining requirements for hw resolve. */
-   if (util_max_layer(info->dst.resource, info->dst.level) == 0 && !info->scissor_enable &&
-       !info->swizzle_enable &&
-       (info->mask & PIPE_MASK_RGBA) == PIPE_MASK_RGBA &&
-       resolve_formats_compatible(info->src.format, info->dst.format,
-                                  src->swap_rgb_to_bgr, &need_rgb_to_bgr) &&
-       dst_width == info->src.resource->width0 && dst_height == info->src.resource->height0 &&
-       info->dst.box.x == 0 && info->dst.box.y == 0 && info->dst.box.width == dst_width &&
-       info->dst.box.height == dst_height && info->dst.box.depth == 1 && info->src.box.x == 0 &&
-       info->src.box.y == 0 && info->src.box.width == dst_width &&
-       info->src.box.height == dst_height && info->src.box.depth == 1 && !dst->surface.is_linear &&
-       (!dst->cmask_buffer || !dst->dirty_level_mask)) { /* dst cannot be fast-cleared */
-      /* Check the remaining constraints. */
-      if (src->surface.micro_tile_mode != dst->surface.micro_tile_mode ||
-          need_rgb_to_bgr) {
-         /* Changing the microtile mode is not possible with GFX10. */
-         if (sctx->gfx_level >= GFX10)
-            return false;
-
-         /* The next fast clear will switch to this mode to
-          * get direct hw resolve next time if the mode is
-          * different now.
-          */
-         if (src->surface.micro_tile_mode != dst->surface.micro_tile_mode)
-            src->last_msaa_resolve_target_micro_mode = dst->surface.micro_tile_mode;
-         if (need_rgb_to_bgr)
-            src->swap_rgb_to_bgr_on_next_clear = true;
-
-         return false;
-      }
-
-      /* Resolving into a surface with DCC is unsupported. Since
-       * it's being overwritten anyway, clear it to uncompressed.
-       */
-      if (vi_dcc_enabled(dst, info->dst.level)) {
-         struct si_clear_info clear_info;
-
-         if (!vi_dcc_get_clear_info(sctx, dst, info->dst.level, DCC_UNCOMPRESSED, &clear_info))
-            return false;
-
-         si_barrier_before_image_fast_clear(sctx, SI_CLEAR_TYPE_DCC);
-         si_execute_clears(sctx, &clear_info, 1, info->render_condition_enable);
-         si_barrier_after_image_fast_clear(sctx);
-         dst->dirty_level_mask &= ~(1 << info->dst.level);
-      }
-
-      /* Resolve directly from src to dst. */
-      si_do_CB_resolve(sctx, info, info->dst.resource, info->dst.level, info->dst.box.z, format);
-      return true;
-   }
-
-   return false;
-}
-
 static void si_blit(struct pipe_context *ctx, const struct pipe_blit_info *info)
 {
    struct si_context *sctx = (struct si_context *)ctx;
@@ -1232,12 +1073,6 @@ static void si_blit(struct pipe_context *ctx, const struct pipe_blit_info *info)
 
       simple_mtx_unlock(&sscreen->async_compute_context_lock);
    }
-
-   if (unlikely(sctx->sqtt_enabled))
-      sctx->sqtt_next_event = EventCmdResolveImage;
-
-   if (si_msaa_resolve_blit_via_CB(ctx, info, true))
-      return;
 
    if (unlikely(sctx->sqtt_enabled))
       sctx->sqtt_next_event = EventCmdCopyImage;

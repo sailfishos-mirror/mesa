@@ -400,8 +400,7 @@ void si_test_blit_perf(struct si_screen *sscreen)
                         const char *special_op =
                            test_flavor == TEST_FB_CLEAR ? "cleartex" :
                            test_flavor == TEST_CLEAR && box_flavor == BOX_FULL ? "fastclear" :
-                           test_flavor == TEST_BLIT && !yflip ? "copy" :
-                           test_flavor == TEST_RESOLVE ? "cbresolve" : "n/a";
+                           test_flavor == TEST_BLIT && !yflip ? "copy" : "n/a";
 
                         printf("%-8s, %-9s, %uD, %-18s, %u, %-5s, %-11s, %-11s",
                                test_strings[test_flavor], special_op, dim,
@@ -631,8 +630,6 @@ void si_test_blit_perf(struct si_screen *sscreen)
                                           si_resource_copy_region(ctx, dst[size_factor], 0, dst_box.x,
                                                                   dst_box.y, dst_box.z, src[size_factor],
                                                                   0, &src_box);
-                                       } else if (test_flavor == TEST_RESOLVE) {
-                                          success &= si_msaa_resolve_blit_via_CB(ctx, &info, false);
                                        } else {
                                           success = false;
                                        }

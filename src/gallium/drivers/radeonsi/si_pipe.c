@@ -145,7 +145,6 @@ static const struct debug_named_value test_options[] = {
    {"clearbuffer", DBG(TEST_CLEAR_BUFFER), "Test correctness of the clear_buffer compute shader"},
    {"copybuffer", DBG(TEST_COPY_BUFFER), "Test correctness of the copy_buffer compute shader"},
    {"imagecopy", DBG(TEST_IMAGE_COPY), "Invoke resource_copy_region tests with images and exit."},
-   {"cbresolve", DBG(TEST_CB_RESOLVE), "Invoke MSAA resolve tests and exit."},
    {"computeblit", DBG(TEST_COMPUTE_BLIT), "Invoke blits tests and exit."},
    {"testvmfaultcp", DBG(TEST_VMFAULT_CP), "Invoke a CP VM fault test and exit."},
    {"testvmfaultshader", DBG(TEST_VMFAULT_SHADER), "Invoke a shader VM fault test and exit."},
@@ -258,8 +257,6 @@ static void si_destroy_context(struct pipe_context *context)
 
    if (sctx->custom_dsa_flush)
       sctx->b.delete_depth_stencil_alpha_state(&sctx->b, sctx->custom_dsa_flush);
-   if (sctx->custom_blend_resolve)
-      sctx->b.delete_blend_state(&sctx->b, sctx->custom_blend_resolve);
    if (sctx->custom_blend_fmask_decompress)
       sctx->b.delete_blend_state(&sctx->b, sctx->custom_blend_fmask_decompress);
    if (sctx->custom_blend_eliminate_fastclear)
@@ -1669,7 +1666,7 @@ static struct pipe_screen *radeonsi_screen_create_impl(struct radeon_winsys *ws,
    if (test_flags & DBG(TEST_IMAGE_COPY))
       si_test_image_copy_region(sscreen);
 
-   if (test_flags & (DBG(TEST_CB_RESOLVE) | DBG(TEST_COMPUTE_BLIT)))
+   if (test_flags & DBG(TEST_COMPUTE_BLIT))
       si_test_blit(sscreen, test_flags);
 
    if (test_flags & DBG(TEST_DMA_PERF))

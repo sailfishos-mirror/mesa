@@ -591,7 +591,6 @@ static void si_reallocate_texture_inplace(struct si_context *sctx, struct si_tex
    tex->surface.meta_offset = new_tex->surface.meta_offset;
    tex->cb_color_info = new_tex->cb_color_info;
    memcpy(tex->color_clear_value, new_tex->color_clear_value, sizeof(tex->color_clear_value));
-   tex->last_msaa_resolve_target_micro_mode = new_tex->last_msaa_resolve_target_micro_mode;
 
    memcpy(tex->depth_clear_value, new_tex->depth_clear_value, sizeof(tex->depth_clear_value));
    tex->dirty_level_mask = new_tex->dirty_level_mask;
@@ -1208,8 +1207,6 @@ static struct si_texture *si_texture_create_object(struct pipe_screen *screen,
    }
 
    /* Applies to GCN. */
-   tex->last_msaa_resolve_target_micro_mode = tex->surface.micro_tile_mode;
-
    if (tex->is_depth) {
       tex->htile_stencil_disabled = !tex->surface.has_stencil;
 

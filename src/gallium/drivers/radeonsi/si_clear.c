@@ -128,9 +128,6 @@ static bool si_set_clear_color(struct si_texture *tex, enum pipe_format surface_
       uc.ui[0] = color->ui[0];
       uc.ui[1] = color->ui[3];
    } else {
-      if (tex->swap_rgb_to_bgr)
-         surface_format = util_format_rgb_to_bgr(surface_format);
-
       util_pack_color_union(surface_format, &uc, color);
    }
 
@@ -464,113 +461,6 @@ bool vi_dcc_get_clear_info(struct si_context *sctx, struct si_texture *tex, unsi
    return true;
 }
 
-/* Set the same micro tile mode as the destination of the last MSAA resolve.
- * This allows hitting the MSAA resolve fast path, which requires that both
- * src and dst micro tile modes match.
- */
-static void si_set_optimal_micro_tile_mode(struct si_screen *sscreen, struct si_texture *tex)
-{
-   if (sscreen->info.gfx_level >= GFX10 || tex->buffer.b.is_shared ||
-       tex->buffer.b.b.nr_samples <= 1 ||
-       tex->surface.micro_tile_mode == tex->last_msaa_resolve_target_micro_mode)
-      return;
-
-   assert(sscreen->info.gfx_level >= GFX9 ||
-          tex->surface.u.legacy.level[0].mode == RADEON_SURF_MODE_2D);
-   assert(tex->buffer.b.b.last_level == 0);
-
-   if (sscreen->info.gfx_level >= GFX9) {
-      /* 4K or larger tiles only. 0 is linear. 1-3 are 256B tiles. */
-      assert(tex->surface.u.gfx9.swizzle_mode >= 4);
-
-      /* If you do swizzle_mode % 4, you'll get:
-       *   0 = Depth
-       *   1 = Standard,
-       *   2 = Displayable
-       *   3 = Rotated
-       *
-       * Depth-sample order isn't allowed:
-       */
-      assert(tex->surface.u.gfx9.swizzle_mode % 4 != 0);
-
-      switch (tex->last_msaa_resolve_target_micro_mode) {
-      case RADEON_MICRO_MODE_DISPLAY:
-         tex->surface.u.gfx9.swizzle_mode &= ~0x3;
-         tex->surface.u.gfx9.swizzle_mode += 2; /* D */
-         break;
-      case RADEON_MICRO_MODE_STANDARD:
-         tex->surface.u.gfx9.swizzle_mode &= ~0x3;
-         tex->surface.u.gfx9.swizzle_mode += 1; /* S */
-         break;
-      case RADEON_MICRO_MODE_RENDER:
-         tex->surface.u.gfx9.swizzle_mode &= ~0x3;
-         tex->surface.u.gfx9.swizzle_mode += 3; /* R */
-         break;
-      default: /* depth */
-         assert(!"unexpected micro mode");
-         return;
-      }
-   } else if (sscreen->info.gfx_level >= GFX7) {
-      /* These magic numbers were copied from addrlib. It doesn't use
-       * any definitions for them either. They are all 2D_TILED_THIN1
-       * modes with different bpp and micro tile mode.
-       */
-      switch (tex->last_msaa_resolve_target_micro_mode) {
-      case RADEON_MICRO_MODE_DISPLAY:
-         tex->surface.u.legacy.tiling_index[0] = 10;
-         break;
-      case RADEON_MICRO_MODE_STANDARD:
-         tex->surface.u.legacy.tiling_index[0] = 14;
-         break;
-      case RADEON_MICRO_MODE_RENDER:
-         tex->surface.u.legacy.tiling_index[0] = 28;
-         break;
-      default: /* depth, thick */
-         assert(!"unexpected micro mode");
-         return;
-      }
-   } else { /* GFX6 */
-      switch (tex->last_msaa_resolve_target_micro_mode) {
-      case RADEON_MICRO_MODE_DISPLAY:
-         switch (tex->surface.bpe) {
-         case 1:
-            tex->surface.u.legacy.tiling_index[0] = 10;
-            break;
-         case 2:
-            tex->surface.u.legacy.tiling_index[0] = 11;
-            break;
-         default: /* 4, 8 */
-            tex->surface.u.legacy.tiling_index[0] = 12;
-            break;
-         }
-         break;
-      case RADEON_MICRO_MODE_STANDARD:
-         switch (tex->surface.bpe) {
-         case 1:
-            tex->surface.u.legacy.tiling_index[0] = 14;
-            break;
-         case 2:
-            tex->surface.u.legacy.tiling_index[0] = 15;
-            break;
-         case 4:
-            tex->surface.u.legacy.tiling_index[0] = 16;
-            break;
-         default: /* 8, 16 */
-            tex->surface.u.legacy.tiling_index[0] = 17;
-            break;
-         }
-         break;
-      default: /* depth, thick */
-         assert(!"unexpected micro mode");
-         return;
-      }
-   }
-
-   tex->surface.micro_tile_mode = tex->last_msaa_resolve_target_micro_mode;
-
-   p_atomic_inc(&sscreen->dirty_tex_counter);
-}
-
 static uint32_t si_get_htile_clear_value(struct si_texture *tex, float depth)
 {
    if (tex->htile_stencil_disabled)
@@ -626,20 +516,6 @@ static void si_fast_clear(struct si_context *sctx, unsigned *buffers,
       if (fb->cbufs[i].first_layer != 0 ||
           fb->cbufs[i].last_layer != num_layers - 1) {
          continue;
-      }
-
-      /* We can change the micro tile mode before a full clear. */
-      /* This is only used for MSAA textures when clearing all layers. */
-      si_set_optimal_micro_tile_mode(sctx->screen, tex);
-
-      if (tex->swap_rgb_to_bgr_on_next_clear) {
-         assert(!tex->swap_rgb_to_bgr);
-         assert(tex->buffer.b.b.nr_samples >= 2);
-         tex->swap_rgb_to_bgr = true;
-         tex->swap_rgb_to_bgr_on_next_clear = false;
-
-         /* Update all sampler views and images. */
-         p_atomic_inc(&sctx->screen->dirty_tex_counter);
       }
 
       /* only supported on tiled surfaces */
