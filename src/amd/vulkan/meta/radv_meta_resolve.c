@@ -37,7 +37,7 @@ radv_get_resolve_method(struct radv_image *src_image, struct radv_image *dst_ima
  */
 static void
 radv_decompress_resolve_src(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image,
-                            VkImageLayout src_image_layout, const VkImageResolve2 *region,
+                            VkImageLayout src_image_layout, const VkImageSubresourceLayers *subresource,
                             const VkSampleLocationsInfoEXT *sample_locs)
 {
    VkImageMemoryBarrier2 barrier = {
@@ -49,13 +49,15 @@ radv_decompress_resolve_src(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
       .oldLayout = src_image_layout,
       .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
       .image = radv_image_to_handle(src_image),
-      .subresourceRange = (VkImageSubresourceRange){
-         .aspectMask = region->srcSubresource.aspectMask,
-         .baseMipLevel = 0,
-         .levelCount = 1,
-         .baseArrayLayer = region->srcSubresource.baseArrayLayer,
-         .layerCount = vk_image_subresource_layer_count(&src_image->vk, &region->srcSubresource),
-      }};
+      .subresourceRange =
+         (VkImageSubresourceRange){
+            .aspectMask = subresource->aspectMask,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = subresource->baseArrayLayer,
+            .layerCount = vk_image_subresource_layer_count(&src_image->vk, subresource),
+         },
+   };
 
    if (src_image->vk.create_flags & VK_IMAGE_CREATE_SAMPLE_LOCATIONS_COMPATIBLE_DEPTH_BIT_EXT) {
       /* If the depth/stencil image uses different sample
@@ -72,6 +74,68 @@ radv_decompress_resolve_src(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
    };
 
    radv_CmdPipelineBarrier2(radv_cmd_buffer_to_handle(cmd_buffer), &dep_info);
+}
+
+static void
+radv_decompress_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRenderingInfo *pRenderingInfo)
+{
+   uint32_t layer_count = pRenderingInfo->layerCount;
+
+   if (pRenderingInfo->viewMask)
+      layer_count = util_last_bit(pRenderingInfo->viewMask);
+
+   if (pRenderingInfo->pDepthAttachment->resolveMode != VK_RESOLVE_MODE_NONE ||
+       pRenderingInfo->pStencilAttachment->resolveMode != VK_RESOLVE_MODE_NONE) {
+      const VkRenderingAttachmentInfo *depth_att = pRenderingInfo->pDepthAttachment;
+      const VkRenderingAttachmentInfo *stencil_att = pRenderingInfo->pStencilAttachment;
+      const struct radv_image_view *d_iview = radv_image_view_from_handle(depth_att->imageView);
+      const struct radv_image_view *s_iview = radv_image_view_from_handle(stencil_att->imageView);
+      const struct radv_image_view *src_iview = d_iview ? d_iview : s_iview;
+
+      const VkImageSubresourceLayers subresource = {
+         .aspectMask = src_iview->vk.aspects,
+         .mipLevel = src_iview->vk.base_mip_level,
+         .baseArrayLayer = src_iview->vk.base_array_layer,
+         .layerCount = layer_count,
+      };
+
+      const struct VkSampleLocationsInfoEXT *sample_locs =
+         vk_find_struct_const(pRenderingInfo->pNext, SAMPLE_LOCATIONS_INFO_EXT);
+
+      if ((subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) && depth_att->resolveMode != VK_RESOLVE_MODE_NONE) {
+         VkImageSubresourceLayers depth_subresource = subresource;
+         depth_subresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+         radv_decompress_resolve_src(cmd_buffer, src_iview->image, depth_att->imageLayout, &depth_subresource,
+                                     sample_locs);
+      }
+
+      if ((subresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT) && stencil_att->resolveMode != VK_RESOLVE_MODE_NONE) {
+         VkImageSubresourceLayers stencil_subresource = subresource;
+         stencil_subresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+
+         radv_decompress_resolve_src(cmd_buffer, src_iview->image, stencil_att->imageLayout, &stencil_subresource,
+                                     sample_locs);
+      }
+   }
+
+   for (uint32_t i = 0; i < pRenderingInfo->colorAttachmentCount; i++) {
+      const VkRenderingAttachmentInfo *att = &pRenderingInfo->pColorAttachments[i];
+
+      if (att->resolveMode == VK_RESOLVE_MODE_NONE)
+         continue;
+
+      VK_FROM_HANDLE(radv_image_view, src_iview, att->imageView);
+
+      const VkImageSubresourceLayers subresource = {
+         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+         .mipLevel = src_iview->vk.base_mip_level,
+         .baseArrayLayer = src_iview->vk.base_array_layer,
+         .layerCount = layer_count,
+      };
+
+      radv_decompress_resolve_src(cmd_buffer, src_iview->image, att->imageLayout, &subresource, NULL);
+   }
 }
 
 static void
@@ -207,6 +271,8 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
    barrier.dst_access_mask = VK_ACCESS_2_SHADER_READ_BIT;
    radv_emit_resolve_barrier(cmd_buffer, &barrier);
 
+   radv_decompress_resolve_rendering(cmd_buffer, pRenderingInfo);
+
    if (has_ds_resolve) {
       const VkRenderingAttachmentInfo *depth_att = pRenderingInfo->pDepthAttachment;
       const VkRenderingAttachmentInfo *stencil_att = pRenderingInfo->pStencilAttachment;
@@ -252,16 +318,11 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
          .dstOffset = {resolve_area.offset.x, resolve_area.offset.y, 0},
       };
 
-      const struct VkSampleLocationsInfoEXT *sample_locs =
-         vk_find_struct_const(pRenderingInfo->pNext, SAMPLE_LOCATIONS_INFO_EXT);
-
       if ((region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) &&
           depth_att->resolveMode != VK_RESOLVE_MODE_NONE) {
          VkImageResolve2 depth_region = region;
          depth_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
          depth_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
-         radv_decompress_resolve_src(cmd_buffer, src_iview->image, depth_att->imageLayout, &depth_region, sample_locs);
 
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_gfx_resolve_image(cmd_buffer, src_iview->image, src_iview->vk.format, depth_att->imageLayout,
@@ -281,9 +342,6 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
          VkImageResolve2 stencil_region = region;
          stencil_region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
          stencil_region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
-
-         radv_decompress_resolve_src(cmd_buffer, src_iview->image, stencil_att->imageLayout, &stencil_region,
-                                     sample_locs);
 
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_gfx_resolve_image(cmd_buffer, src_iview->image, src_iview->vk.format, stencil_att->imageLayout,
@@ -366,8 +424,6 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
             src_format = vk_format_no_srgb(src_format);
             dst_format = vk_format_no_srgb(dst_format);
          }
-
-         radv_decompress_resolve_src(cmd_buffer, src_iview->image, src_layout, &region, NULL);
 
          if (resolve_method == RESOLVE_FRAGMENT) {
             radv_gfx_resolve_image(cmd_buffer, src_iview->image, src_format, src_layout, dst_iview->image, dst_format,
