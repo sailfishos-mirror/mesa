@@ -61,9 +61,9 @@ brw_def_analysis::update_for_reads(const brw_idom_tree &idom,
           * and flags make the destination not a def, as we don't track those.
           */
          if (inst->src[i].file == ARF &&
-             (nr == BRW_ARF_ADDRESS ||
-              nr == BRW_ARF_ACCUMULATOR ||
-              nr == BRW_ARF_FLAG))
+             (brw_reg_is_arf(inst->src[i], BRW_ARF_ADDRESS) ||
+              brw_reg_is_arf(inst->src[i], BRW_ARF_ACCUMULATOR) ||
+              brw_reg_is_arf(inst->src[i], BRW_ARF_FLAG)))
             mark_invalid(inst->dst);
 
          continue;
