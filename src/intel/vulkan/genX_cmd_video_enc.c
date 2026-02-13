@@ -1434,7 +1434,8 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
    const StdVideoH265VideoParameterSet *vps = vk_video_find_h265_enc_std_vps(params, frame_info->pStdPictureInfo->sps_video_parameter_set_id);
    const StdVideoH265SequenceParameterSet *sps = vk_video_find_h265_enc_std_sps(params, frame_info->pStdPictureInfo->pps_seq_parameter_set_id);
    const StdVideoH265PictureParameterSet *pps = vk_video_find_h265_enc_std_pps(params, frame_info->pStdPictureInfo->pps_pic_parameter_set_id);
-   const StdVideoEncodeH265ReferenceListsInfo *ref_list_info = frame_info->pStdPictureInfo->pRefLists;
+   StdVideoEncodeH265ReferenceListsInfo* ref_lists =
+      (struct StdVideoEncodeH265ReferenceListsInfo *)frame_info->pStdPictureInfo->pRefLists;
 
    const struct anv_image_view *iv = anv_image_view_from_handle(enc_info->srcPictureResource.imageViewBinding);
    const struct anv_image *src_img = iv->image;
@@ -2115,11 +2116,6 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
             0 : sps->flags.sps_temporal_mvp_enabled_flag;
       cmd2.TransformSkip = pps->flags.transform_skip_enabled_flag;
 
-      if (anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) != 0) {
-         cmd2.NumRefIdxL0MinusOne = ref_list_info->num_ref_idx_l0_active_minus1;
-         cmd2.NumRefIdxL1MinusOne = ref_list_info->num_ref_idx_l1_active_minus1;
-      }
-
       cmd2.Values5 = (cmd2.Values5 & 0xff83ffff) | 0x400000;
       cmd2.Values14 = (cmd2.Values14 & 0xffff) | 0x7d00000;
       cmd2.Values15 = 0x4e201f40;
@@ -2130,15 +2126,17 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       cmd2.TilingEnable = pps->flags.tiles_enabled_flag;
 
       if (anv_vdenc_h265_picture_type(frame_info->pStdPictureInfo->pic_type) != 0) {
-         StdVideoEncodeH265ReferenceListsInfo* ref_lists =
-            (struct StdVideoEncodeH265ReferenceListsInfo *)frame_info->pStdPictureInfo->pRefLists;
-
+         /* Handle GPB(Generalized P and B frames) */
          if (frame_info->pStdPictureInfo->pic_type == STD_VIDEO_H265_PICTURE_TYPE_P) {
+            ref_lists->num_ref_idx_l1_active_minus1 = ref_lists->num_ref_idx_l0_active_minus1;
             for (int i = 0; i< STD_VIDEO_H265_MAX_NUM_LIST_REF; i++) {
                ref_lists->RefPicList1[i] = ref_lists->RefPicList0[i];
                ref_lists->list_entry_l1[i] = ref_lists->list_entry_l0[i];
             }
          }
+
+         cmd2.NumRefIdxL0MinusOne = ref_lists->num_ref_idx_l0_active_minus1;
+         cmd2.NumRefIdxL1MinusOne = ref_lists->num_ref_idx_l1_active_minus1;
 
          bool long_term = false;
          uint8_t ref_slot = ref_lists->RefPicList0[0];
@@ -2171,7 +2169,8 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          cmd2.POCNumberForRefid0InL1 = CLAMP(diff_poc, -16, 16);
          cmd2.LongTermReferenceFlagsL1 |= long_term;
 
-         cmd2.POCNumberForRefid1InL1 = cmd2.POCNumberForRefid2InL1 = cmd2.POCNumberForRefid0InL1;
+         cmd2.POCNumberForRefid1InL1 = cmd2.POCNumberForRefid1InL0;
+         cmd2.POCNumberForRefid2InL1 = cmd2.POCNumberForRefid2InL0;
          cmd2.SubPelMode = 3;
       }
    }
@@ -2201,11 +2200,16 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
          next_slice_header = slice_header + 1;
 
       if (slice_type != STD_VIDEO_H265_SLICE_TYPE_I) {
+         if (pps->num_ref_idx_l0_default_active_minus1 != ref_lists->num_ref_idx_l0_active_minus1 ||
+             pps->num_ref_idx_l1_default_active_minus1 != ref_lists->num_ref_idx_l1_active_minus1) {
+            slice_header->flags.num_ref_idx_active_override_flag = true;
+         }
+
          anv_batch_emit(&cmd->batch, GENX(HCP_REF_IDX_STATE), ref) {
             ref.ReferencePictureListSelect = 0;
-            ref.NumberofReferenceIndexesActive = ref_list_info->num_ref_idx_l0_active_minus1;
+            ref.NumberofReferenceIndexesActive = ref_lists->num_ref_idx_l0_active_minus1;
 
-            for (uint32_t i = 0; i < ref_list_info->num_ref_idx_l0_active_minus1 + 1; i++) {
+            for (uint32_t i = 0; i < ref_lists->num_ref_idx_l0_active_minus1 + 1; i++) {
                const VkVideoReferenceSlotInfoKHR ref_slot = enc_info->pReferenceSlots[i];
                const VkVideoEncodeH265DpbSlotInfoKHR *dpb =
                      vk_find_struct_const(ref_slot.pNext, VIDEO_ENCODE_H265_DPB_SLOT_INFO_KHR);
@@ -2225,9 +2229,9 @@ anv_h265_encode_video(struct anv_cmd_buffer *cmd, const VkVideoEncodeInfoKHR *en
       if (slice_type == STD_VIDEO_H265_SLICE_TYPE_B) {
          anv_batch_emit(&cmd->batch, GENX(HCP_REF_IDX_STATE), ref) {
             ref.ReferencePictureListSelect = 1;
-            ref.NumberofReferenceIndexesActive = ref_list_info->num_ref_idx_l1_active_minus1;
+            ref.NumberofReferenceIndexesActive = ref_lists->num_ref_idx_l1_active_minus1;
 
-            for (uint32_t i = 0; i < ref_list_info->num_ref_idx_l1_active_minus1 + 1; i++) {
+            for (uint32_t i = 0; i < ref_lists->num_ref_idx_l1_active_minus1 + 1; i++) {
                const VkVideoReferenceSlotInfoKHR ref_slot = enc_info->pReferenceSlots[i];
 
                const VkVideoEncodeH265DpbSlotInfoKHR *dpb =
