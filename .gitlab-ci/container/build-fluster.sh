@@ -18,7 +18,7 @@ section_start fluster "Installing Fluster"
 # setting up the environment variables locally
 ci_tag_build_time_check "FLUSTER_TAG"
 
-FLUSTER_REVISION="3dad9c71f4d5eacbb692be6b328a645822b591d6"
+FLUSTER_REVISION="1864188e358464e77c889390fff259ef3b2c1159"
 
 git clone https://github.com/fluendo/fluster.git --single-branch --no-checkout
 

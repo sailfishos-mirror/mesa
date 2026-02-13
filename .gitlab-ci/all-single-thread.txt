@@ -40,5 +40,5 @@ vkd3d-test_stress_suballocation_rebar
 
 # These two tests randomly timeout if run in parallel with others,
 # because of the large number of frames they contain
-GStreamer-H.264-Vulkan-Gst1.0@LS_SVA_D
-GStreamer-H.265-Vulkan-Gst1.0@SAODBLK_A_MainConcept_4
+GStreamer-H.264-Vulkan@LS_SVA_D
+GStreamer-H.265-Vulkan@SAODBLK_A_MainConcept_4
