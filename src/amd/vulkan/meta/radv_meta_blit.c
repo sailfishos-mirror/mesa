@@ -260,18 +260,10 @@ meta_emit_blit(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_i
       src_offset_1[1] / (float)src_height, src_offset_0[2] / (float)src_depth,
    };
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-      .offset = 0,
-      .size = sizeof(vertex_push_constants),
-      .pValues = vertex_push_constants,
-   };
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vertex_push_constants),
+                            vertex_push_constants);
 
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
-
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+   radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
 
    radv_meta_bind_descriptors(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 1,
                               (VkDescriptorGetInfoEXT[]){{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT,
@@ -454,20 +446,11 @@ blit_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image, VkI
       .y = dst_y1,
    };
 
-   radv_CmdSetViewport(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
-                       &(VkViewport){.x = dst_offset_0.x,
-                                     .y = dst_offset_0.y,
-                                     .width = dst_offset_1.x - dst_offset_0.x,
-                                     .height = dst_offset_1.y - dst_offset_0.y,
-                                     .minDepth = 0.0f,
-                                     .maxDepth = 1.0f});
+   radv_meta_set_viewport(cmd_buffer, dst_offset_0.x, dst_offset_0.y, dst_offset_1.x - dst_offset_0.x,
+                          dst_offset_1.y - dst_offset_0.y);
 
-   radv_CmdSetScissor(
-      radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
-      &(VkRect2D){
-         .offset = (VkOffset2D){MIN2(dst_offset_0.x, dst_offset_1.x), MIN2(dst_offset_0.y, dst_offset_1.y)},
-         .extent = (VkExtent2D){abs(dst_offset_1.x - dst_offset_0.x), abs(dst_offset_1.y - dst_offset_0.y)},
-      });
+   radv_meta_set_scissor(cmd_buffer, MIN2(dst_offset_0.x, dst_offset_1.x), MIN2(dst_offset_0.y, dst_offset_1.y),
+                         abs(dst_offset_1.x - dst_offset_0.x), abs(dst_offset_1.y - dst_offset_0.y));
 
    const unsigned num_layers = dst_end - dst_start;
    for (unsigned i = 0; i < num_layers; i++) {

@@ -134,6 +134,86 @@ void radv_meta_save(struct radv_meta_saved_state *saved_state, struct radv_cmd_b
 
 void radv_meta_restore(const struct radv_meta_saved_state *state, struct radv_cmd_buffer *cmd_buffer);
 
+static inline void
+radv_meta_bind_graphics_pipeline(struct radv_cmd_buffer *cmd_buffer, VkPipeline pipeline)
+{
+   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+}
+
+static inline void
+radv_meta_set_viewport(struct radv_cmd_buffer *cmd_buffer, float x, float y, float width, float height)
+{
+   VkViewport viewport = {
+      .x = x,
+      .y = y,
+      .width = width,
+      .height = height,
+      .minDepth = 0.0f,
+      .maxDepth = 1.0f,
+   };
+
+   radv_CmdSetViewport(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1, &viewport);
+}
+
+static inline void
+radv_meta_set_scissor(struct radv_cmd_buffer *cmd_buffer, int32_t x, int32_t y, int32_t width, int32_t height)
+{
+   VkRect2D scissor = {
+      .offset.x = x,
+      .offset.y = y,
+      .extent.width = width,
+      .extent.height = height,
+   };
+
+   radv_CmdSetScissor(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1, &scissor);
+}
+
+static inline void
+radv_meta_set_viewport_and_scissor(struct radv_cmd_buffer *cmd_buffer, int32_t x, int32_t y, int32_t width,
+                                   int32_t height)
+{
+   radv_meta_set_viewport(cmd_buffer, x, y, width, height);
+   radv_meta_set_scissor(cmd_buffer, x, y, width, height);
+}
+
+static inline void
+radv_meta_set_sample_locations(struct radv_cmd_buffer *cmd_buffer, const VkSampleLocationsInfoEXT *sample_locs)
+{
+   radv_CmdSetSampleLocationsEXT(radv_cmd_buffer_to_handle(cmd_buffer), sample_locs);
+}
+
+static inline void
+radv_meta_set_stencil_reference(struct radv_cmd_buffer *cmd_buffer, VkStencilFaceFlags face_mask, uint32_t reference)
+{
+   radv_CmdSetStencilReference(radv_cmd_buffer_to_handle(cmd_buffer), face_mask, reference);
+}
+
+static inline void
+radv_meta_bind_compute_pipeline(struct radv_cmd_buffer *cmd_buffer, VkPipeline pipeline)
+{
+   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+}
+
+static inline void
+radv_meta_push_constants(struct radv_cmd_buffer *cmd_buffer, VkPipelineLayout layout, VkShaderStageFlags stage,
+                         uint32_t offset, uint32_t size, const void *data)
+{
+   const VkPushConstantsInfoKHR push_constants_info = {
+      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+      .layout = layout,
+      .stageFlags = stage,
+      .offset = offset,
+      .size = size,
+      .pValues = data,
+   };
+
+   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &push_constants_info);
+}
+
+void radv_meta_bind_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoint bind_point,
+                                VkPipelineLayout _layout, uint32_t num_descriptors,
+                                const VkDescriptorGetInfoEXT *descriptors);
+
 VkImageViewType radv_meta_get_view_type(const struct radv_image *image);
 
 static inline VkFormat
@@ -285,10 +365,6 @@ void radv_meta_resolve_depth_stencil_fs(struct radv_cmd_buffer *cmd_buffer, stru
                                         const VkImageResolve2 *region, uint32_t view_mask);
 
 VkResult radv_meta_get_noop_pipeline_layout(struct radv_device *device, VkPipelineLayout *layout_out);
-
-void radv_meta_bind_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoint bind_point,
-                                VkPipelineLayout _layout, uint32_t num_descriptors,
-                                const VkDescriptorGetInfoEXT *descriptors);
 
 enum radv_copy_flags radv_get_copy_flags_from_bo(const struct radeon_winsys_bo *bo);
 

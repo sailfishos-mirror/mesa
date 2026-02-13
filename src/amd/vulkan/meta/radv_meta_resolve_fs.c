@@ -360,18 +360,9 @@ emit_resolve(struct radv_cmd_buffer *cmd_buffer, struct radv_image_view *src_ivi
       src_offset->y - dst_offset->y,
    };
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-      .offset = 0,
-      .size = 8,
-      .pValues = push_constants,
-   };
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 8, push_constants);
 
-   radv_CmdPushConstants2(cmd_buffer_h, &pc_info);
-
-   radv_CmdBindPipeline(cmd_buffer_h, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+   radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
 
    radv_CmdDraw(cmd_buffer_h, 3, 1, 0, 0);
    cmd_buffer->state.flush_bits |=
@@ -405,15 +396,8 @@ radv_meta_resolve_fragment_image(struct radv_cmd_buffer *cmd_buffer, struct radv
       .extent = {extent.width, extent.height},
    };
 
-   radv_CmdSetViewport(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
-                       &(VkViewport){.x = resolve_area.offset.x,
-                                     .y = resolve_area.offset.y,
-                                     .width = resolve_area.extent.width,
-                                     .height = resolve_area.extent.height,
-                                     .minDepth = 0.0f,
-                                     .maxDepth = 1.0f});
-
-   radv_CmdSetScissor(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1, &resolve_area);
+   radv_meta_set_viewport_and_scissor(cmd_buffer, resolve_area.offset.x, resolve_area.offset.y,
+                                      resolve_area.extent.width, resolve_area.extent.height);
 
    const VkImageViewUsageCreateInfo src_iview_usage_info = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,
@@ -610,19 +594,10 @@ radv_meta_resolve_depth_stencil_fs(struct radv_cmd_buffer *cmd_buffer, struct ra
                                      }},
                               });
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+   radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
 
-   radv_CmdSetViewport(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
-                       &(VkViewport){
-                          .x = region->dstOffset.x,
-                          .y = region->dstOffset.y,
-                          .width = region->extent.width,
-                          .height = region->extent.height,
-                          .minDepth = 0.0f,
-                          .maxDepth = 1.0f,
-                       });
-
-   radv_CmdSetScissor(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1, &resolve_area);
+   radv_meta_set_viewport_and_scissor(cmd_buffer, resolve_area.offset.x, resolve_area.offset.y,
+                                      resolve_area.extent.width, resolve_area.extent.height);
 
    radv_CmdDraw(radv_cmd_buffer_to_handle(cmd_buffer), 3, 1, 0, 0);
 

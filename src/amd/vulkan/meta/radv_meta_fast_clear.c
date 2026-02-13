@@ -370,7 +370,7 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
       cmd_buffer->state.predicating = true;
    }
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+   radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
 
    for (uint32_t l = 0; l < vk_image_subresource_level_count(&image->vk, subresourceRange); ++l) {
       uint32_t width, height;
@@ -382,15 +382,7 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
       width = u_minify(image->vk.extent.width, subresourceRange->baseMipLevel + l);
       height = u_minify(image->vk.extent.height, subresourceRange->baseMipLevel + l);
 
-      radv_CmdSetViewport(
-         radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
-         &(VkViewport){.x = 0, .y = 0, .width = width, .height = height, .minDepth = 0.0f, .maxDepth = 1.0f});
-
-      radv_CmdSetScissor(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
-                         &(VkRect2D){
-                            .offset = {0, 0},
-                            .extent = {width, height},
-                         });
+      radv_meta_set_viewport_and_scissor(cmd_buffer, 0, 0, width, height);
 
       for (uint32_t s = 0; s < vk_image_subresource_layer_count(&image->vk, subresourceRange); s++) {
          radv_process_color_image_layer(cmd_buffer, image, subresourceRange, l, s, op);
@@ -481,7 +473,7 @@ radv_decompress_dcc_compute(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
 
    radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_DESCRIPTORS | RADV_META_SAVE_COMPUTE_PIPELINE);
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    for (uint32_t l = 0; l < vk_image_subresource_level_count(&image->vk, subresourceRange); l++) {
       uint32_t width, height;

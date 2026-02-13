@@ -164,7 +164,7 @@ emit_resolve(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *src_im
                                    radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                                                          VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT, 0, src_image, NULL);
 
-   radv_CmdBindPipeline(cmd_buffer_h, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+   radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
 
    radv_CmdDraw(cmd_buffer_h, 3, 1, 0, 0);
    cmd_buffer->state.flush_bits |= radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
@@ -285,15 +285,8 @@ radv_meta_resolve_hardware_image(struct radv_cmd_buffer *cmd_buffer, struct radv
       .extent = {extent.width, extent.height},
    };
 
-   radv_CmdSetViewport(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1,
-                       &(VkViewport){.x = resolve_area.offset.x,
-                                     .y = resolve_area.offset.y,
-                                     .width = resolve_area.extent.width,
-                                     .height = resolve_area.extent.height,
-                                     .minDepth = 0.0f,
-                                     .maxDepth = 1.0f});
-
-   radv_CmdSetScissor(radv_cmd_buffer_to_handle(cmd_buffer), 0, 1, &resolve_area);
+   radv_meta_set_viewport_and_scissor(cmd_buffer, resolve_area.offset.x, resolve_area.offset.y,
+                                      resolve_area.extent.width, resolve_area.extent.height);
 
    const VkImageViewUsageCreateInfo src_iview_usage_info = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO,

@@ -721,20 +721,11 @@ radv_meta_image_to_buffer(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_b
                                        },
                                  }});
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    unsigned push_constants[4] = {offset->x, offset->y, src->layer, dst->pitch};
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(push_constants),
-      .pValues = push_constants,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
 
    radv_unaligned_dispatch(cmd_buffer, extent->width, extent->height, 1);
    fixup_gfx9_cs_copy(cmd_buffer, dst, src, offset, extent, false);
@@ -784,7 +775,7 @@ radv_meta_buffer_to_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct ra
                                        },
                                  }});
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    stride = radv_get_image_stride_for_96bit(device, dst->image);
 
@@ -795,16 +786,7 @@ radv_meta_buffer_to_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct ra
       src->pitch,
    };
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(push_constants),
-      .pValues = push_constants,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
 
    radv_unaligned_dispatch(cmd_buffer, extent->width, extent->height, 1);
 }
@@ -855,7 +837,7 @@ radv_meta_buffer_to_image_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_met
                                      },
                                   }}});
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    unsigned push_constants[4] = {
       offset->x,
@@ -864,16 +846,7 @@ radv_meta_buffer_to_image_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_met
       src->pitch,
    };
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(push_constants),
-      .pValues = push_constants,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
 
    radv_unaligned_dispatch(cmd_buffer, extent->width, extent->height, 1);
    fixup_gfx9_cs_copy(cmd_buffer, src, dst, offset, extent, true);
@@ -926,7 +899,7 @@ radv_meta_image_to_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct rad
                                        },
                                  }});
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    src_stride = radv_get_image_stride_for_96bit(device, src->image);
    dst_stride = radv_get_image_stride_for_96bit(device, dst->image);
@@ -935,16 +908,7 @@ radv_meta_image_to_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct rad
       src_offset->x, src_offset->y, src_stride, dst_offset->x, dst_offset->y, dst_stride,
    };
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(push_constants),
-      .pValues = push_constants,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
 
    radv_unaligned_dispatch(cmd_buffer, extent->width, extent->height, 1);
 }
@@ -1032,22 +996,14 @@ radv_meta_image_to_image_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_meta
                                                                 },
                                                              }}});
 
-      radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+      radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
       unsigned push_constants[6] = {
          src_offset->x, src_offset->y, src->layer, dst_offset->x, dst_offset->y, dst->layer,
       };
 
-      const VkPushConstantsInfoKHR pc_info = {
-         .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-         .layout = layout,
-         .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-         .offset = 0,
-         .size = sizeof(push_constants),
-         .pValues = push_constants,
-      };
-
-      radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+      radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants),
+                               push_constants);
 
       radv_unaligned_dispatch(cmd_buffer, extent->width, extent->height, 1);
 
@@ -1088,7 +1044,7 @@ radv_meta_clear_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct radv_m
                                     },
                               }});
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    stride = radv_get_image_stride_for_96bit(device, dst->image);
 
@@ -1099,16 +1055,7 @@ radv_meta_clear_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct radv_m
       stride,
    };
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(push_constants),
-      .pValues = push_constants,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
 
    radv_unaligned_dispatch(cmd_buffer, dst->image->vk.extent.width, dst->image->vk.extent.height, 1);
 }
@@ -1150,22 +1097,13 @@ radv_meta_clear_image_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_bl
                                      }},
                               });
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    unsigned push_constants[5] = {
       clear_color->uint32[0], clear_color->uint32[1], clear_color->uint32[2], clear_color->uint32[3], dst->layer,
    };
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(push_constants),
-      .pValues = push_constants,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
 
    radv_unaligned_dispatch(cmd_buffer, dst->image->vk.extent.width, dst->image->vk.extent.height, 1);
 

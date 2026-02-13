@@ -164,7 +164,7 @@ radv_compute_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64
 
    radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS);
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    assert(size <= UINT32_MAX);
 
@@ -182,16 +182,7 @@ radv_compute_fill_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t va, uint64
       dim_x = DIV_ROUND_UP(size, 4);
    }
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(fill_consts),
-      .pValues = &fill_consts,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(fill_consts), &fill_consts);
 
    radv_unaligned_dispatch(cmd_buffer, dim_x, 1, 1);
 
@@ -216,7 +207,7 @@ radv_compute_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, ui
 
    radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS);
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    assert(size <= UINT32_MAX);
 
@@ -234,16 +225,7 @@ radv_compute_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, ui
       dim_x = size;
    }
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(copy_consts),
-      .pValues = &copy_consts,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(copy_consts), &copy_consts);
 
    radv_unaligned_dispatch(cmd_buffer, dim_x, 1, 1);
 

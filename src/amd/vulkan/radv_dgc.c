@@ -3319,18 +3319,10 @@ radv_prepare_dgc(struct radv_cmd_buffer *cmd_buffer, const VkGeneratedCommandsIn
 
    radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS);
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, layout->pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, layout->pipeline);
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout->pipeline_layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(params),
-      .pValues = &params,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout->pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(params),
+                            &params);
 
    unsigned block_count = MAX2(1, DIV_ROUND_UP(pGeneratedCommandsInfo->maxSequenceCount, 64));
    radv_CmdDispatchBase(radv_cmd_buffer_to_handle(cmd_buffer), 0, 0, 0, block_count, 1, 1);

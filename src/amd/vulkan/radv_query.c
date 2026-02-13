@@ -1805,7 +1805,7 @@ radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type, st
 
    radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS);
 
-   radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    /* Encode the number of elements for easy access by the shader. */
    pipeline_stats_mask &= (1 << (radv_get_pipelinestat_query_size(device) / 8)) - 1;
@@ -1820,16 +1820,8 @@ radv_query_shader(struct radv_cmd_buffer *cmd_buffer, VkQueryType query_type, st
       dst_stride, pipeline_stats_mask, avail_offset, uses_emulated_queries,
    };
 
-   const VkPushConstantsInfoKHR pc_info = {
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO_KHR,
-      .layout = layout,
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .offset = 0,
-      .size = sizeof(push_constants),
-      .pValues = &push_constants,
-   };
-
-   radv_CmdPushConstants2(radv_cmd_buffer_to_handle(cmd_buffer), &pc_info);
+   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants),
+                            &push_constants);
 
    cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_INV_L2 | RADV_CMD_FLAG_INV_VCACHE;
 
