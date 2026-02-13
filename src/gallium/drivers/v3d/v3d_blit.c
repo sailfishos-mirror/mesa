@@ -455,20 +455,21 @@ v3d_tlb_blit_fast(struct pipe_context *pctx, struct pipe_blit_info *info)
         /* The job's RT setup must be compatible with the blit buffer. */
         struct pipe_surface *spsurf = &job->cbufs[idx];
         uint8_t sinternal_bpp, rinternal_bpp;
-        uint8_t sinternal_type;
+        uint8_t sinternal_type, rinternal_type;
+
         v3d_format_get_internal_type_and_bpp(devinfo,
                                              spsurf->format,
                                              &sinternal_type,
                                              &sinternal_bpp);
-        uint8_t rinternal_type;
         v3d_format_get_internal_type_and_bpp(devinfo,
                                              dbuf.format,
                                              &rinternal_type,
                                              &rinternal_bpp);
-        if (sinternal_bpp < rinternal_bpp)
+        if (sinternal_bpp < rinternal_bpp ||
+            sinternal_type != rinternal_type) {
+                pipe_resource_reference(&dbuf.texture, NULL);
                 return;
-        if (sinternal_type != rinternal_type)
-                return;
+        }
 
         MESA_TRACE_FUNC();
 
