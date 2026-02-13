@@ -192,6 +192,7 @@ gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, uint64_t
                                     const VkBufferImageCopy2 *region, const bool use_compute)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_meta_saved_state saved_state;
 
    /* The Vulkan 1.0 spec says "dstImage must have a sample count equal to
@@ -227,10 +228,11 @@ gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, uint64_t
    struct radv_meta_blit2d_surf img_bsurf = blit_surf_for_image_level_layer(image, layout, &region->imageSubresource);
 
    if (!radv_is_buffer_format_supported(img_bsurf.format, NULL)) {
-      uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf);
-      bool compressed =
-         radv_layout_dcc_compressed(device, image, region->imageSubresource.mipLevel, layout, queue_mask);
-      if (compressed) {
+      const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf);
+      const VkFormat raw_format = vk_format_for_size(vk_format_get_blocksize(img_bsurf.format));
+
+      if (!radv_dcc_formats_compatible(pdev->info.gfx_level, img_bsurf.format, raw_format, NULL) &&
+          radv_layout_dcc_compressed(device, image, region->imageSubresource.mipLevel, layout, queue_mask)) {
          radv_describe_barrier_start(cmd_buffer, RGP_BARRIER_UNKNOWN_REASON);
 
          radv_decompress_dcc(cmd_buffer, image,
@@ -245,7 +247,8 @@ gfx_or_compute_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, uint64_t
 
          radv_describe_barrier_end(cmd_buffer);
       }
-      img_bsurf.format = vk_format_for_size(vk_format_get_blocksize(img_bsurf.format));
+
+      img_bsurf.format = raw_format;
    }
 
    const struct vk_image_buffer_layout buf_layout = vk_image_buffer_copy_layout(&image->vk, region);
@@ -360,6 +363,7 @@ compute_copy_image_to_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer
                              const VkBufferImageCopy2 *region)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_meta_saved_state saved_state;
 
    radv_meta_save(&saved_state, cmd_buffer,
@@ -389,10 +393,11 @@ compute_copy_image_to_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer
    struct radv_meta_blit2d_surf img_info = blit_surf_for_image_level_layer(image, layout, &region->imageSubresource);
 
    if (!radv_is_buffer_format_supported(img_info.format, NULL)) {
-      uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf);
-      bool compressed =
-         radv_layout_dcc_compressed(device, image, region->imageSubresource.mipLevel, layout, queue_mask);
-      if (compressed) {
+      const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf);
+      const VkFormat raw_format = vk_format_for_size(vk_format_get_blocksize(img_info.format));
+
+      if (!radv_dcc_formats_compatible(pdev->info.gfx_level, img_info.format, raw_format, NULL) &&
+          radv_layout_dcc_compressed(device, image, region->imageSubresource.mipLevel, layout, queue_mask)) {
          radv_describe_barrier_start(cmd_buffer, RGP_BARRIER_UNKNOWN_REASON);
 
          radv_decompress_dcc(cmd_buffer, image,
@@ -407,7 +412,8 @@ compute_copy_image_to_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer
 
          radv_describe_barrier_end(cmd_buffer);
       }
-      img_info.format = vk_format_for_size(vk_format_get_blocksize(img_info.format));
+
+      img_info.format = raw_format;
    }
 
    struct radv_meta_blit2d_buffer buf_info = {
