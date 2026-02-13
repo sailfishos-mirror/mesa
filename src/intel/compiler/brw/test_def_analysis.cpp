@@ -67,3 +67,27 @@ TEST_F(defs_test, dst_and_src_are_acc0)
 
    EXPECT_EQ(inst, defs.get(dst0));
 }
+
+TEST_F(defs_test, src_is_acc2)
+{
+   set_gfx_verx10(125);
+
+   brw_builder bld = make_shader(MESA_SHADER_FRAGMENT, 16);
+
+   brw_reg dst0 = vgrf(bld, BRW_TYPE_F);
+   brw_reg src0 = vgrf(bld, BRW_TYPE_F);
+   brw_reg acc2 = retype(brw_acc_reg(16), BRW_TYPE_F);
+
+   acc2.nr = BRW_ARF_ACCUMULATOR + 2;
+
+   bld.MOV(src0, brw_imm_f(1.0));
+   bld.MOV(acc2, brw_imm_f(2.0));
+   bld.MUL(dst0, src0, acc2);
+
+   brw_calculate_cfg(*bld.shader);
+   brw_validate(*bld.shader);
+
+   const brw_def_analysis &defs = bld.shader->def_analysis.require();
+
+   EXPECT_EQ(NULL, defs.get(dst0));
+}
