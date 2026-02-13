@@ -431,21 +431,6 @@ def get_array_copy(builder, command, param, field_name):
     ))
     builder.add("memcpy((void*)%s, %s, %s * (%s));" % (field_name, param.name, field_size, param.len))
 
-def get_array_member_copy(builder, struct, src_name, member):
-    field_name = "%s->%s" % (struct, member.name)
-    if member.len == "struct-ptr":
-        field_size = "sizeof(*%s)" % (field_name)
-    else:
-        field_size = "sizeof(*%s) * %s->%s" % (field_name, struct, member.len)
-
-    builder.add("if (%s->%s) {" % (src_name, member.name))
-    builder.level += 1
-    builder.add("%s = linear_alloc_child(queue->alloc, %s);" % (field_name, field_size))
-    builder.add("if (%s == NULL) return VK_ERROR_OUT_OF_HOST_MEMORY;" % (field_name))
-    builder.add("memcpy((void*)%s, %s->%s, %s);" % (field_name, src_name, member.name, field_size))
-    builder.level -= 1
-    builder.add("}")
-
 def get_pnext_member_copy(builder, struct, src_type, member, types):
     if not types[src_type].extended_by:
         return
