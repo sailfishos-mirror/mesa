@@ -608,7 +608,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
             {
                .width = resolve_area.extent.width,
                .height = resolve_area.extent.height,
-               .depth = layer_count,
+               .depth = 1,
             },
          .srcSubresource =
             (VkImageSubresourceLayers){
