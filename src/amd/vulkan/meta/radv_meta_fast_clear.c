@@ -322,7 +322,6 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   struct radv_meta_saved_state saved_state;
    bool old_predicating = false;
    uint64_t pred_offset;
    VkPipelineLayout layout;
@@ -358,8 +357,6 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
        */
       pred_offset = 0;
    }
-
-   radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_GRAPHICS_PIPELINE);
 
    if (pred_offset) {
       pred_offset += 8 * subresourceRange->baseMipLevel;
@@ -408,8 +405,6 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
       }
    }
 
-   radv_meta_restore(&saved_state, cmd_buffer);
-
    /* Clear the image's fast-clear eliminate predicate because FMASK_DECOMPRESS and DCC_DECOMPRESS
     * also perform a fast-clear eliminate.
     */
@@ -455,7 +450,6 @@ radv_decompress_dcc_compute(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
                             const VkImageSubresourceRange *subresourceRange)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_meta_saved_state saved_state;
    struct radv_image_view load_iview = {0};
    struct radv_image_view store_iview = {0};
    VkPipelineLayout layout;
@@ -470,8 +464,6 @@ radv_decompress_dcc_compute(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
 
    cmd_buffer->state.flush_bits |= radv_dst_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                                          VK_ACCESS_2_SHADER_READ_BIT, 0, image, subresourceRange);
-
-   radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_DESCRIPTORS | RADV_META_SAVE_COMPUTE_PIPELINE);
 
    radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
@@ -560,8 +552,6 @@ radv_decompress_dcc_compute(struct radv_cmd_buffer *cmd_buffer, struct radv_imag
 
    /* Mark this image as actually being decompressed. */
    radv_update_dcc_metadata(cmd_buffer, image, subresourceRange, false);
-
-   radv_meta_restore(&saved_state, cmd_buffer);
 
    cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_CS_PARTIAL_FLUSH | RADV_CMD_FLAG_INV_VCACHE |
                                    radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,

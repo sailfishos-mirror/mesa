@@ -93,7 +93,6 @@ radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radeon_surf *surf = &image->planes[0].surface;
-   struct radv_meta_saved_state saved_state;
    struct radv_image_view iview;
    VkPipelineLayout layout;
    VkPipeline pipeline;
@@ -107,9 +106,6 @@ radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       return 0;
    }
-
-   radv_meta_save(&saved_state, cmd_buffer,
-                  RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_DESCRIPTORS | RADV_META_SAVE_CONSTANTS);
 
    radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
@@ -163,8 +159,6 @@ radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
          radv_image_view_finish(&iview);
       }
    }
-
-   radv_meta_restore(&saved_state, cmd_buffer);
 
    return RADV_CMD_FLAG_CS_PARTIAL_FLUSH | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                                                  VK_ACCESS_2_SHADER_WRITE_BIT, 0, image, range);

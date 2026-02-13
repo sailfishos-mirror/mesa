@@ -98,9 +98,6 @@ radv_meta_decode_astc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *ima
                       const VkImageSubresourceLayers *subresource, VkOffset3D offset, VkExtent3D extent)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_meta_saved_state saved_state;
-   radv_meta_save(&saved_state, cmd_buffer,
-                  RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS | RADV_META_SAVE_DESCRIPTORS);
 
    const bool is_3d = image->vk.image_type == VK_IMAGE_TYPE_3D;
    const uint32_t base_slice = is_3d ? offset.z : subresource->baseArrayLayer;
@@ -126,6 +123,4 @@ radv_meta_decode_astc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *ima
 
    radv_image_view_finish(&src_iview);
    radv_image_view_finish(&dst_iview);
-
-   radv_meta_restore(&saved_state, cmd_buffer);
 }

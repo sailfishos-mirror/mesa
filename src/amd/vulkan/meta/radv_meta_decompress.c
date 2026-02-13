@@ -214,7 +214,6 @@ radv_process_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image
                            const VkImageSubresourceRange *subresourceRange, const VkSampleLocationsInfoEXT *sample_locs)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_meta_saved_state saved_state;
    VkPipelineLayout layout;
    VkPipeline pipeline;
    VkResult result;
@@ -224,8 +223,6 @@ radv_process_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       return;
    }
-
-   radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_GRAPHICS_PIPELINE);
 
    radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
 
@@ -254,8 +251,6 @@ radv_process_depth_stencil(struct radv_cmd_buffer *cmd_buffer, struct radv_image
          radv_process_depth_image_layer(cmd_buffer, image, subresourceRange, l, s);
       }
    }
-
-   radv_meta_restore(&saved_state, cmd_buffer);
 }
 
 static VkResult
@@ -327,7 +322,6 @@ radv_expand_depth_stencil_compute(struct radv_cmd_buffer *cmd_buffer, struct rad
                                   const VkImageSubresourceRange *subresourceRange)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_meta_saved_state saved_state;
    struct radv_image_view load_iview = {0};
    struct radv_image_view store_iview = {0};
    VkPipelineLayout layout;
@@ -341,8 +335,6 @@ radv_expand_depth_stencil_compute(struct radv_cmd_buffer *cmd_buffer, struct rad
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       return;
    }
-
-   radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_DESCRIPTORS | RADV_META_SAVE_COMPUTE_PIPELINE);
 
    radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
@@ -427,8 +419,6 @@ radv_expand_depth_stencil_compute(struct radv_cmd_buffer *cmd_buffer, struct rad
          radv_image_view_finish(&store_iview);
       }
    }
-
-   radv_meta_restore(&saved_state, cmd_buffer);
 }
 
 void

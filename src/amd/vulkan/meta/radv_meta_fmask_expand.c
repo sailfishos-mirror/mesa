@@ -96,7 +96,6 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
                          const VkImageSubresourceRange *subresourceRange)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_meta_saved_state saved_state;
    const uint32_t samples = image->vk.samples;
    const uint32_t samples_log2 = ffs(samples) - 1;
    unsigned layer_count = vk_image_subresource_layer_count(&image->vk, subresourceRange);
@@ -112,8 +111,6 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       return;
    }
-
-   radv_meta_save(&saved_state, cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_DESCRIPTORS);
 
    radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
@@ -166,8 +163,6 @@ radv_process_color_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
    radv_unaligned_dispatch(cmd_buffer, image->vk.extent.width, image->vk.extent.height, layer_count);
 
    radv_image_view_finish(&iview);
-
-   radv_meta_restore(&saved_state, cmd_buffer);
 
    cmd_buffer->state.flush_bits |=
       RADV_CMD_FLAG_CS_PARTIAL_FLUSH | radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,

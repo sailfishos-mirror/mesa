@@ -35,31 +35,11 @@ extern "C" {
 
 enum radv_meta_save_flags {
    RADV_META_SAVE_CONSTANTS = (1 << 0),
-   RADV_META_SAVE_DESCRIPTORS = (1 << 1),
-   RADV_META_SAVE_GRAPHICS_PIPELINE = (1 << 2),
-   RADV_META_SAVE_COMPUTE_PIPELINE = (1 << 3),
-};
-
-struct radv_meta_saved_state {
-   uint32_t flags;
-
-   struct radv_descriptor_set *old_descriptor_set0;
-   bool old_descriptor_set0_valid;
-   uint64_t old_descriptor_buffer_addr0;
-   uint64_t old_descriptor_buffer0;
-
-   struct radv_graphics_pipeline *old_graphics_pipeline;
-   struct radv_compute_pipeline *old_compute_pipeline;
-   struct radv_dynamic_state dynamic;
-
-   struct radv_shader_object *old_shader_objs[MESA_VULKAN_SHADER_STAGES];
-
-   char push_constants[MAX_PUSH_CONSTANTS_SIZE];
-
-   unsigned active_emulated_pipeline_queries;
-   unsigned active_emulated_prims_gen_queries;
-   unsigned active_emulated_prims_xfb_queries;
-   unsigned active_occlusion_queries;
+   RADV_META_SAVE_DESCRIPTOR_BUFFER_ADDR0 = (1 << 1),
+   RADV_META_SAVE_GRAPHICS_DESCRIPTORS = (1 << 2),
+   RADV_META_SAVE_COMPUTE_DESCRIPTORS = (1 << 3),
+   RADV_META_SAVE_GRAPHICS_PIPELINE = (1 << 4),
+   RADV_META_SAVE_COMPUTE_PIPELINE = (1 << 5),
 };
 
 enum radv_copy_flags {
@@ -130,19 +110,25 @@ void radv_device_finish_meta(struct radv_device *device);
 VkResult radv_device_init_accel_struct_build_state(struct radv_device *device);
 void radv_device_finish_accel_struct_build_state(struct radv_device *device);
 
-void radv_meta_save(struct radv_meta_saved_state *saved_state, struct radv_cmd_buffer *cmd_buffer, uint32_t flags);
+void radv_meta_begin(struct radv_cmd_buffer *cmd_buffer);
 
-void radv_meta_restore(const struct radv_meta_saved_state *state, struct radv_cmd_buffer *cmd_buffer);
+void radv_meta_save(struct radv_cmd_buffer *cmd_buffer, uint32_t flags);
 
+void radv_meta_end(struct radv_cmd_buffer *cmd_buffer);
+
+/* Helpers that save the correct state. */
 static inline void
 radv_meta_bind_graphics_pipeline(struct radv_cmd_buffer *cmd_buffer, VkPipeline pipeline)
 {
+   radv_meta_save(cmd_buffer, RADV_META_SAVE_GRAPHICS_PIPELINE);
    radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 }
 
 static inline void
 radv_meta_set_viewport(struct radv_cmd_buffer *cmd_buffer, float x, float y, float width, float height)
 {
+   radv_meta_save(cmd_buffer, RADV_META_SAVE_GRAPHICS_PIPELINE);
+
    VkViewport viewport = {
       .x = x,
       .y = y,
@@ -158,6 +144,8 @@ radv_meta_set_viewport(struct radv_cmd_buffer *cmd_buffer, float x, float y, flo
 static inline void
 radv_meta_set_scissor(struct radv_cmd_buffer *cmd_buffer, int32_t x, int32_t y, int32_t width, int32_t height)
 {
+   radv_meta_save(cmd_buffer, RADV_META_SAVE_GRAPHICS_PIPELINE);
+
    VkRect2D scissor = {
       .offset.x = x,
       .offset.y = y,
@@ -179,18 +167,23 @@ radv_meta_set_viewport_and_scissor(struct radv_cmd_buffer *cmd_buffer, int32_t x
 static inline void
 radv_meta_set_sample_locations(struct radv_cmd_buffer *cmd_buffer, const VkSampleLocationsInfoEXT *sample_locs)
 {
+   radv_meta_save(cmd_buffer, RADV_META_SAVE_GRAPHICS_PIPELINE);
+
    radv_CmdSetSampleLocationsEXT(radv_cmd_buffer_to_handle(cmd_buffer), sample_locs);
 }
 
 static inline void
 radv_meta_set_stencil_reference(struct radv_cmd_buffer *cmd_buffer, VkStencilFaceFlags face_mask, uint32_t reference)
 {
+   radv_meta_save(cmd_buffer, RADV_META_SAVE_GRAPHICS_PIPELINE);
+
    radv_CmdSetStencilReference(radv_cmd_buffer_to_handle(cmd_buffer), face_mask, reference);
 }
 
 static inline void
 radv_meta_bind_compute_pipeline(struct radv_cmd_buffer *cmd_buffer, VkPipeline pipeline)
 {
+   radv_meta_save(cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE);
    radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 }
 
@@ -198,6 +191,8 @@ static inline void
 radv_meta_push_constants(struct radv_cmd_buffer *cmd_buffer, VkPipelineLayout layout, VkShaderStageFlags stage,
                          uint32_t offset, uint32_t size, const void *data)
 {
+   radv_meta_save(cmd_buffer, RADV_META_SAVE_CONSTANTS);
+
    const VkPushConstantsInfoKHR push_constants_info = {
       .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
       .layout = layout,
