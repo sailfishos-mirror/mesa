@@ -1174,7 +1174,7 @@ void si_init_screen_caps(struct si_screen *sscreen)
    caps->draw_vertex_state = !(sscreen->debug_flags & DBG(NO_FAST_DISPLAY_LIST));
 
    caps->shader_samples_identical =
-      sscreen->info.gfx_level < GFX11 && !(sscreen->debug_flags & DBG(NO_FMASK));
+      sscreen->info.compiler_info.has_fmask && !(sscreen->debug_flags & DBG(NO_FMASK));
 
    caps->glsl_zero_init = 2;
 

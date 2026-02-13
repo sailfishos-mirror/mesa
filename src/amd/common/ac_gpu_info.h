@@ -141,7 +141,9 @@ struct ac_compiler_info {
    uint32_t has_ngg_passthru_no_msg : 1;
    /* Whether local invocation IDs are packed in a single VGPR. */
    uint32_t local_invocation_ids_packed : 1;
-
+   /* Whether the chip supports FMASK. */
+   uint32_t has_fmask : 1;
+   /* Whether 3D textures, cubemap textures, border colors, and mipmapping are supported. (CDNA) */
    uint32_t has_3d_cube_border_color_mipmap : 1;
 
    /* conformant_trunc_coord is equal to TA_CNTL2.TRUNCATE_COORD_MODE, which exists since gfx11.
@@ -193,7 +195,7 @@ struct ac_compiler_info {
    /* GFX6: limit TCS workgroup to one patch if primitive ID is used. */
    uint32_t has_primid_instancing_bug : 1;
 
-   uint32_t reserved : 6;
+   uint32_t reserved : 5;
 };
 
 struct radeon_info {

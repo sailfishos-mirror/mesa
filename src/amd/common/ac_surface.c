@@ -2565,8 +2565,7 @@ static int gfx9_compute_miptree(struct ac_addrlib *addrlib, const struct radeon_
          }
       }
 
-      /* FMASK (it doesn't exist on GFX11) */
-      if (info->gfx_level <= GFX10_3 && info->has_graphics &&
+      if (info->compiler_info.has_fmask && info->has_graphics &&
           in->numSamples > 1 && !(surf->flags & RADEON_SURF_NO_FMASK)) {
          ADDR2_COMPUTE_FMASK_INFO_INPUT fin = {0};
          ADDR2_COMPUTE_FMASK_INFO_OUTPUT fout = {0};
@@ -2621,7 +2620,7 @@ static int gfx9_compute_miptree(struct ac_addrlib *addrlib, const struct radeon_
       }
 
       /* CMASK -- on GFX10 only for FMASK (and it doesn't exist on GFX11) */
-      if (info->gfx_level <= GFX10_3 && info->has_graphics &&
+      if (info->compiler_info.has_fmask && info->has_graphics &&
           in->swizzleMode != ADDR_SW_LINEAR && in->resourceType == ADDR_RSRC_TEX_2D &&
           ((info->gfx_level <= GFX9 && in->numSamples == 1 && in->flags.metaPipeUnaligned == 0 &&
             in->flags.metaRbUnaligned == 0) ||

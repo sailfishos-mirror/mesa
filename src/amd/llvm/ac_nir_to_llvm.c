@@ -2219,7 +2219,7 @@ static LLVMValueRef visit_image_load(struct ac_nir_context *ctx, const nir_intri
    assert(dim != GLSL_SAMPLER_DIM_BUF);
 
    if (instr->intrinsic == nir_intrinsic_bindless_image_fragment_mask_load_amd) {
-      assert(ctx->ac.gfx_level < GFX11);
+      assert(ctx->ac.info->has_fmask);
 
       args.opcode = ac_image_load;
       args.resource = ctx->abi->load_sampler_desc(ctx->abi, dynamic_index, AC_DESC_FMASK);
@@ -3477,7 +3477,7 @@ static void tex_fetch_ptrs(struct ac_nir_context *ctx, nir_tex_instr *instr,
       /* The fragment mask is fetched from the compressed
        * multisampled surface.
        */
-      assert(ctx->ac.gfx_level < GFX11);
+      assert(ctx->ac.info->has_fmask);
       main_descriptor = AC_DESC_FMASK;
    }
 

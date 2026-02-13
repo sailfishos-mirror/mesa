@@ -334,6 +334,7 @@ ac_fill_compiler_info(struct radeon_info *info, struct drm_amdgpu_info_device *d
 
    out->local_invocation_ids_packed =
       info->gfx_level >= GFX11 || (!info->has_graphics && info->family >= CHIP_MI200);
+   out->has_fmask = info->gfx_level <= GFX10_3;
 
    out->has_3d_cube_border_color_mipmap = info->has_graphics || info->family == CHIP_MI100;
 

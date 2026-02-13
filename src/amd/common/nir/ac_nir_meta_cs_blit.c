@@ -340,7 +340,7 @@ ac_create_blit_cs(const struct ac_cs_blit_options *options, const union ac_cs_bl
 
       /* Use "samples_identical" for MSAA resolving if it's supported. */
       bool is_resolve = src_samples > 1 && dst_samples == 1;
-      bool uses_samples_identical = options->info->gfx_level < GFX11 && !options->no_fmask && is_resolve;
+      bool uses_samples_identical = options->info->compiler_info.has_fmask && !options->no_fmask && is_resolve;
       nir_def *samples_identical = NULL, *sample0[SI_MAX_COMPUTE_BLIT_LANE_SIZE] = {0};
       nir_if *if_identical = NULL;
 

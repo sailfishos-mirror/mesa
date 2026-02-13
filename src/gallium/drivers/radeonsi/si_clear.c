@@ -604,7 +604,7 @@ static void si_fast_clear(struct si_context *sctx, unsigned *buffers,
           * CMASK_MSAA_FMASK_CLEAR_0_COLOR_EXPANDED.
           */
          if (tex->buffer.b.b.nr_samples >= 2 && tex->cmask_buffer) {
-            assert(sctx->gfx_level < GFX11); /* no FMASK/CMASK on GFX11 */
+            assert(sctx->gfx_level < GFX11); /* no CMASK on GFX11 */
             assert(num_clears < ARRAY_SIZE(info));
             si_init_buffer_clear(&info[num_clears++], &tex->cmask_buffer->b.b,
                                  tex->surface.cmask_offset, tex->surface.cmask_size,
@@ -1214,7 +1214,7 @@ bool si_compute_fast_clear_image(struct si_context *sctx, struct pipe_resource *
 
    /* DCC fast clear with MSAA should clear CMASK to CMASK_MSAA_FMASK_CLEAR_0_COLOR_EXPANDED. */
    if (dst->nr_samples >= 2 && sdst->cmask_buffer) {
-      assert(sctx->gfx_level < GFX11); /* no FMASK/CMASK on GFX11 */
+      assert(sctx->gfx_level < GFX11); /* no CMASK on GFX11 */
       assert(num_clears < ARRAY_SIZE(info));
       si_init_buffer_clear(&info[num_clears++], &sdst->cmask_buffer->b.b,
                            sdst->surface.cmask_offset, sdst->surface.cmask_size,

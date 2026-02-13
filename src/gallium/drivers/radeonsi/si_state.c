@@ -2571,7 +2571,7 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
       if (cb->color_is_int10)
          sctx->framebuffer.color_is_int10 |= 1 << i;
 
-      if (tex->surface.fmask_offset)
+      if (sctx->gfx_level < GFX11 && tex->surface.fmask_offset)
          sctx->framebuffer.compressed_cb_mask |= 1 << i;
       else
          sctx->framebuffer.uncompressed_cb_mask |= 1 << i;

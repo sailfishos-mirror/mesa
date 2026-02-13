@@ -644,7 +644,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
       .lower_txs_cube_array = true,
       .lower_invalid_implicit_lod = true,
       .lower_tg4_offsets = true,
-      .lower_to_fragment_fetch_amd = sel->screen->info.gfx_level < GFX11,
+      .lower_to_fragment_fetch_amd = sel->screen->info.compiler_info.has_fmask,
       .lower_1d = sel->screen->info.gfx_level == GFX9,
       .optimize_txd = true,
    };
@@ -652,7 +652,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
 
    const struct nir_lower_image_options lower_image_options = {
       .lower_cube_size = true,
-      .lower_to_fragment_mask_load_amd = sel->screen->info.gfx_level < GFX11 &&
+      .lower_to_fragment_mask_load_amd = sel->screen->info.compiler_info.has_fmask &&
                                          !(sel->screen->debug_flags & DBG(NO_FMASK)),
    };
    NIR_PASS(progress, nir, nir_lower_image, &lower_image_options);
@@ -834,7 +834,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
             .fbfetch_is_1D = key->ps.mono.fbfetch_is_1D,
             .fbfetch_layered = key->ps.mono.fbfetch_layered,
             .fbfetch_msaa = key->ps.mono.fbfetch_msaa,
-            .fbfetch_apply_fmask = sel->screen->info.gfx_level < GFX11 &&
+            .fbfetch_apply_fmask = sel->screen->info.compiler_info.has_fmask &&
                                    !(sel->screen->debug_flags & DBG(NO_FMASK)),
 
             .clamp_color = key->ps.part.epilog.clamp_color,

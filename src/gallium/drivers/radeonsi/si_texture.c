@@ -245,6 +245,10 @@ static int si_init_surface(struct si_screen *sscreen, struct radeon_surf *surfac
            sscreen->debug_flags & DBG(NO_DCC) ||
            (ptex->bind & PIPE_BIND_SCANOUT && sscreen->debug_flags & DBG(NO_DISPLAY_DCC))))
          flags |= RADEON_SURF_DISABLE_DCC;
+
+      if (sscreen->debug_flags & DBG(NO_FMASK) ||
+          ptex->flags & PIPE_RESOURCE_FLAG_SPARSE)
+         flags |= RADEON_SURF_NO_FMASK;
    } else {
       /* Gfx6-11 */
       if (!is_flushed_depth && is_depth) {

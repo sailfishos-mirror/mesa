@@ -379,7 +379,7 @@ void si_get_shader_variant_info(struct si_shader *shader,
          /* Remove images with FMASK from the bitmask.  We only care about the first
           * 3 anyway, so we can take msaa_images[0] and ignore the rest.
           */
-         if (shader->selector->screen->info.gfx_level < GFX11)
+         if (shader->selector->screen->info.compiler_info.has_fmask)
             non_fmask_images &= ~nir->info.msaa_images[0];
 
          for (unsigned i = 0; i < 3 && non_fmask_images & (1 << i); i++) {

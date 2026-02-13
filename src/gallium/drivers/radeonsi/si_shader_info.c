@@ -463,7 +463,7 @@ static void si_get_active_slot_masks(struct si_screen *sscreen, nir_shader *nir,
     * and so we can benefit from a better cache hit rate if we keep image
     * descriptors together.
     */
-   if (sscreen->info.gfx_level < GFX11 && num_msaa_images)
+   if (sscreen->info.compiler_info.has_fmask && num_msaa_images)
       num_images = SI_NUM_IMAGES + num_msaa_images; /* add FMASK descriptors */
 
    start = si_get_image_slot(num_images - 1) / 2;

@@ -391,7 +391,7 @@ void si_compute_expand_fmask(struct pipe_context *ctx, struct pipe_resource *tex
    unsigned log_samples = util_logbase2(tex->nr_samples);
    assert(tex->nr_samples >= 2);
 
-   assert(sctx->gfx_level < GFX11);
+   assert(sctx->screen->info.compiler_info.has_fmask);
 
    /* EQAA FMASK expansion is unimplemented. */
    if (tex->nr_samples != tex->nr_storage_samples)
@@ -708,7 +708,7 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
     * AMD_DEBUG=nofmask fixes them. EQAA image stores are also unimplemented.
     * MSAA image stores work fine on Gfx11 (it has neither FMASK nor EQAA).
     */
-   if (sctx->gfx_level < GFX11 && !(sctx->screen->debug_flags & DBG(NO_FMASK)) && dst_samples > 1)
+   if (sctx->screen->info.compiler_info.has_fmask && !(sctx->screen->debug_flags & DBG(NO_FMASK)) && dst_samples > 1)
       return false;
 
    if (info->dst_sample != 0 ||
