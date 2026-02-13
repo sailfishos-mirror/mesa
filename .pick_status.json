@@ -34,7 +34,7 @@
         "description": "pvr: fix format table properties duplicate",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9f740b26a61d6e77d27051cc29695885f61235f4",
         "notes": null

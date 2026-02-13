@@ -1,7 +1,3 @@
-dEQP-VK.api.info.format_properties.r8g8b8a8_sint,Fail
-dEQP-VK.api.info.format_properties.r8g8b8a8_snorm,Fail
-dEQP-VK.api.info.format_properties.r8g8b8a8_uint,Fail
-dEQP-VK.api.info.format_properties.r8g8b8a8_unorm,Fail
 dEQP-VK.binding_model.unused_invalid_descriptor.copy.combined_image_sampler,Crash
 dEQP-VK.binding_model.unused_invalid_descriptor.copy.sampled_image,Crash
 dEQP-VK.binding_model.unused_invalid_descriptor.copy.storage_buffer,Crash
