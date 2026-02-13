@@ -137,7 +137,6 @@ struct vk_cmd_queue_entry;
 struct vk_cmd_queue_entry_base {
    struct list_head cmd_link;
    enum vk_cmd_type type;
-   void *driver_data;
    void (*driver_free_cb)(struct vk_cmd_queue *queue,
                           struct vk_cmd_queue_entry *cmd);
 };
@@ -146,7 +145,6 @@ struct vk_cmd_queue_entry_base {
 struct vk_cmd_queue_entry {
    struct list_head cmd_link;
    enum vk_cmd_type type;
-   void *driver_data;
    void (*driver_free_cb)(struct vk_cmd_queue *queue,
                           struct vk_cmd_queue_entry *cmd);
    union {
