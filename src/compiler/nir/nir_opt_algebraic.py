@@ -1260,8 +1260,8 @@ for S in [1, 8, 16, 32]:
             (('u2u{}'.format(S), ('u2u{}'.format(B), 'a@{}'.format(S))), a),
         ])
 
-        if B < 16:
-            continue
+for S in [1, 8, 16, 32]:
+    for B in [16, 32, 64]:
         for C in [8, 16, 32, 64]:
             if C <= S:
                 continue
