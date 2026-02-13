@@ -2954,7 +2954,7 @@
         "description": "brw: Use brw_reg_is_arf in update_for_reads",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0d144821f0f7647ab377e629599b17dd24a2fe13",
         "notes": null
