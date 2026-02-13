@@ -269,10 +269,11 @@ VkResult vk_enqueue_${to_underscore(c.name)}(struct vk_cmd_queue *queue
 % endfor
 )
 {
-   struct vk_cmd_queue_entry *cmd = linear_zalloc_child(queue->ctx, vk_cmd_queue_type_sizes[${to_enum_name(c.name)}]);
+   struct vk_cmd_queue_entry *cmd = linear_alloc_child(queue->ctx, vk_cmd_queue_type_sizes[${to_enum_name(c.name)}]);
    if (!cmd) return VK_ERROR_OUT_OF_HOST_MEMORY;
 
    cmd->type = ${to_enum_name(c.name)};
+   cmd->driver_free_cb = NULL;
 ${get_params_copy(c, types)}}
 % endif
 % if c.guard is not None:
@@ -521,6 +522,10 @@ def get_param_copy(builder, command, param, types):
         builder.add("if (%s) {" % (param.name))
         builder.level += 1
         get_array_copy(builder, command, param, dst)
+        builder.level -= 1
+        builder.add("} else {")
+        builder.level += 1
+        builder.add("%s = NULL;" % (dst))
         builder.level -= 1
         builder.add("}")
         return True
