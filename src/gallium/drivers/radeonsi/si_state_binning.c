@@ -391,6 +391,11 @@ static void si_emit_dpbb_disable(struct si_context *sctx)
    radeon_begin(&sctx->gfx_cs);
 
    if (sctx->gfx_level >= GFX12) {
+      /* GFX12+ notes:
+       * - The minimum size is 128x128 for greater than 16K framebuffers.
+       *   (GFX12 always requires at least 128 regardless of the size)
+       * - BIN_SIZE_X and BIN_SIZE_Y must be 0 and are unsupported.
+       */
       struct uvec2 bin_size = {128, 128};
 
       radeon_opt_set_context_reg(R_028C44_PA_SC_BINNER_CNTL_0,
@@ -510,6 +515,16 @@ void si_emit_dpbb_state(struct si_context *sctx, unsigned index)
       bin_size_extend.x = util_logbase2(bin_size.x) - 5;
    if (bin_size.y >= 32)
       bin_size_extend.y = util_logbase2(bin_size.y) - 5;
+
+   if (sctx->gfx_level >= GFX12) {
+      /* GFX12+ notes:
+       * - The minimum size is 128x128 for greater than 16K framebuffers.
+       *   (GFX12 always requires at least 128 regardless of the size)
+       * - BIN_SIZE_X and BIN_SIZE_Y must be 0 and are unsupported.
+       */
+      bin_size.x = MAX2(bin_size.x, 128);
+      bin_size.y = MAX2(bin_size.y, 128);
+   }
 
    radeon_begin(&sctx->gfx_cs);
    radeon_opt_set_context_reg(R_028C44_PA_SC_BINNER_CNTL_0, AC_TRACKED_PA_SC_BINNER_CNTL_0,

@@ -2276,6 +2276,16 @@ radv_gfx10_compute_bin_size(struct radv_cmd_buffer *cmd_buffer)
    extent.width = MAX2(extent.width, 128);
    extent.height = MAX2(extent.width, pdev->info.gfx_level >= GFX12 ? 128 : 64);
 
+   if (pdev->info.gfx_level >= GFX12) {
+      /* GFX12+ notes:
+       * - The minimum size is 128x128 for greater than 16K framebuffers.
+       *   (GFX12 always requires at least 128 regardless of the size)
+       * - BIN_SIZE_X and BIN_SIZE_Y must be 0 and are unsupported.
+       */
+      extent.width = MAX2(extent.width, 128);
+      extent.height = MAX2(extent.height, 128);
+   }
+
    return extent;
 }
 
@@ -2556,6 +2566,11 @@ radv_get_disabled_binning_state(struct radv_cmd_buffer *cmd_buffer)
    uint32_t pa_sc_binner_cntl_0;
 
    if (pdev->info.gfx_level >= GFX12) {
+      /* GFX12+ notes:
+       * - The minimum size is 128x128 for greater than 16K framebuffers.
+       *   (GFX12 always requires at least 128 regardless of the size)
+       * - BIN_SIZE_X and BIN_SIZE_Y must be 0 and are unsupported.
+       */
       const uint32_t bin_size_x = 128, bin_size_y = 128;
 
       pa_sc_binner_cntl_0 =
