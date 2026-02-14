@@ -423,9 +423,6 @@ void pvr_get_image_subresource_layout(const struct pvr_image *image,
    const struct pvr_mip_level *mip_level =
       &plane->mip_levels[subresource->mipLevel];
 
-   assert(subresource->mipLevel < image->vk.mip_levels);
-   assert(subresource->arrayLayer < image->vk.array_layers);
-
    layout->offset = plane->offset +
                     subresource->arrayLayer * plane->layer_size +
                     mip_level->offset;
