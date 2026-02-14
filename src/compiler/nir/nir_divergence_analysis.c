@@ -1278,6 +1278,7 @@ update_instr_divergence(nir_instr *instr, struct divergence_state *state)
    case nir_instr_type_deref:
       return visit_deref(state->shader, nir_instr_as_deref(instr), state);
    case nir_instr_type_call:
+   case nir_instr_type_cmat_call:
       return false;
    case nir_instr_type_jump:
    case nir_instr_type_phi:

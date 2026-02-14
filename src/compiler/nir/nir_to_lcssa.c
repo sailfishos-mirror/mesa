@@ -173,6 +173,7 @@ instr_is_invariant(nir_instr *instr, nir_loop *loop)
    case nir_instr_type_undef:
       return invariant;
    case nir_instr_type_call:
+   case nir_instr_type_cmat_call:
       return not_invariant;
    case nir_instr_type_phi:
       return phi_is_invariant(nir_instr_as_phi(instr), loop);

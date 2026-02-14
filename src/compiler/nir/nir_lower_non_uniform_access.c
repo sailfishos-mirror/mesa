@@ -459,6 +459,7 @@ nir_lower_non_uniform_access_impl(nir_function_impl *impl,
          }
 
          case nir_instr_type_call:
+         case nir_instr_type_cmat_call:
             handle_barrier(&state, true);
             break;
 

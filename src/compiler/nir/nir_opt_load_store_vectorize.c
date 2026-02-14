@@ -1786,7 +1786,8 @@ handle_barrier(struct vectorize_ctx *ctx, bool *progress, nir_function_impl *imp
       default:
          return false;
       }
-   } else if (instr->type == nir_instr_type_call) {
+   } else if (instr->type == nir_instr_type_call ||
+              instr->type == nir_instr_type_cmat_call) {
       modes = nir_var_all;
    } else {
       return false;

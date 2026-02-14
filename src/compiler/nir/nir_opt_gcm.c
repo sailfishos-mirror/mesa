@@ -370,6 +370,7 @@ gcm_pin_instructions(nir_function_impl *impl, struct gcm_state *state)
             break;
 
          case nir_instr_type_call:
+         case nir_instr_type_cmat_call:
             instr->pass_flags = GCM_INSTR_PINNED;
             break;
 

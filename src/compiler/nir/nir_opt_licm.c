@@ -32,6 +32,7 @@ is_instr_loop_invariant(nir_instr *instr, unsigned loop_preheader_idx)
 
    case nir_instr_type_phi:
    case nir_instr_type_call:
+   case nir_instr_type_cmat_call:
    case nir_instr_type_jump:
    default:
       return false;

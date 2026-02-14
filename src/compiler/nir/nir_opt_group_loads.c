@@ -250,6 +250,7 @@ is_pseudo_inst(nir_instr *instr)
    /* Other instructions do not usually contribute to the shader binary size. */
    return instr->type != nir_instr_type_alu &&
           instr->type != nir_instr_type_call &&
+          instr->type != nir_instr_type_cmat_call &&
           instr->type != nir_instr_type_tex &&
           instr->type != nir_instr_type_intrinsic;
 }

@@ -229,7 +229,8 @@ nlwgs_instr_is_barrier(nir_instr *instr)
       }
       break;
    }
-   case nir_instr_type_call: {
+   case nir_instr_type_call:
+   case nir_instr_type_cmat_call: {
       /* Consider function calls as a workgroup barrier because:
        * - the function may contain a workgroup barrier
        * - each function is separately augmented to be aware of

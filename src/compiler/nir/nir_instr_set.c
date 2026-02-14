@@ -755,6 +755,7 @@ nir_instrs_equal(const nir_instr *instr1, const nir_instr *instr2)
       return true;
    }
    case nir_instr_type_call:
+   case nir_instr_type_cmat_call:
    case nir_instr_type_jump:
    case nir_instr_type_undef:
    default:

@@ -141,7 +141,8 @@ remove_dead_write_vars_local(nir_shader *shader, nir_block *block,
    util_dynarray_clear(unused_writes);
 
    nir_foreach_instr_safe(instr, block) {
-      if (instr->type == nir_instr_type_call) {
+      if (instr->type == nir_instr_type_call ||
+          instr->type == nir_instr_type_cmat_call) {
          clear_unused_for_modes(unused_writes, nir_var_shader_out |
                                                    nir_var_shader_temp |
                                                    nir_var_function_temp |

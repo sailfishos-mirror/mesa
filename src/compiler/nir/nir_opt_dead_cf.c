@@ -191,7 +191,8 @@ node_is_dead(nir_cf_node *node)
       }
 
       nir_foreach_instr(instr, block) {
-         if (instr->type == nir_instr_type_call)
+         if (instr->type == nir_instr_type_call ||
+             instr->type == nir_instr_type_cmat_call)
             return false;
 
          /* Return and halt instructions can cause us to skip over other
