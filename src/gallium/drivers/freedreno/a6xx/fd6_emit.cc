@@ -937,7 +937,7 @@ fd6_emit_static_context_regs(struct fd_context *ctx, fd_cs &cs)
 {
    struct fd_screen *screen = ctx->screen;
 
-   fd_crb crb(cs, 80);
+   fd_crb crb(cs, 85);
 
    crb.add(SP_GFX_USIZE(CHIP));
    crb.add(A6XX_TPL1_PS_ROTATION_CNTL());
@@ -1037,6 +1037,9 @@ fd6_emit_static_context_regs(struct fd_context *ctx, fd_cs &cs)
    crb.add(PC_DGEN_SU_CONSERVATIVE_RAS_CNTL(CHIP));
 
    if (CHIP >= A7XX) {
+      crb.add(VPC_UNKNOWN_CNTL(CHIP));
+      crb.add(RB_A2D_UNKNOWN_8C34(CHIP));
+
       /* Blob sets these two per draw. */
       crb.add(PC_HS_BUFFER_SIZE(CHIP, FD6_TESS<CHIP>::PARAM_SIZE));
       /* Blob adds a bit more space ({0x10, 0x20, 0x30, 0x40} bytes)

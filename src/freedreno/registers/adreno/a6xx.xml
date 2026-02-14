@@ -3228,9 +3228,9 @@ by a particular renderpass/blit.
 	<reg32 offset="0x9b17" name="PC_POS_BUF_GMEM_SIZE" variants="A8XX-" type="uint" usage="cmd"/>
 	<reg32 offset="0x9b18" name="PC_BV_POS_BUF_GMEM_SIZE" variants="A8XX-" type="uint" usage="cmd"/>
 
-	<reg32 offset="0x930a" name="VPC_UNKNOWN_930A" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x930a" name="VPC_UNKNOWN_CNTL" variants="A7XX" usage="draw"/>
+	<reg32 offset="0x9313" name="VPC_UNKNOWN_CNTL" variants="A8XX-" usage="draw"/>
 
-	<reg32 offset="0x9313" name="VPC_UNKNOWN_9313" variants="A8XX-" usage="draw"/>
 	<reg32 offset="0x9e17" name="PC_UNKNOWN_9E17" variants="A8XX-" usage="draw"/>
 
 	<reg32 offset="0x960a" name="VPC_FLATSHADE_MODE_CNTL" variants="A7XX"/>

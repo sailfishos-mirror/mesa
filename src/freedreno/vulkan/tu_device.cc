@@ -2527,6 +2527,7 @@ tu_cs_dbg_stomp_regs(struct tu_cs *cs,
                        first_reg, last_reg, inverse);
       stomp_regs<CHIP>(cs, &COMPUTE_REGS<CHIP>[0], ARRAY_SIZE(COMPUTE_REGS<CHIP>),
                        first_reg, last_reg, inverse);
+      tu_init_hw_rp<CHIP>(cs);
    } else {
       stomp_regs<CHIP>(cs, &CMD_REGS<CHIP>[0], ARRAY_SIZE(CMD_REGS<CHIP>),
                        first_reg, last_reg, inverse);

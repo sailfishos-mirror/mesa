@@ -945,6 +945,9 @@ _tu_create_fdm_bin_patchpoint(struct tu_cmd_buffer *cmd,
 
 VkResult tu_init_bin_preamble(struct tu_device *device);
 
+template <chip CHIP>
+void tu_init_hw_rp(struct tu_cs *cs);
+
 void
 tu7_set_thread_br_patchpoint(struct tu_cmd_buffer *cmd,
                              struct tu_cs *cs,

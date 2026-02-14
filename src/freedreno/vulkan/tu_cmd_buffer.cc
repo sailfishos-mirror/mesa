@@ -2343,8 +2343,19 @@ tu_init_bin_preamble(struct tu_device *device)
 }
 
 template <chip CHIP>
+void
+tu_init_hw_rp(struct tu_cs *cs)
+{
+   if (CHIP >= A7XX) {
+      tu_cs_emit_regs(cs, VPC_UNKNOWN_CNTL(CHIP));
+      tu_cs_emit_regs(cs, RB_A2D_UNKNOWN_8C34(CHIP));
+   }
+}
+TU_GENX(tu_init_hw_rp);
+
+template <chip CHIP>
 static void
-tu6_init_hw(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
+tu_init_hw(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
 {
    struct tu_device *dev = cmd->device;
    const struct tu_physical_device *phys_dev = dev->physical_device;
@@ -2385,6 +2396,7 @@ tu6_init_hw(struct tu_cmd_buffer *cmd, struct tu_cs *cs)
       ~(TU_CMD_FLAG_WAIT_FOR_IDLE | TU_CMD_FLAG_CACHE_INVALIDATE);
 
    tu6_init_static_regs<CHIP>(cmd->device, cs);
+   tu_init_hw_rp<CHIP>(cs);
 
    emit_rb_ccu_cntl<CHIP>(cs, cmd->device, false);
    emit_vpc_attr_buf<CHIP>(cs, cmd->device, false);
@@ -4586,7 +4598,7 @@ tu_BeginCommandBuffer(VkCommandBuffer commandBuffer,
    if (cmd_buffer->vk.level == VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
       switch (cmd_buffer->queue_family_index) {
       case TU_QUEUE_GENERAL:
-         TU_CALLX(cmd_buffer->device, tu6_init_hw)(cmd_buffer, &cmd_buffer->cs);
+         TU_CALLX(cmd_buffer->device, tu_init_hw)(cmd_buffer, &cmd_buffer->cs);
          break;
       default:
          break;
