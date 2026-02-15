@@ -481,7 +481,7 @@ def get_pnext_copy(builder, types, parent_type, src, dst):
     builder.level -= 1
     builder.add("}")
 
-def get_param_copy(builder, types, src_parent_access, dst_parent_access, param, nullable=True, dst_snake_case=False):
+def get_param_copy(builder, types, src_parent_access, dst_parent_access, param, nullable=True, dst_initialized=False, dst_snake_case=False):
     src = src_parent_access + param.name
     dst = dst_parent_access + (to_field_name(param.name) if dst_snake_case else param.name)
 
@@ -541,7 +541,7 @@ def get_param_copy(builder, types, src_parent_access, dst_parent_access, param, 
                     for member in types[param.type].members:
                         category = categorize_param(types, param.type, member)
                         if category == ParamCategory.STRUCT or category == ParamCategory.STRING:
-                            get_param_copy(builder, types, "%s->" % (tmp_src_name), "%s->" % (tmp_dst_name), member)
+                            get_param_copy(builder, types, "%s->" % (tmp_src_name), "%s->" % (tmp_dst_name), member, dst_initialized=True)
                         elif category == ParamCategory.PNEXT:
                             get_pnext_copy(builder, types, param.type, "%s->pNext" % (tmp_src_name), "%s->pNext" % (tmp_dst_name))
 
@@ -551,11 +551,14 @@ def get_param_copy(builder, types, src_parent_access, dst_parent_access, param, 
 
             if nullable:
                 builder.level -= 1
-                builder.add("} else {")
-                builder.level += 1
-                builder.add("%s = NULL;" % (dst))
-                builder.level -= 1
-                builder.add("}")
+                if dst_initialized:
+                    builder.add("}")
+                else:
+                    builder.add("} else {")
+                    builder.level += 1
+                    builder.add("%s = NULL;" % (dst))
+                    builder.level -= 1
+                    builder.add("}")
         case ParamCategory.NULL:
             assert False
         case ParamCategory.PNEXT:
