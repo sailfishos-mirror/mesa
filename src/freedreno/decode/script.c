@@ -179,7 +179,7 @@ pushdecval(struct lua_State *L, struct rnn *rnn, uint64_t regval,
       return 1;
    case RNN_TTYPE_UINT:
    case RNN_TTYPE_HEX:
-      lua_pushunsigned(L, val.u);
+      lua_pushinteger(L, val.u);
       return 1;
    case RNN_TTYPE_FLOAT:
       lua_pushnumber(L, uif(val.u));
