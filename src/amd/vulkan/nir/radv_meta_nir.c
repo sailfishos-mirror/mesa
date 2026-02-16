@@ -588,13 +588,13 @@ radv_meta_nir_build_btoi_compute_shader(struct radv_device *dev, bool is_3d)
    return b.shader;
 }
 
-/** Buffer to image - special path for R32G32B32 */
+/** Buffer to image - special path for 96bit */
 nir_shader *
-radv_meta_nir_build_btoi_r32g32b32_compute_shader(struct radv_device *dev)
+radv_meta_nir_build_btoi_96bit_compute_shader(struct radv_device *dev)
 {
    const struct glsl_type *buf_type = glsl_sampler_type(GLSL_SAMPLER_DIM_BUF, false, false, GLSL_TYPE_FLOAT);
    const struct glsl_type *img_type = glsl_image_type(GLSL_SAMPLER_DIM_BUF, false, GLSL_TYPE_FLOAT);
-   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_btoi_r32g32b32_cs");
+   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_btoi_96bit_cs");
    b.shader->info.workgroup_size[0] = 8;
    b.shader->info.workgroup_size[1] = 8;
    nir_variable *input_img = nir_variable_create(b.shader, nir_var_uniform, buf_type, "s_tex");
@@ -692,11 +692,11 @@ radv_meta_nir_build_itoi_compute_shader(struct radv_device *dev, bool src_3d, bo
 }
 
 nir_shader *
-radv_meta_nir_build_itoi_r32g32b32_compute_shader(struct radv_device *dev)
+radv_meta_nir_build_itoi_96bit_compute_shader(struct radv_device *dev)
 {
    const struct glsl_type *type = glsl_sampler_type(GLSL_SAMPLER_DIM_BUF, false, false, GLSL_TYPE_FLOAT);
    const struct glsl_type *img_type = glsl_image_type(GLSL_SAMPLER_DIM_BUF, false, GLSL_TYPE_FLOAT);
-   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_itoi_r32g32b32_cs");
+   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_itoi_96bit_cs");
    b.shader->info.workgroup_size[0] = 8;
    b.shader->info.workgroup_size[1] = 8;
    nir_variable *input_img = nir_variable_create(b.shader, nir_var_uniform, type, "input_img");
@@ -778,12 +778,12 @@ radv_meta_nir_build_cleari_compute_shader(struct radv_device *dev, bool is_3d, i
    return b.shader;
 }
 
-/** Special path for clearing R32G32B32 images using a compute shader. */
+/** Special path for clearing 96bit images using a compute shader. */
 nir_shader *
-radv_meta_nir_build_cleari_r32g32b32_compute_shader(struct radv_device *dev)
+radv_meta_nir_build_cleari_96bit_compute_shader(struct radv_device *dev)
 {
    const struct glsl_type *img_type = glsl_image_type(GLSL_SAMPLER_DIM_BUF, false, GLSL_TYPE_FLOAT);
-   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_cleari_r32g32b32_cs");
+   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_cleari_96bit_cs");
    b.shader->info.workgroup_size[0] = 8;
    b.shader->info.workgroup_size[1] = 8;
 
