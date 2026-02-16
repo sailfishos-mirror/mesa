@@ -336,6 +336,25 @@ emit_shader_iova(struct replay_context *ctx, struct cmdstream *cs, uint64_t id)
    }
 }
 
+UNUSED static void
+emit_shader_iova_reg_bunch(struct replay_context *ctx, struct cmdstream *cs,
+                           uint32_t regbase, uint64_t id)
+{
+   uint64_t *shader_iova = (uint64_t *)
+      _mesa_hash_table_u64_search(ctx->compiled_shaders, id);
+   uint64_t value = shader_iova ? *shader_iova : id;
+
+   if (!shader_iova) {
+      fprintf(stderr,
+              "Not override for shader at 0x%" PRIx64 ", using original\n", id);
+   }
+
+   pkt(cs, regbase + 0);
+   pkt(cs, (uint32_t)(value & 0xffffffff));
+   pkt(cs, regbase + 1);
+   pkt(cs, (uint32_t)(value >> 32));
+}
+
 #define begin_draw_state()                                                     \
    uint64_t subcs_iova_start = cs_get_cur_iova(ctx.state_cs);                  \
    struct cmdstream *prev_cs = cs;                                             \
