@@ -19,8 +19,8 @@ struct vn_info_extension {
 };
 
 /* sorted by extension names for bsearch */
-static const uint32_t _vn_info_extension_count = 186;
-static const struct vn_info_extension _vn_info_extensions[186] = {
+static const uint32_t _vn_info_extension_count = 187;
+static const struct vn_info_extension _vn_info_extensions[187] = {
    { "VK_ARM_rasterization_order_attachment_access", 343, 1 },
    { "VK_EXT_4444_formats", 341, 1 },
    { "VK_EXT_attachment_feedback_loop_dynamic_state", 525, 1 },
@@ -184,6 +184,7 @@ static const struct vn_info_extension _vn_info_extensions[186] = {
    { "VK_KHR_shader_float16_int8", 83, 1 },
    { "VK_KHR_shader_float_controls", 198, 4 },
    { "VK_KHR_shader_float_controls2", 529, 1 },
+   { "VK_KHR_shader_fma", 580, 1 },
    { "VK_KHR_shader_integer_dot_product", 281, 1 },
    { "VK_KHR_shader_maximal_reconvergence", 435, 1 },
    { "VK_KHR_shader_non_semantic_info", 294, 1 },
