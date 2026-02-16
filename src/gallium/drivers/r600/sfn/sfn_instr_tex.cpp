@@ -758,6 +758,10 @@ TexInstr::prepare_source(nir_tex_instr *tex, const Inputs& inputs, Shader& shade
    return src_coord;
 }
 
+enum backend2_ucm {
+   backend2_ucm_lz = 1 << 8,
+};
+
 TexInstr::Inputs::Inputs(const nir_tex_instr& instr, ValueFactory& vf):
     sampler_deref(nullptr),
     texture_deref(nullptr),
@@ -854,6 +858,12 @@ TexInstr::Inputs::get_opcode(const nir_tex_instr& instr) -> Opcode
    case nir_texop_txb:
       return instr.is_shadow ? sample_c_lb : sample_lb;
    case nir_texop_txl:
+      if (backend2) {
+         const auto params = nir_src_as_const_value(*backend2);
+         const int32_t coord_mask = params[0].i32;
+         if (unlikely(coord_mask & backend2_ucm_lz))
+            return instr.is_shadow ? sample_c_lz : sample_lz;
+      }
       return instr.is_shadow ? sample_c_l : sample_l;
    case nir_texop_txs:
       return get_resinfo;
@@ -1195,10 +1205,19 @@ LowerTexToBackend::prepare_coord(nir_tex_instr *tex,
       int idx = tex->op == nir_texop_txl ? nir_tex_instr_src_index(tex, nir_tex_src_lod)
                                          : nir_tex_instr_src_index(tex, nir_tex_src_bias);
       assert(idx != -1);
-      new_coord[3] = tex->src[idx].src.ssa;
 
-      if (comp_idx >= 0)
-         new_coord[2] = tex->src[comp_idx].src.ssa;
+      if (unlikely(tex->op == nir_texop_txl && nir_src_is_const(tex->src[idx].src) &&
+                   nir_src_as_uint(tex->src[idx].src) == 0)) {
+         used_coord_mask |= backend2_ucm_lz;
+
+         if (comp_idx >= 0)
+            new_coord[3] = tex->src[comp_idx].src.ssa;
+      } else {
+         new_coord[3] = tex->src[idx].src.ssa;
+
+         if (comp_idx >= 0)
+            new_coord[2] = tex->src[comp_idx].src.ssa;
+      }
    } else if (comp_idx >= 0) {
       new_coord[3] = tex->src[comp_idx].src.ssa;
    }
