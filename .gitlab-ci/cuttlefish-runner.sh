@@ -67,6 +67,7 @@ HOME=/cuttlefish launch_cvd \
   -enable_bootanimation=false \
   -enable_minimal_mode=true \
   -enable_modem_simulator=false \
+  -enable_wifi=false \
   -guest_enforce_security=false \
   -report_anonymous_usage_stats=no \
   -gpu_mode="$CUTTLEFISH_GPU_MODE" \
