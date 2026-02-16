@@ -466,6 +466,7 @@ if with_tests
     'tests/u_memstream_test.cpp',
     'tests/u_printf_test.cpp',
     'tests/u_qsort_test.cpp',
+    'tests/u_ycbcr_test.cpp',
     'tests/vector_test.cpp',
   )
 
