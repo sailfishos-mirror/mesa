@@ -829,6 +829,7 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
          push_fp_query(state, alu->src[0].src.ssa);
          return;
       case nir_op_fadd:
+      case nir_op_fsub:
       case nir_op_fmax:
       case nir_op_fmin:
       case nir_op_fmul:
@@ -953,6 +954,11 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
 
    case nir_op_fadd: {
       r = fadd_fp_class(src_res[0], src_res[1]);
+      break;
+   }
+
+   case nir_op_fsub: {
+      r = fadd_fp_class(src_res[0], fneg_fp_class(src_res[1]));
       break;
    }
 
