@@ -986,8 +986,9 @@ void pvr_GetBufferMemoryRequirements2(
       size += PVR_BUFFER_MEMORY_PADDING_SIZE;
    }
 
+   /* Use align64 to prevent overflow for large buffers (> 4GB). */
    pMemoryRequirements->memoryRequirements.size =
-      ALIGN_POT(size, buffer->alignment);
+      align64(size, buffer->alignment);
 
    vk_foreach_struct (ext, pMemoryRequirements->pNext) {
       switch (ext->sType) {
