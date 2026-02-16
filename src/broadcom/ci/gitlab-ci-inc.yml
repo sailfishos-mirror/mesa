@@ -120,7 +120,7 @@
     - !reference [.v3d-manual-rules, rules]
     - !reference [.v3dv-manual-rules, rules]
 
-# 8 devices (2023-12-18)
+# 4 devices (2026-02-16)
 .igalia-bcm2837-rpi-3-b:
   variables:
     DEVICE_TYPE: rpi3
@@ -128,7 +128,7 @@
   tags:
     - igalia-rpi3
 
-# 21 devices (2023-12-18)
+# 14 devices (2026-02-16)
 .igalia-bcm2711-rpi-4:
   variables:
     DEVICE_TYPE: rpi4
@@ -137,7 +137,7 @@
   tags:
     - igalia-rpi4
 
-# 10 devices (2024-07-31)
+# 6 devices (2026-02-16)
 .igalia-bcm2712-rpi-5:
   variables:
     DEVICE_TYPE: rpi5
