@@ -679,22 +679,6 @@ fixup_gfx9_cs_copy(struct radv_cmd_buffer *cmd_buffer, const struct radv_meta_bl
    }
 }
 
-static unsigned
-get_image_stride_for_96bit(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_surf *surf)
-{
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   unsigned stride;
-
-   if (pdev->info.gfx_level >= GFX9) {
-      stride = surf->image->planes[0].surface.u.gfx9.surf_pitch;
-   } else {
-      stride = surf->image->planes[0].surface.u.legacy.level[0].nblk_x * 3;
-   }
-
-   return stride;
-}
-
 void
 radv_meta_image_to_buffer(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_surf *src,
                           struct radv_meta_blit2d_buffer *dst, const VkOffset3D *offset, const VkExtent3D *extent)
@@ -802,7 +786,7 @@ radv_meta_buffer_to_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct ra
 
    radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
-   stride = get_image_stride_for_96bit(cmd_buffer, dst);
+   stride = radv_get_image_stride_for_96bit(device, dst->image);
 
    unsigned push_constants[4] = {
       offset->x,
@@ -944,8 +928,8 @@ radv_meta_image_to_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct rad
 
    radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
-   src_stride = get_image_stride_for_96bit(cmd_buffer, src);
-   dst_stride = get_image_stride_for_96bit(cmd_buffer, dst);
+   src_stride = radv_get_image_stride_for_96bit(device, src->image);
+   dst_stride = radv_get_image_stride_for_96bit(device, dst->image);
 
    unsigned push_constants[6] = {
       src_offset->x, src_offset->y, src_stride, dst_offset->x, dst_offset->y, dst_stride,
@@ -1106,7 +1090,7 @@ radv_meta_clear_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct radv_m
 
    radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
-   stride = get_image_stride_for_96bit(cmd_buffer, dst);
+   stride = radv_get_image_stride_for_96bit(device, dst->image);
 
    unsigned push_constants[4] = {
       clear_color->uint32[0],

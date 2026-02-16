@@ -292,6 +292,21 @@ void radv_meta_bind_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBi
 
 enum radv_copy_flags radv_get_copy_flags_from_bo(const struct radeon_winsys_bo *bo);
 
+static inline unsigned
+radv_get_image_stride_for_96bit(const struct radv_device *device, const struct radv_image *image)
+{
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   unsigned stride;
+
+   if (pdev->info.gfx_level >= GFX9) {
+      stride = image->planes[0].surface.u.gfx9.surf_pitch;
+   } else {
+      stride = image->planes[0].surface.u.legacy.level[0].nblk_x * 3;
+   }
+
+   return stride;
+}
+
 #ifdef __cplusplus
 }
 #endif
