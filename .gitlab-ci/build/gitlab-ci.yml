@@ -341,6 +341,7 @@ debian-android:
       -D mesa-clc=system
       -D precomp-compiler=system
       -D perfetto=true
+      -D freedreno-kmds=msm,virtio
     GALLIUM_ST: >
       -D gallium-va=disabled
       -D gallium-rusticl=false
