@@ -546,7 +546,7 @@ static void *si_create_blend_state_mode(struct pipe_context *ctx,
          ac_pm4_set_reg(&pm4->base, R_028760_SX_MRT0_BLEND_OPT + i * 4, sx_mrt_blend_opt[i]);
 
       /* RB+ doesn't work with dual source blending, logic op, and RESOLVE. */
-      assert(mode != V_028808_CB_RESOLVE); /* never used */
+      assert(sctx->gfx_level >= GFX11 || mode != V_028808_CB_RESOLVE); /* never used */
       if (blend->dual_src_blend || logicop_enable ||
           /* Disabling RB+ improves blending performance in synthetic tests on GFX11. */
           (sctx->gfx_level == GFX11 && blend->blend_enable_4bit))
