@@ -133,6 +133,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_buffer_device_address = true,
       .EXT_calibrated_timestamps =
          device->kmod.dev->props.gpu_can_query_timestamp,
+      .EXT_color_write_enable = true,
       .EXT_custom_border_color = true,
       .EXT_depth_bias_control = true,
       .EXT_depth_clamp_zero_one = true,
@@ -472,6 +473,9 @@ panvk_per_arch(get_physical_device_features)(
       /* VK_EXT_4444_formats */
       .formatA4R4G4B4 = true,
       .formatA4B4G4R4 = true,
+
+      /* VK_EXT_color_write_enable */
+      .colorWriteEnable = true,
 
       /* VK_EXT_custom_border_color */
       .customBorderColors = true,
