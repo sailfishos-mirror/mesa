@@ -450,7 +450,8 @@ static void r600_init_screen_caps(struct r600_screen *rscreen)
 	caps->surface_reinterpret_blocks = true;
 	caps->compressed_surface_reinterpret_blocks_layered = true;
 	caps->query_memory_info = true;
-	caps->query_so_overflow = family >= CHIP_CEDAR;
+	caps->query_so_overflow =
+	caps->texture_shadow_lod = family >= CHIP_CEDAR;
 	caps->framebuffer_no_attachment = true;
 	caps->legacy_math_rules = true;
 	caps->can_bind_const_buffer_as_vertex = true;

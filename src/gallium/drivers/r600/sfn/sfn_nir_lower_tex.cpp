@@ -154,6 +154,10 @@ lower_txl_txf_array_or_cube(nir_builder *b, nir_tex_instr *tex)
    if (min_lod_idx >= 0)
       lod = nir_fmax(b, lod, tex->src[min_lod_idx].src.ssa);
 
+   if (unlikely(tex->sampler_dim == GLSL_SAMPLER_DIM_2D && tex->is_shadow &&
+                tex->is_array))
+      lod = nir_fadd(b, lod, nir_imm_float(b, -1.0));
+
    /* max lod? */
 
    nir_def *lambda_exp = nir_fexp2(b, lod);
