@@ -493,15 +493,17 @@ arm32-KHR-GL31.framebuffer_blit.multisampled_to_singlesampled_blit_color_config_
 arm32-KHR-GL31.framebuffer_blit.scissor_blit,Fail
 
 KHR-GL31.framebuffer_blit.framebuffer_blit_functionality_multisampled_to_singlesampled_blit,Fail
-KHR-GL31.transform_feedback3.multiple_streams,Fail
-KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
-KHR-GL31.transform_feedback3.skip_components,Fail
 arm32-KHR-GL31.framebuffer_blit.framebuffer_blit_functionality_multisampled_to_singlesampled_blit,Fail
+
+# https://gitlab.khronos.org/Tracker/vk-gl-cts/-/issues/6321
+KHR-GL31.transform_feedback3.multiple_streams,Fail
+KHR-GL31.transform_feedback3.skip_components,Fail
+KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
 arm32-KHR-GL31.transform_feedback3.multiple_streams,Fail
 arm32-KHR-GL31.transform_feedback3.skip_components,Fail
 arm32-KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
-
 ubsan-KHR-GL31.transform_feedback3.multiple_streams,Fail
+ubsan-KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
 
 # New failures with GL CTS 4.6.6.0
 KHR-GL31.frag_coord_conventions.multisample,Fail
@@ -820,7 +822,6 @@ dEQP-VK.pipeline.monolithic.logic_op_na_formats.r8g8b8a8_srgb.xor_blend,Fail
 
 ubsan-KHR-GL31.frag_coord_conventions.multisample,Fail
 ubsan-KHR-GL31.framebuffer_blit.multisampled_to_singlesampled_blit_color_config_test,Fail
-ubsan-KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
 ubsan-dEQP-VK.image.mutable.2d_array.r16g16_sint_r8g8b8a8_uint_draw_copy_resolve_mutable_resolve_att,Fail
 ubsan-dEQP-VK.image.mutable.2d_array.r32_uint_r8g8b8a8_uint_draw_copy_resolve_mutable_resolve_att,Fail
 ubsan-dEQP-VK.image.mutable.2d_array.r32g32_sint_r16g16b16a16_uint_draw_copy_resolve_mutable_color_att,Fail

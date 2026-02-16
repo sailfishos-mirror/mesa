@@ -144,6 +144,9 @@ spec@ext_framebuffer_blit@fbo-sys-blit
 spec@ext_framebuffer_blit@fbo-sys-sub-blit
 spec@ext_framebuffer_object@fbo-flushing-2
 
+spec@!opengl 1.1@depthstencil-default_fb-drawpixels-float-and-ushort samples=4
+spec@!opengl 1.1@draw-sync
+
 # started 2024-10-22, cause unclear
 dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.programs.link.19
 

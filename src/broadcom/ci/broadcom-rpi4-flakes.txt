@@ -154,6 +154,9 @@ dEQP-VK.spirv_assembly.instruction.graphics.spirv_ids_abuse.lots_ids_vert
 api@clgetdeviceinfo
 
 dEQP-VK.memory.mapping.dedicated_alloc.buffer.full.variable.implicit_unmap
+dEQP-VK.synchronization.op.single_queue.event.write_ssbo_geometry_read_vertex_input.buffer_262144
 dEQP-VK.synchronization2.op.single_queue.fence.write_ssbo_fragment_read_vertex_input.buffer_262144
+glx@glx-copy-sub-buffer
 glx@glx-visuals-depth
+glx@glx-visuals-stencil
 spec@!opengl 1.1@depthstencil-default_fb-drawpixels-float-and-ushort samples=2

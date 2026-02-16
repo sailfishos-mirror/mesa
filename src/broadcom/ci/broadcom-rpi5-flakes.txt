@@ -142,3 +142,7 @@ spec@egl_chromium_sync_control@conformance@eglGetSyncValuesCHROMIUM_msc_and_sbc_
 dEQP-VK.image.mutable.2d_array.r8g8b8a8_sint_r32_sfloat_draw_copy_resolve
 
 dEQP-VK.api.image_clearing.core.clear_depth_stencil_image.2d.remaining_array_layers_twostep.d24_unorm_s8_uint_separate_layouts_depth_200x180
+
+glx@glx-copy-sub-buffer samples=4
+glx@glx-visuals-depth
+wayland-dEQP-EGL.functional.sharing.gles2.multithread.random.programs.link.7
