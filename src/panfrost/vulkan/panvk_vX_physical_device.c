@@ -187,6 +187,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_shader_module_identifier = true,
       .EXT_shader_demote_to_helper_invocation = true,
       .EXT_shader_replicated_composites = true,
+      .EXT_shader_stencil_export = true,
       .EXT_shader_subgroup_ballot = true,
       .EXT_shader_subgroup_vote = true,
       .EXT_subgroup_size_control = has_vk1_1,
