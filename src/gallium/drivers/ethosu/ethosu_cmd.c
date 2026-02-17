@@ -15,7 +15,6 @@
 #include "ethosu_registers.h"
 #include "ethosu_sched.h"
 
-#define MAX_BLOCKDEP            3
 #define MAX_OUTSTANDING_DMA_OPS 2
 #define MAX_OUTSTANDING_NPU_OPS 2
 
@@ -685,12 +684,13 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
    if (ifm_overlaps || ifm2_overlaps)
       return 0;
 
-   return MAX_BLOCKDEP;
+   return ethosu_screen(subgraph->base.context->screen)->max_concurrent_blocks; /* TODO: Check if there is actually overlap between the FMs */
 }
 
 void
 ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
 {
+   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
    struct ethosu_operation *prev_op = NULL;
    struct util_dynarray outstanding_dma_ops;
    struct util_dynarray outstanding_npu_ops;
@@ -706,7 +706,7 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
 
    /* Compile */
 
-   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+   if (ethosu_is_u65(screen))
       EMIT0(NPU_SET_PARALLEL_MODE, 0x0);
 
    util_dynarray_foreach (&subgraph->operations, struct ethosu_operation, operation) {
@@ -733,7 +733,7 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
 
       if (operation->type != ETHOSU_OPERATION_TYPE_DMA) {
          unsigned blockdep = calc_blockdep(subgraph, prev_op, operation);
-         blockdep = MIN2(blockdep, MAX_BLOCKDEP);
+         blockdep = MIN2(blockdep, screen->max_concurrent_blocks);
          EMIT0(NPU_SET_BLOCKDEP, blockdep);
 
          prev_op = operation;

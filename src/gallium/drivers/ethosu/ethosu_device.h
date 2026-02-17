@@ -38,6 +38,7 @@ struct ethosu_screen {
 
    int fd;
    struct drm_ethosu_npu_info info;
+   unsigned max_concurrent_blocks;
 };
 
 static inline struct ethosu_screen *

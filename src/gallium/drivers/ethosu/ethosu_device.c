@@ -233,6 +233,12 @@ ethosu_screen_create(int fd,
    if (DBG_ENABLED(ETHOSU_DBG_DISABLE_SRAM))
       ethosu_screen->info.sram_size = 0;
 
+   if (ethosu_is_u65(ethosu_screen)) {
+      ethosu_screen->max_concurrent_blocks = 3;
+   } else {
+      ethosu_screen->max_concurrent_blocks = 7;
+   }
+
    screen->get_screen_fd = ethosu_screen_get_fd;
    screen->destroy = ethosu_destroy_screen;
    screen->context_create = ethosu_create_context;
