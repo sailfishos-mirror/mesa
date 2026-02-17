@@ -6,6 +6,7 @@
 #include "util/u_inlines.h"
 
 #include "mlw_codec/mlw_encode.h"
+#include "ethosu_ml.h"
 #include "ethosu_coefs.h"
 
 static void
@@ -64,6 +65,7 @@ calculate_weights_strides(struct ethosu_operation *operation, int out_strides[4]
 static void
 fill_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, uint8_t **weights, long *weights_size, struct pipe_resource *weight_rsrc)
 {
+   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
    int brick_strides[4] = {0};
    unsigned input_channels = operation->ifm.shape.depth;
 
@@ -98,8 +100,8 @@ fill_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 
    int64_t padded_size = 0;
    *weights_size = mlw_reorder_encode(
-      IFM_UBLOCK.depth,
-      OFM_UBLOCK.depth,
+      screen->ifm_ublock.depth,
+      screen->ofm_ublock.depth,
       operation->ofm.shape.depth,
       operation->kernel.height,
       operation->kernel.width,

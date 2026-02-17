@@ -25,18 +25,10 @@
 
 extern struct ethosu_block ARCH_OFM_BLOCK_MAX;
 extern struct ethosu_block SUB_KERNEL_MAX;
-extern struct ethosu_block IFM_UBLOCK;
-extern struct ethosu_block OFM_UBLOCK;
 
 #define COEFS_REGION   0
 #define IO_REGION      1
 #define SCRATCH_REGION 2
-
-struct ethosu_block {
-   unsigned width;
-   unsigned height;
-   unsigned depth;
-};
 
 enum ethosu_operation_type {
    ETHOSU_OPERATION_TYPE_CONVOLUTION,
@@ -126,6 +118,7 @@ enum ethosu_acc_type {
 struct ethosu_block_config {
    struct ethosu_block ifm_block;
    struct ethosu_block ofm_block;
+   struct ethosu_block ofm_ublock;
    struct ethosu_shram_layout shram_layout;
    unsigned bank_size;
    enum ethosu_acc_type acc_type;

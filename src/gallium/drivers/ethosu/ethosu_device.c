@@ -234,8 +234,24 @@ ethosu_screen_create(int fd,
       ethosu_screen->info.sram_size = 0;
 
    if (ethosu_is_u65(ethosu_screen)) {
+      ethosu_screen->ifm_ublock.width = 2;
+      ethosu_screen->ifm_ublock.height = 2;
+      ethosu_screen->ifm_ublock.depth = 8;
+
+      ethosu_screen->ofm_ublock.width = 2;
+      ethosu_screen->ofm_ublock.height = 2;
+      ethosu_screen->ofm_ublock.depth = 8;
+
       ethosu_screen->max_concurrent_blocks = 3;
    } else {
+      ethosu_screen->ifm_ublock.width = 4;
+      ethosu_screen->ifm_ublock.height = 4;
+      ethosu_screen->ifm_ublock.depth = 16;
+
+      ethosu_screen->ofm_ublock.width = 4;
+      ethosu_screen->ofm_ublock.height = 1;
+      ethosu_screen->ofm_ublock.depth = 8;
+
       ethosu_screen->max_concurrent_blocks = 7;
    }
 

@@ -23,8 +23,6 @@
 #include "ethosu_lower.h"
 #include "ethosu_ml.h"
 
-struct ethosu_block IFM_UBLOCK = {2, 2, 8};
-struct ethosu_block OFM_UBLOCK = {2, 2, 8};
 struct ethosu_block ARCH_OFM_BLOCK_MAX = {64, 32, 128};
 struct ethosu_block SUB_KERNEL_MAX = {8, 8, 65536};
 

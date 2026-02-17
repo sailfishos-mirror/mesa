@@ -33,11 +33,19 @@ extern int ethosu_debug;
                    ##__VA_ARGS__);                    \
    } while (0)
 
+struct ethosu_block {
+   unsigned width;
+   unsigned height;
+   unsigned depth;
+};
+
 struct ethosu_screen {
    struct pipe_screen pscreen;
 
    int fd;
    struct drm_ethosu_npu_info info;
+   struct ethosu_block ifm_ublock;
+   struct ethosu_block ofm_ublock;
    unsigned max_concurrent_blocks;
 };
 
