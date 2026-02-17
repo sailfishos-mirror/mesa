@@ -176,6 +176,7 @@ static struct etna_format formats[PIPE_FORMAT_COUNT] = {
    _T(X8Z24_UNORM,       D24X8, NONE),
    _T(S8_UINT_Z24_UNORM, D24X8, NONE),
 
+   _T(S8_UINT,    EXT_R8I | EXT_FORMAT, NONE),
    _T(S8X24_UINT, EXT_D24S8 | EXT_FORMAT, NONE),
 
    _T(R9G9B9E5_FLOAT,  E5B9G9R9,                    NONE),
