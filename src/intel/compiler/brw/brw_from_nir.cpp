@@ -6007,7 +6007,6 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
       (coherent_access ? MEMORY_FLAG_COHERENT_ACCESS : 0) |
       (fused_eu_disable ? MEMORY_FLAG_FUSED_EU_DISABLE : 0);
    bool no_mask_handle = false;
-   int data_src = -1;
 
    uint8_t coord_components = 1;
 
@@ -6053,8 +6052,6 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          binding_type = LSC_ADDR_SURFTYPE_BTI;
 
       srcs[MEMORY_LOGICAL_ADDRESS] = get_nir_src(ntb, instr->src[1], 0);
-
-      data_src = 3;
       break;
 
    case nir_intrinsic_load_ubo_uniform_block_intel:
@@ -6079,7 +6076,6 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          get_nir_buffer_intrinsic_index(ntb, bld, instr, &no_mask_handle);
       srcs[MEMORY_LOGICAL_ADDRESS] =
          memory_address(ntb, bld, instr, *binding_type, &address_offset);
-      data_src = is_atomic ? 2 : 0;
       break;
    case nir_intrinsic_load_shared:
    case nir_intrinsic_store_shared:
@@ -6092,7 +6088,6 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
       binding_type = LSC_ADDR_SURFTYPE_FLAT;
       srcs[MEMORY_LOGICAL_ADDRESS] =
          memory_address(ntb, bld, instr, *binding_type, &address_offset);
-      data_src = is_atomic ? 1 : 0;
       no_mask_handle = true;
       break;
    }
@@ -6134,8 +6129,6 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
          ++s.shader_stats.spill_count;
       else
          ++s.shader_stats.fill_count;
-
-      data_src = 0;
       break;
    }
 
@@ -6151,7 +6144,6 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
       binding_type = LSC_ADDR_SURFTYPE_FLAT;
       srcs[MEMORY_LOGICAL_ADDRESS] =
          memory_address(ntb, bld, instr, *binding_type, &address_offset);
-      data_src = is_atomic ? 1 : 0;
       no_mask_handle = srcs[MEMORY_LOGICAL_ADDRESS].is_scalar;
       break;
 
@@ -6159,6 +6151,7 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
       UNREACHABLE("unknown memory intrinsic");
    }
 
+   int data_src = nir_get_io_data_src_number(instr);
    unsigned components = is_store ? instr->src[data_src].ssa->num_components
                                   : instr->def.num_components;
    if (components == 0)
