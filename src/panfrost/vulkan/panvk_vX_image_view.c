@@ -360,6 +360,7 @@ panvk_per_arch(CreateImageView)(VkDevice _device,
          : view->vk.base_mip_level + view->vk.level_count - 1,
       .first_layer = view->vk.base_array_layer,
       .last_layer = view->vk.base_array_layer + view->vk.layer_count - 1,
+      .min_lod = view->vk.min_lod,
    };
    panvk_convert_swizzle(&view->vk.swizzle, view->pview.swizzle);
 

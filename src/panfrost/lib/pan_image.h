@@ -52,6 +52,7 @@ struct pan_image_view {
    enum mali_texture_dimension dim;
    unsigned first_level, last_level;
    unsigned first_layer, last_layer;
+   float min_lod;
    unsigned char swizzle[4];
 
    /* planes 1 and 2 are NULL for single plane formats */

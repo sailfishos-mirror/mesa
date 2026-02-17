@@ -16,3 +16,4 @@ VK_KHR_swapchain_mutable_format on panvk
 VK_EXT_astc_decode_mode on panvk
 VK_KHR_copy_memory_indirect on nvk
 VK_EXT_color_write_enable on panvk
+VK_EXT_image_view_min_lod on panvk

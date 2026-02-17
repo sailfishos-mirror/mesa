@@ -1258,10 +1258,7 @@ GENX(pan_sampled_texture_emit)(const struct pan_image_view *iview,
 #if PAN_ARCH >= 6
       cfg.surfaces = payload->gpu;
 
-      /* We specify API-level LOD clamps in the sampler descriptor
-       * and use these clamps simply for bounds checking.
-       */
-      cfg.minimum_lod = 0;
+      cfg.minimum_lod = MAX2(0.0f, iview->min_lod - iview->first_level);
       cfg.maximum_lod = cfg.levels - 1;
 #endif
    }
