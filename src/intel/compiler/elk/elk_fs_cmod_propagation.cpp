@@ -91,6 +91,17 @@ cmod_propagate_cmp_to_add(const intel_device_info *devinfo, elk_bblock_t *block,
    }
 
    foreach_inst_in_block_reverse_starting_from(elk_fs_inst, scan_inst, inst) {
+      /* If either of the sources of the CMP is modified, the optimization
+       * cannot occur. This is the case even if the instruction modifying the
+       * value is an ADD of the appropriate form.
+       */
+      if (regions_overlap(scan_inst->dst, scan_inst->size_written,
+                          inst->src[0], inst->size_read(0)) ||
+          regions_overlap(scan_inst->dst, scan_inst->size_written,
+                          inst->src[1], inst->size_read(1))) {
+         break;
+      }
+
       if (scan_inst->opcode == ELK_OPCODE_ADD &&
           !scan_inst->is_partial_write() &&
           scan_inst->exec_size == inst->exec_size) {
