@@ -2,3 +2,8 @@
 dEQP-VK.api.external.fence.sync_fd.export_multiple_times_temporary
 dEQP-VK.api.external.semaphore.sync_fd.export_multiple_times_temporary
 dEQP-VK.wsi.wayland.swapchain.simulate_oom.image_extent
+
+# tests leak on separate render+display devices:
+#   https://gerrit.khronos.org/c/vk-gl-cts/+/19625
+.*dEQP-VK.image.swapchain_mutable.direct_drm.*
+.*dEQP-VK.wsi.acquire_drm_display.*
