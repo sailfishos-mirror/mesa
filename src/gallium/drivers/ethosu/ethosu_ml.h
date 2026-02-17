@@ -137,6 +137,8 @@ struct ethosu_operation {
          struct ethosu_address_range weights;
          struct ethosu_address_range scales;
          bool depthwise;
+         unsigned scale;
+         unsigned shift;
       } conv;
 
       struct {

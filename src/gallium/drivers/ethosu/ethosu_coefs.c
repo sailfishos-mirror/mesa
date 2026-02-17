@@ -5,9 +5,53 @@
 
 #include "util/u_inlines.h"
 
-#include "mlw_codec/mlw_encode.h"
-#include "ethosu_ml.h"
+#include <assert.h>
 #include "ethosu_coefs.h"
+#include "ethosu_encode.h"
+#include "ethosu_ml.h"
+#include "mlw_encode.h"
+
+static void
+encode_bias_scale_u65(int64_t bias, int32_t scale, uint32_t shift, uint8_t data[10])
+{
+   assert(-(1LL << (40 - 1)) <= bias && bias < (1LL << (40 - 1))); // signed 40-bit range
+   assert(0 <= scale);                                             // unsigned 32-bit range
+   assert(0 <= shift && shift < (1 << 6));                         // unsigned 6-bit range
+
+   data[0] = (bias >> (0 * 8)) & 0xFF;
+   data[1] = (bias >> (1 * 8)) & 0xFF;
+   data[2] = (bias >> (2 * 8)) & 0xFF;
+   data[3] = (bias >> (3 * 8)) & 0xFF;
+   data[4] = (bias >> (4 * 8)) & 0xFF;
+
+   data[5] = (scale >> (0 * 8)) & 0xFF;
+   data[6] = (scale >> (1 * 8)) & 0xFF;
+   data[7] = (scale >> (2 * 8)) & 0xFF;
+   data[8] = (scale >> (3 * 8)) & 0xFF;
+
+   data[9] = shift & 0x3F;
+}
+
+static void
+encode_bias_scale_u85(int64_t bias, int32_t scale, uint32_t shift, uint8_t data[10])
+{
+   assert(INT32_MIN <= bias && bias <= INT32_MAX); // signed 32-bit range
+   assert(0 <= scale);                             // unsigned 31-bit range
+   assert(0 <= shift && shift < (1 << 6));         // unsigned 6-bit range
+
+   data[0] = (bias >> (0 * 8)) & 0xFF;
+   data[1] = (bias >> (1 * 8)) & 0xFF;
+   data[2] = (bias >> (2 * 8)) & 0xFF;
+   data[3] = (bias >> (3 * 8)) & 0xFF;
+
+   data[4] = (scale >> (0 * 8)) & 0xFF;
+   data[5] = (scale >> (1 * 8)) & 0xFF;
+   data[6] = (scale >> (2 * 8)) & 0xFF;
+   data[7] = (scale >> (3 * 8)) & 0x7F;
+
+   data[8] = shift & 0x3F;
+   data[9] = 0;
+}
 
 static void
 fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, uint8_t **scales, long *scales_size, struct pipe_resource *bias_rsrc)
@@ -15,32 +59,51 @@ fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation 
    struct pipe_transfer *transfer_in;
    int32_t *biases = pipe_buffer_map(subgraph->base.context, bias_rsrc,
                                      PIPE_MAP_READ, &transfer_in);
+   float ifm_scale = operation->ifm.scale;
+   float ofm_scale = operation->ofm.scale;
    unsigned idx = 0;
 
-   *scales_size = align(operation->ofm.shape.depth * 10, 16);
+   /* U65 packs 10-byte bias/scale entries contiguously then aligns to 16.
+    * U85 scales are read in groups of 16 channels, so pad depth to a
+    * 16-channel boundary first, then multiply by 10 bytes per entry. */
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      *scales_size = align(operation->ofm.shape.depth * 10, 16);
+   else
+      *scales_size = align(operation->ofm.shape.depth, 16) * 10;
+
    *scales = malloc(*scales_size);
    memset(*scales, 0, *scales_size);
 
    for (unsigned i = 0; i < operation->ofm.shape.depth; i++) {
-      uint64_t bias = biases[i];
       double kernel_scale = (operation->kernel.scales != NULL) ?
                              operation->kernel.scales[i] : operation->kernel.scale;
-      double conv_scale = ((double)operation->ifm.scale * kernel_scale) / (double)operation->ofm.scale;
+      double conv_scale;
+
+      if (!operation->ifm.is_signed) {
+         /* UInt8 path: multiply as float first, then cast to double */
+         conv_scale = (double)(ifm_scale * kernel_scale) / (double)ofm_scale;
+      } else {
+         /* Int8 path: cast to double before multiply for higher precision */
+         conv_scale = ((double)ifm_scale * (double)kernel_scale) / (double)ofm_scale;
+      }
+
       uint32_t shift;
       int scale = ethosu_quantize_scale(conv_scale, &shift);
 
-      (*scales)[idx++] = (bias >> (0 * 8)) & 0xFF;
-      (*scales)[idx++] = (bias >> (1 * 8)) & 0xFF;
-      (*scales)[idx++] = (bias >> (2 * 8)) & 0xFF;
-      (*scales)[idx++] = (bias >> (3 * 8)) & 0xFF;
-      (*scales)[idx++] = (bias >> (4 * 8)) & 0xFF;
+      if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+         encode_bias_scale_u65(
+            biases[i], scale, shift, &(*scales)[idx]);
+      else
+         encode_bias_scale_u85(
+            biases[i], scale, shift, &(*scales)[idx]);
 
-      (*scales)[idx++] = (scale >> (0 * 8)) & 0xFF;
-      (*scales)[idx++] = (scale >> (1 * 8)) & 0xFF;
-      (*scales)[idx++] = (scale >> (2 * 8)) & 0xFF;
-      (*scales)[idx++] = (scale >> (3 * 8)) & 0xFF;
+      /* Saved for NPU_SET_OFM_SCALE emission in the command stream. */
+      if (i == 0) {
+         operation->conv.scale = scale;
+         operation->conv.shift = shift;
+      }
 
-      (*scales)[idx++] = shift & 0x3F;
+      idx += 10;
    }
 
    pipe_buffer_unmap(subgraph->base.context, transfer_in);
@@ -65,60 +128,11 @@ calculate_weights_strides(struct ethosu_operation *operation, int out_strides[4]
 static void
 fill_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, uint8_t **weights, long *weights_size, struct pipe_resource *weight_rsrc)
 {
-   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
-   int brick_strides[4] = {0};
-   unsigned input_channels = operation->ifm.shape.depth;
-
-   if (operation->kernel.depthwise)
-      input_channels = 1;
-
-   calculate_weights_strides(operation, brick_strides);
-
    struct pipe_transfer *transfer_in;
    uint8_t *input_weights_8 = pipe_buffer_map(subgraph->base.context, weight_rsrc,
                                               PIPE_MAP_READ, &transfer_in);
-   int16_t *input_weights = malloc(pipe_buffer_size(weight_rsrc) * sizeof(*input_weights));
-   unsigned num_weights = pipe_buffer_size(weight_rsrc);
-   unsigned output_channels = operation->ofm.shape.depth;
-   unsigned oc_stride = output_channels > 0 ? num_weights / output_channels : num_weights;
-
-   for (unsigned i = 0; i < num_weights; i++) {
-      int zp;
-      if (operation->kernel.zero_points) {
-         unsigned ch = operation->kernel.depthwise ? i % output_channels : i / oc_stride;
-         zp = operation->kernel.zero_points[ch];
-      } else {
-         zp = operation->kernel.zero_point;
-      }
-
-      if (operation->kernel.is_signed)
-         input_weights[i] = (int8_t)input_weights_8[i] - zp;
-      else
-         input_weights[i] = input_weights_8[i] - zp;
-   }
+   ml_reorder_encode_weights(subgraph, operation, input_weights_8, pipe_buffer_size(weight_rsrc), weights, weights_size);
    pipe_buffer_unmap(subgraph->base.context, transfer_in);
-
-   int64_t padded_size = 0;
-   *weights_size = mlw_reorder_encode(
-      screen->ifm_ublock.depth,
-      screen->ofm_ublock.depth,
-      operation->ofm.shape.depth,
-      operation->kernel.height,
-      operation->kernel.width,
-      input_channels,
-      brick_strides,
-      input_weights,
-      operation->block_config.ofm_block.depth,
-      operation->kernel.depthwise,
-      operation->block_config.is_partkernel,
-      8 /* ifm_bitdepth */,
-      8 /* decomp_h */,
-      8 /* decomp_w */,
-      weights,
-      &padded_size,
-      DBG_ENABLED(ETHOSU_DBG_MSGS));
-
-   free(input_weights);
 }
 
 void
@@ -139,6 +153,11 @@ fill_coefs(struct ethosu_subgraph *subgraph,
 
    uint8_t *weights = NULL;
    fill_weights(subgraph, operation, &weights, &operation->conv.weights.size, weight_rsrc);
+
+   if (!weights) {
+      mesa_loge("fill_weights failed");
+      return;
+   }
 
    operation->conv.weights.region = COEFS_REGION;
    operation->conv.weights.address = subgraph->coefs_used;
