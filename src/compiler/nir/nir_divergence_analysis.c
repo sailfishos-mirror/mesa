@@ -1523,6 +1523,12 @@ visit_loop(nir_loop *loop, struct divergence_state *state)
       loop_state.first_visit = false;
    } while (repeat);
 
+   /* Ensure that nir_block::divergent is set correctly. */
+   if (loop_state.divergent_loop_break || state->divergent_cf) {
+      nir_foreach_block_in_cf_node(block, &loop->cf_node)
+         block->divergent = true;
+   }
+
    loop->divergent_continue = loop_state.divergent_loop_continue;
    loop->divergent_break = loop_state.divergent_loop_break;
 
