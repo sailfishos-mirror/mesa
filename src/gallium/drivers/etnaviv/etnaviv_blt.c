@@ -860,6 +860,8 @@ etna_try_blt_blit(struct pipe_context *pctx,
    if (src != dst || src_lev->ts_compress_fmt >= 0)
       etna_resource_level_ts_mark_invalid(dst_lev);
 
+   ctx->dirty |= ETNA_DIRTY_DERIVE_TS;
+
    return true;
 }
 
