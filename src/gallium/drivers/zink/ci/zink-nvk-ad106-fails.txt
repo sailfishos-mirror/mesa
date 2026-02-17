@@ -2,11 +2,6 @@ dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.n
 dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.non_multisample_buffer.sample_n_singlesample_rbo,Fail
 dEQP-GLES31.functional.shaders.multisample_interpolation.interpolate_at_sample.non_multisample_buffer.sample_n_singlesample_texture,Fail
 
-KHR-GL46.direct_state_access.renderbuffers_storage_multisample,Crash
-KHR-GL46.framebuffer_blit.multisampled_to_singlesampled_blit_depth_config_test,Crash
-KHR-GL46.framebuffer_blit.scissor_blit,Crash
-KHR-GL46.packed_depth_stencil.blit.depth24_stencil8,Crash
-KHR-GL46.packed_depth_stencil.blit.depth32f_stencil8,Crash
 KHR-GL46.shader_image_size.advanced-ms-cs-float,Fail
 KHR-GL46.shader_image_size.advanced-ms-cs-int,Fail
 KHR-GL46.shader_image_size.advanced-ms-cs-uint,Fail
@@ -55,6 +50,12 @@ spec@!opengl 1.0@gl-1.0-no-op-paths,Fail
 spec@!opengl 1.0@rasterpos,Fail
 spec@!opengl 1.0@rasterpos@glsl_vs_gs_linked,Fail
 spec@!opengl 1.0@rasterpos@glsl_vs_tes_linked,Fail
+spec@!opengl 1.1@depthstencil-default_fb-copypixels samples=4,Fail
+spec@!opengl 1.1@depthstencil-default_fb-copypixels samples=6,Crash
+spec@!opengl 1.1@depthstencil-default_fb-copypixels samples=8,Crash
+spec@!opengl 1.1@depthstencil-default_fb-drawpixels-float-and-ushort samples=4,Fail
+spec@!opengl 1.1@depthstencil-default_fb-drawpixels-float-and-ushort samples=6,Crash
+spec@!opengl 1.1@depthstencil-default_fb-drawpixels-float-and-ushort samples=8,Crash
 spec@!opengl 1.1@line-smooth-coverage,Fail
 spec@!opengl 1.1@line-smooth-stipple,Fail
 spec@!opengl 1.1@polygon-mode,Fail
@@ -303,7 +304,6 @@ spec@arb_sample_locations@test@MSAA: 8- X: 3- Y: 5- Grid: false,Fail
 spec@arb_sample_locations@test@MSAA: 8- X: 3- Y: 5- Grid: true,Fail
 spec@arb_sample_locations@test@MSAA: 8- X: 3- Y: 6- Grid: false,Fail
 spec@arb_sample_locations@test@MSAA: 8- X: 3- Y: 6- Grid: true,Fail
-spec@arb_sample_shading@arb_sample_shading-builtin-gl-sample-mask-mrt-alpha-to-coverage,Fail
 spec@arb_sample_shading@samplemask 2 all,Fail
 spec@arb_sample_shading@samplemask 2 all@0.500000 mask_in_one,Fail
 spec@arb_sample_shading@samplemask 2 all@1.000000 mask_in_one,Fail
