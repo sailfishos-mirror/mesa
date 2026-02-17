@@ -46,13 +46,13 @@ struct divergence_state {
    nir_loop *loop;
    bool loop_all_invariant;
 
-   /** current control flow state */
-   /* True if some loop-active invocations might take a different control-flow path.
+   /** Current control flow state: */
+   /* True if some active invocations might take a different control-flow path.
     * A divergent break does not cause subsequent control-flow to be considered
     * divergent because those invocations are no longer active in the loop.
     * For a divergent if, both sides are considered divergent flow because
-    * the other side is still loop-active. */
-   bool divergent_loop_cf;
+    * the other side is still active. */
+   bool divergent_cf;
    /* True if a divergent continue happened since the loop header */
    bool divergent_loop_continue;
    /* True if a divergent break happened since the loop header */
@@ -1202,13 +1202,13 @@ visit_jump(nir_jump_instr *jump, struct divergence_state *state)
    case nir_jump_continue:
       if (state->divergent_loop_continue)
          return false;
-      if (state->divergent_loop_cf)
+      if (state->divergent_cf)
          state->divergent_loop_continue = true;
       return state->divergent_loop_continue;
    case nir_jump_break:
       if (state->divergent_loop_break)
          return false;
-      if (state->divergent_loop_cf)
+      if (state->divergent_cf)
          state->divergent_loop_break = true;
       return state->divergent_loop_break;
    case nir_jump_halt:
@@ -1308,7 +1308,7 @@ visit_block(nir_block *block, struct divergence_state *state)
       }
    }
 
-   bool divergent = state->divergent_loop_cf ||
+   bool divergent = state->divergent_cf ||
                     state->divergent_loop_continue ||
                     state->divergent_loop_break;
    if (divergent != block->divergent) {
@@ -1435,11 +1435,11 @@ visit_if(nir_if *if_stmt, struct divergence_state *state)
    bool cond_divergent = src_divergent(if_stmt->condition, state);
 
    struct divergence_state then_state = *state;
-   then_state.divergent_loop_cf |= cond_divergent;
+   then_state.divergent_cf |= cond_divergent;
    progress |= visit_cf_list(&if_stmt->then_list, &then_state);
 
    struct divergence_state else_state = *state;
-   else_state.divergent_loop_cf |= cond_divergent;
+   else_state.divergent_cf |= cond_divergent;
    progress |= visit_cf_list(&if_stmt->else_list, &else_state);
 
    /* handle phis after the IF */
@@ -1467,7 +1467,7 @@ visit_if(nir_if *if_stmt, struct divergence_state *state)
    /* A divergent continue makes succeeding loop CF divergent:
     * not all loop-active invocations participate in the remaining loop-body
     * which means that a following break might be taken by some invocations, only */
-   state->divergent_loop_cf |= state->divergent_loop_continue;
+   state->divergent_cf |= state->divergent_loop_continue;
 
    state->consider_loop_invariance |= then_state.consider_loop_invariance ||
                                       else_state.consider_loop_invariance;
@@ -1503,7 +1503,7 @@ visit_loop(nir_loop *loop, struct divergence_state *state)
    struct divergence_state loop_state = *state;
    loop_state.loop = loop;
    loop_state.loop_all_invariant = loop_header->predecessors.entries == 1;
-   loop_state.divergent_loop_cf = false;
+   loop_state.divergent_cf = false;
    loop_state.divergent_loop_continue = false;
    loop_state.divergent_loop_break = false;
 
@@ -1519,7 +1519,7 @@ visit_loop(nir_loop *loop, struct divergence_state *state)
                                          loop_state.divergent_loop_continue);
       }
 
-      loop_state.divergent_loop_cf = false;
+      loop_state.divergent_cf = false;
       loop_state.first_visit = false;
    } while (repeat);
 
@@ -1576,7 +1576,7 @@ nir_divergence_analysis_impl(nir_function_impl *impl, nir_divergence_options opt
       .options = options,
       .loop = NULL,
       .loop_all_invariant = false,
-      .divergent_loop_cf = false,
+      .divergent_cf = false,
       .divergent_loop_continue = false,
       .divergent_loop_break = false,
       .first_visit = true,
