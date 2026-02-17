@@ -348,28 +348,27 @@ try_opt_exclusive_scan_to_inclusive(nir_builder *b, nir_intrinsic_instr *intrin)
 }
 
 static bool
-try_opt_atomic_isub(nir_builder *b, nir_intrinsic_instr *intrin, unsigned data_idx)
+try_opt_atomic_isub(nir_builder *b, nir_intrinsic_instr *intrin)
 {
    if (nir_intrinsic_atomic_op(intrin) != nir_atomic_op_iadd || !b->shader->options->has_atomic_isub)
       return false;
 
-   nir_scalar data = nir_scalar_resolved(intrin->src[data_idx].ssa, 0);
+   nir_scalar data = nir_scalar_resolved(nir_get_io_data_src(intrin)->ssa, 0);
 
    if (!nir_scalar_is_alu(data) || nir_scalar_alu_op(data) != nir_op_ineg)
       return false;
 
    data = nir_scalar_chase_alu_src(data, 0);
 
-   nir_src_rewrite(&intrin->src[data_idx], nir_mov_scalar(b, data));
+   nir_src_rewrite(nir_get_io_data_src(intrin), nir_mov_scalar(b, data));
    nir_intrinsic_set_atomic_op(intrin, nir_atomic_op_isub);
    return true;
 }
 
 static bool
-try_opt_atomic_to_exchange(nir_builder *b, nir_intrinsic_instr *intrin,
-                           unsigned data_idx)
+try_opt_atomic_to_exchange(nir_builder *b, nir_intrinsic_instr *intrin)
 {
-   nir_scalar data = nir_scalar_resolved(intrin->src[data_idx].ssa, 0);
+   nir_scalar data = nir_scalar_resolved(nir_get_io_data_src(intrin)->ssa, 0);
    if (!nir_scalar_is_const(data))
       return false;
 
@@ -501,13 +500,12 @@ try_opt_atomic_exchange_to_store(nir_builder *b, nir_intrinsic_instr *intrin)
 }
 
 static bool
-try_opt_atomic_to_load(nir_builder *b, nir_intrinsic_instr *intrin,
-                       unsigned data_idx)
+try_opt_atomic_to_load(nir_builder *b, nir_intrinsic_instr *intrin)
 {
    if (!b->shader->options->has_atomic_load_store)
       return false;
 
-   nir_scalar data = nir_scalar_resolved(intrin->src[data_idx].ssa, 0);
+   nir_scalar data = nir_scalar_resolved(nir_get_io_data_src(intrin)->ssa, 0);
    if (!nir_scalar_is_const(data))
       return false;
 
@@ -675,24 +673,14 @@ opt_intrinsics_intrin(nir_builder *b, nir_intrinsic_instr *intrin)
    case nir_intrinsic_global_atomic:
    case nir_intrinsic_global_atomic_amd:
    case nir_intrinsic_deref_atomic:
-      progress |= try_opt_atomic_isub(b, intrin, 1);
-      progress |= try_opt_atomic_to_exchange(b, intrin, 1);
-      progress |= try_opt_atomic_exchange_to_store(b, intrin);
-      progress |= try_opt_atomic_to_load(b, intrin, 1);
-      return progress;
    case nir_intrinsic_ssbo_atomic:
-      progress |= try_opt_atomic_isub(b, intrin, 2);
-      progress |= try_opt_atomic_to_exchange(b, intrin, 2);
-      progress |= try_opt_atomic_exchange_to_store(b, intrin);
-      progress |= try_opt_atomic_to_load(b, intrin, 2);
-      return progress;
    case nir_intrinsic_image_deref_atomic:
    case nir_intrinsic_image_atomic:
    case nir_intrinsic_bindless_image_atomic:
-      progress |= try_opt_atomic_isub(b, intrin, 3);
-      progress |= try_opt_atomic_to_exchange(b, intrin, 3);
+      progress |= try_opt_atomic_isub(b, intrin);
+      progress |= try_opt_atomic_to_exchange(b, intrin);
       progress |= try_opt_atomic_exchange_to_store(b, intrin);
-      progress |= try_opt_atomic_to_load(b, intrin, 3);
+      progress |= try_opt_atomic_to_load(b, intrin);
       return progress;
    default:
       return false;
