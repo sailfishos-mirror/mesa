@@ -56,6 +56,8 @@ add_flushes(struct pipe_context *pctx, unsigned flushes)
    struct fd_context *ctx = fd_context(pctx);
    struct fd_batch *batch = NULL;
 
+   DBG("flushes=0x%x", flushes);
+
    /* If there is an active compute/nondraw batch, that is the one
     * we want to add the flushes to.  Ie. last op was a launch_grid,
     * if the next one is a launch_grid then the barriers should come
@@ -80,6 +82,8 @@ fd6_texture_barrier(struct pipe_context *pctx, unsigned flags)
    in_dt
 {
    unsigned flushes = 0;
+
+   DBG("flags=0x%x", flags);
 
    if (flags & PIPE_TEXTURE_BARRIER_SAMPLER) {
       /* If we are sampling from the fb, we could get away with treating
@@ -114,6 +118,8 @@ fd6_memory_barrier(struct pipe_context *pctx, unsigned flags)
    in_dt
 {
    unsigned flushes = 0;
+
+   DBG("flags=0x%x", flags);
 
    if (flags & (PIPE_BARRIER_SHADER_BUFFER |
                 PIPE_BARRIER_CONSTANT_BUFFER |
