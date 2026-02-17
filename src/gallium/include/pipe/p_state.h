@@ -1065,6 +1065,7 @@ enum pipe_ml_operation_type {
    PIPE_ML_OPERATION_TYPE_TRANSPOSE,
    PIPE_ML_OPERATION_TYPE_STRIDED_SLICE,
    PIPE_ML_OPERATION_TYPE_RESIZE,
+   PIPE_ML_OPERATION_TYPE_MUL,
 };
 
 enum pipe_ml_pooling_type {
