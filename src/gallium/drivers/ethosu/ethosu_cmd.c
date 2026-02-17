@@ -206,7 +206,7 @@ emit_kernel(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation
    stride |= ((operation->kernel.stride_y - 1) >> 1) << 9;
    stride |= (operation->kernel.dilation_x - 1) << 3;
    stride |= (operation->kernel.dilation_y - 1) << 4;
-   stride |= operation->conv.part_kernel_first << 2;
+   stride |= operation->block_config.is_partkernel << 2;
    EMIT0(NPU_SET_KERNEL_STRIDE, stride);
 }
 

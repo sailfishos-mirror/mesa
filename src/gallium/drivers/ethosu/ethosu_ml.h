@@ -136,7 +136,6 @@ struct ethosu_operation {
       struct {
          struct ethosu_address_range weights;
          struct ethosu_address_range scales;
-         bool part_kernel_first;
          bool depthwise;
       } conv;
 

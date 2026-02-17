@@ -90,6 +90,17 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
 
    unsigned depth = MAX2(screen->ofm_ublock.depth, MIN2(search_space.depth, ARCH_SPLIT_DEPTH));
 
+   bool is_part_kernel = false;
+   if (is_convolution) {
+      unsigned kernel_size = operation->kernel.width * operation->kernel.height;
+      unsigned ifm_depth = operation->ifm.shape.depth;
+      float depth_utilization = (float)ifm_depth / (float)ethosu_round_up_to_multiple(ifm_depth, 32);
+      float part_kernel_utilization = (float)ifm_depth / (float)ethosu_round_up_to_multiple(ifm_depth, 8);
+      part_kernel_utilization *= (float)kernel_size / (float)ethosu_round_up_to_multiple(kernel_size, 4);
+      if (!operation->kernel.depthwise && (part_kernel_utilization >= depth_utilization || ifm_depth <= 8))
+         is_part_kernel = true;
+   }
+
    if (depth < operation->ofm.shape.depth) {
       depth = align(depth, ARCH_SPLIT_DEPTH);
    }
@@ -170,6 +181,7 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
                      config.ofm_block.width = width;
                      config.ofm_block.depth = depth;
                      config.ofm_ublock = screen->ofm_ublock;
+                     config.is_partkernel = is_part_kernel;
 
                      best_cost = relative_cost;
                   }

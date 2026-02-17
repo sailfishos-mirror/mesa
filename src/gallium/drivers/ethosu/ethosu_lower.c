@@ -29,29 +29,6 @@ needed_total_padding(int input_size, int stride, int filter_size)
    return MAX2(filter_size - (input_size % stride), 0);
 }
 
-static bool
-ethosu_is_part_kernel_first(struct ethosu_operation *operation)
-{
-   // Determine which block traversal strategy has better DPU utilization
-   unsigned kernel_size = operation->kernel.height * operation->kernel.width;
-   unsigned depth = operation->ifm.shape.depth;
-   float depth_utilization = (float)depth / ethosu_round_up_to_multiple(depth, 32);
-   float part_kernel_utilization = ((float)depth / ethosu_round_up_to_multiple(depth, 8));
-   part_kernel_utilization *= (float)kernel_size / ethosu_round_up_to_multiple(kernel_size, 4);
-
-   if (operation->type != ETHOSU_OPERATION_TYPE_CONVOLUTION)
-      return false;
-
-   if (operation->kernel.depthwise)
-      return false;
-
-   // Part-kernel first is always better for ifm depths <= 8
-   if (part_kernel_utilization >= depth_utilization || depth <= 8)
-      return true;
-
-   return false;
-}
-
 static void
 set_feature_maps(struct pipe_tensor *input_tensor,
                  struct pipe_tensor *output_tensor,
@@ -161,8 +138,6 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
    } else {
       operation->kernel.zero_points = NULL;
    }
-
-   operation->conv.part_kernel_first = ethosu_is_part_kernel_first(operation);
 
    if (poperation->conv.padding_same) {
       unsigned vert = needed_total_padding(input_tensor->dims[1], poperation->conv.stride_y, poperation->conv.weight_tensor->dims[1]);

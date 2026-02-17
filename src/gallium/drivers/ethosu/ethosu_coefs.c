@@ -110,7 +110,7 @@ fill_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
       input_weights,
       operation->block_config.ofm_block.depth,
       operation->kernel.depthwise,
-      operation->conv.part_kernel_first,
+      operation->block_config.is_partkernel,
       8 /* ifm_bitdepth */,
       8 /* decomp_h */,
       8 /* decomp_w */,
