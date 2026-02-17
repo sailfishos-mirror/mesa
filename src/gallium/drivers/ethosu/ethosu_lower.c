@@ -159,30 +159,18 @@ ethosu_find_first_producer(const struct pipe_ml_operation *poperations, unsigned
 }
 
 static void
-ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
-                         const struct pipe_ml_operation *poperation,
-                         struct pipe_tensor *input_tensor,
-                         struct ethosu_operation *operation)
+lower_conv_common(struct ethosu_subgraph *subgraph,
+                  const struct pipe_ml_operation *poperation,
+                  struct pipe_tensor *input_tensor,
+                  struct pipe_tensor *weight,
+                  int32_t *bias_data,
+                  struct ethosu_operation *operation)
 {
-   uint8_t *bias_data = poperation->conv.bias_tensor ? poperation->conv.bias_tensor->data : NULL;
-
    operation->type = ETHOSU_OPERATION_TYPE_CONVOLUTION;
-
-   operation->conv.depthwise = is_depthwise(poperation);
 
    set_feature_maps(subgraph, input_tensor, poperation->output_tensors[0], operation);
 
-   operation->kernel.height = poperation->conv.weight_tensor->dims[1];
-   operation->kernel.width = poperation->conv.weight_tensor->dims[2];
-   operation->kernel.stride_y = poperation->conv.stride_y;
-   operation->kernel.stride_x = poperation->conv.stride_x;
-   operation->kernel.depthwise = is_depthwise(poperation);
-   operation->kernel.scale = poperation->conv.weight_tensor->scale;
-   operation->kernel.zero_point = poperation->conv.weight_tensor->zero_point;
-   operation->kernel.is_signed = poperation->conv.weight_tensor->is_signed;
-
    /* Per-channel quantization support */
-   struct pipe_tensor *weight = poperation->conv.weight_tensor;
    unsigned num_channels = poperation->output_tensors[0]->dims[3];
 
    if (weight->scales != NULL) {
@@ -195,21 +183,57 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
       memcpy(operation->kernel.zero_points, weight->zero_points, num_channels * sizeof(int));
    }
 
+   allocate_feature_maps(subgraph, operation);
+
+   ethosu_sched_operation(subgraph, operation);
+   fill_coefs(subgraph, operation, bias_data, weight->data,
+              weight->dims[0] * weight->dims[1] * weight->dims[2] * weight->dims[3]);
+}
+
+static void
+ethosu_lower_fully_connected(struct ethosu_subgraph *subgraph,
+                             const struct pipe_ml_operation *poperation,
+                             struct pipe_tensor *input_tensor,
+                             struct ethosu_operation *operation)
+{
+   operation->kernel.scale = poperation->fcon.weight_tensor->scale;
+   operation->kernel.zero_point = poperation->fcon.weight_tensor->zero_point;
+   operation->kernel.is_signed = poperation->fcon.weight_tensor->is_signed;
+
+   lower_conv_common(subgraph, poperation, input_tensor,
+                     poperation->fcon.weight_tensor,
+                     (int32_t *)poperation->fcon.bias_tensor->data,
+                     operation);
+}
+
+static void
+ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
+                         const struct pipe_ml_operation *poperation,
+                         struct pipe_tensor *input_tensor,
+                         struct ethosu_operation *operation)
+{
+   int32_t *bias_data = poperation->conv.bias_tensor ? (int32_t *)poperation->conv.bias_tensor->data : NULL;
+
+   operation->conv.depthwise = is_depthwise(poperation);
+
+   operation->kernel.height = poperation->conv.weight_tensor->dims[1];
+   operation->kernel.width = poperation->conv.weight_tensor->dims[2];
+   operation->kernel.stride_y = poperation->conv.stride_y;
+   operation->kernel.stride_x = poperation->conv.stride_x;
+   operation->kernel.depthwise = is_depthwise(poperation);
+   operation->kernel.scale = poperation->conv.weight_tensor->scale;
+   operation->kernel.zero_point = poperation->conv.weight_tensor->zero_point;
+   operation->kernel.is_signed = poperation->conv.weight_tensor->is_signed;
+
    operation->pad.top = poperation->conv.padding_top;
    operation->pad.bottom = poperation->conv.padding_bottom;
    operation->pad.left = poperation->conv.padding_left;
    operation->pad.right = poperation->conv.padding_right;
 
-   allocate_feature_maps(subgraph, operation);
-
-   ethosu_sched_operation(subgraph, operation);
-
-   fill_coefs(subgraph, operation, (int32_t *)bias_data,
-              poperation->conv.weight_tensor->data,
-              poperation->conv.weight_tensor->dims[0] *
-              poperation->conv.weight_tensor->dims[1] *
-              poperation->conv.weight_tensor->dims[2] *
-              poperation->conv.weight_tensor->dims[3]);
+   lower_conv_common(subgraph, poperation, input_tensor,
+                     poperation->conv.weight_tensor,
+                     (int32_t *)bias_data,
+                     operation);
 }
 
 static void
@@ -444,6 +468,14 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       operation_set_defaults(&operation);
 
       switch (poperations[i].type) {
+
+      case PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED: {
+         struct pipe_tensor *input_tensor = poperations[i].input_tensors[0];
+
+         ethosu_lower_fully_connected(subgraph, &poperations[i], input_tensor, &operation);
+         util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
 
       case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
          struct pipe_tensor *input_tensor = poperations[i].input_tensors[0];

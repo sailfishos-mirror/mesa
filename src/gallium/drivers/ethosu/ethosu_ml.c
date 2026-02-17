@@ -126,6 +126,10 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
       return false;
 
    switch (operation->type) {
+   case PIPE_ML_OPERATION_TYPE_FULLY_CONNECTED: {
+      supported = true;
+      break;
+   }
    case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
       /*
        * Dilation is not yet implemented.
