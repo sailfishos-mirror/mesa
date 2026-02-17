@@ -588,54 +588,6 @@ radv_meta_nir_build_btoi_compute_shader(struct radv_device *dev, bool is_3d)
    return b.shader;
 }
 
-/** Buffer to image - special path for 96bit */
-nir_shader *
-radv_meta_nir_build_btoi_96bit_compute_shader(struct radv_device *dev)
-{
-   const struct glsl_type *buf_type = glsl_sampler_type(GLSL_SAMPLER_DIM_BUF, false, false, GLSL_TYPE_FLOAT);
-   const struct glsl_type *img_type = glsl_image_type(GLSL_SAMPLER_DIM_BUF, false, GLSL_TYPE_FLOAT);
-   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_btoi_96bit_cs");
-   b.shader->info.workgroup_size[0] = 8;
-   b.shader->info.workgroup_size[1] = 8;
-   nir_variable *input_img = nir_variable_create(b.shader, nir_var_uniform, buf_type, "s_tex");
-   input_img->data.descriptor_set = 0;
-   input_img->data.binding = 0;
-
-   nir_variable *output_img = nir_variable_create(b.shader, nir_var_image, img_type, "out_img");
-   output_img->data.descriptor_set = 0;
-   output_img->data.binding = 1;
-
-   nir_def *global_id = radv_meta_nir_get_global_ids(&b, 2);
-
-   nir_def *offset = nir_load_push_constant(&b, 2, 32, nir_imm_int(&b, 0), .range = 8);
-   nir_def *stride = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 8), .range = 12);
-   nir_def *pitch = nir_load_push_constant(&b, 1, 32, nir_imm_int(&b, 12), .range = 16);
-
-   nir_def *pos_x = nir_channel(&b, global_id, 0);
-   nir_def *pos_y = nir_channel(&b, global_id, 1);
-
-   nir_def *buf_coord = nir_imul(&b, pos_y, pitch);
-   buf_coord = nir_iadd(&b, buf_coord, pos_x);
-
-   nir_def *img_coord = nir_iadd(&b, global_id, offset);
-
-   nir_def *global_pos = nir_iadd(&b, nir_imul(&b, nir_channel(&b, img_coord, 1), stride),
-                                  nir_imul_imm(&b, nir_channel(&b, img_coord, 0), 3));
-
-   nir_def *outval = nir_txf(&b, buf_coord, .texture_deref = nir_build_deref_var(&b, input_img));
-
-   for (int chan = 0; chan < 3; chan++) {
-      nir_def *local_pos = nir_iadd_imm(&b, global_pos, chan);
-
-      nir_def *coord = nir_replicate(&b, local_pos, 4);
-
-      nir_image_deref_store(&b, &nir_build_deref_var(&b, output_img)->def, coord, nir_undef(&b, 1, 32),
-                            nir_channel(&b, outval, chan), nir_imm_int(&b, 0), .image_dim = GLSL_SAMPLER_DIM_BUF);
-   }
-
-   return b.shader;
-}
-
 nir_shader *
 radv_meta_nir_build_itoi_compute_shader(struct radv_device *dev, bool src_3d, bool dst_3d, int samples)
 {
@@ -686,56 +638,6 @@ radv_meta_nir_build_itoi_compute_shader(struct radv_device *dev, bool src_3d, bo
    for (uint32_t i = 0; i < samples; i++) {
       nir_image_deref_store(&b, &nir_build_deref_var(&b, output_img)->def, img_coord, nir_imm_int(&b, i), tex_vals[i],
                             nir_imm_int(&b, 0), .image_dim = dst_dim);
-   }
-
-   return b.shader;
-}
-
-nir_shader *
-radv_meta_nir_build_itoi_96bit_compute_shader(struct radv_device *dev)
-{
-   const struct glsl_type *type = glsl_sampler_type(GLSL_SAMPLER_DIM_BUF, false, false, GLSL_TYPE_FLOAT);
-   const struct glsl_type *img_type = glsl_image_type(GLSL_SAMPLER_DIM_BUF, false, GLSL_TYPE_FLOAT);
-   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_itoi_96bit_cs");
-   b.shader->info.workgroup_size[0] = 8;
-   b.shader->info.workgroup_size[1] = 8;
-   nir_variable *input_img = nir_variable_create(b.shader, nir_var_uniform, type, "input_img");
-   input_img->data.descriptor_set = 0;
-   input_img->data.binding = 0;
-
-   nir_variable *output_img = nir_variable_create(b.shader, nir_var_image, img_type, "output_img");
-   output_img->data.descriptor_set = 0;
-   output_img->data.binding = 1;
-
-   nir_def *global_id = radv_meta_nir_get_global_ids(&b, 2);
-
-   nir_def *src_offset = nir_load_push_constant(&b, 3, 32, nir_imm_int(&b, 0), .range = 12);
-   nir_def *dst_offset = nir_load_push_constant(&b, 3, 32, nir_imm_int(&b, 12), .range = 24);
-
-   nir_def *src_stride = nir_channel(&b, src_offset, 2);
-   nir_def *dst_stride = nir_channel(&b, dst_offset, 2);
-
-   nir_def *src_img_coord = nir_iadd(&b, global_id, src_offset);
-   nir_def *dst_img_coord = nir_iadd(&b, global_id, dst_offset);
-
-   nir_def *src_global_pos = nir_iadd(&b, nir_imul(&b, nir_channel(&b, src_img_coord, 1), src_stride),
-                                      nir_imul_imm(&b, nir_channel(&b, src_img_coord, 0), 3));
-
-   nir_def *dst_global_pos = nir_iadd(&b, nir_imul(&b, nir_channel(&b, dst_img_coord, 1), dst_stride),
-                                      nir_imul_imm(&b, nir_channel(&b, dst_img_coord, 0), 3));
-
-   for (int chan = 0; chan < 3; chan++) {
-      /* src */
-      nir_def *src_local_pos = nir_iadd_imm(&b, src_global_pos, chan);
-      nir_def *outval = nir_txf(&b, src_local_pos, .texture_deref = nir_build_deref_var(&b, input_img));
-
-      /* dst */
-      nir_def *dst_local_pos = nir_iadd_imm(&b, dst_global_pos, chan);
-
-      nir_def *dst_coord = nir_replicate(&b, dst_local_pos, 4);
-
-      nir_image_deref_store(&b, &nir_build_deref_var(&b, output_img)->def, dst_coord, nir_undef(&b, 1, 32),
-                            nir_channel(&b, outval, 0), nir_imm_int(&b, 0), .image_dim = GLSL_SAMPLER_DIM_BUF);
    }
 
    return b.shader;

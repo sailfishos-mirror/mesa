@@ -433,6 +433,12 @@ radv_image_view_make_descriptor(struct radv_image_view *iview, struct radv_devic
       }
    }
 
+   /* Special case for 96-bit formats that are viewed as 32-bit formats for internal operations. */
+   if (vk_format_is_96bit(plane->format) && !vk_format_is_96bit(vk_format)) {
+      extent.width *= 3;
+      blk_w *= 3;
+   }
+
    radv_make_texture_descriptor(
       device, image, is_storage_image, iview->vk.view_type, vk_format, components, hw_level,
       hw_level + iview->vk.level_count - 1, first_layer, iview->vk.base_array_layer + iview->vk.layer_count - 1,

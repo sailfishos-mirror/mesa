@@ -186,74 +186,6 @@ get_btoi_pipeline(struct radv_device *device, const struct radv_image *image, Vk
 }
 
 static VkResult
-get_btoi_96bit_pipeline(struct radv_device *device, VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
-{
-   enum radv_meta_object_key_type key = RADV_META_OBJECT_KEY_COPY_BUFFER_TO_IMAGE_96BIT;
-   VkResult result;
-
-   const VkDescriptorSetLayoutBinding bindings[] = {
-      {
-         .binding = 0,
-         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-         .descriptorCount = 1,
-         .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      },
-      {
-         .binding = 1,
-         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-         .descriptorCount = 1,
-         .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      },
-   };
-
-   const VkDescriptorSetLayoutCreateInfo desc_info = {
-      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-      .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT,
-      .bindingCount = 2,
-      .pBindings = bindings,
-   };
-
-   const VkPushConstantRange pc_range = {
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .size = 16,
-   };
-
-   result = vk_meta_get_pipeline_layout(&device->vk, &device->meta_state.device, &desc_info, &pc_range, &key,
-                                        sizeof(key), layout_out);
-   if (result != VK_SUCCESS)
-      return result;
-
-   VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
-   if (pipeline_from_cache != VK_NULL_HANDLE) {
-      *pipeline_out = pipeline_from_cache;
-      return VK_SUCCESS;
-   }
-
-   nir_shader *cs = radv_meta_nir_build_btoi_96bit_compute_shader(device);
-
-   const VkPipelineShaderStageCreateInfo stage_info = {
-      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-      .stage = VK_SHADER_STAGE_COMPUTE_BIT,
-      .module = vk_shader_module_handle_from_nir(cs),
-      .pName = "main",
-      .pSpecializationInfo = NULL,
-   };
-
-   const VkComputePipelineCreateInfo pipeline_info = {
-      .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-      .stage = stage_info,
-      .flags = 0,
-      .layout = *layout_out,
-   };
-
-   result = vk_meta_create_compute_pipeline(&device->vk, &device->meta_state.device, &pipeline_info, &key, sizeof(key),
-                                            pipeline_out);
-
-   ralloc_free(cs);
-   return result;
-}
-
-static VkResult
 get_itoi_pipeline_layout(struct radv_device *device, VkPipelineLayout *layout_out)
 {
    enum radv_meta_object_key_type key = RADV_META_OBJECT_KEY_COPY_IMAGE;
@@ -323,74 +255,6 @@ get_itoi_pipeline(struct radv_device *device, const struct radv_image *src_image
    }
 
    nir_shader *cs = radv_meta_nir_build_itoi_compute_shader(device, src_3d, dst_3d, samples);
-
-   const VkPipelineShaderStageCreateInfo stage_info = {
-      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-      .stage = VK_SHADER_STAGE_COMPUTE_BIT,
-      .module = vk_shader_module_handle_from_nir(cs),
-      .pName = "main",
-      .pSpecializationInfo = NULL,
-   };
-
-   const VkComputePipelineCreateInfo pipeline_info = {
-      .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-      .stage = stage_info,
-      .flags = 0,
-      .layout = *layout_out,
-   };
-
-   result = vk_meta_create_compute_pipeline(&device->vk, &device->meta_state.device, &pipeline_info, &key, sizeof(key),
-                                            pipeline_out);
-
-   ralloc_free(cs);
-   return result;
-}
-
-static VkResult
-get_itoi_96bit_pipeline(struct radv_device *device, VkPipeline *pipeline_out, VkPipelineLayout *layout_out)
-{
-   enum radv_meta_object_key_type key = RADV_META_OBJECT_KEY_COPY_IMAGE_96BIT;
-   VkResult result;
-
-   const VkDescriptorSetLayoutBinding bindings[] = {
-      {
-         .binding = 0,
-         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-         .descriptorCount = 1,
-         .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      },
-      {
-         .binding = 1,
-         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-         .descriptorCount = 1,
-         .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      },
-   };
-
-   const VkDescriptorSetLayoutCreateInfo desc_info = {
-      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-      .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT,
-      .bindingCount = 2,
-      .pBindings = bindings,
-   };
-
-   const VkPushConstantRange pc_range = {
-      .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
-      .size = 24,
-   };
-
-   result = vk_meta_get_pipeline_layout(&device->vk, &device->meta_state.device, &desc_info, &pc_range, &key,
-                                        sizeof(key), layout_out);
-   if (result != VK_SUCCESS)
-      return result;
-
-   VkPipeline pipeline_from_cache = vk_meta_lookup_pipeline(&device->meta_state.device, &key, sizeof(key));
-   if (pipeline_from_cache != VK_NULL_HANDLE) {
-      *pipeline_out = pipeline_from_cache;
-      return VK_SUCCESS;
-   }
-
-   nir_shader *cs = radv_meta_nir_build_itoi_96bit_compute_shader(device);
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -733,77 +597,21 @@ radv_meta_image_to_buffer(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_b
    radv_image_view_finish(&src_view);
 }
 
-static void
-radv_meta_buffer_to_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_buffer *src,
-                                   struct radv_meta_blit2d_surf *dst, const VkOffset3D *offset,
-                                   const VkExtent3D *extent)
-{
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   VkPipelineLayout layout;
-   VkPipeline pipeline;
-   unsigned stride;
-   VkResult result;
-
-   result = get_btoi_96bit_pipeline(device, &pipeline, &layout);
-   if (result != VK_SUCCESS) {
-      vk_command_buffer_set_error(&cmd_buffer->vk, result);
-      return;
-   }
-
-   radv_meta_bind_descriptors(
-      cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layout, 2,
-      (VkDescriptorGetInfoEXT[]){{
-                                    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT,
-                                    .type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-                                    .data.pUniformTexelBuffer =
-                                       &(VkDescriptorAddressInfoEXT){
-                                          .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT,
-                                          .address = src->addr + src->offset,
-                                          .range = src->size - src->offset,
-                                          .format = src->format,
-                                       },
-                                 },
-                                 {
-                                    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT,
-                                    .type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-                                    .data.pStorageTexelBuffer =
-                                       &(VkDescriptorAddressInfoEXT){
-                                          .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT,
-                                          .address = dst->image->bindings[0].addr,
-                                          .range = dst->image->size,
-                                          .format = radv_meta_get_96bit_channel_format(dst->format),
-                                       },
-                                 }});
-
-   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
-
-   stride = radv_get_image_stride_for_96bit(device, dst->image);
-
-   unsigned push_constants[4] = {
-      offset->x,
-      offset->y,
-      stride,
-      src->pitch,
-   };
-
-   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
-
-   radv_unaligned_dispatch(cmd_buffer, extent->width, extent->height, 1);
-}
-
 void
 radv_meta_buffer_to_image_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_buffer *src,
                              struct radv_meta_blit2d_surf *dst, const VkOffset3D *offset, const VkExtent3D *extent)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_image_view dst_view;
+   uint32_t texel_scale = 1;
    VkPipelineLayout layout;
    VkPipeline pipeline;
    VkResult result;
 
    if (vk_format_is_96bit(dst->image->vk.format)) {
-      radv_meta_buffer_to_image_cs_96bit(cmd_buffer, src, dst, offset, extent);
-      return;
+      src->format = radv_meta_get_96bit_channel_format(src->format);
+      dst->format = src->format;
+      texel_scale = 3;
    }
 
    result = get_btoi_pipeline(device, dst->image, &pipeline, &layout);
@@ -840,77 +648,18 @@ radv_meta_buffer_to_image_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_met
    radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
    unsigned push_constants[4] = {
-      offset->x,
+      offset->x * texel_scale,
       offset->y,
       dst->layer,
-      src->pitch,
+      src->pitch * texel_scale,
    };
 
    radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
 
-   radv_unaligned_dispatch(cmd_buffer, extent->width, extent->height, 1);
+   radv_unaligned_dispatch(cmd_buffer, extent->width * texel_scale, extent->height, 1);
    fixup_gfx9_cs_copy(cmd_buffer, src, dst, offset, extent, true);
 
    radv_image_view_finish(&dst_view);
-}
-
-static void
-radv_meta_image_to_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_surf *src,
-                                  struct radv_meta_blit2d_surf *dst, const VkOffset3D *src_offset,
-                                  const VkOffset3D *dst_offset, const VkExtent3D *extent)
-{
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   unsigned src_stride, dst_stride;
-   VkPipelineLayout layout;
-   VkPipeline pipeline;
-   VkResult result;
-
-   result = get_itoi_96bit_pipeline(device, &pipeline, &layout);
-   if (result != VK_SUCCESS) {
-      vk_command_buffer_set_error(&cmd_buffer->vk, result);
-      return;
-   }
-
-   /* 96-bit formats are only compatible to themselves. */
-   assert(vk_format_is_96bit(dst->format));
-
-   radv_meta_bind_descriptors(
-      cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layout, 2,
-      (VkDescriptorGetInfoEXT[]){{
-                                    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT,
-                                    .type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-                                    .data.pUniformTexelBuffer =
-                                       &(VkDescriptorAddressInfoEXT){
-                                          .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT,
-                                          .address = src->image->bindings[0].addr,
-                                          .range = src->image->size,
-                                          .format = radv_meta_get_96bit_channel_format(src->format),
-                                       },
-                                 },
-                                 {
-                                    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT,
-                                    .type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-                                    .data.pStorageTexelBuffer =
-                                       &(VkDescriptorAddressInfoEXT){
-                                          .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT,
-                                          .address = dst->image->bindings[0].addr,
-                                          .range = dst->image->size,
-                                          .format = radv_meta_get_96bit_channel_format(dst->format),
-                                       },
-                                 }});
-
-   radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
-
-   src_stride = radv_get_image_stride_for_96bit(device, src->image);
-   dst_stride = radv_get_image_stride_for_96bit(device, dst->image);
-
-   unsigned push_constants[6] = {
-      src_offset->x, src_offset->y, src_stride, dst_offset->x, dst_offset->y, dst_stride,
-   };
-
-   radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants), push_constants);
-
-   radv_unaligned_dispatch(cmd_buffer, extent->width, extent->height, 1);
 }
 
 void
@@ -921,13 +670,18 @@ radv_meta_image_to_image_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_meta
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_image_view src_view, dst_view;
    uint32_t samples = src->image->vk.samples;
+   uint32_t texel_scale = 1;
    VkPipelineLayout layout;
    VkPipeline pipeline;
    VkResult result;
 
    if (vk_format_is_96bit(src->format)) {
-      radv_meta_image_to_image_cs_96bit(cmd_buffer, src, dst, src_offset, dst_offset, extent);
-      return;
+      /* 96-bit formats are only compatible to themselves. */
+      assert(vk_format_is_96bit(dst->format));
+
+      src->format = radv_meta_get_96bit_channel_format(src->format);
+      dst->format = src->format;
+      texel_scale = 3;
    }
 
    result = get_itoi_pipeline(device, src->image, dst->image, samples, &pipeline, &layout);
@@ -999,13 +753,13 @@ radv_meta_image_to_image_cs(struct radv_cmd_buffer *cmd_buffer, struct radv_meta
       radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
 
       unsigned push_constants[6] = {
-         src_offset->x, src_offset->y, src->layer, dst_offset->x, dst_offset->y, dst->layer,
+         src_offset->x * texel_scale, src_offset->y, src->layer, dst_offset->x * texel_scale, dst_offset->y, dst->layer,
       };
 
       radv_meta_push_constants(cmd_buffer, layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push_constants),
                                push_constants);
 
-      radv_unaligned_dispatch(cmd_buffer, extent->width, extent->height, 1);
+      radv_unaligned_dispatch(cmd_buffer, extent->width * texel_scale, extent->height, 1);
 
       radv_image_view_finish(&src_view);
       radv_image_view_finish(&dst_view);

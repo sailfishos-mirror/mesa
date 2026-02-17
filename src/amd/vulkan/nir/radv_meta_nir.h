@@ -42,9 +42,7 @@ nir_shader *radv_meta_nir_build_blit_copy_fragment_shader_stencil(struct radv_de
 
 nir_shader *radv_meta_nir_build_itob_compute_shader(struct radv_device *dev, bool is_3d);
 nir_shader *radv_meta_nir_build_btoi_compute_shader(struct radv_device *dev, bool is_3d);
-nir_shader *radv_meta_nir_build_btoi_96bit_compute_shader(struct radv_device *dev);
 nir_shader *radv_meta_nir_build_itoi_compute_shader(struct radv_device *dev, bool src_3d, bool dst_3d, int samples);
-nir_shader *radv_meta_nir_build_itoi_96bit_compute_shader(struct radv_device *dev);
 nir_shader *radv_meta_nir_build_cleari_compute_shader(struct radv_device *dev, bool is_3d, int samples);
 nir_shader *radv_meta_nir_build_cleari_96bit_compute_shader(struct radv_device *dev);
 
