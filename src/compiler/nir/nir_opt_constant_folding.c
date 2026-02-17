@@ -316,6 +316,14 @@ try_fold_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
       return nir_imm_bool(b, constant_true);
    }
 
+   case nir_intrinsic_ballot_relaxed:
+   case nir_intrinsic_ballot: {
+      if (!nir_src_is_const(intrin->src[0]) || nir_src_as_bool(intrin->src[0]))
+         return NULL;
+
+      return nir_imm_zero(b, intrin->def.num_components, intrin->def.bit_size);
+   }
+
    case nir_intrinsic_load_input:
    case nir_intrinsic_load_per_primitive_input:
    case nir_intrinsic_load_input_vertex:
