@@ -468,7 +468,7 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
       }
 
       case PIPE_ML_OPERATION_TYPE_CONCATENATION: {
-         for (int j = 0; j < poperations[i].input_count; j++) {
+         for (int j = poperations[i].input_count - 1; j >= 0; j--) {
             ethosu_lower_concatenation(subgraph, &poperations[i], j, &operation);
             util_dynarray_append(&subgraph->operations, operation);
          }
