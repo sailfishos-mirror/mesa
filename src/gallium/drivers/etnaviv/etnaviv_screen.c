@@ -435,6 +435,25 @@ gpu_supports_texture_format(struct etna_screen *screen, uint32_t fmt,
 }
 
 static bool
+gpu_supports_msaa(struct etna_screen *screen, unsigned sample_count)
+{
+   if (DBG_ENABLED(ETNA_DBG_NO_MSAA))
+      return false;
+
+   if (!VIV_FEATURE(screen, ETNA_FEATURE_MSAA))
+      return false;
+
+   if (!translate_samples_to_xyscale(sample_count, NULL, NULL))
+      return false;
+
+   /* On SMALL_MSAA hardware 2x MSAA does not work. */
+   if (sample_count == 2 && VIV_FEATURE(screen, ETNA_FEATURE_SMALL_MSAA))
+      return false;
+
+   return true;
+}
+
+static bool
 gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
                            unsigned sample_count)
 {
@@ -449,22 +468,6 @@ gpu_supports_render_format(struct etna_screen *screen, enum pipe_format format,
       return false;
 
    if (sample_count > 1) {
-      /* Explicitly disabled. */
-      if (DBG_ENABLED(ETNA_DBG_NO_MSAA))
-         return false;
-
-      /* The hardware supports it. */
-      if (!VIV_FEATURE(screen, ETNA_FEATURE_MSAA))
-         return false;
-
-      /* Number of samples must be allowed. */
-      if (!translate_samples_to_xyscale(sample_count, NULL, NULL))
-         return false;
-
-      /* On SMALL_MSAA hardware 2x MSAA does not work. */
-      if (sample_count == 2 && VIV_FEATURE(screen, ETNA_FEATURE_SMALL_MSAA))
-         return false;
-
       /* BLT/RS supports the format. */
       if (screen->specs.use_blt) {
          if (translate_blt_format(format) == ETNA_NO_MATCH)
@@ -545,6 +548,9 @@ etna_screen_is_format_supported(struct pipe_screen *pscreen,
       return false;
 
    if (MAX2(1, sample_count) != MAX2(1, storage_sample_count))
+      return false;
+
+   if (sample_count > 1 && !gpu_supports_msaa(screen, sample_count))
       return false;
 
    /* For ARB_framebuffer_no_attachments - Short-circuit the rest of the logic. */
