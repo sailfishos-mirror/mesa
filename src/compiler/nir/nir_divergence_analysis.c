@@ -1308,11 +1308,8 @@ visit_block(nir_block *block, struct divergence_state *state)
       }
    }
 
-   bool divergent = state->divergent_cf ||
-                    state->divergent_loop_continue ||
-                    state->divergent_loop_break;
-   if (divergent != block->divergent) {
-      block->divergent = divergent;
+   if (state->divergent_cf != block->divergent) {
+      block->divergent = state->divergent_cf;
       has_changed = true;
    }
 
