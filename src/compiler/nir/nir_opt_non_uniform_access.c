@@ -27,7 +27,16 @@
 static bool
 is_ubo_intrinsic(nir_intrinsic_instr *intrin)
 {
-   return intrin->intrinsic == nir_intrinsic_load_ubo;
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_load_ubo:
+      return true;
+
+   case nir_intrinsic_load_buffer_ptr_deref:
+      return nir_intrinsic_resource_type(intrin) == nir_resource_type_uniform_buffer;
+
+   default:
+      return false;
+   }
 }
 
 static bool
@@ -39,6 +48,10 @@ is_ssbo_intrinsic(nir_intrinsic_instr *intrin)
    case nir_intrinsic_ssbo_atomic:
    case nir_intrinsic_ssbo_atomic_swap:
       return true;
+
+   case nir_intrinsic_load_buffer_ptr_deref:
+      return nir_intrinsic_resource_type(intrin) == nir_resource_type_read_only_storage_buffer ||
+             nir_intrinsic_resource_type(intrin) == nir_resource_type_read_write_storage_buffer;
 
    default:
       return false;
