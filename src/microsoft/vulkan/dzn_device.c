@@ -193,10 +193,10 @@ static const struct debug_control dzn_debug_options[] = {
 };
 
 static void
-dzn_physical_device_destroy(struct vk_physical_device *physical)
+dzn_physical_device_release(struct dzn_physical_device *pdev)
 {
-   struct dzn_physical_device *pdev = container_of(physical, struct dzn_physical_device, vk);
-   struct dzn_instance *instance = container_of(pdev->vk.instance, struct dzn_instance, vk);
+   if (!pdev)
+      return;
 
    if (pdev->dev)
       ID3D12Device1_Release(pdev->dev);
@@ -215,7 +215,15 @@ dzn_physical_device_destroy(struct vk_physical_device *physical)
 
    if (pdev->adapter)
       IUnknown_Release(pdev->adapter);
+}
 
+static void
+dzn_physical_device_destroy(struct vk_physical_device *physical)
+{
+   struct dzn_physical_device *pdev = container_of(physical, struct dzn_physical_device, vk);
+   struct dzn_instance *instance = container_of(pdev->vk.instance, struct dzn_instance, vk);
+
+   dzn_physical_device_release(pdev);
    dzn_wsi_finish(pdev);
    vk_physical_device_finish(&pdev->vk);
    vk_free(&instance->vk.alloc, pdev);
@@ -1167,7 +1175,9 @@ dzn_physical_device_create(struct vk_instance *instance,
    result = dzn_wsi_init(pdev);
    if (result != VK_SUCCESS || !pdev->dev) {
       list_del(&pdev->vk.link);
-      dzn_physical_device_destroy(&pdev->vk);
+      dzn_physical_device_release(pdev);
+      vk_physical_device_finish(&pdev->vk);
+      vk_free(&instance->alloc, pdev);
       return result;
    }
 
