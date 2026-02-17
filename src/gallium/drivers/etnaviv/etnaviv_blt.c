@@ -304,7 +304,7 @@ etna_calculate_clear_bits(enum pipe_format format, unsigned clear_mask)
 
    for (unsigned i = 0; i < desc->nr_channels; i++) {
       if (clear_mask & (1 << desc->swizzle[i])) {
-         const unsigned mask = (1 << desc->channel[i].size) - 1;
+         const uint64_t mask = (1ull << desc->channel[i].size) - 1;
          clear_bits |= mask << desc->channel[i].shift;
       }
    }
