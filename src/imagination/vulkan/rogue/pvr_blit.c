@@ -464,8 +464,11 @@ void pvr_rogue_CmdBlitImage2(VkCommandBuffer commandBuffer,
    }
 }
 
-static VkFormat pvr_get_copy_format(VkFormat format)
+static VkFormat pvr_get_copy_format(VkFormat format,
+                                    VkImageAspectFlagBits aspect)
 {
+   format = vk_format_get_plane_aspect_format(format, aspect);
+
    switch (format) {
    case VK_FORMAT_R8_SNORM:
       return VK_FORMAT_R8_SINT;
@@ -1160,8 +1163,7 @@ pvr_copy_image_to_buffer_region(struct pvr_cmd_buffer *const cmd_buffer,
 {
    const VkImageAspectFlags aspect_mask = region->imageSubresource.aspectMask;
 
-   VkFormat src_format = pvr_get_copy_format(
-      vk_format_get_plane_aspect_format(image->vk.format, aspect_mask));
+   VkFormat src_format = pvr_get_copy_format(image->vk.format, aspect_mask);
    VkFormat dst_format;
 
    /* From the Vulkan spec:
