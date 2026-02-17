@@ -1876,7 +1876,7 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
    if (builder->state &
        VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT) {
       keys[MESA_SHADER_VERTEX].multiview_mask =
-         builder->graphics_state.rp->view_mask;
+         builder->graphics_state.mv->view_mask;
 
       mesa_shader_stage last_pre_rast_stage = MESA_SHADER_VERTEX;
       for (int i = MESA_SHADER_GEOMETRY; i >= MESA_SHADER_VERTEX; i--) {
@@ -1891,7 +1891,7 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
 
    if (builder->state & VK_GRAPHICS_PIPELINE_LIBRARY_FRAGMENT_SHADER_BIT_EXT) {
       keys[MESA_SHADER_FRAGMENT].multiview_mask =
-         builder->graphics_state.rp->view_mask;
+         builder->graphics_state.mv->view_mask;
       keys[MESA_SHADER_FRAGMENT].fragment_density_map =
          builder->fragment_density_map;
       keys[MESA_SHADER_FRAGMENT].fdm_per_layer =
@@ -1945,7 +1945,7 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
 
       unsigned char shader_sha1[SHA1_DIGEST_LENGTH + 1];
       memcpy(shader_sha1, pipeline_sha1, sizeof(pipeline_sha1));
-      
+
       for (mesa_shader_stage stage = MESA_SHADER_VERTEX; stage < ARRAY_SIZE(nir);
            stage = (mesa_shader_stage) (stage + 1)) {
          if (stage_infos[stage] || nir[stage]) {
@@ -2081,7 +2081,7 @@ done:
          }
       }
    }
-   
+
    /* In the case where we're building a library without link-time
     * optimization but with sub-libraries that retain LTO info, we should
     * retain it ourselves in case another pipeline includes us with LTO.
@@ -2295,7 +2295,7 @@ tu_emit_program_state(struct tu_cs *sub_cs,
 
    const struct ir3_shader_variant *variants[MESA_SHADER_STAGES];
    struct tu_draw_state draw_states[MESA_SHADER_STAGES];
-   
+
    for (mesa_shader_stage stage = MESA_SHADER_VERTEX;
         stage < ARRAY_SIZE(variants); stage = (mesa_shader_stage) (stage+1)) {
       variants[stage] = shaders[stage] ? shaders[stage]->variant : NULL;
@@ -2402,7 +2402,7 @@ tu_emit_program_state(struct tu_cs *sub_cs,
    tu_cs_begin_sub_stream(sub_cs, 512, &prog_cs);
    tu6_emit_vpc<CHIP>(&prog_cs, vs, hs, ds, gs, fs);
    prog->vpc_state = tu_cs_end_draw_state(sub_cs, &prog_cs);
-   
+
    const struct ir3_shader_variant *last_variant;
    const struct tu_shader *last_shader;
    if (gs) {
@@ -2689,7 +2689,7 @@ struct apply_viewport_state {
  *
  * so that when we plug in the per-view bin start b_s and the common window
  * offset b_cs:
- * 
+ *
  * b_cs = s * b_s + o
  *
  * and we get:
@@ -3992,7 +3992,7 @@ tu_pipeline_builder_emit_state(struct tu_pipeline_builder *builder,
                    pipeline_contains_all_shader_state(pipeline) &&
                       pipeline->disable_fs.valid,
                    builder->graphics_state.rs, builder->graphics_state.vp,
-                   builder->graphics_state.rp->view_mask != 0,
+                   builder->graphics_state.mv->view_mask != 0,
                    pipeline->program.per_view_viewport,
                    pipeline->disable_fs.disable_fs);
    DRAW_STATE_COND(ds, TU_DYNAMIC_STATE_DS,
@@ -4254,7 +4254,7 @@ tu_emit_draw_state(struct tu_cmd_buffer *cmd)
                                        TU_CMD_DIRTY_DISABLE_FS),
                    &cmd->vk.dynamic_graphics_state.rs,
                    &cmd->vk.dynamic_graphics_state.vp,
-                   cmd->state.vk_rp.view_mask != 0,
+                   cmd->state.vk_mv.view_mask != 0,
                    cmd->state.per_view_viewport,
                    cmd->state.disable_fs);
    DRAW_STATE_COND(ds, TU_DYNAMIC_STATE_DS,
@@ -4581,10 +4581,11 @@ tu_pipeline_builder_finish(struct tu_pipeline_builder *builder)
 
 void
 tu_fill_render_pass_state(struct vk_render_pass_state *rp,
+                          struct vk_multiview_state *mv,
                           const struct tu_render_pass *pass,
                           const struct tu_subpass *subpass)
 {
-   rp->view_mask = subpass->multiview_mask;
+   mv->view_mask = subpass->multiview_mask;
    rp->color_attachment_count = subpass->color_count;
 
    const uint32_t a = subpass->depth_stencil_attachment.attachment;
@@ -4636,11 +4637,11 @@ tu_pipeline_builder_init_graphics(
    };
 
    const VkGraphicsPipelineLibraryCreateInfoEXT *gpl_info =
-      vk_find_struct_const(builder->create_info->pNext, 
+      vk_find_struct_const(builder->create_info->pNext,
                            GRAPHICS_PIPELINE_LIBRARY_CREATE_INFO_EXT);
 
    const VkPipelineLibraryCreateInfoKHR *library_info =
-      vk_find_struct_const(builder->create_info->pNext, 
+      vk_find_struct_const(builder->create_info->pNext,
                            PIPELINE_LIBRARY_CREATE_INFO_KHR);
 
    if (gpl_info) {
@@ -4687,10 +4688,14 @@ tu_pipeline_builder_init_graphics(
       builder->create_info->pRasterizationState->rasterizerDiscardEnable;
 
    struct vk_render_pass_state rp_state = {};
+   struct vk_multiview_state mv_state = {};
+   const struct vk_multiview_state *driver_mv = NULL;
    const struct vk_render_pass_state *driver_rp = NULL;
    VkPipelineCreateFlags2KHR rp_flags = 0;
 
    builder->unscaled_input_fragcoord = 0;
+
+
 
    /* Extract information we need from the turnip renderpass. This will be
     * filled out automatically if the app is using dynamic rendering or
@@ -4707,7 +4712,7 @@ tu_pipeline_builder_init_graphics(
       const struct tu_subpass *subpass =
          &pass->subpasses[create_info->subpass];
 
-      tu_fill_render_pass_state(&rp_state, pass, subpass);
+      tu_fill_render_pass_state(&rp_state, &mv_state, pass, subpass);
 
       if (subpass->feedback_loop_color) {
          rp_flags |=
@@ -4744,12 +4749,19 @@ tu_pipeline_builder_init_graphics(
             builder->unscaled_input_fragcoord |= 1u << i;
       }
 
+      if (builder->state &
+          (VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT |
+           VK_GRAPHICS_PIPELINE_LIBRARY_FRAGMENT_SHADER_BIT_EXT)) {
+         driver_mv = &mv_state;
+      }
+
       driver_rp = &rp_state;
    }
 
    vk_graphics_pipeline_state_fill(&dev->vk,
                                    &builder->graphics_state,
                                    builder->create_info,
+                                   driver_mv,
                                    driver_rp,
                                    rp_flags,
                                    &builder->all_state,

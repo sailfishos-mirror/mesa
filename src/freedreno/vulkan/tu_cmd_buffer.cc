@@ -1252,7 +1252,7 @@ template <chip CHIP>
 static void
 tu6_update_msaa_disable(struct tu_cmd_buffer *cmd)
 {
-   VkPrimitiveTopology topology = 
+   VkPrimitiveTopology topology =
       (VkPrimitiveTopology)cmd->vk.dynamic_graphics_state.ia.primitive_topology;
    bool is_line =
       topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ||
@@ -3242,7 +3242,7 @@ tu7_write_and_wait_onchip_timestamp(struct tu_cs *cs, enum tu_onchip_addr onchip
 }
 
 static bool
-tu7_emit_concurrent_binning_gmem(struct tu_cmd_buffer *cmd, struct tu_cs *cs, 
+tu7_emit_concurrent_binning_gmem(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
                                  bool use_hw_binning)
 {
    /* xfb queries use data from the binning pass. If they are running outside
@@ -3289,7 +3289,7 @@ tu7_emit_concurrent_binning_gmem(struct tu_cmd_buffer *cmd, struct tu_cs *cs,
 
    if (!TU_DEBUG(FORCE_CONCURRENT_BINNING)) {
       tu7_write_and_wait_onchip_timestamp(cs, TU_ONCHIP_CB_BV_TIMESTAMP);
-      
+
       tu7_thread_control(cs, CP_SET_THREAD_BR);
       tu7_write_and_wait_onchip_timestamp(cs, TU_ONCHIP_CB_BR_TIMESTAMP);
 
@@ -4327,7 +4327,7 @@ tu_BeginCommandBuffer(VkCommandBuffer commandBuffer,
              * whether FDM is used in secondaries, so we have to assume it
              * always might be enabled.
              */
-            cmd_buffer->state.fdm_enabled = 
+            cmd_buffer->state.fdm_enabled =
                cmd_buffer->device->vk.enabled_features.fragmentDensityMap ||
                TU_DEBUG(FDM);
          } else {
@@ -4337,6 +4337,7 @@ tu_BeginCommandBuffer(VkCommandBuffer commandBuffer,
             cmd_buffer->state.fdm_enabled = cmd_buffer->state.pass->has_fdm;
          }
          tu_fill_render_pass_state(&cmd_buffer->state.vk_rp,
+                                   &cmd_buffer->state.vk_mv,
                                    cmd_buffer->state.pass,
                                    cmd_buffer->state.subpass);
          vk_cmd_set_cb_attachment_count(&cmd_buffer->vk,
@@ -6428,7 +6429,7 @@ tu_emit_subpass_begin_gmem(struct tu_cmd_buffer *cmd, struct tu_resolve_group *r
 
    /* This appears to be necessary when stores are followed by loads to the
     * same memory in GMEM, to prevent the loads from starting before the
-    * stores have completed. See 
+    * stores have completed. See
     * dEQP-VK.pipeline.monolithic.multisample.multisampled_render_to_single_sampled.input_attachments.initialize.r8g8b8a8_unorm_r16g16b16a16_sfloat_r16g16b16a16_sint_d16_unorm.2x.ds_resolve_sample_zero.whole_framebuffer
     * for a testcase.
     *
@@ -6853,7 +6854,9 @@ tu_CmdBeginRenderPass2(VkCommandBuffer commandBuffer,
 
    tu_lrz_begin_renderpass<CHIP>(cmd);
 
-   tu_fill_render_pass_state(&cmd->state.vk_rp, pass, cmd->state.subpass);
+   tu_fill_render_pass_state(&cmd->state.vk_rp,
+                             &cmd->state.vk_mv,
+                             pass, cmd->state.subpass);
    tu_renderpass_begin(cmd);
    tu_emit_subpass_begin<CHIP>(cmd);
 
@@ -7032,7 +7035,7 @@ tu_CmdBeginRendering(VkCommandBuffer commandBuffer,
       cmd->state.suspended_pass.framebuffer = cmd->state.framebuffer;
       memcpy(cmd->state.suspended_pass.render_areas,
              cmd->state.render_areas, sizeof(cmd->state.render_areas));
-      cmd->state.suspended_pass.per_layer_render_area = 
+      cmd->state.suspended_pass.per_layer_render_area =
          cmd->state.per_layer_render_area;
       cmd->state.suspended_pass.fdm_subsampled =
          cmd->state.fdm_subsampled;
@@ -7041,7 +7044,9 @@ tu_CmdBeginRendering(VkCommandBuffer commandBuffer,
       cmd->state.suspended_pass.gmem_layout = cmd->state.gmem_layout;
    }
 
-   tu_fill_render_pass_state(&cmd->state.vk_rp, cmd->state.pass, cmd->state.subpass);
+   tu_fill_render_pass_state(&cmd->state.vk_rp,
+                             &cmd->state.vk_mv,
+                             cmd->state.pass, cmd->state.subpass);
 
    if (!resuming) {
       cmd->patchpoints_ctx = ralloc_context(NULL);
@@ -7234,7 +7239,9 @@ tu_CmdNextSubpass2(VkCommandBuffer commandBuffer,
          TU_CMD_FLAG_WAIT_FOR_IDLE;
    }
 
-   tu_fill_render_pass_state(&cmd->state.vk_rp, cmd->state.pass, new_subpass);
+   tu_fill_render_pass_state(&cmd->state.vk_rp,
+                             &cmd->state.vk_mv,
+                             cmd->state.pass, new_subpass);
    tu_emit_subpass_begin<CHIP>(cmd);
 }
 TU_GENX(tu_CmdNextSubpass2);
@@ -7253,7 +7260,9 @@ tu_CmdBeginCustomResolveEXT(VkCommandBuffer commandBuffer,
 
    tu_next_subpass_lrz(cmd, subpass, new_subpass);
 
-   tu_fill_render_pass_state(&cmd->state.vk_rp, cmd->state.pass, new_subpass);
+   tu_fill_render_pass_state(&cmd->state.vk_rp,
+                             &cmd->state.vk_mv,
+                             cmd->state.pass, new_subpass);
    tu_emit_subpass_begin<CHIP>(cmd);
 }
 TU_GENX(tu_CmdBeginCustomResolveEXT);
@@ -7834,7 +7843,7 @@ fdm_apply_fs_params(struct tu_cmd_buffer *cmd,
       VkOffset2D offset = tu_fdm_per_bin_offset(rendering_frag_area, bin, tile_start);
       VkOffset2D gmem_offset = tu_fdm_per_bin_offset(gmem_frag_area, gmem_bin,
                                                      common_bin_offset);
-      
+
       tu_cs_emit(cs, rendering_frag_area.width);
       tu_cs_emit(cs, rendering_frag_area.height);
       tu_cs_emit(cs, fui(offset.x));
@@ -9165,7 +9174,7 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
          /* scratch0 = ((scratch0 & CS_NDRANGE_1) + -1
           *          = ((~0 & CS_NDRANGE_1) + -1
           *          =  CS_NDRANGE_1 - 1
-          */ 
+          */
          tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
          tu_cs_emit(cs,
                     CP_REG_RMW_0_DST_REG(0) |
@@ -9178,7 +9187,7 @@ tu_dispatch(struct tu_cmd_buffer *cmd,
 
          /* scratch0 = ((scratch0 & (local_size - 1)) rot 2
           *          = ((scratch0 & (local_size - 1)) << 2
-          */ 
+          */
          tu_cs_emit_pkt7(cs, CP_REG_RMW, 3);
          tu_cs_emit(cs,
                     CP_REG_RMW_0_DST_REG(0) |

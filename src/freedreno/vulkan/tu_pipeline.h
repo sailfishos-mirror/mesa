@@ -325,6 +325,7 @@ tu6_emit_vpc(struct tu_cs *cs,
 
 void
 tu_fill_render_pass_state(struct vk_render_pass_state *rp,
+                          struct vk_multiview_state *mv,
                           const struct tu_render_pass *pass,
                           const struct tu_subpass *subpass);
 

@@ -1936,7 +1936,7 @@ radv_generate_graphics_state_key(const struct radv_device *device, const struct 
    memset(&key, 0, sizeof(key));
 
    key.lib_flags = lib_flags;
-   key.has_multiview_view_index = state->rp ? !!state->rp->view_mask : 0;
+   key.has_multiview_view_index = state->mv ? !!state->mv->view_mask : 0;
 
    if (BITSET_TEST(state->dynamic, MESA_VK_DYNAMIC_VI)) {
       key.vs.has_prolog = true;
@@ -3032,7 +3032,9 @@ radv_generate_graphics_pipeline_state(struct radv_device *device, const VkGraphi
       }
    }
 
-   result = vk_graphics_pipeline_state_fill(&device->vk, &gfx_state->vk, pCreateInfo, NULL, 0, NULL, NULL,
+   result = vk_graphics_pipeline_state_fill(&device->vk, &gfx_state->vk, pCreateInfo,
+                                            NULL /* driver_mv */, NULL /* driver_rp */,
+                                            0, NULL, NULL,
                                             VK_SYSTEM_ALLOCATION_SCOPE_OBJECT, &gfx_state->vk_data);
    if (result != VK_SUCCESS)
       goto fail;
@@ -3577,7 +3579,8 @@ radv_graphics_lib_pipeline_init(struct radv_graphics_lib_pipeline *pipeline, str
       }
    }
 
-   result = vk_graphics_pipeline_state_fill(&device->vk, state, pCreateInfo, NULL, 0, NULL, NULL,
+   result = vk_graphics_pipeline_state_fill(&device->vk, state, pCreateInfo,
+                                            NULL /* driver_mv */, NULL /* driver_rp */, 0, NULL, NULL,
                                             VK_SYSTEM_ALLOCATION_SCOPE_OBJECT, &pipeline->state_data);
    if (result != VK_SUCCESS)
       return result;

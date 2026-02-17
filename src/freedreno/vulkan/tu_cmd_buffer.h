@@ -455,6 +455,7 @@ struct tu_cmd_state
    struct tu_render_pass_state rp;
 
    struct vk_render_pass_state vk_rp;
+   struct vk_multiview_state vk_mv;
    struct vk_vertex_input_state vi;
    struct vk_sample_locations_state sl;
 

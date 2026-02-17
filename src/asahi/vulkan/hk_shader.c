@@ -284,7 +284,7 @@ hk_hash_graphics_state(struct vk_physical_device *device,
 
    if (state &&
        (stages & (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT))) {
-      const bool is_multiview = state->rp->view_mask != 0;
+      const bool is_multiview = state->mv->view_mask != 0;
       _mesa_blake3_update(&blake3_ctx, &is_multiview, sizeof(is_multiview));
    }
 
@@ -1547,7 +1547,7 @@ hk_compile_shaders(struct vk_device *vk_dev, uint32_t shader_count,
    for (uint32_t i = 0; i < shader_count; i++) {
       const struct vk_shader_compile_info *info = &infos[i];
       /* TODO: Multiview with ESO */
-      const bool is_multiview = state && state->rp->view_mask != 0;
+      const bool is_multiview = state && state->mv->view_mask != 0;
       enum hk_feature_key hk_features = hk_make_feature_key(features);
       nir_shader *nir = info->nir;
 

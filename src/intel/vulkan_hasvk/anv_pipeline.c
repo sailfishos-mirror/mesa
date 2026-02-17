@@ -1738,7 +1738,7 @@ anv_graphics_pipeline_init(struct anv_graphics_pipeline *pipeline,
    pipeline->depth_clamp_enable = state->rs->depth_clamp_enable;
    pipeline->depth_clip_enable =
       vk_rasterization_state_depth_clip_enable(state->rs);
-   pipeline->view_mask = state->rp->view_mask;
+   pipeline->view_mask = state->mv->view_mask;
 
    result = anv_graphics_pipeline_compile(pipeline, cache, pCreateInfo, state);
    if (result != VK_SUCCESS) {
@@ -1817,6 +1817,7 @@ anv_graphics_pipeline_create(struct anv_device *device,
    struct vk_graphics_pipeline_all_state all;
    struct vk_graphics_pipeline_state state = { };
    result = vk_graphics_pipeline_state_fill(&device->vk, &state, pCreateInfo,
+                                            NULL /* driver_mv */,
                                             NULL /* driver_rp */,
                                             0 /* driver_rp_flags */,
                                             &all, NULL, 0, NULL);

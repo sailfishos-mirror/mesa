@@ -304,7 +304,7 @@ populate_base_gfx_prog_key(struct brw_base_prog_key *key,
 
    populate_base_prog_key(key, device, rs);
 
-   key->view_mask = (gfx_state && gfx_state->rp) ? gfx_state->rp->view_mask : 0;
+   key->view_mask = (gfx_state && gfx_state->mv) ? gfx_state->mv->view_mask : 0;
 
    key->vue_layout =
       (util_bitcount(link_stages) > 1 && (link_stages & VK_SHADER_STAGE_FRAGMENT_BIT)) ?

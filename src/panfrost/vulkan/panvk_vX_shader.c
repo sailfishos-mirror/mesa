@@ -106,7 +106,7 @@ panvk_lower_sysvals(nir_builder *b, nir_instr *instr, void *data)
       break;
    case nir_intrinsic_load_view_index:
       assert(b->shader->info.stage != MESA_SHADER_COMPUTE);
-      if (ctx->state->rp->view_mask == 0)
+      if (ctx->state->mv->view_mask == 0)
          val = nir_imm_zero(b, 1, 32);
       else
          val = load_sysval(b, graphics, bit_size, layer_id);
@@ -479,8 +479,8 @@ panvk_hash_state(struct vk_physical_device *device,
       _mesa_blake3_update(&blake3_ctx, &sample_shading_enable,
                           sizeof(sample_shading_enable));
 
-      _mesa_blake3_update(&blake3_ctx, &state->rp->view_mask,
-                          sizeof(state->rp->view_mask));
+      _mesa_blake3_update(&blake3_ctx, &state->mv->view_mask,
+                          sizeof(state->mv->view_mask));
 
       if (state->ial)
          _mesa_blake3_update(&blake3_ctx, state->ial, sizeof(*state->ial));
@@ -1296,7 +1296,7 @@ panvk_compile_shader(struct panvk_device *dev,
    struct pan_compile_inputs inputs = {
       .gpu_id = phys_dev->kmod.dev->props.gpu_id,
       .gpu_variant = phys_dev->kmod.dev->props.gpu_variant,
-      .view_mask = (state && state->rp) ? state->rp->view_mask : 0,
+      .view_mask = (state && state->rp) ? state->mv->view_mask : 0,
       .robust2_modes = robust2_modes,
       .robust_descriptors = dev->vk.enabled_features.nullDescriptor,
    };

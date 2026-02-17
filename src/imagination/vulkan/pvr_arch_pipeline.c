@@ -3131,6 +3131,7 @@ err_free_build_context:
 
 static void
 pvr_rendering_info_setup(const VkGraphicsPipelineCreateInfo *const info,
+                         struct vk_multiview_state *mv,
                          struct vk_render_pass_state *rp)
 {
    const VkPipelineRenderingCreateInfo *ri =
@@ -3144,8 +3145,10 @@ pvr_rendering_info_setup(const VkGraphicsPipelineCreateInfo *const info,
        *     depthAttachmentFormat and stencilAttachmentFormat are
        *     VK_FORMAT_UNDEFINED.
        */
-      *rp = (struct vk_render_pass_state){
+      *mv = (struct vk_multiview_state) {
          .view_mask = 0,
+      };
+      *rp = (struct vk_render_pass_state){
          .attachments = 0,
          .color_attachment_count = 0,
          .depth_attachment_format = VK_FORMAT_UNDEFINED,
@@ -3155,7 +3158,7 @@ pvr_rendering_info_setup(const VkGraphicsPipelineCreateInfo *const info,
       return;
    }
 
-   rp->view_mask = ri->viewMask;
+   mv->view_mask = ri->viewMask;
    rp->attachments = 0;
 
    rp->color_attachment_count = ri->colorAttachmentCount;
@@ -3176,10 +3179,11 @@ pvr_rendering_info_setup(const VkGraphicsPipelineCreateInfo *const info,
 
 static void
 pvr_create_renderpass_state(const VkGraphicsPipelineCreateInfo *const info,
+                            struct vk_multiview_state *mv,
                             struct vk_render_pass_state *rp)
 {
    if (!info->renderPass)
-      return pvr_rendering_info_setup(info, rp);
+      return pvr_rendering_info_setup(info, mv, rp);
 
    VK_FROM_HANDLE(pvr_render_pass, pass, info->renderPass);
    const struct pvr_render_subpass *const subpass =
@@ -3207,6 +3211,8 @@ pvr_create_renderpass_state(const VkGraphicsPipelineCreateInfo *const info,
 
    *rp = (struct vk_render_pass_state){
       .attachments = attachments,
+   };
+   *mv = (struct vk_multiview_state){
       .view_mask = subpass->view_mask,
    };
 }
@@ -3222,10 +3228,11 @@ pvr_graphics_pipeline_init(struct pvr_device *device,
       &gfx_pipeline->dynamic_state;
    struct vk_graphics_pipeline_all_state all_state;
    struct vk_graphics_pipeline_state state = { 0 };
+   struct vk_multiview_state mv_state;
    struct vk_render_pass_state rp_state;
    VkResult result;
 
-   pvr_create_renderpass_state(pCreateInfo, &rp_state);
+   pvr_create_renderpass_state(pCreateInfo, &mv_state, &rp_state);
 
    pvr_pipeline_init(device,
                      PVR_PIPELINE_TYPE_GRAPHICS,
@@ -3235,6 +3242,7 @@ pvr_graphics_pipeline_init(struct pvr_device *device,
    result = vk_graphics_pipeline_state_fill(&device->vk,
                                             &state,
                                             pCreateInfo,
+                                            &mv_state,
                                             &rp_state,
                                             0,
                                             &all_state,

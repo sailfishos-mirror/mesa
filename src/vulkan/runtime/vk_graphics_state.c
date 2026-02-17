@@ -26,6 +26,7 @@ enum mesa_vk_graphics_state_groups {
    MESA_VK_GRAPHICS_STATE_INPUT_ATTACHMENT_MAP_BIT    = (1 << 10),
    MESA_VK_GRAPHICS_STATE_COLOR_ATTACHMENT_MAP_BIT    = (1 << 11),
    MESA_VK_GRAPHICS_STATE_RENDER_PASS_BIT             = (1 << 12),
+   MESA_VK_GRAPHICS_STATE_MULTIVIEW_BIT               = (1 << 13),
 };
 
 static void
@@ -140,6 +141,9 @@ get_dynamic_state_groups(BITSET_WORD *dynamic,
       BITSET_SET(dynamic, MESA_VK_DYNAMIC_RP_ATTACHMENTS);
       BITSET_SET(dynamic, MESA_VK_DYNAMIC_ATTACHMENT_FEEDBACK_LOOP_ENABLE);
    }
+
+   if (groups & MESA_VK_GRAPHICS_STATE_MULTIVIEW_BIT)
+      BITSET_SET(dynamic, MESA_VK_DYNAMIC_RP_MULTIVIEW_MASK);
 }
 
 static enum mesa_vk_graphics_state_groups
@@ -1246,6 +1250,31 @@ vk_pipeline_flags_init(struct vk_graphics_pipeline_state *state,
 }
 
 static void
+vk_multiview_state_init(struct vk_multiview_state *mv,
+                        const struct vk_multiview_state *old_mv,
+                        const struct vk_multiview_state *driver_mv,
+                        const VkGraphicsPipelineCreateInfo *info)
+{
+   /* If we already have multview state, then we don't need a new one, both
+    * have to match.
+    */
+   if (old_mv != NULL) {
+      *mv = *old_mv;
+      return;
+   }
+
+   if (info->renderPass != VK_NULL_HANDLE && driver_mv != NULL) {
+      *mv = *driver_mv;
+      return;
+   }
+
+   const VkPipelineRenderingCreateInfo *r_info =
+      vk_get_pipeline_rendering_create_info(info);
+
+   mv->view_mask = r_info != NULL ? r_info->viewMask : 0;
+}
+
+static void
 vk_render_pass_state_init(struct vk_render_pass_state *rp,
                           const struct vk_render_pass_state *old_rp,
                           const struct vk_render_pass_state *driver_rp,
@@ -1276,8 +1305,6 @@ vk_render_pass_state_init(struct vk_render_pass_state *rp,
 
    if (r_info == NULL)
       return;
-
-   rp->view_mask = r_info->viewMask;
 
    const VkCustomResolveCreateInfoEXT *crc_info =
       vk_find_struct_const(info->pNext, CUSTOM_RESOLVE_CREATE_INFO_EXT);
@@ -1347,6 +1374,14 @@ vk_render_pass_state_init(struct vk_render_pass_state *rp,
 }
 
 static void
+vk_dynamic_graphics_state_init_mv(struct vk_dynamic_graphics_state *dst,
+                                  const BITSET_WORD *needed,
+                                  const struct vk_multiview_state *mv)
+{
+   dst->rp.view_mask = mv->view_mask;
+}
+
+static void
 vk_dynamic_graphics_state_init_rp(struct vk_dynamic_graphics_state *dst,
                                   const BITSET_WORD *needed,
                                   const struct vk_render_pass_state *rp)
@@ -1380,7 +1415,9 @@ vk_dynamic_graphics_state_init_rp(struct vk_dynamic_graphics_state *dst,
    f(MESA_VK_GRAPHICS_STATE_COLOR_ATTACHMENT_MAP_BIT,    \
      vk_color_attachment_location_state, cal);           \
    f(MESA_VK_GRAPHICS_STATE_RENDER_PASS_BIT,             \
-     vk_render_pass_state, rp);
+     vk_render_pass_state, rp);                          \
+   f(MESA_VK_GRAPHICS_STATE_MULTIVIEW_BIT,               \
+     vk_multiview_state, mv);
 
 static enum mesa_vk_graphics_state_groups
 vk_graphics_pipeline_state_groups(const struct vk_graphics_pipeline_state *state)
@@ -1447,6 +1484,7 @@ VkResult
 vk_graphics_pipeline_state_fill(const struct vk_device *device,
                                 struct vk_graphics_pipeline_state *state,
                                 const VkGraphicsPipelineCreateInfo *info,
+                                const struct vk_multiview_state *driver_mv,
                                 const struct vk_render_pass_state *driver_rp,
                                 VkPipelineCreateFlags2KHR driver_rp_flags,
                                 struct vk_graphics_pipeline_all_state *all,
@@ -1564,6 +1602,10 @@ vk_graphics_pipeline_state_fill(const struct vk_device *device,
       needs |= MESA_VK_GRAPHICS_STATE_VERTEX_INPUT_BIT;
       needs |= MESA_VK_GRAPHICS_STATE_INPUT_ASSEMBLY_BIT;
    }
+
+   if (lib & (VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT |
+              VK_GRAPHICS_PIPELINE_LIBRARY_FRAGMENT_SHADER_BIT_EXT))
+      needs |= MESA_VK_GRAPHICS_STATE_MULTIVIEW_BIT;
 
    /* Other stuff potentially depends on this so gather it early */
    struct vk_render_pass_state rp;
@@ -1817,9 +1859,11 @@ vk_graphics_pipeline_state_fill(const struct vk_device *device,
 
    /* render pass state is special and we just copy it */
 #define vk_render_pass_state_init(s, d, i) *s = rp
+#define vk_multiview_state_init(s, d, i) vk_multiview_state_init(s, state->mv, driver_mv, info)
 
    FOREACH_STATE_GROUP(INIT_STATE_IF_NEEDED)
 
+#undef vk_multiview_state_init
 #undef vk_render_pass_state_init
 #undef INIT_STATE_IF_NEEDED
 

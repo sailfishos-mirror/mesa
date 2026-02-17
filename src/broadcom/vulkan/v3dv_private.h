@@ -2227,6 +2227,7 @@ struct v3dv_pipeline {
 
    /* For VK_KHR_dynamic_rendering */
    struct vk_render_pass_state rendering_info;
+   struct vk_multiview_state multiview_info;
 
    /* Flags for whether optional pipeline stages are present, for convenience */
    bool has_gs;
