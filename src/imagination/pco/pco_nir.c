@@ -141,7 +141,8 @@ static uint8_t vectorize_filter(const nir_instr *instr, UNUSED const void *data)
  * \param[in] data User data.
  * \return True if the instruction was found.
  */
-static bool frag_in_scalar_filter(const nir_intrinsic_instr *intr, const void *data)
+static bool frag_in_scalar_filter(const nir_intrinsic_instr *intr,
+                                  const void *data)
 {
    nir_shader *nir = (nir_shader *)data;
 
@@ -629,9 +630,7 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir)
             NULL);
 
    /* Fold constant offset srcs for IO. */
-   NIR_PASS(_,
-            nir,
-            nir_opt_constant_folding);
+   NIR_PASS(_, nir, nir_opt_constant_folding);
 
    NIR_PASS(_,
             nir,
@@ -1001,36 +1000,20 @@ void pco_lower_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
    }
 }
 
-static bool is_phi_with_undefs(const nir_instr *instr,
-                               UNUSED const void *cb_data)
+static bool
+lower_phi_with_undefs(nir_builder *b, nir_phi_instr *phi, UNUSED void *cb_data)
 {
-   if (instr->type != nir_instr_type_phi)
-      return false;
-
-   nir_phi_instr *phi = nir_instr_as_phi(instr);
-
-   nir_foreach_phi_src (phi_src, phi) {
-      if (nir_src_is_undef(phi_src->src))
-         return true;
-   }
-
-   return false;
-}
-
-static nir_def *
-lower_phi_with_undefs(nir_builder *b, nir_instr *instr, UNUSED void *cb_data)
-{
-   nir_phi_instr *phi = nir_instr_as_phi(instr);
-
+   bool progress = false;
    nir_foreach_phi_src (phi_src, phi) {
       if (nir_src_is_undef(phi_src->src)) {
          b->cursor = nir_after_block(phi_src->pred);
          nir_src_rewrite(&phi_src->src,
                          nir_imm_intN_t(b, 0, phi_src->src.ssa->bit_size));
+         progress = true;
       }
    }
 
-   return NIR_LOWER_INSTR_PROGRESS;
+   return progress;
 }
 
 static bool
@@ -1094,10 +1077,10 @@ void pco_postprocess_nir(pco_ctx *ctx, nir_shader *nir, pco_data *data)
    /* Temporary: lower phi undefs to zero because at this stage we don't want to
     * lower *all* undefs to zero, but still want to avoid undefined behaviour...
     */
-   nir_shader_lower_instructions(nir,
-                                 is_phi_with_undefs,
-                                 lower_phi_with_undefs,
-                                 NULL);
+   nir_shader_phi_pass(nir,
+                       lower_phi_with_undefs,
+                       nir_metadata_control_flow,
+                       NULL);
 
    NIR_PASS(_, nir, nir_convert_from_ssa, true, false);
    NIR_PASS(_, nir, nir_opt_copy_prop);
