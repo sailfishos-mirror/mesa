@@ -3004,7 +3004,7 @@
         "description": "tu: Use HW offset 0 in 3d loads/clears with FDM",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b34b089ca1327a5d48bc3cfceb9647c44763b52d",
         "notes": null
