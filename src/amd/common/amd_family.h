@@ -186,6 +186,8 @@ enum amd_vram_type {
    AMD_VRAM_TYPE_DDR5,
    AMD_VRAM_TYPE_LPDDR4,
    AMD_VRAM_TYPE_LPDDR5,
+   AMD_VRAM_TYPE_HBM3E,
+   AMD_VRAM_TYPE_HBM4,
 };
 
 enum vcn_version{
