@@ -496,10 +496,9 @@ radv_CmdResolveImage2(VkCommandBuffer commandBuffer, const VkResolveImageInfo2 *
    VK_FROM_HANDLE(radv_image, src_image, pResolveImageInfo->srcImage);
    VK_FROM_HANDLE(radv_image, dst_image, pResolveImageInfo->dstImage);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    VkImageLayout src_image_layout = pResolveImageInfo->srcImageLayout;
    VkImageLayout dst_image_layout = pResolveImageInfo->dstImageLayout;
-   enum radv_resolve_method resolve_method = pdev->info.gfx_level >= GFX11 ? RESOLVE_FRAGMENT : RESOLVE_HW;
+   enum radv_resolve_method resolve_method = RESOLVE_FRAGMENT;
 
    const VkResolveImageModeInfoKHR *resolve_mode_info =
       vk_find_struct_const(pResolveImageInfo->pNext, RESOLVE_IMAGE_MODE_INFO_KHR);
@@ -546,8 +545,7 @@ void
 radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRenderingInfo *pRenderingInfo)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
-   enum radv_resolve_method resolve_method = pdev->info.gfx_level >= GFX11 ? RESOLVE_FRAGMENT : RESOLVE_HW;
+   enum radv_resolve_method resolve_method = RESOLVE_FRAGMENT;
    uint32_t layer_count = pRenderingInfo->layerCount;
    VkRect2D resolve_area = pRenderingInfo->renderArea;
    bool used_compute = false;
