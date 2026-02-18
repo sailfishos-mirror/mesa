@@ -429,12 +429,15 @@ anv_encode_as(VkCommandBuffer commandBuffer, const struct vk_acceleration_struct
 static VkResult
 anv_init_header_bind_pipeline(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state)
 {
-   if (state->config.encode_key[1] == 1) {
-      anv_bvh_build_bind_pipeline(commandBuffer,
-                                  ANV_OBJECT_KEY_BVH_HEADER,
-                                  header_spv, sizeof(header_spv),
-                                  sizeof(struct header_args), 0);
-   }
+   /* Add a barrier to ensure the writes from encode.comp is ready to be
+    * read by header.comp
+    */
+   vk_barrier_compute_w_to_compute_r(commandBuffer);
+
+   anv_bvh_build_bind_pipeline(commandBuffer,
+                               ANV_OBJECT_KEY_BVH_HEADER,
+                               header_spv, sizeof(header_spv),
+                               sizeof(struct header_args), 0);
 
    return VK_SUCCESS;
 }
@@ -458,78 +461,18 @@ anv_init_header(VkCommandBuffer commandBuffer, const struct vk_acceleration_stru
    uint32_t instance_count = geometry_type == VK_GEOMETRY_TYPE_INSTANCES_KHR ?
                              state->leaf_node_count : 0;
 
-   if (state->config.encode_key[1] == 1) {
-      /* Add a barrier to ensure the writes from encode.comp is ready to be
-       * read by header.comp
-       */
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
+   struct header_args args = {
+      .src = intermediate_header_addr,
+      .dst = vk_acceleration_structure_get_va(dst),
+      .bvh_offset = bvh_layout.bvh_offset,
+      .instance_count = instance_count,
+      .instance_leaves_offset = bvh_layout.instance_leaves_offset,
+      .is_compacted = (state->config.encode_key[1] == 1),
+      .bvh_size = bvh_layout.size,
+   };
 
-      struct header_args args = {
-         .src = intermediate_header_addr,
-         .dst = vk_acceleration_structure_get_va(dst),
-         .bvh_offset = bvh_layout.bvh_offset,
-         .instance_count = instance_count,
-         .instance_leaves_offset = bvh_layout.instance_leaves_offset,
-      };
-
-      anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
-      vk_common_CmdDispatch(commandBuffer, 1, 1, 1);
-   } else {
-      vk_barrier_compute_w_to_host_r(commandBuffer);
-
-      /* L1/L2 caches flushes should have been dealt with by pipeline barriers.
-       * Unfortunately some platforms require L3 flush because CS (reading the
-       * dispatch size paramters) is not L3 coherent.
-       */
-      if (!ANV_DEVINFO_HAS_COHERENT_L3_CS(cmd_buffer->device->info)) {
-         anv_add_pending_pipe_bits(cmd_buffer,
-                                   VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                                   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT_KHR,
-                                   ANV_PIPE_DATA_CACHE_FLUSH_BIT,
-                                   "copy dispatch size for dispatch");
-         genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
-      }
-
-      size_t base = offsetof(struct anv_accel_struct_header,
-                             copy_dispatch_size);
-
-      struct anv_accel_struct_header header = {};
-
-      header.instance_count = instance_count;
-      header.self_ptr = header_addr;
-      header.compacted_size = bvh_layout.size;
-
-      /* 128 is local_size_x in copy.comp shader, 8 is the amount of data
-       * copied by each iteration of that shader's loop
-       */
-      header.copy_dispatch_size[0] = DIV_ROUND_UP(header.compacted_size,
-                                                  8 * 128);
-      header.copy_dispatch_size[1] = 1;
-      header.copy_dispatch_size[2] = 1;
-
-      header.serialization_size =
-         header.compacted_size +
-         sizeof(struct vk_accel_struct_serialization_header) +
-         sizeof(uint64_t) * header.instance_count;
-
-      header.size = header.compacted_size;
-
-      header.instance_leaves_offset = bvh_layout.instance_leaves_offset;
-
-#if GFX_VERx10 >= 300
-      header.enable_64b_rt = 1;
-#else
-      header.enable_64b_rt = 0;
-#endif
-
-      size_t header_size = sizeof(struct anv_accel_struct_header) - base;
-      assert(base % sizeof(uint32_t) == 0);
-      assert(header_size % sizeof(uint32_t) == 0);
-      uint32_t *header_ptr = (uint32_t *)((char *)&header + base);
-
-      struct anv_address addr = anv_address_from_u64(header_addr + base);
-      anv_cmd_buffer_update_addr(cmd_buffer, addr, header_size, header_ptr);
-   }
+   anv_bvh_build_set_args(commandBuffer, &args, sizeof(args));
+   vk_common_CmdDispatch(commandBuffer, 1, 1, 1);
 
    if (INTEL_DEBUG_BVH_ANY) {
       debug_record_as_to_bvh_dump(cmd_buffer, header_addr, bvh_layout.size,

@@ -44,6 +44,9 @@ struct header_args {
    uint32_t instance_count;
 
    uint32_t instance_leaves_offset;
+
+   uint64_t bvh_size;
+   uint8_t is_compacted;
 };
 
 #define ANV_COPY_MODE_COPY        0
