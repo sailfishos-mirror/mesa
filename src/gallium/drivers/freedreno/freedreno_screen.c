@@ -393,6 +393,7 @@ fd_init_screen_caps(struct fd_screen *screen)
    caps->glsl_tess_levels_as_inputs = true;
    caps->texture_mirror_clamp_to_edge = true;
    caps->gl_spirv = true;
+   caps->cl_gl_sharing = true;
    caps->fbfetch_coherent = true;
    caps->has_const_bw = true;
 
