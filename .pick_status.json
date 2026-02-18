@@ -384,7 +384,7 @@
         "description": "ac/nir: fix writemask for dual source blending on GFX11+",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "45d8cd037a83ae99f99a551be1b565f14cd598ec",
         "notes": null
