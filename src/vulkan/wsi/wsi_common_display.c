@@ -166,6 +166,8 @@ typedef struct wsi_display_connector_metadata {
    VkHdrMetadataEXT             hdr_metadata;
    bool                         supports_st2084;
    char                         *display_name;
+   uint16_t                     physical_width_cm;
+   uint16_t                     physical_height_cm;
 } wsi_display_connector_metadata;
 
 typedef struct wsi_display_connector {
@@ -302,6 +304,10 @@ wsi_display_parse_edid(struct wsi_display_connector *connector, drmModePropertyB
    }
    free(make);
    free(model);
+
+   const struct di_edid_screen_size *screen_size = di_edid_get_screen_size(edid);
+   metadata->physical_width_cm = screen_size->width_cm;
+   metadata->physical_height_cm = screen_size->height_cm;
 
    di_info_destroy(info);
 #endif
@@ -816,10 +822,16 @@ wsi_display_fill_in_display_properties(struct wsi_display_connector *connector,
       properties->physicalResolution.height = 768;
    }
 
-   /* Make up physical size based on 96dpi */
+   /* Use physical size from EDID if available,
+    * otherwise make up physical size based on 96dpi.
+    */
    properties->physicalDimensions.width =
+      metadata->physical_width_cm ?
+      metadata->physical_width_cm * 10 :
       floor(properties->physicalResolution.width * MM_PER_PIXEL + 0.5);
    properties->physicalDimensions.height =
+      metadata->physical_height_cm ?
+      metadata->physical_height_cm * 10 :
       floor(properties->physicalResolution.height * MM_PER_PIXEL + 0.5);
 
    properties->supportedTransforms = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
