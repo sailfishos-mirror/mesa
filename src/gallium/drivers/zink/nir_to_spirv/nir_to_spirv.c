@@ -2297,33 +2297,27 @@ emit_alu(struct ntv_context *ctx, nir_alu_instr *alu)
    }
 
    if (ctx->sinfo->have_float_controls2) {
-      bool any_float = nir_alu_type_get_base_type(atype) == nir_type_float;
-      for (unsigned i = 0; i < nir_op_infos[alu->op].num_inputs; i++)
-         any_float |= nir_alu_type_get_base_type(stype[i]) == nir_type_float;
+      SpvFPFastMathModeMask fp_mode = 0;
 
-      if (any_float) {
-         SpvFPFastMathModeMask fp_mode = 0;
+      if (!nir_alu_instr_is_signed_zero_preserve(alu))
+         fp_mode |= SpvFPFastMathModeNSZMask;
 
-         if (!nir_alu_instr_is_signed_zero_preserve(alu))
-            fp_mode |= SpvFPFastMathModeNSZMask;
+      if (!nir_alu_instr_is_inf_preserve(alu))
+         fp_mode |= SpvFPFastMathModeNotInfMask;
 
-         if (!nir_alu_instr_is_inf_preserve(alu))
-            fp_mode |= SpvFPFastMathModeNotInfMask;
+      if (!nir_alu_instr_is_nan_preserve(alu))
+         fp_mode |= SpvFPFastMathModeNotNaNMask;
 
-         if (!nir_alu_instr_is_nan_preserve(alu))
-            fp_mode |= SpvFPFastMathModeNotNaNMask;
-
-         if (!nir_alu_instr_is_exact(alu)) {
-            fp_mode |=
-               SpvFPFastMathModeAllowRecipMask |
-               SpvFPFastMathModeAllowContractMask |
-               SpvFPFastMathModeAllowReassocMask |
-               SpvFPFastMathModeAllowTransformMask;
-         }
-
-         if (fp_mode != default_fp_mode)
-            spirv_builder_emit_fp_fast_math_mode(&ctx->builder, result, fp_mode);
+      if (!nir_alu_instr_is_exact(alu)) {
+         fp_mode |=
+            SpvFPFastMathModeAllowRecipMask |
+            SpvFPFastMathModeAllowContractMask |
+            SpvFPFastMathModeAllowReassocMask |
+            SpvFPFastMathModeAllowTransformMask;
       }
+
+      if (fp_mode != default_fp_mode)
+         spirv_builder_emit_fp_fast_math_mode(&ctx->builder, result, fp_mode);
    } else {
       if (nir_alu_instr_is_exact(alu))
          spirv_builder_emit_decoration(&ctx->builder, result, SpvDecorationNoContraction);
