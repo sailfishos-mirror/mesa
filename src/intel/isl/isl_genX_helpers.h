@@ -81,6 +81,13 @@ isl_encode_valign(uint8_t valign)
 UNUSED static struct isl_extent3d
 isl_get_image_alignment(const struct isl_surf *surf)
 {
+   if (surf->levels == 1 &&
+       surf->logical_level0_px.depth == 1 &&
+       surf->logical_level0_px.array_len == 1) {
+      /* This alignment value is unused for single slice surfaces. */
+      return isl_extent3d(GFX_VERx10 >= 125 ? 128 : 4, 4, 1);
+   }
+
    if (GFX_VERx10 >= 125) {
       if (isl_tiling_is_64(surf->tiling)) {
          /* The hardware ignores the alignment values. Anyway, the surface's
