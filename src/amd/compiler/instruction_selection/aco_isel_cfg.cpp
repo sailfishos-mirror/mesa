@@ -129,7 +129,7 @@ end_loop(isel_context* ctx)
    if (!ctx->cf_info.has_branch) {
       Builder bld(ctx->program, ctx->block);
 
-      ctx->block->kind |= (block_kind_continue | block_kind_uniform);
+      ctx->block->kind |= block_kind_uniform;
       if (!ctx->cf_info.has_divergent_branch) {
          append_logical_end(ctx);
          add_edge(ctx->block->index, &header);

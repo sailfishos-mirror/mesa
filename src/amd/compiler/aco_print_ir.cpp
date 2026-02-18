@@ -840,8 +840,6 @@ print_block_kind(uint32_t kind, FILE* output)
       fprintf(output, "loop-latch, ");
    if (kind & block_kind_loop_exit)
       fprintf(output, "loop-exit, ");
-   if (kind & block_kind_continue)
-      fprintf(output, "continue, ");
    if (kind & block_kind_break)
       fprintf(output, "break, ");
    if (kind & block_kind_branch)
