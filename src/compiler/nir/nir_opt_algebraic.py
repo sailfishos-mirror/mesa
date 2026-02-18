@@ -2008,11 +2008,16 @@ optimizations.extend([
 for bits in [16, 32, 64]:
     cond = '!(options->lower_doubles_options & nir_lower_fp64_full_software)' if bits == 64 else 'true'
     bcsel = 'bcsel@{}'.format(bits)
+    bcsel_nsz = bcsel + '(is_only_used_as_float_nsz)'
     optimizations += [
         ((bcsel, a, 1.0, 0.0), ('b2f(preserve_sz)', a), cond),
         ((bcsel, a, 0.0, 1.0), ('b2f(preserve_sz)', ('inot', a)), cond),
         ((bcsel, a, -1.0, -0.0), ('fneg(preserve_sz)', ('b2f(preserve_sz)', a)), cond),
         ((bcsel, a, -0.0, -1.0), ('fneg(preserve_sz)', ('b2f(preserve_sz)', ('inot', a))), cond),
+        ((bcsel_nsz, a, 1.0, -0.0), ('b2f', a), cond),
+        ((bcsel_nsz, a, -0.0, 1.0), ('b2f', ('inot', a)), cond),
+        ((bcsel_nsz, a, -1.0, 0.0), ('fneg', ('b2f', a)), cond),
+        ((bcsel_nsz, a, 0.0, -1.0), ('fneg', ('b2f', ('inot', a))), cond),
     ]
 
 # Packing and then unpacking does nothing
