@@ -1854,11 +1854,11 @@ struct isl_surf_fill_state_info {
    uint64_t aux_address;
 
    /**
-    * The format to use for decoding media compression.
+    * The format to use for encoding and decoding render/media compression.
     *
-    * Used together with the surface format.
+    * May be used together with the surface format.
     */
-   enum isl_format mc_format;
+   enum isl_format aux_format;
 
    /**
     * The clear color for this surface

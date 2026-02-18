@@ -118,6 +118,7 @@ anv_image_fill_surface_state(struct anv_device *device,
                        .clear_color = *clear_color,
                        .aux_surf = &aux_surface->isl,
                        .aux_usage = aux_usage,
+                       .aux_format = isl_surf->format,
                        .aux_address = anv_address_physical(aux_address),
                        .clear_address = anv_address_physical(clear_address),
                        .use_clear_address =

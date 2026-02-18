@@ -1239,6 +1239,7 @@ blorp_emit_surface_state(struct blorp_batch *batch,
    isl_surf_fill_state(batch->blorp->isl_dev, state,
                        .surf = &surf, .view = &surface->view,
                        .aux_surf = &surface->aux_surf, .aux_usage = aux_usage,
+                       .aux_format = surface->aux_format,
                        .address =
                           blorp_get_surface_address(batch, surface->addr),
                        .aux_address = !use_aux_address ? 0 :
@@ -2134,7 +2135,7 @@ blorp_xy_block_copy_blt(struct blorp_batch *batch,
          blt.DestinationCompressionEnable = true;
 #endif
          blt.DestinationCompressionFormat =
-            isl_get_render_compression_format(dst_surf->format);
+            isl_get_render_compression_format(params->dst.aux_format);
          blt.DestinationClearValueEnable = !!params->dst.clear_color_addr.buffer;
          blt.DestinationClearAddress = params->dst.clear_color_addr;
       }
@@ -2180,7 +2181,7 @@ blorp_xy_block_copy_blt(struct blorp_batch *batch,
          blt.SourceCompressionEnable = true;
 #endif
          blt.SourceCompressionFormat =
-            isl_get_render_compression_format(src_surf->format);
+            isl_get_render_compression_format(params->src.aux_format);
          blt.SourceClearValueEnable = !!params->src.clear_color_addr.buffer;
          blt.SourceClearAddress = params->src.clear_color_addr;
       }
@@ -2278,7 +2279,7 @@ blorp_xy_fast_color_blit(struct blorp_batch *batch,
          blt.DestinationClearAddress = params->dst.clear_color_addr;
 #endif
          blt.DestinationCompressionFormat =
-            isl_get_render_compression_format(dst_surf->format);
+            isl_get_render_compression_format(params->dst.aux_format);
       }
 #endif
    }

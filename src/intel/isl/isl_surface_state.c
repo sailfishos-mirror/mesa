@@ -803,15 +803,16 @@ isl_genX(surf_fill_state_s)(const struct isl_device *dev, void *state,
       if (info->view->usage & (ISL_SURF_USAGE_RENDER_TARGET_BIT |
                                ISL_SURF_USAGE_STORAGE_BIT)) {
          s.CompressionFormat =
-            isl_get_render_compression_format(info->surf->format);
+            isl_get_render_compression_format(info->aux_format);
       }
 #elif GFX_VERx10 == 125
       if (info->aux_usage == ISL_AUX_USAGE_MC) {
          s.CompressionFormat =
-            get_media_compression_format(info->mc_format, info->surf->format);
+            get_media_compression_format(info->aux_format,
+                                         info->surf->format);
       } else {
          s.CompressionFormat =
-            isl_get_render_compression_format(info->surf->format);
+            isl_get_render_compression_format(info->aux_format);
       }
 #endif
 #if GFX_VER == 12
@@ -835,7 +836,7 @@ isl_genX(surf_fill_state_s)(const struct isl_device *dev, void *state,
        * cases.
        */
       s.DecompressInL3 =
-         !isl_formats_have_same_bits_per_channel(info->surf->format,
+         !isl_formats_have_same_bits_per_channel(info->aux_format,
                                                  info->view->format);
 #endif
 #if GFX_VER >= 9
