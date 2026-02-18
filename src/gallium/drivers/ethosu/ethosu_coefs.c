@@ -76,11 +76,23 @@ fill_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    uint8_t *input_weights_8 = pipe_buffer_map(subgraph->base.context, weight_rsrc,
                                               PIPE_MAP_READ, &transfer_in);
    int16_t *input_weights = malloc(pipe_buffer_size(weight_rsrc) * sizeof(*input_weights));
-   for (int i = 0; i < pipe_buffer_size(weight_rsrc); i++) {
+   unsigned num_weights = pipe_buffer_size(weight_rsrc);
+   unsigned output_channels = operation->ofm.shape.depth;
+   unsigned oc_stride = output_channels > 0 ? num_weights / output_channels : num_weights;
+
+   for (unsigned i = 0; i < num_weights; i++) {
+      int zp;
+      if (operation->kernel.zero_points) {
+         unsigned ch = operation->kernel.depthwise ? i % output_channels : i / oc_stride;
+         zp = operation->kernel.zero_points[ch];
+      } else {
+         zp = operation->kernel.zero_point;
+      }
+
       if (operation->kernel.is_signed)
-         input_weights[i] = (int8_t)input_weights_8[i] - operation->kernel.zero_point;
+         input_weights[i] = (int8_t)input_weights_8[i] - zp;
       else
-         input_weights[i] = input_weights_8[i] - operation->kernel.zero_point;
+         input_weights[i] = input_weights_8[i] - zp;
    }
    pipe_buffer_unmap(subgraph->base.context, transfer_in);
 

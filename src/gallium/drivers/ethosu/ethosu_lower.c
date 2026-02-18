@@ -141,19 +141,19 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
 
    /* Per-channel quantization support */
    struct pipe_tensor *weight = poperation->conv.weight_tensor;
+   unsigned num_channels = poperation->output_tensors[0]->dims[3];
+
    if (weight->scales != NULL) {
-      unsigned num_channels = poperation->output_tensors[0]->dims[3];
       operation->kernel.scales = malloc(num_channels * sizeof(float));
       memcpy(operation->kernel.scales, weight->scales, num_channels * sizeof(float));
-
-      if (weight->zero_points != NULL) {
-         operation->kernel.zero_points = malloc(num_channels * sizeof(int));
-         memcpy(operation->kernel.zero_points, weight->zero_points, num_channels * sizeof(int));
-      } else {
-         operation->kernel.zero_points = NULL;
-      }
    } else {
       operation->kernel.scales = NULL;
+   }
+
+   if (weight->zero_points != NULL) {
+      operation->kernel.zero_points = malloc(num_channels * sizeof(int));
+      memcpy(operation->kernel.zero_points, weight->zero_points, num_channels * sizeof(int));
+   } else {
       operation->kernel.zero_points = NULL;
    }
 
