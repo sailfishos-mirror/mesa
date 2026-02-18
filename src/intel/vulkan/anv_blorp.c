@@ -245,6 +245,8 @@ get_blorp_surf_for_anv_address(struct anv_cmd_buffer *cmd_buffer,
       },
    };
 
+   usage |= ISL_SURF_USAGE_NO_OVERFETCH_PADDING_BIT;
+
    ok = isl_surf_init(&cmd_buffer->device->isl_dev, isl_surf,
                      .dim = ISL_SURF_DIM_2D,
                      .format = format,

@@ -2480,6 +2480,8 @@ shrink_surface_params(const struct isl_device *dev,
    size = MIN2((uint32_t)ceil(*y1), info->surf.logical_level0_px.height);
    info->surf.logical_level0_px.height = size;
    info->surf.phys_level0_sa.height = size * px_size_sa.h;
+
+   info->surf.usage |= ISL_SURF_USAGE_NO_OVERFETCH_PADDING_BIT;
 }
 
 static void
