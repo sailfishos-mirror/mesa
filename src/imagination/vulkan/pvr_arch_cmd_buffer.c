@@ -61,6 +61,7 @@
 #include "pvr_tex_state.h"
 #include "pvr_types.h"
 #include "pvr_usc.h"
+#include "pvr_utrace.h"
 #include "pvr_winsys.h"
 #include "util/bitscan.h"
 #include "util/bitset.h"
@@ -243,6 +244,9 @@ static void pvr_cmd_buffer_destroy(struct vk_command_buffer *vk_cmd_buffer)
    struct pvr_cmd_buffer *cmd_buffer =
       container_of(vk_cmd_buffer, struct pvr_cmd_buffer, vk);
 
+   /* Cleanup command buffer tracing */
+   pvr_cmd_buffer_utrace_fini(cmd_buffer);
+
    pvr_cmd_buffer_free_resources(cmd_buffer);
    vk_command_buffer_finish(&cmd_buffer->vk);
    vk_free(&cmd_buffer->vk.pool->alloc, cmd_buffer);
@@ -276,6 +280,9 @@ static VkResult pvr_cmd_buffer_create(struct pvr_device *device,
    }
 
    cmd_buffer->device = device;
+
+   /* Initialize tracing for this command buffer */
+   pvr_cmd_buffer_utrace_init(cmd_buffer);
 
    cmd_buffer->depth_bias_array = UTIL_DYNARRAY_INIT;
    cmd_buffer->scissor_array = UTIL_DYNARRAY_INIT;
