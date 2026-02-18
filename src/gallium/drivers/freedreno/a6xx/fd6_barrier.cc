@@ -29,14 +29,17 @@ fd6_emit_flushes(struct fd_context *ctx, fd_cs &cs, unsigned flushes)
    if (flushes & FD6_INVALIDATE_CCU_DEPTH)
       fd6_event_write<CHIP>(ctx, cs, FD_CCU_INVALIDATE_DEPTH);
 
-   if ((CHIP >= A7XX) && (flushes & FD6_INVALIDATE_CCHE))
-      fd_pkt7(cs, CP_CCHE_INVALIDATE, 0);
-
    if (flushes & FD6_FLUSH_CACHE)
       fd6_event_write<CHIP>(ctx, cs, FD_CACHE_CLEAN);
 
    if (flushes & FD6_INVALIDATE_CACHE)
       fd6_event_write<CHIP>(ctx, cs, FD_CACHE_INVALIDATE);
+
+   if ((CHIP >= A7XX) && (flushes & FD6_BLIT_CLEAN_CACHE))
+      fd6_event_write<CHIP>(ctx, cs, FD_CCU_CLEAN_BLIT_CACHE);
+
+   if ((CHIP >= A7XX) && (flushes & FD6_INVALIDATE_CCHE))
+      fd_pkt7(cs, CP_CCHE_INVALIDATE, 0);
 
    if (flushes & FD6_WAIT_MEM_WRITES)
       fd_pkt7(cs, CP_WAIT_MEM_WRITES, 0);

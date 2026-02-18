@@ -2224,6 +2224,15 @@ fd6_emit_sysmem_fini(struct fd_batch *batch) assert_dt
 {
    fd_cs cs(batch->gmem);
 
+   batch->barrier |= FD6_FLUSH_CCU_COLOR |
+                     FD6_INVALIDATE_CCU_COLOR |
+                     FD6_INVALIDATE_CCHE |
+                     FD6_FLUSH_CACHE |
+                     FD6_WAIT_FOR_IDLE;
+
+   if (!batch->nondraw)
+      batch->barrier |= FD6_FLUSH_CCU_DEPTH | FD6_INVALIDATE_CCU_DEPTH;
+
    emit_common_fini<CHIP>(cs, batch);
 
    if (batch->tile_epilogue)
@@ -2235,15 +2244,8 @@ fd6_emit_sysmem_fini(struct fd_batch *batch) assert_dt
    fd_pkt7(cs, CP_SKIP_IB2_ENABLE_GLOBAL, 1)
       .add(0x0);
 
-   fd6_event_write<CHIP>(batch->ctx, cs, FD_LRZ_FLUSH);
-
-   fd6_emit_flushes<CHIP>(batch->ctx, cs,
-                          FD6_FLUSH_CCU_COLOR |
-                          FD6_INVALIDATE_CCU_COLOR |
-                          FD6_FLUSH_CCU_DEPTH |
-                          FD6_INVALIDATE_CCU_DEPTH |
-                          FD6_INVALIDATE_CCHE |
-                          FD6_WAIT_FOR_IDLE);
+   if (!batch->nondraw)
+      fd6_event_write<CHIP>(batch->ctx, cs, FD_LRZ_FLUSH);
 }
 
 template <chip CHIP>
