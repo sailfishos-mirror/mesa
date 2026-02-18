@@ -1,5 +1,385 @@
 [
     {
+        "sha": "b05271f16c78010d32564ee307aad78dc7d58151",
+        "description": "ci: disable debian-ppc64el and debian-s390x",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8cc99edb7be828390696b6ce23af7f086d5533f2",
+        "description": "nir: Fill in missing conversion opts",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "fd22c48b2ac8ca010d3562f3c935ffff0e5bcac5",
+        "description": "nir/algebraic: remove ignore_exact",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "f44de535869a74d3d45df9499a5e7cdb19670684",
+        "description": "nir: only set fp_math_ctrl if meaningful",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "12df083e0bd0d39954c394c48d3e90a95846673b",
+        "description": "nir: fix fmin_agx/fmax_agx constant folding",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "cded3f213bf32bcdd95d9ef97a5edb652965ef05",
+        "description": "pvr/ci: update fails to remove two tests that have started passing",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "929fc82b2f8c259cbe77dc62ea657baa8d4473cd",
+        "description": "pvr: remove asserts in pvr_get_image_subresource_layout()",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "ae29e1cf76181726a11d32c5a515d309c7e59e3e",
+        "notes": null
+    },
+    {
+        "sha": "7a6d3c281542bdffad7120949d9a607c618c8fb1",
+        "description": "Revert \"pvr: Fixup for deqp-vk.api 2d.optimal.* conformance\"",
+        "nominated": false,
+        "nomination_type": 3,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "58c7437d3aab796e1b9f3e8f6b53fa089d8cee29",
+        "notes": null
+    },
+    {
+        "sha": "35a3cb8e2a98ad5a8361b2275221f0f9f09ca405",
+        "description": "pvr: stop using samples to determine what src and dst formats",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "099ab34977cc64e9efc6f625ec3e597b841db34c",
+        "description": "pvr: drop redundant check on VK_FORMAT_X8_D24_UNORM_PACK32",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "9f5cc58919ef9b2e86eeccf38e947ec02ffa3ba3",
+        "description": "pvr: allow pvr_get_copy_format to handle ycbcr formats",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "9a25926bf375459bba4fc096676d9b9be12911b9",
+        "description": "pvr: set transfer flags based on derived formats",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c489e0f45ef1b250f7c41a11ab20e63ca20d79cf",
+        "description": "pvr: fixup for wrong conflict resolution in rebase",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "6a65b5dd4de93ae84047ccba92a32a66c9f140a4",
+        "notes": null
+    },
+    {
+        "sha": "339a838b46cd79487bd82c0b46fb6df86b3836bc",
+        "description": "pvr: fix ds merge logic for blit image to image",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "407e692c3c779fd0df40aa25c385788a3d7a2b19",
+        "notes": null
+    },
+    {
+        "sha": "3df3b97acb360c6022f65b9a128fed2b73346b59",
+        "description": "etnaviv: blt: Fix clear_bits overflow for 32-bit formats",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "c156da579c7885ff9eb0003676ec3dac706d781f",
+        "notes": null
+    },
+    {
+        "sha": "dfad15df0b4983a271fc5e14e4470408112c7449",
+        "description": "nir/load_store_vectorize: don't update last_entry after a barrier",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "4ca7ee7bd789bba420ef4a844419977b6b78419d",
+        "notes": null
+    },
+    {
+        "sha": "b203329e0dc270896177b6d825b4a394126db4cd",
+        "description": "nir/load_store_vectorize: more carefully add entries from loop preheader",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "4ca7ee7bd789bba420ef4a844419977b6b78419d",
+        "notes": null
+    },
+    {
+        "sha": "1ad7db762b1e19601889e0ca836f059e2adf0176",
+        "description": "nvk+zink/ci: update fails & flakes for nightly jobs",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3602b6154edb3d18e55b1a50afd486ce431c85ad",
+        "description": "etnaviv: Validate MSAA sample count for depth/stencil formats",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "2b76f2e4a77dee86ddd8a163b452cfcce52b8c6a",
+        "description": "mesa: implement FRAMEBUFFER_RENDERABLE internalformat query",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ae84d41d483841ceaba5ea44646d59d4f04e9a6b",
+        "description": "radv/meta: Rework saving/restoring state",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d3cb2978b805259470b8ebf2a0ec09e0c9a4c26e",
+        "description": "radv/meta: Add and use helpers for setting state",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "090b67a16350b755982cac19e7a90e93b2152325",
+        "description": "vulkan/runtime: add support for ETC2 emulation with copy_memory_indirect",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b6f292e146342ada9893e57bb9b0532b363eb5aa",
+        "description": "vulkan/runtime: add a separate function to build ETC2 decode core shader",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0bfad39f15ecfe2e957a69fc57963a7868f16522",
+        "description": "ac/nir/ngg: re-enable use of known compile-time GS connectivity",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3b3485efa6c5ad38a21819f111bee052be05acb0",
+        "description": "freedreno/fdl: Fix compiling with GCC and AVX2",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "b554e4c727c90b88a542b86989f6664537658f85",
+        "notes": null
+    },
+    {
+        "sha": "1bb72f7c728dadffbbdc5da497ef88a2cc90694a",
+        "description": "etanviv: hwdb: Import gc_feature_database from eYs3D",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8eccbc1e8ba4c0a02e7b1b2dfd70361d65a6b92e",
+        "description": "etnaviv: hwdb: Import gc_feature_database from D-Robotics",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "609bbcc1958b721ca081228da69d0ae1d4820d96",
+        "description": "etnaviv: hwdb: Import gc_feature_database from Amlogic",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "527b642800aa570e3a655dd57ea354a731dd58ac",
+        "description": "venus: advertise VK_KHR_shader_fma",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "5d141e6e095b09cbc86ea710c4aa7a58f0239ac0",
+        "description": "venus: sync latest protocol for VK_KHR_shader_fma",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "df7d333656932dea4622e6f648eaef31b2d83f1a",
+        "description": "anv: Limit modifier disabling workaround to specific GTK versions",
+        "nominated": true,
+        "nomination_type": 1,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "656ca73b946af2294b7521a59478e4d292a02555",
+        "description": "tu/a7xx: Fix D/S corruption when loading them via load_3d_blit",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b8eb0f88d3d28dda97d1cf236410fde7d9998e4d",
+        "description": "vulkan/wsi/wayland: Correctly map 24bpp format types",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "ec6d0773517bd083c494530a25c47f9fcce4b8ca",
+        "description": "radeonsi: fix threaded shader compilation finishing after context is destroyed",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "9da2ebf09c0c705cbe58a45ffe6b41df9a992240",
+        "description": "freedreno/common: set up a830 properties",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "81512122939767bdbf5d9b7d123214c9878e80bb",
+        "description": "freedreno/common: make a8xx magic regs common between all such devices",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "860c54d0a0d8133162ccae952b24031a70ab9560",
+        "description": "ci/panvk: Skip DRM WSI tests for v10/ASan",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
         "sha": "fc3951cfde692b682ae0a79502cd7ba3b77a68d7",
         "description": "util/bitset: add an assert for big BITSET_EXTRACT",
         "nominated": false,
