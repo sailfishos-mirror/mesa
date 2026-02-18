@@ -165,6 +165,7 @@ enum vrr_tristate {
 typedef struct wsi_display_connector_metadata {
    VkHdrMetadataEXT             hdr_metadata;
    bool                         supports_st2084;
+   char                         *display_name;
 } wsi_display_connector_metadata;
 
 typedef struct wsi_display_connector {
@@ -173,7 +174,6 @@ typedef struct wsi_display_connector {
    uint32_t                     id;
    uint32_t                     crtc_id;
    uint32_t                     plane_id;
-   char                         *name;
    bool                         connected;
    bool                         active;
    bool                         imported;
@@ -286,6 +286,22 @@ wsi_display_parse_edid(struct wsi_display_connector *connector, drmModePropertyB
       chroma &&
       colorimetry && colorimetry->bt2020_rgb &&
       hdr_static_metadata && hdr_static_metadata->eotfs && hdr_static_metadata->eotfs->pq;
+
+   char *make = di_info_get_make(info);
+   char *model = di_info_get_model(info);
+   if (make && model) {
+      /* make + space + model + null terminator */
+      int display_name_size = strlen(make) + strlen(model) + 2;
+      /* Per the spec, this string remains valid for the lifetime of the VkDisplayKHR. */
+      metadata->display_name = vk_zalloc(connector->wsi->alloc,
+            display_name_size, 8,
+            VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+      if (metadata->display_name) {
+         snprintf(metadata->display_name, display_name_size, "%s %s", make, model);
+      }
+   }
+   free(make);
+   free(model);
 
    di_info_destroy(info);
 #endif
@@ -664,8 +680,6 @@ wsi_display_alloc_connector(struct wsi_display *wsi,
    connector->wsi = wsi;
    connector->active = false;
    connector->imported = imported;
-   /* XXX use EDID name */
-   connector->name = "monitor";
    list_inithead(&connector->display_modes);
 
    return connector;
@@ -679,6 +693,7 @@ wsi_display_free_connector(struct wsi_display *wsi,
       vk_free(wsi->alloc, mode);
    }
    vk_free(wsi->alloc, connector->formats);
+   vk_free(wsi->alloc, connector->metadata.display_name);
    vk_free(wsi->alloc, connector);
 }
 
@@ -764,9 +779,11 @@ wsi_display_fill_in_display_properties(struct wsi_display_connector *connector,
 {
    assert(properties2->sType == VK_STRUCTURE_TYPE_DISPLAY_PROPERTIES_2_KHR);
    VkDisplayPropertiesKHR *properties = &properties2->displayProperties;
+   const struct wsi_display_connector_metadata *metadata = &connector->metadata;
 
    properties->display = wsi_display_connector_to_handle(connector);
-   properties->displayName = connector->name;
+   /* Return product name from EDID if available, otherwise NULL. */
+   properties->displayName = metadata->display_name;
 
    /* Find the first preferred mode and assume that's the physical
     * resolution. If there isn't a preferred mode, find the largest mode and
