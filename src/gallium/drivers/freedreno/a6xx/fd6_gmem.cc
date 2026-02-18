@@ -1974,9 +1974,6 @@ fd6_emit_tile_gmem2mem(struct fd_batch *batch, const struct fd_tile *tile)
 {
    fd_cs cs(batch->gmem);
 
-   if (batch->epilogue)
-      fd6_emit_ib<CHIP>(cs, batch->epilogue);
-
    if (use_hw_binning(batch)) {
       fd6_set_render_mode<CHIP>(cs, {.mode = RM6_BIN_END_OF_DRAWS, .uses_gmem = true});
    }
@@ -2006,6 +2003,9 @@ fd6_emit_tile_fini(struct fd_batch *batch)
    fd_cs cs(batch->gmem);
 
    emit_common_fini<CHIP>(cs, batch);
+
+   if (batch->epilogue)
+      fd6_emit_ib<CHIP>(cs, batch->epilogue);
 
    fd_pkt4(cs, 1)
       .add(GRAS_LRZ_CNTL(CHIP, .enable = true));
