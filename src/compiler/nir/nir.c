@@ -3906,6 +3906,18 @@ nir_block_contains_work(nir_block *block)
    return false;
 }
 
+bool
+nir_loop_has_back_edge(nir_loop *loop)
+{
+   nir_block *header = nir_loop_first_block(loop);
+   nir_block *preheader = nir_cf_node_as_block(nir_cf_node_prev(&loop->cf_node));
+   /* We also check whether the preheader is a predecessor of the header in
+    * case there is a jump right before the loop. Usually nir_opt_dead_cf will
+    * remove this, but we might call this function before that pass. */
+   bool has_preheader = nir_block_has_pred(header, preheader);
+   return nir_block_num_preds(header) - has_preheader > 0;
+}
+
 nir_op
 nir_atomic_op_to_alu(nir_atomic_op op)
 {

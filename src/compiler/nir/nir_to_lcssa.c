@@ -342,7 +342,7 @@ convert_to_lcssa(nir_cf_node *cf_node, lcssa_state *state)
           * The variance then depends on all (nested) break conditions.
           * We don't consider this, but assume all not_invariant.
           */
-         if (nir_block_num_preds(nir_loop_first_block(loop)) == 1)
+         if (!nir_loop_has_back_edge(loop))
             goto end;
 
          nir_foreach_block_in_cf_node(block, cf_node) {

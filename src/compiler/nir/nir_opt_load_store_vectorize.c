@@ -1848,25 +1848,24 @@ static void
 add_entries_from_predecessor(struct vectorize_ctx *ctx, nir_block *block)
 {
    nir_cf_node *parent = block->cf_node.parent;
-   bool is_loop_header = false;
+   nir_loop *loop = NULL;
    if (parent->type == nir_cf_node_loop) {
-      nir_loop *loop = nir_cf_node_as_loop(parent);
-      if (block == nir_loop_first_block(loop))
-         is_loop_header = true;
+      loop = nir_cf_node_as_loop(parent);
+      if (block != nir_loop_first_block(loop))
+         loop = NULL;
    }
 
    for (unsigned i = 0; i < nir_num_variable_modes; i++) {
       struct entry *entry = NULL;
 
-      if (is_loop_header) {
+      if (loop) {
          /* If this is a loop header, just take the last entries of the preheader. */
          nir_block *preheader = nir_block_cf_tree_prev(block);
          entry = ctx->per_block_ctx[preheader->index].last_entry[i];
 
          /* If this isn't reorderable, we would have to consider the loop back-edges to safely use
           * it, in case there is an interfering store in the loop. */
-         bool has_continue = nir_block_num_preds(block) > 1 || !nir_block_has_pred(block, preheader);
-         if (entry && !(entry->access & ACCESS_CAN_REORDER) && has_continue)
+         if (entry && !(entry->access & ACCESS_CAN_REORDER) && nir_loop_has_back_edge(loop))
             entry = NULL;
       } else {
          /* If all predecessor entries are the same, the entry dominates the block. */

@@ -3916,6 +3916,8 @@ nir_loop_last_continue_block(nir_loop *loop)
    return nir_cf_node_as_block(exec_node_data(nir_cf_node, tail, node));
 }
 
+bool nir_loop_has_back_edge(nir_loop *loop);
+
 /**
  * Return true if this list of cf_nodes contains a single empty block.
  */
