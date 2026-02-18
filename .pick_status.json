@@ -1874,7 +1874,7 @@
         "description": "anv: disable ccs modifier reporting when ccs modifiers are disabled",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2418c9153758783d250982f9b84fb65b1b484294",
         "notes": null
