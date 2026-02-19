@@ -830,7 +830,7 @@ vn_sizeof_VkImageViewCreateInfo_pnext(const void *val)
         case VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO:
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkImageViewCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkImageViewCreateInfo_pnext(((const VkImageViewUsageCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkImageViewUsageCreateInfo_self((const VkImageViewUsageCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_IMAGE_VIEW_SLICED_CREATE_INFO_EXT:
@@ -838,13 +838,13 @@ vn_sizeof_VkImageViewCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkImageViewCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkImageViewCreateInfo_pnext(((const VkImageViewSlicedCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkImageViewSlicedCreateInfoEXT_self((const VkImageViewSlicedCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO:
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkImageViewCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkImageViewCreateInfo_pnext(((const VkSamplerYcbcrConversionInfo *)pnext)->pNext);
             size += vn_sizeof_VkSamplerYcbcrConversionInfo_self((const VkSamplerYcbcrConversionInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_IMAGE_VIEW_MIN_LOD_CREATE_INFO_EXT:
@@ -852,7 +852,7 @@ vn_sizeof_VkImageViewCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkImageViewCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkImageViewCreateInfo_pnext(((const VkImageViewMinLodCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkImageViewMinLodCreateInfoEXT_self((const VkImageViewMinLodCreateInfoEXT *)pnext);
             return size;
         default:
@@ -901,7 +901,7 @@ vn_encode_VkImageViewCreateInfo_pnext(struct vn_cs_encoder *enc, const void *val
         case VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO:
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkImageViewCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkImageViewCreateInfo_pnext(enc, ((const VkImageViewUsageCreateInfo *)pnext)->pNext);
             vn_encode_VkImageViewUsageCreateInfo_self(enc, (const VkImageViewUsageCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_IMAGE_VIEW_SLICED_CREATE_INFO_EXT:
@@ -909,13 +909,13 @@ vn_encode_VkImageViewCreateInfo_pnext(struct vn_cs_encoder *enc, const void *val
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkImageViewCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkImageViewCreateInfo_pnext(enc, ((const VkImageViewSlicedCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkImageViewSlicedCreateInfoEXT_self(enc, (const VkImageViewSlicedCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO:
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkImageViewCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkImageViewCreateInfo_pnext(enc, ((const VkSamplerYcbcrConversionInfo *)pnext)->pNext);
             vn_encode_VkSamplerYcbcrConversionInfo_self(enc, (const VkSamplerYcbcrConversionInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_IMAGE_VIEW_MIN_LOD_CREATE_INFO_EXT:
@@ -923,7 +923,7 @@ vn_encode_VkImageViewCreateInfo_pnext(struct vn_cs_encoder *enc, const void *val
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkImageViewCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkImageViewCreateInfo_pnext(enc, ((const VkImageViewMinLodCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkImageViewMinLodCreateInfoEXT_self(enc, (const VkImageViewMinLodCreateInfoEXT *)pnext);
             return;
         default:
@@ -1304,13 +1304,13 @@ vn_sizeof_VkSamplerCreateInfo_pnext(const void *val)
         case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO:
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkSamplerCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkSamplerCreateInfo_pnext(((const VkSamplerYcbcrConversionInfo *)pnext)->pNext);
             size += vn_sizeof_VkSamplerYcbcrConversionInfo_self((const VkSamplerYcbcrConversionInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO:
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkSamplerCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkSamplerCreateInfo_pnext(((const VkSamplerReductionModeCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkSamplerReductionModeCreateInfo_self((const VkSamplerReductionModeCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT:
@@ -1318,7 +1318,7 @@ vn_sizeof_VkSamplerCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkSamplerCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkSamplerCreateInfo_pnext(((const VkSamplerCustomBorderColorCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkSamplerCustomBorderColorCreateInfoEXT_self((const VkSamplerCustomBorderColorCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_SAMPLER_BORDER_COLOR_COMPONENT_MAPPING_CREATE_INFO_EXT:
@@ -1326,7 +1326,7 @@ vn_sizeof_VkSamplerCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkSamplerCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkSamplerCreateInfo_pnext(((const VkSamplerBorderColorComponentMappingCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkSamplerBorderColorComponentMappingCreateInfoEXT_self((const VkSamplerBorderColorComponentMappingCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_INDEX_CREATE_INFO_EXT:
@@ -1334,7 +1334,7 @@ vn_sizeof_VkSamplerCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkSamplerCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkSamplerCreateInfo_pnext(((const VkSamplerCustomBorderColorIndexCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkSamplerCustomBorderColorIndexCreateInfoEXT_self((const VkSamplerCustomBorderColorIndexCreateInfoEXT *)pnext);
             return size;
         default:
@@ -1393,13 +1393,13 @@ vn_encode_VkSamplerCreateInfo_pnext(struct vn_cs_encoder *enc, const void *val)
         case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO:
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkSamplerCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkSamplerCreateInfo_pnext(enc, ((const VkSamplerYcbcrConversionInfo *)pnext)->pNext);
             vn_encode_VkSamplerYcbcrConversionInfo_self(enc, (const VkSamplerYcbcrConversionInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO:
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkSamplerCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkSamplerCreateInfo_pnext(enc, ((const VkSamplerReductionModeCreateInfo *)pnext)->pNext);
             vn_encode_VkSamplerReductionModeCreateInfo_self(enc, (const VkSamplerReductionModeCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_CREATE_INFO_EXT:
@@ -1407,7 +1407,7 @@ vn_encode_VkSamplerCreateInfo_pnext(struct vn_cs_encoder *enc, const void *val)
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkSamplerCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkSamplerCreateInfo_pnext(enc, ((const VkSamplerCustomBorderColorCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkSamplerCustomBorderColorCreateInfoEXT_self(enc, (const VkSamplerCustomBorderColorCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_SAMPLER_BORDER_COLOR_COMPONENT_MAPPING_CREATE_INFO_EXT:
@@ -1415,7 +1415,7 @@ vn_encode_VkSamplerCreateInfo_pnext(struct vn_cs_encoder *enc, const void *val)
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkSamplerCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkSamplerCreateInfo_pnext(enc, ((const VkSamplerBorderColorComponentMappingCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkSamplerBorderColorComponentMappingCreateInfoEXT_self(enc, (const VkSamplerBorderColorComponentMappingCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_SAMPLER_CUSTOM_BORDER_COLOR_INDEX_CREATE_INFO_EXT:
@@ -1423,7 +1423,7 @@ vn_encode_VkSamplerCreateInfo_pnext(struct vn_cs_encoder *enc, const void *val)
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkSamplerCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkSamplerCreateInfo_pnext(enc, ((const VkSamplerCustomBorderColorIndexCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkSamplerCustomBorderColorIndexCreateInfoEXT_self(enc, (const VkSamplerCustomBorderColorIndexCreateInfoEXT *)pnext);
             return;
         default:
@@ -2305,7 +2305,7 @@ vn_sizeof_VkWriteDescriptorSet_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkWriteDescriptorSet_pnext(pnext->pNext);
+            size += vn_sizeof_VkWriteDescriptorSet_pnext(((const VkWriteDescriptorSetInlineUniformBlock *)pnext)->pNext);
             size += vn_sizeof_VkWriteDescriptorSetInlineUniformBlock_self((const VkWriteDescriptorSetInlineUniformBlock *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR:
@@ -2313,7 +2313,7 @@ vn_sizeof_VkWriteDescriptorSet_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkWriteDescriptorSet_pnext(pnext->pNext);
+            size += vn_sizeof_VkWriteDescriptorSet_pnext(((const VkWriteDescriptorSetAccelerationStructureKHR *)pnext)->pNext);
             size += vn_sizeof_VkWriteDescriptorSetAccelerationStructureKHR_self((const VkWriteDescriptorSetAccelerationStructureKHR *)pnext);
             return size;
         default:
@@ -2384,7 +2384,7 @@ vn_encode_VkWriteDescriptorSet_pnext(struct vn_cs_encoder *enc, const void *val)
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkWriteDescriptorSet_pnext(enc, pnext->pNext);
+            vn_encode_VkWriteDescriptorSet_pnext(enc, ((const VkWriteDescriptorSetInlineUniformBlock *)pnext)->pNext);
             vn_encode_VkWriteDescriptorSetInlineUniformBlock_self(enc, (const VkWriteDescriptorSetInlineUniformBlock *)pnext);
             return;
         case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR:
@@ -2392,7 +2392,7 @@ vn_encode_VkWriteDescriptorSet_pnext(struct vn_cs_encoder *enc, const void *val)
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkWriteDescriptorSet_pnext(enc, pnext->pNext);
+            vn_encode_VkWriteDescriptorSet_pnext(enc, ((const VkWriteDescriptorSetAccelerationStructureKHR *)pnext)->pNext);
             vn_encode_VkWriteDescriptorSetAccelerationStructureKHR_self(enc, (const VkWriteDescriptorSetAccelerationStructureKHR *)pnext);
             return;
         default:
@@ -2667,7 +2667,7 @@ vn_sizeof_VkMemoryRequirements2_pnext(const void *val)
         case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS:
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkMemoryRequirements2_pnext(pnext->pNext);
+            size += vn_sizeof_VkMemoryRequirements2_pnext(((const VkMemoryDedicatedRequirements *)pnext)->pNext);
             size += vn_sizeof_VkMemoryDedicatedRequirements_self((const VkMemoryDedicatedRequirements *)pnext);
             return size;
         default:
@@ -2721,7 +2721,7 @@ vn_decode_VkMemoryRequirements2_pnext(struct vn_cs_decoder *dec, const void *val
 
     switch ((int32_t)pnext->sType) {
     case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS:
-        vn_decode_VkMemoryRequirements2_pnext(dec, pnext->pNext);
+        vn_decode_VkMemoryRequirements2_pnext(dec, ((VkMemoryDedicatedRequirements *)pnext)->pNext);
         vn_decode_VkMemoryDedicatedRequirements_self(dec, (VkMemoryDedicatedRequirements *)pnext);
         break;
     default:
@@ -2760,7 +2760,7 @@ vn_sizeof_VkMemoryRequirements2_pnext_partial(const void *val)
         case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS:
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkMemoryRequirements2_pnext_partial(pnext->pNext);
+            size += vn_sizeof_VkMemoryRequirements2_pnext_partial(((const VkMemoryDedicatedRequirements *)pnext)->pNext);
             size += vn_sizeof_VkMemoryDedicatedRequirements_self_partial((const VkMemoryDedicatedRequirements *)pnext);
             return size;
         default:
@@ -2804,7 +2804,7 @@ vn_encode_VkMemoryRequirements2_pnext_partial(struct vn_cs_encoder *enc, const v
         case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS:
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkMemoryRequirements2_pnext_partial(enc, pnext->pNext);
+            vn_encode_VkMemoryRequirements2_pnext_partial(enc, ((const VkMemoryDedicatedRequirements *)pnext)->pNext);
             vn_encode_VkMemoryDedicatedRequirements_self_partial(enc, (const VkMemoryDedicatedRequirements *)pnext);
             return;
         default:

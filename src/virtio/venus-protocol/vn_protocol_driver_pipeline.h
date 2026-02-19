@@ -636,7 +636,7 @@ vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(const void *val)
         case VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO:
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(((const VkShaderModuleCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkShaderModuleCreateInfo_self((const VkShaderModuleCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO:
@@ -644,7 +644,7 @@ vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(((const VkPipelineShaderStageRequiredSubgroupSizeCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineShaderStageRequiredSubgroupSizeCreateInfo_self((const VkPipelineShaderStageRequiredSubgroupSizeCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO:
@@ -652,7 +652,7 @@ vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(((const VkPipelineRobustnessCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRobustnessCreateInfo_self((const VkPipelineRobustnessCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT:
@@ -660,7 +660,7 @@ vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineShaderStageCreateInfo_pnext(((const VkShaderDescriptorSetAndBindingMappingInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkShaderDescriptorSetAndBindingMappingInfoEXT_self((const VkShaderDescriptorSetAndBindingMappingInfoEXT *)pnext);
             return size;
         default:
@@ -716,7 +716,7 @@ vn_encode_VkPipelineShaderStageCreateInfo_pnext(struct vn_cs_encoder *enc, const
         case VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO:
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, ((const VkShaderModuleCreateInfo *)pnext)->pNext);
             vn_encode_VkShaderModuleCreateInfo_self(enc, (const VkShaderModuleCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO:
@@ -724,7 +724,7 @@ vn_encode_VkPipelineShaderStageCreateInfo_pnext(struct vn_cs_encoder *enc, const
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, ((const VkPipelineShaderStageRequiredSubgroupSizeCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineShaderStageRequiredSubgroupSizeCreateInfo_self(enc, (const VkPipelineShaderStageRequiredSubgroupSizeCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO:
@@ -732,7 +732,7 @@ vn_encode_VkPipelineShaderStageCreateInfo_pnext(struct vn_cs_encoder *enc, const
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, ((const VkPipelineRobustnessCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineRobustnessCreateInfo_self(enc, (const VkPipelineRobustnessCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_SHADER_DESCRIPTOR_SET_AND_BINDING_MAPPING_INFO_EXT:
@@ -740,7 +740,7 @@ vn_encode_VkPipelineShaderStageCreateInfo_pnext(struct vn_cs_encoder *enc, const
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineShaderStageCreateInfo_pnext(enc, ((const VkShaderDescriptorSetAndBindingMappingInfoEXT *)pnext)->pNext);
             vn_encode_VkShaderDescriptorSetAndBindingMappingInfoEXT_self(enc, (const VkShaderDescriptorSetAndBindingMappingInfoEXT *)pnext);
             return;
         default:
@@ -922,7 +922,7 @@ vn_sizeof_VkPipelineVertexInputStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineVertexInputStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineVertexInputStateCreateInfo_pnext(((const VkPipelineVertexInputDivisorStateCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineVertexInputDivisorStateCreateInfo_self((const VkPipelineVertexInputDivisorStateCreateInfo *)pnext);
             return size;
         default:
@@ -984,7 +984,7 @@ vn_encode_VkPipelineVertexInputStateCreateInfo_pnext(struct vn_cs_encoder *enc, 
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineVertexInputStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineVertexInputStateCreateInfo_pnext(enc, ((const VkPipelineVertexInputDivisorStateCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineVertexInputDivisorStateCreateInfo_self(enc, (const VkPipelineVertexInputDivisorStateCreateInfo *)pnext);
             return;
         default:
@@ -1152,7 +1152,7 @@ vn_sizeof_VkPipelineTessellationStateCreateInfo_pnext(const void *val)
         case VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_DOMAIN_ORIGIN_STATE_CREATE_INFO:
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineTessellationStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineTessellationStateCreateInfo_pnext(((const VkPipelineTessellationDomainOriginStateCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineTessellationDomainOriginStateCreateInfo_self((const VkPipelineTessellationDomainOriginStateCreateInfo *)pnext);
             return size;
         default:
@@ -1197,7 +1197,7 @@ vn_encode_VkPipelineTessellationStateCreateInfo_pnext(struct vn_cs_encoder *enc,
         case VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_DOMAIN_ORIGIN_STATE_CREATE_INFO:
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineTessellationStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineTessellationStateCreateInfo_pnext(enc, ((const VkPipelineTessellationDomainOriginStateCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineTessellationDomainOriginStateCreateInfo_self(enc, (const VkPipelineTessellationDomainOriginStateCreateInfo *)pnext);
             return;
         default:
@@ -1353,7 +1353,7 @@ vn_sizeof_VkPipelineViewportStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineViewportStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineViewportStateCreateInfo_pnext(((const VkPipelineViewportDepthClipControlCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkPipelineViewportDepthClipControlCreateInfoEXT_self((const VkPipelineViewportDepthClipControlCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_DEPTH_CLAMP_CONTROL_CREATE_INFO_EXT:
@@ -1361,7 +1361,7 @@ vn_sizeof_VkPipelineViewportStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineViewportStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineViewportStateCreateInfo_pnext(((const VkPipelineViewportDepthClampControlCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkPipelineViewportDepthClampControlCreateInfoEXT_self((const VkPipelineViewportDepthClampControlCreateInfoEXT *)pnext);
             return size;
         default:
@@ -1423,7 +1423,7 @@ vn_encode_VkPipelineViewportStateCreateInfo_pnext(struct vn_cs_encoder *enc, con
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineViewportStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineViewportStateCreateInfo_pnext(enc, ((const VkPipelineViewportDepthClipControlCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkPipelineViewportDepthClipControlCreateInfoEXT_self(enc, (const VkPipelineViewportDepthClipControlCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_DEPTH_CLAMP_CONTROL_CREATE_INFO_EXT:
@@ -1431,7 +1431,7 @@ vn_encode_VkPipelineViewportStateCreateInfo_pnext(struct vn_cs_encoder *enc, con
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineViewportStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineViewportStateCreateInfo_pnext(enc, ((const VkPipelineViewportDepthClampControlCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkPipelineViewportDepthClampControlCreateInfoEXT_self(enc, (const VkPipelineViewportDepthClampControlCreateInfoEXT *)pnext);
             return;
         default:
@@ -1770,7 +1770,7 @@ vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(((const VkPipelineRasterizationConservativeStateCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRasterizationConservativeStateCreateInfoEXT_self((const VkPipelineRasterizationConservativeStateCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT:
@@ -1778,7 +1778,7 @@ vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(((const VkPipelineRasterizationStateStreamCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRasterizationStateStreamCreateInfoEXT_self((const VkPipelineRasterizationStateStreamCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_DEPTH_CLIP_STATE_CREATE_INFO_EXT:
@@ -1786,7 +1786,7 @@ vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(((const VkPipelineRasterizationDepthClipStateCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRasterizationDepthClipStateCreateInfoEXT_self((const VkPipelineRasterizationDepthClipStateCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO:
@@ -1794,7 +1794,7 @@ vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(((const VkPipelineRasterizationLineStateCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRasterizationLineStateCreateInfo_self((const VkPipelineRasterizationLineStateCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_PROVOKING_VERTEX_STATE_CREATE_INFO_EXT:
@@ -1802,7 +1802,7 @@ vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(((const VkPipelineRasterizationProvokingVertexStateCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRasterizationProvokingVertexStateCreateInfoEXT_self((const VkPipelineRasterizationProvokingVertexStateCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_DEPTH_BIAS_REPRESENTATION_INFO_EXT:
@@ -1810,7 +1810,7 @@ vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineRasterizationStateCreateInfo_pnext(((const VkDepthBiasRepresentationInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkDepthBiasRepresentationInfoEXT_self((const VkDepthBiasRepresentationInfoEXT *)pnext);
             return size;
         default:
@@ -1866,7 +1866,7 @@ vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(struct vn_cs_encoder *enc
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, ((const VkPipelineRasterizationConservativeStateCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkPipelineRasterizationConservativeStateCreateInfoEXT_self(enc, (const VkPipelineRasterizationConservativeStateCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT:
@@ -1874,7 +1874,7 @@ vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(struct vn_cs_encoder *enc
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, ((const VkPipelineRasterizationStateStreamCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkPipelineRasterizationStateStreamCreateInfoEXT_self(enc, (const VkPipelineRasterizationStateStreamCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_DEPTH_CLIP_STATE_CREATE_INFO_EXT:
@@ -1882,7 +1882,7 @@ vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(struct vn_cs_encoder *enc
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, ((const VkPipelineRasterizationDepthClipStateCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkPipelineRasterizationDepthClipStateCreateInfoEXT_self(enc, (const VkPipelineRasterizationDepthClipStateCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO:
@@ -1890,7 +1890,7 @@ vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(struct vn_cs_encoder *enc
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, ((const VkPipelineRasterizationLineStateCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineRasterizationLineStateCreateInfo_self(enc, (const VkPipelineRasterizationLineStateCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_PROVOKING_VERTEX_STATE_CREATE_INFO_EXT:
@@ -1898,7 +1898,7 @@ vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(struct vn_cs_encoder *enc
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, ((const VkPipelineRasterizationProvokingVertexStateCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkPipelineRasterizationProvokingVertexStateCreateInfoEXT_self(enc, (const VkPipelineRasterizationProvokingVertexStateCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_DEPTH_BIAS_REPRESENTATION_INFO_EXT:
@@ -1906,7 +1906,7 @@ vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(struct vn_cs_encoder *enc
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineRasterizationStateCreateInfo_pnext(enc, ((const VkDepthBiasRepresentationInfoEXT *)pnext)->pNext);
             vn_encode_VkDepthBiasRepresentationInfoEXT_self(enc, (const VkDepthBiasRepresentationInfoEXT *)pnext);
             return;
         default:
@@ -2015,7 +2015,7 @@ vn_sizeof_VkPipelineMultisampleStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineMultisampleStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineMultisampleStateCreateInfo_pnext(((const VkPipelineSampleLocationsStateCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkPipelineSampleLocationsStateCreateInfoEXT_self((const VkPipelineSampleLocationsStateCreateInfoEXT *)pnext);
             return size;
         default:
@@ -2072,7 +2072,7 @@ vn_encode_VkPipelineMultisampleStateCreateInfo_pnext(struct vn_cs_encoder *enc, 
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineMultisampleStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineMultisampleStateCreateInfo_pnext(enc, ((const VkPipelineSampleLocationsStateCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkPipelineSampleLocationsStateCreateInfoEXT_self(enc, (const VkPipelineSampleLocationsStateCreateInfoEXT *)pnext);
             return;
         default:
@@ -2378,7 +2378,7 @@ vn_sizeof_VkPipelineColorBlendStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineColorBlendStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineColorBlendStateCreateInfo_pnext(((const VkPipelineColorBlendAdvancedStateCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkPipelineColorBlendAdvancedStateCreateInfoEXT_self((const VkPipelineColorBlendAdvancedStateCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_COLOR_WRITE_CREATE_INFO_EXT:
@@ -2386,7 +2386,7 @@ vn_sizeof_VkPipelineColorBlendStateCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkPipelineColorBlendStateCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkPipelineColorBlendStateCreateInfo_pnext(((const VkPipelineColorWriteCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkPipelineColorWriteCreateInfoEXT_self((const VkPipelineColorWriteCreateInfoEXT *)pnext);
             return size;
         default:
@@ -2444,7 +2444,7 @@ vn_encode_VkPipelineColorBlendStateCreateInfo_pnext(struct vn_cs_encoder *enc, c
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineColorBlendStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineColorBlendStateCreateInfo_pnext(enc, ((const VkPipelineColorBlendAdvancedStateCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkPipelineColorBlendAdvancedStateCreateInfoEXT_self(enc, (const VkPipelineColorBlendAdvancedStateCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_COLOR_WRITE_CREATE_INFO_EXT:
@@ -2452,7 +2452,7 @@ vn_encode_VkPipelineColorBlendStateCreateInfo_pnext(struct vn_cs_encoder *enc, c
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkPipelineColorBlendStateCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkPipelineColorBlendStateCreateInfo_pnext(enc, ((const VkPipelineColorWriteCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkPipelineColorWriteCreateInfoEXT_self(enc, (const VkPipelineColorWriteCreateInfoEXT *)pnext);
             return;
         default:
@@ -2966,7 +2966,7 @@ vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(((const VkPipelineCreateFlags2CreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineCreateFlags2CreateInfo_self((const VkPipelineCreateFlags2CreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR:
@@ -2974,7 +2974,7 @@ vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(((const VkPipelineLibraryCreateInfoKHR *)pnext)->pNext);
             size += vn_sizeof_VkPipelineLibraryCreateInfoKHR_self((const VkPipelineLibraryCreateInfoKHR *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO:
@@ -2982,7 +2982,7 @@ vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(((const VkPipelineCreationFeedbackCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineCreationFeedbackCreateInfo_self((const VkPipelineCreationFeedbackCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_FRAGMENT_SHADING_RATE_STATE_CREATE_INFO_KHR:
@@ -2990,7 +2990,7 @@ vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(((const VkPipelineFragmentShadingRateStateCreateInfoKHR *)pnext)->pNext);
             size += vn_sizeof_VkPipelineFragmentShadingRateStateCreateInfoKHR_self((const VkPipelineFragmentShadingRateStateCreateInfoKHR *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO:
@@ -2998,7 +2998,7 @@ vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(((const VkPipelineRenderingCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRenderingCreateInfo_self((const VkPipelineRenderingCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_LIBRARY_CREATE_INFO_EXT:
@@ -3006,7 +3006,7 @@ vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(((const VkGraphicsPipelineLibraryCreateInfoEXT *)pnext)->pNext);
             size += vn_sizeof_VkGraphicsPipelineLibraryCreateInfoEXT_self((const VkGraphicsPipelineLibraryCreateInfoEXT *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO:
@@ -3014,7 +3014,7 @@ vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(((const VkPipelineRobustnessCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRobustnessCreateInfo_self((const VkPipelineRobustnessCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_LOCATION_INFO:
@@ -3022,7 +3022,7 @@ vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(((const VkRenderingAttachmentLocationInfo *)pnext)->pNext);
             size += vn_sizeof_VkRenderingAttachmentLocationInfo_self((const VkRenderingAttachmentLocationInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO:
@@ -3030,7 +3030,7 @@ vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkGraphicsPipelineCreateInfo_pnext(((const VkRenderingInputAttachmentIndexInfo *)pnext)->pNext);
             size += vn_sizeof_VkRenderingInputAttachmentIndexInfo_self((const VkRenderingInputAttachmentIndexInfo *)pnext);
             return size;
         default:
@@ -3116,7 +3116,7 @@ vn_encode_VkGraphicsPipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const vo
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, ((const VkPipelineCreateFlags2CreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineCreateFlags2CreateInfo_self(enc, (const VkPipelineCreateFlags2CreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR:
@@ -3124,7 +3124,7 @@ vn_encode_VkGraphicsPipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const vo
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, ((const VkPipelineLibraryCreateInfoKHR *)pnext)->pNext);
             vn_encode_VkPipelineLibraryCreateInfoKHR_self(enc, (const VkPipelineLibraryCreateInfoKHR *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO:
@@ -3132,7 +3132,7 @@ vn_encode_VkGraphicsPipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const vo
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, ((const VkPipelineCreationFeedbackCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineCreationFeedbackCreateInfo_self(enc, (const VkPipelineCreationFeedbackCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_FRAGMENT_SHADING_RATE_STATE_CREATE_INFO_KHR:
@@ -3140,7 +3140,7 @@ vn_encode_VkGraphicsPipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const vo
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, ((const VkPipelineFragmentShadingRateStateCreateInfoKHR *)pnext)->pNext);
             vn_encode_VkPipelineFragmentShadingRateStateCreateInfoKHR_self(enc, (const VkPipelineFragmentShadingRateStateCreateInfoKHR *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO:
@@ -3148,7 +3148,7 @@ vn_encode_VkGraphicsPipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const vo
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, ((const VkPipelineRenderingCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineRenderingCreateInfo_self(enc, (const VkPipelineRenderingCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_LIBRARY_CREATE_INFO_EXT:
@@ -3156,7 +3156,7 @@ vn_encode_VkGraphicsPipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const vo
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, ((const VkGraphicsPipelineLibraryCreateInfoEXT *)pnext)->pNext);
             vn_encode_VkGraphicsPipelineLibraryCreateInfoEXT_self(enc, (const VkGraphicsPipelineLibraryCreateInfoEXT *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO:
@@ -3164,7 +3164,7 @@ vn_encode_VkGraphicsPipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const vo
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, ((const VkPipelineRobustnessCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineRobustnessCreateInfo_self(enc, (const VkPipelineRobustnessCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_LOCATION_INFO:
@@ -3172,7 +3172,7 @@ vn_encode_VkGraphicsPipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const vo
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, ((const VkRenderingAttachmentLocationInfo *)pnext)->pNext);
             vn_encode_VkRenderingAttachmentLocationInfo_self(enc, (const VkRenderingAttachmentLocationInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_RENDERING_INPUT_ATTACHMENT_INDEX_INFO:
@@ -3180,7 +3180,7 @@ vn_encode_VkGraphicsPipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const vo
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkGraphicsPipelineCreateInfo_pnext(enc, ((const VkRenderingInputAttachmentIndexInfo *)pnext)->pNext);
             vn_encode_VkRenderingInputAttachmentIndexInfo_self(enc, (const VkRenderingInputAttachmentIndexInfo *)pnext);
             return;
         default:
@@ -3255,7 +3255,7 @@ vn_sizeof_VkComputePipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkComputePipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkComputePipelineCreateInfo_pnext(((const VkPipelineCreateFlags2CreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineCreateFlags2CreateInfo_self((const VkPipelineCreateFlags2CreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO:
@@ -3263,7 +3263,7 @@ vn_sizeof_VkComputePipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkComputePipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkComputePipelineCreateInfo_pnext(((const VkPipelineCreationFeedbackCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineCreationFeedbackCreateInfo_self((const VkPipelineCreationFeedbackCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO:
@@ -3271,7 +3271,7 @@ vn_sizeof_VkComputePipelineCreateInfo_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkComputePipelineCreateInfo_pnext(pnext->pNext);
+            size += vn_sizeof_VkComputePipelineCreateInfo_pnext(((const VkPipelineRobustnessCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRobustnessCreateInfo_self((const VkPipelineRobustnessCreateInfo *)pnext);
             return size;
         default:
@@ -3321,7 +3321,7 @@ vn_encode_VkComputePipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const voi
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkComputePipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkComputePipelineCreateInfo_pnext(enc, ((const VkPipelineCreateFlags2CreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineCreateFlags2CreateInfo_self(enc, (const VkPipelineCreateFlags2CreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO:
@@ -3329,7 +3329,7 @@ vn_encode_VkComputePipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const voi
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkComputePipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkComputePipelineCreateInfo_pnext(enc, ((const VkPipelineCreationFeedbackCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineCreationFeedbackCreateInfo_self(enc, (const VkPipelineCreationFeedbackCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO:
@@ -3337,7 +3337,7 @@ vn_encode_VkComputePipelineCreateInfo_pnext(struct vn_cs_encoder *enc, const voi
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkComputePipelineCreateInfo_pnext(enc, pnext->pNext);
+            vn_encode_VkComputePipelineCreateInfo_pnext(enc, ((const VkPipelineRobustnessCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineRobustnessCreateInfo_self(enc, (const VkPipelineRobustnessCreateInfo *)pnext);
             return;
         default:
@@ -3506,7 +3506,7 @@ vn_sizeof_VkRayTracingPipelineCreateInfoKHR_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkRayTracingPipelineCreateInfoKHR_pnext(pnext->pNext);
+            size += vn_sizeof_VkRayTracingPipelineCreateInfoKHR_pnext(((const VkPipelineCreateFlags2CreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineCreateFlags2CreateInfo_self((const VkPipelineCreateFlags2CreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO:
@@ -3514,7 +3514,7 @@ vn_sizeof_VkRayTracingPipelineCreateInfoKHR_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkRayTracingPipelineCreateInfoKHR_pnext(pnext->pNext);
+            size += vn_sizeof_VkRayTracingPipelineCreateInfoKHR_pnext(((const VkPipelineCreationFeedbackCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineCreationFeedbackCreateInfo_self((const VkPipelineCreationFeedbackCreateInfo *)pnext);
             return size;
         case VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO:
@@ -3522,7 +3522,7 @@ vn_sizeof_VkRayTracingPipelineCreateInfoKHR_pnext(const void *val)
                 break;
             size += vn_sizeof_simple_pointer(pnext);
             size += vn_sizeof_VkStructureType(&pnext->sType);
-            size += vn_sizeof_VkRayTracingPipelineCreateInfoKHR_pnext(pnext->pNext);
+            size += vn_sizeof_VkRayTracingPipelineCreateInfoKHR_pnext(((const VkPipelineRobustnessCreateInfo *)pnext)->pNext);
             size += vn_sizeof_VkPipelineRobustnessCreateInfo_self((const VkPipelineRobustnessCreateInfo *)pnext);
             return size;
         default:
@@ -3597,7 +3597,7 @@ vn_encode_VkRayTracingPipelineCreateInfoKHR_pnext(struct vn_cs_encoder *enc, con
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkRayTracingPipelineCreateInfoKHR_pnext(enc, pnext->pNext);
+            vn_encode_VkRayTracingPipelineCreateInfoKHR_pnext(enc, ((const VkPipelineCreateFlags2CreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineCreateFlags2CreateInfo_self(enc, (const VkPipelineCreateFlags2CreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO:
@@ -3605,7 +3605,7 @@ vn_encode_VkRayTracingPipelineCreateInfoKHR_pnext(struct vn_cs_encoder *enc, con
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkRayTracingPipelineCreateInfoKHR_pnext(enc, pnext->pNext);
+            vn_encode_VkRayTracingPipelineCreateInfoKHR_pnext(enc, ((const VkPipelineCreationFeedbackCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineCreationFeedbackCreateInfo_self(enc, (const VkPipelineCreationFeedbackCreateInfo *)pnext);
             return;
         case VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO:
@@ -3613,7 +3613,7 @@ vn_encode_VkRayTracingPipelineCreateInfoKHR_pnext(struct vn_cs_encoder *enc, con
                 break;
             vn_encode_simple_pointer(enc, pnext);
             vn_encode_VkStructureType(enc, &pnext->sType);
-            vn_encode_VkRayTracingPipelineCreateInfoKHR_pnext(enc, pnext->pNext);
+            vn_encode_VkRayTracingPipelineCreateInfoKHR_pnext(enc, ((const VkPipelineRobustnessCreateInfo *)pnext)->pNext);
             vn_encode_VkPipelineRobustnessCreateInfo_self(enc, (const VkPipelineRobustnessCreateInfo *)pnext);
             return;
         default:
