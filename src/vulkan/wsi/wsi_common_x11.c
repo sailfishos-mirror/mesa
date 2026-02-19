@@ -1293,6 +1293,7 @@ struct x11_swapchain {
 
    struct wsi_image_timing_request              timing_request;
    bool                                         has_reliable_msc;
+   bool                                         last_complete_is_flip;
 
    struct x11_image                             images[0];
 };
@@ -1396,6 +1397,8 @@ static void x11_present_complete(struct x11_swapchain *swapchain,
                                  struct x11_image *image, uint32_t index,
                                  uint64_t msc, uint64_t ust, bool flip)
 {
+   swapchain->last_complete_is_flip = flip;
+
    /* Update estimate for refresh rate. */
    if (swapchain->base.present_timing.active)
       x11_present_update_refresh_cycle_estimate(swapchain, msc, ust, flip);
@@ -1994,6 +1997,25 @@ x11_needs_wait_for_fences(const struct wsi_device *wsi_device,
    }
 }
 
+static bool
+x11_swapchain_present_timing_is_out_of_order_completion(
+      const struct x11_swapchain *chain,
+      struct wsi_x11_connection *wsi_conn,
+      const struct wsi_image_timing_request *request)
+{
+   /* On native X11, COMPLETE can be called even before the GPU is done rendering when not flipping.
+    * This creates a lot of confusion for present timing since we have no way to
+    * guarantee anything useful.
+    *
+    * The transition between blit and flip could create a small blip where timings are not quite accurate,
+    * since we base our decisions on the previously completed frame.
+    *
+    * The primary way this weirdness manifests for present timing is that COMPLETE may get signaled,
+    * but the timestamp query has not yet been written and we cannot properly report timestamps.
+    */
+   return !chain->last_complete_is_flip && !wsi_conn->is_xwayland && (request->feedback || request->time);
+}
+
 /* This matches Wayland. */
 #define X11_SWAPCHAIN_MAILBOX_IMAGES 4
 
@@ -2485,10 +2507,15 @@ x11_manage_present_queue(void *state)
 
       VkPresentModeKHR present_mode = chain->images[image_index].present_mode;
 
-      if (x11_needs_wait_for_fences(chain->base.wsi, wsi_conn,
-                                    present_mode) &&
-          /* not necessary with explicit sync */
-          !chain->base.image_info.explicit_sync) {
+      /* Not necessary to block when we have explicit sync */
+      bool need_fence_wait =
+            x11_needs_wait_for_fences(chain->base.wsi, wsi_conn, present_mode) &&
+            !chain->base.image_info.explicit_sync;
+
+      bool need_timing_fence_wait = x11_swapchain_present_timing_is_out_of_order_completion(
+            chain, wsi_conn, &chain->images[image_index].timing_request);
+
+      if (need_fence_wait || need_timing_fence_wait) {
          MESA_TRACE_SCOPE("wait fence");
          result = chain->base.wsi->WaitForFences(chain->base.device, 1,
                                                  &chain->base.fences[image_index],
