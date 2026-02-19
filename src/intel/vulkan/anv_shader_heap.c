@@ -137,8 +137,28 @@ anv_shader_heap_alloc(struct anv_shader_heap *heap,
    struct anv_shader_alloc alloc = {};
 
    if (addr != 0) {
+      /* BSpec 56653:
+       *
+       *    "Due to prefetch of the instruction stream, the EUs may attempt to
+       *     access up to 56 cachelines (3584b) beyond the end of the kernel"
+       *
+       *    "Note that the General State Access Upper Bound field of the
+       *     STATE_BASE_ADDRESS command can be used to prevent memory accesses
+       *     past the end of the General State heap (where kernel programs
+       *     must reside)."
+       *
+       * To avoid page faults, we add the required padding to the upper address
+       * bound when allocating the buffers to back the shader allocation. If
+       * the resulting padded address range goes beyond the end of the heap, we
+       * can safely clamp it because we will program the instruction buffer
+       * size in STATE_BASE_ADDRESS to be equal to the shader heap VA range.
+       */
+      const unsigned overfetch_size = 3584;
+      uint64_t bound = addr + size + overfetch_size;
+      bound = MIN2(bound, heap->va_range.addr + heap->va_range.size);
+
       const uint32_t bo_begin_idx = shader_bo_index(heap, addr);
-      const uint32_t bo_end_idx = shader_bo_index(heap, addr + size - 1);
+      const uint32_t bo_end_idx = shader_bo_index(heap, bound - 1);
       for (uint32_t i = MIN2(bo_begin_idx, bo_end_idx);
            i <= MAX2(bo_begin_idx, bo_end_idx); i++) {
          if (heap->bos[i].bo != NULL)
