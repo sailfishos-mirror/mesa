@@ -1326,7 +1326,7 @@ static bool x11_refresh_rate_estimate_is_stable(struct x11_swapchain *swapchain,
 }
 
 static void x11_present_update_refresh_cycle_estimate(struct x11_swapchain *swapchain,
-                                                      uint64_t msc, uint64_t ust)
+                                                      uint64_t msc, uint64_t ust, bool flip)
 {
    uint64_t randr_refresh_ns = swapchain->randr_current_refresh_ns;
 
@@ -1364,6 +1364,9 @@ static void x11_present_update_refresh_cycle_estimate(struct x11_swapchain *swap
 
             /* Our refresh rates are only estimates, so expect some deviation (+/- 1us). */
             wsi_swapchain_present_timing_update_refresh_rate(&swapchain->base, refresh_ns, refresh_ns, 1000);
+         } else if (!flip) {
+            /* If we're not flipping, we're not getting VRR. If MSC estimate is unstable for whatever reason, fallback to randr query. */
+            wsi_swapchain_present_timing_update_refresh_rate(&swapchain->base, randr_refresh_ns, randr_refresh_ns, 0);
          } else {
             /* If we have enabled adaptive sync, and we're seeing highly irregular MSC values, we assume
              * we're driving the display VRR. */
@@ -1380,11 +1383,11 @@ static void x11_present_update_refresh_cycle_estimate(struct x11_swapchain *swap
 
 static void x11_present_complete(struct x11_swapchain *swapchain,
                                  struct x11_image *image, uint32_t index,
-                                 uint64_t msc, uint64_t ust)
+                                 uint64_t msc, uint64_t ust, bool flip)
 {
    /* Update estimate for refresh rate. */
    if (swapchain->base.present_timing.active)
-      x11_present_update_refresh_cycle_estimate(swapchain, msc, ust);
+      x11_present_update_refresh_cycle_estimate(swapchain, msc, ust, flip);
 
    /* Make sure to signal present timings before signalling present wait,
     * this way we get minimal latency for reports. */
@@ -1650,7 +1653,8 @@ x11_handle_dri3_present_event(struct x11_swapchain *chain,
             struct x11_image *image = &chain->images[i];
             for (j = 0; j < image->present_queued_count; j++) {
                if (image->pending_completions[j].serial == complete->serial) {
-                  x11_present_complete(chain, image, j, complete->msc, ust);
+                  x11_present_complete(chain, image, j, complete->msc, ust,
+                                       complete->mode == XCB_PRESENT_COMPLETE_MODE_FLIP);
                }
             }
          }
