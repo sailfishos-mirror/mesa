@@ -917,15 +917,29 @@ x11_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
          xcb_connection_t *conn = x11_surface_get_connection(icd_surface);
          struct wsi_x11_connection *wsi_conn = wsi_x11_get_connection(wsi_device, conn);
 
+         wait->presentTimingSupported = VK_TRUE;
+
          if (wsi_conn->is_xwayland) {
-            /* Follow-up commit supports Xwl. */
-            wait->presentTimingSupported = VK_FALSE;
-            wait->presentStageQueries = 0;
+            /* Wayland COMPLETE is tied to fence callback, so that's what we'll report.
+             * For pure frame pacing support, this is likely fine. */
+            wait->presentStageQueries = VK_PRESENT_STAGE_REQUEST_DEQUEUED_BIT_EXT;
+
+            /* Xwayland cannot get a reliable refresh rate estimate since MSC is not tied to monitor refresh at all.
+             * However, it's pragmatically very important to expose some baseline Xwl support since
+             * a large amount of applications (mostly games) rely on X11 APIs.
+             *
+             * Relative timings are easier to deal with since errors against an absolute timer are more or less expected,
+             * and it's sufficient for implementing present intervals in GL/D3D, etc, but likely not for
+             * tight A/V sync in e.g. media players, but those should be using Wayland when available anyway.
+             * As per-spec the timing request we provide should correlate with PIXEL_VISIBLE_BIT stage,
+             * but when we only observe dequeue, that's not really possible, but relative timings don't have that problem.
+             *
+             * There is PRESENT_CAPABILITY_UST, which would help, but xserver does not implement it at all.
+             */
             wait->presentAtAbsoluteTimeSupported = VK_FALSE;
-            wait->presentAtRelativeTimeSupported = VK_FALSE;
+            wait->presentAtRelativeTimeSupported = VK_TRUE;
          } else {
             /* COMPLETE should be tied to page flip on native X11. */
-            wait->presentTimingSupported = VK_TRUE;
             wait->presentStageQueries = VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_OUT_BIT_EXT;
             wait->presentAtAbsoluteTimeSupported = VK_TRUE;
             wait->presentAtRelativeTimeSupported = VK_TRUE;
@@ -1267,6 +1281,7 @@ struct x11_swapchain {
    VkResult                                     present_progress_error;
 
    struct wsi_image_timing_request              timing_request;
+   bool                                         has_reliable_msc;
 
    struct x11_image                             images[0];
 };
@@ -1318,6 +1333,15 @@ static void x11_present_update_refresh_cycle_estimate(struct x11_swapchain *swap
    swapchain->present_timing_window_index =
          (swapchain->present_timing_window_index + 1) % X11_SWAPCHAIN_REFRESH_RATE_WINDOW_SIZE;
    struct x11_present_timing_entry *entry = &swapchain->present_timing_window[swapchain->present_timing_window_index];
+
+   if (!swapchain->has_reliable_msc) {
+      /* If we don't have reliable MSC, we always trust the fallback RANDR query.
+       * We have no idea if we're FRR or VRR. */
+      wsi_swapchain_present_timing_update_refresh_rate(&swapchain->base, randr_refresh_ns, 0, 0);
+      entry->msc = msc;
+      entry->ust = ust;
+      return;
+   }
 
    /* Try to get an initial estimate as quickly as possible, we will refine it over time. */
    if (entry->msc == 0)
@@ -2304,6 +2328,20 @@ x11_present_compute_target_msc(struct x11_swapchain *chain,
    /* Present timing is only defined to work with FIFO modes, so we can rely on having
     * reliable relative timings, since we block for COMPLETE to come through before we queue up more presents. */
    if (relative) {
+      /* If application is trying to drive us at refresh rate, FIFO will take care of it.
+       * Don't end up in a situation where we sleep and miss the deadline by mistake. */
+      if (!chain->has_reliable_msc) {
+         uint64_t relative_threshold;
+         if (request->flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT)
+            relative_threshold = 3 * chain->base.present_timing.refresh_duration / 2;
+         else
+            relative_threshold = chain->base.present_timing.refresh_duration;
+
+         if (request->time <= relative_threshold) {
+            mtx_unlock(&chain->base.present_timing.lock);
+            return minimum_msc;
+         }
+      }
       target_ns = 1000 * (int64_t)entry->ust + (int64_t)request->time;
    } else {
       target_ns = (int64_t)request->time;
@@ -2314,28 +2352,52 @@ x11_present_compute_target_msc(struct x11_swapchain *chain,
    if (request->flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT)
       target_ns -= (int64_t)chain->base.present_timing.refresh_duration / 2;
 
+  /* Xwl cannot understand MSC that jumps by more than 1. It appears that if there are MSC jumps above 1,
+   * each MSC cycle is padded by 16.6ms or something like that.
+   * If we want to target specific time, we must sleep to achieve that until Xwl improves.
+   * Fortunately, we're on a submit thread, so that is mostly an acceptable solution. */
+
    if (entry->msc && chain->base.present_timing.refresh_duration != 0 &&
-       chain->msc_estimate_is_stable) {
+       chain->msc_estimate_is_stable && chain->has_reliable_msc) {
       /* If we can trust MSC to be a stable FRR heartbeat, we sync to that. */
       uint64_t delta_time_ns = MAX2(target_ns - 1000 * (int64_t)entry->ust, 0);
       uint64_t periods = (delta_time_ns + chain->base.present_timing.refresh_duration - 1) /
                          chain->base.present_timing.refresh_duration;
       mtx_unlock(&chain->base.present_timing.lock);
+
       minimum_msc = MAX2(minimum_msc, entry->msc + periods);
    } else {
-      /* If we don't have a stable estimate (e.g. true VRR) we just sleep until deadline.
+      /* If we don't have a stable estimate (e.g. true VRR, or Xwl) we just sleep until deadline.
        * This relies on timebase on os_time_nanosleep is MONOTONIC as well as UST being MONOTONIC. */
 
-      /* Very regular sleeping can trigger a strange feedback loop where MSC estimates becomes stable enough
-       * that we accept it as stable MSC. Perturb the rates enough to make it extremely unlikely
-       * we accept sleeping patterns as ground truth rate, introduce a 50 us error between each timestamp,
-       * which should avoid the 10 us check reliably. If sleep quantas are not as accurate, it's extremely unlikely
-       * we get a stable pace anyway. TODO: Is there a more reliable way? */
-      target_ns += 50000ll * (chain->present_timing_window_index & 1) - 25000;
-      target_ns = MAX2(target_ns, 0);
+      if (request->flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT) {
+         if (!chain->has_reliable_msc && chain->base.present_timing.refresh_duration) {
+            uint64_t delta_time_ns = MAX2(target_ns - 1000 * (int64_t)entry->ust, 0);
+            uint64_t periods = delta_time_ns / chain->base.present_timing.refresh_duration;
 
-      /* If we're on VRR X11 and trying to target a specific cycle by sleeping, pull back the sleep a bit.
-       * We will be racing against time once we wake up to send the request to Xserver -> COMPLETE.
+            target_ns = 1000ull * entry->ust + periods * chain->base.present_timing.refresh_duration;
+
+            /* Set a minimum target that is very close to the real estimate.
+             * This way, we ensure that we don't regularly round estimates up in
+             * chain->next_present_ust_lower_bound. */
+            target_ns += 63 * chain->base.present_timing.refresh_duration / 64;
+         }
+      }
+
+      /* On Xwl we never accept MSC estimates as ground truth, so ignore this perturbation. */
+      if (chain->has_reliable_msc) {
+         /* Very regular sleeping can trigger a strange feedback loop where MSC estimates becomes stable enough
+          * that we accept it as stable MSC. Perturb the rates enough to make it extremely unlikely
+          * we accept sleeping patterns as ground truth rate, introduce a 50 us error between each timestamp,
+          * which should avoid the 20 us check reliably. If sleep quantas are not as accurate, it's extremely unlikely
+          * we get a stable pace anyway. TODO: Is there a more reliable way? */
+
+         target_ns += 50000ll * (chain->present_timing_window_index & 1) - 25000;
+         target_ns = MAX2(target_ns, 0);
+      }
+
+      /* If we're on Xwl or VRR X11 and trying to target a specific cycle by sleeping, pull back the sleep a bit.
+       * We will be racing against time once we wake up to send the request to Xwl -> Wayland -> frame callback -> COMPLETE.
        * If target_ns syncs well to a refresh cycle, we speculate that COMPLETE will come through at about target_ns. */
 
       /* To get proper pace on an actual VRR display, we will have to detect if we're presenting too early
@@ -3156,6 +3218,7 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    chain->has_dri3_modifiers = wsi_conn->has_dri3_modifiers;
    chain->has_mit_shm = wsi_conn->has_mit_shm;
    chain->has_async_may_tear = present_caps & XCB_PRESENT_CAPABILITY_ASYNC_MAY_TEAR;
+   chain->has_reliable_msc = !wsi_conn->is_xwayland;
 
    /* When images in the swapchain don't fit the window, X can still present them, but it won't
     * happen by flip, only by copy. So this is a suboptimal copy, because if the client would change
