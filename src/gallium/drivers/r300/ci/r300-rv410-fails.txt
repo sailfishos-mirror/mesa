@@ -49,14 +49,8 @@ dEQP-GLES2.functional.shaders.conversions.vector_to_vector.vec4_to_ivec3_fragmen
 dEQP-GLES2.functional.shaders.conversions.vector_to_vector.vec4_to_ivec4_fragment,Fail
 dEQP-GLES2.functional.shaders.functions.control_flow.mixed_return_break_continue_fragment,Fail
 dEQP-GLES2.functional.shaders.functions.control_flow.mixed_return_break_continue_vertex,Fail
-dEQP-GLES2.functional.shaders.functions.control_flow.return_after_continue_fragment,Fail
-dEQP-GLES2.functional.shaders.functions.control_flow.return_after_continue_vertex,Fail
 dEQP-GLES2.functional.shaders.loops.for_constant_iterations.101_iterations_fragment,Fail
 dEQP-GLES2.functional.shaders.loops.for_constant_iterations.101_iterations_vertex,Fail
-dEQP-GLES2.functional.shaders.loops.for_constant_iterations.conditional_continue_fragment,Fail
-dEQP-GLES2.functional.shaders.loops.for_constant_iterations.conditional_continue_vertex,Fail
-dEQP-GLES2.functional.shaders.loops.for_constant_iterations.double_continue_fragment,Fail
-dEQP-GLES2.functional.shaders.loops.for_constant_iterations.double_continue_vertex,Fail
 dEQP-GLES2.functional.shaders.loops.for_constant_iterations.mixed_break_continue_fragment,Fail
 dEQP-GLES2.functional.shaders.loops.for_constant_iterations.mixed_break_continue_vertex,Fail
 dEQP-GLES2.functional.shaders.random.all_features.fragment.6,Fail
@@ -1018,9 +1012,7 @@ spec@glsl-1.10@execution@glsl-fs-convolution-2,Fail
 spec@glsl-1.10@execution@glsl-fs-if-nested-loop,Fail
 spec@glsl-1.10@execution@glsl-vs-if-nested-loop,Fail
 spec@glsl-1.10@execution@glsl-vs-vectorize-between-basic-blocks-loop,Fail
-spec@glsl-1.10@execution@loops@glsl-fs-continue-inside-do-while,Fail
 spec@glsl-1.10@execution@loops@glsl-fs-loop-vec4-counter,Fail
-spec@glsl-1.10@execution@loops@glsl-vs-continue-inside-do-while,Fail
 spec@glsl-1.10@execution@loops@glsl-vs-loop-break,Fail
 spec@glsl-1.10@execution@temp-array-indexing@glsl-fs-vec4-indexing-temp-dst-in-nested-loop-combined,Fail
 spec@glsl-1.10@execution@temp-array-indexing@glsl-fs-vec4-indexing-temp-src-in-loop,Fail
