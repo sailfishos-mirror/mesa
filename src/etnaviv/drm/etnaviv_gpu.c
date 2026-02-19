@@ -148,6 +148,7 @@ query_features_from_kernel(struct etna_gpu *gpu)
 	ETNA_FEATURE(chipMinorFeatures8, SH_NO_ONECONST_LIMIT);
 
 	ETNA_FEATURE(chipMinorFeatures10, DEC400);
+	ETNA_FEATURE(chipMinorFeatures10, WIDELINE_TRIANGLE_EMU);
 }
 
 static void
