@@ -1554,7 +1554,7 @@
         "description": "ir3/ra: Fix DOUBLE_ONLY limit pressure computation.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e6e34883a9e75c49fe505fec4768f36b9779df1d",
         "notes": null
