@@ -64,6 +64,7 @@
 #include "wsi_common_entrypoints.h"
 #include "wsi_common_private.h"
 #include "wsi_common_queue.h"
+#include "loader/loader_dri_helper_screen.h"
 
 #ifdef HAVE_SYS_SHM_H
 #include <sys/ipc.h>
@@ -79,6 +80,12 @@
 
 #define MAX_DAMAGE_RECTS 64
 
+struct wsi_x11_screen_resources {
+   struct list_head link;
+   struct loader_screen_resources screen_resources;
+   mtx_t mtx;
+};
+
 struct wsi_x11_connection {
    bool has_dri3;
    bool has_dri3_modifiers;
@@ -88,6 +95,8 @@ struct wsi_x11_connection {
    bool is_xwayland;
    bool has_mit_shm;
    bool has_xfixes;
+
+   struct list_head screen_resources_list;
 };
 
 struct wsi_x11 {
@@ -358,6 +367,21 @@ wsi_x11_connection_create(struct wsi_device *wsi_dev,
    }
 #endif
 
+   list_inithead(&wsi_conn->screen_resources_list);
+
+   xcb_screen_iterator_t it = xcb_setup_roots_iterator(xcb_get_setup(conn));
+   for (xcb_screen_t *screen = it.data; it.rem != 0; xcb_screen_next(&it), screen = it.data) {
+      struct wsi_x11_screen_resources *link =
+         vk_alloc(&wsi_dev->instance_alloc, sizeof(*link), 8,
+                   VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+
+      if (link) {
+         mtx_init(&link->mtx, mtx_plain);
+         loader_init_screen_resources(&link->screen_resources, conn, screen);
+         list_addtail(&link->link, &wsi_conn->screen_resources_list);
+      }
+   }
+
    free(dri3_reply);
    free(pres_reply);
    free(randr_reply);
@@ -375,6 +399,11 @@ static void
 wsi_x11_connection_destroy(struct wsi_device *wsi_dev,
                            struct wsi_x11_connection *conn)
 {
+   list_for_each_entry_safe(struct wsi_x11_screen_resources, resources, &conn->screen_resources_list, link) {
+      loader_destroy_screen_resources(&resources->screen_resources);
+      mtx_destroy(&resources->mtx);
+      vk_free(&wsi_dev->instance_alloc, resources);
+   }
    vk_free(&wsi_dev->instance_alloc, conn);
 }
 

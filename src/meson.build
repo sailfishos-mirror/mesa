@@ -49,7 +49,7 @@ endif
 if with_platform_x11
   subdir('x11')
 endif
-if with_gallium_or_lvp or with_gbm or with_platform_wayland
+if with_gallium_or_lvp or with_gbm or with_platform_wayland or with_platform_x11
   subdir('loader')
 endif
 subdir('compiler')
