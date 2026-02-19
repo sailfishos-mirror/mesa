@@ -77,6 +77,8 @@ xe_query_config(int fd, struct intel_device_info *devinfo)
       devinfo->supports_low_latency_hint = true;
    if (config->info[DRM_XE_QUERY_CONFIG_FLAGS] & DRM_XE_QUERY_CONFIG_FLAG_HAS_NO_COMPRESSION_HINT)
       devinfo->xe2_has_no_compression_hint = true;
+   if (config->info[DRM_XE_QUERY_CONFIG_FLAGS] & DRM_XE_QUERY_CONFIG_FLAG_HAS_DISABLE_STATE_CACHE_PERF_FIX)
+      devinfo->xe_has_state_cache_perf_fix = true;
 
    if (!has_gmd_ip_version(devinfo))
       devinfo->revision = (config->info[DRM_XE_QUERY_CONFIG_REV_AND_DEVICE_ID] >> 16) & 0xFFFF;
