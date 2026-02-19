@@ -464,6 +464,32 @@ wsi_x11_get_connection(struct wsi_device *wsi_dev,
    return entry->data;
 }
 
+static struct wsi_x11_screen_resources *
+wsi_x11_connection_find_screen_resources(struct wsi_device *wsi_dev, xcb_connection_t *conn, xcb_window_t window)
+{
+   struct wsi_x11_connection *wsi_conn = wsi_x11_get_connection(wsi_dev, conn);
+   xcb_get_geometry_cookie_t geometry_cookie = xcb_get_geometry_unchecked(conn, window);
+   xcb_get_geometry_reply_t *geometry_reply = xcb_get_geometry_reply(conn, geometry_cookie, NULL);
+
+   /* Returning NULL would normally signal SURFACE_LOST, but this isn't fatal.
+    * We just won't support present timing. */
+   if (!geometry_reply)
+      return NULL;
+
+   struct wsi_x11_screen_resources *screen_resources = NULL;
+
+   list_for_each_entry(struct wsi_x11_screen_resources, resource, &wsi_conn->screen_resources_list, link) {
+      if (resource->screen_resources.screen &&
+          resource->screen_resources.screen->root == geometry_reply->root) {
+         screen_resources = resource;
+         break;
+      }
+   }
+
+   free(geometry_reply);
+   return screen_resources;
+}
+
 static const VkFormat formats[] = {
    VK_FORMAT_R5G6B5_UNORM_PACK16,
    VK_FORMAT_B8G8R8A8_SRGB,
