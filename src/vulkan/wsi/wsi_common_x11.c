@@ -1174,12 +1174,19 @@ struct x11_image {
 #endif
 };
 
+struct x11_present_timing_entry {
+   uint64_t msc;
+   uint64_t ust;
+};
+#define X11_SWAPCHAIN_REFRESH_RATE_WINDOW_SIZE 16
+
 struct x11_swapchain {
    struct wsi_swapchain                        base;
 
    bool                                         has_dri3_modifiers;
    bool                                         has_mit_shm;
    bool                                         has_async_may_tear;
+   bool                                         msc_estimate_is_stable;
 
    xcb_connection_t *                           conn;
    xcb_window_t                                 window;
@@ -1193,8 +1200,12 @@ struct x11_swapchain {
    xcb_special_event_t *                        special_event;
    uint64_t                                     send_sbc;
    uint64_t                                     last_present_msc;
+   uint64_t                                     next_present_ust_lower_bound;
    uint32_t                                     stamp;
    uint32_t                                     sent_image_count;
+
+   struct x11_present_timing_entry              present_timing_window[X11_SWAPCHAIN_REFRESH_RATE_WINDOW_SIZE];
+   uint32_t                                     present_timing_window_index;
 
    atomic_int                                   status;
    bool                                         copy_is_suboptimal;
@@ -1236,9 +1247,95 @@ struct x11_swapchain {
 VK_DEFINE_NONDISP_HANDLE_CASTS(x11_swapchain, base.base, VkSwapchainKHR,
                                VK_OBJECT_TYPE_SWAPCHAIN_KHR)
 
-static void x11_present_complete(struct x11_swapchain *swapchain,
-                                 struct x11_image *image, uint32_t index)
+static bool x11_refresh_rate_estimate_is_stable(struct x11_swapchain *swapchain, uint64_t base_rate)
 {
+   /* Only accept a refresh rate estimate if it's *very* stable.
+    * Keith's old GOOGLE_display_timing MR suggests that using this estimate is better than blindly
+    * accepting the modeline in some cases.
+    * When running in VRR modes, the MSC will appear to be highly unstable, and we cannot accept those estimates. */
+
+   for (int i = 0; i < X11_SWAPCHAIN_REFRESH_RATE_WINDOW_SIZE; i++) {
+      const struct x11_present_timing_entry *a =
+            &swapchain->present_timing_window[i];
+      const struct x11_present_timing_entry *b =
+            &swapchain->present_timing_window[(i + 1) % X11_SWAPCHAIN_REFRESH_RATE_WINDOW_SIZE];
+
+      if (!a->msc || !b->msc)
+         continue;
+
+      uint64_t ust_delta = MAX2(a->ust, b->ust) - MIN2(a->ust, b->ust);
+      uint64_t msc_delta = MAX2(a->msc, b->msc) - MIN2(a->msc, b->msc);
+
+      if (msc_delta == 0)
+         continue;
+
+      uint64_t refresh_ns = 1000 * ust_delta / msc_delta;
+
+      /* The true UST values are expected to be quite accurate.
+       * Anything more than 20us difference in rate is considered unstable.
+       * (20us limit suggested by Mario Kleiner based on default value
+       * of /sys/module/drm/parameters/timestamp_precision_usec).
+       * If the MSC is driven by GPU progress in VRR mode,
+       * it's extremely unlikely that they are paced *perfectly* for 16 frames in a row. */
+      if (llabs((int64_t)base_rate - (int64_t)refresh_ns) > 20000)
+         return false;
+   }
+
+   return true;
+}
+
+static void x11_present_update_refresh_cycle_estimate(struct x11_swapchain *swapchain,
+                                                      uint64_t msc, uint64_t ust)
+{
+   uint64_t randr_refresh_ns = swapchain->randr_current_refresh_ns;
+
+   swapchain->present_timing_window_index =
+         (swapchain->present_timing_window_index + 1) % X11_SWAPCHAIN_REFRESH_RATE_WINDOW_SIZE;
+   struct x11_present_timing_entry *entry = &swapchain->present_timing_window[swapchain->present_timing_window_index];
+
+   /* Try to get an initial estimate as quickly as possible, we will refine it over time. */
+   if (entry->msc == 0)
+      entry = &swapchain->present_timing_window[1];
+
+   if (entry->msc != 0) {
+      uint64_t msc_delta = msc - entry->msc;
+
+      /* Safeguard against any weird interactions with IMMEDIATE. */
+      if (msc_delta != 0) {
+         uint64_t ust_delta = 1000 * (ust - entry->ust);
+         uint64_t refresh_ns = ust_delta / msc_delta;
+
+         swapchain->msc_estimate_is_stable = x11_refresh_rate_estimate_is_stable(swapchain, refresh_ns);
+
+         if (swapchain->msc_estimate_is_stable) {
+            /* If MSC is tightly locked in, we can safely make the assumption we're in FRR mode.
+             * It's possible we're technically doing VRR, but if we're rendering at above monitor refresh
+             * rate consistently, then there is no meaningful difference anyway. */
+
+            /* Our refresh rates are only estimates, so expect some deviation (+/- 1us). */
+            wsi_swapchain_present_timing_update_refresh_rate(&swapchain->base, refresh_ns, refresh_ns, 1000);
+         } else {
+            /* If we have enabled adaptive sync, and we're seeing highly irregular MSC values, we assume
+             * we're driving the display VRR. */
+            uint64_t refresh_interval = swapchain->base.wsi->enable_adaptive_sync ? UINT64_MAX : 0;
+            wsi_swapchain_present_timing_update_refresh_rate(&swapchain->base, randr_refresh_ns, refresh_interval, 0);
+         }
+      }
+   }
+
+   entry = &swapchain->present_timing_window[swapchain->present_timing_window_index];
+   entry->msc = msc;
+   entry->ust = ust;
+}
+
+static void x11_present_complete(struct x11_swapchain *swapchain,
+                                 struct x11_image *image, uint32_t index,
+                                 uint64_t msc, uint64_t ust)
+{
+   /* Update estimate for refresh rate. */
+   if (swapchain->base.present_timing.active)
+      x11_present_update_refresh_cycle_estimate(swapchain, msc, ust);
+
    uint64_t signal_present_id = image->pending_completions[index].signal_present_id;
    if (signal_present_id) {
       mtx_lock(&swapchain->present_progress_mutex);
@@ -1477,13 +1574,27 @@ x11_handle_dri3_present_event(struct x11_swapchain *chain,
 
    case XCB_PRESENT_EVENT_COMPLETE_NOTIFY: {
       xcb_present_complete_notify_event_t *complete = (void *) event;
+
+      /* Clamping the ust here serves multiple purposes.
+       * - In VRR/Xwl paths, we pulled back the sleep for a few ms to be able to hit the target time
+       *   more reliably.
+       * - For any RELATIVE timing, we need to drive the estimate for next frame based on
+       *   next_present_ust_lower_bound, not complete->ust, which might come in shortly before
+       *   the expected time.
+       * - For any ABSOLUTE timing, we cannot report a time earlier than targetTime,
+       *   since that would be out of spec and we kind of skirted the spec a little by
+       *   presenting before targetTime (although the error is minimized to just 1 ms).
+       * - For stable msc estimation on native X11, we intentionally add a bit of jitter,
+       *   such that this clamping will never falsely claim a stable MSC rate. */
+      uint64_t ust = MAX2(complete->ust, chain->next_present_ust_lower_bound);
+
       if (complete->kind == XCB_PRESENT_COMPLETE_KIND_PIXMAP) {
          unsigned i, j;
          for (i = 0; i < chain->base.image_count; i++) {
             struct x11_image *image = &chain->images[i];
             for (j = 0; j < image->present_queued_count; j++) {
                if (image->pending_completions[j].serial == complete->serial) {
-                  x11_present_complete(chain, image, j);
+                  x11_present_complete(chain, image, j, complete->msc, ust);
                }
             }
          }
