@@ -13072,6 +13072,7 @@ radv_bind_graphics_shaders(struct radv_cmd_buffer *cmd_buffer)
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    uint32_t push_constant_size = 0, dynamic_offset_count = 0;
+   bool need_dynamic_descriptors_offset_addr = false;
    bool need_indirect_descriptors = false;
    bool need_push_constants_upload = false;
 
@@ -13107,6 +13108,7 @@ radv_bind_graphics_shaders(struct radv_cmd_buffer *cmd_buffer)
 
       /* Compute push constants/indirect descriptors state. */
       need_indirect_descriptors |= radv_shader_need_indirect_descriptors(shader);
+      need_dynamic_descriptors_offset_addr |= radv_shader_need_dynamic_descriptors_offset_addr(shader);
       need_push_constants_upload |= radv_shader_need_push_constants_upload(shader);
       push_constant_size = MAX2(push_constant_size, shader->info.push_constant_size);
       dynamic_offset_count += shader_obj->dynamic_offset_count;
@@ -13150,6 +13152,7 @@ radv_bind_graphics_shaders(struct radv_cmd_buffer *cmd_buffer)
    struct radv_push_constant_state *pc_state = &cmd_buffer->push_constant_state[VK_PIPELINE_BIND_POINT_GRAPHICS];
 
    descriptors_state->need_indirect_descriptors = need_indirect_descriptors;
+   descriptors_state->need_dynamic_descriptors_offset_addr = need_dynamic_descriptors_offset_addr;
    descriptors_state->dynamic_offset_count = dynamic_offset_count;
    pc_state->need_upload = need_push_constants_upload;
    pc_state->size = align(push_constant_size, 4);
@@ -16281,6 +16284,7 @@ radv_bind_compute_shader(struct radv_cmd_buffer *cmd_buffer, struct radv_shader_
    struct radv_push_constant_state *pc_state = &cmd_buffer->push_constant_state[VK_PIPELINE_BIND_POINT_COMPUTE];
 
    descriptors_state->need_indirect_descriptors = radv_shader_need_indirect_descriptors(shader);
+   descriptors_state->need_dynamic_descriptors_offset_addr = radv_shader_need_dynamic_descriptors_offset_addr(shader);
    descriptors_state->dynamic_offset_count = shader_obj->dynamic_offset_count;
    pc_state->need_upload = radv_shader_need_push_constants_upload(shader);
    pc_state->size = align(shader->info.push_constant_size, 4);

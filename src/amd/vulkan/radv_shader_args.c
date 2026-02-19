@@ -168,7 +168,7 @@ declare_global_input_sgprs(struct radv_shader_args_state *state, const enum amd_
       if (info->merged_shader_compiled_separately || info->loads_dynamic_offsets) {
          RADV_ADD_UD_ARG(state, 1, AC_ARG_CONST_ADDR, ac.dynamic_descriptors, AC_UD_DYNAMIC_DESCRIPTORS);
 
-         if (info->loads_dynamic_descriptors_offset_addr) {
+         if (info->merged_shader_compiled_separately || info->loads_dynamic_descriptors_offset_addr) {
             RADV_ADD_UD_ARG(state, 1, AC_ARG_CONST_ADDR, ac.dynamic_descriptors_offset_addr,
                             AC_UD_DYNAMIC_DESCRIPTORS_OFFSET_ADDR);
          }
@@ -462,6 +462,7 @@ declare_unmerged_vs_tcs_args(struct radv_shader_args_state *state, const enum am
    ac_add_preserved(&state->args->ac, &state->args->descriptors[0]);
    ac_add_preserved(&state->args->ac, &state->args->ac.push_constants);
    ac_add_preserved(&state->args->ac, &state->args->ac.dynamic_descriptors);
+   ac_add_preserved(&state->args->ac, &state->args->ac.dynamic_descriptors_offset_addr);
    ac_add_preserved(&state->args->ac, &state->args->ac.view_index);
    ac_add_preserved(&state->args->ac, &state->args->ac.tcs_offchip_layout);
    ac_add_preserved(&state->args->ac, &state->args->epilog_pc);
@@ -528,6 +529,7 @@ declare_unmerged_vs_tes_gs_args(struct radv_shader_args_state *state, const enum
    ac_add_preserved(&state->args->ac, &state->args->descriptors[0]);
    ac_add_preserved(&state->args->ac, &state->args->ac.push_constants);
    ac_add_preserved(&state->args->ac, &state->args->ac.dynamic_descriptors);
+   ac_add_preserved(&state->args->ac, &state->args->ac.dynamic_descriptors_offset_addr);
    ac_add_preserved(&state->args->ac, &state->args->streamout_buffers);
    if (gfx_level >= GFX12)
       ac_add_preserved(&state->args->ac, &state->args->streamout_state);
