@@ -1274,7 +1274,9 @@ get_best_layout(struct fd_screen *screen,
    if (!screen->tile_mode(tmpl))
       return FD_LAYOUT_LINEAR;
 
-   if (tmpl->target == PIPE_BUFFER)
+   if ((tmpl->target == PIPE_BUFFER) ||
+       (tmpl->target == PIPE_TEXTURE_1D) ||
+       (tmpl->target == PIPE_TEXTURE_1D_ARRAY))
       return FD_LAYOUT_LINEAR;
 
    if ((tmpl->usage == PIPE_USAGE_STAGING) &&
