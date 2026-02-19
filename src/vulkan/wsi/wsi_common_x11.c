@@ -625,7 +625,16 @@ wsi_GetPhysicalDeviceXcbPresentationSupportKHR(VkPhysicalDevice physicalDevice,
 {
    VK_FROM_HANDLE(vk_physical_device, pdevice, physicalDevice);
    struct wsi_device *wsi_device = pdevice->wsi_device;
-   if (!(wsi_device->queue_supports_blit & BITFIELD64_BIT(queueFamilyIndex)))
+
+   /* These should overlap. */
+   uint64_t effective_queues = wsi_device->queue_supports_blit & wsi_device->queue_supports_timestamps;
+
+   /* If there are no queues that support both blits and timestamps,
+    * don't report support for queue timestamps. */
+   if (!effective_queues)
+      effective_queues = wsi_device->queue_supports_blit;
+
+   if (!(effective_queues & BITFIELD64_BIT(queueFamilyIndex)))
       return false;
 
    struct wsi_x11_connection *wsi_conn =
@@ -905,10 +914,23 @@ x11_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
       case VK_STRUCTURE_TYPE_PRESENT_TIMING_SURFACE_CAPABILITIES_EXT: {
          VkPresentTimingSurfaceCapabilitiesEXT *wait = (void *)ext;
 
-         wait->presentStageQueries = 0;
-         wait->presentTimingSupported = VK_FALSE;
-         wait->presentAtAbsoluteTimeSupported = VK_FALSE;
-         wait->presentAtRelativeTimeSupported = VK_FALSE;
+         xcb_connection_t *conn = x11_surface_get_connection(icd_surface);
+         struct wsi_x11_connection *wsi_conn = wsi_x11_get_connection(wsi_device, conn);
+
+         if (wsi_conn->is_xwayland) {
+            /* Follow-up commit supports Xwl. */
+            wait->presentTimingSupported = VK_FALSE;
+            wait->presentStageQueries = 0;
+            wait->presentAtAbsoluteTimeSupported = VK_FALSE;
+            wait->presentAtRelativeTimeSupported = VK_FALSE;
+         } else {
+            /* COMPLETE should be tied to page flip on native X11. */
+            wait->presentTimingSupported = VK_TRUE;
+            wait->presentStageQueries = VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_OUT_BIT_EXT;
+            wait->presentAtAbsoluteTimeSupported = VK_TRUE;
+            wait->presentAtRelativeTimeSupported = VK_TRUE;
+         }
+
          break;
       }
 
@@ -1141,6 +1163,7 @@ wsi_CreateXlibSurfaceKHR(VkInstance _instance,
 struct x11_image_pending_completion {
    uint32_t serial;
    uint64_t signal_present_id;
+   uint64_t timing_serial;
 };
 
 struct x11_image {
@@ -1157,6 +1180,7 @@ struct x11_image {
    VkPresentModeKHR                          present_mode;
    xcb_rectangle_t                           rects[MAX_DAMAGE_RECTS];
    int                                       rectangle_count;
+   struct wsi_image_timing_request           timing_request;
 
    /* In IMMEDIATE and MAILBOX modes, we can have multiple pending presentations per image.
     * We need to keep track of them when considering present ID. */
@@ -1241,6 +1265,8 @@ struct x11_swapchain {
    struct u_cnd_monotonic                       present_progress_cond;
    uint64_t                                     present_id;
    VkResult                                     present_progress_error;
+
+   struct wsi_image_timing_request              timing_request;
 
    struct x11_image                             images[0];
 };
@@ -1335,6 +1361,12 @@ static void x11_present_complete(struct x11_swapchain *swapchain,
    /* Update estimate for refresh rate. */
    if (swapchain->base.present_timing.active)
       x11_present_update_refresh_cycle_estimate(swapchain, msc, ust);
+
+   /* Make sure to signal present timings before signalling present wait,
+    * this way we get minimal latency for reports. */
+   uint64_t timing_serial = image->pending_completions[index].timing_serial;
+   if (timing_serial)
+      wsi_swapchain_present_timing_notify_completion(&swapchain->base, timing_serial, ust * 1000, &image->base);
 
    uint64_t signal_present_id = image->pending_completions[index].signal_present_id;
    if (signal_present_id) {
@@ -1708,6 +1740,7 @@ x11_present_to_x11_dri3(struct x11_swapchain *chain, uint32_t image_index,
       (struct x11_image_pending_completion) {
          .signal_present_id = image->present_id,
          .serial = serial,
+         .timing_serial = image->timing_request.serial,
       };
 
    xcb_void_cookie_t cookie;
@@ -2024,6 +2057,30 @@ x11_set_present_mode(struct wsi_swapchain *wsi_chain,
    chain->base.present_mode = mode;
 }
 
+static void
+x11_set_timing_request(struct wsi_swapchain *wsi_chain,
+                       const struct wsi_image_timing_request *request)
+{
+   struct x11_swapchain *chain = (struct x11_swapchain *)wsi_chain;
+   chain->timing_request = *request;
+}
+
+static uint64_t
+x11_poll_early_refresh(struct wsi_swapchain *wsi_chain, uint64_t *interval)
+{
+   struct x11_swapchain *chain = (struct x11_swapchain *)wsi_chain;
+
+   /* We don't know yet if we're VRR or FRR.
+    * For Xwl we will never really know with current Xserver,
+    * and for plain X11, we will know based on feedback. */
+   *interval = 0;
+
+   /* Query for refresh rate. This is an Xrandr based query. */
+   chain->randr_current_refresh_ns =
+      x11_update_present_timing_xrandr_estimate(chain, chain->extent.width, chain->extent.height);
+   return chain->randr_current_refresh_ns;
+}
+
 /**
  * Acquire a ready-to-use image from the swapchain.
  *
@@ -2125,6 +2182,8 @@ x11_queue_present(struct wsi_swapchain *wsi_chain,
    chain->images[image_index].present_id = present_id;
    /* With KHR_swapchain_maintenance1, the present mode can change per present. */
    chain->images[image_index].present_mode = chain->base.present_mode;
+   chain->images[image_index].timing_request = chain->timing_request;
+   memset(&chain->timing_request, 0, sizeof(chain->timing_request));
 
    wsi_queue_push(&chain->present_queue, image_index);
    return x11_swapchain_read_status_atomic(chain);
@@ -2225,6 +2284,88 @@ x11_manage_event_queue(void *state)
    return 0;
 }
 
+static uint64_t
+x11_present_compute_target_msc(struct x11_swapchain *chain,
+                               const struct wsi_image_timing_request *request,
+                               uint64_t minimum_msc)
+{
+   const struct x11_present_timing_entry *entry = &chain->present_timing_window[chain->present_timing_window_index];
+   bool relative = (request->flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_RELATIVE_TIME_BIT_EXT) != 0;
+
+   /* Just use the FIFO derived MSC. From spec on relative:
+    * "If the swapchain has never been used to present an image, the provided targetTime is ignored." */
+   if (!request->serial || !request->time || (relative && !entry->ust))
+      return minimum_msc;
+
+   int64_t target_ns;
+
+   mtx_lock(&chain->base.present_timing.lock);
+
+   /* Present timing is only defined to work with FIFO modes, so we can rely on having
+    * reliable relative timings, since we block for COMPLETE to come through before we queue up more presents. */
+   if (relative) {
+      target_ns = 1000 * (int64_t)entry->ust + (int64_t)request->time;
+   } else {
+      target_ns = (int64_t)request->time;
+   }
+
+   /* Snap to nearest half refresh. This only makes sense for FRR, but it is the application's
+    * responsibility to not use this for VRR. If this flag is not used, this is strictly a "not before". */
+   if (request->flags & VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT)
+      target_ns -= (int64_t)chain->base.present_timing.refresh_duration / 2;
+
+   if (entry->msc && chain->base.present_timing.refresh_duration != 0 &&
+       chain->msc_estimate_is_stable) {
+      /* If we can trust MSC to be a stable FRR heartbeat, we sync to that. */
+      uint64_t delta_time_ns = MAX2(target_ns - 1000 * (int64_t)entry->ust, 0);
+      uint64_t periods = (delta_time_ns + chain->base.present_timing.refresh_duration - 1) /
+                         chain->base.present_timing.refresh_duration;
+      mtx_unlock(&chain->base.present_timing.lock);
+      minimum_msc = MAX2(minimum_msc, entry->msc + periods);
+   } else {
+      /* If we don't have a stable estimate (e.g. true VRR) we just sleep until deadline.
+       * This relies on timebase on os_time_nanosleep is MONOTONIC as well as UST being MONOTONIC. */
+
+      /* Very regular sleeping can trigger a strange feedback loop where MSC estimates becomes stable enough
+       * that we accept it as stable MSC. Perturb the rates enough to make it extremely unlikely
+       * we accept sleeping patterns as ground truth rate, introduce a 50 us error between each timestamp,
+       * which should avoid the 10 us check reliably. If sleep quantas are not as accurate, it's extremely unlikely
+       * we get a stable pace anyway. TODO: Is there a more reliable way? */
+      target_ns += 50000ll * (chain->present_timing_window_index & 1) - 25000;
+      target_ns = MAX2(target_ns, 0);
+
+      /* If we're on VRR X11 and trying to target a specific cycle by sleeping, pull back the sleep a bit.
+       * We will be racing against time once we wake up to send the request to Xserver -> COMPLETE.
+       * If target_ns syncs well to a refresh cycle, we speculate that COMPLETE will come through at about target_ns. */
+
+      /* To get proper pace on an actual VRR display, we will have to detect if we're presenting too early
+       * compared to what application actually expected.
+       * In that case, we need to remove this compensation if we detect that presents come in too early.
+       * Effectively, we will need to adjust the report UST up if we somehow end up seeing a timestamp too early.
+       * The relative refresh will feed off this adjustment in a tight loop, so this should be pretty solid
+       * for both VRR and FRR. Present timing can only be used with FIFO modes, i.e. we will not overwrite this
+       * until the present is actually complete. */
+      chain->next_present_ust_lower_bound = target_ns / 1000;
+
+      /* We also need to pull back the sleep a bit to account for X.org roundtrip delays.
+       * Allow up to 4ms of error here. */
+      int64_t eager_present_ns = MIN2((int64_t)chain->base.present_timing.refresh_duration / 4, 4 * 1000 * 1000);
+      target_ns -= eager_present_ns;
+      target_ns = MAX2(target_ns, 0);
+
+      mtx_unlock(&chain->base.present_timing.lock);
+      mtx_unlock(&chain->thread_state_lock);
+
+      os_time_nanosleep_until(target_ns);
+
+      /* Reacquiring the lock won't change any invariants for us, so this is fine.
+       * We make sure to check chain->status after this function in case that got updated while we were sleeping. */
+      mtx_lock(&chain->thread_state_lock);
+   }
+
+   return minimum_msc;
+}
+
 /**
  * Presentation thread.
  *
@@ -2290,6 +2431,8 @@ x11_manage_present_queue(void *state)
              ARRAY_SIZE(chain->images[image_index].pending_completions)) {
          u_cnd_monotonic_wait(&chain->thread_state_cond, &chain->thread_state_lock);
       }
+
+      target_msc = x11_present_compute_target_msc(chain, &chain->images[image_index].timing_request, target_msc);
 
       if (chain->status < 0) {
          mtx_unlock(&chain->thread_state_lock);
@@ -2994,8 +3137,14 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    chain->base.wait_for_present2 = x11_wait_for_present;
    chain->base.release_images = x11_release_images;
    chain->base.set_present_mode = x11_set_present_mode;
+   chain->base.set_timing_request = x11_set_timing_request;
+   chain->base.poll_early_refresh = x11_poll_early_refresh;
    chain->base.present_mode = present_mode;
    chain->base.image_count = num_images;
+
+   /* This is what Xserver is using. We cannot really query it, but we rely on it working. */
+   chain->base.present_timing.time_domain = VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR;
+
    chain->conn = conn;
    chain->window = window;
    chain->depth = bit_depth;
