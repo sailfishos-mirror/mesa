@@ -2174,7 +2174,7 @@
         "description": "aco: fix gfx6-8 store_scratch() with function calls",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e006f68b11ad7af8c0c4d7267ee04d9dfa1889a1",
         "notes": null
