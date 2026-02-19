@@ -1212,6 +1212,18 @@ struct x11_swapchain {
 
    struct wsi_x11_screen_resources *            screen_resources;
 
+   /* This holds the fallback for MSC rate, i.e. refresh rate.
+    * If we cannot get ahold of a stable estimate based on real feedback,
+    * we defer to using this. With multi-monitors and other potential effects affecting actual rates,
+    * we shouldn't trust this blindly.
+    * This data is only accessed by event thread.
+    * FIFO thread which computes target MSC accesses the current refresh rate
+    * via the base structure present_timing or via present timing window. */
+   uint64_t                                     randr_current_refresh_ns;
+   bool                                         dirty_geometry;
+   uint32_t                                     dirty_geometry_width;
+   uint32_t                                     dirty_geometry_height;
+
    /* Lock and condition variable for present wait.
     * Signalled by event thread and waited on by callers to PresentWaitKHR. */
    mtx_t                                        present_progress_mutex;
@@ -1434,6 +1446,16 @@ x11_handle_dri3_present_event(struct x11_swapchain *chain,
             return VK_SUBOPTIMAL_KHR;
       }
 
+      if (chain->base.present_timing.active) {
+         /* It's possible that we have multiple monitors and moving windows around change the effective rate.
+          * Lots of logic reused from platform_x11.c. */
+
+         /* Rate limit this query to once per present since this can be very spammy. */
+         chain->dirty_geometry_width = config->width;
+         chain->dirty_geometry_height = config->height;
+         chain->dirty_geometry = true;
+      }
+
       break;
    }
 
@@ -1466,6 +1488,16 @@ x11_handle_dri3_present_event(struct x11_swapchain *chain,
             }
          }
          chain->last_present_msc = complete->msc;
+      }
+
+      if (chain->dirty_geometry) {
+         /* Update this after reporting present complete to avoid adding roundtrip delays to the present.
+          * COMPLETE_NOTIFY is used to unblock clients and affects pacing.
+          * This adds potentially one frame of delay to refresh rate estimates when moving windows around,
+          * but the effect of this is inconsequential. */
+         chain->randr_current_refresh_ns =
+            x11_update_present_timing_xrandr_estimate(chain, chain->dirty_geometry_width, chain->dirty_geometry_height);
+         chain->dirty_geometry = false;
       }
 
       VkResult result = VK_SUCCESS;
