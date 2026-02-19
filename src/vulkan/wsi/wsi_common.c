@@ -2410,7 +2410,13 @@ wsi_common_queue_present(const struct wsi_device *wsi,
 
                /* All other fields in google_timing_info beyond the following must be zero. */
                google_timing_info.targetTime = present_time->desiredPresentTime;
-               google_timing_info.presentStageQueries = VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT;
+
+               /* We don't support PIXEL_VISIBLE_BIT on any backend, so flag the output stage that is relevant.
+                * Xwl would report in DEQUEUED stage currently, but the backend doesn't change its behavior
+                * based on what feedback we're requesting, and GOOGLE_display_timing cannot be exposed by
+                * default on any backend that's not KHR_display anyway. */
+               google_timing_info.presentStageQueries = VK_PRESENT_STAGE_QUEUE_OPERATIONS_END_BIT_EXT |
+                   VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_OUT_BIT_EXT;
             }
          } else {
             /* VK_EXT_present_timing mode, and present_timings_info->pTimingInfos is valid. */
@@ -2452,6 +2458,7 @@ wsi_common_queue_present(const struct wsi_device *wsi,
                .serial = swapchain->present_timing.serial,
                .time = target_time,
                .flags = info->flags,
+               .feedback = info->presentStageQueries,
             });
 
             if (info->presentStageQueries & swapchain->present_timing.supported_query_stages &

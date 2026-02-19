@@ -214,6 +214,7 @@ struct wsi_image_timing_request {
    uint64_t                    serial;
    uint64_t                    time;
    VkPresentTimingInfoFlagsEXT flags;
+   VkPresentStageFlagsEXT      feedback;
 };
 
 struct wsi_swapchain {
