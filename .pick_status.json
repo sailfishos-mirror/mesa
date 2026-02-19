@@ -3904,7 +3904,7 @@
         "description": "mesa: add force_explicit_uniform_loc_zero workaround",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
