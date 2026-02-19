@@ -1265,6 +1265,62 @@ static void x11_swapchain_notify_error(struct x11_swapchain *swapchain, VkResult
    u_cnd_monotonic_broadcast(&swapchain->thread_state_cond);
 }
 
+static uint64_t
+x11_update_present_timing_xrandr_estimate(struct x11_swapchain *chain, uint32_t width, uint32_t height)
+{
+   uint64_t ret = 0;
+
+   if (!chain->screen_resources)
+      return 0;
+
+   struct loader_screen_resources *screen_resources = &chain->screen_resources->screen_resources;
+   mtx_lock(&chain->screen_resources->mtx);
+   loader_update_screen_resources(screen_resources);
+
+   if (screen_resources->num_crtcs == 0) {
+      goto out;
+   }
+
+   ret = 1000000000ull * screen_resources->crtcs[0].refresh_denominator / screen_resources->crtcs[0].refresh_numerator;
+
+   /* Don't need to ponder multi-monitor. */
+   if (screen_resources->num_crtcs == 1)
+      goto out;
+
+   /* Find the best matching screen for the window. */
+   xcb_translate_coordinates_cookie_t cookie =
+         xcb_translate_coordinates_unchecked(chain->conn, chain->window,
+                                             screen_resources->screen->root, 0, 0);
+   xcb_translate_coordinates_reply_t *reply =
+         xcb_translate_coordinates_reply(chain->conn, cookie, NULL);
+
+   if (!reply) {
+      x11_swapchain_notify_error(chain, VK_ERROR_SURFACE_LOST_KHR);
+      goto out;
+   }
+
+   int area = 0;
+
+   for (unsigned c = 0; c < screen_resources->num_crtcs; c++) {
+      struct loader_crtc_info *crtc = &screen_resources->crtcs[c];
+
+      int c_area = box_intersection_area(
+            reply->dst_x, reply->dst_y, width, height, crtc->x,
+            crtc->y, crtc->width, crtc->height);
+
+      if (c_area > area) {
+         ret = 1000000000ull * crtc->refresh_denominator / crtc->refresh_numerator;
+         area = c_area;
+      }
+   }
+
+   free(reply);
+
+out:
+   mtx_unlock(&chain->screen_resources->mtx);
+   return ret;
+}
+
 /**
  * Update the swapchain status with the result of an operation, and return
  * the combined status. The chain status will eventually be returned from
