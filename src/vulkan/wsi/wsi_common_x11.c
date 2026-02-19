@@ -1210,6 +1210,8 @@ struct x11_swapchain {
    mtx_t                                        thread_state_lock;
    struct u_cnd_monotonic                       thread_state_cond;
 
+   struct wsi_x11_screen_resources *            screen_resources;
+
    /* Lock and condition variable for present wait.
     * Signalled by event thread and waited on by callers to PresentWaitKHR. */
    mtx_t                                        present_progress_mutex;
@@ -2913,6 +2915,8 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
       result = VK_ERROR_OUT_OF_HOST_MEMORY;
       goto fail_init_event_queue;
    }
+
+   chain->screen_resources = wsi_x11_connection_find_screen_resources(wsi_device, conn, window);
 
    /* It is safe to set it here as only one swapchain can be associated with
     * the window, and swapchain creation does the association. At this point
