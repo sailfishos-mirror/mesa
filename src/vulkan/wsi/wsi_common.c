@@ -176,6 +176,8 @@ wsi_device_init(struct wsi_device *wsi,
 
    wsi->has_timeline_semaphore =
       supported_extensions->KHR_timeline_semaphore;
+   wsi->has_host_query_reset =
+      supported_extensions->EXT_host_query_reset;
 
    /* We cannot expose KHR_present_wait without timeline semaphores. */
    assert(!wsi->has_present_wait || wsi->has_timeline_semaphore);
@@ -193,6 +195,7 @@ wsi_device_init(struct wsi_device *wsi,
    WSI_GET_CB(CmdCopyImage);
    WSI_GET_CB(CmdCopyImageToBuffer);
    WSI_GET_CB(CmdResetQueryPool);
+   WSI_GET_CB(ResetQueryPoolEXT);
    WSI_GET_CB(CmdWriteTimestamp);
    WSI_GET_CB(CreateBuffer);
    WSI_GET_CB(CreateCommandPool);
@@ -958,9 +961,11 @@ wsi_image_init_timestamp(const struct wsi_swapchain *chain,
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
          });
 
-      wsi->CmdResetQueryPool(image->timestamp_cmd_buffers[i],
-                             image->query_pool,
-                             0, 1);
+      if (!wsi->has_host_query_reset) {
+         wsi->CmdResetQueryPool(image->timestamp_cmd_buffers[i],
+                                image->query_pool,
+                                0, 1);
+      }
 
       wsi->CmdWriteTimestamp(image->timestamp_cmd_buffers[i],
                              VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
@@ -1667,6 +1672,11 @@ static VkResult wsi_common_allocate_timing_request(
    wsi_timing->requested_feedback = timing->presentStageQueries;
 
    wsi_timing->image = image;
+
+   /* Allows timestamp queries to fail if GPU is not done with current submission.
+    * Resetting on queue will not work. */
+   if (swapchain->wsi->has_host_query_reset)
+      swapchain->wsi->ResetQueryPoolEXT(swapchain->device, image->query_pool, 0, 1);
 
    /* Ignore the time domain since we have a static domain. */
 

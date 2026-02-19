@@ -917,6 +917,18 @@ x11_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
          xcb_connection_t *conn = x11_surface_get_connection(icd_surface);
          struct wsi_x11_connection *wsi_conn = wsi_x11_get_connection(wsi_device, conn);
 
+         if (!wsi_device->has_host_query_reset && !wsi_conn->is_xwayland) {
+            /* X11 can sometimes COMPLETE before the GPU is even done.
+             * In this case, we need to observe a reset timestamp when polling,
+             * which requires host query resets. On Xwayland, this cannot happen,
+             * and not every platform supports host query reset. */
+            wait->presentTimingSupported = VK_FALSE;
+            wait->presentStageQueries = 0;
+            wait->presentAtAbsoluteTimeSupported = VK_FALSE;
+            wait->presentAtRelativeTimeSupported = VK_FALSE;
+            break;
+         }
+
          wait->presentTimingSupported = VK_TRUE;
 
          if (wsi_conn->is_xwayland) {
@@ -939,7 +951,6 @@ x11_surface_get_capabilities2(VkIcdSurfaceBase *icd_surface,
             wait->presentAtAbsoluteTimeSupported = VK_FALSE;
             wait->presentAtRelativeTimeSupported = VK_TRUE;
          } else {
-            /* COMPLETE should be tied to page flip on native X11. */
             wait->presentStageQueries = VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_OUT_BIT_EXT;
             wait->presentAtAbsoluteTimeSupported = VK_TRUE;
             wait->presentAtRelativeTimeSupported = VK_TRUE;
