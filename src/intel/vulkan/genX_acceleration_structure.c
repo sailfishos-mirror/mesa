@@ -358,7 +358,7 @@ anv_bvh_build_set_args(VkCommandBuffer commandBuffer, const void *args,
 }
 
 static VkResult
-anv_encode_bind_pipeline(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state)
+anv_encode_prepare(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state)
 {
    anv_bvh_build_bind_pipeline(commandBuffer,
                                ANV_OBJECT_KEY_BVH_ENCODE,
@@ -486,8 +486,7 @@ static const struct vk_acceleration_structure_build_ops anv_build_ops = {
    .end_debug_marker = end_debug_marker,
    .get_as_size = anv_get_as_size,
    .get_build_config = anv_get_build_config,
-   .encode_bind_pipeline = { anv_encode_bind_pipeline,
-                             anv_init_header_bind_pipeline },
+   .encode_prepare = { anv_encode_prepare, anv_init_header_bind_pipeline },
    .encode_as = { anv_encode_as, anv_init_header },
 };
 

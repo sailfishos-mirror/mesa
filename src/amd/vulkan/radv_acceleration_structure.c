@@ -403,7 +403,7 @@ radv_build_flags(VkCommandBuffer commandBuffer, uint32_t key)
 }
 
 static VkResult
-radv_encode_bind_pipeline(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state)
+radv_encode_prepare(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state)
 {
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE, encode_spv, sizeof(encode_spv),
                                 sizeof(struct encode_args),
@@ -413,8 +413,7 @@ radv_encode_bind_pipeline(VkCommandBuffer commandBuffer, const struct vk_acceler
 }
 
 static VkResult
-radv_encode_bind_pipeline_gfx12(VkCommandBuffer commandBuffer,
-                                const struct vk_acceleration_structure_build_state *state)
+radv_encode_prepare_gfx12(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state)
 {
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE, encode_gfx12_spv,
                                 sizeof(encode_gfx12_spv), sizeof(struct encode_gfx12_args),
@@ -524,8 +523,8 @@ radv_encode_as_gfx12(VkCommandBuffer commandBuffer, const struct vk_acceleration
 }
 
 static VkResult
-radv_encode_triangles_bind_pipeline_gfx12(VkCommandBuffer commandBuffer,
-                                          const struct vk_acceleration_structure_build_state *state)
+radv_encode_triangles_prepare_gfx12(VkCommandBuffer commandBuffer,
+                                    const struct vk_acceleration_structure_build_state *state)
 {
    bool compress_triangles = state->config.encode_key[2] & RADV_ENCODE_KEY_BATCH_COMPRESS_GFX12;
    if (!compress_triangles)
@@ -578,8 +577,8 @@ radv_encode_triangles_gfx12(VkCommandBuffer commandBuffer, const struct vk_accel
 }
 
 static VkResult
-radv_encode_triangles_retry_bind_pipeline_gfx12(VkCommandBuffer commandBuffer,
-                                                const struct vk_acceleration_structure_build_state *state)
+radv_encode_triangles_retry_prepare_gfx12(VkCommandBuffer commandBuffer,
+                                          const struct vk_acceleration_structure_build_state *state)
 {
    bool compress_triangles = state->config.encode_key[2] & RADV_ENCODE_KEY_BATCH_COMPRESS_GFX12;
    if (!compress_triangles)
@@ -636,7 +635,7 @@ radv_encode_triangles_retry_gfx12(VkCommandBuffer commandBuffer,
 }
 
 static VkResult
-radv_init_header_bind_pipeline(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state)
+radv_init_header_prepare(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state)
 {
    /* Wait for encoding to finish. */
    vk_barrier_compute_w_to_compute_r(commandBuffer);
@@ -769,8 +768,8 @@ radv_init_update_scratch(VkCommandBuffer commandBuffer, const struct vk_accelera
 }
 
 static void
-radv_update_bind_pipeline(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state,
-                          bool flushed_cp_after_init_update_scratch, bool flushed_compute_after_init_update_scratch)
+radv_update_prepare(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state,
+                    bool flushed_cp_after_init_update_scratch, bool flushed_compute_after_init_update_scratch)
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
@@ -969,27 +968,25 @@ radv_device_init_accel_struct_build_state(struct radv_device *device)
       .get_as_size = radv_get_as_size,
       .get_update_scratch_size = radv_get_update_scratch_size,
       .init_update_scratch = radv_init_update_scratch,
-      .update_bind_pipeline[0] = radv_update_bind_pipeline,
+      .update_prepare[0] = radv_update_prepare,
    };
 
    if (radv_use_bvh8(pdev)) {
       device->meta_state.accel_struct_build.build_ops.update_as[0] = radv_update_as_gfx12;
       device->meta_state.accel_struct_build.build_ops.get_encode_scratch_size = radv_get_encode_scratch_size;
-      device->meta_state.accel_struct_build.build_ops.encode_bind_pipeline[0] = radv_encode_bind_pipeline_gfx12;
+      device->meta_state.accel_struct_build.build_ops.encode_prepare[0] = radv_encode_prepare_gfx12;
       device->meta_state.accel_struct_build.build_ops.encode_as[0] = radv_encode_as_gfx12;
-      device->meta_state.accel_struct_build.build_ops.encode_bind_pipeline[1] =
-         radv_encode_triangles_bind_pipeline_gfx12;
+      device->meta_state.accel_struct_build.build_ops.encode_prepare[1] = radv_encode_triangles_prepare_gfx12;
       device->meta_state.accel_struct_build.build_ops.encode_as[1] = radv_encode_triangles_gfx12;
-      device->meta_state.accel_struct_build.build_ops.encode_bind_pipeline[2] =
-         radv_encode_triangles_retry_bind_pipeline_gfx12;
+      device->meta_state.accel_struct_build.build_ops.encode_prepare[2] = radv_encode_triangles_retry_prepare_gfx12;
       device->meta_state.accel_struct_build.build_ops.encode_as[2] = radv_encode_triangles_retry_gfx12;
-      device->meta_state.accel_struct_build.build_ops.encode_bind_pipeline[3] = radv_init_header_bind_pipeline;
+      device->meta_state.accel_struct_build.build_ops.encode_prepare[3] = radv_init_header_prepare;
       device->meta_state.accel_struct_build.build_ops.encode_as[3] = radv_init_header;
    } else {
       device->meta_state.accel_struct_build.build_ops.update_as[0] = radv_update_as;
-      device->meta_state.accel_struct_build.build_ops.encode_bind_pipeline[0] = radv_encode_bind_pipeline;
+      device->meta_state.accel_struct_build.build_ops.encode_prepare[0] = radv_encode_prepare;
       device->meta_state.accel_struct_build.build_ops.encode_as[0] = radv_encode_as;
-      device->meta_state.accel_struct_build.build_ops.encode_bind_pipeline[1] = radv_init_header_bind_pipeline;
+      device->meta_state.accel_struct_build.build_ops.encode_prepare[1] = radv_init_header_prepare;
       device->meta_state.accel_struct_build.build_ops.encode_as[1] = radv_init_header;
       device->meta_state.accel_struct_build.build_ops.leaf_spirv_override = leaf_spv;
       device->meta_state.accel_struct_build.build_ops.leaf_spirv_override_size = sizeof(leaf_spv);

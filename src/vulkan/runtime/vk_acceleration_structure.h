@@ -144,11 +144,11 @@ struct vk_acceleration_structure_build_ops {
    VkDeviceSize (*get_encode_scratch_size)(VkDevice device, const struct vk_acceleration_structure_build_state *state);
    VkDeviceSize (*get_update_scratch_size)(VkDevice device, const struct vk_acceleration_structure_build_state *state);
 
-   VkResult (*encode_bind_pipeline[MAX_ENCODE_PASSES])(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *state);
+   VkResult (*encode_prepare[MAX_ENCODE_PASSES])(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *state);
    void (*encode_as[MAX_ENCODE_PASSES])(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *state);
 
    void (*init_update_scratch)(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *state);
-   void (*update_bind_pipeline[MAX_ENCODE_PASSES])(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *state,
+   void (*update_prepare[MAX_ENCODE_PASSES])(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *state,
                                                    bool flushed_cp_after_init_update_scratch, bool flushed_compute_after_init_update_scratch);
    void (*update_as[MAX_ENCODE_PASSES])(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *state);
 

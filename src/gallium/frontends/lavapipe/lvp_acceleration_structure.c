@@ -620,14 +620,14 @@ lvp_CopyAccelerationStructureToMemoryKHR(VkDevice _device, VkDeferredOperationKH
 }
 
 static VkResult
-lvp_encode_bind_pipeline(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *state)
+lvp_encode_prepare(VkCommandBuffer cmd_buffer, const struct vk_acceleration_structure_build_state *state)
 {
    return VK_SUCCESS;
 }
 
 const struct vk_acceleration_structure_build_ops accel_struct_ops = {
    .get_as_size = lvp_get_as_size,
-   .encode_bind_pipeline[0] = lvp_encode_bind_pipeline,
+   .encode_prepare[0] = lvp_encode_prepare,
    .encode_as[0] = lvp_enqueue_encode_as,
 };
 

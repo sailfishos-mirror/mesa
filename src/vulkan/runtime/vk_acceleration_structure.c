@@ -1423,11 +1423,11 @@ vk_cmd_build_acceleration_structures(VkCommandBuffer commandBuffer,
                }
 
                if (update) {
-                  ops->update_bind_pipeline[pass](commandBuffer, &bvh_states[i].vk,
+                  ops->update_prepare[pass](commandBuffer, &bvh_states[i].vk,
                                                   flushed_cp_after_init_update_scratch,
                                                   flushed_compute_after_init_update_scratch);
                } else {
-                  ops->encode_bind_pipeline[pass](commandBuffer, &bvh_states[i].vk);
+                  ops->encode_prepare[pass](commandBuffer, &bvh_states[i].vk);
                }
             } else {
                if (update != (bvh_states[i].vk.config.internal_type ==
