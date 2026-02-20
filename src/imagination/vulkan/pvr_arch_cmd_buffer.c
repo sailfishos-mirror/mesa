@@ -9333,7 +9333,7 @@ pvr_stencil_has_self_dependency(const struct pvr_cmd_buffer_state *const state)
 {
    const struct pvr_render_subpass *const current_subpass =
       pvr_get_current_subpass(state);
-   const struct pvr_render_input_attachment *const input_attachments =
+   const struct pvr_render_attachment *const input_attachments =
       current_subpass->input_attachments;
 
    if (current_subpass->depth_stencil_attachment == VK_ATTACHMENT_UNUSED)

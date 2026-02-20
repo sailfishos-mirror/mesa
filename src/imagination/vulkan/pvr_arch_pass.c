@@ -763,7 +763,7 @@ PVR_PER_ARCH(CreateRenderPass2)(VkDevice _device,
    const VkAllocationCallbacks *alloc;
    size_t subpass_attachment_count;
    size_t subpass_input_attachment_count;
-   struct pvr_render_input_attachment *subpass_input_attachments;
+   struct pvr_render_attachment *subpass_input_attachments;
    uint32_t *subpass_attachments;
    struct pvr_render_pass *pass;
    uint32_t *dep_list;

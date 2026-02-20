@@ -514,7 +514,7 @@
         "description": "pvr: Rename pvr_render_input_attachment",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
