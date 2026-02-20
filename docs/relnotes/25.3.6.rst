@@ -19,7 +19,8 @@ SHA checksums
 
 ::
 
-    TBD.
+   SHA256: 59217efeac3b64e7ced958324b9db7494f1e0741aeb22d780276514cc1b8f206  mesa-25.3.6.tar.xz
+   SHA512: 73620003e1e67c6b5ad076afb19e0b250214cfb6ed830166fb70058173ec3b19a2a8f5b5a78d8cce7a70745f5e4fa439913d15d8b38ca0002455b238f5865d38  mesa-25.3.6.tar.xz
 
 
 New features
