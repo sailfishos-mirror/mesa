@@ -7067,6 +7067,15 @@ bifrost_compile_shader_nir(nir_shader *nir,
    info->stage = nir->info.stage;
 
    pan_nir_collect_varyings(nir, info);
+   if (nir->info.stage == MESA_SHADER_VERTEX) {
+      assert(inputs->varying_layout);
+      memcpy(&info->varyings.formats, inputs->varying_layout,
+             sizeof(*inputs->varying_layout));
+   } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      pan_varying_collect_formats(&info->varyings.formats,
+                                  nir, inputs->gpu_id,
+                                  inputs->trust_varying_flat_highp_types, false);
+   }
 
    if (nir->info.stage == MESA_SHADER_VERTEX && info->vs.idvs) {
       /* On 5th Gen, IDVS is only in one binary */

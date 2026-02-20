@@ -2983,6 +2983,15 @@ midgard_compile_shader_nir(nir_shader *nir,
    /* Collect varyings after lowering I/O */
    info->quirk_no_auto32 = (ctx->quirks & MIDGARD_NO_AUTO32);
    pan_nir_collect_varyings(nir, info);
+   if (nir->info.stage == MESA_SHADER_VERTEX) {
+      assert(inputs->varying_layout);
+      memcpy(&info->varyings.formats, inputs->varying_layout,
+             sizeof(*inputs->varying_layout));
+   } else if (nir->info.stage == MESA_SHADER_FRAGMENT) {
+      pan_varying_collect_formats(&info->varyings.formats,
+                                  nir, inputs->gpu_id,
+                                  inputs->trust_varying_flat_highp_types, false);
+   }
 
    /* Optimisation passes */
    optimise_nir(nir, ctx->quirks, inputs->is_blend);

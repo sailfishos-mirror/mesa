@@ -496,6 +496,8 @@ struct pan_shader_info {
 
       /* Bitfield of special varyings. */
       uint32_t fixed_varyings;
+
+      struct pan_varying_layout formats;
    } varyings;
 
    /* UBOs to push to Register Mapped Uniforms (Midgard) or Fast Access
