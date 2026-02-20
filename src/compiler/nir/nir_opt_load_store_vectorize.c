@@ -126,6 +126,7 @@ get_info(nir_intrinsic_op op)
       STORE(nir_var_shader_out, urb_lsc_intel, -1, 1, -1, 0, 1)
       LOAD(0, urb_vec4_intel, 0, 1, -1, 16)
       STORE(nir_var_shader_out, urb_vec4_intel, 1, 2, -1, 0, 16)
+      LOAD(nir_var_mem_ubo, shader_indirect_data_intel, -1, 0, -1, 1)
    default:
       break;
 #undef ATOMIC
@@ -1613,7 +1614,7 @@ try_vectorize_shared2(struct vectorize_ctx *ctx,
                            nir_bitcast_vector(&b, nir_channel(&b, new_def, 0), low_bit_size));
       nir_def_rewrite_uses(&high->intrin->def,
                            nir_bitcast_vector(&b, nir_channel(&b, new_def, 1), high_bit_size));
-      new_entry = create_entry(ctx, get_info(nir_intrinsic_load_shared2_amd), nir_def_as_intrinsic(new_def));                     
+      new_entry = create_entry(ctx, get_info(nir_intrinsic_load_shared2_amd), nir_def_as_intrinsic(new_def));
    }
 
    /* Add a new entry, so that alias checks stay intact. Remove the old entries,

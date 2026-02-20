@@ -2532,6 +2532,12 @@ intrinsic("store_per_primitive_payload_intel", src_comp=[-1], indices=[BASE, COM
 # Number of data items being operated on for a SIMD program.
 system_value("simd_width_intel", 1)
 
+# Address delivered in R0[31:6] compute, mesh & task shaders on Gfx12.5+
+# coming from
+# (3DSTATE_MESH_SHADER_DATA|3DSTATE_TASK_SHADER_DATA|COMPUTE_WALKER)
+# IndirectDataStartAddress
+system_value("indirect_address_intel", 1)
+
 # Load a relocatable 32-bit value
 intrinsic("load_reloc_const_intel", dest_comp=1, bit_sizes=[32],
           indices=[PARAM_IDX, BASE], flags=[CAN_ELIMINATE, CAN_REORDER])
@@ -2632,6 +2638,12 @@ store("urb_vec4_intel", [1, 1, 1], [BASE])
 #
 # src[] = { value, address }.
 store("urb_lsc_intel", [1], [BASE])
+
+# Load from indirect address delivered in the thread payloads in compute, mesh
+# & task shaders on Gfx12.5+
+#
+# src[] = { offset }.
+load("shader_indirect_data_intel", [1], [BASE, RANGE])
 
 # Return a handle for a shader's input or output URB memory.
 system_value("urb_input_handle_intel", 1)

@@ -1015,6 +1015,7 @@ nir_get_io_offset_src_number(const nir_intrinsic_instr *instr)
    case nir_intrinsic_load_shared_ir3:
    case nir_intrinsic_load_push_data_intel:
    case nir_intrinsic_vild_nv:
+   case nir_intrinsic_load_shader_indirect_data_intel:
       return 0;
    case nir_intrinsic_load_ubo:
    case nir_intrinsic_load_ubo_vec4:

@@ -3107,6 +3107,7 @@ lsc_op_for_nir_intrinsic(const nir_intrinsic_instr *intrin)
    case nir_intrinsic_load_ssbo_uniform_block_intel:
    case nir_intrinsic_load_ubo_uniform_block_intel:
    case nir_intrinsic_load_scratch:
+   case nir_intrinsic_load_shader_indirect_data_intel:
       return LSC_OP_LOAD;
 
    case nir_intrinsic_store_ssbo:

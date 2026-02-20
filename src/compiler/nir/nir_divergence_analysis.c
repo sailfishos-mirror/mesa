@@ -365,6 +365,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_urb_output_handle_intel:
    case nir_intrinsic_load_ray_query_global_intel:
    case nir_intrinsic_load_call_return_address_amd:
+   case nir_intrinsic_load_indirect_address_intel:
       is_divergent = false;
       break;
 
@@ -613,6 +614,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_shared:
    case nir_intrinsic_load_shared_ir3:
    case nir_intrinsic_load_shared_nv:
+   case nir_intrinsic_load_shader_indirect_data_intel:
       is_divergent = src_divergent(instr->src[0], state) ||
                      (options & nir_divergence_uniform_load_tears);
       break;
