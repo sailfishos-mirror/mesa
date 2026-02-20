@@ -2290,6 +2290,10 @@ static VkResult pvr_schedule_subpass(const struct pvr_device *device,
                                 subpass_num,
                                 subpass->input_attachments,
                                 subpass->input_count);
+   pvr_dereference_surface_list(ctx,
+                                subpass_num,
+                                subpass->preserve_attachments,
+                                subpass->preserve_count);
    if (subpass->depth_stencil_attachment != VK_ATTACHMENT_UNUSED) {
       struct pvr_render_int_attachment *int_depth_attach =
          &ctx->int_attach[subpass->depth_stencil_attachment];
@@ -2595,6 +2599,11 @@ VkResult pvr_arch_create_renderpass_hwsetup(
                                               subpass->input_count,
                                               i);
 
+         const uint32_t preserve_attachment_uses =
+            pvr_count_uses_in_attachment_list(subpass->preserve_attachments,
+                                              subpass->preserve_count,
+                                              i);
+
          uint32_t resolve_output_uses;
          uint32_t color_output_uses;
          uint32_t total_output_uses;
@@ -2604,13 +2613,13 @@ VkResult pvr_arch_create_renderpass_hwsetup(
                                              &color_output_uses,
                                              &resolve_output_uses);
 
-         total_output_uses = color_output_uses + resolve_output_uses;
+         total_output_uses = color_output_uses + resolve_output_uses +
+                             input_attachment_uses + preserve_attachment_uses;
 
-         if (total_output_uses != 0U || input_attachment_uses != 0U)
+         if (total_output_uses != 0U)
             int_attach->last_read = j;
 
-         int_attach->remaining_count +=
-            total_output_uses + input_attachment_uses;
+         int_attach->remaining_count += total_output_uses;
 
          if ((uint32_t)subpass->depth_stencil_attachment == i)
             int_attach->remaining_count++;
