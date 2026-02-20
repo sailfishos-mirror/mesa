@@ -461,27 +461,29 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
    NIR_PASS(_, nir, nir_shader_intrinsics_pass,
             lower_load_intrinsic, nir_metadata_none, pdev);
 
-   NIR_PASS(_, nir, nir_lower_vars_to_explicit_types,
-            nir_var_mem_shared, shared_var_info);
-   NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_shared,
-            nir_address_format_32bit_offset);
+   if (mesa_shader_stage_is_compute(nir->info.stage)) {
+      NIR_PASS(_, nir, nir_lower_vars_to_explicit_types,
+               nir_var_mem_shared, shared_var_info);
+      NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_shared,
+               nir_address_format_32bit_offset);
 
-   if (nir->info.zero_initialize_shared_memory && nir->info.shared_size > 0) {
-      /* QMD::SHARED_MEMORY_SIZE requires an alignment of 256B so it's safe to
-       * align everything up to 16B so we can write whole vec4s.
-       */
-      nir->info.shared_size = align(nir->info.shared_size, 16);
-      NIR_PASS(_, nir, nir_zero_initialize_shared_memory,
-               nir->info.shared_size, 16);
+      if (nir->info.zero_initialize_shared_memory && nir->info.shared_size > 0) {
+         /* QMD::SHARED_MEMORY_SIZE requires an alignment of 256B so it's safe to
+         * align everything up to 16B so we can write whole vec4s.
+         */
+         nir->info.shared_size = align(nir->info.shared_size, 16);
+         NIR_PASS(_, nir, nir_zero_initialize_shared_memory,
+                  nir->info.shared_size, 16);
 
-      /* We need to call lower_compute_system_values again because
-       * nir_zero_initialize_shared_memory generates load_invocation_id which
-       * has to be lowered to load_invocation_index.
-       */
-      nir_lower_compute_system_values_options csv_options = {
-         .lower_local_invocation_index = mesa_shader_stage_is_compute(nir->info.stage),
-      };
-      NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
+         /* We need to call lower_compute_system_values again because
+         * nir_zero_initialize_shared_memory generates load_invocation_id which
+         * has to be lowered to load_invocation_index.
+         */
+         nir_lower_compute_system_values_options csv_options = {
+            .lower_local_invocation_index = mesa_shader_stage_is_compute(nir->info.stage),
+         };
+         NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
+      }
    }
 }
 
