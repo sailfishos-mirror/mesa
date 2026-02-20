@@ -159,11 +159,12 @@ vtn_mediump_downconvert_value(struct vtn_builder *b, struct vtn_ssa_value *src)
    if (!src)
       return src;
 
-   struct vtn_ssa_value *srcmp = vtn_create_ssa_value(b, src->type);
-
    if (src->transposed) {
-      srcmp->transposed = vtn_mediump_downconvert_value(b, src->transposed);
+      struct vtn_ssa_value *transposed =
+         vtn_mediump_downconvert_value(b, src->transposed);
+      return vtn_ssa_transpose(b, transposed);
    } else {
+      struct vtn_ssa_value *srcmp = vtn_create_ssa_value(b, src->type);
       enum glsl_base_type base_type = glsl_get_base_type(src->type);
 
       if (glsl_type_is_vector_or_scalar(src->type)) {
@@ -173,9 +174,8 @@ vtn_mediump_downconvert_value(struct vtn_builder *b, struct vtn_ssa_value *src)
          for (int i = 0; i < glsl_get_matrix_columns(src->type); i++)
             srcmp->elems[i]->def = vtn_mediump_downconvert(b, base_type, src->elems[i]->def);
       }
+      return srcmp;
    }
-
-   return srcmp;
 }
 
 static struct vtn_ssa_value *
