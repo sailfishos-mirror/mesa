@@ -3894,8 +3894,8 @@ load_scratch_param(isel_context* ctx, Builder& bld, const parameter_info& param,
       params.max_const_offset = ctx->program->dev.scratch_global_offset_max;
       emit_load(ctx, bld, info, params);
    } else {
-      info.resource = load_scratch_resource(
-         ctx->program, bld, ctx->program->private_segment_buffers.size() - 1, false);
+      info.resource = load_scratch_resource(ctx->program, bld,
+                                            ctx->program->private_segment_buffers.size() - 1, true);
       if (stack_ptr.id()) {
          info.soffset = bld.sop2(aco_opcode::s_add_u32, bld.def(s1), bld.def(s1, scc), stack_ptr,
                                  Operand::c32(-const_offset * ctx->program->wave_size));
@@ -3922,7 +3922,8 @@ store_scratch_param(isel_context* ctx, Builder& bld, const parameter_info& param
                       write_datas, offsets);
 
    if (ctx->program->gfx_level < GFX9) {
-      Temp scratch_rsrc = load_scratch_resource(ctx->program, bld, -1u, false);
+      Temp scratch_rsrc = load_scratch_resource(
+         ctx->program, bld, ctx->program->private_segment_buffers.size() - 1, true);
       for (unsigned i = 0; i < write_count; i++) {
          Temp soffset;
          if (stack_ptr.id()) {

@@ -780,7 +780,7 @@ visit_call(isel_context* ctx, nir_call_instr* instr)
     */
 
    Temp stack_ptr, param_stack_ptr;
-   if (info.stack_ptr.is_reg && ctx->program->gfx_level >= GFX9) {
+   if (ctx->program->is_callee && ctx->program->gfx_level >= GFX9) {
       param_stack_ptr = bld.pseudo(aco_opcode::p_callee_stack_ptr, bld.def(s1), bld.def(s1, scc),
                                    Operand::c32(info.scratch_param_size),
                                    Operand(ctx->callee_info.stack_ptr.def.getTemp()));
@@ -814,7 +814,7 @@ visit_call(isel_context* ctx, nir_call_instr* instr)
    if (ctx->program->gfx_level >= GFX9) {
       call_instr->operands[0] = Operand(stack_ptr, info.stack_ptr.def.physReg());
    } else {
-      call_instr->operands[0] = Operand(load_scratch_resource(ctx->program, bld, -1u, false));
+      call_instr->operands[0] = Operand(load_scratch_resource(ctx->program, bld, ctx->program->private_segment_buffers.size() - 1, true));
       call_instr->operands[0].setPrecolored(info.stack_ptr.def.physReg());
    }
 
