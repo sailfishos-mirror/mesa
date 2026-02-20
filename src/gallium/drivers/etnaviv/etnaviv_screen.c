@@ -359,6 +359,8 @@ etna_init_screen_caps(struct etna_screen *screen)
 
    caps->max_line_width =
    caps->max_line_width_aa =
+      VIV_FEATURE(screen, ETNA_FEATURE_WIDELINE_TRIANGLE_EMU) ? 1.0f : 8192.0f;
+
    caps->max_point_size =
    caps->max_point_size_aa = 8192.0f;
 
