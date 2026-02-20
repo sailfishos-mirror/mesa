@@ -2982,7 +2982,7 @@ midgard_compile_shader_nir(nir_shader *nir,
 
    /* Collect varyings after lowering I/O */
    info->quirk_no_auto32 = (ctx->quirks & MIDGARD_NO_AUTO32);
-   pan_nir_collect_varyings(nir, info, PAN_MEDIUMP_VARY_SMOOTH_16BIT);
+   pan_nir_collect_varyings(nir, info);
 
    /* Optimisation passes */
    optimise_nir(nir, ctx->quirks, inputs->is_blend);

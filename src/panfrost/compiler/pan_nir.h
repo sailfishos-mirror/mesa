@@ -82,16 +82,6 @@ bool pan_nir_lower_fs_outputs(nir_shader *shader, bool skip_atest);
 
 uint32_t pan_nir_collect_noperspective_varyings_fs(nir_shader *s);
 
-/* Specify the mediump lowering behavior for pan_nir_collect_varyings */
-enum pan_mediump_vary {
-   /* Always assign a 32-bit format to mediump varyings */
-   PAN_MEDIUMP_VARY_32BIT,
-   /* Assign a 16-bit format to varyings with smooth interpolation, and a
-    * 32-bit format to varyings with flat interpolation */
-   PAN_MEDIUMP_VARY_SMOOTH_16BIT,
-};
-
-void pan_nir_collect_varyings(nir_shader *s, struct pan_shader_info *info,
-                              enum pan_mediump_vary mediump);
+void pan_nir_collect_varyings(nir_shader *s, struct pan_shader_info *info);
 
 #endif /* __PAN_NIR_H__ */

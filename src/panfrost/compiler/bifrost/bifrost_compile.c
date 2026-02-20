@@ -7059,7 +7059,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
    info->tls_size = nir->scratch_size;
    info->stage = nir->info.stage;
 
-   pan_nir_collect_varyings(nir, info, PAN_MEDIUMP_VARY_32BIT);
+   pan_nir_collect_varyings(nir, info);
 
    if (nir->info.stage == MESA_SHADER_VERTEX && info->vs.idvs) {
       /* On 5th Gen, IDVS is only in one binary */
