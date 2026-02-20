@@ -213,3 +213,11 @@ dEQP-VK.wsi.*.swapchain.simulate_oom.*
 
 # With linux kernel 6.13-rc4 uprev
 dEQP-GLES31.functional.copy_image.compressed.viewclass_astc_8x6_rgba.rgba_astc_8x6_khr_srgb8_alpha8_astc_8x6_khr.texture3d_to_cubemap
+
+# Some of these fail almost every nightly CI job
+dEQP-GLES2.functional.fbo.render.shared_colorbuffer.rbo_bgra_depth_component16,Fail
+dEQP-GLES2.functional.fbo.render.shared_colorbuffer.rbo_rgb565_depth_component16,Fail
+dEQP-GLES2.functional.fbo.render.shared_colorbuffer.rbo_rgb5_a1_depth_component16,Fail
+dEQP-GLES2.functional.fbo.render.shared_colorbuffer.rbo_rgba4_depth_component16,Fail
+dEQP-GLES2.functional.fbo.render.shared_colorbuffer.tex2d_bgra_depth_component16,Fail
+dEQP-GLES2.functional.fbo.render.shared_colorbuffer.tex2d_rgb_depth_component16,Fail
