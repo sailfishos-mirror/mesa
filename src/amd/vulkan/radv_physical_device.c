@@ -2920,7 +2920,7 @@ radv_get_physical_device_queue_family_properties(struct radv_physical_device *pd
                           radv_queue_family_protected_flag(pdev, RADV_QUEUE_TRANSFER),
             .queueCount = pdev->info.ip[AMD_IP_SDMA].num_queues,
             .timestampValidBits = 64,
-            .minImageTransferGranularity = (VkExtent3D){16, 16, 8},
+            .minImageTransferGranularity = (VkExtent3D){1, 1, 1},
          };
          idx++;
       }
@@ -3027,6 +3027,16 @@ radv_GetPhysicalDeviceQueueFamilyProperties2(VkPhysicalDevice physicalDevice, ui
          case VK_STRUCTURE_TYPE_QUEUE_FAMILY_OWNERSHIP_TRANSFER_PROPERTIES_KHR: {
             VkQueueFamilyOwnershipTransferPropertiesKHR *prop = (VkQueueFamilyOwnershipTransferPropertiesKHR *)ext;
             prop->optimalImageTransferToQueueFamilies = ~0;
+            break;
+         }
+         case VK_STRUCTURE_TYPE_QUEUE_FAMILY_OPTIMAL_IMAGE_TRANSFER_GRANULARITY_PROPERTIES_KHR: {
+            VkQueueFamilyOptimalImageTransferGranularityPropertiesKHR *prop =
+               (VkQueueFamilyOptimalImageTransferGranularityPropertiesKHR *)ext;
+            if (pQueueFamilyProperties[i].queueFamilyProperties.queueFlags & VK_QUEUE_TRANSFER_BIT) {
+               prop->optimalImageTransferGranularity = (VkExtent3D){16, 16, 8};
+            } else {
+               prop->optimalImageTransferGranularity = (VkExtent3D){1, 1, 1};
+            }
             break;
          }
          default:
