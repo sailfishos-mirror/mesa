@@ -3470,33 +3470,23 @@ radv_aco_build_shader_part(void **bin, uint32_t num_sgprs, uint32_t num_vgprs, c
 }
 
 struct radv_shader *
-radv_create_rt_prolog(struct radv_device *device, unsigned raygen_param_count, nir_parameter *raygen_params)
+radv_compile_rt_prolog(struct radv_device *device, struct radv_shader_stage *stage)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+   struct radv_instance *instance = radv_physical_device_instance(pdev);
+
    struct radv_shader *prolog;
-   struct radv_shader_args in_args = {0};
+
    struct radv_nir_compiler_options options = {0};
    radv_fill_nir_compiler_options(&options, device, NULL, false, instance->debug_flags & RADV_DEBUG_DUMP_PROLOGS,
                                   radv_device_fault_detection_enabled(device), false);
-   struct radv_shader_info info = {0};
-   info.stage = MESA_SHADER_COMPUTE;
-   info.loads_push_constants = true;
-   info.loads_dynamic_offsets = true;
-   info.force_indirect_descriptors = true;
-   info.wave_size = pdev->rt_wave_size;
-   info.workgroup_size = info.wave_size;
-   info.user_data_0 = R_00B900_COMPUTE_USER_DATA_0;
-   info.type = RADV_SHADER_TYPE_RT_PROLOG;
-   info.cs.block_size[0] = pdev->rt_wave_size;
-   info.cs.block_size[1] = 1;
-   info.cs.block_size[2] = 1;
-   info.cs.uses_thread_id[0] = true;
-   for (unsigned i = 0; i < 3; i++)
-      info.cs.uses_block_id[i] = true;
 
-   radv_declare_shader_args(device, NULL, &info, MESA_SHADER_COMPUTE, MESA_SHADER_NONE, &in_args);
-   info.user_sgprs_locs = in_args.user_sgprs_locs;
+   if (options.dump_shader) {
+      simple_mtx_lock(&instance->shader_dump_mtx);
+
+      if (instance->debug_flags & RADV_DEBUG_DUMP_NIR)
+         nir_print_shader(stage->nir, stderr);
+   }
 
 #if AMD_LLVM_AVAILABLE
    if (options.dump_shader || options.record_ir)
@@ -3507,13 +3497,13 @@ radv_create_rt_prolog(struct radv_device *device, unsigned raygen_param_count, n
    struct radv_shader_stage_key stage_key = {0};
    struct aco_shader_info ac_info;
    struct aco_compiler_options ac_opts;
-   radv_aco_convert_shader_info(&ac_info, &info, &in_args, &device->cache_key, pdev->info.gfx_level);
-   radv_aco_convert_opts(&ac_opts, &options, &in_args, &stage_key);
-   aco_compile_rt_prolog(&ac_opts, &ac_info, &in_args.ac, &in_args.descriptors[0], raygen_param_count, raygen_params,
-                         &radv_aco_build_shader_binary, (void **)&binary);
-   binary->info = info;
+   radv_aco_convert_shader_info(&ac_info, &stage->info, &stage->args, &device->cache_key, pdev->info.gfx_level);
+   radv_aco_convert_opts(&ac_opts, &options, &stage->args, &stage_key);
+   aco_compile_shader(&ac_opts, &ac_info, 1, &stage->nir, &stage->args.ac, &radv_aco_build_shader_binary,
+                      (void **)&binary);
+   binary->info = stage->info;
 
-   radv_postprocess_binary_config(device, binary, &in_args);
+   radv_postprocess_binary_config(device, binary, &stage->args);
    radv_shader_create_uncached(device, binary, false, NULL, &prolog);
    if (!prolog || radv_parse_binary_debug_info(device, binary, &prolog->dbg) != VK_SUCCESS)
       goto done;
@@ -3521,6 +3511,7 @@ radv_create_rt_prolog(struct radv_device *device, unsigned raygen_param_count, n
    if (options.dump_shader) {
       fprintf(stderr, "Raytracing prolog");
       fprintf(stderr, "\ndisasm:\n%s\n", prolog->dbg.disasm_string);
+      simple_mtx_unlock(&instance->shader_dump_mtx);
    }
 
 done:

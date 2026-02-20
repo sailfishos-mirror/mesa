@@ -25,7 +25,10 @@
 #include "radv_pipeline_layout.h"
 #include "radv_pipeline_rt.h"
 
+#include "nir/radv_nir_rt_stage_common.h"
+#include "aco_interface.h"
 #include "aco_nir_call_attribs.h"
+#include "radv_aco_shader_info.h"
 #include "radv_rmv.h"
 #include "radv_shader.h"
 
@@ -1042,13 +1045,21 @@ static void
 compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *pipeline)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   struct nir_function raygen_stub = {0};
    uint32_t push_constant_size = 0;
 
-   /* Create a dummy function signature for raygen shaders in order to pass parameter info to the prolog */
-   radv_nir_init_rt_function_params(&raygen_stub, MESA_SHADER_RAYGEN, 0, 0);
-   radv_nir_lower_callee_signature(&raygen_stub);
-   pipeline->prolog = radv_create_rt_prolog(device, raygen_stub.num_params, raygen_stub.params);
+   struct radv_shader_stage prolog_stage = {};
+   radv_build_rt_prolog(device, &prolog_stage);
+   prolog_stage.nir->options = &pdev->nir_options[MESA_SHADER_COMPUTE];
+   radv_optimize_nir(prolog_stage.nir, false);
+   radv_postprocess_nir(device, NULL, &prolog_stage);
+
+   NIR_PASS(_, prolog_stage.nir, radv_nir_lower_call_abi, prolog_stage.info.wave_size);
+   NIR_PASS(_, prolog_stage.nir, nir_lower_global_vars_to_local);
+   NIR_PASS(_, prolog_stage.nir, nir_lower_vars_to_ssa);
+   NIR_PASS(_, prolog_stage.nir, nir_opt_copy_prop);
+   NIR_PASS(_, prolog_stage.nir, nir_opt_remove_phis);
+
+   pipeline->prolog = radv_compile_rt_prolog(device, &prolog_stage);
 
    bool has_traversal = !!pipeline->base.base.shaders[MESA_SHADER_INTERSECTION];
 
