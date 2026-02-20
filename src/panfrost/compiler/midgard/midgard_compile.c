@@ -1322,39 +1322,26 @@ emit_varying_read(compiler_context *ctx, unsigned dest, unsigned offset,
    ins.load_store.arg_reg = REGISTER_LDST_ZERO;
    ins.load_store.index_format = midgard_index_address_u32;
 
-   /* For flat shading, for GPUs supporting auto32, we always use .u32 and
-    * require 32-bit mode. For smooth shading, we use the appropriate
-    * floating-point type.
-    *
-    * This could be optimized, but it makes it easy to check correctness.
-    */
-   if (ctx->quirks & MIDGARD_NO_AUTO32) {
-      switch (type) {
-      case nir_type_uint32:
-      case nir_type_bool32:
-         ins.op = midgard_op_ld_vary_32u;
-         break;
-      case nir_type_int32:
-         ins.op = midgard_op_ld_vary_32i;
-         break;
-      case nir_type_float32:
-         ins.op = midgard_op_ld_vary_32;
-         break;
-      case nir_type_float16:
-         ins.op = midgard_op_ld_vary_16;
-         break;
-      default:
-         UNREACHABLE("Attempted to load unknown type");
-         break;
-      }
-   } else if (flat) {
-      assert(nir_alu_type_get_type_size(type) == 32);
-      ins.op = midgard_op_ld_vary_32u;
-   } else {
+   if (!flat) {
       assert(nir_alu_type_get_base_type(type) == nir_type_float);
-
-      ins.op = (nir_alu_type_get_type_size(type) == 32) ? midgard_op_ld_vary_32
-                                                        : midgard_op_ld_vary_16;
+   }
+   switch (type) {
+   case nir_type_uint32:
+   case nir_type_bool32:
+      ins.op = midgard_op_ld_vary_32u;
+      break;
+   case nir_type_int32:
+      ins.op = midgard_op_ld_vary_32i;
+      break;
+   case nir_type_float32:
+      ins.op = midgard_op_ld_vary_32;
+      break;
+   case nir_type_float16:
+      ins.op = midgard_op_ld_vary_16;
+      break;
+   default:
+      UNREACHABLE("Attempted to load unknown type");
+      break;
    }
 
    emit_mir_instruction(ctx, &ins);
@@ -1868,18 +1855,7 @@ emit_intrinsic(compiler_context *ctx, nir_intrinsic_instr *instr)
 
          unsigned dst_component = nir_intrinsic_component(instr);
          unsigned nr_comp = nir_src_num_components(instr->src[0]);
-
-         /* ABI: Format controlled by the attribute descriptor.
-          * This simplifies flat shading, although it prevents
-          * certain (unimplemented) 16-bit optimizations.
-          *
-          * In particular, it lets the driver handle internal
-          * TGSI shaders that set flat in the VS but smooth in
-          * the FS. This matches our handling on Bifrost.
-          */
-         bool auto32 = true;
-         assert(nir_alu_type_get_type_size(nir_intrinsic_src_type(instr)) ==
-                32);
+         bool auto32 = false;
 
          /* ABI: varyings in the secondary attribute table */
          bool secondary_table = true;
@@ -1908,6 +1884,26 @@ emit_intrinsic(compiler_context *ctx, nir_intrinsic_instr *instr)
             st.swizzle[0][i] = src_component;
             if (i >= dst_component && i < dst_component + nr_comp - 1)
                src_component++;
+         }
+
+         nir_alu_type type = nir_intrinsic_src_type(instr);
+         switch (type) {
+         case nir_type_uint32:
+         case nir_type_bool32:
+            st.op = midgard_op_st_vary_32u;
+            break;
+         case nir_type_int32:
+            st.op = midgard_op_st_vary_32i;
+            break;
+         case nir_type_float32:
+            st.op = midgard_op_st_vary_32;
+            break;
+         case nir_type_float16:
+            st.op = midgard_op_st_vary_16;
+            break;
+         default:
+            UNREACHABLE("Attempted to store unknown type");
+            break;
          }
 
          emit_mir_instruction(ctx, &st);

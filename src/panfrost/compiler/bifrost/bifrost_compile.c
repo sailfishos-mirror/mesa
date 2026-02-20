@@ -590,6 +590,12 @@ bi_emit_load_vary(bi_builder *b, nir_intrinsic_instr *instr)
    bool smooth = instr->intrinsic == nir_intrinsic_load_interpolated_input;
    bi_index src0 = bi_null();
 
+   /* Only use LD_VAR_BUF[_IMM] if explicitly told by the driver
+    * through a compiler input value, falling back to LD_VAR[_IMM] +
+    * Attribute Descriptors otherwise. */
+   bool use_ld_var_buf =
+      b->shader->malloc_idvs && b->shader->inputs->valhall.use_ld_var_buf;
+
    unsigned component = nir_intrinsic_component(instr);
    enum bi_vecsize vecsize = (instr->num_components + component - 1);
    bi_index dest =
@@ -597,17 +603,23 @@ bi_emit_load_vary(bi_builder *b, nir_intrinsic_instr *instr)
 
    nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
 
+   const nir_alu_type type = nir_intrinsic_dest_type(instr);
+   const nir_alu_type base_type = nir_alu_type_get_base_type(type);
+   const nir_alu_type sz = nir_alu_type_get_type_size(type);
+   assert(sz == instr->def.bit_size);
+   assert(sz == 16 || sz == 32);
+   assert(base_type == nir_type_int || base_type == nir_type_uint || base_type == nir_type_float);
+
    const struct pan_varying_slot *slot = NULL;
-   if (b->shader->varying_layout) {
+   unsigned src_sz = sz;
+   if (use_ld_var_buf) {
+      pan_varying_layout_require_layout(b->shader->varying_layout);
       slot = pan_varying_layout_find_slot(b->shader->varying_layout,
                                           sem.location);
+      assert(slot);
+      src_sz = nir_alu_type_get_type_size(slot->alu_type);
+      assert(src_sz == 16 || src_sz == 32);
    }
-
-   unsigned sz = instr->def.bit_size;
-   assert(sz == 16 || sz == 32);
-   /* mediump varyings are always written as 32-bits in the VS, but may be read
-    * to 16 in the FS. */
-   unsigned src_sz = sem.medium_precision ? 32 : sz;
 
    if (smooth) {
       nir_intrinsic_instr *parent = nir_src_as_intrinsic(instr->src[0]);
@@ -616,17 +628,26 @@ bi_emit_load_vary(bi_builder *b, nir_intrinsic_instr *instr)
       sample = bi_interp_for_intrinsic(parent->intrinsic);
       src0 = bi_varying_src0_for_barycentric(b, parent);
 
+      /* Smooth ints don't exist */
+      assert(base_type == nir_type_float);
       regfmt = (sz == 16) ? BI_REGISTER_FORMAT_F16 : BI_REGISTER_FORMAT_F32;
       source_format =
          (src_sz == 16) ? BI_SOURCE_FORMAT_F16 : BI_SOURCE_FORMAT_F32;
    } else {
-      /* u16 regfmt is not supported by LD_VAR_BUF, but using f16 for integers
-       * is okay because we use a f16 attribute descriptor for all 16-bit
-       * varyings regardless of whether they are floats or ints. The
-       * conversion is a no-op. */
-      regfmt = (sz == 16) ? BI_REGISTER_FORMAT_F16 : BI_REGISTER_FORMAT_AUTO;
-      source_format = (src_sz == 16) ?
-         BI_SOURCE_FORMAT_FLAT16 : BI_SOURCE_FORMAT_FLAT32;
+      if (use_ld_var_buf) {
+         /* integer regfmt are not supported by LD_VAR_BUF, but using float src_types for integers
+          * is okay if the source_format is flat and uses the same bit size.
+          * The conversion is a no-op. */
+         regfmt = (sz == 16) ? BI_REGISTER_FORMAT_F16 : BI_REGISTER_FORMAT_F32;
+         source_format = (src_sz == 16) ?
+            BI_SOURCE_FORMAT_FLAT16 : BI_SOURCE_FORMAT_FLAT32;
+         /* conversion MUST be a noop for int varyings to work correctly */
+         assert(base_type == nir_type_float || src_sz == sz);
+      } else {
+         /* Flat loading with i16/u16 is not encodable */
+         assert(base_type == nir_type_float || sz == 32);
+         regfmt = bi_reg_fmt_for_nir(type);
+      }
 
       /* Valhall can't have bi_null() here, although the source is
        * logically unused for flat varyings
@@ -643,13 +664,8 @@ bi_emit_load_vary(bi_builder *b, nir_intrinsic_instr *instr)
    bool immediate = bi_is_imm_var_desc_handle(b, instr, &imm_index);
    unsigned base = nir_intrinsic_base(instr);
 
-   /* Only use LD_VAR_BUF[_IMM] if explicitly told by the driver
-    * through a compiler input value, falling back to LD_VAR[_IMM] +
-    * Attribute Descriptors otherwise. */
-   bool use_ld_var_buf =
-      b->shader->malloc_idvs && b->shader->inputs->valhall.use_ld_var_buf;
-
    if (use_ld_var_buf) {
+      assert(slot);
       if (immediate) {
          assert(nir_src_is_const(*offset_src) && "assumes immediate offset");
          unsigned offset = slot->offset + (nir_src_as_uint(*offset_src) * 16);
@@ -1151,11 +1167,20 @@ bi_emit_store_vary(bi_builder *b, nir_intrinsic_instr *instr)
 
       bi_store(b, nr * src_bit_sz, data, a[0], a[1], seg, offset);
    } else {
-      /* 16-bit varyings are always written and loaded as F16, regardless of
-       * whether they are float or int */
       assert(T_size == 32 || T_size == 16);
-      enum bi_register_format regfmt =
-         T_size == 16 ? BI_REGISTER_FORMAT_F16 : BI_REGISTER_FORMAT_AUTO;
+
+      enum bi_register_format regfmt = bi_reg_fmt_for_nir(T);
+
+      /* Since v9 we cannot have separate attribute descriptors for VS-FS,
+       * There might be a mismatch on Gallium where the VS thinks it is storing
+       * an int, but the data is actually a float, and that's what FS expects.
+       * So, just for v9 onwards, just until we haven't fixed gallium, use auto32.
+       * We are still getting around the midgard quirk since we do this only
+       * from v9.
+       * TODO: fix all bugs with gallium and remove this patch
+       */
+      if (b->shader->arch >= 9 && T_size == 32)
+         regfmt = BI_REGISTER_FORMAT_AUTO;
 
       if (immediate) {
          bi_index address = bi_lea_attr_imm(b, bi_vertex_id(b),
