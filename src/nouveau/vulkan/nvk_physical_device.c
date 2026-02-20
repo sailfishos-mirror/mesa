@@ -598,7 +598,11 @@ nvk_get_device_features(const struct nv_device_info *info,
 
       /* VK_EXT_descriptor_buffer */
       .descriptorBuffer = info->cls_eng3d >= MAXWELL_A,
-      .descriptorBufferCaptureReplay = info->cls_eng3d >= MAXWELL_A,
+      /*
+       * CaptureReplay is disabled until we fix
+       * https://gitlab.freedesktop.org/mesa/mesa/-/issues/14518
+       */
+      .descriptorBufferCaptureReplay = false, /* info->cls_eng3d >= MAXWELL_A, */
       .descriptorBufferImageLayoutIgnored = info->cls_eng3d >= MAXWELL_A,
       .descriptorBufferPushDescriptors = info->cls_eng3d >= MAXWELL_A,
 
