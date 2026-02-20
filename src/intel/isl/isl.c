@@ -5325,6 +5325,44 @@ isl_tiling_get_intratile_offset_el(enum isl_tiling tiling,
       (uint64_t)x_offset_tl * tile_info.phys_extent_B.h * tile_info.phys_extent_B.w;
 }
 
+uint64_t
+isl_surf_get_sampler_overfetch_size_B(const struct isl_device *dev,
+                                      const struct isl_surf *surf,
+                                      const struct isl_view *view)
+{
+   /* We don't currently need to calculate overfetch besides when using linear
+    * tiled surfaces to copy data from an application defined buffer
+    */
+   assert(surf->tiling == ISL_TILING_LINEAR);
+   assert(surf->dim == ISL_SURF_DIM_2D);
+   assert(surf->levels == 1);
+   assert(surf->usage & ISL_SURF_USAGE_NO_OVERFETCH_PADDING_BIT);
+   assert(view->usage & ISL_SURF_USAGE_NO_ARRAY_OVERFETCH_BIT);
+
+   const struct isl_format_layout *fmtl = isl_format_get_layout(view->format);
+   uint32_t row_alignment_B = fmtl->bpb * surf->image_alignment_el.w / 8;
+
+   /* The row pitch is what defines the actual physical width of the
+    * surface in bytes, so to get the correct value when performing a
+    * copy using a wider row pitch than the width of the source region,
+    * we have to align the byte size to the row pitch.
+    */
+   uint32_t size_B = isl_align_npot(surf->size_B, surf->row_pitch_B);
+
+   /* The hardware docs are wrong about the requirements for non-arrayed
+    * surfaces, empirical testing has shown that 3 component formats are
+    * not satisfied by just aligning to 64B alone. They also omit the fact
+    * that row pitch straddling is still an issue in this mode as well.
+    * It turns out the actual formula for computing the amount of overfetch
+    * seems to be the same as the general requirements for arrayed surfaces,
+    * except with the alignment parameters scaled down.
+    */
+   size_B += isl_align_npot(surf->row_pitch_B, MAX2(row_alignment_B / 2, 64))
+             - surf->row_pitch_B;
+
+   return size_B;
+}
+
 uint32_t
 isl_surf_get_depth_format(const struct isl_device *dev,
                           const struct isl_surf *surf)
