@@ -773,9 +773,22 @@ void si_llvm_build_ps_epilog(struct si_shader_context *ctx, union si_shader_part
    const unsigned first_color_export = exp.num;
    colors_written = key->ps_epilog.colors_written;
 
+   unsigned color_types = key->ps_epilog.color_types;
+
+   /* If only one dual source blend output is written, fill in the other one with undef. This is
+    * always needed on GFX11+, and on GFX6-10.5 if the missing output is index=0 (otherwise we
+    * will write the index=1 output using mrt0). */
+   if (key->ps_epilog.states.dual_src_blend && util_bitcount(colors_written & 0x3) == 1) {
+      unsigned idx = colors_written & 0x2 ? 1 : 0;
+      color_types |= idx ? (color_types >> 2) & 0x3 : (color_types << 2) & 0xc;
+      for (unsigned i = 0; i < 4; i++)
+         color[!idx][i] = LLVMGetUndef(LLVMTypeOf(color[idx][i]));
+      colors_written |= 0x3;
+   }
+
    while (colors_written) {
       int write_i = u_bit_scan(&colors_written);
-      unsigned color_type = (key->ps_epilog.color_types >> (write_i * 2)) & 0x3;
+      unsigned color_type = (color_types >> (write_i * 2)) & 0x3;
 
       si_export_mrt_color(ctx, color[write_i], write_i, first_color_export, color_type,
                           key->ps_epilog.writes_all_cbufs, &exp);
@@ -786,7 +799,6 @@ void si_llvm_build_ps_epilog(struct si_shader_context *ctx, union si_shader_part
       exp.args[exp.num - 1].done = 1;        /* DONE bit */
 
       if (key->ps_epilog.states.dual_src_blend && ctx->ac.gfx_level >= GFX11) {
-         assert((key->ps_epilog.colors_written & 0x3) == 0x3);
          ac_build_dual_src_blend_swizzle(&ctx->ac, &exp.args[first_color_export],
                                          &exp.args[first_color_export + 1]);
       }
