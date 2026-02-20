@@ -6555,19 +6555,7 @@ bi_compile_variant_nir(nir_shader *nir,
    ctx->fau_consts_count = info.init_fau_consts_count;
 
    if (!mesa_shader_stage_is_compute(nir->info.stage)) {
-      if (inputs->varying_layout) {
-         ctx->varying_layout = inputs->varying_layout;
-      } else if (nir->info.stage == MESA_SHADER_VERTEX ||
-                 inputs->valhall.use_ld_var_buf) {
-         struct pan_varying_layout *layout =
-            rzalloc(ctx, struct pan_varying_layout);
-         pan_varying_collect_formats(layout, nir, inputs->gpu_id,
-                                     inputs->trust_varying_flat_highp_types,
-                                     false);
-         pan_build_varying_layout_sso_abi(layout, nir, inputs->gpu_id,
-                                          inputs->fixed_varying_mask);
-         ctx->varying_layout = layout;
-      }
+      ctx->varying_layout = inputs->varying_layout;
    }
 
    unsigned execution_mode = nir->info.float_controls_execution_mode;
