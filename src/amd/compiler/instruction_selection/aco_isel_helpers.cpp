@@ -606,8 +606,8 @@ create_fs_dual_src_export_gfx11(isel_context* ctx, const struct aco_export_mrt* 
    aco_ptr<Instruction> exp{
       create_instruction(aco_opcode::p_dual_src_export_gfx11, Format::PSEUDO, 10, 6)};
    for (unsigned i = 0; i < 4; i++) {
-      exp->operands[i] = mrt0 ? mrt0->out[i] : Operand(v1);
-      exp->operands[i + 4] = mrt1 ? mrt1->out[i] : Operand(v1);
+      exp->operands[i] = mrt0->out[i];
+      exp->operands[i + 4] = mrt1->out[i];
    }
 
    instr_exact_mask(exp.get()) = Operand();
