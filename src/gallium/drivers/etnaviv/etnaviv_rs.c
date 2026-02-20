@@ -884,7 +884,8 @@ etna_try_rs_blit(struct pipe_context *pctx,
       .downsample_x = downsample_x,
       .downsample_y = downsample_y,
       .swap_rb = ctx->in_transfer_blit &&
-                 translate_pe_format_rb_swap(blit_info->src.format),
+                 translate_pe_format_rb_swap(blit_info->src.format) &&
+                 !src->shared && !dst->shared,
       .dither = {0xffffffff, 0xffffffff}, // XXX dither when going from 24 to 16 bit?
       .clear_mode = VIVS_RS_CLEAR_CONTROL_MODE_DISABLED,
       .width = width,

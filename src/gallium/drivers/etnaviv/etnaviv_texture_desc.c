@@ -137,7 +137,14 @@ etna_create_sampler_view_desc(struct pipe_context *pctx, struct pipe_resource *p
    const struct util_format_description *desc = util_format_description(so->format);
    struct etna_sampler_view_desc *sv = CALLOC_STRUCT(etna_sampler_view_desc);
    struct etna_context *ctx = etna_context(pctx);
-   const uint32_t format = translate_texture_format(so->format);
+   uint32_t format = translate_texture_format(so->format);
+
+   /* Shared resources store data in standard byte order (e.g., RGBA for
+    * R8G8B8A8_UNORM). Use the native texture format to read them correctly,
+    * bypassing the BGRA-internal optimization used for internal resources. */
+   if (etna_resource(prsc)->shared && translate_pe_format_rb_swap(so->format))
+      format = remap_texture_format_rb_swap(format);
+
    const bool ext = !!(format & EXT_FORMAT);
    const bool astc = !!(format & ASTC_FORMAT);
    const uint32_t swiz = get_texture_swiz(so->format, so->swizzle_r,

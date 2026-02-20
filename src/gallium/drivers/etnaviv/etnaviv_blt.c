@@ -791,7 +791,8 @@ etna_try_blt_blit(struct pipe_context *pctx,
       /* For transfer blits of RB_SWAP formats, apply R<->B swizzle on the
        * linear side to convert between GPU-internal BGRA and CPU RGBA. */
       if (ctx->in_transfer_blit &&
-          translate_pe_format_rb_swap(blit_info->src.format)) {
+          translate_pe_format_rb_swap(blit_info->src.format) &&
+          !src->shared && !dst->shared) {
          bool src_linear = src->layout == ETNA_LAYOUT_LINEAR;
          bool dst_linear = dst->layout == ETNA_LAYOUT_LINEAR;
 
