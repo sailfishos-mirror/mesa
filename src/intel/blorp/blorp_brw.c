@@ -163,20 +163,33 @@ lower_base_workgroup_id(nir_builder *b, nir_intrinsic_instr *intrin,
 }
 
 static bool
-lower_load_uniform(nir_builder *b, nir_intrinsic_instr *intrin,
-                   UNUSED void *data)
+lower_load_uniform(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
 {
    if (intrin->intrinsic != nir_intrinsic_load_uniform)
       return false;
 
+   const struct intel_device_info *devinfo = data;
+
    b->cursor = nir_instr_remove(&intrin->instr);
-   nir_def_rewrite_uses(&intrin->def,
-                        nir_load_push_data_intel(b,
-                                                 intrin->def.num_components,
-                                                 intrin->def.bit_size,
-                                                 intrin->src[0].ssa,
-                                                 .base = nir_intrinsic_base(intrin),
-                                                 .range = nir_intrinsic_range(intrin)));
+   nir_def *value;
+   if (b->shader->info.stage == MESA_SHADER_COMPUTE &&
+       devinfo->verx10 >= 125) {
+      value = nir_load_shader_indirect_data_intel(
+         b,
+         intrin->def.num_components,
+         intrin->def.bit_size,
+         nir_iadd(b, nir_load_indirect_address_intel(b), intrin->src[0].ssa),
+         .base = nir_intrinsic_base(intrin),
+         .range = nir_intrinsic_range(intrin));
+   } else {
+      value = nir_load_push_data_intel(b,
+                                       intrin->def.num_components,
+                                       intrin->def.bit_size,
+                                       intrin->src[0].ssa,
+                                       .base = nir_intrinsic_base(intrin),
+                                       .range = nir_intrinsic_range(intrin));
+   }
+   nir_def_rewrite_uses(&intrin->def, value);
    return true;
 }
 
@@ -197,7 +210,7 @@ blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
               (nir_lower_io_options)0);
 
    NIR_PASS(_, nir, nir_shader_intrinsics_pass, lower_load_uniform,
-               nir_metadata_control_flow, NULL);
+               nir_metadata_control_flow, (void *) compiler->devinfo);
 
    STATIC_ASSERT(offsetof(struct blorp_wm_inputs, subgroup_id) + 4 ==
                  sizeof(struct blorp_wm_inputs));
