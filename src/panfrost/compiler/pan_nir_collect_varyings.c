@@ -7,7 +7,6 @@
 #include "compiler/nir/nir.h"
 #include "compiler/nir/nir_builder.h"
 #include "pan_nir.h"
-#include "midgard/midgard_quirks.h"
 #include "panfrost/model/pan_model.h"
 
 enum pipe_format
@@ -56,7 +55,6 @@ struct slot_info {
 };
 
 struct walk_varyings_data {
-   bool quirk_no_auto32;
    struct slot_info *slots;
    bool trust_varying_flat_highp_types;
 };
@@ -110,7 +108,6 @@ walk_varyings(UNUSED nir_builder *b, nir_instr *instr, void *data)
    unsigned size = nir_alu_type_get_type_size(type);
    assert(base_type & (nir_type_int | nir_type_uint | nir_type_float));
 
-   bool auto32 = !wv_data->quirk_no_auto32 && size == 32;
    bool untrusted_type = !wv_data->trust_varying_flat_highp_types &&
                          sem.location >= VARYING_SLOT_VAR0 &&
                          !sem.medium_precision &&
@@ -123,7 +120,7 @@ walk_varyings(UNUSED nir_builder *b, nir_instr *instr, void *data)
        * Read docs/drivers/panfrost/varyings.rst for details.
        */
       bool is_flat = intr->intrinsic != nir_intrinsic_load_interpolated_input;
-      base_type = (is_flat && auto32) ? nir_type_uint : nir_type_float;
+      base_type = (is_flat && size == 32) ? nir_type_uint : nir_type_float;
       type = base_type | size;
       if (is_store)
          nir_intrinsic_set_src_type(intr, type);
@@ -321,19 +318,15 @@ pan_varying_collect_formats(struct pan_varying_layout *layout, nir_shader *nir,
           nir->info.stage == MESA_SHADER_FRAGMENT);
    memset(layout, 0, sizeof(*layout));
 
-   const unsigned gpu_arch = pan_arch(gpu_id);
-   bool quirk_no_auto32 = gpu_arch <= 5 &&
-                          (midgard_get_quirks(gpu_id) & MIDGARD_NO_AUTO32);
-
    struct slot_info slots[64] = {0};
    struct walk_varyings_data wv_data = {
-      .quirk_no_auto32 = quirk_no_auto32,
       .slots = slots,
       .trust_varying_flat_highp_types = trust_varying_flat_highp_types,
    };
 
    nir_shader_instructions_pass(nir, walk_varyings, nir_metadata_all, &wv_data);
 
+   const unsigned gpu_arch = pan_arch(gpu_id);
    unsigned count = 0;
    for (unsigned i = 0; i < ARRAY_SIZE(slots); i++) {
       if (!slots[i].type)
