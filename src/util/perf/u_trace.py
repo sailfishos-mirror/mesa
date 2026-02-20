@@ -724,7 +724,7 @@ trace_payload_as_extra_${trace_name}(perfetto::protos::pbzero::GpuRenderStageEve
 {
  % if trace.tp_perfetto is not None and len(trace.tp_print) > 0:
  % if any(not arg.perfetto_field for arg in trace.tp_print):
-   char buf[128];
+   UNUSED char buf[128];
  % endif
 
   % for arg in trace.tp_print:
@@ -738,9 +738,15 @@ trace_payload_as_extra_${trace_name}(perfetto::protos::pbzero::GpuRenderStageEve
     % if arg.is_indirect:
       const ${arg.type}* __${arg.var} = (const ${arg.type}*)((uint8_t *)indirect_data + ${arg.indirect_offset});
     % endif
+    % if arg.c_format == '%s':
+      const char *str = ${arg.value_expr("payload")};
+      if (str != NULL)
+          data->set_value(str);
+    % else:
       const int slen = sprintf(buf, "${arg.c_format}", ${arg.value_expr("payload")});
 
       data->set_value(buf, slen);
+    % endif
    }
    % endif
   % endfor
