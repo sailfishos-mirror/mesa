@@ -166,6 +166,7 @@ gather_push_data(nir_shader *nir,
 }
 
 struct lower_to_push_data_intel_state {
+   const struct intel_device_info *devinfo;
    struct anv_pipeline_bind_map *bind_map;
    const struct anv_pipeline_push_map *push_map;
 
@@ -242,6 +243,9 @@ lower_ubo_to_push_data_intel(nir_builder *b,
    if (push_range == NULL)
       return lower_internal_ubo(b, intrin);
 
+   assert(!brw_shader_stage_is_bindless(b->shader->info.stage));
+   assert(!brw_shader_stage_has_inline_data(state->devinfo, b->shader->info.stage));
+
    b->cursor = nir_before_instr(&intrin->instr);
    nir_def *data = nir_load_push_data_intel(
       b,
@@ -255,6 +259,50 @@ lower_ubo_to_push_data_intel(nir_builder *b,
    _mesa_set_add(state->lowered_ubo_instrs, nir_def_as_intrinsic(data));
 
    return true;
+}
+
+static nir_def *
+load_push_data_from_ptr(nir_builder *b,
+                        int base,
+                        unsigned range,
+                        unsigned num_components,
+                        unsigned bit_size,
+                        nir_src offset)
+{
+   /* If the offset is constant, put the load at the beginning of the shader
+    * much like this was previously done in the backend. This gives the
+    * vectorizer the opportunity to pack together constant loading.
+    */
+   if (nir_src_is_const(offset)) {
+      nir_block *block = nir_cursor_current_block(b->cursor);
+      nir_function_impl *impl = nir_cf_node_get_function(&block->cf_node);
+      b->cursor = nir_before_impl(impl);
+   }
+
+   nir_def *base_addr =
+      brw_shader_stage_is_bindless(b->shader->info.stage) ?
+      nir_load_btd_global_arg_addr_intel(b) :
+      nir_load_inline_data_intel(b, 1, 64, nir_imm_int(b, 0), .base = 0);
+
+   if (brw_shader_stage_is_bindless(b->shader->info.stage))
+      base += BRW_RT_PUSH_CONST_OFFSET;
+
+   if (nir_src_is_const(offset)) {
+      /* Align everything to dwords to allow better vectorization. */
+      int final_offset = base + nir_src_as_int(offset);
+      nir_def *data =
+         nir_load_global_constant(
+            b, DIV_ROUND_UP(num_components * bit_size, 32), 32,
+            nir_iadd_imm(b, base_addr, ROUND_DOWN_TO(final_offset, 4)));
+      return nir_extract_bits(b, &data, 1,
+                              (final_offset * 8) % 32, num_components, bit_size);
+   } else {
+      return nir_load_global_constant(
+         b, num_components, bit_size,
+         nir_iadd(b,
+                  nir_iadd(b, base_addr, nir_i2i64(b, offset.ssa)),
+                  nir_imm_int64(b, base)));
+   }
 }
 
 static bool
@@ -304,6 +352,8 @@ lower_to_push_data_intel(nir_builder *b,
 
    switch (intrin->intrinsic) {
    case nir_intrinsic_load_push_data_intel: {
+      b->cursor = nir_before_instr(&intrin->instr);
+
       const unsigned base = nir_intrinsic_base(intrin);
       if (_mesa_set_search(state->lowered_ubo_instrs, intrin)) {
          /* For lowered UBOs to push constants, shrink the base by the amount
@@ -328,6 +378,18 @@ lower_to_push_data_intel(nir_builder *b,
             state->bind_map->binding_mask |= ANV_PIPELINE_BIND_MASK_UNALIGNED_INV_X;
       }
       nir_intrinsic_set_base(intrin, base - base_offset);
+
+      if (brw_shader_stage_is_bindless(b->shader->info.stage) ||
+          brw_shader_stage_has_inline_data(state->devinfo, b->shader->info.stage)) {
+         nir_def *data = load_push_data_from_ptr(
+            b,
+            nir_intrinsic_base(intrin),
+            nir_intrinsic_range(intrin),
+            intrin->def.num_components,
+            intrin->def.bit_size,
+            intrin->src[0]);
+         nir_def_replace(&intrin->def, data);
+      }
       return true;
    }
 
@@ -336,13 +398,26 @@ lower_to_push_data_intel(nir_builder *b,
          return true;
 
       b->cursor = nir_before_instr(&intrin->instr);
-      nir_def *data = nir_load_push_data_intel(
-         b,
-         intrin->def.num_components,
-         intrin->def.bit_size,
-         intrin->src[0].ssa,
-         .base = nir_intrinsic_base(intrin) - base_offset,
-         .range = nir_intrinsic_range(intrin));
+      nir_def *data;
+      if (brw_shader_stage_is_bindless(b->shader->info.stage) ||
+          brw_shader_stage_has_inline_data(state->devinfo, b->shader->info.stage)) {
+         b->cursor = nir_before_instr(&intrin->instr);
+         data = load_push_data_from_ptr(
+            b,
+            nir_intrinsic_base(intrin),
+            nir_intrinsic_range(intrin),
+            intrin->def.num_components,
+            intrin->def.bit_size,
+            intrin->src[0]);
+      } else {
+         data = nir_load_push_data_intel(
+            b,
+            intrin->def.num_components,
+            intrin->def.bit_size,
+            intrin->src[0].ssa,
+            .base = nir_intrinsic_base(intrin) - base_offset,
+            .range = nir_intrinsic_range(intrin));
+      }
       nir_def_replace(&intrin->def, data);
       return true;
    }
@@ -561,6 +636,7 @@ anv_nir_compute_push_layout(nir_shader *nir,
    assert(n_push_ranges <= 4);
 
    struct lower_to_push_data_intel_state lower_state = {
+      .devinfo = devinfo,
       .bind_map = map,
       .push_map = push_map,
       .lowered_ubo_instrs = _mesa_pointer_set_create(NULL),

@@ -117,23 +117,6 @@ lower_rt_intrinsics_impl(nir_function_impl *impl,
             nir_instr_remove(instr);
             break;
 
-         case nir_intrinsic_load_push_data_intel:
-            /* We don't want to lower this in the launch trampoline.
-             *
-             * Also if the driver chooses to use an inline push address, we
-             * can do all the loading of the push constant in
-             * assign_curb_setup() (more efficient as we can do NoMask
-             * instructions for address calculations).
-             */
-            if (stage == MESA_SHADER_COMPUTE || key->uses_inline_push_addr)
-               break;
-
-            sysval = brw_nir_load_global_const(b, intrin,
-                        nir_load_btd_global_arg_addr_intel(b),
-                        BRW_RT_PUSH_CONST_OFFSET);
-
-            break;
-
          case nir_intrinsic_load_ray_launch_id:
             sysval = nir_channels(b, hotzone, 0xe);
             break;
