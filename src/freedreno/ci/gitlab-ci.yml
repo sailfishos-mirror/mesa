@@ -237,6 +237,17 @@ a618-traces-performance:
     # a618 tag starts with cbg-1 (not cbg-0) for some reason
     LAVA_TAGS: "cbg-1"
 
+a618-android:
+  extends:
+    - .lava-arm64-test-android
+    - .lava-sc7180-trogdor-kingoftown:arm64
+    - .collabora-freedreno-turnip-rules
+    - .test-angle
+  variables:
+    CUTTLEFISH_GPU_MODE: drm_nctx_guest_angle
+    DEQP_SUITE: tu-android
+    FDO_CI_CONCURRENT: 6  # We get OOMkills if we go too wide since VKCTS 1.4.4.0
+
 a660-angle:
   extends:
     - .lava-arm64-test-gl
