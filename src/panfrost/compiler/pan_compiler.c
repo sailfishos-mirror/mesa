@@ -197,16 +197,6 @@ pan_shader_update_info(struct pan_shader_info *info, nir_shader *s,
       info->vs.needs_extended_fifo = arch >= 9 &&
          valhal_writes_extended_fifo(s->info.outputs_written,
                                      true, inputs->view_mask != 0);
-
-      if (arch >= 9) {
-         info->varyings.output_count =
-            util_last_bit(s->info.outputs_written >> VARYING_SLOT_VAR0);
-
-         /* Store the mask of special varyings, in case we need to emit ADs
-          * later. */
-         info->varyings.fixed_varyings =
-            pan_get_fixed_varying_mask(s->info.outputs_written);
-      }
       break;
    case MESA_SHADER_FRAGMENT:
       if (s->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DEPTH))
@@ -255,15 +245,6 @@ pan_shader_update_info(struct pan_shader_info *info, nir_shader *s,
       info->fs.reads_face =
          (s->info.inputs_read & VARYING_BIT_FACE) ||
          BITSET_TEST(s->info.system_values_read, SYSTEM_VALUE_FRONT_FACE);
-      if (arch >= 9) {
-         info->varyings.input_count =
-            util_last_bit(s->info.inputs_read >> VARYING_SLOT_VAR0);
-
-         /* Store the mask of special varyings, in case we need to emit ADs
-          * later. */
-         info->varyings.fixed_varyings =
-            pan_get_fixed_varying_mask(s->info.inputs_read);
-      }
       break;
    default:
       /* Everything else treated as compute */

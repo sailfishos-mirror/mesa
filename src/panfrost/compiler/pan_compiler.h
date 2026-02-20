@@ -490,16 +490,8 @@ struct pan_shader_info {
    uint64_t images_used;
 
    struct {
-      unsigned input_count;
-      struct pan_shader_varying input[PAN_MAX_VARYINGS];
-      unsigned output_count;
-      struct pan_shader_varying output[PAN_MAX_VARYINGS];
-
       /* Bitfield of noperspective varyings, starting at VARYING_SLOT_VAR0 */
       uint32_t noperspective;
-
-      /* Bitfield of special varyings. */
-      uint32_t fixed_varyings;
 
       struct pan_varying_layout formats;
    } varyings;
