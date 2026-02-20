@@ -10,7 +10,6 @@ shaders@point-vertex-id gl_vertexid gl_instanceid divisor,Fail
 shaders@point-vertex-id gl_vertexid gl_instanceid,Fail
 shaders@point-vertex-id gl_vertexid,Fail
 spec@!opengl 1.0@gl-1.0-user-clip-all-planes,Fail
-spec@!opengl 1.1@depthstencil-default_fb-drawpixels-32f_24_8_rev samples=4,Fail
 spec@!opengl 1.1@texwrap formats bordercolor,Fail
 spec@!opengl 1.1@texwrap formats bordercolor-swizzled,Fail
 spec@!opengl 1.1@texwrap formats bordercolor-swizzled@GL_LUMINANCE12_ALPHA12- swizzled- border color only,Fail
@@ -101,8 +100,6 @@ spec@arb_texture_rg@texwrap formats-float@GL_R32F- NPOT,Fail
 spec@arb_texture_rg@texwrap formats-float@GL_RG32F- NPOT,Fail
 spec@arb_texture_view@tex-view,Fail
 spec@egl 1.4@eglterminate then unbind context,Fail
-spec@egl_khr_gl_image@egl_khr_gl_renderbuffer_image-clear-shared-image gl_depth_component24,Fail
-spec@egl_khr_gl_image@egl_khr_gl_renderbuffer_image-clear-shared-image gl_rgba,Fail
 spec@egl_khr_surfaceless_context@viewport,Fail
 spec@egl_mesa_configless_context@basic,Fail
 spec@ext_framebuffer_multisample@interpolation 2 centroid-edges,Fail
@@ -363,8 +360,9 @@ KHR-GL31.transform_feedback3.skip_components,Fail
 KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
 asan-KHR-GL31.transform_feedback3.skip_multiple_buffers,Fail
 
-# New failures with GL CTS 4.6.6.0
+# https://gitlab.khronos.org/Tracker/vk-gl-cts/-/issues/6350
 KHR-GL31.frag_coord_conventions.multisample,Fail
+asan-KHR-GL31.frag_coord_conventions.multisample,Fail
 
 # This seems to be working with upstream
 program@execute@vector-conversion,Fail
@@ -677,7 +675,6 @@ dEQP-VK.pipeline.monolithic.logic_op_na_formats.r8g8b8a8_srgb.set_blend,Fail
 dEQP-VK.pipeline.monolithic.logic_op_na_formats.r8g8b8a8_srgb.xor_blend,Fail
 
 # ASAN failures
-asan-KHR-GL31.frag_coord_conventions.multisample,Fail
 asan-dEQP-VK.image.mutable.2d_array.r16g16b16a16_sfloat_r16g16b16a16_sint_draw_copy_resolve_mutable_resolve_att,Fail
 asan-dEQP-VK.pipeline.monolithic.logic_op_na_formats.r16g16b16a16_sfloat.set_blend,Fail
 asan-dEQP-VK.pipeline.monolithic.logic_op_na_formats.r8g8b8a8_srgb.or_inverted_blend,Fail
