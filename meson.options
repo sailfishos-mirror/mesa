@@ -753,6 +753,13 @@ option(
 )
 
 option(
+  'radv-u_trace',
+  type : 'boolean',
+  value : false,
+  description : 'Enable u_trace profiling features.'
+)
+
+option(
   'radeonsi-build-id',
   type : 'string',
   value : '',

@@ -529,6 +529,11 @@ struct radv_cmd_buffer_queue_state {
 struct radv_cmd_buffer {
    struct vk_command_buffer vk;
 
+   struct {
+      struct u_trace *trace;
+      uint32_t last_cdw;
+   } utrace;
+
    VkCommandBufferUsageFlags usage_flags;
    struct radv_cmd_stream *cs;
    struct radv_cmd_state state;

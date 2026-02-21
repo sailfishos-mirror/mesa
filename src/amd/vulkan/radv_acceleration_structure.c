@@ -7,6 +7,7 @@
 #include "meta/radv_meta.h"
 #include "radv_buffer.h"
 #include "radv_entrypoints.h"
+#include "radv_tracepoints.h"
 
 #include "radix_sort/common/vk/barrier.h"
 #include "radix_sort/radix_sort_u64.h"
@@ -446,8 +447,10 @@ radv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
-   if (args->emit_markers)
+   if (args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "update_as(build_flags=0x%x)", build_flags);
+      radv_utrace_begin_update_as(cmd_buffer);
+   }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_UPDATE, update_spv, sizeof(update_spv),
                                 sizeof(struct update_args), build_flags);
@@ -489,8 +492,10 @@ radv_update_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
       }
    }
 
-   if (args->emit_markers)
+   if (args->emit_markers) {
       vk_accel_struct_cmd_end_debug_marker(commandBuffer, NULL);
+      radv_utrace_end_update_as(cmd_buffer);
+   }
 
    return VK_SUCCESS;
 }
@@ -503,8 +508,10 @@ radv_update_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
-   if (args->emit_markers)
+   if (args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "update_as(build_flags=0x%x)", build_flags);
+      radv_utrace_begin_update_as(cmd_buffer);
+   }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_UPDATE, update_gfx12_spv,
                                 sizeof(update_gfx12_spv), sizeof(struct update_gfx12_args), build_flags);
@@ -550,8 +557,10 @@ radv_update_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
       radv_compute_dispatch(cmd_buffer, &dispatch);
    }
 
-   if (args->emit_markers)
+   if (args->emit_markers) {
       vk_accel_struct_cmd_end_debug_marker(commandBuffer, NULL);
+      radv_utrace_end_update_as(cmd_buffer);
+   }
 
    return VK_SUCCESS;
 }
@@ -564,8 +573,10 @@ radv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "encode_as(build_flags=0x%x)", build_flags);
+      radv_utrace_begin_encode_as(cmd_buffer);
+   }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE, encode_spv, sizeof(encode_spv),
                                 sizeof(struct encode_args), build_flags);
@@ -610,8 +621,10 @@ radv_encode_as(VkCommandBuffer commandBuffer, struct vk_device *vk_device, struc
       radv_compute_dispatch(cmd_buffer, &dispatch);
    }
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_end_debug_marker(commandBuffer, NULL);
+      radv_utrace_end_encode_as(cmd_buffer);
+   }
 
    return VK_SUCCESS;
 }
@@ -624,8 +637,10 @@ radv_encode_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "encode_as(build_flags=0x%x)", build_flags);
+      radv_utrace_begin_encode_as(cmd_buffer);
+   }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE, encode_gfx12_spv,
                                 sizeof(encode_gfx12_spv), sizeof(struct encode_gfx12_args), build_flags);
@@ -692,8 +707,10 @@ radv_encode_as_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_device,
       radv_compute_dispatch(cmd_buffer, &dispatch);
    }
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_end_debug_marker(commandBuffer, NULL);
+      radv_utrace_end_encode_as(cmd_buffer);
+   }
 
    return VK_SUCCESS;
 }
@@ -707,9 +724,11 @@ radv_encode_triangles_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "encode_triangles(build_flags=0x%x)",
                                                        build_flags);
+      radv_utrace_begin_encode_triangles(cmd_buffer);
+   }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE_TRIANGLES_GFX12,
                                 encode_triangles_gfx12_spv, sizeof(encode_triangles_gfx12_spv),
@@ -751,8 +770,10 @@ radv_encode_triangles_gfx12(VkCommandBuffer commandBuffer, struct vk_device *vk_
       radv_compute_dispatch(cmd_buffer, &dispatch);
    }
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_end_debug_marker(commandBuffer, NULL);
+      radv_utrace_end_encode_triangles(cmd_buffer);
+   }
 
    return VK_SUCCESS;
 }
@@ -767,9 +788,11 @@ radv_encode_triangles_retry_gfx12(VkCommandBuffer commandBuffer, struct vk_devic
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "encode_triangles_retry(build_flags=0x%x)",
                                                        build_flags);
+      radv_utrace_begin_encode_triangles_retry(cmd_buffer);
+   }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_ENCODE_TRIANGLES_GFX12,
                                 encode_triangles_gfx12_spv, sizeof(encode_triangles_gfx12_spv),
@@ -813,8 +836,10 @@ radv_encode_triangles_retry_gfx12(VkCommandBuffer commandBuffer, struct vk_devic
       radv_compute_dispatch(cmd_buffer, &dispatch);
    }
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_end_debug_marker(commandBuffer, NULL);
+      radv_utrace_end_encode_triangles_retry(cmd_buffer);
+   }
 
    return VK_SUCCESS;
 }
@@ -827,8 +852,10 @@ radv_init_header(VkCommandBuffer commandBuffer, struct vk_device *vk_device, str
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_begin_debug_marker_formatted(commandBuffer, "init_header(build_flags=0x%x)", build_flags);
+      radv_utrace_begin_init_header(cmd_buffer);
+   }
 
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_HEADER, header_spv, sizeof(header_spv),
                                 sizeof(struct header_args), 0);
@@ -894,8 +921,10 @@ radv_init_header(VkCommandBuffer commandBuffer, struct vk_device *vk_device, str
                             sizeof(header) - base);
    }
 
-   if (vk_args->emit_markers)
+   if (vk_args->emit_markers) {
       vk_accel_struct_cmd_end_debug_marker(commandBuffer, NULL);
+      radv_utrace_end_init_header(cmd_buffer);
+   }
 
    return VK_SUCCESS;
 }
@@ -1108,6 +1137,84 @@ radv_cmd_fill_buffer_addr(VkCommandBuffer commandBuffer, VkDeviceAddress addr, V
    radv_fill_memory(cmd_buffer, addr, size, data, VK_ADDRESS_COPY_DEVICE_LOCAL_BIT_KHR);
 }
 
+static void
+radv_accel_struct_cmd_begin_debug_marker(VkCommandBuffer commandBuffer,
+                                         struct vk_acceleration_structure_build_marker *marker)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+
+   if (device->sqtt.bo)
+      vk_accel_struct_cmd_begin_debug_marker(commandBuffer, marker);
+
+   switch (marker->step) {
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_TOP:
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_BUILD_LEAVES:
+      radv_utrace_begin_leaves(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_GENERATE:
+      radv_utrace_begin_morton_generate(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT:
+      radv_utrace_begin_morton_sort(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_MAIN:
+      radv_utrace_begin_lbvh_main(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_GENERATE_IR:
+      radv_utrace_begin_lbvh_generate_ir(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PLOC_BUILD_INTERNAL:
+      radv_utrace_begin_ploc(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_HPLOC_BUILD_INTERNAL:
+      radv_utrace_begin_hploc(cmd_buffer);
+      break;
+   default:
+      UNREACHABLE("Invalid build step");
+   }
+}
+
+static void
+radv_accel_struct_cmd_end_debug_marker(VkCommandBuffer commandBuffer,
+                                       struct vk_acceleration_structure_build_marker *marker)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+
+   switch (marker->step) {
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_TOP:
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_BUILD_LEAVES:
+      radv_utrace_end_leaves(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_GENERATE:
+      radv_utrace_end_morton_generate(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_MORTON_SORT:
+      radv_utrace_end_morton_sort(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_MAIN:
+      radv_utrace_end_lbvh_main(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_LBVH_GENERATE_IR:
+      radv_utrace_end_lbvh_generate_ir(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_PLOC_BUILD_INTERNAL:
+      radv_utrace_end_ploc(cmd_buffer);
+      break;
+   case VK_ACCELERATION_STRUCTURE_BUILD_STEP_HPLOC_BUILD_INTERNAL:
+      radv_utrace_end_hploc(cmd_buffer);
+      break;
+   default:
+      UNREACHABLE("Invalid build step");
+   }
+
+   if (device->sqtt.bo)
+      vk_accel_struct_cmd_end_debug_marker(commandBuffer, marker);
+}
+
 VkResult
 radv_device_init_accel_struct_build_state(struct radv_device *device)
 {
@@ -1124,8 +1231,8 @@ radv_device_init_accel_struct_build_state(struct radv_device *device)
       radv_device_to_handle(device), &device->meta_state.alloc, device->meta_state.cache, radix_sort_96_config);
 
    device->meta_state.accel_struct_build.build_ops = (struct vk_acceleration_structure_build_ops){
-      .begin_debug_marker = vk_accel_struct_cmd_begin_debug_marker,
-      .end_debug_marker = vk_accel_struct_cmd_end_debug_marker,
+      .begin_debug_marker = radv_accel_struct_cmd_begin_debug_marker,
+      .end_debug_marker = radv_accel_struct_cmd_end_debug_marker,
       .get_build_config = radv_get_build_config,
       .get_as_size = radv_get_as_size,
       .get_encode_scratch_size = radv_get_encode_scratch_size,
@@ -1150,7 +1257,7 @@ radv_device_init_accel_struct_build_state(struct radv_device *device)
    build_args->bvh_bounds_offset = offsetof(struct radv_accel_struct_header, aabb);
    build_args->root_flags_offset = offsetof(struct radv_accel_struct_header, root_flags);
    build_args->propagate_cull_flags = pdev->info.gfx_level >= GFX11;
-   build_args->emit_markers = device->sqtt.bo;
+   build_args->emit_markers = device->sqtt.bo || device->utrace.context;
    build_args->radix_sort_64 = device->meta_state.accel_struct_build.radix_sort_64;
    build_args->radix_sort_96 = device->meta_state.accel_struct_build.radix_sort_96;
 

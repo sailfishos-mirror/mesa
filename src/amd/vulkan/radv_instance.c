@@ -177,6 +177,7 @@ static const struct debug_control trace_options[] = {
    {"rra", RADV_TRACE_MODE_RRA},
    {"rti", RADV_TRACE_MODE_RTI},
    {"ctxroll", RADV_TRACE_MODE_CTX_ROLLS},
+   {"ranges", RADV_TRACE_MODE_RANGES},
    {NULL, 0},
 };
 

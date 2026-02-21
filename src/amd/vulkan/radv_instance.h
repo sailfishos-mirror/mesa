@@ -159,6 +159,8 @@ enum radv_trace_mode {
 
    /** Gather context rolls of submitted command buffers */
    RADV_TRACE_MODE_CTX_ROLLS = 1 << (VK_TRACE_MODE_COUNT + 3),
+
+   RADV_TRACE_MODE_RANGES = 1 << (VK_TRACE_MODE_COUNT + 4),
 };
 
 struct radv_instance {

@@ -17,6 +17,7 @@
 #include "radv_cs.h"
 #include "radv_device_memory.h"
 #include "radv_image.h"
+#include "vk_common_entrypoints.h"
 #include "vk_semaphore.h"
 #include "vk_sync.h"
 
@@ -1949,6 +1950,19 @@ radv_queue_init(struct radv_device *device, struct radv_queue *queue, int idx,
    } else {
       queue->vk.driver_submit = radv_queue_submit;
    }
+
+   if (device->utrace.context) {
+      VkCommandPoolCreateInfo pool_info = {
+         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+         .queueFamilyIndex = queue->vk.queue_family_index,
+      };
+
+      result =
+         vk_common_CreateCommandPool(radv_device_to_handle(device), &pool_info, NULL, &queue->utrace_command_pool);
+      if (result != VK_SUCCESS)
+         goto fail;
+   }
+
    return VK_SUCCESS;
 fail:
    vk_queue_finish(&queue->vk);
@@ -2019,6 +2033,8 @@ void
 radv_queue_finish(struct radv_queue *queue)
 {
    struct radv_device *device = radv_queue_device(queue);
+
+   vk_common_DestroyCommandPool(radv_device_to_handle(device), queue->utrace_command_pool, NULL);
 
    if (queue->follower_state) {
       /* Prevent double free */

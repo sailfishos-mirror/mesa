@@ -26,6 +26,7 @@
 #include "radv_sdma.h"
 #include "radv_shader.h"
 #include "radv_shader_object.h"
+#include "radv_tracepoints.h"
 #include "sid.h"
 #include "vk_command_pool.h"
 #include "vk_enum_defines.h"
@@ -45,6 +46,7 @@
 
 #include "util/compiler.h"
 #include "util/fast_idiv_by_const.h"
+#include "util/perf/u_trace.h"
 
 enum {
    RADV_PREFETCH_VBO_DESCRIPTORS = (1 << 0),
@@ -1161,6 +1163,11 @@ radv_destroy_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer)
    struct radv_cmd_buffer *cmd_buffer = container_of(vk_cmd_buffer, struct radv_cmd_buffer, vk);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
 
+   if (cmd_buffer->utrace.trace) {
+      u_trace_fini(cmd_buffer->utrace.trace);
+      free(cmd_buffer->utrace.trace);
+   }
+
    if (cmd_buffer->qf != RADV_QUEUE_SPARSE) {
       util_dynarray_fini(&cmd_buffer->ray_history);
 
@@ -1251,6 +1258,13 @@ radv_create_cmd_buffer(struct vk_command_pool *pool, VkCommandBufferLevel level,
       cmd_buffer->ray_history = UTIL_DYNARRAY_INIT;
    }
 
+   if (device->utrace.context) {
+      cmd_buffer->utrace.trace = malloc(sizeof(struct u_trace));
+      if (cmd_buffer->utrace.trace)
+         u_trace_init(cmd_buffer->utrace.trace, device->utrace.context);
+      cmd_buffer->utrace.last_cdw = UINT32_MAX;
+   }
+
    *cmd_buffer_out = &cmd_buffer->vk;
 
    return VK_SUCCESS;
@@ -1270,6 +1284,12 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    vk_command_buffer_reset(&cmd_buffer->vk);
+
+   if (cmd_buffer->utrace.trace) {
+      u_trace_fini(cmd_buffer->utrace.trace);
+      u_trace_init(cmd_buffer->utrace.trace, device->utrace.context);
+      cmd_buffer->utrace.last_cdw = UINT32_MAX;
+   }
 
    if (cmd_buffer->qf == RADV_QUEUE_SPARSE)
       return;
@@ -15184,6 +15204,8 @@ radv_handle_image_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
    if (src_layout == dst_layout && src_queue_mask == dst_queue_mask)
       return;
 
+   radv_utrace_begin_image_transition(cmd_buffer);
+
    if (image->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
       radv_handle_depth_image_transition(cmd_buffer, image, src_layout, dst_layout, src_queue_mask, dst_queue_mask,
                                          range, sample_locs);
@@ -15191,6 +15213,8 @@ radv_handle_image_transition(struct radv_cmd_buffer *cmd_buffer, struct radv_ima
       radv_handle_color_image_transition(cmd_buffer, image, src_layout, dst_layout, src_queue_mask, dst_queue_mask,
                                          range);
    }
+
+   radv_utrace_end_image_transition(cmd_buffer);
 }
 
 static void
