@@ -23,7 +23,8 @@ blorp_compile_fs_elk(struct blorp_context *blorp, void *mem_ctx,
                      struct nir_shader *nir,
                      bool multisample_fbo,
                      bool is_fast_clear,
-                     bool use_repclear)
+                     bool use_repclear,
+                     const void *key, uint32_t key_size)
 {
    const struct elk_compiler *compiler = blorp->compiler->elk;
 
@@ -75,7 +76,8 @@ blorp_compile_fs_elk(struct blorp_context *blorp, void *mem_ctx,
 
 static struct blorp_program
 blorp_compile_vs_elk(struct blorp_context *blorp, void *mem_ctx,
-                     struct nir_shader *nir)
+                     struct nir_shader *nir,
+                     const void *key, uint32_t key_size)
 {
    const struct elk_compiler *compiler = blorp->compiler->elk;
 
@@ -132,7 +134,8 @@ lower_base_workgroup_id(nir_builder *b, nir_intrinsic_instr *intrin,
 
 static struct blorp_program
 blorp_compile_cs_elk(struct blorp_context *blorp, void *mem_ctx,
-                     struct nir_shader *nir)
+                     struct nir_shader *nir,
+                     const void *key, uint32_t key_size)
 {
    const struct elk_compiler *compiler = blorp->compiler->elk;
 
@@ -331,7 +334,7 @@ blorp_params_get_layer_offset_vs_elk(struct blorp_batch *batch,
    }
 
    const struct blorp_program p =
-      blorp_compile_vs(blorp, mem_ctx, b.shader);
+      blorp_compile_vs(blorp, mem_ctx, b.shader, &blorp_key, sizeof(blorp_key));
 
    bool result =
       blorp->upload_shader(batch, MESA_SHADER_VERTEX,

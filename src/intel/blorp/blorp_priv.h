@@ -52,12 +52,15 @@ struct blorp_compiler {
                                       struct nir_shader *nir,
                                       bool multisample_fbo,
                                       bool is_fast_clear,
-                                      bool use_repclear);
+                                      bool use_repclear,
+                                      const void *key, uint32_t key_size);
    struct blorp_program (*compile_vs)(struct blorp_context *blorp, void *mem_ctx,
-                                      struct nir_shader *nir);
+                                      struct nir_shader *nir,
+                                      const void *key, uint32_t key_size);
 
    struct blorp_program (*compile_cs)(struct blorp_context *blorp, void *mem_ctx,
-                                      struct nir_shader *nir);
+                                      struct nir_shader *nir,
+                                      const void *key, uint32_t key_size);
 
    bool (*ensure_sf_program)(struct blorp_batch *batch,
                              struct blorp_params *params);
@@ -471,17 +474,19 @@ blorp_compile_fs(struct blorp_context *blorp, void *mem_ctx,
                  struct nir_shader *nir,
                  bool multisample_fbo,
                  bool is_fast_clear,
-                 bool use_repclear)
+                 bool use_repclear,
+                 const void *key, uint32_t key_size)
 {
    return blorp->compiler->compile_fs(blorp, mem_ctx, nir, multisample_fbo,
-                                      is_fast_clear, use_repclear);
+                                      is_fast_clear, use_repclear,
+                                      key, key_size);
 }
 
 static inline struct blorp_program
 blorp_compile_vs(struct blorp_context *blorp, void *mem_ctx,
-                 struct nir_shader *nir)
+                 struct nir_shader *nir, const void *key, uint32_t key_size)
 {
-   return blorp->compiler->compile_vs(blorp, mem_ctx, nir);
+   return blorp->compiler->compile_vs(blorp, mem_ctx, nir, key, key_size);
 }
 
 static inline bool
@@ -520,9 +525,9 @@ blorp_set_cs_dims(struct nir_shader *nir, uint8_t local_y)
 
 static inline struct blorp_program
 blorp_compile_cs(struct blorp_context *blorp, void *mem_ctx,
-                 struct nir_shader *nir)
+                 struct nir_shader *nir, const void *key, uint32_t key_size)
 {
-   return blorp->compiler->compile_cs(blorp, mem_ctx, nir);
+   return blorp->compiler->compile_cs(blorp, mem_ctx, nir, key, key_size);
 }
 
 static inline bool

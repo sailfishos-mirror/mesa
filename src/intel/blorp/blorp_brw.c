@@ -9,6 +9,29 @@
 #include "brw/brw_nir.h"
 #include "dev/intel_debug.h"
 
+static debug_archiver *
+blorp_debug_archiver_open(void *mem_ctx,
+                         const struct nir_shader *nir,
+                         const void *key,
+                         unsigned key_size)
+{
+   if (!INTEL_DEBUG(DEBUG_MDA) || !INTEL_DEBUG(DEBUG_BLORP))
+      return NULL;
+
+   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   _mesa_sha1_compute(key, key_size, sha1);
+   char name[SHA1_DIGEST_STRING_LENGTH + 6] = {};
+   _mesa_sha1_format(name, sha1);
+   memcpy(&name[SHA1_DIGEST_STRING_LENGTH - 1], ".blorp", 6);
+
+   debug_archiver *archiver = debug_archiver_open(mem_ctx, name, "blorp");
+   debug_archiver_set_prefix(
+      archiver,
+      _mesa_shader_stage_to_abbrev(nir->info.stage));
+
+   return archiver;
+}
+
 static const nir_shader_compiler_options *
 blorp_nir_options_brw(struct blorp_context *blorp,
                       mesa_shader_stage stage)
@@ -22,7 +45,8 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
                      struct nir_shader *nir,
                      bool multisample_fbo,
                      bool is_fast_clear,
-                     bool use_repclear)
+                     bool use_repclear,
+                     const void *key, uint32_t key_size)
 {
    const struct brw_compiler *compiler = blorp->compiler->brw;
 
@@ -45,12 +69,16 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
    wm_key.multisample_fbo = multisample_fbo ? INTEL_ALWAYS : INTEL_NEVER;
    wm_key.nr_color_regions = 1;
 
+   debug_archiver *archiver =
+      blorp_debug_archiver_open(mem_ctx, nir, key, key_size);
+
    struct brw_compile_fs_params params = {
       .base = {
          .mem_ctx = mem_ctx,
          .nir = nir,
          .log_data = blorp->driver_ctx,
          .debug_flag = DEBUG_BLORP,
+         .archiver = archiver,
       },
       .key = &wm_key,
       .prog_data = fs_prog_data,
@@ -60,6 +88,9 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
    };
 
    const unsigned *kernel = brw_compile_fs(compiler, &params);
+
+   debug_archiver_close(archiver);
+
    return (struct blorp_program){
       .kernel         = kernel,
       .kernel_size    = fs_prog_data->base.program_size,
@@ -70,7 +101,8 @@ blorp_compile_fs_brw(struct blorp_context *blorp, void *mem_ctx,
 
 static struct blorp_program
 blorp_compile_vs_brw(struct blorp_context *blorp, void *mem_ctx,
-                     struct nir_shader *nir)
+                     struct nir_shader *nir,
+                     const void *key, uint32_t key_size)
 {
    const struct brw_compiler *compiler = blorp->compiler->brw;
 
@@ -91,18 +123,25 @@ blorp_compile_vs_brw(struct blorp_context *blorp, void *mem_ctx,
 
    struct brw_vs_prog_key vs_key = { 0, };
 
+   debug_archiver *archiver =
+      blorp_debug_archiver_open(mem_ctx, nir, key, key_size);
+
    struct brw_compile_vs_params params = {
       .base = {
          .mem_ctx = mem_ctx,
          .nir = nir,
          .log_data = blorp->driver_ctx,
          .debug_flag = DEBUG_BLORP,
+         .archiver = archiver,
       },
       .key = &vs_key,
       .prog_data = vs_prog_data,
    };
 
    const unsigned *kernel = brw_compile_vs(compiler, &params);
+
+   debug_archiver_close(archiver);
+
    return (struct blorp_program) {
       .kernel         = kernel,
       .kernel_size    = vs_prog_data->base.base.program_size,
@@ -143,7 +182,8 @@ lower_load_uniform(nir_builder *b, nir_intrinsic_instr *intrin,
 
 static struct blorp_program
 blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
-                     struct nir_shader *nir)
+                     struct nir_shader *nir,
+                     const void *key, uint32_t key_size)
 {
    const struct brw_compiler *compiler = blorp->compiler->brw;
 
@@ -179,18 +219,24 @@ blorp_compile_cs_brw(struct blorp_context *blorp, void *mem_ctx,
    struct brw_cs_prog_key cs_key;
    memset(&cs_key, 0, sizeof(cs_key));
 
+   debug_archiver *archiver =
+      blorp_debug_archiver_open(mem_ctx, nir, key, key_size);
+
    struct brw_compile_cs_params params = {
       .base = {
          .mem_ctx = mem_ctx,
          .nir = nir,
          .log_data = blorp->driver_ctx,
          .debug_flag = DEBUG_BLORP,
+         .archiver = archiver,
       },
       .key = &cs_key,
       .prog_data = cs_prog_data,
    };
 
    const unsigned *kernel = brw_compile_cs(compiler, &params);
+
+   debug_archiver_close(archiver);
 
    return (struct blorp_program) {
       .kernel         = kernel,
@@ -279,7 +325,7 @@ blorp_params_get_layer_offset_vs_brw(struct blorp_batch *batch,
    }
 
    const struct blorp_program p =
-      blorp_compile_vs(blorp, mem_ctx, b.shader);
+      blorp_compile_vs(blorp, mem_ctx, b.shader, &blorp_key, sizeof(blorp_key));
 
    bool result =
       blorp->upload_shader(batch, MESA_SHADER_VERTEX,
