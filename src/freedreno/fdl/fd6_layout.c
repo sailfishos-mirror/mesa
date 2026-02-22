@@ -351,9 +351,10 @@ fdl6_layout_image(struct fdl_layout *layout, const struct fd_dev_info *info,
       }
    }
 
-   if (layout->layer_first && !explicit_layout) {
+   if (layout->layer_first)
       layout->layer_size = align64(layout->size, 4096);
 
+   if (layout->layer_first && !explicit_layout) {
       if (params->sparse) {
          if (!in_sparse_miptail) {
             layout->mip_tail_first_lod = layout->mip_levels;
