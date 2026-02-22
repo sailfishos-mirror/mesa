@@ -63,6 +63,8 @@ struct etna_sampler_view {
    /* sampler offset +4*sampler, interleave when committing state */
    uint32_t config0;
    uint32_t config0_mask;
+   uint32_t config0_native; /* config0 with native byte order format (A8B8G8R8) */
+   bool has_rb_swap;
    uint32_t config1;
    uint32_t config_3d;
    uint32_t size;
@@ -79,6 +81,21 @@ static inline struct etna_sampler_view *
 etna_sampler_view(struct pipe_sampler_view *view)
 {
    return (struct etna_sampler_view *)view;
+}
+
+/* Return the config0 value for the sampler view, selecting between PE-internal
+ * format and native byte order format based on the resource's shared state. */
+static inline uint32_t
+etna_sampler_view_config0(struct etna_sampler_view *sv)
+{
+   if (sv->has_rb_swap) {
+      struct etna_resource *rsc = etna_resource(sv->base.texture);
+
+      if (rsc->shared && rsc->shared_native_order)
+         return sv->config0_native;
+   }
+
+   return sv->config0;
 }
 
 static void *
@@ -166,11 +183,10 @@ etna_create_sampler_view_state(struct pipe_context *pctx, struct pipe_resource *
    struct etna_screen *screen = ctx->screen;
    uint32_t format = translate_texture_format(so->format);
 
-   /* Shared resources store data in standard byte order (e.g., RGBA for
-    * R8G8B8A8_UNORM). Use the native texture format to read them correctly,
-    * bypassing the BGRA-internal optimization used for internal resources. */
-   if (etna_resource(prsc)->shared && translate_pe_format_rb_swap(so->format))
-      format = remap_texture_format_rb_swap(format);
+   /* For RB_SWAP formats, pre-compute the alternative texture format for when
+    * shared resources hold data in native byte order (RGBA). */
+   const bool rb_swap = translate_pe_format_rb_swap(so->format);
+   const uint32_t native_format = rb_swap ? remap_texture_format_rb_swap(format) : 0;
 
    const bool ext = !!(format & EXT_FORMAT);
    const bool astc = !!(format & ASTC_FORMAT);
@@ -278,6 +294,12 @@ etna_create_sampler_view_state(struct pipe_context *pctx, struct pipe_resource *
          VIVS_TE_SAMPLER_CONFIG0_VWRAP(TEXTURE_WRAPMODE_CLAMP_TO_EDGE);
    }
 
+   if (rb_swap) {
+      sv->config0_native = (sv->config0 & ~VIVS_TE_SAMPLER_CONFIG0_FORMAT__MASK) |
+                           VIVS_TE_SAMPLER_CONFIG0_FORMAT(native_format);
+      sv->has_rb_swap = true;
+   }
+
    return &sv->base;
 }
 
@@ -362,7 +384,7 @@ etna_emit_new_texture_state(struct etna_context *ctx)
                struct etna_sampler_state *ss = etna_sampler_state(ctx->sampler[x]);
                struct etna_sampler_view *sv = etna_sampler_view(ctx->sampler_view[x]);
 
-               val = (ss->config0 & sv->config0_mask) | sv->config0;
+               val = (ss->config0 & sv->config0_mask) | etna_sampler_view_config0(sv);
 
                if (util_format_description(sv->base.format)->colorspace == UTIL_FORMAT_COLORSPACE_ZS &&
                   ss->base.min_mip_filter == PIPE_TEX_MIPFILTER_LINEAR) {
@@ -507,8 +529,7 @@ etna_emit_texture_state(struct etna_context *ctx)
             if ((1 << x) & active_samplers) {
                struct etna_sampler_state *ss = etna_sampler_state(ctx->sampler[x]);
                struct etna_sampler_view *sv = etna_sampler_view(ctx->sampler_view[x]);
-
-               val = (ss->config0 & sv->config0_mask) | sv->config0;
+               val = (ss->config0 & sv->config0_mask) | etna_sampler_view_config0(sv);
 
                if (util_format_description(sv->base.format)->colorspace == UTIL_FORMAT_COLORSPACE_ZS &&
                   ss->base.min_mip_filter == PIPE_TEX_MIPFILTER_LINEAR) {

@@ -556,10 +556,16 @@ etna_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info,
 
    for (i = 0; i < pfb->nr_cbufs; i++) {
       if (pfb->cbufs[i].texture) {
+         struct etna_resource *rsc = etna_resource(pfb->cbufs[i].texture);
          struct etna_resource *res = etna_resource_get_render_compatible(pctx, pfb->cbufs[i].texture);
          struct etna_resource_level *level = &res->levels[pfb->cbufs[i].level];
 
          etna_resource_level_mark_changed(level);
+
+         /* PE rendered directly to the shared buffer (no render shadow).
+          * Data is now in PE-internal byte order (BGRA for RB_SWAP formats). */
+         if (rsc->shared && res == rsc)
+            rsc->shared_native_order = false;
       }
    }
 
