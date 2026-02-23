@@ -1594,7 +1594,7 @@
         "description": "intel/perf: Add HSW verx10 to intel_perf_query_result_write_mdapi()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a097a3d214eda7fb7b9ff63176754b7260e09e03",
         "notes": null
