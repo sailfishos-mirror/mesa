@@ -981,6 +981,7 @@ system_value("pixel_coord", 2, bit_sizes=[16])
 # requires interpolation.
 system_value("frag_coord_z", 1)
 system_value("frag_coord_w", 1)
+system_value("frag_coord_w_rcp", 1)
 system_value("point_coord", 2)
 system_value("line_coord", 1)
 system_value("front_face", 1, bit_sizes=[1, 32])
