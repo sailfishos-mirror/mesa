@@ -4500,7 +4500,7 @@ genX(CmdExecuteCommands)(
       for (uint32_t i = 0; i < commandBufferCount; i++) {
          ANV_FROM_HANDLE(anv_cmd_buffer, secondary, pCmdBuffers[i]);
 
-         num_traces += secondary->trace.num_traces;
+         num_traces += u_trace_num_events(&secondary->trace);
          u_trace_clone_append(u_trace_begin_iterator(&secondary->trace),
                               u_trace_end_iterator(&secondary->trace),
                               &container->trace,

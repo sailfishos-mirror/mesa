@@ -2267,7 +2267,7 @@ tu_trace_destroy_buffer(struct u_trace_context *utctx, void *timestamps)
 }
 
 template <chip CHIP>
-static void
+static bool
 tu_trace_record_ts(struct u_trace *ut, void *cs, void *timestamps,
                    uint64_t offset_B, uint32_t)
 {
@@ -2289,6 +2289,8 @@ tu_trace_record_ts(struct u_trace *ut, void *cs, void *timestamps,
                            .value);
       tu_cs_emit_qw(ts_cs, bo->iova + offset_B);
    }
+
+   return true;
 }
 
 static uint64_t
@@ -2478,7 +2480,8 @@ tu_u_trace_submission_data_create(
           * single-use. Therefor we have to copy trace points and create
           * a new timestamp buffer on every submit of reusable command buffer.
           */
-         trace_chunks_to_copy += list_length(&cmdbuf->trace.trace_chunks);
+         trace_chunks_to_copy += u_trace_clone_append_copy_count(
+            u_trace_begin_iterator(&cmdbuf->trace), u_trace_end_iterator(&cmdbuf->trace));
       } else {
          data->trace_per_cmd_buffer[i] = &cmdbuf->trace;
       }
