@@ -654,7 +654,7 @@
         "description": "r300: split large HiZ clears into multiple packets",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "12dcbd5954676ee32604d82cacbf9a4259967e13",
         "notes": null
