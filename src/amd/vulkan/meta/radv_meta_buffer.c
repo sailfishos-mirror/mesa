@@ -54,7 +54,7 @@ get_fill_memory_pipeline(struct radv_device *device, uint64_t size, VkPipeline *
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_fill_memory_shader(device, use_16B_copy ? 16 : 4);
+   nir_shader *cs = radv_meta_nir_build_fill_memory_shader(use_16B_copy ? 16 : 4);
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -123,7 +123,7 @@ get_copy_memory_pipeline(struct radv_device *device, uint64_t src_va, uint64_t d
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_copy_memory_shader(device, use_16B_copy ? 16 : 1);
+   nir_shader *cs = radv_meta_nir_build_copy_memory_shader(use_16B_copy ? 16 : 1);
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,

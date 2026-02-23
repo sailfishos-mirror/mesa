@@ -65,7 +65,7 @@ get_pipeline(struct radv_device *device, uint32_t samples_log2, VkPipeline *pipe
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_fmask_copy_compute_shader(device, samples);
+   nir_shader *cs = radv_meta_nir_build_fmask_copy_compute_shader(samples);
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,

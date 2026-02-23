@@ -109,8 +109,8 @@ get_compute_resolve_pipeline(struct radv_device *device, VkFormat format, int sa
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_resolve_cs(device, pdev->use_fmask, key.resolve_type, key.samples, key.aspects,
-                                                   key.resolve_mode);
+   nir_shader *cs =
+      radv_meta_nir_build_resolve_cs(pdev->use_fmask, key.resolve_type, key.samples, key.aspects, key.resolve_mode);
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,

@@ -2884,7 +2884,7 @@ build_dgc_prepare_shader(struct radv_device *dev, struct radv_indirect_command_l
 {
    const struct radv_physical_device *pdev = radv_device_physical(dev);
 
-   nir_builder b = radv_meta_nir_init_shader(dev, MESA_SHADER_COMPUTE, "meta_dgc_prepare");
+   nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "meta_dgc_prepare");
    b.shader->info.workgroup_size[0] = 64;
 
    struct dgc_cmdbuf cmd_buf = {

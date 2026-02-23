@@ -75,9 +75,9 @@ get_gfx_resolve_pipeline(struct radv_device *device, VkFormat format, int sample
       return VK_SUCCESS;
    }
 
-   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices(device);
-   nir_shader *fs_module = radv_meta_nir_build_resolve_fs(device, pdev->use_fmask, key.samples,
-                                                          vk_format_is_int(key.format), key.aspects, key.resolve_mode);
+   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices();
+   nir_shader *fs_module = radv_meta_nir_build_resolve_fs(pdev->use_fmask, key.samples, vk_format_is_int(key.format),
+                                                          key.aspects, key.resolve_mode);
 
    VkGraphicsPipelineCreateInfo pipeline_create_info = {
       .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,

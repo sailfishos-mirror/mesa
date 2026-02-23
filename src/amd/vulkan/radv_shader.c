@@ -3381,7 +3381,7 @@ radv_create_trap_handler_shader(struct radv_device *device)
    radv_fill_nir_compiler_options(&options, device, NULL, radv_should_use_wgp_mode(pdev->info.gfx_level, stage, &info),
                                   dump_shader, false, false);
 
-   nir_builder b = radv_meta_nir_init_shader(device, stage, "meta_trap_handler");
+   nir_builder b = radv_meta_nir_init_shader(stage, "meta_trap_handler");
 
    info.wave_size = 64;
    info.workgroup_size = 64;

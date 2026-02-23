@@ -158,8 +158,7 @@ radv_occlusion_query_use_l2(const struct radv_physical_device *pdev)
 }
 
 static nir_shader *
-build_occlusion_query_shader(struct radv_device *device, uint64_t enabled_rb_mask, uint32_t max_render_backends,
-                             bool use_l2)
+build_occlusion_query_shader(uint64_t enabled_rb_mask, uint32_t max_render_backends, bool use_l2)
 {
    /* the shader this builds is roughly
     *
@@ -200,7 +199,7 @@ build_occlusion_query_shader(struct radv_device *device, uint64_t enabled_rb_mas
     * 	}
     * }
     */
-   nir_builder b = radv_meta_nir_init_shader(device, MESA_SHADER_COMPUTE, "occlusion_query");
+   nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "occlusion_query");
    b.shader->info.workgroup_size[0] = 64;
 
    nir_variable *result = nir_local_variable_create(b.impl, glsl_uint64_t_type(), "result");
@@ -416,8 +415,7 @@ radv_get_pipelinestat_query_size(struct radv_device *device)
 }
 
 static nir_shader *
-build_pipeline_statistics_query_shader(struct radv_device *device, uint32_t pipelinestat_block_size,
-                                       bool emulate_mesh_shader_queries)
+build_pipeline_statistics_query_shader(uint32_t pipelinestat_block_size, bool emulate_mesh_shader_queries)
 {
    /* the shader this builds is roughly
     *
@@ -461,7 +459,7 @@ build_pipeline_statistics_query_shader(struct radv_device *device, uint32_t pipe
     * 	}
     * }
     */
-   nir_builder b = radv_meta_nir_init_shader(device, MESA_SHADER_COMPUTE, "pipeline_statistics_query");
+   nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "pipeline_statistics_query");
    b.shader->info.workgroup_size[0] = 64;
 
    nir_variable *output_offset = nir_local_variable_create(b.impl, glsl_int_type(), "output_offset");
@@ -808,7 +806,7 @@ radv_copy_pipeline_stat_query_result(struct radv_cmd_buffer *cmd_buffer, struct 
  * Transform feedback query
  */
 static nir_shader *
-build_tfb_query_shader(struct radv_device *device)
+build_tfb_query_shader()
 {
    /* the shader this builds is roughly
     *
@@ -845,7 +843,7 @@ build_tfb_query_shader(struct radv_device *device)
     * 	}
     * }
     */
-   nir_builder b = radv_meta_nir_init_shader(device, MESA_SHADER_COMPUTE, "tfb_query");
+   nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "tfb_query");
    b.shader->info.workgroup_size[0] = 64;
 
    /* Create and initialize local variables. */
@@ -1050,7 +1048,7 @@ radv_copy_tfb_query_result(struct radv_cmd_buffer *cmd_buffer, struct radv_query
  * Timestamp query
  */
 static nir_shader *
-build_timestamp_query_shader(struct radv_device *device)
+build_timestamp_query_shader()
 {
    /* the shader this builds is roughly
     *
@@ -1082,7 +1080,7 @@ build_timestamp_query_shader(struct radv_device *device)
     * 	}
     * }
     */
-   nir_builder b = radv_meta_nir_init_shader(device, MESA_SHADER_COMPUTE, "timestamp_query");
+   nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "timestamp_query");
    b.shader->info.workgroup_size[0] = 64;
 
    /* Create and initialize local variables. */
@@ -1185,7 +1183,7 @@ radv_copy_timestamp_query_result(struct radv_cmd_buffer *cmd_buffer, struct radv
 #define RADV_PGQ_STRIDE_EMU (RADV_PGQ_STRIDE + 8 * 2)
 
 static nir_shader *
-build_pg_query_shader(struct radv_device *device)
+build_pg_query_shader()
 {
    /* the shader this builds is roughly
     *
@@ -1224,7 +1222,7 @@ build_pg_query_shader(struct radv_device *device)
     * 	}
     * }
     */
-   nir_builder b = radv_meta_nir_init_shader(device, MESA_SHADER_COMPUTE, "pg_query");
+   nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "pg_query");
    b.shader->info.workgroup_size[0] = 64;
 
    /* Create and initialize local variables. */
@@ -1464,7 +1462,7 @@ radv_copy_pg_query_result(struct radv_cmd_buffer *cmd_buffer, struct radv_query_
  * Mesh primitives generated query
  */
 static nir_shader *
-build_ms_prim_gen_query_shader(struct radv_device *device)
+build_ms_prim_gen_query_shader()
 {
    /* the shader this builds is roughly
     *
@@ -1497,7 +1495,7 @@ build_ms_prim_gen_query_shader(struct radv_device *device)
     * 	}
     * }
     */
-   nir_builder b = radv_meta_nir_init_shader(device, MESA_SHADER_COMPUTE, "ms_prim_gen_query");
+   nir_builder b = radv_meta_nir_init_shader(MESA_SHADER_COMPUTE, "ms_prim_gen_query");
    b.shader->info.workgroup_size[0] = 64;
 
    /* Create and initialize local variables. */
@@ -1740,24 +1738,24 @@ get_pipeline(struct radv_device *device, VkQueryType query_type, VkPipeline *pip
 
    switch (query_type) {
    case VK_QUERY_TYPE_OCCLUSION:
-      cs = build_occlusion_query_shader(device, pdev->info.enabled_rb_mask, pdev->info.max_render_backends,
+      cs = build_occlusion_query_shader(pdev->info.enabled_rb_mask, pdev->info.max_render_backends,
                                         radv_occlusion_query_use_l2(pdev));
       break;
    case VK_QUERY_TYPE_PIPELINE_STATISTICS:
-      cs = build_pipeline_statistics_query_shader(device, radv_get_pipelinestat_query_size(device),
+      cs = build_pipeline_statistics_query_shader(radv_get_pipelinestat_query_size(device),
                                                   pdev->emulate_mesh_shader_queries);
       break;
    case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
-      cs = build_tfb_query_shader(device);
+      cs = build_tfb_query_shader();
       break;
    case VK_QUERY_TYPE_TIMESTAMP:
-      cs = build_timestamp_query_shader(device);
+      cs = build_timestamp_query_shader();
       break;
    case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
-      cs = build_pg_query_shader(device);
+      cs = build_pg_query_shader();
       break;
    case VK_QUERY_TYPE_MESH_PRIMITIVES_GENERATED_EXT:
-      cs = build_ms_prim_gen_query_shader(device);
+      cs = build_ms_prim_gen_query_shader();
       break;
    default:
       UNREACHABLE("invalid query type");

@@ -49,7 +49,7 @@ get_pipeline(struct radv_device *device, struct radv_image *image, VkPipeline *p
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_copy_vrs_htile_shader(device, pdev->info.gfx_level, pdev->info.gb_addr_config,
+   nir_shader *cs = radv_meta_nir_build_copy_vrs_htile_shader(pdev->info.gfx_level, pdev->info.gb_addr_config,
                                                               &image->planes[0].surface);
 
    const VkPipelineShaderStageCreateInfo stage_info = {

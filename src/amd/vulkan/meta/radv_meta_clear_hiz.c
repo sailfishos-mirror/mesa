@@ -63,7 +63,7 @@ get_clear_hiz_pipeline(struct radv_device *device, const struct radv_image *imag
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_clear_hiz_compute_shader(device, samples);
+   nir_shader *cs = radv_meta_nir_build_clear_hiz_compute_shader(samples);
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,

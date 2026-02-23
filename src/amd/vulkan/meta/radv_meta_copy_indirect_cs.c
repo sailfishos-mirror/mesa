@@ -32,7 +32,7 @@ get_compute_copy_memory_indirect_preprocess_pipeline(struct radv_device *device,
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_copy_memory_indirect_preprocess_cs(device);
+   nir_shader *cs = radv_meta_nir_build_copy_memory_indirect_preprocess_cs();
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -112,7 +112,7 @@ get_compute_copy_memory_indirect_pipeline(struct radv_device *device, VkPipeline
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_copy_memory_indirect_cs(device);
+   nir_shader *cs = radv_meta_nir_build_copy_memory_indirect_cs();
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -214,7 +214,7 @@ get_compute_copy_memory_to_image_indirect_preprocess_pipeline(struct radv_device
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_copy_memory_to_image_indirect_preprocess_cs(device);
+   nir_shader *cs = radv_meta_nir_build_copy_memory_to_image_indirect_preprocess_cs();
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -345,7 +345,7 @@ get_compute_copy_memory_to_image_indirect_pipeline(struct radv_device *device, c
    }
 
    nir_shader *cs = radv_meta_nir_build_copy_memory_to_image_indirect_cs(
-      device, key.fmt_block_width, key.fmt_block_height, key.fmt_block_depth, key.fmt_element_size_B, key.is_3d);
+      key.fmt_block_width, key.fmt_block_height, key.fmt_block_depth, key.fmt_element_size_B, key.is_3d);
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,

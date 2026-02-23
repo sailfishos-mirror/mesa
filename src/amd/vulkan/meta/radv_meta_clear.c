@@ -82,8 +82,7 @@ get_color_pipeline(struct radv_device *device, uint32_t samples, uint32_t frag_o
    }
 
    nir_shader *vs_module, *fs_module;
-
-   radv_meta_nir_build_clear_color_shaders(device, &vs_module, &fs_module, frag_output);
+   radv_meta_nir_build_clear_color_shaders(&vs_module, &fs_module, frag_output);
 
    VkPipelineColorBlendAttachmentState blend_attachment_state[MAX_RTS] = {0};
    blend_attachment_state[frag_output] = (VkPipelineColorBlendAttachmentState){
@@ -327,7 +326,7 @@ get_depth_stencil_pipeline(struct radv_device *device, int samples, VkImageAspec
 
    nir_shader *vs_module, *fs_module;
 
-   radv_meta_nir_build_clear_depthstencil_shaders(device, &vs_module, &fs_module, unrestricted);
+   radv_meta_nir_build_clear_depthstencil_shaders(&vs_module, &fs_module, unrestricted);
 
    VkGraphicsPipelineCreateInfoRADV radv_info = {
       .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO_RADV,
@@ -572,7 +571,7 @@ get_clear_htile_mask_pipeline(struct radv_device *device, VkPipeline *pipeline_o
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_clear_htile_mask_shader(device);
+   nir_shader *cs = radv_meta_nir_build_clear_htile_mask_shader();
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -955,7 +954,7 @@ get_clear_dcc_comp_to_single_pipeline(struct radv_device *device, bool is_msaa, 
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_clear_dcc_comp_to_single_shader(device, is_msaa);
+   nir_shader *cs = radv_meta_nir_build_clear_dcc_comp_to_single_shader(is_msaa);
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,

@@ -64,9 +64,9 @@ get_gfx_copy_memory_to_image_indirect_pipeline(struct radv_device *device, const
    }
 
    nir_shader *vs_module = radv_meta_nir_build_copy_memory_to_image_indirect_vs(
-      device, key.fmt_block_width, key.fmt_block_height, key.fmt_block_depth);
+      key.fmt_block_width, key.fmt_block_height, key.fmt_block_depth);
    nir_shader *fs_module = radv_meta_nir_build_copy_memory_to_image_indirect_fs(
-      device, aspect_mask, key.fmt_block_width, key.fmt_block_height, key.fmt_element_size_B);
+      aspect_mask, key.fmt_block_width, key.fmt_block_height, key.fmt_element_size_B);
 
    VkGraphicsPipelineCreateInfo pipeline_create_info = {
       .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,

@@ -56,7 +56,7 @@ get_dcc_decompress_compute_pipeline(struct radv_device *device, VkPipeline *pipe
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_dcc_decompress_compute_shader(device);
+   nir_shader *cs = radv_meta_nir_build_dcc_decompress_compute_shader();
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -109,8 +109,8 @@ get_pipeline(struct radv_device *device, enum radv_color_op op, VkPipeline *pipe
       return VK_SUCCESS;
    }
 
-   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices(device);
-   nir_shader *fs_module = radv_meta_nir_build_fs_noop(device);
+   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices();
+   nir_shader *fs_module = radv_meta_nir_build_fs_noop();
 
    VkGraphicsPipelineCreateInfoRADV radv_info = {
       .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO_RADV,

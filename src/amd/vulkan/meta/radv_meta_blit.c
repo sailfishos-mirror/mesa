@@ -86,17 +86,17 @@ get_pipeline(struct radv_device *device, const struct radv_image_view *src_iview
    }
 
    nir_shader *fs;
-   nir_shader *vs = radv_meta_nir_build_blit_vertex_shader(device);
+   nir_shader *vs = radv_meta_nir_build_blit_vertex_shader();
 
    switch (aspect) {
    case VK_IMAGE_ASPECT_COLOR_BIT:
-      fs = radv_meta_nir_build_blit_copy_fragment_shader(device, tex_dim);
+      fs = radv_meta_nir_build_blit_copy_fragment_shader(tex_dim);
       break;
    case VK_IMAGE_ASPECT_DEPTH_BIT:
-      fs = radv_meta_nir_build_blit_copy_fragment_shader_depth(device, tex_dim);
+      fs = radv_meta_nir_build_blit_copy_fragment_shader_depth(tex_dim);
       break;
    case VK_IMAGE_ASPECT_STENCIL_BIT:
-      fs = radv_meta_nir_build_blit_copy_fragment_shader_stencil(device, tex_dim);
+      fs = radv_meta_nir_build_blit_copy_fragment_shader_stencil(tex_dim);
       break;
    default:
       UNREACHABLE("Unhandled aspect");

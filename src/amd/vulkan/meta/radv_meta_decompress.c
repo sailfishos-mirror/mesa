@@ -38,8 +38,8 @@ get_pipeline_gfx(struct radv_device *device, struct radv_image *image, VkPipelin
       return VK_SUCCESS;
    }
 
-   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices(device);
-   nir_shader *fs_module = radv_meta_nir_build_fs_noop(device);
+   nir_shader *vs_module = radv_meta_nir_build_vs_generate_vertices();
+   nir_shader *fs_module = radv_meta_nir_build_fs_noop();
 
    const VkPipelineSampleLocationsStateCreateInfoEXT sample_locs_create_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SAMPLE_LOCATIONS_STATE_CREATE_INFO_EXT,
@@ -299,7 +299,7 @@ get_pipeline_cs(struct radv_device *device, VkPipeline *pipeline_out, VkPipeline
       return VK_SUCCESS;
    }
 
-   nir_shader *cs = radv_meta_nir_build_expand_depth_stencil_compute_shader(device);
+   nir_shader *cs = radv_meta_nir_build_expand_depth_stencil_compute_shader();
 
    const VkPipelineShaderStageCreateInfo stage_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
