@@ -29,6 +29,7 @@ typedef struct {
    uint8_t colors_written;
    nir_alu_type color_type[MAX_DRAW_BUFFERS];
    bool has_dual_src_blending;
+   bool dual_src_blend_swizzle;
    bool writes_all_cbufs;
 
    /* MAX_DRAW_BUFFERS for MRT export, 1 for MRTZ export */
@@ -264,7 +265,7 @@ get_ps_color_export_target(lower_ps_state *s)
 {
    unsigned target = V_008DFC_SQ_EXP_MRT + s->compacted_mrt_index;
 
-   if (s->options->dual_src_blend_swizzle && s->compacted_mrt_index < 2)
+   if (s->dual_src_blend_swizzle && s->compacted_mrt_index < 2)
       target += 21;
 
    s->compacted_mrt_index++;
@@ -622,10 +623,12 @@ emit_ps_null_export(nir_builder *b, lower_ps_state *s)
     * In Primitive Ordered Pixel Shading, however, GFX11+ explicitly uses the `done` export to exit
     * the ordered section, and before GFX11, shaders with POPS also need an export.
     * GFX11 DCC decompression also needs an export.
+    * An export also seems necessary when dual source blending is used unless CB_TARGET_MASK=0.
     */
    if (s->options->gfx_level >= GFX10 && !pops &&
        !s->options->uses_discard &&
-       !s->options->dcc_decompress_gfx11)
+       !s->options->dcc_decompress_gfx11 &&
+       !s->has_dual_src_blending)
       return;
 
    /* Gfx11 doesn't support null exports, and mrt0 should be exported instead. */
@@ -686,6 +689,8 @@ export_ps_outputs(nir_builder *b, lower_ps_state *s)
          break;
       case BITFIELD_RANGE(0, 2):
          break;
+      case 0:
+         break;
       default:
          UNREACHABLE("unexpected number of color outputs for dual source blending");
       }
@@ -709,7 +714,7 @@ export_ps_outputs(nir_builder *b, lower_ps_state *s)
       for (unsigned i = 0; i < s->exp_num; i++)
          nir_instr_move(nir_after_impl(b->impl), &s->exp[i]->instr);
 
-      if (s->options->dual_src_blend_swizzle) {
+      if (s->dual_src_blend_swizzle && s->exp_num - first_color_export >= 2) {
          emit_ps_dual_src_blend_swizzle(b, s, first_color_export);
          /* Skip last export flag setting because they have been replaced by
           * a pseudo instruction.
@@ -741,7 +746,8 @@ ac_nir_lower_ps_late(nir_shader *nir, const ac_nir_lower_ps_late_options *option
 
    lower_ps_state state = {
       .options = options,
-      .has_dual_src_blending = options->dual_src_blend_swizzle,
+      .has_dual_src_blending = options->dual_src_blend,
+      .dual_src_blend_swizzle = options->dual_src_blend && options->gfx_level >= GFX11,
       .spi_shader_col_format = options->spi_shader_col_format,
    };
 

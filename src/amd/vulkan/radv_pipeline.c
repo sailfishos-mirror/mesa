@@ -438,7 +438,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
       };
 
       if (!late_options.no_color_export) {
-         late_options.dual_src_blend_swizzle = gfx_state->ps.epilog.mrt0_is_dual_src && gfx_level >= GFX11;
+         late_options.dual_src_blend = gfx_state->ps.epilog.mrt0_is_dual_src;
          late_options.color_is_int8 = gfx_state->ps.epilog.color_is_int8;
          late_options.color_is_int10 = gfx_state->ps.epilog.color_is_int10;
          late_options.enable_mrt_output_nan_fixup =

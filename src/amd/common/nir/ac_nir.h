@@ -376,7 +376,7 @@ typedef struct {
    bool uses_discard;
    bool dcc_decompress_gfx11;
    bool alpha_to_coverage_via_mrtz;
-   bool dual_src_blend_swizzle;
+   bool dual_src_blend;
    unsigned spi_shader_col_format;
    unsigned color_is_int8;
    unsigned color_is_int10;
