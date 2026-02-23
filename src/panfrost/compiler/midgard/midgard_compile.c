@@ -2981,8 +2981,6 @@ midgard_compile_shader_nir(nir_shader *nir,
    ctx->ssa_constants = _mesa_hash_table_u64_create(ctx);
 
    /* Collect varyings after lowering I/O */
-   info->quirk_no_auto32 = (ctx->quirks & MIDGARD_NO_AUTO32);
-   pan_nir_collect_varyings(nir, info);
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       assert(inputs->varying_layout);
       memcpy(&info->varyings.formats, inputs->varying_layout,
@@ -2991,6 +2989,8 @@ midgard_compile_shader_nir(nir_shader *nir,
       pan_varying_collect_formats(&info->varyings.formats,
                                   nir, inputs->gpu_id,
                                   inputs->trust_varying_flat_highp_types, false);
+      info->varyings.noperspective =
+         pan_nir_collect_noperspective_varyings_fs(nir);
    }
 
    /* Optimisation passes */

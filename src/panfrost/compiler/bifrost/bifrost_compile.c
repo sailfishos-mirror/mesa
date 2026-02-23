@@ -7053,7 +7053,6 @@ bifrost_compile_shader_nir(nir_shader *nir,
    info->tls_size = nir->scratch_size;
    info->stage = nir->info.stage;
 
-   pan_nir_collect_varyings(nir, info);
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       assert(inputs->varying_layout);
       memcpy(&info->varyings.formats, inputs->varying_layout,
@@ -7062,6 +7061,8 @@ bifrost_compile_shader_nir(nir_shader *nir,
       pan_varying_collect_formats(&info->varyings.formats,
                                   nir, inputs->gpu_id,
                                   inputs->trust_varying_flat_highp_types, false);
+      info->varyings.noperspective =
+         pan_nir_collect_noperspective_varyings_fs(nir);
    }
 
    if (nir->info.stage == MESA_SHADER_VERTEX && info->vs.idvs) {

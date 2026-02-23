@@ -82,8 +82,6 @@ bool pan_nir_lower_fs_outputs(nir_shader *shader, bool skip_atest);
 
 uint32_t pan_nir_collect_noperspective_varyings_fs(nir_shader *s);
 
-void pan_nir_collect_varyings(nir_shader *s, struct pan_shader_info *info);
-
 bool pan_nir_resize_varying_io(nir_shader *nir,
                                const struct pan_varying_layout *varying_layout);
 

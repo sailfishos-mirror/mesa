@@ -189,8 +189,7 @@ pan_shader_prepare_rsd(const struct pan_shader_info *shader_info,
 
    rsd->shader.shader = shader_ptr;
    rsd->shader.attribute_count = shader_info->attribute_count;
-   rsd->shader.varying_count =
-      shader_info->varyings.input_count + shader_info->varyings.output_count;
+   rsd->shader.varying_count = shader_info->varyings.formats.count;
    rsd->shader.texture_count = shader_info->texture_count;
    rsd->shader.sampler_count = shader_info->sampler_count;
    rsd->properties.shader_contains_barrier = shader_info->contains_barrier;

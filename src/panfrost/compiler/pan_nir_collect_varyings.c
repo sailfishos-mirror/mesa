@@ -213,50 +213,6 @@ pan_nir_collect_noperspective_varyings_fs(nir_shader *s)
    return noperspective_varyings;
 }
 
-void
-pan_nir_collect_varyings(nir_shader *s, struct pan_shader_info *info)
-{
-   if (s->info.stage != MESA_SHADER_VERTEX &&
-       s->info.stage != MESA_SHADER_FRAGMENT)
-      return;
-
-   struct slot_info slots[64] = {0};
-   struct walk_varyings_data wv_data = {
-      .quirk_no_auto32 = info->quirk_no_auto32,
-      .slots = slots
-   };
-   nir_shader_instructions_pass(s, walk_varyings, nir_metadata_all, &wv_data);
-
-   struct pan_shader_varying *varyings = (s->info.stage == MESA_SHADER_VERTEX)
-                                            ? info->varyings.output
-                                            : info->varyings.input;
-
-   unsigned count = 0;
-
-   for (unsigned i = 0; i < ARRAY_SIZE(slots); ++i) {
-      if (!slots[i].type)
-         continue;
-
-      enum pipe_format format = pan_varying_format(slots[i].type, slots[i].count);
-      assert(format != PIPE_FORMAT_NONE);
-
-      unsigned index = slots[i].index;
-      count = MAX2(count, index + 1);
-
-      varyings[index].location = i;
-      varyings[index].format = format;
-   }
-
-   if (s->info.stage == MESA_SHADER_VERTEX)
-      info->varyings.output_count = count;
-   else
-      info->varyings.input_count = count;
-
-   if (s->info.stage == MESA_SHADER_FRAGMENT)
-      info->varyings.noperspective =
-         pan_nir_collect_noperspective_varyings_fs(s);
-}
-
 /*
  * ABI: Special (desktop GL) slots come first, tightly packed. General varyings
  * come later, sparsely packed. This handles both linked and separable shaders
