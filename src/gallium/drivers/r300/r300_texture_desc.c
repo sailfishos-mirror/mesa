@@ -366,11 +366,7 @@ static void r300_setup_hyperz_properties(struct r300_screen *screen,
         tex->tex.microtile) {
         unsigned i, pipes;
 
-        if (screen->caps.family == CHIP_RV530) {
-            pipes = screen->info.r300_num_z_pipes;
-        } else {
-            pipes = screen->info.r300_num_gb_pipes;
-        }
+        pipes = r300_hyperz_pipe_count(screen);
 
         for (i = 0; i <= tex->b.last_level; i++) {
             unsigned zcomp_numdw, zcompsize, hiz_numdw, stride, height;
