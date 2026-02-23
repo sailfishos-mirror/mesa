@@ -17,3 +17,4 @@ spec@arb_texture_multisample@texelfetch fs sampler2dmsarray 4 98x1x9-98x129x9
 spec@egl_khr_gl_colorspace@linear
 spec@ext_framebuffer_blit@fbo-blit-check-limits
 spec@glsl-1.30@execution@texelfetch fs sampler2d 1x281-501x281
+spec@arb_point_parameters@arb_point_parameters-point-attenuation
