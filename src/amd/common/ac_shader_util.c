@@ -926,7 +926,7 @@ static unsigned get_tcs_wg_output_mem_size(uint32_t num_tcs_output_cp, uint32_t 
           mem_one_perpatch_output * num_mem_tcs_patch_outputs;
 }
 
-uint32_t ac_compute_num_tess_patches(const struct radeon_info *info, uint32_t num_tcs_input_cp,
+uint32_t ac_compute_num_tess_patches(const struct ac_cu_info *info, uint32_t num_tcs_input_cp,
                                      uint32_t num_tcs_output_cp, uint32_t num_mem_tcs_outputs,
                                      uint32_t num_mem_tcs_patch_outputs, uint32_t lds_per_patch,
                                      uint32_t wave_size, bool tess_uses_primid)
@@ -938,8 +938,7 @@ uint32_t ac_compute_num_tess_patches(const struct radeon_info *info, uint32_t nu
     * SWITCH_ON_EOI, which should cause IA to split instances up. However, this doesn't work
     * correctly on GFX6 when there is no other SE to switch to.
     */
-   const bool has_primid_instancing_bug = info->gfx_level == GFX6 && info->max_se == 1;
-   if (has_primid_instancing_bug && tess_uses_primid)
+   if (info->has_primid_instancing_bug && tess_uses_primid)
       return 1;
 
    /* 256 threads per workgroup is the hw limit, but 192 performs better. */
@@ -952,7 +951,7 @@ uint32_t ac_compute_num_tess_patches(const struct radeon_info *info, uint32_t nu
    /* When distributed tessellation is unsupported, switch between SEs
     * at a higher frequency to manually balance the workload between SEs.
     */
-   if (!info->has_distributed_tess && info->max_se > 1)
+   if (info->smaller_tcs_workgroups)
       num_patches = MIN2(num_patches, 16); /* recommended */
 
    /* Make sure the output data fits in the offchip buffer */

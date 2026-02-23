@@ -1651,7 +1651,7 @@ ac_nir_lower_tes_inputs_to_mem(nir_shader *shader,
 }
 
 void
-ac_nir_compute_tess_wg_info(const struct radeon_info *info, const ac_nir_tess_io_info *io_info,
+ac_nir_compute_tess_wg_info(const struct ac_cu_info *info, const ac_nir_tess_io_info *io_info,
                             unsigned tcs_vertices_out, unsigned wave_size, bool tess_uses_primid,
                             unsigned num_tcs_input_cp, unsigned lds_input_vertex_size,
                             unsigned num_remapped_tess_level_outputs, unsigned *num_patches_per_wg,
@@ -1668,7 +1668,7 @@ ac_nir_compute_tess_wg_info(const struct radeon_info *info, const ac_nir_tess_io
 
    /* SPI_SHADER_PGM_RSRC2_HS.LDS_SIZE specifies the allocation size only for LDS. The HS offchip
     * ring buffer always uses a fixed allocation size per workgroup determined by
-    * info->hs_offchip_workgroup_dw_size.
+    * ac_cpu_info::hs_offchip_workgroup_dw_size.
     *
     * LDS is only used for TCS inputs (with cross-invocation or indirect access only or if TCS in/out
     * vertex counts are different) and for TCS outputs that are read (including tess level outputs

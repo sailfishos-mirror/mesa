@@ -236,7 +236,7 @@ static bool handle_env_var_force_family(struct radeon_info *info)
 void
 ac_fill_cu_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_info)
 {
-   STATIC_ASSERT(sizeof(struct ac_cu_info) == 48);
+   STATIC_ASSERT(sizeof(struct ac_cu_info) == 52);
 
    struct ac_cu_info *cu_info = &info->cu_info;
 
@@ -304,6 +304,8 @@ ac_fill_cu_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_
 
    cu_info->num_simd_per_compute_unit = info->gfx_level >= GFX10 ? 2 : 4;
 
+   cu_info->hs_offchip_workgroup_dw_size = info->hs_offchip_workgroup_dw_size;
+
    /* Flags */
    cu_info->has_lds_bank_count_16 = info->family == CHIP_KABINI || info->family == CHIP_STONEY;
    cu_info->has_sram_ecc_enabled = info->family == CHIP_VEGA20 || info->family == CHIP_MI100 ||
@@ -342,6 +344,11 @@ ac_fill_cu_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_
    cu_info->has_attr_ring = info->gfx_level >= GFX11;
 
    cu_info->mesh_fast_launch_2 = info->mesh_fast_launch_2;
+
+   /* When distributed tessellation is unsupported, switch between SEs
+    * at a higher frequency to manually balance the workload between SEs.
+    */
+   cu_info->smaller_tcs_workgroups = !info->has_distributed_tess && info->max_se > 1;
 
    cu_info->has_gfx6_mrt_export_bug =
       info->family == CHIP_TAHITI || info->family == CHIP_PITCAIRN || info->family == CHIP_VERDE;
@@ -389,6 +396,8 @@ ac_fill_cu_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_
     * The workaround is to issue and wait for attribute stores before the last export.
     */
    cu_info->has_attr_ring_wait_bug = info->gfx_level == GFX11 || info->gfx_level == GFX11_5;
+
+   cu_info->has_primid_instancing_bug = info->gfx_level == GFX6 && info->max_se == 1;
 }
 
 enum ac_query_gpu_info_result
@@ -1385,6 +1394,79 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
    info->mesh_fast_launch_2 = info->gfx_level >= GFX11;
 
+   /* This is the size of all TCS outputs in memory per workgroup.
+    * Hawaii can't handle num_workgroups > 256 with 8K per workgroup, so use 4K.
+    */
+   unsigned max_hs_out_vram_dwords_per_wg = info->family == CHIP_HAWAII ? 4096 : 8192;
+   unsigned max_hs_out_vram_dwords_enum;
+   unsigned max_workgroups_per_se;
+
+   switch (max_hs_out_vram_dwords_per_wg) {
+   case 8192:
+      max_hs_out_vram_dwords_enum = V_03093C_X_8K_DWORDS;
+      break;
+   case 4096:
+      max_hs_out_vram_dwords_enum = V_03093C_X_4K_DWORDS;
+      break;
+   case 2048:
+      max_hs_out_vram_dwords_enum = V_03093C_X_2K_DWORDS;
+      break;
+   case 1024:
+      max_hs_out_vram_dwords_enum = V_03093C_X_1K_DWORDS;
+      break;
+   default:
+      UNREACHABLE("invalid TCS workgroup size");
+   }
+
+   /* Vega10 should limit num_workgroups to 508 (127 per SE)
+    * Gfx7 should limit num_workgroups to 508 (127 per SE)
+    * Gfx6 should limit num_workgroups to 126 (63 per SE)
+    */
+   if (info->gfx_level >= GFX11) {
+      max_workgroups_per_se = 256;
+   } else if (info->gfx_level >= GFX10 ||
+              info->family == CHIP_VEGA12 || info->family == CHIP_VEGA20) {
+      max_workgroups_per_se = 128;
+   } else if (info->gfx_level >= GFX7 && info->family != CHIP_CARRIZO && info->family != CHIP_STONEY) {
+      max_workgroups_per_se = 127;
+   } else {
+      max_workgroups_per_se = 63;
+   }
+
+   /* Limit to 4 workgroups per CU for TCS, which exhausts LDS if each workgroup occupies 16KB.
+    * Note that the offchip allocation isn't deallocated until the corresponding TES waves finish.
+    */
+   unsigned num_offchip_wg_per_cu = 4;
+   unsigned num_workgroups_per_se = MIN2(num_offchip_wg_per_cu * info->max_good_cu_per_sa *
+                                         info->max_sa_per_se, max_workgroups_per_se);
+   unsigned num_workgroups = num_workgroups_per_se * info->max_se;
+
+   if (info->gfx_level >= GFX11) {
+      /* OFFCHIP_BUFFERING is per SE. */
+      info->hs_offchip_param = S_03093C_OFFCHIP_BUFFERING_GFX103(num_workgroups_per_se - 1) |
+                               S_03093C_OFFCHIP_GRANULARITY_GFX103(max_hs_out_vram_dwords_enum);
+   } else if (info->gfx_level >= GFX10_3) {
+      info->hs_offchip_param = S_03093C_OFFCHIP_BUFFERING_GFX103(num_workgroups - 1) |
+                               S_03093C_OFFCHIP_GRANULARITY_GFX103(max_hs_out_vram_dwords_enum);
+   } else if (info->gfx_level >= GFX7) {
+      info->hs_offchip_param = S_03093C_OFFCHIP_BUFFERING_GFX7(num_workgroups -
+                                                               (info->gfx_level >= GFX8 ? 1 : 0)) |
+                               S_03093C_OFFCHIP_GRANULARITY_GFX7(max_hs_out_vram_dwords_enum);
+   } else {
+      info->hs_offchip_param = S_0089B0_OFFCHIP_BUFFERING(num_workgroups) |
+                               S_0089B0_OFFCHIP_GRANULARITY(max_hs_out_vram_dwords_enum);
+   }
+
+   /* The typical size of tess factors of 1 TCS workgroup if all patches are triangles. */
+   unsigned typical_tess_factor_size_per_wg = (192 / 3) * 16;
+   unsigned num_tess_factor_wg_per_cu = 3;
+
+   info->hs_offchip_workgroup_dw_size = max_hs_out_vram_dwords_per_wg;
+   info->tess_offchip_ring_size = num_workgroups * max_hs_out_vram_dwords_per_wg * 4;
+   info->tess_factor_ring_size = typical_tess_factor_size_per_wg * num_tess_factor_wg_per_cu *
+                                 info->max_good_cu_per_sa * info->max_sa_per_se * info->max_se;
+   info->total_tess_ring_size = info->tess_offchip_ring_size + info->tess_factor_ring_size;
+
    ac_fill_cu_info(info, &device_info);
 
    /* BIG_PAGE is supported since gfx10.3 and requires VRAM. VRAM is only guaranteed
@@ -1570,79 +1652,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       info->has_set_context_pairs_packed = true;
       info->has_set_sh_pairs_packed = info->has_kernelq_reg_shadowing;
    }
-
-   /* This is the size of all TCS outputs in memory per workgroup.
-    * Hawaii can't handle num_workgroups > 256 with 8K per workgroup, so use 4K.
-    */
-   unsigned max_hs_out_vram_dwords_per_wg = info->family == CHIP_HAWAII ? 4096 : 8192;
-   unsigned max_hs_out_vram_dwords_enum;
-   unsigned max_workgroups_per_se;
-
-   switch (max_hs_out_vram_dwords_per_wg) {
-   case 8192:
-      max_hs_out_vram_dwords_enum = V_03093C_X_8K_DWORDS;
-      break;
-   case 4096:
-      max_hs_out_vram_dwords_enum = V_03093C_X_4K_DWORDS;
-      break;
-   case 2048:
-      max_hs_out_vram_dwords_enum = V_03093C_X_2K_DWORDS;
-      break;
-   case 1024:
-      max_hs_out_vram_dwords_enum = V_03093C_X_1K_DWORDS;
-      break;
-   default:
-      UNREACHABLE("invalid TCS workgroup size");
-   }
-
-   /* Vega10 should limit num_workgroups to 508 (127 per SE)
-    * Gfx7 should limit num_workgroups to 508 (127 per SE)
-    * Gfx6 should limit num_workgroups to 126 (63 per SE)
-    */
-   if (info->gfx_level >= GFX11) {
-      max_workgroups_per_se = 256;
-   } else if (info->gfx_level >= GFX10 ||
-              info->family == CHIP_VEGA12 || info->family == CHIP_VEGA20) {
-      max_workgroups_per_se = 128;
-   } else if (info->gfx_level >= GFX7 && info->family != CHIP_CARRIZO && info->family != CHIP_STONEY) {
-      max_workgroups_per_se = 127;
-   } else {
-      max_workgroups_per_se = 63;
-   }
-
-   /* Limit to 4 workgroups per CU for TCS, which exhausts LDS if each workgroup occupies 16KB.
-    * Note that the offchip allocation isn't deallocated until the corresponding TES waves finish.
-    */
-   unsigned num_offchip_wg_per_cu = 4;
-   unsigned num_workgroups_per_se = MIN2(num_offchip_wg_per_cu * info->max_good_cu_per_sa *
-                                         info->max_sa_per_se, max_workgroups_per_se);
-   unsigned num_workgroups = num_workgroups_per_se * info->max_se;
-
-   if (info->gfx_level >= GFX11) {
-      /* OFFCHIP_BUFFERING is per SE. */
-      info->hs_offchip_param = S_03093C_OFFCHIP_BUFFERING_GFX103(num_workgroups_per_se - 1) |
-                               S_03093C_OFFCHIP_GRANULARITY_GFX103(max_hs_out_vram_dwords_enum);
-   } else if (info->gfx_level >= GFX10_3) {
-      info->hs_offchip_param = S_03093C_OFFCHIP_BUFFERING_GFX103(num_workgroups - 1) |
-                               S_03093C_OFFCHIP_GRANULARITY_GFX103(max_hs_out_vram_dwords_enum);
-   } else if (info->gfx_level >= GFX7) {
-      info->hs_offchip_param = S_03093C_OFFCHIP_BUFFERING_GFX7(num_workgroups -
-                                                               (info->gfx_level >= GFX8 ? 1 : 0)) |
-                               S_03093C_OFFCHIP_GRANULARITY_GFX7(max_hs_out_vram_dwords_enum);
-   } else {
-      info->hs_offchip_param = S_0089B0_OFFCHIP_BUFFERING(num_workgroups) |
-                               S_0089B0_OFFCHIP_GRANULARITY(max_hs_out_vram_dwords_enum);
-   }
-
-   /* The typical size of tess factors of 1 TCS workgroup if all patches are triangles. */
-   unsigned typical_tess_factor_size_per_wg = (192 / 3) * 16;
-   unsigned num_tess_factor_wg_per_cu = 3;
-
-   info->hs_offchip_workgroup_dw_size = max_hs_out_vram_dwords_per_wg;
-   info->tess_offchip_ring_size = num_workgroups * max_hs_out_vram_dwords_per_wg * 4;
-   info->tess_factor_ring_size = typical_tess_factor_size_per_wg * num_tess_factor_wg_per_cu *
-                                 info->max_good_cu_per_sa * info->max_sa_per_se * info->max_se;
-   info->total_tess_ring_size = info->tess_offchip_ring_size + info->tess_factor_ring_size;
 
    if (info->gfx_level >= GFX12)
       info->rt_ip_version = RT_3_1;

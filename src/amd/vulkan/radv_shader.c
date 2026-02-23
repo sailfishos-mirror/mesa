@@ -3820,7 +3820,7 @@ radv_get_tess_wg_info(const struct radv_physical_device *pdev, const ac_nir_tess
 {
    const uint32_t lds_input_vertex_size = get_tcs_input_vertex_stride(tcs_num_lds_inputs);
 
-   ac_nir_compute_tess_wg_info(&pdev->info, io_info, tcs_vertices_out, pdev->ge_wave_size, false,
+   ac_nir_compute_tess_wg_info(&pdev->info.cu_info, io_info, tcs_vertices_out, pdev->ge_wave_size, false,
                                tcs_num_input_vertices, lds_input_vertex_size, 0, num_patches_per_wg, lds_size);
 }
 

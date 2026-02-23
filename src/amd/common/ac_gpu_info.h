@@ -113,6 +113,8 @@ struct ac_cu_info {
    uint32_t max_vgpr_alloc;
    uint32_t wave64_vgpr_alloc_granularity;
 
+   uint32_t hs_offchip_workgroup_dw_size;
+
    /* Flags */
    uint32_t has_lds_bank_count_16 : 1;
    uint32_t has_sram_ecc_enabled : 1;
@@ -167,6 +169,9 @@ struct ac_cu_info {
    uint32_t has_attr_ring : 1;
    uint32_t mesh_fast_launch_2 : 1;
 
+   /* GFX6-7: limit TCS workgroup to 16 patches for better performance. */
+   uint32_t smaller_tcs_workgroups : 1;
+
    /* Some GFX6 GPUs have a bug where it only looks at the x writemask component. */
    uint32_t has_gfx6_mrt_export_bug : 1;
    /* Pre-GFX9: A bug where the alpha component of 10_10_10_2 formats is always unsigned.*/
@@ -185,8 +190,10 @@ struct ac_cu_info {
    uint32_t has_ngg_fully_culled_bug : 1;
    /* GFX11-11.5: require wait between attribute stores and the final export. */
    uint32_t has_attr_ring_wait_bug : 1;
+   /* GFX6: limit TCS workgroup to one patch if primitive ID is used. */
+   uint32_t has_primid_instancing_bug : 1;
 
-   uint32_t reserved : 8;
+   uint32_t reserved : 6;
 };
 
 struct radeon_info {
