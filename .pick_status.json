@@ -1214,7 +1214,7 @@
         "description": "pco: reserve additional outputs for trilinear sampled coeffs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7df32ba09d3bdc7f20ec2f632af181824e0f90a6",
         "notes": null
