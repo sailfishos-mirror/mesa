@@ -176,7 +176,7 @@ setup_nir_cs(enum amd_gfx_level gfx_level, mesa_shader_stage stage, enum radeon_
    ac_fill_cu_info(&rad_info, NULL);
 
    memset(&nir_options, 0, sizeof(nir_options));
-   ac_nir_set_options(&rad_info, false, &nir_options);
+   ac_nir_set_options(&rad_info.cu_info, false, &nir_options);
 
    glsl_type_singleton_init_or_ref();
 

@@ -826,7 +826,7 @@ void si_init_screen_get_functions(struct si_screen *sscreen)
    bool has_16bit_io = sscreen->info.gfx_level >= GFX9;
 
    nir_shader_compiler_options *options = sscreen->nir_options;
-   ac_nir_set_options(&sscreen->info, !sscreen->use_aco, options);
+   ac_nir_set_options(&sscreen->info.cu_info, !sscreen->use_aco, options);
 
    options->lower_ffma16 = sscreen->info.gfx_level < GFX9;
    options->lower_ffma32 = !use_fma32;
