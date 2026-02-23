@@ -1,3 +1,7 @@
+# Note: skips lists for CI are just a list of lines that, when
+# non-zero-length and not starting with '#', will regex match to
+# delete lines from the test list.  Be careful.
+
 afbcp-spec@arb_texture_multisample@texelfetch fs sampler2dms 4 1x130-501x130
 afbcp-spec@arb_texture_multisample@texelfetch fs sampler2dms 4 1x71-501x71
 dEQP-VK.api.external.fence.sync_fd.export_multiple_times_temporary

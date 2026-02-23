@@ -1,3 +1,7 @@
+# Note: skips lists for CI are just a list of lines that, when
+# non-zero-length and not starting with '#', will regex match to
+# delete lines from the test list.  Be careful.
+
 # tests leak on separate render+display devices:
 #   https://gerrit.khronos.org/c/vk-gl-cts/+/19625
 asan-dEQP-VK.image.swapchain_mutable.direct_drm.*
