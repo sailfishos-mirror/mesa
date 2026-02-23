@@ -3044,7 +3044,7 @@
         "description": "anv: add missing handling for attachment locations in secondaries",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d2f7b6d5a7625f916baa9a9ec110a1799c045f49",
         "notes": null
