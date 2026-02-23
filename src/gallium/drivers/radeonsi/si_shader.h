@@ -552,7 +552,7 @@ struct si_ps_epilog_bits {
    unsigned alpha_to_one : 1;
    unsigned alpha_to_coverage_via_mrtz : 1;  /* gfx11+ or alpha_to_one */
    unsigned clamp_color : 1;
-   unsigned dual_src_blend_swizzle : 1;      /* gfx11+ */
+   unsigned dual_src_blend : 1;
    unsigned rbplus_depth_only_opt:1;
    unsigned kill_z:1;
    unsigned kill_stencil:1;

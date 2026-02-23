@@ -1017,7 +1017,7 @@ static void si_postprocess_nir(struct si_nir_shader_ctx *ctx)
          .bc_optimize_for_linear = key->ps.part.prolog.bc_optimize_for_linear,
          .uses_discard = shader->info.uses_discard,
          .alpha_to_coverage_via_mrtz = key->ps.part.epilog.alpha_to_coverage_via_mrtz,
-         .dual_src_blend = key->ps.part.epilog.dual_src_blend_swizzle,
+         .dual_src_blend = key->ps.part.epilog.dual_src_blend,
          .spi_shader_col_format = key->ps.part.epilog.spi_shader_col_format,
          .color_is_int8 = key->ps.part.epilog.color_is_int8,
          .color_is_int10 = key->ps.part.epilog.color_is_int10,

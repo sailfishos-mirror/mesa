@@ -176,9 +176,8 @@ static bool si_llvm_init_ps_export_args(struct si_shader_context *ctx, LLVMValue
    /* Specify the target we are exporting */
    args->target = V_008DFC_SQ_EXP_MRT + compacted_mrt_index;
 
-   if (key->ps.part.epilog.dual_src_blend_swizzle &&
+   if (key->ps.part.epilog.dual_src_blend && ctx->ac.gfx_level >= GFX11 &&
        (compacted_mrt_index == 0 || compacted_mrt_index == 1)) {
-      assert(ctx->ac.gfx_level >= GFX11);
       args->target += 21;
    }
 
@@ -786,8 +785,7 @@ void si_llvm_build_ps_epilog(struct si_shader_context *ctx, union si_shader_part
       exp.args[exp.num - 1].valid_mask = 1;  /* whether the EXEC mask is valid */
       exp.args[exp.num - 1].done = 1;        /* DONE bit */
 
-      if (key->ps_epilog.states.dual_src_blend_swizzle) {
-         assert(ctx->ac.gfx_level >= GFX11);
+      if (key->ps_epilog.states.dual_src_blend && ctx->ac.gfx_level >= GFX11) {
          assert((key->ps_epilog.colors_written & 0x3) == 0x3);
          ac_build_dual_src_blend_swizzle(&ctx->ac, &exp.args[first_color_export],
                                          &exp.args[first_color_export + 1]);

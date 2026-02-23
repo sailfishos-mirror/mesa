@@ -613,7 +613,7 @@ static void si_dump_shader_key(const struct si_shader *shader, FILE *f)
       fprintf(f, "  epilog.alpha_to_one = %u\n", key->ps.part.epilog.alpha_to_one);
       fprintf(f, "  epilog.alpha_to_coverage_via_mrtz = %u\n", key->ps.part.epilog.alpha_to_coverage_via_mrtz);
       fprintf(f, "  epilog.clamp_color = %u\n", key->ps.part.epilog.clamp_color);
-      fprintf(f, "  epilog.dual_src_blend_swizzle = %u\n", key->ps.part.epilog.dual_src_blend_swizzle);
+      fprintf(f, "  epilog.dual_src_blend = %u\n", key->ps.part.epilog.dual_src_blend);
       fprintf(f, "  epilog.rbplus_depth_only_opt = %u\n", key->ps.part.epilog.rbplus_depth_only_opt);
       fprintf(f, "  epilog.kill_z = %u\n", key->ps.part.epilog.kill_z);
       fprintf(f, "  epilog.kill_stencil = %u\n", key->ps.part.epilog.kill_stencil);

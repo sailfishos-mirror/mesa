@@ -306,7 +306,7 @@ si_aco_build_ps_epilog(struct aco_compiler_options *options,
       .alpha_to_one = key->ps_epilog.states.alpha_to_one,
       .alpha_to_coverage_via_mrtz = key->ps_epilog.states.alpha_to_coverage_via_mrtz,
       .clamp_color = key->ps_epilog.states.clamp_color,
-      .mrt0_is_dual_src = key->ps_epilog.states.dual_src_blend_swizzle,
+      .mrt0_is_dual_src = key->ps_epilog.states.dual_src_blend,
       /* rbplus_depth_only_opt only affects registers, not the shader */
       .kill_depth = key->ps_epilog.states.kill_z,
       .kill_stencil = key->ps_epilog.states.kill_stencil,
