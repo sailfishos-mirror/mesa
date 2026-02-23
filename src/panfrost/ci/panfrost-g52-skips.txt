@@ -52,9 +52,6 @@ dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.max_workgroup_memory.6
 dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.types.f32mat3x3
 dEQP-VK.compute.pipeline.zero_initialize_workgroup_memory.types.f32mat4x4
 
-# Job timeout
-dEQP-VK.graphicsfuzz.spv-composites
-
 # tests are broken with Vulkan 1.0: https://gerrit.khronos.org/c/vk-gl-cts/+/19823
 dEQP-VK.wsi.direct_drm.*
 
