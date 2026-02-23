@@ -794,7 +794,7 @@
         "description": "util: bring back fix to avoid strict aliasing bugs in xxhash",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "070bf8986ce08bc58d1263fefb9e2e33de9e6bf4",
         "notes": null
