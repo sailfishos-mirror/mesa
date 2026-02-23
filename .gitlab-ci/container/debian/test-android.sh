@@ -43,6 +43,12 @@ apt-get install -y --no-remove --no-install-recommends \
 
 section_end debian_setup
 
+if [ "${ANDROID_ARCH}" = "x86_64" ]; then
+  export RUST_TARGET=x86_64-linux-android
+  export ANDROID_ABI=x86_64
+  export ANGLE_ARCH=x64
+fi
+
 ############### Downloading Android tools
 
 section_start android-tools "Downloading Android tools"
@@ -51,11 +57,11 @@ mkdir /android-tools
 pushd /android-tools
 
 curl -L --retry 4 -f --retry-all-errors --retry-delay 60 \
-  -o eglinfo "https://${S3_HOST}/${S3_ANDROID_BUCKET}/mesa/mesa/${DATA_STORAGE_PATH}/eglinfo-android-x86_64"
+  -o eglinfo "https://${S3_HOST}/${S3_ANDROID_BUCKET}/mesa/mesa/${DATA_STORAGE_PATH}/eglinfo-android-${ANDROID_ARCH}"
 chmod +x eglinfo
 
 curl -L --retry 4 -f --retry-all-errors --retry-delay 60 \
-  -o vulkaninfo "https://${S3_HOST}/${S3_ANDROID_BUCKET}/mesa/mesa/${DATA_STORAGE_PATH}/vulkaninfo-android-x86_64"
+  -o vulkaninfo "https://${S3_HOST}/${S3_ANDROID_BUCKET}/mesa/mesa/${DATA_STORAGE_PATH}/vulkaninfo-android-${ANDROID_ARCH}"
 chmod +x vulkaninfo
 
 popd
@@ -78,13 +84,11 @@ section_end android-ndk
 ############### Build ANGLE
 
 ANGLE_TARGET=android \
-DEBIAN_ARCH=amd64 \
 . .gitlab-ci/container/build-angle.sh
 
 ############### Build dEQP runner
 
 export ANDROID_NDK_HOME=/$ndk
-export RUST_TARGET=x86_64-linux-android
 . .gitlab-ci/container/build-rust.sh test
 . .gitlab-ci/container/build-deqp-runner.sh
 
@@ -95,17 +99,17 @@ rustup self uninstall -y
 
 DEQP_API=tools \
 DEQP_TARGET="android" \
-EXTRA_CMAKE_ARGS="-DDEQP_ANDROID_EXE=ON -DDEQP_TARGET_TOOLCHAIN=ndk-modern -DANDROID_NDK_PATH=/$ndk -DANDROID_ABI=x86_64 -DDE_ANDROID_API=$ANDROID_SDK_VERSION" \
+EXTRA_CMAKE_ARGS="-DDEQP_ANDROID_EXE=ON -DDEQP_TARGET_TOOLCHAIN=ndk-modern -DANDROID_NDK_PATH=/$ndk -DANDROID_ABI=${ANDROID_ABI} -DDE_ANDROID_API=$ANDROID_SDK_VERSION" \
 . .gitlab-ci/container/build-deqp.sh
 
 DEQP_API=GLES \
 DEQP_TARGET="android" \
-EXTRA_CMAKE_ARGS="-DDEQP_ANDROID_EXE=ON -DDEQP_ANDROID_EXE_LOGCAT=ON -DDEQP_TARGET_TOOLCHAIN=ndk-modern -DANDROID_NDK_PATH=/$ndk -DANDROID_ABI=x86_64 -DDE_ANDROID_API=$ANDROID_SDK_VERSION" \
+EXTRA_CMAKE_ARGS="-DDEQP_ANDROID_EXE=ON -DDEQP_ANDROID_EXE_LOGCAT=ON -DDEQP_TARGET_TOOLCHAIN=ndk-modern -DANDROID_NDK_PATH=/$ndk -DANDROID_ABI=${ANDROID_ABI} -DDE_ANDROID_API=$ANDROID_SDK_VERSION" \
 . .gitlab-ci/container/build-deqp.sh
 
 DEQP_API=VK \
 DEQP_TARGET="android" \
-EXTRA_CMAKE_ARGS="-DDEQP_ANDROID_EXE=ON -DDEQP_ANDROID_EXE_LOGCAT=ON -DDEQP_TARGET_TOOLCHAIN=ndk-modern -DANDROID_NDK_PATH=/$ndk -DANDROID_ABI=x86_64 -DDE_ANDROID_API=$ANDROID_SDK_VERSION" \
+EXTRA_CMAKE_ARGS="-DDEQP_ANDROID_EXE=ON -DDEQP_ANDROID_EXE_LOGCAT=ON -DDEQP_TARGET_TOOLCHAIN=ndk-modern -DANDROID_NDK_PATH=/$ndk -DANDROID_ABI=${ANDROID_ABI} -DDE_ANDROID_API=$ANDROID_SDK_VERSION" \
 . .gitlab-ci/container/build-deqp.sh
 
 rm -rf /VK-GL-CTS
@@ -118,16 +122,16 @@ mkdir /cuttlefish
 pushd /cuttlefish
 
 curl -L --retry 4 -f --retry-all-errors --retry-delay 60 \
-  -O "https://${S3_HOST}/${S3_ANDROID_BUCKET}/${CUTTLEFISH_PROJECT_PATH}/aosp-${CUTTLEFISH_BUILD_VERSION_TAGS}.${CUTTLEFISH_BUILD_NUMBER}/aosp_cf_x86_64_only_phone-img-${CUTTLEFISH_BUILD_NUMBER}.tar.zst"
+  -O "https://${S3_HOST}/${S3_ANDROID_BUCKET}/${CUTTLEFISH_PROJECT_PATH}/aosp-${CUTTLEFISH_BUILD_VERSION_TAGS}.${CUTTLEFISH_BUILD_NUMBER}/aosp_cf_${ANDROID_ARCH}_only_phone-img-${CUTTLEFISH_BUILD_NUMBER}.tar.zst"
 
-tar --zstd -xvf aosp_cf_x86_64_only_phone-img-"$CUTTLEFISH_BUILD_NUMBER".tar.zst
-rm aosp_cf_x86_64_only_phone-img-"$CUTTLEFISH_BUILD_NUMBER".tar.zst
+tar --zstd -xvf aosp_cf_${ANDROID_ARCH}_only_phone-img-"$CUTTLEFISH_BUILD_NUMBER".tar.zst
+rm aosp_cf_${ANDROID_ARCH}_only_phone-img-"$CUTTLEFISH_BUILD_NUMBER".tar.zst
 ls -lhS ./*
 
 curl -L --retry 4 -f --retry-all-errors --retry-delay 60 \
-  -O "https://${S3_HOST}/${S3_ANDROID_BUCKET}/${CUTTLEFISH_PROJECT_PATH}/aosp-${CUTTLEFISH_BUILD_VERSION_TAGS}.${CUTTLEFISH_BUILD_NUMBER}/cvd-host_package-x86_64.tar.zst"
-tar --zst -xvf cvd-host_package-x86_64.tar.zst
-rm cvd-host_package-x86_64.tar.zst
+  -O "https://${S3_HOST}/${S3_ANDROID_BUCKET}/${CUTTLEFISH_PROJECT_PATH}/aosp-${CUTTLEFISH_BUILD_VERSION_TAGS}.${CUTTLEFISH_BUILD_NUMBER}/cvd-host_package-${ANDROID_ARCH}.tar.zst"
+tar --zst -xvf cvd-host_package-${ANDROID_ARCH}.tar.zst
+rm cvd-host_package-${ANDROID_ARCH}.tar.zst
 
 popd
 
