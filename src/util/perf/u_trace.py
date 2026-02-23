@@ -373,6 +373,8 @@ static ALWAYS_INLINE void trace_${trace_name}(
 }
 #endif
 
+${additional_code}
+
 #endif /* ${guard_name} */
 """
 
@@ -608,7 +610,7 @@ void __trace_${trace_name}(
 """
 
 def utrace_generate(cpath, hpath, ctx_param, trace_toggle_name=None,
-                    trace_toggle_defaults=[]):
+                    trace_toggle_defaults=[], additional_code=""):
     """Parameters:
 
     - cpath: c file to generate.
@@ -644,7 +646,8 @@ def utrace_generate(cpath, hpath, ctx_param, trace_toggle_name=None,
                     HEADERS=[h for h in HEADERS if h.scope & HeaderScope.HEADER],
                     FORWARD_DECLS=FORWARD_DECLS,
                     TRACEPOINTS=TRACEPOINTS,
-                    TRACEPOINTS_TOGGLES=TRACEPOINTS_TOGGLES))
+                    TRACEPOINTS_TOGGLES=TRACEPOINTS_TOGGLES,
+                    additional_code=additional_code))
             except:
                 print(exceptions.text_error_template().render())
 
