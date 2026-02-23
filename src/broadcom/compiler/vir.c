@@ -772,6 +772,13 @@ v3d_lower_nir(struct v3d_compile *c)
         NIR_PASS(_, c->s, nir_lower_is_helper_invocation);
         NIR_PASS(_, c->s, v3d_nir_lower_null_pointers);
         NIR_PASS(_, c->s, nir_lower_bit_size, lower_bit_size_cb, NULL);
+
+        /* Lower frexp after bit_size so the decomposition operates at 32-bit.
+         * If lowered at 16-bit, the widening pass applies f2f32 to float ops
+         * (fabs) but u2u32 to int ops (ushr/iand), breaking the implicit
+         * float-to-int bit reinterpretation that frexp lowering relies on.
+         */
+        NIR_PASS(_, c->s, nir_lower_frexp);
 }
 
 static void
