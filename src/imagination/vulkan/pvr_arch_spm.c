@@ -469,6 +469,7 @@ VkResult pvr_arch_spm_init_eot_state(
    };
    uint32_t pbe_state_words[PVR_MAX_COLOR_ATTACHMENTS]
                            [ROGUE_NUM_PBESTATE_STATE_WORDS];
+   uint64_t tile_buffer_addrs[PVR_MAX_COLOR_ATTACHMENTS] = {0};
    const struct pvr_device_info *dev_info = &device->pdevice->dev_info;
    uint32_t total_render_target_used = 0;
    struct pvr_pds_upload pds_eot_program;
@@ -553,13 +554,12 @@ VkResult pvr_arch_spm_init_eot_state(
       total_render_target_used++;
 
       /* Store off-chip tile data (i.e. tile buffers). */
+      const struct pvr_device_tile_buffer_state *tile_buffer_state =
+         &device->tile_buffer_state;
 
       for (uint32_t i = 0; i < hw_render->tile_buffers_count; i++) {
-         continue;
-         assert(!"Add support for tile buffers in EOT");
-         pvr_finishme("Add support for tile buffers in EOT");
-
          assert(total_render_target_used < PVR_MAX_COLOR_ATTACHMENTS);
+         assert(i < tile_buffer_state->buffer_count);
 
          mem_stored = pvr_spm_setup_pbe_state(
             dev_info,
@@ -570,6 +570,8 @@ VkResult pvr_arch_spm_init_eot_state(
             next_scratch_buffer_addr,
             pbe_state_words[total_render_target_used],
             spm_eot_state->pbe_reg_words[total_render_target_used]);
+
+         tile_buffer_addrs[total_render_target_used] = tile_buffer_state->buffers[i]->vma->dev_addr.addr;
 
          next_scratch_buffer_addr =
             PVR_DEV_ADDR_OFFSET(next_scratch_buffer_addr, mem_stored);
@@ -582,7 +584,11 @@ VkResult pvr_arch_spm_init_eot_state(
       .emit_count = total_render_target_used,
       .shared_words = false,
       .state_words = pbe_state_words[0],
+      .num_output_regs = hw_render->output_regs_count,
+      .msaa_samples = hw_render->sample_count,
    };
+
+   memcpy(props.tile_buffer_addrs, tile_buffer_addrs, sizeof(tile_buffer_addrs));
 
    eot = pvr_usc_eot(device->pdevice->pco_ctx, &props, dev_info);
    usc_temp_count = pco_shader_data(eot)->common.temps;
