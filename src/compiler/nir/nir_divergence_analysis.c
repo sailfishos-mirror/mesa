@@ -873,6 +873,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_frag_coord_unscaled_ir3:
    case nir_intrinsic_load_frag_coord_gmem_ir3:
    case nir_intrinsic_load_pixel_coord:
+   case nir_intrinsic_load_pixel_coord_intel:
    case nir_intrinsic_load_fully_covered:
    case nir_intrinsic_load_sample_pos:
    case nir_intrinsic_load_sample_pos_or_center:

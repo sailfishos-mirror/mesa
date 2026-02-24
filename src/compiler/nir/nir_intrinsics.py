@@ -2597,6 +2597,9 @@ system_value("fs_start_intel", 2, bit_sizes=[32])
 system_value("fs_z_c_intel", 2, bit_sizes=[32])
 system_value("fs_z_c0_intel", 1, bit_sizes=[32])
 
+# Lower 16-bit has pixel X coord, upper 16-bit has pixel Y coord
+system_value("pixel_coord_intel", 1, bit_sizes=[32])
+
 # Read the attribute thread payload at a given byte offset
 # src[] = { offset }
 load("attribute_payload_intel", [1], flags=[CAN_ELIMINATE, CAN_REORDER])
