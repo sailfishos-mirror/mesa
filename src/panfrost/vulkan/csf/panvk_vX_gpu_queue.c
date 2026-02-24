@@ -615,7 +615,8 @@ err_cleanup_queue:
 
 static VkResult
 create_group(struct panvk_gpu_queue *queue,
-             enum drm_panthor_group_priority group_priority)
+             enum drm_panthor_group_priority group_priority,
+             uint32_t shader_core_count)
 {
    const struct panvk_device *dev = to_panvk_device(queue->vk.base.device);
    const struct panvk_physical_device *phys_dev =
@@ -639,12 +640,20 @@ create_group(struct panvk_gpu_queue *queue,
          },
    };
 
+   uint8_t max_compute_cores = util_bitcount64(phys_dev->compute_core_mask);
+   uint8_t max_fragment_cores = util_bitcount64(phys_dev->fragment_core_mask);
+
+   if (shader_core_count) {
+      max_compute_cores = MIN2(shader_core_count, max_compute_cores);
+      max_fragment_cores = MIN2(shader_core_count, max_fragment_cores);
+   }
+
    struct drm_panthor_group_create gc = {
       .compute_core_mask = phys_dev->compute_core_mask,
       .fragment_core_mask = phys_dev->fragment_core_mask,
       .tiler_core_mask = 1,
-      .max_compute_cores = util_bitcount64(phys_dev->compute_core_mask),
-      .max_fragment_cores = util_bitcount64(phys_dev->fragment_core_mask),
+      .max_compute_cores = max_compute_cores,
+      .max_fragment_cores = max_fragment_cores,
       .max_tiler_cores = 1,
       .priority = group_priority,
       .queues = DRM_PANTHOR_OBJ_ARRAY(ARRAY_SIZE(qc), qc),
@@ -1373,7 +1382,12 @@ panvk_per_arch(create_gpu_queue)(struct panvk_device *dev,
    if (result != VK_SUCCESS)
       goto err_destroy_syncobj;
 
-   result = create_group(queue, get_panthor_group_priority(create_info));
+   const VkDeviceQueueShaderCoreControlCreateInfoARM *core_ctrl =
+      vk_find_struct_const(create_info->pNext,
+                           DEVICE_QUEUE_SHADER_CORE_CONTROL_CREATE_INFO_ARM);
+
+   result = create_group(queue, get_panthor_group_priority(create_info),
+                         core_ctrl ? core_ctrl->shaderCoreCount : 0);
    if (result != VK_SUCCESS)
       goto err_cleanup_tiler;
 
