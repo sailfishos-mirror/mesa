@@ -209,14 +209,14 @@ void ac_nir_gather_prerast_store_output_info(nir_builder *b, nir_intrinsic_instr
 }
 
 static nir_intrinsic_instr *
-export(nir_builder *b, nir_def *val, nir_def *row, unsigned base, unsigned flags,
+export(nir_builder *b, nir_def *val, nir_def *row, unsigned target, unsigned flags,
        unsigned write_mask)
 {
    if (row) {
-      return nir_export_row_amd(b, val, row, .base = base, .flags = flags,
+      return nir_export_row_amd(b, val, row, .target = target, .flags = flags,
                                 .enabled_channels = write_mask);
    } else {
-      return nir_export_amd(b, val, .base = base, .flags = flags,
+      return nir_export_amd(b, val, .target = target, .flags = flags,
                             .enabled_channels = write_mask);
    }
 }
@@ -463,7 +463,7 @@ ac_nir_export_parameters(nir_builder *b,
 
       nir_export_amd(
          b, get_export_output(b, out->outputs[slot]),
-         .base = V_008DFC_SQ_EXP_PARAM + offset,
+         .target = V_008DFC_SQ_EXP_PARAM + offset,
          .enabled_channels = write_mask);
       exported_params |= BITFIELD_BIT(offset);
    }
@@ -824,7 +824,7 @@ ac_nir_ngg_alloc_vertices_fully_culled_workaround(nir_builder *b,
       {
          /* The vertex indices are 0, 0, 0. */
          nir_export_amd(b, nir_imm_zero(b, 4, 32),
-                        .base = V_008DFC_SQ_EXP_PRIM,
+                        .target = V_008DFC_SQ_EXP_PRIM,
                         .flags = AC_EXP_FLAG_DONE,
                         .enabled_channels = 1);
 
@@ -832,7 +832,7 @@ ac_nir_ngg_alloc_vertices_fully_culled_workaround(nir_builder *b,
           * a dword in binary code by inlining constant.
           */
          nir_export_amd(b, nir_imm_ivec4(b, -1, -1, -1, -1),
-                        .base = V_008DFC_SQ_EXP_POS,
+                        .target = V_008DFC_SQ_EXP_POS,
                         .flags = AC_EXP_FLAG_DONE,
                         .enabled_channels = 0xf);
       }

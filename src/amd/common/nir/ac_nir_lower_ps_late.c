@@ -254,7 +254,7 @@ emit_ps_mrtz_export(nir_builder *b, lower_ps_state *s, nir_def *mrtz_alpha)
    }
 
    s->exp[s->exp_num++] = nir_export_amd(b, nir_vec(b, outputs, 4),
-                                         .base = V_008DFC_SQ_EXP_MRTZ,
+                                         .target = V_008DFC_SQ_EXP_MRTZ,
                                          .enabled_channels = enabled_channels,
                                          .flags = flags);
    return true;
@@ -510,7 +510,7 @@ emit_ps_color_export(nir_builder *b, lower_ps_state *s, unsigned output_index, u
    }
 
    s->exp[s->exp_num++] = nir_export_amd(b, nir_vec(b, outputs, 4),
-                                         .base = target,
+                                         .target = target,
                                          .enabled_channels = enabled_channels,
                                          .flags = flags);
    return true;
@@ -528,8 +528,8 @@ emit_ps_dual_src_blend_swizzle(nir_builder *b, lower_ps_state *s, unsigned first
     * between mrt0_exp and mrt1_exp. Move mrt0_exp next to mrt1_exp,
     * so that we can swizzle their arguments.
     */
-   unsigned target0 = nir_intrinsic_base(mrt0_exp);
-   unsigned target1 = nir_intrinsic_base(mrt1_exp);
+   unsigned target0 = nir_intrinsic_target(mrt0_exp);
+   unsigned target1 = nir_intrinsic_target(mrt1_exp);
    if (target0 > target1) {
       /* mrt0 export is after mrt1 export, this happens when src0 is missing,
        * so we emit mrt1 first then emit an empty mrt0.
@@ -633,7 +633,7 @@ emit_ps_null_export(nir_builder *b, lower_ps_state *s)
       V_008DFC_SQ_EXP_MRT : V_008DFC_SQ_EXP_NULL;
 
    nir_export_amd(b, nir_undef(b, 4, 32),
-                  .base = target,
+                  .target = target,
                   .flags = AC_EXP_FLAG_VALID_MASK | AC_EXP_FLAG_DONE);
 }
 

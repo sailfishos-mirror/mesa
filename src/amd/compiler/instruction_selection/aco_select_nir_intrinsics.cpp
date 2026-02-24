@@ -4840,7 +4840,7 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
    case nir_intrinsic_export_amd:
    case nir_intrinsic_export_row_amd: {
       unsigned flags = nir_intrinsic_flags(instr);
-      unsigned target = nir_intrinsic_base(instr);
+      unsigned target = nir_intrinsic_target(instr);
       unsigned write_mask = nir_intrinsic_enabled_channels(instr);
 
       /* Mark vertex export block. */

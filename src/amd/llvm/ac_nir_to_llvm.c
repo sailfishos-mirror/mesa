@@ -3340,7 +3340,7 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
    }
    case nir_intrinsic_export_amd: {
       unsigned flags = nir_intrinsic_flags(instr);
-      unsigned target = nir_intrinsic_base(instr);
+      unsigned target = nir_intrinsic_target(instr);
       unsigned write_mask = nir_intrinsic_enabled_channels(instr);
 
       struct ac_export_args args = {

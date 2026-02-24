@@ -442,7 +442,7 @@ void si_get_late_shader_variant_info(struct si_shader *shader, struct si_shader_
             }
             break;
          case nir_intrinsic_export_amd: {
-            unsigned target = nir_intrinsic_base(intr);
+            unsigned target = nir_intrinsic_target(intr);
             if (target >= V_008DFC_SQ_EXP_POS && target <= V_008DFC_SQ_EXP_POS + 4) {
                shader->info.nr_pos_exports = MAX2(shader->info.nr_pos_exports,
                                                   target - V_008DFC_SQ_EXP_POS + 1);
