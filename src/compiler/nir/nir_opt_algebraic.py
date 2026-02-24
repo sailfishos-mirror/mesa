@@ -3814,7 +3814,7 @@ late_optimizations.extend([
 
    # Putting this in 'optimizations' interferes with the bcsel(a, op(b, c),
    # op(b, d)) => op(b, bcsel(a, c, d)) transformations.  I do not know why.
-   (('bcsel', ('feq', ('fsqrt', 'a(is_not_negative)'), 0.0), intBitsToFloat(0x7f7fffff), ('frsq', a)),
+   (('bcsel@32', ('feq', ('fsqrt', 'a(is_a_number_not_negative)'), 0.0), intBitsToFloat(0x7f7fffff), ('frsq', a)),
     ('fmin', ('frsq', a), intBitsToFloat(0x7f7fffff))),
 
    # Things that look like DPH in the source shader may get expanded to
