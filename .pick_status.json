@@ -3094,7 +3094,7 @@
         "description": "glcpp: fix paste within macro function expansion",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d5cd40343f4a83d3270cb87ef38e85dcb9682e8c",
         "notes": null
