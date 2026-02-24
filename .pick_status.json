@@ -1754,7 +1754,7 @@
         "description": "nir/opt_algebraic: fix frsq clamp pattern",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "780b5c10374d9323a6f4933c4cdca3b3beb58f6a",
         "notes": null
