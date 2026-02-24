@@ -9,12 +9,14 @@
 #include "compiler/glsl_types.h"
 #include "compiler/nir/nir_builder.h"
 #include "dev/intel_debug.h"
+#include "dev/intel_device_info.h"
 #include "util/sparse_bitset.h"
 #include "intel_nir.h"
 #include "nir.h"
 #include "nir_builder_opcodes.h"
 #include "nir_intrinsics.h"
 #include "nir_intrinsics_indices.h"
+#include "shader_enums.h"
 
 /*
  * Intel scratch swizzling can be described with the formula:
@@ -1964,6 +1966,8 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
    };
    OPT(nir_lower_compute_system_values, &lower_csv_options);
 
+   bool jay = intel_use_jay(devinfo, nir->info.stage);
+
    const nir_lower_subgroups_options subgroups_options = {
       .subgroup_size = brw_nir_api_subgroup_size(nir, 0),
       .ballot_bit_size = 32,
@@ -1971,9 +1975,19 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir,
       .lower_to_scalar = true,
       .lower_relative_shuffle = true,
       .lower_quad_broadcast_dynamic = true,
-      .lower_elect = true,
-      .lower_inverse_ballot = true,
+      .lower_elect = !jay,
+      .lower_inverse_ballot = !jay,
       .lower_rotate_to_shuffle = true,
+      .lower_subgroup_masks = jay,
+      /* TODO: Optimize reduces. Or don't. I'm not your Mom. */
+      .lower_reduce = jay,
+      .lower_vote = jay,
+      .lower_vote_feq = jay,
+      .lower_vote_ieq = jay,
+      /* TODO: jay supports quad broadcast and should(?) do swaphorizontal */
+      .lower_quad = jay,
+      .lower_quad_vote = jay,
+      .lower_vote_bool_eq = jay,
    };
    OPT(nir_lower_subgroups, &subgroups_options);
 
