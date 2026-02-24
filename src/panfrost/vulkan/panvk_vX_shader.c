@@ -1360,10 +1360,9 @@ panvk_compile_shader(struct panvk_device *dev,
          if (v == PANVK_VS_VARIANT_HW) {
             pan_varying_collect_formats(&varying_layout, nir, inputs.gpu_id,
                                         inputs.trust_varying_flat_highp_types,
-                                        false);
-            pan_build_varying_layout_sso_abi(&varying_layout,
-                                             nir, inputs.gpu_id,
-                                             0 /* fixed_varyings */);
+                                        true);
+            pan_build_varying_layout_compact(&varying_layout, nir,
+                                             inputs.gpu_id);
             inputs.varying_layout = &varying_layout;
          }
 
