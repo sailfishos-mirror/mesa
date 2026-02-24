@@ -44,7 +44,7 @@
         "description": "hk: Fix crash in hk_handle_passthrough_gs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e10f29399fb4c973b574df0d3649dfe3b2b7e4cf",
         "notes": null

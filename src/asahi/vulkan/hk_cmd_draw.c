@@ -3225,9 +3225,11 @@ hk_handle_passthrough_gs(struct hk_cmd_buffer *cmd, struct agx_draw draw)
    bool needs_gs = xfb_outputs;
 
    /* If we don't need a GS but we do have a passthrough, unbind it */
-   if (!needs_gs && gs != NULL) {
-      assert(!needs_gs && gs->is_passthrough);
-      hk_cmd_bind_graphics_shader(cmd, MESA_SHADER_GEOMETRY, NULL);
+   if (!needs_gs) {
+      if (gs != NULL) {
+         assert(gs->is_passthrough);
+         hk_cmd_bind_graphics_shader(cmd, MESA_SHADER_GEOMETRY, NULL);
+      }
       return;
    }
 
