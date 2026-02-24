@@ -6483,6 +6483,17 @@ pub enum OffsetStride {
     X16 = 4,
 }
 
+impl OffsetStride {
+    pub fn shift(&self) -> u32 {
+        match self {
+            Self::X1 => 0,
+            Self::X4 => 2,
+            Self::X8 => 3,
+            Self::X16 => 4,
+        }
+    }
+}
+
 impl fmt::Display for OffsetStride {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
