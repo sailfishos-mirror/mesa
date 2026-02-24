@@ -22,3 +22,4 @@ VK_VALVE_shader_mixed_float_dot_product on RADV (Vega20, Navi14, RDNA2+)
 VK_EXT_legacy_dithering on panvk
 GL_ARB_sample_shading on v3d
 VK_KHR_maintenance4 on pvr
+VK_ARM_scheduling_controls on panvk
