@@ -437,6 +437,7 @@ if with_tests
           'tests/core_tests.cpp',
           'tests/dce_tests.cpp',
           'tests/format_convert_tests.cpp',
+          'tests/fp_class_tests.cpp',
           'tests/load_store_vectorizer_tests.cpp',
           'tests/loop_analyze_tests.cpp',
           'tests/loop_unroll_tests.cpp',
