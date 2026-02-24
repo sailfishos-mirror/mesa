@@ -1158,6 +1158,24 @@ impl Src {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn is_gpr_reg(&self) -> bool {
+        match &self.src_ref {
+            SrcRef::SSA(ssa) => ssa.file() == RegFile::GPR,
+            SrcRef::Reg(reg) => reg.file() == RegFile::GPR,
+            _ => false,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn is_ugpr_reg(&self) -> bool {
+        match &self.src_ref {
+            SrcRef::SSA(ssa) => ssa.file() == RegFile::UGPR,
+            SrcRef::Reg(reg) => reg.file() == RegFile::UGPR,
+            _ => false,
+        }
+    }
+
     pub fn is_predicate(&self) -> bool {
         self.src_ref.is_predicate()
     }
