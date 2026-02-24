@@ -1068,6 +1068,7 @@ enum pipe_ml_operation_type {
    PIPE_ML_OPERATION_TYPE_STRIDED_SLICE,
    PIPE_ML_OPERATION_TYPE_RESIZE,
    PIPE_ML_OPERATION_TYPE_MUL,
+   PIPE_ML_OPERATION_TYPE_LEAKY_RELU,
 };
 
 enum pipe_ml_pooling_type {
@@ -1268,6 +1269,10 @@ struct pipe_ml_operation
          int end[4];
          int strides[4];
       } slice;
+
+      struct {
+         float alpha;
+      } leakyrelu;
    };
 };
 

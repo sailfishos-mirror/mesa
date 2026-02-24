@@ -246,6 +246,13 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       memcpy(operation->reshape.shape, shape, 4 * sizeof(*operation->reshape.shape));
       break;
    }
+   case kTfLiteBuiltinLeakyRelu: {
+      TfLiteLeakyReluParams *params = node->builtin_data;
+   
+      operation->type = PIPE_ML_OPERATION_TYPE_LEAKY_RELU;
+      operation->leakyrelu.alpha = params->alpha;
+      break;
+   }
    case kTfLiteBuiltinRelu:
       operation->type = PIPE_ML_OPERATION_TYPE_RELU;
       break;
@@ -507,6 +514,9 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
       case PIPE_ML_OPERATION_TYPE_MUL:
          teflon_debug("%-15s ", "MUL");
          break;
+      case PIPE_ML_OPERATION_TYPE_LEAKY_RELU:
+         teflon_debug("%-15s ", "LEAKY_RELU");
+         break;
       }
 
       char *input_buf = ralloc_strdup(NULL, "");
@@ -740,6 +750,8 @@ tflite_builtin_op_name(TfLiteBuiltinOperator op)
       return "SUB";
    case kTfLiteBuiltinTranspose:
       return "TRANSPOSE";
+   case kTfLiteBuiltinLeakyRelu:
+      return "LEAKY_RELU";
    default:
       return "unknown";
    }
