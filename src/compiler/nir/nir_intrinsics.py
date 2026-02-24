@@ -148,6 +148,9 @@ index("int", "base")
 # For store instructions, a writemask for the store.
 index("unsigned", "write_mask")
 
+# Same as write_mask, but can be 0 and still have side effects
+index("unsigned", "enabled_channels")
+
 # The stream-id for GS emit_vertex/end_primitive intrinsics.
 index("unsigned", "stream_id")
 
@@ -2209,12 +2212,12 @@ system_value("lds_ngg_gs_out_vertex_base_amd", 1)
 # src[] = { export_value, row }
 # BASE = export target
 # FLAGS = AC_EXP_FLAG_*
-intrinsic("export_amd", [0], indices=[BASE, WRITE_MASK, FLAGS])
-intrinsic("export_row_amd", [0, 1], indices=[BASE, WRITE_MASK, FLAGS])
+intrinsic("export_amd", [0], indices=[BASE, ENABLED_CHANNELS, FLAGS])
+intrinsic("export_row_amd", [0, 1], indices=[BASE, ENABLED_CHANNELS, FLAGS])
 
 # Export dual source blend outputs with swizzle operation
 # src[] = { mrt0, mrt1 }
-intrinsic("export_dual_src_blend_amd", [0, 0], indices=[WRITE_MASK])
+intrinsic("export_dual_src_blend_amd", [0, 0], indices=[ENABLED_CHANNELS])
 
 # Alpha test reference value
 system_value("alpha_reference_amd", 1)

@@ -214,10 +214,10 @@ export(nir_builder *b, nir_def *val, nir_def *row, unsigned base, unsigned flags
 {
    if (row) {
       return nir_export_row_amd(b, val, row, .base = base, .flags = flags,
-                                .write_mask = write_mask);
+                                .enabled_channels = write_mask);
    } else {
       return nir_export_amd(b, val, .base = base, .flags = flags,
-                            .write_mask = write_mask);
+                            .enabled_channels = write_mask);
    }
 }
 
@@ -464,7 +464,7 @@ ac_nir_export_parameters(nir_builder *b,
       nir_export_amd(
          b, get_export_output(b, out->outputs[slot]),
          .base = V_008DFC_SQ_EXP_PARAM + offset,
-         .write_mask = write_mask);
+         .enabled_channels = write_mask);
       exported_params |= BITFIELD_BIT(offset);
    }
 }
@@ -826,7 +826,7 @@ ac_nir_ngg_alloc_vertices_fully_culled_workaround(nir_builder *b,
          nir_export_amd(b, nir_imm_zero(b, 4, 32),
                         .base = V_008DFC_SQ_EXP_PRIM,
                         .flags = AC_EXP_FLAG_DONE,
-                        .write_mask = 1);
+                        .enabled_channels = 1);
 
          /* The HW culls primitives with NaN. -1 is also NaN and can save
           * a dword in binary code by inlining constant.
@@ -834,7 +834,7 @@ ac_nir_ngg_alloc_vertices_fully_culled_workaround(nir_builder *b,
          nir_export_amd(b, nir_imm_ivec4(b, -1, -1, -1, -1),
                         .base = V_008DFC_SQ_EXP_POS,
                         .flags = AC_EXP_FLAG_DONE,
-                        .write_mask = 0xf);
+                        .enabled_channels = 0xf);
       }
       nir_pop_if(b, if_thread_0);
    }

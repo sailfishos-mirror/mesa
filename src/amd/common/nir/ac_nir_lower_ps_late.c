@@ -203,7 +203,7 @@ emit_ps_mrtz_export(nir_builder *b, lower_ps_state *s, nir_def *mrtz_alpha)
 
    nir_def *undef = nir_undef(b, 1, 32);
    nir_def *outputs[4] = {undef, undef, undef, undef};
-   unsigned write_mask = 0;
+   unsigned enabled_channels = 0;
    unsigned flags = 0;
 
    if (format == V_028710_SPI_SHADER_UINT16_ABGR) {
@@ -214,30 +214,30 @@ emit_ps_mrtz_export(nir_builder *b, lower_ps_state *s, nir_def *mrtz_alpha)
 
       if (s->stencil) {
          outputs[0] = nir_ishl_imm(b, s->stencil, 16);
-         write_mask |= s->options->gfx_level >= GFX11 ? 0x1 : 0x3;
+         enabled_channels |= s->options->gfx_level >= GFX11 ? 0x1 : 0x3;
       }
 
       if (s->sample_mask) {
          outputs[1] = s->sample_mask;
-         write_mask |= s->options->gfx_level >= GFX11 ? 0x2 : 0xc;
+         enabled_channels |= s->options->gfx_level >= GFX11 ? 0x2 : 0xc;
       }
    } else {
       if (s->depth) {
          outputs[0] = s->depth;
-         write_mask |= 0x1;
+         enabled_channels |= 0x1;
       }
 
       if (s->stencil) {
          assert(format == V_028710_SPI_SHADER_32_GR ||
                 format == V_028710_SPI_SHADER_32_ABGR);
          outputs[1] = s->stencil;
-         write_mask |= 0x2;
+         enabled_channels |= 0x2;
       }
 
       if (s->sample_mask) {
          assert(format == V_028710_SPI_SHADER_32_ABGR);
          outputs[2] = s->sample_mask;
-         write_mask |= 0x4;
+         enabled_channels |= 0x4;
       }
 
       if (mrtz_alpha) {
@@ -245,17 +245,17 @@ emit_ps_mrtz_export(nir_builder *b, lower_ps_state *s, nir_def *mrtz_alpha)
                 format == V_028710_SPI_SHADER_32_ABGR);
          if (format == V_028710_SPI_SHADER_32_AR && s->options->gfx_level >= GFX10) {
             outputs[1] = mrtz_alpha;
-            write_mask |= 0x2;
+            enabled_channels |= 0x2;
          } else {
             outputs[3] = mrtz_alpha;
-            write_mask |= 0x8;
+            enabled_channels |= 0x8;
          }
       }
    }
 
    s->exp[s->exp_num++] = nir_export_amd(b, nir_vec(b, outputs, 4),
                                          .base = V_008DFC_SQ_EXP_MRTZ,
-                                         .write_mask = write_mask,
+                                         .enabled_channels = enabled_channels,
                                          .flags = flags);
    return true;
 }
@@ -357,7 +357,7 @@ emit_ps_color_export(nir_builder *b, lower_ps_state *s, unsigned output_index, u
 
    nir_def *undef = nir_undef(b, 1, 32);
    nir_def *outputs[4] = {undef, undef, undef, undef};
-   unsigned write_mask = 0;
+   unsigned enabled_channels = 0;
    unsigned flags = 0;
 
    nir_alu_type type = s->color_type[output_index];
@@ -381,32 +381,32 @@ emit_ps_color_export(nir_builder *b, lower_ps_state *s, unsigned output_index, u
    case V_028714_SPI_SHADER_32_R:
       if (data[0]) {
          outputs[0] = nir_convert_to_bit_size(b, data[0], base_type, 32);
-         write_mask = 0x1;
+         enabled_channels = 0x1;
       }
       break;
 
    case V_028714_SPI_SHADER_32_GR:
       if (data[0]) {
          outputs[0] = nir_convert_to_bit_size(b, data[0], base_type, 32);
-         write_mask |= 0x1;
+         enabled_channels |= 0x1;
       }
 
       if (data[1]) {
          outputs[1] = nir_convert_to_bit_size(b, data[1], base_type, 32);
-         write_mask |= 0x2;
+         enabled_channels |= 0x2;
       }
       break;
 
    case V_028714_SPI_SHADER_32_AR:
       if (data[0]) {
          outputs[0] = nir_convert_to_bit_size(b, data[0], base_type, 32);
-         write_mask |= 0x1;
+         enabled_channels |= 0x1;
       }
 
       if (data[3]) {
          unsigned index = s->options->gfx_level >= GFX10 ? 1 : 3;
          outputs[index] = nir_convert_to_bit_size(b, data[3], base_type, 32);
-         write_mask |= BITFIELD_BIT(index);
+         enabled_channels |= BITFIELD_BIT(index);
       }
       break;
 
@@ -414,7 +414,7 @@ emit_ps_color_export(nir_builder *b, lower_ps_state *s, unsigned output_index, u
       for (int i = 0; i < 4; i++) {
          if (data[i]) {
             outputs[i] = nir_convert_to_bit_size(b, data[i], base_type, 32);
-            write_mask |= BITFIELD_BIT(i);
+            enabled_channels |= BITFIELD_BIT(i);
          }
       }
       break;
@@ -499,9 +499,9 @@ emit_ps_color_export(nir_builder *b, lower_ps_state *s, unsigned output_index, u
          }
 
          if (s->options->gfx_level >= GFX11)
-            write_mask |= BITFIELD_BIT(i);
+            enabled_channels |= BITFIELD_BIT(i);
          else
-            write_mask |= 0x3 << (i * 2);
+            enabled_channels |= 0x3 << (i * 2);
       }
 
       if (s->options->gfx_level < GFX11)
@@ -509,14 +509,10 @@ emit_ps_color_export(nir_builder *b, lower_ps_state *s, unsigned output_index, u
    }
    }
 
-   nir_intrinsic_instr *exp = nir_export_amd(b, nir_vec(b, outputs, 4),
-                                             .base = target,
-                                             .flags = flags);
-
-   /* Set the writemask explicitly because write_mask=0 means full write mask. */
-   nir_intrinsic_set_write_mask(exp, write_mask);
-
-   s->exp[s->exp_num++] = exp;
+   s->exp[s->exp_num++] = nir_export_amd(b, nir_vec(b, outputs, 4),
+                                         .base = target,
+                                         .enabled_channels = enabled_channels,
+                                         .flags = flags);
    return true;
 }
 
@@ -551,9 +547,9 @@ emit_ps_dual_src_blend_swizzle(nir_builder *b, lower_ps_state *s, unsigned first
       nir_instr_move(nir_before_instr(&mrt1_exp->instr), &mrt0_exp->instr);
    }
 
-   uint32_t mrt0_write_mask = nir_intrinsic_write_mask(mrt0_exp);
-   uint32_t mrt1_write_mask = nir_intrinsic_write_mask(mrt1_exp);
-   uint32_t write_mask = mrt0_write_mask | mrt1_write_mask;
+   uint32_t mrt0_enabled_channels = nir_intrinsic_enabled_channels(mrt0_exp);
+   uint32_t mrt1_enabled_channels = nir_intrinsic_enabled_channels(mrt1_exp);
+   uint32_t enabled_channels = mrt0_enabled_channels | mrt1_enabled_channels;
 
    nir_def *mrt0_arg = mrt0_exp->src[0].ssa;
    nir_def *mrt1_arg = mrt1_exp->src[0].ssa;
@@ -563,7 +559,8 @@ emit_ps_dual_src_blend_swizzle(nir_builder *b, lower_ps_state *s, unsigned first
 
    /* ACO need to emit the swizzle code by a pseudo instruction. */
    if (s->options->use_aco) {
-      nir_export_dual_src_blend_amd(b, mrt0_arg, mrt1_arg, .write_mask = write_mask);
+      nir_export_dual_src_blend_amd(b, mrt0_arg, mrt1_arg,
+                                    .enabled_channels = MAX2(1, enabled_channels));
       nir_instr_remove(&mrt0_exp->instr);
       nir_instr_remove(&mrt1_exp->instr);
       return;
@@ -581,7 +578,7 @@ emit_ps_dual_src_blend_swizzle(nir_builder *b, lower_ps_state *s, unsigned first
     *   lane0 export arg00 and arg10
     *   lane1 export arg01 and arg11.
     */
-   u_foreach_bit (i, write_mask) {
+   u_foreach_bit (i, enabled_channels) {
       nir_def *arg0 = nir_channel(b, mrt0_arg, i);
       nir_def *arg1 = nir_channel(b, mrt1_arg, i);
 
@@ -606,8 +603,8 @@ emit_ps_dual_src_blend_swizzle(nir_builder *b, lower_ps_state *s, unsigned first
    nir_src_rewrite(&mrt0_exp->src[0], nir_vec(b, arg0_vec, 4));
    nir_src_rewrite(&mrt1_exp->src[0], nir_vec(b, arg1_vec, 4));
 
-   nir_intrinsic_set_write_mask(mrt0_exp, write_mask);
-   nir_intrinsic_set_write_mask(mrt1_exp, write_mask);
+   nir_intrinsic_set_enabled_channels(mrt0_exp, enabled_channels);
+   nir_intrinsic_set_enabled_channels(mrt1_exp, enabled_channels);
 }
 
 static void
@@ -635,12 +632,9 @@ emit_ps_null_export(nir_builder *b, lower_ps_state *s)
    unsigned target = s->options->gfx_level >= GFX11 ?
       V_008DFC_SQ_EXP_MRT : V_008DFC_SQ_EXP_NULL;
 
-   nir_intrinsic_instr *intrin =
-      nir_export_amd(b, nir_undef(b, 4, 32),
-                     .base = target,
-                     .flags = AC_EXP_FLAG_VALID_MASK | AC_EXP_FLAG_DONE);
-   /* To avoid builder set write mask to 0xf. */
-   nir_intrinsic_set_write_mask(intrin, 0);
+   nir_export_amd(b, nir_undef(b, 4, 32),
+                  .base = target,
+                  .flags = AC_EXP_FLAG_VALID_MASK | AC_EXP_FLAG_DONE);
 }
 
 static bool

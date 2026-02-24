@@ -4841,7 +4841,7 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
    case nir_intrinsic_export_row_amd: {
       unsigned flags = nir_intrinsic_flags(instr);
       unsigned target = nir_intrinsic_base(instr);
-      unsigned write_mask = nir_intrinsic_write_mask(instr);
+      unsigned write_mask = nir_intrinsic_enabled_channels(instr);
 
       /* Mark vertex export block. */
       if (target == V_008DFC_SQ_EXP_POS || target <= V_008DFC_SQ_EXP_NULL)
@@ -4907,7 +4907,7 @@ visit_intrinsic(isel_context* ctx, nir_intrinsic_instr* instr)
    case nir_intrinsic_export_dual_src_blend_amd: {
       Temp val0 = get_ssa_temp(ctx, instr->src[0].ssa);
       Temp val1 = get_ssa_temp(ctx, instr->src[1].ssa);
-      unsigned write_mask = nir_intrinsic_write_mask(instr);
+      unsigned write_mask = nir_intrinsic_enabled_channels(instr);
 
       struct aco_export_mrt mrt0, mrt1;
       for (unsigned i = 0; i < 4; i++) {
