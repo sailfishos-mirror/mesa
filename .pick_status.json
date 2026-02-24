@@ -5824,7 +5824,7 @@
         "description": "aco/insert_fp_mode: don't skip setting round for fract",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7212a75c5ef38268b3b9ee332fce80043a4e4809",
         "notes": null
