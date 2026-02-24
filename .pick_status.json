@@ -134,7 +134,7 @@
         "description": "egl/device: fix the fix for explicit sw rejection in non-sw EGL_PLATFORM=device",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8a339cdebccdea0610bdd7a1ecc9a5ec63951940",
         "notes": null
