@@ -823,6 +823,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    }
 
    case nir_intrinsic_shuffle:
+   case nir_intrinsic_shuffle_intel:
       is_divergent = src_divergent(instr->src[0], state) &&
                      src_divergent(instr->src[1], state);
       break;

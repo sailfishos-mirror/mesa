@@ -2622,6 +2622,10 @@ intrinsic("load_reloc_const_intel", dest_comp=1, bit_sizes=[32],
 # src[] = { payload, 2x32 descriptor, predicate }
 intrinsic("store_render_target_intel", [-1, 2, 1], indices=[EOT], bit_sizes=[32])
 
+# Shuffle with an offset in bytes instead of a lane index.
+# src[] = { payload, lane offset in bytes }
+intrinsic("shuffle_intel", src_comp=[1, 1], dest_comp=0, bit_sizes=src0, flags=SUBGROUP_FLAGS)
+
 # 1 component 32bit surface index that can be used for bindless or BTI heaps
 #
 # This intrinsic is used to figure out what UBOs accesses could be promoted to
