@@ -466,3 +466,38 @@ pan_build_varying_layout_sso_abi(struct pan_varying_layout *layout,
    layout->generic_size_B = generic_size_B;
    layout->known |= PAN_VARYING_LAYOUT_KNOWN;
 }
+
+void
+pan_build_varying_layout_compact(struct pan_varying_layout *layout,
+                                 nir_shader *nir, unsigned gpu_id)
+{
+   pan_varying_layout_require_format(layout);
+
+   const unsigned gpu_arch = pan_arch(gpu_id);
+   unsigned generic_size_B = 0;
+   for (unsigned i = 0; i < layout->count; i++) {
+      struct pan_varying_slot *slot = &layout->slots[i];
+      if (pan_varying_slot_is_empty(slot))
+         continue;
+
+      if (slot->section != PAN_VARYING_SECTION_GENERIC) {
+         ASSERTED const struct pan_varying_slot hw_slot =
+            hw_varying_slot(gpu_arch, nir->info.stage, slot->location);
+
+         assert(memcmp(slot, &hw_slot, sizeof(*slot)) == 0);
+      } else {
+         unsigned bit_size = nir_alu_type_get_type_size(slot->alu_type);
+
+         unsigned size = slot->ncomps * (bit_size / 8);
+         unsigned alignment = util_next_power_of_two(size);
+         unsigned offset = align(generic_size_B, alignment);
+         generic_size_B = offset + size;
+
+         assert(slot->offset == -1);
+         assert(offset < 4096);
+         slot->offset = offset;
+      }
+   }
+   layout->generic_size_B = generic_size_B;
+   layout->known |= PAN_VARYING_LAYOUT_KNOWN;
+}

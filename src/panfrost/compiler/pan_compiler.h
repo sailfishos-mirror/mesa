@@ -305,6 +305,10 @@ pan_build_varying_layout_sso_abi(struct pan_varying_layout *layout,
                                  uint32_t fixed_varyings);
 
 void
+pan_build_varying_layout_compact(struct pan_varying_layout *layout,
+                                 nir_shader *nir, unsigned gpu_id);
+
+void
 pan_varying_collect_formats(struct pan_varying_layout *registry,
                             nir_shader *nir, unsigned gpu_id,
                             bool trust_varying_flat_highp_types,
