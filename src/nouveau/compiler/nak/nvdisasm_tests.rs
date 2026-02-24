@@ -1152,3 +1152,42 @@ pub fn test_nanosleep() {
         c.check(sm);
     }
 }
+
+#[test]
+pub fn test_uldc_global() {
+    let ur2_4 = RegRef::new(RegFile::UGPR, 2, 2);
+    let ur4_6 = RegRef::new(RegFile::UGPR, 4, 2);
+    let up1 = RegRef::new(RegFile::UPred, 1, 1);
+
+    for &sm in sm_list() {
+        let mut c = DisasmCheck::new();
+
+        let mut mem_types = vec![
+            (MemType::U8, ".u8"),
+            (MemType::I8, ".s8"),
+            (MemType::U16, ".u16"),
+            (MemType::I16, ".s16"),
+            (MemType::B32, ""),
+            (MemType::B64, ".64"),
+        ];
+
+        let uldc_str = if sm < 100 { "uldc" } else { "ldcu" };
+        if sm >= 100 {
+            mem_types.push((MemType::B128, ".128"));
+        }
+
+        for (mt, mt_str) in mem_types {
+            let instr = OpLdcg {
+                dst: ur2_4.into(),
+                addr: ur4_6.into(),
+                mem_type: mt,
+                pred: up1.into(),
+                offset: 0x100,
+            };
+            let disasm = format!("{uldc_str}{mt_str} ur2, [ur4+0x100], up1;");
+            c.push(instr, disasm);
+        }
+
+        c.check(sm);
+    }
+}

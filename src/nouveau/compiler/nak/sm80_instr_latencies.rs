@@ -1097,6 +1097,7 @@ impl URegLatencySM80 {
                     vdecoupled
                 }
             }
+            Op::Ldcg(_) => Uldc,
             Op::Lea(_) => vcoupled,
             Op::LeaX(_) => vcoupled,
             Op::Lop2(_) | Op::Lop3(_) => vcoupled,
@@ -1316,7 +1317,7 @@ impl UPredLatencySM80 {
             | Op::Lop3(_)
             | Op::Mov(_) => Udp,
             Op::Bra(_) => Bra_Jmp,
-            Op::Ldc(_) => Uldc_Mma,
+            Op::Ldcg(_) | Op::Ldc(_) => Uldc_Mma,
             Op::PLop3(_) => {
                 if uniform_op {
                     Udp

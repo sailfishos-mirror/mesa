@@ -3385,6 +3385,36 @@ impl SM70Op for OpLdc {
     }
 }
 
+impl SM70Op for OpLdcg {
+    fn legalize(&mut self, _b: &mut LegalizeBuilder) {
+        // TODO: Lower non uniform values
+        assert!(self.is_uniform());
+        assert!(self.addr.is_uniform());
+        assert!(self.pred.is_uniform());
+    }
+
+    fn encode(&self, e: &mut SM70Encoder<'_>) {
+        assert!(e.sm >= 75);
+        assert!(self.is_uniform());
+
+        if e.sm < 100 {
+            assert_ne!(self.mem_type, MemType::B128);
+        }
+
+        if e.sm >= 100 {
+            e.set_opcode(0x9ac);
+        } else {
+            e.set_opcode(0x8b8);
+        }
+        e.set_udst(&self.dst);
+        e.set_ureg_src(24, &self.addr);
+        e.set_field(38..70, self.offset);
+        e.set_mem_type(73..76, self.mem_type);
+        e.set_upred_src(87..90, 90, &self.pred);
+        e.set_bit(91, true);
+    }
+}
+
 impl SM70Op for OpSt {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
         b.copy_src_if_uniform(&mut self.data);
@@ -4516,6 +4546,7 @@ macro_rules! sm70_op_match {
             Op::SuAtom($x) => $y,
             Op::Ld($x) => $y,
             Op::Ldc($x) => $y,
+            Op::Ldcg($x) => $y,
             Op::St($x) => $y,
             Op::Atom($x) => $y,
             Op::AL2P($x) => $y,

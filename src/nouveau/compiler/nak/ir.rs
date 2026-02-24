@@ -2288,7 +2288,7 @@ impl fmt::Display for MemAddrType {
     }
 }
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum MemType {
     U8,
     I8,
@@ -6570,6 +6570,33 @@ impl DisplayOp for OpLdc {
 }
 impl_display_for_op!(OpLdc);
 
+#[repr(C)]
+#[derive(Clone, SrcsAsSlice, DstsAsSlice)]
+pub struct OpLdcg {
+    pub dst: Dst,
+
+    #[src_type(GPR)]
+    pub addr: Src,
+
+    /// On true the load returns 0
+    #[src_type(Pred)]
+    pub pred: Src,
+
+    pub offset: i64,
+    pub mem_type: MemType,
+}
+
+impl DisplayOp for OpLdcg {
+    fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ldcg{} [{}", self.mem_type, self.addr)?;
+        if self.offset > 0 {
+            write!(f, "+{:#x}", self.offset)?;
+        }
+        write!(f, "], {}", self.pred)
+    }
+}
+impl_display_for_op!(OpLdcg);
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum LdsmSize {
     M8N8,
@@ -8128,6 +8155,7 @@ pub enum Op {
     SuStGa(Box<OpSuStGa>),
     Ld(Box<OpLd>),
     Ldc(Box<OpLdc>),
+    Ldcg(Box<OpLdcg>),
     LdSharedLock(Box<OpLdSharedLock>),
     St(Box<OpSt>),
     StSCheckUnlock(Box<OpStSCheckUnlock>),
@@ -8304,6 +8332,7 @@ impl Op {
             // Memory ops
             Op::Ld(_)
             | Op::Ldc(_)
+            | Op::Ldcg(_)
             | Op::LdSharedLock(_)
             | Op::St(_)
             | Op::StSCheckUnlock(_)
@@ -8491,6 +8520,7 @@ impl Op {
             // Memory ops
             Op::Ld(_)
             | Op::Ldc(_)
+            | Op::Ldcg(_)
             | Op::LdSharedLock(_)
             | Op::St(_)
             | Op::StSCheckUnlock(_)
@@ -9037,6 +9067,7 @@ impl Instr {
             | Op::SuStGa(_)
             | Op::Ld(_)
             | Op::Ldc(_)
+            | Op::Ldcg(_)
             | Op::LdSharedLock(_)
             | Op::St(_)
             | Op::StSCheckUnlock(_)
