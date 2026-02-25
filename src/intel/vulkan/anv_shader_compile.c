@@ -9,6 +9,8 @@
 #include "vk_nir_convert_ycbcr.h"
 #include "vk_pipeline.h"
 
+#include "nir/nir_builtin_builder.h"
+
 #include "common/intel_compute_slm.h"
 #include "common/intel_l3_config.h"
 
@@ -281,6 +283,9 @@ anv_shader_init_uuid(struct anv_physical_device *device)
 
    const bool slm_robust = device->instance->drirc.debug.slm_robust_vectorization;
    _mesa_blake3_update(&ctx, &slm_robust, sizeof(slm_robust));
+
+   const bool r11g11b10_wa = device->instance->drirc.debug.r11g11b10_atomic_swap_wa;
+   _mesa_blake3_update(&ctx, &r11g11b10_wa, sizeof(r11g11b10_wa));
 
    uint8_t blake3[BLAKE3_KEY_LEN];
    _mesa_blake3_final(&ctx, blake3);
@@ -1301,6 +1306,10 @@ anv_shader_lower_nir(struct anv_device *device,
                   nir->options->lower_doubles_options);
       }
    }
+
+   /* Workaround for R11G11B10 atomic accesses on Xe2+ */
+   if (devinfo->ver >= 20 && pdevice->instance->drirc.debug.r11g11b10_atomic_swap_wa)
+      NIR_PASS(_, nir, anv_nir_xe2_r11g11b10_atomic_swap_wa);
 
    if (nir->info.stage == MESA_SHADER_COMPUTE &&
        pdevice->instance->drirc.debug.large_workgroup_non_coherent_image_workaround) {

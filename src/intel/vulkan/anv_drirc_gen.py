@@ -74,6 +74,9 @@ def declare_options(android_version):
         B("anv_slm_robust_vectorization", False,
           "Use robust vectorization for SLM accesses",
           c_name="slm_robust_vectorization"),
+        B("anv_xe2_r11g11b10_atomic_swap_wa", True,
+          "Enable workaround for apps using atomic swaps on R11G11B10 images",
+          c_name="r11g11b10_atomic_swap_wa"),
 
         # Workaround various driver
         B("always_flush_cache", False,
