@@ -29,23 +29,6 @@ struct game_wa_entry {
    uint32_t shader_blake3s[16][BLAKE3_OUT_LEN32];
 };
 
-/* Workaround for a shader in Horizon Forbidden West that causes
- * visual corruption.  The shader writes the result of fsqrt to
- * storage images with a 16-bit image format and misrendering
- * occurs when those values are denormal for an unknown reason.
- *
- * This clamps the image writes to the smallest fp16 normalized
- * value.  (Pattern matching against fsqrt is easy to do in a one
- * line algebraic pass, while matching image stores is harder.)
- *
- * See https://gitlab.freedesktop.org/mesa/mesa/-/issues/12555
- */
-static void
-wa_forbidden_west(nir_shader *nir)
-{
-   NIR_PASS(_, nir, brw_nir_apply_sqrt_workarounds);
-}
-
 /* Try to detect shaders relying on 32-wide subgroups. Usually they have a
  * pattern like this:
  *
@@ -179,12 +162,6 @@ detect_simd32_requirement(nir_builder *b,
  * Add new workarounds here as needed.
  */
 static const struct game_wa_entry game_was[] = {
-   {
-      .cb = wa_forbidden_west,
-      .shader_blake3s = {
-         {0x51683151, 0xe044f0ce, 0xc210a762, 0xb12b2da4, 0x4e69ddc0, 0x237b1cc1, 0xc84bcf09, 0x31cfe883},
-      },
-   },
 };
 
 /* Apply game-specific workarounds based on the shader's BLAKE3 hash */
