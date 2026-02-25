@@ -1016,6 +1016,10 @@
    DRI_CONF_OPT_B(anv_brw_disable_subgroup_size_control, def, \
                   "Disable EXT_subgroup_size_control support when using brw compiler.")
 
+#define DRI_CONF_ANV_XE2_R11G11B10_ATOMIC_SWAP_WA(def) \
+   DRI_CONF_OPT_B(anv_xe2_r11g11b10_atomic_swap_wa, def, \
+                  "Enable workaround for apps using atomic swaps on R11G11B10 images")
+
 /**
  * \brief HASVK specific configuration options
  */

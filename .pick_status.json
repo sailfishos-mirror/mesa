@@ -8034,7 +8034,7 @@
         "description": "anv: add workaround for atomics on R11G11B10 images",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
