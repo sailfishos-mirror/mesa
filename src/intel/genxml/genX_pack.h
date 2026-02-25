@@ -53,7 +53,7 @@
 #elif (GFX_VERx10 == 200)
 #  include "genxml/xe2_pack.h"
 #elif (GFX_VERx10 == 300)
-#  include "genxml/gen300_pack.h"
+#  include "genxml/xe3_pack.h"
 #else
 #  error "Need to add a pack header include for this gen"
 #endif

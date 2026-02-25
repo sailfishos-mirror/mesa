@@ -207,8 +207,8 @@ default_imports = OrderedDict([
     ('gen125.xml', ('gen120.xml',)),
     ('xe2.xml', ('gen125.xml',)),
     ('xe2_rt.xml', ('gen125_rt.xml',)),
-    ('gen300.xml', ('xe2.xml',)),
-    ('gen300_rt.xml', ('xe2_rt.xml',)),
+    ('xe3.xml', ('xe2.xml',)),
+    ('xe3_rt.xml', ('xe2_rt.xml',)),
     ])
 known_genxml_files = list(default_imports.keys())
 
