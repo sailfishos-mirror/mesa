@@ -4374,7 +4374,7 @@
         "description": "aco: perform dce for blocks skipped for process_block()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "9e8ba10447f08ee757f6a4719ff23960a2b18c6b",
         "notes": null
