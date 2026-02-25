@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <genxml name="RT" gen="30">
-  <import name="gen200_rt.xml" />
+  <import name="xe2_rt.xml" />
   <struct name="BINDLESS_SHADER_RECORD" length="2">
     <field name="Offset To Local Arguments" dword="0" bits="2:0" type="uint" />
     <field name="Bindless Shader Dispatch Mode" dword="0" bits="4:4" type="uint">

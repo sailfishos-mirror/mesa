@@ -51,7 +51,7 @@
 #elif (GFX_VERx10 == 125)
 #  include "genxml/gen125_video_pack.h"
 #elif (GFX_VERx10 == 200)
-#  include "genxml/gen200_video_pack.h"
+#  include "genxml/xe2_video_pack.h"
 #elif (GFX_VERx10 == 300)
 #  include "genxml/gen300_video_pack.h"
 #else

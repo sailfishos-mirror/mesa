@@ -13,13 +13,13 @@ gen_xml_files = [
   'gen110.xml',
   'gen120.xml',
   'gen125.xml',
-  'gen200.xml',
+  'xe2.xml',
   'gen300.xml',
 ]
 
 gen_xml_rt_files = [
   'gen125_rt.xml',
-  'gen200_rt.xml',
+  'xe2_rt.xml',
   'gen300_rt.xml',
 ]
 
