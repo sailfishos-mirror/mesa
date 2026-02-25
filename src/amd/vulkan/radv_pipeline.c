@@ -250,6 +250,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    enum amd_gfx_level gfx_level = pdev->info.gfx_level;
+   const bool use_llvm = radv_use_llvm_for_stage(pdev, stage->stage);
    bool progress;
 
    /* Wave and workgroup size should already be filled. */
@@ -263,7 +264,6 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
    }
 
    /* LLVM could support more of these in theory. */
-   bool use_llvm = radv_use_llvm_for_stage(pdev, stage->stage);
    radv_nir_opt_tid_function_options tid_options = {
       .use_masked_swizzle_amd = true,
       .use_dpp16_shift_amd = !use_llvm && gfx_level >= GFX8,
@@ -321,7 +321,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
          NIR_PASS(_, stage->nir, nir_opt_non_uniform_access);
       }
 
-      if (!radv_use_llvm_for_stage(pdev, stage->stage)) {
+      if (!use_llvm) {
          nir_lower_non_uniform_access_options options = {
             .types = lower_non_uniform_access_types,
             .callback = &non_uniform_access_callback,
@@ -341,8 +341,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
                .gfx_level = gfx_level,
                .lower_array_layer_round_even =
                   !pdev->info.compiler_info.conformant_trunc_coord || pdev->cache_key.disable_trunc_coord,
-               .fix_derivs_in_divergent_cf =
-                  stage->stage == MESA_SHADER_FRAGMENT && !radv_use_llvm_for_stage(pdev, stage->stage),
+               .fix_derivs_in_divergent_cf = stage->stage == MESA_SHADER_FRAGMENT && !use_llvm,
                .max_wqm_vgprs = 64, // TODO: improve spiller and RA support for linear VGPRs
             });
 
@@ -409,7 +408,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
          ac_nir_lower_legacy_gs_options options = {
             .has_gen_prim_query = false,
             .has_pipeline_stats_query = false,
-            .gfx_level = pdev->info.gfx_level,
+            .gfx_level = gfx_level,
             .export_clipdist_mask = stage->info.outinfo.clip_dist_mask | stage->info.outinfo.cull_dist_mask,
             .param_offsets = stage->info.outinfo.vs_output_param_offset,
             .has_param_exports = stage->info.outinfo.param_exports,
@@ -425,7 +424,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
    } else if (stage->stage == MESA_SHADER_FRAGMENT) {
       ac_nir_lower_ps_late_options late_options = {
          .gfx_level = gfx_level,
-         .use_aco = !radv_use_llvm_for_stage(pdev, stage->stage),
+         .use_aco = !use_llvm,
          .bc_optimize_for_persp = G_0286CC_PERSP_CENTER_ENA(stage->info.ps.spi_ps_input_ena) &&
                                   G_0286CC_PERSP_CENTROID_ENA(stage->info.ps.spi_ps_input_ena),
          .bc_optimize_for_linear = G_0286CC_LINEAR_CENTER_ENA(stage->info.ps.spi_ps_input_ena) &&
@@ -470,7 +469,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
    /* This must be after lowering resources to descriptor loads and before lowering intrinsics
     * to args and lowering int64.
     */
-   if (!radv_use_llvm_for_stage(pdev, stage->stage))
+   if (!use_llvm)
       ac_nir_optimize_uniform_atomics(stage->nir);
 
    NIR_PASS(_, stage->nir, nir_opt_uniform_subgroup,
@@ -496,7 +495,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
                .hw_stage = radv_select_hw_stage(&stage->info, gfx_level),
                .wave_size = stage->info.wave_size,
                .workgroup_size = stage->info.workgroup_size,
-               .use_llvm = radv_use_llvm_for_stage(pdev, stage->stage),
+               .use_llvm = use_llvm,
                .load_grid_size_from_user_sgpr = device->load_grid_size_from_user_sgpr,
             });
    NIR_PASS(_, stage->nir, radv_nir_lower_abi, gfx_level, stage, gfx_state, pdev->info.address32_hi);
