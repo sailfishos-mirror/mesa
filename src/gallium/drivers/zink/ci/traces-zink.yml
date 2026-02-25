@@ -326,9 +326,9 @@ traces:
       checksum: 0af2faa0d9183c1bc4dc7612befe1f0a
       text: "'egl_platform.cpp( 227) - Error   - Couldn't find a suitable EGL config' -- revisit when we can turn on X11?"
     zink-radv-vangogh:
-      checksum: 266e348951137564b892c05e08a455a3
+      checksum: 3353b921903f712b919135ebebe3827b
     zink-radv-gfx1201:
-      checksum: d130996efeab58bd36ca8697e91e2870
+      checksum: 84e632818da5a55a4c67bb5c1ab5d473
 
   supertuxkart/supertuxkart-menu.rdc:
     gl-zink-anv-adl:
@@ -354,9 +354,9 @@ traces:
       checksum: ca0b64f1a62e01765146be8391eae636
       text: "'egl_platform.cpp( 227) - Error   - Couldn't find a suitable EGL config' -- revisit when we can turn on X11?"
     zink-radv-vangogh:
-      checksum: ef34ba1867b103799ac10552fbafbd36
+      checksum: 1301e76c2fb69438e8cfb2f81dcc6611
     zink-radv-gfx1201:
-      checksum: 6ec79e962e3dc370df851edc2bfd88d5
+      checksum: f01f909e9af079efa388f275526f809f
 
   unvanquished/unvanquished-lowest.trace:
     gl-zink-anv-adl:

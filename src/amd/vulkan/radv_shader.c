@@ -178,6 +178,7 @@ radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively)
    bool progress;
 
    NIR_PASS(_, shader, nir_lower_alu_width, vectorize_vec2_16bit, NULL);
+   NIR_PASS(_, shader, nir_opt_fp_math_ctrl);
 
    struct set *skip = _mesa_pointer_set_create(NULL);
    do {
@@ -242,6 +243,7 @@ void
 radv_optimize_nir_algebraic_early(nir_shader *nir)
 {
    bool more_algebraic = true;
+   bool had_opt_fp_math_ctrl = false;
    while (more_algebraic) {
       more_algebraic = false;
       NIR_PASS(_, nir, nir_opt_copy_prop);
@@ -262,6 +264,11 @@ radv_optimize_nir_algebraic_early(nir_shader *nir)
       NIR_PASS(_, nir, nir_opt_generate_bfi);
       NIR_PASS(_, nir, nir_opt_remove_phis);
       NIR_PASS(_, nir, nir_opt_dead_cf);
+
+      if (!had_opt_fp_math_ctrl) {
+         NIR_PASS(more_algebraic, nir, nir_opt_fp_math_ctrl);
+         had_opt_fp_math_ctrl = true;
+      }
    }
 }
 
