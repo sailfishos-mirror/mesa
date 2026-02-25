@@ -324,7 +324,7 @@ pub fn test_ld_st_atom() {
                         MemSpace::Shared => MemEvictionPriority::Normal,
                         MemSpace::Local => MemEvictionPriority::Normal,
                     };
-                    if space != MemSpace::Shared
+                    if (space != MemSpace::Shared || sm < 75)
                         && addr_stride != OffsetStride::X1
                     {
                         continue;
