@@ -1301,6 +1301,40 @@ mi_udiv32_imm(struct mi_builder *b, struct mi_value N, uint32_t D)
    }
 }
 
+/* Finds the maximum between the two specified unsigned numbers. */
+static inline struct mi_value
+mi_umax2(struct mi_builder *b, struct mi_value val1, struct mi_value val2)
+{
+   /* The idea of the alrogithm here is that the value of 'mask' will be
+    * either 0 or ~0 depending on which number is bigger. Then we use AND
+    * operations to ensure the smaller value becomes zero and the bigger value
+    * is preserved, and finally OR both values to the destination (the bigger
+    * and zero).
+    *
+    * In other words:
+    *   mask = val1 < val2 ? 0xFFFFFFFF : 0x0;
+    *   biggest = (val1 & ~mask) | (val2 & mask);
+    */
+
+   /* If 'val1' is smaller, 'mask' is ~0, otherwise it's 0. */
+   struct mi_value mask = mi_ult(b, mi_value_ref(b, val1),
+                                 mi_value_ref(b, val2));
+   struct mi_value notmask = mi_ixor(b, mi_value_ref(b, mask),
+                                     mi_imm(UINT64_MAX));
+   /* If 'val1' is smaller, 'notmask' is 0, so we zero it, otherwise we
+    * preserve the value by ANDing it with ~0.
+    */
+   struct mi_value val1_or_zero = mi_iand(b, val1, notmask);
+   /* If 'val2' is smaller, mask is 0, so we zero it, otherwise we preserve
+    * the value.
+    */
+   struct mi_value val2_or_zero = mi_iand(b, val2, mask);
+   /* The smaller value was zeroed, the other was preserved, so just OR
+    * them now.
+    */
+   return mi_ior(b, val1_or_zero, val2_or_zero);
+}
+
 #endif /* MI_MATH section */
 
 /* This assumes addresses of strictly more than 32bits (aka. Gfx8+). */
