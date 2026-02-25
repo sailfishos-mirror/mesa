@@ -891,17 +891,9 @@ gather_shader_info_rt(const nir_shader *nir, struct radv_shader_info *info)
 }
 
 static void
-gather_shader_info_cs(struct radv_device *device, const nir_shader *nir, const struct radv_shader_stage_key *stage_key,
-                      struct radv_shader_info *info)
-{
-}
-
-static void
 gather_shader_info_task(struct radv_device *device, const nir_shader *nir,
                         const struct radv_shader_stage_key *stage_key, struct radv_shader_info *info)
 {
-   gather_shader_info_cs(device, nir, stage_key, info);
-
    /* Task shaders always need these for the I/O lowering even if the API shader doesn't actually
     * use them.
     */
@@ -1100,7 +1092,6 @@ radv_nir_shader_info_pass(struct radv_device *device, const struct nir_shader *n
 
    switch (nir->info.stage) {
    case MESA_SHADER_COMPUTE:
-      gather_shader_info_cs(device, nir, stage_key, info);
       break;
    case MESA_SHADER_TASK:
       gather_shader_info_task(device, nir, stage_key, info);
