@@ -1096,6 +1096,16 @@ dri2_query_image_by_resource_handle(struct dri_image *image, int attrib, int *va
       whandle.type = WINSYS_HANDLE_TYPE_FD;
       break;
    case __DRI_IMAGE_ATTRIB_NUM_PLANES:
+      if (image->dri_fourcc) {
+         const struct dri2_format_mapping *map =
+            dri2_get_mapping_by_fourcc(image->dri_fourcc);
+
+         if (map) {
+            *value = util_format_get_num_planes(map->pipe_format);
+            return true;
+         }
+      }
+
       for (i = 0, tex = image->texture; tex; tex = tex->next)
          i++;
       *value = i;
