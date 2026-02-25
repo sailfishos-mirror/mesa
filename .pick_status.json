@@ -1414,7 +1414,7 @@
         "description": "glsl: relax precision matching on unused uniforms ES",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0886be093fb871b0b6169718277e0f4d18df3ea7",
         "notes": null
