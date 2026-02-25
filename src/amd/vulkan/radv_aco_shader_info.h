@@ -41,13 +41,12 @@ radv_calculate_lds_size(const struct radv_shader_info *radv, const enum amd_gfx_
 
 static inline void
 radv_aco_convert_shader_info(struct aco_shader_info *aco_info, const struct radv_shader_info *radv,
-                             const struct radv_shader_args *radv_args, const struct radv_device_cache_key *radv_key,
-                             const enum amd_gfx_level gfx_level)
+                             const struct radv_shader_args *radv_args, const struct radv_compiler_info *compiler_info)
 {
    bool ngg_wave_id_en = radv->ngg_wave_id_en;
    /* Separately compiled shader, where the next stage might use NGG streamout. */
    ngg_wave_id_en |= radv->is_ngg && radv->merged_shader_compiled_separately &&
-                     radv->next_stage == MESA_SHADER_GEOMETRY && gfx_level >= GFX11;
+                     radv->next_stage == MESA_SHADER_GEOMETRY && compiler_info->ac->gfx_level >= GFX11;
 
    ASSIGN_FIELD(wave_size);
    ASSIGN_FIELD(workgroup_size);
@@ -60,16 +59,17 @@ radv_aco_convert_shader_info(struct aco_shader_info *aco_info, const struct radv
    ASSIGN_FIELD(descriptor_heap);
    aco_info->vs.any_tcs_inputs_via_lds = radv->vs.tcs_inputs_via_lds != 0;
    /* S2 must not be modified for correct hang recovery when NGG_WAVE_ID_EN=1. */
-   aco_info->vs.preserve_s2 = ngg_wave_id_en && gfx_level < GFX12;
+   aco_info->vs.preserve_s2 = ngg_wave_id_en && compiler_info->ac->gfx_level < GFX12;
    aco_info->ps.spi_ps_input_ena = radv->ps.spi_ps_input_ena;
    aco_info->ps.spi_ps_input_addr = radv->ps.spi_ps_input_addr;
    aco_info->ps.has_prolog = false;
-   aco_info->image_2d_view_of_3d = radv_key->image_2d_view_of_3d;
+   aco_info->image_2d_view_of_3d = compiler_info->image_2d_view_of_3d;
    aco_info->epilog_pc = radv_args->epilog_pc;
-   aco_info->hw_stage = radv_select_hw_stage(radv, gfx_level);
+   aco_info->hw_stage = radv_select_hw_stage(radv, compiler_info->ac->gfx_level);
    aco_info->next_stage_pc = radv_args->next_stage_pc;
-   aco_info->schedule_ngg_pos_exports = gfx_level < GFX11 && radv->has_ngg_culling && radv->has_ngg_early_prim_export;
-   aco_info->lds_size = radv_calculate_lds_size(radv, gfx_level);
+   aco_info->schedule_ngg_pos_exports =
+      compiler_info->ac->gfx_level < GFX11 && radv->has_ngg_culling && radv->has_ngg_early_prim_export;
+   aco_info->lds_size = radv_calculate_lds_size(radv, compiler_info->ac->gfx_level);
 }
 
 static inline void

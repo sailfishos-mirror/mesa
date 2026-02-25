@@ -289,7 +289,7 @@ radv_physical_device_init_cache_key(struct radv_physical_device *pdev)
 
    key->clear_lds = instance->drirc.misc.clear_lds;
    key->cs_wave32 = pdev->cs_wave_size == 32;
-   key->disable_aniso_single_level = instance->drirc.debug.disable_aniso_single_level && pdev->info.gfx_level < GFX8;
+   key->disable_aniso_single_level = instance->drirc.debug.disable_aniso_single_level;
    key->disable_shrink_image_store = instance->drirc.debug.disable_shrink_image_store;
    key->disable_sinking_load_input_fs = instance->drirc.debug.disable_sinking_load_input_fs;
    key->disable_trunc_coord = instance->drirc.debug.disable_trunc_coord;

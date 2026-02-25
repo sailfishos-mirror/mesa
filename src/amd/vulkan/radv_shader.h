@@ -607,7 +607,7 @@ void radv_optimize_nir_algebraic(nir_shader *shader, bool opt_offsets, bool opt_
 
 struct radv_shader_stage;
 
-nir_shader *radv_shader_spirv_to_nir(struct radv_device *device, struct radv_shader_stage *stage,
+nir_shader *radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct radv_shader_stage *stage,
                                      const struct radv_spirv_to_nir_options *options, bool is_internal);
 
 void radv_init_shader_arenas(struct radv_device *device);
@@ -617,23 +617,22 @@ void radv_destroy_shader_upload_queue(struct radv_device *device);
 
 struct radv_shader_args;
 
-VkResult radv_parse_binary_debug_info(struct radv_device *device, const struct radv_shader_binary *binary,
+VkResult radv_parse_binary_debug_info(const struct radv_compiler_info *compiler_info, const struct radv_shader_binary *binary,
                                       struct radv_shader_debug_info *dbg);
 
 VkResult radv_shader_create_uncached(struct radv_device *device, const struct radv_shader_binary *binary,
                                      bool replayable, struct radv_serialized_shader_arena_block *replay_block,
                                      struct radv_shader_debug_info *dbg, struct radv_shader **out_shader);
 
-struct radv_shader_binary *radv_shader_nir_to_asm(struct radv_device *device, struct radv_shader_stage *pl_stage,
-                                                  struct nir_shader *const *shaders, int shader_count,
-                                                  const struct radv_graphics_state_key *gfx_state,
+struct radv_shader_binary *radv_shader_nir_to_asm(const struct radv_compiler_info *compiler_info,
+                                                  struct radv_shader_stage *pl_stage, struct nir_shader *const *shaders,
+                                                  int shader_count, const struct radv_graphics_state_key *gfx_state,
                                                   bool keep_shader_info, bool keep_statistic_info);
 
-void radv_shader_dump_asm(struct radv_device *device, const struct radv_shader_debug_info *debug,
+void radv_shader_dump_asm(const struct radv_compiler_info *compiler_info, const struct radv_shader_debug_info *debug,
                           const struct radv_shader_info *info);
 
-struct radv_instance;
-char *radv_dump_nir_shaders(const struct radv_instance *instance, struct nir_shader *const *shaders, int shader_count);
+char *radv_dump_nir_shaders(const struct radv_compiler_info *compiler_info, struct nir_shader *const *shaders, int shader_count);
 
 VkResult radv_shader_wait_for_upload(struct radv_device *device, uint64_t seq);
 
@@ -692,9 +691,9 @@ unsigned radv_compute_spi_ps_input(enum amd_gfx_level gfx_level, const struct ra
 
 bool radv_is_traversal_shader(nir_shader *nir);
 
-bool radv_can_dump_shader(struct radv_device *device, nir_shader *nir);
+bool radv_can_dump_shader(const struct radv_compiler_info *compiler_info, nir_shader *nir);
 
-bool radv_can_dump_shader_stats(struct radv_device *device, nir_shader *nir);
+bool radv_can_dump_shader_stats(const struct radv_compiler_info *compiler_info, nir_shader *nir);
 
 VkResult radv_dump_shader_stats(struct radv_device *device, struct radv_pipeline *pipeline, struct radv_shader *shader,
                                 FILE *output);
@@ -751,15 +750,16 @@ get_tcs_input_vertex_stride(unsigned tcs_num_inputs)
    return stride;
 }
 
-void radv_get_tess_wg_info(const struct radv_physical_device *pdev, const ac_nir_tess_io_info *io_info,
+void radv_get_tess_wg_info(const struct radv_compiler_info *compiler_info, const ac_nir_tess_io_info *io_info,
                            unsigned tcs_vertices_out, unsigned tcs_num_input_vertices, unsigned tcs_num_lds_inputs,
                            unsigned *num_patches_per_wg, unsigned *lds_size);
 
-void radv_lower_ngg(struct radv_device *device, struct radv_shader_stage *ngg_stage,
+void radv_lower_ngg(const struct radv_compiler_info *compiler_info, struct radv_shader_stage *ngg_stage,
                     const struct radv_graphics_state_key *gfx_state);
 
-bool radv_consider_culling(const struct radv_physical_device *pdev, struct nir_shader *nir, uint64_t ps_inputs_read,
-                           unsigned num_vertices_per_primitive, const struct radv_shader_info *info);
+bool radv_consider_culling(const struct radv_compiler_info *compiler_info, struct nir_shader *nir,
+                           uint64_t ps_inputs_read, unsigned num_vertices_per_primitive,
+                           const struct radv_shader_info *info);
 
 void radv_get_nir_options(struct radv_physical_device *pdev);
 

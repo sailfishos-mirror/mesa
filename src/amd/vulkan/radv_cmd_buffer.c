@@ -6330,7 +6330,7 @@ lookup_ps_epilog(struct radv_cmd_buffer *cmd_buffer)
       }
    }
 
-   struct radv_ps_epilog_key key = radv_generate_ps_epilog_key(device, &state);
+   struct radv_ps_epilog_key key = radv_generate_ps_epilog_key(&device->compiler_info, &state);
 
    /* Adjust the remapping for alpha-to-coverage without any color attachment and dual-source
     * blending to make sure colors written aren't cleared.
@@ -12829,7 +12829,7 @@ radv_emit_all_graphics_states(struct radv_cmd_buffer *cmd_buffer, const struct r
          const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
          uint32_t tess_num_patches, tess_lds_size;
 
-         radv_get_tess_wg_info(pdev, &tcs->info.tcs.io_info, tcs->info.tcs.tcs_vertices_out,
+         radv_get_tess_wg_info(&device->compiler_info, &tcs->info.tcs.io_info, tcs->info.tcs.tcs_vertices_out,
                                d->vk.ts.patch_control_points,
                                /* TODO: This should be only inputs in LDS (not VGPR inputs) to reduce LDS usage */
                                vs->info.vs.num_linked_outputs, &tess_num_patches, &tess_lds_size);
@@ -13104,10 +13104,10 @@ radv_bind_graphics_shaders(struct radv_cmd_buffer *cmd_buffer)
 
       if (cmd_buffer->state.shaders[MESA_SHADER_GEOMETRY]->info.is_ngg) {
          gfx10_ngg_set_esgs_ring_itemsize(&es->info, &gs->info, &gs->info.ngg_info);
-         gfx10_get_ngg_info(device, &es->info, &gs->info, &gs->info.ngg_info);
+         gfx10_get_ngg_info(&device->compiler_info, &es->info, &gs->info, &gs->info.ngg_info);
          radv_precompute_registers_hw_ngg(device, gs);
       } else {
-         radv_get_legacy_gs_info(device, &es->info, &gs->info);
+         radv_get_legacy_gs_info(&device->compiler_info, &es->info, &gs->info);
          radv_precompute_registers_hw_gs(device, &es->info, gs);
 
          cmd_buffer->esgs_ring_size_needed = MAX2(cmd_buffer->esgs_ring_size_needed, gs->regs.gs.esgs_ring_size);

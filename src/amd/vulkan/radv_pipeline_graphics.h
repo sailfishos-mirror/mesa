@@ -651,10 +651,10 @@ struct radv_ps_epilog_state {
    uint8_t need_src_alpha;
 };
 
-struct radv_ps_epilog_key radv_generate_ps_epilog_key(const struct radv_device *device,
+struct radv_ps_epilog_key radv_generate_ps_epilog_key(const struct radv_compiler_info *compiler_info,
                                                       const struct radv_ps_epilog_state *state);
 
-void radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cache *cache,
+void radv_graphics_shaders_compile(const struct radv_compiler_info *compiler_info, struct vk_pipeline_cache *cache,
                                    struct radv_shader_stage *stages, const struct radv_graphics_state_key *gfx_state,
                                    bool keep_executable_info, bool keep_statistic_info, bool is_internal,
                                    struct radv_retained_shaders *retained_shaders, bool noop_fs,
