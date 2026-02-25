@@ -300,9 +300,8 @@ ethosu_lower_strided_slice(struct ethosu_subgraph *subgraph,
 
    allocate_feature_maps(subgraph, operation);
 
-   unsigned augmented_coord[5];
-   augmented_coord[0] = 0;
-   for (int i = 0; i < 4; ++i) {
+   unsigned augmented_coord[5] = {};
+   for (int i = 0; i < poperation->input_tensors[1]->dims[3]; ++i) {
       augmented_coord[i + 1] = poperation->slice.begin[i];
    }
 
