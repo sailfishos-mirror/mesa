@@ -326,6 +326,8 @@ struct radv_device {
    simple_mtx_t blit_queue_mtx;
 
    struct radv_address_binding_tracker *addr_binding_tracker;
+
+   struct radv_compiler_info compiler_info;
 };
 
 VK_DEFINE_HANDLE_CASTS(radv_device, vk.base, VkDevice, VK_OBJECT_TYPE_DEVICE)

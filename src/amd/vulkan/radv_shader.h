@@ -24,6 +24,9 @@
 #include "vk_nir_lower_descriptor_heaps.h"
 #include "vk_pipeline_cache.h"
 
+#include "nir/nir_shader_compiler_options.h"
+#include "spirv/spirv_info.h"
+
 #include "aco_shader_info.h"
 
 struct radv_physical_device;
@@ -505,6 +508,92 @@ struct radv_shader_dma_submission {
 
    /* The semaphore value to wait for before reusing this submission. */
    uint64_t seq;
+};
+
+struct radv_compiler_info {
+   /* Hardware info */
+   const struct ac_compiler_info *ac;
+
+   struct {
+      uint32_t family;
+      uint32_t address32_hi;
+      bool rbplus_allowed;
+      bool mesh_fast_launch_2;
+      bool has_dedicated_vram;
+      bool has_cs_regalloc_hang_bug;
+      uint32_t lds_size_per_workgroup;
+   } hw;
+
+   /* Debug/tracing */
+   struct {
+      bool dump_spirv;
+      bool dump_backend_ir;
+      bool dump_preopt_ir;
+      bool dump_nir;
+      bool dump_asm;
+      bool dump_meta_shaders;
+      bool dump_shader_stats;
+      bool nir_debug_info;
+      VkShaderStageFlags dump_shaders;
+      bool check_ir;
+      bool printf_enabled;
+      bool use_llvm;
+      bool trap_enabled;
+      uint64_t trap_excp_flags;
+      struct vk_debug_report *debug_report;
+      struct radv_debug_nir *debug_nir;
+      simple_mtx_t *shader_dump_mtx;
+      bool keep_shader_info;
+      bool capture_shaders;
+      bool capture_shader_stats;
+   } debug;
+
+   struct radv_rra_trace_data *rra_trace;
+
+   /* Cache */
+   bool cache_disabled;
+   bool enable_nir_cache;
+   struct vk_pipeline_cache *mem_cache;
+   const struct radv_physical_device_cache_key *cache_key;
+   uint8_t override_compute_shader_version;
+   uint8_t override_graphics_shader_version;
+   uint8_t override_ray_tracing_shader_version;
+
+   /* Shader features */
+   uint8_t sampled_image_desc_size;
+   uint8_t combined_image_sampler_desc_size;
+   uint8_t combined_image_sampler_offset;
+   uint32_t sampler_descriptor_size;
+   uint32_t sampler_descriptor_alignment;
+   uint32_t image_descriptor_size;
+   uint32_t image_descriptor_alignment;
+   uint32_t buffer_descriptor_size;
+   uint32_t buffer_descriptor_alignment;
+   bool use_ngg;
+   bool use_ngg_streamout;
+   bool load_grid_size_from_user_sgpr;
+   bool emulate_ngg_gs_query_pipeline_stat;
+   bool primitives_generated_query;
+   bool mesh_shader_queries;
+   bool image_2d_view_of_3d;
+   bool use_fmask;
+   bool smooth_lines;
+   bool force_vrs_enabled;
+   bool robust_buffer_access; /* Only used by LLVM. */
+   int force_aniso;
+
+   /* Wave/subgroup sizes */
+   uint32_t subgroup_size;
+   uint32_t min_subgroup_size;
+   uint32_t max_subgroup_size;
+   uint8_t ge_wave_size;
+   uint8_t ps_wave_size;
+   uint8_t cs_wave_size;
+   uint8_t rt_wave_size;
+
+   /* NIR/SPIR-V */
+   struct spirv_capabilities spirv_caps;
+   nir_shader_compiler_options nir_options[MESA_VULKAN_SHADER_STAGES];
 };
 
 struct radv_shader_stage;
