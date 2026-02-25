@@ -148,6 +148,9 @@ brw_blorp_get_urb_length(const struct brw_fs_prog_data *prog_data)
    return MAX2((prog_data->num_varying_inputs + 1) / 2, 1);
 }
 
+static bool *
+blorp_get_write_fencing_status(struct blorp_batch *batch);
+
 /***** BEGIN blorp_exec implementation ******/
 
 static uint64_t
@@ -164,9 +167,25 @@ _blorp_combine_address(struct blorp_batch *batch, void *location,
 #define __gen_address_type struct blorp_address
 #define __gen_user_data struct blorp_batch
 #define __gen_combine_address _blorp_combine_address
+#define __gen_get_write_fencing_status(b) blorp_get_write_fencing_status(b)
+#define __gen_get_batch_dwords(b, d) blorp_emit_dwords((b), (d))
+
+static inline struct blorp_address
+__gen_address_offset(struct blorp_address addr, uint64_t offset)
+{
+   addr.offset += offset;
+   return addr;
+}
+
+static inline struct blorp_address
+__gen_get_batch_address(struct blorp_batch *batch, void *location)
+{
+   UNREACHABLE("Not supported by blorp");
+}
 
 #include "genxml/genX_pack.h"
 #include "common/intel_genX_state_brw.h"
+#include "common/mi_builder.h"
 
 #define _blorp_cmd_length(cmd) cmd ## _length
 #define _blorp_cmd_length_bias(cmd) cmd ## _length_bias

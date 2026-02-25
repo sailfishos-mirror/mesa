@@ -599,3 +599,10 @@ genX(blorp_init_dynamic_states)(struct blorp_context *context)
 {
    blorp_init_dynamic_states(context);
 }
+
+static bool *
+blorp_get_write_fencing_status(struct blorp_batch *blorp_batch)
+{
+   struct anv_cmd_buffer *cmd_buffer = blorp_batch->driver_batch;
+   return &cmd_buffer->batch.write_fence_status;
+}
