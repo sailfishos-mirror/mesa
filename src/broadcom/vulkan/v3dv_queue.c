@@ -21,8 +21,12 @@
  * IN THE SOFTWARE.
  */
 
-#include "v3dv_private.h"
-#include "drm-uapi/v3d_drm.h"
+#include "v3dv_device.h"
+#include "v3dv_cmd_buffer.h"
+#include "v3dv_image.h"
+#include "v3dv_entrypoints.h"
+#include "v3dv_version_dispatch.h"
+#include <xf86drm.h>
 
 #include "broadcom/clif/clif_dump.h"
 #include "util/libsync.h"

@@ -21,12 +21,12 @@
  * IN THE SOFTWARE.
  */
 
-#include "v3dv_private.h"
+#include "v3dv_device.h"
+#include "common/v3d_util.h"
 
 #include <errno.h>
 #include <sys/mman.h>
 
-#include "drm-uapi/v3d_drm.h"
 #include "util/perf/cpu_trace.h"
 #include "util/u_memory.h"
 

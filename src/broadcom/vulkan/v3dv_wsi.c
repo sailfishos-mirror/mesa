@@ -23,9 +23,9 @@
  * IN THE SOFTWARE.
  */
 
-#include "v3dv_private.h"
+#include "v3dv_device.h"
+#include "v3dv_entrypoints.h"
 #include "vk_util.h"
-#include "wsi_common.h"
 #include "wsi_common_drm.h"
 #include "wsi_common_entrypoints.h"
 

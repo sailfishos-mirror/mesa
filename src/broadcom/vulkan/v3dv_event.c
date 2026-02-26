@@ -21,7 +21,9 @@
  * IN THE SOFTWARE.
  */
 
-#include "v3dv_private.h"
+#include "v3dv_device.h"
+#include "v3dv_cmd_buffer.h"
+#include "v3dv_entrypoints.h"
 #include "compiler/nir/nir_builder.h"
 
 #include "vk_common_entrypoints.h"

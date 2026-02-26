@@ -22,7 +22,7 @@
  */
 
 /* This file generates the per-v3d-version function prototypes.  It must only
- * be included from v3dv_private.h.
+ * be included from v3dv_format_table.h.
  */
 
 #include "broadcom/common/v3d_macros.h"

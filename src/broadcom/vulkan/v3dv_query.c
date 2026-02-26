@@ -21,7 +21,12 @@
  * IN THE SOFTWARE.
  */
 
-#include "v3dv_private.h"
+#include "v3dv_device.h"
+#include "v3dv_cmd_buffer.h"
+#include "v3dv_image.h"
+#include "v3dv_entrypoints.h"
+#include "common/v3d_util.h"
+#include "perfcntrs/v3d_perfcntrs.h"
 
 #include "util/timespec.h"
 #include "compiler/nir/nir_builder.h"

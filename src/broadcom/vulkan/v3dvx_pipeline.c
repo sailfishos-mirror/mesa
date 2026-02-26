@@ -21,7 +21,9 @@
  * IN THE SOFTWARE.
  */
 
-#include "v3dv_private.h"
+#include "v3dv_device.h"
+#include "v3dv_version_dispatch.h"
+#include "vk_format.h"
 #include "v3dv_format_table.h"
 #include "v3dvx_format_table.h"
 #include "broadcom/compiler/v3d_compiler.h"

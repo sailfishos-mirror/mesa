@@ -25,8 +25,9 @@
  * IN THE SOFTWARE.
  */
 
-#include "v3dv_private.h"
-#include "v3dv_limits.h"
+#include "v3dv_device.h"
+#include "v3dv_cmd_buffer.h"
+#include "v3dv_image.h"
 
 /* Our Vulkan resource indices represent indices in descriptor maps which
  * include all shader stages, so we need to size the arrays below

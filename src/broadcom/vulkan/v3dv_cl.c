@@ -21,7 +21,8 @@
  * IN THE SOFTWARE.
  */
 
-#include "v3dv_private.h"
+#include "v3dv_device.h"
+#include "v3dv_cmd_buffer.h"
 
 /* We don't expect that the packets we use in this file change across hw
  * versions, so we just explicitly set the V3D_VERSION and include v3dx_pack

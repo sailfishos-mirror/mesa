@@ -22,11 +22,11 @@
  */
 
 /* This file generates the per-v3d-version function prototypes.  It must only
- * be included from v3dv_private.h.
+ * be included from v3dv_version_dispatch.h.
  */
 
-#ifndef V3DV_PRIVATE_H
-#error This file is included by means other than v3dv_private.h
+#ifndef V3DV_VERSION_DISPATCH_H
+#error This file is included by means other than v3dv_version_dispatch.h
 #endif
 
 /* Used at v3dv_cmd_buffer */
@@ -312,4 +312,3 @@ void
 v3dX(viewport_compute_xform)(const VkViewport *viewport,
                              float scale[3],
                              float translate[3]);
-

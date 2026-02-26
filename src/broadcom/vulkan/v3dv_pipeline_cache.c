@@ -21,7 +21,10 @@
  * IN THE SOFTWARE.
  */
 
-#include "v3dv_private.h"
+#include "v3dv_device.h"
+#include "v3dv_entrypoints.h"
+#include "vk_log.h"
+#include "util/disk_cache.h"
 #include "vk_util.h"
 #include "util/blob.h"
 #include "nir/nir_serialize.h"

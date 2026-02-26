@@ -38,26 +38,31 @@
 #include <sys/sysmacros.h>
 #endif
 
-#include "v3dv_private.h"
+#include "v3dv_device.h"
+#include "v3dv_cmd_buffer.h"
+#include "v3dv_image.h"
+#include "v3dv_entrypoints.h"
+#include "v3dv_version_dispatch.h"
 
-#include "common/v3d_debug.h"
-
-#include "compiler/v3d_compiler.h"
-
-#include "drm-uapi/v3d_drm.h"
 #include "vk_android.h"
 #include "vk_drm_syncobj.h"
 #include "vk_util.h"
 #include "git_sha1.h"
 
 #include "util/build_id.h"
+#include "util/disk_cache.h"
 #include "util/driconf.h"
 #include "util/os_file.h"
 #include "util/u_debug.h"
 #include "util/format/u_format.h"
+#include "perfcntrs/v3d_perfcntrs.h"
+#include "vk_shader_module.h"
+#include "vk_format.h"
+#include "vk_ycbcr_conversion.h"
+
+#include <sys/stat.h>
 
 #if DETECT_OS_ANDROID
-#include "vk_android.h"
 #include <vndk/hardware_buffer.h>
 #include "util/u_gralloc/u_gralloc.h"
 #endif
@@ -550,6 +555,13 @@ v3dv_EnumerateInstanceExtensionProperties(const char *pLayerName,
 static VkResult enumerate_devices(struct vk_instance *vk_instance);
 
 static void destroy_physical_device(struct vk_physical_device *device);
+
+enum v3dv_pipeline_cache_flags {
+   V3DV_PIPELINE_CACHE_FULL = 1 << 0,
+   V3DV_PIPELINE_CACHE_NO_DEFAULT = 1 << 1,
+   V3DV_PIPELINE_CACHE_NO_META = 1 << 2,
+   V3DV_PIPELINE_CACHE_OFF = 1 << 3,
+};
 
 static const struct debug_control v3dv_pipeline_cache_control[] = {
    { "full", V3DV_PIPELINE_CACHE_FULL },

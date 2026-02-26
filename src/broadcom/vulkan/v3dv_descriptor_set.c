@@ -24,7 +24,13 @@
 #include "vk_descriptors.h"
 #include "vk_util.h"
 
-#include "v3dv_private.h"
+#include "v3dv_device.h"
+#include "v3dv_cmd_buffer.h"
+#include "v3dv_image.h"
+#include "v3dv_entrypoints.h"
+#include "v3dv_version_dispatch.h"
+#include "vk_ycbcr_conversion.h"
+#include "vk_descriptor_update_template.h"
 
 /*
  * For a given descriptor defined by the descriptor_set it belongs, its
