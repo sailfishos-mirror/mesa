@@ -301,8 +301,8 @@ ngg_gs_process_out_primitive(nir_builder *b,
                                  nir_isub(b, vtx_indices[2], is_odd), vtx_indices[2]);
    }
 
-   return ac_nir_pack_ngg_prim_exp_arg(b, s->num_vertices_per_primitive, vtx_indices,
-                                             is_null_prim, s->options->hw_info->gfx_level);
+   return ac_nir_pack_ngg_prim_exp_arg(b, s->num_vertices_per_primitive, vtx_indices, is_null_prim,
+                                       s->options->cu_info->gfx_level);
 }
 
 static void
@@ -402,15 +402,12 @@ ngg_gs_emit_output(nir_builder *b, nir_def *max_num_out_vtx, nir_def *max_num_ou
 
    nir_if *if_export_vertex = nir_push_if(b, if_process_vertex->condition.ssa);
    {
-      ac_nir_export_position(b, s->options->hw_info->gfx_level,
-                             s->options->export_clipdist_mask,
-                             s->options->can_cull,
-                             s->options->write_pos_to_clipvertex,
-                             !s->options->has_param_exports,
-                             s->options->force_vrs,
+      ac_nir_export_position(b, s->options->cu_info->gfx_level, s->options->export_clipdist_mask,
+                             s->options->can_cull, s->options->write_pos_to_clipvertex,
+                             !s->options->has_param_exports, s->options->force_vrs,
                              b->shader->info.outputs_written | VARYING_BIT_POS, &s->out, NULL);
 
-      if (s->options->has_param_exports && !s->options->hw_info->cu_info.has_attr_ring)
+      if (s->options->has_param_exports && !s->options->cu_info->has_attr_ring)
          ac_nir_export_parameters(b, s->options->vs_output_param_offset,
                                   b->shader->info.outputs_written,
                                   b->shader->info.outputs_written_16bit,
@@ -418,8 +415,8 @@ ngg_gs_emit_output(nir_builder *b, nir_def *max_num_out_vtx, nir_def *max_num_ou
    }
    nir_pop_if(b, if_export_vertex);
 
-   if (s->options->has_param_exports && s->options->hw_info->cu_info.has_attr_ring) {
-      if (s->options->hw_info->cu_info.has_attr_ring_wait_bug)
+   if (s->options->has_param_exports && s->options->cu_info->has_attr_ring) {
+      if (s->options->cu_info->has_attr_ring_wait_bug)
          b->cursor = nir_after_cf_node_and_phis(&if_export_primitive->cf_node);
 
       nir_def *vertices_in_wave = nir_bit_count(b, nir_ballot(b, 1, s->options->wave_size, if_process_vertex->condition.ssa));
@@ -429,7 +426,7 @@ ngg_gs_emit_output(nir_builder *b, nir_def *max_num_out_vtx, nir_def *max_num_ou
                                            b->shader->info.outputs_written_16bit,
                                            &s->out, vertices_in_wave);
 
-      if (s->options->hw_info->cu_info.has_attr_ring_wait_bug) {
+      if (s->options->cu_info->has_attr_ring_wait_bug) {
          /* Wait for attribute ring stores to finish. */
          nir_barrier(b, .execution_scope = SCOPE_SUBGROUP,
                         .memory_scope = SCOPE_DEVICE,
@@ -706,9 +703,10 @@ ngg_gs_build_streamout(nir_builder *b, lower_ngg_gs_state *s)
    nir_def *so_buffer[4] = {0};
    nir_def *buffer_info_scratch_base =
       nir_iadd_imm_nuw(b, s->lds_addr_gs_out_vtx, num_streams * scratch_stride + scratch_base_off);
-   ac_nir_ngg_build_streamout_buffer_info(b, info, s->options->hw_info->gfx_level, s->options->has_xfb_prim_query,
-                                   s->options->use_gfx12_xfb_intrinsic, buffer_info_scratch_base, tid_in_tg,
-                                   gen_prim, so_buffer, buffer_offsets, emit_prim);
+   ac_nir_ngg_build_streamout_buffer_info(
+      b, info, s->options->cu_info->gfx_level, s->options->has_xfb_prim_query,
+      s->options->use_gfx12_xfb_intrinsic, buffer_info_scratch_base, tid_in_tg, gen_prim, so_buffer,
+      buffer_offsets, emit_prim);
 
    u_foreach_bit(stream, info->streams_written) {
       nir_def *can_emit = nir_ilt(b, export_seq[stream], emit_prim[stream]);
@@ -763,8 +761,7 @@ ngg_gs_finale(nir_builder *b, lower_ngg_gs_state *s)
 
          ac_nir_ngg_alloc_vertices_and_primitives(
             b, max_vtxcnt, max_prmcnt,
-            b->shader->info.gs.vertices_out == 0 &&
-               s->options->hw_info->cu_info.has_ngg_fully_culled_bug);
+            b->shader->info.gs.vertices_out == 0 && s->options->cu_info->has_ngg_fully_culled_bug);
       }
       nir_pop_if(b, if_wave_0);
    }
@@ -813,9 +810,8 @@ ngg_gs_finale(nir_builder *b, lower_ngg_gs_state *s)
    /* Allocate export space. We currently don't compact primitives, just use the maximum number. */
    nir_if *if_wave_0 = nir_push_if(b, nir_ieq_imm(b, nir_load_subgroup_id(b), 0));
    {
-      ac_nir_ngg_alloc_vertices_and_primitives(
-         b, workgroup_num_vertices, max_prmcnt,
-         s->options->hw_info->cu_info.has_ngg_fully_culled_bug);
+      ac_nir_ngg_alloc_vertices_and_primitives(b, workgroup_num_vertices, max_prmcnt,
+                                               s->options->cu_info->has_ngg_fully_culled_bug);
    }
    nir_pop_if(b, if_wave_0);
 

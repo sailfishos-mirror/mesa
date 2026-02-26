@@ -405,7 +405,7 @@ static void si_lower_ngg(struct si_shader *shader, nir_shader *nir,
    assert(key->ge.as_ngg);
 
    ac_nir_lower_ngg_options options = {
-      .hw_info = info,
+      .cu_info = &info->cu_info,
       .max_workgroup_size = si_get_max_workgroup_size(shader),
       .wave_size = shader->wave_size,
       .export_clipdist_mask = shader->info.clipdist_mask | shader->info.culldist_mask,

@@ -27,6 +27,7 @@ typedef struct
 
 typedef struct
 {
+   enum amd_gfx_level gfx_level;
    const ac_nir_lower_ngg_options *options;
 
    nir_variable *position_value_var;
@@ -122,7 +123,7 @@ ngg_nogs_init_vertex_indices_vars(nir_builder *b, nir_function_impl *impl, lower
 
       nir_def *vtx;
 
-      if (s->options->hw_info->gfx_level >= GFX12) {
+      if (s->gfx_level >= GFX12) {
          vtx = nir_ubfe_imm(b, nir_load_packed_passthrough_primitive_amd(b), 9 * v, 8);
       } else if (s->options->passthrough) {
          vtx = nir_ubfe_imm(b, nir_load_packed_passthrough_primitive_amd(b), 10 * v, 9);
@@ -138,7 +139,7 @@ ngg_nogs_init_vertex_indices_vars(nir_builder *b, nir_function_impl *impl, lower
 static nir_def *
 emit_ngg_nogs_prim_exp_arg(nir_builder *b, lower_ngg_nogs_state *s)
 {
-   if (s->options->hw_info->gfx_level >= GFX12 || s->options->passthrough) {
+   if (s->gfx_level >= GFX12 || s->options->passthrough) {
       return nir_load_packed_passthrough_primitive_amd(b);
    } else {
       nir_def *vtx_idx[3] = {0};
@@ -147,7 +148,7 @@ emit_ngg_nogs_prim_exp_arg(nir_builder *b, lower_ngg_nogs_state *s)
          vtx_idx[v] = nir_load_var(b, s->gs_vtx_indices_vars[v]);
 
       return ac_nir_pack_ngg_prim_exp_arg(b, s->options->num_vertices_per_primitive, vtx_idx, NULL,
-                                        s->options->hw_info->gfx_level);
+                                          s->gfx_level);
    }
 }
 
@@ -202,7 +203,7 @@ emit_ngg_nogs_prim_export(nir_builder *b, lower_ngg_nogs_state *s, nir_def *arg)
                             .memory_semantics = NIR_MEMORY_ACQ_REL,
                             .memory_modes = nir_var_mem_shared);
 
-         unsigned edge_flag_bits = ac_get_all_edge_flag_bits(s->options->hw_info->gfx_level);
+         unsigned edge_flag_bits = ac_get_all_edge_flag_bits(s->gfx_level);
          nir_def *mask = nir_imm_intN_t(b, ~edge_flag_bits, 32);
 
          for (int i = 0; i < s->options->num_vertices_per_primitive; i++) {
@@ -211,7 +212,7 @@ emit_ngg_nogs_prim_export(nir_builder *b, lower_ngg_nogs_state *s, nir_def *arg)
             /* Edge flags share LDS with XFB. */
             nir_def *edge = ac_nir_load_shared_xfb(b, addr, &s->out, VARYING_SLOT_EDGE, 0);
 
-            if (s->options->hw_info->gfx_level >= GFX12)
+            if (s->gfx_level >= GFX12)
                mask = nir_ior(b, mask, nir_ishl_imm(b, edge, 8 + i * 9));
             else
                mask = nir_ior(b, mask, nir_ishl_imm(b, edge, 9 + i * 10));
@@ -225,7 +226,7 @@ emit_ngg_nogs_prim_export(nir_builder *b, lower_ngg_nogs_state *s, nir_def *arg)
        * GPUs without an attribute ring.
        * Because this uses the export space, do it together with the primitive export.
        */
-      if (!s->options->hw_info->cu_info.has_attr_ring && s->options->export_primitive_id_per_prim) {
+      if (!s->options->cu_info->has_attr_ring && s->options->export_primitive_id_per_prim) {
          const uint8_t offset = s->options->vs_output_param_offset[VARYING_SLOT_PRIMITIVE_ID];
          nir_def *prim_id = nir_load_primitive_id(b);
          nir_def *undef = nir_undef(b, 1, 32);
@@ -278,7 +279,7 @@ emit_ngg_nogs_prim_id_store_shared(nir_builder *b, lower_ngg_nogs_state *s)
 static void
 emit_ngg_nogs_prim_id_store_per_prim_to_attr_ring(nir_builder *b, lower_ngg_nogs_state *s)
 {
-   assert(s->options->hw_info->cu_info.has_attr_ring);
+   assert(s->options->cu_info->has_attr_ring);
 
    nir_def *is_gs_thread = nir_load_var(b, s->gs_exported_var);
    nir_def *highest_gs_thread = nir_ufind_msb(b, nir_ballot(b, 1, s->options->wave_size, is_gs_thread));
@@ -549,9 +550,8 @@ compact_vertices_after_culling(nir_builder *b,
          nir_store_var(b, s->gs_vtx_indices_vars[v], exporter_vtx_indices[v], 0x1);
       }
 
-      nir_def *prim_exp_arg =
-         ac_nir_pack_ngg_prim_exp_arg(b, s->options->num_vertices_per_primitive,
-                                    exporter_vtx_indices, NULL, s->options->hw_info->gfx_level);
+      nir_def *prim_exp_arg = ac_nir_pack_ngg_prim_exp_arg(
+         b, s->options->num_vertices_per_primitive, exporter_vtx_indices, NULL, s->gfx_level);
       nir_store_var(b, s->prim_exp_arg_var, prim_exp_arg, 0x1u);
    }
    nir_pop_if(b, if_gs_accepted);
@@ -1233,9 +1233,9 @@ add_deferred_attribute_culling(nir_builder *b, nir_cf_list *original_extracted_c
 
       nir_if *if_wave_0 = nir_push_if(b, nir_ieq_imm(b, nir_load_subgroup_id(b), 0));
       {
-         ac_nir_ngg_alloc_vertices_and_primitives(
-            b, num_live_vertices_in_workgroup, num_exported_prims,
-            s->options->hw_info->cu_info.has_ngg_fully_culled_bug);
+         ac_nir_ngg_alloc_vertices_and_primitives(b, num_live_vertices_in_workgroup,
+                                                  num_exported_prims,
+                                                  s->options->cu_info->has_ngg_fully_culled_bug);
       }
       nir_pop_if(b, if_wave_0);
 
@@ -1363,11 +1363,10 @@ ngg_nogs_build_streamout(nir_builder *b, lower_ngg_nogs_state *s)
    nir_def *buffer_offsets[4] = {0};
    nir_def *so_buffer[4] = {0};
    nir_def *tid_in_tg = nir_load_local_invocation_index(b);
-   ac_nir_ngg_build_streamout_buffer_info(b, info, s->options->hw_info->gfx_level, s->options->has_xfb_prim_query,
-                                   s->options->use_gfx12_xfb_intrinsic, nir_imm_int(b, 0), tid_in_tg,
-                                   gen_prim_per_stream,
-                                   so_buffer, buffer_offsets,
-                                   emit_prim_per_stream);
+   ac_nir_ngg_build_streamout_buffer_info(b, info, s->gfx_level, s->options->has_xfb_prim_query,
+                                          s->options->use_gfx12_xfb_intrinsic, nir_imm_int(b, 0),
+                                          tid_in_tg, gen_prim_per_stream, so_buffer, buffer_offsets,
+                                          emit_prim_per_stream);
 
    /* Write out primitive data */
    nir_if *if_emit = nir_push_if(b, nir_ilt(b, tid_in_tg, emit_prim_per_stream[0]));
@@ -1500,7 +1499,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
    nir_variable *gs_exported_var = nir_local_variable_create(impl, glsl_bool_type(), "gs_exported");
 
    const bool wait_attr_ring =
-      options->has_param_exports && options->hw_info->cu_info.has_attr_ring_wait_bug;
+      options->has_param_exports && options->cu_info->has_attr_ring_wait_bug;
    bool streamout_enabled = shader->xfb_info && !options->disable_streamout;
    bool has_user_edgeflags =
       options->use_edgeflags && (shader->info.outputs_written & VARYING_BIT_EDGE);
@@ -1521,6 +1520,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
       !(wait_attr_ring && options->export_primitive_id_per_prim);
 
    lower_ngg_nogs_state state = {
+      .gfx_level = options->cu_info->gfx_level,
       .options = options,
       .early_prim_export = early_prim_export,
       .streamout_enabled = streamout_enabled,
@@ -1549,7 +1549,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
    if (options->export_primitive_id_per_prim) {
       /* The HW preloads the primitive ID to VGPRs of GS threads for VS, but not for TES. */
       assert(shader->info.stage == MESA_SHADER_VERTEX);
-      assert(options->hw_info->gfx_level >= GFX10_3);
+      assert(state.gfx_level >= GFX10_3);
    }
 
    nir_builder builder = nir_builder_create(impl);
@@ -1588,7 +1588,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
 
    if (!options->can_cull) {
       /* Newer chips can use PRIMGEN_PASSTHRU_NO_MSG to skip gs_alloc_req for NGG passthrough. */
-      if (!(options->passthrough && options->hw_info->cu_info.has_ngg_passthru_no_msg)) {
+      if (!(options->passthrough && options->cu_info->has_ngg_passthru_no_msg)) {
          /* Allocate export space on wave 0 - confirm to the HW that we want to use all possible space */
          nir_if *if_wave_0 = nir_push_if(b, nir_ieq_imm(b, nir_load_subgroup_id(b), 0));
          {
@@ -1635,7 +1635,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
       /* Wait for GS threads to store primitive ID in LDS. */
       nir_barrier(b, .execution_scope = SCOPE_WORKGROUP, .memory_scope = SCOPE_WORKGROUP,
                             .memory_semantics = NIR_MEMORY_ACQ_REL, .memory_modes = nir_var_mem_shared);
-   } else if (options->export_primitive_id_per_prim && options->hw_info->cu_info.has_attr_ring) {
+   } else if (options->export_primitive_id_per_prim && options->cu_info->has_attr_ring) {
       emit_ngg_nogs_prim_id_store_per_prim_to_attr_ring(b, &state);
    }
 
@@ -1646,7 +1646,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
     * scheduling.
     */
    nir_def *num_es_threads = NULL;
-   if (options->hw_info->cu_info.has_attr_ring && options->can_cull) {
+   if (options->cu_info->has_attr_ring && options->can_cull) {
       nir_def *es_accepted_mask =
          nir_ballot(b, 1, options->wave_size, nir_load_var(b, es_accepted_var));
       num_es_threads = nir_bit_count(b, es_accepted_mask);
@@ -1721,15 +1721,11 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
       b->cursor = nir_after_cf_list(&if_es_thread->then_list);
    }
 
-   ac_nir_export_position(b, options->hw_info->gfx_level,
-                          options->export_clipdist_mask,
-                          options->can_cull,
-                          options->write_pos_to_clipvertex,
-                          !options->has_param_exports,
-                          options->force_vrs,
-                          export_outputs, &state.out, NULL);
+   ac_nir_export_position(b, state.gfx_level, options->export_clipdist_mask, options->can_cull,
+                          options->write_pos_to_clipvertex, !options->has_param_exports,
+                          options->force_vrs, export_outputs, &state.out, NULL);
 
-   if (options->has_param_exports && !options->hw_info->cu_info.has_attr_ring) {
+   if (options->has_param_exports && !options->cu_info->has_attr_ring) {
       ac_nir_export_parameters(b, options->vs_output_param_offset,
                                b->shader->info.outputs_written,
                                b->shader->info.outputs_written_16bit,
@@ -1739,7 +1735,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
    if (if_pos_exports)
       nir_pop_if(b, if_pos_exports);
 
-   if (options->has_param_exports && options->hw_info->cu_info.has_attr_ring) {
+   if (options->has_param_exports && options->cu_info->has_attr_ring) {
       if (!pos_exports_in_cf) {
          b->cursor = nir_after_cf_node(&if_es_thread->cf_node);
          ac_nir_create_output_phis(b, b->shader->info.outputs_written, b->shader->info.outputs_written_16bit, &state.out);

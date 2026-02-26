@@ -1351,10 +1351,9 @@ ac_nir_lower_ngg_mesh(nir_shader *shader, const ac_nir_lower_ngg_options *option
    unsigned max_vertices = shader->info.mesh.max_vertices_out;
    unsigned max_primitives = shader->info.mesh.max_primitives_out;
 
-   ms_out_mem_layout layout =
-      ms_calculate_output_layout(&options->hw_info->cu_info, shader->info.shared_size,
-                                 per_vertex_outputs, per_primitive_outputs, cross_invocation_access,
-                                 max_vertices, max_primitives, vertices_per_prim);
+   ms_out_mem_layout layout = ms_calculate_output_layout(
+      options->cu_info, shader->info.shared_size, per_vertex_outputs, per_primitive_outputs,
+      cross_invocation_access, max_vertices, max_primitives, vertices_per_prim);
 
    shader->info.shared_size = layout.lds.total_size;
    *out_needs_scratch_ring = layout.scratch_ring.vtx_attr.mask || layout.scratch_ring.prm_attr.mask;
@@ -1370,7 +1369,7 @@ ac_nir_lower_ngg_mesh(nir_shader *shader, const ac_nir_lower_ngg_options *option
                                  shader->info.workgroup_size[1] *
                                  shader->info.workgroup_size[2];
 
-   bool fast_launch_2 = options->hw_info->cu_info.mesh_fast_launch_2;
+   bool fast_launch_2 = options->cu_info->mesh_fast_launch_2;
 
    unsigned hw_workgroup_size = options->max_workgroup_size;
    lower_ngg_ms_state state = {
@@ -1385,7 +1384,7 @@ ac_nir_lower_ngg_mesh(nir_shader *shader, const ac_nir_lower_ngg_options *option
       .insert_layer_output =
          options->multiview && !(shader->info.outputs_written & VARYING_BIT_LAYER),
       .uses_cull_flags = uses_cull,
-      .cu_info = &options->hw_info->cu_info,
+      .cu_info = options->cu_info,
       .vert_multirow_export = fast_launch_2 && max_vertices > hw_workgroup_size,
       .prim_multirow_export = fast_launch_2 && max_primitives > hw_workgroup_size,
       .vs_output_param_offset = options->vs_output_param_offset,

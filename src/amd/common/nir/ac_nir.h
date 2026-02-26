@@ -179,7 +179,7 @@ bool
 ac_nir_lower_indirect_derefs(nir_shader *shader);
 
 typedef struct {
-   const struct radeon_info *hw_info;
+   const struct ac_cu_info *cu_info;
 
    unsigned max_workgroup_size;
    unsigned wave_size;
