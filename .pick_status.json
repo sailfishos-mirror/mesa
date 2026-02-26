@@ -2654,7 +2654,7 @@
         "description": "radeonsi/vcn: Use full pitch for pre-encode input",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1f83e731451b84b16cc1fa2f04b46a71a66e43ff",
         "notes": null
