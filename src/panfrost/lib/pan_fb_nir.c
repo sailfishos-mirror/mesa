@@ -442,7 +442,7 @@ build_image_load(nir_builder *b, const nir_alu_type nir_type,
       break;
    }
 
-   case PAN_FB_MSAA_COPY_OP_COUNT:
+   default:
       UNREACHABLE("Invalid copy op");
    }
 
