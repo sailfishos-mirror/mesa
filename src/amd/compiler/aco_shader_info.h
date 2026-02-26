@@ -142,7 +142,7 @@ enum aco_compiler_debug_level {
 };
 
 struct aco_compiler_options {
-   const struct ac_cu_info* cu_info;
+   const struct ac_compiler_info* compiler_info;
    bool dump_ir;
    bool dump_preoptir;
    bool record_asm;

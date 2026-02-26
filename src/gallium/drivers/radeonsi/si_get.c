@@ -826,7 +826,7 @@ void si_init_screen_get_functions(struct si_screen *sscreen)
    bool has_16bit_io = sscreen->info.gfx_level >= GFX9;
 
    nir_shader_compiler_options *options = sscreen->nir_options;
-   ac_nir_set_options(&sscreen->info.cu_info, !sscreen->use_aco, options);
+   ac_nir_set_options(&sscreen->info.compiler_info, !sscreen->use_aco, options);
 
    options->lower_ffma16 = sscreen->info.gfx_level < GFX9;
    options->lower_ffma32 = !use_fma32;
@@ -837,7 +837,7 @@ void si_init_screen_get_functions(struct si_screen *sscreen)
    options->lower_uniforms_to_ubo = true;
    options->lower_to_scalar = true;
    options->lower_to_scalar_filter =
-      sscreen->info.cu_info.has_packed_math_16bit ? si_alu_to_scalar_packed_math_filter : NULL;
+      sscreen->info.compiler_info.has_packed_math_16bit ? si_alu_to_scalar_packed_math_filter : NULL;
    options->max_unroll_iterations = 128;
    options->max_unroll_iterations_aggressive = 128;
    /* For OpenGL, rounding mode is undefined. We want fast packing with v_cvt_pkrtz_f16,
@@ -1182,7 +1182,7 @@ void si_init_screen_caps(struct si_screen *sscreen)
    caps->seamless_cube_map =
    caps->seamless_cube_map_per_texture =
    caps->cube_map_array =
-      sscreen->info.cu_info.has_3d_cube_border_color_mipmap;
+      sscreen->info.compiler_info.has_3d_cube_border_color_mipmap;
 
    caps->post_depth_coverage = sscreen->info.gfx_level >= GFX10;
 
@@ -1292,9 +1292,9 @@ void si_init_screen_caps(struct si_screen *sscreen)
    caps->max_vertex_attrib_stride = 2048;
 
    caps->max_texture_2d_size = sscreen->info.gfx_level >= GFX12 ? 65536 : 16384;
-   caps->max_texture_cube_levels = sscreen->info.cu_info.has_3d_cube_border_color_mipmap ?
+   caps->max_texture_cube_levels = sscreen->info.compiler_info.has_3d_cube_border_color_mipmap ?
       (sscreen->info.gfx_level >= GFX12 ? 17 : 15) /* 64K : 16K */ : 0;
-   caps->max_texture_3d_levels = sscreen->info.cu_info.has_3d_cube_border_color_mipmap ?
+   caps->max_texture_3d_levels = sscreen->info.compiler_info.has_3d_cube_border_color_mipmap ?
       /* This is limited by maximums that both the texture unit and layered rendering support. */
       (sscreen->info.gfx_level >= GFX12 ? 15 : /* 16K */
        (sscreen->info.gfx_level >= GFX10 ? 14 : 12)) /* 8K : 2K */ : 0;

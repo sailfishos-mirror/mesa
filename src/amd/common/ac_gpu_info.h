@@ -100,7 +100,7 @@ struct amd_ip_info {
    uint32_t ib_pad_dw_mask;
 };
 
-struct ac_cu_info {
+struct ac_compiler_info {
    enum amd_gfx_level gfx_level;
    uint32_t max_waves_per_simd;
    uint32_t num_physical_sgprs_per_simd;
@@ -407,8 +407,9 @@ struct radeon_info {
     */
    bool uses_kernel_cu_mask;
 
+   struct ac_compiler_info compiler_info;
+
    /* Shader cores. */
-   struct ac_cu_info cu_info;
    uint16_t cu_mask[AMD_MAX_SE][AMD_MAX_SA_PER_SE];
    uint32_t r600_max_quad_pipes; /* wave size / 16 */
    uint32_t max_good_cu_per_sa;
@@ -480,7 +481,7 @@ enum ac_query_gpu_info_result {
 
 enum ac_query_gpu_info_result ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                                                 bool require_pci_bus_info);
-void ac_fill_cu_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_info);
+void ac_fill_compiler_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_info);
 
 void ac_compute_driver_uuid(char *uuid, size_t size);
 

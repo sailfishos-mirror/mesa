@@ -124,7 +124,7 @@ radv_aco_convert_opts(struct aco_compiler_options *aco_info, const struct radv_n
    ASSIGN_FIELD(wgp_mode);
    ASSIGN_FIELD(debug.func);
    ASSIGN_FIELD(debug.private_data);
-   aco_info->cu_info = &radv->info->cu_info;
+   aco_info->compiler_info = &radv->info->compiler_info;
    aco_info->is_opengl = false;
    aco_info->optimisations_disabled = stage_key->optimisations_disabled;
    aco_info->gfx_level = radv->info->gfx_level;

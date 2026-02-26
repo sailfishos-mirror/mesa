@@ -1911,7 +1911,7 @@ static uint32_t si_translate_texformat(struct pipe_screen *screen, enum pipe_for
 
 static unsigned is_wrap_mode_legal(struct si_screen *screen, unsigned wrap)
 {
-   if (!screen->info.cu_info.has_3d_cube_border_color_mipmap) {
+   if (!screen->info.compiler_info.has_3d_cube_border_color_mipmap) {
       switch (wrap) {
       case PIPE_TEX_WRAP_CLAMP:
       case PIPE_TEX_WRAP_CLAMP_TO_BORDER:
@@ -2200,7 +2200,7 @@ static bool si_is_format_supported(struct pipe_screen *screen, enum pipe_format 
       usage |= PIPE_BIND_SAMPLER_VIEW;
 
    if ((target == PIPE_TEXTURE_3D || target == PIPE_TEXTURE_CUBE) &&
-        !sscreen->info.cu_info.has_3d_cube_border_color_mipmap)
+        !sscreen->info.compiler_info.has_3d_cube_border_color_mipmap)
       return false;
 
    if (util_format_get_num_planes(format) >= 2)
@@ -4122,7 +4122,7 @@ static void *si_create_sampler_state(struct pipe_context *ctx,
    bool trunc_coord = (state->min_img_filter == PIPE_TEX_FILTER_NEAREST &&
                        state->mag_img_filter == PIPE_TEX_FILTER_NEAREST &&
                        state->compare_mode == PIPE_TEX_COMPARE_NONE) ||
-                      sscreen->info.cu_info.conformant_trunc_coord;
+                      sscreen->info.compiler_info.conformant_trunc_coord;
    union pipe_color_union clamped_border_color;
 
    if (!rstate) {
@@ -4133,7 +4133,7 @@ static void *si_create_sampler_state(struct pipe_context *ctx,
    if (!is_wrap_mode_legal(sscreen, state->wrap_s) ||
        !is_wrap_mode_legal(sscreen, state->wrap_t) ||
        !is_wrap_mode_legal(sscreen, state->wrap_r) ||
-       (!sscreen->info.cu_info.has_3d_cube_border_color_mipmap &&
+       (!sscreen->info.compiler_info.has_3d_cube_border_color_mipmap &&
         (state->min_mip_filter != PIPE_TEX_MIPFILTER_NONE ||
          state->max_anisotropy > 0))) {
       assert(0);

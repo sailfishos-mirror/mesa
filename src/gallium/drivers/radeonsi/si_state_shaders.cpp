@@ -1720,7 +1720,7 @@ static void gfx10_shader_ngg(struct si_screen *sscreen, struct si_shader *shader
    bool ngg_wave_id_en =
       shader->info.num_streamout_vec4s != 0 || shader->info.uses_mesh_scratch_ring;
    if (sscreen->info.gfx_level >= GFX12) {
-      assert(sscreen->info.cu_info.has_ngg_passthru_no_msg);
+      assert(sscreen->info.compiler_info.has_ngg_passthru_no_msg);
       shader->ngg.vgt_shader_stages_en =
          S_028A98_GS_EN(gs_stage == MESA_SHADER_GEOMETRY) |
          S_028A98_GS_FAST_LAUNCH(gs_stage == MESA_SHADER_MESH) |
@@ -1742,7 +1742,7 @@ static void gfx10_shader_ngg(struct si_screen *sscreen, struct si_shader *shader
          S_028B54_PRIMGEN_EN(1) |
          S_028B54_PRIMGEN_PASSTHRU_EN(gfx10_is_ngg_passthrough(shader)) |
          S_028B54_PRIMGEN_PASSTHRU_NO_MSG(gfx10_is_ngg_passthrough(shader) &&
-                                          sscreen->info.cu_info.has_ngg_passthru_no_msg) |
+                                          sscreen->info.compiler_info.has_ngg_passthru_no_msg) |
          S_028B54_NGG_WAVE_ID_EN(ngg_wave_id_en) |
          S_028B54_GS_W32_EN(shader->wave_size == 32) |
          S_028B54_MAX_PRIMGRP_IN_WAVE(2);
@@ -2691,7 +2691,7 @@ void si_ps_key_update_framebuffer_blend_dsa_rasterizer(struct si_context *sctx)
       key->ps.part.epilog.spi_shader_col_format |= V_028710_SPI_SHADER_32_AR;
 
    /* CB doesn't clamp outputs to less than 16 bits. */
-   if (sctx->screen->info.cu_info.has_cb_lt16bit_int_clamp_bug) {
+   if (sctx->screen->info.compiler_info.has_cb_lt16bit_int_clamp_bug) {
       key->ps.part.epilog.color_is_int8 = sctx->framebuffer.color_is_int8;
       key->ps.part.epilog.color_is_int10 = sctx->framebuffer.color_is_int10;
    }
@@ -4709,7 +4709,7 @@ void si_update_tess_io_layout_state(struct si_context *sctx)
    unsigned num_patches, lds_size;
 
    /* Compute NUM_PATCHES and LDS_SIZE. */
-   ac_nir_compute_tess_wg_info(&sctx->screen->info.cu_info, &tcs->info.tess_io_info,
+   ac_nir_compute_tess_wg_info(&sctx->screen->info.compiler_info, &tcs->info.tess_io_info,
                                tcs->info.base.tess.tcs_vertices_out, ls_current->wave_size,
                                tess_uses_primid, num_tcs_input_cp, lds_input_vertex_size,
                                num_remapped_tess_level_outputs, &num_patches, &lds_size);

@@ -635,7 +635,7 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen, unsign
    }
 
    /* Border colors. */
-   if (sscreen->info.cu_info.has_3d_cube_border_color_mipmap) {
+   if (sscreen->info.compiler_info.has_3d_cube_border_color_mipmap) {
       sctx->border_color_table = malloc(SI_MAX_BORDER_COLORS * sizeof(*sctx->border_color_table));
       if (!sctx->border_color_table) {
          mesa_loge("can't create border_color_table");

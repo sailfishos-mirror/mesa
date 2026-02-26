@@ -1565,7 +1565,7 @@ ac_spm_get_derived_trace(const struct radeon_info *info,
    raw_counter_values[AC_SPM_##a][s] - \
    raw_counter_values[AC_SPM_##b][s]
 
-   const uint32_t num_simds = info->num_cu * info->cu_info.num_simd_per_compute_unit;
+   const uint32_t num_simds = info->num_cu * info->compiler_info.num_simd_per_compute_unit;
 
    for (uint32_t s = 0; s < spm_trace->num_samples; s++) {
       /* Cache group. */

@@ -336,15 +336,15 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
    if (progress)
       constant_fold_for_push_const = true;
 
-   NIR_PASS(
-      _, stage->nir, ac_nir_lower_image_tex,
-      &(ac_nir_lower_image_tex_options){
-         .gfx_level = gfx_level,
-         .lower_array_layer_round_even = !pdev->info.cu_info.conformant_trunc_coord || pdev->cache_key.disable_trunc_coord,
-         .fix_derivs_in_divergent_cf =
-            stage->stage == MESA_SHADER_FRAGMENT && !radv_use_llvm_for_stage(pdev, stage->stage),
-         .max_wqm_vgprs = 64, // TODO: improve spiller and RA support for linear VGPRs
-      });
+   NIR_PASS(_, stage->nir, ac_nir_lower_image_tex,
+            &(ac_nir_lower_image_tex_options){
+               .gfx_level = gfx_level,
+               .lower_array_layer_round_even =
+                  !pdev->info.compiler_info.conformant_trunc_coord || pdev->cache_key.disable_trunc_coord,
+               .fix_derivs_in_divergent_cf =
+                  stage->stage == MESA_SHADER_FRAGMENT && !radv_use_llvm_for_stage(pdev, stage->stage),
+               .max_wqm_vgprs = 64, // TODO: improve spiller and RA support for linear VGPRs
+            });
 
    if (stage->nir->info.uses_resource_info_query)
       NIR_PASS(_, stage->nir, ac_nir_lower_resinfo, gfx_level);
@@ -491,7 +491,8 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
    NIR_PASS(_, stage->nir, ac_nir_lower_intrinsics_to_args, &stage->args.ac,
             &(ac_nir_lower_intrinsics_to_args_options){
                .gfx_level = gfx_level,
-               .has_ls_vgpr_init_bug = pdev->info.cu_info.has_ls_vgpr_init_bug && gfx_state && !gfx_state->vs.has_prolog,
+               .has_ls_vgpr_init_bug =
+                  pdev->info.compiler_info.has_ls_vgpr_init_bug && gfx_state && !gfx_state->vs.has_prolog,
                .hw_stage = radv_select_hw_stage(&stage->info, gfx_level),
                .wave_size = stage->info.wave_size,
                .workgroup_size = stage->info.workgroup_size,

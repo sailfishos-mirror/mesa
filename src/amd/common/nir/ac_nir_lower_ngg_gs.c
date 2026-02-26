@@ -16,7 +16,7 @@
 typedef struct
 {
    const ac_nir_lower_ngg_options *options;
-   const struct ac_cu_info *ac;
+   const struct ac_compiler_info *ac;
 
    nir_function_impl *impl;
    int const_out_vtxcnt[4];
@@ -836,7 +836,7 @@ ac_nir_lower_ngg_gs(nir_shader *shader, const ac_nir_lower_ngg_options *options,
 
    lower_ngg_gs_state state = {
       .options = options,
-      .ac = options->cu_info,
+      .ac = options->compiler_info,
       .impl = impl,
       .max_num_waves = DIV_ROUND_UP(options->max_workgroup_size, options->wave_size),
       .streamout_enabled = streamout_enabled,

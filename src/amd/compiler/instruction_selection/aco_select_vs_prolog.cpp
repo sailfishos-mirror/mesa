@@ -462,7 +462,7 @@ select_vs_prolog(Program* program, const struct aco_vs_prolog_info* pinfo, ac_sh
          }
 
          /* If there are no HS threads, SPI mistakenly loads the LS VGPRs starting at VGPR 0. */
-         if (info->hw_stage == AC_HW_HULL_SHADER && options->cu_info->has_ls_vgpr_init_bug) {
+         if (info->hw_stage == AC_HW_HULL_SHADER && options->compiler_info->has_ls_vgpr_init_bug) {
             /* We don't want load_vb_descs() to write vcc. */
             assert(program->dev.sgpr_limit <= vcc.reg());
 

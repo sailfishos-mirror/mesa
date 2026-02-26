@@ -643,7 +643,7 @@ static bool do_winsys_init(struct radeon_drm_winsys *ws)
    ws->info.lds_size_per_workgroup = ws->info.gfx_level == GFX7 ? 64 * 1024 : 32 * 1024;
 
 #ifdef HAVE_GALLIUM_RADEONSI
-   ac_fill_cu_info(&ws->info, NULL);
+   ac_fill_compiler_info(&ws->info, NULL);
 #endif
 
    for (unsigned se = 0; se < ws->info.max_se; se++) {

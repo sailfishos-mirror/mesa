@@ -11,7 +11,7 @@
 #include "nir_intrinsics.h"
 
 /* Set NIR options shared by ACO, LLVM, RADV, and radeonsi. */
-void ac_nir_set_options(const struct ac_cu_info *info, bool use_llvm,
+void ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
                         nir_shader_compiler_options *options)
 {
    /*        |---------------------------------- Performance & Availability --------------------------------|

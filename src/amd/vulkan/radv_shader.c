@@ -58,7 +58,7 @@ get_nir_options_for_stage(struct radv_physical_device *pdev, mesa_shader_stage s
    nir_shader_compiler_options *options = &pdev->nir_options[stage];
    const bool split_fma = (stage <= MESA_SHADER_GEOMETRY || stage == MESA_SHADER_MESH) && pdev->cache_key.split_fma;
 
-   ac_nir_set_options(&pdev->info.cu_info, pdev->use_llvm, options);
+   ac_nir_set_options(&pdev->info.compiler_info, pdev->use_llvm, options);
 
    options->lower_ffma16 = split_fma || pdev->info.gfx_level < GFX9;
    options->lower_ffma32 = split_fma || pdev->info.gfx_level < GFX10_3;
@@ -963,7 +963,7 @@ radv_lower_ngg(struct radv_device *device, struct radv_shader_stage *ngg_stage,
    }
 
    ac_nir_lower_ngg_options options = {0};
-   options.cu_info = &pdev->info.cu_info;
+   options.compiler_info = &pdev->info.compiler_info;
    options.max_workgroup_size = info->workgroup_size;
    options.wave_size = info->wave_size;
    options.export_clipdist_mask = info->outinfo.clip_dist_mask | info->outinfo.cull_dist_mask;
@@ -2813,7 +2813,7 @@ radv_get_max_waves(const struct radv_device *device, const struct ac_shader_conf
    const enum amd_gfx_level gfx_level = gpu_info->gfx_level;
    const uint8_t wave_size = info->wave_size;
    mesa_shader_stage stage = info->stage;
-   unsigned max_simd_waves = gpu_info->cu_info.max_waves_per_simd;
+   unsigned max_simd_waves = gpu_info->compiler_info.max_waves_per_simd;
    unsigned lds_increment = ac_shader_get_lds_alloc_granularity(gfx_level);
    unsigned lds_per_workgroup = align(conf->lds_size, lds_increment);
    unsigned waves_per_workgroup = DIV_ROUND_UP(info->workgroup_size, wave_size);
@@ -2824,20 +2824,20 @@ radv_get_max_waves(const struct radv_device *device, const struct ac_shader_conf
 
    if (conf->num_sgprs && gfx_level < GFX10) {
       unsigned sgprs = align(conf->num_sgprs, gfx_level >= GFX8 ? 16 : 8);
-      max_simd_waves = MIN2(max_simd_waves, gpu_info->cu_info.num_physical_sgprs_per_simd / sgprs);
+      max_simd_waves = MIN2(max_simd_waves, gpu_info->compiler_info.num_physical_sgprs_per_simd / sgprs);
    }
 
    if (conf->num_vgprs) {
-      unsigned physical_vgprs = gpu_info->cu_info.num_physical_wave64_vgprs_per_simd * (64 / wave_size);
+      unsigned physical_vgprs = gpu_info->compiler_info.num_physical_wave64_vgprs_per_simd * (64 / wave_size);
       unsigned vgprs = align(conf->num_vgprs, wave_size == 32 ? 8 : 4);
       if (gfx_level >= GFX10_3) {
-         unsigned real_vgpr_gran = gpu_info->cu_info.num_physical_wave64_vgprs_per_simd / 64;
+         unsigned real_vgpr_gran = gpu_info->compiler_info.num_physical_wave64_vgprs_per_simd / 64;
          vgprs = util_align_npot(vgprs, real_vgpr_gran * (wave_size == 32 ? 2 : 1));
       }
       max_simd_waves = MIN2(max_simd_waves, physical_vgprs / vgprs);
    }
 
-   unsigned simd_per_cu_wgp = gpu_info->cu_info.num_simd_per_compute_unit;
+   unsigned simd_per_cu_wgp = gpu_info->compiler_info.num_simd_per_compute_unit;
    if (conf->wgp_mode)
       simd_per_cu_wgp *= 2;
 
@@ -3820,7 +3820,7 @@ radv_get_tess_wg_info(const struct radv_physical_device *pdev, const ac_nir_tess
 {
    const uint32_t lds_input_vertex_size = get_tcs_input_vertex_stride(tcs_num_lds_inputs);
 
-   ac_nir_compute_tess_wg_info(&pdev->info.cu_info, io_info, tcs_vertices_out, pdev->ge_wave_size, false,
+   ac_nir_compute_tess_wg_info(&pdev->info.compiler_info, io_info, tcs_vertices_out, pdev->ge_wave_size, false,
                                tcs_num_input_vertices, lds_input_vertex_size, 0, num_patches_per_wg, lds_size);
 }
 

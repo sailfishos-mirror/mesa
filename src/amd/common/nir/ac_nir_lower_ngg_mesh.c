@@ -91,7 +91,7 @@ typedef struct
 typedef struct
 {
    const ac_nir_lower_ngg_options *options;
-   const struct ac_cu_info *cu_info;
+   const struct ac_compiler_info *ac;
    bool vert_multirow_export;
    bool prim_multirow_export;
 
@@ -793,7 +793,7 @@ ms_prim_exp_arg_ch1(nir_builder *b, nir_def *invocation_index, nir_def *num_vtx,
    }
 
    return ac_nir_pack_ngg_prim_exp_arg(b, s->vertices_per_prim, indices, cull_flag,
-                                       s->cu_info->gfx_level);
+                                       s->ac->gfx_level);
 }
 
 static nir_def *
@@ -820,7 +820,7 @@ ms_prim_exp_arg_ch2(nir_builder *b, uint64_t outputs_mask, lower_ngg_ms_state *s
 
       if (outputs_mask & VARYING_BIT_LAYER) {
          nir_def *layer = nir_ishl_imm(b, s->out.outputs[VARYING_SLOT_LAYER][0],
-                                       s->cu_info->gfx_level >= GFX11 ? 0 : 17);
+                                       s->ac->gfx_level >= GFX11 ? 0 : 17);
          prim_exp_arg_ch2 = nir_ior(b, prim_exp_arg_ch2, layer);
       }
 
@@ -884,19 +884,19 @@ emit_ms_vertex(nir_builder *b, nir_def *index, nir_def *row, bool exports, bool 
    ms_emit_arrayed_outputs(b, index, per_vertex_outputs, s);
 
    if (exports) {
-      ac_nir_export_position(b, s->cu_info->gfx_level, s->options->export_clipdist_mask, false,
-                             false, !s->has_param_exports, false,
-                             s->per_vertex_outputs | VARYING_BIT_POS, &s->out, row);
+      ac_nir_export_position(b, s->ac->gfx_level, s->options->export_clipdist_mask, false, false,
+                             !s->has_param_exports, false, s->per_vertex_outputs | VARYING_BIT_POS,
+                             &s->out, row);
    }
 
    if (parameters) {
       /* Export generic attributes when there is no attribute ring. */
-      if (s->has_param_exports && !s->cu_info->has_attr_ring) {
+      if (s->has_param_exports && !s->ac->has_attr_ring) {
          ac_nir_export_parameters(b, s->vs_output_param_offset, per_vertex_outputs, 0, &s->out);
       }
 
       /* Also store special outputs to the attribute ring so PS can load them. */
-      if (s->cu_info->has_attr_ring && (per_vertex_outputs & MS_VERT_ARG_EXP_MASK))
+      if (s->ac->has_attr_ring && (per_vertex_outputs & MS_VERT_ARG_EXP_MASK))
          ms_emit_attribute_ring_output_stores(b, per_vertex_outputs & MS_VERT_ARG_EXP_MASK, index, s);
    }
 }
@@ -927,12 +927,12 @@ emit_ms_primitive(nir_builder *b, nir_def *index, nir_def *row, bool exports, bo
 
    if (parameters) {
       /* Export generic attributes when there is no attribute ring. */
-      if (s->has_param_exports && !s->cu_info->has_attr_ring) {
+      if (s->has_param_exports && !s->ac->has_attr_ring) {
          ac_nir_export_parameters(b, s->vs_output_param_offset, per_primitive_outputs, 0, &s->out);
       }
 
       /* Also store special outputs to the attribute ring so PS can load them. */
-      if (s->cu_info->has_attr_ring)
+      if (s->ac->has_attr_ring)
          ms_emit_attribute_ring_output_stores(b, per_primitive_outputs & MS_PRIM_ARG_EXP_MASK, index, s);
    }
 }
@@ -1004,7 +1004,7 @@ emit_ms_finale(nir_builder *b, lower_ngg_ms_state *s)
    ms_prim_gen_query(b, invocation_index, num_prm, s);
 
    nir_def *row_start = NULL;
-   if (s->cu_info->mesh_fast_launch_2)
+   if (s->ac->mesh_fast_launch_2)
       row_start = s->hw_workgroup_size <= s->wave_size ? nir_imm_int(b, 0) : nir_load_subgroup_id(b);
 
    /* Load vertex/primitive attributes from shared memory and
@@ -1030,7 +1030,7 @@ emit_ms_finale(nir_builder *b, lower_ngg_ms_state *s)
    const bool has_special_param_exports =
       (per_vertex_outputs & MS_VERT_ARG_EXP_MASK) ||
       (per_primitive_outputs & MS_PRIM_ARG_EXP_MASK);
-   const bool wait_attr_ring = has_special_param_exports && s->cu_info->has_attr_ring_wait_bug;
+   const bool wait_attr_ring = has_special_param_exports && s->ac->has_attr_ring_wait_bug;
 
    /* Export vertices. */
    if ((per_vertex_outputs & ~VARYING_BIT_POS) || !wait_attr_ring) {
@@ -1233,7 +1233,7 @@ ms_calculate_arrayed_output_layout(ms_out_mem_layout *l,
 }
 
 static ms_out_mem_layout
-ms_calculate_output_layout(const struct ac_cu_info *cu_info, unsigned api_shared_size,
+ms_calculate_output_layout(const struct ac_compiler_info *info, unsigned api_shared_size,
                            uint64_t per_vertex_output_mask, uint64_t per_primitive_output_mask,
                            uint64_t cross_invocation_output_access, unsigned max_vertices,
                            unsigned max_primitives, unsigned vertices_per_prim)
@@ -1246,7 +1246,7 @@ ms_calculate_output_layout(const struct ac_cu_info *cu_info, unsigned api_shared
       VARYING_BIT_PRIMITIVE_COUNT |
       VARYING_BIT_PRIMITIVE_INDICES | VARYING_BIT_CULL_PRIMITIVE;
 
-   const bool use_attr_ring = cu_info->has_attr_ring;
+   const bool use_attr_ring = info->has_attr_ring;
    const uint64_t attr_ring_per_vertex_output_mask =
       use_attr_ring ? per_vertex_output_mask & ~always_export_mask : 0;
    const uint64_t attr_ring_per_primitive_output_mask =
@@ -1352,7 +1352,7 @@ ac_nir_lower_ngg_mesh(nir_shader *shader, const ac_nir_lower_ngg_options *option
    unsigned max_primitives = shader->info.mesh.max_primitives_out;
 
    ms_out_mem_layout layout = ms_calculate_output_layout(
-      options->cu_info, shader->info.shared_size, per_vertex_outputs, per_primitive_outputs,
+      options->compiler_info, shader->info.shared_size, per_vertex_outputs, per_primitive_outputs,
       cross_invocation_access, max_vertices, max_primitives, vertices_per_prim);
 
    shader->info.shared_size = layout.lds.total_size;
@@ -1369,7 +1369,7 @@ ac_nir_lower_ngg_mesh(nir_shader *shader, const ac_nir_lower_ngg_options *option
                                  shader->info.workgroup_size[1] *
                                  shader->info.workgroup_size[2];
 
-   bool fast_launch_2 = options->cu_info->mesh_fast_launch_2;
+   bool fast_launch_2 = options->compiler_info->mesh_fast_launch_2;
 
    unsigned hw_workgroup_size = options->max_workgroup_size;
    lower_ngg_ms_state state = {
@@ -1384,7 +1384,7 @@ ac_nir_lower_ngg_mesh(nir_shader *shader, const ac_nir_lower_ngg_options *option
       .insert_layer_output =
          options->multiview && !(shader->info.outputs_written & VARYING_BIT_LAYER),
       .uses_cull_flags = uses_cull,
-      .cu_info = options->cu_info,
+      .ac = options->compiler_info,
       .vert_multirow_export = fast_launch_2 && max_vertices > hw_workgroup_size,
       .prim_multirow_export = fast_launch_2 && max_primitives > hw_workgroup_size,
       .vs_output_param_offset = options->vs_output_param_offset,

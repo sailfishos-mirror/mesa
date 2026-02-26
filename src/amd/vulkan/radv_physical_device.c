@@ -198,7 +198,7 @@ radv_shader_fp16_enabled(const struct radv_physical_device *pdev)
    /* GFX8 supports fp16, but not double rate packed math.  We don't enable
     * that by default because it can sometimes hurt perf.
     */
-   return pdev->info.cu_info.has_packed_math_16bit ||
+   return pdev->info.compiler_info.has_packed_math_16bit ||
           (pdev->info.gfx_level == GFX8 && instance->drirc.features.expose_float16_gfx8);
 }
 
@@ -212,7 +212,7 @@ radv_host_image_copy_enabled(const struct radv_physical_device *pdev)
 bool
 radv_enable_rt(const struct radv_physical_device *pdev)
 {
-   if (!pdev->info.cu_info.has_image_bvh_intersect_ray && !radv_emulate_rt(pdev))
+   if (!pdev->info.compiler_info.has_image_bvh_intersect_ray && !radv_emulate_rt(pdev))
       return false;
 
    if (pdev->use_llvm)
@@ -229,7 +229,7 @@ radv_emulate_rt(const struct radv_physical_device *pdev)
       return true;
 
    /* Do not force emulated RT on GPUs that have native support. */
-   return !pdev->info.cu_info.has_image_bvh_intersect_ray && instance->drirc.features.emulate_rt;
+   return !pdev->info.compiler_info.has_image_bvh_intersect_ray && instance->drirc.features.emulate_rt;
 }
 
 bool
@@ -283,7 +283,7 @@ radv_physical_device_init_cache_key(struct radv_physical_device *pdev)
 
    key->family = pdev->info.family;
    key->ptr_size = sizeof(void *);
-   key->conformant_trunc_coord = pdev->info.cu_info.conformant_trunc_coord;
+   key->conformant_trunc_coord = pdev->info.compiler_info.conformant_trunc_coord;
 
    key->clear_lds = instance->drirc.misc.clear_lds;
    key->cs_wave32 = pdev->cs_wave_size == 32;
@@ -308,7 +308,8 @@ radv_physical_device_init_cache_key(struct radv_physical_device *pdev)
    key->use_ngg = pdev->use_ngg;
    key->use_ngg_culling = pdev->use_ngg_culling;
    key->no_implicit_varying_subgroup_size = instance->drirc.debug.no_implicit_varying_subgroup_size;
-   key->mitigate_smem_oob = pdev->info.cu_info.has_smem_oob_access_bug && !(instance->debug_flags & RADV_DEBUG_NO_SMEM_MITIGATION);
+   key->mitigate_smem_oob =
+      pdev->info.compiler_info.has_smem_oob_access_bug && !(instance->debug_flags & RADV_DEBUG_NO_SMEM_MITIGATION);
    key->rt_cps = !!(instance->perftest_flags & RADV_PERFTEST_RT_CPS);
 }
 
@@ -856,8 +857,8 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .AMD_device_coherent_memory = pdev->info.has_l2_uncached,
       .AMD_draw_indirect_count = true,
       .AMD_gcn_shader = true,
-      .AMD_gpu_shader_half_float = pdev->info.cu_info.has_packed_math_16bit,
-      .AMD_gpu_shader_int16 = pdev->info.cu_info.has_packed_math_16bit,
+      .AMD_gpu_shader_half_float = pdev->info.compiler_info.has_packed_math_16bit,
+      .AMD_gpu_shader_int16 = pdev->info.compiler_info.has_packed_math_16bit,
       .AMD_memory_overallocation_behavior = true,
       .AMD_mixed_attachment_samples = true,
       .AMD_rasterization_order = pdev->info.has_out_of_order_rast,
@@ -882,7 +883,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .NV_compute_shader_derivatives = true,
       .NV_cooperative_matrix2 = radv_cooperative_matrix2_nv_enabled(pdev),
       .VALVE_mutable_descriptor_type = true,
-      .VALVE_shader_mixed_float_dot_product = pdev->info.cu_info.has_accelerated_dot_product,
+      .VALVE_shader_mixed_float_dot_product = pdev->info.compiler_info.has_accelerated_dot_product,
       .VALVE_video_encode_rgb_conversion =
          pdev->video_encode_enabled && pdev->info.vcn_ip_version >= VCN_2_0_0 && pdev->info.vcn_ip_version != VCN_2_2_0,
    };
@@ -958,7 +959,7 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .storageBuffer16BitAccess = true,
       .uniformAndStorageBuffer16BitAccess = true,
       .storagePushConstant16 = true,
-      .storageInputOutput16 = pdev->info.cu_info.has_packed_math_16bit,
+      .storageInputOutput16 = pdev->info.compiler_info.has_packed_math_16bit,
       .multiview = true,
       .multiviewGeometryShader = true,
       .multiviewTessellationShader = true,
@@ -1633,7 +1634,7 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
       radv_taskmesh_enabled(pdev) ? VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_TASK_BIT_EXT : 0;
    VkShaderStageFlags rt_stages = radv_enable_rt(pdev) ? RADV_RT_STAGE_BITS : 0;
 
-   bool accel_dot = pdev->info.cu_info.has_accelerated_dot_product;
+   bool accel_dot = pdev->info.compiler_info.has_accelerated_dot_product;
    bool gfx11plus = pdev->info.gfx_level >= GFX11;
 
    VkExtent2D vrs_texel_extent = radv_vrs_attachment_enabled(pdev) ? (VkExtent2D){8, 8} : (VkExtent2D){0, 0};
@@ -1934,21 +1935,21 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
       .shaderEngineCount = pdev->info.max_se,
       .shaderArraysPerEngineCount = pdev->info.max_sa_per_se,
       .computeUnitsPerShaderArray = pdev->info.min_good_cu_per_sa,
-      .simdPerComputeUnit = pdev->info.cu_info.num_simd_per_compute_unit,
-      .wavefrontsPerSimd = pdev->info.cu_info.max_waves_per_simd,
+      .simdPerComputeUnit = pdev->info.compiler_info.num_simd_per_compute_unit,
+      .wavefrontsPerSimd = pdev->info.compiler_info.max_waves_per_simd,
       .wavefrontSize = 64,
 
       /* SGPR. */
-      .sgprsPerSimd = pdev->info.cu_info.num_physical_sgprs_per_simd,
-      .minSgprAllocation = pdev->info.cu_info.min_sgpr_alloc,
-      .maxSgprAllocation = pdev->info.cu_info.max_sgpr_alloc,
-      .sgprAllocationGranularity = pdev->info.cu_info.sgpr_alloc_granularity,
+      .sgprsPerSimd = pdev->info.compiler_info.num_physical_sgprs_per_simd,
+      .minSgprAllocation = pdev->info.compiler_info.min_sgpr_alloc,
+      .maxSgprAllocation = pdev->info.compiler_info.max_sgpr_alloc,
+      .sgprAllocationGranularity = pdev->info.compiler_info.sgpr_alloc_granularity,
 
       /* VGPR. */
-      .vgprsPerSimd = pdev->info.cu_info.num_physical_wave64_vgprs_per_simd,
-      .minVgprAllocation = pdev->info.cu_info.min_wave64_vgpr_alloc,
-      .maxVgprAllocation = pdev->info.cu_info.max_vgpr_alloc,
-      .vgprAllocationGranularity = pdev->info.cu_info.wave64_vgpr_alloc_granularity,
+      .vgprsPerSimd = pdev->info.compiler_info.num_physical_wave64_vgprs_per_simd,
+      .minVgprAllocation = pdev->info.compiler_info.min_wave64_vgpr_alloc,
+      .maxVgprAllocation = pdev->info.compiler_info.max_vgpr_alloc,
+      .vgprAllocationGranularity = pdev->info.compiler_info.wave64_vgpr_alloc_granularity,
 
       /* VK_AMD_shader_core_properties2 */
       .shaderCoreFeatures = 0,

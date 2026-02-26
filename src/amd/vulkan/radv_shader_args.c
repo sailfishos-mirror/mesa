@@ -590,7 +590,7 @@ declare_shader_args(const struct radv_device *device, const struct radv_graphics
          ac_add_arg(&args->ac, AC_ARG_SGPR, 1, AC_ARG_VALUE, &args->ac.scratch_offset);
       }
 
-      if (pdev->info.cu_info.local_invocation_ids_packed) {
+      if (pdev->info.compiler_info.local_invocation_ids_packed) {
          ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.local_invocation_ids_packed);
       } else {
          ac_add_arg(&args->ac, AC_ARG_VGPR, 1, AC_ARG_VALUE, &args->ac.local_invocation_id_x);

@@ -575,8 +575,9 @@ radv_nir_apply_pipeline_layout(nir_shader *shader, struct radv_device *device, c
       .combined_image_sampler_desc_size = radv_get_combined_image_sampler_desc_size(pdev),
       .combined_image_sampler_offset = radv_get_combined_image_sampler_offset(pdev),
       .disable_aniso_single_level = pdev->cache_key.disable_aniso_single_level,
-      .has_image_load_dcc_bug = pdev->info.cu_info.has_image_load_dcc_bug,
-      .disable_tg4_trunc_coord = !pdev->info.cu_info.conformant_trunc_coord && !pdev->cache_key.disable_trunc_coord,
+      .has_image_load_dcc_bug = pdev->info.compiler_info.has_image_load_dcc_bug,
+      .disable_tg4_trunc_coord =
+         !pdev->info.compiler_info.conformant_trunc_coord && !pdev->cache_key.disable_trunc_coord,
       .args = &stage->args,
       .info = &stage->info,
       .layout = &stage->layout,

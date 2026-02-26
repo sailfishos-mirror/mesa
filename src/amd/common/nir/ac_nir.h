@@ -61,10 +61,10 @@ typedef struct nir_xfb_info nir_xfb_info;
 /* Executed by ac_nir_cull when the current primitive is accepted. */
 typedef void (*ac_nir_cull_accepted)(nir_builder *b, void *state);
 
-struct ac_cu_info;
+struct ac_compiler_info;
 
 void
-ac_nir_set_options(const struct ac_cu_info *info, bool use_llvm,
+ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
                    nir_shader_compiler_options *options);
 
 nir_def *
@@ -158,11 +158,12 @@ ac_nir_lower_tes_inputs_to_mem(nir_shader *shader,
                                ac_nir_map_io_driver_location map);
 
 void
-ac_nir_compute_tess_wg_info(const struct ac_cu_info *info, const ac_nir_tess_io_info *io_info,
-                            unsigned tcs_vertices_out, unsigned wave_size, bool tess_uses_primid,
+ac_nir_compute_tess_wg_info(const struct ac_compiler_info *info,
+                            const ac_nir_tess_io_info *io_info, unsigned tcs_vertices_out,
+                            unsigned wave_size, bool tess_uses_primid,
                             unsigned num_tcs_input_cp, unsigned lds_input_vertex_size,
-                            unsigned num_remapped_tess_level_outputs, unsigned *num_patches_per_wg,
-                            unsigned *lds_size);
+                            unsigned num_remapped_tess_level_outputs,
+                            unsigned *num_patches_per_wg, unsigned *lds_size);
 
 bool
 ac_nir_lower_es_outputs_to_mem(nir_shader *shader,
@@ -181,7 +182,7 @@ bool
 ac_nir_lower_indirect_derefs(nir_shader *shader);
 
 typedef struct {
-   const struct ac_cu_info *cu_info;
+   const struct ac_compiler_info *compiler_info;
 
    unsigned max_workgroup_size;
    unsigned wave_size;

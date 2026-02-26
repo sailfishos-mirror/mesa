@@ -75,7 +75,7 @@ ac_null_device_create(struct radeon_info *gpu_info, const char *family)
 
    gpu_info->gart_page_size = 4096;
 
-   ac_fill_cu_info(gpu_info, NULL);
+   ac_fill_compiler_info(gpu_info, NULL);
 
    gpu_info->family_overridden = true;
 

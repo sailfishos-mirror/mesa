@@ -711,7 +711,7 @@ radv_pipeline_init_vertex_input_state(const struct radv_device *device, struct r
 
    if (vs->info.vs.use_per_attribute_vb_descs) {
       const enum amd_gfx_level gfx_level = pdev->info.gfx_level;
-      const bool alpha_adjust = pdev->info.cu_info.has_vtx_format_alpha_adjust_bug;
+      const bool alpha_adjust = pdev->info.compiler_info.has_vtx_format_alpha_adjust_bug;
       const struct ac_vtx_format_info *vtx_info_table = ac_get_vtx_format_info_table(gfx_level, alpha_adjust);
 
       dynamic->vertex_input.bindings_match_attrib = true;
@@ -1828,8 +1828,8 @@ radv_generate_ps_epilog_key(const struct radv_device *device, const struct radv_
                                          state->alpha_to_coverage_via_mrtz);
 
    key.spi_shader_col_format = col_format;
-   key.color_is_int8 = pdev->info.cu_info.has_cb_lt16bit_int_clamp_bug ? is_int8 : 0;
-   key.color_is_int10 = pdev->info.cu_info.has_cb_lt16bit_int_clamp_bug ? is_int10 : 0;
+   key.color_is_int8 = pdev->info.compiler_info.has_cb_lt16bit_int_clamp_bug ? is_int8 : 0;
+   key.color_is_int10 = pdev->info.compiler_info.has_cb_lt16bit_int_clamp_bug ? is_int10 : 0;
    key.enable_mrt_output_nan_fixup = instance->drirc.debug.enable_mrt_output_nan_fixup ? is_float32 : 0;
    key.colors_written = state->colors_written;
    key.mrt0_is_dual_src = state->mrt0_is_dual_src && key.colors_needed & 0xf;
@@ -1960,8 +1960,8 @@ radv_generate_graphics_state_key(const struct radv_device *device, const struct 
             key.vi.instance_rate_inputs |= 1u << i;
          }
 
-         const struct ac_vtx_format_info *vtx_info =
-            ac_get_vtx_format_info(pdev->info.gfx_level, pdev->info.cu_info.has_vtx_format_alpha_adjust_bug, format);
+         const struct ac_vtx_format_info *vtx_info = ac_get_vtx_format_info(
+            pdev->info.gfx_level, pdev->info.compiler_info.has_vtx_format_alpha_adjust_bug, format);
          unsigned attrib_align = vtx_info->chan_byte_size ? vtx_info->chan_byte_size : vtx_info->element_size;
 
          /* If offset is misaligned, then the buffer offset must be too. Just skip updating
@@ -2015,7 +2015,7 @@ radv_generate_graphics_state_key(const struct radv_device *device, const struct 
 
    key.ps.force_vrs_enabled = device->force_vrs_enabled && !radv_is_static_vrs_enabled(state);
 
-   if ((radv_is_vrs_enabled(state) || key.ps.force_vrs_enabled) && pdev->info.cu_info.has_vrs_frag_pos_z_bug)
+   if ((radv_is_vrs_enabled(state) || key.ps.force_vrs_enabled) && pdev->info.compiler_info.has_vrs_frag_pos_z_bug)
       key.adjust_frag_coord_z = true;
 
    if (radv_pipeline_needs_ps_epilog(state, lib_flags))
@@ -2376,15 +2376,14 @@ radv_create_gs_copy_shader(struct radv_device *device, struct vk_pipeline_cache 
    gs_copy_stage.info.user_sgprs_locs = gs_copy_stage.args.user_sgprs_locs;
    gs_copy_stage.info.inline_push_constant_mask = gs_copy_stage.args.ac.inline_push_const_mask;
 
-   NIR_PASS(_, nir, ac_nir_lower_intrinsics_to_args, &gs_copy_stage.args.ac,
-            &(ac_nir_lower_intrinsics_to_args_options){
-               .gfx_level = pdev->info.gfx_level,
-               .has_ls_vgpr_init_bug = pdev->info.cu_info.has_ls_vgpr_init_bug,
-               .hw_stage = AC_HW_VERTEX_SHADER,
-               .wave_size = 64,
-               .workgroup_size = 64,
-               .use_llvm = radv_use_llvm_for_stage(pdev, MESA_SHADER_VERTEX)
-            });
+   NIR_PASS(
+      _, nir, ac_nir_lower_intrinsics_to_args, &gs_copy_stage.args.ac,
+      &(ac_nir_lower_intrinsics_to_args_options){.gfx_level = pdev->info.gfx_level,
+                                                 .has_ls_vgpr_init_bug = pdev->info.compiler_info.has_ls_vgpr_init_bug,
+                                                 .hw_stage = AC_HW_VERTEX_SHADER,
+                                                 .wave_size = 64,
+                                                 .workgroup_size = 64,
+                                                 .use_llvm = radv_use_llvm_for_stage(pdev, MESA_SHADER_VERTEX)});
    NIR_PASS(_, nir, radv_nir_lower_abi, pdev->info.gfx_level, &gs_copy_stage, gfx_state, pdev->info.address32_hi);
 
    NIR_PASS(_, nir, ac_nir_lower_global_access);

@@ -1651,11 +1651,12 @@ ac_nir_lower_tes_inputs_to_mem(nir_shader *shader,
 }
 
 void
-ac_nir_compute_tess_wg_info(const struct ac_cu_info *info, const ac_nir_tess_io_info *io_info,
-                            unsigned tcs_vertices_out, unsigned wave_size, bool tess_uses_primid,
+ac_nir_compute_tess_wg_info(const struct ac_compiler_info *info,
+                            const ac_nir_tess_io_info *io_info, unsigned tcs_vertices_out,
+                            unsigned wave_size, bool tess_uses_primid,
                             unsigned num_tcs_input_cp, unsigned lds_input_vertex_size,
-                            unsigned num_remapped_tess_level_outputs, unsigned *num_patches_per_wg,
-                            unsigned *lds_size)
+                            unsigned num_remapped_tess_level_outputs,
+                            unsigned *num_patches_per_wg, unsigned *lds_size)
 {
    unsigned lds_per_patch = num_tcs_input_cp * lds_input_vertex_size +
                             get_lds_output_patch_stride(io_info, tcs_vertices_out);

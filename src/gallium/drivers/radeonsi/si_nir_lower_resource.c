@@ -125,7 +125,7 @@ static nir_def *fixup_image_desc(nir_builder *b, nir_def *rsrc, bool uses_store,
    }
 
    if (!uses_store &&
-       screen->info.cu_info.has_image_load_dcc_bug &&
+       screen->info.compiler_info.has_image_load_dcc_bug &&
        screen->always_allow_dcc_stores) {
       nir_def *tmp = nir_channel(b, rsrc, 6);
       tmp = nir_iand_imm(b, tmp, C_00A018_WRITE_COMPRESS_ENABLE);
@@ -491,7 +491,7 @@ static nir_def *fixup_sampler_desc(nir_builder *b,
 {
    const struct si_shader_selector *sel = s->shader->selector;
 
-   if (tex->op != nir_texop_tg4 || sel->screen->info.cu_info.conformant_trunc_coord)
+   if (tex->op != nir_texop_tg4 || sel->screen->info.compiler_info.conformant_trunc_coord)
       return sampler;
 
    /* Set TRUNC_COORD=0 for textureGather(). */

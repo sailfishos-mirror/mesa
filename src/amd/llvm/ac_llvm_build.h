@@ -130,7 +130,7 @@ struct ac_llvm_context {
    LLVMValueRef empty_md;
    LLVMValueRef three_md;
 
-   const struct ac_cu_info *info;
+   const struct ac_compiler_info *info;
    enum amd_gfx_level gfx_level;
 
    unsigned wave_size;
@@ -145,7 +145,7 @@ struct ac_llvm_context {
 };
 
 void ac_llvm_context_init(struct ac_llvm_context *ctx, struct ac_llvm_compiler *compiler,
-                          const struct ac_cu_info *info, enum ac_float_mode float_mode,
+                          const struct ac_compiler_info *info, enum ac_float_mode float_mode,
                           unsigned wave_size, bool exports_color_null, bool exports_mrtz);
 
 void ac_llvm_context_dispose(struct ac_llvm_context *ctx);

@@ -3673,7 +3673,7 @@ radv_emit_vgt_shader_config_gfx12(struct radv_cmd_buffer *cmd_buffer, const stru
 {
    ASSERTED const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    ASSERTED const struct radv_physical_device *pdev = radv_device_physical(device);
-   assert(pdev->info.cu_info.has_ngg_passthru_no_msg);
+   assert(pdev->info.compiler_info.has_ngg_passthru_no_msg);
 
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint32_t stages = 0;
@@ -3719,9 +3719,10 @@ radv_emit_vgt_shader_config_gfx6(struct radv_cmd_buffer *cmd_buffer, const struc
    }
 
    if (key->ngg) {
-      stages |= S_028B54_PRIMGEN_EN(1) | S_028B54_NGG_WAVE_ID_EN(key->ngg_wave_id_en) |
-                S_028B54_PRIMGEN_PASSTHRU_EN(key->ngg_passthrough) |
-                S_028B54_PRIMGEN_PASSTHRU_NO_MSG(key->ngg_passthrough && pdev->info.cu_info.has_ngg_passthru_no_msg);
+      stages |=
+         S_028B54_PRIMGEN_EN(1) | S_028B54_NGG_WAVE_ID_EN(key->ngg_wave_id_en) |
+         S_028B54_PRIMGEN_PASSTHRU_EN(key->ngg_passthrough) |
+         S_028B54_PRIMGEN_PASSTHRU_NO_MSG(key->ngg_passthrough && pdev->info.compiler_info.has_ngg_passthru_no_msg);
    } else if (key->gs) {
       stages |= S_028B54_VS_EN(V_028B54_VS_STAGE_COPY_SHADER);
    }
@@ -5929,7 +5930,7 @@ lookup_vs_prolog(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader *v
    /* The instance ID input VGPR is placed differently when as_ls=true. as_ls is also needed to
     * workaround the LS VGPR initialization bug.
     */
-   bool as_ls = vs_shader->info.vs.as_ls && (instance_rate_inputs || pdev->info.cu_info.has_ls_vgpr_init_bug);
+   bool as_ls = vs_shader->info.vs.as_ls && (instance_rate_inputs || pdev->info.compiler_info.has_ls_vgpr_init_bug);
 
    /* try to use a pre-compiled prolog first */
    struct radv_shader_part *prolog = NULL;
@@ -9194,7 +9195,7 @@ radv_CmdSetVertexInputEXT(VkCommandBuffer commandBuffer, uint32_t vertexBindingD
    vertex_input.bindings_match_attrib = true;
 
    enum amd_gfx_level chip = pdev->info.gfx_level;
-   bool alpha_adjust = pdev->info.cu_info.has_vtx_format_alpha_adjust_bug;
+   bool alpha_adjust = pdev->info.compiler_info.has_vtx_format_alpha_adjust_bug;
    const struct ac_vtx_format_info *vtx_info_table = ac_get_vtx_format_info_table(chip, alpha_adjust);
 
    for (unsigned i = 0; i < vertexAttributeDescriptionCount; i++) {

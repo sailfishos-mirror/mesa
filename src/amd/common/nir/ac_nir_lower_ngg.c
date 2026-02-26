@@ -28,7 +28,7 @@ typedef struct
 typedef struct
 {
    const ac_nir_lower_ngg_options *options;
-   const struct ac_cu_info *ac;
+   const struct ac_compiler_info *ac;
 
    nir_variable *position_value_var;
    nir_variable *prim_exp_arg_var;
@@ -1498,7 +1498,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
    nir_variable *gs_exported_var = nir_local_variable_create(impl, glsl_bool_type(), "gs_exported");
 
    const bool wait_attr_ring =
-      options->has_param_exports && options->cu_info->has_attr_ring_wait_bug;
+      options->has_param_exports && options->compiler_info->has_attr_ring_wait_bug;
    bool streamout_enabled = shader->xfb_info && !options->disable_streamout;
    bool has_user_edgeflags =
       options->use_edgeflags && (shader->info.outputs_written & VARYING_BIT_EDGE);
@@ -1520,7 +1520,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
 
    lower_ngg_nogs_state state = {
       .options = options,
-      .ac = options->cu_info,
+      .ac = options->compiler_info,
       .early_prim_export = early_prim_export,
       .streamout_enabled = streamout_enabled,
       .position_value_var = position_value_var,
@@ -1587,7 +1587,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
 
    if (!options->can_cull) {
       /* Newer chips can use PRIMGEN_PASSTHRU_NO_MSG to skip gs_alloc_req for NGG passthrough. */
-      if (!(options->passthrough && options->cu_info->has_ngg_passthru_no_msg)) {
+      if (!(options->passthrough && options->compiler_info->has_ngg_passthru_no_msg)) {
          /* Allocate export space on wave 0 - confirm to the HW that we want to use all possible space */
          nir_if *if_wave_0 = nir_push_if(b, nir_ieq_imm(b, nir_load_subgroup_id(b), 0));
          {
@@ -1634,7 +1634,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
       /* Wait for GS threads to store primitive ID in LDS. */
       nir_barrier(b, .execution_scope = SCOPE_WORKGROUP, .memory_scope = SCOPE_WORKGROUP,
                             .memory_semantics = NIR_MEMORY_ACQ_REL, .memory_modes = nir_var_mem_shared);
-   } else if (options->export_primitive_id_per_prim && options->cu_info->has_attr_ring) {
+   } else if (options->export_primitive_id_per_prim && options->compiler_info->has_attr_ring) {
       emit_ngg_nogs_prim_id_store_per_prim_to_attr_ring(b, &state);
    }
 
@@ -1645,7 +1645,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
     * scheduling.
     */
    nir_def *num_es_threads = NULL;
-   if (options->cu_info->has_attr_ring && options->can_cull) {
+   if (options->compiler_info->has_attr_ring && options->can_cull) {
       nir_def *es_accepted_mask =
          nir_ballot(b, 1, options->wave_size, nir_load_var(b, es_accepted_var));
       num_es_threads = nir_bit_count(b, es_accepted_mask);
@@ -1724,7 +1724,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
                           options->write_pos_to_clipvertex, !options->has_param_exports,
                           options->force_vrs, export_outputs, &state.out, NULL);
 
-   if (options->has_param_exports && !options->cu_info->has_attr_ring) {
+   if (options->has_param_exports && !options->compiler_info->has_attr_ring) {
       ac_nir_export_parameters(b, options->vs_output_param_offset,
                                b->shader->info.outputs_written,
                                b->shader->info.outputs_written_16bit,
@@ -1734,7 +1734,7 @@ ac_nir_lower_ngg_nogs(nir_shader *shader, const ac_nir_lower_ngg_options *option
    if (if_pos_exports)
       nir_pop_if(b, if_pos_exports);
 
-   if (options->has_param_exports && options->cu_info->has_attr_ring) {
+   if (options->has_param_exports && options->compiler_info->has_attr_ring) {
       if (!pos_exports_in_cf) {
          b->cursor = nir_after_cf_node(&if_es_thread->cf_node);
          ac_nir_create_output_phis(b, b->shader->info.outputs_written, b->shader->info.outputs_written_16bit, &state.out);

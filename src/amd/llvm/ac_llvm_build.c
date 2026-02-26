@@ -37,7 +37,7 @@ struct ac_llvm_flow {
  * The caller is responsible for initializing ctx::module and ctx::builder.
  */
 void ac_llvm_context_init(struct ac_llvm_context *ctx, struct ac_llvm_compiler *compiler,
-                          const struct ac_cu_info *info, enum ac_float_mode float_mode,
+                          const struct ac_compiler_info *info, enum ac_float_mode float_mode,
                           unsigned wave_size, bool exports_color_null, bool exports_mrtz)
 {
    ctx->context = LLVMContextCreate();

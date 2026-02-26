@@ -926,7 +926,7 @@ static unsigned get_tcs_wg_output_mem_size(uint32_t num_tcs_output_cp, uint32_t 
           mem_one_perpatch_output * num_mem_tcs_patch_outputs;
 }
 
-uint32_t ac_compute_num_tess_patches(const struct ac_cu_info *info, uint32_t num_tcs_input_cp,
+uint32_t ac_compute_num_tess_patches(const struct ac_compiler_info *info, uint32_t num_tcs_input_cp,
                                      uint32_t num_tcs_output_cp, uint32_t num_mem_tcs_outputs,
                                      uint32_t num_mem_tcs_patch_outputs, uint32_t lds_per_patch,
                                      uint32_t wave_size, bool tess_uses_primid)

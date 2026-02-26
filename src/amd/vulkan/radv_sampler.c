@@ -201,7 +201,7 @@ radv_sampler_init(struct radv_device *device, struct radv_sampler *sampler, cons
    unsigned filter_mode = radv_tex_filter_mode(sampler->vk.reduction_mode);
    unsigned depth_compare_func = V_008F30_SQ_TEX_DEPTH_COMPARE_NEVER;
    bool trunc_coord = ((pCreateInfo->minFilter == VK_FILTER_NEAREST && pCreateInfo->magFilter == VK_FILTER_NEAREST) ||
-                       pdev->info.cu_info.conformant_trunc_coord) &&
+                       pdev->info.compiler_info.conformant_trunc_coord) &&
                       !instance->drirc.debug.disable_trunc_coord;
    bool uses_border_color = pCreateInfo->addressModeU == VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER ||
                             pCreateInfo->addressModeV == VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER ||

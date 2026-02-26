@@ -237,7 +237,7 @@ enum ac_descriptor_type
    AC_DESC_PLANE_2,
 };
 
-struct ac_cu_info;
+struct ac_compiler_info;
 
 unsigned ac_get_spi_shader_z_format(bool writes_z, bool writes_stencil, bool writes_samplemask,
                                     bool writes_mrt0_alpha);
@@ -286,7 +286,7 @@ unsigned ac_compute_lshs_workgroup_size(enum amd_gfx_level gfx_level, mesa_shade
 unsigned ac_compute_ngg_workgroup_size(unsigned es_verts, unsigned gs_inst_prims,
                                        unsigned max_vtx_out, unsigned prim_amp_factor);
 
-uint32_t ac_compute_num_tess_patches(const struct ac_cu_info *info, uint32_t num_tcs_input_cp,
+uint32_t ac_compute_num_tess_patches(const struct ac_compiler_info *info, uint32_t num_tcs_input_cp,
                                      uint32_t num_tcs_output_cp, uint32_t num_mem_tcs_outputs,
                                      uint32_t num_mem_tcs_patch_outputs, uint32_t lds_per_patch,
                                      uint32_t wave_size, bool tess_uses_primid);
