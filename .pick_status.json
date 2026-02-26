@@ -5524,7 +5524,7 @@
         "description": "zink: fix format conversion logic for the alpha emulation case",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "252bff0f487763d11f0e4a995be0c42070751d87",
         "notes": null
