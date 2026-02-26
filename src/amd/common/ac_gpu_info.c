@@ -339,6 +339,10 @@ ac_fill_cu_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_
       info->drm_minor >= 52 && device_info &&
       device_info->ids_flags & AMDGPU_IDS_FLAGS_CONFORMANT_TRUNC_COORD;
 
+   cu_info->has_attr_ring = info->gfx_level >= GFX11;
+
+   cu_info->mesh_fast_launch_2 = info->mesh_fast_launch_2;
+
    cu_info->has_gfx6_mrt_export_bug =
       info->family == CHIP_TAHITI || info->family == CHIP_PITCAIRN || info->family == CHIP_VERDE;
    cu_info->has_vtx_format_alpha_adjust_bug = info->gfx_level <= GFX8 && info->family != CHIP_STONEY;
@@ -369,6 +373,22 @@ ac_fill_cu_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_
 
    cu_info->has_vrs_frag_pos_z_bug =
       info->family == CHIP_NAVI21 || info->family == CHIP_NAVI22 || info->family == CHIP_VANGOGH;
+
+   /* Some GFX10 chips can hang when NGG exports zero vertices and primitives.
+    * The workaround is to always export a single degenerate triangle.
+    */
+   cu_info->has_ngg_fully_culled_bug = info->gfx_level == GFX10;
+
+   /* The hw starts culling after all exports are finished,
+    * not when all waves in an NGG workgroup are finished,
+    * and if all primitives are culled, the hw deallocates the attribute ring
+    * for the NGG workgroup and reuses it for next one while the previous NGG
+    * workgroup might still be issuing attribute stores.
+    * When there are 2 NGG workgroups in the system with the same attribute ring address,
+    * attributes may be corrupted.
+    * The workaround is to issue and wait for attribute stores before the last export.
+    */
+   cu_info->has_attr_ring_wait_bug = info->gfx_level == GFX11 || info->gfx_level == GFX11_5;
 }
 
 enum ac_query_gpu_info_result
@@ -1155,23 +1175,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->has_taskmesh_indirect0_bug = info->gfx_level == GFX10_3 &&
                                       info->mec_fw_version < 100;
 
-   /* Some GFX10 chips can hang when NGG exports zero vertices and primitives.
-    * The workaround is to always export a single degenerate triangle.
-    */
-   info->has_ngg_fully_culled_bug = info->gfx_level == GFX10;
-
    info->has_export_conflict_bug = info->gfx_level == GFX11;
-
-   /* The hw starts culling after all exports are finished,
-    * not when all waves in an NGG workgroup are finished,
-    * and if all primitives are culled, the hw deallocates the attribute ring
-    * for the NGG workgroup and reuses it for next one while the previous NGG
-    * workgroup might still be issuing attribute stores.
-    * When there are 2 NGG workgroups in the system with the same attribute ring address,
-    * attributes may be corrupted.
-    * The workaround is to issue and wait for attribute stores before the last export.
-    */
-   info->has_attr_ring_wait_bug = info->gfx_level == GFX11 || info->gfx_level == GFX11_5;
 
    /* On GFX8-9, CP DMA doesn't support NULL PRT pages:
     * it doesn't read 0 and doesn't discard writes, causing GPU hangs.
@@ -1379,6 +1383,8 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    /* On GFX10.3, the polarity of AUTO_FLUSH_MODE is inverted. */
    info->has_sqtt_auto_flush_mode_bug = info->gfx_level == GFX10_3;
 
+   info->mesh_fast_launch_2 = info->gfx_level >= GFX11;
+
    ac_fill_cu_info(info, &device_info);
 
    /* BIG_PAGE is supported since gfx10.3 and requires VRAM. VRAM is only guaranteed
@@ -1510,8 +1516,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       info->pos_ring_offset = attribute_ring_size;
       info->prim_ring_offset = info->pos_ring_offset + pos_ring_size;
       info->total_attribute_pos_prim_ring_size = info->prim_ring_offset + prim_ring_size;
-
-      info->has_attr_ring = info->attribute_ring_size_per_se > 0;
    }
 
    if (info->gfx_level >= GFX11 && (info->userq_ip_mask & (1 << AMD_IP_GFX))) {
@@ -1648,8 +1652,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       info->rt_ip_version = RT_1_1;
 
    set_custom_cu_en_mask(info);
-
-   info->mesh_fast_launch_2 = info->gfx_level >= GFX11;
 
    const char *ib_filename = debug_get_option("AMD_PARSE_IB", NULL);
    if (ib_filename) {

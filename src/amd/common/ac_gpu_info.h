@@ -164,6 +164,9 @@ struct ac_cu_info {
     */
    uint32_t conformant_trunc_coord : 1;
 
+   uint32_t has_attr_ring : 1;
+   uint32_t mesh_fast_launch_2 : 1;
+
    /* Some GFX6 GPUs have a bug where it only looks at the x writemask component. */
    uint32_t has_gfx6_mrt_export_bug : 1;
    /* Pre-GFX9: A bug where the alpha component of 10_10_10_2 formats is always unsigned.*/
@@ -178,8 +181,12 @@ struct ac_cu_info {
    uint32_t has_cb_lt16bit_int_clamp_bug : 1;
    /* GFX10.3: whether frag_pos.z needs adjusting when VRS is used. */
    uint32_t has_vrs_frag_pos_z_bug : 1;
+   /* GFX10: hang when NGG exports zero vertices and primitives. */
+   uint32_t has_ngg_fully_culled_bug : 1;
+   /* GFX11-11.5: require wait between attribute stores and the final export. */
+   uint32_t has_attr_ring_wait_bug : 1;
 
-   uint32_t reserved : 12;
+   uint32_t reserved : 8;
 };
 
 struct radeon_info {
@@ -259,9 +266,7 @@ struct radeon_info {
    bool has_sqtt_auto_flush_mode_bug;
    bool never_send_perfcounter_stop;
    bool discardable_allows_big_page;
-   bool has_ngg_fully_culled_bug;
    bool has_export_conflict_bug;
-   bool has_attr_ring_wait_bug;
    bool cp_dma_supports_sparse;
    bool has_vrs_ds_export_bug;
    bool has_taskmesh_indirect0_bug;
@@ -416,7 +421,6 @@ struct radeon_info {
    uint32_t pos_ring_offset;              /* GFX12+ */
    uint32_t prim_ring_offset;             /* GFX12+ */
    uint32_t total_attribute_pos_prim_ring_size; /* GFX11+ */
-   bool has_attr_ring;
 
    /* Tessellation rings. */
    uint32_t hs_offchip_param;
