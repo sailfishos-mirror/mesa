@@ -87,7 +87,7 @@ Eric Engestrom (5):
 - docs: add sha sum for 26.0.0
 - .pick_status.json: Update to 03d2cc2b2ae5341409ee1fab74e98134a6df0511
 - bin/gen_release_notes: fix support for python 3.14
-- pick-ui: add \`Backport-to: *` as a synonym to \`Cc: mesa-stable`
+- pick-ui: add \`Backport-to: \*` as a synonym to \`Cc: mesa-stable`
 - .pick_status.json: Mark 7dd7731ac710b0c7213f6bb466b33f62eca80604 as denominated
 
 Faith Ekstrand (6):
