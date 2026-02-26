@@ -464,7 +464,7 @@ emit_depthstencil_clear(struct radv_cmd_buffer *cmd_buffer, VkClearDepthStencilV
    VkResult result;
 
    const bool need_hiz_expand =
-      iview && iview->image->hiz_valid_offset && radv_is_clear_rect_full(iview, clear_rect, view_mask);
+      iview && radv_image_has_hiz_metadata(iview->image) && radv_is_clear_rect_full(iview, clear_rect, view_mask);
 
    if (need_hiz_expand && pre_flush) {
       assert(pdev->info.gfx_level == GFX12);

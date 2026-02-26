@@ -5054,10 +5054,10 @@ radv_update_hiz_metadata(struct radv_cmd_buffer *cmd_buffer, struct radv_image *
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   if (!image->hiz_valid_offset)
+   if (!radv_image_has_hiz_metadata(image))
       return;
 
-   const uint64_t va = radv_get_hiz_valid_va(image, range->baseMipLevel);
+   const uint64_t va = radv_get_hiz_metadata_va(image, range->baseMipLevel);
    const uint32_t level_count = vk_image_subresource_level_count(&image->vk, range);
 
    ASSERTED unsigned cdw_end =
@@ -5678,7 +5678,7 @@ radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
    if (pdev->gfx12_hiz_wa != RADV_GFX12_HIZ_WA_FULL)
       return;
 
-   if (!iview || !iview->image->hiz_valid_offset)
+   if (!iview || !radv_image_has_hiz_metadata(iview->image))
       return;
 
    struct vk_depth_stencil_state ds = d->vk.ds;
@@ -5706,7 +5706,7 @@ radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
          radv_update_hiz_metadata(cmd_buffer, iview->image, &range, false);
       }
    } else {
-      const uint64_t va = radv_get_hiz_valid_va(iview->image, iview->vk.base_mip_level);
+      const uint64_t va = radv_get_hiz_metadata_va(iview->image, iview->vk.base_mip_level);
 
       ac_emit_cp_cond_exec(cmd_buffer->cs->b, pdev->info.gfx_level, va, num_dwords);
 
@@ -9706,7 +9706,7 @@ radv_CmdExecuteCommands(VkCommandBuffer commandBuffer, uint32_t commandBufferCou
                const struct radv_rendering_state *render = &primary->state.render;
                const struct radv_image_view *iview = render->ds_att.iview;
 
-               if (iview && iview->image->hiz_valid_offset) {
+               if (iview && radv_image_has_hiz_metadata(iview->image)) {
                   /* On GFX12, if the HiZ workaround using metadata is enabled, we need to consider
                    * that any of the draws in the secondary command buffer could trigger the issue
                    * and HiZ needs to be disabled completely.
@@ -14351,7 +14351,7 @@ radv_handle_depth_image_transition(struct radv_cmd_buffer *cmd_buffer, struct ra
    const struct radv_physical_device *pdev = radv_device_physical(device);
 
    if (pdev->info.gfx_level >= GFX12) {
-      if (!image->hiz_valid_offset)
+      if (!radv_image_has_hiz_metadata(image))
          return;
 
       if (src_layout == VK_IMAGE_LAYOUT_UNDEFINED || src_layout == VK_IMAGE_LAYOUT_ZERO_INITIALIZED_EXT) {

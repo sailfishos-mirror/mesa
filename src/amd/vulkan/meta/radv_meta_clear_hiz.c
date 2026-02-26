@@ -99,7 +99,7 @@ radv_clear_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, con
    VkResult result;
 
    /* Clearing HiZ should only be needed to implement a workaround on GFX12. */
-   assert(image->hiz_valid_offset);
+   assert(radv_image_has_hiz_metadata(image));
 
    result = get_clear_hiz_pipeline(device, image, &pipeline, &layout);
    if (result != VK_SUCCESS) {
