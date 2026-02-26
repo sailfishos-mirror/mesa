@@ -769,13 +769,6 @@ v3dX(emit_rcl)(struct v3d_job *job)
 #if V3D_VERSION >= 71
                 config.log2_tile_width = log2_tile_size(job->tile_desc.width);
                 config.log2_tile_height = log2_tile_size(job->tile_desc.height);
-
-                /* FIXME: ideallly we would like next assert on the packet header (as is
-                 * general, so also applies to GL). We would need to expand
-                 * gen_pack_header for that.
-                 */
-                assert(config.log2_tile_width == config.log2_tile_height ||
-                       config.log2_tile_width == config.log2_tile_height + 1);
 #endif
 
         }

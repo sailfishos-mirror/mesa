@@ -74,13 +74,6 @@ v3dX(start_binning)(struct v3d_context *v3d, struct v3d_job *job)
 
                 config.log2_tile_width = log2_tile_size(job->tile_desc.width);
                 config.log2_tile_height = log2_tile_size(job->tile_desc.height);
-
-                /* FIXME: ideallly we would like next assert on the packet header (as is
-                 * general, so also applies to GL). We would need to expand
-                 * gen_pack_header for that.
-                 */
-                assert(config.log2_tile_width == config.log2_tile_height ||
-                       config.log2_tile_width == config.log2_tile_height + 1);
         }
 #endif
 
