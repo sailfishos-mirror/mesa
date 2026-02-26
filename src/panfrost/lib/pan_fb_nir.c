@@ -42,9 +42,9 @@ nir_alu_type_for_data_type(enum pan_fb_shader_data_type data_type)
    case PAN_FB_SHADER_DATA_TYPE_F32:   return nir_type_float32;
    case PAN_FB_SHADER_DATA_TYPE_I32:   return nir_type_int32;
    case PAN_FB_SHADER_DATA_TYPE_U32:   return nir_type_uint32;
-   default: UNREACHABLE("Invalid pan_fb_shader_data_type");
+   default:
+      UNREACHABLE("Invalid pan_fb_shader_data_type");
    }
-   UNREACHABLE("Invalid pan_fb_shader_data_type");
 }
 
 static enum pan_fb_shader_op
@@ -54,9 +54,9 @@ get_shader_op_for_load(enum pan_fb_load_op op)
    case PAN_FB_LOAD_NONE:     return PAN_FB_SHADER_DONT_CARE;
    case PAN_FB_LOAD_CLEAR:    return PAN_FB_SHADER_LOAD_CLEAR;
    case PAN_FB_LOAD_IMAGE:    return PAN_FB_SHADER_LOAD_IMAGE;
-   case PAN_FB_LOAD_OP_COUNT: UNREACHABLE("Invalid load op");
+   default:
+      UNREACHABLE("Invalid load op");
    }
-   UNREACHABLE("Invalid load op");
 }
 
 static inline enum pan_fb_shader_op
@@ -75,9 +75,9 @@ get_shader_op_for_resolve(enum pan_fb_resolve_op op)
    case PAN_FB_RESOLVE_RT_7:  return PAN_FB_SHADER_COPY_RT_7;
    case PAN_FB_RESOLVE_Z:     return PAN_FB_SHADER_COPY_Z;
    case PAN_FB_RESOLVE_S:     return PAN_FB_SHADER_COPY_S;
-   case PAN_FB_RESOLVE_OP_COUNT: UNREACHABLE("Invalid resolve op");
+   default:
+      UNREACHABLE("Invalid resolve op");
    }
-   UNREACHABLE("Invalid resolve op");
 }
 
 static enum pan_fb_msaa_copy_op
@@ -539,11 +539,9 @@ build_fb_load(nir_builder *b, const nir_alu_type nir_type,
       return combine_samples(b, samples, fb_sample_count, nir_type, msaa);
    }
 
-   case PAN_FB_MSAA_COPY_OP_COUNT:
+   default:
       UNREACHABLE("Invalid copy op");
    }
-
-   UNREACHABLE("Invalid copy op");
 }
 #endif
 
