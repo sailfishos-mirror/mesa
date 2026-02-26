@@ -598,6 +598,8 @@ bool
 radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct radv_sdma_surf *src,
                                 const struct radv_sdma_surf *dst, const VkExtent3D extent)
 {
+   bool needs_3d_alignment = src->is_3d;
+
    /* These need a linear-to-linear / linear-to-tiled copy. */
    if (src->is_linear || dst->is_linear)
       return false;
@@ -628,10 +630,12 @@ radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct r
       /* The two images can have a different block size, but must have the same swizzle mode. */
       if (src->surf->micro_tile_mode != dst->surf->micro_tile_mode)
          return true;
+
+      /* Only for 3D standard/displayable swizzle modes. */
+      needs_3d_alignment &= (src->surf->micro_tile_mode == RADEON_MICRO_MODE_DISPLAY ||
+                             src->surf->micro_tile_mode == RADEON_MICRO_MODE_STANDARD);
    }
 
-   const bool needs_3d_alignment = src->is_3d && (src->surf->micro_tile_mode == RADEON_MICRO_MODE_DISPLAY ||
-                                                  src->surf->micro_tile_mode == RADEON_MICRO_MODE_STANDARD);
    const unsigned log2bpp = util_logbase2(src->bpp);
    const VkExtent3D *const alignment =
       needs_3d_alignment ? &radv_sdma_t2t_alignment_3d[log2bpp] : &radv_sdma_t2t_alignment_2d_and_planar[log2bpp];
