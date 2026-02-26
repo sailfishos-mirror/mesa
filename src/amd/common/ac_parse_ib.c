@@ -969,12 +969,17 @@ static void parse_sdma_ib(FILE *f, struct ac_ib_parser *ib)
             fprintf(f, "    copy depth = %u\n", dw13 + 1);
 
             if (dcc) {
-               ac_ib_get(ib);
-               fprintf(f, "    metadata VA low\n");
-               ac_ib_get(ib);
-               fprintf(f, "    metadata VA high\n");
-               ac_ib_get(ib);
-               fprintf(f, "    (metadata config)\n");
+               if (ib->gfx_level >= GFX12) {
+                  ac_ib_get(ib);
+                  fprintf(f, "    (metadata config)\n");
+               } else {
+                  ac_ib_get(ib);
+                  fprintf(f, "    metadata VA low\n");
+                  ac_ib_get(ib);
+                  fprintf(f, "    metadata VA high\n");
+                  ac_ib_get(ib);
+                  fprintf(f, "    (metadata config)\n");
+               }
             }
             break;
          }
@@ -988,12 +993,17 @@ static void parse_sdma_ib(FILE *f, struct ac_ib_parser *ib)
             }
 
             if (dcc) {
-               ac_ib_get(ib);
-               fprintf(f, "    metadata VA low\n");
-               ac_ib_get(ib);
-               fprintf(f, "    metadata VA high\n");
-               ac_ib_get(ib);
-               fprintf(f, "    (metadata config)\n");
+               if (ib->gfx_level >= GFX12) {
+                  ac_ib_get(ib);
+                  fprintf(f, "    (metadata config)\n");
+               } else {
+                  ac_ib_get(ib);
+                  fprintf(f, "    metadata VA low\n");
+                  ac_ib_get(ib);
+                  fprintf(f, "    metadata VA high\n");
+                  ac_ib_get(ib);
+                  fprintf(f, "    (metadata config)\n");
+               }
             }
             break;
          }
