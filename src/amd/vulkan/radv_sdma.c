@@ -213,7 +213,6 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
       .blk_h = surf->blk_h,
       .first_level = subresource.mipLevel,
       .mip_levels = image->vk.mip_levels,
-      .micro_tile_mode = surf->micro_tile_mode,
       .texel_scale = radv_sdma_get_texel_scale(image),
       .is_linear = surf->is_linear,
       .is_3d = surf->u.gfx9.resource_type == RADEON_RESOURCE_3D,
@@ -627,12 +626,12 @@ radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct r
          return true;
    } else {
       /* The two images can have a different block size, but must have the same swizzle mode. */
-      if (src->micro_tile_mode != dst->micro_tile_mode)
+      if (src->surf->micro_tile_mode != dst->surf->micro_tile_mode)
          return true;
    }
 
-   const bool needs_3d_alignment = src->is_3d && (src->micro_tile_mode == RADEON_MICRO_MODE_DISPLAY ||
-                                                  src->micro_tile_mode == RADEON_MICRO_MODE_STANDARD);
+   const bool needs_3d_alignment = src->is_3d && (src->surf->micro_tile_mode == RADEON_MICRO_MODE_DISPLAY ||
+                                                  src->surf->micro_tile_mode == RADEON_MICRO_MODE_STANDARD);
    const unsigned log2bpp = util_logbase2(src->bpp);
    const VkExtent3D *const alignment =
       needs_3d_alignment ? &radv_sdma_t2t_alignment_3d[log2bpp] : &radv_sdma_t2t_alignment_2d_and_planar[log2bpp];

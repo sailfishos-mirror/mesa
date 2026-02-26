@@ -28,7 +28,6 @@ struct radv_sdma_surf {
    unsigned blk_h;          /* Image format block height in pixels. */
    unsigned first_level;    /* First mip level in the image. */
    unsigned mip_levels;     /* Mip levels in the image. */
-   uint8_t micro_tile_mode; /* Micro tile mode of the image. */
    uint8_t texel_scale;     /* Texel scale for 96-bit formats */
    bool is_linear;          /* Whether the image is linear. */
    bool is_3d;              /* Whether the image is 3-dimensional. */
