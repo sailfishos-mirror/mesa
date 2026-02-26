@@ -90,6 +90,7 @@ typedef struct
 
 typedef struct
 {
+   const ac_nir_lower_ngg_options *options;
    const struct ac_cu_info *cu_info;
    bool vert_multirow_export;
    bool prim_multirow_export;
@@ -115,12 +116,8 @@ typedef struct
    /* True if cull flags are used */
    bool uses_cull_flags;
 
-   uint32_t clipdist_enable_mask;
    const uint8_t *vs_output_param_offset;
    bool has_param_exports;
-
-   /* True if the lowering needs to insert shader query. */
-   bool has_query;
 } lower_ngg_ms_state;
 
 static void
@@ -847,7 +844,7 @@ ms_prim_gen_query(nir_builder *b,
                   nir_def *num_prm,
                   lower_ngg_ms_state *s)
 {
-   if (!s->has_query)
+   if (!s->options->has_gen_prim_query)
       return;
 
    nir_if *if_invocation_index_zero = nir_push_if(b, nir_ieq_imm(b, invocation_index, 0));
@@ -866,7 +863,7 @@ ms_invocation_query(nir_builder *b,
                     nir_def *invocation_index,
                     lower_ngg_ms_state *s)
 {
-   if (!s->has_query)
+   if (!s->options->has_ms_gs_invocations_query)
       return;
 
    nir_if *if_invocation_index_zero = nir_push_if(b, nir_ieq_imm(b, invocation_index, 0));
@@ -887,9 +884,9 @@ emit_ms_vertex(nir_builder *b, nir_def *index, nir_def *row, bool exports, bool 
    ms_emit_arrayed_outputs(b, index, per_vertex_outputs, s);
 
    if (exports) {
-      ac_nir_export_position(b, s->cu_info->gfx_level, s->clipdist_enable_mask, false, false,
-                             !s->has_param_exports, false, s->per_vertex_outputs | VARYING_BIT_POS,
-                             &s->out, row);
+      ac_nir_export_position(b, s->cu_info->gfx_level, s->options->export_clipdist_mask, false,
+                             false, !s->has_param_exports, false,
+                             s->per_vertex_outputs | VARYING_BIT_POS, &s->out, row);
    }
 
    if (parameters) {
@@ -1333,16 +1330,8 @@ ms_calculate_output_layout(const struct ac_cu_info *cu_info, unsigned api_shared
 }
 
 bool
-ac_nir_lower_ngg_mesh(nir_shader *shader,
-                      const struct radeon_info *hw_info,
-                      uint32_t clipdist_enable_mask,
-                      const uint8_t *vs_output_param_offset,
-                      bool has_param_exports,
-                      bool *out_needs_scratch_ring,
-                      unsigned wave_size,
-                      unsigned hw_workgroup_size,
-                      bool multiview,
-                      bool has_query)
+ac_nir_lower_ngg_mesh(nir_shader *shader, const ac_nir_lower_ngg_options *options,
+                      bool *out_needs_scratch_ring)
 {
    unsigned vertices_per_prim =
       mesa_vertices_per_prim(shader->info.mesh.primitive_type);
@@ -1362,9 +1351,10 @@ ac_nir_lower_ngg_mesh(nir_shader *shader,
    unsigned max_vertices = shader->info.mesh.max_vertices_out;
    unsigned max_primitives = shader->info.mesh.max_primitives_out;
 
-   ms_out_mem_layout layout = ms_calculate_output_layout(
-      &hw_info->cu_info, shader->info.shared_size, per_vertex_outputs, per_primitive_outputs,
-      cross_invocation_access, max_vertices, max_primitives, vertices_per_prim);
+   ms_out_mem_layout layout =
+      ms_calculate_output_layout(&options->hw_info->cu_info, shader->info.shared_size,
+                                 per_vertex_outputs, per_primitive_outputs, cross_invocation_access,
+                                 max_vertices, max_primitives, vertices_per_prim);
 
    shader->info.shared_size = layout.lds.total_size;
    *out_needs_scratch_ring = layout.scratch_ring.vtx_attr.mask || layout.scratch_ring.prm_attr.mask;
@@ -1380,25 +1370,26 @@ ac_nir_lower_ngg_mesh(nir_shader *shader,
                                  shader->info.workgroup_size[1] *
                                  shader->info.workgroup_size[2];
 
-   bool fast_launch_2 = hw_info->cu_info.mesh_fast_launch_2;
+   bool fast_launch_2 = options->hw_info->cu_info.mesh_fast_launch_2;
 
+   unsigned hw_workgroup_size = options->max_workgroup_size;
    lower_ngg_ms_state state = {
+      .options = options,
       .layout = layout,
-      .wave_size = wave_size,
+      .wave_size = options->wave_size,
       .per_vertex_outputs = per_vertex_outputs,
       .per_primitive_outputs = per_primitive_outputs,
       .vertices_per_prim = vertices_per_prim,
       .api_workgroup_size = api_workgroup_size,
       .hw_workgroup_size = hw_workgroup_size,
-      .insert_layer_output = multiview && !(shader->info.outputs_written & VARYING_BIT_LAYER),
+      .insert_layer_output =
+         options->multiview && !(shader->info.outputs_written & VARYING_BIT_LAYER),
       .uses_cull_flags = uses_cull,
-      .cu_info = &hw_info->cu_info,
+      .cu_info = &options->hw_info->cu_info,
       .vert_multirow_export = fast_launch_2 && max_vertices > hw_workgroup_size,
       .prim_multirow_export = fast_launch_2 && max_primitives > hw_workgroup_size,
-      .clipdist_enable_mask = clipdist_enable_mask,
-      .vs_output_param_offset = vs_output_param_offset,
-      .has_param_exports = has_param_exports,
-      .has_query = has_query,
+      .vs_output_param_offset = options->vs_output_param_offset,
+      .has_param_exports = options->has_param_exports,
    };
 
    nir_function_impl *impl = nir_shader_get_entrypoint(shader);

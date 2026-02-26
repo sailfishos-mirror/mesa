@@ -972,9 +972,7 @@ radv_lower_ngg(struct radv_device *device, struct radv_shader_stage *ngg_stage,
    options.has_param_exports = info->outinfo.param_exports || info->outinfo.prim_param_exports;
    options.can_cull = info->has_ngg_culling;
    options.disable_streamout = !pdev->use_ngg_streamout;
-   options.has_gen_prim_query = info->has_prim_query;
    options.has_xfb_prim_query = info->has_xfb_query;
-   options.has_gs_invocations_query = pdev->info.gfx_level < GFX11;
    options.has_gs_primitives_query = pdev->info.gfx_level < GFX11;
    options.force_vrs = info->force_vrs_per_vertex;
    options.skip_viewport_state_culling = nir->info.outputs_written & (VARYING_BIT_VIEWPORT | VARYING_BIT_VIEWPORT_MASK);
@@ -985,6 +983,7 @@ radv_lower_ngg(struct radv_device *device, struct radv_shader_stage *ngg_stage,
       if (info->has_ngg_culling)
          radv_optimize_nir_algebraic_late(nir);
 
+      options.has_gen_prim_query = info->has_prim_query;
       options.num_vertices_per_primitive = num_vertices_per_prim;
       options.early_prim_export = info->has_ngg_early_prim_export;
       options.passthrough = info->is_ngg_passthrough;
@@ -997,16 +996,21 @@ radv_lower_ngg(struct radv_device *device, struct radv_shader_stage *ngg_stage,
    } else if (nir->info.stage == MESA_SHADER_GEOMETRY) {
       assert(info->is_ngg);
 
+      options.has_gen_prim_query = info->has_prim_query;
+      options.has_ms_gs_invocations_query = pdev->info.gfx_level < GFX11;
+
       NIR_PASS(_, nir, ac_nir_lower_ngg_gs, &options, &ngg_stage->info.ngg_lds_vertex_size,
                &ngg_stage->info.ngg_lds_scratch_size);
    } else if (nir->info.stage == MESA_SHADER_MESH) {
       /* ACO aligns the workgroup size to the wave size. */
-      unsigned hw_workgroup_size = align(info->workgroup_size, info->wave_size);
+      options.max_workgroup_size = align(info->workgroup_size, info->wave_size);
+
+      options.has_gen_prim_query = info->ms.has_query;
+      options.has_ms_gs_invocations_query = info->ms.has_query;
+      options.multiview = gfx_state->has_multiview_view_index;
 
       bool scratch_ring = false;
-      NIR_PASS(_, nir, ac_nir_lower_ngg_mesh, &pdev->info, options.export_clipdist_mask, options.vs_output_param_offset,
-               options.has_param_exports, &scratch_ring, info->wave_size, hw_workgroup_size,
-               gfx_state->has_multiview_view_index, info->ms.has_query);
+      NIR_PASS(_, nir, ac_nir_lower_ngg_mesh, &options, &scratch_ring);
       ngg_stage->info.ms.needs_ms_scratch_ring = scratch_ring;
       ngg_stage->info.ngg_wave_id_en = scratch_ring;
    } else {

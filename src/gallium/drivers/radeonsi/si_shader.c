@@ -401,44 +401,41 @@ static void si_lower_ngg(struct si_shader *shader, nir_shader *nir,
 {
    struct si_shader_selector *sel = shader->selector;
    const union si_shader_key *key = &shader->key;
+   const struct radeon_info *info = &sel->screen->info;
    assert(key->ge.as_ngg);
 
-   unsigned max_workgroup_size = si_get_max_workgroup_size(shader);
+   ac_nir_lower_ngg_options options = {
+      .hw_info = info,
+      .max_workgroup_size = si_get_max_workgroup_size(shader),
+      .wave_size = shader->wave_size,
+      .export_clipdist_mask = shader->info.clipdist_mask | shader->info.culldist_mask,
+      .vs_output_param_offset = temp_info->vs_output_param_offset,
+   };
 
    if (nir->info.stage == MESA_SHADER_MESH) {
-      bool out_needs_scratch_ring;
-      NIR_PASS(_, nir, ac_nir_lower_ngg_mesh,
-               &sel->screen->info,
-               shader->info.clipdist_mask | shader->info.culldist_mask,
-               temp_info->vs_output_param_offset,
-               shader->info.nr_param_exports || shader->info.nr_prim_param_exports,
-               &out_needs_scratch_ring,
-               shader->wave_size,
-               align(max_workgroup_size, shader->wave_size),
-               false,
-               false);
+      options.max_workgroup_size = align(options.max_workgroup_size, shader->wave_size);
+      options.has_param_exports = shader->info.nr_param_exports || shader->info.nr_prim_param_exports;
+      options.has_gen_prim_query = false;
+      options.has_ms_gs_invocations_query = false;
+      options.multiview = false;
+
+      bool out_needs_scratch_ring = false;
+      NIR_PASS(_, nir, ac_nir_lower_ngg_mesh, &options, &out_needs_scratch_ring);
       shader->info.uses_mesh_scratch_ring = out_needs_scratch_ring;
       return;
    }
 
-   ac_nir_lower_ngg_options options = {
-      .hw_info = &sel->screen->info,
-      .max_workgroup_size = max_workgroup_size,
-      .wave_size = shader->wave_size,
-      .can_cull = si_shader_culling_enabled(shader),
-      .disable_streamout = !shader->info.num_streamout_vec4s,
-      .vs_output_param_offset = temp_info->vs_output_param_offset,
-      .has_param_exports = shader->info.nr_param_exports,
-      .export_clipdist_mask = shader->info.clipdist_mask | shader->info.culldist_mask,
-      .cull_clipdist_mask = si_shader_culling_enabled(shader) ?
-                                 SI_NGG_CULL_GET_CLIP_PLANE_ENABLE(key->ge.opt.ngg_culling) |
-                                 shader->info.culldist_mask : 0,
-      .write_pos_to_clipvertex = shader->key.ge.mono.write_pos_to_clipvertex,
-      .force_vrs = sel->screen->options.vrs2x2,
-      .use_gfx12_xfb_intrinsic = !nir->info.use_aco_amd,
-      .skip_viewport_state_culling = sel->info.writes_viewport_index,
-      .use_point_tri_intersection = sel->screen->info.num_cu / sel->screen->info.num_se >= 12,
-   };
+   options.can_cull = si_shader_culling_enabled(shader);
+   options.disable_streamout = !shader->info.num_streamout_vec4s;
+   options.has_param_exports = shader->info.nr_param_exports;
+   options.cull_clipdist_mask = si_shader_culling_enabled(shader) ?
+                                     SI_NGG_CULL_GET_CLIP_PLANE_ENABLE(key->ge.opt.ngg_culling) |
+                                     shader->info.culldist_mask : 0;
+   options.write_pos_to_clipvertex = shader->key.ge.mono.write_pos_to_clipvertex;
+   options.force_vrs = sel->screen->options.vrs2x2;
+   options.use_gfx12_xfb_intrinsic = !nir->info.use_aco_amd;
+   options.skip_viewport_state_culling = sel->info.writes_viewport_index;
+   options.use_point_tri_intersection = sel->screen->info.num_cu / sel->screen->info.num_se >= 12;
 
    /* Cull distances are not exported if the shader culls against them. */
    if (options.can_cull)
@@ -480,7 +477,7 @@ static void si_lower_ngg(struct si_shader *shader, nir_shader *nir,
 
       options.has_gen_prim_query = options.has_xfb_prim_query =
          sel->screen->info.gfx_level >= GFX11;
-      options.has_gs_invocations_query = sel->screen->info.gfx_level < GFX11;
+      options.has_ms_gs_invocations_query = sel->screen->info.gfx_level < GFX11;
       options.has_gs_primitives_query = true;
 
       /* For monolithic ES/GS to add vscnt wait when GS export pos0. */
