@@ -173,17 +173,21 @@ decode_get_bo(void *v_batch, bool ppgtt, uint64_t address)
 
    struct anv_batch_bo **bbo;
    u_vector_foreach(bbo, &device->cmd_buffer_being_decoded->seen_bbos) {
+      struct anv_bo *bo = (*bbo)->bo;
       /* The decoder zeroes out the top 16 bits, so we need to as well */
-      uint64_t bo_address = (*bbo)->bo->offset & (~0ull >> 16);
+      uint64_t bo_address = bo->offset & (~0ull >> 16);
 
-      if (address >= bo_address && address < bo_address + (*bbo)->bo->size) {
+      if (address >= bo_address &&
+          address < (bo_address + bo->size)) {
          return (struct intel_batch_decode_bo) {
             .addr = bo_address,
-            .size = (*bbo)->bo->size,
-            .map = (*bbo)->bo->map,
+            .size = bo->size,
+            .map = bo->map,
          };
       }
+   }
 
+   u_vector_foreach(bbo, &device->cmd_buffer_being_decoded->seen_bbos) {
       uint32_t dep_words = (*bbo)->relocs.dep_words;
       BITSET_WORD *deps = (*bbo)->relocs.deps;
       for (uint32_t w = 0; w < dep_words; w++) {
@@ -193,7 +197,7 @@ decode_get_bo(void *v_batch, bool ppgtt, uint64_t address)
             uint32_t gem_handle = w * BITSET_WORDBITS + i;
             struct anv_bo *bo = anv_device_lookup_bo(device, gem_handle);
             assert(bo->refcount > 0);
-            bo_address = bo->offset & (~0ull >> 16);
+            uint64_t bo_address = bo->offset & (~0ull >> 16);
             if (address >= bo_address && address < bo_address + bo->size) {
                return (struct intel_batch_decode_bo) {
                   .addr = bo_address,
