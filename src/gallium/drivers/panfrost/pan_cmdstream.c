@@ -3370,13 +3370,12 @@ panfrost_increase_vertex_count(struct panfrost_batch *batch, uint32_t increment)
  * because all dirty flags are set there.
  */
 static void
-panfrost_update_active_prim(struct panfrost_context *ctx,
-                            const struct pipe_draw_info *info)
+panfrost_update_active_prim(struct panfrost_context *ctx, enum mesa_prim prim)
 {
    const enum mesa_prim prev_prim = u_reduced_prim(ctx->active_prim);
-   const enum mesa_prim new_prim = u_reduced_prim(info->mode);
+   const enum mesa_prim new_prim = u_reduced_prim(prim);
 
-   ctx->active_prim = info->mode;
+   ctx->active_prim = prim;
 
    if ((ctx->dirty & PAN_DIRTY_RASTERIZER) ||
        (prev_prim != new_prim)) {
@@ -3443,7 +3442,7 @@ panfrost_single_draw_direct(struct panfrost_batch *batch,
 
    struct panfrost_context *ctx = batch->ctx;
 
-   panfrost_update_active_prim(ctx, info);
+   panfrost_update_active_prim(ctx, info->mode);
 
    /* Take into account a negative bias */
    ctx->vertex_count =
@@ -3525,7 +3524,7 @@ panfrost_compatible_batch_state(struct panfrost_batch *batch,
 }
 
 static struct panfrost_batch *
-prepare_draw(struct pipe_context *pipe, const struct pipe_draw_info *info)
+prepare_draw(struct pipe_context *pipe, enum mesa_prim prim)
 {
    struct panfrost_context *ctx = pan_context(pipe);
    struct panfrost_device *dev = pan_device(pipe->screen);
@@ -3547,7 +3546,7 @@ prepare_draw(struct pipe_context *pipe, const struct pipe_draw_info *info)
          return NULL;
    }
 
-   enum mesa_prim reduced_prim = u_reduced_prim(info->mode);
+   enum mesa_prim reduced_prim = u_reduced_prim(prim);
 
    if (unlikely(!panfrost_compatible_batch_state(batch, reduced_prim))) {
       batch = panfrost_get_fresh_batch_for_fbo(ctx, "State change");
@@ -3591,7 +3590,7 @@ panfrost_draw_indirect(struct pipe_context *pipe,
       return;
    }
 
-   struct panfrost_batch *batch = prepare_draw(pipe, info);
+   struct panfrost_batch *batch = prepare_draw(pipe, info->mode);
    if (!batch) {
       mesa_loge("prepare_draw failed");
       return;
@@ -3602,7 +3601,7 @@ panfrost_draw_indirect(struct pipe_context *pipe,
    panfrost_batch_read_rsrc(batch, pan_resource(indirect->buffer),
                             MESA_SHADER_VERTEX);
 
-   panfrost_update_active_prim(ctx, &tmp_info);
+   panfrost_update_active_prim(ctx, info->mode);
 
    ctx->drawid = drawid_offset;
 
@@ -3646,7 +3645,7 @@ panfrost_multi_draw_direct(struct pipe_context *pipe,
                            unsigned num_draws)
 {
    struct panfrost_context *ctx = pan_context(pipe);
-   struct panfrost_batch *batch = prepare_draw(pipe, info);
+   struct panfrost_batch *batch = prepare_draw(pipe, info->mode);
    if (!batch) {
       mesa_loge("prepare_draw failed");
       return;
