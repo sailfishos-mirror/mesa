@@ -2944,7 +2944,7 @@
         "description": "brw: Also check for ADDRESS file in update_for_reads",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b110b06447b421c4ee5b0d55c37e6a1cc1b62cd5",
         "notes": null

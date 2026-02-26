@@ -91,3 +91,27 @@ TEST_F(defs_test, src_is_acc2)
 
    EXPECT_EQ(NULL, defs.get(dst0));
 }
+
+TEST_F(defs_test, src_is_address)
+{
+   set_gfx_verx10(125);
+
+   brw_builder bld = make_shader(MESA_SHADER_FRAGMENT, 16);
+
+   brw_reg dst0 = vgrf(bld, BRW_TYPE_UW);
+   brw_reg src0 = vgrf(bld, BRW_TYPE_UW);
+   brw_reg addr = brw_address_reg(0);
+
+   addr.nr = 1;
+
+   bld.MOV(src0, brw_imm_uw(1));
+   bld.uniform().MOV(addr, brw_imm_uw(2));
+   bld.ADD(dst0, src0, addr);
+
+   brw_calculate_cfg(*bld.shader);
+   brw_validate(*bld.shader);
+
+   const brw_def_analysis &defs = bld.shader->def_analysis.require();
+
+   EXPECT_EQ(NULL, defs.get(dst0));
+}
