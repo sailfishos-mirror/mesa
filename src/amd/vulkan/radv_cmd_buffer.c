@@ -10054,11 +10054,8 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
          ds_att.ds = ds_att.iview->stencil_only_desc;
       }
 
-      if (pdev->info.gfx_level >= GFX12) {
-         const struct radeon_surf *surf = &ds_att.iview->image->planes[0].surface;
-
-         gfx12_has_hiz = surf->u.gfx9.zs.hiz.offset != 0;
-      }
+      if (pdev->info.gfx_level >= GFX12)
+         gfx12_has_hiz = radv_image_has_hiz(ds_att.iview->image);
 
       assert(d_res_iview == NULL || s_res_iview == NULL || d_res_iview == s_res_iview);
       ds_att.resolve_iview = d_res_iview ? d_res_iview : s_res_iview;

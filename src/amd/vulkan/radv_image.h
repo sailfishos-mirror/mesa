@@ -270,6 +270,15 @@ radv_image_decompress_htile_on_image_stores(const struct radv_device *device, co
    return true;
 }
 
+/**
+ * Return whether the image has HiZ for depth surfaces (GFX12).
+ */
+static inline bool
+radv_image_has_hiz(const struct radv_image *image)
+{
+   return image->planes[0].surface.flags & RADEON_SURF_Z_OR_SBUFFER && image->planes[0].surface.u.gfx9.zs.hiz.offset;
+}
+
 static inline bool
 radv_image_has_clear_value(const struct radv_image *image)
 {
