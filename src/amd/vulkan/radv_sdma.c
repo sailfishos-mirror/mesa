@@ -313,28 +313,34 @@ radv_sdma_emit_copy_linear_sub_window(const struct radv_device *device, struct r
    dst_off.x *= texel_scale;
    ext.width *= texel_scale;
 
-   const struct ac_sdma_surf_linear surf_src = {
+   const struct ac_sdma_surf surf_src = {
+      .surf = src->surf,
       .va = src->va,
+      .format = radv_format_to_pipe_format(src->aspect_format),
+      .bpp = src->bpp,
       .offset =
          {
             .x = src_off.x,
             .y = src_off.y,
             .z = src_off.z,
          },
-      .bpp = src->bpp,
+      .is_compressed = src->is_compressed,
       .pitch = src_pitch,
       .slice_pitch = src_slice_pitch,
    };
 
-   const struct ac_sdma_surf_linear surf_dst = {
+   const struct ac_sdma_surf surf_dst = {
+      .surf = dst->surf,
       .va = dst->va,
+      .format = radv_format_to_pipe_format(dst->aspect_format),
+      .bpp = dst->bpp,
       .offset =
          {
             .x = dst_off.x,
             .y = dst_off.y,
             .z = dst_off.z,
          },
-      .bpp = dst->bpp,
+      .is_compressed = dst->is_compressed,
       .pitch = dst_pitch,
       .slice_pitch = dst_slice_pitch,
    };
@@ -358,30 +364,34 @@ radv_sdma_emit_copy_tiled_sub_window(const struct radv_device *device, struct ra
    const unsigned linear_pitch = radv_sdma_pixels_to_blocks(linear->pitch, tiled->blk_w);
    const unsigned linear_slice_pitch = radv_sdma_pixel_area_to_blocks(linear->slice_pitch, tiled->blk_w, tiled->blk_h);
 
-   const struct ac_sdma_surf_linear surf_linear = {
+   const struct ac_sdma_surf surf_linear = {
+      .surf = linear->surf,
       .va = linear->va,
+      .format = radv_format_to_pipe_format(linear->aspect_format),
       .offset =
          {
             .x = linear_off.x,
             .y = linear_off.y,
             .z = linear_off.z,
          },
+      .is_compressed = linear->is_compressed,
       .pitch = linear_pitch,
       .slice_pitch = linear_slice_pitch,
    };
 
-   const struct ac_sdma_surf_tiled surf_tiled = {
+   const struct ac_sdma_surf surf_tiled = {
       .surf = tiled->surf,
       .va = tiled->va,
       .format = radv_format_to_pipe_format(tiled->aspect_format),
       .bpp = tiled->bpp,
-      .is_stencil = tiled->is_stencil,
       .offset =
          {
             .x = tiled_off.x,
             .y = tiled_off.y,
             .z = tiled_off.z,
          },
+      .is_compressed = tiled->is_compressed,
+      .is_stencil = tiled->is_stencil,
       .extent =
          {
             .width = tiled_ext.width,
@@ -390,11 +400,9 @@ radv_sdma_emit_copy_tiled_sub_window(const struct radv_device *device, struct ra
          },
       .first_level = tiled->first_level,
       .num_levels = tiled->mip_levels,
-      .is_compressed = tiled->is_compressed,
       .surf_type = tiled->surface_type,
       .meta_va = tiled->meta_va,
       .htile_enabled = tiled->htile_enabled,
-
    };
 
    radeon_check_space(device->ws, cs->b, 17);
@@ -414,18 +422,19 @@ radv_sdma_emit_copy_t2t_sub_window(const struct radv_device *device, struct radv
    const VkExtent3D dst_ext = radv_sdma_pixel_extent_to_blocks(dst->extent, dst->blk_w, dst->blk_h);
    const VkExtent3D ext = radv_sdma_pixel_extent_to_blocks(px_extent, src->blk_w, src->blk_h);
 
-   const struct ac_sdma_surf_tiled surf_src = {
+   const struct ac_sdma_surf surf_src = {
       .surf = src->surf,
       .va = src->va,
       .format = radv_format_to_pipe_format(src->aspect_format),
       .bpp = src->bpp,
-      .is_stencil = src->is_stencil,
       .offset =
          {
             .x = src_off.x,
             .y = src_off.y,
             .z = src_off.z,
          },
+      .is_compressed = src->is_compressed,
+      .is_stencil = src->is_stencil,
       .extent =
          {
             .width = src_ext.width,
@@ -434,24 +443,24 @@ radv_sdma_emit_copy_t2t_sub_window(const struct radv_device *device, struct radv
          },
       .first_level = src->first_level,
       .num_levels = src->mip_levels,
-      .is_compressed = src->is_compressed,
       .surf_type = src->surface_type,
       .meta_va = src->meta_va,
       .htile_enabled = src->htile_enabled,
    };
 
-   const struct ac_sdma_surf_tiled surf_dst = {
+   const struct ac_sdma_surf surf_dst = {
       .surf = dst->surf,
       .va = dst->va,
       .format = radv_format_to_pipe_format(dst->aspect_format),
       .bpp = dst->bpp,
-      .is_stencil = dst->is_stencil,
       .offset =
          {
             .x = dst_off.x,
             .y = dst_off.y,
             .z = dst_off.z,
          },
+      .is_compressed = dst->is_compressed,
+      .is_stencil = dst->is_stencil,
       .extent =
          {
             .width = dst_ext.width,
@@ -460,7 +469,6 @@ radv_sdma_emit_copy_t2t_sub_window(const struct radv_device *device, struct radv
          },
       .first_level = dst->first_level,
       .num_levels = dst->mip_levels,
-      .is_compressed = dst->is_compressed,
       .surf_type = dst->surface_type,
       .meta_va = dst->meta_va,
       .htile_enabled = dst->htile_enabled,
@@ -511,7 +519,9 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
    const struct radv_sdma_chunked_copy_info info = radv_sdma_get_chunked_copy_info(device, img_in, base_extent);
    struct radv_sdma_surf img = *img_in;
    struct radv_sdma_surf tmp = {
+      .surf = img.surf,
       .va = radv_buffer_get_va(temp_bo),
+      .aspect_format = img.aspect_format,
       .bpp = img.bpp,
       .blk_w = img.blk_w,
       .blk_h = img.blk_h,
@@ -676,16 +686,22 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
    const struct radv_sdma_chunked_copy_info info = radv_sdma_get_chunked_copy_info(device, src, extent);
    struct radv_sdma_surf t2l_src = *src;
    struct radv_sdma_surf t2l_dst = {
+      .surf = src->surf,
       .va = radv_buffer_get_va(temp_bo),
+      .aspect_format = src->aspect_format,
       .bpp = src->bpp,
+      .is_compressed = src->is_compressed,
       .blk_w = src->blk_w,
       .blk_h = src->blk_h,
       .pitch = info.aligned_row_pitch * src->blk_w,
    };
    struct radv_sdma_surf l2t_dst = *dst;
    struct radv_sdma_surf l2t_src = {
+      .surf = dst->surf,
       .va = radv_buffer_get_va(temp_bo),
+      .aspect_format = dst->aspect_format,
       .bpp = dst->bpp,
+      .is_compressed = dst->is_compressed,
       .blk_w = dst->blk_w,
       .blk_h = dst->blk_h,
       .pitch = info.aligned_row_pitch * dst->blk_w,

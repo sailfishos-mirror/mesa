@@ -145,8 +145,8 @@ ac_sdma_check_pitches(enum sdma_version sdma_ip_version, uint32_t pitch,
 
 void
 ac_emit_sdma_copy_linear_sub_window(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_version,
-                                    const struct ac_sdma_surf_linear *src,
-                                    const struct ac_sdma_surf_linear *dst,
+                                    const struct ac_sdma_surf *src,
+                                    const struct ac_sdma_surf *dst,
                                     uint32_t width, uint32_t height, uint32_t depth)
 {
    /* This packet is the same since SDMA v2.4, haven't bothered to check older versions.
@@ -189,7 +189,7 @@ ac_emit_sdma_copy_linear_sub_window(struct ac_cmdbuf *cs, enum sdma_version sdma
 
 static uint32_t
 ac_sdma_get_tiled_header_dword(enum sdma_version sdma_ip_version,
-                               const struct ac_sdma_surf_tiled *tiled)
+                               const struct ac_sdma_surf *tiled)
 {
    if (sdma_ip_version >= SDMA_5_0) {
       return 0;
@@ -205,7 +205,7 @@ ac_sdma_get_tiled_header_dword(enum sdma_version sdma_ip_version,
 
 static enum gfx9_resource_type
 ac_sdma_get_tiled_resource_dim(enum sdma_version sdma_ip_version,
-                               const struct ac_sdma_surf_tiled *tiled)
+                               const struct ac_sdma_surf *tiled)
 {
    if (sdma_ip_version >= SDMA_5_0) {
       /* Use the 2D resource type for rotated or Z swizzles. */
@@ -221,7 +221,7 @@ ac_sdma_get_tiled_resource_dim(enum sdma_version sdma_ip_version,
 
 static uint32_t
 ac_sdma_get_tiled_info_dword(const struct radeon_info *info,
-                             const struct ac_sdma_surf_tiled *tiled)
+                             const struct ac_sdma_surf *tiled)
 {
    const uint32_t swizzle_mode =
       tiled->is_stencil ? tiled->surf->u.gfx9.zs.stencil_swizzle_mode
@@ -268,7 +268,7 @@ ac_sdma_get_tiled_info_dword(const struct radeon_info *info,
 
 static uint32_t
 ac_sdma_get_tiled_metadata_config(const struct radeon_info *info,
-                                  const struct ac_sdma_surf_tiled *tiled,
+                                  const struct ac_sdma_surf *tiled,
                                   bool detile, bool tmz)
 {
    const uint32_t data_format = ac_get_cb_format(info->gfx_level, tiled->format);
@@ -303,8 +303,8 @@ ac_sdma_get_tiled_metadata_config(const struct radeon_info *info,
 
 void
 ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_info *info,
-                                   const struct ac_sdma_surf_linear *linear,
-                                   const struct ac_sdma_surf_tiled *tiled,
+                                   const struct ac_sdma_surf *linear,
+                                   const struct ac_sdma_surf *tiled,
                                    bool detile, uint32_t width, uint32_t height,
                                    uint32_t depth, bool tmz)
 {
@@ -362,8 +362,8 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
 
 void
 ac_emit_sdma_copy_t2t_sub_window(struct ac_cmdbuf *cs, const struct radeon_info *info,
-                                 const struct ac_sdma_surf_tiled *src,
-                                 const struct ac_sdma_surf_tiled *dst,
+                                 const struct ac_sdma_surf *src,
+                                 const struct ac_sdma_surf *dst,
                                  uint32_t width, uint32_t height, uint32_t depth)
 {
    const uint32_t src_header_dword =
