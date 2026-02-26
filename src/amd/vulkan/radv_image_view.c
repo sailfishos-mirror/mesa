@@ -827,7 +827,6 @@ radv_hiz_image_view_init(struct radv_image_view *iview, struct radv_device *devi
    memset(iview, 0, sizeof(*iview));
    vk_image_view_init(&device->vk, &iview->vk, pCreateInfo);
 
-   assert(vk_format_has_depth(image->vk.format) && vk_format_has_stencil(image->vk.format));
    assert(iview->vk.aspects == VK_IMAGE_ASPECT_DEPTH_BIT);
 
    iview->image = image;
