@@ -164,6 +164,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_legacy_dithering = true,
       .EXT_line_rasterization = true,
       .EXT_load_store_op_none = true,
+      .EXT_nested_command_buffer = PAN_ARCH >= 10,
       .EXT_non_seamless_cube_map = true,
       .EXT_mutable_descriptor_type = PAN_ARCH >= 9,
       .EXT_multisampled_render_to_single_sampled = true,
@@ -557,6 +558,11 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_EXT_legacy_dithering */
       .legacyDithering = true,
+
+      /* VK_EXT_nested_command_buffer */
+      .nestedCommandBuffer = PAN_ARCH >= 10,
+      .nestedCommandBufferRendering = PAN_ARCH >= 10,
+      .nestedCommandBufferSimultaneousUse = PAN_ARCH >= 10,
 
       /* VK_EXT_non_seamless_cube_map */
       .nonSeamlessCubeMap = true,
@@ -1105,6 +1111,9 @@ panvk_per_arch(get_physical_device_properties)(
       /* VK_EXT_graphics_pipeline_library */
       .graphicsPipelineLibraryFastLinking = true,
       .graphicsPipelineLibraryIndependentInterpolationDecoration = true,
+
+      /* VK_EXT_nested_command_buffer */
+      .maxCommandBufferNestingLevel = 5,
 
       /* VK_EXT_provoking_vertex */
       .provokingVertexModePerPipeline = false,
