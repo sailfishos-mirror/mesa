@@ -127,11 +127,12 @@ ac_emit_sdma_copy_linear(struct ac_cmdbuf *cs, enum sdma_version sdma_ip_version
 }
 
 static void
-ac_sdma_check_pitches(uint32_t pitch, uint32_t slice_pitch, uint32_t bpp, bool uses_depth)
+ac_sdma_check_pitches(enum sdma_version sdma_ip_version, uint32_t pitch,
+                      uint32_t slice_pitch, uint32_t bpp, bool uses_depth)
 {
    ASSERTED const uint32_t pitch_alignment = MAX2(1, 4 / bpp);
    assert(pitch);
-   assert(pitch <= (1 << 14));
+   assert(pitch <= (1 << (sdma_ip_version >= SDMA_7_0 ? 16 : 14)));
    assert(util_is_aligned(pitch, pitch_alignment));
 
    if (uses_depth) {
@@ -160,8 +161,8 @@ ac_emit_sdma_copy_linear_sub_window(struct ac_cmdbuf *cs, enum sdma_version sdma
    uint32_t pitch_shift = (sdma_ip_version >= SDMA_7_0 || sdma_ip_version < SDMA_4_0) ? 16 : 13;
    assert(src->bpp == dst->bpp);
    assert(util_is_power_of_two_nonzero(src->bpp));
-   ac_sdma_check_pitches(src->pitch, src->slice_pitch, src->bpp, false);
-   ac_sdma_check_pitches(dst->pitch, dst->slice_pitch, dst->bpp, false);
+   ac_sdma_check_pitches(sdma_ip_version, src->pitch, src->slice_pitch, src->bpp, false);
+   ac_sdma_check_pitches(sdma_ip_version, dst->pitch, dst->slice_pitch, dst->bpp, false);
 
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR_SUB_WINDOW, 0) |
@@ -316,7 +317,8 @@ ac_emit_sdma_copy_tiled_sub_window(struct ac_cmdbuf *cs, const struct radeon_inf
    /* Sanity checks. */
    const bool uses_depth = linear->offset.z != 0 || tiled->offset.z != 0 || depth != 1;
    assert(util_is_power_of_two_nonzero(tiled->bpp));
-   ac_sdma_check_pitches(linear->pitch, linear->slice_pitch, tiled->bpp, uses_depth);
+   ac_sdma_check_pitches(info->sdma_ip_version, linear->pitch, linear->slice_pitch,
+                         tiled->bpp, uses_depth);
    if (!info->sdma_supports_compression)
       assert(!tiled->is_compressed);
 
