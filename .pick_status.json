@@ -1904,7 +1904,7 @@
         "description": "d3d12: Fix importing external resources",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "97061dd7ee40d3ab82caff5485065a5e25016147",
         "notes": null
