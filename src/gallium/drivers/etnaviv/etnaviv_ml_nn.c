@@ -521,7 +521,9 @@ calc_pooling_first_pixel(struct etna_ml_subgraph *subgraph,
       if (poperation->conv.pointwise && input_width >= 3 && input_channels > 1)
          return true;
 
-      if (poperation->conv.pointwise && poperation->conv.padding_same)
+      if (poperation->conv.pointwise &&
+          (poperation->conv.padding_top > 0 || poperation->conv.padding_bottom > 0 ||
+           poperation->conv.padding_left > 0 || poperation->conv.padding_right > 0))
          return true;
    }
 
@@ -566,7 +568,10 @@ etna_ml_lower_convolution(struct etna_ml_subgraph *subgraph,
    operation->pointwise = poperation->conv.pointwise;
    operation->relu = poperation->conv.relu;
    operation->pooling_first_pixel = calc_pooling_first_pixel(subgraph, poperation);
-   operation->padding_same = poperation->conv.padding_same;
+   operation->padding_same = poperation->conv.padding_top > 0 ||
+                             poperation->conv.padding_bottom > 0 ||
+                             poperation->conv.padding_left > 0 ||
+                             poperation->conv.padding_right > 0;
    operation->stride = poperation->conv.stride_x;
 
    operation->input_count = 1;

@@ -58,6 +58,18 @@ struct teflon_subgraph {
    unsigned output_count;
 };
 
+static void
+calc_same_padding(unsigned input_size, unsigned filter_size, unsigned stride,
+                  unsigned dilation, unsigned *pad_before, unsigned *pad_after)
+{
+   unsigned effective_filter = (filter_size - 1) * dilation + 1;
+   unsigned output_size = (input_size + stride - 1) / stride;
+   unsigned total = (output_size - 1) * stride + effective_filter;
+   unsigned padding = total > input_size ? total - input_size : 0;
+   *pad_before = padding / 2;
+   *pad_after = padding - *pad_before;
+}
+
 static bool
 fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLiteNode *node, TfLiteRegistration *node_registration, struct pipe_ml_operation *operation)
 {
@@ -94,7 +106,16 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
          }
          operation->conv.stride_x = params->stride_width;
          operation->conv.stride_y = params->stride_height;
-         operation->conv.padding_same = params->padding == kTfLitePaddingSame;
+         if (params->padding == kTfLitePaddingSame) {
+            struct pipe_tensor *in = operation->input_tensors[0];
+            struct pipe_tensor *wt = &tensors[node->inputs->data[1]];
+            calc_same_padding(in->dims[1], wt->dims[1], params->stride_height,
+                              operation->conv.dilation_height_factor,
+                              &operation->conv.padding_top, &operation->conv.padding_bottom);
+            calc_same_padding(in->dims[2], wt->dims[2], params->stride_width,
+                              operation->conv.dilation_width_factor,
+                              &operation->conv.padding_left, &operation->conv.padding_right);
+         }
          operation->conv.depthwise = false;
          operation->conv.relu = params->activation == kTfLiteActRelu ||
                                 params->activation == kTfLiteActRelu6;
@@ -117,7 +138,16 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
          }
          operation->conv.stride_x = params->stride_width;
          operation->conv.stride_y = params->stride_height;
-         operation->conv.padding_same = params->padding == kTfLitePaddingSame;
+         if (params->padding == kTfLitePaddingSame) {
+            struct pipe_tensor *in = operation->input_tensors[0];
+            struct pipe_tensor *wt = &tensors[node->inputs->data[1]];
+            calc_same_padding(in->dims[1], wt->dims[1], params->stride_height,
+                              operation->conv.dilation_height_factor,
+                              &operation->conv.padding_top, &operation->conv.padding_bottom);
+            calc_same_padding(in->dims[2], wt->dims[2], params->stride_width,
+                              operation->conv.dilation_width_factor,
+                              &operation->conv.padding_left, &operation->conv.padding_right);
+         }
          operation->conv.depthwise = true;
          operation->conv.relu = params->activation == kTfLiteActRelu ||
                                 params->activation == kTfLiteActRelu6;
@@ -142,7 +172,13 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->pooling.filter_width = params->filter_width;
       operation->pooling.stride_x = params->stride_width;
       operation->pooling.stride_y = params->stride_height;
-      operation->pooling.padding_same = params->padding == kTfLitePaddingSame;
+      if (params->padding == kTfLitePaddingSame) {
+         struct pipe_tensor *in = operation->input_tensors[0];
+         calc_same_padding(in->dims[1], params->filter_height, params->stride_height,
+                           1, &operation->pooling.padding_top, &operation->pooling.padding_bottom);
+         calc_same_padding(in->dims[2], params->filter_width, params->stride_width,
+                           1, &operation->pooling.padding_left, &operation->pooling.padding_right);
+      }
       break;
    }
    case kTfLiteBuiltinAdd: {

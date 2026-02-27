@@ -60,33 +60,6 @@ calc_line_stride(unsigned width)
 }
 
 static void
-calc_explicit_padding(const struct rkt_operation *operation,
-                      unsigned *pad_top, unsigned *pad_bottom,
-                      unsigned *pad_left, unsigned *pad_right)
-{
-   if (operation->padding_same && operation->weights_width > 1) {
-      /* Convert from implicit to explicit padding */
-      unsigned pad_along_width =
-         MAX2((operation->output_width - 1) * operation->stride +
-                 operation->weights_width - operation->input_width,
-              0);
-      unsigned pad_along_height =
-         MAX2((operation->output_height - 1) * operation->stride +
-                 operation->weights_height - operation->input_height,
-              0);
-      *pad_left = pad_along_height / 2;
-      *pad_right = pad_along_height - *pad_left;
-      *pad_top = pad_along_width / 2;
-      *pad_bottom = pad_along_width - *pad_top;
-   } else {
-      *pad_left = 0;
-      *pad_right = 0;
-      *pad_top = 0;
-      *pad_bottom = 0;
-   }
-}
-
-static void
 fill_task(struct rkt_ml_subgraph *subgraph,
           struct rkt_operation *operation,
           struct split_task *task)
@@ -192,8 +165,10 @@ rkt_split_tasks(struct rkt_ml_subgraph *subgraph,
    unsigned pad_left;
    unsigned pad_right;
 
-   calc_explicit_padding(operation, &pad_top, &pad_bottom, &pad_left,
-                         &pad_right);
+   pad_top = operation->padding_top;
+   pad_bottom = operation->padding_bottom;
+   pad_left = operation->padding_left;
+   pad_right = operation->padding_right;
 
    if (weights_banks_required + 1 < CBUF_BANKS) {
       /* Full weights, partial input */

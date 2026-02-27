@@ -140,20 +140,10 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
       operation->kernel.zero_points = NULL;
    }
 
-   if (poperation->conv.padding_same) {
-      unsigned vert = needed_total_padding(input_tensor->dims[1], poperation->conv.stride_y, poperation->conv.weight_tensor->dims[1]);
-      unsigned horiz = needed_total_padding(input_tensor->dims[2], poperation->conv.stride_x, poperation->conv.weight_tensor->dims[2]);
-
-      operation->pad.top = vert / 2;
-      operation->pad.left = horiz / 2;
-      operation->pad.bottom = (vert + 1) / 2;
-      operation->pad.right = (horiz + 1) / 2;
-   } else {
-      operation->pad.top = 0;
-      operation->pad.left = 0;
-      operation->pad.bottom = 0;
-      operation->pad.right = 0;
-   }
+   operation->pad.top = poperation->conv.padding_top;
+   operation->pad.bottom = poperation->conv.padding_bottom;
+   operation->pad.left = poperation->conv.padding_left;
+   operation->pad.right = poperation->conv.padding_right;
 
    allocate_feature_maps(subgraph, operation);
 
@@ -194,20 +184,10 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
    operation->kernel.dilation_y = 1;
    operation->kernel.dilation_x = 1;
 
-   if (poperation->pooling.padding_same) {
-      unsigned vert = needed_total_padding(operation->ifm.shape.height, poperation->pooling.stride_y, poperation->pooling.filter_height);
-      unsigned horiz = needed_total_padding(operation->ifm.shape.width, poperation->pooling.stride_x, poperation->pooling.filter_width);
-
-      operation->pad.top = vert / 2;
-      operation->pad.left = horiz / 2;
-      operation->pad.bottom = (vert + 1) / 2;
-      operation->pad.right = (horiz + 1) / 2;
-   } else {
-      operation->pad.top = 0;
-      operation->pad.left = 0;
-      operation->pad.bottom = 0;
-      operation->pad.right = 0;
-   }
+   operation->pad.top = poperation->pooling.padding_top;
+   operation->pad.bottom = poperation->pooling.padding_bottom;
+   operation->pad.left = poperation->pooling.padding_left;
+   operation->pad.right = poperation->pooling.padding_right;
 
    allocate_feature_maps(subgraph, operation);
    ethosu_sched_operation(subgraph, operation);

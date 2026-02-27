@@ -140,6 +140,10 @@ needs_reshuffle(struct etna_ml_subgraph *subgraph, const struct pipe_ml_operatio
    unsigned nn_core_version = ctx->screen->specs.nn_core_version;
    bool has_stride = poperation->conv.stride_x > 1 || poperation->conv.stride_y > 1;
    bool pointwise = poperation->conv.pointwise;
+   bool has_padding = poperation->conv.padding_top > 0 ||
+                      poperation->conv.padding_bottom > 0 ||
+                      poperation->conv.padding_left > 0 ||
+                      poperation->conv.padding_right > 0;
    unsigned input_width = poperation->input_tensors[0]->dims[1];
 
    if (!has_stride)
@@ -156,7 +160,7 @@ needs_reshuffle(struct etna_ml_subgraph *subgraph, const struct pipe_ml_operatio
       if (poperation->conv.pointwise && input_width >= 3 && input_channels > 1)
          return false;
 
-      if (poperation->conv.pointwise && poperation->conv.padding_same)
+      if (poperation->conv.pointwise && has_padding)
          return false;
 
       return true;

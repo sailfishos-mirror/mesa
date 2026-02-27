@@ -1117,9 +1117,14 @@ struct pipe_ml_operation
          unsigned stride_y;
 
          /**
-          * Whether to use padding of type same when accessing the input tensor.
+          * Explicit per-side padding. Frontends always compute these
+          * from their own padding representation (e.g. TFLite same/valid,
+          * PyTorch (pad_h, pad_w)). Drivers use them directly.
           */
-         bool padding_same;
+         unsigned padding_top;
+         unsigned padding_bottom;
+         unsigned padding_left;
+         unsigned padding_right;
 
          /**
           * Whether this is a pointwise (1x1 kernels) convolution.
@@ -1167,9 +1172,13 @@ struct pipe_ml_operation
          unsigned filter_height;
 
          /**
-          * Whether to use padding of type same when accessing the input tensor.
+          * Explicit per-side padding. Frontends always compute these
+          * from their own padding representation.
           */
-         bool padding_same;
+         unsigned padding_top;
+         unsigned padding_bottom;
+         unsigned padding_left;
+         unsigned padding_right;
       } pooling;
       struct {
          /**

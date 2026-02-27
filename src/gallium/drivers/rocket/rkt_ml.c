@@ -171,7 +171,10 @@ lower_convolution(struct rkt_ml_subgraph *subgraph,
    operation->tasks = UTIL_DYNARRAY_INIT;
 
    operation->depthwise = rkt_is_depthwise(poperation);
-   operation->padding_same = poperation->conv.padding_same;
+   operation->padding_top = poperation->conv.padding_top;
+   operation->padding_bottom = poperation->conv.padding_bottom;
+   operation->padding_left = poperation->conv.padding_left;
+   operation->padding_right = poperation->conv.padding_right;
    operation->stride = poperation->conv.stride_x;
 
    operation->input_index = poperation->input_tensors[0]->index;

@@ -950,7 +950,10 @@ etna_ml_lower_reshuffle(struct etna_ml_subgraph *subgraph,
    operation->type = ETNA_JOB_TYPE_TP;
    operation->tp_type = ETNA_ML_TP_RESHUFFLE;
    operation->stride = convolution->conv.stride_x;
-   operation->padding_same = convolution->conv.padding_same;
+   operation->padding_same = convolution->conv.padding_top > 0 ||
+                             convolution->conv.padding_bottom > 0 ||
+                             convolution->conv.padding_left > 0 ||
+                             convolution->conv.padding_right > 0;
 
    operation->input_count = 1;
    operation->input_width = convolution->input_tensors[0]->dims[1];

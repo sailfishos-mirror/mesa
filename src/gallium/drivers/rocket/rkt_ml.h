@@ -80,7 +80,10 @@ struct rkt_operation {
    bool depthwise;
    bool reuse_weights_cbuf;
    unsigned truncate_bits;
-   bool padding_same;
+   unsigned padding_top;
+   unsigned padding_bottom;
+   unsigned padding_left;
+   unsigned padding_right;
    unsigned stride;
 
    bool addition_input;
