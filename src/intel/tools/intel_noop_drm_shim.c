@@ -170,10 +170,11 @@ i915_ioctl_gem_userptr(int fd, unsigned long request, void *arg)
 {
    struct shim_fd *shim_fd = drm_shim_fd_lookup(fd);
    struct drm_i915_gem_userptr *userptr = arg;
-   struct i915_bo *bo = calloc(1, sizeof(*bo));
 
    if (!userptr->user_size)
       return -EINVAL;
+
+   struct i915_bo *bo = calloc(1, sizeof(*bo));
 
    drm_shim_bo_init(&bo->base, userptr->user_size);
 
