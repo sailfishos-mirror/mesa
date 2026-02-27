@@ -2099,6 +2099,8 @@ else
   prog_flex_cpp = prog_flex
 endif
 
+prog_ln = find_program('ln', required : false)
+
 _libunwind = get_option('libunwind') \
   .require(not with_platform_android, error_message : 'Android requires the use of the backtrace library, not libunwind')
 if host_machine.system() == 'darwin'

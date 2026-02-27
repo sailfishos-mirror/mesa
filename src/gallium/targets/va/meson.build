@@ -92,7 +92,18 @@ else
               [with_gallium_virgl, 'virtio_gpu'],
               [with_gallium_d3d12_video, 'd3d12']]
     if d[0]
-      va_drivers += '@0@_drv_video.so'.format(d[1])
+      name = '@0@_drv_video.so'.format(d[1])
+      va_drivers += name
+
+      if prog_ln.found()
+        custom_target(
+          name,
+          output : name,
+          command : [prog_ln, '-sf', libva_gallium.full_path(), '@OUTPUT@'],
+          build_by_default : true,
+        )
+      endif
+
     endif
   endforeach
 
