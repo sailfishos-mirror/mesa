@@ -88,6 +88,7 @@ struct u_upload_mgr;
 struct util_debug_callback;
 struct u_vbuf;
 struct pipe_context;
+struct pipe_ml_subgraph;
 
 typedef void (*pipe_draw_func)(struct pipe_context *pipe,
                                const struct pipe_draw_info *info,
@@ -1245,29 +1246,6 @@ struct pipe_context {
                                                      unsigned usage );
 
    /**
-    * Checks whether an operation can be accelerated by this context.
-    *
-    * \param ctx         pipe context
-    * \param operation   pipe_ml_operation to be checked
-    * \return            whether the context can accelerate this operation
-    */
-    bool (*ml_operation_supported)(struct pipe_context *context, const struct pipe_ml_operation *operation);
-
-   /**
-    * Compiles a ML subgraph, to be executed later. The returned pipe_ml_subgraph
-    * should contain all information needed to execute the subgraph with as
-    * little effort as strictly needed.
-    *
-    * \param ctx         pipe context
-    * \param operations  array containing the definitions of the operations in the graph
-    * \param count       number of operations
-    * \return            a newly allocated pipe_ml_subgraph
-    */
-   struct pipe_ml_subgraph *(*ml_subgraph_create)(struct pipe_context *context,
-                                                  const struct pipe_ml_operation *operations,
-                                                  unsigned count);
-
-   /**
     * Invokes a ML subgraph for a given input tensor.
     *
     * \param ctx         pipe context
@@ -1298,15 +1276,6 @@ struct pipe_context {
                                    struct pipe_ml_subgraph *subgraph,
                                    unsigned outputs_count, unsigned output_idxs[],
                                    void *outputs[], bool is_signed[]);
-
-   /**
-    * Release all resources allocated by the implementation of ml_subgraph_create
-    * 
-    * \param ctx           pipe context
-    * \param subgraph      subgraph to release
-    */
-   void (*ml_subgraph_destroy)(struct pipe_context *context,
-                               struct pipe_ml_subgraph *subgraph);
 };
 
 

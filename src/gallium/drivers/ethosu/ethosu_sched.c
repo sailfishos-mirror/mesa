@@ -15,7 +15,7 @@ required_input_size(int value, int stride, int border)
 static struct ethosu_block
 _get_ifm_blocksize(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, struct ethosu_block ofm_block)
 {
-   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
+   struct ethosu_screen *screen = ethosu_device_screen(subgraph->base.device);
    struct ethosu_block ifm_block = {0};
 
    // IFM block height
@@ -73,7 +73,7 @@ try_block_config(struct ethosu_operation *operation, struct ethosu_block ofm_blo
 static struct ethosu_block_config
 find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
+   struct ethosu_screen *screen = ethosu_device_screen(subgraph->base.device);
    struct ethosu_block_config config = {};
    struct ethosu_block search_space = ARCH_OFM_BLOCK_MAX;
    float ofm_elements = operation->ofm.shape.width * operation->ofm.shape.height * operation->ofm.shape.depth;
@@ -205,7 +205,7 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
 void
 ethosu_sched_operation(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
+   struct ethosu_screen *screen = ethosu_device_screen(subgraph->base.device);
 
    if (ethosu_is_u65(screen))
       operation->block_config = find_block_config(subgraph, operation);

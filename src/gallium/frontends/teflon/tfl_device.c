@@ -43,7 +43,8 @@ teflon_debug(const char *format, ...)
 struct teflon_delegate {
    TfLiteDelegate base;
    struct pipe_loader_device *dev;
-   struct pipe_context *context;
+   struct pipe_screen *screen;
+   struct pipe_ml_device *ml_dev;
    struct pipe_tensor *tensors;
    unsigned tensor_count;
 };
@@ -526,7 +527,6 @@ partition_init(TfLiteContext *tf_context, const char *buffer, size_t length)
 {
    const TfLiteDelegateParams *params = (const TfLiteDelegateParams *)buffer;
    struct teflon_delegate *delegate = (struct teflon_delegate *)params->delegate;
-   struct pipe_context *context = delegate->context;
    struct pipe_ml_operation operations[params->nodes_to_replace->size];
    long start = 0, end = 0;
 
@@ -553,9 +553,9 @@ partition_init(TfLiteContext *tf_context, const char *buffer, size_t length)
       dump_graph(delegate->tensors, tf_context->tensors_size, operations, params->nodes_to_replace->size);
 
    struct pipe_ml_subgraph *subgraph;
-   subgraph = context->ml_subgraph_create(context,
-                                          operations,
-                                          params->nodes_to_replace->size);
+   subgraph = delegate->ml_dev->ml_subgraph_create(delegate->ml_dev,
+                                                   operations,
+                                                   params->nodes_to_replace->size);
 
    struct teflon_subgraph *tsubgraph = calloc(1, sizeof(*tsubgraph));
    tsubgraph->base = subgraph;
@@ -603,9 +603,8 @@ partition_free(TfLiteContext *tf_context, void *buffer)
 {
    struct teflon_subgraph *tsubgraph = (struct teflon_subgraph *)buffer;
    struct pipe_ml_subgraph *subgraph = tsubgraph->base;
-   struct pipe_context *context = subgraph->context;
 
-   context->ml_subgraph_destroy(context, subgraph);
+   subgraph->device->ml_subgraph_destroy(subgraph->device, subgraph);
    free(tsubgraph->input_tensors);
    free(tsubgraph->output_tensors);
    free(tsubgraph);
@@ -617,7 +616,7 @@ partition_invoke(TfLiteContext *tf_context, TfLiteNode *node)
    struct teflon_delegate *delegate = (struct teflon_delegate *)node->delegate;
    struct teflon_subgraph *tsubgraph = (struct teflon_subgraph *)node->user_data;
    struct pipe_ml_subgraph *subgraph = tsubgraph->base;
-   struct pipe_context *context = delegate->context;
+   struct pipe_context *context = delegate->screen->context_create(delegate->screen, NULL, PIPE_CONTEXT_COMPUTE_ONLY);
    long start = 0, end = 0;
 
    if (unlikely(debug_get_option_debug_teflon() & TEFLON_DEBUG_VERBOSE)) {
@@ -662,6 +661,9 @@ partition_invoke(TfLiteContext *tf_context, TfLiteNode *node)
       end = (long)time.tv_sec * 1000 + (long)time.tv_nsec / 1000000;
       teflon_debug("teflon: invoked graph, took %ld ms\n", (end - start));
    }
+
+   context->destroy(context);
+   context = NULL;
 
    return kTfLiteOk;
 }
@@ -794,14 +796,13 @@ static bool
 check_op_support(TfLiteDelegate *tf_delegate, TfLiteContext *tf_context, TfLiteNode *node, TfLiteRegistration *registration)
 {
    struct teflon_delegate *delegate = (struct teflon_delegate *)tf_delegate;
-   struct pipe_context *context = delegate->context;
    struct pipe_ml_operation operation = {0};
    bool supported = false;
 
    if (!fill_operation(delegate, tf_context, node, registration, &operation))
       return false;
 
-   supported = context->ml_operation_supported(context, &operation);
+   supported = delegate->ml_dev->ml_operation_supported(delegate->ml_dev, &operation);
 
    free_operation(&operation);
 
@@ -976,7 +977,6 @@ tflite_plugin_create_delegate(char **options_keys,
                               void (*report_error)(const char *))
 {
    struct teflon_delegate *delegate = (struct teflon_delegate *)calloc(1, sizeof(*delegate));
-   struct pipe_screen *screen;
    struct pipe_loader_device **devs;
 
    delegate->base.flags = kTfLiteDelegateFlagsAllowDynamicTensors | kTfLiteDelegateFlagsRequirePropagatedShapes;
@@ -999,8 +999,8 @@ tflite_plugin_create_delegate(char **options_keys,
 
    teflon_debug("Teflon delegate: loaded %s driver\n", delegate->dev->driver_name);
 
-   screen = pipe_loader_create_screen(delegate->dev, false);
-   delegate->context = screen->context_create(screen, NULL, PIPE_CONTEXT_COMPUTE_ONLY);
+   delegate->screen = pipe_loader_create_screen(delegate->dev, false);
+   delegate->ml_dev = delegate->screen->get_ml_device(delegate->screen);
 
    return &delegate->base;
 }
@@ -1009,7 +1009,6 @@ __attribute__((visibility("default"))) void
 tflite_plugin_destroy_delegate(TfLiteDelegate *tf_delegate)
 {
    struct teflon_delegate *delegate = (struct teflon_delegate *)tf_delegate;
-   struct pipe_screen *screen;
 
    if (tf_delegate == NULL) {
       fprintf(stderr, "tflite_plugin_destroy_delegate: NULL delegate!\n");
@@ -1028,9 +1027,7 @@ tflite_plugin_destroy_delegate(TfLiteDelegate *tf_delegate)
    }
    free(delegate->tensors);
 
-   screen = delegate->context->screen;
-   delegate->context->destroy(delegate->context);
-   screen->destroy(screen);
+   delegate->screen->destroy(delegate->screen);
    pipe_loader_release(&delegate->dev, 1);
    free(delegate);
 }

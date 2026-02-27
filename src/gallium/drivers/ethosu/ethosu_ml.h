@@ -195,11 +195,14 @@ struct ethosu_tensor {
    enum ethosu_layout layout;
 };
 
+#define NUM_HEADER_FIELDS  4
+#define NUM_TENSOR_FIELDS  3
+
 struct ethosu_subgraph {
    struct pipe_ml_subgraph base;
 
    struct util_dynarray operations; /* ethosu_operation */
-   struct util_dynarray tensors;    /* ethosu_tensor* */
+   struct util_dynarray tensors;    /* ethosu_tensor */
 
    unsigned cmdstream_used;
    uint32_t *cmdstream;
@@ -221,12 +224,18 @@ struct ethosu_subgraph {
 };
 
 bool
-ethosu_ml_operation_supported(struct pipe_context *pcontext, const struct pipe_ml_operation *operation);
+ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
+                              const struct pipe_ml_operation *operation);
 
 struct pipe_ml_subgraph *
-ethosu_ml_subgraph_create(struct pipe_context *pcontext,
+ethosu_ml_subgraph_create(struct pipe_ml_device *pdevice,
                           const struct pipe_ml_operation *poperations,
                           unsigned count);
+
+uint8_t *
+ethosu_ml_subgraph_serialize(struct pipe_ml_device *pdevice,
+                             struct pipe_ml_subgraph *psubgraph,
+                             size_t *size);
 
 void ethosu_ml_subgraph_invoke(struct pipe_context *pcontext,
                                struct pipe_ml_subgraph *psubgraph,
@@ -239,7 +248,7 @@ void ethosu_ml_subgraph_read_outputs(struct pipe_context *pcontext,
                                      unsigned output_idxs[], void *outputs[],
                                      bool is_signed[]);
 
-void ethosu_ml_subgraph_destroy(struct pipe_context *context,
+void ethosu_ml_subgraph_destroy(struct pipe_ml_device *pdevice,
                                 struct pipe_ml_subgraph *psubgraph);
 
 unsigned ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, unsigned tensor_idx);

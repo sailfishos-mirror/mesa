@@ -1275,9 +1275,62 @@ struct pipe_ml_operation
 struct pipe_ml_subgraph
 {
    /**
-    * pipe_context that owns this subgraph.
+    * pipe_ml_device that owns this subgraph.
     */
-   struct pipe_context *context;
+   struct pipe_ml_device *device;
+};
+
+/**
+ * ML device providing ahead-of-time operations: operation support queries,
+ * subgraph compilation/serialization, and subgraph destruction.
+ */
+struct pipe_ml_device {
+   const char *id;
+
+   /**
+    * Checks whether an operation can be accelerated by this device.
+    *
+    * \param device      pipe_ml_device to be used
+    * \param operation   pipe_ml_operation to be checked
+    * \return            whether the device can accelerate this operation
+    */
+    bool (*ml_operation_supported)(struct pipe_ml_device *device,
+                                  const struct pipe_ml_operation *operation);
+
+   /**
+    * Compiles a ML subgraph, to be executed later. The returned pipe_ml_subgraph
+    * should contain all information needed to execute the subgraph with as
+    * little effort as strictly needed.
+    *
+    * \param device      pipe_ml_device to be used
+    * \param operations  array containing the definitions of the operations in the graph
+    * \param count       number of operations
+    * \return            a newly allocated pipe_ml_subgraph
+    */
+   struct pipe_ml_subgraph *(*ml_subgraph_create)(struct pipe_ml_device *device,
+                                                  const struct pipe_ml_operation *operations,
+                                                  unsigned count);
+
+   /**
+    * Serialize a compiled subgraph into a byte buffer.
+    *
+    * \param device      pipe_ml_device to be used
+    * \param subgraph    previously-compiled subgraph
+    * \param size        output: size of the returned buffer
+    * \return            malloc'd buffer (caller frees), or NULL on failure
+    */
+   uint8_t *(*ml_subgraph_serialize)(struct pipe_ml_device *device,
+                                     struct pipe_ml_subgraph *subgraph,
+                                     size_t *size);
+
+   /**
+    * Release all resources allocated by the implementation of ml_subgraph_create
+    *
+    * \param device      pipe_ml_device to be used
+    * \param subgraph    subgraph to release
+    */
+   void (*ml_subgraph_destroy)(struct pipe_ml_device *device,
+                               struct pipe_ml_subgraph *subgraph);
 };
 
 struct pipe_compute_state

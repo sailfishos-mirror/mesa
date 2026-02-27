@@ -34,6 +34,7 @@
 #include "etnaviv_debug.h"
 #include "etnaviv_fence.h"
 #include "etnaviv_format.h"
+#include "etnaviv_ml.h"
 #include "etnaviv_query.h"
 #include "etnaviv_resource.h"
 #include "etnaviv_translate.h"
@@ -1014,6 +1015,14 @@ etna_screen_get_fd(struct pipe_screen *pscreen)
    return etna_device_fd(screen->dev);
 }
 
+static struct pipe_ml_device *
+etna_get_ml_device(struct pipe_screen *pscreen)
+{
+   struct etna_screen *screen = etna_screen(pscreen);
+
+   return &screen->ml_device.base;
+}
+
 struct pipe_screen *
 etna_screen_create(struct etna_device *dev, struct etna_gpu *gpu,
                    struct etna_gpu *npu, struct renderonly *ro)
@@ -1088,6 +1097,13 @@ etna_screen_create(struct etna_device *dev, struct etna_gpu *gpu,
    pscreen->query_dmabuf_modifiers = etna_screen_query_dmabuf_modifiers;
    pscreen->is_dmabuf_modifier_supported = etna_screen_is_dmabuf_modifier_supported;
    pscreen->get_dmabuf_modifier_planes = etna_screen_get_dmabuf_modifier_planes;
+
+   if (npu) {
+      screen->ml_device.base.ml_operation_supported = etna_ml_operation_supported;
+      screen->ml_device.base.ml_subgraph_create = etna_ml_subgraph_create;
+      screen->ml_device.base.ml_subgraph_destroy = etna_ml_subgraph_destroy;
+      pscreen->get_ml_device = etna_get_ml_device;
+   }
 
    if (!etna_shader_screen_init(pscreen))
       goto fail;

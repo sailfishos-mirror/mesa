@@ -136,7 +136,7 @@ ethosu_quantize_scale(double scale, uint32_t *shift)
 }
 
 bool
-ethosu_ml_operation_supported(struct pipe_context *pcontext,
+ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
                               const struct pipe_ml_operation *operation)
 {
    bool supported = false;
@@ -183,16 +183,14 @@ ethosu_ml_operation_supported(struct pipe_context *pcontext,
 }
 
 struct pipe_ml_subgraph *
-ethosu_ml_subgraph_create(struct pipe_context *pcontext,
+ethosu_ml_subgraph_create(struct pipe_ml_device *pdevice,
                           const struct pipe_ml_operation *poperations,
                           unsigned count)
 {
-   struct pipe_screen *pscreen = pcontext->screen;
-   struct ethosu_screen *screen = ethosu_screen(pscreen);
    struct ethosu_subgraph *subgraph;
 
    subgraph = calloc(1, sizeof(*subgraph));
-   subgraph->base.context = pcontext;
+   subgraph->base.device = pdevice;
 
    subgraph->tensors = UTIL_DYNARRAY_INIT;
    subgraph->operations = UTIL_DYNARRAY_INIT;
@@ -216,42 +214,120 @@ ethosu_ml_subgraph_create(struct pipe_context *pcontext,
 
    ethosu_emit_cmdstream(subgraph);
 
+   util_dynarray_foreach (&subgraph->operations, struct ethosu_operation, operation) {
+      free(operation->kernel.scales);
+      free(operation->kernel.zero_points);
+   }
+   util_dynarray_fini(&subgraph->operations);
+
+   free(subgraph->cmd0_state);
+   free(subgraph->cmd1_state);
+   free(subgraph->cmd0_valid);
+   free(subgraph->cmd1_valid);
+
+   return &subgraph->base;
+}
+
+uint8_t *
+ethosu_ml_subgraph_serialize(struct pipe_ml_device *pdevice,
+                             struct pipe_ml_subgraph *psubgraph,
+                             size_t *size)
+{
+   struct ethosu_subgraph *subgraph = (struct ethosu_subgraph *)(psubgraph);
+   uint64_t header_size = NUM_HEADER_FIELDS * sizeof(uint64_t);
+   uint64_t tensors_size = util_dynarray_num_elements(&subgraph->tensors,
+      struct ethosu_tensor) * NUM_TENSOR_FIELDS * sizeof(uint32_t);
+   uint64_t cmdstream_size = (subgraph->cursor - subgraph->cmdstream) *
+      sizeof(*subgraph->cursor);
+   uint64_t coefs_size = subgraph->coefs_used * sizeof(*subgraph->coefs);
+   uint64_t io_size = subgraph->io_used;
+   uint64_t total_size = header_size + cmdstream_size + coefs_size +
+      tensors_size;
+   uint8_t *buffer, *cursor;
+
+   buffer = malloc(total_size);
+   if (!buffer)
+      return NULL;
+
+   cursor = buffer;
+
+   uint64_t *header = (uint64_t *)cursor;
+   header[0] = cmdstream_size;
+   header[1] = coefs_size;
+   header[2] = io_size;
+   header[3] = tensors_size;
+   cursor += header_size;
+
+   uint32_t *tensors = (uint32_t *)cursor;
+   util_dynarray_foreach(&subgraph->tensors, struct ethosu_tensor, tensor) {
+      tensors[0] = tensor->index;
+      tensors[1] = tensor->offset;
+      tensors[2] = tensor->size;
+      tensors += NUM_TENSOR_FIELDS;
+   }
+   cursor += tensors_size;
+
+   memcpy(cursor, subgraph->cmdstream, cmdstream_size);
+   cursor += cmdstream_size;
+
+   if (coefs_size > 0)
+      memcpy(cursor, subgraph->coefs, coefs_size);
+
+   *size = total_size;
+   return buffer;
+}
+
+static void
+prepare_for_submission(struct ethosu_subgraph *subgraph,
+                       struct pipe_context *pcontext)
+{
+   struct ethosu_screen *screen = ethosu_screen(pcontext->screen);
+   uint64_t cmdstream_size = (subgraph->cursor - subgraph->cmdstream) *
+      sizeof(*subgraph->cursor);
+
+   if (DBG_ENABLED(ETHOSU_DBG_DUMP_BOS))
+      ethosu_dump_buffer((uint8_t *)subgraph->cmdstream, "cmdstream", 0, 0, 0,
+                         cmdstream_size);
+
    struct drm_ethosu_cmdstream_bo_create cmd_bo_create = {
-      .size = (subgraph->cursor - subgraph->cmdstream) * sizeof(*subgraph->cursor),
+      .size = cmdstream_size,
       .data = (uintptr_t)subgraph->cmdstream,
    };
 
-   if (DBG_ENABLED(ETHOSU_DBG_DUMP_BOS))
-      ethosu_dump_buffer((uint8_t *)subgraph->cmdstream, "cmdstream", 0, 0, 0, (subgraph->cursor - subgraph->cmdstream) * sizeof(*subgraph->cursor));
-
-   int ret = drmIoctl(screen->fd, DRM_IOCTL_ETHOSU_CMDSTREAM_BO_CREATE, &cmd_bo_create);
+   int ret = drmIoctl(screen->fd, DRM_IOCTL_ETHOSU_CMDSTREAM_BO_CREATE,
+                      &cmd_bo_create);
    assert(ret == 0);
 
    free(subgraph->cmdstream);
+   subgraph->cmdstream = NULL;
 
    subgraph->cmdstream_bo = cmd_bo_create.handle;
 
+   DBG("subgraph->coefs_used %d\n", subgraph->coefs_used);
    if (subgraph->coefs_used > 0) {
-      subgraph->coefs_rsrc = pipe_buffer_create(pscreen, 0, PIPE_USAGE_DEFAULT, subgraph->coefs_used);
-      assert(subgraph->coefs_rsrc != NULL);
-      pipe_buffer_write(subgraph->base.context, subgraph->coefs_rsrc, 0, subgraph->coefs_used, subgraph->coefs);
+      subgraph->coefs_rsrc = pipe_buffer_create(pcontext->screen, 0,
+                                                PIPE_USAGE_DEFAULT,
+                                                subgraph->coefs_used);
+      pipe_buffer_write(pcontext, subgraph->coefs_rsrc, 0,
+                        subgraph->coefs_used, subgraph->coefs);
 
       free(subgraph->coefs);
       subgraph->coefs = NULL;
 
       if (DBG_ENABLED(ETHOSU_DBG_DUMP_BOS)) {
          struct pipe_transfer *transfer_in;
-         uint8_t *buf = pipe_buffer_map(subgraph->base.context, subgraph->coefs_rsrc,
+         uint8_t *buf = pipe_buffer_map(pcontext, subgraph->coefs_rsrc,
                                         PIPE_MAP_READ, &transfer_in);
-         ethosu_dump_buffer(buf, "coefs", 0, 0, 0, pipe_buffer_size(subgraph->coefs_rsrc));
-         pipe_buffer_unmap(subgraph->base.context, transfer_in);
+         ethosu_dump_buffer(buf, "coefs", 0, 0, 0,
+                            pipe_buffer_size(subgraph->coefs_rsrc));
+         pipe_buffer_unmap(pcontext, transfer_in);
       }
    }
 
-   subgraph->io_rsrc = pipe_buffer_create(pscreen, 0, PIPE_USAGE_DEFAULT, subgraph->io_used);
-   assert(subgraph->io_rsrc != NULL);
-
-   return &subgraph->base;
+   DBG("subgraph->io_used %d\n", subgraph->io_used);
+   subgraph->io_rsrc = pipe_buffer_create(pcontext->screen, 0,
+                                          PIPE_USAGE_DEFAULT,
+                                          subgraph->io_used);
 }
 
 void
@@ -267,6 +343,9 @@ ethosu_ml_subgraph_invoke(struct pipe_context *pcontext,
    struct timespec start, end;
    int ret;
 
+   if (subgraph->io_rsrc == NULL)
+      prepare_for_submission(subgraph, pcontext);
+
    for (unsigned i = 0; i < inputs_count; i++) {
       struct ethosu_tensor *input = ethosu_find_tensor(subgraph, input_idxs[i]);
       assert(input);
@@ -279,10 +358,10 @@ ethosu_ml_subgraph_invoke(struct pipe_context *pcontext,
 
    if (DBG_ENABLED(ETHOSU_DBG_DUMP_BOS)) {
       struct pipe_transfer *transfer_in;
-      uint8_t *buf = pipe_buffer_map(subgraph->base.context, subgraph->io_rsrc,
+      uint8_t *buf = pipe_buffer_map(pcontext, subgraph->io_rsrc,
                                      PIPE_MAP_READ, &transfer_in);
       ethosu_dump_buffer(buf, "io-before", 0, 0, 0, pipe_buffer_size(subgraph->io_rsrc));
-      pipe_buffer_unmap(subgraph->base.context, transfer_in);
+      pipe_buffer_unmap(pcontext, transfer_in);
    }
 
    job.cmd_bo = subgraph->cmdstream_bo;
@@ -313,8 +392,8 @@ ethosu_ml_subgraph_invoke(struct pipe_context *pcontext,
 
       /* Force a sync */
       struct pipe_transfer *transfer_in;
-      pipe_buffer_map(subgraph->base.context, subgraph->io_rsrc, PIPE_MAP_READ, &transfer_in);
-      pipe_buffer_unmap(subgraph->base.context, transfer_in);
+      pipe_buffer_map(pcontext, subgraph->io_rsrc, PIPE_MAP_READ, &transfer_in);
+      pipe_buffer_unmap(pcontext, transfer_in);
 
       clock_gettime(CLOCK_MONOTONIC_RAW, &end);
       duration_ns = (long long)(end.tv_sec - start.tv_sec) * 1000000000LL + (end.tv_nsec - start.tv_nsec);
@@ -337,10 +416,10 @@ ethosu_ml_subgraph_read_outputs(struct pipe_context *pcontext,
 
       if (DBG_ENABLED(ETHOSU_DBG_DUMP_BOS)) {
          struct pipe_transfer *transfer_in;
-         uint8_t *buf = pipe_buffer_map(subgraph->base.context, subgraph->io_rsrc,
+         uint8_t *buf = pipe_buffer_map(pcontext, subgraph->io_rsrc,
                                         PIPE_MAP_READ, &transfer_in);
          ethosu_dump_buffer(buf, "io-after", 0, 0, 0, pipe_buffer_size(subgraph->io_rsrc));
-         pipe_buffer_unmap(subgraph->base.context, transfer_in);
+         pipe_buffer_unmap(pcontext, transfer_in);
       }
 
       pipe_buffer_read(pcontext, subgraph->io_rsrc, output->offset, output->size, outputs[i]);
@@ -348,33 +427,30 @@ ethosu_ml_subgraph_read_outputs(struct pipe_context *pcontext,
 }
 
 void
-ethosu_ml_subgraph_destroy(struct pipe_context *pcontext,
+ethosu_ml_subgraph_destroy(struct pipe_ml_device *pdevice,
                            struct pipe_ml_subgraph *psubgraph)
 {
-   int ret;
-   struct drm_gem_close arg = {0};
-   struct ethosu_screen *screen = ethosu_screen(pcontext->screen);
    struct ethosu_subgraph *subgraph = (struct ethosu_subgraph *)(psubgraph);
 
-   pipe_resource_reference(&subgraph->io_rsrc, NULL);
-   pipe_resource_reference(&subgraph->coefs_rsrc, NULL);
+   if (subgraph->io_rsrc) {
+      /* Post-submission state: cleanup DRM resources */
+      struct ethosu_screen *screen = ethosu_device_screen(pdevice);
+      struct drm_gem_close arg = {0};
+      int ret;
 
-   arg.handle = subgraph->cmdstream_bo;
-   ret = drmIoctl(screen->fd, DRM_IOCTL_GEM_CLOSE, &arg);
-   assert(ret >= 0);
+      pipe_resource_reference(&subgraph->io_rsrc, NULL);
+      pipe_resource_reference(&subgraph->coefs_rsrc, NULL);
 
-   util_dynarray_foreach (&subgraph->operations, struct ethosu_operation, operation) {
-      free(operation->kernel.scales);
-      free(operation->kernel.zero_points);
+      arg.handle = subgraph->cmdstream_bo;
+      ret = drmIoctl(screen->fd, DRM_IOCTL_GEM_CLOSE, &arg);
+      assert(ret >= 0);
+   } else {
+      /* Pre-submission state: cleanup raw buffers */
+      free(subgraph->cmdstream);
+      free(subgraph->coefs);
    }
-   util_dynarray_fini(&subgraph->operations);
 
    util_dynarray_fini(&subgraph->tensors);
-
-   free(subgraph->cmd0_state);
-   free(subgraph->cmd1_state);
-   free(subgraph->cmd0_valid);
-   free(subgraph->cmd1_valid);
 
    free(subgraph);
 }

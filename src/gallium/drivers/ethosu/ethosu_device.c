@@ -5,10 +5,12 @@
 
 #include "ethosu_device.h"
 #include "ethosu_ml.h"
+#include "ethosu_public.h"
 
 #include "drm-uapi/ethosu_accel.h"
 
 #include <xf86drm.h>
+#include <string.h>
 #include "util/os_mman.h"
 #include "util/u_inlines.h"
 #include "util/u_surface.h"
@@ -113,11 +115,8 @@ ethosu_create_context(struct pipe_screen *screen,
    pctx->buffer_subdata = u_default_buffer_subdata;
    pctx->clear_buffer = u_default_clear_buffer;
 
-   pctx->ml_operation_supported = ethosu_ml_operation_supported;
-   pctx->ml_subgraph_create = ethosu_ml_subgraph_create;
    pctx->ml_subgraph_invoke = ethosu_ml_subgraph_invoke;
    pctx->ml_subgraph_read_output = ethosu_ml_subgraph_read_outputs;
-   pctx->ml_subgraph_destroy = ethosu_ml_subgraph_destroy;
 
    return pctx;
 }
@@ -217,6 +216,23 @@ dev_query(struct ethosu_screen *screen)
    assert(ret != -1);
 }
 
+static struct pipe_ml_device *
+ethosu_ml_device_create_accel(struct pipe_screen *pscreen)
+{
+   struct ethosu_screen *screen = ethosu_screen(pscreen);
+
+   return &screen->ml_device.base;
+}
+
+static void
+set_device_callbacks(struct ethosu_ml_device *device)
+{
+   device->base.ml_operation_supported = ethosu_ml_operation_supported;
+   device->base.ml_subgraph_create = ethosu_ml_subgraph_create;
+   device->base.ml_subgraph_serialize = ethosu_ml_subgraph_serialize;
+   device->base.ml_subgraph_destroy = ethosu_ml_subgraph_destroy;
+}
+
 struct pipe_screen *
 ethosu_screen_create(int fd,
                      const struct pipe_screen_config *config,
@@ -266,6 +282,26 @@ ethosu_screen_create(int fd,
    screen->context_create = ethosu_create_context;
    screen->resource_create = ethosu_resource_create;
    screen->resource_destroy = ethosu_resource_destroy;
+   screen->get_ml_device = ethosu_ml_device_create_accel;
+
+   ethosu_screen->ml_device.base.id = "ethosu-65-256";
+   set_device_callbacks(&ethosu_screen->ml_device);
 
    return screen;
+}
+
+struct pipe_ml_device *
+ethosu_ml_device_create(const char *spec)
+{
+   struct ethosu_ml_device *device = NULL;
+
+   if (strcmp(spec, "65-256") != 0)
+      return NULL;
+
+   ethosu_debug = debug_get_option_ethosu_debug();
+
+   device = rzalloc(NULL, struct ethosu_ml_device);
+   set_device_callbacks(device);
+
+   return &device->base;
 }

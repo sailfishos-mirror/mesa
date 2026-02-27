@@ -40,8 +40,13 @@ struct ethosu_block {
    unsigned depth;
 };
 
+struct ethosu_ml_device {
+   struct pipe_ml_device base;
+};
+
 struct ethosu_screen {
    struct pipe_screen pscreen;
+   struct ethosu_ml_device ml_device;
 
    int fd;
    struct drm_ethosu_npu_info info;
@@ -63,6 +68,13 @@ ethosu_is_u65(struct ethosu_screen *e)
       return false;
    else
       return DRM_ETHOSU_ARCH_MAJOR(e->info.id) == 1;
+}
+
+static inline struct ethosu_screen *
+ethosu_device_screen(struct pipe_ml_device *pdevice)
+{
+   struct ethosu_ml_device *dev = (struct ethosu_ml_device *)pdevice;
+   return container_of(dev, struct ethosu_screen, ml_device);
 }
 
 struct ethosu_context {

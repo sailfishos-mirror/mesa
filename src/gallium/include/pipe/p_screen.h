@@ -123,6 +123,11 @@ struct pipe_screen {
    const char *(*get_vendor)(struct pipe_screen *);
 
    /**
+    * Returns the ML device for this screen, or NULL if ML is not supported.
+    */
+   struct pipe_ml_device *(*get_ml_device)(struct pipe_screen *);
+
+   /**
     * Returns the device vendor.
     *
     * The returned value should return the actual device vendor/manufacturer,

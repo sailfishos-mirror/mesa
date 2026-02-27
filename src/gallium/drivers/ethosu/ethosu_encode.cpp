@@ -58,7 +58,7 @@ ml_reorder_encode_weights(struct ethosu_subgraph *subgraph,
                           uint8_t **weights,
                           long *weights_size)
 {
-   struct ethosu_screen *screen = ethosu_screen(subgraph->base.context->screen);
+   struct ethosu_screen *screen = ethosu_device_screen(subgraph->base.device);
    int bit_depth = 8;
    bool is_sparse = false;
    EthosUTraversal traversal;

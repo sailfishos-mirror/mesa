@@ -376,8 +376,7 @@ reorder_for_hw_depthwise(struct etna_ml_subgraph *subgraph, struct etna_operatio
 static void
 transpose(struct etna_ml_subgraph *subgraph, struct etna_operation *operation)
 {
-   struct pipe_context *context = subgraph->base.context;
-   unsigned nn_core_version = etna_context(context)->screen->specs.nn_core_version;
+   unsigned nn_core_version = subgraph->screen->specs.nn_core_version;
    void *map = operation->weight_tensor;
    unsigned new_size;
    uint8_t *output;
@@ -503,8 +502,7 @@ static bool
 calc_pooling_first_pixel(struct etna_ml_subgraph *subgraph,
                          const struct pipe_ml_operation *poperation)
 {
-   struct pipe_context *context = subgraph->base.context;
-   unsigned nn_core_version = etna_context(context)->screen->specs.nn_core_version;
+   unsigned nn_core_version = subgraph->screen->specs.nn_core_version;
    unsigned input_width = poperation->input_tensors[0]->dims[1];
    unsigned input_channels = poperation->input_tensors[0]->dims[3];
 
@@ -554,9 +552,7 @@ etna_ml_lower_convolution(struct etna_ml_subgraph *subgraph,
                           const struct pipe_ml_operation *poperation,
                           struct etna_operation *operation)
 {
-   struct pipe_context *context = subgraph->base.context;
-   struct etna_context *ctx = etna_context(context);
-   unsigned nn_core_version = ctx->screen->specs.nn_core_version;
+   unsigned nn_core_version = subgraph->screen->specs.nn_core_version;
 
    /* TODO: Support stride_x != stride_y */
    assert(poperation->conv.stride_x == poperation->conv.stride_y);
@@ -886,9 +882,7 @@ etna_ml_lower_add(struct etna_ml_subgraph *subgraph,
                   const struct pipe_ml_operation *poperation,
                   struct etna_operation *operation)
 {
-   struct pipe_context *context = subgraph->base.context;
-   struct etna_context *ctx = etna_context(context);
-   unsigned nn_core_version = ctx->screen->specs.nn_core_version;
+   unsigned nn_core_version = subgraph->screen->specs.nn_core_version;
 
    if (nn_core_version < 8)
       etna_ml_lower_add_v7(subgraph, poperation, operation);
@@ -988,24 +982,23 @@ etna_ml_calc_addition_sizes(unsigned *input_width, unsigned *input_height, unsig
 }
 
 static unsigned
-etna_ml_calculate_tiling(struct etna_context *ctx, const struct etna_operation *operation, unsigned *tile_width_out, unsigned *tile_height_out)
+etna_ml_calculate_tiling(struct etna_screen *screen, const struct etna_operation *operation, unsigned *tile_width_out, unsigned *tile_height_out)
 {
-   unsigned nn_core_version = ctx->screen->specs.nn_core_version;
+   unsigned nn_core_version = screen->specs.nn_core_version;
    if (nn_core_version == 7)
-      return etna_ml_calculate_tiling_v7(ctx, operation, tile_width_out, tile_height_out);
+      return etna_ml_calculate_tiling_v7(screen, operation, tile_width_out, tile_height_out);
    else
-      return etna_ml_calculate_tiling_v8(ctx, operation, tile_width_out, tile_height_out);
+      return etna_ml_calculate_tiling_v8(screen, operation, tile_width_out, tile_height_out);
 }
 
 static struct etna_bo *
 create_nn_config(struct etna_ml_subgraph *subgraph, const struct etna_operation *operation, struct etna_bo *coefficients, unsigned coef_cache_size)
 {
-   struct pipe_context *context = subgraph->base.context;
-   struct etna_context *ctx = etna_context(context);
-   unsigned nn_core_count = etna_ml_get_core_info(ctx)->nn_core_count;
-   unsigned nn_core_version = ctx->screen->specs.nn_core_version;
-   unsigned oc_sram_size = etna_ml_get_core_info(ctx)->on_chip_sram_size;
-   struct etna_bo *bo = etna_ml_create_bo(context, sizeof(struct etna_nn_params));
+   struct etna_screen *screen = subgraph->screen;
+   unsigned nn_core_count = etna_ml_get_core_info(screen)->nn_core_count;
+   unsigned nn_core_version = screen->specs.nn_core_version;
+   unsigned oc_sram_size = etna_ml_get_core_info(screen)->on_chip_sram_size;
+   struct etna_bo *bo = etna_ml_create_bo(screen, sizeof(struct etna_nn_params));
    unsigned input_width = operation->input_width;
    unsigned input_height = operation->input_height;
    unsigned input_channels = operation->input_channels;
@@ -1162,7 +1155,7 @@ create_nn_config(struct etna_ml_subgraph *subgraph, const struct etna_operation 
    }
 
    unsigned tile_x, tile_y;
-   unsigned superblocks = etna_ml_calculate_tiling(ctx, operation, &tile_x, &tile_y);
+   unsigned superblocks = etna_ml_calculate_tiling(screen, operation, &tile_x, &tile_y);
    map->out_image_tile_x_size = tile_x;
    map->out_image_tile_y_size = tile_y;
 
@@ -1294,9 +1287,7 @@ void
 etna_ml_compile_operation_nn(struct etna_ml_subgraph *subgraph, const struct etna_operation *operation,
                              struct etna_vip_instruction *instruction)
 {
-   struct pipe_context *pctx = subgraph->base.context;
-   struct etna_context *ctx = etna_context(pctx);
-   unsigned nn_core_version = ctx->screen->specs.nn_core_version;
+   unsigned nn_core_version = subgraph->screen->specs.nn_core_version;
    unsigned coef_cache_size;
 
    instruction->type = ETNA_JOB_TYPE_NN;
@@ -1320,11 +1311,11 @@ etna_ml_compile_operation_nn(struct etna_ml_subgraph *subgraph, const struct etn
 }
 
 void
-etna_ml_emit_operation_nn(struct etna_ml_subgraph *subgraph,
+etna_ml_emit_operation_nn(struct pipe_context *pctx,
+                          struct etna_ml_subgraph *subgraph,
                           struct etna_vip_instruction *operation,
                           unsigned idx)
 {
-   struct pipe_context *pctx = subgraph->base.context;
    struct etna_context *ctx = etna_context(pctx);
    struct etna_cmd_stream *stream = ctx->stream;
    unsigned offset = idx + 1;

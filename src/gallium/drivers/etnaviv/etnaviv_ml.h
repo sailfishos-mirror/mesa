@@ -13,6 +13,16 @@
 
 #define MAX_CONFIG_BOS 4
 
+struct etna_ml_device {
+   struct pipe_ml_device base;
+};
+
+static inline struct etna_ml_device *
+etna_ml_device(struct pipe_ml_device *dev)
+{
+   return (struct etna_ml_device *)dev;
+}
+
 enum etna_job_type {
     ETNA_JOB_TYPE_NN,
     ETNA_JOB_TYPE_TP,
@@ -47,6 +57,7 @@ struct etna_ml_tensor {
 
 struct etna_ml_subgraph {
    struct pipe_ml_subgraph base;
+   struct etna_screen *screen;
 
    struct util_dynarray operations;
 
@@ -142,18 +153,18 @@ struct pipe_resource *etna_ml_get_resource(struct etna_ml_subgraph *subgraph, un
 unsigned etna_ml_get_offset(struct etna_ml_subgraph *subgraph, unsigned idx);
 unsigned etna_ml_get_size(struct etna_ml_subgraph *subgraph, unsigned idx);
 
-struct etna_bo *etna_ml_create_bo(struct pipe_context *pctx, size_t size);
+struct etna_bo *etna_ml_create_bo(struct etna_screen *screen, size_t size);
 
-struct pipe_resource *etna_ml_create_resource(struct pipe_context *pctx, size_t size);
+struct pipe_resource *etna_ml_create_resource(struct pipe_screen *pscreen, size_t size);
 
-struct etna_core_npu_info *etna_ml_get_core_info(struct etna_context *context);
+struct etna_core_npu_info *etna_ml_get_core_info(struct etna_screen *screen);
 
 bool
-etna_ml_operation_supported(struct pipe_context *pcontext,
+etna_ml_operation_supported(struct pipe_ml_device *pdevice,
                             const struct pipe_ml_operation *operation);
 
 struct pipe_ml_subgraph *
-etna_ml_subgraph_create(struct pipe_context *context,
+etna_ml_subgraph_create(struct pipe_ml_device *pdevice,
                         const struct pipe_ml_operation *operations,
                         unsigned count);
 
@@ -167,6 +178,6 @@ etna_ml_subgraph_read_outputs(struct pipe_context *context, struct pipe_ml_subgr
                               bool is_signed[]);
 
 void
-etna_ml_subgraph_destroy(struct pipe_context *context, struct pipe_ml_subgraph *subgraph);
+etna_ml_subgraph_destroy(struct pipe_ml_device *pdevice, struct pipe_ml_subgraph *subgraph);
 
 #endif

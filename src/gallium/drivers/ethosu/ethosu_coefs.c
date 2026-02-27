@@ -63,7 +63,7 @@ fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation 
    /* U65 packs 10-byte bias/scale entries contiguously then aligns to 16.
     * U85 scales are read in groups of 16 channels, so pad depth to a
     * 16-channel boundary first, then multiply by 10 bytes per entry. */
-   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
       *scales_size = align(operation->ofm.shape.depth * 10, 16);
    else
       *scales_size = align(operation->ofm.shape.depth, 16) * 10;
@@ -87,7 +87,7 @@ fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation 
       uint32_t shift;
       int scale = ethosu_quantize_scale(conv_scale, &shift);
 
-      if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+      if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
          encode_bias_scale_u65(
             biases[i], scale, shift, &(*scales)[idx]);
       else

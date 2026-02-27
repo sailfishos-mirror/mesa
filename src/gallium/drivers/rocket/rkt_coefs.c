@@ -12,7 +12,7 @@ struct pipe_resource *
 rkt_fill_weights(struct rkt_ml_subgraph *subgraph,
                  const struct pipe_ml_operation *poperation)
 {
-   struct pipe_context *pcontext = subgraph->base.context;
+   struct pipe_context *pcontext = subgraph->context;
    unsigned weights_width = poperation->conv.weight_tensor->dims[1];
    unsigned weights_height = poperation->conv.weight_tensor->dims[2];
    unsigned input_channels = poperation->input_tensors[0]->dims[3];
@@ -130,7 +130,7 @@ rkt_fill_biases(struct rkt_ml_subgraph *subgraph,
                 const struct pipe_ml_operation *poperation,
                 unsigned *truncate_bits)
 {
-   struct pipe_context *pcontext = subgraph->base.context;
+   struct pipe_context *pcontext = subgraph->context;
    unsigned output_channels = poperation->output_tensors[0]->dims[3];
    unsigned weights_size = poperation->conv.weight_tensor->dims[1];
    struct pipe_transfer *transfer_out;
