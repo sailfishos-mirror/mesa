@@ -1012,9 +1012,9 @@ struct pipe_grid_info
  */
 struct pipe_tensor {
    /**
-    * Memory-backing for this tensor (use pipe_buffer_*).
+    * Memory-backing for this tensor.
     */
-   struct pipe_resource *resource;
+   uint8_t *data;
    /**
     * Index of this tensor in the subgraph that contains it.
     */

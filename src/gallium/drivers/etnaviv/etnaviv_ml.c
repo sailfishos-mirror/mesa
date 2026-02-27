@@ -349,7 +349,7 @@ lower_operations(struct etna_ml_subgraph *subgraph,
 
          input_tensors[i] = poperation->input_tensors[i]->index;
 
-         if (poperation->input_tensors[i]->resource != NULL)
+         if (poperation->input_tensors[i]->data != NULL)
             continue;
 
          if (operation_layout != ETNA_ML_LAYOUT_ANY &&
@@ -672,8 +672,8 @@ etna_ml_operation_supported(struct pipe_context *pcontext,
       }
       case PIPE_ML_OPERATION_TYPE_SUBTRACT:
       case PIPE_ML_OPERATION_TYPE_ADD: {
-         supported = operation->input_tensors[0]->resource == NULL &&
-                     operation->input_tensors[1]->resource == NULL;
+         supported = operation->input_tensors[0]->data == NULL &&
+                     operation->input_tensors[1]->data == NULL;
          break;
       }
       case PIPE_ML_OPERATION_TYPE_CONCATENATION: {
@@ -789,8 +789,8 @@ etna_ml_subgraph_create(struct pipe_context *pcontext,
    }
 
    list_for_each_entry_safe(struct etna_operation, operation, &operations, link) {
-      pipe_resource_reference(&operation->weight_tensor, NULL);
-      pipe_resource_reference(&operation->bias_tensor, NULL);
+      free(operation->weight_tensor);
+      free(operation->bias_tensor);
       free(operation);
    }
 

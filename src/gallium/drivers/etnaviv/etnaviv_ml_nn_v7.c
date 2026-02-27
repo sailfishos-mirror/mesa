@@ -191,8 +191,8 @@ write_core_6(struct etna_ml_subgraph *subgraph, uint32_t *map, unsigned core, co
    unsigned output_channels = operation->addition ? 1 : operation->output_channels;
    unsigned cores_used = MIN2(output_channels, nn_core_count);
    unsigned kernels_per_core = DIV_ROUND_UP(output_channels, cores_used);
-   uint8_t *input = map_resource(operation->weight_tensor);
-   uint32_t *biases = map_resource(operation->bias_tensor);
+   uint8_t *input = operation->weight_tensor;
+   uint32_t *biases = (uint32_t *)operation->bias_tensor;
    unsigned out_values_per_channel = operation->output_width * operation->output_height;
    unsigned stride = MIN2(input_channels, 6);
    unsigned superblocks = etna_ml_calculate_tiling_v7(etna_context(pctx), operation, NULL, NULL);
@@ -271,8 +271,8 @@ write_core_interleaved(struct etna_ml_subgraph *subgraph, uint32_t *map, unsigne
    unsigned output_channels = operation->addition ? 1 : operation->output_channels;
    unsigned cores_used = MIN2(output_channels, nn_core_count);
    unsigned kernels_per_core = DIV_ROUND_UP(output_channels, cores_used);
-   uint8_t *input = map_resource(operation->weight_tensor);
-   uint32_t *biases = map_resource(operation->bias_tensor);
+   uint8_t *input = operation->weight_tensor;
+   uint32_t *biases = (uint32_t *)operation->bias_tensor;
    unsigned out_values_per_channel = operation->output_width * operation->output_height;
    unsigned superblocks = etna_ml_calculate_tiling_v7(etna_context(pctx), operation, NULL, NULL);
    uint8_t (*weights_map)[input_channels][operation->weight_width][operation->weight_height] = (void *)input;
@@ -357,8 +357,8 @@ write_core_sequential(struct etna_ml_subgraph *subgraph, uint32_t *map, unsigned
    unsigned output_channels = operation->addition ? 1 : operation->output_channels;
    unsigned cores_used = MIN2(output_channels, nn_core_count);
    unsigned kernels_per_core = DIV_ROUND_UP(output_channels, cores_used);
-   uint8_t *input = map_resource(operation->weight_tensor);
-   uint32_t *biases = map_resource(operation->bias_tensor);
+   uint8_t *input = operation->weight_tensor;
+   uint32_t *biases = (uint32_t *)operation->bias_tensor;
    unsigned out_values_per_channel = operation->output_width * operation->output_height;
    unsigned superblocks = etna_ml_calculate_tiling_v7(etna_context(pctx), operation, NULL, NULL);
    uint32_t *initial_ptr = map;

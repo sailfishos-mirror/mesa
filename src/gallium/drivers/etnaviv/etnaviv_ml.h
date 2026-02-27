@@ -108,7 +108,8 @@ struct etna_operation {
    uint8_t output_zero_point;
    float output_scale;
 
-   struct pipe_resource *weight_tensor;
+   uint8_t *weight_tensor;
+   unsigned weight_tensor_size;
    unsigned weight_width;
    unsigned weight_height;
    uint8_t weight_zero_point;
@@ -117,7 +118,8 @@ struct etna_operation {
 
    uint8_t addition_offset;
 
-   struct pipe_resource *bias_tensor;
+   uint8_t *bias_tensor;
+   unsigned bias_tensor_size;
 
    unsigned pad_before_x;
    unsigned pad_after_x;

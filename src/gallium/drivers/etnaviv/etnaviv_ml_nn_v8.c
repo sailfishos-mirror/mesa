@@ -606,7 +606,7 @@ static void encode_superblock(struct etna_ml_subgraph *subgraph, const struct et
    unsigned input_channels = operation->input_channels;
    unsigned output_channels = operation->output_channels;
    unsigned kernel_size;
-   uint8_t *weights = map_resource(operation->weight_tensor);
+   uint8_t *weights = operation->weight_tensor;
    unsigned block_size;
    unsigned blocks;
 
@@ -697,7 +697,7 @@ calculate_symbol_map(struct etna_ml_subgraph *subgraph, const struct etna_operat
 {
    unsigned input_channels = operation->input_channels;
    unsigned output_channels = operation->output_channels;
-   uint8_t *input = map_resource(operation->weight_tensor);
+   uint8_t *input = operation->weight_tensor;
    size_t histogram[9] = {};
 
    if (operation->depthwise)
@@ -767,8 +767,8 @@ fill_weights(struct etna_ml_subgraph *subgraph, const struct etna_operation *ope
 static uint32_t *
 fill_biases(struct etna_ml_subgraph *subgraph, const struct etna_operation *operation, uint32_t *map)
 {
-   uint8_t *input = map_resource(operation->weight_tensor);
-   uint32_t *biases = map_resource(operation->bias_tensor);
+   uint8_t *input = operation->weight_tensor;
+   uint32_t *biases = (uint32_t *)operation->bias_tensor;
    unsigned input_channels = operation->input_channels;
    unsigned output_channels = operation->output_channels;
 

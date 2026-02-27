@@ -158,7 +158,13 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
    allocate_feature_maps(subgraph, operation);
 
    ethosu_sched_operation(subgraph, operation);
-   fill_coefs(subgraph, operation, poperation->conv.bias_tensor->resource, poperation->conv.weight_tensor->resource);
+   fill_coefs(subgraph, operation,
+              (int32_t *)poperation->conv.bias_tensor->data,
+              poperation->conv.weight_tensor->data,
+              poperation->conv.weight_tensor->dims[0] *
+              poperation->conv.weight_tensor->dims[1] *
+              poperation->conv.weight_tensor->dims[2] *
+              poperation->conv.weight_tensor->dims[3]);
 }
 
 static void
@@ -345,17 +351,11 @@ ethosu_lower_add(struct ethosu_subgraph *subgraph,
    operation->ifm2.scale = poperation->input_tensors[ifm2_idx]->scale;
    operation->ifm2.is_signed = poperation->input_tensors[ifm2_idx]->is_signed;
    operation->ifm2.precision = log2(poperation->input_tensors[ifm2_idx]->type_size);
-   if (poperation->input_tensors[ifm2_idx]->resource &&
+   if (poperation->input_tensors[ifm2_idx]->data &&
        operation->ifm2.shape.width == 1 &&
        operation->ifm2.shape.height == 1 &&
        operation->ifm2.shape.depth == 1) {
-      struct pipe_transfer *transfer_in;
-      uint8_t *scalar = pipe_buffer_map(subgraph->base.context, poperation->input_tensors[ifm2_idx]->resource,
-                                        PIPE_MAP_READ, &transfer_in);
-
-      operation->ifm2.scalar = *scalar;
-
-      pipe_buffer_unmap(subgraph->base.context, transfer_in);
+      operation->ifm2.scalar = *poperation->input_tensors[ifm2_idx]->data;
    }
    if (poperation->add.relu)
       operation->eltwise.activation_min = operation->ofm.zero_point;

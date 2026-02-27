@@ -54,11 +54,8 @@ encode_bias_scale_u85(int64_t bias, int32_t scale, uint32_t shift, uint8_t data[
 }
 
 static void
-fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, uint8_t **scales, long *scales_size, struct pipe_resource *bias_rsrc)
+fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, uint8_t **scales, long *scales_size, int32_t *biases)
 {
-   struct pipe_transfer *transfer_in;
-   int32_t *biases = pipe_buffer_map(subgraph->base.context, bias_rsrc,
-                                     PIPE_MAP_READ, &transfer_in);
    float ifm_scale = operation->ifm.scale;
    float ofm_scale = operation->ofm.scale;
    unsigned idx = 0;
@@ -105,8 +102,6 @@ fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation 
 
       idx += 10;
    }
-
-   pipe_buffer_unmap(subgraph->base.context, transfer_in);
 }
 
 static void
@@ -126,23 +121,20 @@ calculate_weights_strides(struct ethosu_operation *operation, int out_strides[4]
 }
 
 static void
-fill_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, uint8_t **weights, long *weights_size, struct pipe_resource *weight_rsrc)
+fill_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, uint8_t *weights_in_data, unsigned weight_in_size, uint8_t **weights_out, long *weights_out_size)
 {
-   struct pipe_transfer *transfer_in;
-   uint8_t *input_weights_8 = pipe_buffer_map(subgraph->base.context, weight_rsrc,
-                                              PIPE_MAP_READ, &transfer_in);
-   ml_reorder_encode_weights(subgraph, operation, input_weights_8, pipe_buffer_size(weight_rsrc), weights, weights_size);
-   pipe_buffer_unmap(subgraph->base.context, transfer_in);
+   ml_reorder_encode_weights(subgraph, operation, weights_in_data, weight_in_size, weights_out, weights_out_size);
 }
 
 void
 fill_coefs(struct ethosu_subgraph *subgraph,
            struct ethosu_operation *operation,
-           struct pipe_resource *bias_rsrc,
-           struct pipe_resource *weight_rsrc)
+           int32_t *bias_data,
+           uint8_t *weight_data,
+           unsigned weight_size)
 {
    uint8_t *scales = NULL;
-   fill_scale_and_biases(subgraph, operation, &scales, &operation->conv.scales.size, bias_rsrc);
+   fill_scale_and_biases(subgraph, operation, &scales, &operation->conv.scales.size, bias_data);
 
    operation->conv.scales.region = COEFS_REGION;
    operation->conv.scales.address = subgraph->coefs_used;
@@ -152,7 +144,7 @@ fill_coefs(struct ethosu_subgraph *subgraph,
    free(scales);
 
    uint8_t *weights = NULL;
-   fill_weights(subgraph, operation, &weights, &operation->conv.weights.size, weight_rsrc);
+   fill_weights(subgraph, operation, weight_data, weight_size, &weights, &operation->conv.weights.size);
 
    if (!weights) {
       mesa_loge("fill_weights failed");

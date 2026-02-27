@@ -58,43 +58,6 @@ struct teflon_subgraph {
    unsigned output_count;
 };
 
-static struct pipe_resource *
-create_resource(struct pipe_context *context, TfLiteTensor tensor)
-{
-   unsigned bytes;
-   unsigned size = 1;
-
-   for (int i = 0; i < tensor.dims->size; i++)
-      size *= tensor.dims->data[i];
-
-   switch (tensor.type) {
-   case kTfLiteInt8:
-   case kTfLiteUInt8:
-      bytes = 1;
-      break;
-   case kTfLiteInt16:
-   case kTfLiteUInt16:
-   case kTfLiteFloat16:
-      bytes = 2;
-      break;
-   case kTfLiteInt32:
-   case kTfLiteUInt32:
-   case kTfLiteFloat32:
-      bytes = 4;
-      break;
-   case kTfLiteInt64:
-   case kTfLiteUInt64:
-   case kTfLiteFloat64:
-   case kTfLiteComplex64:
-      bytes = 8;
-      break;
-   default:
-      UNREACHABLE("Unsupported TF type");
-   }
-
-   return pipe_buffer_create_with_data(context, 0, PIPE_USAGE_DEFAULT, size * bytes, tensor.data.data);
-}
-
 static bool
 fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLiteNode *node, TfLiteRegistration *node_registration, struct pipe_ml_operation *operation)
 {
@@ -342,17 +305,30 @@ tf_format_to_size(TfLiteType type)
    }
 }
 
+static unsigned
+tensor_data_size(TfLiteTensor tensor)
+{
+   unsigned size = 1;
+
+   for (int i = 0; i < tensor.dims->size; i++)
+      size *= tensor.dims->data[i];
+
+   return size * tf_format_to_size(tensor.type);
+}
+
 static void
 fill_tensor(struct teflon_delegate *delegate, TfLiteContext *tf_context, struct pipe_tensor *tensor, unsigned index)
 {
-   struct pipe_context *context = delegate->context;
    TfLiteTensor tf_tensor = tf_context->tensors[index];
 
    if (tf_tensor.type == kTfLiteNoType)
       return; /* Placeholder tensor */
 
-   if (tf_tensor.data.data)
-      tensor->resource = create_resource(context, tf_tensor);
+   if (tf_tensor.data.data) {
+      unsigned size = tensor_data_size(tf_tensor);
+      tensor->data = malloc(size);
+      memcpy(tensor->data, tf_tensor.data.data, size);
+   }
 
    tensor->type_size = tf_format_to_size(tf_tensor.type);
    tensor->index = index;
@@ -420,7 +396,7 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
                    tensors[i].index,
                    tensors[i].scale,
                    tensors[i].zero_point,
-                   tensors[i].resource == NULL ? "no" : "yes",
+                   tensors[i].data == NULL ? "no" : "yes",
                    tensors[i].dims[0], tensors[i].dims[1], tensors[i].dims[2], tensors[i].dims[3]);
    }
 
@@ -1011,8 +987,8 @@ tflite_plugin_destroy_delegate(TfLiteDelegate *tf_delegate)
       if (delegate->tensors[i].zero_points)
          free(delegate->tensors[i].zero_points);
 
-      if (delegate->tensors[i].resource)
-         pipe_resource_reference(&delegate->tensors[i].resource, NULL);
+      if (delegate->tensors[i].data)
+         free(delegate->tensors[i].data);
    }
    free(delegate->tensors);
 
