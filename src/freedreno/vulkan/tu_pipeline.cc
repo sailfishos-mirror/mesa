@@ -1304,7 +1304,7 @@ tu6_emit_geom_tess_consts(struct tu_cs *cs,
 
    if (gs && !hs) {
       tu6_emit_vs_params(cs, ir3_const_state(vs), vs->constlen,
-                         vs->output_size, gs->gs.vertices_in);
+                         vs->output_size, gs->gs.vertices_in * vs->view_count);
    }
 
    if (hs) {
@@ -1312,9 +1312,9 @@ tu6_emit_geom_tess_consts(struct tu_cs *cs,
       tu_get_tess_iova<CHIP>(dev, &tess_factor_iova, &tess_param_iova);
 
       uint32_t ds_params[8] = {
-         gs ? ds->output_size * gs->gs.vertices_in * 4 : 0,  /* ds primitive stride */
-         ds->output_size * 4,                                /* ds vertex stride */
-         hs->output_size,                                    /* hs vertex stride (dwords) */
+         gs ? ds->output_size * ds->view_count * gs->gs.vertices_in * 4 : 0,  /* ds primitive stride */
+         ds->output_size * 4,                                                 /* ds vertex stride */
+         hs->output_size,                                                     /* hs vertex stride (dwords) */
          hs->tess.tcs_vertices_out,
          tess_param_iova,
          tess_param_iova >> 32,
@@ -1330,8 +1330,8 @@ tu6_emit_geom_tess_consts(struct tu_cs *cs,
    if (gs) {
       const struct ir3_shader_variant *prev = ds ? ds : vs;
       uint32_t gs_params[4] = {
-         prev->output_size * gs->gs.vertices_in * 4,  /* gs primitive stride */
-         prev->output_size * 4,                 /* gs vertex stride */
+         prev->output_size * prev->view_count * gs->gs.vertices_in * 4,  /* gs primitive stride */
+         prev->output_size * 4,                                          /* gs vertex stride */
          0,
          0,
       };
@@ -1887,8 +1887,12 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
 
    if (builder->state &
        VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT) {
-      keys[MESA_SHADER_VERTEX].multiview_mask =
-         builder->graphics_state.mv->view_mask;
+      for (int i = MESA_SHADER_VERTEX; i <= MESA_SHADER_GEOMETRY; i++) {
+         if (nir[i] || stage_infos[i]) {
+            keys[i].multiview_mask =
+               builder->graphics_state.mv->view_mask;
+         }
+      }
 
       mesa_shader_stage last_pre_rast_stage = MESA_SHADER_VERTEX;
       for (int i = MESA_SHADER_GEOMETRY; i >= MESA_SHADER_VERTEX; i--) {
@@ -4972,7 +4976,7 @@ tu_compute_pipeline_create(VkDevice device,
          nir_shader_as_str(nir, pipeline->base.executables_mem_ctx) : NULL;
 
       struct tu_shader_info info = {};
-      tu_lower_nir(dev, nir, &key, &info);
+      tu_lower_nir(dev, nir, &key, &ir3_key, &info);
       result = tu_shader_create(dev, &shader, nir, &key, &info, &ir3_key,
                                 pipeline_blake3, sizeof(pipeline_blake3), layout,
                                 executable_info);

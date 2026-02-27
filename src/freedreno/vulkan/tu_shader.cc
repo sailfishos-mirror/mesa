@@ -2934,6 +2934,7 @@ void
 tu_lower_nir(struct tu_device *dev,
              nir_shader *nir,
              const struct tu_shader_key *key,
+             const struct ir3_shader_key *ir3_key,
              struct tu_shader_info *info)
 {
    const nir_opt_access_options access_options = {
@@ -2999,9 +3000,13 @@ tu_lower_nir(struct tu_device *dev,
     */
    ir3_nir_lower_io_vars_to_temporaries(nir);
 
-   if (nir->info.stage == MESA_SHADER_VERTEX && key->multiview_mask) {
-      tu_nir_lower_multiview(nir, key->multiview_mask, dev);
-   }
+   bool is_last_stage =
+    (nir->info.stage == MESA_SHADER_VERTEX && !ir3_key->has_gs && !ir3_key->tessellation);
+
+   if (nir->info.stage == MESA_SHADER_VERTEX && key->multiview_mask)
+      tu_nir_lower_multiview(nir, key->multiview_mask, dev, is_last_stage);
+   if (nir->info.stage == MESA_SHADER_GEOMETRY)
+      nir->info.view_mask = key->multiview_mask;
 
    if (!key->multiview_mask)
       tu_nir_lower_view_to_zero(nir);
@@ -3347,7 +3352,7 @@ tu_compile_shaders(struct tu_device *device,
 
       int64_t stage_start = os_time_get_nano();
 
-      tu_lower_nir(device, nir[stage], &keys[stage], &info[stage]);
+      tu_lower_nir(device, nir[stage], &keys[stage], &ir3_key, &info[stage]);
 
       stage_feedbacks[stage].duration += os_time_get_nano() - stage_start;
    }
