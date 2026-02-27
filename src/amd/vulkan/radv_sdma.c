@@ -238,9 +238,8 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
 
       info.va = (va + surf_offset) | surf->tile_swizzle << 8;
 
-      if (pdev->info.gfx_level >= GFX12) {
-         info.is_compressed = binding->bo && binding->bo->gfx12_allow_dcc;
-      } else if (pdev->info.sdma_supports_compression && (dcc_compressed || htile_compressed)) {
+      if (pdev->info.sdma_supports_compression && (dcc_compressed || htile_compressed)) {
+         assert(pdev->info.gfx_level < GFX12);
          info.is_compressed = true;
       }
 
@@ -250,6 +249,9 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
          info.htile_enabled = htile_compressed;
       }
    }
+
+   if (pdev->info.gfx_level >= GFX12)
+      info.is_compressed = binding->bo && binding->bo->gfx12_allow_dcc;
 
    return info;
 }
