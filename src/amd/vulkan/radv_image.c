@@ -1653,12 +1653,12 @@ radv_layout_can_fast_clear(const struct radv_device *device, const struct radv_i
    if (!(image->vk.usage & RADV_IMAGE_USAGE_WRITE_BITS))
       return false;
 
-   /* All images that support comp-to-single can be fast cleared on any queues as long as DCC is
-    * compressed because this doesn't require to set fast-clear registers or to perform
+   /* All images that support comp-to-single can be fast cleared on graphics/compute queues as long
+    * as DCC is compressed because this doesn't require to set fast-clear registers or to perform
     * fast-clear eliminate.
-    * TODO: Generalize this to GFX10-10.3.
+    * TODO: Figure out if it's possible with MSAA on GFX10-10.3.
     */
-   if (pdev->info.gfx_level >= GFX11 && image->support_comp_to_single)
+   if (image->support_comp_to_single && (pdev->info.gfx_level >= GFX11 || image->vk.samples == 1))
       return true;
 
    if (layout != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && layout != VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL)
