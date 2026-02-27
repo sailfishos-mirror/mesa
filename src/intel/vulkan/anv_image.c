@@ -1879,8 +1879,14 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
       /* If the resource is created with the CONCURRENT sharing mode, we can't
        * support compression because we aren't allowed barriers in order to
        * construct the main surface data with FULL_RESOLVE/PARTIAL_RESOLVE.
+       *
+       * Only applies pre-Xe2, first there is no resolve going on color images
+       * on that platform (only for HIZ_CCS we need a partial resolve, but it
+       * would be handled with layout transitions), second we don't have
+       * restriction on the cache not being coherent between engines.
        */
-      if (image->vk.sharing_mode == VK_SHARING_MODE_CONCURRENT)
+      if (image->vk.sharing_mode == VK_SHARING_MODE_CONCURRENT &&
+          device->info->ver < 20)
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
    }
 
