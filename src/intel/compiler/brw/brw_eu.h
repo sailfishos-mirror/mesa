@@ -1630,6 +1630,13 @@ brw_lsc_supports_base_offset(const struct intel_device_info *devinfo)
    return devinfo->ver >= 20;
 }
 
+static inline bool
+brw_can_coherent_fb_fetch(const struct intel_device_info *devinfo)
+{
+   /* Not functional after Gfx20 */
+   return devinfo->ver >= 9 && devinfo->ver < 20;
+}
+
 #ifdef __cplusplus
 }
 #endif
