@@ -594,10 +594,10 @@ emit_vs_system_values(fd_crb &crb, const struct program_builder *b)
       .regid_tessx = tess_coord_x_regid,
       .regid_tessy = tess_coord_y_regid,
    ));
-   crb.add(A6XX_VFD_CNTL_4(.unk0 = INVALID_REG));
+   crb.add(A6XX_VFD_CNTL_4(.regid_dsviewid = INVALID_REG));
    crb.add(A6XX_VFD_CNTL_5(
       .regid_gsheader = gsheader_regid,
-      .unk8 = INVALID_REG,
+      .regid_gsviewid = INVALID_REG,
    ));
    crb.add(A6XX_VFD_CNTL_6(.primid4psen = b->fs->reads_primid));
 }
