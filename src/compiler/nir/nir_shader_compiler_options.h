@@ -861,6 +861,12 @@ typedef struct nir_shader_compiler_options {
    void (*lower_mediump_io)(struct nir_shader *nir);
 
    /**
+    * If driver wishes to control which @convert_alu_types to lower, it
+    * can implement this callback.
+    */
+   bool (*lower_convert_alu_types)(nir_intrinsic_instr *convert_alu_types);
+
+   /**
     * Return the maximum cost of an expression that's written to a shader
     * output that can be moved into the next shader to remove that output.
     *
