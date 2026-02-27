@@ -618,6 +618,20 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
    }
 }
 
+static bool
+fm_ranges_overlap(struct ethosu_subgraph *subgraph,
+                  struct ethosu_feature_map *a, struct ethosu_feature_map *b)
+{
+   struct ethosu_tensor *ta = ethosu_find_tensor(subgraph, a->tensor_idx);
+   struct ethosu_tensor *tb = ethosu_find_tensor(subgraph, b->tensor_idx);
+
+   if (!ta || !tb || ta->size == 0 || tb->size == 0)
+      return false;
+
+   return ta->offset < tb->offset + tb->size &&
+          tb->offset < ta->offset + ta->size;
+}
+
 static unsigned
 calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op, struct ethosu_operation *operation)
 {
@@ -630,7 +644,17 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
    if (prev_uses_lut && SHRAM_RESERVED_UNUSED_BANKS == 0 && !curr_uses_lut)
       return 0;
 
-   return MAX_BLOCKDEP; /* TODO: Check if there is actually overlap between the FMs */
+   /* If the previous op writes to the same buffer that the current op
+    * reads from, we need to wait for it to finish first.
+    */
+   bool ifm_overlaps = fm_ranges_overlap(subgraph, &prev_op->ofm, &operation->ifm);
+   bool ifm2_overlaps = operation->type == ETHOSU_OPERATION_TYPE_ELTWISE &&
+                         fm_ranges_overlap(subgraph, &prev_op->ofm, &operation->ifm2);
+
+   if (ifm_overlaps || ifm2_overlaps)
+      return 0;
+
+   return MAX_BLOCKDEP;
 }
 
 void

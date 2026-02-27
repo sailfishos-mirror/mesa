@@ -1,5 +1,4 @@
 Models.Op/efficientdet_efficientdet_tflite_lite0_int8_v1,Fail
-Models.Op/micronetlarge_ad_large_int8,Fail
 Models.Op/movenetlightning_089,Fail
 Models.Op/movenetlightning_090,Fail
 Models.Op/movenetlightning_093,Fail
@@ -42,5 +41,3 @@ Models.Op/movenetthunder_141,Fail
 Models.Op/movenetthunder_151,Fail
 Models.Op/movenetthunder_152,Fail
 Models.Op/movenetthunder_movenet_single_pose_thunder_ptq,Fail
-Models.Op/ssdmobilenetv2_ssd_mobilenet_v2_coco_quant_postprocess,Fail
-Models.Op/mobilenetv2_mobilenet_v2_tflite_1_0_224_quantized_v1,Fail
