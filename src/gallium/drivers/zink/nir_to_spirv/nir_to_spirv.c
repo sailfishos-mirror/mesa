@@ -5598,6 +5598,15 @@ optimize_nir(struct nir_shader *nir)
       NIR_PASS(progress, nir, nir_opt_undef);
       NIR_PASS(progress, nir, nir_opt_loop);
    } while (progress);
+   do {
+      progress = false;
+      NIR_PASS(progress, nir, nir_opt_algebraic_late);
+      if (progress) {
+         NIR_PASS(_, nir, nir_opt_copy_prop);
+         NIR_PASS(_, nir, nir_opt_dce);
+         NIR_PASS(_, nir, nir_opt_cse);
+      }
+   } while (progress);
 
    NIR_PASS(progress, nir, nir_opt_shrink_vectors, true);
 }
