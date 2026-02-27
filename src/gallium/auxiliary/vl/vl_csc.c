@@ -59,11 +59,11 @@ void vl_csc_get_rgbyuv_matrix(enum pipe_video_vpp_matrix_coefficients coefficien
    const bool out_yuv = util_format_is_yuv(out_format);
    const unsigned bpc = format_bpc(in_format);
    const float scale = (1 << bpc) / ((1 << bpc) - 1.0);
-   const float r_min = 16.0 / 256.0 * scale;
-   const float r_max = 235.0 / 256.0 * scale;
+   const float y_min = 16.0 / 256.0 * scale;
+   const float y_max = 235.0 / 256.0 * scale;
    const float c_mid = 128.0 / 256.0 * scale;
    const float c_max = 240.0 / 256.0 * scale;
-   float r_scale, g_scale, r_bias, g_bias;
+   float y_scale, c_scale, y_bias, c_bias;
 
    memcpy(matrix, &identity, sizeof(vl_csc_matrix));
 
@@ -72,23 +72,23 @@ void vl_csc_get_rgbyuv_matrix(enum pipe_video_vpp_matrix_coefficients coefficien
 
    /* Convert input to full range, chroma to [-0.5,0.5]. */
    if (in_color_range == PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED) {
-      r_scale = 1.0 / (r_max - r_min);
-      g_scale = in_yuv ? 0.5 / (c_max - c_mid) : r_scale;
-      r_bias = -r_min;
-      g_bias = in_yuv ? -c_mid : r_bias;
+      y_scale = 1.0 / (y_max - y_min);
+      c_scale = in_yuv ? 0.5 / (c_max - c_mid) : y_scale;
+      y_bias = -y_min;
+      c_bias = in_yuv ? -c_mid : y_bias;
    } else if (in_yuv) {
-      r_scale = 1.0;
-      g_scale = 0.5 / (1.0 - c_mid);
-      r_bias = 0.0;
-      g_bias = -c_mid;
+      y_scale = 1.0;
+      c_scale = 0.5 / (1.0 - c_mid);
+      y_bias = 0.0;
+      c_bias = -c_mid;
    } else {
-      r_scale = g_scale = 1.0;
-      r_bias = g_bias = 0.0;
+      y_scale = c_scale = 1.0;
+      y_bias = c_bias = 0.0;
    }
 
    for (unsigned i = 0; i < 3; i++) {
-      (*matrix)[i][i] = i == 0 ? r_scale : g_scale;
-      (*matrix)[i][3] = (i == 0 ? r_bias : g_bias) * (*matrix)[i][i];
+      (*matrix)[i][i] = i == 0 ? y_scale : c_scale;
+      (*matrix)[i][3] = (i == 0 ? y_bias : c_bias) * (*matrix)[i][i];
    }
 
    if (in_yuv != out_yuv) {
@@ -149,32 +149,32 @@ void vl_csc_get_rgbyuv_matrix(enum pipe_video_vpp_matrix_coefficients coefficien
 
       for (unsigned i = 0; i < 3; i++) {
          for (unsigned j = 0; j < 3; j++) {
-            (*matrix)[i][j] *= j == 0 ? r_scale : g_scale;
-            (*matrix)[i][3] += (*matrix)[i][j] * (j == 0 ? r_bias : g_bias);
+            (*matrix)[i][j] *= j == 0 ? y_scale : c_scale;
+            (*matrix)[i][3] += (*matrix)[i][j] * (j == 0 ? y_bias : c_bias);
          }
       }
    }
 
    /* Convert output to reduced range, chroma to [0.0,1.0]. */
    if (out_color_range == PIPE_VIDEO_VPP_CHROMA_COLOR_RANGE_REDUCED) {
-      r_scale = (r_max - r_min) / 1.0;
-      g_scale = in_yuv ? r_scale : (c_max - c_mid) / 0.5;
-      r_bias = r_min;
-      g_bias = in_yuv ? r_bias : c_mid;
+      y_scale = (y_max - y_min) / 1.0;
+      c_scale = in_yuv ? y_scale : (c_max - c_mid) / 0.5;
+      y_bias = y_min;
+      c_bias = in_yuv ? y_bias : c_mid;
    } else if (out_yuv) {
-      r_scale = 1.0;
-      g_scale = (1.0 - c_mid) / 0.5;
-      r_bias = 0.0;
-      g_bias = c_mid;
+      y_scale = 1.0;
+      c_scale = (1.0 - c_mid) / 0.5;
+      y_bias = 0.0;
+      c_bias = c_mid;
    } else {
-      r_scale = g_scale = 1.0;
-      r_bias = g_bias = 0.0;
+      y_scale = c_scale = 1.0;
+      y_bias = c_bias = 0.0;
    }
 
    for (unsigned i = 0; i < 3; i++) {
       for (unsigned j = 0; j < 4; j++)
-         (*matrix)[i][j] *= i == 0 ? r_scale : g_scale;
-      (*matrix)[i][3] += i == 0 ? r_bias : g_bias;
+         (*matrix)[i][j] *= i == 0 ? y_scale : c_scale;
+      (*matrix)[i][3] += i == 0 ? y_bias : c_bias;
    }
 }
 
