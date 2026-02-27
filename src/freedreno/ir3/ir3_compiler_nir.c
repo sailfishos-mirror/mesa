@@ -5554,6 +5554,8 @@ emit_instructions(struct ir3_context *ctx)
             create_sysval_input(ctx, SYSTEM_VALUE_GS_HEADER_IR3, 0x1);
          ctx->primitive_id =
             create_sysval_input(ctx, SYSTEM_VALUE_PRIMITIVE_ID, 0x1);
+         ctx->view_index =
+            create_sysval_input(ctx, SYSTEM_VALUE_VIEW_INDEX, 0x1);
       }
       break;
    case MESA_SHADER_TESS_CTRL:
@@ -5872,6 +5874,18 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
          outputs_count++;
       }
 
+      if (so->type == MESA_SHADER_VERTEX && ctx->view_index) {
+         unsigned n = so->outputs_count++;
+         so->outputs[n].slot = VARYING_SLOT_VIEW_INDEX;
+
+         struct ir3_instruction *out =
+            ir3_collect(&ctx->build, ctx->view_index);
+         outputs[outputs_count] = out;
+         outidxs[outputs_count] = n;
+         regids[outputs_count] = regid(0, 2);
+         outputs_count++;
+      }
+
       if (so->type == MESA_SHADER_VERTEX && ctx->rel_patch_id) {
          unsigned n = so->outputs_count++;
          so->outputs[n].slot = VARYING_SLOT_REL_PATCH_ID_IR3;
@@ -6106,6 +6120,8 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
       ctx->gs_header->dsts[0]->num = regid(0, 0);
       if (ctx->primitive_id)
          ctx->primitive_id->dsts[0]->num = regid(0, 1);
+      if (ctx->view_index)
+         ctx->view_index->dsts[0]->num = regid(0, 2);
    } else if (so->num_sampler_prefetch) {
       assert(so->type == MESA_SHADER_FRAGMENT);
       int idx = 0;
