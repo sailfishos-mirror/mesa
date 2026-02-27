@@ -4804,7 +4804,7 @@
         "description": "st/glsl_to_nir: update state var locations earlier",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a6fcc2835ead0282c2bb6c29e0eed3711b2ec6d1",
         "notes": null
