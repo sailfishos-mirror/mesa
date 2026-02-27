@@ -147,7 +147,7 @@ valhall_opcodes[BI_NUM_OPCODES] = {
 
 # Exact value to be ORed in to every opcode
 def exact_op(op):
-    return (op.opcode << 48) | (op.opcode2 << op.secondary_shift)
+    return (op.opcode.value << op.opcode.start) | (op.opcode2 << op.secondary_shift)
 
 try:
     print(Template(template).render(immediates = immediates, instructions = instructions, skip = SKIP, exact = exact_op, typesize = typesize))

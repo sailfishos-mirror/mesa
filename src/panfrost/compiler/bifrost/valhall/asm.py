@@ -315,7 +315,7 @@ def parse_asm(line):
     operands = operands[len(ins.immediates):]
 
     # Encode the operation itself
-    encoded |= (ins.opcode << 48)
+    encoded |= (ins.opcode.value << ins.opcode.start)
     encoded |= (ins.opcode2 << ins.secondary_shift)
 
     # Encode FAU page

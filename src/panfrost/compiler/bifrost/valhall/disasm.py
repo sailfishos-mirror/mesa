@@ -271,7 +271,7 @@ disassemble_valhall(FILE *fp, const void *code, size_t size, bool verbose)
 # Bucket by opcode for hierarchical disassembly
 OPCODE_BUCKETS = {}
 for ins in instructions:
-    opc = ins.opcode
+    opc = ins.opcode.value
     OPCODE_BUCKETS[opc] = OPCODE_BUCKETS.get(opc, []) + [ins]
 
 # Check that each bucket may be disambiguated

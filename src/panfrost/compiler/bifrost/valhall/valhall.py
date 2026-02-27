@@ -157,6 +157,12 @@ class Immediate:
         self.size = size
         self.signed = signed
 
+class Opcode:
+    def __init__(self, value, start, mask):
+        self.value = value
+        self.start = start
+        self.mask = mask
+
 class Instruction:
     def __init__(self, name, opcode, opcode2, srcs = [], dests = [], immediates = [], modifiers = [], staging = None, unit = None):
         self.name = name
@@ -179,7 +185,7 @@ class Instruction:
             self.secondary_mask |= 0x100
         if len(srcs) == 3 and (srcs[1].widen or srcs[1].lanes or srcs[1].swizzle):
             self.secondary_mask &= ~0xC # conflicts
-        if opcode == 0x90:
+        if opcode.value == 0x90:
             # XXX: XMLify this, but disambiguates sign of conversions
             self.secondary_mask |= 0x10
         if name.startswith("LOAD.i") or name.startswith("STORE.i") or name.startswith("LD_PKA.i"):
@@ -238,14 +244,22 @@ def build_modifier(el):
 
     return Modifier(name, start, size, implied)
 
+def build_opcode(el, name):
+    opcode = el.find(name)
+    if opcode is None:
+        return None
+    value = int(opcode.get('val'), base=0)
+    start = int(opcode.get('start'))
+    mask = int(opcode.get('mask'), base=0)
+    return Opcode(value, start, mask)
+
 # Build a single instruction from XML and group based overrides
 def build_instr(el, overrides = {}):
     # Get overridables
     name = overrides.get('name') or el.attrib.get('name')
-    opcode = overrides.get('opcode') or el.attrib.get('opcode')
+    opcode = overrides.get('opcode') or build_opcode(el, 'opcode')
     opcode2 = overrides.get('opcode2') or el.attrib.get('opcode2')
     unit = overrides.get('unit') or el.attrib.get('unit')
-    opcode = int(opcode, base=0)
     opcode2 = int(opcode2, base=0) if opcode2 else None
 
     # Get explicit sources/dests
@@ -295,7 +309,7 @@ def build_group(el):
     for ins in el.findall('ins'):
         build_instr(el, overrides = {
             'name': ins.attrib['name'],
-            'opcode': ins.attrib.get('opcode'),
+            'opcode': build_opcode(ins, 'opcode'),
             'opcode2': ins.attrib.get('opcode2'),
             'unit': ins.attrib.get('unit'),
         })
@@ -335,16 +349,16 @@ def safe_name(name):
     return name.lower()
 
 # Parses out the size part of an opcode name
-def typesize(opcode):
-    if opcode[-3:] == '128':
+def typesize(name):
+    if name[-3:] == '128':
         return 128
-    if opcode[-2:] == '48':
+    if name[-2:] == '48':
         return 48
-    elif opcode[-1] == '8':
+    elif name[-1] == '8':
         return 8
     else:
         try:
-            return int(opcode[-2:])
+            return int(name[-2:])
         except:
             return 32
 
