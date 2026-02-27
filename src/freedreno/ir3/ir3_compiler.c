@@ -63,6 +63,57 @@ ir3_compiler_destroy(struct ir3_compiler *compiler)
    ralloc_free(compiler);
 }
 
+static bool
+ir3_nir_lower_convert_alu_types(nir_intrinsic_instr *conv)
+{
+   assert(conv->intrinsic == nir_intrinsic_convert_alu_types);
+
+   /* Lower anything with const src for better constant folding: */
+   if (nir_src_is_const(conv->src[0]))
+      return true;
+
+   nir_alu_type src_type = nir_intrinsic_src_type(conv);
+   nir_alu_type dest_type = nir_intrinsic_dest_type(conv);
+   nir_rounding_mode rounding = nir_intrinsic_rounding_mode(conv);
+
+   /* If rounding mode is undef, and no saturation, then lower.  In this
+    * case, the @convert_alu_types will be lowered trivially to a single
+    * alu opc, so no need to preserve the @convert_alu_types for backend.
+    */
+   if (rounding == nir_rounding_mode_undef &&
+       !nir_intrinsic_saturate(conv))
+      return true;
+
+   nir_alu_type src_base_type = nir_alu_type_get_base_type(src_type);
+   nir_alu_type dest_base_type = nir_alu_type_get_base_type(dest_type);
+   unsigned src_bit_size = nir_alu_type_get_type_size(src_type);
+   unsigned dest_bit_size = nir_alu_type_get_type_size(dest_type);
+
+   /* Int->int conversion don't round: */
+   if ((src_base_type != nir_type_float) && (dest_base_type != nir_type_float))
+      return true;
+
+   /* Float widening does not round: */
+   if ((src_base_type == nir_type_float) && (dest_base_type == nir_type_float) &&
+       (dest_bit_size > src_bit_size))
+      return true;
+
+   /* int64 needs nir_lower_int64, as hw does not natively support this: */
+   if ((dest_bit_size > 32) || (src_bit_size > 32))
+      return true;
+
+   /* Conversions [u]int8 <-> float need some special handling, but we
+    * can just let the lowering and normal create_cov() path handle it:
+    */
+   if ((dest_bit_size < 16) || (src_bit_size < 16))
+      return true;
+
+   /* Everything else maps to single ir3 instructions, so preserve for
+    * backend to handle:
+    */
+   return false;
+}
+
 static const nir_shader_compiler_options ir3_base_options = {
    .compact_arrays = true,
    .lower_fpow = true,
@@ -140,6 +191,8 @@ static const nir_shader_compiler_options ir3_base_options = {
    .compact_view_index = true,
 
    .io_options = nir_io_has_intrinsics,
+
+   .lower_convert_alu_types = ir3_nir_lower_convert_alu_types,
 };
 
 
