@@ -17,6 +17,7 @@
 #include "util/lut.h"
 #include "compiler/glsl_types.h"
 
+#include <cassert>
 #include <optional>
 
 struct brw_bind_info {
@@ -6002,8 +6003,14 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
    }
 
    int data_src = nir_get_io_data_src_number(instr);
-   unsigned components = is_store ? instr->src[data_src].ssa->num_components
-                                  : instr->def.num_components;
+   unsigned components;
+   if (is_store) {
+      assert(data_src >= 0);
+      components = instr->src[data_src].ssa->num_components;
+   } else {
+      components = instr->def.num_components;
+   }
+
    if (components == 0)
       components = instr->num_components;
 
