@@ -3007,6 +3007,10 @@ blorp_copy(struct blorp_batch *batch,
           params.src.aux_usage == ISL_AUX_USAGE_FCV_CCS_E ||
           params.src.aux_usage == ISL_AUX_USAGE_STC_CCS);
 
+   /* The public interface states that the value returned by the format query
+    * is valid for losslessly compressed surfaces. Internally, we're free to
+    * use it as a starting point for all surfaces.
+    */
    blorp_copy_get_formats(isl_dev, &params.src.surf, &params.dst.surf,
                           &params.src.view.format, &params.dst.view.format);
 

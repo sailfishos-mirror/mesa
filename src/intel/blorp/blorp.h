@@ -255,10 +255,16 @@ blorp_blit(struct blorp_batch *batch,
            enum blorp_filter filter,
            bool mirror_x, bool mirror_y);
 
+/* Returns the format the blorp_copy() call can be assumed to use if it
+ * receives a blorp surface which enables lossless compression.
+ */
 enum isl_format
 blorp_copy_get_color_format(const struct isl_device *isl_dev,
                             enum isl_format surf_format);
 
+/* Returns the format the blorp_copy() call can be assumed to use if it
+ * receives a blorp surface which enables lossless compression.
+ */
 void
 blorp_copy_get_formats(const struct isl_device *isl_dev,
                        const struct isl_surf *src_surf,
