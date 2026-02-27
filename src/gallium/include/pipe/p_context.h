@@ -1276,6 +1276,18 @@ struct pipe_context {
                                    struct pipe_ml_subgraph *subgraph,
                                    unsigned outputs_count, unsigned output_idxs[],
                                    void *outputs[], bool is_signed[]);
+
+   /**
+    * Deserialize a previously-serialized ML subgraph.
+    *
+    * \param context     pipe context
+    * \param data        serialized subgraph data
+    * \param size        size of the serialized data in bytes
+    * \return            a newly allocated pipe_ml_subgraph, or NULL on failure
+    */
+   struct pipe_ml_subgraph *(*ml_subgraph_deserialize)(struct pipe_context *context,
+                                                       const uint8_t *data,
+                                                       size_t size);
 };
 
 
