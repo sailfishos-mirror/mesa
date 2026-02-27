@@ -4792,8 +4792,21 @@ isl_surf_get_image_surf(const struct isl_device *dev,
    /* Even for cube maps there will be only single face, therefore drop the
     * corresponding flag if present.
     */
-   const isl_surf_usage_flags_t usage =
+   isl_surf_usage_flags_t usage =
       surf->usage & (~ISL_SURF_USAGE_CUBE_BIT);
+
+   if (!util_is_aligned(*offset_B, surf->alignment_B)) {
+      /* Aux-tt alignment only applies to the beginning of the resource. */
+      usage |= ISL_SURF_USAGE_NO_AUX_TT_ALIGNMENT_BIT;
+
+      /* The sparse flag can be dropped if only opaque binds are supported. */
+      usage &= ~ISL_SURF_USAGE_SPARSE_BIT;
+
+      /* Sequential use by multiple engines comes with alignment requirements
+       * that should be ignored.
+       */
+      usage &= ~ISL_SURF_USAGE_MULTI_ENGINE_SEQ_BIT;
+   }
 
    bool ok UNUSED;
    ok = isl_surf_init(dev, image_surf,
