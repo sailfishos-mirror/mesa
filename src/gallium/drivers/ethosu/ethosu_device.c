@@ -115,6 +115,7 @@ ethosu_create_context(struct pipe_screen *screen,
    pctx->buffer_subdata = u_default_buffer_subdata;
    pctx->clear_buffer = u_default_clear_buffer;
 
+   pctx->ml_subgraph_deserialize = ethosu_ml_subgraph_deserialize;
    pctx->ml_subgraph_invoke = ethosu_ml_subgraph_invoke;
    pctx->ml_subgraph_read_output = ethosu_ml_subgraph_read_outputs;
 

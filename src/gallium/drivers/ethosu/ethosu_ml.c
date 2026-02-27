@@ -331,6 +331,76 @@ prepare_for_submission(struct ethosu_subgraph *subgraph,
                                           subgraph->io_used);
 }
 
+struct pipe_ml_subgraph *
+ethosu_ml_subgraph_deserialize(struct pipe_context *pcontext,
+                               const uint8_t *data,
+                               size_t size)
+{
+   struct ethosu_subgraph *subgraph;
+
+   if (size < NUM_HEADER_FIELDS * sizeof(uint64_t))
+      return NULL;
+
+   subgraph = calloc(1, sizeof(*subgraph));
+   if (!subgraph)
+      return NULL;
+
+   subgraph->base.device = pcontext->screen->get_ml_device(pcontext->screen);
+
+   util_dynarray_init(&subgraph->tensors, NULL);
+
+   const uint64_t *header = (const uint64_t *)data;
+   uint64_t header_size = NUM_HEADER_FIELDS * sizeof(uint64_t);
+   uint64_t cmdstream_size = header[0];
+   uint64_t coefs_size = header[1];
+   uint64_t io_size = header[2];
+   uint64_t tensors_size = header[3];
+   data += header_size;
+
+   if (size != header_size + cmdstream_size + coefs_size + tensors_size) {
+      free(subgraph);
+      return NULL;
+   }
+
+   for (unsigned i = 0;
+        i < tensors_size / (NUM_TENSOR_FIELDS * sizeof(uint32_t)); i++) {
+      struct ethosu_tensor tensor = {0};
+      const uint32_t *tdata = (const uint32_t *)data;
+      tensor.index = tdata[0];
+      tensor.offset = tdata[1];
+      tensor.size = tdata[2];
+      util_dynarray_append(&subgraph->tensors, tensor);
+      data += NUM_TENSOR_FIELDS * sizeof(uint32_t);
+   }
+
+   subgraph->cmdstream_used = cmdstream_size / sizeof(*subgraph->cmdstream);
+   subgraph->cmdstream = malloc(cmdstream_size);
+   if (!subgraph->cmdstream) {
+      util_dynarray_fini(&subgraph->tensors);
+      free(subgraph);
+      return NULL;
+   }
+   memcpy(subgraph->cmdstream, data, cmdstream_size);
+   subgraph->cursor = subgraph->cmdstream + subgraph->cmdstream_used;
+   data += cmdstream_size;
+
+   subgraph->coefs_used = coefs_size;
+   if (coefs_size > 0) {
+      subgraph->coefs = malloc(coefs_size);
+      if (!subgraph->coefs) {
+         free(subgraph->cmdstream);
+         util_dynarray_fini(&subgraph->tensors);
+         free(subgraph);
+         return NULL;
+      }
+      memcpy(subgraph->coefs, data, coefs_size);
+   }
+
+   subgraph->io_used = io_size;
+
+   return &subgraph->base;
+}
+
 void
 ethosu_ml_subgraph_invoke(struct pipe_context *pcontext,
                           struct pipe_ml_subgraph *psubgraph,

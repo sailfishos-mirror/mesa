@@ -239,6 +239,11 @@ ethosu_ml_subgraph_serialize(struct pipe_ml_device *pdevice,
                              struct pipe_ml_subgraph *psubgraph,
                              size_t *size);
 
+struct pipe_ml_subgraph *
+ethosu_ml_subgraph_deserialize(struct pipe_context *pcontext,
+                               const uint8_t *data,
+                               size_t size);
+
 void ethosu_ml_subgraph_invoke(struct pipe_context *pcontext,
                                struct pipe_ml_subgraph *psubgraph,
                                unsigned inputs_count, unsigned input_idxs[],
