@@ -1522,8 +1522,7 @@ tu_CreateDescriptorUpdateTemplate(
       }
       case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
       case VK_DESCRIPTOR_TYPE_SAMPLER:
-         if (pCreateInfo->templateType == VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR &&
-             binding_layout->immutable_samplers_offset) {
+         if (binding_layout->immutable_samplers_offset) {
             immutable_samplers =
                tu_immutable_samplers(set_layout, binding_layout) + entry->dstArrayElement;
          }
@@ -1540,10 +1539,13 @@ tu_CreateDescriptorUpdateTemplate(
          .descriptor_count = entry->descriptorCount,
          .dst_offset = dst_offset,
          .dst_stride = dst_stride,
-         .has_sampler = !binding_layout->immutable_samplers_offset,
+         .immutable_samplers = immutable_samplers,
          .src_offset = entry->offset,
          .src_stride = entry->stride,
-         .immutable_samplers = immutable_samplers,
+         .copy_immutable_samplers =
+            immutable_samplers &&
+            pCreateInfo->templateType ==
+            VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR,
       };
    }
 
@@ -1634,14 +1636,14 @@ tu_update_descriptor_set_with_template(
             write_combined_image_sampler_descriptor(ptr,
                                                     templ->entry[i].descriptor_type,
                                                     (const VkDescriptorImageInfo *) src,
-                                                    templ->entry[i].has_sampler);
-            if (samplers)
+                                                    !samplers);
+            if (templ->entry[i].copy_immutable_samplers)
                write_sampler_push(ptr + FDL6_TEX_CONST_DWORDS, &samplers[j]);
             break;
          case VK_DESCRIPTOR_TYPE_SAMPLER:
-            if (templ->entry[i].has_sampler)
+            if (!templ->entry[i].immutable_samplers)
                write_sampler_descriptor(ptr, ((const VkDescriptorImageInfo *)src)->sampler);
-            else if (samplers)
+            else if (templ->entry[i].copy_immutable_samplers)
                write_sampler_push(ptr, &samplers[j]);
             break;
          case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR: {

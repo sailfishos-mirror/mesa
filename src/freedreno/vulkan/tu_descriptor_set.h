@@ -183,14 +183,14 @@ struct tu_descriptor_update_template_entry
    uint32_t buffer_offset;
 
    /* Only valid for combined image samplers and samplers */
-   uint16_t has_sampler;
+   const struct tu_sampler *immutable_samplers;
 
    /* In bytes */
    size_t src_offset;
    size_t src_stride;
 
    /* For push descriptors */
-   const struct tu_sampler *immutable_samplers;
+   bool copy_immutable_samplers;
 };
 
 struct tu_descriptor_update_template
@@ -226,6 +226,9 @@ static inline const struct tu_sampler *
 tu_immutable_samplers(const struct tu_descriptor_set_layout *set,
                       const struct tu_descriptor_set_binding_layout *binding)
 {
+   if (!binding->immutable_samplers_offset)
+      return NULL;
+
    return (struct tu_sampler *) ((const char *) set +
                                  binding->immutable_samplers_offset);
 }
