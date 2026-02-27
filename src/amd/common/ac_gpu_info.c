@@ -1812,11 +1812,8 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    has_htile_tc_z_clear_bug_without_stencil = %i\n", info->has_htile_tc_z_clear_bug_without_stencil);
    fprintf(f, "    has_htile_tc_z_clear_bug_with_stencil = %i\n", info->has_htile_tc_z_clear_bug_with_stencil);
    fprintf(f, "    has_small_prim_filter_sample_loc_bug = %i\n", info->has_small_prim_filter_sample_loc_bug);
-   fprintf(f, "    has_ls_vgpr_init_bug = %i\n", info->compiler_info.has_ls_vgpr_init_bug);
    fprintf(f, "    has_pops_missed_overlap_bug = %i\n", info->has_pops_missed_overlap_bug);
    fprintf(f, "    has_32bit_predication = %i\n", info->has_32bit_predication);
-   fprintf(f, "    has_3d_cube_border_color_mipmap = %i\n",
-           info->compiler_info.has_3d_cube_border_color_mipmap);
    fprintf(f, "    has_image_opcodes = %i\n", info->has_image_opcodes);
    fprintf(f, "    never_stop_sq_perf_counters = %i\n", info->never_stop_sq_perf_counters);
    fprintf(f, "    has_sqtt_rb_harvest_bug = %i\n", info->has_sqtt_rb_harvest_bug);
@@ -1829,7 +1826,6 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    has_set_sh_pairs = %i\n", info->has_set_sh_pairs);
    fprintf(f, "    has_set_sh_pairs_packed = %i\n", info->has_set_sh_pairs_packed);
    fprintf(f, "    has_set_uconfig_pairs = %i\n", info->has_set_uconfig_pairs);
-   fprintf(f, "    conformant_trunc_coord = %i\n", info->compiler_info.conformant_trunc_coord);
    fprintf(f, "    mesh_fast_launch_2 = %i\n", info->mesh_fast_launch_2);
 
    if (info->gfx_level < GFX12) {
@@ -1981,6 +1977,10 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    max_se = %i\n", info->max_se);
    fprintf(f, "    max_sa_per_se = %i\n", info->max_sa_per_se);
    fprintf(f, "    num_cu_per_sh = %i\n", info->num_cu_per_sh);
+   fprintf(f, "    max_scratch_waves = %i\n", info->max_scratch_waves);
+   fprintf(f, "    has_scratch_base_registers = %i\n", info->has_scratch_base_registers);
+
+   fprintf(f, "Compiler info:\n");
    fprintf(f, "    max_waves_per_simd = %i\n", info->compiler_info.max_waves_per_simd);
    fprintf(f, "    num_physical_sgprs_per_simd = %i\n",
            info->compiler_info.num_physical_sgprs_per_simd);
@@ -1995,8 +1995,32 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    max_vgpr_alloc = %i\n", info->compiler_info.max_vgpr_alloc);
    fprintf(f, "    wave64_vgpr_alloc_granularity = %i\n",
            info->compiler_info.wave64_vgpr_alloc_granularity);
-   fprintf(f, "    max_scratch_waves = %i\n", info->max_scratch_waves);
-   fprintf(f, "    has_scratch_base_registers = %i\n", info->has_scratch_base_registers);
+   fprintf(f, "    has_lds_bank_count_16 = %i\n", info->compiler_info.has_lds_bank_count_16);
+   fprintf(f, "    has_sram_ecc_enabled = %i\n", info->compiler_info.has_sram_ecc_enabled);
+   fprintf(f, "    has_point_sample_accel = %i\n", info->compiler_info.has_point_sample_accel);
+   fprintf(f, "    has_fast_fma32 = %i\n", info->compiler_info.has_fast_fma32);
+   fprintf(f, "    has_fma_mix = %i\n", info->compiler_info.has_fma_mix);
+   fprintf(f, "    has_mad32 = %i\n", info->compiler_info.has_mad32);
+   fprintf(f, "    has_packed_math_16bit = %i\n", info->compiler_info.has_packed_math_16bit);
+   fprintf(f, "    has_accelerated_dot_product = %i\n", info->compiler_info.has_accelerated_dot_product);
+   fprintf(f, "    has_image_bvh_intersect_ray = %i\n", info->compiler_info.has_image_bvh_intersect_ray);
+   fprintf(f, "    has_ngg_passthru_no_msg = %i\n", info->compiler_info.has_ngg_passthru_no_msg);
+   fprintf(f, "    local_invocation_ids_packed = %i\n", info->compiler_info.local_invocation_ids_packed);
+   fprintf(f, "    has_3d_cube_border_color_mipmap = %i\n", info->compiler_info.has_3d_cube_border_color_mipmap);
+   fprintf(f, "    conformant_trunc_coord = %i\n", info->compiler_info.conformant_trunc_coord);
+   fprintf(f, "    has_attr_ring = %i\n", info->compiler_info.has_attr_ring);
+   fprintf(f, "    smaller_tcs_workgroups = %i\n", info->compiler_info.smaller_tcs_workgroups);
+   fprintf(f, "    has_gfx6_mrt_export_bug = %i\n", info->compiler_info.has_gfx6_mrt_export_bug);
+   fprintf(f, "    has_vtx_format_alpha_adjust_bug = %i\n", info->compiler_info.has_vtx_format_alpha_adjust_bug);
+   fprintf(f, "    has_smem_oob_access_bug = %i\n", info->compiler_info.has_smem_oob_access_bug);
+   fprintf(f, "    has_image_load_dcc_bug = %i\n", info->compiler_info.has_image_load_dcc_bug);
+   fprintf(f, "    has_ls_vgpr_init_bug = %i\n", info->compiler_info.has_ls_vgpr_init_bug);
+   fprintf(f, "    has_cb_lt16bit_int_clamp_bug = %i\n", info->compiler_info.has_cb_lt16bit_int_clamp_bug);
+   fprintf(f, "    has_vrs_frag_pos_z_bug = %i\n", info->compiler_info.has_vrs_frag_pos_z_bug);
+   fprintf(f, "    has_ngg_fully_culled_bug = %i\n", info->compiler_info.has_ngg_fully_culled_bug);
+   fprintf(f, "    has_attr_ring_wait_bug = %i\n", info->compiler_info.has_attr_ring_wait_bug);
+   fprintf(f, "    has_primid_instancing_bug = %i\n", info->compiler_info.has_primid_instancing_bug);
+
    fprintf(f, "Ring info:\n");
    if (info->gfx_level >= GFX11) {
       fprintf(f, "    attribute_ring_size_per_se = %u KB\n",
