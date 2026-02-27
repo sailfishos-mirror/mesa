@@ -317,6 +317,8 @@ fn prepare_options(options: &str, dev: &Device) -> Vec<CString> {
             "-cl-no-subgroup-ifp" => None,
             // Some applications use this argument when they detect Intel hardware.
             "-cl-intel-greater-than-4GB-buffer-required" => None,
+            // Some applications use this when they detect QC hardware
+            "-qcom-accelerate-16-bit" => None,
             _ => Some(a),
         })
         .map(CString::new)
