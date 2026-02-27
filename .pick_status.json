@@ -2134,7 +2134,7 @@
         "description": "gallium/dri: set LIBVA_DRIVERS_PATH in devenv",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "212d57f7e6701a4f307c2c049a0e3eccfce58965",
         "notes": null
