@@ -281,12 +281,9 @@ nir_op
 vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
                                 SpvOp opcode, bool *swap,
                                 unsigned *extra_fp_math_ctrl,
-                                const glsl_type *src_type,
-                                const glsl_type *dst_type)
+                                unsigned conv_src_bit_size,
+                                unsigned conv_dst_bit_size)
 {
-   const unsigned src_bit_size = glsl_get_bit_size(src_type);
-   const unsigned dst_bit_size = glsl_get_bit_size(dst_type);
-
    /* Indicates that the first two arguments should be swapped.  This is
     * used for implementing greater-than and less-than-or-equal.
     */
@@ -408,8 +405,12 @@ vtn_nir_alu_op_for_spirv_opcode(struct vtn_builder *b,
    case SpvOpConvertUToF:
    case SpvOpSConvert:
    case SpvOpFConvert: {
-      nir_alu_type src_type = vtn_convert_op_src_type(opcode) | src_bit_size;
-      nir_alu_type dst_type = vtn_convert_op_dst_type(opcode) | dst_bit_size;
+      vtn_fail_if(conv_src_bit_size == 0,
+                  "Need src bit_size to translate from SPIR-V convert opcodes to NIR.");
+      vtn_fail_if(conv_dst_bit_size == 0,
+                  "Need dst bit_size to translate from SPIR-V convert opcodes to NIR.");
+      nir_alu_type src_type = vtn_convert_op_src_type(opcode) | conv_src_bit_size;
+      nir_alu_type dst_type = vtn_convert_op_dst_type(opcode) | conv_dst_bit_size;
       return nir_type_conversion_op(src_type, dst_type, nir_rounding_mode_undef);
    }
 
@@ -949,10 +950,9 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    case SpvOpFUnordLessThanEqual:
    case SpvOpFUnordGreaterThanEqual: {
       bool swap;
-      unsigned unused_fp_math_ctrl;;
+      unsigned unused_fp_math_ctrl;
       nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap,
-                                                  &unused_fp_math_ctrl,
-                                                  vtn_src[0]->type, dest_type);
+                                                  &unused_fp_math_ctrl, 0, 0);
 
       if (swap) {
          nir_def *tmp = src[0];
@@ -1028,8 +1028,7 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    case SpvOpShiftRightLogical: {
       bool swap;
       unsigned extra_fp_math_ctrl;
-      nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl,
-                                                  vtn_src[0]->type, dest_type);
+      nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl, 0, 0);
 
       assert(!extra_fp_math_ctrl);
 
@@ -1139,7 +1138,8 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
       unsigned extra_fp_math_ctrl;
       nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap,
                                                   &extra_fp_math_ctrl,
-                                                  vtn_src[0]->type, dest_type);
+                                                  glsl_get_bit_size(vtn_src[0]->type),
+                                                  glsl_get_bit_size(dest_type));
 
       if (swap) {
          nir_def *tmp = src[0];

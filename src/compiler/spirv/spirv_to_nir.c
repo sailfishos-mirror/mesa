@@ -2902,7 +2902,8 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
 
          unsigned extra_fp_math_ctrl;
          nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl,
-                                                     src_type, dst_type);
+                                                     glsl_get_bit_size(src_type),
+                                                     glsl_get_bit_size(dst_type));
 
          /* No SPIR-V opcodes handled through this path should set fast math.
           * Since it is ignored, assert on it.
