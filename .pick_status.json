@@ -3014,7 +3014,7 @@
         "description": "spirv: Fix spec constant to handle Select for non-native floats",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "90e1b128903cabfe4fcfb5ae52cf46d5ddbf1189",
         "notes": null
