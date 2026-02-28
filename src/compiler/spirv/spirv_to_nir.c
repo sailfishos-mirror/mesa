@@ -2936,26 +2936,28 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
                else if (glsl_type_is_e5m2(org_src_type))
                   src[j][c].f32 = _mesa_e5m2_to_float(src[j][c].u8);
             }
-         }
 
-         /* fix up fixed size sources */
-         switch (op) {
-         case nir_op_ishl:
-         case nir_op_ishr:
-         case nir_op_ushr: {
-            if (bit_size == 32)
-               break;
-            for (unsigned i = 0; i < num_components; ++i) {
-               switch (bit_size) {
-               case 64: src[1][i].u32 = src[1][i].u64; break;
-               case 16: src[1][i].u32 = src[1][i].u16; break;
-               case  8: src[1][i].u32 = src[1][i].u8;  break;
+            /* Fix up source to respect NIR expected sizes. */
+            switch (op) {
+            case nir_op_ishl:
+            case nir_op_ishr:
+            case nir_op_ushr: {
+               /* Shift amount in NIR ops must be 32-bit. */
+               vtn_assert(!swap);
+               const unsigned shift_idx = 1;
+               const unsigned shift_bit_size = glsl_get_bit_size(src_val->type->type);
+               if (i != shift_idx || shift_bit_size == 32)
+                  break;
+               for (unsigned c = 0; c < src_comps; c++) {
+                  nir_const_value *shift = &src[shift_idx][c];
+                  *shift = nir_const_value_for_uint(
+                        nir_const_value_as_uint(*shift, shift_bit_size), 32);
                }
+               break;
             }
-            break;
-         }
-         default:
-            break;
+            default:
+               break;
+            }
          }
 
          nir_const_value *srcs[3] = {
