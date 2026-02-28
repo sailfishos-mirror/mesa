@@ -6,6 +6,7 @@
  *    Rob Clark <robclark@freedesktop.org>
  */
 
+#include "util/u_call_once.h"
 #include "util/ralloc.h"
 
 #include "freedreno_dev_info.h"
@@ -141,13 +142,10 @@ static const nir_shader_compiler_options ir3_base_options = {
    .io_options = nir_io_has_intrinsics,
 };
 
-struct ir3_compiler *
-ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
-                    const struct fd_dev_info *dev_info,
-                    const struct ir3_compiler_options *options)
-{
-   struct ir3_compiler *compiler = rzalloc(NULL, struct ir3_compiler);
 
+static void
+__debug_init(void)
+{
    ir3_shader_debug = debug_get_option_ir3_shader_debug();
    ir3_shader_override_path =
       __normal_user() ? debug_get_option_ir3_shader_override_path() : NULL;
@@ -157,6 +155,23 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
    }
 
    ir3_shader_bisect_init();
+}
+
+static void
+ir3_compiler_debug_init(void)
+{
+   static util_once_flag once = UTIL_ONCE_FLAG_INIT;
+   util_call_once(&once, __debug_init);
+}
+
+struct ir3_compiler *
+ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
+                    const struct fd_dev_info *dev_info,
+                    const struct ir3_compiler_options *options)
+{
+   struct ir3_compiler *compiler = rzalloc(NULL, struct ir3_compiler);
+
+   ir3_compiler_debug_init();
 
    compiler->dev = dev;
    compiler->dev_id = dev_id;
