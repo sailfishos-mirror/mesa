@@ -448,6 +448,16 @@ brw_validate(const brw_shader &s)
             VAL_ASSERT_EQ(inst->dst.hstride, 1);
          }
 
+         /* Bspec 47367 (r63640) says:
+          *
+          *    Instructions that specify an implicit accumulator source cannot
+          *    specify an explicit accumulator source operand.
+          */
+         if (inst->reads_accumulator_implicitly()) {
+            for (unsigned i = 0; i < inst->sources; i++)
+               VAL_ASSERT(!brw_reg_is_arf(inst->src[i], BRW_ARF_ACCUMULATOR));
+         }
+
          if (inst->is_math() && intel_needs_workaround(devinfo, 22016140776)) {
             /* Wa_22016140776:
              *
