@@ -319,7 +319,8 @@ dri2_allocate_textures(struct dri_context *ctx,
          if (drawable->textures[statt]) {
             templ.format = drawable->textures[statt]->format;
             templ.bind = drawable->textures[statt]->bind &
-                         ~(PIPE_BIND_SCANOUT | PIPE_BIND_SHARED);
+                         (PIPE_BIND_RENDER_TARGET | PIPE_BIND_BLENDABLE |
+                          PIPE_BIND_SAMPLER_VIEW);
             templ.nr_samples = drawable->stvis.samples;
             templ.nr_storage_samples = drawable->stvis.samples;
 
