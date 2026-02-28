@@ -861,6 +861,22 @@ fd_screen_get_fd(struct pipe_screen *pscreen)
    return fd_device_fd(screen->dev);
 }
 
+static void
+__debug_init(void)
+{
+   fd_mesa_debug = debug_get_option_fd_mesa_debug();
+
+   if (FD_DBG(NOBIN))
+      fd_binning_enabled = false;
+}
+
+static void
+fd_screen_debug_init(void)
+{
+   static util_once_flag once = UTIL_ONCE_FLAG_INIT;
+   util_call_once(&once, __debug_init);
+}
+
 struct pipe_screen *
 fd_screen_create(int fd,
                  const struct pipe_screen_config *config,
@@ -874,10 +890,7 @@ fd_screen_create(int fd,
    struct pipe_screen *pscreen;
    uint64_t val;
 
-   fd_mesa_debug = debug_get_option_fd_mesa_debug();
-
-   if (FD_DBG(NOBIN))
-      fd_binning_enabled = false;
+   fd_screen_debug_init();
 
    if (!screen)
       return NULL;
