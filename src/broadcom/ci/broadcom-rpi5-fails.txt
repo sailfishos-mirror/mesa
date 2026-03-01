@@ -607,15 +607,6 @@ dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.storage_buffer,Cras
 dEQP-VK.binding_model.unused_invalid_descriptor.write.unused.uniform_buffer,Crash
 asan-dEQP-VK.binding_model.unused_invalid_descriptor.write.invalid.combined_image_sampler,Crash
 
-# New failures with ES CTS 3.2.13.0
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16f.renderbuffer_to_texture2d,Fail
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16i.renderbuffer_to_renderbuffer,Fail
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16i.renderbuffer_to_texture2d,Fail
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16ui.renderbuffer_to_renderbuffer,Fail
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16ui.renderbuffer_to_texture2d,Fail
-asan-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16f.renderbuffer_to_texture2d,Fail
-asan-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16i.renderbuffer_to_texture2d,Fail
-
 # SKQP failing tests
 ES2BlendWithNoTexture,Fail
 SRGBReadWritePixels,Fail

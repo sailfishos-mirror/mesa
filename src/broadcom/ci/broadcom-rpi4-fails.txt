@@ -756,16 +756,6 @@ ubsan-dEQP-VK.image.mutable.2d_array.r16g16_sfloat_r32_uint_draw_copy_resolve_mu
 ubsan-dEQP-VK.image.mutable.2d_array.r16g16b16a16_sfloat_r16g16b16a16_uint_draw_copy_resolve_mutable_resolve_att,Fail
 ubsan-dEQP-VK.image.mutable.2d_array.r32_uint_r8g8b8a8_sint_draw_copy_resolve_mutable_color_att,Fail
 
-# New failures with ES CTS 3.2.13.0
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16f.renderbuffer_to_texture2d,Fail
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16i.renderbuffer_to_renderbuffer,Fail
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16i.renderbuffer_to_texture2d,Fail
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16ui.renderbuffer_to_renderbuffer,Fail
-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16ui.renderbuffer_to_texture2d,Fail
-arm32-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16f.renderbuffer_to_texture2d,Fail
-arm32-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16i.renderbuffer_to_texture2d,Fail
-arm32-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16ui.renderbuffer_to_texture2d,Fail
-
 # SKQP failing tests
 ES2BlendWithNoTexture,Fail
 SRGBReadWritePixels,Fail
