@@ -3924,7 +3924,7 @@
         "description": "v3d: flush write jobs before BO replacement in DISCARD_WHOLE path",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "45bb8f2957108056de10721d50259e2f8c5a4ddc",
         "notes": null
