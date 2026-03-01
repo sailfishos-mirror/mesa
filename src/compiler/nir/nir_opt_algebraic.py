@@ -970,12 +970,33 @@ optimizations.extend([
 
 for op in ['ine', 'ieq', 'ilt', 'ige', 'ult', 'uge', 'bitz', 'bitnz',
            'fneu', 'feq', 'flt', 'fge', 'fneo', 'fequ']:
+
+    commutative = op in ['feq', 'fneu', 'fequ', 'fneo', 'ine', 'ieq']
+
     optimizations.extend([
         ((op, ('bcsel(is_used_once)', a, b, '#c'), '#d'), ('bcsel', a, (op, b, d), (op, c, d))),
         ((op, ('bcsel(is_used_once)', a, '#b', c), '#d'), ('bcsel', a, (op, b, d), (op, c, d))),
-        ((op, '#d', ('bcsel(is_used_once)', a, b, '#c')), ('bcsel', a, (op, d, b), (op, d, c))),
-        ((op, '#d', ('bcsel(is_used_once)', a, '#b', c)), ('bcsel', a, (op, d, b), (op, d, c))),
+        ((op, ('bcsel', a, '#b', '#c'), '#d'), ('bcsel', a, (op, b, d), (op, c, d))),
     ])
+
+    if not commutative:
+        optimizations.extend([
+            ((op, '#d', ('bcsel(is_used_once)', a, b, '#c')), ('bcsel', a, (op, d, b), (op, d, c))),
+            ((op, '#d', ('bcsel(is_used_once)', a, '#b', c)), ('bcsel', a, (op, d, b), (op, d, c))),
+            ((op, '#d', ('bcsel', a, '#b', '#c')), ('bcsel', a, (op, d, b), (op, d, c))),
+        ])
+
+    if not op in ['bitz', 'bitnz']:
+        optimizations.extend([
+            ((op, ('b2f', 'a@1'), '#b'), ('bcsel', a, (op, 1.0, b), (op, 0.0, b))),
+            ((op, ('b2i', 'a@1'), '#b'), ('bcsel', a, (op, 1, b), (op, 0, b))),
+        ])
+
+    if not op in ['bitz', 'bitnz'] and not commutative:
+        optimizations.extend([
+            ((op, '#b', ('b2f', 'a@1')), ('bcsel', a, (op, b, 1.0), (op, b, 0.0))),
+            ((op, '#b', ('b2i', 'a@1')), ('bcsel', a, (op, b, 1), (op, b, 0))),
+        ])
 
 for N in [8, 16, 32, 64]:
     b2iN = 'b2i{0}'.format(N)
