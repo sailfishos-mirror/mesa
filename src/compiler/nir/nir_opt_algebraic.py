@@ -839,8 +839,10 @@ optimizations.extend([
 
    (('ieq', 'a@1', False), ('inot', a)),
    (('ieq', 'a@1', True), a),
+   (('ieq', ('b2i', 'a@1'), ('b2i', 'b@1')), ('ieq', a, b)),
    (('ine', 'a@1', False), a),
    (('ine', 'a@1', True), ('inot', a)),
+   (('ine', ('b2i', 'a@1'), ('b2i', 'b@1')), ('ixor', a, b)),
 
    (('fneu', ('u2f', a), 0.0), ('ine', a, 0)),
    (('feq', ('u2f', a), 0.0), ('ieq', a, 0)),
@@ -989,20 +991,6 @@ for op in ['ine', 'ieq', 'ilt', 'ige', 'ult', 'uge', 'bitz', 'bitnz',
             ((op, '#b', ('b2f', 'a@1')), ('bcsel', a, (op, b, 1.0), (op, b, 0.0))),
             ((op, '#b', ('b2i', 'a@1')), ('bcsel', a, (op, b, 1), (op, b, 0))),
         ])
-
-for N in [8, 16, 32, 64]:
-    b2iN = 'b2i{0}'.format(N)
-    optimizations.extend([
-        (('ieq', (b2iN, 'a@1'), (b2iN, 'b@1')), ('ieq', a, b)),
-        (('ine', (b2iN, 'a@1'), (b2iN, 'b@1')), ('ine', a, b)),
-    ])
-
-for N in [16, 32, 64]:
-    b2fN = 'b2f{0}'.format(N)
-    optimizations.extend([
-        (('feq', (b2fN, 'a@1'), (b2fN, 'b@1')), ('ieq', a, b)),
-        (('fneu', (b2fN, 'a@1'), (b2fN, 'b@1')), ('ine', a, b)),
-    ])
 
 # Integer sizes
 for s in [8, 16, 32, 64]:
