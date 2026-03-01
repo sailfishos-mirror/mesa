@@ -792,12 +792,6 @@ optimizations.extend([
    (('bcsel', ('feq', a, 0), b, ('fadd', a, 'b(is_not_zero)')), ('fadd', a, b)),
    (('bcsel', ('fneu', a, 0), ('fadd', a, 'b(is_not_zero)'), b), ('fadd', a, b)),
 
-   # 0.0 >= b2f(a)
-   # b2f(a) <= 0.0
-   # b2f(a) == 0.0 because b2f(a) can only be 0 or 1
-   # inot(a)
-   (('fge', 0.0, ('b2f', 'a@1')), ('inot', a)),
-
    (('fneu', ('fadd', ('b2f', 'a@1'), ('b2f', 'b@1')), 0.0), ('ior', a, b)),
    (('fneu', ('b2f', 'a@1'), ('fneg', ('b2f', 'b@1'))),      ('ior', a, b)),
    (('fneu', ('fadd', ('b2f', 'a@1'), ('fneg', ('b2f', 'b@1'))), 0.0), ('ixor', a, b)),
@@ -843,8 +837,6 @@ optimizations.extend([
    (('ieq', ('iadd', a, b), a), ('ieq', b, 0)),
    (('ine', ('iadd', a, b), a), ('ine', b, 0)),
 
-   (('fge', 0.0, ('b2f', 'a@1')), ('inot', a)),
-   (('flt',  0.0, ('b2f', 'a@1')), a),
    (('ieq', 'a@1', False), ('inot', a)),
    (('ieq', 'a@1', True), a),
    (('ine', 'a@1', False), a),
@@ -3360,33 +3352,6 @@ for op in ['flt', 'fge', 'feq']:
       (('iand', ('feq', a, a), (op, b, a)), ('!' + op, b, a)),
    ]
 
-# Add optimizations to handle the case where the result of a ternary is
-# compared to a constant.  This way we can take things like
-#
-# (a ? 0 : 1) > 0
-#
-# and turn it into
-#
-# a ? (0 > 0) : (1 > 0)
-#
-# which constant folding will eat for lunch.  The resulting ternary will
-# further get cleaned up by the boolean reductions above and we will be
-# left with just the original variable "a".
-for op in ['feq', 'fneu', 'ieq', 'ine']:
-   optimizations += [
-      ((op, ('bcsel', 'a', '#b', '#c'), '#d'),
-       ('bcsel', 'a', (op, 'b', 'd'), (op, 'c', 'd'))),
-   ]
-
-for op in ['flt', 'fge', 'ilt', 'ige', 'ult', 'uge']:
-   optimizations += [
-      ((op, ('bcsel', 'a', '#b', '#c'), '#d'),
-       ('bcsel', 'a', (op, 'b', 'd'), (op, 'c', 'd'))),
-      ((op, '#d', ('bcsel', a, '#b', '#c')),
-       ('bcsel', 'a', (op, 'd', 'b'), (op, 'd', 'c'))),
-   ]
-
-
 # For example, this converts things like
 #
 #    1 + mix(0, a - 1, condition)
@@ -3568,17 +3533,6 @@ for i in range(2, 4 + 1):
               ((to_mp, vec_inst + suffix_in), vec_inst + out_mp,
                '!options->vectorize_vec2_16bit', TestStatus.UNSUPPORTED)
           ]
-
-for b2t, xne, xeq, zero, one in (('b2i', 'ine', 'ieq', 0, 1),
-                                 ('b2f', 'fneu', 'feq', 0.0, 1.0)):
-    optimizations += [
-        ((xeq, (b2t, 'a@1'), zero), ('inot', a)),
-        ((xeq, (b2t, 'a@1'), one),  a),
-        ((xne, (b2t, 'a@1'), zero), a),
-        ((xne, (b2t, 'a@1'), one),  ('inot', a)),
-        ((xeq, (b2t, 'a@1'), '#b'), ('bcsel', (xeq, b, zero), ('inot', a), ('bcsel', (xeq, b, one), a, False))),
-        ((xne, (b2t, 'a@1'), '#b'), ('bcsel', (xeq, b, zero), a, ('bcsel', (xeq, b, one), ('inot', a), True))),
-    ]
 
 # This section contains "late" optimizations that should be run before
 # creating ffmas and calling regular optimizations for the final time.
