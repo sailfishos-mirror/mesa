@@ -887,9 +887,19 @@ resource_transfer_map(struct pipe_context *pctx, struct pipe_resource *prsc,
           (usage & PIPE_MAP_DISCARD_RANGE)) {
 
          /* try shadowing only if it avoids a flush, otherwise staging would
-          * be better:
+          * be better.
+          *
+          * Compute-only contexts don't have GMEM tile passes, so the simpler
+          * staging path is better.
+          *
+          * TODO if a resource is shared across contexts with no clear
+          * barrier transition, the staging path could be problematic, since
+          * another thread could race a read reference on the resource after
+          * the rsc->track is swapped but before the shadow blit completes.
+          * I think this scenario only comes up with rusticl.
           */
          if (needs_flush && !(usage & TC_TRANSFER_MAP_NO_INVALIDATE) &&
+               !(ctx->flags & PIPE_CONTEXT_COMPUTE_ONLY) &&
                fd_try_shadow_resource(ctx, rsc, level, box, DRM_FORMAT_MOD_LINEAR)) {
             needs_flush = busy = false;
             ctx->stats.shadow_uploads++;
