@@ -2814,7 +2814,7 @@
         "description": "v3d: reject fast TLB blit when RT formats don't match",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "66de8b4b5cbbb317130dde765201b5720394ed00",
         "notes": null
