@@ -326,10 +326,6 @@ spec@arb_depth_texture@texwrap formats bordercolor@GL_DEPTH_COMPONENT32- border 
 spec@arb_es2_compatibility@texwrap formats bordercolor,Fail
 spec@arb_es2_compatibility@texwrap formats bordercolor@GL_RGB565- border color only,Fail
 
-# Unexpected GL error: GL_INVALID_OPERATION 0x502
-# (Error at tests/spec/arb_framebuffer_object/same-attachment-tex2d-depth_stencil.c:135)
-spec@arb_framebuffer_object@same-attachment-tex2d-depth_stencil,Fail
-
 # fails at 4 samples (for our 4 supported indirections) because the 1D coordinate workaround
 # causes an extra texture indirection phase.
 spec@arb_fragment_program@fp-indirections2,Fail

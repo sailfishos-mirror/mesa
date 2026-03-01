@@ -591,9 +591,6 @@ spec@arb_framebuffer_object@fbo-deriv,Fail
 spec@arb_framebuffer_object@fbo-drawbuffers-none glclear,Fail
 spec@arb_framebuffer_object@fbo-drawbuffers-none gl_fragdata,Fail
 spec@arb_framebuffer_object@fbo-generatemipmap-3d,Fail
-spec@arb_framebuffer_object@fbo-luminance-alpha,Fail
-spec@arb_framebuffer_object@fbo-mipmap-copypix,Fail
-spec@arb_framebuffer_object@same-attachment-tex2d-depth_stencil,Fail
 
 spec@arb_pixel_buffer_object@cubemap npot pbo,Fail
 spec@arb_pixel_buffer_object@fbo-pbo-readpixels-small,Fail
