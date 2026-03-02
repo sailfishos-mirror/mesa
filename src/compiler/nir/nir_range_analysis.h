@@ -23,8 +23,10 @@
 #ifndef _NIR_RANGE_ANALYSIS_H_
 #define _NIR_RANGE_ANALYSIS_H_
 
-#include "nir_defines.h"
+#include "util/bitset.h"
+#include "util/sparse_array.h"
 #include "util/u_hash_table.h"
+#include "nir_defines.h"
 
 enum ENUM_PACKED fp_ranges {
    unknown = 0,
@@ -51,7 +53,11 @@ struct fp_result_range {
 };
 
 typedef struct {
-   struct hash_table *ht;
+   nir_function_impl *impl;
+   struct util_sparse_array arr;
+   BITSET_WORD *bitset;
+   uint32_t size;
+   int32_t max;
 } nir_fp_analysis_state;
 
 #ifdef __cplusplus

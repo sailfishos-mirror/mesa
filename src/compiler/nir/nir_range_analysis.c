@@ -404,11 +404,29 @@ get_fp_key(struct analysis_query *q)
    if (!nir_def_is_alu(fp_q->def))
       return UINT32_MAX;
 
-   return fp_q->def->index + 1;
+   return fp_q->def->index;
 }
 
-static bool scalar_lookup(void *table, uint32_t key, uint32_t *value);
-static void scalar_insert(void *table, uint32_t key, uint32_t value);
+static bool
+fp_lookup(void *table, uint32_t key, uint32_t *value)
+{
+   nir_fp_analysis_state *state = table;
+   if (BITSET_TEST(state->bitset, key)) {
+      *value = *(uint32_t *)util_sparse_array_get(&state->arr, key);
+      return true;
+   } else {
+      return false;
+   }
+}
+
+static void
+fp_insert(void *table, uint32_t key, uint32_t value)
+{
+   nir_fp_analysis_state *state = table;
+   BITSET_SET(state->bitset, key);
+   state->max = MAX2(state->max, (int)key);
+   *(uint32_t *)util_sparse_array_get(&state->arr, key) = value;
+}
 
 static inline bool
 fmul_is_a_number(const struct fp_result_range left, const struct fp_result_range right, bool mulz)
@@ -1330,38 +1348,52 @@ nir_analyze_fp_range(nir_fp_analysis_state *fp_state, const nir_def *def)
    uint32_t result_alloc[64];
 
    struct analysis_state state;
-   state.range_ht = fp_state->ht;
+   state.range_ht = fp_state;
    util_dynarray_init_from_stack(&state.query_stack, query_alloc, sizeof(query_alloc));
    util_dynarray_init_from_stack(&state.result_stack, result_alloc, sizeof(result_alloc));
    state.query_size = sizeof(struct fp_query);
    state.get_key = &get_fp_key;
-   state.lookup = &scalar_lookup;
-   state.insert = &scalar_insert;
+   state.lookup = &fp_lookup;
+   state.insert = &fp_insert;
    state.process_query = &process_fp_query;
 
    push_fp_query(&state, def);
 
-   _mesa_hash_table_set_deleted_key(fp_state->ht, (void *)(uintptr_t)UINT32_MAX);
    return unpack_data(perform_analysis(&state));
 }
 
 nir_fp_analysis_state
 nir_create_fp_analysis_state(nir_function_impl *impl)
 {
-   return (nir_fp_analysis_state){_mesa_hash_table_create_u32_keys(NULL)};
+   nir_fp_analysis_state state;
+   state.impl = impl;
+   /* Over-allocate the bitset, so that we can keep using the allocated table memory
+    * even when new SSA values are added. */
+   state.size = BITSET_BYTES(impl->ssa_alloc + impl->ssa_alloc / 4u);
+   state.max = -1;
+   state.bitset = calloc(state.size, 1);
+   util_sparse_array_init(&state.arr, 4, 256);
+   return state;
 }
 
 void
 nir_invalidate_fp_analysis_state(nir_fp_analysis_state *state)
 {
-   if (state->ht->entries)
-      _mesa_hash_table_clear(state->ht, NULL);
+   if (BITSET_BYTES(state->impl->ssa_alloc) > state->size) {
+      state->size = BITSET_BYTES(state->impl->ssa_alloc + state->impl->ssa_alloc / 4u);
+      free(state->bitset);
+      state->bitset = calloc(state->size, 1);
+   } else if (state->max >= 0) {
+      memset(state->bitset, 0, BITSET_BYTES(state->max + 1));
+   }
+   state->max = -1;
 }
 
 void
 nir_free_fp_analysis_state(nir_fp_analysis_state *state)
 {
-   ralloc_free(state->ht);
+   util_sparse_array_finish(&state->arr);
+   free(state->bitset);
 }
 
 static uint32_t
