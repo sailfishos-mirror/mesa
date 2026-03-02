@@ -12,3 +12,4 @@ VK_EXT_pipeline_protected_access on RADV
 VK_EXT_extended_dynamic_state3 on panvk
 GL_ARB_texture_query_lod on panfrost/v9+
 VK_KHR_maintenance11 on RADV
+OpenCL 3.1 support for rusticl on asahi, iris, radeonsi, llvmpipe and zink

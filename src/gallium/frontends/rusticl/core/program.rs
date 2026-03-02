@@ -309,6 +309,9 @@ fn prepare_options(options: &str, dev: &Device) -> Vec<CString> {
 
     res.iter()
         .filter_map(|&a| match a {
+            // CL3.1 doesn't add anything that's not already supported in clang, so just replace
+            // the argument with 3.0 so we'll be fine with an older version of clang.
+            "-cl-std=CL3.1" => Some("-cl-std=CL3.0"),
             "-cl-denorms-are-zero" => Some("-fdenormal-fp-math=positive-zero"),
             // We can ignore it as long as we don't support ifp
             "-cl-no-subgroup-ifp" => None,

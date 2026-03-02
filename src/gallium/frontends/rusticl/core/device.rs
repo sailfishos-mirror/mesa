@@ -497,7 +497,17 @@ impl DeviceBase {
     // TODO add CLC checks
     fn check_version(&mut self) {
         let exts: Vec<&str> = self.extension_string.split(' ').collect();
-        let mut res = CLVersion::Cl3_0;
+        let mut res = CLVersion::Cl3_1;
+
+        // CL 3.1 requires a bit more than we check here, but those are all features we support on
+        // every device anyway.
+        if !self.subgroup_shuffle_supported()
+            || !self.subgroup_shuffle_relative_supported()
+            || !self.subgroup_rotate_supported()
+            || !self.uuid_supported()
+        {
+            res = CLVersion::Cl3_0;
+        }
 
         #[allow(clippy::collapsible_if)]
         if self.embedded {
@@ -559,6 +569,11 @@ impl DeviceBase {
 
         if let Some(val) = Self::parse_env_version() {
             res = val;
+        }
+
+        if res >= CLVersion::Cl3_1 {
+            self.clc_versions
+                .push(mk_cl_version_ext(3, 1, 0, "OpenCL C"));
         }
 
         if res >= CLVersion::Cl3_0 {
@@ -732,7 +747,7 @@ impl DeviceBase {
             add_ext(1, 0, 0, "cl_khr_priority_hints");
         }
 
-        if self.screen().device_uuid().is_some() && self.screen().driver_uuid().is_some() {
+        if self.uuid_supported() {
             static_assert!(PIPE_UUID_SIZE == CL_UUID_SIZE_KHR);
             static_assert!(PIPE_LUID_SIZE == CL_LUID_SIZE_KHR);
 
@@ -1367,6 +1382,10 @@ impl DeviceBase {
     pub fn are_semaphores_supported(&self) -> bool {
         self.screen().caps().fence_signal && self.screen().has_semaphore_create()
     }
+
+    pub fn uuid_supported(&self) -> bool {
+        self.screen().device_uuid().is_some() && self.screen().driver_uuid().is_some()
+    }
 }
 
 impl Device {
@@ -1392,8 +1411,8 @@ impl Device {
             caps: DeviceCaps::new(&screen, &helper_ctx),
             helper_ctx: Mutex::new(helper_ctx),
             screen: screen,
-            cl_version: CLVersion::Cl3_0,
-            clc_version: CLVersion::Cl3_0,
+            cl_version: CLVersion::Cl3_1,
+            clc_version: CLVersion::Cl3_1,
             clc_versions: Vec::new(),
             device_type: 0,
             embedded: false,
