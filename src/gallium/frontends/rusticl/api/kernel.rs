@@ -389,11 +389,7 @@ fn set_kernel_arg(
         // arg_size != sizeof(cl_mem) or if arg_size is zero and the argument is declared with the
         // local qualifier or if the argument is a sampler and arg_size != sizeof(cl_sampler).
         match arg.kind {
-            KernelArgType::MemLocal => {
-                if arg_size == 0 {
-                    return Err(CL_INVALID_ARG_SIZE);
-                }
-            }
+            KernelArgType::MemLocal => {}
             KernelArgType::MemGlobal
             | KernelArgType::MemConstant
             | KernelArgType::Image
@@ -856,8 +852,8 @@ fn clone_kernel(source_kernel: cl_kernel) -> CLResult<cl_kernel> {
     Ok(Arc::new(k.clone()).into_cl())
 }
 
-#[cl_entrypoint(clGetKernelSuggestedLocalWorkSizeKHR)]
-fn get_kernel_suggested_local_work_size_khr(
+#[cl_entrypoint(clGetKernelSuggestedLocalWorkSize)]
+fn get_kernel_suggested_local_work_size(
     command_queue: cl_command_queue,
     kernel: cl_kernel,
     work_dim: cl_uint,
