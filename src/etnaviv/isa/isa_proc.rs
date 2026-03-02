@@ -324,7 +324,11 @@ fn generate_peg_grammar_instructions(isa: &ISA) -> String {
             rule_parts.push("TexSrc ~ \",\"".to_string());
         }
 
-        let possible_srcs = if type_ == "cf" { 2 } else { 3 };
+        let possible_srcs = if matches!(type_, "cf" | "cf_cond") {
+            2
+        } else {
+            3
+        };
         let valid_srcs: Vec<_> = meta
             .get("valid_srcs")
             .unwrap_or(&"")
@@ -343,7 +347,7 @@ fn generate_peg_grammar_instructions(isa: &ISA) -> String {
             }
         }
 
-        if type_ == "cf" {
+        if matches!(type_, "cf" | "cf_cond") {
             rule_parts.push("\",\"".to_string());
             rule_parts.push("Target".to_string());
         }
