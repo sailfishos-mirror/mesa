@@ -404,7 +404,7 @@ get_fp_key(struct analysis_query *q)
    if (!nir_def_is_alu(fp_q->def))
       return 0;
 
-   return (uintptr_t)fp_q->def;
+   return fp_q->def->index + 1;
 }
 
 static inline bool
@@ -1336,13 +1336,14 @@ nir_analyze_fp_range(nir_fp_analysis_state *fp_state, const nir_def *def)
 
    push_fp_query(&state, def);
 
+   _mesa_hash_table_set_deleted_key(fp_state->ht, (void *)(uintptr_t)UINT32_MAX);
    return unpack_data(perform_analysis(&state));
 }
 
 nir_fp_analysis_state
 nir_create_fp_analysis_state(nir_function_impl *impl)
 {
-   return (nir_fp_analysis_state){_mesa_pointer_hash_table_create(NULL)};
+   return (nir_fp_analysis_state){_mesa_hash_table_create_u32_keys(NULL)};
 }
 
 void
