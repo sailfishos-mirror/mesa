@@ -1,1 +1,2 @@
 cl_khr_subgroup_rotate on radeonsi
+cl_khr_subgroup_rotate on iris

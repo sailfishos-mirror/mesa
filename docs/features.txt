@@ -899,7 +899,7 @@ Rusticl extensions:
   cl_khr_subgroup_named_barrier                         not started
   cl_khr_subgroup_non_uniform_arithmetic                DONE (asahi, llvmpipe, radeonsi, zink)
   cl_khr_subgroup_non_uniform_vote                      DONE (asahi, iris, llvmpipe, radeonsi, zink)
-  cl_khr_subgroup_rotate                                DONE (asahi, llvmpipe, radeonsi, zink)
+  cl_khr_subgroup_rotate                                DONE (asahi, iris, llvmpipe, radeonsi, zink)
   cl_khr_subgroup_shuffle                               DONE (asahi, iris, llvmpipe, radeonsi, zink)
   cl_khr_subgroup_shuffle_relative                      DONE (asahi, iris, llvmpipe, radeonsi, zink)
   cl_khr_subgroups                                      in progress
