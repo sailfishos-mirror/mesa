@@ -1274,7 +1274,7 @@
         "description": "r300: disable clip-discard watermark for triangles",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0d4aa5f55ff80df5b357f10bd56864c97ef1f4ba",
         "notes": null
