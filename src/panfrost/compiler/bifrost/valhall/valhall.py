@@ -21,6 +21,9 @@ def xmlbool(s):
     assert(s.lower() in ["false", "true"])
     return False if s.lower() == "false" else True
 
+def bitmask(size):
+    return (1 << size) - 1
+
 class EnumValue:
     def __init__(self, value, default):
         self.value = value
@@ -92,32 +95,46 @@ class Source:
         self.name = name
 
         self.offset = {}
-        self.bits = {}
+        self.mask = {}
+
+        self.offset['mode'] = self.start + 6
+        self.mask['mode'] = bitmask(2)
+        self.offset['value'] = self.start
+        self.mask['value'] = bitmask(6)
+
         if absneg:
             self.offset['neg'] = 32 + 2 + ((2 - index) * 2)
             self.offset['abs'] = 33 + 2 + ((2 - index) * 2)
-            self.bits['neg'] = 1
-            self.bits['abs'] = 1
+            self.mask['neg'] = bitmask(1)
+            self.mask['abs'] = bitmask(1)
         if notted:
             self.offset['not'] = 35
-            self.bits['not'] = 1
+            self.mask['not'] = bitmask(1)
         if widen or lanes or halfswizzle:
             self.offset['widen'] = 26 if index == 1 else 36
-            self.bits['widen'] = 4 # XXX: too much?
+            self.mask['widen'] = bitmask(4)
         if lane:
             self.offset['lane'] = self.lane
-            self.bits['lane'] = 2 if size in (8, 32) else 1
+            self.mask['lane'] = bitmask(2) if size in (8, 32) else bitmask(1)
         if swizzle:
             assert(size in [16, 32])
             self.offset['swizzle'] = 24 + ((2 - index) * 2)
-            self.bits['swizzle'] = 2
+            self.mask['swizzle'] = bitmask(2)
         if combine:
             self.offset['combine'] = 37
-            self.bits['combine'] = 3
+            self.mask['combine'] = bitmask(3)
 
 class Dest:
     def __init__(self, name = ""):
         self.name = name
+        self.start = 40
+        self.offset = {}
+        self.mask = {}
+
+        self.offset['mode'] = self.start + 6
+        self.mask['mode'] = bitmask(2)
+        self.offset['value'] = self.start
+        self.mask['value'] = bitmask(6)
 
 class Staging:
     def __init__(self, read = False, write = False, count = 0, flags = 'true', name = ""):
@@ -127,9 +144,13 @@ class Staging:
         self.count = count
         self.flags = (flags != 'false')
         self.start = 40
-
         if write and not self.flags:
             self.start = 16
+        self.offset = {}
+        self.mask = {}
+
+        self.offset['value'] = self.start
+        self.mask['value'] = bitmask(6)
 
         # For compatibility
         self.absneg = False
@@ -174,6 +195,14 @@ class Instruction:
         self.staging = staging
         self.unit = unit
         self.is_signed = len(name.split(".")) > 1 and ('s' in name.split(".")[1])
+
+        self.offset = {}
+        self.mask = {}
+
+        self.offset['flow'] = 59
+        self.mask['flow'] = bitmask(4)
+        self.offset['fau_page'] = 57
+        self.mask['fau_page'] = bitmask(2)
 
         # Message-passing instruction <===> not ALU instruction
         self.message = unit not in ["FMA", "CVT", "SFU"]

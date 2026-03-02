@@ -43,11 +43,8 @@ static const uint32_t va_immediates[32] = {
 };
 
 static inline void
-va_print_src(FILE *fp, uint8_t src, unsigned fau_page)
+va_print_src(FILE *fp, unsigned type, unsigned value, unsigned fau_page)
 {
-	unsigned type = (src >> 6);
-	unsigned value = (src & 0x3F);
-
 	if (type == VA_SRC_IMM_TYPE) {
         if (value >= 32) {
             if (fau_page == 0)
@@ -72,16 +69,13 @@ va_print_src(FILE *fp, uint8_t src, unsigned fau_page)
 }
 
 static inline void
-va_print_float_src(FILE *fp, uint8_t src, unsigned fau_page, bool neg, bool abs)
+va_print_float_src(FILE *fp, unsigned type, unsigned value, unsigned fau_page, bool neg, bool abs)
 {
-	unsigned type = (src >> 6);
-	unsigned value = (src & 0x3F);
-
 	if (type == VA_SRC_IMM_TYPE) {
         assert(value < 32 && "overflow in LUT");
         fprintf(fp, "0x%X", va_immediates[value]);
 	} else {
-        va_print_src(fp, src, fau_page);
+        va_print_src(fp, type, value, fau_page);
     }
 
 	if (neg)
@@ -92,10 +86,8 @@ va_print_float_src(FILE *fp, uint8_t src, unsigned fau_page, bool neg, bool abs)
 }
 
 static inline void
-va_print_dest(FILE *fp, uint8_t dest, bool can_mask)
+va_print_dest(FILE *fp, unsigned mask, unsigned value, bool can_mask)
 {
-   unsigned mask = (dest >> 6);
-   unsigned value = (dest & 0x3F);
    fprintf(fp, "r%u", value);
 
    /* Should write at least one component */
@@ -118,12 +110,11 @@ va_print_dest(FILE *fp, uint8_t dest, bool can_mask)
 % endif
 % endif
 % endfor
-            assert((instr & (1ull << 63)) == 0 /* reserved */);
-            fprintf(fp, "%s ", valhall_flow[instr >> 59]);
-% if len(op.dests) > 0:
+            fprintf(fp, "%s ", valhall_flow[(instr >> ${op.offset['flow']}) & ${hex(op.mask['flow'])}]);
+% for i, dest in enumerate(op.dests):
 <% no_comma = False %>
-            va_print_dest(fp, (instr >> 40), true);
-% endif
+            va_print_dest(fp, (instr >> ${dest.offset['mode']}) & ${hex(dest.mask['mode'])}, (instr >> ${dest.offset['value']}) & ${hex(dest.mask['value'])}, true);
+% endfor
 % for index, sr in enumerate(op.staging):
 % if not no_comma:
             fputs(", ", fp);
@@ -132,19 +123,19 @@ va_print_dest(FILE *fp, uint8_t dest, bool can_mask)
     no_comma = False
 
     if sr.count != 0:
-        sr_count = sr.count
-    elif "staging_register_write_count" in [x.name for x in op.modifiers] and sr.write:
-        sr_count = "(((instr >> 36) & MASK(3)) + 1)"
-    elif "staging_register_count" in [x.name for x in op.modifiers]:
-        sr_count = "((instr >> 33) & MASK(3))"
+        sr_count = sr.count;
     else:
-        assert(0)
+        for mod in op.modifiers:
+            if mod.name == "staging_register_write_count" and sr.write:
+                sr_count = f"(((instr >> {mod.start}) & {hex((1 << mod.size) - 1)}) + 1)";
+            elif mod.name == "staging_register_count":
+                sr_count = f"((instr >> {mod.start}) & {hex((1 << mod.size) - 1)})";
 %>
 //            assert(((instr >> ${sr.start}) & 0xC0) == ${sr.encoded_flags});
             fprintf(fp, "@");
             for (unsigned i = 0; i < ${sr_count}; ++i) {
                 fprintf(fp, "%sr%u", (i == 0) ? "" : ":",
-                        (uint32_t) (((instr >> ${sr.start}) & 0x3F) + i));
+                        (uint32_t) (((instr >> ${sr.offset['value']}) & ${hex(sr.mask['value'])}) + i));
             }
 % endfor
 % for i, src in enumerate(op.srcs):
@@ -153,32 +144,35 @@ va_print_dest(FILE *fp, uint8_t dest, bool can_mask)
 % endif
 <% no_comma = False %>
 % if src.absneg:
-            va_print_float_src(fp, instr >> ${src.start}, fau_page,
+            va_print_float_src(fp, (instr >> ${src.offset['mode']}) & ${hex(src.mask['mode'])}, (instr >> ${src.offset['value']}) & ${hex(src.mask['value'])},
+                    (instr >> ${op.offset['fau_page']}) & ${hex(op.mask['fau_page'])},
                     instr & BIT(${src.offset['neg']}),
                     instr & BIT(${src.offset['abs']}));
 % elif src.is_float:
-            va_print_float_src(fp, instr >> ${src.start}, fau_page, false, false);
+            va_print_float_src(fp, (instr >> ${src.offset['mode']}) & ${src.mask['mode']}, (instr >> ${src.offset['value']}) & ${hex(src.mask['value'])},
+                    (instr >> ${op.offset['fau_page']}) & ${hex(op.mask['fau_page'])}, false, false);
 % else:
-            va_print_src(fp, instr >> ${src.start}, fau_page);
+            va_print_src(fp, (instr >> ${src.offset['mode']}) & ${src.mask['mode']}, (instr >> ${src.offset['value']}) & ${hex(src.mask['value'])},
+                    (instr >> ${op.offset['fau_page']}) & ${hex(op.mask['fau_page'])});
 % endif
 % if src.swizzle:
 % if src.size == 32:
-            fputs(valhall_widen[(instr >> ${src.offset['swizzle']}) & 3], fp);
+            fputs(valhall_widen[(instr >> ${src.offset['swizzle']}) & ${hex(src.mask['swizzle'])}], fp);
 % else:
-            fputs(valhall_swizzles_16_bit[(instr >> ${src.offset['swizzle']}) & 3], fp);
+            fputs(valhall_swizzles_16_bit[(instr >> ${src.offset['swizzle']}) & ${hex(src.mask['swizzle'])}], fp);
 % endif
 % endif
 % if src.lanes:
-            fputs(valhall_lanes_8_bit[(instr >> ${src.offset['widen']}) & 0xF], fp);
+            fputs(valhall_lanes_8_bit[(instr >> ${src.offset['widen']}) & ${hex(src.mask['widen'])}], fp);
 % elif src.halfswizzle:
-            fputs(valhall_half_swizzles_8_bit[(instr >> ${src.offset['widen']}) & 0xF], fp);
+            fputs(valhall_half_swizzles_8_bit[(instr >> ${src.offset['widen']}) & ${hex(src.mask['widen'])}], fp);
 % elif src.widen:
-		    fputs(valhall_swizzles_${src.size}_bit[(instr >> ${src.offset['widen']}) & 0xF], fp);
+		    fputs(valhall_swizzles_${src.size}_bit[(instr >> ${src.offset['widen']}) & ${hex(src.mask['widen'])}], fp);
 % elif src.combine:
-            fputs(valhall_combine[(instr >> ${src.offset['combine']}) & 0x7], fp);
+            fputs(valhall_combine[(instr >> ${src.offset['combine']}) & ${hex(src.mask['combine'])}], fp);
 % endif
 % if src.lane:
-            fputs(valhall_lane_${src.size}_bit[(instr >> ${src.lane}) & 0x3], fp);
+            fputs(valhall_lane_${src.size}_bit[(instr >> ${src.offset['lane']}) & ${hex(src.mask['lane'])}], fp);
 % endif
 % if 'not' in src.offset:
             if (instr & BIT(${src.offset['not']})) fputs(".not", fp);
@@ -216,7 +210,6 @@ void
 va_disasm_instr(FILE *fp, uint64_t instr)
 {
    unsigned opcode;
-   unsigned fau_page = (instr >> 57) & MASK(2);
 
 ${recurse_subcodes(OPCODES)}
 }
