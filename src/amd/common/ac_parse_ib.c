@@ -97,6 +97,21 @@ static void print_string_value(FILE *file, const char *name, const char *value)
    fprintf(file, "%s\n", value);
 }
 
+void ac_print_data_dword(FILE *file, uint32_t value, const char *comment)
+{
+   print_data_dword(file, value, comment);
+}
+
+void ac_print_named_value(FILE *file, const char *name, uint32_t value, int bits)
+{
+   print_named_value(file, name, value, bits);
+}
+
+void ac_print_string_value(FILE *file, const char *name, const char *value)
+{
+   print_string_value(file, name, value);
+}
+
 void ac_dump_reg(FILE *file, enum amd_gfx_level gfx_level, enum radeon_family family,
                  unsigned offset, uint32_t value, uint32_t field_mask)
 {
@@ -140,7 +155,7 @@ void ac_dump_reg(FILE *file, enum amd_gfx_level gfx_level, enum radeon_family fa
            O_COLOR_RESET, value);
 }
 
-static uint32_t ac_ib_get(struct ac_ib_parser *ib)
+uint32_t ac_ib_get(struct ac_ib_parser *ib)
 {
    uint32_t v = 0;
 
@@ -227,6 +242,11 @@ static void ac_parse_set_reg_pairs_packed_packet(FILE *f, unsigned count, unsign
 }
 
 #define AC_ADDR_SIZE_NOT_MEMORY 0xFFFFFFFF
+
+void ac_ib_handle_address(struct ac_ib_parser *ib, uint32_t addr_lo, uint32_t addr_hi, uint32_t size)
+{
+   /* stub */
+}
 
 static void print_addr(struct ac_ib_parser *ib, const char *name, uint64_t addr, uint32_t size)
 {

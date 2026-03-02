@@ -4,22 +4,93 @@
 # SPDX-License-Identifier: MIT
 
 """
-The parameters must be specified in the following order and must contain 'gfx'. The gfx version
-must be the last parameter. Only the header file for the specified gfx version is generated.
-All other input files are only used to resolve definition conflicts. The generated header file
-is written to stdout.
+The last parameter determines which files is generated.
 
-Parameters:
-    cp_pm4_table_data_gfx$1.json
-    pm4_it_opcodes_gfx$1.h
-    ...
-    cp_pm4_table_data_gfx$N.json
-    pm4_it_opcodes_gfx$N.h
-    gfx$VERSION (e.g. 'gfx11')
+If the last parameter is 'packets_h':
 
+    The header file with packet definitions is generated. The parameters must be specified
+    in the following order and must contain 'gfx'. The gfx version must be the second last
+    parameter. All other input files are only used to resolve definition conflicts.
+
+    Parameters:
+        cp_pm4_table_data_gfx$1.json
+        pm4_it_opcodes_gfx$1.h
+        ...
+        cp_pm4_table_data_gfx$N.json
+        pm4_it_opcodes_gfx$N.h
+        gfx$VERSION (e.g. 'gfx11')
+        packets_h
+
+If the last parameter is 'print_h' or 'print_c':
+
+    The packet parser is generated.
+
+    Parameters:
+        cp_pm4_table_data_gfx$N.json
+        pm4_it_opcodes_gfx$N.h
+        print_h OR print_c
 """
 
 import sys, json, re
+
+# The printer doesn't print certain variable-length packets, register-setting packets, and packets
+# requiring custom printing code.
+no_printer_support = {
+    'NOP',
+    'FENCE_WAIT_MULTI',
+    'INDIRECT_BUFFER',
+    'SET_CONFIG_REG',
+    'SET_CONTEXT_REG',
+    'SET_CONTEXT_REG_PAIRS',
+    'SET_CONTEXT_REG_PAIRS_PACKED',
+    'SET_SH_REG',
+    'SET_SH_REG_INDEX',
+    'SET_SH_REG_PAIRS',
+    'SET_SH_REG_PAIRS_PACKED',
+    'SET_SH_REG_PAIRS_PACKED_N',
+    'SET_UCONFIG_REG',
+    'SET_UCONFIG_REG_INDEX',
+}
+
+# Packet fields that should be printed as registers.
+packet_field_register_map = {
+    # (name, first_bit): (register, mask)
+    ('COHER_CNTL', 0): ('R_0301F0_CP_COHER_CNTL', ~0),
+    ('EVENT_TYPE', 0): ('R_028A90_VGT_EVENT_INITIATOR', 0x3F),
+    ('GCR_CNTL', 0): ('R_586_GCR_CNTL', ~0),
+    ('DISPATCH_INITIATOR', 0): ('R_00B800_COMPUTE_DISPATCH_INITIATOR', ~0),
+    ('DRAW_INITIATOR', 0): ('R_0287F0_VGT_DRAW_INITIATOR', ~0),
+}
+
+# Packet fields that are addresses for invoking ac_ib_handle_address.
+# The whole dword must be the whole address_hi field, and the whole previous dword must be
+# the whole address_lo field.
+address_field_map = {
+    # address_hi field: (packed list, condition, count)
+    # - If the packet list is not empty, ac_ib_handle_address is only called for these packets.
+    # - If the condition is not empty, it determines whether the dwords contain an address.
+    #   (if the condition is missing, the packet word must have only 1 variant)
+    # - If the count is not empty, it must be the code that returns the byte count for ac_ib_handle_address.
+    'ADDR_HI': ([], '', ''),
+    'CONTROL_BUF_ADDR_HI': ([], '', ''),
+    'COUNT_ADDR_HI': ([], '', ''),
+    'DST_MEM_ADDR_HI': ([], ('G_37_1_DST_SEL(dw0) == V_37_1_MEMORY_SYNC_ACROSS_GRBM || ' +
+                             'G_37_1_DST_SEL(dw0) == V_37_1_TC_L2 || ' +
+                             'G_37_1_DST_SEL(dw0) == V_37_1_MEMORY'), ''),
+    'INDEX_BASE_HI': ([], '', ''),
+    'DST_ADDR_HI': (['DMA_DATA'],
+                    ('G_50_1_DST_SEL(dw0) == V_50_1_DST_ADDR_USING_DAS || ' +
+                     'G_50_1_DST_SEL(dw0) == V_50_1_DST_ADDR_USING_L2'),
+                    'G_50_6_BYTE_COUNT(dw5)'),
+    'SRC_ADDR_HI': (['DMA_DATA'],
+                    ('G_50_1_SRC_SEL(dw0) == V_50_1_SRC_ADDR_USING_SAS || ' +
+                     'G_50_1_SRC_SEL(dw0) == V_50_1_SRC_ADDR_USING_L2'),
+                    'G_50_6_BYTE_COUNT(dw5)'),
+    'ADDRESS_HI': (['EVENT_WRITE', 'SET_BASE'],
+                   'opcode != PKT3_EVENT_WRITE || G_46_1_EVENT_TYPE(dw0) != V_028A90_PIXEL_PIPE_STAT_CONTROL',
+                   ''),
+}
+
 
 engines_dict = {'pfp': 0, 'meg': 1, 'mec': 2}
 
@@ -199,7 +270,11 @@ def print2(s1, s2):
     print(s1.ljust(80) + s2)
 
 
-def main():
+re_opcode = re.compile(r"^\s*IT_(?P<name>\w+)\s*=\s*(?P<hex>0x[\da-fA-F]+),*$")
+re_gfx_number = re.compile(r"gfx(\d+)")
+
+
+def print_packet_definitions():
     assert len(sys.argv) % 2 == 0 # argv = executable, N*2 input files, gfx$VERSION
     num_gfx_versions = (len(sys.argv) - 2) // 2
     assert num_gfx_versions > 0
@@ -210,9 +285,6 @@ def main():
     gfx_version_param = sys.argv[-1]
     gfx_versions = {}
     gfx_opcodes = {}
-
-    re_gfx_number = re.compile(r"gfx(\d+)")
-    re_opcode = re.compile(r"^\s*IT_(?P<name>\w+)\s*=\s*(?P<hex>0x[\da-fA-F]+),*$")
 
     for i in range(num_gfx_versions):
         packet_filename = sys.argv[1 + i * 2]
@@ -348,7 +420,7 @@ def main():
                         clear_mask = (bitmask << first_bit) ^ 0xffffffff
 
                         assert num_bits < 32
-                        encode_field = '(((x) & 0x%x) << %d)' % (bitmask, first_bit)
+                        encode_field = '(((unsigned)(x) & 0x%x) << %d)' % (bitmask, first_bit)
                         decode_field = '(((x) >> %d) & 0x%x)' % (first_bit, bitmask)
                         clear_field = '0x%08X' % clear_mask
 
@@ -370,5 +442,346 @@ def main():
                                        str(value_int) + value_comment)
 
 
+def packet_has_engine_sel(packet_dict):
+    return ('pfp' in packet_dict and 'meg' in packet_dict and
+            'engine_sel' in packet_dict['pfp']['word']['2']['a'])
+
+
+def print_enum_table(packet_name, packet_dict):
+    # Gather a merged enum table from all engines.
+    for engine_name, packet in packet_dict.items():
+        if 'enum' not in packet:
+            continue
+
+        # Packets that have both PFP and MEG definitions and don't have ENGINE_SEL are parsed as PFP,
+        # so ignore MEG enums.
+        if engine_name == 'meg' and 'pfp' in packet_dict and not packet_has_engine_sel(packet_dict):
+            continue;
+
+        enums = packet['enum'] if 'enum' in packet else {}
+        table = {}
+
+        for field_name, values in enums.items():
+            assert len(values) > 0
+
+            if field_name not in table:
+                table[field_name] = {}
+
+            for value_name, value_item in values.items():
+                value = value_item['value']
+
+                if value_name.startswith('reserved'):
+                    continue
+
+                if value in table[field_name]:
+                    if table[field_name][value] != value_name:
+                        print('// Enum conflict: Packet %s field %s has value %d = %s, but the table already has %d = %s' %
+                              (packet_name, field_name, value, value_name.upper(), value, table[field_name][value].upper()))
+                else:
+                    table[field_name][value] = value_name
+
+        for field_name, values in table.items():
+            print('')
+            print('static const char *%s_%s_%s[] = {' % (engine_name, packet_name, field_name))
+
+            for value, value_name in table[field_name].items():
+                print(3 * ' ' + '[%d] = "%s",' % (value, value_name.upper()))
+
+            print('};')
+
+
+def print_packet(packet_name, packet_dict, engine_name, dword0_read):
+    if engine_name not in packet_dict:
+        print(9 * ' ' + 'fprintf(stderr, "amdgpu: packet %s is not supported by %s\\n");' %
+              (packet_name, engine_name.upper()))
+        print(9 * ' ' + 'assert(0 && "packet %s is not supported by %s");' % (packet_name, engine_name.upper()))
+        return
+
+    packet = packet_dict[engine_name]
+    enums = packet['enum'] if 'enum' in packet else {}
+    words = packet['word']
+    seen_variable_length_word = False
+
+    # Some packets need dwords to be loaded first if the byte count is after the address words.
+    load_dwords_first = packet_name == 'DMA_DATA'
+
+    if load_dwords_first:
+        for word_index, word_variants in words.items():
+            if int(word_index) == 1:
+                continue # it's the packet header.
+
+            if int(word_index) == 2 and dword0_read:
+                continue
+
+            # Don't load any variable-length fields here.
+            has_variable_length_field = False
+            for _, word_variant in word_variants.items():
+                has_variable_length_field = has_variable_length_field or len([x for x in word_variant.keys() if '[]' in x]) > 0
+            if has_variable_length_field:
+                continue
+
+            word_index_0based = int(word_index) - 2
+
+            if len(word_variants) == 0:
+                print(9 * ' ' + 'if (%d <= pkt_count_field) ac_ib_get(ib);' % word_index_0based)
+            else:
+                print(9 * ' ' + 'uint32_t dw%d = %d <= pkt_count_field ? ac_ib_get(ib) : 0;' % (word_index_0based, word_index_0based))
+
+    # Print the dwords.
+    for word_index, word_variants in words.items():
+        if int(word_index) == 1:
+            continue # it's the packet header.
+
+        get_dword = (int(word_index) > 2 or not dword0_read) and not load_dwords_first
+        word_index_0based = int(word_index) - 2
+        dword_var = 'dw%d' % word_index_0based
+
+        # Parse the dword.
+        for word_variant_name, word_variant in word_variants.items():
+            prefix = ('[%s]' % word_variant_name.upper()) if len(word_variants) > 1 else ''
+            num_printed_fields = len([field_name for field_name in word_variant.keys()
+                                     if not field_name.startswith('reserved') and not field_name.startswith('dummy')])
+
+            # If any field (it should be exactly one field) contains [], it's a variable-length packet.
+            num_var_length_fields = len([x for x in word_variant.keys() if '[]' in x])
+            if num_var_length_fields > 0:
+                assert num_var_length_fields == 1
+                seen_variable_length_word = True
+
+                if packet_name == 'WRITE_DATA':
+                    assert word_index_0based == 3
+                    print(9 * ' ' + 'for (unsigned i = 0; i < pkt_count_field - 3; i++)')
+                    print(12 * ' ' + 'ac_print_data_dword(ib->f, ac_ib_get(ib), "data");')
+                else:
+                    assert False, 'unexpected variable-length packet: %s' % packet_name
+                continue
+
+            assert not seen_variable_length_word
+
+            # Get the next dword if needed.
+            if get_dword:
+                if word_index_0based > 0:
+                    print('')
+
+                if len(word_variant) == 0:
+                    print(9 * ' ' + 'ac_ib_get(ib);')
+                else:
+                    print(9 * ' ' + 'uint32_t %s = ac_ib_get(ib);' % dword_var)
+
+                get_dword = False
+
+            # Iterate over all fields.
+            for field_name, field in word_variant.items():
+                # Get field bits.
+                first_bit, last_bit = get_field_bits(field)
+                num_bits = last_bit - first_bit + 1
+                bitmask = (1 << num_bits) - 1
+
+                if field_name.startswith('reserved') or field_name.startswith('dummy'):
+                    # If a word has multiple variants, a reserved field in one variant may be used by another variant,
+                    # and we don't know which word variant is used, so ignore reserved fields.
+                    if len(word_variants) == 1:
+                        if num_bits == 32:
+                            print(9 * ' ' + 'assert(!%s && "reserved packet fields should be 0 for %s, word %d");' %
+                                  (dword_var, packet_name, word_index_0based))
+                        else:
+                            print(9 * ' ' + 'assert(!((%s >> %d) & 0x%x) && "reserved packet fields should be 0 for %s, word %d");' %
+                                  (dword_var, first_bit, bitmask, packet_name, word_index_0based))
+                    continue
+
+                # Some address fields don't use the first 2-3 bits. Include them anyway.
+                if num_printed_fields == 1 and first_bit + num_bits == 32 and first_bit <= 8:
+                    num_bits = 32
+
+                # Extract the field value if needed.
+                if num_bits < 32:
+                    field_var = '%s%s_%s' % (dword_var, '' if len(word_variants) == 1 else word_variant_name.upper(), field_name)
+                    print(9 * ' ' + 'uint32_t %s = (%s >> %d) & 0x%x;' % (field_var, dword_var, first_bit, bitmask))
+                else:
+                    field_var = dword_var
+
+                register_map_key = (field_name.upper(), first_bit)
+
+                # Choose one of the methods of printing the field
+                if field_name in enums:
+                    # Print it as an enum value string
+                    enum_array = '%s_%s_%s' % (engine_name, packet_name, field_name)
+                    value_name_var = '%s_str' % field_var
+
+                    print(9 * ' ' + 'const char *%s = %s < ARRAY_SIZE(%s) ?' % (value_name_var, field_var, enum_array));
+                    print(9 * ' ' + '                    %s[%s] : NULL;' % (enum_array, field_var))
+                    print(9 * ' ' + 'assert(%s && "invalid/reserved values shouldn\'t be present");' % value_name_var)
+                    print(9 * ' ' + 'ac_print_string_value(ib->f, "%s%s", %s);' % (prefix, field_name.upper(), value_name_var))
+                elif register_map_key in packet_field_register_map:
+                    # Print it as a register
+                    reg_name, mask = packet_field_register_map[register_map_key]
+                    print(9 * ' ' + 'ac_dump_reg(ib->f, ib->gfx_level, ib->family, %s, %s, %s);' %
+                          (reg_name, field_var, hex(mask) if mask >= 0 else '~0'))
+                else:
+                    # Print it as a regular value
+                    print(9 * ' ' + 'ac_print_named_value(ib->f, "%s%s", %s, %d);' %
+                          (prefix, field_name.upper(), field_var, num_bits))
+
+                # If the field is an address, invoke ac_ib_handle_address.
+                if field_name.upper() in address_field_map:
+                    packet_list, addr_condition, count = address_field_map[field_name.upper()]
+                    indent = 9
+
+                    if len(packet_list) == 0 or packet_name in packet_list:
+                        assert len(addr_condition) > 0 or len(word_variants) == 1
+
+                        if len(addr_condition) > 0:
+                            print(9 * ' ' + 'if (%s)' % addr_condition)
+                            indent = 12
+
+                        print(indent * ' ' + 'ac_ib_handle_address(ib, %s, %s, %s);' %
+                              ('dw%d' % (word_index_0based - 1), dword_var, '0' if count == '' else count))
+
+        # Stop printing if that was the last word of the packet.
+        if word_index_0based < len(words) - 2:
+            print(9 * ' ' + 'if (pkt_count_field == %d) break;' % word_index_0based)
+
+
+def should_skip_packet(packet_name):
+    # TODO: This packet conflicts with INDIRECT_BUFFER (same opcode number), but we may need to handle it somehow
+    return packet_name == 'COND_INDIRECT_BUFFER'
+
+
+def get_packet_dict(engines, packet_name):
+    # Get a dictionary of the packet definition where the engine name is the top-level key.
+    packet_dict = {}
+
+    for engine_name, packets in engines.items():
+        if packet_name in packets:
+            packet_dict[engine_name] = packets[packet_name]
+
+    return packet_dict
+
+
+def print_packet_parser(is_header):
+    gfx_version = 'gfx' + re_gfx_number.search(sys.argv[1]).group(1)
+
+    # Load the packet file
+    engines = json.load(open(sys.argv[1], 'r', encoding='utf-8'))['pm4_packets']
+
+    # Load the opcode file
+    opcode_file = open(sys.argv[2], 'r', encoding='utf-8')
+    opcodes = {}
+
+    for line in opcode_file:
+        match = re_opcode.match(line)
+        if match:
+            opcodes[match['name']] = int(match['hex'], 16)
+
+    print(
+"""/* This file is automatically generated. DO NOT EDIT.
+ *
+ * Copyright 2026 Advanced Micro Devices, Inc.
+ * SPDX-License-Identifier: MIT
+ */
+""")
+
+    if is_header:
+        print('#ifndef AMD_CP_IB_PARSER_%s' % gfx_version.upper())
+        print('#define AMD_CP_IB_PARSER_%s' % gfx_version.upper())
+        print('')
+        print('#include "ac_debug.h"')
+    else:
+        print('#include "amd_cp_print_packet_%s.h"' % gfx_version)
+        print('#include "amd_cp_packets_%s.h"' % gfx_version)
+        print('#include "amdgfxregs.h"')
+
+    # Generate enum-to-string tables.
+    if not is_header:
+        for packet_name, value in opcodes.items():
+            if not should_skip_packet(packet_name) and packet_name not in no_printer_support:
+                print_enum_table(packet_name, get_packet_dict(engines, packet_name))
+
+    print('')
+    print('/* Print the packet and use assertions to validate its content. */')
+    print('void')
+    print('amd_cp_print_packet_%s(struct ac_ib_parser *ib, unsigned opcode, unsigned pkt_count_field)%s'
+          % (gfx_version, ';' if is_header else ''))
+
+    if is_header:
+        print('')
+        print('#endif')
+        return
+
+    print('{')
+    print(3 * ' ' + 'switch (opcode) {')
+
+    # Generate packet parser cases.
+    for packet_name, value in opcodes.items():
+        skip_packet = should_skip_packet(packet_name)
+        if skip_packet:
+            print('#if 0')
+
+        packet_dict = get_packet_dict(engines, packet_name)
+        print(3 * ' ' + 'case 0x%X: { /* PKT3_%s */' % (value, packet_name))
+
+        if packet_name in no_printer_support:
+            print(6 * ' ' + 'UNREACHABLE("the caller should handle %s");' % packet_name)
+        else:
+            has_engine_sel = packet_has_engine_sel(packet_dict)
+
+            if has_engine_sel:
+                print(6 * ' ' + 'uint32_t dw0 = ac_ib_get(ib);')
+                print('')
+
+            print(6 * ' ' + 'if (ib->ip_type == AMD_IP_COMPUTE) {')
+
+            if has_engine_sel:
+                # Generate an expression that checks ENGINE_SEL
+                engine_sel_infix = ('%X_1%s' %
+                    (opcodes[packet_name], '' if len(packet_dict['pfp']['word']['2']) == 1 else 'A'))
+                engine_sel_getter = 'G_%s_ENGINE_SEL' % engine_sel_infix
+
+                if 'pfp' in packet_dict['pfp']['enum']['engine_sel']:
+                    pfp_value_name = 'PFP'
+                elif 'prefetch_parser' in packet_dict['pfp']['enum']['engine_sel']:
+                    pfp_value_name = 'PREFETCH_PARSER'
+                else:
+                    assert False, 'ENGINE_SEL doesn''t contain PFP or PREFETCH_PARSER'
+
+                pfp_value = 'V_%s_%s' % (engine_sel_infix, pfp_value_name)
+
+                print_packet(packet_name, packet_dict, 'mec', True)
+
+                # Parse both PFP and MEG packet variants.
+                print(6 * ' ' + '} else if (%s(dw0) == %s) {' % (engine_sel_getter, pfp_value))
+                print_packet(packet_name, packet_dict, 'pfp', True)
+                print(6 * ' ' + '} else {')
+                print_packet(packet_name, packet_dict, 'meg', True)
+            else:
+                print_packet(packet_name, packet_dict, 'mec', False)
+                print(6 * ' ' + '} else {')
+                print_packet(packet_name, packet_dict, 'pfp' if 'pfp' in packet_dict else 'meg', False)
+
+            print(6 * ' ' + '}')
+            print(6 * ' ' + 'break;')
+
+        print(3 * ' ' + '}')
+        if skip_packet:
+            print('#endif')
+        print('')
+
+    print(3 * ' ' + 'default:')
+    print(6 * ' ' + 'fprintf(stderr, "amdgpu: cannot decode packet 0x%x\\n", opcode);')
+    print(6 * ' ' + 'break;')
+
+    print(3 * ' ' + '}')
+    print('}')
+
+
 if __name__ == "__main__":
-    main()
+    last = sys.argv.pop()
+
+    if last == 'packets_h':
+        print_packet_definitions()
+    elif last == 'print_c':
+        print_packet_parser(False)
+    elif last == 'print_h':
+        print_packet_parser(True)
+    else:
+        assert False, 'the last parameter must be "header" or "parser"'
