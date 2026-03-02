@@ -3914,7 +3914,7 @@
         "description": "vc4: flush write jobs before BO replacement in DISCARD_WHOLE path",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "18ccda7b86b8f7ab7466265aefb3f3e773f4a757",
         "notes": null
