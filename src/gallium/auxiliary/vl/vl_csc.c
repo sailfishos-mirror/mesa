@@ -86,11 +86,6 @@ void vl_csc_get_rgbyuv_matrix(enum pipe_video_vpp_matrix_coefficients coefficien
       y_bias = c_bias = 0.0;
    }
 
-   for (unsigned i = 0; i < 3; i++) {
-      (*matrix)[i][i] = i == 0 ? y_scale : c_scale;
-      (*matrix)[i][3] = (i == 0 ? y_bias : c_bias) * (*matrix)[i][i];
-   }
-
    if (in_yuv != out_yuv) {
       float cr, cg, cb;
 
@@ -146,12 +141,12 @@ void vl_csc_get_rgbyuv_matrix(enum pipe_video_vpp_matrix_coefficients coefficien
          (*matrix)[2][2] = (0.5 / (cr - 1.0)) * cb;
          (*matrix)[2][3] = 0.0;
       }
+   }
 
-      for (unsigned i = 0; i < 3; i++) {
-         for (unsigned j = 0; j < 3; j++) {
-            (*matrix)[i][j] *= j == 0 ? y_scale : c_scale;
-            (*matrix)[i][3] += (*matrix)[i][j] * (j == 0 ? y_bias : c_bias);
-         }
+   for (unsigned i = 0; i < 3; i++) {
+      for (unsigned j = 0; j < 3; j++) {
+         (*matrix)[i][j] *= j == 0 ? y_scale : c_scale;
+         (*matrix)[i][3] += (*matrix)[i][j] * (j == 0 ? y_bias : c_bias);
       }
    }
 
