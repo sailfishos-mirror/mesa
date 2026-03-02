@@ -192,7 +192,7 @@ traces:
     freedreno-a618:
       checksum: 709d72f86faa9b768495888b49cad086
     zink-a618:
-      checksum: ac00716889f247788292e838139bc2ac
+      checksum: f4e4216bfcf202d680b1cb6a20ef2dd5
 
 # gimark requires an environment var to work around a bug, disable for now
 #  gputest/gimark-v2.trace:
@@ -239,12 +239,12 @@ traces:
     freedreno-a306:
       label: [hang]
     freedreno-a530:
-      checksum: ef9cec3c226477e908d4bb2ffe9e8eb9
+      checksum: 57bb50e4a016bf870ee192057de3c19e
       text: Looks fine, but totally different shape from the rendering on i965.
     freedreno-a618:
-      checksum: e4da2cf366cb68833569105d37aaa50d
+      checksum: dbd6130eeae3eb6d5df73f3069beae28
     zink-a618:
-      checksum: e4da2cf366cb68833569105d37aaa50d
+      checksum: dbd6130eeae3eb6d5df73f3069beae28
 
   gputest/plot3d-v2.trace:
     freedreno-a306:
@@ -265,7 +265,7 @@ traces:
     freedreno-a618:
       checksum: 92312303aa8279214f0a300a625efa87
     zink-a618:
-      checksum: 92312303aa8279214f0a300a625efa87
+      checksum: 1fd6650d5f929fdac04430d0e22e0269
 
   gputest/triangle-v2.trace:
     freedreno-a306:

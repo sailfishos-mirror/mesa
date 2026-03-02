@@ -69,13 +69,13 @@ traces:
   gputest/furmark-v2.trace:
     gl-zink-anv-adl:
       label: [no-perf]
-      checksum: 2d3f45cda72a1f8a54fd115fb27ee8d6
+      checksum: 70f5d9f85fb3fc968388cc4c5b4ad389
     gl-zink-anv-tgl:
-      checksum: 2d3f45cda72a1f8a54fd115fb27ee8d6
+      checksum: 70f5d9f85fb3fc968388cc4c5b4ad389
     zink-radv-vangogh:
-      checksum: 6466543da6b14d7e35630c6ed3e90e5f
+      checksum: 2445463aefa9cb45cb4f2d1025053ac2
     zink-radv-gfx1201:
-      checksum: 6466543da6b14d7e35630c6ed3e90e5f
+      checksum: 2445463aefa9cb45cb4f2d1025053ac2
 
   gputest/triangle-v2.trace:
     gl-zink-anv-adl:
@@ -97,9 +97,9 @@ traces:
       checksum: dbe1de4e2e812413f173ea6c423117ff
       text: "'egl_platform.cpp( 227) - Error   - Couldn't find a suitable EGL config' -- revisit when we can turn on X11?"
     zink-radv-vangogh:
-      checksum: ce00befe0c44ca739f63adaf00dc4795
+      checksum: 9083283fd7190da793073082848816c5
     zink-radv-gfx1201:
-      checksum: a38bcbf992b60f883f41a6068331ec3e
+      checksum: 452355d243094f6c9883907fd68f16c6
 
   gputest/pixmark-julia-fp32-v2.trace:
     gl-zink-anv-adl:
@@ -124,15 +124,15 @@ traces:
   gputest/pixmark-volplosion-v2.trace:
     gl-zink-anv-adl:
       label: [no-perf]
-      checksum: 7e49248ad9dc4c052c04b11246c4bd33
+      checksum: 4b533d691227f26e258ad622a428cc24
       text: Different rendering from iris, but still looks correct (common result with this trace)
     gl-zink-anv-tgl:
-      checksum: 7e49248ad9dc4c052c04b11246c4bd33
+      checksum: 4b533d691227f26e258ad622a428cc24
       text: Different rendering from iris, but still looks correct (common result with this trace)
     zink-radv-vangogh:
-      checksum: 0e88ecbe19a7d2fbd98767709c43d0bb
+      checksum: 143603c47d958c6ad7f05e2fb5268bb7
     zink-radv-gfx1201:
-      checksum: 0e88ecbe19a7d2fbd98767709c43d0bb
+      checksum: 143603c47d958c6ad7f05e2fb5268bb7
 
   gputest/plot3d-v2.trace:
     gl-zink-anv-adl:
@@ -151,9 +151,9 @@ traces:
     gl-zink-anv-tgl:
       checksum: 04a5a9b7cbc88d8a66c33b5f1c08294d
     zink-radv-vangogh:
-      checksum: d796864337326ef64526d2218f4504d2
+      checksum: c60118df2c8d52d101c789d919c6d19b
     zink-radv-gfx1201:
-      checksum: d796864337326ef64526d2218f4504d2
+      checksum: c60118df2c8d52d101c789d919c6d19b
 
   humus/AmbientAperture-v2.trace:
     gl-zink-anv-adl:
@@ -326,9 +326,9 @@ traces:
       checksum: 0af2faa0d9183c1bc4dc7612befe1f0a
       text: "'egl_platform.cpp( 227) - Error   - Couldn't find a suitable EGL config' -- revisit when we can turn on X11?"
     zink-radv-vangogh:
-      checksum: b3e333dda7853f444d0e56f9014eb487
+      checksum: 266e348951137564b892c05e08a455a3
     zink-radv-gfx1201:
-      checksum: 838847d56f7602aa7ffcb604e147c9e6
+      checksum: d130996efeab58bd36ca8697e91e2870
 
   supertuxkart/supertuxkart-menu.rdc:
     gl-zink-anv-adl:

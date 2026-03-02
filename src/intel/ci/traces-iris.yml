@@ -187,13 +187,13 @@ traces:
       checksum: f56761af17be6231bce480115cde3cec
   gputest/pixmark-volplosion-v2.trace:
     gl-intel-apl:
-      checksum: 9c891fd21b0cdc79f7071001d95d549c
+      checksum: 8463a40fbc699c9cf887b97dae831786
     gl-intel-glk:
-      checksum: 9c891fd21b0cdc79f7071001d95d549c
+      checksum: 8463a40fbc699c9cf887b97dae831786
     gl-intel-amly:
       checksum: 9c891fd21b0cdc79f7071001d95d549c
     gl-intel-kbl:
-      checksum: 9c891fd21b0cdc79f7071001d95d549c
+      checksum: 8463a40fbc699c9cf887b97dae831786
     gl-intel-whl:
       checksum: 9c891fd21b0cdc79f7071001d95d549c
     gl-intel-cml:
@@ -557,7 +557,7 @@ traces:
       checksum: 85b4f3279fde206dace85ffd727057ea
     gl-intel-kbl:
       label: [no-perf]
-      checksum: 85b4f3279fde206dace85ffd727057ea
+      checksum: efab5903f88f7f34e7c948cfcfb54cd9
     gl-intel-whl:
       label: [no-perf]
       checksum: 6a0e17d98eca33e80810b6158e998aa1
