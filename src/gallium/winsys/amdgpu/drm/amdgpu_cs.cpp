@@ -1495,17 +1495,17 @@ static void amdgpu_cs_add_userq_packets(struct amdgpu_winsys *aws,
          amdgpu_pkt_add_dw(PKT3(PKT3_INDIRECT_BUFFER, 2, 0));
          amdgpu_pkt_add_dw(amdgpu_bo_get_va(userq->f32_shadowing_ib_bo));
          amdgpu_pkt_add_dw(amdgpu_bo_get_va(userq->f32_shadowing_ib_bo) >> 32);
-         amdgpu_pkt_add_dw(userq->f32_shadowing_ib_pm4_dw | S_3F3_INHERIT_VMID_MQD_GFX(1));
+         amdgpu_pkt_add_dw(userq->f32_shadowing_ib_pm4_dw | S_3F_3_INHERIT_VMID_PFP(1));
       }
 
       amdgpu_pkt_add_dw(PKT3(PKT3_INDIRECT_BUFFER, 2, 0));
       amdgpu_pkt_add_dw(csc->chunk_ib[IB_MAIN].va_start);
       amdgpu_pkt_add_dw(csc->chunk_ib[IB_MAIN].va_start >> 32);
       if (userq->ip_type == AMD_IP_GFX)
-         amdgpu_pkt_add_dw((csc->chunk_ib[IB_MAIN].ib_bytes / 4) | S_3F3_INHERIT_VMID_MQD_GFX(1));
+         amdgpu_pkt_add_dw((csc->chunk_ib[IB_MAIN].ib_bytes / 4) | S_3F_3_INHERIT_VMID_PFP(1));
       else
-         amdgpu_pkt_add_dw((csc->chunk_ib[IB_MAIN].ib_bytes / 4) | S_3F3_VALID_COMPUTE(1) |
-                              S_3F3_INHERIT_VMID_MQD_COMPUTE(1));
+         amdgpu_pkt_add_dw((csc->chunk_ib[IB_MAIN].ib_bytes / 4) | S_3F_3_VALID(1) |
+                              S_3F_3_INHERIT_VMID_MEC(1));
 
       /* Add 8 for release mem packet and 2 for protected fence signal packet.
        * Calculcating userq_fence_seq_num this way to match with kernel fence that is
@@ -1549,7 +1549,7 @@ static void amdgpu_cs_add_userq_packets(struct amdgpu_winsys *aws,
          for (unsigned i = 0; i < 1 + DIV_ROUND_UP(num_fences, 4); i++)
             *cond_exec_skip_counts[i].count_dw_ptr = (amdgpu_pkt_get_next_wptr() -
                                                          cond_exec_skip_counts[i].start_wptr) |
-                                                         COND_EXEC_USERQ_OVERRULE_CMD;
+                                                         S_22_4_EXEC_USERQ_OVERRULE_CMD(1);
       }
    } else {
       mesa_loge("amdgpu: unsupported userq ip submission = %d\n", userq->ip_type);

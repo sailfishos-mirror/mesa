@@ -1610,8 +1610,8 @@ static void si_emit_draw_packets(struct si_context *sctx, const struct pipe_draw
          radeon_emit((sh_base_reg + SI_SGPR_BASE_VERTEX * 4 - SI_SH_REG_OFFSET) >> 2);
          radeon_emit((sh_base_reg + SI_SGPR_START_INSTANCE * 4 - SI_SH_REG_OFFSET) >> 2);
          radeon_emit(((sh_base_reg + SI_SGPR_DRAWID * 4 - SI_SH_REG_OFFSET) >> 2) |
-                     S_2C3_DRAW_INDEX_ENABLE(sctx->vs_uses_draw_id) |
-                     S_2C3_COUNT_INDIRECT_ENABLE(!!indirect->indirect_draw_count));
+                     S_2C_4_DRAW_INDEX_ENABLE(sctx->vs_uses_draw_id) |
+                     S_2C_4_COUNT_INDIRECT_ENABLE(!!indirect->indirect_draw_count));
          radeon_emit(indirect->draw_count);
          radeon_emit(count_va);
          radeon_emit(count_va >> 32);

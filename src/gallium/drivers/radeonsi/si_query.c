@@ -1083,7 +1083,7 @@ static void si_emit_query_predication(struct si_context *ctx, unsigned index)
       struct gfx11_sh_query *gfx10_query = (struct gfx11_sh_query *)query;
       struct gfx11_sh_query_buffer *qbuf, *first, *last;
 
-      op = PRED_OP(PREDICATION_OP_PRIMCOUNT);
+      op = S_20_1_PRED_OP(PREDICATION_OP_PRIMCOUNT);
 
       /* if true then invert, see GL_ARB_conditional_render_inverted */
       if (!invert)
@@ -1131,17 +1131,17 @@ static void si_emit_query_predication(struct si_context *ctx, unsigned index)
       struct si_query_buffer *qbuf;
 
       if (query->workaround_buf) {
-         op = PRED_OP(PREDICATION_OP_BOOL64);
+         op = S_20_1_PRED_OP(PREDICATION_OP_BOOL64);
       } else {
          switch (query->b.type) {
          case PIPE_QUERY_OCCLUSION_COUNTER:
          case PIPE_QUERY_OCCLUSION_PREDICATE:
          case PIPE_QUERY_OCCLUSION_PREDICATE_CONSERVATIVE:
-            op = PRED_OP(PREDICATION_OP_ZPASS);
+            op = S_20_1_PRED_OP(PREDICATION_OP_ZPASS);
             break;
          case PIPE_QUERY_SO_OVERFLOW_PREDICATE:
          case PIPE_QUERY_SO_OVERFLOW_ANY_PREDICATE:
-            op = PRED_OP(PREDICATION_OP_PRIMCOUNT);
+            op = S_20_1_PRED_OP(PREDICATION_OP_PRIMCOUNT);
             invert = !invert;
             break;
          default:

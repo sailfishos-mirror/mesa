@@ -538,8 +538,8 @@ ac_emit_cp_atomic_mem(struct ac_cmdbuf *cs, uint32_t atomic_op,
 {
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(PKT3(PKT3_ATOMIC_MEM, 7, 0));
-   ac_cmdbuf_emit(ATOMIC_OP(atomic_op) |
-                  ATOMIC_COMMAND(atomic_cmd));
+   ac_cmdbuf_emit(S_1E_1_ATOMIC(atomic_op) |
+                  S_1E_1_COMMAND(atomic_cmd));
    ac_cmdbuf_emit(va);                    /* addr lo */
    ac_cmdbuf_emit(va >> 32);              /* addr hi */
    ac_cmdbuf_emit(data);                  /* data lo */

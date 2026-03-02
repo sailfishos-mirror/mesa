@@ -36,10 +36,6 @@
 #define SI_SHADOWED_REG_BUFFER_SIZE                                                                \
    (SI_SH_REG_SPACE_SIZE + SI_CONTEXT_REG_SPACE_SIZE + SI_UCONFIG_REG_SPACE_SIZE)
 
-/* All registers defined in this packet section don't exist and the only
- * purpose of these definitions is to define packet encoding that
- * the IB parser understands, and also to have an accurate documentation.
- */
 #define PKT3_NOP                                   0x10
 #define PKT3_SET_BASE                              0x11
 #define PKT3_CLEAR_STATE                           0x12
@@ -47,58 +43,27 @@
 #define PKT3_DISPATCH_DIRECT                       0x15
 #define PKT3_DISPATCH_INDIRECT                     0x16
 #define PKT3_ATOMIC_MEM                            0x1E
-#define   ATOMIC_OP(x)                                ((unsigned)((x)&0x7f) << 0)
-#define     TC_OP_ATOMIC_SUB_RTN_32                   16
-#define     TC_OP_ATOMIC_SUB_RTN_64                   48
-#define     TC_OP_ATOMIC_CMPSWAP_32                   72
-#define     TC_OP_ATOMIC_SUB_64                       112
-#define     TC_OP_ATOMIC_XOR_64                       119
-#define   ATOMIC_COMMAND(x)                           ((unsigned)((x)&0x3) << 8)
-#define   ATOMIC_COMMAND_SEND_RTN                     0x0 /* only RTN opcodes */
-#define   ATOMIC_COMMAND_LOOP                         0x1 /* only RTN opcodes */
-#define   ATOMIC_COMMAND_WR_CONFIRM                   0x2 /* only non-RTN opcodes */
-#define   ATOMIC_COMMAND_SEND_NO_RTN                  0x3 /* only non-RTN opcodes */
-#define   ATOMIC_ENGINE_PFP                           (1 << 30)
 #define PKT3_OCCLUSION_QUERY                       0x1F /* GFX7+ */
 #define PKT3_SET_PREDICATION                       0x20
-#define   PREDICATION_DRAW_NOT_VISIBLE                (0 << 8)
-#define   PREDICATION_DRAW_VISIBLE                    (1 << 8)
-#define   PREDICATION_HINT_WAIT                       (0 << 12)
-#define   PREDICATION_HINT_NOWAIT_DRAW                (1 << 12)
-#define   PRED_OP(x)                                  ((x) << 16)
-#define     PREDICATION_OP_CLEAR                      0x0
-#define     PREDICATION_OP_ZPASS                      0x1
-#define     PREDICATION_OP_PRIMCOUNT                  0x2
-#define     PREDICATION_OP_BOOL64                     0x3
-#define     PREDICATION_OP_BOOL32                     0x4
-#define   PREDICATION_CONTINUE                        (1 << 31)
+#define   PREDICATION_DRAW_NOT_VISIBLE                S_20_1_PRED_BOOL(V_20_1_DRAW_IF_NOT_VISIBLE_OR_OVERFLOW)
+#define   PREDICATION_DRAW_VISIBLE                    S_20_1_PRED_BOOL(V_20_1_DRAW_IF_VISIBLE_OR_NO_OVERFLOW)
+#define   PREDICATION_HINT_WAIT                       S_20_1_HINT(V_20_1_WAIT_UNTIL_FINAL_ZPASS_WRITTEN)
+#define   PREDICATION_HINT_NOWAIT_DRAW                S_20_1_HINT(V_20_1_DRAW_IF_NOT_FINAL_ZPASS_WRITTEN)
+#define     PREDICATION_OP_CLEAR                      V_20_1_CLEAR_PREDICATE
+#define     PREDICATION_OP_ZPASS                      V_20_1_SET_ZPASS_PREDICATE
+#define     PREDICATION_OP_PRIMCOUNT                  V_20_1_SET_PRIMCOUNT_PREDICATE
+#define     PREDICATION_OP_BOOL64                     V_20_1_DX12
+#define     PREDICATION_OP_BOOL32                     V_20_1_VULKAN
+#define   PREDICATION_CONTINUE                        S_20_1_CONTINUE_BIT(V_20_1_CONTINUE_SET_PREDICATION)
 #define PKT3_COND_EXEC                             0x22
-#define   COND_EXEC_USERQ_OVERRULE_CMD                (1 << 31)
 #define PKT3_PRED_EXEC                             0x23
 #define PKT3_DRAW_INDIRECT                         0x24
 #define PKT3_DRAW_INDEX_INDIRECT                   0x25
 #define PKT3_INDEX_BASE                            0x26
 #define PKT3_DRAW_INDEX_2                          0x27
 #define PKT3_CONTEXT_CONTROL                       0x28
-#define   CC0_LOAD_GLOBAL_CONFIG(x)                   (((unsigned)(x)&0x1) << 0)
-#define   CC0_LOAD_PER_CONTEXT_STATE(x)               (((unsigned)(x)&0x1) << 1)
-#define   CC0_LOAD_GLOBAL_UCONFIG(x)                  (((unsigned)(x)&0x1) << 15)
-#define   CC0_LOAD_GFX_SH_REGS(x)                     (((unsigned)(x)&0x1) << 16)
-#define   CC0_LOAD_CS_SH_REGS(x)                      (((unsigned)(x)&0x1) << 24)
-#define   CC0_LOAD_CE_RAM(x)                          (((unsigned)(x)&0x1) << 28)
-#define   CC0_UPDATE_LOAD_ENABLES(x)                  (((unsigned)(x)&0x1) << 31)
-#define   CC1_SHADOW_GLOBAL_CONFIG(x)                 (((unsigned)(x)&0x1) << 0)
-#define   CC1_SHADOW_PER_CONTEXT_STATE(x)             (((unsigned)(x)&0x1) << 1)
-#define   CC1_SHADOW_GLOBAL_UCONFIG(x)                (((unsigned)(x)&0x1) << 15)
-#define   CC1_SHADOW_GFX_SH_REGS(x)                   (((unsigned)(x)&0x1) << 16)
-#define   CC1_SHADOW_CS_SH_REGS(x)                    (((unsigned)(x)&0x1) << 24)
-#define   CC1_UPDATE_SHADOW_ENABLES(x)                (((unsigned)(x)&0x1) << 31)
 #define PKT3_INDEX_TYPE                            0x2A /* GFX6-8 */
 #define PKT3_DRAW_INDIRECT_MULTI                   0x2C
-#define   R_2C3_DRAW_INDEX_LOC                     0x2C3
-#define   S_2C3_THREAD_TRACE_MARKER_ENABLE(x)         (((unsigned)(x)&0x1) << 29)
-#define   S_2C3_COUNT_INDIRECT_ENABLE(x)              (((unsigned)(x)&0x1) << 30)
-#define   S_2C3_DRAW_INDEX_ENABLE(x)                  (((unsigned)(x)&0x1) << 31)
 #define PKT3_DRAW_INDEX_AUTO                       0x2D
 #define PKT3_DRAW_INDEX_IMMD                       0x2E /* GFX6 only */
 #define PKT3_NUM_INSTANCES                         0x2F
@@ -130,9 +95,6 @@
 #define   WAIT_REG_MEM_PFP                            (1 << 8)
 #define PKT3_MEM_WRITE                             0x3D /* GFX6 only */
 #define PKT3_INDIRECT_BUFFER                       0x3F /* GFX6+ */
-#define   S_3F3_INHERIT_VMID_MQD_GFX(x)               (((unsigned)(x)&0x1) << 22) /* userqueue only */
-#define   S_3F3_VALID_COMPUTE(x)                      (((unsigned)(x)&0x1) << 23) /* userqueue only */
-#define   S_3F3_INHERIT_VMID_MQD_COMPUTE(x)           (((unsigned)(x)&0x1) << 30) /* userqueue only */
 #define PKT3_COPY_DATA                             0x40
 #define   COPY_DATA_SRC_SEL(x)                        ((x)&0xf)
 #define   COPY_DATA_REG                               0
@@ -164,7 +126,7 @@
 #define PKT3_ME_INITIALIZE                         0x44 /* GFX6 only */
 #define PKT3_COND_WRITE                            0x45
 #define PKT3_EVENT_WRITE                           0x46
-#define   EVENT_TYPE(x)                               ((x) << 0)
+#define   EVENT_TYPE(x)                               S_46_1_EVENT_TYPE(x)
 /* 0 - any non-TS event
  * 1 - ZPASS_DONE
  * 2 - SAMPLE_PIPELINESTAT
@@ -172,7 +134,7 @@
  * 4 - *S_PARTIAL_FLUSH
  * 5 - TS events
  */
-#define   EVENT_INDEX(x)                              ((x) << 8)
+#define   EVENT_INDEX(x)                              S_46_1_EVENT_INDEX(x)
 #define   PIXEL_PIPE_STATE_CNTL_COUNTER_ID(x)         ((x) << 3)
 #define   PIXEL_PIPE_STATE_CNTL_STRIDE(x)             ((x) << 9)
 /* 0 - 32 bits

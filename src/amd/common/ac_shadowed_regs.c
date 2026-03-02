@@ -3069,18 +3069,18 @@ struct ac_pm4_state *ac_create_shadowing_ib_preamble(const struct radeon_info *i
 
    ac_pm4_cmd_add(pm4, PKT3(PKT3_CONTEXT_CONTROL, 1, 0));
    ac_pm4_cmd_add(pm4,
-                  CC0_UPDATE_LOAD_ENABLES(1) |
-                  CC0_LOAD_PER_CONTEXT_STATE(1) |
-                  CC0_LOAD_CS_SH_REGS(1) |
-                  CC0_LOAD_GFX_SH_REGS(1) |
-                  CC0_LOAD_GLOBAL_UCONFIG(1));
+                  S_28_1_UPDATE_LOAD_ENABLES(1) |
+                  S_28_1_LOAD_PER_CONTEXT_STATE(1) |
+                  S_28_1_LOAD_CS_SH_REGS(1) |
+                  S_28_1_LOAD_GFX_SH_REGS(1) |
+                  S_28_1_LOAD_GLOBAL_UCONFIG(1));
    ac_pm4_cmd_add(pm4,
-                  CC1_UPDATE_SHADOW_ENABLES(1) |
-                  CC1_SHADOW_PER_CONTEXT_STATE(1) |
-                  CC1_SHADOW_CS_SH_REGS(1) |
-                  CC1_SHADOW_GFX_SH_REGS(1) |
-                  CC1_SHADOW_GLOBAL_UCONFIG(1) |
-                  CC1_SHADOW_GLOBAL_CONFIG(1));
+                  S_28_2_UPDATE_SHADOW_ENABLES(1) |
+                  S_28_2_SHADOW_PER_CONTEXT_STATE(1) |
+                  S_28_2_SHADOW_CS_SH_REGS(1) |
+                  S_28_2_SHADOW_GFX_SH_REGS(1) |
+                  S_28_2_SHADOW_GLOBAL_UCONFIG(1) |
+                  S_28_2_SHADOW_GLOBAL_CONFIG(1));
 
    for (unsigned i = 0; i < SI_NUM_REG_RANGES; i++)
       ac_build_load_reg(info, pm4, i, gpu_address);

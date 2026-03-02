@@ -4868,8 +4868,8 @@ static bool gfx6_init_gfx_preamble_state(struct si_context *sctx)
 
    if (sctx->is_gfx_queue && !sctx->uses_kernelq_reg_shadowing) {
       ac_pm4_cmd_add(&pm4->base, PKT3(PKT3_CONTEXT_CONTROL, 1, 0));
-      ac_pm4_cmd_add(&pm4->base, CC0_UPDATE_LOAD_ENABLES(1));
-      ac_pm4_cmd_add(&pm4->base, CC1_UPDATE_SHADOW_ENABLES(1));
+      ac_pm4_cmd_add(&pm4->base, S_28_1_UPDATE_LOAD_ENABLES(1));
+      ac_pm4_cmd_add(&pm4->base, S_28_2_UPDATE_SHADOW_ENABLES(1));
 
       if (sscreen->dpbb_allowed) {
          ac_pm4_cmd_add(&pm4->base, PKT3(PKT3_EVENT_WRITE, 0, 0));
@@ -4958,17 +4958,17 @@ static bool gfx10_init_gfx_preamble_state(struct si_context *sctx)
        */
       if (sctx->gfx_level != GFX11_5) {
          ac_pm4_cmd_add(&pm4->base, PKT3(PKT3_CONTEXT_CONTROL, 1, 0));
-         ac_pm4_cmd_add(&pm4->base, CC0_UPDATE_LOAD_ENABLES(1) | CC0_LOAD_PER_CONTEXT_STATE(1) |
-                           CC0_LOAD_CS_SH_REGS(1) | CC0_LOAD_GFX_SH_REGS(1) |
-                           CC0_LOAD_GLOBAL_UCONFIG(1));
-         ac_pm4_cmd_add(&pm4->base, CC1_UPDATE_SHADOW_ENABLES(1) | CC1_SHADOW_PER_CONTEXT_STATE(1) |
-                           CC1_SHADOW_CS_SH_REGS(1) | CC1_SHADOW_GFX_SH_REGS(1) |
-                           CC1_SHADOW_GLOBAL_UCONFIG(1) | CC1_SHADOW_GLOBAL_CONFIG(1));
+         ac_pm4_cmd_add(&pm4->base, S_28_1_UPDATE_LOAD_ENABLES(1) | S_28_1_LOAD_PER_CONTEXT_STATE(1) |
+                           S_28_1_LOAD_CS_SH_REGS(1) | S_28_1_LOAD_GFX_SH_REGS(1) |
+                           S_28_1_LOAD_GLOBAL_UCONFIG(1));
+         ac_pm4_cmd_add(&pm4->base, S_28_2_UPDATE_SHADOW_ENABLES(1) | S_28_2_SHADOW_PER_CONTEXT_STATE(1) |
+                           S_28_2_SHADOW_CS_SH_REGS(1) | S_28_2_SHADOW_GFX_SH_REGS(1) |
+                           S_28_2_SHADOW_GLOBAL_UCONFIG(1) | S_28_2_SHADOW_GLOBAL_CONFIG(1));
       }
    } else if (sctx->is_gfx_queue && !sctx->uses_kernelq_reg_shadowing) {
       ac_pm4_cmd_add(&pm4->base, PKT3(PKT3_CONTEXT_CONTROL, 1, 0));
-      ac_pm4_cmd_add(&pm4->base, CC0_UPDATE_LOAD_ENABLES(1));
-      ac_pm4_cmd_add(&pm4->base, CC1_UPDATE_SHADOW_ENABLES(1));
+      ac_pm4_cmd_add(&pm4->base, S_28_1_UPDATE_LOAD_ENABLES(1));
+      ac_pm4_cmd_add(&pm4->base, S_28_2_UPDATE_SHADOW_ENABLES(1));
 
       if (sscreen->dpbb_allowed) {
          ac_pm4_cmd_add(&pm4->base, PKT3(PKT3_EVENT_WRITE, 0, 0));
@@ -5039,16 +5039,16 @@ static bool gfx12_init_gfx_preamble_state(struct si_context *sctx)
 
    if (sctx->uses_userq_reg_shadowing) {
       ac_pm4_cmd_add(&pm4->base, PKT3(PKT3_CONTEXT_CONTROL, 1, 0));
-      ac_pm4_cmd_add(&pm4->base, CC0_UPDATE_LOAD_ENABLES(1) | CC0_LOAD_PER_CONTEXT_STATE(1) |
-                        CC0_LOAD_CS_SH_REGS(1) | CC0_LOAD_GFX_SH_REGS(1) |
-                        CC0_LOAD_GLOBAL_UCONFIG(1));
-      ac_pm4_cmd_add(&pm4->base, CC1_UPDATE_SHADOW_ENABLES(1) | CC1_SHADOW_PER_CONTEXT_STATE(1) |
-                        CC1_SHADOW_CS_SH_REGS(1) | CC1_SHADOW_GFX_SH_REGS(1) |
-                        CC1_SHADOW_GLOBAL_UCONFIG(1) | CC1_SHADOW_GLOBAL_CONFIG(1));
+      ac_pm4_cmd_add(&pm4->base, S_28_1_UPDATE_LOAD_ENABLES(1) | S_28_1_LOAD_PER_CONTEXT_STATE(1) |
+                        S_28_1_LOAD_CS_SH_REGS(1) | S_28_1_LOAD_GFX_SH_REGS(1) |
+                        S_28_1_LOAD_GLOBAL_UCONFIG(1));
+      ac_pm4_cmd_add(&pm4->base, S_28_2_UPDATE_SHADOW_ENABLES(1) | S_28_2_SHADOW_PER_CONTEXT_STATE(1) |
+                        S_28_2_SHADOW_CS_SH_REGS(1) | S_28_2_SHADOW_GFX_SH_REGS(1) |
+                        S_28_2_SHADOW_GLOBAL_UCONFIG(1) | S_28_2_SHADOW_GLOBAL_CONFIG(1));
    } else if (sctx->is_gfx_queue && !sctx->uses_kernelq_reg_shadowing) {
       ac_pm4_cmd_add(&pm4->base, PKT3(PKT3_CONTEXT_CONTROL, 1, 0));
-      ac_pm4_cmd_add(&pm4->base, CC0_UPDATE_LOAD_ENABLES(1));
-      ac_pm4_cmd_add(&pm4->base, CC1_UPDATE_SHADOW_ENABLES(1));
+      ac_pm4_cmd_add(&pm4->base, S_28_1_UPDATE_LOAD_ENABLES(1));
+      ac_pm4_cmd_add(&pm4->base, S_28_2_UPDATE_SHADOW_ENABLES(1));
    }
 
    if (sctx->is_gfx_queue && sscreen->dpbb_allowed && !sctx->uses_userq_reg_shadowing) {
