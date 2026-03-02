@@ -6104,7 +6104,7 @@
         "description": "pvr: define PVR_USE_WSI_PLATFORM for xcb and xlib",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0837ea14b8c1dc275de11d6f326f03d96a13b0f8",
         "notes": null
