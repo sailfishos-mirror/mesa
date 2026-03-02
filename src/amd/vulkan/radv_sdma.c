@@ -215,7 +215,6 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
       .mip_levels = image->vk.mip_levels,
       .texel_scale = radv_sdma_get_texel_scale(image),
       .is_linear = surf->is_linear,
-      .is_3d = surf->u.gfx9.resource_type == RADEON_RESOURCE_3D,
       .is_stencil = subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT,
    };
 
@@ -597,7 +596,7 @@ bool
 radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct radv_sdma_surf *src,
                                 const struct radv_sdma_surf *dst, const VkExtent3D extent)
 {
-   bool needs_3d_alignment = src->is_3d;
+   bool needs_3d_alignment = src->surf->u.gfx9.resource_type == RADEON_RESOURCE_3D;
 
    /* These need a linear-to-linear / linear-to-tiled copy. */
    if (src->is_linear || dst->is_linear)
