@@ -41,13 +41,15 @@ struct analysis_query {
 
 struct analysis_state {
    nir_shader *shader;
-   struct hash_table *range_ht;
+   void *range_ht;
 
    struct util_dynarray query_stack;
    struct util_dynarray result_stack;
 
    size_t query_size;
-   uintptr_t (*get_key)(struct analysis_query *q);
+   uint32_t (*get_key)(struct analysis_query *q);
+   bool (*lookup)(void *table, uint32_t key, uint32_t *value);
+   void (*insert)(void *table, uint32_t key, uint32_t value);
    void (*process_query)(struct analysis_state *state, struct analysis_query *q,
                          uint32_t *result, const uint32_t *src);
 };
@@ -73,14 +75,12 @@ perform_analysis(struct analysis_state *state)
          (struct analysis_query *)((char *)util_dynarray_end(&state->query_stack) - state->query_size);
       uint32_t *result = util_dynarray_element(&state->result_stack, uint32_t, cur->result_index);
 
-      uintptr_t key = state->get_key(cur);
-      struct hash_entry *he = NULL;
+      uint32_t key = state->get_key(cur);
       /* There might be a cycle-resolving entry for loop header phis. Ignore this when finishing
        * them by testing pushed_queries.
        */
-      if (cur->pushed_queries == 0 && key &&
-          (he = _mesa_hash_table_search(state->range_ht, (void *)key))) {
-         *result = (uintptr_t)he->data;
+      if (cur->pushed_queries == 0 && key != UINT32_MAX &&
+          state->lookup(state->range_ht, key, result)) {
          state->query_stack.size -= state->query_size;
          continue;
       }
@@ -99,8 +99,8 @@ perform_analysis(struct analysis_state *state)
          continue;
       }
 
-      if (key)
-         _mesa_hash_table_insert(state->range_ht, (void *)key, (void *)(uintptr_t)*result);
+      if (key != UINT32_MAX)
+         state->insert(state->range_ht, key, *result);
 
       state->query_stack.size -= state->query_size;
    }
@@ -396,16 +396,19 @@ push_fp_query(struct analysis_state *state, const nir_def *def)
    pushed_q->def = def;
 }
 
-static uintptr_t
+static uint32_t
 get_fp_key(struct analysis_query *q)
 {
    struct fp_query *fp_q = (struct fp_query *)q;
 
    if (!nir_def_is_alu(fp_q->def))
-      return 0;
+      return UINT32_MAX;
 
    return fp_q->def->index + 1;
 }
+
+static bool scalar_lookup(void *table, uint32_t key, uint32_t *value);
+static void scalar_insert(void *table, uint32_t key, uint32_t value);
 
 static inline bool
 fmul_is_a_number(const struct fp_result_range left, const struct fp_result_range right, bool mulz)
@@ -1332,6 +1335,8 @@ nir_analyze_fp_range(nir_fp_analysis_state *fp_state, const nir_def *def)
    util_dynarray_init_from_stack(&state.result_stack, result_alloc, sizeof(result_alloc));
    state.query_size = sizeof(struct fp_query);
    state.get_key = &get_fp_key;
+   state.lookup = &scalar_lookup;
+   state.insert = &scalar_insert;
    state.process_query = &process_fp_query;
 
    push_fp_query(&state, def);
@@ -1452,15 +1457,32 @@ push_scalar_query(struct analysis_state *state, nir_scalar scalar)
    pushed_q->scalar = scalar;
 }
 
-static uintptr_t
+static uint32_t
 get_scalar_key(struct analysis_query *q)
 {
    nir_scalar scalar = ((struct scalar_query *)q)->scalar;
    /* keys can't be 0, so we have to add 1 to the index */
    unsigned shift_amount = ffs(NIR_MAX_VEC_COMPONENTS) - 1;
    return nir_scalar_is_const(scalar)
-             ? 0
-             : ((uintptr_t)(scalar.def->index + 1) << shift_amount) | scalar.comp;
+             ? UINT32_MAX
+             : ((scalar.def->index + 1) << shift_amount) | scalar.comp;
+}
+
+static bool
+scalar_lookup(void *table, uint32_t key, uint32_t *value)
+{
+   struct hash_table *ht = table;
+   struct hash_entry *he = _mesa_hash_table_search(ht, (void *)(uintptr_t)key);
+   if (he)
+      *value = (uintptr_t)he->data;
+   return he != NULL;
+}
+
+static void
+scalar_insert(void *table, uint32_t key, uint32_t value)
+{
+   struct hash_table *ht = table;
+   _mesa_hash_table_insert(ht, (void *)(uintptr_t)key, (void *)(uintptr_t)value);
 }
 
 static void
@@ -2001,7 +2023,7 @@ get_phi_uub(struct analysis_state *state, struct scalar_query q, uint32_t *resul
    if (!prev || prev->type == nir_cf_node_block) {
       /* Resolve cycles by inserting max into range_ht. */
       uint32_t max = bitmask(q.scalar.def->bit_size);
-      _mesa_hash_table_insert(state->range_ht, (void *)get_scalar_key(&q.head), (void *)(uintptr_t)max);
+      scalar_insert(state->range_ht, get_scalar_key(&q.head), max);
 
       struct set *visited = _mesa_pointer_set_create(NULL);
       nir_scalar *defs = alloca(sizeof(nir_scalar) * 64);
@@ -2049,6 +2071,8 @@ nir_unsigned_upper_bound(nir_shader *shader, struct hash_table *range_ht,
    util_dynarray_init_from_stack(&state.result_stack, result_alloc, sizeof(result_alloc));
    state.query_size = sizeof(struct scalar_query);
    state.get_key = &get_scalar_key;
+   state.lookup = &scalar_lookup,
+   state.insert = &scalar_insert,
    state.process_query = &process_uub_query;
 
    push_scalar_query(&state, scalar);
@@ -2441,6 +2465,8 @@ nir_def_num_lsb_zero(struct hash_table *numlsb_ht, nir_scalar def)
    util_dynarray_init_from_stack(&state.result_stack, result_alloc, sizeof(result_alloc));
    state.query_size = sizeof(struct scalar_query);
    state.get_key = &get_scalar_key;
+   state.lookup = &scalar_lookup,
+   state.insert = &scalar_insert,
    state.process_query = &process_num_lsb_query;
 
    push_scalar_query(&state, def);
