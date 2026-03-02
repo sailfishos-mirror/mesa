@@ -172,7 +172,6 @@ radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image,
       .blk_w = surf->blk_w,
       .blk_h = surf->blk_h,
       .texel_scale = texel_scale,
-      .is_linear = true,
    };
 
    return info;
@@ -214,7 +213,6 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
       .first_level = subresource.mipLevel,
       .mip_levels = image->vk.mip_levels,
       .texel_scale = radv_sdma_get_texel_scale(image),
-      .is_linear = surf->is_linear,
       .is_stencil = subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT,
    };
 
@@ -478,7 +476,7 @@ radv_sdma_copy_buffer_image(const struct radv_device *device, struct radv_cmd_st
                             const struct radv_sdma_surf *buf, const struct radv_sdma_surf *img, const VkExtent3D extent,
                             bool to_image)
 {
-   if (img->is_linear) {
+   if (img->surf->is_linear) {
       if (to_image)
          radv_sdma_emit_copy_linear_sub_window(device, cs, buf, img, extent);
       else
@@ -496,7 +494,7 @@ radv_sdma_use_unaligned_buffer_image_copy(const struct radv_device *device, cons
       return true;
 
    const bool uses_depth = img->offset.z != 0 || ext.depth != 1;
-   if (!img->is_linear && uses_depth) {
+   if (!img->surf->is_linear && uses_depth) {
       if (!util_is_aligned(buf->slice_pitch, 4))
          return true;
    }
@@ -537,7 +535,7 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
 
          if (!to_image) {
             /* Copy the rows from the source image to the temporary buffer. */
-            if (img.is_linear)
+            if (img.surf->is_linear)
                radv_sdma_emit_copy_linear_sub_window(device, cs, &img, &tmp, extent);
             else
                radv_sdma_emit_copy_tiled_sub_window(device, cs, &img, &tmp, extent, true);
@@ -561,7 +559,7 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
 
          if (to_image) {
             /* Copy the rows from the temporary buffer to the destination image. */
-            if (img.is_linear)
+            if (img.surf->is_linear)
                radv_sdma_emit_copy_linear_sub_window(device, cs, &tmp, &img, extent);
             else
                radv_sdma_emit_copy_tiled_sub_window(device, cs, &img, &tmp, extent, false);
@@ -577,14 +575,14 @@ void
 radv_sdma_copy_image(const struct radv_device *device, struct radv_cmd_stream *cs, const struct radv_sdma_surf *src,
                      const struct radv_sdma_surf *dst, const VkExtent3D extent)
 {
-   if (src->is_linear) {
-      if (dst->is_linear) {
+   if (src->surf->is_linear) {
+      if (dst->surf->is_linear) {
          radv_sdma_emit_copy_linear_sub_window(device, cs, src, dst, extent);
       } else {
          radv_sdma_emit_copy_tiled_sub_window(device, cs, dst, src, extent, false);
       }
    } else {
-      if (dst->is_linear) {
+      if (dst->surf->is_linear) {
          radv_sdma_emit_copy_tiled_sub_window(device, cs, src, dst, extent, true);
       } else {
          radv_sdma_emit_copy_t2t_sub_window(device, cs, src, dst, extent);
@@ -599,7 +597,7 @@ radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct r
    bool needs_3d_alignment = src->surf->u.gfx9.resource_type == RADEON_RESOURCE_3D;
 
    /* These need a linear-to-linear / linear-to-tiled copy. */
-   if (src->is_linear || dst->is_linear)
+   if (src->surf->is_linear || dst->surf->is_linear)
       return false;
 
    /* SDMA can't do format conversion. */
