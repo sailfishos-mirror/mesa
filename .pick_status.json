@@ -3454,7 +3454,7 @@
         "description": "nir: fix nir_alu_type_range_contains_type_range for fp16 to int",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
