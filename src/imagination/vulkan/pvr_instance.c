@@ -33,12 +33,6 @@
 #include "pvr_winsys.h"
 #include "pvr_wsi.h"
 
-#if defined(VK_USE_PLATFORM_DISPLAY_KHR)
-#   define PVR_USE_WSI_PLATFORM_DISPLAY true
-#else
-#   define PVR_USE_WSI_PLATFORM_DISPLAY false
-#endif
-
 static const struct vk_instance_extension_table pvr_instance_extensions = {
    .KHR_device_group_creation = true,
    .KHR_display = PVR_USE_WSI_PLATFORM_DISPLAY,

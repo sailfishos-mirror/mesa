@@ -36,6 +36,12 @@
 #   define PVR_USE_WSI_PLATFORM false
 #endif
 
+#if defined(VK_USE_PLATFORM_DISPLAY_KHR)
+#   define PVR_USE_WSI_PLATFORM_DISPLAY true
+#else
+#   define PVR_USE_WSI_PLATFORM_DISPLAY false
+#endif
+
 struct pvr_instance;
 typedef struct _pco_ctx pco_ctx;
 
