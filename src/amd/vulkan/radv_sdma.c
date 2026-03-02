@@ -85,18 +85,6 @@ radv_sdma_pixel_offset_to_blocks(const VkOffset3D offset, const unsigned blk_w, 
    return r;
 }
 
-ALWAYS_INLINE static unsigned
-radv_sdma_pixels_to_blocks(const unsigned linear_pitch, const unsigned blk_w)
-{
-   return DIV_ROUND_UP(linear_pitch, blk_w);
-}
-
-ALWAYS_INLINE static unsigned
-radv_sdma_pixel_area_to_blocks(const unsigned linear_slice_pitch, const unsigned blk_w, const unsigned blk_h)
-{
-   return DIV_ROUND_UP(DIV_ROUND_UP(linear_slice_pitch, blk_w), blk_h);
-}
-
 static struct radv_sdma_chunked_copy_info
 radv_sdma_get_chunked_copy_info(const struct radv_device *const device, const struct radv_sdma_surf *const img,
                                 const VkExtent3D extent)
@@ -143,12 +131,13 @@ radv_sdma_get_bpe(const struct radv_image *const image, VkImageAspectFlags aspec
 struct radv_sdma_surf
 radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image, const VkBufferImageCopy2 *const region)
 {
+   const struct vk_image_buffer_layout layout = vk_image_buffer_copy_layout(&image->vk, region);
+
    assert(util_bitcount(region->imageSubresource.aspectMask) == 1);
 
    const uint32_t texel_scale = radv_sdma_get_texel_scale(image);
-   const unsigned pitch = (region->bufferRowLength ? region->bufferRowLength : region->imageExtent.width) * texel_scale;
-   const unsigned slice_pitch =
-      (region->bufferImageHeight ? region->bufferImageHeight : region->imageExtent.height) * pitch;
+   const unsigned pitch = (layout.row_stride_B / layout.element_size_B) * texel_scale;
+   const unsigned slice_pitch = layout.image_stride_B / layout.element_size_B;
 
    const unsigned plane_idx = radv_plane_from_aspect(region->imageSubresource.aspectMask);
    const struct radeon_surf *surf = &image->planes[plane_idx].surface;
@@ -156,8 +145,8 @@ radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image,
 
    const struct radv_sdma_surf info = {
       .va = buffer_va + region->bufferOffset,
-      .pitch = radv_sdma_pixels_to_blocks(pitch, surf->blk_w),
-      .slice_pitch = radv_sdma_pixel_area_to_blocks(slice_pitch, surf->blk_w, surf->blk_h),
+      .pitch = pitch,
+      .slice_pitch = slice_pitch,
       .bpp = bpe,
       .blk_w = surf->blk_w,
       .blk_h = surf->blk_h,
