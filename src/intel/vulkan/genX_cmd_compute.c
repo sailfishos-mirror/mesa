@@ -1332,6 +1332,11 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
       btd.BTDMidthreadpreemption = false;
 #endif
 
+#if GFX_VER >= 20
+      /* TODO: We can tune this value specific to apps. */
+      btd.ControlsthemaximumnumberofoutstandingRayQueriesperSS =
+         RAYS_QUERIES_OUTSTANDING_1024;
+#endif
 #if GFX_VER >= 30
       btd.RTMemStructures64bModeEnable = true;
 #endif
