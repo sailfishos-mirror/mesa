@@ -8,6 +8,7 @@
  */
 
 #include "radv_sdma.h"
+#include "meta/radv_meta.h"
 #include "util/macros.h"
 #include "util/u_memory.h"
 #include "radv_cs.h"
@@ -90,20 +91,14 @@ radv_sdma_get_chunked_copy_info(const struct radv_device *const device, const st
 }
 
 static uint32_t
-radv_sdma_get_bpe(const struct radv_image *const image, VkImageAspectFlags aspect_mask)
+radv_sdma_get_bpe(const struct radv_image *const image, const VkImageSubresourceLayers *subresource)
 {
-   const unsigned plane_idx = radv_plane_from_aspect(aspect_mask);
-   const struct radeon_surf *surf = &image->planes[plane_idx].surface;
-   const bool is_stencil_only = aspect_mask == VK_IMAGE_ASPECT_STENCIL_BIT;
+   VkFormat format = vk_format_get_aspect_format(image->vk.format, subresource->aspectMask);
 
-   if (is_stencil_only) {
-      return 1;
-   } else if (vk_format_is_96bit(image->vk.format)) {
-      /* Adjust the bpp for 96-bits formats because SDMA expects a power of two. */
-      return 4;
-   } else {
-      return surf->bpe;
-   }
+   if (vk_format_is_96bit(format))
+      format = radv_meta_get_96bit_channel_format(format);
+
+   return vk_format_get_blocksize(format);
 }
 
 struct radv_sdma_surf
@@ -117,7 +112,7 @@ radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image,
    const unsigned pitch = (layout.row_stride_B / layout.element_size_B) * texel_scale;
    const unsigned slice_pitch = layout.image_stride_B / layout.element_size_B;
 
-   const uint32_t bpe = radv_sdma_get_bpe(image, region->imageSubresource.aspectMask);
+   const uint32_t bpe = radv_sdma_get_bpe(image, &region->imageSubresource);
 
    const struct radv_sdma_surf info = {
       .va = buffer_va + region->bufferOffset,
@@ -142,7 +137,7 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
    const struct radeon_surf *const surf = &image->planes[plane_idx].surface;
    const struct radv_image_binding *binding = &image->bindings[binding_idx];
    const uint64_t va = binding->addr;
-   const uint32_t bpe = radv_sdma_get_bpe(image, subresource.aspectMask);
+   const uint32_t bpe = radv_sdma_get_bpe(image, &subresource);
    const uint32_t blk_w = vk_format_get_blockwidth(image->vk.format);
 
    struct radv_sdma_surf info = {
