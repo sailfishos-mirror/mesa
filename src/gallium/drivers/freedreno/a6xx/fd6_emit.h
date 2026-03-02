@@ -91,7 +91,8 @@ enum fd6_pipeline_type {
 
 struct fd6_state_group {
    struct fd_ringbuffer *stateobj;
-   enum fd6_state_id group_id;
+   enum fd6_state_id group_id : 7;
+   bool unref : 1;
    /* enable_mask controls which states the stateobj is evaluated in,
     * b0 is binning pass b1 and/or b2 is draw pass
     */
@@ -125,6 +126,9 @@ fd6_state_emit(struct fd6_state *state, fd_cs &cs)
             .dword = g->enable_mask,
          ));
          pkt.add(g->stateobj, 0, NULL);
+
+         if (g->unref)
+            fd_ringbuffer_del(g->stateobj);
       } else {
          pkt.add(CP_SET_DRAW_STATE__0(i,
             .disable = true,
@@ -133,9 +137,6 @@ fd6_state_emit(struct fd6_state *state, fd_cs &cs)
          ));
          pkt.add(CP_SET_DRAW_STATE__ADDR(i));
       }
-
-      if (g->stateobj)
-         fd_ringbuffer_del(g->stateobj);
    }
 }
 
@@ -155,21 +156,29 @@ enable_mask(enum fd6_state_id group_id)
 }
 
 static inline void
-fd6_state_take_group(struct fd6_state *state, struct fd_ringbuffer *stateobj,
-                     enum fd6_state_id group_id)
+__append_state_group(struct fd6_state *state, struct fd_ringbuffer *stateobj,
+                     enum fd6_state_id group_id, bool unref)
 {
    assert(state->num_groups < ARRAY_SIZE(state->groups));
    struct fd6_state_group *g = &state->groups[state->num_groups++];
    g->stateobj = stateobj;
    g->group_id = group_id;
+   g->unref = unref;
    g->enable_mask = enable_mask(group_id);
+}
+
+static inline void
+fd6_state_take_group(struct fd6_state *state, struct fd_ringbuffer *stateobj,
+                     enum fd6_state_id group_id)
+{
+   __append_state_group(state, stateobj, group_id, true);
 }
 
 static inline void
 fd6_state_add_group(struct fd6_state *state, struct fd_ringbuffer *stateobj,
                     enum fd6_state_id group_id)
 {
-   fd6_state_take_group(state, fd_ringbuffer_ref(stateobj), group_id);
+   __append_state_group(state, stateobj, group_id, false);
 }
 
 /* grouped together emit-state for prog/vertex/state emit: */
