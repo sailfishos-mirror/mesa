@@ -64,7 +64,7 @@ va_print_src(FILE *fp, unsigned type, unsigned value, unsigned fau_page)
 		fprintf(fp, "u%u", value | (fau_page << 6));
 	} else {
 		bool discard = (type & 1);
-		fprintf(fp, "%sr%u", discard ? "^" : "", value);
+		fprintf(fp, "r%u%s", value, discard ? "^" : "");
 	}
 }
 
