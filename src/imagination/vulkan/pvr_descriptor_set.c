@@ -123,15 +123,21 @@ VkResult pvr_CreateDescriptorSetLayout(
    uint32_t descriptor_count = 0;
    VkResult result = VK_SUCCESS;
    const VkDescriptorSetLayoutBindingFlagsCreateInfo *binding_flags_create_info =
-      vk_find_struct_const(pCreateInfo->pNext,
-                           DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO);
+      NULL;
    VkDescriptorBindingFlags *binding_flags = NULL;
 
    assert(pCreateInfo->sType ==
           VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
 
    vk_foreach_struct_const (ext, pCreateInfo->pNext) {
-      vk_debug_ignored_stype(ext->sType);
+      switch (ext->sType) {
+      case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO:
+         binding_flags_create_info =
+            (const VkDescriptorSetLayoutBindingFlagsCreateInfo *)ext;
+         break;
+      default:
+         vk_debug_ignored_stype(ext->sType);
+      }
    }
 
    for (unsigned u = 0; u < pCreateInfo->bindingCount; ++u) {
