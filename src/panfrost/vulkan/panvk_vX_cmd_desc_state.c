@@ -41,18 +41,9 @@ cmd_desc_state_bind_sets(struct panvk_descriptor_state *desc_state,
 
       desc_state->sets[set_idx] = set;
 
-      if (!set || !set->layout->dyn_buf_count)
-         continue;
-
-      for (unsigned b = 0; b < set->layout->binding_count; b++) {
-         VkDescriptorType type = set->layout->bindings[b].type;
-
-         if (!vk_descriptor_type_is_dynamic(type))
-            continue;
-
-         unsigned dyn_buf_idx = set->layout->bindings[b].desc_idx;
-         for (unsigned e = 0; e < set->layout->bindings[b].desc_count; e++) {
-            desc_state->dyn_buf_offsets[set_idx][dyn_buf_idx++] =
+      if (set) {
+         for (unsigned b = 0; b < set->layout->dyn_buf_count; b++) {
+            desc_state->dyn_buf_offsets[set_idx][b] =
                info->pDynamicOffsets[dynoffset_idx++];
          }
       }
