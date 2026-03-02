@@ -210,11 +210,6 @@ nir_alu_type_range_contains_type_range(nir_alu_type a, nir_alu_type b)
        a_bit_size > b_bit_size)
       return true;
 
-   /* 16-bit floats fit in 32-bit integers */
-   if (a_base_type == nir_type_int && a_bit_size >= 32 &&
-       b == nir_type_float16)
-      return true;
-
    /* All signed or unsigned ints can fit in float or above. A uint8 can fit
     * in a float16.
     */
