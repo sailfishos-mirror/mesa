@@ -7,6 +7,7 @@
 #ifndef RADV_SDMA_H
 #define RADV_SDMA_H
 
+#include "radv_formats.h"
 #include "radv_image.h"
 
 struct radv_cmd_stream;
@@ -28,7 +29,6 @@ struct radv_sdma_surf {
    unsigned blk_h;          /* Image format block height in pixels. */
    unsigned first_level;    /* First mip level in the image. */
    unsigned mip_levels;     /* Mip levels in the image. */
-   uint8_t texel_scale;     /* Texel scale for 96-bit formats */
    bool is_stencil;         /* Whether the image is stencil only. */
 
    union {
@@ -47,10 +47,24 @@ struct radv_sdma_surf {
    };
 };
 
+static inline uint32_t
+radv_sdma_get_texel_scale(const struct radv_image *image)
+{
+   if (vk_format_is_96bit(image->vk.format)) {
+      return 3;
+   } else {
+      return 1;
+   }
+}
+
 ALWAYS_INLINE static VkExtent3D
 radv_sdma_get_copy_extent(const struct radv_image *const image, const VkImageSubresourceLayers subresource,
                           VkExtent3D extent)
 {
+   const uint8_t texel_scale = radv_sdma_get_texel_scale(image);
+
+   extent.width *= texel_scale;
+
    if (image->vk.image_type != VK_IMAGE_TYPE_3D)
       extent.depth = vk_image_subresource_layer_count(&image->vk, &subresource);
 

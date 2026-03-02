@@ -101,7 +101,7 @@ static struct radv_sdma_chunked_copy_info
 radv_sdma_get_chunked_copy_info(const struct radv_device *const device, const struct radv_sdma_surf *const img,
                                 const VkExtent3D extent)
 {
-   const unsigned extent_horizontal_blocks = DIV_ROUND_UP(extent.width * img->texel_scale, img->blk_w);
+   const unsigned extent_horizontal_blocks = DIV_ROUND_UP(extent.width, img->blk_w);
    const unsigned extent_vertical_blocks = DIV_ROUND_UP(extent.height, img->blk_h);
    const unsigned aligned_row_pitch = align(extent_horizontal_blocks, 4);
    const unsigned aligned_row_bytes = aligned_row_pitch * img->bpp;
@@ -140,16 +140,6 @@ radv_sdma_get_bpe(const struct radv_image *const image, VkImageAspectFlags aspec
    }
 }
 
-static uint32_t
-radv_sdma_get_texel_scale(const struct radv_image *const image)
-{
-   if (vk_format_is_96bit(image->vk.format)) {
-      return 3;
-   } else {
-      return 1;
-   }
-}
-
 struct radv_sdma_surf
 radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image, const VkBufferImageCopy2 *const region)
 {
@@ -171,7 +161,6 @@ radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image,
       .bpp = bpe,
       .blk_w = surf->blk_w,
       .blk_h = surf->blk_h,
-      .texel_scale = texel_scale,
    };
 
    return info;
@@ -212,9 +201,10 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
       .blk_h = surf->blk_h,
       .first_level = subresource.mipLevel,
       .mip_levels = image->vk.mip_levels,
-      .texel_scale = radv_sdma_get_texel_scale(image),
       .is_stencil = subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT,
    };
+
+   info.offset.x *= radv_sdma_get_texel_scale(image);
 
    const uint64_t surf_offset = (subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT) ? surf->u.gfx9.zs.stencil_offset
                                                                                         : surf->u.gfx9.surf_offset;
@@ -300,13 +290,6 @@ radv_sdma_emit_copy_linear_sub_window(const struct radv_device *device, struct r
    VkOffset3D src_off = radv_sdma_pixel_offset_to_blocks(src->offset, src->blk_w, src->blk_h);
    VkOffset3D dst_off = radv_sdma_pixel_offset_to_blocks(dst->offset, dst->blk_w, dst->blk_h);
    VkExtent3D ext = radv_sdma_pixel_extent_to_blocks(pix_extent, src->blk_w, src->blk_h);
-
-   /* Adjust offset/extent for 96-bits formats because SDMA expects a power of two bpp. */
-   const uint32_t texel_scale = src->texel_scale == 1 ? dst->texel_scale : src->texel_scale;
-   assert(texel_scale);
-   src_off.x *= texel_scale;
-   dst_off.x *= texel_scale;
-   ext.width *= texel_scale;
 
    const struct ac_sdma_surf surf_src = {
       .surf = src->surf,
@@ -518,7 +501,6 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
       .blk_h = img.blk_h,
       .pitch = info.aligned_row_pitch,
       .slice_pitch = info.aligned_row_pitch * info.extent_vertical_blocks,
-      .texel_scale = buf->texel_scale,
    };
 
    VkExtent3D extent = base_extent;
