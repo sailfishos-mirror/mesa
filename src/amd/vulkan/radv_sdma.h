@@ -25,8 +25,6 @@ struct radv_sdma_surf {
    VkOffset3D offset;       /* Image offset. */
    uint64_t va;             /* Virtual address of image data. */
    unsigned bpp;            /* Bytes per pixel. */
-   unsigned blk_w;          /* Image format block width in pixels. */
-   unsigned blk_h;          /* Image format block height in pixels. */
    unsigned first_level;    /* First mip level in the image. */
    unsigned mip_levels;     /* Mip levels in the image. */
    bool is_stencil;         /* Whether the image is stencil only. */

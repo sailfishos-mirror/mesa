@@ -65,6 +65,7 @@ static struct radv_sdma_chunked_copy_info
 radv_sdma_get_chunked_copy_info(const struct radv_device *const device, const struct radv_sdma_surf *const img,
                                 const VkExtent3D extent)
 {
+   const uint32_t blk_h = vk_format_get_blockheight(img->format);
    const unsigned extent_horizontal_blocks = extent.width;
    const unsigned extent_vertical_blocks = extent.height;
    const unsigned aligned_row_pitch = align(extent_horizontal_blocks, 4);
@@ -72,7 +73,7 @@ radv_sdma_get_chunked_copy_info(const struct radv_device *const device, const st
 
    /* Assume that we can always copy at least one full row at a time. */
    const unsigned max_num_rows_per_copy =
-      MIN2(RADV_SDMA_TRANSFER_TEMP_BYTES / aligned_row_bytes, extent.height * img->blk_h);
+      MIN2(RADV_SDMA_TRANSFER_TEMP_BYTES / aligned_row_bytes, extent.height * blk_h);
    assert(max_num_rows_per_copy);
 
    /* Ensure that the number of rows copied at a time is a power of two. */
@@ -116,8 +117,6 @@ radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image,
    const unsigned pitch = (layout.row_stride_B / layout.element_size_B) * texel_scale;
    const unsigned slice_pitch = layout.image_stride_B / layout.element_size_B;
 
-   const unsigned plane_idx = radv_plane_from_aspect(region->imageSubresource.aspectMask);
-   const struct radeon_surf *surf = &image->planes[plane_idx].surface;
    const uint32_t bpe = radv_sdma_get_bpe(image, region->imageSubresource.aspectMask);
 
    const struct radv_sdma_surf info = {
@@ -125,8 +124,6 @@ radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image,
       .pitch = pitch,
       .slice_pitch = slice_pitch,
       .bpp = bpe,
-      .blk_w = surf->blk_w,
-      .blk_h = surf->blk_h,
    };
 
    return info;
@@ -146,6 +143,7 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
    const struct radv_image_binding *binding = &image->bindings[binding_idx];
    const uint64_t va = binding->addr;
    const uint32_t bpe = radv_sdma_get_bpe(image, subresource.aspectMask);
+   const uint32_t blk_w = vk_format_get_blockwidth(image->vk.format);
 
    struct radv_sdma_surf info = {
       .surf = surf,
@@ -158,8 +156,6 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
          },
       .offset = offset,
       .bpp = bpe,
-      .blk_w = surf->blk_w,
-      .blk_h = surf->blk_h,
       .first_level = subresource.mipLevel,
       .mip_levels = image->vk.mip_levels,
       .is_stencil = subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT,
@@ -176,7 +172,7 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
 
    if (surf->is_linear) {
       info.va = va + surf_offset + surf->u.gfx9.offset[subresource.mipLevel];
-      info.pitch = surf->u.gfx9.pitch[subresource.mipLevel] / info.blk_w;
+      info.pitch = surf->u.gfx9.pitch[subresource.mipLevel] / blk_w;
       info.slice_pitch = surf->u.gfx9.surf_slice_size / bpe;
    } else {
       const uint32_t queue_mask = radv_image_queue_family_mask(image, cmd_buffer->qf, cmd_buffer->qf);
@@ -451,8 +447,6 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
       .va = radv_buffer_get_va(temp_bo),
       .aspect_format = img.aspect_format,
       .bpp = img.bpp,
-      .blk_w = img.blk_w,
-      .blk_h = img.blk_h,
       .pitch = info.aligned_row_pitch,
       .slice_pitch = info.aligned_row_pitch * info.extent_vertical_blocks,
    };
@@ -608,8 +602,6 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
       .aspect_format = src->aspect_format,
       .bpp = src->bpp,
       .is_compressed = src->is_compressed,
-      .blk_w = src->blk_w,
-      .blk_h = src->blk_h,
       .pitch = info.aligned_row_pitch,
    };
    struct radv_sdma_surf l2t_dst = *dst;
@@ -619,8 +611,6 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
       .aspect_format = dst->aspect_format,
       .bpp = dst->bpp,
       .is_compressed = dst->is_compressed,
-      .blk_w = dst->blk_w,
-      .blk_h = dst->blk_h,
       .pitch = info.aligned_row_pitch,
    };
 
