@@ -604,7 +604,7 @@ Khronos extensions that are not part of any Vulkan version:
   VK_KHR_workgroup_memory_explicit_layout               DONE (anv, hk, kk, lvp, nvk, hasvk, panvk, pvr, radv, tu, v3dv, vn)
   VK_KHR_xcb_surface                                    DONE (anv, dzn, hasvk, kk, hk, lvp, nvk, panvk, pvr, radv, tu, v3dv, vn)
   VK_KHR_xlib_surface                                   DONE (anv, dzn, hasvk, kk, hk, lvp, nvk, panvk, pvr, radv, tu, v3dv, vn)
-  VK_EXT_acquire_drm_display                            DONE (anv, hasvk, hk, kk, nvk, panvk, radv, tu, v3dv, vn)
+  VK_EXT_acquire_drm_display                            DONE (anv, hasvk, hk, kk, nvk, panvk, pvr, radv, tu, v3dv, vn)
   VK_EXT_acquire_xlib_display                           DONE (anv, hasvk, hk, kk, lvp, nvk, panvk, radv, tu, v3dv, vn)
   VK_EXT_astc_decode_mode                               DONE (panvk)
   VK_EXT_attachment_feedback_loop_dynamic_state         DONE (anv, kk, lvp, panvk, radv, tu, vn)

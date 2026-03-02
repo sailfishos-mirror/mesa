@@ -53,6 +53,7 @@ static const struct vk_instance_extension_table pvr_instance_extensions = {
 #ifdef VK_USE_PLATFORM_XLIB_KHR
    .KHR_xlib_surface = true,
 #endif
+   .EXT_acquire_drm_display = PVR_USE_WSI_PLATFORM_DISPLAY,
    .EXT_debug_report = true,
    .EXT_debug_utils = true,
    .EXT_direct_mode_display = PVR_USE_WSI_PLATFORM_DISPLAY,

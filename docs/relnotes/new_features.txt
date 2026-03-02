@@ -57,3 +57,4 @@ VK_EXT_surface_maintenance1 on pvr
 VK_KHR_swapchain_maintenance1 on pvr
 VK_EXT_swapchain_maintenance1 on pvr
 VK_EXT_swapchain_colorspace on pvr
+VK_EXT_acquire_drm_display on pvr
