@@ -1304,7 +1304,7 @@
         "description": "pan/bi: Fix coupling spill placement",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ca9c9957e20bd33f9a79ca71ef7d72d8aef0d6e8",
         "notes": null
