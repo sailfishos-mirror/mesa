@@ -19,14 +19,14 @@ extern "C" {
 
 struct radv_sdma_surf {
    const struct radeon_surf *surf;
-   VkFormat format;         /* Image format. */
-   VkFormat aspect_format;  /* Image subresource format. */
+   VkFormat img_format;     /* Image format. */
+   VkFormat format;         /* Image subresource format. */
    VkExtent3D extent;       /* Image extent. */
    VkOffset3D offset;       /* Image offset. */
    uint64_t va;             /* Virtual address of image data. */
    unsigned bpp;            /* Bytes per pixel. */
    unsigned first_level;    /* First mip level in the image. */
-   unsigned mip_levels;     /* Mip levels in the image. */
+   unsigned num_levels;     /* Mip levels in the image. */
    bool is_stencil;         /* Whether the image is stencil only. */
 
    union {
@@ -39,7 +39,7 @@ struct radv_sdma_surf {
       struct {
          uint64_t meta_va;      /* Virtual address of metadata. */
          bool is_compressed;
-         uint32_t surface_type;
+         uint32_t surf_type;
          bool htile_enabled;
       };
    };

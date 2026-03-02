@@ -52,7 +52,7 @@ radv_sdma_pitch_alignment(const struct radv_device *device, const unsigned bpp)
 }
 
 ALWAYS_INLINE static uint32_t
-radv_sdma_surface_type_from_aspect_mask(const VkImageAspectFlags aspectMask)
+radv_sdma_surf_type_from_aspect_mask(const VkImageAspectFlags aspectMask)
 {
    if (aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
       return 1;
@@ -66,7 +66,7 @@ static struct radv_sdma_chunked_copy_info
 radv_sdma_get_chunked_copy_info(const struct radv_device *const device, const struct radv_sdma_surf *const img,
                                 const VkExtent3D extent)
 {
-   const uint32_t blk_h = vk_format_get_blockheight(img->format);
+   const uint32_t blk_h = vk_format_get_blockheight(img->img_format);
    const unsigned extent_horizontal_blocks = extent.width;
    const unsigned extent_vertical_blocks = extent.height;
    const unsigned aligned_row_pitch = align(extent_horizontal_blocks, 4);
@@ -142,24 +142,32 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
 
    struct radv_sdma_surf info = {
       .surf = surf,
-      .format = image->vk.format,
-      .aspect_format = vk_format_get_aspect_format(image->vk.format, subresource.aspectMask),
+      .img_format = image->vk.format,
+      .format = vk_format_get_aspect_format(image->vk.format, subresource.aspectMask),
       .extent =
          {
             .width = vk_format_get_plane_width(image->vk.format, plane_idx, image->vk.extent.width),
             .height = vk_format_get_plane_height(image->vk.format, plane_idx, image->vk.extent.height),
          },
-      .offset = offset,
       .bpp = bpe,
       .first_level = subresource.mipLevel,
-      .mip_levels = image->vk.mip_levels,
+      .num_levels = image->vk.mip_levels,
       .is_stencil = subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT,
    };
 
-   info.offset.x *= radv_sdma_get_texel_scale(image);
+   info.offset.x = offset.x * radv_sdma_get_texel_scale(image);
+   info.offset.y = offset.y;
    info.offset.z = image->vk.image_type == VK_IMAGE_TYPE_3D ? offset.z : subresource.baseArrayLayer;
 
-   info.extent = vk_image_extent_to_elements(&image->vk, info.extent);
+   const VkExtent3D img_extent = {
+      .width = vk_format_get_plane_width(image->vk.format, plane_idx, image->vk.extent.width),
+      .height = vk_format_get_plane_height(image->vk.format, plane_idx, image->vk.extent.height),
+   };
+
+   const VkExtent3D img_extent_el = vk_image_extent_to_elements(&image->vk, img_extent);
+
+   info.extent.width = img_extent_el.width;
+   info.extent.height = img_extent_el.height;
    info.extent.depth = image->vk.image_type == VK_IMAGE_TYPE_3D ? image->vk.extent.depth : image->vk.array_layers;
 
    const uint64_t surf_offset = (subresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT) ? surf->u.gfx9.zs.stencil_offset
@@ -188,7 +196,7 @@ radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *
 
       if (info.is_compressed) {
          info.meta_va = va + surf->meta_offset;
-         info.surface_type = radv_sdma_surface_type_from_aspect_mask(subresource.aspectMask);
+         info.surf_type = radv_sdma_surf_type_from_aspect_mask(subresource.aspectMask);
          info.htile_enabled = htile_compressed;
       }
    }
@@ -247,7 +255,7 @@ radv_sdma_emit_copy_linear_sub_window(const struct radv_device *device, struct r
    const struct ac_sdma_surf surf_src = {
       .surf = src->surf,
       .va = src->va,
-      .format = radv_format_to_pipe_format(src->aspect_format),
+      .format = radv_format_to_pipe_format(src->format),
       .bpp = src->bpp,
       .offset =
          {
@@ -263,7 +271,7 @@ radv_sdma_emit_copy_linear_sub_window(const struct radv_device *device, struct r
    const struct ac_sdma_surf surf_dst = {
       .surf = dst->surf,
       .va = dst->va,
-      .format = radv_format_to_pipe_format(dst->aspect_format),
+      .format = radv_format_to_pipe_format(dst->format),
       .bpp = dst->bpp,
       .offset =
          {
@@ -292,7 +300,7 @@ radv_sdma_emit_copy_tiled_sub_window(const struct radv_device *device, struct ra
    const struct ac_sdma_surf surf_linear = {
       .surf = linear->surf,
       .va = linear->va,
-      .format = radv_format_to_pipe_format(linear->aspect_format),
+      .format = radv_format_to_pipe_format(linear->format),
       .offset =
          {
             .x = linear->offset.x,
@@ -307,7 +315,7 @@ radv_sdma_emit_copy_tiled_sub_window(const struct radv_device *device, struct ra
    const struct ac_sdma_surf surf_tiled = {
       .surf = tiled->surf,
       .va = tiled->va,
-      .format = radv_format_to_pipe_format(tiled->aspect_format),
+      .format = radv_format_to_pipe_format(tiled->format),
       .bpp = tiled->bpp,
       .offset =
          {
@@ -324,8 +332,8 @@ radv_sdma_emit_copy_tiled_sub_window(const struct radv_device *device, struct ra
             .depth = tiled->extent.depth,
          },
       .first_level = tiled->first_level,
-      .num_levels = tiled->mip_levels,
-      .surf_type = tiled->surface_type,
+      .num_levels = tiled->num_levels,
+      .surf_type = tiled->surf_type,
       .meta_va = tiled->meta_va,
       .htile_enabled = tiled->htile_enabled,
    };
@@ -345,7 +353,7 @@ radv_sdma_emit_copy_t2t_sub_window(const struct radv_device *device, struct radv
    const struct ac_sdma_surf surf_src = {
       .surf = src->surf,
       .va = src->va,
-      .format = radv_format_to_pipe_format(src->aspect_format),
+      .format = radv_format_to_pipe_format(src->format),
       .bpp = src->bpp,
       .offset =
          {
@@ -362,8 +370,8 @@ radv_sdma_emit_copy_t2t_sub_window(const struct radv_device *device, struct radv
             .depth = src->extent.depth,
          },
       .first_level = src->first_level,
-      .num_levels = src->mip_levels,
-      .surf_type = src->surface_type,
+      .num_levels = src->num_levels,
+      .surf_type = src->surf_type,
       .meta_va = src->meta_va,
       .htile_enabled = src->htile_enabled,
    };
@@ -371,7 +379,7 @@ radv_sdma_emit_copy_t2t_sub_window(const struct radv_device *device, struct radv
    const struct ac_sdma_surf surf_dst = {
       .surf = dst->surf,
       .va = dst->va,
-      .format = radv_format_to_pipe_format(dst->aspect_format),
+      .format = radv_format_to_pipe_format(dst->format),
       .bpp = dst->bpp,
       .offset =
          {
@@ -388,8 +396,8 @@ radv_sdma_emit_copy_t2t_sub_window(const struct radv_device *device, struct radv
             .depth = dst->extent.depth,
          },
       .first_level = dst->first_level,
-      .num_levels = dst->mip_levels,
-      .surf_type = dst->surface_type,
+      .num_levels = dst->num_levels,
+      .surf_type = dst->surf_type,
       .meta_va = dst->meta_va,
       .htile_enabled = dst->htile_enabled,
    };
@@ -440,7 +448,7 @@ radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct r
    struct radv_sdma_surf tmp = {
       .surf = img.surf,
       .va = radv_buffer_get_va(temp_bo),
-      .aspect_format = img.aspect_format,
+      .format = img.format,
       .bpp = img.bpp,
       .pitch = info.aligned_row_pitch,
       .slice_pitch = info.aligned_row_pitch * info.extent_vertical_blocks,
@@ -532,7 +540,7 @@ radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct r
    const enum sdma_version ver = pdev->info.sdma_ip_version;
    if (ver < SDMA_5_0) {
       /* SDMA v4.x and older doesn't support proper mip level selection. */
-      if (src->mip_levels > 1 || dst->mip_levels > 1)
+      if (src->num_levels > 1 || dst->num_levels > 1)
          return true;
    }
 
@@ -573,8 +581,8 @@ radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct r
        !util_is_aligned(dst->offset.z, alignment->depth))
       return true;
 
-   if (ver < SDMA_6_0 && ((src->format == VK_FORMAT_S8_UINT && vk_format_is_color(dst->format)) ||
-                          (vk_format_is_color(src->format) && dst->format == VK_FORMAT_S8_UINT))) {
+   if (ver < SDMA_6_0 && ((src->img_format == VK_FORMAT_S8_UINT && vk_format_is_color(dst->img_format)) ||
+                          (vk_format_is_color(src->img_format) && dst->img_format == VK_FORMAT_S8_UINT))) {
       /* For weird reasons, color<->stencil only T2T subwindow copies on SDMA4-5 don't work as
        * expected, and the driver needs to fallback to scanline copies to workaround them.
        */
@@ -594,7 +602,7 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
    struct radv_sdma_surf t2l_dst = {
       .surf = src->surf,
       .va = radv_buffer_get_va(temp_bo),
-      .aspect_format = src->aspect_format,
+      .format = src->format,
       .bpp = src->bpp,
       .is_compressed = src->is_compressed,
       .pitch = info.aligned_row_pitch,
@@ -603,7 +611,7 @@ radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_
    struct radv_sdma_surf l2t_src = {
       .surf = dst->surf,
       .va = radv_buffer_get_va(temp_bo),
-      .aspect_format = dst->aspect_format,
+      .format = dst->format,
       .bpp = dst->bpp,
       .is_compressed = dst->is_compressed,
       .pitch = info.aligned_row_pitch,
