@@ -7,6 +7,8 @@
 #ifndef RADV_SDMA_H
 #define RADV_SDMA_H
 
+#include "ac_cmdbuf_sdma.h"
+
 #include "radv_formats.h"
 #include "radv_image.h"
 
@@ -16,34 +18,6 @@ struct radv_cmd_buffer;
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-struct radv_sdma_surf {
-   const struct radeon_surf *surf;
-   VkFormat img_format;     /* Image format. */
-   VkFormat format;         /* Image subresource format. */
-   VkExtent3D extent;       /* Image extent. */
-   VkOffset3D offset;       /* Image offset. */
-   uint64_t va;             /* Virtual address of image data. */
-   unsigned bpp;            /* Bytes per pixel. */
-   unsigned first_level;    /* First mip level in the image. */
-   unsigned num_levels;     /* Mip levels in the image. */
-   bool is_stencil;         /* Whether the image is stencil only. */
-
-   union {
-      /* linear images only */
-      struct {
-         unsigned pitch;       /* Row pitch in bytes. */
-         unsigned slice_pitch; /* Slice pitch in bytes. */
-      };
-      /* tiled images only */
-      struct {
-         uint64_t meta_va;      /* Virtual address of metadata. */
-         bool is_compressed;
-         uint32_t surf_type;
-         bool htile_enabled;
-      };
-   };
-};
 
 static inline uint32_t
 radv_sdma_get_texel_scale(const struct radv_image *image)
@@ -69,26 +43,26 @@ radv_sdma_get_copy_extent(const struct radv_image *const image, const VkImageSub
    return extent;
 }
 
-struct radv_sdma_surf radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image,
-                                             const VkBufferImageCopy2 *const region);
-struct radv_sdma_surf radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *const image,
-                                         VkImageLayout image_layout, const VkImageSubresourceLayers subresource,
-                                         const VkOffset3D offset);
+struct ac_sdma_surf radv_sdma_get_buf_surf(uint64_t buffer_va, const struct radv_image *const image,
+                                           const VkBufferImageCopy2 *const region);
+struct ac_sdma_surf radv_sdma_get_surf(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *const image,
+                                       VkImageLayout image_layout, const VkImageSubresourceLayers subresource,
+                                       const VkOffset3D offset);
 void radv_sdma_copy_buffer_image(const struct radv_device *device, struct radv_cmd_stream *cs,
-                                 const struct radv_sdma_surf *buf, const struct radv_sdma_surf *img,
+                                 const struct ac_sdma_surf *buf, const struct ac_sdma_surf *img,
                                  const VkExtent3D extent, bool to_image);
-bool radv_sdma_use_unaligned_buffer_image_copy(const struct radv_device *device, const struct radv_sdma_surf *buf,
-                                               const struct radv_sdma_surf *img, const VkExtent3D ext);
+bool radv_sdma_use_unaligned_buffer_image_copy(const struct radv_device *device, const struct ac_sdma_surf *buf,
+                                               const struct ac_sdma_surf *img, const VkExtent3D ext);
 void radv_sdma_copy_buffer_image_unaligned(const struct radv_device *device, struct radv_cmd_stream *cs,
-                                           const struct radv_sdma_surf *buf, const struct radv_sdma_surf *img_in,
+                                           const struct ac_sdma_surf *buf, const struct ac_sdma_surf *img_in,
                                            const VkExtent3D copy_extent, struct radeon_winsys_bo *temp_bo,
                                            bool to_image);
-void radv_sdma_copy_image(const struct radv_device *device, struct radv_cmd_stream *cs,
-                          const struct radv_sdma_surf *src, const struct radv_sdma_surf *dst, const VkExtent3D extent);
-bool radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct radv_sdma_surf *src,
-                                     const struct radv_sdma_surf *dst, const VkExtent3D extent);
+void radv_sdma_copy_image(const struct radv_device *device, struct radv_cmd_stream *cs, const struct ac_sdma_surf *src,
+                          const struct ac_sdma_surf *dst, const VkExtent3D extent);
+bool radv_sdma_use_t2t_scanline_copy(const struct radv_device *device, const struct ac_sdma_surf *src,
+                                     const struct ac_sdma_surf *dst, const VkExtent3D extent);
 void radv_sdma_copy_image_t2t_scanline(const struct radv_device *device, struct radv_cmd_stream *cs,
-                                       const struct radv_sdma_surf *src, const struct radv_sdma_surf *dst,
+                                       const struct ac_sdma_surf *src, const struct ac_sdma_surf *dst,
                                        const VkExtent3D extent, struct radeon_winsys_bo *temp_bo);
 void radv_sdma_copy_memory(const struct radv_device *device, struct radv_cmd_stream *cs, uint64_t src_va,
                            uint64_t dst_va, uint64_t size);

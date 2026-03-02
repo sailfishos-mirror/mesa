@@ -115,8 +115,8 @@ transfer_copy_memory_image(struct radv_cmd_buffer *cmd_buffer, uint64_t buffer_v
    const VkOffset3D img_offset_el = vk_image_offset_to_elements(&image->vk, region->imageOffset);
    const VkExtent3D img_extent_el = vk_image_extent_to_elements(&image->vk, region->imageExtent);
 
-   struct radv_sdma_surf buf = radv_sdma_get_buf_surf(buffer_va, image, region);
-   const struct radv_sdma_surf img =
+   struct ac_sdma_surf buf = radv_sdma_get_buf_surf(buffer_va, image, region);
+   const struct ac_sdma_surf img =
       radv_sdma_get_surf(cmd_buffer, image, layout, region->imageSubresource, img_offset_el);
    const VkExtent3D extent = radv_sdma_get_copy_extent(image, region->imageSubresource, img_extent_el);
 
@@ -521,9 +521,9 @@ transfer_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_i
       src_subresource.aspectMask = BITFIELD_BIT(b);
       dst_subresource.aspectMask = BITFIELD_BIT(u_bit_scan(&dst_aspect_mask_remaining));
 
-      const struct radv_sdma_surf src =
+      const struct ac_sdma_surf src =
          radv_sdma_get_surf(cmd_buffer, src_image, src_image_layout, src_subresource, src_offset_el);
-      const struct radv_sdma_surf dst =
+      const struct ac_sdma_surf dst =
          radv_sdma_get_surf(cmd_buffer, dst_image, dst_image_layout, dst_subresource, dst_offset_el);
       const VkExtent3D extent = radv_sdma_get_copy_extent(src_image, src_subresource, img_extent_el);
 

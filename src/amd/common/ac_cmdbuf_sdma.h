@@ -10,6 +10,7 @@
 
 #include "util/format/u_format.h"
 
+enum sdma_version;
 struct radeon_info;
 struct ac_cmdbuf;
 
@@ -21,6 +22,7 @@ struct ac_sdma_surf {
    const struct radeon_surf *surf;
    uint64_t va;
 
+   enum pipe_format img_format;
    enum pipe_format format;
    uint32_t bpp;
 
