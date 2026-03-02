@@ -5,6 +5,8 @@
  */
 
 #include "ac_debug.h"
+#include "amd_cp_print_packet_gfx11.h"
+#include "amd_cp_print_packet_gfx12.h"
 #include "sid.h"
 #define SID_TABLE_IMPLEMENTATION
 #include "sid_tables.h"
@@ -243,9 +245,41 @@ static void ac_parse_set_reg_pairs_packed_packet(FILE *f, unsigned count, unsign
 
 #define AC_ADDR_SIZE_NOT_MEMORY 0xFFFFFFFF
 
+static const char *check_address(struct ac_ib_parser *ib, uint64_t addr, uint32_t size)
+{
+   if (ib->addr_callback && size != AC_ADDR_SIZE_NOT_MEMORY) {
+      struct ac_addr_info addr_info;
+      ib->addr_callback(ib->addr_callback_data, addr, &addr_info);
+
+      struct ac_addr_info addr_info2 = addr_info;
+      if (size)
+         ib->addr_callback(ib->addr_callback_data, addr + size - 1, &addr_info2);
+
+      uint32_t invalid_count = !addr_info.valid + !addr_info2.valid;
+
+      if (addr_info.use_after_free && addr_info2.use_after_free)
+         return " used after free";
+      else if (invalid_count == 2)
+         return " invalid";
+      else if (invalid_count == 1)
+         return " out of bounds";
+   }
+
+   return NULL;
+}
+
 void ac_ib_handle_address(struct ac_ib_parser *ib, uint32_t addr_lo, uint32_t addr_hi, uint32_t size)
 {
-   /* stub */
+   uint64_t addr = addr_lo | ((uint64_t)addr_hi << 32);
+   const char *addr_message = check_address(ib, addr, size);
+
+   print_spaces(ib->f, INDENT_PKT);
+   fprintf(ib->f, "%s(FULL ADDRESS)%s <- 0x%"PRIx64, O_COLOR_YELLOW, O_COLOR_RESET, addr);
+
+   if (addr_message)
+      fprintf(ib->f, "%s", addr_message);
+
+   fprintf(ib->f, "\n");
 }
 
 static void print_addr(struct ac_ib_parser *ib, const char *name, uint64_t addr, uint32_t size)
@@ -259,25 +293,19 @@ static void print_addr(struct ac_ib_parser *ib, const char *name, uint64_t addr,
 
    fprintf(f, "0x%llx", (unsigned long long)addr);
 
-   if (ib->addr_callback && size != AC_ADDR_SIZE_NOT_MEMORY) {
-      struct ac_addr_info addr_info;
-      ib->addr_callback(ib->addr_callback_data, addr, &addr_info);
-
-      struct ac_addr_info addr_info2 = addr_info;
-      if (size)
-         ib->addr_callback(ib->addr_callback_data, addr + size - 1, &addr_info2);
-
-      uint32_t invalid_count = !addr_info.valid + !addr_info2.valid;
-
-      if (addr_info.use_after_free && addr_info2.use_after_free)
-         fprintf(f, " used after free");
-      else if (invalid_count == 2)
-         fprintf(f, " invalid");
-      else if (invalid_count == 1)
-         fprintf(f, " out of bounds");
-   }
+   const char *addr_message = check_address(ib, addr, size);
+   if (addr_message)
+      fprintf(f, "%s", addr_message);
 
    fprintf(f, "\n");
+}
+
+static void ac_cp_print_packet_generated(struct ac_ib_parser *ib, unsigned opcode, unsigned count)
+{
+   if (ib->gfx_level >= GFX12)
+      amd_cp_print_packet_gfx12(ib, opcode, count);
+   else
+      amd_cp_print_packet_gfx11(ib, opcode, count);
 }
 
 static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
@@ -290,7 +318,6 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
    const char *predicated = PKT3_PREDICATE(header) ? "(predicated)" : "";
    const char *reset_filter_cam = PKT3_RESET_FILTER_CAM_G(header) ? "(reset_filter_cam)" : "";
    int i;
-   unsigned tmp;
 
    /* Print the name first. */
    for (i = 0; i < packet3_table_size; i++)
@@ -352,39 +379,8 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
    case PKT3_SET_SH_REG_PAIRS_PACKED_N:
       ac_parse_set_reg_pairs_packed_packet(f, count, SI_SH_REG_OFFSET, ib);
       break;
-   case PKT3_ACQUIRE_MEM:
-      if (ib->gfx_level >= GFX11) {
-         if (G_585_PWS_ENA(ib->ib[ib->cur_dw + 5])) {
-            ac_dump_reg(f, ib->gfx_level, ib->family, R_580_ACQUIRE_MEM_PWS_2, ac_ib_get(ib), ~0);
-            print_named_value(f, "GCR_SIZE", ac_ib_get(ib), 32);
-            print_named_value(f, "GCR_SIZE_HI", ac_ib_get(ib), 25);
-            print_named_value(f, "GCR_BASE_LO", ac_ib_get(ib), 32);
-            print_named_value(f, "GCR_BASE_HI", ac_ib_get(ib), 32);
-            ac_dump_reg(f, ib->gfx_level, ib->family, R_585_ACQUIRE_MEM_PWS_7, ac_ib_get(ib), ~0);
-            ac_dump_reg(f, ib->gfx_level, ib->family, R_586_GCR_CNTL, ac_ib_get(ib), ~0);
-         } else {
-            print_string_value(f, "ENGINE_SEL", ac_ib_get(ib) & 0x80000000 ? "ME" : "PFP");
-            print_named_value(f, "GCR_SIZE", ac_ib_get(ib), 32);
-            print_named_value(f, "GCR_SIZE_HI", ac_ib_get(ib), 25);
-            print_named_value(f, "GCR_BASE_LO", ac_ib_get(ib), 32);
-            print_named_value(f, "GCR_BASE_HI", ac_ib_get(ib), 32);
-            print_named_value(f, "POLL_INTERVAL", ac_ib_get(ib), 16);
-            ac_dump_reg(f, ib->gfx_level, ib->family, R_586_GCR_CNTL, ac_ib_get(ib), ~0);
-         }
-      } else {
-         tmp = ac_ib_get(ib);
-         ac_dump_reg(f, ib->gfx_level, ib->family, R_0301F0_CP_COHER_CNTL, tmp, 0x7fffffff);
-         print_string_value(f, "ENGINE_SEL", tmp & 0x80000000 ? "ME" : "PFP");
-         ac_dump_reg(f, ib->gfx_level, ib->family, R_0301F4_CP_COHER_SIZE, ac_ib_get(ib), ~0);
-         ac_dump_reg(f, ib->gfx_level, ib->family, R_030230_CP_COHER_SIZE_HI, ac_ib_get(ib), ~0);
-         ac_dump_reg(f, ib->gfx_level, ib->family, R_0301F8_CP_COHER_BASE, ac_ib_get(ib), ~0);
-         ac_dump_reg(f, ib->gfx_level, ib->family, R_0301E4_CP_COHER_BASE_HI, ac_ib_get(ib), ~0);
-         print_named_value(f, "POLL_INTERVAL", ac_ib_get(ib), 16);
-         if (ib->gfx_level >= GFX10)
-            ac_dump_reg(f, ib->gfx_level, ib->family, R_586_GCR_CNTL, ac_ib_get(ib), ~0);
-      }
-      break;
    case PKT3_SURFACE_SYNC:
+      /* GFX6-8 */
       if (ib->gfx_level >= GFX7) {
          ac_dump_reg(f, ib->gfx_level, ib->family, R_0301F0_CP_COHER_CNTL, ac_ib_get(ib), ~0);
          ac_dump_reg(f, ib->gfx_level, ib->family, R_0301F4_CP_COHER_SIZE, ac_ib_get(ib), ~0);
@@ -396,18 +392,8 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
       }
       print_named_value(f, "POLL_INTERVAL", ac_ib_get(ib), 16);
       break;
-   case PKT3_EVENT_WRITE: {
-      uint32_t event_dw = ac_ib_get(ib);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_028A90_VGT_EVENT_INITIATOR, event_dw,
-                  S_028A90_EVENT_TYPE(~0));
-      print_named_value(f, "EVENT_INDEX", (event_dw >> 8) & 0xf, 4);
-      print_named_value(f, "INV_L2", (event_dw >> 20) & 0x1, 1);
-      if (count > 0)
-         print_addr(ib, "ADDR", ac_ib_get64(ib), 0);
-
-      break;
-   }
    case PKT3_EVENT_WRITE_EOP: {
+      /* GFX6-8 */
       uint32_t event_dw = ac_ib_get(ib);
       ac_dump_reg(f, ib->gfx_level, ib->family, R_028A90_VGT_EVENT_INITIATOR, event_dw,
                   S_028A90_EVENT_TYPE(~0));
@@ -441,10 +427,13 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
       break;
    }
    case PKT3_RELEASE_MEM: {
-      uint32_t event_dw = ac_ib_get(ib);
       if (ib->gfx_level >= GFX10) {
-         ac_dump_reg(f, ib->gfx_level, ib->family, R_490_RELEASE_MEM_OP, event_dw, ~0u);
-      } else {
+         ac_cp_print_packet_generated(ib, op, count);
+         break;
+      }
+      /* GFX6-9 */
+      uint32_t event_dw = ac_ib_get(ib);
+      {
          ac_dump_reg(f, ib->gfx_level, ib->family, R_028A90_VGT_EVENT_INITIATOR, event_dw,
                      S_028A90_EVENT_TYPE(~0));
          print_named_value(f, "EVENT_INDEX", (event_dw >> 8) & 0xf, 4);
@@ -468,67 +457,12 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
       print_named_value(f, "CTXID", ac_ib_get(ib), 32);
       break;
    }
-   case PKT3_WAIT_REG_MEM:
-      print_named_value(f, "OP", ac_ib_get(ib), 32);
-      print_named_value(f, "ADDRESS_LO", ac_ib_get(ib), 32);
-      print_named_value(f, "ADDRESS_HI", ac_ib_get(ib), 32);
-      print_named_value(f, "REF", ac_ib_get(ib), 32);
-      print_named_value(f, "MASK", ac_ib_get(ib), 32);
-      print_named_value(f, "POLL_INTERVAL", ac_ib_get(ib), 16);
-      break;
-   case PKT3_DRAW_INDEX_AUTO:
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_030930_VGT_NUM_INDICES, ac_ib_get(ib), ~0);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_0287F0_VGT_DRAW_INITIATOR, ac_ib_get(ib), ~0);
-      break;
-   case PKT3_DRAW_INDEX_2:
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_028A78_VGT_DMA_MAX_SIZE, ac_ib_get(ib), ~0);
-      print_addr(ib, "INDEX_ADDR", ac_ib_get64(ib), 0);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_030930_VGT_NUM_INDICES, ac_ib_get(ib), ~0);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_0287F0_VGT_DRAW_INITIATOR, ac_ib_get(ib), ~0);
-      break;
-   case PKT3_DRAW_INDIRECT:
-   case PKT3_DRAW_INDEX_INDIRECT:
-      print_named_value(f, "OFFSET", ac_ib_get(ib), 32);
-      print_named_value(f, "VERTEX_OFFSET_REG", ac_ib_get(ib), 32);
-      print_named_value(f, "START_INSTANCE_REG", ac_ib_get(ib), 32);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_0287F0_VGT_DRAW_INITIATOR, ac_ib_get(ib), ~0);
-      break;
-   case PKT3_DRAW_INDIRECT_MULTI:
-   case PKT3_DRAW_INDEX_INDIRECT_MULTI:
-      print_named_value(f, "OFFSET", ac_ib_get(ib), 32);
-      print_named_value(f, "VERTEX_OFFSET_REG", ac_ib_get(ib), 32);
-      print_named_value(f, "START_INSTANCE_REG", ac_ib_get(ib), 32);
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "DRAW_ID_REG", tmp & 0xFFFF, 16);
-      print_named_value(f, "DRAW_ID_ENABLE", tmp >> 31, 1);
-      print_named_value(f, "COUNT_INDIRECT_ENABLE", (tmp >> 30) & 1, 1);
-      print_named_value(f, "DRAW_COUNT", ac_ib_get(ib), 32);
-      print_addr(ib, "COUNT_ADDR", ac_ib_get64(ib), 0);
-      print_named_value(f, "STRIDE", ac_ib_get(ib), 32);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_0287F0_VGT_DRAW_INITIATOR, ac_ib_get(ib), ~0);
-      break;
-   case PKT3_INDEX_BASE:
-      print_addr(ib, "ADDR", ac_ib_get64(ib), 0);
-      break;
    case PKT3_INDEX_TYPE:
+      /* GFX6-8 */
       ac_dump_reg(f, ib->gfx_level, ib->family, R_028A7C_VGT_DMA_INDEX_TYPE, ac_ib_get(ib), ~0);
       break;
-   case PKT3_NUM_INSTANCES:
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_030934_VGT_NUM_INSTANCES, ac_ib_get(ib), ~0);
-      break;
-   case PKT3_WRITE_DATA: {
-      uint32_t control = ac_ib_get(ib);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_370_CONTROL, control, ~0);
-      uint32_t dst_sel = G_370_DST_SEL(control);
-      uint64_t addr = ac_ib_get64(ib);
-      uint32_t dword_count = first_dw + count + 1 - ib->cur_dw;
-      bool writes_memory = dst_sel == V_370_MEM_GRBM || dst_sel == V_370_TC_L2 || dst_sel == V_370_MEM;
-      print_addr(ib, "DST_ADDR", addr, writes_memory ? dword_count * 4 : AC_ADDR_SIZE_NOT_MEMORY);
-      for (uint32_t i = 0; i < dword_count; i++)
-          print_data_dword(f, ac_ib_get(ib), "data");
-      break;
-   }
    case PKT3_CP_DMA:
+      /* GFX6 */
       ac_dump_reg(f, ib->gfx_level, ib->family, R_410_CP_DMA_WORD0, ac_ib_get(ib), ~0);
       ac_dump_reg(f, ib->gfx_level, ib->family, R_411_CP_DMA_WORD1, ac_ib_get(ib), ~0);
       ac_dump_reg(f, ib->gfx_level, ib->family, R_412_CP_DMA_WORD2, ac_ib_get(ib), ~0);
@@ -536,6 +470,11 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
       ac_dump_reg(f, ib->gfx_level, ib->family, R_415_COMMAND, ac_ib_get(ib), ~0);
       break;
    case PKT3_DMA_DATA: {
+      if (ib->gfx_level >= GFX9) {
+         ac_cp_print_packet_generated(ib, op, count);
+         break;
+      }
+      /* GFX7-8 */
       uint32_t header = ac_ib_get(ib);
       ac_dump_reg(f, ib->gfx_level, ib->family, R_501_DMA_DATA_WORD0, header, ~0);
 
@@ -543,8 +482,7 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
       uint64_t dst_addr = ac_ib_get64(ib);
 
       uint32_t command = ac_ib_get(ib);
-      uint32_t size = ib->gfx_level >= GFX9 ? G_415_BYTE_COUNT_GFX9(command)
-                                            : G_415_BYTE_COUNT_GFX6(command);
+      uint32_t size = G_415_BYTE_COUNT_GFX6(command);
 
       uint32_t src_sel = G_501_SRC_SEL(header);
       bool src_mem = (src_sel == V_501_SRC_ADDR && G_415_SAS(command) == V_415_MEMORY) ||
@@ -560,7 +498,6 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
       break;
    }
    case PKT3_INDIRECT_BUFFER_SI:
-   case PKT3_INDIRECT_BUFFER_CONST:
    case PKT3_INDIRECT_BUFFER: {
       uint32_t base_lo_dw = ac_ib_get(ib);
       ac_dump_reg(f, ib->gfx_level, ib->family, R_3F0_IB_BASE_LO, base_lo_dw, ~0);
@@ -605,11 +542,6 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
       fprintf(f, "\n\035<------------------- nested end -------------------\n");
       break;
    }
-   case PKT3_CLEAR_STATE:
-   case PKT3_INCREMENT_DE_COUNTER:
-   case PKT3_PFP_SYNC_ME:
-      print_data_dword(f, ac_ib_get(ib), "reserved");
-      break;
    case PKT3_NOP:
       if (header == PKT3_NOP_PAD) {
          count = -1; /* One dword NOP. */
@@ -646,128 +578,8 @@ static void ac_parse_packet3(FILE *f, uint32_t header, struct ac_ib_parser *ib,
              print_data_dword(f, ac_ib_get(ib), "unused");
       }
       break;
-   case PKT3_DISPATCH_DIRECT:
-   case PKT3_DISPATCH_DIRECT_INTERLEAVED:
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_00B804_COMPUTE_DIM_X, ac_ib_get(ib), ~0);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_00B808_COMPUTE_DIM_Y, ac_ib_get(ib), ~0);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_00B80C_COMPUTE_DIM_Z, ac_ib_get(ib), ~0);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_00B800_COMPUTE_DISPATCH_INITIATOR,
-                  ac_ib_get(ib), ~0);
-      break;
-   case PKT3_DISPATCH_INDIRECT:
-   case PKT3_DISPATCH_INDIRECT_INTERLEAVED:
-      if (count > 1)
-         print_addr(ib, "ADDR", ac_ib_get64(ib), 12);
-      else
-         print_named_value(f, "DATA_OFFSET", ac_ib_get(ib), 32);
-
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_00B800_COMPUTE_DISPATCH_INITIATOR,
-                  ac_ib_get(ib), ~0);
-      break;
-   case PKT3_SET_BASE:
-      tmp = ac_ib_get(ib);
-      print_string_value(f, "BASE_INDEX", tmp == 1 ? "INDIRECT_BASE" : COLOR_RED "UNKNOWN" COLOR_RESET);
-      print_addr(ib, "ADDR", ac_ib_get64(ib), 0);
-      break;
-   case PKT3_PRIME_UTCL2:
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "CACHE_PERM[rwx]", tmp & 0x7, 3);
-      print_string_value(f, "PRIME_MODE", tmp & 0x8 ? "WAIT_FOR_XACK" : "DONT_WAIT_FOR_XACK");
-      print_named_value(f, "ENGINE_SEL", tmp >> 30, 2);
-      print_addr(ib, "ADDR", ac_ib_get64(ib), 0);
-      print_named_value(f, "REQUESTED_PAGES", ac_ib_get(ib), 14);
-      break;
-   case PKT3_ATOMIC_MEM:
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "ATOMIC", tmp & 0x7f, 7);
-      print_named_value(f, "COMMAND", (tmp >> 8) & 0xf, 4);
-      print_named_value(f, "CACHE_POLICY", (tmp >> 25) & 0x3, 2);
-      print_named_value(f, "ENGINE_SEL", tmp >> 30, 2);
-      print_addr(ib, "ADDR", ac_ib_get64(ib), 8);
-      print_named_value(f, "SRC_DATA_LO", ac_ib_get(ib), 32);
-      print_named_value(f, "SRC_DATA_HI", ac_ib_get(ib), 32);
-      print_named_value(f, "CMP_DATA_LO", ac_ib_get(ib), 32);
-      print_named_value(f, "CMP_DATA_HI", ac_ib_get(ib), 32);
-      print_named_value(f, "LOOP_INTERVAL", ac_ib_get(ib) & 0x1fff, 13);
-      break;
-   case PKT3_INDEX_BUFFER_SIZE:
-      print_named_value(f, "COUNT", ac_ib_get(ib), 32);
-      break;
-   case PKT3_COND_EXEC: {
-      uint32_t size = ac_ib_get(ib) * 4;
-      print_addr(ib, "ADDR", ac_ib_get64(ib), size);
-      print_named_value(f, "SIZE", size, 32);
-      break;
-   }
-   case PKT3_DISPATCH_TASKMESH_GFX:
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "RING_ENTRY_REG", (tmp >> 16) & 0xffff, 16);
-      print_named_value(f, "XYZ_DIM_REG", (tmp & 0xffff), 16);
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "THREAD_TRACE_MARKER_ENABLE", (tmp >> 31) & 0x1, 1);
-      if (ib->gfx_level >= GFX11) {
-         print_named_value(f, "XYZ_DIM_ENABLE", (tmp >> 30) & 0x1, 1);
-         print_named_value(f, "MODE1_ENABLE", (tmp >> 29) & 0x1, 1);
-         print_named_value(f, "LINEAR_DISPATCH_ENABLED", (tmp >> 28) & 0x1, 1);
-      }
-      print_named_value(f, "DI_SRC_SEL_AUTO_INDEX", ac_ib_get(ib), ~0);
-      break;
-   case PKT3_DISPATCH_TASKMESH_DIRECT_ACE:
-      print_named_value(f, "X_DIM", ac_ib_get(ib), ~0);
-      print_named_value(f, "Y_DIM", ac_ib_get(ib), ~0);
-      print_named_value(f, "Z_DIM", ac_ib_get(ib), ~0);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_00B800_COMPUTE_DISPATCH_INITIATOR,
-                  ac_ib_get(ib), ~0);
-      print_named_value(f, "RING_ENTRY_REG", ac_ib_get(ib), 16);
-      break;
-   case PKT3_DISPATCH_MESH_DIRECT:
-      print_named_value(f, "X_DIM", ac_ib_get(ib), ~0);
-      print_named_value(f, "Y_DIM", ac_ib_get(ib), ~0);
-      print_named_value(f, "Z_DIM", ac_ib_get(ib), ~0);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_0287F0_VGT_DRAW_INITIATOR,
-                  ac_ib_get(ib), ~0);
-      break;
-   case PKT3_DISPATCH_MESH_INDIRECT_MULTI:
-      print_named_value(f, "DATA_OFFSET", ac_ib_get(ib), 32);
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "DRAW_INDEX_LOC", (tmp >> 16) & 0xffff, 16);
-      print_named_value(f, "XYZ_DIM_LOC", tmp & 0xffff, 16);
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "DRAW_INDEX_ENABLE", tmp >> 31, 1);
-      print_named_value(f, "COUNT_INDIRECT_ENABLE", (tmp >> 30) & 1, 1);
-      print_named_value(f, "THREAD_TRACE_MARKER_ENABLE", (tmp >> 29) & 1, 1);
-      if (ib->gfx_level >= GFX11) {
-         print_named_value(f, "XYZ_DIM_ENABLE", (tmp >> 28) & 1, 1);
-         print_named_value(f, "MODE1_ENABLE", (tmp >> 27) & 1, 1);
-      } else {
-         print_named_value(f, "USE_VGPRS", (tmp >> 28) & 1, 1);
-      }
-      print_named_value(f, "COUNT", ac_ib_get(ib), 32);
-      print_addr(ib, "COUNT_ADDR", ac_ib_get64(ib), 0);
-      print_named_value(f, "STRIDE", ac_ib_get(ib), 32);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_0287F0_VGT_DRAW_INITIATOR,
-                  ac_ib_get(ib), ~0);
-      break;
-   case PKT3_DISPATCH_TASK_STATE_INIT:
-      print_addr(ib, "CONTROL_BUF_ADDR", ac_ib_get64(ib), 0);
-      break;
-   case PKT3_DISPATCH_TASKMESH_INDIRECT_MULTI_ACE:
-      print_addr(ib, "DATA_ADDR", ac_ib_get64(ib), 0);
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "RING_ENTRY_LOC", tmp & 0xffff, 16);
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "DRAW_INDEX_LOC", (tmp >> 16) & 0xffff, 16);
-      print_named_value(f, "XYZ_DIM_ENABLE", (tmp >> 3) & 1, 1);
-      print_named_value(f, "DRAW_INDEX_ENABLE", (tmp >> 2), 1);
-      print_named_value(f, "COUNT_INDIRECT_ENABLE", (tmp >> 1) & 1, 1);
-      print_named_value(f, "THREAD_TRACE_MARKER_ENABLE", tmp & 1, 1);
-      tmp = ac_ib_get(ib);
-      print_named_value(f, "XYZ_DIM_LOC", tmp & 0xffff, 16);
-      print_named_value(f, "COUNT", ac_ib_get(ib), 32);
-      print_addr(ib, "COUNT_ADDR", ac_ib_get64(ib), 0);
-      print_named_value(f, "STRIDE", ac_ib_get(ib), 32);
-      ac_dump_reg(f, ib->gfx_level, ib->family, R_0287F0_VGT_DRAW_INITIATOR,
-                  ac_ib_get(ib), ~0);
+   default:
+      ac_cp_print_packet_generated(ib, op, count);
       break;
    }
 
