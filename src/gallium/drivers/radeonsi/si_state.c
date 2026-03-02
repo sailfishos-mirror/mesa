@@ -47,13 +47,11 @@ static void si_emit_cb_render_state(struct si_context *sctx, unsigned index)
    unsigned i;
 
    /* Avoid a hang that happens when dual source blending is enabled
-    * but there is not enough color outputs. This is undefined behavior,
+    * but there are no color outputs. This is undefined behavior,
     * so disable color writes completely.
-    *
-    * Reproducible with Unigine Heaven 4.0 and drirc missing.
     */
    if (blend->dual_src_blend && sctx->shader.ps.cso &&
-       (sctx->shader.ps.cso->info.colors_written & 0x3) != 0x3)
+       (sctx->shader.ps.cso->info.colors_written & 0x3) == 0)
       cb_target_mask = 0;
 
    /* GFX9: Flush DFSM when CB_TARGET_MASK changes.

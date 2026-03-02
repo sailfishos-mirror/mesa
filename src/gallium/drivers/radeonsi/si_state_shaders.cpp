@@ -2669,8 +2669,9 @@ void si_ps_key_update_framebuffer_blend_dsa_rasterizer(struct si_context *sctx)
        sctx->framebuffer.spi_shader_col_format);
    key->ps.part.epilog.spi_shader_col_format &= blend->cb_target_enabled_4bit;
 
-   key->ps.part.epilog.dual_src_blend = sctx->gfx_level >= GFX11 && blend->dual_src_blend &&
-                                        (sel->info.colors_written_4bit & 0xff) == 0xff;
+   key->ps.part.epilog.dual_src_blend =
+      blend->dual_src_blend && ((sctx->gfx_level >= GFX11 && sel->info.colors_written_4bit & 0xff) ||
+                                ((sel->info.colors_written_4bit & 0xff) == 0xf0));
 
    /* The output for dual source blending should have
     * the same format as the first output.
@@ -2696,7 +2697,7 @@ void si_ps_key_update_framebuffer_blend_dsa_rasterizer(struct si_context *sctx)
    }
 
    /* Disable unwritten outputs (if WRITE_ALL_CBUFS isn't enabled). */
-   if (!sel->info.color0_writes_all_cbufs) {
+   if (!sel->info.color0_writes_all_cbufs && !blend->dual_src_blend) {
       key->ps.part.epilog.spi_shader_col_format &= sel->info.colors_written_4bit;
       key->ps.part.epilog.color_is_int8 &= sel->info.colors_written;
       key->ps.part.epilog.color_is_int10 &= sel->info.colors_written;
