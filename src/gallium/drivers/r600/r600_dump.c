@@ -121,7 +121,6 @@ void print_shader_info(FILE *f , int id, struct r600_shader *shader)
    PRINT_UINT_MEMBER(uses_atomics);
    PRINT_UINT_MEMBER(uses_images);
    PRINT_UINT_MEMBER(uses_helper_invocation);
-   PRINT_UINT_MEMBER(atomic_base);
    PRINT_UINT_MEMBER(rat_base);
    PRINT_UINT_MEMBER(image_size_const_offset);
 

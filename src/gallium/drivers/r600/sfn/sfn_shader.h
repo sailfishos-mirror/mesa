@@ -273,7 +273,7 @@ protected:
 
    std::bitset<es_last> m_sv_values;
 
-   Shader(const char *type_id, unsigned atomic_base);
+   Shader(const char *type_id);
 
    const ShaderInput& input(int base) const;
 
@@ -356,7 +356,6 @@ private:
    std::vector<r600_shader_atomic, Allocator<r600_shader_atomic>> m_atomics;
 
    uint32_t m_nhwatomic{0};
-   uint32_t m_atomic_base{0};
    uint32_t m_next_hwatomic_loc{0};
    std::unordered_map<int, int,
                       std::hash<int>,  std::equal_to<int>,

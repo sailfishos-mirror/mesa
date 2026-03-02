@@ -740,38 +740,6 @@ static void r600_update_compressed_colortex_mask(struct r600_samplerview_state *
 	}
 }
 
-static int r600_get_hw_atomic_count(const struct pipe_context *ctx,
-				    mesa_shader_stage shader)
-{
-	const struct r600_context *rctx = (struct r600_context *)ctx;
-	int value = 0;
-	switch (shader) {
-	case MESA_SHADER_FRAGMENT:
-	case MESA_SHADER_COMPUTE:
-	default:
-		break;
-	case MESA_SHADER_VERTEX:
-		value = rctx->ps_shader->info.file_count[TGSI_FILE_HW_ATOMIC];
-		break;
-	case MESA_SHADER_GEOMETRY:
-		value = rctx->ps_shader->info.file_count[TGSI_FILE_HW_ATOMIC] +
-			rctx->vs_shader->info.file_count[TGSI_FILE_HW_ATOMIC];
-		break;
-	case MESA_SHADER_TESS_EVAL:
-		value = rctx->ps_shader->info.file_count[TGSI_FILE_HW_ATOMIC] +
-			rctx->vs_shader->info.file_count[TGSI_FILE_HW_ATOMIC] +
-			(rctx->gs_shader ? rctx->gs_shader->info.file_count[TGSI_FILE_HW_ATOMIC] : 0);
-		break;
-	case MESA_SHADER_TESS_CTRL:
-		value = rctx->ps_shader->info.file_count[TGSI_FILE_HW_ATOMIC] +
-			rctx->vs_shader->info.file_count[TGSI_FILE_HW_ATOMIC] +
-			(rctx->gs_shader ? rctx->gs_shader->info.file_count[TGSI_FILE_HW_ATOMIC] : 0) +
-			rctx->tes_shader->info.file_count[TGSI_FILE_HW_ATOMIC];
-		break;
-	}
-	return value;
-}
-
 static void r600_update_compressed_colortex_mask_images(struct r600_image_state *images)
 {
 	uint32_t mask = images->enabled_mask;
@@ -809,17 +777,14 @@ static inline void r600_shader_selector_key(const struct pipe_context *ctx,
 		if (rctx->ps_shader->current->shader.gs_prim_id_input && !rctx->gs_shader) {
 			key->vs.as_gs_a = true;
 		}
-		key->vs.first_atomic_counter = r600_get_hw_atomic_count(ctx, MESA_SHADER_VERTEX);
 		break;
 	}
 	case MESA_SHADER_GEOMETRY:
-		key->gs.first_atomic_counter = r600_get_hw_atomic_count(ctx, MESA_SHADER_GEOMETRY);
 		key->gs.tri_strip_adj_fix = rctx->gs_tri_strip_adj_fix;
 		break;
 	case MESA_SHADER_FRAGMENT: {
 		if (rctx->ps_shader->info.images_declared)
 			key->ps.image_size_const_offset = util_last_bit(rctx->samplers[MESA_SHADER_FRAGMENT].views.enabled_mask);
-		key->ps.first_atomic_counter = r600_get_hw_atomic_count(ctx, MESA_SHADER_FRAGMENT);
 		key->ps.color_two_side = rctx->rasterizer && rctx->rasterizer->two_side;
 		key->ps.alpha_to_one = rctx->alpha_to_one &&
 				      rctx->rasterizer && rctx->rasterizer->multisample_enable &&
@@ -836,11 +801,9 @@ static inline void r600_shader_selector_key(const struct pipe_context *ctx,
 	}
 	case MESA_SHADER_TESS_EVAL:
 		key->tes.as_es = (rctx->gs_shader != NULL);
-		key->tes.first_atomic_counter = r600_get_hw_atomic_count(ctx, MESA_SHADER_TESS_EVAL);
 		break;
 	case MESA_SHADER_TESS_CTRL:
 		key->tcs.prim_mode = rctx->tes_shader->info.properties[TGSI_PROPERTY_TES_PRIM_MODE];
-		key->tcs.first_atomic_counter = r600_get_hw_atomic_count(ctx, MESA_SHADER_TESS_CTRL);
 		break;
 	case MESA_SHADER_COMPUTE:
 		break;

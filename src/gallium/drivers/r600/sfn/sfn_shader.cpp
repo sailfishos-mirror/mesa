@@ -134,12 +134,11 @@ ShaderInput::set_uses_interpolate_at_centroid()
 
 int64_t Shader::s_next_shader_id = 1;
 
-Shader::Shader(const char *type_id, unsigned atomic_base):
+Shader::Shader(const char *type_id):
     m_current_block(nullptr),
     m_type_id(type_id),
     m_chip_class(ISA_CC_R600),
     m_next_block(0),
-    m_atomic_base(atomic_base),
     m_shader_id(s_next_shader_id++)
 {
    m_instr_factory = new InstrFactory();
@@ -587,7 +586,7 @@ Shader::scan_uniforms(nir_variable *uniform)
       r600_shader_atomic atom = {0};
 
       atom.resource_id = uniform->data.binding;
-      atom.hw_idx = m_atomic_base + m_next_hwatomic_loc;
+      atom.hw_idx = m_next_hwatomic_loc;
 
       atom.start = uniform->data.offset >> 2;
       atom.count = natomics;
@@ -1803,7 +1802,6 @@ Shader::get_shader_info(r600_shader *sh_info)
    }
 
    sh_info->nhwatomic = m_nhwatomic;
-   sh_info->atomic_base = m_atomic_base;
    sh_info->nhwatomic_ranges = m_atomics.size();
    for (unsigned i = 0; i < m_atomics.size(); ++i)
       sh_info->atomics[i] = m_atomics[i];
