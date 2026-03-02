@@ -130,6 +130,16 @@ static const nir_shader_compiler_options ir3_base_options = {
    .lower_usub_borrow = true,
    .lower_mul_high = true,
    .lower_mul_2x32_64 = true,
+   /* ir3's mad is an unfused mul-add instruction, so we need to flag fma
+    * lowering so that CL can implement fused fma in software.  GLSL,
+    * SPIRV, and NIR don't require either fused or unfused behavior from
+    * fma, and we'll turn mul+adds back into nir_op_ffma (again, implemented
+    * as unfused) during nir_opt_algebraic_late() (assuming it's not
+    * decorated with GLSL's precise, or SPIRV's NoContraction).
+    */
+   .lower_ffma16 = true,
+   .lower_ffma32 = true,
+   .lower_ffma64 = true,
    .fuse_ffma16 = true,
    .fuse_ffma32 = true,
    .fuse_ffma64 = true,
