@@ -369,6 +369,40 @@ get_blorp_surf_for_anv_image(const struct anv_cmd_buffer *cmd_buffer,
 }
 
 static void
+tex_cache_flush_hack(struct anv_cmd_buffer *cmd_buffer, bool copy_or_blit)
+{
+   /* The WaSamplerCacheFlushBetweenRedescribedSurfaceReads workaround says:
+    *
+    *    "Currently Sampler assumes that a surface would not have two
+    *     different format associate with it.  It will not properly cache
+    *     the different views in the MT cache, causing a data corruption."
+    *
+    * We may need to handle this for texture views in general someday, but for
+    * now we handle it here, as it hurts copies and blits particularly badly
+    * because they often reinterpret formats.
+    *
+    * Icelake (Gfx11+) claims to fix this issue, but seems to still have
+    * issues with ASTC formats. Copies and blits won't ever use an ASTC
+    * format, so we can ignore newer platforms.
+    */
+   assert(copy_or_blit);
+   if (cmd_buffer->device->info->ver == 9) {
+      assert(!anv_cmd_buffer_is_compute_queue(cmd_buffer));
+      assert(cmd_buffer->state.current_pipeline !=
+             cmd_buffer->device->physical->gpgpu_pipeline_value);
+      VkPipelineStageFlags2 src_stage =
+         VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+      VkPipelineStageFlags2 dst_stage =
+         VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+      const char *reason =
+         "workaround: WaSamplerCacheFlushBetweenRedescribedSurfaceReads";
+      anv_add_pending_pipe_bits(cmd_buffer, src_stage, dst_stage,
+                                ANV_PIPE_TEXTURE_CACHE_INVALIDATE_BIT,
+                                reason);
+   }
+}
+
+static void
 copy_image(struct anv_cmd_buffer *cmd_buffer,
            struct blorp_batch *batch,
            const struct anv_image *src_image,
@@ -477,6 +511,11 @@ copy_image(struct anv_cmd_buffer *cmd_buffer,
                     extent.width, extent.height);
       }
    }
+
+   /* The next copy parameters may cause blorp_copy() to use a different
+    * format. Flush the texture cache just in case.
+    */
+   tex_cache_flush_hack(cmd_buffer, true);
 }
 
 static bool
@@ -783,6 +822,11 @@ copy_buffer_to_image(struct anv_cmd_buffer *cmd_buffer,
       image.offset.z++;
       memory.surf.addr.offset += mem_layout->image_stride_B;
    }
+
+   /* The next copy parameters may cause blorp_copy() to use a different
+    * format. Flush the texture cache just in case.
+    */
+   tex_cache_flush_hack(cmd_buffer, true);
 }
 
 void anv_CmdCopyBufferToImage2(
@@ -1092,6 +1136,10 @@ void anv_CmdBlitImage2(
                  &pBlitImageInfo->pRegions[r], pBlitImageInfo->filter);
    }
 
+   /* This may be followed by a blorp_copy() using a different format
+    * internally. Flush the texture cache just in case.
+    */
+   tex_cache_flush_hack(cmd_buffer, true);
    anv_blorp_batch_finish(&batch);
 }
 
