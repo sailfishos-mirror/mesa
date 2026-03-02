@@ -121,17 +121,17 @@ va_disasm_instr(FILE *fp, uint64_t instr)
 % if len(ops) > 0:
    case ${hex(bucket)}:
 % if ambiguous:
-	secondary_opc = (instr >> ${ops[0].secondary_shift}) & ${hex(ops[0].secondary_mask)};
+	secondary_opc = (instr >> ${ops[0].opcode2.start}) & ${hex(ops[0].opcode2.mask)};
 % endif
 % for op in ops:
 <% no_comma = True %>
 % if ambiguous:
 
-        if (secondary_opc == ${op.opcode2}) { 
+        if (secondary_opc == ${op.opcode2.value}) {
 % endif
             fputs("${op.name}", fp);
 % for mod in op.modifiers:
-% if mod.name not in ["left", "memory_width", "descriptor_type", "staging_register_count", "staging_register_write_count"]:
+% if mod.name not in ["staging_register_count", "staging_register_write_count"]:
 % if mod.is_enum:
             fputs(valhall_${safe_name(mod.enum)}[(instr >> ${mod.start}) & ${hex((1 << mod.size) - 1)}], fp);
 % else:
@@ -288,8 +288,8 @@ for op in OPCODE_BUCKETS:
         assert(len(ins.srcs) == len(bucket[0].srcs))
 
         # Must not repeat, else we're ambiguous
-        assert(ins.opcode2 not in SECONDARY)
-        SECONDARY[ins.opcode2] = ins
+        assert(ins.opcode2.value not in SECONDARY)
+        SECONDARY[ins.opcode2.value] = ins
 
 try:
     print(Template(template).render(OPCODES = OPCODE_BUCKETS, IMMEDIATES = immediates, ENUMS = enums, typesize = typesize, safe_name = safe_name))

@@ -316,7 +316,8 @@ def parse_asm(line):
 
     # Encode the operation itself
     encoded |= (ins.opcode.value << ins.opcode.start)
-    encoded |= (ins.opcode2 << ins.secondary_shift)
+    if ins.opcode2:
+        encoded |= (ins.opcode2.value << ins.opcode2.start)
 
     # Encode FAU page
     if fau.page:

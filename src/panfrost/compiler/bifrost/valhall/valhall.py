@@ -169,7 +169,7 @@ class Instruction:
         self.srcs = srcs
         self.dests = dests
         self.opcode = opcode
-        self.opcode2 = opcode2 or 0
+        self.opcode2 = opcode2
         self.immediates = immediates
         self.modifiers = modifiers
         self.staging = staging
@@ -179,27 +179,8 @@ class Instruction:
         # Message-passing instruction <===> not ALU instruction
         self.message = unit not in ["FMA", "CVT", "SFU"]
 
-        self.secondary_shift = max(len(self.srcs) * 8, 16)
-        self.secondary_mask = 0xF if opcode2 is not None else 0x0
-        if "left" in [x.name for x in self.modifiers]:
-            self.secondary_mask |= 0x100
-        if len(srcs) == 3 and (srcs[1].widen or srcs[1].lanes or srcs[1].swizzle):
-            self.secondary_mask &= ~0xC # conflicts
-        if opcode.value == 0x90:
-            # XXX: XMLify this, but disambiguates sign of conversions
-            self.secondary_mask |= 0x10
-        if name.startswith("LOAD.i") or name.startswith("STORE.i") or name.startswith("LD_PKA.i"):
-            self.secondary_shift = 27 # Alias with memory_size
-            self.secondary_mask = 0x7
-        if "descriptor_type" in [x.name for x in self.modifiers]:
-            self.secondary_mask = 0x3
-            self.secondary_shift = 37
-        elif "memory_width" in [x.name for x in self.modifiers]:
-            self.secondary_mask = 0x7
-            self.secondary_shift = 27
-
         assert(len(dests) == 0 or not staging)
-        assert(not opcode2 or (opcode2 & self.secondary_mask) == opcode2)
+        assert(not opcode2 or (opcode2.value & opcode2.mask) == opcode2.value)
 
     def __str__(self):
         return self.name
@@ -258,9 +239,8 @@ def build_instr(el, overrides = {}):
     # Get overridables
     name = overrides.get('name') or el.attrib.get('name')
     opcode = overrides.get('opcode') or build_opcode(el, 'opcode')
-    opcode2 = overrides.get('opcode2') or el.attrib.get('opcode2')
+    opcode2 = overrides.get('opcode2') or build_opcode(el, 'opcode2')
     unit = overrides.get('unit') or el.attrib.get('unit')
-    opcode2 = int(opcode2, base=0) if opcode2 else None
 
     # Get explicit sources/dests
     tsize = typesize(name)
@@ -310,7 +290,7 @@ def build_group(el):
         build_instr(el, overrides = {
             'name': ins.attrib['name'],
             'opcode': build_opcode(ins, 'opcode'),
-            'opcode2': ins.attrib.get('opcode2'),
+            'opcode2': build_opcode(ins, 'opcode2'),
             'unit': ins.attrib.get('unit'),
         })
 

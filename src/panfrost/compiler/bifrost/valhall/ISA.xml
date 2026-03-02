@@ -1008,8 +1008,9 @@
     <imm name="index" start="12" size="8"/>
   </ins>
 
-  <ins name="LD_ATTR_IMM" title="Load immediate attribute" opcode2="0" unused="true" unit="LS">
+  <ins name="LD_ATTR_IMM" title="Load immediate attribute" unused="true" unit="LS">
     <opcode val="0x66" start="48" mask="0x1FF"/>
+    <opcode2 val="0x0" start="37" mask="0x3"/>
     <desc>
       Load `vecsize` components from the attribute descriptor at entry `index`
       of resource table `table` at index (vertex ID, instance ID), converting
@@ -1019,7 +1020,6 @@
     <vecsize/>
     <regfmt/>
     <slot/>
-    <va_mod name="descriptor_type" start="128" size="1" implied="true"/>
     <sr write="true"/>
     <src>Vertex ID</src>
     <src>Instance ID</src>
@@ -1027,8 +1027,9 @@
     <imm name="table" start="16" size="4"/>
   </ins>
 
-  <ins name="LD_ATTR" title="Load indirect attribute" opcode2="0" unused="true" unit="LS">
+  <ins name="LD_ATTR" title="Load indirect attribute" unused="true" unit="LS">
     <opcode val="0x76" start="48" mask="0x1FF"/>
+    <opcode2 val="0x0" start="37" mask="0x3"/>
     <desc>
       Load `vecsize` components from the attribute descriptor at the specified
       location at index (vertex ID, instance ID), converting
@@ -1040,7 +1041,6 @@
     <vecsize/>
     <regfmt/>
     <slot/>
-    <va_mod name="descriptor_type" start="128" size="1" implied="true"/>
     <sr write="true"/>
     <src>Vertex ID</src>
     <src>Instance ID</src>
@@ -1055,8 +1055,9 @@
     <slot/>
   </ins>
 
-  <ins name="LD_TEX_IMM" title="Load immediate texture" opcode2="1" message="attribute" unit="LS">
+  <ins name="LD_TEX_IMM" title="Load immediate texture" message="attribute" unit="LS">
     <opcode val="0x66" start="48" mask="0x1FF"/>
+    <opcode2 val="0x1" start="37" mask="0x3"/>
     <desc>
       Load `vecsize` components from the texture descriptor at entry `index`
       of resource table `table`, converting
@@ -1066,7 +1067,6 @@
     <vecsize/>
     <regfmt/>
     <slot/>
-    <va_mod name="descriptor_type" start="128" size="1" implied="true"/>
     <sr write="true"/>
     <src>X/Y coordinates (16:16)</src>
     <src>Z/W coordinates (16:16)</src>
@@ -1074,8 +1074,9 @@
     <imm name="table" ir_name="" start="16" size="4"/>
   </ins>
 
-  <ins name="LD_TEX" title="Load indirect texture" message="attribute" opcode2="1" unit="LS">
+  <ins name="LD_TEX" title="Load indirect texture" message="attribute" unit="LS">
     <opcode val="0x76" start="48" mask="0x1FF"/>
+    <opcode2 val="0x1" start="37" mask="0x3"/>
     <desc>
       Load `vecsize` components from the texture descriptor at the specified
       location at index, converting
@@ -1085,15 +1086,15 @@
     <vecsize/>
     <regfmt/>
     <slot/>
-    <va_mod name="descriptor_type" start="128" size="1" implied="true"/>
     <sr write="true"/>
     <src>X/Y coordinates (16:16)</src>
     <src>Z/W coordinates (16:16)</src>
     <src>Index and table</src>
   </ins>
 
-  <ins name="LEA_ATTR_IMM" title="Load effective address of image texel" opcode2="0" unused="true" unit="LS">
+  <ins name="LEA_ATTR_IMM" title="Load effective address of image texel" unused="true" unit="LS">
     <opcode val="0x67" start="48" mask="0x1FF"/>
+    <opcode2 val="0x0" start="37" mask="0x3"/>
     <desc>
       Load the effective address of an attribute specified with the
       given immediate index. Returns three staging register: the low/high
@@ -1101,7 +1102,6 @@
     </desc>
     <slot/>
     <sr_count/>
-    <va_mod name="descriptor_type" start="128" size="1" implied="true"/>
     <sr write="true"/>
     <src>Vertex index</src>
     <src>Instance index</src>
@@ -1109,8 +1109,9 @@
     <imm name="index" start="20" size="4"/>
   </ins>
 
-  <ins name="LEA_ATTR" title="Load effective address of image texel" opcode2="0" unused="true" unit="LS">
+  <ins name="LEA_ATTR" title="Load effective address of image texel" unused="true" unit="LS">
     <opcode val="0x77" start="48" mask="0x1FF"/>
+    <opcode2 val="0x0" start="37" mask="0x3"/>
     <desc>
       Load the effective address of an attribute specified with the
       given index. Returns three staging register: the low/high
@@ -1119,15 +1120,15 @@
     <vecsize/>
     <slot/>
     <sr_count/>
-    <va_mod name="descriptor_type" start="128" size="1" implied="true"/>
     <sr write="true"/>
     <src>Vertex index</src>
     <src>Instance index</src>
     <src>Attribute index and table</src>
   </ins>
 
-  <ins name="LEA_TEX_IMM" title="Load effective address of image texel" opcode2="1" unused="true" unit="LS">
+  <ins name="LEA_TEX_IMM" title="Load effective address of image texel" unused="true" unit="LS">
     <opcode val="0x67" start="48" mask="0x1FF"/>
+    <opcode2 val="0x1" start="37" mask="0x3"/>
     <desc>
       Load the effective address of a texel from the image specified with the
       given immediate index. Returns three staging registers: the low/high
@@ -1140,7 +1141,6 @@
     </desc>
     <slot/>
     <sr_count/>
-    <va_mod name="descriptor_type" start="128" size="1" implied="true"/>
     <sr write="true"/>
     <src>X/Y coordinates (16:16)</src>
     <src>Z/W coordinates (16:16)</src>
@@ -1148,8 +1148,9 @@
     <imm name="index" start="20" size="4"/>
   </ins>
 
-  <ins name="LEA_TEX" title="Load effective address of image texel" opcode2="1" unused="true" unit="LS">
+  <ins name="LEA_TEX" title="Load effective address of image texel" unused="true" unit="LS">
     <opcode val="0x77" start="48" mask="0x1FF"/>
+    <opcode2 val="0x1" start="37" mask="0x3"/>
     <desc>
       Load the effective address of a texel from the image specified with the
       given index. Returns three staging register: the low/high
@@ -1163,15 +1164,15 @@
     <vecsize/>
     <slot/>
     <sr_count/>
-    <va_mod name="descriptor_type" start="128" size="1" implied="true"/>
     <sr write="true"/>
     <src size="16">X/Y coordinates (16:16)</src>
     <src>Z/W coordinates (16:16)</src>
     <src>Index and table</src>
   </ins>
 
-  <ins name="LD_PKA.i8" title="Global memory load" message="load" opcode2="0" unit="LS">
+  <ins name="LD_PKA.i8" title="Global memory load" message="load" unit="LS">
     <opcode val="0x6A" start="48" mask="0x1FF"/>
+    <opcode2 val="0x0" start="27" mask="0x7"/>
     <desc>
       Loads a buffer descriptor. If bits 25...31 of the mode descriptor are
       all-ones, load from the buffer descriptors in the table indexed by the
@@ -1188,8 +1189,9 @@
     <src size="32">Mode descriptor</src>
   </ins>
 
-  <ins name="LD_PKA.i16" title="Global memory load" message="load" opcode2="1" unit="LS">
+  <ins name="LD_PKA.i16" title="Global memory load" message="load" unit="LS">
     <opcode val="0x6A" start="48" mask="0x1FF"/>
+    <opcode2 val="0x1" start="27" mask="0x7"/>
     <desc>
       Loads a buffer descriptor. If bits 25...31 of the mode descriptor are
       all-ones, load from the buffer descriptors in the table indexed by the
@@ -1206,8 +1208,9 @@
     <src size="32">Mode descriptor</src>
   </ins>
 
-  <ins name="LD_PKA.i24" title="Global memory load" message="load" opcode2="2" unit="LS">
+  <ins name="LD_PKA.i24" title="Global memory load" message="load" unit="LS">
     <opcode val="0x6A" start="48" mask="0x1FF"/>
+    <opcode2 val="0x2" start="27" mask="0x7"/>
     <desc>
       Loads a buffer descriptor. If bits 25...31 of the mode descriptor are
       all-ones, load from the buffer descriptors in the table indexed by the
@@ -1224,8 +1227,9 @@
     <src size="32">Mode descriptor</src>
   </ins>
 
-  <ins name="LD_PKA.i32" title="Global memory load" message="load" opcode2="3" unit="LS">
+  <ins name="LD_PKA.i32" title="Global memory load" message="load" unit="LS">
     <opcode val="0x6A" start="48" mask="0x1FF"/>
+    <opcode2 val="0x3" start="27" mask="0x7"/>
     <desc>
       Loads a buffer descriptor. If bits 25...31 of the mode descriptor are
       all-ones, load from the buffer descriptors in the table indexed by the
@@ -1242,8 +1246,9 @@
     <src size="32">Mode descriptor</src>
   </ins>
 
-  <ins name="LD_PKA.i48" title="Global memory load" message="load" opcode2="4" unit="LS">
+  <ins name="LD_PKA.i48" title="Global memory load" message="load" unit="LS">
     <opcode val="0x6A" start="48" mask="0x1FF"/>
+    <opcode2 val="0x4" start="27" mask="0x7"/>
     <desc>
       Loads a buffer descriptor. If bits 25...31 of the mode descriptor are
       all-ones, load from the buffer descriptors in the table indexed by the
@@ -1260,8 +1265,9 @@
     <src size="32">Mode descriptor</src>
   </ins>
 
-  <ins name="LD_PKA.i64" title="Global memory load" message="load" opcode2="5" unit="LS">
+  <ins name="LD_PKA.i64" title="Global memory load" message="load" unit="LS">
     <opcode val="0x6A" start="48" mask="0x1FF"/>
+    <opcode2 val="0x5" start="27" mask="0x7"/>
     <desc>
       Loads a buffer descriptor. If bits 25...31 of the mode descriptor are
       all-ones, load from the buffer descriptors in the table indexed by the
@@ -1278,8 +1284,9 @@
     <src size="32">Mode descriptor</src>
   </ins>
 
-  <ins name="LD_PKA.i96" title="Global memory load" message="load" opcode2="6" unit="LS">
+  <ins name="LD_PKA.i96" title="Global memory load" message="load" unit="LS">
     <opcode val="0x6A" start="48" mask="0x1FF"/>
+    <opcode2 val="0x6" start="27" mask="0x7"/>
     <desc>
       Loads a buffer descriptor. If bits 25...31 of the mode descriptor are
       all-ones, load from the buffer descriptors in the table indexed by the
@@ -1296,8 +1303,9 @@
     <src size="32">Mode descriptor</src>
   </ins>
 
-  <ins name="LD_PKA.i128" title="Global memory load" message="load" opcode2="7" unit="LS">
+  <ins name="LD_PKA.i128" title="Global memory load" message="load" unit="LS">
     <opcode val="0x6A" start="48" mask="0x1FF"/>
+    <opcode2 val="0x7" start="27" mask="0x7"/>
     <desc>
       Loads a buffer descriptor. If bits 25...31 of the mode descriptor are
       all-ones, load from the buffer descriptors in the table indexed by the
@@ -1340,8 +1348,9 @@
     <src size="32">Structure index</src>
   </ins>
 
-  <ins name="LOAD.i8" title="Global memory load" opcode2="0" unused="true" unit="LS">
+  <ins name="LOAD.i8" title="Global memory load" unused="true" unit="LS">
     <opcode val="0x60" start="48" mask="0x1FF"/>
+    <opcode2 val="0x0" start="27" mask="0x7"/>
     <desc>Loads from main memory</desc>
     <sr write="true"/>
     <memory_access/>
@@ -1353,8 +1362,9 @@
     <imm name="offset" start="8" size="16" signed="true"/>
   </ins>
 
-  <ins name="LOAD.i16" title="Global memory load" opcode2="1" unused="true" unit="LS">
+  <ins name="LOAD.i16" title="Global memory load" unused="true" unit="LS">
     <opcode val="0x60" start="48" mask="0x1FF"/>
+    <opcode2 val="0x1" start="27" mask="0x7"/>
     <desc>Loads from main memory</desc>
     <sr write="true"/>
     <memory_access/>
@@ -1366,8 +1376,9 @@
     <imm name="offset" start="8" size="16" signed="true"/>
   </ins>
 
-  <ins name="LOAD.i24" title="Global memory load" opcode2="2" unused="true" unit="LS">
+  <ins name="LOAD.i24" title="Global memory load" unused="true" unit="LS">
     <opcode val="0x60" start="48" mask="0x1FF"/>
+    <opcode2 val="0x2" start="27" mask="0x7"/>
     <desc>Loads from main memory</desc>
     <sr write="true"/>
     <memory_access/>
@@ -1379,8 +1390,9 @@
     <imm name="offset" start="8" size="16" signed="true"/>
   </ins>
 
-  <ins name="LOAD.i32" title="Global memory load" opcode2="3" unused="true" unit="LS">
+  <ins name="LOAD.i32" title="Global memory load" unused="true" unit="LS">
     <opcode val="0x60" start="48" mask="0x1FF"/>
+    <opcode2 val="0x3" start="27" mask="0x7"/>
     <desc>Loads from main memory</desc>
     <sr write="true"/>
     <memory_access/>
@@ -1392,8 +1404,9 @@
     <imm name="offset" start="8" size="16" signed="true"/>
   </ins>
 
-  <ins name="LOAD.i48" title="Global memory load" opcode2="4" unused="true" unit="LS">
+  <ins name="LOAD.i48" title="Global memory load" unused="true" unit="LS">
     <opcode val="0x60" start="48" mask="0x1FF"/>
+    <opcode2 val="0x4" start="27" mask="0x7"/>
     <desc>Loads from main memory</desc>
     <sr write="true"/>
     <memory_access/>
@@ -1405,8 +1418,9 @@
     <imm name="offset" start="8" size="16" signed="true"/>
   </ins>
 
-  <ins name="LOAD.i64" title="Global memory load" opcode2="5" unused="true" unit="LS">
+  <ins name="LOAD.i64" title="Global memory load" unused="true" unit="LS">
     <opcode val="0x60" start="48" mask="0x1FF"/>
+    <opcode2 val="0x5" start="27" mask="0x7"/>
     <desc>Loads from main memory</desc>
     <sr write="true"/>
     <memory_access/>
@@ -1418,8 +1432,9 @@
     <imm name="offset" start="8" size="16" signed="true"/>
   </ins>
 
-  <ins name="LOAD.i96" title="Global memory load" opcode2="6" unused="true" unit="LS">
+  <ins name="LOAD.i96" title="Global memory load" unused="true" unit="LS">
     <opcode val="0x60" start="48" mask="0x1FF"/>
+    <opcode2 val="0x6" start="27" mask="0x7"/>
     <desc>Loads from main memory</desc>
     <sr write="true"/>
     <memory_access/>
@@ -1431,8 +1446,9 @@
     <imm name="offset" start="8" size="16" signed="true"/>
   </ins>
 
-  <ins name="LOAD.i128" title="Global memory load" opcode2="7" unused="true" unit="LS">
+  <ins name="LOAD.i128" title="Global memory load" unused="true" unit="LS">
     <opcode val="0x60" start="48" mask="0x1FF"/>
+    <opcode2 val="0x7" start="27" mask="0x7"/>
     <desc>Loads from main memory</desc>
     <sr write="true"/>
     <memory_access/>
@@ -1448,14 +1464,30 @@
     <opcode val="0x61" start="48" mask="0x1FF"/>
     <desc>Stores to main memory</desc>
     <sr read="true"/>
-    <ins name="STORE.i8" opcode2="0x0"/>
-    <ins name="STORE.i16" opcode2="0x1"/>
-    <ins name="STORE.i24" opcode2="0x2"/>
-    <ins name="STORE.i32" opcode2="0x3"/>
-    <ins name="STORE.i48" opcode2="0x4"/>
-    <ins name="STORE.i64" opcode2="0x5"/>
-    <ins name="STORE.i96" opcode2="0x6"/>
-    <ins name="STORE.i128" opcode2="0x7"/>
+    <ins name="STORE.i8">
+      <opcode2 val="0x0" start="27" mask="0x7"/>
+    </ins>
+    <ins name="STORE.i16">
+      <opcode2 val="0x1" start="27" mask="0x7"/>
+    </ins>
+    <ins name="STORE.i24">
+      <opcode2 val="0x2" start="27" mask="0x7"/>
+    </ins>
+    <ins name="STORE.i32">
+      <opcode2 val="0x3" start="27" mask="0x7"/>
+    </ins>
+    <ins name="STORE.i48">
+      <opcode2 val="0x4" start="27" mask="0x7"/>
+    </ins>
+    <ins name="STORE.i64">
+      <opcode2 val="0x5" start="27" mask="0x7"/>
+    </ins>
+    <ins name="STORE.i96">
+      <opcode2 val="0x6" start="27" mask="0x7"/>
+    </ins>
+    <ins name="STORE.i128">
+      <opcode2 val="0x7" start="27" mask="0x7"/>
+    </ins>
     <sr_count/>
     <memory_access/>
     <slot/>
@@ -1624,14 +1656,22 @@
     </desc>
 
     <!-- Removed on v11 -->
-    <ins name="V2S16_TO_V2F16" opcode2="0x7"/>
+    <ins name="V2S16_TO_V2F16">
+      <opcode2 val="0x7" start="16" mask="0x1F"/>
+    </ins>
 
-    <ins name="S32_TO_F32" opcode2="0x9"/>
+    <ins name="S32_TO_F32">
+      <opcode2 val="0x9" start="16" mask="0x1F"/>
+    </ins>
 
     <!-- Removed on v11 -->
-    <ins name="V2U16_TO_V2F16" opcode2="0x17"/>
+    <ins name="V2U16_TO_V2F16">
+      <opcode2 val="0x17" start="16" mask="0x1F"/>
+    </ins>
 
-    <ins name="U32_TO_F32" opcode2="0x19"/>
+    <ins name="U32_TO_F32">
+      <opcode2 val="0x19" start="16" mask="0x1F"/>
+    </ins>
 
     <roundmode/>
     <src widen="true">Value to convert</src>
@@ -1643,14 +1683,22 @@
       Performs the given data conversion.
     </desc>
 
-    <ins name="S16_TO_S32" opcode2="0x4"/>
+    <ins name="S16_TO_S32">
+      <opcode2 val="0x4" start="16" mask="0x1F"/>
+    </ins>
     <!-- Removed on v11 -->
-    <ins name="S16_TO_F32" opcode2="0x5"/>
+    <ins name="S16_TO_F32">
+      <opcode2 val="0x5" start="16" mask="0x1F"/>
+    </ins>
 
-    <ins name="U16_TO_U32" opcode2="0x14"/>
+    <ins name="U16_TO_U32">
+      <opcode2 val="0x14" start="16" mask="0x1F"/>
+    </ins>
 
     <!-- Removed on v11 -->
-    <ins name="U16_TO_F32" opcode2="0x15"/>
+    <ins name="U16_TO_F32">
+      <opcode2 val="0x15" start="16" mask="0x1F"/>
+    </ins>
 
     <src swizzle="true" size="16">Value to convert</src>
   </group>
@@ -1658,8 +1706,12 @@
   <group name="CONVERT" title="Float-to-int data conversions" dests="1" unused="true" unit="CVT">
     <opcode val="0x90" start="48" mask="0x1FF"/>
     <desc>Performs the given data conversion.</desc>
-    <ins name="F32_TO_S32" opcode2="0xC"/>
-    <ins name="F32_TO_U32" opcode2="0x1C"/>
+    <ins name="F32_TO_S32">
+      <opcode2 val="0xC" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="F32_TO_U32">
+      <opcode2 val="0x1C" start="16" mask="0x1F"/>
+    </ins>
     <roundmode/>
     <src absneg="true">Value to convert</src>
   </group>
@@ -1668,19 +1720,28 @@
     <opcode val="0x90" start="48" mask="0x1FF"/>
     <desc>Performs the given data conversion.</desc>
     <!-- Removed on v11 -->
-    <ins name="V2F16_TO_V2S16" opcode2="0xE"/>
+    <ins name="V2F16_TO_V2S16">
+      <opcode2 val="0xE" start="16" mask="0x1F"/>
+    </ins>
     <!-- Removed on v11 -->
-    <ins name="V2F16_TO_V2U16" opcode2="0x1E"/>
+    <ins name="V2F16_TO_V2U16">
+      <opcode2 val="0x1E" start="16" mask="0x1F"/>
+    </ins>
     <!-- Removed on v11 -->
-    <ins name="F16_TO_S32" opcode2="0xA"/>
+    <ins name="F16_TO_S32">
+      <opcode2 val="0xA" start="16" mask="0x1F"/>
+    </ins>
     <!-- Removed on v11 -->
-    <ins name="F16_TO_U32" opcode2="0x1A"/>
+    <ins name="F16_TO_U32">
+      <opcode2 val="0x1A" start="16" mask="0x1F"/>
+    </ins>
     <roundmode/>
     <src swizzle="true" absneg="true" size="16">Value to convert</src>
   </group>
 
-  <ins name="F16_TO_F32" title="16-bit float to 32-bit float conversion" dests="1" opcode2="0xB" unused="true" unit="CVT">
+  <ins name="F16_TO_F32" title="16-bit float to 32-bit float conversion" dests="1" unused="true" unit="CVT">
     <opcode val="0x90" start="48" mask="0x1FF"/>
+    <opcode2 val="0xB" start="16" mask="0x1F"/>
     <desc>Converts up with the specified round mode.</desc>
     <roundmode/>
     <src lane="28" size="16" absneg="true">Value to convert</src>
@@ -1692,15 +1753,23 @@
       Performs the given data conversion.
     </desc>
 
-    <ins name="S8_TO_S32" opcode2="0x0"/>
+    <ins name="S8_TO_S32">
+      <opcode2 val="0x0" start="16" mask="0x1F"/>
+    </ins>
 
     <!-- Removed on v11 -->
-    <ins name="S8_TO_F32" opcode2="0x1"/>
+    <ins name="S8_TO_F32">
+      <opcode2 val="0x1" start="16" mask="0x1F"/>
+    </ins>
 
-    <ins name="U8_TO_U32" opcode2="0x10"/>
+    <ins name="U8_TO_U32">
+      <opcode2 val="0x10" start="16" mask="0x1F"/>
+    </ins>
 
     <!-- Removed on v11 -->
-    <ins name="U8_TO_F32" opcode2="0x11"/>
+    <ins name="U8_TO_F32">
+      <opcode2 val="0x11" start="16" mask="0x1F"/>
+    </ins>
 
     <src lane="28" size="8">Value to convert</src>
   </group>
@@ -1711,14 +1780,22 @@
       Performs the given data conversion.
     </desc>
 
-    <ins name="V2S8_TO_V2S16" opcode2="0x2"/>
+    <ins name="V2S8_TO_V2S16">
+      <opcode2 val="0x2" start="16" mask="0x1F"/>
+    </ins>
     <!-- Removed on v11 -->
-    <ins name="V2S8_TO_V2F16" opcode2="0x3"/>
+    <ins name="V2S8_TO_V2F16">
+      <opcode2 val="0x3" start="16" mask="0x1F"/>
+    </ins>
 
-    <ins name="V2U8_TO_V2U16" opcode2="0x12"/>
+    <ins name="V2U8_TO_V2U16">
+      <opcode2 val="0x12" start="16" mask="0x1F"/>
+    </ins>
 
     <!-- Removed on v11 -->
-    <ins name="V2U8_TO_V2F16" opcode2="0x13"/>
+    <ins name="V2U8_TO_V2F16">
+      <opcode2 val="0x13" start="16" mask="0x1F"/>
+    </ins>
 
     <src halfswizzle="true" size="8">Value to convert</src>
   </group>
@@ -1729,47 +1806,56 @@
       Performs the given rounding, using the convert unit.
     </desc>
 
-    <ins name="FROUND.f32" opcode2="0xD"/>
+    <ins name="FROUND.f32">
+      <opcode2 val="0xD" start="16" mask="0x1F"/>
+    </ins>
 
     <!-- Removed on v11 -->
-    <ins name="FROUND.v2f16" opcode2="0xF"/>
+    <ins name="FROUND.v2f16">
+      <opcode2 val="0xF" start="16" mask="0x1F"/>
+    </ins>
 
     <roundmode/>
     <src swizzle="true" absneg="true">Value to convert</src>
   </group>
 
-  <ins name="MOV.i32" title="Register move" dests="1" opcode2="0x0" unused="true" unit="CVT">
+  <ins name="MOV.i32" title="Register move" dests="1" unused="true" unit="CVT">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0x0" start="16" mask="0x1F"/>
     <desc>Canonical register-to-register move.</desc>
     <src/>
   </ins>
 
-  <ins name="CLZ.u32" title="Count leading zeroes" dests="1" opcode2="0x4" unused="true" unit="CVT">
+  <ins name="CLZ.u32" title="Count leading zeroes" dests="1" unused="true" unit="CVT">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0x4" start="16" mask="0x1F"/>
     <desc>
       Used as a primitive for various bitwise operations.
     </desc>
     <src/>
   </ins>
 
-  <ins name="CLZ.v2u16" title="Count leading zeroes" dests="1" opcode2="0x5" unused="true" unit="CVT">
+  <ins name="CLZ.v2u16" title="Count leading zeroes" dests="1" unused="true" unit="CVT">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0x5" start="16" mask="0x1F"/>
     <desc>
       Used as a primitive for various bitwise operations.
     </desc>
     <src swizzle="true"/>
   </ins>
 
-  <ins name="CLZ.v4u8" title="Count leading zeroes" dests="1" opcode2="0x6" unused="true" unit="CVT">
+  <ins name="CLZ.v4u8" title="Count leading zeroes" dests="1" unused="true" unit="CVT">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0x6" start="16" mask="0x1F"/>
     <desc>
       Used as a primitive for various bitwise operations.
     </desc>
     <src/>
   </ins>
 
-  <ins name="IABS.s32" title="Absolute value" dests="1" opcode2="0x8" unused="true" unit="CVT">
+  <ins name="IABS.s32" title="Absolute value" dests="1" unused="true" unit="CVT">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0x8" start="16" mask="0x1F"/>
     <desc>
       64-bit abs may be constructed in 4 instructions (5 clocks) by checking the
       sign with `ICMP.s32.lt.m1 hi, 0` and negating based on the result with
@@ -1778,19 +1864,22 @@
     <src widen="true"/>
   </ins>
 
-  <ins name="IABS.v2s16" title="Absolute value" dests="1" opcode2="0x9" unused="true" unit="CVT">
+  <ins name="IABS.v2s16" title="Absolute value" dests="1" unused="true" unit="CVT">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0x9" start="16" mask="0x1F"/>
     <src widen="true"/>
   </ins>
 
   <!-- Removed on v11 -->
-  <ins name="IABS.v4s8" title="Absolute value" dests="1" opcode2="0xa" unused="true" unit="CVT">
+  <ins name="IABS.v4s8" title="Absolute value" dests="1" unused="true" unit="CVT">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0xA" start="16" mask="0x1F"/>
     <src/>
   </ins>
 
-  <ins name="POPCOUNT.i32" title="Population count" dests="1" opcode2="0xC" unused="true" unit="SFU">
+  <ins name="POPCOUNT.i32" title="Population count" dests="1" unused="true" unit="SFU">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0xC" start="16" mask="0x1F"/>
     <desc>
       Only available as 32-bit. Smaller bitsizes require explicit conversions.
       64-bit popcount may be constructed in 3 clocks by separate 32-bit
@@ -1800,24 +1889,27 @@
     <src/>
   </ins>
 
-  <ins name="BITREV.i32" title="Bitwise reverse" dests="1" opcode2="0xD" unused="true" unit="SFU">
+  <ins name="BITREV.i32" title="Bitwise reverse" dests="1" unused="true" unit="SFU">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0xD" start="16" mask="0x1F"/>
     <desc>
       Only available as 32-bit. Other bitsizes may be derived with swizzles.
     </desc>
     <src/>
   </ins>
 
-  <ins name="NOT_OLD.i32" title="Bitwise complement" dests="1" opcode2="0xE" unused="true" unit="SFU">
+  <ins name="NOT_OLD.i32" title="Bitwise complement" dests="1" unused="true" unit="SFU">
     <opcode val="0x91" start="48" mask="0x1FF"/>
+    <opcode2 val="0xE" start="16" mask="0x1F"/>
     <desc>
       For fully featured bitwise operation, see the shift opcodes.
     </desc>
     <src/>
   </ins>
 
-  <ins name="NOT_OLD.i64" title="Bitwise complement" dests="1" opcode2="0xE" unused="true" unit="SFU">
+  <ins name="NOT_OLD.i64" title="Bitwise complement" dests="1" unused="true" unit="SFU">
     <opcode val="0x191" start="48" mask="0x1FF"/>
+    <opcode2 val="0xE" start="16" mask="0x1F"/>
     <desc>
       For fully featured bitwise operation, see the shift opcodes.
     </desc>
@@ -1843,8 +1935,12 @@
 
   <group name = "FLUSH" title="Flush floats" dests="1" unit="CVT">
     <opcode val="0x98" start="48" mask="0x1FF"/>
-    <ins name="FLUSH.f32" opcode2="0"/>
-    <ins name="FLUSH.v2f16" opcode2="1"/>
+    <ins name="FLUSH.f32">
+      <opcode2 val="0x0" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FLUSH.v2f16">
+      <opcode2 val="0x1" start="16" mask="0x1F"/>
+    </ins>
     <desc>
       Flush special float values. The ftz modifier flushes subnormal values to
       zero. The flush_inf modifier flushes +inf to the maximum finite value, and
@@ -1859,12 +1955,20 @@
 
   <group name="FREXP" title="Fraction/exponent extract" dests="1" unused="true" unit="CVT">
     <opcode val="0x99" start="48" mask="0x1FF"/>
-    <ins name="FREXPM.f32" opcode2="0"/>
+    <ins name="FREXPM.f32">
+      <opcode2 val="0x0" start="16" mask="0x1F"/>
+    </ins>
     <!-- Removed on v11 -->
-    <ins name="FREXPM.v2f16" opcode2="1"/>
-    <ins name="FREXPE.f32" opcode2="2"/>
+    <ins name="FREXPM.v2f16">
+      <opcode2 val="0x1" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FREXPE.f32">
+      <opcode2 val="0x2" start="16" mask="0x1F"/>
+    </ins>
     <!-- Removed on v11 -->
-    <ins name="FREXPE.v2f16" opcode2="3"/>
+    <ins name="FREXPE.v2f16">
+      <opcode2 val="0x3" start="16" mask="0x1F"/>
+    </ins>
     <desc>
       Breaks up the floating-point input into its fractional (mantissa) and
       exponent parts. By default, this is compatible with the `frexp()` function
@@ -1879,16 +1983,36 @@
 
   <group name="SFU" title="Special function unit" dests="1" unused="true" unit="SFU">
     <opcode val="0x9C" start="48" mask="0x1FF"/>
-    <ins name="FRCP.f32" opcode2="0"/>
-    <ins name="FRCP.f16" opcode2="1"/>
-    <ins name="FRSQ.f32" opcode2="2"/>
-    <ins name="FRSQ.f16" opcode2="3"/>
-    <ins name="FLOGD.f32" opcode2="8"/>
-    <ins name="FPCLASS.f32" opcode2="10"/>
-    <ins name="FPCLASS.f16" opcode2="11"/>
-    <ins name="FLOG_TABLE.f32" opcode2="12"/>
-    <ins name="FRCP_APPROX.f32" opcode2="14"/>
-    <ins name="FRSQ_APPROX.f32" opcode2="15"/>
+    <ins name="FRCP.f32">
+      <opcode2 val="0x0" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FRCP.f16">
+      <opcode2 val="0x1" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FRSQ.f32">
+      <opcode2 val="0x2" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FRSQ.f16">
+      <opcode2 val="0x3" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FLOGD.f32">
+      <opcode2 val="0x8" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FPCLASS.f32">
+      <opcode2 val="0xA" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FPCLASS.f16">
+      <opcode2 val="0xB" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FLOG_TABLE.f32">
+      <opcode2 val="0xC" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FRCP_APPROX.f32">
+      <opcode2 val="0xE" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FRSQ_APPROX.f32">
+      <opcode2 val="0xF" start="16" mask="0x1F"/>
+    </ins>
     <desc>
       Performs a given special function. The floating-point reciprocal (`FRCP`)
       and reciprocal square root (`FRSQ`) instructions may be freely used as-is.
@@ -1902,10 +2026,18 @@
 
   <group name="SFU" title="Special function unit" dests="1" unused="true" unit="SFU">
     <opcode val="0x9C" start="48" mask="0x1FF"/>
-    <ins name="FSIN_TABLE.u6" opcode2="4"/>
-    <ins name="FCOS_TABLE.u6" opcode2="5"/>
-    <ins name="FSINCOS_OFFSET.u6" opcode2="6"/>
-    <ins name="FEXP_TABLE.u4" opcode2="13"/>
+    <ins name="FSIN_TABLE.u6">
+      <opcode2 val="0x4" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FCOS_TABLE.u6">
+      <opcode2 val="0x5" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FSINCOS_OFFSET.u6">
+      <opcode2 val="0x6" start="16" mask="0x1F"/>
+    </ins>
+    <ins name="FEXP_TABLE.u4">
+      <opcode2 val="0xD" start="16" mask="0x1F"/>
+    </ins>
     <desc>
       Performs a given special function. The trigonometric tables
       (`FSIN_TABLE.u6` and `FCOS_TABLE.u6`) are crude, requiring both an
@@ -1914,7 +2046,8 @@
     <src/>
   </group>
 
-  <group name="FADD" title="Floating-point add" dests="1" opcode2="0" unused="true" unit="FMA">
+  <group name="FADD" title="Floating-point add" dests="1" unused="true" unit="FMA">
+    <opcode2 val="0x0" start="16" mask="0xF"/>
     <ins name="FADD.f32">
       <opcode val="0xA4" start="48" mask="0x1FF"/>
     </ins>
@@ -1929,7 +2062,8 @@
     <src absneg="true" swizzle="true">B</src>
   </group>
 
-  <group name="FMIN" title="Floating-point minimum" dests="1" opcode2="2" unused="true" unit="CVT">
+  <group name="FMIN" title="Floating-point minimum" dests="1" unused="true" unit="CVT">
+    <opcode2 val="0x2" start="16" mask="0xF"/>
     <ins name="FMIN.f32">
       <opcode val="0xA4" start="48" mask="0x1FF"/>
     </ins>
@@ -1942,7 +2076,8 @@
     <src absneg="true" swizzle="true">B</src>
   </group>
 
-  <group name="FMAX" title="Floating-point maximum" dests="1" opcode2="3" unused="true" unit="CVT">
+  <group name="FMAX" title="Floating-point maximum" dests="1" unused="true" unit="CVT">
+    <opcode2 val="0x3" start="16" mask="0xF"/>
     <ins name="FMAX.f32">
       <opcode val="0xA4" start="48" mask="0x1FF"/>
     </ins>
@@ -1956,7 +2091,8 @@
   </group>
 
   <!-- Removed on v11 -->
-  <group name="V2F32_TO_V2F16" title="Vectorized floating-point conversion" dests="1" opcode2="4" unused="true" unit="CVT">
+  <group name="V2F32_TO_V2F16" title="Vectorized floating-point conversion" dests="1" unused="true" unit="CVT">
+    <opcode2 val="0x4" start="16" mask="0xF"/>
     <ins name="V2F32_TO_V2F16">
       <opcode val="0xA5" start="48" mask="0x1FF"/>
     </ins>
@@ -1970,7 +2106,8 @@
     <src absneg="true">B</src>
   </group>
 
-  <group name="LDEXP" title="Floating-point rescaling" dests="1" opcode2="6" unused="true" unit="FMA">
+  <group name="LDEXP" title="Floating-point rescaling" dests="1" unused="true" unit="FMA">
+    <opcode2 val="0x6" start="16" mask="0xF"/>
     <ins name="LDEXP.f32">
       <opcode val="0xA4" start="48" mask="0x1FF"/>
     </ins>
@@ -1989,8 +2126,9 @@
     <!-- Also has infinity handling for arctan -->
   </group>
 
-  <ins name="FEXP.f32" title="Floating-point exponent" dests="1" opcode2="8" unused="true" unit="SFU">
+  <ins name="FEXP.f32" title="Floating-point exponent" dests="1" unused="true" unit="SFU">
     <opcode val="0xA4" start="48" mask="0x1FF"/>
+    <opcode2 val="0x8" start="16" mask="0xF"/>
     <desc>
       Calculates the base-2 exponent of an argument specified as a 8:24
       fixed-point. The original argument is passed as well for correct handling
@@ -2001,8 +2139,9 @@
     <src absneg="true">Input as 32-bit float</src>
   </ins>
 
-  <ins name="FADD_LSCALE.f32" title="Floating-point add with logarithm scale" dests="1" opcode2="9" unused="true" unit="FMA">
+  <ins name="FADD_LSCALE.f32" title="Floating-point add with logarithm scale" dests="1" unused="true" unit="FMA">
     <opcode val="0xA4" start="48" mask="0x1FF"/>
+    <opcode2 val="0x9" start="16" mask="0xF"/>
     <desc>
       Performs a floating-point addition specialized for logarithm computation.
     </desc>
@@ -2011,8 +2150,9 @@
     <src absneg="true">B</src>
   </ins>
 
-  <ins name="FATAN_ASSIST.f32" title="ATAN calculation helper" dests="1" opcode2="14" unused="true" unit="SFU">
+  <ins name="FATAN_ASSIST.f32" title="ATAN calculation helper" dests="1" unused="true" unit="SFU">
     <opcode val="0xA4" start="48" mask="0x1FF"/>
+    <opcode2 val="0xE" start="16" mask="0xF"/>
     <desc>
       Used for `atan2()` implementation. Destination is two 16-bit
       values (int and float) for the first form, and a single 32-bit float when
@@ -2023,7 +2163,8 @@
     <src>B</src>
   </ins>
 
-  <group name="IADD" title="Integer addition" dests="1" opcode2="0" unused="true" unit="CVT">
+  <group name="IADD" title="Integer addition" dests="1" unused="true" unit="CVT">
+    <opcode2 val="0x0" start="16" mask="0xF"/>
     <desc>
       $A + B$ with optional saturation.
 
@@ -2061,14 +2202,16 @@
     <saturate/>
   </group>
 
-  <ins name="MKVEC.v2i16" title="Make 16-bit vector" dests="1" opcode2="0x5" unused="true" unit="CVT">
+  <ins name="MKVEC.v2i16" title="Make 16-bit vector" dests="1" unused="true" unit="CVT">
     <opcode val="0xA1" start="48" mask="0x1FF"/>
+    <opcode2 val="0x5" start="16" mask="0xF"/>
     <desc>Calculates $A | (B \ll 16)$. Used to implement `(ushort2)(A, B)`</desc>
     <src lane="28">A</src>
     <src lane="26">B</src>
   </ins>
 
-  <group name="ISUB" title="Integer subtract" dests="1" opcode2="1" unused="true" unit="CVT">
+  <group name="ISUB" title="Integer subtract" dests="1" unused="true" unit="CVT">
+    <opcode2 val="0x1" start="16" mask="0xF"/>
     <ins name="ISUB.u32">
       <opcode val="0xA0" start="48" mask="0x1FF"/>
     </ins>
@@ -2101,7 +2244,8 @@
     <saturate/>
   </group>
 
-  <group name="SEG_ADD" title="Segment addition" dests="1" opcode2="6" unused="true" unit="CVT">
+  <group name="SEG_ADD" title="Segment addition" dests="1" unused="true" unit="CVT">
+    <opcode2 val="0x6" start="16" mask="0xF"/>
     <desc>
       Similar to SHADDX, but especially used for loading offsets into
       WLS. Usually this is only required for atomic operations, which cannot
@@ -2118,7 +2262,8 @@
     <src widen="true">B</src>
   </group>
 
-  <group name="SHADDX" title="Shift, extend, and 64-bit add" dests="1" opcode2="7" unused="true" unit="CVT">
+  <group name="SHADDX" title="Shift, extend, and 64-bit add" dests="1" unused="true" unit="CVT">
+    <opcode2 val="0x7" start="16" mask="0xF"/>
     <desc>
       Sign or zero extend B to 64-bits, left-shift by `shift`, and add the
       64-bit value A. These instructions accelerate address arithmetic, but may
@@ -2135,7 +2280,8 @@
     <src widen="true">B</src>
   </group>
 
-  <group name="IMUL" title="Integer multiply" dests="1" opcode2="0x0A" unused="true" unit="SFU">
+  <group name="IMUL" title="Integer multiply" dests="1" unused="true" unit="SFU">
+    <opcode2 val="0xA" start="16" mask="0xF"/>
     <ins name="IMUL.i32">
       <opcode val="0xA0" start="48" mask="0x1FF"/>
     </ins>
@@ -2170,7 +2316,8 @@
   </group>
 
   <!-- Removed on v11 -->
-  <group name="HADD" title="Integer half-add" dests="1" opcode2="0x0B" unused="true" unit="CVT">
+  <group name="HADD" title="Integer half-add" dests="1" unused="true" unit="CVT">
+    <opcode2 val="0xB" start="16" mask="0xF"/>
     <ins name="HADD.u32">
       <opcode val="0xA0" start="48" mask="0x1FF"/>
     </ins>
@@ -2199,8 +2346,9 @@
     </desc>
   </group>
 
-  <ins name="CLPER.i32" title="Cross-lane permute" dests="1" opcode2="0xF" unused="true" unit="SFU">
+  <ins name="CLPER.i32" title="Cross-lane permute" dests="1" unused="true" unit="SFU">
     <opcode val="0xA0" start="48" mask="0x1FF"/>
+    <opcode2 val="0xF" start="16" mask="0xF"/>
     <desc>
       Selects the value of A in the subgroup lane given by B. This implements
       subgroup broadcasts. It may be used as a primitive for screen space
@@ -2228,7 +2376,8 @@
     <src absneg="true" swizzle="true">C</src>
   </group>
 
-  <group name="LSHIFT_AND" title="Left shift and bitwise AND" dests="1" opcode2="0x100" unused="true" unit="SFU">
+  <group name="LSHIFT_AND" title="Left shift and bitwise AND" dests="1" unused="true" unit="SFU">
+    <opcode2 val="0x100" start="24" mask="0x703"/>
     <ins name="LSHIFT_AND.i32">
       <opcode val="0xB4" start="48" mask="0x1FF"/>
     </ins>
@@ -2241,7 +2390,6 @@
     <ins name="LSHIFT_AND.i64">
       <opcode val="0x1B7" start="48" mask="0x1FF"/>
     </ins>
-    <va_mod name="left" start="128" size="1" implied="true"/>
     <desc>
       Left shifts its first source by a specified amount and bitwise ANDs it with the
       second source, optionally inverting the second source or the result.
@@ -2252,7 +2400,8 @@
     <src not="true">B</src>
   </group>
 
-  <group name="RSHIFT_AND" title="Right shift and bitwise AND" dests="1" opcode2="0x000" unused="true" unit="SFU">
+  <group name="RSHIFT_AND" title="Right shift and bitwise AND" dests="1" unused="true" unit="SFU">
+    <opcode2 val="0x000" start="24" mask="0x703"/>
     <ins name="RSHIFT_AND.i32">
       <opcode val="0xB4" start="48" mask="0x1FF"/>
     </ins>
@@ -2265,7 +2414,6 @@
     <ins name="RSHIFT_AND.i64">
       <opcode val="0x1B7" start="48" mask="0x1FF"/>
     </ins>
-    <va_mod name="left" start="128" size="1" implied="true"/>
     <desc>
       Right shifts its first source by a specified amount and bitwise ANDs it with the
       second source, optionally inverting the second source or the result. If
@@ -2279,7 +2427,8 @@
     <src not="true">B</src>
   </group>
 
-  <group name="LSHIFT_OR" title="Left shift and bitwise OR" dests="1" opcode2="0x101" unused="true" unit="SFU">
+  <group name="LSHIFT_OR" title="Left shift and bitwise OR" dests="1" unused="true" unit="SFU">
+    <opcode2 val="0x101" start="24" mask="0x703"/>
     <ins name="LSHIFT_OR.i32">
       <opcode val="0xB4" start="48" mask="0x1FF"/>
     </ins>
@@ -2292,7 +2441,6 @@
     <ins name="LSHIFT_OR.i64">
       <opcode val="0x1B7" start="48" mask="0x1FF"/>
     </ins>
-    <va_mod name="left" start="128" size="1" implied="true"/>
     <desc>
       Left shifts its first source by a specified amount and bitwise ORs it with the
       second source, optionally inverting the second source or the result.
@@ -2303,7 +2451,8 @@
     <src not="true">B</src>
   </group>
 
-  <group name="RSHIFT_OR" title="Right shift and bitwise OR" dests="1" opcode2="0x001" unused="true" unit="SFU">
+  <group name="RSHIFT_OR" title="Right shift and bitwise OR" dests="1" unused="true" unit="SFU">
+    <opcode2 val="0x001" start="24" mask="0x703"/>
     <ins name="RSHIFT_OR.i32">
       <opcode val="0xB4" start="48" mask="0x1FF"/>
     </ins>
@@ -2316,7 +2465,6 @@
     <ins name="RSHIFT_OR.i64">
       <opcode val="0x1B7" start="48" mask="0x1FF"/>
     </ins>
-    <va_mod name="left" start="128" size="1" implied="true"/>
     <desc>
       Right shifts its first source by a specified amount and bitwise ORs it with the
       second source, optionally inverting the second source or the result. If
@@ -2330,7 +2478,8 @@
     <src not="true">B</src>
   </group>
 
-  <group name="LSHIFT_XOR" title="Left shift and bitwise XOR" dests="1" opcode2="0x102" unused="true" unit="SFU">
+  <group name="LSHIFT_XOR" title="Left shift and bitwise XOR" dests="1" unused="true" unit="SFU">
+    <opcode2 val="0x102" start="24" mask="0x703"/>
     <ins name="LSHIFT_XOR.i32">
       <opcode val="0xB4" start="48" mask="0x1FF"/>
     </ins>
@@ -2343,7 +2492,6 @@
     <ins name="LSHIFT_XOR.i64">
       <opcode val="0x1B7" start="48" mask="0x1FF"/>
     </ins>
-    <va_mod name="left" start="128" size="1" implied="true"/>
     <desc>
       Left shifts its first source by a specified amount and bitwise XORs it with the
       second source, optionally inverting the second source or the result.
@@ -2354,7 +2502,8 @@
     <src not="true">B</src>
   </group>
 
-  <group name="RSHIFT_XOR" title="Right shift and bitwise XOR" dests="1" opcode2="0x002" unused="true" unit="SFU">
+  <group name="RSHIFT_XOR" title="Right shift and bitwise XOR" dests="1" unused="true" unit="SFU">
+    <opcode2 val="0x002" start="24" mask="0x703"/>
     <ins name="RSHIFT_XOR.i32">
       <opcode val="0xB4" start="48" mask="0x1FF"/>
     </ins>
@@ -2367,7 +2516,6 @@
     <ins name="RSHIFT_XOR.i64">
       <opcode val="0x1B7" start="48" mask="0x1FF"/>
     </ins>
-    <va_mod name="left" start="128" size="1" implied="true"/>
     <desc>
       Right shifts its first source by a specified amount and bitwise XORs it with the
       second source, optionally inverting the second source or the result. If
@@ -2426,16 +2574,18 @@
     <src>Mask</src>
   </ins>
 
-  <ins name="CUBE_SSEL" title="Cube S-coordinate select" dests="1" opcode2="0" unused="true" unit="SFU">
+  <ins name="CUBE_SSEL" title="Cube S-coordinate select" dests="1" unused="true" unit="SFU">
     <opcode val="0xBC" start="48" mask="0x1FF"/>
+    <opcode2 val="0x0" start="24" mask="0x1"/>
     <desc>During a cube map transform, select the S coordinate given a selected face.</desc>
     <src absneg="true">Z coordinate as 32-bit floating point</src>
     <src absneg="true">X coordinate as 32-bit floating point</src>
     <src>Cube face index</src>
   </ins>
 
-  <ins name="CUBE_TSEL" title="Cube T-coordinate select" dests="1" opcode2="1" unused="true" unit="SFU">
+  <ins name="CUBE_TSEL" title="Cube T-coordinate select" dests="1" unused="true" unit="SFU">
     <opcode val="0xBC" start="48" mask="0x1FF"/>
+    <opcode2 val="0x1" start="24" mask="0x1"/>
     <desc>During a cube map transform, select the T coordinate given a selected face.</desc>
     <src absneg="true">Y coordinate as 32-bit floating point</src>
     <src absneg="true">Z coordinate as 32-bit floating point</src>
@@ -2487,15 +2637,20 @@
       \mathbb{Z}$, calculates $(A \cdot B) + \text{Accumulator}$ and optionally
       saturates.
     </desc>
-    <ins name="IDPADD.v4s8" opcode2="0"/>
-    <ins name="IDPADD.v4u8" opcode2="1"/>
+    <ins name="IDPADD.v4s8">
+      <opcode2 val="0x0" start="24" mask="0x1"/>
+    </ins>
+    <ins name="IDPADD.v4u8">
+      <opcode2 val="0x1" start="24" mask="0x1"/>
+    </ins>
     <src>A</src>
     <src>B</src>
     <src>Accumulator</src>
     <saturate/>
   </group>
 
-  <group name="ICMP_OR" title="Unsigned integer compare" dests="1" unit="CVT" opcode2="0">
+  <group name="ICMP_OR" title="Unsigned integer compare" dests="1" unit="CVT">
+    <opcode2 val="0x0" start="24" mask="0x3"/>
     <desc>
       Evaluates the given condition, do a logical or with the condition in
       the result source, and return in the given result type (integer
@@ -2520,7 +2675,8 @@
     <src>C</src>
   </group>
 
-  <group name="ICMP_AND" title="Unsigned integer compare" dests="1" unit="CVT" opcode2="1">
+  <group name="ICMP_AND" title="Unsigned integer compare" dests="1" unit="CVT">
+    <opcode2 val="0x1" start="24" mask="0x3"/>
     <desc>
       Evaluates the given condition, do a logical and with the condition in
       the result source, and return in the given result type (integer
@@ -2544,7 +2700,8 @@
     <src>C</src>
   </group>
 
-  <group name="FCMP_OR" title="Floating-point compare" dests="1" unit="CVT" opcode2="0">
+  <group name="FCMP_OR" title="Floating-point compare" dests="1" unit="CVT">
+    <opcode2 val="0x0" start="24" mask="0x3"/>
     <desc>
       Evaluates the given condition, do a logical or with the condition in
       the result source, and return in the given result type (integer
@@ -2565,7 +2722,8 @@
     <src>C</src>
   </group>
 
-  <group name="FCMP_AND" title="Floating-point compare" dests="1" unit="CVT" opcode2="1">
+  <group name="FCMP_AND" title="Floating-point compare" dests="1" unit="CVT">
+    <opcode2 val="0x1" start="24" mask="0x3"/>
     <desc>
       Evaluates the given condition, do a logical and/or with the condition in
       the result source, and return in the given result type (integer
@@ -2585,7 +2743,8 @@
     <src>C</src>
   </group>
 
-  <group name="ICMP_OR" title="Signed integer compare" dests="1" unit="CVT" opcode2="0">
+  <group name="ICMP_OR" title="Signed integer compare" dests="1" unit="CVT">
+    <opcode2 val="0x0" start="24" mask="0x3"/>
     <desc>
       Evaluates the given condition, do a logical or with the condition in
       the result source, and return in the given result type (integer
@@ -2609,7 +2768,8 @@
     <src>C</src>
   </group>
 
-  <group name="ICMP_AND" title="Signed integer compare" dests="1" unit="CVT" opcode2="1">
+  <group name="ICMP_AND" title="Signed integer compare" dests="1" unit="CVT">
+    <opcode2 val="0x1" start="24" mask="0x3"/>
     <desc>
       Evaluates the given condition, do a logical and with the condition in
       the result source, and return in the given result type (integer
@@ -2633,7 +2793,8 @@
     <src>C</src>
   </group>
 
-  <group name="ICMP_MULTI" title="Integer compare" dests="1" unit="CVT" opcode2="2">
+  <group name="ICMP_MULTI" title="Integer compare" dests="1" unit="CVT">
+    <opcode2 val="0x2" start="24" mask="0x3"/>
     <desc>
       Evaluates the given condition, do a logical and/or with the condition in
       the result source, and return in the given result type (integer
@@ -2726,12 +2887,12 @@
     <imm name="constant" ir_name="index" start="8" size="32"/>
   </ins>
 
-  <ins name="ATOM1_RETURN.i32" title="Atomic operations on memory with 1" opcode2="3" unused="true" unit="LS">
+  <ins name="ATOM1_RETURN.i32" title="Atomic operations on memory with 1" unused="true" unit="LS">
     <opcode val="0x69" start="48" mask="0x1FF"/>
+    <opcode2 val="0x3" start="27" mask="0x7"/>
     <slot/>
     <sr_count/>
     <atom_opc_1/>
-    <va_mod name="memory_width" start="128" size="1" implied="true"/>
 
     <!-- Optional for ATOM1.i32, in which sr_count must be 0 -->
     <sr write="true"/>
@@ -2739,12 +2900,12 @@
     <imm name="offset" start="8" size="8"/>
   </ins>
 
-  <ins name="ATOM1_RETURN.i64" title="Atomic operations on memory with 1" opcode2="5" unused="true" unit="LS">
+  <ins name="ATOM1_RETURN.i64" title="Atomic operations on memory with 1" unused="true" unit="LS">
     <opcode val="0x69" start="48" mask="0x1FF"/>
+    <opcode2 val="0x5" start="27" mask="0x7"/>
     <slot/>
     <sr_count/>
     <atom_opc_1/>
-    <va_mod name="memory_width" start="128" size="1" implied="true"/>
 
     <!-- Optional for ATOM1.i64, in which sr_count must be 0 -->
     <sr write="true"/>
@@ -2752,32 +2913,33 @@
     <imm name="offset" start="8" size="8"/>
   </ins>
 
-  <ins name="ATOM.i32" title="Atomic operations on memory" opcode2="3" unused="true" unit="LS">
+  <ins name="ATOM.i32" title="Atomic operations on memory" unused="true" unit="LS">
     <opcode val="0x68" start="48" mask="0x1FF"/>
+    <opcode2 val="0x3" start="27" mask="0x7"/>
     <slot/>
     <sr_count/>
     <atom_opc/>
-    <va_mod name="memory_width" start="128" size="1" implied="true"/>
 
     <sr read="true"/>
     <src size="64">64-bit address to operate on</src>
     <imm name="offset" start="8" size="8"/>
   </ins>
 
-  <ins name="ATOM.i64" title="Atomic operations on memory" opcode2="5" unused="true" unit="LS">
+  <ins name="ATOM.i64" title="Atomic operations on memory" unused="true" unit="LS">
     <opcode val="0x68" start="48" mask="0x1FF"/>
+    <opcode2 val="0x5" start="27" mask="0x7"/>
     <slot/>
     <sr_count/>
     <atom_opc/>
-    <va_mod name="memory_width" start="128" size="1" implied="true"/>
 
     <sr read="true"/>
     <src size="64">64-bit address to operate on</src>
     <imm name="offset" start="8" size="8"/>
   </ins>
 
-  <ins name="ATOM_RETURN.i32" title="Atomic operations on memory" opcode2="3" unused="true" unit="LS">
+  <ins name="ATOM_RETURN.i32" title="Atomic operations on memory" unused="true" unit="LS">
     <opcode val="0x120" start="48" mask="0x1FF"/>
+    <opcode2 val="0x3" start="27" mask="0x7"/>
     <slot/>
     <sr_count/>
     <sr_write_count/>
@@ -2786,7 +2948,6 @@
     <va_mod name="compare" start="26" size="1"/>
 
     <atom_opc/>
-    <va_mod name="memory_width" start="128" size="1" implied="true"/>
 
     <sr write="true" flags="false"/>
     <sr read="true" flags="rw"/>
@@ -2794,8 +2955,9 @@
     <imm name="offset" start="8" size="8"/>
   </ins>
 
-  <ins name="ATOM_RETURN.i64" title="Atomic operations on memory" opcode2="5" unused="true" unit="LS">
+  <ins name="ATOM_RETURN.i64" title="Atomic operations on memory" unused="true" unit="LS">
     <opcode val="0x120" start="48" mask="0x1FF"/>
+    <opcode2 val="0x5" start="27" mask="0x7"/>
     <slot/>
     <sr_count/>
     <sr_write_count/>
@@ -2804,7 +2966,6 @@
     <va_mod name="compare" start="26" size="1"/>
 
     <atom_opc/>
-    <va_mod name="memory_width" start="128" size="1" implied="true"/>
 
     <sr write="true" flags="false"/>
     <sr read="true" flags="rw"/>
