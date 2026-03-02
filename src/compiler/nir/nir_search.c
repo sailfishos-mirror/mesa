@@ -867,8 +867,7 @@ nir_algebraic_instr(nir_builder *build, nir_instr *instr,
           nir_replace_instr(build, alu, state, states, table,
                             &table->values[xform->search].expression,
                             &table->values[xform->replace].value, worklist, dead_instrs)) {
-         if (state->range_ht->entries)
-            _mesa_hash_table_clear(state->range_ht, NULL);
+         nir_invalidate_fp_analysis_state(state->range_ht);
          if (state->numlsb_ht->entries)
             _mesa_hash_table_clear(state->numlsb_ht, NULL);
          return true;
@@ -897,8 +896,7 @@ nir_algebraic_impl(nir_function_impl *impl,
    }
    memset(states.data, 0, states.size);
 
-   struct hash_table range_ht;
-   _mesa_pointer_hash_table_init(&range_ht, NULL);
+   nir_fp_analysis_state range_ht = nir_create_fp_analysis_state(impl);
 
    struct hash_table numlsb_ht;
    _mesa_pointer_hash_table_init(&numlsb_ht, NULL);
@@ -950,7 +948,7 @@ nir_algebraic_impl(nir_function_impl *impl,
 
    nir_instr_worklist_fini(&worklist);
    _mesa_hash_table_fini(&numlsb_ht, NULL);
-   _mesa_hash_table_fini(&range_ht, NULL);
+   nir_free_fp_analysis_state(&range_ht);
    util_dynarray_fini(&states);
 
    return nir_progress(progress, impl, nir_metadata_control_flow);

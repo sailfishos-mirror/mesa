@@ -26,6 +26,7 @@
 
 #include "util/u_dynarray.h"
 #include "nir.h"
+#include "nir_range_analysis.h"
 #include "nir_worklist.h"
 
 #define NIR_SEARCH_MAX_VARIABLES 24
@@ -190,7 +191,7 @@ typedef union {
 } nir_search_value_union;
 
 typedef struct {
-   struct hash_table *range_ht;
+   nir_fp_analysis_state *range_ht;
    struct hash_table *numlsb_ht;
 } nir_search_state;
 

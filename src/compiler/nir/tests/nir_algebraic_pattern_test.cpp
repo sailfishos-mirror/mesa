@@ -6,6 +6,7 @@
 #include "nir_algebraic_pattern_test.h"
 #include "nir_builder.h"
 #include "nir_constant_expressions.h"
+#include "nir_range_analysis.h"
 
 #include "util/compiler.h"
 #include "util/memstream.h"
@@ -449,8 +450,9 @@ nir_algebraic_pattern_test::check_variable_conds()
    if (variable_conds.empty())
       return true;
 
+   nir_fp_analysis_state range_ht = nir_create_fp_analysis_state(b->impl);
    nir_search_state state = {
-      .range_ht = _mesa_pointer_hash_table_create(NULL),
+      .range_ht = &range_ht,
       .numlsb_ht = _mesa_pointer_hash_table_create(NULL),
    };
 
@@ -467,7 +469,7 @@ nir_algebraic_pattern_test::check_variable_conds()
    }
 
    _mesa_hash_table_destroy(state.numlsb_ht, NULL);
-   _mesa_hash_table_destroy(state.range_ht, NULL);
+   nir_free_fp_analysis_state(state.range_ht);
 
    return result;
 }

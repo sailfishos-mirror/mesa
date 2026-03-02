@@ -1321,13 +1321,13 @@ process_fp_query(struct analysis_state *state, struct analysis_query *aq, uint32
 #undef _______
 
 struct fp_result_range
-nir_analyze_fp_range(struct hash_table *range_ht, const nir_def *def)
+nir_analyze_fp_range(nir_fp_analysis_state *fp_state, const nir_def *def)
 {
    struct fp_query query_alloc[64];
    uint32_t result_alloc[64];
 
    struct analysis_state state;
-   state.range_ht = range_ht;
+   state.range_ht = fp_state->ht;
    util_dynarray_init_from_stack(&state.query_stack, query_alloc, sizeof(query_alloc));
    util_dynarray_init_from_stack(&state.result_stack, result_alloc, sizeof(result_alloc));
    state.query_size = sizeof(struct fp_query);
@@ -1337,6 +1337,25 @@ nir_analyze_fp_range(struct hash_table *range_ht, const nir_def *def)
    push_fp_query(&state, def);
 
    return unpack_data(perform_analysis(&state));
+}
+
+nir_fp_analysis_state
+nir_create_fp_analysis_state(nir_function_impl *impl)
+{
+   return (nir_fp_analysis_state){_mesa_pointer_hash_table_create(NULL)};
+}
+
+void
+nir_invalidate_fp_analysis_state(nir_fp_analysis_state *state)
+{
+   if (state->ht->entries)
+      _mesa_hash_table_clear(state->ht, NULL);
+}
+
+void
+nir_free_fp_analysis_state(nir_fp_analysis_state *state)
+{
+   ralloc_free(state->ht);
 }
 
 static uint32_t

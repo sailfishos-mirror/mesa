@@ -411,10 +411,10 @@ nir_gather_tcs_info(const nir_shader *nir, nir_tcs_info *info,
    unsigned tess_level_writes_le_two = 0;
    unsigned tess_level_writes_gt_two = 0;
 
-   struct hash_table *range_ht = _mesa_pointer_hash_table_create(NULL);
-
    /* Gather barriers and which values are written to tess level outputs. */
    nir_foreach_function_impl(impl, nir) {
+      nir_fp_analysis_state range_ht = nir_create_fp_analysis_state(impl);
+
       nir_foreach_block(block, impl) {
          nir_foreach_instr(instr, block) {
             if (instr->type != nir_instr_type_intrinsic)
@@ -459,7 +459,7 @@ nir_gather_tcs_info(const nir_shader *nir, nir_tcs_info *info,
                }
 
                const struct fp_result_range r =
-                  nir_analyze_fp_range(range_ht, scalar.def);
+                  nir_analyze_fp_range(&range_ht, scalar.def);
 
                switch (r.range) {
                case unknown:
@@ -485,9 +485,10 @@ nir_gather_tcs_info(const nir_shader *nir, nir_tcs_info *info,
             }
          }
       }
+
+      nir_free_fp_analysis_state(&range_ht);
    }
 
-   ralloc_free(range_ht);
 
    /* Determine which outer tess level components can discard patches.
     * If the primitive type is unspecified, we have to assume the worst case.

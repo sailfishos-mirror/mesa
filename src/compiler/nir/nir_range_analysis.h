@@ -50,12 +50,20 @@ struct fp_result_range {
    bool is_finite;
 };
 
+typedef struct {
+   struct hash_table *ht;
+} nir_fp_analysis_state;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+nir_fp_analysis_state nir_create_fp_analysis_state(nir_function_impl *impl);
+void nir_invalidate_fp_analysis_state(nir_fp_analysis_state *state);
+void nir_free_fp_analysis_state(nir_fp_analysis_state *state);
+
 struct fp_result_range
-nir_analyze_fp_range(struct hash_table *range_ht, const nir_def *def);
+nir_analyze_fp_range(nir_fp_analysis_state *state, const nir_def *def);
 
 uint64_t nir_def_bits_used(const nir_def *def);
 
