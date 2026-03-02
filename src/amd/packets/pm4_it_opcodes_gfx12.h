@@ -8,7 +8,6 @@
 enum IT_OpCodeType {
     IT_NOP                               = 0x10,
     IT_SET_BASE                          = 0x11,
-    IT_CLEAR_STATE                       = 0x12,
     IT_INDEX_BUFFER_SIZE                 = 0x13,
     IT_DISPATCH_DIRECT                   = 0x15,
     IT_DISPATCH_INDIRECT                 = 0x16,

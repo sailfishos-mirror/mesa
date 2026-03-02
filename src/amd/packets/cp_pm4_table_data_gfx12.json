@@ -849,37 +849,6 @@
                     }
                 }
             },
-            "CLEAR_STATE": {
-                "enum": {
-                    "cmd": {
-                        "push_state": {
-                            "value": 1
-                        },
-                        "pop_state": {
-                            "value": 2
-                        }
-                    }
-                },
-                "word": {
-                    "1": {
-                        "header": "PM4_TYPE_3_HEADER"
-                    },
-                    "2": {
-                        "a": {
-                            "cmd": {
-                                "bits": "3:0",
-                                "bits_str": "3:0",
-                                "bits_int": 4
-                            },
-                            "reserved17": {
-                                "bits": "31:4",
-                                "bits_int": 28,
-                                "bits_str": "31:4"
-                            }
-                        }
-                    }
-                }
-            },
             "CLEANER_SHADER": {
                 "word": {
                     "1": {
@@ -7542,37 +7511,6 @@
                                 "bits": "31:13",
                                 "bits_int": 19,
                                 "bits_str": "31:13"
-                            }
-                        }
-                    }
-                }
-            },
-            "CLEAR_STATE": {
-                "enum": {
-                    "cmd": {
-                        "push_state": {
-                            "value": 1
-                        },
-                        "pop_state": {
-                            "value": 2
-                        }
-                    }
-                },
-                "word": {
-                    "1": {
-                        "header": "PM4_TYPE_3_HEADER"
-                    },
-                    "2": {
-                        "a": {
-                            "cmd": {
-                                "bits": "3:0",
-                                "bits_str": "3:0",
-                                "bits_int": 4
-                            },
-                            "reserved15": {
-                                "bits": "31:4",
-                                "bits_int": 28,
-                                "bits_str": "31:4"
                             }
                         }
                     }
