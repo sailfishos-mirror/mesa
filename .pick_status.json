@@ -1554,7 +1554,7 @@
         "description": "lvp: avoid advertising dmabuf support for kms_swrast",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7d0a631f20dc71efb1cc7adb57b2d162523fcd37",
         "notes": null
