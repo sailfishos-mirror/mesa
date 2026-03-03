@@ -638,6 +638,13 @@ radv_get_modifier_flags(struct radv_physical_device *pdev, VkFormat format, uint
    /* Unconditionally disable HOST_TRANSFER support for modifiers for now */
    features &= ~VK_FORMAT_FEATURE_2_HOST_IMAGE_TRANSFER_BIT_EXT;
 
+   if (!ac_modifier_supports_video(&pdev->info, modifier))
+      features &= ~(VK_FORMAT_FEATURE_2_VIDEO_DECODE_OUTPUT_BIT_KHR |
+                    VK_FORMAT_FEATURE_2_VIDEO_DECODE_DPB_BIT_KHR |
+                    VK_FORMAT_FEATURE_2_VIDEO_ENCODE_INPUT_BIT_KHR |
+                    VK_FORMAT_FEATURE_2_VIDEO_ENCODE_DPB_BIT_KHR |
+                    VK_FORMAT_FEATURE_2_VIDEO_ENCODE_QUANTIZATION_DELTA_MAP_BIT_KHR);
+
    if (ac_modifier_has_dcc(modifier)) {
       /* We don't enable DCC for multi-planar formats before GFX12 */
       if (pdev->info.gfx_level < GFX12 && vk_format_get_plane_count(format) > 1)
