@@ -12034,7 +12034,7 @@
         "description": "anv: add drirc option to workaround missing application barriers on typed/untyped data",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
