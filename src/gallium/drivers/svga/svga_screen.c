@@ -141,7 +141,6 @@ get_bool_cap(struct svga_winsys_screen *sws, SVGA3dDevCapIndex cap,
    .lower_flrp64 = true,                                                      \
    .lower_ldexp = true,                                                       \
    .lower_uniforms_to_ubo = true,                                             \
-   .lower_vector_cmp = true,                                                  \
    .lower_cs_local_index_to_id = true,                                        \
    .max_unroll_iterations = 32
 
