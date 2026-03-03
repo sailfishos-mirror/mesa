@@ -3854,7 +3854,7 @@
         "description": "anv: dirty all push constant stages in simple shader",
         "nominated": false,
         "nomination_type": 2,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4fa1eddb4cff78dcb04dc03425d77bd30f9daa3d",
         "notes": null
