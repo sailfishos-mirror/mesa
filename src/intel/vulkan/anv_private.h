@@ -1300,7 +1300,9 @@ void anv_shader_heap_free(struct anv_shader_heap *heap, struct anv_shader_alloc 
 
 void anv_shader_heap_upload(struct anv_shader_heap *heap,
                             struct anv_shader_alloc alloc,
-                            const void *data, uint64_t size);
+                            const void *data,
+                            const struct brw_stage_prog_data *prog_data,
+                            uint32_t dispatch_width);
 
 struct anv_shader_group_rt_replay {
    uint64_t general;

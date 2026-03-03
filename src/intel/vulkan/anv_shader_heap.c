@@ -3,6 +3,7 @@
  */
 
 #include "anv_private.h"
+#include "compiler/brw/brw_disasm.h"
 
 static inline uint32_t
 shader_bo_index(struct anv_shader_heap *heap, uint64_t addr)
@@ -188,8 +189,11 @@ anv_shader_heap_free(struct anv_shader_heap *heap, struct anv_shader_alloc alloc
 void
 anv_shader_heap_upload(struct anv_shader_heap *heap,
                        struct anv_shader_alloc alloc,
-                       const void *data, uint64_t data_size)
+                       const void *data,
+                       const struct brw_stage_prog_data *prog_data,
+                       uint32_t dispatch_width)
 {
+   uint64_t data_size = prog_data->program_size;
    const uint32_t bo_begin_idx = shader_bo_index(
       heap, heap->va_range.addr + alloc.offset);
    const uint32_t bo_end_idx = shader_bo_index(
@@ -206,5 +210,20 @@ anv_shader_heap_upload(struct anv_shader_heap *heap,
          MIN2(heap->bos[i].size - bo_offset, data_size - data_offset);
 
       memcpy(heap->bos[i].bo->map + bo_offset, data, copy_size);
+   }
+   if (INTEL_DEBUG(DEBUG_SHADERS_LINENO)) {
+      if (!intel_shader_dump_filter ||
+         (intel_shader_dump_filter && intel_shader_dump_filter == prog_data->source_hash)) {
+         int start = 0;
+         /* dump each simd variant of shader */
+         while (start < data_size) {
+            brw_disassemble_with_lineno(&heap->device->physical->compiler->isa,
+                                        prog_data->stage, -1,
+                                        prog_data->source_hash, data, start,
+                                        alloc.offset, stderr);
+            start += align64(brw_disassemble_find_end(&heap->device->physical->compiler->isa,
+                                                      data, start), 64);
+         }
+      }
    }
 }

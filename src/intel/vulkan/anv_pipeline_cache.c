@@ -149,8 +149,11 @@ anv_shader_internal_create(struct anv_device *device,
       return NULL;
    }
 
-   anv_shader_heap_upload(&device->shader_heap, shader->kernel,
-                          kernel_data, kernel_size);
+   anv_shader_heap_upload(&device->shader_heap,
+                          shader->kernel,
+                          kernel_data,
+                          shader->prog_data,
+                          shader->stats->dispatch_width);
 
    return shader;
 }

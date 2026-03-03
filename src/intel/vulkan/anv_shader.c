@@ -717,8 +717,10 @@ anv_shader_create(struct anv_device *device,
       goto error_state;
 
    anv_shader_heap_upload(&device->shader_heap,
-                          shader->kernel, shader_data->code,
-                          shader_data->prog_data.base.program_size);
+                          shader->kernel,
+                          shader_data->code,
+                          shader->prog_data,
+                          shader->stats->dispatch_width);
 
    if (mesa_shader_stage_is_rt(shader->vk.stage)) {
       const struct brw_bs_prog_data *bs_prog_data =
@@ -883,8 +885,10 @@ anv_replay_rt_shader_group(struct vk_device *vk_device,
          assert(result == VK_SUCCESS);
 
          anv_shader_heap_upload(&device->shader_heap,
-                                shader->replay_kernel, shader->code,
-                                shader->prog_data->program_size);
+                                shader->replay_kernel,
+                                shader->code,
+                                shader->prog_data,
+                                shader->stats->dispatch_width);
       }
 
       simple_mtx_unlock(&shader->replay_mutex);
