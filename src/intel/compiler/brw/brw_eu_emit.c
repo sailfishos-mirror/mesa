@@ -641,13 +641,6 @@ brw_alu3(struct brw_codegen *p, unsigned opcode, struct brw_reg dest,
          brw_eu_inst_set_3src_src2_negate(devinfo, inst, src2.negate);
       }
 
-      assert(src0.file == FIXED_GRF ||
-             src0.file == IMM);
-      assert(src1.file == FIXED_GRF ||
-             brw_reg_is_arf(src1, BRW_ARF_ACCUMULATOR));
-      assert(src2.file == FIXED_GRF ||
-             src2.file == IMM);
-
       if (devinfo->ver >= 12) {
          if (src0.file == IMM) {
             brw_eu_inst_set_3src_a1_src0_is_imm(devinfo, inst, 1);
