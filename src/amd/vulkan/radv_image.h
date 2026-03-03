@@ -380,19 +380,6 @@ radv_gfx12_get_hiz_initial_value(void)
    return zmin | (zmax << 16);
 }
 
-static inline uint32_t
-radv_gfx12_get_hiz_clear_value(VkClearDepthStencilValue value)
-{
-   const uint32_t max_zval = UINT16_MAX;
-   uint32_t zmin, zmax;
-
-   zmin = lroundf(value.depth * max_zval);
-   zmin &= max_zval;
-   zmax = zmin;
-
-   return zmin | (zmax << 16);
-}
-
 static inline bool
 radv_image_get_iterate256(const struct radv_device *device, struct radv_image *image)
 {
