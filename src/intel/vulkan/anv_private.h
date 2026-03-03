@@ -1828,6 +1828,8 @@ struct anv_instance {
     bool                                        force_sampler_prefetch;
     bool                                        force_compute_surface_prefetch;
     unsigned                                    binding_table_block_size;
+    bool                                        barrier_post_typed_clear_shader;
+    bool                                        barrier_post_untyped_clear_shader;
 
     /* HW workarounds */
     bool                                        no_16bit;

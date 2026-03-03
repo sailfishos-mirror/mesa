@@ -957,6 +957,14 @@
    DRI_CONF_OPT_B(anv_disable_link_time_optimization, def, \
                   "Disable linking of graphics pipeline shaders")
 
+#define DRI_CONF_ANV_BARRIER_POST_UNTYPED_CLEAR_SHADER(def) \
+   DRI_CONF_OPT_B(anv_barrier_post_untyped_clear_shader, def, \
+                  "Insert pipeline barriers post clearing shader on untyped data")
+
+#define DRI_CONF_ANV_BARRIER_POST_TYPED_CLEAR_SHADER(def) \
+   DRI_CONF_OPT_B(anv_barrier_post_typed_clear_shader, def, \
+                  "Insert pipeline barriers post clearing shader on typed data")
+
 /**
  * \brief HASVK specific configuration options
  */

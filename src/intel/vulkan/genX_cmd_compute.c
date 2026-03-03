@@ -478,6 +478,36 @@ fill_inline_params(struct GENX(COMPUTE_WALKER_BODY) *body,
 }
 
 static inline void
+cmd_buffer_post_dispatch_wa(struct anv_cmd_buffer *cmd_buffer)
+{
+   genX(cmd_buffer_post_dispatch_wa)(cmd_buffer);
+
+   struct anv_cmd_compute_state *comp_state = &cmd_buffer->state.compute;
+
+   /* Workaround WaW hazards in applications that clear a buffer and start
+    * writing to it immediately without a barrier between the clear & write
+    * operations.
+    */
+   if (cmd_buffer->device->physical->instance->barrier_post_typed_clear_shader &&
+       (comp_state->shader->bind_map.inferred_behavior & ANV_PIPELINE_BEHAVIOR_CLEAR_TYPED)) {
+      anv_add_pending_pipe_bits(cmd_buffer,
+                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                                ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
+                                "clear shader typed L1 flush app wa");
+   }
+   if (cmd_buffer->device->physical->instance->barrier_post_untyped_clear_shader &&
+       (comp_state->shader->bind_map.inferred_behavior & ANV_PIPELINE_BEHAVIOR_CLEAR_UNTYPED)) {
+      anv_add_pending_pipe_bits(cmd_buffer,
+                                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                                ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT |
+                                ANV_PIPE_HDC_PIPELINE_FLUSH_BIT,
+                                "clear shader untyped L1 flush app wa");
+   }
+}
+
+static inline void
 emit_indirect_compute_walker(struct anv_cmd_buffer *cmd_buffer,
                              const struct brw_cs_prog_data *prog_data,
                              struct anv_address indirect_addr)
@@ -531,10 +561,8 @@ emit_indirect_compute_walker(struct anv_cmd_buffer *cmd_buffer,
                                                 indirect_addr.bo, 0),
       );
 
-   genX(cmd_buffer_post_dispatch_wa)(cmd_buffer);
+   cmd_buffer_post_dispatch_wa(cmd_buffer);
 }
-
-
 
 static inline void
 emit_compute_walker(struct anv_cmd_buffer *cmd_buffer,
@@ -595,7 +623,7 @@ emit_compute_walker(struct anv_cmd_buffer *cmd_buffer,
 #endif
       );
 
-   genX(cmd_buffer_post_dispatch_wa)(cmd_buffer);
+   cmd_buffer_post_dispatch_wa(cmd_buffer);
 }
 
 #else /* #if GFX_VERx10 >= 125 */

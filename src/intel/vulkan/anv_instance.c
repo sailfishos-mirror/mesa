@@ -17,6 +17,8 @@ static const driOptionDescription anv_dri_options[] = {
       DRI_CONF_ANV_ASSUME_FULL_SUBGROUPS(0)
       DRI_CONF_ANV_ASSUME_FULL_SUBGROUPS_WITH_BARRIER(false)
       DRI_CONF_ANV_ASSUME_FULL_SUBGROUPS_WITH_SHARED_MEMORY(false)
+      DRI_CONF_ANV_BARRIER_POST_TYPED_CLEAR_SHADER(false)
+      DRI_CONF_ANV_BARRIER_POST_UNTYPED_CLEAR_SHADER(false)
       DRI_CONF_ANV_DISABLE_FCV(false)
       DRI_CONF_ANV_ENABLE_BUFFER_COMP(false)
       DRI_CONF_ANV_DISABLE_DRM_AUX_MODIFIERS(false)
@@ -240,6 +242,10 @@ anv_init_dri_options(struct anv_instance *instance)
        driQueryOptionb(&instance->dri_options, "anv_disable_drm_ccs_modifiers");
     instance->binding_table_block_size = util_next_power_of_two(
        driQueryOptioni(&instance->dri_options, "intel_binding_table_block_size"));
+    instance->barrier_post_typed_clear_shader =
+       driQueryOptionb(&instance->dri_options, "anv_barrier_post_typed_clear_shader");
+    instance->barrier_post_untyped_clear_shader =
+       driQueryOptionb(&instance->dri_options, "anv_barrier_post_untyped_clear_shader");
 
     if (instance->vk.app_info.engine_name &&
         !strcmp(instance->vk.app_info.engine_name, "DXVK")) {
