@@ -31,6 +31,22 @@ needed_total_padding(int input_size, int stride, int filter_size)
 }
 
 static void
+set_feature_map_strides(struct ethosu_feature_map *fm, bool is_nhcwb16)
+{
+   unsigned elem_size = 1;
+
+   if (is_nhcwb16) {
+      fm->stride.x = 16 * elem_size;
+      fm->stride.c = fm->stride.x * fm->shape.width;
+      fm->stride.y = elem_size * fm->shape.width * align(fm->shape.depth, 16);
+   } else {
+      fm->stride.c = elem_size;
+      fm->stride.x = fm->shape.depth * fm->stride.c;
+      fm->stride.y = fm->shape.width * fm->stride.x;
+   }
+}
+
+static void
 set_feature_map(struct ethosu_subgraph *subgraph,
                 struct pipe_tensor *tensor,
                 struct ethosu_feature_map *fm)
@@ -43,6 +59,8 @@ set_feature_map(struct ethosu_subgraph *subgraph,
    fm->scale = tensor->scale;
    fm->is_signed = tensor->is_signed;
    fm->precision = log2(tensor->type_size);
+
+   set_feature_map_strides(fm, fm->tensor->layout == ETHOSU_LAYOUT_NHCWB16);
 }
 
 static void

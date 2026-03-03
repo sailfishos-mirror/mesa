@@ -137,23 +137,9 @@ emit_strides(
    struct ethosu_feature_map *feature_map,
    uint32_t cmd_stride_c, uint32_t cmd_stride_y, uint32_t cmd_stride_x)
 {
-   unsigned elem_size = 1;
-   unsigned tensor_x, tensor_y, tensor_c;
-   struct ethosu_tensor *tensor = feature_map->tensor;
-
-   if (tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
-      tensor_x = 16 * elem_size;
-      tensor_c = tensor_x * tensor->shape.width;
-      tensor_y = elem_size * tensor->shape.width * align(tensor->shape.depth, 16);
-   } else {
-      tensor_c = elem_size;
-      tensor_x = tensor->shape.depth * tensor_c;
-      tensor_y = tensor->shape.width * tensor_x;
-   }
-
-   EMIT1(cmd_stride_y, 0x0, tensor_y);
-   EMIT1(cmd_stride_x, 0x0, tensor_x);
-   EMIT1(cmd_stride_c, 0x0, tensor_c);
+   EMIT1(cmd_stride_y, 0x0, feature_map->stride.y);
+   EMIT1(cmd_stride_x, 0x0, feature_map->stride.x);
+   EMIT1(cmd_stride_c, 0x0, feature_map->stride.c);
 }
 
 static void

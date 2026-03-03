@@ -66,11 +66,18 @@ enum ethosu_upscale_mode {
    ETHOSU_UPSCALE_ZEROS = 2,
 };
 
+struct ethosu_stride {
+   unsigned x;
+   unsigned y;
+   unsigned c;
+};
+
 struct ethosu_tensor;
 
 struct ethosu_feature_map {
    struct ethosu_tensor *tensor;
    struct ethosu_block shape;
+   struct ethosu_stride stride;
    bool is_signed;
    uint8_t precision;
    struct ethosu_tile_box tiles;
