@@ -1171,11 +1171,6 @@ struct anv_pipeline_bind_map {
    uint8_t sampler_count;
    uint16_t embedded_sampler_count;
 
-   /* Dwords promoted from push constants (each element is a dword index in
-    * anv_push_constants (we can index up to 1024 bytes).
-    */
-   uint8_t  promoted_push_dwords[4];
-
    struct anv_pipeline_binding *                surface_to_descriptor;
    struct anv_pipeline_binding *                sampler_to_descriptor;
    struct anv_pipeline_embedded_sampler_binding* embedded_sampler_to_binding;
