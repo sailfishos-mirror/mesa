@@ -587,6 +587,14 @@ anv_shader_set_relocs(struct anv_device *device,
       .id = INTEL_SHADER_RELOC_SHADER_START_OFFSET,
       .value = shader->kernel.offset,
    };
+   reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+      .id = BRW_SHADER_RELOC_NULL_CACHELINE_ADDR_HIGH,
+      .value = anv_address_physical(device->null_cacheline_addr) >> 32,
+   };
+   reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
+      .id = BRW_SHADER_RELOC_NULL_CACHELINE_ADDR_LOW,
+      .value = anv_address_physical(device->null_cacheline_addr) & 0xffffffff,
+   };
    if (brw_shader_stage_is_bindless(shader->vk.stage)) {
       const struct brw_bs_prog_data *bs_prog_data =
          brw_bs_prog_data_const(shader->prog_data);

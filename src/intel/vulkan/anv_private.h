@@ -2666,6 +2666,7 @@ struct anv_device {
      */
     struct anv_bo *                             workaround_bo;
     struct anv_address                          workaround_address;
+    struct anv_address                          null_cacheline_addr;
 
     struct anv_bo *                             dummy_aux_bo;
     struct anv_bo *                             mem_fence_bo;

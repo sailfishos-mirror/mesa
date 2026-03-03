@@ -961,6 +961,10 @@ VkResult anv_CreateDevice(
           physical_device->rt_uuid,
           sizeof(physical_device->rt_uuid));
 
+   /* A null cache line for bounded UBO loads. */
+   wa_addr = anv_address_add_aligned(wa_addr, 64, 64);
+   device->null_cacheline_addr = wa_addr;
+
    /* Make sure the workaround address is the last one in the workaround BO,
     * so that writes never overwrite other bits of data stored in the
     * workaround BO.
