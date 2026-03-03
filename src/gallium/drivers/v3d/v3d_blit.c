@@ -452,29 +452,13 @@ v3d_tlb_blit_fast(struct pipe_context *pctx, struct pipe_blit_info *info)
                              info->dst.format, info->dst.level,
                              info->dst.box.z);
 
-        /* The job's RT setup must be compatible with the blit buffer. */
-        struct pipe_surface *spsurf = &job->cbufs[idx];
-        uint8_t sinternal_bpp, rinternal_bpp;
-        uint8_t sinternal_type, rinternal_type;
-
-        v3d_format_get_internal_type_and_bpp(devinfo,
-                                             spsurf->format,
-                                             &sinternal_type,
-                                             &sinternal_bpp);
-        v3d_format_get_internal_type_and_bpp(devinfo,
-                                             dbuf.format,
-                                             &rinternal_type,
-                                             &rinternal_bpp);
-        if (sinternal_bpp < rinternal_bpp ||
-            sinternal_type != rinternal_type) {
-                pipe_resource_reference(&dbuf.texture, NULL);
-                return;
-        }
-
         /* If the blit destination uses a different RT format the channel
          * layout won't match and we would corrupt the data (e.g. storing
-         * 10-10-10-2 channels as 16-16).
+         * 10-10-10-2 channels as 16-16). Since each RT format maps to a
+         * unique (internal_type, bpp) pair, this guarantees type and bpp
+         * compatibility.
          */
+        struct pipe_surface *spsurf = &job->cbufs[idx];
         if (v3d_get_rt_format(devinfo, spsurf->format) !=
             v3d_get_rt_format(devinfo, dbuf.format)) {
                 pipe_resource_reference(&dbuf.texture, NULL);
