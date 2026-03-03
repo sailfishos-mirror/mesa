@@ -1151,6 +1151,11 @@ enum anv_pipeline_bind_mask {
    ANV_PIPELINE_BIND_MASK_UNALIGNED_INV_X = BITFIELD_BIT(10),
 };
 
+enum anv_pipeline_behavior {
+   ANV_PIPELINE_BEHAVIOR_CLEAR_UNTYPED = BITFIELD_BIT(0),
+   ANV_PIPELINE_BEHAVIOR_CLEAR_TYPED   = BITFIELD_BIT(1),
+};
+
 #define ANV_PIPELINE_BIND_MASK_SET(i) (ANV_PIPELINE_BIND_MASK_SET0 << i)
 
 #define ANV_INLINE_DWORD_PUSH_ADDRESS_LDW      (UINT8_MAX - 0)
@@ -1198,6 +1203,9 @@ struct anv_pipeline_bind_map {
 
    /* Number of dynamic descriptor in each set */
    uint8_t                                      dynamic_descriptors[MAX_SETS];
+
+   /* Bitfield of inferred behavior of the shader (enum anv_pipeline_behavior) */
+   uint8_t                                      inferred_behavior;
 };
 
 struct anv_push_descriptor_info {

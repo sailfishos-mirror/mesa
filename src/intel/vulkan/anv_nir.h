@@ -203,6 +203,8 @@ void anv_nir_analyze_push_constants_ranges(nir_shader *nir,
                                            const struct anv_pipeline_push_map *push_map,
                                            struct anv_push_range out_ranges[4]);
 
+enum anv_pipeline_behavior anv_nir_clear_shader_analysis(nir_shader *shader);
+
 #ifdef __cplusplus
 }
 #endif
