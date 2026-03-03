@@ -1793,6 +1793,8 @@ struct anv_instance {
     bool                                        custom_border_colors_without_format;
     bool                                        vf_component_packing;
     bool                                        large_workgroup_non_coherent_image_workaround;
+    bool                                        barrier_post_typed_clear_shader;
+    bool                                        barrier_post_untyped_clear_shader;
 
     /* HW workarounds */
     bool                                        no_16bit;
