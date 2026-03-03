@@ -553,9 +553,10 @@ insert_coupling_code(struct spill_ctx *ctx, bi_block *pred, bi_block *succ)
       /* Copy immediate/uniform phi sources to memory variables at the start of
        * the program, where pressure is zero and hence the copy is legal.
        */
-      if (I->src[s].type != BI_INDEX_NORMAL && I->src[s].type != BI_INDEX_FAU) {
+      if (I->src[s].type != BI_INDEX_NORMAL) {
          assert(I->src[s].type == BI_INDEX_CONSTANT ||
-                I->src[s].type == BI_INDEX_REGISTER);
+                I->src[s].type == BI_INDEX_REGISTER ||
+                I->src[s].type == BI_INDEX_FAU);
 
          bi_index gpr = bi_temp(ctx->shader);
          unsigned bits = 32;
