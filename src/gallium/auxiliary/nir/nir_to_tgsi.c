@@ -3379,11 +3379,28 @@ ntt_optimize_nir(struct nir_shader *s, struct pipe_screen *screen,
 
 /* Scalarizes all 64-bit ALU ops.  Note that we only actually need to
  * scalarize vec3/vec4s, should probably fix that.
+ * Also lower vector comparisons.
  */
 static bool
-scalarize_64bit(const nir_instr *instr, const void *data)
+ntt_scalarize_cb(const nir_instr *instr, const void *data)
 {
    const nir_alu_instr *alu = nir_instr_as_alu(instr);
+
+   switch (alu->op) {
+   case nir_op_ball_fequal2:
+   case nir_op_ball_fequal3:
+   case nir_op_ball_fequal4:
+   case nir_op_bany_fnequal2:
+   case nir_op_bany_fnequal3:
+   case nir_op_bany_fnequal4:
+   case nir_op_ball_iequal2:
+   case nir_op_ball_iequal3:
+   case nir_op_ball_iequal4:
+   case nir_op_bany_inequal2:
+   case nir_op_bany_inequal3:
+   case nir_op_bany_inequal4: return true;
+   default: break;
+   }
 
    return (alu->def.bit_size == 64 ||
            nir_src_bit_size(alu->src[0].src) == 64);
@@ -3688,7 +3705,6 @@ ntt_fix_nir_options(struct pipe_screen *screen, struct nir_shader *s,
        !options->lower_uadd_sat ||
        !options->lower_usub_sat ||
        !options->lower_uniforms_to_ubo ||
-       !options->lower_vector_cmp ||
        options->has_rotate8 ||
        options->has_rotate16 ||
        options->has_rotate32 ||
@@ -3710,7 +3726,6 @@ ntt_fix_nir_options(struct pipe_screen *screen, struct nir_shader *s,
       new_options->lower_uadd_sat = true;
       new_options->lower_usub_sat = true;
       new_options->lower_uniforms_to_ubo = true;
-      new_options->lower_vector_cmp = true;
       new_options->lower_fsqrt = lower_fsqrt;
       new_options->has_rotate8 = false;
       new_options->has_rotate16 = false;
@@ -3929,7 +3944,7 @@ const void *nir_to_tgsi_options(struct nir_shader *s,
     * TGSI stores up to a vec2 in each slot, so to avoid a whole bunch of op
     * duplication logic we just make it so that we only see vec2s.
     */
-   NIR_PASS(_, s, nir_lower_alu_to_scalar, scalarize_64bit, NULL);
+   NIR_PASS(_, s, nir_lower_alu_to_scalar, ntt_scalarize_cb, NULL);
    NIR_PASS(_, s, nir_to_tgsi_lower_64bit_to_vec2);
 
    if (!screen->caps.load_constbuf)
@@ -4062,7 +4077,6 @@ const nir_shader_compiler_options nir_to_tgsi_compiler_options = {
    .lower_usub_borrow = true,
    .lower_uadd_sat = true,
    .lower_usub_sat = true,
-   .lower_vector_cmp = true,
    .lower_int64_options = nir_lower_imul_2x32_64,
 
    /* TGSI doesn't have a semantic for local or global index, just local and
