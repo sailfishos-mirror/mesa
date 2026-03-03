@@ -123,7 +123,6 @@ static struct disk_cache* r300_get_disk_shader_cache(struct pipe_screen* pscreen
    .lower_insert_byte = true,                 \
    .lower_insert_word = true,                 \
    .lower_uniforms_to_ubo = true,             \
-   .lower_vector_cmp = true,                  \
    .no_integers = true
 
 static const nir_shader_compiler_options r500_vs_compiler_options = {
