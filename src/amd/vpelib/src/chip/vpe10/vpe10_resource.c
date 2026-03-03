@@ -639,6 +639,9 @@ bool vpe10_check_output_color_space(
     if (vpe_is_fp16(format) && tf != TRANSFER_FUNC_LINEAR)
         return false;
 
+    if ((cs == COLOR_SPACE_CUSTOM) || (tf == TRANSFER_FUNC_CUSTOM))
+        return false;
+
     return true;
 }
 

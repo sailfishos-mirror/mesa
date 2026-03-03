@@ -1082,6 +1082,9 @@ void vpe_color_get_color_space_and_tf(
     case VPE_TF_HLG:
         *tf = TRANSFER_FUNC_HLG;
         break;
+    case VPE_TF_CUSTOM:
+        *tf = TRANSFER_FUNC_CUSTOM;
+        break;
     default:
         break;
     }
@@ -1111,6 +1114,9 @@ void vpe_color_get_color_space_and_tf(
         case VPE_PRIMARIES_JFIF:
             *cs = colorRange == VPE_COLOR_RANGE_FULL ? COLOR_SPACE_YCBCR_JFIF : COLOR_SPACE_UNKNOWN;
             break;
+        case VPE_PRIMARIES_CUSTOM:
+            *cs = COLOR_SPACE_CUSTOM;
+            break;
         default:
             break;
         }
@@ -1138,6 +1144,9 @@ void vpe_color_get_color_space_and_tf(
          */
         case VPE_PRIMARIES_JFIF:
             *cs = colorRange == VPE_COLOR_RANGE_FULL ? COLOR_SPACE_RGB_JFIF : COLOR_SPACE_UNKNOWN;
+            break;
+        case VPE_PRIMARIES_CUSTOM:
+            *cs = COLOR_SPACE_CUSTOM;
             break;
         default:
             break;

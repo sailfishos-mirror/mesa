@@ -1117,9 +1117,16 @@ enum vpe_status vpe_check_3dlut_compound(
 {
     struct vpe_priv *vpe_priv = container_of(vpe, struct vpe_priv, pub);
 
-    // not enabled, nothing to check, always ok
-    if (stream->lut_compound.enabled == false)
-        return VPE_STATUS_OK;
+    // Lut compound not enabled case
+    // Since we allow CUSTOM cs/tf in check_input_support, and they are only valid with 3dlut
+    // compound we must reject them here, and with the reason "color space value not supported"
+    if (stream->lut_compound.enabled == false) {
+        if ((stream->surface_info.cs.primaries == VPE_PRIMARIES_CUSTOM) ||
+            (stream->surface_info.cs.tf == VPE_TF_CUSTOM))
+            return VPE_STATUS_COLOR_SPACE_VALUE_NOT_SUPPORTED;
+        else
+            return VPE_STATUS_OK;
+    }
 
     // no func ptr means no support at all, so cannot be enabled
     if (!vpe_priv->resource.check_lut3d_compound)
