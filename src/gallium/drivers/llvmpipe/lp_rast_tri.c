@@ -755,13 +755,10 @@ lp_rast_triangle_32_3_4(struct lp_rasterizer_task *task,
 
 #define TAG(x) x##_3
 #define NR_PLANES 3
-/*#define TRI_4 lp_rast_triangle_3_4*/
-/*#define TRI_16 lp_rast_triangle_3_16*/
 #include "lp_rast_tri_tmp.h"
 
 #define TAG(x) x##_4
 #define NR_PLANES 4
-/*#define TRI_16 lp_rast_triangle_4_16*/
 #include "lp_rast_tri_tmp.h"
 
 #define TAG(x) x##_5
@@ -792,8 +789,6 @@ lp_rast_triangle_32_3_4(struct lp_rasterizer_task *task,
 
 #define TAG(x) x##_32_3
 #define NR_PLANES 3
-/*#define TRI_4 lp_rast_triangle_3_4*/
-/*#define TRI_16 lp_rast_triangle_3_16*/
 #include "lp_rast_tri_tmp.h"
 
 #define TAG(x) x##_32_4
@@ -832,13 +827,10 @@ lp_rast_triangle_32_3_4(struct lp_rasterizer_task *task,
 
 #define TAG(x) x##_ms_3
 #define NR_PLANES 3
-/*#define TRI_4 lp_rast_triangle_3_4*/
-/*#define TRI_16 lp_rast_triangle_3_16*/
 #include "lp_rast_tri_tmp.h"
 
 #define TAG(x) x##_ms_4
 #define NR_PLANES 4
-/*#define TRI_16 lp_rast_triangle_4_16*/
 #include "lp_rast_tri_tmp.h"
 
 #define TAG(x) x##_ms_5

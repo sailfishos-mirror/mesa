@@ -428,51 +428,6 @@ TRI_16(struct lp_rasterizer_task *task,
 #endif
 
 
-#if DETECT_ARCH_SSE && defined(TRI_4)
-void
-TRI_4(struct lp_rasterizer_task *task,
-      const union lp_rast_cmd_arg arg)
-{
-   const struct lp_rast_triangle *tri = arg.triangle.tri;
-   const struct lp_rast_plane *plane = GET_PLANES(tri);
-   unsigned mask = arg.triangle.plane_mask;
-   const int x = task->x + (mask & 0xff);
-   const int y = task->y + (mask >> 8);
-
-   /* Iterate over partials:
-    */
-   unsigned mask = 0xffff;
-
-   for (unsigned j = 0; j < NR_PLANES; j++) {
-      const int cx = (plane[j].c
-                      - plane[j].dcdx * x
-                      + plane[j].dcdy * y);
-
-      const int dcdx = -plane[j].dcdx;
-      const int dcdy = plane[j].dcdy;
-      __m128i xdcdy = _mm_set1_epi32(dcdy);
-
-      __m128i cstep0 = _mm_setr_epi32(cx, cx + dcdx, cx + dcdx*2, cx + dcdx*3);
-      __m128i cstep1 = _mm_add_epi32(cstep0, xdcdy);
-      __m128i cstep2 = _mm_add_epi32(cstep1, xdcdy);
-      __m128i cstep3 = _mm_add_epi32(cstep2, xdcdy);
-
-      __m128i cstep01 = _mm_packs_epi32(cstep0, cstep1);
-      __m128i cstep23 = _mm_packs_epi32(cstep2, cstep3);
-      __m128i result = _mm_packs_epi16(cstep01, cstep23);
-
-      /* Extract the sign bits
-       */
-      mask &= ~_mm_movemask_epi8(result);
-   }
-
-   if (mask)
-      lp_rast_shade_quads_mask(task, &tri->inputs, x, y, mask);
-}
-#endif
-
-
 #undef TAG
-#undef TRI_4
 #undef TRI_16
 #undef NR_PLANES
