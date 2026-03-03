@@ -486,7 +486,6 @@ static const struct nir_shader_compiler_options gallivm_nir_options = {
    .max_unroll_iterations = 32,
    .lower_to_scalar = true,
    .lower_uniforms_to_ubo = true,
-   .lower_vector_cmp = true,
    .lower_device_index_to_zero = true,
    .support_16bit_alu = true,
    .lower_fisnormal = true,
