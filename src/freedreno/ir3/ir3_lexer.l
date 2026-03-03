@@ -134,7 +134,8 @@ static int parse_reg(const char *str)
 "(1/log2(10))"                    ir3_yylval.num = 9;  return T_FLUT_INV_LOG2_10;
 "(log2(10))"                      ir3_yylval.num = 10; return T_FLUT_LOG2_10;
 "(4.0)"                           ir3_yylval.num = 11; return T_FLUT_4_0;
-[0-9]+"."[0-9]+                   ir3_yylval.flt = strtod(yytext, NULL);       return T_FLOAT;
+[0-9]+"."[0-9]+([eE][+-]?[0-9]+)?  ir3_yylval.flt = strtod(yytext, NULL);       return T_FLOAT;
+[0-9]+[eE][+-]?[0-9]+             ir3_yylval.flt = strtod(yytext, NULL);       return T_FLOAT;
 [0-9]*                            ir3_yylval.num = strtoul(yytext, NULL, 0);    return T_INT;
 "0x"[0-9a-fA-F]*                  ir3_yylval.num = strtoul(yytext, NULL, 0);    return T_HEX;
 "raw 0x"[0-9a-fA-F]*              ir3_yylval.u64 = strtoull(yytext + 4, NULL, 0); return T_RAW;

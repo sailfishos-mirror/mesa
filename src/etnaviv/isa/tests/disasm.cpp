@@ -182,7 +182,7 @@ INSTANTIATE_TEST_SUITE_P(Opcodes, DisasmTest,
       disasm_state{ {0x00801019, 0x15400804, 0x40010000, 0x74000028}, "lshift.s32        t0.x___, t0.yyyy, void, 2:s20\n"},
       disasm_state{ {0x0080101a, 0x00001804, 0x40010000, 0x78000018}, "rshift.s32        t0.x___, t1.xxxx, void, 1:u20\n"},
       disasm_state{ {0x0080101b, 0x00001804, 0x40010000, 0x00000008}, "rotate.s32        t0.x___, t1.xxxx, void, t0.xxxx\n"},
-      disasm_state{ {0x03001024, 0x00000005, 0x04098040, 0x0015400f}, "div.rtz           t0.zy, void, 4.500000:f20, t0.yyyy\n"},
+      disasm_state{ {0x03001024, 0x00000005, 0x04098040, 0x0015400f}, "div.rtz           t0.zy, void, 4.5:f20, t0.yyyy\n"},
       disasm_state{ {0x01061025, 0x2aa00804, 0xa0010050, 0x7800001f}, "atomic_add.u32    t6._y__, u0.zzzz, 0:u20, 1:u20\n"},
       disasm_state{ {0x00801025, 0x2a800884, 0x50010050, 0x0000000f}, "atomic_add.skpHp.s32 t0.x___, u0.zzzz, 0:s20, t0.xxxx\n"},
       disasm_state{ {0x00821026, 0x2a800884, 0x50010050, 0x0000001f}, "atomic_xchg.skpHp.s32 t2.x___, u0.zzzz, 0:s20, t1.xxxx\n"},
@@ -273,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(Threads, DisasmTest,
       disasm_state{ {0x0101102e, 0x00202804, 0x80000020, 0x01000000}, "f2i.u32.t1        t1._y__, th2.xxxx, void, void\n"},
       disasm_state{ {0x00811171, 0x15601804, 0x80000040, 0x76fffffa}, "cmp.eq.u32.t0     t1.x___, t1.yyyy, u0.xxxx, -1:s20\n"},
       disasm_state{ {0x00811171, 0x15601804, 0x80000040, 0x77ffdffa}, "cmp.eq.u32.t1     t1.x___, t1.yyyy, u0.xxxx, -1:s20\n"},
-      disasm_state{ {0x0081158f, 0x00201804, 0x700000c0, 0x7c00000f}, "select.selmsb.s16 t1.x___, t1.xxxx, 0.000000:f16, 0.000000:f16\n", FLAG_FAILING_ASM},
+      disasm_state{ {0x0081158f, 0x00201804, 0x700000c0, 0x7c00000f}, "select.selmsb.s16 t1.x___, t1.xxxx, 5.9605e-08:f16, 0.0:f16\n"},
       disasm_state{ {0x0381102d, 0x00201804, 0x40000000, 0x00000000}, "i2f.s16           t1.xyz_, t1.xxxx, void, void\n"},
       disasm_state{ {0x04011009, 0x00000004, 0x00000000, 0x20154008}, "mov               t1.___w, void, void, u0.yyyy\n"}
    )
@@ -284,7 +284,7 @@ INSTANTIATE_TEST_SUITE_P(Threads, DisasmTest,
 INSTANTIATE_TEST_SUITE_P(ImmediateValues, DisasmTest,
    testing::Values(
       // taken from deqp3 run on GC3000
-      disasm_state{ {0x00801001, 0x7e000805, 0x00000038, 0x00800008}, "add.rtz           t0.x___, 0.500000:f20, void, |t0.xxxx|\n"}, /* type: 0 */
+      disasm_state{ {0x00801001, 0x7e000805, 0x00000038, 0x00800008}, "add.rtz           t0.x___, 0.5:f20, void, |t0.xxxx|\n"}, /* type: 0 */
       disasm_state{ {0x00811131, 0x95401804, 0x00aa0060, 0x76fffffa}, "cmp.le.t0         t1.x___, |th1.yyyy|, u0.yyyy, -1:s20\n"}, /* type: 1 */
       disasm_state{ {0x0080101a, 0x00001804, 0x40010000, 0x78000018}, "rshift.s32        t0.x___, t1.xxxx, void, 1:u20\n"}, /* type: 2*/
       disasm_state{ {0x020211b1, 0x00001804, 0x01fe0040, 0x7c1fdffa}, "cmp.ne            t2.__z_, t1.xxxx, u0.wwww, -nan:f16\n"} /* type: 3 */
@@ -319,7 +319,7 @@ INSTANTIATE_TEST_SUITE_P(CLRoundShader, DisasmTest,
       // taken from opencl shader on GC3000
       disasm_state{ {0x00801032, 0x15400c04, 0x10000050, 0x00000007}, "load.denorm       t0.x___, u0.yyyy, 0:s20, void\n"},
       disasm_state{ {0x00811027, 0x00000004, 0x00000000, 0x00000008}, "sign              t1.x___, void, void, t0.xxxx\n"},
-      disasm_state{ {0x00801001, 0x7e000805, 0x00000038, 0x00800008}, "add.rtz           t0.x___, 0.500000:f20, void, |t0.xxxx|\n"},
+      disasm_state{ {0x00801001, 0x7e000805, 0x00000038, 0x00800008}, "add.rtz           t0.x___, 0.5:f20, void, |t0.xxxx|\n"},
       disasm_state{ {0x00801025, 0x00000004, 0x00000000, 0x00000008}, "floor             t0.x___, void, void, t0.xxxx\n"},
       disasm_state{ {0x00801003, 0x00001805, 0x00000040, 0x00000000}, "mul.rtz           t0.x___, t1.xxxx, t0.xxxx, void\n"}
    )
@@ -382,7 +382,7 @@ INSTANTIATE_TEST_SUITE_P(LoadStoreVariants, DisasmTest,
       disasm_state{ {0x01001032, 0x15400c14, 0x00000050, 0x00000000}, "load.denorm.ls2   t0._y__, u0.yyyy, t0.xxxx, void\n"},
       disasm_state{ {0x01001032, 0x15400d14, 0x00000040, 0x00000000}, "load.denorm.local.ls2 t0._y__, t0.yyyy, t0.xxxx, void\n"},
       disasm_state{ {0x00800033, 0x00000c14, 0x00000050, 0x00154008}, "store.denorm.ls2  mem.x___, u0.xxxx, t0.xxxx, t0.yyyy\n"},
-      disasm_state{ {0x00861033, 0x15400d04, 0x100efe40, 0x7085860f}, "store.denorm.local mem.x___, t0.yyyy, 4092:s20, 99.000000:f20\t; dontcare bits in store: 00000000000000000000000000061000\n", FLAG_FAILING_ASM},
+      disasm_state{ {0x00861033, 0x15400d04, 0x100efe40, 0x7085860f}, "store.denorm.local mem.x___, t0.yyyy, 4092:s20, 99.0:f20\t; dontcare bits in store: 00000000000000000000000000061000\n", FLAG_FAILING_ASM},
       disasm_state{ {0x07800033, 0x00200c34, 0x80000050, 0x00390018}, "store.denorm.u32.ls6 mem, u0.xxxx, t0.xxxx, t1.xyzw\n"}
    )
 );
@@ -415,7 +415,7 @@ INSTANTIATE_TEST_SUITE_P(SwizzleVariants, DisasmTest,
       disasm_state{ {0x0782102b, 0x00002804, 0xa0000040, 0x7800002f}, "swizzle.s8        t2, t2.xxxx, 0:u20, 2:u20\n"},
       disasm_state{ {0x0780102b, 0x00002804, 0xa0000040, 0x7800001f}, "swizzle.s8        t0, t2.xxxx, 0:u20, 1:u20\n"},
       disasm_state{ {0x0781102b, 0x00002804, 0xa00000c0, 0x7800001f}, "swizzle.s8        t1, t2.xxxx, 1:u20, 1:u20\n"},
-      disasm_state{ {0x0781102b, 0x00200804, 0x6000007e, 0x7800003f}, "swizzle.s16       t1, 0.000000:f16, 0:u20, 3:u20\n"},
+      disasm_state{ {0x0781102b, 0x00200804, 0x6000007e, 0x7800003f}, "swizzle.s16       t1, 0.0:f16, 0:u20, 3:u20\n"},
       disasm_state{ {0x0781102b, 0x00201804, 0x60000040, 0x780000cf}, "swizzle.s16       t1, t1.xxxx, 0:u20, 12:u20\n"},
       disasm_state{ {0x0780102b, 0x00201804, 0x60000040, 0x7800003f}, "swizzle.s16       t0, t1.xxxx, 0:u20, 3:u20\n"},
       disasm_state{ {0x0781102b, 0x00202804, 0x600000c0, 0x7800003f}, "swizzle.s16       t1, t2.xxxx, 1:u20, 3:u20\n"}

@@ -638,14 +638,23 @@ display_field(struct decode_scope *scope, const char *field_name)
 			isa_print(print, "+%"PRIu64, val);
 		}
 		break;
-	case TYPE_FLOAT:
+	case TYPE_FLOAT: {
+		float f;
+		const char *fmt;
 		if (width == 16) {
-			isa_print(print, "%f", _mesa_half_to_float(val));
+			f = _mesa_half_to_float(val);
+			fmt = "%.5g";
 		} else {
 			assert(width == 32);
-			isa_print(print, "%f", uif(val));
+			f = uif(val);
+			fmt = "%.9g";
 		}
+		if (f == truncf(f) && isfinite(f))
+			isa_print(print, "%.1f", f);
+		else
+			isa_print(print, fmt, f);
 		break;
+	}
 	case TYPE_BOOL:
 		if (field->display) {
 			if (val) {
