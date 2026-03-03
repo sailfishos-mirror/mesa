@@ -3484,7 +3484,7 @@
         "description": "pan/kmod: Allow mmap() on foreign buffers",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "b5e47ba8941467a4e2f53907a6645a0703852e62",
         "notes": null
