@@ -1835,6 +1835,13 @@ instruction_restrictions(const struct brw_isa_info *isa,
                 brw_type_is_int(src1_type)),
                "MUL can't mix floats and integer sources.");
 
+      /* Page 971 (page 987 of the PDF), section "Accumulator
+       * Restrictions," of the Broadwell PRM volume 7 says:
+       *
+       *    Integer source operands cannot be accumulators.
+       *
+       * The Skylake and Ice Lake PRMs contain the same text.
+       */
       ERROR_IF((brw_type_is_int(src0_type) && src0_is_acc(inst)) ||
                (brw_type_is_int(src1_type) && src1_is_acc(inst)),
                "In MUL, Integer source operands cannot be accumulators.");
@@ -1852,19 +1859,6 @@ instruction_restrictions(const struct brw_isa_info *isa,
                brw_type_size_bytes(src1_type) == 4,
                "When multiplying a DW and any lower precision integer, the "
                "DW operand must be src0.");
-
-      /* Page 971 (page 987 of the PDF), section "Accumulator
-       * Restrictions," of the Broadwell PRM volume 7 says:
-       *
-       *    Integer source operands cannot be accumulators.
-       *
-       * The Skylake and Ice Lake PRMs contain the same text.
-       */
-      ERROR_IF((src0_is_acc(inst) &&
-                brw_type_is_int(src0_type)) ||
-               (src1_is_acc(inst) &&
-                brw_type_is_int(src1_type)),
-               "Integer source operands cannot be accumulators.");
 
       /* Page 935 (page 951 of the PDF) of the Ice Lake PRM volume 2a says:
        *
