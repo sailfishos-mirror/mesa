@@ -1444,10 +1444,18 @@ lvp_physical_device_init(struct lvp_physical_device *device,
 #if defined(HAVE_LIBDRM) && defined(HAVE_LINUX_UDMABUF_H)
    int dmabuf_bits = DRM_PRIME_CAP_EXPORT | DRM_PRIME_CAP_IMPORT;
    int supported_dmabuf_bits = device->pscreen->caps.dmabuf;
-   /* if import or export is supported then EXT_external_memory_dma_buf is supported */
-   if (supported_dmabuf_bits)
-      device->vk.supported_extensions.EXT_external_memory_dma_buf = true;
-   if ((supported_dmabuf_bits & dmabuf_bits) == dmabuf_bits)
+   const bool dmabuf_import_export = (supported_dmabuf_bits & dmabuf_bits) == dmabuf_bits;
+   const char *engine_name = instance->vk.app_info.engine_name;
+   /* if import or export is supported then EXT_external_memory_dma_buf is supported
+    *
+    * For zink, advertise the extension only when both import and export are
+    * supported since zink has assumed both for dmabuf support.
+    */
+   if (engine_name && strcmp(engine_name, "mesa zink") == 0)
+      device->vk.supported_extensions.EXT_external_memory_dma_buf = dmabuf_import_export;
+   else
+      device->vk.supported_extensions.EXT_external_memory_dma_buf = !!supported_dmabuf_bits;
+   if (dmabuf_import_export)
       device->vk.supported_extensions.EXT_image_drm_format_modifier = true;
    if (device->pscreen->caps.native_fence_fd) {
       device->vk.supported_extensions.KHR_external_semaphore_fd = true;
