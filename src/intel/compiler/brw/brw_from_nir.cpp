@@ -4172,7 +4172,8 @@ memory_address(nir_to_brw_state &ntb,
    const intel_device_info *devinfo = ntb.devinfo;
    const nir_src *nir_src_offset = nir_get_io_offset_src(instr);
    const brw_reg src_offset = get_nir_src_imm(ntb, *nir_src_offset);
-   const brw_builder ubld = src_offset.is_scalar ? bld.scalar_group() : bld;
+   const brw_builder ubld = (src_offset.is_scalar || src_offset.file == IMM) ?
+      bld.scalar_group() : bld;
    brw_reg address;
 
    if ((brw_lsc_supports_base_offset(devinfo) == false) ||
