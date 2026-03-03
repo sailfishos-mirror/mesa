@@ -1515,16 +1515,6 @@ optimizations.extend([
    (('sne', ('sne', a, b), 1.0), ('seq', a, b)),
    (('sne', ('slt', a, b), 1.0), ('sge', a, b), 'true', TestStatus.XFAIL), # XFAIL is that a=NaN, b=0.0 produces the wrong answer
    (('sne', ('sge', a, b), 1.0), ('slt', a, b), 'true', TestStatus.XFAIL), # XFAIL is that a=NaN, b=0.0 produces the wrong answer
-   (('fall_equal2', a, b), ('fmin', ('seq', 'a.x', 'b.x'), ('seq', 'a.y', 'b.y')), 'options->lower_vector_cmp'),
-   (('fall_equal3', a, b), ('seq', ('fany_nequal3', a, b), 0.0), 'options->lower_vector_cmp'),
-   (('fall_equal4', a, b), ('seq', ('fany_nequal4', a, b), 0.0), 'options->lower_vector_cmp'),
-   (('fall_equal8', a, b), ('seq', ('fany_nequal8', a, b), 0.0), 'options->lower_vector_cmp'),
-   (('fall_equal16', a, b), ('seq', ('fany_nequal16', a, b), 0.0), 'options->lower_vector_cmp', TestStatus.UNSUPPORTED), # all test inputs skipped
-   (('fany_nequal2', a, b), ('fmax', ('sne', 'a.x', 'b.x'), ('sne', 'a.y', 'b.y')), 'options->lower_vector_cmp'),
-   (('fany_nequal3', a, b), ('fsat', ('fdot3', ('sne', a, b), ('sne', a, b))), 'options->lower_vector_cmp'),
-   (('fany_nequal4', a, b), ('fsat', ('fdot4', ('sne', a, b), ('sne', a, b))), 'options->lower_vector_cmp'),
-   (('fany_nequal8', a, b), ('fsat', ('fdot8', ('sne', a, b), ('sne', a, b))), 'options->lower_vector_cmp'),
-   (('fany_nequal16', a, b), ('fsat', ('fdot16', ('sne', a, b), ('sne', a, b))), 'options->lower_vector_cmp', TestStatus.UNSUPPORTED), # all test inputs skipped
 
    # Vulkan allows us to use any rounding mode, so choose rtz because it's simple.
    # Avoid some NaNs being converted to Inf if the lsb are cut off.

@@ -958,15 +958,6 @@ binop_reduce_all_sizes("ball_iequal",  1, tint, "{src0} == {src1}",
 binop_reduce_all_sizes("bany_inequal", 1, tint, "{src0} != {src1}",
                        "{src0} || {src1}", "{src}")
 
-# non-integer-aware GLSL-style comparisons that return 0.0 or 1.0
-
-binop_reduce("fall_equal",  1, tfloat32, tfloat32, "{src0} == {src1}",
-             "{src0} && {src1}", "{src} ? 1.0f : 0.0f",
-             valid_fp_math_ctrl = preserve_sz_inf_nan)
-binop_reduce("fany_nequal", 1, tfloat32, tfloat32, "{src0} != {src1}",
-             "{src0} || {src1}", "{src} ? 1.0f : 0.0f",
-             valid_fp_math_ctrl = preserve_sz_inf_nan)
-
 # These comparisons for integer-less hardware return 1.0 and 0.0 for true
 # and false respectively
 

@@ -404,8 +404,6 @@ lower_alu_instr_width(nir_builder *b, nir_instr *instr, void *_data)
       LOWER_REDUCTION(nir_op_b32all_iequal, nir_op_ieq32, nir_op_iand);
       LOWER_REDUCTION(nir_op_b32any_fnequal, nir_op_fneu32, nir_op_ior);
       LOWER_REDUCTION(nir_op_b32any_inequal, nir_op_ine32, nir_op_ior);
-      LOWER_REDUCTION(nir_op_fall_equal, nir_op_seq, nir_op_fmin);
-      LOWER_REDUCTION(nir_op_fany_nequal, nir_op_sne, nir_op_fmax);
 
    default:
       break;
