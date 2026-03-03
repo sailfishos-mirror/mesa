@@ -546,6 +546,14 @@ static VkResult enumerate_devices(struct vk_instance *vk_instance);
 
 static void destroy_physical_device(struct vk_physical_device *device);
 
+static const struct debug_control v3dv_pipeline_cache_control[] = {
+   { "full", V3DV_PIPELINE_CACHE_FULL },
+   { "no-default-cache", V3DV_PIPELINE_CACHE_NO_DEFAULT },
+   { "no-meta-cache", V3DV_PIPELINE_CACHE_NO_META },
+   { "off", V3DV_PIPELINE_CACHE_OFF },
+   { NULL, 0 },
+};
+
 static const driOptionDescription v3dv_dri_options[] = {
    DRI_CONF_SECTION_PERFORMANCE
       DRI_CONF_VK_X11_OVERRIDE_MIN_IMAGE_COUNT(0)
@@ -605,28 +613,26 @@ v3dv_CreateInstance(const VkInstanceCreateInfo *pCreateInfo,
    instance->vk.physical_devices.destroy = destroy_physical_device;
 
    /* We start with the default values for the pipeline_cache envvars.
-    *
-    * FIXME: with so many options now, perhaps we could use parse_debug_string
     */
    instance->pipeline_cache_enabled = true;
    instance->default_pipeline_cache_enabled = true;
    instance->meta_cache_enabled = true;
    const char *pipeline_cache_str = os_get_option("V3DV_ENABLE_PIPELINE_CACHE");
-   if (pipeline_cache_str != NULL) {
-      if (strncmp(pipeline_cache_str, "full", 4) == 0) {
-         /* nothing to do, just to filter correct values */
-      } else if (strncmp(pipeline_cache_str, "no-default-cache", 16) == 0) {
-         instance->default_pipeline_cache_enabled = false;
-      } else if (strncmp(pipeline_cache_str, "no-meta-cache", 13) == 0) {
-         instance->meta_cache_enabled = false;
-      } else if (strncmp(pipeline_cache_str, "off", 3) == 0) {
-         instance->pipeline_cache_enabled = false;
-         instance->default_pipeline_cache_enabled = false;
-         instance->meta_cache_enabled = false;
-      } else {
-         mesa_loge("Wrong value for envvar V3DV_ENABLE_PIPELINE_CACHE. "
-                   "Allowed values are: full, no-default-cache, no-meta-cache, off\n");
-      }
+   uint64_t pipeline_cache_flags =
+      parse_debug_string(pipeline_cache_str, v3dv_pipeline_cache_control);
+   if (pipeline_cache_str != NULL && pipeline_cache_flags == 0) {
+      mesa_loge("Wrong value for envvar V3DV_ENABLE_PIPELINE_CACHE. "
+                "Allowed values are: full, no-default-cache, no-meta-cache, off\n");
+   } else if (pipeline_cache_flags & V3DV_PIPELINE_CACHE_OFF) {
+      instance->pipeline_cache_enabled = false;
+      instance->default_pipeline_cache_enabled = false;
+      instance->meta_cache_enabled = false;
+   } else if (pipeline_cache_flags & V3DV_PIPELINE_CACHE_NO_DEFAULT) {
+      instance->default_pipeline_cache_enabled = false;
+   } else if (pipeline_cache_flags & V3DV_PIPELINE_CACHE_NO_META) {
+      instance->meta_cache_enabled = false;
+   } else if (pipeline_cache_flags & V3DV_PIPELINE_CACHE_FULL) {
+      /* nothing to do, just to filter correct values */
    }
 
    if (instance->pipeline_cache_enabled == false) {

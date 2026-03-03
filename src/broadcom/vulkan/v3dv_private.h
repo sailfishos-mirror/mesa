@@ -120,6 +120,13 @@ struct v3dv_format_plane;
 struct v3dv_format;
 struct v3d_simulator_file;
 
+enum v3dv_pipeline_cache_flags {
+   V3DV_PIPELINE_CACHE_FULL = 1 << 0,
+   V3DV_PIPELINE_CACHE_NO_DEFAULT = 1 << 1,
+   V3DV_PIPELINE_CACHE_NO_META = 1 << 2,
+   V3DV_PIPELINE_CACHE_OFF = 1 << 3,
+};
+
 struct v3dv_physical_device {
    struct vk_physical_device vk;
 
