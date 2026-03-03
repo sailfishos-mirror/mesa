@@ -1294,7 +1294,7 @@
         "description": "pan/bi: Move FAUs to memory for memory phis",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6c64ad934f76dc142926c7a1261ac94d80dca0a9",
         "notes": null
