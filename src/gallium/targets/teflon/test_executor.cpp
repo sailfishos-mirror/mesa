@@ -522,6 +522,8 @@ run_model(TfLiteModel *model, enum executor executor, void ***input, size_t *num
       }
 
       switch (output_tensor->type) {
+      case kTfLiteInt32:
+      case kTfLiteUInt32:
       case kTfLiteFloat32: {
          (*output_sizes)[i] = output_tensor->bytes / 4;
          break;
