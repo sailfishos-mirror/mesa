@@ -144,14 +144,23 @@ print_txt_event(struct u_trace_context *utctx,
                 int32_t delta,
                 const void *indirect)
 {
-   if (evt->tp->print) {
-      fprintf(utctx->out, "%016" PRIu64 " %+9d: %s: ", ns, delta,
-              evt->tp->name);
+   if (evt->tp->type == u_tracepoint_type_end_range)
+      utctx->indentation--;
+
+   fprintf(utctx->out, "%016" PRIu64 " %+9d: ", ns, delta);
+
+   for (uint32_t i = 0; i < utctx->indentation; i++)
+      fprintf(utctx->out, "   ");
+
+   fprintf(utctx->out, "%s ", evt->tp->name);
+
+   if (evt->tp->print)
       evt->tp->print(utctx->out, evt->payload, indirect);
-   } else {
-      fprintf(utctx->out, "%016" PRIu64 " %+9d: %s\n", ns, delta,
-              evt->tp->name);
-   }
+   else
+      fprintf(utctx->out, "\n");
+
+   if (evt->tp->type == u_tracepoint_type_begin_range)
+      utctx->indentation++;
 }
 
 static struct u_trace_printer txt_printer = {

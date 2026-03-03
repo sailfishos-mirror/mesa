@@ -253,6 +253,9 @@ struct u_trace_context {
    uint32_t event_nr;
    bool start_of_frame;
 
+   /* State for printing timestamps. */
+   uint32_t indentation;
+
    void *dummy_indirect_data;
 
    /* list of unprocessed trace chunks in fifo order: */
