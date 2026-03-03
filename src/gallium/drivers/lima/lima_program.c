@@ -81,7 +81,6 @@ static const nir_shader_compiler_options fs_nir_options = {
    .lower_insert_byte = true,
    .lower_insert_word = true,
    .lower_bitops = true,
-   .lower_vector_cmp = true,
    .force_indirect_unrolling = (nir_var_shader_out | nir_var_function_temp),
    .force_indirect_unrolling_sampler = true,
    .max_unroll_iterations = 32,
@@ -173,6 +172,18 @@ lima_alu_to_scalar_filter_cb(const nir_instr *instr, const void *data)
 
    nir_alu_instr *alu = nir_instr_as_alu(instr);
    switch (alu->op) {
+   case nir_op_ball_fequal2:
+   case nir_op_ball_fequal3:
+   case nir_op_ball_fequal4:
+   case nir_op_bany_fnequal2:
+   case nir_op_bany_fnequal3:
+   case nir_op_bany_fnequal4:
+   case nir_op_ball_iequal2:
+   case nir_op_ball_iequal3:
+   case nir_op_ball_iequal4:
+   case nir_op_bany_inequal2:
+   case nir_op_bany_inequal3:
+   case nir_op_bany_inequal4:
    case nir_op_frcp:
    /* nir_op_idiv is lowered to frcp by lower_int_to_floats which
     * will be run later, so lower idiv here
