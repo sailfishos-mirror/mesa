@@ -628,11 +628,7 @@ brw_alu3(struct brw_codegen *p, unsigned opcode, struct brw_reg dest,
                                         to_3src_align1_hstride(src1.hstride));
 
       brw_eu_inst_set_3src_a1_src1_subreg_nr(devinfo, inst, phys_subnr(devinfo, src1));
-      if (src1.file == ARF) {
-         brw_eu_inst_set_3src_src1_reg_nr(devinfo, inst, BRW_ARF_ACCUMULATOR);
-      } else {
-         brw_eu_inst_set_3src_src1_reg_nr(devinfo, inst, phys_nr(devinfo, src1));
-      }
+      brw_eu_inst_set_3src_src1_reg_nr(devinfo, inst, phys_nr(devinfo, src1));
       brw_eu_inst_set_3src_src1_abs(devinfo, inst, src1.abs);
       brw_eu_inst_set_3src_src1_negate(devinfo, inst, src1.negate);
 
