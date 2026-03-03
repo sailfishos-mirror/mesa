@@ -25,7 +25,6 @@ static const nir_shader_compiler_options options = {
    /* .fdot_replicates = true, it is replicated, but it makes things worse */
    .vertex_id_zero_based = true, /* its not implemented anyway */
    .lower_bitops = true,
-   .lower_vector_cmp = true,
    .lower_fdph = true,
    .has_fsub = true,
    .has_isub = true,
@@ -1097,6 +1096,18 @@ ir2_alu_to_scalar_filter_cb(const nir_instr *instr, const void *data)
 
    nir_alu_instr *alu = nir_instr_as_alu(instr);
    switch (alu->op) {
+   case nir_op_ball_fequal2:
+   case nir_op_ball_fequal3:
+   case nir_op_ball_fequal4:
+   case nir_op_bany_fnequal2:
+   case nir_op_bany_fnequal3:
+   case nir_op_bany_fnequal4:
+   case nir_op_ball_iequal2:
+   case nir_op_ball_iequal3:
+   case nir_op_ball_iequal4:
+   case nir_op_bany_inequal2:
+   case nir_op_bany_inequal3:
+   case nir_op_bany_inequal4:
    case nir_op_frsq:
    case nir_op_frcp:
    case nir_op_flog2:
@@ -1129,11 +1140,11 @@ ir2_nir_compile(struct ir2_context *ctx, bool binning)
    OPT_V(ctx->nir, nir_opt_move, nir_move_comparisons);
 
    OPT_V(ctx->nir, nir_lower_int_to_float);
+   OPT_V(ctx->nir, nir_lower_alu_to_scalar, ir2_alu_to_scalar_filter_cb, NULL);
    OPT_V(ctx->nir, nir_lower_bool_to_float, true);
    while (OPT(ctx->nir, nir_opt_algebraic))
       ;
    OPT_V(ctx->nir, nir_opt_algebraic_late);
-   OPT_V(ctx->nir, nir_lower_alu_to_scalar, ir2_alu_to_scalar_filter_cb, NULL);
 
    OPT_V(ctx->nir, nir_convert_from_ssa, true, false);
 
