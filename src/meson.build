@@ -1,6 +1,11 @@
 # Copyright © 2017 Intel Corporation
 # SPDX-License-Identifier: MIT
 
+mesa_python_path = [
+  join_paths(dir_source_root, 'src/util/perf/'),
+  join_paths(dir_source_root, 'src/vulkan/util/'),
+]
+
 subdir('gtest')
 subdir('c11/impl')
 subdir('android_stub')
