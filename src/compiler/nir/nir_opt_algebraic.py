@@ -1522,29 +1522,6 @@ optimizations.extend([
    (('bf2f', a), ('pack_32_2x16', ('vec2', 0, a)), 'options->lower_bfloat16_conversions'),
 ])
 
-def vector_cmp(reduce_op, cmp_op, comps):
-   if len(comps) == 1:
-      return (cmp_op, 'a.' + comps[0], 'b.' + comps[0])
-   else:
-      mid = len(comps) // 2
-      return (reduce_op, vector_cmp(reduce_op, cmp_op, comps[:mid]),
-                         vector_cmp(reduce_op, cmp_op, comps[mid:]))
-
-for op in [
-   ('ball_iequal', 'ieq', 'iand'),
-   ('ball_fequal', 'feq', 'iand'),
-   ('bany_inequal', 'ine', 'ior'),
-   ('bany_fnequal', 'fneu', 'ior'),
-]:
-   # 4+ components skipped for being too slow under qemu testing
-   optimizations.extend([
-      ((op[0] + '2', a, b), vector_cmp(op[2], op[1], 'xy'), 'options->lower_vector_cmp'),
-      ((op[0] + '3', a, b), vector_cmp(op[2], op[1], 'xyz'), 'options->lower_vector_cmp'),
-      ((op[0] + '4', a, b), vector_cmp(op[2], op[1], 'xyzw'), 'options->lower_vector_cmp', TestStatus.UNSUPPORTED),
-      ((op[0] + '8', a, b), vector_cmp(op[2], op[1], 'abcdefgh'), 'options->lower_vector_cmp', TestStatus.UNSUPPORTED),
-      ((op[0] + '16', a, b), vector_cmp(op[2], op[1], 'abcdefghijklmnop'), 'options->lower_vector_cmp', TestStatus.UNSUPPORTED),
-   ])
-
 # D3D Boolean emulation
 for s in [8, 16, 32, 64]:
    cond = 'true'

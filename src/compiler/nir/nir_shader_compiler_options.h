@@ -291,9 +291,6 @@ typedef struct nir_shader_compiler_options {
    /* lower {slt,sge,seq,sne} to {flt,fge,feq,fneu} + b2f: */
    bool lower_scmp;
 
-   /* lower b/fall_equalN/b/fany_nequalN (ex:fany_nequal4 to sne+fdot4+fsat) */
-   bool lower_vector_cmp;
-
    /** enable rules to avoid bit ops */
    bool lower_bitops;
 
