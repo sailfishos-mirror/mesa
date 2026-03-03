@@ -27,8 +27,6 @@ kk_descriptor_state_fini(struct kk_cmd_buffer *cmd,
    for (unsigned i = 0; i < KK_MAX_SETS; i++) {
       vk_free(&pool->vk.alloc, desc->push[i]);
       desc->push[i] = NULL;
-      desc->sets[i] = NULL; /* We also need to set sets to NULL so state doesn't
-                               propagate if we reset it */
    }
 }
 
@@ -105,6 +103,8 @@ kk_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer,
 
    vk_command_buffer_reset(&cmd->vk);
    kk_cmd_release_resources(dev, cmd);
+
+   memset(&cmd->state, 0, sizeof(cmd->state));
 }
 
 const struct vk_command_buffer_ops kk_cmd_buffer_ops = {
@@ -210,7 +210,8 @@ kk_bind_descriptor_sets(struct kk_descriptor_state *desc,
             vk_to_kk_descriptor_set_layout(pipeline_layout->set_layouts[s]);
 
          if (set != NULL && set_layout->vk.dynamic_descriptor_count > 0) {
-            for (uint32_t j = 0; j < set_layout->vk.dynamic_descriptor_count; j++) {
+            for (uint32_t j = 0; j < set_layout->vk.dynamic_descriptor_count;
+                 j++) {
                struct kk_buffer_address addr = set->dynamic_buffers[j];
                addr.base_addr += info->pDynamicOffsets[next_dyn_offset + j];
                desc->root.dynamic_buffers[dyn_buffer_start + j] = addr;
