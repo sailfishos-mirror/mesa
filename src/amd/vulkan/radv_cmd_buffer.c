@@ -5713,6 +5713,15 @@ radv_gfx12_emit_hiz_wa_full(struct radv_cmd_buffer *cmd_buffer)
    if (!iview || !radv_image_has_hiz_metadata(iview->image))
       return;
 
+   /* Ignore the HiZ workaround for internal blits to properly update HiZ. It's required for dynamic
+    * rendering depth/stencil clears because the framebuffer isn't re-emitted and HiZ might have
+    * been disabled previously. The risk should be minimal and it's much better for performance.
+    */
+   if (cmd_buffer->state.meta.inside_meta_op) {
+      radv_gfx12_override_hiz_enable(cmd_buffer, true);
+      return;
+   }
+
    struct vk_depth_stencil_state ds = d->vk.ds;
    vk_optimize_depth_stencil_state(&ds, render->ds_att_aspects, true);
 
