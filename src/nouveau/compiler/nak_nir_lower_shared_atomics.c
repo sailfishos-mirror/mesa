@@ -1,4 +1,5 @@
 /*
+ * Copyright © 2026 Valve Corporation.
  * Copyright © 2025 Lorenzo Rossi
  * SPDX-License-Identifier: MIT
  */
@@ -27,7 +28,7 @@
  */
 
 static nir_def *
-lower_atomic_in_lock(nir_builder *b, nir_intrinsic_instr *intr, nir_def *loaded)
+lower_atomic_op(nir_builder *b, nir_intrinsic_instr *intr, nir_def *loaded)
 {
    // Assume we have the lock, the previous value is in loaded and we must
    // compute the value to store in the address.
@@ -73,7 +74,7 @@ lower_atomic_in_lock(nir_builder *b, nir_intrinsic_instr *intr, nir_def *loaded)
 }
 
 static nir_def *
-build_atomic(nir_builder *b, nir_intrinsic_instr *intr)
+build_kepler_atomic(nir_builder *b, nir_intrinsic_instr *intr)
 {
    // TODO: this is currently compiled down to ~20 instructions while
    //       CUDA can optimize the same code to only ~5.
@@ -88,7 +89,7 @@ build_atomic(nir_builder *b, nir_intrinsic_instr *intr)
       nir_def *is_locked = nir_u2u32(b, nir_channel(b, load, 1));
       nir_if *nif = nir_push_if(b, nir_ine_imm(b, is_locked, 0));
       {
-         nir_def *new_data = lower_atomic_in_lock(b, intr, loaded_data);
+         nir_def *new_data = lower_atomic_op(b, intr, loaded_data);
          nir_def *success = nir_store_shared_unlock_nv(b, 32, new_data, addr);
 
          nir_break_if(b, nir_ine_imm(b, success, 0));
@@ -109,7 +110,7 @@ nak_nir_lower_kepler_atomics_intrin(nir_builder *b,
       return false;
 
    b->cursor = nir_before_instr(&intrin->instr);
-   nir_def_replace(&intrin->def, build_atomic(b, intrin));
+   nir_def_replace(&intrin->def, build_kepler_atomic(b, intrin));
    return true;
 }
 
@@ -118,4 +119,69 @@ nak_nir_lower_kepler_shared_atomics(nir_shader *nir)
 {
    return nir_shader_intrinsics_pass(nir, nak_nir_lower_kepler_atomics_intrin,
                                      nir_metadata_none, NULL);
+}
+
+static nir_def *
+build_mesh_atomic(nir_builder *b, nir_intrinsic_instr *intrin)
+{
+   nir_def *current_value;
+   nir_def *offset = intrin->src[0].ssa;
+   nir_def *current_invocation = nir_load_subgroup_invocation(b);
+
+   /* Basic spin lock implementation */
+   nir_loop *loop = nir_push_loop(b);
+   {
+      /* First we check what active threads match our offset value */
+      nir_def *active_thread_mask = nir_match_any_nv(b, 32, offset);
+
+      /* Then we elect a thread to work in this loop iteration */
+      nir_def *elected_thread = nir_ufind_msb(b, active_thread_mask);
+
+      /* Check if the current invocation won and if so do the operation */
+      nir_if *if_body =
+         nir_push_if(b, nir_ieq(b, elected_thread, current_invocation));
+      {
+         current_value = nir_load_shared(b, 1, intrin->def.bit_size, offset,
+                                         .base = nir_intrinsic_base(intrin));
+         nir_def *new_value = lower_atomic_op(b, intrin, current_value);
+         nir_store_shared(b, new_value, offset,
+                          .base = nir_intrinsic_base(intrin));
+         nir_jump(b, nir_jump_break);
+      }
+      nir_pop_if(b, if_body);
+   }
+   nir_pop_loop(b, loop);
+
+   return current_value;
+}
+
+static bool
+nak_nir_lower_mesh_stages_shared_atomics_intrin(nir_builder *b,
+                                                nir_intrinsic_instr *intrin,
+                                                UNUSED void *_data)
+{
+   if (intrin->intrinsic != nir_intrinsic_shared_atomic &&
+       intrin->intrinsic != nir_intrinsic_shared_atomic_swap)
+      return false;
+
+   b->cursor = nir_before_instr(&intrin->instr);
+   nir_def_replace(&intrin->def, build_mesh_atomic(b, intrin));
+   return true;
+}
+
+bool
+nak_nir_lower_mesh_stages_shared_atomics(nir_shader *nir)
+{
+   if (!mesa_shader_stage_is_mesh(nir->info.stage))
+      return false;
+
+   /* The local workgroup should have been lowered to a single subgroup. */
+   ASSERTED uint16_t wg_sz = nir->info.workgroup_size[0] *
+                             nir->info.workgroup_size[1] *
+                             nir->info.workgroup_size[2];
+   assert(wg_sz <= NAK_SUBGROUP_SIZE);
+
+   return nir_shader_intrinsics_pass(
+      nir, nak_nir_lower_mesh_stages_shared_atomics_intrin, nir_metadata_none,
+      NULL);
 }
