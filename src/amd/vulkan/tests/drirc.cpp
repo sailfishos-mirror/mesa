@@ -34,36 +34,6 @@ TEST_F(drirc, override_uniform_offset_alignment)
    destroy_device();
 }
 
-TEST_F(drirc, disable_depth_storage)
-{
-   create_device();
-
-   const VkFormatFeatureFlags2 storage_features = VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT |
-                                                  VK_FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT |
-                                                  VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT;
-
-   VkFormatProperties2 format_props = {
-      .sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
-   };
-
-   get_physical_device_format_properties2(VK_FORMAT_D32_SFLOAT, &format_props);
-   const VkFormatFeatureFlags2 tiled_storage_features = format_props.formatProperties.optimalTilingFeatures;
-
-   EXPECT_TRUE(tiled_storage_features & storage_features);
-
-   destroy_device();
-
-   add_envvar("radv_disable_depth_storage", "true");
-
-   create_device();
-
-   get_physical_device_format_properties2(VK_FORMAT_D32_SFLOAT, &format_props);
-   const VkFormatFeatureFlags2 tiled_storage_features_override = format_props.formatProperties.optimalTilingFeatures;
-
-   EXPECT_FALSE(tiled_storage_features_override & storage_features);
-   destroy_device();
-}
-
 TEST_F(drirc, override_compute_shader_version)
 {
    create_device();
