@@ -97,19 +97,6 @@ struct lp_compute_shader_variant
 {
    struct gallivm_state *gallivm;
 
-   LLVMTypeRef jit_cs_context_type;
-   LLVMTypeRef jit_cs_context_ptr_type;
-   LLVMTypeRef jit_cs_thread_data_type;
-   LLVMTypeRef jit_resources_type;
-   LLVMTypeRef jit_resources_ptr_type;
-   LLVMTypeRef jit_cs_thread_data_ptr_type;
-
-   /* for mesh shaders */
-   LLVMTypeRef jit_vertex_header_type;
-   LLVMTypeRef jit_vertex_header_ptr_type;
-   LLVMTypeRef jit_prim_type;
-   LLVMValueRef function;
-   char *function_name;
    lp_jit_cs_func jit_function;
 
    /* Total number of LLVM instructions generated */

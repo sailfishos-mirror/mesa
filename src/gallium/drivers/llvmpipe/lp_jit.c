@@ -242,10 +242,10 @@ lp_jit_screen_init(struct llvmpipe_screen *screen)
 }
 
 
-static void
-lp_jit_create_cs_types(struct lp_compute_shader_variant *lp)
+void
+lp_jit_init_cs_types(struct gallivm_state *gallivm,
+                     struct lp_compute_shader_variant_jit *jit)
 {
-   struct gallivm_state *gallivm = lp->gallivm;
    LLVMContextRef lc = gallivm->context;
 
    /* struct lp_jit_cs_thread_data */
@@ -262,8 +262,8 @@ lp_jit_create_cs_types(struct lp_compute_shader_variant *lp)
       thread_data_type = LLVMStructTypeInContext(lc, elem_types,
                                                  ARRAY_SIZE(elem_types), 0);
 
-      lp->jit_cs_thread_data_type = thread_data_type;
-      lp->jit_cs_thread_data_ptr_type = LLVMPointerType(thread_data_type, 0);
+      jit->jit_cs_thread_data_type = thread_data_type;
+      jit->jit_cs_thread_data_ptr_type = LLVMPointerType(thread_data_type, 0);
    }
 
    /* struct lp_jit_cs_context */
@@ -282,10 +282,10 @@ lp_jit_create_cs_types(struct lp_compute_shader_variant *lp)
       LP_CHECK_STRUCT_SIZE(struct lp_jit_cs_context,
                            gallivm->target, cs_context_type);
 
-      lp->jit_cs_context_type = cs_context_type;
-      lp->jit_cs_context_ptr_type = LLVMPointerType(cs_context_type, 0);
-      lp->jit_resources_type = lp_build_jit_resources_type(gallivm);
-      lp->jit_resources_ptr_type = LLVMPointerType(lp->jit_resources_type, 0);
+      jit->jit_cs_context_type = cs_context_type;
+      jit->jit_cs_context_ptr_type = LLVMPointerType(cs_context_type, 0);
+      jit->jit_resources_type = lp_build_jit_resources_type(gallivm);
+      jit->jit_resources_ptr_type = LLVMPointerType(jit->jit_resources_type, 0);
    }
 
    if (gallivm_debug & GALLIVM_DEBUG_IR) {
@@ -293,13 +293,6 @@ lp_jit_create_cs_types(struct lp_compute_shader_variant *lp)
       fprintf(stderr, "%s", str);
       LLVMDisposeMessage(str);
    }
-}
-
-void
-lp_jit_init_cs_types(struct lp_compute_shader_variant *lp)
-{
-   if (!lp->jit_cs_context_ptr_type)
-      lp_jit_create_cs_types(lp);
 }
 
 void

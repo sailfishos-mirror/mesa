@@ -296,7 +296,8 @@ mesh_convert_to_aos(struct gallivm_state *gallivm,
 static void
 generate_compute(struct llvmpipe_context *lp,
                  struct lp_compute_shader *shader,
-                 struct lp_compute_shader_variant *variant)
+                 struct lp_compute_shader_variant *variant,
+                 struct lp_compute_shader_variant_jit *jit)
 {
    struct gallivm_state *gallivm = variant->gallivm;
    struct nir_shader *nir = shader->base.ir.nir;
@@ -342,8 +343,8 @@ generate_compute(struct llvmpipe_context *lp,
 
    snprintf(func_name_coro, sizeof(func_name), "cs_co_variant");
 
-   arg_types[CS_ARG_CONTEXT] = variant->jit_cs_context_ptr_type;       /* context */
-   arg_types[CS_ARG_RESOURCES]=  variant->jit_resources_ptr_type;
+   arg_types[CS_ARG_CONTEXT] = jit->jit_cs_context_ptr_type;       /* context */
+   arg_types[CS_ARG_RESOURCES]=  jit->jit_resources_ptr_type;
    arg_types[CS_ARG_BLOCK_X_SIZE] = int32_type;                        /* block_x_size */
    arg_types[CS_ARG_BLOCK_Y_SIZE] = int32_type;                        /* block_y_size */
    arg_types[CS_ARG_BLOCK_Z_SIZE] = int32_type;                        /* block_z_size */
@@ -355,11 +356,11 @@ generate_compute(struct llvmpipe_context *lp,
    arg_types[CS_ARG_GRID_SIZE_Z] = int32_type;                         /* grid_size_z */
    arg_types[CS_ARG_WORK_DIM] = int32_type;                            /* work dim */
    arg_types[CS_ARG_DRAW_ID] = int32_type;                             /* draw id */
-   if (variant->jit_vertex_header_ptr_type)
-      arg_types[CS_ARG_VERTEX_DATA] = variant->jit_vertex_header_ptr_type; /* mesh shaders only */
+   if (jit->jit_vertex_header_ptr_type)
+      arg_types[CS_ARG_VERTEX_DATA] = jit->jit_vertex_header_ptr_type; /* mesh shaders only */
    else
       arg_types[CS_ARG_VERTEX_DATA] = LLVMPointerType(LLVMInt8TypeInContext(gallivm->context), 0); /* mesh shaders only */
-   arg_types[CS_ARG_PER_THREAD_DATA] = variant->jit_cs_thread_data_ptr_type;  /* per thread data */
+   arg_types[CS_ARG_PER_THREAD_DATA] = jit->jit_cs_thread_data_ptr_type;  /* per thread data */
    arg_types[CS_ARG_CORO_SUBGROUP_COUNT] = int32_type;                 /* coro only - subgroup count */
    arg_types[CS_ARG_CORO_PARTIALS] = int32_type;                       /* coro only - partials */
    arg_types[CS_ARG_CORO_BLOCK_X_SIZE] = int32_type;                   /* coro block_x_size */
@@ -386,10 +387,9 @@ generate_compute(struct llvmpipe_context *lp,
       coro = function;
    }
 
-   variant->function = function;
-   variant->function_name = MALLOC(strlen(func_name)+1);
-   strcpy(variant->function_name, func_name);
-
+   jit->function = function;
+   jit->function_name = MALLOC(strlen(func_name)+1);
+   strcpy(jit->function_name, func_name);
 
    for (i = 0; i < CS_ARG_MAX - !is_mesh; ++i) {
       if (LLVMGetTypeKind(arg_types[i]) == LLVMPointerTypeKind) {
@@ -400,7 +400,7 @@ generate_compute(struct llvmpipe_context *lp,
       }
    }
 
-   if (variant->gallivm->cache->data_size) {
+   if (gallivm->cache->data_size) {
 #if GALLIVM_USE_ORCJIT
       gallivm_stub_func(gallivm, function);
       if (use_coro)
@@ -455,8 +455,8 @@ generate_compute(struct llvmpipe_context *lp,
 
    if (exec_list_length(&nir->functions) > 1) {
       LLVMTypeRef call_context_type = lp_build_cs_func_call_context(gallivm, cs_type.length,
-                                                                    variant->jit_cs_context_type,
-                                                                    variant->jit_resources_type);
+                                                                    jit->jit_cs_context_type,
+                                                                    jit->jit_resources_type);
       nir_foreach_function(func, nir) {
          if (func->is_entrypoint)
             continue;
@@ -531,8 +531,8 @@ generate_compute(struct llvmpipe_context *lp,
          params.mask = &mask;
          params.fns = fns;
          params.current_func = lfunc;
-         params.context_type = variant->jit_cs_context_type;
-         params.resources_type = variant->jit_resources_type;
+         params.context_type = jit->jit_cs_context_type;
+         params.resources_type = jit->jit_resources_type;
          params.call_context_ptr = call_context_ptr;
          params.context_ptr = LLVMBuildExtractValue(builder, call_context, LP_NIR_CALL_CONTEXT_CONTEXT, "");
          params.resources_ptr = LLVMBuildExtractValue(builder, call_context, LP_NIR_CALL_CONTEXT_RESOURCES, "");
@@ -555,16 +555,16 @@ generate_compute(struct llvmpipe_context *lp,
          params.system_values = &system_values;
 
          params.consts_ptr = lp_jit_resources_constants(gallivm,
-                                                        variant->jit_resources_type,
+                                                        jit->jit_resources_type,
                                                         params.resources_ptr);
          params.sampler = sampler;
          params.ssbo_ptr = lp_jit_resources_ssbos(gallivm,
-                                                  variant->jit_resources_type,
+                                                  jit->jit_resources_type,
                                                   params.resources_ptr);
          params.image = image;
 
          params.shared_size = lp_jit_cs_context_shared_size(gallivm,
-                                                            variant->jit_cs_context_type,
+                                                            jit->jit_cs_context_type,
                                                             params.context_ptr);
 
          lp_build_nir_soa_func(gallivm, shader->base.ir.nir,
@@ -757,14 +757,14 @@ generate_compute(struct llvmpipe_context *lp,
       struct lp_bld_tgsi_system_values system_values;
 
       memset(&system_values, 0, sizeof(system_values));
-      consts_ptr = lp_jit_resources_constants(gallivm, variant->jit_resources_type, resources_ptr);
-      ssbo_ptr = lp_jit_resources_ssbos(gallivm, variant->jit_resources_type, resources_ptr);
+      consts_ptr = lp_jit_resources_constants(gallivm, jit->jit_resources_type, resources_ptr);
+      ssbo_ptr = lp_jit_resources_ssbos(gallivm, jit->jit_resources_type, resources_ptr);
 
       shared_ptr = lp_jit_cs_thread_data_shared(gallivm,
-                                                variant->jit_cs_thread_data_type,
+                                                jit->jit_cs_thread_data_type,
                                                 thread_data_ptr);
       payload_ptr = lp_jit_cs_thread_data_payload(gallivm,
-                                                  variant->jit_cs_thread_data_type,
+                                                  jit->jit_cs_thread_data_type,
                                                   thread_data_ptr);
 
       /* these are coroutine entrypoint necessities */
@@ -875,16 +875,16 @@ generate_compute(struct llvmpipe_context *lp,
       params.mask = &mask;
       params.consts_ptr = consts_ptr;
       params.system_values = &system_values;
-      params.context_type = variant->jit_cs_context_type;
+      params.context_type = jit->jit_cs_context_type;
       params.context_ptr = context_ptr;
-      params.resources_type = variant->jit_resources_type;
+      params.resources_type = jit->jit_resources_type;
       params.resources_ptr = resources_ptr;
       params.sampler = sampler;
       params.ssbo_ptr = ssbo_ptr;
       params.image = image;
       params.shared_ptr = shared_ptr;
       params.shared_size = lp_jit_cs_context_shared_size(gallivm,
-                                                         variant->jit_cs_context_type,
+                                                         jit->jit_cs_context_type,
                                                          context_ptr);
 
       params.payload_ptr = payload_ptr;
@@ -940,7 +940,7 @@ generate_compute(struct llvmpipe_context *lp,
          io = LLVMBuildPtrToInt(gallivm->builder, io_ptr, LLVMInt64TypeInContext(gallivm->context),  "");
          io = LLVMBuildAdd(builder, io, LLVMBuildZExt(builder, LLVMBuildMul(builder, vertex_loop_state.counter, lp_build_const_int32(gallivm, vsize), ""), LLVMInt64TypeInContext(gallivm->context), ""), "");
          io = LLVMBuildIntToPtr(gallivm->builder, io, LLVMPointerType(LLVMVoidTypeInContext(gallivm->context), 0), "");
-         mesh_convert_to_aos(gallivm, shader->base.ir.nir, true, variant->jit_vertex_header_type,
+         mesh_convert_to_aos(gallivm, shader->base.ir.nir, true, jit->jit_vertex_header_type,
                              io, output_array, clipmask,
                              vertex_loop_state.counter, lp_elem_type(cs_type), -1, false);
          lp_build_loop_end_cond(&vertex_loop_state,
@@ -955,7 +955,7 @@ generate_compute(struct llvmpipe_context *lp,
          prim_offset = LLVMBuildAdd(builder, prim_offset, lp_build_const_int32(gallivm, vsize * (nir->info.mesh.max_vertices_out + 8)), "");
          io = LLVMBuildAdd(builder, io, LLVMBuildZExt(builder, prim_offset, LLVMInt64TypeInContext(gallivm->context), ""), "");
          io = LLVMBuildIntToPtr(gallivm->builder, io, LLVMPointerType(LLVMVoidTypeInContext(gallivm->context), 0), "");
-         mesh_convert_to_aos(gallivm, shader->base.ir.nir, false, variant->jit_prim_type,
+         mesh_convert_to_aos(gallivm, shader->base.ir.nir, false, jit->jit_prim_type,
                              io, output_array, clipmask,
                              prim_loop_state.counter, lp_elem_type(cs_type), -1, false);
          lp_build_loop_end_cond(&prim_loop_state,
@@ -1083,7 +1083,6 @@ llvmpipe_remove_cs_shader_variant(struct llvmpipe_context *lp,
    lp->nr_cs_variants--;
    lp->nr_cs_instrs -= variant->nr_instrs;
 
-   FREE(variant->function_name);
    FREE(variant);
 }
 
@@ -1326,7 +1325,8 @@ generate_variant(struct llvmpipe_context *lp,
       lp_debug_cs_variant(variant);
    }
 
-   lp_jit_init_cs_types(variant);
+   struct lp_compute_shader_variant_jit jit = { 0 };
+   lp_jit_init_cs_types(variant->gallivm, &jit);
 
    struct nir_shader *nir = shader->base.ir.nir;
    variant->stage = nir->info.stage;
@@ -1335,12 +1335,12 @@ generate_variant(struct llvmpipe_context *lp,
       int per_prim_count = util_bitcount64(nir->info.per_primitive_outputs);
       int out_count = util_bitcount64(nir->info.outputs_written);
       int per_vert_count = out_count - per_prim_count;
-      variant->jit_vertex_header_type = lp_build_create_jit_vertex_header_type(variant->gallivm, per_vert_count);
-      variant->jit_vertex_header_ptr_type = LLVMPointerType(variant->jit_vertex_header_type, 0);
-      variant->jit_prim_type = LLVMArrayType(LLVMArrayType(LLVMFloatTypeInContext(variant->gallivm->context), 4), per_prim_count);
+      jit.jit_vertex_header_type = lp_build_create_jit_vertex_header_type(variant->gallivm, per_vert_count);
+      jit.jit_vertex_header_ptr_type = LLVMPointerType(jit.jit_vertex_header_type, 0);
+      jit.jit_prim_type = LLVMArrayType(LLVMArrayType(LLVMFloatTypeInContext(variant->gallivm->context), 4), per_prim_count);
    }
 
-   generate_compute(lp, shader, variant);
+   generate_compute(lp, shader, variant, &jit);
 
 #if GALLIVM_USE_ORCJIT
 /* module has been moved into ORCJIT after gallivm_compile_module */
@@ -1354,11 +1354,12 @@ generate_variant(struct llvmpipe_context *lp,
 #endif
 
    variant->jit_function = (lp_jit_cs_func)
-      gallivm_jit_function(variant->gallivm, variant->function, variant->function_name);
+      gallivm_jit_function(variant->gallivm, jit.function, jit.function_name);
 
    if (needs_caching) {
       lp_disk_cache_insert_shader(screen, &cached, ir_blake3_cache_key);
    }
+   FREE(jit.function_name);
    gallivm_free_ir(variant->gallivm);
    return variant;
 }
