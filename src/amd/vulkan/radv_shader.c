@@ -664,14 +664,11 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
 
    bool lower_local_invocation_index = false;
 
-   if (nir->info.derivative_group == DERIVATIVE_GROUP_QUADS &&
-       ((nir->info.stage == MESA_SHADER_COMPUTE || nir->info.stage == MESA_SHADER_TASK ||
-         (nir->info.stage == MESA_SHADER_MESH && pdev->info.mesh_fast_launch_2)))) {
-      lower_local_invocation_index = true;
-   } else if (nir->info.stage == MESA_SHADER_COMPUTE &&
-              (((nir->info.workgroup_size[0] == 1) + (nir->info.workgroup_size[1] == 1) +
-                (nir->info.workgroup_size[2] == 1)) == 2)) {
-      lower_local_invocation_index = true;
+   if (nir->info.stage == MESA_SHADER_COMPUTE || nir->info.stage == MESA_SHADER_TASK ||
+       (nir->info.stage == MESA_SHADER_MESH && pdev->info.mesh_fast_launch_2)) {
+      lower_local_invocation_index = nir->info.derivative_group == DERIVATIVE_GROUP_QUADS ||
+                                     (((nir->info.workgroup_size[0] == 1) + (nir->info.workgroup_size[1] == 1) +
+                                       (nir->info.workgroup_size[2] == 1)) == 2);
    }
 
    nir_lower_compute_system_values_options csv_options = {
