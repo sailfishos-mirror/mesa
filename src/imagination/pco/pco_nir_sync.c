@@ -124,8 +124,7 @@ lower_usclib_atomic(nir_builder *b, nir_instr *instr, void *cb_data)
    }
 
    nir_def *addr_data = intr->src[0].ssa;
-   nir_def *addr_lo = nir_channel(b, addr_data, 0);
-   nir_def *addr_hi = nir_channel(b, addr_data, 1);
+   nir_def *addr = nir_channels(b, addr_data, BITFIELD_RANGE(0, 2));
    nir_def *value = nir_channel(b, addr_data, 2);
    nir_def *value_swap = nir_channel(b, addr_data, 3);
 
@@ -134,11 +133,7 @@ lower_usclib_atomic(nir_builder *b, nir_instr *instr, void *cb_data)
    assert(num_components == 1 && bit_size == 32);
 
    *uses_usclib = true;
-   return usclib_emu_global_atomic_comp_swap(b,
-                                             addr_lo,
-                                             addr_hi,
-                                             value,
-                                             value_swap);
+   return usclib_emu_global_atomic_comp_swap(b, addr, value, value_swap);
 }
 
 static bool lower_global_atomic_intrinsic(nir_builder *b,
