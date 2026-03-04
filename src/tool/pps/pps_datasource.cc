@@ -263,8 +263,6 @@ void GpuDataSource::trace(TraceContext &ctx)
       {
          // Counter descriptions
          auto packet = ctx.NewTracePacket();
-         packet->set_timestamp_clock_id(perfetto::protos::pbzero::BUILTIN_CLOCK_BOOTTIME);
-         packet->set_timestamp(descriptor_timestamp);
          auto event = packet->set_gpu_counter_event();
          event->set_gpu_id(driver->drm_device.gpu_num);
 
