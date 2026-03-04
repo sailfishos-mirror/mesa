@@ -396,6 +396,25 @@ static bool try_legalize_large_hwreg_offsets(pco_instr *instr,
    return true;
 }
 
+static bool try_legalize_ditr_fence(pco_instr *instr)
+{
+   if (instr->op != PCO_OP_DITR && instr->op != PCO_OP_DITRP)
+      return false;
+
+   pco_builder b =
+      pco_builder_create(instr->parent_func, pco_cursor_before_instr(instr));
+   pco_flush_p0(&b);
+   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z1);
+   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z0);
+
+   b.cursor = pco_cursor_after_instr(instr);
+   pco_flush_p0(&b);
+   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z1);
+   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z0);
+
+   return true;
+}
+
 /**
  * \brief Try to legalizes an instruction.
  *
@@ -439,5 +458,26 @@ bool pco_legalize(pco_shader *shader)
    }
 
    shader->is_legalized = true;
+   return progress;
+}
+
+/**
+ * \brief Post-RA legalization pass.
+ *
+ * \param[in,out] shader PCO shader.
+ * \return True if the pass made progress.
+ */
+bool pco_post_ra_legalize(pco_shader *shader)
+{
+   bool progress = false;
+
+   assert(!shader->is_grouped);
+
+   pco_foreach_func_in_shader (func, shader) {
+      pco_foreach_instr_in_func_safe (instr, func) {
+         progress |= try_legalize_ditr_fence(instr);
+      }
+   }
+
    return progress;
 }

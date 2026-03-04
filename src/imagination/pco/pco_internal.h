@@ -1781,6 +1781,7 @@ bool pco_const_imms(pco_shader *shader);
 bool pco_bool(pco_shader *shader);
 bool pco_cf(pco_shader *shader);
 bool pco_dce(pco_shader *shader);
+bool pco_post_ra_legalize(pco_shader *shader);
 bool pco_end(pco_shader *shader);
 bool pco_group_instrs(pco_shader *shader);
 bool pco_index(pco_shader *shader, bool skip_ssa);

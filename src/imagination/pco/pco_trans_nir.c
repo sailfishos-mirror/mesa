@@ -44,13 +44,6 @@ static pco_block *trans_cf_nodes(trans_ctx *tctx,
                                  struct list_head *cf_node_list,
                                  struct exec_list *nir_cf_node_list);
 
-static inline void pco_fence(pco_builder *b)
-{
-   pco_flush_p0(b);
-   pco_br_next(b, .exec_cnd = PCO_EXEC_CND_E1_Z1);
-   pco_br_next(b, .exec_cnd = PCO_EXEC_CND_E1_Z0);
-}
-
 /**
  * \brief Splits a vector destination into scalar components.
  *
@@ -325,13 +318,7 @@ static inline pco_instr *build_itr(pco_builder *b,
 
    pco_instr_set_itr_mode(instr, itr_mode);
 
-   if (d)
-      pco_fence(b);
-
    pco_builder_insert_instr(b, instr);
-
-   if (d)
-      pco_fence(b);
 
    return instr;
 }
