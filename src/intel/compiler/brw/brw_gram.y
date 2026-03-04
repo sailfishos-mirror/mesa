@@ -1634,7 +1634,7 @@ accreg:
 
       memset(&$$, '\0', sizeof($$));
       $$.file = ARF;
-      $$.nr = BRW_ARF_ACCUMULATOR;
+      $$.nr = BRW_ARF_ACCUMULATOR + $1;
       $$.subnr = $2;
    }
    ;
