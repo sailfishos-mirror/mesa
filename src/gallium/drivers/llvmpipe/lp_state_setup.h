@@ -59,14 +59,6 @@ struct lp_setup_variant {
 
    struct gallivm_state *gallivm;
 
-   /* XXX: this is a pointer to the LLVM IR.  Once jit_function is
-    * generated, we never need to use the IR again - need to find a
-    * way to release this data without destroying the generated
-    * assembly.
-    */
-   LLVMValueRef function;
-   char *function_name;
-
    /* The actual generated setup function:
     */
    lp_jit_setup_triangle jit_function;

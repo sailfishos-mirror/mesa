@@ -687,29 +687,24 @@ generate_setup_variant(struct lp_setup_variant_key *key,
       LLVMFunctionType(LLVMVoidTypeInContext(gallivm->context),
                        arg_types, ARRAY_SIZE(arg_types), 0);
 
-   variant->function = LLVMAddFunction(gallivm->module, func_name, func_type);
-   if (!variant->function)
+   LLVMValueRef function = LLVMAddFunction(gallivm->module, func_name, func_type);
+   if (!function)
       goto fail;
 
-   variant->function_name = MALLOC(strlen(func_name)+1);
-   if (!variant->function_name)
-      goto fail;
+   LLVMSetFunctionCallConv(function, LLVMCCallConv);
 
-   strcpy(variant->function_name, func_name);
-   LLVMSetFunctionCallConv(variant->function, LLVMCCallConv);
-
-   lp_function_add_debug_info(gallivm, variant->function, func_type);
+   lp_function_add_debug_info(gallivm, function, func_type);
 
    struct lp_setup_args args;
    args.vec4f_type = vec4f_type;
-   args.v0       = LLVMGetParam(variant->function, 0);
-   args.v1       = LLVMGetParam(variant->function, 1);
-   args.v2       = LLVMGetParam(variant->function, 2);
-   args.facing   = LLVMGetParam(variant->function, 3);
-   args.a0       = LLVMGetParam(variant->function, 4);
-   args.dadx     = LLVMGetParam(variant->function, 5);
-   args.dady     = LLVMGetParam(variant->function, 6);
-   args.key      = LLVMGetParam(variant->function, 7);
+   args.v0       = LLVMGetParam(function, 0);
+   args.v1       = LLVMGetParam(function, 1);
+   args.v2       = LLVMGetParam(function, 2);
+   args.facing   = LLVMGetParam(function, 3);
+   args.a0       = LLVMGetParam(function, 4);
+   args.dadx     = LLVMGetParam(function, 5);
+   args.dady     = LLVMGetParam(function, 6);
+   args.key      = LLVMGetParam(function, 7);
 
    lp_build_name(args.v0, "in_v0");
    lp_build_name(args.v1, "in_v1");
@@ -725,21 +720,21 @@ generate_setup_variant(struct lp_setup_variant_key *key,
     */
    LLVMBasicBlockRef block =
       LLVMAppendBasicBlockInContext(gallivm->context,
-                                    variant->function, "entry");
+                                    function, "entry");
    LLVMPositionBuilderAtEnd(builder, block);
 
-   set_noalias(builder, variant->function, arg_types, ARRAY_SIZE(arg_types));
+   set_noalias(builder, function, arg_types, ARRAY_SIZE(arg_types));
    init_args(gallivm, &variant->key, &args);
    emit_tri_coef(gallivm, &variant->key, &args);
 
    LLVMBuildRetVoid(builder);
 
-   gallivm_verify_function(gallivm, variant->function);
+   gallivm_verify_function(gallivm, function);
 
    gallivm_compile_module(gallivm);
 
    variant->jit_function = (lp_jit_setup_triangle)
-      gallivm_jit_function(gallivm, variant->function, variant->function_name);
+      gallivm_jit_function(gallivm, function, func_name);
    if (!variant->jit_function)
       goto fail;
 
@@ -758,7 +753,6 @@ generate_setup_variant(struct lp_setup_variant_key *key,
 
 fail:
    if (variant) {
-      FREE(variant->function_name);
       if (variant->gallivm) {
          gallivm_destroy(variant->gallivm);
       }
@@ -846,7 +840,6 @@ remove_setup_variant(struct llvmpipe_context *lp,
 
    list_del(&variant->list_item_global.list);
    lp->nr_setup_variants--;
-   FREE(variant->function_name);
    FREE(variant);
 }
 
