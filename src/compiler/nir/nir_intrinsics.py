@@ -2585,7 +2585,7 @@ store("shared_block_intel", [1], [BASE, ALIGN_MUL, ALIGN_OFFSET])
 
 # src[] = { address }.
 load("global_constant_uniform_block_intel", [1],
-     [ACCESS, ALIGN_MUL, ALIGN_OFFSET], [CAN_ELIMINATE, CAN_REORDER])
+     [ACCESS, ALIGN_MUL, ALIGN_OFFSET, BASE], [CAN_ELIMINATE, CAN_REORDER])
 
 # Similar to load_global_const_block_intel but for UBOs
 # offset should be uniform
