@@ -264,8 +264,15 @@ brw_set_src1(struct brw_codegen *p, brw_eu_inst *inst, struct brw_reg reg)
        *
        *    "Accumulator registers may be accessed explicitly as src0
        *    operands only."
+       *
+       * Bspec 47251 (r48459) says for [ACM, ACMPLUS, ATS, PVC, RLT, MAR, MTL,
+       * ARL]:
+       *
+       *    Accumulator registers may be accessed explicitly on src0 and src1
+       *    operand.
        */
-      assert(!brw_reg_is_arf(reg, BRW_ARF_ACCUMULATOR));
+      assert(devinfo->verx10 >= 125 ||
+             !brw_reg_is_arf(reg, BRW_ARF_ACCUMULATOR));
 
       brw_eu_inst_set_src1_file_type(devinfo, inst, phys_file(reg), reg.type);
       brw_eu_inst_set_src1_abs(devinfo, inst, reg.abs);
