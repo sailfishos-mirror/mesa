@@ -135,7 +135,7 @@ VOPDInfo
 get_vopd_info(const SchedILPContext& ctx, const Instruction* instr)
 {
    if (instr->format != Format::VOP1 && instr->format != Format::VOP2 &&
-       instr->format != Format::VOP3)
+       instr->format != Format::VOP3 && instr->format != Format::VOP3P)
       return VOPDInfo();
 
    VOPDInfo info;
@@ -209,6 +209,48 @@ get_vopd_info(const SchedILPContext& ctx, const Instruction* instr)
          info.is_commutative = false;
          info.operand_swizzle = constant_idx == 0 ? 0b11'10'01 : 0b11'10'00;
       }
+      break;
+   }
+   case aco_opcode::v_dot2_f32_f16:
+   case aco_opcode::v_dot2_f32_bf16: {
+      bool bf16 = instr->opcode == aco_opcode::v_dot2_f32_bf16;
+      /* src2 must be the same as the destination. */
+      if (!instr->operands[2].isOfType(RegType::vgpr) ||
+          instr->operands[2].physReg() != instr->definitions[0].physReg() ||
+          instr->valu().clamp)
+         return VOPDInfo();
+
+      /* One pair of factors must be a vgpr. */
+      if (!instr->operands[0].isOfType(RegType::vgpr) &&
+          !instr->operands[1].isOfType(RegType::vgpr))
+         return VOPDInfo();
+
+      for (unsigned i = 0; i < 3; i++) {
+         if (!instr->operands[i].isConstant() &&
+             (instr->valu().neg_lo[i] || instr->valu().neg_hi[i] || instr->valu().opsel_lo[i] ||
+              !instr->valu().opsel_hi[i]))
+            return VOPDInfo();
+         if (instr->operands[i].isConstant() &&
+             (instr->operands[i].isLiteral() || instr->valu().neg_lo[i] ||
+              instr->valu().neg_hi[i] || instr->valu().opsel_lo[i] != bf16 ||
+              instr->valu().opsel_hi[i] != bf16)) {
+            info.has_literal = true;
+            info.literal = instr->operands[i].constantValue();
+            uint32_t lo = (info.literal >> (instr->valu().opsel_lo[i] * 16)) & 0xffff;
+            uint32_t hi = (info.literal >> (instr->valu().opsel_hi[i] * 16)) & 0xffff;
+            lo ^= instr->valu().neg_lo[i] ? 0x8000 : 0;
+            hi ^= instr->valu().neg_hi[i] ? 0x8000 : 0;
+            info.literal = lo | (hi << 16);
+         }
+      }
+
+      if (!instr->operands[1].isOfType(RegType::vgpr))
+         info.operand_swizzle = 0b10'00'01;
+
+      if (info.has_literal)
+         info.operand_swizzle |= 0b11;
+
+      info.op = bf16 ? aco_opcode::v_dual_dot2acc_f32_bf16 : aco_opcode::v_dual_dot2acc_f32_f16;
       break;
    }
    default: return VOPDInfo();
