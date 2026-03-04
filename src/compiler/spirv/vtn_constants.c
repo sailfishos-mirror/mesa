@@ -150,6 +150,355 @@ handle_workgroup_size_decoration_cb(struct vtn_builder *b,
    b->workgroup_size_builtin = val;
 }
 
+static void
+vtn_handle_spec_constant_op(struct vtn_builder *b, struct vtn_value *val,
+                            const uint32_t *w, unsigned count)
+{
+   nir_const_value u32op = nir_const_value_for_uint(w[3], 32);
+   vtn_foreach_decoration(b, val, spec_constant_decoration_cb, &u32op);
+   SpvOp opcode = u32op.u32;
+
+   switch (opcode) {
+   case SpvOpBitcast: {
+      struct vtn_value *src = &b->values[w[4]];
+
+      vtn_assert(src->value_type == vtn_value_type_constant ||
+                 src->value_type == vtn_value_type_undef);
+
+      unsigned src_len = glsl_get_vector_elements(src->type->type);
+      unsigned dst_len = glsl_get_vector_elements(val->type->type);
+
+      unsigned src_bit_size = glsl_get_bit_size(src->type->type);
+      unsigned dst_bit_size = glsl_get_bit_size(val->type->type);
+
+      vtn_assert(src_len * src_bit_size == dst_len * dst_bit_size);
+
+      /* This will end up being zero */
+      if (src->value_type == vtn_value_type_undef)
+         break;
+
+      if (src_bit_size == dst_bit_size) {
+         /* This is just a copy */
+         for (unsigned i = 0; i < src_len; i++)
+            val->constant->values[i] = src->constant->values[i];
+      } else {
+         /* You can't non-trivially bitcast booleans */
+         vtn_assert(src_bit_size >= 8 && dst_bit_size >= 8);
+         const unsigned src_byte_size = src_bit_size / 8;
+         const unsigned dst_byte_size = dst_bit_size / 8;
+
+         vtn_assert(src_len <= NIR_MAX_VEC_COMPONENTS &&
+                    dst_len <= NIR_MAX_VEC_COMPONENTS);
+
+         uint8_t bits[NIR_MAX_VEC_COMPONENTS * sizeof(nir_const_value)];
+
+         for (unsigned i = 0; i < src_len; i++) {
+            uint64_t v = nir_const_value_as_int(src->constant->values[i],
+                                                src_bit_size);
+            memcpy(bits + i * src_byte_size, &v, src_byte_size);
+         }
+
+         for (unsigned i = 0; i < dst_len; i++) {
+            uint64_t v = 0;
+            memcpy(&v, bits + i * dst_byte_size, dst_byte_size);
+            val->constant->values[i] =
+               nir_const_value_for_uint(v, dst_bit_size);
+         }
+      }
+      break;
+   }
+   case SpvOpVectorShuffle: {
+      struct vtn_value *v0 = &b->values[w[4]];
+      struct vtn_value *v1 = &b->values[w[5]];
+
+      vtn_assert(v0->value_type == vtn_value_type_constant ||
+                 v0->value_type == vtn_value_type_undef);
+      vtn_assert(v1->value_type == vtn_value_type_constant ||
+                 v1->value_type == vtn_value_type_undef);
+
+      unsigned len0 = glsl_get_vector_elements(v0->type->type);
+      unsigned len1 = glsl_get_vector_elements(v1->type->type);
+
+      vtn_assert(len0 + len1 < 16);
+
+      unsigned bit_size = glsl_get_bit_size(val->type->type);
+      unsigned bit_size0 = glsl_get_bit_size(v0->type->type);
+      unsigned bit_size1 = glsl_get_bit_size(v1->type->type);
+
+      vtn_assert(bit_size == bit_size0 && bit_size == bit_size1);
+      (void)bit_size0; (void)bit_size1;
+
+      nir_const_value undef =
+         nir_const_value_for_raw_uint(0xdeadbeefdeadbeef, bit_size);
+      nir_const_value combined[NIR_MAX_VEC_COMPONENTS * 2];
+
+      if (v0->value_type == vtn_value_type_constant) {
+         for (unsigned i = 0; i < len0; i++)
+            combined[i] = v0->constant->values[i];
+      }
+      if (v1->value_type == vtn_value_type_constant) {
+         for (unsigned i = 0; i < len1; i++)
+            combined[len0 + i] = v1->constant->values[i];
+      }
+
+      for (unsigned i = 0, j = 0; i < count - 6; i++, j++) {
+         uint32_t comp = w[i + 6];
+         if (comp == (uint32_t)-1) {
+            /* If component is not used, set the value to a known constant
+             * to detect if it is wrongly used.
+             */
+            val->constant->values[j] = undef;
+         } else {
+            vtn_fail_if(comp >= len0 + len1,
+                        "All Component literals must either be FFFFFFFF "
+                        "or in [0, N - 1] (inclusive).");
+            val->constant->values[j] = combined[comp];
+         }
+      }
+      break;
+   }
+
+   case SpvOpCompositeExtract:
+   case SpvOpCompositeInsert: {
+      struct vtn_value *comp;
+      unsigned deref_start;
+      struct nir_constant **c;
+      if (opcode == SpvOpCompositeExtract) {
+         comp = vtn_value(b, w[4], vtn_value_type_constant);
+         deref_start = 5;
+         c = &comp->constant;
+      } else {
+         comp = vtn_value(b, w[5], vtn_value_type_constant);
+         deref_start = 6;
+         val->constant = nir_constant_clone(comp->constant, b->shader);
+         c = &val->constant;
+      }
+
+      int elem = -1;
+      const struct vtn_type *type = comp->type;
+      for (unsigned i = deref_start; i < count; i++) {
+         if (type->base_type == vtn_base_type_cooperative_matrix) {
+            /* Cooperative matrices are always scalar constants.  We don't
+             * care about the index w[i] because it's always replicated.
+             */
+            type = type->component_type;
+         } else {
+            vtn_fail_if(w[i] >= type->length,
+                        "%uth index of %s is %u but the type has only "
+                        "%u elements", i - deref_start,
+                        spirv_op_to_string(opcode), w[i], type->length);
+
+            switch (type->base_type) {
+            case vtn_base_type_vector:
+               elem = w[i];
+               type = type->array_element;
+               break;
+
+            case vtn_base_type_matrix:
+            case vtn_base_type_array:
+               c = &(*c)->elements[w[i]];
+               type = type->array_element;
+               break;
+
+            case vtn_base_type_struct:
+               c = &(*c)->elements[w[i]];
+               type = type->members[w[i]];
+               break;
+
+            default:
+               vtn_fail("%s must only index into composite types",
+                        spirv_op_to_string(opcode));
+            }
+         }
+      }
+
+      if (opcode == SpvOpCompositeExtract) {
+         if (elem == -1) {
+            val->constant = *c;
+         } else {
+            unsigned num_components = type->length;
+            for (unsigned i = 0; i < num_components; i++)
+               val->constant->values[i] = (*c)->values[elem + i];
+         }
+      } else {
+         struct vtn_value *insert =
+            vtn_value(b, w[4], vtn_value_type_constant);
+         vtn_assert(insert->type == type);
+         if (elem == -1) {
+            *c = insert->constant;
+         } else {
+            unsigned num_components = type->length;
+            for (unsigned i = 0; i < num_components; i++)
+               (*c)->values[elem + i] = insert->constant->values[i];
+         }
+      }
+      break;
+   }
+
+   case SpvOpSelect: {
+      struct vtn_value *cond = vtn_value(b, w[4], vtn_value_type_constant);
+      vtn_fail_if(!glsl_type_is_boolean(cond->type->type),
+                  "Condition of OpSelect must be a Boolean");
+
+      if (glsl_type_is_scalar(cond->type->type)) {
+         const uint32_t obj = cond->constant->values[0].b ? w[5] : w[6];
+         val->constant = vtn_value(b, obj, vtn_value_type_constant)->constant;
+      } else {
+         vtn_fail_if(glsl_get_vector_elements(cond->type->type) !=
+                     glsl_get_vector_elements(val->type->type),
+                     "Vector Condition of OpSelect must have the same "
+                     "number of components as the Result Type");
+
+         nir_constant *c1 = vtn_value(b, w[5], vtn_value_type_constant)->constant;
+         nir_constant *c2 = vtn_value(b, w[6], vtn_value_type_constant)->constant;
+
+         unsigned num_components = glsl_get_vector_elements(val->type->type);
+         for (unsigned i = 0; i < num_components; i++) {
+            val->constant->values[i] = cond->constant->values[i].b ?
+               c1->values[i] : c2->values[i];
+         }
+      }
+      break;
+   }
+
+   default: {
+      const glsl_type *dst_type = val->type->type;
+
+      const bool saturate = vtn_has_decoration(b, val, SpvDecorationSaturatedToLargestFloat8NormalConversionEXT);
+      unsigned num_components = glsl_get_vector_elements(val->type->type);
+
+      vtn_assert(count <= 7);
+
+      const unsigned src_count = count - 4;
+      struct vtn_value *src_val[3] = {0};
+      const glsl_type *src_type[3] = {0};
+
+      for (unsigned i = 0; i < src_count; i++) {
+         src_val[i] = vtn_value(b, w[4 + i], vtn_value_type_constant);
+         src_type[i] = src_val[i]->type->type;
+      }
+
+      const unsigned dst_bit_size =
+         glsl_type_is_nonnative_float(dst_type) ? 32 : glsl_get_bit_size(dst_type);
+
+      nir_op op;
+      bool swap;
+
+      switch (opcode) {
+      case SpvOpConvertFToU:
+      case SpvOpConvertFToS:
+      case SpvOpConvertSToF:
+      case SpvOpConvertUToF:
+      case SpvOpSConvert:
+      case SpvOpFConvert:
+      case SpvOpUConvert: {
+         /* We have a different source type in a conversion. */
+         const unsigned conv_src_bit_size =
+            glsl_type_is_nonnative_float(src_type[0]) ? 32 : glsl_get_bit_size(src_type[0]);
+
+         nir_alu_type src_alu_type = vtn_convert_op_src_type(opcode) | conv_src_bit_size;
+         nir_alu_type dst_alu_type = vtn_convert_op_dst_type(opcode) | dst_bit_size;
+         op = nir_type_conversion_op(src_alu_type, dst_alu_type, nir_rounding_mode_undef);
+         swap = false;
+         break;
+      }
+
+      default: {
+         unsigned extra_fp_math_ctrl;
+         op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl);
+
+         /* No SPIR-V opcodes handled through this path should set fast math.
+          * Since it is ignored, assert on it.
+          */
+         assert(!extra_fp_math_ctrl);
+         break;
+      }
+      };
+
+      unsigned resolved_bit_size = dst_bit_size;
+
+      nir_const_value src[3][NIR_MAX_VEC_COMPONENTS];
+
+      for (unsigned i = 0; i < src_count; i++) {
+         /* If this is an unsized source, pull the bit size from the
+          * source; otherwise, we'll use the bit size from the destination.
+          */
+         if (!nir_alu_type_get_type_size(nir_op_infos[op].input_types[i])) {
+            resolved_bit_size = glsl_type_is_nonnative_float(src_type[i]) ?
+               32 : glsl_get_bit_size(src_type[i]);
+         }
+
+         unsigned src_comps = nir_op_infos[op].input_sizes[i] ?
+                              nir_op_infos[op].input_sizes[i] :
+                              num_components;
+
+         unsigned j = swap ? 1 - i : i;
+         for (unsigned c = 0; c < src_comps; c++) {
+            src[j][c] = src_val[i]->constant->values[c];
+            if (glsl_type_is_bfloat_16(src_type[i]))
+               src[j][c].f32 = _mesa_bfloat16_bits_to_float(src[j][c].u16);
+            else if (glsl_type_is_e4m3fn(src_type[i]))
+               src[j][c].f32 = _mesa_e4m3fn_to_float(src[j][c].u8);
+            else if (glsl_type_is_e5m2(src_type[i]))
+               src[j][c].f32 = _mesa_e5m2_to_float(src[j][c].u8);
+         }
+
+         /* Fix up source to respect NIR expected sizes. */
+         switch (op) {
+         case nir_op_ishl:
+         case nir_op_ishr:
+         case nir_op_ushr: {
+            /* Shift amount in NIR ops must be 32-bit. */
+            vtn_assert(!swap);
+            const unsigned shift_idx = 1;
+            const unsigned shift_bit_size = glsl_get_bit_size(src_type[i]);
+            if (i != shift_idx || shift_bit_size == 32)
+               break;
+            for (unsigned c = 0; c < src_comps; c++) {
+               nir_const_value *shift = &src[shift_idx][c];
+               *shift = nir_const_value_for_uint(
+                     nir_const_value_as_uint(*shift, shift_bit_size), 32);
+            }
+            break;
+         }
+         default:
+            break;
+         }
+      }
+
+      nir_const_value *srcs[3] = {
+         src[0], src[1], src[2],
+      };
+      nir_eval_const_opcode(op, val->constant->values, NULL,
+                            num_components, resolved_bit_size, srcs,
+                            b->shader->info.float_controls_execution_mode);
+
+      for (int i = 0; i < num_components; i++) {
+         uint16_t conv;
+         if (glsl_type_is_bfloat_16(dst_type)) {
+            conv = _mesa_float_to_bfloat16_bits_rte(val->constant->values[i].f32);
+         } else if (glsl_type_is_e4m3fn(dst_type)) {
+            if (saturate)
+               conv = _mesa_float_to_e4m3fn_sat(val->constant->values[i].f32);
+            else
+               conv = _mesa_float_to_e4m3fn(val->constant->values[i].f32);
+         } else if (glsl_type_is_e5m2(dst_type)) {
+            if (saturate)
+               conv = _mesa_float_to_e5m2_sat(val->constant->values[i].f32);
+            else
+               conv = _mesa_float_to_e5m2(val->constant->values[i].f32);
+         } else {
+            continue;
+         }
+
+         val->constant->values[i] = nir_const_value_for_raw_uint(conv, glsl_get_bit_size(dst_type));
+      }
+
+      break;
+   } /* default */
+   }
+}
+
 void
 vtn_handle_constants(struct vtn_builder *b, SpvOp opcode,
                      const uint32_t *w, unsigned count)
@@ -284,351 +633,9 @@ vtn_handle_constants(struct vtn_builder *b, SpvOp opcode,
       break;
    }
 
-   case SpvOpSpecConstantOp: {
-      nir_const_value u32op = nir_const_value_for_uint(w[3], 32);
-      vtn_foreach_decoration(b, val, spec_constant_decoration_cb, &u32op);
-      SpvOp opcode = u32op.u32;
-      switch (opcode) {
-      case SpvOpBitcast: {
-         struct vtn_value *src = &b->values[w[4]];
-
-         vtn_assert(src->value_type == vtn_value_type_constant ||
-                    src->value_type == vtn_value_type_undef);
-
-         unsigned src_len = glsl_get_vector_elements(src->type->type);
-         unsigned dst_len = glsl_get_vector_elements(val->type->type);
-
-         unsigned src_bit_size = glsl_get_bit_size(src->type->type);
-         unsigned dst_bit_size = glsl_get_bit_size(val->type->type);
-
-         vtn_assert(src_len * src_bit_size == dst_len * dst_bit_size);
-
-         /* This will end up being zero */
-         if (src->value_type == vtn_value_type_undef)
-            break;
-
-         if (src_bit_size == dst_bit_size) {
-            /* This is just a copy */
-            for (unsigned i = 0; i < src_len; i++)
-               val->constant->values[i] = src->constant->values[i];
-         } else {
-            /* You can't non-trivially bitcast booleans */
-            vtn_assert(src_bit_size >= 8 && dst_bit_size >= 8);
-            const unsigned src_byte_size = src_bit_size / 8;
-            const unsigned dst_byte_size = dst_bit_size / 8;
-
-            vtn_assert(src_len <= NIR_MAX_VEC_COMPONENTS &&
-                       dst_len <= NIR_MAX_VEC_COMPONENTS);
-
-            uint8_t bits[NIR_MAX_VEC_COMPONENTS * sizeof(nir_const_value)];
-
-            for (unsigned i = 0; i < src_len; i++) {
-               uint64_t v = nir_const_value_as_int(src->constant->values[i],
-                                                   src_bit_size);
-               memcpy(bits + i * src_byte_size, &v, src_byte_size);
-            }
-
-            for (unsigned i = 0; i < dst_len; i++) {
-               uint64_t v = 0;
-               memcpy(&v, bits + i * dst_byte_size, dst_byte_size);
-               val->constant->values[i] =
-                  nir_const_value_for_uint(v, dst_bit_size);
-            }
-         }
-         break;
-      }
-      case SpvOpVectorShuffle: {
-         struct vtn_value *v0 = &b->values[w[4]];
-         struct vtn_value *v1 = &b->values[w[5]];
-
-         vtn_assert(v0->value_type == vtn_value_type_constant ||
-                    v0->value_type == vtn_value_type_undef);
-         vtn_assert(v1->value_type == vtn_value_type_constant ||
-                    v1->value_type == vtn_value_type_undef);
-
-         unsigned len0 = glsl_get_vector_elements(v0->type->type);
-         unsigned len1 = glsl_get_vector_elements(v1->type->type);
-
-         vtn_assert(len0 + len1 < 16);
-
-         unsigned bit_size = glsl_get_bit_size(val->type->type);
-         unsigned bit_size0 = glsl_get_bit_size(v0->type->type);
-         unsigned bit_size1 = glsl_get_bit_size(v1->type->type);
-
-         vtn_assert(bit_size == bit_size0 && bit_size == bit_size1);
-         (void)bit_size0; (void)bit_size1;
-
-         nir_const_value undef =
-            nir_const_value_for_raw_uint(0xdeadbeefdeadbeef, bit_size);
-         nir_const_value combined[NIR_MAX_VEC_COMPONENTS * 2];
-
-         if (v0->value_type == vtn_value_type_constant) {
-            for (unsigned i = 0; i < len0; i++)
-               combined[i] = v0->constant->values[i];
-         }
-         if (v1->value_type == vtn_value_type_constant) {
-            for (unsigned i = 0; i < len1; i++)
-               combined[len0 + i] = v1->constant->values[i];
-         }
-
-         for (unsigned i = 0, j = 0; i < count - 6; i++, j++) {
-            uint32_t comp = w[i + 6];
-            if (comp == (uint32_t)-1) {
-               /* If component is not used, set the value to a known constant
-                * to detect if it is wrongly used.
-                */
-               val->constant->values[j] = undef;
-            } else {
-               vtn_fail_if(comp >= len0 + len1,
-                           "All Component literals must either be FFFFFFFF "
-                           "or in [0, N - 1] (inclusive).");
-               val->constant->values[j] = combined[comp];
-            }
-         }
-         break;
-      }
-
-      case SpvOpCompositeExtract:
-      case SpvOpCompositeInsert: {
-         struct vtn_value *comp;
-         unsigned deref_start;
-         struct nir_constant **c;
-         if (opcode == SpvOpCompositeExtract) {
-            comp = vtn_value(b, w[4], vtn_value_type_constant);
-            deref_start = 5;
-            c = &comp->constant;
-         } else {
-            comp = vtn_value(b, w[5], vtn_value_type_constant);
-            deref_start = 6;
-            val->constant = nir_constant_clone(comp->constant, b->shader);
-            c = &val->constant;
-         }
-
-         int elem = -1;
-         const struct vtn_type *type = comp->type;
-         for (unsigned i = deref_start; i < count; i++) {
-            if (type->base_type == vtn_base_type_cooperative_matrix) {
-               /* Cooperative matrices are always scalar constants.  We don't
-                * care about the index w[i] because it's always replicated.
-                */
-               type = type->component_type;
-            } else {
-               vtn_fail_if(w[i] >= type->length,
-                           "%uth index of %s is %u but the type has only "
-                           "%u elements", i - deref_start,
-                           spirv_op_to_string(opcode), w[i], type->length);
-
-               switch (type->base_type) {
-               case vtn_base_type_vector:
-                  elem = w[i];
-                  type = type->array_element;
-                  break;
-
-               case vtn_base_type_matrix:
-               case vtn_base_type_array:
-                  c = &(*c)->elements[w[i]];
-                  type = type->array_element;
-                  break;
-
-               case vtn_base_type_struct:
-                  c = &(*c)->elements[w[i]];
-                  type = type->members[w[i]];
-                  break;
-
-               default:
-                  vtn_fail("%s must only index into composite types",
-                           spirv_op_to_string(opcode));
-               }
-            }
-         }
-
-         if (opcode == SpvOpCompositeExtract) {
-            if (elem == -1) {
-               val->constant = *c;
-            } else {
-               unsigned num_components = type->length;
-               for (unsigned i = 0; i < num_components; i++)
-                  val->constant->values[i] = (*c)->values[elem + i];
-            }
-         } else {
-            struct vtn_value *insert =
-               vtn_value(b, w[4], vtn_value_type_constant);
-            vtn_assert(insert->type == type);
-            if (elem == -1) {
-               *c = insert->constant;
-            } else {
-               unsigned num_components = type->length;
-               for (unsigned i = 0; i < num_components; i++)
-                  (*c)->values[elem + i] = insert->constant->values[i];
-            }
-         }
-         break;
-      }
-
-      case SpvOpSelect: {
-         struct vtn_value *cond = vtn_value(b, w[4], vtn_value_type_constant);
-         vtn_fail_if(!glsl_type_is_boolean(cond->type->type),
-                     "Condition of OpSelect must be a Boolean");
-
-         if (glsl_type_is_scalar(cond->type->type)) {
-            const uint32_t obj = cond->constant->values[0].b ? w[5] : w[6];
-            val->constant = vtn_value(b, obj, vtn_value_type_constant)->constant;
-         } else {
-            vtn_fail_if(glsl_get_vector_elements(cond->type->type) !=
-                        glsl_get_vector_elements(val->type->type),
-                        "Vector Condition of OpSelect must have the same "
-                        "number of components as the Result Type");
-
-            nir_constant *c1 = vtn_value(b, w[5], vtn_value_type_constant)->constant;
-            nir_constant *c2 = vtn_value(b, w[6], vtn_value_type_constant)->constant;
-
-            unsigned num_components = glsl_get_vector_elements(val->type->type);
-            for (unsigned i = 0; i < num_components; i++) {
-               val->constant->values[i] = cond->constant->values[i].b ?
-                  c1->values[i] : c2->values[i];
-            }
-         }
-         break;
-      }
-
-      default: {
-         const glsl_type *dst_type = val->type->type;
-
-         const bool saturate = vtn_has_decoration(b, val, SpvDecorationSaturatedToLargestFloat8NormalConversionEXT);
-         unsigned num_components = glsl_get_vector_elements(val->type->type);
-
-         vtn_assert(count <= 7);
-
-         const unsigned src_count = count - 4;
-         struct vtn_value *src_val[3] = {0};
-         const glsl_type *src_type[3] = {0};
-
-         for (unsigned i = 0; i < src_count; i++) {
-            src_val[i] = vtn_value(b, w[4 + i], vtn_value_type_constant);
-            src_type[i] = src_val[i]->type->type;
-         }
-
-         const unsigned dst_bit_size =
-            glsl_type_is_nonnative_float(dst_type) ? 32 : glsl_get_bit_size(dst_type);
-
-         nir_op op;
-         bool swap;
-
-         switch (opcode) {
-         case SpvOpConvertFToU:
-         case SpvOpConvertFToS:
-         case SpvOpConvertSToF:
-         case SpvOpConvertUToF:
-         case SpvOpSConvert:
-         case SpvOpFConvert:
-         case SpvOpUConvert: {
-            /* We have a different source type in a conversion. */
-            const unsigned conv_src_bit_size =
-               glsl_type_is_nonnative_float(src_type[0]) ? 32 : glsl_get_bit_size(src_type[0]);
-
-            nir_alu_type src_alu_type = vtn_convert_op_src_type(opcode) | conv_src_bit_size;
-            nir_alu_type dst_alu_type = vtn_convert_op_dst_type(opcode) | dst_bit_size;
-            op = nir_type_conversion_op(src_alu_type, dst_alu_type, nir_rounding_mode_undef);
-            swap = false;
-            break;
-         }
-
-         default: {
-            unsigned extra_fp_math_ctrl;
-            op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl);
-
-            /* No SPIR-V opcodes handled through this path should set fast math.
-             * Since it is ignored, assert on it.
-             */
-            assert(!extra_fp_math_ctrl);
-            break;
-         }
-         };
-
-         unsigned resolved_bit_size = dst_bit_size;
-
-         nir_const_value src[3][NIR_MAX_VEC_COMPONENTS];
-
-         for (unsigned i = 0; i < src_count; i++) {
-            /* If this is an unsized source, pull the bit size from the
-             * source; otherwise, we'll use the bit size from the destination.
-             */
-            if (!nir_alu_type_get_type_size(nir_op_infos[op].input_types[i])) {
-               resolved_bit_size = glsl_type_is_nonnative_float(src_type[i]) ?
-                  32 : glsl_get_bit_size(src_type[i]);
-            }
-
-            unsigned src_comps = nir_op_infos[op].input_sizes[i] ?
-                                 nir_op_infos[op].input_sizes[i] :
-                                 num_components;
-
-            unsigned j = swap ? 1 - i : i;
-            for (unsigned c = 0; c < src_comps; c++) {
-               src[j][c] = src_val[i]->constant->values[c];
-               if (glsl_type_is_bfloat_16(src_type[i]))
-                  src[j][c].f32 = _mesa_bfloat16_bits_to_float(src[j][c].u16);
-               else if (glsl_type_is_e4m3fn(src_type[i]))
-                  src[j][c].f32 = _mesa_e4m3fn_to_float(src[j][c].u8);
-               else if (glsl_type_is_e5m2(src_type[i]))
-                  src[j][c].f32 = _mesa_e5m2_to_float(src[j][c].u8);
-            }
-
-            /* Fix up source to respect NIR expected sizes. */
-            switch (op) {
-            case nir_op_ishl:
-            case nir_op_ishr:
-            case nir_op_ushr: {
-               /* Shift amount in NIR ops must be 32-bit. */
-               vtn_assert(!swap);
-               const unsigned shift_idx = 1;
-               const unsigned shift_bit_size = glsl_get_bit_size(src_type[i]);
-               if (i != shift_idx || shift_bit_size == 32)
-                  break;
-               for (unsigned c = 0; c < src_comps; c++) {
-                  nir_const_value *shift = &src[shift_idx][c];
-                  *shift = nir_const_value_for_uint(
-                        nir_const_value_as_uint(*shift, shift_bit_size), 32);
-               }
-               break;
-            }
-            default:
-               break;
-            }
-         }
-
-         nir_const_value *srcs[3] = {
-            src[0], src[1], src[2],
-         };
-         nir_eval_const_opcode(op, val->constant->values, NULL,
-                               num_components, resolved_bit_size, srcs,
-                               b->shader->info.float_controls_execution_mode);
-
-         for (int i = 0; i < num_components; i++) {
-            uint16_t conv;
-            if (glsl_type_is_bfloat_16(dst_type)) {
-               conv = _mesa_float_to_bfloat16_bits_rte(val->constant->values[i].f32);
-            } else if (glsl_type_is_e4m3fn(dst_type)) {
-               if (saturate)
-                  conv = _mesa_float_to_e4m3fn_sat(val->constant->values[i].f32);
-               else
-                  conv = _mesa_float_to_e4m3fn(val->constant->values[i].f32);
-            } else if (glsl_type_is_e5m2(dst_type)) {
-               if (saturate)
-                  conv = _mesa_float_to_e5m2_sat(val->constant->values[i].f32);
-               else
-                  conv = _mesa_float_to_e5m2(val->constant->values[i].f32);
-            } else {
-               continue;
-            }
-
-            val->constant->values[i] = nir_const_value_for_raw_uint(conv, glsl_get_bit_size(dst_type));
-         }
-
-         break;
-      } /* default */
-      }
+   case SpvOpSpecConstantOp:
+      vtn_handle_spec_constant_op(b, val, w, count);
       break;
-   }
 
    case SpvOpConstantNull:
       val->constant = vtn_null_constant(b, val->type);
