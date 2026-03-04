@@ -289,3 +289,55 @@ BEGIN_TEST(vopd_sched.same_vgpr)
       finish_schedule_vopd_test();
    }
 END_TEST
+
+BEGIN_TEST(vopd_sched.fma_with_constant)
+   if (!setup_cs(NULL, GFX11, CHIP_UNKNOWN, "", 32))
+      return;
+
+   PhysReg reg_v0{256};
+   PhysReg reg_v1{257};
+   PhysReg reg_v2{258};
+   PhysReg reg_v3{259};
+   PhysReg reg_s0{0};
+
+   //>> p_unit_test 0
+   //! v1: %0:v[1] = v_dual_fmamk_f32 %0:v[3], %0:v[2], 0x40000000 :: v1: %0:v[0] = v_dual_fmaak_f32 4.0, %0:v[2], 0x40000000
+   bld.pseudo(aco_opcode::p_unit_test, Operand::zero());
+   bld.vop3(aco_opcode::v_fma_f32, Definition(reg_v0, v1), Operand(reg_v2, v1),
+            Operand::c32(fui(4.0f)), Operand::c32(fui(2.0f)));
+   bld.vop3(aco_opcode::v_fma_f32, Definition(reg_v1, v1), Operand(reg_v3, v1),
+            Operand::c32(fui(2.0f)), Operand(reg_v2, v1));
+
+   bld.reset(program->create_and_insert_block());
+   //>> p_unit_test 1
+   //! v1: %0:v[1] = v_dual_fmamk_f32 %0:v[3], %0:v[2], 0x40800000 :: v1: %0:v[0] = v_dual_fmaak_f32 2.0, %0:v[2], 0x40800000
+   bld.pseudo(aco_opcode::p_unit_test, Operand::c32(1));
+   bld.vop3(aco_opcode::v_fma_f32, Definition(reg_v0, v1), Operand::c32(fui(2.0f)),
+            Operand(reg_v2, v1), Operand::c32(fui(4.0f)));
+   bld.vop3(aco_opcode::v_fma_f32, Definition(reg_v1, v1), Operand::c32(fui(4.0f)),
+            Operand(reg_v3, v1), Operand(reg_v2, v1));
+
+   /* Allow no sgpr operand. */
+   bld.reset(program->create_and_insert_block());
+   //>> p_unit_test 2
+   //! v1: %0:v[1] = v_mov_b32 0
+   //! v1: %0:v[0] = v_fma_f32 %0:s[0], %0:v[2], 2.0
+   bld.pseudo(aco_opcode::p_unit_test, Operand::c32(2));
+   bld.vop3(aco_opcode::v_fma_f32, Definition(reg_v0, v1), Operand(reg_s0, s1), Operand(reg_v2, v1),
+            Operand::c32(fui(2.0f)));
+   bld.vop1(aco_opcode::v_mov_b32, Definition(reg_v1, v1), Operand::c32(0));
+
+   /* Allow no modifiers. */
+   bld.reset(program->create_and_insert_block());
+   //>> p_unit_test 3
+   //! v1: %0:v[1] = v_mov_b32 0
+   //! v1: %0:v[0] = v_fma_f32 |%0:v[2]|, %0:v[2], 2.0
+   bld.pseudo(aco_opcode::p_unit_test, Operand::c32(3));
+   bld.vop3(aco_opcode::v_fma_f32, Definition(reg_v0, v1), Operand(reg_v2, v1), Operand(reg_v2, v1),
+            Operand::c32(fui(2.0f)))
+      ->valu()
+      .abs[0] = true;
+   bld.vop1(aco_opcode::v_mov_b32, Definition(reg_v1, v1), Operand::c32(0));
+
+   finish_schedule_vopd_test();
+END_TEST

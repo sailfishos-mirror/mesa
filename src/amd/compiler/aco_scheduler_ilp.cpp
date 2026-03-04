@@ -134,7 +134,8 @@ can_reorder(const Instruction* const instr)
 VOPDInfo
 get_vopd_info(const SchedILPContext& ctx, const Instruction* instr)
 {
-   if (instr->format != Format::VOP1 && instr->format != Format::VOP2)
+   if (instr->format != Format::VOP1 && instr->format != Format::VOP2 &&
+       instr->format != Format::VOP3)
       return VOPDInfo();
 
    VOPDInfo info;
@@ -181,6 +182,35 @@ get_vopd_info(const SchedILPContext& ctx, const Instruction* instr)
       info.op = aco_opcode::v_dual_and_b32;
       info.can_be_opx = false;
       break;
+   case aco_opcode::v_fma_f32: {
+      /* Convert v_fma_f32 with inline constant to fmamk/fmaak. */
+      int constant_idx = -1;
+      int vgpr_idx = -1;
+      for (int i = 0; i < 3; i++) {
+         const Operand& op = instr->operands[i];
+         if (op.isConstant() && !op.isLiteral())
+            constant_idx = i;
+         else if (op.isOfType(RegType::vgpr))
+            vgpr_idx = i;
+         else
+            return VOPDInfo();
+      }
+
+      if (constant_idx < 0 || vgpr_idx < 0 || instr->usesModifiers())
+         return VOPDInfo();
+
+      info.literal = instr->operands[constant_idx].constantValue();
+      info.has_literal = true;
+      if (constant_idx == 2) {
+         info.op = aco_opcode::v_dual_fmaak_f32;
+         info.operand_swizzle = vgpr_idx == 0 ? 0b11'00'01 : 0b11'01'00;
+      } else {
+         info.op = aco_opcode::v_dual_fmamk_f32;
+         info.is_commutative = false;
+         info.operand_swizzle = constant_idx == 0 ? 0b11'10'01 : 0b11'10'00;
+      }
+      break;
+   }
    default: return VOPDInfo();
    }
 
@@ -200,7 +230,7 @@ get_vopd_info(const SchedILPContext& ctx, const Instruction* instr)
       }
       Operand op = instr->operands[swizzle];
 
-      unsigned port = (instr->opcode == aco_opcode::v_fmamk_f32 && i == 1) ? 2 : i;
+      unsigned port = (info.op == aco_opcode::v_dual_fmamk_f32 && i == 1) ? 2 : i;
       if (op.isOfType(RegType::vgpr)) {
          info.src_banks |= 1 << (port * 4 + (op.physReg().reg() & bank_mask[port]));
          if (port < 2)
