@@ -645,10 +645,12 @@ lower_boolean_reduce(nir_builder *b, nir_intrinsic_instr *intrin,
    nir_op op = nir_intrinsic_reduction_op(intrin);
 
    /* For certain cluster sizes, reductions of iand and ior can be implemented
-    * more efficiently.
+    * more efficiently. This also avoids a special case in
+    * lower_boolean_reduce_internal.
     */
    if (intrin->intrinsic == nir_intrinsic_reduce) {
-      if (cluster_size == 0) {
+      if (cluster_size == 0 || cluster_size >= options->ballot_components *
+                                                  options->ballot_bit_size) {
          if (op == nir_op_iand)
             return nir_vote_all(b, 1, intrin->src[0].ssa);
          else if (op == nir_op_ior)
