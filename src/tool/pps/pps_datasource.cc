@@ -191,22 +191,30 @@ template <typename GpuCounterDescriptor> void add_descriptors(GpuCounterDescript
    }
 }
 
-void add_samples(perfetto::protos::pbzero::GpuCounterEvent &event, const Driver &driver)
+void add_samples(perfetto::protos::pbzero::GpuCounterEvent &event, const Driver &driver,
+   std::unordered_map<uint32_t, double>& last_counter_vals)
 {
    if (driver.enabled_counters.size() == 0) {
       PPS_LOG_FATAL("There are no counters enabled");
    }
 
    for (const auto &counter : driver.enabled_counters) {
-      auto counter_event = event.add_counters();
-
-      counter_event->set_counter_id(counter.id);
-
+      auto it = last_counter_vals.find(counter.id);
       auto value = counter.get_value(driver);
       if (auto d_value = std::get_if<double>(&value)) {
+         if (it != last_counter_vals.end() && it->second == 0 && *d_value == 0)
+            continue;
+         auto counter_event = event.add_counters();
+         counter_event->set_counter_id(counter.id);
          counter_event->set_double_value(*d_value);
+         last_counter_vals[counter.id] = *d_value;
       } else if (auto i_value = std::get_if<int64_t>(&value)) {
+         if (it != last_counter_vals.end() && it->second == 0 && *i_value == 0)
+            continue;
+         auto counter_event = event.add_counters();
+         counter_event->set_counter_id(counter.id);
          counter_event->set_int_value(*i_value);
+         last_counter_vals[counter.id] = static_cast<double>(*i_value);
       } else {
          PPS_LOG_ERROR("Failed to get value for counter %s", counter.name.c_str());
       }
@@ -248,7 +256,9 @@ void GpuDataSource::trace(TraceContext &ctx)
 {
    using namespace perfetto::protos::pbzero;
 
-   if (auto state = ctx.GetIncrementalState(); state->was_cleared) {
+   auto state = ctx.GetIncrementalState();
+
+   if (state->was_cleared) {
       descriptor_timestamp = perfetto::base::GetBootTimeNs().count();
 
       {
@@ -287,6 +297,7 @@ void GpuDataSource::trace(TraceContext &ctx)
       // be discarded.
       descriptor_gpu_timestamp = driver->gpu_timestamp();
       state->was_cleared = false;
+      state->last_counter_vals.clear();
    }
 
    if (driver->dump_perfcnt()) {
@@ -309,7 +320,7 @@ void GpuDataSource::trace(TraceContext &ctx)
          auto event = packet->set_gpu_counter_event();
          event->set_gpu_id(driver->drm_device.gpu_num);
 
-         add_samples(*event, *driver);
+         add_samples(*event, *driver, state->last_counter_vals);
       }
    }
 
