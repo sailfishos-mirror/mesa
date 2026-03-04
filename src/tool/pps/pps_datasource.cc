@@ -187,6 +187,7 @@ template <typename GpuCounterDescriptor> void add_descriptors(GpuCounterDescript
          break;
       }
       spec->add_numerator_units(units);
+      spec->set_select_by_default(true);
    }
 }
 
@@ -384,7 +385,7 @@ void GpuDataSource::register_data_source(const std::string &driver_name)
    // Start a counter descriptor
    perfetto::protos::gen::GpuCounterDescriptor desc;
    auto &groups = driver->groups;
-   auto &counters = driver->enabled_counters;
+   auto &counters = driver->counters;
    add_descriptors(&desc, groups, counters, *driver);
    dsd.set_gpu_counter_descriptor_raw(desc.SerializeAsString());
    Register(dsd);
