@@ -29,7 +29,10 @@ using mask_t = uint16_t;
 static_assert(std::numeric_limits<mask_t>::digits >= num_nodes);
 
 struct VOPDInfo {
-   VOPDInfo() : can_be_opx(0), is_dst_odd(0), src_banks(0), has_literal(0), is_commutative(0) {}
+   VOPDInfo()
+       : can_be_opx(0), is_dst_odd(0), src_banks(0), has_literal(0), is_commutative(0),
+         operand_swizzle(0b10'01'00)
+   {}
    uint16_t can_be_opx : 1;
    uint16_t is_dst_odd : 1;
    uint16_t src_banks : 10; /* 0-3: src0, 4-7: src1, 8-9: src2 */
@@ -38,6 +41,7 @@ struct VOPDInfo {
    aco_opcode op = aco_opcode::num_opcodes;
    uint32_t literal = 0;
    uint8_t port_vgprs[2] = {0, 0};
+   uint8_t operand_swizzle : 6; /* 2 bits per operands, 0-2 from instr->operands, 3 literal. */
 };
 
 struct InstrInfo {
@@ -153,6 +157,9 @@ get_vopd_info(const SchedILPContext& ctx, const Instruction* instr)
       if (!instr->operands[0].isConstant())
          return VOPDInfo();
       info.op = aco_opcode::v_dual_mov_b32;
+      info.operand_swizzle = 0x3;
+      info.has_literal = true;
+      info.literal = util_bitreverse(instr->operands[0].constantValue());
       break;
    case aco_opcode::v_cndmask_b32:
       info.op = aco_opcode::v_dual_cndmask_b32;
@@ -186,9 +193,12 @@ get_vopd_info(const SchedILPContext& ctx, const Instruction* instr)
    static const unsigned bank_mask[3] = {0x3, 0x3, 0x1};
    bool has_sgpr = false;
    for (unsigned i = 0; i < instr->operands.size(); i++) {
-      Operand op = instr->operands[i];
-      if (instr->opcode == aco_opcode::v_bfrev_b32)
-         op = Operand::get_const(ctx.program->gfx_level, util_bitreverse(op.constantValue()), 4);
+      uint8_t swizzle = (info.operand_swizzle >> (i * 2)) & 0x3;
+      if (swizzle == 3) {
+         assert(info.has_literal);
+         continue;
+      }
+      Operand op = instr->operands[swizzle];
 
       unsigned port = (instr->opcode == aco_opcode::v_fmamk_f32 && i == 1) ? 2 : i;
       if (op.isOfType(RegType::vgpr)) {
@@ -212,7 +222,8 @@ get_vopd_info(const SchedILPContext& ctx, const Instruction* instr)
    if (has_sgpr && info.has_literal)
       return VOPDInfo();
 
-   info.is_commutative &= instr->operands[0].isOfType(RegType::vgpr);
+   info.is_commutative &= (info.operand_swizzle & 0x3) < 3 &&
+                          instr->operands[info.operand_swizzle & 0x3].isOfType(RegType::vgpr);
 
    return info;
 }
@@ -776,26 +787,32 @@ void
 get_vopd_opcode_operands(const SchedILPContext& ctx, Instruction* instr, const VOPDInfo& info,
                          bool swap, aco_opcode* op, unsigned* num_operands, Operand* operands)
 {
-   *op = info.op;
-   *num_operands += instr->operands.size();
-   std::copy(instr->operands.begin(), instr->operands.end(), operands);
-
-   if (instr->opcode == aco_opcode::v_bfrev_b32) {
-      operands[0] = Operand::get_const(ctx.program->gfx_level,
-                                       util_bitreverse(operands[0].constantValue()), 4);
-   }
-
    if (swap && info.op == aco_opcode::v_dual_mov_b32) {
       *op = aco_opcode::v_dual_add_nc_u32;
-      (*num_operands)++;
-      operands[1] = operands[0];
+      *num_operands += 2;
       operands[0] = Operand::zero();
-   } else if (swap) {
+      operands[1] = instr->operands[0];
+      return;
+   }
+
+   *op = info.op;
+   *num_operands += instr->operands.size();
+
+   unsigned swizzle = info.operand_swizzle;
+   if (swap) {
+      swizzle = ((swizzle & 0b11) << 2) | ((swizzle & 0b11'00) >> 2) | (swizzle & 0b11'00'00);
       if (info.op == aco_opcode::v_dual_sub_f32)
          *op = aco_opcode::v_dual_subrev_f32;
       else if (info.op == aco_opcode::v_dual_subrev_f32)
          *op = aco_opcode::v_dual_sub_f32;
-      std::swap(operands[0], operands[1]);
+   }
+
+   for (unsigned i = 0; i < instr->operands.size(); i++) {
+      unsigned op_idx = (swizzle >> (i * 2)) & 0x3;
+      if (op_idx == 3)
+         operands[i] = Operand::literal32(info.literal);
+      else
+         operands[i] = instr->operands[op_idx];
    }
 }
 
