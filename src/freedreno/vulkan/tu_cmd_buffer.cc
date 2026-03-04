@@ -1422,6 +1422,7 @@ template <chip CHIP>
 static void
 tu6_emit_bin_size_gmem(struct tu_cmd_buffer *cmd,
                        struct tu_cs *cs,
+                       VkExtent2D gmem_extent,
                        enum a6xx_buffers_location buffers_location,
                        bool disable_lrz)
 {
@@ -1430,8 +1431,10 @@ tu6_emit_bin_size_gmem(struct tu_cmd_buffer *cmd,
    bool hw_binning = use_hw_binning(cmd);
 
    tu6_emit_bin_size<CHIP>(
-      cs, buffers_location == BUFFERS_IN_GMEM ? tiling->tile0.width : 0,
-      buffers_location == BUFFERS_IN_GMEM ? tiling->tile0.height : 0,
+      cs, buffers_location == BUFFERS_IN_GMEM ?
+      tiling->tile0.width * gmem_extent.width : 0,
+      buffers_location == BUFFERS_IN_GMEM ?
+      tiling->tile0.height * gmem_extent.height : 0,
       {
          .render_mode = RENDERING_PASS,
          .force_lrz_write_dis = !phys_dev->info->props.has_lrz_feedback,
@@ -1544,7 +1547,7 @@ tu6_emit_tile_select(struct tu_cmd_buffer *cmd,
     */
    assert(tile->gmem_extent.width == 1);
 
-   tu6_emit_bin_size_gmem<CHIP>(cmd, cs, BUFFERS_IN_GMEM, disable_lrz);
+   tu6_emit_bin_size_gmem<CHIP>(cmd, cs, tile->gmem_extent, BUFFERS_IN_GMEM, disable_lrz);
 
    tu_cs_emit_regs(cs,
                    A6XX_VFD_RENDER_MODE(RENDERING_PASS));
@@ -6517,7 +6520,8 @@ tu_emit_subpass_custom_resolve(struct tu_cmd_buffer *cmd)
       tu_cond_exec_start(cs, CP_COND_EXEC_0_RENDER_MODE_GMEM);
 
       /* On a6xx the location is set in *_BIN_CONTROL */
-      tu6_emit_bin_size_gmem<CHIP>(cmd, cs, BUFFERS_IN_SYSMEM, false);
+      tu6_emit_bin_size_gmem<CHIP>(cmd, cs, (VkExtent2D) {1, 1},
+                                   BUFFERS_IN_SYSMEM, false);
 
       tu_cond_exec_end(cs);
    }
