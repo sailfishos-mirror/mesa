@@ -241,17 +241,16 @@ panvk_image_can_use_mod(struct panvk_image *image,
           (image->vk.create_flags & VK_IMAGE_CREATE_DISJOINT_BIT))
          return false;
 
-#if PAN_ARCH < 7
       /* On v6 and earlier, we can't reliably resolve directly to AFBC images
        * (see avoid_direct_resolve_to() in panvk_vX_cmd_draw.c).  For MS2SS,
        * this means we know a priori that the single-sampled image is going to
        * be a resolve target.  It's better to leave it uncompressed than to
        * eat the separate resolves.
        */
-      if (image->vk.create_flags &
-          VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT)
+      if ((image->vk.create_flags &
+           VK_IMAGE_CREATE_MULTISAMPLED_RENDER_TO_SINGLE_SAMPLED_BIT_EXT) &&
+          arch < 7)
          return false;
-#endif
    }
 
    if (mod == DRM_FORMAT_MOD_ARM_16X16_BLOCK_U_INTERLEAVED) {
