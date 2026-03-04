@@ -158,30 +158,11 @@ struct lp_fragment_shader_variant
 
    struct gallivm_state *gallivm;
 
-   LLVMTypeRef jit_context_type;
-   LLVMTypeRef jit_context_ptr_type;
-   LLVMTypeRef jit_thread_data_type;
-   LLVMTypeRef jit_resources_type;
-   LLVMTypeRef jit_resources_ptr_type;
-   LLVMTypeRef jit_thread_data_ptr_type;
-   LLVMTypeRef jit_linear_context_type;
-   LLVMTypeRef jit_linear_context_ptr_type;
-   LLVMTypeRef jit_linear_func_type;
-   LLVMTypeRef jit_linear_inputs_type;
-   LLVMTypeRef jit_linear_textures_type;
-
-   LLVMValueRef function[2]; // [RAST_WHOLE], [RAST_EDGE_TEST]
-   char *function_name[2];
-
    lp_jit_frag_func jit_function[2]; // [RAST_WHOLE], [RAST_EDGE_TEST]
 
    lp_jit_linear_func jit_linear;
    lp_jit_linear_func jit_linear_blit;
 
-   /* Functions within the linear path:
-    */
-   LLVMValueRef linear_function;
-   char *linear_function_name;
    lp_jit_linear_llvm_func jit_linear_llvm;
 
    /* Bitmask to say what cbufs are unswizzled */
@@ -239,7 +220,8 @@ llvmpipe_fs_variant_linear_fastpath(struct lp_fragment_shader_variant *variant);
 void
 llvmpipe_fs_variant_linear_llvm(struct llvmpipe_context *lp,
                                 struct lp_fragment_shader *shader,
-                                struct lp_fragment_shader_variant *variant);
+                                struct lp_fragment_shader_variant *variant,
+                                struct lp_fragment_shader_variant_jit *jit);
 
 void
 lp_debug_fs_variant(struct lp_fragment_shader_variant *variant);
@@ -248,7 +230,8 @@ const char *
 lp_debug_fs_kind(enum lp_fs_kind kind);
 
 void
-lp_linear_check_variant(struct lp_fragment_shader_variant *variant);
+lp_linear_check_variant(struct lp_fragment_shader_variant *variant,
+                        const struct lp_fragment_shader_variant_jit *jit);
 
 void
 llvmpipe_destroy_fs(struct llvmpipe_context *llvmpipe,

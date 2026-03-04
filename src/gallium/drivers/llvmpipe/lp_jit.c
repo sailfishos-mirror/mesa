@@ -44,10 +44,10 @@
 #include "lp_screen.h"
 #include "lp_jit.h"
 
-static void
-lp_jit_create_types(struct lp_fragment_shader_variant *lp)
+void
+lp_jit_init_types(struct gallivm_state *gallivm,
+                  struct lp_fragment_shader_variant_jit *jit)
 {
-   struct gallivm_state *gallivm = lp->gallivm;
    LLVMContextRef lc = gallivm->context;
    LLVMTypeRef viewport_type;
    LLVMTypeRef linear_elem_type;
@@ -121,10 +121,10 @@ lp_jit_create_types(struct lp_fragment_shader_variant *lp)
       LP_CHECK_STRUCT_SIZE(struct lp_jit_context,
                            gallivm->target, context_type);
 
-      lp->jit_context_type = context_type;
-      lp->jit_context_ptr_type = LLVMPointerType(context_type, 0);
-      lp->jit_resources_type = lp_build_jit_resources_type(gallivm);
-      lp->jit_resources_ptr_type = LLVMPointerType(lp->jit_resources_type, 0);
+      jit->jit_context_type = context_type;
+      jit->jit_context_ptr_type = LLVMPointerType(context_type, 0);
+      jit->jit_resources_type = lp_build_jit_resources_type(gallivm);
+      jit->jit_resources_ptr_type = LLVMPointerType(jit->jit_resources_type, 0);
    }
 
    /* struct lp_jit_thread_data */
@@ -143,8 +143,8 @@ lp_jit_create_types(struct lp_fragment_shader_variant *lp)
       thread_data_type = LLVMStructTypeInContext(lc, elem_types,
                                                  ARRAY_SIZE(elem_types), 0);
 
-      lp->jit_thread_data_type = thread_data_type;
-      lp->jit_thread_data_ptr_type = LLVMPointerType(thread_data_type, 0);
+      jit->jit_thread_data_type = thread_data_type;
+      jit->jit_thread_data_ptr_type = LLVMPointerType(thread_data_type, 0);
    }
 
    /*
@@ -169,7 +169,7 @@ lp_jit_create_types(struct lp_fragment_shader_variant *lp)
        * We actually define lp_linear_elem not as a structure but simply as a
        * lp_linear_func pointer
        */
-      lp->jit_linear_func_type = func_type;
+      jit->jit_linear_func_type = func_type;
       linear_elem_type = LLVMPointerType(func_type, 0);
    }
 
@@ -182,11 +182,11 @@ lp_jit_create_types(struct lp_fragment_shader_variant *lp)
 
       elem_types[LP_JIT_LINEAR_CTX_CONSTANTS] = LLVMPointerType(LLVMInt8TypeInContext(lc), 0);
       elem_types[LP_JIT_LINEAR_CTX_TEX] =
-      lp->jit_linear_textures_type =
+      jit->jit_linear_textures_type =
             LLVMArrayType(linear_elem_ptr_type, LP_MAX_LINEAR_TEXTURES);
 
       elem_types[LP_JIT_LINEAR_CTX_INPUTS] =
-      lp->jit_linear_inputs_type =
+      jit->jit_linear_inputs_type =
             LLVMArrayType(linear_elem_ptr_type, LP_MAX_LINEAR_INPUTS);
       elem_types[LP_JIT_LINEAR_CTX_COLOR0] = LLVMPointerType(LLVMInt8TypeInContext(lc), 0);
       elem_types[LP_JIT_LINEAR_CTX_BLEND_COLOR] = LLVMInt32TypeInContext(lc);
@@ -216,8 +216,8 @@ lp_jit_create_types(struct lp_fragment_shader_variant *lp)
       LP_CHECK_STRUCT_SIZE(struct lp_jit_linear_context,
                            gallivm->target, linear_context_type);
 
-      lp->jit_linear_context_type = linear_context_type;
-      lp->jit_linear_context_ptr_type = LLVMPointerType(linear_context_type, 0);
+      jit->jit_linear_context_type = linear_context_type;
+      jit->jit_linear_context_ptr_type = LLVMPointerType(linear_context_type, 0);
    }
 
    if (gallivm_debug & GALLIVM_DEBUG_IR) {
@@ -241,13 +241,6 @@ lp_jit_screen_init(struct llvmpipe_screen *screen)
    return lp_build_init();
 }
 
-
-void
-lp_jit_init_types(struct lp_fragment_shader_variant *lp)
-{
-   if (!lp->jit_context_ptr_type)
-      lp_jit_create_types(lp);
-}
 
 static void
 lp_jit_create_cs_types(struct lp_compute_shader_variant *lp)

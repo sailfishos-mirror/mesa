@@ -3167,6 +3167,7 @@ static void
 generate_fragment(struct llvmpipe_context *lp,
                   struct lp_fragment_shader *shader,
                   struct lp_fragment_shader_variant *variant,
+                  struct lp_fragment_shader_variant_jit *jit,
                   unsigned partial_mask)
 {
    assert(partial_mask == RAST_WHOLE ||
@@ -3256,8 +3257,8 @@ generate_fragment(struct llvmpipe_context *lp,
    snprintf(func_name, sizeof(func_name), "fs_variant_%s",
             partial_mask ? "partial" : "whole");
 
-   arg_types[0] = variant->jit_context_ptr_type;       /* context */
-   arg_types[1] = variant->jit_resources_ptr_type;       /* context */
+   arg_types[0] = jit->jit_context_ptr_type;       /* context */
+   arg_types[1] = jit->jit_resources_ptr_type;       /* context */
    arg_types[2] = int32_type;                          /* x */
    arg_types[3] = int32_type;                          /* y */
    arg_types[4] = int32_type;                          /* facing */
@@ -3268,7 +3269,7 @@ generate_fragment(struct llvmpipe_context *lp,
    arg_types[9] = int8p_type;       /* depth */
    arg_types[10] = LLVMInt64TypeInContext(gallivm->context);  /* mask_input0 */
    arg_types[11] = LLVMInt64TypeInContext(gallivm->context);  /* mask_input1 */
-   arg_types[12] = variant->jit_thread_data_ptr_type;  /* per thread data */
+   arg_types[12] = jit->jit_thread_data_ptr_type;  /* per thread data */
    arg_types[13] = int32p_type;     /* stride */
    arg_types[14] = int32_type;                         /* depth_stride */
    arg_types[15] = int32p_type;     /* color sample strides */
@@ -3280,9 +3281,9 @@ generate_fragment(struct llvmpipe_context *lp,
    function = LLVMAddFunction(gallivm->module, func_name, func_type);
    LLVMSetFunctionCallConv(function, LLVMCCallConv);
 
-   variant->function[partial_mask] = function;
-   variant->function_name[partial_mask] = MALLOC(strlen(func_name)+1);
-   strcpy(variant->function_name[partial_mask], func_name);
+   jit->function[partial_mask] = function;
+   jit->function_name[partial_mask] = MALLOC(strlen(func_name)+1);
+   strcpy(jit->function_name[partial_mask], func_name);
 
    /* XXX: need to propagate noalias down into color param now we are
     * passing a pointer-to-pointer?
@@ -3293,7 +3294,7 @@ generate_fragment(struct llvmpipe_context *lp,
 
    lp_function_add_debug_info(gallivm, function, func_type);
 
-   if (variant->gallivm->cache->data_size) {
+   if (gallivm->cache->data_size) {
       gallivm_stub_func(gallivm, function);
       return;
    }
@@ -3444,7 +3445,7 @@ generate_fragment(struct llvmpipe_context *lp,
       if (key->multisample) {
          smask_val =
             LLVMBuildLoad2(builder, int32_type,
-                           lp_jit_context_sample_mask(gallivm, variant->jit_context_type, context_ptr),
+                           lp_jit_context_sample_mask(gallivm, jit->jit_context_type, context_ptr),
                            "");
       }
 
@@ -3516,9 +3517,9 @@ generate_fragment(struct llvmpipe_context *lp,
                        shader, key,
                        builder,
                        fs_type,
-                       variant->jit_context_type,
+                       jit->jit_context_type,
                        context_ptr,
-                       variant->jit_resources_type,
+                       jit->jit_resources_type,
                        resources_ptr,
                        LLVMTypeOf(sample_pos_array),
                        glob_sample_pos,
@@ -3536,7 +3537,7 @@ generate_fragment(struct llvmpipe_context *lp,
                        stride_ptr,
                        color_sample_stride_ptr,
                        facing,
-                       variant->jit_thread_data_type,
+                       jit->jit_thread_data_type,
                        thread_data_ptr);
 
       LLVMTypeRef fs_vec_type = lp_build_vec_type(gallivm, fs_type);
@@ -3633,7 +3634,7 @@ generate_fragment(struct llvmpipe_context *lp,
                                       key->cbuf_format[cbuf],
                                       num_fs, fs_type, &fs_mask[mask_idx],
                                       fs_out_color[out_idx],
-                                      variant->jit_context_type,
+                                      jit->jit_context_type,
                                       context_ptr, blend_vec_type, out_ptr, stride,
                                       partial_mask, do_branch);
          }
@@ -3869,6 +3870,8 @@ generate_variant(struct llvmpipe_context *lp,
          needs_caching = true;
    }
 
+   struct lp_fragment_shader_variant_jit jit = { 0 };
+
    char module_name[64];
    snprintf(module_name, sizeof(module_name), "fs%u_variant%u",
             shader->no, shader->variants_created);
@@ -3990,15 +3993,15 @@ generate_variant(struct llvmpipe_context *lp,
 
    llvmpipe_fs_variant_fastpath(variant);
 
-   lp_jit_init_types(variant);
+   lp_jit_init_types(variant->gallivm, &jit);
 
    if (variant->jit_function[RAST_EDGE_TEST] == NULL)
-      generate_fragment(lp, shader, variant, RAST_EDGE_TEST);
+      generate_fragment(lp, shader, variant, &jit, RAST_EDGE_TEST);
 
    if (variant->jit_function[RAST_WHOLE] == NULL) {
       if (variant->opaque) {
          /* Specialized shader, which doesn't need to read the color buffer. */
-         generate_fragment(lp, shader, variant, RAST_WHOLE);
+         generate_fragment(lp, shader, variant, &jit, RAST_WHOLE);
       }
    }
 
@@ -4022,7 +4025,7 @@ generate_variant(struct llvmpipe_context *lp,
          if (shader->kind == LP_FS_KIND_BLIT_RGBA ||
              shader->kind == LP_FS_KIND_BLIT_RGB1 ||
              shader->kind == LP_FS_KIND_LLVM_LINEAR) {
-            llvmpipe_fs_variant_linear_llvm(lp, shader, variant);
+            llvmpipe_fs_variant_linear_llvm(lp, shader, variant, &jit);
          }
       }
    } else {
@@ -4047,40 +4050,44 @@ generate_variant(struct llvmpipe_context *lp,
    variant->nr_instrs += lp_build_count_ir_module(variant->gallivm->module);
 #endif
 
-   if (variant->function[RAST_EDGE_TEST]) {
+   if (jit.function[RAST_EDGE_TEST]) {
       variant->jit_function[RAST_EDGE_TEST] = (lp_jit_frag_func)
             gallivm_jit_function(variant->gallivm,
-                                 variant->function[RAST_EDGE_TEST],
-                                 variant->function_name[RAST_EDGE_TEST]);
+                                 jit.function[RAST_EDGE_TEST],
+                                 jit.function_name[RAST_EDGE_TEST]);
    }
 
-   if (variant->function[RAST_WHOLE]) {
+   if (jit.function[RAST_WHOLE]) {
       variant->jit_function[RAST_WHOLE] = (lp_jit_frag_func)
          gallivm_jit_function(variant->gallivm,
-                              variant->function[RAST_WHOLE],
-                              variant->function_name[RAST_WHOLE]);
+                              jit.function[RAST_WHOLE],
+                              jit.function_name[RAST_WHOLE]);
    } else if (!variant->jit_function[RAST_WHOLE]) {
       variant->jit_function[RAST_WHOLE] = (lp_jit_frag_func)
          variant->jit_function[RAST_EDGE_TEST];
    }
 
    if (linear_pipeline) {
-      if (variant->linear_function) {
+      if (jit.linear_function) {
          variant->jit_linear_llvm = (lp_jit_linear_llvm_func)
-            gallivm_jit_function(variant->gallivm, variant->linear_function,
-                                 variant->linear_function_name);
+            gallivm_jit_function(variant->gallivm, jit.linear_function,
+                                 jit.linear_function_name);
       }
 
       /*
        * This must be done after LLVM compilation, as it will call the JIT'ed
        * code to determine active inputs.
        */
-      lp_linear_check_variant(variant);
+      lp_linear_check_variant(variant, &jit);
    }
 
    if (needs_caching) {
       lp_disk_cache_insert_shader(screen, &cached, ir_blake3_cache_key);
    }
+
+   FREE(jit.function_name[RAST_EDGE_TEST]);
+   FREE(jit.function_name[RAST_WHOLE]);
+   FREE(jit.linear_function_name);
 
    gallivm_free_ir(variant->gallivm);
 
@@ -4244,9 +4251,6 @@ llvmpipe_destroy_shader_variant(struct llvmpipe_context *lp,
 {
    gallivm_destroy(variant->gallivm);
    lp_fs_reference(lp, &variant->shader, NULL);
-   FREE(variant->function_name[RAST_EDGE_TEST]);
-   FREE(variant->function_name[RAST_WHOLE]);
-   FREE(variant->linear_function_name);
    FREE(variant);
 }
 
