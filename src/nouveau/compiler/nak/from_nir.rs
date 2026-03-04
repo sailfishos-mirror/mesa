@@ -3901,6 +3901,26 @@ impl<'a> ShaderFromNir<'a> {
                 }
                 self.set_dst(&intrin.def, dst.into());
             }
+            nir_intrinsic_match_any_nv => {
+                let src = self.get_src(&srcs[0]);
+                let src_bits = srcs[0].bit_size() * srcs[0].num_components();
+                assert!(
+                    intrin.def.bit_size() == 32 || intrin.def.bit_size() == 64
+                );
+                let dst = b.alloc_ssa(RegFile::GPR);
+                b.push_op(OpMatch {
+                    op: MatchOp::Any,
+                    mask: dst.into(),
+                    pred: Dst::None,
+                    src,
+                    u64: match src_bits {
+                        32 => false,
+                        64 => true,
+                        _ => panic!("Unsupported vote_ieq bit size"),
+                    },
+                });
+                self.set_dst(&intrin.def, dst.into());
+            }
             nir_intrinsic_is_sparse_texels_resident => {
                 let src = self.get_src(&srcs[0]);
                 let dst = b.isetp(IntCmpType::I32, IntCmpOp::Ne, src, 0.into());

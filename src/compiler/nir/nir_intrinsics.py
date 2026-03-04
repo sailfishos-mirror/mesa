@@ -2948,6 +2948,8 @@ intrinsic("ipa_nv", dest_comp=1, src_comp=[1, 1], bit_sizes=[32],
 # FLAGS indicate if we load vertex_id == 2
 intrinsic("ldtram_nv", dest_comp=2, bit_sizes=[32],
           indices=[BASE, FLAGS], flags=[CAN_ELIMINATE, CAN_REORDER])
+# Gives the mask of active threads matching the same source value
+intrinsic("match_any_nv", src_comp=[0], dest_comp=1, flags=SUBGROUP_FLAGS)
 
 # NVIDIA-specific Image intrinsics
 # only used for kepler address calculations.
