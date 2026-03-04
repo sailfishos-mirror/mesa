@@ -321,7 +321,7 @@ vtn_handle_cooperative_alu(struct vtn_builder *b, struct vtn_value *dest_val,
 
          bool swap = false;
          unsigned extra_fp_math_ctrl = nir_fp_fast_math;
-         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl, 0, 0);
+         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl);
 
          nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_unary");
          nir_cmat_unary_op(&b->nb, &dst->def, &src->def,
@@ -346,7 +346,7 @@ vtn_handle_cooperative_alu(struct vtn_builder *b, struct vtn_value *dest_val,
          nir_deref_instr *mat_a = vtn_get_cmat_deref(b, w[3]);
          nir_deref_instr *mat_b = vtn_get_cmat_deref(b, w[4]);
 
-         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl, 0, 0);
+         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl);
 
          nir_deref_instr *dst = vtn_create_cmat_temporary(b, dst_type->type, "cmat_binary");
          nir_cmat_binary_op(&b->nb, &dst->def, &mat_a->def, &mat_b->def,

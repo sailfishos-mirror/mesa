@@ -2871,8 +2871,6 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
       }
 
       default: {
-         bool swap;
-
          const glsl_type *dst_type = val->type->type;
 
          const bool saturate = vtn_has_decoration(b, val, SpvDecorationSaturatedToLargestFloat8NormalConversionEXT);
@@ -2889,7 +2887,12 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
             src_type[i] = src_val[i]->type->type;
          }
 
-         unsigned conv_src_bit_size;
+         const unsigned dst_bit_size =
+            glsl_type_is_nonnative_float(dst_type) ? 32 : glsl_get_bit_size(dst_type);
+
+         nir_op op;
+         bool swap;
+
          switch (opcode) {
          case SpvOpConvertFToU:
          case SpvOpConvertFToS:
@@ -2897,30 +2900,29 @@ vtn_handle_constant(struct vtn_builder *b, SpvOp opcode,
          case SpvOpConvertUToF:
          case SpvOpSConvert:
          case SpvOpFConvert:
-         case SpvOpUConvert:
+         case SpvOpUConvert: {
             /* We have a different source type in a conversion. */
-            conv_src_bit_size =
+            const unsigned conv_src_bit_size =
                glsl_type_is_nonnative_float(src_type[0]) ? 32 : glsl_get_bit_size(src_type[0]);
+
+            nir_alu_type src_alu_type = vtn_convert_op_src_type(opcode) | conv_src_bit_size;
+            nir_alu_type dst_alu_type = vtn_convert_op_dst_type(opcode) | dst_bit_size;
+            op = nir_type_conversion_op(src_alu_type, dst_alu_type, nir_rounding_mode_undef);
+            swap = false;
             break;
-         default:
-            /* When picking ALU ops, bit-size is only used for Convert
-             * operations.
+         }
+
+         default: {
+            unsigned extra_fp_math_ctrl;
+            op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl);
+
+            /* No SPIR-V opcodes handled through this path should set fast math.
+             * Since it is ignored, assert on it.
              */
-            conv_src_bit_size = 0;
+            assert(!extra_fp_math_ctrl);
             break;
+         }
          };
-
-         const unsigned dst_bit_size =
-            glsl_type_is_nonnative_float(dst_type) ? 32 : glsl_get_bit_size(dst_type);
-
-         unsigned extra_fp_math_ctrl;
-         nir_op op = vtn_nir_alu_op_for_spirv_opcode(b, opcode, &swap, &extra_fp_math_ctrl,
-                                                     conv_src_bit_size, dst_bit_size);
-
-         /* No SPIR-V opcodes handled through this path should set fast math.
-          * Since it is ignored, assert on it.
-          */
-         assert(!extra_fp_math_ctrl);
 
          unsigned resolved_bit_size = dst_bit_size;
 
