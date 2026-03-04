@@ -138,6 +138,7 @@ struct radv_trace_data {
    uint64_t comp_ring_pipeline;
    uint64_t vertex_descriptors;
    uint64_t vertex_prolog;
+   uint64_t ps_epilog;
    uint64_t descriptor_sets[MAX_SETS];
    VkDispatchIndirectCommand indirect_dispatch;
 };

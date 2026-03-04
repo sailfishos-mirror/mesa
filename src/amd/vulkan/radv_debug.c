@@ -633,6 +633,19 @@ radv_dump_vs_prolog(const struct radv_device *device, const struct radv_graphics
    fprintf(f, "DISASM:\n%s\n", vs_prolog->disasm_string);
 }
 
+static void
+radv_dump_ps_epilog(const struct radv_device *device, const struct radv_graphics_pipeline *pipeline, FILE *f)
+{
+   struct radv_shader_part *ps_epilog = (struct radv_shader_part *)(uintptr_t)device->trace_data->ps_epilog;
+   struct radv_shader *ps = radv_get_shader(pipeline->base.shaders, MESA_SHADER_FRAGMENT);
+
+   if (!ps_epilog || !ps || !ps->info.ps.has_epilog)
+      return;
+
+   fprintf(f, "Fragment epilog:\n\n");
+   fprintf(f, "DISASM:\n%s\n", ps_epilog->disasm_string);
+}
+
 static struct radv_pipeline *
 radv_get_saved_pipeline(struct radv_device *device, enum amd_ip_type ring)
 {
@@ -660,6 +673,7 @@ radv_dump_queue_state(struct radv_queue *queue, const char *dump_dir, const char
          struct radv_graphics_pipeline *graphics_pipeline = radv_pipeline_to_graphics(pipeline);
 
          radv_dump_vs_prolog(device, graphics_pipeline, f);
+         radv_dump_ps_epilog(device, graphics_pipeline, f);
 
          /* Dump active graphics shaders. */
          unsigned stages = graphics_pipeline->active_stages;

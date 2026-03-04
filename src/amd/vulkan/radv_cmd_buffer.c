@@ -1761,6 +1761,22 @@ radv_save_vs_prolog(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader
    radv_write_data(cmd_buffer, V_370_ME, va, 2, data, false);
 }
 
+static void
+radv_save_ps_epilog(struct radv_cmd_buffer *cmd_buffer, const struct radv_shader_part *epilog)
+{
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   uint32_t data[2];
+   uint64_t va;
+
+   va = radv_buffer_get_va(device->trace_bo) + offsetof(struct radv_trace_data, ps_epilog);
+
+   uint64_t epilog_address = (uintptr_t)epilog;
+   data[0] = epilog_address;
+   data[1] = epilog_address >> 32;
+
+   radv_write_data(cmd_buffer, V_370_ME, va, 2, data, false);
+}
+
 void
 radv_set_descriptor_set(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoint bind_point,
                         struct radv_descriptor_set *set, unsigned idx)
@@ -2817,6 +2833,9 @@ radv_emit_ps_epilog_state(struct radv_cmd_buffer *cmd_buffer)
       radeon_emit_32bit_pointer(epilog_pc_offset, ps_epilog->va, &pdev->info);
    }
    radeon_end();
+
+   if (radv_device_fault_detection_enabled(device))
+      radv_save_ps_epilog(cmd_buffer, ps_epilog);
 }
 
 void
