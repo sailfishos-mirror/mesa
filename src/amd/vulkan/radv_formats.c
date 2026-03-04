@@ -116,7 +116,7 @@ radv_is_storage_image_format_supported(const struct radv_physical_device *pdev, 
    if (format == VK_FORMAT_UNDEFINED)
       return false;
 
-   if (vk_format_has_stencil(format))
+   if (vk_format_is_depth_or_stencil(format))
       return false;
 
    if (instance->drirc.debug.disable_depth_storage && vk_format_has_depth(format))

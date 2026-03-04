@@ -381,8 +381,8 @@ radv_use_htile_for_image(const struct radv_device *device, const struct radv_ima
    if (!(image->vk.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))
       return false;
 
-   if (image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT)
-      return false;
+   /* Storage isn't allowed with depth/stencil images. */
+   assert(!(image->vk.usage & VK_IMAGE_USAGE_STORAGE_BIT));
 
    /* TODO:
     * - Investigate about mips+layers.
