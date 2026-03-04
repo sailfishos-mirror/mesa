@@ -160,3 +160,5 @@ glx@glx-copy-sub-buffer
 glx@glx-visuals-depth
 glx@glx-visuals-stencil
 spec@!opengl 1.1@depthstencil-default_fb-drawpixels-float-and-ushort samples=2
+
+dEQP-VK.glsl.operator.unary_operator.post_decrement_result.highp_uvec4_vertex

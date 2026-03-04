@@ -613,6 +613,8 @@ dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg
 dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16i.renderbuffer_to_texture2d,Fail
 dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16ui.renderbuffer_to_renderbuffer,Fail
 dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16ui.renderbuffer_to_texture2d,Fail
+asan-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16f.renderbuffer_to_texture2d,Fail
+asan-dEQP-GLES31.functional.copy_image.non_compressed.viewclass_32_bits.rgb10_a2ui_rg16i.renderbuffer_to_texture2d,Fail
 
 # SKQP failing tests
 ES2BlendWithNoTexture,Fail
