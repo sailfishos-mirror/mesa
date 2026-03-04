@@ -1296,7 +1296,6 @@ zink_screen_init_compiler(struct zink_screen *screen)
       .lower_usub_borrow = true,
       .lower_uadd_sat = true,
       .lower_usub_sat = true,
-      .lower_vector_cmp = true,
       .lower_int64_options =
          nir_lower_bit_count64 |
          nir_lower_find_lsb64 |
@@ -1446,6 +1445,18 @@ filter_pack_instr(const nir_instr *const_instr, UNUSED const void *data)
    nir_instr *instr = (nir_instr *)const_instr;
    nir_alu_instr *alu = nir_instr_as_alu(instr);
    switch (alu->op) {
+   case nir_op_ball_fequal2:
+   case nir_op_ball_fequal3:
+   case nir_op_ball_fequal4:
+   case nir_op_bany_fnequal2:
+   case nir_op_bany_fnequal3:
+   case nir_op_bany_fnequal4:
+   case nir_op_ball_iequal2:
+   case nir_op_ball_iequal3:
+   case nir_op_ball_iequal4:
+   case nir_op_bany_inequal2:
+   case nir_op_bany_inequal3:
+   case nir_op_bany_inequal4:
    case nir_op_pack_64_2x32_split:
    case nir_op_pack_32_2x16_split:
    case nir_op_unpack_32_2x16_split_x:
