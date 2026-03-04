@@ -640,6 +640,8 @@ intel_ds_end_submit(struct intel_ds_queue *queue,
       submit->set_duration_ns(end_ts - start_ts);
       submit->set_vk_queue((uintptr_t) queue);
       submit->set_submission_id(submission_id);
+      submit->set_pid(getpid());
+      submit->set_tid(gettid());
    });
 }
 
