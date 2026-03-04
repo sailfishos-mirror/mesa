@@ -1024,7 +1024,7 @@
         "description": "anv: don't try to fast clear D/S with multiview",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e488773b29d971a2f24904465cf027c9f4650a94",
         "notes": null
