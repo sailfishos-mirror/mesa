@@ -505,6 +505,8 @@ genX(emit_simple_shader_dispatch)(struct anv_simple_shader *state,
       vertices[3] = x0; vertices[4] = y1; vertices[5] = z; /* v1 */
       vertices[6] = x0; vertices[7] = y0; vertices[8] = z; /* v2 */
 
+      struct anv_address vs_data_address =
+         anv_state_pool_state_address(&device->dynamic_state_pool, vs_data_state);
       uint32_t *dw = anv_batch_emitn(batch,
                                      1 + GENX(VERTEX_BUFFER_STATE_length),
                                      GENX(3DSTATE_VERTEX_BUFFERS));
@@ -512,10 +514,7 @@ genX(emit_simple_shader_dispatch)(struct anv_simple_shader *state,
                                      &(struct GENX(VERTEX_BUFFER_STATE)) {
                                         .VertexBufferIndex     = 0,
                                         .AddressModifyEnable   = true,
-                                        .BufferStartingAddress = (struct anv_address) {
-                                           .bo = device->dynamic_state_pool.block_pool.bo,
-                                           .offset = vs_data_state.offset,
-                                        },
+                                        .BufferStartingAddress = vs_data_address,
                                         .BufferPitch           = 3 * sizeof(float),
                                         .BufferSize            = 9 * sizeof(float),
                                         .MOCS                  = anv_mocs(device, NULL, 0),
