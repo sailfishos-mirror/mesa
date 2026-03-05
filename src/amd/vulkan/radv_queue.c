@@ -710,8 +710,6 @@ radv_emit_graphics(struct radv_device *device, struct radv_cmd_stream *cs)
 
    if (!has_clear_state) {
       ac_pm4_set_reg(pm4, R_028230_PA_SC_EDGERULE, 0xAAAAAAAA);
-      /* PA_SU_HARDWARE_SCREEN_OFFSET must be 0 due to hw bug on GFX6 */
-      ac_pm4_set_reg(pm4, R_028234_PA_SU_HARDWARE_SCREEN_OFFSET, 0);
    }
 
    if (pdev->info.gfx_level <= GFX8)
