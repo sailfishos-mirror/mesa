@@ -1639,7 +1639,6 @@ dEQP-GLES2.functional.texture.wrap.mirror_clamp_linear_pot_rgba8888,Fail
 dEQP-GLES2.functional.texture.wrap.mirror_mirror_linear_pot_rgba8888,Fail
 dEQP-GLES2.functional.uniform_api.random.21,Fail
 dEQP-GLES2.functional.uniform_api.random.23,Fail
-dEQP-GLES2.functional.uniform_api.random.29,Fail
 dEQP-GLES2.functional.uniform_api.random.3,Fail
 dEQP-GLES2.functional.uniform_api.random.33,Fail
 dEQP-GLES2.functional.uniform_api.random.79,Fail
