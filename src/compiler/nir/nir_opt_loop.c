@@ -339,6 +339,37 @@ has_phi_with_constant_src(nir_block *block, nir_block *pred)
    return false;
 }
 
+/* For now, we restrict this optimization to cases where the outer IF
+ * can be constant-folded or where at least one phi at the loop-header
+ * has a constant loop-carried source. If it can be constant-folded,
+ * we additionally require that there is actual work to be done after
+ * the initial break. This is to avoid unconditionally unrolling long
+ * loops.
+ *
+ * Note: If this restriction is lifted, it might recurse infinitely.
+ *       Prevent by e.g. restricting to single-exit loops.
+ */
+static bool
+should_peel_initial_break(nir_loop *loop)
+{
+   nir_block *header_block = nir_loop_first_block(loop);
+   nir_cf_node *if_node = nir_cf_node_next(&header_block->cf_node);
+   nir_if *nif = nir_cf_node_as_if(if_node);
+
+   /* This loop is already in do-while form. */
+   if (loop->do_while)
+      return false;
+
+   /* If there is a phi with a constant loop-carried value, we can remove
+    * the phi by peeling one iteration.
+    */
+   if (has_phi_with_constant_src(header_block, nir_loop_last_block(loop)))
+      return true;
+
+   return nir_block_contains_work(nir_cf_node_cf_tree_next(if_node)) &&
+          can_constant_fold(nir_get_scalar(nif->condition.ssa, 0), header_block);
+}
+
 /**
  * This optimization tries to peel the first loop break.
  *
@@ -399,19 +430,7 @@ opt_loop_peel_initial_break(nir_loop *loop)
    if (nir_block_ends_in_jump(nir_loop_last_block(loop)))
       return false;
 
-   /* For now, we restrict this optimization to cases where the outer IF
-    * can be constant-folded or where at least one phi at the loop-header
-    * has a constant loop-carried source. If it can be constant-folded,
-    * we additionally require that there is actual work to be done after
-    * the initial break. This is to avoid unconditionally unrolling long
-    * loops.
-    *
-    * Note: If this restriction is lifted, it might recurse infinitely.
-    *       Prevent by e.g. restricting to single-exit loops.
-    */
-   if (!has_phi_with_constant_src(header_block, nir_loop_last_block(loop)) &&
-       (!nir_block_contains_work(nir_cf_node_cf_tree_next(if_node)) ||
-        !can_constant_fold(nir_get_scalar(nif->condition.ssa, 0), header_block)))
+   if (!should_peel_initial_break(loop))
       return false;
 
    /* Even though this if statement has a jump on one side, we may still have
@@ -455,6 +474,9 @@ opt_loop_peel_initial_break(nir_loop *loop)
    nir_cf_extract(&tmp, nir_before_cf_node(&loop->cf_node),
                   nir_after_cf_node(&loop->cf_node));
    nir_cf_reinsert(&tmp, nir_after_block(nir_if_first_else_block(nif)));
+
+   /* This loop is now in do-while form. */
+   loop->do_while = true;
 
    return true;
 }
