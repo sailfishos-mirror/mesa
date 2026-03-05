@@ -699,7 +699,7 @@ Khronos extensions that are not part of any Vulkan version:
   VK_NVX_image_view_handle                              DONE (nvk)
   VK_EXT_acquire_drm_display                            DONE (anv, hk, nvk, panvk, radv, tu, v3dv, vn)
   VK_VALVE_fragment_density_map_layered                 DONE (tu)
-  VK_VALVE_mutable_descriptor_type                      DONE (anv, hasvk, hk, nvk, radv, tu, vn)
+  VK_VALVE_mutable_descriptor_type                      DONE (anv, hasvk, hk, nvk, panvk, radv, tu, vn)
   VK_AMD_buffer_marker                                  DONE (anv, nvk, radv, tu)
   VK_AMD_device_coherent_memory                         DONE (radv)
   VK_AMD_draw_indirect_count                            DONE (radv)

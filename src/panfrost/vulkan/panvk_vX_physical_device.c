@@ -206,6 +206,8 @@ panvk_per_arch(get_physical_device_extensions)(
       .GOOGLE_hlsl_functionality1 = true,
       .GOOGLE_user_type = true,
 
+      .VALVE_mutable_descriptor_type = PAN_ARCH >= 9,
+
       .ARM_shader_core_builtins = true,
       .ARM_shader_core_properties = has_vk1_1,
       .ARM_scheduling_controls = PAN_ARCH >= 10,

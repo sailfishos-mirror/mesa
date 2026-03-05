@@ -30,3 +30,4 @@ cl_khr_subgroup_non_uniform_arithmetic on asahi, llvmpipe, radeonsi and zink
 cl_khr_subgroup_non_uniform_vote on asahi, iris, llvmpipe, radeonsi and zink
 cl_khr_subgroup_rotate on asahi, llvmpipe and zink
 VK_EXT_nested_command_buffer on panvk
+VK_VALVE_mutable_descriptor_type on panvk
