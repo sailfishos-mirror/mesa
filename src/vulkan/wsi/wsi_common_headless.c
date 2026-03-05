@@ -178,6 +178,14 @@ wsi_headless_surface_get_formats(VkIcdSurfaceBase *icd_surface,
          out_fmt->format = VK_FORMAT_R8G8B8A8_UNORM;
          out_fmt->colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
       }
+      vk_outarray_append_typed(VkSurfaceFormatKHR, &out, out_fmt) {
+         out_fmt->format = VK_FORMAT_B8G8R8A8_SRGB;
+         out_fmt->colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+      }
+      vk_outarray_append_typed(VkSurfaceFormatKHR, &out, out_fmt) {
+         out_fmt->format = VK_FORMAT_R8G8B8A8_SRGB;
+         out_fmt->colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+      }
    } else {
       vk_outarray_append_typed(VkSurfaceFormatKHR, &out, out_fmt) {
          out_fmt->format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -185,6 +193,14 @@ wsi_headless_surface_get_formats(VkIcdSurfaceBase *icd_surface,
       }
       vk_outarray_append_typed(VkSurfaceFormatKHR, &out, out_fmt) {
          out_fmt->format = VK_FORMAT_B8G8R8A8_UNORM;
+         out_fmt->colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+      }
+      vk_outarray_append_typed(VkSurfaceFormatKHR, &out, out_fmt) {
+         out_fmt->format = VK_FORMAT_R8G8B8A8_SRGB;
+         out_fmt->colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+      }
+      vk_outarray_append_typed(VkSurfaceFormatKHR, &out, out_fmt) {
+         out_fmt->format = VK_FORMAT_B8G8R8A8_SRGB;
          out_fmt->colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
       }
    }
@@ -210,6 +226,14 @@ wsi_headless_surface_get_formats2(VkIcdSurfaceBase *icd_surface,
          out_fmt->surfaceFormat.format = VK_FORMAT_R8G8B8A8_UNORM;
          out_fmt->surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
       }
+      vk_outarray_append_typed(VkSurfaceFormat2KHR, &out, out_fmt) {
+         out_fmt->surfaceFormat.format = VK_FORMAT_B8G8R8A8_SRGB;
+         out_fmt->surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+      }
+      vk_outarray_append_typed(VkSurfaceFormat2KHR, &out, out_fmt) {
+         out_fmt->surfaceFormat.format = VK_FORMAT_R8G8B8A8_SRGB;
+         out_fmt->surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+      }
    } else {
       vk_outarray_append_typed(VkSurfaceFormat2KHR, &out, out_fmt) {
          out_fmt->surfaceFormat.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -217,6 +241,14 @@ wsi_headless_surface_get_formats2(VkIcdSurfaceBase *icd_surface,
       }
       vk_outarray_append_typed(VkSurfaceFormat2KHR, &out, out_fmt) {
          out_fmt->surfaceFormat.format = VK_FORMAT_B8G8R8A8_UNORM;
+         out_fmt->surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+      }
+      vk_outarray_append_typed(VkSurfaceFormat2KHR, &out, out_fmt) {
+         out_fmt->surfaceFormat.format = VK_FORMAT_R8G8B8A8_SRGB;
+         out_fmt->surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+      }
+      vk_outarray_append_typed(VkSurfaceFormat2KHR, &out, out_fmt) {
+         out_fmt->surfaceFormat.format = VK_FORMAT_B8G8R8A8_SRGB;
          out_fmt->surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
       }
    }
