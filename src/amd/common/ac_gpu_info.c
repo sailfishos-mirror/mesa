@@ -1660,6 +1660,13 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
    set_custom_cu_en_mask(info);
 
+   if (info->gfx_level >= GFX9) {
+      info->se_tile_repeat = 32 * info->max_se;
+   } else {
+      ac_get_raster_config(info, &info->pa_sc_raster_config,
+                           &info->pa_sc_raster_config_1, &info->se_tile_repeat);
+   }
+
    const char *ib_filename = debug_get_option("AMD_PARSE_IB", NULL);
    if (ib_filename) {
       FILE *f = fopen(ib_filename, "r");

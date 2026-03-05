@@ -510,9 +510,6 @@ struct si_screen {
    uint64_t multimedia_debug_flags;
    char renderer_string[183];
 
-   unsigned pa_sc_raster_config;
-   unsigned pa_sc_raster_config_1;
-   unsigned se_tile_repeat;
    unsigned gs_table_depth;
    unsigned eqaa_force_coverage_samples;
    unsigned eqaa_force_z_samples;

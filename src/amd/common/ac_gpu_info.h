@@ -463,6 +463,11 @@ struct radeon_info {
    bool spi_cu_en_has_effect;
    uint32_t spi_cu_en;
 
+   /* Raster config. */
+   uint32_t pa_sc_raster_config;
+   uint32_t pa_sc_raster_config_1;
+   uint32_t se_tile_repeat;
+
    struct {
       uint32_t shadow_size;
       uint32_t shadow_alignment;
