@@ -110,6 +110,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_shader_subgroup_rotate = true,
       .KHR_shader_subgroup_uniform_control_flow = has_vk1_1,
       .KHR_shader_terminate_invocation = true,
+      .KHR_shader_untyped_pointers = PAN_ARCH >= 9,
       .KHR_spirv_1_4 = PAN_ARCH >= 10,
       .KHR_storage_buffer_storage_class = true,
 #ifdef PANVK_USE_WSI_PLATFORM
@@ -554,6 +555,9 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_KHR_shader_subgroup_uniform_control_flow */
       .shaderSubgroupUniformControlFlow = true,
+
+      /* VK_KHR_shader_untyped_pointers */
+      .shaderUntypedPointers = PAN_ARCH >= 9,
 
       /* VK_EXT_shader_module_identifier */
       .shaderModuleIdentifier = true,
