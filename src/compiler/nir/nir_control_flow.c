@@ -141,20 +141,30 @@ link_block_to_non_block(nir_block *block, nir_cf_node *node)
 }
 
 /**
- * Replace a block's successor with a different one.
+ * Replace the successor of a block's predecessors with a different one.
  */
 static void
-replace_successor(nir_block *block, nir_block *old_succ, nir_block *new_succ)
+replace_pred_succs(nir_block *block, nir_block *new_block, nir_block *exclude)
 {
-   if (block->successors[0] == old_succ) {
-      block->successors[0] = new_succ;
-   } else {
-      assert(block->successors[1] == old_succ);
-      block->successors[1] = new_succ;
+   bool found_exclude = false;
+   nir_foreach_pred(pred, block) {
+      if (pred == exclude) {
+         found_exclude = true;
+         continue;
+      }
+
+      if (pred->successors[0] == block) {
+         pred->successors[0] = new_block;
+      } else {
+         assert(pred->successors[1] == block);
+         pred->successors[1] = new_block;
+      }
+      nir_block_add_pred(new_block, pred);
    }
 
-   nir_block_remove_pred(old_succ, block);
-   nir_block_add_pred(new_succ, block);
+   _mesa_set_clear(&block->predecessors, NULL);
+   if (found_exclude)
+      nir_block_add_pred(block, exclude);
 }
 
 /**
@@ -172,8 +182,7 @@ split_block_beginning(nir_block *block)
    new_block->cf_node.parent = block->cf_node.parent;
    exec_node_insert_node_before(&block->cf_node.node, &new_block->cf_node.node);
 
-   nir_foreach_pred(pred, block)
-      replace_successor(pred, block, new_block);
+   replace_pred_succs(block, new_block, NULL);
 
    /* Any phi nodes must stay part of the new block, or else their
     * sources will be messed up.
@@ -420,10 +429,7 @@ nir_loop_add_continue_construct(nir_loop *loop)
    nir_block *header = nir_loop_first_block(loop);
    nir_block *preheader = nir_block_cf_tree_prev(header);
    assert(nir_block_num_preds(header) <= 2);
-   nir_foreach_pred(pred, header) {
-      if (pred != preheader)
-         replace_successor(pred, header, cont);
-   }
+   replace_pred_succs(header, cont, preheader);
 
    link_blocks(cont, header, NULL);
 }
@@ -437,8 +443,7 @@ nir_loop_remove_continue_construct(nir_loop *loop)
    nir_block *header = nir_loop_first_block(loop);
    nir_block *cont = nir_loop_first_continue_block(loop);
    assert(nir_block_num_preds(cont) <= 2);
-   nir_foreach_pred(pred, cont)
-      replace_successor(pred, cont, header);
+   replace_pred_succs(cont, header, NULL);
    nir_block_remove_pred(header, cont);
 
    exec_node_remove(&cont->cf_node.node);
