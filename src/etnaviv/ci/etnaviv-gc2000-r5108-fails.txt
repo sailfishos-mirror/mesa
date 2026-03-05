@@ -3,6 +3,8 @@ dEQP-GLES2.functional.buffer.write.use.index_array.element_array,Fail
 dEQP-GLES2.functional.clipping.line.wide_line_clip_viewport_center,Fail
 dEQP-GLES2.functional.clipping.line.wide_line_clip_viewport_corner,Fail
 dEQP-GLES2.functional.clipping.triangle_vertex.clip_three.clip_pos_y_pos_z_and_neg_x_neg_y_pos_z_and_pos_x_pos_y_neg_z,Fail
+dEQP-GLES2.functional.color_clear.long_masked_rgb,Fail
+dEQP-GLES2.functional.color_clear.long_masked_rgba,Fail
 dEQP-GLES2.functional.draw.draw_elements.triangle_fan.single_attribute,Fail
 dEQP-GLES2.functional.fbo.render.resize.rbo_rgb565_depth_component16,Fail
 dEQP-GLES2.functional.fbo.render.resize.rbo_rgb565,Fail
@@ -639,7 +641,6 @@ spec@glsl-1.10@execution@variable-indexing@fs-input-array-vec2-index-rd,Fail
 
 # uprev Piglit in Mesa
 spec@!opengl 1.1@push-pop-color-material,Fail
-spec@glsl-1.10@execution@builtins@glsl-fs-abs-02,Fail
 
 # Nightly run expectations update
 spec@!opengl 1.0@gl-1.0-scissor-many,Fail
@@ -670,3 +671,19 @@ spec@glsl-1.20@execution@tex-miplevel-selection gl2:textureproj(bias) 2d_projvec
 spec@glsl-1.20@execution@tex-miplevel-selection gl2:textureproj(bias) 2dshadow,Fail
 spec@glsl-1.20@execution@tex-miplevel-selection gl2:textureproj(bias) 3d,Fail
 
+spec@arb_framebuffer_object@arb_framebuffer_object-depth-stencil-blit stencil gl_depth24_stencil8,Crash
+spec@arb_framebuffer_object@arb_framebuffer_object-depth-stencil-blit stencil gl_stencil_index1,Crash
+spec@arb_framebuffer_object@arb_framebuffer_object-depth-stencil-blit stencil gl_stencil_index16,Crash
+spec@arb_framebuffer_object@arb_framebuffer_object-depth-stencil-blit stencil gl_stencil_index4,Crash
+spec@arb_framebuffer_object@arb_framebuffer_object-depth-stencil-blit stencil gl_stencil_index8,Crash
+spec@arb_framebuffer_object@framebuffer-blit-levels draw stencil,Crash
+spec@arb_framebuffer_object@framebuffer-blit-levels read stencil,Crash
+spec@ext_framebuffer_multisample@accuracy all_samples stencil_resolve depthstencil,Crash
+spec@ext_framebuffer_multisample@accuracy all_samples stencil_resolve small depthstencil,Crash
+spec@ext_framebuffer_object@fbo-stencil-gl_stencil_index1-blit,Crash
+spec@ext_framebuffer_object@fbo-stencil-gl_stencil_index16-blit,Crash
+spec@ext_framebuffer_object@fbo-stencil-gl_stencil_index4-blit,Crash
+spec@ext_framebuffer_object@fbo-stencil-gl_stencil_index8-blit,Crash
+spec@ext_packed_depth_stencil@fbo-blit-d24s8,Crash
+spec@ext_packed_depth_stencil@fbo-stencil-gl_depth24_stencil8-blit,Crash
+spec@ext_texture_array@copyteximage 1d_array,Crash
