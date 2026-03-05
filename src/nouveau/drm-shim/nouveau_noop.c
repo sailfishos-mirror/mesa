@@ -422,6 +422,7 @@ static ioctl_fn_t driver_ioctls[] = {
    [DRM_NOUVEAU_VM_INIT] = nouveau_ioctl_noop,
    [DRM_NOUVEAU_VM_BIND] = nouveau_ioctl_noop,
    [DRM_NOUVEAU_EXEC] = nouveau_ioctl_noop,
+   [DRM_NOUVEAU_GET_ZCULL_INFO] = nouveau_ioctl_noop,
 };
 
 static void
