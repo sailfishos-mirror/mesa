@@ -1014,9 +1014,11 @@ nak_nir_lower_load_store(nir_shader *nir, const struct nak_compiler *nak)
 
             switch (intr->intrinsic) {
             case nir_intrinsic_load_global:
-            case nir_intrinsic_load_global_constant:
-               res = nir_load_global_nv(&b, intr->def.num_components, intr->def.bit_size, addr->ssa);
+            case nir_intrinsic_load_global_constant: {
+               nir_def *nir_true = nir_imm_bool(&b, true);
+               res = nir_load_global_nv(&b, intr->def.num_components, intr->def.bit_size, addr->ssa, nir_true);
                break;
+            }
             case nir_intrinsic_load_scratch:
                res = nir_load_scratch_nv(&b, intr->def.num_components, intr->def.bit_size, addr->ssa);
                break;

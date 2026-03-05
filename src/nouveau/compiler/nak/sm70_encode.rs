@@ -150,13 +150,13 @@ impl SM70Encoder<'_> {
         self.set_pred_src_file(range, not_bit, src, RegFile::UPred);
     }
 
-    fn set_rev_upred_src(
+    fn set_rev_pred_src_file(
         &mut self,
         range: Range<usize>,
         not_bit: usize,
         src: &Src,
+        file: RegFile,
     ) {
-        let file = RegFile::UPred;
         let (not, reg) = match src.src_ref {
             SrcRef::True => (false, self.true_reg(file)),
             SrcRef::False => (true, self.true_reg(file)),
@@ -175,6 +175,24 @@ impl SM70Encoder<'_> {
         self.set_field(range, 7 - reg.base_idx());
 
         self.set_bit(not_bit, not ^ src_mod_is_bnot(src.src_mod));
+    }
+
+    fn set_rev_pred_src(
+        &mut self,
+        range: Range<usize>,
+        not_bit: usize,
+        src: &Src,
+    ) {
+        self.set_rev_pred_src_file(range, not_bit, src, RegFile::Pred)
+    }
+
+    fn set_rev_upred_src(
+        &mut self,
+        range: Range<usize>,
+        not_bit: usize,
+        src: &Src,
+    ) {
+        self.set_rev_pred_src_file(range, not_bit, src, RegFile::UPred)
     }
 
     fn set_src_cb(&mut self, range: Range<usize>, cx_bit: usize, cb: &CBufRef) {
@@ -3019,6 +3037,7 @@ impl SM70Op for OpSuAtom {
 impl SM70Op for OpLd {
     fn legalize(&mut self, b: &mut LegalizeBuilder) {
         b.copy_src_if_uniform(&mut self.addr);
+        b.copy_src_if_uniform(&mut self.pred);
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
@@ -3026,10 +3045,16 @@ impl SM70Op for OpLd {
             MemSpace::Global(_) => {
                 e.set_opcode(0x381);
                 assert_eq!(self.stride, OffsetStride::X1);
+                if e.sm >= 73 {
+                    e.set_rev_pred_src(64..67, 67, &self.pred);
+                } else {
+                    assert!(self.pred.is_true());
+                }
                 e.set_pred_dst(81..84, &Dst::None);
                 e.set_mem_access(&self.access);
             }
             MemSpace::Local => {
+                assert!(self.pred.is_true());
                 assert_eq!(self.stride, OffsetStride::X1);
                 e.set_opcode(0x983);
                 e.set_field(84..87, 1_u8);
@@ -3043,6 +3068,7 @@ impl SM70Op for OpLd {
             }
             MemSpace::Shared => {
                 e.set_opcode(0x984);
+                assert!(self.pred.is_true());
 
                 e.set_mem_type(73..76, self.access.mem_type);
                 assert!(self.access.order == MemOrder::Strong(MemScope::CTA));

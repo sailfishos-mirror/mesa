@@ -3071,11 +3071,13 @@ impl<'a> ShaderFromNir<'a> {
                         .get_eviction_priority(intrin.access()),
                 };
                 let addr = self.get_src(&srcs[0]);
+                let pred = self.get_src(&srcs[1]);
                 let dst = b.alloc_ssa_vec(RegFile::GPR, size_B.div_ceil(4));
 
                 b.push_op(OpLd {
                     dst: dst.clone().into(),
                     addr: addr,
+                    pred: pred,
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
                     access: access,
@@ -3186,6 +3188,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLd {
                     dst: dst.clone().into(),
                     addr: addr,
+                    pred: true.into(),
                     offset: intrin.base(),
                     stride: OffsetStride::X1,
                     access: access,
@@ -3208,6 +3211,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpLd {
                     dst: dst.clone().into(),
                     addr: addr,
+                    pred: true.into(),
                     offset: intrin.base(),
                     stride: intrin.offset_shift_nv().try_into().unwrap(),
                     access: access,

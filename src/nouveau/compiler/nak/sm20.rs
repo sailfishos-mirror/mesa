@@ -2310,6 +2310,7 @@ impl SM20Op for OpLd {
 
     fn encode(&self, e: &mut SM20Encoder<'_>) {
         assert_eq!(self.stride, OffsetStride::X1);
+        assert!(self.pred.is_true());
         match self.access.space {
             MemSpace::Global(addr_type) => {
                 e.set_opcode(SM20Unit::Mem, 0x20);

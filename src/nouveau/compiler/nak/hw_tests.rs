@@ -154,6 +154,7 @@ impl<'a> TestShaderBuilder<'a> {
         self.push_op(OpLd {
             dst: dst.clone().into(),
             addr: self.data_addr.clone().into(),
+            pred: true.into(),
             offset: offset.into(),
             access: access,
             stride: OffsetStride::X1,

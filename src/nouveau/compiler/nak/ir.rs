@@ -6459,6 +6459,10 @@ pub struct OpLd {
     #[src_type(GPR)]
     pub addr: Src,
 
+    /// On false the load returns 0
+    #[src_type(Pred)]
+    pub pred: Src,
+
     pub offset: i32,
     pub stride: OffsetStride,
     pub access: MemAccess,
@@ -6470,7 +6474,7 @@ impl DisplayOp for OpLd {
         if self.offset > 0 {
             write!(f, "+{:#x}", self.offset)?;
         }
-        write!(f, "]")
+        write!(f, "], {}", self.pred)
     }
 }
 impl_display_for_op!(OpLd);

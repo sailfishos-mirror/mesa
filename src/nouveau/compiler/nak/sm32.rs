@@ -2550,6 +2550,7 @@ impl SM32Op for OpLd {
 
     fn encode(&self, e: &mut SM32Encoder<'_>) {
         assert_eq!(self.stride, OffsetStride::X1);
+        assert!(self.pred.is_true());
         // Missing:
         // 0x7c8 for indirect const load
         match self.access.space {

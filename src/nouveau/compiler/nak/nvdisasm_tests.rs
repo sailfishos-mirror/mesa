@@ -291,6 +291,7 @@ pub fn test_ld_st_atom() {
     let r1 = RegRef::new(RegFile::GPR, 1, 1);
     let r2 = RegRef::new(RegFile::GPR, 2, 1);
     let r3 = RegRef::new(RegFile::GPR, 3, 1);
+    let p4 = RegRef::new(RegFile::Pred, 4, 1);
 
     let order = MemOrder::Strong(MemScope::CTA);
 
@@ -338,11 +339,23 @@ pub fn test_ld_st_atom() {
                     let instr = OpLd {
                         dst: Dst::Reg(r0),
                         addr: SrcRef::Reg(r1).into(),
+                        pred: if matches!(space, MemSpace::Global(_))
+                            && sm >= 73
+                        {
+                            SrcRef::Reg(p4).into()
+                        } else {
+                            true.into()
+                        },
                         offset: addr_offset,
                         access: access.clone(),
                         stride: addr_stride,
                     };
                     let expected = match space {
+                        MemSpace::Global(_) if sm >= 73 => {
+                            format!(
+                                "ldg.e.ef.strong.{cta} r0, [r1+{addr_offset_str}], p4;"
+                            )
+                        }
                         MemSpace::Global(_) => {
                             format!(
                                 "ldg.e.ef.strong.{cta} r0, [r1+{addr_offset_str}];"

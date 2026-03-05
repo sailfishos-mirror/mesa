@@ -2598,6 +2598,7 @@ impl SM50Op for OpLd {
 
     fn encode(&self, e: &mut SM50Encoder<'_>) {
         assert_eq!(self.stride, OffsetStride::X1);
+        assert!(self.pred.is_true());
         e.set_opcode(match self.access.space {
             MemSpace::Global(_) => 0xeed0,
             MemSpace::Local => 0xef40,

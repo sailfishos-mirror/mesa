@@ -1845,7 +1845,8 @@ store("global_amd", [1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET, WRIT
 
 # src[] = { address }. BASE is a 24 bit unsigned offset if a constant 0 address is given,
 # signed otherwise.
-load("global_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
+# load_global_nv has an additional boolean input that makes the load return 0 on false.
+load("global_nv", [1, 1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
 store("global_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET])
 load("scratch_nv", [1], indices=[BASE, ACCESS, ALIGN_MUL, ALIGN_OFFSET], flags=[CAN_ELIMINATE])
 store("scratch_nv", [1], indices=[BASE, ALIGN_MUL, ALIGN_OFFSET])

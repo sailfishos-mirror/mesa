@@ -756,6 +756,11 @@ validate_intrinsic_instr(nir_intrinsic_instr *instr, validate_state *state)
          int32_t min = ~BITFIELD_MASK(const_bits - 1);
          validate_assert(state, base >= min && base < max);
       }
+
+      if (instr->intrinsic == nir_intrinsic_load_global_nv) {
+         validate_assert(state, instr->src[1].ssa->bit_size == 1);
+      }
+
       break;
    }
 
