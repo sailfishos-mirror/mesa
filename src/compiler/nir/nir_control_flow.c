@@ -45,32 +45,16 @@
  */
 /*@{*/
 
-static inline void
-block_add_pred(nir_block *block, nir_block *pred)
-{
-   _mesa_set_add(&block->predecessors, pred);
-}
-
-static inline void
-block_remove_pred(nir_block *block, nir_block *pred)
-{
-   struct set_entry *entry = _mesa_set_search(&block->predecessors, pred);
-
-   assert(entry);
-
-   _mesa_set_remove(&block->predecessors, entry);
-}
-
 static void
 link_blocks(nir_block *pred, nir_block *succ1, nir_block *succ2)
 {
    pred->successors[0] = succ1;
    if (succ1 != NULL)
-      block_add_pred(succ1, pred);
+      nir_block_add_pred(succ1, pred);
 
    pred->successors[1] = succ2;
    if (succ2 != NULL)
-      block_add_pred(succ2, pred);
+      nir_block_add_pred(succ2, pred);
 }
 
 static void
@@ -84,7 +68,7 @@ unlink_blocks(nir_block *pred, nir_block *succ)
       pred->successors[1] = NULL;
    }
 
-   block_remove_pred(succ, pred);
+   nir_block_remove_pred(succ, pred);
 }
 
 static void
@@ -169,8 +153,8 @@ replace_successor(nir_block *block, nir_block *old_succ, nir_block *new_succ)
       block->successors[1] = new_succ;
    }
 
-   block_remove_pred(old_succ, block);
-   block_add_pred(new_succ, block);
+   nir_block_remove_pred(old_succ, block);
+   nir_block_add_pred(new_succ, block);
 }
 
 /**
@@ -188,10 +172,8 @@ split_block_beginning(nir_block *block)
    new_block->cf_node.parent = block->cf_node.parent;
    exec_node_insert_node_before(&block->cf_node.node, &new_block->cf_node.node);
 
-   set_foreach(&block->predecessors, entry) {
-      nir_block *pred = (nir_block *)entry->key;
+   nir_foreach_pred(pred, block)
       replace_successor(pred, block, new_block);
-   }
 
    /* Any phi nodes must stay part of the new block, or else their
     * sources will be messed up.
@@ -437,9 +419,8 @@ nir_loop_add_continue_construct(nir_loop *loop)
    /* change predecessors and successors */
    nir_block *header = nir_loop_first_block(loop);
    nir_block *preheader = nir_block_cf_tree_prev(header);
-   assert(header->predecessors.entries <= 2);
-   set_foreach(&header->predecessors, entry) {
-      nir_block *pred = (nir_block *)entry->key;
+   assert(nir_block_num_preds(header) <= 2);
+   nir_foreach_pred(pred, header) {
       if (pred != preheader)
          replace_successor(pred, header, cont);
    }
@@ -455,12 +436,10 @@ nir_loop_remove_continue_construct(nir_loop *loop)
    /* change predecessors and successors */
    nir_block *header = nir_loop_first_block(loop);
    nir_block *cont = nir_loop_first_continue_block(loop);
-   assert(cont->predecessors.entries <= 2);
-   set_foreach(&cont->predecessors, entry) {
-      nir_block *pred = (nir_block *)entry->key;
+   assert(nir_block_num_preds(cont) <= 2);
+   nir_foreach_pred(pred, cont)
       replace_successor(pred, cont, header);
-   }
-   block_remove_pred(header, cont);
+   nir_block_remove_pred(header, cont);
 
    exec_node_remove(&cont->cf_node.node);
 }

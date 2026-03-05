@@ -1511,7 +1511,7 @@ visit_loop(nir_loop *loop, struct divergence_state *state)
    /* setup loop state */
    struct divergence_state loop_state = *state;
    loop_state.loop = loop;
-   loop_state.loop_all_invariant = loop_header->predecessors.entries == 1;
+   loop_state.loop_all_invariant = nir_block_num_preds(loop_header) == 1;
    loop_state.divergent_cf = false;
    loop_state.divergent_loop_continue = false;
    loop_state.divergent_loop_break = false;

@@ -448,10 +448,8 @@ ntt_live_regs(struct ntt_compile *c, nir_function_impl *impl)
                                ~bs->livein[i]);
          if (new_livein) {
             bs->livein[i] |= new_livein;
-            set_foreach(&block->predecessors, entry) {
-               nir_block *pred = (void *)entry->key;
+            nir_foreach_pred(pred, block)
                nir_block_worklist_push_tail(&state.worklist, pred);
-            }
 
             if (new_livein & state.blocks[block->index].defin[i])
                c->liveness[i].start = MIN2(c->liveness[i].start, ntt_block->start_ip);

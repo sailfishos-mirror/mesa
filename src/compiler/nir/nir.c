@@ -715,7 +715,7 @@ nir_function_impl_create_bare(nir_shader *shader)
    exec_list_push_tail(&impl->body, &start_block->cf_node.node);
 
    start_block->successors[0] = end_block;
-   _mesa_set_add(&end_block->predecessors, start_block);
+   nir_block_add_pred(end_block, start_block);
    return impl;
 }
 
@@ -791,7 +791,7 @@ nir_loop_create(nir_shader *shader)
    body->cf_node.parent = &loop->cf_node;
 
    body->successors[0] = body;
-   _mesa_set_add(&body->predecessors, body);
+   nir_block_add_pred(body, body);
 
    exec_list_make_empty(&loop->continue_list);
 
@@ -2151,16 +2151,14 @@ compare_block_index(const void *p1, const void *p2)
 nir_block **
 nir_block_get_predecessors_sorted(const nir_block *block, void *mem_ctx)
 {
-   nir_block **preds =
-      ralloc_array(mem_ctx, nir_block *, block->predecessors.entries);
+   unsigned count = nir_block_num_preds(block);
+   nir_block **preds = ralloc_array(mem_ctx, nir_block *, count);
 
    unsigned i = 0;
-   set_foreach(&block->predecessors, entry)
-      preds[i++] = (nir_block *)entry->key;
-   assert(i == block->predecessors.entries);
+   nir_foreach_pred(pred, block)
+      preds[i++] = pred;
 
-   qsort(preds, block->predecessors.entries, sizeof(nir_block *),
-         compare_block_index);
+   qsort(preds, count, sizeof(nir_block *), compare_block_index);
 
    return preds;
 }

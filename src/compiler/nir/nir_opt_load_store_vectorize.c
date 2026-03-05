@@ -1865,15 +1865,13 @@ add_entries_from_predecessor(struct vectorize_ctx *ctx, nir_block *block)
 
          /* If this isn't reorderable, we would have to consider the loop back-edges to safely use
           * it, in case there is an interfering store in the loop. */
-         bool has_continue = block->predecessors.entries > 1 ||
-                             _mesa_set_next_entry(&block->predecessors, NULL)->key != preheader;
+         bool has_continue = nir_block_num_preds(block) > 1 || !nir_block_has_pred(block, preheader);
          if (entry && !(entry->access & ACCESS_CAN_REORDER) && has_continue)
             entry = NULL;
       } else {
          /* If all predecessor entries are the same, the entry dominates the block. */
          bool first_entry = true;
-         set_foreach(&block->predecessors, set_entry) {
-            nir_block *pred = (nir_block *)set_entry->key;
+         nir_foreach_pred(pred, block) {
             if (!first_entry && entry != ctx->per_block_ctx[pred->index].last_entry[i]) {
                entry = NULL;
                break;

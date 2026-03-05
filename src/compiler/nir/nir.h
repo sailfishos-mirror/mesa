@@ -3311,6 +3311,59 @@ typedef struct nir_block {
    struct u_sparse_bitset live_out;
 } nir_block;
 
+static ALWAYS_INLINE nir_block *
+_nir_pred_iter_begin(const nir_block *block, nir_block **iter)
+{
+   struct set_entry *entry = _mesa_set_next_entry(&block->predecessors, NULL);
+   *iter = (nir_block *)entry;
+   return entry ? (nir_block *)entry->key : NULL;
+}
+
+static ALWAYS_INLINE nir_block *
+_nir_pred_iter_end(const nir_block *block)
+{
+   struct set_entry *entry = NULL;
+   return (nir_block *)entry;
+}
+
+static ALWAYS_INLINE nir_block *
+_nir_pred_iter_advance(const nir_block *block, nir_block **iter)
+{
+   struct set_entry *entry = (struct set_entry *)*iter;
+   entry = _mesa_set_next_entry(&block->predecessors, entry);
+   *iter = (nir_block *)entry;
+   return entry ? (nir_block *)entry->key : NULL;
+}
+
+#define nir_foreach_pred(pred, block)                                                 \
+   for (nir_block * pred##_iter, *pred = _nir_pred_iter_begin((block), &pred##_iter); \
+        pred##_iter != _nir_pred_iter_end((block));                                   \
+        pred = _nir_pred_iter_advance((block), &pred##_iter))
+
+static inline size_t
+nir_block_num_preds(const nir_block *block)
+{
+   return block->predecessors.entries;
+}
+
+static inline bool
+nir_block_has_pred(const nir_block *block, const nir_block *pred)
+{
+   return _mesa_set_search(&block->predecessors, pred);
+}
+
+static inline void
+nir_block_add_pred(nir_block *block, nir_block *pred)
+{
+   _mesa_set_add(&block->predecessors, pred);
+}
+
+static inline void
+nir_block_remove_pred(nir_block *block, nir_block *pred)
+{
+   _mesa_set_remove_key(&block->predecessors, pred);
+}
+
 static inline bool
 nir_block_is_reachable(nir_block *b)
 {
