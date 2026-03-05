@@ -165,6 +165,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_line_rasterization = true,
       .EXT_load_store_op_none = true,
       .EXT_nested_command_buffer = PAN_ARCH >= 10,
+      .EXT_memory_budget = true,
       .EXT_non_seamless_cube_map = true,
       .EXT_mutable_descriptor_type = PAN_ARCH >= 9,
       .EXT_multisampled_render_to_single_sampled = true,
