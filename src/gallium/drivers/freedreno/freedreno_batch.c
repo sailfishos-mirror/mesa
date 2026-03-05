@@ -555,7 +555,7 @@ fd_batch_resource_write(struct fd_batch *batch, struct fd_resource *rsc)
 
       foreach_batch (dep, cache, track->batch_mask) {
          struct fd_batch *b = NULL;
-         if ((dep == batch) || (dep->ctx != batch->ctx))
+         if ((dep == batch) || !check_batch(dep, batch->ctx))
             continue;
          /* note that batch_add_dep could flush and unref dep, so
           * we need to hold a reference to keep it live for the
