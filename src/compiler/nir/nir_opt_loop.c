@@ -356,6 +356,13 @@ should_peel_initial_break(nir_loop *loop)
    nir_cf_node *if_node = nir_cf_node_next(&header_block->cf_node);
    nir_if *nif = nir_cf_node_as_if(if_node);
 
+   /* If this loop is supposed to get unrolled, try doing so by peeling
+    * one iteration at a time.  This works in cases where loop analysis
+    * is not able to calculate the iteration count.
+    */
+   if (loop->control & nir_loop_control_unroll)
+      return can_constant_fold(nir_get_scalar(nif->condition.ssa, 0), header_block);
+
    /* This loop is already in do-while form. */
    if (loop->do_while)
       return false;
