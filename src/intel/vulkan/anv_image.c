@@ -1653,9 +1653,10 @@ alloc_private_binding(struct anv_device *device,
                                          &binding->address.bo);
    ANV_DMR_BO_ALLOC(&image->vk.base, binding->address.bo, result);
 
-   struct anv_address addr = anv_address_add(binding->address,
-                                             image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].memory_range.offset);
-   ANV_ADDR_BINDING_REPORT_ADDR_BIND(device, &image->vk.base, addr,
+   ANV_ADDR_BINDING_REPORT_ADDR_BIND(device,
+                                     &image->vk.base,
+                                     binding->address64 +
+                                     image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].memory_range.offset,
                                      image->bindings[ANV_IMAGE_MEMORY_BINDING_PRIVATE].memory_range.size);
 
    return result;
@@ -1719,6 +1720,7 @@ anv_image_init_sparse_bindings(struct anv_image *image,
             continue;
 
          b->address = anv_address_add(base_address, b->memory_range.offset);
+         b->address64 = anv_address_physical(b->address);
       }
    } else {
       anv_image_finish_sparse_bindings(image);
@@ -2307,9 +2309,9 @@ anv_DestroyImage(VkDevice _device, VkImage _image,
    /* Report UNBIND events for all bindings */
    for (uint32_t b = 0; b < ARRAY_SIZE(image->bindings); b++) {
       if (image->bindings[b].address.bo) {
-         struct anv_address addr = anv_address_add(image->bindings[b].address,
-                                                   image->bindings[b].memory_range.offset);
-         ANV_ADDR_BINDING_REPORT_ADDR_UNBIND(device, &image->vk.base, addr,
+         ANV_ADDR_BINDING_REPORT_ADDR_UNBIND(device, &image->vk.base,
+                                             image->bindings[b].address64 +
+                                             image->bindings[b].memory_range.offset,
                                              image->bindings[b].memory_range.size);
       }
    }
@@ -2927,6 +2929,7 @@ anv_image_bind_address(struct anv_device *device,
           image->bindings[binding].memory_range.alignment == 0);
 
    image->bindings[binding].address = address;
+   image->bindings[binding].address64 = anv_address_physical(address);
 
    /* Map bindings for images with host transfer usage, so that we don't have
     * to map/unmap things at every host operation. We map cached, that means
@@ -2960,10 +2963,9 @@ anv_image_bind_address(struct anv_device *device,
       }
    }
 
-   struct anv_address addr = anv_address_add(address,
-                                             image->bindings[binding].memory_range.offset);
-
-   ANV_ADDR_BINDING_REPORT_ADDR_BIND(device, &image->vk.base, addr,
+   ANV_ADDR_BINDING_REPORT_ADDR_BIND(device, &image->vk.base,
+                                     image->bindings[binding].address64 +
+                                     image->bindings[binding].memory_range.offset,
                                      image->bindings[binding].memory_range.size);
 
    ANV_RMV(image_bind, device, image, binding);

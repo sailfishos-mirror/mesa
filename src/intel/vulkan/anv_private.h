@@ -5796,6 +5796,7 @@ struct anv_image {
    struct anv_image_binding {
       struct anv_image_memory_range memory_range;
       struct anv_address address;
+      uint64_t address64;
       void *host_map;
       uint64_t map_delta;
       uint64_t map_size;
@@ -7175,36 +7176,31 @@ anv_emit_device_memory_report(struct vk_device* device,
  */
 
 #define ANV_ADDR_BINDING_REPORT_ADDR(_device, _vk_obj_base, _addr, _size, _type) \
-   do { \
-      struct anv_address __addr = (_addr); \
-      uint64_t __va = anv_address_physical(__addr); \
-      if (__va != 0) { \
-         vk_address_binding_report(&(_device)->physical->instance->vk, \
-                                   (_vk_obj_base), __va, (_size), (_type)); \
-      } \
+   do {                                                                 \
+      if ((_addr) != 0) {                                               \
+         vk_address_binding_report(&(_device)->physical->instance->vk,  \
+                                   _vk_obj_base, _addr, _size, _type);  \
+      }                                                                 \
    } while (0)
 
 #define ANV_ADDR_BINDING_REPORT_ADDR_BIND(_device, _vk_obj_base, _addr, _size) \
-      ANV_ADDR_BINDING_REPORT_ADDR((_device), (_vk_obj_base), (_addr), (_size), \
-                                   VK_DEVICE_ADDRESS_BINDING_TYPE_BIND_EXT)
+   ANV_ADDR_BINDING_REPORT_ADDR(_device, _vk_obj_base, _addr, _size,    \
+                                VK_DEVICE_ADDRESS_BINDING_TYPE_BIND_EXT)
 
 #define ANV_ADDR_BINDING_REPORT_ADDR_UNBIND(_device, _vk_obj_base, _addr, _size) \
-      ANV_ADDR_BINDING_REPORT_ADDR((_device), (_vk_obj_base), (_addr), (_size), \
-                                   VK_DEVICE_ADDRESS_BINDING_TYPE_UNBIND_EXT)
+   ANV_ADDR_BINDING_REPORT_ADDR(_device, _vk_obj_base, _addr, _size,    \
+                                VK_DEVICE_ADDRESS_BINDING_TYPE_UNBIND_EXT)
 
-#define ANV_ADDR_BINDING_REPORT_BO(_device, _vk_obj_base, _bo, _type) \
-   do { \
-      if ((_bo) != NULL) { \
-         struct anv_address _addr = { \
-            .bo = (_bo), \
-            .offset = 0, \
-         }; \
-         ANV_ADDR_BINDING_REPORT_ADDR((_device), (_vk_obj_base), _addr, \
-                                      (_bo)->actual_size ? (_bo)->actual_size :\
-                                      (_bo)->size, \
-                                      (_type)); \
-      } \
-   }while (0)
+#define ANV_ADDR_BINDING_REPORT_BO(_device, _vk_obj_base, _bo, _type)   \
+   do {                                                                 \
+      if ((_bo) != NULL) {                                              \
+         ANV_ADDR_BINDING_REPORT_ADDR((_device), (_vk_obj_base),        \
+                                      (_bo)->offset,                    \
+                                      (_bo)->actual_size ? (_bo)->actual_size : \
+                                      (_bo)->size,                      \
+                                      (_type));                         \
+      }                                                                 \
+   } while (0)
 
 #define ANV_ADDR_BINDING_REPORT_BO_BIND(_device, _vk_obj_base, _bo) \
    ANV_ADDR_BINDING_REPORT_BO((_device), (_vk_obj_base), (_bo), \

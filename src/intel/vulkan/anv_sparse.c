@@ -1377,17 +1377,13 @@ anv_sparse_addr_bind_report(struct anv_device *device,
                             struct vk_object_base *obj_base,
                             struct anv_vm_bind *bind_op)
 {
-   struct anv_address addr = {
-      .bo = NULL,
-      .offset = bind_op->address
-   };
-
-   if (bind_op->bo != NULL)
-      ANV_ADDR_BINDING_REPORT_ADDR_BIND(device, obj_base, addr, bind_op->size);
-   else
-      ANV_ADDR_BINDING_REPORT_ADDR_UNBIND(device, obj_base, addr,
-                                          bind_op->size);
-
+   if (bind_op->bo != NULL) {
+      ANV_ADDR_BINDING_REPORT_ADDR_BIND(device, obj_base,
+                                        bind_op->address, bind_op->size);
+   } else {
+      ANV_ADDR_BINDING_REPORT_ADDR_UNBIND(device, obj_base,
+                                          bind_op->address, bind_op->size);
+   }
 }
 
 static VkResult
