@@ -55,22 +55,15 @@ lower_ldcx_to_global(nir_builder *b, nir_intrinsic_instr *load,
    /* At this point we can assume the offset is aligned so we only need a
     * simple less-than check here.
     */
-   nir_def *zero = nir_imm_zero(b, load->def.num_components,
-                                   load->def.bit_size);
-   nir_def *val;
-   nir_push_if(b, nir_ilt(b, offset, size));
-   {
-      val = nir_load_global_nv(b,
-         load->def.num_components, load->def.bit_size,
-         nir_iadd(b, addr, nir_u2u64(b, offset)),
-         nir_imm_bool(b, true),
-         .align_mul = nir_intrinsic_align_mul(load),
-         .align_offset = nir_intrinsic_align_offset(load),
-         .access = ACCESS_CAN_REORDER,
-         .base = nir_intrinsic_base(load));
-   }
-   nir_pop_if(b, NULL);
-   val = nir_if_phi(b, val, zero);
+   nir_def *cond = nir_ilt(b, offset, size);
+   nir_def *val = nir_load_global_nv(b,
+      load->def.num_components, load->def.bit_size,
+      nir_iadd(b, addr, nir_u2u64(b, offset)),
+      cond,
+      .align_mul = nir_intrinsic_align_mul(load),
+      .align_offset = nir_intrinsic_align_offset(load),
+      .access = ACCESS_CAN_REORDER,
+      .base = nir_intrinsic_base(load));
 
    nir_def_replace(&load->def, val);
 }
