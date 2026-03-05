@@ -2460,7 +2460,7 @@ optimizations.extend([
                              ('ior', ('ior', ('ilt', a, 0), ('ilt', b, 0)), ('ige', ('iadd', a, b), 0)),
                              ('iadd', a, b),
                              0x7fffffffffffffff)),
-    '(options->lower_int64_options & nir_lower_iadd_sat64) != 0', TestStatus.XFAIL),
+    '(options->lower_int64_options & nir_lower_iadd_sat64) != 0'),
 
    # int64_t sum = a - b;
    #
@@ -2867,7 +2867,7 @@ for bit_size in [8, 16, 32, 64]:
    optimizations += [
       (('iadd_sat@' + str(bit_size), a, b),
        ('bcsel', ('ige', b, 1), ('bcsel', ('ilt', ('iadd', a, b), a), intmax, ('iadd', a, b)),
-                                ('bcsel', ('ilt', a, ('iadd', a, b)), intmin, ('iadd', a, b))), 'options->lower_iadd_sat', TestStatus.XFAIL if bit_size in [8, 64] else TestStatus.PASS),
+                                ('bcsel', ('ilt', a, ('iadd', a, b)), intmin, ('iadd', a, b))), 'options->lower_iadd_sat'),
       (('isub_sat@' + str(bit_size), a, b),
        ('bcsel', ('ilt', b, 0), ('bcsel', ('ilt', ('isub', a, b), a), intmax, ('isub', a, b)),
                                 ('bcsel', ('ilt', a, ('isub', a, b)), intmin, ('isub', a, b))), 'options->lower_iadd_sat'),
