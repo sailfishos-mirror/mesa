@@ -57,6 +57,7 @@ dEQP-VK.api.image_clearing.core.clear_color_image.3d.linear.single_layer.r16g16b
 dEQP-VK.api.image_clearing.core.clear_color_image.3d.linear.single_layer.r32g32b32a32_sint
 dEQP-VK.api.image_clearing.core.clear_color_image.3d.optimal.single_layer.a8b8g8r8_unorm_pack32_200x180x16_multiple_subresourcerange
 dEQP-VK.api.image_clearing.dedicated_allocation.clear_color_image.2d.optimal.remaining_array_layers.a2b10g10r10_unorm_pack32_clamp_input
+dEQP-VK.api.image_clearing.dedicated_allocation.clear_depth_stencil_image.2d.remaining_array_layers_twostep.d24_unorm_s8_uint_separate_layouts_depth_200x180
 dEQP-VK.api.image_clearing.dedicated_allocation.partial_clear_color_attachment.cube_layers.r32g32b32a32_uint
 dEQP-VK.binding_model.buffer_device_address.set3.depth3.basessbo.convertcheckuv2.nostore.single.scalar.vert
 dEQP-VK.binding_model.shader_access.primary_cmd_buf.bind.sampler_immutable.tess_eval.multiple_descriptor_sets.multiple_discontiguous_descriptors.3d_base_mip
@@ -68,6 +69,7 @@ dEQP-VK.draw.dynamic_rendering.partial_secondary_cmd_buff.multiple_interpolation
 dEQP-VK.draw.dynamic_rendering.primary_cmd_buff.instanced.draw_indexed_vk_primitive_topology_triangle_fan_khr_attrib_divisor_2_multiview_maintenance_5
 dEQP-VK.draw.renderpass.multi_draw.mosaic.indexed_mixed.no_draws.stride_extra_12.10_instances.vert_only.multiview.offset_6_no_draw_id
 dEQP-VK.geometry.layered.2d_array.12_36_6.readback
+dEQP-VK.geometry.layered.3d.12_36_6.readback
 dEQP-VK.glsl.texture_functions.query.texturequerylevels.isampler1darray_fragment
 dEQP-VK.memory.pipeline_barrier.transfer_dst_uniform_texel_buffer.1024
 dEQP-VK.memory.pipeline_barrier.transfer_dst_uniform_texel_buffer.65536
@@ -80,6 +82,7 @@ dEQP-VK.memory_model.message_passing.ext.u32.noncoherent.atomic_atomic.atomicrmw
 dEQP-VK.memory_model.message_passing.ext.u32.noncoherent.atomic_atomic.atomicrmw.subgroup.payload_local.image.guard_local.image.frag
 dEQP-VK.memory_model.message_passing.ext.u32.noncoherent.atomic_atomic.atomicwrite.queuefamily.payload_local.buffer.guard_local.buffer.vert
 dEQP-VK.memory_model.message_passing.ext.u32.noncoherent.atomic_atomic.atomicwrite.subgroup.payload_local.image.guard_local.image.frag
+dEQP-VK.memory_model.write_after_read.core11.u32.coherent.fence_fence.atomicwrite.subgroup.payload_local.buffer.guard_local.image.comp
 dEQP-VK.memory_model.write_after_read.core11.u32.coherent.fence_fence.atomicwrite.workgroup.payload_local.image.guard_local.image.comp
 dEQP-VK.memory_model.write_after_read.ext.u32.coherent.atomic_atomic.atomicrmw.queuefamily.payload_local.buffer.guard_nonlocal.workgroup.comp
 dEQP-VK.memory_model.write_after_read.ext.u32.coherent.atomic_atomic.atomicwrite.queuefamily.payload_local.buffer.guard_local.buffer.frag
@@ -91,12 +94,14 @@ dEQP-VK.memory_model.write_after_read.ext.u32.noncoherent.atomic_atomic.atomicwr
 dEQP-VK.memory_model.write_after_read.ext.u32.noncoherent.atomic_atomic.atomicwrite.queuefamily.payload_local.image.guard_local.buffer.vert
 dEQP-VK.memory_model.write_after_read.ext.u32.noncoherent.atomic_fence.atomicwrite.queuefamily.payload_local.buffer.guard_local.physbuffer.frag
 dEQP-VK.memory_model.write_after_read.ext.u32.noncoherent.fence_atomic.atomicwrite.subgrouppayload_local.buffer.guard_local.physbuffer.frag
+dEQP-VK.memory_model.write_after_read.ext.u32.noncoherent.fence_atomic.atomicwrite.workgroup.payload_local.buffer.guard_local.image.comp
 dEQP-VK.multiview.multisample.no_queries.15_15_15_15
 dEQP-VK.pipeline.monolithic.image_view.view_type.1d.format.a1b5g5r5_unorm_pack16.subresource_range.array_layer_last
 dEQP-VK.pipeline.monolithic.image_view.view_type.cube.format.astc_10x5_unorm_block.subresource_range.lod_base_mip_level_array_layer_second
 dEQP-VK.pipeline.monolithic.image_view.view_type.cube_array.format.astc_4x4_unorm_block.component_swizzle.a_r_g_b
 dEQP-VK.pipeline.monolithic.image_view.view_type.cube_array.format.astc_8x8_unorm_block.subresource_range.lod_base_mip_level
 dEQP-VK.pipeline.monolithic.render_to_image.core.2d_array.huge.height_layers.r8g8b8a8_unorm
+dEQP-VK.pipeline.monolithic.sampler.border_swizzle.r8_snorm.rgb1.custom.gather_3.no_swizzle_hint
 dEQP-VK.pipeline.monolithic.sampler.view_type.cube_array.format.astc_10x6_unorm_block.mag_filter.linear
 dEQP-VK.pipeline.monolithic.sampler.view_type.cube_array.format.astc_12x12_srgb_block.mipmap.linear.lod.select_bias_3_7
 dEQP-VK.pipeline.monolithic.sampler.view_type.cube_array.format.x8_d24_unorm_pack32.mipmap.nearest.lod.select_min_1
@@ -126,6 +131,7 @@ dEQP-VK.texture.filtering.cube.formats.r16g16b16a16_sfloat.nearest_mipmap_neares
 dEQP-VK.texture.filtering.unnormal.formats.a4r4g4b4_unorm.linear
 dEQP-VK.texture.shadow.cube.nearest.less_d24_unorm_s8_uint
 dEQP-VK.texture.shadow.cube.nearest_mipmap_linear.not_equal_d24_unorm_s8_uint
+dEQP-VK.texture.shadow.cube_array.linear.greater_d24_unorm_s8_uint
 
 spec@oes_texture_view@rendering-target
 spec@oes_texture_view@rendering-target@2D view rendering
