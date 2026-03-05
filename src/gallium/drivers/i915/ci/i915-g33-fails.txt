@@ -55,6 +55,7 @@ dEQP-GLES2.functional.uniform_api.info_query.basic_array.mat4_both,Fail
 dEQP-GLES2.functional.uniform_api.info_query.basic_array.mat4_fragment,Fail
 dEQP-GLES2.functional.uniform_api.info_query.multiple_nested_structs_arrays.both,Fail
 dEQP-GLES2.functional.uniform_api.info_query.multiple_nested_structs_arrays.fragment,Fail
+dEQP-GLES2.functional.uniform_api.info_query.nested_structs_arrays.int_ivec4_both,Fail
 dEQP-GLES2.functional.uniform_api.info_query.nested_structs_arrays.mat4_mat2_fragment,Fail
 dEQP-GLES2.functional.uniform_api.info_query.struct_in_array.mat4_mat2_both,Fail
 dEQP-GLES2.functional.uniform_api.info_query.struct_in_array.mat4_mat2_fragment,Fail
@@ -88,6 +89,7 @@ dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.get_uniform.basic_ar
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.get_uniform.basic_array_first_elem_without_brackets.mat4_fragment,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.get_uniform.multiple_nested_structs_arrays.both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.get_uniform.multiple_nested_structs_arrays.fragment,Fail
+dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.get_uniform.nested_structs_arrays.int_ivec4_both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.get_uniform.nested_structs_arrays.mat4_mat2_fragment,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.get_uniform.struct_in_array.mat4_mat2_both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.get_uniform.struct_in_array.mat4_mat2_fragment,Fail
@@ -99,6 +101,7 @@ dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.basic_array.m
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.basic_array.mat4_fragment,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.multiple_nested_structs_arrays.both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.multiple_nested_structs_arrays.fragment,Fail
+dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.nested_structs_arrays.int_ivec4_both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.nested_structs_arrays.mat4_mat2_fragment,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.struct_in_array.mat4_mat2_both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.struct_in_array.mat4_mat2_fragment,Fail
@@ -106,10 +109,12 @@ dEQP-GLES2.functional.uniform_api.value.assigned.by_pointer.render.struct_in_arr
 dEQP-GLES2.functional.uniform_api.value.assigned.by_value.get_uniform.array_in_struct.sampler2D_samplerCube_fragment,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_value.get_uniform.multiple_nested_structs_arrays.both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_value.get_uniform.multiple_nested_structs_arrays.fragment,Fail
+dEQP-GLES2.functional.uniform_api.value.assigned.by_value.get_uniform.nested_structs_arrays.int_ivec4_both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_value.get_uniform.struct_in_array.sampler2D_samplerCube_fragment,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_value.render.array_in_struct.sampler2D_samplerCube_fragment,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_value.render.multiple_nested_structs_arrays.both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_value.render.multiple_nested_structs_arrays.fragment,Fail
+dEQP-GLES2.functional.uniform_api.value.assigned.by_value.render.nested_structs_arrays.int_ivec4_both,Fail
 dEQP-GLES2.functional.uniform_api.value.assigned.by_value.render.struct_in_array.sampler2D_samplerCube_fragment,Fail
 dEQP-GLES2.functional.uniform_api.value.initial.get_uniform.array_in_struct.mat4_mat2_both,Fail
 dEQP-GLES2.functional.uniform_api.value.initial.get_uniform.array_in_struct.mat4_mat2_fragment,Fail
