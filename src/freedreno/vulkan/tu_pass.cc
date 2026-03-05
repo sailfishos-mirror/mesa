@@ -1506,10 +1506,10 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
             att->resolve_views = 0;
          }
          att->will_be_resolved = false;
-         attachment_set_ops(device, att, VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                            VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+         attachment_set_ops(device, att, VK_ATTACHMENT_LOAD_OP_NONE,
+                            VK_ATTACHMENT_LOAD_OP_NONE,
                             att_info->storeOp,
-                            VK_ATTACHMENT_STORE_OP_DONT_CARE);
+                            VK_ATTACHMENT_STORE_OP_NONE);
          att_is_msrtss = true;
          subpass->samples = msrtss->rasterizationSamples;
       } else {
@@ -1517,8 +1517,8 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
          att->used_views = info->viewMask;
          att->resolve_views = 0;
          attachment_set_ops(device, att, att_info->loadOp,
-                            VK_ATTACHMENT_LOAD_OP_DONT_CARE, att_info->storeOp,
-                            VK_ATTACHMENT_STORE_OP_DONT_CARE);
+                            VK_ATTACHMENT_LOAD_OP_NONE, att_info->storeOp,
+                            VK_ATTACHMENT_STORE_OP_NONE);
          subpass->input_attachments[i + 1].patch_input_gmem = true;
          subpass->unresolve_attachments[i].attachment = VK_ATTACHMENT_UNUSED;
          subpass->samples = (VkSampleCountFlagBits) view->image->layout->nr_samples;
@@ -1538,9 +1538,9 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
                                         VK_SAMPLE_COUNT_1_BIT);
             resolve_att->gmem = false;
             attachment_set_ops(
-               device, resolve_att, VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-               VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
-               VK_ATTACHMENT_STORE_OP_DONT_CARE);
+               device, resolve_att, VK_ATTACHMENT_LOAD_OP_NONE,
+               VK_ATTACHMENT_LOAD_OP_NONE, VK_ATTACHMENT_STORE_OP_STORE,
+               VK_ATTACHMENT_STORE_OP_NONE);
             if (att_info->resolveMode == VK_RESOLVE_MODE_CUSTOM_BIT_EXT) {
                att->will_be_resolved = false;
                resolve_att->used_views = info->viewMask;
