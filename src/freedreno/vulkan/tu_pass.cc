@@ -1727,6 +1727,14 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
       resolve_subpass->fsr_attachment_texel_size =
          subpass->fsr_attachment_texel_size;
       resolve_subpass->fsr_attachment = subpass->fsr_attachment;
+
+      /* We don't do stores on vkCmdBeginCustomResolveEXT, so move them
+       * after custom resolve.
+       */
+      for (uint32_t i = 0; i < pass->user_attachment_count; i++) {
+         struct tu_render_pass_attachment *att = &pass->attachments[i];
+         att->last_subpass_idx = 1;
+      }
    }
 
    if (TU_DEBUG(FDM) && !tu_render_pass_disable_fdm(device, pass))
