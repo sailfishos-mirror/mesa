@@ -964,18 +964,14 @@ cmd_buffer_emit_resolve(struct v3dv_cmd_buffer *cmd_buffer,
 
    struct v3dv_image *src_image = (struct v3dv_image *) src_iview->vk.image;
    struct v3dv_image *dst_image = (struct v3dv_image *) dst_iview->vk.image;
-   VkResolveImageInfo2 resolve_info = {
-      .sType = VK_STRUCTURE_TYPE_RESOLVE_IMAGE_INFO_2,
-      .srcImage = v3dv_image_to_handle(src_image),
-      .srcImageLayout = VK_IMAGE_LAYOUT_GENERAL,
-      .dstImage = v3dv_image_to_handle(dst_image),
-      .dstImageLayout = VK_IMAGE_LAYOUT_GENERAL,
-      .regionCount = 1,
-      .pRegions = &region,
-   };
 
-   VkCommandBuffer cmd_buffer_handle = v3dv_cmd_buffer_to_handle(cmd_buffer);
-   v3dv_CmdResolveImage2(cmd_buffer_handle, &resolve_info);
+   /* Use view formats instead of image formats so that mutable resolve
+    * attachments (VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT) resolve correctly
+    * when the view format differs from the image creation format.
+    */
+   assert(src_iview->vk.format == dst_iview->vk.format);
+   v3dv_cmd_buffer_resolve_image(cmd_buffer, dst_image, src_image,
+                                 src_iview->vk.format, &region);
 }
 
 static void

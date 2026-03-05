@@ -740,6 +740,11 @@ bool v3dv_cmd_buffer_copy_image_tfu(struct v3dv_cmd_buffer *cmd_buffer,
                                     struct v3dv_image *dst,
                                     struct v3dv_image *src,
                                     const VkImageCopy2 *region);
+void v3dv_cmd_buffer_resolve_image(struct v3dv_cmd_buffer *cmd_buffer,
+                                   struct v3dv_image *dst,
+                                   struct v3dv_image *src,
+                                   VkFormat resolve_format,
+                                   const VkImageResolve2 *region);
 
 bool v3dv_job_apply_barrier_state(struct v3dv_job *job,
                                   struct v3dv_barrier_state *barrier);

@@ -4877,6 +4877,7 @@ static bool
 resolve_image_tlb(struct v3dv_cmd_buffer *cmd_buffer,
                   struct v3dv_image *dst,
                   struct v3dv_image *src,
+                  VkFormat resolve_format,
                   const VkImageResolve2 *region)
 {
    /* No resolve for multi-planar images. Using plane 0 */
@@ -4890,10 +4891,11 @@ resolve_image_tlb(struct v3dv_cmd_buffer *cmd_buffer,
       return false;
    }
 
-   if (!v3d_X((&cmd_buffer->device->devinfo), format_supports_tlb_resolve)(src->format))
+   const struct v3dv_format *resolve_v3dv_format =
+      v3d_X((&cmd_buffer->device->devinfo), get_format)(resolve_format);
+   assert(resolve_v3dv_format);
+   if (!v3d_X((&cmd_buffer->device->devinfo), format_supports_tlb_resolve)(resolve_v3dv_format))
       return false;
-
-   const VkFormat fb_format = src->vk.format;
 
    uint32_t num_layers;
    if (dst->vk.image_type != VK_IMAGE_TYPE_3D) {
@@ -4918,7 +4920,7 @@ resolve_image_tlb(struct v3dv_cmd_buffer *cmd_buffer,
 
    uint32_t internal_type, internal_bpp;
    v3d_X((&cmd_buffer->device->devinfo), get_internal_type_bpp_for_image_aspects)
-      (fb_format, region->srcSubresource.aspectMask,
+      (resolve_format, region->srcSubresource.aspectMask,
        &internal_type, &internal_bpp);
 
    v3dv_job_start_frame(job, width, height, num_layers, false, true, 1,
@@ -4926,7 +4928,7 @@ resolve_image_tlb(struct v3dv_cmd_buffer *cmd_buffer,
                         true);
 
    struct v3dv_meta_framebuffer framebuffer;
-   v3d_X((&job->device->devinfo), meta_framebuffer_init)(&framebuffer, fb_format,
+   v3d_X((&job->device->devinfo), meta_framebuffer_init)(&framebuffer, resolve_format,
                                               internal_type, &job->frame_tiling);
 
    v3d_X((&job->device->devinfo), job_emit_binning_flush)(job);
@@ -4941,6 +4943,7 @@ static bool
 resolve_image_blit(struct v3dv_cmd_buffer *cmd_buffer,
                    struct v3dv_image *dst,
                    struct v3dv_image *src,
+                   VkFormat resolve_format,
                    const VkImageResolve2 *region)
 {
    const VkImageBlit2 blit_region = {
@@ -4963,10 +4966,42 @@ resolve_image_blit(struct v3dv_cmd_buffer *cmd_buffer,
       },
    };
    return blit_shader(cmd_buffer,
-                      dst, dst->vk.format,
-                      src, src->vk.format,
+                      dst, resolve_format,
+                      src, resolve_format,
                       0, NULL,
                       &blit_region, VK_FILTER_NEAREST, true);
+}
+
+/**
+ * Resolves an image by using the TLB if supported or a shader blit otherwise.
+ *
+ * Notice that resolve operations may need to use the view format instead of
+ * the image format when executing as part of a renderpass, so the format to
+ * use is provided explicitly as parameter.
+ */
+void
+v3dv_cmd_buffer_resolve_image(struct v3dv_cmd_buffer *cmd_buffer,
+                              struct v3dv_image *dst,
+                              struct v3dv_image *src,
+                              VkFormat resolve_format,
+                              const VkImageResolve2 *region)
+{
+   /* We don't support multi-sampled multi-plane images */
+   assert(src->vk.samples == VK_SAMPLE_COUNT_4_BIT);
+   assert(dst->vk.samples == VK_SAMPLE_COUNT_1_BIT);
+
+   assert(src->plane_count == 1);
+   assert(dst->plane_count == 1);
+
+   bool save_is_transfer = cmd_buffer->state.is_transfer;
+   cmd_buffer->state.is_transfer = true;
+
+   if (!resolve_image_tlb(cmd_buffer, dst, src, resolve_format, region) &&
+       !resolve_image_blit(cmd_buffer, dst, src, resolve_format, region)) {
+      UNREACHABLE("Unsupported multisample resolve operation");
+   }
+
+   cmd_buffer->state.is_transfer = save_is_transfer;
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -4982,22 +5017,11 @@ v3dv_CmdResolveImage2(VkCommandBuffer commandBuffer,
    assert(cmd_buffer->state.pass == NULL);
    assert(cmd_buffer->state.job == NULL);
 
-   assert(src->vk.samples == VK_SAMPLE_COUNT_4_BIT);
-   assert(dst->vk.samples == VK_SAMPLE_COUNT_1_BIT);
-
-   /* We don't support multi-sampled multi-plane images */
-   assert(src->plane_count == 1);
-   assert(dst->plane_count == 1);
-
-   cmd_buffer->state.is_transfer = true;
+   assert(src->vk.format == dst->vk.format);
 
    for (uint32_t i = 0; i < info->regionCount; i++) {
-      if (resolve_image_tlb(cmd_buffer, dst, src, &info->pRegions[i]))
-         continue;
-      if (resolve_image_blit(cmd_buffer, dst, src, &info->pRegions[i]))
-         continue;
-      UNREACHABLE("Unsupported multismaple resolve operation");
+      v3dv_cmd_buffer_resolve_image(cmd_buffer, dst, src,
+                                    src->vk.format,
+                                    &info->pRegions[i]);
    }
-
-   cmd_buffer->state.is_transfer = false;
 }
