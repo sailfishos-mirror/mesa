@@ -14,3 +14,7 @@ test_undefined_structured_raw_read_typed_dxbc,Fail
 test_undefined_structured_raw_read_typed_dxil,Fail
 
 test_large_buffer_descriptors,Crash
+
+test_line_tessellation_dxbc,Fail
+test_line_tessellation_dxil,Fail
+test_tessellation_read_tesslevel,Fail
