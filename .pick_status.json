@@ -1864,7 +1864,7 @@
         "description": "nir: Fix constant folding for iadd_sat",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "cc4b50b023c227e2dbc909cb8332bce027261764",
         "notes": null
