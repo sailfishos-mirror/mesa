@@ -167,6 +167,7 @@ template <typename GpuCounterDescriptor> void add_descriptors(GpuCounterDescript
       auto spec = desc->add_specs();
       spec->set_counter_id(counter.id);
       spec->set_name(counter.name);
+      spec->set_description(counter.description);
 
       auto units = GpuCounterDescriptor::NONE;
       switch (counter.units) {

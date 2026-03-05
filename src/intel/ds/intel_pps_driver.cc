@@ -116,6 +116,7 @@ bool IntelDriver::init_perfcnt()
       Counter counter_desc = {};
       counter_desc.id = counters.size();
       counter_desc.name = counter.symbol_name;
+      counter_desc.description = counter.desc;
       counter_desc.group = group.id;
       counter_desc.getter = [counter, this](
          const Counter &c, const Driver &dri) -> Counter::Value {
