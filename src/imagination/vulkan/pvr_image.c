@@ -94,14 +94,9 @@ static void pvr_image_plane_init_physical_extent(
       assert(image->memlayout == PVR_MEMLAYOUT_LINEAR);
       plane->physical_extent = image->vk.extent;
 
-      /* If the image is being rendered to (written by the PBE) make sure the
-       * width is aligned correctly.
-       */
-      if (image->vk.usage & (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                             VK_IMAGE_USAGE_TRANSFER_DST_BIT)) {
-         plane->physical_extent.width =
-            align(plane->physical_extent.width, pbe_stride_align);
-      }
+      /* Align the image for being rendered to (written by the PBE). */
+      plane->physical_extent.width =
+         align(plane->physical_extent.width, pbe_stride_align);
 
       if (image->vk.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
          const VkImageDrmFormatModifierExplicitCreateInfoEXT *explicit_mod =
