@@ -21,3 +21,5 @@ dEQP-VK.video.encode.h265.resources_without_profiles
 
 # New flakes with VKCTS 1.4.4.0
 dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.non_resident_buffer_strict_copy_src_alloc_partial_16777216
+
+dEQP-VK.wsi.display.create_display_mode
