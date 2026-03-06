@@ -161,6 +161,7 @@ can_sink_instr(nir_instr *instr, nir_move_options options, bool *can_mov_out_of_
       if (intrin->intrinsic == nir_intrinsic_load_global ||
           intrin->intrinsic == nir_intrinsic_load_global_amd ||
           intrin->intrinsic == nir_intrinsic_load_ubo ||
+          intrin->intrinsic == nir_intrinsic_load_ubo_uniform_block_intel ||
           intrin->intrinsic == nir_intrinsic_load_ssbo) {
          if (intrin->def.divergent) {
             if (options & nir_move_only_convergent)
@@ -219,6 +220,7 @@ can_sink_instr(nir_instr *instr, nir_move_options options, bool *can_mov_out_of_
       case nir_intrinsic_ldc_nv:
       case nir_intrinsic_ldcx_nv:
       case nir_intrinsic_load_ubo:
+      case nir_intrinsic_load_ubo_uniform_block_intel:
       case nir_intrinsic_load_ubo_vec4:
       case nir_intrinsic_load_global_constant_offset:
       case nir_intrinsic_load_global_constant_bounded:
