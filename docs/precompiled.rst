@@ -45,4 +45,4 @@ Please refer to the corresponding documentation:
 - Arch Linux: https://wiki.archlinux.org/title/Debugging/Getting_traces
 - Debian: https://wiki.debian.org/HowToGetABacktrace/
 - Fedora: https://docs.fedoraproject.org/en-US/quick-docs/bugzilla-providing-a-stacktrace/
-- Ubuntu: https://documentation.ubuntu.com/server/how-to/debugging/debug-symbol-packages/
+- Ubuntu: https://ubuntu.com/server/docs/how-to/debugging/debug-symbol-packages/
