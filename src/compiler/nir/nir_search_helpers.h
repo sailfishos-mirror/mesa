@@ -873,6 +873,26 @@ is_not_uint_max(UNUSED const nir_search_state *state, const nir_alu_instr *instr
    return true;
 }
 
+/**
+ * Returns whether at least one bit is 1.
+ */
+static inline bool
+is_not_uint_zero(UNUSED const nir_search_state *state, const nir_alu_instr *instr,
+                unsigned src, unsigned num_components,
+                const uint8_t *swizzle)
+{
+   if (nir_src_as_const_value(instr->src[src].src) == NULL)
+      return false;
+
+   for (unsigned i = 0; i < num_components; i++) {
+      const uint64_t c = nir_src_comp_as_uint(instr->src[src].src, swizzle[i]);
+      if (c == 0)
+         return false;
+   }
+
+   return true;
+}
+
 static inline bool
 no_signed_wrap(const nir_alu_instr *instr)
 {

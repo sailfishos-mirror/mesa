@@ -2762,7 +2762,7 @@ optimizations.extend([
    (('b2i16', ('vec2', ('ult', 'a@16', b), ('ult', 'c@16', d))),
     ('umin', 1, ('usub_sat', ('vec2', b, d), ('vec2', a, c))),
     'options->vectorize_vec2_16bit && !options->lower_usub_sat'),
-   (('b2i16', ('vec2', ('uge', 'a@16', '#b(is_not_zero)'), ('uge', 'c@16', '#d(is_not_zero)'))),
+   (('b2i16', ('vec2', ('uge', 'a@16', '#b(is_not_uint_zero)'), ('uge', 'c@16', '#d(is_not_uint_zero)'))),
     ('umin', 1, ('usub_sat', ('vec2', a, c), ('iadd', ('vec2', b, d), -1))),
     'options->vectorize_vec2_16bit && !options->lower_usub_sat'),
    (('b2i16', ('vec2', ('uge', '#a(is_not_uint_max)', 'b@16'), ('uge', '#c(is_not_uint_max)', 'd@16'))),
