@@ -79,7 +79,7 @@ static ralloc_header *
 get_header(const void *ptr)
 {
    ralloc_header *info = (ralloc_header *) (((char *) ptr) -
-					    sizeof(ralloc_header));
+                                            sizeof(ralloc_header));
    assert(info->canary == CANARY);
    return info;
 }
@@ -95,7 +95,7 @@ add_child(ralloc_header *parent, ralloc_header *info)
       parent->child = info;
 
       if (info->next != NULL)
-	 info->next->prev = info;
+         info->next->prev = info;
    }
 }
 
@@ -173,13 +173,13 @@ resize(void *ptr, size_t size)
    /* Update parent and sibling's links to the reallocated node. */
    if (info != old && info->parent != NULL) {
       if (info->parent->child == old)
-	 info->parent->child = info;
+         info->parent->child = info;
 
       if (info->prev != NULL)
-	 info->prev->next = info;
+         info->prev->next = info;
 
       if (info->next != NULL)
-	 info->next->prev = info;
+         info->next->prev = info;
    }
 
    /* Update child->parent links for all children */
@@ -295,13 +295,13 @@ unlink_block(ralloc_header *info)
    /* Unlink from parent & siblings */
    if (info->parent != NULL) {
       if (info->parent->child == info)
-	 info->parent->child = info->next;
+         info->parent->child = info->next;
 
       if (info->prev != NULL)
-	 info->prev->next = info->next;
+         info->prev->next = info->next;
 
       if (info->next != NULL)
-	 info->next->prev = info->prev;
+         info->next->prev = info->prev;
    }
    info->parent = NULL;
    info->prev = NULL;
@@ -542,7 +542,7 @@ ralloc_asprintf_rewrite_tail(char **str, size_t *start, const char *fmt, ...)
 
 bool
 ralloc_vasprintf_rewrite_tail(char **str, size_t *start, const char *fmt,
-			      va_list args)
+                              va_list args)
 {
    size_t new_length;
    char *ptr;
