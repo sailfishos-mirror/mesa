@@ -367,28 +367,47 @@ anv_encode_bind_pipeline(VkCommandBuffer commandBuffer, const struct vk_accelera
    return VK_SUCCESS;
 }
 
+/* Helper to zero out the output BVH. */
+static void
+anv_clear_out_bvh(struct anv_cmd_buffer *cmd_buffer,
+                  VkDeviceAddress output_bvh_addr, uint64_t bvh_size)
+{
+   assert(bvh_size % 4 == 0);
+   struct anv_address anv_bvh_addr = anv_address_from_u64(output_bvh_addr);
+
+   anv_cmd_buffer_fill_area(cmd_buffer, anv_bvh_addr, bvh_size, 0 /* data */);
+
+   vk_barrier_compute_w_to_compute_r(vk_command_buffer_to_handle(&cmd_buffer->vk));
+   genX(cmd_buffer_apply_pipe_flushes)(cmd_buffer);
+}
+
+
 static void
 anv_encode_as(VkCommandBuffer commandBuffer, const struct vk_acceleration_structure_build_state *state)
 {
-   if (INTEL_DEBUG(DEBUG_BVH_NO_BUILD))
-      return;
-
    VK_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(vk_acceleration_structure, dst, state->build_info->dstAccelerationStructure);
 
+   struct bvh_layout bvh_layout;
+   VkGeometryTypeKHR geometry_type = vk_get_as_geometry_type(state->build_info);
+   get_bvh_layout(geometry_type, state->leaf_node_count, &bvh_layout);
+
+   if (INTEL_DEBUG(DEBUG_BVH_NO_BUILD)) {
+      /* Zero out the whole BVH when we run with BVH_NO_BUILD debug option. */
+      anv_clear_out_bvh(cmd_buffer,
+                        vk_acceleration_structure_get_va(dst) + bvh_layout.bvh_offset,
+                        bvh_layout.size);
+      return;
+   }
+
    uint64_t intermediate_header_addr = state->build_info->scratchData.deviceAddress + state->scratch.header_offset;
    uint64_t intermediate_bvh_addr = state->build_info->scratchData.deviceAddress + state->scratch.ir_offset;
-
-   VkGeometryTypeKHR geometry_type = vk_get_as_geometry_type(state->build_info);
 
    STATIC_ASSERT(sizeof(struct anv_accel_struct_header) == ANV_RT_BVH_HEADER_SIZE);
    STATIC_ASSERT(sizeof(struct anv_instance_leaf) == ANV_RT_INSTANCE_LEAF_SIZE);
    STATIC_ASSERT(sizeof(struct anv_quad_leaf_node) == ANV_RT_QUAD_LEAF_SIZE);
    STATIC_ASSERT(sizeof(struct anv_procedural_leaf_node) == ANV_RT_PROCEDURAL_LEAF_SIZE);
    STATIC_ASSERT(sizeof(struct anv_internal_node) == ANV_RT_INTERNAL_NODE_SIZE);
-
-   struct bvh_layout bvh_layout;
-   get_bvh_layout(geometry_type, state->leaf_node_count, &bvh_layout);
 
    const struct encode_args args = {
       .intermediate_bvh = intermediate_bvh_addr,
