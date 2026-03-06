@@ -146,6 +146,7 @@ linkcheck_ignore = [
     r'https://(www|dev)\.vulkan\.org/.*',  # blocking the linkcheck user-agent
     r'https://crates.io/.*',  # blocking the linkcheck user-agent
     r'https://docs.vulkan.org/.*',  # blocking the linkcheck user-agent
+    r'https://wikis.khronos.org/.*',  # blocking the linkcheck user-agent
     r'https://en.wikipedia.org/.*',  # rate-limited, which linkcheck doesn't respect
     r'https://www.freedesktop.org/.*',  # protected by anubis
 ]
