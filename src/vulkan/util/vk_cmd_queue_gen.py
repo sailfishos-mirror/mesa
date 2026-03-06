@@ -173,7 +173,7 @@ struct vk_cmd_queue_entry {
 % if c.guard is not None:
 #ifdef ${c.guard}
 % endif
-  VkResult vk_enqueue_${to_underscore(c.name)}(struct vk_cmd_queue *queue
+  struct vk_cmd_queue_entry *vk_enqueue_${to_underscore(c.name)}(struct vk_cmd_queue *queue
 % for p in c.params[1:]:
    , ${p.decl}
 % endfor
@@ -272,14 +272,14 @@ size_t vk_cmd_queue_type_sizes[] = {
 #ifdef ${c.guard}
 % endif
 % if c.name not in manual_commands and c.name not in no_enqueue_commands:
-VkResult vk_enqueue_${to_underscore(c.name)}(struct vk_cmd_queue *queue
+struct vk_cmd_queue_entry *vk_enqueue_${to_underscore(c.name)}(struct vk_cmd_queue *queue
 % for p in c.params[1:]:
 , ${p.decl}
 % endfor
 )
 {
    struct vk_cmd_queue_entry *cmd = linear_alloc_child(queue->ctx, vk_cmd_queue_type_sizes[${to_enum_name(c.name)}]);
-   if (!cmd) return VK_ERROR_OUT_OF_HOST_MEMORY;
+   if (!cmd) return NULL;
 
    cmd->type = ${to_enum_name(c.name)};
 ${get_params_copy(c, types)}}
@@ -357,13 +357,13 @@ vk_cmd_enqueue_${c.name}(${c.decl_params()})
    if (vk_command_buffer_has_error(cmd_buffer))
       return;
 % if len(c.params) == 1:
-   VkResult result = vk_enqueue_${to_underscore(c.name)}(&cmd_buffer->cmd_queue);
+   struct vk_cmd_queue_entry *cmd = vk_enqueue_${to_underscore(c.name)}(&cmd_buffer->cmd_queue);
 % else:
-   VkResult result = vk_enqueue_${to_underscore(c.name)}(&cmd_buffer->cmd_queue,
+   struct vk_cmd_queue_entry *cmd = vk_enqueue_${to_underscore(c.name)}(&cmd_buffer->cmd_queue,
                                        ${c.call_params(1)});
 % endif
-   if (unlikely(result != VK_SUCCESS))
-      vk_command_buffer_set_error(cmd_buffer, result);
+   if (unlikely(!cmd))
+      vk_command_buffer_set_error(cmd_buffer, VK_ERROR_OUT_OF_HOST_MEMORY);
 }
 % endif
 
@@ -521,7 +521,7 @@ def get_param_copy(builder, types, src_parent_access, dst_parent_access, param, 
                 size = "%s * %s%s" % (size, src_parent_access, param.len)
 
             builder.add("%s = linear_alloc_child(queue->ctx, %s);" % (dst, size))
-            builder.add("if (%s == NULL) return VK_ERROR_OUT_OF_HOST_MEMORY;" % (dst))
+            builder.add("if (%s == NULL) return NULL;" % (dst))
             builder.add("memcpy((void *)%s, %s, %s);" % (dst, src, size))
 
             if param.type in types:
@@ -585,7 +585,7 @@ def get_params_copy(command, types):
 
     builder.code += "\n"
     builder.add("list_addtail(&cmd->cmd_link, &queue->cmds);")
-    builder.add("return VK_SUCCESS;")
+    builder.add("return cmd;")
 
     return builder.code
 
