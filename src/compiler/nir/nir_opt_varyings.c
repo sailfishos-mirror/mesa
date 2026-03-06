@@ -4092,6 +4092,18 @@ backward_inter_shader_code_motion(struct linkage_info *linkage,
                        alu->src[1].src.ssa == load_def)))))
                   continue;
 
+               /* Skip upconversions, those are usually cheap and moving them
+                * back just increases memory pressure without helping performance.
+                */
+               unsigned input_size = 0;
+               for (int i = 0; i < nir_op_infos[alu->op].num_inputs; i++) {
+                  nir_src *src = &alu->src[i].src;
+                  input_size += nir_src_bit_size(*src) *
+                     nir_src_num_components(*src);
+               }
+               if (input_size < alu->def.bit_size * alu->def.num_components)
+                  continue;
+
                bit_size = alu->def.bit_size;
             } else if (iter->type == nir_instr_type_intrinsic) {
                nir_intrinsic_instr *intr = nir_instr_as_intrinsic(iter);
