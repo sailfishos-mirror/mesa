@@ -2114,7 +2114,7 @@
         "description": "pan: fix to not clear out of bitset range",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "617f0562bb1127d53841c33d39f743d179064148",
         "notes": null
