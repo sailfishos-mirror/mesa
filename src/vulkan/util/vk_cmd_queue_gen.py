@@ -81,6 +81,7 @@ TEMPLATE_H = Template(COPYRIGHT + """\
 
 #include "util/list.h"
 #include "util/ralloc.h"
+#include "util/u_dynarray.h"
 
 #define VK_PROTOTYPES
 #include <vulkan/vulkan_core.h>
@@ -99,6 +100,8 @@ struct vk_device_dispatch_table;
 struct vk_cmd_queue {
    linear_ctx *ctx;
    struct list_head cmds;
+   struct util_dynarray pipeline_layouts;
+   struct util_dynarray update_templates;
 };
 
 enum vk_cmd_type {
@@ -140,16 +143,12 @@ struct vk_cmd_queue_entry;
 struct vk_cmd_queue_entry_base {
    struct list_head cmd_link;
    enum vk_cmd_type type;
-   void (*driver_free_cb)(struct vk_cmd_queue *queue,
-                          struct vk_cmd_queue_entry *cmd);
 };
 
 /* this ordering must match vk_cmd_queue_entry_base */
 struct vk_cmd_queue_entry {
    struct list_head cmd_link;
    enum vk_cmd_type type;
-   void (*driver_free_cb)(struct vk_cmd_queue *queue,
-                          struct vk_cmd_queue_entry *cmd);
    union {
 % for c in commands:
 % if len(c.params) <= 1:
@@ -194,6 +193,8 @@ vk_cmd_queue_init(struct vk_cmd_queue *queue)
    };
    queue->ctx = linear_context_with_opts(NULL, &opts);
    list_inithead(&queue->cmds);
+   util_dynarray_init(&queue->pipeline_layouts, NULL);
+   util_dynarray_init(&queue->update_templates, NULL);
 }
 
 static inline void
@@ -233,6 +234,8 @@ TEMPLATE_C = Template(COPYRIGHT + """
 #include "vk_command_buffer.h"
 #include "vk_dispatch_table.h"
 #include "vk_device.h"
+#include "vulkan/runtime/vk_pipeline_layout.h"
+#include "vulkan/runtime/vk_descriptor_update_template.h"
 
 const char *vk_cmd_queue_type_names[] = {
 % for c in commands:
@@ -276,7 +279,6 @@ VkResult vk_enqueue_${to_underscore(c.name)}(struct vk_cmd_queue *queue
    if (!cmd) return VK_ERROR_OUT_OF_HOST_MEMORY;
 
    cmd->type = ${to_enum_name(c.name)};
-   cmd->driver_free_cb = NULL;
 ${get_params_copy(c, types)}}
 % endif
 % if c.guard is not None:
@@ -288,11 +290,15 @@ ${get_params_copy(c, types)}}
 void
 vk_free_queue(struct vk_cmd_queue *queue)
 {
-   struct vk_cmd_queue_entry *tmp, *cmd;
-   LIST_FOR_EACH_ENTRY_SAFE(cmd, tmp, &queue->cmds, cmd_link) {
-      if (cmd->driver_free_cb)
-         cmd->driver_free_cb(queue, cmd);
-   }
+   struct vk_command_buffer *cmd_buffer =
+      container_of(queue, struct vk_command_buffer, cmd_queue);
+
+   util_dynarray_foreach(&queue->pipeline_layouts, void*, layout)
+      vk_pipeline_layout_unref(cmd_buffer->base.device, *layout);
+   util_dynarray_fini(&queue->pipeline_layouts);
+   util_dynarray_foreach(&queue->update_templates, void*, templ)
+      vk_descriptor_update_template_unref(cmd_buffer->base.device, *templ);
+   util_dynarray_fini(&queue->update_templates);
    linear_free_context(queue->ctx);
 }
 

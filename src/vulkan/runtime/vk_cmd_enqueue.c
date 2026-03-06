@@ -60,26 +60,23 @@ vk_descriptor_type_update_size(VkDescriptorType type)
    }
 }
 
+/* From the application's perspective, the vk_cmd_queue_entry can outlive the
+ * layout. Take a reference.
+ */
 static void
-vk_cmd_push_descriptor_set_with_template2_free(
-   struct vk_cmd_queue *queue, struct vk_cmd_queue_entry *cmd)
+enqueue_pipeline_layout(struct vk_cmd_queue *queue, VkPipelineLayout layout)
 {
-   struct vk_command_buffer *cmd_buffer =
-      container_of(queue, struct vk_command_buffer, cmd_queue);
-   struct vk_device *device = cmd_buffer->base.device;
+   VK_FROM_HANDLE(vk_pipeline_layout, vklayout, layout);
+   vk_pipeline_layout_ref(vklayout);
+   util_dynarray_append(&queue->pipeline_layouts, vklayout);
+}
 
-   struct vk_cmd_push_descriptor_set_with_template2 *info_ =
-      &cmd->u.push_descriptor_set_with_template2;
-
-   VkPushDescriptorSetWithTemplateInfoKHR *info =
-      info_->push_descriptor_set_with_template_info;
-
-   VK_FROM_HANDLE(vk_descriptor_update_template, templ,
-                  info->descriptorUpdateTemplate);
-   VK_FROM_HANDLE(vk_pipeline_layout, layout, info->layout);
-
-   vk_descriptor_update_template_unref(device, templ);
-   vk_pipeline_layout_unref(device, layout);
+static void
+enqueue_descriptor_template(struct vk_cmd_queue *queue, VkDescriptorUpdateTemplate templ)
+{
+   VK_FROM_HANDLE(vk_descriptor_update_template, vktempl, templ);
+   vk_descriptor_update_template_ref(vktempl);
+   util_dynarray_append(&queue->update_templates, vktempl);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -96,7 +93,6 @@ vk_cmd_enqueue_CmdPushDescriptorSetWithTemplate2(
       return;
 
    cmd->type = VK_CMD_PUSH_DESCRIPTOR_SET_WITH_TEMPLATE2;
-   cmd->driver_free_cb = vk_cmd_push_descriptor_set_with_template2_free;
    list_addtail(&cmd->cmd_link, &cmd_buffer->cmd_queue.cmds);
 
    VkPushDescriptorSetWithTemplateInfoKHR *info =
@@ -105,16 +101,9 @@ vk_cmd_enqueue_CmdPushDescriptorSetWithTemplate2(
    cmd->u.push_descriptor_set_with_template2
       .push_descriptor_set_with_template_info = info;
 
-   /* From the application's perspective, the vk_cmd_queue_entry can outlive the
-    * template. Therefore, we take a reference here and free it when the
-    * vk_cmd_queue_entry is freed, tying the lifetimes.
-    */
    info->descriptorUpdateTemplate =
       pPushDescriptorSetWithTemplateInfo->descriptorUpdateTemplate;
 
-   VK_FROM_HANDLE(vk_descriptor_update_template, templ,
-                  info->descriptorUpdateTemplate);
-   vk_descriptor_update_template_ref(templ);
 
    info->set = pPushDescriptorSetWithTemplateInfo->set;
    info->sType = pPushDescriptorSetWithTemplateInfo->sType;
@@ -122,13 +111,12 @@ vk_cmd_enqueue_CmdPushDescriptorSetWithTemplate2(
    /* Similar concerns for the pipeline layout */
    info->layout = pPushDescriptorSetWithTemplateInfo->layout;
 
-   VK_FROM_HANDLE(vk_pipeline_layout, layout, info->layout);
-   vk_pipeline_layout_ref(layout);
-
    /* What makes this tricky is that the size of pData is implicit. We determine
     * it by walking the template and determining the ranges read by the driver.
     */
    size_t data_size = 0;
+   VK_FROM_HANDLE(vk_descriptor_update_template, templ,
+                  info->descriptorUpdateTemplate);
    for (unsigned i = 0; i < templ->entry_count; ++i) {
       struct vk_descriptor_template_entry entry = templ->entries[i];
       unsigned end = 0;
@@ -227,11 +215,13 @@ vk_cmd_enqueue_CmdPushDescriptorSetWithTemplate2(
       }
    }
 
+
+   enqueue_pipeline_layout(queue, info->layout);
+   enqueue_descriptor_template(queue, info->descriptorUpdateTemplate);
+
    return;
 
 err:
-   if (cmd)
-      vk_cmd_push_descriptor_set_with_template2_free(queue, cmd);
 
    vk_command_buffer_set_error(cmd_buffer, VK_ERROR_OUT_OF_HOST_MEMORY);
 }
@@ -339,18 +329,6 @@ vk_cmd_enqueue_CmdDrawMultiIndexedEXT(VkCommandBuffer commandBuffer,
    }
 }
 
-static void
-push_descriptors_set_free(struct vk_cmd_queue *queue,
-                          struct vk_cmd_queue_entry *cmd)
-{
-   struct vk_command_buffer *cmd_buffer =
-      container_of(queue, struct vk_command_buffer, cmd_queue);
-   struct vk_cmd_push_descriptor_set *pds = &cmd->u.push_descriptor_set;
-
-   VK_FROM_HANDLE(vk_pipeline_layout, vk_layout, pds->layout);
-   vk_pipeline_layout_unref(cmd_buffer->base.device, vk_layout);
-}
-
 VKAPI_ATTR void VKAPI_CALL
 vk_cmd_enqueue_CmdPushDescriptorSet(VkCommandBuffer commandBuffer,
                                     VkPipelineBindPoint pipelineBindPoint,
@@ -370,19 +348,14 @@ vk_cmd_enqueue_CmdPushDescriptorSet(VkCommandBuffer commandBuffer,
    pds = &cmd->u.push_descriptor_set;
 
    cmd->type = VK_CMD_PUSH_DESCRIPTOR_SET;
-   cmd->driver_free_cb = push_descriptors_set_free;
    list_addtail(&cmd->cmd_link, &cmd_buffer->cmd_queue.cmds);
 
    pds->pipeline_bind_point = pipelineBindPoint;
    pds->set = set;
    pds->descriptor_write_count = descriptorWriteCount;
 
-   /* From the application's perspective, the vk_cmd_queue_entry can outlive the
-    * layout. Take a reference.
-    */
-   VK_FROM_HANDLE(vk_pipeline_layout, vk_layout, layout);
    pds->layout = layout;
-   vk_pipeline_layout_ref(vk_layout);
+   enqueue_pipeline_layout(&cmd_buffer->cmd_queue, layout);
 
    if (pDescriptorWrites) {
       pds->descriptor_writes =
@@ -432,20 +405,6 @@ vk_cmd_enqueue_CmdPushDescriptorSet(VkCommandBuffer commandBuffer,
    }
 }
 
-static void
-unref_pipeline_layout(struct vk_cmd_queue *queue,
-                      struct vk_cmd_queue_entry *cmd)
-{
-   struct vk_command_buffer *cmd_buffer =
-      container_of(queue, struct vk_command_buffer, cmd_queue);
-   VK_FROM_HANDLE(vk_pipeline_layout, layout,
-                  cmd->u.bind_descriptor_sets.layout);
-
-   assert(cmd->type == VK_CMD_BIND_DESCRIPTOR_SETS);
-
-   vk_pipeline_layout_unref(cmd_buffer->base.device, layout);
-}
-
 VKAPI_ATTR void VKAPI_CALL
 vk_cmd_enqueue_CmdBindDescriptorSets(VkCommandBuffer commandBuffer,
                                      VkPipelineBindPoint pipelineBindPoint,
@@ -466,13 +425,8 @@ vk_cmd_enqueue_CmdBindDescriptorSets(VkCommandBuffer commandBuffer,
    cmd->type = VK_CMD_BIND_DESCRIPTOR_SETS;
    list_addtail(&cmd->cmd_link, &cmd_buffer->cmd_queue.cmds);
 
-   /* We need to hold a reference to the descriptor set as long as this
-    * command is in the queue.  Otherwise, it may get deleted out from under
-    * us before the command is replayed.
-    */
-   vk_pipeline_layout_ref(vk_pipeline_layout_from_handle(layout));
+   enqueue_pipeline_layout(&cmd_buffer->cmd_queue, layout);
    cmd->u.bind_descriptor_sets.layout = layout;
-   cmd->driver_free_cb = unref_pipeline_layout;
 
    cmd->u.bind_descriptor_sets.pipeline_bind_point = pipelineBindPoint;
    cmd->u.bind_descriptor_sets.first_set = firstSet;
