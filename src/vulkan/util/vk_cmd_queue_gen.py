@@ -102,6 +102,7 @@ struct vk_cmd_queue {
    struct list_head cmds;
    struct util_dynarray pipeline_layouts;
    struct util_dynarray update_templates;
+   struct util_dynarray set_layouts;
 };
 
 enum vk_cmd_type {
@@ -195,6 +196,7 @@ vk_cmd_queue_init(struct vk_cmd_queue *queue)
    list_inithead(&queue->cmds);
    util_dynarray_init(&queue->pipeline_layouts, NULL);
    util_dynarray_init(&queue->update_templates, NULL);
+   util_dynarray_init(&queue->set_layouts, NULL);
 }
 
 static inline void
@@ -236,6 +238,7 @@ TEMPLATE_C = Template(COPYRIGHT + """
 #include "vk_device.h"
 #include "vulkan/runtime/vk_pipeline_layout.h"
 #include "vulkan/runtime/vk_descriptor_update_template.h"
+#include "vulkan/runtime/vk_descriptor_set_layout.h"
 
 const char *vk_cmd_queue_type_names[] = {
 % for c in commands:
@@ -299,6 +302,9 @@ vk_free_queue(struct vk_cmd_queue *queue)
    util_dynarray_foreach(&queue->update_templates, void*, templ)
       vk_descriptor_update_template_unref(cmd_buffer->base.device, *templ);
    util_dynarray_fini(&queue->update_templates);
+   util_dynarray_foreach(&queue->set_layouts, void*, layout)
+      vk_descriptor_set_layout_unref(cmd_buffer->base.device, *layout);
+   util_dynarray_fini(&queue->set_layouts);
    linear_free_context(queue->ctx);
 }
 

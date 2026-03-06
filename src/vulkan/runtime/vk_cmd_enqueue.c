@@ -29,6 +29,7 @@
 #include "vk_device.h"
 #include "vk_pipeline_layout.h"
 #include "vk_util.h"
+#include "vk_descriptor_set_layout.h"
 
 static inline unsigned
 vk_descriptor_type_update_size(VkDescriptorType type)
@@ -69,6 +70,14 @@ enqueue_pipeline_layout(struct vk_cmd_queue *queue, VkPipelineLayout layout)
    VK_FROM_HANDLE(vk_pipeline_layout, vklayout, layout);
    vk_pipeline_layout_ref(vklayout);
    util_dynarray_append(&queue->pipeline_layouts, vklayout);
+}
+
+static void
+enqueue_descriptor_layout(struct vk_cmd_queue *queue, VkDescriptorSetLayout layout)
+{
+   VK_FROM_HANDLE(vk_descriptor_set_layout, vklayout, layout);
+   vk_descriptor_set_layout_ref(vklayout);
+   util_dynarray_append(&queue->set_layouts, vklayout);
 }
 
 static void
@@ -162,53 +171,32 @@ vk_cmd_enqueue_CmdPushDescriptorSetWithTemplate2(
 
    if (pnext) {
       switch ((int32_t)pnext->sType) {
-      /* TODO: The set layouts below would need to be reference counted. Punting
-       * until there's a cmd_enqueue-based driver implementing
-       * VK_NV_per_stage_descriptor_set.
-       */
-#if 0
       case VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO:
-         info->pNext =
-            vk_zalloc(queue->alloc, sizeof(VkPipelineLayoutCreateInfo), 8,
-                      VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-         if (info->pNext == NULL)
-            goto err;
-
-         memcpy((void *)info->pNext, pnext,
+         info->pNext = linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(VkPipelineLayoutCreateInfo));
+         memcpy((void*)info->pNext, pnext,
                 sizeof(VkPipelineLayoutCreateInfo));
 
          VkPipelineLayoutCreateInfo *tmp_dst2 = (void *)info->pNext;
          VkPipelineLayoutCreateInfo *tmp_src2 = (void *)pnext;
 
          if (tmp_src2->pSetLayouts) {
-            tmp_dst2->pSetLayouts = vk_zalloc(
-               queue->alloc,
-               sizeof(*tmp_dst2->pSetLayouts) * tmp_dst2->setLayoutCount, 8,
-               VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-            if (tmp_dst2->pSetLayouts == NULL)
-               goto err;
+            tmp_dst2->pSetLayouts = linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*tmp_dst2->pSetLayouts) * tmp_dst2->setLayoutCount);
 
-            memcpy(
-               (void *)tmp_dst2->pSetLayouts, tmp_src2->pSetLayouts,
-               sizeof(*tmp_dst2->pSetLayouts) * tmp_dst2->setLayoutCount);
+            typed_memcpy(tmp_dst2->pSetLayouts, tmp_src2->pSetLayouts, tmp_dst2->setLayoutCount);
+            for (unsigned i = 0; i < tmp_dst2->setLayoutCount; i++)
+               enqueue_descriptor_layout(queue, tmp_src2->pSetLayouts[i]);
          }
 
          if (tmp_src2->pPushConstantRanges) {
             tmp_dst2->pPushConstantRanges =
-               vk_zalloc(queue->alloc,
-                         sizeof(*tmp_dst2->pPushConstantRanges) *
-                            tmp_dst2->pushConstantRangeCount,
-                         8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-            if (tmp_dst2->pPushConstantRanges == NULL)
-               goto err;
+               linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*tmp_dst2->pPushConstantRanges) *
+                                                              tmp_dst2->pushConstantRangeCount);
 
-            memcpy((void *)tmp_dst2->pPushConstantRanges,
-                   tmp_src2->pPushConstantRanges,
-                   sizeof(*tmp_dst2->pPushConstantRanges) *
-                      tmp_dst2->pushConstantRangeCount);
+            typed_memcpy(tmp_dst2->pPushConstantRanges,
+                         tmp_src2->pPushConstantRanges,
+                         tmp_dst2->pushConstantRangeCount);
          }
          break;
-#endif
 
       default:
          goto err;
