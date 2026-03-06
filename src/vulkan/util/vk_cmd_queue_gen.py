@@ -46,9 +46,6 @@ MANUAL_COMMANDS = [
     # Incomplete struct copies which lead to an use after free.
     'CmdBuildAccelerationStructuresKHR',
 
-    # pData's size cannot be calculated from the xml
-    'CmdPushConstants2',
-
     # VkDispatchGraphCountInfoAMDX::infos is an array of
     # VkDispatchGraphInfoAMDX, but the xml specifies that it is a
     # VkDeviceOrHostAddressConstAMDX.

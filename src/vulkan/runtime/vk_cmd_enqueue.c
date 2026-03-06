@@ -247,29 +247,3 @@ vk_cmd_enqueue_CmdBuildAccelerationStructuresKHR(
 err:
    vk_command_buffer_set_error(cmd_buffer, VK_ERROR_OUT_OF_HOST_MEMORY);
 }
-
-VKAPI_ATTR void VKAPI_CALL vk_cmd_enqueue_CmdPushConstants2(
-   VkCommandBuffer                             commandBuffer,
-   const VkPushConstantsInfoKHR* pPushConstantsInfo)
-{
-   VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
-   struct vk_cmd_queue *queue = &cmd_buffer->cmd_queue;
-
-   struct vk_cmd_queue_entry *cmd =
-      linear_zalloc_child(queue->ctx, vk_cmd_queue_type_sizes[VK_CMD_PUSH_CONSTANTS2]);
-   if (!cmd)
-      return;
-
-   cmd->type = VK_CMD_PUSH_CONSTANTS2;
-
-   VkPushConstantsInfoKHR *info = linear_alloc_child(queue->ctx, sizeof(*info));
-   void *pValues = linear_alloc_child(queue->ctx, pPushConstantsInfo->size);
-
-   memcpy(info, pPushConstantsInfo, sizeof(*info));
-   memcpy(pValues, pPushConstantsInfo->pValues, pPushConstantsInfo->size);
-
-   cmd->u.push_constants2.push_constants_info = info;
-   info->pValues = pValues;
-
-   list_addtail(&cmd->cmd_link, &cmd_buffer->cmd_queue.cmds);
-}
