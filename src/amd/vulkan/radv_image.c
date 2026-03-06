@@ -1598,6 +1598,8 @@ radv_layout_is_htile_compressed(const struct radv_device *device, const struct r
    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
    case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
    case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
       return radv_htile_enabled(image, level);
    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
       return radv_tc_compat_htile_enabled(image, level) ||
