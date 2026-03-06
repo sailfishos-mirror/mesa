@@ -383,7 +383,8 @@ static bool gfx11_get_dcc_clear_parameters(struct si_screen *sscreen, struct si_
       size = 0;
 
    /* This is mostly optimal for Navi31. The scaling effect of num_rb on other chips is guessed. */
-   if (!fail_if_slow || size >= sscreen->info.num_rb * 512 * 1024) {
+   if (!fail_if_slow || sscreen->debug_flags & DBG(FORCE_FAST_CLEAR) ||
+       size >= sscreen->info.num_rb * 512 * 1024) {
       *clear_value = GFX11_DCC_CLEAR_SINGLE;
       return true;
    }
@@ -503,6 +504,9 @@ static void si_fast_clear(struct si_context *sctx, unsigned *buffers,
    return;
 #endif
 
+   if (sctx->screen->debug_flags & (DBG(FORCE_GFX_BLIT) | DBG(FORCE_COMPUTE_BLIT)))
+      return;
+
    /* Gather information about what to clear. */
    unsigned color_buffer_mask = (*buffers & PIPE_CLEAR_COLOR) >> util_logbase2(PIPE_CLEAR_COLOR0);
    while (color_buffer_mask) {
@@ -529,7 +533,8 @@ static void si_fast_clear(struct si_context *sctx, unsigned *buffers,
        *
        * This helps on both dGPUs and APUs, even small APUs like Mullins.
        */
-      bool fb_too_small = (uint64_t)num_pixels * num_layers <= 512 * 512;
+      bool fb_too_small = (uint64_t)num_pixels * num_layers <= 512 * 512 &&
+                          !(sctx->screen->debug_flags & DBG(FORCE_FAST_CLEAR));
       bool too_small = tex->buffer.b.b.nr_samples <= 1 && fb_too_small;
       bool eliminate_needed = false;
       bool fmask_decompress_needed = false;
@@ -741,7 +746,8 @@ static void si_fast_clear(struct si_context *sctx, unsigned *buffers,
       unsigned level = fb->zsbuf.level;
       bool update_db_depth_clear = false;
       bool update_db_stencil_clear = false;
-      bool fb_too_small = (uint64_t)num_pixels * zs_num_layers <= 512 * 512;
+      bool fb_too_small = (uint64_t)num_pixels * zs_num_layers <= 512 * 512 &&
+                          !(sctx->screen->debug_flags & DBG(FORCE_FAST_CLEAR));
 
       /* Transition from TC-incompatible to TC-compatible HTILE if requested.
        * (the transition applies to the whole buffer, so make sure we're clearing
@@ -910,13 +916,17 @@ static void si_fb_clear_via_compute(struct si_context *sctx, unsigned *buffers,
    struct pipe_framebuffer_state *fb = &sctx->framebuffer.state;
    unsigned color_buffer_mask = (*buffers & PIPE_CLEAR_COLOR) >> util_logbase2(PIPE_CLEAR_COLOR0);
 
+   if (sctx->screen->debug_flags & DBG(FORCE_GFX_BLIT))
+      return;
+
    /* Don't do anything if we are clearing multiple render targets because we would wait
     * unnecesarily between clears.
     *
     * TODO: Use compute for those too but don't wait between compute clears. Do all compute clears
     *       in parallel with each other and in parallel with the gfx color/Z/S clear as well.
     */
-   if (sctx->gfx_level >= GFX12 && util_bitcount(color_buffer_mask) > 1)
+   if (sctx->gfx_level >= GFX12 && util_bitcount(color_buffer_mask) > 1 &&
+       !(sctx->screen->debug_flags & DBG(FORCE_COMPUTE_BLIT)))
       return;
 
    while (color_buffer_mask) {
@@ -926,7 +936,7 @@ static void si_fb_clear_via_compute(struct si_context *sctx, unsigned *buffers,
       unsigned width = u_minify(tex->buffer.b.b.width0, surf->level);
       unsigned height = u_minify(tex->buffer.b.b.height0, surf->level);
       unsigned depth = surf->last_layer - surf->first_layer + 1;
-      bool compute_clear = false;
+      bool compute_clear = sctx->screen->debug_flags & DBG(FORCE_COMPUTE_BLIT);
 
       if (sctx->gfx_level >= GFX12) {
          if (tex->surface.is_linear || tex->surface.thick_tiling || tex->surface.bpe <= 4 ||
@@ -1126,6 +1136,9 @@ static bool si_try_normal_clear(struct si_context *sctx, struct pipe_surface *ds
    unsigned surf_width = u_minify(dst->texture->width0, dst->level);
    unsigned surf_height = u_minify(dst->texture->height0, dst->level);
 
+   if (sctx->screen->debug_flags & (DBG(FORCE_GFX_BLIT) | DBG(FORCE_COMPUTE_BLIT)))
+      return false;
+
    /* This is worth it only if it's a whole image clear. */
    if (dstx == 0 && dsty == 0 &&
        width == surf_width &&
@@ -1168,6 +1181,9 @@ bool si_compute_fast_clear_image(struct si_context *sctx, struct pipe_resource *
                                  bool fail_if_slow)
 {
    struct si_texture *sdst = (struct si_texture*)dst;
+
+   if (sctx->screen->debug_flags & (DBG(FORCE_GFX_BLIT) | DBG(FORCE_COMPUTE_BLIT)))
+      return false;
 
    if (!vi_dcc_enabled(sdst, level))
       return false;

@@ -708,6 +708,10 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
    if (sctx->screen->info.compiler_info.has_fmask && !(sctx->screen->debug_flags & DBG(NO_FMASK)) && dst_samples > 1)
       return false;
 
+   if (sctx->is_gfx_queue && sctx->screen->debug_flags & DBG(FORCE_GFX_BLIT) &&
+       !((src_access | dst_access) & SI_IMAGE_ACCESS_BLOCK_FORMAT_AS_UINT))
+      return false;
+
    if (info->dst_sample != 0 ||
        info->alpha_blend ||
        info->num_window_rectangles ||
@@ -724,7 +728,8 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
       .fail_if_slow = sctx->is_gfx_queue && fail_if_slow &&
                       /* Compressed and subsampled image blits can't fail because
                        * the gfx (pixel shader) blit doesn't support them. */
-                      !((src_access | dst_access) & SI_IMAGE_ACCESS_BLOCK_FORMAT_AS_UINT),
+                      !((src_access | dst_access) & SI_IMAGE_ACCESS_BLOCK_FORMAT_AS_UINT) &&
+                      !(sctx->screen->debug_flags & DBG(FORCE_COMPUTE_BLIT)),
    };
 
    struct ac_cs_blit_description blit = {

@@ -81,6 +81,10 @@ static const struct debug_named_value radeonsi_debug_options[] = {
    {"nofmask", DBG(NO_FMASK), "Disable MSAA compression"},
    {"nodma", DBG(NO_DMA), "Disable SDMA-copy for DRI_PRIME"},
 
+   {"forcegfxblit", DBG(FORCE_GFX_BLIT), "Force the use of fragment shaders for image clears, copies, blits, and resolve."},
+   {"forcecomputeblit", DBG(FORCE_COMPUTE_BLIT), "Force the use of compute shaders for image clears, copies, blits, and resolve."},
+   {"forcefastclear", DBG(FORCE_FAST_CLEAR), "Force the use of image \"fast clear\" when possible. For debug only."},
+
    {"extra_md", DBG(EXTRA_METADATA), "Set UMD metadata for all textures and with additional fields for umr"},
 
    {"tmz", DBG(TMZ), "Force allocation of scanout/depth/stencil buffer as encrypted"},
