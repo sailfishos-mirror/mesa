@@ -106,6 +106,9 @@ radv_compile_cs(const struct radv_compiler_info *compiler_info, struct radv_shad
    /* Compile SPIR-V shader to NIR. */
    cs_stage->nir = radv_shader_spirv_to_nir(compiler_info, cs_stage, NULL, is_internal);
 
+   NIR_PASS(_, cs_stage->nir, ac_nir_lower_indirect_derefs);
+   NIR_PASS(_, cs_stage->nir, nir_lower_vars_to_ssa);
+
    radv_optimize_nir(cs_stage->nir, cs_stage->key.optimisations_disabled);
 
    /* Run the shader info pass. */

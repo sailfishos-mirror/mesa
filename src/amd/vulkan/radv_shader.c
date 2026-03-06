@@ -877,21 +877,6 @@ radv_shader_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct 
       }
    }
 
-   /* Indirect lowering must be called after the radv_optimize_nir() loop
-    * has been called at least once. Otherwise indirect lowering can
-    * bloat the instruction count of the loop and cause it to be
-    * considered too large for unrolling.
-    */
-   bool indirect_derefs_lowered = false;
-   NIR_PASS(indirect_derefs_lowered, nir, ac_nir_lower_indirect_derefs);
-   NIR_PASS(_, nir, nir_lower_vars_to_ssa);
-
-   if (indirect_derefs_lowered && !stage->key.optimisations_disabled &&
-       nir->info.stage != MESA_SHADER_COMPUTE) {
-      /* Optimize the lowered code before the linking optimizations. */
-      radv_optimize_nir(nir, false);
-   }
-
    return nir;
 }
 

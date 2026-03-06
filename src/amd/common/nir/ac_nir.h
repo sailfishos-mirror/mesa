@@ -177,6 +177,9 @@ ac_nir_lower_gs_inputs_to_mem(nir_shader *shader,
                               bool triangle_strip_adjacency_fix);
 
 bool
+ac_nir_lower_indirect_derefs_early(nir_shader *shader);
+
+bool
 ac_nir_lower_indirect_derefs(nir_shader *shader);
 
 typedef struct {

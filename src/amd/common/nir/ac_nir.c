@@ -218,6 +218,39 @@ ac_nir_unpack_arg(nir_builder *b, const struct ac_shader_args *ac_args, struct a
    return ac_nir_unpack_value(b, value, rshift, bitwidth);
 }
 
+/* This lowers small indirect array derefs to if-else trees. We might want to do this before
+ * ac_nir_lower_indirect_derefs() to lower small array derefs to if-else trees earlier than
+ * lowering large array derefs to scratch. This is because we want to do the scratch lowering
+ * as late as possible (because scratch access isn't very optimizable), but the if-else tree
+ * lowering can be optimized. For example, an indirect access where we can know that all
+ * elements that might be accessed are equal could be replaced with a use of that element, or
+ * nir_opt_peephole_select() can flatten some of the if-else tree. */
+bool
+ac_nir_lower_indirect_derefs_early(nir_shader *shader)
+{
+   struct set vars;
+   _mesa_pointer_set_init(&vars, NULL);
+   nir_foreach_function_impl(impl, shader) {
+      nir_foreach_function_temp_variable(var, impl) {
+         unsigned var_size, var_align;
+         glsl_get_natural_size_align_bytes(var->type, &var_size, &var_align);
+         if (var_size < 256)
+            _mesa_set_add(&vars, var);
+      }
+   }
+
+   bool progress = false;
+   if (vars.entries)
+      NIR_PASS(progress, shader, nir_lower_indirect_var_derefs_to_if_else_trees, &vars);
+
+   _mesa_set_fini(&vars, NULL);
+
+   return progress;
+}
+
+/* This lowers all indirect array derefs to either scratch adccess or if-else trees, ensuring
+ * that none remains.
+ */
 bool
 ac_nir_lower_indirect_derefs(nir_shader *shader)
 {
