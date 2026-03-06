@@ -3674,6 +3674,7 @@ typedef struct nir_loop {
    nir_loop_info *info;
    nir_loop_control control;
    bool partially_unrolled;
+   bool do_while;
 
    /**
     * Whether some loop-active invocations might take a different control-flow path:
