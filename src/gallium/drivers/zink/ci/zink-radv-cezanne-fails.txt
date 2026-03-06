@@ -1,10 +1,6 @@
 KHR-GL46.geometry_shader.rendering.rendering.triangles_with_adjacency_input_line_strip_output_triangle_strip_adjacency_drawcall,Fail
 KHR-GL46.geometry_shader.rendering.rendering.triangles_with_adjacency_input_triangle_strip_output_triangle_strip_adjacency_drawcall,Fail
 
-# Delta over NAVI10
-spec@!opengl 1.1@depthstencil-default_fb-blit samples=6,Fail
-spec@!opengl 1.1@depthstencil-default_fb-blit samples=8,Fail
-
 glx@glx-multi-window-single-context,Fail
 spec@arb_fragment_shader_interlock@arb_fragment_shader_interlock-image-load-store,Fail
 spec@egl_mesa_configless_context@basic,Fail
