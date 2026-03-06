@@ -1144,7 +1144,7 @@
         "description": "brw/algebraic: Don't optimize SEL.L.SAT or SEL.G.SAT",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ca675b73d3ac2e1b57ec385c2c80b05b6382f6b6",
         "notes": null
