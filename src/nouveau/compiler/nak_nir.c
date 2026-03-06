@@ -1019,6 +1019,22 @@ nak_nir_lower_load_store(nir_shader *nir, const struct nak_compiler *nak)
                res = nir_load_global_nv(&b, intr->def.num_components, intr->def.bit_size, addr->ssa, nir_true);
                break;
             }
+            case nir_intrinsic_load_global_bounded:
+            case nir_intrinsic_load_global_constant_bounded: {
+               assert(nak->sm >= 73);
+
+               nir_src *base = &intr->src[0];
+               nir_src *offset = &intr->src[1];
+               nir_src *size = &intr->src[2];
+               unsigned load_size = intr->def.num_components * intr->def.bit_size / 8;
+
+               /* see addr_is_in_bounds in nir_lower_explicit_io.c */
+               nir_def *addr = nir_iadd(&b, base->ssa, nir_u2u64(&b, offset->ssa));
+               nir_def *last_byte = nir_iadd_imm(&b, offset->ssa, load_size - 1);
+               nir_def *cond = nir_ult(&b, last_byte, size->ssa);
+               res = nir_load_global_nv(&b, intr->def.num_components, intr->def.bit_size, addr, cond);
+               break;
+            }
             case nir_intrinsic_load_scratch:
                res = nir_load_scratch_nv(&b, intr->def.num_components, intr->def.bit_size, addr->ssa);
                break;
@@ -1055,7 +1071,8 @@ nak_nir_lower_load_store(nir_shader *nir, const struct nak_compiler *nak)
 
             if (nir_intrinsic_has_access(intr))
                nir_intrinsic_set_access(new, nir_intrinsic_access(intr));
-            if (intr->intrinsic == nir_intrinsic_load_global_constant)
+            if (intr->intrinsic == nir_intrinsic_load_global_constant ||
+                intr->intrinsic == nir_intrinsic_load_global_constant_bounded)
                nir_intrinsic_set_access(new, nir_intrinsic_access(new) | ACCESS_CAN_REORDER);
 
             if (nir_intrinsic_has_align_mul(intr))

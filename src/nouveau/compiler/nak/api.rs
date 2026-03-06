@@ -181,6 +181,7 @@ fn nir_options(dev: &nv_device_info) -> nir_shader_compiler_options {
         has_pack_half_2x16_rtz: true,
         has_bfm: dev.sm >= 70,
         discard_is_demote: true,
+        has_load_global_bounded: dev.sm >= 73,
 
         max_unroll_iterations: 32,
         max_samples: 8,
