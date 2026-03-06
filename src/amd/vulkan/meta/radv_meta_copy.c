@@ -688,7 +688,7 @@ gfx_or_compute_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image 
 
    if (use_compute) {
       radv_fixup_copy_dst_htile_metadata(cmd_buffer, dst_image, dst_image_layout, &region->dstSubresource,
-                                         &region->dstOffset, &region->extent, true);
+                                         &region->dstOffset, &region->extent, false);
    }
 }
 
