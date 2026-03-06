@@ -5432,7 +5432,7 @@ nvk_CmdBeginConditionalRenderingEXT(VkCommandBuffer commandBuffer,
    /* Frustratingly, the u64s are not packed together */
    const uint64_t operand_a_addr = tmp_addr + 0;
 
-   struct nv_push *p = nvk_cmd_buffer_push(cmd, 19);
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 15);
 
    /* Copy value into operand A */
    P_MTHD(p, NV90B5, OFFSET_IN_UPPER);
@@ -5455,15 +5455,17 @@ nvk_CmdBeginConditionalRenderingEXT(VkCommandBuffer commandBuffer,
    });
 
    /* Compare the operands */
-   P_MTHD(p, NV9097, SET_RENDER_ENABLE_A);
-   P_NV9097_SET_RENDER_ENABLE_A(p, tmp_addr >> 32);
-   P_NV9097_SET_RENDER_ENABLE_B(p, tmp_addr & 0xfffffff0);
-   P_NV9097_SET_RENDER_ENABLE_C(p, inverted ? MODE_RENDER_IF_EQUAL : MODE_RENDER_IF_NOT_EQUAL);
-
-   P_MTHD(p, NV90C0, SET_RENDER_ENABLE_A);
-   P_NV90C0_SET_RENDER_ENABLE_A(p, tmp_addr >> 32);
-   P_NV90C0_SET_RENDER_ENABLE_B(p, tmp_addr & 0xfffffff0);
-   P_NV90C0_SET_RENDER_ENABLE_C(p, inverted ? MODE_RENDER_IF_EQUAL : MODE_RENDER_IF_NOT_EQUAL);
+   if (nvk_cmd_buffer_last_subchannel(cmd) == SUBC_NV9097) {
+      P_MTHD(p, NV9097, SET_GLOBAL_RENDER_ENABLE_A);
+      P_NV9097_SET_GLOBAL_RENDER_ENABLE_A(p, tmp_addr >> 32);
+      P_NV9097_SET_GLOBAL_RENDER_ENABLE_B(p, tmp_addr & 0xfffffff0);
+      P_NV9097_SET_GLOBAL_RENDER_ENABLE_C(p, inverted ? MODE_RENDER_IF_EQUAL : MODE_RENDER_IF_NOT_EQUAL);
+   } else {
+      P_MTHD(p, NV90C0, SET_GLOBAL_RENDER_ENABLE_A);
+      P_NV90C0_SET_GLOBAL_RENDER_ENABLE_A(p, tmp_addr >> 32);
+      P_NV90C0_SET_GLOBAL_RENDER_ENABLE_B(p, tmp_addr & 0xfffffff0);
+      P_NV90C0_SET_GLOBAL_RENDER_ENABLE_C(p, inverted ? MODE_RENDER_IF_EQUAL : MODE_RENDER_IF_NOT_EQUAL);
+   }
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -5471,14 +5473,17 @@ nvk_CmdEndConditionalRenderingEXT(VkCommandBuffer commandBuffer)
 {
    VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
 
-   struct nv_push *p = nvk_cmd_buffer_push(cmd, 12);
-   P_MTHD(p, NV9097, SET_RENDER_ENABLE_A);
-   P_NV9097_SET_RENDER_ENABLE_A(p, 0);
-   P_NV9097_SET_RENDER_ENABLE_B(p, 0);
-   P_NV9097_SET_RENDER_ENABLE_C(p, MODE_TRUE);
-
-   P_MTHD(p, NV90C0, SET_RENDER_ENABLE_A);
-   P_NV90C0_SET_RENDER_ENABLE_A(p, 0);
-   P_NV90C0_SET_RENDER_ENABLE_B(p, 0);
-   P_NV90C0_SET_RENDER_ENABLE_C(p, MODE_TRUE);
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 4);
+   if (nvk_cmd_buffer_last_subchannel(cmd) == SUBC_NV9097) {
+      /* The GLOBAL variant sets render enable across both 3d and compute */
+      P_MTHD(p, NV9097, SET_GLOBAL_RENDER_ENABLE_A);
+      P_NV9097_SET_GLOBAL_RENDER_ENABLE_A(p, 0);
+      P_NV9097_SET_GLOBAL_RENDER_ENABLE_B(p, 0);
+      P_NV9097_SET_GLOBAL_RENDER_ENABLE_C(p, MODE_TRUE);
+   } else {
+      P_MTHD(p, NV90C0, SET_GLOBAL_RENDER_ENABLE_A);
+      P_NV90C0_SET_GLOBAL_RENDER_ENABLE_A(p, 0);
+      P_NV90C0_SET_GLOBAL_RENDER_ENABLE_B(p, 0);
+      P_NV90C0_SET_GLOBAL_RENDER_ENABLE_C(p, MODE_TRUE);
+   }
 }
