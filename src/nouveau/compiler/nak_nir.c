@@ -1077,8 +1077,7 @@ nak_nir_lower_load_store(nir_shader *nir, const struct nak_compiler *nak)
       }
 
       progress |= nir_progress(this_progress, impl,
-         nir_metadata_control_flow |
-         nir_metadata_loop_analysis
+         nir_metadata_control_flow
       );
    }
 
