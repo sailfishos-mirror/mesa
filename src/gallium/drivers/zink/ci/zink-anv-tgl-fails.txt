@@ -595,8 +595,6 @@ dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_out_of_bounds_mag_revers
 
 dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_out_of_bounds_min,Fail
 
-KHR-GLES3.transform_feedback2.transform_feedback2_states,Fail
-
 glx@glx_arb_sync_control@swapbuffersmsc-return,Fail
 glx@glx_arb_sync_control@swapbuffersmsc-divisor-zero,Fail
 glx@glx_arb_sync_control@swapbuffersmsc-return swap_interval 0,Fail
