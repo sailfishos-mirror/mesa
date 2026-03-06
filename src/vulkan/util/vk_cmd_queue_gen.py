@@ -404,10 +404,6 @@ vk_cmd_enqueue_${c.name}(${c.decl_params()})
 % endif
    if (unlikely(!cmd))
       vk_command_buffer_set_error(cmd_buffer, VK_ERROR_OUT_OF_HOST_MEMORY);
-% if 'CmdBindDescriptorSets' == c.name or 'CmdPushDescriptorSet' == c.name:
-   else
-      enqueue_pipeline_layout(&cmd_buffer->cmd_queue, layout);
-% endif
 }
 % endif
 
@@ -548,6 +544,8 @@ def get_param_copy(builder, command, types, src_parent_access, dst_parent_access
     match categorize_param(types, None, param):
         case ParamCategory.ASSIGNABLE:
             builder.add("%s = %s;" % (dst, src))
+            if param.type == 'VkPipelineLayout':
+                builder.add("enqueue_pipeline_layout(queue, %s);" % (src))
         case ParamCategory.FLAT_ARRAY:
             builder.add("memcpy(%s, %s, sizeof(*%s) * %s);" % (dst, src, src, get_array_len(param)))
         case ParamCategory.UNSIZED_RAW_POINTER:
