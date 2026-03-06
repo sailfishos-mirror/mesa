@@ -1392,16 +1392,20 @@ prepare_draw_layer(struct panvk_cmd_buffer *cmdbuf,
       gfx_state_set_dirty(cmdbuf, FS_PUSH_UNIFORMS);
    }
 
+   struct pan_ptr vs_push_uniforms;
    result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
-      cmdbuf, vs, &cmdbuf->state.gfx.vs.push_uniforms, 1);
+      cmdbuf, vs, &vs_push_uniforms, 1);
    if (result != VK_SUCCESS)
       return result;
+   cmdbuf->state.gfx.vs.push_uniforms = vs_push_uniforms.gpu;
 
    if (fs) {
+      struct pan_ptr fs_push_uniforms;
       result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
-         cmdbuf, fs, &cmdbuf->state.gfx.fs.push_uniforms, 1);
+         cmdbuf, fs, &fs_push_uniforms, 1);
       if (result != VK_SUCCESS)
          return result;
+      cmdbuf->state.gfx.fs.push_uniforms = fs_push_uniforms.gpu;
    }
 
    result = panvk_draw_prepare_tiler_context(cmdbuf, draw);

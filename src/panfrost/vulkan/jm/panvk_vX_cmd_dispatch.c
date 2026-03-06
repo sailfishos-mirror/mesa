@@ -121,10 +121,12 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
 
    panvk_per_arch(cmd_prepare_dispatch_sysvals)(cmdbuf, info);
 
+   struct pan_ptr push_uniforms;
    result = panvk_per_arch(cmd_prepare_compute_push_uniforms)(
-      cmdbuf, cs, &cmdbuf->state.compute.push_uniforms);
+      cmdbuf, cs, &push_uniforms);
    if (result != VK_SUCCESS)
       return;
+   cmdbuf->state.compute.push_uniforms = push_uniforms.gpu;
 
    struct pan_ptr job = panvk_cmd_alloc_desc(cmdbuf, COMPUTE_JOB);
    if (!job.gpu)

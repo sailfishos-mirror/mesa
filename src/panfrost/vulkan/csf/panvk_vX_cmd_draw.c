@@ -1898,10 +1898,12 @@ prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
    }
 
    if (gfx_state_dirty(cmdbuf, VS_PUSH_UNIFORMS)) {
+      struct pan_ptr push_uniforms;
       result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
-         cmdbuf, vs, &cmdbuf->state.gfx.vs.push_uniforms, vs_repeat_count);
+         cmdbuf, vs, &push_uniforms, vs_repeat_count);
       if (result != VK_SUCCESS)
          return result;
+      cmdbuf->state.gfx.vs.push_uniforms = push_uniforms.gpu;
 
       cs_update_vt_ctx(b) {
          cs_move64_to(b, cs_sr_reg64(b, IDVS, VERTEX_FAU),
@@ -1914,10 +1916,12 @@ prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
       uint64_t fau_ptr = 0;
 
       if (fs) {
+         struct pan_ptr push_uniforms;
          result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
-            cmdbuf, fs, &cmdbuf->state.gfx.fs.push_uniforms, 1);
+            cmdbuf, fs, &push_uniforms, 1);
          if (result != VK_SUCCESS)
             return result;
+         cmdbuf->state.gfx.fs.push_uniforms = push_uniforms.gpu;
 
          fau_ptr = cmdbuf->state.gfx.fs.push_uniforms |
                    ((uint64_t)fs->fau.total_count << 56);
@@ -2709,10 +2713,12 @@ launch_gfx_cs(struct panvk_cmd_buffer *cmdbuf,
     * save us anything.
     */
    if (!push_uniforms) {
+      struct pan_ptr push_uniforms_ptr;
       VkResult result = panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
-         cmdbuf, cs, &push_uniforms, 1);
+         cmdbuf, cs, &push_uniforms_ptr, 1);
       if (result != VK_SUCCESS)
          return;
+      push_uniforms = push_uniforms_ptr.gpu;
    }
 
    /* Dirty everything */

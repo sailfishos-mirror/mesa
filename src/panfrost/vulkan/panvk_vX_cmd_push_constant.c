@@ -10,21 +10,22 @@
 static VkResult
 prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
                       const struct panvk_shader_variant *shader,
-                      uint64_t *push_ptr, uint32_t repeat_count,
+                      struct pan_ptr *push_uniforms, uint32_t repeat_count,
                       uint64_t *sysvals)
 {
    struct panvk_device *dev = to_panvk_device(cmdbuf->vk.base.device);
 
    if (!shader->fau.total_count) {
-      *push_ptr = 0;
+      push_uniforms->cpu = NULL;
+      push_uniforms->gpu = 0;
       return VK_SUCCESS;
    }
 
-   struct pan_ptr push_uniforms = panvk_cmd_alloc_dev_mem(
+   *push_uniforms = panvk_cmd_alloc_dev_mem(
       cmdbuf, desc, shader->fau.total_count * sizeof(uint64_t) * repeat_count,
       sizeof(uint64_t));
 
-   if (!push_uniforms.gpu)
+   if (!push_uniforms->gpu)
       return VK_ERROR_OUT_OF_DEVICE_MEMORY;
 
    struct panvk_common_sysvals_inner common_inner = {
@@ -33,12 +34,12 @@ prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
    uint64_t *common = (uint64_t *)&common_inner;
 
    uint64_t *push_consts = cmdbuf->state.push_constants.data;
-   uint64_t *faus = push_uniforms.cpu;
+   uint64_t *faus = push_uniforms->cpu;
    uint32_t w, fau = 0;
 
    for (uint32_t r = 0; r < repeat_count; r++) {
       common_inner.push_uniforms =
-         push_uniforms.gpu + r * shader->fau.total_count * sizeof(uint64_t);
+         push_uniforms->gpu + r * shader->fau.total_count * sizeof(uint64_t);
 
       /* After packing, the sysvals come first, followed by the user push
        * constants. The ordering is encoded shader side, so don't re-order
@@ -60,25 +61,24 @@ prepare_push_uniforms(struct panvk_cmd_buffer *cmdbuf,
       assert(fau % shader->fau.total_count == 0);
    }
 
-   *push_ptr = push_uniforms.gpu;
    return VK_SUCCESS;
 }
 
 VkResult
 panvk_per_arch(cmd_prepare_gfx_push_uniforms)(
    struct panvk_cmd_buffer *cmdbuf, const struct panvk_shader_variant *shader,
-   uint64_t *push_ptr, uint32_t repeat_count)
+   struct pan_ptr *push_uniforms, uint32_t repeat_count)
 {
-   return prepare_push_uniforms(cmdbuf, shader, push_ptr, repeat_count,
+   return prepare_push_uniforms(cmdbuf, shader, push_uniforms, repeat_count,
                                 (uint64_t *)&cmdbuf->state.gfx.sysvals);
 }
 
 VkResult
 panvk_per_arch(cmd_prepare_compute_push_uniforms)(
    struct panvk_cmd_buffer *cmdbuf, const struct panvk_shader_variant *shader,
-   uint64_t *push_ptr)
+   struct pan_ptr *push_uniforms)
 {
-   return prepare_push_uniforms(cmdbuf, shader, push_ptr, 1,
+   return prepare_push_uniforms(cmdbuf, shader, push_uniforms, 1,
                                 (uint64_t *)&cmdbuf->state.compute.sysvals);
 }
 
