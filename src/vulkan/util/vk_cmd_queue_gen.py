@@ -39,9 +39,6 @@ from vk_extensions import filter_api, get_all_required
 
 # These have hand-typed implementations in vk_cmd_enqueue.c
 MANUAL_COMMANDS = [
-    # This script doesn't know how to copy arrays in structs in arrays
-    'CmdPushDescriptorSet',
-
     # The size of the elements is specified in a stride param
     'CmdDrawMultiEXT',
     'CmdDrawMultiIndexedEXT',
@@ -274,6 +271,42 @@ enqueue_pipeline_layout(struct vk_cmd_queue *queue, VkPipelineLayout layout)
    util_dynarray_append(&queue->pipeline_layouts, vklayout);
 }
 
+static void
+enqueue_VkWriteDescriptorSet(struct vk_cmd_queue *queue, VkWriteDescriptorSet *dst, const VkWriteDescriptorSet *src)
+{
+   switch (dst->descriptorType) {
+   case VK_DESCRIPTOR_TYPE_SAMPLER:
+   case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+   case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+   case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+   case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+      dst->pImageInfo = linear_alloc_child(queue->ctx, sizeof(VkDescriptorImageInfo) * dst->descriptorCount);
+      memcpy((VkDescriptorImageInfo *)dst->pImageInfo,
+             src->pImageInfo,
+             sizeof(VkDescriptorImageInfo) * dst->descriptorCount);
+      break;
+   case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+   case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+      dst->pTexelBufferView = linear_alloc_child(queue->ctx, sizeof(VkBufferView) * dst->descriptorCount);
+      memcpy((VkBufferView *)dst->pTexelBufferView,
+             src->pTexelBufferView,
+             sizeof(VkBufferView) * dst->descriptorCount);
+      break;
+   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+      dst->pBufferInfo = linear_zalloc_child(queue->ctx, sizeof(VkDescriptorBufferInfo) * dst->descriptorCount);
+      memcpy((VkDescriptorBufferInfo *)dst->pBufferInfo,
+             src->pBufferInfo,
+             sizeof(VkDescriptorBufferInfo) * dst->descriptorCount);
+      break;
+   default:
+      break;
+   }
+
+}
+
 % for c in commands:
 % if c.guard is not None:
 #ifdef ${c.guard}
@@ -371,7 +404,7 @@ vk_cmd_enqueue_${c.name}(${c.decl_params()})
 % endif
    if (unlikely(!cmd))
       vk_command_buffer_set_error(cmd_buffer, VK_ERROR_OUT_OF_HOST_MEMORY);
-% if 'CmdBindDescriptorSets' == c.name:
+% if 'CmdBindDescriptorSets' == c.name or 'CmdPushDescriptorSet' == c.name:
    else
       enqueue_pipeline_layout(&cmd_buffer->cmd_queue, layout);
 % endif
@@ -474,6 +507,10 @@ def categorize_param(types, parent_type, param):
     
     return ParamCategory.STRUCT
 
+EXPLICIT_PARAM_COPIES = [
+    'VkWriteDescriptorSet',
+]
+
 def get_pnext_copy(builder, command, types, parent_type, src, dst):
     if not types[parent_type].extended_by:
         return
@@ -536,7 +573,8 @@ def get_param_copy(builder, command, types, src_parent_access, dst_parent_access
             builder.add("memcpy((void *)%s, %s, %s);" % (dst, src, size))
 
             if param.type in types:
-                needs_member_copy = False
+                has_explicit_copy = param.type in EXPLICIT_PARAM_COPIES
+                needs_member_copy = has_explicit_copy
                 for member in types[param.type].members:
                     category = categorize_param(types, param.type, member)
                     if category == ParamCategory.PNEXT or category == ParamCategory.STRUCT or category == ParamCategory.STRING:
@@ -563,10 +601,16 @@ def get_param_copy(builder, command, types, src_parent_access, dst_parent_access
 
                     for member in types[param.type].members:
                         category = categorize_param(types, param.type, member)
-                        if category == ParamCategory.STRUCT or category == ParamCategory.STRING:
-                            get_param_copy(builder, command, types, "%s->" % (tmp_src_name), "%s->" % (tmp_dst_name), member, dst_initialized=True)
-                        elif category == ParamCategory.PNEXT:
+                        if category == ParamCategory.PNEXT:
                             get_pnext_copy(builder, command, types, param.type, "%s->pNext" % (tmp_src_name), "%s->pNext" % (tmp_dst_name))
+
+                    if has_explicit_copy:
+                        builder.add("enqueue_%s(queue, %s, %s);" % (param.type, tmp_dst_name, tmp_src_name))
+                    else:
+                        for member in types[param.type].members:
+                            category = categorize_param(types, param.type, member)
+                            if category == ParamCategory.STRUCT or category == ParamCategory.STRING:
+                                get_param_copy(builder, command, types, "%s->" % (tmp_src_name), "%s->" % (tmp_dst_name), member, dst_initialized=True)
 
                     if struct_array_copy:
                         builder.level -= 1
