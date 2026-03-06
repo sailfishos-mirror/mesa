@@ -948,7 +948,7 @@ uint32_t vpe_get_recout_width_alignment(const struct vpe_build_param *params)
 
     dst_subsampled = vpe_is_subsampled_format(params->dst_surface.format);
 
-    if (params->frod_param.enable_frod == true)
+    if (params->frod_param.enable_frod)
         recout_alignment = VPE_FROD_ALIGNMENT;
     else if (dst_subsampled == true)
         recout_alignment = VPE_SUBSAMPLED_OUT_ALIGNMENT;
