@@ -47,10 +47,7 @@ MANUAL_COMMANDS = [
     'CmdBuildAccelerationStructuresKHR',
 
     # pData's size cannot be calculated from the xml
-    'CmdPushDescriptorSetWithTemplate2',
-    'CmdPushDescriptorSetWithTemplate',
     'CmdPushConstants2',
-    'CmdPushDescriptorSet2',
 
     # VkDispatchGraphCountInfoAMDX::infos is an array of
     # VkDispatchGraphInfoAMDX, but the xml specifies that it is a
@@ -272,6 +269,22 @@ enqueue_pipeline_layout(struct vk_cmd_queue *queue, VkPipelineLayout layout)
 }
 
 static void
+enqueue_descriptor_layout(struct vk_cmd_queue *queue, VkDescriptorSetLayout layout)
+{
+   VK_FROM_HANDLE(vk_descriptor_set_layout, vklayout, layout);
+   vk_descriptor_set_layout_ref(vklayout);
+   util_dynarray_append(&queue->set_layouts, vklayout);
+}
+
+static void
+enqueue_descriptor_template(struct vk_cmd_queue *queue, VkDescriptorUpdateTemplate templ)
+{
+   VK_FROM_HANDLE(vk_descriptor_update_template, vktempl, templ);
+   vk_descriptor_update_template_ref(vktempl);
+   util_dynarray_append(&queue->update_templates, vktempl);
+}
+
+static void
 enqueue_VkWriteDescriptorSet(struct vk_cmd_queue *queue, VkWriteDescriptorSet *dst, const VkWriteDescriptorSet *src)
 {
    switch (dst->descriptorType) {
@@ -305,6 +318,87 @@ enqueue_VkWriteDescriptorSet(struct vk_cmd_queue *queue, VkWriteDescriptorSet *d
       break;
    }
 
+}
+
+static unsigned
+vk_descriptor_type_update_size(VkDescriptorType type)
+{
+   switch (type) {
+   case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
+      UNREACHABLE("handled in caller");
+
+   case VK_DESCRIPTOR_TYPE_SAMPLER:
+   case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+   case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+   case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+   case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+      return sizeof(VkDescriptorImageInfo);
+
+   case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+   case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+      return sizeof(VkBufferView);
+
+   case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+      return sizeof(VkAccelerationStructureKHR);
+
+   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+   case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+   case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+   default:
+      return sizeof(VkDescriptorBufferInfo);
+   }
+}
+
+static void *
+enqueue_push_descriptor_template_data(struct vk_cmd_queue *queue, VkDescriptorUpdateTemplate vktempl, const uint8_t *pData)
+{
+
+   /* What makes this tricky is that the size of pData is implicit. We determine
+    * it by walking the template and determining the ranges read by the driver.
+    */
+   size_t data_size = 0;
+   VK_FROM_HANDLE(vk_descriptor_update_template, templ,
+                  vktempl);
+   for (unsigned i = 0; i < templ->entry_count; ++i) {
+      struct vk_descriptor_template_entry entry = templ->entries[i];
+      unsigned end = 0;
+
+      /* From the spec:
+       *
+       *    If descriptorType is VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK then
+       *    the value of stride is ignored and the stride is assumed to be 1,
+       *    i.e. the descriptor update information for them is always specified
+       *    as a contiguous range.
+       */
+      if (entry.type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
+         end = entry.offset + entry.array_count;
+      } else if (entry.array_count > 0) {
+         end = entry.offset + ((entry.array_count - 1) * entry.stride) +
+               vk_descriptor_type_update_size(entry.type);
+      }
+
+      data_size = MAX2(data_size, end);
+   }
+
+   uint8_t *out_pData = linear_alloc_child(queue->ctx, data_size);
+
+   /* Now walk the template again, copying what we actually need */
+   for (unsigned i = 0; i < templ->entry_count; ++i) {
+      struct vk_descriptor_template_entry entry = templ->entries[i];
+      unsigned size = 0;
+
+      if (entry.type == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
+         size = entry.array_count;
+      } else if (entry.array_count > 0) {
+         size = ((entry.array_count - 1) * entry.stride) +
+                vk_descriptor_type_update_size(entry.type);
+      }
+
+      memcpy(out_pData + entry.offset, pData + entry.offset, size);
+   }
+
+   return out_pData;
 }
 
 % for c in commands:
@@ -484,10 +578,16 @@ class ParamCategory(Enum):
     NULL = auto()
     PNEXT = auto()
     STRUCT = auto()
+    DESCRIPTOR_UPDATE_TEMPLATE_DATA = auto()
+    DESCRIPTOR_UPDATE_TEMPLATE = auto()
+    PIPELINE_LAYOUT = auto()
 
-def categorize_param(types, parent_type, param):
+def categorize_param(command, types, parent_type, param):
     if param.name == 'pNext':
         return ParamCategory.PNEXT if not parent_type or types[parent_type].extended_by else ParamCategory.NULL
+
+    if 'CmdPushDescriptorSetWithTemplate' in command.name and param.name == 'pData' and param.type == 'void':
+        return ParamCategory.DESCRIPTOR_UPDATE_TEMPLATE_DATA
 
     if '[' in param.decl:
         return ParamCategory.FLAT_ARRAY
@@ -497,7 +597,13 @@ def categorize_param(types, parent_type, param):
 
     if param.len == 'null-terminated':
         return ParamCategory.STRING
-    
+
+    if param.type == 'VkPipelineLayout':
+        return ParamCategory.PIPELINE_LAYOUT
+
+    if param.type == 'VkDescriptorUpdateTemplate':
+        return ParamCategory.DESCRIPTOR_UPDATE_TEMPLATE
+
     if "*" not in param.decl:
         return ParamCategory.ASSIGNABLE
     
@@ -541,18 +647,25 @@ def get_param_copy(builder, command, types, src_parent_access, dst_parent_access
     src = src_parent_access + param.name
     dst = dst_parent_access + (to_field_name(param.name) if dst_snake_case else param.name)
 
-    match categorize_param(types, None, param):
+    match categorize_param(command, types, None, param):
         case ParamCategory.ASSIGNABLE:
             builder.add("%s = %s;" % (dst, src))
-            if param.type == 'VkPipelineLayout':
-                builder.add("enqueue_pipeline_layout(queue, %s);" % (src))
         case ParamCategory.FLAT_ARRAY:
             builder.add("memcpy(%s, %s, sizeof(*%s) * %s);" % (dst, src, src, get_array_len(param)))
         case ParamCategory.UNSIZED_RAW_POINTER:
             builder.add("%s = (%s)%s;" % (dst, remove_suffix(param.decl.replace("const", ""), param.name), src))
         case ParamCategory.STRING:
             builder.add("%s = linear_strdup(queue->ctx, %s);" % (dst, src))
+        case ParamCategory.DESCRIPTOR_UPDATE_TEMPLATE_DATA:
+            builder.add("%s = enqueue_push_descriptor_template_data(queue, %sdescriptorUpdateTemplate, %s);" % (dst, src_parent_access, src))
+        case ParamCategory.DESCRIPTOR_UPDATE_TEMPLATE:
+                builder.add("%s = %s;" % (dst, src))
+                builder.add("enqueue_descriptor_template(queue, %s);" % (src))
+        case ParamCategory.PIPELINE_LAYOUT:
+                builder.add("%s = %s;" % (dst, src))
+                builder.add("enqueue_pipeline_layout(queue, %s);" % (src))
         case ParamCategory.STRUCT:
+
             if nullable:
                 builder.add("if (%s) {" % (src))
                 builder.level += 1
@@ -569,14 +682,25 @@ def get_param_copy(builder, command, types, src_parent_access, dst_parent_access
             builder.add("%s = linear_alloc_child(queue->ctx, %s);" % (dst, size))
             builder.add("if (%s == NULL) return NULL;" % (dst))
             builder.add("memcpy((void *)%s, %s, %s);" % (dst, src, size))
+            if param.type == 'VkDescriptorSetLayout':
+                array_index = builder.get_variable_name("i")
+                builder.add("for (unsigned %s = 0; %s < %s%s; %s++) {" % (array_index, array_index, src_parent_access, param.len, array_index))
+                builder.level += 1
+                builder.add("enqueue_descriptor_layout(queue, %s[%s]);" % (src, array_index))
+                builder.level -= 1
+                builder.add("}")
 
             if param.type in types:
                 has_explicit_copy = param.type in EXPLICIT_PARAM_COPIES
                 needs_member_copy = has_explicit_copy
                 for member in types[param.type].members:
-                    category = categorize_param(types, param.type, member)
-                    if category == ParamCategory.PNEXT or category == ParamCategory.STRUCT or category == ParamCategory.STRING:
-                        needs_member_copy = True
+                    match categorize_param(command, types, param.type, member):
+                        case ParamCategory.PNEXT | ParamCategory.STRUCT | ParamCategory.STRING:
+                            needs_member_copy = True
+                        case ParamCategory.PIPELINE_LAYOUT:
+                            builder.add("enqueue_pipeline_layout(queue, %s->%s);" % (src, member.name))
+                        case ParamCategory.DESCRIPTOR_UPDATE_TEMPLATE:
+                            builder.add("enqueue_descriptor_template(queue, %s->%s);" % (src, member.name))
 
                 if needs_member_copy:
                     tmp_dst_name = builder.get_variable_name("tmp_dst")
@@ -598,15 +722,17 @@ def get_param_copy(builder, command, types, src_parent_access, dst_parent_access
                         builder.add("%s *%s = %s + %s;" % (param.type, tmp_src_name, prev_tmp_src_name, array_index))
 
                     for member in types[param.type].members:
-                        category = categorize_param(types, param.type, member)
+                        category = categorize_param(command, types, param.type, member)
                         if category == ParamCategory.PNEXT:
                             get_pnext_copy(builder, command, types, param.type, "%s->pNext" % (tmp_src_name), "%s->pNext" % (tmp_dst_name))
+                        elif category == ParamCategory.DESCRIPTOR_UPDATE_TEMPLATE_DATA:
+                            get_param_copy(builder, command, types, "%s->" % (tmp_src_name), "%s->" % (tmp_dst_name), member, dst_initialized=True)
 
                     if has_explicit_copy:
                         builder.add("enqueue_%s(queue, %s, %s);" % (param.type, tmp_dst_name, tmp_src_name))
                     else:
                         for member in types[param.type].members:
-                            category = categorize_param(types, param.type, member)
+                            category = categorize_param(command, types, param.type, member)
                             if category == ParamCategory.STRUCT or category == ParamCategory.STRING:
                                 get_param_copy(builder, command, types, "%s->" % (tmp_src_name), "%s->" % (tmp_dst_name), member, dst_initialized=True)
 
