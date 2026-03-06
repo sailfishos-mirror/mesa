@@ -393,51 +393,6 @@ vk_cmd_enqueue_CmdPushDescriptorSet(VkCommandBuffer commandBuffer,
    }
 }
 
-VKAPI_ATTR void VKAPI_CALL
-vk_cmd_enqueue_CmdBindDescriptorSets(VkCommandBuffer commandBuffer,
-                                     VkPipelineBindPoint pipelineBindPoint,
-                                     VkPipelineLayout layout,
-                                     uint32_t firstSet,
-                                     uint32_t descriptorSetCount,
-                                     const VkDescriptorSet* pDescriptorSets,
-                                     uint32_t dynamicOffsetCount,
-                                     const uint32_t *pDynamicOffsets)
-{
-   VK_FROM_HANDLE(vk_command_buffer, cmd_buffer, commandBuffer);
-
-   struct vk_cmd_queue_entry *cmd =
-      linear_zalloc_child(cmd_buffer->cmd_queue.ctx, sizeof(*cmd));
-   if (!cmd)
-      return;
-
-   cmd->type = VK_CMD_BIND_DESCRIPTOR_SETS;
-   list_addtail(&cmd->cmd_link, &cmd_buffer->cmd_queue.cmds);
-
-   enqueue_pipeline_layout(&cmd_buffer->cmd_queue, layout);
-   cmd->u.bind_descriptor_sets.layout = layout;
-
-   cmd->u.bind_descriptor_sets.pipeline_bind_point = pipelineBindPoint;
-   cmd->u.bind_descriptor_sets.first_set = firstSet;
-   cmd->u.bind_descriptor_sets.descriptor_set_count = descriptorSetCount;
-   if (pDescriptorSets) {
-      cmd->u.bind_descriptor_sets.descriptor_sets =
-         linear_alloc_child(cmd_buffer->cmd_queue.ctx,
-                            sizeof(*cmd->u.bind_descriptor_sets.descriptor_sets) * descriptorSetCount);
-
-      memcpy(cmd->u.bind_descriptor_sets.descriptor_sets, pDescriptorSets,
-             sizeof(*cmd->u.bind_descriptor_sets.descriptor_sets) * descriptorSetCount);
-   }
-   cmd->u.bind_descriptor_sets.dynamic_offset_count = dynamicOffsetCount;
-   if (pDynamicOffsets) {
-      cmd->u.bind_descriptor_sets.dynamic_offsets =
-         linear_alloc_child(cmd_buffer->cmd_queue.ctx,
-                            sizeof(*cmd->u.bind_descriptor_sets.dynamic_offsets) * dynamicOffsetCount);
-
-      memcpy(cmd->u.bind_descriptor_sets.dynamic_offsets, pDynamicOffsets,
-             sizeof(*cmd->u.bind_descriptor_sets.dynamic_offsets) * dynamicOffsetCount);
-   }
-}
-
 #ifdef VK_ENABLE_BETA_EXTENSIONS
 
 VKAPI_ATTR void VKAPI_CALL

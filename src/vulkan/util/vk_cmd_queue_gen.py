@@ -46,10 +46,6 @@ MANUAL_COMMANDS = [
     'CmdDrawMultiEXT',
     'CmdDrawMultiIndexedEXT',
 
-    # The VkPipelineLayout object could be released before the command is
-    # executed
-    'CmdBindDescriptorSets',
-
     # Incomplete struct copies which lead to an use after free.
     'CmdBuildAccelerationStructuresKHR',
 
@@ -267,6 +263,17 @@ size_t vk_cmd_queue_type_sizes[] = {
 % endfor
 };
 
+/* From the application's perspective, the vk_cmd_queue_entry can outlive the
+ * layout. Take a reference.
+ */
+static inline void
+enqueue_pipeline_layout(struct vk_cmd_queue *queue, VkPipelineLayout layout)
+{
+   VK_FROM_HANDLE(vk_pipeline_layout, vklayout, layout);
+   vk_pipeline_layout_ref(vklayout);
+   util_dynarray_append(&queue->pipeline_layouts, vklayout);
+}
+
 % for c in commands:
 % if c.guard is not None:
 #ifdef ${c.guard}
@@ -364,6 +371,10 @@ vk_cmd_enqueue_${c.name}(${c.decl_params()})
 % endif
    if (unlikely(!cmd))
       vk_command_buffer_set_error(cmd_buffer, VK_ERROR_OUT_OF_HOST_MEMORY);
+% if 'CmdBindDescriptorSets' == c.name:
+   else
+      enqueue_pipeline_layout(&cmd_buffer->cmd_queue, layout);
+% endif
 }
 % endif
 
