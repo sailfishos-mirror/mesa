@@ -17,15 +17,19 @@ v3dv_entrypoints = custom_target(
 
 libv3dv_files = files(
   'v3dv_bo.c',
+  'v3dv_bo.h',
   'v3dv_cl.c',
+  'v3dv_cl.h',
   'v3dv_cmd_buffer.c',
   'v3dv_descriptor_set.c',
   'v3dv_device.c',
   'v3dv_event.c',
+  'v3dv_format_table.h',
   'v3dv_formats.c',
   'v3dv_image.c',
   'v3dv_limits.h',
   'v3dv_meta_clear.c',
+  'v3dv_meta_common.h',
   'v3dv_meta_copy.c',
   'v3dv_pass.c',
   'v3dv_pipeline.c',
@@ -41,11 +45,12 @@ files_per_version = files(
   'v3dvx_cmd_buffer.c',
   'v3dvx_descriptor_set.c',
   'v3dvx_device.c',
+  'v3dvx_format_table.h',
   'v3dvx_formats.c',
   'v3dvx_image.c',
-  'v3dvx_pipeline.c',
   'v3dvx_meta_common.c',
   'v3dvx_pipeline.c',
+  'v3dvx_private.h',
   'v3dvx_queue.c',
 )
 
