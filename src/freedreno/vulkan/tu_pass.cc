@@ -1735,6 +1735,13 @@ tu_setup_dynamic_render_pass(struct tu_cmd_buffer *cmd_buffer,
          struct tu_render_pass_attachment *att = &pass->attachments[i];
          att->last_subpass_idx = 1;
       }
+
+      /* Even though content of any depth/stencil resolve attachment is
+       * undefined at the start of custom resolve, we still have to be
+       * able to write depth/stencil for depth/stencil resolve.
+       */
+      resolve_subpass->depth_used = subpass->depth_used;
+      resolve_subpass->stencil_used = subpass->stencil_used;
    }
 
    if (TU_DEBUG(FDM) && !tu_render_pass_disable_fdm(device, pass))
