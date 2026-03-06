@@ -32,6 +32,7 @@
 #include "nv_push_clc597.h"
 #include "nv_push_clcb97.h"
 #include "nv_push_clcd97.h"
+#include "clc7c0.h"
 #include "clcb97.h"
 #include "clcd97.h"
 #include "drf.h"
@@ -5392,11 +5393,10 @@ nvk_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer,
    }
 }
 
-VKAPI_ATTR void VKAPI_CALL
-nvk_CmdBeginConditionalRenderingEXT(VkCommandBuffer commandBuffer,
-                                    const VkConditionalRenderingBeginInfoEXT *pConditionalRenderingBegin)
+static void
+nvk_cmd_begin_cond_render_copy_engine(struct nvk_cmd_buffer *cmd,
+                                      const VkConditionalRenderingBeginInfoEXT *pConditionalRenderingBegin)
 {
-   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(nvk_buffer, buffer, pConditionalRenderingBegin->buffer);
 
    const uint64_t addr =
@@ -5465,6 +5465,79 @@ nvk_CmdBeginConditionalRenderingEXT(VkCommandBuffer commandBuffer,
       P_NV90C0_SET_GLOBAL_RENDER_ENABLE_A(p, tmp_addr >> 32);
       P_NV90C0_SET_GLOBAL_RENDER_ENABLE_B(p, tmp_addr & 0xfffffff0);
       P_NV90C0_SET_GLOBAL_RENDER_ENABLE_C(p, inverted ? MODE_RENDER_IF_EQUAL : MODE_RENDER_IF_NOT_EQUAL);
+   }
+}
+
+void
+nvk_mme_begin_cond_render(struct mme_builder *b)
+{
+   if (b->devinfo->cls_eng3d < TURING_A)
+      return;
+
+   struct mme_value64 cond_render_addr = mme_load_addr64(b);
+
+   struct mme_value inverted = mme_merge(b, mme_zero(), cond_render_addr.lo, 0, 1, 0);
+   mme_merge_to(b, cond_render_addr.lo, mme_zero(), cond_render_addr.lo, 1, 31, 1);
+
+   mme_tu104_read_fifoed(b, cond_render_addr, mme_imm(1));
+   struct mme_value read_value = mme_load(b);
+
+   struct mme_value enable = mme_mov(b, mme_zero());
+   mme_if(b, ine, read_value, mme_zero()) {
+      mme_mov_to(b, enable, mme_imm(1));
+   }
+   mme_xor_to(b, enable, enable, inverted);
+
+   mme_if(b, ieq, enable, mme_zero()) {
+      STATIC_ASSERT(NV9097_SET_GLOBAL_RENDER_ENABLE_A ==
+                    NV90C0_SET_GLOBAL_RENDER_ENABLE_A);
+      mme_mthd(b, NV9097_SET_GLOBAL_RENDER_ENABLE_A);
+      mme_emit(b, mme_zero());
+      mme_emit(b, mme_zero());
+      mme_emit(b, mme_imm(NV9097_SET_GLOBAL_RENDER_ENABLE_C_MODE_FALSE));
+   }
+}
+
+static void
+nvk_cmd_begin_cond_render_mme(struct nvk_cmd_buffer *cmd,
+                              const VkConditionalRenderingBeginInfoEXT *pConditionalRenderingBegin)
+{
+   VK_FROM_HANDLE(nvk_buffer, buffer, pConditionalRenderingBegin->buffer);
+   struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+
+   uint64_t addr =
+      vk_buffer_address(&buffer->vk, pConditionalRenderingBegin->offset);
+   bool inverted = pConditionalRenderingBegin->flags &
+      VK_CONDITIONAL_RENDERING_INVERTED_BIT_EXT;
+
+   if (inverted)
+      addr |= 1;
+
+   struct nv_push *p = nvk_cmd_buffer_push(cmd, 4);
+
+   if (pdev->info.cls_compute >= AMPERE_COMPUTE_B &&
+       nvk_cmd_buffer_last_subchannel(cmd) != SUBC_NV9097)
+      P_1INC(p, NV90C0, CALL_MME_MACRO(NVK_MME_BEGIN_COND_RENDER));
+   else
+      P_1INC(p, NV9097, CALL_MME_MACRO(NVK_MME_BEGIN_COND_RENDER));
+
+   P_INLINE_DATA(p, addr >> 32);
+   P_INLINE_DATA(p, addr);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+nvk_CmdBeginConditionalRenderingEXT(VkCommandBuffer commandBuffer,
+                                    const VkConditionalRenderingBeginInfoEXT *pConditionalRenderingBegin)
+{
+   VK_FROM_HANDLE(nvk_cmd_buffer, cmd, commandBuffer);
+   struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+
+   if (pdev->info.cls_eng3d >= TURING_A) {
+      nvk_cmd_begin_cond_render_mme(cmd, pConditionalRenderingBegin);
+   } else {
+      nvk_cmd_begin_cond_render_copy_engine(cmd, pConditionalRenderingBegin);
    }
 }
 
