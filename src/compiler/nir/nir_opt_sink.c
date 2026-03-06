@@ -80,13 +80,19 @@ can_sink_instr(nir_instr *instr, nir_move_options options, bool *can_mov_out_of_
       if (nir_alu_instr_is_comparison(alu))
          return options & nir_move_comparisons;
 
+      if (!(options & nir_move_alu))
+         return false;
+
+      /* Optimize assume packs will be coalesced, and sink them to let us sink
+       * their sources too. This optimizes lower_mem_access_bit_size patterns.
+       */
+      if (alu->op == nir_op_pack_64_2x32_split)
+         return true;
+
       /* Assuming that constants do not contribute to register pressure, it is
        * beneficial to sink ALU instructions where all non constant sources
        * are the same and the source bit size is not larger than the destination.
        */
-      if (!(options & nir_move_alu))
-         return false;
-
       unsigned inputs = nir_op_infos[alu->op].num_inputs;
       int non_const = -1;
 
