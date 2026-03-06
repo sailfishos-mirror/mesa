@@ -657,11 +657,9 @@ radv_rt_spirv_to_nir(const struct radv_compiler_info *compiler_info, struct radv
 {
    stage->nir = radv_shader_spirv_to_nir(compiler_info, stage, NULL, false);
 
-   bool indirect_derefs_lowered = false;
-   NIR_PASS(indirect_derefs_lowered, stage->nir, ac_nir_lower_indirect_derefs);
+   NIR_PASS(_, stage->nir, ac_nir_lower_indirect_derefs);
    NIR_PASS(_, stage->nir, nir_lower_vars_to_ssa);
-   if (indirect_derefs_lowered && !stage->key.optimisations_disabled)
-      radv_optimize_nir(stage->nir, false);
+   NIR_PASS(_, stage->nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
 
    nir_foreach_variable_with_modes (var, stage->nir, nir_var_ray_hit_attrib) {
       unsigned size, alignment;
