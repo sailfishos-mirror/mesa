@@ -111,9 +111,14 @@ print_base_devinfo(const struct intel_device_info *devinfo)
            devinfo->timestamp_frequency, 1000000000.0 / devinfo->timestamp_frequency);
 
    fprintf(stdout, "   URB size: %u\n", devinfo->urb.size);
-   static const char *stage_names[4] = {
-      "VS", "HS", "DS", "GS",
+   static const char *stage_names[] = {
+      [MESA_SHADER_VERTEX]    = "VS",
+      [MESA_SHADER_TESS_CTRL] = "HS",
+      [MESA_SHADER_TESS_EVAL] = "DS",
+      [MESA_SHADER_GEOMETRY]  = "GS",
    };
+   STATIC_ASSERT(ARRAY_SIZE(stage_names) ==
+                 ARRAY_SIZE(devinfo->urb.min_entries));
    for (unsigned s = 0; s < ARRAY_SIZE(devinfo->urb.min_entries); s++) {
       fprintf(stdout, "      URB.entries[%s] = [%4u, %4u]\n",
               stage_names[s],
