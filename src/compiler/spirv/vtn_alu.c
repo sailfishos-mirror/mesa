@@ -113,6 +113,25 @@ mat_times_scalar(struct vtn_builder *b,
    return dest;
 }
 
+void
+vtn_collect_ssa_sources(struct vtn_builder *b,
+                        const uint32_t *w_srcs,
+                        struct vtn_ssa_value **vtn_src,
+                        unsigned num_srcs)
+{
+   for (unsigned i = 0; i < num_srcs; i++)
+      vtn_src[i] = vtn_ssa_value(b, w_srcs[i]);
+}
+
+void
+vtn_downconvert_ssa_sources(struct vtn_builder *b,
+                            struct vtn_ssa_value **vtn_src,
+                            unsigned num_srcs)
+{
+   for (unsigned i = 0; i < num_srcs; i++)
+      vtn_src[i] = vtn_mediump_downconvert_value(b, vtn_src[i]);
+}
+
 nir_def *
 vtn_mediump_downconvert(struct vtn_builder *b, enum glsl_base_type base_type, nir_def *def)
 {
@@ -759,16 +778,14 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
       return;
    }
 
-   bool mediump_16bit = vtn_alu_op_mediump_16bit(b, opcode, dest_val);
-
-   /* Collect the various SSA sources */
    const unsigned num_inputs = count - 3;
    struct vtn_ssa_value *vtn_src[4] = { NULL, };
-   for (unsigned i = 0; i < num_inputs; i++) {
-      vtn_src[i] = vtn_ssa_value(b, w[i + 3]);
-      if (mediump_16bit)
-         vtn_src[i] = vtn_mediump_downconvert_value(b, vtn_src[i]);
-   }
+
+   vtn_collect_ssa_sources(b, &w[3], vtn_src, num_inputs);
+
+   const bool mediump_16bit = vtn_alu_op_mediump_16bit(b, opcode, dest_val);
+   if (mediump_16bit)
+      vtn_downconvert_ssa_sources(b, vtn_src, num_inputs);
 
    if (glsl_type_is_matrix(vtn_src[0]->type) ||
        (num_inputs >= 2 && glsl_type_is_matrix(vtn_src[1]->type))) {
