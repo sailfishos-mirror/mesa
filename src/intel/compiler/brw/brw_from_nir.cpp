@@ -134,16 +134,6 @@ emit_system_values_block(nir_to_brw_state &ntb, nir_block *block)
             UNREACHABLE("should be lowered by brw_nir_lower_vs_inputs().");
          break;
 
-      case nir_intrinsic_load_invocation_id:
-         if (s.stage == MESA_SHADER_TESS_CTRL)
-            break;
-         assert(s.stage == MESA_SHADER_GEOMETRY);
-         reg = &ntb.system_values[SYSTEM_VALUE_INVOCATION_ID];
-         if (reg->file == BAD_FILE) {
-            *reg = s.gs_payload().instance_id;
-         }
-         break;
-
       case nir_intrinsic_load_sample_pos:
       case nir_intrinsic_load_sample_pos_or_center:
          assert(s.stage == MESA_SHADER_FRAGMENT);
@@ -3102,13 +3092,9 @@ brw_from_nir_emit_gs_intrinsic(nir_to_brw_state &ntb,
       bld.MOV(s.final_gs_vertex_count, get_nir_src(ntb, instr->src[0], 0));
       break;
 
-   case nir_intrinsic_load_invocation_id: {
-      brw_reg val = ntb.system_values[SYSTEM_VALUE_INVOCATION_ID];
-      assert(val.file != BAD_FILE);
-      dest.type = val.type;
-      bld.MOV(dest, val);
+   case nir_intrinsic_load_invocation_id:
+      bld.MOV(dest, retype(s.gs_payload().instance_id, dest.type));
       break;
-   }
 
    default:
       brw_from_nir_emit_intrinsic(ntb, bld, instr);
