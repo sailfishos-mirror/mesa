@@ -749,6 +749,7 @@ SOFTWARE.
 		<map name="IMMED">src</map>
 		<map name="SQEREG">src</map>
 	</encode>
+	<decode/>
 </bitset>
 
 <bitset name="swrite" extends="#control">
