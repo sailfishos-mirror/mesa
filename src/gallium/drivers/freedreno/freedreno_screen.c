@@ -1129,7 +1129,7 @@ fd_screen_aux_context_get(struct pipe_screen *pscreen)
    simple_mtx_lock(&screen->aux_ctx_lock);
 
    if (!screen->aux_ctx) {
-      screen->aux_ctx = pscreen->context_create(pscreen, NULL, 0);
+      screen->aux_ctx = pscreen->context_create(pscreen, NULL, FD_CONTEXT_FLAG_AUX);
    }
 
    return fd_context(screen->aux_ctx);

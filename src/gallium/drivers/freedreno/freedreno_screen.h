@@ -166,6 +166,7 @@ struct fd_screen {
    const enum pc_di_primtype *primtypes;
    uint32_t primtypes_mask;
 
+#define FD_CONTEXT_FLAG_AUX               (1u << 31)
    simple_mtx_t aux_ctx_lock;
    struct pipe_context *aux_ctx;
 };

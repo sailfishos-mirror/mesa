@@ -385,6 +385,9 @@ fd_context_destroy(struct pipe_context *pctx)
 
    DBG("");
 
+   if (!(ctx->flags & FD_CONTEXT_FLAG_AUX))
+      p_atomic_dec(&pctx->screen->num_contexts);
+
    for (unsigned i = 0; i < ARRAY_SIZE(ctx->f16_blit_fs); i++)
       if (ctx->f16_blit_fs[i])
          pctx->delete_fs_state(pctx, ctx->f16_blit_fs[i]);
@@ -738,6 +741,9 @@ fd_context_init(struct fd_context *ctx, struct pipe_screen *pscreen,
                              fd_trace_delete_flush_data);
 
    fd_autotune_init(&ctx->autotune, screen->dev);
+
+   if (!(ctx->flags & FD_CONTEXT_FLAG_AUX))
+      p_atomic_inc(&pctx->screen->num_contexts);
 
    return pctx;
 
