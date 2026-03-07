@@ -231,10 +231,10 @@ Control Registers
 Control registers are a special register space that can only be read/written
 directly by CP through ``cread``/``cwrite`` instructions::
 
-- ``cread $dst, [$off + addr], flags``
-- ``cread $dst, [$off + addr]!, flags``
-- ``cwrite $src, [$off + addr], flags``
-- ``cwrite $src, [$off + addr]!, flags``
+- ``cread $dst, [$off + addr]``
+- ``cread $dst, [$off + addr]!``
+- ``cwrite $src, [$off + addr]``
+- ``cwrite $src, [$off + addr]!``
 
 Control registers ``0x000`` to ``0x0ff`` are private registers used to control
 the CP, for example to indicate where to read from memory or (normal)
@@ -269,9 +269,9 @@ For example, the following sequences sets::
   shl $05, $05, 0x0002
 
   ; update CP_IBn_BASE_LO/HI/BUFSIZE:
-  cwrite $02, [$05 + 0x0b0], 0x8
-  cwrite $03, [$05 + 0x0b1], 0x8
-  cwrite $04, [$05 + 0x0b2], 0x8
+  cwrite $02, [$05 + 0x0b0]
+  cwrite $03, [$05 + 0x0b1]
+  cwrite $04, [$05 + 0x0b2]
 
 Unlike normal GPU registers, writing control registers seems to always take
 effect immediately; if writing a control register triggers some complex
@@ -285,9 +285,9 @@ but on a6xx::
 
   and $05, $12, 0x0003
   shl $05, $05, 0x0002
-  cwrite $0e, [$05 + @IB1_BASE], 0x0
-  cwrite $0b, [$05 + @IB1_BASE+0x1], 0x0
-  cwrite $04, [$05 + @IB1_DWORDS], 0x0
+  cwrite $0e, [$05 + @IB1_BASE]
+  cwrite $0b, [$05 + @IB1_BASE+0x1]
+  cwrite $04, [$05 + @IB1_DWORDS]
 
 .. _afuc-sqe-regs:
 
@@ -387,8 +387,8 @@ registers that have their own queues and on a5xx is used by the PFP::
 
   mov $0c, CP_SCRATCH_REG[0x7]
   mov $02, 0x789a   ; value
-  cwrite $0c, [$00 + @REG_WRITE_ADDR], 0x8
-  cwrite $02, [$00 + @REG_WRITE], 0x8
+  cwrite $0c, [$00 + @REG_WRITE_ADDR]
+  cwrite $02, [$00 + @REG_WRITE]
 
 Like with the ``$addr``/``$data`` approach, the destination register address
 increments on each write to ``@REG_WRITE``.
@@ -488,7 +488,7 @@ snippet clears the control register scratch space::
 
   mov $rem, 0x0080 ; clear 0x80 registers
   mov $03, 0x00ff ; start at 0xff + 1 = 0x100
-  (rep)cwrite $00, [$03 + 0x001], 0x4
+  (rep)cwrite $00, [$03 + 0x001]!
 
 Note the use of pre-increment mode, so that the first execution clears
 ``0x100`` and updates ``$03`` to ``0x100``, the second execution clears
