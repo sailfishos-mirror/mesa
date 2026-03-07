@@ -120,9 +120,7 @@ brw_gs_thread_payload::brw_gs_thread_payload(brw_shader &v)
 }
 
 static inline void
-setup_fs_payload_gfx20(brw_fs_thread_payload &payload,
-                       const brw_shader &v,
-                       bool &source_depth_to_render_target)
+setup_fs_payload_gfx20(brw_fs_thread_payload &payload, const brw_shader &v)
 {
    struct brw_fs_prog_data *prog_data = brw_fs_prog_data(v.prog_data);
    const unsigned payload_width = 16;
@@ -202,16 +200,10 @@ setup_fs_payload_gfx20(brw_fs_thread_payload &payload,
       payload.npc_bary_coef_reg = payload.num_regs;
       payload.num_regs += 2 * v.max_polygons;
    }
-
-   if (v.nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DEPTH)) {
-      source_depth_to_render_target = true;
-   }
 }
 
 static inline void
-setup_fs_payload_gfx9(brw_fs_thread_payload &payload,
-                      const brw_shader &v,
-                      bool &source_depth_to_render_target)
+setup_fs_payload_gfx9(brw_fs_thread_payload &payload, const brw_shader &v)
 {
    struct brw_fs_prog_data *prog_data = brw_fs_prog_data(v.prog_data);
 
@@ -292,14 +284,9 @@ setup_fs_payload_gfx9(brw_fs_thread_payload &payload,
       payload.sample_offsets_reg = payload.num_regs;
       payload.num_regs++;
    }
-
-   if (v.nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DEPTH)) {
-      source_depth_to_render_target = true;
-   }
 }
 
-brw_fs_thread_payload::brw_fs_thread_payload(const brw_shader &v,
-                                     bool &source_depth_to_render_target)
+brw_fs_thread_payload::brw_fs_thread_payload(const brw_shader &v)
   : subspan_coord_reg(),
     source_depth_reg(),
     source_w_reg(),
@@ -313,9 +300,9 @@ brw_fs_thread_payload::brw_fs_thread_payload(const brw_shader &v,
     sample_offsets_reg()
 {
    if (v.devinfo->ver >= 20)
-      setup_fs_payload_gfx20(*this, v, source_depth_to_render_target);
+      setup_fs_payload_gfx20(*this, v);
    else
-      setup_fs_payload_gfx9(*this, v, source_depth_to_render_target);
+      setup_fs_payload_gfx9(*this, v);
 }
 
 brw_cs_thread_payload::brw_cs_thread_payload(const brw_shader &v)

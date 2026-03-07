@@ -1297,7 +1297,7 @@ run_fs(brw_shader &s, bool allow_spilling, bool do_rep_send)
 
    assert(s.stage == MESA_SHADER_FRAGMENT);
 
-   s.payload_ = new brw_fs_thread_payload(s, s.source_depth_to_render_target);
+   s.payload_ = new brw_fs_thread_payload(s);
 
    if (nir->info.ray_queries > 0)
       s.limit_dispatch_width(16, "SIMD32 not supported with ray queries.\n");

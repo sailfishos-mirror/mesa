@@ -156,7 +156,6 @@ brw_shader::brw_shader(const brw_shader_params *params)
    this->fail_msg = NULL;
 
    this->payload_ = NULL;
-   this->source_depth_to_render_target = false;
    this->first_non_payload_grf = 0;
 
    this->last_scratch = 0;

@@ -182,8 +182,6 @@ public:
    DEFINE_PAYLOAD_ACCESSOR(brw_bs_thread_payload, bs_payload,
                            stage >= MESA_SHADER_RAYGEN && stage <= MESA_SHADER_CALLABLE);
 
-   bool source_depth_to_render_target;
-
    brw_reg uw_pixel_x;
    brw_reg uw_pixel_y;
    brw_reg pixel_z;
