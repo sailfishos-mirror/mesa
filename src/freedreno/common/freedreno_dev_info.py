@@ -13,6 +13,7 @@ def max_bitfield_val(high, low, shift):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--import-path', required=True)
+parser.add_argument('--nvtop', action='store_true')
 args = parser.parse_args()
 sys.path.insert(0, args.import_path)
 
@@ -259,5 +260,16 @@ fd_dev_info_apply_dbg_options(struct fd_dev_info *info)
 }
 """
 
+nvtop_template="""
+static const struct msm_id_struct msm_ids[] = {
+%for id, info in s.gpus.items():
+  { ${hex(id.chip_id)}, "${id.name}" },
+%endfor
+};
+"""
+
 def main():
-    print(Template(template).render(s=s, unique_props=GPUProps.unique_props))
+    if args.nvtop:
+        print(Template(nvtop_template).render(s=s, unique_props=GPUProps.unique_props))
+    else:
+        print(Template(template).render(s=s, unique_props=GPUProps.unique_props))
