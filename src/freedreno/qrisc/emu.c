@@ -73,6 +73,8 @@ emu_alu(struct emu *emu, qrisc_opc opc, uint32_t src1, uint32_t src2)
          return rotl32(src1, src2);
    case OPC_MUL8:
       return (src1 & 0xff) * (src2 & 0xff);
+   case OPC_MUL16:
+      return (src1 & 0xffff) * (src2 & 0xffff);
    case OPC_MIN:
       return MIN2(src1, src2);
    case OPC_MAX:
@@ -89,6 +91,8 @@ emu_alu(struct emu *emu, qrisc_opc opc, uint32_t src1, uint32_t src2)
       if (!src2)
          return 0;
       return util_last_bit(src2) - 1;
+   case OPC_POPCOUNT:
+      return util_bitcount(src2);
    case OPC_SETBIT: {
       unsigned bit = src2 >> 1;
       unsigned val = src2 & 1;
@@ -123,6 +127,7 @@ emu_instr(struct emu *emu, struct qrisc_instr *instr)
    case OPC_NOP:
       break;
    case OPC_MSB:
+   case OPC_POPCOUNT:
    case OPC_ADD ... OPC_BIC: {
       uint32_t val = emu_alu(emu, instr->opc,
                              emu_get_gpr_reg(emu, instr->src1),

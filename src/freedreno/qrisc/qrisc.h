@@ -39,6 +39,7 @@ typedef enum {
    ALU(ISHR)  /* signed shift right by immediate */
    ALU(ROT)   /* rotate left (left shift with wrap-around) */
    ALU(MUL8)  /* 8bit multiply by immediate */
+   ALU(MUL16) /* 16bit multiply by immediate */
    ALU(MIN)
    ALU(MAX)
    ALU(CMP)   /* compare src to immed */
@@ -56,6 +57,8 @@ typedef enum {
     * with STORE, so it can only be used with the two-source encoding.
     */
    OPC_MSB,
+   /* population count, return the number of bits set in src2 */
+   OPC_POPCOUNT,
 
    /* These seem something to do with setting some external state..
     * doesn't seem to map *directly* to registers, but I guess that

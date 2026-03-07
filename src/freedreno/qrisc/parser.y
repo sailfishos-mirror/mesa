@@ -143,11 +143,13 @@ label(const char *str)
 %token <tok> T_OP_ISHR
 %token <tok> T_OP_ROT
 %token <tok> T_OP_MUL8
+%token <tok> T_OP_MUL16
 %token <tok> T_OP_MIN
 %token <tok> T_OP_MAX
 %token <tok> T_OP_CMP
 %token <tok> T_OP_BIC
 %token <tok> T_OP_MSB
+%token <tok> T_OP_POPCOUNT
 %token <tok> T_OP_SETBIT
 %token <tok> T_OP_CLRBIT
 %token <tok> T_OP_BFI
@@ -216,12 +218,13 @@ instr_r:           xmov peek alu_instr    { instr->xmov = $1; instr->peek = $2; 
 
 /* need to special case:
  * - not (single src, possibly an immediate)
- * - msb (single src, must be reg)
+ * - msb, popcount (single src, must be reg)
  * - mov (single src, plus possibly a shift)
  * from the other ALU instructions:
  */
 
 alu_msb_instr:     T_OP_MSB reg ',' reg        { new_instr(OPC_MSB); dst($2); src1($4); }
+alu_popcount_instr: T_OP_POPCOUNT reg ',' reg  { new_instr(OPC_POPCOUNT); dst($2); src1($4); }
 
 alu_not_instr:     T_OP_NOT reg ',' reg        { new_instr(OPC_NOT); dst($2); src1($4); }
 |                  T_OP_NOT reg ',' immediate  { new_instr(OPC_NOT); dst($2); immed($4); }
@@ -248,6 +251,7 @@ alu_2src_op:       T_OP_ADD       { new_instr(OPC_ADD); }
 |                  T_OP_ISHR      { new_instr(OPC_ISHR); }
 |                  T_OP_ROT       { new_instr(OPC_ROT); }
 |                  T_OP_MUL8      { new_instr(OPC_MUL8); }
+|                  T_OP_MUL16     { new_instr(OPC_MUL16); }
 |                  T_OP_MIN       { new_instr(OPC_MIN); }
 |                  T_OP_MAX       { new_instr(OPC_MAX); }
 |                  T_OP_CMP       { new_instr(OPC_CMP); }
@@ -267,6 +271,7 @@ alu_bitfield_instr: alu_bitfield_op reg ',' reg ',' T_BIT ',' T_BIT { dst($2); s
 
 alu_instr:         alu_2src_instr
 |                  alu_msb_instr
+|                  alu_popcount_instr
 |                  alu_not_instr
 |                  alu_mov_instr
 |                  alu_clrsetbit_instr
