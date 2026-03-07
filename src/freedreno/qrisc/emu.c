@@ -472,6 +472,11 @@ emu_run_bootstrap(struct emu *emu)
       emu_set_reg32(emu, &THREAD_SYNC, 1u << 0);
    }
 
+   if (gpuver == 8 && emu->processor != EMU_PROC_SQE) {
+      /* Emulate what the SQE bootstrap routine does after launching BV */
+      emu_set_control_reg(emu, 0x230, 1u << 31);
+   }
+
    while (!emu->bootstrap_finished && !emu->waitin) {
       emu_step(emu);
    }
@@ -576,7 +581,11 @@ emu_init(struct emu *emu, const uint32_t fw_offsets[EMU_PROC_COUNT])
    else
       emu->instr_base = 0;
 
-   if (emu->fw_id == QRISC_A750) {
+   if (emu->fw_id == QRISC_GEN80000 ||
+       emu->fw_id == QRISC_GEN80100 ||
+       emu->fw_id == QRISC_GEN80200) {
+      emu_set_control_reg(emu, 2, 0x40 << 8);
+   } else if (emu->fw_id == QRISC_A750) {
       emu_set_control_reg(emu, 0, 7 << 28);
       emu_set_control_reg(emu, 2, 0x40 << 8);
    } else if (emu->fw_id == QRISC_A730 || emu->fw_id == QRISC_A740 ||
