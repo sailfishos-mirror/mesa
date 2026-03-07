@@ -1514,8 +1514,8 @@ a8xx_gen2 = GPUProps(
 )
 
 add_gpus([
-        GPUId(chip_id=0x44050000, name="FD830"),
-        GPUId(chip_id=0x44050001, name="FD830"), # KGSL
+        GPUId(chip_id=0x44050000, name="Adreno (TM) 830"),
+        GPUId(chip_id=0x44050001, name="Adreno (TM) 830"), # KGSL
     ], A6xxGPUInfo(
         CHIP.A8XX,
         [a7xx_base, a7xx_gen3, a8xx_base, a8xx_gen1],
