@@ -642,6 +642,7 @@ UNKN96:
 UNKN97:
 waitin
 mov $01, $data
+.align 32
 jumptbl:
 .jumptbl
 [0100beef]

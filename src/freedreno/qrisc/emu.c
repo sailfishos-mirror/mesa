@@ -547,6 +547,8 @@ emu_init(struct emu *emu)
       else
          emu_set_reg64(emu, &CP_LPAC_SQE_INSTR_BASE, EMU_INSTR_BASE);
       break;
+   default:
+      break;
    }
 
    if (emu->fw_id == QRISC_A750) {

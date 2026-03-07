@@ -144,6 +144,13 @@ struct emu_draw_state {
  */
 #define EMU_INSTR_BASE 0x1000
 
+enum emu_processor {
+   EMU_PROC_SQE,
+   EMU_PROC_BV,
+   EMU_PROC_LPAC,
+   EMU_PROC_COUNT,
+};
+
 /**
  * Emulated hw state.
  */
@@ -154,11 +161,7 @@ struct emu {
     */
    bool quiet;
 
-   enum {
-      EMU_PROC_SQE,
-      EMU_PROC_BV,
-      EMU_PROC_LPAC,
-   } processor;
+   enum emu_processor processor;
 
    uint32_t *instrs;
    unsigned sizedwords;
