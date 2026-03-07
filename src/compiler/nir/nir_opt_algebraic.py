@@ -1073,6 +1073,8 @@ optimizations.extend([
    (('fmax', 'a(is_le_pos_one)', 0.0), ('fsat', a), '!options->lower_fsat'),
 
    (('fsat', ('fmax', a, 'b(is_not_positive)')), ('fsat', a)),
+   (('fsat', ('fmin(nnan)', a, 'b(is_ge_pos_one)')), ('fsat', a)),
+   (('fsat', ('fmin', 'a(is_a_number)', 'b(is_ge_pos_one)')), ('fsat', a)),
 
    (('fsat', ('bcsel(is_used_once)', a, b, '#c')), ('bcsel', a, ('fsat', b), ('fsat', c))),
    (('fsat', ('bcsel(is_used_once)', a, '#b', c)), ('bcsel', a, ('fsat', b), ('fsat', c))),
