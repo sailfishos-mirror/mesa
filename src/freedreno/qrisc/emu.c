@@ -537,6 +537,8 @@ emu_init(struct emu *emu, const uint32_t fw_offsets[EMU_PROC_COUNT])
    EMU_GPU_REG(CP_LPAC_SQE_INSTR_BASE);
    EMU_CONTROL_REG(BV_INSTR_BASE);
    EMU_CONTROL_REG(LPAC_INSTR_BASE);
+   EMU_CONTROL_REG(DDE_BR_INSTR_BASE);
+   EMU_CONTROL_REG(DDE_BV_INSTR_BASE);
 
    /* Setup the address of the SQE fw, just use the normal CPU ptr address: */
    switch (emu->processor) {
@@ -546,12 +548,20 @@ emu_init(struct emu *emu, const uint32_t fw_offsets[EMU_PROC_COUNT])
       break;
    case EMU_PROC_LPAC:
    case EMU_PROC_BV:
+   case EMU_PROC_DDE_BR:
+   case EMU_PROC_DDE_BV:
       emu_set_reg64(emu, &CP_SQE_INSTR_BASE, EMU_INSTR_BASE);
       if (gpuver >= 7) {
          emu_set_reg64(emu, &LPAC_INSTR_BASE, EMU_INSTR_BASE +
                fw_offsets[EMU_PROC_LPAC] * 4);
          emu_set_reg64(emu, &BV_INSTR_BASE, EMU_INSTR_BASE +
             fw_offsets[EMU_PROC_BV] * 4);
+         if (gpuver >= 8) {
+            emu_set_reg64(emu, &DDE_BR_INSTR_BASE, EMU_INSTR_BASE +
+               fw_offsets[EMU_PROC_DDE_BR] * 4);
+            emu_set_reg64(emu, &DDE_BV_INSTR_BASE, EMU_INSTR_BASE +
+               fw_offsets[EMU_PROC_DDE_BR] * 4);
+         }
       } else {
          emu_set_reg64(emu, &CP_LPAC_SQE_INSTR_BASE, EMU_INSTR_BASE +
                fw_offsets[EMU_PROC_LPAC] * 4);

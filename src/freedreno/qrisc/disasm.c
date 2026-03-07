@@ -308,6 +308,7 @@ disasm(struct emu *emu)
    EMU_GPU_REG(CP_SQE_INSTR_BASE);
    EMU_GPU_REG(CP_LPAC_SQE_INSTR_BASE);
    EMU_CONTROL_REG(BV_INSTR_BASE);
+   EMU_CONTROL_REG(DDE_BR_INSTR_BASE);
    EMU_CONTROL_REG(LPAC_INSTR_BASE);
 
    emu->processor = EMU_PROC_SQE;
@@ -338,6 +339,12 @@ disasm(struct emu *emu)
       offsets[EMU_PROC_LPAC] = emu_get_reg64(emu, &LPAC_INSTR_BASE) -
          emu_get_reg64(emu, &CP_SQE_INSTR_BASE);
       offsets[EMU_PROC_LPAC] /= 4;
+      if (gpuver >= 8) {
+         /* Note: DDE_BR and DDE_BV share the same microcode */
+         offsets[EMU_PROC_DDE_BR] = emu_get_reg64(emu, &DDE_BR_INSTR_BASE) -
+            emu_get_reg64(emu, &CP_SQE_INSTR_BASE);
+         offsets[EMU_PROC_DDE_BR] /= 4;
+      }
    } else {
       if (emu_get_reg64(emu, &CP_LPAC_SQE_INSTR_BASE)) {
          offsets[EMU_PROC_LPAC] = emu_get_reg64(emu, &CP_LPAC_SQE_INSTR_BASE) -
@@ -361,6 +368,7 @@ disasm(struct emu *emu)
    const char *section_names[EMU_PROC_COUNT] = {
       [EMU_PROC_BV] = "BV",
       [EMU_PROC_LPAC] = "LPAC",
+      [EMU_PROC_DDE_BR] = "DDE",
    };
 
    for (unsigned i = 1; i < EMU_PROC_COUNT; i++) {

@@ -148,6 +148,8 @@ enum emu_processor {
    EMU_PROC_SQE,
    EMU_PROC_BV,
    EMU_PROC_LPAC,
+   EMU_PROC_DDE_BR,
+   EMU_PROC_DDE_BV,
    EMU_PROC_COUNT,
 };
 
