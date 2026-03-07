@@ -562,6 +562,8 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 		<bitfield name="RUNNING" pos="0"/>
 	</reg32>
 
+	<reg32 name="DDE_PM4_WRITE" offset="0x191" variants="A8XX-"/>
+
 	<reg64 name="AQE1_PREEMPT_BASE" offset="0x26e"/>
 	<reg64 name="AQE0_PREEMPT_BASE" offset="0x275"/>
 
