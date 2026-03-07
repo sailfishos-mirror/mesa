@@ -210,10 +210,10 @@ disasm_instr(struct isa_decode_options *options, uint32_t *instrs, unsigned pc)
 }
 
 static void
-setup_packet_table(struct isa_decode_options *options,
+setup_packet_table(struct isa_decode_options *options, uint32_t preempt_instr,
                    uint32_t *jmptbl, uint32_t sizedwords)
 {
-   struct isa_entrypoint *entrypoints = malloc(sizedwords * sizeof(struct isa_entrypoint));
+   struct isa_entrypoint *entrypoints = malloc((sizedwords + 1) * sizeof(struct isa_entrypoint));
 
    for (unsigned i = 0; i < sizedwords; i++) {
       entrypoints[i].offset = jmptbl[i];
@@ -228,6 +228,19 @@ setup_packet_table(struct isa_decode_options *options,
 
    options->entrypoints = entrypoints;
    options->entrypoint_count = sizedwords;
+
+   /* The actual preemption entrypoint is determined via %PREEMPT_INSTR. In
+    * some cases with newer firmwares this doesn't match the value of
+    * IN_PREEMPT in the jump table.
+    *
+    * We add a new entrypoint instead of modifying IN_PREEMPT so that we can
+    * get a byte-for-byte accurate reassembly.
+    */
+   if (preempt_instr != ~0) {
+      entrypoints[options->entrypoint_count].name = "preempt";
+      entrypoints[options->entrypoint_count].offset = preempt_instr;
+      options->entrypoint_count++;
+   }
 }
 
 static uint32_t
@@ -254,6 +267,8 @@ disasm_section(struct emu *emu, struct isa_decode_options *options,
                enum emu_processor processor, const uint32_t *offsets,
                uint32_t size)
 {
+   EMU_SQE_REG(PREEMPT_INSTR);
+
    uint32_t offset = offsets[processor];
    emu->processor = processor;
 
@@ -272,7 +287,9 @@ disasm_section(struct emu *emu, struct isa_decode_options *options,
       }
    }
 
-   setup_packet_table(options, emu->jmptbl, ARRAY_SIZE(emu->jmptbl));
+   unsigned preempt_instr = emu_get_reg32(emu, &PREEMPT_INSTR);
+
+   setup_packet_table(options, preempt_instr, emu->jmptbl, ARRAY_SIZE(emu->jmptbl));
 
    jumptbl_offset = find_jump_table(emu->instrs + offset, size, emu->jmptbl,
                                     ARRAY_SIZE(emu->jmptbl));
@@ -409,7 +426,7 @@ disasm_legacy(uint32_t *buf, int sizedwords)
    options.cbdata = &state;
 
    /* parse jumptable: */
-   setup_packet_table(&options, jmptbl, 0x80);
+   setup_packet_table(&options, ~0, jmptbl, 0x80);
 
    /* print instructions: */
    qrisc_isa_disasm(instrs, sizedwords * 4, stdout, &options);

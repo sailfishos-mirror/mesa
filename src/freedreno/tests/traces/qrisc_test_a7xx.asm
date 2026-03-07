@@ -97,6 +97,11 @@ mov $04, 0xdead << 16
 or $03, $03, $04
 cwrite $02, [$00 + @REG_WRITE_ADDR]
 cwrite $03, [$00 + @REG_WRITE]
+
+; write preempt address
+mov $02, #preempt
+swrite $02, [$00 + %PREEMPT_INSTR]
+
 waitin
 mov $01, $data
 
@@ -236,6 +241,7 @@ waitin
 mov $01, $data
 
 IN_PREEMPT:
+preempt:
 ; test bl + iret + conditional branch w/ immed
 cread $02, [$00 + 0x101]
 brne $02, 0x0001, #exit_iret
@@ -409,6 +415,9 @@ cwrite $rem, [$00 + @MEM_READ_DWORDS]
 cwrite $00, [$00 + @PACKET_TABLE_WRITE_ADDR]
 (rep)cwrite $memdata, [$00 + @PACKET_TABLE_WRITE]
 
+mov $02, #preempt
+swrite $02, [$00 + %PREEMPT_INSTR]
+
 ; load LPAC SQE base address, which should be after the packet table:
 add $01, $01, 0x200
 addhi $02, $02, 0x0
@@ -546,6 +555,7 @@ UNKN124:
 UNKN125:
 UNKN126:
 UNKN127:
+preempt:
 waitin
 mov $01, $data
 
@@ -585,6 +595,10 @@ cwrite $02, [$00 + @LOAD_STORE_HI]
 cwrite $rem, [$00 + @MEM_READ_DWORDS]
 cwrite $00, [$00 + @PACKET_TABLE_WRITE_ADDR]
 (rep)cwrite $memdata, [$00 + @PACKET_TABLE_WRITE]
+
+mov $02, #preempt
+swrite $02, [$00 + %PREEMPT_INSTR]
+
 
 CP_ME_INIT:
 CP_MEM_WRITE:
@@ -714,6 +728,7 @@ UNKN124:
 UNKN125:
 UNKN126:
 UNKN127:
+preempt:
 waitin
 mov $01, $data
 

@@ -53,6 +53,8 @@ mov $04, 0xdead << 16
 or $03, $03, $04
 cwrite $02, [$00 + @REG_WRITE_ADDR]
 cwrite $03, [$00 + @REG_WRITE]
+mov $02, 0x91
+swrite $02, [$00 + %PREEMPT_INSTR]
 waitin
 mov $01, $data
 
@@ -91,27 +93,27 @@ mov $01, $data
 
 CP_SET_SECURE_MODE:
 mov $02, $data
-setsecure $02, #l81
+setsecure $02, #l83
 
-fxn79:
-l79:
-jump #l79
-nop
+fxn81:
 l81:
+jump #l81
+nop
+l83:
 waitin
 mov $01, $data
 
-fxn83:
-l83:
+fxn85:
+l85:
 cmp $04, $02, $03
-breq $04, b0, #l90
-brne $04, b1, #l88
-breq $04, b2, #l83
+breq $04, b0, #l92
+brne $04, b1, #l90
+breq $04, b2, #l85
 sub $03, $03, $02
-l88:
-jump #l83
-sub $02, $02, $03
 l90:
+jump #l85
+sub $02, $02, $03
+l92:
 ret
 nop
 
@@ -120,7 +122,7 @@ cwrite $data, [$00 + @REG_READ_ADDR]
 add $02, $regdata, 0x42
 addhi $03, $00, $regdata
 sub $02, $02, $regdata
-call #fxn83
+call #fxn85
 subhi $03, $03, $regdata
 and $02, $02, $regdata
 or $02, $02, 0x1
@@ -152,14 +154,14 @@ mov $03, $data
 mov $04, $data
 mov $05, $data
 mov $06, $data
-l126:
-breq $06, 0x0, #l132
+l128:
+breq $06, 0x0, #l134
 cwrite $03, [$00 + @LOAD_STORE_HI]
 load $07, [$02 + 0x4]!
 cwrite $05, [$00 + @LOAD_STORE_HI]
-jump #l126
+jump #l128
 store $07, [$04 + 0x4]!
-l132:
+l134:
 waitin
 mov $01, $data
 
@@ -175,16 +177,17 @@ waitin
 mov $01, $data
 
 IN_PREEMPT:
+preempt:
 cread $02, [$00 + 0x101]
-brne $02, 0x1, #l152
+brne $02, 0x1, #l154
 nop
-bl #fxn79
+bl #fxn81
 nop
 nop
 nop
 waitin
 mov $01, $data
-l152:
+l154:
 iret
 nop
 
@@ -310,8 +313,6 @@ waitin
 mov $01, $data
 nop
 nop
-nop
-nop
 .align 32
 jumptbl:
 .jumptbl
@@ -342,6 +343,8 @@ cwrite $02, [$00 + @LOAD_STORE_HI]
 cwrite $rem, [$00 + @MEM_READ_DWORDS]
 cwrite $00, [$00 + @PACKET_TABLE_WRITE_ADDR]
 (rep)cwrite $memdata, [$00 + @PACKET_TABLE_WRITE]
+mov $02, 0x1e
+swrite $02, [$00 + %PREEMPT_INSTR]
 add $01, $01, 0x200
 addhi $02, $02, 0x0
 cwrite $01, [$00 + @LPAC_INSTR_BASE]
@@ -477,10 +480,9 @@ UNKN90:
 UNKN91:
 UNKN96:
 UNKN97:
+preempt:
 waitin
 mov $01, $data
-nop
-nop
 .align 32
 jumptbl:
 .jumptbl
@@ -511,6 +513,8 @@ cwrite $02, [$00 + @LOAD_STORE_HI]
 cwrite $rem, [$00 + @MEM_READ_DWORDS]
 cwrite $00, [$00 + @PACKET_TABLE_WRITE_ADDR]
 (rep)cwrite $memdata, [$00 + @PACKET_TABLE_WRITE]
+mov $02, 0x18
+swrite $02, [$00 + %PREEMPT_INSTR]
 
 CP_BLIT:
 CP_BOOTSTRAP_UCODE:
@@ -640,8 +644,15 @@ UNKN90:
 UNKN91:
 UNKN96:
 UNKN97:
+preempt:
 waitin
 mov $01, $data
+nop
+nop
+nop
+nop
+nop
+nop
 .align 32
 jumptbl:
 .jumptbl
