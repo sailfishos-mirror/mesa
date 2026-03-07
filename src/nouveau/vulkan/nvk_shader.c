@@ -374,6 +374,7 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
       cbuf_map = cbuf_map_out;
 
       /* Large constant support assumes cbufs */
+      /* Needs to run before load_const_to_scalar */
       NIR_PASS(_, nir, nir_opt_large_constants, NULL, 32);
    } else {
       *cbuf_map_out = (struct nvk_cbuf_map) {
@@ -383,6 +384,8 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
          }
       };
    }
+
+   NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
 
    nir_opt_access_options opt_access_options = {
       .is_vulkan = true,
