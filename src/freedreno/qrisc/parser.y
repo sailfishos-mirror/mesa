@@ -50,10 +50,10 @@ void yyerror(const char *error)
 	fprintf(stderr, "error at line %d: %s\n", yyget_lineno(), error);
 }
 
-static struct afuc_instr *instr;   /* current instruction */
+static struct qrisc_instr *instr;   /* current instruction */
 
 static void
-new_instr(afuc_opc opc)
+new_instr(qrisc_opc opc)
 {
 	instr = next_instr(opc);
 }

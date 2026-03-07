@@ -10,11 +10,11 @@
 #include <stdlib.h>
 
 #include "compiler/isaspec/isaspec.h"
-#include "afuc.h"
+#include "qrisc.h"
 
-static inline struct afuc_instr *__instruction_create(afuc_opc opc)
+static inline struct qrisc_instr *__instruction_create(qrisc_opc opc)
 {
-   struct afuc_instr *instr = calloc(1, sizeof(struct afuc_instr));
+   struct qrisc_instr *instr = calloc(1, sizeof(struct qrisc_instr));
 
    switch (opc) {
 #define ALU(name) \

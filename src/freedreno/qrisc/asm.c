@@ -17,7 +17,7 @@
 
 #include "util/macros.h"
 #include "util/log.h"
-#include "afuc.h"
+#include "qrisc.h"
 #include "asm.h"
 #include "parser.h"
 #include "util.h"
@@ -26,8 +26,8 @@ struct encode_state {
 	unsigned gen;
 };
 
-static afuc_opc
-__instruction_case(struct encode_state *s, const struct afuc_instr *instr)
+static qrisc_opc
+__instruction_case(struct encode_state *s, const struct qrisc_instr *instr)
 {
    switch (instr->opc) {
 #define ALU(name) \
@@ -67,7 +67,7 @@ __instruction_case(struct encode_state *s, const struct afuc_instr *instr)
 int gpuver;
 
 /* bit lame to hard-code max but fw sizes are small */
-static struct afuc_instr instructions[0x4000];
+static struct qrisc_instr instructions[0x4000];
 static unsigned num_instructions;
 
 static unsigned instr_offset;
@@ -77,10 +77,10 @@ static unsigned num_labels;
 
 static int outfd;
 
-struct afuc_instr *
-next_instr(afuc_opc opc)
+struct qrisc_instr *
+next_instr(qrisc_opc opc)
 {
-   struct afuc_instr *ai = &instructions[num_instructions++];
+   struct qrisc_instr *ai = &instructions[num_instructions++];
    assert(num_instructions < ARRAY_SIZE(instructions));
    memset(ai, 0, sizeof(*ai));
    instr_offset++;
@@ -91,12 +91,12 @@ next_instr(afuc_opc opc)
 static void usage(void);
 
 void
-parse_version(struct afuc_instr *instr)
+parse_version(struct qrisc_instr *instr)
 {
    if (gpuver != 0)
       return;
 
-   int ret = afuc_util_init(afuc_get_fwid(instr->literal), &gpuver, false);
+   int ret = qrisc_util_init(qrisc_get_fwid(instr->literal), &gpuver, false);
    if (ret < 0) {
       usage();
       exit(1);
@@ -117,7 +117,7 @@ decl_label(const char *str)
 void
 decl_jumptbl(void)
 {
-   struct afuc_instr *ai = &instructions[num_instructions++];
+   struct qrisc_instr *ai = &instructions[num_instructions++];
    assert(num_instructions < ARRAY_SIZE(instructions));
    ai->opc = OPC_JUMPTBL;
    instr_offset += 0x80;
@@ -156,7 +156,7 @@ emit_jumptable(int outfd)
 
    for (i = 0; i < num_labels; i++) {
       struct asm_label *label = &labels[i];
-      int id = afuc_pm4_id(label->label);
+      int id = qrisc_pm4_id(label->label);
 
       /* if it doesn't match a known PM4 packet-id, try to match UNKN%d: */
       if (id < 0) {
@@ -183,7 +183,7 @@ emit_instructions(int outfd)
 
    /* Expand some meta opcodes, and resolve branch targets */
    for (i = 0; i < num_instructions; i++) {
-      struct afuc_instr *ai = &instructions[i];
+      struct qrisc_instr *ai = &instructions[i];
 
       switch (ai->opc) {
       case OPC_BREQ:
@@ -231,7 +231,7 @@ emit_instructions(int outfd)
 
       if (ai->opc == OPC_RAW_LITERAL) {
          if (ai->label) {
-            ai->literal = afuc_nop_literal(resolve_label(ai->label), gpuver);
+            ai->literal = qrisc_nop_literal(resolve_label(ai->label), gpuver);
          }
          write(outfd, &ai->literal, 4);
          continue;
@@ -259,14 +259,14 @@ unsigned
 parse_control_reg(const char *name)
 {
    /* skip leading "@" */
-   return afuc_control_reg(name + 1);
+   return qrisc_control_reg(name + 1);
 }
 
 unsigned
 parse_sqe_reg(const char *name)
 {
    /* skip leading "%" */
-   return afuc_sqe_reg(name + 1);
+   return qrisc_sqe_reg(name + 1);
 }
 
 static void

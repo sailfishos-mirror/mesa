@@ -6,7 +6,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 
 <!--
 	This documents the internal register spaces used by the CP firmware since
-	the afuc instruction set was introduced.
+	the QRisc instruction set was introduced.
 -->
 
 <domain name="A6XX_SQE_REG" width="32">
@@ -37,7 +37,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 name="REG_WRITE_ADDR" offset="0x010"/>
 	<reg32 name="REG_WRITE" offset="0x011"/>
 
-	<doc> Controls high 32 bits used by store afuc instruction </doc>
+	<doc> Controls high 32 bits used by store QRisc instruction </doc>
 	<reg32 name="STORE_HI" offset="0x038"/>
 
 	<reg64 name="IB1_BASE" offset="0x0b0"/>
@@ -150,7 +150,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<doc> Controls whether RB, IB1, or IB2 is executed </doc>
 	<reg32 name="IB_LEVEL" offset="0x054"/>
 
-	<doc> Controls high 32 bits used by load and store afuc instructions </doc>
+	<doc> Controls high 32 bits used by load and store QRisc instructions </doc>
 	<reg32 name="LOAD_STORE_HI" offset="0x058"/>
 
 	<doc>

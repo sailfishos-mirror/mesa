@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifndef _AFUC_H_
-#define _AFUC_H_
+#ifndef _QRISC_H_
+#define _QRISC_H_
 
 #include <stdbool.h>
 
@@ -112,7 +112,7 @@ typedef enum {
    OPC_JUMP,
    OPC_RAW_LITERAL,
    OPC_JUMPTBL,
-} afuc_opc;
+} qrisc_opc;
 
 /**
  * Special GPR registers:
@@ -147,10 +147,10 @@ typedef enum {
    REG_REGDATA = 0x1e,  /* when used as src */
    REG_USRADDR = 0x1e,  /* when used as dst */
    REG_DATA    = 0x1f,
-} afuc_reg;
+} qrisc_reg;
 
-struct afuc_instr {
-   afuc_opc opc;
+struct qrisc_instr {
+   qrisc_opc opc;
 
    uint8_t dst;
    uint8_t src1;
@@ -177,7 +177,7 @@ struct afuc_instr {
  * must have a high 8 bits of 0x01.
  */
 static inline uint32_t
-afuc_nop_literal(uint32_t x, unsigned gpuver)
+qrisc_nop_literal(uint32_t x, unsigned gpuver)
 {
    assert((x >> 24) == 0);
    return gpuver < 6 ? x : x | (1 << 24);
@@ -187,4 +187,4 @@ void print_control_reg(uint32_t id);
 void print_sqe_reg(uint32_t id);
 void print_pipe_reg(uint32_t id);
 
-#endif /* _AFUC_H_ */
+#endif /* _QRISC_H_ */

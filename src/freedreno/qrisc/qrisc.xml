@@ -27,9 +27,9 @@ SOFTWARE.
 
 <bitset name="#instruction" size="32">
 	<doc>
-		Encoding of an afuc instruction.  All instructions are 32b.
+		Encoding of a QRisc instruction.  All instructions are 32b.
 	</doc>
-	<encode type="struct afuc_instr *" case-prefix="OPC_">
+	<encode type="struct qrisc_instr *" case-prefix="OPC_">
 		<map name="XMOV">src->xmov</map>
 		<map name="DST">src->dst</map>
 		<map name="SRC1">src->src1</map>

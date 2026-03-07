@@ -8,7 +8,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "afuc.h"
+#include "qrisc.h"
 
 extern int gpuver;
 
@@ -17,12 +17,12 @@ struct asm_label {
    const char *label;
 };
 
-struct afuc_instr *next_instr(afuc_opc opc);
+struct qrisc_instr *next_instr(qrisc_opc opc);
 void decl_label(const char *str);
 void decl_jumptbl(void);
 void align_instr(unsigned alignment);
 void next_section(void);
-void parse_version(struct afuc_instr *instr);
+void parse_version(struct qrisc_instr *instr);
 
 static inline uint32_t
 parse_reg(const char *str)

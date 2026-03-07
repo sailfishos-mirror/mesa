@@ -40,7 +40,7 @@ endif
 if dep_libxml2.found() and with_tools.contains('freedreno')
   subdir('rnn')
   subdir('decode')
-  subdir('afuc')
+  subdir('qrisc')
 elif with_tools.contains('freedreno')
   message('libxml2 not found, skipping tools that depend on it')
 endif

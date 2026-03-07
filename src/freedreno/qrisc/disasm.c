@@ -21,8 +21,8 @@
 
 #include "freedreno_pm4.h"
 
-#include "afuc.h"
-#include "afuc-isa.h"
+#include "qrisc.h"
+#include "qrisc-isa.h"
 #include "util.h"
 #include "emu.h"
 
@@ -37,13 +37,13 @@ static bool verbose = false;
 /* emulator mode: */
 static bool emulator = false;
 
-#define printerr(fmt, ...) afuc_printc(AFUC_ERR, fmt, ##__VA_ARGS__)
-#define printlbl(fmt, ...) afuc_printc(AFUC_LBL, fmt, ##__VA_ARGS__)
+#define printerr(fmt, ...) qrisc_printc(QRISC_ERR, fmt, ##__VA_ARGS__)
+#define printlbl(fmt, ...) qrisc_printc(QRISC_LBL, fmt, ##__VA_ARGS__)
 
 static const char *
 getpm4(uint32_t id)
 {
-   return afuc_pm_id_name(id);
+   return qrisc_pm_id_name(id);
 }
 
 static void
@@ -52,7 +52,7 @@ print_gpu_reg(FILE *out, uint32_t regbase)
    if (regbase < 0x100)
       return;
 
-   char *name = afuc_gpu_reg_name(regbase);
+   char *name = qrisc_gpu_reg_name(regbase);
    if (name) {
       fprintf(out, "\t; %s", name);
       free(name);
@@ -62,7 +62,7 @@ print_gpu_reg(FILE *out, uint32_t regbase)
 void
 print_control_reg(uint32_t id)
 {
-   char *name = afuc_control_reg_name(id);
+   char *name = qrisc_control_reg_name(id);
    if (name) {
       printf("@%s", name);
       free(name);
@@ -74,7 +74,7 @@ print_control_reg(uint32_t id)
 void
 print_sqe_reg(uint32_t id)
 {
-   char *name = afuc_sqe_reg_name(id);
+   char *name = qrisc_sqe_reg_name(id);
    if (name) {
       printf("@%s", name);
       free(name);
@@ -86,7 +86,7 @@ print_sqe_reg(uint32_t id)
 void
 print_pipe_reg(uint32_t id)
 {
-   char *name = afuc_pipe_reg_name(id);
+   char *name = qrisc_pipe_reg_name(id);
    if (name) {
       printf("|%s", name);
       free(name);
@@ -106,7 +106,7 @@ static void
 field_print_cb(struct isa_print_state *state, const char *field_name, uint64_t val)
 {
    if (!strcmp(field_name, "CONTROLREG")) {
-      char *name = afuc_control_reg_name(val);
+      char *name = qrisc_control_reg_name(val);
       if (name) {
          isa_print(state, "@%s", name);
          free(name);
@@ -114,7 +114,7 @@ field_print_cb(struct isa_print_state *state, const char *field_name, uint64_t v
          isa_print(state, "0x%03x", (unsigned)val);
       }
    } else if (!strcmp(field_name, "SQEREG")) {
-      char *name = afuc_sqe_reg_name(val);
+      char *name = qrisc_sqe_reg_name(val);
       if (name) {
          isa_print(state, "%%%s", name);
          free(name);
@@ -180,7 +180,7 @@ uint32_t jumptbl_offset = ~0;
 static void
 no_match(FILE *out, const BITSET_WORD *bitset, size_t size)
 {
-   if (jumptbl_offset != ~0 && bitset[0] == afuc_nop_literal(jumptbl_offset, gpuver)) {
+   if (jumptbl_offset != ~0 && bitset[0] == qrisc_nop_literal(jumptbl_offset, gpuver)) {
       fprintf(out, "[#jumptbl]\n");
    } else {
       fprintf(out, "[%08x]", bitset[0]);
@@ -206,7 +206,7 @@ get_decode_options(struct isa_decode_options *options)
 static void
 disasm_instr(struct isa_decode_options *options, uint32_t *instrs, unsigned pc)
 {
-   afuc_isa_disasm(&instrs[pc], 4, stdout, options);
+   qrisc_isa_disasm(&instrs[pc], 4, stdout, options);
 }
 
 static void
@@ -218,7 +218,7 @@ setup_packet_table(struct isa_decode_options *options,
    for (unsigned i = 0; i < sizedwords; i++) {
       entrypoints[i].offset = jmptbl[i];
       unsigned n = i; // + CP_NOP;
-      entrypoints[i].name = afuc_pm_id_name(n);
+      entrypoints[i].name = qrisc_pm_id_name(n);
       if (!entrypoints[i].name) {
          char *name;
          asprintf(&name, "UNKN%d", n);
@@ -313,7 +313,7 @@ disasm(struct emu *emu)
    }
 
    /* print instructions: */
-   afuc_isa_disasm(emu->instrs, MIN2(sizedwords, jumptbl_offset) * 4, stdout, &options);
+   qrisc_isa_disasm(emu->instrs, MIN2(sizedwords, jumptbl_offset) * 4, stdout, &options);
 
    /* print jump table */
    if (jumptbl_offset != ~0) {
@@ -357,7 +357,7 @@ disasm(struct emu *emu)
       jumptbl_offset = find_jump_table(emu->instrs, sizedwords, emu->jmptbl,
                                        ARRAY_SIZE(emu->jmptbl));
 
-      afuc_isa_disasm(emu->instrs, MIN2(sizedwords, jumptbl_offset) * 4, stdout, &options);
+      qrisc_isa_disasm(emu->instrs, MIN2(sizedwords, jumptbl_offset) * 4, stdout, &options);
 
       if (jumptbl_offset != ~0) {
          printf(".align 32\n");
@@ -393,7 +393,7 @@ disasm(struct emu *emu)
       jumptbl_offset = find_jump_table(emu->instrs, emu->sizedwords, emu->jmptbl,
                                        ARRAY_SIZE(emu->jmptbl));
 
-      afuc_isa_disasm(emu->instrs, MIN2(emu->sizedwords, jumptbl_offset) * 4, stdout, &options);
+      qrisc_isa_disasm(emu->instrs, MIN2(emu->sizedwords, jumptbl_offset) * 4, stdout, &options);
 
       if (jumptbl_offset != ~0) {
          printf("jumptbl:\n");
@@ -417,7 +417,7 @@ disasm_raw(uint32_t *instrs, int sizedwords)
    get_decode_options(&options);
    options.cbdata = &state;
 
-   afuc_isa_disasm(instrs, sizedwords * 4, stdout, &options);
+   qrisc_isa_disasm(instrs, sizedwords * 4, stdout, &options);
 }
 
 static void
@@ -437,7 +437,7 @@ disasm_legacy(uint32_t *buf, int sizedwords)
    setup_packet_table(&options, jmptbl, 0x80);
 
    /* print instructions: */
-   afuc_isa_disasm(instrs, sizedwords * 4, stdout, &options);
+   qrisc_isa_disasm(instrs, sizedwords * 4, stdout, &options);
 
    /* print jumptable: */
    if (verbose) {
@@ -483,7 +483,7 @@ main(int argc, char **argv)
    int c, ret;
    bool unit_test = false;
    bool raw = false;
-   enum afuc_fwid fw_id = 0;
+   enum qrisc_fwid fw_id = 0;
 
    /* Argument parsing: */
    while ((c = getopt(argc, argv, "ceg:rvu")) != -1) {
@@ -525,9 +525,9 @@ main(int argc, char **argv)
    buf = (uint32_t *)os_read_file(file, &sz);
 
    if (!fw_id)
-      fw_id = afuc_get_fwid(buf[1]);
+      fw_id = qrisc_get_fwid(buf[1]);
 
-   ret = afuc_util_init(fw_id, &gpuver, colors);
+   ret = qrisc_util_init(fw_id, &gpuver, colors);
    if (ret < 0) {
       usage();
    }

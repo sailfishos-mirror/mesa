@@ -21,7 +21,7 @@
 ;
 ;
 ; This file is the source for a simple mock firmware used to regression test
-; the afuc assembler/disassembler. This is the a7xx variant, for testing new
+; the QRisc assembler/disassembler. This is the a7xx variant, for testing new
 ; features introduced in a7xx.
 [01730001]
 [#jumptbl]
@@ -150,8 +150,8 @@ waitin
 mov $01, $data
 
 euclid:
-; Euclid's algorithm in afuc: https://en.wikipedia.org/wiki/Euclidean_algorithm
-; Since afuc doesn't do modulo, we implement the subtraction-based version.
+; Euclid's algorithm in QRisc: https://en.wikipedia.org/wiki/Euclidean_algorithm
+; Since QRisc doesn't do modulo, we implement the subtraction-based version.
 ;
 ; Demonstrates/tests comparisons and conditional branches. This also
 ; demonstrates the common trick of branching in a delay slot. Note that if a

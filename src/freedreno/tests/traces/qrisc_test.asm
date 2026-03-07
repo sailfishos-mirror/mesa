@@ -21,7 +21,7 @@
 ;
 ;
 ; This file is the source for a simple mock firmware used to regression test
-; the afuc assembler/disassembler. Note, it won't actually work if you try to
+; the QRisc assembler/disassembler. Note, it won't actually work if you try to
 ; load it on the GPU! First this is assembled, compared to the reference
 ; binary, then disassambled and compared to the reference disassembly. We do
 ; this to avoid having to host the actual firmware, especially the disassembled
@@ -121,8 +121,8 @@ waitin
 mov $01, $data
 
 euclid:
-; Euclid's algorithm in afuc: https://en.wikipedia.org/wiki/Euclidean_algorithm
-; Since afuc doesn't do modulo, we implement the subtraction-based version.
+; Euclid's algorithm in QRisc: https://en.wikipedia.org/wiki/Euclidean_algorithm
+; Since QRisc doesn't do modulo, we implement the subtraction-based version.
 ;
 ; Demonstrates/tests comparisons and conditional branches. This also
 ; demonstrates the common trick of branching in a delay slot. Note that if a

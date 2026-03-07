@@ -11,7 +11,7 @@
 
 #include "util/bitset.h"
 
-#include "afuc.h"
+#include "qrisc.h"
 
 extern int gpuver;
 
@@ -298,6 +298,6 @@ void emu_set_draw_state_reg(struct emu *emu, unsigned n, uint32_t val);
 void emu_set_draw_state_base(struct emu *emu, unsigned n, uint32_t val);
 
 /* Helpers: */
-#define printdelta(fmt, ...) afuc_printc(AFUC_ERR, fmt, ##__VA_ARGS__)
+#define printdelta(fmt, ...) qrisc_printc(QRISC_ERR, fmt, ##__VA_ARGS__)
 
 #endif /* _ASM_H_ */

@@ -16,7 +16,7 @@
 
 #include "freedreno_pm4.h"
 
-#include "afuc-isa.h"
+#include "qrisc-isa.h"
 
 #include "emu.h"
 #include "util.h"
@@ -29,14 +29,14 @@ EMU_SQE_REG(STACK0);
 EMU_CONTROL_REG(DRAW_STATE_SET_HDR);
 
 /**
- * AFUC emulator.  Currently only supports a6xx
+ * QRISC emulator.  Currently only supports a6xx
  *
  * TODO to add a5xx it might be easier to compile this multiple times
  * with conditional compile to deal with differences between generations.
  */
 
 static uint32_t
-emu_alu(struct emu *emu, afuc_opc opc, uint32_t src1, uint32_t src2)
+emu_alu(struct emu *emu, qrisc_opc opc, uint32_t src1, uint32_t src2)
 {
    uint64_t tmp;
    switch (opc) {
@@ -115,7 +115,7 @@ load_store_addr(struct emu *emu, unsigned gpr)
 }
 
 static void
-emu_instr(struct emu *emu, struct afuc_instr *instr)
+emu_instr(struct emu *emu, struct qrisc_instr *instr)
 {
    uint32_t rem = emu_get_gpr_reg(emu, REG_REM);
 
@@ -364,9 +364,9 @@ emu_instr(struct emu *emu, struct afuc_instr *instr)
 void
 emu_step(struct emu *emu)
 {
-   struct afuc_instr *instr;
+   struct qrisc_instr *instr;
    bool decoded =
-      afuc_isa_decode((void *)&instr, (void *)&emu->instrs[emu->gpr_regs.pc],
+      qrisc_isa_decode((void *)&instr, (void *)&emu->instrs[emu->gpr_regs.pc],
                       &(struct isa_decode_options){
                          .gpu_id = gpuver,
                       });
@@ -377,7 +377,7 @@ emu_step(struct emu *emu)
          /* This is printed as an undecoded literal to show the immediate
           * payload, but when executing it's just a NOP.
           */
-         instr = calloc(1, sizeof(struct afuc_instr));
+         instr = calloc(1, sizeof(struct qrisc_instr));
          instr->opc = OPC_NOP;
       } else {
          printf("unmatched instruction: 0x%08x\n", instr_val);
@@ -423,7 +423,7 @@ emu_step(struct emu *emu)
       uint32_t id, count;
 
       if (pkt_is_type4(hdr)) {
-         id = afuc_pm4_id("PKT4");
+         id = qrisc_pm4_id("PKT4");
          count = type4_pkt_size(hdr);
 
          /* Possibly a hack, not sure what the hw actually
@@ -549,16 +549,16 @@ emu_init(struct emu *emu)
       break;
    }
 
-   if (emu->fw_id == AFUC_A750) {
+   if (emu->fw_id == QRISC_A750) {
       emu_set_control_reg(emu, 0, 7 << 28);
       emu_set_control_reg(emu, 2, 0x40 << 8);
-   } else if (emu->fw_id == AFUC_A730 || emu->fw_id == AFUC_A740 ||
-              emu->fw_id == AFUC_GEN70500) {
+   } else if (emu->fw_id == QRISC_A730 || emu->fw_id == QRISC_A740 ||
+              emu->fw_id == QRISC_GEN70500) {
       emu_set_control_reg(emu, 0xef, 1 << 21);
       emu_set_control_reg(emu, 0, 7 << 28);
-   } else if (emu->fw_id == AFUC_A660) {
+   } else if (emu->fw_id == QRISC_A660) {
       emu_set_control_reg(emu, 0, 3 << 28);
-   } else if (emu->fw_id == AFUC_A650) {
+   } else if (emu->fw_id == QRISC_A650) {
       emu_set_control_reg(emu, 0, 1 << 28);
    }
 }

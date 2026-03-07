@@ -1,10 +1,10 @@
 =====================
-Adreno Five Microcode
+QRisc Microcode
 =====================
 
 .. contents::
 
-.. _afuc-introduction:
+.. _qrisc-introduction:
 
 Introduction
 ============
@@ -30,9 +30,7 @@ Starting with Adreno 5xx, a new microcontroller with a unified
 instruction set was introduced, although the overall architecture
 and purpose of the two microcontrollers remains the same.
 
-For lack of a better name, this new instruction set is called
-"Adreno Five MicroCode" or "afuc".  (No idea what Qualcomm calls
-it internally).
+This new instruction set is called "QRisc".
 
 With Adreno 6xx, the separate PFP and ME are replaced with a single
 SQE microcontroller using the same instruction set as 5xx.
@@ -45,12 +43,12 @@ booting LPAC. On 7xx, to implement concurrent binning the SQE is split into two
 processors called BR and BV. Again, the firmware for all three is bundled
 together and BR is responsible for booting both BV and LPAC.
 
-.. _afuc-overview:
+.. _qrisc-overview:
 
 Instruction Set Overview
 ========================
 
-The afuc instruction set is heavily inspired by MIPS, but not exactly
+The QRisc instruction set is heavily inspired by MIPS, but not exactly
 compatible.
 
 Registers
@@ -71,12 +69,12 @@ Unlike in MIPS, there is a special small hardware-managed stack and special
 instructions ``call``/``ret`` which use it. The stack only contains return
 addresses, there is no "stack frame" to spill values to. As a result, ``$sp``,
 ``$fp``, and ``$ra`` don't exist as on MIPS. Instead the last 3 registers are
-used to :ref:`afuc-read<read>` from various queues and
-:ref:`afuc-reg-writes<write GPU registers>`. In addition there is a ``$rem``
+used to :ref:`qrisc-read<read>` from various queues and
+:ref:`qrisc-reg-writes<write GPU registers>`. In addition there is a ``$rem``
 register which normally contains the number of words remaining in the packet
 but can also be used as a normal register in combination with the rep prefix.
 
-.. _afuc-alu:
+.. _qrisc-alu:
 
 ALU Instructions
 ================
@@ -119,7 +117,7 @@ instruction that can shift the 16-bit immediate by a given amount::
 This replaces ``lui`` on MIPS (just use a shift of 16) while also allowing the
 quick construction of small bitfields, which comes in handy in various places.
 
-.. _afuc-alu-cmp:
+.. _qrisc-alu-cmp:
 
 The ``cmp`` instruction returns:
 
@@ -127,10 +125,10 @@ The ``cmp`` instruction returns:
 - ``0x2b`` if src1 == src2
 - ``0x1e`` if src1 < src2
 
-See explanation in :ref:`afuc-branch`
+See explanation in :ref:`qrisc-branch`
 
 
-.. _afuc-branch:
+.. _qrisc-branch:
 
 Branch Instructions
 ===================
@@ -151,7 +149,7 @@ The branch instructions are encoded with a 16b relative offset.
 Since ``$00`` always reads back zero, it can be used to construct
 an unconditional relative jump.
 
-The :ref:`cmp <afuc-alu-cmp>` instruction can be paired with the
+The :ref:`cmp <qrisc-alu-cmp>` instruction can be paired with the
 bit-test variants of ``brne``/``breq`` to implement gt/ge/lt/le,
 due to the bit pattern it returns, for example::
 
@@ -186,7 +184,7 @@ requires two delay slots::
    b #bar
    nop ; b delay slot
 
-In afuc this only requires a delay slot for the second branch::
+In QRisc this only requires a delay slot for the second branch::
 
    breq $02, 0x1, #foo
    brne $02, 0x1, #bar
@@ -196,7 +194,7 @@ Note that for the second branch we had to use a conditional branch with the
 opposite condition instead of an unconditional branch as in the MIPS example,
 to guarantee that at most one is ever taken.
 
-.. _afuc-call:
+.. _qrisc-call:
 
 Call/Return
 ===========
@@ -209,12 +207,12 @@ jump instruction encodes a fixed offset from the SQE instruction base.
   levels of fxn call, see in PFP: CP_CONTEXT_SWITCH_YIELD -> f13 ->
   f22.
 
-.. _afuc-nop:
+.. _qrisc-nop:
 
 NOPs
 ====
 
-Afuc has a special NOP encoding where the low 24 bits are ignored by the
+QRisc has a special NOP encoding where the low 24 bits are ignored by the
 processor. On a5xx the high 8 bits are ``00``, on a6xx they are ``01``
 (probably to make sure that 0 is not a legal instruction, increasing the
 chances of halting immediately when something is misconfigured). This is used
@@ -223,7 +221,7 @@ first 2 instructions of the firmware typically contain the firmware ID and
 version followed by the packet handling table offset encoded as NOPs. They are
 skipped when executed but they are later read as data by the bootstrap routine.
 
-.. _afuc-control:
+.. _qrisc-control:
 
 Control Registers
 =================
@@ -289,7 +287,7 @@ but on a6xx::
   cwrite $0b, [$05 + @IB1_BASE+0x1]
   cwrite $04, [$05 + @IB1_DWORDS]
 
-.. _afuc-sqe-regs:
+.. _qrisc-sqe-regs:
 
 SQE Registers
 =============
@@ -300,7 +298,7 @@ through ``sread``/``swrite`` instructions that work identically to
 ``call``/``ret`` stack. This is mainly used during the preemption routine but
 it's also used to set the entrypoint for preemption.
 
-.. _afuc-read:
+.. _qrisc-read:
 
 Reading Memory and Registers
 ============================
@@ -328,7 +326,7 @@ the Visibility Stream Decoder (VSD) which is setup via a similar control
 register pair but is read by a fixed-function parser that the CP accesses via a
 few control registers.
 
-.. _afuc-reg-writes:
+.. _qrisc-reg-writes:
 
 Writing Registers
 =================
@@ -357,7 +355,7 @@ which cluster(s) the register belongs to and push the write onto the
 appropriate per-cluster queue(s) letting the SQE run ahead of the GPU.
 
 When bit 18 of ``$addr`` is set, the auto-incrementing is disabled. This is
-often used with :ref:`afuc-mem-writes <NRT_DATA>`.
+often used with :ref:`qrisc-mem-writes <NRT_DATA>`.
 
 On a5xx ME, ``$regdata`` can also be used to directly read a register::
 
@@ -393,7 +391,7 @@ registers that have their own queues and on a5xx is used by the PFP::
 Like with the ``$addr``/``$data`` approach, the destination register address
 increments on each write to ``@REG_WRITE``.
 
-.. _afuc-pipe-regs:
+.. _qrisc-pipe-regs:
 
 Pipe Registers
 --------------
@@ -419,7 +417,7 @@ In short, they behave more like normal registers but are not expected to be
 read/written by anything other than CP. Over time more and more GPU registers
 not touched by the kernel driver have been converted to pipe registers.
 
-.. _afuc-mem-writes:
+.. _qrisc-mem-writes:
 
 Writing Memory
 ==============
@@ -454,7 +452,7 @@ Memory Read example::
   mov $05, $addr
 
 On a6xx ``CP_ME_NRT_ADDR`` and ``CP_ME_NRT_DATA`` have been replaced by
-:ref:`afuc-pipe-regs <pipe registers>` and they can only be used for writes but
+:ref:`qrisc-pipe-regs <pipe registers>` and they can only be used for writes but
 it otherwise works similarly.
 
 Load and Store Instructions
@@ -463,7 +461,7 @@ Load and Store Instructions
 a6xx adds ``load`` and ``store`` instruction that work similarly to ``cread``
 and ``cwrite``. Because the address is 64-bits but registers are 32-bit, the
 high 32 bits come from the ``@LOAD_STORE_HI``
-:ref:`afuc-control <control register>`. They are mostly used by the context
+:ref:`qrisc-control <control register>`. They are mostly used by the context
 switch routine and even then very sparingly, before the memory read/write queue
 state is saved while it is being restored.
 
@@ -473,7 +471,7 @@ Modifiers
 There are two modifiers that enable more compact and efficient implementations
 of common patterns:
 
-.. _afuc-rep:
+.. _qrisc-rep:
 
 Repeat
 ------
@@ -494,7 +492,7 @@ Note the use of pre-increment mode, so that the first execution clears
 ``0x100`` and updates ``$03`` to ``0x100``, the second execution clears
 ``0x101`` and updates ``$03`` to ``0x101``, and so on.
 
-.. _afuc-xmov:
+.. _qrisc-xmov:
 
 eXtra Moves
 -----------
@@ -563,7 +561,7 @@ Although ``(xmovN)`` is often used in combination with ``(rep)``, it doesn't
 have to be. For example, ``(xmov1)mov $data, $data`` moves the next 2 packet
 words to 2 successive registers.
 
-.. _afuc-sds:
+.. _qrisc-sds:
 
 Set Draw State
 --------------
@@ -585,7 +583,7 @@ In testing with other control registers, ``(sdsN)`` causes the source to be
 read ``N`` extra times and then thrown away. Only when used in combination with
 ``@DRAW_STATE_SET_HDR`` do the extra source reads have an effect.
 
-.. _afuc-peek:
+.. _qrisc-peek:
 
 Peek
 ----
@@ -630,7 +628,7 @@ Let's examine an implementation of ``CP_MEM_WRITE``::
   mov $addr, 0x00a0 << 24 ; |NRT_ADDR
 
 First, we setup the register to write to, which is the ``NRT_ADDR``
-:ref:`afuc-pipe-regs <pipe register>`. It turns out that the low 2 bits of
+:ref:`qrisc-pipe-regs <pipe register>`. It turns out that the low 2 bits of
 ``NRT_ADDR`` are a flag which when 1 disables auto-incrementing ``NRT_ADDR``
 when ``NRT_DATA`` is written, but we don't want this behavior so we have to
 make sure they are clear::
@@ -652,7 +650,7 @@ handy::
 
 Finally, we have to repeatedly copy the remaining PM4 packet data to the
 ``NRT_DATA`` register, which we can do in one instruction with
-:ref:`afuc-rep <(rep)>`. Furthermore we can use :ref:`afuc-xmov <(xmov1)>` to
+:ref:`qrisc-rep <(rep)>`. Furthermore we can use :ref:`qrisc-xmov <(xmov1)>` to
 squeeze out some more performance::
 
   (rep)(xmov1)mov $data, $data
@@ -671,7 +669,7 @@ work out-of-the-box, and should give you back an identical firmware, but there
 is a caveat if you want to reassemble a modified firmware and use preemption.
 The preemption routines contain a few tables embedded in the firmware, and they
 load the offset of the table with a ``mov`` instruction that needs to be turned
-into a relocation and then add it to ``CP_SQE_INSTR_BASE``. ``afuc-asm``
+into a relocation and then add it to ``CP_SQE_INSTR_BASE``. ``qrisc-asm``
 supports using labels as immediates for this::
 
   foo:

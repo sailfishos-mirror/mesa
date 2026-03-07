@@ -11,7 +11,7 @@
 #include "rnn.h"
 #include "rnndec.h"
 
-#include "afuc.h"
+#include "qrisc.h"
 #include "util.h"
 
 static struct rnndeccontext *ctx;
@@ -66,7 +66,7 @@ reg_name(struct rnndomain *dom, unsigned id)
  * Map control reg name to offset.
  */
 unsigned
-afuc_control_reg(const char *name)
+qrisc_control_reg(const char *name)
 {
    return reg(control_regs, "control", name);
 }
@@ -75,7 +75,7 @@ afuc_control_reg(const char *name)
  * Map offset to SQE reg name (or NULL), caller frees
  */
 char *
-afuc_sqe_reg_name(unsigned id)
+qrisc_sqe_reg_name(unsigned id)
 {
    return reg_name(sqe_regs, id);
 }
@@ -84,7 +84,7 @@ afuc_sqe_reg_name(unsigned id)
  * Map SQE reg name to offset.
  */
 unsigned
-afuc_sqe_reg(const char *name)
+qrisc_sqe_reg(const char *name)
 {
    return reg(sqe_regs, "SQE", name);
 }
@@ -93,7 +93,7 @@ afuc_sqe_reg(const char *name)
  * Map offset to control reg name (or NULL), caller frees
  */
 char *
-afuc_control_reg_name(unsigned id)
+qrisc_control_reg_name(unsigned id)
 {
    return reg_name(control_regs, id);
 }
@@ -102,7 +102,7 @@ afuc_control_reg_name(unsigned id)
  * Map pipe reg name to offset.
  */
 unsigned
-afuc_pipe_reg(const char *name)
+qrisc_pipe_reg(const char *name)
 {
    return reg(pipe_regs, "pipe", name);
 }
@@ -112,7 +112,7 @@ afuc_pipe_reg(const char *name)
  * enough to trigger what they do
  */
 bool
-afuc_pipe_reg_is_void(unsigned id)
+qrisc_pipe_reg_is_void(unsigned id)
 {
    if (rnndec_checkaddr(ctx, pipe_regs, id, 0)) {
       struct rnndecaddrinfo *info = rnndec_decodeaddr(ctx, pipe_regs, id, 0);
@@ -129,7 +129,7 @@ afuc_pipe_reg_is_void(unsigned id)
  * Map offset to pipe reg name (or NULL), caller frees
  */
 char *
-afuc_pipe_reg_name(unsigned id)
+qrisc_pipe_reg_name(unsigned id)
 {
    return reg_name(pipe_regs, id);
 }
@@ -138,7 +138,7 @@ afuc_pipe_reg_name(unsigned id)
  * Map GPU reg name to offset.
  */
 unsigned
-afuc_gpu_reg(const char *name)
+qrisc_gpu_reg(const char *name)
 {
    int val = find_reg(dom[0], name);
    if (val < 0)
@@ -158,7 +158,7 @@ afuc_gpu_reg(const char *name)
  * Map offset to gpu reg name (or NULL), caller frees
  */
 char *
-afuc_gpu_reg_name(unsigned id)
+qrisc_gpu_reg_name(unsigned id)
 {
    struct rnndomain *d = NULL;
 
@@ -181,7 +181,7 @@ afuc_gpu_reg_name(unsigned id)
 }
 
 unsigned
-afuc_gpr_reg(const char *name)
+qrisc_gpr_reg(const char *name)
 {
    /* If it starts with '$' just swallow it: */
    if (name[0] == '$')
@@ -227,24 +227,24 @@ find_enum_val(struct rnnenum *en, const char *name)
  * Map pm4 packet name to id
  */
 int
-afuc_pm4_id(const char *name)
+qrisc_pm4_id(const char *name)
 {
    return find_enum_val(pm4_packets, name);
 }
 
 const char *
-afuc_pm_id_name(unsigned id)
+qrisc_pm_id_name(unsigned id)
 {
    return rnndec_decode_enum(ctx, "adreno_pm4_type3_packets", id);
 }
 
 void
-afuc_printc(enum afuc_color c, const char *fmt, ...)
+qrisc_printc(enum qrisc_color c, const char *fmt, ...)
 {
    va_list args;
-   if (c == AFUC_ERR) {
+   if (c == QRISC_ERR) {
       printf("%s", ctx->colors->err);
-   } else if (c == AFUC_LBL) {
+   } else if (c == QRISC_LBL) {
       printf("%s", ctx->colors->btarg);
    }
    va_start(args, fmt);
@@ -253,38 +253,38 @@ afuc_printc(enum afuc_color c, const char *fmt, ...)
    printf("%s", ctx->colors->reset);
 }
 
-int afuc_util_init(enum afuc_fwid fw_id, int *gpuver_out, bool colors)
+int qrisc_util_init(enum qrisc_fwid fw_id, int *gpuver_out, bool colors)
 {
    char *name, *control_reg_name, *variant;
    char *pipe_reg_name = NULL;
 
    switch (fw_id) {
-   case AFUC_A750:
+   case QRISC_A750:
       name = "A6XX";
       variant = "A7XX";
       control_reg_name = "A7XX_GEN3_CONTROL_REG";
       pipe_reg_name = "A7XX_PIPE_REG";
       *gpuver_out = 7;
       break;
-   case AFUC_A730:
-   case AFUC_A740:
-   case AFUC_GEN70500:
+   case QRISC_A730:
+   case QRISC_A740:
+   case QRISC_GEN70500:
       name = "A6XX";
       variant = "A7XX";
       control_reg_name = "A7XX_CONTROL_REG";
       pipe_reg_name = "A7XX_PIPE_REG";
       *gpuver_out = 7;
       break;
-   case AFUC_A630:
-   case AFUC_A650:
-   case AFUC_A660:
+   case QRISC_A630:
+   case QRISC_A650:
+   case QRISC_A660:
       name = "A6XX";
       variant = "A6XX";
       control_reg_name = "A6XX_CONTROL_REG";
       pipe_reg_name = "A6XX_PIPE_REG";
       *gpuver_out = 6;
       break;
-   case AFUC_A530:
+   case QRISC_A530:
       name = "A5XX";
       variant = "A5XX";
       control_reg_name = "A5XX_CONTROL_REG";

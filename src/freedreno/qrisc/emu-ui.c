@@ -166,7 +166,7 @@ static void
 dump_gpu_register(struct emu *emu, unsigned n)
 {
    printf("              GPU:  ");
-   char *name = afuc_gpu_reg_name(n);
+   char *name = qrisc_gpu_reg_name(n);
    if (name) {
       printf("%s", name);
       free(name);
@@ -254,7 +254,7 @@ emu_write_gpr_prompt(struct emu *emu)
    if (read_two_values(&name, &value))
       return;
 
-   unsigned offset = afuc_gpr_reg(name);
+   unsigned offset = qrisc_gpr_reg(name);
    uint32_t val = strtoul(value, NULL, 0);
 
    emu_set_gpr_reg(emu, offset, val);
@@ -272,7 +272,7 @@ emu_write_control_prompt(struct emu *emu)
    if (read_two_values(&name, &value))
       return;
 
-   unsigned offset = afuc_control_reg(name);
+   unsigned offset = qrisc_control_reg(name);
    uint32_t val = strtoul(value, NULL, 0);
 
    emu_set_control_reg(emu, offset, val);
@@ -291,7 +291,7 @@ emu_dump_control_prompt(struct emu *emu)
 
    printf("\n");
 
-   unsigned offset = afuc_control_reg(name);
+   unsigned offset = qrisc_control_reg(name);
    dump_control_register(emu, offset);
 }
 
@@ -307,7 +307,7 @@ emu_write_sqe_prompt(struct emu *emu)
    if (read_two_values(&name, &value))
       return;
 
-   unsigned offset = afuc_sqe_reg(name);
+   unsigned offset = qrisc_sqe_reg(name);
    uint32_t val = strtoul(value, NULL, 0);
 
    emu_set_sqe_reg(emu, offset, val);
@@ -325,7 +325,7 @@ emu_write_gpu_prompt(struct emu *emu)
    if (read_two_values(&name, &value))
       return;
 
-   unsigned offset = afuc_gpu_reg(name);
+   unsigned offset = qrisc_gpu_reg(name);
    uint32_t val = strtoul(value, NULL, 0);
 
    emu_set_gpu_reg(emu, offset, val);
@@ -344,7 +344,7 @@ emu_dump_gpu_prompt(struct emu *emu)
 
    printf("\n");
 
-   unsigned offset = afuc_gpu_reg(name);
+   unsigned offset = qrisc_gpu_reg(name);
    dump_gpu_register(emu, offset);
 }
 
@@ -480,11 +480,11 @@ emu_packet_prompt(struct emu *emu)
    } while (true);
 
    uint32_t hdr;
-   if (afuc_pm4_id(name) >= 0) {
-      unsigned opcode = afuc_pm4_id(name);
+   if (qrisc_pm4_id(name) >= 0) {
+      unsigned opcode = qrisc_pm4_id(name);
       hdr = pm4_pkt7_hdr(opcode, cnt);
    } else {
-      unsigned regindx = afuc_gpu_reg(name);
+      unsigned regindx = qrisc_gpu_reg(name);
       hdr = pm4_pkt4_hdr(regindx, cnt);
    }
 

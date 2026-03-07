@@ -20,7 +20,7 @@
 static bool
 is_draw_state_control_reg(unsigned n)
 {
-   char *reg_name = afuc_control_reg_name(n);
+   char *reg_name = qrisc_control_reg_name(n);
    if (!reg_name)
       return false;
    bool ret = !!strstr(reg_name, "DRAW_STATE");
@@ -197,7 +197,7 @@ emu_get_fifo_reg(struct emu *emu, unsigned n, bool peek)
       unsigned  read_dwords = emu_get_reg32(emu, &MEM_READ_DWORDS);
       uintptr_t read_addr   = emu_get_reg64(emu, &MEM_READ_ADDR);
       uintptr_t read_addr_hi = 0;
-      if (emu->fw_id == AFUC_A750)
+      if (emu->fw_id == QRISC_A750)
          read_addr_hi = emu_get_reg64(emu, &MEM_READ_ADDR_HI_PREEMPTION);
 
       /* We don't model privileged vs. non-privileged accesses here, so just
@@ -290,7 +290,7 @@ emu_set_fifo_reg(struct emu *emu, unsigned n, uint32_t val)
          /* "void" pipe regs don't have a value to write, so just
           * treat it as writing zero to the pipe reg:
           */
-         if (afuc_pipe_reg_is_void(val >> 24))
+         if (qrisc_pipe_reg_is_void(val >> 24))
             emu_set_pipe_reg(emu, val >> 24, 0);
          emu->data_mode = DATA_PIPE;
       }
@@ -376,25 +376,25 @@ struct emu_reg_accessor {
 };
 
 const struct emu_reg_accessor emu_control_accessor = {
-      .get_offset = afuc_control_reg,
+      .get_offset = qrisc_control_reg,
       .get = emu_get_control_reg,
       .set = emu_set_control_reg,
 };
 
 const struct emu_reg_accessor emu_sqe_accessor = {
-      .get_offset = afuc_sqe_reg,
+      .get_offset = qrisc_sqe_reg,
       .get = emu_get_sqe_reg,
       .set = emu_set_sqe_reg,
 };
 
 const struct emu_reg_accessor emu_pipe_accessor = {
-      .get_offset = afuc_pipe_reg,
+      .get_offset = qrisc_pipe_reg,
       .get = emu_get_pipe_reg,
       .set = emu_set_pipe_reg,
 };
 
 const struct emu_reg_accessor emu_gpu_accessor = {
-      .get_offset = afuc_gpu_reg,
+      .get_offset = qrisc_gpu_reg,
       .get = emu_get_gpu_reg,
       .set = emu_set_gpu_reg,
 };
