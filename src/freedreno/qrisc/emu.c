@@ -366,13 +366,13 @@ emu_step(struct emu *emu)
 {
    struct qrisc_instr *instr;
    bool decoded =
-      qrisc_isa_decode((void *)&instr, (void *)&emu->instrs[emu->gpr_regs.pc],
+      qrisc_isa_decode((void *)&instr, (void *)&emu->instrs[emu->gpr_regs.pc + emu->instr_base],
                       &(struct isa_decode_options){
                          .gpu_id = gpuver,
                       });
 
    if (!decoded) {
-      uint32_t instr_val = emu->instrs[emu->gpr_regs.pc];
+      uint32_t instr_val = emu->instrs[emu->gpr_regs.pc + emu->instr_base];
       if ((instr_val >> 27) == 0) {
          /* This is printed as an undecoded literal to show the immediate
           * payload, but when executing it's just a NOP.
@@ -512,7 +512,7 @@ emu_mem_write_dword(struct emu *emu, uintptr_t gpuaddr, uint32_t val)
 }
 
 void
-emu_init(struct emu *emu)
+emu_init(struct emu *emu, const uint32_t fw_offsets[EMU_PROC_COUNT])
 {
    emu->gpumem = mmap(NULL, EMU_MEMORY_SIZE,
                       PROT_READ | PROT_WRITE,
@@ -537,19 +537,29 @@ emu_init(struct emu *emu)
    switch (emu->processor) {
    case EMU_PROC_SQE:
       emu_set_reg64(emu, &CP_SQE_INSTR_BASE, EMU_INSTR_BASE);
-      break;
-   case EMU_PROC_BV:
-      emu_set_reg64(emu, &BV_INSTR_BASE, EMU_INSTR_BASE);
+      /* SQE boots up the other processors, so no need to set offsets */
       break;
    case EMU_PROC_LPAC:
-      if (gpuver >= 7)
-         emu_set_reg64(emu, &LPAC_INSTR_BASE, EMU_INSTR_BASE);
-      else
-         emu_set_reg64(emu, &CP_LPAC_SQE_INSTR_BASE, EMU_INSTR_BASE);
+   case EMU_PROC_BV:
+      emu_set_reg64(emu, &CP_SQE_INSTR_BASE, EMU_INSTR_BASE);
+      if (gpuver >= 7) {
+         emu_set_reg64(emu, &LPAC_INSTR_BASE, EMU_INSTR_BASE +
+               fw_offsets[EMU_PROC_LPAC] * 4);
+         emu_set_reg64(emu, &BV_INSTR_BASE, EMU_INSTR_BASE +
+            fw_offsets[EMU_PROC_BV] * 4);
+      } else {
+         emu_set_reg64(emu, &CP_LPAC_SQE_INSTR_BASE, EMU_INSTR_BASE +
+               fw_offsets[EMU_PROC_LPAC] * 4);
+      }
       break;
    default:
       break;
    }
+
+   if (fw_offsets)
+      emu->instr_base = fw_offsets[emu->processor];
+   else
+      emu->instr_base = 0;
 
    if (emu->fw_id == QRISC_A750) {
       emu_set_control_reg(emu, 0, 7 << 28);

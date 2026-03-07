@@ -251,34 +251,33 @@ find_jump_table(uint32_t *instrs, uint32_t sizedwords,
 
 static void
 disasm_section(struct emu *emu, struct isa_decode_options *options,
-               enum emu_processor processor, uint32_t offset,
+               enum emu_processor processor, const uint32_t *offsets,
                uint32_t size)
 {
+   uint32_t offset = offsets[processor];
    emu->processor = processor;
-   emu->instrs += offset;
-   emu->sizedwords -= offset;
 
-   emu_init(emu);
+   emu_init(emu, offsets);
    emu_run_bootstrap(emu);
 
    /* TODO add option to emulate LPAC SQE instead */
    if (emulator && processor == EMU_PROC_SQE) {
       /* Start from clean slate: */
       emu_fini(emu);
-      emu_init(emu);
+      emu_init(emu, offsets);
 
       while (true) {
-         disasm_instr(options, emu->instrs, emu->gpr_regs.pc);
+         disasm_instr(options, emu->instrs + offset, emu->gpr_regs.pc);
          emu_step(emu);
       }
    }
 
    setup_packet_table(options, emu->jmptbl, ARRAY_SIZE(emu->jmptbl));
 
-   jumptbl_offset = find_jump_table(emu->instrs, size, emu->jmptbl,
+   jumptbl_offset = find_jump_table(emu->instrs + offset, size, emu->jmptbl,
                                     ARRAY_SIZE(emu->jmptbl));
 
-   qrisc_isa_disasm(emu->instrs, MIN2(size, jumptbl_offset) * 4, stdout, options);
+   qrisc_isa_disasm(emu->instrs + offset, MIN2(size, jumptbl_offset) * 4, stdout, options);
 
    if (jumptbl_offset != ~0) {
       if (gpuver >= 7) {
@@ -294,14 +293,11 @@ disasm_section(struct emu *emu, struct isa_decode_options *options,
       printf(".jumptbl\n");
       if (jumptbl_offset + ARRAY_SIZE(emu->jmptbl) != size) {
          for (unsigned i = jumptbl_offset + ARRAY_SIZE(emu->jmptbl); i < size; i++)
-            printf("[%08x]\n", emu->instrs[i]);
+            printf("[%08x]\n", emu->instrs[offset + i]);
       }
    }
 
    emu_fini(emu);
-
-   emu->instrs -= offset;
-   emu->sizedwords += offset;
 }
 
 static void
@@ -314,8 +310,8 @@ disasm(struct emu *emu)
    EMU_CONTROL_REG(BV_INSTR_BASE);
    EMU_CONTROL_REG(LPAC_INSTR_BASE);
 
-   emu_init(emu);
    emu->processor = EMU_PROC_SQE;
+   emu_init(emu, NULL);
 
    struct isa_decode_options options;
    struct decode_state state;
@@ -360,8 +356,7 @@ disasm(struct emu *emu)
       }
    }
 
-   disasm_section(emu, &options, EMU_PROC_SQE, offsets[EMU_PROC_SQE],
-                  sizes[EMU_PROC_SQE]);
+   disasm_section(emu, &options, EMU_PROC_SQE, offsets, sizes[EMU_PROC_SQE]);
 
    const char *section_names[EMU_PROC_COUNT] = {
       [EMU_PROC_BV] = "BV",
@@ -377,7 +372,7 @@ disasm(struct emu *emu)
       printf("; %s microcode:\n", section_names[i]);
       printf(";\n");
 
-      disasm_section(emu, &options, i, offsets[i], sizes[i]);
+      disasm_section(emu, &options, i, offsets, sizes[i]);
    }
 }
 
