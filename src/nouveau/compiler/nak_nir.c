@@ -884,14 +884,18 @@ nak_mem_vectorize_cb(unsigned align_mul, unsigned align_offset,
    if (hole_size > 0)
       return false;
 
+   /* Prevent creating vec5 or other difficult to vectorize vectors */
+   if (num_components > 4 && !util_is_power_of_two_nonzero(num_components))
+      return false;
+
    unsigned max_bytes = 128u / 8u;
    if (low->intrinsic == nir_intrinsic_ldc_nv ||
        low->intrinsic == nir_intrinsic_ldcx_nv)
       max_bytes = 64u / 8u;
 
-   align_mul = MIN2(align_mul, max_bytes);
-   align_offset = align_offset % align_mul;
-   return align_offset + num_components * (bit_size / 8) <= align_mul;
+   unsigned byte_load = num_components * (bit_size / 8);
+   unsigned combined_align = nir_combined_align(align_mul, align_offset);
+   return byte_load <= combined_align && byte_load <= max_bytes;
 }
 
 static nir_mem_access_size_align
