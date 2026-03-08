@@ -934,7 +934,7 @@
         "description": "glx: guard glx_screen frontend_screen member",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "67eeee43e07ddd3ba56fd546468dfd0c570af74c",
         "notes": null
