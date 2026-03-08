@@ -658,18 +658,17 @@ optimizations.extend([
     # Collapse non-zero right-shift into bitfield extract.
     (('ushr@32', ('ubfe', a, '#b', '#c'), '#d(is_5lsb_not_zero)'),
      ubfe_ubfe(a, b, c, d, 31)),
-
-    (('iand', 'a(is_unsigned_multiple_of_4)', -4), a),
 ])
 
 for log2 in range(1, 7): # powers of two from 2 to 64
    v = 1 << log2
-   mask = 0xffffffff & ~(v - 1)
-   b_is_multiple = 'b(is_unsigned_multiple_of_{})'.format(v)
+   mask = -v
+   a_is_multiple = 'a(is_unsigned_multiple_of_{})'.format(v)
 
    optimizations.extend([
+       (('iand', a_is_multiple, mask), a),
        # Reassociate for improved CSE
-       (('iand@32', ('iadd@32', a, b_is_multiple), mask), ('iadd', ('iand', a, mask), b)),
+       (('iand', ('iadd', a_is_multiple, b), mask), ('iadd', ('iand', b, mask), a)),
    ])
 
 # To save space in the state tables, reduce to the set that is known to help.
