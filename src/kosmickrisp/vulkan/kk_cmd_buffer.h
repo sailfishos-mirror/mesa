@@ -254,14 +254,13 @@ uint64_t kk_upload_descriptor_root(struct kk_cmd_buffer *cmd,
 void kk_cmd_buffer_flush_push_descriptors(struct kk_cmd_buffer *cmd,
                                           struct kk_descriptor_state *desc);
 
+void kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct mtl_size grid,
+                         bool pre_gfx, enum libkk_program idx, void *data,
+                         size_t data_size);
+
+#define MESA_DISPATCH_PRECOMP kk_dispatch_precomp
+
 void kk_cmd_write(struct kk_cmd_buffer *cmd, mtl_buffer *buffer, uint64_t addr,
                   uint64_t value);
-
-void kk_cmd_dispatch_pipeline(struct kk_cmd_buffer *cmd,
-                              mtl_compute_encoder *encoder,
-                              mtl_compute_pipeline_state *pipeline,
-                              const void *push_data, size_t push_size,
-                              uint32_t groupCountX, uint32_t groupCountY,
-                              uint32_t groupCountZ);
 
 #endif

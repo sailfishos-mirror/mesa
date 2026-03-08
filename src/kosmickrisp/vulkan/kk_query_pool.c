@@ -17,7 +17,6 @@
 #include "kk_entrypoints.h"
 #include "kk_physical_device.h"
 #include "kk_query_table.h"
-#include "kkcl.h"
 
 struct kk_query_report {
    uint64_t value;

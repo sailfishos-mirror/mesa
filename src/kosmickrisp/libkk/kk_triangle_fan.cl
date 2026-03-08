@@ -79,7 +79,7 @@ libkk_vertex_id_for_tri_strip_adj(uint prim, uint vert, uint num_prims,
     *
     * Here we assume the first vertex is provoking, the Vulkan default.
     */
-   uint offsets[6] = {
+   const uint offsets[6] = {
       0,
       first ? 1 : (even ? -2 : 3),
       even_or_first ? 2 : 4,
@@ -212,9 +212,8 @@ first_true_thread_in_workgroup(bool cond, local uint *scratch)
    return (first_group * 32) + off;
 }
 
-// TODO_KOSMICKRISP
 // KERNEL(1024)
-void
+KERNEL(1)
 libkk_unroll_geometry_and_restart(
    constant uint8_t *index_buffer, global uint8_t *out_ptr,
    constant uint32_t *in_draw, global uint32_t *out_draw,

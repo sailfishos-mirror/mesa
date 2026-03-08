@@ -422,6 +422,31 @@ kk_cmd_buffer_flush_push_descriptors(struct kk_cmd_buffer *cmd,
 }
 
 void
+kk_dispatch_precomp(struct kk_cmd_buffer *cmd, struct mtl_size grid,
+                    bool pre_gfx, enum libkk_program idx, void *data,
+                    size_t data_size)
+{
+   struct kk_device *dev = kk_cmd_buffer_device(cmd);
+   struct kk_precompiled_shader *prog = &dev->precompiled_cache.shaders[idx];
+
+   mtl_compute_encoder *encoder =
+      pre_gfx ? kk_encoder_pre_gfx_encoder(cmd) : kk_compute_encoder(cmd);
+
+   struct kk_bo *bo = kk_cmd_allocate_buffer(cmd, data_size, 4u);
+   memcpy(bo->cpu, data, data_size);
+
+   mtl_compute_set_buffer(encoder, bo->map, 0, 0);
+   mtl_compute_set_pipeline_state(encoder, prog->pipeline);
+
+   struct mtl_size local_size = {
+      .x = prog->info.workgroup_size[0],
+      .y = prog->info.workgroup_size[1],
+      .z = prog->info.workgroup_size[2],
+   };
+   mtl_dispatch_threads(encoder, grid, local_size);
+}
+
+void
 kk_cmd_write(struct kk_cmd_buffer *cmd, mtl_buffer *buffer, uint64_t addr,
              uint64_t value)
 {

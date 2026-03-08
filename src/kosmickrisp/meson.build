@@ -5,6 +5,8 @@
 subdir('bridge')
 subdir('compiler')
 subdir('util')
+subdir('clc')
+subdir('libkk')
 subdir('vulkan')
 
 executable(

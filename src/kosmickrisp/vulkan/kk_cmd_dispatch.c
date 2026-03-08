@@ -18,44 +18,6 @@
 
 #include "vk_common_entrypoints.h"
 
-void
-kk_cmd_dispatch_pipeline(struct kk_cmd_buffer *cmd,
-                         mtl_compute_encoder *encoder,
-                         mtl_compute_pipeline_state *pipeline,
-                         const void *push_data, size_t push_size,
-                         uint32_t groupCountX, uint32_t groupCountY,
-                         uint32_t groupCountZ)
-{
-   struct kk_root_descriptor_table *root = NULL;
-   struct kk_bo *bo = kk_cmd_allocate_buffer(cmd, sizeof(*root), 8u);
-   /* kk_cmd_allocate_buffer already sets the error, we can just exit */
-   if (!bo)
-      return;
-
-   root = bo->cpu;
-   assert(push_size <= sizeof(root->push));
-   memcpy(root->push, push_data, push_size);
-   root->cs.base_group[0] = 1; /* TODO_KOSMICKRISP This is hard-coded because we
-                                  know this is the size we create them with */
-   root->cs.base_group[1] = 1;
-   root->cs.base_group[2] = 1;
-
-   mtl_compute_set_buffer(encoder, bo->map, 0, 0);
-   mtl_compute_set_pipeline_state(encoder, pipeline);
-
-   struct mtl_size grid_size = {
-      .x = groupCountX,
-      .y = groupCountY,
-      .z = groupCountZ,
-   };
-   struct mtl_size local_size = {
-      .x = 1,
-      .y = 1,
-      .z = 1,
-   };
-   mtl_dispatch_threads(encoder, grid_size, local_size);
-}
-
 VKAPI_ATTR void VKAPI_CALL
 kk_CmdDispatch(VkCommandBuffer commandBuffer, uint32_t groupCountX,
                uint32_t groupCountY, uint32_t groupCountZ)

@@ -18,6 +18,7 @@ kk_device_dispatch_table_dependencies_list = [
   idep_vulkan_util,
   idep_vulkan_wsi,
   idep_vulkan_wsi_headers,
+  idep_libkk_shaders_h,
 ]
 
 libkk_device_dispatch_table = static_library(
@@ -100,11 +101,6 @@ kk_files = files(
   'kk_wsi.c',
 )
 
-kkcl_files = files(
-  'cl/kk_query.cl',
-  'cl/kk_triangle_fan.cl',
-)
-
 kk_entrypoints = custom_target(
   'kk_entrypoints',
   input : [vk_entrypoints_gen, vk_api_xml],
@@ -119,25 +115,6 @@ kk_entrypoints = custom_target(
 
 relative_dir = fs.relative_to(meson.global_source_root(), meson.global_build_root())
 
-kkcl_spv = custom_target(
-  input : kkcl_files,
-  output : 'kkcl.spv',
-  command : [
-    prog_mesa_clc, '-o', '@OUTPUT@', '--depfile', '@DEPFILE@', kkcl_files, '--',
-    '-I' + join_paths(meson.project_source_root(), 'src/compiler/libcl'),
-    '-I' + join_paths(meson.current_source_dir(), '.'),
-    '-I' + join_paths(meson.project_source_root(), 'src'),
-    cl_args,
-    ],
-  depfile : 'libkk_shaders.h.d',
-)
-
-kkcl = custom_target(
-  input : kkcl_spv,
-  output : ['kkcl.cpp', 'kkcl.h'],
-  command : [prog_vtn_bindgen2, '@INPUT@', '@OUTPUT@'],
-)
-
 kk_deps = [
   idep_nir,
   idep_mesautil,
@@ -148,7 +125,9 @@ kk_deps = [
   kk_device_dispatch_table_dependencies,
   idep_kk_device_dispatch_table,
   idep_msl_to_nir,
-  idep_mtl_bridge
+  idep_mtl_bridge,
+  idep_libkk,
+  idep_libkk_shaders_h,
 ]
 
 libkk = static_library(
@@ -156,7 +135,6 @@ libkk = static_library(
   [
     kk_files,
     kk_entrypoints,
-    kkcl,
     sha1_h,
   ],
   include_directories : [

@@ -72,3 +72,37 @@ bool msl_nir_vs_io_types(nir_shader *nir);
 bool msl_nir_fake_guard_for_discards(struct nir_shader *nir);
 bool msl_nir_lower_sample_shading(nir_shader *nir);
 void msl_lower_nir_late(nir_shader *nir);
+
+static const nir_shader_compiler_options kk_nir_options = {
+   .lower_fdph = true,
+   .has_fsub = true,
+   .has_isub = true,
+   .lower_extract_word = true,
+   .lower_extract_byte = true,
+   .lower_insert_word = true,
+   .lower_insert_byte = true,
+   .lower_fmod = true,
+   .discard_is_demote = true,
+   .instance_id_includes_base_index = true,
+   .lower_device_index_to_zero = true,
+   .lower_pack_64_2x32_split = true,
+   .lower_unpack_64_2x32_split = true,
+   .lower_pack_64_2x32 = true,
+   .lower_pack_half_2x16 = true,
+   .lower_pack_split = true,
+   .lower_unpack_half_2x16 = true,
+   .has_cs_global_id = true,
+   .lower_fquantize2f16 = true,
+   .lower_scmp = true,
+   .lower_ifind_msb = true,
+   .lower_ufind_msb = true,
+   .lower_find_lsb = true,
+   .has_uclz = true,
+   .lower_mul_2x32_64 = true,
+   .lower_uadd_carry = true,
+   .lower_usub_borrow = true,
+   /* Metal does not support double. */
+   .lower_doubles_options = (nir_lower_doubles_options)(~0),
+   .lower_int64_options = nir_lower_ufind_msb64 | nir_lower_subgroup_shuffle64,
+   .io_options = nir_io_mediump_is_32bit,
+};

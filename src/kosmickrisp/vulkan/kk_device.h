@@ -15,6 +15,9 @@
 
 #include "kosmickrisp/bridge/mtl_types.h"
 
+#include "kosmickrisp/clc/kk_precompiled_shader.h"
+#include "libkk_shaders.h"
+
 #include "util/u_dynarray.h"
 
 #include "vk_device.h"
@@ -24,13 +27,6 @@
 struct kk_bo;
 struct kk_physical_device;
 struct vk_pipeline_cache;
-
-enum kk_device_lib_pipeline {
-   KK_LIB_IMM_WRITE = 0,
-   KK_LIB_COPY_QUERY,
-   KK_LIB_TRIANGLE_FAN,
-   KK_LIB_COUNT,
-};
 
 struct kk_residency_set {
    simple_mtx_t mutex;
@@ -75,6 +71,10 @@ struct kk_sampler_heap {
    struct hash_table *ht;
 };
 
+struct kk_precompiled_cache {
+   struct kk_precompiled_shader shaders[LIBKK_NUM_PROGRAMS];
+};
+
 struct kk_device {
    struct vk_device vk;
 
@@ -91,7 +91,7 @@ struct kk_device {
     * recording as required by Metal. */
    struct kk_residency_set residency_set;
 
-   mtl_compute_pipeline_state *lib_pipelines[KK_LIB_COUNT];
+   struct kk_precompiled_cache precompiled_cache;
 
    struct kk_queue queue;
 
@@ -102,14 +102,6 @@ struct kk_device {
 };
 
 VK_DEFINE_HANDLE_CASTS(kk_device, vk.base, VkDevice, VK_OBJECT_TYPE_DEVICE)
-
-static inline mtl_compute_pipeline_state *
-kk_device_lib_pipeline(const struct kk_device *dev,
-                       enum kk_device_lib_pipeline pipeline)
-{
-   assert(pipeline < KK_LIB_COUNT);
-   return dev->lib_pipelines[pipeline];
-}
 
 static inline struct kk_physical_device *
 kk_device_physical(const struct kk_device *dev)

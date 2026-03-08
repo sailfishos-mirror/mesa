@@ -10,13 +10,13 @@
 
 #include "kk_query.h"
 
-void
+KERNEL(1)
 libkk_write_u64(global struct libkk_imm_write *write_array)
 {
    *write_array[cl_group_id.x].address = write_array[cl_group_id.x].value;
 }
 
-void
+KERNEL(1)
 libkk_copy_queries(global uint64_t *availability, global uint64_t *results,
                    global uint16_t *oq_index, uint64_t dst_addr,
                    uint64_t dst_stride, uint32_t first_query,

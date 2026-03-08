@@ -101,6 +101,8 @@ mtl_compute_encoder *kk_compute_encoder(struct kk_cmd_buffer *cmd);
 
 mtl_blit_encoder *kk_blit_encoder(struct kk_cmd_buffer *cmd);
 
+mtl_compute_encoder *kk_encoder_pre_gfx_encoder(struct kk_cmd_buffer *cmd);
+
 void upload_queue_writes(struct kk_cmd_buffer *cmd);
 
 void kk_encoder_render_triangle_fan_indirect(struct kk_cmd_buffer *cmd,
