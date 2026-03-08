@@ -853,14 +853,28 @@ xz_components_unused(const nir_alu_instr *instr)
    return (nir_def_components_read(&instr->def) & 0x5) == 0;
 }
 
-#define RELATION(r, exclude)                                                                         \
+#define RELATION(r, _exclude)                                                                        \
    static inline bool                                                                                \
    is_##r(const nir_search_state *state, const nir_alu_instr *instr,                                 \
           unsigned src, UNUSED unsigned num_components,                                              \
           UNUSED const uint8_t *swizzle)                                                             \
    {                                                                                                 \
+      fp_class_mask exclude = _exclude;                                                              \
+      if (exclude & (FP_CLASS_ANY_INF | FP_CLASS_NAN)) {                                             \
+         /* fp_math_ctrl lets us assume inputs are not NaN/Inf for float sources. */                 \
+         const nir_op_info *op_info = &nir_op_infos[(int)instr->op];                                 \
+         nir_alu_type base_type = nir_alu_type_get_base_type(op_info->input_types[src]);             \
+         if (base_type == nir_type_float) {                                                          \
+            if (!nir_alu_instr_is_inf_preserve(instr))                                               \
+               exclude &= ~FP_CLASS_ANY_INF;                                                         \
+            if (!nir_alu_instr_is_nan_preserve(instr))                                               \
+               exclude &= ~FP_CLASS_NAN;                                                             \
+            if (!exclude)                                                                            \
+               return true;                                                                          \
+         }                                                                                           \
+      }                                                                                              \
       const fp_class_mask fp_class = nir_analyze_fp_class(state->range_ht, instr->src[src].src.ssa); \
-      return (fp_class & (exclude)) == 0;                                                            \
+      return (fp_class & exclude) == 0;                                                              \
    }
 
 #define RELATION_AND_NUM(r, exclude) \
