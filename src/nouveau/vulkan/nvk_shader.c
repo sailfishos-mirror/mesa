@@ -228,8 +228,10 @@ nvk_hash_state(struct vk_physical_device *device,
 
 static bool
 lower_load_intrinsic(nir_builder *b, nir_intrinsic_instr *load,
-                     UNUSED void *_data)
+                     UNUSED void *data)
 {
+   struct nvk_physical_device *pdev = data;
+
    switch (load->intrinsic) {
    case nir_intrinsic_load_ubo: {
       b->cursor = nir_before_instr(&load->instr);
@@ -259,8 +261,12 @@ lower_load_intrinsic(nir_builder *b, nir_intrinsic_instr *load,
       return true;
    }
 
-   case nir_intrinsic_load_global_constant_offset:
-   case nir_intrinsic_load_global_constant_bounded: {
+   case nir_intrinsic_load_global_constant_bounded:
+      /* Handled inside nak_nir_lower_load_store */
+      if (pdev->info.sm >= 73)
+         return false;
+      FALLTHROUGH;
+   case nir_intrinsic_load_global_constant_offset: {
       b->cursor = nir_before_instr(&load->instr);
 
       nir_def *base_addr = load->src[0].ssa;
@@ -346,7 +352,7 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
               struct vk_descriptor_set_layout * const *set_layouts,
               struct nvk_cbuf_map *cbuf_map_out)
 {
-   const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+   struct nvk_physical_device *pdev = nvk_device_physical_mut(dev);
 
    if (nir->info.stage == MESA_SHADER_TESS_EVAL) {
       NIR_PASS(_, nir, nir_lower_patch_vertices,
@@ -437,7 +443,7 @@ nvk_lower_nir(struct nvk_device *dev, nir_shader *nir,
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_ubo,
             nvk_ubo_addr_format(pdev, rs));
    NIR_PASS(_, nir, nir_shader_intrinsics_pass,
-            lower_load_intrinsic, nir_metadata_none, NULL);
+            lower_load_intrinsic, nir_metadata_none, pdev);
 
    NIR_PASS(_, nir, nir_lower_vars_to_explicit_types,
             nir_var_mem_shared, shared_var_info);
