@@ -45,6 +45,8 @@ pan_nir_tile_default_coverage(nir_builder *b)
    return nir_iand_imm(b, nir_load_cumulative_coverage_pan(b), 0x1f);
 }
 
+bool pan_nir_lower_bool_to_bitsize(nir_shader *shader);
+
 bool pan_nir_lower_store_component(nir_shader *shader);
 
 bool pan_nir_lower_vertex_id(nir_shader *shader);

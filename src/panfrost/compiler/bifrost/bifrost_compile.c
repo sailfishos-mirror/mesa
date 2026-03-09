@@ -5885,7 +5885,7 @@ bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust2_mode
    if (pan_arch(gpu_id) < 9)
       NIR_PASS(_, nir, bifrost_nir_opt_boolean_bitwise);
 
-   NIR_PASS(_, nir, nir_lower_bool_to_bitsize);
+   NIR_PASS(_, nir, pan_nir_lower_bool_to_bitsize);
    NIR_PASS(_, nir, nir_lower_alu_width, bi_vectorize_filter, &gpu_id);
    NIR_PASS(_, nir, nir_opt_vectorize, bi_vectorize_filter, &gpu_id);
 

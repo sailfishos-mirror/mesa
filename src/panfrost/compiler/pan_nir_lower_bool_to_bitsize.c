@@ -21,7 +21,7 @@
  * IN THE SOFTWARE.
  */
 
-#include "nir.h"
+#include "pan_nir.h"
 #include "nir_builder.h"
 
 static bool
@@ -396,9 +396,9 @@ lower_tex_instr(nir_tex_instr *tex)
 }
 
 static bool
-nir_lower_bool_to_bitsize_instr(nir_builder *b,
-                                nir_instr *instr,
-                                UNUSED void *cb_data)
+lower_bool_to_bitsize_instr(nir_builder *b,
+                            nir_instr *instr,
+                            UNUSED void *cb_data)
 {
    switch (instr->type) {
    case nir_instr_type_alu:
@@ -427,9 +427,9 @@ nir_lower_bool_to_bitsize_instr(nir_builder *b,
 }
 
 bool
-nir_lower_bool_to_bitsize(nir_shader *shader)
+pan_nir_lower_bool_to_bitsize(nir_shader *shader)
 {
-   return nir_shader_instructions_pass(shader, nir_lower_bool_to_bitsize_instr,
+   return nir_shader_instructions_pass(shader, lower_bool_to_bitsize_instr,
                                        nir_metadata_control_flow,
                                        NULL);
 }
