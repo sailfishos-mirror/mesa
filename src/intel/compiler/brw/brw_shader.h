@@ -286,6 +286,8 @@ uint32_t brw_fb_write_msg_control(const brw_inst *inst,
 
 void brw_compute_urb_setup_index(struct brw_fs_prog_data *fs_prog_data);
 
+void brw_assign_urb_setup(brw_shader &s);
+
 void brw_from_nir(brw_shader *s);
 
 void brw_shader_phase_update(brw_shader &s, enum brw_shader_phase phase);

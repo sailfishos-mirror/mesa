@@ -132,17 +132,6 @@ brw_emit_tcs_thread_end(brw_shader &s)
    urb->components = components;
 }
 
-static void
-brw_assign_tcs_urb_setup(brw_shader &s)
-{
-   assert(s.stage == MESA_SHADER_TESS_CTRL);
-
-   /* Rewrite all ATTR file references to HW_REGs. */
-   foreach_block_and_inst(block, brw_inst, inst, s.cfg) {
-      s.convert_attr_sources_to_hw_regs(inst);
-   }
-}
-
 static bool
 run_tcs(brw_shader &s)
 {
@@ -186,7 +175,7 @@ run_tcs(brw_shader &s)
    brw_optimize(s);
 
    s.assign_curb_setup();
-   brw_assign_tcs_urb_setup(s);
+   brw_assign_urb_setup(s);
 
    brw_lower_3src_null_dest(s);
    brw_workaround_emit_dummy_mov_instruction(s);

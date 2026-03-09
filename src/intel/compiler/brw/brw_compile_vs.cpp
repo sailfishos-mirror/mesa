@@ -10,24 +10,6 @@
 #include "brw_private.h"
 #include "dev/intel_debug.h"
 
-static void
-brw_assign_vs_urb_setup(brw_shader &s)
-{
-   struct brw_vs_prog_data *vs_prog_data = brw_vs_prog_data(s.prog_data);
-
-   assert(s.stage == MESA_SHADER_VERTEX);
-
-   /* Each attribute is 4 regs. */
-   s.first_non_payload_grf += 8 * vs_prog_data->base.urb_read_length;
-
-   assert(vs_prog_data->base.urb_read_length <= 15);
-
-   /* Rewrite all ATTR file references to the hw grf that they land in. */
-   foreach_block_and_inst(block, brw_inst, inst, s.cfg) {
-      s.convert_attr_sources_to_hw_regs(inst);
-   }
-}
-
 static bool
 run_vs(brw_shader &s)
 {
@@ -48,7 +30,7 @@ run_vs(brw_shader &s)
    brw_optimize(s);
 
    s.assign_curb_setup();
-   brw_assign_vs_urb_setup(s);
+   brw_assign_urb_setup(s);
 
    brw_lower_3src_null_dest(s);
    brw_workaround_emit_dummy_mov_instruction(s);

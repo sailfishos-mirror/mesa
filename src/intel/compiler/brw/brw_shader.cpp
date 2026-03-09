@@ -20,6 +20,21 @@
 #include "util/u_math.h"
 
 void
+brw_assign_urb_setup(brw_shader &s)
+{
+   struct brw_vue_prog_data *vue_prog_data = brw_vue_prog_data(s.prog_data);
+   const unsigned verts =
+      s.stage == MESA_SHADER_GEOMETRY ? s.nir->info.gs.vertices_in : 1;
+
+   s.first_non_payload_grf += 8 * vue_prog_data->urb_read_length * verts;
+
+   /* Rewrite all ATTR file references to HW_REGs. */
+   foreach_block_and_inst(block, brw_inst, inst, s.cfg) {
+      s.convert_attr_sources_to_hw_regs(inst);
+   }
+}
+
+void
 brw_shader::emit_tes_terminate()
 {
    assert(stage == MESA_SHADER_TESS_EVAL);
