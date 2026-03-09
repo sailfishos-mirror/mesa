@@ -652,11 +652,18 @@ impl<'a> ShaderFromNir<'a> {
 
                     srcs_vec.push(Some(b.prmt4(prmt_srcs, prmt).into()));
                 }
-                32 => {
-                    assert!(comps == 1);
-                    let s = usize::from(alu_src.swizzle[0]);
-                    srcs_vec.push(Some(ssa[s].into()));
-                }
+                32 => match comps {
+                    1 => {
+                        let s = usize::from(alu_src.swizzle[0]);
+                        srcs_vec.push(Some(ssa[s].into()));
+                    }
+                    2 => {
+                        let s0 = usize::from(alu_src.swizzle[0]);
+                        let s1 = usize::from(alu_src.swizzle[1]);
+                        srcs_vec.push(Some([ssa[s0], ssa[s1]].into()));
+                    }
+                    _ => panic!("Invalid num_components: {comps}"),
+                },
                 64 => {
                     assert!(comps == 1);
                     let s = usize::from(alu_src.swizzle[0]);
