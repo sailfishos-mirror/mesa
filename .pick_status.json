@@ -494,7 +494,7 @@
         "description": "nir/lower_bool_to_bitsize: Make all bN_csel sources match",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
