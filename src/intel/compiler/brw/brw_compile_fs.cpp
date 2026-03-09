@@ -381,7 +381,14 @@ brw_emit_repclear_shader(brw_shader &s)
    brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
    brw_send_inst *write = NULL;
 
-   assert(s.devinfo->ver < 20);
+   /* BSpec 47719 Replicate Data says:
+    *
+    * "Replicate Data Render Target Write message should not be used
+    *  on all projects TGL+."
+    *
+    * See 14017879046, 14017880152 for additional information.
+    */
+   assert(s.devinfo->ver < 12);
    assume(key->nr_color_regions > 0);
 
    brw_reg color_output = retype(brw_vec4_grf(127, 0), BRW_TYPE_UD);
