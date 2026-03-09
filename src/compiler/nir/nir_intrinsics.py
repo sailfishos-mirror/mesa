@@ -94,7 +94,7 @@ class Intrinsic(object):
        for idx in indices:
            self.index_map.append(prefix + 1)
            prefix += idx.size
-       assert prefix <= 8
+       assert prefix <= 9
        self.flags = flags
        self.sysval = sysval
        self.bit_sizes = bit_sizes if isinstance(bit_sizes, list) else []
@@ -294,7 +294,7 @@ index("mesa_scope", "memory_scope")
 index("mesa_scope", "execution_scope")
 
 # Semantics of an IO instruction
-index("struct nir_io_semantics", "io_semantics")
+index("struct nir_io_semantics", "io_semantics", size = 2)
 
 # Transform feedback info
 index("struct nir_io_xfb", "io_xfb", size = 2)

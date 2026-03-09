@@ -1919,7 +1919,7 @@ static inline nir_cmat_reduce nir_cmat_call_reduce_flags(nir_cmat_call_instr *ca
 
 #include "nir_intrinsics.h"
 
-#define NIR_INTRINSIC_MAX_CONST_INDEX 8
+#define NIR_INTRINSIC_MAX_CONST_INDEX 9
 
 /** Represents an intrinsic
  *
@@ -2054,6 +2054,7 @@ typedef struct nir_io_semantics {
    unsigned interp_explicit_strict : 1; /* preserve original vertex order */
    /* Skip nir_validate of the intrinsic. Any new code that sets it will ba NAK'd. */
    unsigned no_validate : 1;
+   unsigned padding;
 } nir_io_semantics;
 
 /* Transform feedback info for 4 outputs. */
