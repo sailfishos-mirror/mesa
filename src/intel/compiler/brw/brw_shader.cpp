@@ -325,47 +325,12 @@ brw_barycentric_mode(const struct brw_fs_prog_key *key,
 bool
 brw_shader::mark_last_urb_write_with_eot()
 {
-   brw_inst *limit = NULL;
-   foreach_block_reverse(block, cfg) {
-      foreach_inst_in_block_reverse(brw_inst, inst, block) {
-         if (inst->opcode == SHADER_OPCODE_URB_WRITE_LOGICAL) {
-            inst->eot = true;
-            limit = inst;
-            break;
-         } else if (inst->is_control_flow() || inst->has_side_effects()) {
-            limit = inst;
-            break;
-         }
-      }
-
-      if (limit)
-         break;
+   brw_inst *inst = cfg->last_block()->end();
+   if (inst && inst->opcode == SHADER_OPCODE_URB_WRITE_LOGICAL) {
+      inst->eot = true;
+      return true;
    }
-
-   if (!limit || !limit->eot)
-      return false;
-
-   brw_analysis_dependency_class dep = BRW_DEPENDENCY_INSTRUCTION_DETAIL;
-
-   /* Delete now dead instructions. */
-   bool done = false;
-   foreach_block_reverse(block, cfg) {
-      foreach_inst_in_block_reverse_safe(brw_inst, dead, block) {
-         if (dead == limit) {
-            done = true;
-            break;
-         }
-
-         dep = dep | BRW_DEPENDENCY_INSTRUCTION_IDENTITY;
-         dead->remove();
-      }
-
-      if (done)
-         break;
-   }
-
-   invalidate_analysis(dep);
-   return true;
+   return false;
 }
 
 void
