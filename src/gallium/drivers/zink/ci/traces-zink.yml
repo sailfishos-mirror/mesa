@@ -364,7 +364,10 @@ traces:
     gl-zink-anv-tgl:
       checksum: 7789205e8b4d160dc81e3684f0627a38
     zink-radv-vangogh:
-      checksum: b7393d5d8c0aa09485880ccd6310fed8
+      # checksum: b7393d5d8c0aa09485880ccd6310fed8
+      # checksum: 8697a6c6d4f360bfdc008d6a30588799
+      text: oscillates between the two checksums above
+      label: [skip, flakes]
     zink-radv-gfx1201:
       # checksum: b7393d5d8c0aa09485880ccd6310fed8
       # checksum: 870de613d477af42e9b3f81a081d4e7f
