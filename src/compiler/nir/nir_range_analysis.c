@@ -201,7 +201,7 @@ fp_lookup(void *table, uint32_t key, uint32_t *value)
 {
    nir_fp_analysis_state *state = table;
    if (BITSET_TEST(state->bitset, key)) {
-      *value = *(uint32_t *)util_sparse_array_get(&state->arr, key);
+      *value = *(uint16_t *)util_sparse_array_get(&state->arr, key);
       return true;
    } else {
       return false;
@@ -214,7 +214,7 @@ fp_insert(void *table, uint32_t key, uint32_t value)
    nir_fp_analysis_state *state = table;
    BITSET_SET(state->bitset, key);
    state->max = MAX2(state->max, (int)key);
-   *(uint32_t *)util_sparse_array_get(&state->arr, key) = value;
+   *(uint16_t *)util_sparse_array_get(&state->arr, key) = value;
 }
 
 static fp_class_mask
@@ -1398,7 +1398,7 @@ nir_create_fp_analysis_state(nir_function_impl *impl)
    state.size = BITSET_BYTES(impl->ssa_alloc + impl->ssa_alloc / 4u);
    state.max = -1;
    state.bitset = calloc(state.size, 1);
-   util_sparse_array_init(&state.arr, 4, 256);
+   util_sparse_array_init(&state.arr, 2, 256);
    return state;
 }
 
