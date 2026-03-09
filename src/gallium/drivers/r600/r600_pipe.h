@@ -487,6 +487,10 @@ struct r600_lds_constant_buffer {
 	uint32_t instance_base;
 	uint32_t vertex_base;
 	uint32_t draw_id;
+
+	/* gl_PrimitiveID instanced compatibility */
+	uint32_t primitiveid_modulo;
+	uint32_t primitiveid_inverse;
 };
 
 struct r600_context {
@@ -827,7 +831,8 @@ void evergreen_dma_copy_buffer(struct r600_context *rctx,
 void evergreen_setup_tess_constants(struct r600_context *rctx,
 				    const struct pipe_draw_info *info,
 				    unsigned *num_patches,
-				    const bool vertexid);
+				    const bool vertexid,
+				    const uint32_t primitiveid_modulo);
 uint32_t evergreen_get_ls_hs_config(struct r600_context *rctx,
 				    const struct pipe_draw_info *info,
 				    unsigned num_patches);

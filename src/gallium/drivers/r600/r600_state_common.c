@@ -2169,7 +2169,8 @@ r600_draw_parameters(struct r600_context *rctx,
 		     const bool is_mapped,
 		     const uint8_t **indirect_ptr,
 		     unsigned *num_patches,
-		     unsigned *cs_space)
+		     unsigned *cs_space,
+		     const uint32_t primitiveid_modulo)
 {
 	const bool draw_parameters_enabled =
 		rctx->vs_shader->current->shader.vs_draw_parameters_enabled;
@@ -2214,7 +2215,7 @@ r600_draw_parameters(struct r600_context *rctx,
 		*cs_space += R600_DRAW_PARAMETERS_DRAW_INDIRECT_CS * indirect->draw_count;
 	}
 
-	evergreen_setup_tess_constants(rctx, info, num_patches, draw_parameters_enabled);
+	evergreen_setup_tess_constants(rctx, info, num_patches, draw_parameters_enabled, primitiveid_modulo);
 
 	return unlikely(indirect) ?
 		indirect->draw_count :
@@ -2728,7 +2729,10 @@ static void r600_draw_vbo(struct pipe_context *ctx, const struct pipe_draw_info 
 						       false,
 						       &indirect_ptr,
 						       &num_patches,
-						       &cs_space);
+						       &cs_space,
+						       unlikely(info->instance_count > 1 && rctx->patch_vertices) ?
+						       draws[0].count / rctx->patch_vertices :
+						       ~0);
 		r600_indirect_parameters_init(rctx,
 					      cs,
 					      indirect,
@@ -2988,7 +2992,8 @@ static void r600_draw_vbo(struct pipe_context *ctx, const struct pipe_draw_info 
 				     true,
 				     &indirect_ptr,
 				     &num_patches,
-				     &cs_space);
+				     &cs_space,
+				     ~0);
 
 		assert(radeon_check_cs(rctx, cs) || true);
 

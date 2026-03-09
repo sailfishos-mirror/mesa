@@ -4970,7 +4970,8 @@ void evergreen_init_state_functions(struct r600_context *rctx)
 void evergreen_setup_tess_constants(struct r600_context *rctx,
 				    const struct pipe_draw_info *info,
 				    unsigned *num_patches,
-				    const bool vertexid)
+				    const bool vertexid,
+				    const uint32_t primitiveid_modulo)
 {
 	struct r600_pipe_shader_selector *tcs = rctx->tcs_shader ? rctx->tcs_shader : rctx->tes_shader;
 	struct r600_pipe_shader_selector *ls = rctx->vs_shader;
@@ -5048,6 +5049,12 @@ void evergreen_setup_tess_constants(struct r600_context *rctx,
 	rctx->lds_constant_buffer.output_vertex_size = output_vertex_size;
 	rctx->lds_constant_buffer.output_patch0_offset = output_patch0_offset;
 	rctx->lds_constant_buffer.perpatch_output_offset = perpatch_output_offset;
+
+	rctx->lds_constant_buffer.primitiveid_modulo = primitiveid_modulo;
+	rctx->lds_constant_buffer.primitiveid_inverse =
+		primitiveid_modulo == (uint32_t)(~0) ?
+		0 :
+		(((uint64_t)1) << 32) / primitiveid_modulo + 1;
 
 	/* docs say HS_NUM_WAVES - CEIL((LS_HS_CONFIG.NUM_PATCHES *
 	   LS_HS_CONFIG.HS_NUM_OUTPUT_CP) / (NUM_GOOD_PIPES * 16)) */
