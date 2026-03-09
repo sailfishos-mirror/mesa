@@ -45,6 +45,7 @@ template <chip CHIP>
 static void
 emit_shader_regs(struct fd_context *ctx, fd_cs &cs, const struct ir3_shader_variant *so)
 {
+   struct fd_screen *screen = ctx->screen;
    fd_crb crb(cs, 14);
 
    mesa_shader_stage type = so->type;
@@ -85,13 +86,15 @@ emit_shader_regs(struct fd_context *ctx, fd_cs &cs, const struct ir3_shader_vari
    enum a6xx_threadsize thrsz =
       so->info.double_threadsize ? THREAD128 : THREAD64;
 
-   ir3_get_private_mem(ctx, so);
+   fd_screen_lock(screen);
+   ir3_get_private_mem(screen, so);
 
-   uint32_t per_sp_size = ctx->pvtmem[so->pvtmem_per_wave].per_sp_size;
+   auto pvtmem = &screen->pvtmem[so->pvtmem_per_wave];
+   uint32_t per_sp_size = pvtmem->per_sp_size;
    struct fd_bo *pvtmem_bo = NULL;
 
    if (so->pvtmem_size > 0) { /* SP_xS_PVT_MEM_ADDR */
-      pvtmem_bo = ctx->pvtmem[so->pvtmem_per_wave].bo;
+      pvtmem_bo = pvtmem->bo;
       crb.attach_bo(pvtmem_bo);
    }
 
@@ -110,7 +113,7 @@ emit_shader_regs(struct fd_context *ctx, fd_cs &cs, const struct ir3_shader_vari
       crb.add(A6XX_SP_VS_PROGRAM_COUNTER_OFFSET());
       crb.add(A6XX_SP_VS_BASE(so->bo));
       crb.add(A6XX_SP_VS_PVT_MEM_PARAM(
-         .memsizeperitem = ctx->pvtmem[so->pvtmem_per_wave].per_fiber_size,
+         .memsizeperitem = pvtmem->per_fiber_size,
       ));
       crb.add(A6XX_SP_VS_PVT_MEM_BASE(pvtmem_bo));
       crb.add(A6XX_SP_VS_PVT_MEM_SIZE(
@@ -132,7 +135,7 @@ emit_shader_regs(struct fd_context *ctx, fd_cs &cs, const struct ir3_shader_vari
       crb.add(A6XX_SP_HS_PROGRAM_COUNTER_OFFSET());
       crb.add(A6XX_SP_HS_BASE(so->bo));
       crb.add(A6XX_SP_HS_PVT_MEM_PARAM(
-         .memsizeperitem = ctx->pvtmem[so->pvtmem_per_wave].per_fiber_size,
+         .memsizeperitem = pvtmem->per_fiber_size,
       ));
       crb.add(A6XX_SP_HS_PVT_MEM_BASE(pvtmem_bo));
       crb.add(A6XX_SP_HS_PVT_MEM_SIZE(
@@ -154,7 +157,7 @@ emit_shader_regs(struct fd_context *ctx, fd_cs &cs, const struct ir3_shader_vari
       crb.add(A6XX_SP_DS_PROGRAM_COUNTER_OFFSET());
       crb.add(A6XX_SP_DS_BASE(so->bo));
       crb.add(A6XX_SP_DS_PVT_MEM_PARAM(
-         .memsizeperitem = ctx->pvtmem[so->pvtmem_per_wave].per_fiber_size,
+         .memsizeperitem = pvtmem->per_fiber_size,
       ));
       crb.add(A6XX_SP_DS_PVT_MEM_BASE(pvtmem_bo));
       crb.add(A6XX_SP_DS_PVT_MEM_SIZE(
@@ -176,7 +179,7 @@ emit_shader_regs(struct fd_context *ctx, fd_cs &cs, const struct ir3_shader_vari
       crb.add(A6XX_SP_GS_PROGRAM_COUNTER_OFFSET());
       crb.add(A6XX_SP_GS_BASE(so->bo));
       crb.add(A6XX_SP_GS_PVT_MEM_PARAM(
-         .memsizeperitem = ctx->pvtmem[so->pvtmem_per_wave].per_fiber_size,
+         .memsizeperitem = pvtmem->per_fiber_size,
       ));
       crb.add(A6XX_SP_GS_PVT_MEM_BASE(pvtmem_bo));
       crb.add(A6XX_SP_GS_PVT_MEM_SIZE(
@@ -210,7 +213,7 @@ emit_shader_regs(struct fd_context *ctx, fd_cs &cs, const struct ir3_shader_vari
       crb.add(A6XX_SP_PS_PROGRAM_COUNTER_OFFSET());
       crb.add(A6XX_SP_PS_BASE(so->bo));
       crb.add(A6XX_SP_PS_PVT_MEM_PARAM(
-         .memsizeperitem = ctx->pvtmem[so->pvtmem_per_wave].per_fiber_size,
+         .memsizeperitem = pvtmem->per_fiber_size,
       ));
       crb.add(A6XX_SP_PS_PVT_MEM_BASE(pvtmem_bo));
       crb.add(A6XX_SP_PS_PVT_MEM_SIZE(
@@ -235,7 +238,7 @@ emit_shader_regs(struct fd_context *ctx, fd_cs &cs, const struct ir3_shader_vari
       crb.add(A6XX_SP_CS_PROGRAM_COUNTER_OFFSET());
       crb.add(A6XX_SP_CS_BASE(so->bo));
       crb.add(A6XX_SP_CS_PVT_MEM_PARAM(
-         .memsizeperitem = ctx->pvtmem[so->pvtmem_per_wave].per_fiber_size,
+         .memsizeperitem = pvtmem->per_fiber_size,
       ));
       crb.add(A6XX_SP_CS_PVT_MEM_BASE(pvtmem_bo));
       crb.add(A6XX_SP_CS_PVT_MEM_SIZE(
@@ -249,6 +252,8 @@ emit_shader_regs(struct fd_context *ctx, fd_cs &cs, const struct ir3_shader_vari
    default:
       UNREACHABLE("bad shader stage");
    }
+
+   fd_screen_unlock(screen);
 }
 
 template <chip CHIP>

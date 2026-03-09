@@ -68,23 +68,28 @@ fd5_emit_shader_obj(struct fd_context *ctx, struct fd_ringbuffer *ring,
                     const struct ir3_shader_variant *so,
                     uint32_t shader_obj_reg)
 {
-   ir3_get_private_mem(ctx, so);
+   struct fd_screen *screen = ctx->screen;
+
+   fd_screen_lock(screen);
+   ir3_get_private_mem(screen, so);
 
    OUT_PKT4(ring, shader_obj_reg, 6);
    OUT_RELOC(ring, so->bo, 0, 0, 0); /* SP_VS_OBJ_START */
 
-   uint32_t per_sp_size = ctx->pvtmem[so->pvtmem_per_wave].per_sp_size;
+   uint32_t per_sp_size = screen->pvtmem[so->pvtmem_per_wave].per_sp_size;
    OUT_RING(ring, A5XX_SP_VS_PVT_MEM_PARAM_MEMSIZEPERITEM(
-                     ctx->pvtmem[so->pvtmem_per_wave].per_fiber_size) |
+                     screen->pvtmem[so->pvtmem_per_wave].per_fiber_size) |
                      A5XX_SP_VS_PVT_MEM_PARAM_HWSTACKOFFSET(per_sp_size));
    if (so->pvtmem_size > 0) { /* SP_xS_PVT_MEM_ADDR */
-      OUT_RELOC(ring, ctx->pvtmem[so->pvtmem_per_wave].bo, 0, 0, 0);
-      fd_ringbuffer_attach_bo(ring, ctx->pvtmem[so->pvtmem_per_wave].bo);
+      OUT_RELOC(ring, screen->pvtmem[so->pvtmem_per_wave].bo, 0, 0, 0);
+      fd_ringbuffer_attach_bo(ring, screen->pvtmem[so->pvtmem_per_wave].bo);
    } else {
       OUT_RING(ring, 0);
       OUT_RING(ring, 0);
    }
    OUT_RING(ring, A5XX_SP_VS_PVT_MEM_SIZE_TOTALPVTMEMSIZE(per_sp_size));
+
+   fd_screen_unlock(screen);
 }
 
 /* TODO maybe some of this we could pre-compute once rather than having

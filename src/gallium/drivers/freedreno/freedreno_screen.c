@@ -149,6 +149,11 @@ fd_screen_destroy(struct pipe_screen *pscreen)
    if (screen->tess_bo)
       fd_bo_del(screen->tess_bo);
 
+   for (int i = 0; i < ARRAY_SIZE(screen->pvtmem); i++) {
+      if (screen->pvtmem[i].bo)
+         fd_bo_del(screen->pvtmem[i].bo);
+   }
+
    if (screen->pipe)
       fd_pipe_del(screen->pipe);
 
