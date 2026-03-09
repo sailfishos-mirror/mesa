@@ -179,20 +179,6 @@ vtn_nir_alu_op_for_spirv_glsl_opcode(struct vtn_builder *b,
    case GLSLstd450FindSMsb:      return nir_op_ifind_msb;
    case GLSLstd450FindUMsb:      return nir_op_ufind_msb;
 
-   /* Packing/Unpacking functions */
-   case GLSLstd450PackSnorm4x8:     return nir_op_pack_snorm_4x8;
-   case GLSLstd450PackUnorm4x8:     return nir_op_pack_unorm_4x8;
-   case GLSLstd450PackSnorm2x16:    return nir_op_pack_snorm_2x16;
-   case GLSLstd450PackUnorm2x16:    return nir_op_pack_unorm_2x16;
-   case GLSLstd450PackHalf2x16:     return nir_op_pack_half_2x16;
-   case GLSLstd450PackDouble2x32:   return nir_op_pack_64_2x32;
-   case GLSLstd450UnpackSnorm4x8:   return nir_op_unpack_snorm_4x8;
-   case GLSLstd450UnpackUnorm4x8:   return nir_op_unpack_unorm_4x8;
-   case GLSLstd450UnpackSnorm2x16:  return nir_op_unpack_snorm_2x16;
-   case GLSLstd450UnpackUnorm2x16:  return nir_op_unpack_unorm_2x16;
-   case GLSLstd450UnpackHalf2x16:   return nir_op_unpack_half_2x16;
-   case GLSLstd450UnpackDouble2x32: return nir_op_unpack_64_2x32;
-
    default:
       vtn_fail("No NIR equivalent");
    }
@@ -206,33 +192,9 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
 {
    struct nir_builder *nb = &b->nb;
    const struct glsl_type *dest_type = vtn_get_type(b, w[1])->type;
-   struct vtn_value *dest_val = vtn_untyped_value(b, w[2]);
 
-   bool mediump_16bit;
-   switch (entrypoint) {
-   case GLSLstd450PackSnorm4x8:
-   case GLSLstd450PackUnorm4x8:
-   case GLSLstd450PackSnorm2x16:
-   case GLSLstd450PackUnorm2x16:
-   case GLSLstd450PackHalf2x16:
-   case GLSLstd450PackDouble2x32:
-   case GLSLstd450UnpackSnorm4x8:
-   case GLSLstd450UnpackUnorm4x8:
-   case GLSLstd450UnpackSnorm2x16:
-   case GLSLstd450UnpackUnorm2x16:
-   case GLSLstd450UnpackHalf2x16:
-   case GLSLstd450UnpackDouble2x32:
-      /* Asking for relaxed precision snorm 4x8 pack results (for example)
-       * doesn't even make sense.  The NIR opcodes have a fixed output size, so
-       * no trying to reduce precision.
-       */
-      mediump_16bit = false;
-      break;
-
-   default:
-      mediump_16bit = vtn_value_needs_mediump_16bit(b, dest_val);
-      break;
-   }
+   const bool mediump_16bit =
+      vtn_value_needs_mediump_16bit(b, vtn_untyped_value(b, w[2]));
 
    unsigned num_inputs = count - 5;
    struct vtn_ssa_value *vtn_src[3] = {0};
@@ -623,6 +585,44 @@ handle_glsl450_modf_frexp(struct vtn_builder *b, enum GLSLstd450 opcode,
    vtn_push_ssa_value(b, w[2], dest);
 }
 
+static void
+handle_glsl450_packing_ops(struct vtn_builder *b, enum GLSLstd450 opcode,
+                           const uint32_t *w, unsigned count)
+{
+   const struct glsl_type *dest_type = vtn_get_type(b, w[1])->type;
+
+   /* Asking for relaxed precision snorm 4x8 pack results (for example)
+    * doesn't even make sense.  The NIR opcodes have a fixed output size, so
+    * no trying to reduce precision.
+    */
+
+   struct vtn_ssa_value *vtn_src = {0};
+   vtn_collect_ssa_sources(b, &w[5], &vtn_src, 1);
+
+   nir_op op;
+   switch (opcode) {
+   case GLSLstd450PackSnorm4x8:     op = nir_op_pack_snorm_4x8;    break;
+   case GLSLstd450PackUnorm4x8:     op = nir_op_pack_unorm_4x8;    break;
+   case GLSLstd450PackSnorm2x16:    op = nir_op_pack_snorm_2x16;   break;
+   case GLSLstd450PackUnorm2x16:    op = nir_op_pack_unorm_2x16;   break;
+   case GLSLstd450PackHalf2x16:     op = nir_op_pack_half_2x16;    break;
+   case GLSLstd450PackDouble2x32:   op = nir_op_pack_64_2x32;      break;
+   case GLSLstd450UnpackSnorm4x8:   op = nir_op_unpack_snorm_4x8;  break;
+   case GLSLstd450UnpackUnorm4x8:   op = nir_op_unpack_unorm_4x8;  break;
+   case GLSLstd450UnpackSnorm2x16:  op = nir_op_unpack_snorm_2x16; break;
+   case GLSLstd450UnpackUnorm2x16:  op = nir_op_unpack_unorm_2x16; break;
+   case GLSLstd450UnpackHalf2x16:   op = nir_op_unpack_half_2x16;  break;
+   case GLSLstd450UnpackDouble2x32: op = nir_op_unpack_64_2x32;    break;
+   default:
+      UNREACHABLE("invalid opcode for packing op");
+   }
+
+   struct vtn_ssa_value *dest = vtn_create_ssa_value(b, dest_type);
+   dest->def = nir_build_alu1(&b->nb, op, vtn_src->def);
+
+   vtn_push_ssa_value(b, w[2], dest);
+}
+
 bool
 vtn_handle_glsl450_instruction(struct vtn_builder *b, SpvOp ext_opcode,
                                const uint32_t *w, unsigned count)
@@ -650,6 +650,21 @@ vtn_handle_glsl450_instruction(struct vtn_builder *b, SpvOp ext_opcode,
    case GLSLstd450ModfStruct:
    case GLSLstd450FrexpStruct:
       handle_glsl450_modf_frexp(b, (enum GLSLstd450)ext_opcode, w, count);
+      break;
+
+   case GLSLstd450PackSnorm4x8:
+   case GLSLstd450PackUnorm4x8:
+   case GLSLstd450PackSnorm2x16:
+   case GLSLstd450PackUnorm2x16:
+   case GLSLstd450PackHalf2x16:
+   case GLSLstd450PackDouble2x32:
+   case GLSLstd450UnpackSnorm4x8:
+   case GLSLstd450UnpackUnorm4x8:
+   case GLSLstd450UnpackSnorm2x16:
+   case GLSLstd450UnpackUnorm2x16:
+   case GLSLstd450UnpackHalf2x16:
+   case GLSLstd450UnpackDouble2x32:
+      handle_glsl450_packing_ops(b, (enum GLSLstd450)ext_opcode, w, count);
       break;
 
    default:
