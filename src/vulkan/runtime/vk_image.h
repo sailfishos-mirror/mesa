@@ -405,6 +405,8 @@ vk_image_view_subresource_range(const struct vk_image_view *view)
 bool vk_image_layout_is_read_only(VkImageLayout layout,
                                   VkImageAspectFlagBits aspect);
 bool vk_image_layout_is_depth_only(VkImageLayout layout);
+VkImageLayout vk_image_layout_depth_only(VkImageLayout layout);
+VkImageLayout vk_image_layout_stencil_only(VkImageLayout layout);
 
 VkImageUsageFlags vk_image_layout_to_usage_flags(VkImageLayout layout,
                                                  VkImageAspectFlagBits aspect);

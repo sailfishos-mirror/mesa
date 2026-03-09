@@ -810,6 +810,44 @@ vk_image_layout_is_depth_only(VkImageLayout layout)
    }
 }
 
+VkImageLayout
+vk_image_layout_depth_only(VkImageLayout layout)
+{
+   switch (layout) {
+   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+   case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
+      return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+
+   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+   case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
+      return VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+
+   default:
+      return layout;
+   }
+}
+
+VkImageLayout
+vk_image_layout_stencil_only(VkImageLayout layout)
+{
+   switch (layout) {
+   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+   case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
+      return VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+
+   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+   case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
+      return VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
+
+   default:
+      return layout;
+   }
+}
+
 static VkResult
 vk_image_create_get_format_list_uncompressed(struct vk_device *device,
                                              const VkImageCreateInfo *pCreateInfo,
