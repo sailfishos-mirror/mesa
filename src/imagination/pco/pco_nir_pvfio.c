@@ -359,8 +359,7 @@ static nir_def *lower_pfo_store(nir_builder *b,
                        .src_type = nir_type_invalid | 32,
                        .component = component,
                        .io_semantics = io_semantics,
-                       .io_xfb = nir_intrinsic_io_xfb(intr),
-                       .io_xfb2 = nir_intrinsic_io_xfb2(intr));
+                       .io_xfb = nir_intrinsic_io_xfb(intr));
 
    util_dynarray_append(&state->stores, store);
 

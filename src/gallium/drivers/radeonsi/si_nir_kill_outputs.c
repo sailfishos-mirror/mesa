@@ -63,7 +63,6 @@ bool si_nir_kill_outputs(nir_shader *nir, const union si_shader_key *key)
             /* Clear xfb info if the output is used as a sysval or varying. */
             static const nir_io_xfb zeroed;
             nir_intrinsic_set_io_xfb(intr, zeroed);
-            nir_intrinsic_set_io_xfb2(intr, zeroed);
             progress = true;
          }
 

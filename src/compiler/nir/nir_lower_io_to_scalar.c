@@ -144,11 +144,10 @@ lower_store_output_to_scalar(nir_builder *b, nir_intrinsic_instr *intr)
       bool has_xfb = false;
 
       if (nir_intrinsic_has_io_xfb(intr)) {
+         nir_io_xfb xfb = nir_intrinsic_io_xfb(intr);
          /* Find out which components are written via xfb. */
          for (unsigned c = 0; c <= new_component; c++) {
-            nir_io_xfb xfb = c < 2 ? nir_intrinsic_io_xfb(intr) : nir_intrinsic_io_xfb2(intr);
-
-            if (new_component < c + xfb.out[c % 2].num_components) {
+            if (new_component < c + xfb.out[c].num_components) {
                has_xfb = true;
                break;
             }
@@ -187,21 +186,17 @@ lower_store_output_to_scalar(nir_builder *b, nir_intrinsic_instr *intr)
 
       if (nir_intrinsic_has_io_xfb(intr)) {
          /* Scalarize transform feedback info. */
+         nir_io_xfb xfb = nir_intrinsic_io_xfb(intr);
          for (unsigned c = 0; c <= new_component; c++) {
-            nir_io_xfb xfb = c < 2 ? nir_intrinsic_io_xfb(intr) : nir_intrinsic_io_xfb2(intr);
-
-            if (new_component < c + xfb.out[c % 2].num_components) {
+            if (new_component < c + xfb.out[c].num_components) {
                nir_io_xfb scalar_xfb;
 
                memset(&scalar_xfb, 0, sizeof(scalar_xfb));
-               scalar_xfb.out[new_component % 2].num_components = is_64bit ? 2 : 1;
-               scalar_xfb.out[new_component % 2].buffer = xfb.out[c % 2].buffer;
-               scalar_xfb.out[new_component % 2].offset = xfb.out[c % 2].offset +
+               scalar_xfb.out[new_component].num_components = is_64bit ? 2 : 1;
+               scalar_xfb.out[new_component].buffer = xfb.out[c].buffer;
+               scalar_xfb.out[new_component].offset = xfb.out[c].offset +
                                                           new_component - c;
-               if (new_component < 2)
-                  nir_intrinsic_set_io_xfb(chan_intr, scalar_xfb);
-               else
-                  nir_intrinsic_set_io_xfb2(chan_intr, scalar_xfb);
+               nir_intrinsic_set_io_xfb(chan_intr, scalar_xfb);
                break;
             }
          }

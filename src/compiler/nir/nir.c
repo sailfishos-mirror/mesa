@@ -3642,12 +3642,12 @@ nir_instr_xfb_write_mask(nir_intrinsic_instr *instr)
       unsigned wr_mask = nir_intrinsic_write_mask(instr) << nir_intrinsic_component(instr);
       assert((wr_mask & ~0xf) == 0); /* only 4 components allowed */
 
+      nir_io_xfb xfb = nir_intrinsic_io_xfb(instr);
       unsigned iter_mask = wr_mask;
       while (iter_mask) {
          unsigned i = u_bit_scan(&iter_mask);
-         nir_io_xfb xfb = i < 2 ? nir_intrinsic_io_xfb(instr) : nir_intrinsic_io_xfb2(instr);
-         if (xfb.out[i % 2].num_components)
-            mask |= BITFIELD_RANGE(i, xfb.out[i % 2].num_components) & wr_mask;
+         if (xfb.out[i].num_components)
+            mask |= BITFIELD_RANGE(i, xfb.out[i].num_components) & wr_mask;
       }
    }
 

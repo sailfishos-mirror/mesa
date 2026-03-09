@@ -927,10 +927,7 @@ has_xfb(nir_intrinsic_instr *intr)
 
    unsigned comp = nir_intrinsic_component(intr);
 
-   if (comp >= 2)
-      return nir_intrinsic_io_xfb2(intr).out[comp - 2].num_components > 0;
-   else
-      return nir_intrinsic_io_xfb(intr).out[comp].num_components > 0;
+   return nir_intrinsic_io_xfb(intr).out[comp].num_components > 0;
 }
 
 static bool
@@ -4187,24 +4184,13 @@ relocate_slot(struct linkage_info *linkage, struct scalar_slot *slot,
           */
          if (has_xfb(intr)) {
             unsigned old_component = nir_intrinsic_component(intr);
-            static const nir_io_xfb clear_xfb;
             nir_io_xfb xfb;
-            bool new_is_odd = new_component % 2 == 1;
 
             memset(&xfb, 0, sizeof(xfb));
 
-            if (old_component >= 2) {
-               xfb.out[new_is_odd] = nir_intrinsic_io_xfb2(intr).out[old_component - 2];
-               nir_intrinsic_set_io_xfb2(intr, clear_xfb);
-            } else {
-               xfb.out[new_is_odd] = nir_intrinsic_io_xfb(intr).out[old_component];
-               nir_intrinsic_set_io_xfb(intr, clear_xfb);
-            }
+            xfb.out[new_component] = nir_intrinsic_io_xfb(intr).out[old_component];
 
-            if (new_component >= 2)
-               nir_intrinsic_set_io_xfb2(intr, xfb);
-            else
-               nir_intrinsic_set_io_xfb(intr, xfb);
+            nir_intrinsic_set_io_xfb(intr, xfb);
          }
 
          nir_io_semantics sem = nir_intrinsic_io_semantics(intr);

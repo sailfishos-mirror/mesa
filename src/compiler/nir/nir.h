@@ -2056,10 +2056,7 @@ typedef struct nir_io_semantics {
    unsigned no_validate : 1;
 } nir_io_semantics;
 
-/* Transform feedback info for 2 outputs. nir_intrinsic_store_output contains
- * this structure twice to support up to 4 outputs. The structure is limited
- * to 32 bits because it's stored in nir_intrinsic_instr::const_index[].
- */
+/* Transform feedback info for 4 outputs. */
 typedef struct nir_io_xfb {
    struct {
       /* start_component is equal to the index of out[]; add 2 for io_xfb2 */
@@ -2069,7 +2066,7 @@ typedef struct nir_io_xfb {
       uint8_t buffer : 4;         /* buffer index, max 3 */
       uint8_t offset;             /* transform feedback buffer offset in dwords,
                                      max (1K - 4) bytes */
-   } out[2];
+   } out[4];
 } nir_io_xfb;
 
 unsigned

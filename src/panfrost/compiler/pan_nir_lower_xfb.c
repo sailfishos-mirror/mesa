@@ -62,17 +62,14 @@ lower_xfb(nir_builder *b, nir_intrinsic_instr *intr, UNUSED void *data)
 
    b->cursor = nir_before_instr(&intr->instr);
 
-   for (unsigned i = 0; i < 2; ++i) {
-      nir_io_xfb xfb =
-         i ? nir_intrinsic_io_xfb2(intr) : nir_intrinsic_io_xfb(intr);
-      for (unsigned j = 0; j < 2; ++j) {
-         if (!xfb.out[j].num_components)
-            continue;
+   nir_io_xfb xfb = nir_intrinsic_io_xfb(intr);
+   for (unsigned i = 0; i < 4; ++i) {
+      if (!xfb.out[i].num_components)
+         continue;
 
-         lower_xfb_output(b, intr, i * 2 + j, xfb.out[j].num_components,
-                          xfb.out[j].buffer, xfb.out[j].offset);
-         progress = true;
-      }
+      lower_xfb_output(b, intr, i, xfb.out[i].num_components,
+                        xfb.out[i].buffer, xfb.out[i].offset);
+      progress = true;
    }
 
    nir_instr_remove(&intr->instr);

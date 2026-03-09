@@ -1604,14 +1604,11 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
          break;
       }
 
-      case NIR_INTRINSIC_IO_XFB:
-      case NIR_INTRINSIC_IO_XFB2: {
-         /* This prints both IO_XFB and IO_XFB2. */
-         fprintf(fp, "xfb%s(", idx == NIR_INTRINSIC_IO_XFB ? "" : "2");
+      case NIR_INTRINSIC_IO_XFB: {
+         fprintf(fp, "xfb(");
          bool first = true;
-         for (unsigned i = 0; i < 2; i++) {
-            unsigned start_comp = (idx == NIR_INTRINSIC_IO_XFB ? 0 : 2) + i;
-            nir_io_xfb xfb = start_comp < 2 ? nir_intrinsic_io_xfb(instr) : nir_intrinsic_io_xfb2(instr);
+         for (unsigned i = 0; i < 4; i++) {
+            nir_io_xfb xfb = nir_intrinsic_io_xfb(instr);
 
             if (!xfb.out[i].num_components)
                continue;
@@ -1622,9 +1619,9 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
 
             if (xfb.out[i].num_components > 1) {
                fprintf(fp, "components=%u..%u",
-                       start_comp, start_comp + xfb.out[i].num_components - 1);
+                       i, i + xfb.out[i].num_components - 1);
             } else {
-               fprintf(fp, "component=%u", start_comp);
+               fprintf(fp, "component=%u", i);
             }
             fprintf(fp, " buffer=%u offset=%u",
                     xfb.out[i].buffer, (uint32_t)xfb.out[i].offset * 4);

@@ -297,8 +297,7 @@ index("mesa_scope", "execution_scope")
 index("struct nir_io_semantics", "io_semantics")
 
 # Transform feedback info
-index("struct nir_io_xfb", "io_xfb")
-index("struct nir_io_xfb", "io_xfb2")
+index("struct nir_io_xfb", "io_xfb", size = 2)
 
 # Ray query values accessible from the RayQueryKHR object
 index("nir_ray_query_value", "ray_query_value")
@@ -1327,7 +1326,7 @@ def store(name, srcs, indices=[], flags=[]):
     intrinsic("store_" + name, [0] + srcs, indices=indices, flags=flags)
 
 # src[] = { value, offset }.
-store("output", [1], [BASE, RANGE, WRITE_MASK, COMPONENT, SRC_TYPE, IO_SEMANTICS, IO_XFB, IO_XFB2])
+store("output", [1], [BASE, RANGE, WRITE_MASK, COMPONENT, SRC_TYPE, IO_SEMANTICS, IO_XFB])
 # src[] = { value, offset }.
 store("pixel_local", [1], [BASE, RANGE, WRITE_MASK, COMPONENT, FORMAT, SRC_TYPE, IO_SEMANTICS])
 # src[] = { value, vertex, offset }.

@@ -234,21 +234,18 @@ vectorize_store(nir_intrinsic_instr *chan[8], unsigned start, unsigned count,
     * because we need to read some info from "last" before overwriting it.
     */
    if (nir_intrinsic_has_io_xfb(last)) {
-      /* 0 = low/full XY channels
-       * 1 = low/full ZW channels
-       * 2 = high XY channels
-       * 3 = high ZW channels
+      /* 0 = low/full channels
+       * 1 = high channels
        */
-      nir_io_xfb xfb[4] = { { { { 0 } } } };
+      nir_io_xfb xfb[2] = { { { { 0 } } } };
 
       for (unsigned i = start; i < start + count; i++) {
-         xfb[i / 2].out[i % 2] =
-            ((i % 4) < 2 ? nir_intrinsic_io_xfb(chan[i]) : nir_intrinsic_io_xfb2(chan[i])).out[i % 2];
+         xfb[i / 4].out[i % 4] = nir_intrinsic_io_xfb(chan[i]).out[i % 4];
 
          /* Merging low and high 16 bits to 32 bits is not possible
           * with xfb in some cases.
           */
-         assert(!xfb[i / 2].out[i % 2].num_components ||
+         assert(!xfb[i / 4].out[i % 4].num_components ||
                 step != merge_low_high_16_to_32);
       }
 
@@ -261,23 +258,21 @@ vectorize_store(nir_intrinsic_instr *chan[8], unsigned start, unsigned count,
             nir_intrinsic_io_semantics(chan[i]).medium_precision ? 32 : chan[i]->src[0].ssa->bit_size;
 
          for (unsigned j = i + 1; j < start + count; j++) {
-            if (xfb[i / 2].out[i % 2].buffer != xfb[j / 2].out[j % 2].buffer ||
-                xfb[i / 2].out[i % 2].offset != xfb[j / 2].out[j % 2].offset +
+            if (xfb[i / 4].out[i % 4].buffer != xfb[j / 4].out[j % 4].buffer ||
+                xfb[i / 4].out[i % 4].offset != xfb[j / 4].out[j % 4].offset +
                                                    xfb_comp_size * (j - i))
                break;
 
-            xfb[i / 2].out[i % 2].num_components++;
-            memset(&xfb[j / 2].out[j % 2], 0, sizeof(xfb[j / 2].out[j % 2]));
+            xfb[i / 4].out[i % 4].num_components++;
+            memset(&xfb[j / 4].out[j % 4], 0, sizeof(xfb[j / 4].out[j % 4]));
          }
       }
 
       if (start >= 4) {
-         nir_intrinsic_set_io_xfb(last, xfb[2]);
-         nir_intrinsic_set_io_xfb2(last, xfb[3]);
+         nir_intrinsic_set_io_xfb(last, xfb[1]);
       } else {
          assert(start + count <= 4);
          nir_intrinsic_set_io_xfb(last, xfb[0]);
-         nir_intrinsic_set_io_xfb2(last, xfb[1]);
       }
    }
 
@@ -390,14 +385,8 @@ vectorize_slot(nir_intrinsic_instr *chan[8], unsigned mask, bool allow_holes)
                if (nir_intrinsic_has_io_xfb(chan[i])) {
                   unsigned hi = i + 4;
 
-                  if ((i < 2 ? nir_intrinsic_io_xfb(chan[i])
-                             : nir_intrinsic_io_xfb2(chan[i]))
-                         .out[i % 2]
-                         .num_components ||
-                      (i < 2 ? nir_intrinsic_io_xfb(chan[hi])
-                             : nir_intrinsic_io_xfb2(chan[hi]))
-                         .out[i % 2]
-                         .num_components)
+                  if (nir_intrinsic_io_xfb(chan[i]).out[i].num_components ||
+                      nir_intrinsic_io_xfb(chan[hi]).out[i].num_components)
                      continue;
                }
 
