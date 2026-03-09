@@ -581,7 +581,7 @@ bi_emit_load_attr(bi_builder *b, nir_intrinsic_instr *instr)
 }
 
 static void
-bi_emit_load_vary(bi_builder *b, nir_intrinsic_instr *instr)
+bi_emit_load_fs_input(bi_builder *b, nir_intrinsic_instr *instr)
 {
    enum bi_sample sample = BI_SAMPLE_CENTER;
    enum bi_update update = BI_UPDATE_STORE;
@@ -723,6 +723,155 @@ bi_emit_load_vary(bi_builder *b, nir_intrinsic_instr *instr)
    }
 
    bi_copy_component(b, instr, dest);
+}
+
+static void
+bi_emit_load_var(bi_builder *b, nir_intrinsic_instr *intr)
+{
+   assert(intr->intrinsic == nir_intrinsic_load_var_pan ||
+          intr->intrinsic == nir_intrinsic_load_var_flat_pan);
+   const bool flat = intr->intrinsic == nir_intrinsic_load_var_flat_pan;
+
+   enum bi_sample sample = BI_SAMPLE_CENTER;
+   bi_index src0 = bi_null();
+
+   const nir_alu_type dest_type = nir_intrinsic_dest_type(intr);
+   ASSERTED const nir_alu_type base_type = nir_alu_type_get_base_type(dest_type);
+   const unsigned sz = nir_alu_type_get_type_size(dest_type);
+   assert(intr->def.bit_size == sz);
+   enum bi_register_format regfmt;
+
+   if (flat) {
+      b->shader->info.bifrost->uses_flat_shading = true;
+
+      /* Flat loading with i16/u16 is not encodable */
+      assert(base_type == nir_type_float || sz == 32);
+      regfmt = bi_reg_fmt_for_nir(dest_type);
+   } else {
+      nir_intrinsic_instr *bary = nir_src_as_intrinsic(intr->src[1]);
+      sample = bi_interp_for_intrinsic(bary->intrinsic);
+      src0 = bi_varying_src0_for_barycentric(b, bary);
+
+      /* Smooth ints don't exist */
+      assert(base_type == nir_type_float);
+      regfmt = (sz == 16) ? BI_REGISTER_FORMAT_F16 : BI_REGISTER_FORMAT_F32;
+   }
+
+   const enum bi_vecsize vecsize = intr->num_components - 1;
+   bi_index dest = bi_def_index(&intr->def);
+
+   uint32_t imm_res = 0;
+   bool use_imm_form = false;
+   if (nir_src_is_const(intr->src[0])) {
+      imm_res = nir_src_as_uint(intr->src[0]);
+      if (b->shader->arch >= 9) {
+         uint32_t table_index = pan_res_handle_get_table(imm_res);
+         uint32_t res_index = pan_res_handle_get_index(imm_res);
+         use_imm_form = va_is_valid_const_table(table_index) &&
+                        res_index < 256;
+      } else {
+         use_imm_form = imm_res < 20;
+      }
+   }
+
+   if (use_imm_form) {
+      bi_instr *I;
+      if (flat) {
+         I = bi_ld_var_flat_imm_to(b, dest, BI_FUNCTION_NONE, regfmt, vecsize,
+                                   pan_res_handle_get_index(imm_res));
+      } else {
+         I = bi_ld_var_imm_to(b, dest, src0, regfmt, sample, BI_UPDATE_STORE,
+                              vecsize, pan_res_handle_get_index(imm_res));
+      }
+
+      if (b->shader->arch >= 9)
+         I->table = va_res_fold_table_idx(pan_res_handle_get_table(imm_res));
+   } else {
+      bi_index res = bi_src_index(&intr->src[0]);
+      if (flat) {
+         bi_ld_var_flat_to(b, dest, res, BI_FUNCTION_NONE, regfmt, vecsize);
+      } else {
+         bi_ld_var_to(b, dest, src0, res, regfmt, sample,
+                      BI_UPDATE_STORE, vecsize);
+      }
+   }
+   bi_split_def(b, &intr->def);
+}
+
+static void
+bi_emit_load_var_buf(bi_builder *b, nir_intrinsic_instr *intr)
+{
+   assert(intr->intrinsic == nir_intrinsic_load_var_buf_pan ||
+          intr->intrinsic == nir_intrinsic_load_var_buf_flat_pan);
+
+   /* These are only available on Valhall+ */
+   assert(b->shader->arch >= 9);
+
+   const bool flat = intr->intrinsic == nir_intrinsic_load_var_buf_flat_pan;
+   const nir_alu_type src_type = nir_intrinsic_src_type(intr);
+   ASSERTED const nir_alu_type base_type = nir_alu_type_get_base_type(src_type);
+   const nir_alu_type src_sz = nir_alu_type_get_type_size(src_type);
+   const unsigned sz = intr->def.bit_size;
+   assert(src_sz == 16 || src_sz == 32);
+   assert(sz == 16 || sz == 32);
+
+   enum bi_sample sample = BI_SAMPLE_CENTER;
+   bi_index src0 = bi_null();
+
+   if (flat) {
+      /* The source is not used for flat loads but we still need to encode
+       * something.
+       */
+      src0 = bi_zero();
+
+      /* Gather info as we go */
+      b->shader->info.bifrost->uses_flat_shading = true;
+   } else {
+      nir_intrinsic_instr *bary = nir_src_as_intrinsic(intr->src[1]);
+      sample = bi_interp_for_intrinsic(bary->intrinsic);
+      src0 = bi_varying_src0_for_barycentric(b, bary);
+   }
+
+   enum bi_source_format source_format;
+   enum bi_register_format regfmt;
+   if (flat) {
+      /* conversion MUST be a noop for int varyings to work correctly */
+      assert(base_type == nir_type_float || src_sz == sz);
+      /* integer regfmt are not supported by LD_VAR_BUF, but using float
+       * src_types for integers is okay if the source_format is flat and uses
+       * the same bit size.  The conversion is a no-op. */
+      regfmt = (sz == 16) ? BI_REGISTER_FORMAT_F16 : BI_REGISTER_FORMAT_F32;
+      source_format = (src_sz == 16) ? BI_SOURCE_FORMAT_FLAT16 :
+                                       BI_SOURCE_FORMAT_FLAT32;
+   } else {
+      /* Smooth ints don't exist */
+      assert(base_type == nir_type_float);
+      regfmt = (sz == 16) ? BI_REGISTER_FORMAT_F16 : BI_REGISTER_FORMAT_F32;
+      source_format = (src_sz == 16) ? BI_SOURCE_FORMAT_F16 :
+                                       BI_SOURCE_FORMAT_F32;
+   }
+
+   const enum bi_vecsize vecsize = intr->num_components - 1;
+   bi_index dest = bi_def_index(&intr->def);
+
+   uint32_t imm_offset = 0;
+   bool use_imm_form = false;
+   if (nir_src_is_const(intr->src[0])) {
+      imm_offset = nir_src_as_uint(intr->src[0]);
+      assert(imm_offset < pan_ld_var_buf_off_size(b->shader->arch));
+
+      use_imm_form = true;
+   }
+
+   if (use_imm_form) {
+      bi_ld_var_buf_imm_to(b, sz, dest, src0, regfmt, sample, source_format,
+                           BI_UPDATE_STORE, vecsize, imm_offset);
+   } else {
+      bi_index offset = bi_src_index(&intr->src[0]);
+      bi_ld_var_buf_to(b, sz, dest, src0, offset, regfmt, sample,
+                       source_format, BI_UPDATE_STORE, vecsize);
+   }
+   bi_split_def(b, &intr->def);
 }
 
 static bi_index
@@ -1977,7 +2126,7 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_barycentric_sample:
    case nir_intrinsic_load_barycentric_at_sample:
    case nir_intrinsic_load_barycentric_at_offset:
-      /* handled later via load_vary */
+      /* handled later via load_fs_input */
       break;
    case nir_intrinsic_load_attribute_pan:
       assert(stage == MESA_SHADER_VERTEX);
@@ -1992,11 +2141,21 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
    case nir_intrinsic_load_input:
       assert(!b->shader->inputs->is_blend);
       if (stage == MESA_SHADER_FRAGMENT)
-         bi_emit_load_vary(b, instr);
+         bi_emit_load_fs_input(b, instr);
       else if (stage == MESA_SHADER_VERTEX)
          bi_emit_load_attr(b, instr);
       else
          UNREACHABLE("Unsupported shader stage");
+      break;
+
+   case nir_intrinsic_load_var_pan:
+   case nir_intrinsic_load_var_flat_pan:
+      bi_emit_load_var(b, instr);
+      break;
+
+   case nir_intrinsic_load_var_buf_pan:
+   case nir_intrinsic_load_var_buf_flat_pan:
+      bi_emit_load_var_buf(b, instr);
       break;
 
    case nir_intrinsic_store_output:

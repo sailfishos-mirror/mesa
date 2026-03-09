@@ -418,6 +418,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
       break;
    case nir_intrinsic_load_input:
    case nir_intrinsic_load_per_primitive_input:
+   case nir_intrinsic_load_var_flat_pan:
+   case nir_intrinsic_load_var_buf_flat_pan:
       is_divergent = src_divergent(instr->src[0], state);
 
       if (stage == MESA_SHADER_FRAGMENT) {
@@ -854,6 +856,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_barycentric_coord_sample:
    case nir_intrinsic_load_barycentric_coord_at_sample:
    case nir_intrinsic_load_barycentric_coord_at_offset:
+   case nir_intrinsic_load_var_pan:
+   case nir_intrinsic_load_var_buf_pan:
    case nir_intrinsic_load_persp_center_rhw_ir3:
    case nir_intrinsic_load_input_attachment_coord:
    case nir_intrinsic_interp_deref_at_offset:
