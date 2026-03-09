@@ -9651,17 +9651,31 @@ radv_handle_color_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, struct radv
 }
 
 static void
-radv_handle_depth_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, struct radv_attachment *att, uint32_t layer_count,
-                                 uint32_t view_mask, const VkSampleLocationsInfoEXT *sample_locs)
+radv_handle_depth_fbfetch_output(struct radv_cmd_buffer *cmd_buffer, struct radv_attachment *att,
+                                 VkImageAspectFlags aspects, uint32_t layer_count, uint32_t view_mask,
+                                 const VkSampleLocationsInfoEXT *sample_locs)
 {
    const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   bool depth_compressed = false, stencil_compressed = false;
 
    if (!device->vk.enabled_features.dynamicRenderingLocalRead)
       return;
 
-   if (!radv_layout_is_htile_compressed(
-          device, att->iview->image, att->iview->vk.base_mip_level, att->layout,
-          radv_image_queue_family_mask(att->iview->image, cmd_buffer->qf, cmd_buffer->qf)))
+   const uint32_t qf_mask = radv_image_queue_family_mask(att->iview->image, cmd_buffer->qf, cmd_buffer->qf);
+
+   if (aspects & VK_IMAGE_ASPECT_DEPTH_BIT) {
+      assert(att->layout);
+      depth_compressed = radv_layout_is_htile_compressed(device, att->iview->image, att->iview->vk.base_mip_level,
+                                                         att->layout, qf_mask);
+   }
+
+   if (aspects & VK_IMAGE_ASPECT_STENCIL_BIT) {
+      assert(att->stencil_layout);
+      stencil_compressed = radv_layout_is_htile_compressed(device, att->iview->image, att->iview->vk.base_mip_level,
+                                                           att->stencil_layout, qf_mask);
+   }
+
+   if (!depth_compressed && !stencil_compressed)
       return;
 
    const VkImageSubresourceRange range = vk_image_view_subresource_range(&att->iview->vk);
@@ -10121,8 +10135,8 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
 
       if (!(pRenderingInfo->flags & VK_RENDERING_RESUMING_BIT) &&
           ds_att.flags & VK_RENDERING_ATTACHMENT_INPUT_ATTACHMENT_FEEDBACK_BIT_KHR) {
-         radv_handle_depth_fbfetch_output(cmd_buffer, &ds_att, pRenderingInfo->layerCount, pRenderingInfo->viewMask,
-                                          sample_locs_info);
+         radv_handle_depth_fbfetch_output(cmd_buffer, &ds_att, ds_att_aspects, pRenderingInfo->layerCount,
+                                          pRenderingInfo->viewMask, sample_locs_info);
       }
    }
 
