@@ -14892,6 +14892,7 @@ radv_barrier(struct radv_cmd_buffer *cmd_buffer, uint32_t dep_count, const VkDep
 
          const struct VkSampleLocationsInfoEXT *sample_locs_info =
             vk_find_struct_const(dep_info->pImageMemoryBarriers[i].pNext, SAMPLE_LOCATIONS_INFO_EXT);
+         const VkImageSubresourceRange *range = &dep_info->pImageMemoryBarriers[i].subresourceRange;
 
          uint32_t src_qf_index = dep_info->pImageMemoryBarriers[i].srcQueueFamilyIndex;
          uint32_t dst_qf_index = dep_info->pImageMemoryBarriers[i].dstQueueFamilyIndex;
@@ -14911,9 +14912,23 @@ radv_barrier(struct radv_cmd_buffer *cmd_buffer, uint32_t dep_count, const VkDep
             dst_qf_index = VK_QUEUE_FAMILY_IGNORED;
          }
 
-         radv_handle_image_transition(cmd_buffer, image, dep_info->pImageMemoryBarriers[i].oldLayout,
-                                      dep_info->pImageMemoryBarriers[i].newLayout, src_qf_index, dst_qf_index,
-                                      &dep_info->pImageMemoryBarriers[i].subresourceRange, sample_locs_info);
+         VkImageLayout src_layout = dep_info->pImageMemoryBarriers[i].oldLayout;
+         VkImageLayout dst_layout = dep_info->pImageMemoryBarriers[i].newLayout;
+         VkImageLayout src_stencil_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+         VkImageLayout dst_stencil_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+         if (range->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) {
+            src_layout = vk_image_layout_depth_only(dep_info->pImageMemoryBarriers[i].oldLayout);
+            dst_layout = vk_image_layout_depth_only(dep_info->pImageMemoryBarriers[i].newLayout);
+         }
+
+         if (range->aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT) {
+            src_stencil_layout = vk_image_layout_stencil_only(dep_info->pImageMemoryBarriers[i].oldLayout);
+            dst_stencil_layout = vk_image_layout_stencil_only(dep_info->pImageMemoryBarriers[i].newLayout);
+         }
+
+         radv_handle_image_transition_separate(cmd_buffer, image, src_layout, dst_layout, src_stencil_layout,
+                                               dst_stencil_layout, src_qf_index, dst_qf_index, range, sample_locs_info);
       }
    }
 
