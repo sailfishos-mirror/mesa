@@ -6889,7 +6889,8 @@ brw_from_nir(brw_shader *s)
 
    brw_from_nir_emit_impl(ntb, nir_shader_get_entrypoint((nir_shader *)ntb.nir));
 
-   ntb.bld.emit(SHADER_OPCODE_HALT_TARGET);
+   if (s->stage >= MESA_SHADER_FRAGMENT)
+      ntb.bld.emit(SHADER_OPCODE_HALT_TARGET);
 
    ralloc_free(ntb.mem_ctx);
 
