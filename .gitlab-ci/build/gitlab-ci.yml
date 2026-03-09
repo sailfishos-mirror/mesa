@@ -548,10 +548,11 @@ debian-no-libdrm:
     BUILDTYPE: release
     EXTRA_OPTION: >
       -D freedreno-kmds=kgsl
-      -D glx=disabled
+      -D glx=dri
       -D gbm=disabled
-      -D egl=disabled
+      -D egl=enabled
       -D perfetto=true
+      -D platforms=x11,wayland
 
 debian-clang:
   extends:
