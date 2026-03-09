@@ -2116,6 +2116,9 @@ typedef struct nir_intrinsic_info {
    /** the number of constant indices used by the intrinsic */
    uint8_t num_indices;
 
+   /** the number of 32bit slots used for storing constant indices. */
+   uint8_t num_index_slots;
+
    /** list of indices */
    uint8_t indices[NIR_INTRINSIC_MAX_CONST_INDEX];
 

@@ -52,7 +52,7 @@ dup_mem_intrinsic(nir_builder *b, nir_intrinsic_instr *intrin,
    }
 
    dup->num_components = num_components;
-   for (unsigned i = 0; i < info->num_indices; i++)
+   for (unsigned i = 0; i < info->num_index_slots; i++)
       dup->const_index[i] = intrin->const_index[i];
 
    nir_set_io_offset(dup, offset);
