@@ -2023,16 +2023,7 @@
     </desc>
   </group>
 
-  <group name="CLPER" title="Cross-lane permute" dests="1" opcode2="0xF" unused="true" unit="SFU">
-    <ins name="CLPER.i32" opcode="0xA0"/>
-    <ins name="CLPER.v2u16" opcode="0xA1"/>
-    <ins name="CLPER.v4u8" opcode="0xA2"/>
-    <ins name="CLPER.s32" opcode="0xA8"/>
-    <ins name="CLPER.v2s16" opcode="0xA9"/>
-    <ins name="CLPER.v4s8" opcode="0xAA"/>
-    <ins name="CLPER.u64" opcode="0x1A3"/>
-    <ins name="CLPER.s64" opcode="0x1AB"/>
-    <!-- <ins name="CLPER.s32" opcode="0x1A0"/> -->
+  <ins name="CLPER.i32" title="Cross-lane permute" dests="1" opcode="0xA0" opcode2="0xF" unused="true" unit="SFU">
     <desc>
       Selects the value of A in the subgroup lane given by B. This implements
       subgroup broadcasts. It may be used as a primitive for screen space
@@ -2043,7 +2034,7 @@
     <subgroup/>
     <lane_op/>
     <inactive_result/>
-  </group>
+  </ins>
 
   <group name="FMA" title="Fused floating-point multiply add" dests="1" unused="true" unit="FMA">
     <ins name="FMA.f32" opcode="0xB2"/>
