@@ -1660,6 +1660,14 @@ intel_device_info_apply_workarounds(struct intel_device_info *devinfo)
    if (intel_needs_workaround(devinfo, 18040209780))
       devinfo->max_gs_threads = 312;
 
+   /* Wa_16025326720 */
+   if (intel_needs_workaround(devinfo, 16025326720)) {
+      devinfo->urb.max_entries[MESA_SHADER_TESS_CTRL] = 1408;
+      devinfo->urb.max_entries[MESA_SHADER_TASK] = 1408;
+      devinfo->urb.max_entries[MESA_SHADER_MESH] = 1792;
+      devinfo->urb.max_entries[MESA_SHADER_GEOMETRY] = 1792;
+   }
+
    /* Fixes issues with:
     * dEQP-GLES31.functional.geometry_shading.layered.render_with_default_layer_cubemap
     * when running on GFX12 platforms with small EU count.
