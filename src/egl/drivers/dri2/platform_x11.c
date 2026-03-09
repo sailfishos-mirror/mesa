@@ -42,7 +42,7 @@
 #include <vulkan/vulkan_xcb.h>
 /* clang-format on */
 #ifdef HAVE_LIBDRM
-#include <xf86drm.h>
+#include "util/libdrm.h"
 #include "platform_x11_dri3.h"
 #endif
 #include "util/bitscan.h"

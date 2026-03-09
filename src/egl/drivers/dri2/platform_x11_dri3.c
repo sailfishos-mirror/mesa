@@ -31,7 +31,7 @@
 #include <xcb/xcb.h>
 
 #if defined(HAVE_WAYLAND_PLATFORM)
-#include <xf86drm.h>
+#include "util/libdrm.h"
 #endif
 #include "drm-uapi/drm_fourcc.h"
 #include "util/macros.h"

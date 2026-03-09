@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <xf86drm.h>
+#include "util/libdrm.h"
 #include "drm-uapi/drm_fourcc.h"
 #include <sys/mman.h>
 #include <vulkan/vulkan_core.h>
