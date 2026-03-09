@@ -1287,6 +1287,7 @@ radv_reset_cmd_buffer(struct vk_command_buffer *vk_cmd_buffer, UNUSED VkCommandB
    cmd_buffer->gang.sem.emitted_leader_value = 0;
    cmd_buffer->gang.sem.va = 0;
    cmd_buffer->shader_upload_seq = 0;
+   memset(cmd_buffer->vertex_bindings, 0, sizeof(cmd_buffer->vertex_bindings));
 
    if (cmd_buffer->upload.upload_bo)
       radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->upload.upload_bo);
@@ -7937,8 +7938,8 @@ radv_CmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t firstBinding,
       }
    }
 
-   if (misaligned_mask_invalid != d->vertex_input.vbo_misaligned_mask_invalid) {
-      d->vertex_input.vbo_misaligned_mask_invalid = misaligned_mask_invalid;
+   if (misaligned_mask_invalid & ~d->vertex_input.vbo_misaligned_mask_invalid) {
+      d->vertex_input.vbo_misaligned_mask_invalid |= misaligned_mask_invalid;
       d->vertex_input.vbo_misaligned_mask &= ~misaligned_mask_invalid;
       d->vertex_input.vbo_unaligned_mask &= ~misaligned_mask_invalid;
       cmd_buffer->state.dirty |= RADV_CMD_DIRTY_VS_PROLOG_STATE;
