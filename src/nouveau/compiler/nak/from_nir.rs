@@ -796,6 +796,24 @@ impl<'a> ShaderFromNir<'a> {
                 .into()
             }
             nir_op_f2f16 | nir_op_f2f16_rtne | nir_op_f2f16_rtz
+                if alu.def.num_components == 2 =>
+            {
+                assert!(b.sm() >= 86);
+
+                let dst = b.alloc_ssa(RegFile::GPR);
+                let src = srcs(0).to_ssa();
+                b.push_op(OpF2FP {
+                    dst: dst.clone().into(),
+                    srcs: [src[1].into(), src[0].into()],
+                    rnd_mode: match alu.op {
+                        nir_op_f2f16_rtne => FRndMode::NearestEven,
+                        nir_op_f2f16_rtz => FRndMode::Zero,
+                        _ => self.float_ctl[FloatType::F16].rnd_mode,
+                    },
+                });
+                dst.into()
+            }
+            nir_op_f2f16 | nir_op_f2f16_rtne | nir_op_f2f16_rtz
             | nir_op_f2f32 | nir_op_f2f64 => {
                 let src_bits = alu.get_src(0).src.bit_size();
                 let dst_bits = alu.def.bit_size();
