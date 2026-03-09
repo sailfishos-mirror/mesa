@@ -1632,15 +1632,12 @@ radv_layout_is_htile_compressed(const struct radv_device *device, const struct r
          return false;
       }
       break;
-   case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
-   case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
-   case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
-   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-   case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
-      UNREACHABLE("Invalid image layouts!");
-   default:
+   case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+   case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+   case VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ:
       return radv_tc_compat_htile_enabled(image, level);
+   default:
+      UNREACHABLE("Invalid image layouts!");
    }
 }
 
