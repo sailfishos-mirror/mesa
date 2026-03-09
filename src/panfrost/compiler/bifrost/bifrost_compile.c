@@ -3204,37 +3204,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       return;
    }
 
-   case nir_op_b32csel: {
-      if (sz != 16)
-         break;
-
-      /* We allow vectorizing b32csel(cond, A, B) which can be
-       * translated as MUX.v2i16, even though cond is a 32-bit vector.
-       *
-       * If the source condition vector is replicated, we can use
-       * MUX.v2i16 directly, letting each component use the
-       * corresponding half of the 32-bit source. NIR uses 0/~0
-       * booleans so that's guaranteed to work (that is, 32-bit NIR
-       * booleans are 16-bit replicated).
-       *
-       * If we're not replicated, we use the same trick but must
-       * insert a MKVEC.v2i16 first to convert down to 16-bit.
-       */
-      bi_index idx = bi_src_index(&instr->src[0].src);
-      bi_index s0 = bi_extract(b, idx, instr->src[0].swizzle[0]);
-      bi_index s1 = bi_alu_src_index(b, instr->src[1], comps);
-      bi_index s2 = bi_alu_src_index(b, instr->src[2], comps);
-
-      if (!bi_nir_is_replicated(&instr->src[0])) {
-         s0 = bi_mkvec_v2i16(
-            b, bi_half(s0, false),
-            bi_half(bi_extract(b, idx, instr->src[0].swizzle[1]), false));
-      }
-
-      bi_mux_v2i16_to(b, dst, s2, s1, s0, BI_MUX_INT_ZERO);
-      return;
-   }
-
    default:
       break;
    }
@@ -3352,14 +3321,17 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       break;
 
    case nir_op_b8csel:
+      assert(sz == 8);
       bi_mux_v4i8_to(b, dst, s2, s1, s0, BI_MUX_INT_ZERO);
       break;
 
    case nir_op_b16csel:
+      assert(sz == 16);
       bi_mux_v2i16_to(b, dst, s2, s1, s0, BI_MUX_INT_ZERO);
       break;
 
    case nir_op_b32csel:
+      assert(sz == 32);
       bi_mux_i32_to(b, dst, s2, s1, s0, BI_MUX_INT_ZERO);
       break;
 
