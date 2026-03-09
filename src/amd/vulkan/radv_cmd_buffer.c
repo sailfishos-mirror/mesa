@@ -14348,10 +14348,8 @@ static void
 radv_initialize_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, const VkImageSubresourceRange *range)
 {
    struct radv_cmd_state *state = &cmd_buffer->state;
+   const uint32_t hiz_value = radv_gfx12_get_hiz_initial_value();
    struct radv_barrier_data barrier = {0};
-
-   if (cmd_buffer->qf == RADV_QUEUE_TRANSFER)
-      return;
 
    barrier.layout_transitions.init_mask_ram = 1;
    radv_describe_layout_transition(cmd_buffer, &barrier);
@@ -14361,7 +14359,14 @@ radv_initialize_hiz(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image
    state->flush_bits |= radv_src_access_flush(cmd_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                                               VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, 0, image, range);
 
-   cmd_buffer->state.flush_bits |= radv_clear_hiz(cmd_buffer, image, range, radv_gfx12_get_hiz_initial_value());
+   if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
+      const uint64_t hiz_offset = image->planes[0].surface.u.gfx9.zs.hiz.offset;
+      const uint32_t hiz_size = image->planes[0].surface.u.gfx9.zs.hiz.size;
+
+      radv_fill_image(cmd_buffer, image, hiz_offset, hiz_size, hiz_value);
+   } else {
+      cmd_buffer->state.flush_bits |= radv_clear_hiz(cmd_buffer, image, range, hiz_value);
+   }
 
    /* Allow to enable HiZ for this range because all layers are handled in the barrier. */
    const bool enable_hiz =
