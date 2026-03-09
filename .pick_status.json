@@ -504,7 +504,7 @@
         "description": "etnaviv: Call lower_bool_to_int32 not to_bitsize",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e63a7882a0ae2461cc2b84de96549c2df9d25985",
         "notes": null
