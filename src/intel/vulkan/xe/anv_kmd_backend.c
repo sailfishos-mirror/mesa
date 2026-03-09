@@ -32,6 +32,27 @@
 #include "drm-uapi/gpu_scheduler.h"
 #include "drm-uapi/xe_drm.h"
 
+static bool
+is_slab_parent_memory_mapped_placeable(struct anv_device *device,
+                                       enum anv_bo_alloc_flags alloc_flags)
+{
+   if ((alloc_flags & ANV_BO_ALLOC_SLAB_PARENT) == false)
+      return false;
+   if (device->physical->instance->debug & ANV_DEBUG_NO_SLAB)
+      return false;
+   if (!device->vk.enabled_features.memoryMapPlaced)
+      return false;
+
+   /* Not subject to vkMapMemory*() */
+   enum anv_bo_alloc_flags no_vk_map_memory =  ANV_BO_ALLOC_COMPRESSED |
+                                               ANV_BO_ALLOC_INTERNAL |
+                                               ANV_BO_ALLOC_DESCRIPTOR_POOL;
+   if (alloc_flags & no_vk_map_memory)
+      return false;
+
+   return true;
+}
+
 static uint32_t
 xe_gem_create(struct anv_device *device,
               const struct intel_memory_class_instance **regions,
@@ -70,12 +91,17 @@ xe_gem_create(struct anv_device *device,
        device->info->xe2_has_no_compression_hint)
       flags |= DRM_XE_GEM_CREATE_FLAG_NO_COMPRESSION;
 
+   /* From xe_drm.h: If a VM is specified, this BO must:
+    * 1. Only ever be bound to that VM.
+    * 2. Cannot be exported as a PRIME fd.
+    */
+   uint32_t vm_id = device->vm_id;
+   if ((alloc_flags & ANV_BO_ALLOC_EXTERNAL) ||
+       is_slab_parent_memory_mapped_placeable(device, alloc_flags))
+      vm_id = 0;
+
    struct drm_xe_gem_create gem_create = {
-     /* From xe_drm.h: If a VM is specified, this BO must:
-      * 1. Only ever be bound to that VM.
-      * 2. Cannot be exported as a PRIME fd.
-      */
-     .vm_id = alloc_flags & ANV_BO_ALLOC_EXTERNAL ? 0 : device->vm_id,
+     .vm_id = vm_id,
      .size = align64(size, device->info->mem_alignment),
      .flags = flags,
    };

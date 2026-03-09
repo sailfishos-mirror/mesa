@@ -33,6 +33,7 @@
 #include "common/intel_aux_map.h"
 #include "util/anon_file.h"
 #include "util/futex.h"
+#include "util/os_mman.h"
 
 #ifdef HAVE_VALGRIND
 #define VG_NOACCESS_READ(__ptr) ({                       \
@@ -1763,6 +1764,46 @@ anv_device_alloc_bo(struct anv_device *device,
    return VK_SUCCESS;
 }
 
+static VkResult
+map_placed_addr_slab(struct anv_device *device,
+                     struct anv_bo *bo,
+                     uint64_t offset,
+                     size_t size,
+                     void *placed_addr,
+                     void **map_out)
+{
+   int prime_handle = anv_gem_handle_to_fd(device, bo->gem_handle);
+   VkResult result = VK_SUCCESS;
+
+   if (prime_handle < 0) {
+      return vk_errorf(device, VK_ERROR_MEMORY_MAP_FAILED,
+                       "anv_gem_handle_to_fd() before mmap failed: %m");
+   }
+
+   offset += (bo->offset - bo->slab_parent->offset);
+   void *map = os_mmap(placed_addr,
+                       size,
+                       PROT_READ | PROT_WRITE,
+                       MAP_FIXED | MAP_SHARED,
+                       prime_handle,
+                       offset);
+   if (map == MAP_FAILED) {
+      result = vk_errorf(device, VK_ERROR_MEMORY_MAP_FAILED, "mmap failed: %m");
+      goto end;
+   }
+
+   assert(placed_addr == NULL || map == placed_addr);
+   assert(map != NULL);
+   VG(VALGRIND_MALLOCLIKE_BLOCK(map, size, 0, 1));
+
+   if (map_out)
+      *map_out = map;
+
+end:
+   close(prime_handle);
+   return result;
+}
+
 VkResult
 anv_device_map_bo(struct anv_device *device,
                   struct anv_bo *bo,
@@ -1777,6 +1818,9 @@ anv_device_map_bo(struct anv_device *device,
    struct anv_bo *real = anv_bo_get_real(bo);
    uint64_t offset_adjustment = 0;
    if (real != bo) {
+      if (placed_addr)
+         return map_placed_addr_slab(device, bo, offset, size, placed_addr, map_out);
+
       offset += (bo->offset - real->offset);
 
       const uint64_t page_size = device->physical->page_size;
@@ -1786,9 +1830,6 @@ anv_device_map_bo(struct anv_device *device,
          offset_adjustment = offset - munmap_offset;
          size += offset_adjustment;
          offset = munmap_offset;
-
-         if (placed_addr)
-            placed_addr -= offset_adjustment;
       }
 
       assert((offset & (page_size - 1)) == 0);
