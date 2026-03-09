@@ -196,7 +196,6 @@ public:
    brw_reg delta_xy[INTEL_BARYCENTRIC_MODE_COUNT];
    brw_reg final_gs_vertex_count;
    brw_reg control_data_bits;
-   brw_reg invocation_id;
 
    struct {
       unsigned control_data_bits_per_vertex;

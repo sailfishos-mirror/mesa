@@ -42,52 +42,6 @@ get_patch_count_threshold(int input_control_points)
 }
 
 static void
-brw_set_tcs_invocation_id(brw_shader &s)
-{
-   const struct intel_device_info *devinfo = s.devinfo;
-   struct brw_tcs_prog_data *tcs_prog_data = brw_tcs_prog_data(s.prog_data);
-   struct brw_vue_prog_data *vue_prog_data = &tcs_prog_data->base;
-   const brw_builder bld = brw_builder(&s);
-
-   const unsigned instance_id_mask =
-      (devinfo->verx10 >= 125) ? INTEL_MASK(7, 0) :
-      (devinfo->ver >= 11)     ? INTEL_MASK(22, 16) :
-                                 INTEL_MASK(23, 17);
-   const unsigned instance_id_shift =
-      (devinfo->verx10 >= 125) ? 0 : (devinfo->ver >= 11) ? 16 : 17;
-
-   /* Get instance number from g0.2 bits:
-    *  * 7:0 on DG2+
-    *  * 22:16 on gfx11+
-    *  * 23:17 otherwise
-    */
-   brw_reg t =
-      bld.AND(brw_reg(retype(brw_vec1_grf(0, 2), BRW_TYPE_UD)),
-              brw_imm_ud(instance_id_mask));
-
-   if (vue_prog_data->dispatch_mode == INTEL_DISPATCH_MODE_TCS_MULTI_PATCH) {
-      /* gl_InvocationID is just the thread number */
-      s.invocation_id = bld.SHR(t, brw_imm_ud(instance_id_shift));
-      return;
-   }
-
-   assert(vue_prog_data->dispatch_mode == INTEL_DISPATCH_MODE_TCS_SINGLE_PATCH);
-
-   brw_reg channels_uw = bld.vgrf(BRW_TYPE_UW);
-   brw_reg channels_ud = bld.vgrf(BRW_TYPE_UD);
-   bld.MOV(channels_uw, brw_reg(brw_imm_uv(0x76543210)));
-   bld.MOV(channels_ud, channels_uw);
-
-   if (tcs_prog_data->instances == 1) {
-      s.invocation_id = channels_ud;
-   } else {
-      /* instance_id = 8 * t + <76543210> */
-      s.invocation_id =
-         bld.ADD(bld.SHR(t, brw_imm_ud(instance_id_shift - 3)), channels_ud);
-   }
-}
-
-static void
 brw_emit_tcs_thread_end(brw_shader &s)
 {
    /* Try and tag the last URB write with EOT instead of emitting a whole
@@ -144,9 +98,6 @@ run_tcs(brw_shader &s)
 
    s.payload_ = new brw_tcs_thread_payload(s);
 
-   /* Initialize gl_InvocationID */
-   brw_set_tcs_invocation_id(s);
-
    brw_from_nir(&s);
 
    if (s.failed)
@@ -193,6 +144,30 @@ fix_single_patch_thread_dispatch(nir_shader *nir)
    nir_pop_if(&b, NULL);
 
    return true;
+}
+
+static bool
+lower_single_patch_invoc_id(nir_builder *b, nir_intrinsic_instr *intr, void *)
+{
+   /* brw_from_nir returns Instance ID (thread #) for load_invocation_id,
+    * which is correct for multi-patch.  For single patch, it should be
+    * 8 * InstanceID + <76543210>.
+    */
+   if (intr->intrinsic == nir_intrinsic_load_invocation_id) {
+      b->cursor = nir_after_instr(&intr->instr);
+      nir_def *invoc = nir_iadd(b, nir_imul_imm(b, &intr->def, 8),
+                                nir_load_subgroup_invocation(b));
+      nir_def_rewrite_uses_after(&intr->def, invoc);
+      return true;
+   }
+   return false;
+}
+
+static bool
+lower_single_patch_invocation_id(nir_shader *nir)
+{
+   return nir_shader_intrinsics_pass(nir, lower_single_patch_invoc_id,
+                                     nir_metadata_control_flow, NULL);
 }
 
 extern "C" const unsigned *
@@ -242,8 +217,11 @@ brw_compile_tcs(const struct brw_compiler *compiler,
    brw_nir_opt_vectorize_urb(pt);
    BRW_NIR_PASS(intel_nir_lower_patch_vertices_in, key->input_vertices);
 
-   if (!intel_use_tcs_multi_patch(devinfo))
+
+   if (!intel_use_tcs_multi_patch(devinfo)) {
       BRW_NIR_PASS(fix_single_patch_thread_dispatch);
+      BRW_NIR_PASS(lower_single_patch_invocation_id);
+   }
 
    brw_postprocess_nir(pt, debug_enabled, key->base.robust_flags);
 

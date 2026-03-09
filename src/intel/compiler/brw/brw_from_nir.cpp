@@ -2855,6 +2855,7 @@ static void
 brw_from_nir_emit_tcs_intrinsic(nir_to_brw_state &ntb,
                           nir_intrinsic_instr *instr)
 {
+   const intel_device_info *devinfo = ntb.devinfo;
    const brw_builder &bld = ntb.bld;
    brw_shader &s = ntb.s;
 
@@ -2870,9 +2871,24 @@ brw_from_nir_emit_tcs_intrinsic(nir_to_brw_state &ntb,
    case nir_intrinsic_load_primitive_id:
       bld.MOV(dst, s.tcs_payload().primitive_id);
       break;
-   case nir_intrinsic_load_invocation_id:
-      bld.MOV(retype(dst, s.invocation_id.type), s.invocation_id);
+   case nir_intrinsic_load_invocation_id: {
+      /* Get "Instance ID" from g0.2 field */
+      const unsigned instance_id_mask =
+         (devinfo->verx10 >= 125) ? INTEL_MASK( 7,  0) :
+         (devinfo->ver >= 11)     ? INTEL_MASK(22, 16) :
+                                    INTEL_MASK(23, 17);
+      const unsigned instance_id_shift =
+         (devinfo->verx10 >= 125) ? 0 : (devinfo->ver >= 11) ? 16 : 17;
+
+      brw_reg t = bld.AND(brw_ud1_grf(0, 2), brw_imm_ud(instance_id_mask));
+
+      /* gl_InvocationID is just the thread number */
+      if (instance_id_shift)
+         bld.SHR(retype(dst, BRW_TYPE_UD), t, brw_imm_ud(instance_id_shift));
+      else
+         bld.MOV(retype(dst, BRW_TYPE_UD), t);
       break;
+   }
 
    case nir_intrinsic_barrier:
       if (nir_intrinsic_memory_scope(instr) != SCOPE_NONE)
