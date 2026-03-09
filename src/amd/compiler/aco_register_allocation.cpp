@@ -3533,6 +3533,8 @@ affinity_blocks_tied_def0(const ra_ctx& ctx, const RegisterFile& register_file,
    } else if (ctx.assignments[def_id].precolor_affinity) {
       if (ctx.assignments[def_id].reg != instr->operands[op_idx].physReg())
          return true;
+   } else if (BITSET_TEST(ctx.preserved, instr->operands[op_idx].physReg())) {
+      return true;
    }
    return false;
 }
@@ -4250,9 +4252,7 @@ register_allocation(Program* program, ra_test_policy policy)
                 * different location due to affinity, but that gets complicated very quickly. */
                definition->setFixed(instr->operands[2].physReg());
             } else if (dot2_can_use_vopd(ctx, instr.get()) &&
-                       !affinity_blocks_tied_def0(ctx, register_file, instr.get(), 2) &&
-                       get_reg_specified(ctx, register_file, definition->regClass(), instr,
-                                         instr->operands[2].physReg(), -1)) {
+                       !affinity_blocks_tied_def0(ctx, register_file, instr.get(), 2)) {
                definition->setFixed(instr->operands[2].physReg());
             }
 
