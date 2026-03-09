@@ -6215,7 +6215,7 @@ brw_from_nir_emit_memory_access(nir_to_brw_state &ntb,
       instr->intrinsic == nir_intrinsic_load_shared_uniform_block_intel ||
       instr->intrinsic == nir_intrinsic_load_global_constant_uniform_block_intel ||
       (instr->intrinsic == nir_intrinsic_load_shader_indirect_data_intel &&
-       nir_src_is_const(instr->src[0]));
+       srcs[MEMORY_LOGICAL_ADDRESS].is_scalar);
    const bool block = convergent_block_load ||
       instr->intrinsic == nir_intrinsic_load_global_block_intel ||
       instr->intrinsic == nir_intrinsic_load_shared_block_intel ||

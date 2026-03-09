@@ -2654,7 +2654,7 @@ store("urb_lsc_intel", [1], [BASE])
 # & task shaders on Gfx12.5+
 #
 # src[] = { offset }.
-load("shader_indirect_data_intel", [1], [BASE, RANGE])
+load("shader_indirect_data_intel", [1], [BASE, RANGE, ALIGN_MUL, ALIGN_OFFSET])
 
 # Return a handle for a shader's input or output URB memory.
 system_value("urb_input_handle_intel", 1)

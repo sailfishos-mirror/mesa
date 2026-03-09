@@ -2196,7 +2196,9 @@ brw_nir_should_vectorize_mem(unsigned align_mul, unsigned align_offset,
    if (low->intrinsic == nir_intrinsic_load_ubo_uniform_block_intel ||
        low->intrinsic == nir_intrinsic_load_ssbo_uniform_block_intel ||
        low->intrinsic == nir_intrinsic_load_shared_uniform_block_intel ||
-       low->intrinsic == nir_intrinsic_load_global_constant_uniform_block_intel) {
+       low->intrinsic == nir_intrinsic_load_global_constant_uniform_block_intel ||
+       (low->intrinsic == nir_intrinsic_load_shader_indirect_data_intel &&
+        low->src[0].ssa == high->src[0].ssa)) {
       if (num_components > 4) {
          if (bit_size != 32)
             return false;
