@@ -216,9 +216,9 @@ option(
                 'will be built'
 )
 
-# Note that currently turnip supports msm and kgsl, while the gallium driver
-# support msm and virtio.  This is a temporary situation with virtio support
-# for turnip and kgsl support for gallium planned/in-progress.
+# Note that the freedreno gallium driver doesn't support KGSL.
+# On those systems, zink with Turnip should be used instead.
+# WSL is only supported for the replay tool.
 option(
   'freedreno-kmds',
   type : 'array',
