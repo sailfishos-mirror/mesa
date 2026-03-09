@@ -170,7 +170,7 @@ fd6_launch_grid(struct fd_context *ctx, const struct pipe_grid_info *info) in_dt
          struct ir3_shader_variant *v =
             ir3_shader_variant(ir3_get_shader(hwcso), key, false, &ctx->debug);
          if (v) {
-            cp->stateobj = fd_ringbuffer_new_object(ctx->pipe, 0x1000);
+            cp->stateobj = fd_ringbuffer_new_shareable_object(ctx->pipe, 0x1000);
             fd_cs cs(cp->stateobj);
             with_crb (cs, 9)
                cs_program_emit<CHIP>(screen, crb, v);
