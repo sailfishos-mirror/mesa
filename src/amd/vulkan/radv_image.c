@@ -1594,12 +1594,8 @@ radv_layout_is_htile_compressed(const struct radv_device *device, const struct r
       return false;
 
    switch (layout) {
-   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
    case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
-   case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
-   case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
-   case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
       return radv_htile_enabled(image, level);
    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
       return radv_tc_compat_htile_enabled(image, level) ||
@@ -1623,8 +1619,8 @@ radv_layout_is_htile_compressed(const struct radv_device *device, const struct r
        * introducing corruption.
        */
       return false;
-   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
-   case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+   case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
       if (radv_tc_compat_htile_enabled(image, level) ||
           (radv_htile_enabled(image, level) &&
            !(image->vk.usage & (VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT)))) {
@@ -1636,6 +1632,13 @@ radv_layout_is_htile_compressed(const struct radv_device *device, const struct r
          return false;
       }
       break;
+   case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+   case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+   case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
+      UNREACHABLE("Invalid image layouts!");
    default:
       return radv_tc_compat_htile_enabled(image, level);
    }

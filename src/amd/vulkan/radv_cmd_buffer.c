@@ -5633,7 +5633,7 @@ radv_emit_framebuffer_state(struct radv_cmd_buffer *cmd_buffer)
       /* When a subpass uses a VRS attachment without binding a depth/stencil attachment, we have to
        * bind our internal depth buffer that contains the VRS data as part of HTILE.
        */
-      VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+      VkImageLayout layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
       struct radv_buffer *htile_buffer = device->vrs.buffer;
       struct radv_image *image = device->vrs.image;
       struct radv_ds_buffer_info ds;
@@ -10083,6 +10083,10 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
             ds_att.resolve_mode = d_att_info->resolveMode;
             ds_att.resolve_layout = d_att_info->resolveImageLayout;
          }
+
+         initial_depth_layout = vk_image_layout_depth_only(initial_depth_layout);
+         ds_att.layout = vk_image_layout_depth_only(ds_att.layout);
+         ds_att.resolve_layout = vk_image_layout_depth_only(ds_att.resolve_layout);
       }
 
       if (s_att_info != NULL && s_att_info->imageView != VK_NULL_HANDLE) {
@@ -10095,6 +10099,10 @@ radv_CmdBeginRendering(VkCommandBuffer commandBuffer, const VkRenderingInfo *pRe
             ds_att.stencil_resolve_mode = s_att_info->resolveMode;
             ds_att.stencil_resolve_layout = s_att_info->resolveImageLayout;
          }
+
+         initial_stencil_layout = vk_image_layout_stencil_only(initial_stencil_layout);
+         ds_att.stencil_layout = vk_image_layout_stencil_only(ds_att.stencil_layout);
+         ds_att.stencil_resolve_layout = vk_image_layout_stencil_only(ds_att.stencil_resolve_layout);
       }
 
       assert(d_iview == NULL || s_iview == NULL || d_iview == s_iview);
