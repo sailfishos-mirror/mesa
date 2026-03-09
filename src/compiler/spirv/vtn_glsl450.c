@@ -229,33 +229,20 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
       mediump_16bit = false;
       break;
 
-   case GLSLstd450Frexp:
-   case GLSLstd450FrexpStruct:
-   case GLSLstd450Modf:
-   case GLSLstd450ModfStruct:
-      /* Not sure how to detect the ->elems[i] destinations on these in vtn_upconvert_value(). */
-      mediump_16bit = false;
-      break;
-
    default:
       mediump_16bit = vtn_value_needs_mediump_16bit(b, dest_val);
       break;
    }
 
-   /* Collect the various SSA sources */
    unsigned num_inputs = count - 5;
-   nir_def *src[3] = { NULL, };
-   for (unsigned i = 0; i < num_inputs; i++) {
-      /* These are handled specially below */
-      if (vtn_untyped_value(b, w[i + 5])->value_type == vtn_value_type_pointer)
-         continue;
+   struct vtn_ssa_value *vtn_src[3] = {0};
+   vtn_collect_ssa_sources(b, &w[5], vtn_src, num_inputs);
+   if (mediump_16bit)
+      vtn_downconvert_ssa_sources(b, vtn_src, num_inputs);
 
-      src[i] = vtn_get_nir_ssa(b, w[i + 5]);
-      if (mediump_16bit) {
-         struct vtn_ssa_value *vtn_src = vtn_ssa_value(b, w[i + 5]);
-         src[i] = vtn_mediump_downconvert(b, glsl_get_base_type(vtn_src->type), src[i]);
-      }
-   }
+   nir_def *src[3] = { NULL, };
+   for (unsigned i = 0; i < num_inputs; i++)
+      src[i] = vtn_src[i]->def;
 
    struct vtn_ssa_value *dest = vtn_create_ssa_value(b, dest_type);
 
@@ -269,49 +256,6 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
    case GLSLstd450Tan:
       dest->def = nir_ftan(nb, src[0]);
       break;
-
-   case GLSLstd450Modf: {
-      nir_def *inf = nir_imm_floatN_t(&b->nb, INFINITY, src[0]->bit_size);
-      nir_def *sign_bit =
-         nir_imm_intN_t(&b->nb, (uint64_t)1 << (src[0]->bit_size - 1),
-                        src[0]->bit_size);
-      nir_def *signed_zero = nir_iand(nb, src[0], sign_bit);
-      nir_def *abs = nir_fabs(nb, src[0]);
-
-      /* NaN input should produce a NaN results, and ±Inf input should provide
-       * ±0 result.  The fmul(sign(x), ffract(x)) calculation will already
-       * produce the expected NaN.  To get ±0, directly compare for equality
-       * with Inf instead of using fisfinite (which is false for NaN).
-       */
-      dest->def = nir_bcsel(nb,
-                            nir_ieq(nb, abs, inf),
-                            signed_zero,
-                            nir_ior(nb, signed_zero, nir_ffract(nb, abs)));
-
-      struct vtn_pointer *i_ptr = vtn_value(b, w[6], vtn_value_type_pointer)->pointer;
-      struct vtn_ssa_value *whole = vtn_create_ssa_value(b, i_ptr->type->pointed->type);
-      whole->def = nir_ior(nb, signed_zero, nir_ffloor(nb, abs));
-      vtn_variable_store(b, whole, i_ptr, 0);
-      break;
-   }
-
-   case GLSLstd450ModfStruct: {
-      nir_def *inf = nir_imm_floatN_t(&b->nb, INFINITY, src[0]->bit_size);
-      nir_def *sign_bit =
-         nir_imm_intN_t(&b->nb, (uint64_t)1 << (src[0]->bit_size - 1),
-                        src[0]->bit_size);
-      nir_def *signed_zero = nir_iand(nb, src[0], sign_bit);
-      nir_def *abs = nir_fabs(nb, src[0]);
-      vtn_assert(glsl_type_is_struct_or_ifc(dest_type));
-
-      /* See GLSLstd450Modf for explanation of the Inf and NaN handling. */
-      dest->elems[0]->def = nir_bcsel(nb,
-                                      nir_ieq(nb, abs, inf),
-                                      signed_zero,
-                                      nir_ior(nb, signed_zero, nir_ffract(nb, abs)));
-      dest->elems[1]->def = nir_ior(nb, signed_zero, nir_ffloor(nb, abs));
-      break;
-   }
 
    case GLSLstd450Step: {
       /* The SPIR-V Extended Instructions for GLSL spec says:
@@ -511,23 +455,6 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
       break;
    }
 
-   case GLSLstd450Frexp: {
-      dest->def = nir_frexp_sig(nb, src[0]);
-
-      struct vtn_pointer *i_ptr = vtn_value(b, w[6], vtn_value_type_pointer)->pointer;
-      struct vtn_ssa_value *exp = vtn_create_ssa_value(b, i_ptr->type->pointed->type);
-      exp->def = nir_frexp_exp(nb, src[0]);
-      vtn_variable_store(b, exp, i_ptr, 0);
-      break;
-   }
-
-   case GLSLstd450FrexpStruct: {
-      vtn_assert(glsl_type_is_struct_or_ifc(dest_type));
-      dest->elems[0]->def = nir_frexp_sig(nb, src[0]);
-      dest->elems[1]->def = nir_frexp_exp(nb, src[0]);
-      break;
-   }
-
    default: {
       unsigned execution_mode =
          b->shader->info.float_controls_execution_mode;
@@ -610,6 +537,92 @@ handle_glsl450_interpolation(struct vtn_builder *b, enum GLSLstd450 opcode,
    vtn_push_nir_ssa(b, w[2], def);
 }
 
+static void
+handle_glsl450_modf_frexp(struct vtn_builder *b, enum GLSLstd450 opcode,
+                          const uint32_t *w, unsigned count)
+{
+   struct nir_builder *nb = &b->nb;
+   const struct glsl_type *dest_type = vtn_get_type(b, w[1])->type;
+
+   /* TODO: Mediump currently not used, not sure how to detect the ->elems[i]
+    * destinations on these in vtn_upconvert_value().
+    */
+
+   struct vtn_ssa_value *vtn_src = {0};
+   vtn_collect_ssa_sources(b, &w[5], &vtn_src, 1);
+
+   nir_def *src = vtn_src->def;
+
+   struct vtn_ssa_value *dest = vtn_create_ssa_value(b, dest_type);
+
+   switch (opcode) {
+   case GLSLstd450Modf: {
+      nir_def *inf = nir_imm_floatN_t(&b->nb, INFINITY, src->bit_size);
+      nir_def *sign_bit =
+         nir_imm_intN_t(&b->nb, (uint64_t)1 << (src->bit_size - 1),
+                        src->bit_size);
+      nir_def *signed_zero = nir_iand(nb, src, sign_bit);
+      nir_def *abs = nir_fabs(nb, src);
+
+      /* NaN input should produce a NaN results, and ±Inf input should provide
+       * ±0 result.  The fmul(sign(x), ffract(x)) calculation will already
+       * produce the expected NaN.  To get ±0, directly compare for equality
+       * with Inf instead of using fisfinite (which is false for NaN).
+       */
+      dest->def = nir_bcsel(nb,
+                            nir_ieq(nb, abs, inf),
+                            signed_zero,
+                            nir_ior(nb, signed_zero, nir_ffract(nb, abs)));
+
+      struct vtn_pointer *i_ptr = vtn_value(b, w[6], vtn_value_type_pointer)->pointer;
+      struct vtn_ssa_value *whole = vtn_create_ssa_value(b, i_ptr->type->pointed->type);
+      whole->def = nir_ior(nb, signed_zero, nir_ffloor(nb, abs));
+      vtn_variable_store(b, whole, i_ptr, 0);
+      break;
+   }
+
+   case GLSLstd450ModfStruct: {
+      nir_def *inf = nir_imm_floatN_t(&b->nb, INFINITY, src->bit_size);
+      nir_def *sign_bit =
+         nir_imm_intN_t(&b->nb, (uint64_t)1 << (src->bit_size - 1),
+                        src->bit_size);
+      nir_def *signed_zero = nir_iand(nb, src, sign_bit);
+      nir_def *abs = nir_fabs(nb, src);
+      vtn_assert(glsl_type_is_struct_or_ifc(dest_type));
+
+      /* See GLSLstd450Modf for explanation of the Inf and NaN handling. */
+      dest->elems[0]->def = nir_bcsel(nb,
+                                      nir_ieq(nb, abs, inf),
+                                      signed_zero,
+                                      nir_ior(nb, signed_zero, nir_ffract(nb, abs)));
+      dest->elems[1]->def = nir_ior(nb, signed_zero, nir_ffloor(nb, abs));
+      break;
+   }
+
+   case GLSLstd450Frexp: {
+      dest->def = nir_frexp_sig(nb, src);
+
+      struct vtn_pointer *i_ptr = vtn_value(b, w[6], vtn_value_type_pointer)->pointer;
+      struct vtn_ssa_value *exp = vtn_create_ssa_value(b, i_ptr->type->pointed->type);
+      exp->def = nir_frexp_exp(nb, src);
+      vtn_variable_store(b, exp, i_ptr, 0);
+      break;
+   }
+
+   case GLSLstd450FrexpStruct: {
+      vtn_assert(glsl_type_is_struct_or_ifc(dest_type));
+      dest->elems[0]->def = nir_frexp_sig(nb, src);
+      dest->elems[1]->def = nir_frexp_exp(nb, src);
+      break;
+   }
+
+   default:
+      UNREACHABLE("not modf or frexp");
+   }
+
+   vtn_push_ssa_value(b, w[2], dest);
+}
+
 bool
 vtn_handle_glsl450_instruction(struct vtn_builder *b, SpvOp ext_opcode,
                                const uint32_t *w, unsigned count)
@@ -630,6 +643,13 @@ vtn_handle_glsl450_instruction(struct vtn_builder *b, SpvOp ext_opcode,
    case GLSLstd450InterpolateAtSample:
    case GLSLstd450InterpolateAtOffset:
       handle_glsl450_interpolation(b, (enum GLSLstd450)ext_opcode, w, count);
+      break;
+
+   case GLSLstd450Modf:
+   case GLSLstd450Frexp:
+   case GLSLstd450ModfStruct:
+   case GLSLstd450FrexpStruct:
+      handle_glsl450_modf_frexp(b, (enum GLSLstd450)ext_opcode, w, count);
       break;
 
    default:
