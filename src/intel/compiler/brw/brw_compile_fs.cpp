@@ -55,12 +55,22 @@ brw_emit_single_fb_write(brw_shader &s, const brw_builder &bld,
 }
 
 static void
-brw_do_emit_fb_writes(brw_shader &s, int nr_color_regions, bool replicate_alpha)
+brw_emit_fb_writes(brw_shader &s)
 {
+   assert(s.stage == MESA_SHADER_FRAGMENT);
+   brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
    const brw_builder bld = brw_builder(&s);
 
+   /* ANV doesn't know about sample mask output during the wm key creation
+    * so we compute if we need replicate alpha and emit alpha to coverage
+    * workaround here.
+    */
+   const bool replicate_alpha = key->alpha_test_replicate_alpha ||
+      (key->nr_color_regions > 1 && key->alpha_to_coverage &&
+       s.sample_mask.file == BAD_FILE);
+
    brw_fb_write_inst *write = NULL;
-   for (int target = 0; target < nr_color_regions; target++) {
+   for (int target = 0; target < key->nr_color_regions; target++) {
       /* Skip over outputs that weren't written, unless dual source
        * blending is at play. The results may be undefined depending
        * on the blending settings, but that's what the user signed
@@ -115,24 +125,6 @@ brw_do_emit_fb_writes(brw_shader &s, int nr_color_regions, bool replicate_alpha)
       write->eot = true;
    }
 }
-
-static void
-brw_emit_fb_writes(brw_shader &s)
-{
-   assert(s.stage == MESA_SHADER_FRAGMENT);
-   brw_fs_prog_key *key = (brw_fs_prog_key*) s.key;
-
-   /* ANV doesn't know about sample mask output during the wm key creation
-    * so we compute if we need replicate alpha and emit alpha to coverage
-    * workaround here.
-    */
-   const bool replicate_alpha = key->alpha_test_replicate_alpha ||
-      (key->nr_color_regions > 1 && key->alpha_to_coverage &&
-       s.sample_mask.file == BAD_FILE);
-
-   brw_do_emit_fb_writes(s, key->nr_color_regions, replicate_alpha);
-}
-
 
 /** Emits the interpolation for the varying inputs. */
 static void
