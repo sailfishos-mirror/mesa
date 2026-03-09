@@ -463,7 +463,7 @@ def categorize_param(types, parent_type, param):
     
     return ParamCategory.STRUCT
 
-def get_pnext_copy(builder, types, parent_type, src, dst):
+def get_pnext_copy(builder, command, types, parent_type, src, dst):
     if not types[parent_type].extended_by:
         return
 
@@ -480,7 +480,7 @@ def get_pnext_copy(builder, types, parent_type, src, dst):
         builder.add("case %s:" % (type.enum))
         builder.level += 1
         member = EntrypointParam(type=type.name, name="", decl="%s *" % (type.name), len=None)
-        get_param_copy(builder, types, "pnext", "(*dst_pnext_link)", member, nullable=False)
+        get_param_copy(builder, command, types, "pnext", "(*dst_pnext_link)", member, nullable=False)
         builder.add("break;")
         builder.level -= 1
 
@@ -493,7 +493,7 @@ def get_pnext_copy(builder, types, parent_type, src, dst):
     builder.level -= 1
     builder.add("}")
 
-def get_param_copy(builder, types, src_parent_access, dst_parent_access, param, nullable=True, dst_initialized=False, dst_snake_case=False):
+def get_param_copy(builder, command, types, src_parent_access, dst_parent_access, param, nullable=True, dst_initialized=False, dst_snake_case=False):
     src = src_parent_access + param.name
     dst = dst_parent_access + (to_field_name(param.name) if dst_snake_case else param.name)
 
@@ -553,9 +553,9 @@ def get_param_copy(builder, types, src_parent_access, dst_parent_access, param, 
                     for member in types[param.type].members:
                         category = categorize_param(types, param.type, member)
                         if category == ParamCategory.STRUCT or category == ParamCategory.STRING:
-                            get_param_copy(builder, types, "%s->" % (tmp_src_name), "%s->" % (tmp_dst_name), member, dst_initialized=True)
+                            get_param_copy(builder, command, types, "%s->" % (tmp_src_name), "%s->" % (tmp_dst_name), member, dst_initialized=True)
                         elif category == ParamCategory.PNEXT:
-                            get_pnext_copy(builder, types, param.type, "%s->pNext" % (tmp_src_name), "%s->pNext" % (tmp_dst_name))
+                            get_pnext_copy(builder, command, types, param.type, "%s->pNext" % (tmp_src_name), "%s->pNext" % (tmp_dst_name))
 
                     if struct_array_copy:
                         builder.level -= 1
@@ -581,7 +581,7 @@ def get_params_copy(command, types):
 
     struct_access = "cmd->u.%s." % (to_struct_field_name(command.name))
     for param in command.params[1:]:
-        get_param_copy(builder, types, "", struct_access, param, dst_snake_case=True)
+        get_param_copy(builder, command, types, "", struct_access, param, dst_snake_case=True)
 
     builder.code += "\n"
     builder.add("list_addtail(&cmd->cmd_link, &queue->cmds);")
