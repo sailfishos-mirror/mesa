@@ -138,8 +138,7 @@ radv_gfx_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_me
          goto fail;
       }
 
-      rendering_info.pDepthAttachment = &att_info,
-      rendering_info.pStencilAttachment = (dst->image->vk.aspects & VK_IMAGE_ASPECT_STENCIL_BIT) ? &att_info : NULL,
+      rendering_info.pDepthAttachment = &att_info;
 
       radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
    } else {
@@ -151,8 +150,7 @@ radv_gfx_copy_memory_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_me
          goto fail;
       }
 
-      rendering_info.pDepthAttachment = (dst->image->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT) ? &att_info : NULL,
-      rendering_info.pStencilAttachment = &att_info,
+      rendering_info.pStencilAttachment = &att_info;
 
       radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
    }
@@ -290,8 +288,7 @@ radv_gfx_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_
          goto fail_pipeline;
       }
 
-      rendering_info.pDepthAttachment = &att_info,
-      rendering_info.pStencilAttachment = (dst->image->vk.aspects & VK_IMAGE_ASPECT_STENCIL_BIT) ? &att_info : NULL,
+      rendering_info.pDepthAttachment = &att_info;
 
       radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
    } else if (dst->aspect_mask == VK_IMAGE_ASPECT_STENCIL_BIT) {
@@ -301,8 +298,7 @@ radv_gfx_copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_meta_blit2d_
          goto fail_pipeline;
       }
 
-      rendering_info.pDepthAttachment = (dst->image->vk.aspects & VK_IMAGE_ASPECT_DEPTH_BIT) ? &att_info : NULL,
-      rendering_info.pStencilAttachment = &att_info,
+      rendering_info.pStencilAttachment = &att_info;
 
       radv_meta_bind_graphics_pipeline(cmd_buffer, pipeline);
    } else
