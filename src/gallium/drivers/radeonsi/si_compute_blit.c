@@ -660,9 +660,6 @@ bool si_compute_copy_image(struct si_context *sctx, struct pipe_resource *dst, u
    info.src.format = src_format;
    info.mask = util_format_is_depth_or_stencil(dst_format) ? PIPE_MASK_ZS : PIPE_MASK_RGBA;
 
-   /* Only the compute blit can copy compressed and subsampled images. */
-   fail_if_slow &= !dst_access && !src_access;
-
    bool success = si_compute_blit(sctx, &info, NULL, dst_access, src_access, fail_if_slow);
    assert((!dst_access && !src_access) || success);
    return success;
@@ -724,7 +721,10 @@ bool si_compute_blit(struct si_context *sctx, const struct pipe_blit_info *info,
       .use_aco = sctx->screen->use_aco,
       .no_fmask = sctx->screen->debug_flags & DBG(NO_FMASK),
       /* Compute queues can't fail because there is no alternative. */
-      .fail_if_slow = sctx->is_gfx_queue && fail_if_slow,
+      .fail_if_slow = sctx->is_gfx_queue && fail_if_slow &&
+                      /* Compressed and subsampled image blits can't fail because
+                       * the gfx (pixel shader) blit doesn't support them. */
+                      !((src_access | dst_access) & SI_IMAGE_ACCESS_BLOCK_FORMAT_AS_UINT),
    };
 
    struct ac_cs_blit_description blit = {
