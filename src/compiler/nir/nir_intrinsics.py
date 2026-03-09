@@ -34,9 +34,13 @@ src3 = ('src', 3)
 src4 = ('src', 4)
 
 class Index(object):
-    def __init__(self, c_data_type, name):
+    def __init__(self, c_data_type, name, size):
+        # 64bit non struct types are possible, but intrinsics set/get
+        # need to be updated for that.
+        assert "struct" in c_data_type or size == 1
         self.c_data_type = c_data_type
         self.name = name
+        self.size = size
 
 class Intrinsic(object):
    """Class that represents all the information about an intrinsic opcode.
@@ -83,7 +87,14 @@ class Intrinsic(object):
        self.has_dest = (dest_components >= 0)
        self.dest_components = dest_components
        self.num_indices = len(indices)
+       self.num_index_slots = sum([idx.size for idx in indices])
        self.indices = indices
+       self.index_map = []
+       prefix = 0
+       for idx in indices:
+           self.index_map.append(prefix + 1)
+           prefix += idx.size
+       assert prefix <= 8
        self.flags = flags
        self.sysval = sysval
        self.bit_sizes = bit_sizes if isinstance(bit_sizes, list) else []
@@ -104,8 +115,8 @@ QUADGROUP_FLAGS = [CAN_ELIMINATE, QUADGROUP]
 INTR_INDICES = []
 INTR_OPCODES = {}
 
-def index(c_data_type, name):
-    idx = Index(c_data_type, name)
+def index(c_data_type, name, size = 1):
+    idx = Index(c_data_type, name, size)
     INTR_INDICES.append(idx)
     globals()[name.upper()] = idx
 
