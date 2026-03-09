@@ -404,7 +404,7 @@ lower_to_push_data_intel(nir_builder *b,
          b->cursor = nir_before_instr(&intrin->instr);
          data = load_push_data_from_ptr(
             b,
-            nir_intrinsic_base(intrin),
+            nir_intrinsic_base(intrin) - base_offset,
             nir_intrinsic_range(intrin),
             intrin->def.num_components,
             intrin->def.bit_size,
