@@ -6089,6 +6089,210 @@ void genX(CmdBeginRendering)(
 
    genX(flush_pipeline_select_3d)(cmd_buffer);
 
+   const struct anv_image_view *fsr_iview = NULL;
+   const VkRenderingFragmentShadingRateAttachmentInfoKHR *fsr_att =
+      vk_find_struct_const(pRenderingInfo->pNext,
+                           RENDERING_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR);
+   if (fsr_att != NULL && fsr_att->imageView != VK_NULL_HANDLE) {
+      fsr_iview = anv_image_view_from_handle(fsr_att->imageView);
+      /* imageLayout and shadingRateAttachmentTexelSize are ignored */
+   }
+
+   const struct anv_image_view *ds_iview = NULL;
+   const VkRenderingAttachmentInfo *d_att = pRenderingInfo->pDepthAttachment;
+   const VkRenderingAttachmentInfo *s_att = pRenderingInfo->pStencilAttachment;
+   if ((d_att != NULL && d_att->imageView != VK_NULL_HANDLE) ||
+       (s_att != NULL && s_att->imageView != VK_NULL_HANDLE)) {
+      const struct anv_image_view *d_iview = NULL, *s_iview = NULL;
+      VkImageLayout depth_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+      VkImageLayout stencil_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+      VkImageLayout initial_depth_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+      VkImageLayout initial_stencil_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+      enum isl_aux_usage depth_aux_usage = ISL_AUX_USAGE_NONE;
+      enum isl_aux_usage stencil_aux_usage = ISL_AUX_USAGE_NONE;
+      VkClearDepthStencilValue clear_value = {};
+
+      if (d_att != NULL && d_att->imageView != VK_NULL_HANDLE) {
+         d_iview = anv_image_view_from_handle(d_att->imageView);
+         initial_depth_layout = attachment_initial_layout(d_att);
+         depth_layout = d_att->imageLayout;
+         depth_aux_usage =
+            anv_layout_to_aux_usage(cmd_buffer->device->info,
+                                    d_iview->image,
+                                    VK_IMAGE_ASPECT_DEPTH_BIT,
+                                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                    depth_layout,
+                                    cmd_buffer->queue_family->queueFlags);
+         clear_value.depth = d_att->clearValue.depthStencil.depth;
+      }
+
+      if (s_att != NULL && s_att->imageView != VK_NULL_HANDLE) {
+         s_iview = anv_image_view_from_handle(s_att->imageView);
+         initial_stencil_layout = attachment_initial_layout(s_att);
+         stencil_layout = s_att->imageLayout;
+         stencil_aux_usage =
+            anv_layout_to_aux_usage(cmd_buffer->device->info,
+                                    s_iview->image,
+                                    VK_IMAGE_ASPECT_STENCIL_BIT,
+                                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                    stencil_layout,
+                                    cmd_buffer->queue_family->queueFlags);
+         clear_value.stencil = s_att->clearValue.depthStencil.stencil;
+      }
+
+      assert(s_iview == NULL || d_iview == NULL || s_iview == d_iview);
+      ds_iview = d_iview != NULL ? d_iview : s_iview;
+      assert(ds_iview != NULL);
+
+      assert(render_area.offset.x + render_area.extent.width <=
+             ds_iview->vk.extent.width);
+      assert(render_area.offset.y + render_area.extent.height <=
+             ds_iview->vk.extent.height);
+      assert(layers <= ds_iview->vk.layer_count);
+
+      fb_size.w = MAX2(fb_size.w, ds_iview->vk.extent.width);
+      fb_size.h = MAX2(fb_size.h, ds_iview->vk.extent.height);
+
+      assert(gfx->samples == 0 || gfx->samples == ds_iview->vk.image->samples);
+      gfx->samples |= ds_iview->vk.image->samples;
+
+      VkImageAspectFlags clear_aspects = 0;
+      if (d_iview != NULL && d_att->loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR &&
+          !(gfx->rendering_flags & VK_RENDERING_RESUMING_BIT))
+         clear_aspects |= VK_IMAGE_ASPECT_DEPTH_BIT;
+      if (s_iview != NULL && s_att->loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR &&
+          !(gfx->rendering_flags & VK_RENDERING_RESUMING_BIT))
+         clear_aspects |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+      if (clear_aspects != 0) {
+         const bool hiz_clear =
+            anv_can_hiz_clear_image(cmd_buffer, ds_iview->image,
+                                    d_iview ? depth_layout : stencil_layout,
+                                    clear_aspects, clear_value.depth,
+                                    render_area,
+                                    ds_iview->vk.base_mip_level);
+
+         if (depth_layout != initial_depth_layout) {
+            assert(render_area.offset.x == 0 && render_area.offset.y == 0 &&
+                   render_area.extent.width == d_iview->vk.extent.width &&
+                   render_area.extent.height == d_iview->vk.extent.height);
+
+            if (is_multiview) {
+               u_foreach_bit(view, gfx->view_mask) {
+                  transition_depth_buffer(cmd_buffer, d_iview->image,
+                                          d_iview->vk.base_mip_level, 1,
+                                          d_iview->vk.base_array_layer + view,
+                                          1 /* layer_count */,
+                                          initial_depth_layout, depth_layout,
+                                          hiz_clear);
+               }
+            } else {
+               transition_depth_buffer(cmd_buffer, d_iview->image,
+                                       d_iview->vk.base_mip_level, 1,
+                                       d_iview->vk.base_array_layer,
+                                       gfx->layer_count,
+                                       initial_depth_layout, depth_layout,
+                                       hiz_clear);
+            }
+         }
+
+         if (stencil_layout != initial_stencil_layout) {
+            assert(render_area.offset.x == 0 && render_area.offset.y == 0 &&
+                   render_area.extent.width == s_iview->vk.extent.width &&
+                   render_area.extent.height == s_iview->vk.extent.height);
+
+            if (is_multiview) {
+               u_foreach_bit(view, gfx->view_mask) {
+                  transition_stencil_buffer(cmd_buffer, s_iview->image,
+                                            s_iview->vk.base_mip_level, 1,
+                                            s_iview->vk.base_array_layer + view,
+                                            1 /* layer_count */,
+                                            initial_stencil_layout,
+                                            stencil_layout,
+                                            hiz_clear);
+               }
+            } else {
+               transition_stencil_buffer(cmd_buffer, s_iview->image,
+                                         s_iview->vk.base_mip_level, 1,
+                                         s_iview->vk.base_array_layer,
+                                         gfx->layer_count,
+                                         initial_stencil_layout,
+                                         stencil_layout,
+                                         hiz_clear);
+            }
+         }
+
+         if (is_multiview) {
+            u_foreach_bit(view, gfx->view_mask) {
+               uint32_t level = ds_iview->vk.base_mip_level;
+               uint32_t layer = ds_iview->vk.base_array_layer + view;
+
+               if (hiz_clear) {
+                  anv_image_hiz_clear(cmd_buffer, ds_iview->image,
+                                      clear_aspects, depth_layout, stencil_layout,
+                                      level, layer, 1,
+                                      render_area, &clear_value);
+               } else {
+                  anv_image_clear_depth_stencil(cmd_buffer, ds_iview->image,
+                                                clear_aspects,
+                                                depth_aux_usage,
+                                                level, layer, 1,
+                                                render_area, &clear_value);
+               }
+            }
+         } else {
+            uint32_t level = ds_iview->vk.base_mip_level;
+            uint32_t base_layer = ds_iview->vk.base_array_layer;
+            uint32_t layer_count = gfx->layer_count;
+
+            if (hiz_clear) {
+               anv_image_hiz_clear(cmd_buffer, ds_iview->image,
+                                   clear_aspects, depth_layout, stencil_layout,
+                                   level, base_layer, layer_count,
+                                   render_area, &clear_value);
+            } else {
+               anv_image_clear_depth_stencil(cmd_buffer, ds_iview->image,
+                                             clear_aspects,
+                                             depth_aux_usage,
+                                             level, base_layer, layer_count,
+                                             render_area, &clear_value);
+            }
+         }
+      } else {
+         /* If not LOAD_OP_CLEAR, we shouldn't have a layout transition. */
+         assert(depth_layout == initial_depth_layout);
+         assert(stencil_layout == initial_stencil_layout);
+      }
+
+      if (d_iview != NULL) {
+         gfx->depth_att.vk_format = d_iview->vk.format;
+         gfx->depth_att.iview = d_iview;
+         gfx->depth_att.layout = depth_layout;
+         gfx->depth_att.aux_usage = depth_aux_usage;
+         if (d_att != NULL && d_att->resolveMode != VK_RESOLVE_MODE_NONE) {
+            assert(d_att->resolveImageView != VK_NULL_HANDLE);
+            gfx->depth_att.resolve_mode = d_att->resolveMode;
+            gfx->depth_att.resolve_iview =
+               anv_image_view_from_handle(d_att->resolveImageView);
+            gfx->depth_att.resolve_layout = d_att->resolveImageLayout;
+         }
+      }
+
+      if (s_iview != NULL) {
+         gfx->stencil_att.vk_format = s_iview->vk.format;
+         gfx->stencil_att.iview = s_iview;
+         gfx->stencil_att.layout = stencil_layout;
+         gfx->stencil_att.aux_usage = stencil_aux_usage;
+         if (s_att->resolveMode != VK_RESOLVE_MODE_NONE) {
+            assert(s_att->resolveImageView != VK_NULL_HANDLE);
+            gfx->stencil_att.resolve_mode = s_att->resolveMode;
+            gfx->stencil_att.resolve_iview =
+               anv_image_view_from_handle(s_att->resolveImageView);
+            gfx->stencil_att.resolve_layout = s_att->resolveImageLayout;
+         }
+      }
+   }
+
    UNUSED bool render_target_change = false;
    for (uint32_t i = 0; i < gfx->color_att_count; i++) {
       if (pRenderingInfo->pColorAttachments[i].imageView == VK_NULL_HANDLE) {
@@ -6297,210 +6501,6 @@ void genX(CmdBeginRendering)(
    }
 
    anv_cmd_graphic_state_update_has_uint_rt(gfx);
-
-   const struct anv_image_view *fsr_iview = NULL;
-   const VkRenderingFragmentShadingRateAttachmentInfoKHR *fsr_att =
-      vk_find_struct_const(pRenderingInfo->pNext,
-                           RENDERING_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR);
-   if (fsr_att != NULL && fsr_att->imageView != VK_NULL_HANDLE) {
-      fsr_iview = anv_image_view_from_handle(fsr_att->imageView);
-      /* imageLayout and shadingRateAttachmentTexelSize are ignored */
-   }
-
-   const struct anv_image_view *ds_iview = NULL;
-   const VkRenderingAttachmentInfo *d_att = pRenderingInfo->pDepthAttachment;
-   const VkRenderingAttachmentInfo *s_att = pRenderingInfo->pStencilAttachment;
-   if ((d_att != NULL && d_att->imageView != VK_NULL_HANDLE) ||
-       (s_att != NULL && s_att->imageView != VK_NULL_HANDLE)) {
-      const struct anv_image_view *d_iview = NULL, *s_iview = NULL;
-      VkImageLayout depth_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-      VkImageLayout stencil_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-      VkImageLayout initial_depth_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-      VkImageLayout initial_stencil_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-      enum isl_aux_usage depth_aux_usage = ISL_AUX_USAGE_NONE;
-      enum isl_aux_usage stencil_aux_usage = ISL_AUX_USAGE_NONE;
-      VkClearDepthStencilValue clear_value = {};
-
-      if (d_att != NULL && d_att->imageView != VK_NULL_HANDLE) {
-         d_iview = anv_image_view_from_handle(d_att->imageView);
-         initial_depth_layout = attachment_initial_layout(d_att);
-         depth_layout = d_att->imageLayout;
-         depth_aux_usage =
-            anv_layout_to_aux_usage(cmd_buffer->device->info,
-                                    d_iview->image,
-                                    VK_IMAGE_ASPECT_DEPTH_BIT,
-                                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                    depth_layout,
-                                    cmd_buffer->queue_family->queueFlags);
-         clear_value.depth = d_att->clearValue.depthStencil.depth;
-      }
-
-      if (s_att != NULL && s_att->imageView != VK_NULL_HANDLE) {
-         s_iview = anv_image_view_from_handle(s_att->imageView);
-         initial_stencil_layout = attachment_initial_layout(s_att);
-         stencil_layout = s_att->imageLayout;
-         stencil_aux_usage =
-            anv_layout_to_aux_usage(cmd_buffer->device->info,
-                                    s_iview->image,
-                                    VK_IMAGE_ASPECT_STENCIL_BIT,
-                                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                    stencil_layout,
-                                    cmd_buffer->queue_family->queueFlags);
-         clear_value.stencil = s_att->clearValue.depthStencil.stencil;
-      }
-
-      assert(s_iview == NULL || d_iview == NULL || s_iview == d_iview);
-      ds_iview = d_iview != NULL ? d_iview : s_iview;
-      assert(ds_iview != NULL);
-
-      assert(render_area.offset.x + render_area.extent.width <=
-             ds_iview->vk.extent.width);
-      assert(render_area.offset.y + render_area.extent.height <=
-             ds_iview->vk.extent.height);
-      assert(layers <= ds_iview->vk.layer_count);
-
-      fb_size.w = MAX2(fb_size.w, ds_iview->vk.extent.width);
-      fb_size.h = MAX2(fb_size.h, ds_iview->vk.extent.height);
-
-      assert(gfx->samples == 0 || gfx->samples == ds_iview->vk.image->samples);
-      gfx->samples |= ds_iview->vk.image->samples;
-
-      VkImageAspectFlags clear_aspects = 0;
-      if (d_iview != NULL && d_att->loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR &&
-          !(gfx->rendering_flags & VK_RENDERING_RESUMING_BIT))
-         clear_aspects |= VK_IMAGE_ASPECT_DEPTH_BIT;
-      if (s_iview != NULL && s_att->loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR &&
-          !(gfx->rendering_flags & VK_RENDERING_RESUMING_BIT))
-         clear_aspects |= VK_IMAGE_ASPECT_STENCIL_BIT;
-
-      if (clear_aspects != 0) {
-         const bool hiz_clear =
-            anv_can_hiz_clear_image(cmd_buffer, ds_iview->image,
-                                    d_iview ? depth_layout : stencil_layout,
-                                    clear_aspects, clear_value.depth,
-                                    render_area,
-                                    ds_iview->vk.base_mip_level);
-
-         if (depth_layout != initial_depth_layout) {
-            assert(render_area.offset.x == 0 && render_area.offset.y == 0 &&
-                   render_area.extent.width == d_iview->vk.extent.width &&
-                   render_area.extent.height == d_iview->vk.extent.height);
-
-            if (is_multiview) {
-               u_foreach_bit(view, gfx->view_mask) {
-                  transition_depth_buffer(cmd_buffer, d_iview->image,
-                                          d_iview->vk.base_mip_level, 1,
-                                          d_iview->vk.base_array_layer + view,
-                                          1 /* layer_count */,
-                                          initial_depth_layout, depth_layout,
-                                          hiz_clear);
-               }
-            } else {
-               transition_depth_buffer(cmd_buffer, d_iview->image,
-                                       d_iview->vk.base_mip_level, 1,
-                                       d_iview->vk.base_array_layer,
-                                       gfx->layer_count,
-                                       initial_depth_layout, depth_layout,
-                                       hiz_clear);
-            }
-         }
-
-         if (stencil_layout != initial_stencil_layout) {
-            assert(render_area.offset.x == 0 && render_area.offset.y == 0 &&
-                   render_area.extent.width == s_iview->vk.extent.width &&
-                   render_area.extent.height == s_iview->vk.extent.height);
-
-            if (is_multiview) {
-               u_foreach_bit(view, gfx->view_mask) {
-                  transition_stencil_buffer(cmd_buffer, s_iview->image,
-                                            s_iview->vk.base_mip_level, 1,
-                                            s_iview->vk.base_array_layer + view,
-                                            1 /* layer_count */,
-                                            initial_stencil_layout,
-                                            stencil_layout,
-                                            hiz_clear);
-               }
-            } else {
-               transition_stencil_buffer(cmd_buffer, s_iview->image,
-                                         s_iview->vk.base_mip_level, 1,
-                                         s_iview->vk.base_array_layer,
-                                         gfx->layer_count,
-                                         initial_stencil_layout,
-                                         stencil_layout,
-                                         hiz_clear);
-            }
-         }
-
-         if (is_multiview) {
-            u_foreach_bit(view, gfx->view_mask) {
-               uint32_t level = ds_iview->vk.base_mip_level;
-               uint32_t layer = ds_iview->vk.base_array_layer + view;
-
-               if (hiz_clear) {
-                  anv_image_hiz_clear(cmd_buffer, ds_iview->image,
-                                      clear_aspects, depth_layout, stencil_layout,
-                                      level, layer, 1,
-                                      render_area, &clear_value);
-               } else {
-                  anv_image_clear_depth_stencil(cmd_buffer, ds_iview->image,
-                                                clear_aspects,
-                                                depth_aux_usage,
-                                                level, layer, 1,
-                                                render_area, &clear_value);
-               }
-            }
-         } else {
-            uint32_t level = ds_iview->vk.base_mip_level;
-            uint32_t base_layer = ds_iview->vk.base_array_layer;
-            uint32_t layer_count = gfx->layer_count;
-
-            if (hiz_clear) {
-               anv_image_hiz_clear(cmd_buffer, ds_iview->image,
-                                   clear_aspects, depth_layout, stencil_layout,
-                                   level, base_layer, layer_count,
-                                   render_area, &clear_value);
-            } else {
-               anv_image_clear_depth_stencil(cmd_buffer, ds_iview->image,
-                                             clear_aspects,
-                                             depth_aux_usage,
-                                             level, base_layer, layer_count,
-                                             render_area, &clear_value);
-            }
-         }
-      } else {
-         /* If not LOAD_OP_CLEAR, we shouldn't have a layout transition. */
-         assert(depth_layout == initial_depth_layout);
-         assert(stencil_layout == initial_stencil_layout);
-      }
-
-      if (d_iview != NULL) {
-         gfx->depth_att.vk_format = d_iview->vk.format;
-         gfx->depth_att.iview = d_iview;
-         gfx->depth_att.layout = depth_layout;
-         gfx->depth_att.aux_usage = depth_aux_usage;
-         if (d_att != NULL && d_att->resolveMode != VK_RESOLVE_MODE_NONE) {
-            assert(d_att->resolveImageView != VK_NULL_HANDLE);
-            gfx->depth_att.resolve_mode = d_att->resolveMode;
-            gfx->depth_att.resolve_iview =
-               anv_image_view_from_handle(d_att->resolveImageView);
-            gfx->depth_att.resolve_layout = d_att->resolveImageLayout;
-         }
-      }
-
-      if (s_iview != NULL) {
-         gfx->stencil_att.vk_format = s_iview->vk.format;
-         gfx->stencil_att.iview = s_iview;
-         gfx->stencil_att.layout = stencil_layout;
-         gfx->stencil_att.aux_usage = stencil_aux_usage;
-         if (s_att->resolveMode != VK_RESOLVE_MODE_NONE) {
-            assert(s_att->resolveImageView != VK_NULL_HANDLE);
-            gfx->stencil_att.resolve_mode = s_att->resolveMode;
-            gfx->stencil_att.resolve_iview =
-               anv_image_view_from_handle(s_att->resolveImageView);
-            gfx->stencil_att.resolve_layout = s_att->resolveImageLayout;
-         }
-      }
-   }
 
    /* Finally, now that we know the right size, set up the null surface */
    assert(util_bitcount(gfx->samples) <= 1);
