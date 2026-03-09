@@ -160,27 +160,29 @@ radv_process_depth_image_layer(struct radv_cmd_buffer *cmd_buffer, struct radv_i
       .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
    };
 
-   radv_image_view_init(
-      &iview, device,
-      &(VkImageViewCreateInfo){
-         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-         .pNext = &iview_usage_info,
-         .flags = VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA,
-         .image = radv_image_to_handle(image),
-         .viewType = radv_meta_get_view_type(image),
-         .format = image->vk.format,
-         .subresourceRange =
-            {
-               .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
-               .baseMipLevel = range->baseMipLevel + level,
-               .levelCount = 1,
-               .baseArrayLayer = range->baseArrayLayer + layer,
-               .layerCount = 1,
-            },
-      },
-      &(struct radv_image_view_extra_create_info){.depth_compress_disable = true, .stencil_compress_disable = true});
+   radv_image_view_init(&iview, device,
+                        &(VkImageViewCreateInfo){
+                           .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                           .pNext = &iview_usage_info,
+                           .flags = VK_IMAGE_VIEW_CREATE_DRIVER_INTERNAL_BIT_MESA,
+                           .image = radv_image_to_handle(image),
+                           .viewType = radv_meta_get_view_type(image),
+                           .format = image->vk.format,
+                           .subresourceRange =
+                              {
+                                 .aspectMask = range->aspectMask,
+                                 .baseMipLevel = range->baseMipLevel + level,
+                                 .levelCount = 1,
+                                 .baseArrayLayer = range->baseArrayLayer + layer,
+                                 .layerCount = 1,
+                              },
+                        },
+                        &(struct radv_image_view_extra_create_info){
+                           .depth_compress_disable = !!(range->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT),
+                           .stencil_compress_disable = !!(range->aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT),
+                        });
 
-   const VkRenderingAttachmentInfo depth_att = {
+   const VkRenderingAttachmentInfo att = {
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
       .imageView = radv_image_view_to_handle(&iview),
       .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
@@ -188,13 +190,17 @@ radv_process_depth_image_layer(struct radv_cmd_buffer *cmd_buffer, struct radv_i
       .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
    };
 
-   const VkRenderingInfo rendering_info = {
+   VkRenderingInfo rendering_info = {
       .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
       .flags = VK_RENDERING_LOCAL_READ_CONCURRENT_ACCESS_CONTROL_BIT_KHR,
       .renderArea = {.offset = {0, 0}, .extent = {width, height}},
       .layerCount = 1,
-      .pDepthAttachment = &depth_att,
    };
+
+   if (range->aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
+      rendering_info.pDepthAttachment = &att;
+   if (range->aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
+      rendering_info.pStencilAttachment = &att;
 
    radv_CmdBeginRendering(radv_cmd_buffer_to_handle(cmd_buffer), &rendering_info);
 
