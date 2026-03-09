@@ -11955,7 +11955,8 @@ radv_emit_depth_stencil_state(struct radv_cmd_buffer *cmd_buffer)
 
    radeon_begin(cmd_buffer->cs);
    if (pdev->info.gfx_level >= GFX12) {
-      const bool force_s_valid = pdev->info.has_db_force_stencil_valid_bug && ds.stencil.test_enable &&
+      const bool force_s_valid = pdev->info.has_db_force_stencil_valid_bug && render->ds_samples > 1 &&
+                                 ds.stencil.test_enable &&
                                  ((ds.stencil.front.op.pass != ds.stencil.front.op.depth_fail) ||
                                   (ds.stencil.back.op.pass != ds.stencil.back.op.depth_fail));
 
