@@ -9,6 +9,7 @@
 #include "drm/freedreno_ringbuffer.h"
 
 #include "pipe/p_state.h"
+#include "util/simple_mtx.h"
 #include "util/u_dump.h"
 #include "u_tracepoints.h"
 
@@ -25,7 +26,7 @@
 /* nregs: 2 */
 template <chip CHIP>
 static void
-cs_program_emit_local_size(struct fd_context *ctx, fd_crb &crb,
+cs_program_emit_local_size(struct fd_screen *screen, fd_crb &crb,
                            struct ir3_shader_variant *v, uint16_t local_size[3])
 {
    /*
@@ -34,7 +35,7 @@ cs_program_emit_local_size(struct fd_context *ctx, fd_crb &crb,
     * which is always set to THREAD128.
     */
    enum a6xx_threadsize thrsz = v->info.double_threadsize ? THREAD128 : THREAD64;
-   enum a6xx_threadsize thrsz_cs = ctx->screen->info->props
+   enum a6xx_threadsize thrsz_cs = screen->info->props
       .supports_double_threadsize ? thrsz : THREAD128;
 
    if (CHIP >= A7XX) {
@@ -62,7 +63,7 @@ cs_program_emit_local_size(struct fd_context *ctx, fd_crb &crb,
 /* nregs: 9 */
 template <chip CHIP>
 static void
-cs_program_emit(struct fd_context *ctx, fd_crb &crb, struct ir3_shader_variant *v)
+cs_program_emit(struct fd_screen *screen, fd_crb &crb, struct ir3_shader_variant *v)
    assert_dt
 {
    crb.add(SP_UPDATE_CNTL(CHIP,
@@ -97,7 +98,7 @@ cs_program_emit(struct fd_context *ctx, fd_crb &crb, struct ir3_shader_variant *
     * which is always set to THREAD128.
     */
    enum a6xx_threadsize thrsz = v->info.double_threadsize ? THREAD128 : THREAD64;
-   enum a6xx_threadsize thrsz_cs = ctx->screen->info->props
+   enum a6xx_threadsize thrsz_cs = screen->info->props
       .supports_double_threadsize ? thrsz : THREAD128;
 
    if (CHIP == A6XX) {
@@ -112,11 +113,11 @@ cs_program_emit(struct fd_context *ctx, fd_crb &crb, struct ir3_shader_variant *
          .threadsize = thrsz_cs,
       ));
 
-      if (!ctx->screen->info->props.supports_double_threadsize) {
+      if (!screen->info->props.supports_double_threadsize) {
          crb.add(SP_PS_WAVE_CNTL(CHIP, .threadsize = thrsz));
       }
 
-      if (ctx->screen->info->props.has_lpac) {
+      if (screen->info->props.has_lpac) {
          crb.add(A6XX_SP_CS_WIE_CNTL_0(
             .wgidconstid = work_group_id,
             .wgsizeconstid = INVALID_REG,
@@ -147,7 +148,7 @@ cs_program_emit(struct fd_context *ctx, fd_crb &crb, struct ir3_shader_variant *
    }
 
    if (!v->local_size_variable)
-      cs_program_emit_local_size<CHIP>(ctx, crb, v, v->local_size);
+      cs_program_emit_local_size<CHIP>(screen, crb, v, v->local_size);
 }
 
 template <chip CHIP>
@@ -157,18 +158,29 @@ fd6_launch_grid(struct fd_context *ctx, const struct pipe_grid_info *info) in_dt
    struct fd6_compute_state *cp = (struct fd6_compute_state *)ctx->compute;
 
    if (unlikely(!cp->v)) {
-      struct ir3_shader_state *hwcso = (struct ir3_shader_state *)cp->hwcso;
-      struct ir3_shader_key key = {};
+      struct fd_screen *screen = ctx->screen;
+      static simple_mtx_t lock = SIMPLE_MTX_INITIALIZER;
 
-      cp->v = ir3_shader_variant(ir3_get_shader(hwcso), key, false, &ctx->debug);
-      if (!cp->v)
-         return;
+      simple_mtx_lock(&lock);
+      /* check again under lock: */
+      if (!cp->v) {
+         struct ir3_shader_state *hwcso = (struct ir3_shader_state *)cp->hwcso;
+         struct ir3_shader_key key = {};
 
-      cp->stateobj = fd_ringbuffer_new_object(ctx->pipe, 0x1000);
-      fd_cs cs(cp->stateobj);
-      with_crb (cs, 9)
-         cs_program_emit<CHIP>(ctx, crb, cp->v);
-      fd6_emit_shader<CHIP>(ctx, cs, cp->v);
+         struct ir3_shader_variant *v =
+            ir3_shader_variant(ir3_get_shader(hwcso), key, false, &ctx->debug);
+         if (v) {
+            cp->stateobj = fd_ringbuffer_new_object(ctx->pipe, 0x1000);
+            fd_cs cs(cp->stateobj);
+            with_crb (cs, 9)
+               cs_program_emit<CHIP>(screen, crb, v);
+            fd6_emit_shader<CHIP>(screen, cs, v);
+
+            cp->v = v;
+         }
+      }
+
+      simple_mtx_unlock(&lock);
    }
 
    fd_cs cs(ctx->batch->draw);
@@ -242,7 +254,7 @@ fd6_launch_grid(struct fd_context *ctx, const struct pipe_grid_info *info) in_dt
 
       if (cp->v->local_size_variable) {
          uint16_t wg[] = {local_size[0], local_size[1], local_size[2]};
-         cs_program_emit_local_size<CHIP>(ctx, crb, cp->v, wg);
+         cs_program_emit_local_size<CHIP>(ctx->screen, crb, cp->v, wg);
       }
 
       crb.add(SP_CS_NDRANGE_0(CHIP,

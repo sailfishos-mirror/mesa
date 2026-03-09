@@ -111,7 +111,7 @@ fd6_load_inline_uniforms_via_preamble_ldgk(const struct ir3_shader_variant *v)
 }
 
 template <chip CHIP>
-void fd6_emit_shader(struct fd_context *ctx, fd_cs &cs,
+void fd6_emit_shader(struct fd_screen *screen, fd_cs &cs,
                      const struct ir3_shader_variant *so) assert_dt;
 
 template <chip CHIP>
