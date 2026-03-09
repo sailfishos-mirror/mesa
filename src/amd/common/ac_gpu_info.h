@@ -262,6 +262,7 @@ struct radeon_info {
    bool has_small_prim_filter_sample_loc_bug;
    bool has_pops_missed_overlap_bug;
    bool has_zero_index_buffer_bug;
+   bool has_db_force_stencil_valid_bug;
    bool has_two_planes_iterate256_bug;
    bool has_vgt_flush_ngg_legacy_bug;
    bool has_prim_restart_sync_bug;

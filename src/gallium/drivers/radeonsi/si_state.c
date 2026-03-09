@@ -1465,7 +1465,7 @@ static void *si_create_dsa_state(struct pipe_context *ctx,
       dsa->db_stencil_write_mask = S_028094_WRITEMASK(state->stencil[0].writemask) |
                                    S_028094_WRITEMASK_BF(state->stencil[1].writemask);
 
-      if (sctx->gfx_level == GFX12) {
+      if (sctx->screen->info.has_db_force_stencil_valid_bug) {
          dsa->gfx12_force_stencil_valid = state->stencil[0].zpass_op != state->stencil[0].zfail_op ||
                                           (state->stencil[1].enabled &&
                                            state->stencil[1].zpass_op != state->stencil[1].zfail_op);

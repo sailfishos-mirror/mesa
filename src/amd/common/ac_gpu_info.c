@@ -1112,6 +1112,11 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
     */
    info->has_pops_missed_overlap_bug = info->family == CHIP_VEGA10 || info->family == CHIP_RAVEN;
 
+   /* Whether FORCE_STENCIL_VALID must be forced to 1 when a MSAA
+    * depth/stencil image is bound and that ZPASS/ZFAIL differs.
+    */
+   info->has_db_force_stencil_valid_bug = info->gfx_level == GFX12;
+
    /* GFX6 hw bug when the IBO addr is 0 which causes invalid clamping (underflow).
     * Setting the IB addr to 2 or higher solves this issue.
     * See waMiscNullIb in PAL.
