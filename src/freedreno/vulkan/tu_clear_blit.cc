@@ -847,9 +847,8 @@ compile_shader(struct tu_device *dev, struct nir_shader *nir,
       ir3_shader_from_nir(dev->compiler, nir, &options);
 
    struct ir3_shader_key key = {};
-   bool created;
    struct ir3_shader_variant *so =
-      ir3_shader_get_variant(sh, &key, false, false, &created);
+      ir3_shader_get_variant(sh, &key, false, false, NULL, NULL);
 
    struct tu6_global *global = dev->global_bo_map;
 

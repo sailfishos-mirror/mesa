@@ -668,9 +668,10 @@ shader_variant(struct ir3_shader *shader, const struct ir3_shader_key *key)
 }
 
 struct ir3_shader_variant *
-ir3_shader_get_variant(struct ir3_shader *shader,
-                       const struct ir3_shader_key *key, bool binning_pass,
-                       bool write_disasm, bool *created)
+ir3_shader_get_variant(struct ir3_shader *shader, const struct ir3_shader_key *key,
+                       bool binning_pass, bool write_disasm,
+                       void (*upload)(struct ir3_shader_variant *v, void *),
+                       void *arg)
 {
    MESA_TRACE_FUNC();
 
@@ -683,7 +684,11 @@ ir3_shader_get_variant(struct ir3_shader *shader,
       if (v) {
          v->next = shader->variants;
          shader->variants = v;
-         *created = true;
+         if (upload) {
+            upload(v, arg);
+            if (v->binning)
+               upload(v->binning, arg);
+         }
       }
    }
 

@@ -84,8 +84,9 @@ dump_shader_info(struct ir3_shader_variant *v,
 }
 
 static void
-upload_shader_variant(struct ir3_shader_variant *v)
+upload_shader_variant(struct ir3_shader_variant *v, void *arg)
 {
+   struct util_debug_callback *debug = arg;
    struct ir3_compiler *compiler = v->compiler;
 
    assert(!v->bo);
@@ -98,15 +99,22 @@ upload_shader_variant(struct ir3_shader_variant *v)
    fd_bo_mark_for_dump(v->bo);
 
    fd_bo_upload(v->bo, v->bin, 0, v->info.size);
+
+   if (v->shader->initial_variants_done && !v->binning_pass) {
+      perf_debug_message(debug, SHADER_INFO,
+                           "%s shader: recompiling at draw time: global "
+                           "0x%08x, vfsamples %x/%x, astc %x/%x\n",
+                           ir3_shader_stage(v), v->key.global, v->key.vsamples,
+                           v->key.fsamples, v->key.vastc_srgb, v->key.fastc_srgb);
+   }
+
+   dump_shader_info(v, debug);
 }
 
 struct ir3_shader_variant *
 ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key,
                    bool binning_pass, struct util_debug_callback *debug)
 {
-   struct ir3_shader_variant *v;
-   bool created = false;
-
    MESA_TRACE_FUNC();
 
    /* Some shader key values may not be used by a given ir3_shader (for
@@ -115,27 +123,8 @@ ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key,
     */
    ir3_key_clear_unused(&key, shader);
 
-   v = ir3_shader_get_variant(shader, &key, binning_pass, false, &created);
-
-   if (created) {
-      if (shader->initial_variants_done) {
-         perf_debug_message(debug, SHADER_INFO,
-                            "%s shader: recompiling at draw time: global "
-                            "0x%08x, vfsamples %x/%x, astc %x/%x\n",
-                            ir3_shader_stage(v), key.global, key.vsamples,
-                            key.fsamples, key.vastc_srgb, key.fastc_srgb);
-      }
-
-      dump_shader_info(v, debug);
-      upload_shader_variant(v);
-
-      if (v->binning) {
-         upload_shader_variant(v->binning);
-         dump_shader_info(v->binning, debug);
-      }
-   }
-
-   return v;
+   return ir3_shader_get_variant(shader, &key, binning_pass, false,
+                                 upload_shader_variant, debug);
 }
 
 static void
