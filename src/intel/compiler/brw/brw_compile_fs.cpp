@@ -381,8 +381,7 @@ brw_emit_interpolation_setup(brw_shader &s)
 
 
 /**
- * Once we've generated code, try to convert normal FS_OPCODE_FB_WRITE
- * instructions to FS_OPCODE_REP_FB_WRITE.
+ * Emit a special clear shader that uses a SIMD16 replicated data RT write.
  */
 static void
 brw_emit_repclear_shader(brw_shader &s)
