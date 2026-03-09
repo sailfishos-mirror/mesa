@@ -540,8 +540,7 @@ handle_conversion_opts(struct vtn_builder *b, UNUSED struct vtn_value *val,
 static bool
 vtn_alu_op_mediump_16bit(struct vtn_builder *b, SpvOp opcode, struct vtn_value *dest_val)
 {
-   if (!b->options->mediump_16bit_alu ||
-       !vtn_has_decoration(b, dest_val, SpvDecorationRelaxedPrecision))
+   if (!vtn_value_needs_mediump_16bit(b, dest_val))
       return false;
 
    switch (opcode) {

@@ -238,8 +238,7 @@ handle_glsl450_alu(struct vtn_builder *b, enum GLSLstd450 entrypoint,
       break;
 
    default:
-      mediump_16bit = b->options->mediump_16bit_alu &&
-                      vtn_has_decoration(b, dest_val, SpvDecorationRelaxedPrecision);
+      mediump_16bit = vtn_value_needs_mediump_16bit(b, dest_val);
       break;
    }
 

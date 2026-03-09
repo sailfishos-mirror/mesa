@@ -1157,4 +1157,12 @@ void vtn_downconvert_ssa_sources(struct vtn_builder *b,
                                  struct vtn_ssa_value **vtn_src,
                                  unsigned num_srcs);
 
+static inline bool
+vtn_value_needs_mediump_16bit(struct vtn_builder *b,
+                              struct vtn_value *dest_val)
+{
+   return b->options->mediump_16bit_alu &&
+          vtn_has_decoration(b, dest_val, SpvDecorationRelaxedPrecision);
+}
+
 #endif /* _VTN_PRIVATE_H_ */
