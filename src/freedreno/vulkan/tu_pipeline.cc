@@ -2531,6 +2531,7 @@ static const enum mesa_vk_dynamic_graphics_state tu_viewport_state[] = {
    MESA_VK_DYNAMIC_VP_VIEWPORTS,
    MESA_VK_DYNAMIC_VP_VIEWPORT_COUNT,
    MESA_VK_DYNAMIC_VP_DEPTH_CLIP_NEGATIVE_ONE_TO_ONE,
+   MESA_VK_DYNAMIC_VP_DEPTH_CLAMP_RANGE,
    MESA_VK_DYNAMIC_RS_DEPTH_CLAMP_ENABLE,
 };
 
@@ -2636,12 +2637,17 @@ tu6_emit_viewport(struct tu_cs *cs,
 
    for (uint32_t i = 0; i < vp->viewport_count; i++) {
       const VkViewport *viewport = &vp->viewports[i];
-      float zmin = MIN2(viewport->minDepth, viewport->maxDepth);
-      float zmax = MAX2(viewport->minDepth, viewport->maxDepth);
+      float zmin, zmax;
 
-      if (zero_one_depth_clamp) {
+      if (vp->depth_clamp_mode == VK_DEPTH_CLAMP_MODE_USER_DEFINED_RANGE_EXT) {
+         zmin = vp->depth_clamp_range.minDepthClamp;
+         zmax = vp->depth_clamp_range.maxDepthClamp;
+      } else if (zero_one_depth_clamp) {
          zmin = 0.0f;
          zmax = 1.0f;
+      } else {
+         zmin = MIN2(viewport->minDepth, viewport->maxDepth);
+         zmax = MAX2(viewport->minDepth, viewport->maxDepth);
       }
 
       crb.add(GRAS_CL_VIEWPORT_ZCLAMP_MIN(CHIP, i, zmin));
