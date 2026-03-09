@@ -7788,6 +7788,8 @@ radv_BeginCommandBuffer(VkCommandBuffer commandBuffer, const VkCommandBufferBegi
          struct radv_rendering_state *render = &cmd_buffer->state.render;
          render->active = true;
          render->view_mask = inheritance_info->viewMask;
+         render->color_samples = inheritance_info->rasterizationSamples;
+         render->ds_samples = inheritance_info->rasterizationSamples;
          render->max_samples = inheritance_info->rasterizationSamples;
          render->color_att_count = inheritance_info->colorAttachmentCount;
 
