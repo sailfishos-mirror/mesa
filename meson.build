@@ -250,7 +250,7 @@ if with_gallium_swrast
 endif
 
 with_gallium = gallium_drivers.length() != 0
-with_gallium_kmsro = system_has_kms_drm and [
+with_gallium_drm = system_has_kms_drm and [
   with_gallium_asahi,
   with_gallium_etnaviv,
   with_gallium_freedreno,
@@ -258,7 +258,6 @@ with_gallium_kmsro = system_has_kms_drm and [
   with_gallium_panfrost,
   with_gallium_v3d,
   with_gallium_vc4,
-  with_gallium_zink,
 ].contains(true)
 
 _vulkan_drivers = get_option('vulkan-drivers')
@@ -322,8 +321,8 @@ freedreno_kmds = get_option('freedreno-kmds')
 if freedreno_kmds.length() != 0 and freedreno_kmds != [ 'msm' ] and with_freedreno_vk
   if freedreno_kmds.contains('msm')
       warning('Turnip with the DRM KMD will require libdrm to always be present at runtime which may not always be the case on platforms such as Android.')
-  elif with_gallium_kmsro
-      warning('As a side-effect, Turnip is forced to link with libdrm when built alongside Gallium DRM drivers which platforms such as Android may not have available at runtime.')
+  elif with_gallium_drm
+      warning('Turnip is forced to link with libdrm when built alongside Gallium DRM drivers which platforms such as Android may not have available at runtime.')
   elif _vulkan_drivers != [ 'freedreno' ]
       warning('Turnip is forced to link with libdrm when built alongside other Vulkan drivers which platforms such as Android may not have available at runtime.')
   else
@@ -332,6 +331,9 @@ if freedreno_kmds.length() != 0 and freedreno_kmds != [ 'msm' ] and with_freedre
     system_has_kms_drm = false
   endif
 endif
+
+# This has to be below the freedreno_kmds check since that can change system_has_kms_drm
+with_gallium_kmsro = with_gallium_drm or (system_has_kms_drm and with_gallium_zink)
 
 pre_args += ['-DMESA_SYSTEM_HAS_KMS_DRM=@0@'.format(system_has_kms_drm.to_int())]
 if host_machine.cpu_family() == 'x86' and with_glx_read_only_text
