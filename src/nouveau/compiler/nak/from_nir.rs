@@ -3072,7 +3072,7 @@ impl<'a> ShaderFromNir<'a> {
                 b.push_op(OpIsberd {
                     dst: dst.into(),
                     offset: self.get_src(&srcs[0]),
-                    imm_offset: 0,
+                    imm_offset: u16::try_from(intrin.base()).unwrap(),
                     output: flags.output(),
                     skew: flags.skew(),
                     mem_type: MemType::from_size(size_B, false),
@@ -3123,7 +3123,7 @@ impl<'a> ShaderFromNir<'a> {
 
                 b.push_op(OpIsbewr {
                     offset: self.get_src(&srcs[1]),
-                    imm_offset: 0,
+                    imm_offset: u16::try_from(intrin.base()).unwrap(),
                     data: self.get_src(&srcs[0]),
                     output: flags.output(),
                     skew: flags.skew(),

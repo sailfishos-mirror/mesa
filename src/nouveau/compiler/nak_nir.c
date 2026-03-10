@@ -1148,8 +1148,19 @@ nak_nir_opt_offset_shift_nv(nir_shader *nir, const struct nak_compiler *nak)
    );
 }
 
-const static struct nir_opt_offsets_options nak_offset_options = {
-};
+static uint32_t
+nak_nir_max_imm_offset(nir_intrinsic_instr *intrin, const void *data)
+{
+   const struct nak_compiler *nak = data;
+
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_isberd_nv:
+   case nir_intrinsic_isbewr_nv:
+      return nak->sm >= 86 ? UINT16_MAX : 0;
+   default:
+      return 0;
+   }
+}
 
 void
 nak_postprocess_nir(nir_shader *nir,
@@ -1289,6 +1300,11 @@ nak_postprocess_nir(nir_shader *nir,
    }
 
    OPT(nir, nak_nir_lower_load_store, nak);
+
+   struct nir_opt_offsets_options nak_offset_options = {
+      .max_offset_cb = nak_nir_max_imm_offset,
+      .cb_data = nak,
+   };
    OPT(nir, nir_opt_offsets, &nak_offset_options);
 
    /* Should run after nir_opt_offsets, because nir_opt_algebraic will move

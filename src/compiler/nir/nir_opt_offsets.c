@@ -383,6 +383,10 @@ process_instr(nir_builder *b, nir_instr *instr, void *s)
    /* Always signed offset */
    case nir_intrinsic_cmat_load_shared_nv:
       return try_fold_load_store(b, intrin, state, 0, -8388608, 0x7fffff, false);
+   case nir_intrinsic_isberd_nv:
+      return try_fold_load_store(b, intrin, state, 0, 0, get_max(state, intrin, 0), false);
+   case nir_intrinsic_isbewr_nv:
+      return try_fold_load_store(b, intrin, state, 1, 0, get_max(state, intrin, 0), false);
    default:
       return false;
    }
