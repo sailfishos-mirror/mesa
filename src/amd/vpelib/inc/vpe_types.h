@@ -49,6 +49,12 @@ struct vpe;
 #define MAX_NB_POLYPHASE_COEFFS (8 * 33)
 #define VPE_FROD_MAX_STAGE 3
 
+#ifdef VPE_USE_STDCALL
+#define VPE_APIENTRY __stdcall
+#else
+#define VPE_APIENTRY
+#endif
+
 /** @enum vpe_status
  *  @brief The status of VPE to indicate whether it supports the given job or not.
  */
@@ -444,12 +450,12 @@ struct vpe_surface_dcc_cap {
  * @param[in] log_ctx  given in the struct @ref vpe_init_data
  * @param[in] fmt      format string
  */
-typedef void (*vpe_log_func_t)(void *log_ctx, const char *fmt, ...);
+typedef void(VPE_APIENTRY *vpe_log_func_t)(void *log_ctx, const char *fmt, ...);
 
 /** @brief Sys Event function
  * @param[in] event_id event to emit to system log
  */
-typedef void (*vpe_sys_event_func_t)(enum vpe_event_id event_id, ...);
+typedef void(VPE_APIENTRY *vpe_sys_event_func_t)(enum vpe_event_id event_id, ...);
 
 /** @brief system memory zalloc, allocated memory initailized with 0
  *
@@ -457,13 +463,13 @@ typedef void (*vpe_sys_event_func_t)(enum vpe_event_id event_id, ...);
  * @param[in] size     number of bytes
  * @return             allocated memory
  */
-typedef void *(*vpe_zalloc_func_t)(void *mem_ctx, size_t size);
+typedef void *(VPE_APIENTRY *vpe_zalloc_func_t)(void *mem_ctx, size_t size);
 
 /** @brief system memory free
  * @param[in] mem_ctx  given in the struct @ref vpe_init_data
  * @param[in] ptr      number of bytes
  */
-typedef void (*vpe_free_func_t)(void *mem_ctx, void *ptr);
+typedef void(VPE_APIENTRY *vpe_free_func_t)(void *mem_ctx, void *ptr);
 
 /** @struct vpe_callback_funcs
  *  @brief Callback functions.
