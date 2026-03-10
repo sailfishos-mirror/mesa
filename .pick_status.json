@@ -2884,7 +2884,7 @@
         "description": "pco: use vm/icm for tile buffer store coverage mask",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "297a0c269aa76afd7422a7ed98af1686b671d523",
         "notes": null
