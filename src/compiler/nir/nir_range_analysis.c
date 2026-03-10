@@ -201,7 +201,7 @@ fp_lookup(void *table, uint32_t key, uint32_t *value)
 {
    nir_fp_analysis_state *state = table;
    if (BITSET_TEST(state->bitset, key)) {
-      *value = *(uint16_t *)util_sparse_array_get(&state->arr, key);
+      *value = state->arr[key];
       return true;
    } else {
       return false;
@@ -214,7 +214,7 @@ fp_insert(void *table, uint32_t key, uint32_t value)
    nir_fp_analysis_state *state = table;
    BITSET_SET(state->bitset, key);
    state->max = MAX2(state->max, (int)key);
-   *(uint16_t *)util_sparse_array_get(&state->arr, key) = value;
+   state->arr[key] = value;
 }
 
 static fp_class_mask
@@ -1393,22 +1393,25 @@ nir_create_fp_analysis_state(nir_function_impl *impl)
 {
    nir_fp_analysis_state state;
    state.impl = impl;
-   /* Over-allocate the bitset, so that we can keep using the allocated table memory
+   /* Over-allocate, so that we can keep using the allocated table memory
     * even when new SSA values are added. */
-   state.size = BITSET_BYTES(impl->ssa_alloc + impl->ssa_alloc / 4u);
+   state.size = (impl->ssa_alloc + impl->ssa_alloc / 4u);
    state.max = -1;
-   state.bitset = calloc(state.size, 1);
-   util_sparse_array_init(&state.arr, 2, 256);
+   state.bitset = calloc(BITSET_BYTES(state.size), 1);
+   state.arr = malloc(state.size * sizeof(uint16_t));
    return state;
 }
 
 void
 nir_invalidate_fp_analysis_state(nir_fp_analysis_state *state)
 {
-   if (BITSET_BYTES(state->impl->ssa_alloc) > state->size) {
-      state->size = BITSET_BYTES(state->impl->ssa_alloc + state->impl->ssa_alloc / 4u);
+   if (state->impl->ssa_alloc > state->size) {
+      state->size = state->impl->ssa_alloc + state->impl->ssa_alloc / 4u;
+
+      free(state->arr);
       free(state->bitset);
-      state->bitset = calloc(state->size, 1);
+      state->arr = malloc(state->size * sizeof(uint16_t));
+      state->bitset = calloc(BITSET_BYTES(state->size), 1);
    } else if (state->max >= 0) {
       memset(state->bitset, 0, BITSET_BYTES(state->max + 1));
    }
@@ -1418,7 +1421,7 @@ nir_invalidate_fp_analysis_state(nir_fp_analysis_state *state)
 void
 nir_free_fp_analysis_state(nir_fp_analysis_state *state)
 {
-   util_sparse_array_finish(&state->arr);
+   free(state->arr);
    free(state->bitset);
 }
 

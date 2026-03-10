@@ -24,7 +24,6 @@
 #define _NIR_RANGE_ANALYSIS_H_
 
 #include "util/bitset.h"
-#include "util/sparse_array.h"
 #include "util/u_hash_table.h"
 #include "nir_defines.h"
 
@@ -34,7 +33,7 @@ extern "C" {
 
 typedef struct {
    nir_function_impl *impl;
-   struct util_sparse_array arr;
+   uint16_t *arr;
    BITSET_WORD *bitset;
    uint32_t size;
    int32_t max;
