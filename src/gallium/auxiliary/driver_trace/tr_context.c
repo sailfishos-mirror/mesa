@@ -1074,6 +1074,27 @@ trace_context_set_viewport_states(struct pipe_context *_pipe,
 }
 
 
+static void
+trace_context_set_sample_locations(struct pipe_context *_pipe,
+                                   size_t size, const uint8_t *locations)
+{
+   struct trace_context *tr_ctx = trace_context(_pipe);
+   struct pipe_context *pipe = tr_ctx->pipe;
+
+   trace_dump_call_begin("pipe_context", "set_sample_locations");
+
+   trace_dump_arg(ptr, pipe);
+   trace_dump_arg(uint, size);
+   trace_dump_arg_begin("locations");
+   trace_dump_bytes(locations, size);
+   trace_dump_arg_end();
+
+   pipe->set_sample_locations(pipe, size, locations);
+
+   trace_dump_call_end();
+}
+
+
 static struct pipe_sampler_view *
 trace_context_create_sampler_view(struct pipe_context *_pipe,
                                   struct pipe_resource *resource,
@@ -2575,6 +2596,7 @@ trace_context_create(struct trace_screen *tr_scr,
    TR_CTX_INIT(set_scissor_states);
    TR_CTX_INIT(set_viewport_states);
    TR_CTX_INIT(set_sampler_views);
+   TR_CTX_INIT(set_sample_locations);
    TR_CTX_INIT(create_sampler_view);
    TR_CTX_INIT(sampler_view_destroy);
    TR_CTX_INIT(sampler_view_release);
