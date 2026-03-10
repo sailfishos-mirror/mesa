@@ -644,7 +644,7 @@
         "description": "r300: pad short vertex shaders to avoid R3xx hangs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c6aa639ba9b283c7b2735ed3d682403d585a15d4",
         "notes": null
