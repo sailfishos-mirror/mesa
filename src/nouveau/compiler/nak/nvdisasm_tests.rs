@@ -882,3 +882,130 @@ pub fn test_plop3() {
         c.check(sm);
     }
 }
+
+#[test]
+pub fn test_isberd() {
+    let r1 = RegRef::new(RegFile::GPR, 1, 1);
+    let r2 = RegRef::new(RegFile::GPR, 2, 1);
+
+    let mem_types = [
+        (MemType::U8, ""),
+        (MemType::U16, ".u16"),
+        (MemType::B32, ".32"),
+    ];
+
+    let output_type = [(false, ""), (true, ".o")];
+    let skew_type = [(false, ""), (true, ".skew")];
+    let access_type_list = [
+        (IsbeAccessType::Map, ""),
+        (IsbeAccessType::Patch, ".patch"),
+        (IsbeAccessType::Primitive, ".prim"),
+        (IsbeAccessType::Attribute, ".attr"),
+    ];
+
+    for &sm in sm_list() {
+        if sm < 50 {
+            continue;
+        }
+
+        let mut c = DisasmCheck::new();
+        for (output, output_str) in output_type {
+            for (access_type, access_type_str) in access_type_list {
+                if access_type != IsbeAccessType::Map && sm < 75 {
+                    continue;
+                }
+
+                for (skew, skew_str) in skew_type {
+                    if skew && sm < 75 {
+                        continue;
+                    }
+
+                    for (mem_type, mem_type_str) in mem_types {
+                        if mem_type != MemType::U8 && sm < 75 {
+                            continue;
+                        }
+
+                        for imm_offset in [0, 0x42] {
+                            if imm_offset != 0 && sm < 86 {
+                                continue;
+                            }
+
+                            let instr = OpIsberd {
+                                dst: Dst::Reg(r1),
+                                offset: SrcRef::Reg(r2).into(),
+                                imm_offset,
+                                mem_type,
+                                access_type,
+                                output,
+                                skew,
+                            };
+                            let disasm = if imm_offset != 0 {
+                                format!("isberd{output_str}{access_type_str}{skew_str}{mem_type_str} r1, [r2+0x{imm_offset:x}];")
+                            } else {
+                                format!("isberd{output_str}{access_type_str}{skew_str}{mem_type_str} r1, [r2];")
+                            };
+                            c.push(instr, disasm);
+                        }
+                    }
+                }
+            }
+        }
+
+        c.check(sm);
+    }
+}
+
+#[test]
+pub fn test_isbewr() {
+    let r1 = RegRef::new(RegFile::GPR, 1, 1);
+    let r2 = RegRef::new(RegFile::GPR, 2, 1);
+
+    let mem_types = [
+        (MemType::U8, ""),
+        (MemType::U16, ".u16"),
+        (MemType::B32, ".32"),
+    ];
+
+    let skew_type = [(false, ""), (true, ".skew")];
+    let access_type_list = [
+        (IsbeAccessType::Map, ""),
+        (IsbeAccessType::Attribute, ".attr"),
+    ];
+
+    for &sm in sm_list() {
+        if sm < 75 {
+            continue;
+        }
+
+        let mut c = DisasmCheck::new();
+        for (access_type, access_type_str) in access_type_list {
+            for (skew, skew_str) in skew_type {
+                for (mem_type, mem_type_str) in mem_types {
+                    for imm_offset in [0, 0x42] {
+                        if imm_offset != 0 && sm < 86 {
+                            continue;
+                        }
+
+                        let instr = OpIsbewr {
+                            offset: SrcRef::Reg(r2).into(),
+                            data: SrcRef::Reg(r1).into(),
+                            imm_offset,
+                            mem_type,
+                            access_type,
+                            output: true,
+                            skew,
+                        };
+                        let disasm = if imm_offset != 0 {
+                            format!("isbewr.o{access_type_str}{skew_str}{mem_type_str} [r2+0x{imm_offset:x}], r1;")
+                        } else {
+                            format!("isbewr.o{access_type_str}{skew_str}{mem_type_str} [r2], r1;")
+                        };
+                        c.push(instr, disasm);
+                    }
+                }
+            }
+        }
+
+        c.check(sm);
+    }
+}
