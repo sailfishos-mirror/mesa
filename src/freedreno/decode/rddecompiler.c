@@ -611,6 +611,9 @@ emit_header()
    case 7:
       init_rnn("a7xx");
       break;
+   case 8:
+      init_rnn("a8xx");
+      break;
    default:
       errx(-1, "unsupported gpu: %u", dev_id.gpu_id);
    }
