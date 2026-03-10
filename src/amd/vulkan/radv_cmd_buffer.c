@@ -15543,8 +15543,8 @@ radv_emit_strmout_buffer(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
    radeon_end();
 
    if (gfx_level >= GFX10) {
-      /* Emitting a COPY_DATA packet should be enough because RADV doesn't support preemption
-       * (shadow memory) but for unknown reasons, it can lead to GPU hangs on GFX10+.
+      /* Make sure that PFP waits for ME to avoid a race condition because the data is written by
+       * STRMOUT_BUFFER_UPDATE in ME, but LOAD_CONTEXT_REG_INDEX is in PFP.
        */
       ac_emit_cp_pfp_sync_me(cs->b, false);
 
