@@ -25,8 +25,8 @@ set -x
 
 DEQP_MAIN_COMMIT=4d3bedc74e2258c483cf968753207cff84d9e4fc
 DEQP_VK_VERSION=1.4.4.2
-DEQP_GL_VERSION=4.6.7.0
-DEQP_GLES_VERSION=3.2.13.0
+DEQP_GL_VERSION=4.6.8.0
+DEQP_GLES_VERSION=3.2.14.0
 
 # Patches to VulkanCTS may come from commits in their repo (listed in
 # cts_commits_to_backport) or patch files stored in our repo (in the patch
@@ -66,12 +66,10 @@ gl_cts_patch_files=(
 # shellcheck disable=SC2034
 # GLES builds also EGL
 gles_cts_commits_to_backport=(
-  # CMake: Include FindPkgConfig before using pkg_check_modules()
-  e09e0a210b041d0bf7b525620d0068eab3ffa66a
-  # Add an option to print to logcat in Android executable builds
-  fc51668efdfd0dffa30b3eddee34aa26172969fb
   # Fix EGL render tests for rgba16 and rgb16 unorm fixed point
   b5ed8718f19492781f8e9be3eb9d3346e961efa9
+  # Fix glGetnUniform* error codes when bufSize < 0
+  34259553e0cc77061465ae0c4bcd4c4658a0fb4a
 )
 
 # shellcheck disable=SC2034
