@@ -814,7 +814,7 @@
         "description": "nvk/mme: Add missing nullcheck in nvk_mme_test_state_state",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7d6cc15ab81178be7660a27b26626734773c267f",
         "notes": null
