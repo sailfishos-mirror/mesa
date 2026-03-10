@@ -1,6 +1,12 @@
+.enforce-hw-jobs-imagination-rules:
+  rules:
+    - if: '$INPUT_HW_JOBS !~ /"(all|imagination|powervr.ko)"/i'
+      when: never
+
 .imagination-rules:
   stage: imagination
   rules:
+    - !reference [.enforce-hw-jobs-imagination-rules, rules]
     - !reference [.test, rules]
     - !reference [.imagination-farm-rules, rules]
     - !reference [.vulkan-rules, rules]
@@ -23,6 +29,7 @@
   stage: imagination-nightly
   extends: .no-auto-retry
   rules:
+    - !reference [.enforce-hw-jobs-imagination-rules, rules]
     - !reference [.test, rules]
     - !reference [.imagination-farm-manual-rules, rules]
     - !reference [.vulkan-manual-rules, rules]

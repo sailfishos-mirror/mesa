@@ -109,6 +109,7 @@ zink-anv-adl-traces-performance:
     - .zink-anv-manual-rules
     - .piglit-performance-base
   rules:
+    - !reference [.enforce-hw-jobs-anv-rules, rules]
     - !reference [.piglit-performance-base, rules]
     - !reference [.zink-anv-manual-rules, rules]
   variables:
@@ -197,6 +198,7 @@ zink-tu-a618-traces-performance:
     - .zink-turnip-collabora-manual-rules
     - .piglit-performance-base
   rules:
+    - !reference [.enforce-hw-jobs-turnip-rules, rules]
     - !reference [.piglit-performance-base, rules]
     - !reference [.zink-turnip-collabora-manual-rules, rules]
   variables:

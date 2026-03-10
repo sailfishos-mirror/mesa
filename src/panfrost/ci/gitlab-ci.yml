@@ -95,7 +95,7 @@ panfrost-g52-vk:arm64:
     - .lava-arm64-test-vk
     - .panfrost-test
     - .lava-mt8186-corsola-steelix-sku131072:arm64
-    - .panfrost-vk-rules
+    - .panfrost-vk-panfrost-rules
   variables:
     DRIVER_NAME: panvk
     MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
@@ -187,7 +187,7 @@ panfrost-g610-vk:arm64:
     - .lava-arm64-test-vk
     - .panfrost-test
     - .lava-rk3588-rock-5b:arm64
-    - .panfrost-vk-rules
+    - .panfrost-vk-panthor-rules
   variables:
     DRIVER_NAME: panvk
     MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
@@ -207,7 +207,7 @@ panfrost-g610-vk-asan:arm64:
     - .lava-arm64-test-asan-vk
     - .panfrost-test
     - .lava-rk3588-rock-5b:arm64
-    - .panfrost-vk-manual-rules
+    - .panfrost-vk-manual-panthor-rules
   timeout: 1h 35m
   variables:
     DRIVER_NAME: panvk
@@ -223,7 +223,7 @@ panfrost-g925-vk:arm64:
     - .lava-arm64-test-vk
     - .panfrost-test
     - .lava-mt8196-rauru-navi-sku0:arm64
-    - .panfrost-vk-rules
+    - .panfrost-vk-panthor-rules
   variables:
     DRIVER_NAME: panvk
     MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
@@ -238,7 +238,7 @@ panfrost-g925-angle:arm64:
     - .panfrost-test
     - .test-angle
     - .lava-mt8196-rauru-navi-sku0:arm64
-    - .panfrost-vk-rules
+    - .panfrost-vk-panthor-rules
   variables:
     MESA_VK_IGNORE_CONFORMANCE_WARNING: 1
     DEQP_SUITE: panvk-angle

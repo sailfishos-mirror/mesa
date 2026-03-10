@@ -1,6 +1,17 @@
+.enforce-hw-jobs-virgl-rules:
+  rules:
+    - if: '$INPUT_HW_JOBS !~ /"(all|virgl|virtio.ko)"/i'
+      when: never
+
+.enforce-hw-jobs-virgl-iris-rules:
+  rules:
+    - if: '$INPUT_HW_JOBS !~ /"(all|iris|i915.ko|virgl|virtio.ko)"/i'
+      when: never
+
 .virgl-rules:
   stage: layered-backends
   rules:
+    - !reference [.enforce-hw-jobs-virgl-rules, rules]
     - !reference [.test, rules]
     - !reference [.gl-rules, rules]
     - !reference [.llvmpipe-rules, rules]
@@ -13,6 +24,7 @@
   stage: layered-backends
   extends: .no-auto-retry
   rules:
+    - !reference [.enforce-hw-jobs-virgl-iris-rules, rules]
     - !reference [.test, rules]
     - !reference [.collabora-farm-manual-rules, rules]
     - !reference [.gl-manual-rules, rules]
@@ -25,6 +37,7 @@
   stage: performance
   extends: .no-auto-retry
   rules:
+    - !reference [.enforce-hw-jobs-virgl-iris-rules, rules]
     - !reference [.test, rules]
     - !reference [.collabora-farm-manual-rules, rules]
     - !reference [.performance-rules, rules]
