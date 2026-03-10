@@ -2143,7 +2143,6 @@ nir_unsigned_upper_bound(nir_shader *shader, struct hash_table *range_ht,
 
    push_scalar_query(&state, scalar);
 
-   _mesa_hash_table_set_deleted_key(range_ht, (void *)(uintptr_t)UINT32_MAX);
    return perform_analysis(&state);
 }
 
@@ -2547,6 +2546,5 @@ nir_def_num_lsb_zero(struct hash_table *numlsb_ht, nir_scalar def)
 
    push_scalar_query(&state, def);
 
-   _mesa_hash_table_set_deleted_key(numlsb_ht, (void *)(uintptr_t)UINT32_MAX);
    return perform_analysis(&state);
 }
