@@ -359,7 +359,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<doc> Controls whether RB, IB1, IB2, IB3, or SDS is executed </doc>
 	<reg32 name="IB_LEVEL" offset="0x054"/>
 
-	<doc> Controls high 32 bits used by load and store afuc instructions </doc>
+	<doc> Controls high 32 bits used by load and store qrisc instructions </doc>
 	<reg32 name="LOAD_STORE_HI" offset="0x058"/>
 
 	<reg32 name="REG_READ_TEST_RESULT" offset="0x05b">

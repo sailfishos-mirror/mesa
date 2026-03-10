@@ -54,8 +54,8 @@ Hardware acronyms
   SQE
     a6xx+ replacement for PFP/ME.  This is the microcontroller that runs the
     microcode (loaded from Linux) which actually processes the command stream
-    and writes to the hardware registers.  See `afuc
-    <https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/src/freedreno/afuc/README.rst>`__.
+    and writes to the hardware registers.  See `qrisc
+    <https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/src/freedreno/qrisc/README.rst>`__.
 
   ROQ
     DMA engine used by the SQE for reading memory, with some prefetch buffering.
@@ -350,7 +350,7 @@ You would need to disassemble the firmware (/lib/firmware/qcom/aXXX_sqe.fw) via:
 
 .. code-block:: sh
 
-  afuc-disasm -v a650_sqe.fw > a650_sqe.fw.disasm
+  qrisc-disasm -v a650_sqe.fw > a650_sqe.fw.disasm
 
 Now you should search for PC value in the disassembly, e.g.:
 
