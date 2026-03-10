@@ -115,9 +115,6 @@ angle-dEQP-GLES2.functional.shaders.algorithm.rgb_to_hsl_vertex,Fail
 
 KHR-GL46.shader_atomic_counters.basic-usage-tes,Fail
 
-# https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/39499
-vkd3d-test_large_texel_buffer_view,Fail
-
 # test_shader_instructions:3479:124:f32tof16: Test failed: Got {0x00000000, 0x00000000, 0x00000000, 0x00000000}, expected {0x00000001, 0x00000002, 0x00000003, 0x00000004} at (0, 0).
 # test_shader_instructions:3479:125:f32tof16: Test failed: Got {0x00008000, 0x00008000, 0x00008000, 0x00008000}, expected {0x00008001, 0x00008002, 0x00008003, 0x00008004} at (0, 0).
 # test_shader_instructions:3479:130:f32tof16: Todo succeeded: Got {0x00006400, 0x00006401, 0x00006402, 0x00006403}, expected {0x00006400, 0x00006401, 0x00006402, 0x00006403} at (32, 32).
@@ -134,3 +131,4 @@ vkd3d-test_shader_instructions,Fail
 vkd3d-test_stress_fallback_render_target_allocation_device,Fail
 
 vkd3d-test_sparse_depth_stencil_rendering,Fail
+vkd3d-test_clear_render_target_view_extreme_values,Fail
