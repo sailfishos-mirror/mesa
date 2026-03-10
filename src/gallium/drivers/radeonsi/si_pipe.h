@@ -267,7 +267,6 @@ enum
    DBG_TEST_VMFAULT_SHADER,
    DBG_TEST_DMA_PERF,
    DBG_TEST_MEM_PERF,
-   DBG_TEST_BLIT_PERF,
 };
 
 #define DBG_ALL_SHADERS (((1 << (DBG_MS + 1)) - 1))
@@ -1669,9 +1668,6 @@ PROC void si_test_dma_perf(struct si_screen *sscreen) TAILV;
 PROC void si_test_mem_perf(struct si_screen *sscreen) TAILV;
 PROC void si_test_clear_buffer(struct si_screen *sscreen) TAILV;
 PROC void si_test_copy_buffer(struct si_screen *sscreen) TAILV;
-
-/* si_test_blit_perf.c */
-PROC void si_test_blit_perf(struct si_screen *sscreen) TAILV;
 
 /* si_state_viewport.c */
 void si_update_vs_viewport_state(struct si_context *ctx);

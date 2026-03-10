@@ -135,7 +135,6 @@ if with_gfx_compute
     'si_shaderlib_nir.c',
     'si_state_shaders.cpp',
     'si_sqtt.c',
-    'si_test_blit_perf.c',
     'si_test_dma_perf.c',
     'si_test_image_copy_region.c',
   )
