@@ -58,6 +58,15 @@ anv-tgl-vk-full:
   timeout: 100m
   parallel: 4
 
+anv-adl-fluster:
+  extends:
+    - .lava-x86_64-test-video
+    - .anv-test
+    - .lava-acer-chromebox-cxi5-brask:x86_64
+    - .test-fluster
+  variables:
+    DEQP_SUITE: anv-fluster
+
 # Takes too long since the 1.3.7.0 CTS uprev.
 .hasvk-hsw-full:
   extends:
