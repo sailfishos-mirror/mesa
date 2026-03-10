@@ -13,9 +13,10 @@
  * needed, which is a quite common. For example, any float comparison, cosinus, exp2, log2,
  * or addition with non zero value does not care about the zero sign of the inputs. Neither
  * do texture coordinates.
+ * Drivers can also set no_signed_zero for fragment output stores based on state, blending,
+ * fixed point or R11G11B10 formats do not care about the sign of zero.
  *
- * Future work could also consider fragment output state, fixed point or R11G11B10 formats
- * do not care about the sign of zero.
+ * Future work:
  * For pre raster stages, position doesn't care, and we could back propagate information from
  * the FS for varyings, and interpolated varyings do not care anyway.
  */
@@ -214,8 +215,8 @@ prop_tex_fp_math_ctrl(nir_tex_instr *tex)
    }
 }
 
-static void
-prop_intrin_fp_math_ctrl(nir_intrinsic_instr *intrin)
+static bool
+opt_intrin_fp_math_ctrl(nir_intrinsic_instr *intrin)
 {
    switch (intrin->intrinsic) {
    case nir_intrinsic_ddx:
@@ -226,10 +227,36 @@ prop_intrin_fp_math_ctrl(nir_intrinsic_instr *intrin)
    case nir_intrinsic_ddy_fine:
       if (intrin->instr.pass_flags)
          src_mark_preserve_sz(&intrin->src[0], NULL);
-      break;
+      return false;
    default:
-      nir_foreach_src(&intrin->instr, src_mark_preserve_sz, NULL);
       break;
+   }
+
+   if (!nir_intrinsic_has_io_semantics(intrin)) {
+      nir_foreach_src(&intrin->instr, src_mark_preserve_sz, NULL);
+      return false;
+   }
+
+   nir_io_semantics sem = nir_intrinsic_io_semantics(intrin);
+   const nir_intrinsic_info *info = &nir_intrinsic_infos[(int)intrin->intrinsic];
+
+   if (info->has_dest) {
+      nir_foreach_src(&intrin->instr, src_mark_preserve_sz, NULL);
+
+      /* For loads, set no signed zero flag based on gathered info. */
+      if (!intrin->instr.pass_flags && !sem.no_signed_zero) {
+         sem.no_signed_zero = 1;
+         nir_intrinsic_set_io_semantics(intrin, sem);
+         return true;
+      }
+
+      return false;
+   } else {
+      /* For stores, propagate the signed zero information for the data source. */
+      for (unsigned i = sem.no_signed_zero; i < info->num_srcs; i++)
+         src_mark_preserve_sz(&intrin->src[i], NULL);
+
+      return false;
    }
 }
 
@@ -272,7 +299,7 @@ opt_fp_math_ctrl_impl(nir_function_impl *impl)
             prop_tex_fp_math_ctrl(nir_instr_as_tex(instr));
             break;
          case nir_instr_type_intrinsic:
-            prop_intrin_fp_math_ctrl(nir_instr_as_intrinsic(instr));
+            progress |= opt_intrin_fp_math_ctrl(nir_instr_as_intrinsic(instr));
             break;
          case nir_instr_type_phi:
             if (!instr->pass_flags)
