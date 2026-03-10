@@ -211,6 +211,7 @@ if with_tests and not with_platform_android
       files('test_nvk_mme.c'),
       dependencies : [nvk_deps],
       link_with : [libnvk],
-    )
+    ),
+    suite : ['nouveau'],
   )
 endif
