@@ -2825,7 +2825,6 @@ iris_compile_fs(struct iris_screen *screen,
             .archiver = debug_archiver,
          },
 
-         .allow_spilling = true,
          .max_polygons = UCHAR_MAX,
          .vue_map = vue_map,
       };

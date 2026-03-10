@@ -1049,7 +1049,6 @@ populate_compile_params_fs(union brw_any_compile_params *params,
       }
    }
 
-   params->fs.allow_spilling = true;
    params->fs.max_polygons = UCHAR_MAX;
 
    params->fs.wa_18019110168_load_per_primitive_remap_table_offset =

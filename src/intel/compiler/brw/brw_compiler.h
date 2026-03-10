@@ -1340,7 +1340,6 @@ struct brw_compile_fs_params {
    const struct intel_vue_map *vue_map;
    const struct brw_mue_map *mue_map;
 
-   bool allow_spilling;
    bool use_rep_send;
    uint8_t max_polygons;
 
