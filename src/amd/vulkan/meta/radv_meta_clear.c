@@ -542,7 +542,8 @@ emit_depthstencil_clear(struct radv_cmd_buffer *cmd_buffer, VkClearDepthStencilV
       enum radv_cmd_flush_bits flush_bits =
          radv_clear_hiz(cmd_buffer, iview->image, &range, radv_gfx12_get_hiz_initial_value());
 
-      radv_update_hiz_metadata(cmd_buffer, iview->image, &range, true);
+      if (aspects & VK_IMAGE_ASPECT_DEPTH_BIT)
+         radv_update_hiz_metadata(cmd_buffer, iview->image, &range, true);
 
       if (post_flush)
          *post_flush |= flush_bits;
