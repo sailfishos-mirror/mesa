@@ -2054,7 +2054,10 @@ typedef struct nir_io_semantics {
    unsigned interp_explicit_strict : 1; /* preserve original vertex order */
    /* Skip nir_validate of the intrinsic. Any new code that sets it will ba NAK'd. */
    unsigned no_validate : 1;
-   unsigned padding;
+
+   /* Start of the second uint. */
+   unsigned no_signed_zero : 1; /* whether it matters if the input/output is -0.0 or +0.0. */
+   unsigned padding : 31;
 } nir_io_semantics;
 
 /* Transform feedback info for 4 outputs. */

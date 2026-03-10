@@ -1601,6 +1601,9 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
          if (io.no_validate)
             fprintf(fp, " no_validate");
 
+         if (io.no_signed_zero)
+            fprintf(fp, " no_signed_zero");
+
          break;
       }
 

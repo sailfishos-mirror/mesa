@@ -176,6 +176,18 @@ vectorize_load(nir_intrinsic_instr *chan[8], unsigned start, unsigned count,
 
    nir_io_semantics sem = nir_intrinsic_io_semantics(new_intr);
 
+   for (unsigned i = start; i < start + count; i++) {
+      if (chan[i]) {
+         if (!nir_intrinsic_io_semantics(chan[i]).no_signed_zero)
+            sem.no_signed_zero = 0;
+      }
+
+      if (step == merge_low_high_16_to_32 && chan[4 + i]) {
+         if (!nir_intrinsic_io_semantics(chan[4 + i]).no_signed_zero)
+            sem.no_signed_zero = 0;
+      }
+   }
+
    if (step == vectorize_high_16_separately) {
       assert(start >= 4);
       sem.high_16bits = 1;
@@ -298,6 +310,8 @@ vectorize_store(nir_intrinsic_instr *chan[8], unsigned start, unsigned count,
          sem.no_sysval_output = 0;
       if (!nir_intrinsic_io_semantics(chan[i]).no_varying)
          sem.no_varying = 0;
+      if (!nir_intrinsic_io_semantics(chan[i]).no_signed_zero)
+         sem.no_signed_zero = 0;
    }
 
    if (step == merge_low_high_16_to_32) {
@@ -307,6 +321,8 @@ vectorize_store(nir_intrinsic_instr *chan[8], unsigned start, unsigned count,
             sem.no_sysval_output = 0;
          if (!nir_intrinsic_io_semantics(chan[4 + i]).no_varying)
             sem.no_varying = 0;
+         if (!nir_intrinsic_io_semantics(chan[4 + i]).no_signed_zero)
+            sem.no_signed_zero = 0;
       }
 
       /* Update the type. */
