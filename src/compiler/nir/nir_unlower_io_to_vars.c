@@ -77,8 +77,8 @@ is_compact(nir_shader *nir, bool is_output, unsigned location)
            location == VARYING_SLOT_CLIP_DIST1 ||
            location == VARYING_SLOT_CULL_DIST0 ||
            location == VARYING_SLOT_CULL_DIST1 ||
-           location == VARYING_SLOT_TESS_LEVEL_OUTER ||
-           location == VARYING_SLOT_TESS_LEVEL_INNER);
+           (nir->info.stage != MESA_SHADER_MESH && location == VARYING_SLOT_TESS_LEVEL_OUTER) ||
+           (nir->info.stage != MESA_SHADER_MESH && location == VARYING_SLOT_TESS_LEVEL_INNER));
 }
 
 /* Get information about the intrinsic. */
