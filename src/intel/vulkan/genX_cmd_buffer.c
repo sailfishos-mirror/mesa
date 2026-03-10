@@ -614,18 +614,20 @@ transition_depth_buffer(struct anv_cmd_buffer *cmd_buffer,
    }
 
    if (hiz_op != ISL_AUX_OP_NONE) {
-      for (uint32_t l = 0; l < level_count; l++) {
-         const uint32_t level = base_level + l;
+      anv_blorp_require_rcs(cmd_buffer, NULL, image) {
+         for (uint32_t l = 0; l < level_count; l++) {
+            const uint32_t level = base_level + l;
 
-         uint32_t aux_layers =
-            anv_image_aux_layers(image, VK_IMAGE_ASPECT_DEPTH_BIT, level);
-         if (base_layer >= aux_layers)
-            break; /* We will only get fewer layers as level increases */
-         uint32_t level_layer_count =
-            MIN2(layer_count, aux_layers - base_layer);
+            uint32_t aux_layers =
+               anv_image_aux_layers(image, VK_IMAGE_ASPECT_DEPTH_BIT, level);
+            if (base_layer >= aux_layers)
+               break; /* We will only get fewer layers as level increases */
+            uint32_t level_layer_count =
+               MIN2(layer_count, aux_layers - base_layer);
 
-         anv_image_hiz_op(cmd_buffer, image, VK_IMAGE_ASPECT_DEPTH_BIT,
-                          level, base_layer, level_layer_count, hiz_op);
+            anv_image_hiz_op(cmd_buffer, image, VK_IMAGE_ASPECT_DEPTH_BIT,
+                             level, base_layer, level_layer_count, hiz_op);
+         }
       }
    }
 
