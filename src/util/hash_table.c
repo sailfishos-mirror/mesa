@@ -54,19 +54,6 @@
 #define XXH_INLINE_ALL
 #include "xxhash.h"
 
-/**
- * Magic number that gets stored outside of the struct hash_table.
- *
- * The hash table needs a particular pointer to be the marker for a key that
- * was deleted from the table, along with NULL for the "never allocated in the
- * table" marker.  Legacy GL allows any GLuint to be used as a GL object name,
- * and we use a 1:1 mapping from GLuints to key pointers, so we need to be
- * able to track a GLuint that happens to match the deleted key outside of
- * struct hash_table.  We tell the hash table to use "1" as the deleted key
- * value, so that we test the deleted-key-in-the-table path as best we can.
- */
-#define DELETED_KEY_VALUE 1
-
 static inline void *
 uint_key(unsigned id)
 {
@@ -864,8 +851,6 @@ key_u64_equals(const void *a, const void *b)
    return aa->value == bb->value;
 }
 
-#define FREED_KEY_VALUE 0
-
 static void _mesa_hash_table_u64_delete_keys(void *data)
 {
    struct hash_table_u64 *ht = (struct hash_table_u64*)(data);
@@ -876,7 +861,6 @@ static void _mesa_hash_table_u64_delete_keys(void *data)
 struct hash_table_u64 *
 _mesa_hash_table_u64_create(void *mem_ctx)
 {
-   STATIC_ASSERT(FREED_KEY_VALUE != DELETED_KEY_VALUE);
    struct hash_table_u64 *ht;
 
    ht = rzalloc(mem_ctx, struct hash_table_u64);
@@ -914,8 +898,6 @@ _mesa_hash_table_u64_clear(struct hash_table_u64 *ht)
       return;
 
    _mesa_hash_table_clear(&ht->table, _mesa_hash_table_u64_delete_key);
-   ht->freed_key_data = NULL;
-   ht->deleted_key_data = NULL;
 }
 
 void
@@ -928,16 +910,6 @@ void
 _mesa_hash_table_u64_insert(struct hash_table_u64 *ht, uint64_t key,
                             void *data)
 {
-   if (key == FREED_KEY_VALUE) {
-      ht->freed_key_data = data;
-      return;
-   }
-
-   if (key == DELETED_KEY_VALUE) {
-      ht->deleted_key_data = data;
-      return;
-   }
-
    if (sizeof(void *) == 8) {
       _mesa_hash_table_insert(&ht->table, (void *)(uintptr_t)key, data);
    } else {
@@ -980,15 +952,7 @@ hash_table_u64_search(struct hash_table_u64 *ht, uint64_t key)
 void *
 _mesa_hash_table_u64_search(struct hash_table_u64 *ht, uint64_t key)
 {
-   struct hash_entry *entry;
-
-   if (key == FREED_KEY_VALUE)
-      return ht->freed_key_data;
-
-   if (key == DELETED_KEY_VALUE)
-      return ht->deleted_key_data;
-
-   entry = hash_table_u64_search(ht, key);
+   struct hash_entry *entry = hash_table_u64_search(ht, key);
    if (!entry)
       return NULL;
 
@@ -998,19 +962,7 @@ _mesa_hash_table_u64_search(struct hash_table_u64 *ht, uint64_t key)
 void
 _mesa_hash_table_u64_remove(struct hash_table_u64 *ht, uint64_t key)
 {
-   struct hash_entry *entry;
-
-   if (key == FREED_KEY_VALUE) {
-      ht->freed_key_data = NULL;
-      return;
-   }
-
-   if (key == DELETED_KEY_VALUE) {
-      ht->deleted_key_data = NULL;
-      return;
-   }
-
-   entry = hash_table_u64_search(ht, key);
+   struct hash_entry *entry = hash_table_u64_search(ht, key);
    if (!entry)
       return;
 
@@ -1032,23 +984,6 @@ struct hash_entry_u64
 _mesa_hash_table_u64_next_entry(struct hash_table_u64 *ht,
                                 struct hash_entry_u64 *ent)
 {
-   /* First entry: freed key */
-   if (!ent && ht->freed_key_data) {
-      return (struct hash_entry_u64){
-         .key = FREED_KEY_VALUE,
-         .data = ht->freed_key_data,
-      };
-   }
-
-   /* Second entry: deleted key */
-   if ((!ent || ent->key == FREED_KEY_VALUE) && ht->deleted_key_data) {
-      return (struct hash_entry_u64){
-         .key = DELETED_KEY_VALUE,
-         .data = ht->deleted_key_data,
-      };
-   }
-
-   /* All other entries: regular */
    struct hash_entry *next =
       _mesa_hash_table_next_entry(&ht->table, ent ? ent->_entry : NULL);
 
@@ -1078,12 +1013,6 @@ _mesa_hash_table_u64_replace(struct hash_table_u64 *ht,
                              const struct hash_entry_u64 *ent,
                              void *new_data)
 {
-   if (ent->_entry) {
+   if (ent->_entry)
       ent->_entry->data = new_data;
-   } else if (ent->key == FREED_KEY_VALUE) {
-      ht->freed_key_data = new_data;
-   } else {
-      assert(ent->key == DELETED_KEY_VALUE);
-      ht->deleted_key_data = new_data;
-   }
 }
