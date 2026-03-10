@@ -971,11 +971,11 @@ v3d_setup_texture_shader_state(const struct v3d_device_info *devinfo,
                  rsc->slices[0].tiling == V3D_TILING_UIF_NO_XOR);
         tex->level_0_xor_enable = (rsc->slices[0].tiling == V3D_TILING_UIF_XOR);
 
-        if (tex->level_0_is_strictly_uif)
+        /* If we ever set tex.uif_xor_disable we also need to flag
+         * tex.extended here.
+         */
+        if (tex->level_0_is_strictly_uif) {
                 tex->level_0_ub_pad = rsc->slices[0].ub_pad;
-
-        if (tex->uif_xor_disable ||
-            tex->level_0_is_strictly_uif) {
                 tex->extended = true;
         }
 }
