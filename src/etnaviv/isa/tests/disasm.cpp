@@ -341,7 +341,7 @@ INSTANTIATE_TEST_SUITE_P(TFShader, DisasmTest,
       disasm_state{ {0x0201102d, 0x00000800, 0x40000010, 0x00000000}, "i2f.s32.pack      t1.__z_, u0.xxxx, void, void\n"},
       disasm_state{ {0x00000156, 0x2a801800, 0x01540040, 0x00000402}, "branch.eq         void, t1.zzzz, u0.zzzz, 8\n"},
       disasm_state{ {0x0081100c, 0x3fc00800, 0x400100d0, 0x20154008}, "imadlo0.s32.pack  t1.x___, u0.wwww, t1.xxxx, u0.yyyy\n"},
-      disasm_state{ {0x07820033, 0x00001800, 0x01540040, 0x0039002a}, "store.pack        mem, t1.xxxx, u0.zzzz, t2.xyzw\t; dontcare bits in store: 00000000000000000000000000020000\n", FLAG_FAILING_ASM}
+      disasm_state{ {0x07820033, 0x00001800, 0x01540040, 0x0039002a}, "store.pack        mem, t1.xxxx, u0.zzzz, t2.xyzw\n", FLAG_FAILING_ASM}
    )
 );
 // clang-format on
@@ -386,8 +386,16 @@ INSTANTIATE_TEST_SUITE_P(LoadStoreVariants, DisasmTest,
       disasm_state{ {0x01001032, 0x15400c14, 0x00000050, 0x00000000}, "load.denorm.ls2   t0._y__, u0.yyyy, t0.xxxx, void\n"},
       disasm_state{ {0x01001032, 0x15400d14, 0x00000040, 0x00000000}, "load.denorm.local.ls2 t0._y__, t0.yyyy, t0.xxxx, void\n"},
       disasm_state{ {0x00800033, 0x00000c14, 0x00000050, 0x00154008}, "store.denorm.ls2  mem.x___, u0.xxxx, t0.xxxx, t0.yyyy\n"},
-      disasm_state{ {0x00861033, 0x15400d04, 0x100efe40, 0x7085860f}, "store.denorm.local mem.x___, t0.yyyy, 4092:s20, 99.0:f20\t; dontcare bits in store: 00000000000000000000000000061000\n", FLAG_FAILING_ASM},
+      disasm_state{ {0x00861033, 0x15400d04, 0x100efe40, 0x7085860f}, "store.denorm.local t6.x___, t0.yyyy, 4092:s20, 99.0:f20\n"},
       disasm_state{ {0x07800033, 0x00200c34, 0x80000050, 0x00390018}, "store.denorm.u32.ls6 mem, u0.xxxx, t0.xxxx, t1.xyzw\n"}
+   )
+);
+// clang-format on
+
+// clang-format off
+INSTANTIATE_TEST_SUITE_P(StoreDstUse, DisasmTest,
+   testing::Values(
+      disasm_state{ {0x00811033, 0x00200d04, 0x50000040, 0x7400000f}, "store.denorm.local.s16 t1.x___, t0.xxxx, 0:s20, 0:s20\n"}
    )
 );
 // clang-format on
