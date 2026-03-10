@@ -24,6 +24,7 @@ struct radv_shader_args;
 struct radv_shader_layout;
 struct radv_device;
 struct radv_graphics_state_key;
+struct radv_ps_epilog_key;
 
 bool radv_nir_apply_pipeline_layout(nir_shader *shader, struct radv_device *device,
                                     const struct radv_shader_stage *stage);
@@ -78,7 +79,7 @@ bool radv_nir_lower_draw_id_to_zero(nir_shader *shader);
 
 bool radv_nir_remap_color_attachment(nir_shader *shader, const struct radv_graphics_state_key *gfx_state);
 
-bool radv_nir_trim_fs_color_exports(nir_shader *shader, uint32_t colors_needed);
+bool radv_nir_trim_fs_color_exports(nir_shader *shader, const struct radv_ps_epilog_key *epilog_key);
 
 bool radv_nir_lower_printf(nir_shader *shader);
 

@@ -155,6 +155,23 @@ format_is_float32(VkFormat format)
 }
 
 static bool
+format_ignores_signed_zero(VkFormat format)
+{
+   const struct util_format_description *desc = radv_format_description(format);
+
+   /* Unsigned float formats don't care about signed zeros. */
+   if (desc->format == PIPE_FORMAT_R11G11B10_FLOAT || desc->format == PIPE_FORMAT_R9G9B9E5_FLOAT)
+      return true;
+
+   for (unsigned i = 0; i < desc->nr_channels; i++) {
+      if (desc->channel[i].pure_integer || desc->channel[i].type == UTIL_FORMAT_TYPE_FLOAT)
+         return false;
+   }
+
+   return true;
+}
+
+static bool
 radv_pipeline_needs_ps_epilog(const struct vk_graphics_pipeline_state *state,
                               VkGraphicsPipelineLibraryFlagBitsEXT lib_flags)
 {
@@ -1768,7 +1785,7 @@ radv_generate_ps_epilog_key(const struct radv_device *device, const struct radv_
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   unsigned col_format = 0, is_int8 = 0, is_int10 = 0, is_float32 = 0, z_format = 0;
+   unsigned col_format = 0, is_int8 = 0, is_int10 = 0, is_float32 = 0, z_format = 0, no_signed_zero = 0;
    struct radv_ps_epilog_key key;
 
    memset(&key, 0, sizeof(key));
@@ -1794,6 +1811,8 @@ radv_generate_ps_epilog_key(const struct radv_device *device, const struct radv_
 
          key.colors_needed |= comp_used << (4 * i);
 
+         if (format_ignores_signed_zero(fmt) || blend_enable)
+            no_signed_zero |= 1 << i;
          if (format_is_int8(fmt))
             is_int8 |= 1 << i;
          if (format_is_int10(fmt))
@@ -1822,6 +1841,7 @@ radv_generate_ps_epilog_key(const struct radv_device *device, const struct radv_
       col_format |= (col_format & 0xf) << 4;
       key.color_map[1] = 1;
       key.colors_needed |= (key.colors_needed & 0xf) << 4;
+      no_signed_zero |= 0x2;
    }
 
    z_format = ac_get_spi_shader_z_format(state->export_depth, state->export_stencil, state->export_sample_mask,
@@ -1831,6 +1851,7 @@ radv_generate_ps_epilog_key(const struct radv_device *device, const struct radv_
    key.color_is_int8 = pdev->info.compiler_info.has_cb_lt16bit_int_clamp_bug ? is_int8 : 0;
    key.color_is_int10 = pdev->info.compiler_info.has_cb_lt16bit_int_clamp_bug ? is_int10 : 0;
    key.enable_mrt_output_nan_fixup = instance->drirc.debug.enable_mrt_output_nan_fixup ? is_float32 : 0;
+   key.no_signed_zero = no_signed_zero;
    key.colors_written = state->colors_written;
    key.mrt0_is_dual_src = state->mrt0_is_dual_src && key.colors_needed & 0xf;
    key.export_depth = state->export_depth;
@@ -2836,8 +2857,7 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
          /* Lower FS outputs to scalar to allow dce. */
          NIR_PASS(_, stages[MESA_SHADER_FRAGMENT].nir, nir_lower_io_to_scalar, nir_var_shader_out, NULL, NULL);
 
-         NIR_PASS(update_info, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_trim_fs_color_exports,
-                  gfx_state->ps.epilog.colors_needed);
+         NIR_PASS(update_info, stages[MESA_SHADER_FRAGMENT].nir, radv_nir_trim_fs_color_exports, &gfx_state->ps.epilog);
 
          NIR_PASS(update_info, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_copy_prop);
          NIR_PASS(update_info, stages[MESA_SHADER_FRAGMENT].nir, nir_opt_dce);
