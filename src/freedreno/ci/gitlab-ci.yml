@@ -247,6 +247,18 @@ a618-android:
     DEQP_SUITE: tu-android
     FDO_CI_CONCURRENT: 6  # We get OOMkills if we go too wide since VKCTS 1.4.4.0
 
+a618-android-cts:
+  extends:
+    - .lava-arm64-test-android
+    - .lava-sc7180-trogdor-kingoftown:arm64
+    - .collabora-turnip-manual-rules
+    - .test-android-cts
+    - .test-angle
+  timeout: 2h
+  variables:
+    CUTTLEFISH_GPU_MODE: drm_nctx_guest_angle
+    DEVICE_HANGING_TIMEOUT_SEC: 5400  # Android CTS might not print anything for minutes
+
 a660-angle:
   extends:
     - .lava-arm64-test-gl
