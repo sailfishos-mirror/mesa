@@ -420,7 +420,7 @@ gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader)
    uint16_t slot_mask_16bit = 0;
    bool is_patch_special = false;
 
-   if (nir_intrinsic_infos[instr->intrinsic].index_map[NIR_INTRINSIC_IO_SEMANTICS] > 0) {
+   if (nir_intrinsic_has_io_semantics(instr)) {
       nir_io_semantics semantics = nir_intrinsic_io_semantics(instr);
 
       is_patch_special = semantics.location == VARYING_SLOT_TESS_LEVEL_INNER ||
