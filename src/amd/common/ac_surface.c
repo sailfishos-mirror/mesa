@@ -277,31 +277,11 @@ ac_modifier_fill_dcc_params(uint64_t modifier, struct radeon_surf *surf,
    surf->u.gfx9.color.dcc.max_compressed_block_size = AMD_FMT_MOD_GET(DCC_MAX_COMPRESSED_BLOCK, modifier);
 }
 
-bool ac_is_modifier_supported(const struct radeon_info *info,
-                              const struct ac_modifier_options *options,
-                              enum pipe_format format,
-                              uint64_t modifier)
+static bool ac_is_modifier_supported_gfx9(const struct radeon_info *info,
+                                          const struct ac_modifier_options *options,
+                                          enum pipe_format format,
+                                          uint64_t modifier)
 {
-
-   if (util_format_is_compressed(format) ||
-       util_format_is_depth_or_stencil(format) ||
-       (util_format_get_blocksizebits(format) > 64 && modifier != DRM_FORMAT_MOD_LINEAR))
-      return false;
-
-   if (info->gfx_level < GFX9)
-      return false;
-
-   if(modifier == DRM_FORMAT_MOD_LINEAR)
-      return true;
-
-   /* GFX8 may need a different modifier for each plane */
-   if (info->gfx_level < GFX9 && util_format_get_num_planes(format) > 1)
-      return false;
-
-   /* Tiling doesn't work with the 422 (SUBSAMPLED) formats. */
-   if (util_format_is_subsampled_422(format))
-      return false;
-
    uint32_t allowed_swizzles = 0xFFFFFFFF;
    switch(info->gfx_level) {
    case GFX9:
@@ -346,6 +326,37 @@ bool ac_is_modifier_supported(const struct radeon_info *info,
    }
 
    return true;
+}
+
+bool ac_is_modifier_supported(const struct radeon_info *info,
+                              const struct ac_modifier_options *options,
+                              enum pipe_format format,
+                              uint64_t modifier)
+{
+
+   if (util_format_is_compressed(format) ||
+       util_format_is_depth_or_stencil(format) ||
+       (util_format_get_blocksizebits(format) > 64 && modifier != DRM_FORMAT_MOD_LINEAR))
+      return false;
+
+   if (info->gfx_level < GFX9)
+      return false;
+
+   if (modifier == DRM_FORMAT_MOD_LINEAR)
+      return true;
+
+   /* GFX8 may need a different modifier for each plane */
+   if (info->gfx_level < GFX9 && util_format_get_num_planes(format) > 1)
+      return false;
+
+   /* Tiling doesn't work with the 422 (SUBSAMPLED) formats. */
+   if (util_format_is_subsampled_422(format))
+      return false;
+
+   if (info->gfx_level >= GFX9)
+      return ac_is_modifier_supported_gfx9(info, options, format, modifier);
+   else
+      UNREACHABLE("unsupported GFX level");
 }
 
 bool ac_get_supported_modifiers(const struct radeon_info *info,
@@ -3635,9 +3646,34 @@ static bool gfx12_compute_surface(struct ac_addrlib *addrlib, const struct radeo
    return true;
 }
 
+static uint32_t get_tile_version(const enum amd_gfx_level gfx_level)
+{
+   switch (gfx_level) {
+   case GFX9:
+      return AMD_FMT_MOD_TILE_VER_GFX9;
+   case GFX10:
+      return AMD_FMT_MOD_TILE_VER_GFX10;
+   case GFX10_3:
+      return AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS;
+   case GFX11:
+   case GFX11_5:
+   case GFX11_7:
+      return AMD_FMT_MOD_TILE_VER_GFX11;
+   case GFX12:
+      return AMD_FMT_MOD_TILE_VER_GFX12;
+   default:
+      UNREACHABLE("invalid gfx level");
+   }
+}
+
 static void gfx9_compute_surface_modifier(const struct radeon_info *info,
                                           struct radeon_surf *surf)
 {
+   surf->modifier =
+      AMD_FMT_MOD |
+      AMD_FMT_MOD_SET(TILE_VERSION, get_tile_version(info->gfx_level)) |
+      AMD_FMT_MOD_SET(TILE, surf->u.gfx9.swizzle_mode);
+
    unsigned block_size_bits = 0;
    switch (surf->u.gfx9.swizzle_mode >> 2) {
    case 0: /* 256B */
@@ -3720,6 +3756,11 @@ static void gfx9_compute_surface_modifier(const struct radeon_info *info,
 
 static void gfx12_compute_surface_modifier(struct radeon_surf *surf)
 {
+   surf->modifier =
+      AMD_FMT_MOD |
+      AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX12) |
+      AMD_FMT_MOD_SET(TILE, surf->u.gfx9.swizzle_mode);
+
    if (surf->u.gfx9.gfx12_enable_dcc) {
       surf->modifier |=
          AMD_FMT_MOD_SET(DCC, 1) |
@@ -3745,38 +3786,12 @@ void ac_compute_surface_modifier(const struct radeon_info *info,
       return;
    }
 
-   unsigned version = 0;
-   switch (info->gfx_level) {
-   case GFX9:
-      version = AMD_FMT_MOD_TILE_VER_GFX9;
-      break;
-   case GFX10:
-      version = AMD_FMT_MOD_TILE_VER_GFX10;
-      break;
-   case GFX10_3:
-      version = AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS;
-      break;
-   case GFX11:
-   case GFX11_5:
-   case GFX11_7:
-      version = AMD_FMT_MOD_TILE_VER_GFX11;
-      break;
-   case GFX12:
-      version = AMD_FMT_MOD_TILE_VER_GFX12;
-      break;
-   default:
-      UNREACHABLE("invalid gfx level");
-   }
-
-   surf->modifier =
-      AMD_FMT_MOD |
-      AMD_FMT_MOD_SET(TILE_VERSION, version) |
-      AMD_FMT_MOD_SET(TILE, surf->u.gfx9.swizzle_mode);
-
    if (info->gfx_level >= GFX12)
       gfx12_compute_surface_modifier(surf);
-   else
+   else if (info->gfx_level >= GFX9)
       gfx9_compute_surface_modifier(info, surf);
+   else
+      UNREACHABLE("unsupported GFX level");
 }
 
 int ac_compute_surface(struct ac_addrlib *addrlib, const struct radeon_info *info,
