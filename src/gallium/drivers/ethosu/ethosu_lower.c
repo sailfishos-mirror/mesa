@@ -583,6 +583,26 @@ ethosu_lower_leakyrelu(struct ethosu_subgraph *subgraph,
 }
 
 static void
+ethosu_lower_quantize(struct ethosu_subgraph *subgraph,
+                      const struct pipe_ml_operation *poperation,
+                      struct ethosu_operation *operation)
+{
+   operation->type = ETHOSU_OPERATION_TYPE_POOLING;
+   operation->round_mode = ETHOSU_ROUNDING_DOUBLE;
+   operation->pooling.nop = true;
+
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
+      operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
+   else
+      operation->pooling.type = ETHOSU_POOLING_TYPE_SUM;
+
+   set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
+
+   allocate_feature_maps(subgraph, operation);
+   ethosu_sched_operation(subgraph, operation);
+}
+
+static void
 ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
                            const struct pipe_ml_operation *poperation,
                            unsigned input_idx,
@@ -910,6 +930,12 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          ethosu_lower_lut_dma(subgraph, &poperations[i], &operation, &dma_operation);
          util_dynarray_append(&subgraph->operations, dma_operation);
 
+         util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_QUANTIZE: {
+         ethosu_lower_quantize(subgraph, &poperations[i], &operation);
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }

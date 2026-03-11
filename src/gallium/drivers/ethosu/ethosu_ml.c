@@ -149,6 +149,7 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    case PIPE_ML_OPERATION_TYPE_TANH:
    case PIPE_ML_OPERATION_TYPE_HSWISH:
    case PIPE_ML_OPERATION_TYPE_LEAKY_RELU:
+   case PIPE_ML_OPERATION_TYPE_QUANTIZE:
       supported = true;
       break;
    case PIPE_ML_OPERATION_TYPE_RESIZE: {
