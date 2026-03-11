@@ -1158,6 +1158,8 @@ cmd_buffer_trace_rays(struct anv_cmd_buffer *cmd_buffer,
 
    trace_intel_begin_rays(&cmd_buffer->trace);
 
+   cmd_buffer->state.compute.trace_rays_active = true;
+
    genX(cmd_buffer_config_l3)(cmd_buffer, device->l3_config);
 
    genX(cmd_buffer_update_color_aux_op(cmd_buffer, ISL_AUX_OP_NONE));

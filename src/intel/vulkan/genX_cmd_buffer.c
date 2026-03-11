@@ -2056,7 +2056,7 @@ emit_resource_barrier(struct anv_batch *batch,
 
 
 ALWAYS_INLINE static enum anv_pipe_bits
-genX(emit_apply_pipe_flushes)(struct anv_batch *batch,
+genX(emit_apply_pipe_flushes)(struct anv_cmd_buffer *cmd_buffer,
                               struct anv_device *device,
                               uint32_t current_pipeline,
                               VkPipelineStageFlags2 src_stages,
@@ -2066,7 +2066,26 @@ genX(emit_apply_pipe_flushes)(struct anv_batch *batch,
                               struct anv_address wait_addr,
                               enum anv_pipe_bits *emitted_flush_bits)
 {
+   struct anv_batch *batch = &cmd_buffer->batch;
+
 #if GFX_VER >= 20
+   /* Wa_14026570320: Ensure RT is not processing rays while requesting state
+    * cache invalidate by emitting barrier:
+    *
+    * RESOURCE_BARRIER(Type=Immediate, Signal: Compute, Wait: TOP)
+    *
+    * Here we achieve same by setting stage flags so that we will wait
+    * compute to finish before state cache invalidation.
+    *
+    * XXX - use WA framework with Wa_14026570320.
+    */
+   if (cmd_buffer->state.compute.trace_rays_active &&
+       (bits & ANV_PIPE_STATE_CACHE_INVALIDATE_BIT)) {
+      src_stages |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+      dst_stages |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+      cmd_buffer->state.compute.trace_rays_active = false;
+   }
+
    if (can_use_resource_barrier(device->info, batch->engine_class,
                                 src_stages, dst_stages, bits,
                                 signal_addr, wait_addr)) {
@@ -2447,7 +2466,7 @@ genX(cmd_buffer_apply_pipe_flushes)(struct anv_cmd_buffer *cmd_buffer)
 
    enum anv_pipe_bits emitted_bits = 0;
    cmd_buffer->state.pending_pipe_bits =
-      genX(emit_apply_pipe_flushes)(&cmd_buffer->batch,
+      genX(emit_apply_pipe_flushes)(cmd_buffer,
                                     cmd_buffer->device,
                                     cmd_buffer->state.current_pipeline,
                                     src_stages, dst_stages, bits,
@@ -4279,6 +4298,9 @@ genX(CmdExecuteCommands)(
       /* Update container btp address from secondary cmdbuf. */
       if (!anv_address_is_null(secondary->state.btp))
          container->state.btp = secondary->state.btp;
+
+      container->state.compute.trace_rays_active |=
+         secondary->state.compute.trace_rays_active;
    }
 
    /* The secondary isn't counted in our VF cache tracking so we need to
@@ -6853,7 +6875,7 @@ void genX(CmdSetEvent2)(
       if ((event->flags & VK_EVENT_CREATE_DEVICE_ONLY_BIT) == 0)
          bits |= ANV_PIPE_END_OF_PIPE_SYNC_FORCE_FLUSH_L3_BIT;
 
-      genX(emit_apply_pipe_flushes)(&cmd_buffer->batch,
+      genX(emit_apply_pipe_flushes)(cmd_buffer,
                                     cmd_buffer->device,
                                     cmd_buffer->state.current_pipeline,
                                     src_stages, dst_stages, bits,

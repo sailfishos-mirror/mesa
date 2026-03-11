@@ -4708,6 +4708,9 @@ struct anv_cmd_compute_state {
    uint8_t pixel_async_compute_thread_limit;
    uint8_t z_pass_async_compute_thread_limit;
    uint8_t np_z_async_throttle_settings;
+
+   /* State tracking for Wa_14026570320. */
+   bool trace_rays_active;
 };
 
 struct anv_cmd_ray_tracing_state {
