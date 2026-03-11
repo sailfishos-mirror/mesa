@@ -135,7 +135,9 @@ static const nir_shader_compiler_options ir3_base_options = {
     * SPIRV, and NIR don't require either fused or unfused behavior from
     * fma, and we'll turn mul+adds back into nir_op_ffma (again, implemented
     * as unfused) during nir_opt_algebraic_late() (assuming it's not
-    * decorated with GLSL's precise, or SPIRV's NoContraction).
+    * decorated with GLSL's precise, or SPIRV's NoContraction), or
+    * ir3_nir_opt_algebraic_late (if it is, since ir3's unfused mul-add is
+    * precise).
     */
    .lower_ffma16 = true,
    .lower_ffma32 = true,
