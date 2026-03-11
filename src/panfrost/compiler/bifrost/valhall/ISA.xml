@@ -1928,7 +1928,6 @@
     <ins name="IADD.v4s8" opcode="0xAA"/>
     <ins name="IADD.u64" opcode="0x1A3"/>
     <ins name="IADD.s64" opcode="0x1AB"/>
-    <!-- <ins name="IADD.s32" opcode="0x1A0"/> -->
     <src widen="true">A</src>
     <src widen="true">B</src>
     <saturate/>
@@ -1943,6 +1942,7 @@
   <group name="ISUB" title="Integer subtract" dests="1" opcode2="1" unused="true" unit="CVT">
     <ins name="ISUB.u32" opcode="0xA0"/>
     <ins name="ISUB.v2u16" opcode="0xA1"/>
+    <!-- Removed on v11 -->
     <ins name="ISUB.v4u8" opcode="0xA2"/>
     <ins name="ISUB.s32" opcode="0xA8"/>
     <ins name="ISUB.v2s16" opcode="0xA9"/>
@@ -1992,7 +1992,6 @@
     <ins name="IMUL.v2s16" opcode="0xA9"/>
     <ins name="IMUL.v4s8" opcode="0xAA"/>
     <ins name="IMULD.u64" opcode="0x1A3"/>
-    <!-- <ins name="IMUL.s32" opcode="0x1A0"/> -->
     <desc>
       $A \cdot B$ with optional saturation. Note the multipliers can only handle up to
       32-bit by 32-bit multiplies. The 64-bit "multiply" acts like IMUL.u32 but
@@ -2285,6 +2284,7 @@
     </desc>
     <ins name="ICMP_AND.u32" opcode="0xF0"/>
     <ins name="ICMP_AND.v2u16" opcode="0xF1"/>
+    <!-- Removed on v11 -->
     <ins name="ICMP_AND.v4u8" opcode="0xF2"/>
     <cmp int_only="true"/>
     <result_type/>
@@ -2335,6 +2335,7 @@
     </desc>
     <ins name="ICMP_OR.s32" opcode="0xF8"/>
     <ins name="ICMP_OR.v2s16" opcode="0xF9"/>
+    <!-- Removed on v11 -->
     <ins name="ICMP_OR.v4s8" opcode="0xFA"/>
     <cmp int_only="true"/>
     <result_type/>
@@ -2352,6 +2353,7 @@
     </desc>
     <ins name="ICMP_AND.s32" opcode="0xF8"/>
     <ins name="ICMP_AND.v2s16" opcode="0xF9"/>
+    <!-- Removed on v11 -->
     <ins name="ICMP_AND.v4s8" opcode="0xFA"/>
     <cmp int_only="true"/>
     <result_type/>
@@ -2408,6 +2410,7 @@
     <imm name="constant" ir_name="index" start="8" size="32"/>
   </ins>
 
+  <!-- Removed on v11 -->
   <ins name="IADD_IMM.v4i8" title="Integer addition with immediate" dests="1" opcode="0x112" unit="CVT">
     <desc>
       Adds an arbitrary quad of 8-bit immediates embedded within the
