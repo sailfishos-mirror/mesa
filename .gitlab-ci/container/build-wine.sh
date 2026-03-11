@@ -43,6 +43,26 @@ while ! test -f  "${WINEPREFIX}/system.reg"; do sleep 1; done
 
 section_end wine
 
+section_start wine-apitrace "Setting up Apitrace for Wine"
+
+APITRACE_VERSION="14.0"
+APITRACE_VERSION_DATE=""
+
+APITRACE_ARCH=""
+if [ "$DEBIAN_ARCH" == "arm64" ]; then
+  APITRACE_ARCH="-arm"
+fi
+
+curl -L -O --retry 4 -f --retry-all-errors --retry-delay 60 \
+  "https://github.com/apitrace/apitrace/releases/download/${APITRACE_VERSION}/apitrace-${APITRACE_VERSION}${APITRACE_VERSION_DATE}-win64${APITRACE_ARCH}.7z"
+7zr x "apitrace-${APITRACE_VERSION}${APITRACE_VERSION_DATE}-win64${APITRACE_ARCH}.7z" \
+      "apitrace-${APITRACE_VERSION}${APITRACE_VERSION_DATE}-win64${APITRACE_ARCH}/bin/apitrace.exe" \
+      "apitrace-${APITRACE_VERSION}${APITRACE_VERSION_DATE}-win64${APITRACE_ARCH}/bin/d3dretrace.exe"
+mv "apitrace-${APITRACE_VERSION}${APITRACE_VERSION_DATE}-win64${APITRACE_ARCH}" /apitrace-msvc-win64
+rm "apitrace-${APITRACE_VERSION}${APITRACE_VERSION_DATE}-win64${APITRACE_ARCH}.7z"
+
+section_end wine-apitrace
+
 
 # Archive and upload wine for use as a LAVA overlay, if the archive doesn't exist yet
 WINE_S3_ARTIFACT="wine.tar.zst"
@@ -53,6 +73,7 @@ else
   echo "Uploaded wine not found, reuploading..."
   tar --zstd -cf "$WINE_S3_ARTIFACT" -C / \
     "${WINEPREFIX#/}" \
+    /apitrace-msvc-win64 \
     /usr/lib/*/wine
   ci-fairy s3cp --token-file "${S3_JWT_FILE}" "$WINE_S3_ARTIFACT" \
     "https://${S3_BASE_PATH}/${CI_PROJECT_PATH}/${ARTIFACT_PATH}"

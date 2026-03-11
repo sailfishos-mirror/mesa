@@ -48,6 +48,7 @@ buildah_export() {
     # These components will be provided via LAVA overlays,
     # so remove them from the core rootfs
     rm -rf "${mountpoint}/android-cts"
+    rm -rf "${mountpoint}/apitrace-msvc-win64"
     rm -rf "${mountpoint}/cuttlefish"
     rm -rf "${mountpoint}/fluster/resources"
     rm -rf "${mountpoint}/usr/lib/*/wine"
