@@ -869,6 +869,9 @@ emit_operation_code(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
    case ETHOSU_OPERATION_TYPE_DMA:
       EMIT0(NPU_OP_DMA_START, 0x0);
       break;
+   default:
+      assert(0);
+      break;
    }
 }
 
@@ -976,6 +979,8 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
 {
    util_dynarray_foreach (&subgraph->operations, struct ethosu_operation, operation) {
       switch (operation->type) {
+      case ETHOSU_OPERATION_TYPE_NONE:
+         break;
       case ETHOSU_OPERATION_TYPE_DMA:
          operation->read_accesses[0].region = COEFS_REGION;
          operation->read_accesses[0].address = operation->dma.address;
@@ -1000,6 +1005,15 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
          operation->write_accesses[0].address = operation->ofm.tiles.addresses[0];
          operation->write_accesses[0].size = operation->ofm.shape.height * operation->ofm.shape.width * operation->ofm.shape.depth;
          break;
+      case ETHOSU_OPERATION_TYPE_CONVOLUTION:
+         operation->read_accesses[2].region = operation->conv.scales.region;
+         operation->read_accesses[2].address = operation->conv.scales.address;
+         operation->read_accesses[2].size = operation->conv.scales.size;
+
+         operation->read_accesses[3].region = operation->conv.weights.region;
+         operation->read_accesses[3].address = operation->conv.weights.address;
+         operation->read_accesses[3].size = operation->conv.weights.size;
+         /* fall-through */
       default:
          operation->read_accesses[0].region = IO_REGION;
          operation->read_accesses[0].address = operation->ifm.tiles.addresses[0];
@@ -1008,14 +1022,6 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
          operation->read_accesses[1].region = IO_REGION;
          operation->read_accesses[1].address = operation->ifm2.tiles.addresses[0];
          operation->read_accesses[1].size = operation->ifm2.shape.height * operation->ifm2.shape.width * operation->ifm2.shape.depth;
-
-         operation->read_accesses[2].region = operation->conv.scales.region;
-         operation->read_accesses[2].address = operation->conv.scales.address;
-         operation->read_accesses[2].size = operation->conv.scales.size;
-
-         operation->read_accesses[3].region = operation->conv.weights.region;
-         operation->read_accesses[3].address = operation->conv.weights.address;
-         operation->read_accesses[3].size = operation->conv.weights.size;
 
          operation->write_accesses[0].region = IO_REGION;
          operation->write_accesses[0].address = operation->ofm.tiles.addresses[0];
@@ -1126,8 +1132,11 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
    if (operation->ifm2.tensor == prev_op->ofm.tensor) {
       ifm_index = 1;
    } else if (operation->ifm.tensor != prev_op->ofm.tensor) {
-      /* Previous operation doesn't produce current operation's IFM */
-      return device->max_concurrent_blocks;
+      if (prev_op->type == ETHOSU_OPERATION_TYPE_NONE)
+         return 0;
+      else
+         /* Previous operation doesn't produce current operation's IFM */
+         return device->max_concurrent_blocks;
    }
 
    const struct ethosu_feature_map *ifm = (ifm_index == 0) ? &operation->ifm : &operation->ifm2;
@@ -1200,6 +1209,16 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
    struct ethosu_operation *prev_op = NULL;
    struct util_dynarray outstanding_dma_ops;
    struct util_dynarray outstanding_npu_ops;
+   bool has_op = false;
+
+   util_dynarray_foreach (&subgraph->operations, struct ethosu_operation, operation) {
+      if (operation->type != ETHOSU_OPERATION_TYPE_NONE) {
+         has_op = true;
+         break;
+      }
+   }
+   if (!has_op)
+      return;
 
    outstanding_dma_ops = UTIL_DYNARRAY_INIT;
    outstanding_npu_ops = UTIL_DYNARRAY_INIT;
@@ -1219,6 +1238,11 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
 
       int npu_waits, dma_waits;
 
+      if (operation->type == ETHOSU_OPERATION_TYPE_NONE) {
+         prev_op = operation;
+         continue;
+      }
+
       get_wait_dependency(subgraph, operation, &outstanding_dma_ops, &outstanding_npu_ops,
                           &npu_waits, &dma_waits);
 
@@ -1234,6 +1258,9 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
          break;
       case ETHOSU_OPERATION_TYPE_DMA:
          emit_dma(subgraph, operation);
+         break;
+      default:
+         UNREACHABLE("Unknown operation");
          break;
       }
 

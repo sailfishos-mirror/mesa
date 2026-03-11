@@ -39,6 +39,7 @@ extern struct ethosu_block SUB_KERNEL_MAX;
 #define LUT_REGION     0x103     // Internal SHRAM
 
 enum ethosu_operation_type {
+   ETHOSU_OPERATION_TYPE_NONE,
    ETHOSU_OPERATION_TYPE_CONVOLUTION,
    ETHOSU_OPERATION_TYPE_POOLING,
    ETHOSU_OPERATION_TYPE_ELTWISE,

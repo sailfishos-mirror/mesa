@@ -150,6 +150,7 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    case PIPE_ML_OPERATION_TYPE_HSWISH:
    case PIPE_ML_OPERATION_TYPE_LEAKY_RELU:
    case PIPE_ML_OPERATION_TYPE_QUANTIZE:
+   case PIPE_ML_OPERATION_TYPE_RESHAPE:
       supported = true;
       break;
    case PIPE_ML_OPERATION_TYPE_RESIZE: {
@@ -270,6 +271,7 @@ static void
 prepare_for_submission(struct ethosu_subgraph *subgraph,
                        struct pipe_context *pcontext)
 {
+   int ret;
    subgraph->screen = ethosu_screen(pcontext->screen);
    struct ethosu_screen *screen = subgraph->screen;
    uint64_t cmdstream_size = (subgraph->cursor - subgraph->cmdstream) *
@@ -279,19 +281,21 @@ prepare_for_submission(struct ethosu_subgraph *subgraph,
       ethosu_dump_buffer((uint8_t *)subgraph->cmdstream, "cmdstream", 0, 0, 0,
                          cmdstream_size);
 
-   struct drm_ethosu_cmdstream_bo_create cmd_bo_create = {
-      .size = cmdstream_size,
-      .data = (uintptr_t)subgraph->cmdstream,
-   };
+   if (cmdstream_size) {
+      struct drm_ethosu_cmdstream_bo_create cmd_bo_create = {
+         .size = cmdstream_size,
+         .data = (uintptr_t)subgraph->cmdstream,
+      };
 
-   int ret = drmIoctl(screen->fd, DRM_IOCTL_ETHOSU_CMDSTREAM_BO_CREATE,
-                      &cmd_bo_create);
-   assert(ret == 0);
+      ret = drmIoctl(screen->fd, DRM_IOCTL_ETHOSU_CMDSTREAM_BO_CREATE,
+                     &cmd_bo_create);
+      assert(ret == 0);
 
-   free(subgraph->cmdstream);
-   subgraph->cmdstream = NULL;
+      free(subgraph->cmdstream);
+      subgraph->cmdstream = NULL;
 
-   subgraph->cmdstream_bo = cmd_bo_create.handle;
+      subgraph->cmdstream_bo = cmd_bo_create.handle;
+   }
 
    DBG("subgraph->coefs_used %d\n", subgraph->coefs_used);
    if (subgraph->coefs_used > 0) {
@@ -424,6 +428,9 @@ ethosu_ml_subgraph_invoke(struct pipe_context *pcontext,
       pipe_buffer_unmap(pcontext, transfer_in);
    }
 
+   if (!subgraph->cmdstream_bo)
+      return;
+
    job.cmd_bo = subgraph->cmdstream_bo;
 
    if (subgraph->coefs_rsrc) {
@@ -501,9 +508,11 @@ ethosu_ml_subgraph_destroy(struct pipe_ml_device *pdevice,
       pipe_resource_reference(&subgraph->io_rsrc, NULL);
       pipe_resource_reference(&subgraph->coefs_rsrc, NULL);
 
-      arg.handle = subgraph->cmdstream_bo;
-      ret = drmIoctl(screen->fd, DRM_IOCTL_GEM_CLOSE, &arg);
-      assert(ret >= 0);
+      if (subgraph->cmdstream_bo) {
+         arg.handle = subgraph->cmdstream_bo;
+         ret = drmIoctl(screen->fd, DRM_IOCTL_GEM_CLOSE, &arg);
+         assert(ret >= 0);
+      }
    } else {
       /* Pre-submission state: cleanup raw buffers */
       free(subgraph->cmdstream);

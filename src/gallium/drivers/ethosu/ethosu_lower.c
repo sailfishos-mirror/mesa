@@ -603,6 +603,22 @@ ethosu_lower_quantize(struct ethosu_subgraph *subgraph,
 }
 
 static void
+ethosu_lower_reshape(struct ethosu_subgraph *subgraph,
+                     const struct pipe_ml_operation *poperation,
+                     struct ethosu_operation *operation)
+{
+   operation->type = ETHOSU_OPERATION_TYPE_NONE;
+
+   set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   operation->ifm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm.tensor);
+   operation->ofm.tiles.addresses[0] = operation->ifm.tiles.addresses[0];
+
+   operation->ofm.tensor->offset = operation->ifm.tensor->offset;
+   operation->ofm.tensor->size = operation->ifm.tensor->size;
+   operation->ofm.tensor->layout = operation->ifm.tensor->layout;
+}
+
+static void
 ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
                            const struct pipe_ml_operation *poperation,
                            unsigned input_idx,
@@ -786,9 +802,11 @@ register_tensors(struct ethosu_subgraph *subgraph,
 
          if (!DBG_ENABLED(ETHOSU_DBG_DISABLE_NHCWB16)) {
             struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, ptensor->index);
-            if (tensor->shape.depth % 16 == 0 &&
-                ethosu_find_first_consumer(poperations, count, ptensor->index)) {
-               tensor->layout = ETHOSU_LAYOUT_NHCWB16;
+            if (tensor->shape.depth % 16 == 0) {
+               const struct pipe_ml_operation *consumer =
+                  ethosu_find_first_consumer(poperations, count, ptensor->index);
+               if (consumer && consumer->type != PIPE_ML_OPERATION_TYPE_RESHAPE)
+                  tensor->layout = ETHOSU_LAYOUT_NHCWB16;
             }
          }
       }
@@ -936,6 +954,12 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
       case PIPE_ML_OPERATION_TYPE_QUANTIZE: {
          ethosu_lower_quantize(subgraph, &poperations[i], &operation);
+         util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_RESHAPE: {
+         ethosu_lower_reshape(subgraph, &poperations[i], &operation);
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }
