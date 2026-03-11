@@ -1426,6 +1426,12 @@ gen_encode_pre_xe(gen_encode_params *params)
    }
 
    params->raw_bytes_size = written * sizeof(gen_raw_inst);
+
+   if (params->errors != NULL)
+      return false;
+
+   gen_compact(params);
+
    return params->errors == NULL;
 }
 

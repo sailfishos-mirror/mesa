@@ -409,6 +409,10 @@ gen_raw_get_opcode(const void *raw_bytes)
    return *raw & 0x7fu;
 }
 
+bool gen_compact(gen_encode_params *params);
+bool gen_decode_compact(gen_raw_compact_inst inst,
+                        gen_inst *decoded);
+
 bool gen_encode_pre_xe(gen_encode_params *params);
 bool gen_decode_pre_xe(gen_decode_params *params);
 int gen_find_shader_size_pre_xe(const struct intel_device_info *devinfo,

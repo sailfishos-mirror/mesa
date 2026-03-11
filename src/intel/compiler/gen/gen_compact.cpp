@@ -4,6 +4,9 @@
  */
 
 #include <array>
+#include <tuple>
+#include <vector>
+
 #include <stdio.h>
 #include <string.h>
 
@@ -13,6 +16,9 @@
 
 /* Generated instruction information */
 #include "gen_info_util.h"
+#include "gen_info_pre_xe.h"
+#include "gen_info_xe.h"
+#include "gen_info_xe2.h"
 
 static const uint32_t gfx8_control_index_table[32] = {
    0b0000000000000000010,
@@ -1058,3 +1064,963 @@ struct gen_compact_accessor {
       }
    }
 };
+
+/* E is the struct with the Encoding fields and type. */
+template <typename E>
+struct gen_compacter : public gen_compact_accessor<E> {
+   gen_compacter(const intel_device_info *devinfo,
+                 gen_encode_params *params)
+      : devinfo(devinfo), params(params),
+        compact_tables(get_compact_tables(devinfo))
+   {
+      memset(&c_raw, 0, sizeof(c_raw));
+      auto& nop_desc = E::gen_to_description[GEN_OP_NOP];
+      c_set(E::C_HW_OPCODE, nop_desc.hw_opcode);
+      c_set(E::C_CMPT_CONTROL, true);
+      c_nop = c_raw;
+   }
+
+   void
+   compact()
+   {
+      std::vector<uint32_t> original_offsets(params->num_insts + 1);
+      size_t original_offset = 0;
+      original_offsets[0] = original_offset;
+      for (int i = 0; i < params->num_insts; i++) {
+         void *src = (uint8_t*)params->raw_bytes + original_offset;
+         bool is_compact = gen_raw_is_compact(src);
+         original_offset +=
+            is_compact ? sizeof(gen_raw_compact_inst) : sizeof(gen_raw_inst);
+         original_offsets[i + 1] = original_offset;
+      }
+      const size_t original_size = original_offset;
+      assert((original_offset % sizeof(gen_raw_compact_inst)) == 0);
+
+      if (!params->compact_all)
+         return;
+
+      std::vector<uint32_t> new_offsets(params->num_insts + 1);
+      const size_t shift_slots =
+         (original_size / sizeof(gen_raw_compact_inst)) + 1;
+      std::vector<int32_t> shifts_by_compact(shift_slots);
+
+      void *new_binary =
+         ralloc_array(params->mem_ctx, gen_raw_inst, params->num_insts);
+
+      size_t src_offset = 0, dst_offset = 0;
+
+      /* Compact instructions, and update `params->encoded_offsets`. */
+      new_offsets[0] = dst_offset;
+      for (int i = 0; i < params->num_insts; i++) {
+         if (params->encoded_offsets)
+            params->encoded_offsets[i] = dst_offset;
+         inst = &params->insts[i];
+         desc = &E::gen_to_description[inst->opcode];
+         last_inst = (i + 1) == params->num_insts;
+         assert(src_offset >= dst_offset);
+         void *src = (uint8_t*)params->raw_bytes + src_offset;
+         assert(!gen_raw_is_compact(src));
+         const auto uncomp = (gen_raw_inst *)src;
+         void *dst = (uint8_t*)new_binary + dst_offset;
+         uc_raw = *uncomp;
+         shifts_by_compact[src_offset / sizeof(gen_raw_compact_inst)] =
+            dst_offset - src_offset;
+         shifts_by_compact[(src_offset / sizeof(gen_raw_compact_inst)) + 1] =
+            INT32_MAX;
+         bool success = try_compact();
+         if (success) {
+            *(gen_raw_compact_inst *)dst = c_raw;
+            dst_offset += sizeof(gen_raw_compact_inst);
+         } else {
+            *(gen_raw_inst *)dst = *uncomp;
+            dst_offset += sizeof(gen_raw_inst);
+         }
+         src_offset += sizeof(gen_raw_inst);
+         new_offsets[i + 1] = dst_offset;
+      }
+      /* Add a shift slot for the end of the program. */
+      shifts_by_compact[shift_slots - 1] = dst_offset - src_offset;
+
+      /* Update jip/uip for instructions */
+      for (int i = 0; i < params->num_insts; i++) {
+         inst = &params->insts[i];
+         desc = &E::gen_to_description[inst->opcode];
+
+         if (desc->format != GEN_FORMAT_BRANCH_ONE_SRC &&
+             desc->format != GEN_FORMAT_BRANCH_TWO_SRC)
+            continue;
+
+         assert(original_offsets[i] + sizeof(gen_raw_inst) ==
+                original_offsets[i + 1]);
+         src_offset = original_offsets[i];
+         void *uc_orig = (uint8_t*)params->raw_bytes + src_offset;
+         assert(!gen_raw_is_compact(uc_orig));
+         const auto uncomp = (gen_raw_inst *)uc_orig;
+         uc_raw = *uncomp;
+
+         auto src_shift =
+            shifts_by_compact[src_offset / sizeof(gen_raw_compact_inst)];
+         bool changed = false;
+         if (gen_has_jip(inst->opcode)) {
+            int32_t jip_delta = this->uc_get_jip();
+            auto jip = src_offset + jip_delta;
+            assert(src_shift != INT32_MAX);
+            auto jip_shift =
+               shifts_by_compact[jip / sizeof(gen_raw_compact_inst)];
+            assert(jip_shift != INT32_MAX);
+            jip_shift -= src_shift;
+            changed |= jip_shift != 0;
+            jip_delta += jip_shift;
+            this->uc_set_jip(jip_delta);
+         }
+
+         if (gen_has_uip(inst->opcode)) {
+            int32_t uip_delta = this->uc_get_uip();
+            auto uip = src_offset + uip_delta;
+            auto uip_shift =
+               shifts_by_compact[uip / sizeof(gen_raw_compact_inst)];
+            assert(uip_shift != INT32_MAX);
+            uip_shift -= src_shift;
+            assert(uip_shift != 8);
+            changed |= uip_shift != 0;
+            uip_delta += uip_shift;
+            this->uc_set_uip(uip_delta);
+         }
+
+         if (changed) {
+            auto inst_offset = new_offsets[i];
+            auto inst_size = new_offsets[i + 1] - inst_offset;
+            assert(inst_size == sizeof(gen_raw_compact_inst) ||
+                   inst_size == sizeof(gen_raw_inst));
+
+            auto dst = (uint8_t*)new_binary + inst_offset;
+            if (inst_size == sizeof(gen_raw_compact_inst)) {
+               bool success = try_compact();
+               assert(success);
+               auto c_dst = (gen_raw_compact_inst*)dst;
+               assert(c_dst);
+               *c_dst = c_raw;
+            } else {
+               auto uc_dst = (gen_raw_inst*)dst;
+               assert(uc_dst);
+               *uc_dst = uc_raw;
+            }
+         }
+      }
+
+      memcpy(params->raw_bytes, new_binary, new_offsets[params->num_insts]);
+      ralloc_free(new_binary);
+      params->raw_bytes_size = new_offsets[params->num_insts];
+      if ((params->raw_bytes_size % sizeof(gen_raw_inst)) != 0) {
+         assert((params->raw_bytes_size % sizeof(gen_raw_compact_inst)) == 0);
+         auto pad_nop = (gen_raw_compact_inst*)((uint8_t*)params->raw_bytes +
+                                                params->raw_bytes_size);
+         *pad_nop = c_nop;
+         params->raw_bytes_size += sizeof(*pad_nop);
+      }
+   }
+
+private:
+   const intel_device_info *devinfo;
+   gen_encode_params *params;
+   const struct compact_tables& compact_tables;
+
+   using gen_compact_accessor<E>::c_raw;
+   using gen_compact_accessor<E>::uc_raw;
+   using gen_compact_accessor<E>::uc_get;
+   using gen_compact_accessor<E>::uc_set;
+   using gen_compact_accessor<E>::c_set;
+
+   const gen_inst *inst;
+   const gen_inst_description *desc;
+   bool last_inst;
+   gen_raw_compact_inst c_nop;
+
+   bool
+   set_control_index()
+   {
+      const compact_table_info &table = compact_tables.control;
+      gen_range bits = { 127, 0 };
+      uint32_t uncompacted; /* 19b/IVB+; 21b/TGL+ */
+
+      if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
+         uncompacted = (uc_get(bits(95, 92)) << 14) | /*  4b */
+            (uc_get(bits(34, 34)) << 13) | /*  1b */
+            (uc_get(bits(32, 32)) << 12) | /*  1b */
+            (uc_get(bits(31, 31)) << 11) | /*  1b */
+            (uc_get(bits(28, 28)) << 10) | /*  1b */
+            (uc_get(bits(27, 26)) <<  8) | /*  2b */
+            (uc_get(bits(25, 24)) <<  6) | /*  2b */
+            (uc_get(bits(23, 21)) <<  3) | /*  3b */
+            (uc_get(bits(20, 18)));        /*  3b */
+      } else if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         uncompacted = (uc_get(bits(95, 92)) << 17) | /*  4b */
+            (uc_get(bits(34, 34)) << 16) | /*  1b */
+            (uc_get(bits(33, 33)) << 15) | /*  1b */
+            (uc_get(bits(32, 32)) << 14) | /*  1b */
+            (uc_get(bits(31, 31)) << 13) | /*  1b */
+            (uc_get(bits(28, 28)) << 12) | /*  1b */
+            (uc_get(bits(27, 24)) <<  8) | /*  4b */
+            (uc_get(bits(23, 22)) <<  6) | /*  2b */
+            (uc_get(bits(21, 19)) <<  3) | /*  3b */
+            (uc_get(bits(18, 16)));        /*  3b */
+      } else {
+         uncompacted = (uc_get(bits(33, 31)) << 16) | /*  3b */
+            (uc_get(bits(23, 12)) <<  4) | /* 12b */
+            (uc_get(bits(10,  9)) <<  2) | /*  2b */
+            (uc_get(bits(34, 34)) <<  1) | /*  1b */
+            (uc_get(bits( 8,  8)));        /*  1b */
+      }
+
+      for (unsigned i = 0; i < table.length; i++) {
+         if (table.read(i) == uncompacted) {
+            c_set(E::C_CONTROL_INDEX, i);
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   bool
+   set_datatype_index(bool is_immediate)
+   {
+      const compact_table_info &table = compact_tables.datatype;
+      gen_range bits = { 127, 0 };
+      uint32_t uncompacted; /* 18b/G45+; 21b/BDW+; 20b/TGL+ */
+
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         uncompacted = (uc_get(bits(91, 88)) << 15) | /*  4b */
+            (uc_get(bits(66, 66)) << 14) | /*  1b */
+            (uc_get(bits(50, 50)) << 13) | /*  1b */
+            (uc_get(bits(49, 48)) << 11) | /*  2b */
+            (uc_get(bits(47, 47)) << 10) | /*  1b */
+            (uc_get(bits(46, 46)) <<  9) | /*  1b */
+            (uc_get(bits(43, 40)) <<  5) | /*  4b */
+            (uc_get(bits(39, 36)) <<  1) | /*  4b */
+            (uc_get(bits(35, 35)));        /*  1b */
+
+         /* Src1.RegFile overlaps with the immediate, so ignore it if an immediate
+          * is present
+          */
+         if (!is_immediate) {
+            uncompacted |= uc_get(bits(98, 98)) << 19; /* 1b */
+         }
+      } else {
+         uncompacted = (uc_get(bits(63, 61)) << 18) | /*  3b */
+            (uc_get(bits(94, 89)) << 12) | /*  6b */
+            (uc_get(bits(46, 35)));        /* 12b */
+      }
+
+      for (unsigned i = 0; i < table.length; i++) {
+         if (table.read(i) == uncompacted) {
+            if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
+               c_set(E::C_DATATYPE_INDEX_LO3, i & 7);
+               c_set(E::C_DATATYPE_INDEX_HI2, i >> 3);
+            } else {
+               c_set(E::C_DATATYPE_INDEX, i);
+            }
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   bool
+   set_subreg_index(bool is_immediate)
+   {
+      const compact_table_info &table = compact_tables.subreg;
+      gen_range bits = { 127, 0 };
+      uint16_t uncompacted; /* 15b/G45+; 12b/Xe2+ */
+
+      if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
+         uncompacted = (uc_get(bits(33, 33)) << 0) |    /* 1b */
+            (uc_get(bits(55, 51)) << 1) |    /* 5b */
+            (uc_get(bits(71, 67)) << 6) |    /* 5b */
+            (uc_get(bits(87, 87)) << 11);    /* 1b */
+      } else if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         uncompacted = (uc_get(bits(55, 51)) << 0) |    /* 5b */
+            (uc_get(bits(71, 67)) << 5);     /* 5b */
+
+         if (!is_immediate)
+            uncompacted |= uc_get(bits(103, 99)) << 10; /* 5b */
+      } else {
+         uncompacted = (uc_get(bits(52, 48)) << 0) |    /* 5b */
+            (uc_get(bits(68, 64)) << 5);     /* 5b */
+
+         if (!is_immediate)
+            uncompacted |= uc_get(bits(100, 96)) << 10; /* 5b */
+      }
+
+      for (unsigned i = 0; i < table.length; i++) {
+         if (table.read(i) == uncompacted) {
+            c_set(E::C_SUBREG_INDEX, i);
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+
+   bool
+   set_src0_index()
+   {
+      const compact_table_info &table = compact_tables.src0;
+      gen_range bits = { 127, 0 };
+      uint16_t uncompacted; /* 12b/G45+; 11b/Xe2+ */
+
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         uncompacted = (devinfo->ver >= 20 ? 0 :
+                        uc_get(bits(87, 87)) << 11) | /*  1b */
+            (uc_get(bits(86, 84)) << 8) | /*  3b */
+            (uc_get(bits(83, 81)) << 5) | /*  3b */
+            (uc_get(bits(80, 80)) << 4) | /*  1b */
+            (uc_get(bits(65, 64)) << 2) | /*  2b */
+            (uc_get(bits(45, 44)));       /*  2b */
+      } else {
+         uncompacted = uc_get(bits(88, 77));         /* 12b */
+      }
+
+      for (unsigned i = 0; i < table.length; i++) {
+         if (table.read(i) == uncompacted) {
+            c_set(E::C_SRC0_INDEX, i);
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   bool
+   set_src1_index(bool is_immediate, unsigned imm)
+   {
+      gen_range bits = { 127, 0 };
+      if (is_immediate) {
+         if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+            /* src1 index takes the low 4 bits of the 12-bit compacted value */
+            c_set(E::C_SRC1_INDEX, imm & 0xf);
+         } else {
+            /* src1 index takes the high 5 bits of the 13-bit compacted value */
+            c_set(E::C_SRC1_INDEX, imm >> 8);
+         }
+         return true;
+      } else {
+         const compact_table_info &table = compact_tables.src1;
+         uint16_t uncompacted; /* 12b/G45+ 16b/Xe2+ */
+
+         if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
+            uncompacted = (uc_get(bits(121, 120)) << 14) | /*  2b */
+               (uc_get(bits(118, 116)) << 11) | /*  3b */
+               (uc_get(bits(115, 113)) <<  8) | /*  3b */
+               (uc_get(bits(112, 112)) <<  7) | /*  1b */
+               (uc_get(bits(103,  99)) <<  2) | /*  5b */
+               (uc_get(bits( 97,  96)));        /*  2b */
+         } else if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+            uncompacted = (uc_get(bits(121, 120)) << 10) | /*  2b */
+               (uc_get(bits(119, 116)) <<  6) | /*  4b */
+               (uc_get(bits(115, 113)) <<  3) | /*  3b */
+               (uc_get(bits(112, 112)) <<  2) | /*  1b */
+               (uc_get(bits( 97,  96)));        /*  2b */
+         } else {
+            uncompacted = uc_get(bits(120, 109));          /* 12b */
+         }
+
+         for (unsigned i = 0; i < table.length; i++) {
+            if (table.read(i) == uncompacted) {
+               c_set(E::C_SRC1_INDEX, i);
+               return true;
+            }
+         }
+      }
+
+      return false;
+   }
+
+   bool
+   set_3src_control_index(bool is_dpas)
+   {
+      gen_range bits = { 127, 0 };
+
+      const compact_table_info &table =
+         is_dpas ? compact_tables.control_dpas_3src :
+         compact_tables.control_3src;
+
+      uint64_t uncompacted = 0;
+      if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
+         assert(is_dpas || !uc_get(bits(49, 49)));
+
+         uncompacted =        /* 34b/Xe2+ */
+            (uc_get(bits(95, 92)) << 30) | /*  4b */
+            (uc_get(bits(90, 88)) << 27) | /*  3b */
+            (uc_get(bits(82, 80)) << 24) | /*  3b */
+            (uc_get(bits(50, 50)) << 23) | /*  1b */
+            (uc_get(bits(49, 48)) << 21) | /*  2b */
+            (uc_get(bits(42, 40)) << 18) | /*  3b */
+            (uc_get(bits(39, 39)) << 17) | /*  1b */
+            (uc_get(bits(38, 36)) << 14) | /*  3b */
+            (uc_get(bits(34, 34)) << 13) | /*  1b */
+            (uc_get(bits(32, 32)) << 12) | /*  1b */
+            (uc_get(bits(31, 31)) << 11) | /*  1b */
+            (uc_get(bits(28, 28)) << 10) | /*  1b */
+            (uc_get(bits(27, 26)) <<  8) | /*  2b */
+            (uc_get(bits(25, 24)) <<  6) | /*  2b */
+            (uc_get(bits(23, 21)) <<  3) | /*  3b */
+            (uc_get(bits(20, 18)));        /*  3b */
+      } else if (devinfo->verx10 >= 125) {
+         uncompacted =             /* 37b/XeHP+ */
+            (uc_get(bits(95, 92)) << 33) | /*  4b */
+            (uc_get(bits(90, 88)) << 30) | /*  3b */
+            (uc_get(bits(82, 80)) << 27) | /*  3b */
+            (uc_get(bits(50, 50)) << 26) | /*  1b */
+            (uc_get(bits(49, 48)) << 24) | /*  2b */
+            (uc_get(bits(42, 40)) << 21) | /*  3b */
+            (uc_get(bits(39, 39)) << 20) | /*  1b */
+            (uc_get(bits(38, 36)) << 17) | /*  3b */
+            (uc_get(bits(34, 34)) << 16) | /*  1b */
+            (uc_get(bits(33, 33)) << 15) | /*  1b */
+            (uc_get(bits(32, 32)) << 14) | /*  1b */
+            (uc_get(bits(31, 31)) << 13) | /*  1b */
+            (uc_get(bits(28, 28)) << 12) | /*  1b */
+            (uc_get(bits(27, 24)) <<  8) | /*  4b */
+            (uc_get(bits(23, 23)) <<  7) | /*  1b */
+            (uc_get(bits(22, 22)) <<  6) | /*  1b */
+            (uc_get(bits(21, 19)) <<  3) | /*  3b */
+            (uc_get(bits(18, 16)));        /*  3b */
+      } else if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         uncompacted =             /* 36b/TGL+ */
+            (uc_get(bits(95, 92)) << 32) | /*  4b */
+            (uc_get(bits(90, 88)) << 29) | /*  3b */
+            (uc_get(bits(82, 80)) << 26) | /*  3b */
+            (uc_get(bits(50, 50)) << 25) | /*  1b */
+            (uc_get(bits(48, 48)) << 24) | /*  1b */
+            (uc_get(bits(42, 40)) << 21) | /*  3b */
+            (uc_get(bits(39, 39)) << 20) | /*  1b */
+            (uc_get(bits(38, 36)) << 17) | /*  3b */
+            (uc_get(bits(34, 34)) << 16) | /*  1b */
+            (uc_get(bits(33, 33)) << 15) | /*  1b */
+            (uc_get(bits(32, 32)) << 14) | /*  1b */
+            (uc_get(bits(31, 31)) << 13) | /*  1b */
+            (uc_get(bits(28, 28)) << 12) | /*  1b */
+            (uc_get(bits(27, 24)) <<  8) | /*  4b */
+            (uc_get(bits(23, 23)) <<  7) | /*  1b */
+            (uc_get(bits(22, 22)) <<  6) | /*  1b */
+            (uc_get(bits(21, 19)) <<  3) | /*  3b */
+            (uc_get(bits(18, 16)));        /*  3b */
+      } else {
+         uncompacted = /* 26b/SKL+ */
+            (uc_get(bits(36, 35)) << 24) |  /*  2b */
+            (uc_get(bits(34, 32)) << 21) |  /*  3b */
+            (uc_get(bits(28,  8)));         /* 21b */
+      }
+
+      for (unsigned i = 0; i < table.length; i++) {
+         if (table.read(i) == uncompacted) {
+            c_set(E::C_3SRC_CONTROL_INDEX, i);
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   bool
+   set_3src_source_index(bool is_dpas)
+   {
+      gen_range bits = { 127, 0 };
+      const compact_table_info &table =
+         is_dpas ? compact_tables.source_dpas_3src :
+         compact_tables.source_3src;
+
+      uint64_t uncompacted;
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         uncompacted =                       /* 21b/TGL+ */
+            (uc_get(bits(114, 114)) << 20) | /*  1b */
+            (uc_get(bits(113, 112)) << 18) | /*  2b */
+            (uc_get(bits( 98,  98)) << 17) | /*  1b */
+            (uc_get(bits( 97,  96)) << 15) | /*  2b */
+            (uc_get(bits( 91,  91)) << 14) | /*  1b */
+            (uc_get(bits( 87,  86)) << 12) | /*  2b */
+            (uc_get(bits( 85,  84)) << 10) | /*  2b */
+            (uc_get(bits( 83,  83)) <<  9) | /*  1b */
+            (uc_get(bits( 66,  66)) <<  8) | /*  1b */
+            (uc_get(bits( 65,  64)) <<  6) | /*  2b */
+            (uc_get(bits( 47,  47)) <<  5) | /*  1b */
+            (uc_get(bits( 46,  46)) <<  4) | /*  1b */
+            (uc_get(bits( 45,  44)) <<  2) | /*  2b */
+            (uc_get(bits( 43,  43)) <<  1) | /*  1b */
+            (uc_get(bits( 35,  35)));        /*  1b */
+      } else {
+         uncompacted =                         /* 49b/SKL+ */
+            (uc_get(bits(126, 125)) << 47) |   /*  2b */
+            (uc_get(bits(105, 104)) << 45) |   /*  2b */
+            (uc_get(bits( 84,  84)) << 44) |   /*  1b */
+            (uc_get(bits( 83,  83)) << 43) |   /*  1b */
+            (uc_get(bits(114, 107)) << 35) |   /*  8b */
+            (uc_get(bits( 93,  86)) << 27) |   /*  8b */
+            (uc_get(bits( 72,  65)) << 19) |   /*  8b */
+            (uc_get(bits( 55,  37)));          /* 19b */
+      }
+
+      for (unsigned i = 0; i < table.length; i++) {
+         if (table.read(i) == uncompacted) {
+            c_set(E::C_3SRC_SOURCE_INDEX, i);
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   bool
+   set_3src_subreg_index()
+   {
+      gen_range bits = { 127, 0 };
+      if constexpr (E::TYPE < GEN_ENCODING_XE) {
+         UNREACHABLE("Don't call set_3src_subreg_index() for this device!");
+         return false;
+      }
+
+      uint32_t uncompacted =               /* 20b/TGL+ */
+         (uc_get(bits(119, 115)) << 15) | /*  5b */
+         (uc_get(bits(103,  99)) << 10) | /*  5b */
+         (uc_get(bits( 71,  67)) <<  5) | /*  5b */
+         (uc_get(bits( 55,  51)));        /*  5b */
+
+      const compact_table_info &table = compact_tables.subreg_3src;
+
+      for (unsigned i = 0; i < table.length; i++) {
+         if (table.read(i) == uncompacted) {
+            if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
+               assert((i & ~0x1f) == 0);
+               c_set(E::C_3SRC_SUBREG_INDEX_LO3, i & 7);
+               c_set(E::C_3SRC_SUBREG_INDEX_HI2, (i >> 3) & 3);
+            } else {
+               c_set(E::C_3SRC_SUBREG_INDEX, i);
+            }
+            return true;
+         }
+      }
+
+      return false;
+   }
+
+   bool
+   has_unmapped_bits()
+   {
+      /* EOT can only be mapped on a send if the src1 is an immediate */
+      if ((inst->opcode == GEN_OP_SENDC || inst->opcode == GEN_OP_SEND) &&
+          inst->send.eot)
+         return true;
+
+      /* Check for instruction bits that don't map to any of the fields of the
+       * compacted instruction.  The instruction cannot be compacted if any of
+       * them are set.  They overlap with:
+       *  - NibCtrl (bit 11 on Gfx8)
+       *  - Dst.AddrImm[9] (bit 47 on Gfx8)
+       *  - Src0.AddrImm[9] (bit 95 on Gfx8)
+       *  - Imm64[27:31] (bit 95 on Gfx8)
+       *  - UIP[31] (bit 95 on Gfx8)
+       */
+      gen_range bits = { 127, 0 };
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         assert(!uc_get(bits(7,  7)));
+         return false;
+      } else {
+         assert(!uc_get(bits(7,  7)));
+         return uc_get(bits(95, 95)) ||
+            uc_get(bits(47, 47)) ||
+            uc_get(bits(11, 11));
+      }
+   }
+
+   bool
+   has_3src_unmapped_bits(bool is_dpas)
+   {
+      gen_range bits = { 127, 0 };
+      /* Check for three-source instruction bits that don't map to any of the
+       * fields of the compacted instruction.  All of them seem to be reserved
+       * bits currently.
+       */
+      if constexpr (E::TYPE >= GEN_ENCODING_XE2) {
+         assert(is_dpas || !uc_get(bits(49, 49)));
+         assert(!uc_get(bits(33, 33)));
+         assert(!uc_get(bits(7, 7)));
+      } else if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         assert(is_dpas || !uc_get(bits(49, 49)));
+         assert(!uc_get(bits(7, 7)));
+      } else {
+         assert(!uc_get(bits(127, 127)) &&
+                !uc_get(bits(7,  7)));
+      }
+
+      return false;
+   }
+
+   bool
+   try_compact_3src()
+   {
+      bool is_dpas = inst->opcode == GEN_OP_DPAS;
+      if (has_3src_unmapped_bits(is_dpas))
+         return false;
+
+#define compact(field)                                                  \
+      c_set(E::C_3SRC_##field, uc_get(E::field));
+
+      c_set(E::C_HW_OPCODE, uc_get(E::HW_OPCODE));
+
+      if (!set_3src_control_index(is_dpas))
+         return false;
+
+      if (!set_3src_source_index(is_dpas))
+         return false;
+
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         if (!set_3src_subreg_index())
+            return false;
+
+         compact(SWSB);
+         compact(DEBUG_CONTROL);
+         c_set(E::C_3SRC_DST_REG_NR, inst->dst.nr);
+         c_set(E::C_3SRC_SRC0_REG_NR, inst->src[0].nr);
+         c_set(E::C_3SRC_SRC1_REG_NR, inst->src[1].nr);
+         c_set(E::C_3SRC_SRC2_REG_NR, inst->src[2].nr);
+      } else {
+         c_set(E::C_3SRC_DST_REG_NR, inst->dst.nr);
+         c_set(E::C_3SRC_SRC0_REP_CTRL, inst->src[0].rep_ctrl);
+         compact(DEBUG_CONTROL);
+         c_set(E::C_3SRC_SATURATE, inst->saturate);
+         c_set(E::C_3SRC_SRC1_REP_CTRL, inst->src[1].rep_ctrl);
+         c_set(E::C_3SRC_SRC2_REP_CTRL, inst->src[2].rep_ctrl);
+         c_set(E::C_3SRC_SRC0_REG_NR, inst->src[0].nr);
+         c_set(E::C_3SRC_SRC1_REG_NR, inst->src[1].nr);
+         c_set(E::C_3SRC_SRC2_REG_NR, inst->src[2].nr);
+         c_set(E::C_3SRC_SRC0_SUBREG_NR, inst->src[0].subnr);
+         c_set(E::C_3SRC_SRC1_SUBREG_NR, inst->src[1].subnr);
+         c_set(E::C_3SRC_SRC2_SUBREG_NR, inst->src[2].subnr);
+      }
+      c_set(E::C_CMPT_CONTROL, true);
+
+#undef compact
+#undef compact_a16
+
+      return true;
+   }
+
+   /* On SNB through ICL, compacted instructions have 12-bits for immediate
+    * sources, and a 13th bit that's replicated through the high 20 bits.
+    *
+    * Effectively this means we get 12-bit integers, 0.0f, and some limited uses
+    * of packed vectors as compactable immediates.
+    *
+    * On TGL+, the high 12-bits of floating-point values (:f and :hf) are encoded
+    * rather than the low 12-bits. For signed integer the 12th bit is replicated,
+    * while for unsigned integers it is not.
+    *
+    * Returns the compacted immediate, or -1 if immediate cannot be compacted
+    */
+   int
+   compact_immediate(gen_reg_type type, unsigned imm)
+   {
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         /* 16-bit immediates need to be replicated through the 32-bit immediate
+          * field
+          */
+         switch (type) {
+         case GEN_TYPE_W:
+         case GEN_TYPE_UW:
+         case GEN_TYPE_HF:
+            if ((imm >> 16) != (imm & 0xffff))
+               return -1;
+            break;
+         default:
+            break;
+         }
+
+         switch (type) {
+         case GEN_TYPE_F:
+            /* We get the high 12-bits as-is; rest must be zero */
+            if ((imm & 0xfffff) == 0)
+               return (imm >> 20) & 0xfff;
+            break;
+         case GEN_TYPE_HF:
+            /* We get the high 12-bits as-is; rest must be zero */
+            if ((imm & 0xf) == 0)
+               return (imm >> 4) & 0xfff;
+            break;
+         case GEN_TYPE_UD:
+         case GEN_TYPE_VF:
+         case GEN_TYPE_UV:
+         case GEN_TYPE_V:
+            /* We get the low 12-bits as-is; rest must be zero */
+            if ((imm & 0xfffff000) == 0)
+               return imm & 0xfff;
+            break;
+         case GEN_TYPE_UW:
+            /* We get the low 12-bits as-is; rest must be zero */
+            if ((imm & 0xf000) == 0)
+               return imm & 0xfff;
+            break;
+         case GEN_TYPE_D:
+            /* We get the low 11-bits as-is; 12th is replicated */
+            if (((int)imm >> 11) == 0 || ((int)imm >> 11) == -1)
+               return imm & 0xfff;
+            break;
+         case GEN_TYPE_W:
+            /* We get the low 11-bits as-is; 12th is replicated */
+            if (((short)imm >> 11) == 0 || ((short)imm >> 11) == -1)
+               return imm & 0xfff;
+            break;
+         case GEN_TYPE_DF:
+         case GEN_TYPE_Q:
+         case GEN_TYPE_UQ:
+         case GEN_TYPE_B:
+         case GEN_TYPE_UB:
+         default:
+            return -1;
+         }
+      } else {
+         /* We get the low 12 bits as-is; 13th is replicated */
+         if (((int)imm >> 12) == 0 || ((int)imm >> 12 == -1)) {
+            return imm & 0x1fff;
+         }
+      }
+
+      return -1;
+   }
+
+   /**
+    * Applies some small changes to instruction types to increase chances of
+    * compaction.
+    */
+   void
+   precompact()
+   {
+      /* In XeHP the compaction tables removed the entries for source regions
+       * <8;8,1> giving preference to <1;1,0> as the way to indicate
+       * sequential elements, so convert to those before compacting.
+       */
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         if (devinfo->verx10 >= 125) {
+            if (inst->src[0].file == GEN_GRF &&
+                uc_get(E::SRC0_VSTRIDE) > cvt(1) &&
+                uc_get(E::SRC0_VSTRIDE) == (uc_get(E::SRC0_WIDTH) + 1) &&
+                uc_get(E::SRC0_HSTRIDE) == cvt(1)) {
+               uc_set(E::SRC0_VSTRIDE, cvt(1));
+               uc_set(E::SRC0_HSTRIDE, cvt(1) - 1);
+               uc_set(E::SRC0_WIDTH,   cvt(0));
+            }
+
+            if (inst->src[1].file == GEN_GRF &&
+                uc_get(E::SRC1_VSTRIDE) > cvt(1) &&
+                uc_get(E::SRC1_VSTRIDE) == (uc_get(E::SRC1_WIDTH) + 1) &&
+                uc_get(E::SRC1_HSTRIDE) == cvt(1)) {
+               uc_set(E::SRC1_VSTRIDE, cvt(1));
+               uc_set(E::SRC1_HSTRIDE, cvt(1) - 1);
+               uc_set(E::SRC1_WIDTH,   cvt(0));
+            }
+         }
+      }
+
+      if (inst->src[0].file != GEN_IMM)
+         return;
+
+      /* The Bspec's section titled "Non-present Operands" claims that if src0
+       * is an immediate that src1's type must be the same as that of src0.
+       *
+       * The SNB+ DataTypeIndex instruction compaction tables contain mappings
+       * that do not follow this rule. E.g., from the IVB/HSW table:
+       *
+       *  DataTypeIndex   18-Bit Mapping       Mapped Meaning
+       *        3         001000001011111101   r:f | i:vf | a:ud | <1> | dir |
+       *
+       * And from the SNB table:
+       *
+       *  DataTypeIndex   18-Bit Mapping       Mapped Meaning
+       *        8         001000000111101100   a:w | i:w | a:ud | <1> | dir |
+       *
+       * Neither of these cause warnings from the simulator when used,
+       * compacted or otherwise. In fact, all compaction mappings that have an
+       * immediate in src0 use a:ud for src1.
+       *
+       * Don't do any of this for 64-bit immediates, since the src1 fields
+       * overlap with the immediate and setting them would overwrite the
+       * immediate we set.
+       */
+      if (!(inst->src[0].type == GEN_TYPE_DF ||
+            inst->src[0].type == GEN_TYPE_UQ ||
+            inst->src[0].type == GEN_TYPE_Q)) {
+         if constexpr (E::TYPE >= GEN_ENCODING_XE)
+            uc_set(E::SRC1_TYPE, 0);
+         else
+            uc_set(E::SOURCES(E::SRC1_TYPE), 0);
+      }
+
+      /* Compacted instructions only have 12-bits (plus 1 for the other 20)
+       * for immediate values. Presumably the hardware engineers realized
+       * that the only useful floating-point value that could be represented
+       * in this format is 0.0, which can also be represented as a VF-typed
+       * immediate, so they gave us the previously mentioned mapping on IVB+.
+       *
+       * Strangely, we do have a mapping for imm:f in src1, so we don't need
+       * to do this there.
+       *
+       * If we see a 0.0:F, change the type to VF so that it can be compacted.
+       *
+       * Compaction of floating-point immediates is improved on Gfx12, thus
+       * removing the need for this.
+       */
+      if constexpr (E::TYPE < GEN_ENCODING_XE) {
+         if (uc_get(E::SOURCES(E::IMM_32)) == 0 &&
+             inst->src[0].type == GEN_TYPE_F &&
+             inst->dst.type == GEN_TYPE_F &&
+             inst->dst.region.hstride == 1) {
+            auto vf_encoded = devinfo->ver == 11 ? 11 : 5;
+            uc_set(E::OPERAND_CONTROLS(E::SRC0_TYPE), vf_encoded);
+         }
+      }
+
+      /* There are no mappings for dst:d | i:d, so if the immediate is suitable
+       * set the types to :UD so the instruction can be compacted.
+       *
+       * FINISHME: Use dst:f | imm:f on Gfx12
+       */
+      if constexpr (E::TYPE < GEN_ENCODING_XE) {
+         if (compact_immediate(GEN_TYPE_D,
+                               uc_get(E::SOURCES(E::IMM_32))) != -1 &&
+             uc_get(E::CONTROLS(E::COND_MODIFIER)) == 0 &&
+             inst->src[0].type == GEN_TYPE_D &&
+             inst->dst.type == GEN_TYPE_D) {
+            uc_set(E::OPERAND_CONTROLS(E::SRC0_TYPE), 0 /* encoded BRW_TYPE_UD */);
+            uc_set(E::OPERAND_CONTROLS(E::DST_TYPE), 0 /* encoded BRW_TYPE_UD */);
+         }
+      }
+   }
+
+   bool
+   try_compact()
+   {
+      memset(&c_raw, 0, sizeof(c_raw));
+      precompact();
+
+      switch (desc->format) {
+      case GEN_FORMAT_BASIC_ONE_SRC:
+         break;
+
+      case GEN_FORMAT_BASIC_TWO_SRC:
+         break;
+
+      case GEN_FORMAT_BASIC_THREE_SRC:
+      case GEN_FORMAT_DPAS_THREE_SRC:
+         return try_compact_3src();
+
+      case GEN_FORMAT_SEND:
+         break;
+
+      case GEN_FORMAT_BRANCH_ONE_SRC:
+      case GEN_FORMAT_BRANCH_TWO_SRC:
+         break;
+
+      case GEN_FORMAT_ILLEGAL:
+         break;
+
+      case GEN_FORMAT_NOP:
+         if (last_inst) {
+            c_set(E::C_HW_OPCODE, E::gen_to_description[GEN_OP_NOP].hw_opcode);
+            c_set(E::C_CMPT_CONTROL, true);
+            return true;
+         }
+         break;
+      }
+
+      int imm_src = -1;
+
+      if (inst->src[0].file == GEN_IMM) {
+         imm_src = 0;
+      } else if (inst->src[1].file == GEN_IMM) {
+         imm_src = 1;
+      }
+
+      bool is_immediate = imm_src >= 0;
+      assert((int)gen_inst_num_sources(devinfo, inst) > imm_src);
+
+      int compacted_imm = 0;
+
+      if (is_immediate) {
+         compacted_imm = compact_immediate(inst->src[imm_src].type,
+                                           inst->src[imm_src].imm);
+         if (compacted_imm == -1)
+            return false;
+      }
+
+      if (has_unmapped_bits())
+         return false;
+
+      c_set(E::C_HW_OPCODE, uc_get(E::HW_OPCODE));
+      c_set(E::C_DEBUG_CONTROL, uc_get(E::DEBUG_CONTROL));
+
+      if (!set_control_index())
+         return false;
+      if (!set_datatype_index(is_immediate))
+         return false;
+      if (!set_subreg_index(is_immediate))
+         return false;
+      if (!set_src0_index())
+         return false;
+      if (!set_src1_index(is_immediate, compacted_imm))
+         return false;
+
+      if constexpr (E::TYPE >= GEN_ENCODING_XE) {
+         c_set(E::C_SWSB, uc_get(E::SWSB));
+         c_set(E::C_DST_REG_NR, inst->dst.nr);
+         if (inst->src[0].file != GEN_IMM)
+            c_set(E::C_SRC0_REG_NR, inst->src[0].nr);
+
+         if (is_immediate) {
+            /* src1 reg takes the high 8 bits (of the 12-bit compacted value) */
+            c_set(E::C_SRC1_REG_NR, compacted_imm >> 4);
+         } else {
+            c_set(E::C_SRC1_REG_NR, inst->src[1].nr);
+         }
+      } else {
+         c_set(E::C_ACC_WR_CONTROL, uc_get(E::SEND_CONTROLS_B(E::ACC_WR_CONTROL)));
+
+         c_set(E::C_COND_MODIFIER, uc_get(E::CONTROLS(E::COND_MODIFIER)));
+
+         c_set(E::C_DST_REG_NR, inst->dst.nr);
+         if (inst->src[0].file != GEN_IMM)
+            c_set(E::C_SRC0_REG_NR, inst->src[0].nr);
+
+         if (is_immediate) {
+            /* src1 reg takes the low 8 bits (of the 13-bit compacted value) */
+            c_set(E::C_SRC1_REG_NR, compacted_imm & 0xff);
+         } else {
+            c_set(E::C_SRC1_REG_NR, inst->src[1].nr);
+         }
+      }
+      c_set(E::C_CMPT_CONTROL, true);
+
+      return true;
+   }
+
+};
+
+bool
+gen_compact(gen_encode_params *params)
+{
+   const intel_device_info *devinfo = params->devinfo;
+
+   if (devinfo->ver < 12) {
+      auto c = gen_compacter<gen_encoding_pre_xe>(devinfo, params);
+      c.compact();
+   } else if (devinfo->ver < 20) {
+      auto c = gen_compacter<gen_encoding_xe>(devinfo, params);
+      c.compact();
+   } else {
+      auto c = gen_compacter<gen_encoding_xe2>(devinfo, params);
+      c.compact();
+   }
+
+   return true;
+}
