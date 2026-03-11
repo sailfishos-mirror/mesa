@@ -4292,6 +4292,10 @@ genX(CmdExecuteCommands)(
          container->state.current_pipeline_systolic =
             secondary->state.current_pipeline_systolic;
       }
+
+      /* Update container btp address from secondary cmdbuf. */
+      if (!anv_address_is_null(secondary->state.btp))
+         container->state.btp = secondary->state.btp;
    }
 
    /* The secondary isn't counted in our VF cache tracking so we need to
