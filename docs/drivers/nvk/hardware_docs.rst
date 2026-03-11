@@ -102,7 +102,7 @@ behavior [#foverlapnvk]_ [#foverlapprop]_, and the blob does not change its
 event implementation for blackwell [#feventprop]_.
 
 
-.. [#fnsight] https://docs.nvidia.com/nsight-graphics/UserGuide/index.html#subchannel-switch-overlay
+.. [#fnsight] https://docs.nvidia.com/nsight-graphics/UserGuide/gpu-trace-ui.html#subchannel-switch-overlay
 .. [#foverlapnvk] Based on reverse engineering by running
     https://gitlab.freedesktop.org/mhenning/re/-/tree/main/vk_test_overlap_exec
     under nvk, possibly with alterations to the way nvk generates commands for
