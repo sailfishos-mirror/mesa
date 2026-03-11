@@ -166,7 +166,7 @@ out:
  *
  * Performs no additional validation.
  */
-struct st_sampler_view *
+static struct st_sampler_view *
 st_texture_get_current_sampler_view(const struct st_context *st,
                                     const struct gl_texture_object *stObj)
 {

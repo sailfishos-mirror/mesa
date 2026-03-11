@@ -66,10 +66,6 @@ void
 st_delete_texture_sampler_views(struct st_context *st,
                                 struct gl_texture_object *stObj);
 
-struct st_sampler_view *
-st_texture_get_current_sampler_view(const struct st_context *st,
-                                    const struct gl_texture_object *stObj);
-
 struct pipe_sampler_view *
 st_get_texture_sampler_view_from_stobj(struct st_context *st,
                                        struct gl_texture_object *stObj,
