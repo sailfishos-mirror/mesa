@@ -1,6 +1,7 @@
 #encoding=utf-8
 
 # Copyright (C) 2021 Collabora, Ltd.
+# Copyright (C) 2026 Arm Ltd.
 # SPDX-License-Identifier: MIT
 
 import argparse
@@ -105,30 +106,8 @@ va_print_dest(FILE *fp, uint8_t dest, bool can_mask)
       fprintf(fp, ".h%u", (mask == 1) ? 0 : 1);
 }
 
-void
-va_disasm_instr(FILE *fp, uint64_t instr)
-{
-   unsigned primary_opc = (instr >> 48) & MASK(9);
-   unsigned fau_page = (instr >> 57) & MASK(2);
-   unsigned secondary_opc = 0;
-
-   switch (primary_opc) {
-% for bucket in OPCODES:
-    <%
-        ops = OPCODES[bucket]
-        ambiguous = (len(ops) > 1)
-    %>
-% if len(ops) > 0:
-   case ${hex(bucket)}:
-% if ambiguous:
-	secondary_opc = (instr >> ${ops[0].opcode2.start}) & ${hex(ops[0].opcode2.mask)};
-% endif
-% for op in ops:
+<%def name="print_instr(op)">
 <% no_comma = True %>
-% if ambiguous:
-
-        if (secondary_opc == ${op.opcode2.value}) {
-% endif
             fputs("${op.name}", fp);
 % for mod in op.modifiers:
 % if mod.name not in ["staging_register_count", "staging_register_write_count"]:
@@ -213,6 +192,32 @@ va_disasm_instr(FILE *fp, uint64_t instr)
             fprintf(fp, ", ${prefix}${fmt}", (uint32_t) ${"SEXT(" if imm.signed else ""}
                     ((instr >> ${imm.start}) & MASK(${imm.size})) ${f", {imm.size})" if imm.signed else ""});
 % endfor
+</%def>
+
+void
+va_disasm_instr(FILE *fp, uint64_t instr)
+{
+   unsigned primary_opc = (instr >> 48) & MASK(9);
+   unsigned fau_page = (instr >> 57) & MASK(2);
+   unsigned secondary_opc = 0;
+
+   switch (primary_opc) {
+% for bucket in OPCODES:
+    <%
+        ops = OPCODES[bucket]
+        ambiguous = (len(ops) > 1)
+    %>
+% if len(ops) > 0:
+   case ${hex(bucket)}:
+% if ambiguous:
+	secondary_opc = (instr >> ${ops[0].opcode2.start}) & ${hex(ops[0].opcode2.mask)};
+% endif
+% for op in ops:
+% if ambiguous:
+
+        if (secondary_opc == ${op.opcode2.value}) {
+% endif
+${print_instr(op)}
 % if ambiguous:
         }
 % endif
