@@ -2592,6 +2592,7 @@ void vpe20_get_bufs_req(struct vpe_priv *vpe_priv, struct vpe_bufs_req *req)
 
     for (i = 0; i < vpe_priv->vpe_cmd_vector->num_elements; i++) {
         uint32_t per_pipe_size = 0;
+        emb_req                = 0;
 
         cmd_info = vpe_vector_get(vpe_priv->vpe_cmd_vector, i);
         VPE_ASSERT(cmd_info);
