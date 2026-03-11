@@ -15574,7 +15574,6 @@ radv_emit_strmout_buffer(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const enum amd_gfx_level gfx_level = pdev->info.gfx_level;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    radeon_begin(cs);
@@ -15594,9 +15593,10 @@ radv_emit_strmout_buffer(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
    }
    radeon_end();
 
-   if (gfx_level >= GFX10) {
+   if (pdev->info.has_load_ctx_reg_pkt) {
       /* Make sure that PFP waits for ME to avoid a race condition because the data is written by
-       * STRMOUT_BUFFER_UPDATE in ME, but LOAD_CONTEXT_REG_INDEX is in PFP.
+       * STRMOUT_BUFFER_UPDATE in ME, but LOAD_CONTEXT_REG_INDEX loads the value from memory between
+       * PFP and ME.
        */
       ac_emit_cp_pfp_sync_me(cs->b, false);
 
