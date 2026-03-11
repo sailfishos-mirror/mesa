@@ -1279,7 +1279,7 @@ get_properties(const struct anv_physical_device *pdevice,
 
    /* VK_KHR_maintenance6 */
    {
-      props->blockTexelViewCompatibleMultipleLayers = true;
+      props->blockTexelViewCompatibleMultipleLayers = false;
       props->maxCombinedImageSamplerDescriptorCount = 3;
       props->fragmentShadingRateClampCombinerInputs = false;
    }
