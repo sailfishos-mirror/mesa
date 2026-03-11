@@ -275,6 +275,75 @@ ethosu_lower_pooling(struct ethosu_subgraph *subgraph,
    ethosu_sched_operation(subgraph, operation);
 }
 
+static double
+clamp_sigmoid8(double x)
+{
+   if (x <= -8.0)
+      return 0.0;
+   else if (x >= 8.0)
+      return 1.0;
+   else
+      return (1.0 / (1.0 + exp(-x)));
+}
+
+static void
+ethos_create_lut(struct ethosu_operation *operation, uint8_t *lut, double (*func)(double))
+{
+   double ifm_scale = operation->ifm.scale;
+   double ofm_scale = operation->ofm.scale;
+   int zpIn = operation->ifm.zero_point;
+   int zpOut = operation->ofm.zero_point;
+
+   int qMin = operation->ifm.is_signed ? -128 : 0;
+   int qMax = operation->ifm.is_signed ? 127 : 255;
+
+   for (int x = qMin; x <= qMax; ++x, lut++) {
+      double xReal = ifm_scale * (double)(x - zpIn);
+      double yReal = func(xReal);
+      int lutVal = (int)round((double)zpOut + yReal / ofm_scale);
+      lutVal = MIN2(qMax, MAX2(qMin, lutVal));
+      *lut = lutVal;
+   }
+}
+
+static void
+ethosu_lower_lut_dma(struct ethosu_subgraph *subgraph,
+                     const struct pipe_ml_operation *poperation,
+                     struct ethosu_operation *pool_operation,
+                     struct ethosu_operation *operation)
+{
+   operation->type = ETHOSU_OPERATION_TYPE_DMA;
+   operation->dma.address = pool_operation->pooling.lut.address;
+   operation->dma.size = LUT8_SIZE;
+   operation->dma.dst_region = LUT_REGION;
+   operation->dma.dst_address = SHRAM_LUT_BASE(0);
+}
+
+static void
+ethosu_lower_lut(struct ethosu_subgraph *subgraph,
+                 const struct pipe_ml_operation *poperation,
+                 struct ethosu_operation *operation, double (*func)(double))
+{
+   uint8_t lut[LUT8_SIZE];
+
+   operation->type = ETHOSU_OPERATION_TYPE_POOLING;
+   operation->round_mode = ETHOSU_ROUNDING_NATURAL;
+   operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
+   operation->pooling.activation = ETHOSU_POOLING_ACTIVATION_LUT(0);
+
+   set_feature_maps(subgraph, poperation->input_tensors[0], poperation->output_tensors[0], operation);
+
+   ethos_create_lut(operation, lut, func);
+   fill_lut(subgraph, operation, lut);
+
+   /* The LUT handles 0 point and scale, so make them equal */
+   operation->ofm.zero_point = operation->ifm.zero_point;
+   operation->ofm.scale = operation->ifm.scale;
+
+   allocate_feature_maps(subgraph, operation);
+   ethosu_sched_operation(subgraph, operation);
+}
+
 static void
 ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
                            const struct pipe_ml_operation *poperation,
@@ -431,6 +500,7 @@ ethosu_lower_dma(struct ethosu_subgraph *subgraph,
 
    operation->dma.address = conv_operation->conv.scales.address;
    operation->dma.size = conv_operation->conv.scales.size + conv_operation->conv.weights.size;
+   operation->dma.dst_region = SCRATCH_REGION;
 
    conv_operation->conv.scales.region = SCRATCH_REGION;
    conv_operation->conv.scales.address = 0;
@@ -533,6 +603,28 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
 
       case PIPE_ML_OPERATION_TYPE_POOLING: {
          ethosu_lower_pooling(subgraph, &poperations[i], &operation);
+         util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_LOGISTIC: {
+         ethosu_lower_lut(subgraph, &poperations[i], &operation, clamp_sigmoid8);
+
+         struct ethosu_operation dma_operation = {0};
+         ethosu_lower_lut_dma(subgraph, &poperations[i], &operation, &dma_operation);
+         util_dynarray_append(&subgraph->operations, dma_operation);
+
+         util_dynarray_append(&subgraph->operations, operation);
+         break;
+      }
+
+      case PIPE_ML_OPERATION_TYPE_TANH: {
+         ethosu_lower_lut(subgraph, &poperations[i], &operation, tanh);
+
+         struct ethosu_operation dma_operation = {0};
+         ethosu_lower_lut_dma(subgraph, &poperations[i], &operation, &dma_operation);
+         util_dynarray_append(&subgraph->operations, dma_operation);
+
          util_dynarray_append(&subgraph->operations, operation);
          break;
       }

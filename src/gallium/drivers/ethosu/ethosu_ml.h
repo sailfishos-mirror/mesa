@@ -16,6 +16,8 @@
 #define SHRAM_RESERVED_END_BANKS    2
 #define SHRAM_TOTAL_BANKS           SHRAM_BANKS
 #define SHRAM_BANK_SIZE_BYTES       1024
+#define LUT8_SIZE                   256
+#define SHRAM_LUT_BASE(lut)         (46 * SHRAM_BANK_SIZE_BYTES + (lut) * LUT8_SIZE)
 #define ACC_BITS                    32 /* Use for now always 32-bit accumulators */
 #define IFM_GRANULE                 8
 #define ACC_GRANULE                 16
@@ -34,6 +36,7 @@ extern struct ethosu_block SUB_KERNEL_MAX;
 #define COEFS_REGION   0
 #define IO_REGION      1
 #define SCRATCH_REGION 2
+#define LUT_REGION     0x103     // Internal SHRAM
 
 enum ethosu_operation_type {
    ETHOSU_OPERATION_TYPE_CONVOLUTION,
@@ -176,6 +179,8 @@ enum ethosu_pooling_type {
    ETHOSU_POOLING_TYPE_ARGMAX_Y,
 };
 
+#define ETHOSU_POOLING_ACTIVATION_LUT(n)  (0x10 | (n))
+
 #define MAX_MEMORY_ACCESSES 5 /* IFM, IFM2, Scales, Weights, LUT*/
 
 struct ethosu_operation {
@@ -195,6 +200,8 @@ struct ethosu_operation {
       struct {
          enum ethosu_pooling_type type;
          bool nop;
+         uint8_t activation;
+         struct ethosu_address_range lut;
       } pooling;
 
       struct {
@@ -206,7 +213,9 @@ struct ethosu_operation {
 
       struct {
          unsigned address;
+         unsigned dst_address;
          long size;
+         unsigned dst_region;
       } dma;
    };
 

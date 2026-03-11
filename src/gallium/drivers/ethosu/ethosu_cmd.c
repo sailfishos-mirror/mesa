@@ -285,7 +285,10 @@ emit_activation(struct ethosu_subgraph *subgraph, struct ethosu_operation *opera
    if (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE)
       min = operation->eltwise.activation_min;
 
-   EMIT0(NPU_SET_ACTIVATION, 0x0);
+   if (operation->type == ETHOSU_OPERATION_TYPE_POOLING)
+      EMIT0(NPU_SET_ACTIVATION, operation->pooling.activation);
+   else
+      EMIT0(NPU_SET_ACTIVATION, 0x0);
 
    if (operation->ofm.is_signed) {
       EMIT0(NPU_SET_ACTIVATION_MIN, 0xff80);
@@ -840,8 +843,8 @@ emit_dma(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
    EMIT0(NPU_SET_DMA0_SRC_REGION, COEFS_REGION);
    EMIT1(NPU_SET_DMA0_SRC, 0x0, operation->dma.address);
-   EMIT0(NPU_SET_DMA0_DST_REGION, SCRATCH_REGION);
-   EMIT1(NPU_SET_DMA0_DST, 0x0, 0x0);
+   EMIT0(NPU_SET_DMA0_DST_REGION, operation->dma.dst_region);
+   EMIT1(NPU_SET_DMA0_DST, 0x0, operation->dma.dst_address);
    EMIT1(NPU_SET_DMA0_LEN, 0x0, operation->dma.size);
 }
 
@@ -978,10 +981,24 @@ fill_memory_accesses(struct ethosu_subgraph *subgraph)
          operation->read_accesses[0].address = operation->dma.address;
          operation->read_accesses[0].size = operation->dma.size;
 
-         operation->write_accesses[0].region = SCRATCH_REGION;
+         operation->write_accesses[0].region = operation->dma.dst_region;
          operation->write_accesses[0].address = 0x0;
          operation->write_accesses[0].size = operation->dma.size;
 
+         break;
+      case ETHOSU_OPERATION_TYPE_POOLING:
+         if (operation->pooling.activation >= ETHOSU_POOLING_ACTIVATION_LUT(0)) {
+            operation->read_accesses[1].region = LUT_REGION;
+            operation->read_accesses[1].address = SHRAM_LUT_BASE(operation->pooling.activation & 0xf);
+            operation->read_accesses[1].size = LUT8_SIZE;
+         }
+         operation->read_accesses[0].region = operation->ifm.region;
+         operation->read_accesses[0].address = operation->ifm.tiles.addresses[0];
+         operation->read_accesses[0].size = operation->ifm.shape.height * operation->ifm.shape.width * operation->ifm.shape.depth;
+
+         operation->write_accesses[0].region = operation->ofm.region;
+         operation->write_accesses[0].address = operation->ofm.tiles.addresses[0];
+         operation->write_accesses[0].size = operation->ofm.shape.height * operation->ofm.shape.width * operation->ofm.shape.depth;
          break;
       default:
          operation->read_accesses[0].region = IO_REGION;
