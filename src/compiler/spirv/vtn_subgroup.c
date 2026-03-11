@@ -23,14 +23,7 @@ vtn_build_subgroup_instr(struct vtn_builder *b,
    struct vtn_ssa_value *dst = vtn_create_ssa_value(b, src0->type);
 
    vtn_assert(dst->type == src0->type);
-   if (!glsl_type_is_vector_or_scalar(dst->type)) {
-      for (unsigned i = 0; i < glsl_get_length(dst->type); i++) {
-         dst->elems[0] =
-            vtn_build_subgroup_instr(b, nir_op, src0->elems[i], index,
-                                     const_idx0, const_idx1);
-      }
-      return dst;
-   }
+   vtn_assert(glsl_type_is_vector_or_scalar(dst->type));
 
    nir_intrinsic_instr *intrin =
       nir_intrinsic_instr_create(b->nb.shader, nir_op);
