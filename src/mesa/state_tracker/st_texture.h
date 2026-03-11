@@ -62,8 +62,6 @@ struct st_sampler_view
 
    /** The glsl version of the shader seen during validation */
    bool glsl130_or_later;
-   /** Derived from the sampler's sRGBDecode state during validation */
-   bool srgb_skip_decode;
 };
 
 

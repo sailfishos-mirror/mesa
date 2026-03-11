@@ -55,7 +55,7 @@ static struct pipe_sampler_view *
 st_texture_set_sampler_view(struct st_context *st,
                             struct gl_texture_object *stObj,
                             struct pipe_sampler_view *view,
-                            bool glsl130_or_later, bool srgb_skip_decode,
+                            bool glsl130_or_later,
                             bool locked)
 {
    struct st_sampler_views *views;
@@ -149,7 +149,6 @@ found:
    assert(sv->view == NULL);
 
    sv->glsl130_or_later = glsl130_or_later;
-   sv->srgb_skip_decode = srgb_skip_decode;
    sv->view = view;
    sv->st = st;
 
@@ -168,13 +167,14 @@ out:
  */
 static struct st_sampler_view *
 st_texture_get_current_sampler_view(const struct st_context *st,
-                                    const struct gl_texture_object *stObj)
+                                    const struct gl_texture_object *stObj,
+                                    enum pipe_format format)
 {
    struct st_sampler_views *views = p_atomic_read(&stObj->sampler_views);
 
    for (unsigned i = 0; i < views->count; ++i) {
       struct st_sampler_view *sv = &views->views[i];
-      if (sv->view && sv->view->context == st->pipe)
+      if (sv->view && sv->view->context == st->pipe && sv->view->format == format)
          return sv;
    }
 
@@ -538,11 +538,10 @@ st_get_texture_sampler_view_from_stobj(struct st_context *st,
    enum pipe_format format = st_get_sampler_view_format(st, texObj,
                                                         srgb_skip_decode);
    simple_mtx_lock(&texObj->validate_mutex);
-   sv = st_texture_get_current_sampler_view(st, texObj);
+   sv = st_texture_get_current_sampler_view(st, texObj, format);
 
    if (sv &&
-       sv->glsl130_or_later == glsl130_or_later &&
-       sv->srgb_skip_decode == srgb_skip_decode) {
+       sv->glsl130_or_later == glsl130_or_later) {
       /* Debug check: make sure that the sampler view's parameters are
        * what they're supposed to be.
        */
@@ -571,7 +570,7 @@ st_get_texture_sampler_view_from_stobj(struct st_context *st,
                                                    glsl130_or_later);
 
    view = st_texture_set_sampler_view(st, texObj, view,
-                                      glsl130_or_later, srgb_skip_decode,
+                                      glsl130_or_later,
                                       true);
    simple_mtx_unlock(&texObj->validate_mutex);
 
@@ -591,7 +590,7 @@ st_get_buffer_sampler_view_from_stobj(struct st_context *st,
       return NULL;
 
    enum pipe_format format = st_mesa_format_to_pipe_format(st, texObj->_BufferObjectFormat);
-   sv = st_texture_get_current_sampler_view(st, texObj);
+   sv = st_texture_get_current_sampler_view(st, texObj, format);
 
    struct pipe_resource *buf = stBuf->buffer;
 
@@ -641,8 +640,7 @@ st_get_buffer_sampler_view_from_stobj(struct st_context *st,
    struct pipe_sampler_view *view =
       st->pipe->create_sampler_view(st->pipe, buf, &templ);
 
-   view = st_texture_set_sampler_view(st, texObj, view, false, false,
-                                      false);
+   view = st_texture_set_sampler_view(st, texObj, view, false, false);
 
    return view;
 }

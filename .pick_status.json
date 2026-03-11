@@ -984,7 +984,7 @@
         "description": "mesa/st/sampler_view: eliminate st_sampler_view::srgb_skip_decode",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
