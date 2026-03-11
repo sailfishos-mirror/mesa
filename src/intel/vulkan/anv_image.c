@@ -2982,9 +2982,7 @@ anv_bind_image_memory(struct anv_device *device,
    ANV_FROM_HANDLE(anv_image, image, bind_info->image);
    bool did_bind = false;
    VkResult result = VK_SUCCESS;
-
-   const VkBindMemoryStatusKHR *bind_status =
-      vk_find_struct_const(bind_info->pNext, BIND_MEMORY_STATUS_KHR);
+   const VkBindMemoryStatusKHR *bind_status = NULL;
 
    assert(!anv_image_is_sparse(image));
 
@@ -3085,6 +3083,10 @@ anv_bind_image_memory(struct anv_device *device,
          break;
       }
 #pragma GCC diagnostic pop
+      case VK_STRUCTURE_TYPE_BIND_MEMORY_STATUS_KHR: {
+         bind_status = (const VkBindMemoryStatusKHR *)s;
+         break;
+      }
       default:
          vk_debug_ignored_stype(s->sType);
          break;
