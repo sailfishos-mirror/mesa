@@ -875,7 +875,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
 #ifdef RADV_USE_WSI_PLATFORM
       .EXT_image_compression_control_swapchain = radv_compression_control_enabled(pdev),
 #endif
-      .EXT_image_drm_format_modifier = pdev->info.gfx_level >= GFX9,
+      .EXT_image_drm_format_modifier = true,
       .EXT_image_robustness = true,
       .EXT_image_sliced_view_of_3d = pdev->info.gfx_level >= GFX10,
       .EXT_image_view_min_lod = true,
