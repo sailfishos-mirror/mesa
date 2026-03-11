@@ -402,6 +402,15 @@ wsi_headless_swapchain_queue_present(struct wsi_swapchain *wsi_chain,
 }
 
 static VkResult
+wsi_headless_swapchain_wait_for_present(struct wsi_swapchain *wsi_chain,
+                                        uint64_t waitValue,
+                                        uint64_t timeout)
+{
+   return wsi_swapchain_wait_for_present_semaphore(
+      wsi_chain, waitValue, timeout);
+}
+
+static VkResult
 wsi_headless_swapchain_destroy(struct wsi_swapchain *wsi_chain,
                                const VkAllocationCallbacks *pAllocator)
 {
@@ -499,6 +508,7 @@ wsi_headless_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    chain->base.acquire_next_image = wsi_headless_swapchain_acquire_next_image;
    chain->base.release_images = wsi_headless_swapchain_release_images;
    chain->base.queue_present = wsi_headless_swapchain_queue_present;
+   chain->base.wait_for_present = wsi_headless_swapchain_wait_for_present;
    chain->base.present_mode = wsi_swapchain_get_present_mode(wsi_device, pCreateInfo);
    chain->base.image_count = num_images;
 
