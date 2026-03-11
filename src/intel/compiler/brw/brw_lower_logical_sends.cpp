@@ -1251,41 +1251,6 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
       }
    }
 
-   /* Bspec: Atomic instruction -> Cache section:
-    *
-    *    Atomic messages are always forced to "un-cacheable" in the L1
-    *    cache.
-    *
-    * Bspec: Overview of memory Access:
-    *
-    *   If a read from a Null tile gets a cache-hit in a virtually-addressed
-    *   GPU cache, then the read may not return zeroes.
-    *
-    * If a shader writes to a null tile and wants to be able to read it back
-    * as zero, it will use the 'volatile' decoration for the access, otherwise
-    * the compiler may choose to optimize things out, breaking the
-    * residencyNonResidentStrict guarantees. Due to the above, we need to make
-    * these operations uncached.
-    */
-   unsigned cache_mode =
-      lsc_opcode_is_atomic(op) ? LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
-      volatile_access ?
-         (devinfo->ver >= 20 ?
-            /* Xe2 has a better L3 that can deal with null tiles.*/
-            (lsc_opcode_is_store(op) ?
-               LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
-               LSC_CACHE(devinfo, LOAD, L1UC_L3C)) :
-            /* On older platforms, all caches have to be bypassed. */
-            (lsc_opcode_is_store(op) ?
-               LSC_CACHE(devinfo, STORE, L1UC_L3UC) :
-               LSC_CACHE(devinfo, LOAD, L1UC_L3UC))) :
-      /* Skip L1 for coherent accesses */
-      coherent_access ? (lsc_opcode_is_store(op) ?
-                         LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
-                         LSC_CACHE(devinfo, LOAD, L1UC_L3C)) :
-      lsc_opcode_is_store(op) ? LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS) :
-      LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
-
    /* If we're a fragment shader, we have to predicate with the sample mask to
     * avoid helper invocations in instructions with side effects, unless they
     * are explicitly required.  One exception is for scratch writes - even
@@ -1320,6 +1285,41 @@ lower_lsc_memory_logical_send(const brw_builder &bld, brw_mem_inst *mem)
       break;
    }
    assert(send->sfid);
+
+   /* Bspec: Atomic instruction -> Cache section:
+    *
+    *    Atomic messages are always forced to "un-cacheable" in the L1
+    *    cache.
+    *
+    * Bspec: Overview of memory Access:
+    *
+    *   If a read from a Null tile gets a cache-hit in a virtually-addressed
+    *   GPU cache, then the read may not return zeroes.
+    *
+    * If a shader writes to a null tile and wants to be able to read it back
+    * as zero, it will use the 'volatile' decoration for the access, otherwise
+    * the compiler may choose to optimize things out, breaking the
+    * residencyNonResidentStrict guarantees. Due to the above, we need to make
+    * these operations uncached.
+    */
+   unsigned cache_mode =
+      lsc_opcode_is_atomic(op) ? LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
+      volatile_access ?
+         (devinfo->ver >= 20 ?
+            /* Xe2 has a better L3 that can deal with null tiles.*/
+            (lsc_opcode_is_store(op) ?
+               LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
+               LSC_CACHE(devinfo, LOAD, L1UC_L3C)) :
+            /* On older platforms, all caches have to be bypassed. */
+            (lsc_opcode_is_store(op) ?
+               LSC_CACHE(devinfo, STORE, L1UC_L3UC) :
+               LSC_CACHE(devinfo, LOAD, L1UC_L3UC))) :
+      /* Skip L1 for coherent accesses */
+      coherent_access ? (lsc_opcode_is_store(op) ?
+                         LSC_CACHE(devinfo, STORE, L1UC_L3WB) :
+                         LSC_CACHE(devinfo, LOAD, L1UC_L3C)) :
+      lsc_opcode_is_store(op) ? LSC_CACHE(devinfo, STORE, L1STATE_L3MOCS) :
+      LSC_CACHE(devinfo, LOAD, L1STATE_L3MOCS);
 
    /* Disable LSC data port L1 cache scheme for the TGM load/store for RT
     * shaders. (see HSD 18038444588)
