@@ -73,6 +73,19 @@ nir_intrinsic_has_${name}(const nir_intrinsic_instr *instr)
 }
 % endfor
 
+static inline unsigned
+nir_intrinsic_index_size(nir_intrinsic_index_flag index)
+{
+   switch (index) {
+% for index in INTR_INDICES:
+% if index.size != 1:
+   case ${"NIR_INTRINSIC_" + index.name.upper()}: return ${index.size};
+% endif
+% endfor
+   default: return 1;
+   }
+}
+
 #endif /* _NIR_INTRINSICS_INDICES_ */
 """
 
