@@ -164,12 +164,11 @@ class Opcode:
         self.mask = mask
 
 class Instruction:
-    def __init__(self, name, opcode, opcode2, srcs = [], dests = [], immediates = [], modifiers = [], staging = None, unit = None):
+    def __init__(self, name, opcode, srcs = [], dests = [], immediates = [], modifiers = [], staging = None, unit = None):
         self.name = name
         self.srcs = srcs
         self.dests = dests
         self.opcode = opcode
-        self.opcode2 = opcode2
         self.immediates = immediates
         self.modifiers = modifiers
         self.staging = staging
@@ -180,7 +179,6 @@ class Instruction:
         self.message = unit not in ["FMA", "CVT", "SFU"]
 
         assert(len(dests) == 0 or not staging)
-        assert(not opcode2 or (opcode2.value & opcode2.mask) == opcode2.value)
 
     def __str__(self):
         return self.name
@@ -226,20 +224,25 @@ def build_modifier(el):
     return Modifier(name, start, size, implied)
 
 def build_opcode(el, name):
+    op_arr = []
     opcode = el.find(name)
     if opcode is None:
         return None
-    value = int(opcode.get('val'), base=0)
-    start = int(opcode.get('start'))
-    mask = int(opcode.get('mask'), base=0)
-    return Opcode(value, start, mask)
+
+    for subcode in opcode:
+        value = int(subcode.get('val'), base=0)
+        start = int(subcode.get('start'))
+        mask = int(subcode.get('mask'), base=0)
+        assert((value & mask) == value)
+        op_arr.append(Opcode(value, start, mask))
+
+    return op_arr
 
 # Build a single instruction from XML and group based overrides
 def build_instr(el, overrides = {}):
     # Get overridables
     name = overrides.get('name') or el.attrib.get('name')
     opcode = overrides.get('opcode') or build_opcode(el, 'opcode')
-    opcode2 = overrides.get('opcode2') or build_opcode(el, 'opcode2')
     unit = overrides.get('unit') or el.attrib.get('unit')
 
     # Get explicit sources/dests
@@ -279,7 +282,7 @@ def build_instr(el, overrides = {}):
         elif mod.tag =='va_mod':
             modifiers.append(build_modifier(mod))
 
-    instr = Instruction(name, opcode, opcode2, srcs = sources, dests = dests, immediates = imms, modifiers = modifiers, staging = staging, unit = unit)
+    instr = Instruction(name, opcode, srcs = sources, dests = dests, immediates = imms, modifiers = modifiers, staging = staging, unit = unit)
 
     instructions.append(instr)
 
@@ -290,7 +293,6 @@ def build_group(el):
         build_instr(el, overrides = {
             'name': ins.attrib['name'],
             'opcode': build_opcode(ins, 'opcode'),
-            'opcode2': build_opcode(ins, 'opcode2'),
             'unit': ins.attrib.get('unit'),
         })
 

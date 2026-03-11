@@ -147,9 +147,9 @@ valhall_opcodes[BI_NUM_OPCODES] = {
 
 # Exact value to be ORed in to every opcode
 def exact_op(op):
-    exact_op = (op.opcode.value << op.opcode.start)
-    if op.opcode2:
-        exact_op |= (op.opcode2.value << op.opcode2.start)
+    exact_op = 0
+    for subcode in op.opcode:
+        exact_op |= (subcode.value << subcode.start)
     return exact_op
 
 try:

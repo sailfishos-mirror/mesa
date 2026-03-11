@@ -194,39 +194,42 @@ va_print_dest(FILE *fp, uint8_t dest, bool can_mask)
 % endfor
 </%def>
 
+<%def name="recurse_subcodes(op_bucket)">
+%if op_bucket.instr:
+${print_instr(op_bucket.instr)}
+%else:
+    opcode = (instr >> ${op_bucket.start}) & ${hex(op_bucket.mask)};
+    switch (opcode) {
+%for op in op_bucket.children:
+    case ${hex(op)}:
+    {
+${recurse_subcodes(op_bucket.children[op])}
+        break;
+    }
+%endfor
+    }
+%endif
+</%def>
+
+
 void
 va_disasm_instr(FILE *fp, uint64_t instr)
 {
-   unsigned primary_opc = (instr >> 48) & MASK(9);
+   unsigned opcode;
    unsigned fau_page = (instr >> 57) & MASK(2);
-   unsigned secondary_opc = 0;
 
-   switch (primary_opc) {
-% for bucket in OPCODES:
-    <%
-        ops = OPCODES[bucket]
-        ambiguous = (len(ops) > 1)
-    %>
-% if len(ops) > 0:
-   case ${hex(bucket)}:
-% if ambiguous:
-	secondary_opc = (instr >> ${ops[0].opcode2.start}) & ${hex(ops[0].opcode2.mask)};
-% endif
-% for op in ops:
-% if ambiguous:
+${recurse_subcodes(OPCODES)}
+}
 
-        if (secondary_opc == ${op.opcode2.value}) {
-% endif
-${print_instr(op)}
-% if ambiguous:
-        }
-% endif
-% endfor
-     break;
-
-% endif
-% endfor
-   }
+static bool is_branch(uint64_t instr)
+{
+<% (exact, mask) = OPCODES.get_exact_mask("BRANCHZ") %>
+    if ((instr & ${hex(mask)}) == ${hex(exact)})
+        return true;
+<% (exact, mask) = OPCODES.get_exact_mask("BRANCHZI") %>
+    if ((instr & ${hex(mask)}) == ${hex(exact)})
+        return true;
+    return false;
 }
 
 void
@@ -259,13 +262,8 @@ disassemble_valhall(FILE *fp, const void *code, size_t size, bool verbose)
       va_disasm_instr(fp, instr);
       fprintf(fp, "\\n");
 
-      /* Detect branches */
-      uint64_t opcode = (instr >> 48) & MASK(9);
-      bool branchz = (opcode == 0x1F);
-      bool branchzi = (opcode == 0x2F);
-
       /* Separate blocks visually by inserting whitespace after branches */
-      if (branchz || branchzi)
+      if (is_branch(instr))
          fprintf(fp, "\\n");
    }
 
@@ -273,30 +271,47 @@ disassemble_valhall(FILE *fp, const void *code, size_t size, bool verbose)
 }
 """
 
-# Bucket by opcode for hierarchical disassembly
-OPCODE_BUCKETS = {}
+class OpBucket:
+    def __init__(self):
+        self.start = None
+        self.mask = None
+        self.instr = None
+        self.children = {}
+
+    def insert(self, subcodes, ins):
+        if len(subcodes) == 0:
+            self.instr = ins
+        else:
+            sc = subcodes[0]
+            assert(self.start is None or self.start == sc.start)
+            assert(self.mask is None or self.mask == sc.mask)
+            self.start = sc.start
+            self.mask = sc.mask
+            if sc.value not in self.children:
+                self.children[sc.value] = OpBucket()
+            self.children[sc.value].insert(subcodes[1:], ins)
+
+    def get_exact_mask(self, op_name, exact = 0, mask = 0):
+        if self.instr:
+            if self.instr.name == op_name:
+                return (exact, mask)
+            else:
+                return ()
+        else:
+            for op in self.children:
+                exact_mask = self.children[op].get_exact_mask(op_name,
+                                                              exact | (op << self.start),
+                                                              mask | (self.mask << self.start))
+                if exact_mask:
+                    return exact_mask
+            return ()
+
+# Build opcode hierarchy:
+OPCODES = OpBucket()
 for ins in instructions:
-    opc = ins.opcode.value
-    OPCODE_BUCKETS[opc] = OPCODE_BUCKETS.get(opc, []) + [ins]
-
-# Check that each bucket may be disambiguated
-for op in OPCODE_BUCKETS:
-    bucket = OPCODE_BUCKETS[op]
-
-    # Nothing to disambiguate
-    if len(bucket) < 2:
-        continue
-
-    SECONDARY = {}
-    for ins in bucket:
-        # Number of sources determines opcode2 placement, must be consistent
-        assert(len(ins.srcs) == len(bucket[0].srcs))
-
-        # Must not repeat, else we're ambiguous
-        assert(ins.opcode2.value not in SECONDARY)
-        SECONDARY[ins.opcode2.value] = ins
+    OPCODES.insert(ins.opcode, ins)
 
 try:
-    print(Template(template).render(OPCODES = OPCODE_BUCKETS, IMMEDIATES = immediates, ENUMS = enums, typesize = typesize, safe_name = safe_name))
+    print(Template(template).render(OPCODES = OPCODES, IMMEDIATES = immediates, ENUMS = enums, typesize = typesize, safe_name = safe_name))
 except:
     print(exceptions.text_error_template().render())
