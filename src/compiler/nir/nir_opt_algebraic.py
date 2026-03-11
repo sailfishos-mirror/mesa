@@ -4011,6 +4011,9 @@ late_optimizations += [
   (('i2fmp', a), ('i2f16', a), "!options->preserve_mediump", TestStatus.UNSUPPORTED),
   (('i2imp', a), ('u2u16', a), "!options->preserve_mediump", TestStatus.UNSUPPORTED),
   (('u2fmp', a), ('u2f16', a), "!options->preserve_mediump", TestStatus.UNSUPPORTED),
+
+  # Without preserving inf, comparing against inf is undefined
+  (('fisfinite(ninf)', a), ('feq', a, a)),
   (('fisfinite', a), ('flt', ('fabs', a), float("inf"))),
 
   (('f2f16', a), ('f2f16_rtz', a), "options->force_f2f16_rtz && !nir_is_rounding_mode_rtne(info->float_controls_execution_mode, 16)"),
