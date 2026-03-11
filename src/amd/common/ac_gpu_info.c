@@ -1067,7 +1067,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->has_out_of_order_rast =
       info->gfx_level >= GFX8 && info->gfx_level <= GFX9 && info->max_se >= 2;
 
-   /* TODO: Figure out how to use LOAD_CONTEXT_REG on GFX6-GFX7. */
    info->has_load_ctx_reg_pkt =
       info->gfx_level >= GFX9 || (info->gfx_level >= GFX8 && info->me_fw_feature >= 41);
 
