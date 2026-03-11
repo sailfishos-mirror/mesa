@@ -7554,8 +7554,8 @@
       <opt>none</opt>
       <opt>wls</opt>
       <opt>stream</opt>
-      <opt pseudo="true">pos</opt>
-      <opt pseudo="true">vary</opt>
+      <reserved/>
+      <reserved/>
       <reserved/>
       <opt>tl</opt>
     </mod>
@@ -7570,8 +7570,8 @@
       <opt>none</opt>
       <opt>wls</opt>
       <opt>stream</opt>
-      <opt pseudo="true">pos</opt>
-      <opt pseudo="true">vary</opt>
+      <reserved/>
+      <reserved/>
       <reserved/>
       <opt>tl</opt>
     </mod>
@@ -7586,8 +7586,8 @@
       <opt>none</opt>
       <opt>wls</opt>
       <opt>stream</opt>
-      <opt pseudo="true">pos</opt>
-      <opt pseudo="true">vary</opt>
+      <reserved/>
+      <reserved/>
       <reserved/>
       <opt>tl</opt>
     </mod>
@@ -7602,8 +7602,8 @@
       <opt>none</opt>
       <opt>wls</opt>
       <opt>stream</opt>
-      <opt pseudo="true">pos</opt>
-      <opt pseudo="true">vary</opt>
+      <reserved/>
+      <reserved/>
       <reserved/>
       <opt>tl</opt>
     </mod>
@@ -7618,8 +7618,8 @@
       <opt>none</opt>
       <opt>wls</opt>
       <opt>stream</opt>
-      <opt pseudo="true">pos</opt>
-      <opt pseudo="true">vary</opt>
+      <reserved/>
+      <reserved/>
       <reserved/>
       <opt>tl</opt>
     </mod>
@@ -7634,8 +7634,8 @@
       <opt>none</opt>
       <opt>wls</opt>
       <opt>stream</opt>
-      <opt pseudo="true">pos</opt>
-      <opt pseudo="true">vary</opt>
+      <reserved/>
+      <reserved/>
       <reserved/>
       <opt>tl</opt>
     </mod>
@@ -7650,8 +7650,8 @@
       <opt>none</opt>
       <opt>wls</opt>
       <opt>stream</opt>
-      <opt pseudo="true">pos</opt>
-      <opt pseudo="true">vary</opt>
+      <reserved/>
+      <reserved/>
       <reserved/>
       <opt>tl</opt>
     </mod>
@@ -7666,8 +7666,8 @@
       <opt>none</opt>
       <opt>wls</opt>
       <opt>stream</opt>
-      <opt pseudo="true">pos</opt>
-      <opt pseudo="true">vary</opt>
+      <reserved/>
+      <reserved/>
       <reserved/>
       <opt>tl</opt>
     </mod>
