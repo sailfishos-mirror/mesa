@@ -2138,6 +2138,7 @@ nir_visitor::visit(ir_expression *ir)
       types[i] = ir->operands[i]->type->base_type;
 
    glsl_base_type out_type = ir->type->base_type;
+   unsigned old_fp_math_ctrl = b.fp_math_ctrl;
 
    switch (ir->operation) {
    case ir_unop_bit_not: result = nir_inot(&b, srcs[0]); break;
@@ -2595,6 +2596,8 @@ nir_visitor::visit(ir_expression *ir)
    default:
       UNREACHABLE("not reached");
    }
+
+   b.fp_math_ctrl = old_fp_math_ctrl;
 
    /* The bit-size of the NIR SSA value must match the bit-size of the
     * original GLSL IR expression.

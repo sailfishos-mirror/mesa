@@ -412,20 +412,20 @@ traces:
       checksum: d5eb7d064ca31cb316e853a082a3950d
       text: occasional segfaults
     zink-radv-vangogh:
-      checksum: 5ade9f2705156d625aef557167521615
+      checksum: 35acc6074be4f9947561f98a812107d2
     zink-radv-gfx1201:
-      checksum: 566cc3594e6427f0e93e072c6a69fa22
+      checksum: 84e272f12cce5d4cddb198906de5b5ea
 
   valve/half-life-2-v2.trace:
     gl-zink-anv-adl:
       label: [no-perf]
-      checksum: 01392d862e0535e317e8744b5f9fe7a2
+      checksum: 8deac48993e4515589a7165e8bd14f25
     gl-zink-anv-tgl:
-      checksum: 01392d862e0535e317e8744b5f9fe7a2
+      checksum: 8deac48993e4515589a7165e8bd14f25
     zink-radv-vangogh:
-      checksum: 5f8dd092eb6ff7384293c183b045b6dd
+      checksum: 9fd8f9dc12452d6b0fbf45ebcdf03929
     zink-radv-gfx1201:
-      checksum: 0a759871268e82672c3a63a15bf52639
+      checksum: 75523dc585035a89d272cce0b29e4bc4
 
   valve/portal-2-v2.trace:
     gl-zink-anv-adl:
@@ -435,9 +435,9 @@ traces:
     gl-zink-anv-tgl:
       checksum: 3683fd5bb2224d6f4a1c47c1eab277d9
     zink-radv-vangogh:
-      checksum: 2503e601983b38421bac6f6888fd25d9
+      checksum: a5705312e346cec828fe26b1c19b4cfe
     zink-radv-gfx1201:
-      checksum: e54cf7b20d26d4aaecd194b09844ff3b
+      checksum: 828e564c05cd126cffbef6779dd4cd84
 
   warzone2100/warzone2100-default.trace:
     gl-zink-anv-adl:
