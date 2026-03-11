@@ -2146,10 +2146,12 @@ nir_visitor::visit(ir_expression *ir)
       result = nir_inot(&b, srcs[0]);
       break;
    case ir_unop_neg:
+      b.fp_math_ctrl |= nir_fp_preserve_inf;
       result = type_is_float(types[0]) ? nir_fneg(&b, srcs[0])
                                        : nir_ineg(&b, srcs[0]);
       break;
    case ir_unop_abs:
+      b.fp_math_ctrl |= nir_fp_preserve_inf;
       result = type_is_float(types[0]) ? nir_fabs(&b, srcs[0])
                                        : nir_iabs(&b, srcs[0]);
       break;
@@ -2465,6 +2467,7 @@ nir_visitor::visit(ir_expression *ir)
    case ir_binop_carry:  result = nir_uadd_carry(&b, srcs[0], srcs[1]);  break;
    case ir_binop_borrow: result = nir_usub_borrow(&b, srcs[0], srcs[1]); break;
    case ir_binop_less:
+      b.fp_math_ctrl |= nir_fp_preserve_inf;
       if (type_is_float(types[0]))
          result = nir_flt(&b, srcs[0], srcs[1]);
       else if (type_is_signed(types[0]))
@@ -2473,6 +2476,7 @@ nir_visitor::visit(ir_expression *ir)
          result = nir_ult(&b, srcs[0], srcs[1]);
       break;
    case ir_binop_gequal:
+      b.fp_math_ctrl |= nir_fp_preserve_inf;
       if (type_is_float(types[0]))
          result = nir_fge(&b, srcs[0], srcs[1]);
       else if (type_is_signed(types[0]))
