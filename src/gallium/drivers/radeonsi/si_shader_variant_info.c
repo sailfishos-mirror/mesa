@@ -11,21 +11,34 @@
 /* The spi_shader_*_format fields depend on the framebuffer state and the
  * NIR shader (monolithic or main part).
  */
-void si_shader_update_spi_shader_formats(struct si_shader *shader)
+void si_shader_update_spi_shader_formats(struct si_shader *shader, nir_shader *nir)
 {
    unsigned spi_shader_col_format = shader->key.ps.part.epilog.spi_shader_col_format;
    unsigned value = 0, num_mrts = 0;
    unsigned i, num_targets = (util_last_bit(spi_shader_col_format) + 3) / 4;
+   uint64_t colors_written = UINT64_MAX;
 
    shader->info.spi_shader_z_format = ac_get_spi_shader_z_format(shader->info.writes_z, shader->info.writes_stencil,
                                                                  shader->info.writes_sample_mask,
                                                                  shader->key.ps.part.epilog.alpha_to_coverage_via_mrtz);
 
+   if (nir) {
+      colors_written = (nir->info.outputs_written >> FRAG_RESULT_DATA0) & BITFIELD_MASK(8);
+      if (nir->info.outputs_written & BITFIELD_BIT(FRAG_RESULT_DUAL_SRC_BLEND))
+         colors_written |= 0x2;
+      if (nir->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_COLOR)) {
+         if (colors_written == 0)
+            colors_written = UINT64_MAX; /* color0_writes_all_cbufs */
+         else
+            colors_written |= 0x1;
+      }
+   }
+
    /* Remove holes in spi_shader_col_format. */
    for (i = 0; i < num_targets; i++) {
       unsigned spi_format = (spi_shader_col_format >> (i * 4)) & 0xf;
 
-      if (spi_format) {
+      if (spi_format && (colors_written & 1u << num_mrts)) {
          value |= spi_format << (num_mrts * 4);
          num_mrts++;
       }
@@ -346,7 +359,7 @@ void si_get_shader_variant_info(struct si_shader *shader,
          }
       }
 
-      si_shader_update_spi_shader_formats(shader);
+      si_shader_update_spi_shader_formats(shader, nir);
 
       /* ACO needs spi_ps_input_ena before si_init_shader_args. */
       shader->config.spi_ps_input_ena =
