@@ -491,10 +491,8 @@ wsi_headless_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    STACK_ARRAY_FINISH(mods);
    STACK_ARRAY_FINISH(mod_props);
 
-   if (result != VK_SUCCESS) {
-      vk_free(pAllocator, chain);
-      return result;
-   }
+   if (result != VK_SUCCESS)
+      goto fail_free_chain;
 
    chain->base.destroy = wsi_headless_swapchain_destroy;
    chain->base.get_wsi_image = wsi_headless_swapchain_get_wsi_image;
@@ -504,25 +502,27 @@ wsi_headless_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    chain->base.present_mode = wsi_swapchain_get_present_mode(wsi_device, pCreateInfo);
    chain->base.image_count = num_images;
 
-   for (uint32_t i = 0; i < chain->base.image_count; i++) {
+   uint32_t image = 0;
+   for (; image < chain->base.image_count; image++) {
       result = wsi_create_image(&chain->base, &chain->base.image_info,
-                                &chain->images[i].base);
-      if (result != VK_SUCCESS) {
-         /* Record how many images need to be torn down */
-         chain->base.image_count = i;
-         goto fail;
-      }
+                                &chain->images[image].base);
+      if (result != VK_SUCCESS)
+         goto fail_destroy_images;
 
-      chain->images[i].busy_on_host = false;
-      chain->images[i].busy_on_device = false;
+      chain->images[image].busy_on_host = false;
+      chain->images[image].busy_on_device = false;
    }
 
    *swapchain_out = &chain->base;
 
    return VK_SUCCESS;
 
-fail:
-   wsi_headless_swapchain_destroy(&chain->base, pAllocator);
+fail_destroy_images:
+   for (uint32_t i = 0; i < image; i++)
+      wsi_destroy_image(&chain->base, &chain->images[i].base);
+   wsi_swapchain_finish(&chain->base);
+fail_free_chain:
+   vk_free(pAllocator, chain);
 
    return result;
 }
