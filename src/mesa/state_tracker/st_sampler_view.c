@@ -590,6 +590,7 @@ st_get_buffer_sampler_view_from_stobj(struct st_context *st,
    if (!stBuf || !stBuf->buffer)
       return NULL;
 
+   enum pipe_format format = st_mesa_format_to_pipe_format(st, texObj->_BufferObjectFormat);
    sv = st_texture_get_current_sampler_view(st, texObj);
 
    struct pipe_resource *buf = stBuf->buffer;
@@ -601,9 +602,7 @@ st_get_buffer_sampler_view_from_stobj(struct st_context *st,
          /* Debug check: make sure that the sampler view's parameters are
           * what they're supposed to be.
           */
-         assert(st_mesa_format_to_pipe_format(st,
-                                              texObj->_BufferObjectFormat)
-             == view->format);
+         assert(format == view->format);
          assert(view->target == PIPE_BUFFER);
          ASSERTED unsigned base = texObj->BufferOffset;
          ASSERTED unsigned size = MIN2(buf->width0 - base,
@@ -630,8 +629,7 @@ st_get_buffer_sampler_view_from_stobj(struct st_context *st,
    struct pipe_sampler_view templ;
 
    templ.is_tex2d_from_buf = false;
-   templ.format =
-      st_mesa_format_to_pipe_format(st, texObj->_BufferObjectFormat);
+   templ.format = format;
    templ.target = PIPE_BUFFER;
    templ.swizzle_r = PIPE_SWIZZLE_X;
    templ.swizzle_g = PIPE_SWIZZLE_Y;
