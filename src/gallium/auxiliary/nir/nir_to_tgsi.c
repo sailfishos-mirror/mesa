@@ -1449,7 +1449,23 @@ ntt_emit_alu(struct ntt_compile *c, nir_alu_instr *instr)
    if (instr->op == nir_op_fsat && nir_legacy_fsat_folds(instr))
       return;
 
-   c->precise = nir_alu_instr_is_exact(instr);
+   switch (instr->op) {
+   case nir_op_flt32:
+   case nir_op_fge32:
+   case nir_op_feq32:
+   case nir_op_fneu32:
+   case nir_op_slt:
+   case nir_op_sge:
+   case nir_op_seq:
+   case nir_op_sne:
+   case nir_op_fmin:
+   case nir_op_fmax:
+      c->precise = nir_alu_instr_is_nan_preserve(instr);
+      break;
+   default:
+      c->precise = nir_alu_instr_is_exact(instr);
+      break;
+   }
 
    assert(num_srcs <= ARRAY_SIZE(src));
    for (i = 0; i < num_srcs; i++)
