@@ -2307,6 +2307,7 @@ anv_image_fill_surface_state(struct anv_device *device,
           */
          assert(surface->isl.samples == 1);
          assert(view.levels == 1);
+         assert(view.array_len == 1);
 
          ASSERTED bool ok =
             isl_surf_get_uncompressed_surf(&device->isl_dev, isl_surf, &view,
