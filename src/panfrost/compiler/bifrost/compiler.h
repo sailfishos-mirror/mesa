@@ -637,6 +637,7 @@ typedef struct {
 
       struct {
          enum bi_seg seg;       /* LOAD, STORE, SEG_ADD, SEG_SUB */
+         enum va_memory_access mem_access; /* LOAD, STORE, LD_CVT, ST_CVT */
          bool preserve_null;    /* SEG_ADD, SEG_SUB */
          enum bi_extend extend; /* LOAD, IMUL */
       };

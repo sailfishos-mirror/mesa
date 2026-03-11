@@ -291,11 +291,12 @@ TEST_F(ValhallPacking, LeaBufImm)
         0x005e84040000007b);
 }
 
-TEST_F(ValhallPacking, StoreSegment)
+TEST_F(ValhallPacking, StoreMemoryAccess)
 {
-   CASE(bi_store_i96(b, bi_register(0), bi_discard(bi_register(4)),
-                     bi_discard(bi_register(5)), BI_SEG_VARY, 0),
-        0x0061400632000044);
+   bi_instr *I = bi_store_i96(b, bi_register(0), bi_discard(bi_register(4)),
+                              bi_discard(bi_register(5)), BI_SEG_NONE, 0);
+   I->mem_access = VA_MEMORY_ACCESS_ESTREAM;
+   CASE(I, 0x0061400632000044);
 }
 
 TEST_F(ValhallPacking, Convert16To32)

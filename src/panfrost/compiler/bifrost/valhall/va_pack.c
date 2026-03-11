@@ -737,35 +737,21 @@ va_pack_load(const bi_instr *I, bool buffer_descriptor)
       hex |= va_pack_byte_offset(I);
 
    hex |= (uint64_t)va_pack_src(I, 0) << 0;
+   hex |= (uint64_t)I->mem_access << 24;
 
    if (buffer_descriptor)
       hex |= (uint64_t)va_pack_src(I, 1) << 8;
 
    return hex;
 }
-
-static uint64_t
-va_pack_memory_access(const bi_instr *I)
-{
-   switch (I->seg) {
-   case BI_SEG_TL:
-      return VA_MEMORY_ACCESS_FORCE;
-   case BI_SEG_POS:
-      return VA_MEMORY_ACCESS_ISTREAM;
-   case BI_SEG_VARY:
-      return VA_MEMORY_ACCESS_ESTREAM;
-   default:
-      return VA_MEMORY_ACCESS_NONE;
-   }
-}
-
 static uint64_t
 va_pack_store(const bi_instr *I)
 {
-   uint64_t hex = va_pack_memory_access(I) << 24;
+   uint64_t hex = 0;
 
    va_validate_register_pair(I, 1);
    hex |= (uint64_t)va_pack_src(I, 1) << 0;
+   hex |= I->mem_access << 24;
 
    hex |= va_pack_byte_offset(I);
 
@@ -971,15 +957,18 @@ va_pack_instr(const bi_instr *I, unsigned arch)
 
       /* Conversion descriptor */
       hex |= (uint64_t)va_pack_src(I, 2) << 16;
-      hex |= va_pack_memory_access(I) << 37;
+      hex |= (uint64_t)I->mem_access << 37;
       break;
 
    case BI_OPCODE_ST_CVT:
       /* Staging read */
-      hex |= va_pack_store(I);
+      va_validate_register_pair(I, 1);
+      hex |= (uint64_t)va_pack_src(I, 1) << 0;
+      hex |= va_pack_byte_offset(I);
 
       /* Conversion descriptor */
       hex |= (uint64_t)va_pack_src(I, 3) << 16;
+      hex |= (uint64_t)I->mem_access << 37;
       break;
 
    case BI_OPCODE_BLEND: {

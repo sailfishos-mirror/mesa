@@ -1146,9 +1146,9 @@ bi_emit_store_vary(bi_builder *b, nir_intrinsic_instr *instr)
       if (index_offset != 0)
          index = bi_iadd_imm_i32(b, index, index_offset);
 
-      const enum bi_seg seg =
-         slot->section == PAN_VARYING_SECTION_GENERIC ? BI_SEG_VARY
-                                                      : BI_SEG_POS;
+      const enum va_memory_access mem_access =
+         slot->section == PAN_VARYING_SECTION_GENERIC ? VA_MEMORY_ACCESS_ESTREAM
+                                                      : VA_MEMORY_ACCESS_ISTREAM;
 
       nir_src *offset_src = nir_get_io_offset_src(instr);
       assert(nir_src_is_const(*offset_src) && "assumes immediate offset");
@@ -1169,7 +1169,9 @@ bi_emit_store_vary(bi_builder *b, nir_intrinsic_instr *instr)
 
       bi_emit_split_i32(b, a, address, 2);
 
-      bi_instr *S = bi_store(b, nr * src_bit_sz, data, a[0], a[1], seg, offset);
+      bi_instr *S = bi_store(b, nr * src_bit_sz, data, a[0], a[1], BI_SEG_NONE,
+                             offset);
+      S->mem_access = mem_access;
       S->is_psiz_write = slot->location == VARYING_SLOT_PSIZ;
    } else {
       assert(T_size == 32 || T_size == 16);
@@ -1310,7 +1312,8 @@ bi_handle_segment(bi_builder *b, bi_index *addr_lo, bi_index *addr_hi,
 }
 
 static void
-bi_emit_load(bi_builder *b, nir_intrinsic_instr *instr, enum bi_seg seg)
+bi_emit_load(bi_builder *b, nir_intrinsic_instr *instr, enum bi_seg seg,
+             enum va_memory_access mem_access)
 {
    int16_t offset = 0;
    unsigned bits = instr->num_components * instr->def.bit_size;
@@ -1320,12 +1323,14 @@ bi_emit_load(bi_builder *b, nir_intrinsic_instr *instr, enum bi_seg seg)
 
    bi_handle_segment(b, &addr_lo, &addr_hi, seg, &offset);
 
-   bi_load_to(b, bits, dest, addr_lo, addr_hi, seg, offset);
+   bi_instr *I = bi_load_to(b, bits, dest, addr_lo, addr_hi, seg, offset);
+   I->mem_access = mem_access;
    bi_emit_cached_split(b, dest, bits);
 }
 
 static bi_instr *
-bi_emit_store(bi_builder *b, nir_intrinsic_instr *instr, enum bi_seg seg)
+bi_emit_store(bi_builder *b, nir_intrinsic_instr *instr, enum bi_seg seg,
+              enum va_memory_access mem_access)
 {
    /* Require contiguous masks, gauranteed by nir_lower_wrmasks */
    assert(nir_intrinsic_write_mask(instr) ==
@@ -1340,6 +1345,7 @@ bi_emit_store(bi_builder *b, nir_intrinsic_instr *instr, enum bi_seg seg)
    bi_instr *I =
       bi_store(b, instr->num_components * nir_src_bit_size(instr->src[0]),
                bi_src_index(&instr->src[0]), addr_lo, addr_hi, seg, offset);
+   I->mem_access = mem_access;
    return I;
 }
 
@@ -1744,19 +1750,23 @@ va_emit_load_texel_buf_index_address(bi_builder *b, bi_index dst,
 }
 
 static void
-bi_emit_load_cvt(bi_builder *b, bi_index dst, nir_intrinsic_instr *instr)
+bi_emit_load_cvt(bi_builder *b, bi_index dst, nir_intrinsic_instr *instr,
+                 enum va_memory_access mem_access)
 {
    bi_index addr = bi_src_index(&instr->src[0]);
    bi_index icd = bi_src_index(&instr->src[1]);
 
-   bi_ld_cvt_to(b, dst, bi_extract(b, addr, 0), bi_extract(b, addr, 1), icd,
-                bi_reg_fmt_for_nir(nir_intrinsic_dest_type(instr)),
-                instr->def.num_components - 1);
+   bi_instr *I =
+      bi_ld_cvt_to(b, dst, bi_extract(b, addr, 0), bi_extract(b, addr, 1), icd,
+                   bi_reg_fmt_for_nir(nir_intrinsic_dest_type(instr)),
+                   instr->def.num_components - 1);
+   I->mem_access = mem_access;
    bi_emit_cached_split_i32(b, dst, instr->def.num_components);
 }
 
 static void
-bi_emit_store_cvt(bi_builder *b, nir_intrinsic_instr *instr)
+bi_emit_store_cvt(bi_builder *b, nir_intrinsic_instr *instr,
+                  enum va_memory_access mem_access)
 {
    bi_index value = bi_src_index(&instr->src[0]);
    bi_index addr = bi_src_index(&instr->src[1]);
@@ -1773,8 +1783,10 @@ bi_emit_store_cvt(bi_builder *b, nir_intrinsic_instr *instr)
       regfmt = bi_reg_fmt_for_nir(src_type);
    }
 
-   bi_st_cvt(b, value, bi_extract(b, addr, 0), bi_extract(b, addr, 1), icd,
-             regfmt, instr->num_components - 1);
+   bi_instr *I =
+      bi_st_cvt(b, value, bi_extract(b, addr, 0), bi_extract(b, addr, 1), icd,
+                regfmt, instr->num_components - 1);
+   I->mem_access = mem_access;
 }
 
 static void
@@ -1980,6 +1992,17 @@ bi_subgroup_from_cluster_size(unsigned cluster_size)
    }
 }
 
+static enum va_memory_access
+va_memory_access_from_nir(const nir_intrinsic_instr *intr)
+{
+   const enum gl_access_qualifier access = nir_intrinsic_access(intr);
+   if (access & ACCESS_ISTREAM_PAN)
+      return VA_MEMORY_ACCESS_ISTREAM;
+   if (access & ACCESS_ESTREAM_PAN)
+      return VA_MEMORY_ACCESS_ESTREAM;
+   return VA_MEMORY_ACCESS_NONE;
+}
+
 static void
 bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
 {
@@ -2139,30 +2162,31 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
 
    case nir_intrinsic_load_global:
    case nir_intrinsic_load_global_constant:
-      bi_emit_load(b, instr, BI_SEG_NONE);
+      bi_emit_load(b, instr, BI_SEG_NONE, va_memory_access_from_nir(instr));
       break;
 
    case nir_intrinsic_store_global:
    case nir_intrinsic_store_global_psiz_pan: {
-      bi_instr *I = bi_emit_store(b, instr, BI_SEG_NONE);
+      bi_instr *I = bi_emit_store(b, instr, BI_SEG_NONE,
+                                  va_memory_access_from_nir(instr));
       I->is_psiz_write = instr->intrinsic == nir_intrinsic_store_global_psiz_pan;
       break;
    }
 
    case nir_intrinsic_load_scratch:
-      bi_emit_load(b, instr, BI_SEG_TL);
+      bi_emit_load(b, instr, BI_SEG_TL, VA_MEMORY_ACCESS_FORCE);
       break;
 
    case nir_intrinsic_store_scratch:
-      bi_emit_store(b, instr, BI_SEG_TL);
+      bi_emit_store(b, instr, BI_SEG_TL, VA_MEMORY_ACCESS_FORCE);
       break;
 
    case nir_intrinsic_load_shared:
-      bi_emit_load(b, instr, BI_SEG_WLS);
+      bi_emit_load(b, instr, BI_SEG_WLS, VA_MEMORY_ACCESS_NONE);
       break;
 
    case nir_intrinsic_store_shared:
-      bi_emit_store(b, instr, BI_SEG_WLS);
+      bi_emit_store(b, instr, BI_SEG_WLS, VA_MEMORY_ACCESS_NONE);
       break;
 
    case nir_intrinsic_barrier:
@@ -2304,11 +2328,11 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       break;
 
    case nir_intrinsic_load_global_cvt_pan:
-      bi_emit_load_cvt(b, dst, instr);
+      bi_emit_load_cvt(b, dst, instr, va_memory_access_from_nir(instr));
       break;
 
    case nir_intrinsic_store_global_cvt_pan:
-      bi_emit_store_cvt(b, instr);
+      bi_emit_store_cvt(b, instr, va_memory_access_from_nir(instr));
       break;
 
    case nir_intrinsic_load_tile_pan:
