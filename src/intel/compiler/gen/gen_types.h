@@ -242,6 +242,10 @@ typedef struct gen_raw_inst {
    uint64_t data[2];
 } gen_raw_inst;
 
+typedef struct gen_raw_compact_inst {
+   uint64_t data;
+} gen_raw_compact_inst;
+
 typedef struct gen_error {
    unsigned index;
    const char *msg;
