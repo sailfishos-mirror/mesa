@@ -1683,6 +1683,16 @@ get_intrinsic_uub(struct analysis_state *state, struct scalar_query q, uint32_t 
 
       break;
    }
+   case nir_intrinsic_shuffle_up_intel:
+   case nir_intrinsic_shuffle_down_intel:
+      if (!q.head.pushed_queries) {
+         push_scalar_query(state, nir_get_scalar(intrin->src[0].ssa, q.scalar.comp));
+         push_scalar_query(state, nir_get_scalar(intrin->src[1].ssa, q.scalar.comp));
+         return;
+      } else {
+         *result = MAX2(src[0], src[1]);
+      }
+      break;
    case nir_intrinsic_read_first_invocation:
    case nir_intrinsic_read_invocation:
    case nir_intrinsic_shuffle:
@@ -2342,6 +2352,16 @@ ssa_def_bits_used(const nir_def *def, int recur)
          unsigned src_idx = src - use_intrin->src;
 
          switch (use_intrin->intrinsic) {
+         case nir_intrinsic_shuffle_up_intel:
+         case nir_intrinsic_shuffle_down_intel:
+            if (src_idx == 0 || src_idx == 1) {
+               bits_used |= ssa_def_bits_used(&use_intrin->def, recur);
+            } else {
+               /* Subgroups larger than 128 are not a thing */
+               bits_used |= 127;
+            }
+            break;
+
          case nir_intrinsic_read_invocation:
          case nir_intrinsic_shuffle:
          case nir_intrinsic_shuffle_up:

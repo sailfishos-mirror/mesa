@@ -221,6 +221,16 @@ opt_uniform_subgroup_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *_s
       }
       break;
 
+   case nir_intrinsic_shuffle_up_intel:
+   case nir_intrinsic_shuffle_down_intel:
+      if (nir_src_is_divergent(&intrin->src[0]) ||
+          nir_src_is_divergent(&intrin->src[1]) ||
+          !nir_srcs_equal(intrin->src[0], intrin->src[1]))
+         return false;
+
+      replacement = intrin->src[0].ssa;
+      break;
+
    case nir_intrinsic_ddx:
    case nir_intrinsic_ddx_coarse:
    case nir_intrinsic_ddx_fine:

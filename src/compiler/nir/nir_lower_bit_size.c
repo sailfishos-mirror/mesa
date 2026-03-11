@@ -199,6 +199,8 @@ lower_intrinsic_instr(nir_builder *b, nir_intrinsic_instr *intrin,
    case nir_intrinsic_shuffle_xor:
    case nir_intrinsic_shuffle_up:
    case nir_intrinsic_shuffle_down:
+   case nir_intrinsic_shuffle_up_intel:
+   case nir_intrinsic_shuffle_down_intel:
    case nir_intrinsic_quad_broadcast:
    case nir_intrinsic_quad_swap_horizontal:
    case nir_intrinsic_quad_swap_vertical:
@@ -222,6 +224,15 @@ lower_intrinsic_instr(nir_builder *b, nir_intrinsic_instr *intrin,
       nir_def *new_src = nir_convert_to_bit_size(b, intrin->src[0].ssa,
                                                  type, bit_size);
       new_intrin->src[0] = nir_src_for_ssa(new_src);
+
+      if (intrin->intrinsic == nir_intrinsic_shuffle_up_intel ||
+          intrin->intrinsic == nir_intrinsic_shuffle_down_intel) {
+         assert(intrin->src[1].ssa->bit_size == intrin->def.bit_size);
+
+         nir_def *new_src1 = nir_convert_to_bit_size(b, intrin->src[1].ssa,
+                                                     type, bit_size);
+         new_intrin->src[1] = nir_src_for_ssa(new_src1);
+      }
 
       /* These return the same bit size as the source; we need to adjust
        * the size and then we'll have to emit a down-cast.
