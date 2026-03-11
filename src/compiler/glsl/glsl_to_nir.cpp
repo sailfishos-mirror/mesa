@@ -790,6 +790,7 @@ void
 nir_visitor::visit(ir_loop *ir)
 {
    nir_loop *loop = nir_push_loop(&b);
+   loop->do_while = ir->do_while;
    nir_loop_add_continue_construct(loop);
    visit_exec_list(&ir->body_instructions, this);
    nir_push_continue(&b, loop);
