@@ -3378,3 +3378,13 @@ VkResult anv_GetPhysicalDeviceCooperativeMatrixPropertiesKHR(
 
    return vk_outarray_status(&out);
 }
+
+VkResult anv_GetPhysicalDeviceCooperativeMatrixFlexibleDimensionsPropertiesNV(
+   VkPhysicalDevice                            physicalDevice,
+   uint32_t*                                   pPropertyCount,
+   VkCooperativeMatrixFlexibleDimensionsPropertiesNV* pProperties)
+{
+   VK_OUTARRAY_MAKE_TYPED(VkCooperativeMatrixFlexibleDimensionsPropertiesNV, out, pProperties, pPropertyCount);
+   /* TODO: When we enable flexible dimensions, fill this properly. */
+   return vk_outarray_status(&out);
+}
