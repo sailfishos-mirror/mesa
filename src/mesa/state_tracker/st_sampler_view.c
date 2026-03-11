@@ -40,6 +40,18 @@
 #include "st_format.h"
 #include "st_cb_texture.h"
 
+static bool
+can_release_samplerview(const struct pipe_sampler_view *view,
+                        unsigned num_norelease_views,
+                        const struct pipe_sampler_view **norelease_views)
+{
+   for (unsigned i = 0; i < num_norelease_views; i++) {
+      if (norelease_views[i] == view)
+         return false;
+   }
+   return true;
+}
+
 /**
  * Set the given view as the current context's view for the texture.
  *
@@ -56,7 +68,9 @@ st_texture_set_sampler_view(struct st_context *st,
                             struct gl_texture_object *stObj,
                             struct pipe_sampler_view *view,
                             bool glsl130_or_later,
-                            bool locked)
+                            bool locked,
+                            unsigned num_norelease_views,
+                            const struct pipe_sampler_view **norelease_views)
 {
    struct st_sampler_views *views;
    struct st_sampler_view *free = NULL;
@@ -73,7 +87,8 @@ st_texture_set_sampler_view(struct st_context *st,
       /* Is the array entry used ? */
       if (sv->view) {
          /* check if the context matches */
-         if (sv->view->context == st->pipe) {
+         if (sv->view->context == st->pipe &&
+             can_release_samplerview(sv->view, num_norelease_views, norelease_views)) {
             st->pipe->sampler_view_release(st->pipe, sv->view);
             sv->view = NULL;
             goto found;
@@ -527,7 +542,9 @@ st_get_texture_sampler_view_from_stobj(struct st_context *st,
                                        struct gl_texture_object *texObj,
                                        const struct gl_sampler_object *samp,
                                        bool glsl130_or_later,
-                                       bool ignore_srgb_decode)
+                                       bool ignore_srgb_decode,
+                                       unsigned num_norelease_views,
+                                       const struct pipe_sampler_view **norelease_views)
 {
    struct st_sampler_view *sv;
    bool srgb_skip_decode = false;
@@ -571,7 +588,8 @@ st_get_texture_sampler_view_from_stobj(struct st_context *st,
 
    view = st_texture_set_sampler_view(st, texObj, view,
                                       glsl130_or_later,
-                                      true);
+                                      true,
+                                      num_norelease_views, norelease_views);
    simple_mtx_unlock(&texObj->validate_mutex);
 
    return view;
@@ -580,7 +598,9 @@ st_get_texture_sampler_view_from_stobj(struct st_context *st,
 
 struct pipe_sampler_view *
 st_get_buffer_sampler_view_from_stobj(struct st_context *st,
-                                      struct gl_texture_object *texObj)
+                                      struct gl_texture_object *texObj,
+                                      unsigned num_norelease_views,
+                                      const struct pipe_sampler_view **norelease_views)
 {
    struct st_sampler_view *sv;
    struct gl_buffer_object *stBuf =
@@ -640,7 +660,8 @@ st_get_buffer_sampler_view_from_stobj(struct st_context *st,
    struct pipe_sampler_view *view =
       st->pipe->create_sampler_view(st->pipe, buf, &templ);
 
-   view = st_texture_set_sampler_view(st, texObj, view, false, false);
+   view = st_texture_set_sampler_view(st, texObj, view, false, false,
+                                      num_norelease_views, norelease_views);
 
    return view;
 }
