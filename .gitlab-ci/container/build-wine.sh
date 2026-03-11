@@ -63,6 +63,66 @@ rm "apitrace-${APITRACE_VERSION}${APITRACE_VERSION_DATE}-win64${APITRACE_ARCH}.7
 
 section_end wine-apitrace
 
+section_start DXVK "Installing DXVK"
+
+set -uex
+
+overrideDll() {
+  if ! wine reg add 'HKEY_CURRENT_USER\Software\Wine\DllOverrides' /v "$1" /d native /f; then
+    echo -e "Failed to add override for $1"
+    exit 1
+  fi
+}
+
+dxvk_install_release() {
+    local DXVK_VERSION=${1:?}
+
+    curl -L --retry 4 -f --retry-all-errors --retry-delay 60 \
+	-O "https://github.com/doitsujin/dxvk/releases/download/v${DXVK_VERSION}/dxvk-${DXVK_VERSION}.tar.gz"
+    tar xzpf dxvk-"${DXVK_VERSION}".tar.gz
+    cp "dxvk-${DXVK_VERSION}"/x64/*.dll "$WINEPREFIX/drive_c/windows/system32/"
+    rm -rf "dxvk-${DXVK_VERSION}"
+    rm dxvk-"${DXVK_VERSION}".tar.gz
+}
+
+# DXVK upstream only builds for x64/x32, so we snag arm64 binaries out of
+# another project that packages it as arm64 and arm64ec.
+dxvk_install_hangover() {
+    local DXVK_VERSION=${1:?}
+    local HANGOVER_VERSION=${2:?}
+
+    curl -L --retry 4 -f --retry-all-errors --retry-delay 60 \
+        -o hangover_dlls.tar \
+	-O "https://github.com/AndreRH/hangover/releases/download/hangover-${HANGOVER_VERSION}/hangover_${HANGOVER_VERSION}_dlls.tar"
+    tar xpf hangover_dlls.tar
+    rm hangover_dlls.tar
+
+    tar xpf "dxvk-v${DXVK_VERSION}.tar.gz"
+    rm "dxvk-v${DXVK_VERSION}.tar.gz"
+
+    cp "dxvk-v${DXVK_VERSION}"/aarch64/*.dll "$WINEPREFIX/drive_c/windows/system32/"
+    rm -rf "dxvk-v${DXVK_VERSION}"
+}
+
+if [ "$DEBIAN_ARCH" != arm64 ]; then
+  # x32 and x64 binaries
+  dxvk_install_release "2.7.1"
+else
+  # Use another packager's tarball for ARM binaries, since upstream DXVK doesn't
+  # generate them.
+  dxvk_install_hangover "2.7.1" "11.4"
+fi
+
+overrideDll d3d8
+overrideDll d3d9
+overrideDll d3d10core
+overrideDll d3d11
+overrideDll dxgi
+
+# make sure the registry keys are flushed.
+wineserver -k
+
+section_end DXVK
 
 # Archive and upload wine for use as a LAVA overlay, if the archive doesn't exist yet
 WINE_S3_ARTIFACT="wine.tar.zst"
