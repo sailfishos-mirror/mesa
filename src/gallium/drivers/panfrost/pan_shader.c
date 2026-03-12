@@ -120,14 +120,9 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    };
 
    /* Lower this early so the backends don't have to worry about it */
-   if (s->info.stage == MESA_SHADER_FRAGMENT) {
-      inputs.fixed_varying_mask =
-         pan_get_fixed_varying_mask(s->info.inputs_read);
-   } else if (s->info.stage == MESA_SHADER_VERTEX) {
+   if (s->info.stage == MESA_SHADER_VERTEX) {
       /* No IDVS for internal XFB shaders */
       inputs.no_idvs = s->info.has_transform_feedback_varyings;
-      inputs.fixed_varying_mask =
-         pan_get_fixed_varying_mask(s->info.outputs_written);
 
       if (s->info.has_transform_feedback_varyings) {
          NIR_PASS(_, s, nir_opt_constant_folding);
@@ -153,8 +148,6 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       if (key->fs.clip_plane_enable) {
          NIR_PASS(_, s, nir_lower_clip_fs, key->fs.clip_plane_enable,
                   false, true);
-         inputs.fixed_varying_mask =
-            pan_get_fixed_varying_mask(s->info.inputs_read);
       }
 
       if (key->fs.line_smooth) {

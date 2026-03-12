@@ -116,16 +116,6 @@ struct pan_compile_inputs {
    /* Mask of UBOs that may be moved to push constants */
    uint32_t pushable_ubos;
 
-   /* Used on Valhall.
-    *
-    * Bit mask of special desktop-only varyings (e.g VARYING_SLOT_TEX0)
-    * written by the previous stage (fragment shader) or written by this
-    * stage (vertex shader). Bits are slots from gl_varying_slot.
-    *
-    * For modern APIs (GLES or VK), this should be 0.
-    */
-   uint32_t fixed_varying_mask;
-
    /* Varying layout in memory, if known */
    const struct pan_varying_layout *varying_layout;
 
@@ -268,13 +258,6 @@ pan_varying_layout_slot_at(const struct pan_varying_layout *layout,
    return slot;
 }
 
-static inline uint32_t
-pan_get_fixed_varying_mask(unsigned varyings_used)
-{
-   return (varyings_used & BITFIELD_MASK(VARYING_SLOT_VAR0)) &
-      ~VARYING_BIT_POS & ~PAN_ATTRIB_VARYING_BITS;
-}
-
 static inline void
 pan_varying_layout_require_format(const struct pan_varying_layout *layout)
 {
@@ -293,16 +276,6 @@ pan_varying_layout_require_layout(const struct pan_varying_layout *layout)
 
 enum pipe_format
 pan_varying_format(nir_alu_type type, unsigned ncomps);
-
-/** Builds a varying layout according to the SSO ABI we developed for OpenGL.
- *
- * This can be called on either shader stage and the two varying layouts are
- * guaranteed to match if the same fixed_varyings are passed into both.
- */
-void
-pan_build_varying_layout_sso_abi(struct pan_varying_layout *layout,
-                                 nir_shader *nir, unsigned gpu_id,
-                                 uint32_t fixed_varyings);
 
 void
 pan_build_varying_layout_compact(struct pan_varying_layout *layout,
