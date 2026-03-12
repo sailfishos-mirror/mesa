@@ -885,7 +885,7 @@ radv_consider_culling(const struct radv_physical_device *pdev, struct nir_shader
    if (info->vs.has_prolog)
       return false;
 
-   if (!pdev->use_ngg_culling)
+   if (!pdev->cache_key.use_ngg_culling)
       return false;
 
    /* Shader based culling efficiency can depend on PS throughput.
