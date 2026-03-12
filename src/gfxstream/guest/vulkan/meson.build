@@ -35,7 +35,6 @@ lib_vulkan_gfxstream = shared_library(
         inc_vulkan_headers,
         inc_guest_iostream,
         inc_vulkan_enc,
-        inc_platform_virtgpu,
         inc_gfxstream_vk_stubs,
         inc_goldfish_address_space,
         inc_include,

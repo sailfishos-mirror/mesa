@@ -17,7 +17,6 @@ libconnection_manager = static_library(
     include_directories: [
         inc_connection_manager,
         inc_guest_iostream,
-        inc_guest_iostream,
         inc_goldfish_address_space,
         inc_platform_virtgpu,
         inc_src,
