@@ -347,7 +347,7 @@ radv_spirv_nir_debug(void *private_data, enum nir_spirv_debug_level level, size_
 
    snprintf(buffer, sizeof(buffer), "SPIR-V offset %lu: %s", (unsigned long)spirv_offset, message);
 
-   vk_debug_report(&instance->vk, vk_flags[level], debug_data->object, 0, 0, "radv", buffer);
+   vk_debug_report(&instance->vk.debug_report, vk_flags[level], debug_data->object, 0, 0, "radv", buffer);
 }
 
 static void
@@ -364,7 +364,8 @@ radv_compiler_debug(void *private_data, enum aco_compiler_debug_level level, con
    /* VK_DEBUG_REPORT_DEBUG_BIT_EXT specifies diagnostic information
     * from the implementation and layers.
     */
-   vk_debug_report(&instance->vk, vk_flags[level] | VK_DEBUG_REPORT_DEBUG_BIT_EXT, NULL, 0, 0, "radv", message);
+   vk_debug_report(&instance->vk.debug_report, vk_flags[level] | VK_DEBUG_REPORT_DEBUG_BIT_EXT, NULL, 0, 0, "radv",
+                   message);
 }
 
 static void

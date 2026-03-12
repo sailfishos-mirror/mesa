@@ -2297,7 +2297,9 @@ emit_binding_table(struct anv_cmd_buffer *cmd_buffer,
                             "descriptor does not have NonReadable "
                             "set and the image does not have a "
                             "corresponding SPIR-V format enum.");
-                  vk_debug_report(&cmd_buffer->device->physical->instance->vk,
+                  struct vk_instance *instance =
+                     &cmd_buffer->device->physical->instance->vk;
+                  vk_debug_report(&instance->debug_report,
                                   VK_DEBUG_REPORT_ERROR_BIT_EXT,
                                   &desc->image_view->vk.base,
                                   __LINE__, 0, "anv",

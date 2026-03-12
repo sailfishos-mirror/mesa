@@ -23,6 +23,7 @@
 #ifndef VK_INSTANCE_H
 #define VK_INSTANCE_H
 
+#include "vk_debug_report.h"
 #include "vk_dispatch_table.h"
 #include "vk_extensions.h"
 #include "vk_object.h"
@@ -110,10 +111,7 @@ struct vk_instance {
    struct vk_instance_dispatch_table dispatch_table;
 
    /* VK_EXT_debug_report debug callbacks */
-   struct {
-      mtx_t callbacks_mutex;
-      struct list_head callbacks;
-   } debug_report;
+   struct vk_debug_report debug_report;
 
    /* VK_EXT_debug_utils */
    struct {
