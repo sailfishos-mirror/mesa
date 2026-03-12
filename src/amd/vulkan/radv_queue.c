@@ -747,13 +747,6 @@ radv_emit_graphics(struct radv_device *device, struct radv_cmd_stream *cs)
       }
    }
 
-   if (pdev->info.gfx_level >= GFX8) {
-      /* GFX8+ only compares the bits according to the index type by default,
-       * so we can always leave the programmed value at the maximum.
-       */
-      ac_pm4_set_reg(pm4, R_02840C_VGT_MULTI_PRIM_IB_RESET_INDX, 0xffffffff);
-   }
-
    unsigned tmp = (unsigned)(1.0 * 8.0);
    ac_pm4_set_reg(pm4, R_028A00_PA_SU_POINT_SIZE, S_028A00_HEIGHT(tmp) | S_028A00_WIDTH(tmp));
    ac_pm4_set_reg(pm4, R_028A04_PA_SU_POINT_MINMAX,

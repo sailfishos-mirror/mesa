@@ -142,6 +142,16 @@ radv_cmd_set_primitive_restart_enable(struct radv_cmd_buffer *cmd_buffer, bool p
    state->dirty_dynamic |= RADV_DYNAMIC_PRIMITIVE_RESTART_ENABLE;
 }
 
+ALWAYS_INLINE static void
+radv_cmd_set_primitive_restart_index(struct radv_cmd_buffer *cmd_buffer, uint32_t primitive_restart_index)
+{
+   struct radv_cmd_state *state = &cmd_buffer->state;
+
+   state->primitive_restart_index = primitive_restart_index;
+
+   /* This isn't a dynamic state and it's handled in the draw path. */
+}
+
 struct radv_cmd_set_depth_bias_info {
    float constant_factor;
    float clamp;
@@ -7261,18 +7271,29 @@ radv_emit_primitive_restart(struct radv_cmd_buffer *cmd_buffer, bool enable)
       radeon_set_uconfig_reg(R_03092C_VGT_MULTI_PRIM_IB_RESET_EN, enable);
    } else {
       radeon_set_context_reg(R_028A94_VGT_MULTI_PRIM_IB_RESET_EN, enable);
+   }
 
+   if (enable) {
       /* GFX6-7: All 32 bits are compared.
        * GFX8: Only index type bits are compared.
        * GFX9+: Default is same as GFX8, MATCH_ALL_BITS=1 selects GFX6-7 behavior
        */
-      if (enable && gfx_level <= GFX7) {
-         radeon_opt_set_context_reg(R_02840C_VGT_MULTI_PRIM_IB_RESET_INDX, AC_TRACKED_VGT_MULTI_PRIM_IB_RESET_INDX,
-                                    cmd_buffer->state.primitive_restart_index);
-      }
+      radeon_opt_set_context_reg(R_02840C_VGT_MULTI_PRIM_IB_RESET_INDX, AC_TRACKED_VGT_MULTI_PRIM_IB_RESET_INDX,
+                                 cmd_buffer->state.primitive_restart_index);
    }
 
    radeon_end();
+}
+
+static bool
+radv_is_primitive_restart_enabled(struct radv_cmd_buffer *cmd_buffer, const struct radv_draw_info *draw_info)
+{
+   const struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
+
+   /* Primitive restart is automatically disabled by HW on GFX11+, see DISABLE_FOR_AUTO_INDEX. */
+   return (draw_info->indexed || pdev->info.gfx_level >= GFX11) && d->vk.ia.primitive_restart_enable;
 }
 
 static void
@@ -7280,9 +7301,7 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
-   const bool primitive_restart_en =
-      (draw_info->indexed || pdev->info.gfx_level >= GFX11) && d->vk.ia.primitive_restart_enable;
+   const bool primitive_restart_en = radv_is_primitive_restart_enabled(cmd_buffer, draw_info);
    const struct radeon_info *gpu_info = &pdev->info;
    struct radv_cmd_state *state = &cmd_buffer->state;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
@@ -7329,7 +7348,7 @@ radv_emit_draw_registers(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
    }
 
    if (primitive_restart_en != state->last_primitive_restart_en ||
-       (pdev->info.gfx_level <= GFX7 && state->primitive_restart_index != state->last_primitive_restart_index)) {
+       state->primitive_restart_index != state->last_primitive_restart_index) {
       radv_emit_primitive_restart(cmd_buffer, primitive_restart_en);
       state->last_primitive_restart_en = primitive_restart_en;
       state->last_primitive_restart_index = state->primitive_restart_index;
@@ -9254,6 +9273,13 @@ radv_CmdSetPrimitiveRestartEnable(VkCommandBuffer commandBuffer, VkBool32 primit
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    radv_cmd_set_primitive_restart_enable(cmd_buffer, primitiveRestartEnable);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdSetPrimitiveRestartIndexEXT(VkCommandBuffer commandBuffer, uint32_t primitiveRestartIndex)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   radv_cmd_set_primitive_restart_index(cmd_buffer, primitiveRestartIndex);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -11443,7 +11469,15 @@ radv_need_late_scissor_emission(struct radv_cmd_buffer *cmd_buffer, const struct
    uint64_t used_states = RADV_CMD_DIRTY_ALL;
    used_states &= ~(RADV_CMD_DIRTY_INDEX_BUFFER | RADV_CMD_DIRTY_VERTEX_BUFFER | RADV_CMD_DIRTY_STREAMOUT_BUFFER);
 
-   return cmd_buffer->state.dirty & used_states;
+   if (cmd_buffer->state.dirty & used_states)
+      return true;
+
+   const bool primitive_restart_en = radv_is_primitive_restart_enabled(cmd_buffer, info);
+   if (primitive_restart_en != cmd_buffer->state.last_primitive_restart_en ||
+       cmd_buffer->state.primitive_restart_index != cmd_buffer->state.last_primitive_restart_index)
+      return true;
+
+   return false;
 }
 
 ALWAYS_INLINE static uint32_t
