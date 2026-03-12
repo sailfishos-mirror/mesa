@@ -1453,8 +1453,8 @@ get_properties(const struct anv_physical_device *pdevice,
       .lineWidthGranularity                     = (1.0 / 128.0),
       .strictLines                              = false,
       .standardSampleLocations                  = true,
-      .optimalBufferCopyOffsetAlignment         = 128,
-      .optimalBufferCopyRowPitchAlignment       = 128,
+      .optimalBufferCopyOffsetAlignment         = 64,
+      .optimalBufferCopyRowPitchAlignment       = 64,
       .nonCoherentAtomSize                      = 64,
 
       /* Sparse: */
