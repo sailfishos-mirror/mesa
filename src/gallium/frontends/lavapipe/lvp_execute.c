@@ -4012,24 +4012,9 @@ handle_shaders(struct vk_cmd_queue_entry *cmd, struct rendering_state *state)
    }
 }
 
-static void
-update_mesh_state(struct rendering_state *state)
-{
-   if (state->shaders[MESA_SHADER_TASK]) {
-      state->dispatch_info.block[0] = state->shaders[MESA_SHADER_TASK]->pipeline_nir->nir->info.workgroup_size[0];
-      state->dispatch_info.block[1] = state->shaders[MESA_SHADER_TASK]->pipeline_nir->nir->info.workgroup_size[1];
-      state->dispatch_info.block[2] = state->shaders[MESA_SHADER_TASK]->pipeline_nir->nir->info.workgroup_size[2];
-   } else {
-      state->dispatch_info.block[0] = state->shaders[MESA_SHADER_MESH]->pipeline_nir->nir->info.workgroup_size[0];
-      state->dispatch_info.block[1] = state->shaders[MESA_SHADER_MESH]->pipeline_nir->nir->info.workgroup_size[1];
-      state->dispatch_info.block[2] = state->shaders[MESA_SHADER_MESH]->pipeline_nir->nir->info.workgroup_size[2];
-   }
-}
-
 static void handle_draw_mesh_tasks(struct vk_cmd_queue_entry *cmd,
                                    struct rendering_state *state)
 {
-   update_mesh_state(state);
    state->dispatch_info.grid[0] = cmd->u.draw_mesh_tasks_ext.group_count_x;
    state->dispatch_info.grid[1] = cmd->u.draw_mesh_tasks_ext.group_count_y;
    state->dispatch_info.grid[2] = cmd->u.draw_mesh_tasks_ext.group_count_z;
@@ -4044,7 +4029,6 @@ static void handle_draw_mesh_tasks(struct vk_cmd_queue_entry *cmd,
 static void handle_draw_mesh_tasks_indirect(struct vk_cmd_queue_entry *cmd,
                                             struct rendering_state *state)
 {
-   update_mesh_state(state);
    state->dispatch_info.indirect = lvp_buffer_from_handle(cmd->u.draw_mesh_tasks_indirect_ext.buffer)->bo;
    state->dispatch_info.indirect_offset = cmd->u.draw_mesh_tasks_indirect_ext.offset;
    state->dispatch_info.indirect_stride = cmd->u.draw_mesh_tasks_indirect_ext.stride;
@@ -4055,7 +4039,6 @@ static void handle_draw_mesh_tasks_indirect(struct vk_cmd_queue_entry *cmd,
 static void handle_draw_mesh_tasks_indirect_count(struct vk_cmd_queue_entry *cmd,
                                                   struct rendering_state *state)
 {
-   update_mesh_state(state);
    state->dispatch_info.indirect = lvp_buffer_from_handle(cmd->u.draw_mesh_tasks_indirect_count_ext.buffer)->bo;
    state->dispatch_info.indirect_offset = cmd->u.draw_mesh_tasks_indirect_count_ext.offset;
    state->dispatch_info.indirect_stride = cmd->u.draw_mesh_tasks_indirect_count_ext.stride;

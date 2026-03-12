@@ -2150,6 +2150,8 @@ llvmpipe_draw_mesh_tasks(struct pipe_context *pipe,
    }
 
    struct nir_shader *mhs_shader = lp->mhs->base.ir.nir;
+   struct nir_shader *tsk_shader = lp->tss ? lp->tss->base.ir.nir : NULL;
+   uint16_t *workgroup_size = tsk_shader ? tsk_shader->info.workgroup_size : mhs_shader->info.workgroup_size;
    int prim_out_idx = -1;
    int first_per_prim_idx = -1;
    int cull_prim_idx = -1;
@@ -2182,19 +2184,15 @@ llvmpipe_draw_mesh_tasks(struct pipe_context *pipe,
    for (unsigned dr = 0; dr < draw_count; dr++) {
       fill_grid_size(pipe, dr, info, job_info.grid_size);
 
-      job_info.grid_base[0] = info->grid_base[0];
-      job_info.grid_base[1] = info->grid_base[1];
-      job_info.grid_base[2] = info->grid_base[2];
-      job_info.block_size[0] = info->block[0];
-      job_info.block_size[1] = info->block[1];
-      job_info.block_size[2] = info->block[2];
+      job_info.block_size[0] = workgroup_size[0];
+      job_info.block_size[1] = workgroup_size[1];
+      job_info.block_size[2] = workgroup_size[2];
 
       void *payload = NULL;
       size_t payload_stride = 0;
       int num_tasks = job_info.grid_size[2] * job_info.grid_size[1] * job_info.grid_size[0];
       int num_mesh_invocs = 1;
       if (lp->tss) {
-         struct nir_shader *tsk_shader = lp->tss->base.ir.nir;
          payload_stride = tsk_shader->info.task_payload_size + 3 * sizeof(uint32_t);
 
          payload = calloc(num_tasks, payload_stride);
@@ -2217,7 +2215,7 @@ llvmpipe_draw_mesh_tasks(struct pipe_context *pipe,
             lp_cs_tpool_wait_for_task(screen->cs_tpool, &task);
          }
          if (!lp->queries_disabled)
-            lp->pipeline_statistics.ts_invocations += num_tasks * info->block[0] * info->block[1] * info->block[2];
+            lp->pipeline_statistics.ts_invocations += num_tasks * job_info.block_size[0] * job_info.block_size[1] * job_info.block_size[2];
          num_mesh_invocs = num_tasks;
       }
 
