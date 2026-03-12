@@ -51,6 +51,12 @@ algebraic_lowering = [
         ('lea_nv', a, b, s), 'nak->sm >= 70'),
 ]
 
+for f2f16 in ['f2f16', 'f2f16_rtz', 'f2f16_rtne']:
+    algebraic_lowering += [
+        (('vec2', (f2f16 + '(is_used_once)', 'a@32'), (f2f16 + '(is_used_once)', 'b@32')), (f2f16, ('vec2', a, b)), 'nak->sm >= 86')
+    ]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--out', required=True, help='Output file.')
