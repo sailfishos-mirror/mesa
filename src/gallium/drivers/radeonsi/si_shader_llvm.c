@@ -94,7 +94,7 @@ static bool si_compile_llvm(struct si_screen *sscreen, struct si_shader_binary *
 
    struct ac_rtld_binary rtld;
    if (!ac_rtld_open(&rtld, (struct ac_rtld_open_info){
-                               .info = &sscreen->info,
+                               .gfx_level = sscreen->info.gfx_level,
                                .shader_type = stage,
                                .wave_size = ac->wave_size,
                                .num_parts = 1,
@@ -102,7 +102,7 @@ static bool si_compile_llvm(struct si_screen *sscreen, struct si_shader_binary *
                                .elf_sizes = &binary->code_size}))
       return false;
 
-   bool ok = ac_rtld_read_config(&sscreen->info, &rtld, conf);
+   bool ok = ac_rtld_read_config(&sscreen->info.compiler_info, &rtld, conf);
    ac_rtld_close(&rtld);
    return ok;
 }

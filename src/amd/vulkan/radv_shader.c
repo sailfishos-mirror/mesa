@@ -1603,7 +1603,7 @@ radv_open_rtld_binary(struct radv_device *device, const struct radv_shader_binar
    size_t elf_size = ((struct radv_shader_binary_rtld *)binary)->elf_size;
 
    struct ac_rtld_open_info open_info = {
-      .info = &pdev->info,
+      .gfx_level = pdev->info.gfx_level,
       .shader_type = binary->info.stage,
       .wave_size = binary->info.wave_size,
       .num_parts = 1,
@@ -2156,7 +2156,7 @@ radv_postprocess_binary_config(struct radv_device *device, struct radv_shader_bi
          return false;
       }
 
-      if (!ac_rtld_read_config(&pdev->info, &rtld_binary, config)) {
+      if (!ac_rtld_read_config(&pdev->info.compiler_info, &rtld_binary, config)) {
          ac_rtld_close(&rtld_binary);
          return false;
       }

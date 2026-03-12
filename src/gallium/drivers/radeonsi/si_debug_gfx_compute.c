@@ -468,7 +468,7 @@ static void si_add_split_disasm(struct si_screen *screen, struct ac_rtld_binary 
                                 mesa_shader_stage stage, unsigned wave_size)
 {
    if (!ac_rtld_open(rtld_binary, (struct ac_rtld_open_info){
-                                     .info = &screen->info,
+                                     .gfx_level = screen->info.gfx_level,
                                      .shader_type = stage,
                                      .wave_size = wave_size,
                                      .num_parts = 1,

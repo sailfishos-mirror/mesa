@@ -39,7 +39,7 @@ static bool si_shader_binary_open(struct si_screen *screen, struct si_shader *sh
 #undef add_part
 
    bool ok = ac_rtld_open(
-      rtld, (struct ac_rtld_open_info){.info = &screen->info,
+      rtld, (struct ac_rtld_open_info){.gfx_level = screen->info.gfx_level,
                                        .options =
                                           {
                                              .halt_at_entry = screen->options.halt_shaders,
@@ -399,7 +399,7 @@ static void si_shader_dump_disassembly(struct si_screen *screen,
    struct ac_rtld_binary rtld_binary;
 
    if (!ac_rtld_open(&rtld_binary, (struct ac_rtld_open_info){
-                                      .info = &screen->info,
+                                      .gfx_level = screen->info.gfx_level,
                                       .shader_type = stage,
                                       .wave_size = wave_size,
                                       .num_parts = 1,
