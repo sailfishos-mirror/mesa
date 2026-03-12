@@ -204,6 +204,7 @@ struct panfrost_context {
    } texture_buffer[MESA_SHADER_STAGES];
 
    struct blitter_context *blitter;
+   bool has_blit_loop;
 
    struct pan_mod_convert_shaders mod_convert_shaders;
 

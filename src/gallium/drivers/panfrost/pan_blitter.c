@@ -19,6 +19,15 @@ enum pan_save_state {
    PAN_SAVE_RENDER_COND = BITFIELD_BIT(4),
 };
 
+/* XXX Depth/Stencil blits on v9 need that. Not sure why :( */
+static inline void
+panfrost_post_blit_loop_flush_v9(struct panfrost_context *ctx,
+                                 struct panfrost_screen *scr)
+{
+   if (ctx->has_blit_loop && scr->dev.arch == 9)
+      panfrost_flush_all_batches(ctx, "Post-blit feedback loop flush");
+}
+
 static void
 panfrost_blitter_draw_rectangle(struct blitter_context *blitter,
                                 void *vertex_elements_cso,
@@ -33,6 +42,25 @@ panfrost_blitter_draw_rectangle(struct blitter_context *blitter,
    struct pipe_context *ctx = blitter->pipe;
    struct panfrost_context *pctx = pan_context(ctx);
    struct panfrost_screen *scr = pan_screen(ctx->screen);
+
+   /* u_blitter allows src == dst for disjoint texel sets without any texture
+    * barrier enforcement. Mali tile-based architecture can't guarantee that a
+    * read from the dst texture will fetch up-to-date values since it depends
+    * on the tile processing order. Request a fresh batch to ensure any writes
+    * to the resource are flushed. Doing so in this callback ensures that the
+    * framebuffer state is set for the current blit.
+    *
+    * XXX This should ideally be done at the draw call handling level when it
+    * requests a batch for the current framebuffer (see prepare_draw) by first
+    * submitting any batches writing to the draw call's sampler views. This
+    * check (along with resource accesses handling) is currently done when
+    * emitting texture descriptors but it explicitly discards the special case
+    * where the batch writing to the draw call's sampler views is the current
+    * batch because it can't be submitted at this time of the draw call
+    * handling (see panfrost_batch_update_access).
+    */
+   if (pctx->has_blit_loop)
+      panfrost_get_fresh_batch_for_fbo(pctx, "Blit feedback loop flush");
 
    if (scr->dev.arch <= 8 || depth != 0.0f || num_instances > 1)
       goto fallback;
@@ -71,12 +99,14 @@ panfrost_blitter_draw_rectangle(struct blitter_context *blitter,
 
    scr->vtbl.draw_fullscreen(pan_context(ctx), get_vs(blitter), type,
                              &fs_attrib);
+   panfrost_post_blit_loop_flush_v9(pctx, scr);
    return;
 
  fallback:
    /* Fallback to draw_vbo. */
    util_blitter_draw_rectangle(blitter, vertex_elements_cso, get_vs, x1, y1,
                                x2, y2, depth, num_instances, type, attrib);
+   panfrost_post_blit_loop_flush_v9(pctx, scr);
 }
 
 struct blitter_context *
@@ -154,7 +184,9 @@ panfrost_blitter_blit_legalized(struct pipe_context *pipe,
       return;
 
    panfrost_blitter_save(ctx, states);
+   ctx->has_blit_loop = info->src.resource == info->dst.resource;
    util_blitter_blit(ctx->blitter, info, NULL);
+   ctx->has_blit_loop = false;
 }
 
 void
@@ -180,9 +212,7 @@ panfrost_blitter_blit(struct pipe_context *pipe,
                        util_format_linear(info->src.format), false, false);
    pan_legalize_format(ctx, pan_resource(info->dst.resource),
                        util_format_linear(info->dst.format), true, false);
-   panfrost_flush_all_batches(ctx, "Blit");
    panfrost_blitter_blit_legalized(pipe, info);
-   panfrost_flush_all_batches(ctx, "Blit");
 }
 
 /* Setup HW tile buffer clears if the batch for the current FBO doesn't have
