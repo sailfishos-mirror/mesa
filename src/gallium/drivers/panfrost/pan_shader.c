@@ -210,8 +210,7 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
       pan_varying_collect_formats(&varyings_layout, s,
                                   inputs.gpu_id,
                                   inputs.trust_varying_flat_highp_types, false);
-      pan_build_varying_layout_sso_abi(&varyings_layout, s, inputs.gpu_id,
-                                       inputs.fixed_varying_mask);
+      pan_build_varying_layout_compact(&varyings_layout, s, inputs.gpu_id);
       inputs.varying_layout = &varyings_layout;
    }
 
