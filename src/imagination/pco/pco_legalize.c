@@ -155,6 +155,29 @@ static inline bool xfer_op_mods(pco_instr *dest, pco_instr *src)
    return all_xfered;
 }
 
+/**
+ * \brief Legalize fence pseudo instruction.
+ *
+ * \param[in,out] instr PCO instr.
+ * \return True if progress was made.
+ */
+static bool legalize_fence(pco_instr *instr)
+{
+   if (instr->op != PCO_OP_FENCE)
+      return false;
+
+   pco_builder b =
+      pco_builder_create(instr->parent_func, pco_cursor_before_instr(instr));
+
+   pco_flush_p0(&b);
+   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z1);
+   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z0);
+
+   pco_instr_delete(instr);
+
+   return true;
+}
+
 static bool legalize_pseudo(pco_instr *instr)
 {
    switch (instr->op) {
@@ -396,6 +419,12 @@ static bool try_legalize_large_hwreg_offsets(pco_instr *instr,
    return true;
 }
 
+/**
+ * \brief Insert pseudo fences around DITR and DITRP instructions.
+ *
+ * \param[in,out] instr PCO instr.
+ * \return True if progress was made.
+ */
 static bool try_legalize_ditr_fence(pco_instr *instr)
 {
    if (instr->op != PCO_OP_DITR && instr->op != PCO_OP_DITRP)
@@ -403,14 +432,10 @@ static bool try_legalize_ditr_fence(pco_instr *instr)
 
    pco_builder b =
       pco_builder_create(instr->parent_func, pco_cursor_before_instr(instr));
-   pco_flush_p0(&b);
-   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z1);
-   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z0);
+   pco_fence(&b);
 
    b.cursor = pco_cursor_after_instr(instr);
-   pco_flush_p0(&b);
-   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z1);
-   pco_br_next(&b, .exec_cnd = PCO_EXEC_CND_E1_Z0);
+   pco_fence(&b);
 
    return true;
 }
@@ -457,6 +482,12 @@ bool pco_legalize(pco_shader *shader)
       }
    }
 
+   pco_foreach_func_in_shader (func, shader) {
+      pco_foreach_instr_in_func_safe (instr, func) {
+         progress |= legalize_fence(instr);
+      }
+   }
+
    shader->is_legalized = true;
    return progress;
 }
@@ -479,5 +510,10 @@ bool pco_post_ra_legalize(pco_shader *shader)
       }
    }
 
+   pco_foreach_func_in_shader (func, shader) {
+      pco_foreach_instr_in_func_safe (instr, func) {
+         progress |= legalize_fence(instr);
+      }
+   }
    return progress;
 }
