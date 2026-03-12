@@ -844,7 +844,7 @@
         "description": "radeonsi: recompute IO bases after optimizations",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d06616063cabda3443f52323e33a890e8f48f6f4",
         "notes": null
