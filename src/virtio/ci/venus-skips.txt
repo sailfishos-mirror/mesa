@@ -71,3 +71,7 @@ dEQP-VK.ray_tracing_pipeline.trace_rays_indirect2.indirect_gpu.partial_copy.subm
 dEQP-VK.image.swapchain_mutable.direct_drm.*
 dEQP-VK.wsi.acquire_drm_display.*
 dEQP-VK.wsi.direct_drm.*
+
+# New timeouts since https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/40211
+dEQP-VK.api.external.fence.sync_fd.export_multiple_times_temporary
+dEQP-VK.api.external.semaphore.sync_fd.export_multiple_times_temporary

@@ -32,3 +32,4 @@ dEQP-VK.mesh_shader.ext.smoke.optimized_lib.depth_only_triangles_position_compon
 
 dEQP-VK.memory.allocation.random.66,Crash
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.suballocation.formats.r8g8b8a8_unorm.input.dont_care.store.self_dep_clear_draw,Fail
+dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.suballocation.formats.r8g8b8a8_unorm.input.load.store.self_dep_clear_draw,Fail
