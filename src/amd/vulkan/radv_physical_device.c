@@ -818,6 +818,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       /* KHR_calibrated_timestamps is a requirement to expose EXT_present_timing. */
       .EXT_present_timing = radv_calibrated_timestamps_enabled(pdev),
 #endif
+      .EXT_primitive_restart_index = true,
       .EXT_primitive_topology_list_restart = true,
       .EXT_primitives_generated_query = true,
       .EXT_private_data = true,
@@ -1533,6 +1534,9 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
 
       /* VK_KHR_device_address_commands */
       .deviceAddressCommands = true,
+
+      /* VK_EXT_primitive_restart_index */
+      .primitiveRestartIndex = true,
    };
 }
 
