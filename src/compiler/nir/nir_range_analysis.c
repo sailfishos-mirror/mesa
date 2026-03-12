@@ -188,12 +188,7 @@ push_fp_query(struct analysis_state *state, const nir_def *def)
 static uint32_t
 get_fp_key(struct analysis_query *q)
 {
-   struct fp_query *fp_q = (struct fp_query *)q;
-
-   if (!nir_def_is_alu(fp_q->def))
-      return UINT32_MAX;
-
-   return fp_q->def->index;
+   return ((struct fp_query *)q)->def->index;
 }
 
 static bool
