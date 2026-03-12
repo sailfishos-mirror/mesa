@@ -18,7 +18,7 @@ gfxstream_guest_args = cpp_msvc_compat_args + ['-D_FILE_OFFSET_BITS=64']
 # Our internal guest build
 if host_machine.system() == 'windows'
     gfxstream_guest_args += '-DWINDOWS_GUEST_BUILD'
-else
+elif host_machine.system() != 'fuchsia'
     gfxstream_guest_args += '-DLINUX_GUEST_BUILD'
 endif
 
