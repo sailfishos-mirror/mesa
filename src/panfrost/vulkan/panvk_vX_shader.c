@@ -873,6 +873,13 @@ panvk_lower_nir_io(nir_shader *nir)
             nir_var_shader_in | nir_var_shader_out, UINT32_MAX);
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
             glsl_type_size, nir_lower_io_use_interpolated_input_intrinsics);
+
+   /* nir_lower_io just computes offsets based on the original deref and
+    * lower_indirect_derefs ensures that the array derefs have a constant
+    * index.  Constant-fold to get us actual constants in in load/store
+    * instructions.
+    */
+   NIR_PASS(_, nir, nir_opt_constant_folding);
 }
 
 static VkResult
@@ -1402,7 +1409,6 @@ panvk_compile_shader(struct panvk_device *dev,
        * to a driver-provided FAU instead of using the blend descriptors
        * uploaded by the hardware.  See panvk_vX_blend.c for details.
        */
-      NIR_PASS(_, nir, nir_opt_constant_folding);
       NIR_PASS(_, nir, pan_nir_lower_fs_outputs, false);
 
       variant->own_bin = true;
