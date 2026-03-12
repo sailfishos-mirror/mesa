@@ -407,9 +407,10 @@ capture from inside Mesa. Different ``FD_RD_DUMP`` options are available:
   of that many subsequent submits. Writing -1 will enable dumping of submits
   until disabled. Writing 0 (or any other value) will disable dumps.
 
-Output dump files and trigger file (when enabled) are hard-coded to be placed
-under ``/tmp``, or ``/data/local/tmp`` under Android. `FD_RD_DUMP_TESTNAME` can
-be used to specify a more descriptive prefix for the output or trigger files.
+Output dump files and trigger file (when enabled) are placed under ``/tmp`` or
+``/data/local/tmp`` under Android by default, but that location can be adjusted
+through ``FD_RD_DUMP_PATH``. ``FD_RD_DUMP_TESTNAME`` can be used to specify a
+more descriptive prefix for the output or trigger files.
 
 Dumping can be limited to specific ranges of frames or submits. For example,
 ``FD_RD_DUMP_SUBMITS=120-140,160,165`` will dump command streams only for the
