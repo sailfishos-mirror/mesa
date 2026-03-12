@@ -47,7 +47,11 @@ static const driOptionDescription anv_dri_options[] = {
       DRI_CONFIG_INTEL_TE_DISTRIBUTION(true)
       DRI_CONFIG_INTEL_STORAGE_CACHE_POLICY_WT(false)
       DRI_CONF_ANV_LARGE_WORKGROUP_NON_COHERENT_IMAGE_WORKAROUND(false)
+#if DETECT_OS_ANDROID && ANDROID_API_LEVEL >= 37
+      DRI_CONF_ANV_COMPRESSION_CONTROL_ENABLED(true)
+#else
       DRI_CONF_ANV_COMPRESSION_CONTROL_ENABLED(false)
+#endif
       DRI_CONF_ANV_FAKE_NONLOCAL_MEMORY(false)
       DRI_CONF_OPT_E(intel_stack_id, 512, 256, 2048,
                      "Control the number stackIDs (i.e. number of unique rays in the RT subsytem)",
