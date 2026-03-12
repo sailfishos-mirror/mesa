@@ -6414,7 +6414,7 @@
         "description": "vulkan/wsi/headless: properly use CPU images for CPU devices",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "90caf9bdbd2425f61b0b28483c9d940854d67541",
         "notes": null
