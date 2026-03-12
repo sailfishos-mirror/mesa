@@ -515,13 +515,18 @@ get_color_aux_op(const struct blorp_params *params)
     */
    case BLORP_OP_HIZ_AMBIGUATE:
    case BLORP_OP_HIZ_CLEAR:
+   case BLORP_OP_HIZ_STENCIL_CLEAR:
    case BLORP_OP_HIZ_RESOLVE:
    case BLORP_OP_HIZ_PARTIAL_RESOLVE:
+   case BLORP_OP_FAST_STENCIL_CLEAR:
+   case BLORP_OP_SLOW_STENCIL_CLEAR:
+   case BLORP_OP_SLOW_DEPTH_STENCIL_CLEAR:
    case BLORP_OP_SLOW_DEPTH_CLEAR:
       assert(params->fast_clear_op == ISL_AUX_OP_NONE);
       return ISL_AUX_OP_NONE;
 
    /* The remaining operations are considered regular draws. */
+   case BLORP_OP_LINEAR_SURFACE_CLEAR:
    case BLORP_OP_SLOW_COLOR_CLEAR:
    case BLORP_OP_BLIT:
    case BLORP_OP_COPY:
