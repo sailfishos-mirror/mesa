@@ -3753,7 +3753,7 @@ radv_get_shader_name(const struct radv_shader_info *info, mesa_shader_stage stag
 }
 
 unsigned
-radv_compute_spi_ps_input(const struct radv_physical_device *pdev, const struct radv_graphics_state_key *gfx_state,
+radv_compute_spi_ps_input(enum amd_gfx_level gfx_level, const struct radv_graphics_state_key *gfx_state,
                           const struct radv_shader_info *info)
 {
    unsigned spi_ps_input;
@@ -3788,7 +3788,7 @@ radv_compute_spi_ps_input(const struct radv_physical_device *pdev, const struct 
 
    if (info->ps.reads_sample_mask_in || info->ps.reads_fully_covered) {
       spi_ps_input |= S_0286CC_SAMPLE_COVERAGE_ENA(1) |
-                      S_02865C_COVERAGE_TO_SHADER_SELECT(pdev->info.gfx_level >= GFX12 && info->ps.reads_fully_covered);
+                      S_02865C_COVERAGE_TO_SHADER_SELECT(gfx_level >= GFX12 && info->ps.reads_fully_covered);
    }
 
    if (G_0286CC_POS_W_FLOAT_ENA(spi_ps_input)) {
@@ -3805,7 +3805,7 @@ radv_compute_spi_ps_input(const struct radv_physical_device *pdev, const struct 
        * 1 SE. Other gens are fine (tested on Navi10, Navi21, Navi31).
        * TODO: Test Strix Halo.
        */
-      if (pdev->info.gfx_level == GFX12)
+      if (gfx_level == GFX12)
          spi_ps_input |= S_0286CC_PERSP_SAMPLE_ENA(1);
       else
          spi_ps_input |= S_0286CC_LINE_STIPPLE_TEX_ENA(1);
