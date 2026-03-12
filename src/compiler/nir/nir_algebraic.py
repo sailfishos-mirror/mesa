@@ -1502,6 +1502,11 @@ def get_expression_def(expr, name, value_comps, variable_map, defs, expr_conds, 
 
     defs.append(f"nir_def *{def_name} = nir_{opcode}(b, {', '.join(srcs)});")
 
+    expr_exclude = expr.fp_math_ctrl_exclude();
+    if expr_exclude != "nir_fp_fast_math":
+        defs.append(f"if (nir_def_is_alu({def_name}))")
+        defs.append(f"   nir_def_as_alu({def_name})->fp_math_ctrl &= ~{expr_exclude};")
+
     if expr.swizzle != -1:
         def_name = f"nir_channel(b, {def_name}, {expr.swizzle})"
 
@@ -1639,11 +1644,16 @@ class AlgebraicPass(object):
                         f"  nir_def *replace_{bits} = nir_u2u{bits}(b, {replace_def});")
                     replace_def = f"replace_{bits}"
             if xform.search.cond == "is_only_used_as_float" or xform.search.cond == "is_only_used_as_float_nsz":
+                zero = "-0.0"
+                if xform.search.cond == "is_only_used_as_float_nsz":
+                    xform_defs.append("  b->fp_math_ctrl &= ~nir_fp_preserve_signed_zero;")
+                    zero = "+0.0"
+
                 xform_defs.append(
-                    f"  nir_def *search_float = nir_fadd_imm(b, {search_def}, 0.0);")
+                    f"  nir_def *search_float = nir_fadd_imm(b, {search_def}, {zero});")
                 search_def = "search_float"
                 xform_defs.append(
-                    f"  nir_def *replace_float = nir_fadd_imm(b, {replace_def}, 0.0);")
+                    f"  nir_def *replace_float = nir_fadd_imm(b, {replace_def}, {zero});")
                 replace_def = "replace_float"
 
             verbose_name = f"{str(xform.search)} -> {str(xform.replace)}"

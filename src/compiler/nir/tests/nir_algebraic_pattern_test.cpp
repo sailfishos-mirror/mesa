@@ -17,6 +17,7 @@
 nir_algebraic_pattern_test::nir_algebraic_pattern_test(const char *name)
     : nir_test(name)
 {
+   b->fp_math_ctrl = nir_fp_no_fast_math;
 }
 
 nir_const_value *
