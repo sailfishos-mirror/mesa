@@ -1192,9 +1192,12 @@ remove_dead_varyings_pre_linking(nir_shader *nir)
 bool
 gl_nir_add_point_size(nir_shader *nir)
 {
-   nir_variable *psiz = nir_create_variable_with_location(nir, nir_var_shader_out,
-                                                          VARYING_SLOT_PSIZ, glsl_float_type());
-   psiz->data.how_declared = nir_var_hidden;
+   nir_variable *psiz;
+   if (!nir->info.io_lowered) {
+      psiz = nir_create_variable_with_location(nir, nir_var_shader_out,
+                                               VARYING_SLOT_PSIZ, glsl_float_type());
+      psiz->data.how_declared = nir_var_hidden;
+   }
 
    nir_function_impl *impl = nir_shader_get_entrypoint(nir);
    nir_builder b = nir_builder_create(impl);
@@ -1207,10 +1210,19 @@ gl_nir_add_point_size(nir_shader *nir)
                 intr->intrinsic == nir_intrinsic_copy_deref) {
                nir_variable *var = nir_intrinsic_get_var(intr, 0);
                if (var->data.location == VARYING_SLOT_POS) {
+                  assert(!nir->info.io_lowered);
                   b.cursor = nir_after_instr(instr);
                   nir_deref_instr *deref = nir_build_deref_var(&b, psiz);
                   nir_store_deref(&b, deref, nir_imm_float(&b, 1.0), BITFIELD_BIT(0));
                   found = true;
+               }
+            } else if (intr->intrinsic == nir_intrinsic_store_output) {
+               nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
+               if (sem.location == VARYING_SLOT_POS) {
+                  assert(nir->info.io_lowered);
+                  b.cursor = nir_after_instr(instr);
+                  nir_store_output(&b, nir_imm_float(&b, 1.0), nir_imm_int(&b, 0),
+                                   .io_semantics.location = VARYING_SLOT_PSIZ);
                }
             }
          }
@@ -1218,8 +1230,13 @@ gl_nir_add_point_size(nir_shader *nir)
    }
    if (!found) {
       b.cursor = nir_before_impl(impl);
-      nir_deref_instr *deref = nir_build_deref_var(&b, psiz);
-      nir_store_deref(&b, deref, nir_imm_float(&b, 1.0), BITFIELD_BIT(0));
+      if (nir->info.io_lowered) {
+         nir_store_output(&b, nir_imm_float(&b, 1.0), nir_imm_int(&b, 0),
+                          .io_semantics.location = VARYING_SLOT_PSIZ);
+      } else {
+         nir_deref_instr *deref = nir_build_deref_var(&b, psiz);
+         nir_store_deref(&b, deref, nir_imm_float(&b, 1.0), BITFIELD_BIT(0));
+      }
    }
 
    nir->info.outputs_written |= VARYING_BIT_PSIZ;
