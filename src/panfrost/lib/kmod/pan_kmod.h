@@ -241,6 +241,9 @@ struct pan_kmod_dev_props {
     * requiring explicit CPU cache maintenance.
     */
    bool is_io_coherent;
+
+   /* Bitmask encoding the available GPU page sizes */
+   uint64_t pgsize_bitmap;
 };
 
 /* Memory allocator for kmod internal allocations. */

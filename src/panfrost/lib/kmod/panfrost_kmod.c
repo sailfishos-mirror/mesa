@@ -211,6 +211,8 @@ panfrost_dev_query_props(struct panfrost_kmod_dev *panfrost_dev)
       props->is_io_coherent =
          selected_coherency != DRM_PANFROST_GPU_COHERENCY_NONE;
    }
+
+   props->pgsize_bitmap = PAN_PGSIZE_4K | PAN_PGSIZE_2M;
 }
 
 static struct pan_kmod_dev *
@@ -504,7 +506,7 @@ panfrost_kmod_vm_create(struct pan_kmod_dev *dev, uint32_t flags,
       return NULL;
    }
 
-   pan_kmod_vm_init(&vm->base, dev, 0, flags, PAN_PGSIZE_4K);
+   pan_kmod_vm_init(&vm->base, dev, 0, flags);
    panfrost_dev->vm = vm;
    return &vm->base;
 }

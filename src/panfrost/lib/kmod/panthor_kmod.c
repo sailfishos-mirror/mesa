@@ -84,6 +84,7 @@ struct panthor_kmod_dev {
    struct {
       struct drm_panthor_gpu_info gpu;
       struct drm_panthor_csif_info csif;
+      struct drm_panthor_mmu_info mmu;
       struct drm_panthor_timestamp_info timestamp;
       struct drm_panthor_group_priorities_info group_priorities;
    } props;
@@ -160,6 +161,7 @@ panthor_dev_query_props(struct panthor_kmod_dev *panthor_dev)
       .tiler_features = panthor_dev->props.gpu.tiler_features,
       .mem_features = panthor_dev->props.gpu.mem_features,
       .mmu_features = panthor_dev->props.gpu.mmu_features,
+      .pgsize_bitmap = panthor_dev->props.mmu.page_size_bitmap,
 
       /* This register does not exist because AFBC is no longer optional. */
       .afbc_features = 0,
@@ -231,6 +233,22 @@ panthor_kmod_dev_create(int fd, uint32_t flags,
    if (ret) {
       mesa_loge("DRM_IOCTL_PANTHOR_DEV_QUERY failed (err=%d)", errno);
       goto err_free_dev;
+   }
+
+   if (pan_kmod_driver_version_at_least(drv_info, 1, 9)) {
+      query = (struct drm_panthor_dev_query){
+         .type = DRM_PANTHOR_DEV_QUERY_MMU_INFO,
+         .size = sizeof(panthor_dev->props.mmu),
+         .pointer = (uint64_t)(uintptr_t)&panthor_dev->props.mmu,
+      };
+
+      ret = pan_kmod_ioctl(fd, DRM_IOCTL_PANTHOR_DEV_QUERY, &query);
+      if (ret) {
+         mesa_loge("DRM_IOCTL_PANTHOR_DEV_QUERY failed (err=%d)", errno);
+         goto err_free_dev;
+      }
+   } else {
+      panthor_dev->props.mmu.page_size_bitmap = PAN_PGSIZE_4K | PAN_PGSIZE_2M;
    }
 
    if (pan_kmod_driver_version_at_least(drv_info, 1, 1)) {
@@ -813,7 +831,7 @@ panthor_kmod_vm_create(struct pan_kmod_dev *dev, uint32_t flags,
       goto err_destroy_sync;
    }
 
-   pan_kmod_vm_init(&panthor_vm->base, dev, req.id, flags, PAN_PGSIZE_4K | PAN_PGSIZE_2M);
+   pan_kmod_vm_init(&panthor_vm->base, dev, req.id, flags);
    return &panthor_vm->base;
 
 err_destroy_sync:
