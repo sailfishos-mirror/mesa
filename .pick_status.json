@@ -5964,7 +5964,7 @@
         "description": "brw/validate: Gfx11 can't have accumulator src0 in 3-src instructions",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c3a5b62c081c44ae5c5881863008d15e87304f97",
         "notes": null
