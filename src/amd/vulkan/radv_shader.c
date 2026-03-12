@@ -327,7 +327,7 @@ shared_var_info(const struct glsl_type *type, unsigned *size, unsigned *align)
 }
 
 struct radv_shader_debug_data {
-   struct radv_device *device;
+   struct vk_debug_report *debug_report;
    const struct vk_object_base *object;
 };
 
@@ -335,8 +335,6 @@ static void
 radv_spirv_nir_debug(void *private_data, enum nir_spirv_debug_level level, size_t spirv_offset, const char *message)
 {
    struct radv_shader_debug_data *debug_data = private_data;
-   const struct radv_physical_device *pdev = radv_device_physical(debug_data->device);
-   struct radv_instance *instance = radv_physical_device_instance(pdev);
 
    static const VkDebugReportFlagsEXT vk_flags[] = {
       [NIR_SPIRV_DEBUG_LEVEL_INFO] = VK_DEBUG_REPORT_INFORMATION_BIT_EXT,
@@ -347,7 +345,7 @@ radv_spirv_nir_debug(void *private_data, enum nir_spirv_debug_level level, size_
 
    snprintf(buffer, sizeof(buffer), "SPIR-V offset %lu: %s", (unsigned long)spirv_offset, message);
 
-   vk_debug_report(&instance->vk.debug_report, vk_flags[level], debug_data->object, 0, 0, "radv", buffer);
+   vk_debug_report(debug_data->debug_report, vk_flags[level], debug_data->object, 0, 0, "radv", buffer);
 }
 
 static void
@@ -451,7 +449,7 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
                          const struct radv_spirv_to_nir_options *options, bool is_internal)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   const struct radv_instance *instance = radv_physical_device_instance(pdev);
+   struct radv_instance *instance = radv_physical_device_instance(pdev);
    nir_shader *nir;
    bool progress;
 
@@ -479,7 +477,7 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
       uint32_t num_spec_entries = 0;
       struct nir_spirv_specialization *spec_entries = vk_spec_info_to_nir_spirv(stage->spec_info, &num_spec_entries);
       struct radv_shader_debug_data spirv_debug_data = {
-         .device = device,
+         .debug_report = &instance->vk.debug_report,
          .object = stage->spirv.object,
       };
       const struct spirv_capabilities spirv_caps = vk_physical_device_get_spirv_capabilities(device->vk.physical);
