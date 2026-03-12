@@ -51,9 +51,9 @@ create_llvm_function(struct ac_llvm_context *ctx, LLVMModuleRef module, LLVMBuil
 {
    struct ac_llvm_pointer main_function = ac_build_main(args, ctx, convention, "main", ctx->voidt, module);
 
-   if (options->info->address32_hi) {
+   if (options->address32_hi) {
       ac_llvm_add_target_dep_function_attr(main_function.value, "amdgpu-32bit-address-high-bits",
-                                           options->info->address32_hi);
+                                           options->address32_hi);
    }
 
    ac_llvm_set_workgroup_size(main_function.value, max_workgroup_size);
@@ -206,8 +206,8 @@ ac_translate_nir_to_llvm(struct ac_llvm_compiler *ac_llvm, const struct radv_nir
       exports_color_null = !exports_mrtz || (shaders[0]->info.outputs_written & (0xffu << FRAG_RESULT_DATA0));
    }
 
-   ac_llvm_context_init(&ctx.ac, ac_llvm, &options->info->compiler_info, float_mode, info->wave_size,
-                        exports_color_null, exports_mrtz);
+   ac_llvm_context_init(&ctx.ac, ac_llvm, options->compiler_info, float_mode, info->wave_size, exports_color_null,
+                        exports_mrtz);
 
    uint32_t length = 1;
    for (uint32_t i = 0; i < shader_count; i++)
@@ -425,7 +425,7 @@ llvm_compile_shader(const struct radv_nir_compiler_options *options, const struc
    if (options->check_ir)
       tm_options |= AC_TM_CHECK_IR;
 
-   radv_init_llvm_compiler(&ac_llvm, options->info->family, tm_options, info->wave_size);
+   radv_init_llvm_compiler(&ac_llvm, options->family, tm_options, info->wave_size);
 
    radv_compile_nir_shader(&ac_llvm, options, info, binary, args, shaders, shader_count);
 }
