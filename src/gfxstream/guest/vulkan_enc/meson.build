@@ -8,6 +8,7 @@ gfxstream_guest_vk_autogen = custom_target(
     'gfxstream_guest_vk_autogen',
     output: [
         'VkEncoder.h',
+        'vulkan_gfxstream_structure_type.h',
         'goldfish_vk_counting_guest.h',
         'goldfish_vk_deepcopy_guest.h',
         'goldfish_vk_marshaling_guest.h',
