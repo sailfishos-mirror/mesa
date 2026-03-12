@@ -1250,8 +1250,8 @@ radv_get_pre_rast_input_topology(const struct radv_shader_info *es_info, const s
 }
 
 static unsigned
-gfx10_get_ngg_vert_prim_lds_size(const struct radv_device *device, const struct radv_shader_info *es_info,
-                                 const struct radv_shader_info *gs_info, const struct gfx10_ngg_info *ngg_info)
+gfx10_get_ngg_vert_prim_lds_size(const struct radv_shader_info *es_info, const struct radv_shader_info *gs_info,
+                                 const struct gfx10_ngg_info *ngg_info)
 {
    if (gs_info) {
       const unsigned esgs_ring_lds_bytes = ngg_info->esgs_ring_size;
@@ -1291,7 +1291,7 @@ gfx10_get_ngg_info(const struct radv_device *device, struct radv_shader_info *es
    out->prim_amp_factor = gs_info ? gs_info->gs.vertices_out : 1;
 
    const struct radv_shader_info *rinfo = gs_info ? gs_info : es_info;
-   out->lds_size = rinfo->ngg_lds_scratch_size + gfx10_get_ngg_vert_prim_lds_size(device, es_info, gs_info, out);
+   out->lds_size = rinfo->ngg_lds_scratch_size + gfx10_get_ngg_vert_prim_lds_size(es_info, gs_info, out);
 
    unsigned workgroup_size = ac_compute_ngg_workgroup_size(info.hw_max_esverts, info.max_gsprims * gs_num_invocations,
                                                            info.max_out_verts, out->prim_amp_factor);
@@ -1302,8 +1302,8 @@ gfx10_get_ngg_info(const struct radv_device *device, struct radv_shader_info *es
 }
 
 void
-gfx10_ngg_set_esgs_ring_itemsize(const struct radv_device *device, struct radv_shader_info *es_info,
-                                 struct radv_shader_info *gs_info, struct gfx10_ngg_info *out)
+gfx10_ngg_set_esgs_ring_itemsize(struct radv_shader_info *es_info, struct radv_shader_info *gs_info,
+                                 struct gfx10_ngg_info *out)
 {
    if (gs_info) {
       out->vgt_esgs_ring_itemsize = es_info->esgs_itemsize / 4;
@@ -1405,7 +1405,7 @@ radv_link_shaders_info(struct radv_device *device, struct radv_shader_stage *sta
          radv_determine_ngg_settings(device, ngg_stage, fs_stage, gfx_state);
 
          if (es_stage) {
-            gfx10_ngg_set_esgs_ring_itemsize(device, &es_stage->info, gs_stage ? &gs_stage->info : NULL,
+            gfx10_ngg_set_esgs_ring_itemsize(&es_stage->info, gs_stage ? &gs_stage->info : NULL,
                                              &prerast_stage->info.ngg_info);
             assert(es_stage->info.workgroup_size == 256);
          }
