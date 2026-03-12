@@ -753,7 +753,17 @@ zink_get_physical_device_info(struct zink_screen *screen)
 
 %for ext in extensions:
    <%helpers:guard ext="${ext}">
+      <%
+         core_promoted = ext.core_since and (
+            (not ext.has_features or ext.features_promoted) and
+            (not ext.has_properties or ext.properties_promoted)
+         )
+      %>
+      %if core_promoted:
+         if (info->have_${ext.name_with_vendor()} && !info->have_vulkan${ext.core_since.struct()}) {
+      %else:
          if (info->have_${ext.name_with_vendor()}) {
+      %endif
       %if ext.is_promoted_to_khr:
             if (support_${ext.name_with_vendor("KHR")})
                info->extensions[num_extensions++] = "${ext.with_vendor("KHR")}";
@@ -763,7 +773,11 @@ zink_get_physical_device_info(struct zink_screen *screen)
             info->extensions[num_extensions++] = "${ext.name}";
       %endif
       %if ext.is_required:
+         %if core_promoted:
+         } else if (!info->have_vulkan${ext.core_since.struct()}) {
+         %else:
          } else {
+         %endif
             debug_printf("ZINK: ${ext.name} required!\\n");
             goto fail;
       %endif
