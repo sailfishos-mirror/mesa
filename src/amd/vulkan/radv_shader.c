@@ -351,24 +351,6 @@ radv_spirv_nir_debug(void *private_data, enum nir_spirv_debug_level level, size_
 }
 
 static void
-radv_compiler_debug(void *private_data, enum aco_compiler_debug_level level, const char *message)
-{
-   struct radv_shader_debug_data *debug_data = private_data;
-   const struct radv_physical_device *pdev = radv_device_physical(debug_data->device);
-   struct radv_instance *instance = radv_physical_device_instance(pdev);
-
-   static const VkDebugReportFlagsEXT vk_flags[] = {
-      [ACO_COMPILER_DEBUG_LEVEL_ERROR] = VK_DEBUG_REPORT_ERROR_BIT_EXT,
-   };
-
-   /* VK_DEBUG_REPORT_DEBUG_BIT_EXT specifies diagnostic information
-    * from the implementation and layers.
-    */
-   vk_debug_report(&instance->vk.debug_report, vk_flags[level] | VK_DEBUG_REPORT_DEBUG_BIT_EXT, NULL, 0, 0, "radv",
-                   message);
-}
-
-static void
 radv_shader_choose_subgroup_size(struct radv_device *device, nir_shader *nir,
                                  const struct radv_shader_stage_key *stage_key, unsigned spirv_version)
 {
@@ -3312,13 +3294,6 @@ shader_compile(struct radv_device *device, struct nir_shader *const *shaders, in
                const struct radv_shader_stage_key *stage_key, struct radv_nir_compiler_options *options)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
-   struct radv_shader_debug_data debug_data = {
-      .device = device,
-      .object = NULL,
-   };
-   options->debug.func = radv_compiler_debug;
-   options->debug.private_data = &debug_data;
-
    struct radv_shader_binary *binary = NULL;
 
 #if AMD_LLVM_AVAILABLE

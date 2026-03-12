@@ -202,9 +202,6 @@ aco_compile_shader_part(const struct aco_compiler_options* options,
    program->collect_statistics = options->record_stats;
    memset(&program->statistics, 0, sizeof(program->statistics));
 
-   program->debug.func = options->debug.func;
-   program->debug.private_data = options->debug.private_data;
-
    program->is_prolog = is_prolog;
    program->is_epilog = !is_prolog;
 
@@ -240,9 +237,6 @@ aco_compile_shader(const struct aco_compiler_options* options, const struct aco_
 
    program->collect_statistics = options->record_stats;
    memset(&program->statistics, 0, sizeof(program->statistics));
-
-   program->debug.func = options->debug.func;
-   program->debug.private_data = options->debug.private_data;
 
    /* Instruction Selection */
    select_program(program.get(), shader_count, shaders, &config, options, info, args);

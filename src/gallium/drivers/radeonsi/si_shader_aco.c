@@ -29,15 +29,6 @@
 #include "nir.h"
 
 static void
-si_aco_compiler_debug(void *private_data, enum aco_compiler_debug_level level,
-                      const char *message)
-{
-   struct util_debug_callback *debug = private_data;
-
-   util_debug_message(debug, SHADER_INFO, "%s\n", message);
-}
-
-static void
 si_fill_aco_options(struct si_screen *screen, mesa_shader_stage stage,
                     mesa_shader_stage next_merged_stage, struct aco_compiler_options *options,
                     struct util_debug_callback *debug)
@@ -55,9 +46,6 @@ si_fill_aco_options(struct si_screen *screen, mesa_shader_stage stage,
    options->family = screen->info.family;
    options->gfx_level = screen->info.gfx_level;
    options->address32_hi = screen->info.address32_hi;
-
-   options->debug.func = si_aco_compiler_debug;
-   options->debug.private_data = debug;
 }
 
 static void
