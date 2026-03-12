@@ -315,8 +315,8 @@ radv_init_shader_args(const struct radv_device *device, mesa_shader_stage stage,
    const struct radv_physical_device *pdev = radv_device_physical(device);
    memset(args, 0, sizeof(*args));
 
-   args->explicit_scratch_args = !radv_use_llvm_for_stage(pdev, stage);
-   args->remap_spi_ps_input = !radv_use_llvm_for_stage(pdev, stage);
+   args->explicit_scratch_args = !pdev->use_llvm;
+   args->remap_spi_ps_input = !pdev->use_llvm;
 
    for (int i = 0; i < MAX_SETS; i++)
       args->user_sgprs_locs.descriptor_sets[i].sgpr_idx = -1;

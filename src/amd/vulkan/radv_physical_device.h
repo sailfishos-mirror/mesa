@@ -272,16 +272,6 @@ vk_queue_to_radv(const struct radv_physical_device *pdev, int queue_family_index
    return pdev->vk_queue_to_radv[queue_family_index];
 }
 
-/**
- * Helper used for debugging compiler issues by enabling/disabling LLVM for a
- * specific shader stage (developers only).
- */
-static inline bool
-radv_use_llvm_for_stage(const struct radv_physical_device *pdev, UNUSED mesa_shader_stage stage)
-{
-   return pdev->use_llvm;
-}
-
 bool radv_host_image_copy_enabled(const struct radv_physical_device *pdev);
 
 bool radv_enable_rt(const struct radv_physical_device *pdev);

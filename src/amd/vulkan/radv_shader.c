@@ -732,7 +732,7 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
    NIR_PASS(_, nir, nir_remove_dead_variables, nir_var_function_temp, NULL);
 
    bool gfx7minus = pdev->info.gfx_level <= GFX7;
-   bool use_llvm = radv_use_llvm_for_stage(pdev, nir->info.stage);
+   bool use_llvm = pdev->use_llvm;
 
    NIR_PASS(_, nir, nir_lower_subgroups,
             &(struct nir_lower_subgroups_options){
@@ -3321,10 +3321,10 @@ shader_compile(struct radv_device *device, struct nir_shader *const *shaders, in
    struct radv_shader_binary *binary = NULL;
 
 #if AMD_LLVM_AVAILABLE
-   if (radv_use_llvm_for_stage(pdev, stage) || options->dump_shader || options->record_ir)
+   if (pdev->use_llvm || options->dump_shader || options->record_ir)
       ac_init_llvm_once();
 
-   if (radv_use_llvm_for_stage(pdev, stage)) {
+   if (pdev->use_llvm) {
       llvm_compile_shader(options, info, shader_count, shaders, &binary, args);
 #else
    if (false) {

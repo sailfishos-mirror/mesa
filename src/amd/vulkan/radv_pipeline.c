@@ -250,7 +250,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    enum amd_gfx_level gfx_level = pdev->info.gfx_level;
-   const bool use_llvm = radv_use_llvm_for_stage(pdev, stage->stage);
+   const bool use_llvm = pdev->use_llvm;
    bool progress;
 
    /* Wave and workgroup size should already be filled. */
@@ -1019,7 +1019,7 @@ radv_GetPipelineExecutableInternalRepresentationsKHR(
    /* backend IR */
    if (p < end) {
       p->isText = true;
-      if (radv_use_llvm_for_stage(pdev, stage)) {
+      if (pdev->use_llvm) {
          VK_COPY_STR(p->name, "LLVM IR");
          VK_COPY_STR(p->description, "The LLVM IR after some optimizations");
       } else {
