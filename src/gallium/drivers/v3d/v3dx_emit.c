@@ -461,11 +461,30 @@ v3dX(emit_state)(struct pipe_context *pctx)
 #endif
 
 
-                cl_emit(&job->bcl, CLIPPER_Z_SCALE_AND_OFFSET, clip) {
-                        clip.viewport_z_offset_zc_to_zs =
-                                v3d->viewport.translate[2];
-                        clip.viewport_z_scale_zc_to_zs =
-                                v3d->viewport.scale[2];
+#if V3D_VERSION >= 71
+                /* If the Z scale is too small the guardband clipping
+                 * may not clip correctly, so we use the
+                 * NO_GUARDBAND variant instead.
+                 */
+                if (fabsf(v3d->viewport.scale[2]) < 0.01f) {
+                        cl_emit(&job->bcl,
+                                CLIPPER_Z_SCALE_AND_OFFSET_NO_GUARDBAND,
+                                clip) {
+                                clip.viewport_z_offset_zc_to_zs =
+                                        v3d->viewport.translate[2];
+                                clip.viewport_z_scale_zc_to_zs =
+                                        v3d->viewport.scale[2];
+                        }
+                } else
+#endif
+                {
+                        cl_emit(&job->bcl,
+                                CLIPPER_Z_SCALE_AND_OFFSET, clip) {
+                                clip.viewport_z_offset_zc_to_zs =
+                                        v3d->viewport.translate[2];
+                                clip.viewport_z_scale_zc_to_zs =
+                                        v3d->viewport.scale[2];
+                        }
                 }
                 cl_emit(&job->bcl, CLIPPER_Z_MIN_MAX_CLIPPING_PLANES, clip) {
                         util_viewport_zmin_zmax(&v3d->viewport,
