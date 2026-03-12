@@ -1044,7 +1044,7 @@
         "description": "panvk/csf: use DEFERRED_FLUSH for fragment job cache flush",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "443ddace70695bd490d959d783e22ad49c69ccb2",
         "notes": null
