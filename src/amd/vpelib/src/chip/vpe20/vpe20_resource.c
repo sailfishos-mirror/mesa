@@ -232,8 +232,8 @@ static struct vpe_caps
                             {
                                 .lut_shaper_caps =
                                     {
-                                        .dma_data             = 0,
-                                        .dma_config           = 0,
+                                        .dma_data             = 1,
+                                        .dma_config           = 1,
                                         .non_monotonic        = 0,
                                         .data_alignment       = SHAPER_LUT_DMA_DATA_ALIGNMENT,
                                         .config_alignment     = SHAPER_LUT_DMA_CONFIG_ALIGNMENT,
@@ -2572,12 +2572,12 @@ bool vpe20_get_dcc_compression_input_cap(
 
 //(BYTES_IN_DWORD * (HEADER_DWORD + (CONFIG_DWORD * NUM_CONFIG_PER_PIPE * NUM_PIPE))
 // WORST_CASE_ALIGNMENT PER CONFIG IS 60 BYTES
-#define VPE20_GENERAL_VPE_DESC_SIZE                288   // 4 * (4 + (2 * MAX_NUM_SAVED_CONFIG * 2))
-#define VPE20_GENERAL_EMB_USAGE_FRAME_SHARED       6400  // 4876(max recorded) + round up margin
-#define VPE20_GENERAL_EMB_USAGE_3DLUT_FRAME_SHARED 40960 // currently max 35192 is recorded
-#define VPE20_GENERAL_EMB_USAGE_BG_SHARED          4000
-#define VPE20_GENERAL_EMB_USAGE_SEG_NON_SHARED     6400 // 3820 (max recorded) + round up margin
-
+#define VPE20_GENERAL_VPE_DESC_SIZE                  288 // 4 * (4 + (2 * MAX_NUM_SAVED_CONFIG * 2))
+#define VPE20_GENERAL_EMB_USAGE_FRAME_SHARED         6400  // 4876(max recorded) + round up margin
+#define VPE20_GENERAL_EMB_USAGE_3DLUT_FRAME_SHARED   40960 // currently max 35192 is recorded
+#define VPE20_GENERAL_EMB_USAGE_BG_SHARED            4000
+#define VPE20_GENERAL_EMB_USAGE_SEG_NON_SHARED       6400  // 3820 (max recorded) + round up margin
+#define VPE20_GENERAL_EMB_USAGE_INDIRECT_SHAPER_SIZE 6400
 void vpe20_get_bufs_req(struct vpe_priv *vpe_priv, struct vpe_bufs_req *req)
 {
     uint32_t             i;
@@ -2651,6 +2651,10 @@ void vpe20_get_bufs_req(struct vpe_priv *vpe_priv, struct vpe_bufs_req *req)
         req->emb_buf_size += emb_req;
     }
 
+    if (vpe_priv->num_input_streams > 0 && vpe_priv->stream_ctx[0].stream.dma_info.shaper.enabled) {
+        req->cmd_buf_size += VPE20_GENERAL_VPE_DESC_SIZE;
+        req->emb_buf_size += VPE20_GENERAL_EMB_USAGE_INDIRECT_SHAPER_SIZE;
+    }
     req->cmd_buf_size += VPE_PREDICATION_CMD_SIZE;
 }
 

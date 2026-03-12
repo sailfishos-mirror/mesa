@@ -392,7 +392,8 @@ static enum vpe_status enforce_minimum_viewport_size_for_rect_in_section(
 
     while (status == VPE_STATUS_REPEAT_ITEM) {
         status = VPE_STATUS_OK;
-        for (section_idx = 0; section_idx < section_vector->num_elements; section_idx++) {
+        for (section_idx = 0; section_idx < (int16_t)(section_vector->num_elements);
+             section_idx++) {
             struct vpe_mps_section *section      = vpe_vector_get(section_vector, section_idx);
             struct vpe_mps_section *next_section = vpe_vector_get(section_vector, section_idx + 1);
 
