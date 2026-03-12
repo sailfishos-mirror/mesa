@@ -1449,15 +1449,17 @@ anv_cmd_write_buffer_cp(VkCommandBuffer commandBuffer,
 void
 anv_cmd_flush_buffer_write_cp(VkCommandBuffer commandBuffer)
 {
-   /* TODO: cmd_write_buffer_cp is implemented with MI store +
-    * ForceWriteCompletionCheck so that should make the content globally
-    * observable.
-    *
-    * If we encounter any functional or perf bottleneck issues, let's revisit
-    * this helper and add ANV_PIPE_HDC_PIPELINE_FLUSH_BIT +
-    * ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT +
-    * ANV_PIPE_DATA_CACHE_FLUSH_BIT.
+   ANV_FROM_HANDLE(anv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   /* IR header would get written by compute shader using BLORP code path, so
+    * we need to flush HDC and untyped dataport cache.
     */
+   anv_add_pending_pipe_bits(cmd_buffer,
+                             VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                             VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                             ANV_PIPE_HDC_PIPELINE_FLUSH_BIT |
+                             ANV_PIPE_UNTYPED_DATAPORT_CACHE_FLUSH_BIT,
+                             "Flush buffer write cp");
 }
 
 void

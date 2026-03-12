@@ -7536,18 +7536,5 @@ genX(cmd_write_buffer_cp)(struct anv_cmd_buffer *cmd_buffer,
 {
    assert(size % 4 == 0);
    struct anv_address addr = anv_address_from_u64(dstAddr);
-
-   struct mi_builder b;
-   mi_builder_init(&b, cmd_buffer->device->info, &cmd_buffer->batch);
-
-   for (uint32_t i = 0; i < size; i += 8) {
-      mi_builder_set_write_check(&b, i >= size - 8);
-      if (size - i < 8) {
-         mi_store(&b, mi_mem32(anv_address_add(addr, i)),
-                      mi_imm(*((uint32_t *)((char*)data + i))));
-      } else {
-         mi_store(&b, mi_mem64(anv_address_add(addr, i)),
-                      mi_imm(*((uint64_t *)((char*)data + i))));
-      }
-   }
+   anv_cmd_buffer_update_addr(cmd_buffer, addr, size, data);
 }
