@@ -976,8 +976,11 @@ static VkResult
 msm_bo_init_dmabuf(struct tu_device *dev,
                    struct tu_bo **out_bo,
                    uint64_t size,
+                   enum tu_bo_alloc_flags flags,
                    int prime_fd)
 {
+   flags = (enum tu_bo_alloc_flags)(flags | TU_BO_ALLOC_DMABUF);
+
    /* lseek() to get the real size */
    off_t real_size = lseek(prime_fd, 0, SEEK_END);
    lseek(prime_fd, 0, SEEK_SET);
@@ -1016,7 +1019,7 @@ msm_bo_init_dmabuf(struct tu_device *dev,
    }
 
    VkResult result =
-      tu_allocate_iova(dev, gem_handle, size, 0, TU_BO_ALLOC_DMABUF, &iova);
+      tu_allocate_iova(dev, gem_handle, size, 0, flags, &iova);
 
    if (result != VK_SUCCESS) {
       tu_gem_close(dev, gem_handle);
@@ -1024,7 +1027,7 @@ msm_bo_init_dmabuf(struct tu_device *dev,
    }
 
    result =
-      tu_bo_init(dev, NULL, bo, gem_handle, size, iova, TU_BO_ALLOC_DMABUF, "dmabuf");
+      tu_bo_init(dev, NULL, bo, gem_handle, size, iova, flags, "dmabuf");
 
    if (result != VK_SUCCESS) {
       tu_free_iova(dev, iova, size);

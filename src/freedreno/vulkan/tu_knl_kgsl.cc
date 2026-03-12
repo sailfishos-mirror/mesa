@@ -97,7 +97,7 @@ bo_init_new_dmaheap(struct tu_device *dev, struct tu_bo **out_bo, uint64_t size,
                        "DMA_HEAP_IOCTL_ALLOC failed (%s)", strerror(errno));
    }
 
-   return tu_bo_init_dmabuf(dev, out_bo, -1, alloc.fd);
+   return tu_bo_init_dmabuf(dev, out_bo, -1, TU_BO_ALLOC_NO_FLAGS, alloc.fd);
 }
 
 static VkResult
@@ -118,7 +118,7 @@ bo_init_new_ion(struct tu_device *dev, struct tu_bo **out_bo, uint64_t size,
                        "ION_IOC_NEW_ALLOC failed (%s)", strerror(errno));
    }
 
-   return tu_bo_init_dmabuf(dev, out_bo, -1, alloc.fd);
+   return tu_bo_init_dmabuf(dev, out_bo, -1, TU_BO_ALLOC_NO_FLAGS, alloc.fd);
 }
 
 static VkResult
@@ -160,7 +160,7 @@ bo_init_new_ion_legacy(struct tu_device *dev, struct tu_bo **out_bo, uint64_t si
                        "ION_IOC_FREE failed (%s)", strerror(errno));
    }
 
-   return tu_bo_init_dmabuf(dev, out_bo, -1, share.fd);
+   return tu_bo_init_dmabuf(dev, out_bo, -1, TU_BO_ALLOC_NO_FLAGS, share.fd);
 }
 
 static VkResult
@@ -328,6 +328,7 @@ static VkResult
 kgsl_bo_init_dmabuf(struct tu_device *dev,
                     struct tu_bo **out_bo,
                     uint64_t size,
+                    enum tu_bo_alloc_flags flags,
                     int fd)
 {
    struct kgsl_gpuobj_import_dma_buf import_dmabuf = {

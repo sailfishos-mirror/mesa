@@ -135,7 +135,7 @@ struct tu_knl {
                        struct tu_sparse_vma *lazy_vma,
                        const char *name);
    VkResult (*bo_init_dmabuf)(struct tu_device *dev, struct tu_bo **out_bo,
-                              uint64_t size, int prime_fd);
+                              uint64_t size, enum tu_bo_alloc_flags flags, int prime_fd);
    int (*bo_export_dmabuf)(struct tu_device *dev, struct tu_bo *bo);
    VkResult (*bo_alloc_lazy)(struct tu_device *dev, struct tu_bo *bo);
    VkResult (*bo_map)(struct tu_device *dev, struct tu_bo *bo, void *placed_addr);
@@ -211,6 +211,7 @@ VkResult
 tu_bo_init_dmabuf(struct tu_device *dev,
                   struct tu_bo **bo,
                   uint64_t size,
+                  enum tu_bo_alloc_flags flags,
                   int fd);
 
 int

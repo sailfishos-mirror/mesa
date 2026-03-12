@@ -3571,6 +3571,16 @@ tu_AllocateMemory(VkDevice _device,
    mem->size = pAllocateInfo->allocationSize;
    mem->refcnt = 1;
 
+   BITMASK_ENUM(tu_bo_alloc_flags) alloc_flags = TU_BO_ALLOC_NO_FLAGS;
+
+   const VkMemoryAllocateFlagsInfo *flags_info = vk_find_struct_const(
+      pAllocateInfo->pNext, MEMORY_ALLOCATE_FLAGS_INFO);
+   if (flags_info &&
+       (flags_info->flags &
+        VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT)) {
+      alloc_flags |= TU_BO_ALLOC_REPLAYABLE;
+   }
+
    const VkImportMemoryFdInfoKHR *fd_info =
       vk_find_struct_const(pAllocateInfo->pNext, IMPORT_MEMORY_FD_INFO_KHR);
 
@@ -3585,8 +3595,9 @@ tu_AllocateMemory(VkDevice _device,
        * reference counting.  We need to maintain a per-instance handle-to-bo
        * table and add reference count to tu_bo.
        */
-      result = tu_bo_init_dmabuf(device, &mem->bo,
-                                 pAllocateInfo->allocationSize, fd_info->fd);
+      result =
+         tu_bo_init_dmabuf(device, &mem->bo, pAllocateInfo->allocationSize,
+                           alloc_flags, fd_info->fd);
       if (result == VK_SUCCESS) {
          /* take ownership and close the fd */
          close(fd_info->fd);
@@ -3596,27 +3607,19 @@ tu_AllocateMemory(VkDevice _device,
       const native_handle_t *handle = AHardwareBuffer_getNativeHandle(mem->vk.ahardware_buffer);
       assert(handle->numFds > 0);
       size_t size = lseek(handle->data[0], 0, SEEK_END);
-      result = tu_bo_init_dmabuf(device, &mem->bo, size, handle->data[0]);
+      result = tu_bo_init_dmabuf(device, &mem->bo, size, alloc_flags,
+                                 handle->data[0]);
 #else
       result = VK_ERROR_FEATURE_NOT_PRESENT;
 #endif
    } else {
       uint64_t client_address = 0;
-      BITMASK_ENUM(tu_bo_alloc_flags) alloc_flags = TU_BO_ALLOC_NO_FLAGS;
 
       const VkMemoryOpaqueCaptureAddressAllocateInfo *replay_info =
          vk_find_struct_const(pAllocateInfo->pNext,
                               MEMORY_OPAQUE_CAPTURE_ADDRESS_ALLOCATE_INFO);
       if (replay_info && replay_info->opaqueCaptureAddress) {
          client_address = replay_info->opaqueCaptureAddress;
-         alloc_flags |= TU_BO_ALLOC_REPLAYABLE;
-      }
-
-      const VkMemoryAllocateFlagsInfo *flags_info = vk_find_struct_const(
-         pAllocateInfo->pNext, MEMORY_ALLOCATE_FLAGS_INFO);
-      if (flags_info &&
-          (flags_info->flags &
-           VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT)) {
          alloc_flags |= TU_BO_ALLOC_REPLAYABLE;
       }
 
