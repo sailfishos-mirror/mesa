@@ -783,8 +783,12 @@ optimizations.extend([
    # 0 < fsat(NaN) -> 0 < 0 -> false, and 0 < NaN -> false.
    (('flt', 0.0, ('fsat(is_used_once)', a)), ('flt', 0.0, a)),
 
-   (('bcsel(is_only_used_as_float)', ('feq', a, 'b(is_not_zero)'), b, a), a),
-   (('bcsel(is_only_used_as_float)', ('fneu', a, 'b(is_not_zero)'), a, b), a),
+   (('bcsel', ('feq', a, 'b(is_a_number_not_zero)'), b, a), a),
+   (('bcsel', ('fneu', a, 'b(is_a_number_not_zero)'), a, b), a),
+   (('bcsel(is_only_used_as_float_nsz)', ('feq', a, 0.0), 0.0, a),  a),
+   (('bcsel(is_only_used_as_float_nsz)', ('fneu', a, 0.0), a, 0.0), a),
+   (('bcsel(is_only_used_as_float_nsz)', ('feq', a, 0.0), -0.0, a),  a),
+   (('bcsel(is_only_used_as_float_nsz)', ('fneu', a, 0.0), a, -0.0), a),
    (('bcsel', ('feq', a, 0), 0, ('fsat', ('fmul', a, 'b(is_a_number)'))), ('fsat(preserve_sz)', ('fmul', a, b))),
    (('bcsel', ('fneu', a, 0), ('fsat', ('fmul', a, 'b(is_a_number)')), 0), ('fsat(preserve_sz)', ('fmul', a, b))),
    (('bcsel', ('feq', a, 0), b, ('fadd', a, 'b(is_not_zero)')), ('fadd', a, b)),
