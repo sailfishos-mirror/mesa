@@ -1910,6 +1910,7 @@ optimizations.extend([
    (('ffract(nnan)', 'a(is_integral)'), 0.0),
    (('ffract', ('ffract', a)), ('ffract', a)),
    (('fabs', 'a(is_not_negative)'), ('fcanonicalize', a)),
+   (('fabs(nsz)', 'a(is_not_positive)'), ('fneg', a)),
    (('fsat', 'a(is_not_positive)'), 0.0),
 
    (('fmin(nsz)', 'a(is_a_number_not_negative)', 1.0), ('fsat', a), '!options->lower_fsat'),
