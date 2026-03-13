@@ -1623,6 +1623,19 @@ optimizations.extend([
    (('iand', 'a@bool16', 1.0), ('b2f', a)),
    (('iand', 'a@bool32', 1.0), ('b2f', a)),
 
+   # For this optimization, there are a few things to consider:
+   # The replacement must flush denorms, fcanonicalize/fneg takes care of that.
+   # For fmul, if b is not finite, b2f(False) * b would need to be NaN.
+   # If b is negative, b2f(False) * b would be -0.0, not +0.0, hence the nsz.
+   # For fmulz, if b is -0.0, b2f(True) * b would need to be +0.0, not b.
+   # So even there nsz is needed.
+   # When the multiplication is only used by fadd, it's not a clear win
+   # because of potential fma fusion.
+   (('fmul(nsz,is_not_only_used_by_fadd)',  ('b2f', 'a@1'), 'b(is_finite)'),           ('bcsel', a, ('fcanonicalize', b), 0.0)),
+   (('fmul(nsz,is_not_only_used_by_fadd)',  ('fneg', ('b2f', 'a@1')), 'b(is_finite)'), ('bcsel', a, ('fneg', b), 0.0)),
+   (('fmulz(nsz,is_not_only_used_by_fadd)', ('b2f', 'a@1'), b),           ('bcsel', a, ('fcanonicalize', b), 0.0)),
+   (('fmulz(nsz,is_not_only_used_by_fadd)', ('fneg', ('b2f', 'a@1')), b), ('bcsel', a, ('fneg', b), 0.0)),
+
    # Comparison with the same args.  Note that these are only done for the
    # float versions when the source must be a number.  Generally, NaN cmp NaN
    # produces the opposite result of X cmp X.  flt is the outlier.  NaN < NaN

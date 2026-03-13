@@ -593,6 +593,12 @@ is_only_used_by_fadd(const nir_alu_instr *instr)
 }
 
 static inline bool
+is_not_only_used_by_fadd(const nir_alu_instr *instr)
+{
+   return !is_only_used_by_fadd(instr);
+}
+
+static inline bool
 is_only_used_by_alu_op(const nir_alu_instr *instr, nir_op op)
 {
    nir_foreach_use(src, &instr->def) {
