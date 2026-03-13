@@ -316,7 +316,7 @@ radv_physical_device_init_cache_key(struct radv_physical_device *pdev)
 static int
 radv_device_get_cache_uuid(struct radv_physical_device *pdev, void *uuid)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    unsigned char sha1[BLAKE3_KEY_LEN];
 
    memset(uuid, 0, VK_UUID_SIZE);

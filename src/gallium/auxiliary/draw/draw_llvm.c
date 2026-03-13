@@ -453,7 +453,7 @@ draw_get_ir_cache_key(struct nir_shader *nir,
    ir_binary = blob.data;
    ir_size = blob.size;
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, key, key_size);
    _mesa_sha1_update(&ctx, ir_binary, ir_size);

@@ -1137,7 +1137,7 @@ radv_copy_shader_stage_create_info(struct radv_device *device, uint32_t stageCou
 
 void
 radv_pipeline_hash(const struct radv_device *device, const struct radv_pipeline_layout *pipeline_layout,
-                   struct mesa_sha1 *ctx)
+                   blake3_hasher *ctx)
 {
    _mesa_sha1_update(ctx, device->cache_hash, sizeof(device->cache_hash));
    if (pipeline_layout)
@@ -1146,7 +1146,7 @@ radv_pipeline_hash(const struct radv_device *device, const struct radv_pipeline_
 
 void
 radv_pipeline_hash_shader_stage(VkPipelineCreateFlags2 pipeline_flags, const VkPipelineShaderStageCreateInfo *sinfo,
-                                const struct radv_shader_stage_key *stage_key, struct mesa_sha1 *ctx)
+                                const struct radv_shader_stage_key *stage_key, blake3_hasher *ctx)
 {
    unsigned char shader_sha1[BLAKE3_KEY_LEN];
 

@@ -3085,7 +3085,7 @@ void
 radv_graphics_pipeline_hash(const struct radv_device *device, const struct radv_graphics_pipeline_state *gfx_state,
                             unsigned char *hash)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
    radv_pipeline_hash(device, &gfx_state->layout, &ctx);

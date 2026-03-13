@@ -184,7 +184,7 @@ void si_get_ir_cache_key(struct si_shader_selector *sel, bool ngg, bool es,
    if (sel->screen->options.clear_lds)
       shader_variant_flags |= 1 << 12;
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, &shader_variant_flags, 4);
    _mesa_sha1_update(&ctx, ir_binary, ir_size);

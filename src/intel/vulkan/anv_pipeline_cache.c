@@ -326,7 +326,7 @@ anv_load_fp64_shader(struct anv_device *device)
       &device->physical->compiler->nir_options[MESA_SHADER_VERTEX];
 
    const char* shader_name = "float64_spv_lib";
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_init(&sha1_ctx);
    _mesa_sha1_update(&sha1_ctx, shader_name, strlen(shader_name));

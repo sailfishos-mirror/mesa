@@ -151,7 +151,7 @@ anv_shader_init_uuid(struct anv_physical_device *device)
     * compiler's output, not having that workaroung enabled with an app
     * expecting fp64 support will just crash in the backend.
     */
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
 
    const bool indirect_descriptors = device->indirect_descriptors;
@@ -1818,7 +1818,7 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
     */
    unsigned char linked_hash[BLAKE3_KEY_LEN];
    if (shader_count > 1) {
-      struct mesa_sha1 ctx;
+      blake3_hasher ctx;
       _mesa_sha1_init(&ctx);
 
       for (uint32_t s = 0; s < shader_count; s++) {
@@ -1836,7 +1836,7 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
 
       char name[BLAKE3_HEX_LEN + 4] = {};
       {
-         struct mesa_sha1 ctx;
+         blake3_hasher ctx;
          unsigned char hash[BLAKE3_KEY_LEN];
          _mesa_sha1_init(&ctx);
          _mesa_sha1_update(&ctx, info->nir->info.source_blake3, BLAKE3_OUT_LEN);

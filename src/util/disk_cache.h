@@ -104,7 +104,7 @@ disk_cache_get_function_timestamp(void *ptr, uint32_t* timestamp)
 }
 
 static inline bool
-disk_cache_get_function_identifier(void *ptr, struct mesa_sha1 *ctx)
+disk_cache_get_function_identifier(void *ptr, blake3_hasher *ctx)
 {
    uint32_t timestamp;
 
@@ -122,10 +122,10 @@ disk_cache_get_function_identifier(void *ptr, struct mesa_sha1 *ctx)
 }
 #elif DETECT_OS_WINDOWS
 bool
-disk_cache_get_function_identifier(void *ptr, struct mesa_sha1 *ctx);
+disk_cache_get_function_identifier(void *ptr, blake3_hasher *ctx);
 #else
 static inline bool
-disk_cache_get_function_identifier(void *ptr, struct mesa_sha1 *ctx)
+disk_cache_get_function_identifier(void *ptr, blake3_hasher *ctx)
 {
    return false;
 }

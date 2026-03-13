@@ -797,7 +797,7 @@ intel_perf_store_configuration(struct intel_perf_config *perf_cfg, int fd,
    if (guid)
       return kmd_add_config(perf_cfg, fd, config, guid);
 
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    _mesa_sha1_init(&sha1_ctx);
 
    if (config->flex_regs) {

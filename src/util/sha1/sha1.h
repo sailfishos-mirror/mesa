@@ -18,26 +18,22 @@
 extern "C" {
 #endif
 
-typedef struct _SHA1_CTX {
-    blake3_hasher hasher;
-} SHA1_CTX;
-
 static inline void
-SHA1Init(SHA1_CTX *context)
+SHA1Init(blake3_hasher *context)
 {
-    _mesa_blake3_init(&context->hasher);
+    _mesa_blake3_init(context);
 }
 
 static inline void
-SHA1Update(SHA1_CTX *context, const uint8_t *data, size_t len)
+SHA1Update(blake3_hasher *context, const uint8_t *data, size_t len)
 {
-    _mesa_blake3_update(&context->hasher, data, len);
+    _mesa_blake3_update(context, data, len);
 }
 
 static inline void
-SHA1Final(uint8_t digest[BLAKE3_KEY_LEN], SHA1_CTX *context)
+SHA1Final(uint8_t digest[BLAKE3_KEY_LEN], blake3_hasher *context)
 {
-    _mesa_blake3_final(&context->hasher, digest);
+    _mesa_blake3_final(context, digest);
 }
 
 #ifdef __cplusplus

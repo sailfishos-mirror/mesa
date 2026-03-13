@@ -1734,7 +1734,7 @@ d3d12_init_screen(struct d3d12_screen *screen, IUnknown *adapter)
 #endif
 
    const char *mesa_version = "Mesa " PACKAGE_VERSION MESA_GIT_SHA1;
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
    STATIC_ASSERT(PIPE_UUID_SIZE <= sizeof(sha1));
 

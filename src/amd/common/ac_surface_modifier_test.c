@@ -117,7 +117,7 @@ static void gfx9_generate_hash(struct ac_addrlib *ac_addrlib,
    ADDR_HANDLE addrlib = ac_addrlib_get_handle(ac_addrlib);
 
    srandom(53);
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
 
    _mesa_sha1_update(&ctx, &surf->total_size, sizeof(surf->total_size));
@@ -207,7 +207,7 @@ static void gfx12_generate_hash(struct ac_addrlib *ac_addrlib,
    ADDR_HANDLE addrlib = ac_addrlib_get_handle(ac_addrlib);
 
    srandom(53);
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
 
    _mesa_sha1_update(&ctx, &surf->total_size, sizeof(surf->total_size));

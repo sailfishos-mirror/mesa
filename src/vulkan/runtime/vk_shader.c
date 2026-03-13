@@ -354,7 +354,7 @@ vk_shader_serialize(struct vk_device *device,
    if (blob->data != NULL) {
       assert(sizeof(header) <= blob->size);
 
-      struct mesa_sha1 sha1_ctx;
+      blake3_hasher sha1_ctx;
       _mesa_sha1_init(&sha1_ctx);
 
       /* Hash the header with a zero SHA1 */
@@ -427,7 +427,7 @@ vk_shader_deserialize(struct vk_device *device,
    assert(blob.current == (uint8_t *)data + sizeof(header));
    blob.end = (uint8_t *)data + data_size;
 
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    _mesa_sha1_init(&sha1_ctx);
 
    /* Hash the header with a zero SHA1 */

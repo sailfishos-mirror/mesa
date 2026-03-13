@@ -1301,7 +1301,7 @@ brw_device_sha1(char *hex, const struct intel_device_info *devinfo);
  * sha1_ctx.
  */
 void
-brw_device_sha1_update(struct mesa_sha1 *sha1_ctx,
+brw_device_sha1_update(blake3_hasher *sha1_ctx,
                        const struct intel_device_info *devinfo);
 
 unsigned

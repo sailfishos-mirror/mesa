@@ -279,7 +279,7 @@ v3dv_descriptor_map_get_texture_shader_state(struct v3dv_device *device,
 #define SHA1_UPDATE_VALUE(ctx, x) _mesa_sha1_update(ctx, &(x), sizeof(x));
 
 static void
-sha1_update_ycbcr_conversion(struct mesa_sha1 *ctx,
+sha1_update_ycbcr_conversion(blake3_hasher *ctx,
                              const struct vk_ycbcr_conversion_state *conversion)
 {
    SHA1_UPDATE_VALUE(ctx, conversion->format);
@@ -291,7 +291,7 @@ sha1_update_ycbcr_conversion(struct mesa_sha1 *ctx,
 }
 
 static void
-sha1_update_descriptor_set_binding_layout(struct mesa_sha1 *ctx,
+sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
                                           const struct v3dv_descriptor_set_binding_layout *layout,
                                           const struct v3dv_descriptor_set_layout *set_layout)
 {
@@ -317,7 +317,7 @@ sha1_update_descriptor_set_binding_layout(struct mesa_sha1 *ctx,
 }
 
 static void
-sha1_update_descriptor_set_layout(struct mesa_sha1 *ctx,
+sha1_update_descriptor_set_layout(blake3_hasher *ctx,
                                   const struct v3dv_descriptor_set_layout *layout)
 {
    SHA1_UPDATE_VALUE(ctx, layout->flags);
@@ -384,7 +384,7 @@ v3dv_CreatePipelineLayout(VkDevice _device,
 
    layout->dynamic_offset_count = dynamic_offset_count;
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
    for (unsigned s = 0; s < layout->num_sets; s++) {
       sha1_update_descriptor_set_layout(&ctx, layout->set[s].layout);

@@ -371,7 +371,7 @@ anv_pipeline_hash_graphics(struct anv_graphics_pipeline *pipeline,
                            struct anv_pipeline_stage *stages,
                            unsigned char *sha1_out)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
 
    _mesa_sha1_update(&ctx, &pipeline->view_mask,
@@ -397,7 +397,7 @@ anv_pipeline_hash_compute(struct anv_compute_pipeline *pipeline,
                           struct anv_pipeline_stage *stage,
                           unsigned char *sha1_out)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
 
    if (layout)

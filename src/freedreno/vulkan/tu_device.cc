@@ -55,7 +55,7 @@ uint64_t os_page_size = 4096;
 static int
 tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    unsigned char sha1[BLAKE3_KEY_LEN];
    /* Note: IR3_SHADER_DEBUG also affects compilation, but it's not
     * initialized until after compiler creation so we have to add it to the
@@ -1496,7 +1496,7 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->identicalMemoryTypeRequirements = true;
 
    {
-      struct mesa_sha1 sha1_ctx;
+      blake3_hasher sha1_ctx;
       uint8_t sha1[BLAKE3_KEY_LEN];
 
       _mesa_sha1_init(&sha1_ctx);

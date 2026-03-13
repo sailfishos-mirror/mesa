@@ -347,7 +347,7 @@ adjust_var_bindings(nir_shader *shader,
                     uint8_t *bindings_hash)
 {
    uint32_t modes = nir_var_image | nir_var_uniform | nir_var_mem_ubo | nir_var_mem_ssbo;
-   struct mesa_sha1 bindings_hash_ctx;
+   blake3_hasher bindings_hash_ctx;
 
    if (bindings_hash)
       _mesa_sha1_init(&bindings_hash_ctx);
@@ -738,7 +738,7 @@ dzn_graphics_pipeline_hash_attribs(D3D12_INPUT_ELEMENT_DESC *attribs,
                                    enum pipe_format *vi_conversions,
                                    uint8_t *result)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, attribs, sizeof(*attribs) * MAX_VERTEX_GENERIC_ATTRIBS);
@@ -845,7 +845,7 @@ dzn_graphics_pipeline_compile_shaders(struct dzn_device *device,
    if (cache) {
       dzn_graphics_pipeline_hash_attribs(attribs, vi_conversions, attribs_hash);
 
-      struct mesa_sha1 pipeline_hash_ctx;
+      blake3_hasher pipeline_hash_ctx;
 
       _mesa_sha1_init(&pipeline_hash_ctx);
       _mesa_sha1_update(&pipeline_hash_ctx, &device->bindless, sizeof(device->bindless));
@@ -886,7 +886,7 @@ dzn_graphics_pipeline_compile_shaders(struct dzn_device *device,
    dxil_get_nir_compiler_options(&nir_opts, dzn_get_shader_model(pdev), supported_bit_sizes, supported_bit_sizes);
    nir_opts.lower_base_vertex = true;
    u_foreach_bit(stage, active_stage_mask) {
-      struct mesa_sha1 nir_hash_ctx;
+      blake3_hasher nir_hash_ctx;
 
       if (cache) {
          _mesa_sha1_init(&nir_hash_ctx);
@@ -1011,7 +1011,7 @@ dzn_graphics_pipeline_compile_shaders(struct dzn_device *device,
                  cache ? bindings_hash : NULL);
 
       if (cache) {
-         struct mesa_sha1 dxil_hash_ctx;
+         blake3_hasher dxil_hash_ctx;
 
          _mesa_sha1_init(&dxil_hash_ctx);
          _mesa_sha1_update(&dxil_hash_ctx, stages[stage].nir_hash, sizeof(stages[stage].nir_hash));
@@ -2496,7 +2496,7 @@ dzn_compute_pipeline_compile_shader(struct dzn_device *device,
    nir_shader *nir = NULL;
 
    if (cache) {
-      struct mesa_sha1 pipeline_hash_ctx;
+      blake3_hasher pipeline_hash_ctx;
 
       _mesa_sha1_init(&pipeline_hash_ctx);
       vk_pipeline_hash_shader_stage(pipeline->base.flags, &info->stage, NULL, spirv_hash);
@@ -2515,7 +2515,7 @@ dzn_compute_pipeline_compile_shader(struct dzn_device *device,
    }
 
    if (cache) {
-      struct mesa_sha1 nir_hash_ctx;
+      blake3_hasher nir_hash_ctx;
       _mesa_sha1_init(&nir_hash_ctx);
       _mesa_sha1_update(&nir_hash_ctx, &device->bindless, sizeof(device->bindless));
       _mesa_sha1_update(&nir_hash_ctx, spirv_hash, sizeof(spirv_hash));
@@ -2540,7 +2540,7 @@ dzn_compute_pipeline_compile_shader(struct dzn_device *device,
    NIR_PASS(_, nir, adjust_var_bindings, device, layout, cache ? bindings_hash : NULL);
 
    if (cache) {
-      struct mesa_sha1 dxil_hash_ctx;
+      blake3_hasher dxil_hash_ctx;
 
       _mesa_sha1_init(&dxil_hash_ctx);
       _mesa_sha1_update(&dxil_hash_ctx, nir_hash, sizeof(nir_hash));

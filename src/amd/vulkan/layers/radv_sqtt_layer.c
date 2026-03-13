@@ -1594,7 +1594,7 @@ radv_add_rt_record(struct radv_device *device, struct rgp_code_object *code_obje
 static void
 compute_unique_rt_sha(uint64_t pipeline_hash, unsigned index, unsigned char sha1[BLAKE3_KEY_LEN])
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, &pipeline_hash, sizeof(pipeline_hash));
    _mesa_sha1_update(&ctx, &index, sizeof(index));

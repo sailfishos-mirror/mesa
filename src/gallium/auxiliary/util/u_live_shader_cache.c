@@ -98,7 +98,7 @@ util_live_shader_cache_get(struct pipe_context *ctx,
    }
 
    /* Compute SHA1 of pipe_shader_state. */
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    unsigned char sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_init(&sha1_ctx);
    _mesa_sha1_update(&sha1_ctx, ir_binary, ir_size);

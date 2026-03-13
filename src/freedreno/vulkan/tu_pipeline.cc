@@ -1525,7 +1525,7 @@ tu_append_executable(struct tu_pipeline *pipeline,
 }
 
 static void
-tu_hash_stage(struct mesa_sha1 *ctx,
+tu_hash_stage(blake3_hasher *ctx,
               VkPipelineCreateFlags2KHR pipeline_flags,
               const VkPipelineShaderStageCreateInfo *stage,
               const nir_shader *nir,
@@ -1555,7 +1555,7 @@ tu_hash_shaders(unsigned char *hash,
                 const struct tu_shader_key *keys,
                 VkGraphicsPipelineLibraryFlagsEXT state)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
 
@@ -1580,7 +1580,7 @@ tu_hash_compute(unsigned char *hash,
                 const struct tu_pipeline_layout *layout,
                 const struct tu_shader_key *key)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
 

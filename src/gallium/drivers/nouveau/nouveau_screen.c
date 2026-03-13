@@ -175,7 +175,7 @@ nouveau_screen_bo_get_handle(struct pipe_screen *pscreen,
 static void
 nouveau_disk_cache_create(struct nouveau_screen *screen)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    unsigned char sha1[BLAKE3_KEY_LEN];
    char cache_id[BLAKE3_HEX_LEN];
    uint64_t driver_flags = 0;
@@ -275,7 +275,7 @@ static void
 nouveau_driver_uuid(struct pipe_screen *screen, char *uuid)
 {
    const char* driver = PACKAGE_VERSION MESA_GIT_SHA1;
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
 
    _mesa_sha1_init(&sha1_ctx);

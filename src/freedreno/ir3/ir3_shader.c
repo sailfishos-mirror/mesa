@@ -399,7 +399,7 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
 
    unsigned char sha1[BLAKE3_KEY_LEN + 1];
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, v->bin, v->info.size);

@@ -736,7 +736,7 @@ kk_physical_device_init_pipeline_cache(struct kk_physical_device *pdev)
 {
    struct kk_instance *instance = kk_physical_device_instance(pdev);
 
-   struct mesa_sha1 sha_ctx;
+   blake3_hasher sha_ctx;
    _mesa_sha1_init(&sha_ctx);
 
    _mesa_sha1_update(&sha_ctx, instance->driver_build_sha,

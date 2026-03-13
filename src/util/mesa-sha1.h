@@ -32,24 +32,23 @@
 extern "C" {
 #endif
 
-#define mesa_sha1 _SHA1_CTX
 #define BLAKE3_KEY_LEN32 (BLAKE3_KEY_LEN / 4)
 
 static inline void
-_mesa_sha1_init(struct mesa_sha1 *ctx)
+_mesa_sha1_init(blake3_hasher *ctx)
 {
    SHA1Init(ctx);
 }
 
 static inline void
-_mesa_sha1_update(struct mesa_sha1 *ctx, const void *data, size_t size)
+_mesa_sha1_update(blake3_hasher *ctx, const void *data, size_t size)
 {
    if (size)
       SHA1Update(ctx, (const unsigned char *)data, size);
 }
 
 static inline void
-_mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[BLAKE3_KEY_LEN])
+_mesa_sha1_final(blake3_hasher *ctx, unsigned char result[BLAKE3_KEY_LEN])
 {
    SHA1Final(result, ctx);
 }

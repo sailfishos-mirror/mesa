@@ -753,7 +753,7 @@ static void r600_disk_cache_create(struct r600_common_screen *rscreen)
 	if (rscreen->debug_flags & DBG_ALL_SHADERS)
 		return;
 
-	struct mesa_sha1 ctx;
+	blake3_hasher ctx;
 	unsigned char sha1[BLAKE3_KEY_LEN];
 	char cache_id[BLAKE3_HEX_LEN];
 
@@ -934,7 +934,7 @@ static void r600_get_driver_uuid(UNUSED struct pipe_screen *screen, char *uuid)
 	 * OpenGL driver. People who want to share memory need to also check
 	 * the device UUID.
 	 */
-	struct mesa_sha1 sha1_ctx;
+	blake3_hasher sha1_ctx;
 	_mesa_sha1_init(&sha1_ctx);
 
 	_mesa_sha1_update(&sha1_ctx, driver_id, strlen(driver_id));

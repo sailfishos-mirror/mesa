@@ -42,7 +42,7 @@ ir3_disk_cache_init(struct ir3_compiler *compiler)
    const uint8_t *id_sha1 = build_id_data(note);
    assert(id_sha1);
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, id_sha1, build_id_len);
@@ -64,7 +64,7 @@ ir3_disk_cache_init_shader_key(struct ir3_compiler *compiler,
    if (!compiler->disk_cache && !ir3_shader_bisect_need_shader_key())
       return;
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
 

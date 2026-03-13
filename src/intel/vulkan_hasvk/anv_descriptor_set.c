@@ -701,7 +701,7 @@ void anv_DestroyDescriptorSetLayout(
 #define SHA1_UPDATE_VALUE(ctx, x) _mesa_sha1_update(ctx, &(x), sizeof(x));
 
 static void
-sha1_update_immutable_sampler(struct mesa_sha1 *ctx,
+sha1_update_immutable_sampler(blake3_hasher *ctx,
                               const struct anv_sampler *sampler)
 {
    if (!sampler->conversion)
@@ -713,7 +713,7 @@ sha1_update_immutable_sampler(struct mesa_sha1 *ctx,
 }
 
 static void
-sha1_update_descriptor_set_binding_layout(struct mesa_sha1 *ctx,
+sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
    const struct anv_descriptor_set_binding_layout *layout)
 {
    SHA1_UPDATE_VALUE(ctx, layout->flags);
@@ -732,7 +732,7 @@ sha1_update_descriptor_set_binding_layout(struct mesa_sha1 *ctx,
 }
 
 static void
-sha1_update_descriptor_set_layout(struct mesa_sha1 *ctx,
+sha1_update_descriptor_set_layout(blake3_hasher *ctx,
                                   const struct anv_descriptor_set_layout *layout)
 {
    SHA1_UPDATE_VALUE(ctx, layout->binding_count);
@@ -782,7 +782,7 @@ VkResult anv_CreatePipelineLayout(
    }
    assert(dynamic_offset_count < MAX_DYNAMIC_BUFFERS);
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
    for (unsigned s = 0; s < layout->num_sets; s++) {
       sha1_update_descriptor_set_layout(&ctx, layout->set[s].layout);

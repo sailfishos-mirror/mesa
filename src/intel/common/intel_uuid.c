@@ -75,7 +75,7 @@ intel_uuid_compute_driver_id(uint8_t *uuid,
                              size_t size)
 {
    const char* intelDriver = PACKAGE_VERSION MESA_GIT_SHA1;
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
 
    assert(size <= sizeof(sha1));

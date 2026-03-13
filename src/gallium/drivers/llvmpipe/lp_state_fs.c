@@ -3804,7 +3804,7 @@ lp_fs_get_ir_cache_key(struct lp_fragment_shader_variant *variant,
    ir_binary = blob.data;
    ir_size = blob.size;
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, &variant->key, variant->shader->variant_key_size);
    _mesa_sha1_update(&ctx, ir_binary, ir_size);

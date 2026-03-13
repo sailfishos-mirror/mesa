@@ -374,7 +374,7 @@ compile_image_function(struct llvmpipe_context *ctx, struct lp_static_texture_st
          return NULL;
 
    uint8_t cache_key[BLAKE3_KEY_LEN];
-   struct mesa_sha1 hash_ctx;
+   blake3_hasher hash_ctx;
    _mesa_sha1_init(&hash_ctx);
    _mesa_sha1_update(&hash_ctx, image_function_base_hash, strlen(image_function_base_hash));
    _mesa_sha1_update(&hash_ctx, &local_texture, sizeof(local_texture));
@@ -531,7 +531,7 @@ compile_sample_function(struct llvmpipe_context *ctx, struct lp_texture_handle_s
    }
 
    uint8_t cache_key[BLAKE3_KEY_LEN];
-   struct mesa_sha1 hash_ctx;
+   blake3_hasher hash_ctx;
    _mesa_sha1_init(&hash_ctx);
    _mesa_sha1_update(&hash_ctx, sample_function_base_hash, strlen(sample_function_base_hash));
    _mesa_sha1_update(&hash_ctx, texture, sizeof(*texture));
@@ -642,7 +642,7 @@ static void *
 compile_size_function(struct llvmpipe_context *ctx, struct lp_texture_handle_state *texture, bool samples)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
-   struct mesa_sha1 hash_ctx;
+   blake3_hasher hash_ctx;
    _mesa_sha1_init(&hash_ctx);
    _mesa_sha1_update(&hash_ctx, size_function_base_hash, strlen(size_function_base_hash));
    _mesa_sha1_update(&hash_ctx, texture, sizeof(*texture));
@@ -869,7 +869,7 @@ static void *
 compile_jit_sample_function(struct llvmpipe_context *ctx, uint32_t sample_key)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
-   struct mesa_sha1 hash_ctx;
+   blake3_hasher hash_ctx;
    _mesa_sha1_init(&hash_ctx);
    _mesa_sha1_update(&hash_ctx, jit_sample_function_base_hash, strlen(jit_sample_function_base_hash));
    _mesa_sha1_update(&hash_ctx, &sample_key, sizeof(sample_key));
@@ -990,7 +990,7 @@ static void *
 compile_jit_fetch_function(struct llvmpipe_context *ctx, uint32_t sample_key)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
-   struct mesa_sha1 hash_ctx;
+   blake3_hasher hash_ctx;
    _mesa_sha1_init(&hash_ctx);
    _mesa_sha1_update(&hash_ctx, jit_fetch_function_base_hash, strlen(jit_fetch_function_base_hash));
    _mesa_sha1_update(&hash_ctx, &sample_key, sizeof(sample_key));
@@ -1109,7 +1109,7 @@ static void *
 compile_jit_size_function(struct llvmpipe_context *ctx, bool samples)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
-   struct mesa_sha1 hash_ctx;
+   blake3_hasher hash_ctx;
    _mesa_sha1_init(&hash_ctx);
    _mesa_sha1_update(&hash_ctx, jit_size_function_base_hash, strlen(jit_size_function_base_hash));
    _mesa_sha1_update(&hash_ctx, &samples, sizeof(samples));

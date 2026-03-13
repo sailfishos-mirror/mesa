@@ -161,7 +161,7 @@ radv_compute_pipeline_hash(const struct radv_device *device, const VkComputePipe
    VkPipelineCreateFlags2 create_flags = vk_compute_pipeline_create_flags(pCreateInfo);
    VK_FROM_HANDLE(radv_pipeline_layout, pipeline_layout, pCreateInfo->layout);
    const VkPipelineShaderStageCreateInfo *sinfo = &pCreateInfo->stage;
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    struct radv_shader_stage_key stage_key =
       radv_pipeline_get_shader_key(device, sinfo, create_flags, pCreateInfo->pNext);

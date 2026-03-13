@@ -124,7 +124,7 @@ radv_create_group_handles(struct radv_device *device, const VkRayTracingPipeline
 
          if (group_info->intersectionShader != VK_SHADER_UNUSED_KHR) {
             unsigned char sha1[BLAKE3_KEY_LEN];
-            struct mesa_sha1 ctx;
+            blake3_hasher ctx;
 
             _mesa_sha1_init(&ctx);
             _mesa_sha1_update(&ctx, stages[group_info->intersectionShader].sha1, BLAKE3_KEY_LEN);
@@ -318,7 +318,7 @@ radv_init_rt_stage_hashes(const struct radv_device *device, VkPipelineCreateFlag
       for (uint32_t idx = 0; idx < pCreateInfo->stageCount; idx++) {
          const VkPipelineShaderStageCreateInfo *sinfo = &pCreateInfo->pStages[idx];
          mesa_shader_stage s = vk_to_mesa_shader_stage(sinfo->stage);
-         struct mesa_sha1 ctx;
+         blake3_hasher ctx;
 
          _mesa_sha1_init(&ctx);
          radv_pipeline_hash_shader_stage(pipeline_flags, sinfo, &stage_keys[s], &ctx);
@@ -1076,7 +1076,7 @@ radv_ray_tracing_pipeline_hash(const struct radv_device *device, const VkRayTrac
                                const struct radv_ray_tracing_state_key *rt_state, unsigned char *hash)
 {
    VK_FROM_HANDLE(radv_pipeline_layout, layout, pCreateInfo->layout);
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
    radv_pipeline_hash(device, layout, &ctx);

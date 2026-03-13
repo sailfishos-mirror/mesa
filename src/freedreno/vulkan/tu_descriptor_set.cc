@@ -454,7 +454,7 @@ tu_GetDescriptorSetLayoutBindingOffsetEXT(
 #define SHA1_UPDATE_VALUE(ctx, x) _mesa_sha1_update(ctx, &(x), sizeof(x));
 
 static void
-sha1_update_ycbcr_sampler(struct mesa_sha1 *ctx,
+sha1_update_ycbcr_sampler(blake3_hasher *ctx,
                           const struct vk_ycbcr_conversion_state *sampler)
 {
    SHA1_UPDATE_VALUE(ctx, sampler->ycbcr_model);
@@ -463,7 +463,7 @@ sha1_update_ycbcr_sampler(struct mesa_sha1 *ctx,
 }
 
 static void
-sha1_update_descriptor_set_binding_layout(struct mesa_sha1 *ctx,
+sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
    const struct tu_descriptor_set_binding_layout *layout,
    const struct tu_descriptor_set_layout *set_layout)
 {
@@ -498,7 +498,7 @@ sha1_update_descriptor_set_binding_layout(struct mesa_sha1 *ctx,
 
 
 static void
-sha1_update_descriptor_set_layout(struct mesa_sha1 *ctx,
+sha1_update_descriptor_set_layout(blake3_hasher *ctx,
                                   const struct tu_descriptor_set_layout *layout)
 {
    SHA1_UPDATE_VALUE(ctx, layout->has_variable_descriptors);
@@ -516,7 +516,7 @@ sha1_update_descriptor_set_layout(struct mesa_sha1 *ctx,
 void
 tu_pipeline_layout_init(struct tu_pipeline_layout *layout)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
    for (unsigned s = 0; s < layout->num_sets; s++) {
       if (layout->set[s].layout)

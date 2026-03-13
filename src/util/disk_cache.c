@@ -684,7 +684,7 @@ void
 disk_cache_compute_key(struct disk_cache *cache, const void *data, size_t size,
                        cache_key key)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, cache->driver_keys_blob,

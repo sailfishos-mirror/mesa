@@ -1323,7 +1323,7 @@ nvk_physical_device_init_pipeline_cache(struct nvk_physical_device *pdev)
 {
    const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
 
-   struct mesa_sha1 sha_ctx;
+   blake3_hasher sha_ctx;
    _mesa_sha1_init(&sha_ctx);
 
    _mesa_sha1_update(&sha_ctx, instance->driver_build_sha,

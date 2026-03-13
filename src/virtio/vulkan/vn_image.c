@@ -92,7 +92,7 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
                             const VkImageCreateInfo *create_info,
                             uint8_t *key)
 {
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
 
    if (!dev->image_reqs_cache.ht)
       return false;

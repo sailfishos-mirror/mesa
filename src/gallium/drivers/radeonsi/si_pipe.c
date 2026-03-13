@@ -1181,7 +1181,7 @@ static void si_disk_cache_create(struct si_screen *sscreen)
    if (sscreen->shader_debug_flags & DBG_ALL_SHADERS)
       return;
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    unsigned char sha1[BLAKE3_KEY_LEN];
    char cache_id[BLAKE3_HEX_LEN];
 

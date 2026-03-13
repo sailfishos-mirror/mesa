@@ -43,7 +43,7 @@
 #include <windows.h>
 
 bool
-disk_cache_get_function_identifier(void *ptr, struct mesa_sha1 *ctx)
+disk_cache_get_function_identifier(void *ptr, blake3_hasher *ctx)
 {
    HMODULE mod = NULL;
    GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,

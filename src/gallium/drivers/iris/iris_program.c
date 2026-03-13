@@ -1817,7 +1817,7 @@ iris_debug_archiver_open(void *tmp_ctx, struct iris_screen *screen,
 
    char name[BLAKE3_HEX_LEN + 5] = {};
    {
-      struct mesa_sha1 ctx;
+      blake3_hasher ctx;
       unsigned char hash[BLAKE3_KEY_LEN];
 
       _mesa_sha1_init(&ctx);

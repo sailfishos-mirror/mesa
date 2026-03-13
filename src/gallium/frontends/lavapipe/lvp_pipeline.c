@@ -1282,7 +1282,7 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
       size_t size = pCreateInfo->codeSize - BLAKE3_KEY_LEN - VK_UUID_SIZE;
       unsigned char sha1[BLAKE3_KEY_LEN];
 
-      struct mesa_sha1 sctx;
+      blake3_hasher sctx;
       _mesa_sha1_init(&sctx);
       _mesa_sha1_update(&sctx, data + BLAKE3_KEY_LEN + VK_UUID_SIZE, size);
       _mesa_sha1_final(&sctx, sha1);
@@ -1381,7 +1381,7 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_GetShaderBinaryDataEXT(
          *pDataSize = MIN2(*pDataSize, shader->blob.size + BLAKE3_KEY_LEN + VK_UUID_SIZE);
          uint8_t *data = pData;
          lvp_device_get_cache_uuid(data);
-         struct mesa_sha1 sctx;
+         blake3_hasher sctx;
          _mesa_sha1_init(&sctx);
          _mesa_sha1_update(&sctx, shader->blob.data, shader->blob.size);
          _mesa_sha1_final(&sctx, data + VK_UUID_SIZE);

@@ -1517,7 +1517,7 @@ pipeline_hash_graphics(const struct v3dv_pipeline *pipeline,
                        struct v3dv_pipeline_key *key,
                        unsigned char *sha1_out)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
 
    if (pipeline->layout) {
@@ -1552,7 +1552,7 @@ pipeline_hash_compute(const struct v3dv_pipeline *pipeline,
                       struct v3dv_pipeline_key *key,
                       unsigned char *sha1_out)
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
 
    if (pipeline->layout) {

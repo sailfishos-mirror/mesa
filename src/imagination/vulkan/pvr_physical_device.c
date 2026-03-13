@@ -881,7 +881,7 @@ pvr_get_device_uuid(const struct pvr_device_info *dev_info,
 {
    uint64_t bvnc = pvr_get_packed_bvnc(dev_info);
    static const char *device_str = "pvr";
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
 
    _mesa_sha1_init(&sha1_ctx);
    _mesa_sha1_update(&sha1_ctx, device_str, strlen(device_str));
@@ -895,7 +895,7 @@ pvr_get_cache_uuid(const struct pvr_physical_device *const pdevice,
 {
    const struct pvr_instance *instance = pdevice->instance;
    static const char *cache_str = "cache";
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
 
    _mesa_sha1_init(&sha1_ctx);
    _mesa_sha1_update(&sha1_ctx, cache_str, strlen(cache_str));

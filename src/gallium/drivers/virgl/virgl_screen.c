@@ -901,7 +901,7 @@ static struct disk_cache *virgl_get_disk_shader_cache (struct pipe_screen *pscre
 
 static void virgl_disk_cache_create(struct virgl_screen *screen)
 {
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    _mesa_sha1_init(&sha1_ctx);
 
 #if HAVE_BUILD_ID

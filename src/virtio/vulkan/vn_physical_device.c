@@ -472,7 +472,7 @@ static void
 vn_physical_device_init_uuids(struct vn_physical_device *physical_dev)
 {
    struct vk_properties *props = &physical_dev->base.vk.properties;
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
 
    static_assert(VK_UUID_SIZE <= BLAKE3_KEY_LEN, "");
@@ -2370,7 +2370,7 @@ vn_image_get_image_format_key(
    const VkImageFormatProperties2 *format_props,
    uint8_t *key)
 {
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
 
    if (!physical_dev->image_format_cache.ht)
       return false;

@@ -144,7 +144,7 @@ static void
 init_shader_caches(struct panvk_physical_device *device,
                    const struct panvk_instance *instance)
 {
-   struct mesa_sha1 sha_ctx;
+   blake3_hasher sha_ctx;
    _mesa_sha1_init(&sha_ctx);
 
    _mesa_sha1_update(&sha_ctx, instance->driver_build_sha,

@@ -974,7 +974,7 @@ cache_hash(const void *_key, uint32_t key_size)
 {
         const struct v3d_cache_key *key = (struct v3d_cache_key *) _key;
 
-        struct mesa_sha1 ctx;
+        blake3_hasher ctx;
         unsigned char sha1[BLAKE3_KEY_LEN];
         _mesa_sha1_init(&ctx);
         _mesa_sha1_update(&ctx, key->key, key_size);

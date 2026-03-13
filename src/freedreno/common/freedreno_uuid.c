@@ -27,7 +27,7 @@ fd_get_driver_uuid(void *uuid)
     * driver. People who want to share memory need to also check the device
     * UUID.
     */
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    _mesa_sha1_init(&sha1_ctx);
 
    _mesa_sha1_update(&sha1_ctx, driver_id, strlen(driver_id));
@@ -42,7 +42,7 @@ fd_get_driver_uuid(void *uuid)
 void
 fd_get_device_uuid(void *uuid, const struct fd_dev_id *id)
 {
-   struct mesa_sha1 sha1_ctx;
+   blake3_hasher sha1_ctx;
    _mesa_sha1_init(&sha1_ctx);
 
    /* The device UUID uniquely identifies the given device within the machine.

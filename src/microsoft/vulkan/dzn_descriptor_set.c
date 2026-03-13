@@ -592,7 +592,7 @@ dzn_pipeline_layout_hash_stages(struct dzn_pipeline_layout *layout,
       if (!(stages & BITFIELD_BIT(stage)))
          continue;
 
-      struct mesa_sha1 ctx;
+      blake3_hasher ctx;
 
       _mesa_sha1_init(&ctx);
       for (uint32_t set = 0; set < info->setLayoutCount; set++) {

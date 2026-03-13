@@ -282,7 +282,7 @@ brw_get_compiler_config_value(const struct brw_compiler *compiler)
 void
 brw_device_sha1(char *hex,
                 const struct intel_device_info *devinfo) {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
    _mesa_sha1_init(&ctx);
    brw_device_sha1_update(&ctx, devinfo);
    unsigned char result[BLAKE3_KEY_LEN];

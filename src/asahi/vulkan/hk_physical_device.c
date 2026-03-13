@@ -1089,7 +1089,7 @@ hk_get_device_properties(const struct agx_device *dev,
    properties->identicalMemoryTypeRequirements = true;
 
    {
-      struct mesa_sha1 sha1_ctx;
+      blake3_hasher sha1_ctx;
       uint8_t sha1[BLAKE3_KEY_LEN];
 
       _mesa_sha1_init(&sha1_ctx);
@@ -1107,7 +1107,7 @@ hk_physical_device_init_pipeline_cache(struct hk_physical_device *pdev)
 {
    struct hk_instance *instance = hk_physical_device_instance(pdev);
 
-   struct mesa_sha1 sha_ctx;
+   blake3_hasher sha_ctx;
    _mesa_sha1_init(&sha_ctx);
 
    _mesa_sha1_update(&sha_ctx, instance->driver_build_sha,

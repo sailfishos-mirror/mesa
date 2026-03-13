@@ -122,7 +122,7 @@ open_clc_data(struct clc_data *clc, unsigned ptr_bit_size)
          return false;
       }
 
-      struct mesa_sha1 ctx;
+      blake3_hasher ctx;
       _mesa_sha1_init(&ctx);
       _mesa_sha1_update(&ctx, clc->file->sys_path, strlen(clc->file->sys_path));
 #if defined(__APPLE__) || defined(__MACOSX)

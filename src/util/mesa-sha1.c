@@ -33,7 +33,7 @@
 void
 _mesa_sha1_compute(const void *data, size_t size, unsigned char result[BLAKE3_KEY_LEN])
 {
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, data, size);

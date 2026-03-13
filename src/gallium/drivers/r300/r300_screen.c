@@ -79,7 +79,7 @@ static const char* r300_get_name(struct pipe_screen* pscreen)
 
 static void r300_disk_cache_create(struct r300_screen* r300screen)
 {
-    struct mesa_sha1 ctx;
+    blake3_hasher ctx;
     unsigned char sha1[BLAKE3_KEY_LEN];
     char cache_id[BLAKE3_HEX_LEN];
 

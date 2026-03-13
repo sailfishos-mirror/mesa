@@ -56,7 +56,7 @@ etna_disk_cache_init_shader_key(struct etna_compiler *compiler, struct etna_shad
    if (!compiler->disk_cache)
       return;
 
-   struct mesa_sha1 ctx;
+   blake3_hasher ctx;
 
    _mesa_sha1_init(&ctx);
 
