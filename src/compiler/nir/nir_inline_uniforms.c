@@ -252,8 +252,8 @@ add_inlinable_uniforms(const nir_src *cond, nir_loop_info *info,
                        uint32_t *uni_offsets, uint8_t *num_uniforms,
                        unsigned max_num_bo, unsigned max_offset)
 {
-   uint8_t new_num[MAX_NUM_BO];
-   memcpy(new_num, num_uniforms, sizeof(new_num));
+   uint8_t new_num_uniforms[MAX_NUM_BO];
+   memcpy(new_num_uniforms, num_uniforms, sizeof(new_num_uniforms));
 
    /* If condition SSA is always scalar, so component is 0. */
    unsigned component = 0;
@@ -276,7 +276,7 @@ add_inlinable_uniforms(const nir_src *cond, nir_loop_info *info,
           */
          for (int i = 0; i < 2; i++) {
             if (is_induction_variable(&alu->src[i].src, alu->src[i].swizzle[0],
-                                      info, uni_offsets, new_num,
+                                      info, uni_offsets, new_num_uniforms,
                                       max_num_bo, max_offset)) {
                cond = &alu->src[1 - i].src;
                component = alu->src[1 - i].swizzle[0];
@@ -306,9 +306,10 @@ add_inlinable_uniforms(const nir_src *cond, nir_loop_info *info,
     * unless uniform0, uniform1 and uniform2 can be inlined at once,
     * can the loop be unrolled.
     */
-   if (collect_src_uniforms(cond, component, uni_offsets, new_num,
+   if (collect_src_uniforms(cond, component, uni_offsets, new_num_uniforms,
                             max_num_bo, max_offset))
-      memcpy(num_uniforms, new_num, sizeof(new_num[0]) * max_num_bo);
+      memcpy(num_uniforms, new_num_uniforms,
+             sizeof(new_num_uniforms[0]) * max_num_bo);
 }
 
 static void
