@@ -603,12 +603,7 @@ static nir_def *
 load_descriptor_set_addr(nir_builder *b, uint32_t set,
                          UNUSED const struct lower_descriptors_ctx *ctx)
 {
-   uint32_t set_addr_offset = nvk_root_descriptor_offset(sets) +
-      set * sizeof(struct nvk_buffer_address);
-
-   return nir_ldc_nv(b, 1, 64, nir_imm_int(b, 0),
-                     nir_imm_int(b, set_addr_offset),
-                     .align_mul = 8, .align_offset = 0);
+   return load_root_table(b, 1, 64, sets[set], ctx);
 }
 
 static nir_def *
@@ -628,12 +623,8 @@ load_dynamic_buffer_start(nir_builder *b, uint32_t set,
    if (dynamic_buffer_start_imm >= 0) {
       return nir_imm_int(b, dynamic_buffer_start_imm);
    } else {
-      uint32_t root_offset =
-         nvk_root_descriptor_offset(set_dynamic_buffer_start) + set;
-
-      return nir_u2u32(b, nir_ldc_nv(b, 1, 8, nir_imm_int(b, 0),
-                                     nir_imm_int(b, root_offset),
-                                     .align_mul = 1, .align_offset = 0));
+      return nir_u2u32(b, load_root_table(b, 1, 8,
+                                          set_dynamic_buffer_start[set], ctx));
    }
 }
 
@@ -864,7 +855,7 @@ get_resource_deref_binding(nir_builder *b, nir_deref_instr *deref,
 }
 
 static nir_def *
-load_resource_deref_desc(nir_builder *b, 
+load_resource_deref_desc(nir_builder *b,
                          unsigned num_components, unsigned bit_size,
                          nir_deref_instr *deref, unsigned offset_B,
                          const struct lower_descriptors_ctx *ctx)
