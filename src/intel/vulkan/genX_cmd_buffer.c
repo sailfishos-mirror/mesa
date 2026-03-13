@@ -6413,6 +6413,14 @@ void genX(CmdBeginRendering)(
       }
    }
 
+   anv_cmd_graphic_state_update_has_uint_rt(gfx);
+
+   /* Finally, now that we know the right size, set up the null surface */
+   assert(util_bitcount(gfx->samples) <= 1);
+   isl_null_fill_state(&cmd_buffer->device->isl_dev,
+                       gfx->null_surface_state.map,
+                       .size = fb_size);
+
    /* Do fast clearing */
    for (uint32_t i = 0; i < gfx->color_att_count; i++) {
       struct anv_attachment *att = &gfx->color_att[i];
@@ -6455,8 +6463,12 @@ void genX(CmdBeginRendering)(
    /* Fill surfaces, load clear colors and do slow clears */
    for (uint32_t i = 0; i < gfx->color_att_count; i++) {
       struct anv_attachment *att = &gfx->color_att[i];
-      if (att->iview == NULL)
+      if (att->iview == NULL) {
+         isl_null_fill_state(&cmd_buffer->device->isl_dev,
+                             att->surface_state.state.map,
+                             .size = fb_size);
          continue;
+      }
 
       struct isl_view isl_view = att->iview->planes[0].isl;
       if (pRenderingInfo->viewMask) {
@@ -6515,25 +6527,6 @@ void genX(CmdBeginRendering)(
                                   render_area, att->clear_color);
          }
       }
-   }
-
-   anv_cmd_graphic_state_update_has_uint_rt(gfx);
-
-   /* Finally, now that we know the right size, set up the null surface */
-   assert(util_bitcount(gfx->samples) <= 1);
-   isl_null_fill_state(&cmd_buffer->device->isl_dev,
-                       gfx->null_surface_state.map,
-                       .size = fb_size);
-
-   for (uint32_t i = 0; i < gfx->color_att_count; i++) {
-      struct anv_attachment *att = &gfx->color_att[i];
-
-      if (pRenderingInfo->pColorAttachments[i].imageView != VK_NULL_HANDLE)
-         continue;
-
-      isl_null_fill_state(&cmd_buffer->device->isl_dev,
-                          att->surface_state.state.map,
-                          .size = fb_size);
    }
 
    /****** We can now start emitting code to begin the render pass ******/
