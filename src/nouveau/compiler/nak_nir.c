@@ -275,6 +275,19 @@ lower_bit_size_cb(const nir_instr *instr, void *data)
             return 0;
          break;
 
+      case nir_op_fcos:
+      case nir_op_fcos_normalized_2_pi:
+      case nir_op_fexp2:
+      case nir_op_flog2:
+      case nir_op_frcp:
+      case nir_op_frsq:
+      case nir_op_fsin:
+      case nir_op_fsin_normalized_2_pi:
+      case nir_op_fsqrt:
+         if (bit_size == 16 && nak->sm >= 73)
+            return 0;
+         break;
+
       case nir_op_fmax:
       case nir_op_fmin:
          if (bit_size == 16 && nak->sm >= 80)
