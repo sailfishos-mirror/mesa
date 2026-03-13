@@ -3138,20 +3138,42 @@ impl fmt::Display for MuFuOp {
 }
 
 #[repr(C)]
-#[derive(SrcsAsSlice, DstsAsSlice)]
+#[derive(DstsAsSlice)]
 pub struct OpMuFu {
     #[dst_type(F32)]
     pub dst: Dst,
 
     pub op: MuFuOp,
 
-    #[src_type(F32)]
     pub src: Src,
+
+    pub op_type: FloatType,
+}
+
+impl AsSlice<Src> for OpMuFu {
+    type Attr = SrcType;
+
+    fn as_slice(&self) -> &[Src] {
+        std::slice::from_ref(&self.src)
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [Src] {
+        std::slice::from_mut(&mut self.src)
+    }
+
+    fn attrs(&self) -> SrcTypeList {
+        let src_type = match self.op_type {
+            FloatType::F16 => SrcType::F16,
+            FloatType::F32 => SrcType::F32,
+            FloatType::F64 => unreachable!("MuFu does not support F64"),
+        };
+        SrcTypeList::Uniform(src_type)
+    }
 }
 
 impl DisplayOp for OpMuFu {
     fn fmt_op(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "mufu.{} {}", self.op, self.src)
+        write!(f, "mufu.{}{} {}", self.op, self.op_type, self.src)
     }
 }
 impl_display_for_op!(OpMuFu);

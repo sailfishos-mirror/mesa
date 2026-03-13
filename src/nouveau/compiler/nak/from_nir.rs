@@ -978,7 +978,12 @@ impl<'a> ShaderFromNir<'a> {
             nir_op_fcos => b.fcos(srcs(0)).into(),
             nir_op_fcos_normalized_2_pi => {
                 assert!(self.sm.sm() >= 70);
-                b.mufu(MuFuOp::Cos, srcs(0)).into()
+                b.mufu(
+                    MuFuOp::Cos,
+                    srcs(0),
+                    FloatType::from_bits(alu.def.bit_size().into()),
+                )
+                .into()
             }
             nir_op_feq | nir_op_fge | nir_op_flt | nir_op_fneu => {
                 let src_type =
@@ -1044,7 +1049,13 @@ impl<'a> ShaderFromNir<'a> {
                 }
                 dst
             }
-            nir_op_fexp2 => b.fexp2(srcs(0)).into(),
+            nir_op_fexp2 => {
+                if alu.def.bit_size == 16 {
+                    b.mufu(MuFuOp::Exp2, srcs(0), FloatType::F16).into()
+                } else {
+                    b.fexp2(srcs(0)).into()
+                }
+            }
             nir_op_ffma => {
                 let ftype = FloatType::from_bits(alu.def.bit_size().into());
                 let dst;
@@ -1108,10 +1119,13 @@ impl<'a> ShaderFromNir<'a> {
                 });
                 dst.into()
             }
-            nir_op_flog2 => {
-                assert!(alu.def.bit_size() == 32);
-                b.mufu(MuFuOp::Log2, srcs(0)).into()
-            }
+            nir_op_flog2 => b
+                .mufu(
+                    MuFuOp::Log2,
+                    srcs(0),
+                    FloatType::from_bits(alu.def.bit_size().into()),
+                )
+                .into(),
             nir_op_fmax | nir_op_fmin => {
                 let dst;
                 if alu.def.bit_size() == 64 {
@@ -1243,14 +1257,20 @@ impl<'a> ShaderFromNir<'a> {
                 }
                 .into()
             }
-            nir_op_frcp => {
-                assert!(alu.def.bit_size() == 32);
-                b.mufu(MuFuOp::Rcp, srcs(0)).into()
-            }
-            nir_op_frsq => {
-                assert!(alu.def.bit_size() == 32);
-                b.mufu(MuFuOp::Rsq, srcs(0)).into()
-            }
+            nir_op_frcp => b
+                .mufu(
+                    MuFuOp::Rcp,
+                    srcs(0),
+                    FloatType::from_bits(alu.def.bit_size().into()),
+                )
+                .into(),
+            nir_op_frsq => b
+                .mufu(
+                    MuFuOp::Rsq,
+                    srcs(0),
+                    FloatType::from_bits(alu.def.bit_size().into()),
+                )
+                .into(),
             nir_op_fsat => {
                 let ftype = FloatType::from_bits(alu.def.bit_size().into());
 
@@ -1315,9 +1335,20 @@ impl<'a> ShaderFromNir<'a> {
             nir_op_fsin => b.fsin(srcs(0)).into(),
             nir_op_fsin_normalized_2_pi => {
                 assert!(self.sm.sm() >= 70);
-                b.mufu(MuFuOp::Sin, srcs(0)).into()
+                b.mufu(
+                    MuFuOp::Sin,
+                    srcs(0),
+                    FloatType::from_bits(alu.def.bit_size().into()),
+                )
+                .into()
             }
-            nir_op_fsqrt => b.mufu(MuFuOp::Sqrt, srcs(0)).into(),
+            nir_op_fsqrt => b
+                .mufu(
+                    MuFuOp::Sqrt,
+                    srcs(0),
+                    FloatType::from_bits(alu.def.bit_size().into()),
+                )
+                .into(),
             nir_op_i2f16 | nir_op_i2f32 | nir_op_i2f64 => {
                 let src_bits = alu.get_src(0).src.bit_size();
                 let dst_bits = alu.def.bit_size();

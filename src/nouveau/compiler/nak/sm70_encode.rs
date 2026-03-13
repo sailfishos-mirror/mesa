@@ -982,7 +982,16 @@ impl SM70Op for OpMuFu {
     }
 
     fn encode(&self, e: &mut SM70Encoder<'_>) {
-        e.encode_alu(0x108, Some(&self.dst), None, Some(&self.src), None);
+        e.encode_alu_base(
+            0x108,
+            Some(&self.dst),
+            None,
+            Some(&self.src),
+            None,
+            self.src_types()[0].into(),
+        );
+
+        e.set_bit(73, self.op_type == FloatType::F16);
         e.set_field(
             74..80,
             match self.op {
