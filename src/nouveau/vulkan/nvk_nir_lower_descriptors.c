@@ -579,6 +579,24 @@ _load_root_table(nir_builder *b,
 #define load_root_table(b, nc, bs, member, ctx) \
    _load_root_table(b, nc, bs, nvk_root_descriptor_offset(member), ctx)
 
+static nir_def *
+_load_root_table_array(nir_builder *b,
+                       unsigned num_components, unsigned bit_size,
+                       uint32_t root_table_offset, uint32_t stride,
+                       nir_def *index,
+                       const struct lower_descriptors_ctx *ctx)
+{
+   return nir_ldc_nv(b, num_components, bit_size,
+                     nir_imm_int(b, 0), /* Root table */
+                     nir_imul_imm(b, index, stride),
+                     .base = root_table_offset);
+}
+
+#define load_root_table_array(b, nc, bs, member, index, ctx) \
+   _load_root_table_array(b, nc, bs, nvk_root_descriptor_offset(member), \
+                          sizeof(((struct nvk_root_descriptor_table){}).member[0]), \
+                          index, ctx)
+
 static bool
 _lower_sysval_to_root_table(nir_builder *b, nir_intrinsic_instr *intrin,
                             uint32_t root_table_offset,
@@ -649,15 +667,9 @@ load_descriptor(nir_builder *b, unsigned num_components, unsigned bit_size,
       index = nir_iadd(b, index,
                        nir_iadd_imm(b, dynamic_buffer_start,
                                     binding_layout->dynamic_buffer_index));
-      uint32_t desc_size = sizeof(union nvk_buffer_descriptor);
-      nir_def *root_desc_offset =
-         nir_iadd_imm(b, nir_imul_imm(b, index, desc_size),
-                      nvk_root_descriptor_offset(dynamic_buffers));
 
-      assert(num_components * bit_size <= desc_size * 8);
-      return nir_ldc_nv(b, num_components, bit_size,
-                        nir_imm_int(b, 0), root_desc_offset,
-                        .align_mul = 16, .align_offset = 0);
+      return load_root_table_array(b, num_components, bit_size,
+                                   dynamic_buffers, index, ctx);
    }
 
    case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK: {
@@ -796,20 +808,14 @@ static bool
 lower_load_push_constant(nir_builder *b, nir_intrinsic_instr *load,
                          const struct lower_descriptors_ctx *ctx)
 {
-   const uint32_t push_region_offset =
-      nvk_root_descriptor_offset(push);
-   const uint32_t base = nir_intrinsic_base(load);
-
    b->cursor = nir_before_instr(&load->instr);
 
-   nir_def *offset = nir_iadd_imm(b, load->src[0].ssa,
-                                         push_region_offset + base);
+   const uint32_t base = nir_intrinsic_base(load);
+   nir_def *offset = nir_iadd_imm(b, load->src[0].ssa, base);
 
    nir_def *val =
-      nir_ldc_nv(b, load->def.num_components, load->def.bit_size,
-                 nir_imm_int(b, 0), offset,
-                 .align_mul = load->def.bit_size / 8,
-                 .align_offset = 0);
+      load_root_table_array(b, load->def.num_components, load->def.bit_size,
+                            push, offset, ctx);
 
    nir_def_rewrite_uses(&load->def, val);
 
