@@ -411,8 +411,8 @@ llvmpipe_init_screen_caps(struct pipe_screen *screen)
    caps->mesh.max_mesh_output_vertices = 256;
    caps->mesh.max_mesh_output_primitives = 256;
    caps->mesh.max_mesh_output_components = 128;
-   caps->mesh.max_mesh_output_layers = 8;
-   caps->mesh.max_mesh_multiview_view_count = 0; //???
+   caps->mesh.max_mesh_output_layers = 9;
+   caps->mesh.max_mesh_multiview_view_count = 1;
    caps->mesh.mesh_output_per_vertex_granularity = 1;
    caps->mesh.mesh_output_per_primitive_granularity = 1;
 
