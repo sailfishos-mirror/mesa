@@ -24,9 +24,9 @@ traces:
       checksum: 8f5929c82e7d990e8c3d2bea14688224
       label: [skip, slow]
     freedreno-a530:
-      checksum: 15e1553b2e11e4b09cf8151b5cc80509
+      checksum: 5def334bb574b024198ddddb1a069529
     freedreno-a618:
-      checksum: 641414866e325bf0b6c367f16fbdf455
+      checksum: a1710b1977081218f518cf988c86c6e6
     zink-a618:
       checksum: 45bdbb33bf87ed114bd548248be13408
       label: [skip, broken]
@@ -52,9 +52,9 @@ traces:
       label: [skip, broken, slow]
       text: Broken minimap rendering since around !14643
     freedreno-a530:
-      checksum: 52894ae7197576611081b3c4c0a253bf
+      checksum: bbe74b2171d62fc6738086740e1aa0d8
     freedreno-a618:
-      checksum: 24c2666636cb05fdb5d448d255704d8d
+      checksum: e7b57988348b2ce98b964d71b18c1771
     zink-a618:
       label: [skip, slow]
       checksum: ade41e6fe932552914c678155149babb
@@ -77,7 +77,7 @@ traces:
     freedreno-a530:
       label: [unsupported]
     freedreno-a618:
-      checksum: 17c6a6dd333514b125cc18282ce24ba8
+      checksum: b5fdea0f949c4c02c86b5785e0556dfe
     zink-a618:
       label: [skip, flakes]
       checksum: 96f7f231042f892c7d11c91defd7ecc1
