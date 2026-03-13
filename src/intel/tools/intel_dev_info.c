@@ -282,8 +282,8 @@ main(int argc, char *argv[])
             if (devinfo.ver >= 9) {
                JSON_Object *obj = json_object(json);
                char device_info_sha[BLAKE3_HEX_LEN];
-               brw_device_sha1(device_info_sha, &devinfo);
-               json_object_set_string(obj, "shader_cache_sha1", device_info_sha);
+               brw_device_blake3(device_info_sha, &devinfo);
+               json_object_set_string(obj, "shader_cache_blake3", device_info_sha);
             }
 
             char *pretty_string = json_serialize_to_string_pretty(json);

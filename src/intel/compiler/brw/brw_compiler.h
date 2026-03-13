@@ -1294,7 +1294,7 @@ brw_get_compiler_config_value(const struct brw_compiler *compiler);
  * affect shader compilation.
  */
 void
-brw_device_sha1(char *hex, const struct intel_device_info *devinfo);
+brw_device_blake3(char *hex, const struct intel_device_info *devinfo);
 
 /* For callers computing their own UUID or hash.  Hashes all device
  * information fields that could affect shader compilation into the provided

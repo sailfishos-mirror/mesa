@@ -435,25 +435,25 @@ set_dirty_for_bind_map(struct anv_cmd_buffer *cmd_buffer,
                        mesa_shader_stage stage,
                        const struct anv_pipeline_bind_map *map)
 {
-   assert(stage < ARRAY_SIZE(cmd_buffer->state.surface_sha1s));
-   if (mem_update(cmd_buffer->state.surface_sha1s[stage],
-                  map->surface_sha1, sizeof(map->surface_sha1))) {
+   assert(stage < ARRAY_SIZE(cmd_buffer->state.surface_blake3s));
+   if (mem_update(cmd_buffer->state.surface_blake3s[stage],
+                  map->surface_blake3, sizeof(map->surface_blake3))) {
       anv_cmd_buffer_dirty_descriptors(cmd_buffer,
                                        mesa_to_vk_shader_stage(stage),
                                        "shader surfaces change");
    }
 
-   assert(stage < ARRAY_SIZE(cmd_buffer->state.sampler_sha1s));
-   if (mem_update(cmd_buffer->state.sampler_sha1s[stage],
-                  map->sampler_sha1, sizeof(map->sampler_sha1))) {
+   assert(stage < ARRAY_SIZE(cmd_buffer->state.sampler_blake3s));
+   if (mem_update(cmd_buffer->state.sampler_blake3s[stage],
+                  map->sampler_blake3, sizeof(map->sampler_blake3))) {
       anv_cmd_buffer_dirty_descriptors(cmd_buffer,
                                        mesa_to_vk_shader_stage(stage),
                                        "shader samplers change");
    }
 
-   assert(stage < ARRAY_SIZE(cmd_buffer->state.push_sha1s));
-   if (mem_update(cmd_buffer->state.push_sha1s[stage],
-                  map->push_sha1, sizeof(map->push_sha1)))
+   assert(stage < ARRAY_SIZE(cmd_buffer->state.push_blake3s));
+   if (mem_update(cmd_buffer->state.push_blake3s[stage],
+                  map->push_blake3, sizeof(map->push_blake3)))
       cmd_buffer->state.push_constants_dirty |= mesa_to_vk_shader_stage(stage);
 }
 

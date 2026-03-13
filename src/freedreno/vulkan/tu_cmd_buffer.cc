@@ -8036,11 +8036,11 @@ tu6_draw_common(struct tu_cmd_buffer *cmd,
 
    trace_start_draw(
       &cmd->rp_trace, &cmd->draw_cs, cmd, draw_count,
-      cmd->state.program.stage_sha1[MESA_SHADER_VERTEX],
-      cmd->state.program.stage_sha1[MESA_SHADER_TESS_CTRL],
-      cmd->state.program.stage_sha1[MESA_SHADER_TESS_EVAL],
-      cmd->state.program.stage_sha1[MESA_SHADER_GEOMETRY],
-      cmd->state.program.stage_sha1[MESA_SHADER_FRAGMENT]);
+      cmd->state.program.stage_blake3[MESA_SHADER_VERTEX],
+      cmd->state.program.stage_blake3[MESA_SHADER_TESS_CTRL],
+      cmd->state.program.stage_blake3[MESA_SHADER_TESS_EVAL],
+      cmd->state.program.stage_blake3[MESA_SHADER_GEOMETRY],
+      cmd->state.program.stage_blake3[MESA_SHADER_FRAGMENT]);
 
    /* Emit state first, because it's needed for bandwidth calculations */
    uint32_t dynamic_draw_state_dirty = 0;

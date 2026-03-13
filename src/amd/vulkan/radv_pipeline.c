@@ -218,7 +218,7 @@ radv_pipeline_stage_init(VkPipelineCreateFlags2 pipeline_flags, const VkPipeline
 
    radv_shader_layout_init(pipeline_layout, out_stage->stage, &out_stage->layout);
 
-   vk_pipeline_hash_shader_stage(pipeline_flags, sinfo, NULL, out_stage->shader_sha1);
+   vk_pipeline_hash_shader_stage(pipeline_flags, sinfo, NULL, out_stage->shader_blake3);
 }
 
 void
@@ -1148,11 +1148,11 @@ void
 radv_pipeline_hash_shader_stage(VkPipelineCreateFlags2 pipeline_flags, const VkPipelineShaderStageCreateInfo *sinfo,
                                 const struct radv_shader_stage_key *stage_key, blake3_hasher *ctx)
 {
-   unsigned char shader_sha1[BLAKE3_KEY_LEN];
+   unsigned char shader_blake3[BLAKE3_KEY_LEN];
 
-   vk_pipeline_hash_shader_stage(pipeline_flags, sinfo, NULL, shader_sha1);
+   vk_pipeline_hash_shader_stage(pipeline_flags, sinfo, NULL, shader_blake3);
 
-   _mesa_blake3_update(ctx, shader_sha1, sizeof(shader_sha1));
+   _mesa_blake3_update(ctx, shader_blake3, sizeof(shader_blake3));
    _mesa_blake3_update(ctx, stage_key, sizeof(*stage_key));
 }
 

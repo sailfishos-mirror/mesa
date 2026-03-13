@@ -1943,29 +1943,29 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
          !builder->rasterizer_discard && msaa_info && msaa_info->sampleShadingEnable;
    }
 
-   unsigned char pipeline_sha1[BLAKE3_KEY_LEN];
-   tu_hash_shaders(pipeline_sha1, builder->create_flags, stage_infos, nir,
+   unsigned char pipeline_blake3[BLAKE3_KEY_LEN];
+   tu_hash_shaders(pipeline_blake3, builder->create_flags, stage_infos, nir,
                    &builder->layout, keys, builder->state);
 
-   unsigned char nir_sha1[BLAKE3_KEY_LEN + 1];
-   memcpy(nir_sha1, pipeline_sha1, sizeof(pipeline_sha1));
-   nir_sha1[BLAKE3_KEY_LEN] = 'N';
+   unsigned char nir_blake3[BLAKE3_KEY_LEN + 1];
+   memcpy(nir_blake3, pipeline_blake3, sizeof(pipeline_blake3));
+   nir_blake3[BLAKE3_KEY_LEN] = 'N';
 
    if (!executable_info) {
       cache_hit = true;
       bool application_cache_hit = false;
 
-      unsigned char shader_sha1[BLAKE3_KEY_LEN + 1];
-      memcpy(shader_sha1, pipeline_sha1, sizeof(pipeline_sha1));
+      unsigned char shader_blake3[BLAKE3_KEY_LEN + 1];
+      memcpy(shader_blake3, pipeline_blake3, sizeof(pipeline_blake3));
 
       for (mesa_shader_stage stage = MESA_SHADER_VERTEX; stage < ARRAY_SIZE(nir);
            stage = (mesa_shader_stage) (stage + 1)) {
          if (stage_infos[stage] || nir[stage]) {
             bool shader_application_cache_hit;
-            shader_sha1[BLAKE3_KEY_LEN] = (unsigned char) stage;
+            shader_blake3[BLAKE3_KEY_LEN] = (unsigned char) stage;
             shaders[stage] =
-               tu_pipeline_cache_lookup(builder->cache, &shader_sha1,
-                                        sizeof(shader_sha1),
+               tu_pipeline_cache_lookup(builder->cache, &shader_blake3,
+                                        sizeof(shader_blake3),
                                         &shader_application_cache_hit);
             if (!shaders[stage]) {
                cache_hit = false;
@@ -1984,8 +1984,8 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
            VK_PIPELINE_CREATE_2_RETAIN_LINK_TIME_OPTIMIZATION_INFO_BIT_EXT)) {
          bool nir_application_cache_hit = false;
          nir_shaders =
-            tu_nir_cache_lookup(builder->cache, &nir_sha1,
-                                sizeof(nir_sha1),
+            tu_nir_cache_lookup(builder->cache, &nir_blake3,
+                                sizeof(nir_blake3),
                                 &nir_application_cache_hit);
 
          application_cache_hit &= nir_application_cache_hit;
@@ -2010,7 +2010,7 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
                                   nir,
                                   keys,
                                   &builder->layout,
-                                  pipeline_sha1,
+                                  pipeline_blake3,
                                   shaders,
                                   executable_info ? nir_initial_disasm : NULL,
                                   pipeline->executables_mem_ctx,
@@ -2022,7 +2022,7 @@ tu_pipeline_builder_compile_shaders(struct tu_pipeline_builder *builder,
 
       if (retain_nir) {
          nir_shaders =
-            tu_nir_shaders_init(builder->device, &nir_sha1, sizeof(nir_sha1));
+            tu_nir_shaders_init(builder->device, &nir_blake3, sizeof(nir_blake3));
          for (mesa_shader_stage stage = MESA_SHADER_VERTEX;
               stage < ARRAY_SIZE(nir); stage = (mesa_shader_stage) (stage + 1)) {
             if (!post_link_nir[stage])
@@ -2336,7 +2336,7 @@ tu_emit_program_state(struct tu_cs *sub_cs,
          }
 
          if (variants[stage]) {
-            memcpy(prog->stage_sha1[stage], variants[stage]->blake3_str,
+            memcpy(prog->stage_blake3[stage], variants[stage]->blake3_str,
                    sizeof(variants[stage]->blake3_str));
          }
       }
@@ -4933,8 +4933,8 @@ tu_compute_pipeline_create(VkDevice device,
 
    void *pipeline_mem_ctx = ralloc_context(NULL);
 
-   unsigned char pipeline_sha1[BLAKE3_KEY_LEN];
-   tu_hash_compute(pipeline_sha1, flags, stage_info, layout, &key);
+   unsigned char pipeline_blake3[BLAKE3_KEY_LEN];
+   tu_hash_compute(pipeline_blake3, flags, stage_info, layout, &key);
 
    struct tu_shader *shader = NULL;
 
@@ -4945,7 +4945,7 @@ tu_compute_pipeline_create(VkDevice device,
 
    if (!executable_info) {
       shader =
-         tu_pipeline_cache_lookup(cache, pipeline_sha1, sizeof(pipeline_sha1),
+         tu_pipeline_cache_lookup(cache, pipeline_blake3, sizeof(pipeline_blake3),
                                   &application_cache_hit);
    }
 
@@ -4972,7 +4972,7 @@ tu_compute_pipeline_create(VkDevice device,
          nir_shader_as_str(nir, pipeline->base.executables_mem_ctx) : NULL;
 
       result = tu_shader_create(dev, &shader, nir, &key, &ir3_key,
-                                pipeline_sha1, sizeof(pipeline_sha1), layout,
+                                pipeline_blake3, sizeof(pipeline_blake3), layout,
                                 executable_info);
       if (!shader) {
          goto fail;

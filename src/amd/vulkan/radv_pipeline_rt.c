@@ -35,11 +35,11 @@ struct rt_handle_hash_entry {
 };
 
 static uint32_t
-handle_from_stages(struct radv_device *device, const unsigned char *shader_sha1, bool replay_namespace)
+handle_from_stages(struct radv_device *device, const unsigned char *shader_blake3, bool replay_namespace)
 {
    uint32_t ret;
 
-   memcpy(&ret, shader_sha1, sizeof(ret));
+   memcpy(&ret, shader_blake3, sizeof(ret));
 
    /* Leave the low half for resume shaders etc. */
    ret |= 1u << 31;
@@ -56,7 +56,7 @@ handle_from_stages(struct radv_device *device, const unsigned char *shader_sha1,
       if (!he)
          break;
 
-      if (memcmp(he->data, shader_sha1, BLAKE3_KEY_LEN) == 0)
+      if (memcmp(he->data, shader_blake3, BLAKE3_KEY_LEN) == 0)
          break;
 
       ++ret;
@@ -65,7 +65,7 @@ handle_from_stages(struct radv_device *device, const unsigned char *shader_sha1,
    if (!he) {
       struct rt_handle_hash_entry *e = ralloc(device->rt_handles, struct rt_handle_hash_entry);
       e->key = ret;
-      memcpy(e->hash, shader_sha1, BLAKE3_KEY_LEN);
+      memcpy(e->hash, shader_blake3, BLAKE3_KEY_LEN);
       _mesa_hash_table_insert(device->rt_handles, &e->key, &e->hash);
    }
 
@@ -312,7 +312,7 @@ radv_init_rt_stage_hashes(const struct radv_device *device, VkPipelineCreateFlag
          if (header->is_traversal_shader)
             continue;
 
-         memcpy(stages[i].blake3, header->stage_sha1, BLAKE3_KEY_LEN);
+         memcpy(stages[i].blake3, header->stage_blake3, BLAKE3_KEY_LEN);
       }
    } else {
       for (uint32_t idx = 0; idx < pCreateInfo->stageCount; idx++) {
@@ -1275,7 +1275,7 @@ radv_ray_tracing_pipeline_import_binary(struct radv_device *device, struct radv_
       if (header->has_nir) {
          nir_shader *nir = nir_deserialize(NULL, NULL, &blob);
 
-         pipeline->stages[i].nir = radv_pipeline_cache_nir_to_handle(device, NULL, nir, header->stage_sha1, false);
+         pipeline->stages[i].nir = radv_pipeline_cache_nir_to_handle(device, NULL, nir, header->stage_blake3, false);
          ralloc_free(nir);
 
          if (!pipeline->stages[i].nir)

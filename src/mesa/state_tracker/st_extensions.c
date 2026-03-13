@@ -1223,7 +1223,7 @@ void st_init_extensions(struct pipe_screen *screen,
 
    consts->AllowGLSLBuiltinVariableRedeclaration = options->allow_glsl_builtin_variable_redeclaration;
 
-   consts->dri_config_options_sha1 = options->config_options_sha1;
+   consts->dri_config_options_blake3 = options->config_options_blake3;
 
    consts->AllowGLSLCrossStageInterpolationMismatch = options->allow_glsl_cross_stage_interpolation_mismatch;
 

@@ -769,7 +769,7 @@ anv_nir_compute_push_layout(nir_shader *nir,
     */
    _mesa_blake3_compute(map->push_ranges,
                       sizeof(map->push_ranges),
-                      map->push_sha1);
+                      map->push_blake3);
    return progress;
 }
 

@@ -190,7 +190,7 @@ radv_create_pipeline_binary_from_shader(struct radv_device *device, const VkAllo
 VkResult
 radv_create_pipeline_binary_from_rt_shader(struct radv_device *device, const VkAllocationCallbacks *pAllocator,
                                            struct radv_shader *shader, bool is_traversal_shader,
-                                           const uint8_t stage_sha1[BLAKE3_KEY_LEN],
+                                           const uint8_t stage_blake3[BLAKE3_KEY_LEN],
                                            const struct radv_ray_tracing_stage_info *rt_stage_info, uint32_t stack_size,
                                            struct vk_pipeline_cache_object *nir,
                                            struct util_dynarray *pipeline_binaries, uint32_t *num_binaries)
@@ -209,7 +209,7 @@ radv_create_pipeline_binary_from_rt_shader(struct radv_device *device, const VkA
    }
 
    _mesa_blake3_init(&ctx);
-   _mesa_blake3_update(&ctx, stage_sha1, sizeof(*stage_sha1));
+   _mesa_blake3_update(&ctx, stage_blake3, sizeof(*stage_blake3));
    _mesa_blake3_final(&ctx, key);
 
    struct radv_ray_tracing_binary_header header = {
@@ -219,7 +219,7 @@ radv_create_pipeline_binary_from_rt_shader(struct radv_device *device, const VkA
       .stack_size = stack_size,
    };
 
-   memcpy(header.stage_sha1, stage_sha1, sizeof(header.stage_sha1));
+   memcpy(header.stage_blake3, stage_blake3, sizeof(header.stage_blake3));
    if (rt_stage_info)
       memcpy(&header.stage_info, rt_stage_info, sizeof(header.stage_info));
 

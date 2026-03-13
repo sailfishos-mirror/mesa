@@ -66,9 +66,9 @@ anv_shader_deserialize(struct vk_device *vk_device,
    data.push_desc_info.fully_promoted_ubo_descriptors = blob_read_uint32(blob);
    data.push_desc_info.push_set_buffer = blob_read_uint8(blob);
 
-   blob_copy_bytes(blob, data.bind_map.surface_sha1, sizeof(data.bind_map.surface_sha1));
-   blob_copy_bytes(blob, data.bind_map.sampler_sha1, sizeof(data.bind_map.sampler_sha1));
-   blob_copy_bytes(blob, data.bind_map.push_sha1, sizeof(data.bind_map.push_sha1));
+   blob_copy_bytes(blob, data.bind_map.surface_blake3, sizeof(data.bind_map.surface_blake3));
+   blob_copy_bytes(blob, data.bind_map.sampler_blake3, sizeof(data.bind_map.sampler_blake3));
+   blob_copy_bytes(blob, data.bind_map.push_blake3, sizeof(data.bind_map.push_blake3));
    data.bind_map.layout_type = blob_read_uint16(blob);
    data.bind_map.binding_mask = blob_read_uint16(blob);
    data.bind_map.surface_count = blob_read_uint8(blob);
@@ -148,12 +148,12 @@ anv_shader_serialize(struct vk_device *device,
    blob_write_uint32(blob, shader->push_desc_info.fully_promoted_ubo_descriptors);
    blob_write_uint8(blob, shader->push_desc_info.push_set_buffer);
 
-   blob_write_bytes(blob, shader->bind_map.surface_sha1,
-                    sizeof(shader->bind_map.surface_sha1));
-   blob_write_bytes(blob, shader->bind_map.sampler_sha1,
-                    sizeof(shader->bind_map.sampler_sha1));
-   blob_write_bytes(blob, shader->bind_map.push_sha1,
-                    sizeof(shader->bind_map.push_sha1));
+   blob_write_bytes(blob, shader->bind_map.surface_blake3,
+                    sizeof(shader->bind_map.surface_blake3));
+   blob_write_bytes(blob, shader->bind_map.sampler_blake3,
+                    sizeof(shader->bind_map.sampler_blake3));
+   blob_write_bytes(blob, shader->bind_map.push_blake3,
+                    sizeof(shader->bind_map.push_blake3));
    blob_write_uint16(blob, shader->bind_map.layout_type);
    blob_write_uint16(blob, shader->bind_map.binding_mask);
    blob_write_uint8(blob, shader->bind_map.surface_count);

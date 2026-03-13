@@ -39,7 +39,7 @@ panfrost_alloc_shader(const nir_shader *nir)
    struct blob blob;
    blob_init(&blob);
    nir_serialize(&blob, nir, true);
-   _mesa_blake3_compute(blob.data, blob.size, so->nir_sha1);
+   _mesa_blake3_compute(blob.data, blob.size, so->nir_blake3);
    blob_finish(&blob);
 
    return so;

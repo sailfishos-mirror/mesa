@@ -169,7 +169,7 @@ struct radv_retained_shaders {
    struct {
       void *serialized_nir;
       size_t serialized_nir_size;
-      unsigned char shader_sha1[BLAKE3_KEY_LEN];
+      unsigned char shader_blake3[BLAKE3_KEY_LEN];
       struct radv_shader_stage_key key;
    } stages[MESA_VULKAN_SHADER_STAGES];
 };

@@ -34,10 +34,10 @@ panfrost_disk_cache_compute_key(
    const struct panfrost_uncompiled_shader *uncompiled,
    const struct panfrost_shader_key *shader_key, cache_key cache_key)
 {
-   uint8_t data[sizeof(uncompiled->nir_sha1) + sizeof(*shader_key)];
+   uint8_t data[sizeof(uncompiled->nir_blake3) + sizeof(*shader_key)];
 
-   memcpy(data, uncompiled->nir_sha1, sizeof(uncompiled->nir_sha1));
-   memcpy(data + sizeof(uncompiled->nir_sha1), shader_key, sizeof(*shader_key));
+   memcpy(data, uncompiled->nir_blake3, sizeof(uncompiled->nir_blake3));
+   memcpy(data + sizeof(uncompiled->nir_blake3), shader_key, sizeof(*shader_key));
 
    disk_cache_compute_key(cache, data, sizeof(data), cache_key);
 }

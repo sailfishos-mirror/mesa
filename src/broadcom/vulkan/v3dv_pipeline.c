@@ -55,7 +55,7 @@ pipeline_compute_blake3_from_nir(struct v3dv_pipeline_stage *p_stage)
       .stage = mesa_to_vk_shader_stage(p_stage->nir->info.stage),
    };
 
-   vk_pipeline_hash_shader_stage(0, &info, NULL, p_stage->shader_sha1);
+   vk_pipeline_hash_shader_stage(0, &info, NULL, p_stage->shader_blake3);
 }
 
 void
@@ -1442,7 +1442,7 @@ pipeline_stage_create_binning(const struct v3dv_pipeline_stage *src,
    p_stage->spec_info = src->spec_info;
    p_stage->feedback = (VkPipelineCreationFeedback) { 0 };
    p_stage->robustness = src->robustness;
-   memcpy(p_stage->shader_sha1, src->shader_sha1, BLAKE3_KEY_LEN);
+   memcpy(p_stage->shader_blake3, src->shader_blake3, BLAKE3_KEY_LEN);
 
    return p_stage;
 }
@@ -1539,7 +1539,7 @@ pipeline_hash_graphics(const struct v3dv_pipeline *pipeline,
 
       assert(stage != BROADCOM_SHADER_COMPUTE);
 
-      _mesa_blake3_update(&ctx, p_stage->shader_sha1, sizeof(p_stage->shader_sha1));
+      _mesa_blake3_update(&ctx, p_stage->shader_blake3, sizeof(p_stage->shader_blake3));
    }
 
    _mesa_blake3_update(&ctx, key, sizeof(struct v3dv_pipeline_key));
@@ -1563,7 +1563,7 @@ pipeline_hash_compute(const struct v3dv_pipeline *pipeline,
    struct v3dv_pipeline_stage *p_stage =
       pipeline->stages[BROADCOM_SHADER_COMPUTE];
 
-   _mesa_blake3_update(&ctx, p_stage->shader_sha1, sizeof(p_stage->shader_sha1));
+   _mesa_blake3_update(&ctx, p_stage->shader_blake3, sizeof(p_stage->shader_blake3));
 
    _mesa_blake3_update(&ctx, key, sizeof(struct v3dv_pipeline_key));
 
@@ -1843,7 +1843,7 @@ pipeline_stage_get_nir(struct v3dv_pipeline_stage *p_stage,
 
    nir = v3dv_pipeline_cache_search_for_nir(pipeline, cache,
                                             nir_options,
-                                            p_stage->shader_sha1);
+                                            p_stage->shader_blake3);
 
    if (nir) {
       assert(nir->info.stage == broadcom_shader_stage_to_gl(p_stage->stage));
@@ -1865,14 +1865,14 @@ pipeline_stage_get_nir(struct v3dv_pipeline_stage *p_stage,
          &pipeline->device->default_pipeline_cache;
 
       v3dv_pipeline_cache_upload_nir(pipeline, cache, nir,
-                                     p_stage->shader_sha1);
+                                     p_stage->shader_blake3);
 
       /* Ensure that the variant is on the default cache, as cmd_buffer could
        * need to change the current variant
        */
       if (default_cache != cache) {
          v3dv_pipeline_cache_upload_nir(pipeline, default_cache, nir,
-                                        p_stage->shader_sha1);
+                                        p_stage->shader_blake3);
       }
 
       p_stage->feedback.duration += os_time_get_nano() - stage_start;
@@ -2468,7 +2468,7 @@ pipeline_compile_graphics(struct v3dv_pipeline *pipeline,
       vk_pipeline_hash_shader_stage(pipeline->flags,
                                     &pCreateInfo->pStages[i],
                                     &p_stage->robustness,
-                                    p_stage->shader_sha1);
+                                    p_stage->shader_blake3);
 
       pipeline->active_stages |= sinfo->stage;
 
@@ -3182,7 +3182,7 @@ pipeline_compile_compute(struct v3dv_pipeline *pipeline,
    vk_pipeline_hash_shader_stage(pipeline->flags,
                                  &info->stage,
                                  &p_stage->robustness,
-                                 p_stage->shader_sha1);
+                                 p_stage->shader_blake3);
 
    p_stage->nir = NULL;
 

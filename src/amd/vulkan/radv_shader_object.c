@@ -250,13 +250,13 @@ static VkResult
 radv_shader_object_init_binary(struct radv_device *device, struct blob_reader *blob, struct radv_shader **shader_out,
                                struct radv_shader_binary **binary_out)
 {
-   const char *binary_sha1 = blob_read_bytes(blob, BLAKE3_KEY_LEN);
+   const char *binary_blake3 = blob_read_bytes(blob, BLAKE3_KEY_LEN);
    const uint32_t binary_size = blob_read_uint32(blob);
    const struct radv_shader_binary *binary = blob_read_bytes(blob, binary_size);
    unsigned char blake3[BLAKE3_KEY_LEN];
 
    _mesa_blake3_compute(binary, binary->total_size, blake3);
-   if (memcmp(blake3, binary_sha1, BLAKE3_KEY_LEN))
+   if (memcmp(blake3, binary_blake3, BLAKE3_KEY_LEN))
       return VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT;
 
    *shader_out = radv_shader_create(device, NULL, binary, true);
@@ -647,14 +647,14 @@ radv_get_shader_object_size(const struct radv_shader_object *shader_obj)
 static void
 radv_write_shader_binary(struct blob *blob, const struct radv_shader_binary *binary)
 {
-   unsigned char binary_sha1[BLAKE3_KEY_LEN];
+   unsigned char binary_blake3[BLAKE3_KEY_LEN];
 
    blob_write_uint32(blob, !!binary);
 
    if (binary) {
-      _mesa_blake3_compute(binary, binary->total_size, binary_sha1);
+      _mesa_blake3_compute(binary, binary->total_size, binary_blake3);
 
-      blob_write_bytes(blob, binary_sha1, sizeof(binary_sha1));
+      blob_write_bytes(blob, binary_blake3, sizeof(binary_blake3));
       blob_write_uint32(blob, binary->total_size);
       blob_write_bytes(blob, binary, binary->total_size);
    }

@@ -337,7 +337,7 @@ struct anv_pipeline_stage {
    VkPipelineCreateFlags2KHR pipeline_flags;
    const VkPipelineShaderStageCreateInfo *info;
 
-   unsigned char shader_sha1[BLAKE3_KEY_LEN];
+   unsigned char shader_blake3[BLAKE3_KEY_LEN];
 
    union elk_any_prog_key key;
 
@@ -382,8 +382,8 @@ anv_pipeline_hash_graphics(struct anv_graphics_pipeline *pipeline,
 
    for (uint32_t s = 0; s < ANV_GRAPHICS_SHADER_STAGE_COUNT; s++) {
       if (stages[s].info) {
-         _mesa_blake3_update(&ctx, stages[s].shader_sha1,
-                           sizeof(stages[s].shader_sha1));
+         _mesa_blake3_update(&ctx, stages[s].shader_blake3,
+                           sizeof(stages[s].shader_blake3));
          _mesa_blake3_update(&ctx, &stages[s].key, elk_prog_key_size(s));
       }
    }
@@ -411,8 +411,8 @@ anv_pipeline_hash_compute(struct anv_compute_pipeline *pipeline,
    const uint8_t afs = device->physical->instance->assume_full_subgroups;
    _mesa_blake3_update(&ctx, &afs, sizeof(afs));
 
-   _mesa_blake3_update(&ctx, stage->shader_sha1,
-                     sizeof(stage->shader_sha1));
+   _mesa_blake3_update(&ctx, stage->shader_blake3,
+                     sizeof(stage->shader_blake3));
    _mesa_blake3_update(&ctx, &stage->key.cs, sizeof(stage->key.cs));
 
    _mesa_blake3_final(&ctx, blake3_out);
@@ -432,7 +432,7 @@ anv_pipeline_stage_get_nir(struct anv_pipeline *pipeline,
 
    nir = anv_device_search_for_nir(pipeline->device, cache,
                                    nir_options,
-                                   stage->shader_sha1,
+                                   stage->shader_blake3,
                                    mem_ctx);
    if (nir) {
       assert(nir->info.stage == stage->stage);
@@ -443,7 +443,7 @@ anv_pipeline_stage_get_nir(struct anv_pipeline *pipeline,
                                  stage->pipeline_flags, stage->info,
                                  stage->key.base.robust_flags, mem_ctx);
    if (nir) {
-      anv_device_upload_nir(pipeline->device, cache, nir, stage->shader_sha1);
+      anv_device_upload_nir(pipeline->device, cache, nir, stage->shader_blake3);
       return nir;
    }
 
@@ -1041,7 +1041,7 @@ anv_graphics_pipeline_init_keys(struct anv_graphics_pipeline *pipeline,
       int64_t stage_start = os_time_get_nano();
 
       vk_pipeline_hash_shader_stage(stages[s].pipeline_flags, stages[s].info,
-                                    NULL, stages[s].shader_sha1);
+                                    NULL, stages[s].shader_blake3);
 
       const struct anv_device *device = pipeline->base.device;
       enum elk_robustness_flags robust_flags = anv_device_get_robust_flags(device);
@@ -1450,7 +1450,7 @@ anv_pipeline_compile_cs(struct anv_compute_pipeline *pipeline,
       },
    };
    vk_pipeline_hash_shader_stage(stage.pipeline_flags, &info->stage,
-                                 NULL, stage.shader_sha1);
+                                 NULL, stage.shader_blake3);
 
    struct anv_shader_bin *bin = NULL;
 

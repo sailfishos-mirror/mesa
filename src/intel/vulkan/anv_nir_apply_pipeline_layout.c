@@ -2664,9 +2664,9 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
     */
    _mesa_blake3_compute(map->surface_to_descriptor,
                       map->surface_count * sizeof(struct anv_pipeline_binding),
-                      map->surface_sha1);
+                      map->surface_blake3);
    _mesa_blake3_compute(map->sampler_to_descriptor,
                       map->sampler_count * sizeof(struct anv_pipeline_binding),
-                      map->sampler_sha1);
+                      map->sampler_blake3);
    return progress;
 }

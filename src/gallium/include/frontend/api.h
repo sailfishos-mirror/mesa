@@ -210,7 +210,7 @@ struct st_config_options
    bool allow_multisampled_copyteximage;
    bool vertex_program_default_out;
 
-   unsigned char config_options_sha1[BLAKE3_KEY_LEN];
+   unsigned char config_options_blake3[BLAKE3_KEY_LEN];
 };
 
 struct pipe_frontend_screen;

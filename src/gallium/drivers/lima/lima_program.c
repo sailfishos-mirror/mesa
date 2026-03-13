@@ -467,14 +467,14 @@ lima_create_fs_state(struct pipe_context *pctx,
    struct blob blob;
    blob_init(&blob);
    nir_serialize(&blob, nir, true);
-   _mesa_blake3_compute(blob.data, blob.size, so->nir_sha1);
+   _mesa_blake3_compute(blob.data, blob.size, so->nir_blake3);
    blob_finish(&blob);
 
    if (lima_debug & LIMA_DEBUG_PRECOMPILE) {
       /* Trigger initial compilation with default settings */
       struct lima_fs_key key;
       memset(&key, 0, sizeof(key));
-      memcpy(key.nir_sha1, so->nir_sha1, sizeof(so->nir_sha1));
+      memcpy(key.nir_blake3, so->nir_blake3, sizeof(so->nir_blake3));
       for (int i = 0; i < ARRAY_SIZE(key.tex); i++) {
          for (int j = 0; j < 4; j++)
             key.tex[i].swizzle[j] = j;
@@ -502,7 +502,7 @@ lima_delete_fs_state(struct pipe_context *pctx, void *hwcso)
 
    hash_table_foreach(ctx->fs_cache, entry) {
       const struct lima_fs_key *key = entry->key;
-      if (!memcmp(key->nir_sha1, so->nir_sha1, sizeof(so->nir_sha1))) {
+      if (!memcmp(key->nir_blake3, so->nir_blake3, sizeof(so->nir_blake3))) {
          struct lima_fs_compiled_shader *fs = entry->data;
          _mesa_hash_table_remove(ctx->fs_cache, entry);
          if (fs->bo)
@@ -617,8 +617,8 @@ lima_update_vs_state(struct lima_context *ctx)
    struct lima_vs_key local_key;
    struct lima_vs_key *key = &local_key;
    memset(key, 0, sizeof(*key));
-   memcpy(key->nir_sha1, ctx->uncomp_vs->nir_sha1,
-          sizeof(ctx->uncomp_vs->nir_sha1));
+   memcpy(key->nir_blake3, ctx->uncomp_vs->nir_blake3,
+          sizeof(ctx->uncomp_vs->nir_blake3));
 
    struct lima_vs_compiled_shader *old_vs = ctx->vs;
    struct lima_vs_compiled_shader *vs = lima_get_compiled_vs(ctx,
@@ -647,8 +647,8 @@ lima_update_fs_state(struct lima_context *ctx)
    struct lima_fs_key local_key;
    struct lima_fs_key *key = &local_key;
    memset(key, 0, sizeof(*key));
-   memcpy(key->nir_sha1, ctx->uncomp_fs->nir_sha1,
-          sizeof(ctx->uncomp_fs->nir_sha1));
+   memcpy(key->nir_blake3, ctx->uncomp_fs->nir_blake3,
+          sizeof(ctx->uncomp_fs->nir_blake3));
 
    if (ctx->framebuffer.base.cbufs[0].texture)
       key->color_format = ctx->framebuffer.base.cbufs[0].format;
@@ -720,14 +720,14 @@ lima_create_vs_state(struct pipe_context *pctx,
    struct blob blob;
    blob_init(&blob);
    nir_serialize(&blob, nir, true);
-   _mesa_blake3_compute(blob.data, blob.size, so->nir_sha1);
+   _mesa_blake3_compute(blob.data, blob.size, so->nir_blake3);
    blob_finish(&blob);
 
    if (lima_debug & LIMA_DEBUG_PRECOMPILE) {
       /* Trigger initial compilation with default settings */
       struct lima_vs_key key;
       memset(&key, 0, sizeof(key));
-      memcpy(key.nir_sha1, so->nir_sha1, sizeof(so->nir_sha1));
+      memcpy(key.nir_blake3, so->nir_blake3, sizeof(so->nir_blake3));
       lima_get_compiled_vs(ctx, so, &key);
    }
 
@@ -751,7 +751,7 @@ lima_delete_vs_state(struct pipe_context *pctx, void *hwcso)
 
    hash_table_foreach(ctx->vs_cache, entry) {
       const struct lima_vs_key *key = entry->key;
-      if (!memcmp(key->nir_sha1, so->nir_sha1, sizeof(so->nir_sha1))) {
+      if (!memcmp(key->nir_blake3, so->nir_blake3, sizeof(so->nir_blake3))) {
          struct lima_vs_compiled_shader *vs = entry->data;
          _mesa_hash_table_remove(ctx->vs_cache, entry);
          if (vs->bo)

@@ -1925,7 +1925,7 @@ struct v3dv_pipeline_stage {
    nir_shader *nir;
 
    /* The following is the combined hash of module+entrypoint+spec_info+nir */
-   unsigned char shader_sha1[BLAKE3_KEY_LEN];
+   unsigned char shader_blake3[BLAKE3_KEY_LEN];
 
    /** A name for this program, so you can track it in shader-db output. */
    uint32_t program_id;

@@ -2479,9 +2479,9 @@ struct anv_cmd_state {
    struct anv_state                             binding_tables[MESA_VULKAN_SHADER_STAGES];
    struct anv_state                             samplers[MESA_VULKAN_SHADER_STAGES];
 
-   unsigned char                                sampler_sha1s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
-   unsigned char                                surface_sha1s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
-   unsigned char                                push_sha1s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                sampler_blake3s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                surface_blake3s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                push_blake3s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
 
    /**
     * Whether or not the gfx8 PMA fix is enabled.  We ensure that, at the top
@@ -2700,9 +2700,9 @@ struct anv_event {
         __tmp &= ~(1 << (stage)))
 
 struct anv_pipeline_bind_map {
-   unsigned char                                surface_sha1[BLAKE3_KEY_LEN];
-   unsigned char                                sampler_sha1[BLAKE3_KEY_LEN];
-   unsigned char                                push_sha1[BLAKE3_KEY_LEN];
+   unsigned char                                surface_blake3[BLAKE3_KEY_LEN];
+   unsigned char                                sampler_blake3[BLAKE3_KEY_LEN];
+   unsigned char                                push_blake3[BLAKE3_KEY_LEN];
 
    uint32_t surface_count;
    uint32_t sampler_count;

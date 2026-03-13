@@ -34,7 +34,7 @@ radv_hash_graphics_spirv_to_nir(blake3_hash hash, const struct radv_shader_stage
    _mesa_blake3_init(&ctx);
    _mesa_blake3_update(&ctx, &stage->key, sizeof(stage->key));
    _mesa_blake3_update(&ctx, options, sizeof(*options));
-   _mesa_blake3_update(&ctx, stage->shader_sha1, sizeof(stage->shader_sha1));
+   _mesa_blake3_update(&ctx, stage->shader_blake3, sizeof(stage->shader_blake3));
    _mesa_blake3_final(&ctx, hash);
 }
 

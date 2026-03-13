@@ -196,12 +196,12 @@ anv_shader_bin_serialize(struct vk_pipeline_cache_object *object,
       blob_write_uint32(blob, 0);
    }
 
-   blob_write_bytes(blob, shader->bind_map.surface_sha1,
-                    sizeof(shader->bind_map.surface_sha1));
-   blob_write_bytes(blob, shader->bind_map.sampler_sha1,
-                    sizeof(shader->bind_map.sampler_sha1));
-   blob_write_bytes(blob, shader->bind_map.push_sha1,
-                    sizeof(shader->bind_map.push_sha1));
+   blob_write_bytes(blob, shader->bind_map.surface_blake3,
+                    sizeof(shader->bind_map.surface_blake3));
+   blob_write_bytes(blob, shader->bind_map.sampler_blake3,
+                    sizeof(shader->bind_map.sampler_blake3));
+   blob_write_bytes(blob, shader->bind_map.push_blake3,
+                    sizeof(shader->bind_map.push_blake3));
    blob_write_uint32(blob, shader->bind_map.surface_count);
    blob_write_uint32(blob, shader->bind_map.sampler_count);
    blob_write_bytes(blob, shader->bind_map.surface_to_descriptor,
@@ -251,9 +251,9 @@ anv_shader_bin_deserialize(struct vk_pipeline_cache *cache,
       xfb_info = blob_read_bytes(blob, xfb_size);
 
    struct anv_pipeline_bind_map bind_map;
-   blob_copy_bytes(blob, bind_map.surface_sha1, sizeof(bind_map.surface_sha1));
-   blob_copy_bytes(blob, bind_map.sampler_sha1, sizeof(bind_map.sampler_sha1));
-   blob_copy_bytes(blob, bind_map.push_sha1, sizeof(bind_map.push_sha1));
+   blob_copy_bytes(blob, bind_map.surface_blake3, sizeof(bind_map.surface_blake3));
+   blob_copy_bytes(blob, bind_map.sampler_blake3, sizeof(bind_map.sampler_blake3));
+   blob_copy_bytes(blob, bind_map.push_blake3, sizeof(bind_map.push_blake3));
    bind_map.surface_count = blob_read_uint32(blob);
    bind_map.sampler_count = blob_read_uint32(blob);
    bind_map.surface_to_descriptor = (void *)

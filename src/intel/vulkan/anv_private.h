@@ -1163,9 +1163,9 @@ enum anv_pipeline_behavior {
 #define ANV_INLINE_DWORD_MESH_PROVOKING_VERTEX (UINT8_MAX - 2)
 
 struct anv_pipeline_bind_map {
-   unsigned char                                surface_sha1[BLAKE3_KEY_LEN];
-   unsigned char                                sampler_sha1[BLAKE3_KEY_LEN];
-   unsigned char                                push_sha1[BLAKE3_KEY_LEN];
+   unsigned char                                surface_blake3[BLAKE3_KEY_LEN];
+   unsigned char                                sampler_blake3[BLAKE3_KEY_LEN];
+   unsigned char                                push_blake3[BLAKE3_KEY_LEN];
 
    /* enum anv_descriptor_set_layout_type */
    uint16_t layout_type;
@@ -4820,9 +4820,9 @@ struct anv_cmd_state {
    struct anv_state                             binding_tables[MESA_VULKAN_SHADER_STAGES];
    struct anv_state                             samplers[MESA_VULKAN_SHADER_STAGES];
 
-   unsigned char                                sampler_sha1s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
-   unsigned char                                surface_sha1s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
-   unsigned char                                push_sha1s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                sampler_blake3s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                surface_blake3s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                push_blake3s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
 
    /* The last auxiliary surface operation (or equivalent operation) provided
     * to genX(cmd_buffer_update_color_aux_op).

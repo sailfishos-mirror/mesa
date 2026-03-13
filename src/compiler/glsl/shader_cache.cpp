@@ -121,7 +121,7 @@ shader_cache_write_program_metadata(struct gl_context *ctx,
       goto fail;
 
    for (unsigned i = 0; i < prog->NumShaders; i++) {
-      memcpy(cache_item_metadata.keys[i], prog->Shaders[i]->disk_cache_sha1,
+      memcpy(cache_item_metadata.keys[i], prog->Shaders[i]->disk_cache_blake3,
              sizeof(cache_key));
    }
 
@@ -196,12 +196,12 @@ shader_cache_read_program_metadata(struct gl_context *ctx,
     * include them as an input to blake3 creation.
     */
    char sha1buf[BLAKE3_HEX_LEN];
-   _mesa_blake3_format(sha1buf, ctx->Const.dri_config_options_sha1);
+   _mesa_blake3_format(sha1buf, ctx->Const.dri_config_options_blake3);
    ralloc_strcat(&buf, sha1buf);
 
    for (unsigned i = 0; i < prog->NumShaders; i++) {
       struct gl_shader *sh = prog->Shaders[i];
-      _mesa_blake3_format(sha1buf, sh->disk_cache_sha1);
+      _mesa_blake3_format(sha1buf, sh->disk_cache_blake3);
       ralloc_asprintf_append(&buf, "%s: %s\n",
                              _mesa_shader_stage_to_abbrev(sh->Stage), sha1buf);
    }

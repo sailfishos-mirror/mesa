@@ -110,7 +110,7 @@ struct tu_program_state
 
       struct tu_program_descriptor_linkage link[MESA_SHADER_STAGES];
 
-      char stage_sha1[MESA_SHADER_STAGES][BLAKE3_HEX_LEN];
+      char stage_blake3[MESA_SHADER_STAGES][BLAKE3_HEX_LEN];
 
       unsigned dynamic_descriptor_offsets[MAX_SETS];
 

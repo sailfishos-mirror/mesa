@@ -133,7 +133,7 @@ struct radv_ray_tracing_binary_header {
    uint32_t is_traversal_shader : 1;
    uint32_t has_shader : 1;
    uint32_t has_nir : 1;
-   uint8_t stage_sha1[BLAKE3_KEY_LEN];
+   uint8_t stage_blake3[BLAKE3_KEY_LEN];
    uint32_t stack_size;
    struct radv_ray_tracing_stage_info stage_info;
 };

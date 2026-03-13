@@ -1863,7 +1863,7 @@ agx_shader_initialize(struct agx_device *dev, struct agx_uncompiled_shader *so,
    blob_init(&so->serialized_nir);
    nir_serialize(&so->serialized_nir, nir, true);
    _mesa_blake3_compute(so->serialized_nir.data, so->serialized_nir.size,
-                      so->nir_sha1);
+                      so->nir_blake3);
 
    so->has_xfb_info = (nir->xfb_info != NULL);
 

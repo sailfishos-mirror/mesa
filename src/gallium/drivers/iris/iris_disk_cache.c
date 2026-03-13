@@ -44,11 +44,11 @@ iris_disk_cache_compute_key(struct disk_cache *cache,
    memcpy(&prog_key, orig_prog_key, prog_key_size);
    prog_key.base.program_string_id = 0;
 
-   uint8_t data[sizeof(prog_key) + sizeof(ish->nir_sha1)];
-   uint32_t data_size = prog_key_size + sizeof(ish->nir_sha1);
+   uint8_t data[sizeof(prog_key) + sizeof(ish->nir_blake3)];
+   uint32_t data_size = prog_key_size + sizeof(ish->nir_blake3);
 
-   memcpy(data, ish->nir_sha1, sizeof(ish->nir_sha1));
-   memcpy(data + sizeof(ish->nir_sha1), &prog_key, prog_key_size);
+   memcpy(data, ish->nir_blake3, sizeof(ish->nir_blake3));
+   memcpy(data + sizeof(ish->nir_blake3), &prog_key, prog_key_size);
 
    disk_cache_compute_key(cache, data, data_size, cache_key);
 }
@@ -336,7 +336,7 @@ iris_disk_cache_init(struct iris_screen *screen)
 
    if (screen->brw) {
       char device_info_sha[BLAKE3_HEX_LEN];
-      brw_device_sha1(device_info_sha, screen->devinfo);
+      brw_device_blake3(device_info_sha, screen->devinfo);
       memcpy(renderer, "iris_", 5);
       memcpy(renderer + 5, device_info_sha, 40);
    } else {

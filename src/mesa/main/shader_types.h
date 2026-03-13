@@ -180,7 +180,7 @@ struct gl_shader
    enum gl_compile_status CompileStatus;
 
    /** BLAKE3 of the pre-processed source used by the disk cache. */
-   uint8_t disk_cache_sha1[BLAKE3_KEY_LEN];
+   uint8_t disk_cache_blake3[BLAKE3_KEY_LEN];
    /** BLAKE3 of the original source before replacement, set by glShaderSource. */
    blake3_hash source_blake3;
    /** BLAKE3 of FallbackSource (a copy of some original source before replacement). */

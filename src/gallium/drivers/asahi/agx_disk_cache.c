@@ -31,8 +31,8 @@ agx_disk_cache_compute_key(struct disk_cache *cache,
                            const union asahi_shader_key *shader_key,
                            cache_key cache_key)
 {
-   uint8_t data[sizeof(uncompiled->nir_sha1) + sizeof(*shader_key)];
-   int hash_size = sizeof(uncompiled->nir_sha1);
+   uint8_t data[sizeof(uncompiled->nir_blake3) + sizeof(*shader_key)];
+   int hash_size = sizeof(uncompiled->nir_blake3);
    int key_size;
    if (uncompiled->type == MESA_SHADER_VERTEX ||
        uncompiled->type == MESA_SHADER_TESS_EVAL)
@@ -42,7 +42,7 @@ agx_disk_cache_compute_key(struct disk_cache *cache,
    else
       key_size = 0;
 
-   memcpy(data, uncompiled->nir_sha1, hash_size);
+   memcpy(data, uncompiled->nir_blake3, hash_size);
 
    if (key_size)
       memcpy(data + hash_size, shader_key, key_size);

@@ -875,7 +875,7 @@ struct gl_constants
    GLuint SparseBufferPageSize;
 
    /** Used as an input for blake3 generation in the on-disk shader cache */
-   unsigned char *dri_config_options_sha1;
+   unsigned char *dri_config_options_blake3;
 
    /** When drivers are OK with mapped buffers during draw and other calls. */
    bool AllowMappedBuffersDuringExecution;

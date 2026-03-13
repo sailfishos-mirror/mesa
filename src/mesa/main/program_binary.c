@@ -236,10 +236,10 @@ _mesa_get_program_binary(struct gl_context *ctx,
                        GLenum *binary_format, GLvoid *binary)
 {
    struct blob blob;
-   uint8_t driver_sha1[BLAKE3_KEY_LEN];
+   uint8_t driver_blake3[BLAKE3_KEY_LEN];
    unsigned header_size = get_program_binary_header_size();
 
-   st_get_program_binary_driver_sha1(ctx, driver_sha1);
+   st_get_program_binary_driver_blake3(ctx, driver_blake3);
 
    blob_init(&blob);
 
@@ -251,7 +251,7 @@ _mesa_get_program_binary(struct gl_context *ctx,
        blob.out_of_memory)
       goto fail;
 
-   bool written = write_program_binary(blob.data, blob.size, driver_sha1,
+   bool written = write_program_binary(blob.data, blob.size, driver_blake3,
                                       binary, buf_size, binary_format);
    if (!written || blob.out_of_memory)
       goto fail;
@@ -273,12 +273,12 @@ _mesa_program_binary(struct gl_context *ctx, struct gl_shader_program *sh_prog,
                      GLenum binary_format, const GLvoid *binary,
                      GLsizei length)
 {
-   uint8_t driver_sha1[BLAKE3_KEY_LEN];
+   uint8_t driver_blake3[BLAKE3_KEY_LEN];
    unsigned header_size = get_program_binary_header_size();
 
-   st_get_program_binary_driver_sha1(ctx, driver_sha1);
+   st_get_program_binary_driver_blake3(ctx, driver_blake3);
 
-   const void *payload = get_program_binary_payload(binary_format, driver_sha1,
+   const void *payload = get_program_binary_payload(binary_format, driver_blake3,
                                                     binary, length);
 
    if (payload == NULL) {

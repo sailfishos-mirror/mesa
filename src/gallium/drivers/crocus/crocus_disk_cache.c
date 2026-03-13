@@ -59,11 +59,11 @@ crocus_disk_cache_compute_key(struct disk_cache *cache,
    memcpy(&prog_key, orig_prog_key, prog_key_size);
    prog_key.base.program_string_id = 0;
 
-   uint8_t data[sizeof(prog_key) + sizeof(ish->nir_sha1)];
-   uint32_t data_size = prog_key_size + sizeof(ish->nir_sha1);
+   uint8_t data[sizeof(prog_key) + sizeof(ish->nir_blake3)];
+   uint32_t data_size = prog_key_size + sizeof(ish->nir_blake3);
 
-   memcpy(data, ish->nir_sha1, sizeof(ish->nir_sha1));
-   memcpy(data + sizeof(ish->nir_sha1), &prog_key, prog_key_size);
+   memcpy(data, ish->nir_blake3, sizeof(ish->nir_blake3));
+   memcpy(data + sizeof(ish->nir_blake3), &prog_key, prog_key_size);
 
    disk_cache_compute_key(cache, data, data_size, cache_key);
 }
