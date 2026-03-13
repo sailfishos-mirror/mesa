@@ -165,7 +165,7 @@ init_shader_caches(struct panvk_physical_device *device,
                                device->kmod.dev->props.gpu_id);
    assert(len == sizeof(renderer) - 1);
 
-   char timestamp[SHA1_DIGEST_STRING_LENGTH];
+   char timestamp[BLAKE3_HEX_LEN];
    _mesa_sha1_format(timestamp, instance->driver_build_sha);
 
    const uint64_t driver_flags = 0;

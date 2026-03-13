@@ -854,7 +854,7 @@ static void
 v3dv_physical_device_init_disk_cache(struct v3dv_physical_device *device)
 {
 #ifdef ENABLE_SHADER_CACHE
-   char timestamp[SHA1_DIGEST_STRING_LENGTH];
+   char timestamp[BLAKE3_HEX_LEN];
    _mesa_sha1_format(timestamp, device->driver_build_sha1);
 
    assert(device->name);

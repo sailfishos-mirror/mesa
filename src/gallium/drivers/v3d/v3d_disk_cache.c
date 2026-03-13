@@ -59,7 +59,7 @@ void v3d_disk_cache_init(struct v3d_screen *screen)
         const uint8_t *id_sha1 = build_id_data(note);
         assert(id_sha1);
 
-        char timestamp[SHA1_DIGEST_STRING_LENGTH];
+        char timestamp[BLAKE3_HEX_LEN];
         _mesa_sha1_format(timestamp, id_sha1);
 
         screen->disk_cache =
@@ -114,7 +114,7 @@ v3d_disk_cache_retrieve(struct v3d_context *v3d,
         void *buffer = disk_cache_get(cache, cache_key, &buffer_size);
 
         if (V3D_DBG(CACHE)) {
-                char sha1[SHA1_DIGEST_STRING_LENGTH];
+                char sha1[BLAKE3_HEX_LEN];
                 _mesa_sha1_format(sha1, cache_key);
                 fprintf(stderr, "[v3d on-disk cache] %s %s\n",
                         buffer ? "hit" : "miss",
@@ -197,7 +197,7 @@ v3d_disk_cache_store(struct v3d_context *v3d,
         v3d_disk_cache_compute_key(cache, key, cache_key, uncompiled);
 
         if (V3D_DBG(CACHE)) {
-                char sha1[SHA1_DIGEST_STRING_LENGTH];
+                char sha1[BLAKE3_HEX_LEN];
                 _mesa_sha1_format(sha1, cache_key);
                 fprintf(stderr, "[v3d on-disk cache] storing %s\n", sha1);
         }

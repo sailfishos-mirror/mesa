@@ -1815,7 +1815,7 @@ iris_debug_archiver_open(void *tmp_ctx, struct iris_screen *screen,
    if (!INTEL_DEBUG(DEBUG_MDA) || !screen->brw)
       return NULL;
 
-   char name[SHA1_DIGEST_STRING_LENGTH + 5] = {};
+   char name[BLAKE3_HEX_LEN + 5] = {};
    {
       struct mesa_sha1 ctx;
       unsigned char hash[BLAKE3_KEY_LEN];
@@ -1827,7 +1827,7 @@ iris_debug_archiver_open(void *tmp_ctx, struct iris_screen *screen,
 
       _mesa_sha1_format(name, hash);
    }
-   memcpy(&name[SHA1_DIGEST_STRING_LENGTH - 1], ".iris", 5);
+   memcpy(&name[BLAKE3_HEX_LEN - 1], ".iris", 5);
 
    debug_archiver *debug_archiver =
       debug_archiver_open(tmp_ctx, name, PACKAGE_VERSION MESA_GIT_SHA1);

@@ -14,8 +14,6 @@
 
 #include "util/mesa-blake3.h"
 
-#define	SHA1_DIGEST_STRING_LENGTH	BLAKE3_HEX_LEN
-
 #ifdef __cplusplus
 extern "C" {
 #endif

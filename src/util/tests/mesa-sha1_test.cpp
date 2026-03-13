@@ -52,7 +52,7 @@ TEST_P(MesaSHA1TestFixture, Match)
    unsigned char sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_compute(p.string, strlen(p.string), sha1);
 
-   char buf[SHA1_DIGEST_STRING_LENGTH];
+   char buf[BLAKE3_HEX_LEN];
    _mesa_sha1_format(buf, sha1);
 
    ASSERT_TRUE(memcmp(buf, p.expected_sha1, SHA1_LENGTH) == 0)

@@ -755,7 +755,7 @@ static void r600_disk_cache_create(struct r600_common_screen *rscreen)
 
 	struct mesa_sha1 ctx;
 	unsigned char sha1[BLAKE3_KEY_LEN];
-	char cache_id[SHA1_DIGEST_STRING_LENGTH];
+	char cache_id[BLAKE3_HEX_LEN];
 
 	_mesa_sha1_init(&ctx);
 	if (!disk_cache_get_function_identifier(r600_disk_cache_create,

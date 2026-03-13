@@ -571,7 +571,7 @@ radv_dump_shader(struct radv_device *device, struct radv_pipeline *pipeline, str
 
    if (shader->spirv) {
       unsigned char sha1[BLAKE3_KEY_LEN + 1];
-      char sha1buf[SHA1_DIGEST_STRING_LENGTH];
+      char sha1buf[BLAKE3_HEX_LEN];
 
       _mesa_sha1_compute(shader->spirv, shader->spirv_size, sha1);
       _mesa_sha1_format(sha1buf, sha1);

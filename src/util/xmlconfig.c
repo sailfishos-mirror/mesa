@@ -771,8 +771,8 @@ parseAppAttr(struct OptConfData *data, const char **attr)
       } else
          XML_WARNING("Invalid executable_regexp=\"%s\".", exec_regexp);
    } else if (sha1) {
-      /* SHA1_DIGEST_STRING_LENGTH includes terminating null byte */
-      if (strlen(sha1) != (SHA1_DIGEST_STRING_LENGTH - 1)) {
+      /* BLAKE3_HEX_LEN includes terminating null byte */
+      if (strlen(sha1) != (BLAKE3_HEX_LEN - 1)) {
          XML_WARNING("Incorrect sha1 application attribute");
          data->ignoringApp = data->inApp;
       } else {
@@ -782,7 +782,7 @@ parseAppAttr(struct OptConfData *data, const char **attr)
          if (util_get_process_exec_path(path, ARRAY_SIZE(path)) > 0 &&
              (content = os_read_file(path, &len))) {
             uint8_t sha1x[BLAKE3_KEY_LEN];
-            char sha1s[SHA1_DIGEST_STRING_LENGTH];
+            char sha1s[BLAKE3_HEX_LEN];
             _mesa_sha1_compute(content, len, sha1x);
             _mesa_sha1_format((char*) sha1s, sha1x);
             free(content);

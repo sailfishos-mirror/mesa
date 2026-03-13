@@ -1834,7 +1834,7 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
       struct anv_shader_data *shader_data = &shaders_data[s];
       struct vk_shader_compile_info *info = shader_data->info;
 
-      char name[SHA1_DIGEST_STRING_LENGTH + 4] = {};
+      char name[BLAKE3_HEX_LEN + 4] = {};
       {
          struct mesa_sha1 ctx;
          unsigned char hash[BLAKE3_KEY_LEN];
@@ -1847,7 +1847,7 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
 
          _mesa_sha1_format(name, hash);
       }
-      memcpy(&name[SHA1_DIGEST_STRING_LENGTH - 1], ".anv", 4);
+      memcpy(&name[BLAKE3_HEX_LEN - 1], ".anv", 4);
 
       shader_data->archiver =
          debug_archiver_open(mem_ctx, name, PACKAGE_VERSION MESA_GIT_SHA1);

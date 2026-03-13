@@ -354,7 +354,7 @@ disk_cache_init(struct zink_screen *screen)
    blake3_hash blake3;
    _mesa_blake3_final(&ctx, blake3);
 
-   char cache_id[SHA1_DIGEST_STRING_LENGTH];
+   char cache_id[BLAKE3_HEX_LEN];
    mesa_bytes_to_hex(cache_id, blake3, BLAKE3_KEY_LEN);
 
    screen->disk_cache = disk_cache_create("zink", cache_id, 0);

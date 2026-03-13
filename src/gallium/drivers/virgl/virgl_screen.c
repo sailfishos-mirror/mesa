@@ -924,7 +924,7 @@ static void virgl_disk_cache_create(struct virgl_screen *screen)
 
    uint8_t sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&sha1_ctx, sha1);
-   char timestamp[SHA1_DIGEST_STRING_LENGTH];
+   char timestamp[BLAKE3_HEX_LEN];
    _mesa_sha1_format(timestamp, sha1);
 
    screen->disk_cache = disk_cache_create("virgl", timestamp, 0);

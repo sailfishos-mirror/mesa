@@ -81,7 +81,7 @@ impl DiskCache {
     pub fn new(name: &CStr, func_ptrs: &[*mut c_void], flags: u64) -> Option<Self> {
         let mut sha_ctx = SHA1_CTX::default();
         let mut sha = [0; BLAKE3_KEY_LEN as usize];
-        let mut cache_id = [0; SHA1_DIGEST_STRING_LENGTH as usize];
+        let mut cache_id = [0; BLAKE3_HEX_LEN as usize];
 
         let cache = unsafe {
             SHA1Init(&mut sha_ctx);

@@ -442,7 +442,7 @@ enum tu_suspend_resume_state
    SR_IN_CHAIN_AFTER_PRE_CHAIN,
 };
 
-typedef char tu_sha1_str[SHA1_DIGEST_STRING_LENGTH];
+typedef char tu_sha1_str[BLAKE3_HEX_LEN];
 
 struct tu_cmd_state
 {

@@ -2222,7 +2222,7 @@ generate_code(struct elk_codegen *p,
 
    bool dump_shader_bin = elk_should_dump_shader_bin();
    unsigned char sha1[BLAKE3_KEY_LEN + 1];
-   char sha1buf[SHA1_DIGEST_STRING_LENGTH];
+   char sha1buf[BLAKE3_HEX_LEN];
 
    if (unlikely(debug_enabled || dump_shader_bin)) {
       _mesa_sha1_compute(p->store, p->next_insn_offset, sha1);
