@@ -1447,6 +1447,8 @@ anv_shader_lower_nir(struct anv_device *device,
 
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
 
+   NIR_PASS(_, nir, nir_lower_memory_model);
+
    /* Apply lowering for 64bit atomics pre-Xe2 */
    const bool lower_64bit_atomics = devinfo->ver < 20;
 
