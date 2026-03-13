@@ -1345,24 +1345,24 @@ brw_generator::generate_code(const brw_shader &s,
 
    bool dump_shader_bin = brw_should_dump_shader_bin();
    unsigned char blake3[BLAKE3_KEY_LEN + 1];
-   char sha1buf[BLAKE3_HEX_LEN];
+   char blake3buf[BLAKE3_HEX_LEN];
 
    auto override_path = debug_get_option_shader_bin_override_path();
    if (unlikely(debug_flag || dump_shader_bin || override_path != NULL ||
                 params->archiver)) {
       _mesa_blake3_compute(p->store + start_offset / sizeof(brw_eu_inst),
                          after_size, blake3);
-      _mesa_blake3_format(sha1buf, blake3);
+      _mesa_blake3_format(blake3buf, blake3);
    }
 
    if (unlikely(dump_shader_bin))
       brw_dump_shader_bin(p->store, start_offset, p->next_insn_offset,
-                          sha1buf);
+                          blake3buf);
 
    if (unlikely(override_path != NULL &&
                 brw_try_override_assembly(p, start_offset, override_path,
-                                          sha1buf))) {
-      fprintf(stderr, "Successfully overrode shader with blake3 %s\n", sha1buf);
+                                          blake3buf))) {
+      fprintf(stderr, "Successfully overrode shader with blake3 %s\n", blake3buf);
       /* disasm_info and stats are no longer valid as we gathered
        * them based on the original shader.
        */
@@ -1397,7 +1397,7 @@ brw_generator::generate_code(const brw_shader &s,
                  "GRF registers: %u. "
                  "Non-SSA regs (after NIR): %u. "
                  "Compacted %d to %d bytes (%.0f%%)\n",
-                 shader_name, params->source_hash, sha1buf,
+                 shader_name, params->source_hash, blake3buf,
                  dispatch_width,
                  before_size / 16 - nop_count - sync_nop_count,
                  loop_count, perf.latency,

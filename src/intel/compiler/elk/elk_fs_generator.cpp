@@ -2189,17 +2189,17 @@ elk_fs_generator::generate_code(const elk_cfg_t *cfg, int dispatch_width,
 
    bool dump_shader_bin = elk_should_dump_shader_bin();
    unsigned char blake3[BLAKE3_KEY_LEN + 1];
-   char sha1buf[BLAKE3_HEX_LEN];
+   char blake3buf[BLAKE3_HEX_LEN];
 
    if (unlikely(debug_flag || dump_shader_bin)) {
       _mesa_blake3_compute(p->store + start_offset / sizeof(elk_inst),
                          after_size, blake3);
-      _mesa_blake3_format(sha1buf, blake3);
+      _mesa_blake3_format(blake3buf, blake3);
    }
 
    if (unlikely(dump_shader_bin))
       elk_dump_shader_bin(p->store, start_offset, p->next_insn_offset,
-                          sha1buf);
+                          blake3buf);
 
    if (unlikely(debug_flag)) {
       fprintf(stderr, "Native code for %s (src_hash 0x%08x) (blake3 %s)\n"
@@ -2208,7 +2208,7 @@ elk_fs_generator::generate_code(const elk_cfg_t *cfg, int dispatch_width,
               "scheduled with mode %s. "
               "Promoted %u constants. "
               "Compacted %d to %d bytes (%.0f%%)\n",
-              shader_name, params->source_hash, sha1buf,
+              shader_name, params->source_hash, blake3buf,
               dispatch_width, before_size / 16,
               loop_count, perf.latency,
               shader_stats.spill_count,
@@ -2220,11 +2220,11 @@ elk_fs_generator::generate_code(const elk_cfg_t *cfg, int dispatch_width,
               100.0f * (before_size - after_size) / before_size);
 
       /* overriding the shader makes elk_disasm_info invalid */
-      if (!elk_try_override_assembly(p, start_offset, sha1buf)) {
+      if (!elk_try_override_assembly(p, start_offset, blake3buf)) {
          elk_dump_assembly(p->store, start_offset, p->next_insn_offset,
                        elk_disasm_info, perf.block_latency);
       } else {
-         fprintf(stderr, "Successfully overrode shader with blake3 %s\n\n", sha1buf);
+         fprintf(stderr, "Successfully overrode shader with blake3 %s\n\n", blake3buf);
       }
    }
    ralloc_free(elk_disasm_info);

@@ -129,9 +129,9 @@ v3dv_pipeline_cache_upload_nir(struct v3dv_pipeline *pipeline,
 
    cache->nir_stats.count++;
    if (debug_cache) {
-      char sha1buf[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1buf, snir->blake3_key);
-      mesa_logi("pipeline cache %p, new nir entry %s\n", cache, sha1buf);
+      char blake3buf[BLAKE3_HEX_LEN];
+      _mesa_blake3_format(blake3buf, snir->blake3_key);
+      mesa_logi("pipeline cache %p, new nir entry %s\n", cache, blake3buf);
       if (dump_stats)
          cache_dump_stats(cache);
    }
@@ -151,10 +151,10 @@ v3dv_pipeline_cache_search_for_nir(struct v3dv_pipeline *pipeline,
       return NULL;
 
    if (debug_cache) {
-      char sha1buf[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1buf, blake3_key);
+      char blake3buf[BLAKE3_HEX_LEN];
+      _mesa_blake3_format(blake3buf, blake3_key);
 
-      mesa_logi("pipeline cache %p, search for nir %s\n", cache, sha1buf);
+      mesa_logi("pipeline cache %p, search for nir %s\n", cache, blake3buf);
    }
 
    const struct serialized_nir *snir = NULL;
@@ -256,10 +256,10 @@ v3dv_pipeline_cache_search_for_pipeline(struct v3dv_pipeline_cache *cache,
       return NULL;
 
    if (debug_cache) {
-      char sha1buf[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1buf, blake3_key);
+      char blake3buf[BLAKE3_HEX_LEN];
+      _mesa_blake3_format(blake3buf, blake3_key);
 
-      mesa_logi("pipeline cache %p, search pipeline with key %s\n", cache, sha1buf);
+      mesa_logi("pipeline cache %p, search pipeline with key %s\n", cache, blake3buf);
    }
 
    pipeline_cache_lock(cache);
@@ -312,10 +312,10 @@ v3dv_pipeline_cache_search_for_pipeline(struct v3dv_pipeline_cache *cache,
       size_t buffer_size;
       uint8_t *buffer = disk_cache_get(disk_cache, cache_key, &buffer_size);
       if (V3D_DBG(CACHE)) {
-         char sha1buf[BLAKE3_HEX_LEN];
-         _mesa_blake3_format(sha1buf, cache_key);
+         char blake3buf[BLAKE3_HEX_LEN];
+         _mesa_blake3_format(blake3buf, cache_key);
          mesa_logi("[v3dv on-disk cache] %s %s\n",
-                   buffer ? "hit" : "miss", sha1buf);
+                   buffer ? "hit" : "miss", blake3buf);
       }
 
       if (buffer) {
@@ -452,11 +452,11 @@ pipeline_cache_upload_shared_data(struct v3dv_pipeline_cache *cache,
    _mesa_hash_table_insert(cache->cache, shared_data->blake3_key, shared_data);
    cache->stats.count++;
    if (debug_cache) {
-      char sha1buf[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1buf, shared_data->blake3_key);
+      char blake3buf[BLAKE3_HEX_LEN];
+      _mesa_blake3_format(blake3buf, shared_data->blake3_key);
 
       mesa_logi("pipeline cache %p, new cache entry with blake3 key %s:%p\n\n",
-                cache, sha1buf, shared_data);
+                cache, blake3buf, shared_data);
       if (dump_stats)
          cache_dump_stats(cache);
    }
@@ -480,9 +480,9 @@ pipeline_cache_upload_shared_data(struct v3dv_pipeline_cache *cache,
          disk_cache_compute_key(disk_cache, shared_data->blake3_key, 20, cache_key);
 
          if (V3D_DBG(CACHE)) {
-            char sha1buf[BLAKE3_HEX_LEN];
-            _mesa_blake3_format(sha1buf, shared_data->blake3_key);
-            mesa_logi("[v3dv on-disk cache] storing %s\n", sha1buf);
+            char blake3buf[BLAKE3_HEX_LEN];
+            _mesa_blake3_format(blake3buf, shared_data->blake3_key);
+            mesa_logi("[v3dv on-disk cache] storing %s\n", blake3buf);
          }
          disk_cache_put(disk_cache, cache_key, binary.data, binary.size, NULL);
       }
@@ -818,12 +818,12 @@ v3dv_MergePipelineCaches(VkDevice device,
          _mesa_hash_table_insert(dst->nir_cache, snir_dst->blake3_key, snir_dst);
          dst->nir_stats.count++;
          if (debug_cache) {
-            char sha1buf[BLAKE3_HEX_LEN];
-            _mesa_blake3_format(sha1buf, snir_dst->blake3_key);
+            char blake3buf[BLAKE3_HEX_LEN];
+            _mesa_blake3_format(blake3buf, snir_dst->blake3_key);
 
             mesa_logi("pipeline cache %p, added nir entry %s "
                       "from pipeline cache %p\n",
-                    dst, sha1buf, src);
+                    dst, blake3buf, src);
             if (dump_stats)
                cache_dump_stats(dst);
          }
@@ -841,12 +841,12 @@ v3dv_MergePipelineCaches(VkDevice device,
 
          dst->stats.count++;
          if (debug_cache) {
-            char sha1buf[BLAKE3_HEX_LEN];
-            _mesa_blake3_format(sha1buf, cache_entry->blake3_key);
+            char blake3buf[BLAKE3_HEX_LEN];
+            _mesa_blake3_format(blake3buf, cache_entry->blake3_key);
 
             mesa_logi("pipeline cache %p, added entry %s "
                       "from pipeline cache %p\n",
-                    dst, sha1buf, src);
+                    dst, blake3buf, src);
             if (dump_stats)
                cache_dump_stats(dst);
          }

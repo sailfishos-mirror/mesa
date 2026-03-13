@@ -401,9 +401,9 @@ shader_module_compile_to_nir(struct v3dv_device *device,
    assert(nir->info.stage == gl_stage);
 
    if (V3D_DBG(SHADERDB) && (!stage->module || stage->module->nir == NULL)) {
-      char sha1buf[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1buf, stage->pipeline->blake3);
-      nir->info.name = ralloc_strdup(nir, sha1buf);
+      char blake3buf[BLAKE3_HEX_LEN];
+      _mesa_blake3_format(blake3buf, stage->pipeline->blake3);
+      nir->info.name = ralloc_strdup(nir, blake3buf);
    }
 
    if (V3D_DBG(NIR) || v3d_debug_flag_for_shader_stage(gl_stage)) {

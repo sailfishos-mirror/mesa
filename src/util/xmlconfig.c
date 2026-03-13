@@ -740,7 +740,7 @@ parseAppAttr(struct OptConfData *data, const char **attr)
 {
    uint32_t i;
    const char *exec = NULL;
-   const char *sha1 = NULL;
+   const char *blake3 = NULL;
    const char *exec_regexp = NULL;
    const char *application_name_match = NULL;
    const char *application_versions = NULL;
@@ -752,7 +752,7 @@ parseAppAttr(struct OptConfData *data, const char **attr)
       if (!strcmp(attr[i], "name")) /* not needed here */;
       else if (!strcmp(attr[i], "executable")) exec = attr[i+1];
       else if (!strcmp(attr[i], "executable_regexp")) exec_regexp = attr[i+1];
-      else if (!strcmp(attr[i], "sha1")) sha1 = attr[i+1];
+      else if (!strcmp(attr[i], "sha1")) blake3 = attr[i+1];
       else if (!strcmp(attr[i], "application_name_match"))
          application_name_match = attr[i+1];
       else if (!strcmp(attr[i], "application_versions"))
@@ -770,10 +770,10 @@ parseAppAttr(struct OptConfData *data, const char **attr)
          regfree(&re);
       } else
          XML_WARNING("Invalid executable_regexp=\"%s\".", exec_regexp);
-   } else if (sha1) {
+   } else if (blake3) {
       /* BLAKE3_HEX_LEN includes terminating null byte */
-      if (strlen(sha1) != (BLAKE3_HEX_LEN - 1)) {
-         XML_WARNING("Incorrect sha1 application attribute");
+      if (strlen(blake3) != (BLAKE3_HEX_LEN - 1)) {
+         XML_WARNING("Incorrect blake3 application attribute");
          data->ignoringApp = data->inApp;
       } else {
          size_t len;
@@ -781,13 +781,13 @@ parseAppAttr(struct OptConfData *data, const char **attr)
          char path[PATH_MAX];
          if (util_get_process_exec_path(path, ARRAY_SIZE(path)) > 0 &&
              (content = os_read_file(path, &len))) {
-            uint8_t sha1x[BLAKE3_KEY_LEN];
-            char sha1s[BLAKE3_HEX_LEN];
-            _mesa_blake3_compute(content, len, sha1x);
-            _mesa_blake3_format((char*) sha1s, sha1x);
+            uint8_t blake3x[BLAKE3_KEY_LEN];
+            char blake3s[BLAKE3_HEX_LEN];
+            _mesa_blake3_compute(content, len, blake3x);
+            _mesa_blake3_format((char*) blake3s, blake3x);
             free(content);
 
-            if (strcmp(sha1, sha1s)) {
+            if (strcmp(blake3, blake3s)) {
                data->ignoringApp = data->inApp;
             }
          } else {

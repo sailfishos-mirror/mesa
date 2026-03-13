@@ -195,15 +195,15 @@ shader_cache_read_program_metadata(struct gl_context *ctx,
    /* DRI config options may also change the output from the compiler so
     * include them as an input to blake3 creation.
     */
-   char sha1buf[BLAKE3_HEX_LEN];
-   _mesa_blake3_format(sha1buf, ctx->Const.dri_config_options_blake3);
-   ralloc_strcat(&buf, sha1buf);
+   char blake3buf[BLAKE3_HEX_LEN];
+   _mesa_blake3_format(blake3buf, ctx->Const.dri_config_options_blake3);
+   ralloc_strcat(&buf, blake3buf);
 
    for (unsigned i = 0; i < prog->NumShaders; i++) {
       struct gl_shader *sh = prog->Shaders[i];
-      _mesa_blake3_format(sha1buf, sh->disk_cache_blake3);
+      _mesa_blake3_format(blake3buf, sh->disk_cache_blake3);
       ralloc_asprintf_append(&buf, "%s: %s\n",
-                             _mesa_shader_stage_to_abbrev(sh->Stage), sha1buf);
+                             _mesa_shader_stage_to_abbrev(sh->Stage), blake3buf);
    }
    disk_cache_compute_key(cache, buf, strlen(buf), prog->data->blake3);
    ralloc_free(buf);
@@ -227,9 +227,9 @@ shader_cache_read_program_metadata(struct gl_context *ctx,
    }
 
    if (ctx->_Shader->Flags & GLSL_CACHE_INFO) {
-      _mesa_blake3_format(sha1buf, prog->data->blake3);
+      _mesa_blake3_format(blake3buf, prog->data->blake3);
       fprintf(stderr, "loading shader program meta data from cache: %s\n",
-              sha1buf);
+              blake3buf);
    }
 
    struct blob_reader metadata;

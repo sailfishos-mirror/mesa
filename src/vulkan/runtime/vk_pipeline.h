@@ -83,7 +83,7 @@ PRAGMA_DIAGNOSTIC_POP
 /** Hash VkPipelineShaderStageCreateInfo info
  *
  * Returns the hash of a VkPipelineShaderStageCreateInfo:
- *    BLAKE3(info->module->sha1,
+ *    BLAKE3(info->module->blake3,
  *         info->pName,
  *         vk_stage_to_mesa_stage(info->stage),
  *         info->pSpecializationInfo)

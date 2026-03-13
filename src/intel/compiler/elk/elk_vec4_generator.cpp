@@ -2222,21 +2222,21 @@ generate_code(struct elk_codegen *p,
 
    bool dump_shader_bin = elk_should_dump_shader_bin();
    unsigned char blake3[BLAKE3_KEY_LEN + 1];
-   char sha1buf[BLAKE3_HEX_LEN];
+   char blake3buf[BLAKE3_HEX_LEN];
 
    if (unlikely(debug_enabled || dump_shader_bin)) {
       _mesa_blake3_compute(p->store, p->next_insn_offset, blake3);
-      _mesa_blake3_format(sha1buf, blake3);
+      _mesa_blake3_format(blake3buf, blake3);
    }
 
    if (unlikely(dump_shader_bin))
-      elk_dump_shader_bin(p->store, 0, p->next_insn_offset, sha1buf);
+      elk_dump_shader_bin(p->store, 0, p->next_insn_offset, blake3buf);
 
    if (unlikely(debug_enabled)) {
       fprintf(stderr, "Native code for %s %s shader %s (src_hash 0x%08x) (blake3 %s):\n",
             nir->info.label ? nir->info.label : "unnamed",
             _mesa_shader_stage_to_string(nir->info.stage), nir->info.name,
-            params->source_hash, sha1buf);
+            params->source_hash, blake3buf);
 
       fprintf(stderr, "%s vec4 shader: %d instructions. %d loops. %u cycles. %d:%d "
                      "spills:fills, %u sends. Compacted %d to %d bytes (%.0f%%)\n",
@@ -2245,11 +2245,11 @@ generate_code(struct elk_codegen *p,
             100.0f * (before_size - after_size) / before_size);
 
       /* overriding the shader makes elk_disasm_info invalid */
-      if (!elk_try_override_assembly(p, 0, sha1buf)) {
+      if (!elk_try_override_assembly(p, 0, blake3buf)) {
          elk_dump_assembly(p->store, 0, p->next_insn_offset,
                        elk_disasm_info, perf.block_latency);
       } else {
-         fprintf(stderr, "Successfully overrode shader with blake3 %s\n\n", sha1buf);
+         fprintf(stderr, "Successfully overrode shader with blake3 %s\n\n", blake3buf);
       }
    }
    ralloc_free(elk_disasm_info);

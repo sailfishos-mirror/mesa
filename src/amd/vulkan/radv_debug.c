@@ -571,16 +571,16 @@ radv_dump_shader(struct radv_device *device, struct radv_pipeline *pipeline, str
 
    if (shader->spirv) {
       unsigned char blake3[BLAKE3_KEY_LEN + 1];
-      char sha1buf[BLAKE3_HEX_LEN];
+      char blake3buf[BLAKE3_HEX_LEN];
 
       _mesa_blake3_compute(shader->spirv, shader->spirv_size, blake3);
-      _mesa_blake3_format(sha1buf, blake3);
+      _mesa_blake3_format(blake3buf, blake3);
 
       if (device->vk.enabled_features.deviceFaultVendorBinary) {
          spirv_print_asm(f, (const uint32_t *)shader->spirv, shader->spirv_size / 4);
       } else {
-         fprintf(f, "SPIRV (see %s.spv)\n\n", sha1buf);
-         radv_dump_spirv(shader, sha1buf, dump_dir);
+         fprintf(f, "SPIRV (see %s.spv)\n\n", blake3buf);
+         radv_dump_spirv(shader, blake3buf, dump_dir);
       }
    }
 
