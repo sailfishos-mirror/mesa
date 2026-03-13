@@ -698,7 +698,7 @@ void anv_DestroyDescriptorSetLayout(
    anv_descriptor_set_layout_unref(device, set_layout);
 }
 
-#define SHA1_UPDATE_VALUE(ctx, x) _mesa_blake3_update(ctx, &(x), sizeof(x));
+#define BLAKE3_UPDATE_VALUE(ctx, x) _mesa_blake3_update(ctx, &(x), sizeof(x));
 
 static void
 sha1_update_immutable_sampler(blake3_hasher *ctx,
@@ -716,14 +716,14 @@ static void
 sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
    const struct anv_descriptor_set_binding_layout *layout)
 {
-   SHA1_UPDATE_VALUE(ctx, layout->flags);
-   SHA1_UPDATE_VALUE(ctx, layout->data);
-   SHA1_UPDATE_VALUE(ctx, layout->max_plane_count);
-   SHA1_UPDATE_VALUE(ctx, layout->array_size);
-   SHA1_UPDATE_VALUE(ctx, layout->descriptor_index);
-   SHA1_UPDATE_VALUE(ctx, layout->dynamic_offset_index);
-   SHA1_UPDATE_VALUE(ctx, layout->buffer_view_index);
-   SHA1_UPDATE_VALUE(ctx, layout->descriptor_offset);
+   BLAKE3_UPDATE_VALUE(ctx, layout->flags);
+   BLAKE3_UPDATE_VALUE(ctx, layout->data);
+   BLAKE3_UPDATE_VALUE(ctx, layout->max_plane_count);
+   BLAKE3_UPDATE_VALUE(ctx, layout->array_size);
+   BLAKE3_UPDATE_VALUE(ctx, layout->descriptor_index);
+   BLAKE3_UPDATE_VALUE(ctx, layout->dynamic_offset_index);
+   BLAKE3_UPDATE_VALUE(ctx, layout->buffer_view_index);
+   BLAKE3_UPDATE_VALUE(ctx, layout->descriptor_offset);
 
    if (layout->immutable_samplers) {
       for (uint16_t i = 0; i < layout->array_size; i++)
@@ -735,12 +735,12 @@ static void
 sha1_update_descriptor_set_layout(blake3_hasher *ctx,
                                   const struct anv_descriptor_set_layout *layout)
 {
-   SHA1_UPDATE_VALUE(ctx, layout->binding_count);
-   SHA1_UPDATE_VALUE(ctx, layout->descriptor_count);
-   SHA1_UPDATE_VALUE(ctx, layout->shader_stages);
-   SHA1_UPDATE_VALUE(ctx, layout->buffer_view_count);
-   SHA1_UPDATE_VALUE(ctx, layout->dynamic_offset_count);
-   SHA1_UPDATE_VALUE(ctx, layout->descriptor_buffer_size);
+   BLAKE3_UPDATE_VALUE(ctx, layout->binding_count);
+   BLAKE3_UPDATE_VALUE(ctx, layout->descriptor_count);
+   BLAKE3_UPDATE_VALUE(ctx, layout->shader_stages);
+   BLAKE3_UPDATE_VALUE(ctx, layout->buffer_view_count);
+   BLAKE3_UPDATE_VALUE(ctx, layout->dynamic_offset_count);
+   BLAKE3_UPDATE_VALUE(ctx, layout->descriptor_buffer_size);
 
    for (uint16_t i = 0; i < layout->binding_count; i++)
       sha1_update_descriptor_set_binding_layout(ctx, &layout->binding[i]);

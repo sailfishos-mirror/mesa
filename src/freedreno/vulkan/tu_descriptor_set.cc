@@ -451,15 +451,15 @@ tu_GetDescriptorSetLayoutBindingOffsetEXT(
 
 /* Note: we must hash any values used in tu_lower_io(). */
 
-#define SHA1_UPDATE_VALUE(ctx, x) _mesa_blake3_update(ctx, &(x), sizeof(x));
+#define BLAKE3_UPDATE_VALUE(ctx, x) _mesa_blake3_update(ctx, &(x), sizeof(x));
 
 static void
 sha1_update_ycbcr_sampler(blake3_hasher *ctx,
                           const struct vk_ycbcr_conversion_state *sampler)
 {
-   SHA1_UPDATE_VALUE(ctx, sampler->ycbcr_model);
-   SHA1_UPDATE_VALUE(ctx, sampler->ycbcr_range);
-   SHA1_UPDATE_VALUE(ctx, sampler->format);
+   BLAKE3_UPDATE_VALUE(ctx, sampler->ycbcr_model);
+   BLAKE3_UPDATE_VALUE(ctx, sampler->ycbcr_range);
+   BLAKE3_UPDATE_VALUE(ctx, sampler->format);
 }
 
 static void
@@ -467,12 +467,12 @@ sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
    const struct tu_descriptor_set_binding_layout *layout,
    const struct tu_descriptor_set_layout *set_layout)
 {
-   SHA1_UPDATE_VALUE(ctx, layout->type);
-   SHA1_UPDATE_VALUE(ctx, layout->offset);
-   SHA1_UPDATE_VALUE(ctx, layout->size);
-   SHA1_UPDATE_VALUE(ctx, layout->array_size);
-   SHA1_UPDATE_VALUE(ctx, layout->dynamic_offset_offset);
-   SHA1_UPDATE_VALUE(ctx, layout->immutable_samplers_offset);
+   BLAKE3_UPDATE_VALUE(ctx, layout->type);
+   BLAKE3_UPDATE_VALUE(ctx, layout->offset);
+   BLAKE3_UPDATE_VALUE(ctx, layout->size);
+   BLAKE3_UPDATE_VALUE(ctx, layout->array_size);
+   BLAKE3_UPDATE_VALUE(ctx, layout->dynamic_offset_offset);
+   BLAKE3_UPDATE_VALUE(ctx, layout->immutable_samplers_offset);
 
    const struct tu_sampler *samplers =
       tu_immutable_samplers(set_layout, layout);
@@ -488,9 +488,9 @@ sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
    if (samplers) {
       for (unsigned i = 0; i < layout->array_size; i++) {
          if (samplers[i].vk.flags & VK_SAMPLER_CREATE_SUBSAMPLED_BIT_EXT) {
-            SHA1_UPDATE_VALUE(ctx, i);
-            SHA1_UPDATE_VALUE(ctx, samplers[i].vk.address_mode_u);
-            SHA1_UPDATE_VALUE(ctx, samplers[i].vk.address_mode_v);
+            BLAKE3_UPDATE_VALUE(ctx, i);
+            BLAKE3_UPDATE_VALUE(ctx, samplers[i].vk.address_mode_u);
+            BLAKE3_UPDATE_VALUE(ctx, samplers[i].vk.address_mode_v);
          }
       }
    }
@@ -501,7 +501,7 @@ static void
 sha1_update_descriptor_set_layout(blake3_hasher *ctx,
                                   const struct tu_descriptor_set_layout *layout)
 {
-   SHA1_UPDATE_VALUE(ctx, layout->has_variable_descriptors);
+   BLAKE3_UPDATE_VALUE(ctx, layout->has_variable_descriptors);
 
    for (uint16_t i = 0; i < layout->binding_count; i++)
       sha1_update_descriptor_set_binding_layout(ctx, &layout->binding[i],

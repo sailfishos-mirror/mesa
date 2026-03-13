@@ -276,18 +276,18 @@ v3dv_descriptor_map_get_texture_shader_state(struct v3dv_device *device,
    return reloc;
 }
 
-#define SHA1_UPDATE_VALUE(ctx, x) _mesa_blake3_update(ctx, &(x), sizeof(x));
+#define BLAKE3_UPDATE_VALUE(ctx, x) _mesa_blake3_update(ctx, &(x), sizeof(x));
 
 static void
 sha1_update_ycbcr_conversion(blake3_hasher *ctx,
                              const struct vk_ycbcr_conversion_state *conversion)
 {
-   SHA1_UPDATE_VALUE(ctx, conversion->format);
-   SHA1_UPDATE_VALUE(ctx, conversion->ycbcr_model);
-   SHA1_UPDATE_VALUE(ctx, conversion->ycbcr_range);
-   SHA1_UPDATE_VALUE(ctx, conversion->mapping);
-   SHA1_UPDATE_VALUE(ctx, conversion->chroma_offsets);
-   SHA1_UPDATE_VALUE(ctx, conversion->chroma_reconstruction);
+   BLAKE3_UPDATE_VALUE(ctx, conversion->format);
+   BLAKE3_UPDATE_VALUE(ctx, conversion->ycbcr_model);
+   BLAKE3_UPDATE_VALUE(ctx, conversion->ycbcr_range);
+   BLAKE3_UPDATE_VALUE(ctx, conversion->mapping);
+   BLAKE3_UPDATE_VALUE(ctx, conversion->chroma_offsets);
+   BLAKE3_UPDATE_VALUE(ctx, conversion->chroma_reconstruction);
 }
 
 static void
@@ -295,14 +295,14 @@ sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
                                           const struct v3dv_descriptor_set_binding_layout *layout,
                                           const struct v3dv_descriptor_set_layout *set_layout)
 {
-   SHA1_UPDATE_VALUE(ctx, layout->type);
-   SHA1_UPDATE_VALUE(ctx, layout->array_size);
-   SHA1_UPDATE_VALUE(ctx, layout->descriptor_index);
-   SHA1_UPDATE_VALUE(ctx, layout->dynamic_offset_count);
-   SHA1_UPDATE_VALUE(ctx, layout->dynamic_offset_index);
-   SHA1_UPDATE_VALUE(ctx, layout->descriptor_offset);
-   SHA1_UPDATE_VALUE(ctx, layout->immutable_samplers_offset);
-   SHA1_UPDATE_VALUE(ctx, layout->plane_stride);
+   BLAKE3_UPDATE_VALUE(ctx, layout->type);
+   BLAKE3_UPDATE_VALUE(ctx, layout->array_size);
+   BLAKE3_UPDATE_VALUE(ctx, layout->descriptor_index);
+   BLAKE3_UPDATE_VALUE(ctx, layout->dynamic_offset_count);
+   BLAKE3_UPDATE_VALUE(ctx, layout->dynamic_offset_index);
+   BLAKE3_UPDATE_VALUE(ctx, layout->descriptor_offset);
+   BLAKE3_UPDATE_VALUE(ctx, layout->immutable_samplers_offset);
+   BLAKE3_UPDATE_VALUE(ctx, layout->plane_stride);
 
    if (layout->immutable_samplers_offset) {
       const struct v3dv_sampler *immutable_samplers =
@@ -320,11 +320,11 @@ static void
 sha1_update_descriptor_set_layout(blake3_hasher *ctx,
                                   const struct v3dv_descriptor_set_layout *layout)
 {
-   SHA1_UPDATE_VALUE(ctx, layout->flags);
-   SHA1_UPDATE_VALUE(ctx, layout->binding_count);
-   SHA1_UPDATE_VALUE(ctx, layout->shader_stages);
-   SHA1_UPDATE_VALUE(ctx, layout->descriptor_count);
-   SHA1_UPDATE_VALUE(ctx, layout->dynamic_offset_count);
+   BLAKE3_UPDATE_VALUE(ctx, layout->flags);
+   BLAKE3_UPDATE_VALUE(ctx, layout->binding_count);
+   BLAKE3_UPDATE_VALUE(ctx, layout->shader_stages);
+   BLAKE3_UPDATE_VALUE(ctx, layout->descriptor_count);
+   BLAKE3_UPDATE_VALUE(ctx, layout->dynamic_offset_count);
 
    for (uint16_t i = 0; i < layout->binding_count; i++)
       sha1_update_descriptor_set_binding_layout(ctx, &layout->binding[i], layout);
