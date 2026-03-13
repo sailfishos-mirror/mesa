@@ -32,8 +32,6 @@
 extern "C" {
 #endif
 
-#define BLAKE3_KEY_LEN32 (BLAKE3_KEY_LEN / 4)
-
 void
 _mesa_sha1_format(char *buf, const unsigned char *sha1);
 
@@ -48,7 +46,7 @@ _mesa_sha1_print(FILE *f, const uint8_t sha1[BLAKE3_KEY_LEN]);
 
 bool
 _mesa_printed_sha1_equal(const uint8_t sha1[BLAKE3_KEY_LEN],
-                         const uint32_t printed_sha1[BLAKE3_KEY_LEN32]);
+                         const uint32_t printed_sha1[BLAKE3_OUT_LEN32]);
 
 #ifdef __cplusplus
 } /* extern C */

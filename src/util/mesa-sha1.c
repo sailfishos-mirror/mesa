@@ -57,7 +57,7 @@ _mesa_sha1_hex_to_sha1(unsigned char *buf, const char *hex)
 
 static void
 sha1_to_uint32(const uint8_t sha1[BLAKE3_KEY_LEN],
-               uint32_t out[BLAKE3_KEY_LEN32])
+               uint32_t out[BLAKE3_OUT_LEN32])
 {
    memset(out, 0, BLAKE3_KEY_LEN);
 
@@ -71,16 +71,16 @@ _mesa_sha1_print(FILE *f, const uint8_t sha1[BLAKE3_KEY_LEN])
    uint32_t u32[BLAKE3_KEY_LEN];
    sha1_to_uint32(sha1, u32);
 
-   for (unsigned i = 0; i < BLAKE3_KEY_LEN32; i++) {
+   for (unsigned i = 0; i < BLAKE3_OUT_LEN32; i++) {
       fprintf(f, i ? ", 0x%08" PRIx32 : "0x%08" PRIx32, u32[i]);
    }
 }
 
 bool
 _mesa_printed_sha1_equal(const uint8_t sha1[BLAKE3_KEY_LEN],
-                         const uint32_t printed_sha1[BLAKE3_KEY_LEN32])
+                         const uint32_t printed_sha1[BLAKE3_OUT_LEN32])
 {
-   uint32_t u32[BLAKE3_KEY_LEN32];
+   uint32_t u32[BLAKE3_OUT_LEN32];
    sha1_to_uint32(sha1, u32);
 
    return memcmp(u32, printed_sha1, sizeof(u32)) == 0;
