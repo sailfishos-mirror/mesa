@@ -6295,24 +6295,26 @@ void genX(CmdBeginRendering)(
 
    UNUSED bool render_target_change = false;
    for (uint32_t i = 0; i < gfx->color_att_count; i++) {
-      if (pRenderingInfo->pColorAttachments[i].imageView == VK_NULL_HANDLE) {
-         render_target_change |= gfx->color_att[i].iview != NULL;
+      struct anv_attachment *att = &gfx->color_att[i];
 
-         gfx->color_att[i].vk_format = VK_FORMAT_UNDEFINED;
-         gfx->color_att[i].iview = NULL;
-         gfx->color_att[i].layout = VK_IMAGE_LAYOUT_UNDEFINED;
-         gfx->color_att[i].aux_usage = ISL_AUX_USAGE_NONE;
-         gfx->color_att[i].skip_srgb_decode = false;
+      if (pRenderingInfo->pColorAttachments[i].imageView == VK_NULL_HANDLE) {
+         render_target_change |= att->iview != NULL;
+
+         att->vk_format = VK_FORMAT_UNDEFINED;
+         att->iview = NULL;
+         att->layout = VK_IMAGE_LAYOUT_UNDEFINED;
+         att->aux_usage = ISL_AUX_USAGE_NONE;
+         att->skip_srgb_decode = false;
          continue;
       }
 
-      const VkRenderingAttachmentInfo *att =
+      const VkRenderingAttachmentInfo *vk_att =
          &pRenderingInfo->pColorAttachments[i];
-      ANV_FROM_HANDLE(anv_image_view, iview, att->imageView);
-      const VkImageLayout initial_layout = attachment_initial_layout(att);
+      ANV_FROM_HANDLE(anv_image_view, iview, vk_att->imageView);
+      const VkImageLayout initial_layout = attachment_initial_layout(vk_att);
 
-      const VkRenderingAttachmentFlagsInfoKHR *att_flags_info =
-         vk_find_struct_const(att->pNext, RENDERING_ATTACHMENT_FLAGS_INFO_KHR);
+      const VkRenderingAttachmentFlagsInfoKHR *vk_att_flags_info =
+         vk_find_struct_const(vk_att->pNext, RENDERING_ATTACHMENT_FLAGS_INFO_KHR);
 
       assert(render_area.offset.x + render_area.extent.width <=
              iview->vk.extent.width);
@@ -6331,22 +6333,22 @@ void genX(CmdBeginRendering)(
                                  iview->image,
                                  iview->vk.aspects,
                                  VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                                 att->imageLayout,
+                                 vk_att->imageLayout,
                                  cmd_buffer->queue_family->queueFlags);
 
-      render_target_change |= gfx->color_att[i].iview != iview;
+      render_target_change |= att->iview != iview;
 
-      gfx->color_att[i].vk_format = iview->vk.format;
-      gfx->color_att[i].iview = iview;
-      gfx->color_att[i].layout = att->imageLayout;
-      gfx->color_att[i].aux_usage = aux_usage;
-      gfx->color_att[i].skip_srgb_decode = att_flags_info &&
-         (att_flags_info->flags &
+      att->vk_format = iview->vk.format;
+      att->iview = iview;
+      att->layout = vk_att->imageLayout;
+      att->aux_usage = aux_usage;
+      att->skip_srgb_decode = vk_att_flags_info &&
+         (vk_att_flags_info->flags &
           VK_RENDERING_ATTACHMENT_RESOLVE_SKIP_TRANSFER_FUNCTION_BIT_KHR);
 
       union isl_color_value fast_clear_color = { .u32 = { 0, } };
 
-      if (att->loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR &&
+      if (vk_att->loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR &&
           !(gfx->rendering_flags & VK_RENDERING_RESUMING_BIT)) {
          const VkClearRect clear_rect = {
             .rect = render_area,
@@ -6354,19 +6356,19 @@ void genX(CmdBeginRendering)(
             .layerCount = layers,
          };
          const union isl_color_value clear_color =
-            vk_to_isl_color_with_format(att->clearValue.color,
+            vk_to_isl_color_with_format(vk_att->clearValue.color,
                                         iview->planes[0].isl.format);
 
          const bool fast_clear = gfx->view_mask <= 1 &&
             anv_can_fast_clear_color(cmd_buffer, iview->image,
                                      iview->vk.aspects,
                                      iview->vk.base_mip_level,
-                                     &clear_rect, att->imageLayout,
+                                     &clear_rect, vk_att->imageLayout,
                                      iview->planes[0].isl.format,
                                      iview->planes[0].isl.swizzle,
                                      clear_color);
 
-         if (att->imageLayout != initial_layout) {
+         if (vk_att->imageLayout != initial_layout) {
             assert(render_area.offset.x == 0 && render_area.offset.y == 0 &&
                    render_area.extent.width == iview->vk.extent.width &&
                    render_area.extent.height == iview->vk.extent.height);
@@ -6377,7 +6379,7 @@ void genX(CmdBeginRendering)(
                                           iview->vk.base_mip_level, 1,
                                           iview->vk.base_array_layer + view,
                                           1, /* layer_count */
-                                          initial_layout, att->imageLayout,
+                                          initial_layout, vk_att->imageLayout,
                                           VK_QUEUE_FAMILY_IGNORED,
                                           VK_QUEUE_FAMILY_IGNORED,
                                           fast_clear,
@@ -6389,7 +6391,7 @@ void genX(CmdBeginRendering)(
                                        iview->vk.base_mip_level, 1,
                                        iview->vk.base_array_layer,
                                        gfx->layer_count,
-                                       initial_layout, att->imageLayout,
+                                       initial_layout, vk_att->imageLayout,
                                        VK_QUEUE_FAMILY_IGNORED,
                                        VK_QUEUE_FAMILY_IGNORED,
                                        fast_clear,
@@ -6458,7 +6460,7 @@ void genX(CmdBeginRendering)(
          }
       } else {
          /* If not LOAD_OP_CLEAR, we shouldn't have a layout transition. */
-         assert(att->imageLayout == initial_layout);
+         assert(vk_att->imageLayout == initial_layout);
       }
 
       struct isl_view isl_view = iview->planes[0].isl;
@@ -6477,26 +6479,25 @@ void genX(CmdBeginRendering)(
                                    ISL_SURF_USAGE_RENDER_TARGET_BIT,
                                    aux_usage, &fast_clear_color,
                                    0, /* anv_image_view_state_flags */
-                                   &gfx->color_att[i].surface_state);
+                                   &att->surface_state);
 
-      add_surface_state_relocs(cmd_buffer, &gfx->color_att[i].surface_state);
+      add_surface_state_relocs(cmd_buffer, &att->surface_state);
 
       if (GFX_VER < 10 &&
-          (att->loadOp == VK_ATTACHMENT_LOAD_OP_LOAD ||
+          (vk_att->loadOp == VK_ATTACHMENT_LOAD_OP_LOAD ||
            render_area.extent.width != iview->vk.extent.width ||
            render_area.extent.height != iview->vk.extent.height ||
            (gfx->rendering_flags & VK_RENDERING_RESUMING_BIT)) &&
           iview->image->planes[0].aux_usage != ISL_AUX_USAGE_NONE &&
           iview->planes[0].isl.base_level == 0) {
-         struct anv_state surf_state = gfx->color_att[i].surface_state.state;
+         struct anv_state surf_state = att->surface_state.state;
          genX(cmd_buffer_load_clear_color)(cmd_buffer, surf_state, iview);
       }
 
-      if (att->resolveMode != VK_RESOLVE_MODE_NONE) {
-         gfx->color_att[i].resolve_mode = att->resolveMode;
-         gfx->color_att[i].resolve_iview =
-            anv_image_view_from_handle(att->resolveImageView);
-         gfx->color_att[i].resolve_layout = att->resolveImageLayout;
+      if (vk_att->resolveMode != VK_RESOLVE_MODE_NONE) {
+         att->resolve_mode = vk_att->resolveMode;
+         att->resolve_iview = anv_image_view_from_handle(vk_att->resolveImageView);
+         att->resolve_layout = vk_att->resolveImageLayout;
       }
    }
 
@@ -6509,11 +6510,13 @@ void genX(CmdBeginRendering)(
                        .size = fb_size);
 
    for (uint32_t i = 0; i < gfx->color_att_count; i++) {
+      struct anv_attachment *att = &gfx->color_att[i];
+
       if (pRenderingInfo->pColorAttachments[i].imageView != VK_NULL_HANDLE)
          continue;
 
       isl_null_fill_state(&cmd_buffer->device->isl_dev,
-                          gfx->color_att[i].surface_state.state.map,
+                          att->surface_state.state.map,
                           .size = fb_size);
    }
 
