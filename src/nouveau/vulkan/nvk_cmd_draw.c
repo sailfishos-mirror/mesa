@@ -2006,11 +2006,119 @@ nvk_flush_ts_state(struct nvk_cmd_buffer *cmd)
 }
 
 static void
-nvk_flush_vp_state(struct nvk_cmd_buffer *cmd)
+nvk_emit_viewport(struct nvk_cmd_buffer *cmd, struct nv_push *p, const VkViewport *vp, int i)
+{
+   struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
+
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
+   /* These exactly match the spec values.  Nvidia hardware oddities
+    * are accounted for later.
+    */
+   const float o_x = vp->x + 0.5f * vp->width;
+   const float o_y = vp->y + 0.5f * vp->height;
+   const float o_z = !dyn->vp.depth_clip_negative_one_to_one ?
+                     vp->minDepth :
+                     (vp->maxDepth + vp->minDepth) * 0.5f;
+
+   const float p_x = vp->width;
+   const float p_y = vp->height;
+   const float p_z = !dyn->vp.depth_clip_negative_one_to_one ?
+                     vp->maxDepth - vp->minDepth :
+                     (vp->maxDepth - vp->minDepth) * 0.5f;
+
+   P_MTHD(p, NV9097, SET_VIEWPORT_SCALE_X(i));
+   P_NV9097_SET_VIEWPORT_SCALE_X(p, i, fui(0.5f * p_x));
+   P_NV9097_SET_VIEWPORT_SCALE_Y(p, i, fui(0.5f * p_y));
+   P_NV9097_SET_VIEWPORT_SCALE_Z(p, i, fui(p_z));
+
+   P_NV9097_SET_VIEWPORT_OFFSET_X(p, i, fui(o_x));
+   P_NV9097_SET_VIEWPORT_OFFSET_Y(p, i, fui(o_y));
+   P_NV9097_SET_VIEWPORT_OFFSET_Z(p, i, fui(o_z));
+
+   const bool user_defined_range =
+      dyn->vp.depth_clamp_mode == VK_DEPTH_CLAMP_MODE_USER_DEFINED_RANGE_EXT;
+   float xmin = vp->x;
+   float xmax = vp->x + vp->width;
+   float ymin = MIN2(vp->y, vp->y + vp->height);
+   float ymax = MAX2(vp->y, vp->y + vp->height);
+   float zmin = user_defined_range ?
+                dyn->vp.depth_clamp_range.minDepthClamp :
+                MIN2(vp->minDepth, vp->maxDepth);
+   float zmax = user_defined_range ?
+                dyn->vp.depth_clamp_range.maxDepthClamp :
+                MAX2(vp->minDepth, vp->maxDepth);
+   assert(xmin <= xmax && ymin <= ymax && zmin <= zmax);
+
+   const float max_dim = (float)0xffff;
+   xmin = CLAMP(xmin, 0, max_dim);
+   xmax = CLAMP(xmax, 0, max_dim);
+   ymin = CLAMP(ymin, 0, max_dim);
+   ymax = CLAMP(ymax, 0, max_dim);
+
+   if (!dev->vk.enabled_extensions.EXT_depth_range_unrestricted) {
+      assert(0.0 <= zmin && zmin <= 1.0);
+      assert(0.0 <= zmax && zmax <= 1.0);
+   }
+
+   P_MTHD(p, NV9097, SET_VIEWPORT_CLIP_HORIZONTAL(i));
+   P_NV9097_SET_VIEWPORT_CLIP_HORIZONTAL(p, i, {
+      .x0      = xmin,
+      .width   = xmax - xmin,
+   });
+   P_NV9097_SET_VIEWPORT_CLIP_VERTICAL(p, i, {
+      .y0      = ymin,
+      .height  = ymax - ymin,
+   });
+
+   if (nvk_cmd_buffer_3d_cls(cmd) >= VOLTA_A) {
+      P_NV9097_SET_VIEWPORT_CLIP_MIN_Z(p, i, fui(zmin));
+      P_NV9097_SET_VIEWPORT_CLIP_MAX_Z(p, i, fui(zmax));
+   } else {
+      P_1INC(p, NVB197, CALL_MME_MACRO(NVK_MME_SET_VIEWPORT_MIN_MAX_Z));
+      P_INLINE_DATA(p, i);
+      P_INLINE_DATA(p, fui(zmin));
+      P_INLINE_DATA(p, fui(zmax));
+   }
+
+   if (nvk_cmd_buffer_3d_cls(cmd) >= MAXWELL_B) {
+      P_IMMD(p, NVB197, SET_VIEWPORT_COORDINATE_SWIZZLE(i), {
+         .x = X_POS_X,
+         .y = Y_POS_Y,
+         .z = Z_POS_Z,
+         .w = W_POS_W,
+      });
+   }
+}
+
+static void
+nvk_emit_scissor(struct nvk_cmd_buffer *cmd, struct nv_push *p, const VkRect2D *s, int i)
 {
    struct nvk_device *dev = nvk_cmd_buffer_device(cmd);
    const struct nvk_physical_device *pdev = nvk_device_physical(dev);
+   const uint32_t sr_max =
+      nvk_image_max_dimension(&pdev->info, VK_IMAGE_TYPE_2D);
 
+   const uint32_t xmin = MIN2(sr_max, s->offset.x);
+   const uint32_t xmax = MIN2(sr_max, s->offset.x + s->extent.width);
+   const uint32_t ymin = MIN2(sr_max, s->offset.y);
+   const uint32_t ymax = MIN2(sr_max, s->offset.y + s->extent.height);
+
+   P_MTHD(p, NV9097, SET_SCISSOR_ENABLE(i));
+   P_NV9097_SET_SCISSOR_ENABLE(p, i, V_TRUE);
+   P_NV9097_SET_SCISSOR_HORIZONTAL(p, i, {
+      .xmin = xmin,
+      .xmax = xmax,
+   });
+   P_NV9097_SET_SCISSOR_VERTICAL(p, i, {
+      .ymin = ymin,
+      .ymax = ymax,
+   });
+}
+
+static void
+nvk_flush_vp_state(struct nvk_cmd_buffer *cmd)
+{
    const struct vk_dynamic_graphics_state *dyn =
       &cmd->vk.dynamic_graphics_state;
 
@@ -2024,84 +2132,7 @@ nvk_flush_vp_state(struct nvk_cmd_buffer *cmd)
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_DEPTH_CLAMP_RANGE)) {
       for (uint32_t i = 0; i < dyn->vp.viewport_count; i++) {
          const VkViewport *vp = &dyn->vp.viewports[i];
-
-         /* These exactly match the spec values.  Nvidia hardware oddities
-          * are accounted for later.
-          */
-         const float o_x = vp->x + 0.5f * vp->width;
-         const float o_y = vp->y + 0.5f * vp->height;
-         const float o_z = !dyn->vp.depth_clip_negative_one_to_one ?
-                           vp->minDepth :
-                           (vp->maxDepth + vp->minDepth) * 0.5f;
-
-         const float p_x = vp->width;
-         const float p_y = vp->height;
-         const float p_z = !dyn->vp.depth_clip_negative_one_to_one ?
-                           vp->maxDepth - vp->minDepth :
-                           (vp->maxDepth - vp->minDepth) * 0.5f;
-
-         P_MTHD(p, NV9097, SET_VIEWPORT_SCALE_X(i));
-         P_NV9097_SET_VIEWPORT_SCALE_X(p, i, fui(0.5f * p_x));
-         P_NV9097_SET_VIEWPORT_SCALE_Y(p, i, fui(0.5f * p_y));
-         P_NV9097_SET_VIEWPORT_SCALE_Z(p, i, fui(p_z));
-
-         P_NV9097_SET_VIEWPORT_OFFSET_X(p, i, fui(o_x));
-         P_NV9097_SET_VIEWPORT_OFFSET_Y(p, i, fui(o_y));
-         P_NV9097_SET_VIEWPORT_OFFSET_Z(p, i, fui(o_z));
-
-         const bool user_defined_range =
-            dyn->vp.depth_clamp_mode == VK_DEPTH_CLAMP_MODE_USER_DEFINED_RANGE_EXT;
-         float xmin = vp->x;
-         float xmax = vp->x + vp->width;
-         float ymin = MIN2(vp->y, vp->y + vp->height);
-         float ymax = MAX2(vp->y, vp->y + vp->height);
-         float zmin = user_defined_range ?
-                      dyn->vp.depth_clamp_range.minDepthClamp :
-                      MIN2(vp->minDepth, vp->maxDepth);
-         float zmax = user_defined_range ?
-                      dyn->vp.depth_clamp_range.maxDepthClamp :
-                      MAX2(vp->minDepth, vp->maxDepth);
-         assert(xmin <= xmax && ymin <= ymax && zmin <= zmax);
-
-         const float max_dim = (float)0xffff;
-         xmin = CLAMP(xmin, 0, max_dim);
-         xmax = CLAMP(xmax, 0, max_dim);
-         ymin = CLAMP(ymin, 0, max_dim);
-         ymax = CLAMP(ymax, 0, max_dim);
-
-         if (!dev->vk.enabled_extensions.EXT_depth_range_unrestricted) {
-            assert(0.0 <= zmin && zmin <= 1.0);
-            assert(0.0 <= zmax && zmax <= 1.0);
-         }
-
-         P_MTHD(p, NV9097, SET_VIEWPORT_CLIP_HORIZONTAL(i));
-         P_NV9097_SET_VIEWPORT_CLIP_HORIZONTAL(p, i, {
-            .x0      = xmin,
-            .width   = xmax - xmin,
-         });
-         P_NV9097_SET_VIEWPORT_CLIP_VERTICAL(p, i, {
-            .y0      = ymin,
-            .height  = ymax - ymin,
-         });
-
-         if (nvk_cmd_buffer_3d_cls(cmd) >= VOLTA_A) {
-            P_NV9097_SET_VIEWPORT_CLIP_MIN_Z(p, i, fui(zmin));
-            P_NV9097_SET_VIEWPORT_CLIP_MAX_Z(p, i, fui(zmax));
-         } else {
-            P_1INC(p, NVB197, CALL_MME_MACRO(NVK_MME_SET_VIEWPORT_MIN_MAX_Z));
-            P_INLINE_DATA(p, i);
-            P_INLINE_DATA(p, fui(zmin));
-            P_INLINE_DATA(p, fui(zmax));
-         }
-
-         if (nvk_cmd_buffer_3d_cls(cmd) >= MAXWELL_B) {
-            P_IMMD(p, NVB197, SET_VIEWPORT_COORDINATE_SWIZZLE(i), {
-               .x = X_POS_X,
-               .y = Y_POS_Y,
-               .z = Z_POS_Z,
-               .w = W_POS_W,
-            });
-         }
+         nvk_emit_viewport(cmd, p, vp, i);
       }
    }
 
@@ -2118,27 +2149,9 @@ nvk_flush_vp_state(struct nvk_cmd_buffer *cmd)
    }
 
    if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_SCISSORS)) {
-      const uint32_t sr_max =
-         nvk_image_max_dimension(&pdev->info, VK_IMAGE_TYPE_2D);
-
       for (unsigned i = 0; i < dyn->vp.scissor_count; i++) {
          const VkRect2D *s = &dyn->vp.scissors[i];
-
-         const uint32_t xmin = MIN2(sr_max, s->offset.x);
-         const uint32_t xmax = MIN2(sr_max, s->offset.x + s->extent.width);
-         const uint32_t ymin = MIN2(sr_max, s->offset.y);
-         const uint32_t ymax = MIN2(sr_max, s->offset.y + s->extent.height);
-
-         P_MTHD(p, NV9097, SET_SCISSOR_ENABLE(i));
-         P_NV9097_SET_SCISSOR_ENABLE(p, i, V_TRUE);
-         P_NV9097_SET_SCISSOR_HORIZONTAL(p, i, {
-            .xmin = xmin,
-            .xmax = xmax,
-         });
-         P_NV9097_SET_SCISSOR_VERTICAL(p, i, {
-            .ymin = ymin,
-            .ymax = ymax,
-         });
+         nvk_emit_scissor(cmd, p, s, i);
       }
    }
 }
