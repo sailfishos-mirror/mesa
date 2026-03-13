@@ -366,6 +366,9 @@ radv-validate-cache:
   extends:
     - .test-vk
     - .radv-rules
+  rules:
+    - !reference [.no_downstream_pipeline-rules, rules]
+    - !reference [.radv-rules, rules]
   variables:
     VK_DRIVER: radeon
   script:

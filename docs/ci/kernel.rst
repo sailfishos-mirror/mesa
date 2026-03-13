@@ -50,6 +50,35 @@ Kconfigs location
 | x86-64     | kernel/configs/mesa3d-ci_x86_64.config\@gfx-ci/linux | arch/x86/configs/x86_64_defconfig   |
 +------------+------------------------------------------------------+-------------------------------------+
 
+.. _output-kernel-build-jobs:
+
+Output structure of the kernel build jobs
+-----------------------------------------
+
+The build jobs of the ``gfx-ci/linux`` repo are expected to generate the following
+directory structure, accessible on an HTTP or S3-compatible server:
+
+  * **${KERNEL_IMAGE_BASE}/**: May be overridden by an upstream pipeline (default:
+    ``https://$S3_HOST/$S3_KERNEL_BUCKET/$KERNEL_REPO/$KERNEL_TAG``)
+
+      * **x86_64/**:
+
+         * **modules.tar**: The result of ``make modules_install``
+         * **bzImage**
+
+      * **arm64/**:
+
+         * **modules.tar**: The result of ``make modules_install``
+         * **Image**
+         * **Image.gz**
+         * **\*.dtb**: All the DTBs compiled for the arm64 architecture
+
+      * **arm32/**:
+
+         * **modules.tar**: The result of ``make modules_install``
+         * **zImage**
+         * **\*.dtb**: All the DTBs compiled for the armhf architecture
+
 Updating image tags
 -------------------
 
