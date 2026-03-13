@@ -169,7 +169,7 @@ shader_cache_read_program_metadata(struct gl_context *ctx,
    }
 
    /* SSO has an effect on the linked program so include this when generating
-    * the sha also.
+    * the blake3 also.
     */
    ralloc_asprintf_append(&buf, "sso: %s\n",
                           prog->SeparateShader ? "T" : "F");

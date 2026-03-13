@@ -331,7 +331,7 @@ iris_disk_cache_init(struct iris_screen *screen)
    if (INTEL_DEBUG(DEBUG_DISK_CACHE_DISABLE_MASK))
       return;
 
-   /* array length = strlen("iris_") + sha + nul char */
+   /* array length = strlen("iris_") + blake3 + nul char */
    char renderer[5 + 40 + 1] = {0};
 
    if (screen->brw) {
