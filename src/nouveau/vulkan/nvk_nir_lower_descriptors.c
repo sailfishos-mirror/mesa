@@ -570,9 +570,10 @@ _load_root_table(nir_builder *b,
    unsigned align_mul = bit_size / 8;
    return nir_ldc_nv(b, num_components, bit_size,
                      nir_imm_int(b, 0), /* Root table */
-                     nir_imm_int(b, root_table_offset),
+                     nir_imm_int(b, 0),
                      .align_mul = align_mul,
-                     .align_offset = 0);
+                     .align_offset = 0,
+                     .base = root_table_offset);
 }
 
 #define load_root_table(b, nc, bs, member, ctx) \
