@@ -70,7 +70,7 @@ struct util_live_shader_cache {
 
 struct util_live_shader {
    struct pipe_reference reference;
-   unsigned char sha1[BLAKE3_KEY_LEN];
+   unsigned char blake3[BLAKE3_KEY_LEN];
 };
 
 void

@@ -85,7 +85,7 @@ v3d_disk_cache_compute_key(struct disk_cache *cache,
         struct blob blob;
         blob_init(&blob);
         blob_write_bytes(&blob, ckey, ckey_size);
-        blob_write_bytes(&blob, uncompiled->sha1, BLAKE3_KEY_LEN);
+        blob_write_bytes(&blob, uncompiled->blake3, BLAKE3_KEY_LEN);
 
         disk_cache_compute_key(cache, blob.data, blob.size, cache_key);
 
@@ -114,11 +114,11 @@ v3d_disk_cache_retrieve(struct v3d_context *v3d,
         void *buffer = disk_cache_get(cache, cache_key, &buffer_size);
 
         if (V3D_DBG(CACHE)) {
-                char sha1[BLAKE3_HEX_LEN];
-                _mesa_blake3_format(sha1, cache_key);
+                char blake3[BLAKE3_HEX_LEN];
+                _mesa_blake3_format(blake3, cache_key);
                 fprintf(stderr, "[v3d on-disk cache] %s %s\n",
                         buffer ? "hit" : "miss",
-                        sha1);
+                        blake3);
         }
 
         if (!buffer)
@@ -197,9 +197,9 @@ v3d_disk_cache_store(struct v3d_context *v3d,
         v3d_disk_cache_compute_key(cache, key, cache_key, uncompiled);
 
         if (V3D_DBG(CACHE)) {
-                char sha1[BLAKE3_HEX_LEN];
-                _mesa_blake3_format(sha1, cache_key);
-                fprintf(stderr, "[v3d on-disk cache] storing %s\n", sha1);
+                char blake3[BLAKE3_HEX_LEN];
+                _mesa_blake3_format(blake3, cache_key);
+                fprintf(stderr, "[v3d on-disk cache] storing %s\n", blake3);
         }
 
         struct blob blob;

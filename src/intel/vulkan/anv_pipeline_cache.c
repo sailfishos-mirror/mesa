@@ -327,14 +327,14 @@ anv_load_fp64_shader(struct anv_device *device)
 
    const char* shader_name = "float64_spv_lib";
    blake3_hasher blake3_ctx;
-   uint8_t sha1[BLAKE3_KEY_LEN];
+   uint8_t blake3[BLAKE3_KEY_LEN];
    _mesa_blake3_init(&blake3_ctx);
    _mesa_blake3_update(&blake3_ctx, shader_name, strlen(shader_name));
-   _mesa_blake3_final(&blake3_ctx, sha1);
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
    device->fp64_nir =
       anv_device_search_for_nir(device, device->internal_cache,
-                                   nir_options, sha1, NULL);
+                                   nir_options, blake3, NULL);
 
    /* The shader found, no need to call spirv_to_nir() again. */
    if (device->fp64_nir)
@@ -369,7 +369,7 @@ anv_load_fp64_shader(struct anv_device *device)
    NIR_PASS(_, nir, nir_inline_functions);
 
    anv_device_upload_nir(device, device->internal_cache,
-                         nir, sha1);
+                         nir, blake3);
 
    device->fp64_nir = nir;
 }

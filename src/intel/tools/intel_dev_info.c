@@ -276,7 +276,7 @@ main(int argc, char *argv[])
          if (print_json) {
             JSON_Value *json = intel_device_info_dump_json(&devinfo);
 
-            /* When available, add the compiler device sha, to allow
+            /* When available, add the compiler device blake3, to allow
              * deduplication of similar device info files.
              */
             if (devinfo.ver >= 9) {

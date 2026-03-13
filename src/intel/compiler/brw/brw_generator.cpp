@@ -1344,15 +1344,15 @@ brw_generator::generate_code(const brw_shader &s,
    int after_size = p->next_insn_offset - start_offset;
 
    bool dump_shader_bin = brw_should_dump_shader_bin();
-   unsigned char sha1[BLAKE3_KEY_LEN + 1];
+   unsigned char blake3[BLAKE3_KEY_LEN + 1];
    char sha1buf[BLAKE3_HEX_LEN];
 
    auto override_path = debug_get_option_shader_bin_override_path();
    if (unlikely(debug_flag || dump_shader_bin || override_path != NULL ||
                 params->archiver)) {
       _mesa_blake3_compute(p->store + start_offset / sizeof(brw_eu_inst),
-                         after_size, sha1);
-      _mesa_blake3_format(sha1buf, sha1);
+                         after_size, blake3);
+      _mesa_blake3_format(sha1buf, blake3);
    }
 
    if (unlikely(dump_shader_bin))
@@ -1362,7 +1362,7 @@ brw_generator::generate_code(const brw_shader &s,
    if (unlikely(override_path != NULL &&
                 brw_try_override_assembly(p, start_offset, override_path,
                                           sha1buf))) {
-      fprintf(stderr, "Successfully overrode shader with sha1 %s\n", sha1buf);
+      fprintf(stderr, "Successfully overrode shader with blake3 %s\n", sha1buf);
       /* disasm_info and stats are no longer valid as we gathered
        * them based on the original shader.
        */
@@ -1389,7 +1389,7 @@ brw_generator::generate_code(const brw_shader &s,
 
       for (unsigned i = 0; i < ARRAY_SIZE(files); i++) {
          if (!files[i]) continue;
-         fprintf(files[i], "Native code for %s (src_hash 0x%08x) (sha1 %s)\n"
+         fprintf(files[i], "Native code for %s (src_hash 0x%08x) (blake3 %s)\n"
                  "SIMD%d shader: %d instructions. %d loops. %u cycles. "
                  "%d:%d spills:fills, %u sends, "
                  "scheduled with mode %s. "

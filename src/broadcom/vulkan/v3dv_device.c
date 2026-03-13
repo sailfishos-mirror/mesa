@@ -818,8 +818,8 @@ init_uuids(struct v3dv_physical_device *device)
    uint32_t device_id = v3dv_physical_device_device_id(device);
 
    blake3_hasher blake3_ctx;
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   STATIC_ASSERT(VK_UUID_SIZE <= sizeof(sha1));
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   STATIC_ASSERT(VK_UUID_SIZE <= sizeof(blake3));
 
    /* The pipeline cache UUID is used for determining when a pipeline cache is
     * invalid.  It needs both a driver build and the PCI ID of the device.
@@ -827,8 +827,8 @@ init_uuids(struct v3dv_physical_device *device)
    _mesa_blake3_init(&blake3_ctx);
    _mesa_blake3_update(&blake3_ctx, build_id_data(note), build_id_len);
    _mesa_blake3_update(&blake3_ctx, &device_id, sizeof(device_id));
-   _mesa_blake3_final(&blake3_ctx, sha1);
-   memcpy(device->pipeline_cache_uuid, sha1, VK_UUID_SIZE);
+   _mesa_blake3_final(&blake3_ctx, blake3);
+   memcpy(device->pipeline_cache_uuid, blake3, VK_UUID_SIZE);
 
    /* The driver UUID is used for determining sharability of images and memory
     * between two Vulkan instances in separate processes.  People who want to
@@ -844,8 +844,8 @@ init_uuids(struct v3dv_physical_device *device)
    _mesa_blake3_init(&blake3_ctx);
    _mesa_blake3_update(&blake3_ctx, &vendor_id, sizeof(vendor_id));
    _mesa_blake3_update(&blake3_ctx, &device_id, sizeof(device_id));
-   _mesa_blake3_final(&blake3_ctx, sha1);
-   memcpy(device->device_uuid, sha1, VK_UUID_SIZE);
+   _mesa_blake3_final(&blake3_ctx, blake3);
+   memcpy(device->device_uuid, blake3, VK_UUID_SIZE);
 
    return VK_SUCCESS;
 }

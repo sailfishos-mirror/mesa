@@ -1280,13 +1280,13 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
       if (memcmp(uuid, data, VK_UUID_SIZE))
          return VK_NULL_HANDLE;
       size_t size = pCreateInfo->codeSize - BLAKE3_KEY_LEN - VK_UUID_SIZE;
-      unsigned char sha1[BLAKE3_KEY_LEN];
+      unsigned char blake3[BLAKE3_KEY_LEN];
 
       blake3_hasher sctx;
       _mesa_blake3_init(&sctx);
       _mesa_blake3_update(&sctx, data + BLAKE3_KEY_LEN + VK_UUID_SIZE, size);
-      _mesa_blake3_final(&sctx, sha1);
-      if (memcmp(sha1, data + VK_UUID_SIZE, BLAKE3_KEY_LEN))
+      _mesa_blake3_final(&sctx, blake3);
+      if (memcmp(blake3, data + VK_UUID_SIZE, BLAKE3_KEY_LEN))
          return VK_NULL_HANDLE;
 
       blob_reader_init(&blob, data + BLAKE3_KEY_LEN + VK_UUID_SIZE, size);

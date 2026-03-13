@@ -1560,7 +1560,7 @@ tu_hash_shaders(unsigned char *hash,
    _mesa_blake3_init(&ctx);
 
    if (layout)
-      _mesa_blake3_update(&ctx, layout->sha1, sizeof(layout->sha1));
+      _mesa_blake3_update(&ctx, layout->blake3, sizeof(layout->blake3));
 
    for (int i = 0; i < MESA_SHADER_STAGES; ++i) {
       if (stages[i] || nir[i]) {
@@ -1585,7 +1585,7 @@ tu_hash_compute(unsigned char *hash,
    _mesa_blake3_init(&ctx);
 
    if (layout)
-      _mesa_blake3_update(&ctx, layout->sha1, sizeof(layout->sha1));
+      _mesa_blake3_update(&ctx, layout->blake3, sizeof(layout->blake3));
 
    tu_hash_stage(&ctx, pipeline_flags, stage, NULL, key);
    enum ir3_shader_debug ir3_debug_key = ir3_shader_debug_hash_key();

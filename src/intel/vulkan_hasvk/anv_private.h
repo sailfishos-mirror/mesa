@@ -1939,7 +1939,7 @@ struct anv_pipeline_layout {
 
    uint32_t num_sets;
 
-   unsigned char sha1[BLAKE3_KEY_LEN];
+   unsigned char blake3[BLAKE3_KEY_LEN];
 };
 
 struct anv_buffer {

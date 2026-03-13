@@ -76,9 +76,9 @@ intel_uuid_compute_driver_id(uint8_t *uuid,
 {
    const char* intelDriver = PACKAGE_VERSION MESA_GIT_SHA1;
    blake3_hasher blake3_ctx;
-   uint8_t sha1[BLAKE3_KEY_LEN];
+   uint8_t blake3[BLAKE3_KEY_LEN];
 
-   assert(size <= sizeof(sha1));
+   assert(size <= sizeof(blake3));
 
    /* The driver UUID is used for determining sharability of images and memory
     * between two Vulkan instances in separate processes, but also to
@@ -90,6 +90,6 @@ intel_uuid_compute_driver_id(uint8_t *uuid,
    _mesa_blake3_update(&blake3_ctx, intelDriver, strlen(intelDriver));
    _mesa_blake3_update(&blake3_ctx, &devinfo->has_bit6_swizzle,
                      sizeof(devinfo->has_bit6_swizzle));
-   _mesa_blake3_final(&blake3_ctx, sha1);
-   memcpy(uuid, sha1, size);
+   _mesa_blake3_final(&blake3_ctx, blake3);
+   memcpy(uuid, blake3, size);
 }

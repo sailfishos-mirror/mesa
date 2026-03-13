@@ -190,9 +190,9 @@ radv_compute_pipeline_compile(const VkComputePipelineCreateInfo *pCreateInfo, st
 
    int64_t pipeline_start = os_time_get_nano();
 
-   radv_compute_pipeline_hash(device, pCreateInfo, pipeline->base.sha1);
+   radv_compute_pipeline_hash(device, pCreateInfo, pipeline->base.blake3);
 
-   pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.sha1;
+   pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.blake3;
 
    bool found_in_application_cache = true;
    if (!skip_shaders_cache &&

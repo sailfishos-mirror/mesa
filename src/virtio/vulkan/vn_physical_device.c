@@ -473,30 +473,30 @@ vn_physical_device_init_uuids(struct vn_physical_device *physical_dev)
 {
    struct vk_properties *props = &physical_dev->base.vk.properties;
    blake3_hasher blake3_ctx;
-   uint8_t sha1[BLAKE3_KEY_LEN];
+   uint8_t blake3[BLAKE3_KEY_LEN];
 
    static_assert(VK_UUID_SIZE <= BLAKE3_KEY_LEN, "");
 
    _mesa_blake3_init(&blake3_ctx);
    _mesa_blake3_update(&blake3_ctx, &props->pipelineCacheUUID,
                      sizeof(props->pipelineCacheUUID));
-   _mesa_blake3_final(&blake3_ctx, sha1);
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
-   memcpy(props->pipelineCacheUUID, sha1, VK_UUID_SIZE);
+   memcpy(props->pipelineCacheUUID, blake3, VK_UUID_SIZE);
 
    _mesa_blake3_init(&blake3_ctx);
    _mesa_blake3_update(&blake3_ctx, &props->vendorID, sizeof(props->vendorID));
    _mesa_blake3_update(&blake3_ctx, &props->deviceID, sizeof(props->deviceID));
-   _mesa_blake3_final(&blake3_ctx, sha1);
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
-   memcpy(props->deviceUUID, sha1, VK_UUID_SIZE);
+   memcpy(props->deviceUUID, blake3, VK_UUID_SIZE);
 
    _mesa_blake3_init(&blake3_ctx);
    _mesa_blake3_update(&blake3_ctx, props->driverName, strlen(props->driverName));
    _mesa_blake3_update(&blake3_ctx, props->driverInfo, strlen(props->driverInfo));
-   _mesa_blake3_final(&blake3_ctx, sha1);
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
-   memcpy(props->driverUUID, sha1, VK_UUID_SIZE);
+   memcpy(props->driverUUID, blake3, VK_UUID_SIZE);
 
    const struct vn_renderer *renderer = physical_dev->instance->renderer;
    if (renderer->info.id.has_luid) {

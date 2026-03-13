@@ -2221,19 +2221,19 @@ generate_code(struct elk_codegen *p,
    int after_size = p->next_insn_offset;
 
    bool dump_shader_bin = elk_should_dump_shader_bin();
-   unsigned char sha1[BLAKE3_KEY_LEN + 1];
+   unsigned char blake3[BLAKE3_KEY_LEN + 1];
    char sha1buf[BLAKE3_HEX_LEN];
 
    if (unlikely(debug_enabled || dump_shader_bin)) {
-      _mesa_blake3_compute(p->store, p->next_insn_offset, sha1);
-      _mesa_blake3_format(sha1buf, sha1);
+      _mesa_blake3_compute(p->store, p->next_insn_offset, blake3);
+      _mesa_blake3_format(sha1buf, blake3);
    }
 
    if (unlikely(dump_shader_bin))
       elk_dump_shader_bin(p->store, 0, p->next_insn_offset, sha1buf);
 
    if (unlikely(debug_enabled)) {
-      fprintf(stderr, "Native code for %s %s shader %s (src_hash 0x%08x) (sha1 %s):\n",
+      fprintf(stderr, "Native code for %s %s shader %s (src_hash 0x%08x) (blake3 %s):\n",
             nir->info.label ? nir->info.label : "unnamed",
             _mesa_shader_stage_to_string(nir->info.stage), nir->info.name,
             params->source_hash, sha1buf);
@@ -2249,7 +2249,7 @@ generate_code(struct elk_codegen *p,
          elk_dump_assembly(p->store, 0, p->next_insn_offset,
                        elk_disasm_info, perf.block_latency);
       } else {
-         fprintf(stderr, "Successfully overrode shader with sha1 %s\n\n", sha1buf);
+         fprintf(stderr, "Successfully overrode shader with blake3 %s\n\n", sha1buf);
       }
    }
    ralloc_free(elk_disasm_info);

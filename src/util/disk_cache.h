@@ -73,7 +73,7 @@ struct cache_item_metadata {
    uint32_t type;
 
    /** GLSL cache item metadata */
-   cache_key *keys;   /* sha1 list of shaders that make up the cache item */
+   cache_key *keys;   /* blake3 list of shaders that make up the cache item */
    uint32_t num_keys;
 };
 

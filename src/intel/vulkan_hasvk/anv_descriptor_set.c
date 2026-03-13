@@ -790,7 +790,7 @@ VkResult anv_CreatePipelineLayout(
                         sizeof(layout->set[s].dynamic_offset_start));
    }
    _mesa_blake3_update(&ctx, &layout->num_sets, sizeof(layout->num_sets));
-   _mesa_blake3_final(&ctx, layout->sha1);
+   _mesa_blake3_final(&ctx, layout->blake3);
 
    *pPipelineLayout = anv_pipeline_layout_to_handle(layout);
 

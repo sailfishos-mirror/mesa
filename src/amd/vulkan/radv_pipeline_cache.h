@@ -61,14 +61,14 @@ void radv_pipeline_cache_insert_nir(struct radv_device *device, struct vk_pipeli
 
 struct vk_pipeline_cache_object *radv_pipeline_cache_lookup_nir_handle(struct radv_device *device,
                                                                        struct vk_pipeline_cache *cache,
-                                                                       const unsigned char *sha1);
+                                                                       const unsigned char *blake3);
 
 struct nir_shader *radv_pipeline_cache_handle_to_nir(struct radv_device *device,
                                                      struct vk_pipeline_cache_object *object);
 
 struct vk_pipeline_cache_object *radv_pipeline_cache_nir_to_handle(struct radv_device *device,
                                                                    struct vk_pipeline_cache *cache,
-                                                                   struct nir_shader *nir, const unsigned char *sha1,
+                                                                   struct nir_shader *nir, const unsigned char *blake3,
                                                                    bool cached);
 
 void radv_shader_serialize(struct radv_shader *shader, struct blob *blob);
@@ -77,7 +77,7 @@ struct radv_shader *radv_shader_deserialize(struct radv_device *device, const vo
                                             struct blob_reader *blob);
 
 VkResult radv_pipeline_cache_get_binaries(struct radv_device *device, const VkAllocationCallbacks *pAllocator,
-                                          const unsigned char *sha1, struct util_dynarray *pipeline_binaries,
+                                          const unsigned char *blake3, struct util_dynarray *pipeline_binaries,
                                           uint32_t *num_binaries, bool *found_in_internal_cache);
 
 #endif /* RADV_PIPELINE_CACHE_H */

@@ -153,11 +153,11 @@ init_shader_caches(struct panvk_physical_device *device,
    _mesa_blake3_update(&blake3_ctx, &device->kmod.dev->props.gpu_id,
                      sizeof(device->kmod.dev->props.gpu_id));
 
-   unsigned char sha[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&blake3_ctx, sha);
+   unsigned char blake3[BLAKE3_KEY_LEN];
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
    STATIC_ASSERT(VK_UUID_SIZE <= BLAKE3_KEY_LEN);
-   memcpy(device->cache_uuid, sha, VK_UUID_SIZE);
+   memcpy(device->cache_uuid, blake3, VK_UUID_SIZE);
 
 #ifdef ENABLE_SHADER_CACHE
    char renderer[17];

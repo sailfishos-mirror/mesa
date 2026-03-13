@@ -424,11 +424,11 @@ bool si_shader_cache_load_shader(struct si_screen *sscreen, unsigned char ir_bla
    if (!sscreen->disk_shader_cache)
       return false;
 
-   unsigned char sha1[CACHE_KEY_SIZE];
-   disk_cache_compute_key(sscreen->disk_shader_cache, ir_blake3_cache_key, 20, sha1);
+   unsigned char blake3[CACHE_KEY_SIZE];
+   disk_cache_compute_key(sscreen->disk_shader_cache, ir_blake3_cache_key, 20, blake3);
 
    size_t total_size;
-   uint32_t *buffer = (uint32_t*)disk_cache_get(sscreen->disk_shader_cache, sha1, &total_size);
+   uint32_t *buffer = (uint32_t*)disk_cache_get(sscreen->disk_shader_cache, blake3, &total_size);
    if (buffer) {
       unsigned size = *buffer;
       unsigned gs_copy_binary_size = 0;
@@ -449,7 +449,7 @@ bool si_shader_cache_load_shader(struct si_screen *sscreen, unsigned char ir_bla
           * rebuild/link from source.
           */
          assert(!"Invalid radeonsi shader disk cache item!");
-         disk_cache_remove(sscreen->disk_shader_cache, sha1);
+         disk_cache_remove(sscreen->disk_shader_cache, blake3);
       }
    }
 

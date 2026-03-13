@@ -32,11 +32,11 @@ fd_get_driver_uuid(void *uuid)
 
    _mesa_blake3_update(&blake3_ctx, driver_id, strlen(driver_id));
 
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&blake3_ctx, sha1);
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
-   memcpy(uuid, sha1, UUID_SIZE);
+   memcpy(uuid, blake3, UUID_SIZE);
 }
 
 void
@@ -68,9 +68,9 @@ fd_get_device_uuid(void *uuid, const struct fd_dev_id *id)
 
    _mesa_blake3_update(&blake3_ctx, id, sizeof(*id));
 
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&blake3_ctx, sha1);
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
-   memcpy(uuid, sha1, UUID_SIZE);
+   memcpy(uuid, blake3, UUID_SIZE);
 }

@@ -1182,7 +1182,7 @@ static void si_disk_cache_create(struct si_screen *sscreen)
       return;
 
    blake3_hasher ctx;
-   unsigned char sha1[BLAKE3_KEY_LEN];
+   unsigned char blake3[BLAKE3_KEY_LEN];
    char cache_id[BLAKE3_HEX_LEN];
 
    _mesa_blake3_init(&ctx);
@@ -1209,8 +1209,8 @@ static void si_disk_cache_create(struct si_screen *sscreen)
     */
    _mesa_blake3_update(&ctx, &sscreen->use_aco, sizeof(sscreen->use_aco));
 
-   _mesa_blake3_final(&ctx, sha1);
-   mesa_bytes_to_hex(cache_id, sha1, BLAKE3_KEY_LEN);
+   _mesa_blake3_final(&ctx, blake3);
+   mesa_bytes_to_hex(cache_id, blake3, BLAKE3_KEY_LEN);
 
    sscreen->disk_shader_cache = disk_cache_create(ac_get_family_name(sscreen->info.family),
                                                   cache_id, sscreen->info.address32_hi);

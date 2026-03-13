@@ -3131,9 +3131,9 @@ radv_graphics_pipeline_compile(struct radv_graphics_pipeline *pipeline, const Vk
    int64_t pipeline_start = os_time_get_nano();
 
    if (radv_should_compute_pipeline_hash(device, pipeline->base.type, fast_linking_enabled)) {
-      radv_graphics_pipeline_hash(device, gfx_state, pipeline->base.sha1);
+      radv_graphics_pipeline_hash(device, gfx_state, pipeline->base.blake3);
 
-      pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.sha1;
+      pipeline->base.pipeline_hash = *(uint64_t *)pipeline->base.blake3;
    }
 
    /* Skip the shaders cache when any of the below are true:

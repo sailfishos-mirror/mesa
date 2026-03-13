@@ -1290,7 +1290,7 @@ brw_compiler_create(void *mem_ctx, const struct intel_device_info *devinfo);
 uint64_t
 brw_get_compiler_config_value(const struct brw_compiler *compiler);
 
-/* Provides a string sha1 hash of all device information fields that could
+/* Provides a string blake3 hash of all device information fields that could
  * affect shader compilation.
  */
 void

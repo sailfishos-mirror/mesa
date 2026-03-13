@@ -2188,13 +2188,13 @@ elk_fs_generator::generate_code(const elk_cfg_t *cfg, int dispatch_width,
    int after_size = p->next_insn_offset - start_offset;
 
    bool dump_shader_bin = elk_should_dump_shader_bin();
-   unsigned char sha1[BLAKE3_KEY_LEN + 1];
+   unsigned char blake3[BLAKE3_KEY_LEN + 1];
    char sha1buf[BLAKE3_HEX_LEN];
 
    if (unlikely(debug_flag || dump_shader_bin)) {
       _mesa_blake3_compute(p->store + start_offset / sizeof(elk_inst),
-                         after_size, sha1);
-      _mesa_blake3_format(sha1buf, sha1);
+                         after_size, blake3);
+      _mesa_blake3_format(sha1buf, blake3);
    }
 
    if (unlikely(dump_shader_bin))
@@ -2202,7 +2202,7 @@ elk_fs_generator::generate_code(const elk_cfg_t *cfg, int dispatch_width,
                           sha1buf);
 
    if (unlikely(debug_flag)) {
-      fprintf(stderr, "Native code for %s (src_hash 0x%08x) (sha1 %s)\n"
+      fprintf(stderr, "Native code for %s (src_hash 0x%08x) (blake3 %s)\n"
               "SIMD%d shader: %d instructions. %d loops. %u cycles. "
               "%d:%d spills:fills, %u sends, "
               "scheduled with mode %s. "
@@ -2224,7 +2224,7 @@ elk_fs_generator::generate_code(const elk_cfg_t *cfg, int dispatch_width,
          elk_dump_assembly(p->store, start_offset, p->next_insn_offset,
                        elk_disasm_info, perf.block_latency);
       } else {
-         fprintf(stderr, "Successfully overrode shader with sha1 %s\n\n", sha1buf);
+         fprintf(stderr, "Successfully overrode shader with blake3 %s\n\n", sha1buf);
       }
    }
    ralloc_free(elk_disasm_info);

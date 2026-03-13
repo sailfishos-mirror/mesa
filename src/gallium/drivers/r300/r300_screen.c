@@ -80,7 +80,7 @@ static const char* r300_get_name(struct pipe_screen* pscreen)
 static void r300_disk_cache_create(struct r300_screen* r300screen)
 {
     blake3_hasher ctx;
-    unsigned char sha1[BLAKE3_KEY_LEN];
+    unsigned char blake3[BLAKE3_KEY_LEN];
     char cache_id[BLAKE3_HEX_LEN];
 
     _mesa_blake3_init(&ctx);
@@ -88,8 +88,8 @@ static void r300_disk_cache_create(struct r300_screen* r300screen)
                                             &ctx))
         return;
 
-    _mesa_blake3_final(&ctx, sha1);
-    mesa_bytes_to_hex(cache_id, sha1, BLAKE3_KEY_LEN);
+    _mesa_blake3_final(&ctx, blake3);
+    mesa_bytes_to_hex(cache_id, blake3, BLAKE3_KEY_LEN);
 
     r300screen->disk_shader_cache =
                     disk_cache_create(r300_get_family_name(r300screen),

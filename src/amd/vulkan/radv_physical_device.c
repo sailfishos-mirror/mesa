@@ -317,7 +317,7 @@ static int
 radv_device_get_cache_uuid(struct radv_physical_device *pdev, void *uuid)
 {
    blake3_hasher ctx;
-   unsigned char sha1[BLAKE3_KEY_LEN];
+   unsigned char blake3[BLAKE3_KEY_LEN];
 
    memset(uuid, 0, VK_UUID_SIZE);
    _mesa_blake3_init(&ctx);
@@ -339,9 +339,9 @@ radv_device_get_cache_uuid(struct radv_physical_device *pdev, void *uuid)
       return -1;
 #endif
 
-   _mesa_blake3_final(&ctx, sha1);
+   _mesa_blake3_final(&ctx, blake3);
 
-   memcpy(uuid, sha1, VK_UUID_SIZE);
+   memcpy(uuid, blake3, VK_UUID_SIZE);
    return 0;
 }
 

@@ -402,7 +402,7 @@ shader_module_compile_to_nir(struct v3dv_device *device,
 
    if (V3D_DBG(SHADERDB) && (!stage->module || stage->module->nir == NULL)) {
       char sha1buf[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1buf, stage->pipeline->sha1);
+      _mesa_blake3_format(sha1buf, stage->pipeline->blake3);
       nir->info.name = ralloc_strdup(nir, sha1buf);
    }
 
@@ -1521,11 +1521,11 @@ pipeline_hash_graphics(const struct v3dv_pipeline *pipeline,
    _mesa_blake3_init(&ctx);
 
    if (pipeline->layout) {
-      _mesa_blake3_update(&ctx, &pipeline->layout->sha1,
-                        sizeof(pipeline->layout->sha1));
+      _mesa_blake3_update(&ctx, &pipeline->layout->blake3,
+                        sizeof(pipeline->layout->blake3));
    }
 
-   /* We need to include all shader stages in the sha1 key as linking may
+   /* We need to include all shader stages in the blake3 key as linking may
     * modify the shader code in any stage. An alternative would be to use the
     * serialized NIR, but that seems like an overkill.
     */
@@ -1556,8 +1556,8 @@ pipeline_hash_compute(const struct v3dv_pipeline *pipeline,
    _mesa_blake3_init(&ctx);
 
    if (pipeline->layout) {
-      _mesa_blake3_update(&ctx, &pipeline->layout->sha1,
-                        sizeof(pipeline->layout->sha1));
+      _mesa_blake3_update(&ctx, &pipeline->layout->blake3,
+                        sizeof(pipeline->layout->blake3));
    }
 
    struct v3dv_pipeline_stage *p_stage =
@@ -2543,13 +2543,13 @@ pipeline_compile_graphics(struct v3dv_pipeline *pipeline,
    if (!needs_executable_info) {
       struct v3dv_pipeline_key pipeline_key;
       pipeline_populate_graphics_key(pipeline, &pipeline_key, pCreateInfo, state);
-      pipeline_hash_graphics(pipeline, &pipeline_key, pipeline->sha1);
+      pipeline_hash_graphics(pipeline, &pipeline_key, pipeline->blake3);
 
       bool cache_hit = false;
 
       pipeline->shared_data =
          v3dv_pipeline_cache_search_for_pipeline(cache,
-                                                 pipeline->sha1,
+                                                 pipeline->blake3,
                                                  &cache_hit);
 
       if (pipeline->shared_data != NULL) {
@@ -2577,7 +2577,7 @@ pipeline_compile_graphics(struct v3dv_pipeline *pipeline,
     * shader or the pipeline cache) and compile.
     */
    pipeline->shared_data =
-      v3dv_pipeline_shared_data_new_empty(pipeline->sha1, pipeline, true);
+      v3dv_pipeline_shared_data_new_empty(pipeline->blake3, pipeline, true);
    if (!pipeline->shared_data)
       return VK_ERROR_OUT_OF_HOST_MEMORY;
 
@@ -3198,11 +3198,11 @@ pipeline_compile_compute(struct v3dv_pipeline *pipeline,
    if (!needs_executable_info) {
       struct v3dv_pipeline_key pipeline_key;
       pipeline_populate_compute_key(pipeline, &pipeline_key, info);
-      pipeline_hash_compute(pipeline, &pipeline_key, pipeline->sha1);
+      pipeline_hash_compute(pipeline, &pipeline_key, pipeline->blake3);
 
       bool cache_hit = false;
       pipeline->shared_data =
-         v3dv_pipeline_cache_search_for_pipeline(cache, pipeline->sha1, &cache_hit);
+         v3dv_pipeline_cache_search_for_pipeline(cache, pipeline->blake3, &cache_hit);
 
       if (pipeline->shared_data != NULL) {
          assert(pipeline->shared_data->variants[BROADCOM_SHADER_COMPUTE]);
@@ -3217,7 +3217,7 @@ pipeline_compile_compute(struct v3dv_pipeline *pipeline,
    if (pipeline->flags & VK_PIPELINE_CREATE_FAIL_ON_PIPELINE_COMPILE_REQUIRED_BIT)
       return VK_PIPELINE_COMPILE_REQUIRED;
 
-   pipeline->shared_data = v3dv_pipeline_shared_data_new_empty(pipeline->sha1,
+   pipeline->shared_data = v3dv_pipeline_shared_data_new_empty(pipeline->blake3,
                                                                pipeline,
                                                                false);
    if (!pipeline->shared_data)

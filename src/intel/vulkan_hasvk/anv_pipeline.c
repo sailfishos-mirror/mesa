@@ -343,7 +343,7 @@ struct anv_pipeline_stage {
 
    struct {
       mesa_shader_stage stage;
-      unsigned char sha1[BLAKE3_KEY_LEN];
+      unsigned char blake3[BLAKE3_KEY_LEN];
    } cache_key;
 
    nir_shader *nir;
@@ -378,7 +378,7 @@ anv_pipeline_hash_graphics(struct anv_graphics_pipeline *pipeline,
                      sizeof(pipeline->view_mask));
 
    if (layout)
-      _mesa_blake3_update(&ctx, layout->sha1, sizeof(layout->sha1));
+      _mesa_blake3_update(&ctx, layout->blake3, sizeof(layout->blake3));
 
    for (uint32_t s = 0; s < ANV_GRAPHICS_SHADER_STAGE_COUNT; s++) {
       if (stages[s].info) {
@@ -401,7 +401,7 @@ anv_pipeline_hash_compute(struct anv_compute_pipeline *pipeline,
    _mesa_blake3_init(&ctx);
 
    if (layout)
-      _mesa_blake3_update(&ctx, layout->sha1, sizeof(layout->sha1));
+      _mesa_blake3_update(&ctx, layout->blake3, sizeof(layout->blake3));
 
    const struct anv_device *device = pipeline->base.device;
 
@@ -1231,15 +1231,15 @@ anv_graphics_pipeline_compile(struct anv_graphics_pipeline *pipeline,
 
    anv_graphics_pipeline_init_keys(pipeline, state, stages);
 
-   unsigned char sha1[BLAKE3_KEY_LEN];
-   anv_pipeline_hash_graphics(pipeline, layout, stages, sha1);
+   unsigned char blake3[BLAKE3_KEY_LEN];
+   anv_pipeline_hash_graphics(pipeline, layout, stages, blake3);
 
    for (unsigned s = 0; s < ARRAY_SIZE(stages); s++) {
       if (!stages[s].info)
          continue;
 
       stages[s].cache_key.stage = s;
-      memcpy(stages[s].cache_key.sha1, sha1, sizeof(sha1));
+      memcpy(stages[s].cache_key.blake3, blake3, sizeof(blake3));
    }
 
    const bool skip_cache_lookup =
@@ -1463,7 +1463,7 @@ anv_pipeline_compile_cs(struct anv_compute_pipeline *pipeline,
    const bool skip_cache_lookup =
       (pipeline->base.flags & VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR);
 
-   anv_pipeline_hash_compute(pipeline, layout, &stage, stage.cache_key.sha1);
+   anv_pipeline_hash_compute(pipeline, layout, &stage, stage.cache_key.blake3);
 
    bool cache_hit = false;
    if (!skip_cache_lookup) {

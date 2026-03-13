@@ -904,11 +904,11 @@ agx_get_device_uuid(const struct agx_device *dev, void *uuid)
    _mesa_blake3_update(&blake3_ctx, &dev->params.gpu_revision,
                      sizeof(dev->params.gpu_revision));
 
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&blake3_ctx, sha1);
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
-   memcpy(uuid, sha1, UUID_SIZE);
+   memcpy(uuid, blake3, UUID_SIZE);
 }
 
 void
@@ -927,11 +927,11 @@ agx_get_driver_uuid(void *uuid)
 
    _mesa_blake3_update(&blake3_ctx, driver_id, strlen(driver_id));
 
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&blake3_ctx, sha1);
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
-   memcpy(uuid, sha1, UUID_SIZE);
+   memcpy(uuid, blake3, UUID_SIZE);
 }
 
 unsigned

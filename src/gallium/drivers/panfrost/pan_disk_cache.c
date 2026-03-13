@@ -64,9 +64,9 @@ panfrost_disk_cache_store(struct disk_cache *cache,
    panfrost_disk_cache_compute_key(cache, uncompiled, key, cache_key);
 
    if (debug) {
-      char sha1[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1, cache_key);
-      fprintf(stderr, "[mesa disk cache] storing %s\n", sha1);
+      char blake3[BLAKE3_HEX_LEN];
+      _mesa_blake3_format(blake3, cache_key);
+      fprintf(stderr, "[mesa disk cache] storing %s\n", blake3);
    }
 
    struct blob blob;
@@ -108,9 +108,9 @@ panfrost_disk_cache_retrieve(struct disk_cache *cache,
    panfrost_disk_cache_compute_key(cache, uncompiled, key, cache_key);
 
    if (debug) {
-      char sha1[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1, cache_key);
-      fprintf(stderr, "[mesa disk cache] retrieving %s: ", sha1);
+      char blake3[BLAKE3_HEX_LEN];
+      _mesa_blake3_format(blake3, cache_key);
+      fprintf(stderr, "[mesa disk cache] retrieving %s: ", blake3);
    }
 
    size_t size;

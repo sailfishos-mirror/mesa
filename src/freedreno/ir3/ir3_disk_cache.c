@@ -43,15 +43,15 @@ ir3_disk_cache_init(struct ir3_compiler *compiler)
    assert(id_sha1);
 
    blake3_hasher ctx;
-   uint8_t sha1[BLAKE3_KEY_LEN];
+   uint8_t blake3[BLAKE3_KEY_LEN];
    _mesa_blake3_init(&ctx);
    _mesa_blake3_update(&ctx, id_sha1, build_id_len);
    _mesa_blake3_update(&ctx, &compiler->options.uche_trap_base,
                      sizeof(compiler->options.uche_trap_base));
-   _mesa_blake3_final(&ctx, sha1);
+   _mesa_blake3_final(&ctx, blake3);
 
    char timestamp[BLAKE3_HEX_LEN];
-   _mesa_blake3_format(timestamp, sha1);
+   _mesa_blake3_format(timestamp, blake3);
 
    uint64_t driver_flags = ir3_shader_debug_hash_key();
    compiler->disk_cache = disk_cache_create(renderer, timestamp, driver_flags);
@@ -225,9 +225,9 @@ ir3_disk_cache_retrieve(struct ir3_shader *shader,
    compute_variant_key(shader, v, cache_key);
 
    if (debug) {
-      char sha1[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1, cache_key);
-      fprintf(stderr, "[mesa disk cache] retrieving variant %s: ", sha1);
+      char blake3[BLAKE3_HEX_LEN];
+      _mesa_blake3_format(blake3, cache_key);
+      fprintf(stderr, "[mesa disk cache] retrieving variant %s: ", blake3);
    }
 
    size_t size;
@@ -264,9 +264,9 @@ ir3_disk_cache_store(struct ir3_shader *shader,
    compute_variant_key(shader, v, cache_key);
 
    if (debug) {
-      char sha1[BLAKE3_HEX_LEN];
-      _mesa_blake3_format(sha1, cache_key);
-      fprintf(stderr, "[mesa disk cache] storing variant %s\n", sha1);
+      char blake3[BLAKE3_HEX_LEN];
+      _mesa_blake3_format(blake3, cache_key);
+      fprintf(stderr, "[mesa disk cache] storing variant %s\n", blake3);
    }
 
    struct blob blob;

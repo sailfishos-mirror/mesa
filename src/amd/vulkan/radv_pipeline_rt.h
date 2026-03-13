@@ -104,7 +104,7 @@ struct radv_ray_tracing_stage {
 
    struct radv_ray_tracing_stage_info info;
 
-   uint8_t sha1[BLAKE3_KEY_LEN];
+   uint8_t blake3[BLAKE3_KEY_LEN];
 };
 
 struct radv_ray_tracing_state_key {

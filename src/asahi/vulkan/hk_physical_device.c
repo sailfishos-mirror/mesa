@@ -1090,15 +1090,15 @@ hk_get_device_properties(const struct agx_device *dev,
 
    {
       blake3_hasher blake3_ctx;
-      uint8_t sha1[BLAKE3_KEY_LEN];
+      uint8_t blake3[BLAKE3_KEY_LEN];
 
       _mesa_blake3_init(&blake3_ctx);
       /* Make sure we don't match with other vendors */
       const char *driver = "honeykrisp-v1";
       _mesa_blake3_update(&blake3_ctx, driver, strlen(driver));
-      _mesa_blake3_final(&blake3_ctx, sha1);
+      _mesa_blake3_final(&blake3_ctx, blake3);
 
-      memcpy(properties->optimalTilingLayoutUUID, sha1, VK_UUID_SIZE);
+      memcpy(properties->optimalTilingLayoutUUID, blake3, VK_UUID_SIZE);
    }
 }
 
@@ -1116,12 +1116,12 @@ hk_physical_device_init_pipeline_cache(struct hk_physical_device *pdev)
    const uint64_t compiler_flags = hk_physical_device_compiler_flags(pdev);
    _mesa_blake3_update(&blake3_ctx, &compiler_flags, sizeof(compiler_flags));
 
-   unsigned char sha[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&blake3_ctx, sha);
+   unsigned char blake3[BLAKE3_KEY_LEN];
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
    static_assert(BLAKE3_KEY_LEN >= VK_UUID_SIZE);
-   memcpy(pdev->vk.properties.pipelineCacheUUID, sha, VK_UUID_SIZE);
-   memcpy(pdev->vk.properties.shaderBinaryUUID, sha, VK_UUID_SIZE);
+   memcpy(pdev->vk.properties.pipelineCacheUUID, blake3, VK_UUID_SIZE);
+   memcpy(pdev->vk.properties.shaderBinaryUUID, blake3, VK_UUID_SIZE);
 
 #ifdef ENABLE_SHADER_CACHE
    char renderer[10];

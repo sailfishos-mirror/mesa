@@ -1424,8 +1424,8 @@ anv_physical_device_init_uuids(struct anv_physical_device *device)
    copy_build_id_to_sha1(device->driver_build_sha1, note);
 
    blake3_hasher blake3_ctx;
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   STATIC_ASSERT(VK_UUID_SIZE <= sizeof(sha1));
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   STATIC_ASSERT(VK_UUID_SIZE <= sizeof(blake3));
 
    /* The pipeline cache UUID is used for determining when a pipeline cache is
     * invalid.  It needs both a driver build and the PCI ID of the device.
@@ -1440,8 +1440,8 @@ anv_physical_device_init_uuids(struct anv_physical_device *device)
                      sizeof(device->has_a64_buffer_access));
    _mesa_blake3_update(&blake3_ctx, &device->has_bindless_samplers,
                      sizeof(device->has_bindless_samplers));
-   _mesa_blake3_final(&blake3_ctx, sha1);
-   memcpy(device->pipeline_cache_uuid, sha1, VK_UUID_SIZE);
+   _mesa_blake3_final(&blake3_ctx, blake3);
+   memcpy(device->pipeline_cache_uuid, blake3, VK_UUID_SIZE);
 
    intel_uuid_compute_driver_id(device->driver_uuid, &device->info, VK_UUID_SIZE);
    intel_uuid_compute_device_id(device->device_uuid, &device->info, VK_UUID_SIZE);

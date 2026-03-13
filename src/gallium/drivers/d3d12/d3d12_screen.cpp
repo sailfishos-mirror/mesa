@@ -1735,16 +1735,16 @@ d3d12_init_screen(struct d3d12_screen *screen, IUnknown *adapter)
 
    const char *mesa_version = "Mesa " PACKAGE_VERSION MESA_GIT_SHA1;
    blake3_hasher blake3_ctx;
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   STATIC_ASSERT(PIPE_UUID_SIZE <= sizeof(sha1));
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   STATIC_ASSERT(PIPE_UUID_SIZE <= sizeof(blake3));
 
    /* The driver UUID is used for determining sharability of images and memory
     * between two instances in separate processes.  People who want to
     * share memory need to also check the device UUID or LUID so all this
     * needs to be is the build-id.
     */
-   _mesa_blake3_compute(mesa_version, strlen(mesa_version), sha1);
-   memcpy(screen->driver_uuid, sha1, PIPE_UUID_SIZE);
+   _mesa_blake3_compute(mesa_version, strlen(mesa_version), blake3);
+   memcpy(screen->driver_uuid, blake3, PIPE_UUID_SIZE);
 
    /* The device UUID uniquely identifies the given device within the machine. */
    _mesa_blake3_init(&blake3_ctx);
@@ -1752,8 +1752,8 @@ d3d12_init_screen(struct d3d12_screen *screen, IUnknown *adapter)
    _mesa_blake3_update(&blake3_ctx, &screen->device_id, sizeof(screen->device_id));
    _mesa_blake3_update(&blake3_ctx, &screen->subsys_id, sizeof(screen->subsys_id));
    _mesa_blake3_update(&blake3_ctx, &screen->revision, sizeof(screen->revision));
-   _mesa_blake3_final(&blake3_ctx, sha1);
-   memcpy(screen->device_uuid, sha1, PIPE_UUID_SIZE);
+   _mesa_blake3_final(&blake3_ctx, blake3);
+   memcpy(screen->device_uuid, blake3, PIPE_UUID_SIZE);
 
    d3d12_init_shader_caps(screen);
    d3d12_init_compute_caps(screen);

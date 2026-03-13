@@ -324,7 +324,7 @@ struct gl_shader_program_data
    GLint RefCount;  /**< Reference count */
 
    /** SHA1 hash of linked shader program */
-   unsigned char sha1[BLAKE3_KEY_LEN];
+   unsigned char blake3[BLAKE3_KEY_LEN];
 
    unsigned NumUniformStorage;
    unsigned NumHiddenUniforms;

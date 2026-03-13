@@ -1335,12 +1335,12 @@ nvk_physical_device_init_pipeline_cache(struct nvk_physical_device *pdev)
    const uint64_t compiler_flags = nvk_physical_device_compiler_flags(pdev);
    _mesa_blake3_update(&blake3_ctx, &compiler_flags, sizeof(compiler_flags));
 
-   unsigned char sha[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&blake3_ctx, sha);
+   unsigned char blake3[BLAKE3_KEY_LEN];
+   _mesa_blake3_final(&blake3_ctx, blake3);
 
    STATIC_ASSERT(BLAKE3_KEY_LEN >= VK_UUID_SIZE);
-   memcpy(pdev->vk.properties.pipelineCacheUUID, sha, VK_UUID_SIZE);
-   memcpy(pdev->vk.properties.shaderBinaryUUID, sha, VK_UUID_SIZE);
+   memcpy(pdev->vk.properties.pipelineCacheUUID, blake3, VK_UUID_SIZE);
+   memcpy(pdev->vk.properties.shaderBinaryUUID, blake3, VK_UUID_SIZE);
 
 #ifdef ENABLE_SHADER_CACHE
    char renderer[10];

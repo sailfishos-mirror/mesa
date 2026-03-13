@@ -397,7 +397,7 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
 {
    v->bin = ir3_shader_assemble(v);
 
-   unsigned char sha1[BLAKE3_KEY_LEN + 1];
+   unsigned char blake3[BLAKE3_KEY_LEN + 1];
 
    blake3_hasher ctx;
 
@@ -405,8 +405,8 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
    _mesa_blake3_update(&ctx, v->bin, v->info.size);
    _mesa_blake3_update(&ctx, &v->info.double_threadsize,
                      sizeof(v->info.double_threadsize));
-   _mesa_blake3_final(&ctx, sha1);
-   _mesa_blake3_format(v->blake3_str, sha1);
+   _mesa_blake3_final(&ctx, blake3);
+   _mesa_blake3_format(v->blake3_str, blake3);
 
    bool dbg_enabled = shader_debug_enabled(v->type, internal) ||
                       ir3_shader_bisect_disasm_select(v);
@@ -420,7 +420,7 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
          FILE *stream = open_memstream(&stream_data, &stream_size);
 
          fprintf(stream,
-                 "Native code%s for unnamed %s shader %s with sha1 %s:\n",
+                 "Native code%s for unnamed %s shader %s with blake3 %s:\n",
                  shader_overridden ? " (overridden)" : "", ir3_shader_stage(v),
                  v->name, v->blake3_str);
          ir3_shader_disasm(v, v->bin, stream);
@@ -439,7 +439,7 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
          FILE *stream = open_memstream(&stream_data, &stream_size);
 
          fprintf(stream,
-                 "Native code%s for unnamed %s shader %s with sha1 %s:\n",
+                 "Native code%s for unnamed %s shader %s with blake3 %s:\n",
                  shader_overridden ? " (overridden)" : "", ir3_shader_stage(v),
                  v->name, v->blake3_str);
          if (v->type == MESA_SHADER_FRAGMENT)

@@ -922,10 +922,10 @@ static void virgl_disk_cache_create(struct virgl_screen *screen)
     * apply different lowering. */
    _mesa_blake3_update(&blake3_ctx, &screen->caps, sizeof(screen->caps));
 
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&blake3_ctx, sha1);
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   _mesa_blake3_final(&blake3_ctx, blake3);
    char timestamp[BLAKE3_HEX_LEN];
-   _mesa_blake3_format(timestamp, sha1);
+   _mesa_blake3_format(timestamp, blake3);
 
    screen->disk_cache = disk_cache_create("virgl", timestamp, 0);
 }

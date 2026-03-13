@@ -56,7 +56,7 @@ static int
 tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
 {
    blake3_hasher ctx;
-   unsigned char sha1[BLAKE3_KEY_LEN];
+   unsigned char blake3[BLAKE3_KEY_LEN];
    /* Note: IR3_SHADER_DEBUG also affects compilation, but it's not
     * initialized until after compiler creation so we have to add it to the
     * shader hash instead, since the compiler is only created with the logical
@@ -74,9 +74,9 @@ tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
    _mesa_blake3_update(&ctx, &family, sizeof(family));
    _mesa_blake3_update(&ctx, &driver_flags, sizeof(driver_flags));
    _mesa_blake3_update(&ctx, &device->uche_trap_base, sizeof(device->uche_trap_base));
-   _mesa_blake3_final(&ctx, sha1);
+   _mesa_blake3_final(&ctx, blake3);
 
-   memcpy(uuid, sha1, VK_UUID_SIZE);
+   memcpy(uuid, blake3, VK_UUID_SIZE);
    return 0;
 }
 
@@ -1497,7 +1497,7 @@ tu_get_properties(struct tu_physical_device *pdevice,
 
    {
       blake3_hasher blake3_ctx;
-      uint8_t sha1[BLAKE3_KEY_LEN];
+      uint8_t blake3[BLAKE3_KEY_LEN];
 
       _mesa_blake3_init(&blake3_ctx);
 
@@ -1513,9 +1513,9 @@ tu_get_properties(struct tu_physical_device *pdevice,
       _mesa_blake3_update(&blake3_ctx, &pdevice->ubwc_config.macrotile_mode,
                         sizeof(pdevice->ubwc_config.macrotile_mode));
 
-      _mesa_blake3_final(&blake3_ctx, sha1);
+      _mesa_blake3_final(&blake3_ctx, blake3);
 
-      memcpy(props->optimalTilingLayoutUUID, sha1, VK_UUID_SIZE);
+      memcpy(props->optimalTilingLayoutUUID, blake3, VK_UUID_SIZE);
    }
 
    /* VK_KHR_acceleration_structure */

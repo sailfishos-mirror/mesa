@@ -525,7 +525,7 @@ tu_pipeline_layout_init(struct tu_pipeline_layout *layout)
    _mesa_blake3_update(&ctx, &layout->num_sets, sizeof(layout->num_sets));
    _mesa_blake3_update(&ctx, &layout->push_constant_size,
                      sizeof(layout->push_constant_size));
-   _mesa_blake3_final(&ctx, layout->sha1);
+   _mesa_blake3_final(&ctx, layout->blake3);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL

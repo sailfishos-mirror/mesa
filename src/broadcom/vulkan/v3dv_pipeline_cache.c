@@ -34,9 +34,9 @@ static const bool dump_stats_on_destroy = false;
 #define V3DV_MAX_PIPELINE_CACHE_ENTRIES 4096
 
 static uint32_t
-blake3_hash_func(const void *sha1)
+blake3_hash_func(const void *blake3)
 {
-   return _mesa_hash_data(sha1, BLAKE3_KEY_LEN);
+   return _mesa_hash_data(blake3, BLAKE3_KEY_LEN);
 }
 
 static bool
@@ -455,7 +455,7 @@ pipeline_cache_upload_shared_data(struct v3dv_pipeline_cache *cache,
       char sha1buf[BLAKE3_HEX_LEN];
       _mesa_blake3_format(sha1buf, shared_data->blake3_key);
 
-      mesa_logi("pipeline cache %p, new cache entry with sha1 key %s:%p\n\n",
+      mesa_logi("pipeline cache %p, new cache entry with blake3 key %s:%p\n\n",
                 cache, sha1buf, shared_data);
       if (dump_stats)
          cache_dump_stats(cache);

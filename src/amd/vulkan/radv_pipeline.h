@@ -39,7 +39,7 @@ enum radv_pipeline_type {
 
 struct radv_pipeline {
    struct vk_object_base base;
-   uint8_t sha1[BLAKE3_KEY_LEN];
+   uint8_t blake3[BLAKE3_KEY_LEN];
    enum radv_pipeline_type type;
 
    VkPipelineCreateFlags2 create_flags;

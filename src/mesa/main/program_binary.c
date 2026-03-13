@@ -46,18 +46,18 @@
  * produced by different drivers and different Mesa versions.
  *
  * Mesa uses a uint32_t value to specify an internal format. The only format
- * defined has one uint32_t value of 0, followed by 20 bytes specifying a sha1
+ * defined has one uint32_t value of 0, followed by 20 bytes specifying a blake3
  * that uniquely identifies the Mesa driver type and version.
  */
 
 struct program_binary_header {
-   /* If internal_format is 0, it must be followed by the 20 byte sha1 that
+   /* If internal_format is 0, it must be followed by the 20 byte blake3 that
     * identifies the Mesa driver and version supported. If we want to support
-    * something besides a sha1, then a new internal_format value can be added.
+    * something besides a blake3, then a new internal_format value can be added.
     */
    uint32_t internal_format;
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   /* Fields following sha1 can be changed since the sha1 will guarantee that
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   /* Fields following blake3 can be changed since the blake3 will guarantee that
     * the binary only works with the same Mesa version.
     */
    uint32_t size;
@@ -75,7 +75,7 @@ get_program_binary_header_size(void)
 
 static bool
 write_program_binary(const void *payload, unsigned payload_size,
-                     const void *sha1, void *binary, unsigned binary_size,
+                     const void *blake3, void *binary, unsigned binary_size,
                      GLenum *binary_format)
 {
    struct program_binary_header *hdr = binary;
@@ -90,7 +90,7 @@ write_program_binary(const void *payload, unsigned payload_size,
       return false;
 
    hdr->internal_format = 0;
-   memcpy(hdr->sha1, sha1, sizeof(hdr->sha1));
+   memcpy(hdr->blake3, blake3, sizeof(hdr->blake3));
    memcpy(hdr + 1, payload, payload_size);
    hdr->size = payload_size;
 
@@ -130,7 +130,7 @@ check_crc32(const struct program_binary_header *hdr, unsigned length)
 }
 
 static bool
-is_program_binary_valid(GLenum binary_format, const void *sha1,
+is_program_binary_valid(GLenum binary_format, const void *blake3,
                         const struct program_binary_header *hdr,
                         unsigned length)
 {
@@ -140,7 +140,7 @@ is_program_binary_valid(GLenum binary_format, const void *sha1,
    if (!simple_header_checks(hdr, length))
       return false;
 
-   if (memcmp(hdr->sha1, sha1, sizeof(hdr->sha1)) != 0)
+   if (memcmp(hdr->blake3, blake3, sizeof(hdr->blake3)) != 0)
       return false;
 
    if (!check_crc32(hdr, length))
@@ -160,11 +160,11 @@ is_program_binary_valid(GLenum binary_format, const void *sha1,
  * glProgramBinary call.
  */
 static const void*
-get_program_binary_payload(GLenum binary_format, const void *sha1,
+get_program_binary_payload(GLenum binary_format, const void *blake3,
                            const void *binary, unsigned length)
 {
    const struct program_binary_header *hdr = binary;
-   if (!is_program_binary_valid(binary_format, sha1, hdr, length))
+   if (!is_program_binary_valid(binary_format, blake3, hdr, length))
       return NULL;
    return (const uint8_t*)binary + sizeof(*hdr);
 }

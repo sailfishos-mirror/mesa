@@ -257,7 +257,7 @@ radv_create_pipeline_binary_from_pipeline(struct radv_device *device, const VkAl
          struct radv_ray_tracing_stage *rt_stage = &rt_pipeline->stages[i];
 
          result = radv_create_pipeline_binary_from_rt_shader(device, pAllocator, rt_stage->shader, false,
-                                                             rt_stage->sha1, &rt_stage->info, rt_stage->stack_size,
+                                                             rt_stage->blake3, &rt_stage->info, rt_stage->stack_size,
                                                              rt_stage->nir, pipeline_binaries, num_binaries);
          if (result != VK_SUCCESS)
             return result;

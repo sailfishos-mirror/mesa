@@ -544,12 +544,12 @@ radv_dump_annotated_shader(const struct radv_shader *shader, mesa_shader_stage s
 }
 
 static void
-radv_dump_spirv(const struct radv_shader *shader, const char *sha1, const char *dump_dir)
+radv_dump_spirv(const struct radv_shader *shader, const char *blake3, const char *dump_dir)
 {
    char dump_path[512];
    FILE *f;
 
-   snprintf(dump_path, sizeof(dump_path), "%s/%s.spv", dump_dir, sha1);
+   snprintf(dump_path, sizeof(dump_path), "%s/%s.spv", dump_dir, blake3);
 
    f = fopen(dump_path, "w+");
    if (f) {
@@ -570,11 +570,11 @@ radv_dump_shader(struct radv_device *device, struct radv_pipeline *pipeline, str
    fprintf(f, "%s:\n\n", radv_get_shader_name(&shader->info, stage));
 
    if (shader->spirv) {
-      unsigned char sha1[BLAKE3_KEY_LEN + 1];
+      unsigned char blake3[BLAKE3_KEY_LEN + 1];
       char sha1buf[BLAKE3_HEX_LEN];
 
-      _mesa_blake3_compute(shader->spirv, shader->spirv_size, sha1);
-      _mesa_blake3_format(sha1buf, sha1);
+      _mesa_blake3_compute(shader->spirv, shader->spirv_size, blake3);
+      _mesa_blake3_format(sha1buf, blake3);
 
       if (device->vk.enabled_features.deviceFaultVendorBinary) {
          spirv_print_asm(f, (const uint32_t *)shader->spirv, shader->spirv_size / 4);

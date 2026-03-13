@@ -887,7 +887,7 @@ lp_disk_cache_create(struct llvmpipe_screen *screen)
 {
    blake3_hasher ctx;
    unsigned gallivm_perf = gallivm_get_perf_flags();
-   unsigned char sha1[BLAKE3_KEY_LEN];
+   unsigned char blake3[BLAKE3_KEY_LEN];
    char cache_id[BLAKE3_HEX_LEN];
    _mesa_blake3_init(&ctx);
 
@@ -897,8 +897,8 @@ lp_disk_cache_create(struct llvmpipe_screen *screen)
 
    _mesa_blake3_update(&ctx, &gallivm_perf, sizeof(gallivm_perf));
    update_cache_blake3_cpu(&ctx);
-   _mesa_blake3_final(&ctx, sha1);
-   mesa_bytes_to_hex(cache_id, sha1, BLAKE3_KEY_LEN);
+   _mesa_blake3_final(&ctx, blake3);
+   mesa_bytes_to_hex(cache_id, blake3, BLAKE3_KEY_LEN);
 
    screen->disk_shader_cache = disk_cache_create("llvmpipe", cache_id, 0);
 }
@@ -930,16 +930,16 @@ lp_disk_cache_find_shader(struct llvmpipe_screen *screen,
                           struct lp_cached_code *cache,
                           unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN])
 {
-   unsigned char sha1[CACHE_KEY_SIZE];
+   unsigned char blake3[CACHE_KEY_SIZE];
 
    if (!screen->disk_shader_cache)
       return;
    disk_cache_compute_key(screen->disk_shader_cache, ir_blake3_cache_key,
-                          20, sha1);
+                          20, blake3);
 
    size_t binary_size;
    uint8_t *buffer = disk_cache_get(screen->disk_shader_cache,
-                                    sha1, &binary_size);
+                                    blake3, &binary_size);
    if (!buffer) {
       cache->data_size = 0;
       return;
@@ -954,13 +954,13 @@ lp_disk_cache_insert_shader(struct llvmpipe_screen *screen,
                             struct lp_cached_code *cache,
                             unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN])
 {
-   unsigned char sha1[CACHE_KEY_SIZE];
+   unsigned char blake3[CACHE_KEY_SIZE];
 
    if (!screen->disk_shader_cache || !cache->data_size || cache->dont_cache)
       return;
    disk_cache_compute_key(screen->disk_shader_cache, ir_blake3_cache_key,
-                          20, sha1);
-   disk_cache_put(screen->disk_shader_cache, sha1, cache->data,
+                          20, blake3);
+   disk_cache_put(screen->disk_shader_cache, blake3, cache->data,
                   cache->data_size, NULL);
 }
 

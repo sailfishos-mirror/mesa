@@ -1393,7 +1393,7 @@ gfx_program_init(struct zink_context *ctx, struct zink_gfx_program *prog)
    _mesa_blake3_init(&sctx);
    for (int i = 0; i < MESA_SHADER_MESH_STAGES; ++i) {
       if (prog->shaders[i])
-         _mesa_blake3_update(&sctx, prog->shaders[i]->base.sha1, sizeof(prog->shaders[i]->base.sha1));
+         _mesa_blake3_update(&sctx, prog->shaders[i]->base.blake3, sizeof(prog->shaders[i]->base.blake3));
    }
    _mesa_blake3_final(&sctx, prog->base.blake3);
 

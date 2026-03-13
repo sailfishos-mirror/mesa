@@ -1796,7 +1796,7 @@ get_properties(const struct anv_physical_device *pdevice,
        */
       {
          blake3_hasher blake3_ctx;
-         uint8_t sha1[BLAKE3_KEY_LEN];
+         uint8_t blake3[BLAKE3_KEY_LEN];
 
          _mesa_blake3_init(&blake3_ctx);
          _mesa_blake3_update(&blake3_ctx, pdevice->driver_build_sha1,
@@ -1808,10 +1808,10 @@ get_properties(const struct anv_physical_device *pdevice,
             _mesa_blake3_update(&blake3_ctx, &pdevice->info.gt,
                               sizeof(pdevice->info.gt));
          }
-         _mesa_blake3_final(&blake3_ctx, sha1);
+         _mesa_blake3_final(&blake3_ctx, blake3);
 
-         assert(ARRAY_SIZE(sha1) >= VK_UUID_SIZE);
-         memcpy(props->optimalTilingLayoutUUID, sha1, VK_UUID_SIZE);
+         assert(ARRAY_SIZE(blake3) >= VK_UUID_SIZE);
+         memcpy(props->optimalTilingLayoutUUID, blake3, VK_UUID_SIZE);
       }
 
       /* System without ReBAR cannot map all memory types on the host and that
@@ -2375,8 +2375,8 @@ anv_physical_device_init_uuids(struct anv_physical_device *device)
    copy_build_id_to_sha1(device->driver_build_sha1, note);
 
    blake3_hasher blake3_ctx;
-   uint8_t sha1[BLAKE3_KEY_LEN];
-   STATIC_ASSERT(VK_UUID_SIZE <= sizeof(sha1));
+   uint8_t blake3[BLAKE3_KEY_LEN];
+   STATIC_ASSERT(VK_UUID_SIZE <= sizeof(blake3));
 
    /* The pipeline cache UUID is used for determining when a pipeline cache is
     * invalid.  It needs both a driver build and the PCI ID of the device.
@@ -2387,8 +2387,8 @@ anv_physical_device_init_uuids(struct anv_physical_device *device)
    bool always_use_bindless = !!(device->instance->debug & ANV_DEBUG_BINDLESS);
    _mesa_blake3_update(&blake3_ctx, &always_use_bindless,
                      sizeof(always_use_bindless));
-   _mesa_blake3_final(&blake3_ctx, sha1);
-   memcpy(device->pipeline_cache_uuid, sha1, VK_UUID_SIZE);
+   _mesa_blake3_final(&blake3_ctx, blake3);
+   memcpy(device->pipeline_cache_uuid, blake3, VK_UUID_SIZE);
 
    intel_uuid_compute_driver_id(device->driver_uuid, &device->info, VK_UUID_SIZE);
    intel_uuid_compute_device_id(device->device_uuid, &device->info, VK_UUID_SIZE);

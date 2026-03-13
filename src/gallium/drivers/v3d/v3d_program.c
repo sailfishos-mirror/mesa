@@ -411,12 +411,12 @@ v3d_uncompiled_shader_create(struct pipe_context *pctx,
         so->base.type = PIPE_SHADER_IR_NIR;
         so->base.ir.nir = s;
 
-        /* Generate sha1 from NIR for caching */
+        /* Generate blake3 from NIR for caching */
         struct blob blob;
         blob_init(&blob);
         nir_serialize(&blob, s, true);
         assert(!blob.out_of_memory);
-        _mesa_blake3_compute(blob.data, blob.size, so->sha1);
+        _mesa_blake3_compute(blob.data, blob.size, so->blake3);
         blob_finish(&blob);
 
         if (V3D_DBG(NIR) || v3d_debug_flag_for_shader_stage(s->info.stage)) {
@@ -460,7 +460,7 @@ v3d_shader_state_create(struct pipe_context *pctx,
 /* Key ued with the RAM cache */
 struct v3d_cache_key {
         struct v3d_key *key;
-        unsigned char sha1[BLAKE3_KEY_LEN];
+        unsigned char blake3[BLAKE3_KEY_LEN];
 };
 
 struct v3d_compiled_shader *
@@ -473,7 +473,7 @@ v3d_get_compiled_shader(struct v3d_context *v3d,
         struct hash_table *ht = v3d->prog.cache[s->info.stage];
         struct v3d_cache_key cache_key;
         cache_key.key = key;
-        memcpy(cache_key.sha1, uncompiled->sha1, sizeof(cache_key.sha1));
+        memcpy(cache_key.blake3, uncompiled->blake3, sizeof(cache_key.blake3));
         struct hash_entry *entry = _mesa_hash_table_search(ht, &cache_key);
         if (entry)
                 return entry->data;
@@ -528,7 +528,7 @@ v3d_get_compiled_shader(struct v3d_context *v3d,
                         ralloc_size(shader, sizeof(struct v3d_cache_key));
                 dup_cache_key->key = ralloc_memdup(shader, cache_key.key,
                                                    key_size);
-                memcpy(dup_cache_key->sha1, cache_key.sha1 ,sizeof(dup_cache_key->sha1));
+                memcpy(dup_cache_key->blake3, cache_key.blake3 ,sizeof(dup_cache_key->blake3));
                 _mesa_hash_table_insert(ht, dup_cache_key, shader);
         }
 
@@ -975,12 +975,12 @@ cache_hash(const void *_key, uint32_t key_size)
         const struct v3d_cache_key *key = (struct v3d_cache_key *) _key;
 
         blake3_hasher ctx;
-        unsigned char sha1[BLAKE3_KEY_LEN];
+        unsigned char blake3[BLAKE3_KEY_LEN];
         _mesa_blake3_init(&ctx);
         _mesa_blake3_update(&ctx, key->key, key_size);
-        _mesa_blake3_update(&ctx, key->sha1, BLAKE3_KEY_LEN);
-        _mesa_blake3_final(&ctx, sha1);
-        return _mesa_hash_data(sha1, BLAKE3_KEY_LEN);
+        _mesa_blake3_update(&ctx, key->blake3, BLAKE3_KEY_LEN);
+        _mesa_blake3_final(&ctx, blake3);
+        return _mesa_hash_data(blake3, BLAKE3_KEY_LEN);
 }
 
 static inline bool
@@ -992,7 +992,7 @@ cache_compare(const void *_key1, const void *_key2, uint32_t key_size)
         if (memcmp(key1->key, key2->key, key_size) != 0)
             return false;
 
-        return memcmp(key1->sha1, key2->sha1, 20) == 0;
+        return memcmp(key1->blake3, key2->blake3, 20) == 0;
 }
 
 static uint32_t
@@ -1054,7 +1054,7 @@ v3d_shader_state_delete(struct pipe_context *pctx, void *hwcso)
                 const struct v3d_cache_key *cache_key = entry->key;
                 struct v3d_compiled_shader *shader = entry->data;
 
-                if (memcmp(cache_key->sha1, so->sha1, 20) != 0)
+                if (memcmp(cache_key->blake3, so->blake3, 20) != 0)
                         continue;
 
                 if (v3d->prog.fs == shader)

@@ -315,7 +315,7 @@ struct vk_shader_bin_header {
    uint8_t uuid[VK_UUID_SIZE];
    uint32_t version;
    uint64_t size;
-   uint8_t sha1[BLAKE3_KEY_LEN];
+   uint8_t blake3[BLAKE3_KEY_LEN];
 };
 PRAGMA_DIAGNOSTIC_POP
 static_assert(sizeof(struct vk_shader_bin_header) == 80,
@@ -364,7 +364,7 @@ vk_shader_serialize(struct vk_device *device,
       _mesa_blake3_update(&blake3_ctx, blob->data + sizeof(header),
                         blob->size - sizeof(header));
 
-      _mesa_blake3_final(&blake3_ctx, header.sha1);
+      _mesa_blake3_final(&blake3_ctx, header.blake3);
 
       blob_overwrite_bytes(blob, header_offset, &header, sizeof(header));
    }
@@ -432,15 +432,15 @@ vk_shader_deserialize(struct vk_device *device,
 
    /* Hash the header with a zero SHA1 */
    struct vk_shader_bin_header blake3_header = header;
-   memset(blake3_header.sha1, 0, sizeof(blake3_header.sha1));
+   memset(blake3_header.blake3, 0, sizeof(blake3_header.blake3));
    _mesa_blake3_update(&blake3_ctx, &blake3_header, sizeof(blake3_header));
 
    /* Hash the serialized data */
    _mesa_blake3_update(&blake3_ctx, (uint8_t *)data + sizeof(header),
                      data_size - sizeof(header));
 
-   _mesa_blake3_final(&blake3_ctx, ref_header.sha1);
-   if (memcmp(header.sha1, ref_header.sha1, sizeof(header.sha1)))
+   _mesa_blake3_final(&blake3_ctx, ref_header.blake3);
+   if (memcmp(header.blake3, ref_header.blake3, sizeof(header.blake3)))
       return vk_error(device, VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT);
 
    /* We've now verified that the header matches and that the data has the

@@ -2102,7 +2102,7 @@ struct v3dv_pipeline_layout {
     */
    uint32_t ref_cnt;
 
-   unsigned char sha1[BLAKE3_KEY_LEN];
+   unsigned char blake3[BLAKE3_KEY_LEN];
 };
 
 void
@@ -2284,8 +2284,8 @@ struct v3dv_pipeline {
 
    struct v3dv_pipeline_shared_data *shared_data;
 
-   /* It is the combined stages sha1, layout sha1, plus the pipeline key sha1. */
-   unsigned char sha1[BLAKE3_KEY_LEN];
+   /* It is the combined stages blake3, layout blake3, plus the pipeline key blake3. */
+   unsigned char blake3[BLAKE3_KEY_LEN];
 
    /* In general we can reuse v3dv_device->default_attribute_float, so note
     * that the following can be NULL. In 7.x this is not used, so it will be

@@ -131,10 +131,10 @@ etna_disk_cache_retrieve(struct etna_compiler *compiler, struct etna_shader_vari
    compute_variant_key(compiler, v, cache_key);
 
    if (debug) {
-      char sha1[BLAKE3_HEX_LEN];
+      char blake3[BLAKE3_HEX_LEN];
 
-      _mesa_blake3_format(sha1, cache_key);
-      fprintf(stderr, "[mesa disk cache] retrieving variant %s: ", sha1);
+      _mesa_blake3_format(blake3, cache_key);
+      fprintf(stderr, "[mesa disk cache] retrieving variant %s: ", blake3);
    }
 
    size_t size;
@@ -167,10 +167,10 @@ etna_disk_cache_store(struct etna_compiler *compiler, struct etna_shader_variant
    compute_variant_key(compiler, v, cache_key);
 
    if (debug) {
-      char sha1[BLAKE3_HEX_LEN];
+      char blake3[BLAKE3_HEX_LEN];
 
-      _mesa_blake3_format(sha1, cache_key);
-      fprintf(stderr, "[mesa disk cache] storing variant %s\n", sha1);
+      _mesa_blake3_format(blake3, cache_key);
+      fprintf(stderr, "[mesa disk cache] storing variant %s\n", blake3);
    }
 
    struct blob blob;

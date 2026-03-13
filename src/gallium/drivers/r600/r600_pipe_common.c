@@ -754,7 +754,7 @@ static void r600_disk_cache_create(struct r600_common_screen *rscreen)
 		return;
 
 	blake3_hasher ctx;
-	unsigned char sha1[BLAKE3_KEY_LEN];
+	unsigned char blake3[BLAKE3_KEY_LEN];
 	char cache_id[BLAKE3_HEX_LEN];
 
 	_mesa_blake3_init(&ctx);
@@ -762,8 +762,8 @@ static void r600_disk_cache_create(struct r600_common_screen *rscreen)
 						&ctx))
 		return;
 
-	_mesa_blake3_final(&ctx, sha1);
-	mesa_bytes_to_hex(cache_id, sha1, BLAKE3_KEY_LEN);
+	_mesa_blake3_final(&ctx, blake3);
+	mesa_bytes_to_hex(cache_id, blake3, BLAKE3_KEY_LEN);
 
 	/* These flags affect shader compilation. */
 	rscreen->disk_shader_cache =
@@ -939,11 +939,11 @@ static void r600_get_driver_uuid(UNUSED struct pipe_screen *screen, char *uuid)
 
 	_mesa_blake3_update(&blake3_ctx, driver_id, strlen(driver_id));
 
-	uint8_t sha1[BLAKE3_KEY_LEN];
-	_mesa_blake3_final(&blake3_ctx, sha1);
+	uint8_t blake3[BLAKE3_KEY_LEN];
+	_mesa_blake3_final(&blake3_ctx, blake3);
 
 	assert(BLAKE3_KEY_LEN >= PIPE_UUID_SIZE);
-	memcpy(uuid, sha1, PIPE_UUID_SIZE);
+	memcpy(uuid, blake3, PIPE_UUID_SIZE);
 }
 
 static void r600_get_device_uuid(struct pipe_screen *screen, char *uuid)
@@ -954,8 +954,8 @@ static void r600_get_device_uuid(struct pipe_screen *screen, char *uuid)
 	assert(PIPE_UUID_SIZE >= sizeof(uint32_t) * 4);
 
 	/* Copied from ac_device_info
-	 * Use the device info directly instead of using a sha1. GL/VK UUIDs
-	 * are 16 byte vs 20 byte for sha1, and the truncation that would be
+	 * Use the device info directly instead of using a blake3. GL/VK UUIDs
+	 * are 16 byte vs 20 byte for blake3, and the truncation that would be
 	 * required would get rid of part of the little entropy we have.
 	 */
 	memset(uuid, 0, PIPE_UUID_SIZE);

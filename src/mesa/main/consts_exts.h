@@ -874,7 +874,7 @@ struct gl_constants
    /** GL_ARB_sparse_buffer */
    GLuint SparseBufferPageSize;
 
-   /** Used as an input for sha1 generation in the on-disk shader cache */
+   /** Used as an input for blake3 generation in the on-disk shader cache */
    unsigned char *dri_config_options_sha1;
 
    /** When drivers are OK with mapped buffers during draw and other calls. */
