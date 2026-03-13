@@ -12834,7 +12834,7 @@
         "description": "wsi/wayland: Add support for wl_fixes.ack_global_remove",
         "nominated": false,
         "nomination_type": 0,
-        "resolution": 4,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
