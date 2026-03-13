@@ -57,8 +57,8 @@ struct nvk_root_descriptor_table {
     */
    uint8_t set_dynamic_buffer_start[NVK_MAX_SETS];
 
-   /* Dynamic buffer bindings */
-   union nvk_buffer_descriptor dynamic_buffers[NVK_MAX_DYNAMIC_BUFFERS];
+   /* Dynamic buffer bindings (swizzled form of nvk_buffer_descriptor) */
+   uint32_t dynamic_buffers[4][NVK_MAX_DYNAMIC_BUFFERS];
 
    uint64_t printf_buffer_addr;
 

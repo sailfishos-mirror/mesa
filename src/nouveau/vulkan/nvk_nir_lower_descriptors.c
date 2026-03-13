@@ -668,8 +668,14 @@ load_descriptor(nir_builder *b, unsigned num_components, unsigned bit_size,
                        nir_iadd_imm(b, dynamic_buffer_start,
                                     binding_layout->dynamic_buffer_index));
 
-      return load_root_table_array(b, num_components, bit_size,
-                                   dynamic_buffers, index, ctx);
+      nir_def *dest_comps[NIR_MAX_VEC_COMPONENTS];
+      assert(bit_size % 32 == 0);
+      int components32 = num_components * bit_size / 32;
+      for (unsigned i = 0; i < components32; i++) {
+         dest_comps[i] = load_root_table_array(b, 1, 32,
+                                               dynamic_buffers[i], index, ctx);
+      }
+      return nir_bitcast_vector(b, nir_vec(b, dest_comps, components32), bit_size);
    }
 
    case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK: {
@@ -1439,8 +1445,15 @@ lower_load_ssbo_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
    nir_push_if(b, nir_ieq_imm(b, base_hi,
                               ROOT_DESC_DYNAMIC_BUFFERS_BASE_ADDR_HI));
    {
-      desc_root = load_root_table_array(b, 4, 32, dynamic_buffers,
-                                        nir_iadd(b, base_lo, offset), ctx);
+      nir_def *desc_root_comps[4];
+      nir_def *index = nir_iadd(b, base_lo, offset);
+      for (unsigned i = 0; i < 4; i++) {
+         desc_root_comps[i] = load_root_table_array(b, 1, 32,
+                                                    dynamic_buffers[i],
+                                                    index, ctx);
+      }
+      desc_root = nir_vec(b, desc_root_comps, 4);
+
       if (size != NULL) {
          /* assert(binding_layout->array_size >= 1); */
          nir_def *is_oob = nir_ult(b, nir_iadd_imm(b, size, -16), offset);
