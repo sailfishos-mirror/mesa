@@ -460,13 +460,13 @@ bool si_shader_cache_load_shader(struct si_screen *sscreen, unsigned char ir_bla
 
 static uint32_t si_shader_cache_key_hash(const void *key)
 {
-   /* Take the first dword of SHA1. */
+   /* Take the first dword of BLAKE3. */
    return *(uint32_t *)key;
 }
 
 static bool si_shader_cache_key_equals(const void *a, const void *b)
 {
-   /* Compare SHA1s. */
+   /* Compare BLAKE3s. */
    return memcmp(a, b, 20) == 0;
 }
 

@@ -875,7 +875,7 @@ typedef struct nir_shader_compiler_options {
     * outputs to inputs.
     *
     * Drivers can set the maximum cost based on the types of consecutive
-    * shaders or shader SHA1s.
+    * shaders or shader BLAKE3s.
     *
     * Drivers should also set "varying_estimate_instr_cost".
     */

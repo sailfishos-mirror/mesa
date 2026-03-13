@@ -47,7 +47,7 @@ fd_get_device_uuid(void *uuid, const struct fd_dev_id *id)
 
    /* The device UUID uniquely identifies the given device within the machine.
     * Since we never have more than one device, this doesn't need to be a real
-    * UUID, so we use SHA1("freedreno" + gpu_id).
+    * UUID, so we use BLAKE3("freedreno" + gpu_id).
     *
     * @TODO: Using the GPU id could be too restrictive on the off-chance that
     * someone would like to use this UUID to cache pre-tiled images or something

@@ -37,13 +37,13 @@
 
 static uint32_t key_hash(const void *key)
 {
-   /* Take the first dword of SHA1. */
+   /* Take the first dword of BLAKE3. */
    return *(uint32_t*)key;
 }
 
 static bool key_equals(const void *a, const void *b)
 {
-   /* Compare SHA1s. */
+   /* Compare BLAKE3s. */
    return memcmp(a, b, 20) == 0;
 }
 
@@ -97,7 +97,7 @@ util_live_shader_cache_get(struct pipe_context *ctx,
       return NULL;
    }
 
-   /* Compute SHA1 of pipe_shader_state. */
+   /* Compute BLAKE3 of pipe_shader_state. */
    blake3_hasher blake3_ctx;
    unsigned char blake3[BLAKE3_KEY_LEN];
    _mesa_blake3_init(&blake3_ctx);

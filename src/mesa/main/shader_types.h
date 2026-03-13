@@ -179,7 +179,7 @@ struct gl_shader
 
    enum gl_compile_status CompileStatus;
 
-   /** SHA1 of the pre-processed source used by the disk cache. */
+   /** BLAKE3 of the pre-processed source used by the disk cache. */
    uint8_t disk_cache_sha1[BLAKE3_KEY_LEN];
    /** BLAKE3 of the original source before replacement, set by glShaderSource. */
    blake3_hash source_blake3;
@@ -323,7 +323,7 @@ struct gl_shader_program_data
 {
    GLint RefCount;  /**< Reference count */
 
-   /** SHA1 hash of linked shader program */
+   /** BLAKE3 hash of linked shader program */
    unsigned char blake3[BLAKE3_KEY_LEN];
 
    unsigned NumUniformStorage;

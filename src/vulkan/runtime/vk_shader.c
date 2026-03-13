@@ -357,7 +357,7 @@ vk_shader_serialize(struct vk_device *device,
       blake3_hasher blake3_ctx;
       _mesa_blake3_init(&blake3_ctx);
 
-      /* Hash the header with a zero SHA1 */
+      /* Hash the header with a zero BLAKE3 */
       _mesa_blake3_update(&blake3_ctx, &header, sizeof(header));
 
       /* Hash the serialized data */
@@ -430,7 +430,7 @@ vk_shader_deserialize(struct vk_device *device,
    blake3_hasher blake3_ctx;
    _mesa_blake3_init(&blake3_ctx);
 
-   /* Hash the header with a zero SHA1 */
+   /* Hash the header with a zero BLAKE3 */
    struct vk_shader_bin_header blake3_header = header;
    memset(blake3_header.blake3, 0, sizeof(blake3_header.blake3));
    _mesa_blake3_update(&blake3_ctx, &blake3_header, sizeof(blake3_header));
@@ -444,7 +444,7 @@ vk_shader_deserialize(struct vk_device *device,
       return vk_error(device, VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT);
 
    /* We've now verified that the header matches and that the data has the
-    * right SHA1 hash so it's safe to call into the driver.
+    * right BLAKE3 hash so it's safe to call into the driver.
     */
    return ops->deserialize(device, &blob, header.version,
                            pAllocator, shader_out);

@@ -892,7 +892,7 @@ agx_get_device_uuid(const struct agx_device *dev, void *uuid)
 
    /* The device UUID uniquely identifies the given device within the machine.
     * Since we never have more than one device, this doesn't need to be a real
-    * UUID, so we use SHA1("agx" + gpu_generation + gpu_variant + gpu_revision).
+    * UUID, so we use BLAKE3("agx" + gpu_generation + gpu_variant + gpu_revision).
     */
    static const char *device_name = "agx";
    _mesa_blake3_update(&blake3_ctx, device_name, strlen(device_name));
