@@ -406,13 +406,13 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
    _mesa_blake3_update(&ctx, &v->info.double_threadsize,
                      sizeof(v->info.double_threadsize));
    _mesa_blake3_final(&ctx, sha1);
-   _mesa_blake3_format(v->sha1_str, sha1);
+   _mesa_blake3_format(v->blake3_str, sha1);
 
    bool dbg_enabled = shader_debug_enabled(v->type, internal) ||
                       ir3_shader_bisect_disasm_select(v);
    if (dbg_enabled || ir3_shader_override_path || v->disasm_info.write_disasm) {
       bool shader_overridden =
-         ir3_shader_override_path && try_override_shader_variant(v, v->sha1_str);
+         ir3_shader_override_path && try_override_shader_variant(v, v->blake3_str);
 
       if (v->disasm_info.write_disasm) {
          char *stream_data = NULL;
@@ -422,7 +422,7 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
          fprintf(stream,
                  "Native code%s for unnamed %s shader %s with sha1 %s:\n",
                  shader_overridden ? " (overridden)" : "", ir3_shader_stage(v),
-                 v->name, v->sha1_str);
+                 v->name, v->blake3_str);
          ir3_shader_disasm(v, v->bin, stream);
 
          fclose(stream);
@@ -441,7 +441,7 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
          fprintf(stream,
                  "Native code%s for unnamed %s shader %s with sha1 %s:\n",
                  shader_overridden ? " (overridden)" : "", ir3_shader_stage(v),
-                 v->name, v->sha1_str);
+                 v->name, v->blake3_str);
          if (v->type == MESA_SHADER_FRAGMENT)
             fprintf(stream, "SIMD0\n");
          ir3_shader_disasm(v, v->bin, stream);

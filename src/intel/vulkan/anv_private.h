@@ -1929,14 +1929,14 @@ struct nir_shader *
 anv_device_search_for_nir(struct anv_device *device,
                           struct vk_pipeline_cache *cache,
                           const struct nir_shader_compiler_options *nir_options,
-                          unsigned char sha1_key[BLAKE3_KEY_LEN],
+                          unsigned char blake3_key[BLAKE3_KEY_LEN],
                           void *mem_ctx);
 
 void
 anv_device_upload_nir(struct anv_device *device,
                       struct vk_pipeline_cache *cache,
                       const struct nir_shader *nir,
-                      unsigned char sha1_key[BLAKE3_KEY_LEN]);
+                      unsigned char blake3_key[BLAKE3_KEY_LEN]);
 
 void
 anv_load_fp64_shader(struct anv_device *device);

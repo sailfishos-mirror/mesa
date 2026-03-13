@@ -79,19 +79,19 @@ impl DiskCacheBorrowed {
 
 impl DiskCache {
     pub fn new(name: &CStr, func_ptrs: &[*mut c_void], flags: u64) -> Option<Self> {
-        let mut sha_ctx = blake3_hasher::default();
+        let mut blake3_ctx = blake3_hasher::default();
         let mut sha = [0; BLAKE3_KEY_LEN as usize];
         let mut cache_id = [0; BLAKE3_HEX_LEN as usize];
 
         let cache = unsafe {
-            _mesa_blake3_init(&mut sha_ctx);
+            _mesa_blake3_init(&mut blake3_ctx);
 
             for &func_ptr in func_ptrs {
-                if !disk_cache_get_function_identifier(func_ptr, &mut sha_ctx) {
+                if !disk_cache_get_function_identifier(func_ptr, &mut blake3_ctx) {
                     return None;
                 }
             }
-            _mesa_blake3_final(&mut sha_ctx, &mut sha);
+            _mesa_blake3_final(&mut blake3_ctx, &mut sha);
             mesa_bytes_to_hex(cache_id.as_mut_ptr(), sha.as_ptr(), sha.len() as u32);
             disk_cache_create(name.as_ptr(), cache_id.as_ptr(), flags)
         };

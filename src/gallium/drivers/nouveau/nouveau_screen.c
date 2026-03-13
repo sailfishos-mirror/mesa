@@ -275,12 +275,12 @@ static void
 nouveau_driver_uuid(struct pipe_screen *screen, char *uuid)
 {
    const char* driver = PACKAGE_VERSION MESA_GIT_SHA1;
-   blake3_hasher sha1_ctx;
+   blake3_hasher blake3_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
 
-   _mesa_blake3_init(&sha1_ctx);
-   _mesa_blake3_update(&sha1_ctx, driver, strlen(driver));
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_init(&blake3_ctx);
+   _mesa_blake3_update(&blake3_ctx, driver, strlen(driver));
+   _mesa_blake3_final(&blake3_ctx, sha1);
    memcpy(uuid, sha1, PIPE_UUID_SIZE);
 }
 

@@ -1376,10 +1376,10 @@ v3dv_EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
          counter->scope = VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_KHR;
          counter->storage = VK_PERFORMANCE_COUNTER_STORAGE_UINT64_KHR;
 
-         unsigned char sha1_result[BLAKE3_KEY_LEN];
-         _mesa_blake3_compute(perfcntr_desc->name, strlen(perfcntr_desc->name), sha1_result);
+         unsigned char blake3_result[BLAKE3_KEY_LEN];
+         _mesa_blake3_compute(perfcntr_desc->name, strlen(perfcntr_desc->name), blake3_result);
 
-         memcpy(counter->uuid, sha1_result, sizeof(counter->uuid));
+         memcpy(counter->uuid, blake3_result, sizeof(counter->uuid));
       }
 
       vk_outarray_append_typed(VkPerformanceCounterDescriptionKHR,

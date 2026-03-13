@@ -2544,11 +2544,11 @@ _mesa_glsl_compile_shader(struct gl_context *ctx, struct gl_shader *shader,
    ralloc_free(state);
 
    if (ctx->Cache && shader->CompileStatus == COMPILE_SUCCESS) {
-      char sha1_buf[BLAKE3_HEX_LEN];
+      char blake3_buf[BLAKE3_HEX_LEN];
       disk_cache_put_key(ctx->Cache, shader->disk_cache_sha1);
       if (ctx->_Shader->Flags & GLSL_CACHE_INFO) {
-         _mesa_blake3_format(sha1_buf, shader->disk_cache_sha1);
-         fprintf(stderr, "marking shader: %s\n", sha1_buf);
+         _mesa_blake3_format(blake3_buf, shader->disk_cache_sha1);
+         fprintf(stderr, "marking shader: %s\n", blake3_buf);
       }
    }
 }

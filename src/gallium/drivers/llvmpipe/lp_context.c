@@ -174,20 +174,20 @@ llvmpipe_texture_barrier(struct pipe_context *pipe, unsigned flags)
 static void
 lp_draw_disk_cache_find_shader(void *cookie,
                                struct lp_cached_code *cache,
-                               unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN])
+                               unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN])
 {
    struct llvmpipe_screen *screen = cookie;
-   lp_disk_cache_find_shader(screen, cache, ir_sha1_cache_key);
+   lp_disk_cache_find_shader(screen, cache, ir_blake3_cache_key);
 }
 
 
 static void
 lp_draw_disk_cache_insert_shader(void *cookie,
                                  struct lp_cached_code *cache,
-                                 unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN])
+                                 unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN])
 {
    struct llvmpipe_screen *screen = cookie;
-   lp_disk_cache_insert_shader(screen, cache, ir_sha1_cache_key);
+   lp_disk_cache_insert_shader(screen, cache, ir_blake3_cache_key);
 }
 
 

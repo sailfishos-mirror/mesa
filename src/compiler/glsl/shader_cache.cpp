@@ -128,10 +128,10 @@ shader_cache_write_program_metadata(struct gl_context *ctx,
    disk_cache_put(cache, prog->data->sha1, metadata.data, metadata.size,
                   &cache_item_metadata);
 
-   char sha1_buf[BLAKE3_HEX_LEN];
+   char blake3_buf[BLAKE3_HEX_LEN];
    if (ctx->_Shader->Flags & GLSL_CACHE_INFO) {
-      _mesa_blake3_format(sha1_buf, prog->data->sha1);
-      fprintf(stderr, "putting program metadata in cache: %s\n", sha1_buf);
+      _mesa_blake3_format(blake3_buf, prog->data->sha1);
+      fprintf(stderr, "putting program metadata in cache: %s\n", blake3_buf);
    }
 
 fail:

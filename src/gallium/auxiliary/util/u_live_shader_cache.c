@@ -98,18 +98,18 @@ util_live_shader_cache_get(struct pipe_context *ctx,
    }
 
    /* Compute SHA1 of pipe_shader_state. */
-   blake3_hasher sha1_ctx;
+   blake3_hasher blake3_ctx;
    unsigned char sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_init(&sha1_ctx);
-   _mesa_blake3_update(&sha1_ctx, ir_binary, ir_size);
+   _mesa_blake3_init(&blake3_ctx);
+   _mesa_blake3_update(&blake3_ctx, ir_binary, ir_size);
    if ((stage == MESA_SHADER_VERTEX ||
         stage == MESA_SHADER_TESS_EVAL ||
         stage == MESA_SHADER_GEOMETRY) &&
        state->stream_output.num_outputs) {
-      _mesa_blake3_update(&sha1_ctx, &state->stream_output,
+      _mesa_blake3_update(&blake3_ctx, &state->stream_output,
                         sizeof(state->stream_output));
    }
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&blake3_ctx, sha1);
 
    if (ir_binary == blob.data)
       blob_finish(&blob);

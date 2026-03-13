@@ -869,7 +869,7 @@ llvmpipe_fence_finish(struct pipe_screen *screen,
 
 
 static void
-update_cache_sha1_cpu(blake3_hasher *ctx)
+update_cache_blake3_cpu(blake3_hasher *ctx)
 {
    const struct util_cpu_caps_t *cpu_caps = util_get_cpu_caps();
    /*
@@ -896,7 +896,7 @@ lp_disk_cache_create(struct llvmpipe_screen *screen)
       return;
 
    _mesa_blake3_update(&ctx, &gallivm_perf, sizeof(gallivm_perf));
-   update_cache_sha1_cpu(&ctx);
+   update_cache_blake3_cpu(&ctx);
    _mesa_blake3_final(&ctx, sha1);
    mesa_bytes_to_hex(cache_id, sha1, BLAKE3_KEY_LEN);
 
@@ -928,13 +928,13 @@ llvmpipe_screen_get_fd(struct pipe_screen *_screen)
 void
 lp_disk_cache_find_shader(struct llvmpipe_screen *screen,
                           struct lp_cached_code *cache,
-                          unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN])
+                          unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN])
 {
    unsigned char sha1[CACHE_KEY_SIZE];
 
    if (!screen->disk_shader_cache)
       return;
-   disk_cache_compute_key(screen->disk_shader_cache, ir_sha1_cache_key,
+   disk_cache_compute_key(screen->disk_shader_cache, ir_blake3_cache_key,
                           20, sha1);
 
    size_t binary_size;
@@ -952,13 +952,13 @@ lp_disk_cache_find_shader(struct llvmpipe_screen *screen,
 void
 lp_disk_cache_insert_shader(struct llvmpipe_screen *screen,
                             struct lp_cached_code *cache,
-                            unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN])
+                            unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN])
 {
    unsigned char sha1[CACHE_KEY_SIZE];
 
    if (!screen->disk_shader_cache || !cache->data_size || cache->dont_cache)
       return;
-   disk_cache_compute_key(screen->disk_shader_cache, ir_sha1_cache_key,
+   disk_cache_compute_key(screen->disk_shader_cache, ir_blake3_cache_key,
                           20, sha1);
    disk_cache_put(screen->disk_shader_cache, sha1, cache->data,
                   cache->data_size, NULL);

@@ -57,13 +57,13 @@ struct memory_header {
 };
 
 static void
-get_driver_id_sha1_hash(uint8_t sha1[BLAKE3_KEY_LEN], const char *driver_id) {
-   blake3_hasher sha1_ctx;
-   _mesa_blake3_init(&sha1_ctx);
+get_driver_id_blake3_hash(uint8_t sha1[BLAKE3_KEY_LEN], const char *driver_id) {
+   blake3_hasher blake3_ctx;
+   _mesa_blake3_init(&blake3_ctx);
 
-   _mesa_blake3_update(&sha1_ctx, driver_id, strlen(driver_id));
+   _mesa_blake3_update(&blake3_ctx, driver_id, strlen(driver_id));
 
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&blake3_ctx, sha1);
 }
 
 static bool
@@ -77,7 +77,7 @@ get_fd_header(int fd, struct memory_header *header, char const *driver_id)
    // Check the uuid we put after the sizes in order to verify that the fd
    // is a memfd that we created and not some random fd.
    uint8_t sha1[BLAKE3_KEY_LEN];
-   get_driver_id_sha1_hash(sha1, driver_id);
+   get_driver_id_blake3_hash(sha1, driver_id);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
    return memcmp(header->uuid, sha1, UUID_SIZE) == 0;
@@ -182,7 +182,7 @@ os_malloc_aligned_fd(size_t size, size_t alignment, int *fd, char const *fd_name
    // Add the hash of the driver_id as a uuid to the header in order to identify the memory
    // when importing.
    uint8_t sha1[BLAKE3_KEY_LEN];
-   get_driver_id_sha1_hash(sha1, driver_id);
+   get_driver_id_blake3_hash(sha1, driver_id);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
    memcpy(header->uuid, sha1, UUID_SIZE);

@@ -811,15 +811,15 @@ add_shader_variable(const struct gl_constants *consts,
        *     type, a single entry will be generated, using the variable name
        *     from the shader source."
        */
-      struct gl_shader_variable *sha_v =
+      struct gl_shader_variable *blake3_v =
          create_shader_variable(shProg, var, name, type, interface_type,
                                 use_implicit_location, location,
                                 outermost_struct_type);
-      if (!sha_v)
+      if (!blake3_v)
          return false;
 
       return link_util_add_program_resource(shProg, resource_set,
-                                            programInterface, sha_v, stage_mask);
+                                            programInterface, blake3_v, stage_mask);
    }
    }
 }

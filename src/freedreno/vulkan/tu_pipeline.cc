@@ -2336,8 +2336,8 @@ tu_emit_program_state(struct tu_cs *sub_cs,
          }
 
          if (variants[stage]) {
-            memcpy(prog->stage_sha1[stage], variants[stage]->sha1_str,
-                   sizeof(variants[stage]->sha1_str));
+            memcpy(prog->stage_sha1[stage], variants[stage]->blake3_str,
+                   sizeof(variants[stage]->blake3_str));
          }
       }
    }

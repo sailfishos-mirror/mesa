@@ -130,7 +130,7 @@ static bool si_shader_uses_bindless_images(struct si_shader_selector *selector)
  * Return the IR key for the shader cache.
  */
 void si_get_ir_cache_key(struct si_shader_selector *sel, bool ngg, bool es,
-                         unsigned wave_size, unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN])
+                         unsigned wave_size, unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN])
 {
    struct blob blob = {};
    unsigned ir_size;
@@ -188,7 +188,7 @@ void si_get_ir_cache_key(struct si_shader_selector *sel, bool ngg, bool es,
    _mesa_blake3_init(&ctx);
    _mesa_blake3_update(&ctx, &shader_variant_flags, 4);
    _mesa_blake3_update(&ctx, ir_binary, ir_size);
-   _mesa_blake3_final(&ctx, ir_sha1_cache_key);
+   _mesa_blake3_final(&ctx, ir_blake3_cache_key);
 
    if (ir_binary == blob.data)
       blob_finish(&blob);
@@ -344,7 +344,7 @@ static bool si_load_shader_binary(struct si_shader *shader, void *binary)
  * Insert a shader into the cache. It's assumed the shader is not in the cache.
  * Use si_shader_cache_load_shader before calling this.
  */
-void si_shader_cache_insert_shader(struct si_screen *sscreen, unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN],
+void si_shader_cache_insert_shader(struct si_screen *sscreen, unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN],
                                    struct si_shader *shader, bool insert_into_disk_cache)
 {
    uint32_t *hw_binary;
@@ -355,7 +355,7 @@ void si_shader_cache_insert_shader(struct si_screen *sscreen, unsigned char ir_s
    if (!insert_into_disk_cache && memory_cache_full)
       return;
 
-   entry = _mesa_hash_table_search(sscreen->shader_cache, ir_sha1_cache_key);
+   entry = _mesa_hash_table_search(sscreen->shader_cache, ir_blake3_cache_key);
    if (entry)
       return; /* already added */
 
@@ -390,7 +390,7 @@ void si_shader_cache_insert_shader(struct si_screen *sscreen, unsigned char ir_s
 
    if (!memory_cache_full) {
       if (_mesa_hash_table_insert(sscreen->shader_cache,
-                                  mem_dup(ir_sha1_cache_key, 20),
+                                  mem_dup(ir_blake3_cache_key, 20),
                                   hw_binary) == NULL) {
           FREE(hw_binary);
           return;
@@ -400,7 +400,7 @@ void si_shader_cache_insert_shader(struct si_screen *sscreen, unsigned char ir_s
    }
 
    if (sscreen->disk_shader_cache && insert_into_disk_cache) {
-      disk_cache_compute_key(sscreen->disk_shader_cache, ir_sha1_cache_key, 20, key);
+      disk_cache_compute_key(sscreen->disk_shader_cache, ir_blake3_cache_key, 20, key);
       disk_cache_put(sscreen->disk_shader_cache, key, hw_binary, size, NULL);
    }
 
@@ -408,10 +408,10 @@ void si_shader_cache_insert_shader(struct si_screen *sscreen, unsigned char ir_s
       FREE(hw_binary);
 }
 
-bool si_shader_cache_load_shader(struct si_screen *sscreen, unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN],
+bool si_shader_cache_load_shader(struct si_screen *sscreen, unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN],
                                  struct si_shader *shader)
 {
-   struct hash_entry *entry = _mesa_hash_table_search(sscreen->shader_cache, ir_sha1_cache_key);
+   struct hash_entry *entry = _mesa_hash_table_search(sscreen->shader_cache, ir_blake3_cache_key);
 
    if (entry) {
       if (si_load_shader_binary(shader, entry->data)) {
@@ -425,7 +425,7 @@ bool si_shader_cache_load_shader(struct si_screen *sscreen, unsigned char ir_sha
       return false;
 
    unsigned char sha1[CACHE_KEY_SIZE];
-   disk_cache_compute_key(sscreen->disk_shader_cache, ir_sha1_cache_key, 20, sha1);
+   disk_cache_compute_key(sscreen->disk_shader_cache, ir_blake3_cache_key, 20, sha1);
 
    size_t total_size;
    uint32_t *buffer = (uint32_t*)disk_cache_get(sscreen->disk_shader_cache, sha1, &total_size);
@@ -440,7 +440,7 @@ bool si_shader_cache_load_shader(struct si_screen *sscreen, unsigned char ir_sha
       if (total_size >= sizeof(uint32_t) && size + gs_copy_binary_size == total_size) {
          if (si_load_shader_binary(shader, buffer)) {
             free(buffer);
-            si_shader_cache_insert_shader(sscreen, ir_sha1_cache_key, shader, false);
+            si_shader_cache_insert_shader(sscreen, ir_blake3_cache_key, shader, false);
             p_atomic_inc(&sscreen->num_disk_shader_cache_hits);
             return true;
          }
@@ -3414,7 +3414,7 @@ static void si_init_shader_selector_async(void *job, void *gdata, int thread_ind
     */
    if (!sscreen->use_monolithic_shaders) {
       struct si_shader *shader = CALLOC_STRUCT(si_shader);
-      unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN];
+      unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN];
 
       if (!shader) {
          mesa_loge("can't allocate a main shader part");
@@ -3446,15 +3446,15 @@ static void si_init_shader_selector_async(void *job, void *gdata, int thread_ind
 
       if (sel->stage <= MESA_SHADER_GEOMETRY || sel->stage == MESA_SHADER_MESH) {
          si_get_ir_cache_key(sel, shader->key.ge.as_ngg, shader->key.ge.as_es,
-                             shader->wave_size, ir_sha1_cache_key);
+                             shader->wave_size, ir_blake3_cache_key);
       } else {
-         si_get_ir_cache_key(sel, false, false, shader->wave_size, ir_sha1_cache_key);
+         si_get_ir_cache_key(sel, false, false, shader->wave_size, ir_blake3_cache_key);
       }
 
       /* Try to load the shader from the shader cache. */
       simple_mtx_lock(&sscreen->shader_cache_mutex);
 
-      if (si_shader_cache_load_shader(sscreen, ir_sha1_cache_key, shader)) {
+      if (si_shader_cache_load_shader(sscreen, ir_blake3_cache_key, shader)) {
          simple_mtx_unlock(&sscreen->shader_cache_mutex);
          si_shader_dump_stats_for_shader_db(sscreen, shader, debug);
       } else {
@@ -3471,7 +3471,7 @@ static void si_init_shader_selector_async(void *job, void *gdata, int thread_ind
          }
 
          simple_mtx_lock(&sscreen->shader_cache_mutex);
-         si_shader_cache_insert_shader(sscreen, ir_sha1_cache_key, shader, true);
+         si_shader_cache_insert_shader(sscreen, ir_blake3_cache_key, shader, true);
          simple_mtx_unlock(&sscreen->shader_cache_mutex);
       }
 

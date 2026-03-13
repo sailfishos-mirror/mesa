@@ -354,17 +354,17 @@ vk_shader_serialize(struct vk_device *device,
    if (blob->data != NULL) {
       assert(sizeof(header) <= blob->size);
 
-      blake3_hasher sha1_ctx;
-      _mesa_blake3_init(&sha1_ctx);
+      blake3_hasher blake3_ctx;
+      _mesa_blake3_init(&blake3_ctx);
 
       /* Hash the header with a zero SHA1 */
-      _mesa_blake3_update(&sha1_ctx, &header, sizeof(header));
+      _mesa_blake3_update(&blake3_ctx, &header, sizeof(header));
 
       /* Hash the serialized data */
-      _mesa_blake3_update(&sha1_ctx, blob->data + sizeof(header),
+      _mesa_blake3_update(&blake3_ctx, blob->data + sizeof(header),
                         blob->size - sizeof(header));
 
-      _mesa_blake3_final(&sha1_ctx, header.sha1);
+      _mesa_blake3_final(&blake3_ctx, header.sha1);
 
       blob_overwrite_bytes(blob, header_offset, &header, sizeof(header));
    }
@@ -427,19 +427,19 @@ vk_shader_deserialize(struct vk_device *device,
    assert(blob.current == (uint8_t *)data + sizeof(header));
    blob.end = (uint8_t *)data + data_size;
 
-   blake3_hasher sha1_ctx;
-   _mesa_blake3_init(&sha1_ctx);
+   blake3_hasher blake3_ctx;
+   _mesa_blake3_init(&blake3_ctx);
 
    /* Hash the header with a zero SHA1 */
-   struct vk_shader_bin_header sha1_header = header;
-   memset(sha1_header.sha1, 0, sizeof(sha1_header.sha1));
-   _mesa_blake3_update(&sha1_ctx, &sha1_header, sizeof(sha1_header));
+   struct vk_shader_bin_header blake3_header = header;
+   memset(blake3_header.sha1, 0, sizeof(blake3_header.sha1));
+   _mesa_blake3_update(&blake3_ctx, &blake3_header, sizeof(blake3_header));
 
    /* Hash the serialized data */
-   _mesa_blake3_update(&sha1_ctx, (uint8_t *)data + sizeof(header),
+   _mesa_blake3_update(&blake3_ctx, (uint8_t *)data + sizeof(header),
                      data_size - sizeof(header));
 
-   _mesa_blake3_final(&sha1_ctx, ref_header.sha1);
+   _mesa_blake3_final(&blake3_ctx, ref_header.sha1);
    if (memcmp(header.sha1, ref_header.sha1, sizeof(header.sha1)))
       return vk_error(device, VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT);
 

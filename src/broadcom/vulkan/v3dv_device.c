@@ -817,17 +817,17 @@ init_uuids(struct v3dv_physical_device *device)
    uint32_t vendor_id = v3dv_physical_device_vendor_id(device);
    uint32_t device_id = v3dv_physical_device_device_id(device);
 
-   blake3_hasher sha1_ctx;
+   blake3_hasher blake3_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
    STATIC_ASSERT(VK_UUID_SIZE <= sizeof(sha1));
 
    /* The pipeline cache UUID is used for determining when a pipeline cache is
     * invalid.  It needs both a driver build and the PCI ID of the device.
     */
-   _mesa_blake3_init(&sha1_ctx);
-   _mesa_blake3_update(&sha1_ctx, build_id_data(note), build_id_len);
-   _mesa_blake3_update(&sha1_ctx, &device_id, sizeof(device_id));
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_init(&blake3_ctx);
+   _mesa_blake3_update(&blake3_ctx, build_id_data(note), build_id_len);
+   _mesa_blake3_update(&blake3_ctx, &device_id, sizeof(device_id));
+   _mesa_blake3_final(&blake3_ctx, sha1);
    memcpy(device->pipeline_cache_uuid, sha1, VK_UUID_SIZE);
 
    /* The driver UUID is used for determining sharability of images and memory
@@ -841,10 +841,10 @@ init_uuids(struct v3dv_physical_device *device)
     * Since we never have more than one device, this doesn't need to be a real
     * UUID.
     */
-   _mesa_blake3_init(&sha1_ctx);
-   _mesa_blake3_update(&sha1_ctx, &vendor_id, sizeof(vendor_id));
-   _mesa_blake3_update(&sha1_ctx, &device_id, sizeof(device_id));
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_init(&blake3_ctx);
+   _mesa_blake3_update(&blake3_ctx, &vendor_id, sizeof(vendor_id));
+   _mesa_blake3_update(&blake3_ctx, &device_id, sizeof(device_id));
+   _mesa_blake3_final(&blake3_ctx, sha1);
    memcpy(device->device_uuid, sha1, VK_UUID_SIZE);
 
    return VK_SUCCESS;

@@ -44,13 +44,13 @@ static void si_create_compute_state_async(void *job, void *gdata, int thread_ind
    program->shader.is_monolithic = true;
    program->shader.wave_size = si_determine_wave_size(sscreen, &program->shader);
 
-   unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN];
-   si_get_ir_cache_key(sel, false, false, shader->wave_size, ir_sha1_cache_key);
+   unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN];
+   si_get_ir_cache_key(sel, false, false, shader->wave_size, ir_blake3_cache_key);
 
    /* Try to load the shader from the shader cache. */
    simple_mtx_lock(&sscreen->shader_cache_mutex);
 
-   if (si_shader_cache_load_shader(sscreen, ir_sha1_cache_key, shader)) {
+   if (si_shader_cache_load_shader(sscreen, ir_blake3_cache_key, shader)) {
       simple_mtx_unlock(&sscreen->shader_cache_mutex);
 
       shader->complete_shader_binary_size = si_get_shader_binary_size(sscreen, shader);
@@ -96,7 +96,7 @@ static void si_create_compute_state_async(void *job, void *gdata, int thread_ind
          shader->config.rsrc3 |= S_00B8A0_INST_PREF_SIZE_GFX11(si_get_shader_prefetch_size(shader));
 
       simple_mtx_lock(&sscreen->shader_cache_mutex);
-      si_shader_cache_insert_shader(sscreen, ir_sha1_cache_key, shader, true);
+      si_shader_cache_insert_shader(sscreen, ir_blake3_cache_key, shader, true);
       simple_mtx_unlock(&sscreen->shader_cache_mutex);
    }
 

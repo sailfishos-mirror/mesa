@@ -934,13 +934,13 @@ static void r600_get_driver_uuid(UNUSED struct pipe_screen *screen, char *uuid)
 	 * OpenGL driver. People who want to share memory need to also check
 	 * the device UUID.
 	 */
-	blake3_hasher sha1_ctx;
-	_mesa_blake3_init(&sha1_ctx);
+	blake3_hasher blake3_ctx;
+	_mesa_blake3_init(&blake3_ctx);
 
-	_mesa_blake3_update(&sha1_ctx, driver_id, strlen(driver_id));
+	_mesa_blake3_update(&blake3_ctx, driver_id, strlen(driver_id));
 
 	uint8_t sha1[BLAKE3_KEY_LEN];
-	_mesa_blake3_final(&sha1_ctx, sha1);
+	_mesa_blake3_final(&blake3_ctx, sha1);
 
 	assert(BLAKE3_KEY_LEN >= PIPE_UUID_SIZE);
 	memcpy(uuid, sha1, PIPE_UUID_SIZE);

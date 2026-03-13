@@ -297,13 +297,13 @@ struct nir_shader *
 anv_device_search_for_nir(struct anv_device *device,
                           struct vk_pipeline_cache *cache,
                           const nir_shader_compiler_options *nir_options,
-                          unsigned char sha1_key[BLAKE3_KEY_LEN],
+                          unsigned char blake3_key[BLAKE3_KEY_LEN],
                           void *mem_ctx)
 {
    if (cache == NULL)
       cache = device->vk.mem_cache;
 
-   return vk_pipeline_cache_lookup_nir(cache, sha1_key, BLAKE3_KEY_LEN,
+   return vk_pipeline_cache_lookup_nir(cache, blake3_key, BLAKE3_KEY_LEN,
                                        nir_options, NULL, mem_ctx);
 }
 
@@ -311,12 +311,12 @@ void
 anv_device_upload_nir(struct anv_device *device,
                       struct vk_pipeline_cache *cache,
                       const struct nir_shader *nir,
-                      unsigned char sha1_key[BLAKE3_KEY_LEN])
+                      unsigned char blake3_key[BLAKE3_KEY_LEN])
 {
    if (cache == NULL)
       cache = device->vk.mem_cache;
 
-   vk_pipeline_cache_add_nir(cache, sha1_key, BLAKE3_KEY_LEN, nir);
+   vk_pipeline_cache_add_nir(cache, blake3_key, BLAKE3_KEY_LEN, nir);
 }
 
 void
@@ -326,11 +326,11 @@ anv_load_fp64_shader(struct anv_device *device)
       &device->physical->compiler->nir_options[MESA_SHADER_VERTEX];
 
    const char* shader_name = "float64_spv_lib";
-   blake3_hasher sha1_ctx;
+   blake3_hasher blake3_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_init(&sha1_ctx);
-   _mesa_blake3_update(&sha1_ctx, shader_name, strlen(shader_name));
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_init(&blake3_ctx);
+   _mesa_blake3_update(&blake3_ctx, shader_name, strlen(shader_name));
+   _mesa_blake3_final(&blake3_ctx, sha1);
 
    device->fp64_nir =
       anv_device_search_for_nir(device, device->internal_cache,

@@ -1298,10 +1298,10 @@ brw_device_sha1(char *hex, const struct intel_device_info *devinfo);
 
 /* For callers computing their own UUID or hash.  Hashes all device
  * information fields that could affect shader compilation into the provided
- * sha1_ctx.
+ * blake3_ctx.
  */
 void
-brw_device_sha1_update(blake3_hasher *sha1_ctx,
+brw_device_blake3_update(blake3_hasher *blake3_ctx,
                        const struct intel_device_info *devinfo);
 
 unsigned

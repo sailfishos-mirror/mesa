@@ -47,7 +47,7 @@ static VkResult
 compute_vpm_config(struct v3dv_pipeline *pipeline);
 
 static void
-pipeline_compute_sha1_from_nir(struct v3dv_pipeline_stage *p_stage)
+pipeline_compute_blake3_from_nir(struct v3dv_pipeline_stage *p_stage)
 {
    VkPipelineShaderStageCreateInfo info = {
       .module = vk_shader_module_handle_from_nir(p_stage->nir),
@@ -1515,7 +1515,7 @@ upload_assembly(struct v3dv_pipeline *pipeline)
 static void
 pipeline_hash_graphics(const struct v3dv_pipeline *pipeline,
                        struct v3dv_pipeline_key *key,
-                       unsigned char *sha1_out)
+                       unsigned char *blake3_out)
 {
    blake3_hasher ctx;
    _mesa_blake3_init(&ctx);
@@ -1544,13 +1544,13 @@ pipeline_hash_graphics(const struct v3dv_pipeline *pipeline,
 
    _mesa_blake3_update(&ctx, key, sizeof(struct v3dv_pipeline_key));
 
-   _mesa_blake3_final(&ctx, sha1_out);
+   _mesa_blake3_final(&ctx, blake3_out);
 }
 
 static void
 pipeline_hash_compute(const struct v3dv_pipeline *pipeline,
                       struct v3dv_pipeline_key *key,
-                      unsigned char *sha1_out)
+                      unsigned char *blake3_out)
 {
    blake3_hasher ctx;
    _mesa_blake3_init(&ctx);
@@ -1567,7 +1567,7 @@ pipeline_hash_compute(const struct v3dv_pipeline *pipeline,
 
    _mesa_blake3_update(&ctx, key, sizeof(struct v3dv_pipeline_key));
 
-   _mesa_blake3_final(&ctx, sha1_out);
+   _mesa_blake3_final(&ctx, blake3_out);
 }
 
 /* Checks that the pipeline has enough spill size to use for any of their
@@ -2120,7 +2120,7 @@ pipeline_populate_compute_key(struct v3dv_pipeline *pipeline,
 }
 
 static struct v3dv_pipeline_shared_data *
-v3dv_pipeline_shared_data_new_empty(const unsigned char sha1_key[BLAKE3_KEY_LEN],
+v3dv_pipeline_shared_data_new_empty(const unsigned char blake3_key[BLAKE3_KEY_LEN],
                                     struct v3dv_pipeline *pipeline,
                                     bool is_graphics_pipeline)
 {
@@ -2174,7 +2174,7 @@ v3dv_pipeline_shared_data_new_empty(const unsigned char sha1_key[BLAKE3_KEY_LEN]
       new_entry->maps[BROADCOM_SHADER_GEOMETRY];
 
    new_entry->ref_cnt = 1;
-   memcpy(new_entry->sha1_key, sha1_key, BLAKE3_KEY_LEN);
+   memcpy(new_entry->blake3_key, blake3_key, BLAKE3_KEY_LEN);
 
    return new_entry;
 
@@ -2377,7 +2377,7 @@ pipeline_add_multiview_gs(struct v3dv_pipeline *pipeline,
    p_stage->module = NULL;
    p_stage->module_info = NULL;
    p_stage->nir = nir;
-   pipeline_compute_sha1_from_nir(p_stage);
+   pipeline_compute_blake3_from_nir(p_stage);
    p_stage->program_id = p_atomic_inc_return(&physical_device->next_program_id);
    p_stage->robustness = pipeline->stages[BROADCOM_SHADER_VERTEX]->robustness;
 
@@ -2515,7 +2515,7 @@ pipeline_compile_graphics(struct v3dv_pipeline *pipeline,
       p_stage->nir = b.shader;
       vk_pipeline_robustness_state_fill(&device->vk, &p_stage->robustness,
                                         NULL, NULL);
-      pipeline_compute_sha1_from_nir(p_stage);
+      pipeline_compute_blake3_from_nir(p_stage);
       p_stage->program_id =
          p_atomic_inc_return(&physical_device->next_program_id);
 

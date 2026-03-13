@@ -297,7 +297,7 @@ out:
 }
 
 static bool
-pvr_get_driver_build_sha(uint8_t sha_out[const static BUILD_ID_EXPECTED_HASH_LENGTH])
+pvr_get_driver_build_sha(uint8_t blake3_out[const static BUILD_ID_EXPECTED_HASH_LENGTH])
 {
    const struct build_id_note *note;
    unsigned build_id_len;
@@ -314,7 +314,7 @@ pvr_get_driver_build_sha(uint8_t sha_out[const static BUILD_ID_EXPECTED_HASH_LEN
       return false;
    }
 
-   memcpy(sha_out, build_id_data(note), BUILD_ID_EXPECTED_HASH_LENGTH);
+   memcpy(blake3_out, build_id_data(note), BUILD_ID_EXPECTED_HASH_LENGTH);
 
    return true;
 }

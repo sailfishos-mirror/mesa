@@ -3793,7 +3793,7 @@ lp_debug_fs_variant(struct lp_fragment_shader_variant *variant)
 
 static void
 lp_fs_get_ir_cache_key(struct lp_fragment_shader_variant *variant,
-                       unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN])
+                       unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN])
 {
    struct blob blob = { 0 };
    unsigned ir_size;
@@ -3808,7 +3808,7 @@ lp_fs_get_ir_cache_key(struct lp_fragment_shader_variant *variant,
    _mesa_blake3_init(&ctx);
    _mesa_blake3_update(&ctx, &variant->key, variant->shader->variant_key_size);
    _mesa_blake3_update(&ctx, ir_binary, ir_size);
-   _mesa_blake3_final(&ctx, ir_sha1_cache_key);
+   _mesa_blake3_final(&ctx, ir_blake3_cache_key);
 
    blob_finish(&blob);
 }
@@ -3838,12 +3838,12 @@ generate_variant(struct llvmpipe_context *lp,
 
    struct llvmpipe_screen *screen = llvmpipe_screen(lp->pipe.screen);
    struct lp_cached_code cached = { 0 };
-   unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN];
+   unsigned char ir_blake3_cache_key[BLAKE3_KEY_LEN];
    bool needs_caching = false;
    if (shader->base.ir.nir) {
-      lp_fs_get_ir_cache_key(variant, ir_sha1_cache_key);
+      lp_fs_get_ir_cache_key(variant, ir_blake3_cache_key);
 
-      lp_disk_cache_find_shader(screen, &cached, ir_sha1_cache_key);
+      lp_disk_cache_find_shader(screen, &cached, ir_blake3_cache_key);
       if (!cached.data_size)
          needs_caching = true;
    }
@@ -4058,7 +4058,7 @@ generate_variant(struct llvmpipe_context *lp,
    }
 
    if (needs_caching) {
-      lp_disk_cache_insert_shader(screen, &cached, ir_sha1_cache_key);
+      lp_disk_cache_insert_shader(screen, &cached, ir_blake3_cache_key);
    }
 
    gallivm_free_ir(variant->gallivm);

@@ -1496,24 +1496,24 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->identicalMemoryTypeRequirements = true;
 
    {
-      blake3_hasher sha1_ctx;
+      blake3_hasher blake3_ctx;
       uint8_t sha1[BLAKE3_KEY_LEN];
 
-      _mesa_blake3_init(&sha1_ctx);
+      _mesa_blake3_init(&blake3_ctx);
 
       /* Make sure we don't match with other vendors */
       const char *driver = "turnip-v1";
-      _mesa_blake3_update(&sha1_ctx, driver, strlen(driver));
+      _mesa_blake3_update(&blake3_ctx, driver, strlen(driver));
 
       /* Hash in UBWC configuration */
-      _mesa_blake3_update(&sha1_ctx, &pdevice->ubwc_config.highest_bank_bit,
+      _mesa_blake3_update(&blake3_ctx, &pdevice->ubwc_config.highest_bank_bit,
                         sizeof(pdevice->ubwc_config.highest_bank_bit));
-      _mesa_blake3_update(&sha1_ctx, &pdevice->ubwc_config.bank_swizzle_levels,
+      _mesa_blake3_update(&blake3_ctx, &pdevice->ubwc_config.bank_swizzle_levels,
                         sizeof(pdevice->ubwc_config.bank_swizzle_levels));
-      _mesa_blake3_update(&sha1_ctx, &pdevice->ubwc_config.macrotile_mode,
+      _mesa_blake3_update(&blake3_ctx, &pdevice->ubwc_config.macrotile_mode,
                         sizeof(pdevice->ubwc_config.macrotile_mode));
 
-      _mesa_blake3_final(&sha1_ctx, sha1);
+      _mesa_blake3_final(&blake3_ctx, sha1);
 
       memcpy(props->optimalTilingLayoutUUID, sha1, VK_UUID_SIZE);
    }

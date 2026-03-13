@@ -25,7 +25,7 @@ template = COPYRIGHT + """
 #define SHA_UPDATE_FIELD(field)     _mesa_blake3_update(ctx, &devinfo->field, sizeof(devinfo->field))
 
 void
-brw_device_sha1_update(blake3_hasher *ctx,
+brw_device_blake3_update(blake3_hasher *ctx,
                        const struct intel_device_info *devinfo) {
 % for member in compiler_fields:
 % if member.ray_tracing_field:

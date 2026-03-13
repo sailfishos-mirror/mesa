@@ -92,12 +92,12 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
                             const VkImageCreateInfo *create_info,
                             uint8_t *key)
 {
-   blake3_hasher sha1_ctx;
+   blake3_hasher blake3_ctx;
 
    if (!dev->image_reqs_cache.ht)
       return false;
 
-   _mesa_blake3_init(&sha1_ctx);
+   _mesa_blake3_init(&blake3_ctx);
 
    /* Hash relevant fields in the pNext chain */
    vk_foreach_struct_const(src, create_info->pNext) {
@@ -105,14 +105,14 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
       case VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO: {
          struct VkExternalMemoryImageCreateInfo *ext_mem =
             (struct VkExternalMemoryImageCreateInfo *)src;
-         _mesa_blake3_update(&sha1_ctx, &ext_mem->handleTypes,
+         _mesa_blake3_update(&blake3_ctx, &ext_mem->handleTypes,
                            sizeof(VkExternalMemoryHandleTypeFlags));
          break;
       }
       case VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO: {
          struct VkImageFormatListCreateInfo *format_list =
             (struct VkImageFormatListCreateInfo *)src;
-         _mesa_blake3_update(&sha1_ctx, format_list->pViewFormats,
+         _mesa_blake3_update(&blake3_ctx, format_list->pViewFormats,
                            sizeof(VkFormat) * format_list->viewFormatCount);
          break;
       }
@@ -120,7 +120,7 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
          struct VkImageDrmFormatModifierListCreateInfoEXT *format_mod_list =
             (struct VkImageDrmFormatModifierListCreateInfoEXT *)src;
          _mesa_blake3_update(
-            &sha1_ctx, format_mod_list->pDrmFormatModifiers,
+            &blake3_ctx, format_mod_list->pDrmFormatModifiers,
             sizeof(uint64_t) * format_mod_list->drmFormatModifierCount);
          break;
       }
@@ -128,10 +128,10 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
          struct VkImageDrmFormatModifierExplicitCreateInfoEXT
             *format_mod_explicit =
                (struct VkImageDrmFormatModifierExplicitCreateInfoEXT *)src;
-         _mesa_blake3_update(&sha1_ctx, &format_mod_explicit->drmFormatModifier,
+         _mesa_blake3_update(&blake3_ctx, &format_mod_explicit->drmFormatModifier,
                            sizeof(uint64_t));
          _mesa_blake3_update(
-            &sha1_ctx, format_mod_explicit->pPlaneLayouts,
+            &blake3_ctx, format_mod_explicit->pPlaneLayouts,
             sizeof(VkSubresourceLayout) *
                format_mod_explicit->drmFormatModifierPlaneCount);
          break;
@@ -139,7 +139,7 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
       case VK_STRUCTURE_TYPE_IMAGE_STENCIL_USAGE_CREATE_INFO: {
          struct VkImageStencilUsageCreateInfo *stencil_usage =
             (struct VkImageStencilUsageCreateInfo *)src;
-         _mesa_blake3_update(&sha1_ctx, &stencil_usage->stencilUsage,
+         _mesa_blake3_update(&blake3_ctx, &stencil_usage->stencilUsage,
                            sizeof(VkImageUsageFlags));
          break;
       }
@@ -161,7 +161,7 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
       offsetof(VkImageCreateInfo, queueFamilyIndexCount) -
       offsetof(VkImageCreateInfo, flags);
 
-   _mesa_blake3_update(&sha1_ctx, &create_info->flags,
+   _mesa_blake3_update(&blake3_ctx, &create_info->flags,
                      create_image_hash_block_size);
 
    /* Follow pointer and hash pQueueFamilyIndices separately.
@@ -170,13 +170,13 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
     */
    if (create_info->sharingMode == VK_SHARING_MODE_CONCURRENT) {
       _mesa_blake3_update(
-         &sha1_ctx, create_info->pQueueFamilyIndices,
+         &blake3_ctx, create_info->pQueueFamilyIndices,
          sizeof(uint32_t) * create_info->queueFamilyIndexCount);
    }
 
-   _mesa_blake3_update(&sha1_ctx, &create_info->initialLayout,
+   _mesa_blake3_update(&blake3_ctx, &create_info->initialLayout,
                      sizeof(create_info->initialLayout));
-   _mesa_blake3_final(&sha1_ctx, key);
+   _mesa_blake3_final(&blake3_ctx, key);
 
    return true;
 }

@@ -454,7 +454,7 @@ tu_GetDescriptorSetLayoutBindingOffsetEXT(
 #define BLAKE3_UPDATE_VALUE(ctx, x) _mesa_blake3_update(ctx, &(x), sizeof(x));
 
 static void
-sha1_update_ycbcr_sampler(blake3_hasher *ctx,
+blake3_update_ycbcr_sampler(blake3_hasher *ctx,
                           const struct vk_ycbcr_conversion_state *sampler)
 {
    BLAKE3_UPDATE_VALUE(ctx, sampler->ycbcr_model);
@@ -463,7 +463,7 @@ sha1_update_ycbcr_sampler(blake3_hasher *ctx,
 }
 
 static void
-sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
+blake3_update_descriptor_set_binding_layout(blake3_hasher *ctx,
    const struct tu_descriptor_set_binding_layout *layout,
    const struct tu_descriptor_set_layout *set_layout)
 {
@@ -482,7 +482,7 @@ sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
 
    if (ycbcr_samplers) {
       for (unsigned i = 0; i < layout->array_size; i++)
-         sha1_update_ycbcr_sampler(ctx, ycbcr_samplers + i);
+         blake3_update_ycbcr_sampler(ctx, ycbcr_samplers + i);
    }
 
    if (samplers) {
@@ -498,13 +498,13 @@ sha1_update_descriptor_set_binding_layout(blake3_hasher *ctx,
 
 
 static void
-sha1_update_descriptor_set_layout(blake3_hasher *ctx,
+blake3_update_descriptor_set_layout(blake3_hasher *ctx,
                                   const struct tu_descriptor_set_layout *layout)
 {
    BLAKE3_UPDATE_VALUE(ctx, layout->has_variable_descriptors);
 
    for (uint16_t i = 0; i < layout->binding_count; i++)
-      sha1_update_descriptor_set_binding_layout(ctx, &layout->binding[i],
+      blake3_update_descriptor_set_binding_layout(ctx, &layout->binding[i],
                                                 layout);
 }
 
@@ -520,7 +520,7 @@ tu_pipeline_layout_init(struct tu_pipeline_layout *layout)
    _mesa_blake3_init(&ctx);
    for (unsigned s = 0; s < layout->num_sets; s++) {
       if (layout->set[s].layout)
-         sha1_update_descriptor_set_layout(&ctx, layout->set[s].layout);
+         blake3_update_descriptor_set_layout(&ctx, layout->set[s].layout);
    }
    _mesa_blake3_update(&ctx, &layout->num_sets, sizeof(layout->num_sets));
    _mesa_blake3_update(&ctx, &layout->push_constant_size,

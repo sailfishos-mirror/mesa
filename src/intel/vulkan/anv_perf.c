@@ -373,11 +373,11 @@ VkResult anv_EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
          counter->scope = VK_PERFORMANCE_COUNTER_SCOPE_COMMAND_KHR;
          counter->storage = intel_perf_counter_data_type_to_vk_storage[intel_counter->data_type];
 
-         unsigned char sha1_result[BLAKE3_KEY_LEN];
+         unsigned char blake3_result[BLAKE3_KEY_LEN];
          _mesa_blake3_compute(intel_counter->symbol_name,
                             strlen(intel_counter->symbol_name),
-                            sha1_result);
-         memcpy(counter->uuid, sha1_result, sizeof(counter->uuid));
+                            blake3_result);
+         memcpy(counter->uuid, blake3_result, sizeof(counter->uuid));
       }
 
       vk_outarray_append_typed(VkPerformanceCounterDescriptionKHR, &out_desc, desc) {

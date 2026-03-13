@@ -1423,24 +1423,24 @@ anv_physical_device_init_uuids(struct anv_physical_device *device)
 
    copy_build_id_to_sha1(device->driver_build_sha1, note);
 
-   blake3_hasher sha1_ctx;
+   blake3_hasher blake3_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
    STATIC_ASSERT(VK_UUID_SIZE <= sizeof(sha1));
 
    /* The pipeline cache UUID is used for determining when a pipeline cache is
     * invalid.  It needs both a driver build and the PCI ID of the device.
     */
-   _mesa_blake3_init(&sha1_ctx);
-   _mesa_blake3_update(&sha1_ctx, build_id_data(note), build_id_len);
-   _mesa_blake3_update(&sha1_ctx, &device->info.pci_device_id,
+   _mesa_blake3_init(&blake3_ctx);
+   _mesa_blake3_update(&blake3_ctx, build_id_data(note), build_id_len);
+   _mesa_blake3_update(&blake3_ctx, &device->info.pci_device_id,
                      sizeof(device->info.pci_device_id));
-   _mesa_blake3_update(&sha1_ctx, &device->always_use_bindless,
+   _mesa_blake3_update(&blake3_ctx, &device->always_use_bindless,
                      sizeof(device->always_use_bindless));
-   _mesa_blake3_update(&sha1_ctx, &device->has_a64_buffer_access,
+   _mesa_blake3_update(&blake3_ctx, &device->has_a64_buffer_access,
                      sizeof(device->has_a64_buffer_access));
-   _mesa_blake3_update(&sha1_ctx, &device->has_bindless_samplers,
+   _mesa_blake3_update(&blake3_ctx, &device->has_bindless_samplers,
                      sizeof(device->has_bindless_samplers));
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&blake3_ctx, sha1);
    memcpy(device->pipeline_cache_uuid, sha1, VK_UUID_SIZE);
 
    intel_uuid_compute_driver_id(device->driver_uuid, &device->info, VK_UUID_SIZE);

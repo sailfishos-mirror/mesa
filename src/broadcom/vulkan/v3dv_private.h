@@ -2198,7 +2198,7 @@ struct v3dv_descriptor_maps {
 struct v3dv_pipeline_shared_data {
    uint32_t ref_cnt;
 
-   unsigned char sha1_key[BLAKE3_KEY_LEN];
+   unsigned char blake3_key[BLAKE3_KEY_LEN];
 
    struct v3dv_descriptor_maps *maps[BROADCOM_SHADER_STAGES];
    struct v3dv_shader_variant *variants[BROADCOM_SHADER_STAGES];
@@ -2487,16 +2487,16 @@ void v3dv_pipeline_cache_finish(struct v3dv_pipeline_cache *cache);
 void v3dv_pipeline_cache_upload_nir(struct v3dv_pipeline *pipeline,
                                     struct v3dv_pipeline_cache *cache,
                                     nir_shader *nir,
-                                    unsigned char sha1_key[BLAKE3_KEY_LEN]);
+                                    unsigned char blake3_key[BLAKE3_KEY_LEN]);
 
 nir_shader* v3dv_pipeline_cache_search_for_nir(struct v3dv_pipeline *pipeline,
                                                struct v3dv_pipeline_cache *cache,
                                                const nir_shader_compiler_options *nir_options,
-                                               unsigned char sha1_key[BLAKE3_KEY_LEN]);
+                                               unsigned char blake3_key[BLAKE3_KEY_LEN]);
 
 struct v3dv_pipeline_shared_data *
 v3dv_pipeline_cache_search_for_pipeline(struct v3dv_pipeline_cache *cache,
-                                        unsigned char sha1_key[BLAKE3_KEY_LEN],
+                                        unsigned char blake3_key[BLAKE3_KEY_LEN],
                                         bool *cache_hit);
 
 void

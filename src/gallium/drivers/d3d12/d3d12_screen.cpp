@@ -1734,7 +1734,7 @@ d3d12_init_screen(struct d3d12_screen *screen, IUnknown *adapter)
 #endif
 
    const char *mesa_version = "Mesa " PACKAGE_VERSION MESA_GIT_SHA1;
-   blake3_hasher sha1_ctx;
+   blake3_hasher blake3_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
    STATIC_ASSERT(PIPE_UUID_SIZE <= sizeof(sha1));
 
@@ -1747,12 +1747,12 @@ d3d12_init_screen(struct d3d12_screen *screen, IUnknown *adapter)
    memcpy(screen->driver_uuid, sha1, PIPE_UUID_SIZE);
 
    /* The device UUID uniquely identifies the given device within the machine. */
-   _mesa_blake3_init(&sha1_ctx);
-   _mesa_blake3_update(&sha1_ctx, &screen->vendor_id, sizeof(screen->vendor_id));
-   _mesa_blake3_update(&sha1_ctx, &screen->device_id, sizeof(screen->device_id));
-   _mesa_blake3_update(&sha1_ctx, &screen->subsys_id, sizeof(screen->subsys_id));
-   _mesa_blake3_update(&sha1_ctx, &screen->revision, sizeof(screen->revision));
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_init(&blake3_ctx);
+   _mesa_blake3_update(&blake3_ctx, &screen->vendor_id, sizeof(screen->vendor_id));
+   _mesa_blake3_update(&blake3_ctx, &screen->device_id, sizeof(screen->device_id));
+   _mesa_blake3_update(&blake3_ctx, &screen->subsys_id, sizeof(screen->subsys_id));
+   _mesa_blake3_update(&blake3_ctx, &screen->revision, sizeof(screen->revision));
+   _mesa_blake3_final(&blake3_ctx, sha1);
    memcpy(screen->device_uuid, sha1, PIPE_UUID_SIZE);
 
    d3d12_init_shader_caps(screen);

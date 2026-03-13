@@ -887,25 +887,25 @@ agx_get_gpu_timestamp(struct agx_device *dev)
 void
 agx_get_device_uuid(const struct agx_device *dev, void *uuid)
 {
-   blake3_hasher sha1_ctx;
-   _mesa_blake3_init(&sha1_ctx);
+   blake3_hasher blake3_ctx;
+   _mesa_blake3_init(&blake3_ctx);
 
    /* The device UUID uniquely identifies the given device within the machine.
     * Since we never have more than one device, this doesn't need to be a real
     * UUID, so we use SHA1("agx" + gpu_generation + gpu_variant + gpu_revision).
     */
    static const char *device_name = "agx";
-   _mesa_blake3_update(&sha1_ctx, device_name, strlen(device_name));
+   _mesa_blake3_update(&blake3_ctx, device_name, strlen(device_name));
 
-   _mesa_blake3_update(&sha1_ctx, &dev->params.gpu_generation,
+   _mesa_blake3_update(&blake3_ctx, &dev->params.gpu_generation,
                      sizeof(dev->params.gpu_generation));
-   _mesa_blake3_update(&sha1_ctx, &dev->params.gpu_variant,
+   _mesa_blake3_update(&blake3_ctx, &dev->params.gpu_variant,
                      sizeof(dev->params.gpu_variant));
-   _mesa_blake3_update(&sha1_ctx, &dev->params.gpu_revision,
+   _mesa_blake3_update(&blake3_ctx, &dev->params.gpu_revision,
                      sizeof(dev->params.gpu_revision));
 
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&blake3_ctx, sha1);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
    memcpy(uuid, sha1, UUID_SIZE);
@@ -922,13 +922,13 @@ agx_get_driver_uuid(void *uuid)
     * driver. People who want to share memory need to also check the device
     * UUID.
     */
-   blake3_hasher sha1_ctx;
-   _mesa_blake3_init(&sha1_ctx);
+   blake3_hasher blake3_ctx;
+   _mesa_blake3_init(&blake3_ctx);
 
-   _mesa_blake3_update(&sha1_ctx, driver_id, strlen(driver_id));
+   _mesa_blake3_update(&blake3_ctx, driver_id, strlen(driver_id));
 
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&blake3_ctx, sha1);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
    memcpy(uuid, sha1, UUID_SIZE);

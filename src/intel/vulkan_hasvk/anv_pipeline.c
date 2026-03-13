@@ -369,7 +369,7 @@ static void
 anv_pipeline_hash_graphics(struct anv_graphics_pipeline *pipeline,
                            struct anv_pipeline_layout *layout,
                            struct anv_pipeline_stage *stages,
-                           unsigned char *sha1_out)
+                           unsigned char *blake3_out)
 {
    blake3_hasher ctx;
    _mesa_blake3_init(&ctx);
@@ -388,14 +388,14 @@ anv_pipeline_hash_graphics(struct anv_graphics_pipeline *pipeline,
       }
    }
 
-   _mesa_blake3_final(&ctx, sha1_out);
+   _mesa_blake3_final(&ctx, blake3_out);
 }
 
 static void
 anv_pipeline_hash_compute(struct anv_compute_pipeline *pipeline,
                           struct anv_pipeline_layout *layout,
                           struct anv_pipeline_stage *stage,
-                          unsigned char *sha1_out)
+                          unsigned char *blake3_out)
 {
    blake3_hasher ctx;
    _mesa_blake3_init(&ctx);
@@ -415,7 +415,7 @@ anv_pipeline_hash_compute(struct anv_compute_pipeline *pipeline,
                      sizeof(stage->shader_sha1));
    _mesa_blake3_update(&ctx, &stage->key.cs, sizeof(stage->key.cs));
 
-   _mesa_blake3_final(&ctx, sha1_out);
+   _mesa_blake3_final(&ctx, blake3_out);
 }
 
 static nir_shader *

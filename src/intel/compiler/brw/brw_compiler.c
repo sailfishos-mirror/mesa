@@ -284,7 +284,7 @@ brw_device_sha1(char *hex,
                 const struct intel_device_info *devinfo) {
    blake3_hasher ctx;
    _mesa_blake3_init(&ctx);
-   brw_device_sha1_update(&ctx, devinfo);
+   brw_device_blake3_update(&ctx, devinfo);
    unsigned char result[BLAKE3_KEY_LEN];
    _mesa_blake3_final(&ctx, result);
    _mesa_blake3_format(hex, result);
