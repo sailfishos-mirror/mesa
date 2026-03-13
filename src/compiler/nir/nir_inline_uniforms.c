@@ -60,7 +60,7 @@ enum {
  * Collect uniforms used in a source
  *
  * Recursively collects all of the UBO loads with constant UBO index and
- * constant offset (per the restictions of \c max_num_bo and \c
+ * constant offset (per the restrictions of \c max_num_bo and \c
  * max_offset). If any values are discovered that are non-constant, uniforms
  * that don't meet the restrictions, or if more than \c
  * MAX_INLINEABLE_UNIFORMS are discoverd for any one UBO, false is returned.
@@ -73,7 +73,7 @@ enum {
  * \param uni_offset Array of \c max_num_bo * \c MAX_INLINABLE_UNIFORMS values
  *                   used to store offsets of discovered uniform loads.
  * \param num_uniforms Array of \c max_num_bo values used to store the number
- *                    of uniforms collected from each UBO.
+ *                     of uniforms collected from each UBO.
  */
 static bool
 collect_src_uniforms(const nir_src *src, int component,
@@ -286,25 +286,13 @@ add_inlinable_uniforms(const nir_src *cond, nir_loop_info *info,
       }
    }
 
-   /* Only update uniform number when all uniforms in the expression
-    * can be inlined. Partially inline uniforms can't lower if/loop.
+   /* Only update the number of uniforms if the whole expression becomes
+    * a constant expression after inlining and the number of uniforms is small
+    * enough that it fits within the unused elements of uni_offset, which is:
+    *    MAX_INLINABLE_UNIFORMS - num_uniforms[ubo]
     *
-    * For example, uniform can be inlined for a shader is limited to 4,
-    * and we have already added 3 uniforms, then want to deal with
-    *
-    *     if (uniform0 + uniform1 == 10)
-    *
-    * only uniform0 can be inlined due to we exceed the 4 limit. But
-    * unless both uniform0 and uniform1 are inlined, can we eliminate
-    * the if statement.
-    *
-    * This is even possible when we deal with loop if the induction
-    * variable init and update also contains uniform like
-    *
-    *    for (i = uniform0; i < uniform1; i+= uniform2)
-    *
-    * unless uniform0, uniform1 and uniform2 can be inlined at once,
-    * can the loop be unrolled.
+    * The uniforms added by is_induction_variable are also not added if this
+    * isn't successful.
     */
    if (collect_src_uniforms(cond, component, uni_offsets, new_num_uniforms,
                             max_num_bo, max_offset))
@@ -393,7 +381,7 @@ void
 nir_find_inlinable_uniforms(nir_shader *shader)
 {
    uint32_t uni_offsets[MAX_INLINABLE_UNIFORMS];
-   uint8_t num_uniforms[MAX_NUM_BO] = { 0 };
+   uint8_t num_uniforms[MAX_NUM_BO] = { 0 }; /* per UBO */
 
    nir_shader_clear_pass_flags(shader);
 
