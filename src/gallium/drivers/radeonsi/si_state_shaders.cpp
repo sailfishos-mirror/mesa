@@ -15,7 +15,7 @@
 #include "util/crc32.h"
 #include "util/disk_cache.h"
 #include "util/hash_table.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/u_async_debug.h"
 #include "util/u_math.h"
 #include "util/u_memory.h"

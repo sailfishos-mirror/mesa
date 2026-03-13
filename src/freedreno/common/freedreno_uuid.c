@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "git_sha1.h"
 
 /* (Re)define UUID_SIZE to avoid including vulkan.h (or p_defines.h) here. */

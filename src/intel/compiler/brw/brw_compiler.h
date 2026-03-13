@@ -12,7 +12,7 @@
 #include "isl/isl.h"
 #include "mda/debug_archiver.h"
 #include "util/macros.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/enum_operators.h"
 #include "util/ralloc.h"
 #include "util/shader_stats.h"

@@ -31,7 +31,7 @@
 #include "perf/intel_perf.h"
 #include "perf/intel_perf_mdapi.h"
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 void
 anv_physical_device_init_perf(struct anv_physical_device *device, int fd)

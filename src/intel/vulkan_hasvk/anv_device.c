@@ -44,7 +44,7 @@
 #include "util/u_debug.h"
 #include "util/build_id.h"
 #include "util/disk_cache.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/os_file.h"
 #include "util/os_misc.h"
 #include "util/u_atomic.h"

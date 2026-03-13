@@ -29,7 +29,7 @@
 #include "drm-uapi/dma-buf.h"
 #include "util/blob.h"
 #include "util/log.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/os_file.h"
 #include "util/os_mman.h"
 #include "util/os_time.h"

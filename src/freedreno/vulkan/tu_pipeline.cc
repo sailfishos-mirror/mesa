@@ -17,7 +17,7 @@
 #include "nir/nir_serialize.h"
 #include "spirv/nir_spirv.h"
 #include "util/u_debug.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/shader_stats.h"
 #include "vk_nir.h"
 #include "vk_pipeline.h"

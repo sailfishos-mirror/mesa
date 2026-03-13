@@ -34,7 +34,7 @@
 
 #include "pipe/p_context.h"
 #include "pipe/p_screen.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 static const char *image_function_base_hash = "8ca89d7a4ab5830be6a1ba1140844081235b01164a8fce8316ca6a2f81f1a899";
 static const char *sample_function_base_hash = "0789b032c4a1ddba086e07496fe2a992b1ee08f78c0884a2923564b1ed52b9cc";

@@ -61,7 +61,7 @@
 
 #include "util/bitscan.h"
 #include "util/macros.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/u_debug.h"
 #include "util/u_math.h"
 

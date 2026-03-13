@@ -21,7 +21,7 @@
 #include "util/u_atomic.h"
 #include "util/u_math.h"
 #include "util/u_vector.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "addrlib/inc/addrinterface.h"
 
 #include "ac_surface_test.h"

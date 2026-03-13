@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <xf86drm.h>
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 #include "wsi_common.h"
 

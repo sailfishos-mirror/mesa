@@ -27,7 +27,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/os_time.h"
 #include "common/intel_compute_slm.h"
 #include "common/intel_l3_config.h"

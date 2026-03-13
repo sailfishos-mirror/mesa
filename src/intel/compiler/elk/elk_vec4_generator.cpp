@@ -8,7 +8,7 @@
 #include "elk_eu.h"
 #include "elk_disasm_info.h"
 #include "dev/intel_debug.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 using namespace elk;
 

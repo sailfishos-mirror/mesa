@@ -226,7 +226,7 @@
 #include <util/log.h>
 #include <util/macros.h>
 #include <util/memstream.h>
-#include <util/mesa-sha1.h>
+#include <util/mesa-blake3.h>
 #include <util/mesa_cache_db.h>
 #include <util/os_file.h>
 #include <util/os_memory.h>

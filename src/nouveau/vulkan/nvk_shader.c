@@ -23,7 +23,7 @@
 #include "nir_builder.h"
 #include "compiler/spirv/nir_spirv.h"
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/u_debug.h"
 
 #include "cla097.h"

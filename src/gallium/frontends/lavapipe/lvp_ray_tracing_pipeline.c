@@ -12,7 +12,7 @@
 
 #include "spirv/spirv.h"
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/simple_mtx.h"
 
 static void

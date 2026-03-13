@@ -43,7 +43,7 @@
 
 #include "shader_enums.h"
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 struct vk_pipeline_binary {
    struct vk_object_base base;

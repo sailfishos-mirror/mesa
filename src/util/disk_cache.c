@@ -42,7 +42,7 @@
 #include "util/u_debug.h"
 #include "util/rand_xor.h"
 #include "util/u_atomic.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/perf/cpu_trace.h"
 #include "util/ralloc.h"
 #include "util/compiler.h"

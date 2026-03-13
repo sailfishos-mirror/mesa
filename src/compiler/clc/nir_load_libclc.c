@@ -26,7 +26,7 @@
 #include "nir_clc_helpers.h"
 #include "nir_serialize.h"
 #include "nir_spirv.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 #ifdef DYNAMIC_LIBCLC_PATH
 #include <fcntl.h>

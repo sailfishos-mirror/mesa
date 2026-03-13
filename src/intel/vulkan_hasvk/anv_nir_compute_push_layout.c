@@ -24,7 +24,7 @@
 #include "anv_nir.h"
 #include "nir_builder.h"
 #include "compiler/elk/elk_nir.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 #define sizeof_field(type, field) sizeof(((type *)0)->field)
 

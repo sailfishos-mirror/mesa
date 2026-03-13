@@ -33,7 +33,7 @@
 
 #include "util/blob.h"
 #include "util/hash_table.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 static uint32_t key_hash(const void *key)
 {

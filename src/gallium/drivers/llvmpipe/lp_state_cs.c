@@ -49,7 +49,7 @@
 #include "frontend/sw_winsys.h"
 #include "nir/nir_to_tgsi_info.h"
 #include "nir/tgsi_to_nir.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "nir_serialize.h"
 
 #include "draw/draw_context.h"

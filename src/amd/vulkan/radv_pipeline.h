@@ -11,7 +11,7 @@
 #ifndef RADV_PIPELINE_H
 #define RADV_PIPELINE_H
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 #include "vk_pipeline.h"
 #include "vk_pipeline_cache.h"

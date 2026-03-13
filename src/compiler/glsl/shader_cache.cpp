@@ -55,7 +55,7 @@
 #include "nir.h"
 #include "serialize.h"
 #include "shader_cache.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "string_to_uint_map.h"
 #include "main/mtypes.h"
 

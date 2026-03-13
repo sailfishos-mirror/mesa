@@ -25,7 +25,7 @@
 #include "util/hash_table.h"
 #include "util/u_debug.h"
 #include "util/disk_cache.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "nir/nir_serialize.h"
 #include "anv_private.h"
 #include "nir/nir_xfb_info.h"

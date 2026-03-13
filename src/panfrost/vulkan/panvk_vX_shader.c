@@ -24,7 +24,7 @@
 
 #include "spirv/nir_spirv.h"
 #include "util/memstream.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/shader_stats.h"
 #include "util/u_dynarray.h"
 #include "nir_builder.h"

@@ -10,7 +10,7 @@
 #include "vk_object.h"
 
 #include "util/mesa-blake3.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 struct radv_device;
 struct radv_ray_tracing_stage_info;

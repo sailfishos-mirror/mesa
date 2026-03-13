@@ -17,7 +17,7 @@
 #include "nir/radv_nir.h"
 #include "spirv/nir_spirv.h"
 #include "util/memstream.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/streaming-load-memcpy.h"
 #include "util/u_atomic.h"
 #include "ac_shader_util.h"

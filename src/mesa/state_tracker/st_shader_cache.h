@@ -28,7 +28,7 @@
 #include "pipe/p_state.h"
 #include "util/blob.h"
 #include "util/disk_cache.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 #ifdef __cplusplus
 extern "C" {

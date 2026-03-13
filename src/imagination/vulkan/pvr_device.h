@@ -22,7 +22,7 @@
 
 #include "wsi_common.h"
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 #include "pvr_bo.h"
 #include "pvr_common.h"

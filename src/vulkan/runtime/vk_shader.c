@@ -33,7 +33,7 @@
 #include "vk_physical_device_features.h"
 #include "vk_pipeline.h"
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 #include "nir.h"
 

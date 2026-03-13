@@ -14,7 +14,7 @@
 #include "elk_fs.h"
 #include "elk_cfg.h"
 #include "dev/intel_debug.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/half_float.h"
 
 static enum elk_reg_file

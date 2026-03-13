@@ -18,7 +18,7 @@
 
 #include "util/disk_cache.h"
 #include "util/os_misc.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/os_misc.h"
 
 #include <xf86drm.h>

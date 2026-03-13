@@ -61,7 +61,7 @@
 #include "pvr_wsi.h"
 #include "util/log.h"
 #include "util/macros.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/os_misc.h"
 #include "util/u_math.h"
 #include "vk_device_memory.h"

@@ -107,7 +107,7 @@
 
 #include "lp_screen.h"
 #include "compiler/nir/nir_serialize.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 
 /** Fragment shader number (for debugging) */

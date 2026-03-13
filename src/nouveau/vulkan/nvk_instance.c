@@ -12,7 +12,7 @@
 #include "util/build_id.h"
 #include "util/detect_os.h"
 #include "util/driconf.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/u_debug.h"
 
 VKAPI_ATTR VkResult VKAPI_CALL

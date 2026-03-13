@@ -42,7 +42,7 @@
 #include <sys/mman.h>
 
 #include "anon_file.h"
-#include "mesa-sha1.h"
+#include "mesa-blake3.h"
 #include "u_math.h"
 #include "u_overflow.h"
 #include "os_memory.h"

@@ -21,7 +21,7 @@
  * IN THE SOFTWARE.
  */
 
-#include "mesa-sha1.h"
+#include "mesa-blake3.h"
 
 #include <gtest/gtest.h>
 

@@ -24,7 +24,7 @@
 #include "anv_nir.h"
 #include "nir/nir_builder.h"
 #include "compiler/elk/elk_nir.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/set.h"
 
 /* Sampler tables don't actually have a maximum size but we pick one just so

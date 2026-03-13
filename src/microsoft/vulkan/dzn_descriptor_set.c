@@ -29,7 +29,7 @@
 
 #include "dxil_spirv_nir.h"
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 static uint32_t
 translate_desc_stages(VkShaderStageFlags in)

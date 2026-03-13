@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 
 #include "spirv/nir_spirv.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/os_time.h"
 #include "ac_debug.h"
 #include "ac_descriptors.h"

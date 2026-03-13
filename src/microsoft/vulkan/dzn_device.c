@@ -36,7 +36,7 @@
 #include "util/u_debug.h"
 #include "util/disk_cache.h"
 #include "util/macros.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/u_dl.h"
 
 #include "util/driconf.h"

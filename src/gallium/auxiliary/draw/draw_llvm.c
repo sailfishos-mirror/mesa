@@ -60,7 +60,7 @@
 #include "util/u_pointer.h"
 #include "util/u_string.h"
 #include "nir_serialize.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #define DEBUG_STORE 0
 
 

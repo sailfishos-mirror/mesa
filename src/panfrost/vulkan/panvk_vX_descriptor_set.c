@@ -10,7 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "vk_alloc.h"
 #include "vk_descriptor_update_template.h"
 #include "vk_descriptors.h"

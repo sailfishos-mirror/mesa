@@ -46,7 +46,7 @@
 #include "util/u_memory.h"
 #include "util/u_screen.h"
 #include "util/u_dl.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 #include "frontend/sw_winsys.h"
 

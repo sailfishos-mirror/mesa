@@ -35,7 +35,7 @@
 #include "util/glheader.h"
 #include "main/menums.h"
 #include "program/prog_parameter.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/mesa-blake3.h"
 #include "compiler/shader_info.h"
 #include "compiler/list.h"

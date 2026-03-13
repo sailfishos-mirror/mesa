@@ -16,7 +16,7 @@
 #include "util/blob.h"
 #include "util/build_id.h"
 #include "util/disk_cache.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "intel/compiler/brw/brw_compiler.h"
 #ifdef INTEL_USE_ELK
 #include "intel/compiler/elk/elk_compiler.h"

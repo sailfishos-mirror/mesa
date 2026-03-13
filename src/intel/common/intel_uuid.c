@@ -23,7 +23,7 @@
 
 #include "intel_uuid.h"
 #include "git_sha1.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 void
 intel_uuid_compute_device_id(uint8_t *uuid,

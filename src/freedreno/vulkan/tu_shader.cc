@@ -6,7 +6,7 @@
 #include "tu_shader.h"
 
 #include "spirv/nir_spirv.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "nir/nir_xfb_info.h"
 #include "vk_nir.h"
 #include "vk_nir_convert_ycbcr.h"

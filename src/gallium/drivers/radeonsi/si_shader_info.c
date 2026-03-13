@@ -6,7 +6,7 @@
 
 #include "si_pipe.h"
 #include "si_shader_internal.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "pipe/p_shader_tokens.h"
 #include "sid.h"
 #include "nir.h"

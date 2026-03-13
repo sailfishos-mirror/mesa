@@ -69,7 +69,6 @@ files_mesa_util = files(
   'macros.h',
   'memstream.c',
   'memstream.h',
-  'mesa-sha1.h',
   'mesa-blake3.c',
   'mesa-blake3.h',
   'os_drm.h',

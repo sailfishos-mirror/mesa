@@ -20,7 +20,7 @@
 #include "git_sha1.h"
 #include "util/detect_os.h"
 #include "util/disk_cache.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 #include "vk_android.h"
 #include "vk_device.h"

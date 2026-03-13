@@ -24,7 +24,7 @@
 #include "anv_nir.h"
 #include "nir_builder.h"
 #include "compiler/brw/brw_nir.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/set.h"
 
 #define PUSH_CONSTANTS_DWORDS (sizeof(struct anv_push_constants) / 4)

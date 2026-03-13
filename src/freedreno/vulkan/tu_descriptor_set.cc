@@ -21,7 +21,7 @@
 
 #include <fcntl.h>
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "vk_descriptors.h"
 #include "vk_util.h"
 #include "vk_acceleration_structure.h"

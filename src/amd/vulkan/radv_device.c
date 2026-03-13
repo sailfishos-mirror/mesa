@@ -54,7 +54,7 @@ typedef void *drmDevicePtr;
 #endif
 #include "util/build_id.h"
 #include "util/driconf.h"
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/os_time.h"
 #include "util/timespec.h"
 #include "util/u_atomic.h"

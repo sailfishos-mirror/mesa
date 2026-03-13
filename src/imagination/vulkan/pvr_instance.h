@@ -18,7 +18,7 @@
 
 #include <stdint.h>
 
-#include "util/mesa-sha1.h"
+#include "util/mesa-blake3.h"
 
 struct pvr_instance {
    struct vk_instance vk;

@@ -49,7 +49,7 @@
 
 #include "crc32.h"
 #include "hash_table.h"
-#include "mesa-sha1.h"
+#include "mesa-blake3.h"
 #include "ralloc.h"
 
 #define FOZ_REF_MAGIC_SIZE 16
