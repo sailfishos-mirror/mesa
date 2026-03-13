@@ -56,6 +56,30 @@ enum {
    INSTR_SRCS_NOT_INLINABLE = (1 << 1),
 };
 
+static uint8_t
+get_instr_flag(nir_instr *instr, unsigned component)
+{
+   /* We can't store flags for more than 4 components. */
+   if (component > 4)
+      return INSTR_UNVISITED;
+
+   /* pass_flags store 2 bits of state per component. */
+   return (instr->pass_flags >> (component * 2)) & 0x3;
+}
+
+static void
+set_instr_flag(nir_instr *instr, unsigned component, uint8_t value)
+{
+   /* We can't store flags for more than 4 components. */
+   if (component > 4)
+      return;
+
+   /* pass_flags store 2 bits of state per component. */
+   instr->pass_flags =
+      (instr->pass_flags & ~BITFIELD_RANGE(component * 2, 2)) |
+      ((value & 0x3) << (component * 2));
+}
+
 /**
  * Collect uniforms used in a source
  *
@@ -86,8 +110,8 @@ collect_src_uniforms(const nir_src *src, int component,
    nir_instr *instr = nir_def_instr(src->ssa);
 
    /* If we have already processed this src before skip it */
-   if (instr->pass_flags != INSTR_UNVISITED) {
-      if (instr->pass_flags & INSTR_SRCS_INLINABLE)
+   if (get_instr_flag(instr, component) != INSTR_UNVISITED) {
+      if (get_instr_flag(instr, component) & INSTR_SRCS_INLINABLE)
          return true;
       else
          return false;
@@ -103,7 +127,8 @@ collect_src_uniforms(const nir_src *src, int component,
                                                alu->src[0].swizzle[component],
                                                uni_offsets, num_uniforms,
                                                max_num_bo, max_offset);
-         instr->pass_flags = inlinable ? INSTR_SRCS_INLINABLE : INSTR_SRCS_NOT_INLINABLE;
+         set_instr_flag(instr, component,
+                        inlinable ? INSTR_SRCS_INLINABLE : INSTR_SRCS_NOT_INLINABLE);
          return inlinable;
       } else if (nir_op_is_vec(alu->op)) {
          nir_alu_src *alu_src = alu->src + component;
@@ -111,7 +136,8 @@ collect_src_uniforms(const nir_src *src, int component,
                                                uni_offsets, num_uniforms,
                                                max_num_bo, max_offset);
 
-         instr->pass_flags = inlinable ? INSTR_SRCS_INLINABLE : INSTR_SRCS_NOT_INLINABLE;
+         set_instr_flag(instr, component,
+                        inlinable ? INSTR_SRCS_INLINABLE : INSTR_SRCS_NOT_INLINABLE);
          return inlinable;
       }
 
@@ -127,7 +153,7 @@ collect_src_uniforms(const nir_src *src, int component,
             if (!collect_src_uniforms(&alu_src->src, alu_src->swizzle[component],
                                       uni_offsets, num_uniforms,
                                       max_num_bo, max_offset)) {
-               instr->pass_flags = INSTR_SRCS_NOT_INLINABLE;
+               set_instr_flag(instr, component, INSTR_SRCS_NOT_INLINABLE);
                return false;
             }
          } else {
@@ -138,14 +164,14 @@ collect_src_uniforms(const nir_src *src, int component,
                if (!collect_src_uniforms(&alu_src->src, alu_src->swizzle[j],
                                          uni_offsets, num_uniforms,
                                          max_num_bo, max_offset)) {
-                  instr->pass_flags = INSTR_SRCS_NOT_INLINABLE;
+                  set_instr_flag(instr, component, INSTR_SRCS_NOT_INLINABLE);
                   return false;
                }
             }
          }
       }
 
-      instr->pass_flags = INSTR_SRCS_INLINABLE;
+      set_instr_flag(instr, component, INSTR_SRCS_INLINABLE);
       return true;
    }
 
@@ -171,34 +197,34 @@ collect_src_uniforms(const nir_src *src, int component,
          /* Already recorded by other one */
          for (int i = 0; i < num_uniforms[ubo]; i++) {
             if (uni_offsets[ubo * MAX_INLINABLE_UNIFORMS + i] == offset) {
-               instr->pass_flags = INSTR_SRCS_INLINABLE;
+               set_instr_flag(instr, component, INSTR_SRCS_INLINABLE);
                return true;
             }
          }
 
          /* Exceed uniform number limit */
          if (num_uniforms[ubo] == MAX_INLINABLE_UNIFORMS) {
-            instr->pass_flags = INSTR_SRCS_NOT_INLINABLE;
+            set_instr_flag(instr, component, INSTR_SRCS_NOT_INLINABLE);
             return false;
          }
 
          /* Record the uniform offset. */
          uni_offsets[ubo * MAX_INLINABLE_UNIFORMS + num_uniforms[ubo]++] = offset;
-         instr->pass_flags = INSTR_SRCS_INLINABLE;
+         set_instr_flag(instr, component, INSTR_SRCS_INLINABLE);
          return true;
       }
 
-      instr->pass_flags = INSTR_SRCS_NOT_INLINABLE;
+      set_instr_flag(instr, component, INSTR_SRCS_NOT_INLINABLE);
       return false;
    }
 
    case nir_instr_type_load_const:
       /* Always return true for constants. */
-      instr->pass_flags = INSTR_SRCS_INLINABLE;
+      set_instr_flag(instr, component, INSTR_SRCS_INLINABLE);
       return true;
 
    default:
-      instr->pass_flags = INSTR_SRCS_NOT_INLINABLE;
+      set_instr_flag(instr, component, INSTR_SRCS_NOT_INLINABLE);
       return false;
    }
 }
