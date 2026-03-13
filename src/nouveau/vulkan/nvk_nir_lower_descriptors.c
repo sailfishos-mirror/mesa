@@ -1294,7 +1294,7 @@ try_lower_descriptors_instr(nir_builder *b, nir_instr *instr,
    }
 }
 
-#define ROOT_DESC_BASE_ADDR_HI 0x0057de3c
+#define ROOT_DESC_DYNAMIC_BUFFERS_BASE_ADDR_HI 0x0057de3c
 
 static bool
 lower_ssbo_resource_index(nir_builder *b, nir_intrinsic_instr *intrin,
@@ -1327,15 +1327,9 @@ lower_ssbo_resource_index(nir_builder *b, nir_intrinsic_instr *intrin,
       nir_def *dynamic_buffer_start =
          nir_iadd_imm(b, load_dynamic_buffer_start(b, set, ctx),
                       binding_layout->dynamic_buffer_index);
-
-      nir_def *dynamic_binding_offset =
-         nir_iadd_imm(b, nir_imul_imm(b, dynamic_buffer_start,
-                                      sizeof(struct nvk_buffer_address)),
-                      nvk_root_descriptor_offset(dynamic_buffers));
-
       binding_addr =
-         nir_pack_64_2x32_split(b, dynamic_binding_offset,
-                                nir_imm_int(b, ROOT_DESC_BASE_ADDR_HI));
+         nir_pack_64_2x32_split(b, dynamic_buffer_start,
+            nir_imm_int(b, ROOT_DESC_DYNAMIC_BUFFERS_BASE_ADDR_HI));
       binding_stride = sizeof(struct nvk_buffer_address);
       break;
    }
@@ -1442,12 +1436,11 @@ lower_load_ssbo_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
    nir_def *base_hi = nir_unpack_64_2x32_split_y(b, base);
 
    nir_def *desc_root, *desc_global;
-   nir_push_if(b, nir_ieq_imm(b, base_hi, ROOT_DESC_BASE_ADDR_HI));
+   nir_push_if(b, nir_ieq_imm(b, base_hi,
+                              ROOT_DESC_DYNAMIC_BUFFERS_BASE_ADDR_HI));
    {
-      desc_root = nir_load_ubo(b, 4, 32, nir_imm_int(b, 0),
-                               nir_iadd(b, base_lo, offset),
-                               .align_mul = 16, .align_offset = 0,
-                               .range = ~0);
+      desc_root = load_root_table_array(b, 4, 32, dynamic_buffers,
+                                        nir_iadd(b, base_lo, offset), ctx);
       if (size != NULL) {
          /* assert(binding_layout->array_size >= 1); */
          nir_def *is_oob = nir_ult(b, nir_iadd_imm(b, size, -16), offset);
