@@ -118,12 +118,12 @@ static void gfx9_generate_hash(struct ac_addrlib *ac_addrlib,
 
    srandom(53);
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
-   _mesa_sha1_update(&ctx, &surf->total_size, sizeof(surf->total_size));
-   _mesa_sha1_update(&ctx, &surf->meta_offset, sizeof(surf->meta_offset));
-   _mesa_sha1_update(&ctx, &surf->display_dcc_offset, sizeof(surf->display_dcc_offset));
-   _mesa_sha1_update(&ctx, &surf->u.gfx9.color.display_dcc_pitch_max,
+   _mesa_blake3_update(&ctx, &surf->total_size, sizeof(surf->total_size));
+   _mesa_blake3_update(&ctx, &surf->meta_offset, sizeof(surf->meta_offset));
+   _mesa_blake3_update(&ctx, &surf->display_dcc_offset, sizeof(surf->display_dcc_offset));
+   _mesa_blake3_update(&ctx, &surf->u.gfx9.color.display_dcc_pitch_max,
                      sizeof(surf->u.gfx9.color.display_dcc_pitch_max));
 
    ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT input = {0};
@@ -168,7 +168,7 @@ static void gfx9_generate_hash(struct ac_addrlib *ac_addrlib,
       ADDR_E_RETURNCODE ret = Addr2ComputeSurfaceAddrFromCoord(addrlib, &input, &output);
       assert(ret == ADDR_OK);
 
-      _mesa_sha1_update(&ctx, &output.addr, sizeof(output.addr));
+      _mesa_blake3_update(&ctx, &output.addr, sizeof(output.addr));
 
       if (surf->meta_offset) {
          dcc_input.x = (x & INT_MAX) % entry->w;
@@ -180,7 +180,7 @@ static void gfx9_generate_hash(struct ac_addrlib *ac_addrlib,
          ret = Addr2ComputeDccAddrFromCoord(addrlib, &dcc_input, &dcc_output);
          assert(ret == ADDR_OK);
 
-         _mesa_sha1_update(&ctx, &dcc_output.addr, sizeof(dcc_output.addr));
+         _mesa_blake3_update(&ctx, &dcc_output.addr, sizeof(dcc_output.addr));
       }
 
       if (surf->display_dcc_offset) {
@@ -193,11 +193,11 @@ static void gfx9_generate_hash(struct ac_addrlib *ac_addrlib,
          ret = Addr2ComputeDccAddrFromCoord(addrlib, &display_dcc_input, &dcc_output);
          assert(ret == ADDR_OK);
 
-         _mesa_sha1_update(&ctx, &dcc_output.addr, sizeof(dcc_output.addr));
+         _mesa_blake3_update(&ctx, &dcc_output.addr, sizeof(dcc_output.addr));
       }
    }
 
-   _mesa_sha1_final(&ctx, entry->hash);
+   _mesa_blake3_final(&ctx, entry->hash);
 }
 
 static void gfx12_generate_hash(struct ac_addrlib *ac_addrlib,
@@ -208,13 +208,13 @@ static void gfx12_generate_hash(struct ac_addrlib *ac_addrlib,
 
    srandom(53);
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
-   _mesa_sha1_update(&ctx, &surf->total_size, sizeof(surf->total_size));
+   _mesa_blake3_update(&ctx, &surf->total_size, sizeof(surf->total_size));
    /* We need to hash these even though they are not used by gfx12. */
-   _mesa_sha1_update(&ctx, &surf->meta_offset, sizeof(surf->meta_offset));
-   _mesa_sha1_update(&ctx, &surf->display_dcc_offset, sizeof(surf->display_dcc_offset));
-   _mesa_sha1_update(&ctx, &surf->u.gfx9.color.display_dcc_pitch_max,
+   _mesa_blake3_update(&ctx, &surf->meta_offset, sizeof(surf->meta_offset));
+   _mesa_blake3_update(&ctx, &surf->display_dcc_offset, sizeof(surf->display_dcc_offset));
+   _mesa_blake3_update(&ctx, &surf->u.gfx9.color.display_dcc_pitch_max,
                      sizeof(surf->u.gfx9.color.display_dcc_pitch_max));
 
    ADDR3_COMPUTE_SURFACE_ADDRFROMCOORD_INPUT input = {0};
@@ -243,10 +243,10 @@ static void gfx12_generate_hash(struct ac_addrlib *ac_addrlib,
       ADDR_E_RETURNCODE ret = Addr3ComputeSurfaceAddrFromCoord(addrlib, &input, &output);
       assert(ret == ADDR_OK);
 
-      _mesa_sha1_update(&ctx, &output.addr, sizeof(output.addr));
+      _mesa_blake3_update(&ctx, &output.addr, sizeof(output.addr));
    }
 
-   _mesa_sha1_final(&ctx, entry->hash);
+   _mesa_blake3_final(&ctx, entry->hash);
 }
 
 static void test_modifier(const struct radeon_info *info,

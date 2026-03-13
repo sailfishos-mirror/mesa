@@ -126,11 +126,11 @@ radv_create_group_handles(struct radv_device *device, const VkRayTracingPipeline
             unsigned char sha1[BLAKE3_KEY_LEN];
             blake3_hasher ctx;
 
-            _mesa_sha1_init(&ctx);
-            _mesa_sha1_update(&ctx, stages[group_info->intersectionShader].sha1, BLAKE3_KEY_LEN);
+            _mesa_blake3_init(&ctx);
+            _mesa_blake3_update(&ctx, stages[group_info->intersectionShader].sha1, BLAKE3_KEY_LEN);
             if (group_info->anyHitShader != VK_SHADER_UNUSED_KHR)
-               _mesa_sha1_update(&ctx, stages[group_info->anyHitShader].sha1, BLAKE3_KEY_LEN);
-            _mesa_sha1_final(&ctx, sha1);
+               _mesa_blake3_update(&ctx, stages[group_info->anyHitShader].sha1, BLAKE3_KEY_LEN);
+            _mesa_blake3_final(&ctx, sha1);
 
             groups[i].handle.intersection_index = handle_from_stages(device, sha1, capture_replay);
          }
@@ -320,9 +320,9 @@ radv_init_rt_stage_hashes(const struct radv_device *device, VkPipelineCreateFlag
          mesa_shader_stage s = vk_to_mesa_shader_stage(sinfo->stage);
          blake3_hasher ctx;
 
-         _mesa_sha1_init(&ctx);
+         _mesa_blake3_init(&ctx);
          radv_pipeline_hash_shader_stage(pipeline_flags, sinfo, &stage_keys[s], &ctx);
-         _mesa_sha1_final(&ctx, stages[idx].sha1);
+         _mesa_blake3_final(&ctx, stages[idx].sha1);
       }
    }
 }
@@ -1078,29 +1078,29 @@ radv_ray_tracing_pipeline_hash(const struct radv_device *device, const VkRayTrac
    VK_FROM_HANDLE(radv_pipeline_layout, layout, pCreateInfo->layout);
    blake3_hasher ctx;
 
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
    radv_pipeline_hash(device, layout, &ctx);
 
    for (uint32_t i = 0; i < pCreateInfo->stageCount; i++) {
-      _mesa_sha1_update(&ctx, rt_state->stages[i].sha1, sizeof(rt_state->stages[i].sha1));
+      _mesa_blake3_update(&ctx, rt_state->stages[i].sha1, sizeof(rt_state->stages[i].sha1));
    }
 
    for (uint32_t i = 0; i < pCreateInfo->groupCount; i++) {
-      _mesa_sha1_update(&ctx, &pCreateInfo->pGroups[i].type, sizeof(pCreateInfo->pGroups[i].type));
-      _mesa_sha1_update(&ctx, &pCreateInfo->pGroups[i].generalShader, sizeof(pCreateInfo->pGroups[i].generalShader));
-      _mesa_sha1_update(&ctx, &pCreateInfo->pGroups[i].anyHitShader, sizeof(pCreateInfo->pGroups[i].anyHitShader));
-      _mesa_sha1_update(&ctx, &pCreateInfo->pGroups[i].closestHitShader,
+      _mesa_blake3_update(&ctx, &pCreateInfo->pGroups[i].type, sizeof(pCreateInfo->pGroups[i].type));
+      _mesa_blake3_update(&ctx, &pCreateInfo->pGroups[i].generalShader, sizeof(pCreateInfo->pGroups[i].generalShader));
+      _mesa_blake3_update(&ctx, &pCreateInfo->pGroups[i].anyHitShader, sizeof(pCreateInfo->pGroups[i].anyHitShader));
+      _mesa_blake3_update(&ctx, &pCreateInfo->pGroups[i].closestHitShader,
                         sizeof(pCreateInfo->pGroups[i].closestHitShader));
-      _mesa_sha1_update(&ctx, &pCreateInfo->pGroups[i].intersectionShader,
+      _mesa_blake3_update(&ctx, &pCreateInfo->pGroups[i].intersectionShader,
                         sizeof(pCreateInfo->pGroups[i].intersectionShader));
-      _mesa_sha1_update(&ctx, &rt_state->groups[i].handle, sizeof(struct radv_pipeline_group_handle));
+      _mesa_blake3_update(&ctx, &rt_state->groups[i].handle, sizeof(struct radv_pipeline_group_handle));
    }
 
    if (pCreateInfo->pLibraryInfo) {
       for (uint32_t i = 0; i < pCreateInfo->pLibraryInfo->libraryCount; ++i) {
          VK_FROM_HANDLE(radv_pipeline, lib_pipeline, pCreateInfo->pLibraryInfo->pLibraries[i]);
          struct radv_ray_tracing_pipeline *lib = radv_pipeline_to_ray_tracing(lib_pipeline);
-         _mesa_sha1_update(&ctx, lib->base.base.sha1, BLAKE3_KEY_LEN);
+         _mesa_blake3_update(&ctx, lib->base.base.sha1, BLAKE3_KEY_LEN);
       }
    }
 
@@ -1111,9 +1111,9 @@ radv_ray_tracing_pipeline_hash(const struct radv_device *device, const VkRayTrac
        VK_PIPELINE_CREATE_2_RAY_TRACING_NO_NULL_CLOSEST_HIT_SHADERS_BIT_KHR |
        VK_PIPELINE_CREATE_2_RAY_TRACING_NO_NULL_MISS_SHADERS_BIT_KHR |
        VK_PIPELINE_CREATE_2_RAY_TRACING_NO_NULL_INTERSECTION_SHADERS_BIT_KHR | VK_PIPELINE_CREATE_2_LIBRARY_BIT_KHR);
-   _mesa_sha1_update(&ctx, &pipeline_flags, sizeof(pipeline_flags));
+   _mesa_blake3_update(&ctx, &pipeline_flags, sizeof(pipeline_flags));
 
-   _mesa_sha1_final(&ctx, hash);
+   _mesa_blake3_final(&ctx, hash);
 }
 
 static VkResult

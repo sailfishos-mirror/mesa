@@ -28,12 +28,12 @@ fd_get_driver_uuid(void *uuid)
     * UUID.
     */
    blake3_hasher sha1_ctx;
-   _mesa_sha1_init(&sha1_ctx);
+   _mesa_blake3_init(&sha1_ctx);
 
-   _mesa_sha1_update(&sha1_ctx, driver_id, strlen(driver_id));
+   _mesa_blake3_update(&sha1_ctx, driver_id, strlen(driver_id));
 
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_sha1_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&sha1_ctx, sha1);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
    memcpy(uuid, sha1, UUID_SIZE);
@@ -43,7 +43,7 @@ void
 fd_get_device_uuid(void *uuid, const struct fd_dev_id *id)
 {
    blake3_hasher sha1_ctx;
-   _mesa_sha1_init(&sha1_ctx);
+   _mesa_blake3_init(&sha1_ctx);
 
    /* The device UUID uniquely identifies the given device within the machine.
     * Since we never have more than one device, this doesn't need to be a real
@@ -64,12 +64,12 @@ fd_get_device_uuid(void *uuid, const struct fd_dev_id *id)
     */
 
    static const char *device_name = "freedreno";
-   _mesa_sha1_update(&sha1_ctx, device_name, strlen(device_name));
+   _mesa_blake3_update(&sha1_ctx, device_name, strlen(device_name));
 
-   _mesa_sha1_update(&sha1_ctx, id, sizeof(*id));
+   _mesa_blake3_update(&sha1_ctx, id, sizeof(*id));
 
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_sha1_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&sha1_ctx, sha1);
 
    assert(BLAKE3_KEY_LEN >= UUID_SIZE);
    memcpy(uuid, sha1, UUID_SIZE);

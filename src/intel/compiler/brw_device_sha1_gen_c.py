@@ -22,7 +22,7 @@ template = COPYRIGHT + """
 
 #include "dev/intel_device_info.h"
 #include "brw_compiler.h"
-#define SHA_UPDATE_FIELD(field)     _mesa_sha1_update(ctx, &devinfo->field, sizeof(devinfo->field))
+#define SHA_UPDATE_FIELD(field)     _mesa_blake3_update(ctx, &devinfo->field, sizeof(devinfo->field))
 
 void
 brw_device_sha1_update(blake3_hasher *ctx,

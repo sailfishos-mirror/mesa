@@ -401,11 +401,11 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
 
    blake3_hasher ctx;
 
-   _mesa_sha1_init(&ctx);
-   _mesa_sha1_update(&ctx, v->bin, v->info.size);
-   _mesa_sha1_update(&ctx, &v->info.double_threadsize,
+   _mesa_blake3_init(&ctx);
+   _mesa_blake3_update(&ctx, v->bin, v->info.size);
+   _mesa_blake3_update(&ctx, &v->info.double_threadsize,
                      sizeof(v->info.double_threadsize));
-   _mesa_sha1_final(&ctx, sha1);
+   _mesa_blake3_final(&ctx, sha1);
    _mesa_sha1_format(v->sha1_str, sha1);
 
    bool dbg_enabled = shader_debug_enabled(v->type, internal) ||

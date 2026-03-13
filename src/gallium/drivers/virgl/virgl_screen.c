@@ -902,7 +902,7 @@ static struct disk_cache *virgl_get_disk_shader_cache (struct pipe_screen *pscre
 static void virgl_disk_cache_create(struct virgl_screen *screen)
 {
    blake3_hasher sha1_ctx;
-   _mesa_sha1_init(&sha1_ctx);
+   _mesa_blake3_init(&sha1_ctx);
 
 #if HAVE_BUILD_ID
    const struct build_id_note *note =
@@ -915,15 +915,15 @@ static void virgl_disk_cache_create(struct virgl_screen *screen)
    const uint8_t *id_sha1 = build_id_data(note);
    assert(id_sha1);
 
-   _mesa_sha1_update(&sha1_ctx, id_sha1, build_id_len);
+   _mesa_blake3_update(&sha1_ctx, id_sha1, build_id_len);
 #endif
 
    /* When we switch the host the caps might change and then we might have to
     * apply different lowering. */
-   _mesa_sha1_update(&sha1_ctx, &screen->caps, sizeof(screen->caps));
+   _mesa_blake3_update(&sha1_ctx, &screen->caps, sizeof(screen->caps));
 
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_sha1_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&sha1_ctx, sha1);
    char timestamp[BLAKE3_HEX_LEN];
    _mesa_sha1_format(timestamp, sha1);
 

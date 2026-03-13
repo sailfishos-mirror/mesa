@@ -180,12 +180,12 @@ nouveau_disk_cache_create(struct nouveau_screen *screen)
    char cache_id[BLAKE3_HEX_LEN];
    uint64_t driver_flags = 0;
 
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
    if (!disk_cache_get_function_identifier(nouveau_disk_cache_create,
                                            &ctx))
       return;
 
-   _mesa_sha1_final(&ctx, sha1);
+   _mesa_blake3_final(&ctx, sha1);
    mesa_bytes_to_hex(cache_id, sha1, BLAKE3_KEY_LEN);
 
    driver_flags |= NOUVEAU_SHADER_CACHE_FLAGS_IR_NIR;
@@ -278,9 +278,9 @@ nouveau_driver_uuid(struct pipe_screen *screen, char *uuid)
    blake3_hasher sha1_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
 
-   _mesa_sha1_init(&sha1_ctx);
-   _mesa_sha1_update(&sha1_ctx, driver, strlen(driver));
-   _mesa_sha1_final(&sha1_ctx, sha1);
+   _mesa_blake3_init(&sha1_ctx);
+   _mesa_blake3_update(&sha1_ctx, driver, strlen(driver));
+   _mesa_blake3_final(&sha1_ctx, sha1);
    memcpy(uuid, sha1, PIPE_UUID_SIZE);
 }
 

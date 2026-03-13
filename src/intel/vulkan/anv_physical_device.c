@@ -1798,17 +1798,17 @@ get_properties(const struct anv_physical_device *pdevice,
          blake3_hasher sha1_ctx;
          uint8_t sha1[BLAKE3_KEY_LEN];
 
-         _mesa_sha1_init(&sha1_ctx);
-         _mesa_sha1_update(&sha1_ctx, pdevice->driver_build_sha1,
+         _mesa_blake3_init(&sha1_ctx);
+         _mesa_blake3_update(&sha1_ctx, pdevice->driver_build_sha1,
                            sizeof(pdevice->driver_build_sha1));
-         _mesa_sha1_update(&sha1_ctx, &pdevice->info.platform,
+         _mesa_blake3_update(&sha1_ctx, &pdevice->info.platform,
                            sizeof(pdevice->info.platform));
          if (pdevice->info.platform == INTEL_PLATFORM_SKL &&
              pdevice->info.gt == 4) {
-            _mesa_sha1_update(&sha1_ctx, &pdevice->info.gt,
+            _mesa_blake3_update(&sha1_ctx, &pdevice->info.gt,
                               sizeof(pdevice->info.gt));
          }
-         _mesa_sha1_final(&sha1_ctx, sha1);
+         _mesa_blake3_final(&sha1_ctx, sha1);
 
          assert(ARRAY_SIZE(sha1) >= VK_UUID_SIZE);
          memcpy(props->optimalTilingLayoutUUID, sha1, VK_UUID_SIZE);
@@ -2381,13 +2381,13 @@ anv_physical_device_init_uuids(struct anv_physical_device *device)
    /* The pipeline cache UUID is used for determining when a pipeline cache is
     * invalid.  It needs both a driver build and the PCI ID of the device.
     */
-   _mesa_sha1_init(&sha1_ctx);
-   _mesa_sha1_update(&sha1_ctx, build_id_data(note), build_id_len);
+   _mesa_blake3_init(&sha1_ctx);
+   _mesa_blake3_update(&sha1_ctx, build_id_data(note), build_id_len);
    brw_device_sha1_update(&sha1_ctx, &device->info);
    bool always_use_bindless = !!(device->instance->debug & ANV_DEBUG_BINDLESS);
-   _mesa_sha1_update(&sha1_ctx, &always_use_bindless,
+   _mesa_blake3_update(&sha1_ctx, &always_use_bindless,
                      sizeof(always_use_bindless));
-   _mesa_sha1_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&sha1_ctx, sha1);
    memcpy(device->pipeline_cache_uuid, sha1, VK_UUID_SIZE);
 
    intel_uuid_compute_driver_id(device->driver_uuid, &device->info, VK_UUID_SIZE);

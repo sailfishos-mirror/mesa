@@ -1092,11 +1092,11 @@ hk_get_device_properties(const struct agx_device *dev,
       blake3_hasher sha1_ctx;
       uint8_t sha1[BLAKE3_KEY_LEN];
 
-      _mesa_sha1_init(&sha1_ctx);
+      _mesa_blake3_init(&sha1_ctx);
       /* Make sure we don't match with other vendors */
       const char *driver = "honeykrisp-v1";
-      _mesa_sha1_update(&sha1_ctx, driver, strlen(driver));
-      _mesa_sha1_final(&sha1_ctx, sha1);
+      _mesa_blake3_update(&sha1_ctx, driver, strlen(driver));
+      _mesa_blake3_final(&sha1_ctx, sha1);
 
       memcpy(properties->optimalTilingLayoutUUID, sha1, VK_UUID_SIZE);
    }
@@ -1108,16 +1108,16 @@ hk_physical_device_init_pipeline_cache(struct hk_physical_device *pdev)
    struct hk_instance *instance = hk_physical_device_instance(pdev);
 
    blake3_hasher sha_ctx;
-   _mesa_sha1_init(&sha_ctx);
+   _mesa_blake3_init(&sha_ctx);
 
-   _mesa_sha1_update(&sha_ctx, instance->driver_build_sha,
+   _mesa_blake3_update(&sha_ctx, instance->driver_build_sha,
                      sizeof(instance->driver_build_sha));
 
    const uint64_t compiler_flags = hk_physical_device_compiler_flags(pdev);
-   _mesa_sha1_update(&sha_ctx, &compiler_flags, sizeof(compiler_flags));
+   _mesa_blake3_update(&sha_ctx, &compiler_flags, sizeof(compiler_flags));
 
    unsigned char sha[BLAKE3_KEY_LEN];
-   _mesa_sha1_final(&sha_ctx, sha);
+   _mesa_blake3_final(&sha_ctx, sha);
 
    static_assert(BLAKE3_KEY_LEN >= VK_UUID_SIZE);
    memcpy(pdev->vk.properties.pipelineCacheUUID, sha, VK_UUID_SIZE);

@@ -451,7 +451,7 @@ tu_GetDescriptorSetLayoutBindingOffsetEXT(
 
 /* Note: we must hash any values used in tu_lower_io(). */
 
-#define SHA1_UPDATE_VALUE(ctx, x) _mesa_sha1_update(ctx, &(x), sizeof(x));
+#define SHA1_UPDATE_VALUE(ctx, x) _mesa_blake3_update(ctx, &(x), sizeof(x));
 
 static void
 sha1_update_ycbcr_sampler(blake3_hasher *ctx,
@@ -517,15 +517,15 @@ void
 tu_pipeline_layout_init(struct tu_pipeline_layout *layout)
 {
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
    for (unsigned s = 0; s < layout->num_sets; s++) {
       if (layout->set[s].layout)
          sha1_update_descriptor_set_layout(&ctx, layout->set[s].layout);
    }
-   _mesa_sha1_update(&ctx, &layout->num_sets, sizeof(layout->num_sets));
-   _mesa_sha1_update(&ctx, &layout->push_constant_size,
+   _mesa_blake3_update(&ctx, &layout->num_sets, sizeof(layout->num_sets));
+   _mesa_blake3_update(&ctx, &layout->push_constant_size,
                      sizeof(layout->push_constant_size));
-   _mesa_sha1_final(&ctx, layout->sha1);
+   _mesa_blake3_final(&ctx, layout->sha1);
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL

@@ -44,11 +44,11 @@ ir3_disk_cache_init(struct ir3_compiler *compiler)
 
    blake3_hasher ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_sha1_init(&ctx);
-   _mesa_sha1_update(&ctx, id_sha1, build_id_len);
-   _mesa_sha1_update(&ctx, &compiler->options.uche_trap_base,
+   _mesa_blake3_init(&ctx);
+   _mesa_blake3_update(&ctx, id_sha1, build_id_len);
+   _mesa_blake3_update(&ctx, &compiler->options.uche_trap_base,
                      sizeof(compiler->options.uche_trap_base));
-   _mesa_sha1_final(&ctx, sha1);
+   _mesa_blake3_final(&ctx, sha1);
 
    char timestamp[BLAKE3_HEX_LEN];
    _mesa_sha1_format(timestamp, sha1);
@@ -66,7 +66,7 @@ ir3_disk_cache_init_shader_key(struct ir3_compiler *compiler,
 
    blake3_hasher ctx;
 
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
    /* Serialize the NIR to a binary blob that we can hash for the disk
     * cache.  Drop unnecessary information (like variable names)
@@ -76,23 +76,23 @@ ir3_disk_cache_init_shader_key(struct ir3_compiler *compiler,
    struct blob blob;
    blob_init(&blob);
    nir_serialize(&blob, shader->nir, true);
-   _mesa_sha1_update(&ctx, blob.data, blob.size);
+   _mesa_blake3_update(&ctx, blob.data, blob.size);
    blob_finish(&blob);
 
-   _mesa_sha1_update(&ctx, &shader->options.api_wavesize,
+   _mesa_blake3_update(&ctx, &shader->options.api_wavesize,
                      sizeof(shader->options.api_wavesize));
-   _mesa_sha1_update(&ctx, &shader->options.real_wavesize,
+   _mesa_blake3_update(&ctx, &shader->options.real_wavesize,
                      sizeof(shader->options.real_wavesize));
-   _mesa_sha1_update(&ctx, &shader->options.nir_options,
+   _mesa_blake3_update(&ctx, &shader->options.nir_options,
                      sizeof(shader->options.nir_options));
 
    /* Note that on some gens stream-out is lowered in ir3 to stg.  For later
     * gens we maybe don't need to include stream-out in the cache key.
     */
-   _mesa_sha1_update(&ctx, &shader->stream_output,
+   _mesa_blake3_update(&ctx, &shader->stream_output,
                      sizeof(shader->stream_output));
 
-   _mesa_sha1_final(&ctx, shader->cache_key);
+   _mesa_blake3_final(&ctx, shader->cache_key);
 }
 
 static void

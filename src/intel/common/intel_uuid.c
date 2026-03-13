@@ -86,10 +86,10 @@ intel_uuid_compute_driver_id(uint8_t *uuid,
     * driver. People who want to share memory need to also check the device
     * UUID.
     */
-   _mesa_sha1_init(&sha1_ctx);
-   _mesa_sha1_update(&sha1_ctx, intelDriver, strlen(intelDriver));
-   _mesa_sha1_update(&sha1_ctx, &devinfo->has_bit6_swizzle,
+   _mesa_blake3_init(&sha1_ctx);
+   _mesa_blake3_update(&sha1_ctx, intelDriver, strlen(intelDriver));
+   _mesa_blake3_update(&sha1_ctx, &devinfo->has_bit6_swizzle,
                      sizeof(devinfo->has_bit6_swizzle));
-   _mesa_sha1_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&sha1_ctx, sha1);
    memcpy(uuid, sha1, size);
 }

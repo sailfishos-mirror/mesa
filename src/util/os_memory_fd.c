@@ -59,11 +59,11 @@ struct memory_header {
 static void
 get_driver_id_sha1_hash(uint8_t sha1[BLAKE3_KEY_LEN], const char *driver_id) {
    blake3_hasher sha1_ctx;
-   _mesa_sha1_init(&sha1_ctx);
+   _mesa_blake3_init(&sha1_ctx);
 
-   _mesa_sha1_update(&sha1_ctx, driver_id, strlen(driver_id));
+   _mesa_blake3_update(&sha1_ctx, driver_id, strlen(driver_id));
 
-   _mesa_sha1_final(&sha1_ctx, sha1);
+   _mesa_blake3_final(&sha1_ctx, sha1);
 }
 
 static bool

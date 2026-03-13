@@ -328,9 +328,9 @@ anv_load_fp64_shader(struct anv_device *device)
    const char* shader_name = "float64_spv_lib";
    blake3_hasher sha1_ctx;
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_sha1_init(&sha1_ctx);
-   _mesa_sha1_update(&sha1_ctx, shader_name, strlen(shader_name));
-   _mesa_sha1_final(&sha1_ctx, sha1);
+   _mesa_blake3_init(&sha1_ctx);
+   _mesa_blake3_update(&sha1_ctx, shader_name, strlen(shader_name));
+   _mesa_blake3_final(&sha1_ctx, sha1);
 
    device->fp64_nir =
       anv_device_search_for_nir(device, device->internal_cache,

@@ -152,38 +152,38 @@ anv_shader_init_uuid(struct anv_physical_device *device)
     * expecting fp64 support will just crash in the backend.
     */
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
    const bool indirect_descriptors = device->indirect_descriptors;
-   _mesa_sha1_update(&ctx, &indirect_descriptors, sizeof(indirect_descriptors));
+   _mesa_blake3_update(&ctx, &indirect_descriptors, sizeof(indirect_descriptors));
 
    const int spilling_rate = device->compiler->spilling_rate;
-   _mesa_sha1_update(&ctx, &spilling_rate, sizeof(spilling_rate));
+   _mesa_blake3_update(&ctx, &spilling_rate, sizeof(spilling_rate));
 
    const uint8_t afs = device->instance->assume_full_subgroups;
-   _mesa_sha1_update(&ctx, &afs, sizeof(afs));
+   _mesa_blake3_update(&ctx, &afs, sizeof(afs));
 
    const bool afswb = device->instance->assume_full_subgroups_with_barrier;
-   _mesa_sha1_update(&ctx, &afswb, sizeof(afswb));
+   _mesa_blake3_update(&ctx, &afswb, sizeof(afswb));
 
    const bool afs_shm = device->instance->assume_full_subgroups_with_shared_memory;
-   _mesa_sha1_update(&ctx, &afs_shm, sizeof(afs_shm));
+   _mesa_blake3_update(&ctx, &afs_shm, sizeof(afs_shm));
 
    const bool erwf = device->instance->emulate_read_without_format;
-   _mesa_sha1_update(&ctx, &erwf, sizeof(erwf));
+   _mesa_blake3_update(&ctx, &erwf, sizeof(erwf));
 
    const bool lttd = device->instance->lower_terminate_to_discard;
-   _mesa_sha1_update(&ctx, &lttd, sizeof(lttd));
+   _mesa_blake3_update(&ctx, &lttd, sizeof(lttd));
 
    const bool large_wg_wa =
       device->instance->large_workgroup_non_coherent_image_workaround;
-   _mesa_sha1_update(&ctx, &large_wg_wa, sizeof(large_wg_wa));
+   _mesa_blake3_update(&ctx, &large_wg_wa, sizeof(large_wg_wa));
 
    const bool lto_disable = device->instance->disable_lto;
-   _mesa_sha1_update(&ctx, &lto_disable, sizeof(lto_disable));
+   _mesa_blake3_update(&ctx, &lto_disable, sizeof(lto_disable));
 
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_sha1_final(&ctx, sha1);
+   _mesa_blake3_final(&ctx, sha1);
    memcpy(device->shader_binary_uuid, sha1, sizeof(device->shader_binary_uuid));
 }
 
@@ -1819,15 +1819,15 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
    unsigned char linked_hash[BLAKE3_KEY_LEN];
    if (shader_count > 1) {
       blake3_hasher ctx;
-      _mesa_sha1_init(&ctx);
+      _mesa_blake3_init(&ctx);
 
       for (uint32_t s = 0; s < shader_count; s++) {
          struct anv_shader_data *shader_data = &shaders_data[s];
          struct vk_shader_compile_info *info = shader_data->info;
-         _mesa_sha1_update(&ctx, info->nir->info.source_blake3, BLAKE3_OUT_LEN);
-         _mesa_sha1_update(&ctx, &shader_data->key, shader_data->key_size);
+         _mesa_blake3_update(&ctx, info->nir->info.source_blake3, BLAKE3_OUT_LEN);
+         _mesa_blake3_update(&ctx, &shader_data->key, shader_data->key_size);
       }
-      _mesa_sha1_final(&ctx, linked_hash);
+      _mesa_blake3_final(&ctx, linked_hash);
    }
 
    for (uint32_t s = 0; s < shader_count; s++) {
@@ -1838,12 +1838,12 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
       {
          blake3_hasher ctx;
          unsigned char hash[BLAKE3_KEY_LEN];
-         _mesa_sha1_init(&ctx);
-         _mesa_sha1_update(&ctx, info->nir->info.source_blake3, BLAKE3_OUT_LEN);
-         _mesa_sha1_update(&ctx, &shader_data->key, shader_data->key_size);
+         _mesa_blake3_init(&ctx);
+         _mesa_blake3_update(&ctx, info->nir->info.source_blake3, BLAKE3_OUT_LEN);
+         _mesa_blake3_update(&ctx, &shader_data->key, shader_data->key_size);
          if (shader_count > 1)
-            _mesa_sha1_update(&ctx, linked_hash, BLAKE3_KEY_LEN);
-         _mesa_sha1_final(&ctx, hash);
+            _mesa_blake3_update(&ctx, linked_hash, BLAKE3_KEY_LEN);
+         _mesa_blake3_final(&ctx, hash);
 
          _mesa_sha1_format(name, hash);
       }

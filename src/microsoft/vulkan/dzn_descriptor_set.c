@@ -594,7 +594,7 @@ dzn_pipeline_layout_hash_stages(struct dzn_pipeline_layout *layout,
 
       blake3_hasher ctx;
 
-      _mesa_sha1_init(&ctx);
+      _mesa_blake3_init(&ctx);
       for (uint32_t set = 0; set < info->setLayoutCount; set++) {
          VK_FROM_HANDLE(dzn_descriptor_set_layout, set_layout, info->pSetLayouts[set]);
          if (!(BITFIELD_BIT(stage) & set_layout->stages))
@@ -604,12 +604,12 @@ dzn_pipeline_layout_hash_stages(struct dzn_pipeline_layout *layout,
             if (!(BITFIELD_BIT(stage) & set_layout->bindings[b].stages))
                continue;
 
-            _mesa_sha1_update(&ctx, &b, sizeof(b));
-            _mesa_sha1_update(&ctx, &set_layout->bindings[b].base_shader_register,
+            _mesa_blake3_update(&ctx, &b, sizeof(b));
+            _mesa_blake3_update(&ctx, &set_layout->bindings[b].base_shader_register,
                               sizeof(set_layout->bindings[b].base_shader_register));
          }
       }
-      _mesa_sha1_final(&ctx, layout->stages[stage].hash);
+      _mesa_blake3_final(&ctx, layout->stages[stage].hash);
    }
 }
 

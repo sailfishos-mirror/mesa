@@ -1536,14 +1536,14 @@ tu_hash_stage(blake3_hasher *ctx,
       struct blob blob;
       blob_init(&blob);
       nir_serialize(&blob, nir, true);
-      _mesa_sha1_update(ctx, blob.data, blob.size);
+      _mesa_blake3_update(ctx, blob.data, blob.size);
       blob_finish(&blob);
    } else {
       unsigned char stage_hash[BLAKE3_KEY_LEN];
       vk_pipeline_hash_shader_stage(pipeline_flags, stage, NULL, stage_hash);
-      _mesa_sha1_update(ctx, stage_hash, sizeof(stage_hash));
+      _mesa_blake3_update(ctx, stage_hash, sizeof(stage_hash));
    }
-   _mesa_sha1_update(ctx, key, sizeof(*key));
+   _mesa_blake3_update(ctx, key, sizeof(*key));
 }
 
 static void
@@ -1557,20 +1557,20 @@ tu_hash_shaders(unsigned char *hash,
 {
    blake3_hasher ctx;
 
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
    if (layout)
-      _mesa_sha1_update(&ctx, layout->sha1, sizeof(layout->sha1));
+      _mesa_blake3_update(&ctx, layout->sha1, sizeof(layout->sha1));
 
    for (int i = 0; i < MESA_SHADER_STAGES; ++i) {
       if (stages[i] || nir[i]) {
          tu_hash_stage(&ctx, pipeline_flags, stages[i], nir[i], &keys[i]);
       }
    }
-   _mesa_sha1_update(&ctx, &state, sizeof(state));
+   _mesa_blake3_update(&ctx, &state, sizeof(state));
    enum ir3_shader_debug ir3_debug_key = ir3_shader_debug_hash_key();
-   _mesa_sha1_update(&ctx, &ir3_debug_key, sizeof(ir3_debug_key));
-   _mesa_sha1_final(&ctx, hash);
+   _mesa_blake3_update(&ctx, &ir3_debug_key, sizeof(ir3_debug_key));
+   _mesa_blake3_final(&ctx, hash);
 }
 
 static void
@@ -1582,16 +1582,16 @@ tu_hash_compute(unsigned char *hash,
 {
    blake3_hasher ctx;
 
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
    if (layout)
-      _mesa_sha1_update(&ctx, layout->sha1, sizeof(layout->sha1));
+      _mesa_blake3_update(&ctx, layout->sha1, sizeof(layout->sha1));
 
    tu_hash_stage(&ctx, pipeline_flags, stage, NULL, key);
    enum ir3_shader_debug ir3_debug_key = ir3_shader_debug_hash_key();
-   _mesa_sha1_update(&ctx, &ir3_debug_key, sizeof(ir3_debug_key));
+   _mesa_blake3_update(&ctx, &ir3_debug_key, sizeof(ir3_debug_key));
 
-   _mesa_sha1_final(&ctx, hash);
+   _mesa_blake3_final(&ctx, hash);
 }
 
 static struct tu_shader *

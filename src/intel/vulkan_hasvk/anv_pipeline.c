@@ -372,23 +372,23 @@ anv_pipeline_hash_graphics(struct anv_graphics_pipeline *pipeline,
                            unsigned char *sha1_out)
 {
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
-   _mesa_sha1_update(&ctx, &pipeline->view_mask,
+   _mesa_blake3_update(&ctx, &pipeline->view_mask,
                      sizeof(pipeline->view_mask));
 
    if (layout)
-      _mesa_sha1_update(&ctx, layout->sha1, sizeof(layout->sha1));
+      _mesa_blake3_update(&ctx, layout->sha1, sizeof(layout->sha1));
 
    for (uint32_t s = 0; s < ANV_GRAPHICS_SHADER_STAGE_COUNT; s++) {
       if (stages[s].info) {
-         _mesa_sha1_update(&ctx, stages[s].shader_sha1,
+         _mesa_blake3_update(&ctx, stages[s].shader_sha1,
                            sizeof(stages[s].shader_sha1));
-         _mesa_sha1_update(&ctx, &stages[s].key, elk_prog_key_size(s));
+         _mesa_blake3_update(&ctx, &stages[s].key, elk_prog_key_size(s));
       }
    }
 
-   _mesa_sha1_final(&ctx, sha1_out);
+   _mesa_blake3_final(&ctx, sha1_out);
 }
 
 static void
@@ -398,24 +398,24 @@ anv_pipeline_hash_compute(struct anv_compute_pipeline *pipeline,
                           unsigned char *sha1_out)
 {
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
    if (layout)
-      _mesa_sha1_update(&ctx, layout->sha1, sizeof(layout->sha1));
+      _mesa_blake3_update(&ctx, layout->sha1, sizeof(layout->sha1));
 
    const struct anv_device *device = pipeline->base.device;
 
    const bool rba = device->vk.enabled_features.robustBufferAccess;
-   _mesa_sha1_update(&ctx, &rba, sizeof(rba));
+   _mesa_blake3_update(&ctx, &rba, sizeof(rba));
 
    const uint8_t afs = device->physical->instance->assume_full_subgroups;
-   _mesa_sha1_update(&ctx, &afs, sizeof(afs));
+   _mesa_blake3_update(&ctx, &afs, sizeof(afs));
 
-   _mesa_sha1_update(&ctx, stage->shader_sha1,
+   _mesa_blake3_update(&ctx, stage->shader_sha1,
                      sizeof(stage->shader_sha1));
-   _mesa_sha1_update(&ctx, &stage->key.cs, sizeof(stage->key.cs));
+   _mesa_blake3_update(&ctx, &stage->key.cs, sizeof(stage->key.cs));
 
-   _mesa_sha1_final(&ctx, sha1_out);
+   _mesa_blake3_final(&ctx, sha1_out);
 }
 
 static nir_shader *

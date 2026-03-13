@@ -976,10 +976,10 @@ cache_hash(const void *_key, uint32_t key_size)
 
         blake3_hasher ctx;
         unsigned char sha1[BLAKE3_KEY_LEN];
-        _mesa_sha1_init(&ctx);
-        _mesa_sha1_update(&ctx, key->key, key_size);
-        _mesa_sha1_update(&ctx, key->sha1, BLAKE3_KEY_LEN);
-        _mesa_sha1_final(&ctx, sha1);
+        _mesa_blake3_init(&ctx);
+        _mesa_blake3_update(&ctx, key->key, key_size);
+        _mesa_blake3_update(&ctx, key->sha1, BLAKE3_KEY_LEN);
+        _mesa_blake3_final(&ctx, sha1);
         return _mesa_hash_data(sha1, BLAKE3_KEY_LEN);
 }
 

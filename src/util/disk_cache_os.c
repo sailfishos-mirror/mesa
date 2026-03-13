@@ -72,7 +72,7 @@ disk_cache_get_function_identifier(void *ptr, blake3_hasher *ctx)
    FILETIME time;
    bool ret = GetFileTime(mod_as_file, NULL, NULL, &time);
    if (ret)
-      _mesa_sha1_update(ctx, &time, sizeof(time));
+      _mesa_blake3_update(ctx, &time, sizeof(time));
    CloseHandle(mod_as_file);
    return ret;
 }

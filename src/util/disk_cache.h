@@ -111,11 +111,11 @@ disk_cache_get_function_identifier(void *ptr, blake3_hasher *ctx)
 #if HAVE_BUILD_ID
    const struct build_id_note *note = NULL;
    if ((note = build_id_find_nhdr_for_addr(ptr))) {
-      _mesa_sha1_update(ctx, build_id_data(note), build_id_length(note));
+      _mesa_blake3_update(ctx, build_id_data(note), build_id_length(note));
    } else
 #endif
    if (disk_cache_get_function_timestamp(ptr, &timestamp)) {
-      _mesa_sha1_update(ctx, &timestamp, sizeof(timestamp));
+      _mesa_blake3_update(ctx, &timestamp, sizeof(timestamp));
    } else
       return false;
    return true;

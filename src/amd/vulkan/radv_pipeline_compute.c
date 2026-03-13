@@ -166,10 +166,10 @@ radv_compute_pipeline_hash(const struct radv_device *device, const VkComputePipe
    struct radv_shader_stage_key stage_key =
       radv_pipeline_get_shader_key(device, sinfo, create_flags, pCreateInfo->pNext);
 
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
    radv_pipeline_hash(device, pipeline_layout, &ctx);
    radv_pipeline_hash_shader_stage(create_flags, sinfo, &stage_key, &ctx);
-   _mesa_sha1_final(&ctx, hash);
+   _mesa_blake3_final(&ctx, hash);
 }
 
 static VkResult

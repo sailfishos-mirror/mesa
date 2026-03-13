@@ -1283,9 +1283,9 @@ create_shader_object(struct lvp_device *device, const VkShaderCreateInfoEXT *pCr
       unsigned char sha1[BLAKE3_KEY_LEN];
 
       blake3_hasher sctx;
-      _mesa_sha1_init(&sctx);
-      _mesa_sha1_update(&sctx, data + BLAKE3_KEY_LEN + VK_UUID_SIZE, size);
-      _mesa_sha1_final(&sctx, sha1);
+      _mesa_blake3_init(&sctx);
+      _mesa_blake3_update(&sctx, data + BLAKE3_KEY_LEN + VK_UUID_SIZE, size);
+      _mesa_blake3_final(&sctx, sha1);
       if (memcmp(sha1, data + VK_UUID_SIZE, BLAKE3_KEY_LEN))
          return VK_NULL_HANDLE;
 
@@ -1382,9 +1382,9 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_GetShaderBinaryDataEXT(
          uint8_t *data = pData;
          lvp_device_get_cache_uuid(data);
          blake3_hasher sctx;
-         _mesa_sha1_init(&sctx);
-         _mesa_sha1_update(&sctx, shader->blob.data, shader->blob.size);
-         _mesa_sha1_final(&sctx, data + VK_UUID_SIZE);
+         _mesa_blake3_init(&sctx);
+         _mesa_blake3_update(&sctx, shader->blob.data, shader->blob.size);
+         _mesa_blake3_final(&sctx, data + VK_UUID_SIZE);
          memcpy(data + BLAKE3_KEY_LEN + VK_UUID_SIZE, shader->blob.data, shader->blob.size);
       }
    } else {

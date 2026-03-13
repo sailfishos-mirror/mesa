@@ -798,26 +798,26 @@ intel_perf_store_configuration(struct intel_perf_config *perf_cfg, int fd,
       return kmd_add_config(perf_cfg, fd, config, guid);
 
    blake3_hasher sha1_ctx;
-   _mesa_sha1_init(&sha1_ctx);
+   _mesa_blake3_init(&sha1_ctx);
 
    if (config->flex_regs) {
-      _mesa_sha1_update(&sha1_ctx, config->flex_regs,
+      _mesa_blake3_update(&sha1_ctx, config->flex_regs,
                         sizeof(config->flex_regs[0]) *
                         config->n_flex_regs);
    }
    if (config->mux_regs) {
-      _mesa_sha1_update(&sha1_ctx, config->mux_regs,
+      _mesa_blake3_update(&sha1_ctx, config->mux_regs,
                         sizeof(config->mux_regs[0]) *
                         config->n_mux_regs);
    }
    if (config->b_counter_regs) {
-      _mesa_sha1_update(&sha1_ctx, config->b_counter_regs,
+      _mesa_blake3_update(&sha1_ctx, config->b_counter_regs,
                         sizeof(config->b_counter_regs[0]) *
                         config->n_b_counter_regs);
    }
 
    uint8_t hash[BLAKE3_KEY_LEN];
-   _mesa_sha1_final(&sha1_ctx, hash);
+   _mesa_blake3_final(&sha1_ctx, hash);
 
    char formatted_hash[BLAKE3_HEX_LEN];
    _mesa_sha1_format(formatted_hash, hash);

@@ -145,16 +145,16 @@ init_shader_caches(struct panvk_physical_device *device,
                    const struct panvk_instance *instance)
 {
    blake3_hasher sha_ctx;
-   _mesa_sha1_init(&sha_ctx);
+   _mesa_blake3_init(&sha_ctx);
 
-   _mesa_sha1_update(&sha_ctx, instance->driver_build_sha,
+   _mesa_blake3_update(&sha_ctx, instance->driver_build_sha,
                      sizeof(instance->driver_build_sha));
 
-   _mesa_sha1_update(&sha_ctx, &device->kmod.dev->props.gpu_id,
+   _mesa_blake3_update(&sha_ctx, &device->kmod.dev->props.gpu_id,
                      sizeof(device->kmod.dev->props.gpu_id));
 
    unsigned char sha[BLAKE3_KEY_LEN];
-   _mesa_sha1_final(&sha_ctx, sha);
+   _mesa_blake3_final(&sha_ctx, sha);
 
    STATIC_ASSERT(VK_UUID_SIZE <= BLAKE3_KEY_LEN);
    memcpy(device->cache_uuid, sha, VK_UUID_SIZE);

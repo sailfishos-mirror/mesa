@@ -1820,10 +1820,10 @@ iris_debug_archiver_open(void *tmp_ctx, struct iris_screen *screen,
       blake3_hasher ctx;
       unsigned char hash[BLAKE3_KEY_LEN];
 
-      _mesa_sha1_init(&ctx);
-      _mesa_sha1_update(&ctx, nir->info.source_blake3, BLAKE3_OUT_LEN);
-      _mesa_sha1_update(&ctx, key, key_size);
-      _mesa_sha1_final(&ctx, hash);
+      _mesa_blake3_init(&ctx);
+      _mesa_blake3_update(&ctx, nir->info.source_blake3, BLAKE3_OUT_LEN);
+      _mesa_blake3_update(&ctx, key, key_size);
+      _mesa_blake3_final(&ctx, hash);
 
       _mesa_sha1_format(name, hash);
    }

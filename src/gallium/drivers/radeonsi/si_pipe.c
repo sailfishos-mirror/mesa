@@ -1185,14 +1185,14 @@ static void si_disk_cache_create(struct si_screen *sscreen)
    unsigned char sha1[BLAKE3_KEY_LEN];
    char cache_id[BLAKE3_HEX_LEN];
 
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
 #ifdef RADEONSI_BUILD_ID_OVERRIDE
    {
       unsigned size = strlen(RADEONSI_BUILD_ID_OVERRIDE) / 2;
       char *data = alloca(size);
       parse_hex(data, RADEONSI_BUILD_ID_OVERRIDE, size);
-      _mesa_sha1_update(&ctx, data, size);
+      _mesa_blake3_update(&ctx, data, size);
    }
 #else
    if (!disk_cache_get_function_identifier(si_disk_cache_create, &ctx))
@@ -1207,9 +1207,9 @@ static void si_disk_cache_create(struct si_screen *sscreen)
    /* NIR options depend on si_screen::use_aco, which affects all shaders, including GLSL
     * compilation.
     */
-   _mesa_sha1_update(&ctx, &sscreen->use_aco, sizeof(sscreen->use_aco));
+   _mesa_blake3_update(&ctx, &sscreen->use_aco, sizeof(sscreen->use_aco));
 
-   _mesa_sha1_final(&ctx, sha1);
+   _mesa_blake3_final(&ctx, sha1);
    mesa_bytes_to_hex(cache_id, sha1, BLAKE3_KEY_LEN);
 
    sscreen->disk_shader_cache = disk_cache_create(ac_get_family_name(sscreen->info.family),

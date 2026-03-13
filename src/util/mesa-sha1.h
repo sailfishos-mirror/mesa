@@ -34,25 +34,6 @@ extern "C" {
 
 #define BLAKE3_KEY_LEN32 (BLAKE3_KEY_LEN / 4)
 
-static inline void
-_mesa_sha1_init(blake3_hasher *ctx)
-{
-   _mesa_blake3_init(ctx);
-}
-
-static inline void
-_mesa_sha1_update(blake3_hasher *ctx, const void *data, size_t size)
-{
-   if (size)
-      _mesa_blake3_update(ctx, (const unsigned char *)data, size);
-}
-
-static inline void
-_mesa_sha1_final(blake3_hasher *ctx, unsigned char result[BLAKE3_KEY_LEN])
-{
-   _mesa_blake3_final(ctx, result);
-}
-
 void
 _mesa_sha1_format(char *buf, const unsigned char *sha1);
 

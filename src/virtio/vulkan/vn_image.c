@@ -97,7 +97,7 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
    if (!dev->image_reqs_cache.ht)
       return false;
 
-   _mesa_sha1_init(&sha1_ctx);
+   _mesa_blake3_init(&sha1_ctx);
 
    /* Hash relevant fields in the pNext chain */
    vk_foreach_struct_const(src, create_info->pNext) {
@@ -105,21 +105,21 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
       case VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO: {
          struct VkExternalMemoryImageCreateInfo *ext_mem =
             (struct VkExternalMemoryImageCreateInfo *)src;
-         _mesa_sha1_update(&sha1_ctx, &ext_mem->handleTypes,
+         _mesa_blake3_update(&sha1_ctx, &ext_mem->handleTypes,
                            sizeof(VkExternalMemoryHandleTypeFlags));
          break;
       }
       case VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO: {
          struct VkImageFormatListCreateInfo *format_list =
             (struct VkImageFormatListCreateInfo *)src;
-         _mesa_sha1_update(&sha1_ctx, format_list->pViewFormats,
+         _mesa_blake3_update(&sha1_ctx, format_list->pViewFormats,
                            sizeof(VkFormat) * format_list->viewFormatCount);
          break;
       }
       case VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT: {
          struct VkImageDrmFormatModifierListCreateInfoEXT *format_mod_list =
             (struct VkImageDrmFormatModifierListCreateInfoEXT *)src;
-         _mesa_sha1_update(
+         _mesa_blake3_update(
             &sha1_ctx, format_mod_list->pDrmFormatModifiers,
             sizeof(uint64_t) * format_mod_list->drmFormatModifierCount);
          break;
@@ -128,9 +128,9 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
          struct VkImageDrmFormatModifierExplicitCreateInfoEXT
             *format_mod_explicit =
                (struct VkImageDrmFormatModifierExplicitCreateInfoEXT *)src;
-         _mesa_sha1_update(&sha1_ctx, &format_mod_explicit->drmFormatModifier,
+         _mesa_blake3_update(&sha1_ctx, &format_mod_explicit->drmFormatModifier,
                            sizeof(uint64_t));
-         _mesa_sha1_update(
+         _mesa_blake3_update(
             &sha1_ctx, format_mod_explicit->pPlaneLayouts,
             sizeof(VkSubresourceLayout) *
                format_mod_explicit->drmFormatModifierPlaneCount);
@@ -139,7 +139,7 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
       case VK_STRUCTURE_TYPE_IMAGE_STENCIL_USAGE_CREATE_INFO: {
          struct VkImageStencilUsageCreateInfo *stencil_usage =
             (struct VkImageStencilUsageCreateInfo *)src;
-         _mesa_sha1_update(&sha1_ctx, &stencil_usage->stencilUsage,
+         _mesa_blake3_update(&sha1_ctx, &stencil_usage->stencilUsage,
                            sizeof(VkImageUsageFlags));
          break;
       }
@@ -161,7 +161,7 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
       offsetof(VkImageCreateInfo, queueFamilyIndexCount) -
       offsetof(VkImageCreateInfo, flags);
 
-   _mesa_sha1_update(&sha1_ctx, &create_info->flags,
+   _mesa_blake3_update(&sha1_ctx, &create_info->flags,
                      create_image_hash_block_size);
 
    /* Follow pointer and hash pQueueFamilyIndices separately.
@@ -169,14 +169,14 @@ vn_image_get_image_reqs_key(struct vn_device *dev,
     * VK_SHARING_MODE_CONCURRENT
     */
    if (create_info->sharingMode == VK_SHARING_MODE_CONCURRENT) {
-      _mesa_sha1_update(
+      _mesa_blake3_update(
          &sha1_ctx, create_info->pQueueFamilyIndices,
          sizeof(uint32_t) * create_info->queueFamilyIndexCount);
    }
 
-   _mesa_sha1_update(&sha1_ctx, &create_info->initialLayout,
+   _mesa_blake3_update(&sha1_ctx, &create_info->initialLayout,
                      sizeof(create_info->initialLayout));
-   _mesa_sha1_final(&sha1_ctx, key);
+   _mesa_blake3_final(&sha1_ctx, key);
 
    return true;
 }

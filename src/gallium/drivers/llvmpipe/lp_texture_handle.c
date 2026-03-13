@@ -375,12 +375,12 @@ compile_image_function(struct llvmpipe_context *ctx, struct lp_static_texture_st
 
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
-   _mesa_sha1_init(&hash_ctx);
-   _mesa_sha1_update(&hash_ctx, image_function_base_hash, strlen(image_function_base_hash));
-   _mesa_sha1_update(&hash_ctx, &local_texture, sizeof(local_texture));
-   _mesa_sha1_update(&hash_ctx, &op, sizeof(op));
-   _mesa_sha1_update(&hash_ctx, &ms, sizeof(ms));
-   _mesa_sha1_final(&hash_ctx, cache_key);
+   _mesa_blake3_init(&hash_ctx);
+   _mesa_blake3_update(&hash_ctx, image_function_base_hash, strlen(image_function_base_hash));
+   _mesa_blake3_update(&hash_ctx, &local_texture, sizeof(local_texture));
+   _mesa_blake3_update(&hash_ctx, &op, sizeof(op));
+   _mesa_blake3_update(&hash_ctx, &ms, sizeof(ms));
+   _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
    lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
@@ -532,12 +532,12 @@ compile_sample_function(struct llvmpipe_context *ctx, struct lp_texture_handle_s
 
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
-   _mesa_sha1_init(&hash_ctx);
-   _mesa_sha1_update(&hash_ctx, sample_function_base_hash, strlen(sample_function_base_hash));
-   _mesa_sha1_update(&hash_ctx, texture, sizeof(*texture));
-   _mesa_sha1_update(&hash_ctx, sampler, sizeof(*sampler));
-   _mesa_sha1_update(&hash_ctx, &sample_key, sizeof(sample_key));
-   _mesa_sha1_final(&hash_ctx, cache_key);
+   _mesa_blake3_init(&hash_ctx);
+   _mesa_blake3_update(&hash_ctx, sample_function_base_hash, strlen(sample_function_base_hash));
+   _mesa_blake3_update(&hash_ctx, texture, sizeof(*texture));
+   _mesa_blake3_update(&hash_ctx, sampler, sizeof(*sampler));
+   _mesa_blake3_update(&hash_ctx, &sample_key, sizeof(sample_key));
+   _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
    lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
@@ -643,11 +643,11 @@ compile_size_function(struct llvmpipe_context *ctx, struct lp_texture_handle_sta
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
-   _mesa_sha1_init(&hash_ctx);
-   _mesa_sha1_update(&hash_ctx, size_function_base_hash, strlen(size_function_base_hash));
-   _mesa_sha1_update(&hash_ctx, texture, sizeof(*texture));
-   _mesa_sha1_update(&hash_ctx, &samples, sizeof(samples));
-   _mesa_sha1_final(&hash_ctx, cache_key);
+   _mesa_blake3_init(&hash_ctx);
+   _mesa_blake3_update(&hash_ctx, size_function_base_hash, strlen(size_function_base_hash));
+   _mesa_blake3_update(&hash_ctx, texture, sizeof(*texture));
+   _mesa_blake3_update(&hash_ctx, &samples, sizeof(samples));
+   _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
    lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
@@ -870,10 +870,10 @@ compile_jit_sample_function(struct llvmpipe_context *ctx, uint32_t sample_key)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
-   _mesa_sha1_init(&hash_ctx);
-   _mesa_sha1_update(&hash_ctx, jit_sample_function_base_hash, strlen(jit_sample_function_base_hash));
-   _mesa_sha1_update(&hash_ctx, &sample_key, sizeof(sample_key));
-   _mesa_sha1_final(&hash_ctx, cache_key);
+   _mesa_blake3_init(&hash_ctx);
+   _mesa_blake3_update(&hash_ctx, jit_sample_function_base_hash, strlen(jit_sample_function_base_hash));
+   _mesa_blake3_update(&hash_ctx, &sample_key, sizeof(sample_key));
+   _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
    lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
@@ -991,10 +991,10 @@ compile_jit_fetch_function(struct llvmpipe_context *ctx, uint32_t sample_key)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
-   _mesa_sha1_init(&hash_ctx);
-   _mesa_sha1_update(&hash_ctx, jit_fetch_function_base_hash, strlen(jit_fetch_function_base_hash));
-   _mesa_sha1_update(&hash_ctx, &sample_key, sizeof(sample_key));
-   _mesa_sha1_final(&hash_ctx, cache_key);
+   _mesa_blake3_init(&hash_ctx);
+   _mesa_blake3_update(&hash_ctx, jit_fetch_function_base_hash, strlen(jit_fetch_function_base_hash));
+   _mesa_blake3_update(&hash_ctx, &sample_key, sizeof(sample_key));
+   _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
    lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);
@@ -1110,10 +1110,10 @@ compile_jit_size_function(struct llvmpipe_context *ctx, bool samples)
 {
    uint8_t cache_key[BLAKE3_KEY_LEN];
    blake3_hasher hash_ctx;
-   _mesa_sha1_init(&hash_ctx);
-   _mesa_sha1_update(&hash_ctx, jit_size_function_base_hash, strlen(jit_size_function_base_hash));
-   _mesa_sha1_update(&hash_ctx, &samples, sizeof(samples));
-   _mesa_sha1_final(&hash_ctx, cache_key);
+   _mesa_blake3_init(&hash_ctx);
+   _mesa_blake3_update(&hash_ctx, jit_size_function_base_hash, strlen(jit_size_function_base_hash));
+   _mesa_blake3_update(&hash_ctx, &samples, sizeof(samples));
+   _mesa_blake3_final(&hash_ctx, cache_key);
 
    struct lp_cached_code cached = { 0 };
    lp_disk_cache_find_shader(llvmpipe_screen(ctx->pipe.screen), &cached, cache_key);

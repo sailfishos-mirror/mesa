@@ -757,12 +757,12 @@ static void r600_disk_cache_create(struct r600_common_screen *rscreen)
 	unsigned char sha1[BLAKE3_KEY_LEN];
 	char cache_id[BLAKE3_HEX_LEN];
 
-	_mesa_sha1_init(&ctx);
+	_mesa_blake3_init(&ctx);
 	if (!disk_cache_get_function_identifier(r600_disk_cache_create,
 						&ctx))
 		return;
 
-	_mesa_sha1_final(&ctx, sha1);
+	_mesa_blake3_final(&ctx, sha1);
 	mesa_bytes_to_hex(cache_id, sha1, BLAKE3_KEY_LEN);
 
 	/* These flags affect shader compilation. */
@@ -935,12 +935,12 @@ static void r600_get_driver_uuid(UNUSED struct pipe_screen *screen, char *uuid)
 	 * the device UUID.
 	 */
 	blake3_hasher sha1_ctx;
-	_mesa_sha1_init(&sha1_ctx);
+	_mesa_blake3_init(&sha1_ctx);
 
-	_mesa_sha1_update(&sha1_ctx, driver_id, strlen(driver_id));
+	_mesa_blake3_update(&sha1_ctx, driver_id, strlen(driver_id));
 
 	uint8_t sha1[BLAKE3_KEY_LEN];
-	_mesa_sha1_final(&sha1_ctx, sha1);
+	_mesa_blake3_final(&sha1_ctx, sha1);
 
 	assert(BLAKE3_KEY_LEN >= PIPE_UUID_SIZE);
 	memcpy(uuid, sha1, PIPE_UUID_SIZE);

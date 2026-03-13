@@ -1324,19 +1324,19 @@ nvk_physical_device_init_pipeline_cache(struct nvk_physical_device *pdev)
    const struct nvk_instance *instance = nvk_physical_device_instance(pdev);
 
    blake3_hasher sha_ctx;
-   _mesa_sha1_init(&sha_ctx);
+   _mesa_blake3_init(&sha_ctx);
 
-   _mesa_sha1_update(&sha_ctx, instance->driver_build_sha,
+   _mesa_blake3_update(&sha_ctx, instance->driver_build_sha,
                      sizeof(instance->driver_build_sha));
 
-   _mesa_sha1_update(&sha_ctx, &pdev->info.chipset,
+   _mesa_blake3_update(&sha_ctx, &pdev->info.chipset,
                      sizeof(pdev->info.chipset));
 
    const uint64_t compiler_flags = nvk_physical_device_compiler_flags(pdev);
-   _mesa_sha1_update(&sha_ctx, &compiler_flags, sizeof(compiler_flags));
+   _mesa_blake3_update(&sha_ctx, &compiler_flags, sizeof(compiler_flags));
 
    unsigned char sha[BLAKE3_KEY_LEN];
-   _mesa_sha1_final(&sha_ctx, sha);
+   _mesa_blake3_final(&sha_ctx, sha);
 
    STATIC_ASSERT(BLAKE3_KEY_LEN >= VK_UUID_SIZE);
    memcpy(pdev->vk.properties.pipelineCacheUUID, sha, VK_UUID_SIZE);

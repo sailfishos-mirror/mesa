@@ -883,10 +883,10 @@ pvr_get_device_uuid(const struct pvr_device_info *dev_info,
    static const char *device_str = "pvr";
    blake3_hasher sha1_ctx;
 
-   _mesa_sha1_init(&sha1_ctx);
-   _mesa_sha1_update(&sha1_ctx, device_str, strlen(device_str));
-   _mesa_sha1_update(&sha1_ctx, &bvnc, sizeof(bvnc));
-   _mesa_sha1_final(&sha1_ctx, uuid_out);
+   _mesa_blake3_init(&sha1_ctx);
+   _mesa_blake3_update(&sha1_ctx, device_str, strlen(device_str));
+   _mesa_blake3_update(&sha1_ctx, &bvnc, sizeof(bvnc));
+   _mesa_blake3_final(&sha1_ctx, uuid_out);
 }
 
 static void
@@ -897,15 +897,15 @@ pvr_get_cache_uuid(const struct pvr_physical_device *const pdevice,
    static const char *cache_str = "cache";
    blake3_hasher sha1_ctx;
 
-   _mesa_sha1_init(&sha1_ctx);
-   _mesa_sha1_update(&sha1_ctx, cache_str, strlen(cache_str));
-   _mesa_sha1_update(&sha1_ctx,
+   _mesa_blake3_init(&sha1_ctx);
+   _mesa_blake3_update(&sha1_ctx, cache_str, strlen(cache_str));
+   _mesa_blake3_update(&sha1_ctx,
                      pdevice->device_uuid,
                      sizeof(pdevice->device_uuid));
-   _mesa_sha1_update(&sha1_ctx,
+   _mesa_blake3_update(&sha1_ctx,
                      instance->driver_build_sha,
                      sizeof(instance->driver_build_sha));
-   _mesa_sha1_final(&sha1_ctx, uuid_out);
+   _mesa_blake3_final(&sha1_ctx, uuid_out);
 }
 
 static void

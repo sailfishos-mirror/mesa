@@ -58,7 +58,7 @@ etna_disk_cache_init_shader_key(struct etna_compiler *compiler, struct etna_shad
 
    blake3_hasher ctx;
 
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
    /* Serialize the NIR to a binary blob that we can hash for the disk
     * cache.  Drop unnecessary information (like variable names)
@@ -69,10 +69,10 @@ etna_disk_cache_init_shader_key(struct etna_compiler *compiler, struct etna_shad
 
    blob_init(&blob);
    nir_serialize(&blob, shader->nir, true);
-   _mesa_sha1_update(&ctx, blob.data, blob.size);
+   _mesa_blake3_update(&ctx, blob.data, blob.size);
    blob_finish(&blob);
 
-   _mesa_sha1_final(&ctx, shader->cache_key);
+   _mesa_blake3_final(&ctx, shader->cache_key);
 }
 
 static void

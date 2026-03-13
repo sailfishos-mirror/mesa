@@ -1518,10 +1518,10 @@ pipeline_hash_graphics(const struct v3dv_pipeline *pipeline,
                        unsigned char *sha1_out)
 {
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
    if (pipeline->layout) {
-      _mesa_sha1_update(&ctx, &pipeline->layout->sha1,
+      _mesa_blake3_update(&ctx, &pipeline->layout->sha1,
                         sizeof(pipeline->layout->sha1));
    }
 
@@ -1539,12 +1539,12 @@ pipeline_hash_graphics(const struct v3dv_pipeline *pipeline,
 
       assert(stage != BROADCOM_SHADER_COMPUTE);
 
-      _mesa_sha1_update(&ctx, p_stage->shader_sha1, sizeof(p_stage->shader_sha1));
+      _mesa_blake3_update(&ctx, p_stage->shader_sha1, sizeof(p_stage->shader_sha1));
    }
 
-   _mesa_sha1_update(&ctx, key, sizeof(struct v3dv_pipeline_key));
+   _mesa_blake3_update(&ctx, key, sizeof(struct v3dv_pipeline_key));
 
-   _mesa_sha1_final(&ctx, sha1_out);
+   _mesa_blake3_final(&ctx, sha1_out);
 }
 
 static void
@@ -1553,21 +1553,21 @@ pipeline_hash_compute(const struct v3dv_pipeline *pipeline,
                       unsigned char *sha1_out)
 {
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
    if (pipeline->layout) {
-      _mesa_sha1_update(&ctx, &pipeline->layout->sha1,
+      _mesa_blake3_update(&ctx, &pipeline->layout->sha1,
                         sizeof(pipeline->layout->sha1));
    }
 
    struct v3dv_pipeline_stage *p_stage =
       pipeline->stages[BROADCOM_SHADER_COMPUTE];
 
-   _mesa_sha1_update(&ctx, p_stage->shader_sha1, sizeof(p_stage->shader_sha1));
+   _mesa_blake3_update(&ctx, p_stage->shader_sha1, sizeof(p_stage->shader_sha1));
 
-   _mesa_sha1_update(&ctx, key, sizeof(struct v3dv_pipeline_key));
+   _mesa_blake3_update(&ctx, key, sizeof(struct v3dv_pipeline_key));
 
-   _mesa_sha1_final(&ctx, sha1_out);
+   _mesa_blake3_final(&ctx, sha1_out);
 }
 
 /* Checks that the pipeline has enough spill size to use for any of their

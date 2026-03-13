@@ -1139,9 +1139,9 @@ void
 radv_pipeline_hash(const struct radv_device *device, const struct radv_pipeline_layout *pipeline_layout,
                    blake3_hasher *ctx)
 {
-   _mesa_sha1_update(ctx, device->cache_hash, sizeof(device->cache_hash));
+   _mesa_blake3_update(ctx, device->cache_hash, sizeof(device->cache_hash));
    if (pipeline_layout)
-      _mesa_sha1_update(ctx, pipeline_layout->hash, sizeof(pipeline_layout->hash));
+      _mesa_blake3_update(ctx, pipeline_layout->hash, sizeof(pipeline_layout->hash));
 }
 
 void
@@ -1152,8 +1152,8 @@ radv_pipeline_hash_shader_stage(VkPipelineCreateFlags2 pipeline_flags, const VkP
 
    vk_pipeline_hash_shader_stage(pipeline_flags, sinfo, NULL, shader_sha1);
 
-   _mesa_sha1_update(ctx, shader_sha1, sizeof(shader_sha1));
-   _mesa_sha1_update(ctx, stage_key, sizeof(*stage_key));
+   _mesa_blake3_update(ctx, shader_sha1, sizeof(shader_sha1));
+   _mesa_blake3_update(ctx, stage_key, sizeof(*stage_key));
 }
 
 static void

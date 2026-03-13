@@ -737,13 +737,13 @@ kk_physical_device_init_pipeline_cache(struct kk_physical_device *pdev)
    struct kk_instance *instance = kk_physical_device_instance(pdev);
 
    blake3_hasher sha_ctx;
-   _mesa_sha1_init(&sha_ctx);
+   _mesa_blake3_init(&sha_ctx);
 
-   _mesa_sha1_update(&sha_ctx, instance->driver_build_sha,
+   _mesa_blake3_update(&sha_ctx, instance->driver_build_sha,
                      sizeof(instance->driver_build_sha));
 
    unsigned char sha[BLAKE3_KEY_LEN];
-   _mesa_sha1_final(&sha_ctx, sha);
+   _mesa_blake3_final(&sha_ctx, sha);
 
    STATIC_ASSERT(BLAKE3_KEY_LEN >= VK_UUID_SIZE);
    memcpy(pdev->vk.properties.pipelineCacheUUID, sha, VK_UUID_SIZE);

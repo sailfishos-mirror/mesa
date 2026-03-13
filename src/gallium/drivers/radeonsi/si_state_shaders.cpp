@@ -185,10 +185,10 @@ void si_get_ir_cache_key(struct si_shader_selector *sel, bool ngg, bool es,
       shader_variant_flags |= 1 << 12;
 
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
-   _mesa_sha1_update(&ctx, &shader_variant_flags, 4);
-   _mesa_sha1_update(&ctx, ir_binary, ir_size);
-   _mesa_sha1_final(&ctx, ir_sha1_cache_key);
+   _mesa_blake3_init(&ctx);
+   _mesa_blake3_update(&ctx, &shader_variant_flags, 4);
+   _mesa_blake3_update(&ctx, ir_binary, ir_size);
+   _mesa_blake3_final(&ctx, ir_sha1_cache_key);
 
    if (ir_binary == blob.data)
       blob_finish(&blob);

@@ -1595,10 +1595,10 @@ static void
 compute_unique_rt_sha(uint64_t pipeline_hash, unsigned index, unsigned char sha1[BLAKE3_KEY_LEN])
 {
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
-   _mesa_sha1_update(&ctx, &pipeline_hash, sizeof(pipeline_hash));
-   _mesa_sha1_update(&ctx, &index, sizeof(index));
-   _mesa_sha1_final(&ctx, sha1);
+   _mesa_blake3_init(&ctx);
+   _mesa_blake3_update(&ctx, &pipeline_hash, sizeof(pipeline_hash));
+   _mesa_blake3_update(&ctx, &index, sizeof(index));
+   _mesa_blake3_final(&ctx, sha1);
 }
 
 static VkResult

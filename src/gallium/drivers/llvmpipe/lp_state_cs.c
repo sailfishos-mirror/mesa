@@ -1263,10 +1263,10 @@ lp_cs_get_ir_cache_key(struct lp_compute_shader_variant *variant,
    ir_size = blob.size;
 
    blake3_hasher ctx;
-   _mesa_sha1_init(&ctx);
-   _mesa_sha1_update(&ctx, &variant->key, variant->shader->variant_key_size);
-   _mesa_sha1_update(&ctx, ir_binary, ir_size);
-   _mesa_sha1_final(&ctx, ir_sha1_cache_key);
+   _mesa_blake3_init(&ctx);
+   _mesa_blake3_update(&ctx, &variant->key, variant->shader->variant_key_size);
+   _mesa_blake3_update(&ctx, ir_binary, ir_size);
+   _mesa_blake3_final(&ctx, ir_sha1_cache_key);
 
    blob_finish(&blob);
 }

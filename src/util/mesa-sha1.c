@@ -35,9 +35,9 @@ _mesa_sha1_compute(const void *data, size_t size, unsigned char result[BLAKE3_KE
 {
    blake3_hasher ctx;
 
-   _mesa_sha1_init(&ctx);
-   _mesa_sha1_update(&ctx, data, size);
-   _mesa_sha1_final(&ctx, result);
+   _mesa_blake3_init(&ctx);
+   _mesa_blake3_update(&ctx, data, size);
+   _mesa_blake3_final(&ctx, result);
 }
 
 void

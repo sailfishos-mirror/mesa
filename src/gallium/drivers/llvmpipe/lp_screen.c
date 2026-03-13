@@ -878,7 +878,7 @@ update_cache_sha1_cpu(blake3_hasher *ctx)
     */
    STATIC_ASSERT(offsetof(struct util_cpu_caps_t, num_L3_caches)
                  == 5 * sizeof(uint32_t));
-   _mesa_sha1_update(ctx, cpu_caps, 5 * sizeof(uint32_t));
+   _mesa_blake3_update(ctx, cpu_caps, 5 * sizeof(uint32_t));
 }
 
 
@@ -889,15 +889,15 @@ lp_disk_cache_create(struct llvmpipe_screen *screen)
    unsigned gallivm_perf = gallivm_get_perf_flags();
    unsigned char sha1[BLAKE3_KEY_LEN];
    char cache_id[BLAKE3_HEX_LEN];
-   _mesa_sha1_init(&ctx);
+   _mesa_blake3_init(&ctx);
 
    if (!disk_cache_get_function_identifier(lp_disk_cache_create, &ctx) ||
        !disk_cache_get_function_identifier(LLVMLinkInMCJIT, &ctx))
       return;
 
-   _mesa_sha1_update(&ctx, &gallivm_perf, sizeof(gallivm_perf));
+   _mesa_blake3_update(&ctx, &gallivm_perf, sizeof(gallivm_perf));
    update_cache_sha1_cpu(&ctx);
-   _mesa_sha1_final(&ctx, sha1);
+   _mesa_blake3_final(&ctx, sha1);
    mesa_bytes_to_hex(cache_id, sha1, BLAKE3_KEY_LEN);
 
    screen->disk_shader_cache = disk_cache_create("llvmpipe", cache_id, 0);

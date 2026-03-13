@@ -355,16 +355,16 @@ vk_shader_serialize(struct vk_device *device,
       assert(sizeof(header) <= blob->size);
 
       blake3_hasher sha1_ctx;
-      _mesa_sha1_init(&sha1_ctx);
+      _mesa_blake3_init(&sha1_ctx);
 
       /* Hash the header with a zero SHA1 */
-      _mesa_sha1_update(&sha1_ctx, &header, sizeof(header));
+      _mesa_blake3_update(&sha1_ctx, &header, sizeof(header));
 
       /* Hash the serialized data */
-      _mesa_sha1_update(&sha1_ctx, blob->data + sizeof(header),
+      _mesa_blake3_update(&sha1_ctx, blob->data + sizeof(header),
                         blob->size - sizeof(header));
 
-      _mesa_sha1_final(&sha1_ctx, header.sha1);
+      _mesa_blake3_final(&sha1_ctx, header.sha1);
 
       blob_overwrite_bytes(blob, header_offset, &header, sizeof(header));
    }
@@ -428,18 +428,18 @@ vk_shader_deserialize(struct vk_device *device,
    blob.end = (uint8_t *)data + data_size;
 
    blake3_hasher sha1_ctx;
-   _mesa_sha1_init(&sha1_ctx);
+   _mesa_blake3_init(&sha1_ctx);
 
    /* Hash the header with a zero SHA1 */
    struct vk_shader_bin_header sha1_header = header;
    memset(sha1_header.sha1, 0, sizeof(sha1_header.sha1));
-   _mesa_sha1_update(&sha1_ctx, &sha1_header, sizeof(sha1_header));
+   _mesa_blake3_update(&sha1_ctx, &sha1_header, sizeof(sha1_header));
 
    /* Hash the serialized data */
-   _mesa_sha1_update(&sha1_ctx, (uint8_t *)data + sizeof(header),
+   _mesa_blake3_update(&sha1_ctx, (uint8_t *)data + sizeof(header),
                      data_size - sizeof(header));
 
-   _mesa_sha1_final(&sha1_ctx, ref_header.sha1);
+   _mesa_blake3_final(&sha1_ctx, ref_header.sha1);
    if (memcmp(header.sha1, ref_header.sha1, sizeof(header.sha1)))
       return vk_error(device, VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT);
 
