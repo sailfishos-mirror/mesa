@@ -562,6 +562,44 @@ lower_load_constant(nir_builder *b, nir_intrinsic_instr *load,
 }
 
 static nir_def *
+_load_root_table(nir_builder *b,
+                 unsigned num_components, unsigned bit_size,
+                 uint32_t root_table_offset,
+                 const struct lower_descriptors_ctx *ctx)
+{
+   unsigned align_mul = bit_size / 8;
+   return nir_ldc_nv(b, num_components, bit_size,
+                     nir_imm_int(b, 0), /* Root table */
+                     nir_imm_int(b, root_table_offset),
+                     .align_mul = align_mul,
+                     .align_offset = 0);
+}
+
+#define load_root_table(b, nc, bs, member, ctx) \
+   _load_root_table(b, nc, bs, nvk_root_descriptor_offset(member), ctx)
+
+static bool
+_lower_sysval_to_root_table(nir_builder *b, nir_intrinsic_instr *intrin,
+                            uint32_t root_table_offset,
+                            const struct lower_descriptors_ctx *ctx)
+{
+   b->cursor = nir_instr_remove(&intrin->instr);
+
+   nir_def *val = _load_root_table(b, intrin->def.num_components,
+                                   intrin->def.bit_size,
+                                   root_table_offset, ctx);
+
+   nir_def_rewrite_uses(&intrin->def, val);
+
+   return true;
+}
+
+#define lower_sysval_to_root_table(b, intrin, member, ctx)           \
+   _lower_sysval_to_root_table(b, intrin,                            \
+                               nvk_root_descriptor_offset(member),   \
+                               ctx)
+
+static nir_def *
 load_descriptor_set_addr(nir_builder *b, uint32_t set,
                          UNUSED const struct lower_descriptors_ctx *ctx)
 {
@@ -761,44 +799,6 @@ try_lower_load_vulkan_descriptor(nir_builder *b, nir_intrinsic_instr *intrin,
 
    return true;
 }
-
-static nir_def *
-_load_root_table(nir_builder *b,
-                 unsigned num_components, unsigned bit_size,
-                 uint32_t root_table_offset,
-                 const struct lower_descriptors_ctx *ctx)
-{
-   unsigned align_mul = bit_size / 8;
-   return nir_ldc_nv(b, num_components, bit_size,
-                     nir_imm_int(b, 0), /* Root table */
-                     nir_imm_int(b, root_table_offset),
-                     .align_mul = align_mul,
-                     .align_offset = 0);
-}
-
-#define load_root_table(b, nc, bs, member, ctx) \
-   _load_root_table(b, nc, bs, nvk_root_descriptor_offset(member), ctx)
-
-static bool
-_lower_sysval_to_root_table(nir_builder *b, nir_intrinsic_instr *intrin,
-                            uint32_t root_table_offset,
-                            const struct lower_descriptors_ctx *ctx)
-{
-   b->cursor = nir_instr_remove(&intrin->instr);
-
-   nir_def *val = _load_root_table(b, intrin->def.num_components,
-                                   intrin->def.bit_size,
-                                   root_table_offset, ctx);
-
-   nir_def_rewrite_uses(&intrin->def, val);
-
-   return true;
-}
-
-#define lower_sysval_to_root_table(b, intrin, member, ctx)           \
-   _lower_sysval_to_root_table(b, intrin,                            \
-                               nvk_root_descriptor_offset(member),   \
-                               ctx)
 
 static bool
 lower_load_push_constant(nir_builder *b, nir_intrinsic_instr *load,
