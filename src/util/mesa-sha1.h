@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include "sha1/sha1.h"
+#include "mesa-blake3.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,20 +37,20 @@ extern "C" {
 static inline void
 _mesa_sha1_init(blake3_hasher *ctx)
 {
-   SHA1Init(ctx);
+   _mesa_blake3_init(ctx);
 }
 
 static inline void
 _mesa_sha1_update(blake3_hasher *ctx, const void *data, size_t size)
 {
    if (size)
-      SHA1Update(ctx, (const unsigned char *)data, size);
+      _mesa_blake3_update(ctx, (const unsigned char *)data, size);
 }
 
 static inline void
 _mesa_sha1_final(blake3_hasher *ctx, unsigned char result[BLAKE3_KEY_LEN])
 {
-   SHA1Final(result, ctx);
+   _mesa_blake3_final(ctx, result);
 }
 
 void

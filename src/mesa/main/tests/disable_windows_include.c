@@ -247,7 +247,7 @@
 #include <util/rounding.h>
 #include <util/rwlock.h>
 #include <util/set.h>
-#include <util/sha1/sha1.h>
+#include <util/mesa-blake3.h>
 #include <util/simple_mtx.h>
 #include <util/slab.h>
 #include <util/softfloat.h>

@@ -49,7 +49,7 @@
 #ifndef U_LIVE_SHADER_CACHE_H
 #define U_LIVE_SHADER_CACHE_H
 
-#include "util/sha1/sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/simple_mtx.h"
 #include "pipe/p_state.h"
 

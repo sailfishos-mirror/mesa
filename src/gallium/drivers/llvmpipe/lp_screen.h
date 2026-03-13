@@ -38,7 +38,7 @@
 #include "pipe/p_defines.h"
 #include "util/u_thread.h"
 #include "util/list.h"
-#include "util/sha1/sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/vma.h"
 #include "gallivm/lp_bld.h"
 #include "gallivm/lp_bld_misc.h"

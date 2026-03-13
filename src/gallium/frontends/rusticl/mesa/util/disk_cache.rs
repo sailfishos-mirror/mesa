@@ -84,14 +84,14 @@ impl DiskCache {
         let mut cache_id = [0; BLAKE3_HEX_LEN as usize];
 
         let cache = unsafe {
-            SHA1Init(&mut sha_ctx);
+            _mesa_blake3_init(&mut sha_ctx);
 
             for &func_ptr in func_ptrs {
                 if !disk_cache_get_function_identifier(func_ptr, &mut sha_ctx) {
                     return None;
                 }
             }
-            SHA1Final(&mut sha, &mut sha_ctx);
+            _mesa_blake3_final(&mut sha_ctx, &mut sha);
             mesa_bytes_to_hex(cache_id.as_mut_ptr(), sha.as_ptr(), sha.len() as u32);
             disk_cache_create(name.as_ptr(), cache_id.as_ptr(), flags)
         };

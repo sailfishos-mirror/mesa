@@ -24,7 +24,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "sha1/sha1.h"
+#include "mesa-blake3.h"
 #include "mesa-sha1.h"
 #include "hex.h"
 #include <string.h>

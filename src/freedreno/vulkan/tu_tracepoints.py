@@ -26,7 +26,7 @@ from u_trace import utrace_generate_perfetto_utils
 
 Header('vk_enum_to_str.h', scope=HeaderScope.SOURCE|HeaderScope.PERFETTO)
 Header('vk_format.h')
-Header('util/sha1/sha1.h')
+Header('util/mesa-blake3.h')
 Header('tu_cmd_buffer.h', scope=HeaderScope.SOURCE)
 Header('tu_device.h', scope=HeaderScope.SOURCE)
 Header('common/freedreno_lrz.h')

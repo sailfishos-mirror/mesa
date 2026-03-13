@@ -41,7 +41,7 @@ extern "C" {
 #define BUILD_ID_EXPECTED_HASH_LENGTH 20 /* sha1 */
 
 #include <stdint.h>
-#include "sha1/sha1.h"
+#include "mesa-blake3.h"
 
 struct build_id_note;
 

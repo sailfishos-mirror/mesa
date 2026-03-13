@@ -28,7 +28,7 @@
 #define _API_H_
 
 #include "util/format/u_formats.h"
-#include "util/sha1/sha1.h"
+#include "util/mesa-blake3.h"
 
 struct st_context;
 

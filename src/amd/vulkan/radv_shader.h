@@ -12,7 +12,6 @@
 #define RADV_SHADER_H
 
 #include "util/mesa-blake3.h"
-#include "util/sha1/sha1.h"
 #include "util/shader_stats.h"
 #include "util/u_math.h"
 #include "vulkan/vulkan.h"

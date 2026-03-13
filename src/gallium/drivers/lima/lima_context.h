@@ -26,7 +26,7 @@
 #define H_LIMA_CONTEXT
 
 #include "util/list.h"
-#include "util/sha1/sha1.h"
+#include "util/mesa-blake3.h"
 #include "util/slab.h"
 #include "util/u_debug.h"
 

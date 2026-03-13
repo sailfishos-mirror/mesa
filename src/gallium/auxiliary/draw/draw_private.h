@@ -44,7 +44,7 @@
 #include "pipe/p_state.h"
 #include "pipe/p_defines.h"
 #include "pipe/p_shader_tokens.h"
-#include "util/sha1/sha1.h"
+#include "util/mesa-blake3.h"
 
 #include "draw_vertex_header.h"
 
