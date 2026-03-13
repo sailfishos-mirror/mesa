@@ -664,7 +664,7 @@
         "description": "radv/rt: Bump ray query stack base limit for GFX12",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "59a397793ea204df8a2ecfd89c7b6d96412a7f6d",
         "notes": null

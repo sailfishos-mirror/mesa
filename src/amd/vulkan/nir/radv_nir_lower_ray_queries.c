@@ -172,11 +172,14 @@ init_ray_query_vars(nir_shader *shader, const glsl_type *opaque_type, struct ray
       dst->stack_entries = MAX_SCRATCH_STACK_ENTRY_COUNT;
    } else {
       if (radv_use_bvh_stack_rtn(pdev)) {
-         /* The hardware ds_bvh_stack_rtn address can only encode a stack base up to 8191 dwords. */
+         /* The hardware ds_bvh_stack_rtn address can only encode a stack base up to 8191 dwords, or 16383 dwords on
+          * gfx12+.
+          */
          uint32_t num_wave32_groups = workgroup_size / 32;
          uint32_t max_group_stack_base = (num_wave32_groups - 1) * 32 * shared_stack_entries;
          uint32_t max_stack_base = (shared_offset / 4) + max_group_stack_base;
-         dst->use_bvh_stack_rtn = max_stack_base < 8192;
+         uint32_t max_hw_stack_base = pdev->info.gfx_level >= GFX12 ? 16384 : 8192;
+         dst->use_bvh_stack_rtn = max_stack_base < max_hw_stack_base;
       }
       dst->shared_stack = true;
       dst->shared_base = shared_offset;
