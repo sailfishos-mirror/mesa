@@ -8,9 +8,6 @@ zink-lavapipe:
     - .deqp-test
     - .zink-lavapipe-test
   timeout: 15m  # base run time = 10m, but it's on the shared runners so it can go up
-  tags:
-    # FIXME: kvm is a hack, should not be needed
-    - $FDO_RUNNER_JOB_PRIORITY_TAG_X86_64_KVM
   variables:
     DEQP_SUITE: zink-lavapipe
     PIGLIT_NO_WINDOW: 1
