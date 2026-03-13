@@ -803,9 +803,17 @@ lvp_shader_compile(struct lvp_device *device, struct lvp_shader *shader, nir_sha
 enum vk_cmd_type
 lvp_nv_dgc_token_to_cmd_type(const VkIndirectCommandsLayoutTokenNV *token);
 
+VkResult
+lvp_image_init(struct lvp_device *device, struct lvp_image *image,
+               const VkImageCreateInfo *pCreateInfo);
+
 #if DETECT_OS_ANDROID
 VkResult
 lvp_import_ahb_memory(struct lvp_device *device, struct lvp_device_memory *mem);
+
+VkResult
+lvp_bind_anb_memory(struct lvp_device *device,
+                    const VkBindImageMemoryInfo *bind_info);
 #endif
 
 enum vk_cmd_type

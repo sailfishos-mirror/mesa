@@ -135,3 +135,47 @@ lvp_import_ahb_memory(struct lvp_device *device, struct lvp_device_memory *mem)
 
    return VK_SUCCESS;
 }
+
+VkResult
+lvp_bind_anb_memory(struct lvp_device *device,
+                    const VkBindImageMemoryInfo *bind_info)
+{
+   VK_FROM_HANDLE(lvp_image, image, bind_info->image);
+
+   /* ANB info is the only addition here. Fish it out and strip the pNext. */
+   const VkNativeBufferANDROID *anb_info =
+      vk_find_struct_const(bind_info->pNext, NATIVE_BUFFER_ANDROID);
+   assert(anb_info);
+   VkNativeBufferANDROID local_anb_info = *anb_info;
+   local_anb_info.pNext = NULL;
+
+   /* We can use the common vk_image info to reconstruct the VkImageCreateInfo
+    * for deferred layouting and the ANB memory import. This step can be lossy
+    * for some hw drivers but is fine for lavapipe.
+    */
+   const uint32_t queue_family_index = 0;
+   const VkImageCreateInfo create_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      .pNext = &local_anb_info,
+      .flags = image->vk.create_flags,
+      .imageType = image->vk.image_type,
+      .format = image->vk.format,
+      .extent = image->vk.extent,
+      .mipLevels = image->vk.mip_levels,
+      .arrayLayers = image->vk.array_layers,
+      .samples = image->vk.samples,
+      .tiling = image->vk.tiling,
+      .usage = image->vk.usage,
+      .sharingMode = image->vk.sharing_mode,
+      .queueFamilyIndexCount = 1,
+      .pQueueFamilyIndices = &queue_family_index,
+      .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+   };
+
+   VkResult result = lvp_image_init(device, image, &create_info);
+   if (result != VK_SUCCESS)
+      return result;
+
+   return vk_android_import_anb(&device->vk, &create_info, &device->vk.alloc,
+                                &image->vk);
+}

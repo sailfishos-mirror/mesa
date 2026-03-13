@@ -30,7 +30,7 @@
 #include "frontend/winsys_handle.h"
 #include "vk_android.h"
 
-static VkResult
+VkResult
 lvp_image_init(struct lvp_device *device, struct lvp_image *image,
                const VkImageCreateInfo *pCreateInfo)
 {
@@ -194,6 +194,10 @@ lvp_image_create(VkDevice _device,
    if (image == NULL)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
+   /* aliased ANB image is initialized upon binding to memory */
+   if (vk_image_is_android_native_buffer_alias(&image->vk))
+      goto out_success;
+
    result = lvp_image_init(device, image, pCreateInfo);
    if (result != VK_SUCCESS)
       goto fail;
@@ -208,6 +212,7 @@ lvp_image_create(VkDevice _device,
       }
    }
 
+out_success:
    *pImage = lvp_image_to_handle(image);
 
    return VK_SUCCESS;
