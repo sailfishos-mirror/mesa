@@ -300,7 +300,7 @@ spec@ext_framebuffer_multisample@sample-alpha-to-coverage 8 color,Fail
 dEQP-VK.api.object_management.max_concurrent.device,Fail
 dEQP-VK.api.object_management.max_concurrent.device_group,Fail
 
-# CTS bug, works fine if Vulkan 1.1 is forced
+# CTS bug: https://gerrit.khronos.org/c/vk-gl-cts/+/19823
 dEQP-VK.api.device_init.create_device_global_priority.basic,Fail
 dEQP-VK.api.device_init.create_device_global_priority_khr.basic,Fail
 dEQP-VK.api.device_init.create_device_global_priority_query.basic,Fail
