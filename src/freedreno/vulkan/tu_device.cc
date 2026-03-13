@@ -56,7 +56,7 @@ static int
 tu_device_get_cache_uuid(struct tu_physical_device *device, void *uuid)
 {
    struct mesa_sha1 ctx;
-   unsigned char sha1[SHA1_DIGEST_LENGTH];
+   unsigned char sha1[BLAKE3_KEY_LEN];
    /* Note: IR3_SHADER_DEBUG also affects compilation, but it's not
     * initialized until after compiler creation so we have to add it to the
     * shader hash instead, since the compiler is only created with the logical
@@ -1497,7 +1497,7 @@ tu_get_properties(struct tu_physical_device *pdevice,
 
    {
       struct mesa_sha1 sha1_ctx;
-      uint8_t sha1[SHA1_DIGEST_LENGTH];
+      uint8_t sha1[BLAKE3_KEY_LEN];
 
       _mesa_sha1_init(&sha1_ctx);
 

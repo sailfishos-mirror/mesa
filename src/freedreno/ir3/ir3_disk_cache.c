@@ -43,7 +43,7 @@ ir3_disk_cache_init(struct ir3_compiler *compiler)
    assert(id_sha1);
 
    struct mesa_sha1 ctx;
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_init(&ctx);
    _mesa_sha1_update(&ctx, id_sha1, build_id_len);
    _mesa_sha1_update(&ctx, &compiler->options.uche_trap_base,

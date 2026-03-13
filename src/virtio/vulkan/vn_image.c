@@ -312,7 +312,7 @@ vn_image_store_reqs_in_cache(struct vn_device *dev,
    for (uint32_t i = 0; i < plane_count; i++)
       cache_entry->requirements[i] = requirements[i];
 
-   memcpy(cache_entry->key, key, SHA1_DIGEST_LENGTH);
+   memcpy(cache_entry->key, key, BLAKE3_KEY_LEN);
    cache_entry->plane_count = plane_count;
 
    _mesa_hash_table_insert(dev->image_reqs_cache.ht, cache_entry->key,
@@ -470,7 +470,7 @@ vn_image_init(struct vn_device *dev,
    VkResult result = VK_SUCCESS;
 
    /* Check if mem reqs in cache. If found, make async call */
-   uint8_t key[SHA1_DIGEST_LENGTH] = { 0 };
+   uint8_t key[BLAKE3_KEY_LEN] = { 0 };
    const bool cacheable = vn_image_get_image_reqs_key(dev, create_info, key);
 
    if (cacheable && vn_image_init_reqs_from_cache(dev, img, key)) {
@@ -1080,7 +1080,7 @@ vn_GetDeviceImageMemoryRequirements(
 {
    struct vn_device *dev = vn_device_from_handle(device);
 
-   uint8_t key[SHA1_DIGEST_LENGTH] = { 0 };
+   uint8_t key[BLAKE3_KEY_LEN] = { 0 };
    const bool cacheable =
       vn_image_get_image_reqs_key(dev, pInfo->pCreateInfo, key);
 

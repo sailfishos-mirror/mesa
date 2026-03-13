@@ -439,7 +439,7 @@ vn_device_update_shader_cache_id(struct vn_device *dev)
    /* The entry header is what contains the cache id / timestamp so we
     * need to create a fake entry.
     */
-   uint8_t key[SHA1_DIGEST_LENGTH];
+   uint8_t key[BLAKE3_KEY_LEN];
    char data[] = "Fake Shader";
 
    disk_cache_compute_key(cache, data, sizeof(data), key);

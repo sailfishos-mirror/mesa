@@ -1148,7 +1148,7 @@ void
 radv_pipeline_hash_shader_stage(VkPipelineCreateFlags2 pipeline_flags, const VkPipelineShaderStageCreateInfo *sinfo,
                                 const struct radv_shader_stage_key *stage_key, struct mesa_sha1 *ctx)
 {
-   unsigned char shader_sha1[SHA1_DIGEST_LENGTH];
+   unsigned char shader_sha1[BLAKE3_KEY_LEN];
 
    vk_pipeline_hash_shader_stage(pipeline_flags, sinfo, NULL, shader_sha1);
 

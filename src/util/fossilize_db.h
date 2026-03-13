@@ -72,7 +72,7 @@ struct foz_payload_header {
 
 struct foz_db_entry {
    uint8_t file_idx;
-   uint8_t key[SHA1_DIGEST_LENGTH];
+   uint8_t key[BLAKE3_KEY_LEN];
    uint64_t offset;
    struct foz_payload_header header;
 };

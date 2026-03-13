@@ -14,7 +14,6 @@
 
 #include "util/mesa-blake3.h"
 
-#define	SHA1_DIGEST_LENGTH		BLAKE3_KEY_LEN
 #define	SHA1_DIGEST_STRING_LENGTH	BLAKE3_HEX_LEN
 
 #ifdef __cplusplus
@@ -38,7 +37,7 @@ SHA1Update(SHA1_CTX *context, const uint8_t *data, size_t len)
 }
 
 static inline void
-SHA1Final(uint8_t digest[SHA1_DIGEST_LENGTH], SHA1_CTX *context)
+SHA1Final(uint8_t digest[BLAKE3_KEY_LEN], SHA1_CTX *context)
 {
     _mesa_blake3_final(&context->hasher, digest);
 }

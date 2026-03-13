@@ -781,7 +781,7 @@ parseAppAttr(struct OptConfData *data, const char **attr)
          char path[PATH_MAX];
          if (util_get_process_exec_path(path, ARRAY_SIZE(path)) > 0 &&
              (content = os_read_file(path, &len))) {
-            uint8_t sha1x[SHA1_DIGEST_LENGTH];
+            uint8_t sha1x[BLAKE3_KEY_LEN];
             char sha1s[SHA1_DIGEST_STRING_LENGTH];
             _mesa_sha1_compute(content, len, sha1x);
             _mesa_sha1_format((char*) sha1s, sha1x);

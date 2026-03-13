@@ -18,7 +18,7 @@ blorp_debug_archiver_open(void *mem_ctx,
    if (!INTEL_DEBUG(DEBUG_MDA) || !INTEL_DEBUG(DEBUG_BLORP))
       return NULL;
 
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_compute(key, key_size, sha1);
    char name[SHA1_DIGEST_STRING_LENGTH + 6] = {};
    _mesa_sha1_format(name, sha1);

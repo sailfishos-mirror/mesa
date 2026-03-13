@@ -315,7 +315,7 @@ struct vk_shader_bin_header {
    uint8_t uuid[VK_UUID_SIZE];
    uint32_t version;
    uint64_t size;
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
 };
 PRAGMA_DIAGNOSTIC_POP
 static_assert(sizeof(struct vk_shader_bin_header) == 80,

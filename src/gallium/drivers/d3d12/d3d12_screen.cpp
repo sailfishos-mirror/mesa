@@ -1735,7 +1735,7 @@ d3d12_init_screen(struct d3d12_screen *screen, IUnknown *adapter)
 
    const char *mesa_version = "Mesa " PACKAGE_VERSION MESA_GIT_SHA1;
    struct mesa_sha1 sha1_ctx;
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
    STATIC_ASSERT(PIPE_UUID_SIZE <= sizeof(sha1));
 
    /* The driver UUID is used for determining sharability of images and memory

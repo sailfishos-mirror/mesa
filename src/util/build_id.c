@@ -189,14 +189,14 @@ build_id_data(const struct build_id_note *note)
 }
 
 void
-copy_build_id_to_sha1(uint8_t sha1[SHA1_DIGEST_LENGTH],
+copy_build_id_to_sha1(uint8_t sha1[BLAKE3_KEY_LEN],
                       const struct build_id_note *note)
 {
    unsigned length = build_id_length(note);
 
-   assert(length <= SHA1_DIGEST_LENGTH);
+   assert(length <= BLAKE3_KEY_LEN);
    memcpy(sha1, build_id_data(note), length);
-   memset(sha1 + length, 0, SHA1_DIGEST_LENGTH - length);
+   memset(sha1 + length, 0, BLAKE3_KEY_LEN - length);
 }
 
 #endif

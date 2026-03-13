@@ -664,13 +664,13 @@ vn_tls_destroy_ring(struct vn_tls_ring *tls_ring);
 static inline uint32_t
 vn_cache_key_hash_function(const void *key)
 {
-   return _mesa_hash_data(key, SHA1_DIGEST_LENGTH);
+   return _mesa_hash_data(key, BLAKE3_KEY_LEN);
 }
 
 static inline bool
 vn_cache_key_equal_function(const void *key1, const void *key2)
 {
-   return memcmp(key1, key2, SHA1_DIGEST_LENGTH) == 0;
+   return memcmp(key1, key2, BLAKE3_KEY_LEN) == 0;
 }
 
 static inline void

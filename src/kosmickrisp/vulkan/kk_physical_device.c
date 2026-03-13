@@ -742,10 +742,10 @@ kk_physical_device_init_pipeline_cache(struct kk_physical_device *pdev)
    _mesa_sha1_update(&sha_ctx, instance->driver_build_sha,
                      sizeof(instance->driver_build_sha));
 
-   unsigned char sha[SHA1_DIGEST_LENGTH];
+   unsigned char sha[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&sha_ctx, sha);
 
-   STATIC_ASSERT(SHA1_DIGEST_LENGTH >= VK_UUID_SIZE);
+   STATIC_ASSERT(BLAKE3_KEY_LEN >= VK_UUID_SIZE);
    memcpy(pdev->vk.properties.pipelineCacheUUID, sha, VK_UUID_SIZE);
    memcpy(pdev->vk.properties.shaderBinaryUUID, sha, VK_UUID_SIZE);
 }

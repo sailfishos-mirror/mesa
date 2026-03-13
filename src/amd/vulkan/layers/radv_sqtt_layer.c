@@ -1592,7 +1592,7 @@ radv_add_rt_record(struct radv_device *device, struct rgp_code_object *code_obje
 }
 
 static void
-compute_unique_rt_sha(uint64_t pipeline_hash, unsigned index, unsigned char sha1[SHA1_DIGEST_LENGTH])
+compute_unique_rt_sha(uint64_t pipeline_hash, unsigned index, unsigned char sha1[BLAKE3_KEY_LEN])
 {
    struct mesa_sha1 ctx;
    _mesa_sha1_init(&ctx);
@@ -1605,7 +1605,7 @@ static VkResult
 radv_register_rt_stage(struct radv_device *device, struct radv_ray_tracing_pipeline *pipeline, uint32_t index,
                        uint32_t stack_size, struct radv_shader *shader)
 {
-   unsigned char sha1[SHA1_DIGEST_LENGTH];
+   unsigned char sha1[BLAKE3_KEY_LEN];
    VkResult result;
 
    compute_unique_rt_sha(pipeline->base.base.pipeline_hash, index, sha1);
@@ -1866,7 +1866,7 @@ sqtt_DestroyPipeline(VkDevice _device, VkPipeline _pipeline, const VkAllocationC
    if (pipeline->type == RADV_PIPELINE_RAY_TRACING) {
       /* We have one record for each stage, plus one for the traversal shader and one for the prolog */
       uint32_t record_count = radv_pipeline_to_ray_tracing(pipeline)->stage_count + 2;
-      unsigned char sha1[SHA1_DIGEST_LENGTH];
+      unsigned char sha1[BLAKE3_KEY_LEN];
       for (uint32_t i = 0; i < record_count; ++i) {
          compute_unique_rt_sha(pipeline->pipeline_hash, i, sha1);
          radv_unregister_records(device, *(uint64_t *)sha1);

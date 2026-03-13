@@ -25,7 +25,7 @@ struct pvr_instance {
 
    uint32_t active_device_count;
 
-   uint8_t driver_build_sha[SHA1_DIGEST_LENGTH];
+   uint8_t driver_build_sha[BLAKE3_KEY_LEN];
 };
 
 VK_DEFINE_HANDLE_CASTS(pvr_instance,

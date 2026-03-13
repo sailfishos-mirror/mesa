@@ -1424,7 +1424,7 @@ anv_physical_device_init_uuids(struct anv_physical_device *device)
    copy_build_id_to_sha1(device->driver_build_sha1, note);
 
    struct mesa_sha1 sha1_ctx;
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
    STATIC_ASSERT(VK_UUID_SIZE <= sizeof(sha1));
 
    /* The pipeline cache UUID is used for determining when a pipeline cache is

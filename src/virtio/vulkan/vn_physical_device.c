@@ -473,9 +473,9 @@ vn_physical_device_init_uuids(struct vn_physical_device *physical_dev)
 {
    struct vk_properties *props = &physical_dev->base.vk.properties;
    struct mesa_sha1 sha1_ctx;
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
 
-   static_assert(VK_UUID_SIZE <= SHA1_DIGEST_LENGTH, "");
+   static_assert(VK_UUID_SIZE <= BLAKE3_KEY_LEN, "");
 
    _mesa_sha1_init(&sha1_ctx);
    _mesa_sha1_update(&sha1_ctx, &props->pipelineCacheUUID,
@@ -2664,7 +2664,7 @@ vn_image_store_format_in_cache(
    cache_entry->properties.format = *pImageFormatProperties;
    cache_entry->properties.cached_result = cached_result;
 
-   memcpy(cache_entry->key, key, SHA1_DIGEST_LENGTH);
+   memcpy(cache_entry->key, key, BLAKE3_KEY_LEN);
 
    _mesa_hash_table_insert(cache->ht, cache_entry->key, cache_entry);
    list_add(&cache_entry->head, &cache->lru);
@@ -2858,7 +2858,7 @@ vn_GetPhysicalDeviceImageFormatProperties2(
    }
 
    /* Check if image format props is in the cache. */
-   uint8_t key[SHA1_DIGEST_LENGTH] = { 0 };
+   uint8_t key[BLAKE3_KEY_LEN] = { 0 };
    const bool cacheable = vn_image_get_image_format_key(
       physical_dev, pImageFormatInfo, pImageFormatProperties, key);
 

@@ -32,10 +32,10 @@ fd_get_driver_uuid(void *uuid)
 
    _mesa_sha1_update(&sha1_ctx, driver_id, strlen(driver_id));
 
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&sha1_ctx, sha1);
 
-   assert(SHA1_DIGEST_LENGTH >= UUID_SIZE);
+   assert(BLAKE3_KEY_LEN >= UUID_SIZE);
    memcpy(uuid, sha1, UUID_SIZE);
 }
 
@@ -68,9 +68,9 @@ fd_get_device_uuid(void *uuid, const struct fd_dev_id *id)
 
    _mesa_sha1_update(&sha1_ctx, id, sizeof(*id));
 
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&sha1_ctx, sha1);
 
-   assert(SHA1_DIGEST_LENGTH >= UUID_SIZE);
+   assert(BLAKE3_KEY_LEN >= UUID_SIZE);
    memcpy(uuid, sha1, UUID_SIZE);
 }

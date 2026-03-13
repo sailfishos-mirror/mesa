@@ -41,7 +41,7 @@ extern "C" {
 #endif
 
 /* Size of cache keys in bytes. */
-#define CACHE_KEY_SIZE SHA1_DIGEST_LENGTH
+#define CACHE_KEY_SIZE BLAKE3_KEY_LEN
 
 #define CACHE_DIR_NAME "mesa_shader_cache"
 #define CACHE_DIR_NAME_SF "mesa_shader_cache_sf"

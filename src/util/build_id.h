@@ -55,7 +55,7 @@ const uint8_t *
 build_id_data(const struct build_id_note *note);
 
 void
-copy_build_id_to_sha1(uint8_t sha1[SHA1_DIGEST_LENGTH],
+copy_build_id_to_sha1(uint8_t sha1[BLAKE3_KEY_LEN],
                       const struct build_id_note *note);
 
 #endif

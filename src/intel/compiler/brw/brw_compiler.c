@@ -285,7 +285,7 @@ brw_device_sha1(char *hex,
    struct mesa_sha1 ctx;
    _mesa_sha1_init(&ctx);
    brw_device_sha1_update(&ctx, devinfo);
-   unsigned char result[SHA1_DIGEST_LENGTH];
+   unsigned char result[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&ctx, result);
    _mesa_sha1_format(hex, result);
 }

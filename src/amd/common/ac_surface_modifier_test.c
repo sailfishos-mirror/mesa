@@ -38,7 +38,7 @@ struct test_entry {
    const char *name;
 
    /* value to determine uniqueness */
-   unsigned char hash[SHA1_DIGEST_LENGTH];
+   unsigned char hash[BLAKE3_KEY_LEN];
 
    /* u_vector requires power of two sizing */
    char padding[sizeof(void*) == 8 ? 0 : 4];

@@ -33,7 +33,7 @@ extern "C" {
 #endif
 
 #define mesa_sha1 _SHA1_CTX
-#define SHA1_DIGEST_LENGTH32 (SHA1_DIGEST_LENGTH / 4)
+#define BLAKE3_KEY_LEN32 (BLAKE3_KEY_LEN / 4)
 
 static inline void
 _mesa_sha1_init(struct mesa_sha1 *ctx)
@@ -49,7 +49,7 @@ _mesa_sha1_update(struct mesa_sha1 *ctx, const void *data, size_t size)
 }
 
 static inline void
-_mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[SHA1_DIGEST_LENGTH])
+_mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[BLAKE3_KEY_LEN])
 {
    SHA1Final(result, ctx);
 }
@@ -61,14 +61,14 @@ void
 _mesa_sha1_hex_to_sha1(unsigned char *buf, const char *hex);
 
 void
-_mesa_sha1_compute(const void *data, size_t size, unsigned char result[SHA1_DIGEST_LENGTH]);
+_mesa_sha1_compute(const void *data, size_t size, unsigned char result[BLAKE3_KEY_LEN]);
 
 void
-_mesa_sha1_print(FILE *f, const uint8_t sha1[SHA1_DIGEST_LENGTH]);
+_mesa_sha1_print(FILE *f, const uint8_t sha1[BLAKE3_KEY_LEN]);
 
 bool
-_mesa_printed_sha1_equal(const uint8_t sha1[SHA1_DIGEST_LENGTH],
-                         const uint32_t printed_sha1[SHA1_DIGEST_LENGTH32]);
+_mesa_printed_sha1_equal(const uint8_t sha1[BLAKE3_KEY_LEN],
+                         const uint32_t printed_sha1[BLAKE3_KEY_LEN32]);
 
 #ifdef __cplusplus
 } /* extern C */

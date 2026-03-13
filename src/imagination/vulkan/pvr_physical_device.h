@@ -65,8 +65,8 @@ struct pvr_physical_device {
 
    struct pvr_format_table formats;
 
-   uint8_t device_uuid[SHA1_DIGEST_LENGTH];
-   uint8_t cache_uuid[SHA1_DIGEST_LENGTH];
+   uint8_t device_uuid[BLAKE3_KEY_LEN];
+   uint8_t cache_uuid[BLAKE3_KEY_LEN];
 };
 
 VK_DEFINE_HANDLE_CASTS(pvr_physical_device,

@@ -816,7 +816,7 @@ intel_perf_store_configuration(struct intel_perf_config *perf_cfg, int fd,
                         config->n_b_counter_regs);
    }
 
-   uint8_t hash[SHA1_DIGEST_LENGTH];
+   uint8_t hash[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&sha1_ctx, hash);
 
    char formatted_hash[SHA1_DIGEST_STRING_LENGTH];

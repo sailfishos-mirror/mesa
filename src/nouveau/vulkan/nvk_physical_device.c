@@ -1335,10 +1335,10 @@ nvk_physical_device_init_pipeline_cache(struct nvk_physical_device *pdev)
    const uint64_t compiler_flags = nvk_physical_device_compiler_flags(pdev);
    _mesa_sha1_update(&sha_ctx, &compiler_flags, sizeof(compiler_flags));
 
-   unsigned char sha[SHA1_DIGEST_LENGTH];
+   unsigned char sha[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&sha_ctx, sha);
 
-   STATIC_ASSERT(SHA1_DIGEST_LENGTH >= VK_UUID_SIZE);
+   STATIC_ASSERT(BLAKE3_KEY_LEN >= VK_UUID_SIZE);
    memcpy(pdev->vk.properties.pipelineCacheUUID, sha, VK_UUID_SIZE);
    memcpy(pdev->vk.properties.shaderBinaryUUID, sha, VK_UUID_SIZE);
 

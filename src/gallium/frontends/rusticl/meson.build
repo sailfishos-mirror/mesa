@@ -274,6 +274,7 @@ rusticl_mesa_bindings = rust.bindgen(
     '--allowlist-function',     'mesa_.*',
     '--allowlist-var',          'OS_.*',
     '--allowlist-function',     'rz?alloc_.*',
+    '--allowlist-var',          'BLAKE3_.*',
     '--allowlist-function',     'SHA1.*',
     '--allowlist-var',          'SHA1_.*',
     '--allowlist-function',     'u_.*',

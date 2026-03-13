@@ -1163,9 +1163,9 @@ enum anv_pipeline_behavior {
 #define ANV_INLINE_DWORD_MESH_PROVOKING_VERTEX (UINT8_MAX - 2)
 
 struct anv_pipeline_bind_map {
-   unsigned char                                surface_sha1[SHA1_DIGEST_LENGTH];
-   unsigned char                                sampler_sha1[SHA1_DIGEST_LENGTH];
-   unsigned char                                push_sha1[SHA1_DIGEST_LENGTH];
+   unsigned char                                surface_sha1[BLAKE3_KEY_LEN];
+   unsigned char                                sampler_sha1[BLAKE3_KEY_LEN];
+   unsigned char                                push_sha1[BLAKE3_KEY_LEN];
 
    /* enum anv_descriptor_set_layout_type */
    uint16_t layout_type;
@@ -1690,7 +1690,7 @@ struct anv_physical_device {
     struct anv_memregion                        vram_mappable;
     struct anv_memregion                        vram_non_mappable;
     struct anv_memregion                        sys;
-    uint8_t                                     driver_build_sha1[SHA1_DIGEST_LENGTH];
+    uint8_t                                     driver_build_sha1[BLAKE3_KEY_LEN];
     uint8_t                                     shader_binary_uuid[VK_UUID_SIZE];
     uint8_t                                     pipeline_cache_uuid[VK_UUID_SIZE];
     uint8_t                                     driver_uuid[VK_UUID_SIZE];
@@ -1929,14 +1929,14 @@ struct nir_shader *
 anv_device_search_for_nir(struct anv_device *device,
                           struct vk_pipeline_cache *cache,
                           const struct nir_shader_compiler_options *nir_options,
-                          unsigned char sha1_key[SHA1_DIGEST_LENGTH],
+                          unsigned char sha1_key[BLAKE3_KEY_LEN],
                           void *mem_ctx);
 
 void
 anv_device_upload_nir(struct anv_device *device,
                       struct vk_pipeline_cache *cache,
                       const struct nir_shader *nir,
-                      unsigned char sha1_key[SHA1_DIGEST_LENGTH]);
+                      unsigned char sha1_key[BLAKE3_KEY_LEN]);
 
 void
 anv_load_fp64_shader(struct anv_device *device);
@@ -4820,9 +4820,9 @@ struct anv_cmd_state {
    struct anv_state                             binding_tables[MESA_VULKAN_SHADER_STAGES];
    struct anv_state                             samplers[MESA_VULKAN_SHADER_STAGES];
 
-   unsigned char                                sampler_sha1s[MESA_VULKAN_SHADER_STAGES][SHA1_DIGEST_LENGTH];
-   unsigned char                                surface_sha1s[MESA_VULKAN_SHADER_STAGES][SHA1_DIGEST_LENGTH];
-   unsigned char                                push_sha1s[MESA_VULKAN_SHADER_STAGES][SHA1_DIGEST_LENGTH];
+   unsigned char                                sampler_sha1s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                surface_sha1s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
+   unsigned char                                push_sha1s[MESA_VULKAN_SHADER_STAGES][BLAKE3_KEY_LEN];
 
    /* The last auxiliary surface operation (or equivalent operation) provided
     * to genX(cmd_buffer_update_color_aux_op).

@@ -250,13 +250,13 @@ static VkResult
 radv_shader_object_init_binary(struct radv_device *device, struct blob_reader *blob, struct radv_shader **shader_out,
                                struct radv_shader_binary **binary_out)
 {
-   const char *binary_sha1 = blob_read_bytes(blob, SHA1_DIGEST_LENGTH);
+   const char *binary_sha1 = blob_read_bytes(blob, BLAKE3_KEY_LEN);
    const uint32_t binary_size = blob_read_uint32(blob);
    const struct radv_shader_binary *binary = blob_read_bytes(blob, binary_size);
-   unsigned char sha1[SHA1_DIGEST_LENGTH];
+   unsigned char sha1[BLAKE3_KEY_LEN];
 
    _mesa_sha1_compute(binary, binary->total_size, sha1);
-   if (memcmp(sha1, binary_sha1, SHA1_DIGEST_LENGTH))
+   if (memcmp(sha1, binary_sha1, BLAKE3_KEY_LEN))
       return VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT;
 
    *shader_out = radv_shader_create(device, NULL, binary, true);
@@ -620,7 +620,7 @@ radv_get_shader_binary_size(const struct radv_shader_binary *binary)
    size_t size = sizeof(uint32_t); /* has_binary */
 
    if (binary)
-      size += SHA1_DIGEST_LENGTH + 4 + align(binary->total_size, 4);
+      size += BLAKE3_KEY_LEN + 4 + align(binary->total_size, 4);
 
    return size;
 }
@@ -647,7 +647,7 @@ radv_get_shader_object_size(const struct radv_shader_object *shader_obj)
 static void
 radv_write_shader_binary(struct blob *blob, const struct radv_shader_binary *binary)
 {
-   unsigned char binary_sha1[SHA1_DIGEST_LENGTH];
+   unsigned char binary_sha1[BLAKE3_KEY_LEN];
 
    blob_write_uint32(blob, !!binary);
 

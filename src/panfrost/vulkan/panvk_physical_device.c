@@ -153,10 +153,10 @@ init_shader_caches(struct panvk_physical_device *device,
    _mesa_sha1_update(&sha_ctx, &device->kmod.dev->props.gpu_id,
                      sizeof(device->kmod.dev->props.gpu_id));
 
-   unsigned char sha[SHA1_DIGEST_LENGTH];
+   unsigned char sha[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&sha_ctx, sha);
 
-   STATIC_ASSERT(VK_UUID_SIZE <= SHA1_DIGEST_LENGTH);
+   STATIC_ASSERT(VK_UUID_SIZE <= BLAKE3_KEY_LEN);
    memcpy(device->cache_uuid, sha, VK_UUID_SIZE);
 
 #ifdef ENABLE_SHADER_CACHE

@@ -85,7 +85,7 @@ v3d_disk_cache_compute_key(struct disk_cache *cache,
         struct blob blob;
         blob_init(&blob);
         blob_write_bytes(&blob, ckey, ckey_size);
-        blob_write_bytes(&blob, uncompiled->sha1, SHA1_DIGEST_LENGTH);
+        blob_write_bytes(&blob, uncompiled->sha1, BLAKE3_KEY_LEN);
 
         disk_cache_compute_key(cache, blob.data, blob.size, cache_key);
 

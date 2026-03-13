@@ -182,7 +182,7 @@ anv_shader_init_uuid(struct anv_physical_device *device)
    const bool lto_disable = device->instance->disable_lto;
    _mesa_sha1_update(&ctx, &lto_disable, sizeof(lto_disable));
 
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&ctx, sha1);
    memcpy(device->shader_binary_uuid, sha1, sizeof(device->shader_binary_uuid));
 }
@@ -1816,7 +1816,7 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
     * are linked together, also include a combined hash of all stages to
     * distinguish from the not linked case.
     */
-   unsigned char linked_hash[SHA1_DIGEST_LENGTH];
+   unsigned char linked_hash[BLAKE3_KEY_LEN];
    if (shader_count > 1) {
       struct mesa_sha1 ctx;
       _mesa_sha1_init(&ctx);
@@ -1837,12 +1837,12 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
       char name[SHA1_DIGEST_STRING_LENGTH + 4] = {};
       {
          struct mesa_sha1 ctx;
-         unsigned char hash[SHA1_DIGEST_LENGTH];
+         unsigned char hash[BLAKE3_KEY_LEN];
          _mesa_sha1_init(&ctx);
          _mesa_sha1_update(&ctx, info->nir->info.source_blake3, BLAKE3_OUT_LEN);
          _mesa_sha1_update(&ctx, &shader_data->key, shader_data->key_size);
          if (shader_count > 1)
-            _mesa_sha1_update(&ctx, linked_hash, SHA1_DIGEST_LENGTH);
+            _mesa_sha1_update(&ctx, linked_hash, BLAKE3_KEY_LEN);
          _mesa_sha1_final(&ctx, hash);
 
          _mesa_sha1_format(name, hash);

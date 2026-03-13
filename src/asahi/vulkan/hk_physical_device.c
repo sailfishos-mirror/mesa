@@ -1090,7 +1090,7 @@ hk_get_device_properties(const struct agx_device *dev,
 
    {
       struct mesa_sha1 sha1_ctx;
-      uint8_t sha1[SHA1_DIGEST_LENGTH];
+      uint8_t sha1[BLAKE3_KEY_LEN];
 
       _mesa_sha1_init(&sha1_ctx);
       /* Make sure we don't match with other vendors */
@@ -1116,10 +1116,10 @@ hk_physical_device_init_pipeline_cache(struct hk_physical_device *pdev)
    const uint64_t compiler_flags = hk_physical_device_compiler_flags(pdev);
    _mesa_sha1_update(&sha_ctx, &compiler_flags, sizeof(compiler_flags));
 
-   unsigned char sha[SHA1_DIGEST_LENGTH];
+   unsigned char sha[BLAKE3_KEY_LEN];
    _mesa_sha1_final(&sha_ctx, sha);
 
-   static_assert(SHA1_DIGEST_LENGTH >= VK_UUID_SIZE);
+   static_assert(BLAKE3_KEY_LEN >= VK_UUID_SIZE);
    memcpy(pdev->vk.properties.pipelineCacheUUID, sha, VK_UUID_SIZE);
    memcpy(pdev->vk.properties.shaderBinaryUUID, sha, VK_UUID_SIZE);
 

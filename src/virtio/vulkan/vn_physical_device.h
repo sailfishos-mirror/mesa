@@ -38,7 +38,7 @@ struct vn_image_format_properties {
 
 struct vn_image_format_cache_entry {
    struct vn_image_format_properties properties;
-   uint8_t key[SHA1_DIGEST_LENGTH];
+   uint8_t key[BLAKE3_KEY_LEN];
    struct list_head head;
 };
 

@@ -31,7 +31,7 @@
 #include <inttypes.h>
 
 void
-_mesa_sha1_compute(const void *data, size_t size, unsigned char result[SHA1_DIGEST_LENGTH])
+_mesa_sha1_compute(const void *data, size_t size, unsigned char result[BLAKE3_KEY_LEN])
 {
    struct mesa_sha1 ctx;
 
@@ -43,7 +43,7 @@ _mesa_sha1_compute(const void *data, size_t size, unsigned char result[SHA1_DIGE
 void
 _mesa_sha1_format(char *buf, const unsigned char *sha1)
 {
-   mesa_bytes_to_hex(buf, sha1, SHA1_DIGEST_LENGTH);
+   mesa_bytes_to_hex(buf, sha1, BLAKE3_KEY_LEN);
 }
 
 /* Convert a hashs string hexidecimal representation into its more compact
@@ -52,35 +52,35 @@ _mesa_sha1_format(char *buf, const unsigned char *sha1)
 void
 _mesa_sha1_hex_to_sha1(unsigned char *buf, const char *hex)
 {
-   mesa_hex_to_bytes(buf, hex, SHA1_DIGEST_LENGTH);
+   mesa_hex_to_bytes(buf, hex, BLAKE3_KEY_LEN);
 }
 
 static void
-sha1_to_uint32(const uint8_t sha1[SHA1_DIGEST_LENGTH],
-               uint32_t out[SHA1_DIGEST_LENGTH32])
+sha1_to_uint32(const uint8_t sha1[BLAKE3_KEY_LEN],
+               uint32_t out[BLAKE3_KEY_LEN32])
 {
-   memset(out, 0, SHA1_DIGEST_LENGTH);
+   memset(out, 0, BLAKE3_KEY_LEN);
 
-   for (unsigned i = 0; i < SHA1_DIGEST_LENGTH; i++)
+   for (unsigned i = 0; i < BLAKE3_KEY_LEN; i++)
       out[i / 4] |= (uint32_t)sha1[i] << ((i % 4) * 8);
 }
 
 void
-_mesa_sha1_print(FILE *f, const uint8_t sha1[SHA1_DIGEST_LENGTH])
+_mesa_sha1_print(FILE *f, const uint8_t sha1[BLAKE3_KEY_LEN])
 {
-   uint32_t u32[SHA1_DIGEST_LENGTH];
+   uint32_t u32[BLAKE3_KEY_LEN];
    sha1_to_uint32(sha1, u32);
 
-   for (unsigned i = 0; i < SHA1_DIGEST_LENGTH32; i++) {
+   for (unsigned i = 0; i < BLAKE3_KEY_LEN32; i++) {
       fprintf(f, i ? ", 0x%08" PRIx32 : "0x%08" PRIx32, u32[i]);
    }
 }
 
 bool
-_mesa_printed_sha1_equal(const uint8_t sha1[SHA1_DIGEST_LENGTH],
-                         const uint32_t printed_sha1[SHA1_DIGEST_LENGTH32])
+_mesa_printed_sha1_equal(const uint8_t sha1[BLAKE3_KEY_LEN],
+                         const uint32_t printed_sha1[BLAKE3_KEY_LEN32])
 {
-   uint32_t u32[SHA1_DIGEST_LENGTH32];
+   uint32_t u32[BLAKE3_KEY_LEN32];
    sha1_to_uint32(sha1, u32);
 
    return memcmp(u32, printed_sha1, sizeof(u32)) == 0;

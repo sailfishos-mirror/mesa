@@ -49,7 +49,7 @@ TEST_P(MesaSHA1TestFixture, Match)
 {
    Params p = GetParam();
 
-   unsigned char sha1[SHA1_DIGEST_LENGTH];
+   unsigned char sha1[BLAKE3_KEY_LEN];
    _mesa_sha1_compute(p.string, strlen(p.string), sha1);
 
    char buf[SHA1_DIGEST_STRING_LENGTH];

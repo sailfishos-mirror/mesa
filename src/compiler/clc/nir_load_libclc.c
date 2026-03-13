@@ -88,7 +88,7 @@ get_libclc_file(unsigned ptr_bit_size)
 struct clc_data {
    const struct clc_file *file;
 
-   unsigned char cache_key[SHA1_DIGEST_LENGTH];
+   unsigned char cache_key[BLAKE3_KEY_LEN];
 
    int fd;
    const void *data;

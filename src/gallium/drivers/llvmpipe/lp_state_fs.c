@@ -3793,7 +3793,7 @@ lp_debug_fs_variant(struct lp_fragment_shader_variant *variant)
 
 static void
 lp_fs_get_ir_cache_key(struct lp_fragment_shader_variant *variant,
-                       unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH])
+                       unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN])
 {
    struct blob blob = { 0 };
    unsigned ir_size;
@@ -3838,7 +3838,7 @@ generate_variant(struct llvmpipe_context *lp,
 
    struct llvmpipe_screen *screen = llvmpipe_screen(lp->pipe.screen);
    struct lp_cached_code cached = { 0 };
-   unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH];
+   unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN];
    bool needs_caching = false;
    if (shader->base.ir.nir) {
       lp_fs_get_ir_cache_key(variant, ir_sha1_cache_key);

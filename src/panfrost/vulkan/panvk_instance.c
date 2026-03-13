@@ -288,7 +288,7 @@ panvk_CreateInstance(const VkInstanceCreateInfo *pCreateInfo,
 
    VG(VALGRIND_CREATE_MEMPOOL(instance, 0, false));
 
-   STATIC_ASSERT(sizeof(instance->driver_build_sha) == SHA1_DIGEST_LENGTH);
+   STATIC_ASSERT(sizeof(instance->driver_build_sha) == BLAKE3_KEY_LEN);
    copy_build_id_to_sha1(instance->driver_build_sha, note);
 
    *pInstance = panvk_instance_to_handle(instance);

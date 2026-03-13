@@ -21,6 +21,7 @@
 #include "pipe/p_state.h"
 #include "pipe-loader/pipe_loader.h"
 
+#include "util/blake3/blake3.h"
 #include "util/blob.h"
 #include "util/disk_cache.h"
 #include "util/hex.h"

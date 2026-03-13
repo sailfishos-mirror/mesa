@@ -2224,7 +2224,7 @@ tu_EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
                counter->storage =
                      fd_perfcntr_type_to_vk_storage[group[i].countables[j].query_type];
 
-               unsigned char sha1_result[SHA1_DIGEST_LENGTH];
+               unsigned char sha1_result[BLAKE3_KEY_LEN];
                _mesa_sha1_compute(group[i].countables[j].name,
                                   strlen(group[i].countables[j].name),
                                   sha1_result);
@@ -2256,7 +2256,7 @@ tu_EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
             counter->unit = fd_perfcntr_type_to_vk_unit[derived_counter->type];
             counter->storage = fd_perfcntr_type_to_vk_storage[derived_counter->type];
 
-            unsigned char sha1_result[SHA1_DIGEST_LENGTH];
+            unsigned char sha1_result[BLAKE3_KEY_LEN];
             _mesa_sha1_compute(derived_counter->name, strlen(derived_counter->name),
                                sha1_result);
             memcpy(counter->uuid, sha1_result, sizeof(counter->uuid));

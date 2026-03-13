@@ -400,10 +400,10 @@ struct draw_context
    void *disk_cache_cookie;
    void (*disk_cache_find_shader)(void *cookie,
                                   struct lp_cached_code *cache,
-                                  unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH]);
+                                  unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN]);
    void (*disk_cache_insert_shader)(void *cookie,
                                     struct lp_cached_code *cache,
-                                    unsigned char ir_sha1_cache_key[SHA1_DIGEST_LENGTH]);
+                                    unsigned char ir_sha1_cache_key[BLAKE3_KEY_LEN]);
 
    void *driver_private;
 };

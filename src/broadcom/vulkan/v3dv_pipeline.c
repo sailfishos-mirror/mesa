@@ -1442,7 +1442,7 @@ pipeline_stage_create_binning(const struct v3dv_pipeline_stage *src,
    p_stage->spec_info = src->spec_info;
    p_stage->feedback = (VkPipelineCreationFeedback) { 0 };
    p_stage->robustness = src->robustness;
-   memcpy(p_stage->shader_sha1, src->shader_sha1, SHA1_DIGEST_LENGTH);
+   memcpy(p_stage->shader_sha1, src->shader_sha1, BLAKE3_KEY_LEN);
 
    return p_stage;
 }
@@ -2120,7 +2120,7 @@ pipeline_populate_compute_key(struct v3dv_pipeline *pipeline,
 }
 
 static struct v3dv_pipeline_shared_data *
-v3dv_pipeline_shared_data_new_empty(const unsigned char sha1_key[SHA1_DIGEST_LENGTH],
+v3dv_pipeline_shared_data_new_empty(const unsigned char sha1_key[BLAKE3_KEY_LEN],
                                     struct v3dv_pipeline *pipeline,
                                     bool is_graphics_pipeline)
 {
@@ -2174,7 +2174,7 @@ v3dv_pipeline_shared_data_new_empty(const unsigned char sha1_key[SHA1_DIGEST_LEN
       new_entry->maps[BROADCOM_SHADER_GEOMETRY];
 
    new_entry->ref_cnt = 1;
-   memcpy(new_entry->sha1_key, sha1_key, SHA1_DIGEST_LENGTH);
+   memcpy(new_entry->sha1_key, sha1_key, BLAKE3_KEY_LEN);
 
    return new_entry;
 

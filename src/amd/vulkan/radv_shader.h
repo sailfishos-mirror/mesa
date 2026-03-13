@@ -278,7 +278,7 @@ struct radv_shader_stage {
    const char *entrypoint;
    const VkSpecializationInfo *spec_info;
 
-   unsigned char shader_sha1[SHA1_DIGEST_LENGTH];
+   unsigned char shader_sha1[BLAKE3_KEY_LEN];
 
    nir_shader *nir;
    nir_shader *gs_copy_shader;

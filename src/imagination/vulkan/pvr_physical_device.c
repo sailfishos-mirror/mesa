@@ -862,8 +862,8 @@ static bool pvr_physical_device_setup_pipeline_cache(
 {
 #ifdef ENABLE_SHADER_CACHE
    const struct pvr_instance *instance = pdevice->instance;
-   char device_id[SHA1_DIGEST_LENGTH * 2 + 1];
-   char driver_id[SHA1_DIGEST_LENGTH * 2 + 1];
+   char device_id[BLAKE3_KEY_LEN * 2 + 1];
+   char driver_id[BLAKE3_KEY_LEN * 2 + 1];
 
    _mesa_sha1_format(device_id, pdevice->device_uuid);
    _mesa_sha1_format(driver_id, instance->driver_build_sha);
@@ -877,7 +877,7 @@ static bool pvr_physical_device_setup_pipeline_cache(
 
 static void
 pvr_get_device_uuid(const struct pvr_device_info *dev_info,
-                    uint8_t uuid_out[const static SHA1_DIGEST_LENGTH])
+                    uint8_t uuid_out[const static BLAKE3_KEY_LEN])
 {
    uint64_t bvnc = pvr_get_packed_bvnc(dev_info);
    static const char *device_str = "pvr";
@@ -891,7 +891,7 @@ pvr_get_device_uuid(const struct pvr_device_info *dev_info,
 
 static void
 pvr_get_cache_uuid(const struct pvr_physical_device *const pdevice,
-                   uint8_t uuid_out[const static SHA1_DIGEST_LENGTH])
+                   uint8_t uuid_out[const static BLAKE3_KEY_LEN])
 {
    const struct pvr_instance *instance = pdevice->instance;
    static const char *cache_str = "cache";

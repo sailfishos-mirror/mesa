@@ -397,7 +397,7 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
 {
    v->bin = ir3_shader_assemble(v);
 
-   unsigned char sha1[SHA1_DIGEST_LENGTH + 1];
+   unsigned char sha1[BLAKE3_KEY_LEN + 1];
 
    struct mesa_sha1 ctx;
 

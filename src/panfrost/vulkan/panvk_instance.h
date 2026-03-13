@@ -54,7 +54,7 @@ struct panvk_instance {
    struct driOptionCache dri_options;
    struct driOptionCache available_dri_options;
 
-   uint8_t driver_build_sha[SHA1_DIGEST_LENGTH];
+   uint8_t driver_build_sha[BLAKE3_KEY_LEN];
    uint32_t force_vk_vendor;
 
    bool enable_vertex_pipeline_stores_atomics;

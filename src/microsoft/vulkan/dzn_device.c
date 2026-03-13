@@ -352,7 +352,7 @@ dzn_physical_device_init_uuids(struct dzn_physical_device *pdev)
    const char *mesa_version = "Mesa " PACKAGE_VERSION MESA_GIT_SHA1;
 
    struct mesa_sha1 sha1_ctx;
-   uint8_t sha1[SHA1_DIGEST_LENGTH];
+   uint8_t sha1[BLAKE3_KEY_LEN];
    STATIC_ASSERT(VK_UUID_SIZE <= sizeof(sha1));
 
    /* The pipeline cache UUID is used for determining when a pipeline cache is
