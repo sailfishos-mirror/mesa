@@ -308,6 +308,35 @@ all_zero_points_equal(const TfLiteAffineQuantization *quant)
    return true;
 }
 
+static size_t
+tf_format_to_size(TfLiteType type)
+{
+   switch (type) {
+   case kTfLiteFloat32:
+      return sizeof(float);
+   case kTfLiteFloat64:
+      return sizeof(double);
+   case kTfLiteInt8:
+      return sizeof(int8_t);
+   case kTfLiteUInt8:
+      return sizeof(uint8_t);
+   case kTfLiteInt16:
+      return sizeof(int16_t);
+   case kTfLiteUInt16:
+      return sizeof(uint16_t);
+   case kTfLiteInt32:
+      return sizeof(int32_t);
+   case kTfLiteUInt32:
+      return sizeof(uint32_t);
+   case kTfLiteInt64:
+      return sizeof(int64_t);
+   case kTfLiteUInt64:
+      return sizeof(uint64_t);
+   default:
+      return 0;
+   }
+}
+
 static void
 fill_tensor(struct teflon_delegate *delegate, TfLiteContext *tf_context, struct pipe_tensor *tensor, unsigned index)
 {
@@ -320,6 +349,7 @@ fill_tensor(struct teflon_delegate *delegate, TfLiteContext *tf_context, struct 
    if (tf_tensor.data.data)
       tensor->resource = create_resource(context, tf_tensor);
 
+   tensor->type_size = tf_format_to_size(tf_tensor.type);
    tensor->index = index;
    for (int out_dim = 0; out_dim < 4; out_dim++) {
       int in_dim = tf_tensor.dims->size - 4 + out_dim;
