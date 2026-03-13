@@ -3874,7 +3874,7 @@
         "description": "nvk: Broacast viewport0 and scissor0 in case of FSR on Turing",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2fb4aed9d8b51b741fde7bb6a9c8c263a7be5fdd",
         "notes": null

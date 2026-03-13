@@ -2122,16 +2122,40 @@ nvk_flush_vp_state(struct nvk_cmd_buffer *cmd)
    const struct vk_dynamic_graphics_state *dyn =
       &cmd->vk.dynamic_graphics_state;
 
+   /* From the Vulkan 1.4.341 spec:
+   *
+   *    "If the pipeline requires pre-rasterization shader state and the
+   *     primitiveFragmentShadingRateWithMultipleViewports limit is not
+   *     supported VK_DYNAMIC_STATE_VIEWPORT_WITH_COUNT is not included in
+   *     pDynamicState->pDynamicStates, and
+   *     VkPipelineViewportStateCreateInfo::viewportCount is greater than 1,
+   *     entry points specified in pStages must not write to the
+   *     PrimitiveShadingRateKHR built-in"
+   *
+   * This means that, in Turing case of FSR, we expect only one viewport to be
+   * present. Therefore, to handle FSR, we need to replicate viewport and
+   * scissor 0.
+   */
+   const bool vp_broadcast_dirty = BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_FSR) &&
+                                   nvk_cmd_buffer_3d_cls(cmd) == TURING_A;
+   const bool need_turing_vp_broadcast = nvk_cmd_buffer_3d_cls(cmd) == TURING_A &&
+                                         !vk_fragment_shading_rate_is_disabled(&dyn->fsr);
+   const uint8_t viewport_count = need_turing_vp_broadcast ? NVK_MAX_VIEWPORTS :
+                                                             dyn->vp.viewport_count;
+   const uint8_t scissor_count = need_turing_vp_broadcast ? NVK_MAX_VIEWPORTS :
+                                                            dyn->vp.scissor_count;
+
    struct nv_push *p =
-      nvk_cmd_buffer_push(cmd, 18 * dyn->vp.viewport_count + 4 * NVK_MAX_VIEWPORTS);
+      nvk_cmd_buffer_push(cmd, 18 * viewport_count + 4 * NVK_MAX_VIEWPORTS);
 
    /* Nothing to do for MESA_VK_DYNAMIC_VP_VIEWPORT_COUNT */
 
    if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_VIEWPORTS) ||
        BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_DEPTH_CLIP_NEGATIVE_ONE_TO_ONE) ||
-       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_DEPTH_CLAMP_RANGE)) {
-      for (uint32_t i = 0; i < dyn->vp.viewport_count; i++) {
-         const VkViewport *vp = &dyn->vp.viewports[i];
+       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_DEPTH_CLAMP_RANGE) ||
+       vp_broadcast_dirty) {
+      for (uint32_t i = 0; i < viewport_count; i++) {
+         const VkViewport *vp = &dyn->vp.viewports[need_turing_vp_broadcast ? 0 : i];
          nvk_emit_viewport(cmd, p, vp, i);
       }
    }
@@ -2143,14 +2167,14 @@ nvk_flush_vp_state(struct nvk_cmd_buffer *cmd)
              RANGE_ZERO_TO_POSITIVE_W);
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_SCISSOR_COUNT)) {
-      for (unsigned i = dyn->vp.scissor_count; i < NVK_MAX_VIEWPORTS; i++)
+   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_SCISSOR_COUNT) || vp_broadcast_dirty) {
+      for (unsigned i = scissor_count; i < NVK_MAX_VIEWPORTS; i++)
          P_IMMD(p, NV9097, SET_SCISSOR_ENABLE(i), V_FALSE);
    }
 
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_SCISSORS)) {
-      for (unsigned i = 0; i < dyn->vp.scissor_count; i++) {
-         const VkRect2D *s = &dyn->vp.scissors[i];
+   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_VP_SCISSORS) || vp_broadcast_dirty) {
+      for (unsigned i = 0; i < scissor_count; i++) {
+         const VkRect2D *s = &dyn->vp.scissors[need_turing_vp_broadcast ? 0 : i];
          nvk_emit_scissor(cmd, p, s, i);
       }
    }
