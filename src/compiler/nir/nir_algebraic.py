@@ -1505,7 +1505,7 @@ def get_expression_def(expr, name, value_comps, variable_map, defs, expr_conds, 
     expr_exclude = expr.fp_math_ctrl_exclude();
     if expr_exclude != "nir_fp_fast_math":
         defs.append(f"if (nir_def_is_alu({def_name}))")
-        defs.append(f"   nir_def_as_alu({def_name})->fp_math_ctrl &= ~{expr_exclude};")
+        defs.append(f"   nir_def_as_alu({def_name})->fp_math_ctrl &= ~({expr_exclude});")
 
     if expr.swizzle != -1:
         def_name = f"nir_channel(b, {def_name}, {expr.swizzle})"
