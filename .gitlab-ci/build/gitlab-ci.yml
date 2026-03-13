@@ -429,6 +429,8 @@ debian-arm32:
       -D precomp-compiler=enabled
       -D install-precomp-compiler=true
       -D tools=panfrost
+    GALLIUM_ST:
+      -D legacy-wayland=bind-wayland-display
     S3_ARTIFACT_NAME: mesa-arm32-default-${BUILDTYPE}
     # The strip command segfaults, failing to strip the binary and leaving
     # tempfiles in our artifacts.
@@ -472,6 +474,7 @@ debian-arm64:
       -D perfetto=true
     GALLIUM_ST:
       -D gallium-rusticl=true
+      -D legacy-wayland=bind-wayland-display
     RUN_MESON_TESTS: "false"  # run by debian-arm64-build-testing
     S3_ARTIFACT_NAME: mesa-arm64-default-${BUILDTYPE}
 
