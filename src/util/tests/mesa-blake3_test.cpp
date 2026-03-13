@@ -25,11 +25,9 @@
 
 #include <gtest/gtest.h>
 
-#define SHA1_LENGTH 40
-
 struct Params {
    const char *string;
-   const char *expected_sha1;
+   const char *expected_blake3;
 };
 
 static const Params test_data[] = {
@@ -38,25 +36,25 @@ static const Params test_data[] = {
    {"Mesa Rocks! 583", "42f5982e2ef3c5e388c50ee1070e7fd07e93bd44fa0dc3ea62e0892337c89ad8"},
 };
 
-class MesaSHA1TestFixture : public testing::TestWithParam<Params> {};
+class MesaBLAKE3TestFixture : public testing::TestWithParam<Params> {};
 INSTANTIATE_TEST_SUITE_P(
-   MesaSHA1Test,
-   MesaSHA1TestFixture,
+   MesaBLAKE3Test,
+   MesaBLAKE3TestFixture,
    testing::ValuesIn(test_data)
 );
 
-TEST_P(MesaSHA1TestFixture, Match)
+TEST_P(MesaBLAKE3TestFixture, Match)
 {
    Params p = GetParam();
 
-   unsigned char sha1[BLAKE3_KEY_LEN];
-   _mesa_blake3_compute(p.string, strlen(p.string), sha1);
+   unsigned char blake3[BLAKE3_KEY_LEN];
+   _mesa_blake3_compute(p.string, strlen(p.string), blake3);
 
    char buf[BLAKE3_HEX_LEN];
-   _mesa_blake3_format(buf, sha1);
+   _mesa_blake3_format(buf, blake3);
 
-   ASSERT_TRUE(memcmp(buf, p.expected_sha1, SHA1_LENGTH) == 0)
+   ASSERT_TRUE(memcmp(buf, p.expected_blake3, sizeof(buf)) == 0)
       << "For string \"" << p.string << "\", length " << strlen(p.string) << ":\n"
       << "\t  Actual: " << buf << "\n"
-      << "\tExpected: " << p.expected_sha1 << "\n";
+      << "\tExpected: " << p.expected_blake3 << "\n";
 }

@@ -444,7 +444,7 @@ if with_tests
     'tests/linear_test.cpp',
     'tests/list_test.cpp',
     'tests/lut_test.cpp',
-    'tests/mesa-sha1_test.cpp',
+    'tests/mesa-blake3_test.cpp',
     'tests/os_mman_test.cpp',
     'tests/perf/u_trace_test.cpp',
     'tests/range_minimum_query_test.cpp',
