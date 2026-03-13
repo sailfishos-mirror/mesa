@@ -1825,7 +1825,7 @@ iris_debug_archiver_open(void *tmp_ctx, struct iris_screen *screen,
       _mesa_blake3_update(&ctx, key, key_size);
       _mesa_blake3_final(&ctx, hash);
 
-      _mesa_sha1_format(name, hash);
+      _mesa_blake3_format(name, hash);
    }
    memcpy(&name[BLAKE3_HEX_LEN - 1], ".iris", 5);
 
@@ -3380,7 +3380,7 @@ iris_create_uncompiled_shader(struct iris_screen *screen,
       struct blob blob;
       blob_init(&blob);
       nir_serialize(&blob, nir, true);
-      _mesa_sha1_compute(blob.data, blob.size, ish->nir_sha1);
+      _mesa_blake3_compute(blob.data, blob.size, ish->nir_sha1);
       blob_finish(&blob);
    }
 

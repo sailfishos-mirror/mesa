@@ -443,7 +443,7 @@ make_cache_file_directory(struct disk_cache *cache, const cache_key key)
    char *dir;
    char buf[BLAKE3_HEX_LEN];
 
-   _mesa_sha1_format(buf, key);
+   _mesa_blake3_format(buf, key);
    if (asprintf(&dir, "%s/%c%c", cache->path, buf[0], buf[1]) == -1)
       return;
 
@@ -684,7 +684,7 @@ disk_cache_get_cache_filename(struct disk_cache *cache, const cache_key key)
    if (cache->path_init_failed)
       return NULL;
 
-   _mesa_sha1_format(buf, key);
+   _mesa_blake3_format(buf, key);
    if (asprintf(&filename, "%s/%c%c/%s", cache->path, buf[0],
                 buf[1], buf + 2) == -1)
       return NULL;

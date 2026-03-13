@@ -2192,9 +2192,9 @@ elk_fs_generator::generate_code(const elk_cfg_t *cfg, int dispatch_width,
    char sha1buf[BLAKE3_HEX_LEN];
 
    if (unlikely(debug_flag || dump_shader_bin)) {
-      _mesa_sha1_compute(p->store + start_offset / sizeof(elk_inst),
+      _mesa_blake3_compute(p->store + start_offset / sizeof(elk_inst),
                          after_size, sha1);
-      _mesa_sha1_format(sha1buf, sha1);
+      _mesa_blake3_format(sha1buf, sha1);
    }
 
    if (unlikely(dump_shader_bin))

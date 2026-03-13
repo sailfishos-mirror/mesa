@@ -312,7 +312,7 @@ VkResult anv_EnumeratePhysicalDeviceQueueFamilyPerformanceQueryCountersKHR(
          counter->storage = intel_perf_counter_data_type_to_vk_storage[intel_counter->data_type];
 
          unsigned char sha1_result[BLAKE3_KEY_LEN];
-         _mesa_sha1_compute(intel_counter->symbol_name,
+         _mesa_blake3_compute(intel_counter->symbol_name,
                             strlen(intel_counter->symbol_name),
                             sha1_result);
          memcpy(counter->uuid, sha1_result, sizeof(counter->uuid));

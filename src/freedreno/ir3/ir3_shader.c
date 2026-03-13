@@ -406,7 +406,7 @@ assemble_variant(struct ir3_shader_variant *v, bool internal)
    _mesa_blake3_update(&ctx, &v->info.double_threadsize,
                      sizeof(v->info.double_threadsize));
    _mesa_blake3_final(&ctx, sha1);
-   _mesa_sha1_format(v->sha1_str, sha1);
+   _mesa_blake3_format(v->sha1_str, sha1);
 
    bool dbg_enabled = shader_debug_enabled(v->type, internal) ||
                       ir3_shader_bisect_disasm_select(v);

@@ -115,7 +115,7 @@ v3d_disk_cache_retrieve(struct v3d_context *v3d,
 
         if (V3D_DBG(CACHE)) {
                 char sha1[BLAKE3_HEX_LEN];
-                _mesa_sha1_format(sha1, cache_key);
+                _mesa_blake3_format(sha1, cache_key);
                 fprintf(stderr, "[v3d on-disk cache] %s %s\n",
                         buffer ? "hit" : "miss",
                         sha1);
@@ -198,7 +198,7 @@ v3d_disk_cache_store(struct v3d_context *v3d,
 
         if (V3D_DBG(CACHE)) {
                 char sha1[BLAKE3_HEX_LEN];
-                _mesa_sha1_format(sha1, cache_key);
+                _mesa_blake3_format(sha1, cache_key);
                 fprintf(stderr, "[v3d on-disk cache] storing %s\n", sha1);
         }
 

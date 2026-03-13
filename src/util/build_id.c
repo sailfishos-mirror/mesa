@@ -22,6 +22,7 @@
  */
 
 #include "build_id.h"
+#include "hex.h"
 
 #if HAVE_BUILD_ID
 #include <dlfcn.h>
@@ -200,3 +201,9 @@ copy_build_id_to_sha1(uint8_t sha1[BLAKE3_KEY_LEN],
 }
 
 #endif
+
+void
+_mesa_sha1_format(char *buf, const unsigned char *sha1)
+{
+   mesa_bytes_to_hex(buf, sha1, BLAKE3_KEY_LEN);
+}

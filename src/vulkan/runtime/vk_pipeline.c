@@ -313,7 +313,7 @@ vk_pipeline_hash_shader_stage(VkPipelineCreateFlags2KHR pipeline_flags,
    blake3_hash blake_hash;
 
    vk_pipeline_hash_shader_stage_blake3(pipeline_flags, info, rstate, blake_hash);
-   _mesa_sha1_compute(blake_hash, sizeof(blake_hash), stage_sha1);
+   _mesa_blake3_compute(blake_hash, sizeof(blake_hash), stage_sha1);
 }
 
 static VkPipelineRobustnessBufferBehaviorEXT

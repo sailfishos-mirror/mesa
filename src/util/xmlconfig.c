@@ -783,8 +783,8 @@ parseAppAttr(struct OptConfData *data, const char **attr)
              (content = os_read_file(path, &len))) {
             uint8_t sha1x[BLAKE3_KEY_LEN];
             char sha1s[BLAKE3_HEX_LEN];
-            _mesa_sha1_compute(content, len, sha1x);
-            _mesa_sha1_format((char*) sha1s, sha1x);
+            _mesa_blake3_compute(content, len, sha1x);
+            _mesa_blake3_format((char*) sha1s, sha1x);
             free(content);
 
             if (strcmp(sha1, sha1s)) {

@@ -573,8 +573,8 @@ radv_dump_shader(struct radv_device *device, struct radv_pipeline *pipeline, str
       unsigned char sha1[BLAKE3_KEY_LEN + 1];
       char sha1buf[BLAKE3_HEX_LEN];
 
-      _mesa_sha1_compute(shader->spirv, shader->spirv_size, sha1);
-      _mesa_sha1_format(sha1buf, sha1);
+      _mesa_blake3_compute(shader->spirv, shader->spirv_size, sha1);
+      _mesa_blake3_format(sha1buf, sha1);
 
       if (device->vk.enabled_features.deviceFaultVendorBinary) {
          spirv_print_asm(f, (const uint32_t *)shader->spirv, shader->spirv_size / 4);

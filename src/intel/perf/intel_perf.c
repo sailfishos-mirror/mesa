@@ -820,7 +820,7 @@ intel_perf_store_configuration(struct intel_perf_config *perf_cfg, int fd,
    _mesa_blake3_final(&sha1_ctx, hash);
 
    char formatted_hash[BLAKE3_HEX_LEN];
-   _mesa_sha1_format(formatted_hash, hash);
+   _mesa_blake3_format(formatted_hash, hash);
 
    char generated_guid[37];
    snprintf(generated_guid, sizeof(generated_guid),

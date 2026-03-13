@@ -1743,7 +1743,7 @@ d3d12_init_screen(struct d3d12_screen *screen, IUnknown *adapter)
     * share memory need to also check the device UUID or LUID so all this
     * needs to be is the build-id.
     */
-   _mesa_sha1_compute(mesa_version, strlen(mesa_version), sha1);
+   _mesa_blake3_compute(mesa_version, strlen(mesa_version), sha1);
    memcpy(screen->driver_uuid, sha1, PIPE_UUID_SIZE);
 
    /* The device UUID uniquely identifies the given device within the machine. */

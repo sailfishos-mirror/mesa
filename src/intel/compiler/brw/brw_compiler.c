@@ -287,7 +287,7 @@ brw_device_sha1(char *hex,
    brw_device_sha1_update(&ctx, devinfo);
    unsigned char result[BLAKE3_KEY_LEN];
    _mesa_blake3_final(&ctx, result);
-   _mesa_sha1_format(hex, result);
+   _mesa_blake3_format(hex, result);
 }
 
 unsigned

@@ -374,7 +374,7 @@ dzn_physical_device_init_uuids(struct dzn_physical_device *pdev)
     * share memory need to also check the device UUID (below) so all this
     * needs to be is the build-id.
     */
-   _mesa_sha1_compute(mesa_version, strlen(mesa_version), sha1);
+   _mesa_blake3_compute(mesa_version, strlen(mesa_version), sha1);
    memcpy(pdev->driver_uuid, sha1, VK_UUID_SIZE);
 
    /* The device UUID uniquely identifies the given device within the machine. */

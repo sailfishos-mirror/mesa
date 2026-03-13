@@ -416,7 +416,7 @@ v3d_uncompiled_shader_create(struct pipe_context *pctx,
         blob_init(&blob);
         nir_serialize(&blob, s, true);
         assert(!blob.out_of_memory);
-        _mesa_sha1_compute(blob.data, blob.size, so->sha1);
+        _mesa_blake3_compute(blob.data, blob.size, so->sha1);
         blob_finish(&blob);
 
         if (V3D_DBG(NIR) || v3d_debug_flag_for_shader_stage(s->info.stage)) {

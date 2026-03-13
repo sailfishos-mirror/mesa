@@ -1845,7 +1845,7 @@ anv_debug_archiver_init(void *mem_ctx, struct anv_shader_data *shaders_data,
             _mesa_blake3_update(&ctx, linked_hash, BLAKE3_KEY_LEN);
          _mesa_blake3_final(&ctx, hash);
 
-         _mesa_sha1_format(name, hash);
+         _mesa_blake3_format(name, hash);
       }
       memcpy(&name[BLAKE3_HEX_LEN - 1], ".anv", 4);
 

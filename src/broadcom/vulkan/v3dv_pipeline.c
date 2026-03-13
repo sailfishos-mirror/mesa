@@ -402,7 +402,7 @@ shader_module_compile_to_nir(struct v3dv_device *device,
 
    if (V3D_DBG(SHADERDB) && (!stage->module || stage->module->nir == NULL)) {
       char sha1buf[BLAKE3_HEX_LEN];
-      _mesa_sha1_format(sha1buf, stage->pipeline->sha1);
+      _mesa_blake3_format(sha1buf, stage->pipeline->sha1);
       nir->info.name = ralloc_strdup(nir, sha1buf);
    }
 

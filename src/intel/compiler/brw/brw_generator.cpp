@@ -1350,9 +1350,9 @@ brw_generator::generate_code(const brw_shader &s,
    auto override_path = debug_get_option_shader_bin_override_path();
    if (unlikely(debug_flag || dump_shader_bin || override_path != NULL ||
                 params->archiver)) {
-      _mesa_sha1_compute(p->store + start_offset / sizeof(brw_eu_inst),
+      _mesa_blake3_compute(p->store + start_offset / sizeof(brw_eu_inst),
                          after_size, sha1);
-      _mesa_sha1_format(sha1buf, sha1);
+      _mesa_blake3_format(sha1buf, sha1);
    }
 
    if (unlikely(dump_shader_bin))

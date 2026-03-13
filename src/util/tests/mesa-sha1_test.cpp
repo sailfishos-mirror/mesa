@@ -50,10 +50,10 @@ TEST_P(MesaSHA1TestFixture, Match)
    Params p = GetParam();
 
    unsigned char sha1[BLAKE3_KEY_LEN];
-   _mesa_sha1_compute(p.string, strlen(p.string), sha1);
+   _mesa_blake3_compute(p.string, strlen(p.string), sha1);
 
    char buf[BLAKE3_HEX_LEN];
-   _mesa_sha1_format(buf, sha1);
+   _mesa_blake3_format(buf, sha1);
 
    ASSERT_TRUE(memcmp(buf, p.expected_sha1, SHA1_LENGTH) == 0)
       << "For string \"" << p.string << "\", length " << strlen(p.string) << ":\n"

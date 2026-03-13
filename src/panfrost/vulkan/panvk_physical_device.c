@@ -166,7 +166,7 @@ init_shader_caches(struct panvk_physical_device *device,
    assert(len == sizeof(renderer) - 1);
 
    char timestamp[BLAKE3_HEX_LEN];
-   _mesa_sha1_format(timestamp, instance->driver_build_sha);
+   _mesa_blake3_format(timestamp, instance->driver_build_sha);
 
    const uint64_t driver_flags = 0;
    device->vk.disk_cache = disk_cache_create(renderer, timestamp, driver_flags);

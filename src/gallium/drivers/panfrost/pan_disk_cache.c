@@ -65,7 +65,7 @@ panfrost_disk_cache_store(struct disk_cache *cache,
 
    if (debug) {
       char sha1[BLAKE3_HEX_LEN];
-      _mesa_sha1_format(sha1, cache_key);
+      _mesa_blake3_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] storing %s\n", sha1);
    }
 
@@ -109,7 +109,7 @@ panfrost_disk_cache_retrieve(struct disk_cache *cache,
 
    if (debug) {
       char sha1[BLAKE3_HEX_LEN];
-      _mesa_sha1_format(sha1, cache_key);
+      _mesa_blake3_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] retrieving %s: ", sha1);
    }
 

@@ -1459,7 +1459,7 @@ anv_physical_device_init_disk_cache(struct anv_physical_device *device)
    assert(len == sizeof(renderer) - 2);
 
    char timestamp[BLAKE3_HEX_LEN];
-   _mesa_sha1_format(timestamp, device->driver_build_sha1);
+   _mesa_blake3_format(timestamp, device->driver_build_sha1);
 
    const uint64_t driver_flags =
       elk_get_compiler_config_value(device->compiler);

@@ -28,28 +28,4 @@
 #include <stdbool.h>
 #include "mesa-blake3.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void
-_mesa_sha1_format(char *buf, const unsigned char *sha1);
-
-void
-_mesa_sha1_hex_to_sha1(unsigned char *buf, const char *hex);
-
-void
-_mesa_sha1_compute(const void *data, size_t size, unsigned char result[BLAKE3_KEY_LEN]);
-
-void
-_mesa_sha1_print(FILE *f, const uint8_t sha1[BLAKE3_KEY_LEN]);
-
-bool
-_mesa_printed_sha1_equal(const uint8_t sha1[BLAKE3_KEY_LEN],
-                         const uint32_t printed_sha1[BLAKE3_OUT_LEN32]);
-
-#ifdef __cplusplus
-} /* extern C */
-#endif
-
 #endif

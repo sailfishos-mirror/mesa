@@ -158,7 +158,7 @@ disk_cache_get_function_identifier(void *ptr, blake3_hasher *ctx)
  * In all cases, the keys are sequences of 20 bytes. It is anticipated
  * that callers will compute appropriate SHA-1 signatures for keys,
  * (though nothing in this implementation directly relies on how the
- * names are computed). See mesa-sha1.h and _mesa_sha1_compute for
+ * names are computed). See mesa-sha1.h and _mesa_blake3_compute for
  * assistance in computing SHA-1 signatures.
  */
 struct disk_cache *

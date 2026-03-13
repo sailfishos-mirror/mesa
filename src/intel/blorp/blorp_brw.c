@@ -19,9 +19,9 @@ blorp_debug_archiver_open(void *mem_ctx,
       return NULL;
 
    uint8_t sha1[BLAKE3_KEY_LEN];
-   _mesa_sha1_compute(key, key_size, sha1);
+   _mesa_blake3_compute(key, key_size, sha1);
    char name[BLAKE3_HEX_LEN + 6] = {};
-   _mesa_sha1_format(name, sha1);
+   _mesa_blake3_format(name, sha1);
    memcpy(&name[BLAKE3_HEX_LEN - 1], ".blorp", 6);
 
    debug_archiver *archiver = debug_archiver_open(mem_ctx, name, "blorp");

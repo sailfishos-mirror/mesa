@@ -865,8 +865,8 @@ static bool pvr_physical_device_setup_pipeline_cache(
    char device_id[BLAKE3_KEY_LEN * 2 + 1];
    char driver_id[BLAKE3_KEY_LEN * 2 + 1];
 
-   _mesa_sha1_format(device_id, pdevice->device_uuid);
-   _mesa_sha1_format(driver_id, instance->driver_build_sha);
+   _mesa_blake3_format(device_id, pdevice->device_uuid);
+   _mesa_blake3_format(driver_id, instance->driver_build_sha);
 
    pdevice->vk.disk_cache = disk_cache_create(device_id, driver_id, 0U);
    return !!pdevice->vk.disk_cache;

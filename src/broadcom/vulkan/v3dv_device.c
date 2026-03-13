@@ -855,7 +855,7 @@ v3dv_physical_device_init_disk_cache(struct v3dv_physical_device *device)
 {
 #ifdef ENABLE_SHADER_CACHE
    char timestamp[BLAKE3_HEX_LEN];
-   _mesa_sha1_format(timestamp, device->driver_build_sha1);
+   _mesa_blake3_format(timestamp, device->driver_build_sha1);
 
    assert(device->name);
    device->disk_cache = disk_cache_create(device->name, timestamp, v3d_mesa_debug);

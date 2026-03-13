@@ -46,7 +46,7 @@ lima_vs_disk_cache_store(struct disk_cache *cache,
 
    if (lima_debug & LIMA_DEBUG_DISK_CACHE) {
       char sha1[BLAKE3_HEX_LEN];
-      _mesa_sha1_format(sha1, cache_key);
+      _mesa_blake3_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] storing %s\n", sha1);
    }
 
@@ -74,7 +74,7 @@ lima_fs_disk_cache_store(struct disk_cache *cache,
 
    if (lima_debug & LIMA_DEBUG_DISK_CACHE) {
       char sha1[BLAKE3_HEX_LEN];
-      _mesa_sha1_format(sha1, cache_key);
+      _mesa_blake3_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] storing %s\n", sha1);
    }
 
@@ -102,7 +102,7 @@ lima_vs_disk_cache_retrieve(struct disk_cache *cache,
 
    if (lima_debug & LIMA_DEBUG_DISK_CACHE) {
       char sha1[BLAKE3_HEX_LEN];
-      _mesa_sha1_format(sha1, cache_key);
+      _mesa_blake3_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] retrieving %s: ", sha1);
    }
 
@@ -154,7 +154,7 @@ lima_fs_disk_cache_retrieve(struct disk_cache *cache,
 
    if (lima_debug & LIMA_DEBUG_DISK_CACHE) {
       char sha1[BLAKE3_HEX_LEN];
-      _mesa_sha1_format(sha1, cache_key);
+      _mesa_blake3_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] retrieving %s: ", sha1);
    }
 

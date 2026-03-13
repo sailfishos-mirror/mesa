@@ -215,7 +215,7 @@ driComputeOptionsSha1(const driOptionCache *cache, unsigned char *sha1)
       }
    }
 
-   _mesa_sha1_compute(dri_options, strlen(dri_options), sha1);
+   _mesa_blake3_compute(dri_options, strlen(dri_options), sha1);
    ralloc_free(ctx);
 }
 

@@ -133,7 +133,7 @@ etna_disk_cache_retrieve(struct etna_compiler *compiler, struct etna_shader_vari
    if (debug) {
       char sha1[BLAKE3_HEX_LEN];
 
-      _mesa_sha1_format(sha1, cache_key);
+      _mesa_blake3_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] retrieving variant %s: ", sha1);
    }
 
@@ -169,7 +169,7 @@ etna_disk_cache_store(struct etna_compiler *compiler, struct etna_shader_variant
    if (debug) {
       char sha1[BLAKE3_HEX_LEN];
 
-      _mesa_sha1_format(sha1, cache_key);
+      _mesa_blake3_format(sha1, cache_key);
       fprintf(stderr, "[mesa disk cache] storing variant %s\n", sha1);
    }
 

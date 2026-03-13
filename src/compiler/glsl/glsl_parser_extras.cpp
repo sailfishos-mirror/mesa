@@ -2338,7 +2338,7 @@ can_skip_compile(struct gl_context *ctx, struct gl_shader *shader,
          if (disk_cache_has_key(ctx->Cache, shader->disk_cache_sha1)) {
             /* We've seen this shader before and know it compiles */
             if (ctx->_Shader->Flags & GLSL_CACHE_INFO) {
-               _mesa_sha1_format(buf, shader->disk_cache_sha1);
+               _mesa_blake3_format(buf, shader->disk_cache_sha1);
                fprintf(stderr, "deferring compile of shader: %s\n", buf);
             }
             shader->CompileStatus = COMPILE_SKIPPED;
@@ -2547,7 +2547,7 @@ _mesa_glsl_compile_shader(struct gl_context *ctx, struct gl_shader *shader,
       char sha1_buf[BLAKE3_HEX_LEN];
       disk_cache_put_key(ctx->Cache, shader->disk_cache_sha1);
       if (ctx->_Shader->Flags & GLSL_CACHE_INFO) {
-         _mesa_sha1_format(sha1_buf, shader->disk_cache_sha1);
+         _mesa_blake3_format(sha1_buf, shader->disk_cache_sha1);
          fprintf(stderr, "marking shader: %s\n", sha1_buf);
       }
    }

@@ -2662,10 +2662,10 @@ anv_nir_apply_pipeline_layout(nir_shader *shader,
     * bind map, hash them.  This lets us quickly determine if the actual
     * mapping has changed and not just a no-op pipeline change.
     */
-   _mesa_sha1_compute(map->surface_to_descriptor,
+   _mesa_blake3_compute(map->surface_to_descriptor,
                       map->surface_count * sizeof(struct anv_pipeline_binding),
                       map->surface_sha1);
-   _mesa_sha1_compute(map->sampler_to_descriptor,
+   _mesa_blake3_compute(map->sampler_to_descriptor,
                       map->sampler_count * sizeof(struct anv_pipeline_binding),
                       map->sampler_sha1);
    return progress;

@@ -130,7 +130,7 @@ shader_cache_write_program_metadata(struct gl_context *ctx,
 
    char sha1_buf[BLAKE3_HEX_LEN];
    if (ctx->_Shader->Flags & GLSL_CACHE_INFO) {
-      _mesa_sha1_format(sha1_buf, prog->data->sha1);
+      _mesa_blake3_format(sha1_buf, prog->data->sha1);
       fprintf(stderr, "putting program metadata in cache: %s\n", sha1_buf);
    }
 
@@ -196,12 +196,12 @@ shader_cache_read_program_metadata(struct gl_context *ctx,
     * include them as an input to sha1 creation.
     */
    char sha1buf[BLAKE3_HEX_LEN];
-   _mesa_sha1_format(sha1buf, ctx->Const.dri_config_options_sha1);
+   _mesa_blake3_format(sha1buf, ctx->Const.dri_config_options_sha1);
    ralloc_strcat(&buf, sha1buf);
 
    for (unsigned i = 0; i < prog->NumShaders; i++) {
       struct gl_shader *sh = prog->Shaders[i];
-      _mesa_sha1_format(sha1buf, sh->disk_cache_sha1);
+      _mesa_blake3_format(sha1buf, sh->disk_cache_sha1);
       ralloc_asprintf_append(&buf, "%s: %s\n",
                              _mesa_shader_stage_to_abbrev(sh->Stage), sha1buf);
    }
@@ -227,7 +227,7 @@ shader_cache_read_program_metadata(struct gl_context *ctx,
    }
 
    if (ctx->_Shader->Flags & GLSL_CACHE_INFO) {
-      _mesa_sha1_format(sha1buf, prog->data->sha1);
+      _mesa_blake3_format(sha1buf, prog->data->sha1);
       fprintf(stderr, "loading shader program meta data from cache: %s\n",
               sha1buf);
    }

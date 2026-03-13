@@ -2225,8 +2225,8 @@ generate_code(struct elk_codegen *p,
    char sha1buf[BLAKE3_HEX_LEN];
 
    if (unlikely(debug_enabled || dump_shader_bin)) {
-      _mesa_sha1_compute(p->store, p->next_insn_offset, sha1);
-      _mesa_sha1_format(sha1buf, sha1);
+      _mesa_blake3_compute(p->store, p->next_insn_offset, sha1);
+      _mesa_blake3_format(sha1buf, sha1);
    }
 
    if (unlikely(dump_shader_bin))

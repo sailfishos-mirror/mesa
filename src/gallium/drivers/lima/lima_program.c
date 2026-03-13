@@ -467,7 +467,7 @@ lima_create_fs_state(struct pipe_context *pctx,
    struct blob blob;
    blob_init(&blob);
    nir_serialize(&blob, nir, true);
-   _mesa_sha1_compute(blob.data, blob.size, so->nir_sha1);
+   _mesa_blake3_compute(blob.data, blob.size, so->nir_sha1);
    blob_finish(&blob);
 
    if (lima_debug & LIMA_DEBUG_PRECOMPILE) {
@@ -720,7 +720,7 @@ lima_create_vs_state(struct pipe_context *pctx,
    struct blob blob;
    blob_init(&blob);
    nir_serialize(&blob, nir, true);
-   _mesa_sha1_compute(blob.data, blob.size, so->nir_sha1);
+   _mesa_blake3_compute(blob.data, blob.size, so->nir_sha1);
    blob_finish(&blob);
 
    if (lima_debug & LIMA_DEBUG_PRECOMPILE) {
