@@ -1051,6 +1051,7 @@ optimizations.extend([
    (('fmin(nsz)', ('fsat(nnan)', a), '#b(is_zero_to_one)'), ('fsat', ('fmin', a, b))),
 
    (('fsat', 'a(is_a_number_ge_pos_one)'), 1.0),
+   (('fsat', 'a(is_not_positive)'), 0.0),
 
    (('fsat(nsz)', 'a(is_a_number_zero_to_one)'), ('fcanonicalize', a)),
 
@@ -1064,6 +1065,8 @@ optimizations.extend([
 
    # This should be NaN safe since max(NaN, 0) = fsat(NaN) = 0.
    (('fmax', 'a(is_le_pos_one)', 0.0), ('fsat', a), '!options->lower_fsat'),
+
+   (('fmin(nsz)', 'a(is_a_number_not_negative)', 1.0), ('fsat', a), '!options->lower_fsat'),
 
    (('fsat', ('fmax', a, 'b(is_not_positive)')), ('fsat', a)),
    (('fsat', ('fmin', 'a(is_a_number)', 'b(is_ge_pos_one)')), ('fsat', a)),
@@ -1911,9 +1914,6 @@ optimizations.extend([
    (('ffract', ('ffract', a)), ('ffract', a)),
    (('fabs', 'a(is_not_negative)'), ('fcanonicalize', a)),
    (('fabs(nsz)', 'a(is_not_positive)'), ('fneg', a)),
-   (('fsat', 'a(is_not_positive)'), 0.0),
-
-   (('fmin(nsz)', 'a(is_a_number_not_negative)', 1.0), ('fsat', a), '!options->lower_fsat'),
 
    (('fneu', 'a(is_not_zero)', 0.0), True),
    (('feq', 'a(is_not_zero)', 0.0), False),
