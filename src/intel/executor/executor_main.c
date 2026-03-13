@@ -25,7 +25,7 @@
 #include "drm-uapi/i915_drm.h"
 #include "drm-uapi/xe_drm.h"
 
-#include "intel/compiler/brw/brw_asm.h"
+#include "intel/compiler/gen/gen.h"
 #include "intel/common/intel_gem.h"
 #include "intel/common/xe/intel_engine.h"
 #include "intel/decoder/intel_decoder.h"
@@ -85,7 +85,7 @@ open_manual()
       "",
       "Runs a Lua script that can perform data manipulation",
       "and dispatch execution of compute shaders, written in the same",
-      "assembly format used by the brw_asm assembler or when dumping",
+      "assembly format used by the gen assembler/parser or when dumping",
       "shaders in debug mode.",
       "",
       "The goal is to have a tool to experiment directly with certain",
@@ -194,14 +194,14 @@ open_manual()
       "  local r = execute {",
       "    data={ [42] = 0x100 },",
       "    src=[[",
-      "      @mov     g1      42",
-      "      @read    g2      g1",
+      "      @mov     r1      42",
+      "      @read    r2      r1",
       "",
-      "      @id      g3",
+      "      @id      r3",
       "",
-      "      add(8)   g4<1>UD  g2<8,8,1>UD  g3<8,8,1>UD  { align1 @1 1Q };",
+      "      add (8)  r4      r2      r3      {A@1}",
       "",
-      "      @write   g3       g4",
+      "      @write   r3       r4",
       "      @eot",
       "    ]]",
       "  }",
@@ -1294,6 +1294,82 @@ executor_context_teardown(executor_context *ec)
    }
 }
 
+static void
+executor_print_gen_program(executor_context *ec,
+                           gen_inst *insts,
+                           int num_insts,
+                           const gen_error *errors,
+                           int num_errors)
+{
+   gen_print_params print = {
+      .devinfo = ec->devinfo,
+      .fp = stderr,
+      .insts = insts,
+      .num_insts = num_insts,
+      .errors = errors,
+      .num_errors = num_errors,
+   };
+
+   gen_print(&print);
+}
+
+static bool
+executor_assemble(executor_context *ec, const char *src, executor_params *params)
+{
+   const bool dump = INTEL_DEBUG(DEBUG_CS);
+
+   gen_parse_params parse = {
+      .devinfo = ec->devinfo,
+      .text = src,
+      .text_size = (int)strlen(src),
+      .mem_ctx = ec->mem_ctx,
+   };
+
+   if (!gen_parse(&parse)) {
+      for (int i = 0; i < parse.num_errors; i++) {
+         fprintf(stderr, "<executor>:%u: %s\n",
+                 parse.errors[i].index, parse.errors[i].msg);
+      }
+      return false;
+   }
+
+   if (parse.num_insts == 0) {
+      fprintf(stderr, "no instructions to assemble\n");
+      return false;
+   }
+
+   if (!gen_finish_structured_cf(parse.insts, parse.num_insts, -1)) {
+      executor_print_gen_program(ec, parse.insts, parse.num_insts, NULL, 0);
+      fprintf(stderr, "Failed to finalize structured control flow.\n");
+      return false;
+   }
+
+   if (dump)
+      executor_print_gen_program(ec, parse.insts, parse.num_insts, NULL, 0);
+
+   const int raw_bytes_size = parse.num_insts * (int)sizeof(gen_raw_inst);
+
+   gen_encode_params encode = {
+      .devinfo = ec->devinfo,
+      .mem_ctx = ec->mem_ctx,
+      .insts = parse.insts,
+      .num_insts = parse.num_insts,
+      .raw_bytes = rzalloc_size(ec->mem_ctx, raw_bytes_size),
+      .raw_bytes_size = raw_bytes_size,
+   };
+
+   if (!gen_encode(&encode)) {
+      executor_print_gen_program(ec, parse.insts, parse.num_insts,
+                                 encode.errors, encode.num_errors);
+      fprintf(stderr, "Invalid instructions.\n");
+      return false;
+   }
+
+   params->kernel_bin = encode.raw_bytes;
+   params->kernel_size = encode.raw_bytes_size;
+   return true;
+}
+
 static int
 l_execute(lua_State *L)
 {
@@ -1318,25 +1394,14 @@ l_execute(lua_State *L)
 
       const char *src = executor_apply_macros(&ec, params.original_src);
 
-      FILE *f = fmemopen((void *)src, strlen(src), "r");
-
-      brw_assemble_flags flags = 0;
-
       if (INTEL_DEBUG(DEBUG_CS)) {
          printf("=== Processed assembly source ===\n"
                 "%s"
                 "=================================\n\n", src);
-         flags = BRW_ASSEMBLE_DUMP;
       }
 
-      brw_assemble_result asm = brw_assemble(ec.mem_ctx, ec.devinfo, f, "", flags);
-      fclose(f);
-
-      if (!asm.bin)
+      if (!executor_assemble(&ec, src, &params))
          failf("assembler failure");
-
-      params.kernel_bin = asm.bin;
-      params.kernel_size = asm.bin_size;
    }
 
    genX_call(emit_execute, &ec, &params);
