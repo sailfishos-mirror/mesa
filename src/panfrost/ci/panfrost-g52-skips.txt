@@ -125,6 +125,9 @@ dEQP-VK.image.store.without_format.3d.e5b9g9r9_ufloat_pack32_linear
 dEQP-VK.texture.shadow.cube_array.nearest.less_d16_unorm
 dEQP-VK.synchronization.op.single_queue.timeline_semaphore.write_image_compute_indirect_read_image_tess_control.image_128x128_r16_uint
 
+# tests are broken with Vulkan 1.0: https://gerrit.khronos.org/c/vk-gl-cts/+/19823
+dEQP-VK.wsi.direct_drm.*
+
 # more tests broken on Vulkan 1.0: https://gitlab.khronos.org/Tracker/vk-gl-cts/-/issues/6409
 dEQP-VK.wsi.*.maintenance1.*.bind_image*
 
