@@ -3454,7 +3454,7 @@
         "description": "xlib: clear currentDpy when releasing the current context",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "abe6d750e58d371624de75f4bad365c61e0196c1",
         "notes": null
