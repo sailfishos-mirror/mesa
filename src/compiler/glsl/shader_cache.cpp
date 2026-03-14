@@ -36,7 +36,7 @@
  * such as SSO, attribute bindings, frag data bindings, etc.
  *
  * In order to avoid caching any actual IR we use the put_key/get_key support
- * in the disk_cache to put the SHA-1 hash for each successfully compiled
+ * in the disk_cache to put the BLAKE3 hash for each successfully compiled
  * shader into the cache, and optimisticly return early from glCompileShader
  * (if the identical shader had been successfully compiled in the past),
  * in the hope that the final linked shader will be found in the cache.

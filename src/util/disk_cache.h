@@ -156,10 +156,10 @@ disk_cache_get_function_identifier(void *ptr, blake3_hasher *ctx)
  * a more efficient implementation.
  *
  * In all cases, the keys are sequences of 20 bytes. It is anticipated
- * that callers will compute appropriate SHA-1 signatures for keys,
+ * that callers will compute appropriate BLAKE3 signatures for keys,
  * (though nothing in this implementation directly relies on how the
  * names are computed). See mesa-blake3.h and _mesa_blake3_compute for
- * assistance in computing SHA-1 signatures.
+ * assistance in computing BLAKE3 signatures.
  */
 struct disk_cache *
 disk_cache_create(const char *gpu_name, const char *timestamp,

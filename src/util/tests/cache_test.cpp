@@ -331,7 +331,7 @@ test_put_and_get(bool test_cache_size_limit, const char *driver_id)
 
    one_KB = (uint8_t *) calloc(1, 1024);
 
-   /* Obviously the SHA-1 hash of 1024 zero bytes isn't particularly
+   /* Obviously the BLAKE3 hash of 1024 zero bytes isn't particularly
     * interesting. But we do have want to take some special care with
     * the hash we use here. The issue is that in this artificial case,
     * (with only three files in the cache), the probability is good
