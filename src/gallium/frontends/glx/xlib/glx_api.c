@@ -606,6 +606,7 @@ destroy_visuals_on_display(Display *dpy)
          for (j = i; j < NumVisuals - 1; j++)
             VisualTable[j] = VisualTable[j + 1];
          NumVisuals--;
+         i--;
       }
    }
 }
