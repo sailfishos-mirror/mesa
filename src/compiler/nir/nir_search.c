@@ -673,7 +673,7 @@ nir_algebraic_update_automaton(nir_instr *new_instr,
    nir_instr_worklist_fini(&automaton_worklist);
 }
 
-static nir_def *
+static bool
 nir_replace_instr(nir_builder *build, nir_alu_instr *instr,
                   const nir_search_state *search_state,
                   struct util_dynarray *states,
@@ -710,7 +710,7 @@ nir_replace_instr(nir_builder *build, nir_alu_instr *instr,
       }
    }
    if (!found)
-      return NULL;
+      return false;
 
 #if 0
    fprintf(stderr, "matched: ");
@@ -766,18 +766,16 @@ nir_replace_instr(nir_builder *build, nir_alu_instr *instr,
    /* Note that NIR builder will elide the MOV if it's a no-op, which may
     * allow more work to be done in a single pass through algebraic.
     */
-   nir_def *ssa_val =
-      nir_mov_alu(build, val, instr->def.num_components);
-   if (ssa_val->index == util_dynarray_num_elements(states, uint16_t)) {
+   nir_def *mov = nir_def_rewrite_uses_with_alu_src(build, &instr->def, val,
+                                                    instr->def.num_components);
+
+   if (mov) {
       util_dynarray_append_typed(states, uint16_t, 0);
-      nir_algebraic_automaton(nir_def_instr(ssa_val), states, table->pass_op_table);
+      nir_algebraic_automaton(nir_def_instr(mov), states, table->pass_op_table);
    }
 
-   /* Rewrite the uses of the old SSA value to the new one, and recurse
-    * through the uses updating the automaton's state.
-    */
-   nir_def_rewrite_uses(&instr->def, ssa_val);
-   nir_algebraic_update_automaton(nir_def_instr(ssa_val), algebraic_worklist,
+   /* Recurse through the uses updating the automaton's state. */
+   nir_algebraic_update_automaton(nir_def_instr(val.src.ssa), algebraic_worklist,
                                   states, table->pass_op_table);
 
    /* Nothing uses the instr any more, so drop it out of the program.  Note
@@ -789,7 +787,7 @@ nir_replace_instr(nir_builder *build, nir_alu_instr *instr,
    nir_instr_remove(&instr->instr);
    exec_list_push_tail(dead_instrs, &instr->instr.node);
 
-   return ssa_val;
+   return true;
 }
 
 static bool

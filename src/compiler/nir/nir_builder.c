@@ -408,6 +408,36 @@ nir_vec_scalars(nir_builder *build, nir_scalar *comp, unsigned num_components)
    return &instr->def;
 }
 
+nir_def *
+nir_def_rewrite_uses_with_alu_src(nir_builder *build, nir_def *def,
+                                  nir_alu_src src, unsigned num_components)
+{
+   if (nir_alu_src_is_trivial_ssa(&src, num_components)) {
+      nir_def_rewrite_uses(def, src.src.ssa);
+      return NULL;
+   }
+
+   nir_def *mov = NULL;
+
+   nir_foreach_use_including_if_safe(use, def) {
+      if (nir_src_is_if(use) || nir_src_parent_instr(use)->type != nir_instr_type_alu) {
+         if (!mov)
+            mov = nir_mov_alu(build, src, num_components);
+
+         nir_src_rewrite(use, mov);
+      } else {
+         nir_alu_src *alu_src = container_of(use, nir_alu_src, src);
+
+         for (unsigned i = 0; i < NIR_MAX_VEC_COMPONENTS; i++)
+            alu_src->swizzle[i] = src.swizzle[alu_src->swizzle[i]];
+
+         nir_src_rewrite(use, src.src.ssa);
+      }
+   }
+
+   return mov;
+}
+
 /**
  * Get nir_def for an alu src, respecting the nir_alu_src's swizzle.
  */
