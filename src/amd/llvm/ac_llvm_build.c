@@ -3574,7 +3574,7 @@ struct ac_llvm_pointer ac_build_main(const struct ac_shader_args *args, struct a
 
    /* Enable denormals for FP16 and FP64, disable denormals for FP32 */
 #if LLVM_VERSION_MAJOR >= 23
-   LLVMAttributeRef fpenv_attr = LLVMCreateDenormalFPEnvAttribute(ctx,
+   LLVMAttributeRef fpenv_attr = LLVMCreateDenormalFPEnvAttribute(ctx->context,
                                     LLVMDenormalModeKindIEEE,
                                     LLVMDenormalModeKindIEEE,
                                     LLVMDenormalModeKindPreserveSign,
