@@ -262,7 +262,8 @@ bool brw_nir_lower_mcs_fetch(nir_shader *shader,
 bool brw_nir_texture_backend_opcode(nir_shader *shader,
                                     const struct intel_device_info *devinfo);
 
-bool brw_nir_pre_lower_texture(nir_shader *nir);
+bool brw_nir_pre_lower_texture(nir_shader *nir,
+                               const struct intel_device_info *devinfo);
 
 bool brw_nir_lower_texture(nir_shader *nir);
 

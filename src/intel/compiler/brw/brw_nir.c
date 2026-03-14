@@ -2716,7 +2716,7 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt,
    OPT(nir_opt_constant_folding);
 
    /* Needs to happen before the backend opcode selection */
-   OPT(brw_nir_pre_lower_texture);
+   OPT(brw_nir_pre_lower_texture, devinfo);
 
    /* Needs to happen before the texture lowering */
    OPT(brw_nir_texture_backend_opcode, devinfo);

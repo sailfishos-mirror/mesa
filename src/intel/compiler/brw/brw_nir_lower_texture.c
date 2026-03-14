@@ -18,9 +18,40 @@
  *      to sample_po_c_l instead.
  */
 static bool
-pre_lower_tex_instr(nir_builder *b, nir_tex_instr *tex)
+pre_lower_tex_instr(nir_builder *b, nir_tex_instr *tex,
+                    const struct intel_device_info *devinfo)
 {
    switch (tex->op) {
+   case nir_texop_txs: {
+      unsigned mask = nir_component_mask(tex->def.num_components);
+
+      tex->op = nir_texop_resinfo_intel;
+      tex->def.num_components = 4;
+
+      b->cursor = nir_after_instr(&tex->instr);
+      nir_def_rewrite_uses_after(&tex->def, nir_channels(b, &tex->def, mask));
+      return true;
+   }
+   case nir_texop_query_levels: {
+      tex->op = nir_texop_resinfo_intel;
+      tex->def.num_components = 4;
+
+      b->cursor = nir_after_instr(&tex->instr);
+      nir_def *level = nir_channel(b, &tex->def, 3);
+
+      if (devinfo->ver == 9) {
+         /* Wa_1940217:
+          *
+          * When a surface of type SURFTYPE_NULL is accessed by resinfo,
+          * the MIPCount returned is undefined instead of 0.
+          */
+         nir_def *width_nonzero = nir_i2b(b, nir_channel(b, &tex->def, 0));
+         level = nir_bcsel(b, width_nonzero, level, nir_imm_int(b, 0));
+      }
+
+      nir_def_rewrite_uses_after(&tex->def, level);
+      return true;
+   }
    case nir_texop_txb: {
       int bias_index = nir_tex_instr_src_index(tex, nir_tex_src_bias);
       assert(bias_index != -1);
@@ -96,10 +127,14 @@ pre_lower_intrinsic_instr(nir_builder *b, nir_intrinsic_instr *intrin)
    bool bindless = rsrc && (nir_intrinsic_resource_access_intel(rsrc) &
                             nir_resource_intel_bindless);
 
-   nir_def *txs = nir_txs(b, .lod = nir_imm_int(b, 0),
-                             .dim = dim, .is_array = is_array,
-                             .texture_offset = bindless ? NULL : surface->ssa,
-                             .texture_handle = bindless ? surface->ssa : NULL);
+   nir_def *resinfo =
+      nir_build_tex(b, nir_texop_resinfo_intel,
+                    .lod = nir_imm_int(b, 0),
+                    .dim = dim, .is_array = is_array,
+                    .texture_offset = bindless ? NULL : surface->ssa,
+                    .texture_handle = bindless ? surface->ssa : NULL);
+   nir_def *txs =
+      nir_channels(b, resinfo, nir_component_mask(intrin->def.num_components));
 
    /* SKL PRM, vol07, 3D Media GPGPU Engine, Bounds Checking and Faulting:
     *
@@ -133,7 +168,7 @@ pre_lower_texture_instr(nir_builder *b, nir_instr *instr, void *data)
 {
    switch (instr->type) {
    case nir_instr_type_tex:
-      return pre_lower_tex_instr(b, nir_instr_as_tex(instr));
+      return pre_lower_tex_instr(b, nir_instr_as_tex(instr), data);
 
    case nir_instr_type_intrinsic:
       return pre_lower_intrinsic_instr(b, nir_instr_as_intrinsic(instr));
@@ -144,12 +179,13 @@ pre_lower_texture_instr(nir_builder *b, nir_instr *instr, void *data)
 }
 
 bool
-brw_nir_pre_lower_texture(nir_shader *shader)
+brw_nir_pre_lower_texture(nir_shader *shader,
+                          const struct intel_device_info *devinfo)
 {
    return nir_shader_instructions_pass(shader,
                                        pre_lower_texture_instr,
                                        nir_metadata_control_flow,
-                                       NULL);
+                                       (void*) devinfo);
 }
 
 /**

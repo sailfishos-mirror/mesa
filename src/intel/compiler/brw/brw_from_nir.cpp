@@ -6529,7 +6529,7 @@ brw_from_nir_emit_texture(nir_to_brw_state &ntb,
 
    const unsigned dest_size = nir_tex_instr_dest_size(instr);
    unsigned dest_comp;
-   if (instr->op != nir_texop_tg4 && instr->op != nir_texop_query_levels) {
+   if (instr->op != nir_texop_tg4) {
       unsigned write_mask = nir_def_components_read(&instr->def);
       assert(write_mask != 0); /* dead code should have been eliminated */
 
@@ -6600,8 +6600,7 @@ brw_from_nir_emit_texture(nir_to_brw_state &ntb,
     */
    const bool non_aligned_component_stride =
       (brw_type_size_bytes(dst_type) * bld.dispatch_width()) % grf_size != 0;
-   if (instr->op != nir_texop_query_levels && !instr->is_sparse &&
-       !non_aligned_component_stride) {
+   if (!instr->is_sparse && !non_aligned_component_stride) {
       /* In most cases we can write directly to the result. */
       tex->dst = nir_def_reg;
    } else {
@@ -6614,26 +6613,6 @@ brw_from_nir_emit_texture(nir_to_brw_state &ntb,
 
       for (unsigned i = dest_comp; i < dest_size; i++)
          nir_dest[i].type = dst.type;
-
-      if (instr->op == nir_texop_query_levels) {
-         /* # levels is in .w */
-         if (devinfo->ver == 9) {
-            /**
-             * Wa_1940217:
-             *
-             * When a surface of type SURFTYPE_NULL is accessed by resinfo, the
-             * MIPCount returned is undefined instead of 0.
-             */
-            brw_inst *mov = bld.MOV(bld.null_reg_d(), dst);
-            mov->conditional_mod = BRW_CONDITIONAL_NZ;
-            nir_dest[0] = bld.vgrf(BRW_TYPE_D);
-            brw_inst *sel =
-               bld.SEL(nir_dest[0], offset(dst, bld, 3), brw_imm_d(0));
-            sel->predicate = BRW_PREDICATE_NORMAL;
-         } else {
-            nir_dest[0] = offset(dst, bld, 3);
-         }
-      }
 
       /* The residency bits are only in the first component. */
       if (instr->is_sparse) {

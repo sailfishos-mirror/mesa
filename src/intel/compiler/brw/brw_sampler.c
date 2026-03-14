@@ -790,10 +790,9 @@ brw_get_sampler_opcode_from_tex(const struct intel_device_info *devinfo,
    /* Deal with some corner cases first */
    switch (tex->op) {
    case nir_texop_lod:              return BRW_SAMPLER_OPCODE_LOD;
-   case nir_texop_query_levels:     return BRW_SAMPLER_OPCODE_RESINFO;
    case nir_texop_texture_samples:  return BRW_SAMPLER_OPCODE_SAMPLEINFO;
    case nir_texop_txf_ms_mcs_intel: return BRW_SAMPLER_OPCODE_LD_MCS;
-   case nir_texop_txs:              return BRW_SAMPLER_OPCODE_RESINFO;
+   case nir_texop_resinfo_intel:    return BRW_SAMPLER_OPCODE_RESINFO;
    default:                         break;
    }
 
