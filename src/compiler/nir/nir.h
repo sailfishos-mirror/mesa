@@ -2490,6 +2490,8 @@ typedef enum nir_texop {
    */
    nir_texop_block_match_sad_qcom,
    nir_texop_block_match_ssd_qcom,
+   /** txs in .xyz and query_levels in .w */
+   nir_texop_resinfo_intel,
 } nir_texop;
 
 /** Represents a texture instruction */

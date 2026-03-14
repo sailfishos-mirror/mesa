@@ -1981,6 +1981,9 @@ print_tex_instr(nir_tex_instr *instr, print_state *state)
    case nir_texop_block_match_ssd_qcom:
       fprintf(fp, "block_match_ssd_qcom ");
       break;
+   case nir_texop_resinfo_intel:
+      fprintf(fp, "resinfo_intel ");
+      break;
    default:
       UNREACHABLE("Invalid texture operation");
       break;

@@ -310,6 +310,7 @@ nir_build_tex_struct(nir_builder *build, nir_texop op, struct nir_tex_builder f)
    case nir_texop_txf_ms_mcs_intel:
    case nir_texop_fragment_mask_fetch_amd:
    case nir_texop_descriptor_amd:
+   case nir_texop_resinfo_intel:
       tex->dest_type = nir_type_int32;
       break;
    case nir_texop_lod:

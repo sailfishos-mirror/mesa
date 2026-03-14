@@ -3651,6 +3651,9 @@ vtn_handle_texture(struct vtn_builder *b, SpvOp opcode,
    case nir_texop_sample_pos_nv:
       vtn_fail("unexpected nir_texop_*_nv");
       break;
+   case nir_texop_resinfo_intel:
+      vtn_fail("unexpected nir_texop_resinfo_intel");
+      break;
    }
 
    unsigned idx = 4;
