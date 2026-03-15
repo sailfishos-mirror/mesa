@@ -1718,11 +1718,20 @@ llvmpipe_resource_bind_backing(struct pipe_screen *pscreen,
             winsys->displaytarget_destroy(winsys, lpr->dt);
          }
          if (pmem) {
-            /* Round up the surface size to a multiple of the tile size to
-             * avoid tile clipping.
+            /* For import alloc with explicit layout, follow the provided
+             * attributes since the layout has been decided externally.
+             *
+             * For export alloc, round up the surface size to a multiple of the
+             * tile size to avoid tile clipping.
              */
-            const unsigned width = MAX2(1, align(lpr->base.width0, TILE_SIZE));
-            const unsigned height = MAX2(1, align(lpr->base.height0, TILE_SIZE));
+            unsigned width, height;
+            if (lpr->backable) {
+               width = lpr->base.width0;
+               height = lpr->base.height0;
+            } else {
+               width = MAX2(1, align(lpr->base.width0, TILE_SIZE));
+               height = MAX2(1, align(lpr->base.height0, TILE_SIZE));
+            }
 
             lpr->dt = winsys->displaytarget_create_mapped(winsys,
                                                           lpr->base.bind,
