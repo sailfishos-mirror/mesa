@@ -411,8 +411,8 @@ Core Mesa environment variables
 
 .. envvar:: MESA_VK_TRACE_PER_SUBMIT
 
-   Enables per-submit capture for compute-only workload. Disabled by default
-   and only valid with MESA_VK_TRACE=rgp.
+   Enables per-submit capture which may be helpful for compute-only workloads.
+   Disabled by default and only valid with MESA_VK_TRACE=rgp.
 
 .. envvar:: MESA_VK_TRACE_FRAME
 
