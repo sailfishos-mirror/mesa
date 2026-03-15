@@ -2454,24 +2454,19 @@ static VkResult
 lvp_image_plane_bind(struct lvp_device *device,
                      struct lvp_image_plane *plane,
                      struct lvp_device_memory *mem,
-                     VkDeviceSize memory_offset,
-                     VkDeviceSize *min_plane_offset)
+                     VkDeviceSize memory_offset)
 {
-   VkDeviceSize plane_offset = MAX2(plane->offset, *min_plane_offset);
-
    if (!device->pscreen->resource_bind_backing(device->pscreen,
                                                plane->bo,
                                                mem->pmem,
                                                0, 0,
-                                               memory_offset + plane_offset)) {
+                                               memory_offset + plane->offset)) {
       /* This is probably caused by the texture being too large, so let's
        * report this as the *closest* allowed error-code. It's not ideal,
        * but it's unlikely that anyone will care too much.
        */
       return vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
    }
-   plane->offset = plane_offset;
-   *min_plane_offset = plane_offset + plane->size;
    return VK_SUCCESS;
 }
 
@@ -2499,20 +2494,19 @@ lvp_image_bind(struct lvp_device *device,
    }
 
    assert(mem);
-   uint64_t offset_B = 0;
    if (image->disjoint) {
       const VkBindImagePlaneMemoryInfo *plane_info =
          vk_find_struct_const(bind_info->pNext, BIND_IMAGE_PLANE_MEMORY_INFO);
       const uint8_t plane =
          lvp_image_aspects_to_plane(image, plane_info->planeAspect);
       result = lvp_image_plane_bind(device, &image->planes[plane], mem,
-                                    mem_offset, &offset_B);
+                                    mem_offset);
       if (result != VK_SUCCESS)
          return result;
    } else {
       for (unsigned plane = 0; plane < image->plane_count; plane++) {
          result = lvp_image_plane_bind(device, &image->planes[plane], mem,
-                                       mem_offset, &offset_B);
+                                       mem_offset);
          if (result != VK_SUCCESS)
             return result;
       }

@@ -164,6 +164,9 @@ lvp_image_init(struct lvp_device *device, struct lvp_image *image,
       } else
 #endif
       {
+         if (!image->disjoint)
+            image->planes[p].offset = image->size;
+
          image->planes[p].bo = device->pscreen->resource_create_unbacked(device->pscreen,
                                                                &template,
                                                                &image->planes[p].size);
