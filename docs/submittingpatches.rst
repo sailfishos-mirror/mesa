@@ -49,6 +49,16 @@ that code change came from, whether they wrote it themselves, used an
 includes making sure that the code change can be submitted under the
 MIT license that Mesa uses.
 
+This extends through the use of the tool you are using to submit your
+contributions. It is not allowed to use autonomously acting tools to
+submit any contributions, that is every contributions needs explicit
+oversight and your review. This includes interactions with GitLab issues
+or MRs in any autonomous way through such tools. It will be decided by the
+community and maintainers which and how such tooling will be used within
+the Mesa project and might be made available for other contributors to use
+through our GitLab instance. Do not under any circumstances wire up any
+review bot or similar tools.
+
 The submitter needs to understand what code they are changing,
 what the change does, and justify that change in the commit messages.
 Using coding assistants or "AI" or other tools does not grant additional
