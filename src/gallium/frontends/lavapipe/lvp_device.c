@@ -2512,7 +2512,7 @@ lvp_image_bind(struct lvp_device *device,
    } else {
       for (unsigned plane = 0; plane < image->plane_count; plane++) {
          result = lvp_image_plane_bind(device, &image->planes[plane], mem,
-                                       mem_offset + image->offset, &offset_B);
+                                       mem_offset, &offset_B);
          if (result != VK_SUCCESS)
             return result;
       }
