@@ -2457,7 +2457,7 @@ lvp_image_plane_bind(struct lvp_device *device,
                      VkDeviceSize memory_offset,
                      VkDeviceSize *min_plane_offset)
 {
-   VkDeviceSize plane_offset = MAX2(plane->plane_offset, *min_plane_offset);
+   VkDeviceSize plane_offset = MAX2(plane->offset, *min_plane_offset);
 
    if (!device->pscreen->resource_bind_backing(device->pscreen,
                                                plane->bo,
@@ -2470,7 +2470,7 @@ lvp_image_plane_bind(struct lvp_device *device,
        */
       return vk_error(device, VK_ERROR_OUT_OF_DEVICE_MEMORY);
    }
-   plane->plane_offset = plane_offset;
+   plane->offset = plane_offset;
    *min_plane_offset = plane_offset + plane->size;
    return VK_SUCCESS;
 }

@@ -153,7 +153,7 @@ lvp_image_init(struct lvp_device *device, struct lvp_image *image,
          whandle.stride = layouts[p].rowPitch;
          whandle.array_stride = layouts[p].arrayPitch;
          whandle.image_stride = layouts[p].depthPitch;
-         image->planes[p].plane_offset = layouts[p].offset;
+         image->planes[p].offset = layouts[p].offset;
          whandle.format = pCreateInfo->format;
          whandle.modifier = modifier;
          image->planes[p].bo = device->pscreen->resource_from_handle(device->pscreen,
@@ -515,7 +515,7 @@ VKAPI_ATTR void VKAPI_CALL lvp_GetImageSubresourceLayout(
       pLayout->depthPitch = 0;
       pLayout->arrayPitch = value;
    }
-   pLayout->offset += plane->plane_offset;
+   pLayout->offset += plane->offset;
    pLayout->size = plane->size;
 }
 
