@@ -11,17 +11,11 @@ x86_64 CtsGraphicsTestCases android.graphics.fonts.SystemFontsTest#testAvailable
 # New flakes with Android 16
 x86_64 CtsGraphicsTestCases android.graphics.cts.DynamicColorsTest
 
-# Fail because LVP_MAX_PLANE_COUNT is limited at 1. Will crash if raised up.
-x86_64 CtsGraphicsTestCases android.graphics.cts.CameraGpuTest#testCameraImageCaptureAndRendering
-x86_64 CtsGraphicsTestCases android.graphics.cts.CameraVulkanGpuTest#testCameraImportAndRendering
-x86_64 CtsGraphicsTestCases android.graphics.cts.MediaVulkanGpuTest#testMediaImportAndRendering
-
 ### CtsSkQPTestCases
 
 # Failures
 x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_BulkTextureRectTest
 x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_ES2BlendWithNoTexture
-x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_VkYCbcrSampler_DrawImageWithYcbcrSampler
 
 # New failures with VK_EXT_blend_operation_advanced
 x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_BlendRequiringDstReadWithLargeCoordinates
