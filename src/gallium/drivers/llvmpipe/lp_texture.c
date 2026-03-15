@@ -738,7 +738,6 @@ llvmpipe_resource_from_handle(struct pipe_screen *_screen,
 
    lpr->base = *template;
    lpr->screen = screen;
-   lpr->dt_format = whandle->format;
    pipe_reference_init(&lpr->base.reference, 1);
    lpr->base.screen = _screen;
 

@@ -89,7 +89,6 @@ struct llvmpipe_resource
     * usage.
     */
    struct sw_displaytarget *dt;
-   enum pipe_format dt_format;
 
    /**
     * Malloc'ed data for regular textures, or a mapping to dt above.
