@@ -2130,7 +2130,7 @@ VKAPI_ATTR VkResult VKAPI_CALL lvp_AllocateMemory(
    }
 #if DETECT_OS_ANDROID
    else if (mem->vk.ahardware_buffer) {
-      error = lvp_import_ahb_memory(device, mem);
+      error = lvp_import_ahb_memory(device, pAllocateInfo, mem);
       if (error != VK_SUCCESS)
          goto fail;
    }

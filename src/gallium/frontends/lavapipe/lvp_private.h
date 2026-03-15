@@ -809,7 +809,9 @@ lvp_image_init(struct lvp_device *device, struct lvp_image *image,
 
 #if DETECT_OS_ANDROID
 VkResult
-lvp_import_ahb_memory(struct lvp_device *device, struct lvp_device_memory *mem);
+lvp_import_ahb_memory(struct lvp_device *device,
+                      const VkMemoryAllocateInfo *alloc_info,
+                      struct lvp_device_memory *mem);
 
 VkResult
 lvp_bind_anb_memory(struct lvp_device *device,

@@ -194,8 +194,12 @@ lvp_image_create(VkDevice _device,
    if (image == NULL)
       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   /* aliased ANB image is initialized upon binding to memory */
-   if (vk_image_is_android_native_buffer_alias(&image->vk))
+   /* Early return here for AHB and alised ANB:
+    * - aliased ANB image is initialized upon binding to memory
+    * - AHB image is initialized upon dedicated memory import
+    */
+   if (vk_image_is_android_native_buffer_alias(&image->vk) ||
+       vk_image_is_android_hardware_buffer(&image->vk))
       goto out_success;
 
    result = lvp_image_init(device, image, pCreateInfo);

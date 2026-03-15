@@ -116,8 +116,47 @@ lvp_QueueSignalReleaseImageANDROID(VkQueue _queue,
 }
 
 VkResult
-lvp_import_ahb_memory(struct lvp_device *device, struct lvp_device_memory *mem)
+lvp_import_ahb_memory(struct lvp_device *device,
+                      const VkMemoryAllocateInfo *alloc_info,
+                      struct lvp_device_memory *mem)
 {
+   const VkMemoryDedicatedAllocateInfo *dedicated_info =
+      vk_find_struct_const(alloc_info->pNext, MEMORY_DEDICATED_ALLOCATE_INFO);
+   if (dedicated_info && dedicated_info->image != VK_NULL_HANDLE) {
+      VK_FROM_HANDLE(lvp_image, image, dedicated_info->image);
+      VkResult result;
+
+      VkImageDrmFormatModifierExplicitCreateInfoEXT eci;
+      VkSubresourceLayout layouts[LVP_MAX_PLANE_COUNT];
+      result = vk_android_get_ahb_layout(mem->vk.ahardware_buffer, &eci,
+                                         layouts, LVP_MAX_PLANE_COUNT);
+      if (result != VK_SUCCESS)
+         return result;
+
+      image->vk.tiling = VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
+      const uint32_t queue_family_index = 0;
+      const VkImageCreateInfo create_info = {
+         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+         .pNext = &eci,
+         .flags = image->vk.create_flags,
+         .imageType = image->vk.image_type,
+         .format = image->vk.format,
+         .extent = image->vk.extent,
+         .mipLevels = image->vk.mip_levels,
+         .arrayLayers = image->vk.array_layers,
+         .samples = image->vk.samples,
+         .tiling = image->vk.tiling,
+         .usage = image->vk.usage,
+         .sharingMode = image->vk.sharing_mode,
+         .queueFamilyIndexCount = 1,
+         .pQueueFamilyIndices = &queue_family_index,
+         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+      };
+      result = lvp_image_init(device, image, &create_info);
+      if (result != VK_SUCCESS)
+         return result;
+   }
+
    const native_handle_t *handle =
       AHardwareBuffer_getNativeHandle(mem->vk.ahardware_buffer);
    int dma_buf = (handle && handle->numFds) ? handle->data[0] : -1;
