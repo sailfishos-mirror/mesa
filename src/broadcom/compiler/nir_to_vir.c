@@ -896,7 +896,19 @@ ntq_get_alu_src(struct v3d_compile *c, nir_alu_instr *instr,
 static struct qreg
 ntq_minify(struct v3d_compile *c, struct qreg size, struct qreg level)
 {
-        return vir_MAX(c, vir_SHR(c, size, level), vir_uniform_ui(c, 1));
+        /* For valid textures, a minified level is at least 1.
+         * However, with VK_KHR_robustness2 nullDescriptor we represent null
+         * resources with a base size of 0.
+         */
+        struct qreg minified = vir_MAX(c, vir_SHR(c, size, level),
+                                       vir_uniform_ui(c, 1));
+
+        if (!c->key->null_descriptor)
+                return minified;
+
+        vir_set_pf(c, vir_MOV_dest(c, vir_nop_reg(), size), V3D_QPU_PF_PUSHZ);
+        return vir_MOV(c, vir_SEL(c, V3D_QPU_COND_IFNA, minified,
+                       vir_uniform_ui(c, 0)));
 }
 
 static void

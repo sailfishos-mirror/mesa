@@ -417,6 +417,7 @@ struct v3d_key {
         bool robust_storage_access;
         bool robust_image_access;
         bool robust_image_access_2;
+        bool null_descriptor;
 };
 
 struct v3d_fs_key {
@@ -1229,6 +1230,7 @@ bool v3d_nir_lower_logic_ops(nir_shader *s, struct v3d_compile *c);
 bool v3d_nir_lower_scratch(nir_shader *s);
 bool v3d_nir_lower_txf_ms(nir_shader *s);
 bool v3d_nir_lower_image_load_store(nir_shader *s, struct v3d_compile *c);
+bool v3d_nir_lower_null_descriptors(nir_shader *s);
 bool v3d_nir_lower_global_2x32(nir_shader *s);
 bool v3d_nir_lower_load_store_bitsize(nir_shader *s);
 bool v3d_nir_lower_algebraic(struct nir_shader *shader, const struct v3d_compile *c);
