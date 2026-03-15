@@ -125,8 +125,8 @@ lvp_import_ahb_memory(struct lvp_device *device, struct lvp_device_memory *mem)
       return VK_ERROR_INVALID_EXTERNAL_HANDLE;
 
    uint64_t size;
-   int result = device->pscreen->import_memory_fd(device->pscreen, dma_buf, (struct pipe_memory_allocation**)&mem->pmem, &size, true);
-   if (!result)
+   if (!device->pscreen->import_memory_fd(device->pscreen, dma_buf, &mem->pmem,
+                                          &size, true))
       return VK_ERROR_INVALID_EXTERNAL_HANDLE;
 
    mem->vk.size = size;
