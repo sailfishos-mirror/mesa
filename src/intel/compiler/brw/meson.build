@@ -52,6 +52,7 @@ libintel_compiler_brw_files = files(
   'brw_lower_subgroup_ops.cpp',
   'brw_nir.h',
   'brw_nir.c',
+  'brw_nir_fence_shared_stores.c',
   'brw_nir_lower_cooperative_matrix.c',
   'brw_nir_lower_cs_intrinsics.c',
   'brw_nir_lower_alpha_to_coverage.c',
