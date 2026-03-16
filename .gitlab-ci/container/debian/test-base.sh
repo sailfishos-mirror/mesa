@@ -89,7 +89,6 @@ EPHEMERAL=(
     python3-setuptools
     python3-venv
     python3-wheel
-    wayland-protocols
     xz-utils
 )
 
@@ -124,7 +123,11 @@ DEPS=(
     libtirpc3t64
     libubsan1
     libvulkan1
+    libwayland-bin
     libwayland-client0
+    libwayland-cursor0
+    libwayland-dev
+    libwayland-egl1
     libwayland-server0
     libxcb-composite0
     libxcb-dri2-0
@@ -157,6 +160,7 @@ DEPS=(
     sysvinit-core
     vulkan-tools
     waffle-utils
+    wayland-protocols
     xinit
     xserver-common
     xserver-xorg-video-amdgpu
@@ -208,10 +212,6 @@ section_end debian_setup
 ############### Build libclc
 
 . .gitlab-ci/container/build-libclc.sh
-
-############### Build Wayland
-
-. .gitlab-ci/container/build-wayland.sh
 
 ############### Build Weston
 
