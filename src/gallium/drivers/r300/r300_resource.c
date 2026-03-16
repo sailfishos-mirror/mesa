@@ -94,8 +94,6 @@ void r300_init_resource_functions(struct r300_context *r300)
    r300->context.texture_unmap = r300_texture_transfer_unmap;
    r300->context.buffer_subdata = u_default_buffer_subdata;
    r300->context.texture_subdata = r300_texture_subdata;
-   r300->context.create_surface = r300_create_surface;
-   r300->context.surface_destroy = r300_surface_destroy;
 }
 
 void r300_init_screen_resource_functions(struct r300_screen *r300screen)

@@ -1014,7 +1014,7 @@ r300_framebuffer_init(struct pipe_context *pctx, const struct pipe_framebuffer_s
          if (cbufs[i] && pipe_surface_equal(&fb->cbufs[i], cbufs[i]))
             continue;
 
-         struct pipe_surface *psurf = fb->cbufs[i].texture ? pctx->create_surface(pctx, fb->cbufs[i].texture, &fb->cbufs[i]) : NULL;
+         struct pipe_surface *psurf = fb->cbufs[i].texture ? r300_create_surface(pctx, fb->cbufs[i].texture, &fb->cbufs[i]) : NULL;
          if (cbufs[i])
             pipe_surface_unref(pctx, &cbufs[i]);
          cbufs[i] = psurf;
@@ -1028,7 +1028,7 @@ r300_framebuffer_init(struct pipe_context *pctx, const struct pipe_framebuffer_s
 
       if (*zsbuf && pipe_surface_equal(&fb->zsbuf, *zsbuf))
          return;
-      struct pipe_surface *zsurf = fb->zsbuf.texture ? pctx->create_surface(pctx, fb->zsbuf.texture, &fb->zsbuf) : NULL;
+      struct pipe_surface *zsurf = fb->zsbuf.texture ? r300_create_surface(pctx, fb->zsbuf.texture, &fb->zsbuf) : NULL;
       if (*zsbuf)
          pipe_surface_unref(pctx, zsbuf);
       *zsbuf = zsurf;
