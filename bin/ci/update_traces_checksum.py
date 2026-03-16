@@ -17,6 +17,7 @@ import re
 import json
 import sys
 from ruamel.yaml import YAML
+from tomledit import Document
 
 import gitlab
 from gitlab_common import (get_gitlab_project, read_token, wait_for_pipeline,
@@ -27,7 +28,7 @@ from rich import print
 DESCRIPTION_FILE = "export PIGLIT_REPLAY_DESCRIPTION_FILE=.*/install/(.*)$"
 DEVICE_NAME = "(?:declare -x|export) PIGLIT_REPLAY_DEVICE_NAME='?([^']*)'?$"
 
-def gather_job_results(cur_job):
+def gather_job_results_yml(cur_job):
     log: list[str] = cur_job.trace().decode().splitlines()
     filename: str = ''
     dev_name: str = ''
@@ -97,6 +98,52 @@ def gather_job_results(cur_job):
         yaml.dump(target, target_file)
 
 
+def update_toml_checksum(toml_file, trace_path, device, old_checksum, new_checksum):
+    with open(toml_file, 'r', encoding='utf-8') as f:
+        doc = Document.parse(f.read())
+
+    for table in doc["traces"]:
+        if table["path"].value != trace_path:
+            continue
+        try:
+            table["devices"][device]["checksum"] = new_checksum
+        except KeyError:
+            return False
+        with open(toml_file, 'w', encoding='utf-8') as f:
+            f.write(doc.as_toml())
+        return True
+
+    return False
+
+
+def gather_job_results_toml(cur_job) -> None:
+    """Process checksum-changes.json artifact (gpu-trace-perf replay format)"""
+    toml_files = glob.glob('./**/traces-*.toml', recursive=True)
+
+    changes_json = cur_job.artifact("results/checksum-changes.json")
+    changes = json.loads(changes_json.decode("utf-8"))
+
+    for change in changes:
+        device = change['device']
+        trace = change['trace']
+        old_checksum = change['old_checksum']
+        new_checksum = change['new_checksum']
+
+        if not new_checksum:
+            print(f"[red]{device}: {trace}: no new checksum (crash?)")
+            continue
+
+        updated = False
+        for toml_file in toml_files:
+            if update_toml_checksum(toml_file, trace, device, old_checksum, new_checksum):
+                print(f"[green]{device}: {trace}: checksum updated")
+                updated = True
+                break
+
+        if not updated:
+            print(f"[red]{device}: {trace}: not found in any traces TOML file")
+
+
 def gather_results(
     project,
     pipeline,
@@ -110,7 +157,10 @@ def gather_results(
             cur_job = project.jobs.get(job.id)
             # get variables
             print(f"👁  {job.name}...")
-            gather_job_results(cur_job)
+            try:
+                gather_job_results_toml(cur_job)
+            except Exception:
+                gather_job_results_yml(cur_job)
 
 
 def parse_args() -> None:
