@@ -890,7 +890,7 @@ impl SrcMod {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SrcSwizzle {
     None,
     Xx,
@@ -976,6 +976,7 @@ impl Src {
         self
     }
 
+    #[allow(dead_code)]
     pub fn swizzle(mut self, src_swizzle: SrcSwizzle) -> Src {
         // Since we only have xx, yy, and xy, for any composition of swizzles,
         // the inner-most non-xy swizzle wins.
@@ -1012,7 +1013,10 @@ impl Src {
 
         Some(match src_type {
             SrcType::F16 => {
-                let low = u & 0xFFFF;
+                let low = match self.src_swizzle {
+                    SrcSwizzle::None | SrcSwizzle::Xx => u & 0xffff,
+                    SrcSwizzle::Yy => u >> 16,
+                };
 
                 match self.src_mod {
                     SrcMod::None => low,
@@ -4644,23 +4648,6 @@ pub struct OpF2F {
     pub integer_rnd: bool,
 }
 
-impl OpF2F {
-    pub fn is_high(&self) -> bool {
-        if matches!(self.src_type, FloatType::F16) {
-            // OpF2F with the same source and destination types is only allowed
-            // pre-Volta and only with F32.
-            assert!(!matches!(self.dst_type, FloatType::F16));
-
-            matches!(self.src.src_swizzle, SrcSwizzle::Yy)
-        } else if matches!(self.dst_type, FloatType::F16) {
-            self.dst_high
-        } else {
-            assert!(!self.dst_high);
-            false
-        }
-    }
-}
-
 impl AsSlice<Src> for OpF2F {
     type Attr = SrcType;
 
@@ -4674,7 +4661,7 @@ impl AsSlice<Src> for OpF2F {
 
     fn attrs(&self) -> SrcTypeList {
         let src_type = match self.src_type {
-            FloatType::F16 => SrcType::F16v2,
+            FloatType::F16 => SrcType::F16,
             FloatType::F32 => SrcType::F32,
             FloatType::F64 => SrcType::F64,
         };

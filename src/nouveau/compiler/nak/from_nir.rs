@@ -820,11 +820,7 @@ impl<'a> ShaderFromNir<'a> {
                 let src_type = FloatType::from_bits(src_bits.into());
                 let dst_type = FloatType::from_bits(dst_bits.into());
 
-                let mut src = srcs(0);
-                if src_bits == 16 {
-                    src = restrict_f16v2_src(src);
-                }
-
+                let src = srcs(0);
                 let dst = b.alloc_ssa_vec(RegFile::GPR, dst_bits.div_ceil(32));
                 b.push_op(OpF2F {
                     dst: dst.clone().into(),
@@ -2319,13 +2315,7 @@ impl<'a> ShaderFromNir<'a> {
                                 let src_type =
                                     FloatType::from_bits(src_bit_size.into());
 
-                                let mut src = self.get_src(&srcs[0]);
-                                if src_bit_size == 16
-                                    && intrin.def.num_components() == 1
-                                {
-                                    src = src.swizzle(SrcSwizzle::Xx);
-                                }
-
+                                let src = self.get_src(&srcs[0]);
                                 b.push_op(OpF2F {
                                     dst: dst.clone().into(),
                                     src,

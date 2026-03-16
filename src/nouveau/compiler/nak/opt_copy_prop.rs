@@ -313,7 +313,10 @@ impl<'a> CopyPropPass<'a> {
                     // Turn the swizzle into a permute. For F16, we use Xx to
                     // indicate that it only takes the bottom 16 bits.
                     let swizzle_prmt: [u8; 4] = match src_type {
-                        SrcType::F16 => [0, 1, 0, 1],
+                        SrcType::F16 => match src.src_swizzle {
+                            SrcSwizzle::None | SrcSwizzle::Xx => [0, 1, 0, 1],
+                            SrcSwizzle::Yy => [2, 3, 2, 3],
+                        },
                         SrcType::F16v2 => match src.src_swizzle {
                             SrcSwizzle::None => [0, 1, 2, 3],
                             SrcSwizzle::Xx => [0, 1, 0, 1],
@@ -353,12 +356,11 @@ impl<'a> CopyPropPass<'a> {
 
                     // See if that permute is a valid swizzle
                     let new_swizzle = match src_type {
-                        SrcType::F16 => {
-                            if combined != [0, 1, 0, 1] {
-                                return;
-                            }
-                            SrcSwizzle::None
-                        }
+                        SrcType::F16 => match combined {
+                            [0, 1, _, _] => SrcSwizzle::None,
+                            [2, 3, _, _] => SrcSwizzle::Yy,
+                            _ => return,
+                        },
                         SrcType::F16v2 => match combined {
                             [0, 1, 2, 3] => SrcSwizzle::None,
                             [0, 1, 0, 1] => SrcSwizzle::Xx,

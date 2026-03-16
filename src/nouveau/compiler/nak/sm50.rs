@@ -1788,7 +1788,7 @@ impl SM50Op for OpF2F {
         e.set_field(10..12, (self.src_type.bits() / 8).ilog2());
 
         e.set_rnd_mode(39..41, self.rnd_mode);
-        e.set_bit(41, self.is_high());
+        e.set_bit(41, self.src.src_swizzle == SrcSwizzle::Yy);
         e.set_bit(42, self.integer_rnd);
         e.set_bit(44, self.ftz);
         e.set_bit(50, false); // saturate
@@ -1833,6 +1833,7 @@ impl SM50Op for OpF2I {
         e.set_bit(12, self.dst_type.is_signed());
 
         e.set_rnd_mode(39..41, self.rnd_mode);
+        e.set_bit(41, self.src.src_swizzle == SrcSwizzle::Yy);
         e.set_bit(44, self.ftz);
         e.set_bit(47, false); // .CC
     }
