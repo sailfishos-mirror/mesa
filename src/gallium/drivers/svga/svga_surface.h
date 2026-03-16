@@ -26,6 +26,8 @@ struct svga_surface
 {
    struct pipe_surface base;
 
+   struct pipe_context *context;
+
    struct svga_host_surface_cache_key key;
 
    /*
