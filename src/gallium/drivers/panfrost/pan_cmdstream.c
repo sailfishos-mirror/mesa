@@ -2089,7 +2089,7 @@ emit_image_bufs(struct panfrost_batch *batch, mesa_shader_stage shader,
 
       panfrost_track_image_access(batch, shader, image);
 
-#if MALI_ARCH >= 6
+#if PAN_ARCH >= 6
       if (is_buffer) {
          pan_pack(bufs + (i * 2), ATTRIBUTE_BUFFER, cfg) {
             cfg.type = MALI_ATTRIBUTE_TYPE_1D;
@@ -2110,7 +2110,7 @@ emit_image_bufs(struct panfrost_batch *batch, mesa_shader_stage shader,
             is_buffer ? 0 : image->u.tex.level);
       }
 
-#if MALI_ARCH <= 5
+#if PAN_ARCH <= 5
       if (is_buffer) {
          pan_cast_and_pack(&bufs[(i * 2) + 1], ATTRIBUTE_BUFFER_CONTINUATION_3D,
                            cfg) {
