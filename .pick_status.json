@@ -2854,7 +2854,7 @@
         "description": "pvr: Fix for multiple attachments being assigned to the same tile buffer.",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a7de9dae6bd51a272d2462fef844f49e620803dd",
         "notes": null
