@@ -35,8 +35,6 @@ files_libfreedreno = files(
   'freedreno_screen.h',
   'freedreno_state.c',
   'freedreno_state.h',
-  'freedreno_surface.c',
-  'freedreno_surface.h',
   'freedreno_texture.c',
   'freedreno_texture.h',
   'freedreno_util.c',

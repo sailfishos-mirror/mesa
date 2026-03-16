@@ -27,7 +27,6 @@
 #include "freedreno_query_hw.h"
 #include "freedreno_resource.h"
 #include "freedreno_screen.h"
-#include "freedreno_surface.h"
 #include "freedreno_util.h"
 
 #include <errno.h>
@@ -1840,8 +1839,6 @@ fd_resource_context_init(struct pipe_context *pctx)
    pctx->texture_unmap = u_transfer_helper_transfer_unmap;
    pctx->buffer_subdata = u_default_buffer_subdata;
    pctx->texture_subdata = u_default_texture_subdata;
-   pctx->create_surface = fd_create_surface;
-   pctx->surface_destroy = fd_surface_destroy;
    pctx->resource_copy_region = fd_resource_copy_region;
    pctx->blit = fd_blit_pipe;
    pctx->flush_resource = fd_flush_resource;
