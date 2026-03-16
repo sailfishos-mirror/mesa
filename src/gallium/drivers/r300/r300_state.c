@@ -1006,6 +1006,44 @@ void r300_mark_fb_state_dirty(struct r300_context *r300,
     /* The size of the rest of atoms stays the same. */
 }
 
+void
+r300_framebuffer_init(struct pipe_context *pctx, const struct pipe_framebuffer_state *fb, struct pipe_surface **cbufs, struct pipe_surface **zsbuf)
+{
+   if (fb) {
+      for (unsigned i = 0; i < fb->nr_cbufs; i++) {
+         if (cbufs[i] && pipe_surface_equal(&fb->cbufs[i], cbufs[i]))
+            continue;
+
+         struct pipe_surface *psurf = fb->cbufs[i].texture ? pctx->create_surface(pctx, fb->cbufs[i].texture, &fb->cbufs[i]) : NULL;
+         if (cbufs[i])
+            pipe_surface_unref(pctx, &cbufs[i]);
+         cbufs[i] = psurf;
+      }
+
+      for (unsigned i = fb->nr_cbufs; i < PIPE_MAX_COLOR_BUFS; i++) {
+         if (cbufs[i])
+            pipe_surface_unref(pctx, &cbufs[i]);
+         cbufs[i] = NULL;
+      }
+
+      if (*zsbuf && pipe_surface_equal(&fb->zsbuf, *zsbuf))
+         return;
+      struct pipe_surface *zsurf = fb->zsbuf.texture ? pctx->create_surface(pctx, fb->zsbuf.texture, &fb->zsbuf) : NULL;
+      if (*zsbuf)
+         pipe_surface_unref(pctx, zsbuf);
+      *zsbuf = zsurf;
+   } else {
+      for (unsigned i = 0; i < PIPE_MAX_COLOR_BUFS; i++) {
+         if (cbufs[i])
+            pipe_surface_unref(pctx, &cbufs[i]);
+         cbufs[i] = NULL;
+      }
+      if (*zsbuf)
+         pipe_surface_unref(pctx, zsbuf);
+      *zsbuf = NULL;
+   }
+}
+
 static void
 r300_set_framebuffer_state(struct pipe_context* pipe,
                            const struct pipe_framebuffer_state* state)
@@ -1064,7 +1102,7 @@ r300_set_framebuffer_state(struct pipe_context* pipe,
         r300_mark_atom_dirty(r300, &r300->dsa_state);
     }
 
-    util_framebuffer_init(pipe, state, r300->fb_cbufs, &r300->fb_zsbuf);
+    r300_framebuffer_init(pipe, state, r300->fb_cbufs, &r300->fb_zsbuf);
     util_copy_framebuffer_state(r300->fb_state.state, state);
 
     /* DXTC blits require that blocks are 2x1 or 4x1 pixels, but

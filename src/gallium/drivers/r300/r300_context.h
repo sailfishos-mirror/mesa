@@ -813,6 +813,9 @@ r300_create_sampler_view_custom(struct pipe_context *pipe,
                          unsigned width0_override,
                          unsigned height0_override);
 
+void
+r300_framebuffer_init(struct pipe_context *pctx, const struct pipe_framebuffer_state *fb, struct pipe_surface **cbufs, struct pipe_surface **zsbuf);
+
 /* r300_state_derived.c */
 void r300_update_derived_state(struct r300_context* r300);
 
