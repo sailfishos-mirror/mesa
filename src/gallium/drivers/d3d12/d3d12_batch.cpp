@@ -139,7 +139,7 @@ static void
 delete_surface(set_entry *entry)
 {
    struct pipe_surface *surf = (struct pipe_surface *)entry->key;
-   pipe_surface_reference(&surf, NULL);
+   pipe_surface_reference(&surf, NULL, (pipe_surface_destroy_func)d3d12_surface_destroy);
 }
 
 static void
