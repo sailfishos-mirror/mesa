@@ -867,19 +867,6 @@ struct pipe_context {
    void (*sampler_view_release)(struct pipe_context *ctx,
                                 struct pipe_sampler_view *view);
 
-
-   /**
-    * Get a surface which is a "view" into a resource, used by
-    * render target / depth stencil stages.
-    */
-   struct pipe_surface *(*create_surface)(struct pipe_context *ctx,
-                                          struct pipe_resource *resource,
-                                          const struct pipe_surface *templat);
-
-   void (*surface_destroy)(struct pipe_context *ctx,
-                           struct pipe_surface *);
-
-
    /**
     * Map a resource.
     *
