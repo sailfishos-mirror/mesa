@@ -863,48 +863,6 @@ tegra_sampler_view_destroy(struct pipe_context *pcontext,
    free(view);
 }
 
-static struct pipe_surface *
-tegra_create_surface(struct pipe_context *pcontext,
-                     struct pipe_resource *presource,
-                     const struct pipe_surface *template)
-{
-   struct tegra_resource *resource = to_tegra_resource(presource);
-   struct tegra_context *context = to_tegra_context(pcontext);
-   struct tegra_surface *surface;
-
-   surface = calloc(1, sizeof(*surface));
-   if (!surface)
-      return NULL;
-
-   surface->gpu = context->gpu->create_surface(context->gpu, resource->gpu,
-                                               template);
-   if (!surface->gpu) {
-      free(surface);
-      return NULL;
-   }
-
-   memcpy(&surface->base, surface->gpu, sizeof(*surface->gpu));
-   /* overwrite to prevent reference from being released */
-   surface->base.texture = NULL;
-
-   pipe_reference_init(&surface->base.reference, 1);
-   pipe_resource_reference(&surface->base.texture, presource);
-   surface->base.context = &context->base;
-
-   return &surface->base;
-}
-
-static void
-tegra_surface_destroy(struct pipe_context *pcontext,
-                      struct pipe_surface *psurface)
-{
-   struct tegra_surface *surface = to_tegra_surface(psurface);
-
-   pipe_resource_reference(&surface->base.texture, NULL);
-   pipe_surface_reference(&surface->gpu, NULL);
-   free(surface);
-}
-
 static void *
 tegra_transfer_map(struct pipe_context *pcontext,
                    struct pipe_resource *presource,
@@ -1358,9 +1316,6 @@ tegra_screen_context_create(struct pipe_screen *pscreen, void *priv,
    context->base.sampler_view_destroy = tegra_sampler_view_destroy;
    context->base.sampler_view_release = u_default_sampler_view_release;
    context->base.resource_release = u_default_resource_release;
-
-   context->base.create_surface = tegra_create_surface;
-   context->base.surface_destroy = tegra_surface_destroy;
 
    context->base.buffer_map = tegra_transfer_map;
    context->base.texture_map = tegra_transfer_map;
