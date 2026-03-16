@@ -27,6 +27,75 @@ from rich import print
 DESCRIPTION_FILE = "export PIGLIT_REPLAY_DESCRIPTION_FILE=.*/install/(.*)$"
 DEVICE_NAME = "(?:declare -x|export) PIGLIT_REPLAY_DEVICE_NAME='?([^']*)'?$"
 
+def gather_job_results(cur_job):
+    log: list[str] = cur_job.trace().decode().splitlines()
+    filename: str = ''
+    dev_name: str = ''
+    for logline in log:
+        desc_file = re.search(DESCRIPTION_FILE, logline)
+        device_name = re.search(DEVICE_NAME, logline)
+        if desc_file:
+            filename = desc_file.group(1)
+        if device_name:
+            dev_name = device_name.group(1)
+
+    if not filename or not dev_name:
+        print("[red]Couldn't find device name or YML file in the logs!")
+        return
+
+    print(f"👁 Found {dev_name} and file {filename}")
+
+    # find filename in Mesa source
+    traces_file = glob.glob('./**/' + filename, recursive=True)
+    # write into it
+    with open(traces_file[0], 'r', encoding='utf-8') as target_file:
+        yaml = YAML()
+        yaml.compact(seq_seq=False, seq_map=False)
+        yaml.version = 1,2
+        yaml.width = 2048  # do not break the text fields
+        yaml.default_flow_style = None
+        target = yaml.load(target_file)
+
+        # parse artifact
+        results_json_bz2 = cur_job.artifact("results/results.json.bz2")
+        results_json = bz2.decompress(results_json_bz2).decode("utf-8", errors="replace")
+        results = json.loads(results_json)
+
+        for _, value in results["tests"].items():
+            if (
+                not value['images'] or
+                not value['images'][0] or
+                "image_desc" not in value['images'][0]
+            ):
+                continue
+
+            trace: str = value['images'][0]['image_desc']
+            checksum: str = value['images'][0]['checksum_render']
+
+            if not checksum:
+                print(f"[red]{dev_name}: {trace}: checksum is missing! Crash?")
+                continue
+
+            if checksum == "error":
+                print(f"[red]{dev_name}: {trace}: crashed")
+                continue
+
+            if target['traces'][trace][dev_name].get('checksum') == checksum:
+                continue
+
+            if "label" in target['traces'][trace][dev_name]:
+                print(
+                    f"{dev_name}: {trace}: please verify that label "
+                    f"[blue]{target['traces'][trace][dev_name]['label']}[/blue] "
+                    "is still valid"
+                )
+
+            print(f"[green]{dev_name}: {trace}: checksum updated")
+            target['traces'][trace][dev_name]['checksum'] = checksum
+
+    with open(traces_file[0], 'w', encoding='utf-8') as target_file:
+        yaml.dump(target, target_file)
+
 
 def gather_results(
     project,
@@ -41,74 +110,7 @@ def gather_results(
             cur_job = project.jobs.get(job.id)
             # get variables
             print(f"👁  {job.name}...")
-            log: list[str] = cur_job.trace().decode().splitlines()
-            filename: str = ''
-            dev_name: str = ''
-            for logline in log:
-                desc_file = re.search(DESCRIPTION_FILE, logline)
-                device_name = re.search(DEVICE_NAME, logline)
-                if desc_file:
-                    filename = desc_file.group(1)
-                if device_name:
-                    dev_name = device_name.group(1)
-
-            if not filename or not dev_name:
-                print("[red]Couldn't find device name or YML file in the logs!")
-                return
-
-            print(f"👁 Found {dev_name} and file {filename}")
-
-            # find filename in Mesa source
-            traces_file = glob.glob('./**/' + filename, recursive=True)
-            # write into it
-            with open(traces_file[0], 'r', encoding='utf-8') as target_file:
-                yaml = YAML()
-                yaml.compact(seq_seq=False, seq_map=False)
-                yaml.version = 1,2
-                yaml.width = 2048  # do not break the text fields
-                yaml.default_flow_style = None
-                target = yaml.load(target_file)
-
-                # parse artifact
-                results_json_bz2 = cur_job.artifact("results/results.json.bz2")
-                results_json = bz2.decompress(results_json_bz2).decode("utf-8", errors="replace")
-                results = json.loads(results_json)
-
-                for _, value in results["tests"].items():
-                    if (
-                        not value['images'] or
-                        not value['images'][0] or
-                        "image_desc" not in value['images'][0]
-                    ):
-                        continue
-
-                    trace: str = value['images'][0]['image_desc']
-                    checksum: str = value['images'][0]['checksum_render']
-
-                    if not checksum:
-                        print(f"[red]{dev_name}: {trace}: checksum is missing! Crash?")
-                        continue
-
-                    if checksum == "error":
-                        print(f"[red]{dev_name}: {trace}: crashed")
-                        continue
-
-                    if target['traces'][trace][dev_name].get('checksum') == checksum:
-                        continue
-
-                    if "label" in target['traces'][trace][dev_name]:
-                        print(
-                            f"{dev_name}: {trace}: please verify that label "
-                            f"[blue]{target['traces'][trace][dev_name]['label']}[/blue] "
-                            "is still valid"
-                             )
-
-                    print(f"[green]{dev_name}: {trace}: checksum updated")
-                    target['traces'][trace][dev_name]['checksum'] = checksum
-
-            with open(traces_file[0], 'w', encoding='utf-8') as target_file:
-                yaml.dump(target, target_file)
-
+            gather_job_results(cur_job)
 
 
 def parse_args() -> None:
