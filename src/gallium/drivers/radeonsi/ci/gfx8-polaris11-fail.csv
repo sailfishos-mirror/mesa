@@ -219,9 +219,6 @@ KHR-GL46.packed_pixels.varied_rectangle.rgba32ui_format_rgba_integer,Fail
 KHR-GL46.packed_pixels.varied_rectangle.rgba8i_format_rgba_integer,Fail
 KHR-GL46.packed_pixels.varied_rectangle.rgba8ui_format_rgba_integer,Fail
 KHR-GL46.texture_cube_map_array.sampling,Fail
-KHR-GL46.texture_query_lod.sampler1D_test,Fail
-KHR-GL46.texture_query_lod.sampler2D_test,Fail
-KHR-GL46.texture_query_lod.sampler3D_test,Fail
 
 KHR-GLES31.core.texture_cube_map_array.sampling,Fail
 KHR-GLES32.core.ext_texture_shadow_lod.texture.samplercubearrayshadow_bias_fragment,Fail

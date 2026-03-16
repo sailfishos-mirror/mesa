@@ -20,8 +20,3 @@ spec@ext_external_objects@vk-ping-pong-multi-sem
 # Random
 KHR-Single-GL46.meshShader.propertyTests.task_payload_and_shared_memory_size
 KHR-Single-GL46.meshShader.propertyTests.task_shared_memory_size
-
-# These pass when run separately, but fail when run via deqp-runner
-KHR-GL46.texture_query_lod.sampler1D_test
-KHR-GL46.texture_query_lod.sampler2D_test
-KHR-GL46.texture_query_lod.sampler3D_test
