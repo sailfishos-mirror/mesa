@@ -956,7 +956,9 @@ jay_emit_mem_access(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    jay_builder *b = &nj->bld;
    bool slm = nir_is_shared_access(intr);
    bool tgm = nir_intrinsic_has_image_dim(intr);
-   bool urb = intr->intrinsic == nir_intrinsic_store_urb_lsc_intel ||
+   bool urb = intr->intrinsic == nir_intrinsic_load_urb_lsc_intel ||
+              intr->intrinsic == nir_intrinsic_load_urb_vec4_intel ||
+              intr->intrinsic == nir_intrinsic_store_urb_lsc_intel ||
               intr->intrinsic == nir_intrinsic_store_urb_vec4_intel;
    enum gen_sfid sfid = slm ? GEN_SFID_SLM :
                         tgm ? GEN_SFID_TGM :
@@ -1247,6 +1249,7 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
    case nir_intrinsic_load_ssbo_uniform_block_intel:
    case nir_intrinsic_load_ubo:
    case nir_intrinsic_load_ubo_uniform_block_intel:
+   case nir_intrinsic_load_urb_lsc_intel:
    case nir_intrinsic_shared_atomic:
    case nir_intrinsic_shared_atomic_swap:
    case nir_intrinsic_ssbo_atomic:
