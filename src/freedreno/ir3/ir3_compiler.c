@@ -425,6 +425,17 @@ ir3_compiler_create(struct fd_device *dev, const struct fd_dev_id *dev_id,
       compiler->nir_options.force_indirect_unrolling = nir_var_all;
    }
 
+   if (compiler->gen >= 5) {
+      /* keep in sync with vk_properties */
+      compiler->nir_options.max_workgroup_count[0] =
+         compiler->nir_options.max_workgroup_count[1] =
+         compiler->nir_options.max_workgroup_count[2] = 65535;
+      compiler->nir_options.max_workgroup_invocations =
+         dev_info->threadsize_base * dev_info->max_waves;
+      if ((compiler->gen >= 6) && dev_info->props.supports_double_threadsize)
+         compiler->nir_options.max_workgroup_invocations *= 2;
+   }
+
    if (options->lower_base_vertex) {
       compiler->nir_options.lower_base_vertex = true;
    }
