@@ -304,9 +304,10 @@ process_intel_debug_variable_once(void)
 }
 
 static const struct debug_named_value use_jay_options[] = {
-   { "vs", BITFIELD_BIT(MESA_SHADER_VERTEX),   "Use jay for vertex shaders"   },
-   { "fs", BITFIELD_BIT(MESA_SHADER_FRAGMENT), "Use jay for fragment shaders" },
-   { "cs", BITFIELD_BIT(MESA_SHADER_COMPUTE),  "Use jay for compute shaders"  },
+   { "vs",  BITFIELD_BIT(MESA_SHADER_VERTEX),    "Use jay for vertex shaders"   },
+   { "tes", BITFIELD_BIT(MESA_SHADER_TESS_EVAL), "Use jay for tessellation evaluation shaders" },
+   { "fs",  BITFIELD_BIT(MESA_SHADER_FRAGMENT),  "Use jay for fragment shaders" },
+   { "cs",  BITFIELD_BIT(MESA_SHADER_COMPUTE),   "Use jay for compute shaders"  },
    DEBUG_NAMED_VALUE_END
 };
 

@@ -54,6 +54,11 @@ typedef struct jay_vs_payload {
    jay_def attributes[30 * 4];
 } jay_vs_payload;
 
+typedef struct jay_tes_payload {
+   jay_def tess_coord;
+   jay_def patch_inputs[32 * 4];
+} jay_tes_payload;
+
 typedef struct jay_cs_payload {
    jay_def local_invocation_ids;
 } jay_cs_payload;
@@ -102,6 +107,7 @@ struct nir_to_jay_state {
 
       union {
          jay_vs_payload vs;
+         jay_tes_payload tes;
          jay_cs_payload cs;
          jay_fs_payload fs;
       };
@@ -1235,6 +1241,8 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       mesa_shader_stage_is_compute(s->stage) ? &nj->payload.cs : NULL;
    jay_fs_payload *fs =
       s->stage == MESA_SHADER_FRAGMENT ? &nj->payload.fs : NULL;
+   jay_tes_payload *tes =
+      s->stage == MESA_SHADER_TESS_EVAL ? &nj->payload.tes : NULL;
 
    const bool has_dest = nir_intrinsic_infos[intr->intrinsic].has_dest;
    jay_def dst = has_dest ? nj_def(&intr->def) : jay_null();
@@ -1318,6 +1326,13 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_MOV(b, dst,
               nj->payload.push_data[s->prog_data->fs.fs_config_param / 4]);
       break;
+
+   case nir_intrinsic_load_tess_config_intel: {
+      const unsigned offs = tes ? s->prog_data->tes.tess_config_param :
+                                  s->prog_data->tcs.tess_config_param;
+      jay_MOV(b, dst, nj->payload.push_data[offs / 4]);
+      break;
+   }
 
    case nir_intrinsic_barrier: {
       jay_SCHEDULE_BARRIER(b);
@@ -1505,6 +1520,22 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       }
       break;
 
+   case nir_intrinsic_load_tess_coord:
+      assert(tes);
+      jay_copy(b, dst, tes->tess_coord);
+      break;
+
+   case nir_intrinsic_load_primitive_id:
+      assert(tes);
+      assert(nj->s->prog_data->tes.include_primitive_id);
+      jay_copy(b, dst, jay_extract(nj->payload.u0, 1));
+      break;
+
+   case nir_intrinsic_load_urb_input_handle_intel:
+      assert(tes);
+      jay_MOV(b, dst, jay_extract(nj->payload.u0, 0));
+      break;
+
    case nir_intrinsic_load_urb_output_handle_intel:
       jay_MOV(b, dst, nj->payload.urb_handle);
       break;
@@ -1558,6 +1589,20 @@ jay_emit_intrinsic(struct nir_to_jay_state *nj, nir_intrinsic_instr *intr)
       jay_AND_U32_U16(b, dst, jay_SHR_ODD_SUBSPANS_BY_4_u16(b, x), 0xF);
       break;
    }
+
+   case nir_intrinsic_load_attribute_payload_intel:
+      assert(intr->def.bit_size == 32);
+
+      if (s->stage == MESA_SHADER_TESS_EVAL) {
+         assert(nir_src_is_const(intr->src[0]));
+         unsigned offs = nir_src_as_uint(intr->src[0]) / 4;
+         jay_copy(b, dst,
+                  jay_collect_vectors(b, nj->payload.tes.patch_inputs + offs,
+                                      intr->def.num_components));
+      } else {
+         UNREACHABLE("TODO: attribute payload data");
+      }
+      break;
 
    case nir_intrinsic_load_input:
       if (s->stage == MESA_SHADER_VERTEX) {
@@ -2517,7 +2562,8 @@ jay_emit_eot(struct nir_to_jay_state *nj)
       jay_SEND(b, .sfid = GEN_SFID_MESSAGE_GATEWAY, .eot = true, .msg_desc = 0,
                .srcs = &copy, .nr_srcs = 1, .type = JAY_TYPE_U32,
                .uniform = true);
-   } else if (nj->nir->info.stage == MESA_SHADER_VERTEX) {
+   } else if (nj->nir->info.stage == MESA_SHADER_VERTEX ||
+              nj->nir->info.stage == MESA_SHADER_TESS_EVAL) {
       jay_block *block = jay_last_block(nj->f);
       jay_inst *I = jay_last_inst(block);
 
@@ -2606,6 +2652,23 @@ setup_vertex_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
    for (unsigned i = 0; i < (8 * nj->s->prog_data->vue.urb_read_length); ++i) {
       assert(i < ARRAY_SIZE(nj->payload.vs.attributes));
       nj->payload.vs.attributes[i] = read_payload(p, GPR);
+   }
+}
+
+static void
+setup_tess_eval_payload(struct nir_to_jay_state *nj, struct payload_builder *p)
+{
+   nj->payload.tes.tess_coord = read_vector_payload(p, GPR, 3);
+   nj->payload.urb_handle = read_payload(p, GPR);
+
+   setup_payload_dispatch_start(nj, p);
+   setup_payload_push(nj, p);
+
+   unsigned input_ugprs = 8 * nj->s->prog_data->vue.urb_read_length;
+
+   for (unsigned i = 0; i < input_ugprs; ++i) {
+      assert(i < ARRAY_SIZE(nj->payload.tes.patch_inputs));
+      nj->payload.tes.patch_inputs[i] = read_payload(p, UGPR);
    }
 }
 
@@ -2817,6 +2880,9 @@ jay_setup_payload(struct nir_to_jay_state *nj)
    switch (s->stage) {
    case MESA_SHADER_VERTEX:
       setup_vertex_payload(nj, &p);
+      break;
+   case MESA_SHADER_TESS_EVAL:
+      setup_tess_eval_payload(nj, &p);
       break;
    case MESA_SHADER_FRAGMENT:
       setup_fragment_payload(nj, &p);

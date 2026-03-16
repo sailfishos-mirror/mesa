@@ -188,6 +188,10 @@ jay_partition_grf(jay_shader *shader)
       payload_4[1] = shader->prog_data->vue.urb_read_length * 8;
       payload_u[1] = shader->push_grfs;
       eot_4 = 16;
+   } else if (shader->stage == MESA_SHADER_TESS_EVAL) {
+      payload_4[0] = 4; /* tesscoord and URB output handles */
+      /* inputs and push constants use the general UGPR section */
+      eot_4 = 16;
    } else if (shader->stage == MESA_SHADER_FRAGMENT) {
       /* The SIMD32 fragment payload splits GPRs into low and high GRFs, with
        * UGPRs mixed in between. jay_insert_payload_swizzle deals with this and

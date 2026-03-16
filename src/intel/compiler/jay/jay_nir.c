@@ -412,6 +412,47 @@ jay_process_nir(const struct intel_device_info *devinfo,
       JAY_NIR_PASS(nir_opt_constant_folding);
       JAY_NIR_PASS(brw_nir_lower_deferred_urb_writes, devinfo,
                    &prog_data->vue.vue_map, 0, 0);
+   } else if (stage == MESA_SHADER_TESS_EVAL) {
+      const uint32_t pos_slots =
+         (nir->info.per_view_outputs & VARYING_BIT_POS) ?
+            MAX2(1, util_bitcount(key->base.view_mask)) :
+            1;
+
+      brw_compute_vue_map(devinfo, &prog_data->vue.vue_map,
+                          nir->info.outputs_written, key->base.vue_layout,
+                          pos_slots);
+
+      struct intel_vue_map input_vue_map;
+
+      brw_compute_tess_vue_map(&input_vue_map, nir->info.inputs_read,
+                               nir->info.patch_inputs_read,
+                               key->tes.separate_tess_vue_layout);
+
+      brw_nir_apply_key(pt, &key->base, simd_width);
+      brw_nir_lower_tes_inputs(nir, devinfo, &input_vue_map,
+                               &prog_data->vue.urb_read_length);
+      brw_nir_lower_vue_outputs(nir);
+      BRW_NIR_SNAPSHOT("after_lower_io");
+
+      brw_nir_opt_vectorize_urb(pt);
+      BRW_NIR_PASS(intel_nir_lower_patch_vertices_tes);
+
+      BRW_NIR_PASS(brw_nir_lower_deferred_urb_writes, devinfo,
+                   &prog_data->vue.vue_map, 0, 0);
+
+      unsigned output_size_bytes = prog_data->vue.vue_map.num_slots * 4 * 4;
+
+      assert(output_size_bytes >= 1);
+      assert(output_size_bytes <= GFX7_MAX_DS_URB_ENTRY_SIZE_BYTES);
+
+      prog_data->tes.include_primitive_id =
+         BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_PRIMITIVE_ID);
+
+      /* URB entry sizes are stored as a multiple of 64 bytes. */
+      prog_data->vue.urb_entry_size = align(output_size_bytes, 64) / 64;
+
+      brw_fill_tess_info_from_shader_info(&prog_data->tes.tess_info,
+                                          &nir->info);
    } else if (stage == MESA_SHADER_FRAGMENT) {
       assert(key->fs.mesh_input == INTEL_NEVER && "todo");
       brw_nir_apply_key(pt, &key->base, simd_width);
