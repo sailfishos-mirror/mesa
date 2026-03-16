@@ -838,7 +838,7 @@ fd6_emit_static_non_context_regs(struct fd_context *ctx, fd_cs &cs)
 {
    struct fd_screen *screen = ctx->screen;
 
-   fd_ncrb<CHIP> ncrb(cs, 28 + ARRAY_SIZE(screen->info->magic_raw));
+   fd_ncrb<CHIP> ncrb(cs, 29 + ARRAY_SIZE(screen->info->magic_raw));
 
    if (CHIP == A7XX) {
       /* On A7XX, RB_CCU_CNTL was broken into two registers, RB_CCU_CNTL which has
@@ -924,6 +924,9 @@ fd6_emit_static_non_context_regs(struct fd_context *ctx, fd_cs &cs)
 
    if (CHIP == A7XX)
       ncrb.add(RB_UNKNOWN_8E09(CHIP, 0x7));
+
+   if (CHIP >= A7XX)
+      ncrb.add(RB_A2D_UNKNOWN_8C34(CHIP));
 }
 
 /**
@@ -937,7 +940,7 @@ fd6_emit_static_context_regs(struct fd_context *ctx, fd_cs &cs)
 {
    struct fd_screen *screen = ctx->screen;
 
-   fd_crb crb(cs, 85);
+   fd_crb crb(cs, 84);
 
    crb.add(SP_GFX_USIZE(CHIP));
    crb.add(A6XX_TPL1_PS_ROTATION_CNTL());
@@ -1023,7 +1026,6 @@ fd6_emit_static_context_regs(struct fd_context *ctx, fd_cs &cs)
 
    if (CHIP >= A7XX) {
       crb.add(VPC_UNKNOWN_CNTL(CHIP));
-      crb.add(RB_A2D_UNKNOWN_8C34(CHIP));
 
       /* Blob sets these two per draw. */
       crb.add(PC_HS_BUFFER_SIZE(CHIP, FD6_TESS<CHIP>::PARAM_SIZE));
