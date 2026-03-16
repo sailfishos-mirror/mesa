@@ -110,8 +110,8 @@ struct nvk_descriptor_state {
    unsigned _start = start; \
    unsigned _count = count; \
    assert(_start + _count <= ARRAY_SIZE(root->member)); \
-   for (unsigned i = 0; i < _count; i++) \
-      (dst)[i] = root->member[i + _start]; \
+   for (unsigned _index = 0; _index < _count; _index++) \
+      (dst)[_index] = root->member[_index + _start]; \
 } while (0)
 
 #define nvk_descriptor_state_set_root(cmd, desc, member, src) do { \
@@ -133,8 +133,8 @@ struct nvk_descriptor_state {
    unsigned _start = start; \
    unsigned _count = count; \
    assert(_start + _count <= ARRAY_SIZE(root->member)); \
-   for (unsigned i = 0; i < _count; i++) \
-      root->member[i + _start] = (src)[i]; \
+   for (unsigned _index = 0; _index < _count; _index++) \
+      root->member[_index + _start] = (src)[_index]; \
    if (_desc->flush_root != NULL) { \
       size_t offset = (char *)&root->member[_start] - (char *)root; \
       _desc->flush_root((cmd), _desc, offset, \
