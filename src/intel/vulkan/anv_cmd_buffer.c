@@ -436,8 +436,7 @@ set_dirty_for_bind_map(struct anv_cmd_buffer *cmd_buffer,
                        const struct anv_pipeline_bind_map *map)
 {
    assert(stage < ARRAY_SIZE(cmd_buffer->state.surface_sha1s));
-   if (map->surface_count > 0 &&
-       mem_update(cmd_buffer->state.surface_sha1s[stage],
+   if (mem_update(cmd_buffer->state.surface_sha1s[stage],
                   map->surface_sha1, sizeof(map->surface_sha1))) {
       anv_cmd_buffer_dirty_descriptors(cmd_buffer,
                                        mesa_to_vk_shader_stage(stage),
@@ -445,8 +444,7 @@ set_dirty_for_bind_map(struct anv_cmd_buffer *cmd_buffer,
    }
 
    assert(stage < ARRAY_SIZE(cmd_buffer->state.sampler_sha1s));
-   if (map->sampler_count > 0 &&
-       mem_update(cmd_buffer->state.sampler_sha1s[stage],
+   if (mem_update(cmd_buffer->state.sampler_sha1s[stage],
                   map->sampler_sha1, sizeof(map->sampler_sha1))) {
       anv_cmd_buffer_dirty_descriptors(cmd_buffer,
                                        mesa_to_vk_shader_stage(stage),
