@@ -315,7 +315,7 @@ svga_clear_texture(struct pipe_context *pipe,
          svga_validate_surface_view(svga, svga_surface_dst);
 
       if (!dsv) {
-         pipe_surface_reference(&surface, NULL);
+         svga_surface_destroy(pipe, surface);
          return;
       }
 
@@ -355,7 +355,7 @@ svga_clear_texture(struct pipe_context *pipe,
          svga_validate_surface_view(svga, svga_surface_dst);
 
       if (!rtv) {
-         pipe_surface_reference(&surface, NULL);
+         svga_surface_destroy(pipe, surface);
          return;
       }
 
@@ -430,7 +430,7 @@ svga_clear_texture(struct pipe_context *pipe,
          }
       }
    }
-   pipe_surface_reference(&surface, NULL);
+   svga_surface_destroy(pipe, surface);
 }
 
 

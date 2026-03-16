@@ -627,7 +627,7 @@ svga_validate_surface_view(struct svga_context *svga, struct svga_surface *s)
 }
 
 
-static void
+void
 svga_surface_destroy(struct pipe_context *pipe,
                      struct pipe_surface *surf)
 {
