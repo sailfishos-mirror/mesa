@@ -17,6 +17,7 @@ import re
 import json
 import sys
 from ruamel.yaml import YAML
+from subprocess import check_output
 from tomledit import Document
 
 import gitlab
@@ -170,7 +171,7 @@ def parse_args() -> None:
         epilog="Example: update_traces_checksum.py --rev $(git rev-parse HEAD) "
     )
     parser.add_argument(
-        "--rev", metavar="revision", help="repository git revision",
+        "--rev", metavar="revision", help="repository git revision", default='HEAD'
     )
     parser.add_argument(
         "--token",
@@ -205,8 +206,9 @@ if __name__ == "__main__":
             if not args.rev:
                 print('error: the following arguments are required: --rev')
                 sys.exit(1)
-            print(f"Revision: {args.rev}")
-            (pipe, cur_project) = wait_for_pipeline([cur_project], args.rev)
+            sha = check_output(['git', 'rev-parse', args.rev]).decode('ascii').strip()
+            print(f"Revision: {sha}")
+            (pipe, cur_project) = wait_for_pipeline([cur_project], sha)
         print(f"Pipeline: {pipe.web_url}")
         gather_results(cur_project, pipe)
 
