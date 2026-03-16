@@ -57,8 +57,10 @@ vk_pipeline_shader_stage_to_nir(struct vk_device *device,
 typedef struct nir_shader nir_shader;
 
 void
-vk_set_subgroup_size(struct vk_device *device,
-                     nir_shader *shader,
+vk_set_subgroup_size(nir_shader *shader,
+                     uint32_t subgroup_size,
+                     uint32_t min_subgroup_size,
+                     uint32_t max_subgroup_size,
                      uint32_t spirv_version,
                      const void *info_pNext,
                      bool allow_varying,

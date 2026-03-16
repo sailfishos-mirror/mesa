@@ -248,6 +248,7 @@ vk_shader_to_nir(struct vk_device *device,
                  const struct vk_pipeline_robustness_state *rs)
 {
    const struct vk_device_shader_ops *ops = device->shader_ops;
+   const struct vk_properties *properties = &device->physical->properties;
 
    const mesa_shader_stage stage = vk_to_mesa_shader_stage(info->stage);
    const nir_shader_compiler_options *nir_options =
@@ -265,8 +266,8 @@ vk_shader_to_nir(struct vk_device *device,
       return NULL;
 
    vk_set_subgroup_size(
-      device, nir,
-      vk_spirv_version(info->pCode, info->codeSize),
+      nir, properties->subgroupSize, properties->minSubgroupSize,
+      properties->maxSubgroupSize, vk_spirv_version(info->pCode, info->codeSize),
       info->pNext,
       info->flags & VK_SHADER_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT,
       info->flags & VK_SHADER_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT);

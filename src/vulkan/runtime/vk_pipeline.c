@@ -121,14 +121,15 @@ get_required_subgroup_size(const void *info_pNext)
 }
 
 void
-vk_set_subgroup_size(struct vk_device *device,
-                     nir_shader *shader,
+vk_set_subgroup_size(nir_shader *shader,
+                     uint32_t subgroup_size,
+                     uint32_t min_subgroup_size,
+                     uint32_t max_subgroup_size,
                      uint32_t spirv_version,
                      const void *info_pNext,
                      bool allow_varying,
                      bool require_full)
 {
-   struct vk_properties *properties = &device->physical->properties;
    uint32_t req_subgroup_size = get_required_subgroup_size(info_pNext);
    if (req_subgroup_size) {
       assert(util_is_power_of_two_nonzero(req_subgroup_size));
@@ -138,23 +139,23 @@ vk_set_subgroup_size(struct vk_device *device,
       shader->info.min_subgroup_size = req_subgroup_size;
    } else if (allow_varying || spirv_version >= 0x10600) {
       /* Starting with SPIR-V 1.6, varying subgroup size is the default */
-   } else if (properties->subgroupSize) {
-      shader->info.api_subgroup_size = properties->subgroupSize;
-      shader->info.max_subgroup_size = properties->subgroupSize;
+   } else if (subgroup_size) {
+      shader->info.api_subgroup_size = subgroup_size;
+      shader->info.max_subgroup_size = subgroup_size;
       if (require_full) {
          assert(shader->info.stage == MESA_SHADER_COMPUTE ||
                 shader->info.stage == MESA_SHADER_MESH ||
                 shader->info.stage == MESA_SHADER_TASK);
-         shader->info.min_subgroup_size = properties->subgroupSize;
+         shader->info.min_subgroup_size = subgroup_size;
       }
    }
 
-   if (properties->maxSubgroupSize) {
-      assert(properties->minSubgroupSize);
+   if (max_subgroup_size) {
+      assert(min_subgroup_size);
       shader->info.max_subgroup_size =
-         MIN2(shader->info.max_subgroup_size, properties->maxSubgroupSize);
+         MIN2(shader->info.max_subgroup_size, max_subgroup_size);
       shader->info.min_subgroup_size =
-         MAX2(shader->info.min_subgroup_size, properties->minSubgroupSize);
+         MAX2(shader->info.min_subgroup_size, min_subgroup_size);
    }
 
    assert(shader->info.max_subgroup_size >= shader->info.min_subgroup_size);
@@ -169,6 +170,7 @@ vk_pipeline_shader_stage_to_nir(struct vk_device *device,
                                 void *mem_ctx, nir_shader **nir_out)
 {
    VK_FROM_HANDLE(vk_shader_module, module, info->module);
+   const struct vk_properties *properties = &device->physical->properties;
    const mesa_shader_stage stage = vk_to_mesa_shader_stage(info->stage);
 
    assert(info->sType == VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
@@ -214,8 +216,8 @@ vk_pipeline_shader_stage_to_nir(struct vk_device *device,
       return vk_errorf(device, VK_ERROR_UNKNOWN, "spirv_to_nir failed");
 
    vk_set_subgroup_size(
-      device, nir,
-      vk_spirv_version(spirv_data, spirv_size),
+      nir, properties->subgroupSize, properties->minSubgroupSize,
+      properties->maxSubgroupSize, vk_spirv_version(spirv_data, spirv_size),
       info->pNext,
       info->flags & VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT,
       info->flags & VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT);

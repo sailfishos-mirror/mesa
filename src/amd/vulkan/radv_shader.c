@@ -363,7 +363,10 @@ radv_shader_choose_subgroup_size(struct radv_device *device, nir_shader *nir,
    if (pdev->cache_key.no_implicit_varying_subgroup_size)
       spirv_version = 0x10000;
 
-   vk_set_subgroup_size(&device->vk, nir, spirv_version, rss_info.requiredSubgroupSize ? &rss_info : NULL,
+   struct vk_properties *properties = &device->vk.physical->properties;
+
+   vk_set_subgroup_size(nir, properties->subgroupSize, properties->minSubgroupSize, properties->maxSubgroupSize,
+                        spirv_version, rss_info.requiredSubgroupSize ? &rss_info : NULL,
                         stage_key->subgroup_allow_varying, stage_key->subgroup_require_full);
 
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
