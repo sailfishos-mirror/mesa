@@ -956,7 +956,5 @@ svga_get_sample_position(struct pipe_context *context,
 void
 svga_init_surface_functions(struct svga_context *svga)
 {
-   svga->pipe.create_surface = svga_create_surface;
-   svga->pipe.surface_destroy = svga_surface_destroy;
    svga->pipe.get_sample_position = svga_get_sample_position;
 }
