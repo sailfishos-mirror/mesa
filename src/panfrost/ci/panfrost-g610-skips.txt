@@ -8,3 +8,8 @@ dEQP-VK.wsi.wayland.swapchain.simulate_oom.image_extent
 asan-dEQP-VK.image.swapchain_mutable.direct_drm.*
 asan-dEQP-VK.wsi.acquire_drm_display.*
 asan-dEQP-VK.wsi.direct_drm.*
+
+# https://gitlab.freedesktop.org/mesa/mesa/-/issues/15116
+dEQP-VK.wsi.xlib.maintenance1.present_modes.*
+dEQP-VK.wsi.xlib.maintenance1.deferred_alloc.fifo.*
+dEQP-VK.wsi.xlib.maintenance1.present_fence.fifo.*

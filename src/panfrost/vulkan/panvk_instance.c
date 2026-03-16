@@ -100,6 +100,8 @@ static const struct vk_instance_extension_table panvk_instance_extensions = {
 #ifdef PANVK_USE_WSI_PLATFORM
    .KHR_get_surface_capabilities2 = true,
    .KHR_surface = true,
+   .KHR_surface_maintenance1 = true,
+   .EXT_surface_maintenance1 = true,
 #endif
 #ifdef VK_USE_PLATFORM_DISPLAY_KHR
    .KHR_display = true,

@@ -34,3 +34,4 @@ VK_VALVE_mutable_descriptor_type on panvk
 VK_EXT_shader_stencil_export on panvk
 VK_EXT_map_memory_placed on panvk
 VK_EXT_conditional_rendering on panvk
+VK_{KHR,EXT}_{surface,swapchain}_maintenance1 on panvk

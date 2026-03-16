@@ -206,6 +206,10 @@ dEQP-VK.texture.shadow.cube.linear_mipmap_nearest.equal_d24_unorm_s8_uint
 # No clue what's happening to these on CI lately
 dEQP-VK.wsi.*.swapchain.simulate_oom.*
 
+# https://gerrit.khronos.org/c/vk-gl-cts/+/19859
+dEQP-VK.wsi.xcb.maintenance1.present_modes.*
+dEQP-VK.wsi.xcb.maintenance1.present_fence.*
+
 # With linux kernel 6.13-rc4 uprev
 dEQP-GLES31.functional.copy_image.compressed.viewclass_astc_8x6_rgba.rgba_astc_8x6_khr_srgb8_alpha8_astc_8x6_khr.texture3d_to_cubemap
 

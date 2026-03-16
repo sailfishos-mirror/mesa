@@ -144,3 +144,11 @@ dEQP-VK.synchronization.op.single_queue.timeline_semaphore.write_image_compute_i
 # tests are broken with Vulkan 1.0: https://gerrit.khronos.org/c/vk-gl-cts/+/19422
 dEQP-VK.image.swapchain_mutable.direct_drm.*
 dEQP-VK.wsi.acquire_drm_display.*
+
+# more tests broken on Vulkan 1.0: https://gitlab.khronos.org/Tracker/vk-gl-cts/-/issues/6409
+dEQP-VK.wsi.*.maintenance1.*.bind_image*
+
+# https://gitlab.freedesktop.org/mesa/mesa/-/issues/15116
+dEQP-VK.wsi.xlib.maintenance1.present_modes.*
+dEQP-VK.wsi.xlib.maintenance1.deferred_alloc.fifo.*
+dEQP-VK.wsi.xlib.maintenance1.present_fence.fifo.*
