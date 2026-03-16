@@ -169,6 +169,16 @@ static VkResult pvr_alloc_mrt(const struct pvr_device_info *dev_info,
             sizeof(alloc->tile_buffers[0U]) *
                (resource->mem.tile_buffer + 1U - alloc->tile_buffers_count));
          alloc->tile_buffers_count = resource->mem.tile_buffer + 1U;
+
+         /* Need to add the resource to the new tile buffer */
+         struct pvr_mrt_alloc_mask *tib_alloc =
+            &alloc->tile_buffers[resource->mem.tile_buffer];
+
+         ASSERTED const int32_t tile_buffer_offset =
+            pvr_mrt_alloc_from_buffer(dev_info,
+                                      tib_alloc,
+                                      pixel_size);
+         assert(tile_buffer_offset == 0);
       }
 
       /* The hardware makes the bit depth of the on-chip storage and memory
