@@ -3814,7 +3814,7 @@
         "description": "panfrost: fix texel buffer calculations",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "a21ee564e2051e5e6827ce333da1f85b8b828e1d",
         "notes": null
