@@ -256,11 +256,28 @@ intel_compute_threads_group_dispatch_size(uint32_t hw_threads_in_wg)
     */
    switch (hw_threads_in_wg) {
    case 0 ... 16:
-      return 0;
+      return 0;/* TG size 8 */
    case 17 ... 32:
-      return 1;
+      return 1;/* TG size 4 */
    default:
-      return 2;
+      return 2;/* TG size 2 */
+   }
+}
+
+/* Compute Walker 2 has a new enconde values */
+int
+intel_compute_threads_group_dispatch_size_walker_2(uint32_t hw_threads_in_wg)
+{
+   /* Following value calculated based on overdispatch is disabled. In case if
+    * compute overdispatch disabled set to 1, then we need to use TG Size 1.
+    */
+   switch (hw_threads_in_wg) {
+   case 0 ... 16:
+      return 0;/* TG size 8 */
+   case 17 ... 32:
+      return 2;/* TG size 4 */
+   default:
+      return 4;/* TG size 2 */
    }
 }
 
