@@ -443,6 +443,15 @@ if _codecs.contains('all')
 elif _codecs.contains('all_free')
   _codecs += free_codecs
 endif
+
+with_video_encode = false
+foreach c : _codecs
+  if c.contains('enc')
+    with_video_encode = true
+    break
+  endif
+endforeach
+
 foreach c : all_codecs
    pre_args += '-DVIDEO_CODEC_@0@=@1@'.format(c.to_upper(), _codecs.contains(c).to_int())
 endforeach
@@ -2527,6 +2536,7 @@ if with_any_vk
   video_apis += 'vulkan'
 endif
 video_summary += {'APIs': video_apis.length() != 0 ? video_apis : false}
+video_summary += {'Encoding': with_video_encode}
 summary(video_summary, section: 'Video', bool_yn: true, list_sep: ' ')
 
 llvm_summary = {'Required': with_llvm}
