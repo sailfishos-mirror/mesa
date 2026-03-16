@@ -171,11 +171,12 @@ svga_resource_type(enum pipe_texture_target target)
 
 static inline void
 svga_surface_reference(struct svga_surface **dst,
-                       struct svga_surface *src)
+                       struct svga_surface *src,
+                       struct pipe_context *pipe)
 {
    pipe_surface_reference((struct pipe_surface **) dst,
                           (struct pipe_surface *) src,
-                          svga_surface_destroy);
+                          pipe, svga_surface_destroy);
 }
 
 

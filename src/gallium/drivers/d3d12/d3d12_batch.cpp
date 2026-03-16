@@ -136,13 +136,6 @@ delete_sampler_view(set_entry *entry)
 }
 
 static void
-delete_surface(set_entry *entry)
-{
-   struct pipe_surface *surf = (struct pipe_surface *)entry->key;
-   pipe_surface_reference(&surf, NULL, (pipe_surface_destroy_func)d3d12_surface_destroy);
-}
-
-static void
 delete_object(set_entry *entry)
 {
    ID3D12Object *object = (ID3D12Object *)entry->key;
@@ -173,7 +166,10 @@ d3d12_reset_batch(struct d3d12_context *ctx, struct d3d12_batch *batch, uint64_t
    }
 
    _mesa_hash_table_clear(batch->bos, delete_bo_entry);
-   _mesa_set_clear(batch->surfaces, delete_surface);
+   set_foreach_remove(batch->surfaces, entry) {
+      struct pipe_surface *surf = (struct pipe_surface *)entry->key;
+      pipe_surface_reference(&surf, NULL, &ctx->base, (pipe_surface_destroy_func)d3d12_surface_destroy);
+   }
    _mesa_set_clear(batch->objects, delete_object);
    
    util_dynarray_foreach(&batch->local_bos, d3d12_bo*, bo) {

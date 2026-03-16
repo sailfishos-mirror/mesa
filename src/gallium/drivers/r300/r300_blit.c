@@ -528,7 +528,7 @@ void r300_decompress_zmask_locked(struct r300_context *r300)
     r300->context.set_framebuffer_state(&r300->context, &saved_fb);
     util_unreference_framebuffer_state(&saved_fb);
 
-    pipe_surface_reference(&r300->locked_zbuffer, NULL, r300_surface_destroy);
+    pipe_surface_reference(&r300->locked_zbuffer, NULL, &r300->context, r300_surface_destroy);
 }
 
 bool r300_is_blit_supported(enum pipe_format format)
@@ -691,7 +691,7 @@ static void r300_resource_copy_region(struct pipe_context *pipe,
                               false, false, 0, NULL);
     r300_blitter_end(r300);
 
-    pipe_surface_reference(&dst_view, NULL, r300_surface_destroy);
+    pipe_surface_reference(&dst_view, NULL, &r300->context, r300_surface_destroy);
     pipe_sampler_view_reference(&src_view, NULL);
 }
 

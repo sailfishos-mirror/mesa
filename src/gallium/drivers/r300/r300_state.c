@@ -1079,7 +1079,7 @@ r300_set_framebuffer_state(struct pipe_context* pipe,
             }
         } else {
             /* We don't bind another zbuffer, so lock the current one. */
-            pipe_surface_reference(&r300->locked_zbuffer, r300->fb_zsbuf, r300_surface_destroy);
+            pipe_surface_reference(&r300->locked_zbuffer, r300->fb_zsbuf, pipe, r300_surface_destroy);
         }
     } else if (r300->locked_zbuffer) {
         /* We have a locked zbuffer now, what are we gonna do? */
@@ -1146,7 +1146,7 @@ r300_set_framebuffer_state(struct pipe_context* pipe,
     r300_set_blend_color(pipe, &((struct r300_blend_color_state*)r300->blend_color_state.state)->state);
 
     if (unlock_zbuffer) {
-        pipe_surface_reference(&r300->locked_zbuffer, NULL, r300_surface_destroy);
+        pipe_surface_reference(&r300->locked_zbuffer, NULL, pipe, r300_surface_destroy);
     }
 
     r300_mark_fb_state_dirty(r300, R300_CHANGED_FB_STATE);

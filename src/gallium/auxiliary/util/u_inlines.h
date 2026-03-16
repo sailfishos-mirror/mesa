@@ -140,6 +140,7 @@ typedef void (*pipe_surface_destroy_func)(struct pipe_context*, struct pipe_surf
 
 static inline void
 pipe_surface_reference(struct pipe_surface **dst, struct pipe_surface *src,
+                       struct pipe_context *pipe,
                        pipe_surface_destroy_func surface_destroy)
 {
    struct pipe_surface *old_dst = *dst;
@@ -148,7 +149,7 @@ pipe_surface_reference(struct pipe_surface **dst, struct pipe_surface *src,
                                 src ? &src->reference : NULL,
                                 (debug_reference_descriptor)
                                 debug_describe_surface))
-      surface_destroy(old_dst->context, old_dst);
+      surface_destroy(pipe, old_dst);
    *dst = src;
 }
 
