@@ -2814,9 +2814,17 @@ crocus_sampler_view_destroy(struct pipe_context *ctx,
    free(isv);
 }
 
+static void
+crocus_surface_destroy(struct pipe_context *ctx, struct pipe_surface *p_surf)
+{
+   struct crocus_surface *surf = (void *) p_surf;
+   pipe_resource_reference(&p_surf->texture, NULL);
+
+   pipe_resource_reference(&surf->align_res, NULL);
+   free(surf);
+}
+
 /**
- * The pipe->create_surface() driver hook.
- *
  * In Gallium nomenclature, "surfaces" are a view of a resource that
  * can be bound as a render target or depth/stencil buffer.
  */
@@ -2940,7 +2948,7 @@ crocus_create_surface(struct pipe_context *ctx,
    assert(view->levels == 1);
 
    /* TODO: compressed pbo uploads aren't working here */
-   pipe_surface_reference(&psurf, NULL);
+   crocus_surface_destroy(ctx, psurf);
    return NULL;
 
    uint64_t offset_B = 0;
@@ -2962,7 +2970,7 @@ crocus_create_surface(struct pipe_context *ctx,
        */
       // TODO: check if the gen7 check is right, originally gen8
       if (view->array_len > 1 || GFX_VER == 7) {
-         pipe_surface_reference(&psurf, NULL);
+         crocus_surface_destroy(ctx, psurf);
          return NULL;
       }
 
@@ -3189,16 +3197,6 @@ crocus_set_patch_vertices(struct pipe_context *ctx, uint8_t patch_vertices)
    struct crocus_context *ice = (struct crocus_context *) ctx;
 
    ice->state.patch_vertices = patch_vertices;
-}
-
-static void
-crocus_surface_destroy(struct pipe_context *ctx, struct pipe_surface *p_surf)
-{
-   struct crocus_surface *surf = (void *) p_surf;
-   pipe_resource_reference(&p_surf->texture, NULL);
-
-   pipe_resource_reference(&surf->align_res, NULL);
-   free(surf);
 }
 
 static void
@@ -9293,7 +9291,6 @@ genX(crocus_init_state)(struct crocus_context *ice)
    ctx->sampler_view_destroy = crocus_sampler_view_destroy;
    ctx->sampler_view_release = u_default_sampler_view_release;
    ctx->resource_release = u_default_resource_release;
-   ctx->surface_destroy = crocus_surface_destroy;
    ctx->draw_vbo = crocus_draw_vbo;
    ctx->launch_grid = crocus_launch_grid;
 
