@@ -391,6 +391,18 @@ ALLOWED_ANDROID_VERSION = {
     # "VK_KHR_video_encode_av1": 36,
     # "VK_KHR_video_encode_quantization_map": 36,
 
+    # on Vulkan Profile Android 17 allow list
+    "VK_KHR_copy_memory_indirect": 37,
+    "VK_KHR_depth_clamp_zero_one": 37,
+    "VK_KHR_maintenance8": 37,
+    "VK_KHR_maintenance9": 37,
+    "VK_KHR_maintenance10": 37,
+    "VK_KHR_robustness2": 37,
+    "VK_KHR_shader_bfloat16": 37,
+    "VK_KHR_shader_fma": 37,
+    "VK_KHR_shader_untyped_pointers": 37,
+    "VK_KHR_unified_image_layouts": 37,
+
     # testNoUnknownExtensions on oreo-cts-release
     "VK_GOOGLE_display_timing": 26,
     # on pie-cts-release
