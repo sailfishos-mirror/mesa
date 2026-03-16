@@ -328,12 +328,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .EXT_host_image_copy                   = true,
       .EXT_host_query_reset                  = true,
       .EXT_image_2d_view_of_3d               = true,
-      /* Because of Xe2 PAT selected compression and the Vulkan spec
-       * requirement to always return the same memory types for Images with
-       * same properties we can't support EXT_image_compression_control on Xe2+
-       */
-      .EXT_image_compression_control         = device->instance->compression_control_enabled &&
-                                               device->info.ver < 20,
+      .EXT_image_compression_control         = device->has_compression_control,
       .EXT_image_drm_format_modifier         = true,
       .EXT_image_robustness                  = true,
       .EXT_image_sliced_view_of_3d           = true,
@@ -392,6 +387,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .EXT_shader_uniform_buffer_unsized_array = true,
       .EXT_subgroup_size_control             = !device->brw_disable_subgroup_size_control,
 #ifdef ANV_USE_WSI_PLATFORM
+      .EXT_image_compression_control_swapchain = device->has_compression_control,
       .EXT_swapchain_maintenance1            = true,
 #endif
       .EXT_texel_buffer_alignment            = true,
@@ -951,7 +947,7 @@ get_features(const struct anv_physical_device *pdevice,
       .videoDecodeVP9 = true,
 
       /* VK_EXT_image_compression_control */
-      .imageCompressionControl = true,
+      .imageCompressionControl = pdevice->has_compression_control,
 
       /* VK_KHR_shader_float_controls2 */
       .shaderFloatControls2 = true,
@@ -1055,6 +1051,9 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_KHR_device_address_commands */
       .deviceAddressCommands = true,
+
+      /* VK_EXT_swapchain_compression_control */
+      .imageCompressionControlSwapchain = pdevice->has_compression_control,
    };
 
    /* The new DOOM and Wolfenstein games require depthBounds without
@@ -2882,6 +2881,13 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
       (device->info.has_systolic || debug_get_bool_option("INTEL_LOWER_DPAS", false)) &&
       device->info.cooperative_matrix_configurations[0].scope != INTEL_CMAT_SCOPE_NONE &&
       !intel_use_jay_any_stage(&device->info);
+
+   /* Because of Xe2 PAT selected compression and the Vulkan spec requirement
+    * to always return the same memory types for Images with same properties
+    * we can't support EXT_image_compression_control on Xe2+.
+    */
+   device->has_compression_control =
+      instance->compression_control_enabled && device->info.ver < 20;
 
    if (is_virtio) {
       struct util_sync_provider *sync = intel_virtio_sync_provider(fd);

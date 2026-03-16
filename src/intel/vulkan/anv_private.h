@@ -1549,6 +1549,9 @@ struct anv_physical_device {
 
     bool                                        has_scratch_page;
 
+    /** Whether we allow the application to control compression */
+    bool                                        has_compression_control;
+
     struct {
       uint32_t                                  family_count;
       struct anv_queue_family                   families[ANV_MAX_QUEUE_FAMILIES];
