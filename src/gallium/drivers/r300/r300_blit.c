@@ -736,13 +736,13 @@ static void r300_simple_msaa_resolve(struct pipe_context *pipe,
 
     memset(&surf_tmpl, 0, sizeof(surf_tmpl));
     surf_tmpl.format = format;
-    srcsurf = r300_surface(pipe->create_surface(pipe, src, &surf_tmpl));
+    srcsurf = r300_surface(r300_create_surface(pipe, src, &surf_tmpl));
 
     surf_tmpl.format = format;
     surf_tmpl.level = dst_level;
     surf_tmpl.first_layer =
     surf_tmpl.last_layer = dst_layer;
-    dstsurf = r300_surface(pipe->create_surface(pipe, dst, &surf_tmpl));
+    dstsurf = r300_surface(r300_create_surface(pipe, dst, &surf_tmpl));
 
     /* COLORPITCH should contain the tiling info of the resolve buffer.
      * The tiling of the AA buffer isn't programmable anyway. */
@@ -764,8 +764,8 @@ static void r300_simple_msaa_resolve(struct pipe_context *pipe,
     r300->aa_state.size = 4;
     r300_mark_atom_dirty(r300, &r300->aa_state);
 
-    pipe_surface_reference((struct pipe_surface**)&srcsurf, NULL);
-    pipe_surface_reference((struct pipe_surface**)&dstsurf, NULL);
+    r300_surface_destroy(pipe, &srcsurf->base);
+    r300_surface_destroy(pipe, &dstsurf->base);
 }
 
 static void r300_msaa_resolve(struct pipe_context *pipe,
