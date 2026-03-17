@@ -1450,8 +1450,6 @@ RADV driver environment variables
       disable dithering for alpha to coverage
    ``nobinning``
       disable primitive binning
-   ``nobolist``
-      disable the global BO list when no features require it
    ``nocache``
       disable shaders cache
    ``nocompute``

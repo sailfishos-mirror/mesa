@@ -1268,24 +1268,6 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
    /* TODO: Remove the per cmdbuf BO list tracking after few Mesa releases if no blockers. */
    device->use_global_bo_list = pdev->info.has_vm_always_valid;
 
-   /* Disable it for debugging purposes if no features require it. */
-   if (instance->debug_flags & RADV_DEBUG_NO_BO_LIST) {
-      if (!device->vk.enabled_features.bufferDeviceAddress && !device->vk.enabled_features.descriptorIndexing &&
-          !device->vk.enabled_features.descriptorBindingUniformBufferUpdateAfterBind &&
-          !device->vk.enabled_features.descriptorBindingSampledImageUpdateAfterBind &&
-          !device->vk.enabled_features.descriptorBindingStorageImageUpdateAfterBind &&
-          !device->vk.enabled_features.descriptorBindingStorageBufferUpdateAfterBind &&
-          !device->vk.enabled_features.descriptorBindingUniformTexelBufferUpdateAfterBind &&
-          !device->vk.enabled_features.descriptorBindingStorageTexelBufferUpdateAfterBind &&
-          !device->vk.enabled_features.descriptorBindingUpdateUnusedWhilePending &&
-          !device->vk.enabled_features.descriptorBindingPartiallyBound &&
-          !device->vk.enabled_features.indirectMemoryCopy && !device->vk.enabled_features.indirectMemoryToImageCopy) {
-         device->use_global_bo_list = false;
-      } else {
-         fprintf(stderr, "radv: Can't disable the global BO list because some features require it!\n");
-      }
-   }
-
    device->overallocation_disallowed = overallocation_disallowed;
    mtx_init(&device->overallocation_mutex, mtx_plain);
 
