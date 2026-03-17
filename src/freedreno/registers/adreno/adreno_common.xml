@@ -14,18 +14,6 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="A8XX" value="8"/>
 </enum>
 
-<!--
-we could use fmt to differentiate planar from single-plane.. but I think we need
-runtime usage to determine other types?
-
-Maybe just use lua hook to tell cffdec which descriptor types a descriptor
-definitely is _not_ (ie. looking at FMT for multiplaner vs single plane..
-and we could probably rule out a weight descriptor based on FMT/SWIZ/etc?).
-Also looking at implausible field values might be a way to rule out some.
-
-Also, align="" should give us some asserts for iova's with pack builders.
--->
-
 <enum name="desctype" bare="yes">
 	<value name="DESC_NONE" value="0"/>
 	<doc>
