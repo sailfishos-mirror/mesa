@@ -208,7 +208,34 @@ load_geometry_param_offset(nir_builder *b, uint32_t offset, uint8_t bytes)
 struct lower_output_to_var_slot {
    nir_variable *output_var;
    nir_variable *selected_var;
+   nir_alu_type type;
 };
+
+static bool
+collect_output_types(nir_builder *b, nir_intrinsic_instr *intr, void *data)
+{
+   struct lower_output_to_var_slot *outputs = data;
+
+   if (intr->intrinsic != nir_intrinsic_store_output)
+      return false;
+
+   assert(nir_src_is_const(intr->src[1]) && "no indirect outputs");
+   assert(nir_intrinsic_write_mask(intr) == nir_component_mask(1) &&
+          "should be scalarized");
+
+   nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
+   gl_varying_slot slot = sem.location + nir_src_as_uint(intr->src[1]);
+   struct lower_output_to_var_slot *output = &outputs[slot];
+
+   if (output->type == nir_type_invalid) {
+      output->type = nir_intrinsic_src_type(intr);
+   } else {
+      /* Stores to the same varying must always have the same type */
+      assert(output->type == nir_intrinsic_src_type(intr));
+   }
+
+   return false;
+}
 
 static void
 lower_store_to_var(nir_builder *b, nir_intrinsic_instr *intr,
@@ -236,8 +263,9 @@ lower_store_to_var(nir_builder *b, nir_intrinsic_instr *intr,
    assert(component < nr_components);
 
    /* Turn it into a vec4 write like NIR expects */
-   value = nir_vector_insert_imm(b, nir_undef(b, nr_components, 32), value,
-                                 component);
+   unsigned bit_size = nir_alu_type_get_type_size(output->type);
+   value = nir_vector_insert_imm(b, nir_undef(b, nr_components, bit_size),
+                                 value, component);
 
    nir_store_var(b, output->output_var, value, BITFIELD_BIT(component));
 }
@@ -712,7 +740,11 @@ create_gs_rast_shader(const nir_shader *gs, const struct lower_gs_state *state)
       UNREACHABLE("invalid shape");
    }
 
+   nir_shader_intrinsics_pass(shader, collect_output_types, nir_metadata_all,
+                              rs.outputs);
+
    u_foreach_bit64(slot, shader->info.outputs_written) {
+      struct lower_output_to_var_slot *output = &rs.outputs[slot];
       const char *slot_name =
          gl_varying_slot_name_for_stage(slot, MESA_SHADER_GEOMETRY);
 
@@ -721,12 +753,15 @@ create_gs_rast_shader(const nir_shader *gs, const struct lower_gs_state *state)
                     (slot == VARYING_SLOT_VIEWPORT);
       unsigned comps = scalar ? 1 : 4;
 
-      rs.outputs[slot].output_var = nir_variable_create(
-         shader, nir_var_shader_temp, glsl_vector_type(GLSL_TYPE_UINT, comps),
+      enum glsl_base_type type =
+         nir_get_glsl_base_type_for_nir_type(output->type);
+
+      output->output_var = nir_variable_create(
+         shader, nir_var_shader_temp, glsl_vector_type(type, comps),
          ralloc_asprintf(shader, "%s-temp", slot_name));
 
-      rs.outputs[slot].selected_var = nir_variable_create(
-         shader, nir_var_shader_temp, glsl_vector_type(GLSL_TYPE_UINT, comps),
+      output->selected_var = nir_variable_create(
+         shader, nir_var_shader_temp, glsl_vector_type(type, comps),
          ralloc_asprintf(shader, "%s-selected", slot_name));
    }
 
@@ -816,6 +851,11 @@ create_gs_rast_shader(const nir_shader *gs, const struct lower_gs_state *state)
       assert(output->selected_var != NULL);
       nir_def *value = nir_load_var(b, output->selected_var);
 
+      /* If at least one write occurred in the source shader, we should have a
+       * type. If no writes occurred, the output shouldn't be in outputs_written
+       */
+      assert(output->type != nir_type_invalid);
+
       /* We must only rasterize vertices from the rasterization stream. Since we
        * shade vertices across all streams, we do this by throwing away vertices
        * from non-rasterization streams (by setting a component to NaN).
@@ -830,6 +870,7 @@ create_gs_rast_shader(const nir_shader *gs, const struct lower_gs_state *state)
       }
 
       nir_store_output(b, value, nir_imm_int(b, 0),
+                       .src_type = output->type,
                        .io_semantics.location = slot);
    }
 
@@ -1288,6 +1329,9 @@ poly_nir_lower_gs(nir_shader *gs, nir_shader **gs_count, nir_shader **gs_copy,
    } else {
       info->shape = POLY_GS_SHAPE_DYNAMIC_INDEXED;
    }
+
+   /* Ensure that outputs_written is still accurate after DCE. */
+   nir_shader_gather_info(gs, nir_shader_get_entrypoint(gs));
 
    *gs_copy = create_gs_rast_shader(gs, &gs_state);
 
