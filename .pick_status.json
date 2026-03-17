@@ -2534,7 +2534,7 @@
         "description": "gallium/u_blitter: add a new fs_color_clear variant",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "ca09c173f6e0dfdcf4da59d741a3d58bfc3c982e",
         "notes": null
