@@ -755,6 +755,8 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_input_attachment_target_pan:
    case nir_intrinsic_load_input_attachment_conv_pan:
    case nir_intrinsic_load_global_cvt_pan:
+   case nir_intrinsic_lea_attr_pan:
+   case nir_intrinsic_lea_buf_pan:
    case nir_intrinsic_atomic_counter_read:
    case nir_intrinsic_atomic_counter_read_deref:
    case nir_intrinsic_is_sparse_texels_resident:
@@ -1039,6 +1041,7 @@ visit_intrinsic(nir_intrinsic_instr *instr, struct divergence_state *state)
    case nir_intrinsic_load_tile_res_pan:
    case nir_intrinsic_load_cumulative_coverage_pan:
    case nir_intrinsic_load_blend_input_pan:
+   case nir_intrinsic_load_idvs_output_buf_index_pan:
    case nir_intrinsic_atest_pan:
    case nir_intrinsic_zs_emit_pan:
    case nir_intrinsic_load_return_param_amd:

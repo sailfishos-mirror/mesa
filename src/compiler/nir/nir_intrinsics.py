@@ -1741,6 +1741,17 @@ store("global_cvt_pan", [1, 1], indices=[SRC_TYPE, ACCESS])
 # src[] = { value, address }
 store("global_psiz_pan", [1], indices=[WRITE_MASK, ACCESS])
 
+# Base index of the output buffer passed into the IDVS on Valhall.
+system_value("idvs_output_buf_index_pan", 1, bit_sizes=[32])
+
+# src[] = { handle, vertex_id, instance_id }
+intrinsic("lea_attr_pan", [1, 1, 1], dest_comp=3, bit_sizes=[32],
+          indices=[SRC_TYPE], flags=[CAN_ELIMINATE, CAN_REORDER])
+
+# src[] = { handle, index }
+intrinsic("lea_buf_pan", [1, 1], dest_comp=2, bit_sizes=[32],
+          flags=[CAN_ELIMINATE, CAN_REORDER])
+
 # Load the address and potentially the conversion descriptor for a texel buffer index.
 # The 64 bit address is always in the first two channels, while the 32 bit
 # conversion descriptor is in the last channel only for Bifrost.
