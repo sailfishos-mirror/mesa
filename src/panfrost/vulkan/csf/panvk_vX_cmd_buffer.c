@@ -949,6 +949,16 @@ panvk_per_arch(BeginCommandBuffer)(VkCommandBuffer commandBuffer,
 
    panvk_per_arch(cmd_inherit_render_state)(cmdbuf, pBeginInfo);
 
+   if (cmdbuf->vk.level == VK_COMMAND_BUFFER_LEVEL_SECONDARY) {
+      const VkCommandBufferInheritanceConditionalRenderingInfoEXT *cond_info =
+         vk_find_struct_const(
+            pBeginInfo->pInheritanceInfo->pNext,
+            COMMAND_BUFFER_INHERITANCE_CONDITIONAL_RENDERING_INFO_EXT);
+
+      if (cond_info && cond_info->conditionalRenderingEnable)
+         cmdbuf->state.cond_render.inherited = true;
+   }
+
    for (uint32_t i = 0; i < PANVK_SUBQUEUE_COUNT; i++)
       panvk_per_arch(panvk_instr_begin_work)(i, cmdbuf,
                                              PANVK_INSTR_WORK_TYPE_CMDBUF);
@@ -1000,6 +1010,55 @@ panvk_per_arch(CmdExecuteCommands)(VkCommandBuffer commandBuffer,
          MAX2(primary->state.tls.info.tls.size,
               secondary->state.tls.info.tls.size);
       panvk_per_arch(cmd_prepare_exec_cmd_for_draws)(primary, secondary);
+
+      /* Write the conditional rendering flag into the subqueue context
+       * for inherited secondaries. The secondary's draws load from this
+       * field and skip when it is zero.
+       */
+      if (secondary->state.cond_render.inherited) {
+         for (uint32_t j = 0; j < ARRAY_SIZE(primary->state.cs); j++) {
+            struct cs_builder *sec_b = panvk_get_cs_builder(secondary, j);
+            if (cs_is_empty(sec_b))
+               continue;
+
+            struct cs_builder *prim_b = panvk_get_cs_builder(primary, j);
+            struct cs_index flag_val = cs_scratch_reg32(prim_b, 0);
+
+            /* When the caller itself inherited, the flag is already
+             * in the subqueue context from our caller.
+             */
+            if (primary->state.cond_render.inherited)
+               continue;
+
+            if (primary->state.cond_render.enabled) {
+               /* Primary has direct conditional rendering, evaluate
+                * the predicate and normalize to a 0/non-zero flag.
+                */
+               struct cs_index pred_addr = cs_scratch_reg64(prim_b, 2);
+
+               cs_move64_to(prim_b, pred_addr,
+                            primary->state.cond_render.addr);
+               cs_load32_to(prim_b, flag_val, pred_addr, 0);
+
+               if (primary->state.cond_render.exec_cond ==
+                   MALI_CS_CONDITION_EQUAL) {
+                  /* Inverted: render when pred == 0, so flip. */
+                  cs_if(prim_b, MALI_CS_CONDITION_NEQUAL, flag_val)
+                     cs_move32_to(prim_b, flag_val, 0);
+                  cs_else(prim_b)
+                     cs_move32_to(prim_b, flag_val, 1);
+               }
+            } else {
+               /* No conditional rendering active, always render. */
+               cs_move32_to(prim_b, flag_val, 1);
+            }
+
+            cs_store32(prim_b, flag_val, cs_subqueue_ctx_reg(prim_b),
+                       offsetof(struct panvk_cs_subqueue_context,
+                                cond_render_flag));
+            cs_flush_stores(prim_b);
+         }
+      }
 
       for (uint32_t j = 0; j < ARRAY_SIZE(primary->state.cs); j++) {
          struct cs_builder *sec_b = panvk_get_cs_builder(secondary, j);
