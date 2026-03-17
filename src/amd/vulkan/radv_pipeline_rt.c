@@ -1050,10 +1050,22 @@ compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *
    radv_nir_lower_callee_signature(&raygen_stub);
    pipeline->prolog = radv_create_rt_prolog(device, raygen_stub.num_params, raygen_stub.params);
 
+   bool has_traversal = !!pipeline->base.base.shaders[MESA_SHADER_INTERSECTION];
+
    /* create combined config */
    struct ac_shader_config *config = &pipeline->prolog->config;
    for (unsigned i = 0; i < pipeline->stage_count; i++) {
       const struct radv_shader *shader = pipeline->stages[i].shader;
+
+      /* !has_traversal means the pipeline is completely monolithic and will never call any
+       * shaders (except for the raygen shader, which contains the entire RT pipeline).
+       * Ignore all shaders except for the raygen shader - they may appear in the stages array due to pipeline library
+       * imports, but they will never be called.
+       */
+      if (!has_traversal) {
+         if (pipeline->stages[i].stage != MESA_SHADER_RAYGEN)
+            continue;
+      }
 
       if (!shader)
          continue;
@@ -1066,7 +1078,7 @@ compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *
    for (unsigned i = 0; i < pipeline->group_count; i++) {
       const struct radv_shader *shader = pipeline->groups[i].ahit_isec_shader;
 
-      if (!shader)
+      if (!shader || !has_traversal)
          continue;
 
       combine_config(config, &shader->config);
@@ -1074,7 +1086,7 @@ compile_rt_prolog(struct radv_device *device, struct radv_ray_tracing_pipeline *
       push_constant_size = MAX2(push_constant_size, shader->info.push_constant_size);
    }
 
-   if (pipeline->base.base.shaders[MESA_SHADER_INTERSECTION]) {
+   if (has_traversal) {
       const struct radv_shader *traversal_shader = pipeline->base.base.shaders[MESA_SHADER_INTERSECTION];
 
       combine_config(config, &traversal_shader->config);
