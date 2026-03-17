@@ -3984,7 +3984,7 @@
         "description": "st/mesh: handle mesh shader point size",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "51d6e4404aeb3a8e3c7eeb39584d590099a17402",
         "notes": null
