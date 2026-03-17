@@ -4234,7 +4234,7 @@
         "description": "nak: Report progress from nak_nir_rematerialize_load_const()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8fffcdb18b4d24f66a76d7c4de8006bd67eec728",
         "notes": null
