@@ -1036,8 +1036,8 @@ endif
 # - On Windows, a venv has no versioned aliased to 'python'.
 # - On RHEL 9, python3 is 3.9, so we must use python3.12.
 python_version_req = '>= 3.10'
-python_exec_list = ['python3.16', 'python3.15', 'python3.14', 'python3.13',
-                    'python3.12', 'python3.11', 'python3.10', 'python3', 'python']
+python_exec_list = ['python3', 'python3.16', 'python3.15', 'python3.14', 'python3.13',
+                    'python3.12', 'python3.11', 'python3.10', 'python']
 
 foreach p : python_exec_list
   prog_python = find_program(p, required : false, version : python_version_req)
