@@ -65,10 +65,6 @@ struct fd_perfcntr_countable {
    const char *name;
    /* selector register enum value to select this countable: */
    unsigned selector;
-
-   /* description of the countable: */
-   enum fd_perfcntr_type query_type;
-   enum fd_perfcntr_result_type result_type;
 };
 
 /* Describes an entire counter group: */
@@ -95,8 +91,6 @@ const struct fd_perfcntr_group *fd_perfcntrs(const struct fd_dev_id *id, unsigne
 
 #define COUNTABLE_BASE(_sel_name, _sel, _query_type, _result_type ) {          \
       .name = _sel_name, .selector = _sel,                                     \
-      .query_type = FD_PERFCNTR_TYPE_##_query_type,                            \
-      .result_type = FD_PERFCNTR_RESULT_TYPE_##_result_type,                   \
    }
 
 #define COUNTABLE(_selector, _query_type, _result_type)                        \
