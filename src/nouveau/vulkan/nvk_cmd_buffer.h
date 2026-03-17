@@ -46,9 +46,6 @@ struct nvk_root_descriptor_table {
       } cs;
    };
 
-   /* Client push constants */
-   uint8_t push[NVK_MAX_PUSH_SIZE];
-
    /* Descriptor set addresses */
    struct nvk_buffer_address sets[NVK_MAX_SETS];
 
@@ -57,13 +54,22 @@ struct nvk_root_descriptor_table {
     */
    uint8_t set_dynamic_buffer_start[NVK_MAX_SETS];
 
+   uint64_t printf_buffer_addr;
+
+   /* enfore total structure alignment to 0x100 as needed pre pascal */
+   uint8_t __padding[0xb0];
+
+   /*
+    * Arrays with dynamic (shader-provided) indices need to fit in a single
+    * 256-byte bank for gpus with ROOT_TABLE. We place them here after the
+    * padding so they're appropriately aligned.
+    */
+
    /* Dynamic buffer bindings (swizzled form of nvk_buffer_descriptor) */
    uint32_t dynamic_buffers[4][NVK_MAX_DYNAMIC_BUFFERS];
 
-   uint64_t printf_buffer_addr;
-
-   /* enfore alignment to 0x100 as needed pre pascal */
-   uint8_t __padding[0xb0];
+   /* Client push constants */
+   uint8_t push[NVK_MAX_PUSH_SIZE];
 };
 
 /* helper macro for computing root descriptor byte offsets */
