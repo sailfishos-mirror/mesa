@@ -536,6 +536,8 @@ panfrost_create_shader_state(struct pipe_context *pctx,
    pan_preprocess_nir(nir, panfrost_device_gpu_id(dev));
    pan_nir_lower_texture_early(nir, panfrost_device_gpu_id(dev));
 
+   NIR_PASS(_, nir, nir_lower_indirect_derefs_to_if_else_trees,
+            nir_var_shader_in | nir_var_shader_out, UINT32_MAX);
    NIR_PASS(_, nir, nir_lower_io, nir_var_shader_in | nir_var_shader_out,
             glsl_type_size, nir_lower_io_use_interpolated_input_intrinsics);
 
