@@ -6670,28 +6670,6 @@ bi_compile_variant_nir(nir_shader *nir,
       NIR_PASS(progress, nir, nir_opt_dce);
    }
 
-   /* The varying layout (if any) may have different bit sizes for some
-    * varyings than we have in the shader.  For descriptors, this isn't a
-    * problem as it's handled by the descriptor layout.  However, for direct
-    * loads and stores on Valhall+, we need the right bit sizes in the shader.
-    * We could do this in the back-end as we emit but it's easier for now to
-    * lower in NIR.  This also handles the case where we do a load from the
-    * fragment shader of something that isn't written by the vertex shader.
-    * In that case, we just return zero.
-    */
-   if (ctx->arch >= 9 && ctx->varying_layout) {
-      NIR_PASS(_, nir, pan_nir_resize_varying_io, ctx->varying_layout);
-
-      /* pan_nir_resize_varying_io may generate vector conversions which we
-       * need to clean up so the back-end doesn't see them.
-       */
-      unsigned gpu_id = inputs->gpu_id;
-      NIR_PASS(_, nir, nir_lower_alu_width, bi_vectorize_filter, &gpu_id);
-      NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
-      NIR_PASS(_, nir, nir_opt_copy_prop);
-      NIR_PASS(_, nir, nir_opt_dce);
-   }
-
    /* If nothing is pushed, all UBOs need to be uploaded */
    ctx->ubo_mask = ~0;
 
@@ -7072,6 +7050,28 @@ bifrost_compile_shader_nir(nir_shader *nir,
    MESA_TRACE_FUNC();
 
    bifrost_debug = debug_get_option_bifrost_debug();
+
+   /* The varying layout (if any) may have different bit sizes for some
+    * varyings than we have in the shader.  For descriptors, this isn't a
+    * problem as it's handled by the descriptor layout.  However, for direct
+    * loads and stores on Valhall+, we need the right bit sizes in the shader.
+    * We could do this in the back-end as we emit but it's easier for now to
+    * lower in NIR.  This also handles the case where we do a load from the
+    * fragment shader of something that isn't written by the vertex shader.
+    * In that case, we just return zero.
+    */
+   if (pan_arch(inputs->gpu_id) >= 9 && inputs->varying_layout) {
+      NIR_PASS(_, nir, pan_nir_resize_varying_io, inputs->varying_layout);
+
+      /* pan_nir_resize_varying_io may generate vector conversions which we
+       * need to clean up so the back-end doesn't see them.
+       */
+      unsigned gpu_id = inputs->gpu_id;
+      NIR_PASS(_, nir, nir_lower_alu_width, bi_vectorize_filter, &gpu_id);
+      NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
+      NIR_PASS(_, nir, nir_opt_copy_prop);
+      NIR_PASS(_, nir, nir_opt_dce);
+   }
 
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       info->vs.idvs = bi_should_idvs(nir, inputs);
