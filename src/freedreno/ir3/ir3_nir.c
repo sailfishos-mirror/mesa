@@ -1497,8 +1497,8 @@ ir3_nir_lower_variant(struct ir3_shader_variant *so,
     * straddling loads.  Align everything to vec4 to avoid that, though we
     * could theoretically do better.
     */
-   OPT(s, nir_opt_large_constants, glsl_get_vec4_size_align_bytes,
-       32 /* bytes */);
+   progress |= OPT(s, nir_opt_large_constants, glsl_get_vec4_size_align_bytes,
+                   32 /* bytes */);
    progress |= OPT(s, ir3_nir_lower_load_constant, so);
 
    /* Lower large temporaries to scratch, which in Qualcomm terms is private
