@@ -396,7 +396,6 @@ radv_meta_bind_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoi
    VK_FROM_HANDLE(radv_pipeline_layout, layout, _layout);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_descriptor_set_layout *set_layout = layout->set[0].layout;
-   struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint32_t upload_offset;
    uint8_t *ptr;
 
@@ -414,24 +413,6 @@ radv_meta_bind_descriptors(struct radv_cmd_buffer *cmd_buffer, VkPipelineBindPoi
       const uint32_t binding_offset = set_layout->binding[i].offset;
 
       radv_GetDescriptorEXT(radv_device_to_handle(device), descriptor, 0, ptr + binding_offset);
-
-      VkImageView image_view = VK_NULL_HANDLE;
-      if (descriptor->type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-         image_view = descriptor->data.pCombinedImageSampler->imageView;
-      } else if (descriptor->type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) {
-         image_view = descriptor->data.pSampledImage->imageView;
-      } else if (descriptor->type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
-         image_view = descriptor->data.pStorageImage->imageView;
-      }
-
-      /* Buffer descriptors use BDA and they should be added to the list before. */
-      if (image_view) {
-         VK_FROM_HANDLE(radv_image_view, iview, image_view);
-         for (uint32_t b = 0; b < ARRAY_SIZE(iview->image->bindings); b++) {
-            if (iview->image->bindings[b].bo)
-               radv_cs_add_buffer(device->ws, cs->b, iview->image->bindings[b].bo);
-         }
-      }
    }
 
    const VkDescriptorBufferBindingInfoEXT descriptor_buffer_binding = {

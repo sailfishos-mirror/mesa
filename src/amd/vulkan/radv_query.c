@@ -2467,7 +2467,6 @@ radv_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPoo
    radv_suspend_conditional_rendering(cmd_buffer);
 
    radv_cs_add_buffer(device->ws, cs->b, pool->bo);
-   radv_cs_add_buffer(device->ws, cs->b, dst_buffer->bo);
 
    /* Workaround engines that forget to properly specify WAIT_BIT because some driver implicitly
     * synchronizes before query copy.
@@ -2522,6 +2521,7 @@ radv_CmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uin
    VK_FROM_HANDLE(radv_query_pool, pool, queryPool);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint32_t value = query_clear_value(pool->vk.query_type);
    uint32_t flush_bits = 0;
 
@@ -2536,6 +2536,8 @@ radv_CmdResetQueryPool(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uin
    cmd_buffer->state.flush_bits |= cmd_buffer->active_query_flush_bits;
 
    radv_meta_begin(cmd_buffer);
+
+   radv_cs_add_buffer(device->ws, cs->b, pool->bo);
 
    flush_bits |= radv_fill_buffer(cmd_buffer, pool->bo, radv_buffer_get_va(pool->bo) + firstQuery * pool->stride,
                                   queryCount * pool->stride, value);
