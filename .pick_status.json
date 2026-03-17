@@ -1424,7 +1424,7 @@
         "description": "Revert \"nir: Add a type parameter to nir_lower_point_size()\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "6ee4ea5ea39248495c626ff694901a197a933f48",
         "notes": null
