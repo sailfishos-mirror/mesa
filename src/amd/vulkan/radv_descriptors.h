@@ -16,8 +16,6 @@
 
 #include <vulkan/vulkan.h>
 
-unsigned radv_descriptor_type_buffer_count(VkDescriptorType type);
-
 uint32_t radv_descriptor_alignment(VkDescriptorType type);
 
 bool radv_mutable_descriptor_type_size_alignment(const struct radv_device *device,

@@ -50,7 +50,6 @@ radv_CreateDescriptorUpdateTemplate(VkDevice _device, const VkDescriptorUpdateTe
    for (i = 0; i < entry_count; i++) {
       const VkDescriptorUpdateTemplateEntry *entry = &pCreateInfo->pDescriptorUpdateEntries[i];
       const struct radv_descriptor_set_binding_layout *binding_layout = set_layout->binding + entry->dstBinding;
-      const uint32_t buffer_offset = binding_layout->buffer_offset + entry->dstArrayElement;
       const uint32_t *immutable_samplers = NULL;
       uint32_t dst_offset;
       uint32_t dst_stride;
@@ -90,7 +89,6 @@ radv_CreateDescriptorUpdateTemplate(VkDevice _device, const VkDescriptorUpdateTe
                                                         .src_stride = entry->stride,
                                                         .dst_offset = dst_offset,
                                                         .dst_stride = dst_stride,
-                                                        .buffer_offset = buffer_offset,
                                                         .has_sampler = !binding_layout->immutable_samplers_offset,
                                                         .has_ycbcr_sampler = binding_layout->has_ycbcr_sampler,
                                                         .immutable_samplers = immutable_samplers};
@@ -124,7 +122,6 @@ radv_update_descriptor_set_with_template_impl(struct radv_device *device, struct
    uint32_t i;
 
    for (i = 0; i < templ->entry_count; ++i) {
-      struct radeon_winsys_bo **buffer_list = set->descriptors + templ->entry[i].buffer_offset;
       uint32_t *pDst = set->header.mapped_ptr + templ->entry[i].dst_offset;
       const uint8_t *pSrc = ((const uint8_t *)pData) + templ->entry[i].src_offset;
       uint32_t j;
@@ -196,8 +193,6 @@ radv_update_descriptor_set_with_template_impl(struct radv_device *device, struct
          }
          pSrc += templ->entry[i].src_stride;
          pDst += templ->entry[i].dst_stride;
-
-         buffer_list += radv_descriptor_type_buffer_count(templ->entry[i].descriptor_type);
       }
    }
 }

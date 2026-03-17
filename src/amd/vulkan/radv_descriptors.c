@@ -16,25 +16,6 @@
 static_assert(RADV_SAMPLER_DESC_SIZE == 16 && RADV_BUFFER_DESC_SIZE == 16 && RADV_ACCEL_STRUCT_DESC_SIZE == 16,
               "Sampler/buffer/acceleration structure descriptor sizes must match.");
 
-unsigned
-radv_descriptor_type_buffer_count(VkDescriptorType type)
-{
-   switch (type) {
-   case VK_DESCRIPTOR_TYPE_SAMPLER:
-   case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
-   case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
-      return 0;
-   case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-   case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-   case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-   case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-   case VK_DESCRIPTOR_TYPE_MUTABLE_EXT:
-      return 3;
-   default:
-      return 1;
-   }
-}
-
 uint32_t
 radv_descriptor_alignment(VkDescriptorType type)
 {
