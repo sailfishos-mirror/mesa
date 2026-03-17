@@ -1826,7 +1826,6 @@ resource_barrier_wait_stage(enum intel_engine_class engine_class,
 {
    enum GENX(RESOURCE_BARRIER_STAGE) hw_stage = RESOURCE_BARRIER_STAGE_NONE;
 
-   assert(vk_stages != 0);
    /* BSpec 56054, Wait Stage:
     *   "Hardware is only able to stall at the following stages:
     *       Top of the pipe (command parser)
@@ -1877,7 +1876,6 @@ resource_barrier_wait_stage(enum intel_engine_class engine_class,
                          VK_PIPELINE_STAGE_2_CLEAR_BIT_KHR))
       hw_stage = RESOURCE_BARRIER_STAGE_PIXEL;
 
-   assert(hw_stage != RESOURCE_BARRIER_STAGE_NONE);
    return hw_stage;
 }
 
