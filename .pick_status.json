@@ -6174,7 +6174,7 @@
         "description": "ci: changing .gitlab-ci.yml itself also means the container jobs must exist",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4b2a4dce78780823fa2b3e5988f3efb43c7db655",
         "notes": null
