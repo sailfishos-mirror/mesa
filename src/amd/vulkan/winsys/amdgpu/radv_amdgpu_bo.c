@@ -80,52 +80,6 @@ radv_amdgpu_bo_va_op(struct radv_amdgpu_winsys *ws, uint32_t bo_handle, uint64_t
    return r;
 }
 
-static int
-bo_comparator(const void *ap, const void *bp)
-{
-   struct radv_amdgpu_bo *a = *(struct radv_amdgpu_bo *const *)ap;
-   struct radv_amdgpu_bo *b = *(struct radv_amdgpu_bo *const *)bp;
-   return (a > b) ? 1 : (a < b) ? -1 : 0;
-}
-
-static VkResult
-radv_amdgpu_winsys_rebuild_bo_list(struct radv_amdgpu_winsys_bo *bo)
-{
-   u_rwlock_wrlock(&bo->lock);
-
-   if (bo->bo_capacity < bo->range_count) {
-      uint32_t new_count = MAX2(bo->bo_capacity * 2, bo->range_count);
-      struct radv_amdgpu_winsys_bo **bos = realloc(bo->bos, new_count * sizeof(struct radv_amdgpu_winsys_bo *));
-      if (!bos) {
-         u_rwlock_wrunlock(&bo->lock);
-         return VK_ERROR_OUT_OF_HOST_MEMORY;
-      }
-      bo->bos = bos;
-      bo->bo_capacity = new_count;
-   }
-
-   uint32_t temp_bo_count = 0;
-   for (uint32_t i = 0; i < bo->range_count; ++i)
-      if (bo->ranges[i].bo)
-         bo->bos[temp_bo_count++] = bo->ranges[i].bo;
-
-   qsort(bo->bos, temp_bo_count, sizeof(struct radv_amdgpu_winsys_bo *), &bo_comparator);
-
-   if (!temp_bo_count) {
-      bo->bo_count = 0;
-   } else {
-      uint32_t final_bo_count = 1;
-      for (uint32_t i = 1; i < temp_bo_count; ++i)
-         if (bo->bos[i] != bo->bos[i - 1])
-            bo->bos[final_bo_count++] = bo->bos[i];
-
-      bo->bo_count = final_bo_count;
-   }
-
-   u_rwlock_wrunlock(&bo->lock);
-   return VK_SUCCESS;
-}
-
 static uint64_t
 radv_amdgpu_canonicalize_va(uint64_t va)
 {
@@ -231,10 +185,6 @@ radv_amdgpu_winsys_bo_virtual_bind(struct radeon_winsys *_ws, struct radeon_wins
    struct radv_amdgpu_winsys *ws = radv_amdgpu_winsys(_ws);
    struct radv_amdgpu_winsys_bo *parent = (struct radv_amdgpu_winsys_bo *)_parent;
    struct radv_amdgpu_winsys_bo *bo = (struct radv_amdgpu_winsys_bo *)_bo;
-   int range_count_delta, new_idx;
-   int first = 0, last;
-   struct radv_amdgpu_map_range new_first, new_last;
-   VkResult result;
    int r;
 
    assert(parent->base.is_virtual);
@@ -253,116 +203,6 @@ radv_amdgpu_winsys_bo_virtual_bind(struct radeon_winsys *_ws, struct radeon_wins
       fprintf(stderr, "radv/amdgpu: Failed to replace a PRT VA region (%d).\n", r);
       return VK_ERROR_OUT_OF_DEVICE_MEMORY;
    }
-
-   /* Do not add the BO to the virtual BO list if it's already in the global list to avoid dangling
-    * BO references because it might have been destroyed without being previously unbound. Resetting
-    * it to NULL clears the old BO ranges if present.
-    *
-    * This is going to be clarified in the Vulkan spec:
-    * https://gitlab.khronos.org/vulkan/vulkan/-/issues/3125
-    *
-    * The issue still exists for non-global BO but it will be addressed later, once we are 100% it's
-    * RADV fault (mostly because the solution looks more complicated).
-    */
-   if (bo && radv_buffer_is_resident(&bo->base)) {
-      bo = NULL;
-      bo_offset = 0;
-   }
-
-   /* We have at most 2 new ranges (1 by the bind, and another one by splitting a range that
-    * contains the newly bound range). */
-   if (parent->range_capacity - parent->range_count < 2) {
-      uint32_t range_capacity = parent->range_capacity + 2;
-      struct radv_amdgpu_map_range *ranges =
-         realloc(parent->ranges, range_capacity * sizeof(struct radv_amdgpu_map_range));
-      if (!ranges)
-         return VK_ERROR_OUT_OF_HOST_MEMORY;
-      parent->ranges = ranges;
-      parent->range_capacity = range_capacity;
-   }
-
-   /*
-    * [first, last] is exactly the range of ranges that either overlap the
-    * new parent, or are adjacent to it. This corresponds to the bind ranges
-    * that may change.
-    */
-   while (first + 1 < parent->range_count && parent->ranges[first].offset + parent->ranges[first].size < offset)
-      ++first;
-
-   last = first;
-   while (last + 1 < parent->range_count && parent->ranges[last + 1].offset <= offset + size)
-      ++last;
-
-   /* Whether the first or last range are going to be totally removed or just
-    * resized/left alone. Note that in the case of first == last, we will split
-    * this into a part before and after the new range. The remove flag is then
-    * whether to not create the corresponding split part. */
-   bool remove_first = parent->ranges[first].offset == offset;
-   bool remove_last = parent->ranges[last].offset + parent->ranges[last].size == offset + size;
-
-   assert(parent->ranges[first].offset <= offset);
-   assert(parent->ranges[last].offset + parent->ranges[last].size >= offset + size);
-
-   /* Try to merge the new range with the first range. */
-   if (parent->ranges[first].bo == bo &&
-       (!bo || offset - bo_offset == parent->ranges[first].offset - parent->ranges[first].bo_offset)) {
-      size += offset - parent->ranges[first].offset;
-      offset = parent->ranges[first].offset;
-      bo_offset = parent->ranges[first].bo_offset;
-      remove_first = true;
-   }
-
-   /* Try to merge the new range with the last range. */
-   if (parent->ranges[last].bo == bo &&
-       (!bo || offset - bo_offset == parent->ranges[last].offset - parent->ranges[last].bo_offset)) {
-      size = parent->ranges[last].offset + parent->ranges[last].size - offset;
-      remove_last = true;
-   }
-
-   range_count_delta = 1 - (last - first + 1) + !remove_first + !remove_last;
-   new_idx = first + !remove_first;
-
-   /* If the first/last range are not left alone we unmap then and optionally map
-    * them again after modifications. Not that this implicitly can do the splitting
-    * if first == last. */
-   new_first = parent->ranges[first];
-   new_last = parent->ranges[last];
-
-   if (parent->ranges[first].offset + parent->ranges[first].size > offset || remove_first) {
-      if (!remove_first) {
-         new_first.size = offset - new_first.offset;
-      }
-   }
-
-   if (parent->ranges[last].offset < offset + size || remove_last) {
-      if (!remove_last) {
-         new_last.size -= offset + size - new_last.offset;
-         new_last.bo_offset += (offset + size - new_last.offset);
-         new_last.offset = offset + size;
-      }
-   }
-
-   /* Moves the range list after last to account for the changed number of ranges. */
-   memmove(parent->ranges + last + 1 + range_count_delta, parent->ranges + last + 1,
-           sizeof(struct radv_amdgpu_map_range) * (parent->range_count - last - 1));
-
-   if (!remove_first)
-      parent->ranges[first] = new_first;
-
-   if (!remove_last)
-      parent->ranges[new_idx + 1] = new_last;
-
-   /* Actually set up the new range. */
-   parent->ranges[new_idx].offset = offset;
-   parent->ranges[new_idx].size = size;
-   parent->ranges[new_idx].bo = bo;
-   parent->ranges[new_idx].bo_offset = bo_offset;
-
-   parent->range_count += range_count_delta;
-
-   result = radv_amdgpu_winsys_rebuild_bo_list(parent);
-   if (result != VK_SUCCESS)
-      return result;
 
    return VK_SUCCESS;
 }
@@ -447,9 +287,6 @@ radv_amdgpu_winsys_virtual_bo_destroy(struct radeon_winsys *_ws, struct radeon_w
       fprintf(stderr, "radv/amdgpu: Failed to clear a PRT VA region (%d).\n", r);
    }
 
-   free(bo->bos);
-   free(bo->ranges);
-   u_rwlock_destroy(&bo->lock);
    ac_drm_va_range_free(bo->va_handle);
    FREE(bo);
 }
@@ -499,7 +336,6 @@ radv_amdgpu_winsys_virtual_bo_create(struct radeon_winsys *_ws, uint64_t size, u
 {
    struct radv_amdgpu_winsys *ws = radv_amdgpu_winsys(_ws);
    struct radv_amdgpu_winsys_bo *bo;
-   struct radv_amdgpu_map_range *ranges = NULL;
    uint64_t va = 0;
    amdgpu_va_handle va_handle;
    int r;
@@ -536,23 +372,6 @@ radv_amdgpu_winsys_virtual_bo_create(struct radeon_winsys *_ws, uint64_t size, u
    bo->base.size = size;
    bo->va_handle = va_handle;
    bo->base.is_virtual = true;
-
-   ranges = realloc(NULL, sizeof(struct radv_amdgpu_map_range));
-   if (!ranges) {
-      result = VK_ERROR_OUT_OF_HOST_MEMORY;
-      goto error_ranges_alloc;
-   }
-
-   u_rwlock_init(&bo->lock);
-
-   bo->ranges = ranges;
-   bo->range_count = 1;
-   bo->range_capacity = 1;
-
-   bo->ranges[0].offset = 0;
-   bo->ranges[0].size = size;
-   bo->ranges[0].bo = NULL;
-   bo->ranges[0].bo_offset = 0;
 
    /* Reserve a PRT VA region. */
    r = radv_amdgpu_virtual_bo_init_mapping(ws, bo, va_size);
