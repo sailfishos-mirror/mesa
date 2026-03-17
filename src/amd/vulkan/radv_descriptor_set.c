@@ -587,7 +587,7 @@ radv_update_descriptor_sets_impl(struct radv_device *device, struct radv_cmd_buf
       ptr += binding_layout->offset / 4;
 
       if (writeset->descriptorType == VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK) {
-         radv_write_block_descriptor(device, cmd_buffer, (uint8_t *)ptr + writeset->dstArrayElement, writeset);
+         radv_write_block_descriptor((uint8_t *)ptr + writeset->dstArrayElement, writeset);
          continue;
       } else if (writeset->descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR) {
          accel_structs = vk_find_struct_const(writeset->pNext, WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR);
@@ -603,33 +603,32 @@ radv_update_descriptor_sets_impl(struct radv_device *device, struct radv_cmd_buf
             unsigned idx = writeset->dstArrayElement + j;
             idx += binding_layout->dynamic_offset_offset;
             assert(!(set->header.layout->flags & VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT));
-            radv_write_dynamic_buffer_descriptor(device, set->header.dynamic_descriptors + idx, buffer_list,
-                                                 writeset->pBufferInfo + j);
+            radv_write_dynamic_buffer_descriptor(set->header.dynamic_descriptors + idx, writeset->pBufferInfo + j);
             break;
          }
          case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
          case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-            radv_write_buffer_descriptor_impl(device, cmd_buffer, ptr, buffer_list, writeset->pBufferInfo + j);
+            radv_write_buffer_descriptor_impl(device, ptr, writeset->pBufferInfo + j);
             break;
          case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
          case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-            radv_write_texel_buffer_descriptor(device, cmd_buffer, ptr, buffer_list, writeset->pTexelBufferView[j]);
+            radv_write_texel_buffer_descriptor(ptr, writeset->pTexelBufferView[j]);
             break;
          case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-            radv_write_image_descriptor_impl(device, cmd_buffer, RADV_STORAGE_IMAGE_DESC_SIZE, ptr, buffer_list,
-                                             writeset->descriptorType, writeset->pImageInfo + j);
+            radv_write_image_descriptor(ptr, RADV_STORAGE_IMAGE_DESC_SIZE, writeset->descriptorType,
+                                        writeset->pImageInfo + j);
             break;
          case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
          case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-            radv_write_image_descriptor_impl(device, cmd_buffer, radv_get_sampled_image_desc_size(pdev), ptr,
-                                             buffer_list, writeset->descriptorType, writeset->pImageInfo + j);
+            radv_write_image_descriptor(ptr, radv_get_sampled_image_desc_size(pdev), writeset->descriptorType,
+                                        writeset->pImageInfo + j);
             break;
          case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
             if (binding_layout->has_ycbcr_sampler) {
-               radv_write_image_descriptor_ycbcr_impl(device, cmd_buffer, ptr, buffer_list, writeset->pImageInfo + j);
+               radv_write_image_descriptor_ycbcr(device, ptr, writeset->pImageInfo + j);
             } else {
-               radv_write_combined_image_sampler_descriptor(device, cmd_buffer, ptr, buffer_list,
-                                                            writeset->descriptorType, writeset->pImageInfo + j,
+               radv_write_combined_image_sampler_descriptor(device, ptr, writeset->descriptorType,
+                                                            writeset->pImageInfo + j,
                                                             !binding_layout->immutable_samplers_offset);
             }
 
