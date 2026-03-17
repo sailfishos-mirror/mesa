@@ -88,6 +88,7 @@ csf_inc_dir = ['csf']
 csf_files = [
   'csf/panvk_vX_bind_queue.c',
   'csf/panvk_vX_cmd_buffer.c',
+  'csf/panvk_vX_cmd_cond_render.c',
   'csf/panvk_vX_cmd_dispatch.c',
   'csf/panvk_vX_cmd_draw.c',
   'csf/panvk_vX_cmd_event.c',

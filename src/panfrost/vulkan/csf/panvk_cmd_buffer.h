@@ -148,6 +148,11 @@ struct panvk_cs_subqueue_context {
          uint64_t cs;
       } tracebuf;
    } debug;
+   /* Non-zero when draws should execute, zero when they should be
+    * skipped. Written by the primary before cs_call, read by inherited
+    * secondaries at each draw/dispatch.
+    */
+   uint32_t cond_render_flag;
 } __attribute__((aligned(64)));
 
 struct panvk_cache_flush_info {
@@ -402,6 +407,13 @@ struct panvk_tls_state {
    unsigned max_wg_count;
 };
 
+struct panvk_cond_render_state {
+   bool enabled;
+   bool inherited;
+   uint64_t addr;
+   enum mali_cs_condition exec_cond;
+};
+
 struct panvk_cmd_buffer {
    struct vk_command_buffer vk;
    VkCommandBufferUsageFlags flags;
@@ -421,11 +433,66 @@ struct panvk_cmd_buffer {
       struct panvk_cs_state cs[PANVK_SUBQUEUE_COUNT];
       struct panvk_tls_state tls;
       bool contains_timestamp_queries;
+
+      struct panvk_cond_render_state cond_render;
    } state;
 };
 
 VK_DEFINE_HANDLE_CASTS(panvk_cmd_buffer, vk.base, VkCommandBuffer,
                        VK_OBJECT_TYPE_COMMAND_BUFFER)
+
+struct panvk_cond_render_ctx {
+   bool active;
+   struct cs_if_else if_else;
+};
+
+static inline struct panvk_cond_render_ctx *
+panvk_cond_render_begin(struct panvk_cmd_buffer *cmdbuf, struct cs_builder *b,
+                        struct panvk_cond_render_ctx *ctx)
+{
+   ctx->active =
+      cmdbuf->state.cond_render.enabled || cmdbuf->state.cond_render.inherited;
+
+   if (ctx->active) {
+      struct cs_index pred_val = cs_scratch_reg32(b, 16);
+
+      if (cmdbuf->state.cond_render.enabled) {
+         /* Direct: load predicate from the buffer. */
+         struct cs_index pred_addr = cs_scratch_reg64(b, 14);
+
+         cs_move64_to(b, pred_addr, cmdbuf->state.cond_render.addr);
+         cs_load32_to(b, pred_val, pred_addr, 0);
+         cs_if_start(b, &ctx->if_else, cmdbuf->state.cond_render.exec_cond,
+                     pred_val);
+      } else {
+         /* Inherited: load flag from subqueue context. */
+         cs_load32_to(b, pred_val, cs_subqueue_ctx_reg(b),
+                      offsetof(struct panvk_cs_subqueue_context,
+                               cond_render_flag));
+         cs_if_start(b, &ctx->if_else, MALI_CS_CONDITION_NEQUAL, pred_val);
+      }
+   }
+
+   return ctx;
+}
+
+static inline void
+panvk_cond_render_end(struct cs_builder *b, struct panvk_cond_render_ctx *ctx)
+{
+   if (ctx->active)
+      cs_if_end(b, &ctx->if_else);
+}
+
+/* Wrap GPU commands (draws/dispatches) with conditional rendering.
+ * When conditional rendering is inactive, the body executes with zero
+ * overhead. When active, the body is wrapped in a cs_if that loads
+ * the predicate from the buffer and branches over the commands if
+ * the condition says to skip.
+ */
+#define panvk_cond_render(cmdbuf, b)                                           \
+   for (struct panvk_cond_render_ctx __cond_ctx,                               \
+        *__cond_p = panvk_cond_render_begin(cmdbuf, b, &__cond_ctx);           \
+        __cond_p != NULL; panvk_cond_render_end(b, __cond_p), __cond_p = NULL)
 
 static bool
 inherits_render_ctx(struct panvk_cmd_buffer *cmdbuf)
@@ -730,17 +797,20 @@ panvk_get_subqueue_stages(enum panvk_subqueue_id subqueue)
       return VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT |
              VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT |
              VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT |
-             VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+             VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+             VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT;
    case PANVK_SUBQUEUE_FRAGMENT:
       return VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
              VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT |
              VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT |
              VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT |
              VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_RESOLVE_BIT |
-             VK_PIPELINE_STAGE_2_BLIT_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT;
+             VK_PIPELINE_STAGE_2_BLIT_BIT | VK_PIPELINE_STAGE_2_CLEAR_BIT |
+             VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT;
    case PANVK_SUBQUEUE_COMPUTE:
       return VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-             VK_PIPELINE_STAGE_2_COPY_BIT;
+             VK_PIPELINE_STAGE_2_COPY_BIT |
+             VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT;
    default:
       UNREACHABLE("Invalid subqueue id");
    }
