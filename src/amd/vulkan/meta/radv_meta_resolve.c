@@ -402,6 +402,7 @@ radv_cmd_buffer_resolve_rendering(struct radv_cmd_buffer *cmd_buffer, const VkRe
             assert(resolve_method == RESOLVE_COMPUTE);
             radv_compute_resolve_image(cmd_buffer, src_iview->image, src_format, src_layout, dst_iview->image,
                                        dst_format, dst_layout, att->resolveMode, &region);
+            used_compute = true;
          }
       }
    }
