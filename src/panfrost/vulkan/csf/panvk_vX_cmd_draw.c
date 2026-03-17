@@ -2519,13 +2519,38 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
    uint32_t idvs_count = DIV_ROUND_UP(cmdbuf->state.gfx.render.layer_count,
                                       MAX_LAYERS_PER_TILER_DESC);
 
-   if (idvs_count > 1) {
-      struct cs_index counter_reg = cs_scratch_reg32(b, 17);
-      struct cs_index tiler_ctx_addr = cs_sr_reg64(b, IDVS, TILER_CTX);
+   panvk_cond_render(cmdbuf, b)
+   {
+      if (idvs_count > 1) {
+         struct cs_index counter_reg = cs_scratch_reg32(b, 17);
+         struct cs_index tiler_ctx_addr = cs_sr_reg64(b, IDVS, TILER_CTX);
 
-      cs_move32_to(b, counter_reg, idvs_count);
+         cs_move32_to(b, counter_reg, idvs_count);
 
-      cs_while(b, MALI_CS_CONDITION_GREATER, counter_reg) {
+         cs_while(b, MALI_CS_CONDITION_GREATER, counter_reg) {
+#if PAN_ARCH >= 12
+            cs_trace_run_idvs2(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
+                               flags_override.opaque[0], true, cs_undef(),
+                               MALI_IDVS_SHADING_MODE_EARLY);
+#else
+            cs_trace_run_idvs(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
+                              flags_override.opaque[0], true,
+                              cs_shader_res_sel(0, 0, 1, 0),
+                              cs_shader_res_sel(2, 2, 2, 0), cs_undef());
+#endif
+
+            cs_add32(b, counter_reg, counter_reg, -1);
+            cs_update_vt_ctx(b) {
+               cs_add64(b, tiler_ctx_addr, tiler_ctx_addr,
+                        pan_size(TILER_CONTEXT));
+            }
+         }
+
+         cs_update_vt_ctx(b) {
+            cs_add64(b, tiler_ctx_addr, tiler_ctx_addr,
+                     -(idvs_count * pan_size(TILER_CONTEXT)));
+         }
+      } else {
 #if PAN_ARCH >= 12
          cs_trace_run_idvs2(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
                             flags_override.opaque[0], true, cs_undef(),
@@ -2536,29 +2561,7 @@ panvk_cmd_draw(struct panvk_cmd_buffer *cmdbuf, struct panvk_draw_info *draw)
                            cs_shader_res_sel(0, 0, 1, 0),
                            cs_shader_res_sel(2, 2, 2, 0), cs_undef());
 #endif
-
-         cs_add32(b, counter_reg, counter_reg, -1);
-         cs_update_vt_ctx(b) {
-            cs_add64(b, tiler_ctx_addr, tiler_ctx_addr,
-                     pan_size(TILER_CONTEXT));
-         }
       }
-
-      cs_update_vt_ctx(b) {
-         cs_add64(b, tiler_ctx_addr, tiler_ctx_addr,
-                  -(idvs_count * pan_size(TILER_CONTEXT)));
-      }
-   } else {
-#if PAN_ARCH >= 12
-      cs_trace_run_idvs2(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
-                         flags_override.opaque[0], true, cs_undef(),
-                         MALI_IDVS_SHADING_MODE_EARLY);
-#else
-      cs_trace_run_idvs(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
-                        flags_override.opaque[0], true,
-                        cs_shader_res_sel(0, 0, 1, 0),
-                        cs_shader_res_sel(2, 2, 2, 0), cs_undef());
-#endif
    }
 }
 
@@ -2725,7 +2728,9 @@ panvk_cmd_draw_indirect(struct panvk_cmd_buffer *cmdbuf,
    cs_move64_to(b, draw_params_addr, draw->indirect.buffer_dev_addr);
    cs_move32_to(b, draw_id, 0);
 
-   cs_while(b, MALI_CS_CONDITION_GREATER, draw_count) {
+   panvk_cond_render(cmdbuf, b)
+      cs_while(b, MALI_CS_CONDITION_GREATER, draw_count)
+   {
       cs_update_vt_ctx(b) {
          cs_move32_to(b, cs_sr_reg32(b, IDVS, GLOBAL_ATTRIBUTE_OFFSET), 0);
          /* Load SR33-37 from indirect buffer. */

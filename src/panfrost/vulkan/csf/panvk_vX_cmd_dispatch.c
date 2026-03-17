@@ -280,26 +280,30 @@ cmd_dispatch(struct panvk_cmd_buffer *cmdbuf, struct panvk_dispatch_info *info)
    cs_next_iter_sb(cmdbuf, PANVK_SUBQUEUE_COMPUTE,
                    cs_scratch_reg_tuple(b, 0, 2));
 
-   if (indirect) {
-      /* Use run_compute with a set task axis instead of run_compute_indirect as
-       * run_compute_indirect has been found to cause intermittent hangs. This
-       * is safe, as the task increment will be clamped by the job size along
-       * the specified axis.
-       * The chosen task axis is potentially suboptimal, as choosing good
-       * increment/axis parameters requires knowledge of job dimensions, but
-       * this is somewhat offset by run_compute being a native instruction. */
-      unsigned task_axis = MALI_TASK_AXIS_X;
-      cs_trace_run_compute(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
-                           wg_per_task, task_axis,
-                           cs_shader_res_sel(0, 0, 0, 0));
-   } else {
-      unsigned task_axis = MALI_TASK_AXIS_X;
-      unsigned task_increment = 0;
-      panvk_per_arch(calculate_task_axis_and_increment)(
-         cs, phys_dev, &dim, &task_axis, &task_increment);
-      cs_trace_run_compute(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
-                           task_increment, task_axis,
-                           cs_shader_res_sel(0, 0, 0, 0));
+   panvk_cond_render(cmdbuf, b)
+   {
+      if (indirect) {
+         /* Use run_compute with a set task axis instead of
+          * run_compute_indirect as run_compute_indirect has been found to
+          * cause intermittent hangs. This is safe, as the task increment
+          * will be clamped by the job size along the specified axis.
+          * The chosen task axis is potentially suboptimal, as choosing good
+          * increment/axis parameters requires knowledge of job dimensions,
+          * but this is somewhat offset by run_compute being a native
+          * instruction. */
+         unsigned task_axis = MALI_TASK_AXIS_X;
+         cs_trace_run_compute(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
+                              wg_per_task, task_axis,
+                              cs_shader_res_sel(0, 0, 0, 0));
+      } else {
+         unsigned task_axis = MALI_TASK_AXIS_X;
+         unsigned task_increment = 0;
+         panvk_per_arch(calculate_task_axis_and_increment)(
+            cs, phys_dev, &dim, &task_axis, &task_increment);
+         cs_trace_run_compute(b, tracing_ctx, cs_scratch_reg_tuple(b, 0, 4),
+                              task_increment, task_axis,
+                              cs_shader_res_sel(0, 0, 0, 0));
+      }
    }
 
 #if PAN_ARCH >= 11
