@@ -203,9 +203,6 @@ struct radv_device {
    /* Whether to inline the compute dispatch size in user sgprs. */
    bool load_grid_size_from_user_sgpr;
 
-   /* Whether the driver uses a global BO list. */
-   bool use_global_bo_list;
-
    /* Whether anisotropy is forced with RADV_TEX_ANISO (-1 is disabled). */
    int force_aniso;
 

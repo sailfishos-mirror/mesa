@@ -1264,9 +1264,8 @@ radv_CreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCr
                                       ? NULL
                                       : pdev->ws->copy_sync_payloads;
 
-   /* Enable the global BO list by default. */
-   /* TODO: Remove the per cmdbuf BO list tracking after few Mesa releases if no blockers. */
-   device->use_global_bo_list = pdev->info.has_vm_always_valid;
+   /* VM_ALWAYS_VALID must be supported. */
+   assert(pdev->info.has_vm_always_valid);
 
    device->overallocation_disallowed = overallocation_disallowed;
    mtx_init(&device->overallocation_mutex, mtx_plain);

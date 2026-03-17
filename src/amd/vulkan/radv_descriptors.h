@@ -38,16 +38,6 @@ radv_write_texel_buffer_descriptor(struct radv_device *device, struct radv_cmd_b
    }
 
    memcpy(dst, buffer_view->state, RADV_BUFFER_DESC_SIZE);
-
-   if (device->use_global_bo_list)
-      return;
-
-   if (cmd_buffer) {
-      struct radv_cmd_stream *cs = cmd_buffer->cs;
-      radv_cs_add_buffer(device->ws, cs->b, buffer_view->bo);
-   } else {
-      *buffer_list = buffer_view->bo;
-   }
 }
 
 static ALWAYS_INLINE void
@@ -82,22 +72,6 @@ radv_write_buffer_descriptor_impl(struct radv_device *device, struct radv_cmd_bu
    }
 
    radv_write_buffer_descriptor(device, dst, va, range);
-
-   if (device->use_global_bo_list)
-      return;
-
-   if (!buffer) {
-      if (!cmd_buffer)
-         *buffer_list = NULL;
-      return;
-   }
-
-   if (cmd_buffer) {
-      struct radv_cmd_stream *cs = cmd_buffer->cs;
-      radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
-   } else {
-      *buffer_list = buffer->bo;
-   }
 }
 
 static ALWAYS_INLINE void
@@ -178,30 +152,7 @@ radv_write_image_descriptor_impl(struct radv_device *device, struct radv_cmd_buf
                                  unsigned *dst, struct radeon_winsys_bo **buffer_list, VkDescriptorType descriptor_type,
                                  const VkDescriptorImageInfo *image_info)
 {
-   VK_FROM_HANDLE(radv_image_view, iview, image_info->imageView);
-
    radv_write_image_descriptor(dst, size, descriptor_type, image_info);
-
-   if (device->use_global_bo_list)
-      return;
-
-   if (!iview) {
-      if (!cmd_buffer)
-         *buffer_list = NULL;
-      return;
-   }
-
-   const uint32_t max_bindings = sizeof(iview->image->bindings) / sizeof(iview->image->bindings[0]);
-   for (uint32_t b = 0; b < max_bindings; b++) {
-      if (cmd_buffer) {
-         struct radv_cmd_stream *cs = cmd_buffer->cs;
-         if (iview->image->bindings[b].bo)
-            radv_cs_add_buffer(device->ws, cs->b, iview->image->bindings[b].bo);
-      } else {
-         *buffer_list = iview->image->bindings[b].bo;
-         buffer_list++;
-      }
-   }
 }
 
 static ALWAYS_INLINE void
@@ -232,29 +183,7 @@ static ALWAYS_INLINE void
 radv_write_image_descriptor_ycbcr_impl(struct radv_device *device, struct radv_cmd_buffer *cmd_buffer, unsigned *dst,
                                        struct radeon_winsys_bo **buffer_list, const VkDescriptorImageInfo *image_info)
 {
-   VK_FROM_HANDLE(radv_image_view, iview, image_info->imageView);
-
    radv_write_image_descriptor_ycbcr(device, dst, image_info);
-
-   if (device->use_global_bo_list)
-      return;
-
-   if (!iview) {
-      if (!cmd_buffer)
-         *buffer_list = NULL;
-      return;
-   }
-
-   for (uint32_t b = 0; b < ARRAY_SIZE(iview->image->bindings); b++) {
-      if (cmd_buffer) {
-         struct radv_cmd_stream *cs = cmd_buffer->cs;
-         if (iview->image->bindings[b].bo)
-            radv_cs_add_buffer(device->ws, cs->b, iview->image->bindings[b].bo);
-      } else {
-         *buffer_list = iview->image->bindings[b].bo;
-         buffer_list++;
-      }
-   }
 }
 
 static ALWAYS_INLINE void
