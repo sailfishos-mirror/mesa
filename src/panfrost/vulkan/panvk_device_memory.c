@@ -52,33 +52,6 @@ panvk_memory_emit_report(struct panvk_device *device,
                                 (uintptr_t)(mem), mem->vk.memory_type_index);
 }
 
-static void *
-panvk_memory_mmap(struct panvk_device_memory *mem)
-{
-   if (!mem->addr.host) {
-      void *addr = pan_kmod_bo_mmap(mem->bo, 0, pan_kmod_bo_size(mem->bo),
-                                    PROT_READ | PROT_WRITE, MAP_SHARED, NULL);
-      if (addr == MAP_FAILED)
-         return NULL;
-
-      mem->addr.host = addr;
-   }
-
-   return mem->addr.host;
-}
-
-static void
-panvk_memory_munmap(struct panvk_device_memory *mem)
-{
-   if (mem->addr.host) {
-      ASSERTED int ret =
-         os_munmap((void *)mem->addr.host, pan_kmod_bo_size(mem->bo));
-
-      assert(!ret);
-      mem->addr.host = NULL;
-   }
-}
-
 VKAPI_ATTR VkResult VKAPI_CALL
 panvk_AllocateMemory(VkDevice _device,
                      const VkMemoryAllocateInfo *pAllocateInfo,
@@ -220,8 +193,8 @@ panvk_AllocateMemory(VkDevice _device,
 
    if (device->debug.decode_ctx) {
       if (PANVK_DEBUG(DUMP) || PANVK_DEBUG(TRACE)) {
-         void *cpu = pan_kmod_bo_mmap(mem->bo, 0, pan_kmod_bo_size(mem->bo),
-                                      PROT_READ | PROT_WRITE, MAP_SHARED, NULL);
+         void *cpu =
+            pan_kmod_bo_mmap(mem->bo, PROT_READ | PROT_WRITE, MAP_SHARED, NULL);
          if (cpu != MAP_FAILED)
             mem->debug.host_mapping = cpu;
          else
@@ -282,7 +255,10 @@ panvk_FreeMemory(VkDevice _device, VkDeviceMemory _mem,
          os_munmap(mem->debug.host_mapping, pan_kmod_bo_size(mem->bo));
    }
 
-   panvk_memory_munmap(mem);
+   if (mem->addr.host) {
+      ASSERTED int ret = os_munmap(mem->addr.host, pan_kmod_bo_size(mem->bo));
+      assert(!ret);
+   }
 
    struct pan_kmod_vm_op op = {
       .type = PAN_KMOD_VM_OP_TYPE_UNMAP,
@@ -351,12 +327,28 @@ panvk_MapMemory2KHR(VkDevice _device, const VkMemoryMapInfoKHR *pMemoryMapInfo,
       return panvk_errorf(device, VK_ERROR_MEMORY_MAP_FAILED,
                           "Memory object already mapped.");
 
-   void *addr = panvk_memory_mmap(mem);
-   if (!addr)
+   void *host_addr = NULL;
+   int map_flags = MAP_SHARED;
+
+   if (pMemoryMapInfo->flags & VK_MEMORY_MAP_PLACED_BIT_EXT) {
+      const VkMemoryMapPlacedInfoEXT *placed_info = vk_find_struct_const(
+         pMemoryMapInfo->pNext, MEMORY_MAP_PLACED_INFO_EXT);
+      assert(placed_info != NULL);
+      assert(offset == 0 && size == mem->bo->size);
+      host_addr = placed_info->pPlacedAddress;
+      map_flags |= MAP_FIXED;
+   }
+
+   void *addr =
+      pan_kmod_bo_mmap(mem->bo, PROT_READ | PROT_WRITE, map_flags, host_addr);
+   if (addr == MAP_FAILED)
       return panvk_errorf(device, VK_ERROR_MEMORY_MAP_FAILED,
                           "Memory object couldn't be mapped.");
 
-   *ppData = addr + offset;
+   assert(!host_addr || addr == host_addr);
+   mem->addr.host = addr;
+   *ppData = (char *)addr + offset;
+
    return VK_SUCCESS;
 }
 
@@ -364,9 +356,22 @@ VKAPI_ATTR VkResult VKAPI_CALL
 panvk_UnmapMemory2KHR(VkDevice _device,
                       const VkMemoryUnmapInfoKHR *pMemoryUnmapInfo)
 {
+   VK_FROM_HANDLE(panvk_device, device, _device);
    VK_FROM_HANDLE(panvk_device_memory, mem, pMemoryUnmapInfo->memory);
 
-   panvk_memory_munmap(mem);
+   if (pMemoryUnmapInfo->flags & VK_MEMORY_UNMAP_RESERVE_BIT_EXT) {
+      void *reserved =
+         os_mmap(mem->addr.host, pan_kmod_bo_size(mem->bo), PROT_NONE,
+                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+      if (reserved == MAP_FAILED)
+         return panvk_errorf(device, VK_ERROR_MEMORY_MAP_FAILED,
+                             "Failed to reserve VA on unmap.");
+   } else {
+      ASSERTED int ret = os_munmap(mem->addr.host, pan_kmod_bo_size(mem->bo));
+      assert(!ret);
+   }
+
+   mem->addr.host = NULL;
 
    return VK_SUCCESS;
 }
