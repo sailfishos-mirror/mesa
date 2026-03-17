@@ -1268,37 +1268,6 @@ blorp_hiz_clear_depth_stencil(struct blorp_batch *batch,
    }
 }
 
-/* Given a depth stencil attachment, this function performs a fast depth clear
- * on a depth portion and a regular clear on the stencil portion. When
- * performing a fast depth clear on the depth portion, the HiZ buffer is simply
- * tagged as cleared so the depth clear value is not actually needed.
- */
-void
-blorp_gfx8_hiz_clear_attachments(struct blorp_batch *batch,
-                                 uint32_t num_samples,
-                                 uint32_t x0, uint32_t y0,
-                                 uint32_t x1, uint32_t y1,
-                                 bool clear_depth, bool clear_stencil,
-                                 uint8_t stencil_value)
-{
-   assert(batch->flags & BLORP_BATCH_NO_EMIT_DEPTH_STENCIL);
-
-   struct blorp_params params;
-   blorp_params_init(&params);
-   params.op = BLORP_OP_HIZ_CLEAR;
-   params.num_layers = 1;
-   params.hiz_op = ISL_AUX_OP_FAST_CLEAR;
-   params.x0 = x0;
-   params.y0 = y0;
-   params.x1 = x1;
-   params.y1 = y1;
-   params.num_samples = num_samples;
-   params.depth.enabled = clear_depth;
-   params.stencil.enabled = clear_stencil;
-   params.stencil_ref = stencil_value;
-   batch->blorp->exec(batch, &params);
-}
-
 /** Clear active color/depth/stencili attachments
  *
  * This function performs a clear operation on the currently bound

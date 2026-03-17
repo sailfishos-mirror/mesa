@@ -358,15 +358,6 @@ blorp_hiz_clear_depth_stencil(struct blorp_batch *batch,
                               uint32_t x1, uint32_t y1,
                               bool clear_depth, float depth_value,
                               bool clear_stencil, uint8_t stencil_value);
-
-
-void
-blorp_gfx8_hiz_clear_attachments(struct blorp_batch *batch,
-                                 uint32_t num_samples,
-                                 uint32_t x0, uint32_t y0,
-                                 uint32_t x1, uint32_t y1,
-                                 bool clear_depth, bool clear_stencil,
-                                 uint8_t stencil_value);
 void
 blorp_clear_attachments(struct blorp_batch *batch,
                         uint32_t binding_table_offset,
