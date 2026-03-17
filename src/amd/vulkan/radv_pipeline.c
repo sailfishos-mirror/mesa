@@ -506,6 +506,7 @@ radv_postprocess_nir(struct radv_device *device, const struct radv_graphics_stat
       NIR_PASS(_, stage->nir, nir_opt_copy_prop);
       NIR_PASS(_, stage->nir, nir_opt_constant_folding);
       NIR_PASS(_, stage->nir, nir_opt_cse);
+      NIR_PASS(_, stage->nir, nir_opt_if, nir_opt_if_optimize_phi_true_false);
       NIR_PASS(_, stage->nir, nir_opt_shrink_vectors, true);
 
       NIR_PASS(_, stage->nir, ac_nir_flag_smem_for_loads, gfx_level, use_llvm);
