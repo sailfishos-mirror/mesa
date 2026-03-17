@@ -229,9 +229,8 @@ mmap_plane(struct panvk_image *img, uint8_t p, int prot,
    if (plane_ptrs[p])
       return VK_SUCCESS;
 
-   plane_ptrs[p] = pan_kmod_bo_mmap(img->planes[p].mem->bo, 0,
-                                    pan_kmod_bo_size(img->planes[p].mem->bo),
-                                    prot, MAP_SHARED, NULL);
+   plane_ptrs[p] =
+      pan_kmod_bo_mmap(img->planes[p].mem->bo, prot, MAP_SHARED, NULL);
 
    if (plane_ptrs[p] == MAP_FAILED) {
       plane_ptrs[p] = NULL;

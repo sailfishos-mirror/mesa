@@ -39,8 +39,8 @@ panvk_priv_bo_create(struct panvk_device *dev, uint64_t size, uint32_t flags,
    priv_bo->dev = dev;
 
    if (!(flags & PAN_KMOD_BO_FLAG_NO_MMAP)) {
-      priv_bo->addr.host = pan_kmod_bo_mmap(
-         bo, 0, pan_kmod_bo_size(bo), PROT_READ | PROT_WRITE, MAP_SHARED, NULL);
+      priv_bo->addr.host =
+         pan_kmod_bo_mmap(bo, PROT_READ | PROT_WRITE, MAP_SHARED, NULL);
       if (priv_bo->addr.host == MAP_FAILED) {
          result = panvk_error(dev, VK_ERROR_OUT_OF_HOST_MEMORY);
          goto err_put_bo;

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <fcntl.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include <xf86drm.h>
 
@@ -678,8 +679,7 @@ pan_kmod_bo_make_unevictable(struct pan_kmod_bo *bo)
 }
 
 static inline void *
-pan_kmod_bo_mmap(struct pan_kmod_bo *bo, off_t bo_offset, size_t size, int prot,
-                 int flags, void *host_addr)
+pan_kmod_bo_mmap(struct pan_kmod_bo *bo, int prot, int flags, void *host_addr)
 {
    PAN_TRACE_FUNC(PAN_TRACE_LIB_KMOD);
 
@@ -689,18 +689,15 @@ pan_kmod_bo_mmap(struct pan_kmod_bo *bo, off_t bo_offset, size_t size, int prot,
    if (bo->flags & PAN_KMOD_BO_FLAG_NO_MMAP)
       return MAP_FAILED;
 
-   if ((uint64_t)bo_offset + (uint64_t)size > bo->size)
-      return MAP_FAILED;
-
    mmap_offset = bo->dev->ops->bo_get_mmap_offset(bo);
    if (mmap_offset < 0)
       return MAP_FAILED;
 
-   host_addr = os_mmap(host_addr, size, prot, flags, bo->dev->fd,
-                       mmap_offset + bo_offset);
+   host_addr =
+      os_mmap(host_addr, bo->size, prot, flags, bo->dev->fd, mmap_offset);
    if (host_addr == MAP_FAILED)
-      mesa_loge("mmap(..., size=%zu, prot=%d, flags=0x%x) failed: %s",
-                size, prot, flags, strerror(errno));
+      mesa_loge("mmap(..., size=%" PRIu64 ", prot=%d, flags=0x%x) failed: %s",
+                bo->size, prot, flags, strerror(errno));
 
    return host_addr;
 }

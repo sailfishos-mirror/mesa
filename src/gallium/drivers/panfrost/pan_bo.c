@@ -325,8 +325,8 @@ panfrost_bo_mmap(struct panfrost_bo *bo)
    if (bo->ptr.cpu)
       return 0;
 
-   bo->ptr.cpu = pan_kmod_bo_mmap(bo->kmod_bo, 0, panfrost_bo_size(bo),
-                                  PROT_READ | PROT_WRITE, MAP_SHARED, NULL);
+   bo->ptr.cpu =
+      pan_kmod_bo_mmap(bo->kmod_bo, PROT_READ | PROT_WRITE, MAP_SHARED, NULL);
    if (bo->ptr.cpu == MAP_FAILED) {
       bo->ptr.cpu = NULL;
       return -1;
