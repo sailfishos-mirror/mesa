@@ -120,6 +120,9 @@ by a particular renderpass/blit.
 		<bitfield name="REGISTERPROTECTIONERROR" pos="10" type="boolean"/>
 		<bitfield name="ILLEGALINSTRUCTION" pos="11" type="boolean"/>
 		<bitfield name="SMMUFAULT" pos="12" type="boolean"/>
+		<bitfield name="VBIFRESPCLIENT" pos="13" type="boolean"/>
+		<bitfield name="VBIFRESPTYPE" pos="19" type="boolean"/>
+		<bitfield name="VBIFRESPREAD" pos="21" type="boolean"/>
 		<bitfield name="VBIFRESP" pos="22" type="boolean"/>
 		<bitfield name="RTWROVF" pos="23" type="boolean"/>
 		<bitfield name="LRZRTWROVF" pos="24" type="boolean"/>
