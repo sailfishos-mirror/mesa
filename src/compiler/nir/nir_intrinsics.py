@@ -1736,6 +1736,11 @@ load("global_cvt_pan", [1, 1], indices=[DEST_TYPE, ACCESS], flags=[CAN_ELIMINATE
 # src[] = { value, address, conversion }
 store("global_cvt_pan", [1, 1], indices=[SRC_TYPE, ACCESS])
 
+# Same exact opcode as store_global, but used to tag a gl_PointSize write.
+# This is needed to later mask out the write in the backend.
+# src[] = { value, address }
+store("global_psiz_pan", [1], indices=[WRITE_MASK, ACCESS])
+
 # Load the address and potentially the conversion descriptor for a texel buffer index.
 # The 64 bit address is always in the first two channels, while the 32 bit
 # conversion descriptor is in the last channel only for Bifrost.

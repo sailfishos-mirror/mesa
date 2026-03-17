@@ -545,6 +545,10 @@ typedef struct {
     * useless double fills */
    bool no_spill;
 
+   /* Tags the gl_PointSize memory write, this is used if we want to
+    * create a variant without psiz writes */
+   bool is_psiz_write;
+
    /* On Bifrost: A value of bi_table to override the table, inducing a
     * DTSEL_IMM pair if nonzero.
     *

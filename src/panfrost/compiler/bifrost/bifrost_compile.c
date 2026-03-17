@@ -1169,7 +1169,8 @@ bi_emit_store_vary(bi_builder *b, nir_intrinsic_instr *instr)
 
       bi_emit_split_i32(b, a, address, 2);
 
-      bi_store(b, nr * src_bit_sz, data, a[0], a[1], seg, offset);
+      bi_instr *S = bi_store(b, nr * src_bit_sz, data, a[0], a[1], seg, offset);
+      S->is_psiz_write = slot->location == VARYING_SLOT_PSIZ;
    } else {
       assert(T_size == 32 || T_size == 16);
 
@@ -1323,7 +1324,7 @@ bi_emit_load(bi_builder *b, nir_intrinsic_instr *instr, enum bi_seg seg)
    bi_emit_cached_split(b, dest, bits);
 }
 
-static void
+static bi_instr *
 bi_emit_store(bi_builder *b, nir_intrinsic_instr *instr, enum bi_seg seg)
 {
    /* Require contiguous masks, gauranteed by nir_lower_wrmasks */
@@ -1336,8 +1337,10 @@ bi_emit_store(bi_builder *b, nir_intrinsic_instr *instr, enum bi_seg seg)
 
    bi_handle_segment(b, &addr_lo, &addr_hi, seg, &offset);
 
-   bi_store(b, instr->num_components * nir_src_bit_size(instr->src[0]),
-            bi_src_index(&instr->src[0]), addr_lo, addr_hi, seg, offset);
+   bi_instr *I =
+      bi_store(b, instr->num_components * nir_src_bit_size(instr->src[0]),
+               bi_src_index(&instr->src[0]), addr_lo, addr_hi, seg, offset);
+   return I;
 }
 
 /* Exchanges the staging register with memory */
@@ -2140,8 +2143,11 @@ bi_emit_intrinsic(bi_builder *b, nir_intrinsic_instr *instr)
       break;
 
    case nir_intrinsic_store_global:
-      bi_emit_store(b, instr, BI_SEG_NONE);
+   case nir_intrinsic_store_global_psiz_pan: {
+      bi_instr *I = bi_emit_store(b, instr, BI_SEG_NONE);
+      I->is_psiz_write = instr->intrinsic == nir_intrinsic_store_global_psiz_pan;
       break;
+   }
 
    case nir_intrinsic_load_scratch:
       bi_emit_load(b, instr, BI_SEG_TL);
@@ -6988,7 +6994,7 @@ bi_compile_variant(nir_shader *nir,
       bi_instr *write = NULL;
 
       bi_foreach_instr_global(ctx, I) {
-         if (I->op == BI_OPCODE_STORE_I16 && I->seg == BI_SEG_POS) {
+         if (I->is_psiz_write) {
             write = I;
             break;
          }
