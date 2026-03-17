@@ -752,7 +752,7 @@ parseAppAttr(struct OptConfData *data, const char **attr)
       if (!strcmp(attr[i], "name")) /* not needed here */;
       else if (!strcmp(attr[i], "executable")) exec = attr[i+1];
       else if (!strcmp(attr[i], "executable_regexp")) exec_regexp = attr[i+1];
-      else if (!strcmp(attr[i], "sha1")) blake3 = attr[i+1];
+      else if (!strcmp(attr[i], "blake3")) blake3 = attr[i+1];
       else if (!strcmp(attr[i], "application_name_match"))
          application_name_match = attr[i+1];
       else if (!strcmp(attr[i], "application_versions"))
@@ -1184,7 +1184,7 @@ parseStaticConfig(struct OptConfData *data)
             "name", a->name,
             "executable", a->executable,
             "executable_regexp", a->executable_regexp,
-            "sha1", a->sha1,
+            "blake3", a->blake3,
             "application_name_match", a->application_name_match,
             "application_versions", a->application_versions,
             NULL
