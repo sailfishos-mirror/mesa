@@ -95,8 +95,9 @@ android-angle-venus-anv-adl:
 android-angle-venus-tu-a618:
   extends:
     - .android-angle-venus-tu-test
-    - .lava-sc7180-trogdor-wormdingler-rev1-boe:arm64  # TODO: move to .lava-sc7180-trogdor-kingoftown:arm64 once its network config is fixed
+    - .lava-sc7180-trogdor-kingoftown:arm64
     - .venus-tu-manual-rules
   variables:
     DEQP_SUITE: android-angle-venus-tu
     GPU_VERSION: android-angle-venus-tu
+    FDO_CI_CONCURRENT: 6  # We get OOMkills if we go too wide since VKCTS 1.4.4.0
