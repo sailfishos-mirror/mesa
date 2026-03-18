@@ -297,6 +297,7 @@ nir_build_tex_struct(nir_builder *build, nir_texop op, struct nir_tex_builder f)
    tex->sampler_dim = dim;
    tex->is_array = is_array;
    tex->is_shadow = false;
+   tex->is_sparse = f.is_sparse;
    tex->backend_flags = f.backend_flags;
    tex->texture_index = f.texture_index;
    tex->sampler_index = f.sampler_index;
