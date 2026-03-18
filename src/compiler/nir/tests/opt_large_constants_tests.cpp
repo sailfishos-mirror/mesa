@@ -273,19 +273,22 @@ TEST_F(nir_large_constants_test, small_float_whole_numbers_array)
       workgroup_size: 1, 1, 1
       max_subgroup_size: 128
       min_subgroup_size: 1
-      constants: 32
       decl_function main () (entrypoint)
 
       impl main {
-          block b0:  // preds:
-          32    %0 = @load_workgroup_index
-          32    %1 = load_const (0x00000000)
-          32    %2 = load_const (0x00000002)
-          32    %3 = ishl %0, %2 (0x2)
-          32    %4 = iadd %1 (0x0), %3
-          32    %5 = @load_constant (%4) (base=0, range=32, access=none, align_mul=4, align_offset=0)
-                     @use (%5)
-                     // succs: b1
+          block b0:   // preds:
+          32     %0 = @load_workgroup_index
+          32     %1 = load_const (0x76543210 = 1985229328)
+          32     %2 = load_const (0x00000002)
+          32     %3 = ishl %0, %2 (0x2)
+          32     %4 = ushr %1 (0x76543210), %3
+          32     %5 = load_const (0x0000000f = 15)
+          32     %6 = iand %4, %5 (0xf)
+          32     %7 = load_const (0xfffffffc = -4 = 4294967292)
+          32     %8 = iadd %6, %7 (0xfffffffc)
+          32     %9 = i2f32 %8 // exact, preserve:sz
+                      @use (%9)
+                      // succs: b1
           block b1:
       }
    )"));
