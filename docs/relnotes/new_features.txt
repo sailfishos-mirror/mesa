@@ -1,3 +1,4 @@
 cl_khr_subgroup_rotate on radeonsi
 cl_khr_subgroup_rotate on iris
 VK_EXT_shader_uniform_buffer_unsized_array on panvk
+VK_KHR_shader_constant_data on RADV
