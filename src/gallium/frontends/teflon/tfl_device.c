@@ -258,6 +258,9 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
    case kTfLiteBuiltinTanh:
       operation->type = PIPE_ML_OPERATION_TYPE_TANH;
       break;
+   case kTfLiteBuiltinHardSwish:
+      operation->type = PIPE_ML_OPERATION_TYPE_HSWISH;
+      break;
    case kTfLiteBuiltinSub:
       operation->type = PIPE_ML_OPERATION_TYPE_SUBTRACT;
       break;
@@ -485,6 +488,9 @@ dump_graph(struct pipe_tensor *tensors, unsigned tensor_count, struct pipe_ml_op
          break;
       case PIPE_ML_OPERATION_TYPE_TANH:
          teflon_debug("%-15s ", "TANH");
+         break;
+      case PIPE_ML_OPERATION_TYPE_HSWISH:
+         teflon_debug("%-15s ", "HSWISH");
          break;
       case PIPE_ML_OPERATION_TYPE_SUBTRACT:
          teflon_debug("%-15s ", "SUB");
