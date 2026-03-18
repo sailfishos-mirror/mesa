@@ -153,7 +153,7 @@ CDX12EncHMFT::UpdateH265EncPictureDesc( pipe_h265_enc_picture_desc *pPicInfo,
    pPicInfo->seq.sar_height = m_VUIInfo.stSARInfo.usHeight;
 
    pPicInfo->seq.num_units_in_tick = m_FrameRate.Denominator;
-   pPicInfo->seq.time_scale = m_FrameRate.Numerator * 2;
+   pPicInfo->seq.time_scale = m_FrameRate.Numerator; // Table E.6 seq.vui_flags.frame_field_info_present_flag is 0, deltaToDivisor should be 1.
 
    pPicInfo->seq.video_format = m_VUIInfo.stVidSigType.eVideoFormat;
    pPicInfo->seq.colour_primaries = m_VUIInfo.stVidSigType.eColorPrimary;
