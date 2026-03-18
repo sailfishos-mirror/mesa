@@ -47,6 +47,9 @@ RENAMED_FEATURES = {
     ('DeviceGeneratedCommandsFeaturesNV', 'deviceGeneratedCommands'): 'deviceGeneratedCommandsNV',
 
     ("RayTracingInvocationReorderFeaturesNV", "rayTracingInvocationReorder"): "rayTracingInvocationReorderNV",
+
+    ('FaultFeaturesEXT', 'deviceFault'): 'deviceFaultEXT',
+    ('FaultFeaturesEXT', 'deviceFaultVendorBinary'): 'deviceFaultVendorBinaryEXT',
 }
 
 KNOWN_ALIASES = [
