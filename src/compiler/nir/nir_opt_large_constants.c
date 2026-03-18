@@ -227,14 +227,15 @@ handle_constant_store(void *mem_ctx, struct var_info *info,
 #define NIR_SMALL_CONSTANT_MAX_ABS_VALUE 255
 
 static bool
-get_small_constant_component(struct small_constant *info, uint32_t array_len,
+get_small_constant_component(const nir_shader_compiler_options *options,
+                             struct small_constant *info, uint32_t array_len,
                              uint32_t bit_size, nir_const_value *values)
 {
    int64_t min = INT64_MAX;
 
    bool is_float = true;
    uint32_t denom = 1;
-   if (bit_size < 16) {
+   if (bit_size < 16 || (bit_size == 16 && !options->support_16bit_alu)) {
       is_float = false;
    } else {
       for (unsigned i = 0; i < array_len; i++) {
@@ -348,7 +349,8 @@ get_small_constant_component(struct small_constant *info, uint32_t array_len,
 }
 
 static void
-get_small_constant(struct var_info *info, glsl_type_size_align_func size_align)
+get_small_constant(const nir_shader_compiler_options *options, struct var_info *info,
+                   glsl_type_size_align_func size_align)
 {
    if (!glsl_type_is_array(info->var->type))
       return;
@@ -382,8 +384,8 @@ get_small_constant(struct var_info *info, glsl_type_size_align_func size_align)
       data = (void *)(((uintptr_t)data) + scalar_stride * c);
       read_const_values(values, data, array_len, bit_size, stride);
 
-      if (!get_small_constant_component(&info->small_constant[c], array_len,
-                                        bit_size, values)) {
+      if (!get_small_constant_component(options, &info->small_constant[c],
+                                        array_len, bit_size, values)) {
          info->is_small = false;
          break;
       }
@@ -597,7 +599,7 @@ nir_opt_large_constants(nir_shader *shader,
       if (!info->is_constant)
          continue;
 
-      get_small_constant(info, size_align);
+      get_small_constant(shader->options, info, size_align);
 
       unsigned var_size, var_align;
       size_align(info->var->type, &var_size, &var_align);
