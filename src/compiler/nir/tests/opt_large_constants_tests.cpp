@@ -299,9 +299,9 @@ TEST_F(nir_large_constants_test, small_fraction_array)
    int32_t length = 8;
    array = nir_local_variable_create(b->impl, glsl_array_type(glsl_float_type(), length, 0), "array");
    for (int32_t i = 0; i < length / 2; i++)
-      nir_store_array_var_imm(b, array, i, nir_imm_float(b, i / 2.0 - 2), 0x1);
+      nir_store_array_var_imm(b, array, i, nir_imm_float(b, i + 2.25), 0x1);
    for (int32_t i = length / 2; i < length; i++)
-      nir_store_array_var_imm(b, array, i, nir_imm_float(b, (i - length / 2) / 3.0), 0x1);
+      nir_store_array_var_imm(b, array, i, nir_imm_float(b, (i - length / 2) + 0.5), 0x1);
 
    run_test();
 
@@ -311,19 +311,25 @@ TEST_F(nir_large_constants_test, small_fraction_array)
       workgroup_size: 1, 1, 1
       max_subgroup_size: 128
       min_subgroup_size: 1
-      constants: 32
       decl_function main () (entrypoint)
 
       impl main {
-          block b0:  // preds:
-          32    %0 = @load_workgroup_index
-          32    %1 = load_const (0x00000000)
-          32    %2 = load_const (0x00000002)
-          32    %3 = ishl %0, %2 (0x2)
-          32    %4 = iadd %1 (0x0), %3
-          32    %5 = @load_constant (%4) (base=0, range=32, access=none, align_mul=4, align_offset=0)
-                     @use (%5)
-                     // succs: b1
+          block b0:   // preds:
+          32     %0 = @load_workgroup_index
+          64     %1 = load_const (0x0c080400130f0b07 = 866947326635084551)
+          32     %2 = load_const (0x00000003)
+          32     %3 = ishl %0, %2 (0x3)
+          64     %4 = ushr %1 (0xc080400130f0b07), %3
+          64     %5 = load_const (0x00000000000000ff = 255)
+          64     %6 = iand %4, %5 (0xff)
+          32     %7 = unpack_64_2x32_split_x %6
+          32     %8 = load_const (0x00000002)
+          32     %9 = iadd %7, %8 (0x2)
+          32    %10 = u2f32 %9 // exact, preserve:sz
+          32    %11 = load_const (0x3e800000 = 0.250000)
+          32    %12 = fmul %10, %11 (0.250000) // exact, preserve:sz
+                      @use (%12)
+                      // succs: b1
           block b1:
       }
    )"));

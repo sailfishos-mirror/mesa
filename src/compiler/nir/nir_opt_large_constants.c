@@ -115,6 +115,7 @@ struct small_constant {
    int64_t min;
    uint32_t bit_size;
    bool is_float;
+   uint32_t denom;
    uint32_t bit_stride;
 };
 
@@ -232,24 +233,54 @@ get_small_constant_component(struct small_constant *info, uint32_t array_len,
    int64_t min = INT64_MAX;
 
    bool is_float = true;
+   uint32_t denom = 1;
    if (bit_size < 16) {
       is_float = false;
    } else {
       for (unsigned i = 0; i < array_len; i++) {
-         /* See if it's an easily convertible float.
-          * TODO: Compute greatest common divisor to support non-integer floats.
-          */
          double float_value = nir_const_value_as_float(values[i], bit_size);
          if (fabs(float_value) > NIR_SMALL_CONSTANT_MAX_ABS_VALUE) {
             is_float = false;
             break;
          }
 
-         int64_t int_value = float_value;
-         nir_const_value fc = nir_const_value_for_float(int_value, bit_size);
-         is_float &= !memcmp(&fc, &values[i], bit_size / 8);
+         /* Try out small denominators. Handling large denominators is not worth it
+          * because the numerators will be large in that case, making it unlikely that
+          * they will fit into 64 bits.
+          * Limit to power of two for now, to avoid any rounding issues.
+          */
+         uint32_t value_denom = 0;
+         for (uint32_t candidate_denom = 1; candidate_denom <= 16; candidate_denom *= 2) {
+            double expanded = float_value * candidate_denom;
+            if (floor(expanded) * (1.0f / (float)candidate_denom) == float_value) {
+               value_denom = candidate_denom;
+               break;
+            }
+         }
 
-         min = MIN2(min, int_value);
+         if (!value_denom) {
+            denom = 0;
+            break;
+         } else {
+            denom = MAX2(denom, value_denom);
+         }
+      }
+
+      if (denom) {
+         for (unsigned i = 0; i < array_len; i++) {
+            double fp_val = nir_const_value_as_float(values[i], bit_size) * denom;
+            /* quantize to target precision  */
+            fp_val = nir_const_value_as_float(nir_const_value_for_float(fp_val, bit_size), bit_size);
+
+            int64_t int_value = (int64_t)fp_val;
+
+            nir_const_value fc = nir_const_value_for_float(int_value * (1.0f / (float)denom), bit_size);
+            is_float &= !memcmp(&fc, &values[i], bit_size / 8);
+
+            min = MIN2(min, int_value);
+         }
+      } else {
+         is_float = false;
       }
    }
 
@@ -268,7 +299,7 @@ get_small_constant_component(struct small_constant *info, uint32_t array_len,
       int64_t i64_elem;
 
       if (is_float)
-         i64_elem = nir_const_value_as_float(values[i], bit_size);
+         i64_elem = nir_const_value_as_float(values[i], bit_size) * denom;
       else if (bit_size == 1)
          i64_elem = nir_const_value_as_uint(values[i], bit_size);
       else
@@ -294,7 +325,7 @@ get_small_constant_component(struct small_constant *info, uint32_t array_len,
       int64_t i64_elem;
 
       if (is_float)
-         i64_elem = nir_const_value_as_float(values[i], bit_size);
+         i64_elem = nir_const_value_as_float(values[i], bit_size) * denom;
       else if (bit_size == 1)
          i64_elem = nir_const_value_as_uint(values[i], bit_size);
       else
@@ -311,6 +342,7 @@ get_small_constant_component(struct small_constant *info, uint32_t array_len,
    info->bit_size = MAX2(util_next_power_of_two(used_bits * array_len), 32);
    info->min = min;
    info->is_float = is_float;
+   info->denom = denom;
    info->bit_stride = used_bits;
    return true;
 }
@@ -397,6 +429,9 @@ build_small_constant_load(nir_builder *b, nir_deref_instr *deref,
                ret[c] = nir_u2fN(b, ret[c], bit_size);
             else
                ret[c] = nir_i2fN(b, ret[c], bit_size);
+
+            if (constant->denom != 1)
+               ret[c] = nir_fmul_imm(b, ret[c], 1.0f / (float)constant->denom);
          } else {
             ret[c] = nir_u2uN(b, ret[c], bit_size);
          }
