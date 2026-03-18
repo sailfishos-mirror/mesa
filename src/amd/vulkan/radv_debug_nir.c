@@ -362,6 +362,7 @@ VkResult
 radv_init_va_validation(struct radv_device *device)
 {
    struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_valid_va_data *valid_va = &device->debug_nir.valid_va;
 
    uint64_t size = RADV_VA_VALIDATION_BIT_COUNT / RADV_VA_VALIDATION_GRANULARITY_BYTES / 8;
 
@@ -376,13 +377,12 @@ radv_init_va_validation(struct radv_device *device)
    };
 
    VkDevice _device = radv_device_to_handle(device);
-   VkResult result =
-      device->vk.dispatch_table.CreateBuffer(_device, &buffer_create_info, NULL, &device->va_validation_buffer);
+   VkResult result = device->vk.dispatch_table.CreateBuffer(_device, &buffer_create_info, NULL, &valid_va->buffer);
    if (result != VK_SUCCESS)
       return result;
 
    VkMemoryRequirements requirements;
-   device->vk.dispatch_table.GetBufferMemoryRequirements(_device, device->va_validation_buffer, &requirements);
+   device->vk.dispatch_table.GetBufferMemoryRequirements(_device, valid_va->buffer, &requirements);
 
    VkMemoryAllocateFlagsInfo alloc_flags_info = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
@@ -398,28 +398,27 @@ radv_init_va_validation(struct radv_device *device)
                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
    };
 
-   result = device->vk.dispatch_table.AllocateMemory(_device, &alloc_info, NULL, &device->va_validation_memory);
+   result = device->vk.dispatch_table.AllocateMemory(_device, &alloc_info, NULL, &valid_va->memory);
    if (result != VK_SUCCESS)
       return result;
 
    void *data = NULL;
-   result = device->vk.dispatch_table.MapMemory(_device, device->va_validation_memory, 0, VK_WHOLE_SIZE, 0, &data);
+   result = device->vk.dispatch_table.MapMemory(_device, valid_va->memory, 0, VK_WHOLE_SIZE, 0, &data);
    if (result != VK_SUCCESS)
       return result;
 
-   device->valid_vas = data;
+   valid_va->vas = data;
    memset(data, 0, size);
 
-   result = device->vk.dispatch_table.BindBufferMemory(_device, device->va_validation_buffer,
-                                                       device->va_validation_memory, 0);
+   result = device->vk.dispatch_table.BindBufferMemory(_device, valid_va->buffer, valid_va->memory, 0);
    if (result != VK_SUCCESS)
       return result;
 
    VkBufferDeviceAddressInfo addr_info = {
       .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-      .buffer = device->va_validation_buffer,
+      .buffer = valid_va->buffer,
    };
-   device->valid_vas_addr = device->vk.dispatch_table.GetBufferDeviceAddress(_device, &addr_info);
+   valid_va->buffer_addr = device->vk.dispatch_table.GetBufferDeviceAddress(_device, &addr_info);
 
    return VK_SUCCESS;
 }
@@ -428,19 +427,22 @@ void
 radv_finish_va_validation(struct radv_device *device)
 {
    VkDevice _device = radv_device_to_handle(device);
+   struct radv_valid_va_data *valid_va = &device->debug_nir.valid_va;
 
-   device->valid_vas = NULL;
+   valid_va->vas = NULL;
 
-   device->vk.dispatch_table.DestroyBuffer(_device, device->va_validation_buffer, NULL);
-   if (device->va_validation_memory)
-      device->vk.dispatch_table.UnmapMemory(_device, device->va_validation_memory);
-   device->vk.dispatch_table.FreeMemory(_device, device->va_validation_memory, NULL);
+   device->vk.dispatch_table.DestroyBuffer(_device, valid_va->buffer, NULL);
+   if (valid_va->memory)
+      device->vk.dispatch_table.UnmapMemory(_device, valid_va->memory);
+   device->vk.dispatch_table.FreeMemory(_device, valid_va->memory, NULL);
 }
 
 void
 radv_va_validation_update_page(struct radv_device *device, uint64_t va, uint64_t size, bool valid)
 {
-   if (!device->valid_vas)
+   struct radv_valid_va_data *valid_va = &device->debug_nir.valid_va;
+
+   if (!valid_va->vas)
       return;
 
    struct radv_physical_device *pdev = radv_device_physical(device);
@@ -452,9 +454,9 @@ radv_va_validation_update_page(struct radv_device *device, uint64_t va, uint64_t
    assert(end <= RADV_VA_VALIDATION_BIT_COUNT);
 
    if (valid)
-      BITSET_SET_RANGE(device->valid_vas, start, end - 1);
+      BITSET_SET_RANGE(valid_va->vas, start, end - 1);
    else
-      BITSET_CLEAR_RANGE(device->valid_vas, start, end - 1);
+      BITSET_CLEAR_RANGE(valid_va->vas, start, end - 1);
 }
 
 nir_def *
@@ -464,7 +466,8 @@ radv_build_is_valid_va(nir_builder *b, nir_def *addr)
       return NULL;
 
    struct radv_device *device = _mesa_hash_table_search(device_ht, b->shader)->data;
-   if (!device->valid_vas_addr)
+   struct radv_valid_va_data *valid_va = &device->debug_nir.valid_va;
+   if (!valid_va->buffer_addr)
       return NULL;
 
    nir_def *masked_addr = nir_iand_imm(b, addr, BITFIELD64_MASK(RADV_VA_VALIDATION_BITS));
@@ -475,7 +478,7 @@ radv_build_is_valid_va(nir_builder *b, nir_def *addr)
       nir_def *index = nir_u2u32(b, nir_udiv_imm(b, masked_addr, RADV_VA_VALIDATION_GRANULARITY_BYTES));
       nir_def *offset = nir_imul_imm(b, nir_udiv_imm(b, index, 32), 4);
       nir_def *dword =
-         nir_load_global(b, 1, 32, nir_iadd_imm(b, nir_u2u64(b, offset), device->valid_vas_addr), .align_mul = 4);
+         nir_load_global(b, 1, 32, nir_iadd_imm(b, nir_u2u64(b, offset), valid_va->buffer_addr), .align_mul = 4);
       index = nir_umod_imm(b, index, 32);
       then_valid = nir_bitnz(b, dword, index);
    }
@@ -494,9 +497,10 @@ radv_build_is_valid_va(nir_builder *b, nir_def *addr)
 void
 radv_device_associate_nir(struct radv_device *device, nir_shader *nir)
 {
+   struct radv_valid_va_data *valid_va = &device->debug_nir.valid_va;
    struct radv_printf_data *printf = &device->debug_nir.printf;
 
-   if (!printf->buffer_addr && !device->valid_vas_addr)
+   if (!printf->buffer_addr && !valid_va->buffer_addr)
       return;
 
    if (!device_ht)

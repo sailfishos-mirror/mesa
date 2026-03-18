@@ -17,6 +17,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "util/bitset.h"
 #include "util/u_dynarray.h"
 
 struct radv_device;
@@ -44,8 +45,16 @@ struct radv_printf_buffer_header {
    uint32_t size;
 };
 
+struct radv_valid_va_data {
+   VkDeviceMemory memory;
+   VkBuffer buffer;
+   VkDeviceAddress buffer_addr;
+   BITSET_WORD *vas;
+};
+
 struct radv_debug_nir {
    struct radv_printf_data printf;
+   struct radv_valid_va_data valid_va;
 };
 
 void radv_device_associate_nir(struct radv_device *device, nir_shader *nir);
