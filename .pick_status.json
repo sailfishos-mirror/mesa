@@ -3494,7 +3494,7 @@
         "description": "pan/lib: do not try to use stencil-aspect of color attachment",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7a763bb0a3b1cb48dce03a62fff2fe9eac3f0eaf",
         "notes": null
