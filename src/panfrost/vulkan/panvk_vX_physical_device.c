@@ -188,6 +188,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .EXT_sampler_filter_minmax = PAN_ARCH >= 10,
       .EXT_scalar_block_layout = true,
       .EXT_separate_stencil_usage = true,
+      .EXT_shader_atomic_float = true,
       .EXT_shader_demote_to_helper_invocation = true,
       .EXT_shader_module_identifier = true,
       .EXT_shader_replicated_composites = true,
@@ -560,6 +561,20 @@ panvk_per_arch(get_physical_device_features)(
 
       /* VK_EXT_shader_replicated_composites */
       .shaderReplicatedComposites = true,
+
+      /* VK_EXT_shader_atomic_float */
+      .shaderBufferFloat32Atomics = true,
+      .shaderBufferFloat32AtomicAdd = false,
+      .shaderBufferFloat64Atomics = false,
+      .shaderBufferFloat64AtomicAdd = false,
+      .shaderSharedFloat32Atomics = true,
+      .shaderSharedFloat32AtomicAdd = false,
+      .shaderSharedFloat64Atomics = false,
+      .shaderSharedFloat64AtomicAdd = false,
+      .shaderImageFloat32Atomics = true,
+      .shaderImageFloat32AtomicAdd = false,
+      .sparseImageFloat32Atomics = has_sparse,
+      .sparseImageFloat32AtomicAdd = false,
 
       /* VK_EXT_texel_buffer_alignment */
       .texelBufferAlignment = true,
