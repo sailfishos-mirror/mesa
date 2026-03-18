@@ -147,6 +147,7 @@ ethosu_ml_operation_supported(struct pipe_ml_device *pdevice,
    case PIPE_ML_OPERATION_TYPE_PAD:
    case PIPE_ML_OPERATION_TYPE_LOGISTIC:
    case PIPE_ML_OPERATION_TYPE_TANH:
+   case PIPE_ML_OPERATION_TYPE_HSWISH:
       supported = true;
       break;
    case PIPE_ML_OPERATION_TYPE_RESIZE: {
