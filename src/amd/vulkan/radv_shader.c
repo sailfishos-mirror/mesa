@@ -457,6 +457,8 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
    bool progress;
 
    if (stage->internal_nir) {
+      stage->internal_nir->options = &pdev->nir_options[stage->internal_nir->info.stage];
+
       /* Some things such as our meta clear/blit code will give us a NIR
        * shader directly.  In that case, we just ignore the SPIR-V entirely
        * and just use the NIR shader.  We don't want to alter meta and RT

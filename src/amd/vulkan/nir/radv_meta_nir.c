@@ -18,7 +18,6 @@
 nir_builder PRINTFLIKE(3, 4)
    radv_meta_nir_init_shader(struct radv_device *dev, mesa_shader_stage stage, const char *name, ...)
 {
-   const struct radv_physical_device *pdev = radv_device_physical(dev);
    nir_builder b = nir_builder_init_simple_shader(stage, NULL, NULL);
    if (name) {
       va_list args;
@@ -26,8 +25,6 @@ nir_builder PRINTFLIKE(3, 4)
       b.shader->info.name = ralloc_vasprintf(b.shader, name, args);
       va_end(args);
    }
-
-   b.shader->options = &pdev->nir_options[stage];
 
    return b;
 }
