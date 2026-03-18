@@ -59,48 +59,35 @@ lower_sparse_image_load(nir_builder *b, nir_intrinsic_instr *intrin)
 {
    b->cursor = nir_instr_remove(&intrin->instr);
 
-   nir_def *img_load;
-   nir_intrinsic_instr *new_intrin;
-   if (intrin->intrinsic == nir_intrinsic_image_sparse_load) {
-      img_load = nir_image_load(b,
-                                intrin->num_components - 1,
-                                intrin->def.bit_size,
-                                intrin->src[0].ssa,
-                                intrin->src[1].ssa,
-                                intrin->src[2].ssa,
-                                intrin->src[3].ssa);
-      new_intrin = nir_def_as_intrinsic(img_load);
-      nir_intrinsic_set_range_base(new_intrin, nir_intrinsic_range_base(intrin));
-   } else {
-      img_load = nir_bindless_image_load(b,
-                                         intrin->num_components - 1,
-                                         intrin->def.bit_size,
-                                         intrin->src[0].ssa,
-                                         intrin->src[1].ssa,
-                                         intrin->src[2].ssa,
-                                         intrin->src[3].ssa);
-      new_intrin = nir_def_as_intrinsic(img_load);
-   }
+   const bool bindless =
+      intrin->intrinsic == nir_intrinsic_bindless_image_sparse_load;
+   const bool array = nir_intrinsic_image_array(intrin);
+   const enum glsl_sampler_dim dim = nir_intrinsic_image_dim(intrin);
+   const unsigned fmt = nir_intrinsic_format(intrin);
+   const enum gl_access_qualifier access = nir_intrinsic_access(intrin);
+   const nir_alu_type dest_type = nir_intrinsic_dest_type(intrin);
+   nir_src *s = intrin->src;
 
-   nir_intrinsic_set_image_array(new_intrin, nir_intrinsic_image_array(intrin));
-   nir_intrinsic_set_image_dim(new_intrin, nir_intrinsic_image_dim(intrin));
-   nir_intrinsic_set_format(new_intrin, nir_intrinsic_format(intrin));
-   nir_intrinsic_set_access(new_intrin, nir_intrinsic_access(intrin));
-   nir_intrinsic_set_dest_type(new_intrin, nir_intrinsic_dest_type(intrin));
+   nir_def *img_load = bindless
+      ? nir_bindless_image_load(b, intrin->num_components - 1,
+                                intrin->def.bit_size,
+                                s[0].ssa, s[1].ssa, s[2].ssa, s[3].ssa,
+                                .image_dim = dim, .image_array = array,
+                                .format = fmt, .access = access,
+                                .dest_type = dest_type)
+      : nir_image_load(b, intrin->num_components - 1, intrin->def.bit_size,
+                       s[0].ssa, s[1].ssa, s[2].ssa, s[3].ssa,
+                       .image_dim = dim, .image_array = array, .format = fmt,
+                       .access = access, .dest_type = dest_type);
 
    nir_def *dests[NIR_MAX_VEC_COMPONENTS];
    for (unsigned i = 0; i < intrin->num_components - 1; i++) {
       dests[i] = nir_channel(b, img_load, i);
    }
 
-   const bool bindless =
-      intrin->intrinsic == nir_intrinsic_bindless_image_sparse_load;
-
    /* Use texture instruction to compute residency */
    nir_def *coord;
-   if (nir_intrinsic_image_dim(intrin) == GLSL_SAMPLER_DIM_CUBE &&
-       nir_intrinsic_image_array(intrin)) {
-
+   if (nir_intrinsic_image_dim(intrin) == GLSL_SAMPLER_DIM_CUBE && array) {
       nir_def *img_layer = nir_channel(b, intrin->src[1].ssa, 2);
       nir_def *tex_slice = nir_idiv(b, img_layer, nir_imm_int(b, 6));
       nir_def *tex_face =
@@ -123,8 +110,7 @@ lower_sparse_image_load(nir_builder *b, nir_intrinsic_instr *intrin)
               .texture_handle = bindless ? intrin->src[0].ssa : NULL,
               .dim = nir_intrinsic_image_dim(intrin),
               .dest_type = nir_type_float32, /* dest is unused */
-              .is_array = nir_intrinsic_image_array(intrin),
-              .is_sparse = true);
+              .is_array = array, .is_sparse = true);
 
    dests[intrin->num_components - 1] = nir_channel(b, txf, 4);
 
