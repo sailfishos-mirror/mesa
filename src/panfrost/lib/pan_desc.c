@@ -892,7 +892,6 @@ GENX(pan_emit_afrc_color_attachment)(const struct pan_attachment_info *att,
    /* TODO: YUV RT. */
    assert(!pan_format_is_yuv(iview->format));
    pan_cast_and_pack(payload, AFRC_RGB_RENDER_TARGET, cfg) {
-      cfg.writeback_mode = MALI_WRITEBACK_MODE_AFRC_RGB;
       cfg.afrc_block_size = pan_afrc_block_size(image->props.modifier, 0);
       cfg.afrc_format = pan_afrc_format(finfo, image->props.modifier, 0);
       get_rt_formats(iview->format, &cfg.writeback_format, &cfg.internal_format,
