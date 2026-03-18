@@ -1070,6 +1070,11 @@ if Version(mako.__version__) < Version("0.8.0"):
     continue
   endif
 
+  has_yaml = run_command(prog_python, '-c', 'import yaml', check: false)
+  if has_yaml.returncode() != 0
+    continue
+  endif
+
   break
 endforeach
 
@@ -1083,11 +1088,6 @@ elif has_mako.returncode() == 2
   error('One of Python (3.x) packaging or distutils module is required.')
 endif
 
-has_yaml = run_command(
-  prog_python, '-c',
-  '''
-import yaml
-  ''', check: false)
 if has_yaml.returncode() != 0
   error('Python (3.x) yaml module (PyYAML) required to build mesa.')
 endif
