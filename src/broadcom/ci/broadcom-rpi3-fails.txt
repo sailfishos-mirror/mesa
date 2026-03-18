@@ -934,7 +934,6 @@ spec@arb_framebuffer_object@fbo-attachments-blit-scaled-linear,Fail
 spec@arb_framebuffer_object@fbo-blit-stretch,Fail
 spec@arb_framebuffer_object@fbo-mipmap-copypix,Fail
 spec@arb_framebuffer_object@mixed-buffer-sizes,Fail
-spec@arb_framebuffer_object@same-attachment-tex2d-depth_stencil,Fail
 spec@arb_framebuffer_srgb@arb_framebuffer_srgb-srgb_conformance,Fail
 spec@arb_internalformat_query2@all internalformat_<x>_size pname checks,Fail
 spec@arb_internalformat_query2@all internalformat_<x>_size pname checks@GL_INTERNALFORMAT_ALPHA_SIZE,Fail
