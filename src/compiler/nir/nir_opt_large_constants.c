@@ -533,6 +533,12 @@ nir_opt_large_constants(nir_shader *shader,
 
    nir_builder b = nir_builder_create(impl);
 
+   /* We must preserve signed zero and disallow e.g. fma fusion
+    * when we create new floating point instructions because it's not
+    * even clear the result is only used as float.
+    */
+   b.fp_math_ctrl = nir_fp_exact | nir_fp_preserve_signed_zero;
+
    nir_foreach_block(block, impl) {
       nir_foreach_instr_safe(instr, block) {
          if (instr->type == nir_instr_type_deref) {

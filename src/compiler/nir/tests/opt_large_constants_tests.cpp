@@ -208,7 +208,7 @@ TEST_F(nir_large_constants_test, small_float_natural_numbers_including_zero_arra
           32    %4 = ushr %1 (0x76543210), %3
           32    %5 = load_const (0x0000000f = 15)
           32    %6 = iand %4, %5 (0xf)
-          32    %7 = u2f32 %6
+          32    %7 = u2f32 %6 // exact, preserve:sz
                      @use (%7)
                      // succs: b1
           block b1:
