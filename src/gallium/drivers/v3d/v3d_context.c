@@ -476,7 +476,7 @@ v3d_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
         v3d->base.stream_uploader = v3d->uploader;
         v3d->base.const_uploader = v3d->uploader;
         v3d->state_uploader = u_upload_create(&v3d->base,
-                                              4096,
+                                              devinfo->page_size,
                                               PIPE_BIND_CONSTANT_BUFFER,
                                               PIPE_USAGE_STREAM, 0);
 
