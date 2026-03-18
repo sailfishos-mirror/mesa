@@ -322,28 +322,47 @@ ethosu_lower_strided_slice(struct ethosu_subgraph *subgraph,
    ethosu_sched_operation(subgraph, operation);
 }
 
+static bool
+is_sub_shape(struct pipe_tensor *sub, struct pipe_tensor *super)
+{
+   for (int i = 1; i < 4; i++) {
+      if (sub->dims[i] > super->dims[i])
+         return false;
+   }
+   return true;
+}
+
 static void
 ethosu_lower_add(struct ethosu_subgraph *subgraph,
                  const struct pipe_ml_operation *poperation,
                  struct ethosu_operation *operation)
 {
    operation->type = ETHOSU_OPERATION_TYPE_ELTWISE;
+   int ifm_idx = 0;
+   int ifm2_idx = 1;
 
-   set_feature_maps(poperation->input_tensors[0], poperation->output_tensors[0], operation);
+   if (!is_sub_shape(poperation->input_tensors[1], poperation->input_tensors[0])) {
+      ifm_idx = 1;
+      ifm2_idx = 0;
+      operation->eltwise.ifm_reversed = true;
+   }
 
-   operation->ifm2.tensor_idx = poperation->input_tensors[1]->index;
-   operation->ifm2.shape.height = poperation->input_tensors[1]->dims[1];
-   operation->ifm2.shape.width = poperation->input_tensors[1]->dims[2];
-   operation->ifm2.shape.depth = poperation->input_tensors[1]->dims[3];
-   operation->ifm2.zero_point = poperation->input_tensors[1]->zero_point;
-   operation->ifm2.scale = poperation->input_tensors[1]->scale;
-   operation->ifm2.is_signed = poperation->input_tensors[1]->is_signed;
-   operation->ifm2.precision = log2(poperation->input_tensors[1]->type_size);
-   if (operation->ifm2.shape.width == 1 &&
+   set_feature_maps(poperation->input_tensors[ifm_idx], poperation->output_tensors[0], operation);
+
+   operation->ifm2.tensor_idx = poperation->input_tensors[ifm2_idx]->index;
+   operation->ifm2.shape.height = poperation->input_tensors[ifm2_idx]->dims[1];
+   operation->ifm2.shape.width = poperation->input_tensors[ifm2_idx]->dims[2];
+   operation->ifm2.shape.depth = poperation->input_tensors[ifm2_idx]->dims[3];
+   operation->ifm2.zero_point = poperation->input_tensors[ifm2_idx]->zero_point;
+   operation->ifm2.scale = poperation->input_tensors[ifm2_idx]->scale;
+   operation->ifm2.is_signed = poperation->input_tensors[ifm2_idx]->is_signed;
+   operation->ifm2.precision = log2(poperation->input_tensors[ifm2_idx]->type_size);
+   if (poperation->input_tensors[ifm2_idx]->resource &&
+       operation->ifm2.shape.width == 1 &&
        operation->ifm2.shape.height == 1 &&
        operation->ifm2.shape.depth == 1) {
       struct pipe_transfer *transfer_in;
-      uint8_t *scalar = pipe_buffer_map(subgraph->base.context, poperation->input_tensors[1]->resource,
+      uint8_t *scalar = pipe_buffer_map(subgraph->base.context, poperation->input_tensors[ifm2_idx]->resource,
                                         PIPE_MAP_READ, &transfer_in);
 
       operation->ifm2.scalar = *scalar;

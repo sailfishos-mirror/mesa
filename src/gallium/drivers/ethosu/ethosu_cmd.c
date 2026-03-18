@@ -383,6 +383,8 @@ emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
 {
    unsigned ifm2_broadcast = has_scalar ? NPU_SET_IFM2_BROADCAST_BROADCAST_SCALAR(1) : 0;
 
+   ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_OPERAND_ORDER(operation->eltwise.ifm_reversed);
+
    EMIT0(NPU_SET_IFM2_BROADCAST, ifm2_broadcast);
 }
 
@@ -443,6 +445,13 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
       operation->ifm.scale,
       operation->ifm2.scale,
       operation->ofm.scale);
+
+   if (operation->eltwise.ifm_reversed) {
+      if (op_to_scale == OP_A)
+         op_to_scale = OP_B;
+      else
+         op_to_scale = OP_A;
+   }
 
    emit_common(subgraph, operation, op_to_scale);
 

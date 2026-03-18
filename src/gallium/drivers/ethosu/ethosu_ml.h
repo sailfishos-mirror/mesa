@@ -153,6 +153,7 @@ struct ethosu_operation {
 
       struct {
          unsigned lut_bytes;
+         bool ifm_reversed;
       } eltwise;
 
       struct {
