@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 
+#include <lib/kmod/pan_kmod.h>
+
 #include "mali_perf.h"
 
 #include "util/timespec.h"
@@ -51,25 +53,18 @@ struct pan_perf_config {
 
 struct pan_perf {
    struct pan_kmod_dev *dev;
-   unsigned core_id_range;
+   struct pan_kmod_perf_session *session;
    struct mali_perf_constants constants;
+   struct mali_perf_dump_info dump_info;
    const struct pan_perf_config *cfg;
-
-   // Memory where to dump counter values
-   uint32_t *counter_values;
-   uint32_t n_counter_values;
-
-   /* Offsets of categories */
-   unsigned category_offset[MALI_PERF_BLOCK_TYPE_COUNT];
-
-   uint64_t dump_ts;
+   uint64_t sampling_period_ns;
 };
 
-uint32_t pan_perf_counter_read(const struct pan_perf *perf,
-                               const struct pan_perf_counter *counter,
-                               uint8_t blk_idx);
+int64_t pan_perf_counter_read(const struct pan_perf *perf,
+                              const struct pan_perf_counter *counter,
+                              uint8_t blk_idx);
 
-uint32_t pan_perf_counter_read_sum(const struct pan_perf *perf,
+int64_t pan_perf_counter_read_sum(const struct pan_perf *perf,
                                    const struct pan_perf_counter *counter);
 
 struct pan_perf *pan_perf_create(int fd);
@@ -91,22 +86,20 @@ pan_perf_gpu_clock_id(const struct pan_perf *perf)
 static inline uint64_t
 pan_perf_get_gpu_timestamp(const struct pan_perf *perf)
 {
-   struct timespec tp;
-
-   clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
-   return timespec_to_nsec(&tp);
+   return pan_kmod_timestamp_cycles_to_ns(
+      perf->session->dev, pan_kmod_query_timestamp(perf->session->dev));
 }
 
 static inline uint64_t
 pan_perf_get_dump_timestamp(const struct pan_perf *perf)
 {
-   return perf->dump_ts;
+   return perf->dump_info.time_span.end_ns;
 }
 
 static inline uint64_t
 pan_perf_get_min_sampling_period(const struct pan_perf *perf)
 {
-   return 1000000;
+   return perf->session->caps.min_sampling_period_ns;
 }
 
 #if defined(__cplusplus)

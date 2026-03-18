@@ -399,8 +399,9 @@ pan_kmod_perf_dump_sample(
    start_gpu_ts = consolidated_sample->time_span.start_gpu_ts;
    end_gpu_ts = consolidated_sample->time_span.end_gpu_ts;
    memset(consolidated_sample->data, 0, layout->consolidated_sample_size);
-   memset(&consolidated_sample->time_span, 0,
-          sizeof(consolidated_sample->time_span));
+
+   /* Counters start accumulating again after the last sample. */
+   consolidated_sample->time_span.start_gpu_ts = end_gpu_ts;
 
    return (struct mali_perf_dump_info){
       /* time_span is in cycles, turn it into nanoseconds. */

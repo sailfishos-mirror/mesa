@@ -925,6 +925,14 @@ panfrost_kmod_perf_enable(struct pan_kmod_perf_session *session,
       return ret;
 
    session->config = *cfg;
+
+   /* Counters start accumulating once they are enabled. */
+   uint64_t gpu_ts = pan_kmod_query_timestamp(session->dev);
+   pthread_mutex_lock(&panfrost_session->lock);
+   panfrost_session->consolidated_sample.time_span.start_gpu_ts = gpu_ts;
+   panfrost_session->consolidated_sample.time_span.end_gpu_ts = gpu_ts;
+   pthread_mutex_unlock(&panfrost_session->lock);
+
    return 0;
 }
 

@@ -1,5 +1,6 @@
 /*
  * Copyright © 2021 Collabora, Ltd.
+ * Copyright © 2026 Arm Ltd.
  * SPDX-License-Identifier: MIT
  */
 
@@ -18,28 +19,33 @@
 #include <lib/pan_props.h>
 #include <pan_perf_metrics.h>
 
-uint32_t
+int64_t
 pan_perf_counter_read(const struct pan_perf *perf,
                       const struct pan_perf_counter *counter, uint8_t blk_idx)
 {
-   unsigned offset = perf->category_offset[counter->category_id];
-   offset += counter->offset;
-   assert(offset < perf->n_counter_values);
+   struct mali_perf_backend *backend = &perf->session->mali_perf_backend;
+   struct mali_perf_hw_counter_id id = {
+      .block.type = counter->category_id,
+      .block.index = blk_idx,
+      .index = counter->offset,
+   };
 
-   return perf->counter_values[offset];
+   return backend->get_hw_counter_value(backend, id);
 }
 
-uint32_t
+int64_t
 pan_perf_counter_read_sum(const struct pan_perf *perf,
                           const struct pan_perf_counter *counter)
 {
    /* If counter belongs to shader core, sum values for all cores. */
    uint8_t blk_cnt =
       mali_perf_block_count(counter->category_id, &perf->constants);
-   uint32_t ret = 0;
+   int64_t ret = 0;
 
-   for (uint8_t blk_idx = 0; blk_idx < blk_cnt; blk_idx++)
+   for (uint8_t blk_idx = 0; blk_idx < blk_cnt; blk_idx++) {
       ret += pan_perf_counter_read(perf, counter, blk_idx);
+      assert(ret >= 0 && "counter sum should not overflow");
+   }
 
    return ret;
 }
@@ -61,6 +67,9 @@ pan_perf_destroy(struct pan_perf *perf)
    if (!perf)
       return;
 
+   if (perf->session)
+      pan_kmod_perf_destroy(perf->session);
+
    if (perf->dev)
       pan_kmod_dev_destroy(perf->dev);
 
@@ -70,22 +79,6 @@ pan_perf_destroy(struct pan_perf *perf)
 struct pan_perf *
 pan_perf_create(int fd)
 {
-   ASSERTED drmVersionPtr version = drmGetVersion(fd);
-
-   /* We only support panfrost at the moment. */
-   if (!version) {
-      mesa_loge("Not a DRM device");
-      return NULL;
-   }
-
-   if (!strcmp(version->name, "panfrost")) {
-      mesa_loge("Kerner driver not supported");
-      drmFreeVersion(version);
-      return NULL;
-   }
-
-   drmFreeVersion(version);
-
    struct pan_perf *perf = calloc(1, sizeof(*perf));
    if (!perf) {
       mesa_loge("Could not allocate pan_perf instance");
@@ -95,6 +88,12 @@ pan_perf_create(int fd)
    perf->dev = pan_kmod_dev_create(fd, 0, NULL);
    if (!perf->dev) {
       mesa_loge("Could not create kmod device");
+      goto err_destroy_perf;
+   }
+
+   perf->session = pan_kmod_perf_create(perf->dev);
+   if (!perf->session) {
+      mesa_loge("Could not create kmod perf session");
       goto err_destroy_perf;
    }
 
@@ -117,25 +116,6 @@ pan_perf_create(int fd)
       goto err_destroy_perf;
    }
 
-   // Generally counter blocks are laid out in the following order:
-   // Job manager, tiler, one or more L2 caches, and one or more shader cores.
-   unsigned l2_slices = pan_query_l2_slices(&props);
-   perf->core_id_range = pan_query_core_id_range(&props);
-
-   uint32_t n_blocks = 2 + l2_slices + perf->core_id_range;
-   perf->n_counter_values = MALI_PERF_MAX_COUNTERS_PER_BLOCK * n_blocks;
-   perf->counter_values = ralloc_array(perf, uint32_t, perf->n_counter_values);
-
-   /* Setup the layout */
-   perf->category_offset[MALI_PERF_BLOCK_GPU_FRONT_END] =
-      MALI_PERF_MAX_COUNTERS_PER_BLOCK * 0;
-   perf->category_offset[MALI_PERF_BLOCK_TILER] =
-      MALI_PERF_MAX_COUNTERS_PER_BLOCK * 1;
-   perf->category_offset[MALI_PERF_BLOCK_MEMSYS] =
-      MALI_PERF_MAX_COUNTERS_PER_BLOCK * 2;
-   perf->category_offset[MALI_PERF_BLOCK_SHADER_CORE] =
-      MALI_PERF_MAX_COUNTERS_PER_BLOCK * (2 + l2_slices);
-
    return perf;
 
 err_destroy_perf:
@@ -143,42 +123,35 @@ err_destroy_perf:
    return NULL;
 }
 
-static int
-pan_perf_query(struct pan_perf *perf, uint32_t enable)
-{
-   struct drm_panfrost_perfcnt_enable perfcnt_enable = {enable, 0};
-   return pan_kmod_ioctl(perf->dev->fd, DRM_IOCTL_PANFROST_PERFCNT_ENABLE,
-                         &perfcnt_enable);
-}
-
 int
-pan_perf_enable(struct pan_perf *perf, UNUSED uint64_t sampling_period_ns)
+pan_perf_enable(struct pan_perf *perf, uint64_t sampling_period_ns)
 {
-   return pan_perf_query(perf, 1 /* enable */);
+   struct pan_kmod_perf_config cfg = {
+      .sampling_period_ns = sampling_period_ns,
+   };
+
+   for (uint32_t i = 0; i < perf->cfg->n_categories; i++) {
+      const struct pan_perf_category *cat = &perf->cfg->categories[i];
+
+      for (uint32_t j = 0; j < cat->n_counters; j++) {
+         const struct pan_perf_counter *counter = &cat->counters[j];
+
+         BITSET_SET(cfg.blocks[counter->category_id].counters, counter->offset);
+      }
+   }
+
+   return pan_kmod_perf_enable(perf->session, &cfg);
 }
 
 int
 pan_perf_disable(struct pan_perf *perf)
 {
-   return pan_perf_query(perf, 0 /* disable */);
+   return pan_kmod_perf_disable(perf->session);
 }
 
 int
 pan_perf_dump(struct pan_perf *perf)
 {
-   // Dump performance counter values to the memory buffer pointed to by
-   // counter_values
-   struct drm_panfrost_perfcnt_dump perfcnt_dump = {
-      (uint64_t)(uintptr_t)perf->counter_values};
-   int ret = pan_kmod_ioctl(perf->dev->fd, DRM_IOCTL_PANFROST_PERFCNT_DUMP,
-                            &perfcnt_dump);
-
-   if (!ret) {
-      struct timespec tp;
-
-      clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
-      perf->dump_ts = timespec_to_nsec(&tp);
-   }
-
-   return ret;
+   pan_kmod_perf_dump(perf->session, &perf->dump_info);
+   return 0;
 }

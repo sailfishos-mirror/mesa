@@ -45,8 +45,8 @@ main(void)
 
       for (unsigned j = 0; j < cat->n_counters; ++j) {
          const struct pan_perf_counter *ctr = &cat->counters[j];
-         uint32_t val = pan_perf_counter_read_sum(perf, ctr);
-         printf("%s (%s): %d\n", ctr->name, ctr->symbol_name, val);
+         int64_t val = pan_perf_counter_read_sum(perf, ctr);
+         printf("%s (%s): %ld\n", ctr->name, ctr->symbol_name, val);
       }
 
       printf("\n");
