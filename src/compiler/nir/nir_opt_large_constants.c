@@ -29,43 +29,43 @@
 
 static void
 read_const_values(nir_const_value *dst, const void *src,
-                  unsigned num_components, unsigned bit_size)
+                  unsigned num_components, unsigned bit_size,
+                  unsigned stride)
 {
    memset(dst, 0, num_components * sizeof(*dst));
 
-   switch (bit_size) {
-   case 1:
-      /* Booleans are special-cased to be 32-bit */
-      assert(util_ptr_is_aligned(src, 4));
-      for (unsigned i = 0; i < num_components; i++)
-         dst[i].b = ((int32_t *)src)[i] != 0;
-      break;
+   for (unsigned i = 0; i < num_components; i++) {
+      switch (bit_size) {
+      case 1:
+         /* Booleans are special-cased to be 32-bit */
+         assert(util_ptr_is_aligned(src, 4));
+         dst[i].b = *(uint32_t *)src != 0;
+         break;
 
-   case 8:
-      for (unsigned i = 0; i < num_components; i++)
-         dst[i].u8 = ((int8_t *)src)[i];
-      break;
+      case 8:
+         dst[i].u8 = *(uint8_t *)src;
+         break;
 
-   case 16:
-      assert(util_ptr_is_aligned(src, 2));
-      for (unsigned i = 0; i < num_components; i++)
-         dst[i].u16 = ((int16_t *)src)[i];
-      break;
+      case 16:
+         assert(util_ptr_is_aligned(src, 2));
+         dst[i].u16 = *(uint16_t *)src;
+         break;
 
-   case 32:
-      assert(util_ptr_is_aligned(src, 4));
-      for (unsigned i = 0; i < num_components; i++)
-         dst[i].u32 = ((int32_t *)src)[i];
-      break;
+      case 32:
+         assert(util_ptr_is_aligned(src, 4));
+         dst[i].u32 = *(uint32_t *)src;
+         break;
 
-   case 64:
-      assert(util_ptr_is_aligned(src, 8));
-      for (unsigned i = 0; i < num_components; i++)
-         dst[i].u64 = ((int64_t *)src)[i];
-      break;
+      case 64:
+         assert(util_ptr_is_aligned(src, 8));
+         dst[i].u64 = *(uint64_t *)src;
+         break;
 
-   default:
-      UNREACHABLE("Invalid bit size");
+      default:
+         UNREACHABLE("Invalid bit size");
+      }
+
+      src = (void *)((uintptr_t)src + stride);
    }
 }
 
@@ -79,30 +79,30 @@ write_const_values(void *dst, const nir_const_value *src,
       /* Booleans are special-cased to be 32-bit */
       assert(util_ptr_is_aligned(dst, 4));
       u_foreach_bit(i, write_mask)
-         ((int32_t *)dst)[i] = -(int)src[i].b;
+         ((uint32_t *)dst)[i] = -(int)src[i].b;
       break;
 
    case 8:
       u_foreach_bit(i, write_mask)
-         ((int8_t *)dst)[i] = src[i].u8;
+         ((uint8_t *)dst)[i] = src[i].u8;
       break;
 
    case 16:
       assert(util_ptr_is_aligned(dst, 2));
       u_foreach_bit(i, write_mask)
-         ((int16_t *)dst)[i] = src[i].u16;
+         ((uint16_t *)dst)[i] = src[i].u16;
       break;
 
    case 32:
       assert(util_ptr_is_aligned(dst, 4));
       u_foreach_bit(i, write_mask)
-         ((int32_t *)dst)[i] = src[i].u32;
+         ((uint32_t *)dst)[i] = src[i].u32;
       break;
 
    case 64:
       assert(util_ptr_is_aligned(dst, 8));
       u_foreach_bit(i, write_mask)
-         ((int64_t *)dst)[i] = src[i].u64;
+         ((uint64_t *)dst)[i] = src[i].u64;
       break;
 
    default:
@@ -246,11 +246,8 @@ get_small_constant(struct var_info *info, glsl_type_size_align_func size_align)
    size_align(elem_type, &elem_size, &elem_align);
    uint32_t stride = ALIGN_POT(elem_size, elem_align);
 
-   if (stride != (bit_size == 1 ? 4 : bit_size / 8))
-      return;
-
    nir_const_value values[64];
-   read_const_values(values, info->constant_data, array_len, bit_size);
+   read_const_values(values, info->constant_data, array_len, bit_size, stride);
 
    bool is_float = true;
    if (bit_size < 16) {
