@@ -4639,9 +4639,6 @@ pub struct OpF2F {
     pub dst_type: FloatType,
     pub rnd_mode: FRndMode,
     pub ftz: bool,
-    /// For 16-bit down-conversions, place the result into the upper 16 bits of
-    /// the destination register
-    pub dst_high: bool,
     /// Round to the nearest integer rather than nearest float
     ///
     /// Not available on SM70+
@@ -4698,9 +4695,6 @@ impl DisplayOp for OpF2F {
         }
         if self.integer_rnd {
             write!(f, ".int")?;
-        }
-        if self.dst_high {
-            write!(f, ".high")?;
         }
         write!(
             f,
