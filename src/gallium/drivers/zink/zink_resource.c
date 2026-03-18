@@ -2129,20 +2129,19 @@ zink_resource_from_handle(struct pipe_screen *pscreen,
    }
    templ2.bind |= ZINK_BIND_DMABUF;
    struct pipe_resource *pres = resource_create(pscreen, &templ2, whandle, usage, &modifier, modifier_count, NULL, NULL);
-   if (pres) {
-      struct zink_resource *res = zink_resource(pres);
-      if (pres->target != PIPE_BUFFER)
-         res->valid = true;
-      else
-         tc_buffer_disable_cpu_storage(pres);
-      res->obj->immutable_handle = true;
-      res->internal_format = whandle->format;
-   }
+   if (!pres)
+      return NULL;
+
+   struct zink_resource *res = zink_resource(pres);
+   if (pres->target != PIPE_BUFFER)
+      res->valid = true;
+   else
+      tc_buffer_disable_cpu_storage(pres);
+   res->obj->immutable_handle = true;
+   res->internal_format = whandle->format;
 
 #ifdef HAVE_LIBDRM
    if (screen->ro) {
-      struct zink_resource *res = zink_resource(pres);
-
       /* Make sure that renderonly has a handle to our buffer in the display's
        * fd, so that a later renderonly_get_handle() returns correct handles
        * or GEM names.
