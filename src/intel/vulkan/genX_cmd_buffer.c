@@ -3213,6 +3213,7 @@ genX(batch_emit_pipe_control)(struct anv_batch *batch,
 {
    /* Store pipe control reasons if there is enough space */
    if (reason != NULL &&
+       batch->trace != NULL &&
        batch->pc_reasons_count < ARRAY_SIZE(batch->pc_reasons))
       batch->pc_reasons[batch->pc_reasons_count++] = reason;
    emit_pipe_control(batch, devinfo, current_pipeline,
