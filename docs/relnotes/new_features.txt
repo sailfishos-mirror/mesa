@@ -22,3 +22,4 @@ VK_EXT_shader_atomic_float on nvk
 VK_{KHR,EXT}_index_type_uint8 on pvr
 VK_EXT_debug_marker in vulkan runtime
 VK_EXT_mesh_shader on NVK
+VK_KHR_device_fault on RADV

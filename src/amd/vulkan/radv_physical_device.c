@@ -685,6 +685,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_depth_stencil_resolve = true,
       .KHR_descriptor_update_template = true,
       .KHR_device_address_commands = true,
+      .KHR_device_fault = true,
       .KHR_device_group = true,
       .KHR_draw_indirect_count = true,
       .KHR_driver_properties = true,
@@ -1616,6 +1617,12 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .shaderFmaFloat16 = radv_shader_fp16_enabled(pdev),
       .shaderFmaFloat32 = true,
       .shaderFmaFloat64 = true,
+
+      /* VK_KHR_device_fault */
+      .deviceFault = true,
+      .deviceFaultVendorBinary = instance->debug_flags & RADV_DEBUG_HANG,
+      .deviceFaultReportMasked = true,
+      .deviceFaultDeviceLostOnMasked = false,
    };
 }
 
@@ -2330,6 +2337,9 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
       .samplerYcbcrConversionCount = 3,
       .sparseDescriptorHeaps = false,
       .protectedDescriptorHeaps = false,
+
+      /* VK_KHR_device_fault */
+      .maxDeviceFaultCount = 1,
    };
 
    struct vk_properties *p = &pdev->vk.properties;
