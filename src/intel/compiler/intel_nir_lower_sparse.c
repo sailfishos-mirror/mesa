@@ -93,29 +93,13 @@ lower_sparse_image_load(nir_builder *b, nir_intrinsic_instr *intrin)
       dests[i] = nir_channel(b, img_load, i);
    }
 
+   const bool bindless =
+      intrin->intrinsic == nir_intrinsic_bindless_image_sparse_load;
+
    /* Use texture instruction to compute residency */
-   nir_tex_instr *tex = nir_tex_instr_create(b->shader, 3);
-
-   tex->op = nir_texop_txf;
-   /* We don't care about the dest type since we're not using any of that
-    * data.
-    */
-   tex->dest_type = nir_type_float32;
-   tex->is_array = nir_intrinsic_image_array(intrin);
-   tex->is_shadow = false;
-   tex->sampler_index = 0;
-   tex->is_sparse = true;
-
-   tex->src[0].src_type = intrin->intrinsic == nir_intrinsic_image_sparse_load ?
-                          nir_tex_src_texture_offset :
-                          nir_tex_src_texture_handle;
-   tex->src[0].src = nir_src_for_ssa(intrin->src[0].ssa);
-
-   tex->coord_components = nir_image_intrinsic_coord_components(intrin);
    nir_def *coord;
    if (nir_intrinsic_image_dim(intrin) == GLSL_SAMPLER_DIM_CUBE &&
        nir_intrinsic_image_array(intrin)) {
-      tex->coord_components++;
 
       nir_def *img_layer = nir_channel(b, intrin->src[1].ssa, 2);
       nir_def *tex_slice = nir_idiv(b, img_layer, nir_imm_int(b, 6));
@@ -129,21 +113,20 @@ lower_sparse_image_load(nir_builder *b, nir_intrinsic_instr *intrin)
       };
       coord = nir_vec(b, comps, 4);
    } else {
-      coord = nir_channels(b, intrin->src[1].ssa,
-                           nir_component_mask(tex->coord_components));
+      const unsigned comps = nir_image_intrinsic_coord_components(intrin);
+      coord = nir_channels(b, intrin->src[1].ssa, nir_component_mask(comps));
    }
-   tex->src[1].src_type = nir_tex_src_coord;
-   tex->src[1].src = nir_src_for_ssa(coord);
 
-   tex->src[2].src_type = nir_tex_src_lod;
-   tex->src[2].src = nir_src_for_ssa(nir_imm_int(b, 0));
+   nir_def *txf =
+      nir_txf(b, coord,
+              .texture_offset = bindless ? NULL : intrin->src[0].ssa,
+              .texture_handle = bindless ? intrin->src[0].ssa : NULL,
+              .dim = nir_intrinsic_image_dim(intrin),
+              .dest_type = nir_type_float32, /* dest is unused */
+              .is_array = nir_intrinsic_image_array(intrin),
+              .is_sparse = true);
 
-   nir_def_init(&tex->instr, &tex->def, 5,
-                intrin->def.bit_size);
-
-   nir_builder_instr_insert(b, &tex->instr);
-
-   dests[intrin->num_components - 1] = nir_channel(b, &tex->def, 4);
+   dests[intrin->num_components - 1] = nir_channel(b, txf, 4);
 
    nir_def_rewrite_uses(
       &intrin->def,
