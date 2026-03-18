@@ -1041,9 +1041,11 @@ python_exec_list = ['python3', 'python3.16', 'python3.15', 'python3.14', 'python
 
 foreach p : python_exec_list
   prog_python = find_program(p, required : false, version : python_version_req)
-  if prog_python.found()
-    break
+  if not prog_python.found()
+    continue
   endif
+
+  break
 endforeach
 
 if not prog_python.found()
