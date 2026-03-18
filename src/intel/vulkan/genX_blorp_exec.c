@@ -304,6 +304,15 @@ blorp_exec_on_render(struct blorp_batch *batch,
    genX(cmd_buffer_emit_hashing_mode)(cmd_buffer, params->x1 - params->x0,
                                       params->y1 - params->y0, scale);
 
+   /* With Wa_14024015672, RHWO is initially disabled. We enable it for MSAA
+    * draws and disable for single sample unless explicitly disabled via drirc
+    * key.
+    */
+#if INTEL_WA_14024015672_GFX_VER
+   genX(cmd_buffer_rhwo_wa_14024015672)(cmd_buffer, params->num_samples > 1);
+#endif
+
+
 #if GFX_VER >= 11
    /* The PIPE_CONTROL command description says:
     *

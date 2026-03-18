@@ -830,12 +830,8 @@ cmd_buffer_flush_gfx_state(struct anv_cmd_buffer *cmd_buffer)
     * drirc key.
     */
 #if INTEL_WA_14024015672_GFX_VER
-   if (intel_needs_workaround(device->info, 14024015672) &&
-       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_MS_RASTERIZATION_SAMPLES)) {
-      cmd_buffer->state.pending_rhwo_optimization_enabled =
-         !device->physical->instance->intel_enable_wa_14024015672_msaa &&
-         dyn->ms.rasterization_samples > 1;
-   }
+   genX(cmd_buffer_rhwo_wa_14024015672)(cmd_buffer,
+                                        dyn->ms.rasterization_samples > 1);
 #endif
 
    /* Apply any pending pipeline flushes we may have.  We want to apply them
