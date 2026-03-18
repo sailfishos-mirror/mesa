@@ -18,8 +18,8 @@
 #include "vk_acceleration_structure.h"
 #include "vk_common_entrypoints.h"
 
-static const uint32_t copy_blas_addrs_gfx12_spv[] = {
-#include "bvh/copy_blas_addrs_gfx12.spv.h"
+static const uint32_t copy_blas_addrs_spv[] = {
+#include "bvh/copy_blas_addrs.spv.h"
 };
 
 static const uint32_t copy_spv[] = {
@@ -1153,14 +1153,14 @@ radv_CmdCopyMemoryToAccelerationStructureKHR(VkCommandBuffer commandBuffer,
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(vk_acceleration_structure, dst, pInfo->dst);
-   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
 
    radv_meta_begin(cmd_buffer);
    radv_meta_save(cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS);
 
+   uint32_t flags = radv_build_flags(commandBuffer, 0) & RADV_BUILD_FLAG_BVH8;
+
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY, copy_spv, sizeof(copy_spv),
-                                sizeof(struct copy_args), radv_build_flags(commandBuffer, 0) & RADV_BUILD_FLAG_BVH8);
+                                sizeof(struct copy_args), flags);
 
    const struct copy_args consts = {
       .src_addr = pInfo->src.deviceAddress,
@@ -1171,16 +1171,13 @@ radv_CmdCopyMemoryToAccelerationStructureKHR(VkCommandBuffer commandBuffer,
 
    radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 512, 1, 1);
 
-   if (radv_use_bvh8(pdev)) {
-      /* Wait for the main copy dispatch to finish. */
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
+   /* Wait for the main copy dispatch to finish. */
+   vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-      radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS_GFX12,
-                                   copy_blas_addrs_gfx12_spv, sizeof(copy_blas_addrs_gfx12_spv),
-                                   sizeof(struct copy_args), 0);
+   radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_blas_addrs_spv,
+                                sizeof(copy_blas_addrs_spv), sizeof(struct copy_args), flags);
 
-      radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 256, 1, 1);
-   }
+   radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 256, 1, 1);
 
    radv_meta_end(cmd_buffer);
 }
@@ -1197,8 +1194,10 @@ radv_CmdCopyAccelerationStructureToMemoryKHR(VkCommandBuffer commandBuffer,
    radv_meta_begin(cmd_buffer);
    radv_meta_save(cmd_buffer, RADV_META_SAVE_COMPUTE_PIPELINE | RADV_META_SAVE_CONSTANTS);
 
+   uint32_t flags = radv_build_flags(commandBuffer, 0) & RADV_BUILD_FLAG_BVH8;
+
    radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY, copy_spv, sizeof(copy_spv),
-                                sizeof(struct copy_args), radv_build_flags(commandBuffer, 0) & RADV_BUILD_FLAG_BVH8);
+                                sizeof(struct copy_args), flags);
 
    const struct copy_args consts = {
       .src_addr = vk_acceleration_structure_get_va(src),
@@ -1221,16 +1220,13 @@ radv_CmdCopyAccelerationStructureToMemoryKHR(VkCommandBuffer commandBuffer,
 
    radv_CmdDispatchIndirect2KHR(commandBuffer, &info);
 
-   if (radv_use_bvh8(pdev)) {
-      /* Wait for the main copy dispatch to finish. */
-      vk_barrier_compute_w_to_compute_r(commandBuffer);
+   /* Wait for the main copy dispatch to finish. */
+   vk_barrier_compute_w_to_compute_r(commandBuffer);
 
-      radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS_GFX12,
-                                   copy_blas_addrs_gfx12_spv, sizeof(copy_blas_addrs_gfx12_spv),
-                                   sizeof(struct copy_args), 0);
+   radv_bvh_build_bind_pipeline(commandBuffer, RADV_META_OBJECT_KEY_BVH_COPY_BLAS_ADDRS, copy_blas_addrs_spv,
+                                sizeof(copy_blas_addrs_spv), sizeof(struct copy_args), flags);
 
-      radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 256, 1, 1);
-   }
+   radv_CmdDispatchBase(commandBuffer, 0, 0, 0, 256, 1, 1);
 
    radv_meta_end(cmd_buffer);
 

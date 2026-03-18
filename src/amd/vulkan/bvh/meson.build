@@ -4,8 +4,8 @@
 # source file, output name, defines
 bvh_shaders = [
   [
-    'copy_blas_addrs_gfx12.comp',
-    'copy_blas_addrs_gfx12',
+    'copy_blas_addrs.comp',
+    'copy_blas_addrs',
   ],
   [
     'copy.comp',
