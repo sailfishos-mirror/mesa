@@ -800,6 +800,7 @@ GENX(pan_emit_afrc_color_attachment)(const struct pan_fb_info *fb,
       cfg.afrc_format = pan_afrc_format(finfo, image->props.modifier, 0);
       get_rt_formats(iview->format, &cfg.writeback_format, &cfg.internal_format,
                      &cfg.swizzle);
+      cfg.srgb = util_format_is_srgb(iview->format);
       cfg.writeback_buffer.base = base;
       cfg.writeback_buffer.row_stride = row_stride;
       cfg.writeback_buffer.surface_stride = surf_stride;
