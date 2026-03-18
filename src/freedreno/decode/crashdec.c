@@ -33,6 +33,8 @@ static uint64_t fault_iova;
 static bool has_fault_iova;
 static int lookback = 20;
 
+static unsigned gmu_offset = 0;
+
 struct cffdec_options options = {
    .draw_filter = -1,
 };
@@ -691,7 +693,7 @@ decode_gmu_registers(void)
       reg_buf.regs[reg_buf.count].value = value;
       reg_buf.count++;
 
-      if (regacc_push(&r, offset / 4, value)) {
+      if (regacc_push(&r, (offset / 4) + gmu_offset, value)) {
          printf("\t%08"PRIx64"\t", r.value);
          dump_register(&r);
       }
@@ -1100,11 +1102,21 @@ decode(void)
    while ((line = popline())) {
       printf("%s", line);
       if (startswith(line, "kernel:")) {
+         unsigned major, minor;
          char *release = NULL;
 
          parseline(line, "kernel: %ms", &release);
          strncpy((char *)snapshot_linux.release, release, sizeof(snapshot_linux.release) - 1);
          free(release);
+
+         /* Extract the kernel version.  The offset of GMU regs was
+          * shifted in v6.19 as gen8 support was added.  For backwards
+          * compatibility with earlier kernels, we need to add an
+          * offset.
+          */
+         parseline(line, "kernel: %u.%u", &major, &minor);
+         if ((major < 6) || ((major == 6) && (minor < 19)))
+            gmu_offset = 0x1a800;
       } else if (startswith(line, "time:")) {
          double time;
 
