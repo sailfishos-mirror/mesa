@@ -744,6 +744,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device 
       .KHR_sampler_mirror_clamp_to_edge = true,
       .KHR_sampler_ycbcr_conversion = true,
       .KHR_separate_depth_stencil_layouts = true,
+      .KHR_shader_abort = true,
       .KHR_shader_atomic_int64 = true,
       .KHR_shader_bfloat16 = radv_bfloat16_enabled(pdev),
       .KHR_shader_clock = true,
@@ -1626,6 +1627,9 @@ radv_physical_device_get_features(const struct radv_physical_device *pdev, struc
       .deviceFaultVendorBinary = instance->debug_flags & RADV_DEBUG_HANG,
       .deviceFaultReportMasked = true,
       .deviceFaultDeviceLostOnMasked = false,
+
+      /* VK_KHR_shader_abort */
+      .shaderAbort = true,
    };
 }
 
@@ -2343,6 +2347,9 @@ radv_get_physical_device_properties(struct radv_physical_device *pdev)
 
       /* VK_KHR_device_fault */
       .maxDeviceFaultCount = 1,
+
+      /* VK_KHR_shader_abort */
+      .maxShaderAbortMessageSize = RADV_MAX_SHADER_ABORT_MESSAGE_SIZE,
    };
 
    struct vk_properties *p = &pdev->vk.properties;
