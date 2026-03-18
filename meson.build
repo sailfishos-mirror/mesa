@@ -1045,16 +1045,9 @@ foreach p : python_exec_list
     continue
   endif
 
-  break
-endforeach
-
-if not prog_python.found()
-  error('Python ' + python_version_req + ' not found')
-endif
-
-has_mako = run_command(
-  prog_python, '-c',
-  '''
+  has_mako = run_command(
+    prog_python, '-c',
+    '''
 import sys
 
 try:
@@ -1073,6 +1066,16 @@ except:
 if Version(mako.__version__) < Version("0.8.0"):
     sys.exit(1)
 ''', check: false)
+  if has_mako.returncode() != 0
+    continue
+  endif
+
+  break
+endforeach
+
+if not prog_python.found()
+  error('Python ' + python_version_req + ' not found')
+endif
 
 if has_mako.returncode() == 1
   error('Python (3.x) mako module >= 0.8.0 required to build mesa.')
