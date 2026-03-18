@@ -131,6 +131,7 @@ panvk_per_arch(get_physical_device_extensions)(
       .KHR_vulkan_memory_model = true,
       .KHR_zero_initialize_workgroup_memory = true,
       .EXT_4444_formats = true,
+      .EXT_attachment_feedback_loop_layout = true,
       .EXT_border_color_swizzle = true,
       .EXT_buffer_device_address = true,
       .EXT_calibrated_timestamps =
@@ -488,6 +489,9 @@ panvk_per_arch(get_physical_device_features)(
       .extendedDynamicState2 = true,
       .extendedDynamicState2LogicOp = true,
       .extendedDynamicState2PatchControlPoints = false,
+
+      /* VK_EXT_attachment_feedback_loop_layout */
+      .attachmentFeedbackLoopLayout = true,
 
       /* VK_EXT_4444_formats */
       .formatA4R4G4B4 = true,
@@ -1256,7 +1260,11 @@ panvk_per_arch(get_physical_device_properties)(
 
       /* Vulkan 1.4 */
       VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ,
+
 #endif
+
+      /* VK_EXT_attachment_feedback_loop_layout */
+      VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT,
    };
    properties->pCopySrcLayouts = supported_host_copy_layouts;
    properties->copySrcLayoutCount = ARRAY_SIZE(supported_host_copy_layouts);

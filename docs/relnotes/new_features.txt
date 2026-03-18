@@ -43,3 +43,4 @@ VK_EXT_non_seamless_cube_map on pvr
 fragmentStoresAndAtomics on panvk/v6-7
 VK_KHR_shader_untyped_pointers on panvk
 VK_EXT_primitive_restart_index on RADV
+VK_EXT_attachment_feedback_loop_layout on panvk
