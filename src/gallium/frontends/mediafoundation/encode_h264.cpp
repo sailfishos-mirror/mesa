@@ -1143,8 +1143,12 @@ GetMaxDPBSize( int width, int height, eAVEncH264VLevel level_idc )
 UINT32
 CDX12EncHMFT::GetMaxReferences( unsigned int width, unsigned int height )
 {
-   int maxDPBSize = GetMaxDPBSize( width, height, m_uiLevel );
-   UINT32 uiMaxReferences = std::min( (int) m_EncoderCapabilities.m_uiMaxHWSupportedDPBCapacity, maxDPBSize );
+   UINT32 uiMaxReferences = m_EncoderCapabilities.m_uiMaxHWSupportedDPBCapacity;
+   if( width != 0 && height != 0 )
+   {
+      int maxDPBSize = GetMaxDPBSize( width, height, m_uiLevel );
+      uiMaxReferences = std::min( (int) m_EncoderCapabilities.m_uiMaxHWSupportedDPBCapacity, maxDPBSize );   
+   }
    return uiMaxReferences;
 }
 

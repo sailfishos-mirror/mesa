@@ -615,7 +615,7 @@ CDX12EncHMFT::GetParameterRange( const GUID *Api, VARIANT *ValueMin, VARIANT *Va
       ValueMin->ulVal = 1;
 
       ValueMax->vt = VT_UI4;
-      ValueMax->ulVal = m_uiMaxNumRefFrame;
+      ValueMax->ulVal = GetMaxReferences( m_uiOutputWidth, m_uiOutputHeight );
       SteppingDelta->vt = VT_UI4;
       SteppingDelta->ulVal = 1;
 
@@ -1572,7 +1572,8 @@ CDX12EncHMFT::SetValue( const GUID *Api, VARIANT *Value )
    else if( *Api == CODECAPI_AVEncVideoMaxNumRefFrame )
    {
       debug_printf( "[dx12 hmft 0x%p] SET CODECAPI_AVEncVideoMaxNumRefFrame - %u\n", this, Value->ulVal );
-      if( Value->vt != VT_UI4 )
+      UINT32 maxReferences = GetMaxReferences( m_uiOutputWidth, m_uiOutputHeight );
+      if( Value->vt != VT_UI4 || Value->ulVal > maxReferences )
       {
          CHECKHR_GOTO( E_INVALIDARG, done );
       }

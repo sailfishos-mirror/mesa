@@ -888,23 +888,25 @@ CDX12EncHMFT::InitializeEncoder( pipe_video_profile videoProfile, UINT32 Width, 
          CHECKHR_GOTO( MF_E_OUT_OF_RANGE, done );
       }
 
-      // Please note in scenarios (e.g LTR or SVC) the backend may need to keep track of more references
-      // than the m_uiMaxNumRefFrame, since the references may be more in the past (up to 16, 8 frames max before
-      // depending on the codec)
-      // TODO: If we know at this point that we're not using LTR nor SVC we can set max_references to
-      // m_uiMaxNumRefFrame and use less ram, but not sure how would this work with codecapi reconfigurations/dynamic
-      // LTR/SVC requests
-
       // max_references is the number of previous submitted frame recon pics the frontend reference
       // pic trackers will keep track of and can be indexed by current frame submissions by from the L0/L1 reference lists
 
-      UINT32 uiMaxNumRefFrame = GetMaxReferences( Width, Height );
-      // if user sets m_uiMaxNumRefFrame, use that to limit
-      if( m_bMaxNumRefFrameSet )
+      // if user didn't set max reference, try to set a reasonable amount
+      if( !m_bMaxNumRefFrameSet )
       {
-         uiMaxNumRefFrame = std::min( uiMaxNumRefFrame, m_uiMaxNumRefFrame );
+         UINT32 uiMaxNumRefFrame = GetMaxReferences( Width, Height );
+         UINT32 uiEstimatedRefFrame = 1 /*current frame*/ + 1 /* slack */ + m_uiMaxLongTermReferences;
+         if( m_uiLayerCount > 1 )
+         {
+            uiEstimatedRefFrame += ( m_uiLayerCount - 1 );
+         }
+         if( uiEstimatedRefFrame > uiMaxNumRefFrame )
+         {
+            CHECKHR_GOTO( E_INVALIDARG, done );
+         }
+         MFE_INFO( "[dx12 hmft 0x%p] HMFT adjusted max_references from %u to %u", this, uiMaxNumRefFrame, uiEstimatedRefFrame );
+         m_uiMaxNumRefFrame = uiEstimatedRefFrame;   // update CodecAPI value.
       }
-      m_uiMaxNumRefFrame = uiMaxNumRefFrame;   // update CodecAPI value.
 
       encoderSettings.profile = videoProfile;
       encoderSettings.level = m_uiLevel;

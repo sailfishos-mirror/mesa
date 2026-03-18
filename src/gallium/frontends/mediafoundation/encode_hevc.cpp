@@ -980,9 +980,13 @@ GetMaxDPBSize( int width, int height, eAVEncH265VLevel level_idc, int minCBSizeY
 UINT32
 CDX12EncHMFT::GetMaxReferences( unsigned int width, unsigned int height )
 {
-   const int minCbSizeY = 1 << ( m_EncoderCapabilities.m_HWSupportH265BlockSizes.bits.log2_min_luma_coding_block_size_minus3 + 3 );
-   int maxDPBSize = GetMaxDPBSize( width, height, m_uiLevel, minCbSizeY );
-   UINT32 uiMaxReferences = std::min( (int) m_EncoderCapabilities.m_uiMaxHWSupportedDPBCapacity, maxDPBSize );
+   UINT32 uiMaxReferences = m_EncoderCapabilities.m_uiMaxHWSupportedDPBCapacity;
+   if( width != 0 && height != 0 )
+   {
+      const int minCbSizeY = 1 << ( m_EncoderCapabilities.m_HWSupportH265BlockSizes.bits.log2_min_luma_coding_block_size_minus3 + 3 );
+      int maxDPBSize = GetMaxDPBSize( width, height, m_uiLevel, minCbSizeY );
+      uiMaxReferences = std::min( (int) m_EncoderCapabilities.m_uiMaxHWSupportedDPBCapacity, maxDPBSize );
+   }
    return uiMaxReferences;
 }
 
