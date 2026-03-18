@@ -498,12 +498,14 @@ nir_opt_large_constants(nir_shader *shader,
          continue;
       }
 
-      if (i > 0 && var_info_cmp(info, &var_infos[i - 1]) == 0) {
-         info->var->data.location = var_infos[i - 1].var->data.location;
-         info->duplicate = true;
-      } else {
-         info->var->data.location = ALIGN_POT(shader->constant_data_size, var_align);
-         shader->constant_data_size = info->var->data.location + var_size;
+      if (!info->is_small) {
+         if (i > 0 && var_info_cmp(info, &var_infos[i - 1]) == 0) {
+            info->var->data.location = var_infos[i - 1].var->data.location;
+            info->duplicate = true;
+         } else {
+            info->var->data.location = ALIGN_POT(shader->constant_data_size, var_align);
+            shader->constant_data_size = info->var->data.location + var_size;
+         }
       }
 
       has_constant |= info->is_constant;
@@ -522,7 +524,7 @@ nir_opt_large_constants(nir_shader *shader,
                                              shader->constant_data_size);
       for (int i = 0; i < num_locals; i++) {
          struct var_info *info = &var_infos[i];
-         if (!info->duplicate && info->is_constant) {
+         if (!info->duplicate && info->is_constant && !info->is_small) {
             memcpy((char *)shader->constant_data + info->var->data.location,
                    info->constant_data, info->constant_data_size);
          }

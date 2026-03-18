@@ -63,7 +63,6 @@ TEST_F(nir_large_constants_test, small_int_array)
       workgroup_size: 1, 1, 1
       max_subgroup_size: 128
       min_subgroup_size: 1
-      constants: 32
       decl_function main () (entrypoint)
 
       impl main {
@@ -97,7 +96,6 @@ TEST_F(nir_large_constants_test, small_uint8_t_array)
       workgroup_size: 1, 1, 1
       max_subgroup_size: 128
       min_subgroup_size: 1
-      constants: 8
       decl_function main () (entrypoint)
 
       impl main {
@@ -132,7 +130,6 @@ TEST_F(nir_large_constants_test, small_bool_array)
       workgroup_size: 1, 1, 1
       max_subgroup_size: 128
       min_subgroup_size: 1
-      constants: 32
       decl_function main () (entrypoint)
 
       impl main {
@@ -166,7 +163,6 @@ TEST_F(nir_large_constants_test, small_uint64_t_array)
       workgroup_size: 1, 1, 1
       max_subgroup_size: 128
       min_subgroup_size: 1
-      constants: 64
       decl_function main () (entrypoint)
 
       impl main {
@@ -201,7 +197,6 @@ TEST_F(nir_large_constants_test, small_float_natural_numbers_including_zero_arra
       workgroup_size: 1, 1, 1
       max_subgroup_size: 128
       min_subgroup_size: 1
-      constants: 32
       decl_function main () (entrypoint)
 
       impl main {
