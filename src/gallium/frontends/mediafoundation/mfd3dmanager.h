@@ -124,7 +124,7 @@ class CMFD3DManager
    struct GPUFeatureFlags
    {
       bool m_bDisableAsync = false;
-      bool m_bH264SendUnwrappedPOC = false;
+      bool m_bH264SendUnwrappedPOC = true;
    };
    GPUFeatureFlags m_gpuFeatureFlags;
 
