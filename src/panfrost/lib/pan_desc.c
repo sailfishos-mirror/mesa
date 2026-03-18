@@ -885,7 +885,7 @@ GENX(pan_emit_afrc_color_attachment)(const struct pan_attachment_info *att,
       pan_afrc_get_format_info(image->props.format);
    uint64_t base, row_stride, surf_stride;
 
-   get_tiled_or_linear_att_mem_props(pan_image_view_get_s_plane(iview),
+   get_tiled_or_linear_att_mem_props(pref,
                                      iview->first_level, att->layer_or_z_slice,
                                      &base, &row_stride, &surf_stride);
 
