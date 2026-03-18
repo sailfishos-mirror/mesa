@@ -29,8 +29,6 @@ nir_builder PRINTFLIKE(3, 4)
 
    b.shader->options = &pdev->nir_options[stage];
 
-   radv_device_associate_nir(dev, b.shader);
-
    return b;
 }
 

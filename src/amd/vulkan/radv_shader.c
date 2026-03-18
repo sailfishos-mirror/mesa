@@ -519,10 +519,8 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
 
       free(spec_entries);
 
-      radv_device_associate_nir(device, nir);
-
       if (device->debug_nir.printf.buffer_addr)
-         NIR_PASS(_, nir, radv_nir_lower_printf);
+         NIR_PASS(_, nir, radv_nir_lower_printf, &device->debug_nir);
 
       const struct nir_lower_sysvals_to_varyings_options sysvals_to_varyings = {
          .point_coord = true,

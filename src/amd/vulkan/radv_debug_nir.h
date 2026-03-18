@@ -57,17 +57,16 @@ struct radv_debug_nir {
    struct radv_valid_va_data valid_va;
 };
 
-void radv_device_associate_nir(struct radv_device *device, nir_shader *nir);
-
 /* shader printf */
 
 VkResult radv_printf_data_init(struct radv_device *device);
 
 void radv_printf_data_finish(struct radv_device *device);
 
-void radv_build_printf_args(nir_builder *b, nir_def *cond, const char *format, uint32_t argc, nir_def **args);
+void radv_build_printf_args(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def *cond, const char *format,
+                            uint32_t argc, nir_def **args);
 
-void radv_build_printf(nir_builder *b, nir_def *cond, const char *format, ...);
+void radv_build_printf(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def *cond, const char *format, ...);
 
 void radv_dump_printf_data(struct radv_device *device, FILE *out);
 
@@ -79,6 +78,6 @@ void radv_finish_va_validation(struct radv_device *device);
 
 void radv_va_validation_update_page(struct radv_device *device, uint64_t va, uint64_t size, bool valid);
 
-nir_def *radv_build_is_valid_va(nir_builder *b, nir_def *addr);
+nir_def *radv_build_is_valid_va(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def *addr);
 
 #endif /* RADV_PRINTF_H */

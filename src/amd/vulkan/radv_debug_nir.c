@@ -8,14 +8,11 @@
 #include "radv_device.h"
 #include "radv_physical_device.h"
 
-#include "util/hash_table.h"
 #include "util/strndup.h"
 #include "util/u_printf.h"
 
 #include "nir.h"
 #include "nir_builder.h"
-
-static struct hash_table *device_ht = NULL;
 
 VkResult
 radv_printf_data_init(struct radv_device *device)
@@ -97,22 +94,13 @@ radv_printf_data_finish(struct radv_device *device)
    util_dynarray_fini(&printf->formats);
 }
 
-static bool
-radv_shader_printf_enabled(nir_shader *shader)
-{
-   if (!device_ht)
-      return false;
-
-   struct radv_device *device = _mesa_hash_table_search(device_ht, shader)->data;
-   struct radv_printf_data *printf = &device->debug_nir.printf;
-
-   return !!printf->buffer_addr;
-}
-
 void
-radv_build_printf_args(nir_builder *b, nir_def *cond, const char *format_string, uint32_t argc, nir_def **in_args)
+radv_build_printf_args(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def *cond, const char *format_string,
+                       uint32_t argc, nir_def **in_args)
 {
-   if (!radv_shader_printf_enabled(b->shader))
+   struct radv_printf_data *printf = &debug_nir->printf;
+
+   if (!printf->buffer_addr)
       return;
 
    struct radv_printf_format format = {0};
@@ -120,8 +108,6 @@ radv_build_printf_args(nir_builder *b, nir_def *cond, const char *format_string,
    if (!format.string)
       return;
 
-   struct radv_device *device = _mesa_hash_table_search(device_ht, b->shader)->data;
-   struct radv_printf_data *printf = &device->debug_nir.printf;
    uint32_t format_index = util_dynarray_num_elements(&printf->formats, struct radv_printf_format);
 
    if (cond)
@@ -217,9 +203,11 @@ radv_build_printf_args(nir_builder *b, nir_def *cond, const char *format_string,
 }
 
 void
-radv_build_printf(nir_builder *b, nir_def *cond, const char *format_string, ...)
+radv_build_printf(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def *cond, const char *format_string, ...)
 {
-   if (!radv_shader_printf_enabled(b->shader))
+   struct radv_printf_data *printf = &debug_nir->printf;
+
+   if (!printf->buffer_addr)
       return;
 
    va_list arg_list;
@@ -237,7 +225,7 @@ radv_build_printf(nir_builder *b, nir_def *cond, const char *format_string, ...)
 
    va_end(arg_list);
 
-   radv_build_printf_args(b, cond, format_string, num_args, args);
+   radv_build_printf_args(debug_nir, b, cond, format_string, num_args, args);
 
    free(args);
 }
@@ -460,13 +448,10 @@ radv_va_validation_update_page(struct radv_device *device, uint64_t va, uint64_t
 }
 
 nir_def *
-radv_build_is_valid_va(nir_builder *b, nir_def *addr)
+radv_build_is_valid_va(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def *addr)
 {
-   if (!device_ht)
-      return NULL;
+   struct radv_valid_va_data *valid_va = &debug_nir->valid_va;
 
-   struct radv_device *device = _mesa_hash_table_search(device_ht, b->shader)->data;
-   struct radv_valid_va_data *valid_va = &device->debug_nir.valid_va;
    if (!valid_va->buffer_addr)
       return NULL;
 
@@ -489,22 +474,7 @@ radv_build_is_valid_va(nir_builder *b, nir_def *addr)
    nir_pop_if(b, NULL);
    nir_def *valid = nir_if_phi(b, then_valid, else_valid);
 
-   radv_build_printf(b, nir_inot(b, valid), "radv: Invalid VA %lx\n", addr);
+   radv_build_printf(debug_nir, b, nir_inot(b, valid), "radv: Invalid VA %lx\n", addr);
 
    return valid;
-}
-
-void
-radv_device_associate_nir(struct radv_device *device, nir_shader *nir)
-{
-   struct radv_valid_va_data *valid_va = &device->debug_nir.valid_va;
-   struct radv_printf_data *printf = &device->debug_nir.printf;
-
-   if (!printf->buffer_addr && !valid_va->buffer_addr)
-      return;
-
-   if (!device_ht)
-      device_ht = _mesa_pointer_hash_table_create(NULL);
-
-   _mesa_hash_table_insert(device_ht, nir, device);
 }
