@@ -55,7 +55,7 @@ v3d_cl_ensure_space(struct v3d_cl *cl, uint32_t space, uint32_t alignment)
         /* If we are growing, double the BO allocation size to reduce the
          * number of allocations with large command buffers.
          */
-        space = align(space, devinfo->cle_buffer_min_size);
+        space = align(space, devinfo->page_size);
         if (cl->bo)
                 space = MAX2(cl->bo->size * 2, space);
 
@@ -87,7 +87,7 @@ v3d_cl_ensure_space_with_branch(struct v3d_cl *cl, uint32_t space)
         /* If we are growing, double the BO allocation size to reduce the
          * number of allocations with large command buffers.
          */
-        space = align(space + unusable_size, devinfo->cle_buffer_min_size);
+        space = align(space + unusable_size, devinfo->page_size);
         if (cl->bo)
                 space = MAX2(cl->bo->size * 2, space);
 

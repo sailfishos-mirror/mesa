@@ -78,7 +78,7 @@ v3d_get_device_info(int fd, struct v3d_device_info* devinfo, v3d_ioctl_fun drm_i
     uint64_t os_page_size;
     os_get_page_size(&os_page_size);
     assert(os_page_size <= UINT32_MAX);
-    devinfo->cle_buffer_min_size = (uint32_t)os_page_size;
+    devinfo->page_size = (uint32_t)os_page_size;
 
     switch (devinfo->ver) {
     case 42:
