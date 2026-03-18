@@ -151,7 +151,9 @@ write_tmu_p0(struct v3d_job *job,
 
         struct v3d_resource *rsc = v3d_resource(sview->texture);
 
-        cl_aligned_reloc(&job->indirect, uniforms, sview->bo,
+        cl_aligned_reloc(&job->indirect, uniforms,
+                         v3d_resource(sview->tex_state)->bo,
+                         sview->tex_state_offset |
                          v3d_unit_data_get_offset(data));
         v3d_job_add_bo(job, rsc->bo);
 }

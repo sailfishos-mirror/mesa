@@ -173,7 +173,8 @@ struct v3d_sampler_view {
 
         uint8_t texture_shader_state[32];
         /* V3D 4.x: Texture state struct. */
-        struct v3d_bo *bo;
+        struct pipe_resource *tex_state;
+        uint32_t tex_state_offset;
 
         enum v3d_sampler_state_variant sampler_variant;
 

@@ -993,10 +993,9 @@ v3dX(create_texture_shader_state_bo)(struct v3d_context *v3d,
 
         assert(so->serial_id != rsc->serial_id);
 
-        v3d_bo_unreference(&so->bo);
-        so->bo = v3d_bo_alloc(v3d->screen,
-                              cl_packet_length(TEXTURE_SHADER_STATE), "sampler");
-        map = v3d_bo_map(so->bo);
+        u_upload_alloc_ref(v3d->state_uploader, 0,
+                           cl_packet_length(TEXTURE_SHADER_STATE), 32,
+                           &so->tex_state_offset, &so->tex_state, &map);
 
         v3dx_pack(map, TEXTURE_SHADER_STATE, tex) {
                 if (prsc->target != PIPE_BUFFER) {
@@ -1194,7 +1193,7 @@ v3d_sampler_view_destroy(struct pipe_context *pctx,
 {
         struct v3d_sampler_view *sview = v3d_sampler_view(psview);
 
-        v3d_bo_unreference(&sview->bo);
+        pipe_resource_reference(&sview->tex_state, NULL);
         pipe_resource_reference(&psview->texture, NULL);
         pipe_resource_reference(&sview->texture, NULL);
         free(psview);
