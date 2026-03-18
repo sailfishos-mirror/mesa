@@ -5864,7 +5864,7 @@
         "description": "pan/lib: divide extent by tile-extend, not itself",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e6f8cab69890e1b814bd58ec7cab06ba52aa7bb9",
         "notes": null
