@@ -1064,7 +1064,7 @@
         "description": "venus: fix to relax the KHR_external_memory_fd requirement",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1895de16a6ba00bf87b21400b1506bdf144c767e",
         "notes": null
