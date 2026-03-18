@@ -208,8 +208,6 @@ panfrost_shader_compile(struct panfrost_screen *screen, const nir_shader *ir,
    }
 
    if (dev->arch >= 9) {
-      inputs.valhall.use_ld_var_buf = inputs.varying_layout &&
-         inputs.varying_layout->generic_size_B <= pan_ld_var_buf_off_size(dev->arch);
       /* Always enable this for GL, it avoids crashes when using unbound
        * resources. */
       inputs.robust_descriptors = true;

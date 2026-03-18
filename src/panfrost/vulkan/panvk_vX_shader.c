@@ -1405,19 +1405,6 @@ panvk_compile_shader(struct panvk_device *dev,
       /* VS (if known) decides the memory layout */
       inputs.varying_layout = vs_varying_layout;
 
-#if PAN_ARCH >= 9
-      /* LD_VAR_BUF[_IMM] has a fixed-size offset, limiting its use when we
-       * can fit all of the generic varyings in the offset field.
-       * TODO: We could still use LD_VAR_BUF for just the fields that don't
-       * overflow.
-       */
-      inputs.valhall.use_ld_var_buf =
-         vs_varying_layout &&
-         vs_varying_layout->generic_size_B <= pan_ld_var_buf_off_size(PAN_ARCH);
-      variant->desc_info.fs_varying_attr_desc_count =
-         inputs.valhall.use_ld_var_buf ? 0 : nir->num_inputs;
-#endif
-
       panvk_lower_nir(dev, nir, info->set_layout_count, info->set_layouts,
                       info->robustness, state, &variant->desc_info);
 
@@ -1438,6 +1425,17 @@ panvk_compile_shader(struct panvk_device *dev,
          panvk_shader_destroy(&dev->vk, &shader->vk, pAllocator);
          return result;
       }
+
+      #if PAN_ARCH >= 9
+      /* LD_VAR_BUF[_IMM] has a fixed-size offset, when shaders overflow
+       * that they fall back to LD_VAR[_IMM] and require descriptors.
+       * TODO: We could only emit descriptors that overflow the offset,
+       *       saving a bit of space.
+       */
+      variant->desc_info.fs_varying_attr_desc_count =
+         variant->info.bifrost.uses_ld_var ? nir->num_inputs : 0;
+      #endif
+
       break;
    }
 

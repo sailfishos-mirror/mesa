@@ -7064,7 +7064,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
       if (!inputs->is_blend)
          NIR_PASS(_, nir, pan_nir_lower_fs_inputs, inputs->gpu_id,
-                  inputs->varying_layout, inputs->valhall.use_ld_var_buf);
+                  inputs->varying_layout, info);
    }
 
    if (nir->info.stage == MESA_SHADER_VERTEX && info->vs.idvs) {

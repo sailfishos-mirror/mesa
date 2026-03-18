@@ -63,7 +63,7 @@ bool pan_nir_lower_vs_outputs(nir_shader *shader, unsigned gpu_id,
 
 bool pan_nir_lower_fs_inputs(nir_shader *shader, unsigned gpu_id,
                              const struct pan_varying_layout *varying_layout,
-                             bool valhall_use_ld_var_buf);
+                             struct pan_shader_info *info);
 
 bool pan_nir_lower_helper_invocation(nir_shader *shader);
 bool pan_nir_lower_sample_pos(nir_shader *shader);

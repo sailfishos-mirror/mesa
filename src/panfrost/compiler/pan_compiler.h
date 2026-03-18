@@ -132,13 +132,6 @@ struct pan_compile_inputs {
       /* In multiples of 32bit. */
       uint32_t offset;
    } fau_consts;
-
-   union {
-      struct {
-         /* Use LD_VAR_BUF[_IMM] instead of LD_VAR[_IMM] to load varyings. */
-         bool use_ld_var_buf;
-      } valhall;
-   };
 };
 
 enum pan_varying_section {
@@ -335,6 +328,13 @@ struct bifrost_shader_info {
     * values for flat varyings.
     */
    bool uses_flat_shading;
+
+   /* Whether there are any LD_VAR[_IMM] instructions that require varying
+    * descriptors.  LD_VAR_BUF[_IMM] do not count as they only need buffer
+    * descriptors to work correctly. For more details check out
+    * docs/drivers/panfrost/varyings.rst
+    */
+   bool uses_ld_var;
 };
 
 struct midgard_shader_info {
