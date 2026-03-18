@@ -44,6 +44,10 @@ struct radv_printf_buffer_header {
    uint32_t size;
 };
 
+struct radv_debug_nir {
+   struct radv_printf_data printf;
+};
+
 void radv_device_associate_nir(struct radv_device *device, nir_shader *nir);
 
 /* shader printf */

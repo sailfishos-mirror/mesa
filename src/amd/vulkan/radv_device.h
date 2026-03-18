@@ -316,7 +316,7 @@ struct radv_device {
    struct hash_table *rt_handles;
    simple_mtx_t rt_handles_mtx;
 
-   struct radv_printf_data printf;
+   struct radv_debug_nir debug_nir;
 
    struct radv_device_cache_key cache_key;
    blake3_hash cache_hash;

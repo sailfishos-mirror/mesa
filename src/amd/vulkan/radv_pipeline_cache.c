@@ -135,7 +135,7 @@ radv_is_cache_disabled(const struct radv_device *device, const struct vk_pipelin
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
    /* The buffer address used for debug printf is hardcoded. */
-   if (device->printf.buffer_addr)
+   if (device->debug_nir.printf.buffer_addr)
       return true;
 
    /* The buffer address used for validating VAs is hardcoded. */
