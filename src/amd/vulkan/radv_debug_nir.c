@@ -95,8 +95,8 @@ radv_printf_data_finish(struct radv_device *device)
 }
 
 void
-radv_build_printf_args(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def *cond, const char *format_string,
-                       uint32_t argc, nir_def **in_args)
+radv_build_printf_args(struct radv_debug_nir *debug_nir, nir_builder *b, const char *format_string, uint32_t argc,
+                       nir_def **in_args)
 {
    struct radv_printf_data *printf = &debug_nir->printf;
 
@@ -109,9 +109,6 @@ radv_build_printf_args(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def
       return;
 
    uint32_t format_index = util_dynarray_num_elements(&printf->formats, struct radv_printf_format);
-
-   if (cond)
-      nir_push_if(b, cond);
 
    if (b->shader->info.stage == MESA_SHADER_FRAGMENT)
       nir_push_if(b, nir_inot(b, nir_is_helper_invocation(b, 1)));
@@ -190,9 +187,6 @@ radv_build_printf_args(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def
    }
    nir_pop_if(b, NULL);
 
-   if (cond)
-      nir_pop_if(b, NULL);
-
    if (b->shader->info.stage == MESA_SHADER_FRAGMENT)
       nir_pop_if(b, NULL);
 
@@ -203,13 +197,8 @@ radv_build_printf_args(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def
 }
 
 void
-radv_build_printf(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def *cond, const char *format_string, ...)
+radv_build_printf(nir_builder *b, nir_def *cond, const char *format_string, ...)
 {
-   struct radv_printf_data *printf = &debug_nir->printf;
-
-   if (!printf->buffer_addr)
-      return;
-
    va_list arg_list;
    va_start(arg_list, format_string);
 
@@ -225,8 +214,60 @@ radv_build_printf(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def *con
 
    va_end(arg_list);
 
-   radv_build_printf_args(debug_nir, b, cond, format_string, num_args, args);
+   b->shader->info.uses_printf = true;
+   b->shader->printf_info_count++;
+   b->shader->printf_info = reralloc(b->shader, b->shader->printf_info, u_printf_info, b->shader->printf_info_count);
 
+   u_printf_info *info = &b->shader->printf_info[b->shader->printf_info_count - 1];
+
+   *info = (u_printf_info){
+      .arg_sizes = ralloc_array(b->shader, unsigned, num_args),
+      .num_args = num_args,
+      .strings = ralloc_strdup(b->shader, format_string),
+      .string_size = strlen(format_string) + 1,
+   };
+
+   uint32_t info_index = b->shader->printf_info_count;
+
+   glsl_struct_field *fields = NULL;
+   nir_def *printf_src;
+
+   if (num_args) {
+      fields = calloc(num_args, sizeof(glsl_struct_field));
+
+      for (uint32_t i = 0; i < num_args; i++) {
+         nir_def *arg = args[i];
+
+         fields[i].type = glsl_intN_t_type(arg->bit_size);
+         fields[i].name = "";
+
+         info->arg_sizes[i] = arg->bit_size / 8;
+      }
+
+      nir_variable *packed_args =
+         nir_local_variable_create(b->impl, glsl_struct_type(fields, num_args, "packed_args", false), "packed_args");
+      nir_deref_instr *var_deref = nir_build_deref_var(b, packed_args);
+
+      for (uint32_t i = 0; i < num_args; i++) {
+         nir_def *arg = args[i];
+         nir_deref_instr *arg_deref = nir_build_deref_struct(b, var_deref, i);
+         nir_store_deref(b, arg_deref, arg, BITFIELD_MASK(NIR_MAX_VEC_COMPONENTS));
+      }
+
+      printf_src = &var_deref->def;
+   } else {
+      printf_src = nir_undef(b, 1, 32);
+   }
+
+   if (cond)
+      nir_push_if(b, cond);
+
+   nir_printf(b, printf_src, .fmt_idx = info_index);
+
+   if (cond)
+      nir_pop_if(b, NULL);
+
+   free(fields);
    free(args);
 }
 
@@ -474,7 +515,7 @@ radv_build_is_valid_va(struct radv_debug_nir *debug_nir, nir_builder *b, nir_def
    nir_pop_if(b, NULL);
    nir_def *valid = nir_if_phi(b, then_valid, else_valid);
 
-   radv_build_printf(debug_nir, b, nir_inot(b, valid), "radv: Invalid VA %lx\n", addr);
+   radv_build_printf(b, nir_inot(b, valid), "radv: Invalid VA %lx\n", addr);
 
    return valid;
 }
