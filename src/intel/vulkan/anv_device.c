@@ -351,7 +351,7 @@ anv_device_init_descriptors_view(struct anv_device *device)
                               device->isl_dev.ss.size, 64);
 
       const uint64_t size = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size +
-                            pdevice->va.push_descriptor_buffer_pool.size;
+                            anv_physical_device_get_push_descriptor_buffer_pool_va(pdevice)->size;
       assert(size <= 4ull * 1024 * 1024 * 1024);
 
       isl_buffer_fill_state(&device->isl_dev,
@@ -629,9 +629,9 @@ anv_state_pools_init(struct anv_device *device)
       result = anv_state_pool_init(&device->push_descriptor_buffer_pool, device,
                                    &(struct anv_state_pool_params) {
                                       .name         = "push descriptor buffer state pool",
-                                      .base_address = device->physical->va.push_descriptor_buffer_pool.addr,
+                                      .base_address = anv_physical_device_get_push_descriptor_buffer_pool_va(device->physical)->addr,
                                       .block_size   = 4096,
-                                      .max_size     = device->physical->va.push_descriptor_buffer_pool.size,
+                                      .max_size     = anv_physical_device_get_push_descriptor_buffer_pool_va(device->physical)->size,
                                    });
       if (result != VK_SUCCESS)
          goto fail_indirect_push_descriptor_pool;

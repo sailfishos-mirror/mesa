@@ -1749,6 +1749,12 @@ anv_physical_device_get_indirect_push_descriptor_pool_va(const struct anv_physic
    return &pdevice->va.indirect_push_descriptor_pool;
 }
 
+static inline const struct anv_va_range *
+anv_physical_device_get_push_descriptor_buffer_pool_va(const struct anv_physical_device *pdevice)
+{
+   return &pdevice->va.push_descriptor_buffer_pool;
+}
+
 VkResult anv_physical_device_try_create(struct vk_instance *vk_instance,
                                         struct _drmDevice *drm_device,
                                         struct vk_physical_device **out);
@@ -5095,7 +5101,7 @@ anv_cmd_buffer_descriptor_buffer_address(struct anv_cmd_buffer *cmd_buffer,
                                          int32_t buffer_index)
 {
    if (buffer_index == -1)
-      return cmd_buffer->device->physical->va.push_descriptor_buffer_pool.addr;
+      return anv_physical_device_get_push_descriptor_buffer_pool_va(cmd_buffer->device->physical)->addr;
 
    return cmd_buffer->state.descriptor_buffers.address[buffer_index];
 }

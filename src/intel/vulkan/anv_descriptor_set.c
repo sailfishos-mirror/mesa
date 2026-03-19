@@ -1859,7 +1859,7 @@ anv_push_descriptor_set_init(struct anv_cmd_buffer *cmd_buffer,
             &cmd_buffer->push_descriptor_buffer_stream :
             &cmd_buffer->surface_state_stream;
          push_base_address = intel_has_extended_bindless(&pdevice->info) ?
-            pdevice->va.push_descriptor_buffer_pool.addr :
+            anv_physical_device_get_push_descriptor_buffer_pool_va(pdevice)->addr :
             anv_physical_device_get_internal_surface_state_pool_va(pdevice)->addr;
       } else {
          push_stream = pdevice->indirect_descriptors ?

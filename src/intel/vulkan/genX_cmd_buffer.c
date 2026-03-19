@@ -186,7 +186,7 @@ fill_state_base_addr(struct anv_cmd_buffer *cmd_buffer,
    sba->DynamicStateBufferSize =
       (anv_physical_device_get_dynamic_state_pool_va(device->physical)->size +
        anv_physical_device_get_dynamic_visible_pool_va(device->physical)->size +
-       device->physical->va.push_descriptor_buffer_pool.size) / 4096;
+       anv_physical_device_get_push_descriptor_buffer_pool_va(device->physical)->size) / 4096;
    sba->DynamicStateMOCS = mocs;
    sba->DynamicStateBaseAddressModifyEnable = true;
    sba->DynamicStateBufferSizeModifyEnable = true;
@@ -199,7 +199,7 @@ fill_state_base_addr(struct anv_cmd_buffer *cmd_buffer,
       };
       sba->BindlessSurfaceStateSize =
          (anv_physical_device_get_dynamic_visible_pool_va(device->physical)->size +
-          device->physical->va.push_descriptor_buffer_pool.size) - 1;
+          anv_physical_device_get_push_descriptor_buffer_pool_va(device->physical)->size) - 1;
       sba->BindlessSurfaceStateMOCS = mocs;
       sba->BindlessSurfaceStateBaseAddressModifyEnable = true;
 #else
@@ -3357,7 +3357,7 @@ update_descriptor_set_surface_state(struct anv_cmd_buffer *cmd_buffer,
       pipe_state->descriptor_buffers[set_idx].buffer_index;
    const struct anv_va_range *push_va_range =
       GFX_VERx10 >= 125 ?
-      &device->va.push_descriptor_buffer_pool :
+      anv_physical_device_get_push_descriptor_buffer_pool_va(device) :
       anv_physical_device_get_internal_surface_state_pool_va(device);
    const struct anv_va_range *va_range =
       buffer_index == -1 ? push_va_range : anv_physical_device_get_dynamic_visible_pool_va(device);
@@ -3400,7 +3400,7 @@ compute_descriptor_set_surface_offset(const struct anv_cmd_buffer *cmd_buffer,
    if (intel_has_extended_bindless(&device->info)) {
       uint64_t buffer_address =
          buffer_index == -1 ?
-         device->va.push_descriptor_buffer_pool.addr :
+         anv_physical_device_get_push_descriptor_buffer_pool_va(device)->addr :
          cmd_buffer->state.descriptor_buffers.address[buffer_index];
 
       return (buffer_address - anv_physical_device_get_dynamic_visible_pool_va(device)->addr) +
@@ -3432,7 +3432,7 @@ compute_descriptor_set_sampler_offset(const struct anv_cmd_buffer *cmd_buffer,
       pipe_state->descriptor_buffers[set_idx].buffer_index;
    uint64_t buffer_address =
       buffer_index == -1 ?
-      device->va.push_descriptor_buffer_pool.addr :
+      anv_physical_device_get_push_descriptor_buffer_pool_va(device)->addr :
       cmd_buffer->state.descriptor_buffers.address[buffer_index];
 
    return (buffer_address - anv_physical_device_get_dynamic_state_pool_va(device)->addr) +
