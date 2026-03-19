@@ -1817,6 +1817,15 @@ resource_barrier_signal_stage(enum intel_engine_class engine_class,
        (hw_stages & RESOURCE_BARRIER_STAGE_COLOR))
       hw_stages &= ~RESOURCE_BARRIER_STAGE_GEOM;
 
+   /* GPGPU + Pixel is not a valid resource barrier stage, so lets over
+    * synchronize a bit.
+    */
+   if ((hw_stages & RESOURCE_BARRIER_STAGE_GPGPU) &&
+       (hw_stages & RESOURCE_BARRIER_STAGE_PIXEL)) {
+      hw_stages &= ~RESOURCE_BARRIER_STAGE_PIXEL;
+      hw_stages |= RESOURCE_BARRIER_STAGE_COLOR;
+   }
+
    return hw_stages;
 }
 
