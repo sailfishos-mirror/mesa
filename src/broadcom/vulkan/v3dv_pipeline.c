@@ -298,6 +298,7 @@ preprocess_nir(nir_shader *nir)
       .frag_coord = true,
       .point_coord = true,
       .layer_id = true,
+      .primitive_id = nir->info.stage == MESA_SHADER_FRAGMENT,
    };
    NIR_PASS(_, nir, nir_lower_sysvals_to_varyings, &sysvals_to_varyings);
 

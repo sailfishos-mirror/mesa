@@ -306,6 +306,7 @@ _mesa_spirv_to_nir(struct gl_context *ctx,
       .frag_coord = !ctx->Const.GLSLFragCoordIsSysVal,
       .point_coord = !ctx->Const.GLSLPointCoordIsSysVal,
       .front_face = !ctx->Const.GLSLFrontFacingIsSysVal,
+      .primitive_id = nir->info.stage == MESA_SHADER_FRAGMENT,
    };
    NIR_PASS(_, nir, nir_lower_sysvals_to_varyings, &sysvals_to_varyings);
 

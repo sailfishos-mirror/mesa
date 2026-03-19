@@ -238,6 +238,16 @@ tu_spirv_to_nir(struct tu_device *dev,
    NIR_PASS(_, nir, nir_opt_copy_prop_vars);
    NIR_PASS(_, nir, nir_opt_dce);
 
+   if (stage == MESA_SHADER_FRAGMENT) {
+      /* We currently assume gl_PrimitiveID lives in a varying in fragment
+       * shaders but spirv_to_nir gives us a sysval.
+       */
+      const nir_lower_sysvals_to_varyings_options sysval_options = {
+         .primitive_id = true,
+      };
+      NIR_PASS(_, nir, nir_lower_sysvals_to_varyings, &sysval_options);
+   }
+
    nir_shader_gather_info(nir, nir_shader_get_entrypoint(nir));
 
    if (nir->info.ray_queries > 0) {

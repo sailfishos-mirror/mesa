@@ -153,6 +153,7 @@ hk_preprocess_nir_internal(struct vk_physical_device *vk_pdev, nir_shader *nir)
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       struct nir_lower_sysvals_to_varyings_options sysvals_opts = {
          .point_coord = true,
+         .primitive_id = nir->info.stage == MESA_SHADER_FRAGMENT,
       };
 
       nir_lower_sysvals_to_varyings(nir, &sysvals_opts);

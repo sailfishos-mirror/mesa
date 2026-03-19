@@ -919,6 +919,7 @@ dxil_spirv_nir_passes(nir_shader *nir,
       .point_coord = true,
       .front_face = true,
       .layer_id = true,
+      .primitive_id = nir->info.stage == MESA_SHADER_FRAGMENT,
    };
    NIR_PASS(_, nir, nir_lower_sysvals_to_varyings, &sysvals_to_varyings);
 

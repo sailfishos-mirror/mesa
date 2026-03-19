@@ -539,6 +539,7 @@ void pco_preprocess_nir(pco_ctx *ctx, nir_shader *nir)
       const struct nir_lower_sysvals_to_varyings_options sysvals_to_varyings = {
          .frag_coord = true,
          .point_coord = true,
+         .primitive_id = nir->info.stage == MESA_SHADER_FRAGMENT,
       };
       NIR_PASS(_, nir, nir_lower_sysvals_to_varyings, &sysvals_to_varyings);
       NIR_PASS(_, nir, nir_lower_helper_writes, true);
