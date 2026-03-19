@@ -108,7 +108,8 @@ brw_compile_tes(const struct brw_compiler *compiler,
                        key->base.vue_layout, pos_slots);
 
    brw_nir_apply_key(pt, &key->base, dispatch_width);
-   brw_nir_lower_tes_inputs(nir, devinfo, &input_vue_map);
+   brw_nir_lower_tes_inputs(nir, devinfo, &input_vue_map,
+                            &prog_data->base.urb_read_length);
    brw_nir_lower_vue_outputs(nir);
    BRW_NIR_SNAPSHOT("after_lower_io");
 
@@ -134,8 +135,6 @@ brw_compile_tes(const struct brw_compiler *compiler,
 
    /* URB entry sizes are stored as a multiple of 64 bytes. */
    prog_data->base.urb_entry_size = align(output_size_bytes, 64) / 64;
-
-   prog_data->base.urb_read_length = 0;
 
    brw_fill_tess_info_from_shader_info(&prog_data->tess_info,
                                        &nir->info);

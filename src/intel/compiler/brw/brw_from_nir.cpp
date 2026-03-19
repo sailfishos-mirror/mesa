@@ -2954,15 +2954,6 @@ brw_from_nir_emit_tes_intrinsic(nir_to_brw_state &ntb,
       bld.MOV(retype(dest, BRW_TYPE_UD), s.tes_payload().urb_output);
       break;
 
-   case nir_intrinsic_load_attribute_payload_intel:
-      assert(instr->def.bit_size == 32);
-      tes_prog_data->base.urb_read_length =
-         MAX2(tes_prog_data->base.urb_read_length,
-              DIV_ROUND_UP(nir_src_as_uint(instr->src[0]) +
-                           4 * instr->def.num_components, 32));
-      brw_from_nir_emit_intrinsic(ntb, bld, instr);
-      break;
-
    case nir_intrinsic_load_tess_config_intel:
       bld.MOV(retype(dest, BRW_TYPE_UD),
               byte_offset(

@@ -463,6 +463,9 @@ try_load_push_input(nir_builder *b,
       return &io->def;
    }
 
+   *cb_data->push_input_read_length = MAX2(*cb_data->push_input_read_length,
+                                           DIV_ROUND_UP(byte_end_offset, 32));
+
    return load_push_input(b, io, byte_offset);
 }
 
@@ -1293,7 +1296,8 @@ brw_nir_lower_gs_inputs(nir_shader *nir,
 void
 brw_nir_lower_tes_inputs(nir_shader *nir,
                          const struct intel_device_info *devinfo,
-                         const struct intel_vue_map *vue_map)
+                         const struct intel_vue_map *vue_map,
+                         unsigned *out_urb_read_length)
 {
    NIR_PASS(_, nir, nir_lower_tess_level_array_vars_to_vec);
 
@@ -1310,9 +1314,14 @@ brw_nir_lower_tes_inputs(nir_shader *nir,
    NIR_PASS(_, nir, remap_tess_levels, devinfo,
             nir->info.tess._primitive_mode);
 
+   *out_urb_read_length =
+      (nir->info.inputs_read & (VARYING_BIT_TESS_LEVEL_INNER |
+                                VARYING_BIT_TESS_LEVEL_OUTER)) ? 1 : 0;
+
    const struct brw_lower_urb_cb_data cb_data = {
       .devinfo = devinfo,
       .vec4_access = true,
+      .push_input_read_length = out_urb_read_length,
       .max_push_bytes = 32 * 16, /* 32 vec4s */
       .varying_to_slot = vue_map->varying_to_slot,
       .per_vertex_stride = vue_map->num_per_vertex_slots * 16,
