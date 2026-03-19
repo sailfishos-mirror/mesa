@@ -1261,7 +1261,7 @@ get_move_rects_support(D3D12_VIDEO_ENCODER_INPUT_MAP_SESSION_INFO sessionInfo,
    if ((SUCCEEDED(pD3D12VideoDevice->CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_MOTION_SEARCH, &capMotionVectors, sizeof(capMotionVectors)))) &&
        (capMotionVectors.SupportFlags & D3D12_VIDEO_ENCODER_MOTION_SEARCH_SUPPORT_FLAG_SUPPORTED))
    {
-      move_rects_support.bits.max_motion_hints = std::min(capMotionVectors.MaxMotionHints, 1u << 16u);
+      move_rects_support.bits.max_motion_hints = std::min(capMotionVectors.MaxMotionHints, 0xFFFFu); // max_motion_hints is a 16 bit variable
       move_rects_support.bits.supports_overlapped_rects = (capMotionVectors.SupportFlags & D3D12_VIDEO_ENCODER_MOTION_SEARCH_SUPPORT_FLAG_MULTIPLE_HINTS) ? 1u : 0u;
       move_rects_support.bits.supports_precision_full_pixel = (capMotionVectors.MotionUnitPrecisionSupport & D3D12_VIDEO_ENCODER_FRAME_INPUT_MOTION_UNIT_PRECISION_SUPPORT_FLAG_FULL_PIXEL) ? 1u : 0u;
       move_rects_support.bits.supports_precision_half_pixel = (capMotionVectors.MotionUnitPrecisionSupport & D3D12_VIDEO_ENCODER_FRAME_INPUT_MOTION_UNIT_PRECISION_SUPPORT_FLAG_HALF_PIXEL) ? 1u : 0u;
