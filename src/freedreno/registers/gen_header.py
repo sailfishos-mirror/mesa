@@ -301,6 +301,7 @@ class Bitset(object):
     def dump(self, has_variants, prefix=None, reg=None):
         if prefix is None:
             prefix = self.name
+        suffix = ""
         if self.reg and self.reg.bit_size == 64:
             print(
                 "static CONSTEXPR inline uint32_t %s_LO(uint32_t val)\n{" % prefix)
@@ -308,6 +309,8 @@ class Bitset(object):
             print(
                 "static CONSTEXPR inline uint32_t %s_HI(uint32_t val)\n{" % prefix)
             print("\treturn val;\n}")
+            suffix = "ull"
+
         for f in self.fields:
             if f.name:
                 name = prefix + "_" + f.name
@@ -317,10 +320,10 @@ class Bitset(object):
             if not f.name and f.low == 0 and f.shr == 0 and f.type not in ["float", "fixed", "ufixed"]:
                 pass
             elif f.type == "boolean" or (f.type is None and f.low == f.high):
-                tab_to("#define %s" % name, "0x%08x" % (1 << f.low))
+                tab_to("#define %s" % name, "0x%08x%s" % ((1 << f.low), suffix))
             else:
                 tab_to("#define %s__MASK" %
-                       name, "0x%08xull" % mask(f.low, f.high))
+                       name, "0x%08x%s" % (mask(f.low, f.high), suffix))
                 tab_to("#define %s__SHIFT" % name, "%d" % f.low)
                 type, val = f.ctype("val")
                 ret_type = "uint64_t" if reg and reg.bit_size == 64 else "uint32_t"
