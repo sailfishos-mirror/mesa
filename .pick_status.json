@@ -3834,7 +3834,7 @@
         "description": "tu/drm/virtio: Fix GEM handle leak in tu_bo_init error path",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "d67d501af46f04bf12a16110f3a1e86b565cac96",
         "notes": null
