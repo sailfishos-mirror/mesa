@@ -128,12 +128,12 @@ static void si_add_fence_dependency(struct si_context *sctx, struct pipe_fence_h
 {
    struct radeon_winsys *ws = sctx->ws;
 
-   ws->cs_add_fence_dependency(&sctx->gfx_cs, fence);
+   ws->cs_add_fence_dependency(&sctx->gfx_cs, fence, 0);
 }
 
 static void si_add_syncobj_signal(struct si_context *sctx, struct pipe_fence_handle *fence)
 {
-   sctx->ws->cs_add_syncobj_signal(&sctx->gfx_cs, fence);
+   sctx->ws->cs_add_syncobj_signal(&sctx->gfx_cs, fence, 0);
 }
 
 static void si_fence_reference(struct pipe_screen *screen, struct pipe_fence_handle **dst,

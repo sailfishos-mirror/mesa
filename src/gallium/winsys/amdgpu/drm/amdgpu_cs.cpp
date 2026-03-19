@@ -890,7 +890,9 @@ static void amdgpu_destroy_cs_context(struct amdgpu_winsys *aws, struct amdgpu_c
    for (unsigned i = 0; i < ARRAY_SIZE(csc->buffer_lists); i++)
       FREE(csc->buffer_lists[i].buffers);
    FREE(csc->syncobj_dependencies.list);
+   FREE(csc->syncobj_dependencies.points);
    FREE(csc->syncobj_to_signal.list);
+   FREE(csc->syncobj_to_signal.points);
 }
 
 
@@ -1205,23 +1207,27 @@ static unsigned amdgpu_cs_get_buffer_list(struct radeon_cmdbuf *rcs,
 }
 
 static void add_fence_to_list(struct amdgpu_fence_list *fences,
-                              struct amdgpu_fence *fence)
+                              struct amdgpu_fence *fence,
+                              uint64_t point)
 {
    unsigned idx = fences->num++;
 
    if (idx >= fences->max) {
-      unsigned size;
       const unsigned increment = 8;
 
       fences->max = idx + increment;
-      size = fences->max * sizeof(fences->list[0]);
-      fences->list = (struct pipe_fence_handle**)realloc(fences->list, size);
+      fences->list = (struct pipe_fence_handle**)realloc(fences->list,
+                        fences->max * sizeof(fences->list[0]));
+      fences->points = (uint64_t*)realloc(fences->points,
+                        fences->max * sizeof(fences->points[0]));
    }
    amdgpu_fence_set_reference(&fences->list[idx], (struct pipe_fence_handle*)fence);
+   fences->points[idx] = point;
 }
 
 static void amdgpu_cs_add_fence_dependency(struct radeon_cmdbuf *rcs,
-                                           struct pipe_fence_handle *pfence)
+                                           struct pipe_fence_handle *pfence,
+                                           uint64_t timeline_point)
 {
    struct amdgpu_cs *acs = amdgpu_cs(rcs);
    struct amdgpu_winsys *aws = acs->aws;
@@ -1241,7 +1247,7 @@ static void amdgpu_cs_add_fence_dependency(struct radeon_cmdbuf *rcs,
          }
       }
    } else {
-      add_fence_to_list(&csc->syncobj_dependencies, fence);
+      add_fence_to_list(&csc->syncobj_dependencies, fence, timeline_point);
    }
 }
 
@@ -1259,7 +1265,7 @@ static void amdgpu_add_fences_to_dependencies(struct amdgpu_winsys *ws,
       }
 
       if (bo->alt_fence)
-         add_fence_to_list(&csc->syncobj_dependencies, (struct amdgpu_fence*)bo->alt_fence);
+         add_fence_to_list(&csc->syncobj_dependencies, (struct amdgpu_fence*)bo->alt_fence, 0);
    }
 }
 
@@ -1278,12 +1284,13 @@ static void amdgpu_add_to_kernel_bo_list(struct drm_amdgpu_bo_list_entry *bo_ent
 }
 
 static void amdgpu_cs_add_syncobj_signal(struct radeon_cmdbuf *rcs,
-                                         struct pipe_fence_handle *fence)
+                                         struct pipe_fence_handle *fence,
+                                         uint64_t timeline_point)
 {
    struct amdgpu_cs *acs = amdgpu_cs(rcs);
    struct amdgpu_cs_context *csc = amdgpu_csc_get_current(acs);
 
-   add_fence_to_list(&csc->syncobj_to_signal, (struct amdgpu_fence*)fence);
+   add_fence_to_list(&csc->syncobj_to_signal, (struct amdgpu_fence*)fence, timeline_point);
 }
 
 static int amdgpu_cs_submit_ib_kernelq(struct amdgpu_cs *acs,
@@ -2023,7 +2030,7 @@ static void amdgpu_cs_submit_ib(void *job, void *gdata, int thread_index)
          if (amdgpu_fence_wait(*fence, 0, false))
             amdgpu_fence_reference(fence, NULL);
          else
-            add_fence_to_list(&csc->syncobj_dependencies, (struct amdgpu_fence*)*fence);
+            add_fence_to_list(&csc->syncobj_dependencies, (struct amdgpu_fence*)*fence, 0);
       }
    }
 

@@ -72,6 +72,7 @@ struct amdgpu_ib {
 
 struct amdgpu_fence_list {
    struct pipe_fence_handle    **list;
+   uint64_t                    *points;
    unsigned                    num;
    unsigned                    max;
 };
