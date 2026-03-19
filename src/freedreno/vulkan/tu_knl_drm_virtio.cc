@@ -593,7 +593,7 @@ tu_bo_init(struct tu_device *dev,
       if (!new_ptr) {
          dev->submit_bo_count--;
          mtx_unlock(&dev->bo_mutex);
-         vdrm_bo_close(dev->vdev->vdrm, bo->gem_handle);
+         vdrm_bo_close(dev->vdev->vdrm, gem_handle);
          return VK_ERROR_OUT_OF_HOST_MEMORY;
       }
 
