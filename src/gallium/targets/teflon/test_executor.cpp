@@ -526,6 +526,11 @@ run_model(TfLiteModel *model, enum executor executor, void ***input, size_t *num
          (*output_sizes)[i] = output_tensor->bytes / 4;
          break;
       }
+      case kTfLiteInt16:
+      case kTfLiteUInt16: {
+         (*output_sizes)[i] = output_tensor->bytes / 2;
+         break;
+      }
       default: {
          (*output_sizes)[i] = output_tensor->bytes;
          break;
