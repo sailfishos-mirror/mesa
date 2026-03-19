@@ -246,7 +246,7 @@ static struct vpe_caps
                                         .dma_dim_33  = 1,
                                         .alignment   = LUT_3D_DMA_ALIGNMENT,
                                     },
-                                .lut_3d_compound = 0,
+                                .lut_3d_compound = 1,
                             },
                     }},
             .plane_caps =
