@@ -1719,6 +1719,12 @@ anv_physical_device_get_bindless_surface_state_pool_va(const struct anv_physical
    return &pdevice->va.bindless_surface_state_pool;
 }
 
+static inline const struct anv_va_range *
+anv_physical_device_get_indirect_descriptor_pool_va(const struct anv_physical_device *pdevice)
+{
+   return &pdevice->va.indirect_descriptor_pool;
+}
+
 VkResult anv_physical_device_try_create(struct vk_instance *vk_instance,
                                         struct _drmDevice *drm_device,
                                         struct vk_physical_device **out);
