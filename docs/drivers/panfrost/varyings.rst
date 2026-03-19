@@ -67,14 +67,14 @@ also load (flat) ints with those.  We need to specify no conversion
 (``.f16.src_flat16`` or ``.f32.src_flat32``), but with those we can load both
 16-bit and 32-bit integers.
 
-In this architecture the descriptors got a major update too and now there is
-just one set of descriptors for both the VS and FS.
-
+In this architecture we assume the VS always uses IDVS, emitting attribute data
+with ``LEA_BUF`` (instead of ``LEA_ATTR``), and never emit varying
+``AttributeDescriptor`` for VS.
 
 Challenges
 ==========
 Theoretically, the output types from the VS and input types from the FS should
-always agree.  In practice we cannot always trust the varyings types given to us,
+always agree.  In practice we cannot trust the varyings types given to us,
 here are some challenging examples:
 
 * Shaders are allowed to use the same types with different precision modifiers.
@@ -97,10 +97,8 @@ In practice you have to follow these rules:
 Current implementation rules:
 
 * VS decides the memory layout
-* On v9+, FS decides the descriptor formats, VS uses auto32 for 32-bit types
-* On v7-, descriptor formats can mismatch (VS int - FS float)
-* Descriptor formats always match what the instructions are using (unless V9
-  auto32)
+* Descriptor formats can mismatch between stages (eg. VS int - FS float)
+* Descriptor formats always match what the instructions are using
 
 
 To regain the type information:
