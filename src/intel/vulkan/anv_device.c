@@ -582,18 +582,18 @@ anv_state_pools_init(struct anv_device *device)
       result = anv_state_pool_init(&device->binding_table_pool, device,
                                    &(struct anv_state_pool_params) {
                                       .name         = "binding table pool",
-                                      .base_address = device->physical->va.binding_table_pool.addr,
+                                      .base_address = anv_physical_device_get_binding_table_pool_va(device->physical)->addr,
                                       .block_size   = device->physical->instance->drirc.perf.bt_block_size,
-                                      .max_size     = device->physical->va.binding_table_pool.size,
+                                      .max_size     = anv_physical_device_get_binding_table_pool_va(device->physical)->size,
                                    });
    } else {
       /* The binding table should be in front of the surface states in virtual
        * address space so that all surface states can be express as relative
        * offsets from the binding table location.
        */
-      assert(device->physical->va.binding_table_pool.addr <
+      assert(anv_physical_device_get_binding_table_pool_va(device->physical)->addr <
              anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr);
-      int64_t bt_pool_offset = (int64_t)device->physical->va.binding_table_pool.addr -
+      int64_t bt_pool_offset = (int64_t)anv_physical_device_get_binding_table_pool_va(device->physical)->addr -
                                (int64_t)anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr;
       assert(INT32_MIN < bt_pool_offset && bt_pool_offset < 0);
       result = anv_state_pool_init(&device->binding_table_pool, device,
