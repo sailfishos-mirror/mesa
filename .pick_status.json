@@ -3444,7 +3444,7 @@
         "description": "gallivm: don't optimize fadd(a, 0.0) with signed zero preserve",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "540e84bedbfbc884ce982640f7da9319441a4aa0",
         "notes": null
