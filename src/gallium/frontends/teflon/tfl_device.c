@@ -182,9 +182,14 @@ fill_operation(struct teflon_delegate *delegate, TfLiteContext *tf_context, TfLi
       operation->pooling.padding_same = params->padding == kTfLitePaddingSame;
       break;
    }
-   case kTfLiteBuiltinAdd:
+   case kTfLiteBuiltinAdd: {
+      TfLiteAddParams *params = (TfLiteAddParams *)node->builtin_data;
+
       operation->type = PIPE_ML_OPERATION_TYPE_ADD;
+      operation->add.relu = params->activation == kTfLiteActRelu ||
+                            params->activation == kTfLiteActRelu6;
       break;
+   }
    case kTfLiteBuiltinConcatenation: {
       TfLiteConcatenationParams *params = node->builtin_data;
 

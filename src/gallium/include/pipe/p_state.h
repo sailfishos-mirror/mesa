@@ -1222,6 +1222,13 @@ struct pipe_ml_operation
 
       struct {
          /**
+          * Whether a ReLU activation should be applied to the output.
+          */
+         bool relu;
+      } add;
+
+      struct {
+         /**
           * Dimension along which the tensors are concatenated.
           */
          int axis;
