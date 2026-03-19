@@ -441,7 +441,7 @@ driwindowsMapConfigs(struct glx_display *priv, int screen, struct glx_config *co
    return head.next;
 }
 
-static struct glx_screen *
+struct glx_screen *
 driwindowsCreateScreen(int screen, struct glx_display *priv, bool driver_name_is_inferred)
 {
    __GLXDRIscreen *psp;
