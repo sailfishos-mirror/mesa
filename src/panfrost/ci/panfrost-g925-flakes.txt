@@ -27,3 +27,9 @@ angle-multisample-dEQP-GLES31.functional.draw_indirect.compute_interop.large.dra
 angle-multisample-dEQP-GLES31.functional.draw_indirect.compute_interop.large.drawelements_separate_grid_500x500_drawcount_2500
 angle-multisample-dEQP-GLES31.functional.draw_indirect.compute_interop.large.drawelements_separate_grid_1200x1200_drawcount_1
 angle-multisample-dEQP-GLES31.functional.draw_indirect.compute_interop.large.drawelements_separate_grid_1500x1500_drawcount_1
+
+# Appears just beforehand:
+# 19:50:56.843: [   92.880197] panthor 48000000.gpu: [drm] *ERROR* CSG 7 update request timedout
+# 19:50:56.843: [   92.988186] panthor 48000000.gpu: [drm] *ERROR* CSG 7 update request timedout
+# 19:50:56.843: [   92.995306] panthor 48000000.gpu: [drm] *ERROR* CSG suspend failed, escalating to termination
+dEQP-VK.sparse_resources.buffer.ssbo.sparse_residency.non_resident_buffer_copy_src_alloc_partial_16777216
