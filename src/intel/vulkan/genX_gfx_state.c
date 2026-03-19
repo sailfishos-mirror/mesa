@@ -1723,7 +1723,7 @@ update_vf_restart(struct anv_gfx_dynamic_state *hw_state,
                   const struct anv_cmd_graphics_state *gfx)
 {
    SET(VF, vf.IndexedDrawCutIndexEnable, dyn->ia.primitive_restart_enable);
-   SET(VF, vf.CutIndex, vk_index_to_restart(gfx->index_type));
+   SET(VF, vf.CutIndex, dyn->ia.primitive_restart_index);
 }
 
 ALWAYS_INLINE static void
@@ -2461,7 +2461,8 @@ cmd_buffer_flush_gfx_runtime_state(struct anv_gfx_dynamic_state *hw_state,
       update_line_stipple(hw_state, dyn);
 
    if ((gfx->dirty & ANV_CMD_DIRTY_INDEX_TYPE) ||
-       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE))
+       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE) ||
+       BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_INDEX))
       update_vf_restart(hw_state, dyn, gfx);
 
    if ((gfx->dirty & ANV_CMD_DIRTY_INDEX_BUFFER) ||

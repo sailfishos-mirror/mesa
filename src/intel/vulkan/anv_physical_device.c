@@ -353,6 +353,7 @@ get_device_extensions(const struct anv_physical_device *device,
       .EXT_present_timing                    = device->has_reg_timestamp,
 #endif
       .EXT_primitive_topology_list_restart   = true,
+      .EXT_primitive_restart_index           = true,
       .EXT_primitives_generated_query        = true,
       .EXT_private_data                      = true,
       .EXT_provoking_vertex                  = true,
@@ -1019,6 +1020,9 @@ get_features(const struct anv_physical_device *pdevice,
 
       /* VK_EXT_device_address_binding_report */
       .reportAddressBinding = true,
+
+      /* VK_EXT_primitive_restart_index */
+      .primitiveRestartIndex = true,
    };
 
    /* The new DOOM and Wolfenstein games require depthBounds without
