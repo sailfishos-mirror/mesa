@@ -78,30 +78,11 @@ struct fd_perfcntr_group {
 
 const struct fd_perfcntr_group *fd_perfcntrs(const struct fd_dev_id *id, unsigned *count);
 
-#define COUNTER_BASE(_sel, _lo, _hi) {                                         \
-      .select_reg = _sel, .counter_reg_lo = _lo, .counter_reg_hi = _hi,        \
-   }
-
-#define COUNTER(_sel, _lo, _hi) COUNTER_BASE(REG(_sel), REG(_lo), REG(_hi))
-
-#define COUNTER2(_sel, _lo, _hi, _en, _clr) {                                  \
-      .select_reg = REG(_sel), .counter_reg_lo = REG(_lo),                     \
-      .counter_reg_hi = REG(_hi), .enable = REG(_en), .clear = REG(_clr),      \
-   }
-
-#define COUNTABLE_BASE(_sel_name, _sel, _query_type, _result_type ) {          \
-      .name = _sel_name, .selector = _sel,                                     \
-   }
-
-#define COUNTABLE(_selector, _query_type, _result_type)                        \
-   COUNTABLE_BASE(#_selector, _selector, _query_type, _result_type)
-
 #define GROUP(_name, _counters, _countables) {                                 \
       .name = _name, .num_counters = ARRAY_SIZE(_counters),                    \
       .counters = _counters, .num_countables = ARRAY_SIZE(_countables),        \
       .countables = _countables,                                               \
    }
-
 
 #define FD_DERIVED_COUNTER_MAX_PERFCNTRS 8
 
