@@ -374,7 +374,7 @@ anv_device_init_descriptors_view(struct anv_device *device)
 
       const uint64_t size =
          pdevice->va.internal_surface_state_pool.size +
-         pdevice->va.bindless_surface_state_pool.size;
+         anv_physical_device_get_bindless_surface_state_pool_va(pdevice)->size;
 
       isl_buffer_fill_state(&device->isl_dev,
                             device->descriptor_view_state.map,
@@ -567,9 +567,9 @@ anv_state_pools_init(struct anv_device *device)
       result = anv_state_pool_init(&device->bindless_surface_state_pool, device,
                                    &(struct anv_state_pool_params) {
                                       .name         = "bindless surface state pool",
-                                      .base_address = device->physical->va.bindless_surface_state_pool.addr,
+                                      .base_address = anv_physical_device_get_bindless_surface_state_pool_va(device->physical)->addr,
                                       .block_size   = 4096,
-                                      .max_size     = device->physical->va.bindless_surface_state_pool.size,
+                                      .max_size     = anv_physical_device_get_bindless_surface_state_pool_va(device->physical)->size,
                                    });
       if (result != VK_SUCCESS)
          goto fail_internal_surface_state_pool;

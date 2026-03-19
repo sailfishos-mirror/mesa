@@ -411,7 +411,7 @@ setup_execbuf_for_cmd_buffers(struct anv_execbuf *execbuf,
    if (result != VK_SUCCESS)
       return result;
 
-   if (device->physical->va.bindless_surface_state_pool.size > 0) {
+   if (anv_physical_device_get_bindless_surface_state_pool_va(device->physical)->size > 0) {
       result = pin_state_pool(device, execbuf, anv_device_get_bindless_surface_state_pool(device));
       if (result != VK_SUCCESS)
          return result;

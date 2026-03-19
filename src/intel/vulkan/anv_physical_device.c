@@ -102,7 +102,7 @@ get_device_descriptor_limits(const struct anv_physical_device *device,
    const uint64_t descriptor_heap_size =
       device->indirect_descriptors ?
       device->va.indirect_descriptor_pool.size :
-      device->va.bindless_surface_state_pool.size;;
+      anv_physical_device_get_bindless_surface_state_pool_va(device)->size;
 
    const uint32_t buffer_descriptor_size =
       device->indirect_descriptors ?

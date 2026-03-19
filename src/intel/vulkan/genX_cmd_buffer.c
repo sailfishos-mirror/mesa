@@ -235,7 +235,7 @@ fill_state_base_addr(struct anv_cmd_buffer *cmd_buffer,
       };
       sba->BindlessSurfaceStateSize =
          (device->physical->va.internal_surface_state_pool.size +
-          device->physical->va.bindless_surface_state_pool.size) - 1;
+          anv_physical_device_get_bindless_surface_state_pool_va(device->physical)->size) - 1;
       sba->BindlessSurfaceStateMOCS = mocs;
       sba->BindlessSurfaceStateBaseAddressModifyEnable = true;
 #else
@@ -244,7 +244,7 @@ fill_state_base_addr(struct anv_cmd_buffer *cmd_buffer,
    } else {
       sba->BindlessSurfaceStateBaseAddress =
          (struct anv_address) { .offset =
-                                device->physical->va.bindless_surface_state_pool.addr,
+                                anv_physical_device_get_bindless_surface_state_pool_va(device->physical)->addr,
       };
       sba->BindlessSurfaceStateSize =
          anv_physical_device_bindless_heap_size(device->physical, false) /
