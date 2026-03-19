@@ -62,6 +62,7 @@ set_feature_maps(struct pipe_tensor *input_tensor,
    operation->ifm.zero_point = input_tensor->zero_point;
    operation->ifm.scale = input_tensor->scale;
    operation->ifm.is_signed = input_tensor->is_signed;
+   operation->ifm.precision = log2(input_tensor->type_size);
 
    operation->ofm.tensor_idx = output_tensor->index;
    operation->ofm.shape.height = output_tensor->dims[1];
@@ -70,6 +71,7 @@ set_feature_maps(struct pipe_tensor *input_tensor,
    operation->ofm.zero_point = output_tensor->zero_point;
    operation->ofm.scale = output_tensor->scale;
    operation->ofm.is_signed = output_tensor->is_signed;
+   operation->ofm.precision = log2(output_tensor->type_size);
 }
 
 static const struct pipe_ml_operation *
@@ -334,6 +336,7 @@ ethosu_lower_add(struct ethosu_subgraph *subgraph,
    operation->ifm2.zero_point = poperation->input_tensors[1]->zero_point;
    operation->ifm2.scale = poperation->input_tensors[1]->scale;
    operation->ifm2.is_signed = poperation->input_tensors[1]->is_signed;
+   operation->ifm2.precision = log2(poperation->input_tensors[1]->type_size);
 
    operation->kernel.height = 1;
    operation->kernel.width = 1;

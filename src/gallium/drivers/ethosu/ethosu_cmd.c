@@ -133,6 +133,8 @@ emit_ifm_precision(struct ethosu_subgraph *subgraph,
    if (tensor->layout == ETHOSU_LAYOUT_NHCWB16)
       prec |= NPU_SET_IFM_PRECISION_FORMAT(1);
 
+   prec |= NPU_SET_IFM_PRECISION_PRECISION(feature_map->precision);
+
    if (feature_map->is_signed)
       prec |= NPU_SET_IFM_PRECISION_ACTIVATION(1); // signed activation
 
@@ -178,6 +180,8 @@ emit_ofm_precision(struct ethosu_subgraph *subgraph, struct ethosu_operation *op
 
    if (tensor->layout == ETHOSU_LAYOUT_NHCWB16)
       prec |= NPU_SET_OFM_PRECISION_FORMAT(1);
+
+   prec |= NPU_SET_OFM_PRECISION_PRECISION(operation->ofm.precision);
 
    if (operation->ofm.is_signed)
       prec |= NPU_SET_OFM_PRECISION_ACTIVATION(1);

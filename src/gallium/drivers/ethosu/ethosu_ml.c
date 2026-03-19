@@ -57,6 +57,7 @@ ethosu_register_tensor(struct ethosu_subgraph *subgraph,
    new_tensor.shape.width = ptensor->dims[2];
    new_tensor.shape.depth = ptensor->dims[3];
    new_tensor.layout = ETHOSU_LAYOUT_NHWC;
+   new_tensor.type_size = ptensor->type_size;
    util_dynarray_append(&subgraph->tensors, new_tensor);
 }
 
@@ -74,6 +75,7 @@ ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, struct ethosu_feat
       assert(0 && "Unsupported layout");
       size = 0; // This should never happen
    }
+   size *= tensor->type_size;
 
    assert(tensor);
 
@@ -142,6 +144,10 @@ ethosu_ml_operation_supported(struct pipe_context *pcontext,
                               const struct pipe_ml_operation *operation)
 {
    bool supported = false;
+
+   if (operation->input_tensors[0]->type_size == 4 ||
+       operation->output_tensors[0]->type_size == 4)
+      return false;
 
    switch (operation->type) {
    case PIPE_ML_OPERATION_TYPE_CONVOLUTION: {
