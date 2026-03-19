@@ -1064,20 +1064,23 @@ BEGIN_TEST(assembler.exp)
       Operand op_m0(bld.tmp(s1));
       op_m0.setFixed(m0);
 
-      //~gfx11>> exp mrt3 v1, v0, v3, v2                                     ; f800003f 02030001
-      //~gfx12>> export mrt3 v1, v0, v3, v2                                  ; f800003f 02030001
+      //! mrt3: @match_func(mrt3)
+      fprintf(output, "mrt3: mrt3%s\n", LLVM_VERSION_MAJOR >= 23 ? "," : "");
+
+      //~gfx11>> exp @mrt3 v1, v0, v3, v2                                   ; f800003f 02030001
+      //~gfx12>> export @mrt3 v1, v0, v3, v2                                ; f800003f 02030001
       bld.exp(aco_opcode::exp, op[1], op[0], op[3], op[2], 0xf, 3);
 
-      //~gfx11! exp mrt3 v1, off, v0, off                                   ; f8000035 80008001
-      //~gfx12! export mrt3 v1, off, v0, off                                ; f8000035 80008001
+      //~gfx11! exp @mrt3 v1, off, v0, off                                  ; f8000035 80008001
+      //~gfx12! export @mrt3 v1, off, v0, off                               ; f8000035 80008001
       bld.exp(aco_opcode::exp, op[1], Operand(v1), op[0], Operand(v1), 0x5, 3);
 
-      //~gfx11! exp mrt3 v1, v0, v3, v2 done                                ; f800083f 02030001
-      //~gfx12! export mrt3 v1, v0, v3, v2 done                             ; f800083f 02030001
+      //~gfx11! exp @mrt3 v1, v0, v3, v2 done                               ; f800083f 02030001
+      //~gfx12! export @mrt3 v1, v0, v3, v2 done                            ; f800083f 02030001
       bld.exp(aco_opcode::exp, op[1], op[0], op[3], op[2], 0xf, 3, false, true);
 
-      //~gfx11! exp mrt3 v1, v0, v3, v2 row_en                              ; f800203f 02030001
-      //~gfx12! export mrt3 v1, v0, v3, v2 row_en                           ; f800203f 02030001
+      //~gfx11! exp @mrt3 v1, v0, v3, v2 row_en                             ; f800203f 02030001
+      //~gfx12! export @mrt3 v1, v0, v3, v2 row_en                          ; f800203f 02030001
       bld.exp(aco_opcode::exp, op[1], op[0], op[3], op[2], op_m0, 0xf, 3)->exp().row_en = true;
 
       finish_assembler_test();
