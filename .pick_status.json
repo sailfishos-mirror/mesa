@@ -3694,7 +3694,7 @@
         "description": "glx/windows: Drop static from driwindowsCreateScreen()",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0d78711cfb9f7946ff3e6428e77f9f4a5228ce4e",
         "notes": null
