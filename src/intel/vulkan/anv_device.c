@@ -641,9 +641,9 @@ anv_state_pools_init(struct anv_device *device)
       result = anv_state_pool_init(&device->aux_tt_pool, device,
                                    &(struct anv_state_pool_params) {
                                       .name         = "aux-tt pool",
-                                      .base_address = device->physical->va.aux_tt_pool.addr,
+                                      .base_address = anv_physical_device_get_aux_tt_pool_va(device->physical)->addr,
                                       .block_size   = 16384,
-                                      .max_size     = device->physical->va.aux_tt_pool.size,
+                                      .max_size     = anv_physical_device_get_aux_tt_pool_va(device->physical)->size,
                                    });
       if (result != VK_SUCCESS)
          goto fail_push_descriptor_buffer_pool;
