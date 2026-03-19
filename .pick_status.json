@@ -3844,7 +3844,7 @@
         "description": "tu/drm/virtio: Do not free iova from heap for lazy BOs",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "88d001383a7c5b3f27c80b9b063f29db88246e29",
         "notes": null
