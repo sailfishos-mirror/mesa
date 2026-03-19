@@ -185,7 +185,7 @@ alu_src_to_msl(struct nir_to_msl_ctx *ctx, nir_alu_instr *instr, int srcn)
 {
    nir_alu_src *src = &instr->src[srcn];
    src_to_msl(ctx, &src->src);
-   if (!nir_alu_src_is_trivial_ssa(instr, srcn) &&
+   if (!nir_alu_has_trivial_src(instr, srcn) &&
        src->src.ssa->num_components > 1) {
       int num_components = nir_src_num_components(src->src);
       assert(num_components <= 4);

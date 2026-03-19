@@ -414,7 +414,7 @@ nir_vec_scalars(nir_builder *build, nir_scalar *comp, unsigned num_components)
 nir_def *
 nir_ssa_for_alu_src(nir_builder *build, nir_alu_instr *instr, unsigned srcn)
 {
-   if (nir_alu_src_is_trivial_ssa(instr, srcn))
+   if (nir_alu_has_trivial_src(instr, srcn))
       return instr->src[srcn].src.ssa;
 
    nir_alu_src *src = &instr->src[srcn];

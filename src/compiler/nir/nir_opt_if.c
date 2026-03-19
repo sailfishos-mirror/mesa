@@ -284,7 +284,7 @@ is_trivial_bcsel(const nir_instr *instr, bool allow_non_phi_src)
       return false;
 
    for (unsigned i = 0; i < 3; i++) {
-      if (!nir_alu_src_is_trivial_ssa(bcsel, i) ||
+      if (!nir_alu_has_trivial_src(bcsel, i) ||
           nir_def_block(bcsel->src[i].src.ssa) != instr->block)
          return false;
 

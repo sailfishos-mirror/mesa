@@ -66,17 +66,17 @@ try_opt_bcsel_of_shuffle(nir_builder *b, nir_alu_instr *alu,
    if (block_has_discard)
       return NULL;
 
-   if (!nir_alu_src_is_trivial_ssa(alu, 0))
+   if (!nir_alu_has_trivial_src(alu, 0))
       return NULL;
 
    nir_def *data1, *index1;
-   if (!nir_alu_src_is_trivial_ssa(alu, 1) ||
+   if (!nir_alu_has_trivial_src(alu, 1) ||
        nir_def_block(alu->src[1].src.ssa) != alu->instr.block ||
        !src_is_single_use_shuffle(alu->src[1].src, &data1, &index1))
       return NULL;
 
    nir_def *data2, *index2;
-   if (!nir_alu_src_is_trivial_ssa(alu, 2) ||
+   if (!nir_alu_has_trivial_src(alu, 2) ||
        nir_def_block(alu->src[2].src.ssa) != alu->instr.block ||
        !src_is_single_use_shuffle(alu->src[2].src, &data2, &index2))
       return NULL;
@@ -136,7 +136,7 @@ src_is_alu(nir_op op, nir_src src, nir_src srcs[2])
    if (alu == NULL || alu->op != op)
       return false;
 
-   if (!nir_alu_src_is_trivial_ssa(alu, 0) || !nir_alu_src_is_trivial_ssa(alu, 1))
+   if (!nir_alu_has_trivial_src(alu, 0) || !nir_alu_has_trivial_src(alu, 1))
       return false;
 
    srcs[0] = alu->src[0].src;
@@ -151,7 +151,7 @@ try_opt_quad_vote(nir_builder *b, nir_alu_instr *alu, bool block_has_discard)
    if (block_has_discard)
       return NULL;
 
-   if (!nir_alu_src_is_trivial_ssa(alu, 0) || !nir_alu_src_is_trivial_ssa(alu, 1))
+   if (!nir_alu_has_trivial_src(alu, 0) || !nir_alu_has_trivial_src(alu, 1))
       return NULL;
 
    nir_intrinsic_instr *quad_broadcasts[4];
