@@ -503,9 +503,9 @@ anv_state_pools_init(struct anv_device *device)
    result = anv_state_pool_init(&device->dynamic_state_pool, device,
                                 &(struct anv_state_pool_params) {
                                    .name         = "dynamic pool",
-                                   .base_address = device->physical->va.dynamic_state_pool.addr,
+                                   .base_address = anv_physical_device_get_dynamic_state_pool_va(device->physical)->addr,
                                    .block_size   = 16384,
-                                   .max_size     = device->physical->va.dynamic_state_pool.size,
+                                   .max_size     = anv_physical_device_get_dynamic_state_pool_va(device->physical)->size,
                                 });
    if (result != VK_SUCCESS)
       goto fail_general_state_pool;
@@ -804,7 +804,7 @@ VkResult anv_CreateDevice(
          intel_batch_stats_reset(decoder);
 
          decoder->engine = physical_device->queue.families[i].engine_class;
-         decoder->dynamic_base = physical_device->va.dynamic_state_pool.addr;
+         decoder->dynamic_base = anv_physical_device_get_dynamic_state_pool_va(physical_device)->addr;
          decoder->surface_base = anv_physical_device_get_internal_surface_state_pool_va(physical_device)->addr;
          decoder->instruction_base = physical_device->va.shader_heap.addr;
       }

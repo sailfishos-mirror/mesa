@@ -270,9 +270,9 @@ init_common_queue_state(struct anv_queue *queue, struct anv_batch *batch)
 
       sba.DynamicStateBaseAddress =
          (struct anv_address) { .offset =
-         device->physical->va.dynamic_state_pool.addr,
+         anv_physical_device_get_dynamic_state_pool_va(device->physical)->addr,
       };
-      sba.DynamicStateBufferSize = (device->physical->va.dynamic_state_pool.size +
+      sba.DynamicStateBufferSize = (anv_physical_device_get_dynamic_state_pool_va(device->physical)->size +
                                     anv_physical_device_get_dynamic_visible_pool_va(device->physical)->size) / 4096;
       sba.DynamicStateMOCS = mocs;
       sba.DynamicStateBaseAddressModifyEnable = true;

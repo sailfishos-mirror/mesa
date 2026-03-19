@@ -181,10 +181,10 @@ fill_state_base_addr(struct anv_cmd_buffer *cmd_buffer,
 #endif
 
    sba->DynamicStateBaseAddress = (struct anv_address) {
-      .offset = device->physical->va.dynamic_state_pool.addr,
+      .offset = anv_physical_device_get_dynamic_state_pool_va(device->physical)->addr,
    };
    sba->DynamicStateBufferSize =
-      (device->physical->va.dynamic_state_pool.size +
+      (anv_physical_device_get_dynamic_state_pool_va(device->physical)->size +
        anv_physical_device_get_dynamic_visible_pool_va(device->physical)->size +
        device->physical->va.push_descriptor_buffer_pool.size) / 4096;
    sba->DynamicStateMOCS = mocs;
@@ -3435,7 +3435,7 @@ compute_descriptor_set_sampler_offset(const struct anv_cmd_buffer *cmd_buffer,
       device->va.push_descriptor_buffer_pool.addr :
       cmd_buffer->state.descriptor_buffers.address[buffer_index];
 
-   return (buffer_address - device->va.dynamic_state_pool.addr) +
+   return (buffer_address - anv_physical_device_get_dynamic_state_pool_va(device)->addr) +
       pipe_state->descriptor_buffers[set_idx].buffer_offset;
 }
 
@@ -3470,7 +3470,7 @@ genX(flush_descriptor_buffers)(struct anv_cmd_buffer *cmd_buffer,
          cmd_buffer->device->physical->va.dynamic_visible_pool.addr;
       push_constants->desc_surface_offsets[1] =
          cmd_buffer->state.descriptor_buffers.samplers_address -
-         cmd_buffer->device->physical->va.dynamic_state_pool.addr;
+         anv_physical_device_get_dynamic_state_pool_va(cmd_buffer->device->physical)->addr;
       cmd_buffer->state.push_constants_dirty |=
          (cmd_buffer->state.descriptor_buffers.offsets_dirty & active_stages);
       pipe_state->push_constants_data_dirty = true;
