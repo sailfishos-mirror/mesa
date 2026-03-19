@@ -778,7 +778,7 @@ kk_flush_pipeline(struct kk_cmd_buffer *cmd)
 
    if (IS_SHADER_DIRTY(VERTEX)) {
       struct kk_shader *vs = cmd->state.shaders[MESA_SHADER_VERTEX];
-      mtl_render_set_pipeline_state(enc, vs->pipeline.gfx.handle);
+      mtl_render_set_pipeline_state(enc, vs->pipeline.gfx.render);
       if (gfx->depth_stencil_state)
          mtl_set_depth_stencil_state(enc, gfx->depth_stencil_state);
    }

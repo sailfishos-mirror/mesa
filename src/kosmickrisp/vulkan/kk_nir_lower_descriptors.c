@@ -802,3 +802,32 @@ kk_nir_lower_descriptors(nir_shader *nir,
 
    return pass_lower_descriptors || pass_lower_ssbo;
 }
+
+static bool
+lower_poly(struct nir_builder *b, nir_intrinsic_instr *intrin, void *data)
+{
+   switch (intrin->intrinsic) {
+   case nir_intrinsic_load_vs_outputs_poly:
+      return lower_sysval_to_root_table(b, intrin, draw.vertex_outputs);
+   case nir_intrinsic_load_vertex_param_buffer_poly:
+      return lower_sysval_to_root_table(b, intrin, draw.vertex_params);
+   case nir_intrinsic_load_tess_param_buffer_poly:
+      return lower_sysval_to_root_table(b, intrin, draw.tess_params);
+   case nir_intrinsic_load_index_size_poly:
+      return lower_sysval_to_root_table(b, intrin, draw.index_size);
+   case nir_intrinsic_load_first_vertex:
+      if (*(bool *)data)
+         return lower_sysval_to_root_table(b, intrin, draw.base_vertex);
+      FALLTHROUGH;
+   default:
+      return false;
+   }
+}
+
+bool
+kk_nir_lower_poly(struct nir_shader *nir)
+{
+   bool is_compute = nir->info.stage == MESA_SHADER_COMPUTE;
+   return nir_shader_intrinsics_pass(nir, lower_poly, nir_metadata_control_flow,
+                                     &is_compute);
+}

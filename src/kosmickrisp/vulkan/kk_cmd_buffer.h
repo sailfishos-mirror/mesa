@@ -36,8 +36,20 @@ struct kk_root_descriptor_table {
          uint32_t buffer_strides[KK_MAX_VBUFS];
          uint64_t attrib_base[KK_MAX_ATTRIBS];
          uint32_t attrib_clamps[KK_MAX_ATTRIBS];
+
+         /* Mask of outputs flowing VS->TCS, VS->GS, or TES->GS . */
+         uint64_t vertex_outputs;
+
+         /* Address of vertex param buffer if geom/tess is used, else 0 */
+         uint64_t vertex_params;
+
+         /* Address of tessellation param buffer if tessellation used, else 0 */
+         uint64_t tess_params;
+
          float blend_constant[4];
          float clip_z_coeff;
+         uint32_t base_vertex;
+         uint32_t index_size;
       } draw;
       struct {
          uint32_t base_group[3];
