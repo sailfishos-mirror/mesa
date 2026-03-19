@@ -124,16 +124,18 @@ void si_cp_wait_mem(struct si_context *ctx, struct radeon_cmdbuf *cs, uint64_t v
    ac_emit_cp_wait_mem(&cs->current, va, ref, mask, flags);
 }
 
-static void si_add_fence_dependency(struct si_context *sctx, struct pipe_fence_handle *fence)
+static void si_add_fence_dependency(struct si_context *sctx, struct pipe_fence_handle *fence,
+                                    uint64_t timeline_point)
 {
    struct radeon_winsys *ws = sctx->ws;
 
-   ws->cs_add_fence_dependency(&sctx->gfx_cs, fence, 0);
+   ws->cs_add_fence_dependency(&sctx->gfx_cs, fence, timeline_point);
 }
 
-static void si_add_syncobj_signal(struct si_context *sctx, struct pipe_fence_handle *fence)
+static void si_add_syncobj_signal(struct si_context *sctx, struct pipe_fence_handle *fence,
+                                  uint64_t timeline_point)
 {
-   sctx->ws->cs_add_syncobj_signal(&sctx->gfx_cs, fence, 0);
+   sctx->ws->cs_add_syncobj_signal(&sctx->gfx_cs, fence, timeline_point);
 }
 
 static void si_fence_reference(struct pipe_screen *screen, struct pipe_fence_handle **dst,
@@ -356,6 +358,13 @@ static void si_create_fence_fd(struct pipe_context *ctx, struct pipe_fence_handl
       sfence->gfx = ws->fence_import_syncobj(ws, fd);
       break;
 
+   case PIPE_FD_TYPE_TIMELINE_SEMAPHORE_VK:
+      if (!sscreen->info.has_timeline_syncobj)
+         goto finish;
+
+      sfence->gfx = ws->fence_import_syncobj(ws, fd);
+      break;
+
    default:
       UNREACHABLE("bad fence fd type when importing");
    }
@@ -518,12 +527,11 @@ static void si_fence_server_signal(struct pipe_context *ctx, struct pipe_fence_h
 {
    struct si_context *sctx = (struct si_context *)ctx;
    struct si_fence *sfence = (struct si_fence *)fence;
-   assert(!value);
 
    assert(sfence->gfx);
 
    if (sfence->gfx)
-      si_add_syncobj_signal(sctx, sfence->gfx);
+      si_add_syncobj_signal(sctx, sfence->gfx, value);
 
    /**
     * The spec requires a flush here. We insert a flush
@@ -547,7 +555,6 @@ static void si_fence_server_sync(struct pipe_context *ctx, struct pipe_fence_han
 {
    struct si_context *sctx = (struct si_context *)ctx;
    struct si_fence *sfence = (struct si_fence *)fence;
-   assert(!value);
 
    util_queue_fence_wait(&sfence->ready);
 
@@ -566,7 +573,7 @@ static void si_fence_server_sync(struct pipe_context *ctx, struct pipe_fence_han
     * performance. Therefore, DO NOT FLUSH.
     */
    if (sfence->gfx)
-      si_add_fence_dependency(sctx, sfence->gfx);
+      si_add_fence_dependency(sctx, sfence->gfx, value);
 }
 
 void si_init_fence_functions(struct si_context *ctx)
