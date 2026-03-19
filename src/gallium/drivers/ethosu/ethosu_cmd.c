@@ -372,14 +372,16 @@ emit_ifm2(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, 
       emit_addresses(subgraph, &operation->ifm2, NPU_SET_IFM2_BASE0, NPU_SET_IFM2_BASE1, NPU_SET_IFM2_BASE2, NPU_SET_IFM2_BASE3);
       emit_tiles(subgraph, &operation->ifm2, NPU_SET_IFM2_HEIGHT0_M1, NPU_SET_IFM2_HEIGHT1_M1, NPU_SET_IFM2_WIDTH0_M1);
       emit_strides(subgraph, &operation->ifm2, NPU_SET_IFM2_STRIDE_C, NPU_SET_IFM2_STRIDE_Y, NPU_SET_IFM2_STRIDE_X);
+   } else {
+      EMIT0(NPU_SET_IFM2_SCALAR, operation->ifm2.scalar);
    }
    EMIT0(NPU_SET_IFM2_ZERO_POINT, operation->ifm2.zero_point);
 }
 
 static void
-emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
+emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, bool has_scalar)
 {
-   unsigned ifm2_broadcast = 0;
+   unsigned ifm2_broadcast = has_scalar ? NPU_SET_IFM2_BROADCAST_BROADCAST_SCALAR(1) : 0;
 
    EMIT0(NPU_SET_IFM2_BROADCAST, ifm2_broadcast);
 }
@@ -433,7 +435,7 @@ advanced_elementwise_add_sub_scale(
 static void
 emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   bool has_scalar = false;
+   bool has_scalar = operation->ifm2.scalar != 0;
    enum ethosu_op_to_scale op_to_scale;
 
    op_to_scale = advanced_elementwise_add_sub_scale(
@@ -446,7 +448,7 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 
    emit_ifm2(subgraph, operation, has_scalar);
    emit_ifm_precision(subgraph, &operation->ifm2, OP_NONE, NPU_SET_IFM2_PRECISION);
-   emit_ifm2_broadcast(subgraph, operation);
+   emit_ifm2_broadcast(subgraph, operation, has_scalar);
 }
 
 static void

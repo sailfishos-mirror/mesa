@@ -77,6 +77,7 @@ struct ethosu_feature_map {
    struct ethosu_tile_box tiles;
    unsigned zero_point;
    float scale;
+   uint16_t scalar;
 };
 
 struct ethosu_kernel {

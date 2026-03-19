@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "util/u_inlines.h"
+
 #include "ethosu_device.h"
 #include "ethosu_lower.h"
 #include "ethosu_coefs.h"
@@ -337,6 +339,17 @@ ethosu_lower_add(struct ethosu_subgraph *subgraph,
    operation->ifm2.scale = poperation->input_tensors[1]->scale;
    operation->ifm2.is_signed = poperation->input_tensors[1]->is_signed;
    operation->ifm2.precision = log2(poperation->input_tensors[1]->type_size);
+   if (operation->ifm2.shape.width == 1 &&
+       operation->ifm2.shape.height == 1 &&
+       operation->ifm2.shape.depth == 1) {
+      struct pipe_transfer *transfer_in;
+      uint8_t *scalar = pipe_buffer_map(subgraph->base.context, poperation->input_tensors[1]->resource,
+                                        PIPE_MAP_READ, &transfer_in);
+
+      operation->ifm2.scalar = *scalar;
+
+      pipe_buffer_unmap(subgraph->base.context, transfer_in);
+   }
 
    operation->kernel.height = 1;
    operation->kernel.width = 1;
