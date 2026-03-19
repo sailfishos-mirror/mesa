@@ -1368,4 +1368,8 @@ void si_init_screen_caps(struct si_screen *sscreen)
 
    if (sscreen->ws->va_range)
       sscreen->ws->va_range(sscreen->ws, &caps->min_vma, &caps->max_vma);
+
+   if (sscreen->info.has_timeline_syncobj &&
+       !(sscreen->info.userq_ip_mask & BITFIELD_BIT(AMD_IP_GFX)))
+      caps->max_timeline_semaphore_difference = UINT64_MAX;
 }
