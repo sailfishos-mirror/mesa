@@ -855,9 +855,8 @@ virtio_bo_init_dmabuf(struct tu_device *dev,
       memset(bo, 0, sizeof(*bo));
    } else {
       *out_bo = bo;
+      set_iova(dev, bo->res_id, iova);
    }
-
-   set_iova(dev, bo->res_id, iova);
 
 out_unlock:
    u_rwlock_wrunlock(&dev->dma_bo_lock);
