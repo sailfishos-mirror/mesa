@@ -263,7 +263,7 @@ init_common_queue_state(struct anv_queue *queue, struct anv_batch *batch)
 
       sba.SurfaceStateBaseAddress =
          (struct anv_address) { .offset =
-         device->physical->va.internal_surface_state_pool.addr,
+         anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr,
       };
       sba.SurfaceStateMOCS = mocs;
       sba.SurfaceStateBaseAddressModifyEnable = true;
@@ -317,10 +317,10 @@ init_common_queue_state(struct anv_queue *queue, struct anv_batch *batch)
           * same heap
           */
          sba.BindlessSurfaceStateBaseAddress = (struct anv_address) {
-            .offset = device->physical->va.internal_surface_state_pool.addr,
+            .offset = anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr,
          };
          sba.BindlessSurfaceStateSize =
-            (device->physical->va.internal_surface_state_pool.size +
+            (anv_physical_device_get_internal_surface_state_pool_va(device->physical)->size +
              anv_physical_device_get_bindless_surface_state_pool_va(device->physical)->size) - 1;
          sba.BindlessSurfaceStateMOCS = mocs;
          sba.BindlessSurfaceStateBaseAddressModifyEnable = true;
@@ -347,7 +347,7 @@ init_common_queue_state(struct anv_queue *queue, struct anv_batch *batch)
    mi_builder_init(&b, device->info, batch);
 
    mi_store(&b, mi_reg64(ANV_BINDLESS_SURFACE_BASE_ADDR_REG),
-                mi_imm(device->physical->va.internal_surface_state_pool.addr));
+                mi_imm(anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr));
 #endif /* GFX_VER >= 12 */
 
 #if GFX_VERx10 >= 125

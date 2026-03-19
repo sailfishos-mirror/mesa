@@ -148,7 +148,7 @@ fill_state_base_addr(struct anv_cmd_buffer *cmd_buffer,
 #if GFX_VERx10 >= 125
    sba->SurfaceStateBaseAddress =
       (struct anv_address) { .offset =
-                             device->physical->va.internal_surface_state_pool.addr,
+                             anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr,
    };
 #else
    sba->SurfaceStateBaseAddress =
@@ -231,10 +231,10 @@ fill_state_base_addr(struct anv_cmd_buffer *cmd_buffer,
    } else if (!device->physical->indirect_descriptors) {
 #if GFX_VERx10 >= 125
       sba->BindlessSurfaceStateBaseAddress = (struct anv_address) {
-         .offset = device->physical->va.internal_surface_state_pool.addr,
+         .offset = anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr,
       };
       sba->BindlessSurfaceStateSize =
-         (device->physical->va.internal_surface_state_pool.size +
+         (anv_physical_device_get_internal_surface_state_pool_va(device->physical)->size +
           anv_physical_device_get_bindless_surface_state_pool_va(device->physical)->size) - 1;
       sba->BindlessSurfaceStateMOCS = mocs;
       sba->BindlessSurfaceStateBaseAddressModifyEnable = true;
@@ -3358,7 +3358,7 @@ update_descriptor_set_surface_state(struct anv_cmd_buffer *cmd_buffer,
    const struct anv_va_range *push_va_range =
       GFX_VERx10 >= 125 ?
       &device->va.push_descriptor_buffer_pool :
-      &device->va.internal_surface_state_pool;
+      anv_physical_device_get_internal_surface_state_pool_va(device);
    const struct anv_va_range *va_range =
       buffer_index == -1 ? push_va_range : anv_physical_device_get_dynamic_visible_pool_va(device);
    const uint64_t descriptor_set_addr =

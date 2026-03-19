@@ -666,7 +666,7 @@ anv_cmd_buffer_bind_descriptor_set(struct anv_cmd_buffer *cmd_buffer,
             struct anv_push_constants *push = &pipe_state->push_constants;
             uint64_t offset =
                anv_address_physical(set->desc_surface_addr) -
-               cmd_buffer->device->physical->va.internal_surface_state_pool.addr;
+               anv_physical_device_get_internal_surface_state_pool_va(cmd_buffer->device->physical)->addr;
             assert((offset & ~ANV_DESCRIPTOR_SET_OFFSET_MASK) == 0);
             push->desc_surface_offsets[set_index] &= ~ANV_DESCRIPTOR_SET_OFFSET_MASK;
             push->desc_surface_offsets[set_index] |= offset;

@@ -1731,6 +1731,12 @@ anv_physical_device_get_dynamic_visible_pool_va(const struct anv_physical_device
    return &pdevice->va.dynamic_visible_pool;
 }
 
+static inline const struct anv_va_range *
+anv_physical_device_get_internal_surface_state_pool_va(const struct anv_physical_device *pdevice)
+{
+   return &pdevice->va.internal_surface_state_pool;
+}
+
 VkResult anv_physical_device_try_create(struct vk_instance *vk_instance,
                                         struct _drmDevice *drm_device,
                                         struct vk_physical_device **out);
@@ -2901,7 +2907,7 @@ anv_null_surface_state_for_binding_table(struct anv_device *device)
    struct anv_state state = device->null_surface_state;
    if (device->physical->indirect_descriptors) {
       state.offset += anv_physical_device_get_bindless_surface_state_pool_va(device->physical)->addr -
-                      device->physical->va.internal_surface_state_pool.addr;
+                      anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr;
    }
    return state;
 }
@@ -2911,7 +2917,7 @@ anv_bindless_state_for_binding_table(struct anv_device *device,
                                      struct anv_state state)
 {
    state.offset += anv_physical_device_get_bindless_surface_state_pool_va(device->physical)->addr -
-                   device->physical->va.internal_surface_state_pool.addr;
+                   anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr;
    return state;
 }
 

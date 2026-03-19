@@ -1585,7 +1585,7 @@ anv_descriptor_set_create(struct anv_device *device,
          .offset = set->desc_surface_mem.offset,
       };
       set->desc_offset = anv_address_physical(set->desc_surface_addr) -
-                         device->physical->va.internal_surface_state_pool.addr;
+                         anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr;
 
       enum isl_format format =
          anv_isl_format_for_descriptor_type(device,
@@ -1860,14 +1860,14 @@ anv_push_descriptor_set_init(struct anv_cmd_buffer *cmd_buffer,
             &cmd_buffer->surface_state_stream;
          push_base_address = intel_has_extended_bindless(&pdevice->info) ?
             pdevice->va.push_descriptor_buffer_pool.addr :
-            pdevice->va.internal_surface_state_pool.addr;
+            anv_physical_device_get_internal_surface_state_pool_va(pdevice)->addr;
       } else {
          push_stream = pdevice->indirect_descriptors ?
             &cmd_buffer->indirect_push_descriptor_stream :
             &cmd_buffer->surface_state_stream;
          push_base_address = pdevice->indirect_descriptors ?
             pdevice->va.indirect_push_descriptor_pool.addr :
-            pdevice->va.internal_surface_state_pool.addr;
+            anv_physical_device_get_internal_surface_state_pool_va(pdevice)->addr;
       }
 
       uint32_t surface_size, sampler_size;
