@@ -162,6 +162,7 @@ intel_device_info_dual_subslice_id_bound(const struct intel_device_info *devinfo
 }
 
 int intel_device_name_to_pci_device_id(const char *name);
+const char *intel_platform_name_by_index(unsigned idx);
 
 static inline uint64_t
 intel_device_info_timebase_scale(const struct intel_device_info *devinfo,
