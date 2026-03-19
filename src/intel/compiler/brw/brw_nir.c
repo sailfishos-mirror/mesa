@@ -437,12 +437,15 @@ try_load_push_input(nir_builder *b,
       return NULL;
 
    const unsigned offset_unit = cb_data->vec4_access ? 16 : 4;
-   uint32_t byte_offset =
+   const uint32_t byte_offset =
       16 * io_base_slot(io, cb_data) + 4 * io_component(io, cb_data) +
       offset_unit * nir_src_as_uint(nir_src_for_ssa(offset));
    assert((byte_offset % 4) == 0);
 
-   if (byte_offset >= cb_data->max_push_bytes)
+   const uint32_t byte_end_offset =
+      byte_offset + (io->def.bit_size / 8) * io->def.num_components;
+
+   if (byte_end_offset > cb_data->max_push_bytes)
       return NULL;
 
    if (stage == MESA_SHADER_GEOMETRY) {
