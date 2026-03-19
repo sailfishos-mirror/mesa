@@ -1474,7 +1474,7 @@
         "description": "tu/drm/virtio: Move set_iova into success path of virtio_bo_init_dmabuf",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "db88a490b8d257b5409dc2161c28838a6bd53160",
         "notes": null
