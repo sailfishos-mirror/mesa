@@ -775,9 +775,11 @@ virtio_bo_init(struct tu_device *dev,
    return VK_SUCCESS;
 
 fail:
-   mtx_lock(&dev->vma_mutex);
-   util_vma_heap_free(&dev->vma, req.iova, size);
-   mtx_unlock(&dev->vma_mutex);
+   if (!lazy_vma) {
+      mtx_lock(&dev->vma_mutex);
+      util_vma_heap_free(&dev->vma, req.iova, size);
+      mtx_unlock(&dev->vma_mutex);
+   }
    return result;
 }
 
