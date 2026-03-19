@@ -52,6 +52,7 @@ lower_sysvals_intrin(nir_builder *b, nir_intrinsic_instr *intrin, void * data)
    SYSVAL_TO_VARYING(front_face, FACE, bool);
    SYSVAL_TO_VARYING(layer_id, LAYER, uint);
    SYSVAL_TO_VARYING(view_index, VIEW_INDEX, uint);
+   SYSVAL_TO_VARYING(primitive_id, PRIMITIVE_ID, uint);
 
 #undef SYSVAL_TO_VARYING
 
@@ -95,6 +96,7 @@ nir_lower_sysvals_to_varyings(nir_shader *shader,
          SYSVAL_TO_VARYING(front_face, FRONT_FACE, FACE);
          SYSVAL_TO_VARYING(layer_id, LAYER_ID, LAYER);
          SYSVAL_TO_VARYING(view_index, VIEW_INDEX, VIEW_INDEX);
+         SYSVAL_TO_VARYING(primitive_id, PRIMITIVE_ID, PRIMITIVE_ID);
 
 #undef SYSVAL_TO_VARYING
 
