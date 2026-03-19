@@ -474,23 +474,6 @@ nak_nir_lower_system_value_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
 
    nir_def *val;
    switch (intrin->intrinsic) {
-   case nir_intrinsic_load_primitive_id:
-   case nir_intrinsic_load_instance_id:
-   case nir_intrinsic_load_vertex_id: {
-      assert(b->shader->info.stage != MESA_SHADER_VERTEX ||
-             b->shader->info.stage != MESA_SHADER_TESS_CTRL ||
-             b->shader->info.stage == MESA_SHADER_TESS_EVAL ||
-             b->shader->info.stage == MESA_SHADER_GEOMETRY);
-      const gl_system_value sysval =
-         nir_system_value_from_intrinsic(intrin->intrinsic);
-      const uint32_t addr = nak_sysval_attr_addr(nak, sysval);
-      val = nir_ald_nv(b, 1, nir_imm_int(b, 0), nir_imm_int(b, 0),
-                       .base = addr, .flags = 0,
-                       .range_base = addr, .range = 4,
-                       .access = ACCESS_CAN_REORDER);
-      break;
-   }
-
    case nir_intrinsic_load_patch_vertices_in: {
       val = nak_nir_load_sysval(b, NAK_SV_PRIM_TYPE, ACCESS_CAN_REORDER);
       val = nir_extract_u8(b, val, nir_imm_int(b, 1));

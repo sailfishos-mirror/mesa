@@ -58,6 +58,21 @@ lower_vtg_io_intrin(nir_builder *b,
 
    nir_def *vtx = NULL, *offset = NULL, *data = NULL;
    switch (intrin->intrinsic) {
+   case nir_intrinsic_load_primitive_id:
+   case nir_intrinsic_load_instance_id:
+   case nir_intrinsic_load_vertex_id: {
+      /* These still input loads but they're a special case */
+      const gl_system_value sysval =
+         nir_system_value_from_intrinsic(intrin->intrinsic);
+      const uint32_t addr = nak_sysval_attr_addr(nak, sysval);
+      nir_def *val = nir_ald_nv(b, 1, nir_imm_int(b, 0), nir_imm_int(b, 0),
+                                .base = addr, .flags = 0,
+                                .range_base = addr, .range = 4,
+                                .access = ACCESS_CAN_REORDER);
+      nir_def_rewrite_uses(&intrin->def, val);
+      return true;
+   }
+
    case nir_intrinsic_load_input:
    case nir_intrinsic_load_output:
       offset = intrin->src[0].ssa;
