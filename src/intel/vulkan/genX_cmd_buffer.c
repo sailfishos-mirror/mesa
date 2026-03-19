@@ -1978,6 +1978,9 @@ emit_resource_barrier(struct anv_batch *batch,
    }
 #endif
 
+   if (wait_stages == RESOURCE_BARRIER_STAGE_NONE)
+      wait_stages = RESOURCE_BARRIER_STAGE_TOP;
+
    if (bits & ANV_PIPE_RT_BTI_CHANGE) {
       /* We used to deal with RT BTI changes with a PIPE_CONTROL with the
        * following flags:
