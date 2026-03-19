@@ -298,6 +298,10 @@ BEGIN_TEST(assembler.long_jump.constaddr)
    if (!setup_cs(NULL, (amd_gfx_level)GFX10))
       return;
 
+   //! llvm_version: #llvm_ver
+   fprintf(output, "llvm_version: %u\n", LLVM_VERSION_MAJOR);
+   //; funcs['lit'] = lambda v: 'lit(%s)' % hex(int(v)) if llvm_ver >= 22 else v
+
    //>> s_branch 16369                                              ; bf823ff1
    bld.sopp(aco_opcode::s_branch, 2);
 
@@ -309,7 +313,7 @@ BEGIN_TEST(assembler.long_jump.constaddr)
    bld.reset(program->create_and_insert_block());
 
    //>> s_getpc_b64 s[0:1]                                          ; be801f00
-   //! s_add_u32 s0, s0, 32                                         ; 8000ff00 00000020
+   //! s_add_u32 s0, s0, @lit(32)                                   ; 8000ff00 00000020
    bld.sop1(aco_opcode::p_constaddr_getpc, Definition(PhysReg(0), s2), Operand::zero());
    bld.sop2(aco_opcode::p_constaddr_addlo, Definition(PhysReg(0), s1), bld.def(s1, scc),
             Operand(PhysReg(0), s1), Operand::zero(), Operand::zero());
@@ -424,12 +428,16 @@ BEGIN_TEST(assembler.p_constaddr)
    dst0.setFixed(PhysReg(0));
    dst1.setFixed(PhysReg(2));
 
+   //! llvm_version: #llvm_ver
+   fprintf(output, "llvm_version: %u\n", LLVM_VERSION_MAJOR);
+   //; funcs['lit'] = lambda v: 'lit(%s)' % hex(int(v)) if llvm_ver >= 22 else v
+
    //>> s_getpc_b64 s[0:1] ; be801c00
-   //! s_add_u32 s0, s0, 44 ; 8000ff00 0000002c
+   //! s_add_u32 s0, s0, @lit(44) ; 8000ff00 0000002c
    bld.pseudo(aco_opcode::p_constaddr, dst0, bld.def(s1, scc), Operand::zero());
 
    //! s_getpc_b64 s[2:3] ; be821c00
-   //! s_add_u32 s2, s2, 64 ; 8002ff02 00000040
+   //! s_add_u32 s2, s2, @lit(64) ; 8002ff02 00000040
    bld.pseudo(aco_opcode::p_constaddr, dst1, bld.def(s1, scc), Operand::c32(32));
 
    aco::lower_to_hw_instr(program.get());
