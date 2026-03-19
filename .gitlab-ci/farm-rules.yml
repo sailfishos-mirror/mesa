@@ -373,16 +373,13 @@
     - changes: [ .ci-farms-disabled/vmware ]
       exists: [ .ci-farms-disabled/vmware ]
       when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: [ .ci-farms-disabled/pengutronix ]
+    - changes: [ .ci-farms-disabled/pengutronix ]
       exists: [ .ci-farms-disabled/pengutronix ]
       when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: [ .ci-farms-disabled/lumag ]
+    - changes: [ .ci-farms-disabled/lumag ]
       exists: [ .ci-farms-disabled/lumag ]
       when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      changes: [ .ci-farms-disabled/imagination ]
+    - changes: [ .ci-farms-disabled/imagination ]
       exists: [ .ci-farms-disabled/imagination ]
       when: never
     # Any other change to ci-farms/* means some farm is getting re-enabled.
