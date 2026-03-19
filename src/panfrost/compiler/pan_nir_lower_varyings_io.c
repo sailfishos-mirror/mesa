@@ -108,17 +108,6 @@ lower_vs_output_store(struct nir_builder *b,
    assert(ctx->arch < 9 ||
           src_bit_size == nir_alu_type_get_type_size(slot->alu_type));
 
-   /* Since v9 we cannot have separate attribute descriptors for VS-FS,
-    * There might be a mismatch on Gallium where the VS thinks it is storing
-    * an int, but the data is actually a float, and that's what FS expects.
-    * So, just for v9 onwards, just until we haven't fixed gallium, use auto32.
-    * We are still getting around the midgard quirk since we do this only
-    * from v9.
-    * TODO: fix all bugs with gallium and remove this patch
-    */
-   if (ctx->arch >= 9 && src_bit_size == 32)
-      src_type = 32;
-
    nir_def *data = store->src[0].ssa;
    assert(src_bit_size == data->bit_size);
 
