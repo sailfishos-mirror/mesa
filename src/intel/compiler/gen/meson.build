@@ -72,4 +72,16 @@ if with_tests
   )
 endif
 
+if with_intel_tools
+  executable(
+    'gentool',
+    files('gentool.cpp'),
+    include_directories : [inc_include, inc_src, inc_intel, inc_intel_compiler],
+    cpp_args : ['-Werror=vla'],
+    gnu_symbol_visibility : 'hidden',
+    dependencies : [dep_thread, idep_mesautil, idep_intel_dev,
+                    idep_intel_compiler_gen],
+    install : true,
+  )
+endif
 
