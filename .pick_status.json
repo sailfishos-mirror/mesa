@@ -3714,7 +3714,7 @@
         "description": "glx/windows: Fix compliation after code motion to put event base in 'dri' context",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "08e2985e57436e585a3854ae02ec1584aeb5fe3e",
         "notes": null
