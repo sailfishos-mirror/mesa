@@ -800,9 +800,9 @@ void anv_CmdBindDescriptorBuffersEXT(
    struct anv_cmd_state *state = &cmd_buffer->state;
 
    for (uint32_t i = 0; i < bufferCount; i++) {
-      assert(pBindingInfos[i].address >= cmd_buffer->device->physical->va.dynamic_visible_pool.addr &&
-             pBindingInfos[i].address < (cmd_buffer->device->physical->va.dynamic_visible_pool.addr +
-                                         cmd_buffer->device->physical->va.dynamic_visible_pool.size));
+      assert(pBindingInfos[i].address >= anv_physical_device_get_dynamic_visible_pool_va(cmd_buffer->device->physical)->addr &&
+             pBindingInfos[i].address < (anv_physical_device_get_dynamic_visible_pool_va(cmd_buffer->device->physical)->addr +
+                                         anv_physical_device_get_dynamic_visible_pool_va(cmd_buffer->device->physical)->size));
 
       if (state->descriptor_buffers.address[i] != pBindingInfos[i].address) {
          state->descriptor_buffers.address[i] = pBindingInfos[i].address;

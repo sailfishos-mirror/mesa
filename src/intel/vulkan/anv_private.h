@@ -1725,6 +1725,12 @@ anv_physical_device_get_indirect_descriptor_pool_va(const struct anv_physical_de
    return &pdevice->va.indirect_descriptor_pool;
 }
 
+static inline const struct anv_va_range *
+anv_physical_device_get_dynamic_visible_pool_va(const struct anv_physical_device *pdevice)
+{
+   return &pdevice->va.dynamic_visible_pool;
+}
+
 VkResult anv_physical_device_try_create(struct vk_instance *vk_instance,
                                         struct _drmDevice *drm_device,
                                         struct vk_physical_device **out);
@@ -1741,7 +1747,7 @@ anv_physical_device_bindless_heap_size(const struct anv_physical_device *device,
     */
    return intel_has_extended_bindless(&device->info) ?
       (descriptor_buffer ?
-       device->va.dynamic_visible_pool.size :
+       anv_physical_device_get_dynamic_visible_pool_va(device)->size :
        anv_physical_device_get_bindless_surface_state_pool_va(device)->size) :
       64 * 1024 * 1024 /* 64 MiB */;
 }

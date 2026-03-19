@@ -350,13 +350,13 @@ anv_device_init_descriptors_view(struct anv_device *device)
          anv_state_pool_alloc(anv_device_get_scratch_surface_state_pool(device),
                               device->isl_dev.ss.size, 64);
 
-      const uint64_t size = pdevice->va.dynamic_visible_pool.size +
+      const uint64_t size = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size +
                             pdevice->va.push_descriptor_buffer_pool.size;
       assert(size <= 4ull * 1024 * 1024 * 1024);
 
       isl_buffer_fill_state(&device->isl_dev,
                             device->descriptor_buffer_view_state.map,
-                            .address = pdevice->va.dynamic_visible_pool.addr,
+                            .address = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->addr,
                             .size_B = size,
                             .mocs = anv_mocs(device, NULL, ISL_SURF_USAGE_CONSTANT_BUFFER_BIT),
                             .format = ISL_FORMAT_RAW,

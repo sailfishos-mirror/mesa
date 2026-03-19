@@ -1784,12 +1784,12 @@ get_properties(const struct anv_physical_device *pdevice,
       props->robustStorageBufferDescriptorSize = ANV_SURFACE_STATE_SIZE;
       props->inputAttachmentDescriptorSize = ANV_SURFACE_STATE_SIZE;
       props->accelerationStructureDescriptorSize = sizeof(struct anv_address_range_descriptor);
-      props->maxSamplerDescriptorBufferRange = pdevice->va.dynamic_visible_pool.size;
+      props->maxSamplerDescriptorBufferRange = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
       props->maxResourceDescriptorBufferRange = anv_physical_device_bindless_heap_size(pdevice,
                                                                                        true);
-      props->resourceDescriptorBufferAddressSpaceSize = pdevice->va.dynamic_visible_pool.size;
-      props->descriptorBufferAddressSpaceSize = pdevice->va.dynamic_visible_pool.size;
-      props->samplerDescriptorBufferAddressSpaceSize = pdevice->va.dynamic_visible_pool.size;
+      props->resourceDescriptorBufferAddressSpaceSize = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
+      props->descriptorBufferAddressSpaceSize = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
+      props->samplerDescriptorBufferAddressSpaceSize = anv_physical_device_get_dynamic_visible_pool_va(pdevice)->size;
    }
 
    /* VK_EXT_descriptor_heap */

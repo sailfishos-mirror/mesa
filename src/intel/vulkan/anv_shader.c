@@ -590,10 +590,10 @@ anv_shader_set_relocs(struct anv_device *device,
       .id = BRW_SHADER_RELOC_INSTRUCTION_BASE_ADDR_HIGH,
       .value = device->physical->va.shader_heap.addr >> 32,
    };
-   assert((device->physical->va.dynamic_visible_pool.addr & 0xffffffff) == 0);
+   assert((anv_physical_device_get_dynamic_visible_pool_va(device->physical)->addr & 0xffffffff) == 0);
    reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
       .id = BRW_SHADER_RELOC_DESCRIPTORS_BUFFER_ADDR_HIGH,
-      .value = device->physical->va.dynamic_visible_pool.addr >> 32,
+      .value = anv_physical_device_get_dynamic_visible_pool_va(device->physical)->addr >> 32,
    };
    reloc_values[rv_count++] = (struct intel_shader_reloc_value) {
       .id = BRW_SHADER_RELOC_PUSH_DESCRIPTORS_BUFFER_ADDR_HIGH,
