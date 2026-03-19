@@ -536,9 +536,9 @@ anv_state_pools_init(struct anv_device *device)
       result = anv_state_pool_init(&device->scratch_surface_state_pool, device,
                                    &(struct anv_state_pool_params) {
                                       .name         = "scratch surface state pool",
-                                      .base_address = device->physical->va.scratch_surface_state_pool.addr,
+                                      .base_address = anv_physical_device_get_scratch_surface_state_pool_va(device->physical).addr,
                                       .block_size   = 4096,
-                                      .max_size     = device->physical->va.scratch_surface_state_pool.size,
+                                      .max_size     = anv_physical_device_get_scratch_surface_state_pool_va(device->physical).size,
                                    });
       if (result != VK_SUCCESS)
          goto fail_shader_vma_heap;
@@ -547,7 +547,7 @@ anv_state_pools_init(struct anv_device *device)
                                    &(struct anv_state_pool_params) {
                                       .name         = "internal surface state pool",
                                       .base_address = anv_physical_device_get_internal_surface_state_pool_va(device->physical)->addr,
-                                      .start_offset = device->physical->va.scratch_surface_state_pool.size,
+                                      .start_offset = anv_physical_device_get_scratch_surface_state_pool_va(device->physical).size,
                                       .block_size   = 4096,
                                       .max_size     = anv_physical_device_get_internal_surface_state_pool_va(device->physical)->size,
                                    });

@@ -1767,6 +1767,12 @@ anv_physical_device_get_binding_table_pool_va(const struct anv_physical_device *
    return &pdevice->va.binding_table_pool;
 }
 
+static inline struct anv_va_range
+anv_physical_device_get_scratch_surface_state_pool_va(const struct anv_physical_device *pdevice)
+{
+   return pdevice->va.scratch_surface_state_pool;
+}
+
 VkResult anv_physical_device_try_create(struct vk_instance *vk_instance,
                                         struct _drmDevice *drm_device,
                                         struct vk_physical_device **out);
