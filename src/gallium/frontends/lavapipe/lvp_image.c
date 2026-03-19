@@ -145,35 +145,41 @@ lvp_image_init(struct lvp_device *device, struct lvp_image *image,
 
 #ifdef HAVE_LIBDRM
       if (android_surface || (modinfo && pCreateInfo->tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT)) {
-         struct winsys_handle whandle;
-         whandle.type = WINSYS_HANDLE_TYPE_UNBACKED;
-         whandle.layer = 0;
-         whandle.plane = p;
-         whandle.handle = 0;
-         whandle.stride = layouts[p].rowPitch;
-         whandle.array_stride = layouts[p].arrayPitch;
-         whandle.image_stride = layouts[p].depthPitch;
-         image->planes[p].offset = layouts[p].offset;
-         whandle.format = pCreateInfo->format;
-         whandle.modifier = modifier;
-         image->planes[p].bo = device->pscreen->resource_from_handle(device->pscreen,
-                                                           &template,
-                                                           &whandle,
-                                                           PIPE_HANDLE_USAGE_EXPLICIT_FLUSH);
-         image->planes[p].size = whandle.size;
+         struct winsys_handle whandle = {
+            .type = WINSYS_HANDLE_TYPE_UNBACKED,
+            .plane = p,
+            .stride = layouts[p].rowPitch,
+            .array_stride = layouts[p].arrayPitch,
+            .image_stride = layouts[p].depthPitch,
+            .format = pCreateInfo->format,
+            .modifier = modifier,
+         };
+         struct pipe_resource *pres = device->pscreen->resource_from_handle(
+            device->pscreen, &template, &whandle,
+            PIPE_HANDLE_USAGE_EXPLICIT_FLUSH);
+         if (!pres)
+            return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+         image->planes[p] = (struct lvp_image_plane){
+            .bo = pres,
+            .offset = layouts[p].offset,
+            .size = whandle.size,
+         };
       } else
 #endif
       {
-         if (!image->disjoint)
-            image->planes[p].offset = image->size;
+         uint64_t size_req;
+         struct pipe_resource *pres = device->pscreen->resource_create_unbacked(
+            device->pscreen, &template, &size_req);
+         if (!pres)
+            return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-         image->planes[p].bo = device->pscreen->resource_create_unbacked(device->pscreen,
-                                                               &template,
-                                                               &image->planes[p].size);
-         image->planes[p].size = align64(image->planes[p].size, image->alignment);
+         image->planes[p] = (struct lvp_image_plane){
+            .bo = pres,
+            .offset = image->disjoint ? 0 : image->size,
+            .size = align64(size_req, image->alignment),
+         };
       }
-      if (!image->planes[p].bo)
-         return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
 
       image->size += image->planes[p].size;
    }
