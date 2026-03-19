@@ -1866,7 +1866,7 @@ anv_push_descriptor_set_init(struct anv_cmd_buffer *cmd_buffer,
             &cmd_buffer->indirect_push_descriptor_stream :
             &cmd_buffer->surface_state_stream;
          push_base_address = pdevice->indirect_descriptors ?
-            pdevice->va.indirect_push_descriptor_pool.addr :
+            anv_physical_device_get_indirect_push_descriptor_pool_va(pdevice)->addr :
             anv_physical_device_get_internal_surface_state_pool_va(pdevice)->addr;
       }
 

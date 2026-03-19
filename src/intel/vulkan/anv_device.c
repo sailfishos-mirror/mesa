@@ -612,9 +612,9 @@ anv_state_pools_init(struct anv_device *device)
       result = anv_state_pool_init(&device->indirect_push_descriptor_pool, device,
                                    &(struct anv_state_pool_params) {
                                       .name         = "indirect push descriptor pool",
-                                      .base_address = device->physical->va.indirect_push_descriptor_pool.addr,
+                                      .base_address = anv_physical_device_get_indirect_push_descriptor_pool_va(device->physical)->addr,
                                       .block_size   = 4096,
-                                      .max_size     = device->physical->va.indirect_push_descriptor_pool.size,
+                                      .max_size     = anv_physical_device_get_indirect_push_descriptor_pool_va(device->physical)->size,
                                    });
       if (result != VK_SUCCESS)
          goto fail_binding_table_pool;
