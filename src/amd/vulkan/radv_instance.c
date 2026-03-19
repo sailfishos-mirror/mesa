@@ -124,6 +124,8 @@ static const struct debug_control radv_perftest_options[] = {
    {"sparse", RADV_PERFTEST_SPARSE},
    {"rtcps", RADV_PERFTEST_RT_CPS},
    {"bfloat16", RADV_PERFTEST_BFLOAT16},
+   {"lowlatencydec", RADV_PERFTEST_LOWLATENCYDEC},
+   {"lowlatencyenc", RADV_PERFTEST_LOWLATENCYENC},
    {NULL, 0},
 };
 

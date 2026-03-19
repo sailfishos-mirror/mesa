@@ -2113,6 +2113,7 @@ radv_CmdDecodeVideoKHR(VkCommandBuffer commandBuffer, const VkVideoDecodeInfoKHR
       .width = frame_info->dstPictureResource.codedExtent.width,
       .height = frame_info->dstPictureResource.codedExtent.height,
       .tier = select_tier(device, vid, frame_info),
+      .low_latency = radv_physical_device_instance(pdev)->perftest_flags & RADV_PERFTEST_LOWLATENCYDEC,
    };
 
    if (vid->sessionctx.mem) {

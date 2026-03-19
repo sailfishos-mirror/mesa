@@ -1574,6 +1574,10 @@ RADV driver environment variables
       enable experimental implementation of VK_EXT_host_image_copy (GFX10+)
    ``localbos``
       enable local BOs
+   ``lowlatencydec``
+      Enable low latency decoding
+   ``lowlatencyenc``
+      Enable low latency encoding
    ``nggc``
       enable NGG culling for GFX11+
    ``nircache``
