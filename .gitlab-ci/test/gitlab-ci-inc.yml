@@ -120,6 +120,10 @@
     VKD3D_PROTON_TAG: ${CONDITIONAL_BUILD_VKD3D_PROTON_TAG}
     HWCI_TEST_SCRIPT: install/vkd3d-runner.sh
 
+.test-wine:
+  variables:
+    WINE_TAG: ${CONDITIONAL_BUILD_WINE_TAG}
+
 .piglit-traces-test:
   artifacts:
     when: on_failure

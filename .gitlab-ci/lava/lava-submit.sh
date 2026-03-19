@@ -99,6 +99,16 @@ if [ -n "${VKD3D_PROTON_TAG:-}" ]; then
 		  --compression=zstd
 	)
 fi
+if [ -n "${WINE_TAG:-}" ]; then
+	LAVA_EXTRA_OVERLAYS+=(
+		- append-overlay
+		  --name=wine
+		  --url="$(fdo_find_s3_path "${DATA_STORAGE_PATH}/wine/${DEBIAN_TEST_VK_TAG}-${WINE_TAG}/${MESA_IMAGE_PATH}/wine.tar.zst")"
+		  --path="/"
+		  --format=tar
+		  --compression=zstd
+	)
+fi
 if [ -n "${S3_ANDROID_ARTIFACT_NAME:-}" ]; then
 	LAVA_EXTRA_OVERLAYS+=(
 		- append-overlay

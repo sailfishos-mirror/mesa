@@ -50,8 +50,9 @@ buildah_export() {
     rm -rf "${mountpoint}/android-cts"
     rm -rf "${mountpoint}/cuttlefish"
     rm -rf "${mountpoint}/fluster/resources"
+    rm -rf "${mountpoint}/usr/lib/*/wine"
     rm -rf "${mountpoint}/vkd3d-proton-tests"
-    rm -rf "${mountpoint}/vkd3d-proton-wine64"
+    rm -rf "${mountpoint}/wineprefix"
 
     # Compress to zstd
     ZSTD_CLEVEL=10 tar -C "$mountpoint" -I zstd -cf "$2" .
