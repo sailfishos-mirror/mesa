@@ -381,9 +381,20 @@ emit_ifm2(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, 
 static void
 emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, bool has_scalar)
 {
-   unsigned ifm2_broadcast = has_scalar ? NPU_SET_IFM2_BROADCAST_BROADCAST_SCALAR(1) : 0;
+   unsigned ifm2_broadcast = 0;
 
    ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_OPERAND_ORDER(operation->eltwise.ifm_reversed);
+
+   if (has_scalar) {
+      ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_SCALAR(1);
+   } else {
+      if (operation->ifm.shape.height != operation->ifm2.shape.height)
+         ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_HEIGHT__MASK;
+      if (operation->ifm.shape.width != operation->ifm2.shape.width)
+         ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_WIDTH__MASK;
+      if (operation->ifm.shape.depth != operation->ifm2.shape.depth)
+         ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_DEPTH__MASK;
+   }
 
    EMIT0(NPU_SET_IFM2_BROADCAST, ifm2_broadcast);
 }
