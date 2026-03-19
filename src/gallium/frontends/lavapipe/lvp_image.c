@@ -170,11 +170,10 @@ lvp_image_init(struct lvp_device *device, struct lvp_image *image,
          image->planes[p].bo = device->pscreen->resource_create_unbacked(device->pscreen,
                                                                &template,
                                                                &image->planes[p].size);
+         image->planes[p].size = align64(image->planes[p].size, image->alignment);
       }
       if (!image->planes[p].bo)
          return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
-
-      image->planes[p].size = align64(image->planes[p].size, image->alignment);
 
       image->size += image->planes[p].size;
    }
