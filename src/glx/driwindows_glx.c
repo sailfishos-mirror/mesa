@@ -452,12 +452,12 @@ driwindowsCreateScreen(int screen, struct glx_display *priv, bool driver_name_is
    int major, minor, patch;
 
    /* Verify server has Windows-DRI extension */
-   if (!XWindowsDRIQueryExtension(dpy, &eventBase, &errorBase)) {
+   if (!XWindowsDRIQueryExtension(priv->dpy, &eventBase, &errorBase)) {
       ErrorMessageF("Windows-DRI extension not available\n");
       return NULL;
    }
 
-   if (!XWindowsDRIQueryVersion(dpy, &major, &minor, &patch)) {
+   if (!XWindowsDRIQueryVersion(priv->dpy, &major, &minor, &patch)) {
       ErrorMessageF("Fetching Windows-DRI extension version failed\n");
       return NULL;
    }
