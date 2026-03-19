@@ -454,7 +454,7 @@
         "description": "glx/windows: Fix compilation of driwindows_glx after driscreen changed from pointer to member",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "1ce9aa3d6526c7b28008b5fef19d0dc30fb212bb",
         "notes": null
