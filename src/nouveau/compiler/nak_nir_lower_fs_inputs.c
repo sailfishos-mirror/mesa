@@ -210,7 +210,8 @@ lower_fs_input_intrin(nir_builder *b, nir_intrinsic_instr *intrin, void *data)
    }
 
    case nir_intrinsic_load_front_face:
-   case nir_intrinsic_load_layer_id: {
+   case nir_intrinsic_load_layer_id:
+   case nir_intrinsic_load_primitive_id: {
       assert(b->shader->info.stage == MESA_SHADER_FRAGMENT);
       const gl_system_value sysval =
          nir_system_value_from_intrinsic(intrin->intrinsic);
