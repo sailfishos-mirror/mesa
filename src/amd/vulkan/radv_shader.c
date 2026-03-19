@@ -628,7 +628,7 @@ radv_shader_spirv_to_nir(struct radv_device *device, const struct radv_shader_st
       NIR_PASS(_, nir, ac_nir_lower_sin_cos);
    }
 
-   if (device->debug_nir.printf.buffer_addr)
+   if (nir->info.uses_printf)
       NIR_PASS(_, nir, radv_nir_lower_printf, &device->debug_nir);
 
    if (options && options->lower_view_index_to_device_index)
