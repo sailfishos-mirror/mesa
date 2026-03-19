@@ -753,6 +753,8 @@ virtio_bo_init(struct tu_device *dev,
    }
 
    *out_bo = bo;
+   if (lazy_vma)
+      lazy_vma->msm.backs_lazy_bo = true;
 
    /* We don't use bo->name here because for the !TU_DEBUG=bo case bo->name is NULL. */
    tu_bo_set_kernel_name(dev, bo, name);
@@ -947,9 +949,14 @@ static void
 virtio_sparse_vma_finish(struct tu_device *dev,
                          struct tu_sparse_vma *vma)
 {
-   mtx_lock(&dev->vma_mutex);
-   util_vma_heap_free(&dev->vma, vma->msm.iova, vma->msm.size);
-   mtx_unlock(&dev->vma_mutex);
+   /* For has_set_iova, if a lazy BO was mapped into this sparse VMA
+    * the allocation will be handed off to the zombie VMA mechanism.
+    */
+   if (!vma->msm.backs_lazy_bo) {
+      mtx_lock(&dev->vma_mutex);
+      util_vma_heap_free(&dev->vma, vma->msm.iova, vma->msm.size);
+      mtx_unlock(&dev->vma_mutex);
+   }
 }
 
 static VkResult
