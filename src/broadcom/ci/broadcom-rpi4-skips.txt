@@ -23,6 +23,7 @@ dEQP-VK.draw.renderpass.inverted_depth_ranges.nodepthclamp_deltazero
 dEQP-VK.rasterization.depth_bias.d32_sfloat
 
 # Slow CTS tests (> 1 minute to run)
+dEQP-GLES31.functional.ubo.random.all_per_block_buffers.13
 dEQP-VK.memory.mapping.dedicated_alloc.image.full.variable.implicit_unmap
 dEQP-VK.spirv_assembly.instruction.graphics.spirv_ids_abuse.lots_ids_geom
 dEQP-VK.ssbo.layout.random.16bit.all_shared_buffer.31
