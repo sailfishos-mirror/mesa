@@ -849,7 +849,9 @@ virtio_bo_init_dmabuf(struct tu_device *dev,
    result =
       tu_bo_init(dev, NULL, bo, handle, size, iova, flags, "dmabuf");
    if (result != VK_SUCCESS) {
+      mtx_lock(&dev->vma_mutex);
       util_vma_heap_free(&dev->vma, iova, size);
+      mtx_unlock(&dev->vma_mutex);
       memset(bo, 0, sizeof(*bo));
    } else {
       *out_bo = bo;
