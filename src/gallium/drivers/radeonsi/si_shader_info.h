@@ -93,8 +93,6 @@ struct si_shader_info {
    uint32_t options; /* bitmask of SI_PROFILE_* */
 
    uint8_t num_inputs;
-   uint8_t input_semantic[PIPE_MAX_SHADER_INPUTS];
-
    uint8_t num_vs_inputs;
    uint8_t num_vbos_in_user_sgprs;
    uint16_t enabled_streamout_buffer_mask;

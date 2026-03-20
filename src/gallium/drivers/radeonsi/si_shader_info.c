@@ -211,17 +211,8 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
       driver_location = nir_intrinsic_base(intr);
 
    if (is_input) {
-      assert(driver_location + num_slots <= ARRAY_SIZE(info->input_semantic));
-
       for (unsigned i = 0; i < num_slots; i++) {
          unsigned loc = driver_location + i;
-
-         /* No 2 inputs can use the same driver location. */
-         assert((info->input_semantic[loc] == semantic + i ||
-                 info->input_semantic[loc] == NUM_TOTAL_VARYING_SLOTS) &&
-                "nir_recompute_io_bases wasn't called");
-
-         info->input_semantic[loc] = semantic + i;
 
          if (mask)
             info->num_inputs = MAX2(info->num_inputs, loc + 1);
@@ -580,12 +571,6 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
       }
    }
 
-   /* Initialize all IO slots to an invalid value. We use this to prevent 2 different
-    * inputs/outputs from using the same IO slot.
-    */
-   for (unsigned i = 0; i < ARRAY_SIZE(info->input_semantic); i++)
-      info->input_semantic[i] = NUM_TOTAL_VARYING_SLOTS;
-
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       /* Both flat and non-flat can occur with nir_io_mix_convergent_flat_with_interpolated,
        * but we want to save only the non-flat interp mode in that case.
@@ -677,21 +662,6 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_SAMPLE_POS) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_SAMPLE_MASK_IN) ||
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_HELPER_INVOCATION));
-
-      /* Add back color inputs. */
-      unsigned num_inputs_with_colors = info->num_inputs;
-      for (unsigned i = 0; i < 2; i++) {
-         if ((info->colors_read >> (i * 4)) & 0xf) {
-            unsigned index = num_inputs_with_colors;
-
-            info->input_semantic[index] = VARYING_SLOT_BFC0 + i;
-            num_inputs_with_colors++;
-
-            /* Back-face colors don't increment num_inputs. si_emit_spi_map will use
-             * back-face colors conditionally only when they are needed.
-             */
-         }
-      }
    }
 
    info->has_divergent_loop = nir_has_divergent_loop(nir);
@@ -736,13 +706,6 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
                             nir->info.clip_distance_array_size ||
                             nir->info.cull_distance_array_size;
 
-   /* There should be no holes in slots except VS inputs. */
-   if (nir->info.stage != MESA_SHADER_VERTEX) {
-      for (unsigned i = 0; i < info->num_inputs; i++)
-         assert(info->input_semantic[i] != NUM_TOTAL_VARYING_SLOTS &&
-                "nir_recompute_io_bases wasn't called");
-   }
-
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       u_foreach_bit64_two_masks(semantic, nir->info.inputs_read,
                                 VARYING_SLOT_VAR0_16BIT, nir->info.inputs_read_16bit) {
@@ -760,11 +723,6 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
          info->color_attr_index[0] = ac_nir_get_io_driver_location(nir, VARYING_SLOT_COL0, true);
       if (nir->info.inputs_read & VARYING_BIT_COL1)
          info->color_attr_index[1] = ac_nir_get_io_driver_location(nir, VARYING_SLOT_COL1, true);
-
-      for (unsigned i = 0; i < info->num_inputs; i++) {
-         /* If any FS input is POS (0), the input slot is unused, which should never happen. */
-         assert(info->input_semantic[i] != VARYING_SLOT_POS);
-      }
    }
 
    switch (nir->info.stage) {
