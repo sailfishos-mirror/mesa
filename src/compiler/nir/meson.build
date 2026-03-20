@@ -252,6 +252,7 @@ else
   'nir_move_output_stores_to_end.c',
   'nir_move_vec_src_uses_to_dest.c',
   'nir_normalize_cubemap_coords.c',
+  'nir_normalize_sin_cos.c',
   'nir_opt_access.c',
   'nir_opt_barriers.c',
   'nir_opt_barycentric.c',

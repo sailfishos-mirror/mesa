@@ -7082,6 +7082,8 @@ bool nir_unlower_io_to_vars(nir_shader *nir, bool keep_intrinsics);
 
 bool nir_opt_barycentric(nir_shader *shader, bool lower_sample_to_pos);
 
+bool nir_normalize_sin_cos(nir_shader *shader);
+
 #include "nir_inline_helpers.h"
 
 static inline bool

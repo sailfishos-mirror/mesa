@@ -172,7 +172,6 @@ amd_common_files = files(
   'nir/ac_nir_lower_ngg_mesh.c',
   'nir/ac_nir_lower_ps_early.c',
   'nir/ac_nir_lower_ps_late.c',
-  'nir/ac_nir_lower_sin_cos.c',
   'nir/ac_nir_meta.h',
   'nir/ac_nir_meta_cs_blit.c',
   'nir/ac_nir_meta_cs_clear_copy_buffer.c',

@@ -89,8 +89,6 @@ nir_def *
 ac_nir_load_smem(nir_builder *b, unsigned num_components, nir_def *addr, nir_def *offset,
                  unsigned align_mul, enum gl_access_qualifier access);
 
-bool ac_nir_lower_sin_cos(nir_shader *shader);
-
 typedef struct {
    enum amd_gfx_level gfx_level;
    bool has_ls_vgpr_init_bug;

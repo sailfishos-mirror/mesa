@@ -4,13 +4,11 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "ac_nir.h"
-#include "ac_nir_helpers.h"
-
+#include "nir.h"
 #include "nir_builder.h"
 
 static bool
-lower_sin_cos(struct nir_builder *b, nir_alu_instr *sincos, UNUSED void *_)
+normalize_sin_cos(struct nir_builder *b, nir_alu_instr *sincos, UNUSED void *_)
 {
    if (sincos->op != nir_op_fsin && sincos->op != nir_op_fcos)
       return false;
@@ -26,7 +24,7 @@ lower_sin_cos(struct nir_builder *b, nir_alu_instr *sincos, UNUSED void *_)
 }
 
 bool
-ac_nir_lower_sin_cos(nir_shader *shader)
+nir_normalize_sin_cos(nir_shader *shader)
 {
-   return nir_shader_alu_pass(shader, lower_sin_cos, nir_metadata_control_flow, NULL);
+   return nir_shader_alu_pass(shader, normalize_sin_cos, nir_metadata_control_flow, NULL);
 }

@@ -657,7 +657,7 @@ static void si_preprocess_nir(struct si_nir_shader_ctx *ctx)
    };
    NIR_PASS(progress, nir, nir_lower_image, &lower_image_options);
 
-   NIR_PASS(progress, nir, ac_nir_lower_sin_cos);
+   NIR_PASS(progress, nir, nir_normalize_sin_cos);
    NIR_PASS(progress, nir, si_nir_lower_intrinsics_early);
 
    if (nir->info.stage == MESA_SHADER_TASK) {
