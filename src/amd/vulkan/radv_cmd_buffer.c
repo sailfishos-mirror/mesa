@@ -15496,6 +15496,7 @@ radv_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstCou
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_streamout_state *so = &cmd_buffer->state.streamout;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
+   bool needs_pfp_sync_me = false;
 
    assert(firstCounterBuffer + counterBufferCount <= MAX_SO_BUFFERS);
 
@@ -15532,6 +15533,8 @@ radv_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstCou
          va += vk_buffer_address(&buffer->vk, counter_buffer_offset);
 
          radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+
+         needs_pfp_sync_me = true;
       }
 
       if (pdev->info.gfx_level >= GFX12) {
@@ -15573,6 +15576,15 @@ radv_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstCou
 
    assert(cs->b->cdw <= cdw_max);
 
+   if (needs_pfp_sync_me && pdev->info.has_load_ctx_reg_pkt) {
+      /* Make sure that PFP waits for ME to avoid a race condition because the data is written by
+       * STRMOUT_BUFFER_UPDATE/COPY_DATA in ME, but LOAD_CONTEXT_REG_INDEX loads the value from
+       * memory between PFP and ME.
+       */
+      radeon_check_space(device->ws, cs->b, 2);
+      ac_emit_cp_pfp_sync_me(cs->b, false);
+   }
+
    radv_set_streamout_enable(cmd_buffer, false);
 }
 
@@ -15602,12 +15614,6 @@ radv_emit_strmout_buffer(struct radv_cmd_buffer *cmd_buffer, const struct radv_d
    radeon_end();
 
    if (pdev->info.has_load_ctx_reg_pkt) {
-      /* Make sure that PFP waits for ME to avoid a race condition because the data is written by
-       * STRMOUT_BUFFER_UPDATE in ME, but LOAD_CONTEXT_REG_INDEX loads the value from memory between
-       * PFP and ME.
-       */
-      ac_emit_cp_pfp_sync_me(cs->b, false);
-
       ac_emit_cp_load_context_reg_index(cs->b, R_028B2C_VGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE, 1,
                                         draw_info->strmout_va, false);
    } else {
