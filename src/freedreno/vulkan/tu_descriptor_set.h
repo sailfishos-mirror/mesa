@@ -468,17 +468,17 @@ template <chip CHIP>
 static inline uint64_t
 tu_desc_get_ubwc(uint32_t *desc)
 {
+   uint64_t addr = 0;
+
    if ((CHIP >= A8XX) && (desc[4] & A8XX_TEX_MEMOBJ_4_FLAG)) {
-      uint64_t addr = desc[4] & ~0x1f;
-      addr |= (uint64_t)(desc[5] & 0xffff) << 32;
-      return addr;
+      addr = pkt_field_get(A8XX_TEX_MEMOBJ_4_FLAG_LO, desc[4]) << 6;
+      addr |= (uint64_t)pkt_field_get(A8XX_TEX_MEMOBJ_5_FLAG_HI, desc[5]) << 32;
    } else if ((CHIP <= A7XX) && (desc[3] & A6XX_TEX_MEMOBJ_3_FLAG)) {
-      uint64_t addr = desc[7];
-      addr |= (uint64_t)(desc[8] & 0xffff) << 32;
-      return addr;
-   } else {
-      return 0;
+      addr = pkt_field_get(A6XX_TEX_MEMOBJ_7_FLAG_LO, desc[7]) << 5;
+      addr |= (uint64_t)pkt_field_get(A6XX_TEX_MEMOBJ_8_FLAG_HI, desc[8]) << 32;
    }
+
+   return addr;
 }
 
 template <chip CHIP>
@@ -486,18 +486,17 @@ static inline void
 tu_desc_set_ubwc(uint32_t *desc, uint64_t addr)
 {
    if (CHIP >= A8XX) {
-      assert(!(addr & 0x1f));
       if (addr) {
-         desc[4] = (desc[4] & 0x1f) | addr;
-         desc[5] = (desc[5] & 0xffff) | addr >> 32;
+         desc[4] = pkt_field_set(A8XX_TEX_MEMOBJ_4_FLAG_LO, desc[4], addr);
+         desc[5] = pkt_field_set(A8XX_TEX_MEMOBJ_5_FLAG_HI, desc[5], addr >> 32);
          desc[4] |= A8XX_TEX_MEMOBJ_4_FLAG;
       } else {
          desc[4] &= ~A8XX_TEX_MEMOBJ_4_FLAG;
       }
    } else {
       if (addr) {
-         desc[7] = addr;
-         desc[8] = (desc[8] & 0xffff) | addr >> 32;
+         desc[7] = pkt_field_set(A6XX_TEX_MEMOBJ_7_FLAG_LO, desc[7], addr);
+         desc[8] = pkt_field_set(A6XX_TEX_MEMOBJ_8_FLAG_HI, desc[8], addr >> 32);
          desc[3] |= A6XX_TEX_MEMOBJ_3_FLAG;
       } else {
          desc[3] &= ~A6XX_TEX_MEMOBJ_3_FLAG;
