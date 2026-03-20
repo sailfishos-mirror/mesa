@@ -440,9 +440,6 @@ tu_CreateQueryPool(VkDevice _device,
       return result;
    }
 
-   /* Initialize all query statuses to unavailable */
-   memset(pool->bo->map, 0, pool->bo->size);
-
    pool->size = pCreateInfo->queryCount;
    pool->query_stride = slot_size;
 
