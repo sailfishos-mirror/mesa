@@ -824,7 +824,7 @@ virtio_bo_init_dmabuf(struct tu_device *dev,
 
    res_id = vdrm_handle_to_res_id(vdrm, handle);
    if (!res_id) {
-      /* XXX gem_handle potentially leaked here since no refcnt */
+      vdrm_bo_close(vdrm, handle);
       result = vk_error(dev, VK_ERROR_INVALID_EXTERNAL_HANDLE);
       goto out_unlock;
    }
@@ -846,7 +846,7 @@ virtio_bo_init_dmabuf(struct tu_device *dev,
                                                   &iova);
    mtx_unlock(&dev->vma_mutex);
    if (result != VK_SUCCESS) {
-      vdrm_bo_close(dev->vdev->vdrm, handle);
+      vdrm_bo_close(vdrm, handle);
       goto out_unlock;
    }
 
