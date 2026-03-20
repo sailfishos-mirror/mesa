@@ -2634,7 +2634,8 @@ static LLVMValueRef visit_load_input(struct ac_nir_context *ctx, nir_intrinsic_i
    if (instr->intrinsic == nir_intrinsic_load_input_vertex)
       vertex_id = nir_src_as_uint(instr->src[0]);
 
-   unsigned base = nir_intrinsic_base(instr);
+   nir_shader *nir = nir_cf_node_get_function(&instr->instr.block->cf_node)->function->shader;
+   unsigned base = ac_nir_get_io_driver_location(nir, sem.location, true);
    LLVMValueRef attr_number = LLVMConstInt(ctx->ac.i32, base, false);
    LLVMTypeRef dest_type = get_def_type(ctx, &instr->def);
    LLVMValueRef values[8];
@@ -2823,7 +2824,9 @@ static bool visit_intrinsic(struct ac_nir_context *ctx, nir_intrinsic_instr *ins
       assert(offset[0].i32 == 0);
 
       LLVMValueRef interp_param = get_src(ctx, instr->src[0]);
-      unsigned index = nir_intrinsic_base(instr);
+      nir_shader *nir = nir_cf_node_get_function(&instr->instr.block->cf_node)->function->shader;
+      unsigned index =
+         ac_nir_get_io_driver_location(nir, nir_intrinsic_io_semantics(instr).location, true);
       unsigned component = nir_intrinsic_component(instr);
       result = load_interpolated_input(ctx, interp_param, index, component,
                                        instr->def.num_components, instr->def.bit_size,

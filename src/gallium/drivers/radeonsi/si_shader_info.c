@@ -205,7 +205,7 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
    unsigned num_slots = indirect ? nir_intrinsic_io_semantics(intr).num_slots : 1;
    unsigned driver_location;
 
-   if (nir->info.stage == MESA_SHADER_FRAGMENT && !is_input)
+   if (nir->info.stage == MESA_SHADER_FRAGMENT)
       driver_location = ac_nir_get_io_driver_location(nir, semantic, is_input);
    else
       driver_location = nir_intrinsic_base(intr);
