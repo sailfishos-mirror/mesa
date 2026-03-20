@@ -5561,46 +5561,6 @@ bifrost_nir_valid_channel(nir_builder *b, nir_def *in, unsigned channel,
    return nir_channel(b, in, channel);
 }
 
-/* Lower fragment store_output instructions to always write 4 components,
- * matching the hardware semantic. This may require additional moves. Skipping
- * these moves is possible in theory, but invokes undefined behaviour in the
- * compiler. The DDK inserts these moves, so we will as well. */
-
-static bool
-bifrost_nir_lower_blend_components(struct nir_builder *b,
-                                   nir_intrinsic_instr *intr, void *data)
-{
-   if (intr->intrinsic != nir_intrinsic_store_output)
-      return false;
-
-   nir_def *in = intr->src[0].ssa;
-   unsigned first = nir_intrinsic_component(intr);
-   unsigned mask = nir_intrinsic_write_mask(intr);
-
-   assert(first == 0 && "shouldn't get nonzero components");
-
-   /* Nothing to do */
-   if (mask == BITFIELD_MASK(4))
-      return false;
-
-   b->cursor = nir_before_instr(&intr->instr);
-
-   /* Replicate the first valid component instead */
-   nir_def *replicated =
-      nir_vec4(b, bifrost_nir_valid_channel(b, in, 0, first, mask),
-               bifrost_nir_valid_channel(b, in, 1, first, mask),
-               bifrost_nir_valid_channel(b, in, 2, first, mask),
-               bifrost_nir_valid_channel(b, in, 3, first, mask));
-
-   /* Rewrite to use our replicated version */
-   nir_src_rewrite(&intr->src[0], replicated);
-   nir_intrinsic_set_component(intr, 0);
-   nir_intrinsic_set_write_mask(intr, 0xF);
-   intr->num_components = 4;
-
-   return true;
-}
-
 static nir_mem_access_size_align
 mem_access_size_align_cb(nir_intrinsic_op intrin, uint8_t bytes,
                          uint8_t bit_size, uint32_t align_mul,
@@ -5841,12 +5801,6 @@ bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust2_mode
 
    NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
    NIR_PASS(_, nir, nir_opt_dce);
-
-   if (nir->info.stage == MESA_SHADER_FRAGMENT) {
-      NIR_PASS(_, nir, nir_shader_intrinsics_pass,
-               bifrost_nir_lower_blend_components, nir_metadata_control_flow,
-               NULL);
-   }
 
    /* Backend scheduler is purely local, so do some global optimizations
     * to reduce register pressure. */
