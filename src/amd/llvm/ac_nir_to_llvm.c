@@ -2615,6 +2615,7 @@ static LLVMValueRef visit_load_input(struct ac_nir_context *ctx, nir_intrinsic_i
 {
    LLVMValueRef values[8];
    LLVMTypeRef dest_type = get_def_type(ctx, &instr->def);
+   nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
    unsigned base = nir_intrinsic_base(instr);
    unsigned component = nir_intrinsic_component(instr);
    unsigned count = instr->def.num_components;
@@ -2626,17 +2627,9 @@ static LLVMValueRef visit_load_input(struct ac_nir_context *ctx, nir_intrinsic_i
 
    /* This is used to load TCS inputs from VGPRs in radeonsi. */
    if (ctx->stage == MESA_SHADER_TESS_CTRL) {
-      LLVMTypeRef component_type = LLVMGetTypeKind(dest_type) == LLVMVectorTypeKind ?
-                                      LLVMGetElementType(dest_type) : dest_type;
-
-      LLVMValueRef result = ctx->abi->load_tess_varyings(ctx->abi, component_type,
-                                                         nir_intrinsic_io_semantics(instr).location,
-                                                         component, count);
-      if (instr->def.bit_size == 16) {
-         result = ac_to_integer(&ctx->ac, result);
-         result = LLVMBuildTrunc(ctx->ac.builder, result, dest_type, "");
-      }
-      return LLVMBuildBitCast(ctx->ac.builder, result, dest_type, "");
+      return ctx->abi->load_tess_varyings(ctx->abi, instr->def.num_components,
+                                          instr->def.bit_size, sem.location,
+                                          component, sem.high_16bits);
    }
 
    assert(ctx->stage == MESA_SHADER_FRAGMENT);
