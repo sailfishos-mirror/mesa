@@ -4844,7 +4844,7 @@
         "description": "nak: Do not allow load_helper_invocation reordering",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7ece220f968e1c8f9a7e09da1c0640dd8ff9f170",
         "notes": null
