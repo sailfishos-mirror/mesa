@@ -218,6 +218,7 @@ node_is_dead(nir_cf_node *node)
             case nir_intrinsic_load_ssbo:
             case nir_intrinsic_load_global:
             case nir_intrinsic_load_ssbo_intel:
+            case nir_intrinsic_load_ssbo_ir3:
                /* If there's a memory barrier after the loop, a load might be
                 * required to happen before some other instruction after the
                 * barrier, so it is not valid to eliminate it -- unless we
