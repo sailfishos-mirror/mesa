@@ -54,7 +54,6 @@ static const nir_shader_compiler_options nir_options = {
    .lower_fsqrt = true,
    .lower_ftrunc = true,
    .lower_ifind_msb = true,
-   .lower_ldexp = true,
    .lower_layer_fs_input_to_sysval = true,
    .lower_uadd_carry = true,
    .lower_uadd_sat = true,

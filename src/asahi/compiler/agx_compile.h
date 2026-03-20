@@ -369,7 +369,6 @@ static const nir_shader_compiler_options agx_nir_options = {
    .lower_fminmax_signed_zero = true,
    .lower_fdph = true,
    .lower_ffract = true,
-   .lower_ldexp = true,
    .lower_pack_half_2x16 = true,
    .lower_pack_unorm_2x16 = true,
    .lower_pack_snorm_2x16 = true,

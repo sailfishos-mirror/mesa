@@ -46,7 +46,6 @@ const struct nir_shader_compiler_options brw_scalar_nir_options = {
    .lower_insert_word = true,
    .lower_isign = true,
    .lower_layer_fs_input_to_sysval = true,
-   .lower_ldexp = true,
    .lower_pack_half_2x16 = true,
    .lower_pack_snorm_2x16 = true,
    .lower_pack_snorm_4x8 = true,

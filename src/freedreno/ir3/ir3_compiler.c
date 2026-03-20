@@ -125,7 +125,6 @@ static const nir_shader_compiler_options ir3_base_options = {
    .lower_fmod = true,
    .lower_fdiv = true,
    .lower_isign = true,
-   .lower_ldexp = true,
    .lower_uadd_carry = true,
    .lower_usub_borrow = true,
    .lower_mul_high = true,

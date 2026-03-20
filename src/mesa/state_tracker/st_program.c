@@ -629,7 +629,6 @@ static const struct nir_shader_compiler_options draw_nir_options = {
    .lower_uadd_sat = true,
    .lower_usub_sat = true,
    .lower_iadd_sat = true,
-   .lower_ldexp = true,
    .lower_pack_snorm_2x16 = true,
    .lower_pack_snorm_4x8 = true,
    .lower_pack_unorm_2x16 = true,

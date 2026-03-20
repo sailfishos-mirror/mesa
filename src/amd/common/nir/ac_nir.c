@@ -65,7 +65,8 @@ void ac_nir_set_options(const struct ac_compiler_info *info, bool use_llvm,
    options->lower_iadd_sat = info->gfx_level <= GFX8;
    options->lower_hadd = true;
    options->lower_mul_32x16 = true;
-   options->lower_bfloat16_conversions = true,
+   options->lower_bfloat16_conversions = true;
+   options->has_ldexp = true;
    options->has_bfe = true;
    options->has_bfm = true;
    options->has_bitfield_select = true;

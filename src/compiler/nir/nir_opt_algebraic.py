@@ -3164,9 +3164,9 @@ def ldexp(f, exp, bits):
    return ('!fmul', ('!fmul', f, pow2_1), pow2_2)
 
 optimizations += [
-   (('ldexp@16', 'x', 'exp'), ldexp('x', 'exp', 16), 'options->lower_ldexp', TestStatus.UNSUPPORTED), # All test inputs skipped.
-   (('ldexp@32', 'x', 'exp'), ldexp('x', 'exp', 32), 'options->lower_ldexp', TestStatus.UNSUPPORTED), # All test inputs skipped.
-   (('ldexp@64', 'x', 'exp'), ldexp('x', 'exp', 64), 'options->lower_ldexp', TestStatus.UNSUPPORTED), # All test inputs skipped.
+   (('ldexp@16', 'x', 'exp'), ldexp('x', 'exp', 16), '!options->has_ldexp', TestStatus.UNSUPPORTED), # All test inputs skipped.
+   (('ldexp@32', 'x', 'exp'), ldexp('x', 'exp', 32), '!options->has_ldexp', TestStatus.UNSUPPORTED), # All test inputs skipped.
+   (('ldexp@64', 'x', 'exp'), ldexp('x', 'exp', 64), '!options->has_ldexp', TestStatus.UNSUPPORTED), # All test inputs skipped.
 ]
 
 # XCOM 2 (OpenGL) open-codes bitfieldReverse()

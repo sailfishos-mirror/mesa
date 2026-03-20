@@ -161,7 +161,6 @@ fn nir_options(dev: &nv_device_info) -> nir_shader_compiler_options {
             | nir_lower_conv64)
             | if dev.sm < 70 { nir_lower_vote_ieq64 } else { 0 }
             | if dev.sm < 32 { nir_lower_shift64 } else { 0 },
-        lower_ldexp: true,
         lower_fmod: true,
         lower_ffract: true,
         lower_fpow: true,

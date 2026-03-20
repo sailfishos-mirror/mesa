@@ -148,6 +148,7 @@ valhal_writes_extended_fifo(uint64_t outputs_written,
       .lower_uadd_carry = true,                                                \
       .lower_usub_borrow = true,                                               \
                                                                                \
+      .has_ldexp = true,                                                       \
       .has_isub = true,                                                        \
       .vectorize_vec2_16bit = true,                                            \
       .fuse_ffma16 = true,                                                     \

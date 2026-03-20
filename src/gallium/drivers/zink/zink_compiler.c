@@ -1287,7 +1287,7 @@ zink_screen_init_compiler(struct zink_screen *screen)
        * effectively unused (no instances in shader-db), it's not worth the
        * effort to do so.
        * */
-      .lower_ldexp = true,
+      .has_ldexp = false,
 
       .lower_mul_high = true,
       .lower_to_scalar = true,

@@ -22,7 +22,6 @@
    .lower_fisnormal = true,                                                   \
    .lower_fquantize2f16 = true,                                               \
    .lower_isign = true,                                                       \
-   .lower_ldexp = true,                                                       \
    .lower_bitfield_extract = true,                                            \
    .lower_bitfield_insert = true,                                             \
    .lower_device_index_to_zero = true,                                        \

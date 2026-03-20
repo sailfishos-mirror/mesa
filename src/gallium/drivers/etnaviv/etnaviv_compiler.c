@@ -47,7 +47,6 @@ etna_compiler_create(const char *renderer, const struct etna_core_info *info)
       .fuse_ffma64 = true,
       .lower_uadd_carry = true,
       .lower_usub_borrow = true,
-      .lower_ldexp = true,
       .lower_mul_high = true,
       .lower_bitops = true,
       .lower_flrp32 = true,

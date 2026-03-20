@@ -196,7 +196,6 @@ v3dv_pipeline_get_nir_options(const struct v3d_device_info *devinfo)
       .lower_fsqrt = true,
       .lower_ifind_msb = true,
       .lower_isign = true,
-      .lower_ldexp = true,
       .lower_mul_high = true,
       .lower_wpos_pntc = false,
       .lower_to_scalar = true,

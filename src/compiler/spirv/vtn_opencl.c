@@ -691,7 +691,7 @@ handle_special(struct vtn_builder *b, uint32_t opcode,
    case OpenCLstd_Native_tan:
       return nir_ftan(nb, srcs[0]);
    case OpenCLstd_Ldexp:
-      if (nb->shader->options->lower_ldexp)
+      if (!nb->shader->options->has_ldexp)
          break;
       return nir_ldexp(nb, srcs[0], srcs[1]);
    case OpenCLstd_Fma: {
