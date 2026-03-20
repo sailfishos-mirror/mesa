@@ -982,6 +982,10 @@ impl<'a> ShaderFromNir<'a> {
                 dst.into()
             }
             nir_op_fcos => b.fcos(srcs(0)).into(),
+            nir_op_fcos_normalized_2_pi => {
+                assert!(self.sm.sm() >= 70);
+                b.mufu(MuFuOp::Cos, srcs(0)).into()
+            }
             nir_op_feq | nir_op_fge | nir_op_flt | nir_op_fneu => {
                 let src_type =
                     FloatType::from_bits(alu.get_src(0).bit_size().into());
@@ -1317,6 +1321,10 @@ impl<'a> ShaderFromNir<'a> {
                 }
             }
             nir_op_fsin => b.fsin(srcs(0)).into(),
+            nir_op_fsin_normalized_2_pi => {
+                assert!(self.sm.sm() >= 70);
+                b.mufu(MuFuOp::Sin, srcs(0)).into()
+            }
             nir_op_fsqrt => b.mufu(MuFuOp::Sqrt, srcs(0)).into(),
             nir_op_i2f16 | nir_op_i2f32 | nir_op_i2f64 => {
                 let src_bits = alu.get_src(0).src.bit_size();

@@ -1308,6 +1308,9 @@ nak_postprocess_nir(nir_shader *nir,
    OPT(nir, nir_lower_doubles, NULL, nak->nir_options.lower_doubles_options);
    OPT(nir, nir_lower_int64);
 
+   if (nak->sm >= 70)
+      OPT(nir, nir_normalize_sin_cos);
+
    nak_optimize_nir(nir, nak);
 
    do {
