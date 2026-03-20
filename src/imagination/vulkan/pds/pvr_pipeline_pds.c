@@ -1056,14 +1056,14 @@ void pvr_pds_generate_vertex_primary_program(
        *	if (test == 1) {
        *	   // DDMAD(T)
        *	   if (calculated_source_address[39:0] + (burst_size<<2) <=
-       *         base_address[39:0] + buffer_size) {
-       *        OOB := 0
-       *        DOUTD calculated_source_address,dma_paramters
-       *     } else {
-       *        OOB := 1
-       *        if (last_instance == 1) {
-       *           dma_parameters[BURST_SIZE] := 0
-       *           DOUTD calculated_source_address,dma_paramters
+       *	       base_address[39:0] + buffer_size) {
+       *	      OOB := 0
+       *	      DOUTD calculated_source_address,dma_paramters
+       *	   } else {
+       *	      OOB := 1
+       *	      if (last_instance == 1) {
+       *	         dma_parameters[BURST_SIZE] := 0
+       *	         DOUTD calculated_source_address,dma_paramters
        *	      }
        *	   }
        *	} else {
