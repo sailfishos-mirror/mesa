@@ -1101,7 +1101,11 @@ void pvr_pds_generate_vertex_primary_program(
             oob_buffer_size->type =
                PVR_PDS_CONST_MAP_ENTRY_TYPE_VERTEX_ATTR_DDMADT_OOB_BUFFER_SIZE;
             oob_buffer_size->const_offset = const_base + 7;
+            oob_buffer_size->offset = vertex_dma->offset;
             oob_buffer_size->binding_index = vertex_dma->binding_index;
+            oob_buffer_size->size_in_dwords = vertex_dma->size_in_dwords;
+            oob_buffer_size->attrib_size_in_bytes =
+               vertex_dma->attrib_size_in_bytes;
          } else {
             literal_entry =
                pvr_prepare_next_pds_const_map_entry(&entry_write_state,

@@ -5345,26 +5345,54 @@ pvr_setup_vertex_buffers(struct pvr_cmd_buffer *cmd_buffer,
             &cmd_buffer->vk.dynamic_graphics_state;
          uint32_t stride =
             dynamic_state->vi_binding_strides[ddmadt_src3->binding_index];
-         uint32_t bound_size = binding->buffer->vk.size - binding->offset;
+         uint32_t valid_buffer_size =
+            binding->buffer->vk.size - binding->offset - ddmadt_src3->offset;
+         uint32_t attrib_size = ddmadt_src3->attrib_size_in_bytes;
+         uint32_t dma_size = ddmadt_src3->size_in_dwords * 4;
          uint64_t control_qword;
          uint32_t control_dword;
 
          assert(PVR_HAS_FEATURE(&cmd_buffer->device->pdevice->dev_info,
                                 pds_ddmadt));
 
-         if (stride) {
-            bound_size -= bound_size % stride;
-            if (bound_size == 0) {
-               /* If size is zero, DMA OOB won't execute. Read will come from
-                * robustness buffer.
+         /* The DMA should cover the whole attribute, but do not overread
+          * more than the headroom when allocating memory for buffers.
+          */
+         assert(dma_size >= attrib_size);
+         assert(dma_size <= attrib_size + PVR_BUFFER_MEMORY_PADDING_SIZE);
+
+         /* DDMADT checks whether the whole DMA request (size indicated by
+          * the sizes_in_dwords field) is out of the regions set by msize.
+          * Set the buffer size to the last valid vertex DMA address plus
+          * the size of one DMA request.
+          *
+          * This also ensures at least one valid inbound DDMAD is possible.
+          * In case the original buffer isn't big enough for one DMA, the
+          * DDMADT source_address should have been already redirected to the
+          * robust buffer when setting up ROBUST_VERTEX_ATTRIBUTE_ADDRESS.
+          *
+          * See also the pseudocode in pvr_pds_generate_vertex_primary_program()
+          * before the "LAST DDMAD" mark, which explains how DDMAD(T) works.
+          */
+         if (stride == 0) {
+            /* All DMA requests happen on the same address */
+            valid_buffer_size = 0;
+         } else {
+            uint32_t buffer_tail_size = valid_buffer_size % stride;
+            valid_buffer_size -= buffer_tail_size;
+            if (buffer_tail_size < attrib_size && valid_buffer_size != 0) {
+               /* The buffer tail isn't big enough for a vertex attribute fetch
+                * operation so the last valid DMA happens on the last whole
+                * stride.
                 */
-               bound_size = stride;
+               valid_buffer_size -= stride;
             }
          }
+         valid_buffer_size += dma_size;
 
          pvr_csb_pack (&control_qword, PDSINST_DDMAD_FIELDS_SRC3, src3) {
             src3.test = true;
-            src3.msize = bound_size;
+            src3.msize = valid_buffer_size;
          }
          control_dword = (uint32_t)(control_qword >> 32);
 
