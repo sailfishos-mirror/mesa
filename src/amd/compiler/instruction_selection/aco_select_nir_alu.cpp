@@ -2529,9 +2529,13 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
          }
 
          Temp src = get_alu_src(ctx, instr->src[0]);
+
          /* before GFX9, v_sin and v_cos had a valid input domain of [-256, +256] */
-         if (ctx->options->gfx_level < GFX9)
-            src = bld.vop1(fract, bld.def(rc), src);
+         if (ctx->options->gfx_level < GFX9) {
+            fp_class_mask fp_class = nir_analyze_fp_class(&ctx->fp_class_ht, instr->src[0].src.ssa);
+            if (fp_class & (FP_CLASS_ANY_INF | FP_CLASS_LT_NEG_ONE | FP_CLASS_GT_POS_ONE))
+               src = bld.vop1(fract, bld.def(rc), src);
+         }
 
          if (dst.regClass() == rc) {
             bld.vop1(opcode, Definition(dst), src);
