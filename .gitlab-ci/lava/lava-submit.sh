@@ -48,6 +48,8 @@ tail -f results/lava.log &
 set -x
 
 # List of optional overlays
+# NOTE: If you encounter "Attempted path traversal in tar file at /dev/ttyS1",
+# that is an indication that one of your rootfs and overlays contain a duplicate file.
 LAVA_EXTRA_OVERLAYS=()
 if [ -n "${LAVA_FIRMWARE:-}" ]; then
     for fw in $LAVA_FIRMWARE; do
