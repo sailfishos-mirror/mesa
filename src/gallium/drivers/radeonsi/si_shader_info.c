@@ -252,12 +252,14 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
             }
          }
 
-         /* No 2 outputs can use the same driver location. */
-         assert((info->output_semantic[loc] == slot_semantic ||
-                 info->output_semantic[loc] == NUM_TOTAL_VARYING_SLOTS) &&
-                "nir_recompute_io_bases wasn't called");
+         if (nir->info.stage != MESA_SHADER_FRAGMENT) {
+            /* No 2 outputs can use the same driver location. */
+            assert((info->output_semantic[loc] == slot_semantic ||
+                    info->output_semantic[loc] == NUM_TOTAL_VARYING_SLOTS) &&
+                   "nir_recompute_io_bases wasn't called");
 
-         info->output_semantic[loc] = slot_semantic;
+            info->output_semantic[loc] = slot_semantic;
+         }
 
          if (!is_output_load && mask) {
             /* Output stores. */
@@ -759,9 +761,11 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
          assert(info->input_semantic[i] != NUM_TOTAL_VARYING_SLOTS &&
                 "nir_recompute_io_bases wasn't called");
    }
-   for (unsigned i = 0; i < info->num_outputs; i++) {
-      assert(info->output_semantic[i] != NUM_TOTAL_VARYING_SLOTS &&
-             "nir_recompute_io_bases wasn't called");
+   if (nir->info.stage != MESA_SHADER_FRAGMENT) {
+      for (unsigned i = 0; i < info->num_outputs; i++) {
+         assert(info->output_semantic[i] != NUM_TOTAL_VARYING_SLOTS &&
+                "nir_recompute_io_bases wasn't called");
+      }
    }
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {

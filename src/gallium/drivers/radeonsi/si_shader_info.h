@@ -92,7 +92,7 @@ struct si_shader_info {
    uint8_t num_inputs;
    uint8_t num_outputs;
    uint8_t input_semantic[PIPE_MAX_SHADER_INPUTS];
-   uint8_t output_semantic[PIPE_MAX_SHADER_OUTPUTS];
+   uint8_t output_semantic[PIPE_MAX_SHADER_OUTPUTS]; /* unset for FS */
 
    uint8_t num_vs_inputs;
    uint8_t num_vbos_in_user_sgprs;
