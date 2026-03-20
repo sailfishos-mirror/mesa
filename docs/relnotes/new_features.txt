@@ -1,3 +1,4 @@
+GL_NV_timeline_semaphore on radeonsi
 VK_QCOM_image_processing on Turnip
 VK_EXT_present_timing on RADV, NVK, Turnip, ANV, Honeykrisp, panvk
 VK_KHR_sampler_ycbcr_conversion on pvr
