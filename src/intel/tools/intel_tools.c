@@ -51,9 +51,7 @@ intel_decoder_init(struct intel_batch_decode_ctx *ctx,
                    void *user_data)
 {
    if (devinfo->ver >= 9) {
-      struct brw_isa_info *isa = &isa_info->brw_isa;
-      brw_init_isa_info(isa, devinfo);
-      intel_batch_decode_ctx_init_brw(ctx, isa, devinfo, fp,
+      intel_batch_decode_ctx_init_gen(ctx, devinfo, fp,
                                       flags, xml_path, get_bo, get_state_size, user_data);
    } else {
 #ifdef INTEL_USE_ELK

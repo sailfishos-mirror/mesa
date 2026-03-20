@@ -26,7 +26,6 @@
 #include "drm-uapi/xe_drm.h"
 
 #include "intel/compiler/brw/brw_asm.h"
-#include "intel/compiler/brw/brw_isa_info.h"
 #include "intel/common/intel_gem.h"
 #include "intel/common/xe/intel_engine.h"
 #include "intel/decoder/intel_decoder.h"
@@ -269,7 +268,6 @@ print_help()
 static struct {
    struct intel_device_info devinfo;
    struct isl_device isl_dev;
-   struct brw_isa_info isa;
    int fd;
 
    const char *oa_csv_path;
@@ -1349,7 +1347,7 @@ l_execute(lua_State *L)
       if (INTEL_DEBUG(DEBUG_COLOR))
          flags |= INTEL_BATCH_DECODE_IN_COLOR;
 
-      intel_batch_decode_ctx_init_brw(&decoder, &E.isa, &E.devinfo, stdout,
+      intel_batch_decode_ctx_init_gen(&decoder, &E.devinfo, stdout,
                                       flags, NULL, decode_get_bo, decode_get_state_size, &ec);
 
       assert(ec.bo.batch.cursor > ec.bo.batch.map);
@@ -1505,7 +1503,6 @@ main(int argc, char *argv[])
    fprintf(stderr, "Using device: %s\n", E.devinfo.name);
 
    isl_device_init(&E.isl_dev, &E.devinfo);
-   brw_init_isa_info(&E.isa, &E.devinfo);
    assert(E.devinfo.kmd_type == INTEL_KMD_TYPE_I915 ||
           E.devinfo.kmd_type == INTEL_KMD_TYPE_XE);
 

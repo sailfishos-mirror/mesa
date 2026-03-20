@@ -6,10 +6,12 @@
 #include "intel_decoder.h"
 #include "intel_decoder_private.h"
 
-#include "compiler/brw/brw_disasm.h"
+#include "compiler/gen/gen.h"
+
+#include "util/ralloc.h"
 
 static void
-ctx_disassemble_program_brw(struct intel_batch_decode_ctx *ctx,
+ctx_disassemble_program_gen(struct intel_batch_decode_ctx *ctx,
                             uint32_t ksp,
                             const char *short_name,
                             const char *name)
@@ -20,19 +22,42 @@ ctx_disassemble_program_brw(struct intel_batch_decode_ctx *ctx,
       return;
 
    fprintf(ctx->fp, "\nReferenced %s:\n", name);
-   brw_disassemble_with_errors(ctx->brw, bo.map, 0, NULL, ctx->fp);
+
+   const int size = gen_find_shader_size(&ctx->devinfo, bo.map, 0, bo.size);
+   if (size > 0) {
+      void *tmp_ctx = ralloc_context(NULL);
+
+      gen_decode_params decode = {
+         .devinfo = &ctx->devinfo,
+         .raw_bytes = bo.map,
+         .raw_bytes_size = size,
+         .mem_ctx = tmp_ctx,
+      };
+      gen_decode(&decode);
+
+      gen_print_params print = {
+         .devinfo = &ctx->devinfo,
+         .fp = ctx->fp,
+         .insts = decode.insts,
+         .num_insts = decode.num_insts,
+         .errors = decode.errors,
+         .num_errors = decode.num_errors,
+         .raw_bytes = bo.map,
+         .raw_bytes_size = size,
+      };
+      gen_print(&print);
+
+      ralloc_free(tmp_ctx);
+   }
 
    if (ctx->shader_binary) {
-      int size = brw_disassemble_find_end(ctx->brw, bo.map, 0);
-
       ctx->shader_binary(ctx->user_data, short_name, addr,
                          bo.map, size);
    }
 }
 
 void
-intel_batch_decode_ctx_init_brw(struct intel_batch_decode_ctx *ctx,
-                                const struct brw_isa_info *isa,
+intel_batch_decode_ctx_init_gen(struct intel_batch_decode_ctx *ctx,
                                 const struct intel_device_info *devinfo,
                                 FILE *fp, enum intel_batch_decode_flags flags,
                                 const char *xml_path,
@@ -45,7 +70,5 @@ intel_batch_decode_ctx_init_brw(struct intel_batch_decode_ctx *ctx,
 {
    intel_batch_decode_ctx_init(ctx, devinfo, fp, flags, xml_path,
                                get_bo, get_state_size, user_data);
-   ctx->brw = isa;
-   ctx->disassemble_program = ctx_disassemble_program_brw;
+   ctx->disassemble_program = ctx_disassemble_program_gen;
 }
-
