@@ -744,9 +744,8 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
    }
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
-      for (unsigned i = 0; i < info->num_inputs; i++) {
-         unsigned semantic = info->input_semantic[i];
-
+      u_foreach_bit64_two_masks(semantic, nir->info.inputs_read,
+                                VARYING_SLOT_VAR0_16BIT, nir->info.inputs_read_16bit) {
          if ((semantic <= VARYING_SLOT_VAR31 || semantic >= VARYING_SLOT_VAR0_16BIT) &&
              semantic != VARYING_SLOT_PNTC) {
             info->inputs_read |= 1ull << si_shader_io_get_unique_index(semantic);
