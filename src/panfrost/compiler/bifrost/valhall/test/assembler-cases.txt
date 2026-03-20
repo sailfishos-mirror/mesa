@@ -80,8 +80,8 @@ f0 00 3c 33 04 40 7f 78    BLEND.slot0.v4.f16.end @r0:r1, blend_descriptor_0.w0,
 42 00 0b 00 40 c2 90 00    F16_TO_F32 r2, r2^.neg.h0
 42 00 0c c0 40 c2 90 00    F32_TO_S32.rtz r2, r2^.neg
 42 00 0e e0 40 c2 90 00    V2F16_TO_V2S16.rtz r2, r2^.neg
-02 00 0a c0 40 c4 90 00    F16_TO_S32.rtz r4, r2.neg.h00
-42 00 0a d0 40 c5 90 00    F16_TO_S32.rtz r5, r2^.neg.h10
+02 00 0a c0 40 c4 90 00    F16_TO_S32.rtz r4, r2.neg.h0
+42 00 0a d0 40 c5 90 00    F16_TO_S32.rtz r5, r2^.neg.h1
 42 c0 c6 47 48 c2 14 01    FADD_IMM.f32 r2, r2^, #0x4847C6C0
 42 84 67 ac 70 c2 15 01    FADD_IMM.v2f16 r2, r2^, #0x70AC6784
 42 14 13 12 ad c2 12 01    IADD_IMM.v4i8 r2, r2^, #0xAD121314
@@ -144,12 +144,12 @@ c0 01 00 00 00 c4 10 51    IADD_IMM.i32.reconverge r4, 0x0, #0x1
 77 c0 05 10 00 c2 a1 00    MKVEC.v2i16 r2, r55^.h1, 0x0.h0
 c0 77 05 00 00 c2 a1 00    MKVEC.v2i16 r2, 0x0.h0, r55^.h0
 c0 77 05 04 00 c2 a1 00    MKVEC.v2i16 r2, 0x0.h0, r55^.h1
-77 00 14 00 00 c2 90 00    U16_TO_U32 r2, r55^.h00
-77 00 14 10 00 c2 90 00    U16_TO_U32 r2, r55^.h10
-77 00 15 00 00 c2 90 00    U16_TO_F32 r2, r55^.h00
-77 00 15 10 00 c2 90 00    U16_TO_F32 r2, r55^.h10
-77 00 04 00 00 c2 90 00    S16_TO_S32 r2, r55^.h00
-77 00 04 10 00 c2 90 00    S16_TO_S32 r2, r55^.h10
+77 00 14 00 00 c2 90 00    U16_TO_U32 r2, r55^.h0
+77 00 14 10 00 c2 90 00    U16_TO_U32 r2, r55^.h1
+77 00 15 00 00 c2 90 00    U16_TO_F32 r2, r55^.h0
+77 00 15 10 00 c2 90 00    U16_TO_F32 r2, r55^.h1
+77 00 04 00 00 c2 90 00    S16_TO_S32 r2, r55^.h0
+77 00 04 10 00 c2 90 00    S16_TO_S32 r2, r55^.h1
 c0 77 01 08 00 c2 a8 00    ISUB.s32 r2, 0x0, r55^.h0
 c0 77 01 0c 00 c2 a8 00    ISUB.s32 r2, 0x0, r55^.h1
 00 c0 c0 00 c0 c7 bd 00    MKVEC.v2i8 r7, r0.b3, 0x0.b0, 0x0
@@ -184,7 +184,7 @@ c0 77 01 0c 00 c2 a8 00    ISUB.s32 r2, 0x0, r55^.h1
 3d 00 10 72 18 84 5c 00    LD_VAR_BUF_IMM.f32.slot1.v4.src_f32.center.retrieve @r4:r5:r6:r7, r61, index:0x10
 c0 00 00 00 00 c8 10 01    IADD_IMM.i32 r8, 0x0, #0x0
 c0 00 00 00 00 c9 10 01    IADD_IMM.i32 r9, 0x0, #0x0
-3d 00 14 00 00 ca 90 00    U16_TO_U32 r10, r61.h00
+3d 00 14 00 00 ca 90 00    U16_TO_U32 r10, r61.h0
 3d 09 00 00 30 c0 1f 50    BRANCHZ.eq.reconverge r61.h0, offset:9
 0a 00 00 00 00 cb 91 50    MOV.i32.reconverge r11, r10
 00 00 00 00 00 c0 00 48    NOP.wait 
