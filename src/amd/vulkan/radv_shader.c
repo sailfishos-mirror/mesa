@@ -3350,20 +3350,21 @@ radv_shader_nir_to_asm(struct radv_device *device, struct radv_shader_stage *pl_
 }
 
 void
-radv_shader_dump_debug_info(struct radv_device *device, bool dump_shader, struct radv_shader_binary *binary,
-                            struct radv_shader *shader, struct nir_shader *const *shaders, int shader_count,
-                            struct radv_shader_info *info)
+radv_shader_dump_asm(struct radv_device *device, const struct radv_shader_debug_info *debug,
+                     const struct radv_shader_info *info)
 {
-   if (dump_shader) {
+   if (debug->dump_shader) {
       const struct radv_physical_device *pdev = radv_device_physical(device);
       const struct radv_instance *instance = radv_physical_device_instance(pdev);
 
       if (instance->debug_flags & RADV_DEBUG_DUMP_ASM) {
-         fprintf(stderr, "%s", radv_get_shader_name(info, shaders[0]->info.stage));
-         for (int i = 1; i < shader_count; ++i)
-            fprintf(stderr, " + %s", radv_get_shader_name(info, shaders[i]->info.stage));
+         const char *sep = "";
+         u_foreach_bit (stage, debug->stages) {
+            fprintf(stderr, "%s%s", sep, radv_get_shader_name(info, stage));
+            sep = " + ";
+         }
 
-         fprintf(stderr, "\ndisasm:\n%s\n", shader->dbg.disasm_string);
+         fprintf(stderr, "\ndisasm:\n%s\n", debug->disasm_string);
       }
    }
 }

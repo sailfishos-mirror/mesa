@@ -2430,7 +2430,7 @@ radv_create_gs_copy_shader(struct radv_device *device, struct vk_pipeline_cache 
       copy_shader->dbg.nir_string = nir_string;
       copy_shader->dbg.stages = 1 << MESA_SHADER_VERTEX;
       copy_shader->dbg.dump_shader = dump_shader;
-      radv_shader_dump_debug_info(device, dump_shader, *gs_copy_binary, copy_shader, &nir, 1, &gs_copy_stage.info);
+      radv_shader_dump_asm(device, &copy_shader->dbg, &gs_copy_stage.info);
    }
 
    if (dump_shader)
@@ -2507,8 +2507,7 @@ radv_graphics_shaders_nir_to_asm(struct radv_device *device, struct vk_pipeline_
          shaders[s]->dbg.stages |= 1 << nir_shaders[i]->info.stage;
       shaders[s]->dbg.dump_shader = dump_shader;
 
-      radv_shader_dump_debug_info(device, dump_shader, binaries[s], shaders[s], nir_shaders, shader_count,
-                                  &stages[s].info);
+      radv_shader_dump_asm(device, &shaders[s]->dbg, &stages[s].info);
 
       if (dump_shader)
          simple_mtx_unlock(&instance->shader_dump_mtx);

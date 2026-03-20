@@ -142,7 +142,7 @@ radv_compile_cs(struct radv_device *device, struct vk_pipeline_cache *cache, str
    cs_shader->dbg.stages = 1 << MESA_SHADER_COMPUTE;
    cs_shader->dbg.dump_shader = dump_shader;
 
-   radv_shader_dump_debug_info(device, dump_shader, *cs_binary, cs_shader, &cs_stage->nir, 1, &cs_stage->info);
+   radv_shader_dump_asm(device, &cs_shader->dbg, &cs_stage->info);
 
    if (dump_shader)
       simple_mtx_unlock(&instance->shader_dump_mtx);
