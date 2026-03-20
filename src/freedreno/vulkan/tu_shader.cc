@@ -1982,7 +1982,6 @@ tu6_emit_vfd_dest(struct tu_cs *cs,
                   const struct ir3_shader_variant *vs)
 {
    int32_t input_for_attr[MAX_VERTEX_ATTRIBS];
-   uint32_t attr_count = 0;
 
    for (unsigned i = 0; i < MAX_VERTEX_ATTRIBS; i++)
       input_for_attr[i] = -1;
@@ -1994,13 +1993,12 @@ tu6_emit_vfd_dest(struct tu_cs *cs,
       assert(vs->inputs[i].slot >= VERT_ATTRIB_GENERIC0);
       unsigned loc = vs->inputs[i].slot - VERT_ATTRIB_GENERIC0;
       input_for_attr[loc] = i;
-      attr_count = MAX2(attr_count, loc + 1);
    }
 
    tu_cs_emit_regs(cs,
                    A6XX_VFD_CNTL_0(
-                     .fetch_cnt = attr_count, /* decode_cnt for binning pass ? */
-                     .decode_cnt = attr_count));
+                     .fetch_cnt = vs->attr_in, /* decode_cnt for binning pass ? */
+                     .decode_cnt = vs->attr_in));
 
    if (CHIP >= A8XX) {
       const uint32_t vertexid_regid =
@@ -2016,15 +2014,15 @@ tu6_emit_vfd_dest(struct tu_cs *cs,
          (viewid_regid != INVALID_REG);
 
       tu_cs_emit_regs(cs, PC_VS_INPUT_CNTL(CHIP,
-         .instr_cnt = attr_count,
+         .instr_cnt = vs->attr_in,
          .sideband_cnt = sideband_count,
       ));
    }
 
-   if (attr_count)
-      tu_cs_emit_pkt4(cs, REG_A6XX_VFD_DEST_CNTL_INSTR(0), attr_count);
+   if (vs->attr_in)
+      tu_cs_emit_pkt4(cs, REG_A6XX_VFD_DEST_CNTL_INSTR(0), vs->attr_in);
 
-   for (unsigned i = 0; i < attr_count; i++) {
+   for (unsigned i = 0; i < vs->attr_in; i++) {
       if (input_for_attr[i] >= 0) {
             unsigned input_idx = input_for_attr[i];
             tu_cs_emit(cs, A6XX_VFD_DEST_CNTL_INSTR(0,

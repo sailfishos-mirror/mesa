@@ -81,6 +81,7 @@ enum tu_cmd_dirty_bits
    TU_CMD_DIRTY_SHADING_RATE = BIT(15),
    TU_CMD_DIRTY_DISABLE_FS = BIT(16),
    TU_CMD_DIRTY_TCS = BIT(17),
+   TU_CMD_DIRTY_VS = BIT(18),
 
    /* all draw states were disabled and need to be re-enabled: */
    TU_CMD_DIRTY_DRAW_STATE = BIT(18)

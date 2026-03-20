@@ -5170,6 +5170,9 @@ setup_input(struct ir3_context *ctx, nir_intrinsic_instr *intr)
          unsigned idx = (n * 4) + i + frac;
          ctx->last_dst[i] = ctx->inputs[idx];
       }
+
+      if (slot >= VERT_ATTRIB_GENERIC0)
+         so->attr_in = MAX2(so->attr_in, slot - VERT_ATTRIB_GENERIC0 + 1);
    }
 }
 

@@ -5329,7 +5329,10 @@ TU_GENX(tu_EndCommandBuffer);
 static void
 tu_bind_vs(struct tu_cmd_buffer *cmd, struct tu_shader *vs)
 {
-   cmd->state.shaders[MESA_SHADER_VERTEX] = vs;
+   if (cmd->state.shaders[MESA_SHADER_VERTEX] != vs) {
+      cmd->state.shaders[MESA_SHADER_VERTEX] = vs;
+      cmd->state.dirty |= TU_CMD_DIRTY_VS;
+   }
 }
 
 static void
