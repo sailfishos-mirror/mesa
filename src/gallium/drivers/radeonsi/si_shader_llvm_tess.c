@@ -8,6 +8,7 @@
 #include "si_shader_internal.h"
 #include "si_shader_llvm.h"
 #include "sid.h"
+#include "nir.h"
 
 static LLVMValueRef si_nir_load_tcs_varyings(struct ac_shader_abi *abi, LLVMTypeRef type,
                                              unsigned driver_location, unsigned component,
@@ -32,7 +33,7 @@ static LLVMValueRef si_nir_load_tcs_varyings(struct ac_shader_abi *abi, LLVMType
    return ac_build_gather_values(&ctx->ac, value + component, num_components);
 }
 
-void si_llvm_ls_build_end(struct si_shader_context *ctx)
+void si_llvm_ls_build_end(struct si_shader_context *ctx, const nir_shader *nir)
 {
    struct si_shader *shader = ctx->shader;
    bool same_thread_count = shader->key.ge.opt.same_patch_vertices;
@@ -75,12 +76,14 @@ void si_llvm_ls_build_end(struct si_shader_context *ctx)
 
       struct si_shader_info *info = &shader->selector->info;
 
-      for (unsigned i = 0; i < info->num_outputs; i++) {
-         unsigned semantic = info->output_semantic[i];
+      u_foreach_bit64_two_masks(semantic, nir->info.outputs_written,
+                                VARYING_SLOT_VAR0_16BIT, nir->info.outputs_written_16bit) {
          int param = si_shader_io_get_unique_index(semantic);
 
          if (!(info->ls_es_outputs_written & BITFIELD64_BIT(param)))
             continue;
+
+         unsigned i = ac_nir_get_io_driver_location(nir, semantic, false);
 
          for (unsigned chan = 0; chan < 4; chan++) {
             if (!ctx->abi.outputs[4 * i + chan])

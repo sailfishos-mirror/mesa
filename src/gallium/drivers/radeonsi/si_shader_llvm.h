@@ -60,7 +60,7 @@ void si_llvm_es_build_end(struct si_shader_context *ctx);
 void si_llvm_gs_build_end(struct si_shader_context *ctx);
 
 /* si_shader_llvm_tess.c */
-void si_llvm_ls_build_end(struct si_shader_context *ctx);
+void si_llvm_ls_build_end(struct si_shader_context *ctx, const nir_shader *nir);
 void si_llvm_init_tcs_callbacks(struct si_shader_context *ctx);
 
 /* si_shader_llvm_ps.c */
