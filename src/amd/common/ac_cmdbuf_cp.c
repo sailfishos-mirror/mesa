@@ -245,8 +245,13 @@ ac_emit_cp_copy_data(struct ac_cmdbuf *cs, uint32_t src_sel, uint32_t dst_sel,
       dword0 |= COPY_DATA_WR_CONFIRM;
    if (flags & AC_CP_COPY_DATA_COUNT_SEL)
       dword0 |= COPY_DATA_COUNT_SEL;
-   if (flags & AC_CP_COPY_DATA_ENGINE_PFP)
+   if (flags & AC_CP_COPY_DATA_ENGINE_PFP) {
+      /* COPY_DATA shouldn't set registers in PFP because that would execute
+       * out-of-order with SET register packets that are executed by ME.
+       */
+      assert(src_sel != COPY_DATA_REG && dst_sel != COPY_DATA_REG);
       dword0 |= COPY_DATA_ENGINE_PFP;
+   }
 
    ac_cmdbuf_begin(cs);
    ac_cmdbuf_emit(PKT3(PKT3_COPY_DATA, 4, predicate));
