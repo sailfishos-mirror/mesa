@@ -712,12 +712,12 @@ static bool visit_alu(struct ac_nir_context *ctx, const nir_alu_instr *instr)
    case nir_op_ffract:
       result = emit_fp_intrinsic(&ctx->ac, "llvm.amdgcn.fract", def_type, src[0], NULL, NULL);
       break;
-   case nir_op_fsin_amd:
-   case nir_op_fcos_amd:
+   case nir_op_fsin_normalized_2_pi:
+   case nir_op_fcos_normalized_2_pi:
       /* before GFX9, v_sin_f32 and v_cos_f32 had a valid input domain of [-256, +256] */
       if (ctx->ac.gfx_level < GFX9)
          src[0] = emit_fp_intrinsic(&ctx->ac, "llvm.amdgcn.fract", def_type, src[0], NULL, NULL);
-      result = emit_fp_intrinsic(&ctx->ac, instr->op == nir_op_fsin_amd ? "llvm.amdgcn.sin" : "llvm.amdgcn.cos",
+      result = emit_fp_intrinsic(&ctx->ac, instr->op == nir_op_fsin_normalized_2_pi ? "llvm.amdgcn.sin" : "llvm.amdgcn.cos",
                                  def_type, src[0], NULL, NULL);
       break;
    case nir_op_fsqrt:

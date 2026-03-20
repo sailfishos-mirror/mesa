@@ -5151,8 +5151,8 @@ default_varying_estimate_instr_cost(nir_instr *instr)
       case nir_op_fsqrt:
       case nir_op_fsin:
       case nir_op_fcos:
-      case nir_op_fsin_amd:
-      case nir_op_fcos_amd:
+      case nir_op_fsin_normalized_2_pi:
+      case nir_op_fcos_normalized_2_pi:
          /* FP64 is usually much slower. */
          return dst_bit_size == 64 ? 32 : 4;
 

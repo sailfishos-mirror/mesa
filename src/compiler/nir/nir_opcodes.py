@@ -1441,11 +1441,11 @@ unop_horiz("cube_amd", 4, tfloat32, 3, tfloat32, """
    }
 """)
 
-# r600/gcn specific sin and cos
+# amd/nv specific sin and cos
 # these trigeometric functions need some lowering because the supported
 # input values are expected to be normalized by dividing by (2 * pi)
-unop("fsin_amd", tfloat, "sinf(6.2831853 * src0)")
-unop("fcos_amd", tfloat, "cosf(6.2831853 * src0)")
+unop("fsin_normalized_2_pi", tfloat, "sinf(6.2831853 * src0)")
+unop("fcos_normalized_2_pi", tfloat, "cosf(6.2831853 * src0)")
 
 opcode("alignbyte_amd", 0, tuint32, [0, 0, 0], [tuint32, tuint32, tuint32], False, "", """
    uint64_t src = src1 | ((uint64_t)src0 << 32);

@@ -19,7 +19,7 @@ lower_sin_cos(struct nir_builder *b, nir_alu_instr *sincos, UNUSED void *_)
    b->fp_math_ctrl = sincos->fp_math_ctrl;
 
    nir_def *src = nir_fmul_imm(b, nir_ssa_for_alu_src(b, sincos, 0), 0.15915493667125702);
-   nir_def *replace = sincos->op == nir_op_fsin ? nir_fsin_amd(b, src) : nir_fcos_amd(b, src);
+   nir_def *replace = sincos->op == nir_op_fsin ? nir_fsin_normalized_2_pi(b, src) : nir_fcos_normalized_2_pi(b, src);
    nir_def_replace(&sincos->def, replace);
 
    return true;

@@ -514,8 +514,8 @@ init_context(isel_context* ctx, nir_shader* shader)
                case nir_op_fsqrt:
                case nir_op_fexp2:
                case nir_op_flog2:
-               case nir_op_fsin_amd:
-               case nir_op_fcos_amd:
+               case nir_op_fsin_normalized_2_pi:
+               case nir_op_fcos_normalized_2_pi:
                case nir_op_pack_half_2x16_rtz_split:
                case nir_op_pack_half_2x16_split: {
                   if (ctx->program->gfx_level < GFX11_5 ||

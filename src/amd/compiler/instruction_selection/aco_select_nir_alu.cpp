@@ -2512,10 +2512,10 @@ visit_alu_instr(isel_context* ctx, nir_alu_instr* instr)
       }
       break;
    }
-   case nir_op_fsin_amd:
-   case nir_op_fcos_amd: {
+   case nir_op_fsin_normalized_2_pi:
+   case nir_op_fcos_normalized_2_pi: {
       if (instr->def.bit_size == 16 || instr->def.bit_size == 32) {
-         bool is_sin = instr->op == nir_op_fsin_amd;
+         bool is_sin = instr->op == nir_op_fsin_normalized_2_pi;
          aco_opcode opcode, fract;
          RegClass rc;
          if (instr->def.bit_size == 16) {

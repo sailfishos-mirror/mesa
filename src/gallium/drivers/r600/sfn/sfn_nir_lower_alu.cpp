@@ -102,9 +102,9 @@ LowerSinCos::lower(nir_instr *instr)
          : nir_ffma_imm12(b, fract, 2.0f * M_PI, -M_PI);
 
    if (alu->op == nir_op_fsin)
-      return nir_fsin_amd(b, normalized);
+      return nir_fsin_normalized_2_pi(b, normalized);
    else
-      return nir_fcos_amd(b, normalized);
+      return nir_fcos_normalized_2_pi(b, normalized);
 }
 
 class FixKcacheIndirectRead : public NirLowerInstruction {

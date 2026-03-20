@@ -118,7 +118,7 @@ opt_alu_fp_math_ctrl(nir_alu_instr *alu, struct opt_fp_ctrl_state *state)
       case nir_op_fexp2:
       case nir_op_flog2:
       case nir_op_fcos:
-      case nir_op_fcos_amd:
+      case nir_op_fcos_normalized_2_pi:
       case nir_op_fmulz:
       case nir_op_ffract:
          break;
