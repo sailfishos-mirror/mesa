@@ -2322,7 +2322,7 @@ void si_vs_key_update_inputs(struct si_context *sctx)
    key->ge.mono.instance_divisor_is_fetched = elts->instance_divisor_is_fetched;
    key->ge.opt.prefer_mono = elts->instance_divisor_is_fetched;
 
-   unsigned count_mask = (1 << vs->info.num_inputs) - 1;
+   unsigned count_mask = (1 << vs->info.num_vs_inputs) - 1;
    unsigned fix = elts->fix_fetch_always & count_mask;
    unsigned opencode = elts->fix_fetch_opencode & count_mask;
 

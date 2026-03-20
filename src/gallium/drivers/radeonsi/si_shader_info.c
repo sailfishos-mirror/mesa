@@ -667,8 +667,8 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
    info->has_divergent_loop = nir_has_divergent_loop(nir);
 
    if (nir->info.stage == MESA_SHADER_VERTEX) {
-      info->num_vs_inputs =
-         nir->info.stage == MESA_SHADER_VERTEX && !nir->info.vs.blit_sgprs_amd ? info->num_inputs : 0;
+      info->num_vs_inputs = nir->info.stage == MESA_SHADER_VERTEX && !nir->info.vs.blit_sgprs_amd ?
+                               nir->num_inputs : 0;
       unsigned num_vbos_in_sgprs = si_num_vbos_in_user_sgprs_inline(sscreen->info.gfx_level);
       info->num_vbos_in_user_sgprs = MIN2(info->num_vs_inputs, num_vbos_in_sgprs);
    }
