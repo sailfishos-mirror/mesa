@@ -142,9 +142,6 @@ void si_finalize_nir(struct pipe_screen *screen, struct nir_shader *nir,
    NIR_PASS_ASSERT_NO_PROGRESS(nir, nir_opt_intrinsics);
    NIR_PASS_ASSERT_NO_PROGRESS(nir, nir_lower_system_values);
 
-   if (nir->info.stage == MESA_SHADER_FRAGMENT)
-      NIR_PASS(_, nir, nir_recompute_io_bases, nir_var_shader_in);
-
    /* Remove uniforms because those should have been lowered to UBOs already. */
    nir_foreach_variable_with_modes_safe(var, nir, nir_var_uniform) {
       if (!glsl_type_get_image_count(var->type) &&

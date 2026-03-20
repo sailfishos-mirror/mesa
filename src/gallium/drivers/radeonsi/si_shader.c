@@ -1319,12 +1319,6 @@ static void get_nir_shaders(struct si_shader *shader, struct si_linked_shaders *
 
    /* TODO: run linking optimizations here if we have LS+HS or ES+GS */
 
-   /* Remove holes after removed PS inputs by renumbering them. Holes can only occur with
-    * monolithic PS.
-    */
-   if (shader->selector->stage == MESA_SHADER_FRAGMENT && shader->is_monolithic)
-      NIR_PASS(_, linked->consumer.nir, nir_recompute_io_bases, nir_var_shader_in);
-
    for (unsigned i = 0; i < SI_NUM_LINKED_SHADERS; i++) {
       if (linked->shader[i].nir) {
          si_get_shader_variant_info(shader, &linked->shader[i].temp_info, linked->shader[i].nir);
