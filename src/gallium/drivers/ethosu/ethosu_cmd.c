@@ -413,16 +413,6 @@ emit_convolution(struct ethosu_subgraph *subgraph, struct ethosu_operation *oper
    if (!ethosu_ml_device(subgraph->base.device)->is_u65)
       EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(operation->conv.shift), operation->conv.scale);
 
-   operation->ifm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm.tensor_idx);
-   operation->ifm.tiles.height_0 = operation->ifm.shape.height;
-   operation->ifm.tiles.height_1 = operation->ifm.shape.height;
-   operation->ifm.tiles.width_0 = operation->ifm.shape.width;
-
-   operation->ofm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ofm.tensor_idx);
-   operation->ofm.tiles.height_0 = operation->ofm.shape.height;
-   operation->ofm.tiles.height_1 = operation->ofm.shape.height;
-   operation->ofm.tiles.width_0 = operation->ofm.shape.width;
-
    emit_common(subgraph, operation, false);
 
    emit_block_config(subgraph, operation);
