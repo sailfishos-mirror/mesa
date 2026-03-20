@@ -4864,7 +4864,7 @@
         "description": "nir/dead_cf: Add missing load_global_bounded handling",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "caa0854da87545d9e607b97aee0e9e66cc4b52a0",
         "notes": null
