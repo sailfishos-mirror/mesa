@@ -2613,13 +2613,9 @@ static LLVMValueRef load_interpolated_input(struct ac_nir_context *ctx, LLVMValu
 
 static LLVMValueRef visit_load_input(struct ac_nir_context *ctx, nir_intrinsic_instr *instr)
 {
-   LLVMValueRef values[8];
-   LLVMTypeRef dest_type = get_def_type(ctx, &instr->def);
    nir_io_semantics sem = nir_intrinsic_io_semantics(instr);
-   unsigned base = nir_intrinsic_base(instr);
    unsigned component = nir_intrinsic_component(instr);
-   unsigned count = instr->def.num_components;
-   nir_src offset = *nir_get_io_offset_src(instr);
+   ASSERTED nir_src offset = *nir_get_io_offset_src(instr);
 
    assert(instr->def.bit_size == 16 || instr->def.bit_size == 32);
    /* No indirect indexing allowed. */
@@ -2638,22 +2634,24 @@ static LLVMValueRef visit_load_input(struct ac_nir_context *ctx, nir_intrinsic_i
    if (instr->intrinsic == nir_intrinsic_load_input_vertex)
       vertex_id = nir_src_as_uint(instr->src[0]);
 
+   unsigned base = nir_intrinsic_base(instr);
    LLVMValueRef attr_number = LLVMConstInt(ctx->ac.i32, base, false);
+   LLVMTypeRef dest_type = get_def_type(ctx, &instr->def);
+   LLVMValueRef values[8];
 
-   for (unsigned chan = 0; chan < count; chan++) {
+   for (unsigned chan = 0; chan < instr->def.num_components; chan++) {
       LLVMValueRef llvm_chan = LLVMConstInt(ctx->ac.i32, (component + chan) % 4, false);
       values[chan] = ac_build_fs_interp_mov(&ctx->ac, vertex_id, llvm_chan, attr_number,
                                             ac_get_arg(&ctx->ac, ctx->args->prim_mask));
       values[chan] = LLVMBuildBitCast(ctx->ac.builder, values[chan], ctx->ac.i32, "");
-      if (instr->def.bit_size == 16 &&
-          nir_intrinsic_io_semantics(instr).high_16bits)
+      if (instr->def.bit_size == 16 && sem.high_16bits)
          values[chan] = LLVMBuildLShr(ctx->ac.builder, values[chan], LLVMConstInt(ctx->ac.i32, 16, 0), "");
       values[chan] =
          LLVMBuildTruncOrBitCast(ctx->ac.builder, values[chan],
                                  instr->def.bit_size == 16 ? ctx->ac.i16 : ctx->ac.i32, "");
    }
 
-   LLVMValueRef result = ac_build_gather_values(&ctx->ac, values, count);
+   LLVMValueRef result = ac_build_gather_values(&ctx->ac, values, instr->def.num_components);
    return LLVMBuildBitCast(ctx->ac.builder, result, dest_type, "");
 }
 
