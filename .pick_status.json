@@ -4874,7 +4874,7 @@
         "description": "nir/dead_cf: Add missing load_ssbo_ir3 handling",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "0092edfec0895533260a52c84cb4ce098f6b6bea",
         "notes": null
