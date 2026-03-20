@@ -3414,7 +3414,7 @@
         "description": "util: Fix use of undeclared identifier 'NULL' in src/util/os_misc.h when compiling with clang",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "2771eb39fd5a915c256c1be335a32c9aba3da172",
         "notes": null
