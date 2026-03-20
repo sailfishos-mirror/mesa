@@ -229,7 +229,6 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
    } else {
       /* Outputs. */
       for (unsigned i = 0; i < num_slots; i++) {
-         unsigned loc = driver_location + i;
          unsigned slot_semantic = semantic + i;
 
          /* Call the translation functions to validate the semantic (call assertions in them). */
@@ -265,7 +264,6 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
             }
 
             info->gs_writes_stream0 |= writes_stream0;
-            info->num_outputs = MAX2(info->num_outputs, loc + 1);
 
             switch (nir->info.stage) {
             case MESA_SHADER_TESS_CTRL:
@@ -786,7 +784,7 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
                                 sscreen->info.gfx_level <= GFX10_3 &&
                                 (nir->info.gs.invocations * nir->info.gs.vertices_out > 256 ||
                                  nir->info.gs.invocations * nir->info.gs.vertices_out *
-                                 (info->num_outputs * 4 + 1) > 6500 /* max dw per GS primitive */);
+                                 (nir->num_outputs * 4 + 1) > 6500 /* max dw per GS primitive */);
       break;
 
    case MESA_SHADER_VERTEX:
