@@ -9,6 +9,7 @@
 
 #include "util/macros.h"
 #include "util/ralloc.h"
+#include "util/timespec.h"
 
 #include "pan_perf.h"
 
@@ -151,7 +152,7 @@ pan_perf_query(struct pan_perf *perf, uint32_t enable)
 }
 
 int
-pan_perf_enable(struct pan_perf *perf)
+pan_perf_enable(struct pan_perf *perf, UNUSED uint64_t sampling_period_ns)
 {
    return pan_perf_query(perf, 1 /* enable */);
 }
@@ -169,6 +170,15 @@ pan_perf_dump(struct pan_perf *perf)
    // counter_values
    struct drm_panfrost_perfcnt_dump perfcnt_dump = {
       (uint64_t)(uintptr_t)perf->counter_values};
-   return pan_kmod_ioctl(perf->dev->fd, DRM_IOCTL_PANFROST_PERFCNT_DUMP,
-                         &perfcnt_dump);
+   int ret = pan_kmod_ioctl(perf->dev->fd, DRM_IOCTL_PANFROST_PERFCNT_DUMP,
+                            &perfcnt_dump);
+
+   if (!ret) {
+      struct timespec tp;
+
+      clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
+      perf->dump_ts = timespec_to_nsec(&tp);
+   }
+
+   return ret;
 }

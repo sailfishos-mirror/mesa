@@ -23,7 +23,8 @@ main(void)
    if (!perf)
       return -1;
 
-   int ret = pan_perf_enable(perf);
+   /* 100ms sampling period. */
+   int ret = pan_perf_enable(perf, 100000000ull);
 
    if (ret < 0) {
       fprintf(stderr, "failed to enable counters (%d)\n", ret);

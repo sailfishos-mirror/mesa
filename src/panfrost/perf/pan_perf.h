@@ -10,6 +10,8 @@
 
 #include "mali_perf.h"
 
+#include "util/timespec.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -59,6 +61,8 @@ struct pan_perf {
 
    /* Offsets of categories */
    unsigned category_offset[MALI_PERF_BLOCK_TYPE_COUNT];
+
+   uint64_t dump_ts;
 };
 
 uint32_t pan_perf_counter_read(const struct pan_perf *perf,
@@ -72,11 +76,38 @@ struct pan_perf *pan_perf_create(int fd);
 
 void pan_perf_destroy(struct pan_perf *perf);
 
-int pan_perf_enable(struct pan_perf *perf);
+int pan_perf_enable(struct pan_perf *perf, uint64_t sampling_period_ns);
 
 int pan_perf_disable(struct pan_perf *perf);
 
 int pan_perf_dump(struct pan_perf *perf);
+
+static inline clockid_t
+pan_perf_gpu_clock_id(const struct pan_perf *perf)
+{
+   return CLOCK_MONOTONIC_RAW;
+}
+
+static inline uint64_t
+pan_perf_get_gpu_timestamp(const struct pan_perf *perf)
+{
+   struct timespec tp;
+
+   clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
+   return timespec_to_nsec(&tp);
+}
+
+static inline uint64_t
+pan_perf_get_dump_timestamp(const struct pan_perf *perf)
+{
+   return perf->dump_ts;
+}
+
+static inline uint64_t
+pan_perf_get_min_sampling_period(const struct pan_perf *perf)
+{
+   return 1000000;
+}
 
 #if defined(__cplusplus)
 } // extern "C"

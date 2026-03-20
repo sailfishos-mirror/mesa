@@ -44,10 +44,10 @@ PanfrostPerf::operator=(PanfrostPerf &&o)
 }
 
 int
-PanfrostPerf::enable(uint64_t /* sampling_period_ns */)
+PanfrostPerf::enable(uint64_t sampling_period_ns)
 {
    assert(perf);
-   return pan_perf_enable(perf);
+   return pan_perf_enable(perf, sampling_period_ns);
 }
 
 void
@@ -61,17 +61,18 @@ bool
 PanfrostPerf::dump()
 {
    assert(perf);
-   last_dump_ts = perfetto::base::GetBootTimeNs().count();
 
    int ret = pan_perf_dump(perf);
 
+   last_dump_ts = pan_perf_get_dump_timestamp(perf);
    return !!(ret >= 0);
 }
 
 uint64_t
 PanfrostPerf::get_min_sampling_period_ns()
 {
-   return 1000000;
+   assert(perf);
+   return pan_perf_get_min_sampling_period(perf);
 }
 
 void *
@@ -190,19 +191,20 @@ PanfrostPerf::next()
 uint32_t
 PanfrostPerf::gpu_clock_id() const
 {
-   return perfetto::protos::pbzero::BUILTIN_CLOCK_BOOTTIME;
+   assert(pan_perf_gpu_clock_id(perf) == CLOCK_MONOTONIC_RAW);
+   return perfetto::protos::pbzero::BUILTIN_CLOCK_MONOTONIC_RAW;
 }
 
 uint64_t
 PanfrostPerf::gpu_timestamp() const
 {
-   return perfetto::base::GetBootTimeNs().count();
+   return pan_perf_get_gpu_timestamp(perf);
 }
 
 bool
 PanfrostPerf::cpu_gpu_timestamp(uint64_t &, uint64_t &) const
 {
-   /* Not supported */
+   // TODO (panthor) Start using the appropriate IOCTL to get these values
    return false;
 }
 
