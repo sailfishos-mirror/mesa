@@ -1094,15 +1094,15 @@ void pvr_pds_generate_vertex_primary_program(
 
          if (use_robust_vertex_fetch) {
             struct pvr_pds_const_map_entry_vertex_attr_ddmadt_oob_buffer_size
-               *obb_buffer_size;
-            obb_buffer_size =
+               *oob_buffer_size;
+            oob_buffer_size =
                pvr_prepare_next_pds_const_map_entry(&entry_write_state,
-                                                    sizeof(*obb_buffer_size));
+                                                    sizeof(*oob_buffer_size));
 
-            obb_buffer_size->type =
+            oob_buffer_size->type =
                PVR_PDS_CONST_MAP_ENTRY_TYPE_VERTEX_ATTR_DDMADT_OOB_BUFFER_SIZE;
-            obb_buffer_size->const_offset = const_base + 7;
-            obb_buffer_size->binding_index = vertex_dma->binding_index;
+            oob_buffer_size->const_offset = const_base + 7;
+            oob_buffer_size->binding_index = vertex_dma->binding_index;
          } else {
             literal_entry =
                pvr_prepare_next_pds_const_map_entry(&entry_write_state,
