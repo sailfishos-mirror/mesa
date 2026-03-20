@@ -4368,9 +4368,22 @@ tu_clear_sysmem_attachments(struct tu_cmd_buffer *cmd,
    tu_cs_emit_regs(cs, A6XX_RB_DEPTH_CNTL(
          .z_test_enable = z_clear,
          .z_write_enable = z_clear,
-         .zfunc = FUNC_ALWAYS));
+         .zfunc = FUNC_ALWAYS,
+         .z_clamp_enable = CHIP >= A7XX,
+         .o_depth_01_clamp_en = CHIP >= A8XX));
+   tu_cs_emit_regs(cs, A6XX_RB_DEPTH_BOUND_MIN(0.0),
+                       A6XX_RB_DEPTH_BOUND_MAX(1.0));
    tu_cs_emit_regs(cs, GRAS_SU_DEPTH_CNTL(CHIP, z_clear));
    tu_cs_emit_regs(cs, GRAS_SU_DEPTH_PLANE_CNTL(CHIP));
+   tu_cs_emit_regs(cs, GRAS_CL_VIEWPORT_ZCLAMP_MIN(CHIP, 0, 0.0));
+   tu_cs_emit_regs(cs, GRAS_CL_VIEWPORT_ZCLAMP_MAX(CHIP, 0, 1.0));
+   if (CHIP >= A8XX) {
+      tu_cs_emit_regs(cs, RB_VIEWPORT_ZCLAMP_MIN_REG(CHIP, 0, 0.0));
+      tu_cs_emit_regs(cs, RB_VIEWPORT_ZCLAMP_MAX_REG(CHIP, 0, 1.0));
+   } else {
+      tu_cs_emit_regs(cs, RB_VIEWPORT_ZCLAMP_MIN(CHIP, 0.0));
+      tu_cs_emit_regs(cs, RB_VIEWPORT_ZCLAMP_MAX(CHIP, 1.0));
+   }
    tu_cs_emit_regs(cs, A6XX_RB_STENCIL_CNTL(
          .stencil_enable = s_clear,
          .func = FUNC_ALWAYS,
