@@ -541,6 +541,7 @@ radv_rt_nir_to_asm(struct radv_device *device, struct vk_pipeline_cache *cache,
    if (dump_shader)
       simple_mtx_unlock(&instance->shader_dump_mtx);
 
+   ralloc_free(mem_ctx);
    free(binary);
 
    *out_shader = shader;
