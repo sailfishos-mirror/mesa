@@ -177,14 +177,21 @@ va_op_dest_modifier_does_convert(enum bi_opcode op)
 
 enum va_shader_output {
    /* Output position data */
-   VA_SHADER_OUTPUT_POSITION = BITFIELD_BIT(0),
+   VA_SHADER_OUTPUT_POSITION,
 
    /* Output position FIFO attributes */
-   VA_SHADER_OUTPUT_ATTRIB = BITFIELD_BIT(1),
+   VA_SHADER_OUTPUT_ATTRIB,
 
    /* Output varying */
-   VA_SHADER_OUTPUT_VARY = BITFIELD_BIT(2),
+   VA_SHADER_OUTPUT_VARY,
+
+   /* Number of variants, keep last */
+   VA_SHADER_OUTPUT_COUNT
 };
+
+#define VA_SHADER_OUTPUT_POSITION_BIT BITFIELD_BIT(VA_SHADER_OUTPUT_POSITION)
+#define VA_SHADER_OUTPUT_ATTRIB_BIT BITFIELD_BIT(VA_SHADER_OUTPUT_ATTRIB)
+#define VA_SHADER_OUTPUT_VARY_BIT BITFIELD_BIT(VA_SHADER_OUTPUT_VARY)
 
 #ifdef __cplusplus
 } /* extern C */

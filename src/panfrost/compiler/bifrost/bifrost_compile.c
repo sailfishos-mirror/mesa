@@ -1089,18 +1089,19 @@ bifrost_nir_lower_vs_atomics_impl(nir_builder *b, nir_intrinsic_instr *intr,
          continue;
 
       nir_io_semantics sem = nir_intrinsic_io_semantics(parent_intr);
-      output_mask |= va_shader_output_from_semantics(&sem);
+      output_mask |= BITFIELD_BIT(va_shader_output_from_semantics(&sem));
    }
 
    /* In case they are not written to any outputs, we default to only output in
     * the position stage */
    if (output_mask == 0)
-      output_mask |= VA_SHADER_OUTPUT_POSITION;
+      output_mask |= VA_SHADER_OUTPUT_POSITION_BIT;
 
    /* In case they are not written to both IDVS stages, we just do not try
     * lowering it */
-   if (((output_mask & VA_SHADER_OUTPUT_VARY) &&
-        (output_mask & (VA_SHADER_OUTPUT_POSITION | VA_SHADER_OUTPUT_ATTRIB))))
+   if (((output_mask & VA_SHADER_OUTPUT_VARY_BIT) &&
+        (output_mask & (VA_SHADER_OUTPUT_POSITION_BIT |
+                        VA_SHADER_OUTPUT_ATTRIB_BIT))))
       return false;
 
    /* In case we know we have only outputs to a certain type, we can make the
@@ -6435,10 +6436,11 @@ bi_compile_variant_nir(nir_shader *nir,
       if (offset == 0)
          ctx->nir = nir = nir_shader_clone(ctx, nir);
 
-      uint64_t position = VA_SHADER_OUTPUT_POSITION | VA_SHADER_OUTPUT_ATTRIB;
+      uint64_t position = VA_SHADER_OUTPUT_POSITION_BIT |
+                          VA_SHADER_OUTPUT_ATTRIB_BIT;
 
       NIR_PASS(_, nir, nir_inline_sysval, nir_intrinsic_load_shader_output_pan,
-               (idvs == BI_IDVS_POSITION) ? position : VA_SHADER_OUTPUT_VARY);
+               (idvs == BI_IDVS_POSITION) ? position : VA_SHADER_OUTPUT_VARY_BIT);
 
       /* After specializing, clean up the mess */
       bool progress = true;
