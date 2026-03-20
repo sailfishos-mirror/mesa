@@ -252,15 +252,6 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
             }
          }
 
-         if (nir->info.stage != MESA_SHADER_FRAGMENT) {
-            /* No 2 outputs can use the same driver location. */
-            assert((info->output_semantic[loc] == slot_semantic ||
-                    info->output_semantic[loc] == NUM_TOTAL_VARYING_SLOTS) &&
-                   "nir_recompute_io_bases wasn't called");
-
-            info->output_semantic[loc] = slot_semantic;
-         }
-
          if (!is_output_load && mask) {
             /* Output stores. */
             unsigned gs_streams = (uint32_t)nir_intrinsic_io_semantics(intr).gs_streams <<
@@ -596,8 +587,6 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
     */
    for (unsigned i = 0; i < ARRAY_SIZE(info->input_semantic); i++)
       info->input_semantic[i] = NUM_TOTAL_VARYING_SLOTS;
-   for (unsigned i = 0; i < ARRAY_SIZE(info->output_semantic); i++)
-      info->output_semantic[i] = NUM_TOTAL_VARYING_SLOTS;
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
       /* Both flat and non-flat can occur with nir_io_mix_convergent_flat_with_interpolated,
@@ -674,14 +663,6 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
    nir_foreach_block (block, impl) {
       nir_foreach_instr (instr, block)
          gather_instruction(nir, info, instr);
-   }
-
-   if (nir->info.stage == MESA_SHADER_VERTEX || nir->info.stage == MESA_SHADER_TESS_EVAL) {
-      /* Add the PrimitiveID output, but don't increment num_outputs.
-       * The driver inserts PrimitiveID only when it's used by the pixel shader,
-       * and si_emit_spi_map uses this unconditionally when such a pixel shader is used.
-       */
-      info->output_semantic[info->num_outputs] = VARYING_SLOT_PRIMITIVE_ID;
    }
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
@@ -762,12 +743,6 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
       for (unsigned i = 0; i < info->num_inputs; i++)
          assert(info->input_semantic[i] != NUM_TOTAL_VARYING_SLOTS &&
                 "nir_recompute_io_bases wasn't called");
-   }
-   if (nir->info.stage != MESA_SHADER_FRAGMENT) {
-      for (unsigned i = 0; i < info->num_outputs; i++) {
-         assert(info->output_semantic[i] != NUM_TOTAL_VARYING_SLOTS &&
-                "nir_recompute_io_bases wasn't called");
-      }
    }
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
