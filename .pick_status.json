@@ -3804,7 +3804,7 @@
         "description": "radv/rt: only run move_rt_instructions() for CPS shaders",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c5d796c902cef0518505bf79b0cdf0c88f1c1d16",
         "notes": null
