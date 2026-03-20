@@ -237,6 +237,9 @@ struct radv_device {
    /* Whether to use a staging buffer for SQTT/SPM buffers. */
    bool rgp_use_staging_buffer;
 
+   /* Count the number of submits for per-submit RGP captures. */
+   uint32_t rgp_num_submits;
+
    /* Memory trace. */
    struct radv_memory_trace_data memory_trace;
 

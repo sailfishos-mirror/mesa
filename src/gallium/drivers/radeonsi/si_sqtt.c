@@ -499,7 +499,7 @@ void si_handle_sqtt(struct si_context *sctx, struct radeon_cmdbuf *rcs)
             ac_spm_get_trace(&sctx->spm, &spm_trace);
 
          ac_dump_rgp_capture(&sctx->screen->info, &sqtt_trace,
-                             sctx->spm.ptr ? &spm_trace : NULL);
+                             sctx->spm.ptr ? &spm_trace : NULL, NULL);
 
          if (sctx->spm.ptr) {
             pipe_buffer_unmap(&sctx->b, transfer);

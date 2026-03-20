@@ -16,6 +16,7 @@
 #include "sid.h"
 
 #include "ac_pm4.h"
+#include "ac_rgp.h"
 
 #include "vk_command_pool.h"
 #include "vk_common_entrypoints.h"
@@ -822,6 +823,7 @@ radv_sqtt_stop_capturing(struct radv_queue *queue)
 {
    struct radv_device *device = radv_queue_device(queue);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   const struct radv_instance *instance = radv_physical_device_instance(pdev);
    struct ac_sqtt_trace sqtt_trace = {0};
    struct ac_spm_trace spm_trace;
    bool captured = true;
@@ -835,7 +837,17 @@ radv_sqtt_stop_capturing(struct radv_queue *queue)
    device->ws->unreserve_vmid(device->ws);
 
    if (radv_get_sqtt_trace(queue, &sqtt_trace) && (!device->spm.bo || radv_get_spm_trace(queue, &spm_trace))) {
-      ac_dump_rgp_capture(&pdev->info, &sqtt_trace, device->spm.bo ? &spm_trace : NULL);
+      struct ac_rgp_capture_info capture_info = {
+         .mode = instance->vk.trace_per_submit ? AC_RGP_CAPTURE_MODE_SUBMIT : AC_RGP_CAPTURE_MODE_FRAME,
+      };
+
+      if (instance->vk.trace_per_submit) {
+         capture_info.submit_idx = device->rgp_num_submits;
+      } else {
+         capture_info.frame_idx = device->vk.current_frame;
+      }
+
+      ac_dump_rgp_capture(&pdev->info, &sqtt_trace, device->spm.bo ? &spm_trace : NULL, &capture_info);
    } else {
       /* Failed to capture because the buffer was too small. */
       captured = false;

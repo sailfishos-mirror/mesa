@@ -933,6 +933,8 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
                  "is disabled. See RADV_THREAD_TRACE_BUFFER_SIZE/RADV_CACHE_COUNTERS_BUFFER_SIZE for increasing the "
                  "size.\n");
       }
+      device->rgp_num_submits++;
+
       simple_mtx_unlock(&device->sqtt.lock);
    }
 
