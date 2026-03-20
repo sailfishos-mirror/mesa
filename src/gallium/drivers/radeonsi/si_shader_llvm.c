@@ -571,7 +571,7 @@ static bool si_llvm_translate_nir(struct si_shader_context *ctx, struct si_shade
 
    case MESA_SHADER_FRAGMENT:
       if (!shader->is_monolithic)
-         si_llvm_ps_build_end(ctx);
+         si_llvm_ps_build_end(ctx, nir);
       break;
 
    default:

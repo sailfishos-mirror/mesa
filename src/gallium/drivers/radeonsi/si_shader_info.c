@@ -202,14 +202,13 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
       }
    }
 
-   if (nir->info.stage == MESA_SHADER_FRAGMENT && !is_input) {
-      /* Never use FRAG_RESULT_COLOR directly. */
-      if (semantic == FRAG_RESULT_COLOR)
-         semantic = FRAG_RESULT_DATA0;
-   }
-
-   unsigned driver_location = nir_intrinsic_base(intr);
    unsigned num_slots = indirect ? nir_intrinsic_io_semantics(intr).num_slots : 1;
+   unsigned driver_location;
+
+   if (nir->info.stage == MESA_SHADER_FRAGMENT && !is_input)
+      driver_location = ac_nir_get_io_driver_location(nir, semantic, is_input);
+   else
+      driver_location = nir_intrinsic_base(intr);
 
    if (is_input) {
       assert(driver_location + num_slots <= ARRAY_SIZE(info->input_semantic));
