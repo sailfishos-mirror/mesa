@@ -757,14 +757,14 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
          if (info->colors_written & (1 << i))
             info->colors_written_4bit |= 0xf << (4 * i);
 
+      if (nir->info.inputs_read & VARYING_BIT_COL0)
+         info->color_attr_index[0] = ac_nir_get_io_driver_location(nir, VARYING_SLOT_COL0, true);
+      if (nir->info.inputs_read & VARYING_BIT_COL1)
+         info->color_attr_index[1] = ac_nir_get_io_driver_location(nir, VARYING_SLOT_COL1, true);
+
       for (unsigned i = 0; i < info->num_inputs; i++) {
          /* If any FS input is POS (0), the input slot is unused, which should never happen. */
          assert(info->input_semantic[i] != VARYING_SLOT_POS);
-
-         if (info->input_semantic[i] == VARYING_SLOT_COL0)
-            info->color_attr_index[0] = i;
-         else if (info->input_semantic[i] == VARYING_SLOT_COL1)
-            info->color_attr_index[1] = i;
       }
    }
 
