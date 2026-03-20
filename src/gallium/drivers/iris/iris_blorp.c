@@ -513,6 +513,7 @@ genX(init_blorp)(struct iris_context *ice)
 #endif
    ice->blorp.lookup_shader = iris_blorp_lookup_shader;
    ice->blorp.upload_shader = iris_blorp_upload_shader;
+   ice->blorp.get_surface_address = blorp_get_surface_address;
    ice->blorp.exec = iris_blorp_exec;
    ice->blorp.enable_tbimr = screen->driconf.enable_tbimr;
 }

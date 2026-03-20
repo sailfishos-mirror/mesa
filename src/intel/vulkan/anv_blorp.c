@@ -110,6 +110,17 @@ get_fp64_nir(struct blorp_context *context)
    return device->fp64_nir;
 }
 
+static uint64_t
+blorp_get_surface_address(struct blorp_batch *blorp_batch,
+                          struct blorp_address address)
+{
+   struct anv_address anv_addr = {
+      .bo = address.buffer,
+      .offset = address.offset,
+   };
+   return anv_address_physical(anv_addr);
+}
+
 void
 anv_device_init_blorp(struct anv_device *device)
 {
@@ -126,6 +137,7 @@ anv_device_init_blorp(struct anv_device *device)
    device->blorp.context.lookup_shader = lookup_blorp_shader;
    device->blorp.context.upload_shader = upload_blorp_shader;
    device->blorp.context.enable_tbimr = device->physical->instance->enable_tbimr;
+   device->blorp.context.get_surface_address = blorp_get_surface_address;
    device->blorp.context.exec = anv_genX(device->info, blorp_exec);
    device->blorp.context.upload_dynamic_state = upload_dynamic_state;
 
@@ -853,7 +865,7 @@ void anv_CmdCopyBufferToImage2(
 
    anv_cmd_require_rcs(cmd_buffer, blorp_execute_on_companion) {
       struct blorp_batch batch;
-      anv_blorp_batch_init(cmd_buffer, &batch, 0);
+      anv_blorp_batch_init(cmd_buffer, &batch, BLORP_BATCH_SRC_UNPADDED);
 
       for (unsigned r = 0; r < pCopyBufferToImageInfo->regionCount; r++) {
          const VkBufferImageCopy2 *region = &pCopyBufferToImageInfo->pRegions[r];
@@ -1183,9 +1195,10 @@ anv_cmd_copy_addr(struct anv_cmd_buffer *cmd_buffer,
 
    struct blorp_batch batch;
    anv_blorp_batch_init(cmd_buffer, &batch,
-                        cmd_buffer->state.current_pipeline ==
-                        cmd_buffer->device->physical->gpgpu_pipeline_value ?
-                        BLORP_BATCH_USE_COMPUTE : 0);
+                        BLORP_BATCH_SRC_UNPADDED |
+                        (cmd_buffer->state.current_pipeline ==
+                         cmd_buffer->device->physical->gpgpu_pipeline_value ?
+                         BLORP_BATCH_USE_COMPUTE : 0));
 
    copy_memory(device, &batch, src_addr, dst_addr, size);
 
@@ -1203,9 +1216,10 @@ void anv_CmdCopyBuffer2(
 
    struct blorp_batch batch;
    anv_blorp_batch_init(cmd_buffer, &batch,
-                        cmd_buffer->state.current_pipeline ==
-                        cmd_buffer->device->physical->gpgpu_pipeline_value ?
-                        BLORP_BATCH_USE_COMPUTE : 0);
+                        BLORP_BATCH_SRC_UNPADDED |
+                        (cmd_buffer->state.current_pipeline ==
+                         cmd_buffer->device->physical->gpgpu_pipeline_value ?
+                         BLORP_BATCH_USE_COMPUTE : 0));
 
    for (unsigned r = 0; r < pCopyBufferInfo->regionCount; r++) {
       const VkBufferCopy2 *region = &pCopyBufferInfo->pRegions[r];
@@ -1230,9 +1244,10 @@ anv_cmd_buffer_update_addr(
 {
    struct blorp_batch batch;
    anv_blorp_batch_init(cmd_buffer, &batch,
-                        cmd_buffer->state.current_pipeline ==
-                        cmd_buffer->device->physical->gpgpu_pipeline_value ?
-                        BLORP_BATCH_USE_COMPUTE : 0);
+                        BLORP_BATCH_SRC_UNPADDED |
+                        (cmd_buffer->state.current_pipeline ==
+                         cmd_buffer->device->physical->gpgpu_pipeline_value ?
+                         BLORP_BATCH_USE_COMPUTE : 0));
 
    /* We can't quite grab a full block because the state stream needs a
     * little data at the top to build its linked list.
