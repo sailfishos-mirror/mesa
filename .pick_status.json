@@ -1434,7 +1434,7 @@
         "description": "tu/drm/virtio: Fix GEM handle leak on failed dmabuf res_id lookup",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "6ca192f586fe1470a97b6f34bce7761a760ce15d",
         "notes": null
