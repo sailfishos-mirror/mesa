@@ -1427,8 +1427,6 @@ brw_generator::generate_code(const brw_shader &s,
             "Validation failed. Rerun with INTEL_DEBUG=shaders to get more information.\n");
    }
 #endif
-   assert(validated);
-
    brw_shader_debug_log(compiler, params->log_data,
                         "%s SIMD%d shader: %d inst, %d loops, %u cycles, "
                         "%d:%d spills:fills, %u sends, "
@@ -1445,6 +1443,8 @@ brw_generator::generate_code(const brw_shader &s,
                         shader_stats.scheduler_mode,
                         shader_stats.promoted_constants,
                         before_size, after_size);
+   assert(validated);
+
    if (stats) {
       stats->dispatch_width = dispatch_width;
       stats->max_polygons = s.max_polygons;
