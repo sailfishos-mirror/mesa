@@ -1203,6 +1203,9 @@ struct pvr_pds_const_map_entry_vertex_attr_ddmadt_oob_buffer_size {
    uint8_t type;
    uint8_t const_offset;
    uint8_t binding_index;
+   uint8_t size_in_dwords;
+   uint16_t offset;
+   uint8_t attrib_size_in_bytes;
 } PVR_PACKED;
 
 struct pvr_pds_const_map_entry_cond_render {
