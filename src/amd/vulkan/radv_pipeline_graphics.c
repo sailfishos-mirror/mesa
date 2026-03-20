@@ -1563,10 +1563,6 @@ radv_graphics_shaders_link_varyings(struct radv_shader_stage *stages, enum amd_g
        */
       nir_shader_gather_info(shader, nir_shader_get_entrypoint(shader));
 
-      /* Recompute intrinsic bases of PS inputs in order to remove gaps. */
-      if (s == MESA_SHADER_FRAGMENT)
-         radv_recompute_fs_input_bases(shader);
-
       /* Recreate XFB info from intrinsics (nir_opt_varyings may have changed it). */
       if (shader->xfb_info) {
          nir_gather_xfb_info_from_intrinsics(shader);
@@ -2716,13 +2712,6 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
       int64_t stage_start = os_time_get_nano();
 
       radv_optimize_nir(stages[i].nir, stages[i].key.optimisations_disabled);
-
-      if (i == MESA_SHADER_FRAGMENT) {
-         /* Recompute FS input intrinsic bases to assign a location to each FS input.
-          * The computed base will match the index of each input in SPI_PS_INPUT_CNTL_n.
-          */
-         radv_recompute_fs_input_bases(stages[i].nir);
-      }
 
       stages[i].feedback.duration += os_time_get_nano() - stage_start;
    }
