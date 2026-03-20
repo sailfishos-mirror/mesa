@@ -1466,8 +1466,7 @@ static void pvr_graphics_pipeline_setup_vertex_dma(
       /* Used by later on by the driver to figure out if the buffer is being
        * accessed out of bounds, for robust buffer access.
        */
-      dma_desc->component_size_in_bytes =
-         fmt_description->block.bits / fmt_description->nr_channels / 8;
+      dma_desc->attrib_size_in_bytes = fmt_description->block.bits / 8;
 
       ++*dma_count;
    }

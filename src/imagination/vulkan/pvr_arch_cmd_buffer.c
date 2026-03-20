@@ -5319,7 +5319,7 @@ pvr_setup_vertex_buffers(struct pvr_cmd_buffer *cmd_buffer,
          pvr_dev_addr_t addr;
 
          if (binding->size <
-             (attribute->offset + attribute->component_size_in_bytes)) {
+             (attribute->offset + attribute->attrib_size_in_bytes)) {
             /* Replace with load from robustness buffer when no attribute is in
              * range
              */
@@ -5390,7 +5390,7 @@ pvr_setup_vertex_buffers(struct pvr_cmd_buffer *cmd_buffer,
             &state->vertex_bindings[attribute->binding_index];
          const uint64_t bound_size = binding->buffer->vk.size - binding->offset;
          const uint32_t attribute_end =
-            attribute->offset + attribute->component_size_in_bytes;
+            attribute->offset + attribute->attrib_size_in_bytes;
          const struct vk_dynamic_graphics_state *dynamic_state =
             &cmd_buffer->vk.dynamic_graphics_state;
          const uint32_t stride =

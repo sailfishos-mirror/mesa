@@ -142,8 +142,7 @@ static void pvr_write_pds_const_map_entry_vertex_attribute_address(
          PVR_PDS_CONST_MAP_ENTRY_TYPE_ROBUST_VERTEX_ATTRIBUTE_ADDRESS;
       robust_attribute_entry->const_offset = const_val;
       robust_attribute_entry->binding_index = DMA->binding_index;
-      robust_attribute_entry->component_size_in_bytes =
-         DMA->component_size_in_bytes;
+      robust_attribute_entry->attrib_size_in_bytes = DMA->attrib_size_in_bytes;
       robust_attribute_entry->offset = DMA->offset;
       robust_attribute_entry->stride = DMA->stride;
       robust_attribute_entry->size_in_dwords = DMA->size_in_dwords;
@@ -1226,8 +1225,8 @@ void pvr_pds_generate_vertex_primary_program(
             max_index_entry->offset = vertex_dma->offset;
             max_index_entry->stride = vertex_dma->stride;
             max_index_entry->size_in_dwords = vertex_dma->size_in_dwords;
-            max_index_entry->component_size_in_bytes =
-               vertex_dma->component_size_in_bytes;
+            max_index_entry->attrib_size_in_bytes =
+               vertex_dma->attrib_size_in_bytes;
 
             PVR_PDS_MODE_TOGGLE(
                code,
