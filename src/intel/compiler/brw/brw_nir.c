@@ -2812,7 +2812,10 @@ brw_postprocess_nir_opts(brw_pass_tracker *pt)
       OPT(nir_lower_tex, &tex_options);
 
    OPT(brw_nir_lower_mcs_fetch, devinfo);
-   OPT(intel_nir_lower_sparse_intrinsics);
+
+   bool jay = intel_use_jay(devinfo, nir->info.stage);
+
+   OPT(intel_nir_lower_sparse_intrinsics, jay);
 
    /* Any constants leftover should be folded so we have constant textures */
    OPT(nir_opt_constant_folding);
