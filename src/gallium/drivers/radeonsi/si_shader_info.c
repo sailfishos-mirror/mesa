@@ -203,21 +203,8 @@ static void gather_io_instrinsic(const nir_shader *nir, struct si_shader_info *i
    }
 
    unsigned num_slots = indirect ? nir_intrinsic_io_semantics(intr).num_slots : 1;
-   unsigned driver_location;
 
-   if (nir->info.stage == MESA_SHADER_FRAGMENT)
-      driver_location = ac_nir_get_io_driver_location(nir, semantic, is_input);
-   else
-      driver_location = nir_intrinsic_base(intr);
-
-   if (is_input) {
-      for (unsigned i = 0; i < num_slots; i++) {
-         unsigned loc = driver_location + i;
-
-         if (mask)
-            info->num_inputs = MAX2(info->num_inputs, loc + 1);
-      }
-   } else {
+   if (!is_input) {
       /* Outputs. */
       for (unsigned i = 0; i < num_slots; i++) {
          unsigned slot_semantic = semantic + i;
@@ -664,6 +651,7 @@ void si_nir_gather_info(struct si_screen *sscreen, struct nir_shader *nir,
                                    BITSET_TEST(nir->info.system_values_read, SYSTEM_VALUE_HELPER_INVOCATION));
    }
 
+   info->num_inputs = nir->num_inputs;
    info->has_divergent_loop = nir_has_divergent_loop(nir);
 
    if (nir->info.stage == MESA_SHADER_VERTEX) {
