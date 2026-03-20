@@ -11,18 +11,16 @@
 #include "nir.h"
 
 static LLVMValueRef si_nir_load_tcs_varyings(struct ac_shader_abi *abi, LLVMTypeRef type,
-                                             unsigned driver_location, unsigned component,
+                                             gl_varying_slot slot, unsigned component,
                                              unsigned num_components)
 {
    struct si_shader_context *ctx = si_shader_context_from_abi(abi);
-   struct si_shader_info *info = &ctx->shader->selector->info;
 
    assert(ctx->shader->key.ge.opt.same_patch_vertices);
 
-   uint8_t semantic = info->input_semantic[driver_location];
    /* Load the TCS input from a VGPR. */
    unsigned func_param = ctx->args->ac.tcs_rel_ids.arg_index + 1 +
-      si_shader_io_get_unique_index(semantic) * 4;
+      si_shader_io_get_unique_index(slot) * 4;
 
    LLVMValueRef value[4];
    for (unsigned i = component; i < component + num_components; i++) {

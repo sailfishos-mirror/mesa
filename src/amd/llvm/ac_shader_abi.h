@@ -26,7 +26,7 @@ struct ac_shader_abi {
    bool is_16bit[AC_LLVM_MAX_OUTPUTS * 4];
 
    LLVMValueRef (*load_tess_varyings)(struct ac_shader_abi *abi, LLVMTypeRef type,
-                                      unsigned driver_location, unsigned component,
+                                      gl_varying_slot slot, unsigned component,
                                       unsigned num_components);
 
    LLVMValueRef (*load_ubo)(struct ac_shader_abi *abi, LLVMValueRef index);

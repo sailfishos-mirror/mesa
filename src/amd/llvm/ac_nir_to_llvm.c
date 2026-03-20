@@ -2630,7 +2630,8 @@ static LLVMValueRef visit_load_input(struct ac_nir_context *ctx, nir_intrinsic_i
                                       LLVMGetElementType(dest_type) : dest_type;
 
       LLVMValueRef result = ctx->abi->load_tess_varyings(ctx->abi, component_type,
-                                                         base, component, count);
+                                                         nir_intrinsic_io_semantics(instr).location,
+                                                         component, count);
       if (instr->def.bit_size == 16) {
          result = ac_to_integer(&ctx->ac, result);
          result = LLVMBuildTrunc(ctx->ac.builder, result, dest_type, "");
