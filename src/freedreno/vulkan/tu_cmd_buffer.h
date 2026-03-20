@@ -215,6 +215,10 @@ enum tu_stage {
    TU_STAGE_BOTTOM,
 };
 
+enum tu_stage
+vk2tu_dst_stage(struct tu_device *dev,
+                VkPipelineStageFlags2 vk_stages);
+
 enum tu_cmd_flush_bits {
    TU_CMD_FLAG_CCU_CLEAN_DEPTH = 1 << 0,
    TU_CMD_FLAG_CCU_CLEAN_COLOR = 1 << 1,
@@ -903,7 +907,8 @@ struct tu_vis_stream_patchpoint_cs {
 void
 tu_barrier(struct tu_cmd_buffer *cmd,
            uint32_t dep_count,
-           const VkDependencyInfo *dep_info);
+           const VkDependencyInfo *dep_info,
+           bool no_sync);
 
 template <chip CHIP>
 void
@@ -964,6 +969,10 @@ void
 tu7_set_thread_br_patchpoint(struct tu_cmd_buffer *cmd,
                              struct tu_cs *cs,
                              bool force_disable_cb);
+
+void
+tu7_set_thread_both_patchpoint(struct tu_cmd_buffer *cmd,
+                               struct tu_cs *cs);
 
 /* For bin offsetting we want to do "Euclidean division," where the remainder
  * (i.e. the offset of the bin) is always positive. Unfortunately C/C++

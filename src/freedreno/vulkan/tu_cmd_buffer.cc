@@ -457,6 +457,25 @@ tu7_set_thread_br_patchpoint(struct tu_cmd_buffer *cmd,
                      CP_THREAD_CONTROL_0_CONCURRENT_BIN_DISABLE);
 }
 
+void
+tu7_set_thread_both_patchpoint(struct tu_cmd_buffer *cmd,
+                               struct tu_cs *cs)
+{
+   tu_cs_emit_pkt7(cs, CP_THREAD_CONTROL, 1);
+
+   struct tu_cb_control_point info = {
+      .type = TU_CB_CONTROL_TYPE_PATCHPOINT,
+      .patchpoint = cs->cur,
+      .patch_value = CP_THREAD_CONTROL_0_THREAD(CP_SET_THREAD_BOTH),
+      .original_value = CP_THREAD_CONTROL_0_THREAD(CP_SET_THREAD_BR) |
+                        CP_THREAD_CONTROL_0_CONCURRENT_BIN_DISABLE,
+   };
+   util_dynarray_append(&cmd->cb_control_points, info);
+
+   tu_cs_emit(cs, CP_THREAD_CONTROL_0_THREAD(CP_SET_THREAD_BR) |
+                     CP_THREAD_CONTROL_0_CONCURRENT_BIN_DISABLE);
+}
+
 /* "Normal" cache flushes outside the renderpass, that don't require any special handling */
 template <chip CHIP>
 void
@@ -6042,7 +6061,7 @@ vk2tu_src_stage(struct tu_device *dev,
    return stage;
 }
 
-static enum tu_stage
+enum tu_stage
 vk2tu_dst_stage(struct tu_device *dev,
                 VkPipelineStageFlags2 vk_stages)
 {
@@ -9652,7 +9671,8 @@ tu_CmdEndRendering2EXT(VkCommandBuffer commandBuffer,
 void
 tu_barrier(struct tu_cmd_buffer *cmd,
            uint32_t dep_count,
-           const VkDependencyInfo *dep_infos)
+           const VkDependencyInfo *dep_infos,
+           bool no_sync)
 {
    VkPipelineStageFlags2 srcStage = 0;
    VkPipelineStageFlags2 dstStage = 0;
@@ -9838,9 +9858,11 @@ tu_barrier(struct tu_cmd_buffer *cmd,
 
    tu_flush_for_access(cache, src_flags, dst_flags);
 
-   enum tu_stage src_stage = vk2tu_src_stage(cmd->device, srcStage);
-   enum tu_stage dst_stage = vk2tu_dst_stage(cmd->device, dstStage);
-   TU_CALLX(cmd->device, tu_flush_for_stage)(cache, src_stage, dst_stage);
+   if (!no_sync) {
+      enum tu_stage src_stage = vk2tu_src_stage(cmd->device, srcStage);
+      enum tu_stage dst_stage = vk2tu_dst_stage(cmd->device, dstStage);
+      TU_CALLX(cmd->device, tu_flush_for_stage)(cache, src_stage, dst_stage);
+   }
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -9849,7 +9871,7 @@ tu_CmdPipelineBarrier2(VkCommandBuffer commandBuffer,
 {
    VK_FROM_HANDLE(tu_cmd_buffer, cmd_buffer, commandBuffer);
 
-   tu_barrier(cmd_buffer, 1, pDependencyInfo);
+   tu_barrier(cmd_buffer, 1, pDependencyInfo, false);
 }
 
 template <chip CHIP>
