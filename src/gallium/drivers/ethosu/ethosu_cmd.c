@@ -230,13 +230,18 @@ emit_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation
 static void
 emit_activation(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
+   unsigned min = 0;
+
+   if (operation->type == ETHOSU_OPERATION_TYPE_ELTWISE)
+      min = operation->eltwise.activation_min;
+
    EMIT0(NPU_SET_ACTIVATION, 0x0);
 
    if (operation->ofm.is_signed) {
       EMIT0(NPU_SET_ACTIVATION_MIN, 0xff80);
       EMIT0(NPU_SET_ACTIVATION_MAX, 0x7f);
    } else {
-      EMIT0(NPU_SET_ACTIVATION_MIN, 0x00);
+      EMIT0(NPU_SET_ACTIVATION_MIN, min);
       EMIT0(NPU_SET_ACTIVATION_MAX, 0xff);
    }
 }

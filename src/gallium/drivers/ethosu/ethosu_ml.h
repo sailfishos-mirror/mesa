@@ -152,6 +152,7 @@ struct ethosu_operation {
       } pooling;
 
       struct {
+         uint16_t activation_min;
          unsigned lut_bytes;
          bool ifm_reversed;
       } eltwise;

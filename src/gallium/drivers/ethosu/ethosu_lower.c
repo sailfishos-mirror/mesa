@@ -369,6 +369,8 @@ ethosu_lower_add(struct ethosu_subgraph *subgraph,
 
       pipe_buffer_unmap(subgraph->base.context, transfer_in);
    }
+   if (poperation->add.relu)
+      operation->eltwise.activation_min = operation->ofm.zero_point;
 
    operation->kernel.height = 1;
    operation->kernel.width = 1;
