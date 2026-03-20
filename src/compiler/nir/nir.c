@@ -2583,6 +2583,10 @@ nir_intrinsic_from_system_value(gl_system_value val)
       return nir_intrinsic_load_warp_id_arm;
    case SYSTEM_VALUE_WARP_MAX_ID_ARM:
       return nir_intrinsic_load_warp_max_id_arm;
+   case SYSTEM_VALUE_COLOR0_AMD:
+      return nir_intrinsic_load_color0_amd;
+   case SYSTEM_VALUE_COLOR1_AMD:
+      return nir_intrinsic_load_color1_amd;
    default:
       return nir_num_intrinsics;
    }
@@ -2769,6 +2773,10 @@ nir_system_value_from_intrinsic(nir_intrinsic_op intrin)
       return SYSTEM_VALUE_WARP_ID_ARM;
    case nir_intrinsic_load_warp_max_id_arm:
       return SYSTEM_VALUE_WARP_MAX_ID_ARM;
+   case nir_intrinsic_load_color0_amd:
+      return SYSTEM_VALUE_COLOR0_AMD;
+   case nir_intrinsic_load_color1_amd:
+      return SYSTEM_VALUE_COLOR1_AMD;
    default:
       return SYSTEM_VALUE_MAX;
    }
