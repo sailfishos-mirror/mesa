@@ -1854,7 +1854,7 @@
         "description": "pvr: move PVR_BUFFER_MEMORY_PADDING_SIZE definition to pvr_buffer.h",
         "nominated": true,
         "nomination_type": 4,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
