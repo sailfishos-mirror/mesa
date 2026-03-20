@@ -930,7 +930,8 @@ sqtt_QueueSubmit2(VkQueue _queue, uint32_t submitCount, const VkSubmitInfo2 *pSu
       if (!radv_sqtt_stop_capturing(queue)) {
          fprintf(stderr,
                  "radv: Failed to capture RGP for this submit because the buffer is too small and auto-resizing "
-                 "is disabled. See RADV_THREAD_TRACE_BUFFER_SIZE for increasing the size.\n");
+                 "is disabled. See RADV_THREAD_TRACE_BUFFER_SIZE/RADV_CACHE_COUNTERS_BUFFER_SIZE for increasing the "
+                 "size.\n");
       }
       simple_mtx_unlock(&device->sqtt.lock);
    }

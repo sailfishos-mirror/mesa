@@ -1619,7 +1619,7 @@ RADV driver environment variables
 .. envvar:: RADV_THREAD_TRACE_BUFFER_SIZE
 
    set the SQTT/RGP buffer size in bytes (default value is 32MiB, the buffer is
-   automatically resized if too small)
+   automatically resized if too small, except for per-submit captures)
 
 .. envvar:: RADV_THREAD_TRACE_CACHE_COUNTERS
 
@@ -1632,6 +1632,12 @@ RADV driver environment variables
 .. envvar:: RADV_THREAD_TRACE_QUEUE_EVENTS
 
    enable/disable SQTT/RGP queue events (enabled by default)
+
+.. envvar:: RADV_CACHE_COUNTERS_BUFFER_SIZE
+
+   set the SQTT/RGP cache counters buffer size in bytes (default value is
+   32MiB, the buffer is automatically resized if too small, except for
+   per-submit captures)
 
 .. envvar:: RADV_TRAP_HANDLER
 
