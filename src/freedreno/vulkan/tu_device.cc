@@ -210,6 +210,7 @@ get_device_extensions(const struct tu_physical_device *device,
       .KHR_maintenance6 = tu_is_vk_1_1(device),
       .KHR_maintenance7 = tu_is_vk_1_1(device),
       .KHR_maintenance8 = tu_is_vk_1_1(device),
+      .KHR_maintenance9 = tu_is_vk_1_1(device),
       .KHR_map_memory2 = true,
       .KHR_multiview = tu_has_multiview(device),
       .KHR_performance_query = (TU_DEBUG(PERFC) || TU_DEBUG(PERFCRAW)) && device->is_perf_cntr_selectable,
@@ -569,6 +570,9 @@ tu_get_features(struct tu_physical_device *pdevice,
 
    /* VK_KHR_maintenance8 */
    features->maintenance8 = true;
+
+   /* VK_KHR_maintenance9 */
+   features->maintenance9 = true;
 
    /* VK_KHR_performance_query */
    features->performanceCounterQueryPools = true;
@@ -1467,6 +1471,12 @@ tu_get_properties(struct tu_physical_device *pdevice,
    props->maxDescriptorSetUpdateAfterBindTotalBuffersDynamic =
       MAX_DYNAMIC_UNIFORM_BUFFERS + MAX_DYNAMIC_STORAGE_BUFFERS;
 
+   /* VK_KHR_maintenance9 */
+   /* We don't support sparse 3D images */
+   props->image2DViewOf3DSparse = false;
+   props->defaultVertexAttributeValue =
+      VK_DEFAULT_VERTEX_ATTRIBUTE_VALUE_ZERO_ZERO_ZERO_ZERO_KHR;
+
    /* VK_EXT_host_image_copy */
 
    /* We don't use the layouts ATM so just report all layouts from
@@ -2019,6 +2029,16 @@ tu_GetPhysicalDeviceQueueFamilyProperties2(
                   (VkQueueFamilyGlobalPriorityPropertiesKHR *) ext;
                tu_physical_device_get_global_priority_properties(
                   pdevice, family->type, props);
+               break;
+            }
+            case VK_STRUCTURE_TYPE_QUEUE_FAMILY_OWNERSHIP_TRANSFER_PROPERTIES_KHR: {
+               VkQueueFamilyOwnershipTransferPropertiesKHR *props =
+                  (VkQueueFamilyOwnershipTransferPropertiesKHR *) ext;
+               /* We don't do anything with queue family ownership, so we can
+                * trivially implictly transfer to everything.
+                */
+               props->optimalImageTransferToQueueFamilies =
+                  (1u << pdevice->num_queue_families) - 1;
                break;
             }
             default:
