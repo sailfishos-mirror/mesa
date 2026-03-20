@@ -59,34 +59,6 @@ ethosu_register_tensor(struct ethosu_subgraph *subgraph,
    util_dynarray_append(&subgraph->tensors, new_tensor);
 }
 
-unsigned
-ethosu_allocate_feature_map(struct ethosu_subgraph *subgraph, unsigned tensor_idx)
-{
-   struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, tensor_idx);
-   unsigned size;
-
-   if (tensor->layout == ETHOSU_LAYOUT_NHWC) {
-      size = tensor->shape.width * tensor->shape.height * tensor->shape.depth;
-   } else if (tensor->layout == ETHOSU_LAYOUT_NHCWB16) {
-      size = tensor->shape.width * tensor->shape.height * align(tensor->shape.depth, 16);
-   } else {
-      assert(0 && "Unsupported layout");
-      size = 0; // This should never happen
-   }
-   size *= tensor->type_size;
-
-   assert(tensor);
-
-   if (tensor->size > 0)
-      return tensor->offset;
-
-   tensor->offset = subgraph->io_used;
-   tensor->size = size;
-   subgraph->io_used += ALIGN_POT(size, 16);
-
-   return tensor->offset;
-}
-
 struct ethosu_tensor *
 ethosu_find_tensor(struct ethosu_subgraph *subgraph, unsigned tensor_idx)
 {
