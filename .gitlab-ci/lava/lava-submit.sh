@@ -82,7 +82,7 @@ fi
 if [ -n "${FLUSTER_TAG:-}" ]; then
 	LAVA_EXTRA_OVERLAYS+=(
 		- append-overlay
-		  --name=vkd3d-proton
+		  --name=fluster
 		  --url="$(fdo_find_s3_path "${DATA_STORAGE_PATH}/fluster/${FLUSTER_TAG}/vectors.tar.zst")"
 		  --path="/"
 		  --format=tar
