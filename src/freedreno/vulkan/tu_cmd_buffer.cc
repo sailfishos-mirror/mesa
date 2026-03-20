@@ -4652,7 +4652,7 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                   for (unsigned i = 0;
                        i < binding->size / (4 * FDL6_TEX_CONST_DWORDS);
                        i++, dst_desc += FDL6_TEX_CONST_DWORDS) {
-                     uint64_t va = tu_desc_get_addr<CHIP>(dst_desc);
+                     uint64_t va = tu_desc_get_buffer_addr<CHIP>(dst_desc);
                      if (CHIP >= A8XX) {
                         /* gen8 buffer descriptors take a byte address, and
                          * the STARTOFFSETTEXELS field no longer exists.
@@ -4689,7 +4689,7 @@ tu_bind_descriptor_sets(struct tu_cmd_buffer *cmd,
                            pkt_field_set(A6XX_TEX_MEMOBJ_2_STARTOFFSETTEXELS,
                                        dst_desc[2], new_offset);
                      }
-                     tu_desc_set_addr<CHIP>(dst_desc, va);
+                     tu_desc_set_buffer_addr<CHIP>(dst_desc, va);
                   }
                }
 
