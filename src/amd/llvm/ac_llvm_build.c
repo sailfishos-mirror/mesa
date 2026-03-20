@@ -492,21 +492,20 @@ LLVMValueRef ac_build_vote_any(struct ac_llvm_context *ctx, LLVMValueRef value)
                         "");
 }
 
-LLVMValueRef ac_build_gather_values_extended(struct ac_llvm_context *ctx, LLVMValueRef *values,
-                                             unsigned value_count, unsigned value_stride,
-                                             bool always_vector)
+LLVMValueRef ac_build_gather_values(struct ac_llvm_context *ctx, LLVMValueRef *values,
+                                    unsigned value_count)
 {
    LLVMBuilderRef builder = ctx->builder;
    LLVMValueRef vec = NULL;
    unsigned i;
 
-   if (value_count == 1 && !always_vector) {
+   if (value_count == 1) {
       return values[0];
    } else if (!value_count)
       UNREACHABLE("value_count is 0");
 
    for (i = 0; i < value_count; i++) {
-      LLVMValueRef value = values[i * value_stride];
+      LLVMValueRef value = values[i];
 
       if (!i)
          vec = LLVMGetUndef(LLVMVectorType(LLVMTypeOf(value), value_count));
@@ -514,12 +513,6 @@ LLVMValueRef ac_build_gather_values_extended(struct ac_llvm_context *ctx, LLVMVa
       vec = LLVMBuildInsertElement(builder, vec, value, index, "");
    }
    return vec;
-}
-
-LLVMValueRef ac_build_gather_values(struct ac_llvm_context *ctx, LLVMValueRef *values,
-                                    unsigned value_count)
-{
-   return ac_build_gather_values_extended(ctx, values, value_count, 1, false);
 }
 
 LLVMValueRef ac_build_concat(struct ac_llvm_context *ctx, LLVMValueRef a, LLVMValueRef b)
