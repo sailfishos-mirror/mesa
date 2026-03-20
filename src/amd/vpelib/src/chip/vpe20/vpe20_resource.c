@@ -2099,6 +2099,9 @@ int32_t vpe20_program_frontend(struct vpe_priv* vpe_priv, uint32_t pipe_idx, uin
         // Always Bypass Post-Blend Gamut Remap
         mpc->funcs->set_gamut_remap2(mpc, NULL, VPE_MPC_GAMUT_REMAP);
 
+        // Disable unused gamma blocks to prevent corruption
+        mpc->funcs->set_output_gamma(mpc, NULL);
+
         // program hdr_mult
         fmt.exponenta_bits = 6;
         fmt.mantissa_bits = 12;
