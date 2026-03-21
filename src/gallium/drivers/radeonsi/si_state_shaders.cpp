@@ -4505,6 +4505,7 @@ bool si_set_tcs_to_fixed_func_shader(struct si_context *sctx)
    }
 
    sctx->shader.tcs.cso = tcs;
+   sctx->shader.tcs.key.ge.use_aco = tcs->info.base.use_aco_amd;
    return true;
 }
 
