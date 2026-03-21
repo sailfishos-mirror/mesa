@@ -130,6 +130,22 @@ split_tex_residency(nir_builder *b, nir_tex_instr *tex, int compare_idx)
                 tex->def.num_components, tex->def.bit_size);
    nir_builder_instr_insert(b, &sparse_tex->instr);
 
+   /* txl/txb/tex and tg4 both access the same pixels for residency checking
+    * purposes, but using the former for residency-only queries lets us mask
+    * out unwanted color components, using fewer registers.
+    */
+   if (sparse_tex->op == nir_texop_tg4) {
+      if (nir_tex_instr_src_index(sparse_tex, nir_tex_src_bias) >= 0)
+         sparse_tex->op = nir_texop_txb;
+      else if (sparse_tex->is_gather_implicit_lod)
+         sparse_tex->op = nir_texop_tex;
+      else
+         sparse_tex->op = nir_texop_txl;
+
+      sparse_tex->component = 0;
+      sparse_tex->is_gather_implicit_lod = false;
+   }
+
    /* Drop the compare source on the cloned instruction */
    if (compare_idx != -1)
       nir_tex_instr_remove_src(sparse_tex, compare_idx);
