@@ -397,9 +397,8 @@ void si_llvm_ps_build_end(struct si_shader_context *ctx)
    ret = ctx->return_value;
 
    /* Set SGPRs. */
-   ret = LLVMBuildInsertValue(
-      builder, ret, ac_to_integer(&ctx->ac, LLVMGetParam(ctx->main_fn.value, SI_PARAM_ALPHA_REF)),
-      SI_SGPR_ALPHA_REF, "");
+   ret = LLVMBuildInsertValue(builder, ret, LLVMGetParam(ctx->main_fn.value, SI_PARAM_ALPHA_REF),
+                              SI_SGPR_ALPHA_REF, "");
 
    /* Set VGPRs */
    vgpr = SI_SGPR_ALPHA_REF + 1;
