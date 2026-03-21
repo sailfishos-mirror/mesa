@@ -530,7 +530,7 @@ static bool lower_resource_tex(nir_builder *b, nir_tex_instr *tex,
          break;
       case nir_tex_src_sampler_handle:
          if (has_sampler) {
-            sampler_handle = tex->src[i].src.ssa;
+            sampler_handle = nir_u2u32(b, tex->src[i].src.ssa);
          } else {
             nir_tex_instr_remove_src(tex, i);
             i--;
