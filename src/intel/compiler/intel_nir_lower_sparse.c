@@ -120,7 +120,7 @@ lower_sparse_image_load(nir_builder *b, nir_intrinsic_instr *intrin)
 }
 
 static void
-lower_tex_compare(nir_builder *b, nir_tex_instr *tex, int compare_idx)
+split_tex_residency(nir_builder *b, nir_tex_instr *tex, int compare_idx)
 {
    b->cursor = nir_after_instr(&tex->instr);
 
@@ -131,7 +131,8 @@ lower_tex_compare(nir_builder *b, nir_tex_instr *tex, int compare_idx)
    nir_builder_instr_insert(b, &sparse_tex->instr);
 
    /* Drop the compare source on the cloned instruction */
-   nir_tex_instr_remove_src(sparse_tex, compare_idx);
+   if (compare_idx != -1)
+      nir_tex_instr_remove_src(sparse_tex, compare_idx);
 
    /* Drop the residency query on the original tex instruction */
    tex->is_sparse = false;
@@ -177,7 +178,7 @@ lower_sparse_intrinsics(nir_builder *b, nir_instr *instr, void *cb_data)
       nir_tex_instr *tex = nir_instr_as_tex(instr);
       int comp_idx = nir_tex_instr_src_index(tex, nir_tex_src_comparator);
       if (comp_idx != -1 && tex->is_sparse) {
-         lower_tex_compare(b, tex, comp_idx);
+         split_tex_residency(b, tex, comp_idx);
          return true;
       }
       return false;
