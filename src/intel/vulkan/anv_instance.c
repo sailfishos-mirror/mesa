@@ -327,6 +327,9 @@ VkResult anv_CreateInstance(
    instance->debug = parse_debug_string(os_get_option("ANV_DEBUG"),
                                         debug_control);
 
+   process_intel_debug_variable();
+   instance->vk.enable_debug_logging = INTEL_DEBUG(DEBUG_PERF);
+
    intel_driver_ds_init();
 
    *pInstance = anv_instance_to_handle(instance);

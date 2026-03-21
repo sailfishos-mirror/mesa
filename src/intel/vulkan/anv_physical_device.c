@@ -2639,8 +2639,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    int master_fd = -1;
    int ret;
 
-   process_intel_debug_variable();
-
    fd = open(path, O_RDWR | O_CLOEXEC);
    if (fd < 0) {
       if (errno == ENOMEM) {
