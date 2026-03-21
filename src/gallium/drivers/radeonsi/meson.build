@@ -86,8 +86,8 @@ files_libradeonsi = files(
 )
 
 radeonsi_include_dirs = [inc_src, inc_include, inc_gallium, inc_gallium_aux, inc_amd_common,
-                         inc_amd_common_llvm, inc_gallium_drivers, inc_compiler, inc_amd, inc_amd_vpe, inc_virtio_gpu]
-radeonsi_deps = [dep_llvm, dep_clock, dep_libdrm, idep_nir_headers, idep_amd_generated_headers,
+                         inc_gallium_drivers, inc_compiler, inc_amd, inc_amd_vpe, inc_virtio_gpu]
+radeonsi_deps = [dep_clock, dep_libdrm, idep_nir_headers, idep_amd_generated_headers,
                  idep_mesautil, idep_aco, idep_u_tracepoints, idep_si_tracepoints]
 
 if with_perfetto
@@ -173,7 +173,7 @@ libradeonsi = static_library(
 driver_radeonsi = declare_dependency(
   compile_args : ['-DGALLIUM_RADEONSI'] + libradeonsi_cflags,
   link_with : radeonsi_gfx_libs + [
-    libradeonsi, libradeonwinsys, libamdgpuwinsys, libamd_common, libamd_common_llvm, libvpe, libgm, liblanczos
+    libradeonsi, libradeonwinsys, libamdgpuwinsys, amd_common_libs, libvpe, libgm, liblanczos
   ],
   dependencies : idep_nir,
 )
