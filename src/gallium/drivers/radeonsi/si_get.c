@@ -776,7 +776,7 @@ void si_init_screen_caps(struct si_screen *sscreen)
    caps->shader_subgroup_size = 64;
    caps->shader_subgroup_supported_stages =
       BITFIELD_MASK(caps->mesh_shader ? MESA_SHADER_MESH_STAGES : MESA_SHADER_STAGES);
-   caps->shader_subgroup_supported_features = BITFIELD_MASK(PIPE_SHADER_SUBGROUP_NUM_FEATURES);
+   caps->shader_subgroup_supported_features = PIPE_SHADER_SUBGROUP_FEATURE_MASK;
    caps->shader_subgroup_quad_all_stages = true;
 
    caps->min_line_width =
