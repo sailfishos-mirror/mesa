@@ -110,6 +110,14 @@ struct vk_instance {
    /** Instance-level dispatch table */
    struct vk_instance_dispatch_table dispatch_table;
 
+   /** Driver-set flag to enable debug logging in release builds
+    *
+    * When set to true, vk_log messages will not be skipped in non-debug
+    * builds even when no debug_utils or debug_report callbacks are registered.
+    * Drivers should set this based on their own debug environment variables.
+    */
+   bool enable_debug_logging;
+
    /* VK_EXT_debug_report debug callbacks */
    struct vk_debug_report debug_report;
 
