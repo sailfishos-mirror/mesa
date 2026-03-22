@@ -44,7 +44,6 @@ extensions = [
     'formatting',
     'hawkmoth',
     'nir',
-    'redirects',
     'sphinx.ext.graphviz',
 ]
 
@@ -121,9 +120,6 @@ html_extra_path = [
     'libGL.txt',
     'README.UVD',
     'README.VCE',
-]
-
-html_redirects = [
 ]
 
 
