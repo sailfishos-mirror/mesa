@@ -261,7 +261,7 @@ def get_field_bits(field):
         last_bit, first_bit = int(left), int(right)
     else:
         first_bit = int(bits_str)
-        last_bit = first_bit + 1
+        last_bit = first_bit
 
     return (first_bit, last_bit)
 
@@ -589,7 +589,7 @@ def print_packet(packet_name, packet_dict, engine_name, dword0_read):
                                   (dword_var, first_bit, bitmask, packet_name, word_index_0based))
                     continue
 
-                # Some address fields don't use the first 2-3 bits. Include them anyway.
+                # Some address fields don't use low bits. Include them anyway.
                 if num_printed_fields == 1 and first_bit + num_bits == 32 and first_bit <= 8:
                     num_bits = 32
 
