@@ -252,7 +252,9 @@ enum ac_tracked_reg
    AC_TRACKED_SPI_SHADER_GS_MESHLET_EXP_ALLOC, /* GFX11+ */
    AC_TRACKED_SPI_SHADER_GS_MESHLET_CTRL,      /* GFX12+ */
 
-   AC_TRACKED_PA_SC_VRS_OVERRIDE_CNTL,         /* GFX11+ */
+   /* This spot is only for new SH and UCONFIG register enums.
+    * Context register enums should be before AC_NUM_TRACKED_CONTEXT_REGS.
+    */
 
    AC_NUM_ALL_TRACKED_REGS,
 };
