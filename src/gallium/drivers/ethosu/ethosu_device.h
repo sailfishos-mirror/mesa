@@ -79,9 +79,8 @@ struct ethosu_resource {
    struct pipe_resource base;
 
    uint32_t handle;
-   uint64_t phys_addr;
-   uint64_t obj_addr;
    uint64_t bo_size;
+   void *map;
 };
 
 static inline struct ethosu_resource *

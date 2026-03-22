@@ -233,6 +233,7 @@ ethosu_ml_subgraph_create(struct pipe_context *pcontext,
 
    if (subgraph->coefs_used > 0) {
       subgraph->coefs_rsrc = pipe_buffer_create(pscreen, 0, PIPE_USAGE_DEFAULT, subgraph->coefs_used);
+      assert(subgraph->coefs_rsrc != NULL);
       pipe_buffer_write(subgraph->base.context, subgraph->coefs_rsrc, 0, subgraph->coefs_used, subgraph->coefs);
 
       free(subgraph->coefs);
@@ -248,6 +249,7 @@ ethosu_ml_subgraph_create(struct pipe_context *pcontext,
    }
 
    subgraph->io_rsrc = pipe_buffer_create(pscreen, 0, PIPE_USAGE_DEFAULT, subgraph->io_used);
+   assert(subgraph->io_rsrc != NULL);
 
    return &subgraph->base;
 }
