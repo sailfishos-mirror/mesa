@@ -3210,7 +3210,6 @@ static void gfx12_emit_framebuffer_state(struct si_context *sctx, unsigned index
                             S_028044_FORMAT(V_028044_STENCIL_INVALID)|
                             S_028044_TILE_STENCIL_DISABLE(1));
       gfx12_set_context_reg(R_028B94_PA_SC_HIZ_INFO, S_028B94_SURFACE_ENABLE(0));
-      gfx12_set_context_reg(R_028B98_PA_SC_HIS_INFO, S_028B98_SURFACE_ENABLE(0));
    }
 
    /* Framebuffer dimensions. */
