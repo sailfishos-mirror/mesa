@@ -1192,7 +1192,7 @@ remove_dead_varyings_pre_linking(nir_shader *nir)
 bool
 gl_nir_add_point_size(nir_shader *nir)
 {
-   nir_variable *psiz;
+   nir_variable *psiz = NULL;
    if (!nir->info.io_lowered) {
       psiz = nir_create_variable_with_location(nir, nir_var_shader_out,
                                                VARYING_SLOT_PSIZ, glsl_float_type());
