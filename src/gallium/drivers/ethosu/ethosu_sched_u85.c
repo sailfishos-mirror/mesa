@@ -656,23 +656,31 @@ find_ublock(struct ethosu_operation *operation, bool is_part_kernel)
          continue; /* Skip 2x1x16 for part-kernel 1x1 */
       }
 
-      /* The 2x1x16 microblock is only valid for 16-bit IFM convolutions.
-       * For 8-bit IFM, it can only be used for depthwise/pooling operations.
-       * This matches the bitsToOperations table in Vela's ethos_u85.cpp.
+      /* U85-256 ublock-to-operation validity for 8-bit IFM
+       * (from Vela's _uBlockToOpTable in ethos_u85.cpp):
+       *
+       *   {2,2,8}  / Shape(2,2,8):  conv, matmul, vectorprod, reducesum, eltwise, resize
+       *   {4,1,8}  / Shape(1,4,8):  conv, matmul, vectorprod, reducesum, eltwise, resize
+       *   {2,1,16} / Shape(1,2,16): depthwise, pool, eltwise, reduceminmax, argmax, resize
+       *
+       * So for 8-bit IFM:
+       *  - depthwise/pooling can ONLY use {2,1,16}
+       *  - convolution (non-depthwise) CANNOT use {2,1,16}
        */
+
+      /* Skip {2,1,16} for 8-bit non-depthwise convolutions */
       if (ublk.width == 2 && ublk.height == 1 && ublk.depth == 16 &&
           operation->type == ETHOSU_OPERATION_TYPE_CONVOLUTION &&
           !is_depthwise) {
-         continue; /* Skip 2x1x16 for 8-bit IFM non-depthwise convolutions */
+         continue;
       }
 
-      /* For non-1x1 regular convolutions, skip 2x1x16 unless it's depthwise */
-      if (!is_pointwise && !is_depthwise &&
-          operation->type == ETHOSU_OPERATION_TYPE_CONVOLUTION &&
-          ublk.width == 2 &&
-          ublk.height == 1 &&
-          ublk.depth == 16)
+      /* Skip {4,1,8} and {2,2,8} for 8-bit depthwise/pooling —
+       * only {2,1,16} is valid for these operations at 8-bit */
+      if (!(ublk.width == 2 && ublk.height == 1 && ublk.depth == 16) &&
+          (is_depthwise || is_pooling)) {
          continue;
+      }
 
       /* Minimum waste is better than aspect correct */
       struct ethosu_block tmp = block_round_away(operation->ofm.shape, ublk);
