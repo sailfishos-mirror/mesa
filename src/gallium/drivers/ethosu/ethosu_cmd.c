@@ -540,15 +540,41 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 }
 
 static void
+emit_ifm2_precision(struct ethosu_subgraph *subgraph,
+                    struct ethosu_operation *operation,
+                    bool has_scalar)
+{
+   struct ethosu_tensor *tensor = ethosu_find_tensor(subgraph, operation->ifm2.tensor_idx);
+   unsigned prec = 0;
+
+   prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_TYPE(operation->ifm2.is_signed);
+   prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_PRECISION(operation->ifm2.precision);
+
+   if (tensor->layout == ETHOSU_LAYOUT_NHCWB16)
+      prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_FORMAT(1);
+
+   /* Vela: scalar → NONE(3), non-scalar → TILE2X2(0) */
+   if (has_scalar)
+      prec |= NPU_SET_IFM2_PRECISION_ACTIVATION_STORAGE(3);
+
+   EMIT0(NPU_SET_IFM2_PRECISION, prec);
+}
+
+static void
 emit_ifm2(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, bool has_scalar)
 {
-   if (!has_scalar) {
+   if (has_scalar) {
+      if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
+         EMIT0(NPU_SET_IFM2_SCALAR, operation->ifm2.scalar);
+      else {
+         emit_ifm2_precision(subgraph, operation, true);
+         EMIT1(NPU_SET_OP_SCALAR, 0, operation->ifm2.scalar);
+      }
+   } else {
       EMIT0(NPU_SET_IFM2_REGION, IO_REGION);
       emit_addresses(subgraph, &operation->ifm2, NPU_SET_IFM2_BASE0, NPU_SET_IFM2_BASE1, NPU_SET_IFM2_BASE2, NPU_SET_IFM2_BASE3);
       emit_tiles(subgraph, &operation->ifm2, NPU_SET_IFM2_HEIGHT0_M1, NPU_SET_IFM2_HEIGHT1_M1, NPU_SET_IFM2_WIDTH0_M1);
       emit_strides(subgraph, &operation->ifm2, NPU_SET_IFM2_STRIDE_C, NPU_SET_IFM2_STRIDE_Y, NPU_SET_IFM2_STRIDE_X);
-   } else {
-      EMIT0(NPU_SET_IFM2_SCALAR, operation->ifm2.scalar);
    }
    EMIT0(NPU_SET_IFM2_ZERO_POINT, operation->ifm2.zero_point);
 }
