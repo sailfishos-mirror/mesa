@@ -1365,11 +1365,9 @@ v3d_create_image_view_texture_shader_state(struct v3d_context *v3d,
         struct v3d_image_view *iview = &so->si[img];
 
         void *map;
-        u_upload_alloc_ref(v3d->uploader, 0, cl_packet_length(TEXTURE_SHADER_STATE),
-                       32,
-                       &iview->tex_state_offset,
-                       &iview->tex_state,
-                       &map);
+        u_upload_alloc_ref(v3d->state_uploader, 0,
+                           cl_packet_length(TEXTURE_SHADER_STATE), 32,
+                           &iview->tex_state_offset, &iview->tex_state, &map);
 
         struct pipe_resource *prsc = iview->base.resource;
 
