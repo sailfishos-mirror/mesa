@@ -29,13 +29,13 @@ bool si_init_cp_reg_shadowing(struct si_context *sctx)
          }
 
          ac_pm4_cmd_add(shadowing_pm4, PKT3(PKT3_CONTEXT_CONTROL, 1, 0));
-         ac_pm4_cmd_add(shadowing_pm4, S_28_1_UPDATE_LOAD_ENABLES(1) |
-                        S_28_1_LOAD_PER_CONTEXT_STATE(1) | S_28_1_LOAD_CS_SH_REGS(1) |
-                        S_28_1_LOAD_GFX_SH_REGS(1) | S_28_1_LOAD_GLOBAL_UCONFIG(1));
-         ac_pm4_cmd_add(shadowing_pm4, S_28_2_UPDATE_SHADOW_ENABLES(1) |
-                        S_28_2_SHADOW_PER_CONTEXT_STATE(1) | S_28_2_SHADOW_CS_SH_REGS(1) |
-                        S_28_2_SHADOW_GFX_SH_REGS(1) | S_28_2_SHADOW_GLOBAL_UCONFIG(1) |
-                        S_28_2_SHADOW_GLOBAL_CONFIG(1));
+         ac_pm4_cmd_add(shadowing_pm4, S_281_UPDATE_LOAD_ENABLES(1) |
+                        S_281_LOAD_PER_CONTEXT_STATE(1) | S_281_LOAD_CS_SH_REGS(1) |
+                        S_281_LOAD_GFX_SH_REGS(1) | S_281_LOAD_GLOBAL_UCONFIG(1));
+         ac_pm4_cmd_add(shadowing_pm4, S_282_UPDATE_SHADOW_ENABLES(1) |
+                        S_282_SHADOW_PER_CONTEXT_STATE(1) | S_282_SHADOW_CS_SH_REGS(1) |
+                        S_282_SHADOW_GFX_SH_REGS(1) | S_282_SHADOW_GLOBAL_UCONFIG(1) |
+                        S_282_SHADOW_GLOBAL_CONFIG(1));
 
          for (unsigned i = 0; i < SI_NUM_REG_RANGES; i++)
             ac_build_load_reg(&sctx->screen->info, shadowing_pm4, i,

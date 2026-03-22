@@ -74,20 +74,20 @@ address_field_map = {
     'ADDR_HI': ([], '', ''),
     'CONTROL_BUF_ADDR_HI': ([], '', ''),
     'COUNT_ADDR_HI': ([], '', ''),
-    'DST_MEM_ADDR_HI': ([], ('G_37_1_DST_SEL(dw0) == V_37_1_MEMORY_SYNC_ACROSS_GRBM || ' +
-                             'G_37_1_DST_SEL(dw0) == V_37_1_TC_L2 || ' +
-                             'G_37_1_DST_SEL(dw0) == V_37_1_MEMORY'), ''),
+    'DST_MEM_ADDR_HI': ([], ('G_371_DST_SEL(dw0) == V_371_MEMORY_SYNC_ACROSS_GRBM || ' +
+                             'G_371_DST_SEL(dw0) == V_371_TC_L2 || ' +
+                             'G_371_DST_SEL(dw0) == V_371_MEMORY'), ''),
     'INDEX_BASE_HI': ([], '', ''),
     'DST_ADDR_HI': (['DMA_DATA'],
-                    ('G_50_1_DST_SEL(dw0) == V_50_1_DST_ADDR_USING_DAS || ' +
-                     'G_50_1_DST_SEL(dw0) == V_50_1_DST_ADDR_USING_L2'),
-                    'G_50_6_BYTE_COUNT(dw5)'),
+                    ('G_501_DST_SEL(dw0) == V_501_DST_ADDR_USING_DAS || ' +
+                     'G_501_DST_SEL(dw0) == V_501_DST_ADDR_USING_L2'),
+                    'G_506_BYTE_COUNT(dw5)'),
     'SRC_ADDR_HI': (['DMA_DATA'],
-                    ('G_50_1_SRC_SEL(dw0) == V_50_1_SRC_ADDR_USING_SAS || ' +
-                     'G_50_1_SRC_SEL(dw0) == V_50_1_SRC_ADDR_USING_L2'),
-                    'G_50_6_BYTE_COUNT(dw5)'),
+                    ('G_501_SRC_SEL(dw0) == V_501_SRC_ADDR_USING_SAS || ' +
+                     'G_501_SRC_SEL(dw0) == V_501_SRC_ADDR_USING_L2'),
+                    'G_506_BYTE_COUNT(dw5)'),
     'ADDRESS_HI': (['EVENT_WRITE', 'SET_BASE'],
-                   'opcode != PKT3_EVENT_WRITE || G_46_1_EVENT_TYPE(dw0) != V_028A90_PIXEL_PIPE_STAT_CONTROL',
+                   'opcode != PKT3_EVENT_WRITE || G_461_EVENT_TYPE(dw0) != V_028A90_PIXEL_PIPE_STAT_CONTROL',
                    ''),
 }
 
@@ -411,7 +411,7 @@ def print_packet_definitions():
                         field_suffix, field_comment = (
                             get_field_conflict_suffix(gfx_versions, gfx_version_param, engine_name, packet_name, word_index,
                                                       word_variant_name, field_name, field['bits']))
-                        mangled_prefix = '%02X_%d%s' % (opcode, int(word_index) - 1, variant_letter)
+                        mangled_prefix = '%02X%d%s' % (opcode, int(word_index) - 1, variant_letter)
                         mangled_name = '%s_%s%s' % (mangled_prefix, field_name.upper(), field_suffix.upper())
 
                         first_bit, last_bit = get_field_bits(field)
@@ -420,8 +420,8 @@ def print_packet_definitions():
                         clear_mask = (bitmask << first_bit) ^ 0xffffffff
 
                         assert num_bits < 32
-                        encode_field = '(((unsigned)(x) & 0x%x) << %d)' % (bitmask, first_bit)
-                        decode_field = '(((x) >> %d) & 0x%x)' % (first_bit, bitmask)
+                        encode_field = '(((unsigned)(x) & 0x%X) << %d)' % (bitmask, first_bit)
+                        decode_field = '(((x) >> %d) & 0x%X)' % (first_bit, bitmask)
                         clear_field = '0x%08X' % clear_mask
 
                         print2('#define   S_%s(x)' % mangled_name, encode_field + field_comment)
@@ -733,7 +733,7 @@ def print_packet_parser(is_header):
 
             if has_engine_sel:
                 # Generate an expression that checks ENGINE_SEL
-                engine_sel_infix = ('%X_1%s' %
+                engine_sel_infix = ('%02X1%s' %
                     (opcodes[packet_name], '' if len(packet_dict['pfp']['word']['2']) == 1 else 'A'))
                 engine_sel_getter = 'G_%s_ENGINE_SEL' % engine_sel_infix
 
