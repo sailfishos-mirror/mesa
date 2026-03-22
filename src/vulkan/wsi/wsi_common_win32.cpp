@@ -626,6 +626,19 @@ wsi_win32_release_images(struct wsi_swapchain *drv_chain,
    return VK_SUCCESS;
 }
 
+static bool
+wsi_win32_find_idle_image(struct wsi_win32_swapchain *chain,
+                          uint32_t *out_image_index)
+{
+   for (uint32_t i = 0; i < chain->base.image_count; i++) {
+      if (chain->images[i].state == WSI_IMAGE_IDLE) {
+         *out_image_index = i;
+         chain->images[i].state = WSI_IMAGE_DRAWING;
+         return true;
+      }
+   }
+   return false;
+}
 
 static VkResult
 wsi_win32_acquire_next_image(struct wsi_swapchain *drv_chain,
@@ -639,13 +652,8 @@ wsi_win32_acquire_next_image(struct wsi_swapchain *drv_chain,
    if (chain->status != VK_SUCCESS)
       return chain->status;
 
-   for (uint32_t i = 0; i < chain->base.image_count; i++) {
-      if (chain->images[i].state == WSI_IMAGE_IDLE) {
-         *image_index = i;
-         chain->images[i].state = WSI_IMAGE_DRAWING;
-         return VK_SUCCESS;
-      }
-   }
+   if (wsi_win32_find_idle_image(chain, image_index))
+      return VK_SUCCESS;
 
    assert(chain->dxgi);
    uint32_t index = chain->dxgi->GetCurrentBackBufferIndex();
