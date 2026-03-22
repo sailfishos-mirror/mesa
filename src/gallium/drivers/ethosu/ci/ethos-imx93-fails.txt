@@ -2,8 +2,6 @@ Models.Op/efficientdet_efficientdet_tflite_lite0_int8_v1,Fail
 Models.Op/movenetlightning_112,Fail
 Models.Op/movenetlightning_141,Fail
 Models.Op/movenetlightning_152,Fail
-Models.Op/movenetlightning_movenet_single_pose_lightning_ptq,Fail
 Models.Op/movenetthunder_112,Fail
 Models.Op/movenetthunder_141,Fail
 Models.Op/movenetthunder_152,Fail
-Models.Op/movenetthunder_movenet_single_pose_thunder_ptq,Fail
