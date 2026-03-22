@@ -3,11 +3,11 @@
 # (c) Corbin Simpson 2010
 # Public domain to the extent permitted; contact author for special licensing
 
-import docutils.nodes
 import sphinx.addnodes
 
 from sphinx.util.nodes import split_explicit_title
 from docutils import nodes, utils
+
 
 def parse_opcode(env, sig, signode):
     opcode, desc = sig.split("-", 1)
@@ -33,6 +33,7 @@ def ext_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
     pnode = nodes.reference(title, title, internal=False, refuri=full_url)
     return [pnode], []
 
+
 def vkfeat_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
     text = utils.unescape(text)
     has_explicit_title, title, ext = split_explicit_title(text)
@@ -42,8 +43,8 @@ def vkfeat_role(name, rawtext, text, lineno, inliner, options={}, content=[]):
     pnode = nodes.reference(title, title, internal=False, refuri=full_url)
     return [pnode], []
 
+
 def setup(app):
-    app.add_object_type("opcode", "opcode", "%s (TGSI opcode)",
-        parse_opcode)
+    app.add_object_type("opcode", "opcode", "%s (TGSI opcode)", parse_opcode)
     app.add_role('ext', ext_role)
     app.add_role('vk-feat', vkfeat_role)

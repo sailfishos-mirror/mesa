@@ -22,9 +22,11 @@ import os
 import pathlib
 from urllib.parse import urlparse
 
+
 def create_redirect(dst):
     tpl = '<html><head><meta http-equiv="refresh" content="0; url={0}"><script>window.location.replace("{0}")</script></head></html>'
     return tpl.format(dst)
+
 
 def create_redirects(app, exception):
     if exception is not None or not app.builder.name == 'html':
@@ -41,6 +43,7 @@ def create_redirects(app, exception):
 
         with open(path, 'w') as f:
             f.write(create_redirect(dst))
+
 
 def setup(app):
     app.add_config_value('html_redirects', [], '')
