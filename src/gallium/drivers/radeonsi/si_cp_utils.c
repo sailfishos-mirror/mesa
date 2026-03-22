@@ -59,7 +59,7 @@ void si_cp_acquire_mem(struct si_context *sctx, struct radeon_cmdbuf *cs, unsign
       if (!compute_ib)
          sctx->context_roll = true;
 
-      if (engine == V_580_CP_PFP)
+      if (engine == V_581B_CP_PFP)
          si_cp_pfp_sync_me(cs);
    }
 }

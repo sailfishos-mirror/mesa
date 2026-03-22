@@ -3002,9 +3002,9 @@ struct ac_pm4_state *ac_create_shadowing_ib_preamble(const struct radeon_info *i
        * Use the bottom-of-pipe EOP event, but increment the PWS counter instead of writing memory.
        */
       ac_pm4_cmd_add(pm4, PKT3(PKT3_RELEASE_MEM, 6, 0));
-      ac_pm4_cmd_add(pm4, S_490_EVENT_TYPE(V_028A90_BOTTOM_OF_PIPE_TS) |
-                              S_490_EVENT_INDEX(5) |
-                              S_490_PWS_ENABLE(1));
+      ac_pm4_cmd_add(pm4, S_491_EVENT_TYPE(V_028A90_BOTTOM_OF_PIPE_TS) |
+                              S_491_EVENT_INDEX(5) |
+                              S_491_PWS_ENABLE(1));
       ac_pm4_cmd_add(pm4, 0); /* DST_SEL, INT_SEL, DATA_SEL */
       ac_pm4_cmd_add(pm4, 0); /* ADDRESS_LO */
       ac_pm4_cmd_add(pm4, 0); /* ADDRESS_HI */
@@ -3012,28 +3012,28 @@ struct ac_pm4_state *ac_create_shadowing_ib_preamble(const struct radeon_info *i
       ac_pm4_cmd_add(pm4, 0); /* DATA_HI */
       ac_pm4_cmd_add(pm4, 0); /* INT_CTXID */
 
-      unsigned gcr_cntl = S_586_GL2_INV(1) | S_586_GL2_WB(1) |
-                          (info->gfx_level >= GFX12 ? 0 : S_586_GLM_INV(1) | S_586_GLM_WB(1) | S_586_GL1_INV(1)) |
-                          S_586_GLV_INV(1) |
-                          S_586_GLK_INV(1) | S_586_GLI_INV(V_586_GLI_ALL);
+      unsigned gcr_cntl = S_587_GL2_INV(1) | S_587_GL2_WB(1) |
+                          (info->gfx_level >= GFX12 ? 0 : S_587_GLM_INV(1) | S_587_GLM_WB(1) | S_587_GL1_INV(1)) |
+                          S_587_GLV_INV(1) |
+                          S_587_GLK_INV(1) | S_587_GLI_INV(V_587_GLI_ALL);
 
       /* Wait for the PWS counter. */
       ac_pm4_cmd_add(pm4, PKT3(PKT3_ACQUIRE_MEM, 6, 0));
-      ac_pm4_cmd_add(pm4, S_580_PWS_STAGE_SEL(V_580_CP_PFP) |
-                              S_580_PWS_COUNTER_SEL(V_580_TS_SELECT) |
-                              S_580_PWS_ENA2(1) |
-                              S_580_PWS_COUNT(0));
+      ac_pm4_cmd_add(pm4, S_581B_PWS_STAGE_SEL(V_581B_CP_PFP) |
+                          S_581B_PWS_COUNTER_SEL(V_581B_TS_SELECT) |
+                          S_581B_PWS_ENA2(1) |
+                          S_581B_PWS_COUNT(0));
       ac_pm4_cmd_add(pm4, 0xffffffff); /* GCR_SIZE */
       ac_pm4_cmd_add(pm4, 0x01ffffff); /* GCR_SIZE_HI */
       ac_pm4_cmd_add(pm4, 0); /* GCR_BASE_LO */
       ac_pm4_cmd_add(pm4, 0); /* GCR_BASE_HI */
-      ac_pm4_cmd_add(pm4, S_585_PWS_ENA(1));
+      ac_pm4_cmd_add(pm4, S_586B_PWS_ENA(1));
       ac_pm4_cmd_add(pm4, gcr_cntl); /* GCR_CNTL */
    } else if (info->gfx_level >= GFX10) {
-      unsigned gcr_cntl = S_586_GL2_INV(1) | S_586_GL2_WB(1) |
-                          S_586_GLM_INV(1) | S_586_GLM_WB(1) |
-                          S_586_GL1_INV(1) | S_586_GLV_INV(1) |
-                          S_586_GLK_INV(1) | S_586_GLI_INV(V_586_GLI_ALL);
+      unsigned gcr_cntl = S_587_GL2_INV(1) | S_587_GL2_WB(1) |
+                          S_587_GLM_INV(1) | S_587_GLM_WB(1) |
+                          S_587_GL1_INV(1) | S_587_GLV_INV(1) |
+                          S_587_GLK_INV(1) | S_587_GLI_INV(V_587_GLI_ALL);
 
       ac_pm4_cmd_add(pm4, PKT3(PKT3_ACQUIRE_MEM, 6, 0));
       ac_pm4_cmd_add(pm4, 0);           /* CP_COHER_CNTL */

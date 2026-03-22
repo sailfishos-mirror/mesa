@@ -4982,7 +4982,7 @@ static void si_emit_spi_ge_ring_state(struct si_context *sctx, unsigned index)
        * in memory.
        */
       si_cp_release_acquire_mem_pws(sctx, &sctx->gfx_cs, V_028A90_BOTTOM_OF_PIPE_TS, 0,
-                                    V_580_CP_ME, 0);
+                                    V_581B_CP_ME, 0);
 
       uint64_t attr_address = sctx->ws->cs_is_secure(&sctx->gfx_cs) ?
          sscreen->attribute_pos_prim_ring_tmz->gpu_address :

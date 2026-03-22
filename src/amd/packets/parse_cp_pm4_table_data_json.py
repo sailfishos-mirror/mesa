@@ -57,7 +57,7 @@ packet_field_register_map = {
     # (name, first_bit): (register, mask)
     ('COHER_CNTL', 0): ('R_0301F0_CP_COHER_CNTL', ~0),
     ('EVENT_TYPE', 0): ('R_028A90_VGT_EVENT_INITIATOR', 0x3F),
-    ('GCR_CNTL', 0): ('R_586_GCR_CNTL', ~0),
+    ('GCR_CNTL', 0): ('R_587_GCR_CNTL', ~0),
     ('DISPATCH_INITIATOR', 0): ('R_00B800_COMPUTE_DISPATCH_INITIATOR', ~0),
     ('DRAW_INITIATOR', 0): ('R_0287F0_VGT_DRAW_INITIATOR', ~0),
 }

@@ -858,7 +858,7 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen, unsign
          goto fail;
       }
 
-      si_cp_write_data(sctx, sctx->wait_mem_scratch, 0, 4, V_370_MEM, V_370_ME,
+      si_cp_write_data(sctx, sctx->wait_mem_scratch, 0, 4, V_371_MEMORY, V_371_MICRO_ENGINE,
                        &sctx->wait_mem_number);
    }
 

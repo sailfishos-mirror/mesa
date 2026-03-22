@@ -573,7 +573,7 @@ void si_trace_emit(struct si_context *sctx)
    struct radeon_cmdbuf *cs = &sctx->gfx_cs;
    uint32_t trace_id = ++sctx->current_saved_cs->trace_id;
 
-   si_cp_write_data(sctx, sctx->current_saved_cs->trace_buf, 0, 4, V_370_MEM, V_370_ME, &trace_id);
+   si_cp_write_data(sctx, sctx->current_saved_cs->trace_buf, 0, 4, V_371_MEMORY, V_371_MICRO_ENGINE, &trace_id);
 
    ac_emit_cp_nop(&cs->current, AC_ENCODE_TRACE_POINT(trace_id));
 

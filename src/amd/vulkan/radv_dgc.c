@@ -1017,7 +1017,7 @@ dgc_emit_indirect_buffer(struct dgc_cmdbuf *cs, nir_def *va, nir_def *ib_offset,
       nir_imm_int(b, PKT3(PKT3_INDIRECT_BUFFER, 2, 0)),
       nir_iadd(b, load_param32(b, upload_addr), ib_offset),
       nir_imm_int(b, pdev->info.address32_hi),
-      nir_ior_imm(b, ib_cdw, S_3F2_CHAIN(1) | S_3F2_VALID(1) | S_3F2_PRE_ENA(false)),
+      nir_ior_imm(b, ib_cdw, S_3F3_CHAIN(1) | S_3F3_VALID(1) | S_3F3_PRE_ENA(false)),
    };
 
    nir_store_global(b, nir_vec(b, packet, 4), va, .access = ACCESS_NON_READABLE);
@@ -1277,7 +1277,7 @@ dgc_gfx12_emit_hiz_wa(struct dgc_cmdbuf *cs)
    if (pdev->gfx12_hiz_wa == RADV_GFX12_HIZ_WA_PARTIAL) {
       dgc_cs_begin(cs);
       dgc_cs_emit_imm(PKT3(PKT3_RELEASE_MEM, 6, 0));
-      dgc_cs_emit_imm(S_490_EVENT_TYPE(V_028A90_BOTTOM_OF_PIPE_TS) | S_490_EVENT_INDEX(5));
+      dgc_cs_emit_imm(S_491_EVENT_TYPE(V_028A90_BOTTOM_OF_PIPE_TS) | S_491_EVENT_INDEX(5));
       dgc_cs_emit_imm(0); /* DST_SEL, INT_SEL = no write confirm, DATA_SEL = no data */
       dgc_cs_emit_imm(0); /* ADDRESS_LO */
       dgc_cs_emit_imm(0); /* ADDRESS_HI */

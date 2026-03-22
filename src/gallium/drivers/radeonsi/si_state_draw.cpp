@@ -643,18 +643,18 @@ static void si_cp_dma_prefetch_inline(struct radeon_cmdbuf *cs, uint64_t address
     */
    assert(size % SI_CPDMA_ALIGNMENT == 0);
    assert(address % SI_CPDMA_ALIGNMENT == 0);
-   assert(size < S_415_BYTE_COUNT_GFX6(~0u));
+   assert(size < S_415_BYTE_COUNT(~0u));
    assert(address || size == 0);
 
-   uint32_t header = S_411_SRC_SEL(V_411_SRC_ADDR_TC_L2);
-   uint32_t command = S_415_BYTE_COUNT_GFX6(size);
+   uint32_t header = S_501_SRC_SEL(V_501_SRC_ADDR_USING_L2);
+   uint32_t command = S_415_BYTE_COUNT(size);
 
    if (GFX_VERSION >= GFX9) {
-      command |= S_415_DISABLE_WR_CONFIRM_GFX9(1);
-      header |= S_411_DST_SEL(V_411_NOWHERE);
+      command |= S_506_DISABLE_WR_CONFIRM(1);
+      header |= S_501_DST_SEL(V_501_DST_NOWHERE);
    } else {
-      command |= S_415_DISABLE_WR_CONFIRM_GFX6(1);
-      header |= S_411_DST_SEL(V_411_DST_ADDR_TC_L2);
+      command |= S_415_DISABLE_WR_CONFIRM(1);
+      header |= S_501_DST_SEL(V_501_DST_ADDR_USING_L2);
    }
 
    radeon_begin(cs);
