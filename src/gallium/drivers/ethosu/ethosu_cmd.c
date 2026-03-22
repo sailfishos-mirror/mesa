@@ -587,22 +587,57 @@ emit_ifm_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *op
    EMIT0(NPU_SET_IFM_BROADCAST, ifm_broadcast);
 }
 
+/*
+ * U85 broadcast_mode calculation matching Vela's CalculateBroadcast().
+ * Broadcasts shape1 dimensions that are 1 when shape2 is larger.
+ * Returns a 4-bit broadcast_mode: H=1, W=2, C=4, or'ed together.
+ */
+static unsigned
+calc_broadcast_mode(struct ethosu_block *shape1, struct ethosu_block *shape2)
+{
+   unsigned mode = 0;
+
+   if (shape1->height < shape2->height && shape1->height == 1)
+      mode |= 1; /* H */
+   if (shape1->width < shape2->width && shape1->width == 1)
+      mode |= 2; /* W */
+   if (shape1->depth < shape2->depth && shape1->depth == 1)
+      mode |= 4; /* C */
+
+   return mode;
+}
+
 static void
 emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, bool has_scalar)
 {
    unsigned ifm2_broadcast = 0;
 
-   ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_OPERAND_ORDER(operation->eltwise.ifm_reversed);
+   if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen))) {
+      ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_OPERAND_ORDER(operation->eltwise.ifm_reversed);
 
-   if (has_scalar) {
-      ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_SCALAR(1);
+      if (has_scalar) {
+         ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_SCALAR(1);
+      } else {
+         if (operation->ifm.shape.height != operation->ifm2.shape.height)
+            ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_HEIGHT__MASK;
+         if (operation->ifm.shape.width != operation->ifm2.shape.width)
+            ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_WIDTH__MASK;
+         if (operation->ifm.shape.depth != operation->ifm2.shape.depth)
+            ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_DEPTH__MASK;
+      }
    } else {
-      if (operation->ifm.shape.height != operation->ifm2.shape.height)
-         ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_HEIGHT__MASK;
-      if (operation->ifm.shape.width != operation->ifm2.shape.width)
-         ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_WIDTH__MASK;
-      if (operation->ifm.shape.depth != operation->ifm2.shape.depth)
-         ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_BROADCAST_DEPTH__MASK;
+      unsigned ifm_mode, ifm2_mode;
+
+      if (has_scalar) {
+         ifm_mode = 0;
+         ifm2_mode = 8; /* SCALAR */
+      } else {
+         ifm_mode = calc_broadcast_mode(&operation->ifm.shape, &operation->ifm2.shape);
+         ifm2_mode = calc_broadcast_mode(&operation->ifm2.shape, &operation->ifm.shape);
+      }
+
+      EMIT0(NPU_SET_IFM_BROADCAST, ifm_mode);
+      ifm2_broadcast = ifm2_mode;
    }
 
    EMIT0(NPU_SET_IFM2_BROADCAST, ifm2_broadcast);
@@ -780,7 +815,7 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    if (ethosu_is_u65(ethosu_screen(subgraph->base.context->screen)))
       emit_ifm_precision(subgraph, &operation->ifm2, OP_NONE, NPU_SET_IFM2_PRECISION);
    else
-      emit_ifm_broadcast(subgraph, operation, false);
+      emit_ifm2_precision(subgraph, operation, has_scalar);
 
    emit_ifm2_broadcast(subgraph, operation, has_scalar);
 
