@@ -20,6 +20,7 @@ radv-stoney-angle:
     DEQP_SUITE: radv-stoney-angle
     GPU_VERSION: angle-radv-stoney
     DEQP_FRACTION: 3
+    vk_require_astc: 'true'
 
 radv-stoney-angle-full:
   extends:
