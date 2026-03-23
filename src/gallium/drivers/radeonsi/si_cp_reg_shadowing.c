@@ -15,12 +15,12 @@ bool si_init_cp_reg_shadowing(struct si_context *sctx)
       return false;
 
    if (sctx->uses_userq_reg_shadowing) {
-      /* In case of GFX11_5, shadow_va passed in ac_drm_create_userqueue() is not used by the
+      /* In case of GFX11.5-11.7, shadow_va passed in ac_drm_create_userqueue() is not used by the
        * firmware. Instead need to initialize the register shadowing addresses using LOAD_* packets.
        * Also the LOAD_* packets and enabling register shadowing in CONTEXT_CONTROL packet has to
        * be submitted for every job.
        */
-      if (sctx->gfx_level == GFX11_5) {
+      if (sctx->gfx_level == GFX11_5 || sctx->gfx_level == GFX11_7) {
          struct ac_pm4_state *shadowing_pm4 = ac_pm4_create_sized(&sctx->screen->info, false, 1024,
                                                                  sctx->is_gfx_queue);
          if (!shadowing_pm4) {

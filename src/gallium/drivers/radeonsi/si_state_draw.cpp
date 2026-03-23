@@ -33,6 +33,8 @@
 #define GFX(name) name##GFX11
 #elif (GFX_VER == 115)
 #define GFX(name) name##GFX11_5
+#elif (GFX_VER == 117)
+#define GFX(name) name##GFX11_7
 #elif (GFX_VER == 12)
 #define GFX(name) name##GFX12
 #else
@@ -432,6 +434,8 @@ bool si_update_shaders_for_mesh(struct si_context *sctx, struct si_shader *old_v
       return si_update_shaders_shared_by_vertex_and_mesh_pipe<GFX11, TESS_OFF, GS_OFF, MS_ON, NGG_ON>(sctx, old_vs, new_vs);
    case GFX11_5:
       return si_update_shaders_shared_by_vertex_and_mesh_pipe<GFX11_5, TESS_OFF, GS_OFF, MS_ON, NGG_ON>(sctx, old_vs, new_vs);
+   case GFX11_7:
+      return si_update_shaders_shared_by_vertex_and_mesh_pipe<GFX11_7, TESS_OFF, GS_OFF, MS_ON, NGG_ON>(sctx, old_vs, new_vs);
    case GFX12:
       return si_update_shaders_shared_by_vertex_and_mesh_pipe<GFX12, TESS_OFF, GS_OFF, MS_ON, NGG_ON>(sctx, old_vs, new_vs);
    default:
@@ -697,6 +701,9 @@ void si_cp_dma_prefetch(struct radeon_cmdbuf *cs,
       break;
    case GFX11_5:
       si_cp_dma_prefetch_inline<GFX11_5>(cs, address, size);
+      break;
+   case GFX11_7:
+      si_cp_dma_prefetch_inline<GFX11_7>(cs, address, size);
       break;
    case GFX12:
       si_cp_dma_prefetch_inline<GFX12>(cs, address, size);
@@ -1097,6 +1104,9 @@ void si_emit_rasterizer_prim_state_for_mesh(struct si_context *sctx)
       break;
    case GFX11_5:
       si_emit_rasterizer_prim_state<GFX11_5, GS_OFF, NGG_ON>(sctx);
+      break;
+   case GFX11_7:
+      si_emit_rasterizer_prim_state<GFX11_7, GS_OFF, NGG_ON>(sctx);
       break;
    case GFX12:
       si_emit_rasterizer_prim_state<GFX12, GS_OFF, NGG_ON>(sctx);
@@ -1816,7 +1826,7 @@ static void si_emit_draw_packets(struct si_context *sctx, const struct pipe_draw
             }
          }
       } else {
-         if ((GFX_VERSION == GFX11_5 || GFX_VERSION == GFX12) && !IS_DRAW_VERTEX_STATE &&
+         if ((GFX_VERSION >= GFX11_5 && GFX_VERSION <= GFX12) && !IS_DRAW_VERTEX_STATE &&
              indirect && indirect->count_from_stream_output) {
             /* DrawTransformFeedback requires 3 SQ_NON_EVENTs after the packet. */
             assert(num_draws == 1);
@@ -1932,6 +1942,9 @@ void si_set_vertex_buffer_descriptor(struct si_screen *sscreen, struct si_vertex
       break;
    case GFX11_5:
       si_set_vb_descriptor<GFX11_5>(velems, vb, element_index, out);
+      break;
+   case GFX11_7:
+      si_set_vb_descriptor<GFX11_7>(velems, vb, element_index, out);
       break;
    case GFX12:
       si_set_vb_descriptor<GFX12>(velems, vb, element_index, out);

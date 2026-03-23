@@ -750,6 +750,9 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen, unsign
       case GFX11_5:
          si_init_draw_functions_GFX11_5(sctx);
          break;
+      case GFX11_7:
+         si_init_draw_functions_GFX11_7(sctx);
+         break;
       case GFX12:
          si_init_draw_functions_GFX12(sctx);
          break;

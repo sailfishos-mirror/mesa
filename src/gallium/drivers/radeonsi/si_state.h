@@ -534,6 +534,7 @@ void si_init_draw_functions_GFX10(struct si_context *sctx);
 void si_init_draw_functions_GFX10_3(struct si_context *sctx);
 void si_init_draw_functions_GFX11(struct si_context *sctx);
 void si_init_draw_functions_GFX11_5(struct si_context *sctx);
+void si_init_draw_functions_GFX11_7(struct si_context *sctx);
 void si_init_draw_functions_GFX12(struct si_context *sctx);
 
 /* si_state_msaa.c */
