@@ -3794,7 +3794,7 @@
         "description": "panvk: trivial fix to remove repeated assignment",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "c0d982751c51c7f9450786c01a3a3b987446c9d0",
         "notes": null
