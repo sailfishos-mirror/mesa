@@ -2909,10 +2909,10 @@ radv_shader_create_uncached(struct radv_device *device, const struct radv_shader
          goto out;
       }
 
-      shader->ir_string = bin->llvm_ir_size ? strdup((const char *)(bin->data + bin->elf_size)) : NULL;
-      shader->disasm_string = malloc(disasm_size + 1);
-      memcpy(shader->disasm_string, disasm_data, disasm_size);
-      shader->disasm_string[disasm_size] = 0;
+      shader->dbg.ir_string = bin->llvm_ir_size ? strdup((const char *)(bin->data + bin->elf_size)) : NULL;
+      shader->dbg.disasm_string = malloc(disasm_size + 1);
+      memcpy(shader->dbg.disasm_string, disasm_data, disasm_size);
+      shader->dbg.disasm_string[disasm_size] = 0;
 
       ac_rtld_close(&rtld_binary);
 #endif
@@ -2924,17 +2924,17 @@ radv_shader_create_uncached(struct radv_device *device, const struct radv_shader
       shader->exec_size = bin->exec_size;
 
       if (bin->stats_size) {
-         shader->statistics = calloc(bin->stats_size, 1);
-         memcpy(shader->statistics, layout.stats, bin->stats_size);
+         shader->dbg.statistics = calloc(bin->stats_size, 1);
+         memcpy(shader->dbg.statistics, layout.stats, bin->stats_size);
       }
 
-      shader->ir_string = bin->ir_size ? strdup(layout.ir) : NULL;
-      shader->disasm_string = bin->disasm_size ? strdup(layout.disasm) : NULL;
+      shader->dbg.ir_string = bin->ir_size ? strdup(layout.ir) : NULL;
+      shader->dbg.disasm_string = bin->disasm_size ? strdup(layout.disasm) : NULL;
 
       if (bin->debug_info_size) {
-         shader->debug_info = malloc(bin->debug_info_size);
-         memcpy(shader->debug_info, layout.debug_info, bin->debug_info_size);
-         shader->debug_info_count = bin->debug_info_size / sizeof(struct ac_shader_debug_info);
+         shader->dbg.debug_info = malloc(bin->debug_info_size);
+         memcpy(shader->dbg.debug_info, layout.debug_info, bin->debug_info_size);
+         shader->dbg.debug_info_count = bin->debug_info_size / sizeof(struct ac_shader_debug_info);
       }
    }
 
@@ -3363,7 +3363,7 @@ radv_shader_dump_debug_info(struct radv_device *device, bool dump_shader, struct
          for (int i = 1; i < shader_count; ++i)
             fprintf(stderr, " + %s", radv_get_shader_name(info, shaders[i]->info.stage));
 
-         fprintf(stderr, "\ndisasm:\n%s\n", shader->disasm_string);
+         fprintf(stderr, "\ndisasm:\n%s\n", shader->dbg.disasm_string);
       }
    }
 }
@@ -3414,10 +3414,10 @@ radv_create_trap_handler_shader(struct radv_device *device)
 
    if (options.dump_shader) {
       fprintf(stderr, "Trap handler");
-      fprintf(stderr, "\ndisasm:\n%s\n", shader->disasm_string);
+      fprintf(stderr, "\ndisasm:\n%s\n", shader->dbg.disasm_string);
    }
 
-   free(shader->disasm_string);
+   free(shader->dbg.disasm_string);
    ralloc_free(b.shader);
    free(binary);
 
@@ -3498,7 +3498,7 @@ radv_create_rt_prolog(struct radv_device *device, unsigned raygen_param_count, n
 
    if (options.dump_shader) {
       fprintf(stderr, "Raytracing prolog");
-      fprintf(stderr, "\ndisasm:\n%s\n", prolog->disasm_string);
+      fprintf(stderr, "\ndisasm:\n%s\n", prolog->dbg.disasm_string);
    }
 
 done:

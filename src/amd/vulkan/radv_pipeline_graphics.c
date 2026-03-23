@@ -2427,7 +2427,9 @@ radv_create_gs_copy_shader(struct radv_device *device, struct vk_pipeline_cache 
       radv_shader_create(device, cache, *gs_copy_binary, skip_shaders_cache || dump_shader);
 
    if (copy_shader) {
-      copy_shader->nir_string = nir_string;
+      copy_shader->dbg.nir_string = nir_string;
+      copy_shader->dbg.stages = 1 << MESA_SHADER_VERTEX;
+      copy_shader->dbg.dump_shader = dump_shader;
       radv_shader_dump_debug_info(device, dump_shader, *gs_copy_binary, copy_shader, &nir, 1, &gs_copy_stage.info);
    }
 
@@ -2500,7 +2502,10 @@ radv_graphics_shaders_nir_to_asm(struct radv_device *device, struct vk_pipeline_
 
       shaders[s] = radv_shader_create(device, cache, binaries[s], skip_shaders_cache || dump_shader);
 
-      shaders[s]->nir_string = nir_string;
+      shaders[s]->dbg.nir_string = nir_string;
+      for (uint32_t i = 0; i < shader_count; i++)
+         shaders[s]->dbg.stages |= 1 << nir_shaders[i]->info.stage;
+      shaders[s]->dbg.dump_shader = dump_shader;
 
       radv_shader_dump_debug_info(device, dump_shader, binaries[s], shaders[s], nir_shaders, shader_count,
                                   &stages[s].info);
@@ -2956,9 +2961,9 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
          if (!stages[i].spirv.size)
             continue;
 
-         shader->spirv = malloc(stages[i].spirv.size);
-         memcpy(shader->spirv, stages[i].spirv.data, stages[i].spirv.size);
-         shader->spirv_size = stages[i].spirv.size;
+         shader->dbg.spirv = malloc(stages[i].spirv.size);
+         memcpy(shader->dbg.spirv, stages[i].spirv.data, stages[i].spirv.size);
+         shader->dbg.spirv_size = stages[i].spirv.size;
       }
    }
 }

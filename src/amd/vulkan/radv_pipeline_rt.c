@@ -526,7 +526,9 @@ radv_rt_nir_to_asm(struct radv_device *device, struct vk_pipeline_cache *cache,
       shader = radv_shader_create(device, cache, binary, skip_shaders_cache || dump_shader);
 
    if (shader) {
-      shader->nir_string = nir_string;
+      shader->dbg.nir_string = nir_string;
+      shader->dbg.stages = 1 << shaders[0]->info.stage;
+      shader->dbg.dump_shader = dump_shader;
 
       if (stack_size)
          *stack_size = DIV_ROUND_UP(shader->config.scratch_bytes_per_wave, shader->info.wave_size);
@@ -534,9 +536,9 @@ radv_rt_nir_to_asm(struct radv_device *device, struct vk_pipeline_cache *cache,
       radv_shader_dump_debug_info(device, dump_shader, binary, shader, shaders, num_shaders, &stage->info);
 
       if (shader && keep_executable_info && stage->spirv.size) {
-         shader->spirv = malloc(stage->spirv.size);
-         memcpy(shader->spirv, stage->spirv.data, stage->spirv.size);
-         shader->spirv_size = stage->spirv.size;
+         shader->dbg.spirv = malloc(stage->spirv.size);
+         memcpy(shader->dbg.spirv, stage->spirv.data, stage->spirv.size);
+         shader->dbg.spirv_size = stage->spirv.size;
       }
    }
 

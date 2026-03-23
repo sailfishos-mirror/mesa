@@ -138,7 +138,9 @@ radv_compile_cs(struct radv_device *device, struct vk_pipeline_cache *cache, str
 
    cs_shader = radv_shader_create(device, cache, *cs_binary, skip_shaders_cache || dump_shader);
 
-   cs_shader->nir_string = nir_string;
+   cs_shader->dbg.nir_string = nir_string;
+   cs_shader->dbg.stages = 1 << MESA_SHADER_COMPUTE;
+   cs_shader->dbg.dump_shader = dump_shader;
 
    radv_shader_dump_debug_info(device, dump_shader, *cs_binary, cs_shader, &cs_stage->nir, 1, &cs_stage->info);
 
@@ -146,9 +148,9 @@ radv_compile_cs(struct radv_device *device, struct vk_pipeline_cache *cache, str
       simple_mtx_unlock(&instance->shader_dump_mtx);
 
    if (keep_executable_info && cs_stage->spirv.size) {
-      cs_shader->spirv = malloc(cs_stage->spirv.size);
-      memcpy(cs_shader->spirv, cs_stage->spirv.data, cs_stage->spirv.size);
-      cs_shader->spirv_size = cs_stage->spirv.size;
+      cs_shader->dbg.spirv = malloc(cs_stage->spirv.size);
+      memcpy(cs_shader->dbg.spirv, cs_stage->spirv.data, cs_stage->spirv.size);
+      cs_shader->dbg.spirv_size = cs_stage->spirv.size;
    }
 
    return cs_shader;

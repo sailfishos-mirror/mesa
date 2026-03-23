@@ -414,6 +414,19 @@ struct radv_serialized_shader_arena_block {
    uint32_t arena_size;
 };
 
+struct radv_shader_debug_info {
+   bool dump_shader;
+   uint32_t stages; /* mesa_shader_stage */
+   char *spirv;
+   uint32_t spirv_size;
+   char *nir_string;
+   char *disasm_string;
+   char *ir_string;
+   struct amd_stats *statistics;
+   struct ac_shader_debug_info *debug_info;
+   uint32_t debug_info_count;
+};
+
 struct radv_shader {
    struct vk_pipeline_cache_object base;
 
@@ -436,15 +449,7 @@ struct radv_shader {
    blake3_hash hash;
    void *code;
 
-   /* debug only */
-   char *spirv;
-   uint32_t spirv_size;
-   char *nir_string;
-   char *disasm_string;
-   char *ir_string;
-   struct amd_stats *statistics;
-   struct ac_shader_debug_info *debug_info;
-   uint32_t debug_info_count;
+   struct radv_shader_debug_info dbg;
 };
 
 struct radv_shader_part {
