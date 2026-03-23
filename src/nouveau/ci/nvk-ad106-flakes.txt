@@ -11,6 +11,7 @@ dEQP-VK.draw.renderpass.shader_layer.tessellation_shader_256
 dEQP-VK.draw.renderpass.shader_layer.vertex_shader_256
 dEQP-VK.dynamic_rendering.primary_cmd_buff.suballocation.multisample_resolve.*
 dEQP-VK.pipeline.monolithic.blend.dual_source.multi_attachments.a2b10g10r10_unorm_pack32
+dEQP-VK.pipeline.shader_object_unlinked_spirv.blend.dual_source.multi_attachments.r8g8b8a8_snorm
 dEQP-VK.renderpass.suballocation.multisample_resolve.*
 dEQP-VK.renderpass2.suballocation.multisample_resolve.*
 dEQP-VK.synchronization.basic.timeline_semaphore.chain
