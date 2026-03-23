@@ -526,6 +526,7 @@ radv_rt_nir_to_asm(struct radv_device *device, struct vk_pipeline_cache *cache,
       shader = radv_shader_create(device, cache, binary, skip_shaders_cache || dump_shader);
 
    if (shader) {
+      radv_parse_binary_debug_info(device, binary, &shader->dbg);
       shader->dbg.nir_string = nir_string;
       shader->dbg.stages = 1 << shaders[0]->info.stage;
       shader->dbg.dump_shader = dump_shader;
