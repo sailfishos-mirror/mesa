@@ -20,6 +20,7 @@ files_addrlib = files(
   'src/core/addrobject.h',
   'src/core/addrswizzler.cpp',
   'src/core/addrswizzler.h',
+  'src/core/addrswizzlersimd.h',
   'src/core/coord.cpp',
   'src/core/coord.h',
   'src/gfx9/gfx9addrlib.cpp',
