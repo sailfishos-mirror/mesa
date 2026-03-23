@@ -62,11 +62,11 @@ bifrost_precompiled_kernel_prepare_push_uniforms(
           user_data_size);
 }
 
-void bifrost_preprocess_nir(nir_shader *nir, unsigned gpu_id);
-void bifrost_optimize_nir(nir_shader *nir, unsigned gpu_id);
-void bifrost_postprocess_nir(nir_shader *nir, unsigned gpu_id);
-void bifrost_lower_texture_nir(nir_shader *nir, unsigned gpu_id);
-void bifrost_lower_texture_late_nir(nir_shader *nir, unsigned gpu_id);
+void bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id);
+void bifrost_optimize_nir(nir_shader *nir, uint64_t gpu_id);
+void bifrost_postprocess_nir(nir_shader *nir, uint64_t gpu_id);
+void bifrost_lower_texture_nir(nir_shader *nir, uint64_t gpu_id);
+void bifrost_lower_texture_late_nir(nir_shader *nir, uint64_t gpu_id);
 
 void bifrost_compile_shader_nir(nir_shader *nir,
                                 const struct pan_compile_inputs *inputs,

@@ -160,9 +160,10 @@ init_shader_caches(struct panvk_physical_device *device,
    memcpy(device->cache_uuid, blake3, VK_UUID_SIZE);
 
 #ifdef ENABLE_SHADER_CACHE
-   char renderer[17];
-   ASSERTED int len = snprintf(renderer, sizeof(renderer), "panvk_0x%08x",
-                               device->kmod.dev->props.gpu_id);
+   char renderer[25];
+   ASSERTED int len =
+      snprintf(renderer, sizeof(renderer), "panvk_0x%016" PRIx64,
+               device->kmod.dev->props.gpu_id);
    assert(len == sizeof(renderer) - 1);
 
    char timestamp[BLAKE3_HEX_LEN];
@@ -401,7 +402,7 @@ panvk_physical_device_init(struct panvk_physical_device *device,
 
    if (!device->model) {
       result = panvk_errorf(instance, VK_ERROR_INCOMPATIBLE_DRIVER,
-                            "Unknown gpu_id (%#x) or variant (%#x)",
+                            "Unknown gpu_id (%#" PRIx64 ") or variant (%#x)",
                             device->kmod.dev->props.gpu_id,
                             device->kmod.dev->props.gpu_variant);
       goto fail;

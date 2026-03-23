@@ -57,7 +57,7 @@ pan_get_nir_shader_compiler_options(unsigned arch)
 }
 
 void
-pan_preprocess_nir(nir_shader *nir, unsigned gpu_id)
+pan_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
 {
    if (pan_arch(gpu_id) >= 6)
       bifrost_preprocess_nir(nir, gpu_id);
@@ -66,14 +66,14 @@ pan_preprocess_nir(nir_shader *nir, unsigned gpu_id)
 }
 
 void
-pan_optimize_nir(nir_shader *nir, unsigned gpu_id)
+pan_optimize_nir(nir_shader *nir, uint64_t gpu_id)
 {
    assert(pan_arch(gpu_id) >= 6);
    bifrost_optimize_nir(nir, gpu_id);
 }
 
 void
-pan_postprocess_nir(nir_shader *nir, unsigned gpu_id)
+pan_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
 {
    if (pan_arch(gpu_id) >= 6)
       bifrost_postprocess_nir(nir, gpu_id);
@@ -82,7 +82,7 @@ pan_postprocess_nir(nir_shader *nir, unsigned gpu_id)
 }
 
 void
-pan_nir_lower_texture_early(nir_shader *nir, unsigned gpu_id)
+pan_nir_lower_texture_early(nir_shader *nir, uint64_t gpu_id)
 {
    nir_lower_tex_options lower_tex_options = {
       .lower_txs_lod = true,
@@ -99,7 +99,7 @@ pan_nir_lower_texture_early(nir_shader *nir, unsigned gpu_id)
 }
 
 void
-pan_nir_lower_texture_late(nir_shader *nir, unsigned gpu_id)
+pan_nir_lower_texture_late(nir_shader *nir, uint64_t gpu_id)
 {
    /* This must be called after any lowering of resource indices
     * (panfrost_nir_lower_res_indices / panvk_per_arch(nir_lower_descriptors))
@@ -298,8 +298,8 @@ pan_shader_compile(nir_shader *s, struct pan_compile_inputs *inputs,
 }
 
 void
-pan_disassemble(FILE *fp, const void *code, size_t size,
-                unsigned gpu_id, bool verbose)
+pan_disassemble(FILE *fp, const void *code, size_t size, uint64_t gpu_id,
+                bool verbose)
 {
    if (pan_arch(gpu_id) >= 9)
       disassemble_valhall(fp, (const uint64_t *)code, size, verbose);

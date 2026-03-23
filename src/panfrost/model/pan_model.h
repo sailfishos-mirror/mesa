@@ -79,14 +79,14 @@ struct pan_model {
    } quirks;
 };
 
-const struct pan_model *pan_get_model(uint32_t gpu_id, uint32_t gpu_variant);
+const struct pan_model *pan_get_model(uint64_t gpu_id, uint32_t gpu_variant);
 
 /* Returns the architecture version given a GPU ID, either from a table for
  * old-style Midgard versions or directly for new-style Bifrost/Valhall
  * versions */
 
 static inline unsigned
-pan_arch(unsigned gpu_id)
+pan_arch(uint64_t gpu_id)
 {
    switch (MIDGARD_PRODUCT_ID(gpu_id)) {
    case 0x600:

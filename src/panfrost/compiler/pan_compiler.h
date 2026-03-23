@@ -23,9 +23,9 @@ bool pan_want_debug_info(unsigned arch);
 const nir_shader_compiler_options *
 pan_get_nir_shader_compiler_options(unsigned arch);
 
-void pan_preprocess_nir(nir_shader *nir, unsigned gpu_id);
-void pan_optimize_nir(nir_shader *nir, unsigned gpu_id);
-void pan_postprocess_nir(nir_shader *nir, unsigned gpu_id);
+void pan_preprocess_nir(nir_shader *nir, uint64_t gpu_id);
+void pan_optimize_nir(nir_shader *nir, uint64_t gpu_id);
+void pan_postprocess_nir(nir_shader *nir, uint64_t gpu_id);
 
 #define PAN_PRINTF_BUFFER_SIZE 16384
 
@@ -104,7 +104,7 @@ unsigned pan_lookup_pushed_ubo(struct pan_ubo_push *push, unsigned ubo,
                                unsigned offs);
 
 struct pan_compile_inputs {
-   unsigned gpu_id;
+   uint64_t gpu_id;
    uint32_t gpu_variant;
    bool is_blend, is_blit;
    bool no_idvs;
@@ -272,15 +272,13 @@ pan_varying_layout_require_layout(const struct pan_varying_layout *layout)
 enum pipe_format
 pan_varying_format(nir_alu_type type, unsigned ncomps);
 
-void
-pan_build_varying_layout_compact(struct pan_varying_layout *layout,
-                                 nir_shader *nir, unsigned gpu_id);
+void pan_build_varying_layout_compact(struct pan_varying_layout *layout,
+                                      nir_shader *nir, uint64_t gpu_id);
 
-void
-pan_varying_collect_formats(struct pan_varying_layout *registry,
-                            nir_shader *nir, unsigned gpu_id,
-                            bool trust_varying_flat_highp_types,
-                            bool lower_mediump);
+void pan_varying_collect_formats(struct pan_varying_layout *registry,
+                                 nir_shader *nir, uint64_t gpu_id,
+                                 bool trust_varying_flat_highp_types,
+                                 bool lower_mediump);
 
 struct pan_shader_varying {
    gl_varying_slot location;
@@ -560,7 +558,7 @@ pan_res_handle(unsigned table, unsigned index)
    return (table << 24) | index;
 }
 
-void pan_disassemble(FILE *fp, const void *code, size_t size,
-                     unsigned gpu_id, bool verbose);
+void pan_disassemble(FILE *fp, const void *code, size_t size, uint64_t gpu_id,
+                     bool verbose);
 
 #endif /* __PAN_COMPILER_H__ */

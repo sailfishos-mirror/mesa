@@ -353,10 +353,10 @@ main(int argc, const char **argv)
             libfunc, MESA_SHADER_COMPUTE, v, get_compiler_options(target_arch),
             &opt, load_kernel_input);
 
-         unsigned gpu_prod_id = (target_arch & 0xf) << 12;
+         uint64_t target_gpu_id = (target_arch & 0xf) << 28;
 
          struct pan_compile_inputs inputs = {
-            .gpu_id = gpu_prod_id << 16,
+            .gpu_id = target_gpu_id,
             .gpu_variant = 0,
          };
 

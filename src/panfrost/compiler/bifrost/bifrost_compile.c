@@ -4964,7 +4964,7 @@ va_count_stats(bi_context *ctx, unsigned nr_ins, unsigned size,
 
    if (model == NULL) {
       /* Get G57 by default: */
-      model = pan_get_model(((uint32_t)0x9001) << 16, 0);
+      model = pan_get_model(((uint64_t)0x9001) << 16, 0);
       assert(model);
    }
 

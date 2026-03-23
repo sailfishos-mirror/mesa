@@ -29,7 +29,7 @@ bi_lower_bit_size(const nir_instr *instr, void *data)
    switch (instr->type) {
    case nir_instr_type_alu: {
       nir_alu_instr *alu = nir_instr_as_alu(instr);
-      unsigned gpu_id = *((unsigned *)data);
+      uint64_t gpu_id = *((uint64_t *)data);
 
       switch (alu->op) {
       case nir_op_fexp2:
@@ -95,7 +95,7 @@ bi_lower_bit_size(const nir_instr *instr, void *data)
 static uint8_t
 bi_vectorize_filter(const nir_instr *instr, const void *data)
 {
-   unsigned gpu_id = *((unsigned *)data);
+   uint64_t gpu_id = *((uint64_t *)data);
 
    if (instr->type == nir_instr_type_phi) {
       unsigned bit_size = nir_instr_as_phi(instr)->def.bit_size;
@@ -191,7 +191,7 @@ mem_vectorize_cb(unsigned align_mul, unsigned align_offset, unsigned bit_size,
 }
 
 static void
-bi_optimize_loop_nir(nir_shader *nir, unsigned gpu_id, bool allow_copies)
+bi_optimize_loop_nir(nir_shader *nir, uint64_t gpu_id, bool allow_copies)
 {
    bool progress;
 
@@ -268,13 +268,14 @@ bi_optimize_loop_nir(nir_shader *nir, unsigned gpu_id, bool allow_copies)
 }
 
 void
-bifrost_optimize_nir(nir_shader *nir, unsigned gpu_id)
+bifrost_optimize_nir(nir_shader *nir, uint64_t gpu_id)
 {
    bi_optimize_loop_nir(nir, gpu_id, true);
 }
 
 static void
-bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust_modes)
+bi_optimize_nir(nir_shader *nir, uint64_t gpu_id,
+                nir_variable_mode robust_modes)
 {
    NIR_PASS(_, nir, nir_opt_shrink_stores, true);
    bi_optimize_loop_nir(nir, gpu_id, false);
@@ -378,7 +379,7 @@ bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust_modes
 }
 
 void
-bifrost_preprocess_nir(nir_shader *nir, unsigned gpu_id)
+bifrost_preprocess_nir(nir_shader *nir, uint64_t gpu_id)
 {
    MESA_TRACE_FUNC();
 
@@ -513,7 +514,7 @@ bi_fp32_varying_mask(nir_shader *nir)
 static bool
 bi_lower_subgroups(nir_builder *b, nir_intrinsic_instr *intr, void *data)
 {
-   unsigned int gpu_id = *(unsigned int *)data;
+   uint64_t gpu_id = *(uint64_t *)data;
    unsigned int arch = pan_arch(gpu_id);
 
    b->cursor = nir_before_instr(&intr->instr);
@@ -670,7 +671,7 @@ mem_access_size_align_cb(nir_intrinsic_op intrin, uint8_t bytes,
 }
 
 void
-bifrost_postprocess_nir(nir_shader *nir, unsigned gpu_id)
+bifrost_postprocess_nir(nir_shader *nir, uint64_t gpu_id)
 {
    MESA_TRACE_FUNC();
 
@@ -773,7 +774,8 @@ bifrost_postprocess_nir(nir_shader *nir, unsigned gpu_id)
    NIR_PASS(_, nir, pan_nir_lower_var_special_pan);
 }
 
-void bifrost_lower_texture_nir(nir_shader *nir, unsigned gpu_id)
+void
+bifrost_lower_texture_nir(nir_shader *nir, uint64_t gpu_id)
 {
    NIR_PASS(_, nir, nir_lower_image_atomics_to_global, NULL, NULL);
 
@@ -919,7 +921,7 @@ pan_nir_lower_buf_image_access(nir_shader *shader, unsigned arch)
 }
 
 void
-bifrost_lower_texture_late_nir(nir_shader *nir, unsigned gpu_id)
+bifrost_lower_texture_late_nir(nir_shader *nir, uint64_t gpu_id)
 {
    NIR_PASS(_, nir, pan_nir_lower_texel_buffer_fetch, pan_arch(gpu_id));
    NIR_PASS(_, nir, pan_nir_lower_buf_image_access, pan_arch(gpu_id));
@@ -1043,7 +1045,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
       /* pan_nir_resize_varying_io may generate vector conversions which we
        * need to clean up so the back-end doesn't see them.
        */
-      unsigned gpu_id = inputs->gpu_id;
+      uint64_t gpu_id = inputs->gpu_id;
       NIR_PASS(_, nir, nir_lower_alu_width, bi_vectorize_filter, &gpu_id);
       NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
       NIR_PASS(_, nir, nir_opt_copy_prop);
@@ -1079,7 +1081,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
    {
       bool scalar_phis_pass = false;
-      unsigned gpu_id = inputs->gpu_id;
+      uint64_t gpu_id = inputs->gpu_id;
       NIR_PASS(scalar_phis_pass, nir, nir_lower_phis_to_scalar,
                bi_vectorize_filter, &gpu_id);
       if (scalar_phis_pass) {

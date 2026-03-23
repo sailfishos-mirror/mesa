@@ -124,7 +124,7 @@ const struct pan_model pan_model_list[] = {
 #undef MODEL_QUIRKS
 
 static uint32_t
-get_prod_id(uint32_t gpu_id)
+get_prod_id(uint64_t gpu_id)
 {
    unsigned arch = pan_arch(gpu_id);
    if (arch < 6)
@@ -140,7 +140,7 @@ get_prod_id(uint32_t gpu_id)
  * supported at this time.
  */
 const struct pan_model *
-pan_get_model(uint32_t gpu_id, uint32_t gpu_variant)
+pan_get_model(uint64_t gpu_id, uint32_t gpu_variant)
 {
    uint32_t gpu_prod_id = get_prod_id(gpu_id);
    for (unsigned i = 0; i < ARRAY_SIZE(pan_model_list); ++i) {
