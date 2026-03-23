@@ -644,42 +644,6 @@ set_empty_scissor(mtl_render_encoder *enc)
    mtl_set_scissor_rects(enc, &rect, 1);
 }
 
-/* TODO_KOSMICKRISP: Move to common */
-static inline enum mesa_prim
-vk_conv_topology(VkPrimitiveTopology topology)
-{
-   switch (topology) {
-   case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
-      return MESA_PRIM_POINTS;
-   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
-      return MESA_PRIM_LINES;
-   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
-      return MESA_PRIM_LINE_STRIP;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wswitch"
-   case VK_PRIMITIVE_TOPOLOGY_META_RECT_LIST_MESA:
-#pragma GCC diagnostic pop
-      return MESA_PRIM_TRIANGLES;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
-      return MESA_PRIM_TRIANGLE_STRIP;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
-      return MESA_PRIM_TRIANGLE_FAN;
-   case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY:
-      return MESA_PRIM_LINES_ADJACENCY;
-   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY:
-      return MESA_PRIM_LINE_STRIP_ADJACENCY;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY:
-      return MESA_PRIM_TRIANGLES_ADJACENCY;
-   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY:
-      return MESA_PRIM_TRIANGLE_STRIP_ADJACENCY;
-   case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST:
-      return MESA_PRIM_PATCHES;
-   default:
-      UNREACHABLE("invalid");
-   }
-}
-
 static void
 kk_flush_draw_state(struct kk_cmd_buffer *cmd)
 {
@@ -716,16 +680,6 @@ kk_flush_draw_state(struct kk_cmd_buffer *cmd)
          /* Enforce setting the correct scissors */
          BITSET_SET(dyn->dirty, MESA_VK_DYNAMIC_VP_VIEWPORT_COUNT);
       }
-   }
-
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_TOPOLOGY)) {
-      gfx->primitive_type = vk_primitive_topology_to_mtl_primitive_type(
-         dyn->ia.primitive_topology);
-      gfx->prim = vk_conv_topology(dyn->ia.primitive_topology);
-   }
-
-   if (BITSET_TEST(dyn->dirty, MESA_VK_DYNAMIC_IA_PRIMITIVE_RESTART_ENABLE)) {
-      gfx->restart_disabled = !dyn->ia.primitive_restart_enable;
    }
 
    /* We enable raster discard by setting scissor to size (0, 0) */
@@ -850,6 +804,206 @@ kk_flush_draw_state(struct kk_cmd_buffer *cmd)
    vk_dynamic_graphics_state_clear_dirty(dyn);
 }
 
+struct kk_draw_data {
+   union {
+      /* Vertex/index count and instance count. */
+      uint32_t count[2];
+      mtl_buffer *indirect_buffer;
+   };
+   mtl_buffer *index_buffer;
+   uint64_t index_buffer_offset;
+   uint64_t indirect_buffer_offset;
+   uint32_t index_buffer_range_B;
+   uint32_t first_index;
+   uint32_t first_vertex;
+   uint32_t first_instance;
+   enum mesa_prim prim;
+   uint8_t index_size;
+   bool indirect;
+   bool indexed;
+   bool restart;
+};
+
+/* Unrolling will always be done through indirect rendering, so if this is
+ * called from non-indirect calls, we will fake it. */
+static struct kk_draw_data
+kk_unroll_geometry(struct kk_cmd_buffer *cmd, struct kk_draw_data data,
+                   bool promote_index_type)
+{
+   if (!data.indirect) {
+      if (data.indexed) {
+         VkDrawIndexedIndirectCommand draw = {
+            .indexCount = data.count[0],
+            .instanceCount = data.count[1],
+            .firstIndex = data.first_index,
+            .vertexOffset = data.first_vertex,
+            .firstInstance = data.first_instance,
+         };
+
+         data.indirect_buffer =
+            kk_pool_upload(cmd, &draw, sizeof(draw), 4u).handle;
+         data.indirect = true;
+      } else {
+         VkDrawIndirectCommand draw = {
+            .vertexCount = data.count[0],
+            .instanceCount = data.count[1],
+            .firstVertex = data.first_vertex,
+            .firstInstance = data.first_instance,
+         };
+         data.indirect_buffer =
+            kk_pool_upload(cmd, &draw, sizeof(draw), 4u).handle;
+         data.indirect = true;
+      }
+   }
+
+   uint32_t el_count = cmd->state.gfx.vb.max_vertices;
+   if (data.indexed) {
+      el_count =
+         (mtl_buffer_get_length(data.index_buffer) - data.index_buffer_offset) /
+         data.index_size;
+   }
+
+   uint32_t decomposed_index_count =
+      u_decomposed_prims_for_vertices(data.prim, el_count) *
+      mesa_vertices_per_prim(data.prim);
+   uint32_t el_size_B = 4u;
+   uint32_t index_buffer_size_B = decomposed_index_count * el_size_B;
+   uint32_t buffer_size_B =
+      sizeof(VkDrawIndexedIndirectCommand) + index_buffer_size_B;
+   struct kk_bo *index_buffer =
+      kk_cmd_allocate_buffer(cmd, buffer_size_B, el_size_B);
+
+   if (!index_buffer)
+      return data;
+
+   struct libkk_unroll_geometry_and_restart_args info = {
+      .index_buffer = mtl_buffer_get_gpu_address(data.index_buffer) +
+                      data.index_buffer_offset,
+      .out_ptr = index_buffer->gpu + sizeof(VkDrawIndexedIndirectCommand),
+      .in_draw = mtl_buffer_get_gpu_address(data.indirect_buffer) +
+                 data.indirect_buffer_offset,
+      .out_draw = index_buffer->gpu,
+      .restart_index =
+         promote_index_type ? UINT32_MAX : cmd->state.gfx.index.restart,
+      .index_buffer_size_el = data.index_buffer_range_B,
+      .in_el_size_B = data.index_size,
+      .out_el_size_B = el_size_B,
+      .flatshade_first = true,
+      .mode = data.prim,
+   };
+
+   struct mtl_size grid = {1, 1, 1};
+   libkk_unroll_geometry_and_restart_struct(cmd, grid, true, info);
+
+   data.indirect_buffer = index_buffer->map;
+   data.index_buffer = index_buffer->map;
+   data.index_buffer_offset = sizeof(VkDrawIndexedIndirectCommand);
+   data.indirect_buffer_offset = 0u;
+   data.index_buffer_range_B = index_buffer_size_B;
+   data.first_index = 0u;
+   data.prim = u_decomposed_prim(data.prim);
+   data.index_size = el_size_B;
+   data.indirect = true;
+   data.indexed = true;
+   data.restart = false;
+   return data;
+}
+
+static enum mtl_primitive_type
+mesa_prim_to_mtl_primitive_type(enum mesa_prim prim)
+{
+   switch (prim) {
+   case MESA_PRIM_POINTS:
+      return MTL_PRIMITIVE_TYPE_POINT;
+   case MESA_PRIM_LINES:
+      return MTL_PRIMITIVE_TYPE_LINE;
+   case MESA_PRIM_LINE_STRIP:
+      return MTL_PRIMITIVE_TYPE_LINE_STRIP;
+   case MESA_PRIM_TRIANGLES:
+      return MTL_PRIMITIVE_TYPE_TRIANGLE;
+   case MESA_PRIM_TRIANGLE_STRIP:
+      return MTL_PRIMITIVE_TYPE_TRIANGLE_STRIP;
+   default:
+      UNREACHABLE("Unsupported primitive type");
+   }
+}
+
+static void
+kk_dispatch_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
+{
+   mtl_render_encoder *enc = kk_render_encoder(cmd);
+   enum mtl_primitive_type primitive_type =
+      mesa_prim_to_mtl_primitive_type(data.prim);
+   if (data.indirect) {
+      if (data.indexed) {
+         enum mtl_index_type index_type =
+            index_size_in_bytes_to_mtl_index_type(data.index_size);
+         mtl_draw_indexed_primitives_indirect(
+            enc, primitive_type, index_type, data.index_buffer,
+            data.index_buffer_offset, data.indirect_buffer,
+            data.indirect_buffer_offset);
+      } else {
+         mtl_draw_primitives_indirect(enc, primitive_type, data.indirect_buffer,
+                                      data.indirect_buffer_offset);
+      }
+   } else {
+      if (data.indexed) {
+         enum mtl_index_type index_type =
+            index_size_in_bytes_to_mtl_index_type(data.index_size);
+         uint32_t index_buffer_offset =
+            data.first_index * data.index_size + data.index_buffer_offset;
+
+         mtl_render_encoder *enc = kk_render_encoder(cmd);
+         mtl_draw_indexed_primitives(enc, primitive_type, data.count[0],
+                                     index_type, cmd->state.gfx.index.handle,
+                                     index_buffer_offset, data.count[1],
+                                     data.first_vertex, data.first_instance);
+      } else {
+         mtl_draw_primitives(enc, primitive_type, data.first_vertex,
+                             data.count[0], data.count[1], data.first_instance);
+      }
+   }
+}
+
+static bool
+requires_index_promotion(struct kk_cmd_buffer *cmd)
+{
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
+   switch (dyn->ia.primitive_topology) {
+   case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
+   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
+   case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
+      return (!dyn->ia.primitive_restart_enable &&
+              cmd->state.gfx.index.bytes_per_index < sizeof(uint32_t));
+   default:
+      return false;
+   }
+}
+
+static void
+kk_draw(struct kk_cmd_buffer *cmd, struct kk_draw_data data)
+{
+   /* Filter trivial calls. */
+   if (!data.indirect && (data.count[0] == 0u || data.count[1] == 0u))
+      return;
+
+   kk_flush_draw_state(cmd);
+
+   /* If the restart bool is set, it means that primitive restart is disabled
+    * but index type is not uint32_t which requires promoting the type to
+    * uint32_t since we cannot disable primitive restart in Metal. */
+   bool promote_index_type = requires_index_promotion(cmd);
+
+   /* We always need to unroll triangle fans. */
+   data.restart = (data.prim == MESA_PRIM_TRIANGLE_FAN);
+
+   if (promote_index_type || data.restart)
+      data = kk_unroll_geometry(cmd, data, promote_index_type);
+
+   kk_dispatch_draw(cmd, data);
+}
+
 VKAPI_ATTR void VKAPI_CALL
 kk_CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount,
            uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
@@ -860,39 +1014,18 @@ kk_CmdDraw(VkCommandBuffer commandBuffer, uint32_t vertexCount,
 
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
 
-   kk_flush_draw_state(cmd);
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
 
-   /* Metal does not support triangle fans */
-   bool requires_unroll = cmd->state.gfx.prim == MESA_PRIM_TRIANGLE_FAN;
-   if (requires_unroll) {
-      VkDrawIndirectCommand draw = {
-         .vertexCount = vertexCount,
-         .instanceCount = instanceCount,
-         .firstVertex = firstVertex,
-         .firstInstance = firstInstance,
-      };
-      struct kk_pool pool = kk_pool_upload(cmd, &draw, sizeof(draw), 4u);
-      kk_encoder_render_triangle_fan_indirect(cmd, pool.handle, 0u);
-   } else {
-      mtl_render_encoder *enc = kk_render_encoder(cmd);
-      mtl_draw_primitives(enc, cmd->state.gfx.primitive_type, firstVertex,
-                          vertexCount, instanceCount, firstInstance);
-   }
-}
+   struct kk_draw_data data = {
+      .count[0] = vertexCount,
+      .count[1] = instanceCount,
+      .first_vertex = firstVertex,
+      .first_instance = firstInstance,
+      .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
+   };
 
-static bool
-requires_increasing_index_el_size(struct kk_cmd_buffer *cmd)
-{
-   enum mesa_prim prim = cmd->state.gfx.prim;
-   switch (prim) {
-   case MESA_PRIM_LINE_STRIP:
-   case MESA_PRIM_TRIANGLE_STRIP:
-   case MESA_PRIM_TRIANGLE_FAN:
-      return (cmd->state.gfx.restart_disabled &&
-              cmd->state.gfx.index.bytes_per_index < sizeof(uint32_t));
-   default:
-      return false;
-   }
+   kk_draw(cmd, data);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -906,41 +1039,25 @@ kk_CmdDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount,
 
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
 
-   kk_flush_draw_state(cmd);
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
 
-   /* Metal does not support triangle fans */
-   bool requires_triangle_fan_unroll =
-      cmd->state.gfx.prim == MESA_PRIM_TRIANGLE_FAN;
+   struct kk_draw_data data = {
+      .count[0] = indexCount,
+      .count[1] = instanceCount,
+      .index_buffer = cmd->state.gfx.index.handle,
+      .index_buffer_offset = cmd->state.gfx.index.offset,
+      .index_buffer_range_B =
+         cmd->state.gfx.index.size - cmd->state.gfx.index.offset,
+      .first_index = firstIndex,
+      .first_vertex = vertexOffset,
+      .first_instance = firstInstance,
+      .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
+      .index_size = cmd->state.gfx.index.bytes_per_index,
+      .indexed = true,
+   };
 
-   /* Metal does not support disabling primitive restart. We need to create a
-    * new index buffer for primitives that allow restart (line strip, triangle
-    * strip and triangle fan). Never ever support
-    * VK_EXT_primitive_topology_list_restart since it'll just add overhead */
-   bool increase_index_el_size = requires_increasing_index_el_size(cmd);
-   if (requires_triangle_fan_unroll || increase_index_el_size) {
-      VkDrawIndexedIndirectCommand draw = {
-         .indexCount = indexCount,
-         .instanceCount = instanceCount,
-         .firstIndex = firstIndex,
-         .vertexOffset = vertexOffset,
-         .firstInstance = firstInstance,
-      };
-      struct kk_pool pool = kk_pool_upload(cmd, &draw, sizeof(draw), 4u);
-      kk_encoder_render_triangle_fan_indexed_indirect(cmd, pool.handle, 0u,
-                                                      increase_index_el_size);
-   } else {
-      uint32_t bytes_per_index = cmd->state.gfx.index.bytes_per_index;
-      enum mtl_index_type index_type =
-         index_size_in_bytes_to_mtl_index_type(bytes_per_index);
-      uint32_t index_buffer_offset_B =
-         firstIndex * bytes_per_index + cmd->state.gfx.index.offset;
-
-      mtl_render_encoder *enc = kk_render_encoder(cmd);
-      mtl_draw_indexed_primitives(
-         enc, cmd->state.gfx.primitive_type, indexCount, index_type,
-         cmd->state.gfx.index.handle, index_buffer_offset_B, instanceCount,
-         vertexOffset, firstInstance);
-   }
+   kk_draw(cmd, data);
 }
 
 VKAPI_ATTR void VKAPI_CALL
@@ -950,25 +1067,28 @@ kk_CmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(kk_buffer, buffer, _buffer);
 
-   mtl_render_encoder *enc = kk_render_encoder(cmd);
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
 
    for (uint32_t i = 0u; i < drawCount; ++i, offset += stride) {
+      /* TODO_KOSMICKRISP
+       * Move this to a separate buffer from the root so we don't have to upload
+       * it every single loop. Pass it to the kk_draw call as a parameter that
+       * will later be uploaded.
+       */
       cmd->state.gfx.descriptors.root_dirty = true;
       cmd->state.gfx.descriptors.root.draw.draw_id = i;
 
-      kk_flush_draw_state(cmd);
+      struct kk_draw_data data = {
+         .indirect_buffer = buffer->mtl_handle,
+         .indirect_buffer_offset = offset,
+         .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
+         .indirect = true,
+      };
 
-      /* Metal does not support triangle fans */
-      bool requires_unroll = cmd->state.gfx.prim == MESA_PRIM_TRIANGLE_FAN;
-
-      if (requires_unroll) {
-         kk_encoder_render_triangle_fan_indirect(cmd, buffer->mtl_handle,
-                                                 offset);
-      } else {
-         mtl_draw_primitives_indirect(enc, cmd->state.gfx.primitive_type,
-                                      buffer->mtl_handle, offset);
-      }
+      kk_draw(cmd, data);
    }
+   /* TODO_KOSMICKRISP Remove once above is done */
    cmd->state.gfx.descriptors.root_dirty = true;
    cmd->state.gfx.descriptors.root.draw.draw_id = 0;
 }
@@ -990,36 +1110,34 @@ kk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
    VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
    VK_FROM_HANDLE(kk_buffer, buffer, _buffer);
 
-   /* Metal does not support disabling primitive restart. We need to create a
-    * new index buffer for primitives that allow restart (line strip, triangle
-    * strip and triangle fan). Never ever support
-    * VK_EXT_primitive_topology_list_restart since it'll just add overhead */
-   bool increase_index_el_size = requires_increasing_index_el_size(cmd);
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
+
    for (uint32_t i = 0u; i < drawCount; ++i, offset += stride) {
+      /* TODO_KOSMICKRISP
+       * Move this to a separate buffer from the root so we don't have to upload
+       * it every single loop. Pass it to the kk_draw call as a parameter that
+       * will later be uploaded.
+       */
       cmd->state.gfx.descriptors.root_dirty = true;
       cmd->state.gfx.descriptors.root.draw.draw_id = i;
 
-      kk_flush_draw_state(cmd);
+      struct kk_draw_data data = {
+         .indirect_buffer = buffer->mtl_handle,
+         .index_buffer = cmd->state.gfx.index.handle,
+         .indirect_buffer_offset = offset,
+         .index_buffer_offset = cmd->state.gfx.index.offset,
+         .index_buffer_range_B =
+            cmd->state.gfx.index.size - cmd->state.gfx.index.offset,
+         .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
+         .index_size = cmd->state.gfx.index.bytes_per_index,
+         .indirect = true,
+         .indexed = true,
+      };
 
-      /* Metal does not support triangle fans */
-      bool requires_unroll = cmd->state.gfx.prim == MESA_PRIM_TRIANGLE_FAN;
-
-      if (requires_unroll || increase_index_el_size) {
-         kk_encoder_render_triangle_fan_indexed_indirect(
-            cmd, buffer->mtl_handle, offset, increase_index_el_size);
-      } else {
-         uint32_t bytes_per_index = cmd->state.gfx.index.bytes_per_index;
-         enum mtl_index_type index_type =
-            index_size_in_bytes_to_mtl_index_type(bytes_per_index);
-         uint32_t index_buffer_offset = cmd->state.gfx.index.offset;
-
-         mtl_render_encoder *enc = kk_render_encoder(cmd);
-         mtl_draw_indexed_primitives_indirect(
-            enc, cmd->state.gfx.primitive_type, index_type,
-            cmd->state.gfx.index.handle, index_buffer_offset,
-            buffer->mtl_handle, offset);
-      }
+      kk_draw(cmd, data);
    }
+   /* TODO_KOSMICKRISP Remove once above is done */
    cmd->state.gfx.descriptors.root_dirty = true;
    cmd->state.gfx.descriptors.root.draw.draw_id = 0;
 }

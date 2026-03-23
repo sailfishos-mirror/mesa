@@ -114,11 +114,8 @@ struct kk_graphics_state {
    mtl_render_pass_descriptor *render_pass_descriptor;
    bool is_depth_stencil_dynamic;
    bool is_cull_front_and_back;
-   bool restart_disabled;
    bool need_to_start_render_pass;
 
-   enum mtl_primitive_type primitive_type;
-   enum mesa_prim prim;
    enum kk_dirty dirty;
    uint32_t sample_count;
 

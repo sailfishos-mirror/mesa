@@ -105,13 +105,4 @@ mtl_compute_encoder *kk_encoder_pre_gfx_encoder(struct kk_cmd_buffer *cmd);
 
 void upload_queue_writes(struct kk_cmd_buffer *cmd);
 
-void kk_encoder_render_triangle_fan_indirect(struct kk_cmd_buffer *cmd,
-                                             mtl_buffer *indirect,
-                                             uint64_t offset);
-
-void kk_encoder_render_triangle_fan_indexed_indirect(struct kk_cmd_buffer *cmd,
-                                                     mtl_buffer *indirect,
-                                                     uint64_t offset,
-                                                     bool increase_el_size);
-
 #endif /* KK_ENCODER_H */

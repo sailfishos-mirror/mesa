@@ -75,7 +75,6 @@ struct kk_meta_save {
             mtl_render_pipeline_state *ps;
             mtl_depth_stencil_state *ds;
             uint32_t attribs_read;
-            enum mtl_primitive_type primitive_type;
             enum mtl_visibility_result_mode occlusion;
             bool is_ds_dynamic;
          } gfx;
@@ -107,7 +106,6 @@ kk_meta_begin(struct kk_cmd_buffer *cmd, struct kk_meta_save *save,
       save->pipeline.gfx.ps = cmd->state.gfx.pipeline_state;
       save->pipeline.gfx.ds = cmd->state.gfx.depth_stencil_state;
       save->pipeline.gfx.attribs_read = cmd->state.gfx.vb.attribs_read;
-      save->pipeline.gfx.primitive_type = cmd->state.gfx.primitive_type;
       save->pipeline.gfx.occlusion = cmd->state.gfx.occlusion.mode;
       save->pipeline.gfx.is_ds_dynamic =
          cmd->state.gfx.is_depth_stencil_dynamic;
@@ -167,7 +165,6 @@ kk_meta_end(struct kk_cmd_buffer *cmd, struct kk_meta_save *save,
          mtl_release(cmd->state.gfx.depth_stencil_state);
       cmd->state.gfx.pipeline_state = save->pipeline.gfx.ps;
       cmd->state.gfx.depth_stencil_state = save->pipeline.gfx.ds;
-      cmd->state.gfx.primitive_type = save->pipeline.gfx.primitive_type;
       cmd->state.gfx.vb.attribs_read = save->pipeline.gfx.attribs_read;
       cmd->state.gfx.is_depth_stencil_dynamic =
          save->pipeline.gfx.is_ds_dynamic;
