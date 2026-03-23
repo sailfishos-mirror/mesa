@@ -58,6 +58,7 @@ KHR-GL46.texture_cube_map_array.stencil_attachments_mutable_layered
 KHR-GL46.texture_lod_bias.texture_lod_bias_all
 KHR-GL46.texture_repeat_mode.rgb8_49x23_1_repeat
 
+dEQP-GLES2.functional.fragment_ops.depth_stencil.stencil_ops.decr_decr_wrap_replace
 dEQP-GLES2.functional.fragment_ops.depth_stencil.stencil_ops.zero_decr_incr
 dEQP-GLES2.functional.shaders.random.trigonometric.fragment.12
 dEQP-GLES2.functional.texture.filtering.cube.linear_mipmap_linear_linear_repeat_rgba8888
@@ -70,6 +71,7 @@ dEQP-GLES3.functional.fbo.render.recreate_color.tex2d_rg32i_depth_stencil_rbo_de
 dEQP-GLES3.functional.occlusion_query.conservative_all_occluders
 dEQP-GLES3.functional.occlusion_query.conservative_depth_clear
 dEQP-GLES3.functional.occlusion_query.conservative_depth_write
+dEQP-GLES3.functional.occlusion_query.conservative_scissor_depth_clear_stencil_clear
 dEQP-GLES3.functional.occlusion_query.conservative_scissor_depth_clear_stencil_write
 dEQP-GLES3.functional.occlusion_query.conservative_scissor_depth_write_depth_clear_stencil_write
 dEQP-GLES3.functional.occlusion_query.conservative_scissor_depth_write_stencil_write
@@ -86,6 +88,7 @@ dEQP-GLES3.functional.occlusion_query.scissor_depth_write
 dEQP-GLES3.functional.occlusion_query.scissor_depth_write_depth_clear_stencil_write
 dEQP-GLES3.functional.occlusion_query.scissor_depth_write_stencil_write
 dEQP-GLES3.functional.shaders.builtin_functions.precision.distance.lowp_fragment.vec4
+dEQP-GLES3.functional.shaders.conversions.vector_combine.float_float_to_ivec2_vertex
 dEQP-GLES3.functional.shaders.precision.uint.mediump_div_fragment
 dEQP-GLES3.functional.shaders.swizzles.vector_swizzles.mediump_ivec3_z_fragment
 dEQP-GLES3.functional.shaders.swizzles.vector_swizzles.mediump_vec3_rb_fragment
@@ -101,6 +104,7 @@ dEQP-GLES3.functional.transform_feedback.basic_types.interleaved.triangles.mediu
 dEQP-GLES3.functional.transform_feedback.random.interleaved.lines.3
 dEQP-GLES31.functional.copy_image.compressed.viewclass_astc_10x10_rgba.rgba_astc_10x10_khr_rgba_astc_10x10_khr.texture3d_to_texture3d
 dEQP-GLES31.functional.copy_image.compressed.viewclass_astc_10x10_rgba.srgb8_alpha8_astc_10x10_khr_srgb8_alpha8_astc_10x10_khr.texture3d_to_texture2d_array
+dEQP-GLES31.functional.copy_image.compressed.viewclass_astc_4x4_rgba.rgba_astc_4x4_khr_srgb8_alpha8_astc_4x4_khr.cubemap_to_cubemap
 dEQP-GLES31.functional.copy_image.compressed.viewclass_astc_6x5_rgba.srgb8_alpha8_astc_6x5_khr_srgb8_alpha8_astc_6x5_khr.cubemap_to_cubemap
 dEQP-GLES31.functional.copy_image.mixed.viewclass_128_bits_mixed.rgba32f_rgba_astc_10x8_khr.texture2d_array_to_texture2d_array
 dEQP-GLES31.functional.copy_image.mixed.viewclass_128_bits_mixed.rgba32f_rgba_astc_6x6_khr.cubemap_to_texture2d
@@ -161,14 +165,25 @@ spec@arb_depth_texture@fbo-depth-gl_depth_component16-tex1d
 spec@arb_depth_texture@fbo-depth-gl_depth_component24-tex1d
 spec@arb_depth_texture@fbo-depth-gl_depth_component32-tex1d
 spec@arb_direct_state_access@gettextureimage-formats
+spec@arb_direct_state_access@transformfeedback-bufferrange
 spec@arb_fragment_program@fog-modes
+spec@arb_gl_spirv@glsl-1.10@execution@built-in-functions@fs-op-xor-bool-bool
 spec@arb_gl_spirv@glsl-1.30@execution@built-in-functions@fs-lessthanequal-uvec2-uvec2
+spec@arb_gl_spirv@glsl-1.30@execution@built-in-functions@fs-op-sub-uvec2-uvec2
 spec@arb_gl_spirv@glsl-1.30@execution@built-in-functions@fs-sinh-vec4
+spec@arb_gpu_shader5@execution@built-in-functions@fs-umulextended-only-lsb
+spec@arb_gpu_shader5@texturegather@fs-rgb-2-int-2darray
+spec@arb_gpu_shader5@texturegather@fs-rgba-0-int-2darray
+spec@arb_gpu_shader5@texturegather@fs-rgba-1-int-cube
 spec@arb_gpu_shader5@texturegatheroffset@vs-rgba-0-uint-2d
 spec@arb_gpu_shader_fp64@execution@built-in-functions@fs-op-mult-dmat3x2-double
 spec@arb_gpu_shader_fp64@execution@built-in-functions@vs-op-add-double-dvec3
 spec@arb_gpu_shader_fp64@execution@built-in-functions@vs-op-div-double-dmat2x4
+spec@arb_gpu_shader_fp64@execution@inout@vs-out-fs-in-s1-float@4-dmat3x3
+spec@arb_gpu_shader_int64@execution@built-in-functions@gs-min-u64vec4-u64vec4
+spec@arb_gpu_shader_int64@execution@built-in-functions@tcs-op-rshift-i64vec4-uvec4
 spec@arb_gpu_shader_int64@execution@built-in-functions@vs-max-int64_t-int64_t
+spec@arb_gpu_shader_int64@execution@conversion@geom-conversion-explicit-i64vec3-vec3
 spec@arb_pixel_buffer_object@texsubimage-unpack pbo
 spec@arb_point_parameters@arb_point_parameters-point-attenuation
 spec@arb_shader_atomic_counters@array-indexing
@@ -192,14 +207,18 @@ spec@arb_shader_image_load_store@shader-mem-barrier@Tessellation evaluation shad
 spec@arb_shader_image_load_store@shader-mem-barrier@Tessellation evaluation shader/'volatile' qualifier memory barrier test/modulus=64
 spec@arb_shader_image_load_store@shader-mem-barrier@Vertex shader/'coherent' qualifier memory barrier test/modulus=64
 spec@arb_shader_image_load_store@shader-mem-barrier@Vertex shader/'volatile' qualifier memory barrier test/modulus=64
+spec@arb_shader_precision@gs-exp2-vec4
 spec@arb_shader_storage_buffer_object@execution@ssbo-atomiccompswap-int
+spec@arb_shader_texture_lod@execution@glsl-fs-shadow2dgradarb-07
 spec@arb_shader_texture_lod@execution@glsl-fs-shadow2dgradarb-cumulative
 spec@arb_shading_language_packing@execution@built-in-functions@fs-unpacksnorm4x8
 spec@arb_shading_language_packing@execution@built-in-functions@fs-unpackunorm2x16
 spec@arb_shading_language_packing@execution@built-in-functions@vs-packhalf2x16
 spec@arb_tessellation_shader@execution@built-in-functions@tcs-op-assign-add-mat3x4-float
+spec@arb_tessellation_shader@execution@built-in-functions@tcs-op-assign-mult-vec4-vec4
 spec@arb_tessellation_shader@execution@built-in-functions@tcs-op-bitor-abs-neg-int-ivec3
 spec@arb_tessellation_shader@execution@built-in-functions@tcs-op-eq-ivec3-ivec3-using-if
+spec@arb_tessellation_shader@execution@built-in-functions@tcs-op-mult-float-mat2
 spec@arb_texture_barrier@arb_texture_barrier-blending-in-shader 512 1 8 128 1
 spec@arb_texture_compression_bptc@texwrap formats bordercolor-swizzled
 spec@arb_texture_cube_map@copyteximage cube samples=2
@@ -207,6 +226,8 @@ spec@arb_texture_cube_map@copyteximage cube samples=4
 spec@arb_texture_cube_map@copyteximage cube samples=6
 spec@arb_texture_cube_map@copyteximage cube samples=8
 spec@arb_texture_gather@texturegather@fs-rg-green-unorm-cubearray
+spec@arb_texture_multisample@texelfetch fs sampler2dmsarray 4 1x129x9-98x129x9
+spec@arb_texture_multisample@texelfetch@2-vs-sampler2dms
 spec@arb_texture_multisample@texelfetch@4-gs-sampler2dmsarray
 spec@arb_texture_rectangle@copyteximage rect samples=2
 spec@arb_texture_rectangle@copyteximage rect samples=4
@@ -215,6 +236,7 @@ spec@arb_texture_rectangle@copyteximage rect samples=8
 spec@arb_texture_stencil8@draw
 spec@arb_timer_query@timestamp-get
 spec@ext_framebuffer_multisample@accuracy 8 srgb depthstencil linear
+spec@ext_framebuffer_multisample@alpha-to-coverage-dual-src-blend 2
 spec@ext_framebuffer_object@getteximage-formats init-by-clear-and-render
 spec@ext_framebuffer_object@getteximage-formats init-by-rendering
 spec@ext_packed_depth_stencil@fbo-depth-gl_depth24_stencil8-tex1d
@@ -234,26 +256,47 @@ spec@ext_texture_array@fbo-depth-array fs-writes-depth
 spec@ext_texture_array@fbo-depth-array fs-writes-stencil
 spec@ext_texture_array@fbo-depth-array stencil-clear
 spec@ext_texture_array@fbo-depth-array stencil-draw
+spec@ext_texture_array@fbo-depth-array stencil-layered-clear
 spec@ext_texture_lod_bias@lodbias
 spec@ext_texture_shared_exponent@texwrap formats bordercolor-swizzled
 spec@ext_texture_snorm@texwrap formats
 spec@ext_transform_feedback@max-varyings
+spec@ext_transform_feedback@output-type vec4\[2\]-no-subscript
 spec@ext_transform_feedback@structs struct-array-elem run
+spec@ext_transform_feedback@tessellation triangle_strip flat_first
 spec@glsl-1.10@execution@built-in-functions@vs-any-bvec2
+spec@glsl-1.10@execution@built-in-functions@vs-op-assign-mult-vec2-vec2
+spec@glsl-1.10@execution@built-in-functions@vs-op-mult-float-vec2
+spec@glsl-1.10@execution@builtins@glsl-fs-mix-constant
+spec@glsl-1.10@execution@fs-op-assign-mult-ivec2-ivec2-overwrite
 spec@glsl-1.10@execution@glsl-fs-uniform-bool-2
+spec@glsl-1.10@execution@interpolation@interpolation-none-gl_frontsecondarycolor-flat-vertex
 spec@glsl-1.10@execution@samplers@glsl-fs-shadow2d-clamp-z
+spec@glsl-1.10@execution@samplers@glsl-fs-texture2d-masked-2
+spec@glsl-1.10@execution@swizzle-stpq
+spec@glsl-1.10@execution@variable-indexing@fs-temp-array-mat2-wr
+spec@glsl-1.10@execution@variable-indexing@fs-temp-mat4-col-wr
 spec@glsl-1.10@execution@variable-indexing@fs-uniform-mat4-rd
 spec@glsl-1.10@execution@variable-indexing@vs-varying-array-mat3-index-rd
+spec@glsl-1.10@execution@variable-indexing@vs-varying-array-mat4-wr
 spec@glsl-1.20@execution@built-in-functions@glsl-const-builtin-equal-07
+spec@glsl-1.20@execution@variable-indexing@fs-uniform-mat4-rd
 spec@glsl-1.20@execution@variable-indexing@vs-temp-mat2-rd
 spec@glsl-1.20@execution@vs-outerproduct-const-mat3x2-ivec
+spec@glsl-1.30@execution@built-in-functions@fs-op-assign-lshift-ivec3-uint
+spec@glsl-1.30@execution@built-in-functions@fs-op-bitand-ivec4-ivec4
+spec@glsl-1.30@execution@built-in-functions@vs-asinh-float
 spec@glsl-1.30@execution@tex-miplevel-selection textureprojoffset\(bias\) 2dshadow
 spec@glsl-1.30@execution@texelfetch fs sampler1d 1-513
 spec@glsl-1.30@execution@texelfetch fs sampler1darray 1x281-501x281
 spec@glsl-1.30@execution@texelfetch fs sampler2d 1x281-501x281
 spec@glsl-1.30@execution@texelfetch fs sampler2darray 98x1x9-98x129x9
 spec@glsl-1.30@execution@texelfetch@vs-texelfetch-isampler2darray
+spec@glsl-1.30@execution@vs-loop-uint-induction-var-4
+spec@glsl-1.50@execution@built-in-functions@gs-inversesqrt-vec3
 spec@glsl-1.50@execution@built-in-functions@gs-op-assign-mult-ivec2-int
+spec@glsl-1.50@execution@built-in-functions@gs-op-bitor-not-ivec2-int
+spec@glsl-1.50@execution@built-in-functions@gs-op-ge-uint-uint-using-if
 spec@glsl-1.50@execution@built-in-functions@gs-op-sub-ivec2-ivec2
 spec@glsl-1.50@execution@texelfetchoffset@gs-texelfetch-isampler1d
 spec@glsl-1.50@execution@texelfetchoffset@gs-texelfetch-usampler2darray
@@ -263,9 +306,12 @@ spec@glsl-4.00@execution@built-in-functions@vs-op-mult-dmat3-dmat2x3
 spec@glsl-4.00@execution@conversion@frag-conversion-explicit-double-uint
 spec@glsl-4.00@execution@inout@vs-out-fs-in-s1-float@4-dmat2x3-location-0
 spec@glsl-4.30@execution@built-in-functions@cs-min-ivec4-int
+spec@glsl-4.30@execution@built-in-functions@cs-op-bitand-not-ivec3-int
 spec@glsl-4.30@execution@built-in-functions@cs-op-gt-uint-uint-using-if
 spec@glsl-4.30@execution@built-in-functions@cs-op-ne-ivec4-ivec4-using-if
 spec@glsl-4.30@execution@built-in-functions@cs-op-selection-bool-bvec4-bvec4
+spec@khr_texture_compression_astc@miptree-gl srgb-sd
+spec@oes_texture_compression_astc@miptree-3d-gl ldr
 
 # mesh shaders somehow?
 glx@glx-visuals-depth

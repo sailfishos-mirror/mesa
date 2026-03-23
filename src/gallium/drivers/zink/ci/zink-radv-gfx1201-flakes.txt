@@ -36,12 +36,14 @@ dEQP-GLES3.functional.fbo.blit.rect.nearest_consistency_out_of_bounds_mag_revers
 dEQP-GLES3.functional.fbo.multiview.samples_1
 dEQP-GLES3.functional.fbo.multiview.samples_2
 dEQP-GLES3.functional.fbo.multiview.samples_4
+dEQP-GLES3.functional.fence_sync.client_wait_sync_finish
 dEQP-GLES3.functional.fragment_ops.blend.fbo_srgb.rgb_func_alpha_func.src.dst_alpha_one_minus_src_color
 dEQP-GLES3.functional.fragment_ops.interaction.basic_shader.1
 dEQP-GLES3.functional.fragment_ops.interaction.basic_shader.41
 dEQP-GLES3.functional.fragment_ops.interaction.basic_shader.46
 dEQP-GLES3.functional.fragment_out.basic.fixed.rgb565_highp_float
 dEQP-GLES3.functional.occlusion_query.all_occluders
+dEQP-GLES3.functional.occlusion_query.conservative_all_occluders
 dEQP-GLES3.functional.occlusion_query.conservative_depth_clear_stencil_write
 dEQP-GLES3.functional.occlusion_query.conservative_depth_write
 dEQP-GLES3.functional.occlusion_query.conservative_depth_write_depth_clear_stencil_clear
@@ -182,6 +184,7 @@ spec@!opengl 1.4@gl-1.4-polygon-offset
 spec@!opengl 2.0@tex3d-npot
 spec@amd_pinned_memory@map-buffer offset=0
 spec@amd_pinned_memory@offset=0
+spec@amd_shader_trinary_minmax@execution@built-in-functions@cs-min3-int-int-int
 spec@arb_clear_buffer_object@arb_clear_buffer_object-formats
 spec@arb_color_buffer_float@gl_rgba16f-render-fog
 spec@arb_color_buffer_float@gl_rgba32f-render-fog
@@ -190,13 +193,16 @@ spec@arb_copy_buffer@overlap
 spec@arb_copy_image@arb_copy_image-formats
 spec@arb_copy_image@arb_copy_image-formats --samples=2
 spec@arb_copy_image@arb_copy_image-formats --samples=2@Source: GL_RGBA8_SNORM/Destination: GL_RGBA8_SNORM
+spec@arb_copy_image@arb_copy_image-targets gl_texture_cube_map_array 32 32 18 gl_texture_1d_array 32 1 16 11 2 5 5 0 7 14 1 7
 spec@arb_copy_image@arb_copy_image-targets gl_texture_cube_map_array 32 32 18 gl_texture_2d 32 16 1 11 12 13 5 7 0 14 8 1
 spec@arb_depth_buffer_float@fbo-depth-gl_depth_component32f-tex1d
 spec@arb_depth_buffer_float@fbo-stencil-gl_depth32f_stencil8-copypixels
 spec@arb_depth_texture@fbo-depth-gl_depth_component16-blit
 spec@arb_direct_state_access@gettextureimage-formats init-by-rendering
 spec@arb_fragment_shader_interlock@arb_fragment_shader_interlock-image-load-store
+spec@arb_get_texture_sub_image@arb_get_texture_sub_image-getcompressed
 spec@arb_gpu_shader5@texturegather@fs-rg-1-int-2d
+spec@arb_gpu_shader_int64@execution@built-in-functions@cs-op-ge-uint64_t-uint64_t-using-if
 spec@arb_pixel_buffer_object@texsubimage array pbo
 spec@arb_pixel_buffer_object@texsubimage pbo
 spec@arb_pixel_buffer_object@texsubimage-unpack pbo
@@ -275,6 +281,7 @@ spec@glsl-1.30@execution@texelfetch fs sampler1darray 1x281-501x281
 spec@glsl-1.30@execution@texelfetch fs sampler1darray 1x71-501x71
 spec@glsl-1.30@execution@texelfetch fs sampler2d 1x71-501x71
 spec@glsl-1.30@execution@texelfetch fs sampler2d 281x1-281x281
+spec@glsl-1.30@execution@texelfetch fs sampler2d 71x1-71x281
 spec@glsl-1.30@execution@texelfetch fs sampler2darray 1x129x9-98x129x9
 spec@glsl-1.30@execution@texelfetch fs sampler2darray 98x1x9-98x129x9
 spec@glsl-1.30@execution@texelfetch fs sampler3d 98x1x9-98x129x9
