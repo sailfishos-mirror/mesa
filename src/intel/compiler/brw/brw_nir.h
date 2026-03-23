@@ -321,6 +321,9 @@ bool brw_nir_lower_fsign(nir_shader *nir);
 
 bool brw_nir_opt_fsat(nir_shader *);
 
+bool brw_nir_opt_systolic_vectorize(nir_shader *shader,
+                                    const struct intel_device_info *devinfo);
+
 void brw_nir_apply_key(struct brw_pass_tracker *pt,
                        const struct brw_base_prog_key *key,
                        unsigned max_subgroup_size);

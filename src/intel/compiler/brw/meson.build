@@ -63,6 +63,7 @@ libintel_compiler_brw_files = files(
   'brw_nir_opt_divergent_atomics.c',
   'brw_nir_wa_18019110168.c',
   'brw_nir_opt_fsat.c',
+  'brw_nir_opt_systolic_vectorize.c',
   'brw_nir_rt.h',
   'brw_nir_rt.c',
   'brw_nir_rt_builder.h',
