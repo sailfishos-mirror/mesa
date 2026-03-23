@@ -1595,8 +1595,6 @@ anv_physical_device_try_create(struct vk_instance *vk_instance,
    int fd;
    int master_fd = -1;
 
-   process_intel_debug_variable();
-
    fd = open(path, O_RDWR | O_CLOEXEC);
    if (fd < 0) {
       if (errno == ENOMEM) {
@@ -1990,6 +1988,9 @@ VkResult anv_CreateInstance(
    VG(VALGRIND_CREATE_MEMPOOL(instance, 0, false));
 
    anv_init_dri_options(instance);
+
+   process_intel_debug_variable();
+   instance->vk.enable_debug_logging = INTEL_DEBUG(DEBUG_PERF);
 
    intel_driver_ds_init();
 
