@@ -1,4 +1,5 @@
 KHR-GL46.es_31_compatibility.sample_variables.mask.rgba8ui.samples_0.mask_5
+KHR-Single-GL46.arrays_of_arrays_gl.AtomicUsage
 KHR-Single-GL46.subgroups.quad.framebuffer.subgroupquadbroadcast_2_dvec4_tess_eval
 dEQP-GLES2.functional.texture.filtering.cube.nearest_linear_mirror_l8_pot
 spec@khr_debug@push-pop-group_gl.*
@@ -89,11 +90,13 @@ wayland-dEQP-EGL.functional.sharing.gles2.multithread.random.textures.copytexsub
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random.textures.copytexsubimage2d.17
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random.textures.copytexsubimage2d.3
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random.textures.copytexsubimage2d.5
+wayland-dEQP-EGL.functional.sharing.gles2.multithread.random.textures.copytexsubimage2d.6
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random.textures.copytexsubimage2d.7
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.images.copyteximage2d.11
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.images.copytexsubimage2d.18
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.textures.copytexsubimage2d.13
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.textures.copytexsubimage2d.3
+wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.buffers.buffersubdata.18
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.buffers.buffersubdata.9
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.images.copytexsubimage2d.5
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.images.copytexsubimage2d.9
@@ -105,6 +108,7 @@ wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.textures.c
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.textures.copytexsubimage2d.3
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.textures.copytexsubimage2d.6
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.textures.copytexsubimage2d.7
+wayland-dEQP-EGL.functional.sharing.gles2.multithread.simple_egl_sync.images.texture_source.copyteximage2d_render
 wayland-dEQP-EGL.functional.sharing.gles2.multithread.simple_egl_sync.textures.teximage2d_texsubimage2d_render
 x11-dEQP-EGL.functional.color_clears.multi_context.gles2.rgb888_pbuffer
 x11-dEQP-EGL.functional.render.multi_context.gles2.rgb888_pbuffer
@@ -124,6 +128,7 @@ x11-dEQP-EGL.functional.sharing.gles2.multithread.random.buffers.buffersubdata.4
 x11-dEQP-EGL.functional.sharing.gles2.multithread.random.images.copytexsubimage2d.14
 x11-dEQP-EGL.functional.sharing.gles2.multithread.random.textures.copyteximage2d.16
 x11-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.buffers.buffersubdata.9
+x11-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.images.copyteximage2d.15
 x11-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.textures.copytexsubimage2d.16
 x11-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.textures.copytexsubimage2d.3
 x11-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.textures.copytexsubimage2d.7
