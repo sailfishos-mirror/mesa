@@ -18,17 +18,17 @@ deref_ssa(nir_builder *b, nir_variable *var)
    return &nir_build_deref_var(b, var)->def;
 }
 
-/* unpack_2x16_signed(src, x, y): x = (int32_t)((uint16_t)src); y = src >> 16; */
+/* unpack_2x16_unsigned(src, x, y): x = (uint32_t)((uint16_t)src); y = src >> 16; */
 static void
-unpack_2x16_signed(nir_builder *b, unsigned bit_size, nir_def *src, nir_def **x, nir_def **y)
+unpack_2x16_unsigned(nir_builder *b, unsigned bit_size, nir_def *src, nir_def **x, nir_def **y)
 {
    assert(bit_size == 32 || bit_size == 16);
    *x = nir_unpack_32_2x16_split_x(b, src);
    *y = nir_unpack_32_2x16_split_y(b, src);
 
    if (bit_size == 32) {
-      *x = nir_i2i32(b, *x);
-      *y = nir_i2i32(b, *y);
+      *x = nir_u2u32(b, *x);
+      *y = nir_u2u32(b, *y);
    }
 }
 
@@ -238,8 +238,8 @@ ac_create_blit_cs(const struct ac_cs_blit_options *options, const union ac_cs_bl
 
    /* Add box.xyz. */
    nir_def *base_coord_src = NULL, *base_coord_dst = NULL;
-   unpack_2x16_signed(&b, coord_bit_size, nir_trim_vector(&b, nir_load_user_data_amd(&b), 3),
-                      &base_coord_src, &base_coord_dst);
+   unpack_2x16_unsigned(&b, coord_bit_size, nir_trim_vector(&b, nir_load_user_data_amd(&b), 3),
+                        &base_coord_src, &base_coord_dst);
    base_coord_dst = nir_iadd(&b, base_coord_dst, dst_xyz);
    base_coord_src = nir_iadd(&b, base_coord_src, src_xyz);
 
@@ -564,11 +564,16 @@ ac_prepare_compute_blit(const struct ac_cs_blit_options *options,
       memset(out, 0, sizeof(*out));
 
    /* Reject blits with invalid parameters. */
-   if (blit->dst.box.width < 0 || blit->dst.box.height < 0 || blit->dst.box.depth < 0 ||
+   if (blit->dst.box.x < 0 || blit->dst.box.y < 0 || blit->dst.box.z < 0 ||
+       blit->dst.box.width < 0 || blit->dst.box.height < 0 || blit->dst.box.depth < 0 ||
        blit->src.box.depth < 0) {
       assert(!"invalid box parameters"); /* this is reachable and prevents hangs */
       return true;
    }
+
+   /* Negative src is possible with piglit/copyteximage-clipping, but it's very rare. */
+   if (blit->src.box.x < 0 || blit->src.box.y < 0 || blit->src.box.z < 0)
+      return false;
 
    /* Skip zero-area blits. */
    if (!blit->dst.box.width || !blit->dst.box.height || !blit->dst.box.depth ||
@@ -1175,6 +1180,13 @@ ac_prepare_compute_blit(const struct ac_cs_blit_options *options,
    }
 
    dispatch->shader_key = key;
+
+   assert(util_is_uint16(blit->src.box.x));
+   assert(util_is_uint16(blit->src.box.y));
+   assert(util_is_uint16(blit->src.box.z));
+   assert(util_is_uint16(blit->dst.box.x));
+   assert(util_is_uint16(blit->dst.box.y));
+   assert(util_is_uint16(blit->dst.box.z));
 
    dispatch->user_data[0] = (blit->src.box.x & 0xffff) | ((blit->dst.box.x & 0xffff) << 16);
    dispatch->user_data[1] = (blit->src.box.y & 0xffff) | ((blit->dst.box.y & 0xffff) << 16);

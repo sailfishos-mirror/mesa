@@ -873,6 +873,12 @@ util_is_sint16(int x)
    return x >= INT16_MIN && x <= INT16_MAX;
 }
 
+static inline bool
+util_is_uint16(int x)
+{
+   return x >= 0 && x <= UINT16_MAX;
+}
+
 /* Heuristic to determine whether a uint32_t is probably actually a float
  * (http://stackoverflow.com/a/2953466)
  */
