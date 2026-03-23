@@ -2514,6 +2514,12 @@ radv_graphics_shaders_nir_to_asm(struct radv_device *device, struct vk_pipeline_
       if (dump_shader)
          simple_mtx_unlock(&instance->shader_dump_mtx);
 
+      if (keep_executable_info && stages[s].spirv.size) {
+         shaders[s]->dbg.spirv = malloc(stages[s].spirv.size);
+         memcpy(shaders[s]->dbg.spirv, stages[s].spirv.data, stages[s].spirv.size);
+         shaders[s]->dbg.spirv_size = stages[s].spirv.size;
+      }
+
       if (s == MESA_SHADER_GEOMETRY && !stages[s].info.is_ngg) {
          *gs_copy_shader =
             radv_create_gs_copy_shader(device, cache, &stages[MESA_SHADER_GEOMETRY], gfx_state, keep_executable_info,
@@ -2952,21 +2958,6 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
    radv_graphics_shaders_nir_to_asm(device, cache, stages, gfx_state, keep_executable_info, keep_statistic_info,
                                     skip_shaders_cache, active_nir_stages, shaders, binaries, gs_copy_shader,
                                     gs_copy_binary);
-
-   if (keep_executable_info) {
-      for (int i = 0; i < MESA_VULKAN_SHADER_STAGES; ++i) {
-         struct radv_shader *shader = shaders[i];
-         if (!shader)
-            continue;
-
-         if (!stages[i].spirv.size)
-            continue;
-
-         shader->dbg.spirv = malloc(stages[i].spirv.size);
-         memcpy(shader->dbg.spirv, stages[i].spirv.data, stages[i].spirv.size);
-         shader->dbg.spirv_size = stages[i].spirv.size;
-      }
-   }
 }
 
 static bool
