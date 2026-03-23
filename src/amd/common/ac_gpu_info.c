@@ -394,7 +394,7 @@ ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_dev
     * attributes may be corrupted.
     * The workaround is to issue and wait for attribute stores before the last export.
     */
-   out->has_attr_ring_wait_bug = info->gfx_level == GFX11 || info->gfx_level == GFX11_5;
+   out->has_attr_ring_wait_bug = info->gfx_level >= GFX11 && info->gfx_level < GFX12;
 
    out->has_primid_instancing_bug = info->gfx_level == GFX6 && info->max_se == 1;
 }
@@ -694,6 +694,9 @@ ac_identify_chip(struct radeon_info *info, const struct drm_amdgpu_info_device *
          identify_chip(KRACKAN1);
          identify_chip(GFX1153);
          break;
+      case FAMILY_GFX1170:
+         identify_chip(GFX1170);
+         break;
       case FAMILY_NV4:
          identify_chip(GFX1200);
          identify_chip(GFX1201);
@@ -708,6 +711,8 @@ ac_identify_chip(struct radeon_info *info, const struct drm_amdgpu_info_device *
 
    if (info->ip[AMD_IP_GFX].ver_major == 12 && info->ip[AMD_IP_GFX].ver_minor == 0)
       info->gfx_level = GFX12;
+   else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 7)
+      info->gfx_level = GFX11_7;
    else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 5)
       info->gfx_level = GFX11_5;
    else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 0)

@@ -1485,7 +1485,7 @@ static void amdgpu_cs_add_userq_packets(struct amdgpu_winsys *aws,
    if (userq->ip_type == AMD_IP_GFX || userq->ip_type == AMD_IP_COMPUTE) {
       struct cond_exec_skip_count *cond_exec_skip_counts = NULL;
 
-      if (csc->aws->info.gfx_level == GFX11_5 && userq->ip_type == AMD_IP_GFX) {
+      if ((csc->aws->info.gfx_level == GFX11_5 || csc->aws->info.gfx_level == GFX11_7) && userq->ip_type == AMD_IP_GFX) {
          /* index 0 holds skip count for skipping the entire job. Rest for FENCE_WAIT_MULTI
           * packet pre-emption going to end of the job.
           */
@@ -1523,7 +1523,8 @@ static void amdgpu_cs_add_userq_packets(struct amdgpu_winsys *aws,
                amdgpu_pkt_add_dw(fence_info[i + j].value >> 32);
             }
 
-            if (csc->aws->info.gfx_level == GFX11_5 && userq->ip_type == AMD_IP_GFX) {
+            if ((csc->aws->info.gfx_level == GFX11_5 || csc->aws->info.gfx_level == GFX11_7) &&
+                userq->ip_type == AMD_IP_GFX) {
                amdgpu_pkt_add_dw(PKT3(PKT3_COND_EXEC, 3, 0));
                amdgpu_pkt_add_dw(0);
                amdgpu_pkt_add_dw(0);
@@ -1594,7 +1595,8 @@ static void amdgpu_cs_add_userq_packets(struct amdgpu_winsys *aws,
       amdgpu_pkt_add_dw(PKT3(PKT3_PROTECTED_FENCE_SIGNAL, 0, 0));
       amdgpu_pkt_add_dw(0);
 
-      if (csc->aws->info.gfx_level == GFX11_5 && userq->ip_type == AMD_IP_GFX) {
+      if ((csc->aws->info.gfx_level == GFX11_5 || csc->aws->info.gfx_level == GFX11_7) &&
+          userq->ip_type == AMD_IP_GFX) {
          for (unsigned i = 0; i < 1 + DIV_ROUND_UP(num_fences, 4); i++)
             *cond_exec_skip_counts[i].count_dw_ptr = (amdgpu_pkt_get_next_wptr() -
                                                          cond_exec_skip_counts[i].start_wptr) |

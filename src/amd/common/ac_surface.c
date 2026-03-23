@@ -306,6 +306,7 @@ bool ac_is_modifier_supported(const struct radeon_info *info,
       break;
    case GFX11:
    case GFX11_5:
+   case GFX11_7:
       allowed_swizzles = ac_modifier_has_dcc(modifier) ? 0x88000000 : 0xCC440440;
       break;
    case GFX12:
@@ -532,7 +533,8 @@ bool ac_get_supported_modifiers(const struct radeon_info *info,
       break;
    }
    case GFX11:
-   case GFX11_5: {
+   case GFX11_5:
+   case GFX11_7: {
       /* GFX11 has new microblock organization. No S modes for 2D. */
       unsigned pipe_xor_bits_4k = MIN2(pipes, block_size_bits_4k - 8);
       unsigned pipe_xor_bits_64k = MIN2(pipes, block_size_bits_64k - 8);
@@ -593,7 +595,7 @@ bool ac_get_supported_modifiers(const struct radeon_info *info,
           */
 
          /* Add the best non-displayable modifier first. */
-         if (info->gfx_level == GFX11_5)
+         if (info->gfx_level == GFX11_5 || info->gfx_level == GFX11_7)
             ADD_MOD(modifier_dcc_best_gfx11_5 | AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1));
 
          ADD_MOD(modifier_dcc_best | AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1));
@@ -2051,6 +2053,7 @@ static bool is_dcc_supported_by_CB(const struct radeon_info *info, unsigned sw_m
 
    case GFX11:
    case GFX11_5:
+   case GFX11_7:
       return sw_mode == ADDR_SW_64KB_Z_X || sw_mode == ADDR_SW_64KB_R_X ||
              sw_mode == ADDR_SW_256KB_Z_X || sw_mode == ADDR_SW_256KB_R_X;
 
@@ -2152,6 +2155,7 @@ static bool gfx9_is_dcc_supported_by_DCN(const struct radeon_info *info,
    case GFX10_3:
    case GFX11:
    case GFX11_5:
+   case GFX11_7:
       /* DCN requires INDEPENDENT_128B_BLOCKS = 0 only on Navi1x. */
       if (info->gfx_level == GFX10 && surf->u.gfx9.color.dcc.independent_128B_blocks)
          return false;
@@ -3747,6 +3751,7 @@ void ac_compute_surface_modifier(const struct radeon_info *info,
       break;
    case GFX11:
    case GFX11_5:
+   case GFX11_7:
       version = AMD_FMT_MOD_TILE_VER_GFX11;
       break;
    case GFX12:
@@ -4136,6 +4141,7 @@ bool ac_surface_apply_umd_metadata(const struct radeon_info *info, struct radeon
       case GFX10_3:
       case GFX11:
       case GFX11_5:
+      case GFX11_7:
          surf->meta_offset =
             ((uint64_t)G_00A018_META_DATA_ADDRESS_LO(desc[6]) << 8) | ((uint64_t)desc[7] << 16);
          surf->u.gfx9.color.dcc.pipe_aligned = G_00A018_META_PIPE_ALIGNED(desc[6]);
@@ -4183,6 +4189,7 @@ void ac_surface_compute_umd_metadata(const struct radeon_info *info, const struc
    case GFX10_3:
    case GFX11:
    case GFX11_5:
+   case GFX11_7:
       desc[6] &= C_00A018_META_DATA_ADDRESS_LO;
       desc[6] |= S_00A018_META_DATA_ADDRESS_LO(surf->meta_offset >> 8);
       desc[7] = surf->meta_offset >> 16;

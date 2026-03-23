@@ -678,6 +678,7 @@ bool ac_init_spm(const struct radeon_info *info,
       break;
    case GFX11:
    case GFX11_5:
+   case GFX11_7:
       create_info_count = ARRAY_SIZE(gfx11_spm_counters);
       create_info = gfx11_spm_counters;
       break;
@@ -794,9 +795,9 @@ bool ac_init_spm(const struct radeon_info *info,
    /* Configure the sample interval to default to 4096 clk. */
    spm->sample_interval = 4096;
 
-   /* On GFX11-11.5, the data size written by the hw is in units of segment. */
+   /* On GFX11-11.7, the data size written by the hw is in units of segment. */
    spm->ptr_granularity =
-      (info->gfx_level == GFX11 || info->gfx_level == GFX11_5) ? 32 : 1;
+      (info->gfx_level >= GFX11 && info->gfx_level < GFX12) ? 32 : 1;
 
    return true;
 }
