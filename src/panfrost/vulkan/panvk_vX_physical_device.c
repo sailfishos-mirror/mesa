@@ -845,8 +845,8 @@ panvk_per_arch(get_physical_device_properties)(
       .minTexelBufferOffsetAlignment = 16,
       /* Always aligned on a uniform slot (vec4). */
       .minUniformBufferOffsetAlignment = 16,
-      /* Lowered to global accesses, which happen at the 32-bit granularity. */
-      .minStorageBufferOffsetAlignment = 4,
+      /* LOAD.i128 and LD_PKA.i128 which require 16B alignment */
+      .minStorageBufferOffsetAlignment = 16,
       /* Signed 4-bit value. */
       .minTexelOffset = -8,
       .maxTexelOffset = 7,
@@ -1099,8 +1099,8 @@ panvk_per_arch(get_physical_device_properties)(
       .pipelineBinaryCompressedData = false,
 
       /* VK_KHR_robustness2 */
-      .robustStorageBufferAccessSizeAlignment = 1,
-      .robustUniformBufferAccessSizeAlignment = 1,
+      .robustStorageBufferAccessSizeAlignment = 4,
+      .robustUniformBufferAccessSizeAlignment = 16,
 
       /* VK_EXT_shader_object */
       /* We do not currently support VK_EXT_shader_object but this is used
