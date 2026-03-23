@@ -160,9 +160,13 @@ radv_shader_object_init_graphics(struct radv_shader_object *shader_obj, struct r
    if (!pCreateInfo->nextStage) {
       struct radv_shader *shaders[MESA_VULKAN_SHADER_STAGES] = {NULL};
       struct radv_shader_binary *binaries[MESA_VULKAN_SHADER_STAGES] = {NULL};
+      struct radv_shader_debug_info debug[MESA_VULKAN_SHADER_STAGES] = {};
+      struct radv_shader_debug_info gs_copy_debug = {};
 
-      radv_graphics_shaders_compile(device, NULL, stages, &gfx_state, false, false, false, true, NULL, false, shaders,
-                                    binaries, &shader_obj->gs.copy_shader, &shader_obj->gs.copy_binary);
+      radv_graphics_shaders_compile(device, NULL, stages, &gfx_state, false, false, false, NULL, false, debug, binaries,
+                                    &gs_copy_debug, &shader_obj->gs.copy_binary);
+      radv_graphics_shaders_create(device, NULL, true, shaders, binaries, debug, &shader_obj->gs.copy_shader,
+                                   shader_obj->gs.copy_binary, &gs_copy_debug);
 
       shader = shaders[stage];
       binary = binaries[stage];
@@ -185,12 +189,16 @@ radv_shader_object_init_graphics(struct radv_shader_object *shader_obj, struct r
       radv_foreach_stage (next_stage, next_stages) {
          struct radv_shader *shaders[MESA_VULKAN_SHADER_STAGES] = {NULL};
          struct radv_shader_binary *binaries[MESA_VULKAN_SHADER_STAGES] = {NULL};
+         struct radv_shader_debug_info debug[MESA_VULKAN_SHADER_STAGES] = {};
+         struct radv_shader_debug_info gs_copy_debug = {};
 
          radv_shader_stage_init(pCreateInfo, &stages[stage]);
          stages[stage].next_stage = next_stage;
 
-         radv_graphics_shaders_compile(device, NULL, stages, &gfx_state, false, false, false, true, NULL, false,
-                                       shaders, binaries, &shader_obj->gs.copy_shader, &shader_obj->gs.copy_binary);
+         radv_graphics_shaders_compile(device, NULL, stages, &gfx_state, false, false, false, NULL, false, debug,
+                                       binaries, &gs_copy_debug, &shader_obj->gs.copy_binary);
+         radv_graphics_shaders_create(device, NULL, true, shaders, binaries, debug, &shader_obj->gs.copy_shader,
+                                      shader_obj->gs.copy_binary, &gs_copy_debug);
 
          shader = shaders[stage];
          binary = binaries[stage];
@@ -454,11 +462,15 @@ radv_shader_object_create_linked(VkDevice _device, uint32_t createInfoCount, con
 
    struct radv_shader *shaders[MESA_VULKAN_SHADER_STAGES] = {NULL};
    struct radv_shader_binary *binaries[MESA_VULKAN_SHADER_STAGES] = {NULL};
+   struct radv_shader_debug_info debug[MESA_VULKAN_SHADER_STAGES] = {};
    struct radv_shader *gs_copy_shader = NULL;
    struct radv_shader_binary *gs_copy_binary = NULL;
+   struct radv_shader_debug_info gs_copy_debug = {};
 
-   radv_graphics_shaders_compile(device, NULL, stages, &gfx_state, false, false, false, true, NULL, false, shaders,
-                                 binaries, &gs_copy_shader, &gs_copy_binary);
+   radv_graphics_shaders_compile(device, NULL, stages, &gfx_state, false, false, false, NULL, false, debug, binaries,
+                                 &gs_copy_debug, &gs_copy_binary);
+   radv_graphics_shaders_create(device, NULL, true, shaders, binaries, debug, &gs_copy_shader, gs_copy_binary,
+                                &gs_copy_debug);
 
    for (unsigned i = 0; i < createInfoCount; i++) {
       const VkShaderCreateInfoEXT *pCreateInfo = &pCreateInfos[i];

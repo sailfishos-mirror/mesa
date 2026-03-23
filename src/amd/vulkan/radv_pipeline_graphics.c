@@ -29,6 +29,7 @@
 #include "radv_rmv.h"
 #include "radv_shader.h"
 #include "radv_shader_args.h"
+#include "shader_enums.h"
 #include "vk_nir_convert_ycbcr.h"
 #include "vk_pipeline.h"
 #include "vk_render_pass.h"
@@ -2720,9 +2721,9 @@ void
 radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cache *cache,
                               struct radv_shader_stage *stages, const struct radv_graphics_state_key *gfx_state,
                               bool keep_executable_info, bool keep_statistic_info, bool is_internal,
-                              bool skip_shaders_cache, struct radv_retained_shaders *retained_shaders, bool noop_fs,
-                              struct radv_shader **shaders, struct radv_shader_binary **binaries,
-                              struct radv_shader **gs_copy_shader, struct radv_shader_binary **gs_copy_binary)
+                              struct radv_retained_shaders *retained_shaders, bool noop_fs,
+                              struct radv_shader_debug_info *debug, struct radv_shader_binary **binaries,
+                              struct radv_shader_debug_info *gs_copy_debug, struct radv_shader_binary **gs_copy_binary)
 {
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
@@ -2944,18 +2945,23 @@ radv_graphics_shaders_compile(struct radv_device *device, struct vk_pipeline_cac
       radv_get_legacy_gs_info(device, NULL, &stages[MESA_SHADER_GEOMETRY].info);
 
    /* Compile NIR shaders to AMD assembly. */
-   struct radv_shader_debug_info debug[MESA_VULKAN_SHADER_STAGES] = {};
-   struct radv_shader_debug_info gs_copy_debug = {};
    radv_graphics_shaders_nir_to_asm(device, cache, stages, gfx_state, keep_executable_info, keep_statistic_info,
-                                    active_nir_stages, debug, binaries, &gs_copy_debug, gs_copy_binary);
+                                    active_nir_stages, debug, binaries, gs_copy_debug, gs_copy_binary);
+}
 
+void
+radv_graphics_shaders_create(struct radv_device *device, struct vk_pipeline_cache *cache, bool skip_shaders_cache,
+                             struct radv_shader **shaders, struct radv_shader_binary **binaries,
+                             struct radv_shader_debug_info *debug, struct radv_shader **gs_copy_shader,
+                             struct radv_shader_binary *gs_copy_binary, struct radv_shader_debug_info *gs_copy_debug)
+{
    for (int i = 0; i < MESA_VULKAN_SHADER_STAGES; ++i) {
       struct radv_shader_binary *binary = binaries[i];
       if (binary)
          shaders[i] = radv_shader_create(device, cache, binary, skip_shaders_cache, &debug[i]);
    }
-   if (*gs_copy_binary)
-      *gs_copy_shader = radv_shader_create(device, cache, *gs_copy_binary, skip_shaders_cache, &gs_copy_debug);
+   if (gs_copy_binary)
+      *gs_copy_shader = radv_shader_create(device, cache, gs_copy_binary, skip_shaders_cache, gs_copy_debug);
 }
 
 static bool
@@ -3188,10 +3194,13 @@ radv_graphics_pipeline_compile(struct radv_graphics_pipeline *pipeline, const Vk
 
    const bool noop_fs = radv_pipeline_needs_noop_fs(pipeline, &gfx_state->key.gfx_state);
 
+   struct radv_shader_debug_info debug[MESA_VULKAN_SHADER_STAGES] = {};
+   struct radv_shader_debug_info gs_copy_debug = {};
    radv_graphics_shaders_compile(device, cache, stages, &gfx_state->key.gfx_state, keep_executable_info,
-                                 keep_statistic_info, pipeline->base.is_internal, skip_shaders_cache, retained_shaders,
-                                 noop_fs, pipeline->base.shaders, binaries, &pipeline->base.gs_copy_shader,
-                                 &gs_copy_binary);
+                                 keep_statistic_info, pipeline->base.is_internal, retained_shaders, noop_fs, debug,
+                                 binaries, &gs_copy_debug, &gs_copy_binary);
+   radv_graphics_shaders_create(device, cache, skip_shaders_cache, pipeline->base.shaders, binaries, debug,
+                                &pipeline->base.gs_copy_shader, gs_copy_binary, &gs_copy_debug);
 
    if (!skip_shaders_cache) {
       radv_pipeline_cache_insert(device, cache, &pipeline->base);
