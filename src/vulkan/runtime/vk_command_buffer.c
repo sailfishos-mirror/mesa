@@ -900,7 +900,7 @@ vk_common_CmdCopyImageToBuffer2(
 
    const struct vk_device_dispatch_table *disp =
       &cmd_buffer->base.device->dispatch_table;
-   disp->CmdCopyMemoryToImageKHR(
+   disp->CmdCopyImageToMemoryKHR(
       commandBuffer,
       &(VkCopyDeviceMemoryImageInfoKHR) {
          .sType = VK_STRUCTURE_TYPE_COPY_DEVICE_MEMORY_IMAGE_INFO_KHR,
