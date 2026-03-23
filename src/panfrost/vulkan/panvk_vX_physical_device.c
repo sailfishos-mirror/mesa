@@ -841,8 +841,8 @@ panvk_per_arch(get_physical_device_properties)(
       .viewportSubPixelBits = 0,
       /* Align on a page. */
       .minMemoryMapAlignment = os_page_size,
-      /* Some compressed texture formats require 128-byte alignment. */
-      .minTexelBufferOffsetAlignment = 64,
+      /* The largest buffer texture format is 16B */
+      .minTexelBufferOffsetAlignment = 16,
       /* Always aligned on a uniform slot (vec4). */
       .minUniformBufferOffsetAlignment = 16,
       /* Lowered to global accesses, which happen at the 32-bit granularity. */
@@ -1057,8 +1057,8 @@ panvk_per_arch(get_physical_device_properties)(
       .integerDotProductAccumulatingSaturating64BitUnsignedAccelerated = false,
       .integerDotProductAccumulatingSaturating64BitSignedAccelerated = false,
       .integerDotProductAccumulatingSaturating64BitMixedSignednessAccelerated = false,
-      .storageTexelBufferOffsetAlignmentBytes = 64,
-      .storageTexelBufferOffsetSingleTexelAlignment = false,
+      .storageTexelBufferOffsetAlignmentBytes = 16,
+      .storageTexelBufferOffsetSingleTexelAlignment = true,
       .uniformTexelBufferOffsetAlignmentBytes = 4,
       .uniformTexelBufferOffsetSingleTexelAlignment = true,
       .maxBufferSize = PANVK_MAX_BUFFER_SIZE,
