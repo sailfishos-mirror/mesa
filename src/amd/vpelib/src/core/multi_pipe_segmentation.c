@@ -1553,9 +1553,11 @@ static enum vpe_status fill_mps_blending_cmd_info(struct vpe_priv *vpe_priv,
         if (input_idx != 0) {
             // sanity check to ensure all MPC sizes are still the same after the OPP adjust
             if (scaler_data->dscl_prog_data.mpc_size.width !=
-                    cmd_info.inputs[0].scaler_data.dscl_prog_data.mpc_size.width ||
+                    cmd_info.inputs[cmd_info_input_idx + 1]
+                        .scaler_data.dscl_prog_data.mpc_size.width ||
                 scaler_data->dscl_prog_data.mpc_size.height !=
-                    cmd_info.inputs[0].scaler_data.dscl_prog_data.mpc_size.height) {
+                    cmd_info.inputs[cmd_info_input_idx + 1]
+                        .scaler_data.dscl_prog_data.mpc_size.height) {
                 VPE_ASSERT(false);
                 status = VPE_STATUS_ERROR;
                 break;

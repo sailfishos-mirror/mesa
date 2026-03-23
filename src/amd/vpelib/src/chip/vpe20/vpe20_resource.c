@@ -2858,7 +2858,7 @@ static bool rect_contained_in_rect(struct vpe_rect inside_rect, struct vpe_rect 
 static enum vpe_status segment_stream(struct vpe_priv *vpe_priv, struct stream_ctx *stream_ctx,
     struct vpe_rect target_rect, bool dst_subsampled, bool enable_frod, uint32_t recout_alignment)
 {
-    uint16_t                      seg_idx;
+    uint16_t                      seg_idx, stream_idx;
     struct segment_ctx *segment_ctx;
     struct scaler_data  scl_data;
     struct vpe_rect     src_rect;
@@ -2870,6 +2870,8 @@ static enum vpe_status segment_stream(struct vpe_priv *vpe_priv, struct stream_c
     struct dpp     *dpp              = vpe_priv->resource.dpp[0];
     enum vpe_status res              = VPE_STATUS_OK;
     bool            skip_program_scl = false;
+    uint16_t max_num_mps_streams;
+    struct stream_ctx *mps_stream_ctx[MAX_INPUT_PIPE] = {0};
 
     if (!needs_segmentation(stream_ctx->stream_type))
         return res;
@@ -2922,10 +2924,14 @@ static enum vpe_status segment_stream(struct vpe_priv *vpe_priv, struct stream_c
         return VPE_STATUS_SCALING_RATIO_NOT_SUPPORTED;
     if (stream_ctx->mps_parent_stream == NULL && stream_ctx->stream_idx == 0 &&
         vpe_priv->num_input_streams > 1) {
-        struct stream_ctx *mps_stream_ctx[2] = {&vpe_priv->stream_ctx[0], &vpe_priv->stream_ctx[1]};
+        max_num_mps_streams =
+            (uint16_t)min(vpe_priv->pub.caps->resource_caps.num_dpp, vpe_priv->num_input_streams);
 
-        if (vpe_is_mps_possible(vpe_priv, mps_stream_ctx, 2, recout_alignment))
-            if (vpe_init_mps_ctx(vpe_priv, mps_stream_ctx, 2) != VPE_STATUS_OK)
+        for (stream_idx = 0; stream_idx < max_num_mps_streams; stream_idx++)
+            mps_stream_ctx[stream_idx] = &vpe_priv->stream_ctx[stream_idx];
+
+        if (vpe_is_mps_possible(vpe_priv, mps_stream_ctx, max_num_mps_streams, recout_alignment))
+            if (vpe_init_mps_ctx(vpe_priv, mps_stream_ctx, max_num_mps_streams) != VPE_STATUS_OK)
                 return VPE_STATUS_ERROR;
     }
 
