@@ -58,7 +58,6 @@ enum vpe_status vpe20_build_vpe_cmd(
     struct vpe_desc_writer *vpe_desc_writer = &vpe_priv->vpe_desc_writer;
     struct vpe_buf         *emb_buf         = &cur_bufs->emb_buf;
     struct output_ctx      *output_ctx;
-    struct pipe_ctx        *pipe_ctx = NULL;
     uint32_t                pipe_idx, config_idx;
     struct vpe_vector      *config_vector;
     struct config_record   *config;
@@ -89,59 +88,23 @@ enum vpe_status vpe20_build_vpe_cmd(
 
     // frontend programming
     for (pipe_idx = 0; pipe_idx < cmd_info->num_inputs; pipe_idx++) {
-        bool               reuse;
-        struct stream_ctx *stream_ctx;
-        uint16_t           stream_idx;
-        enum vpe_cmd_type  cmd_type = VPE_CMD_TYPE_COUNT;
 
-        // keep using the same pipe whenever possible
-        // this would allow reuse of the previous register configs
-        stream_idx = cmd_info->inputs[pipe_idx].stream_idx;
-        pipe_ctx   = &vpe_priv->pipe_ctx[pipe_idx];
+        struct stream_ctx *stream_ctx =
+            &vpe_priv->stream_ctx[cmd_info->inputs[pipe_idx].stream_idx];
+        uint16_t         stream_idx = cmd_info->inputs[pipe_idx].stream_idx;
+        struct pipe_ctx *pipe_ctx   = &vpe_priv->pipe_ctx[pipe_idx];
 
-        reuse = (pipe_ctx->owner == stream_idx);
-        VPE_ASSERT(pipe_ctx->owner == PIPE_CTX_NO_OWNER || pipe_ctx->owner == stream_idx);
-        pipe_ctx->owner = stream_idx;
-        stream_ctx      = &vpe_priv->stream_ctx[cmd_info->inputs[pipe_idx].stream_idx];
+        bool reuse_stream    = (pipe_ctx->owner == stream_idx);
+        bool reuse_stream_op = reuse_stream && (pipe_ctx->cmd_type == cmd_info->ops);
+        pipe_ctx->owner      = stream_idx;
+        pipe_ctx->cmd_type   = cmd_info->ops;
 
-        if (!reuse) {
-            vpe_priv->resource.program_frontend(
-                vpe_priv, pipe_ctx->pipe_idx, cmd_idx, pipe_idx, false);
+        if (!reuse_stream) {
+            vpe_priv->resource.program_frontend_frame(
+                vpe_priv, pipe_ctx->pipe_idx, cmd_idx, pipe_idx);
         } else {
             if (vpe_priv->init.debug.disable_reuse_bit)
-                reuse = false;
-
-            // frame specific for same type of command
-            switch (cmd_info->ops) {
-            case VPE_CMD_OPS_BG:
-                cmd_type = VPE_CMD_TYPE_BG;
-                break;
-            case VPE_CMD_OPS_COMPOSITING:
-                cmd_type = VPE_CMD_TYPE_COMPOSITING;
-                break;
-            case VPE_CMD_OPS_BLENDING:
-                cmd_type = VPE_CMD_TYPE_BLENDING;
-                break;
-            case VPE_CMD_OPS_BG_VSCF_INPUT:
-                cmd_type = VPE_CMD_TYPE_BG_VSCF_INPUT;
-                break;
-            case VPE_CMD_OPS_BG_VSCF_OUTPUT:
-                cmd_type = VPE_CMD_TYPE_BG_VSCF_OUTPUT;
-                break;
-            case VPE_CMD_OPS_BG_VSCF_PIPE0:
-                cmd_type = VPE_CMD_TYPE_BG_VSCF_PIPE0;
-                break;
-            case VPE_CMD_OPS_BG_VSCF_PIPE1:
-                cmd_type = VPE_CMD_TYPE_BG_VSCF_PIPE1;
-                break;
-            case VPE_CMD_OPS_ALPHA_THROUGH_LUMA:
-                cmd_type = VPE_CMD_TYPE_ALPHA_THROUGH_LUMA;
-                break;
-            default:
-                VPE_ASSERT(0);
-                status = VPE_STATUS_ERROR;
-                break;
-            }
+                reuse_stream = false;
 
             // follow the same order of config generation in "non-reuse" case
             // stream sharing
@@ -155,14 +118,18 @@ enum vpe_status vpe20_build_vpe_cmd(
                 }
 
                 vpe_desc_writer->add_config_desc(
-                    vpe_desc_writer, config->config_base_addr, reuse, (uint8_t)emb_buf->tmz);
+                    vpe_desc_writer, config->config_base_addr, reuse_stream, (uint8_t)emb_buf->tmz);
             }
 
             if (status != VPE_STATUS_OK)
                 break;
+        }
 
-            // stream-op sharing
-            config_vector = stream_ctx->stream_op_configs[pipe_idx][cmd_type];
+        if (!reuse_stream_op) {
+            vpe_priv->resource.program_stream_op_config(
+                vpe_priv, pipe_ctx->pipe_idx, pipe_idx, stream_ctx, cmd_info);
+        } else {
+            config_vector = stream_ctx->stream_op_configs[pipe_idx][cmd_info->ops];
             for (config_idx = 0; config_idx < config_vector->num_elements; config_idx++) {
                 config = (struct config_record *)vpe_vector_get(config_vector, config_idx);
                 if (!config) {
@@ -176,11 +143,10 @@ enum vpe_status vpe20_build_vpe_cmd(
 
             if (status != VPE_STATUS_OK)
                 break;
-
-            // command specific
-            vpe_priv->resource.program_frontend(
-                vpe_priv, pipe_ctx->pipe_idx, cmd_idx, pipe_idx, true);
         }
+
+        vpe_priv->resource.program_frontend_segment(
+            vpe_priv, pipe_ctx->pipe_idx, cmd_idx, pipe_idx);
     }
 
     // If config writer has been crashed due to buffer overflow

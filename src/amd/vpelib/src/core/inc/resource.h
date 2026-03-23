@@ -102,6 +102,15 @@ struct resource {
     int32_t (*program_frontend)(struct vpe_priv *vpe_priv, uint32_t pipe_idx, uint32_t cmd_idx,
         uint32_t cmd_input_idx, bool seg_only);
 
+    int32_t (*program_frontend_frame)(
+        struct vpe_priv *vpe_priv, uint32_t pipe_idx, uint32_t cmd_idx, uint32_t cmd_input_idx);
+
+    int32_t (*program_frontend_segment)(
+        struct vpe_priv *vpe_priv, uint32_t pipe_idx, uint32_t cmd_idx, uint32_t cmd_input_idx);
+
+    int32_t (*program_stream_op_config)(struct vpe_priv *vpe_priv, uint32_t pipe_idx,
+        uint32_t cmd_input_idx, struct stream_ctx *stream_ctx, struct vpe_cmd_info *cmd_info);
+
     int32_t (*program_backend)(
         struct vpe_priv *vpe_priv, uint32_t pipe_idx, uint32_t cmd_idx, bool seg_only);
 

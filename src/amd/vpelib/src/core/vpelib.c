@@ -939,7 +939,7 @@ enum vpe_status vpe_build_commands(
             if (config_vector)
                 vpe_vector_clear(config_vector);
 
-            for (cmd_type_idx = 0; cmd_type_idx < VPE_CMD_TYPE_COUNT; cmd_type_idx++) {
+            for (cmd_type_idx = 0; cmd_type_idx < VPE_CMD_OPS_COUNT; cmd_type_idx++) {
                 config_vector = stream_ctx->stream_op_configs[pipe_idx][cmd_type_idx];
                 if (config_vector)
                     vpe_vector_clear(config_vector);

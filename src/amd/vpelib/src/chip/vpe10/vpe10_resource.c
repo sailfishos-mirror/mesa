@@ -1001,7 +1001,7 @@ int32_t vpe10_program_frontend(struct vpe_priv *vpe_priv, uint32_t pipe_idx, uin
     /* start segment specific programming */
     vpe_priv->fe_cb_ctx.stream_sharing    = false;
     vpe_priv->fe_cb_ctx.stream_op_sharing = false;
-    vpe_priv->fe_cb_ctx.cmd_type          = VPE_CMD_TYPE_COMPOSITING;
+    vpe_priv->fe_cb_ctx.cmd_type          = VPE_CMD_OPS_COMPOSITING;
 
     cdc_fe->funcs->program_viewport(
         cdc_fe, &cmd_input->scaler_data.viewport, &cmd_input->scaler_data.viewport_c);
@@ -1150,29 +1150,22 @@ void vpe10_create_stream_ops_config(struct vpe_priv *vpe_priv, uint32_t pipe_idx
     struct mpcc_blnd_cfg blndcfg  = {0};
     struct dpp          *dpp      = vpe_priv->resource.dpp[pipe_idx];
     struct mpc          *mpc      = vpe_priv->resource.mpc[pipe_idx];
-    enum vpe_cmd_type    cmd_type = VPE_CMD_TYPE_COUNT;
     struct vpe_vector   *config_vector;
 
     vpe_priv->fe_cb_ctx.stream_op_sharing = true;
     vpe_priv->fe_cb_ctx.stream_sharing    = false;
 
-    if (ops == VPE_CMD_OPS_BG) {
-        cmd_type = VPE_CMD_TYPE_BG;
-    } else if (ops == VPE_CMD_OPS_COMPOSITING) {
-        cmd_type = VPE_CMD_TYPE_COMPOSITING;
-    } else if (ops == VPE_CMD_OPS_BG_VSCF_INPUT) {
-        cmd_type = VPE_CMD_TYPE_BG_VSCF_INPUT;
-    } else if (ops == VPE_CMD_OPS_BG_VSCF_OUTPUT) {
-        cmd_type = VPE_CMD_TYPE_BG_VSCF_OUTPUT;
-    } else
+    if (!((ops == VPE_CMD_OPS_BG) || (ops == VPE_CMD_OPS_COMPOSITING) ||
+            (ops == VPE_CMD_OPS_BG_VSCF_INPUT) || (ops == VPE_CMD_OPS_BG_VSCF_OUTPUT))) {
         return;
+    }
 
     // return if already generated
-    config_vector = stream_ctx->stream_op_configs[pipe_idx][cmd_type];
+    config_vector = stream_ctx->stream_op_configs[pipe_idx][ops];
     if (config_vector->num_elements)
         return;
 
-    vpe_priv->fe_cb_ctx.cmd_type = cmd_type;
+    vpe_priv->fe_cb_ctx.cmd_type = ops;
 
     dpp->funcs->set_frame_scaler(dpp, &cmd_input->scaler_data);
 
@@ -1218,8 +1211,8 @@ void vpe10_create_stream_ops_config(struct vpe_priv *vpe_priv, uint32_t pipe_idx
         blndcfg.global_alpha = 0xff;
     }
 
-    if (cmd_type == VPE_CMD_TYPE_BG || cmd_type == VPE_CMD_TYPE_BG_VSCF_INPUT ||
-        cmd_type == VPE_CMD_TYPE_BG_VSCF_OUTPUT) {
+    if ((ops == VPE_CMD_OPS_BG) || (ops == VPE_CMD_OPS_BG_VSCF_INPUT) ||
+        (ops == VPE_CMD_OPS_BG_VSCF_OUTPUT)) {
         // for bg commands, make top layer transparent
         // as global alpha only works when global alpha mode, set global alpha mode as well
         blndcfg.global_alpha = 0;

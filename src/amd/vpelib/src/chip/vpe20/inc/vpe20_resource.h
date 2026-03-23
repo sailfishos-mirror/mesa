@@ -69,8 +69,11 @@ uint32_t vpe20_get_hw_surface_format(enum vpe_surface_pixel_format format);
 enum vpe_status vpe20_calculate_segments(
     struct vpe_priv *vpe_priv, const struct vpe_build_param *params);
 
-int32_t vpe20_program_frontend(struct vpe_priv* vpe_priv, uint32_t pipe_idx, uint32_t cmd_idx,
-    uint32_t cmd_input_idx, bool seg_only);
+int32_t vpe20_program_frontend_frame(
+    struct vpe_priv *vpe_priv, uint32_t pipe_idx, uint32_t cmd_idx, uint32_t cmd_input_idx);
+
+int32_t vpe20_program_frontend_segment(
+    struct vpe_priv *vpe_priv, uint32_t pipe_idx, uint32_t cmd_idx, uint32_t cmd_input_idx);
 
 bool vpe20_get_dcc_compression_output_cap(
     const struct vpe_dcc_surface_param *params, struct vpe_surface_dcc_cap *cap);
@@ -78,8 +81,11 @@ bool vpe20_get_dcc_compression_output_cap(
 bool vpe20_get_dcc_compression_input_cap(
     const struct vpe_dcc_surface_param *params, struct vpe_surface_dcc_cap *cap);
 
-void vpe20_create_stream_ops_config(struct vpe_priv *vpe_priv, uint32_t pipe_idx,
+int32_t vpe20_program_stream_ops_config(struct vpe_priv *vpe_priv, uint32_t pipe_idx,
     uint32_t cmd_input_idx, struct stream_ctx *stream_ctx, struct vpe_cmd_info *cmd_info);
+
+int32_t vpe20_program_segment_frontend(
+    struct vpe_priv *vpe_priv, uint32_t pipe_idx, uint32_t cmd_idx, uint32_t cmd_input_idx);
 
 enum vpe_status vpe20_populate_cmd_info(struct vpe_priv *vpe_priv);
 

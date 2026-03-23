@@ -473,7 +473,10 @@ enum vpe_status vpe22_construct_resource(struct vpe_priv *vpe_priv, struct resou
     res->find_bg_gaps                       = vpe_find_bg_gaps;
     res->create_bg_segments                 = vpe20_create_bg_segments;
     res->populate_cmd_info                  = vpe20_populate_cmd_info;
-    res->program_frontend                   = vpe20_program_frontend;
+    res->program_frontend                   = NULL;
+    res->program_frontend_frame             = vpe20_program_frontend_frame;
+    res->program_frontend_segment           = vpe20_program_frontend_segment;
+    res->program_stream_op_config           = vpe20_program_stream_ops_config;
     res->program_backend                    = vpe20_program_backend;
     res->get_bufs_req                       = vpe20_get_bufs_req;
     res->check_bg_color_support             = vpe20_check_bg_color_support;
