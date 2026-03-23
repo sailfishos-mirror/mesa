@@ -16,6 +16,7 @@ dEQP-VK.sparse_resources.mipmap_sparse_residency.3d.rg32i.1024_128_8
 dEQP-VK.sparse_resources.mipmap_sparse_residency.3d.rg32ui.1024_128_8
 dEQP-VK.sparse_resources.mipmap_sparse_residency.3d.rgba16i.1024_128_8
 dEQP-VK.sparse_resources.mipmap_sparse_residency.3d.rgba16ui.1024_128_8
+dEQP-VK.sparse_resources.shader_intrinsics.3d_sparse_fetch.r8_snorm.256_256_16
 dEQP-VK.sparse_resources.shader_intrinsics.3d_sparse_read.r64ui.256_256_16
 dEQP-VK.sparse_resources.shader_intrinsics.3d_sparse_read.rgba16i.256_256_16
 dEQP-VK.video.encode.av1.720x480_10le_420.i_15.qindex128_tiling_1x2_rc_disabled_cdef
