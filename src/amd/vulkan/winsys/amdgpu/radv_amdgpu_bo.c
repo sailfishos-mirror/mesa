@@ -697,11 +697,7 @@ radv_amdgpu_winsys_bo_from_ptr(struct radeon_winsys *_ws, void *pointer, uint64_
 
    ret = ac_drm_create_bo_from_user_mem(ws->dev, pointer, size, &buf_handle);
    if (ret) {
-      if (ret == -EINVAL) {
-         result = VK_ERROR_INVALID_EXTERNAL_HANDLE;
-      } else {
-         result = VK_ERROR_UNKNOWN;
-      }
+      result = VK_ERROR_INVALID_EXTERNAL_HANDLE;
       goto error;
    }
 
