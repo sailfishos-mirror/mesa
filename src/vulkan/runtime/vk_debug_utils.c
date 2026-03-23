@@ -441,7 +441,7 @@ vk_queue_begin_debug_utils_label(struct vk_queue *queue,
     * should remove it first.
     */
    if (!queue->region_begin)
-      (void)util_dynarray_pop(&queue->labels, VkDebugUtilsLabelEXT);
+      vk_common_pop_debug_label(queue->base.device, &queue->labels);
 
    vk_common_append_debug_label(queue->base.device,
                                 &queue->labels,
