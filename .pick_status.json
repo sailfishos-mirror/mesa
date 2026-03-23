@@ -2724,7 +2724,7 @@
         "description": "nvk: fix BindImageMemory2 per-bind status result",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "93792b5ef2ae0919298409b87a54a16fb38ffafb",
         "notes": null
