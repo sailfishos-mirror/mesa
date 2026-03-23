@@ -2224,7 +2224,7 @@ radv_postprocess_binary_config(struct radv_device *device, struct radv_shader_bi
           (pdev->info.gfx_level < GFX10 && num_shared_vgprs == 0));
    unsigned num_shared_vgpr_blocks = num_shared_vgprs / 8;
    unsigned excp_en = 0, excp_en_msb = 0;
-   bool dx10_clamp = pdev->info.gfx_level < GFX12;
+   bool dx10_clamp = pdev->info.gfx_level < GFX11_7;
 
    config->num_vgprs = num_vgprs;
    config->num_sgprs = num_sgprs;
@@ -2294,7 +2294,7 @@ radv_postprocess_binary_config(struct radv_device *device, struct radv_shader_bi
    switch (stage) {
    case MESA_SHADER_TESS_EVAL:
       if (info->is_ngg) {
-         if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_5)
+         if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7)
             config->rsrc1 |= S_00B228_MEM_ORDERED(radv_mem_ordered(pdev->info.gfx_level));
          config->rsrc2 |= S_00B22C_OC_LDS_EN(1) | S_00B22C_EXCP_EN(excp_en);
       } else if (info->tes.as_es) {
@@ -2306,7 +2306,7 @@ radv_postprocess_binary_config(struct radv_device *device, struct radv_shader_bi
          bool enable_prim_id = info->outinfo.export_prim_id || info->uses_prim_id;
          vgpr_comp_cnt = enable_prim_id ? 3 : 2;
 
-         if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_5)
+         if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7)
             config->rsrc1 |= S_00B128_MEM_ORDERED(radv_mem_ordered(pdev->info.gfx_level));
          config->rsrc2 |= S_00B12C_OC_LDS_EN(1) | S_00B12C_EXCP_EN(excp_en);
       }
@@ -2332,14 +2332,14 @@ radv_postprocess_binary_config(struct radv_device *device, struct radv_shader_bi
       } else {
          config->rsrc2 |= S_00B12C_OC_LDS_EN(1) | S_00B12C_EXCP_EN(excp_en);
       }
-      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_5)
+      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7)
          config->rsrc1 |= S_00B428_MEM_ORDERED(radv_mem_ordered(pdev->info.gfx_level));
       config->rsrc1 |= S_00B428_WGP_MODE(config->wgp_mode);
       config->rsrc2 |= S_00B42C_SHARED_VGPR_CNT(num_shared_vgpr_blocks);
       break;
    case MESA_SHADER_VERTEX:
       if (info->is_ngg) {
-         if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_5)
+         if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7)
             config->rsrc1 |= S_00B228_MEM_ORDERED(radv_mem_ordered(pdev->info.gfx_level));
       } else if (info->vs.as_ls) {
          assert(pdev->info.gfx_level <= GFX8);
@@ -2369,25 +2369,25 @@ radv_postprocess_binary_config(struct radv_device *device, struct radv_shader_bi
             vgpr_comp_cnt = 0;
          }
 
-         if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_5)
+         if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7)
             config->rsrc1 |= S_00B128_MEM_ORDERED(radv_mem_ordered(pdev->info.gfx_level));
       }
       config->rsrc2 |= S_00B12C_SHARED_VGPR_CNT(num_shared_vgpr_blocks) | S_00B12C_EXCP_EN(excp_en);
       break;
    case MESA_SHADER_MESH:
-      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_5)
+      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7)
          config->rsrc1 |= S_00B228_MEM_ORDERED(radv_mem_ordered(pdev->info.gfx_level));
       config->rsrc2 |= S_00B12C_SHARED_VGPR_CNT(num_shared_vgpr_blocks) | S_00B12C_EXCP_EN(excp_en);
       break;
    case MESA_SHADER_FRAGMENT:
-      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_5)
+      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7)
          config->rsrc1 |= S_00B028_MEM_ORDERED(radv_mem_ordered(pdev->info.gfx_level));
       config->rsrc1 |= S_00B028_LOAD_PROVOKING_VTX(info->ps.load_provoking_vtx);
       config->rsrc2 |= S_00B02C_SHARED_VGPR_CNT(num_shared_vgpr_blocks) | S_00B02C_EXCP_EN(excp_en) |
                        S_00B02C_LOAD_COLLISION_WAVEID(info->ps.pops && pdev->info.gfx_level < GFX11);
       break;
    case MESA_SHADER_GEOMETRY:
-      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_5)
+      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7)
          config->rsrc1 |= S_00B228_MEM_ORDERED(radv_mem_ordered(pdev->info.gfx_level));
       config->rsrc2 |= S_00B22C_SHARED_VGPR_CNT(num_shared_vgpr_blocks) | S_00B22C_EXCP_EN(excp_en);
       break;
@@ -2399,7 +2399,7 @@ radv_postprocess_binary_config(struct radv_device *device, struct radv_shader_bi
    case MESA_SHADER_ANY_HIT:
    case MESA_SHADER_COMPUTE:
    case MESA_SHADER_TASK:
-      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_5)
+      if (pdev->info.gfx_level >= GFX10 && pdev->info.gfx_level <= GFX11_7)
          config->rsrc1 |= S_00B848_MEM_ORDERED(radv_mem_ordered(pdev->info.gfx_level));
       config->rsrc1 |= S_00B848_WGP_MODE(config->wgp_mode);
       config->rsrc2 |= S_00B84C_TGID_X_EN(info->cs.uses_block_id[0]) | S_00B84C_TGID_Y_EN(info->cs.uses_block_id[1]) |
