@@ -3374,7 +3374,7 @@
         "description": "pco: Amend errant nir_move_option",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "f1b24267d25bcf3a29228b705a253a6c4b40b8af",
         "notes": null
