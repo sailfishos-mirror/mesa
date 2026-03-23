@@ -193,6 +193,8 @@ static unsigned r600_tex_dim(struct r600_texture *rtex,
 		return nr_samples > 1 ? V_030000_SQ_TEX_DIM_2D_MSAA :
 					V_030000_SQ_TEX_DIM_2D;
 	case PIPE_TEXTURE_2D_ARRAY:
+		if (unlikely(nr_samples > 1 && view_target == PIPE_TEXTURE_2D))
+			return V_030000_SQ_TEX_DIM_2D_MSAA;
 		return nr_samples > 1 ? V_030000_SQ_TEX_DIM_2D_ARRAY_MSAA :
 					V_030000_SQ_TEX_DIM_2D_ARRAY;
 	case PIPE_TEXTURE_3D:
@@ -753,7 +755,8 @@ static int evergreen_fill_tex_resource_words(struct r600_context *rctx,
 					     struct pipe_resource *texture,
 					     struct eg_tex_res_params *params,
 					     bool *skip_mip_address_reloc,
-					     unsigned tex_resource_words[8])
+					     unsigned tex_resource_words[8],
+					     struct pipe_resource **const replace_resource)
 {
 	struct r600_screen *rscreen = (struct r600_screen*)rctx->b.b.screen;
 	struct r600_texture *tmp = r600_as_texture(texture);
@@ -867,8 +870,18 @@ static int evergreen_fill_tex_resource_words(struct r600_context *rctx,
 	} else if (dim == V_030000_SQ_TEX_DIM_2D_ARRAY ||
 		   dim == V_030000_SQ_TEX_DIM_2D_ARRAY_MSAA) {
 		depth = texture->array_size;
-	} else if (dim == V_030000_SQ_TEX_DIM_CUBEMAP)
+	} else if (dim == V_030000_SQ_TEX_DIM_CUBEMAP) {
 		depth = texture->array_size / 6;
+	} else if (unlikely(dim == V_030000_SQ_TEX_DIM_2D_MSAA &&
+			    tmp->resource.b.b.target == PIPE_TEXTURE_2D_ARRAY &&
+			    params->first_layer > 0)) {
+		struct pipe_resource *replacement = r600_texture_create(rctx->b.b.screen, texture);
+		struct pipe_box box;
+		u_box_3d(0, 0, params->first_layer, texture->width0, texture->height0, 1, &box);
+		r600_copy_region_with_blit(&rctx->b.b, replacement, 0, 0, 0, 0,
+					   texture, 0, &box);
+		*replace_resource = replacement;
+	}
 
 	tex_resource_words[0] = (S_030000_DIM(dim) |
 				 S_030000_PITCH((pitch / 8) - 1) |
@@ -980,7 +993,8 @@ evergreen_create_sampler_view_custom(struct pipe_context *ctx,
 
 	ret = evergreen_fill_tex_resource_words(rctx, texture, &params,
 						&view->skip_mip_address_reloc,
-						view->tex_resource_words);
+						view->tex_resource_words,
+						&view->replace_resource);
 	if (ret != 0) {
 		FREE(view);
 		return NULL;
@@ -992,7 +1006,9 @@ evergreen_create_sampler_view_custom(struct pipe_context *ctx,
 	    state->format == PIPE_FORMAT_S8_UINT)
 		view->is_stencil_sampler = true;
 
-	view->tex_resource = &tmp->resource;
+	view->tex_resource = unlikely(view->replace_resource) ?
+		&r600_as_texture(view->replace_resource)->resource :
+		&tmp->resource;
 
 	return &view->base;
 }
@@ -4740,7 +4756,7 @@ static void evergreen_set_shader_images(struct pipe_context *ctx,
 			tex_params.swizzle[3] = PIPE_SWIZZLE_W;
 			evergreen_fill_tex_resource_words(rctx, &resource->b.b, &tex_params,
 							  &rview->skip_mip_address_reloc,
-							  rview->resource_words);
+							  rview->resource_words, NULL);
 
 		} else {
 			memset(&buf_params, 0, sizeof(buf_params));

@@ -424,6 +424,11 @@ static void r600_sampler_view_destroy(struct pipe_context *ctx,
 	    view->tex_resource->b.b.target == PIPE_BUFFER)
 		list_delinit(&view->list);
 
+	if (unlikely(view->replace_resource)) {
+		struct r600_context *rctx = (struct r600_context *)ctx;
+		r600_texture_destroy(&rctx->screen->b.b, view->replace_resource);
+	}
+
 	pipe_resource_reference(&state->texture, NULL);
 	FREE(view);
 }
