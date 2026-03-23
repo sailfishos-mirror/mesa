@@ -85,17 +85,16 @@ amd-raven-skqp:
 
 radv-raven-traces-restricted:
   extends:
-    - .lava-x86_64-piglit-traces
+    - .lava-x86_64-test-vk
+    - .traces-test
+    - .test-wine
     - .radv-raven-test:x86_64
     - .lava-lenovo-TPad-C13-Yoga-zork:x86_64
     - .radv-collabora-restricted-rules
   variables:
     HWCI_START_WESTON: 1
     ANGLE_TRACE_FILES_TAG: "2025-03-28"
-    PIGLIT_REPLAY_ANGLE_ARCH: x64
-    PIGLIT_TRACES_FILE: restricted-traces-amd.yml
-    PIGLIT_REPLAY_DEVICE_NAME: "vk-${GPU_VERSION}"
-    PIGLIT_REPLAY_EXTRA_ARGS: --keep-image --minio_bucket=${S3_TRACIE_PRIVATE_BUCKET} --jwt-file=${S3_JWT_FILE}
+    REPLAY_CONFIG: traces-amd-restricted.toml
     FDO_CI_CONCURRENT: 5  # Run the 10 traces in 2 sets of 5 to avoid OOMs
   allow_failure: true
 
