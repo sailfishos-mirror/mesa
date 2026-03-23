@@ -218,5 +218,3 @@ dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed98_multiview,
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed99,Fail
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed99_multiview,Fail
 dEQP-VK.renderpasses.dynamic_rendering.primary_cmd_buff.random.seed9_multiview,Fail
-dEQP-VK.spirv_assembly.instruction.spirv1p4.opcopylogical.nested_arrays_different_inner_stride,Crash
-dEQP-VK.spirv_assembly.instruction.spirv1p4.opcopylogical.nested_arrays_different_strides,Crash
