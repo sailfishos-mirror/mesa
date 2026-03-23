@@ -2126,13 +2126,13 @@ void anv_GetDeviceMemoryCommitment(
    *pCommittedMemoryInBytes = 0;
 }
 
-static inline clockid_t
-anv_get_default_cpu_clock_id(void)
+static inline VkTimeDomainKHR
+anv_get_default_cpu_time_domain(void)
 {
 #ifdef CLOCK_MONOTONIC_RAW
-   return CLOCK_MONOTONIC_RAW;
+   return VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_KHR;
 #else
-   return CLOCK_MONOTONIC;
+   return VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR;
 #endif
 }
 
@@ -2192,9 +2192,15 @@ VkResult anv_GetCalibratedTimestampsKHR(
    uint64_t max_clock_period = 0;
    const enum intel_kmd_type kmd_type = device->physical->info.kmd_type;
    const bool has_correlate_timestamp = kmd_type == INTEL_KMD_TYPE_XE;
+   const VkTimeDomainKHR default_cpu_time_domain = anv_get_default_cpu_time_domain();
+   const clockid_t default_cpu_clock_id = vk_time_domain_to_clockid(default_cpu_time_domain);
    clockid_t cpu_clock_id = -1;
+   VkResult result;
 
-   begin = end = vk_clock_gettime(anv_get_default_cpu_clock_id());
+   result = vk_device_get_timestamp(&device->vk, default_cpu_time_domain, &end);
+   if (result != VK_SUCCESS)
+      return vk_error(device, result);
+   begin = end;
 
    for (d = 0, increment = 1; d < timestampCount; d += increment) {
       const VkTimeDomainKHR current = get_effective_time_domain(&pTimestampInfos[d]);
@@ -2248,11 +2254,11 @@ VkResult anv_GetCalibratedTimestampsKHR(
             }
 
             /* If we're the first element, we can replace begin */
-            if (d == 0 && cpu_clock_id == anv_get_default_cpu_clock_id())
+            if (d == 0 && cpu_clock_id == default_cpu_clock_id)
                begin = cpu_timestamp;
 
             /* If we're in the same clock domain as begin/end. We can set the end. */
-            if (cpu_clock_id == anv_get_default_cpu_clock_id())
+            if (cpu_clock_id == default_cpu_clock_id)
                end = cpu_end_timestamp;
 
             continue;
@@ -2272,7 +2278,10 @@ VkResult anv_GetCalibratedTimestampsKHR(
          max_clock_period = MAX2(max_clock_period, device_period);
          break;
       case VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR:
-         pTimestamps[d] = vk_clock_gettime(CLOCK_MONOTONIC);
+         result = vk_device_get_timestamp(
+            &device->vk, VK_TIME_DOMAIN_CLOCK_MONOTONIC_KHR, &pTimestamps[d]);
+         if (result != VK_SUCCESS)
+            return vk_error(device, result);
          max_clock_period = MAX2(max_clock_period, 1);
          break;
 
@@ -2307,8 +2316,11 @@ VkResult anv_GetCalibratedTimestampsKHR(
    /* If last timestamp was not get with has_correlate_timestamp method or
     * if it was but last cpu clock is not the default one, get time again
     */
-   if (increment == 1 || cpu_clock_id != anv_get_default_cpu_clock_id())
-      end = vk_clock_gettime(anv_get_default_cpu_clock_id());
+   if (increment == 1 || cpu_clock_id != default_cpu_clock_id) {
+      result = vk_device_get_timestamp(&device->vk, default_cpu_time_domain, &end);
+      if (result != VK_SUCCESS)
+         return vk_error(device, result);
+   }
 
    *pMaxDeviation = vk_time_max_deviation(begin, end, max_clock_period);
 
