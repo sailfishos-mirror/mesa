@@ -24,6 +24,7 @@ struct radv_graphics_pipeline;
 struct radv_compute_pipeline;
 struct radv_ray_tracing_stage;
 struct radv_shader_binary;
+struct radv_shader_debug_info;
 struct radv_shader_stage;
 struct radv_spirv_to_nir_options;
 struct util_dynarray;
@@ -34,7 +35,8 @@ void radv_hash_graphics_spirv_to_nir(blake3_hash hash, const struct radv_shader_
                                      const struct radv_spirv_to_nir_options *options);
 
 struct radv_shader *radv_shader_create(struct radv_device *device, struct vk_pipeline_cache *cache,
-                                       const struct radv_shader_binary *binary, bool skip_cache);
+                                       const struct radv_shader_binary *binary, bool skip_cache,
+                                       struct radv_shader_debug_info *dbg);
 
 bool radv_graphics_pipeline_cache_search(struct radv_device *device, struct vk_pipeline_cache *cache,
                                          struct radv_graphics_pipeline *pipeline, bool *found_in_application_cache);

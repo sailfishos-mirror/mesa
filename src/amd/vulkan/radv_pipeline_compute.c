@@ -136,7 +136,7 @@ radv_compile_cs(struct radv_device *device, struct vk_pipeline_cache *cache, str
    if (keep_executable_info || dump_shader)
       nir_string = radv_dump_nir_shaders(instance, &cs_stage->nir, 1);
 
-   cs_shader = radv_shader_create(device, cache, *cs_binary, skip_shaders_cache || dump_shader);
+   cs_shader = radv_shader_create(device, cache, *cs_binary, skip_shaders_cache || dump_shader, NULL);
    radv_parse_binary_debug_info(device, *cs_binary, &cs_shader->dbg);
 
    cs_shader->dbg.nir_string = nir_string;

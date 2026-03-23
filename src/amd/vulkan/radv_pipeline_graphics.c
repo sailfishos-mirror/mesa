@@ -2424,7 +2424,7 @@ radv_create_gs_copy_shader(struct radv_device *device, struct vk_pipeline_cache 
       nir_string = radv_dump_nir_shaders(instance, &nir, 1);
 
    struct radv_shader *copy_shader =
-      radv_shader_create(device, cache, *gs_copy_binary, skip_shaders_cache || dump_shader);
+      radv_shader_create(device, cache, *gs_copy_binary, skip_shaders_cache || dump_shader, NULL);
 
    if (copy_shader) {
       radv_parse_binary_debug_info(device, *gs_copy_binary, &copy_shader->dbg);
@@ -2501,7 +2501,7 @@ radv_graphics_shaders_nir_to_asm(struct radv_device *device, struct vk_pipeline_
       if (keep_executable_info || dump_shader)
          nir_string = radv_dump_nir_shaders(instance, nir_shaders, shader_count);
 
-      shaders[s] = radv_shader_create(device, cache, binaries[s], skip_shaders_cache || dump_shader);
+      shaders[s] = radv_shader_create(device, cache, binaries[s], skip_shaders_cache || dump_shader, NULL);
 
       radv_parse_binary_debug_info(device, binaries[s], &shaders[s]->dbg);
       shaders[s]->dbg.nir_string = nir_string;

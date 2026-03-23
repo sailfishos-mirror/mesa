@@ -162,11 +162,16 @@ radv_is_cache_disabled(const struct radv_device *device, const struct vk_pipelin
 
 struct radv_shader *
 radv_shader_create(struct radv_device *device, struct vk_pipeline_cache *cache, const struct radv_shader_binary *binary,
-                   bool skip_cache)
+                   bool skip_cache, struct radv_shader_debug_info *dbg)
 {
-   if (radv_is_cache_disabled(device, cache) || skip_cache) {
+   if (radv_is_cache_disabled(device, cache) || skip_cache || (dbg && dbg->dump_shader)) {
       struct radv_shader *shader;
       radv_shader_create_uncached(device, binary, false, NULL, &shader);
+      if (dbg) {
+         struct amd_stats *stats = shader->dbg.statistics;
+         shader->dbg = *dbg;
+         shader->dbg.statistics = stats;
+      }
       return shader;
    }
 

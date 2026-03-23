@@ -259,7 +259,7 @@ radv_shader_object_init_binary(struct radv_device *device, struct blob_reader *b
    if (memcmp(blake3, binary_blake3, BLAKE3_KEY_LEN))
       return VK_ERROR_INCOMPATIBLE_SHADER_BINARY_EXT;
 
-   *shader_out = radv_shader_create(device, NULL, binary, true);
+   *shader_out = radv_shader_create(device, NULL, binary, true, NULL);
    *binary_out = (struct radv_shader_binary *)binary;
 
    return VK_SUCCESS;

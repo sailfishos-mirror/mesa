@@ -523,7 +523,7 @@ radv_rt_nir_to_asm(struct radv_device *device, struct vk_pipeline_cache *cache,
          return result;
       }
    } else
-      shader = radv_shader_create(device, cache, binary, skip_shaders_cache || dump_shader);
+      shader = radv_shader_create(device, cache, binary, skip_shaders_cache || dump_shader, NULL);
 
    if (shader) {
       radv_parse_binary_debug_info(device, binary, &shader->dbg);
