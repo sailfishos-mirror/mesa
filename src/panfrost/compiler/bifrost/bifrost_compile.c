@@ -5741,6 +5741,11 @@ bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust_modes
       .callback = mem_vectorize_cb,
       .robust_modes = robust_modes,
    };
+
+   /* Only allow vectorization of SSBOs when no robustness2 is configured */
+   if (!(robust_modes & nir_var_mem_ssbo))
+      vectorize_opts.modes |= nir_var_mem_ssbo;
+
    NIR_PASS(_, nir, nir_opt_load_store_vectorize, &vectorize_opts);
 
    /* nir_lower_pack can generate split operations, execute algebraic again to
