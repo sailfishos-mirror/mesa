@@ -1,3 +1,6 @@
+KHR-Single-GL45.meshShader.propertyTests.max_mesh_output_size_with_payload_per_vertex_no_view_index,Fail
+KHR-Single-GL45.meshShader.propertyTests.max_mesh_output_size_without_payload_per_vertex_no_view_index,Fail
+
 x11-dEQP-EGL.functional.robustness.reset_context.shaders.infinite_loop.query_status.compute,Fail
 x11-dEQP-EGL.functional.robustness.reset_context.shaders.infinite_loop.query_status.vertex,Fail
 x11-dEQP-EGL.functional.robustness.reset_context.shaders.infinite_loop.query_status.vertex_and_fragment,Fail
