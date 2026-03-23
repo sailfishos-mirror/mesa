@@ -101,6 +101,9 @@ struct panvk_descriptor_set_layout {
    unsigned desc_count;
    unsigned dyn_buf_count;
 
+   /* Bitmask of which dynamic buffers are SSBOs */
+   uint32_t dyn_ssbos;
+
    /* Number of bindings in this descriptor set */
    uint32_t binding_count;
 

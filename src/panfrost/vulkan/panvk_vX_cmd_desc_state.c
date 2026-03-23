@@ -46,6 +46,7 @@ cmd_desc_state_bind_sets(struct panvk_descriptor_state *desc_state,
             desc_state->dyn_buf_offsets[set_idx][b] =
                info->pDynamicOffsets[dynoffset_idx++];
          }
+         desc_state->dyn_ssbos[set_idx] = set->layout->dyn_ssbos;
       }
    }
 

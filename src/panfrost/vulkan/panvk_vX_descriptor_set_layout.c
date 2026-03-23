@@ -145,6 +145,7 @@ panvk_per_arch(CreateDescriptorSetLayout)(
 
    unsigned desc_idx = 0;
    unsigned dyn_buf_idx = 0;
+   uint32_t dyn_ssbos = 0;
    for (unsigned i = 0; i < pCreateInfo->bindingCount; i++) {
       const VkDescriptorSetLayoutBinding *binding = &bindings[i];
       struct panvk_descriptor_set_binding_layout *binding_layout =
@@ -184,6 +185,8 @@ panvk_per_arch(CreateDescriptorSetLayout)(
 
       if (vk_descriptor_type_is_dynamic(binding_layout->type)) {
          binding_layout->desc_idx = dyn_buf_idx;
+         if (binding_layout->type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
+            dyn_ssbos |= BITFIELD_RANGE(dyn_buf_idx, binding->descriptorCount);
          dyn_buf_idx += binding_layout->desc_count;
       } else {
          binding_layout->desc_idx = desc_idx;
@@ -194,6 +197,7 @@ panvk_per_arch(CreateDescriptorSetLayout)(
 
    layout->desc_count = desc_idx;
    layout->dyn_buf_count = dyn_buf_idx;
+   layout->dyn_ssbos = dyn_ssbos;
 
    struct mesa_blake3 hash_ctx;
    _mesa_blake3_init(&hash_ctx);
