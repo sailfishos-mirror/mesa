@@ -426,14 +426,17 @@ CDX12EncHMFT::PrepareForEncodeHelper( LPDX12EncodeContext pDX12EncodeContext,
       uint32_t current_poc = pPicInfo->pic_order_cnt;
 
       // Validate frame number first
-      if( moveRegionFrameNum != current_poc )
+      // Due to the way the move region frame number is generated, there can be cases where the frame number doesn't match the
+      // current POC. In those cases, we will log a warning but still try to use the move regions.
+      if( m_uiGopSize > 0 && ( moveRegionFrameNum % m_uiGopSize ) != current_poc )
       {
-         debug_printf( "[dx12 hmft 0x%p] MoveRegions frame mismatch (MRFN=%u, cur POC=%u), ignoring\n",
+         debug_printf( "[dx12 hmft 0x%p] WARNING: MoveRegions frame mismatch (MRFN=%u, cur POC=%u, GOPSize=%u)\n",
                        this,
                        moveRegionFrameNum,
-                       current_poc );
+                       current_poc,
+                       m_uiGopSize );
       }
-      else
+
       {
          MOVEREGION_INFO *pMoveInfo = reinterpret_cast<MOVEREGION_INFO *>( m_pMoveRegionBlob.data() );
          uint32_t maxRects = m_EncoderCapabilities.m_HWSupportMoveRects.bits.max_motion_hints;
