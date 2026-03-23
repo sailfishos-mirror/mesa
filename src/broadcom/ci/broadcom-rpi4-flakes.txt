@@ -8,6 +8,7 @@ wayland-dEQP-EGL.functional.sharing.gles2.multithread.random.programs.link.7
 KHR-GLES31.core.compute_shader.sso-compute-pipeline
 KHR-GLES31.core.constant_expressions.array_mod_vec2_float_compute
 KHR-GLES31.core.shader_atomic_counters.basic-usage-no-offset
+KHR-GLES31.core.shader_bitfield_operation.ldexp.vec4_3
 KHR-GLES31.core.shader_image_load_store.advanced-sync-vertexArray
 KHR-GLES31.core.shader_image_load_store.basic-allFormats-load-cs
 KHR-GLES31.core.shader_image_load_store.basic-allFormats-loadStoreComputeStage
@@ -17,6 +18,7 @@ KHR-GLES31.core.shader_storage_buffer_object.advanced-indirectAddressing-case1-c
 KHR-GLES31.core.shader_storage_buffer_object.advanced-unsizedArrayLength-cs-std430-vec
 KHR-GLES31.core.shader_storage_buffer_object.basic-matrixOperations-case2-cs
 KHR-GLES31.core.texture_cube_map_array.image_op_compute_sh
+KHR-GLES31.core.texture_cube_map_array.image_op_geometry_sh
 arm32-KHR-GLES31.core.shader_image_load_store.advanced-copyImage-cs
 arm32-KHR-GLES31.core.shader_image_load_store.advanced-sync-vertexArray
 arm32-dEQP-GLES31.functional.ssbo.layout.basic_unsized_array.packed.column_major_mat2
@@ -31,6 +33,7 @@ dEQP-GLES31.functional.copy_image.compressed.viewclass_astc_8x5_rgba.rgba_astc_8
 dEQP-GLES31.functional.copy_image.mixed.viewclass_128_bits_mixed.rgba_astc_10x6_khr_rgba32f.cubemap_to_texture3d
 dEQP-GLES31.functional.image_load_store.3d.format_reinterpret.rgba8_snorm_rgba8
 dEQP-GLES31.functional.shaders.builtin_functions.common.ceil.vec4_highp_compute
+dEQP-GLES31.functional.shaders.builtin_functions.integer.bitfieldreverse.uvec4_mediump_compute
 dEQP-GLES31.functional.shaders.builtin_functions.integer.findlsb.uvec2_highp_compute
 dEQP-GLES31.functional.shaders.builtin_functions.integer.findmsb.ivec3_lowp_compute
 dEQP-GLES31.functional.ssbo.layout.3_level_unsized_array.packed.bvec3
@@ -49,6 +52,7 @@ dEQP-GLES31.functional.synchronization.inter_invocation.image_read_write
 dEQP-GLES31.functional.synchronization.inter_invocation.ssbo_alias_overwrite
 dEQP-GLES31.functional.synchronization.inter_invocation.ssbo_atomic_alias_write
 dEQP-GLES31.functional.synchronization.inter_invocation.ssbo_atomic_read_write
+dEQP-GLES31.functional.ubo.random.all_per_block_buffers.20
 
 fast_color_clear@fcc-front-buffer-distraction
 glx@glx-multi-context-front

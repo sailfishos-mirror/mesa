@@ -75,6 +75,7 @@ dEQP-GLES2.functional.fragment_ops.depth_stencil.stencil_ops.zero_replace_keep
 dEQP-GLES2.functional.fragment_ops.depth_stencil.stencil_ops.zero_zero_invert
 dEQP-GLES2.functional.fragment_ops.depth_stencil.write_mask.stencil
 dEQP-GLES2.functional.fragment_ops.random.11
+dEQP-GLES2.functional.fragment_ops.random.24
 dEQP-GLES2.functional.fragment_ops.random.6
 dEQP-GLES2.functional.fragment_ops.random.60
 dEQP-GLES2.functional.fragment_ops.random.82
@@ -159,12 +160,15 @@ dEQP-GLES2.functional.texture.mipmap.cube.generate.rgba5551_fastest
 dEQP-GLES2.functional.texture.mipmap.cube.generate.rgba5551_nicest
 dEQP-GLES2.functional.texture.mipmap.cube.generate.rgba8888_fastest
 dEQP-GLES2.functional.texture.mipmap.cube.generate.rgba8888_nicest
+dEQP-GLES2.functional.texture.size.cube.16x16_rgba4444
 dEQP-GLES2.functional.texture.size.cube.64x64_rgb888_mipmap
+dEQP-GLES2.functional.texture.specification.basic_copyteximage2d.2d_luminance
 dEQP-GLES2.functional.texture.specification.basic_copyteximage2d.cube_rgb
 dEQP-GLES2.functional.texture.specification.basic_copyteximage2d.cube_rgba
 dEQP-GLES2.functional.texture.specification.basic_copytexsubimage2d.2d_luminance
 dEQP-GLES2.functional.texture.specification.basic_copytexsubimage2d.cube_alpha
 dEQP-GLES2.functional.texture.specification.basic_copytexsubimage2d.cube_luminance
+dEQP-GLES2.functional.texture.specification.basic_texsubimage2d.rgb565_cube
 dEQP-GLES2.functional.texture.specification.texsubimage2d_empty_tex.rgba8888_2d
 dEQP-GLES2.functional.texture.vertex.2d.filtering.nearest_mipmap_nearest_nearest_mirror
 dEQP-GLES2.functional.texture.vertex.2d.wrap.repeat_mirror
@@ -190,6 +194,7 @@ x11-dEQP-EGL.functional.color_clears.multi_thread.gles2.rgb888_pbuffer
 x11-dEQP-EGL.functional.color_clears.single_context.gles2.rgba8888_window
 x11-dEQP-EGL.functional.sharing.gles2.multithread.random.programs.link.19
 x11-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_server_sync.programs.link.19
+x11-dEQP-EGL.functional.sharing.gles2.multithread.random_egl_sync.programs.link.19
 x11-dEQP-EGL.functional.wide_color.pbuffer_8888_colorspace_srgb
 x11-dEQP-EGL.functional.wide_color.pbuffer_888_colorspace_default
 x11-dEQP-EGL.functional.wide_color.pbuffer_888_colorspace_srgb
