@@ -5576,18 +5576,15 @@ mem_vectorize_cb(unsigned align_mul, unsigned align_offset, unsigned bit_size,
    if (hole_size > 0)
       return false;
 
-   /* Must be aligned to the size of the load */
-   unsigned align = nir_combined_align(align_mul, align_offset);
-   if ((bit_size / 8) > align)
-      return false;
-
+   /* We have a hard limit of at most 4 components */
    if (num_components > 4)
       return false;
 
-   if (bit_size > 32)
-      return false;
+   const unsigned bytes = num_components * (bit_size / 8);
+   const unsigned max_bytes = 128u / 8u; /* LOAD.i128 */
 
-   return true;
+   const unsigned combined_align = nir_combined_align(align_mul, align_offset);
+   return bytes <= combined_align && bytes <= max_bytes;
 }
 
 static void
