@@ -2948,16 +2948,14 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       return;
    }
 
+   case nir_op_unpack_32_2x16:
    case nir_op_unpack_32_4x8:
-   case nir_op_unpack_32_2x16: {
-      /* Should have been scalarized */
-      assert(sz == 8 || sz == 16);
-      assert(comps * sz == 32);
-
-      bi_index vec = bi_src_index(&instr->src[0].src);
+   case nir_op_unpack_64_2x32:
+   case nir_op_unpack_64_4x16: {
+      assert(comps * sz == src_sz);
+      bi_index idx = bi_src_index(&instr->src[0].src);
       unsigned chan = instr->src[0].swizzle[0];
-
-      bi_mov_i32_to(b, dst, bi_extract(b, vec, chan));
+      bi_make_vec_to(b, dst, &idx, &chan, 1, src_sz);
       return;
    }
 
@@ -2975,14 +2973,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       };
 
       bi_make_vec_to(b, dst, srcs, channels, comps, 16);
-      return;
-   }
-
-   case nir_op_unpack_64_2x32: {
-      unsigned chan = (instr->src[0].swizzle[0] * 2) + 0;
-      bi_index idx = bi_src_index(&instr->src[0].src);
-      bi_collect_v2i32_to(b, dst, bi_extract(b, idx, chan + 0),
-                                  bi_extract(b, idx, chan + 1));
       return;
    }
 
