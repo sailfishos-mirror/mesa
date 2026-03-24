@@ -94,7 +94,7 @@
         "description": "pco: fix encoding of fred's s0abs bit",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "8ec174b3f9a409672e04856d0a046a09965ac0df",
         "notes": null
