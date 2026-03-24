@@ -1990,36 +1990,6 @@ emit_resource_barrier(struct anv_batch *batch,
    if (wait_stages == RESOURCE_BARRIER_STAGE_NONE)
       wait_stages = RESOURCE_BARRIER_STAGE_TOP;
 
-   if (bits & ANV_PIPE_RT_BTI_CHANGE) {
-      /* We used to deal with RT BTI changes with a PIPE_CONTROL with the
-       * following flags:
-       *    - RenderTargetCacheFlushEnable
-       *    - StallAtPixelScoreboard
-       *
-       * With the new RESOURCE_BARRIER instruction, there is a problem in HW
-       * if you do something like this:
-       *   Draw BT0=surfaceA
-       *   Type=Immediate Signal=Color Wait=Top Flags=Color
-       *   Draw BT0=surfaceB
-       *
-       * The new BTI0 is somehow not updated in the state cache, so the second
-       * draw color writes are going either to the previous surface or maybe
-       * /dev/null?
-       *
-       * The Windows drivers appear to not experience this because they're
-       * setting COMMON_SLICE_CHICKEN3:StateCachePerfFixDisabled=true.
-       *
-       * We cannot enable this unfortunately because we're still relying
-       * pretty heavily on the binding table and toggling that bit is big
-       * performance regression on multiple benchmarks (up to 25%).
-       *
-       * So when ANV_PIPE_RT_BTI_CHANGE is set, emit a RT flush + state cache
-       * invalidation (which seems to correctly invalidate the RCC).
-       */
-      bits |= ANV_PIPE_STATE_CACHE_INVALIDATE_BIT |
-              ANV_PIPE_RENDER_TARGET_CACHE_FLUSH_BIT;
-   }
-
    anv_batch_emit(batch, GENX(RESOURCE_BARRIER), barrier) {
       barrier.ResourceBarrierBody.BarrierType = barrier_type;
       barrier.ResourceBarrierBody.BarrierIDAddress = barrier_addr;
