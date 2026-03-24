@@ -471,15 +471,6 @@ vk_common_GetDeviceQueue2(VkDevice _device,
 {
    VK_FROM_HANDLE(vk_device, device, _device);
 
-   struct vk_queue *queue = NULL;
-   vk_foreach_queue(iter, device) {
-      if (iter->queue_family_index == pQueueInfo->queueFamilyIndex &&
-          iter->index_in_family == pQueueInfo->queueIndex) {
-         queue = iter;
-         break;
-      }
-   }
-
    /* From the Vulkan 1.1.70 spec:
     *
     *    "The queue returned by vkGetDeviceQueue2 must have the same flags
@@ -487,10 +478,17 @@ vk_common_GetDeviceQueue2(VkDevice _device,
     *    VkDeviceQueueCreateInfo instance. If no matching flags were specified
     *    at device creation time then pQueue will return VK_NULL_HANDLE."
     */
-   if (queue && queue->flags == pQueueInfo->flags)
-      *pQueue = vk_queue_to_handle(queue);
-   else
-      *pQueue = VK_NULL_HANDLE;
+   struct vk_queue *queue = NULL;
+   vk_foreach_queue(iter, device) {
+      if (iter->queue_family_index == pQueueInfo->queueFamilyIndex &&
+          iter->index_in_family == pQueueInfo->queueIndex &&
+          iter->flags == pQueueInfo->flags) {
+         queue = iter;
+         break;
+      }
+   }
+
+   *pQueue = queue ? vk_queue_to_handle(queue) : VK_NULL_HANDLE;
 }
 
 VKAPI_ATTR VkResult VKAPI_CALL
