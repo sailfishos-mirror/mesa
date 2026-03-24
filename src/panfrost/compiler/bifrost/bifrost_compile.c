@@ -2894,6 +2894,21 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
     * are the exceptions that need to handle swizzles specially. */
 
    switch (instr->op) {
+   case nir_op_mov: {
+      bi_index idx = bi_src_index(&instr->src[0].src);
+      bi_index unoffset_srcs[4] = {idx, idx, idx, idx};
+
+      unsigned channels[4] = {
+         comps > 0 ? instr->src[0].swizzle[0] : 0,
+         comps > 1 ? instr->src[0].swizzle[1] : 0,
+         comps > 2 ? instr->src[0].swizzle[2] : 0,
+         comps > 3 ? instr->src[0].swizzle[3] : 0,
+      };
+
+      bi_make_vec_to(b, dst, unoffset_srcs, channels, comps, src_sz);
+      return;
+   }
+
    case nir_op_vec2:
    case nir_op_vec3:
    case nir_op_vec4:
@@ -3002,21 +3017,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       };
       unsigned channels[4] = {0};
       bi_make_vec_to(b, dst, srcs, channels, 4, 8);
-      return;
-   }
-
-   case nir_op_mov: {
-      bi_index idx = bi_src_index(&instr->src[0].src);
-      bi_index unoffset_srcs[4] = {idx, idx, idx, idx};
-
-      unsigned channels[4] = {
-         comps > 0 ? instr->src[0].swizzle[0] : 0,
-         comps > 1 ? instr->src[0].swizzle[1] : 0,
-         comps > 2 ? instr->src[0].swizzle[2] : 0,
-         comps > 3 ? instr->src[0].swizzle[3] : 0,
-      };
-
-      bi_make_vec_to(b, dst, unoffset_srcs, channels, comps, src_sz);
       return;
    }
 
