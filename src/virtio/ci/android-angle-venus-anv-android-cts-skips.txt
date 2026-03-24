@@ -26,3 +26,6 @@ x86_64 CtsNativeHardwareTestCases android.hardware.nativehardware.cts.AHardwareB
 
 # Invalid test, spec violation: https://gitlab.khronos.org/vulkan/vulkan/-/issues/4713
 x86_64 CtsSkQPTestCases org.skia.skqp.SkQPRunner#UnitTest_VkBackendSurfaceMutableStateTest
+
+# Can trigger a full system crash (DeadSystemException), making the device unresponsive and causing instrumentation to abort
+x86_64 CtsGraphicsTestCases android.graphics.cts.AnimatorLeakTest#testPauseResume
