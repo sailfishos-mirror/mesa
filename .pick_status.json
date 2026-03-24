@@ -2734,7 +2734,7 @@
         "description": "ir3/legalize: don't drop sync flags on removed predt/predf",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "39088571f08ae0b8dee1cf51bf590df5c23962bf",
         "notes": null
