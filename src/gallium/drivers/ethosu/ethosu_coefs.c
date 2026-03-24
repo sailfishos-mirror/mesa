@@ -87,12 +87,14 @@ fill_scale_and_biases(struct ethosu_subgraph *subgraph, struct ethosu_operation 
       uint32_t shift;
       int scale = ethosu_quantize_scale(conv_scale, &shift);
 
+      uint64_t bias = biases ? biases[i] : 0;
+
       if (ethosu_ml_device(subgraph->base.device)->is_u65)
          encode_bias_scale_u65(
-            biases[i], scale, shift, &(*scales)[idx]);
+            bias, scale, shift, &(*scales)[idx]);
       else
          encode_bias_scale_u85(
-            biases[i], scale, shift, &(*scales)[idx]);
+            bias, scale, shift, &(*scales)[idx]);
 
       /* Saved for NPU_SET_OFM_SCALE emission in the command stream. */
       if (i == 0) {

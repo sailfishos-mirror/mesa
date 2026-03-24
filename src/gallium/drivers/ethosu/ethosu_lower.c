@@ -105,6 +105,8 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
                          struct pipe_tensor *input_tensor,
                          struct ethosu_operation *operation)
 {
+   uint8_t *bias_data = poperation->conv.bias_tensor ? poperation->conv.bias_tensor->data : NULL;
+
    operation->type = ETHOSU_OPERATION_TYPE_CONVOLUTION;
 
    operation->conv.depthwise = is_depthwise(poperation);
@@ -148,8 +150,8 @@ ethosu_lower_convolution(struct ethosu_subgraph *subgraph,
    allocate_feature_maps(subgraph, operation);
 
    ethosu_sched_operation(subgraph, operation);
-   fill_coefs(subgraph, operation,
-              (int32_t *)poperation->conv.bias_tensor->data,
+
+   fill_coefs(subgraph, operation, (int32_t *)bias_data,
               poperation->conv.weight_tensor->data,
               poperation->conv.weight_tensor->dims[0] *
               poperation->conv.weight_tensor->dims[1] *
