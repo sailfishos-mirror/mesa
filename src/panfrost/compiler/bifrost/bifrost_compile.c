@@ -2913,16 +2913,20 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
    case nir_op_vec3:
    case nir_op_vec4:
    case nir_op_vec8:
-   case nir_op_vec16: {
+   case nir_op_vec16:
+   case nir_op_pack_32_2x16_split:
+   case nir_op_pack_32_4x8_split:
+   case nir_op_pack_64_2x32_split: {
       bi_index unoffset_srcs[16] = {bi_null()};
       unsigned channels[16] = {0};
 
       for (unsigned i = 0; i < srcs; ++i) {
+         assert(nir_src_bit_size(instr->src[i].src) == src_sz);
          unoffset_srcs[i] = bi_src_index(&instr->src[i].src);
          channels[i] = instr->src[i].swizzle[0];
       }
 
-      bi_make_vec_to(b, dst, unoffset_srcs, channels, srcs, sz);
+      bi_make_vec_to(b, dst, unoffset_srcs, channels, srcs, src_sz);
       return;
    }
 
@@ -2978,14 +2982,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       return;
    }
 
-   case nir_op_pack_64_2x32_split:
-      bi_collect_v2i32_to(b, dst,
-                          bi_extract(b, bi_src_index(&instr->src[0].src),
-                                     instr->src[0].swizzle[0]),
-                          bi_extract(b, bi_src_index(&instr->src[1].src),
-                                     instr->src[1].swizzle[0]));
-      return;
-
    case nir_op_pack_64_2x32:
       bi_collect_v2i32_to(b, dst,
                           bi_extract(b, bi_src_index(&instr->src[0].src),
@@ -3033,18 +3029,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       return;
    }
 
-   case nir_op_pack_32_2x16_split: {
-      assert(comps == 1);
-
-      bi_index srcs[2] = {bi_src_index(&instr->src[0].src),
-                          bi_src_index(&instr->src[1].src)};
-      unsigned channels[2] = {instr->src[0].swizzle[0],
-                              instr->src[1].swizzle[0]};
-
-      bi_make_vec_to(b, dst, srcs, channels, 2, 16);
-      return;
-   }
-
    case nir_op_pack_32_4x8: {
       assert(comps == 1);
 
@@ -3054,22 +3038,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
                               instr->src[0].swizzle[1],
                               instr->src[0].swizzle[2],
                               instr->src[0].swizzle[3]};
-
-      bi_make_vec_to(b, dst, srcs, channels, 4, 8);
-      return;
-   }
-
-   case nir_op_pack_32_4x8_split: {
-      assert(comps == 1);
-
-      bi_index srcs[4] = {bi_src_index(&instr->src[0].src),
-                          bi_src_index(&instr->src[1].src),
-                          bi_src_index(&instr->src[2].src),
-                          bi_src_index(&instr->src[3].src)};
-      unsigned channels[4] = {instr->src[0].swizzle[0],
-                              instr->src[1].swizzle[0],
-                              instr->src[2].swizzle[0],
-                              instr->src[3].swizzle[0]};
 
       bi_make_vec_to(b, dst, srcs, channels, 4, 8);
       return;
