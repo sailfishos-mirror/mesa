@@ -287,6 +287,7 @@ enum {
    PAN_SYSVAL_XFB = 17,
    PAN_SYSVAL_NUM_VERTICES = 18,
    PAN_SYSVAL_PRINTF_BUFFER = 19,
+   PAN_SYSVAL_IMAGE_SAMPLES = 20,
 };
 
 #define PAN_TXS_SYSVAL_ID(texidx, dim, is_array)                               \

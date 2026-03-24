@@ -36,6 +36,7 @@ panfrost_analyze_sysvals(struct panfrost_compiled_shader *ss)
          break;
 
       case PAN_SYSVAL_IMAGE_SIZE:
+      case PAN_SYSVAL_IMAGE_SAMPLES:
          dirty_shader |= PAN_DIRTY_STAGE_IMAGE;
          break;
 

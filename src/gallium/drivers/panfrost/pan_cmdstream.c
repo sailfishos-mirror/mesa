@@ -1111,6 +1111,25 @@ panfrost_upload_txs_sysval(struct panfrost_batch *batch,
 }
 
 static void
+panfrost_upload_image_samples_sysval(struct panfrost_batch *batch,
+                                     mesa_shader_stage st,
+                                     unsigned int sysvalid,
+                                     struct sysval_uniform *uniform)
+{
+   struct panfrost_context *ctx = batch->ctx;
+   unsigned idx = PAN_SYSVAL_ID_TO_TXS_TEX_IDX(sysvalid);
+
+   struct pipe_image_view *image = &ctx->images[st][idx];
+
+   if (image->resource->target == PIPE_BUFFER) {
+      uniform->i[0] = 0;
+      return;
+   }
+
+   uniform->i[0] = image->resource->nr_samples;
+}
+
+static void
 panfrost_upload_image_size_sysval(struct panfrost_batch *batch,
                                   mesa_shader_stage st,
                                   unsigned int sysvalid,
@@ -1359,6 +1378,10 @@ panfrost_upload_sysvals(struct panfrost_batch *batch, void *ptr_cpu,
       case PAN_SYSVAL_IMAGE_SIZE:
          panfrost_upload_image_size_sysval(batch, st, PAN_SYSVAL_ID(sysval),
                                            &uniforms[i]);
+         break;
+      case PAN_SYSVAL_IMAGE_SAMPLES:
+         panfrost_upload_image_samples_sysval(batch, st, PAN_SYSVAL_ID(sysval),
+                                              &uniforms[i]);
          break;
       case PAN_SYSVAL_SAMPLE_POSITIONS:
          panfrost_upload_sample_positions_sysval(batch, &uniforms[i]);

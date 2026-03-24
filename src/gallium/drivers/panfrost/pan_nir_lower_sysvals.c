@@ -110,6 +110,13 @@ sysval_for_intrinsic(unsigned arch, nir_intrinsic_instr *intr, unsigned *offset)
       return PAN_SYSVAL(RT_CONVERSION, rt | (size << 4));
    }
 
+   case nir_intrinsic_image_samples: {
+      uint32_t uindex = nir_src_as_uint(intr->src[0]);
+      bool is_array = nir_intrinsic_image_array(intr);
+      unsigned dim = nir_intrinsic_dest_components(intr) - is_array;
+
+      return PAN_SYSVAL(IMAGE_SAMPLES, PAN_TXS_SYSVAL_ID(uindex, dim, is_array));
+   }
    case nir_intrinsic_image_size: {
       uint32_t uindex = nir_src_as_uint(intr->src[0]);
       bool is_array = nir_intrinsic_image_array(intr);
