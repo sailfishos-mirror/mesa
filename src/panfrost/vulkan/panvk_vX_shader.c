@@ -1266,17 +1266,17 @@ panvk_compile_shader(struct panvk_device *dev,
    if (shader == NULL)
       return panvk_error(dev, VK_ERROR_OUT_OF_HOST_MEMORY);
 
-   nir_variable_mode robust2_modes = 0;
-   if (info->robustness->uniform_buffers == VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2_EXT)
-      robust2_modes |= nir_var_mem_ubo;
-   if (info->robustness->storage_buffers == VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_2_EXT)
-      robust2_modes |= nir_var_mem_ssbo;
+   nir_variable_mode robust_modes = 0;
+   if (info->robustness->uniform_buffers != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT)
+      robust_modes |= nir_var_mem_ubo;
+   if (info->robustness->storage_buffers != VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DISABLED_EXT)
+      robust_modes |= nir_var_mem_ssbo;
 
    struct pan_compile_inputs inputs = {
       .gpu_id = phys_dev->kmod.dev->props.gpu_id,
       .gpu_variant = phys_dev->kmod.dev->props.gpu_variant,
       .view_mask = (state && state->rp) ? state->mv->view_mask : 0,
-      .robust2_modes = robust2_modes,
+      .robust_modes = robust_modes,
       .robust_descriptors = dev->vk.enabled_features.nullDescriptor,
    };
 

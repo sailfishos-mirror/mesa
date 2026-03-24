@@ -108,7 +108,7 @@ struct pan_compile_inputs {
    bool no_idvs;
    uint32_t view_mask;
 
-   nir_variable_mode robust2_modes;
+   nir_variable_mode robust_modes;
    /* Whether or not descriptor accesses should add additional robustness
     * checks. */
    bool robust_descriptors;

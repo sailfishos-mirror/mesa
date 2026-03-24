@@ -5726,7 +5726,7 @@ bifrost_optimize_nir(nir_shader *nir, unsigned gpu_id)
 }
 
 static void
-bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust2_modes)
+bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust_modes)
 {
    NIR_PASS(_, nir, nir_opt_shrink_stores, true);
    bi_optimize_loop_nir(nir, gpu_id, false);
@@ -5739,7 +5739,7 @@ bi_optimize_nir(nir_shader *nir, unsigned gpu_id, nir_variable_mode robust2_mode
                nir_var_mem_ubo |
                nir_var_shader_temp,
       .callback = mem_vectorize_cb,
-      .robust_modes = robust2_modes,
+      .robust_modes = robust_modes,
    };
    NIR_PASS(_, nir, nir_opt_load_store_vectorize, &vectorize_opts);
 
@@ -6963,7 +6963,7 @@ bifrost_compile_shader_nir(nir_shader *nir,
       NIR_PASS(_, nir, pan_nir_lower_fs_outputs, skip_atest);
    }
 
-   bi_optimize_nir(nir, inputs->gpu_id, inputs->robust2_modes);
+   bi_optimize_nir(nir, inputs->gpu_id, inputs->robust_modes);
 
    {
       bool scalar_phis_pass = false;
