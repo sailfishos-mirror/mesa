@@ -261,10 +261,14 @@ prepare_attr_buf_descs(struct panvk_image_view *view)
             ? extent.depth
             : (view->pview.last_layer - view->pview.first_layer + 1);
       cfg.row_stride = slayout->tiled_or_linear.row_stride_B;
-      if (cfg.r_dimension > 1) {
+      if (cfg.r_dimension > 1 || nr_samples > 1) {
          cfg.slice_stride = view->pview.dim == MALI_TEXTURE_DIMENSION_3D
                                ? slayout->tiled_or_linear.surface_stride_B
                                : plane_layout->array_stride_B;
+      }
+      if (nr_samples > 1) {
+         cfg.r_dimension *= nr_samples;
+         cfg.slice_stride /= nr_samples;
       }
    }
 }

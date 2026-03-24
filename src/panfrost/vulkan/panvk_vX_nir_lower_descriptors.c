@@ -651,7 +651,26 @@ load_img_size(nir_builder *b, nir_deref_instr *deref, enum glsl_sampler_dim dim,
       /* The sizes are provided as 16-bit values with 1 subtracted so
        * convert to 32-bit and add 1.
        */
-      return nir_iadd_imm(b, nir_u2u32(b, tex_sz), 1);
+      tex_sz = nir_iadd_imm(b, nir_u2u32(b, tex_sz), 1);
+
+      if (is_array && dim == GLSL_SAMPLER_DIM_MS) {
+         /* log2(sample_count) is placed into bits 7..9 of the pixel
+          * stride (see prepare_attr_buf_descs) which is stored at
+          * offset 8 in the attribute descriptor buffer
+          */
+         nir_def *sample_count = load_resource_deref_desc(
+            b, deref, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 8, 1, 32, ctx);
+         sample_count = nir_iand_imm(b, nir_ushr_imm(b, sample_count, 7),
+                                     BITFIELD_MASK(3));
+         /* the Z value was lowered by the number of samples so that
+          * we could make the multisampled array look like a 3D texture
+          * Undo that here so we get the correct size
+          */
+         nir_def *z_val = nir_channel(b, tex_sz, 2);
+         z_val = nir_ushr(b, z_val, sample_count);
+         tex_sz = nir_vector_insert_imm(b, tex_sz, z_val, 2);
+      }
+      return tex_sz;
    }
 }
 
@@ -706,12 +725,17 @@ load_img_samples(nir_builder *b, nir_deref_instr *deref,
 
    assert(dim != GLSL_SAMPLER_DIM_BUF);
 
-   /* Sample count is stored in the image depth field.
-    * FIXME: This won't work for 2DMSArray images, but those are already
-    * broken. */
+   /* log2(sample_count) is placed into bits 7..9 of the pixel
+    * stride (see prepare_attr_buf_descs) which is stored at
+    * offset 8 in the attribute descriptor buffer
+    */
+   nir_def *one = nir_imm_int(b, 1);
    nir_def *sample_count = load_resource_deref_desc(
-      b, deref, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 22, 1, 16, ctx);
-   return nir_iadd_imm(b, nir_u2u32(b, sample_count), 1);
+      b, deref, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 8, 1, 32, ctx);
+
+   sample_count = nir_iand_imm(b, nir_ushr_imm(b, sample_count, 7),
+                               BITFIELD_MASK(3));
+   return nir_ishl(b, one, sample_count);
 }
 
 static uint32_t

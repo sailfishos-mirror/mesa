@@ -2187,18 +2187,9 @@ emit_image_bufs(struct panfrost_batch *batch, mesa_shader_stage shader,
             cfg.slice_stride = slice_stride;
 
          if (is_msaa) {
-            if (cfg.r_dimension == 1) {
-               /* regular multisampled images get the sample index in
-                  the R dimension */
-               cfg.r_dimension = samples;
-               cfg.slice_stride = slice_stride / samples;
-            } else {
-               /* multisampled image arrays are emulated by making the
-                  image "samples" times higher than the original image,
-                  and fixing up the T coordinate by the sample number
-                  to address the correct sample (on bifrost) */
-               cfg.t_dimension *= samples;
-            }
+            /* scale up the R dimension by the number of samples */
+            cfg.r_dimension *= samples;
+            cfg.slice_stride = slice_stride / samples;
          }
       }
    }
