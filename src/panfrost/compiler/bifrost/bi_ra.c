@@ -1206,7 +1206,7 @@ bi_register_allocate(bi_context *ctx)
 
       bi_compute_liveness_ssa(ctx);
       if (verbose) {
-         bi_print_shader(ctx, stdout);
+         bi_print_shader(ctx, stderr);
       }
       unsigned register_demand = bi_calc_register_demand(ctx);
       if (register_demand > regs_to_use) {
@@ -1225,8 +1225,8 @@ bi_register_allocate(bi_context *ctx)
          if (ctx->arch >= 9)
             spill_count = ALIGN_POT(spill_count, 16);
          if (verbose) {
-            printf("\nspill_registers=%d\n", spill_count);
-            bi_print_shader(ctx, stdout);
+            fprintf(stderr, "\nspill_registers=%d\n", spill_count);
+            bi_print_shader(ctx, stderr);
          }
       }
    }
