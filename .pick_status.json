@@ -2664,7 +2664,7 @@
         "description": "panvk: remove unused flag",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "e25064c026a333a27b203b8c1d1cf3dc7995b7b3",
         "notes": null
