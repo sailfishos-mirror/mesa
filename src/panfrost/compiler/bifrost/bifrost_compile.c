@@ -2567,6 +2567,18 @@ bi_alu_src_index(bi_builder *b, nir_alu_src src, unsigned comps)
    } else if (bitsize == 8 && comps == 1) {
       idx.swizzle = BI_SWIZZLE_B0000 + (src.swizzle[0] & 3);
    } else if (bitsize == 8) {
+      if (comps == 2 || comps == 4) {
+         unsigned c[4] = {0};
+         for (unsigned i = 0; i < comps; ++i)
+            c[i] = src.swizzle[i] & 3;
+
+         enum bi_swizzle swizzle;
+         if (bi_byte_swizzle_from_nir_swizzle(c, comps, &swizzle)) {
+            idx.swizzle = swizzle;
+            return idx;
+         }
+      }
+
       /* XXX: Use optimized swizzle when posisble */
       bi_index unoffset_srcs[NIR_MAX_VEC_COMPONENTS] = {bi_null()};
       unsigned channels[NIR_MAX_VEC_COMPONENTS] = {0};
@@ -2574,15 +2586,6 @@ bi_alu_src_index(bi_builder *b, nir_alu_src src, unsigned comps)
       for (unsigned i = 0; i < comps; ++i) {
          unoffset_srcs[i] = bi_src_index(&src.src);
          channels[i] = src.swizzle[i];
-      }
-
-      if (comps == 2 || comps == 4) {
-         enum bi_swizzle swizzle;
-         if (bi_byte_swizzle_from_nir_swizzle(channels, comps, &swizzle)) {
-            bi_index ret = bi_src_index(&src.src);
-            ret.swizzle = swizzle;
-            return ret;
-         }
       }
 
       bi_index temp = bi_temp(b->shader);
