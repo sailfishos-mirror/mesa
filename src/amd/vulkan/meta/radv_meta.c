@@ -467,3 +467,14 @@ radv_get_copy_flags_from_bo(const struct radeon_winsys_bo *bo)
 
    return copy_flags;
 }
+
+VkAddressCopyFlagsKHR
+radv_get_copy_flags_from_command_flags(VkAddressCommandFlagsKHR command_flags)
+{
+   VkAddressCopyFlagsKHR copy_flags = 0;
+
+   if (!(command_flags & VK_ADDRESS_COMMAND_FULLY_BOUND_BIT_KHR))
+      copy_flags |= VK_ADDRESS_COPY_SPARSE_BIT_KHR;
+
+   return copy_flags;
+}

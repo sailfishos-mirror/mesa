@@ -2453,13 +2453,32 @@ radv_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPoo
                              VkQueryResultFlags flags)
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
-   VK_FROM_HANDLE(radv_query_pool, pool, queryPool);
    VK_FROM_HANDLE(radv_buffer, dst_buffer, dstBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   radv_cs_add_buffer(device->ws, cs->b, dst_buffer->bo);
+
+   const VkStridedDeviceAddressRangeKHR dstRange =
+      vk_strided_device_address_range(&dst_buffer->vk, dstOffset, VK_WHOLE_SIZE, stride);
+
+   radv_CmdCopyQueryPoolResultsToMemoryKHR(commandBuffer, queryPool, firstQuery, queryCount, &dstRange,
+                                           dst_buffer->vk.address_flags, flags);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdCopyQueryPoolResultsToMemoryKHR(VkCommandBuffer commandBuffer, VkQueryPool queryPool, uint32_t firstQuery,
+                                        uint32_t queryCount, const VkStridedDeviceAddressRangeKHR *pDstRange,
+                                        VkAddressCommandFlagsKHR dstFlags, VkQueryResultFlags queryResultFlags)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   VK_FROM_HANDLE(radv_query_pool, pool, queryPool);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct radv_instance *instance = radv_physical_device_instance(pdev);
-   const uint64_t dst_va = vk_buffer_address(&dst_buffer->vk, dstOffset);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
+   const uint64_t dst_va = pDstRange->address;
+   const uint64_t stride = pDstRange->stride;
 
    if (!queryCount)
       return;
@@ -2467,7 +2486,6 @@ radv_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPoo
    radv_suspend_conditional_rendering(cmd_buffer);
 
    radv_cs_add_buffer(device->ws, cs->b, pool->bo);
-   radv_cs_add_buffer(device->ws, cs->b, dst_buffer->bo);
 
    /* Workaround engines that forget to properly specify WAIT_BIT because some driver implicitly
     * synchronizes before query copy.
@@ -2487,26 +2505,26 @@ radv_CmdCopyQueryPoolResults(VkCommandBuffer commandBuffer, VkQueryPool queryPoo
 
    switch (pool->vk.query_type) {
    case VK_QUERY_TYPE_OCCLUSION:
-      radv_copy_occlusion_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, flags);
+      radv_copy_occlusion_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, queryResultFlags);
       break;
    case VK_QUERY_TYPE_PIPELINE_STATISTICS:
-      radv_copy_pipeline_stat_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, flags);
+      radv_copy_pipeline_stat_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, queryResultFlags);
       break;
    case VK_QUERY_TYPE_TIMESTAMP:
    case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR:
    case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR:
    case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_BOTTOM_LEVEL_POINTERS_KHR:
    case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SIZE_KHR:
-      radv_copy_timestamp_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, flags);
+      radv_copy_timestamp_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, queryResultFlags);
       break;
    case VK_QUERY_TYPE_TRANSFORM_FEEDBACK_STREAM_EXT:
-      radv_copy_tfb_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, flags);
+      radv_copy_tfb_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, queryResultFlags);
       break;
    case VK_QUERY_TYPE_PRIMITIVES_GENERATED_EXT:
-      radv_copy_pg_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, flags);
+      radv_copy_pg_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, queryResultFlags);
       break;
    case VK_QUERY_TYPE_MESH_PRIMITIVES_GENERATED_EXT:
-      radv_copy_ms_prim_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, flags);
+      radv_copy_ms_prim_query_result(cmd_buffer, pool, firstQuery, queryCount, dst_va, stride, queryResultFlags);
       break;
    default:
       UNREACHABLE("trying to get results of unhandled query type");

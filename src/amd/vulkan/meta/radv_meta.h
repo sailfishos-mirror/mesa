@@ -352,6 +352,8 @@ VkResult radv_meta_get_noop_pipeline_layout(struct radv_device *device, VkPipeli
 
 VkAddressCopyFlagsKHR radv_get_copy_flags_from_bo(const struct radeon_winsys_bo *bo);
 
+VkAddressCopyFlagsKHR radv_get_copy_flags_from_command_flags(VkAddressCommandFlagsKHR command_flags);
+
 static inline unsigned
 radv_get_image_stride_for_96bit(const struct radv_device *device, const struct radv_image *image)
 {

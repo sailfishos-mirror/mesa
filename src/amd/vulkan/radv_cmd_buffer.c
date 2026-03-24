@@ -7916,9 +7916,41 @@ radv_CmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t firstBinding,
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   STACK_ARRAY(VkBindVertexBuffer3InfoKHR, bindings, bindingCount);
+
+   for (uint32_t i = 0; i < bindingCount; i++) {
+      VK_FROM_HANDLE(radv_buffer, buffer, pBuffers[i]);
+      VkStridedDeviceAddressRangeKHR addr_range = {0};
+
+      if (buffer) {
+         radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+
+         addr_range = vk_strided_device_address_range(
+            &buffer->vk, pOffsets[i], pSizes != NULL ? pSizes[i] : VK_WHOLE_SIZE, pStrides != NULL ? pStrides[i] : 0);
+      }
+
+      bindings[i] = (VkBindVertexBuffer3InfoKHR){
+         .sType = VK_STRUCTURE_TYPE_BIND_VERTEX_BUFFER_3_INFO_KHR,
+         .addressRange = addr_range,
+         .addressFlags = buffer ? buffer->vk.address_flags : 0,
+         .setStride = pStrides != NULL,
+      };
+   }
+
+   radv_CmdBindVertexBuffers3KHR(commandBuffer, firstBinding, bindingCount, bindingCount > 0 ? bindings : NULL);
+
+   STACK_ARRAY_FINISH(bindings);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdBindVertexBuffers3KHR(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount,
+                              const VkBindVertexBuffer3InfoKHR *pBindingInfos)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_vertex_binding *vb = cmd_buffer->vertex_bindings;
    struct radv_dynamic_state *d = &cmd_buffer->state.dynamic;
-   struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    /* We have to defer setting up vertex buffer since we need the buffer
     * stride from the pipeline. */
@@ -7928,26 +7960,27 @@ radv_CmdBindVertexBuffers2(VkCommandBuffer commandBuffer, uint32_t firstBinding,
    uint32_t misaligned_mask_invalid = 0;
 
    for (uint32_t i = 0; i < bindingCount; i++) {
-      VK_FROM_HANDLE(radv_buffer, buffer, pBuffers[i]);
+      const VkBindVertexBuffer3InfoKHR *binding_info = &pBindingInfos[i];
       uint32_t idx = firstBinding + i;
-      VkDeviceSize size = pSizes ? pSizes[i] : VK_WHOLE_SIZE;
-      VkDeviceSize stride = pStrides ? pStrides[i] : d->vk.vi_binding_strides[idx];
-      uint64_t addr = buffer ? vk_buffer_address(&buffer->vk, pOffsets[i]) : 0;
 
-      if (!!vb[idx].addr != !!addr || (addr && (((vb[idx].addr & 0x3) != (addr & 0x3) ||
-                                                 (d->vk.vi_binding_strides[idx] & 0x3) != (stride & 0x3))))) {
+      VkDeviceSize size = binding_info->addressRange.size;
+      VkDeviceSize stride = binding_info->setStride ? binding_info->addressRange.stride : 0;
+      uint64_t addr = size ? binding_info->addressRange.address : 0;
+
+      if (!!vb[idx].addr != !!addr ||
+          (addr && ((vb[idx].addr & 0x3) != (addr & 0x3) || (d->vk.vi_binding_strides[idx] & 0x3) != (stride & 0x3)))) {
          misaligned_mask_invalid |= d->vertex_input.bindings_match_attrib ? BITFIELD_BIT(idx) : 0xffffffff;
       }
 
       vb[idx].addr = addr;
-      vb[idx].size = buffer ? vk_buffer_range(&buffer->vk, pOffsets[i], size) : 0;
-      /* if pStrides=NULL, it shouldn't overwrite the strides specified by CmdSetVertexInputEXT */
-      if (pStrides)
-         radv_cmd_set_vertex_binding_strides(cmd_buffer, idx, 1, (uint16_t *)&pStrides[i]);
+      vb[idx].size = size;
+
+      /* If setStride=false, it shouldn't overwrite the strides specified by CmdSetVertexInputEXT */
+      if (binding_info->setStride)
+         radv_cmd_set_vertex_binding_strides(cmd_buffer, idx, 1, (uint16_t *)&stride);
 
       uint32_t bit = BITFIELD_BIT(idx);
-      if (buffer) {
-         radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+      if (size) {
          cmd_buffer->state.vbo_bound_mask |= bit;
       } else {
          cmd_buffer->state.vbo_bound_mask &= ~bit;
@@ -8003,15 +8036,36 @@ radv_CmdBindIndexBuffer2(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDevic
    VK_FROM_HANDLE(radv_buffer, index_buffer, buffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-
-   cmd_buffer->state.index_type = vk_to_index_type(indexType);
+   VkDeviceAddressRangeKHR addr_range = {0};
 
    if (index_buffer) {
-      cmd_buffer->state.index_va = vk_buffer_address(&index_buffer->vk, offset);
-
-      int index_size = radv_get_vgt_index_size(vk_to_index_type(indexType));
-      cmd_buffer->state.max_index_count = (vk_buffer_range(&index_buffer->vk, offset, size)) / index_size;
       radv_cs_add_buffer(device->ws, cs->b, index_buffer->bo);
+
+      addr_range = vk_device_address_range(&index_buffer->vk, offset, size);
+   }
+
+   const VkBindIndexBuffer3InfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_BIND_INDEX_BUFFER_3_INFO_KHR,
+      .addressRange = addr_range,
+      .addressFlags = index_buffer ? index_buffer->vk.address_flags : 0,
+      .indexType = indexType,
+   };
+
+   radv_CmdBindIndexBuffer3KHR(commandBuffer, &info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdBindIndexBuffer3KHR(VkCommandBuffer commandBuffer, const VkBindIndexBuffer3InfoKHR *pInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   cmd_buffer->state.index_type = vk_to_index_type(pInfo->indexType);
+
+   if (pInfo->addressRange.size) {
+      cmd_buffer->state.index_va = pInfo->addressRange.address;
+
+      int index_size = radv_get_vgt_index_size(vk_to_index_type(pInfo->indexType));
+      cmd_buffer->state.max_index_count = pInfo->addressRange.size / index_size;
    } else {
       cmd_buffer->state.index_va = 0;
       cmd_buffer->state.max_index_count = 0;
@@ -13228,17 +13282,32 @@ radv_CmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkDeviceSi
    VK_FROM_HANDLE(radv_buffer, buffer, _buffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+
+   const VkDrawIndirect2InfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_DRAW_INDIRECT_2_INFO_KHR,
+      .addressRange = vk_strided_device_address_range(&buffer->vk, offset, VK_WHOLE_SIZE, stride),
+      .addressFlags = buffer->vk.address_flags,
+      .drawCount = drawCount,
+   };
+
+   radv_CmdDrawIndirect2KHR(commandBuffer, &info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdDrawIndirect2KHR(VkCommandBuffer commandBuffer, const VkDrawIndirect2InfoKHR *pInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_draw_info info;
 
-   info.count = drawCount;
-   info.indirect_va = vk_buffer_address(&buffer->vk, offset);
-   info.stride = stride;
+   info.count = pInfo->drawCount;
+   info.indirect_va = pInfo->addressRange.address;
+   info.stride = pInfo->addressRange.stride;
    info.strmout_va = 0;
    info.count_va = 0;
    info.indexed = false;
    info.instance_count = 0;
-
-   radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
 
    if (!radv_before_draw(cmd_buffer, &info, 1, false))
       return;
@@ -13254,17 +13323,32 @@ radv_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkD
    VK_FROM_HANDLE(radv_buffer, buffer, _buffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+
+   const VkDrawIndirect2InfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_DRAW_INDIRECT_2_INFO_KHR,
+      .addressRange = vk_strided_device_address_range(&buffer->vk, offset, VK_WHOLE_SIZE, stride),
+      .addressFlags = buffer->vk.address_flags,
+      .drawCount = drawCount,
+   };
+
+   radv_CmdDrawIndexedIndirect2KHR(commandBuffer, &info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdDrawIndexedIndirect2KHR(VkCommandBuffer commandBuffer, const VkDrawIndirect2InfoKHR *pInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_draw_info info;
 
    info.indexed = true;
-   info.count = drawCount;
-   info.indirect_va = vk_buffer_address(&buffer->vk, offset);
-   info.stride = stride;
+   info.count = pInfo->drawCount;
+   info.indirect_va = pInfo->addressRange.address;
+   info.stride = pInfo->addressRange.stride;
    info.count_va = 0;
    info.strmout_va = 0;
    info.instance_count = 0;
-
-   radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
 
    if (!radv_before_draw(cmd_buffer, &info, 1, false))
       return;
@@ -13281,18 +13365,35 @@ radv_CmdDrawIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkDev
    VK_FROM_HANDLE(radv_buffer, count_buffer, _countBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   struct radv_draw_info info;
-
-   info.count = maxDrawCount;
-   info.indirect_va = vk_buffer_address(&buffer->vk, offset);
-   info.count_va = vk_buffer_address(&count_buffer->vk, countBufferOffset);
-   info.stride = stride;
-   info.strmout_va = 0;
-   info.indexed = false;
-   info.instance_count = 0;
 
    radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
    radv_cs_add_buffer(device->ws, cs->b, count_buffer->bo);
+
+   const VkDrawIndirectCount2InfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_DRAW_INDIRECT_COUNT_2_INFO_KHR,
+      .addressRange = vk_strided_device_address_range(&buffer->vk, offset, VK_WHOLE_SIZE, stride),
+      .addressFlags = buffer->vk.address_flags,
+      .countAddressRange = vk_device_address_range(&count_buffer->vk, countBufferOffset, VK_WHOLE_SIZE),
+      .countAddressFlags = count_buffer->vk.address_flags,
+      .maxDrawCount = maxDrawCount,
+   };
+
+   radv_CmdDrawIndirectCount2KHR(commandBuffer, &info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdDrawIndirectCount2KHR(VkCommandBuffer commandBuffer, const VkDrawIndirectCount2InfoKHR *pInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_draw_info info;
+
+   info.count = pInfo->maxDrawCount;
+   info.indirect_va = pInfo->addressRange.address;
+   info.count_va = pInfo->countAddressRange.address;
+   info.stride = pInfo->addressRange.stride;
+   info.strmout_va = 0;
+   info.indexed = false;
+   info.instance_count = 0;
 
    if (!radv_before_draw(cmd_buffer, &info, 1, false))
       return;
@@ -13310,18 +13411,35 @@ radv_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer
    VK_FROM_HANDLE(radv_buffer, count_buffer, _countBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   struct radv_draw_info info;
-
-   info.indexed = true;
-   info.count = maxDrawCount;
-   info.indirect_va = vk_buffer_address(&buffer->vk, offset);
-   info.count_va = vk_buffer_address(&count_buffer->vk, countBufferOffset);
-   info.stride = stride;
-   info.strmout_va = 0;
-   info.instance_count = 0;
 
    radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
    radv_cs_add_buffer(device->ws, cs->b, count_buffer->bo);
+
+   const VkDrawIndirectCount2InfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_DRAW_INDIRECT_COUNT_2_INFO_KHR,
+      .addressRange = vk_strided_device_address_range(&buffer->vk, offset, VK_WHOLE_SIZE, stride),
+      .addressFlags = buffer->vk.address_flags,
+      .countAddressRange = vk_device_address_range(&count_buffer->vk, countBufferOffset, VK_WHOLE_SIZE),
+      .countAddressFlags = count_buffer->vk.address_flags,
+      .maxDrawCount = maxDrawCount,
+   };
+
+   radv_CmdDrawIndexedIndirectCount2KHR(commandBuffer, &info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdDrawIndexedIndirectCount2KHR(VkCommandBuffer commandBuffer, const VkDrawIndirectCount2InfoKHR *pInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_draw_info info;
+
+   info.indexed = true;
+   info.count = pInfo->maxDrawCount;
+   info.indirect_va = pInfo->addressRange.address;
+   info.count_va = pInfo->countAddressRange.address;
+   info.stride = pInfo->addressRange.stride;
+   info.strmout_va = 0;
+   info.instance_count = 0;
 
    if (!radv_before_draw(cmd_buffer, &info, 1, false))
       return;
@@ -13366,19 +13484,36 @@ radv_CmdDrawMeshTasksIndirectEXT(VkCommandBuffer commandBuffer, VkBuffer _buffer
    VK_FROM_HANDLE(radv_buffer, buffer, _buffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+
+   const VkDrawIndirect2InfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_DRAW_INDIRECT_2_INFO_KHR,
+      .addressRange = vk_strided_device_address_range(&buffer->vk, offset, VK_WHOLE_SIZE, stride),
+      .addressFlags = buffer->vk.address_flags,
+      .drawCount = drawCount,
+   };
+
+   radv_CmdDrawMeshTasksIndirect2EXT(commandBuffer, &info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdDrawMeshTasksIndirect2EXT(VkCommandBuffer commandBuffer, const VkDrawIndirect2InfoKHR *pInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    struct radv_draw_info info;
 
-   info.indirect_va = vk_buffer_address(&buffer->vk, offset);
-   info.stride = stride;
-   info.count = drawCount;
+   info.indirect_va = pInfo->addressRange.address;
+   info.stride = pInfo->addressRange.stride;
+   info.count = pInfo->drawCount;
    info.strmout_va = 0;
    info.count_va = 0;
    info.indexed = false;
    info.instance_count = 0;
 
-   radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
-
-   if (!radv_before_taskmesh_draw(cmd_buffer, &info, drawCount, false))
+   if (!radv_before_taskmesh_draw(cmd_buffer, &info, pInfo->drawCount, false))
       return;
 
    if (radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
@@ -13395,27 +13530,45 @@ radv_CmdDrawMeshTasksIndirectCountEXT(VkCommandBuffer commandBuffer, VkBuffer _b
                                       VkBuffer _countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount,
                                       uint32_t stride)
 {
-
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(radv_buffer, buffer, _buffer);
    VK_FROM_HANDLE(radv_buffer, count_buffer, _countBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+   radv_cs_add_buffer(device->ws, cs->b, count_buffer->bo);
+
+   const VkDrawIndirectCount2InfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_DRAW_INDIRECT_COUNT_2_INFO_KHR,
+      .addressRange = vk_strided_device_address_range(&buffer->vk, offset, VK_WHOLE_SIZE, stride),
+      .addressFlags = buffer->vk.address_flags,
+      .countAddressRange = vk_device_address_range(&count_buffer->vk, countBufferOffset, VK_WHOLE_SIZE),
+      .countAddressFlags = count_buffer->vk.address_flags,
+      .maxDrawCount = maxDrawCount,
+   };
+
+   radv_CmdDrawMeshTasksIndirectCount2EXT(commandBuffer, &info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdDrawMeshTasksIndirectCount2EXT(VkCommandBuffer commandBuffer, const VkDrawIndirectCount2InfoKHR *pInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    struct radv_draw_info info;
 
-   info.indirect_va = vk_buffer_address(&buffer->vk, offset);
-   info.stride = stride;
-   info.count = maxDrawCount;
+   info.indirect_va = pInfo->addressRange.address;
+   info.stride = pInfo->addressRange.stride;
+   info.count = pInfo->maxDrawCount;
    info.strmout_va = 0;
-   info.count_va = vk_buffer_address(&count_buffer->vk, countBufferOffset);
+   info.count_va = pInfo->countAddressRange.address;
    info.indexed = false;
    info.instance_count = 0;
 
-   radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
-   radv_cs_add_buffer(device->ws, cs->b, count_buffer->bo);
-
-   if (!radv_before_taskmesh_draw(cmd_buffer, &info, maxDrawCount, false))
+   if (!radv_before_taskmesh_draw(cmd_buffer, &info, pInfo->maxDrawCount, false))
       return;
 
    if (radv_cmdbuf_has_stage(cmd_buffer, MESA_SHADER_TASK)) {
@@ -14083,10 +14236,24 @@ radv_CmdDispatchIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer, VkDevi
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(radv_buffer, buffer, _buffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_dispatch_info info = {.indirect_va = vk_buffer_address(&buffer->vk, offset)};
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+
+   const VkDispatchIndirect2InfoKHR info = {
+      .sType = VK_STRUCTURE_TYPE_DISPATCH_INDIRECT_2_INFO_KHR,
+      .addressRange = vk_device_address_range(&buffer->vk, offset, VK_WHOLE_SIZE),
+      .addressFlags = buffer->vk.address_flags,
+   };
+
+   radv_CmdDispatchIndirect2KHR(commandBuffer, &info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdDispatchIndirect2KHR(VkCommandBuffer commandBuffer, const VkDispatchIndirect2InfoKHR *pInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_dispatch_info info = {.indirect_va = pInfo->addressRange.address};
 
    radv_compute_dispatch(cmd_buffer, &info);
 }
@@ -15232,12 +15399,26 @@ radv_CmdBeginConditionalRenderingEXT(VkCommandBuffer commandBuffer,
    VK_FROM_HANDLE(radv_buffer, buffer, pConditionalRenderingBegin->buffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   bool draw_visible = true;
-   uint64_t va;
-
-   va = vk_buffer_address(&buffer->vk, pConditionalRenderingBegin->offset);
 
    radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+
+   const VkConditionalRenderingBeginInfo2EXT begin_info = {
+      .sType = VK_STRUCTURE_TYPE_CONDITIONAL_RENDERING_BEGIN_INFO_2_EXT,
+      .addressRange = vk_device_address_range(&buffer->vk, pConditionalRenderingBegin->offset, VK_WHOLE_SIZE),
+      .addressFlags = buffer->vk.address_flags,
+      .flags = pConditionalRenderingBegin->flags,
+   };
+
+   radv_CmdBeginConditionalRendering2EXT(commandBuffer, &begin_info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdBeginConditionalRendering2EXT(VkCommandBuffer commandBuffer,
+                                      const VkConditionalRenderingBeginInfo2EXT *pConditionalRenderingBegin)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   const uint64_t va = pConditionalRenderingBegin->addressRange.address;
+   bool draw_visible = true;
 
    /* By default, if the 32-bit value at offset in buffer memory is zero,
     * then the rendering commands are discarded, otherwise they are
@@ -15267,24 +15448,43 @@ radv_CmdBindTransformFeedbackBuffersEXT(VkCommandBuffer commandBuffer, uint32_t 
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   struct radv_streamout_binding *sb = cmd_buffer->streamout_bindings;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   uint8_t enabled_mask = 0;
+
+   STACK_ARRAY(VkBindTransformFeedbackBuffer2InfoEXT, bindings, bindingCount);
 
    assert(firstBinding + bindingCount <= MAX_SO_BUFFERS);
    for (uint32_t i = 0; i < bindingCount; i++) {
       VK_FROM_HANDLE(radv_buffer, buffer, pBuffers[i]);
-      uint32_t idx = firstBinding + i;
 
-      sb[idx].va = vk_buffer_address(&buffer->vk, pOffsets[i]);
-
-      if (!pSizes || pSizes[i] == VK_WHOLE_SIZE) {
-         sb[idx].size = buffer->vk.size - pOffsets[i];
-      } else {
-         sb[idx].size = pSizes[i];
-      }
+      bindings[i] = (VkBindTransformFeedbackBuffer2InfoEXT){
+         .sType = VK_STRUCTURE_TYPE_BIND_TRANSFORM_FEEDBACK_BUFFER_2_INFO_EXT,
+         .addressRange = vk_device_address_range(&buffer->vk, pOffsets[i], pSizes ? pSizes[i] : VK_WHOLE_SIZE),
+         .addressFlags = buffer->vk.address_flags,
+      };
 
       radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+   }
+
+   radv_CmdBindTransformFeedbackBuffers2EXT(commandBuffer, firstBinding, bindingCount,
+                                            bindingCount > 0 ? bindings : NULL);
+
+   STACK_ARRAY_FINISH(bindings);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdBindTransformFeedbackBuffers2EXT(VkCommandBuffer commandBuffer, uint32_t firstBinding, uint32_t bindingCount,
+                                         const VkBindTransformFeedbackBuffer2InfoEXT *pBindingInfos)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_streamout_binding *sb = cmd_buffer->streamout_bindings;
+   uint8_t enabled_mask = 0;
+
+   assert(firstBinding + bindingCount <= MAX_SO_BUFFERS);
+   for (uint32_t i = 0; i < bindingCount; i++) {
+      uint32_t idx = firstBinding + i;
+
+      sb[idx].va = pBindingInfos[i].addressRange.address;
+      sb[idx].size = pBindingInfos[i].addressRange.size;
 
       enabled_mask |= 1 << idx;
    }
@@ -15383,13 +15583,48 @@ radv_CmdBeginTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstC
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   STACK_ARRAY(VkBindTransformFeedbackBuffer2InfoEXT, counters, counterBufferCount);
+
+   for (uint32_t i = 0; i < counterBufferCount; i++) {
+      VK_FROM_HANDLE(radv_buffer, buffer, pCounterBuffers[i]);
+      VkDeviceAddressRangeKHR addr_range = {0};
+
+      if (buffer) {
+         radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+
+         addr_range =
+            vk_device_address_range(&buffer->vk, pCounterBufferOffsets ? pCounterBufferOffsets[i] : 0, VK_WHOLE_SIZE);
+      }
+
+      counters[i] = (VkBindTransformFeedbackBuffer2InfoEXT){
+         .sType = VK_STRUCTURE_TYPE_BIND_TRANSFORM_FEEDBACK_BUFFER_2_INFO_EXT,
+         .addressRange = addr_range,
+         .addressFlags = buffer ? buffer->vk.address_flags : 0,
+      };
+   }
+
+   radv_CmdBeginTransformFeedback2EXT(commandBuffer, firstCounterBuffer, counterBufferCount,
+                                      counterBufferCount > 0 ? counters : NULL);
+
+   STACK_ARRAY_FINISH(counters);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdBeginTransformFeedback2EXT(VkCommandBuffer commandBuffer, uint32_t firstCounterRange,
+                                   uint32_t counterRangeCount,
+                                   const VkBindTransformFeedbackBuffer2InfoEXT *pCounterInfos)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const enum amd_ip_type ring = radv_queue_family_to_ring(pdev, cmd_buffer->qf);
    struct radv_streamout_binding *sb = cmd_buffer->streamout_bindings;
    struct radv_streamout_state *so = &cmd_buffer->state.streamout;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
 
-   assert(firstCounterBuffer + counterBufferCount <= MAX_SO_BUFFERS);
+   assert(firstCounterRange + counterRangeCount <= MAX_SO_BUFFERS);
 
    if (pdev->info.gfx_level >= GFX12) {
       radv_init_streamout_state(cmd_buffer);
@@ -15408,24 +15643,13 @@ radv_CmdBeginTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstC
    ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, MAX_SO_BUFFERS * 10);
 
    u_foreach_bit (i, so->enabled_mask) {
-      int32_t counter_buffer_idx = i - firstCounterBuffer;
-      if (counter_buffer_idx >= 0 && counter_buffer_idx >= counterBufferCount)
+      int32_t counter_buffer_idx = i - firstCounterRange;
+      if (counter_buffer_idx >= 0 && counter_buffer_idx >= counterRangeCount)
          counter_buffer_idx = -1;
 
-      bool append = counter_buffer_idx >= 0 && pCounterBuffers && pCounterBuffers[counter_buffer_idx];
-      uint64_t va = 0;
-
-      if (append) {
-         VK_FROM_HANDLE(radv_buffer, buffer, pCounterBuffers[counter_buffer_idx]);
-         uint64_t counter_buffer_offset = 0;
-
-         if (pCounterBufferOffsets)
-            counter_buffer_offset = pCounterBufferOffsets[counter_buffer_idx];
-
-         va += vk_buffer_address(&buffer->vk, counter_buffer_offset);
-
-         radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
-      }
+      const bool append =
+         counter_buffer_idx >= 0 && pCounterInfos && pCounterInfos[counter_buffer_idx].addressRange.size > 0;
+      uint64_t va = append ? pCounterInfos[counter_buffer_idx].addressRange.address : 0;
 
       if (pdev->info.gfx_level >= GFX12) {
          if (append) {
@@ -15491,12 +15715,46 @@ radv_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstCou
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   STACK_ARRAY(VkBindTransformFeedbackBuffer2InfoEXT, counters, counterBufferCount);
+
+   for (uint32_t i = 0; i < counterBufferCount; i++) {
+      VK_FROM_HANDLE(radv_buffer, buffer, pCounterBuffers[i]);
+      VkDeviceAddressRangeKHR addr_range = {0};
+
+      if (buffer) {
+         radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
+
+         addr_range =
+            vk_device_address_range(&buffer->vk, pCounterBufferOffsets ? pCounterBufferOffsets[i] : 0, VK_WHOLE_SIZE);
+      }
+
+      counters[i] = (VkBindTransformFeedbackBuffer2InfoEXT){
+         .sType = VK_STRUCTURE_TYPE_BIND_TRANSFORM_FEEDBACK_BUFFER_2_INFO_EXT,
+         .addressRange = addr_range,
+         .addressFlags = buffer ? buffer->vk.address_flags : 0,
+      };
+   }
+
+   radv_CmdEndTransformFeedback2EXT(commandBuffer, firstCounterBuffer, counterBufferCount,
+                                    counterBufferCount > 0 ? counters : NULL);
+
+   STACK_ARRAY_FINISH(counters);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdEndTransformFeedback2EXT(VkCommandBuffer commandBuffer, uint32_t firstCounterRange, uint32_t counterRangeCount,
+                                 const VkBindTransformFeedbackBuffer2InfoEXT *pCounterInfos)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_streamout_state *so = &cmd_buffer->state.streamout;
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    bool needs_pfp_sync_me = false;
 
-   assert(firstCounterBuffer + counterBufferCount <= MAX_SO_BUFFERS);
+   assert(firstCounterRange + counterRangeCount <= MAX_SO_BUFFERS);
 
    if (pdev->use_ngg_streamout) {
       /* Wait for streamout to finish before copying back the number of bytes
@@ -15514,26 +15772,15 @@ radv_CmdEndTransformFeedbackEXT(VkCommandBuffer commandBuffer, uint32_t firstCou
    ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, MAX_SO_BUFFERS * 12);
 
    u_foreach_bit (i, so->enabled_mask) {
-      int32_t counter_buffer_idx = i - firstCounterBuffer;
-      if (counter_buffer_idx >= 0 && counter_buffer_idx >= counterBufferCount)
+      int32_t counter_buffer_idx = i - firstCounterRange;
+      if (counter_buffer_idx >= 0 && counter_buffer_idx >= counterRangeCount)
          counter_buffer_idx = -1;
 
-      bool append = counter_buffer_idx >= 0 && pCounterBuffers && pCounterBuffers[counter_buffer_idx];
-      uint64_t va = 0;
+      const bool append =
+         counter_buffer_idx >= 0 && pCounterInfos && pCounterInfos[counter_buffer_idx].addressRange.size > 0;
+      uint64_t va = append ? pCounterInfos[counter_buffer_idx].addressRange.address : 0;
 
-      if (append) {
-         VK_FROM_HANDLE(radv_buffer, buffer, pCounterBuffers[counter_buffer_idx]);
-         uint64_t counter_buffer_offset = 0;
-
-         if (pCounterBufferOffsets)
-            counter_buffer_offset = pCounterBufferOffsets[counter_buffer_idx];
-
-         va += vk_buffer_address(&buffer->vk, counter_buffer_offset);
-
-         radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
-
-         needs_pfp_sync_me = true;
-      }
+      needs_pfp_sync_me |= append;
 
       if (pdev->info.gfx_level >= GFX12) {
          if (append) {
@@ -15628,6 +15875,25 @@ radv_CmdDrawIndirectByteCountEXT(VkCommandBuffer commandBuffer, uint32_t instanc
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(radv_buffer, counterBuffer, _counterBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   radv_cs_add_buffer(device->ws, cs->b, counterBuffer->bo);
+
+   const VkBindTransformFeedbackBuffer2InfoEXT info = {
+      .sType = VK_STRUCTURE_TYPE_BIND_TRANSFORM_FEEDBACK_BUFFER_2_INFO_EXT,
+      .addressRange = vk_device_address_range(&counterBuffer->vk, counterBufferOffset, VK_WHOLE_SIZE),
+   };
+
+   radv_CmdDrawIndirectByteCount2EXT(commandBuffer, instanceCount, firstInstance, &info, counterOffset, vertexStride);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdDrawIndirectByteCount2EXT(VkCommandBuffer commandBuffer, uint32_t instanceCount, uint32_t firstInstance,
+                                  const VkBindTransformFeedbackBuffer2InfoEXT *pCounterInfo, uint32_t counterOffset,
+                                  uint32_t vertexStride)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
    struct radv_draw_info info;
@@ -15635,12 +15901,10 @@ radv_CmdDrawIndirectByteCountEXT(VkCommandBuffer commandBuffer, uint32_t instanc
    info.count = 0;
    info.instance_count = instanceCount;
    info.first_instance = firstInstance;
-   info.strmout_va = vk_buffer_address(&counterBuffer->vk, counterBufferOffset);
+   info.strmout_va = pCounterInfo->addressRange.address;
    info.stride = vertexStride;
    info.indexed = false;
    info.indirect_va = 0;
-
-   radv_cs_add_buffer(device->ws, cs->b, counterBuffer->bo);
 
    if (!radv_before_draw(cmd_buffer, &info, 1, false))
       return;
@@ -15668,15 +15932,32 @@ radv_CmdWriteBufferMarker2AMD(VkCommandBuffer commandBuffer, VkPipelineStageFlag
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(radv_buffer, buffer, dstBuffer);
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
-   const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_cmd_stream *cs = cmd_buffer->cs;
-   const uint64_t va = vk_buffer_address(&buffer->vk, dstOffset);
 
    radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
 
+   const VkMemoryMarkerInfoAMD info = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_MARKER_INFO_AMD,
+      .stage = stage,
+      .dstRange = vk_device_address_range(&buffer->vk, dstOffset, VK_WHOLE_SIZE),
+      .marker = marker,
+   };
+
+   radv_CmdWriteMarkerToMemoryAMD(commandBuffer, &info);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdWriteMarkerToMemoryAMD(VkCommandBuffer commandBuffer, const VkMemoryMarkerInfoAMD *pInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+   const uint64_t va = pInfo->dstRange.address;
+
    if (cmd_buffer->qf == RADV_QUEUE_TRANSFER) {
       radeon_check_space(device->ws, cs->b, 4);
-      ac_emit_sdma_fence(cmd_buffer->cs->b, va, marker);
+      ac_emit_sdma_fence(cmd_buffer->cs->b, va, pInfo->marker);
       return;
    }
 
@@ -15684,11 +15965,12 @@ radv_CmdWriteBufferMarker2AMD(VkCommandBuffer commandBuffer, VkPipelineStageFlag
 
    ASSERTED unsigned cdw_max = radeon_check_space(device->ws, cs->b, 12);
 
-   if (!(stage & ~VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT)) {
-      ac_emit_cp_copy_data(cs->b, COPY_DATA_IMM, COPY_DATA_DST_MEM, marker, va, AC_CP_COPY_DATA_WR_CONFIRM, false);
+   if (!(pInfo->stage & ~VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT)) {
+      ac_emit_cp_copy_data(cs->b, COPY_DATA_IMM, COPY_DATA_DST_MEM, pInfo->marker, va, AC_CP_COPY_DATA_WR_CONFIRM,
+                           false);
    } else {
       radv_cs_emit_write_event_eop(cs, pdev->info.gfx_level, V_028A90_BOTTOM_OF_PIPE_TS, 0, EOP_DST_SEL_MEM,
-                                   EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT, va, marker,
+                                   EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM, EOP_DATA_SEL_VALUE_32BIT, va, pInfo->marker,
                                    cmd_buffer->gfx9_eop_bug_va);
    }
 

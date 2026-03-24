@@ -332,6 +332,24 @@ radv_CmdFillBuffer(VkCommandBuffer commandBuffer, VkBuffer dstBuffer, VkDeviceSi
    radv_resume_conditional_rendering(cmd_buffer);
 }
 
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdFillMemoryKHR(VkCommandBuffer commandBuffer, const VkDeviceAddressRangeKHR *pDstRange,
+                      VkAddressCommandFlagsKHR dstFlags, uint32_t data)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+   VkAddressCopyFlagsKHR dst_copy_flags = radv_get_copy_flags_from_command_flags(dstFlags);
+
+   radv_suspend_conditional_rendering(cmd_buffer);
+
+   radv_meta_begin(cmd_buffer);
+
+   radv_fill_memory(cmd_buffer, pDstRange->address, pDstRange->size, data, dst_copy_flags);
+
+   radv_meta_end(cmd_buffer);
+
+   radv_resume_conditional_rendering(cmd_buffer);
+}
+
 void
 radv_copy_memory(struct radv_cmd_buffer *cmd_buffer, uint64_t src_va, uint64_t dst_va, uint64_t size,
                  VkAddressCopyFlagsKHR src_copy_flags, VkAddressCopyFlagsKHR dst_copy_flags)
@@ -375,6 +393,30 @@ radv_CmdCopyBuffer2(VkCommandBuffer commandBuffer, const VkCopyBufferInfo2 *pCop
       const uint64_t dst_va = vk_buffer_address(&dst_buffer->vk, region->dstOffset);
 
       radv_copy_memory(cmd_buffer, src_va, dst_va, region->size, src_copy_flags, dst_copy_flags);
+   }
+
+   radv_meta_end(cmd_buffer);
+
+   radv_resume_conditional_rendering(cmd_buffer);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdCopyMemoryKHR(VkCommandBuffer commandBuffer, const VkCopyDeviceMemoryInfoKHR *pCopyMemoryInfo)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   radv_suspend_conditional_rendering(cmd_buffer);
+
+   radv_meta_begin(cmd_buffer);
+
+   for (unsigned r = 0; r < pCopyMemoryInfo->regionCount; r++) {
+      const VkDeviceMemoryCopyKHR *region = &pCopyMemoryInfo->pRegions[r];
+
+      VkAddressCopyFlagsKHR src_copy_flags = radv_get_copy_flags_from_command_flags(region->srcFlags);
+      VkAddressCopyFlagsKHR dst_copy_flags = radv_get_copy_flags_from_command_flags(region->dstFlags);
+
+      radv_copy_memory(cmd_buffer, region->srcRange.address, region->dstRange.address, region->srcRange.size,
+                       src_copy_flags, dst_copy_flags);
    }
 
    radv_meta_end(cmd_buffer);
@@ -444,6 +486,25 @@ radv_CmdUpdateBuffer(VkCommandBuffer commandBuffer, VkBuffer dstBuffer, VkDevice
    radv_cs_add_buffer(device->ws, cs->b, dst_buffer->bo);
 
    radv_update_memory(cmd_buffer, dst_va, dataSize, pData, dst_copy_flags);
+
+   radv_meta_end(cmd_buffer);
+
+   radv_resume_conditional_rendering(cmd_buffer);
+}
+
+VKAPI_ATTR void VKAPI_CALL
+radv_CmdUpdateMemoryKHR(VkCommandBuffer commandBuffer, const VkDeviceAddressRangeKHR *pDstRange,
+                        VkAddressCommandFlagsKHR dstFlags, VkDeviceSize dataSize, const void *pData)
+{
+   VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
+
+   VkAddressCopyFlagsKHR dst_copy_flags = radv_get_copy_flags_from_command_flags(dstFlags);
+
+   radv_suspend_conditional_rendering(cmd_buffer);
+
+   radv_meta_begin(cmd_buffer);
+
+   radv_update_memory(cmd_buffer, pDstRange->address, dataSize, pData, dst_copy_flags);
 
    radv_meta_end(cmd_buffer);
 
