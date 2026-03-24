@@ -2930,6 +2930,24 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       return;
    }
 
+   case nir_op_pack_32_2x16:
+   case nir_op_pack_32_4x8:
+   case nir_op_pack_64_2x32:
+   case nir_op_pack_64_4x16: {
+      bi_index idx = bi_src_index(&instr->src[0].src);
+      bi_index unoffset_srcs[4] = { idx, idx, idx, idx };
+
+      unsigned src_comps = nir_op_infos[instr->op].input_sizes[0];
+      assert(src_sz * src_comps == sz);
+
+      unsigned channels[4] = { 0 };
+      for (uint32_t i = 0; i < src_comps; i++)
+         channels[i] = instr->src[0].swizzle[i];
+
+      bi_make_vec_to(b, dst, unoffset_srcs, channels, src_comps, src_sz);
+      return;
+   }
+
    case nir_op_unpack_32_4x8:
    case nir_op_unpack_32_2x16: {
       /* Should have been scalarized */
@@ -2982,14 +3000,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       return;
    }
 
-   case nir_op_pack_64_2x32:
-      bi_collect_v2i32_to(b, dst,
-                          bi_extract(b, bi_src_index(&instr->src[0].src),
-                                     instr->src[0].swizzle[0]),
-                          bi_extract(b, bi_src_index(&instr->src[0].src),
-                                     instr->src[0].swizzle[1]));
-      return;
-
    case nir_op_pack_uvec2_to_uint: {
       bi_index src = bi_src_index(&instr->src[0].src);
 
@@ -3012,33 +3022,6 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
          bi_extract(b, src, instr->src[0].swizzle[3]),
       };
       unsigned channels[4] = {0};
-      bi_make_vec_to(b, dst, srcs, channels, 4, 8);
-      return;
-   }
-
-   case nir_op_pack_32_2x16: {
-      assert(comps == 1);
-
-      bi_index idx = bi_src_index(&instr->src[0].src);
-      bi_index unoffset_srcs[4] = {idx, idx, idx, idx};
-
-      unsigned channels[2] = {instr->src[0].swizzle[0],
-                              instr->src[0].swizzle[1]};
-
-      bi_make_vec_to(b, dst, unoffset_srcs, channels, 2, 16);
-      return;
-   }
-
-   case nir_op_pack_32_4x8: {
-      assert(comps == 1);
-
-      bi_index idx = bi_src_index(&instr->src[0].src);
-      bi_index srcs[4] = {idx, idx, idx, idx};
-      unsigned channels[4] = {instr->src[0].swizzle[0],
-                              instr->src[0].swizzle[1],
-                              instr->src[0].swizzle[2],
-                              instr->src[0].swizzle[3]};
-
       bi_make_vec_to(b, dst, srcs, channels, 4, 8);
       return;
    }
