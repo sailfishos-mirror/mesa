@@ -2976,17 +2976,14 @@ bi_emit_alu(bi_builder *b, nir_alu_instr *instr)
       return;
    }
 
-   case nir_op_unpack_64_2x32_split_x: {
-      unsigned chan = (instr->src[0].swizzle[0] * 2) + 0;
-      bi_mov_i32_to(b, dst,
-                    bi_extract(b, bi_src_index(&instr->src[0].src), chan));
-      return;
-   }
-
+   case nir_op_unpack_64_2x32_split_x:
    case nir_op_unpack_64_2x32_split_y: {
-      unsigned chan = (instr->src[0].swizzle[0] * 2) + 1;
-      bi_mov_i32_to(b, dst,
-                    bi_extract(b, bi_src_index(&instr->src[0].src), chan));
+      bi_index idx = bi_src_index(&instr->src[0].src);
+
+      unsigned offset = instr->op == nir_op_unpack_64_2x32_split_x ? 0 : 1;
+      unsigned chan = instr->src[0].swizzle[0] * 2 + offset;
+
+      bi_mov_i32_to(b, dst, bi_extract(b, idx, chan));
       return;
    }
 
