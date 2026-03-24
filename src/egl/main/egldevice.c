@@ -164,7 +164,7 @@ _eglAddDRMDevice(drmDevicePtr device)
    if (supports_info_query)
       dev->extensions =
          "EGL_EXT_device_drm EGL_EXT_device_drm_render_node "
-         "EGL_EXT_device_query_name EGL_EXT_device_persistent_id";
+         "EGL_EXT_device_query_name EGL_EXT_device_persistent_id EGL_EXT_device_type";
    else
       dev->extensions = "EGL_EXT_device_drm EGL_EXT_device_drm_render_node";
    dev->EXT_device_drm = EGL_TRUE;
@@ -172,6 +172,7 @@ _eglAddDRMDevice(drmDevicePtr device)
    if (supports_info_query) {
       dev->EXT_device_query_name = EGL_TRUE;
       dev->EXT_device_persistent_id = EGL_TRUE;
+      dev->EXT_device_type = EGL_TRUE;
    }
    dev->device = device;
 
@@ -283,11 +284,22 @@ _eglQueryDeviceAttribEXT(_EGLDevice *dev, EGLint attribute, EGLAttrib *value)
    case EGL_DEVICE_TYPE_EXT:
       if (!_eglDeviceSupports(dev, _EGL_DEVICE_TYPE))
          break;
-      /* For now, only the software device supports EGL_EXT_device_type
-       * TODO: EGL_EXT_device_type support for other devices */
-      assert(_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE));
-      *value = EGL_DEVICE_TYPE_CPU_EXT;
+      if (_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE)) {
+         *value = EGL_DEVICE_TYPE_CPU_EXT;
+         return EGL_TRUE;
+      }
+#ifdef HAVE_LIBDRM
+      drmDevice *device = _eglDeviceDrm(dev);
+      const char *render_node = device->nodes[DRM_NODE_RENDER];
+      if (!_eglDriver.QueryDeviceInfo(render_node, &dev->device_info)) {
+         _eglError(EGL_BAD_DEVICE_EXT, "eglQueryDeviceAttribEXT");
+         return EGL_FALSE;
+      }
+      *value = dev->device_info.device_type;
       return EGL_TRUE;
+#else
+      break;
+#endif
    }
    _eglError(EGL_BAD_ATTRIBUTE, "eglQueryDeviceAttribEXT");
    return EGL_FALSE;
