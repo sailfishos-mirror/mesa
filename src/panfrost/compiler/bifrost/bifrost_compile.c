@@ -881,14 +881,23 @@ bi_instr *
 bi_make_vec_to(bi_builder *b, bi_index dst, bi_index *src, unsigned *channel,
                unsigned count, unsigned bitsize)
 {
-   assert(bitsize == 8 || bitsize == 16 || bitsize == 32);
-   unsigned shift = (bitsize == 32) ? 0 : (bitsize == 16) ? 1 : 2;
-   unsigned chan_per_word = 1 << shift;
-
    assert(DIV_ROUND_UP(count * bitsize, 32) <= BI_MAX_SRCS &&
           "unnecessarily large vector should have been lowered");
 
    bi_index srcs[BI_MAX_VEC];
+
+   if (bitsize == 64) {
+      for (unsigned i = 0; i < count; i++) {
+         const unsigned c = channel ? channel[i] : 0;
+         srcs[i * 2 + 0] = bi_extract(b, src[i], c * 2 + 0);
+         srcs[i * 2 + 1] = bi_extract(b, src[i], c * 2 + 1);
+      }
+      return bi_emit_collect_to(b, dst, srcs, count * 2);
+   }
+
+   assert(bitsize == 8 || bitsize == 16 || bitsize == 32);
+   unsigned shift = (bitsize == 32) ? 0 : (bitsize == 16) ? 1 : 2;
+   unsigned chan_per_word = 1 << shift;
 
    for (unsigned i = 0; i < count; i += chan_per_word) {
       unsigned rem = MIN2(count - i, chan_per_word);
