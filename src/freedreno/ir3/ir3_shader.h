@@ -771,6 +771,11 @@ struct ir3_shader_variant {
    /* Size in dwords of all outputs for VS, size of entire patch for HS. */
    uint32_t output_size;
 
+   /* For stages with output_size, the number of views. Outputs are replicated
+    * per view.
+    */
+   uint32_t view_count;
+
    /* Expected size of incoming output_loc for HS, DS, and GS */
    uint32_t input_size;
 
