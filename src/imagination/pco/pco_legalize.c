@@ -163,9 +163,6 @@ static inline bool xfer_op_mods(pco_instr *dest, pco_instr *src)
  */
 static bool legalize_fence(pco_instr *instr)
 {
-   if (instr->op != PCO_OP_FENCE)
-      return false;
-
    pco_builder b =
       pco_builder_create(instr->parent_func, pco_cursor_before_instr(instr));
 
@@ -181,6 +178,9 @@ static bool legalize_fence(pco_instr *instr)
 static bool legalize_pseudo(pco_instr *instr)
 {
    switch (instr->op) {
+   case PCO_OP_FENCE:
+      return legalize_fence(instr);
+
    case PCO_OP_MOV:
       if (pco_ref_is_reg(instr->src[0]) &&
           pco_ref_get_reg_class(instr->src[0]) == PCO_REG_CLASS_SPEC)
@@ -452,43 +452,35 @@ static bool try_legalize(pco_instr *instr)
    bool progress = false;
 
    progress |= try_legalize_large_hwreg_offsets(instr, info);
-
-   /* Skip pseudo instructions. */
-   if (info->type == PCO_OP_TYPE_PSEUDO) {
-      progress |= legalize_pseudo(instr);
-   } else {
-      progress |= try_legalize_src_mappings(instr, info);
-   }
+   progress |= try_legalize_ditr_fence(instr);
 
    return progress;
 }
 
 /**
  * \brief Legalizes instructions where additional restrictions apply.
+ * This should be run after register allocation.
  *
  * \param[in,out] shader PCO shader.
  * \return True if the pass made progress.
  */
-bool pco_legalize(pco_shader *shader)
+bool pco_pre_ra_legalize(pco_shader *shader)
 {
    bool progress = false;
 
    assert(!shader->is_grouped);
    assert(!shader->is_legalized);
 
-   pco_foreach_func_in_shader (func, shader) {
-      pco_foreach_instr_in_func_safe (instr, func) {
-         progress |= try_legalize(instr);
-      }
-   }
+   const struct pco_op_info *info;
 
    pco_foreach_func_in_shader (func, shader) {
       pco_foreach_instr_in_func_safe (instr, func) {
-         progress |= legalize_fence(instr);
+         info = &pco_op_info[instr->op];
+         if (info->type != PCO_OP_TYPE_PSEUDO) 
+            progress |= try_legalize_src_mappings(instr, info);
       }
    }
 
-   shader->is_legalized = true;
    return progress;
 }
 
@@ -500,20 +492,26 @@ bool pco_legalize(pco_shader *shader)
  */
 bool pco_post_ra_legalize(pco_shader *shader)
 {
+   assert(!shader->is_grouped);
+ 
    bool progress = false;
 
-   assert(!shader->is_grouped);
-
    pco_foreach_func_in_shader (func, shader) {
       pco_foreach_instr_in_func_safe (instr, func) {
-         progress |= try_legalize_ditr_fence(instr);
+         progress |= try_legalize(instr);   
       }
    }
 
+   const struct pco_op_info *info;
+
    pco_foreach_func_in_shader (func, shader) {
       pco_foreach_instr_in_func_safe (instr, func) {
-         progress |= legalize_fence(instr);
+         info = &pco_op_info[instr->op];
+         if (info->type == PCO_OP_TYPE_PSEUDO) 
+            progress |= legalize_pseudo(instr);       
       }
    }
+
+   shader->is_legalized = true;
    return progress;
 }
