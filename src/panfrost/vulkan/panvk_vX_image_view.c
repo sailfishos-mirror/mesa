@@ -220,25 +220,32 @@ prepare_attr_buf_descs(struct panvk_image_view *view)
                            (is_3d ? slayout->tiled_or_linear.surface_stride_B
                                   : plane_layout->array_stride_B));
 
+   unsigned nr_samples = image->planes[plane_idx].image.props.nr_samples;
+   nr_samples = (nr_samples > 0) ? nr_samples : 1;
+   unsigned log2_nr_samples = util_logbase2(nr_samples);
+
    pan_pack(&view->descs.img_attrib_buf[0], ATTRIBUTE_BUFFER, cfg) {
       /* The format is the only thing we lack to emit attribute descriptors
        * when copying from the set to the attribute tables. Instead of
        * making the descriptor size to store an extra format, we pack
        * the 22-bit format with the texel stride, which is expected to be
-       * fit in remaining 10 bits.
+       * fit in 7 bits, followed by 3 bits for log2(nr_samples), which we
+       * need in order to reconstruct the number of layers in multisampled
+       * arrays.
        */
       uint32_t fmt_blksize = util_format_get_blocksize(view->pview.format);
       uint32_t hw_fmt =
          GENX(pan_format_from_pipe_format)(view->pview.format)->hw;
 
-      assert(fmt_blksize < BITFIELD_MASK(10));
-      assert(hw_fmt < BITFIELD_MASK(22));
+      assert(fmt_blksize <= BITFIELD_MASK(7));
+      assert(log2_nr_samples <= BITFIELD_MASK(3));
+      assert(hw_fmt <= BITFIELD_MASK(22));
 
       cfg.type = image->vk.drm_format_mod == DRM_FORMAT_MOD_LINEAR
                     ? MALI_ATTRIBUTE_TYPE_3D_LINEAR
                     : MALI_ATTRIBUTE_TYPE_3D_INTERLEAVED;
       cfg.pointer = image->planes[plane_idx].plane.base + offset;
-      cfg.stride = fmt_blksize | (hw_fmt << 10);
+      cfg.stride = fmt_blksize | (log2_nr_samples << 7) | (hw_fmt << 10);
       cfg.size = pan_image_mip_level_size(&image->planes[plane_idx].image, 0,
                                           view->pview.first_level);
    }
