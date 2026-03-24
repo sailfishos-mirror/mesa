@@ -231,12 +231,13 @@ static VkResult
 radv_shader_object_init_compute(struct radv_shader_object *shader_obj, struct radv_device *device,
                                 const VkShaderCreateInfoEXT *pCreateInfo)
 {
-   struct radv_shader_binary *cs_binary;
    struct radv_shader_stage stage = {0};
 
    radv_shader_stage_init(pCreateInfo, &stage);
 
-   struct radv_shader *cs_shader = radv_compile_cs(device, NULL, &stage, false, false, false, true, &cs_binary);
+   struct radv_shader_debug_info cs_dbg = {};
+   struct radv_shader_binary *cs_binary = radv_compile_cs(device, &stage, false, false, false, &cs_dbg);
+   struct radv_shader *cs_shader = radv_shader_create(device, NULL, cs_binary, true, &cs_dbg);
 
    ralloc_free(stage.nir);
 
