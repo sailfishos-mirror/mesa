@@ -1256,6 +1256,56 @@ spec@glsl-1.20@execution@vs-loop-uint-induction-var-3,Fail
 spec@glsl-1.20@execution@vs-loop-uint-induction-var-2,Fail
 spec@glsl-1.20@execution@vs-loop-uint-induction-var-4,Fail
 
+# Bisected to d6958a5e ("gallium: kill off pipe_surface::context")
+spec@arb_framebuffer_srgb@blit renderbuffer linear downsample disabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear downsample disabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear downsample enabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear downsample enabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear msaa disabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear msaa disabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear msaa enabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear msaa enabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear single_sampled disabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear single_sampled disabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear single_sampled enabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear single_sampled enabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear upsample disabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear upsample disabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear upsample enabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer linear upsample enabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer srgb_to_linear msaa disabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer srgb_to_linear msaa disabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer srgb_to_linear msaa enabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer srgb_to_linear msaa enabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer srgb_to_linear upsample disabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer srgb_to_linear upsample disabled render,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer srgb_to_linear upsample enabled clear,Fail
+spec@arb_framebuffer_srgb@blit renderbuffer srgb_to_linear upsample enabled render,Fail
+spec@arb_framebuffer_srgb@blit texture linear downsample disabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture linear downsample disabled render,Fail
+spec@arb_framebuffer_srgb@blit texture linear downsample enabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture linear downsample enabled render,Fail
+spec@arb_framebuffer_srgb@blit texture linear msaa disabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture linear msaa disabled render,Fail
+spec@arb_framebuffer_srgb@blit texture linear msaa enabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture linear msaa enabled render,Fail
+spec@arb_framebuffer_srgb@blit texture linear single_sampled disabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture linear single_sampled disabled render,Fail
+spec@arb_framebuffer_srgb@blit texture linear single_sampled enabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture linear single_sampled enabled render,Fail
+spec@arb_framebuffer_srgb@blit texture linear upsample disabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture linear upsample disabled render,Fail
+spec@arb_framebuffer_srgb@blit texture linear upsample enabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture linear upsample enabled render,Fail
+spec@arb_framebuffer_srgb@blit texture srgb_to_linear msaa disabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture srgb_to_linear msaa disabled render,Fail
+spec@arb_framebuffer_srgb@blit texture srgb_to_linear msaa enabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture srgb_to_linear msaa enabled render,Fail
+spec@arb_framebuffer_srgb@blit texture srgb_to_linear upsample disabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture srgb_to_linear upsample disabled render,Fail
+spec@arb_framebuffer_srgb@blit texture srgb_to_linear upsample enabled clear,Fail
+spec@arb_framebuffer_srgb@blit texture srgb_to_linear upsample enabled render,Fail
+
 # SKQP failing tests
 DeferredProxyTest,Crash
 GrContext_colorTypeSupportedAsSurface,Fail

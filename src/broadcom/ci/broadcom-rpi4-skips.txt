@@ -33,6 +33,7 @@ dEQP-VK.ssbo.layout.random.nested_structs_arrays.17
 dEQP-VK.ssbo.phys.layout.random.8bit.all_per_block_buffers.46
 dEQP-VK.ssbo.phys.layout.random.8bit.nested_structs_arrays.17
 dEQP-VK.ssbo.phys.layout.random.all_shared_buffer.3
+dEQP-VK.ubo.random.all_shared_buffer.48
 ubsan-dEQP-VK.ssbo.phys.layout.3_level_array.std430.column_major_mat4x3_store_cols
 ubsan-dEQP-VK.ssbo.phys.layout.3_level_unsized_array.std140.column_major_mat4x3_store_cols
 ubsan-dEQP-VK.ssbo.phys.layout.single_struct_array.per_block_buffer.std140_instance_array_store_cols
