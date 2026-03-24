@@ -2545,11 +2545,9 @@ bi_alu_src_index(bi_builder *b, nir_alu_src src, unsigned comps)
 
    unsigned offset = 0;
 
-   assert(bitsize == 8 || bitsize == 16 || bitsize == 32);
-   unsigned subword_shift = (bitsize == 32) ? 0 : (bitsize == 16) ? 1 : 2;
-
+   assert(bitsize == 8 || bitsize == 16 || bitsize == 32 || bitsize == 64);
    for (unsigned i = 0; i < comps; ++i) {
-      unsigned new_offset = (src.swizzle[i] >> subword_shift);
+      unsigned new_offset = (src.swizzle[i] * bitsize) / 32;
 
       if (i > 0)
          assert(offset == new_offset && "wrong vectorization");
