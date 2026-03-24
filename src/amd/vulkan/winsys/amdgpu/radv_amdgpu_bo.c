@@ -499,7 +499,7 @@ radv_amdgpu_winsys_bo_create(struct radeon_winsys *_ws, uint64_t size, unsigned 
          request.flags |= AMDGPU_GEM_CREATE_VRAM_CLEARED;
    }
 
-   if (flags & RADEON_FLAG_DISCARDABLE && ws->info.drm_minor >= 47)
+   if (flags & RADEON_FLAG_DISCARDABLE)
       request.flags |= AMDGPU_GEM_CREATE_DISCARDABLE;
 
    if (flags & RADEON_FLAG_GFX12_ALLOW_DCC && ws->info.drm_minor >= 58) {

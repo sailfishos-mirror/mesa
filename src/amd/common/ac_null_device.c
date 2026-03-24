@@ -67,7 +67,6 @@ ac_null_device_create(struct radeon_info *gpu_info, const char *family)
       (gpu_info->family == CHIP_STONEY || gpu_info->family == CHIP_VEGA12 || gpu_info->family == CHIP_RAVEN ||
        gpu_info->family == CHIP_RAVEN2 || gpu_info->family == CHIP_RENOIR || gpu_info->gfx_level >= GFX10_3);
 
-   gpu_info->has_gang_submit = true;
    gpu_info->mesh_fast_launch_2 = gpu_info->gfx_level >= GFX11;
    gpu_info->hs_offchip_workgroup_dw_size = gpu_info->family == CHIP_HAWAII ? 4096 : 8192;
    gpu_info->has_graphics = true;

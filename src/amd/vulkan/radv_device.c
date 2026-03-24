@@ -1660,13 +1660,11 @@ radv_device_set_pstate(struct radv_device *device, bool enable)
    struct radeon_winsys *ws = device->ws;
    enum radeon_ctx_pstate pstate = enable ? instance->profile_pstate : RADEON_CTX_PSTATE_NONE;
 
-   if (pdev->info.has_stable_pstate) {
-      /* pstate is per-device; setting it for one ctx is sufficient.
-       * We pick the first initialized one below. */
-      for (unsigned i = 0; i < RADV_NUM_HW_CTX; i++)
-         if (device->hw_ctx[i])
-            return ws->ctx_set_pstate(device->hw_ctx[i], pstate) >= 0;
-   }
+   /* pstate is per-device; setting it for one ctx is sufficient. We pick the first initialized one
+    * below. */
+   for (unsigned i = 0; i < RADV_NUM_HW_CTX; i++)
+      if (device->hw_ctx[i])
+         return ws->ctx_set_pstate(device->hw_ctx[i], pstate) >= 0;
 
    return true;
 }

@@ -2415,7 +2415,6 @@ static void amdgpu_winsys_fence_reference(struct radeon_winsys *rws,
 static bool amdgpu_cs_create_compute_gang(struct radeon_cmdbuf *rcs)
 {
    struct amdgpu_cs *acs = amdgpu_cs(rcs);
-   assert(acs->aws->info.has_gang_submit);
 
    struct radeon_cmdbuf *gang = CALLOC_STRUCT(radeon_cmdbuf);
    if (!gang)

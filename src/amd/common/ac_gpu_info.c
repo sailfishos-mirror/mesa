@@ -274,8 +274,7 @@ ac_fill_compiler_info(struct radeon_info *info, struct drm_amdgpu_info_device *d
       out->sgpr_alloc_granularity = 8;
    }
 
-   /* Some GPU info was broken before DRM 3.45.0. */
-   if (info->drm_minor >= 45 && device_info && device_info->num_shader_visible_vgprs) {
+   if (device_info && device_info->num_shader_visible_vgprs) {
       /* The Gfx10 VGPR count is in Wave32, so divide it by 2 for Wave64.
        * Gfx6-9 numbers are in Wave64. CDNA also includes Accumulation VGPRs.
        */
@@ -338,7 +337,7 @@ ac_fill_compiler_info(struct radeon_info *info, struct drm_amdgpu_info_device *d
 
    out->has_3d_cube_border_color_mipmap = info->has_graphics || info->family == CHIP_MI100;
 
-   out->conformant_trunc_coord = info->drm_minor >= 52 && device_info &&
+   out->conformant_trunc_coord = device_info &&
                                  device_info->ids_flags & AMDGPU_IDS_FLAGS_CONFORMANT_TRUNC_COORD;
 
    out->has_attr_ring = info->gfx_level >= GFX11;
@@ -434,9 +433,9 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    assert(info->drm_major == 3);
    info->is_amdgpu = true;
 
-   if (info->drm_minor < 42) {
+   if (info->drm_minor < 54) {
       fprintf(stderr, "amdgpu: DRM version is %u.%u.%u, but this driver is "
-                      "only compatible with 3.42.0 (kernel 5.15+) or later.\n",
+                      "only compatible with 3.54.0 (kernel 6.6+) or later.\n",
               info->drm_major, info->drm_minor, info->drm_patchlevel);
       return AC_QUERY_GPU_INFO_FAIL;
    }
@@ -480,7 +479,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       }
 
       /* Gfx6-8 don't set ip_discovery_version. */
-      if (info->drm_minor >= 48 && ip_info.ip_discovery_version) {
+      if (ip_info.ip_discovery_version) {
          info->ip[ip_type].ver_major = (ip_info.ip_discovery_version >> 16) & 0xff;
          info->ip[ip_type].ver_minor = (ip_info.ip_discovery_version >> 8) & 0xff;
          info->ip[ip_type].ver_rev = ip_info.ip_discovery_version & 0xff;
@@ -876,8 +875,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->max_sa_per_se = device_info.num_shader_arrays_per_engine;
    info->num_cu_per_sh = device_info.num_cu_per_sh;
    info->enabled_rb_mask = device_info.enabled_rb_pipes_mask;
-   if (info->drm_minor >= 52)
-      info->enabled_rb_mask |= (uint64_t)device_info.enabled_rb_pipes_mask_hi << 32;
+   info->enabled_rb_mask |= (uint64_t)device_info.enabled_rb_pipes_mask_hi << 32;
 
    info->memory_freq_mhz_effective *= ac_memory_ops_per_clock(info->vram_type);
 
@@ -900,7 +898,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->has_sparse_image_standard_3d = info->gfx_level >= GFX9;
    info->has_sparse_unaligned_mip_size = info->gfx_level >= GFX7;
 
-   info->has_gang_submit = info->drm_minor >= 49;
    info->has_gpuvm_fault_query = info->drm_minor >= 55;
    info->has_tmz_support = device_info.ids_flags & AMDGPU_IDS_FLAGS_TMZ;
    info->kernel_has_modifiers = has_modifiers(fd) || (info->is_virtio && fd < 0);
@@ -943,15 +940,13 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->cp_sdma_ge_use_system_memory_scope = info->gfx_level == GFX12;
    info->cp_dma_use_L2 = info->gfx_level >= GFX7 && !info->cp_sdma_ge_use_system_memory_scope;
 
-   if (info->drm_minor >= 52) {
-      info->sqc_inst_cache_size = device_info.sqc_inst_cache_size * 1024;
-      info->sqc_scalar_cache_size = device_info.sqc_data_cache_size * 1024;
-      info->num_sqc_per_wgp = device_info.num_sqc_per_wgp;
-   }
+   info->sqc_inst_cache_size = device_info.sqc_inst_cache_size * 1024;
+   info->sqc_scalar_cache_size = device_info.sqc_data_cache_size * 1024;
+   info->num_sqc_per_wgp = device_info.num_sqc_per_wgp;
 
    /* Firmware wrongly reports 0 bytes of MALL being present on Navi33.
     * Work around this by manually computing cache sizes. */
-   if (info->gfx_level >= GFX11 && info->drm_minor >= 52 && info->family != CHIP_NAVI33) {
+   if (info->gfx_level >= GFX11 && info->family != CHIP_NAVI33) {
       info->tcp_cache_size = device_info.tcp_cache_size * 1024;
       info->l1_cache_size = device_info.gl1c_cache_size * 1024;
       info->l2_cache_size = device_info.gl2c_cache_size * 1024;
@@ -1327,8 +1322,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
     */
    info->gfx12_supports_dcc_write_compress_disable = info->gfx_level >= GFX12 && info->drm_minor >= 60;
 
-   info->has_stable_pstate = info->drm_minor >= 45;
-
    /* AMDGPU 3.59+ clears VRAM on allocations by default. */
    info->has_default_zerovram_support = info->drm_minor >= 59;
 
@@ -1472,11 +1465,10 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    ac_fill_compiler_info(info, &device_info);
 
    /* BIG_PAGE is supported since gfx10.3 and requires VRAM. VRAM is only guaranteed
-    * with AMDGPU_GEM_CREATE_DISCARDABLE. DISCARDABLE was added in DRM 3.47.0.
+    * with AMDGPU_GEM_CREATE_DISCARDABLE.
     */
    info->discardable_allows_big_page = info->gfx_level >= GFX10_3 && info->gfx_level < GFX12 &&
-                                       info->has_dedicated_vram &&
-                                       info->drm_minor >= 47;
+                                       info->has_dedicated_vram;
 
    /* Compute the scratch WAVESIZE granularity in bytes. */
    info->scratch_wavesize_granularity_shift = info->gfx_level >= GFX11 ? 8 : 10;
@@ -1494,36 +1486,33 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                                       (!info->has_graphics && info->family >= CHIP_GFX940);
    info->max_gflops = (info->gfx_level >= GFX11 ? 256 : 128) * info->num_cu * info->max_gpu_freq_mhz / 1000;
    info->memory_bandwidth_gbps = DIV_ROUND_UP(info->memory_freq_mhz_effective * info->memory_bus_width / 8, 1000);
-   info->has_pcie_bandwidth_info = info->drm_minor >= 51;
 
-   if (info->has_pcie_bandwidth_info) {
-      info->pcie_gen = device_info.pcie_gen;
-      info->pcie_num_lanes = device_info.pcie_num_lanes;
+   info->pcie_gen = device_info.pcie_gen;
+   info->pcie_num_lanes = device_info.pcie_num_lanes;
 
-      /* Source: https://en.wikipedia.org/wiki/PCI_Express#History_and_revisions */
-      switch (info->pcie_gen) {
-      case 1:
-         info->pcie_bandwidth_mbps = info->pcie_num_lanes * 0.25 * 1024;
-         break;
-      case 2:
-         info->pcie_bandwidth_mbps = info->pcie_num_lanes * 0.5 * 1024;
-         break;
-      case 3:
-         info->pcie_bandwidth_mbps = info->pcie_num_lanes * 0.985 * 1024;
-         break;
-      case 4:
-         info->pcie_bandwidth_mbps = info->pcie_num_lanes * 1.969 * 1024;
-         break;
-      case 5:
-         info->pcie_bandwidth_mbps = info->pcie_num_lanes * 3.938 * 1024;
-         break;
-      case 6:
-         info->pcie_bandwidth_mbps = info->pcie_num_lanes * 7.563 * 1024;
-         break;
-      case 7:
-         info->pcie_bandwidth_mbps = info->pcie_num_lanes * 15.125 * 1024;
-         break;
-      }
+   /* Source: https://en.wikipedia.org/wiki/PCI_Express#History_and_revisions */
+   switch (info->pcie_gen) {
+   case 1:
+      info->pcie_bandwidth_mbps = info->pcie_num_lanes * 0.25 * 1024;
+      break;
+   case 2:
+      info->pcie_bandwidth_mbps = info->pcie_num_lanes * 0.5 * 1024;
+      break;
+   case 3:
+      info->pcie_bandwidth_mbps = info->pcie_num_lanes * 0.985 * 1024;
+      break;
+   case 4:
+      info->pcie_bandwidth_mbps = info->pcie_num_lanes * 1.969 * 1024;
+      break;
+   case 5:
+      info->pcie_bandwidth_mbps = info->pcie_num_lanes * 3.938 * 1024;
+      break;
+   case 6:
+      info->pcie_bandwidth_mbps = info->pcie_num_lanes * 7.563 * 1024;
+      break;
+   case 7:
+      info->pcie_bandwidth_mbps = info->pcie_num_lanes * 15.125 * 1024;
+      break;
    }
 
    /* The number of IBs per submit isn't infinite, it depends on the IP type
@@ -1959,8 +1948,6 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    has_bo_metadata = %u\n", info->has_bo_metadata);
    fprintf(f, "    has_eqaa_surface_allocator = %u\n", info->has_eqaa_surface_allocator);
    fprintf(f, "    has_sparse = %u\n", info->has_sparse);
-   fprintf(f, "    has_stable_pstate = %u\n", info->has_stable_pstate);
-   fprintf(f, "    has_gang_submit = %u\n", info->has_gang_submit);
    fprintf(f, "    has_gpuvm_fault_query = %u\n", info->has_gpuvm_fault_query);
    fprintf(f, "    has_kernelq_reg_shadowing = %u\n", info->has_kernelq_reg_shadowing);
    fprintf(f, "    has_default_zerovram_support = %u\n", info->has_default_zerovram_support);
