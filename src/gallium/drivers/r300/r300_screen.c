@@ -554,6 +554,9 @@ static void r300_init_screen_caps(struct r300_screen* r300screen)
 
    caps->prefer_imm_arrays_as_constbuf = false;
 
+   caps->device_type = r300screen->caps.has_hardware_tcl
+       ? PIPE_DEVICE_TYPE_DISCRETE_GPU
+       : PIPE_DEVICE_TYPE_INTEGRATED_GPU;
    caps->vendor_id = 0x1002;
    caps->device_id = r300screen->info.pci_id;
    caps->video_memory = r300screen->info.vram_size_kb >> 10;
