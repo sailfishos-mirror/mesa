@@ -149,7 +149,9 @@ struct radv_device {
    struct radv_meta_state meta_state;
 
    struct radv_queue *queues[RADV_MAX_QUEUE_FAMILIES];
+   struct radv_queue *queues_protected[RADV_MAX_QUEUE_FAMILIES];
    int queue_count[RADV_MAX_QUEUE_FAMILIES];
+   int queue_count_protected[RADV_MAX_QUEUE_FAMILIES];
 
    bool pbb_allowed;
    uint32_t scratch_waves;
