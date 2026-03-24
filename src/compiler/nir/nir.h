@@ -2517,6 +2517,11 @@ typedef enum nir_texop {
    nir_texop_block_match_ssd_qcom,
    /** txs in .xyz and query_levels in .w */
    nir_texop_resinfo_intel,
+
+   /** Returns red data and a sparse residency code for sampling ops */
+   nir_texop_sparse_residency_intel,
+   /** Returns red data and a sparse residency code for texel fetches */
+   nir_texop_sparse_residency_txf_intel,
 } nir_texop;
 
 /** Represents a texture instruction */

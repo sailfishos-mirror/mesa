@@ -1040,7 +1040,9 @@ validate_tex_instr(nir_tex_instr *instr, validate_state *state)
 
       case nir_tex_src_ddx:
       case nir_tex_src_ddy:
-         validate_assert(state, instr->op == nir_texop_txd);
+         validate_assert(state,
+                         instr->op == nir_texop_txd ||
+                            instr->op == nir_texop_sparse_residency_intel);
          break;
 
       case nir_tex_src_texture_deref:

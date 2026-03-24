@@ -1074,6 +1074,10 @@ visit_tex(nir_tex_instr *instr, struct divergence_state *state)
    if (instr->def.divergent)
       return false;
 
+   if (instr->op == nir_texop_sparse_residency_intel ||
+       instr->op == nir_texop_sparse_residency_txf_intel)
+      return true;
+
    bool is_divergent = false;
 
    for (unsigned i = 0; i < instr->num_srcs; i++) {
