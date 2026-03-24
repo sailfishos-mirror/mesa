@@ -964,7 +964,7 @@
         "description": "rusticl/device: Fix reporting of global memory on mixed memory devices",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "7487ac204634a421d7dd5a076f9ac8f512571f5b",
         "notes": null
