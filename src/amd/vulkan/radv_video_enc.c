@@ -611,7 +611,7 @@ radv_enc_slice_control(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoE
 
    uint32_t slice_control_mode = RENCODE_H264_SLICE_CONTROL_MODE_FIXED_MBS;
 
-   if (ac_vcn_enc_variable_slice_mode_supported(&pdev->info) &&
+   if (ac_vcn_enc_variable_slice_mode_supported(&pdev->info, false) &&
        h264_picture_info->naluSliceEntryCount <= RENCODE_MAX_NUM_SLICES) {
       uint32_t last_mb = 0;
       slice_control_mode = RENCODE_H264_SLICE_CONTROL_MODE_VARIABLE_MBS;
@@ -718,7 +718,7 @@ radv_enc_slice_control_hevc(struct radv_cmd_buffer *cmd_buffer, const struct VkV
    num_ctbs_in_slice = DIV_ROUND_UP(width_in_ctb * height_in_ctb, h265_picture_info->naluSliceSegmentEntryCount);
 
    uint32_t slice_control_mode = RENCODE_HEVC_SLICE_CONTROL_MODE_FIXED_CTBS;
-   if (ac_vcn_enc_variable_slice_mode_supported(&pdev->info) &&
+   if (ac_vcn_enc_variable_slice_mode_supported(&pdev->info, false) &&
        h265_picture_info->naluSliceSegmentEntryCount <= RENCODE_MAX_NUM_SLICES) {
       uint32_t last_ctb = 0;
       slice_control_mode = RENCODE_HEVC_SLICE_CONTROL_MODE_VARIABLE_CTBS;

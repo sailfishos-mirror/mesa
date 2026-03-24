@@ -136,12 +136,20 @@ void ac_vcn_enc_init_cmds(rvcn_enc_cmd_t *cmd, enum vcn_version version)
 }
 
 bool
-ac_vcn_enc_variable_slice_mode_supported(const struct radeon_info *info)
+ac_vcn_enc_variable_slice_mode_supported(const struct radeon_info *info, bool preencode)
 {
-   if (info->vcn_ip_version >= VCN_5_0_0)
-      return info->vcn_enc_minor_version >= 11;
-   else if (info->vcn_ip_version >= VCN_4_0_0)
-      return info->vcn_enc_minor_version >= 24;
-   else
+   if (info->vcn_ip_version >= VCN_5_0_0) {
+      if (preencode)
+         return info->vcn_enc_minor_version > 12 ||
+                (info->vcn_enc_minor_version == 12 && info->vcn_fw_revision >= 0xA);
+      else
+         return info->vcn_enc_minor_version >= 11;
+   } else if (info->vcn_ip_version >= VCN_4_0_0) {
+      if (preencode)
+         return info->vcn_enc_minor_version > 24 ||
+                (info->vcn_enc_minor_version == 24 && info->vcn_fw_revision >= 0x23);
+      else
+         return info->vcn_enc_minor_version >= 24;
+   } else
       return false;
 }

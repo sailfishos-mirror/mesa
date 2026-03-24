@@ -435,7 +435,8 @@ static void radeon_vcn_enc_h264_get_slice_ctrl_param(struct radeon_encoder *enc,
    enc->enc_pic.slice_ctrl.slice_control_mode = RENCODE_H264_SLICE_CONTROL_MODE_FIXED_MBS;
    enc->enc_pic.slice_ctrl.num_mbs_per_slice = num_mbs_in_slice;
 
-   if (ac_vcn_enc_variable_slice_mode_supported(&((struct si_screen *)enc->screen)->info) &&
+   if (ac_vcn_enc_variable_slice_mode_supported(&((struct si_screen *)enc->screen)->info,
+                                                enc->enc_pic.quality_modes.pre_encode_mode) &&
        pic->num_slice_descriptors <= RENCODE_MAX_NUM_SLICES)
    {
       enc->enc_pic.slice_ctrl.slice_control_mode = RENCODE_H264_SLICE_CONTROL_MODE_VARIABLE_MBS;
@@ -833,7 +834,8 @@ static void radeon_vcn_enc_hevc_get_slice_ctrl_param(struct radeon_encoder *enc,
    enc->enc_pic.hevc_slice_ctrl.fixed_ctbs_per_slice.num_ctbs_per_slice_segment =
       num_ctbs_in_slice;
 
-   if (ac_vcn_enc_variable_slice_mode_supported(&((struct si_screen *)enc->screen)->info) &&
+   if (ac_vcn_enc_variable_slice_mode_supported(&((struct si_screen *)enc->screen)->info,
+                                                enc->enc_pic.quality_modes.pre_encode_mode) &&
        pic->num_slice_descriptors <= RENCODE_MAX_NUM_SLICES)
    {
       enc->enc_pic.hevc_slice_ctrl.slice_control_mode = RENCODE_HEVC_SLICE_CONTROL_MODE_VARIABLE_CTBS;

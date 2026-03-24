@@ -779,6 +779,6 @@ typedef struct rvcn_enc_hevc_slice_info_var_s
 } rvcn_enc_hevc_slice_info_var_t;
 
 void ac_vcn_enc_init_cmds(rvcn_enc_cmd_t *cmd, enum vcn_version version);
-bool ac_vcn_enc_variable_slice_mode_supported(const struct radeon_info *info);
+bool ac_vcn_enc_variable_slice_mode_supported(const struct radeon_info *info, bool preencode);
 
 #endif
