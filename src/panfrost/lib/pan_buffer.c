@@ -49,17 +49,28 @@ GENX(pan_buffer_texture_emit)(const struct pan_buffer_view *bview,
    unsigned stride = util_format_get_blocksize(bview->format);
    uint32_t hw_fmt = GENX(pan_format_from_pipe_format)(bview->format)->hw;
 
+   /* The base address has shr(6) applied so we need to use the offset of the
+    * attribute to get the last 6 bits.
+    */
+   uint64_t base = bview->base & ~0x3f;
+   uint32_t offset = bview->base & 0x3f;
+
    pan_pack(out_buf, ATTRIBUTE_BUFFER, cfg) {
       cfg.type = MALI_ATTRIBUTE_TYPE_1D;
-      cfg.pointer = bview->base;
+      cfg.pointer = base;
       cfg.stride = stride;
-      cfg.size = bview->width_el * stride + bview->offset;
+      /* The ATTRIBUTE_BUFFER.size specifies the size of the buffer starting
+       * at ATTRIBUTE_BUFFER.pointer and and ATTRIBUTE.offset specifies an
+       * offset into that window. If we're going to use it to offset the base
+       * of the buffer, we need to increase the size as well.
+       */
+      cfg.size = bview->width_el * stride + offset;
    }
 
    pan_pack(out_attrib, ATTRIBUTE, cfg) {
       cfg.format = hw_fmt;
-      cfg.offset = bview->offset;
-      cfg.offset_enable = bview->offset != 0;
+      cfg.offset = offset;
+      cfg.offset_enable = offset != 0;
    }
 }
 

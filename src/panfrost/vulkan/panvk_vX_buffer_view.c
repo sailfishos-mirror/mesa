@@ -49,26 +49,14 @@ panvk_per_arch(CreateBufferView)(VkDevice _device,
       VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
 
    if (buffer->vk.usage & tex_usage_mask) {
-#if PAN_ARCH >= 9
       struct pan_buffer_view bview = {
          .format = pfmt,
          .width_el = view->vk.elements,
          .base = panvk_buffer_gpu_ptr(buffer, pCreateInfo->offset),
       };
-
+#if PAN_ARCH >= 9
       GENX(pan_buffer_texture_emit)(&bview, &view->descs.buf);
 #else
-      /* Bifrost requires the base address to be 64 byte aligned and passes the
-       * remaing offset through the Attribute Descriptor. */
-      uint64_t aligned_offset = pCreateInfo->offset & ~0x3f;
-      uint32_t remainder_offset = pCreateInfo->offset & 0x3f;
-      struct pan_buffer_view bview = {
-         .format = pfmt,
-         .width_el = view->vk.elements,
-         .base = panvk_buffer_gpu_ptr(buffer, aligned_offset),
-         .offset = remainder_offset,
-      };
-
       GENX(pan_buffer_texture_emit)(&bview, &view->descs.attrib_buf,
                                     &view->descs.attrib);
 #endif
