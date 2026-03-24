@@ -425,6 +425,9 @@ radv_enc_session_info(struct radv_cmd_buffer *cmd_buffer)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->video.vid->sessionctx.mem->bo);
 
    uint64_t va = radv_buffer_get_va(cmd_buffer->video.vid->sessionctx.mem->bo);
    va += cmd_buffer->video.vid->sessionctx.offset;
@@ -1584,6 +1587,7 @@ radv_enc_ctx(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *inf
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    struct radv_video_session *vid = cmd_buffer->video.vid;
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    struct radv_image_view *dpb_iv = NULL;
    struct radv_image *dpb = NULL;
    uint64_t va = 0;
@@ -1610,6 +1614,7 @@ radv_enc_ctx(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *inf
 
    uint32_t luma_size = 0, chroma_size = 0, colloc_bytes = 0;
    dpb_image_sizes(dpb, &luma_pitch, &luma_size, &chroma_size, &colloc_bytes);
+   radv_cs_add_buffer(device->ws, cs->b, dpb->bindings[0].bo);
    va = dpb->bindings[0].addr;
 
    uint32_t swizzle_mode = 0;
@@ -1728,6 +1733,7 @@ radv_enc_ctx2(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *in
    uint32_t luma_pitch = 0, luma_size = 0, chroma_size = 0, colloc_bytes = 0;
    int max_ref_slot_idx = 0;
    const VkVideoPictureResourceInfoKHR *slots[RENCODE_MAX_NUM_RECONSTRUCTED_PICTURES] = {NULL};
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    bool intra_only_dpb = false;
 
    if (info->pSetupReferenceSlot) {
@@ -1767,6 +1773,7 @@ radv_enc_ctx2(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *in
       struct radv_image_view *dpb_iv = radv_image_view_from_handle(res->imageViewBinding);
       assert(dpb_iv != NULL);
       struct radv_image *dpb_img = intra_only_dpb ? vid->intra_only_dpb : dpb_iv->image;
+      radv_cs_add_buffer(device->ws, cs->b, dpb_img->bindings[0].bo);
       dpb_image_sizes(dpb_img, &luma_pitch, &luma_size, &chroma_size, &colloc_bytes);
 
       uint32_t metadata_size = RENCODE_MAX_METADATA_BUFFER_SIZE_PER_FRAME;
@@ -1819,7 +1826,9 @@ radv_enc_bitstream(struct radv_cmd_buffer *cmd_buffer, struct radv_buffer *buffe
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint64_t va = vk_buffer_address(&buffer->vk, offset);
+   radv_cs_add_buffer(device->ws, cs->b, buffer->bo);
 
    RADEON_ENC_BEGIN(pdev->vcn_enc_cmds.bitstream);
    RADEON_ENC_CS(RENCODE_REC_SWIZZLE_MODE_LINEAR);
@@ -1905,6 +1914,7 @@ radv_enc_intra_refresh(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeIn
 static void
 radv_enc_qp_map_input(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoEncodeInfoKHR *enc_info)
 {
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct VkVideoEncodeQuantizationMapInfoKHR *quantization_map_info =
       vk_find_struct_const(enc_info->pNext, VIDEO_ENCODE_QUANTIZATION_MAP_INFO_KHR);
    const struct radv_image_view *qp_map_view =
@@ -1916,9 +1926,11 @@ radv_enc_qp_map_input(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoEn
       return;
 
    const uint64_t va_in = qp_map->bindings[0].addr;
+   radv_cs_add_buffer(device->ws, cs->b, qp_map->bindings[0].bo);
 
    const uint64_t va_out =
       radv_buffer_get_va(cmd_buffer->video.vid->qp_map.mem->bo) + cmd_buffer->video.vid->qp_map.offset;
+   radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, cmd_buffer->video.vid->qp_map.mem->bo);
 
    radv_vcn_sq_header(cs, &cmd_buffer->video.sq, RADEON_VCN_ENGINE_TYPE_COMMON);
 
@@ -1969,6 +1981,7 @@ radv_enc_qp_map(struct radv_cmd_buffer *cmd_buffer, const struct VkVideoEncodeIn
          uint32_t rc_method = radv_enc_rate_control_method(cmd_buffer->video.enc.rate_control_mode);
          const uint32_t qp_map_type =
             rc_method == RENCODE_RATE_CONTROL_METHOD_NONE ? RENCODE_QP_MAP_TYPE_DELTA : RENCODE_QP_MAP_TYPE_MAP_PA;
+         radv_cs_add_buffer(device->ws, cmd_buffer->cs->b, qp_map->bindings[0].bo);
          const uint64_t va = qp_map->bindings[0].addr;
          RADEON_ENC_CS(qp_map_type);
          RADEON_ENC_CS(va >> 32);
@@ -2061,6 +2074,7 @@ radv_enc_params(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *
    struct radv_image *src_img = src_iv->image;
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint32_t array_idx = enc_info->srcPictureResource.baseArrayLayer + src_iv->vk.base_array_layer;
    uint64_t va = src_img->bindings[0].addr;
    uint64_t luma_va = va + src_img->planes[0].surface.u.gfx9.surf_offset +
@@ -2072,6 +2086,7 @@ radv_enc_params(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *
    unsigned int slot_idx = 0xffffffff;
    unsigned int max_layers = cmd_buffer->video.enc.rate_control_num_layers;
 
+   radv_cs_add_buffer(device->ws, cs->b, src_img->bindings[0].bo);
    if (h264_pic) {
       switch (h264_pic->primary_pic_type) {
       case STD_VIDEO_H264_PICTURE_TYPE_P:
@@ -2543,12 +2558,14 @@ radv_enc_headers_hevc(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInf
 static void
 radv_enc_cdf_default_table(struct radv_cmd_buffer *cmd_buffer, const VkVideoEncodeInfoKHR *enc_info)
 {
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const struct radv_physical_device *pdev = radv_device_physical(device);
    const struct VkVideoEncodeAV1PictureInfoKHR *av1_picture_info =
       vk_find_struct_const(enc_info->pNext, VIDEO_ENCODE_AV1_PICTURE_INFO_KHR);
    const StdVideoEncodeAV1PictureInfo *av1_pic = av1_picture_info->pStdPictureInfo;
 
+   radv_cs_add_buffer(device->ws, cs->b, cmd_buffer->video.vid->default_cdf.mem->bo);
    uint64_t va = radv_buffer_get_va(cmd_buffer->video.vid->default_cdf.mem->bo);
    va += cmd_buffer->video.vid->default_cdf.offset;
    uint32_t use_cdf_default = (av1_pic->frame_type == STD_VIDEO_AV1_FRAME_TYPE_KEY ||

@@ -378,6 +378,7 @@ radv_compute_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
    const struct radv_physical_device *pdev = radv_device_physical(device);
    VkImageLayout dst_image_layout = pCopyMemoryToImageIndirectInfo->dstImageLayout;
    const uint32_t copy_count = pCopyMemoryToImageIndirectInfo->copyCount;
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    uint32_t texel_scale = 1;
    VkPipelineLayout layout;
    uint32_t alloc_offset;
@@ -408,6 +409,7 @@ radv_compute_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
    for (uint32_t i = 0; i < copy_count; i++) {
       const VkImageSubresourceLayers *imageSubresource = &pCopyMemoryToImageIndirectInfo->pImageSubresources[i];
       const VkImageAspectFlags aspect_mask = imageSubresource->aspectMask;
+      const unsigned bind_idx = dst_image->disjoint ? radv_plane_from_aspect(aspect_mask) : 0;
       struct radv_image_view dst_iview;
 
       /* The Vulkan spec 1.4.343 says:
@@ -432,6 +434,8 @@ radv_compute_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
       }
 
       radv_meta_bind_compute_pipeline(cmd_buffer, pipeline);
+
+      radv_cs_add_buffer(device->ws, cs->b, dst_image->bindings[bind_idx].bo);
 
       struct radv_meta_blit2d_surf img_bsurf = radv_blit_surf_for_image_level_layer(
          dst_image, pCopyMemoryToImageIndirectInfo->dstImageLayout, imageSubresource);

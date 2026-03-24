@@ -213,10 +213,13 @@ radv_gfx_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
    const struct radv_physical_device *pdev = radv_device_physical(device);
    VkImageLayout dst_image_layout = pCopyMemoryToImageIndirectInfo->dstImageLayout;
    const uint32_t copy_count = pCopyMemoryToImageIndirectInfo->copyCount;
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    VkResult result;
 
    for (uint32_t i = 0; i < copy_count; i++) {
       const VkImageSubresourceLayers *imageSubresource = &pCopyMemoryToImageIndirectInfo->pImageSubresources[i];
+      const VkImageAspectFlags aspect_mask = imageSubresource->aspectMask;
+      const unsigned bind_idx = dst_image->disjoint ? radv_plane_from_aspect(aspect_mask) : 0;
       struct radv_image_view dst_iview;
       VkPipelineLayout layout;
       VkPipeline pipeline;
@@ -224,6 +227,8 @@ radv_gfx_copy_memory_to_image_indirect(struct radv_cmd_buffer *cmd_buffer,
       const VkExtent3D extent = vk_image_mip_level_extent(&dst_image->vk, imageSubresource->mipLevel);
       const VkExtent3D img_extent_el =
          vk_image_extent_to_elements(&dst_image->vk, (VkExtent3D){extent.width, extent.height, extent.depth});
+
+      radv_cs_add_buffer(device->ws, cs->b, dst_image->bindings[bind_idx].bo);
 
       struct radv_meta_blit2d_surf img_bsurf = radv_blit_surf_for_image_level_layer(
          dst_image, pCopyMemoryToImageIndirectInfo->dstImageLayout, imageSubresource);

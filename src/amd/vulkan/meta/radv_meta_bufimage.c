@@ -771,6 +771,7 @@ radv_meta_clear_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct radv_m
                                const VkClearColorValue *clear_color)
 {
    struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
    VkPipelineLayout layout;
    VkPipeline pipeline;
    unsigned stride;
@@ -781,6 +782,8 @@ radv_meta_clear_image_cs_96bit(struct radv_cmd_buffer *cmd_buffer, struct radv_m
       vk_command_buffer_set_error(&cmd_buffer->vk, result);
       return;
    }
+
+   radv_cs_add_buffer(device->ws, cs->b, dst->image->bindings[0].bo);
 
    radv_meta_bind_descriptors(cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, layout, 1,
                               (VkDescriptorGetInfoEXT[]){{

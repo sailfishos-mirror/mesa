@@ -287,9 +287,13 @@ uint32_t
 radv_fill_image(struct radv_cmd_buffer *cmd_buffer, const struct radv_image *image, uint64_t offset, uint64_t size,
                 uint32_t value)
 {
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const uint64_t va = image->bindings[0].addr + offset;
    struct radeon_winsys_bo *bo = image->bindings[0].bo;
    const enum radv_copy_flags copy_flags = radv_get_copy_flags_from_bo(bo);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   radv_cs_add_buffer(device->ws, cs->b, bo);
 
    return radv_fill_memory_internal(cmd_buffer, image, va, size, value, copy_flags);
 }
@@ -298,7 +302,11 @@ uint32_t
 radv_fill_buffer(struct radv_cmd_buffer *cmd_buffer, struct radeon_winsys_bo *bo, uint64_t va, uint64_t size,
                  uint32_t value)
 {
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const enum radv_copy_flags copy_flags = radv_get_copy_flags_from_bo(bo);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
+
+   radv_cs_add_buffer(device->ws, cs->b, bo);
 
    return radv_fill_memory(cmd_buffer, va, size, value, copy_flags);
 }
@@ -347,6 +355,8 @@ radv_CmdCopyBuffer2(VkCommandBuffer commandBuffer, const VkCopyBufferInfo2 *pCop
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(radv_buffer, src_buffer, pCopyBufferInfo->srcBuffer);
    VK_FROM_HANDLE(radv_buffer, dst_buffer, pCopyBufferInfo->dstBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    const enum radv_copy_flags src_copy_flags = radv_get_copy_flags_from_bo(src_buffer->bo);
    const enum radv_copy_flags dst_copy_flags = radv_get_copy_flags_from_bo(dst_buffer->bo);
@@ -354,6 +364,9 @@ radv_CmdCopyBuffer2(VkCommandBuffer commandBuffer, const VkCopyBufferInfo2 *pCop
    radv_suspend_conditional_rendering(cmd_buffer);
 
    radv_meta_begin(cmd_buffer);
+
+   radv_cs_add_buffer(device->ws, cs->b, src_buffer->bo);
+   radv_cs_add_buffer(device->ws, cs->b, dst_buffer->bo);
 
    for (unsigned r = 0; r < pCopyBufferInfo->regionCount; r++) {
       const VkBufferCopy2 *region = &pCopyBufferInfo->pRegions[r];
@@ -417,13 +430,17 @@ radv_CmdUpdateBuffer(VkCommandBuffer commandBuffer, VkBuffer dstBuffer, VkDevice
 {
    VK_FROM_HANDLE(radv_cmd_buffer, cmd_buffer, commandBuffer);
    VK_FROM_HANDLE(radv_buffer, dst_buffer, dstBuffer);
+   struct radv_device *device = radv_cmd_buffer_device(cmd_buffer);
    const uint64_t dst_va = vk_buffer_address(&dst_buffer->vk, dstOffset);
+   struct radv_cmd_stream *cs = cmd_buffer->cs;
 
    const enum radv_copy_flags dst_copy_flags = radv_get_copy_flags_from_bo(dst_buffer->bo);
 
    radv_suspend_conditional_rendering(cmd_buffer);
 
    radv_meta_begin(cmd_buffer);
+
+   radv_cs_add_buffer(device->ws, cs->b, dst_buffer->bo);
 
    radv_update_memory(cmd_buffer, dst_va, dataSize, pData, dst_copy_flags);
 
