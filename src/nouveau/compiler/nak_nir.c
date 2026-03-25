@@ -830,12 +830,13 @@ nak_nir_lower_printf_intrin(nir_builder *b, nir_intrinsic_instr *intrin,
                             void *data)
 {
    const struct nak_compiler* nak = data;
+   const bool is_graphics = b->shader->info.stage != MESA_SHADER_COMPUTE;
    b->cursor = nir_before_instr(&intrin->instr);
    if (intrin->intrinsic == nir_intrinsic_load_printf_buffer_address) {
       nir_def *buffer_addr = nir_ldc_nv(
          b, 1, 64,
          nir_imm_int(b, 0),
-         nir_imm_int(b, nak_const_offsets(nak)->printf_buffer_offset));
+         nir_imm_int(b, nak_const_offsets(nak, is_graphics)->printf_buffer_offset));
       nir_def_replace(&intrin->def, buffer_addr);
       return true;
    } else if (intrin->intrinsic == nir_intrinsic_load_printf_buffer_size) {

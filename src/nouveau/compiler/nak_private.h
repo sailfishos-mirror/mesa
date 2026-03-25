@@ -344,7 +344,7 @@ enum nak_fs_out {
 #define NAK_FS_OUT_COLOR(n) (NAK_FS_OUT_COLOR0 + (n) * 16)
 
 static inline const struct nak_constant_offset_info*
-nak_const_offsets(const struct nak_compiler* nak)
+nak_const_offsets(const struct nak_compiler* nak, bool is_graphics)
 {
    return &nak_const_offsets_base;
 }

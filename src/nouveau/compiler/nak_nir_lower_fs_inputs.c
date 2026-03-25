@@ -99,10 +99,11 @@ static nir_def *
 load_sample_pos_u4_at(nir_builder *b, nir_def *sample_id,
                       const struct nak_compiler* nak)
 {
+   const struct nak_constant_offset_info *info = nak_const_offsets(nak, true);
    nir_def *loc = nir_ldc_nv(b, 1, 8,
-                             nir_imm_int(b, nak_const_offsets(nak)->sample_info_cb),
+                             nir_imm_int(b, info->sample_info_cb),
                              nir_iadd_imm(b, sample_id,
-                                nak_const_offsets(nak)->sample_locations_offset),
+                                          info->sample_locations_offset),
                              .align_mul = 1, .align_offset = 0);
 
    /* The rest of these calculations are in 32-bit */
@@ -116,13 +117,13 @@ static nir_def *
 load_pass_sample_mask_at(nir_builder *b, nir_def *sample_id,
                          const struct nak_compiler* nak)
 {
+   const struct nak_constant_offset_info *info = nak_const_offsets(nak, true);
    nir_def *offset =
       nir_imul_imm(b, sample_id, sizeof(struct nak_sample_mask));
-   offset = nir_iadd_imm(b, offset,
-                         nak_const_offsets(nak)->sample_masks_offset);
+   offset = nir_iadd_imm(b, offset, info->sample_masks_offset);
 
    return nir_ldc_nv(b, 1, 8 * sizeof(struct nak_sample_mask),
-                     nir_imm_int(b, nak_const_offsets(nak)->sample_info_cb),
+                     nir_imm_int(b, info->sample_info_cb),
                      offset,
                      .align_mul = sizeof(struct nak_sample_mask),
                      .align_offset = 0);
