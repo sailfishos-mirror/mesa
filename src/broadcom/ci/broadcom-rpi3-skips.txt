@@ -9,9 +9,6 @@ dEQP-GLES2.functional.fragment_ops.scissor.outside_render_line
 # simultaneously.
 spec@arb_map_buffer_alignment.*
 
-# Bisected to b3133e250e1 ("gallium: add pipe_context::resource_release to eliminate buffer refcounting")
-spec@!opengl 1.1@longprim
-
 # VK tests have been disabled in 32-bit piglit builds, but it doesn't
 # matter because we never could run them anyway.
 # Piglit still complains that the tests are `Missing` though, so
