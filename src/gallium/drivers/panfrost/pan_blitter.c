@@ -11,24 +11,12 @@
 #include "pan_trace.h"
 #include "pan_util.h"
 
-enum panfrost_blitter_op /* bitmask */
-{
-   PAN_SAVE_TEXTURES = 1,
-   PAN_SAVE_FRAMEBUFFER = 2,
-   PAN_SAVE_FRAGMENT_STATE = 4,
-   PAN_SAVE_FRAGMENT_CONSTANT = 8,
-   PAN_DISABLE_RENDER_COND = 16,
-};
-
-enum {
-   PAN_RENDER_BLIT =
-      PAN_SAVE_TEXTURES | PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE,
-   PAN_RENDER_BLIT_COND = PAN_SAVE_TEXTURES | PAN_SAVE_FRAMEBUFFER |
-                          PAN_SAVE_FRAGMENT_STATE | PAN_DISABLE_RENDER_COND,
-   PAN_RENDER_BASE = PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE,
-   PAN_RENDER_COND =
-      PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE | PAN_DISABLE_RENDER_COND,
-   PAN_RENDER_CLEAR = PAN_SAVE_FRAGMENT_STATE | PAN_SAVE_FRAGMENT_CONSTANT,
+enum pan_save_state {
+   PAN_SAVE_TEXTURES = BITFIELD_BIT(0),
+   PAN_SAVE_FRAMEBUFFER = BITFIELD_BIT(1),
+   PAN_SAVE_FRAGMENT_STATE = BITFIELD_BIT(2),
+   PAN_SAVE_FRAGMENT_CONSTANT = BITFIELD_BIT(3),
+   PAN_SAVE_RENDER_COND = BITFIELD_BIT(4),
 };
 
 static void
@@ -104,7 +92,7 @@ panfrost_blitter_create(struct pipe_context *pipe)
 
 static void
 panfrost_blitter_save(struct panfrost_context *ctx,
-                      const enum panfrost_blitter_op blitter_op)
+                      const enum pan_save_state states)
 {
    struct blitter_context *blitter = ctx->blitter;
 
@@ -117,8 +105,8 @@ panfrost_blitter_save(struct panfrost_context *ctx,
    util_blitter_save_viewport(blitter, &ctx->pipe_viewport);
    util_blitter_save_so_targets(blitter, 0, NULL, 0);
 
-   if (blitter_op & PAN_SAVE_FRAGMENT_STATE) {
-      if (blitter_op & PAN_SAVE_FRAGMENT_CONSTANT)
+   if (states & PAN_SAVE_FRAGMENT_STATE) {
+      if (states & PAN_SAVE_FRAGMENT_CONSTANT)
          util_blitter_save_fragment_constant_buffer_slot(
             blitter, ctx->constant_buffer[MESA_SHADER_FRAGMENT].cb);
 
@@ -132,10 +120,10 @@ panfrost_blitter_save(struct panfrost_context *ctx,
       util_blitter_save_scissor(blitter, &ctx->scissor);
    }
 
-   if (blitter_op & PAN_SAVE_FRAMEBUFFER)
+   if (states & PAN_SAVE_FRAMEBUFFER)
       util_blitter_save_framebuffer(blitter, &ctx->pipe_framebuffer);
 
-   if (blitter_op & PAN_SAVE_TEXTURES) {
+   if (states & PAN_SAVE_TEXTURES) {
       util_blitter_save_fragment_sampler_states(
          blitter, ctx->sampler_count[MESA_SHADER_FRAGMENT],
          (void **)(&ctx->samplers[MESA_SHADER_FRAGMENT]));
@@ -144,7 +132,7 @@ panfrost_blitter_save(struct panfrost_context *ctx,
          (struct pipe_sampler_view **)&ctx->sampler_views[MESA_SHADER_FRAGMENT]);
    }
 
-   if (!(blitter_op & PAN_DISABLE_RENDER_COND)) {
+   if (states & PAN_SAVE_RENDER_COND) {
       util_blitter_save_render_condition(blitter,
                                          (struct pipe_query *)ctx->cond_query,
                                          ctx->cond_cond, ctx->cond_mode);
@@ -158,13 +146,14 @@ panfrost_blitter_blit_legalized(struct pipe_context *pipe,
    PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
    struct panfrost_context *ctx = pan_context(pipe);
+   const enum pan_save_state states =
+      PAN_SAVE_TEXTURES | PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE |
+      PAN_SAVE_RENDER_COND;
 
    if (info->render_condition_enable && !panfrost_render_condition_check(ctx))
       return;
 
-   panfrost_blitter_save(ctx, info->render_condition_enable
-                                 ? PAN_RENDER_BLIT_COND
-                                 : PAN_RENDER_BLIT);
+   panfrost_blitter_save(ctx, states);
    util_blitter_blit(ctx->blitter, info, NULL);
 }
 
@@ -205,13 +194,16 @@ panfrost_blitter_clear(struct pipe_context *pipe, unsigned buffers,
 {
    PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
-   if (!panfrost_render_condition_check(pan_context(pipe)))
+   struct panfrost_context *ctx = pan_context(pipe);
+   const enum pan_save_state states =
+      PAN_SAVE_FRAGMENT_STATE | PAN_SAVE_FRAGMENT_CONSTANT;
+
+   if (!panfrost_render_condition_check(ctx))
       return;
 
    /* Only get batch after checking the render condition, since the check can
     * cause the batch to be flushed.
     */
-   struct panfrost_context *ctx = pan_context(pipe);
    struct panfrost_batch *batch = panfrost_get_batch_for_fbo(ctx);
    if (!batch)
       return;
@@ -223,7 +215,7 @@ panfrost_blitter_clear(struct pipe_context *pipe, unsigned buffers,
    }
 
    /* Once there is content, clear with a fullscreen quad */
-   panfrost_blitter_save(ctx, PAN_RENDER_CLEAR);
+   panfrost_blitter_save(ctx, states);
 
    /* Framebuffer legalization is done at batch initialization. */
    perf_debug(ctx, "Clearing with quad");
@@ -246,14 +238,15 @@ panfrost_blitter_clear_depth_stencil(struct pipe_context *pipe,
    PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
    struct panfrost_context *ctx = pan_context(pipe);
+   const enum pan_save_state states =
+      PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE | PAN_SAVE_RENDER_COND;
 
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
       return;
 
    pan_legalize_format(ctx, pan_resource(dst->texture),
                        util_format_linear(dst->format), true, false);
-   panfrost_blitter_save(
-      ctx, render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE);
+   panfrost_blitter_save(ctx, states);
    util_blitter_clear_depth_stencil(ctx->blitter, dst, clear_flags, depth,
                                     stencil, dstx, dsty, width, height);
 }
@@ -269,14 +262,16 @@ panfrost_blitter_clear_render_target(struct pipe_context *pipe,
    PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
    struct panfrost_context *ctx = pan_context(pipe);
+   const enum pan_save_state states =
+      PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE |
+      PAN_SAVE_FRAGMENT_CONSTANT | PAN_SAVE_RENDER_COND;
 
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
       return;
 
    pan_legalize_format(ctx, pan_resource(dst->texture),
                        util_format_linear(dst->format), true, false);
-   panfrost_blitter_save(
-      ctx, (render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE) | PAN_SAVE_FRAGMENT_CONSTANT);
+   panfrost_blitter_save(ctx, states);
    util_blitter_clear_render_target(ctx->blitter, dst, color, dstx, dsty,
                                     width, height);
 }
