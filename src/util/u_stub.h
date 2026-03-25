@@ -14,18 +14,23 @@
  *
  */
 
-#undef PROC
+#undef MESAPROC
 #undef TAIL
+#undef TAILZ
 #undef TAILV
 #undef TAILB
 #undef TAILBT
 #undef TAILPTR
 
 #ifdef __U_STUB__
-#define PROC static inline
+#define MESAPROC static inline
 #define TAIL                                                                                       \
    {                                                                                               \
       return -1;                                                                                   \
+   }
+#define TAILZ                                                                                      \
+   {                                                                                               \
+      return 0;                                                                                     \
    }
 #define TAILV                                                                                      \
    {                                                                                               \
@@ -43,8 +48,9 @@
       return true;                                                                                 \
    }
 #else
-#define PROC
+#define MESAPROC
 #define TAIL
+#define TAILZ
 #define TAILV
 #define TAILB
 #define TAILBT
