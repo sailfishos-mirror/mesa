@@ -51,6 +51,11 @@ VkResult vk_android_get_anb_layout(
    VkImageDrmFormatModifierExplicitCreateInfoEXT *out,
    VkSubresourceLayout *out_layouts, int max_planes);
 
+VkResult vk_android_init_deferred_image(struct vk_device *device,
+                                        struct vk_image *image,
+                                        const VkImageCreateInfo *pCreateInfo,
+                                        const VkAllocationCallbacks *pAllocator);
+
 #else
 
 static inline struct u_gralloc *
@@ -73,6 +78,15 @@ vk_android_get_anb_layout(
    const VkImageCreateInfo *pCreateInfo,
    VkImageDrmFormatModifierExplicitCreateInfoEXT *out,
    VkSubresourceLayout *out_layouts, int max_planes)
+{
+   return VK_ERROR_FEATURE_NOT_PRESENT;
+}
+
+static inline VkResult
+vk_android_init_deferred_image(struct vk_device *device,
+                               struct vk_image *image,
+                               const VkImageCreateInfo *pCreateInfo,
+                               const VkAllocationCallbacks *pAllocator)
 {
    return VK_ERROR_FEATURE_NOT_PRESENT;
 }
