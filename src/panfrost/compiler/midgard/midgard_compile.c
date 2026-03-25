@@ -388,13 +388,6 @@ midgard_postprocess_nir(nir_shader *nir, UNUSED unsigned gpu_id)
    if (nir->info.stage == MESA_SHADER_VERTEX) {
       NIR_PASS(_, nir, nir_lower_viewport_transform);
       NIR_PASS(_, nir, nir_lower_point_size, 1.0, 0.0);
-
-      /* nir_lower[_explicit]_io is lazy and emits mul+add chains even
-       * for offsets it could figure out are constant.  Do some
-       * constant folding before pan_nir_lower_store_component below.
-       */
-      NIR_PASS(_, nir, nir_opt_constant_folding);
-      NIR_PASS(_, nir, pan_nir_lower_store_component);
    }
 
    /* Could be eventually useful for Vulkan, but we don't expect it to have
@@ -2987,6 +2980,12 @@ midgard_compile_shader_nir(nir_shader *nir,
                                   inputs->trust_varying_flat_highp_types, false);
       info->varyings.noperspective =
          pan_nir_collect_noperspective_varyings_fs(nir);
+   }
+
+   if (nir->info.stage == MESA_SHADER_VERTEX) {
+      NIR_PASS(_, nir, pan_nir_lower_vs_outputs, inputs->gpu_id,
+               inputs->varying_layout, false /* has_idvs */,
+               false /* has_extended_fifo */);
    }
 
    /* Optimisation passes */

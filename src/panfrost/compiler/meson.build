@@ -15,7 +15,6 @@ libpanfrost_compiler_files = files(
   'pan_nir_lower_image_ms.c',
   'pan_nir_lower_noperspective.c',
   'pan_nir_lower_sample_position.c',
-  'pan_nir_lower_store_component.c',
   'pan_nir_lower_texel_buffer_index.c',
   'pan_nir_lower_vertex_id.c',
   'pan_nir_lower_vs_outputs.c',
@@ -29,8 +28,8 @@ subdir('midgard')
 libpanfrost_compiler = static_library(
   'panfrost_compiler',
   [libpanfrost_compiler_files],
-  include_directories : [inc_include, inc_src],
-  dependencies: [idep_nir, idep_mesautil],
+  include_directories : [inc_include, inc_src, inc_valhall],
+  dependencies: [idep_nir, idep_mesautil, idep_valhall_enums_h, idep_bi_opcodes_h],
   link_with: [libpanfrost_midgard, libpanfrost_bifrost],
   c_args : [no_override_init_args],
   gnu_symbol_visibility : 'hidden',

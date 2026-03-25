@@ -47,8 +47,6 @@ pan_nir_tile_default_coverage(nir_builder *b)
 
 bool pan_nir_lower_bool_to_bitsize(nir_shader *shader);
 
-bool pan_nir_lower_store_component(nir_shader *shader);
-
 bool pan_nir_lower_vertex_id(nir_shader *shader);
 
 bool pan_nir_lower_image_ms(nir_shader *shader);

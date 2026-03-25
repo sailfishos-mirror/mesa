@@ -1015,34 +1015,6 @@ bi_is_zs(unsigned location)
    return location == FRAG_RESULT_DEPTH || location == FRAG_RESULT_STENCIL;
 }
 
-static bool
-bifrost_nir_lower_shader_output_impl(struct nir_builder *b,
-                                     nir_intrinsic_instr *intr, void *data)
-{
-   if (intr->intrinsic != nir_intrinsic_store_output &&
-       intr->intrinsic != nir_intrinsic_store_per_view_output)
-      return false;
-
-   nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
-   unsigned mask = va_shader_output_from_loc(sem.location);
-
-   b->cursor = nir_instr_remove(&intr->instr);
-   nir_def *shader_output = nir_load_shader_output_pan(b);
-
-   nir_push_if(b, nir_i2b(b, nir_iand_imm(b, shader_output, mask)));
-   nir_builder_instr_insert(b, &intr->instr);
-   nir_pop_if(b, NULL);
-   return true;
-}
-
-static bool
-bifrost_nir_lower_shader_output(nir_shader *shader)
-{
-   return nir_shader_intrinsics_pass(shader,
-                                     bifrost_nir_lower_shader_output_impl,
-                                     nir_metadata_none, NULL);
-}
-
 /* Atomics and memory write on the vertex stage have implementation-defined
  * behaviors on how many invocations will happen. However for some reasons,
  * atomic counters on GL/GLES specs are quite ambigous here and even have tests
@@ -6133,13 +6105,6 @@ bifrost_postprocess_nir(nir_shader *nir, unsigned gpu_id)
       NIR_PASS(_, nir, nir_lower_viewport_transform);
       NIR_PASS(_, nir, nir_lower_point_size, 1.0, 0.0);
       NIR_PASS(_, nir, pan_nir_lower_noperspective_vs);
-
-      /* nir_lower[_explicit]_io is lazy and emits mul+add chains even
-       * for offsets it could figure out are constant.  Do some
-       * constant folding before pan_nir_lower_store_component below.
-       */
-      NIR_PASS(_, nir, nir_opt_constant_folding);
-      NIR_PASS(_, nir, pan_nir_lower_store_component);
    }
 
    nir_lower_mem_access_bit_sizes_options mem_size_options = {
@@ -6852,26 +6817,6 @@ bifrost_compile_shader_nir(nir_shader *nir,
 
       if (info->vs.idvs && nir->info.writes_memory)
          NIR_PASS(_, nir, bifrost_nir_lower_vs_atomics);
-
-      if (info->vs.idvs) {
-         bool shader_output_pass = false;
-         NIR_PASS(shader_output_pass, nir, bifrost_nir_lower_shader_output);
-
-         /* If shader output lower made progress, ensure to merge adjacent if that were added */
-         if (shader_output_pass) {
-            /* First we clean up and deduplicate added condition logic */
-            NIR_PASS(_, nir, nir_opt_copy_prop);
-            NIR_PASS(_, nir, nir_opt_dce);
-            NIR_PASS(_, nir, nir_opt_cse);
-
-            /* We then move vec closer to their I/O stores to ensure nothing is between ifs */
-            NIR_PASS(_, nir, nir_opt_sink, nir_move_copies);
-            NIR_PASS(_, nir, nir_opt_move, nir_move_copies);
-
-            /* Finally run if optimization to ensure trivial if blocks are merged together */
-            NIR_PASS(_, nir, nir_opt_if, 0);
-         }
-      }
 
       bool has_extended_fifo = false;
       if (pan_arch(inputs->gpu_id) >= 9) {
