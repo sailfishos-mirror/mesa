@@ -159,6 +159,9 @@ panfrost_blitter_blit_legalized(struct pipe_context *pipe,
 
    struct panfrost_context *ctx = pan_context(pipe);
 
+   if (info->render_condition_enable && !panfrost_render_condition_check(ctx))
+      return;
+
    panfrost_blitter_save(ctx, info->render_condition_enable
                                  ? PAN_RENDER_BLIT_COND
                                  : PAN_RENDER_BLIT);
@@ -173,9 +176,14 @@ panfrost_blitter_blit(struct pipe_context *pipe,
 
    struct panfrost_context *ctx = pan_context(pipe);
 
-   if (info->render_condition_enable && !panfrost_render_condition_check(ctx))
-      return;
-
+   /* Direct calls from the driver to panfrost_blitter_blit_legalized() are
+    * expected to be supported so this check is only done for external blits.
+    *
+    * XXX This check fails when the dest format is PIPE_FORMAT_S8_UINT because
+    * of a workaround for this format in panfrost_is_format_supported(). It
+    * can be triggered when the check is moved to the legalized blit func with
+    * dEQP-GLES3.functional.texture.specification.texstorage2d.format.depth32f_stencil8_2d.
+    */
    if (!util_blitter_is_blit_supported(ctx->blitter, info))
       UNREACHABLE("Unsupported blit\n");
 
