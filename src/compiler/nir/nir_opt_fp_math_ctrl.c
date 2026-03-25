@@ -120,6 +120,7 @@ opt_alu_fp_math_ctrl(nir_alu_instr *alu, struct opt_fp_ctrl_state *state)
       case nir_op_fcos:
       case nir_op_fcos_amd:
       case nir_op_fmulz:
+      case nir_op_ffract:
          break;
       case nir_op_fmin: {
          bool had_neg_zero = false;
