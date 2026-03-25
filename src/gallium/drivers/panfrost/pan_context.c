@@ -32,6 +32,7 @@
 #include "compiler/pan_compiler.h"
 #include "compiler/nir/nir_serialize.h"
 #include "decode.h"
+#include "pan_blitter.h"
 #include "pan_device.h"
 #include "pan_fence.h"
 #include "pan_screen.h"

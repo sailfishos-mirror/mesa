@@ -28,6 +28,7 @@
 #include "decode.h"
 #include "pan_afbc.h"
 #include "pan_afrc.h"
+#include "pan_blitter.h"
 #include "pan_bo.h"
 #include "pan_context.h"
 #include "pan_resource.h"
@@ -1363,7 +1364,7 @@ pan_blit_from_staging(struct pipe_context *pctx,
    blit.mask = util_format_get_mask(blit.src.format);
    blit.filter = PIPE_TEX_FILTER_NEAREST;
 
-   panfrost_blit_no_afbc_legalization(pctx, &blit);
+   panfrost_blitter_blit_no_afbc_legalization(pctx, &blit);
 }
 
 static void
@@ -1383,7 +1384,7 @@ pan_blit_to_staging(struct pipe_context *pctx, struct panfrost_transfer *trans)
    blit.mask = util_format_get_mask(blit.dst.format);
    blit.filter = PIPE_TEX_FILTER_NEAREST;
 
-   panfrost_blit_no_afbc_legalization(pctx, &blit);
+   panfrost_blitter_blit_no_afbc_legalization(pctx, &blit);
 }
 
 static void
@@ -1481,7 +1482,7 @@ pan_dump_resource(struct panfrost_context *ctx, struct panfrost_resource *rsc)
       blit.mask = util_format_get_mask(blit.dst.format);
       blit.filter = PIPE_TEX_FILTER_NEAREST;
 
-      panfrost_blit(pctx, &blit);
+      panfrost_blitter_blit(pctx, &blit);
 
       linear = pan_resource(plinear);
    }
@@ -1872,7 +1873,7 @@ pan_resource_modifier_convert(struct panfrost_context *ctx,
             if (drm_is_mtk_tiled(rsrc->modifier))
                screen->vtbl.mtk_detile(ctx, &blit);
             else
-               panfrost_blit_no_afbc_legalization(&ctx->base, &blit);
+               panfrost_blitter_blit_no_afbc_legalization(&ctx->base, &blit);
          }
       }
 
@@ -2602,7 +2603,7 @@ panfrost_resource_context_init(struct pipe_context *pctx)
    pctx->texture_map = u_transfer_helper_transfer_map;
    pctx->texture_unmap = u_transfer_helper_transfer_unmap;
    pctx->resource_copy_region = util_resource_copy_region;
-   pctx->blit = panfrost_blit;
+   pctx->blit = panfrost_blitter_blit;
    pctx->generate_mipmap = panfrost_generate_mipmap;
    pctx->flush_resource = panfrost_flush_resource;
    pctx->invalidate_resource = panfrost_invalidate_resource;

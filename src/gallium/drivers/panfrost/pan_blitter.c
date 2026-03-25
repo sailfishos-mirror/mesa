@@ -5,6 +5,7 @@
  */
 
 #include "util/format/u_format.h"
+#include "pan_blitter.h"
 #include "pan_context.h"
 #include "pan_resource.h"
 #include "pan_trace.h"
@@ -131,8 +132,8 @@ panfrost_blitter_save(struct panfrost_context *ctx,
 }
 
 void
-panfrost_blit_no_afbc_legalization(struct pipe_context *pipe,
-                                   const struct pipe_blit_info *info)
+panfrost_blitter_blit_no_afbc_legalization(struct pipe_context *pipe,
+                                           const struct pipe_blit_info *info)
 {
    PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
@@ -145,7 +146,8 @@ panfrost_blit_no_afbc_legalization(struct pipe_context *pipe,
 }
 
 void
-panfrost_blit(struct pipe_context *pipe, const struct pipe_blit_info *info)
+panfrost_blitter_blit(struct pipe_context *pipe,
+                      const struct pipe_blit_info *info)
 {
    PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
@@ -167,6 +169,6 @@ panfrost_blit(struct pipe_context *pipe, const struct pipe_blit_info *info)
    pan_legalize_format(ctx, dst, dst_view_format, true, false);
 
    panfrost_flush_all_batches(ctx, "Blit");
-   panfrost_blit_no_afbc_legalization(pipe, info);
+   panfrost_blitter_blit_no_afbc_legalization(pipe, info);
    panfrost_flush_all_batches(ctx, "Blit");
 }
