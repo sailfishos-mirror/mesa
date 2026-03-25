@@ -225,6 +225,30 @@ ethosu_ml_device_create_accel(struct pipe_screen *pscreen)
 }
 
 static void
+set_device_arch(struct ethosu_ml_device *device, bool is_u65)
+{
+   device->is_u65 = is_u65;
+
+   if (is_u65) {
+      device->ifm_ublock.width = 2;
+      device->ifm_ublock.height = 2;
+      device->ifm_ublock.depth = 8;
+      device->ofm_ublock.width = 2;
+      device->ofm_ublock.height = 2;
+      device->ofm_ublock.depth = 8;
+      device->max_concurrent_blocks = 3;
+   } else {
+      device->ifm_ublock.width = 4;
+      device->ifm_ublock.height = 4;
+      device->ifm_ublock.depth = 16;
+      device->ofm_ublock.width = 4;
+      device->ofm_ublock.height = 1;
+      device->ofm_ublock.depth = 8;
+      device->max_concurrent_blocks = 7;
+   }
+}
+
+static void
 set_device_callbacks(struct ethosu_ml_device *device)
 {
    device->base.ml_operation_supported = ethosu_ml_operation_supported;
@@ -256,33 +280,11 @@ ethosu_screen_create(int fd,
    if (DBG_ENABLED(ETHOSU_DBG_FORCE_U85))
       is_u65 = false;
 
-   ethosu_screen->ml_device.is_u65 = is_u65;
+   set_device_arch(&ethosu_screen->ml_device, is_u65);
    ethosu_screen->ml_device.sram_size = ethosu_screen->info.sram_size;
 
    if (DBG_ENABLED(ETHOSU_DBG_DISABLE_SRAM))
       ethosu_screen->ml_device.sram_size = 0;
-
-   if (is_u65) {
-      ethosu_screen->ml_device.ifm_ublock.width = 2;
-      ethosu_screen->ml_device.ifm_ublock.height = 2;
-      ethosu_screen->ml_device.ifm_ublock.depth = 8;
-
-      ethosu_screen->ml_device.ofm_ublock.width = 2;
-      ethosu_screen->ml_device.ofm_ublock.height = 2;
-      ethosu_screen->ml_device.ofm_ublock.depth = 8;
-
-      ethosu_screen->ml_device.max_concurrent_blocks = 3;
-   } else {
-      ethosu_screen->ml_device.ifm_ublock.width = 4;
-      ethosu_screen->ml_device.ifm_ublock.height = 4;
-      ethosu_screen->ml_device.ifm_ublock.depth = 16;
-
-      ethosu_screen->ml_device.ofm_ublock.width = 4;
-      ethosu_screen->ml_device.ofm_ublock.height = 1;
-      ethosu_screen->ml_device.ofm_ublock.depth = 8;
-
-      ethosu_screen->ml_device.max_concurrent_blocks = 7;
-   }
 
    screen->get_screen_fd = ethosu_screen_get_fd;
    screen->destroy = ethosu_destroy_screen;
@@ -301,35 +303,25 @@ struct pipe_ml_device *
 ethosu_ml_device_create(const char *spec)
 {
    struct ethosu_ml_device *device = NULL;
+   unsigned gen, macs;
+   uint32_t sram_size = 0;
+   int n;
 
-   if (strcmp(spec, "65-256") != 0 && strcmp(spec, "85-256") != 0)
+   /* Parse "GEN-MACS-SRAM" */
+   n = sscanf(spec, "%u-%u-%u", &gen, &macs, &sram_size);
+   if (n != 3)
+      return NULL;
+   if (gen != 65 && gen != 85)
+      return NULL;
+   if (macs != 256)
       return NULL;
 
    ethosu_debug = debug_get_option_ethosu_debug();
 
    device = rzalloc(NULL, struct ethosu_ml_device);
 
-   bool is_u65 = strcmp(spec, "65-256") == 0;
-   device->is_u65 = is_u65;
-   device->sram_size = 0;
-
-   if (is_u65) {
-      device->ifm_ublock.width = 2;
-      device->ifm_ublock.height = 2;
-      device->ifm_ublock.depth = 8;
-      device->ofm_ublock.width = 2;
-      device->ofm_ublock.height = 2;
-      device->ofm_ublock.depth = 8;
-      device->max_concurrent_blocks = 3;
-   } else {
-      device->ifm_ublock.width = 4;
-      device->ifm_ublock.height = 4;
-      device->ifm_ublock.depth = 16;
-      device->ofm_ublock.width = 4;
-      device->ofm_ublock.height = 1;
-      device->ofm_ublock.depth = 8;
-      device->max_concurrent_blocks = 7;
-   }
+   set_device_arch(device, gen == 65);
+   device->sram_size = sram_size;
 
    set_device_callbacks(device);
 
