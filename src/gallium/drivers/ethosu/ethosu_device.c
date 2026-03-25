@@ -302,22 +302,34 @@ ethosu_ml_device_create(const char *spec)
 {
    struct ethosu_ml_device *device = NULL;
 
-   if (strcmp(spec, "65-256") != 0)
+   if (strcmp(spec, "65-256") != 0 && strcmp(spec, "85-256") != 0)
       return NULL;
 
    ethosu_debug = debug_get_option_ethosu_debug();
 
    device = rzalloc(NULL, struct ethosu_ml_device);
 
-   device->is_u65 = true;
-   device->ifm_ublock.width = 2;
-   device->ifm_ublock.height = 2;
-   device->ifm_ublock.depth = 8;
-   device->ofm_ublock.width = 2;
-   device->ofm_ublock.height = 2;
-   device->ofm_ublock.depth = 8;
-   device->max_concurrent_blocks = 3;
+   bool is_u65 = strcmp(spec, "65-256") == 0;
+   device->is_u65 = is_u65;
    device->sram_size = 0;
+
+   if (is_u65) {
+      device->ifm_ublock.width = 2;
+      device->ifm_ublock.height = 2;
+      device->ifm_ublock.depth = 8;
+      device->ofm_ublock.width = 2;
+      device->ofm_ublock.height = 2;
+      device->ofm_ublock.depth = 8;
+      device->max_concurrent_blocks = 3;
+   } else {
+      device->ifm_ublock.width = 4;
+      device->ifm_ublock.height = 4;
+      device->ifm_ublock.depth = 16;
+      device->ofm_ublock.width = 4;
+      device->ofm_ublock.height = 1;
+      device->ofm_ublock.depth = 8;
+      device->max_concurrent_blocks = 7;
+   }
 
    set_device_callbacks(device);
 
