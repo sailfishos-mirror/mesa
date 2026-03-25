@@ -154,6 +154,7 @@ lower_cmat_convert(nir_builder *b,
    const bool transpose = intr->intrinsic == nir_intrinsic_cmat_transpose;
    struct glsl_cmat_description dst_desc = cmat_src_desc(intr->src[0]);
    struct glsl_cmat_description src_desc = cmat_src_desc(intr->src[1]);
+   b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
 
    enum glsl_base_type dst_element_type = dst_desc.element_type;
    enum glsl_base_type src_element_type = src_desc.element_type;
@@ -182,6 +183,7 @@ lower_cmat_convert(nir_builder *b,
    ret = convert_base_type(b, ret, src_element_type, dst_element_type);
    store_cmat_src(b, intr->src[0], ret);
    nir_instr_remove(&intr->instr);
+   b->fp_math_ctrl = nir_fp_fast_math;
    return true;
 }
 
@@ -300,6 +302,7 @@ static bool
 lower_cmat_binary_op(nir_builder *b,
                      nir_intrinsic_instr *intr)
 {
+   b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
    nir_def *src_a = load_cmat_src(b, intr->src[1]);
    nir_def *src_b = load_cmat_src(b, intr->src[2]);
    nir_op op = nir_intrinsic_alu_op(intr);
@@ -308,6 +311,7 @@ lower_cmat_binary_op(nir_builder *b,
    store_cmat_src(b, intr->src[0], ret);
 
    nir_instr_remove(&intr->instr);
+   b->fp_math_ctrl = nir_fp_fast_math;
    return true;
 }
 
@@ -315,6 +319,7 @@ static bool
 lower_cmat_unary_op(nir_builder *b,
                      nir_intrinsic_instr *intr)
 {
+   b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
    nir_def *src = load_cmat_src(b, intr->src[1]);
    nir_op op = nir_intrinsic_alu_op(intr);
 
@@ -322,6 +327,7 @@ lower_cmat_unary_op(nir_builder *b,
    store_cmat_src(b, intr->src[0], ret);
 
    nir_instr_remove(&intr->instr);
+   b->fp_math_ctrl = nir_fp_fast_math;
    return true;
 }
 
@@ -329,6 +335,7 @@ static bool
 lower_cmat_scalar_op(nir_builder *b,
                      nir_intrinsic_instr *intr)
 {
+   b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
    nir_def *src_a = load_cmat_src(b, intr->src[1]);
    nir_op op = nir_intrinsic_alu_op(intr);
 
@@ -336,6 +343,7 @@ lower_cmat_scalar_op(nir_builder *b,
    store_cmat_src(b, intr->src[0], ret);
 
    nir_instr_remove(&intr->instr);
+   b->fp_math_ctrl = nir_fp_fast_math;
    return true;
 }
 
