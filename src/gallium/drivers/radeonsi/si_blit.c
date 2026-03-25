@@ -14,12 +14,9 @@
 
 enum
 {
-   SI_COPY =
-      SI_SAVE_FRAMEBUFFER | SI_SAVE_TEXTURES | SI_SAVE_FRAGMENT_STATE | SI_DISABLE_RENDER_COND,
-
-   SI_BLIT = SI_SAVE_FRAMEBUFFER | SI_SAVE_TEXTURES | SI_SAVE_FRAGMENT_STATE,
-
-   SI_DECOMPRESS = SI_SAVE_FRAMEBUFFER | SI_SAVE_FRAGMENT_STATE | SI_DISABLE_RENDER_COND,
+   SI_COPY = SI_SAVE_FRAMEBUFFER | SI_SAVE_TEXTURES | SI_DISABLE_RENDER_COND,
+   SI_BLIT = SI_SAVE_FRAMEBUFFER | SI_SAVE_TEXTURES,
+   SI_DECOMPRESS = SI_SAVE_FRAMEBUFFER | SI_DISABLE_RENDER_COND,
 };
 
 void si_blitter_begin(struct si_context *sctx, enum si_blitter_op op)
@@ -38,23 +35,21 @@ void si_blitter_begin(struct si_context *sctx, enum si_blitter_op op)
    util_blitter_save_viewport(sctx->blitter, &sctx->viewports.states[0]);
    util_blitter_save_rasterizer(sctx->blitter, sctx->queued.named.rasterizer);
 
-   if (op & SI_SAVE_FRAGMENT_STATE) {
-      struct pipe_constant_buffer fs_cb = {};
-      si_get_pipe_constant_buffer(sctx, MESA_SHADER_FRAGMENT, 0, &fs_cb);
+   struct pipe_constant_buffer fs_cb = {};
+   si_get_pipe_constant_buffer(sctx, MESA_SHADER_FRAGMENT, 0, &fs_cb);
 
-      if (op & SI_SAVE_FRAGMENT_CONSTANT)
-         util_blitter_save_fragment_constant_buffer_slot(sctx->blitter, &fs_cb);
+   if (op & SI_SAVE_FRAGMENT_CONSTANT)
+      util_blitter_save_fragment_constant_buffer_slot(sctx->blitter, &fs_cb);
 
-      pipe_resource_reference(&fs_cb.buffer, NULL);
-      util_blitter_save_blend(sctx->blitter, sctx->queued.named.blend);
-      util_blitter_save_depth_stencil_alpha(sctx->blitter, sctx->queued.named.dsa);
-      util_blitter_save_stencil_ref(sctx->blitter, &sctx->stencil_ref.state);
-      util_blitter_save_fragment_shader(sctx->blitter, sctx->shader.ps.cso);
-      util_blitter_save_sample_mask(sctx->blitter, sctx->sample_mask, sctx->ps_iter_samples);
-      util_blitter_save_scissor(sctx->blitter, &sctx->scissors[0]);
-      util_blitter_save_window_rectangles(sctx->blitter, sctx->window_rectangles_include,
-                                          sctx->num_window_rectangles, sctx->window_rectangles);
-   }
+   pipe_resource_reference(&fs_cb.buffer, NULL);
+   util_blitter_save_blend(sctx->blitter, sctx->queued.named.blend);
+   util_blitter_save_depth_stencil_alpha(sctx->blitter, sctx->queued.named.dsa);
+   util_blitter_save_stencil_ref(sctx->blitter, &sctx->stencil_ref.state);
+   util_blitter_save_fragment_shader(sctx->blitter, sctx->shader.ps.cso);
+   util_blitter_save_sample_mask(sctx->blitter, sctx->sample_mask, sctx->ps_iter_samples);
+   util_blitter_save_scissor(sctx->blitter, &sctx->scissors[0]);
+   util_blitter_save_window_rectangles(sctx->blitter, sctx->window_rectangles_include,
+                                       sctx->num_window_rectangles, sctx->window_rectangles);
 
    if (op & SI_SAVE_FRAMEBUFFER)
       util_blitter_save_framebuffer(sctx->blitter, &sctx->framebuffer.state);
