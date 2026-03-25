@@ -17,9 +17,19 @@ libintel_compiler_gen_files = files(
   'gen_validate.cpp',
 )
 
+gen_gen_srcs = custom_target('gen_info_*.h',
+                             input : ['gen_inst_info.py',
+                                      'pre_xe.json', 'xe.json'],
+                             output : ['gen_info_pre_xe.h', 'gen_info_xe.h',
+                                       'gen_info_xe2.h'],
+                             command : [prog_python,
+                                       '@INPUT0@',
+                                       '--json=@INPUT1@', '--json=@INPUT2@',
+                                        '--output-dir=@OUTDIR@', '--cpp'])
+
 libintel_compiler_gen = static_library(
   'intel_compiler_gen',
-  libintel_compiler_gen_files,
+  [libintel_compiler_gen_files, gen_gen_srcs],
   include_directories : [inc_include, inc_src, inc_intel, inc_intel_compiler],
   c_args : [no_override_init_args],
   cpp_args : ['-Werror=vla'],
