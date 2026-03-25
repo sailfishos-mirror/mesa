@@ -9,6 +9,8 @@
 
 #include "gen_private.h"
 
+#include "gen_info_util.h"
+
 #define WIDTH(width)   (1 << (width))
 
 inline unsigned
@@ -28,12 +30,6 @@ DECODE_VSTRIDE(unsigned raw_value)
    else
       return STRIDE(raw_value);
 }
-
-#define FIELD(name, high, low) \
-   static constexpr gen_range name = { .hi = high, .lo = low };
-
-#define SUB_FIELD(name, high, low) \
-   static constexpr gen_sub_range name = { .hi = high, .lo = low };
 
 FIELD(HW_OPCODE,          6,  0);
 FIELD(CONTROLS,          31,  8);
@@ -214,23 +210,6 @@ SUB_FIELD(THREE_SRC_SUBNR_EXTRA, 20, 20);
 SUB_FIELD(CONTROLS_A,    15,  0);
 SUB_FIELD(COND_MODIFIER, 19, 16);
 SUB_FIELD(CONTROLS_B,    23, 20);
-
-
-struct gen_inst_description {
-   gen_opcode gen_op = GEN_OP_ILLEGAL;
-   gen_format format = GEN_FORMAT_ILLEGAL;
-   unsigned hw_opcode = 0;
-   bool has_dst = false;
-
-   constexpr gen_inst_description() = default;
-
-   constexpr gen_inst_description(gen_opcode op, unsigned hw)
-      : gen_op(op),
-        format(gen_inst_format(op)),
-        hw_opcode(hw),
-        has_dst(gen_inst_has_dst(format, op))
-   {}
-};
 
 static constexpr std::array<gen_inst_description, 128> gen_to_description = []() constexpr {
    std::array<gen_inst_description, 128> r;

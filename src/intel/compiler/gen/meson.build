@@ -7,6 +7,7 @@ libintel_compiler_gen_files = files(
   'gen_types.h',
   'gen_helpers.h',
   'gen_names.h',
+  'gen_info_util.h',
 
   'gen_private.h',
 
