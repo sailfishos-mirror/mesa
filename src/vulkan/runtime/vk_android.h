@@ -26,6 +26,7 @@
 #include <stdbool.h>
 
 #include "vulkan/vulkan_core.h"
+#include "vulkan/vk_android_native_buffer.h"
 
 #include "util/detect_os.h"
 
@@ -45,6 +46,11 @@ VkResult vk_android_import_anb(struct vk_device *device,
                                const VkImageCreateInfo *pCreateInfo,
                                const VkAllocationCallbacks *alloc,
                                struct vk_image *image);
+
+VkResult vk_android_import_anb_memory(struct vk_device *device,
+                                      struct vk_image *image,
+                                      const VkNativeBufferANDROID *anb,
+                                      const VkAllocationCallbacks *alloc);
 
 VkResult vk_android_get_anb_layout(
    const VkImageCreateInfo *pCreateInfo,

@@ -190,19 +190,12 @@ vk_gralloc_to_drm_explicit_layout(
 }
 
 VkResult
-vk_android_import_anb(struct vk_device *device,
-                      const VkImageCreateInfo *pCreateInfo,
-                      const VkAllocationCallbacks *alloc,
-                      struct vk_image *image)
+vk_android_import_anb_memory(struct vk_device *device,
+                             struct vk_image *image,
+                             const VkNativeBufferANDROID *anb,
+                             const VkAllocationCallbacks *alloc)
 {
-   VkResult result;
-
-   const VkNativeBufferANDROID *native_buffer =
-      vk_find_struct_const(pCreateInfo->pNext, NATIVE_BUFFER_ANDROID);
-
-   assert(native_buffer);
-   assert(native_buffer->handle);
-   assert(native_buffer->handle->numFds > 0);
+   assert(anb && anb->handle && anb->handle->numFds > 0);
 
    const VkMemoryDedicatedAllocateInfo ded_alloc = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
@@ -214,23 +207,39 @@ vk_android_import_anb(struct vk_device *device,
       .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
       .pNext = &ded_alloc,
       .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
-      .fd = os_dupfd_cloexec(native_buffer->handle->data[0]),
+      .fd = os_dupfd_cloexec(anb->handle->data[0]),
    };
-
-   result = device->dispatch_table.AllocateMemory(
-      (VkDevice)device,
-      &(VkMemoryAllocateInfo){
-         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-         .pNext = &import_info,
-         .allocationSize = lseek(import_info.fd, 0, SEEK_END),
-         .memoryTypeIndex = 0, /* Should we be smarter here? */
-      },
-      alloc, &image->anb_memory);
-
+   const VkMemoryAllocateInfo alloc_info = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .pNext = &import_info,
+      .allocationSize = lseek(import_info.fd, 0, SEEK_END),
+      .memoryTypeIndex = 0,
+   };
+   VkResult result = device->dispatch_table.AllocateMemory(
+      (VkDevice)device, &alloc_info, alloc, &image->anb_memory);
    if (result != VK_SUCCESS) {
       close(import_info.fd);
       return result;
    }
+
+   return VK_SUCCESS;
+}
+
+VkResult
+vk_android_import_anb(struct vk_device *device,
+                      const VkImageCreateInfo *pCreateInfo,
+                      const VkAllocationCallbacks *alloc,
+                      struct vk_image *image)
+{
+   const VkNativeBufferANDROID *native_buffer =
+      vk_find_struct_const(pCreateInfo->pNext, NATIVE_BUFFER_ANDROID);
+
+   assert(native_buffer);
+
+   VkResult result = vk_android_import_anb_memory(device, image,
+                                                  native_buffer, alloc);
+   if (result != VK_SUCCESS)
+      return result;
 
    VkBindImageMemoryInfo bind_info = {
       .sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
