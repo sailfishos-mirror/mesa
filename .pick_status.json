@@ -2114,7 +2114,7 @@
         "description": "aco/lower_branches: Don't remove branches which jump over loops",
         "nominated": true,
         "nomination_type": 1,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": null,
         "notes": null
