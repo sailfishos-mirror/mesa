@@ -1811,6 +1811,15 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
          break;
       }
 
+      case NIR_INTRINSIC_FP_MATH_CTRL: {
+         unsigned fp_math_ctrl = nir_intrinsic_fp_math_ctrl(instr);
+         if (fp_math_ctrl)
+            print_fp_math_ctrl(fp_math_ctrl, state);
+         else
+            fprintf(fp, "fp-fast-math");
+         break;
+      }
+
       default: {
          unsigned off = info->index_map[idx] - 1;
          fprintf(fp, "%s=%d", nir_intrinsic_index_names[idx], instr->const_index[off]);

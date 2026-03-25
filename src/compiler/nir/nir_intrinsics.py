@@ -388,6 +388,9 @@ index("unsigned", "num_matrices")
 # Register class for load/store_preamble
 index("nir_preamble_class", "preamble_class")
 
+# Like nir_alu_instr::fp_math_ctrl, but for intrinsics
+index("unsigned", "fp_math_ctrl")
+
 intrinsic("nop", flags=[CAN_ELIMINATE])
 
 # Uses a value and cannot be eliminated.
