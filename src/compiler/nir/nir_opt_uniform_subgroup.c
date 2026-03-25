@@ -241,7 +241,7 @@ opt_uniform_subgroup_instr(nir_builder *b, nir_intrinsic_instr *intrin, void *_s
          return false;
 
       nir_def *x = intrin->src[0].ssa;
-      b->fp_math_ctrl = nir_fp_no_fast_math;
+      b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intrin);
       replacement = nir_fsub(b, x, x);
       b->fp_math_ctrl = nir_fp_fast_math;
       break;
