@@ -7817,6 +7817,7 @@ static inline bool pvr_ppp_dynamic_state_isp_faces_and_control_dirty(
           BITSET_TEST(dynamic_dirty, MESA_VK_DYNAMIC_DS_STENCIL_COMPARE_MASK) ||
           BITSET_TEST(dynamic_dirty, MESA_VK_DYNAMIC_DS_STENCIL_REFERENCE) ||
           BITSET_TEST(dynamic_dirty, MESA_VK_DYNAMIC_DS_STENCIL_WRITE_MASK) ||
+          BITSET_TEST(dynamic_dirty, MESA_VK_DYNAMIC_DS_STENCIL_OP) ||
           BITSET_TEST(dynamic_dirty, MESA_VK_DYNAMIC_RS_DEPTH_BIAS_ENABLE) ||
           BITSET_TEST(dynamic_dirty, MESA_VK_DYNAMIC_RS_LINE_WIDTH) ||
           BITSET_TEST(dynamic_dirty,
