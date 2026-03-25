@@ -3394,7 +3394,7 @@
         "description": "brw/const: Don't allow type changes when accumulators are involved",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "64c251bb3afe6809911493c9a0830375702c2e40",
         "notes": null
