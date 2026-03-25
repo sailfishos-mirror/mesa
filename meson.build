@@ -737,7 +737,6 @@ _va_drivers = [
 ]
 
 allow_fallback_for_libva = get_option('allow-fallback-for').contains('libva')
-fallback_libva_options = []
 _va = get_option('gallium-va') \
   .require(_va_drivers.contains(true),
            error_message : 'VA state tracker requires at least one of the following gallium drivers: r600, radeonsi, nouveau, d3d12 (with option gallium-d3d12-video), virgl.')
@@ -745,8 +744,8 @@ _dep_va_name = host_machine.system() == 'windows' ? 'libva-win32' : 'libva'
 dep_va = dependency(
   _dep_va_name, version : '>= 1.8.0',
   required : _va,
-  allow_fallback: allow_fallback_for_libva,
-  default_options: fallback_libva_options
+  allow_fallback : allow_fallback_for_libva,
+  default_options : [ 'c_std=none' ]
 )
 if dep_va.found()
   dep_va_headers = dep_va.partial_dependency(compile_args : true, includes : true)
