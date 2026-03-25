@@ -179,15 +179,10 @@ panfrost_blitter_blit(struct pipe_context *pipe,
    if (!util_blitter_is_blit_supported(ctx->blitter, info))
       UNREACHABLE("Unsupported blit\n");
 
-   /* Legalize here because it could trigger a recursive blit otherwise */
-   struct panfrost_resource *src = pan_resource(info->src.resource);
-   enum pipe_format src_view_format = util_format_linear(info->src.format);
-   pan_legalize_format(ctx, src, src_view_format, false, false);
-
-   struct panfrost_resource *dst = pan_resource(info->dst.resource);
-   enum pipe_format dst_view_format = util_format_linear(info->dst.format);
-   pan_legalize_format(ctx, dst, dst_view_format, true, false);
-
+   pan_legalize_format(ctx, pan_resource(info->src.resource),
+                       util_format_linear(info->src.format), false, false);
+   pan_legalize_format(ctx, pan_resource(info->dst.resource),
+                       util_format_linear(info->dst.format), true, false);
    panfrost_flush_all_batches(ctx, "Blit");
    panfrost_blitter_blit_no_afbc_legalization(pipe, info);
    panfrost_flush_all_batches(ctx, "Blit");
@@ -222,6 +217,7 @@ panfrost_blitter_clear(struct pipe_context *pipe, unsigned buffers,
    /* Once there is content, clear with a fullscreen quad */
    panfrost_blitter_save(ctx, PAN_RENDER_CLEAR);
 
+   /* Framebuffer legalization is done at batch initialization. */
    perf_debug(ctx, "Clearing with quad");
    util_blitter_clear(
       ctx->blitter, ctx->pipe_framebuffer.width, ctx->pipe_framebuffer.height,
@@ -246,11 +242,8 @@ panfrost_blitter_clear_depth_stencil(struct pipe_context *pipe,
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
       return;
 
-   /* Legalize here because it could trigger a recursive blit otherwise */
-   struct panfrost_resource *rdst = pan_resource(dst->texture);
-   enum pipe_format dst_view_format = util_format_linear(dst->format);
-   pan_legalize_format(ctx, rdst, dst_view_format, true, false);
-
+   pan_legalize_format(ctx, pan_resource(dst->texture),
+                       util_format_linear(dst->format), true, false);
    panfrost_blitter_save(
       ctx, render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE);
    util_blitter_clear_depth_stencil(ctx->blitter, dst, clear_flags, depth,
@@ -272,11 +265,8 @@ panfrost_blitter_clear_render_target(struct pipe_context *pipe,
    if (render_condition_enabled && !panfrost_render_condition_check(ctx))
       return;
 
-   /* Legalize here because it could trigger a recursive blit otherwise */
-   struct panfrost_resource *rdst = pan_resource(dst->texture);
-   enum pipe_format dst_view_format = util_format_linear(dst->format);
-   pan_legalize_format(ctx, rdst, dst_view_format, true, false);
-
+   pan_legalize_format(ctx, pan_resource(dst->texture),
+                       util_format_linear(dst->format), true, false);
    panfrost_blitter_save(
       ctx, (render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE) | PAN_SAVE_FRAGMENT_CONSTANT);
    util_blitter_clear_render_target(ctx->blitter, dst, color, dstx, dsty,
