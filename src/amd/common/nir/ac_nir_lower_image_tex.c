@@ -673,7 +673,8 @@ move_ddxy(struct move_tex_coords_state *state, nir_function_impl *impl, nir_intr
    }
 
    nir_def *def = nir_vec_scalars(&state->toplevel_b, components, num_components);
-   def = _nir_build_ddx(&state->toplevel_b, def->bit_size, def);
+   struct _nir_ddx_indices indices = {0};
+   def = _nir_build_ddx(&state->toplevel_b, def->bit_size, def, indices);
    nir_def_as_intrinsic(def)->intrinsic = instr->intrinsic;
    nir_def_rewrite_uses(&instr->def, def);
 

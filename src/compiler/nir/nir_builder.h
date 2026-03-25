@@ -2163,17 +2163,18 @@ nir_tex_src_for_ssa(nir_tex_src_type src_type, nir_def *def)
 static inline nir_def *
 nir_build_deriv(nir_builder *b, nir_def *x, nir_intrinsic_op intrin)
 {
+   struct _nir_ddx_indices indices = { 0 };
    if (b->shader->options->scalarize_ddx && x->num_components > 1) {
       nir_def *res[NIR_MAX_VEC_COMPONENTS] = { NULL };
 
       for (unsigned i = 0; i < x->num_components; ++i) {
-         res[i] = _nir_build_ddx(b, x->bit_size, nir_channel(b, x, i));
+         res[i] = _nir_build_ddx(b, x->bit_size, nir_channel(b, x, i), indices);
          nir_def_as_intrinsic(res[i])->intrinsic = intrin;
       }
 
       return nir_vec(b, res, x->num_components);
    } else {
-      nir_def *res = _nir_build_ddx(b, x->bit_size, x);
+      nir_def *res = _nir_build_ddx(b, x->bit_size, x, indices);
       nir_def_as_intrinsic(res)->intrinsic = intrin;
       return res;
    }

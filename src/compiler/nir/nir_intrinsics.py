@@ -502,7 +502,7 @@ intrinsic("is_sparse_resident_zink", dest_comp=1, src_comp=[0], bit_sizes=[1],
 for suffix in ["", "_fine", "_coarse"]:
     for axis in ["x", "y"]:
         intrinsic(f"dd{axis}{suffix}", dest_comp=0, src_comp=[0],
-                  bit_sizes=[16, 32], flags=[CAN_ELIMINATE, QUADGROUP])
+                  bit_sizes=[16, 32], indices=[FP_MATH_CTRL], flags=[CAN_ELIMINATE, QUADGROUP])
 
 # a barrier is an intrinsic with no inputs/outputs but which can't be moved
 # around/optimized in general
