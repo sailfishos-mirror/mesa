@@ -1015,21 +1015,6 @@ bi_is_zs(unsigned location)
    return location == FRAG_RESULT_DEPTH || location == FRAG_RESULT_STENCIL;
 }
 
-static enum va_shader_output
-va_shader_output_from_semantics(const nir_io_semantics *sem)
-{
-   switch (sem->location) {
-   case VARYING_SLOT_POS:
-      return VA_SHADER_OUTPUT_POSITION;
-   case VARYING_SLOT_PSIZ:
-   case VARYING_SLOT_LAYER:
-   case VARYING_SLOT_PRIMITIVE_ID:
-      return VA_SHADER_OUTPUT_ATTRIB;
-   default:
-      return VA_SHADER_OUTPUT_VARY;
-   }
-}
-
 static bool
 bifrost_nir_lower_shader_output_impl(struct nir_builder *b,
                                      nir_intrinsic_instr *intr, void *data)
@@ -1039,7 +1024,7 @@ bifrost_nir_lower_shader_output_impl(struct nir_builder *b,
       return false;
 
    nir_io_semantics sem = nir_intrinsic_io_semantics(intr);
-   unsigned mask = va_shader_output_from_semantics(&sem);
+   unsigned mask = va_shader_output_from_loc(sem.location);
 
    b->cursor = nir_instr_remove(&intr->instr);
    nir_def *shader_output = nir_load_shader_output_pan(b);
@@ -1089,7 +1074,7 @@ bifrost_nir_lower_vs_atomics_impl(nir_builder *b, nir_intrinsic_instr *intr,
          continue;
 
       nir_io_semantics sem = nir_intrinsic_io_semantics(parent_intr);
-      output_mask |= BITFIELD_BIT(va_shader_output_from_semantics(&sem));
+      output_mask |= BITFIELD_BIT(va_shader_output_from_loc(sem.location));
    }
 
    /* In case they are not written to any outputs, we default to only output in

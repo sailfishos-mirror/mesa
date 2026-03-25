@@ -10,6 +10,7 @@
 #include "util/macros.h"
 #include "bi_opcodes.h"
 #include "valhall_enums.h"
+#include "shader_enums.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -192,6 +193,21 @@ enum va_shader_output {
 #define VA_SHADER_OUTPUT_POSITION_BIT BITFIELD_BIT(VA_SHADER_OUTPUT_POSITION)
 #define VA_SHADER_OUTPUT_ATTRIB_BIT BITFIELD_BIT(VA_SHADER_OUTPUT_ATTRIB)
 #define VA_SHADER_OUTPUT_VARY_BIT BITFIELD_BIT(VA_SHADER_OUTPUT_VARY)
+
+static inline enum va_shader_output
+va_shader_output_from_loc(gl_varying_slot location)
+{
+   switch (location) {
+   case VARYING_SLOT_POS:
+      return VA_SHADER_OUTPUT_POSITION;
+   case VARYING_SLOT_PSIZ:
+   case VARYING_SLOT_LAYER:
+   case VARYING_SLOT_PRIMITIVE_ID:
+      return VA_SHADER_OUTPUT_ATTRIB;
+   default:
+      return VA_SHADER_OUTPUT_VARY;
+   }
+}
 
 #ifdef __cplusplus
 } /* extern C */
