@@ -968,11 +968,13 @@ lower_cmat_instr(nir_builder *b,
    case nir_intrinsic_cmat_unary_op: {
       nir_def *src = load_cmat_src(b, intr->src[1]);
       nir_op op = nir_intrinsic_alu_op(intr);
+      b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
 
       nir_def *ret = nir_build_alu1(b, op, src);
       store_cmat_src(b, intr->src[0], ret);
 
       nir_instr_remove(instr);
+      b->fp_math_ctrl = nir_fp_fast_math;
       return true;
    }
 
@@ -980,22 +982,26 @@ lower_cmat_instr(nir_builder *b,
       nir_def *src_a = load_cmat_src(b, intr->src[1]);
       nir_def *src_b = load_cmat_src(b, intr->src[2]);
       nir_op op = nir_intrinsic_alu_op(intr);
+      b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
 
       nir_def *ret = nir_build_alu2(b, op, src_a, src_b);
       store_cmat_src(b, intr->src[0], ret);
 
       nir_instr_remove(instr);
+      b->fp_math_ctrl = nir_fp_fast_math;
       return true;
    }
 
    case nir_intrinsic_cmat_scalar_op: {
       nir_def *src_a = load_cmat_src(b, intr->src[1]);
       nir_op op = nir_intrinsic_alu_op(intr);
+      b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
 
       nir_def *ret = nir_build_alu2(b, op, src_a, intr->src[2].ssa);
       store_cmat_src(b, intr->src[0], ret);
 
       nir_instr_remove(instr);
+      b->fp_math_ctrl = nir_fp_fast_math;
       return true;
    }
 
@@ -1035,12 +1041,14 @@ lower_cmat_instr(nir_builder *b,
    case nir_intrinsic_cmat_convert: {
       struct glsl_cmat_description dst_desc = cmat_src_desc(intr->src[0]);
       struct glsl_cmat_description src_desc = cmat_src_desc(intr->src[1]);
+      b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
 
       nir_def *cmat = load_cmat_src(b, intr->src[1]);
       nir_def *ret = lower_cmat_convert(b, intr, cmat, src_desc, dst_desc);
       store_cmat_src(b, intr->src[0], ret);
 
       nir_instr_remove(instr);
+      b->fp_math_ctrl = nir_fp_fast_math;
       return true;
    }
 
