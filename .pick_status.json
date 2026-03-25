@@ -5934,7 +5934,7 @@
         "description": "Revert \"pan/bi: Model pos/vary segments in STORE instructions\"",
         "nominated": true,
         "nomination_type": 3,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "039bb4e68c3864b0a40bdf9d4ae7c06badfe926a",
         "notes": null
