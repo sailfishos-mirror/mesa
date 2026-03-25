@@ -185,6 +185,26 @@ panfrost_blitter_blit(struct pipe_context *pipe,
    panfrost_flush_all_batches(ctx, "Blit");
 }
 
+/* Setup HW tile buffer clears if the batch for the current FBO doesn't have
+ * any draw calls queued. Must be called after render condition check (which
+ * can submit the batch).
+ */
+static bool
+panfrost_blitter_try_batch_clear(struct panfrost_context *ctx,
+                                 unsigned buffers,
+                                 const union pipe_color_union *color,
+                                 double depth, unsigned stencil)
+{
+   struct panfrost_batch *batch = panfrost_get_batch_for_fbo(ctx);
+
+   if (batch && !batch->draw_count) {
+      panfrost_batch_clear(batch, buffers, color, depth, stencil);
+      return true;
+   }
+
+   return false;
+}
+
 void
 panfrost_blitter_clear(struct pipe_context *pipe, unsigned buffers,
                        uint32_t color_clear_mask, uint8_t stencil_clear_mask,
@@ -202,24 +222,12 @@ panfrost_blitter_clear(struct pipe_context *pipe, unsigned buffers,
    if (!panfrost_render_condition_check(ctx))
       return;
 
-   /* Only get batch after checking the render condition, since the check can
-    * cause the batch to be flushed.
-    */
-   struct panfrost_batch *batch = panfrost_get_batch_for_fbo(ctx);
-   if (!batch)
+   if (panfrost_blitter_try_batch_clear(ctx, buffers, color, depth, stencil))
       return;
-
-   /* At the start of the batch, we can clear for free */
-   if (batch->draw_count == 0) {
-      panfrost_batch_clear(batch, buffers, color, depth, stencil);
-      return;
-   }
-
-   /* Once there is content, clear with a fullscreen quad */
-   panfrost_blitter_save(ctx, states);
 
    /* Framebuffer legalization is done at batch initialization. */
    perf_debug(ctx, "Clearing with quad");
+   panfrost_blitter_save(ctx, states);
    util_blitter_clear(
       ctx->blitter, ctx->pipe_framebuffer.width, ctx->pipe_framebuffer.height,
       util_framebuffer_get_num_layers(&ctx->pipe_framebuffer), buffers, color,
