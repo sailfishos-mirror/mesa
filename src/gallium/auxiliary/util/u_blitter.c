@@ -2246,8 +2246,7 @@ void util_blitter_blit_generic(struct blitter_context *blitter,
     * oversized triangle to the destination rect.
     */
    struct pipe_scissor_state synth_scissor;
-   if (ctx->base.use_single_triangle && !scissor &&
-       filter == PIPE_TEX_FILTER_NEAREST) {
+   if (ctx->base.use_single_triangle && !scissor) {
       synth_scissor.minx = MAX2(dstbox->x, 0);
       synth_scissor.miny = MAX2(dstbox->y, 0);
       synth_scissor.maxx = dstbox->x + dstbox->width;
@@ -2261,8 +2260,7 @@ void util_blitter_blit_generic(struct blitter_context *blitter,
 
    blitter_set_common_draw_rect_state(ctx, scissor != NULL, dst_samples > 1);
 
-   ctx->single_triangle_active = ctx->base.use_single_triangle &&
-                                 (filter == PIPE_TEX_FILTER_NEAREST);
+   ctx->single_triangle_active = ctx->base.use_single_triangle;
    do_blits(ctx, dst, dstbox, src, src_width0, src_height0,
             srcbox, dst_has_depth || dst_has_stencil, use_txf, sample0_only,
             dst_sample);
