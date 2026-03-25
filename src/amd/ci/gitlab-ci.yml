@@ -245,6 +245,16 @@ radv-navi21-vkcts:
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 30
     RADV_PERFTEST: transfer_queue,hic
 
+radv-navi21-vkcts-full:
+  timeout: 50m
+  extends:
+    - .ci-tron-test-radv-vk-nightly
+    - .navi21-test-valve
+    - .radv-valve-manual-rules
+  variables:
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 45
+    RADV_PERFTEST: transfer_queue,hic
+
 radv-vangogh-vkcts-full:
   parallel: 2
   extends:
@@ -301,6 +311,15 @@ radv-navi31-vkcts:
     RADV_PERFTEST: transfer_queue,hic
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 20
 
+radv-navi31-vkcts-full:
+  timeout: 30m
+  extends:
+    - .ci-tron-test-radv-vk-nightly
+    - .navi31-test-valve
+    - .radv-valve-manual-rules
+  variables:
+    RADV_PERFTEST: transfer_queue,hic
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 25
 
 radv-gfx1201-vkcts:
   timeout: 25m
@@ -314,6 +333,16 @@ radv-gfx1201-vkcts:
     RADV_DEBUG: nomeshshader
     RADV_PERFTEST: transfer_queue,hic
     CI_TRON_TIMEOUT__OVERALL__MINUTES: 20
+
+radv-gfx1201-vkcts-full:
+  timeout: 35m
+  extends:
+    - .ci-tron-test-radv-vk-nightly
+    - .gfx1201-test-valve
+    - .radv-valve-manual-rules
+  variables:
+    RADV_PERFTEST: transfer_queue,hic
+    CI_TRON_TIMEOUT__OVERALL__MINUTES: 30
 
 radv-gfx1201-fluster:
   extends:
