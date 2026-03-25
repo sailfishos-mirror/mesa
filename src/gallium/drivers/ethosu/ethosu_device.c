@@ -293,7 +293,9 @@ ethosu_screen_create(int fd,
    screen->resource_destroy = ethosu_resource_destroy;
    screen->get_ml_device = ethosu_ml_device_create_accel;
 
-   ethosu_screen->ml_device.base.id = "ethosu-65-256";
+   ethosu_screen->ml_device.base.id =
+      ralloc_asprintf(ethosu_screen, "ethosu-%u-256-%u",
+                      is_u65 ? 65 : 85, ethosu_screen->info.sram_size);
    set_device_callbacks(&ethosu_screen->ml_device);
 
    return screen;
