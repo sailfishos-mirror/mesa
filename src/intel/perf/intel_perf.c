@@ -1715,7 +1715,8 @@ intel_perf_eustall_stream_read_samples(struct intel_device_info *devinfo,
 void
 intel_perf_eustall_accumulate_results(struct intel_perf_query_eustall_result *result,
                                       const void *start, const void *end,
-                                      size_t record_size)
+                                      size_t record_size,
+                                      int ver)
 {
-   return xe_perf_eustall_accumulate_results(result, start, end, record_size);
+   return xe_perf_eustall_accumulate_results(result, start, end, record_size, ver);
 }

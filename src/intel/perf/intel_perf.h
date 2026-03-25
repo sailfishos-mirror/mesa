@@ -637,7 +637,8 @@ void intel_perf_query_result_accumulate_fields(struct intel_perf_query_result *r
 void intel_perf_eustall_accumulate_results(struct intel_perf_query_eustall_result *result,
                                            const void *start,
                                            const void *end,
-                                           size_t record_size);
+                                           size_t record_size,
+                                           int ver);
 
 void intel_perf_query_result_clear(struct intel_perf_query_result *result);
 void intel_perf_query_eustall_result_clear(struct intel_perf_query_eustall_result *result);
