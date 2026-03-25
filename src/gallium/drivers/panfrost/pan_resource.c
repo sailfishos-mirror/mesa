@@ -37,56 +37,6 @@
 #include "pan_trace.h"
 #include "pan_util.h"
 
-static void
-panfrost_clear_depth_stencil(struct pipe_context *pipe,
-                             struct pipe_surface *dst, unsigned clear_flags,
-                             double depth, unsigned stencil, unsigned dstx,
-                             unsigned dsty, unsigned width, unsigned height,
-                             bool render_condition_enabled)
-{
-   PAN_TRACE_FUNC(PAN_TRACE_GL_RESOURCE);
-
-   struct panfrost_context *ctx = pan_context(pipe);
-
-   if (render_condition_enabled && !panfrost_render_condition_check(ctx))
-      return;
-
-   /* Legalize here because it could trigger a recursive blit otherwise */
-   struct panfrost_resource *rdst = pan_resource(dst->texture);
-   enum pipe_format dst_view_format = util_format_linear(dst->format);
-   pan_legalize_format(ctx, rdst, dst_view_format, true, false);
-
-   panfrost_blitter_save(
-      ctx, render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE);
-   util_blitter_clear_depth_stencil(ctx->blitter, dst, clear_flags, depth,
-                                    stencil, dstx, dsty, width, height);
-}
-
-static void
-panfrost_clear_render_target(struct pipe_context *pipe,
-                             struct pipe_surface *dst,
-                             const union pipe_color_union *color, unsigned dstx,
-                             unsigned dsty, unsigned width, unsigned height,
-                             bool render_condition_enabled)
-{
-   PAN_TRACE_FUNC(PAN_TRACE_GL_RESOURCE);
-
-   struct panfrost_context *ctx = pan_context(pipe);
-
-   if (render_condition_enabled && !panfrost_render_condition_check(ctx))
-      return;
-
-   /* Legalize here because it could trigger a recursive blit otherwise */
-   struct panfrost_resource *rdst = pan_resource(dst->texture);
-   enum pipe_format dst_view_format = util_format_linear(dst->format);
-   pan_legalize_format(ctx, rdst, dst_view_format, true, false);
-
-   panfrost_blitter_save(
-      ctx, (render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE) | PAN_SAVE_FRAGMENT_CONSTANT);
-   util_blitter_clear_render_target(ctx->blitter, dst, color, dstx, dsty, width,
-                                    height);
-}
-
 static uint64_t
 panfrost_max_res_size_b(unsigned arch)
 {
@@ -2611,6 +2561,6 @@ panfrost_resource_context_init(struct pipe_context *pctx)
    pctx->buffer_subdata = u_default_buffer_subdata;
    pctx->texture_subdata = u_default_texture_subdata;
    pctx->clear_buffer = u_default_clear_buffer;
-   pctx->clear_render_target = panfrost_clear_render_target;
-   pctx->clear_depth_stencil = panfrost_clear_depth_stencil;
+   pctx->clear_render_target = panfrost_blitter_clear_render_target;
+   pctx->clear_depth_stencil = panfrost_blitter_clear_depth_stencil;
 }

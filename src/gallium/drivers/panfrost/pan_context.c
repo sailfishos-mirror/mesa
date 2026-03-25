@@ -43,43 +43,6 @@
 #include "panfrost_tracepoints.h"
 #include "panfrost_perfetto.h"
 
-static void
-panfrost_clear(struct pipe_context *pipe, unsigned buffers,
-               uint32_t color_clear_mask, uint8_t stencil_clear_mask,
-               const struct pipe_scissor_state *scissor_state,
-               const union pipe_color_union *color, double depth,
-               unsigned stencil)
-{
-   PAN_TRACE_FUNC(PAN_TRACE_GL_CONTEXT);
-
-   if (!panfrost_render_condition_check(pan_context(pipe)))
-      return;
-
-   /* Only get batch after checking the render condition, since the check can
-    * cause the batch to be flushed.
-    */
-   struct panfrost_context *ctx = pan_context(pipe);
-   struct panfrost_batch *batch = panfrost_get_batch_for_fbo(ctx);
-   if (!batch)
-      return;
-
-   /* At the start of the batch, we can clear for free */
-   if (batch->draw_count == 0) {
-      panfrost_batch_clear(batch, buffers, color, depth, stencil);
-      return;
-   }
-
-   /* Once there is content, clear with a fullscreen quad */
-   panfrost_blitter_save(ctx, PAN_RENDER_CLEAR);
-
-   perf_debug(ctx, "Clearing with quad");
-   util_blitter_clear(
-      ctx->blitter, ctx->pipe_framebuffer.width, ctx->pipe_framebuffer.height,
-      util_framebuffer_get_num_layers(&ctx->pipe_framebuffer), buffers, color,
-      depth, stencil,
-      util_framebuffer_get_num_samples(&ctx->pipe_framebuffer) > 1);
-}
-
 bool
 panfrost_writes_point_size(struct panfrost_context *ctx)
 {
@@ -1127,7 +1090,7 @@ panfrost_create_context(struct pipe_screen *screen, void *priv, unsigned flags)
    gallium->fence_server_sync = panfrost_fence_server_sync;
 
    gallium->flush = panfrost_flush;
-   gallium->clear = panfrost_clear;
+   gallium->clear = panfrost_blitter_clear;
    gallium->clear_texture = u_default_clear_texture;
    gallium->texture_barrier = panfrost_texture_barrier;
    gallium->set_frontend_noop = panfrost_set_frontend_noop;

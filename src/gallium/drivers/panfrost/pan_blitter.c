@@ -11,6 +11,26 @@
 #include "pan_trace.h"
 #include "pan_util.h"
 
+enum panfrost_blitter_op /* bitmask */
+{
+   PAN_SAVE_TEXTURES = 1,
+   PAN_SAVE_FRAMEBUFFER = 2,
+   PAN_SAVE_FRAGMENT_STATE = 4,
+   PAN_SAVE_FRAGMENT_CONSTANT = 8,
+   PAN_DISABLE_RENDER_COND = 16,
+};
+
+enum {
+   PAN_RENDER_BLIT =
+      PAN_SAVE_TEXTURES | PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE,
+   PAN_RENDER_BLIT_COND = PAN_SAVE_TEXTURES | PAN_SAVE_FRAMEBUFFER |
+                          PAN_SAVE_FRAGMENT_STATE | PAN_DISABLE_RENDER_COND,
+   PAN_RENDER_BASE = PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE,
+   PAN_RENDER_COND =
+      PAN_SAVE_FRAMEBUFFER | PAN_SAVE_FRAGMENT_STATE | PAN_DISABLE_RENDER_COND,
+   PAN_RENDER_CLEAR = PAN_SAVE_FRAGMENT_STATE | PAN_SAVE_FRAGMENT_CONSTANT,
+};
+
 static void
 panfrost_blitter_draw_rectangle(struct blitter_context *blitter,
                                 void *vertex_elements_cso,
@@ -82,7 +102,7 @@ panfrost_blitter_create(struct pipe_context *pipe)
    return blitter;
 }
 
-void
+static void
 panfrost_blitter_save(struct panfrost_context *ctx,
                       const enum panfrost_blitter_op blitter_op)
 {
@@ -171,4 +191,94 @@ panfrost_blitter_blit(struct pipe_context *pipe,
    panfrost_flush_all_batches(ctx, "Blit");
    panfrost_blitter_blit_no_afbc_legalization(pipe, info);
    panfrost_flush_all_batches(ctx, "Blit");
+}
+
+void
+panfrost_blitter_clear(struct pipe_context *pipe, unsigned buffers,
+                       uint32_t color_clear_mask, uint8_t stencil_clear_mask,
+                       const struct pipe_scissor_state *scissor_state,
+                       const union pipe_color_union *color, double depth,
+                       unsigned stencil)
+{
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
+
+   if (!panfrost_render_condition_check(pan_context(pipe)))
+      return;
+
+   /* Only get batch after checking the render condition, since the check can
+    * cause the batch to be flushed.
+    */
+   struct panfrost_context *ctx = pan_context(pipe);
+   struct panfrost_batch *batch = panfrost_get_batch_for_fbo(ctx);
+   if (!batch)
+      return;
+
+   /* At the start of the batch, we can clear for free */
+   if (batch->draw_count == 0) {
+      panfrost_batch_clear(batch, buffers, color, depth, stencil);
+      return;
+   }
+
+   /* Once there is content, clear with a fullscreen quad */
+   panfrost_blitter_save(ctx, PAN_RENDER_CLEAR);
+
+   perf_debug(ctx, "Clearing with quad");
+   util_blitter_clear(
+      ctx->blitter, ctx->pipe_framebuffer.width, ctx->pipe_framebuffer.height,
+      util_framebuffer_get_num_layers(&ctx->pipe_framebuffer), buffers, color,
+      depth, stencil,
+      util_framebuffer_get_num_samples(&ctx->pipe_framebuffer) > 1);
+}
+
+void
+panfrost_blitter_clear_depth_stencil(struct pipe_context *pipe,
+                                     struct pipe_surface *dst,
+                                     unsigned clear_flags, double depth,
+                                     unsigned stencil, unsigned dstx,
+                                     unsigned dsty, unsigned width,
+                                     unsigned height,
+                                     bool render_condition_enabled)
+{
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
+
+   struct panfrost_context *ctx = pan_context(pipe);
+
+   if (render_condition_enabled && !panfrost_render_condition_check(ctx))
+      return;
+
+   /* Legalize here because it could trigger a recursive blit otherwise */
+   struct panfrost_resource *rdst = pan_resource(dst->texture);
+   enum pipe_format dst_view_format = util_format_linear(dst->format);
+   pan_legalize_format(ctx, rdst, dst_view_format, true, false);
+
+   panfrost_blitter_save(
+      ctx, render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE);
+   util_blitter_clear_depth_stencil(ctx->blitter, dst, clear_flags, depth,
+                                    stencil, dstx, dsty, width, height);
+}
+
+void
+panfrost_blitter_clear_render_target(struct pipe_context *pipe,
+                                     struct pipe_surface *dst,
+                                     const union pipe_color_union *color,
+                                     unsigned dstx, unsigned dsty,
+                                     unsigned width, unsigned height,
+                                     bool render_condition_enabled)
+{
+   PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
+
+   struct panfrost_context *ctx = pan_context(pipe);
+
+   if (render_condition_enabled && !panfrost_render_condition_check(ctx))
+      return;
+
+   /* Legalize here because it could trigger a recursive blit otherwise */
+   struct panfrost_resource *rdst = pan_resource(dst->texture);
+   enum pipe_format dst_view_format = util_format_linear(dst->format);
+   pan_legalize_format(ctx, rdst, dst_view_format, true, false);
+
+   panfrost_blitter_save(
+      ctx, (render_condition_enabled ? PAN_RENDER_COND : PAN_RENDER_BASE) | PAN_SAVE_FRAGMENT_CONSTANT);
+   util_blitter_clear_render_target(ctx->blitter, dst, color, dstx, dsty,
+                                    width, height);
 }
