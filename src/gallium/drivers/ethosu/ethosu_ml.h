@@ -201,6 +201,8 @@ struct ethosu_tensor {
 struct ethosu_subgraph {
    struct pipe_ml_subgraph base;
 
+   struct ethosu_screen *screen; /* Set during prepare_for_submission */
+
    struct util_dynarray operations; /* ethosu_operation */
    struct util_dynarray tensors;    /* ethosu_tensor */
 

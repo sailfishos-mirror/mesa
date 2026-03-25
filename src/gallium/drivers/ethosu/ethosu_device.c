@@ -252,29 +252,36 @@ ethosu_screen_create(int fd,
    ethosu_screen->fd = fd;
    dev_query(ethosu_screen);
 
+   bool is_u65 = DRM_ETHOSU_ARCH_MAJOR(ethosu_screen->info.id) == 1;
+   if (DBG_ENABLED(ETHOSU_DBG_FORCE_U85))
+      is_u65 = false;
+
+   ethosu_screen->ml_device.is_u65 = is_u65;
+   ethosu_screen->ml_device.sram_size = ethosu_screen->info.sram_size;
+
    if (DBG_ENABLED(ETHOSU_DBG_DISABLE_SRAM))
-      ethosu_screen->info.sram_size = 0;
+      ethosu_screen->ml_device.sram_size = 0;
 
-   if (ethosu_is_u65(ethosu_screen)) {
-      ethosu_screen->ifm_ublock.width = 2;
-      ethosu_screen->ifm_ublock.height = 2;
-      ethosu_screen->ifm_ublock.depth = 8;
+   if (is_u65) {
+      ethosu_screen->ml_device.ifm_ublock.width = 2;
+      ethosu_screen->ml_device.ifm_ublock.height = 2;
+      ethosu_screen->ml_device.ifm_ublock.depth = 8;
 
-      ethosu_screen->ofm_ublock.width = 2;
-      ethosu_screen->ofm_ublock.height = 2;
-      ethosu_screen->ofm_ublock.depth = 8;
+      ethosu_screen->ml_device.ofm_ublock.width = 2;
+      ethosu_screen->ml_device.ofm_ublock.height = 2;
+      ethosu_screen->ml_device.ofm_ublock.depth = 8;
 
-      ethosu_screen->max_concurrent_blocks = 3;
+      ethosu_screen->ml_device.max_concurrent_blocks = 3;
    } else {
-      ethosu_screen->ifm_ublock.width = 4;
-      ethosu_screen->ifm_ublock.height = 4;
-      ethosu_screen->ifm_ublock.depth = 16;
+      ethosu_screen->ml_device.ifm_ublock.width = 4;
+      ethosu_screen->ml_device.ifm_ublock.height = 4;
+      ethosu_screen->ml_device.ifm_ublock.depth = 16;
 
-      ethosu_screen->ofm_ublock.width = 4;
-      ethosu_screen->ofm_ublock.height = 1;
-      ethosu_screen->ofm_ublock.depth = 8;
+      ethosu_screen->ml_device.ofm_ublock.width = 4;
+      ethosu_screen->ml_device.ofm_ublock.height = 1;
+      ethosu_screen->ml_device.ofm_ublock.depth = 8;
 
-      ethosu_screen->max_concurrent_blocks = 7;
+      ethosu_screen->ml_device.max_concurrent_blocks = 7;
    }
 
    screen->get_screen_fd = ethosu_screen_get_fd;
@@ -301,6 +308,17 @@ ethosu_ml_device_create(const char *spec)
    ethosu_debug = debug_get_option_ethosu_debug();
 
    device = rzalloc(NULL, struct ethosu_ml_device);
+
+   device->is_u65 = true;
+   device->ifm_ublock.width = 2;
+   device->ifm_ublock.height = 2;
+   device->ifm_ublock.depth = 8;
+   device->ofm_ublock.width = 2;
+   device->ofm_ublock.height = 2;
+   device->ofm_ublock.depth = 8;
+   device->max_concurrent_blocks = 3;
+   device->sram_size = 0;
+
    set_device_callbacks(device);
 
    return &device->base;

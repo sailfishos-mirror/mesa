@@ -58,7 +58,7 @@ ml_reorder_encode_weights(struct ethosu_subgraph *subgraph,
                           uint8_t **weights,
                           long *weights_size)
 {
-   struct ethosu_screen *screen = ethosu_device_screen(subgraph->base.device);
+   struct ethosu_ml_device *device = ethosu_ml_device(subgraph->base.device);
    int bit_depth = 8;
    bool is_sparse = false;
    EthosUTraversal traversal;
@@ -88,15 +88,15 @@ ml_reorder_encode_weights(struct ethosu_subgraph *subgraph,
 
    WeightSourceCommon *source;
 
-   if (ethosu_is_u65(screen)) {
+   if (device->is_u65) {
       if (operation->kernel.is_signed) {
          source = new EthosUWeightOrdering<int8_t>(1, dilation,
-                                                   operation->block_config.ofm_block.depth, bit_depth, screen->ofm_ublock.depth,
-                                                   screen->ifm_ublock.depth, transform_func, &param, traversal);
+                                                   operation->block_config.ofm_block.depth, bit_depth, device->ofm_ublock.depth,
+                                                   device->ifm_ublock.depth, transform_func, &param, traversal);
       } else {
          source = new EthosUWeightOrdering<uint8_t>(1, dilation,
-                                                    operation->block_config.ofm_block.depth, bit_depth, screen->ofm_ublock.depth,
-                                                    screen->ifm_ublock.depth, transform_func, &param, traversal);
+                                                    operation->block_config.ofm_block.depth, bit_depth, device->ofm_ublock.depth,
+                                                    device->ifm_ublock.depth, transform_func, &param, traversal);
       }
    } else {
       if (operation->kernel.is_signed) {

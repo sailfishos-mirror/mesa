@@ -281,7 +281,8 @@ static void
 prepare_for_submission(struct ethosu_subgraph *subgraph,
                        struct pipe_context *pcontext)
 {
-   struct ethosu_screen *screen = ethosu_screen(pcontext->screen);
+   subgraph->screen = ethosu_screen(pcontext->screen);
+   struct ethosu_screen *screen = subgraph->screen;
    uint64_t cmdstream_size = (subgraph->cursor - subgraph->cmdstream) *
       sizeof(*subgraph->cursor);
 
@@ -370,7 +371,7 @@ ethosu_ml_subgraph_invoke(struct pipe_context *pcontext,
       job.region_bo_handles[COEFS_REGION] = ethosu_resource(subgraph->coefs_rsrc)->handle;
       if (!DBG_ENABLED(ETHOSU_DBG_DISABLE_SRAM)) {
          job.region_bo_handles[SCRATCH_REGION] = 0;
-         job.sram_size = screen->info.sram_size;
+         job.sram_size = ethosu_ml_device(subgraph->base.device)->sram_size;
       }
    }
 
@@ -434,7 +435,7 @@ ethosu_ml_subgraph_destroy(struct pipe_ml_device *pdevice,
 
    if (subgraph->io_rsrc) {
       /* Post-submission state: cleanup DRM resources */
-      struct ethosu_screen *screen = ethosu_device_screen(pdevice);
+      struct ethosu_screen *screen = subgraph->screen;
       struct drm_gem_close arg = {0};
       int ret;
 

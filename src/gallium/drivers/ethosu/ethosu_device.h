@@ -42,6 +42,13 @@ struct ethosu_block {
 
 struct ethosu_ml_device {
    struct pipe_ml_device base;
+
+   /* Target hardware description — set from DRM query or from spec string */
+   bool is_u65;
+   struct ethosu_block ifm_ublock;
+   struct ethosu_block ofm_ublock;
+   unsigned max_concurrent_blocks;
+   uint32_t sram_size;
 };
 
 struct ethosu_screen {
@@ -50,9 +57,6 @@ struct ethosu_screen {
 
    int fd;
    struct drm_ethosu_npu_info info;
-   struct ethosu_block ifm_ublock;
-   struct ethosu_block ofm_ublock;
-   unsigned max_concurrent_blocks;
 };
 
 static inline struct ethosu_screen *
@@ -61,20 +65,10 @@ ethosu_screen(struct pipe_screen *p)
    return (struct ethosu_screen *)p;
 }
 
-static inline bool
-ethosu_is_u65(struct ethosu_screen *e)
+static inline struct ethosu_ml_device *
+ethosu_ml_device(struct pipe_ml_device *p)
 {
-   if (DBG_ENABLED(ETHOSU_DBG_FORCE_U85))
-      return false;
-   else
-      return DRM_ETHOSU_ARCH_MAJOR(e->info.id) == 1;
-}
-
-static inline struct ethosu_screen *
-ethosu_device_screen(struct pipe_ml_device *pdevice)
-{
-   struct ethosu_ml_device *dev = (struct ethosu_ml_device *)pdevice;
-   return container_of(dev, struct ethosu_screen, ml_device);
+   return (struct ethosu_ml_device *)p;
 }
 
 struct ethosu_context {

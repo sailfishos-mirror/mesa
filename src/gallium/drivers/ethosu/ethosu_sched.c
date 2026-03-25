@@ -15,16 +15,16 @@ required_input_size(int value, int stride, int border)
 static struct ethosu_block
 _get_ifm_blocksize(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, struct ethosu_block ofm_block)
 {
-   struct ethosu_screen *screen = ethosu_device_screen(subgraph->base.device);
+   struct ethosu_ml_device *device = ethosu_ml_device(subgraph->base.device);
    struct ethosu_block ifm_block = {0};
 
    // IFM block height
    int h = required_input_size(ofm_block.height, operation->kernel.stride_y, MIN2(operation->kernel.height, SUB_KERNEL_MAX.height));
-   h = align(h, screen->ofm_ublock.height);
+   h = align(h, device->ofm_ublock.height);
 
    // IFM block width
    int w = required_input_size(ofm_block.width, operation->kernel.stride_x, MIN2(operation->kernel.width, SUB_KERNEL_MAX.width));
-   w = align(w, screen->ofm_ublock.width);
+   w = align(w, device->ofm_ublock.width);
 
    ifm_block.height = h;
    ifm_block.width = w;
@@ -73,7 +73,7 @@ try_block_config(struct ethosu_operation *operation, struct ethosu_block ofm_blo
 static struct ethosu_block_config
 find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   struct ethosu_screen *screen = ethosu_device_screen(subgraph->base.device);
+   struct ethosu_ml_device *device = ethosu_ml_device(subgraph->base.device);
    struct ethosu_block_config config = {};
    struct ethosu_block search_space = ARCH_OFM_BLOCK_MAX;
    float ofm_elements = operation->ofm.shape.width * operation->ofm.shape.height * operation->ofm.shape.depth;
@@ -89,7 +89,7 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
    search_space.height = MIN2(search_space.height, operation->ofm.shape.height);
    search_space.depth = MIN2(search_space.depth, operation->ofm.shape.depth);
 
-   unsigned depth = MAX2(screen->ofm_ublock.depth, MIN2(search_space.depth, ARCH_SPLIT_DEPTH));
+   unsigned depth = MAX2(device->ofm_ublock.depth, MIN2(search_space.depth, ARCH_SPLIT_DEPTH));
 
    bool is_part_kernel = false;
    if (is_convolution) {
@@ -106,16 +106,16 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
       depth = align(depth, ARCH_SPLIT_DEPTH);
    }
 
-   search_space.width = align(search_space.width, screen->ofm_ublock.width);
-   search_space.height = align(search_space.height, screen->ofm_ublock.height);
-   search_space.depth = align(search_space.depth, screen->ofm_ublock.depth);
+   search_space.width = align(search_space.width, device->ofm_ublock.width);
+   search_space.height = align(search_space.height, device->ofm_ublock.height);
+   search_space.depth = align(search_space.depth, device->ofm_ublock.depth);
 
    while (depth <= search_space.depth) {
       bool wont_fit[search_space.height + 1][search_space.width + 1];
       memset(wont_fit, 0, sizeof(wont_fit));
 
-      for (unsigned height = screen->ofm_ublock.height; height <= search_space.height; height += screen->ofm_ublock.height) {
-         for (unsigned width = screen->ofm_ublock.width; width <= search_space.width; width += screen->ofm_ublock.width) {
+      for (unsigned height = device->ofm_ublock.height; height <= search_space.height; height += device->ofm_ublock.height) {
+         for (unsigned width = device->ofm_ublock.width; width <= search_space.width; width += device->ofm_ublock.width) {
 
             if (wont_fit[height][width])
                continue;
@@ -124,7 +124,7 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
             struct ethosu_block ifm_block = _get_ifm_blocksize(subgraph, operation, ofm_block);
 
             if (!is_equal_depth)
-               ifm_block.depth = align(MIN2(operation->ifm.shape.depth, is_part_kernel ? 16 : 32), screen->ifm_ublock.depth);
+               ifm_block.depth = align(MIN2(operation->ifm.shape.depth, is_part_kernel ? 16 : 32), device->ifm_ublock.depth);
 
             // Try to fit the blocks in SHRAM
             struct ethosu_shram_layout layout = {0};
@@ -181,7 +181,7 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
                      config.ofm_block.height = height;
                      config.ofm_block.width = width;
                      config.ofm_block.depth = depth;
-                     config.ofm_ublock = screen->ofm_ublock;
+                     config.ofm_ublock = device->ofm_ublock;
                      config.is_partkernel = is_part_kernel;
 
                      best_cost = relative_cost;
@@ -193,7 +193,7 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
          }
       }
 
-      depth += screen->ofm_ublock.depth;
+      depth += device->ofm_ublock.depth;
       if (depth < operation->ofm.shape.depth) {
          depth = align(depth, ARCH_SPLIT_DEPTH);
       }
@@ -205,9 +205,9 @@ find_block_config(struct ethosu_subgraph *subgraph, struct ethosu_operation *ope
 void
 ethosu_sched_operation(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   struct ethosu_screen *screen = ethosu_device_screen(subgraph->base.device);
+   struct ethosu_ml_device *device = ethosu_ml_device(subgraph->base.device);
 
-   if (ethosu_is_u65(screen))
+   if (device->is_u65)
       operation->block_config = find_block_config(subgraph, operation);
    else
       operation->block_config = find_block_config_u85(subgraph, operation);

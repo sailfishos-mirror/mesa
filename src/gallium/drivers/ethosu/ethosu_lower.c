@@ -201,7 +201,7 @@ ethosu_lower_concatenation(struct ethosu_subgraph *subgraph,
 {
    operation->type = ETHOSU_OPERATION_TYPE_POOLING;
 
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device))) {
+   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
       operation->pooling.type = ETHOSU_POOLING_TYPE_AVG;
       operation->round_mode = ETHOSU_ROUNDING_NATURAL;
    } else
@@ -432,7 +432,7 @@ ethosu_lower_graph(struct ethosu_subgraph *subgraph,
          }
 
          if (operation.conv.scales.size + operation.conv.weights.size <=
-             ethosu_device_screen(subgraph->base.device)->info.sram_size) {
+             ethosu_ml_device(subgraph->base.device)->sram_size) {
             struct ethosu_operation dma_operation = {0};
             ethosu_lower_dma(subgraph, &poperations[i], &operation, &dma_operation);
 

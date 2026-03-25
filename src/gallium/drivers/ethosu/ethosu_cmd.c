@@ -192,7 +192,7 @@ emit_ifm_precision(struct ethosu_subgraph *subgraph,
    if (feature_map->is_signed)
       prec |= NPU_SET_IFM_PRECISION_ACTIVATION(1); // signed activation
 
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
       prec |= NPU_SET_IFM_PRECISION_SCALE_MODE(op_to_scale);
 
    EMIT0(precision_cmd, prec);
@@ -222,13 +222,13 @@ emit_ofm(struct ethosu_subgraph *subgraph, struct ethosu_feature_map *feature_ma
    EMIT0(NPU_SET_OFM_HEIGHT_M1, feature_map->shape.height - 1);
    EMIT0(NPU_SET_OFM_WIDTH_M1, feature_map->shape.width - 1);
 
-   if (!ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65)
       EMIT0(NPU_SET_OFM_DEPTH_M1, feature_map->shape.depth - 1);
 
    emit_tiles(
       subgraph, feature_map, NPU_SET_OFM_HEIGHT0_M1, NPU_SET_OFM_HEIGHT1_M1, NPU_SET_OFM_WIDTH0_M1);
 
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
       EMIT0(NPU_SET_OFM_DEPTH_M1, feature_map->shape.depth - 1);
 
    emit_strides(subgraph, feature_map, NPU_SET_OFM_STRIDE_C, NPU_SET_OFM_STRIDE_Y, NPU_SET_OFM_STRIDE_X);
@@ -277,7 +277,7 @@ emit_kernel(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation
 static void
 emit_weights(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   if (!ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65)
       EMIT0(NPU_SET_WEIGHT_FORMAT, 0x0);
 
    EMIT0(NPU_SET_WEIGHT_REGION, operation->conv.weights.region);
@@ -378,22 +378,22 @@ emit_acc_format(struct ethosu_subgraph *subgraph, struct ethosu_operation *opera
 static void
 emit_common(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, enum ethosu_op_to_scale op_to_scale)
 {
-   if (!ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65)
       emit_ifm_precision(subgraph, &operation->ifm, op_to_scale, NPU_SET_IFM_PRECISION);
    emit_ifm(subgraph, &operation->ifm);
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
       emit_ifm_precision(subgraph, &operation->ifm, op_to_scale, NPU_SET_IFM_PRECISION);
    EMIT0(NPU_SET_IFM_UPSCALE, operation->upscale);
 
    if (operation->type != ETHOSU_OPERATION_TYPE_ELTWISE)
       emit_padding(subgraph, operation);
 
-   if (!ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65)
       emit_ofm_precision(subgraph, operation);
 
    emit_ofm(subgraph, &operation->ofm);
 
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
       emit_ofm_precision(subgraph, operation);
 
    if (operation->type != ETHOSU_OPERATION_TYPE_ELTWISE)
@@ -410,7 +410,7 @@ emit_common(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation
 static void
 emit_convolution(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation)
 {
-   if (!ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (!ethosu_ml_device(subgraph->base.device)->is_u65)
       EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_SHIFT(operation->conv.shift), operation->conv.scale);
 
    operation->ifm.tiles.addresses[0] = ethosu_allocate_feature_map(subgraph, operation->ifm.tensor_idx);
@@ -426,7 +426,7 @@ emit_convolution(struct ethosu_subgraph *subgraph, struct ethosu_operation *oper
    emit_common(subgraph, operation, false);
 
    emit_block_config(subgraph, operation);
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
       emit_shram_registers(subgraph, operation);
    else
       emit_acc_format(subgraph, operation);
@@ -500,7 +500,7 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 
    switch (operation->pooling.type) {
    case ETHOSU_POOLING_TYPE_MAX: {
-      if (!ethosu_is_u65(ethosu_device_screen(subgraph->base.device))) {
+      if (!ethosu_ml_device(subgraph->base.device)->is_u65) {
          EMIT1(NPU_SET_OFM_SCALE, NPU_SET_OFM_SCALE_ROUND_MODE(1), 1);
          break;
       } else
@@ -533,7 +533,7 @@ emit_pooling(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    }
 
    emit_block_config(subgraph, operation);
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
       emit_shram_registers(subgraph, operation);
    else
       emit_acc_format(subgraph, operation);
@@ -564,7 +564,7 @@ static void
 emit_ifm2(struct ethosu_subgraph *subgraph, struct ethosu_operation *operation, bool has_scalar)
 {
    if (has_scalar) {
-      if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+      if (ethosu_ml_device(subgraph->base.device)->is_u65)
          EMIT0(NPU_SET_IFM2_SCALAR, operation->ifm2.scalar);
       else {
          emit_ifm2_precision(subgraph, operation, true);
@@ -612,7 +612,7 @@ emit_ifm2_broadcast(struct ethosu_subgraph *subgraph, struct ethosu_operation *o
 {
    unsigned ifm2_broadcast = 0;
 
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device))) {
+   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
       ifm2_broadcast |= NPU_SET_IFM2_BROADCAST_OPERAND_ORDER(operation->eltwise.ifm_reversed);
 
       if (has_scalar) {
@@ -787,7 +787,7 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    bool has_scalar = operation->ifm2.scalar != 0;
    enum ethosu_op_to_scale op_to_scale;
 
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device))) {
+   if (ethosu_ml_device(subgraph->base.device)->is_u65) {
       op_to_scale = eltwise_emit_ofm_scaling(
          subgraph,
          operation->ifm.scale,
@@ -812,7 +812,7 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
 
    emit_ifm2(subgraph, operation, has_scalar);
 
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
       emit_ifm_precision(subgraph, &operation->ifm2, OP_NONE, NPU_SET_IFM2_PRECISION);
    else
       emit_ifm2_precision(subgraph, operation, has_scalar);
@@ -820,7 +820,7 @@ emit_eltwise(struct ethosu_subgraph *subgraph, struct ethosu_operation *operatio
    emit_ifm2_broadcast(subgraph, operation, has_scalar);
 
    emit_block_config(subgraph, operation);
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
       emit_shram_registers(subgraph, operation);
    else
       emit_acc_format(subgraph, operation);
@@ -1090,7 +1090,7 @@ get_jobs(const struct ethosu_block *area,
 static unsigned
 calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op, struct ethosu_operation *operation)
 {
-   struct ethosu_screen *screen = ethosu_device_screen(subgraph->base.device);
+   struct ethosu_ml_device *device = ethosu_ml_device(subgraph->base.device);
 
    if (!prev_op)
       return 0;
@@ -1102,7 +1102,7 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
       ifm_index = 1;
    } else if (operation->ifm.tensor_idx != prev_op->ofm.tensor_idx) {
       /* Previous operation doesn't produce current operation's IFM */
-      return screen->max_concurrent_blocks;
+      return device->max_concurrent_blocks;
    }
 
    const struct ethosu_feature_map *ifm = (ifm_index == 0) ? &operation->ifm : &operation->ifm2;
@@ -1135,7 +1135,7 @@ calc_blockdep(struct ethosu_subgraph *subgraph, struct ethosu_operation *prev_op
                       &curr_ifm_job);
 
    /* Get last jobs from previous operation */
-   int max_jobs = screen->max_concurrent_blocks;
+   int max_jobs = device->max_concurrent_blocks;
    assert(max_jobs <= 8);
    struct box last_prev_jobs[8];
    int prev_count = get_jobs(&prev_ofm->shape, &prev_block, max_jobs, false, last_prev_jobs);
@@ -1187,7 +1187,7 @@ ethosu_emit_cmdstream(struct ethosu_subgraph *subgraph)
 
    /* Compile */
 
-   if (ethosu_is_u65(ethosu_device_screen(subgraph->base.device)))
+   if (ethosu_ml_device(subgraph->base.device)->is_u65)
       EMIT0(NPU_SET_PARALLEL_MODE, 0x0);
 
    util_dynarray_foreach (&subgraph->operations, struct ethosu_operation, operation) {
