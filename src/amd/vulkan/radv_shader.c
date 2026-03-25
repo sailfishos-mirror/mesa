@@ -2997,11 +2997,6 @@ radv_shader_create_uncached(struct radv_device *device, const struct radv_shader
       }
    }
 
-   if (radv_device_physical(device)->info.family_overridden) {
-      *out_shader = shader;
-      return VK_SUCCESS;
-   }
-
    if (replay_block) {
       shader->alloc = radv_replay_shader_arena_block(device, replay_block, shader);
       if (!shader->alloc) {
@@ -3106,9 +3101,6 @@ radv_shader_part_create(struct radv_device *device, struct radv_shader_part_bina
    shader_part->spi_shader_col_format = binary->info.spi_shader_col_format;
    shader_part->cb_shader_mask = binary->info.cb_shader_mask;
    shader_part->spi_shader_z_format = binary->info.spi_shader_z_format;
-
-   if (radv_device_physical(device)->info.family_overridden)
-      return shader_part;
 
    /* Allocate memory and upload. */
    shader_part->alloc = radv_alloc_shader_memory(device, shader_part->code_size, false, NULL);

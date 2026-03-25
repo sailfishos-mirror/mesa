@@ -243,7 +243,6 @@ struct radeon_info {
    uint32_t chip_rev; /* 0 = A0, 1 = A1, etc. */
 
    /* Flags. */
-   bool family_overridden; /* AMD_FORCE_FAMILY was used, skip command submission */
    bool has_graphics; /* false if the chip is compute-only */
    bool has_clear_state;
    bool has_distributed_tess;

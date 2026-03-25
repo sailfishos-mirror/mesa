@@ -20,7 +20,6 @@
 #include "vk_log.h"
 #include "vk_shader_module.h"
 
-#include "common/ac_null_device.h"
 #include "util/disk_cache.h"
 #include "util/hex.h"
 #include "util/u_debug.h"

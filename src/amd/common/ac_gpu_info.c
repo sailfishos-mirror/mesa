@@ -5,7 +5,6 @@
  */
 
 #include "ac_gpu_info.h"
-#include "ac_null_device.h"
 #include "ac_shader_util.h"
 #include "ac_debug.h"
 #include "ac_surface.h"
@@ -227,8 +226,11 @@ static bool handle_env_var_force_family(struct radeon_info *info)
 {
    const char *family = debug_get_option("AMD_FORCE_FAMILY", NULL);
 
-   if (family)
-      return ac_null_device_create(info, family);
+   if (family) {
+      /* Report AMD_FORCE_FAMILY as deprecated for one or two release cycles. */
+      fprintf(stderr, "AMD_FORCE_FAMILY=<family> has been removed. Please use AMDGPU drm-shim now.\n");
+      return false;
+   }
 
    return true;
 }
@@ -632,8 +634,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    }
 #define identify_chip(chipname) identify_chip2(chipname, chipname)
 
-   if (!info->family_overridden) {
-      switch (device_info.family) {
+   switch (device_info.family) {
       case FAMILY_SI:
          identify_chip(TAHITI);
          identify_chip(PITCAIRN);
@@ -720,44 +721,43 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
          identify_chip(GFX1200);
          identify_chip(GFX1201);
          break;
-      }
-
-      if (info->family == CHIP_UNKNOWN) {
-         fprintf(stderr, "amdgpu: unknown (family_id, chip_external_rev): (%u, %u)\n",
-               device_info.family, device_info.external_rev);
-         return AC_QUERY_GPU_INFO_UNIMPLEMENTED_HW;
-      }
-
-      if (info->ip[AMD_IP_GFX].ver_major == 12 && info->ip[AMD_IP_GFX].ver_minor == 0)
-         info->gfx_level = GFX12;
-      else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 5)
-         info->gfx_level = GFX11_5;
-      else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 0)
-         info->gfx_level = GFX11;
-      else if (info->ip[AMD_IP_GFX].ver_major == 10 && info->ip[AMD_IP_GFX].ver_minor == 3)
-         info->gfx_level = GFX10_3;
-      else if (info->ip[AMD_IP_GFX].ver_major == 10 && info->ip[AMD_IP_GFX].ver_minor == 1)
-         info->gfx_level = GFX10;
-      else if (info->ip[AMD_IP_GFX].ver_major == 9 || info->ip[AMD_IP_COMPUTE].ver_major == 9)
-         info->gfx_level = GFX9;
-      else if (info->ip[AMD_IP_GFX].ver_major == 8)
-         info->gfx_level = GFX8;
-      else if (info->ip[AMD_IP_GFX].ver_major == 7)
-         info->gfx_level = GFX7;
-      else if (info->ip[AMD_IP_GFX].ver_major == 6)
-         info->gfx_level = GFX6;
-      else {
-         fprintf(stderr, "amdgpu: Unknown gfx version: %u.%u\n",
-                 info->ip[AMD_IP_GFX].ver_major, info->ip[AMD_IP_GFX].ver_minor);
-         return AC_QUERY_GPU_INFO_UNIMPLEMENTED_HW;
-      }
-
-      info->family_id = device_info.family;
-      info->chip_external_rev = device_info.external_rev;
-      info->chip_rev = device_info.chip_rev;
-      const char *marketing_name = ac_drm_get_marketing_name(dev);
-      strncpy(info->marketing_name, marketing_name ? marketing_name : "AMD Unknown", sizeof(info->marketing_name));
    }
+
+   if (info->family == CHIP_UNKNOWN) {
+      fprintf(stderr, "amdgpu: unknown (family_id, chip_external_rev): (%u, %u)\n",
+            device_info.family, device_info.external_rev);
+      return AC_QUERY_GPU_INFO_UNIMPLEMENTED_HW;
+   }
+
+   if (info->ip[AMD_IP_GFX].ver_major == 12 && info->ip[AMD_IP_GFX].ver_minor == 0)
+      info->gfx_level = GFX12;
+   else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 5)
+      info->gfx_level = GFX11_5;
+   else if (info->ip[AMD_IP_GFX].ver_major == 11 && info->ip[AMD_IP_GFX].ver_minor == 0)
+      info->gfx_level = GFX11;
+   else if (info->ip[AMD_IP_GFX].ver_major == 10 && info->ip[AMD_IP_GFX].ver_minor == 3)
+      info->gfx_level = GFX10_3;
+   else if (info->ip[AMD_IP_GFX].ver_major == 10 && info->ip[AMD_IP_GFX].ver_minor == 1)
+      info->gfx_level = GFX10;
+   else if (info->ip[AMD_IP_GFX].ver_major == 9 || info->ip[AMD_IP_COMPUTE].ver_major == 9)
+      info->gfx_level = GFX9;
+   else if (info->ip[AMD_IP_GFX].ver_major == 8)
+      info->gfx_level = GFX8;
+   else if (info->ip[AMD_IP_GFX].ver_major == 7)
+      info->gfx_level = GFX7;
+   else if (info->ip[AMD_IP_GFX].ver_major == 6)
+      info->gfx_level = GFX6;
+   else {
+      fprintf(stderr, "amdgpu: Unknown gfx version: %u.%u\n",
+               info->ip[AMD_IP_GFX].ver_major, info->ip[AMD_IP_GFX].ver_minor);
+      return AC_QUERY_GPU_INFO_UNIMPLEMENTED_HW;
+   }
+
+   info->family_id = device_info.family;
+   info->chip_external_rev = device_info.external_rev;
+   info->chip_rev = device_info.chip_rev;
+   const char *marketing_name = ac_drm_get_marketing_name(dev);
+   strncpy(info->marketing_name, marketing_name ? marketing_name : "AMD Unknown", sizeof(info->marketing_name));
 
 #define VCN_IP_VERSION(mj, mn, rv) (((mj) << 16) | ((mn) << 8) | (rv))
 
@@ -1000,8 +1000,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    }
 
    info->mc_arb_ramcfg = amdinfo.mc_arb_ramcfg;
-   if (!info->family_overridden)
-      info->gb_addr_config = amdinfo.gb_addr_cfg;
+   info->gb_addr_config = amdinfo.gb_addr_cfg;
    if (info->gfx_level >= GFX9) {
       if (!info->has_graphics && info->family >= CHIP_GFX940)
          info->gb_addr_config = 0;
@@ -1282,8 +1281,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->min_good_cu_per_sa =
       (info->num_cu / (info->num_se * info->max_sa_per_se * cu_group)) * cu_group;
 
-   if (!info->family_overridden)
-      memcpy(info->si_tile_mode_array, amdinfo.gb_tile_mode, sizeof(amdinfo.gb_tile_mode));
+   memcpy(info->si_tile_mode_array, amdinfo.gb_tile_mode, sizeof(amdinfo.gb_tile_mode));
 
    memcpy(info->cik_macrotile_mode_array, amdinfo.gb_macro_tile_mode,
           sizeof(amdinfo.gb_macro_tile_mode));
@@ -1567,7 +1565,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
          info->attribute_ring_size_per_se = 1400 * 1024;
          num_prim_exports = 16368; /* also includes gs_alloc_req */
          num_pos_exports = 16384;
-      } else if (info->l3_cache_size_mb || info->family_overridden) {
+      } else if (info->l3_cache_size_mb) {
          info->attribute_ring_size_per_se = 1400 * 1024;
       } else {
          assert(info->num_se == 1);
@@ -1805,7 +1803,6 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    chip_rev = %i\n", info->chip_rev);
 
    fprintf(f, "Flags:\n");
-   fprintf(f, "    family_overridden = %u\n", info->family_overridden);
    fprintf(f, "    has_graphics = %i\n", info->has_graphics);
    fprintf(f, "    has_clear_state = %u\n", info->has_clear_state);
    fprintf(f, "    has_distributed_tess = %u\n", info->has_distributed_tess);

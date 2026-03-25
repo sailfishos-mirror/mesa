@@ -4198,12 +4198,10 @@ void ac_surface_compute_umd_metadata(const struct radeon_info *info, const struc
     */
 
    /* metadata image format version */
-   metadata[0] = (include_tool_md || info->family_overridden) ? 3 : 1;
+   metadata[0] = include_tool_md ? 3 : 1;
 
    if (include_tool_md)
       metadata[0] |= 1u << (16 + AC_SURF_METADATA_FLAG_EXTRA_MD_BIT);
-   if (info->family_overridden)
-      metadata[0] |= 1u << (16 + AC_SURF_METADATA_FLAG_FAMILY_OVERRIDEN_BIT);
 
    /* Tiling modes are ambiguous without a PCI ID. */
    metadata[1] = ac_get_umd_metadata_word1(info);
@@ -4239,13 +4237,6 @@ void ac_surface_compute_umd_metadata(const struct radeon_info *info, const struc
                                                     surf, 0, 0);
          *size_metadata = 11 * 4;
       }
-   }
-
-   if (info->family_overridden) {
-      int n_dw = *size_metadata / 4;
-      assert(n_dw < 64 - 1);
-      metadata[n_dw] = info->gfx_level;
-      *size_metadata += 4;
    }
 }
 
