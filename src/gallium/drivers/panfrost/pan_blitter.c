@@ -196,7 +196,8 @@ panfrost_blitter_clear(struct pipe_context *pipe, unsigned buffers,
 
    struct panfrost_context *ctx = pan_context(pipe);
    const enum pan_save_state states =
-      PAN_SAVE_FRAGMENT_STATE | PAN_SAVE_FRAGMENT_CONSTANT;
+      PAN_SAVE_FRAGMENT_STATE | PAN_SAVE_FRAGMENT_CONSTANT |
+      PAN_SAVE_RENDER_COND;
 
    if (!panfrost_render_condition_check(ctx))
       return;
