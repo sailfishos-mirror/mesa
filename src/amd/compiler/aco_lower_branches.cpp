@@ -599,7 +599,8 @@ try_rotate_latch_block(branch_ctx& ctx, Block& header)
          continue;
       } else if (pred.linear_succs[0] == block.index) {
          /* Check if there is a fall-through path for the jump target. */
-         if (block.index > pred.linear_succs[1] || (pred.linear_succs[1] & block_kind_loop_latch))
+         if (block.index > pred.linear_succs[1] ||
+             (ctx.program->blocks[pred.linear_succs[1]].kind & block_kind_loop_latch))
             return;
 
          for (unsigned j = block.index + 1; j < pred.linear_succs[1]; j++) {
