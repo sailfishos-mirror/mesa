@@ -1155,8 +1155,10 @@ va_lower_blend(bi_context *ctx)
 
       unsigned prolog_length = 2 * 8;
 
-      /* By ABI, r48 is the link register shared with blend shaders */
-      assert(bi_is_equiv(I->dest[0], bi_register(48)));
+      /* By ABI, the preload blend link register is shared with blend
+       * shaders */
+      assert(bi_is_equiv(I->dest[0], bi_register(bi_preload_reg(
+                                        BI_PRELOAD_BLEND_LINK, ctx->arch))));
 
       if (I->flow == VA_FLOW_END)
          bi_iadd_imm_i32_to(&b, I->dest[0], va_zero_lut(), 0);

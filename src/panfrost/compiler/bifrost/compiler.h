@@ -1116,6 +1116,137 @@ enum bi_idvs_mode {
 
 #define BI_MAX_REGS 64
 
+enum bi_preload {
+   /* Compute */
+   BI_PRELOAD_LOCAL_ID_0,
+   BI_PRELOAD_LOCAL_ID_1,
+   BI_PRELOAD_LOCAL_ID_2,
+   BI_PRELOAD_WORKGROUP_ID_0,
+   BI_PRELOAD_WORKGROUP_ID_1,
+   BI_PRELOAD_WORKGROUP_ID_2,
+   BI_PRELOAD_GLOBAL_ID_0,
+   BI_PRELOAD_GLOBAL_ID_1,
+   BI_PRELOAD_GLOBAL_ID_2,
+   /* Vertex */
+   BI_PRELOAD_POS_RESULT_PTR_LO,
+   BI_PRELOAD_POS_RESULT_PTR_HI,
+   BI_PRELOAD_INTERNAL_ID,
+   BI_PRELOAD_VERTEX_ID,
+   BI_PRELOAD_INSTANCE_ID,
+   BI_PRELOAD_DRAW_ID,
+   BI_PRELOAD_VIEW_ID,
+   /* Fragment */
+   BI_PRELOAD_PRIMITIVE_ID,
+   BI_PRELOAD_PRIMITIVE_FLAGS,
+   BI_PRELOAD_POSITION_XY,
+   BI_PRELOAD_CUMULATIVE_COVERAGE,
+   BI_PRELOAD_RASTERIZER_COVERAGE,
+   BI_PRELOAD_SAMPLE_ID,
+   BI_PRELOAD_CENTROID_ID,
+   BI_PRELOAD_FRAME_ARG,
+   /* Blend */
+   BI_PRELOAD_BLEND_SRC0_C0,
+   BI_PRELOAD_BLEND_SRC0_C1,
+   BI_PRELOAD_BLEND_SRC0_C2,
+   BI_PRELOAD_BLEND_SRC0_C3,
+   BI_PRELOAD_BLEND_SRC1_C0,
+   BI_PRELOAD_BLEND_SRC1_C1,
+   BI_PRELOAD_BLEND_SRC1_C2,
+   BI_PRELOAD_BLEND_SRC1_C3,
+   BI_PRELOAD_BLEND_LINK,
+};
+
+static inline unsigned
+bi_preload_reg(enum bi_preload val, unsigned arch)
+{
+   switch (val) {
+   /* Compute */
+   case BI_PRELOAD_LOCAL_ID_0:
+      /* Bits [15;0] */
+      return 55;
+   case BI_PRELOAD_LOCAL_ID_1:
+      /* Bits [31;16] */
+      return 55;
+   case BI_PRELOAD_LOCAL_ID_2:
+      /* Bits [15;0] */
+      return 56;
+   case BI_PRELOAD_WORKGROUP_ID_0:
+      return 57;
+   case BI_PRELOAD_WORKGROUP_ID_1:
+      return 58;
+   case BI_PRELOAD_WORKGROUP_ID_2:
+      return 59;
+   case BI_PRELOAD_GLOBAL_ID_0:
+      return 60;
+   case BI_PRELOAD_GLOBAL_ID_1:
+      return 61;
+   case BI_PRELOAD_GLOBAL_ID_2:
+      return 62;
+   /* Vertex */
+   case BI_PRELOAD_POS_RESULT_PTR_LO:
+      assert(arch < 9);
+      return 58;
+   case BI_PRELOAD_POS_RESULT_PTR_HI:
+      assert(arch < 9);
+      return 59;
+   case BI_PRELOAD_INTERNAL_ID:
+      assert(arch >= 9);
+      return 59;
+   case BI_PRELOAD_VERTEX_ID:
+      return (arch >= 9) ? 60 : 61;
+   case BI_PRELOAD_INSTANCE_ID:
+      return (arch >= 9) ? 61 : 62;
+   case BI_PRELOAD_DRAW_ID:
+      assert(arch >= 9);
+      return 62;
+   case BI_PRELOAD_VIEW_ID:
+      assert(arch >= 9);
+      return 63;
+   /* Fragment */
+   case BI_PRELOAD_PRIMITIVE_ID:
+      return 57;
+   case BI_PRELOAD_PRIMITIVE_FLAGS:
+      return 58;
+   case BI_PRELOAD_POSITION_XY:
+      return 59;
+   case BI_PRELOAD_CUMULATIVE_COVERAGE:
+      /* Bits [15;0] */
+      return 60;
+   case BI_PRELOAD_RASTERIZER_COVERAGE:
+      /* Bits [15;0] */
+      return 61;
+   case BI_PRELOAD_SAMPLE_ID:
+      /* Bits [23;16] */
+      return 61;
+   case BI_PRELOAD_CENTROID_ID:
+      /* Bits [31;24] */
+      return 61;
+   case BI_PRELOAD_FRAME_ARG:
+      /* Double reg */
+      return 62;
+   /* Blend */
+   case BI_PRELOAD_BLEND_SRC0_C0:
+      return 0;
+   case BI_PRELOAD_BLEND_SRC0_C1:
+      return 1;
+   case BI_PRELOAD_BLEND_SRC0_C2:
+      return 2;
+   case BI_PRELOAD_BLEND_SRC0_C3:
+      return 3;
+   case BI_PRELOAD_BLEND_SRC1_C0:
+      return 4;
+   case BI_PRELOAD_BLEND_SRC1_C1:
+      return 5;
+   case BI_PRELOAD_BLEND_SRC1_C2:
+      return 6;
+   case BI_PRELOAD_BLEND_SRC1_C3:
+      return 7;
+   case BI_PRELOAD_BLEND_LINK:
+      return 48;
+   }
+   UNREACHABLE("Non-handled BI_PRELOAD");
+}
+
 typedef struct {
    const struct pan_compile_inputs *inputs;
    nir_shader *nir;
