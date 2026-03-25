@@ -197,6 +197,32 @@ vk_android_import_anb_memory(struct vk_device *device,
 {
    assert(anb && anb->handle && anb->handle->numFds > 0);
 
+   int dma_buf_fd = anb->handle->data[0];
+
+   /* Query image memory requirements for size and supported memory types */
+   VkMemoryRequirements mem_reqs;
+   device->dispatch_table.GetImageMemoryRequirements(
+      (VkDevice)device, (VkImage)image, &mem_reqs);
+
+   VkMemoryFdPropertiesKHR fd_props = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_FD_PROPERTIES_KHR,
+   };
+   VkResult result = device->dispatch_table.GetMemoryFdPropertiesKHR(
+      (VkDevice)device, VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
+      dma_buf_fd, &fd_props);
+   if (result != VK_SUCCESS)
+      return result;
+
+   uint32_t compatible_types = mem_reqs.memoryTypeBits & fd_props.memoryTypeBits;
+   if (!compatible_types)
+      return VK_ERROR_INVALID_EXTERNAL_HANDLE;
+
+   int dup_fd = os_dupfd_cloexec(dma_buf_fd);
+   if (dup_fd < 0) {
+      return (errno == EMFILE) ? VK_ERROR_TOO_MANY_OBJECTS
+                               : VK_ERROR_OUT_OF_HOST_MEMORY;
+   }
+
    const VkMemoryDedicatedAllocateInfo ded_alloc = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
       .pNext = NULL,
@@ -207,18 +233,18 @@ vk_android_import_anb_memory(struct vk_device *device,
       .sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR,
       .pNext = &ded_alloc,
       .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
-      .fd = os_dupfd_cloexec(anb->handle->data[0]),
+      .fd = dup_fd,
    };
    const VkMemoryAllocateInfo alloc_info = {
       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
       .pNext = &import_info,
-      .allocationSize = lseek(import_info.fd, 0, SEEK_END),
-      .memoryTypeIndex = 0,
+      .allocationSize = mem_reqs.size,
+      .memoryTypeIndex = ffs(compatible_types) - 1,
    };
-   VkResult result = device->dispatch_table.AllocateMemory(
+   result = device->dispatch_table.AllocateMemory(
       (VkDevice)device, &alloc_info, alloc, &image->anb_memory);
    if (result != VK_SUCCESS) {
-      close(import_info.fd);
+      close(dup_fd);
       return result;
    }
 
