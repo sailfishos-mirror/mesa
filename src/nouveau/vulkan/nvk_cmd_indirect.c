@@ -501,6 +501,7 @@ build_gfx_set_exec(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr,
 
 static void
 build_push_write_push_const(nir_builder *b, struct nvk_nir_push *p,
+                            const struct nvk_physical_device *pdev,
                             const VkPushConstantRange *pc_range)
 {
    assert(pc_range->offset % 4 == 0);
@@ -514,6 +515,7 @@ build_push_write_push_const(nir_builder *b, struct nvk_nir_push *p,
 
 static void
 build_push_gfx_const(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr,
+                     const struct nvk_physical_device *pdev,
                      const VkIndirectCommandsPushConstantTokenEXT *token)
 {
    const VkPushConstantRange *pc_range = &token->updateRange;
@@ -524,7 +526,7 @@ build_push_gfx_const(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr
    assert(pc_range->size % 4 == 0);
    const uint32_t dw_count = pc_range->size / 4;
 
-   build_push_write_push_const(b, p, pc_range);
+   build_push_write_push_const(b, p, pdev, pc_range);
    for (uint32_t i = 0; i < dw_count; i++)
       nvk_nir_push_dw(b, p, load_global_dw(b, token_addr, i));
 }
@@ -532,6 +534,7 @@ build_push_gfx_const(nir_builder *b, struct nvk_nir_push *p, nir_def *token_addr
 static void
 build_push_gfx_seq_idx(nir_builder *b, struct nvk_nir_push *p,
                        nir_def *token_addr, nir_def *seq_idx,
+                       const struct nvk_physical_device *pdev,
                        const VkIndirectCommandsPushConstantTokenEXT *token)
 {
    const VkPushConstantRange *pc_range = &token->updateRange;
@@ -540,7 +543,7 @@ build_push_gfx_seq_idx(nir_builder *b, struct nvk_nir_push *p,
    assert(!(pc_range->stageFlags & VK_SHADER_STAGE_COMPUTE_BIT));
    assert(pc_range->size == 4);
 
-   build_push_write_push_const(b, p, pc_range);
+   build_push_write_push_const(b, p, pdev, pc_range);
    nvk_nir_push_dw(b, p, seq_idx);
 }
 
@@ -671,11 +674,12 @@ build_process_gfx_cmd_seq(nir_builder *b, struct nvk_nir_push *p,
          break;
 
       case VK_INDIRECT_COMMANDS_TOKEN_TYPE_PUSH_CONSTANT_EXT:
-         build_push_gfx_const(b, p, token_addr, token->data.pPushConstant);
+         build_push_gfx_const(b, p, token_addr, pdev,
+                              token->data.pPushConstant);
          break;
 
       case VK_INDIRECT_COMMANDS_TOKEN_TYPE_SEQUENCE_INDEX_EXT:
-         build_push_gfx_seq_idx(b, p, token_addr, seq_idx,
+         build_push_gfx_seq_idx(b, p, token_addr, seq_idx, pdev,
                                 token->data.pPushConstant);
          break;
 
