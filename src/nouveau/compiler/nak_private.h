@@ -343,6 +343,12 @@ enum nak_fs_out {
 
 #define NAK_FS_OUT_COLOR(n) (NAK_FS_OUT_COLOR0 + (n) * 16)
 
+static inline const struct nak_constant_offset_info*
+nak_const_offsets(const struct nak_compiler* nak)
+{
+   return &nak_const_offsets_base;
+}
+
 bool nak_nir_rematerialize_load_const(nir_shader *nir);
 bool nak_nir_mark_lcssa_invariants(nir_shader *nir);
 bool nak_nir_lower_non_uniform_ldcx(nir_shader *nir, const struct nak_compiler *nak);
