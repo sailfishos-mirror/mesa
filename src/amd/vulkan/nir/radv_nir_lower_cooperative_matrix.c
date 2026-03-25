@@ -608,6 +608,7 @@ convert_use(nir_builder *b, nir_def *src, enum glsl_cmat_use src_use, enum glsl_
 static bool
 lower_cmat_convert_transpose(nir_builder *b, nir_intrinsic_instr *intr, const lower_cmat_params *params)
 {
+   b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
    nir_deref_instr *dst_deref = nir_src_as_deref(intr->src[0]);
    nir_deref_instr *src_deref = nir_src_as_deref(intr->src[1]);
    struct glsl_cmat_description dst_desc = *glsl_get_cmat_description(dst_deref->type);
@@ -679,40 +680,47 @@ lower_cmat_convert_transpose(nir_builder *b, nir_intrinsic_instr *intr, const lo
 
    nir_store_deref(b, dst_deref, ret, nir_component_mask(ret->num_components));
    nir_instr_remove(&intr->instr);
+   b->fp_math_ctrl = nir_fp_fast_math;
    return true;
 }
 
 static bool
 lower_cmat_unary_op(nir_builder *b, nir_intrinsic_instr *intr, const lower_cmat_params *params)
 {
+   b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
    nir_def *src = radv_nir_load_cmat(b, params, intr->src[1].ssa);
    nir_op op = nir_intrinsic_alu_op(intr);
    nir_def *ret = nir_build_alu1(b, op, src);
    nir_store_deref(b, nir_src_as_deref(intr->src[0]), ret, nir_component_mask(ret->num_components));
    nir_instr_remove(&intr->instr);
+   b->fp_math_ctrl = nir_fp_fast_math;
    return true;
 }
 
 static bool
 lower_cmat_scalar_op(nir_builder *b, nir_intrinsic_instr *intr, const lower_cmat_params *params)
 {
+   b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
    nir_def *src1 = radv_nir_load_cmat(b, params, intr->src[1].ssa);
    nir_op op = nir_intrinsic_alu_op(intr);
    nir_def *ret = nir_build_alu2(b, op, src1, intr->src[2].ssa);
    nir_store_deref(b, nir_src_as_deref(intr->src[0]), ret, nir_component_mask(ret->num_components));
    nir_instr_remove(&intr->instr);
+   b->fp_math_ctrl = nir_fp_fast_math;
    return true;
 }
 
 static bool
 lower_cmat_binary_op(nir_builder *b, nir_intrinsic_instr *intr, const lower_cmat_params *params)
 {
+   b->fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr);
    nir_def *src1 = radv_nir_load_cmat(b, params, intr->src[1].ssa);
    nir_def *src2 = radv_nir_load_cmat(b, params, intr->src[2].ssa);
    nir_op op = nir_intrinsic_alu_op(intr);
    nir_def *ret = nir_build_alu2(b, op, src1, src2);
    nir_store_deref(b, nir_src_as_deref(intr->src[0]), ret, nir_component_mask(ret->num_components));
    nir_instr_remove(&intr->instr);
+   b->fp_math_ctrl = nir_fp_fast_math;
    return true;
 }
 
