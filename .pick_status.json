@@ -3454,7 +3454,7 @@
         "description": "ci: fix rebase mistake",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 2,
         "main_sha": null,
         "because_sha": "32a818d11d3d60ebbc23a62127e988d17e742b79",
         "notes": null
