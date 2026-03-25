@@ -438,10 +438,14 @@ fp_math_ctrl_for_type(struct vtn_builder *b, struct vtn_type *type)
    enum glsl_base_type base_type;
 
    /* Some ALU like modf and frexp return a struct of two values. */
-   if (glsl_type_is_struct(type->type))
+   if (glsl_type_is_struct(type->type)) {
       base_type = glsl_get_base_type(type->type->fields.structure[0].type);
-   else
+   } else if (glsl_type_is_cmat(type->type)) {
+      struct glsl_cmat_description desc = *glsl_get_cmat_description(type->type);
+      base_type = desc.element_type;
+   } else {
       base_type = glsl_get_base_type(type->type);
+   }
 
    unsigned *fp_math_ctrl = vtn_fp_math_ctrl_for_base_type(b, base_type);
 
@@ -742,12 +746,13 @@ vtn_handle_alu(struct vtn_builder *b, SpvOp opcode,
    struct vtn_value *dest_val = vtn_untyped_value(b, w[2]);
    const struct glsl_type *dest_type = vtn_get_type(b, w[1])->type;
 
+   vtn_handle_fp_fast_math(b, dest_val, vtn_untyped_value(b, w[3]));
+
    if (glsl_type_is_cmat(dest_type)) {
       vtn_handle_cooperative_alu(b, dest_val, dest_type, opcode, w, count);
+      b->nb.fp_math_ctrl = nir_fp_fast_math;
       return;
    }
-
-   vtn_handle_fp_fast_math(b, dest_val, vtn_untyped_value(b, w[3]));
 
    bool mediump_16bit = vtn_alu_op_mediump_16bit(b, opcode, dest_val);
 
