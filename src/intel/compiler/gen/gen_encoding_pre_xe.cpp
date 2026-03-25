@@ -9,7 +9,9 @@
 
 #include "gen_private.h"
 
+/* Generated instruction information */
 #include "gen_info_util.h"
+#include "gen_info_pre_xe.h"
 
 #define WIDTH(width)   (1 << (width))
 
@@ -31,283 +33,27 @@ DECODE_VSTRIDE(unsigned raw_value)
       return STRIDE(raw_value);
 }
 
-FIELD(HW_OPCODE,          6,  0);
-FIELD(CONTROLS,          31,  8);
-FIELD(OPERAND_CONTROLS,  63, 32);
-FIELD(SOURCES,          127, 64);
-
-FIELD(DEBUG_CONTROL,     30, 30);
-
-/* EU_INSTRUCTION_MATH structures. */
-FIELD(MATH_FC, 27, 24);
-
-/* EU_INSTRUCTION_BRANCH_* structures. */
-FIELD(BRANCH_SRC1_FILE, 90, 89);
-FIELD(BRANCH_SRC1_TYPE, 94, 91);
-FIELD(BRANCH_UIP,       95, 64);
-FIELD(BRANCH_JIP,      127, 96);
-
-/* EU_INSTRUCTION_SEND and EU_INSTRUCTION_SENDS. */
-FIELD(SEND_CONTROLS_A,     23,  8);
-FIELD(SEND_SFID,           27, 24);
-FIELD(SEND_CONTROLS_B,     31, 28);
-FIELD(SEND_EX_DESC_IS_REG, 61, 61);
-FIELD(SEND_DESC_IS_REG,    77, 77);
-FIELD(SEND_MSG,           127, 96);
-
-FIELD(SENDS_FLAG_SUBNR,         32, 32);
-FIELD(SENDS_FLAG_NR,            33, 33);
-FIELD(SENDS_NO_MASK,            34, 34);
-FIELD(SENDS_DST_FILE,           35, 35);
-FIELD(SENDS_SRC1_FILE,          36, 36);
-FIELD(SENDS_DST_TYPE,           40, 37);
-FIELD(SENDS_SRC1_NR,            51, 44);
-FIELD(SENDS_DST_SUBNR,          52, 52);
-FIELD(SENDS_DST_NR,             60, 53);
-FIELD(SENDS_SRC0_SUBNR,         68, 68);
-FIELD(SENDS_SRC0_NR,            76, 69);
-FIELD(SENDS_SRC0_ADDR_MODE,     79, 79);
-
-FIELD(SENDS_DST_ADDR_IMM,       56, 52);
-FIELD(SENDS_DST_ADDR_SUBNR,     60, 57);
-FIELD(SENDS_DST_ADDR_IMM_SIGN,  62, 62);
-FIELD(SENDS_DST_ADDR_MODE,      63, 63);
-
-FIELD(SENDS_SRC0_ADDR_IMM_SIGN, 78, 78);
-FIELD(SENDS_SRC0_ADDR_SUBNR,    76, 73);
-FIELD(SENDS_SRC0_ADDR_IMM,      72, 68);
-
-/* EU_INSTRUCTION_BASIC_THREE_SRC. */
-FIELD(THREE_FLAG_SUBNR,      32,  32);
-FIELD(THREE_FLAG_NR,         33,  33);
-FIELD(THREE_NO_MASK,         34,  34);
-FIELD(THREE_SRC2_TYPE,       35,  35);
-FIELD(THREE_SRC1_TYPE,       36,  36);
-FIELD(THREE_SRC0_ABS,        37,  37);
-FIELD(THREE_SRC0_NEGATE,     38,  38);
-FIELD(THREE_SRC1_ABS,        39,  39);
-FIELD(THREE_SRC1_NEGATE,     40,  40);
-FIELD(THREE_SRC2_ABS,        41,  41);
-FIELD(THREE_SRC2_NEGATE,     42,  42);
-FIELD(THREE_SRC_TYPE,        45,  43);
-FIELD(THREE_DST_TYPE,        48,  46);
-FIELD(THREE_DST_WRITEMASK,   52,  49);
-FIELD(THREE_DST_SUBNR,       55,  53);
-FIELD(THREE_DST_NR,          63,  56);
-FIELD(THREE_SRC0_OPERAND,    84,  64);
-FIELD(THREE_SRC1_OPERAND,   105,  85);
-FIELD(THREE_SRC2_OPERAND,   126, 106);
-
-/* EU_INSTRUCTION_ALIGN1_THREE_SRC (Gfx11). */
-FIELD(THREE_A1_EXECUTION_TYPE,  35,  35);
-FIELD(THREE_A1_DST_FILE,        36,  36);
-FIELD(THREE_A1_SRC0_FILE,       43,  43);
-FIELD(THREE_A1_SRC1_FILE,       44,  44);
-FIELD(THREE_A1_SRC2_FILE,       45,  45);
-FIELD(THREE_A1_DST_HSTRIDE,     49,  49);
-FIELD(THREE_A1_SRC0_TYPE,       66,  64);
-FIELD(THREE_A1_SRC0_VSTRIDE,    68,  67);
-FIELD(THREE_A1_SRC0_HSTRIDE,    70,  69);
-FIELD(THREE_A1_SRC0_SUBNR,      75,  71);
-FIELD(THREE_A1_SRC0_NR,         83,  76);
-FIELD(THREE_A1_SRC1_TYPE,       87,  85);
-FIELD(THREE_A1_SRC1_VSTRIDE,    89,  88);
-FIELD(THREE_A1_SRC1_HSTRIDE,    91,  90);
-FIELD(THREE_A1_SRC1_SUBNR,      96,  92);
-FIELD(THREE_A1_SRC1_NR,        104,  97);
-FIELD(THREE_A1_SRC2_TYPE,      108, 106);
-FIELD(THREE_A1_SRC2_HSTRIDE,   112, 111);
-FIELD(THREE_A1_SRC2_SUBNR,     117, 113);
-FIELD(THREE_A1_SRC2_NR,        125, 118);
-
-FIELD(THREE_A1_SRC0_IMM,        82,  67);
-FIELD(THREE_A1_SRC2_IMM,       124, 109);
-
-/* Relative to EU_INSTRUCTION_SOURCES_* sub-structures. */
-SUB_FIELD(SRC0_OPERAND,       24,  0);
-SUB_FIELD(SRC1_FILE,          26, 25);
-SUB_FIELD(SRC1_TYPE,          30, 27);
-SUB_FIELD(SRC1_OPERAND,       56, 32);
-
-SUB_FIELD(SRC0_ADDR_IMM_SIGN, 31, 31);
-SUB_FIELD(SRC1_ADDR_IMM_SIGN, 57, 57);
-
-SUB_FIELD(IMM_32,             63, 32);
-SUB_FIELD(IMM_64,             63,  0);
-
-/* Relative to EU_INSTRUCTION_CONTROLS_A sub-structure. */
-SUB_FIELD(ACCESS_MODE,     0,  0);
-SUB_FIELD(NO_DD_CLEAR,     1,  1);
-SUB_FIELD(NO_DD_CHECK,     2,  2);
-SUB_FIELD(NIB_CONTROL,     3,  3);
-SUB_FIELD(QTR_CONTROL,     5,  4);
-SUB_FIELD(THREAD_CONTROL,  7,  6);
-SUB_FIELD(PRED_CONTROL,   11,  8);
-SUB_FIELD(PRED_INV,       12, 12);
-SUB_FIELD(EXEC_SIZE,      15, 13);
-
-/* Relative to EU_INSTRUCTION_CONTROLS_B sub-structure. */
-SUB_FIELD(BRANCH_CONTROL, 0, 0);
-SUB_FIELD(ACC_WR_CONTROL, 0, 0);
-SUB_FIELD(SATURATE,       3, 3);
-
-/* Relative to EU_INSTRUCTION_OPERAND_CONTROLS sub-structure. */
-SUB_FIELD(FLAG_SUBNR,         0,  0);
-SUB_FIELD(FLAG_NR,            1,  1);
-SUB_FIELD(NO_MASK,            2,  2);
-SUB_FIELD(DST_FILE,           4,  3);
-SUB_FIELD(DST_TYPE,           8,  5);
-SUB_FIELD(SRC0_FILE,         10,  9);
-SUB_FIELD(SRC0_TYPE,         14, 11);
-SUB_FIELD(DST_ADDR_IMM_SIGN, 15, 15);
-SUB_FIELD(DST_OPERAND,       31, 16);
-
-/* Relative to EU_INSTRUCTION_OPERAND_SEND_MSG sub-structure. */
-SUB_FIELD(SEND_DESC_IMM, 30,  0);
-SUB_FIELD(SEND_EOT,      31, 31);
-
-/* Relative to EU_INSTRUCTION_OPERAND_SRC_REG_* sub-structures. */
-SUB_FIELD(SRC_NR,               12,  5);
-SUB_FIELD(SRC_ABS,              13, 13);
-SUB_FIELD(SRC_NEGATE,           14, 14);
-SUB_FIELD(SRC_ADDRESS_MODE,     15, 15);
-SUB_FIELD(SRC_VSTRIDE,          24, 21);
-SUB_FIELD(SRC_ADDR_SUBNR,       12,  9);
-
-SUB_FIELD(SRC_A1_ADDR_IMM,       8,  0);
-SUB_FIELD(SRC_A1_SUBNR,          4,  0);
-SUB_FIELD(SRC_A1_HSTRIDE,       17, 16);
-SUB_FIELD(SRC_A1_WIDTH,         20, 18);
-
-SUB_FIELD(SRC_A16_SWIZZLE_LO,    3,  0);
-SUB_FIELD(SRC_A16_SUBNR,         4,  4);
-SUB_FIELD(SRC_A16_ADDR_IMM,      8,  4);
-SUB_FIELD(SRC_A16_SWIZZLE_HI,   19, 16);
-
-/* Relative to EU_INSTRUCTION_OPERAND_DST_* sub-structures. */
-SUB_FIELD(DST_ADDR_MODE,       15, 15);
-SUB_FIELD(DST_NR,              12,  5);
-SUB_FIELD(DST_ADDR_SUBNR,      12,  9);
-
-SUB_FIELD(DST_A1_SUBNR,         4,  0);
-SUB_FIELD(DST_A1_HSTRIDE,      14, 13);
-
-SUB_FIELD(DST_A1_ADDR_IMM,      8,  0);
-
-SUB_FIELD(DST_A16_WRITEMASK,    3,  0);
-SUB_FIELD(DST_A16_SUBNR,        4,  4);
-
-SUB_FIELD(DST_A16_ADDR_IMM,     8,  4);
-
-/* Relative to EU_INSTRUCTION_OPERAND_SRC_REG_THREE_SRC sub-structure. */
-SUB_FIELD(THREE_SRC_REP_CTRL,     0,  0);
-SUB_FIELD(THREE_SRC_SWIZZLE,      8,  1);
-SUB_FIELD(THREE_SRC_SUBNR,       11,  9);
-SUB_FIELD(THREE_SRC_NR,          19, 12);
-SUB_FIELD(THREE_SRC_SUBNR_EXTRA, 20, 20);
-
-/* Relative to EU_INSTRUCTION_CONTROLS sub-structure. */
-SUB_FIELD(CONTROLS_A,    15,  0);
-SUB_FIELD(COND_MODIFIER, 19, 16);
-SUB_FIELD(CONTROLS_B,    23, 20);
-
-static constexpr std::array<gen_inst_description, 128> gen_to_description = []() constexpr {
-   std::array<gen_inst_description, 128> r;
-   r[GEN_OP_ILLEGAL]  = gen_inst_description(GEN_OP_ILLEGAL, 0);
-   r[GEN_OP_ADD]      = gen_inst_description(GEN_OP_ADD, 64);
-   r[GEN_OP_ADDC]     = gen_inst_description(GEN_OP_ADDC, 78);
-   r[GEN_OP_AND]      = gen_inst_description(GEN_OP_AND, 5);
-   r[GEN_OP_ASR]      = gen_inst_description(GEN_OP_ASR, 12);
-   r[GEN_OP_AVG]      = gen_inst_description(GEN_OP_AVG, 66);
-   r[GEN_OP_BFE]      = gen_inst_description(GEN_OP_BFE, 24);
-   r[GEN_OP_BFI1]     = gen_inst_description(GEN_OP_BFI1, 25);
-   r[GEN_OP_BFI2]     = gen_inst_description(GEN_OP_BFI2, 26);
-   r[GEN_OP_BFREV]    = gen_inst_description(GEN_OP_BFREV, 23);
-   r[GEN_OP_BRC]      = gen_inst_description(GEN_OP_BRC, 35);
-   r[GEN_OP_BRD]      = gen_inst_description(GEN_OP_BRD, 33);
-   r[GEN_OP_BREAK]    = gen_inst_description(GEN_OP_BREAK, 40);
-   r[GEN_OP_CALL]     = gen_inst_description(GEN_OP_CALL, 44);
-   r[GEN_OP_CALLA]    = gen_inst_description(GEN_OP_CALLA, 43);
-   r[GEN_OP_CBIT]     = gen_inst_description(GEN_OP_CBIT, 77);
-   r[GEN_OP_CMP]      = gen_inst_description(GEN_OP_CMP, 16);
-   r[GEN_OP_CMPN]     = gen_inst_description(GEN_OP_CMPN, 17);
-   r[GEN_OP_CONTINUE] = gen_inst_description(GEN_OP_CONTINUE, 41);
-   r[GEN_OP_CSEL]     = gen_inst_description(GEN_OP_CSEL, 18);
-   r[GEN_OP_DP2]      = gen_inst_description(GEN_OP_DP2, 87);
-   r[GEN_OP_DP3]      = gen_inst_description(GEN_OP_DP3, 86);
-   r[GEN_OP_DP4]      = gen_inst_description(GEN_OP_DP4, 84);
-   r[GEN_OP_DPH]      = gen_inst_description(GEN_OP_DPH, 85);
-   r[GEN_OP_ELSE]     = gen_inst_description(GEN_OP_ELSE, 36);
-   r[GEN_OP_ENDIF]    = gen_inst_description(GEN_OP_ENDIF, 37);
-   r[GEN_OP_FBH]      = gen_inst_description(GEN_OP_FBH, 75);
-   r[GEN_OP_FBL]      = gen_inst_description(GEN_OP_FBL, 76);
-   r[GEN_OP_FRC]      = gen_inst_description(GEN_OP_FRC, 67);
-   r[GEN_OP_GOTO]     = gen_inst_description(GEN_OP_GOTO, 46);
-   r[GEN_OP_HALT]     = gen_inst_description(GEN_OP_HALT, 42);
-   r[GEN_OP_IF]       = gen_inst_description(GEN_OP_IF, 34);
-   r[GEN_OP_JMPI]     = gen_inst_description(GEN_OP_JMPI, 32);
-   r[GEN_OP_JOIN]     = gen_inst_description(GEN_OP_JOIN, 47);
-   r[GEN_OP_LINE]     = gen_inst_description(GEN_OP_LINE, 89);
-   r[GEN_OP_LRP]      = gen_inst_description(GEN_OP_LRP, 92);
-   r[GEN_OP_LZD]      = gen_inst_description(GEN_OP_LZD, 74);
-   r[GEN_OP_MAC]      = gen_inst_description(GEN_OP_MAC, 72);
-   r[GEN_OP_MACH]     = gen_inst_description(GEN_OP_MACH, 73);
-   r[GEN_OP_MAD]      = gen_inst_description(GEN_OP_MAD, 91);
-   r[GEN_OP_MADM]     = gen_inst_description(GEN_OP_MADM, 93);
-   r[GEN_OP_MATH]     = gen_inst_description(GEN_OP_MATH, 56);
-   r[GEN_OP_MOV]      = gen_inst_description(GEN_OP_MOV, 1);
-   r[GEN_OP_MOVI]     = gen_inst_description(GEN_OP_MOVI, 3);
-   r[GEN_OP_MUL]      = gen_inst_description(GEN_OP_MUL, 65);
-   r[GEN_OP_NOP]      = gen_inst_description(GEN_OP_NOP, 126);
-   r[GEN_OP_NOT]      = gen_inst_description(GEN_OP_NOT, 4);
-   r[GEN_OP_OR]       = gen_inst_description(GEN_OP_OR, 6);
-   r[GEN_OP_PLN]      = gen_inst_description(GEN_OP_PLN, 90);
-   r[GEN_OP_RET]      = gen_inst_description(GEN_OP_RET, 45);
-   r[GEN_OP_RNDD]     = gen_inst_description(GEN_OP_RNDD, 69);
-   r[GEN_OP_RNDE]     = gen_inst_description(GEN_OP_RNDE, 70);
-   r[GEN_OP_RNDU]     = gen_inst_description(GEN_OP_RNDU, 68);
-   r[GEN_OP_RNDZ]     = gen_inst_description(GEN_OP_RNDZ, 71);
-   r[GEN_OP_ROL]      = gen_inst_description(GEN_OP_ROL, 15);
-   r[GEN_OP_ROR]      = gen_inst_description(GEN_OP_ROR, 14);
-   r[GEN_OP_SEL]      = gen_inst_description(GEN_OP_SEL, 2);
-   r[GEN_OP_SEND]     = gen_inst_description(GEN_OP_SEND, 49);
-   r[GEN_OP_SENDC]    = gen_inst_description(GEN_OP_SENDC, 50);
-   r[GEN_OP_SENDS]    = gen_inst_description(GEN_OP_SENDS, 51);
-   r[GEN_OP_SENDSC]   = gen_inst_description(GEN_OP_SENDSC, 52);
-   r[GEN_OP_SHL]      = gen_inst_description(GEN_OP_SHL, 9);
-   r[GEN_OP_SHR]      = gen_inst_description(GEN_OP_SHR, 8);
-   r[GEN_OP_SMOV]     = gen_inst_description(GEN_OP_SMOV, 10);
-   r[GEN_OP_SUBB]     = gen_inst_description(GEN_OP_SUBB, 79);
-   r[GEN_OP_WAIT]     = gen_inst_description(GEN_OP_WAIT, 48);
-   r[GEN_OP_WHILE]    = gen_inst_description(GEN_OP_WHILE, 39);
-   r[GEN_OP_XOR]      = gen_inst_description(GEN_OP_XOR, 7);
-   return r;
-}();
-
-static constexpr std::array<gen_inst_description, 128> hw_to_description = []() constexpr {
-   std::array<gen_inst_description, 128> r;
-   for (const auto &d : gen_to_description)
-      r[d.hw_opcode] = d;
-   return r;
-}();
-
 static bool
 is_send_eot_pre_xe(const uint64_t *raw, bool compact, uint32_t hw_opcode)
 {
    if (compact)
       return false;
 
+   const auto &desc =
+      gen_encoding_pre_xe::gen_to_description;
+
    switch (hw_opcode) {
-   case gen_to_description[GEN_OP_SEND].hw_opcode:
-   case gen_to_description[GEN_OP_SENDC].hw_opcode:
-   case gen_to_description[GEN_OP_SENDS].hw_opcode:
-   case gen_to_description[GEN_OP_SENDSC].hw_opcode:
+   case desc[GEN_OP_SEND].hw_opcode:
+   case desc[GEN_OP_SENDC].hw_opcode:
+   case desc[GEN_OP_SENDS].hw_opcode:
+   case desc[GEN_OP_SENDSC].hw_opcode:
       break;
    default:
       return false;
    }
 
-   constexpr unsigned send_eot_bit = SEND_MSG.lo + SEND_EOT.lo;
+   constexpr unsigned send_eot_bit =
+      gen_encoding_pre_xe::SEND_MSG.lo + gen_encoding_pre_xe::SEND_EOT.lo;
    static_assert(send_eot_bit == 127);
 
    return raw[1] & (UINT64_C(1) << (send_eot_bit - 64));
@@ -334,7 +80,9 @@ gen_find_shader_size_pre_xe(const struct intel_device_info *devinfo,
 
       raw += inst_words;
 
-      if (hw_opcode == gen_to_description[GEN_OP_ILLEGAL].hw_opcode ||
+      auto illegal_opcode =
+         gen_encoding_pre_xe::gen_to_description[GEN_OP_ILLEGAL].hw_opcode;
+      if (hw_opcode == illegal_opcode ||
           is_send_eot_pre_xe(raw - inst_words, compact, hw_opcode))
          break;
    }
@@ -345,7 +93,7 @@ gen_find_shader_size_pre_xe(const struct intel_device_info *devinfo,
 #define INTEL_MASK(high, low) (((1u<<((high)-(low)+1))-1)<<(low))
 #define GET_BITS(data, high, low) ((data & INTEL_MASK((high), (low))) >> (low))
 
-struct gen_encoder_pre_xe {
+struct gen_encoder_pre_xe : public gen_encoding_pre_xe {
    const intel_device_info *devinfo;
 
    const gen_inst *inst;
@@ -1029,7 +777,7 @@ private:
    }
 };
 
-struct gen_decoder_pre_xe {
+struct gen_decoder_pre_xe : public gen_encoding_pre_xe {
    const intel_device_info *devinfo;
 
    gen_inst *inst;
