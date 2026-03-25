@@ -1434,7 +1434,7 @@
         "description": "pvr: fix dirty tracking for stencil ops",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "88f1fad3f76837c1d968a8636bf157e1e1e28b2b",
         "notes": null
