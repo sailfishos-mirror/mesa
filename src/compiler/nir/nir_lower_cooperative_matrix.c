@@ -288,7 +288,8 @@ split_cmat_convert(nir_builder *b,
       nir_deref_instr *src_deref = recreate_derefs(b, &intr->src[1], src_split->split_vars[i]);
       b->cursor = nir_before_instr(instr);
       nir_cmat_convert(b, &dst_deref->def, &src_deref->def, .saturate = nir_intrinsic_saturate(intr),
-                       .cmat_signed_mask = nir_intrinsic_cmat_signed_mask(intr));
+                       .cmat_signed_mask = nir_intrinsic_cmat_signed_mask(intr),
+                       .fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr));
    }
    nir_instr_remove(instr);
    return true;
@@ -316,7 +317,7 @@ split_cmat_transpose(nir_builder *b,
          nir_deref_instr *dst_deref = recreate_derefs(b, &intr->src[0], dst_split->split_vars[out_idx]);
          nir_deref_instr *src_deref = recreate_derefs(b, &intr->src[1], src_split->split_vars[in_idx]);
          b->cursor = nir_before_instr(instr);
-         nir_cmat_transpose(b, &dst_deref->def, &src_deref->def);
+         nir_cmat_transpose(b, &dst_deref->def, &src_deref->def, .fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr));
       }
    }
    nir_instr_remove(instr);
@@ -377,7 +378,8 @@ split_cmat_binary_op(nir_builder *b,
       nir_deref_instr *src1_deref = recreate_derefs(b, &intr->src[2], src1_split->split_vars[i]);
       b->cursor = nir_before_instr(instr);
       nir_cmat_binary_op(b, &dst_deref->def, &src0_deref->def, &src1_deref->def,
-                         .alu_op = nir_intrinsic_alu_op(intr));
+                         .alu_op = nir_intrinsic_alu_op(intr),
+                         .fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr));
    }
    nir_instr_remove(instr);
    return true;
@@ -405,7 +407,8 @@ split_cmat_unary_op(nir_builder *b,
       nir_deref_instr *dst_deref = recreate_derefs(b, &intr->src[0], dst_split->split_vars[i]);
       nir_deref_instr *src_deref = recreate_derefs(b, &intr->src[1], src_split->split_vars[i]);
       b->cursor = nir_before_instr(instr);
-      nir_cmat_unary_op(b, &dst_deref->def, &src_deref->def, .alu_op = nir_intrinsic_alu_op(intr));
+      nir_cmat_unary_op(b, &dst_deref->def, &src_deref->def, .alu_op = nir_intrinsic_alu_op(intr),
+                        .fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr));
    }
    nir_instr_remove(instr);
    return true;
@@ -434,7 +437,8 @@ split_cmat_scalar_op(nir_builder *b,
       nir_deref_instr *src_deref = recreate_derefs(b, &intr->src[1], src_split->split_vars[i]);
       b->cursor = nir_before_instr(instr);
       nir_cmat_scalar_op(b, &dst_deref->def, &src_deref->def, intr->src[2].ssa,
-                         .alu_op = nir_intrinsic_alu_op(intr));
+                         .alu_op = nir_intrinsic_alu_op(intr),
+                         .fp_math_ctrl = nir_intrinsic_fp_math_ctrl(intr));
    }
    nir_instr_remove(instr);
    return true;
