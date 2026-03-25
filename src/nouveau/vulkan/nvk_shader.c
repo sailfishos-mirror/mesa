@@ -38,6 +38,7 @@ const struct nak_constant_offset_info nak_const_offsets_base = {
    .sample_info_cb = 0,
    .sample_locations_offset = nvk_root_descriptor_offset(draw.sample_locations),
    .sample_masks_offset = nvk_root_descriptor_offset(draw.sample_masks),
+   .printf_cb = 0,
    .printf_buffer_offset = nvk_root_descriptor_offset(printf_buffer_addr),
 };
 

@@ -87,7 +87,12 @@ struct nak_constant_offset_info {
    uint32_t sample_masks_offset;
 
    /**
-    * The offset into cb0 for the printf buffer pointer.
+    * The constant buffer index at which the printf buffer pointer lives.
+    */
+   uint8_t printf_cb;
+
+   /**
+    * The offset into printf_cb for the printf buffer pointer.
     */
    uint32_t printf_buffer_offset;
 };
