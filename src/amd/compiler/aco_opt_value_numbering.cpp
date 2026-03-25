@@ -474,8 +474,7 @@ value_numbering(Program* program)
       if (block.kind & block_kind_merge) {
          ctx.exec_id--;
       } else if (block.kind & block_kind_loop_exit) {
-         ctx.exec_id -= program->blocks[loop_headers.back()].linear_preds.size();
-         ctx.exec_id -= block.linear_preds.size();
+         ctx.exec_id -= (block.linear_preds.size() + 1);
          loop_headers.pop_back();
       }
 
@@ -491,7 +490,7 @@ value_numbering(Program* program)
 
       /* increment exec_id when entering nested control flow */
       if (block.kind & block_kind_branch || block.kind & block_kind_loop_preheader ||
-          block.kind & block_kind_break || block.kind & block_kind_continue)
+          block.kind & block_kind_break)
          ctx.exec_id++;
    }
 
