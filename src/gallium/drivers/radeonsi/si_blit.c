@@ -24,6 +24,9 @@ enum
 
 void si_blitter_begin(struct si_context *sctx, enum si_blitter_op op)
 {
+   util_blitter_save_vertex_buffers(sctx->blitter, sctx->vertex_buffer,
+                                    sctx->vertex_elements->num_vertex_buffers);
+   util_blitter_save_vertex_elements(sctx->blitter, sctx->vertex_elements);
    util_blitter_save_vertex_shader(sctx->blitter, sctx->shader.vs.cso);
    util_blitter_save_tessctrl_shader(sctx->blitter, sctx->shader.tcs.cso);
    util_blitter_save_tesseval_shader(sctx->blitter, sctx->shader.tes.cso);
@@ -32,6 +35,7 @@ void si_blitter_begin(struct si_context *sctx, enum si_blitter_op op)
    util_blitter_save_so_targets(sctx->blitter, sctx->streamout.num_targets,
                                 (struct pipe_stream_output_target **)sctx->streamout.targets,
                                 sctx->streamout.output_prim);
+   util_blitter_save_viewport(sctx->blitter, &sctx->viewports.states[0]);
    util_blitter_save_rasterizer(sctx->blitter, sctx->queued.named.rasterizer);
 
    if (op & SI_SAVE_FRAGMENT_STATE) {
