@@ -399,7 +399,7 @@ intrinsic("nop", flags=[CAN_ELIMINATE])
 intrinsic("use", src_comp=[0], flags=[])
 
 intrinsic("convert_alu_types", dest_comp=0, src_comp=[0],
-          indices=[SRC_TYPE, DEST_TYPE, ROUNDING_MODE, SATURATE],
+          indices=[SRC_TYPE, DEST_TYPE, ROUNDING_MODE, SATURATE, FP_MATH_CTRL],
           flags=[CAN_ELIMINATE, CAN_REORDER])
 
 intrinsic("load_param", dest_comp=0, indices=[PARAM_IDX], flags=[CAN_ELIMINATE])
