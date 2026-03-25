@@ -1314,7 +1314,7 @@ pan_blit_from_staging(struct pipe_context *pctx,
    blit.mask = util_format_get_mask(blit.src.format);
    blit.filter = PIPE_TEX_FILTER_NEAREST;
 
-   panfrost_blitter_blit_no_afbc_legalization(pctx, &blit);
+   panfrost_blitter_blit_legalized(pctx, &blit);
 }
 
 static void
@@ -1334,7 +1334,7 @@ pan_blit_to_staging(struct pipe_context *pctx, struct panfrost_transfer *trans)
    blit.mask = util_format_get_mask(blit.dst.format);
    blit.filter = PIPE_TEX_FILTER_NEAREST;
 
-   panfrost_blitter_blit_no_afbc_legalization(pctx, &blit);
+   panfrost_blitter_blit_legalized(pctx, &blit);
 }
 
 static void
@@ -1823,7 +1823,7 @@ pan_resource_modifier_convert(struct panfrost_context *ctx,
             if (drm_is_mtk_tiled(rsrc->modifier))
                screen->vtbl.mtk_detile(ctx, &blit);
             else
-               panfrost_blitter_blit_no_afbc_legalization(&ctx->base, &blit);
+               panfrost_blitter_blit_legalized(&ctx->base, &blit);
          }
       }
 

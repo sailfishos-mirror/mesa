@@ -13,8 +13,8 @@ struct blitter_context *panfrost_blitter_create(struct pipe_context *pipe);
 /* Callers should ensure that all AFBC/AFRC resources that will be used in the
  * blit operation are legalized before calling blitter operations, otherwise
  * we may trigger a recursive blit */
-void panfrost_blitter_blit_no_afbc_legalization(struct pipe_context *pipe,
-                                                const struct pipe_blit_info *info);
+void panfrost_blitter_blit_legalized(struct pipe_context *pipe,
+                                     const struct pipe_blit_info *info);
 
 void panfrost_blitter_blit(struct pipe_context *pipe,
                            const struct pipe_blit_info *info);

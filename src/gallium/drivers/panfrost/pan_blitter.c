@@ -152,8 +152,8 @@ panfrost_blitter_save(struct panfrost_context *ctx,
 }
 
 void
-panfrost_blitter_blit_no_afbc_legalization(struct pipe_context *pipe,
-                                           const struct pipe_blit_info *info)
+panfrost_blitter_blit_legalized(struct pipe_context *pipe,
+                                const struct pipe_blit_info *info)
 {
    PAN_TRACE_FUNC(PAN_TRACE_GL_BLIT);
 
@@ -184,7 +184,7 @@ panfrost_blitter_blit(struct pipe_context *pipe,
    pan_legalize_format(ctx, pan_resource(info->dst.resource),
                        util_format_linear(info->dst.format), true, false);
    panfrost_flush_all_batches(ctx, "Blit");
-   panfrost_blitter_blit_no_afbc_legalization(pipe, info);
+   panfrost_blitter_blit_legalized(pipe, info);
    panfrost_flush_all_batches(ctx, "Blit");
 }
 
