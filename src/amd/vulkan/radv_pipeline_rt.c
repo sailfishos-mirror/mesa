@@ -650,6 +650,36 @@ radv_ray_tracing_stage_nir_always_needed(struct radv_ray_tracing_stage *stage)
    return stage->stage == MESA_SHADER_ANY_HIT || stage->stage == MESA_SHADER_INTERSECTION;
 }
 
+static void
+radv_rt_spirv_to_nir(struct radv_device *device, struct radv_shader_stage *stage, uint32_t *payload_size,
+                     uint32_t *hit_attrib_size, struct radv_ray_tracing_stage_info *info)
+{
+   stage->nir = radv_shader_spirv_to_nir(device, stage, NULL, false);
+
+   nir_foreach_variable_with_modes (var, stage->nir, nir_var_ray_hit_attrib) {
+      unsigned size, alignment;
+      glsl_get_natural_size_align_bytes(var->type, &size, &alignment);
+      *hit_attrib_size = MAX2(*hit_attrib_size, var->data.driver_location + size);
+   }
+
+   NIR_PASS(_, stage->nir, radv_nir_lower_hit_attrib_derefs);
+
+   nir_foreach_variable_with_modes (var, stage->nir, nir_var_shader_call_data) {
+      unsigned size, alignment;
+      glsl_get_natural_size_align_bytes(var->type, &size, &alignment);
+      *payload_size = MAX2(*payload_size, size);
+   }
+   nir_foreach_function_impl (impl, stage->nir) {
+      nir_foreach_variable_in_list (var, &impl->locals) {
+         unsigned size, alignment;
+         glsl_get_natural_size_align_bytes(var->type, &size, &alignment);
+         *payload_size = MAX2(*payload_size, size);
+      }
+   }
+
+   *info = radv_gather_ray_tracing_stage_info(stage->nir);
+}
+
 static VkResult
 radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *cache,
                         const VkRayTracingPipelineCreateInfoKHR *pCreateInfo,
@@ -697,30 +727,7 @@ radv_rt_compile_shaders(struct radv_device *device, struct vk_pipeline_cache *ca
                                &stage_keys[s], stage);
 
       /* precompile the shader */
-      stage->nir = radv_shader_spirv_to_nir(device, stage, NULL, false);
-
-      nir_foreach_variable_with_modes (var, stage->nir, nir_var_ray_hit_attrib) {
-         unsigned size, alignment;
-         glsl_get_natural_size_align_bytes(var->type, &size, &alignment);
-         hit_attrib_size = MAX2(hit_attrib_size, var->data.driver_location + size);
-      }
-
-      NIR_PASS(_, stage->nir, radv_nir_lower_hit_attrib_derefs);
-
-      nir_foreach_variable_with_modes (var, stage->nir, nir_var_shader_call_data) {
-         unsigned size, alignment;
-         glsl_get_natural_size_align_bytes(var->type, &size, &alignment);
-         payload_size = MAX2(payload_size, size);
-      }
-      nir_foreach_function_impl (impl, stage->nir) {
-         nir_foreach_variable_in_list (var, &impl->locals) {
-            unsigned size, alignment;
-            glsl_get_natural_size_align_bytes(var->type, &size, &alignment);
-            payload_size = MAX2(payload_size, size);
-         }
-      }
-
-      rt_stages[i].info = radv_gather_ray_tracing_stage_info(stage->nir);
+      radv_rt_spirv_to_nir(device, stage, &payload_size, &hit_attrib_size, &rt_stages[i].info);
 
       stage->feedback.duration = os_time_get_nano() - stage_start;
    }
