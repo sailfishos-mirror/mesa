@@ -80,6 +80,14 @@ kk_preprocess_nir(UNUSED struct vk_physical_device *vk_pdev, nir_shader *nir,
             nir_shader_get_entrypoint(nir), nir_var_shader_out);
 
    msl_preprocess_nir(nir);
+
+   /* Cannot be part of msl_preprocess_nir since clc does not expose
+    * has_base_workgroup_id */
+   nir_lower_compute_system_values_options csv_options = {
+      .has_base_global_invocation_id = 0,
+      .has_base_workgroup_id = true,
+   };
+   NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
 }
 
 struct kk_vs_key {

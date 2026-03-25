@@ -1094,15 +1094,6 @@ kk_CmdDrawIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
 }
 
 VKAPI_ATTR void VKAPI_CALL
-kk_CmdDrawIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer,
-                        VkDeviceSize offset, VkBuffer countBuffer,
-                        VkDeviceSize countBufferOffset, uint32_t maxDrawCount,
-                        uint32_t stride)
-{
-   /* TODO_KOSMICKRISP */
-}
-
-VKAPI_ATTR void VKAPI_CALL
 kk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
                           VkDeviceSize offset, uint32_t drawCount,
                           uint32_t stride)
@@ -1143,10 +1134,105 @@ kk_CmdDrawIndexedIndirect(VkCommandBuffer commandBuffer, VkBuffer _buffer,
 }
 
 VKAPI_ATTR void VKAPI_CALL
+kk_CmdDrawIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer,
+                        VkDeviceSize offset, VkBuffer countBuffer,
+                        VkDeviceSize countBufferOffset, uint32_t maxDrawCount,
+                        uint32_t stride)
+{
+   VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
+   VK_FROM_HANDLE(kk_buffer, buffer, _buffer);
+   VK_FROM_HANDLE(kk_buffer, count_buffer, countBuffer);
+
+   assert((stride % 4) == 0 && "aligned");
+
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
+
+   size_t out_stride = sizeof(uint32_t) * 4;
+   struct kk_bo *patched =
+      kk_cmd_allocate_buffer(cmd, out_stride * maxDrawCount, 4);
+   uint64_t in = vk_buffer_address(&buffer->vk, offset);
+   uint64_t count_addr =
+      vk_buffer_address(&count_buffer->vk, countBufferOffset);
+
+   struct mtl_size grid = {maxDrawCount, 1u, 1u};
+   libkk_predicate_indirect(cmd, grid, true, patched->gpu, in, count_addr,
+                            stride / 4, false);
+
+   for (unsigned i = 0; i < maxDrawCount; ++i) {
+      /* TODO_KOSMICKRISP
+       * Move this to a separate buffer from the root so we don't have to upload
+       * it every single loop. Pass it to the kk_draw call as a parameter that
+       * will later be uploaded.
+       */
+      cmd->state.gfx.descriptors.root_dirty = true;
+      cmd->state.gfx.descriptors.root.draw.draw_id = i;
+
+      struct kk_draw_data data = {
+         .indirect_buffer = patched->map,
+         .indirect_buffer_offset = out_stride * i,
+         .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
+         .indirect = true,
+      };
+
+      kk_draw(cmd, data);
+   }
+   /* TODO_KOSMICKRISP Remove once above is done */
+   cmd->state.gfx.descriptors.root_dirty = true;
+   cmd->state.gfx.descriptors.root.draw.draw_id = 0;
+}
+
+VKAPI_ATTR void VKAPI_CALL
 kk_CmdDrawIndexedIndirectCount(VkCommandBuffer commandBuffer, VkBuffer _buffer,
                                VkDeviceSize offset, VkBuffer countBuffer,
                                VkDeviceSize countBufferOffset,
                                uint32_t maxDrawCount, uint32_t stride)
 {
-   /* TODO_KOSMICKRISP */
+   VK_FROM_HANDLE(kk_cmd_buffer, cmd, commandBuffer);
+   VK_FROM_HANDLE(kk_buffer, buffer, _buffer);
+   VK_FROM_HANDLE(kk_buffer, count_buffer, countBuffer);
+
+   assert((stride % 4) == 0 && "aligned");
+
+   const struct vk_dynamic_graphics_state *dyn =
+      &cmd->vk.dynamic_graphics_state;
+
+   size_t out_stride = sizeof(uint32_t) * 5;
+   struct kk_bo *patched =
+      kk_cmd_allocate_buffer(cmd, out_stride * maxDrawCount, 4);
+   uint64_t in = vk_buffer_address(&buffer->vk, offset);
+   uint64_t count_addr =
+      vk_buffer_address(&count_buffer->vk, countBufferOffset);
+
+   struct mtl_size grid = {maxDrawCount, 1u, 1u};
+   libkk_predicate_indirect(cmd, grid, true, patched->gpu, in, count_addr,
+                            stride / 4, true);
+
+   for (unsigned i = 0; i < maxDrawCount; ++i) {
+      /* TODO_KOSMICKRISP
+       * Move this to a separate buffer from the root so we don't have to upload
+       * it every single loop. Pass it to the kk_draw call as a parameter that
+       * will later be uploaded.
+       */
+      cmd->state.gfx.descriptors.root_dirty = true;
+      cmd->state.gfx.descriptors.root.draw.draw_id = i;
+
+      struct kk_draw_data data = {
+         .indirect_buffer = patched->map,
+         .index_buffer = cmd->state.gfx.index.handle,
+         .indirect_buffer_offset = out_stride * i,
+         .index_buffer_offset = cmd->state.gfx.index.offset,
+         .index_buffer_range_B =
+            cmd->state.gfx.index.size - cmd->state.gfx.index.offset,
+         .prim = vk_topology_to_mesa(dyn->ia.primitive_topology),
+         .index_size = cmd->state.gfx.index.bytes_per_index,
+         .indirect = true,
+         .indexed = true,
+      };
+
+      kk_draw(cmd, data);
+   }
+   /* TODO_KOSMICKRISP Remove once above is done */
+   cmd->state.gfx.descriptors.root_dirty = true;
+   cmd->state.gfx.descriptors.root.draw.draw_id = 0;
 }

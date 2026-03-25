@@ -70,6 +70,12 @@ optimize(nir_shader *nir)
 {
    msl_preprocess_nir(nir);
 
+   nir_lower_compute_system_values_options csv_options = {
+      .has_base_global_invocation_id = 0,
+      .has_base_workgroup_id = true,
+   };
+   NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
+
    NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_push_const,
             nir_address_format_32bit_offset);
    NIR_PASS(_, nir, nir_lower_explicit_io,

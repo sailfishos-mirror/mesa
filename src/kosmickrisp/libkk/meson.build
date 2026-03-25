@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 libkk_shader_files = files(
+  'kk_draws.cl',
   'kk_triangle_fan.cl',
   'kk_query.cl',
 )

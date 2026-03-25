@@ -1994,12 +1994,6 @@ msl_preprocess_nir(struct nir_shader *nir)
             nir_var_function_temp | nir_var_shader_in | nir_var_shader_out,
             UINT32_MAX);
 
-   nir_lower_compute_system_values_options csv_options = {
-      .has_base_global_invocation_id = 0,
-      .has_base_workgroup_id = true,
-   };
-   NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_options);
-
    msl_nir_lower_subgroups(nir);
 }
 
