@@ -35,13 +35,14 @@ void si_blitter_begin(struct si_context *sctx, enum si_blitter_op op)
    util_blitter_save_viewport(sctx->blitter, &sctx->viewports.states[0]);
    util_blitter_save_rasterizer(sctx->blitter, sctx->queued.named.rasterizer);
 
-   struct pipe_constant_buffer fs_cb = {};
-   si_get_pipe_constant_buffer(sctx, MESA_SHADER_FRAGMENT, 0, &fs_cb);
+   if (op & SI_SAVE_FRAGMENT_CONSTANT) {
+      struct pipe_constant_buffer fs_cb = {};
+      si_get_pipe_constant_buffer(sctx, MESA_SHADER_FRAGMENT, 0, &fs_cb);
 
-   if (op & SI_SAVE_FRAGMENT_CONSTANT)
       util_blitter_save_fragment_constant_buffer_slot(sctx->blitter, &fs_cb);
+      pipe_resource_reference(&fs_cb.buffer, NULL);
+   }
 
-   pipe_resource_reference(&fs_cb.buffer, NULL);
    util_blitter_save_blend(sctx->blitter, sctx->queued.named.blend);
    util_blitter_save_depth_stencil_alpha(sctx->blitter, sctx->queued.named.dsa);
    util_blitter_save_stencil_ref(sctx->blitter, &sctx->stencil_ref.state);
