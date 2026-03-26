@@ -1628,6 +1628,9 @@ choose_drm_format_mod(const struct anv_physical_device *device,
          /* When aux is disabled, we simply cannot choose a modifier with
           * compression.
           */
+         anv_perf_warn(VK_LOG_OBJS(&device->vk.base),
+                       "Skipping aux-capable DRM modifier: "
+                       "DISABLE_AUX_BIT is set");
          continue;
       }
       uint32_t score = isl_drm_modifier_get_score(&device->info, modifiers[i]);
@@ -1907,8 +1910,12 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
 
    /* Disable aux if image supports export without modifiers. */
    if (image->vk.external_handle_types != 0 &&
-       image->vk.tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT)
+       image->vk.tiling != VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "Disabling aux: "
+                    "external image without DRM modifier");
       isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
+   }
 
    if (device->queue_count > 1) {
       /* Notify ISL that the app may access this image from different engines.
@@ -1927,19 +1934,28 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
        * restriction on the cache not being coherent between engines.
        */
       if (image->vk.sharing_mode == VK_SHARING_MODE_CONCURRENT &&
-          device->info->ver < 20)
+          device->info->ver < 20) {
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "Disabling aux: concurrent sharing mode");
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
+      }
    }
 
    /* Aux is pointless if it will never be used as an attachment. */
    if (vk_format_is_depth_or_stencil(image->vk.format) &&
-       !(image->vk.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))
+       !(image->vk.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) {
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "Disabling aux: "
+                    "depth/stencil image without attachment usage");
       isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
+   }
 
    /* TODO: Adjust blorp for multi-LOD HiZ surface on Gen9. */
    if (vk_format_has_depth(image->vk.format) &&
        image->vk.mip_levels > 1 && device->info->ver == 9) {
-      anv_perf_warn(VK_LOG_OBJS(&image->vk.base), "Enable multi-LOD HiZ");
+      anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                    "Disabling aux: "
+                    "gen9 multi-LOD depth unsupported");
       isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
    }
 
@@ -1954,6 +1970,9 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
           * format. (Putting the clear state a page/4096bytes further fixes
           * the issue).
           */
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "Disabling aux: "
+                       "multiplanar color workaround");
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
       }
 
@@ -1967,6 +1986,9 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
           * all aliasing here, there's no need to further analyze if the image
           * needs a private binding.
           */
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "Disabling aux: "
+                       "aliased image not from WSI");
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
       }
 
@@ -1979,14 +2001,20 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
           * surfaces on gfx12+. If we can't support it, we should configure
           * the main surface without aux support.
           */
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "Disabling aux: CCS_E incompatible format");
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
       }
 
       /* Workaround to disable XE2 CCS modifiers from drirc. */
       if (device->info->ver >= 20 &&
           image->vk.tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT &&
-          device->physical->instance->disable_xe2_drm_ccs_modifiers)
+          device->physical->instance->disable_xe2_drm_ccs_modifiers) {
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "Disabling aux: "
+                       "drirc disable_xe2_drm_ccs_modifiers");
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
+      }
    }
 
    /* Fill out the list of view formats. */
@@ -2068,6 +2096,9 @@ anv_image_init(struct anv_device *device, struct anv_image *image,
        */
       if (device->info->ver >= 12 &&
           !isl_drm_modifier_has_aux(image->vk.drm_format_mod)) {
+         anv_perf_warn(VK_LOG_OBJS(&image->vk.base),
+                       "Disabling aux: "
+                       "chosen DRM modifier has no aux");
          isl_extra_usage_flags |= ISL_SURF_USAGE_DISABLE_AUX_BIT;
       }
    }
