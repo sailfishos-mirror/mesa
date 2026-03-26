@@ -1,5 +1,305 @@
 [
     {
+        "sha": "fc0770d5e32bbc77928c46b2ed3fdc6c6ed7d8bf",
+        "description": "ethosu: parse optional SRAM size from device spec string",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "abd681c16956706b493a399e60898b55aa54d43a",
+        "description": "ethosu: add U85-256 support to ethosu_ml_device_create()",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "3b68c5b4bcbb27cfb4acd14b021e4fd8406980b5",
+        "description": "ethosu: move hardware description from ethosu_screen to ethosu_ml_device",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "06e5026e28e38f46bf3b1c32a61fecf943b1f51e",
+        "description": "docs: add GL_NV_timeline_semaphore support for radeonsi",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "00b1d7717639d44269fd27938873951a6bc890f1",
+        "description": "radeonsi: advertise GL_NV_timeline_semaphore",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "26418f0f58b7b19a50eaf82aaccf09a7c8dbab16",
+        "description": "radeonsi: add timeline semaphore support to fence operations",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "379bf430849b5bd6e46a80f6ad2cf925db1cd2a0",
+        "description": "winsys/amdgpu: use timeline syncobj chunks in kernelq submission",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "c4edd58a74fbf8108db2351377b3163934f32c9c",
+        "description": "winsys/amdgpu: add timeline point support to fence lists",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "765a9f4fd90b37e48df6dc45e5453313b8561ca8",
+        "description": "pvr: Align width for PBE write when creating linear image",
+        "nominated": true,
+        "nomination_type": 4,
+        "resolution": 0,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "0d8e2354edd632c3a26f871fa22b0d4e7f2922ec",
+        "description": "nir: add fp_math_ctrl to convert_alu_types",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "8470bb59f67550391b35a9d9ba68b7823f446d7a",
+        "description": "lavapipe: preserve fp_math_ctrl when lowering cmat alu",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "eef0fa22e055de6c893427d38167d6d39d3245e0",
+        "description": "brw: preserve fp_math_ctrl when lowering cmat alu",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "123d8c230eb283b63f8c264d518cf27c2d6e4f9f",
+        "description": "nak: preserve fp_math_ctrl when lowering cmat",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "bcdef7c79bf35e06e8c0f8517ed933e05b07b06a",
+        "description": "radv: preserve fp_math_ctrl when lowering cmat alu ops",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "b8b1ce9667834977b67767f0682bb779c47bdee9",
+        "description": "spirv: set fp_math_ctrl for cmat alu",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "35ca85176c53d80e20db8e5ddf51ea61f6cb0f9d",
+        "description": "nir: add fp_math_ctrl to cmat alu ops",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "9cba104e11d9e900b641f3c85e67534b7c84e7da",
+        "description": "nir/opt_fp_math_ctrl: use ddx/ddy fp_math_ctrl",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "85ff60e68a9e255b0898bee00be08380149a19a9",
+        "description": "nir/opt_uniform_subgroup: use ddx/ddy fp_math_ctrl",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "5d2be211ea4fdc414482ffc5e846ddff36800992",
+        "description": "nir: add fp_math_ctrl to ddx/ddy",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "854911aeab2ca2f0b1751d4e19728b712ff0659f",
+        "description": "nir: add fp_math_ctrl as intrinsic index",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "d2be2fd4c12e56a145fb43674e7547ac68757bd1",
+        "description": "nir/opt_fp_math_ctrl: ignore ffract input sign of zero",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "18a63522d60b547ffba50ae6e344a29b1329dd08",
+        "description": "v3dv: fix mutable resolve attachment format mismatch",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "473b99b1d19780114c1512b8e3db9faa24c4a904",
+        "description": "broadcom/vulkan: remove v3dv_private.h",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "70728fce575a7cd7402b067834f3fcec697ef4ed",
+        "notes": null
+    },
+    {
+        "sha": "441bb8b947d069dc730e664f9d29a1ed7a80b010",
+        "description": "pvr: drop master for the display FD if it's not needed",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "44fa9c8326b4e545499f2eecb3a5654355d3ea24",
+        "description": "nir/lower_tex: Reinstate LSB to MSB shift",
+        "nominated": false,
+        "nomination_type": 2,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": "5127568b98fa272f1295fb605f82adee7a2798b1",
+        "notes": null
+    },
+    {
+        "sha": "8483acdc290d8a3aad81dfeec8ee945f7f0587fc",
+        "description": "radv/ci: add new jobs that run full VKCTS on NAVI21/NAVI31/GFX1201",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "749eb41b59306955f46e725f9cde792bd2324194",
+        "description": "radv/ci: add a new dEQP test suite for nightly jobs",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "1f8ff31b813ed01b182bd8ef1baebacc76f412ee",
+        "description": "radv/ci: move slow tests to radv-slow-skips.txt",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "db34a92c48bbec348391b6e3804ad4c9ad1a84ad",
+        "description": "intel/tools: Add xe3p format for intel_monitor",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
+        "sha": "42ea820b2674dab7e04f2c41f0a2ec77ee79634d",
+        "description": "tu/a8xx: add missing register state in tu_clear_sysmem_attachments()",
+        "nominated": false,
+        "nomination_type": 0,
+        "resolution": 4,
+        "main_sha": null,
+        "because_sha": null,
+        "notes": null
+    },
+    {
         "sha": "a6992c7bbeee4e5e1ddd3555a0d2a25b8113f7d5",
         "description": "nv50,nvc0: Avoid uninitialized cbuf reads in blits",
         "nominated": true,
