@@ -329,6 +329,8 @@ anv_shader_get_spirv_options(struct vk_physical_device *device,
       .workarounds = {
          .lower_terminate_to_discard = pdevice->instance->drirc.debug.lower_terminate_to_discard,
       },
+
+      .store_dxbc_dxil_hashes = true,
    };
 }
 
