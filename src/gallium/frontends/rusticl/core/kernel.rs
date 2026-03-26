@@ -1664,8 +1664,6 @@ impl Kernel {
         }
     }
 
-    // the painful part is, that host threads are allowed to modify the kernel object once it was
-    // enqueued, so return a closure with all req data included.
     pub fn launch(
         self: &Arc<Self>,
         dev: &Device,
@@ -1674,10 +1672,24 @@ impl Kernel {
         grid: &[usize],
         offsets: &[usize],
     ) -> CLResult<EventSig> {
+        let args = self.values.clone();
+        self.launch_with_args(dev, work_dim, block, grid, offsets, args)
+    }
+
+    // the painful part is, that host threads are allowed to modify the kernel object once it was
+    // enqueued, so return a closure with all req data included.
+    pub fn launch_with_args(
+        self: &Arc<Self>,
+        dev: &Device,
+        work_dim: u32,
+        block: &[usize],
+        grid: &[usize],
+        offsets: &[usize],
+        arg_values: Vec<Option<KernelArgValue>>,
+    ) -> CLResult<EventSig> {
         // Clone all the data we need to execute this kernel
         let work_group_size_hint = self.kernel_info.work_group_size_hint;
         let args = self.kernel_info.args.clone();
-        let arg_values = self.values.clone();
         let nir_kernel_builds = Arc::clone(&self.builds[dev]);
         let mut bdas = self.bdas.clone();
         let svms = self.svms.clone();
