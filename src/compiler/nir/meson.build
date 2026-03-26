@@ -454,6 +454,7 @@ if with_tests
           'tests/opt_peephole_select.cpp',
           'tests/opt_shrink_vectors_tests.cpp',
           'tests/opt_varyings_tests_bicm_binary_alu.cpp',
+          'tests/opt_varyings_tests_bicm_sysval.cpp',
           'tests/opt_varyings_tests_dead_input.cpp',
           'tests/opt_varyings_tests_dead_output.cpp',
           'tests/opt_varyings_tests_dedup.cpp',
