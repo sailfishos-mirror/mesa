@@ -144,8 +144,6 @@ virgl_get_video_param(struct pipe_screen *screen,
          return vcaps ? vcaps->max_width : 0;
       case PIPE_VIDEO_CAP_MAX_HEIGHT:
          return vcaps ? vcaps->max_height : 0;
-      case PIPE_VIDEO_CAP_PREFERRED_FORMAT:
-         return vcaps ? virgl_to_pipe_format(vcaps->prefered_format) : PIPE_FORMAT_NV12;
       case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
          return vcaps ? vcaps->supports_progressive : true;
       case PIPE_VIDEO_CAP_MAX_LEVEL:

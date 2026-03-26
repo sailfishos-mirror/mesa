@@ -210,8 +210,6 @@ int rvid_get_video_param(struct pipe_screen *screen,
 			return 2048;
 		case PIPE_VIDEO_CAP_MAX_HEIGHT:
 			return 1152;
-		case PIPE_VIDEO_CAP_PREFERRED_FORMAT:
-			return PIPE_FORMAT_NV12;
 		case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
 			return true;
 		case PIPE_VIDEO_CAP_STACKED_FRAMES:
@@ -245,9 +243,6 @@ int rvid_get_video_param(struct pipe_screen *screen,
 		return 2048;
 	case PIPE_VIDEO_CAP_MAX_HEIGHT:
 		return 1152;
-	case PIPE_VIDEO_CAP_PREFERRED_FORMAT:
-		return PIPE_FORMAT_NV12;
-
 	case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
 		return true;
 	case PIPE_VIDEO_CAP_MAX_LEVEL:

@@ -489,8 +489,6 @@ nouveau_vp3_screen_get_video_param(struct pipe_screen *pscreen,
          debug_printf("unknown video codec: %d\n", codec);
          return 0;
       }
-   case PIPE_VIDEO_CAP_PREFERRED_FORMAT:
-      return PIPE_FORMAT_NV12;
    case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
       return false;
    case PIPE_VIDEO_CAP_MAX_LEVEL:

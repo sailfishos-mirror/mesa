@@ -91,8 +91,6 @@ static int si_video_get_param(struct pipe_screen *screen, enum pipe_video_profil
          if (sscreen->info.vpe_ip_version == VPE_2_0)
             return PIPE_VIDEO_VPP_BLEND_MODE_GLOBAL_ALPHA;
          return PIPE_VIDEO_VPP_BLEND_MODE_NONE;
-      case PIPE_VIDEO_CAP_PREFERRED_FORMAT:
-         return PIPE_FORMAT_NV12;
       case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
          return true;
       case PIPE_VIDEO_CAP_REQUIRES_FLUSH_ON_END_FRAME:
@@ -152,11 +150,6 @@ static int si_video_get_param(struct pipe_screen *screen, enum pipe_video_profil
             return KERNEL_ENC_CAP(codec, max_height);
          else
             return (sscreen->info.family < CHIP_TONGA) ? 1152 : 2304;
-      case PIPE_VIDEO_CAP_PREFERRED_FORMAT:
-         if (profile == PIPE_VIDEO_PROFILE_HEVC_MAIN_10)
-            return PIPE_FORMAT_P010;
-         else
-            return PIPE_FORMAT_NV12;
       case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
          return true;
       case PIPE_VIDEO_CAP_STACKED_FRAMES:
@@ -452,14 +445,6 @@ static int si_video_get_param(struct pipe_screen *screen, enum pipe_video_profil
             return (sscreen->info.family < CHIP_TONGA) ? 1152 : 4096;
          }
       }
-   case PIPE_VIDEO_CAP_PREFERRED_FORMAT:
-      if (profile == PIPE_VIDEO_PROFILE_HEVC_MAIN_10)
-         return PIPE_FORMAT_P010;
-      else if (profile == PIPE_VIDEO_PROFILE_VP9_PROFILE2)
-         return PIPE_FORMAT_P010;
-      else
-         return PIPE_FORMAT_NV12;
-
    case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
       return true;
    case PIPE_VIDEO_CAP_MAX_LEVEL:
