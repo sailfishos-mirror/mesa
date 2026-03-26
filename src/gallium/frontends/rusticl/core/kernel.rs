@@ -7,7 +7,6 @@ use crate::core::event::*;
 use crate::core::memory::*;
 use crate::core::platform::*;
 use crate::core::program::*;
-use crate::core::queue::*;
 use crate::impl_cl_type_trait;
 
 use mesa_rust::compiler::clc::*;
@@ -1669,7 +1668,7 @@ impl Kernel {
     // enqueued, so return a closure with all req data included.
     pub fn launch(
         self: &Arc<Self>,
-        q: &Arc<Queue>,
+        dev: &Device,
         work_dim: u32,
         block: &[usize],
         grid: &[usize],
@@ -1679,7 +1678,7 @@ impl Kernel {
         let work_group_size_hint = self.kernel_info.work_group_size_hint;
         let args = self.kernel_info.args.clone();
         let arg_values = self.values.clone();
-        let nir_kernel_builds = Arc::clone(&self.builds[q.device]);
+        let nir_kernel_builds = Arc::clone(&self.builds[dev]);
         let mut bdas = self.bdas.clone();
         let svms = self.svms.clone();
 
@@ -1715,7 +1714,7 @@ impl Kernel {
 
         let api_grid = grid;
 
-        self.optimize_local_size(q.device, work_dim, &mut grid, &mut block);
+        self.optimize_local_size(dev, work_dim, &mut grid, &mut block);
 
         Ok(Box::new(move |cl_ctx, ctx| {
             let hw_max_grid = ctx.dev.max_grid_size();

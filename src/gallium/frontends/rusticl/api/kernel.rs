@@ -804,7 +804,7 @@ fn enqueue_ndrange_kernel(
         Box::new(|_, _| Ok(()))
     } else {
         k.launch(
-            &q,
+            q.device,
             work_dim,
             local_work_size,
             global_work_size,
