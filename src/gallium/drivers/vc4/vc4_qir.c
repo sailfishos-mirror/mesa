@@ -388,7 +388,7 @@ qir_describe_uniform(enum quniform_contents contents, uint32_t data,
         }
 }
 
-static void
+static const char *
 qir_print_reg(struct vc4_compile *c, struct qreg reg, bool write)
 {
         static const char *files[] = {
@@ -412,26 +412,26 @@ qir_print_reg(struct vc4_compile *c, struct qreg reg, bool write)
         switch (reg.file) {
 
         case QFILE_NULL:
-                fprintf(stderr, "null");
+                return ralloc_asprintf(c, "null");
                 break;
 
         case QFILE_LOAD_IMM:
-                fprintf(stderr, "0x%08x (%f)", reg.index, uif(reg.index));
+                return ralloc_asprintf(c, "0x%08x (%f)", reg.index, uif(reg.index));
                 break;
 
         case QFILE_SMALL_IMM:
                 if ((int)reg.index >= -16 && (int)reg.index <= 15)
-                        fprintf(stderr, "%d", reg.index);
+                        return ralloc_asprintf(c, "%d", reg.index);
                 else
-                        fprintf(stderr, "%f", uif(reg.index));
+                        return ralloc_asprintf(c, "%f", uif(reg.index));
                 break;
 
         case QFILE_VPM:
                 if (write) {
-                        fprintf(stderr, "vpm");
+                        return ralloc_asprintf(c, "vpm");
                 } else {
-                        fprintf(stderr, "vpm%d.%d",
-                                reg.index / 4, reg.index % 4);
+                        return ralloc_asprintf(c, "vpm%d.%d",
+                                               reg.index / 4, reg.index % 4);
                 }
                 break;
 
@@ -444,53 +444,50 @@ qir_print_reg(struct vc4_compile *c, struct qreg reg, bool write)
         case QFILE_TEX_T:
         case QFILE_TEX_R:
         case QFILE_TEX_B:
-                fprintf(stderr, "%s", files[reg.file]);
+                return ralloc_asprintf(c, "%s", files[reg.file]);
                 break;
 
         case QFILE_UNIF: {
                 char *desc = qir_describe_uniform(c->uniform_contents[reg.index],
                                                   c->uniform_data[reg.index],
                                                   NULL);
-                fprintf(stderr, "u%d (%s)", reg.index, desc);
+                char *unif = ralloc_asprintf(c, "u%d (%s)", reg.index, desc);
                 ralloc_free(desc);
+                return unif;
                 break;
         }
 
         default:
-                fprintf(stderr, "%s%d", files[reg.file], reg.index);
+                return ralloc_asprintf(c, "%s%d", files[reg.file], reg.index);
                 break;
         }
 }
 
-void
+char *
 qir_dump_inst(struct vc4_compile *c, struct qinst *inst)
 {
-        fprintf(stderr, "%s", qir_get_op_name(inst->op));
-        if (inst->op == QOP_BRANCH)
-                vc4_qpu_disasm_cond_branch(stderr, inst->cond);
-        else
-                vc4_qpu_disasm_cond(stderr, inst->cond);
-        if (inst->sf)
-                fprintf(stderr, ".sf");
-        fprintf(stderr, " ");
+        char *dump_inst =
+                ralloc_asprintf(c, "%s%s%s ", qir_get_op_name(inst->op),
+                                inst->op == QOP_BRANCH ? vc4_qpu_disasm_cond_branch(inst->cond)
+                                                       : vc4_qpu_disasm_cond(inst->cond),
+                                inst->sf ? ".sf" : "");
 
         if (inst->op != QOP_BRANCH) {
-                qir_print_reg(c, inst->dst, true);
+                const char *reg = qir_print_reg(c, inst->dst, true);
+                ralloc_asprintf_append(&dump_inst, "%s", reg);
                 if (inst->dst.pack) {
-                        if (inst->dst.pack) {
-                                if (qir_is_mul(inst))
-                                        vc4_qpu_disasm_pack_mul(stderr, inst->dst.pack);
-                                else
-                                        vc4_qpu_disasm_pack_a(stderr, inst->dst.pack);
-                        }
+                        ralloc_asprintf_append(&dump_inst, "%s",
+                                               qir_is_mul(inst) ? vc4_qpu_disasm_pack_mul(inst->dst.pack)
+                                                                : vc4_qpu_disasm_pack_a(inst->dst.pack));
                 }
         }
 
         for (int i = 0; i < qir_get_nsrc(inst); i++) {
-                fprintf(stderr, ", ");
-                qir_print_reg(c, inst->src[i], false);
-                vc4_qpu_disasm_unpack(stderr, inst->src[i].pack);
+                const char *reg = qir_print_reg(c, inst->src[i], false);
+                ralloc_asprintf_append(&dump_inst, ", %s%s", reg, vc4_qpu_disasm_unpack(inst->src[i].pack));
         }
+
+        return dump_inst;
 }
 
 void
@@ -548,8 +545,8 @@ qir_dump(struct vc4_compile *c)
                                         fprintf(stderr, " ");
                         }
 
-                        qir_dump_inst(c, inst);
-                        fprintf(stderr, "\n");
+                        char *dump_inst = qir_dump_inst(c, inst);
+                        fprintf(stderr, "%s\n", dump_inst);
                         ip++;
                 }
                 if (block->successors[1]) {

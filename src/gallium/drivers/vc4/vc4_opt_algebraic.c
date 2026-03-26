@@ -43,9 +43,8 @@ dump_from(struct vc4_compile *c, struct qinst *inst)
         if (!debug)
                 return;
 
-        fprintf(stderr, "optimizing: ");
-        qir_dump_inst(c, inst);
-        fprintf(stderr, "\n");
+        char *dump_inst = qir_dump_inst(c, inst);
+        fprintf(stderr, "optimizing: %s\n", dump_inst);
 }
 
 static void
@@ -54,9 +53,8 @@ dump_to(struct vc4_compile *c, struct qinst *inst)
         if (!debug)
                 return;
 
-        fprintf(stderr, "to: ");
-        qir_dump_inst(c, inst);
-        fprintf(stderr, "\n");
+        char *dump_inst = qir_dump_inst(c, inst);
+        fprintf(stderr, "to: %s", dump_inst);
 }
 
 static bool

@@ -87,16 +87,14 @@ qir_opt_small_immediates(struct vc4_compile *c)
                                 continue;
 
                         if (debug) {
-                                fprintf(stderr, "opt_small_immediate() from: ");
-                                qir_dump_inst(c, inst);
-                                fprintf(stderr, "\n");
+                                char *dump_inst = qir_dump_inst(c, inst);
+                                fprintf(stderr, "opt_small_immediate() from: %s\n", dump_inst);
                         }
                         inst->src[i].file = QFILE_SMALL_IMM;
                         inst->src[i].index = imm;
                         if (debug) {
-                                fprintf(stderr, "to: ");
-                                qir_dump_inst(c, inst);
-                                fprintf(stderr, "\n");
+                                char *dump_inst = qir_dump_inst(c, inst);
+                                fprintf(stderr, "to: %s\n", dump_inst);
                         }
                         progress = true;
                         break;

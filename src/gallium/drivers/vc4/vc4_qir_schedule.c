@@ -529,17 +529,15 @@ dump_state(struct vc4_compile *c, struct schedule_state *state)
         uint32_t i = 0;
         list_for_each_entry(struct schedule_node, n, &state->dag->heads,
                             dag.link) {
-                fprintf(stderr, "%3d: ", i++);
-                qir_dump_inst(c, n->inst);
-                fprintf(stderr, " (%d cost)\n",
+                char *dump_inst = qir_dump_inst(c, n->inst);
+                fprintf(stderr, "%3d: %s (%d cost)\n", i++, dump_inst,
                         get_register_pressure_cost(state, n->inst));
 
                 util_dynarray_foreach(&n->dag.edges, struct dag_edge, edge) {
                         struct schedule_node *child =
                                 (struct schedule_node *)edge->child;
-                        fprintf(stderr, "   - ");
-                        qir_dump_inst(c, child->inst);
-                        fprintf(stderr, " (%d parents)\n",
+                        char *dump_inst = qir_dump_inst(c, child->inst);
+                        fprintf(stderr, "   - %s (%d parents)\n", dump_inst,
                                 child->dag.parent_count);
                 }
         }
@@ -627,9 +625,9 @@ schedule_instructions(struct vc4_compile *c,
                 if (debug) {
                         fprintf(stderr, "current list:\n");
                         dump_state(c, state);
-                        fprintf(stderr, "chose: ");
-                        qir_dump_inst(c, inst);
-                        fprintf(stderr, " (%d cost)\n",
+                        char *dump_inst = qir_dump_inst(c, inst);
+                        fprintf(stderr, "chose: %s (%d cost)\n",
+                                dump_inst,
                                 get_register_pressure_cost(state, inst));
                 }
 

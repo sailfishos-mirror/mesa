@@ -227,22 +227,22 @@ M_ALU2(V8SUBS)
 void
 vc4_qpu_disasm(const uint64_t *instructions, int num_instructions);
 
-void
-vc4_qpu_disasm_pack_mul(FILE *out, uint32_t pack);
+const char *
+vc4_qpu_disasm_pack_mul(uint32_t pack);
 
-void
-vc4_qpu_disasm_pack_a(FILE *out, uint32_t pack);
+const char *
+vc4_qpu_disasm_pack_a(uint32_t pack);
 
-void
-vc4_qpu_disasm_unpack(FILE *out, uint32_t pack);
+const char *
+vc4_qpu_disasm_unpack(uint32_t pack);
 
 void
 vc4_qpu_validate(uint64_t *insts, uint32_t num_inst);
 
-void
-vc4_qpu_disasm_cond(FILE *out, uint32_t cond);
+const char *
+vc4_qpu_disasm_cond(uint32_t cond);
 
-void
-vc4_qpu_disasm_cond_branch(FILE *out, uint32_t cond);
+const char *
+vc4_qpu_disasm_cond_branch(uint32_t cond);
 
 #endif /* VC4_QPU_H */

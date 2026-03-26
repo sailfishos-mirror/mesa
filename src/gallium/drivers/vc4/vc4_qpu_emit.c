@@ -246,9 +246,8 @@ vc4_generate_code_block(struct vc4_compile *c,
 
         qir_for_each_inst(qinst, block) {
 #if 0
-                fprintf(stderr, "translating qinst to qpu: ");
-                qir_dump_inst(qinst);
-                fprintf(stderr, "\n");
+                char *dump_inst = qir_dump_inst(qinst);
+                fprintf(stderr, "translating qinst to qpu: %s\n", dump_inst);
 #endif
 
                 static const struct {

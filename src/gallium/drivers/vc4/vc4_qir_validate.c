@@ -27,9 +27,8 @@
 static void
 fail_instr(struct vc4_compile *c, struct qinst *inst, const char *msg)
 {
-        fprintf(stderr, "qir_validate: %s: ", msg);
-        qir_dump_inst(c, inst);
-        fprintf(stderr, "\n");
+        char *dump_inst = qir_dump_inst(c, inst);
+        fprintf(stderr, "qir_validate: %s: %s\n", msg, dump_inst);
         abort();
 }
 

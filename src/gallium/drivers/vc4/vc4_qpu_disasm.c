@@ -261,34 +261,34 @@ get_special_write_desc(int reg, bool is_a)
         return special_write[reg];
 }
 
-void
-vc4_qpu_disasm_pack_mul(FILE *out, uint32_t pack)
+const char *
+vc4_qpu_disasm_pack_mul(uint32_t pack)
 {
-        fprintf(out, "%s", DESC(qpu_pack_mul, pack));
+        return DESC(qpu_pack_mul, pack);
 }
 
-void
-vc4_qpu_disasm_pack_a(FILE *out, uint32_t pack)
+const char *
+vc4_qpu_disasm_pack_a(uint32_t pack)
 {
-        fprintf(out, "%s", DESC(qpu_pack_a, pack));
+        return DESC(qpu_pack_a, pack);
 }
 
-void
-vc4_qpu_disasm_unpack(FILE *out, uint32_t unpack)
+const char *
+vc4_qpu_disasm_unpack(uint32_t unpack)
 {
-        fprintf(out, "%s", DESC(qpu_unpack, unpack));
+        return DESC(qpu_unpack, unpack);
 }
 
-void
-vc4_qpu_disasm_cond(FILE *out, uint32_t cond)
+const char *
+vc4_qpu_disasm_cond(uint32_t cond)
 {
-        fprintf(out, "%s", DESC(qpu_cond, cond));
+        return DESC(qpu_cond, cond);
 }
 
-void
-vc4_qpu_disasm_cond_branch(FILE *out, uint32_t cond)
+const char *
+vc4_qpu_disasm_cond_branch(uint32_t cond)
 {
-        fprintf(out, "%s", DESC(qpu_cond_branch, cond));
+        return DESC(qpu_cond_branch, cond);
 }
 
 static void
@@ -309,9 +309,9 @@ print_alu_dst(uint64_t inst, bool is_mul)
                 fprintf(stderr, "%s%d?", file, waddr);
 
         if (is_mul && (inst & QPU_PM)) {
-                vc4_qpu_disasm_pack_mul(stderr, pack);
+                fprintf(stderr, "%s", vc4_qpu_disasm_pack_mul(pack));
         } else if (is_a && !(inst & QPU_PM)) {
-                vc4_qpu_disasm_pack_a(stderr, pack);
+                fprintf(stderr, "%s", vc4_qpu_disasm_pack_a(pack));
         }
 }
 
@@ -353,7 +353,7 @@ print_alu_src(uint64_t inst, uint32_t mux, bool is_mul)
 
         if (((mux == QPU_MUX_A && !(inst & QPU_PM)) ||
              (mux == QPU_MUX_R4 && (inst & QPU_PM)))) {
-                vc4_qpu_disasm_unpack(stderr, unpack);
+                fprintf(stderr, "%s", vc4_qpu_disasm_unpack(unpack));
         }
 }
 
@@ -375,7 +375,7 @@ print_add_op(uint64_t inst)
                 fprintf(stderr, ".sf");
 
         if (op_add != QPU_A_NOP)
-                vc4_qpu_disasm_cond(stderr, cond);
+                fprintf(stderr, "%s", vc4_qpu_disasm_cond(cond));
 
         fprintf(stderr, " ");
         print_alu_dst(inst, false);
@@ -409,7 +409,7 @@ print_mul_op(uint64_t inst)
                 fprintf(stderr, ".sf");
 
         if (op_mul != QPU_M_NOP)
-                vc4_qpu_disasm_cond(stderr, cond);
+                fprintf(stderr, "%s", vc4_qpu_disasm_cond(cond));
 
         fprintf(stderr, " ");
         print_alu_dst(inst, true);
@@ -436,12 +436,12 @@ print_load_imm(uint64_t inst)
 
         print_alu_dst(inst, false);
         if (waddr_add != QPU_W_NOP)
-                vc4_qpu_disasm_cond(stderr, cond_add);
+                fprintf(stderr, "%s", vc4_qpu_disasm_cond(cond_add));
         fprintf(stderr, ", ");
 
         print_alu_dst(inst, true);
         if (waddr_mul != QPU_W_NOP)
-                vc4_qpu_disasm_cond(stderr, cond_mul);
+                fprintf(stderr, "%s", vc4_qpu_disasm_cond(cond_mul));;
         fprintf(stderr, ", ");
 
         fprintf(stderr, "0x%08x (%f)", imm, uif(imm));
@@ -456,10 +456,9 @@ vc4_qpu_disasm(const uint64_t *instructions, int num_instructions)
 
                 switch (sig) {
                 case QPU_SIG_BRANCH:
-                        fprintf(stderr, "branch");
-                        vc4_qpu_disasm_cond_branch(stderr,
-                                                   QPU_GET_FIELD(inst,
-                                                                 QPU_BRANCH_COND));
+                        fprintf(stderr, "branch%s",
+                                vc4_qpu_disasm_cond_branch(QPU_GET_FIELD(inst,
+                                                                         QPU_BRANCH_COND)));
 
                         fprintf(stderr, " %d", (uint32_t)inst);
                         break;
