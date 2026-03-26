@@ -50,6 +50,7 @@ void pvr_winsys_destroy(struct pvr_winsys *ws)
 
 VkResult pvr_winsys_create(const char *render_path,
                            const char *display_path,
+                           bool keep_display_master,
                            const VkAllocationCallbacks *alloc,
                            struct pvr_winsys **const ws_out)
 {
@@ -75,6 +76,12 @@ VkResult pvr_winsys_create(const char *render_path,
                             "Failed to open display device %s",
                             display_path);
          goto err_close_render_fd;
+      }
+      if (!keep_display_master) {
+         /* Try to drop master for the display FD if it's not meant to be
+          * kept, but not to fail if it's not the master at opening time.
+          */
+         drmDropMaster(display_fd);
       }
    } else {
       display_fd = -1;

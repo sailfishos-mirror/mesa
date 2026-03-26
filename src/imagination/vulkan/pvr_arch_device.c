@@ -703,7 +703,7 @@ VkResult PVR_PER_ARCH(create_device)(struct pvr_physical_device *pdevice,
    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
 
    result = pvr_winsys_create(pdevice->render_path,
-                              pdevice->display_path,
+                              pdevice->display_path, false,
                               pAllocator ? pAllocator : &instance->vk.alloc,
                               &ws);
    if (result != VK_SUCCESS)
