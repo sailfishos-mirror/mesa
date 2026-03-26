@@ -1109,6 +1109,189 @@ void ac_fill_feature_info(struct radeon_info *info, const struct drm_amdgpu_info
    }
 }
 
+void ac_fill_hw_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info)
+{
+   /* convert the shader/memory clocks from KHz to MHz */
+   info->max_gpu_freq_mhz = device_info->max_engine_clock / 1000;
+   info->memory_freq_mhz_effective = info->memory_freq_mhz = device_info->max_memory_clock / 1000;
+   info->max_se = device_info->num_shader_engines;
+   info->max_sa_per_se = device_info->num_shader_arrays_per_engine;
+   info->num_cu_per_sh = device_info->num_cu_per_sh;
+   info->enabled_rb_mask = device_info->enabled_rb_pipes_mask;
+   info->enabled_rb_mask |= (uint64_t)device_info->enabled_rb_pipes_mask_hi << 32;
+
+   info->memory_freq_mhz_effective *= ac_memory_ops_per_clock(info->vram_type);
+
+   info->pa_sc_tile_steering_override = device_info->pa_sc_tile_steering_override;
+   info->max_render_backends = device_info->num_rb_pipes;
+   /* The value returned by the kernel driver was wrong. */
+   if (info->family == CHIP_KAVERI)
+      info->max_render_backends = 2;
+
+   info->clock_crystal_freq = device_info->gpu_counter_freq;
+   if (!info->clock_crystal_freq) {
+      fprintf(stderr, "amdgpu: clock crystal frequency is 0, timestamps will be wrong\n");
+      info->clock_crystal_freq = 1;
+   }
+
+   info->tcc_rb_non_coherent = info->gfx_level < GFX12 &&
+                               !util_is_power_of_two_or_zero(info->num_tcc_blocks) &&
+                               info->num_rb != info->num_tcc_blocks;
+   info->cp_sdma_ge_use_system_memory_scope = info->gfx_level == GFX12;
+   info->cp_dma_use_L2 = info->gfx_level >= GFX7 && !info->cp_sdma_ge_use_system_memory_scope;
+
+   info->sqc_inst_cache_size = device_info->sqc_inst_cache_size * 1024;
+   info->sqc_scalar_cache_size = device_info->sqc_data_cache_size * 1024;
+   info->num_sqc_per_wgp = device_info->num_sqc_per_wgp;
+
+   /* LDS is 64KB per CU (4 SIMDs on GFX6-9, which is 16KB per SIMD).
+    *
+    * GFX10+: LDS is 128KB in WGP mode, but a workgroup can only use up to 64KB.
+    * GFX7+:  Workgroups can use up to 64KB.
+    * GFX6:   There is 64KB LDS per CU, but a workgroup can only use up to 32KB.
+    */
+   info->lds_size_per_workgroup = info->gfx_level >= GFX7 ? 64 * 1024 : 32 * 1024;
+
+   /* Get the number of good compute units. */
+   info->num_cu = 0;
+   for (int i = 0; i < info->max_se; i++) {
+      for (int j = 0; j < info->max_sa_per_se; j++) {
+         if (info->gfx_level >= GFX11) {
+            assert(info->max_sa_per_se <= 2);
+            info->cu_mask[i][j] = device_info->cu_bitmap[i % 4][(i / 4) * 2 + j];
+         } else if (info->family == CHIP_MI100) {
+            /* The CU bitmap in amd gpu info structure is
+             * 4x4 size array, and it's usually suitable for Vega
+             * ASICs which has 4*2 SE/SA layout.
+             * But for MI100, SE/SA layout is changed to 8*1.
+             * To mostly reduce the impact, we make it compatible
+             * with current bitmap array as below:
+             *    SE4 --> cu_bitmap[0][1]
+             *    SE5 --> cu_bitmap[1][1]
+             *    SE6 --> cu_bitmap[2][1]
+             *    SE7 --> cu_bitmap[3][1]
+             */
+            assert(info->max_sa_per_se == 1);
+            info->cu_mask[i][0] = device_info->cu_bitmap[i % 4][i / 4];
+         } else {
+            info->cu_mask[i][j] = device_info->cu_bitmap[i][j];
+         }
+         info->num_cu += util_bitcount(info->cu_mask[i][j]);
+      }
+   }
+
+   if (info->gfx_level >= GFX10_3 && info->max_se > 1) {
+      uint32_t enabled_se_mask = 0;
+
+      /* Derive the enabled SE mask from the CU mask. */
+      for (unsigned se = 0; se < info->max_se; se++) {
+         for (unsigned sa = 0; sa < info->max_sa_per_se; sa++) {
+            if (info->cu_mask[se][sa]) {
+               enabled_se_mask |= BITFIELD_BIT(se);
+               break;
+            }
+         }
+      }
+      info->num_se = util_bitcount(enabled_se_mask);
+
+      /* Trim the number of enabled RBs based on the number of enabled SEs because the RB mask
+       * might include disabled SEs.
+       */
+      if (info->gfx_level >= GFX12) {
+         unsigned num_rb_per_se = info->max_render_backends / info->max_se;
+
+         for (unsigned se = 0; se < info->max_se; se++) {
+            if (!(BITFIELD_BIT(se) & enabled_se_mask))
+               info->enabled_rb_mask &= ~(BITFIELD_MASK(num_rb_per_se) << (se * num_rb_per_se));
+         }
+      }
+   } else {
+      /* GFX10 and older always enable all SEs because they don't support SE harvesting. */
+      info->num_se = info->max_se;
+   }
+
+   info->num_rb = util_bitcount64(info->enabled_rb_mask);
+
+   /* On GFX10, only whole WGPs (in units of 2 CUs) can be disabled,
+    * and max - min <= 2.
+    */
+   unsigned cu_group = info->gfx_level >= GFX10 ? 2 : 1;
+   info->max_good_cu_per_sa =
+      DIV_ROUND_UP(info->num_cu, (info->num_se * info->max_sa_per_se * cu_group)) *
+      cu_group;
+   info->min_good_cu_per_sa =
+      (info->num_cu / (info->num_se * info->max_sa_per_se * cu_group)) * cu_group;
+
+   info->gfx_ib_pad_with_type2 = info->gfx_level == GFX6;
+
+   if (info->gfx_level >= GFX11 && info->gfx_level < GFX12) {
+      /* With num_cu = 4 in gfx11 measured power for idle, video playback and observed
+       * power savings, hence enable dcc with retile for gfx11 with num_cu >= 4.
+       */
+       info->use_display_dcc_with_retile_blit = info->num_cu >= 4;
+   } else if (info->gfx_level == GFX10_3) {
+      /* Displayable DCC with retiling is known to increase power consumption on Raphael
+       * and Mendocino, so disable it on the smallest APUs. We need a proof that
+       * displayable DCC doesn't regress bigger chips in the same way.
+       */
+      info->use_display_dcc_with_retile_blit = info->num_cu > 4;
+   } else if (info->gfx_level == GFX9 && !info->has_dedicated_vram) {
+      if (info->max_render_backends == 1) {
+         info->use_display_dcc_unaligned = true;
+      } else {
+         /* there may be power increase for small APUs with less num_cu. */
+         info->use_display_dcc_with_retile_blit = info->num_cu > 4;
+      }
+   }
+
+   if (info->gfx_level >= GFX12) {
+      /* Gfx12 doesn't use pc_lines and pbb_max_alloc_count. */
+   } else if (info->gfx_level >= GFX11) {
+      info->pc_lines = 1024;
+      info->pbb_max_alloc_count = 16; /* minimum is 2, maximum is 256 */
+   } else if (info->gfx_level >= GFX9 && info->has_graphics) {
+      unsigned pc_lines = 0;
+
+      switch (info->family) {
+      case CHIP_VEGA10:
+      case CHIP_VEGA12:
+      case CHIP_VEGA20:
+         pc_lines = 2048;
+         break;
+      case CHIP_RAVEN:
+      case CHIP_RAVEN2:
+      case CHIP_RENOIR:
+      case CHIP_NAVI10:
+      case CHIP_NAVI12:
+      case CHIP_GFX1013:
+      case CHIP_NAVI21:
+      case CHIP_NAVI22:
+      case CHIP_NAVI23:
+         pc_lines = 1024;
+         break;
+      case CHIP_NAVI14:
+      case CHIP_NAVI24:
+         pc_lines = 512;
+         break;
+      case CHIP_VANGOGH:
+      case CHIP_REMBRANDT:
+      case CHIP_RAPHAEL_MENDOCINO:
+         pc_lines = 256;
+         break;
+      default:
+         assert(0);
+      }
+
+      info->pc_lines = pc_lines;
+
+      if (info->gfx_level >= GFX10) {
+         info->pbb_max_alloc_count = pc_lines / 3;
+      } else {
+         info->pbb_max_alloc_count = MIN2(128, pc_lines / (4 * info->max_se));
+      }
+   }
+}
+
 enum ac_query_gpu_info_result
 ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                   bool require_pci_bus_info)
@@ -1117,7 +1300,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    struct drm_amdgpu_info_device device_info = {0};
    uint32_t vidip_fw_version = 0, vidip_fw_feature = 0;
    uint32_t num_instances = 0;
-   int r, i, j;
+   int r;
    ac_drm_device *dev = dev_p;
 
    STATIC_ASSERT(AMDGPU_HW_IP_GFX == AMD_IP_GFX);
@@ -1271,42 +1454,10 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
    ac_fill_memory_info(info, &device_info, &meminfo);
 
-   /* Set hardware information. */
-   /* convert the shader/memory clocks from KHz to MHz */
-   info->max_gpu_freq_mhz = device_info.max_engine_clock / 1000;
-   info->memory_freq_mhz_effective = info->memory_freq_mhz = device_info.max_memory_clock / 1000;
-   info->max_se = device_info.num_shader_engines;
-   info->max_sa_per_se = device_info.num_shader_arrays_per_engine;
-   info->num_cu_per_sh = device_info.num_cu_per_sh;
-   info->enabled_rb_mask = device_info.enabled_rb_pipes_mask;
-   info->enabled_rb_mask |= (uint64_t)device_info.enabled_rb_pipes_mask_hi << 32;
-
-   info->memory_freq_mhz_effective *= ac_memory_ops_per_clock(info->vram_type);
-
    info->has_timeline_syncobj = ac_drm_device_get_sync_provider(dev)->timeline_wait != NULL;
    ac_drm_query_has_vm_always_valid(dev, info);
 
-   info->pa_sc_tile_steering_override = device_info.pa_sc_tile_steering_override;
-   info->max_render_backends = device_info.num_rb_pipes;
-   /* The value returned by the kernel driver was wrong. */
-   if (info->family == CHIP_KAVERI)
-      info->max_render_backends = 2;
-
-   info->clock_crystal_freq = device_info.gpu_counter_freq;
-   if (!info->clock_crystal_freq) {
-      fprintf(stderr, "amdgpu: clock crystal frequency is 0, timestamps will be wrong\n");
-      info->clock_crystal_freq = 1;
-   }
-
-   info->tcc_rb_non_coherent = info->gfx_level < GFX12 &&
-                               !util_is_power_of_two_or_zero(info->num_tcc_blocks) &&
-                               info->num_rb != info->num_tcc_blocks;
-   info->cp_sdma_ge_use_system_memory_scope = info->gfx_level == GFX12;
-   info->cp_dma_use_L2 = info->gfx_level >= GFX7 && !info->cp_sdma_ge_use_system_memory_scope;
-
-   info->sqc_inst_cache_size = device_info.sqc_inst_cache_size * 1024;
-   info->sqc_scalar_cache_size = device_info.sqc_data_cache_size * 1024;
-   info->num_sqc_per_wgp = device_info.num_sqc_per_wgp;
+   ac_fill_hw_info(info, &device_info);
 
    ac_fill_tiling_info(info, &amdinfo);
 
@@ -1314,154 +1465,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
    info->kernel_has_modifiers = has_modifiers(fd) || (info->is_virtio && fd < 0);
 
-   /* LDS is 64KB per CU (4 SIMDs on GFX6-9, which is 16KB per SIMD).
-    *
-    * GFX10+: LDS is 128KB in WGP mode, but a workgroup can only use up to 64KB.
-    * GFX7+:  Workgroups can use up to 64KB.
-    * GFX6:   There is 64KB LDS per CU, but a workgroup can only use up to 32KB.
-    */
-   info->lds_size_per_workgroup = info->gfx_level >= GFX7 ? 64 * 1024 : 32 * 1024;
-
-   /* Get the number of good compute units. */
-   info->num_cu = 0;
-   for (i = 0; i < info->max_se; i++) {
-      for (j = 0; j < info->max_sa_per_se; j++) {
-         if (info->gfx_level >= GFX11) {
-            assert(info->max_sa_per_se <= 2);
-            info->cu_mask[i][j] = device_info.cu_bitmap[i % 4][(i / 4) * 2 + j];
-         } else if (info->family == CHIP_MI100) {
-            /* The CU bitmap in amd gpu info structure is
-             * 4x4 size array, and it's usually suitable for Vega
-             * ASICs which has 4*2 SE/SA layout.
-             * But for MI100, SE/SA layout is changed to 8*1.
-             * To mostly reduce the impact, we make it compatible
-             * with current bitmap array as below:
-             *    SE4 --> cu_bitmap[0][1]
-             *    SE5 --> cu_bitmap[1][1]
-             *    SE6 --> cu_bitmap[2][1]
-             *    SE7 --> cu_bitmap[3][1]
-             */
-            assert(info->max_sa_per_se == 1);
-            info->cu_mask[i][0] = device_info.cu_bitmap[i % 4][i / 4];
-         } else {
-            info->cu_mask[i][j] = device_info.cu_bitmap[i][j];
-         }
-         info->num_cu += util_bitcount(info->cu_mask[i][j]);
-      }
-   }
-
    ac_fill_bug_info(info);
-
-   if (info->gfx_level >= GFX10_3 && info->max_se > 1) {
-      uint32_t enabled_se_mask = 0;
-
-      /* Derive the enabled SE mask from the CU mask. */
-      for (unsigned se = 0; se < info->max_se; se++) {
-         for (unsigned sa = 0; sa < info->max_sa_per_se; sa++) {
-            if (info->cu_mask[se][sa]) {
-               enabled_se_mask |= BITFIELD_BIT(se);
-               break;
-            }
-         }
-      }
-      info->num_se = util_bitcount(enabled_se_mask);
-
-      /* Trim the number of enabled RBs based on the number of enabled SEs because the RB mask
-       * might include disabled SEs.
-       */
-      if (info->gfx_level >= GFX12) {
-         unsigned num_rb_per_se = info->max_render_backends / info->max_se;
-
-         for (unsigned se = 0; se < info->max_se; se++) {
-            if (!(BITFIELD_BIT(se) & enabled_se_mask))
-               info->enabled_rb_mask &= ~(BITFIELD_MASK(num_rb_per_se) << (se * num_rb_per_se));
-         }
-      }
-   } else {
-      /* GFX10 and older always enable all SEs because they don't support SE harvesting. */
-      info->num_se = info->max_se;
-   }
-
-   info->num_rb = util_bitcount64(info->enabled_rb_mask);
-
-   /* On GFX10, only whole WGPs (in units of 2 CUs) can be disabled,
-    * and max - min <= 2.
-    */
-   unsigned cu_group = info->gfx_level >= GFX10 ? 2 : 1;
-   info->max_good_cu_per_sa =
-      DIV_ROUND_UP(info->num_cu, (info->num_se * info->max_sa_per_se * cu_group)) *
-      cu_group;
-   info->min_good_cu_per_sa =
-      (info->num_cu / (info->num_se * info->max_sa_per_se * cu_group)) * cu_group;
-
-   info->gfx_ib_pad_with_type2 = info->gfx_level == GFX6;
-
-   if (info->gfx_level >= GFX11 && info->gfx_level < GFX12) {
-      /* With num_cu = 4 in gfx11 measured power for idle, video playback and observed
-       * power savings, hence enable dcc with retile for gfx11 with num_cu >= 4.
-       */
-       info->use_display_dcc_with_retile_blit = info->num_cu >= 4;
-   } else if (info->gfx_level == GFX10_3) {
-      /* Displayable DCC with retiling is known to increase power consumption on Raphael
-       * and Mendocino, so disable it on the smallest APUs. We need a proof that
-       * displayable DCC doesn't regress bigger chips in the same way.
-       */
-      info->use_display_dcc_with_retile_blit = info->num_cu > 4;
-   } else if (info->gfx_level == GFX9 && !info->has_dedicated_vram) {
-      if (info->max_render_backends == 1) {
-         info->use_display_dcc_unaligned = true;
-      } else {
-         /* there may be power increase for small APUs with less num_cu. */
-         info->use_display_dcc_with_retile_blit = info->num_cu > 4;
-      }
-   }
-
-   if (info->gfx_level >= GFX12) {
-      /* Gfx12 doesn't use pc_lines and pbb_max_alloc_count. */
-   } else if (info->gfx_level >= GFX11) {
-      info->pc_lines = 1024;
-      info->pbb_max_alloc_count = 16; /* minimum is 2, maximum is 256 */
-   } else if (info->gfx_level >= GFX9 && info->has_graphics) {
-      unsigned pc_lines = 0;
-
-      switch (info->family) {
-      case CHIP_VEGA10:
-      case CHIP_VEGA12:
-      case CHIP_VEGA20:
-         pc_lines = 2048;
-         break;
-      case CHIP_RAVEN:
-      case CHIP_RAVEN2:
-      case CHIP_RENOIR:
-      case CHIP_NAVI10:
-      case CHIP_NAVI12:
-      case CHIP_GFX1013:
-      case CHIP_NAVI21:
-      case CHIP_NAVI22:
-      case CHIP_NAVI23:
-         pc_lines = 1024;
-         break;
-      case CHIP_NAVI14:
-      case CHIP_NAVI24:
-         pc_lines = 512;
-         break;
-      case CHIP_VANGOGH:
-      case CHIP_REMBRANDT:
-      case CHIP_RAPHAEL_MENDOCINO:
-         pc_lines = 256;
-         break;
-      default:
-         assert(0);
-      }
-
-      info->pc_lines = pc_lines;
-
-      if (info->gfx_level >= GFX10) {
-         info->pbb_max_alloc_count = pc_lines / 3;
-      } else {
-         info->pbb_max_alloc_count = MIN2(128, pc_lines / (4 * info->max_se));
-      }
-   }
 
    /* This is the size of all TCS outputs in memory per workgroup.
     * Hawaii can't handle num_workgroups > 256 with 8K per workgroup, so use 4K.
