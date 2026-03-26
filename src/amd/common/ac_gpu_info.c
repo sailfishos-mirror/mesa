@@ -399,6 +399,31 @@ ac_fill_compiler_info(struct radeon_info *info, struct drm_amdgpu_info_device *d
    out->has_primid_instancing_bug = info->gfx_level == GFX6 && info->max_se == 1;
 }
 
+void
+ac_fill_tiling_info(struct radeon_info *info, const struct amdgpu_gpu_info *amdinfo)
+{
+   info->mc_arb_ramcfg = amdinfo->mc_arb_ramcfg;
+   info->gb_addr_config = amdinfo->gb_addr_cfg;
+   if (info->gfx_level >= GFX9) {
+      if (!info->has_graphics && info->family >= CHIP_GFX940)
+         info->gb_addr_config = 0;
+
+      info->num_tile_pipes = 1 << G_0098F8_NUM_PIPES(info->gb_addr_config);
+      assert((256 << G_0098F8_PIPE_INTERLEAVE_SIZE_GFX9(info->gb_addr_config)) ==
+             AMD_MEMCHANNEL_INTERLEAVE_BYTES);
+   } else {
+      unsigned pipe_config = G_009910_PIPE_CONFIG(amdinfo->gb_tile_mode[CIK_TILE_MODE_COLOR_2D]);
+      info->num_tile_pipes = ac_pipe_config_to_num_pipes(pipe_config);
+      assert((256 << G_0098F8_PIPE_INTERLEAVE_SIZE_GFX6(info->gb_addr_config)) ==
+             AMD_MEMCHANNEL_INTERLEAVE_BYTES);
+   }
+
+   memcpy(info->si_tile_mode_array, amdinfo->gb_tile_mode, sizeof(amdinfo->gb_tile_mode));
+
+   memcpy(info->cik_macrotile_mode_array, amdinfo->gb_macro_tile_mode,
+          sizeof(amdinfo->gb_macro_tile_mode));
+}
+
 enum ac_query_gpu_info_result
 ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                   bool require_pci_bus_info)
@@ -999,21 +1024,7 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       }
    }
 
-   info->mc_arb_ramcfg = amdinfo.mc_arb_ramcfg;
-   info->gb_addr_config = amdinfo.gb_addr_cfg;
-   if (info->gfx_level >= GFX9) {
-      if (!info->has_graphics && info->family >= CHIP_GFX940)
-         info->gb_addr_config = 0;
-
-      info->num_tile_pipes = 1 << G_0098F8_NUM_PIPES(info->gb_addr_config);
-      assert((256 << G_0098F8_PIPE_INTERLEAVE_SIZE_GFX9(info->gb_addr_config)) ==
-             AMD_MEMCHANNEL_INTERLEAVE_BYTES);
-   } else {
-      unsigned pipe_config = G_009910_PIPE_CONFIG(amdinfo.gb_tile_mode[CIK_TILE_MODE_COLOR_2D]);
-      info->num_tile_pipes = ac_pipe_config_to_num_pipes(pipe_config);
-      assert((256 << G_0098F8_PIPE_INTERLEAVE_SIZE_GFX6(info->gb_addr_config)) ==
-             AMD_MEMCHANNEL_INTERLEAVE_BYTES);
-   }
+   ac_fill_tiling_info(info, &amdinfo);
    info->r600_has_virtual_memory = true;
 
    /* LDS is 64KB per CU (4 SIMDs on GFX6-9, which is 16KB per SIMD).
@@ -1280,11 +1291,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       cu_group;
    info->min_good_cu_per_sa =
       (info->num_cu / (info->num_se * info->max_sa_per_se * cu_group)) * cu_group;
-
-   memcpy(info->si_tile_mode_array, amdinfo.gb_tile_mode, sizeof(amdinfo.gb_tile_mode));
-
-   memcpy(info->cik_macrotile_mode_array, amdinfo.gb_macro_tile_mode,
-          sizeof(amdinfo.gb_macro_tile_mode));
 
    info->pte_fragment_size = device_info.pte_fragment_size;
    info->gart_page_size = device_info.gart_page_size;

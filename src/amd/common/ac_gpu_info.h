@@ -487,6 +487,7 @@ enum ac_query_gpu_info_result {
 enum ac_query_gpu_info_result ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                                                 bool require_pci_bus_info);
 void ac_fill_compiler_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_info);
+void ac_fill_tiling_info(struct radeon_info *info, const struct amdgpu_gpu_info *amdinfo);
 
 void ac_compute_driver_uuid(char *uuid, size_t size);
 
