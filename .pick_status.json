@@ -1274,7 +1274,7 @@
         "description": "nir/lower_non_uniform_access: fix fusing loops for same index but different array variable",
         "nominated": true,
         "nomination_type": 2,
-        "resolution": 0,
+        "resolution": 1,
         "main_sha": null,
         "because_sha": "4d09cd7fa590cbd52d8772d5a251fab8b0874ab7",
         "notes": null
