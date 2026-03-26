@@ -236,7 +236,7 @@ static bool handle_env_var_force_family(struct radeon_info *info)
 }
 
 void
-ac_fill_compiler_info(struct radeon_info *info, struct drm_amdgpu_info_device *device_info)
+ac_fill_compiler_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info)
 {
    STATIC_ASSERT(sizeof(struct ac_compiler_info) == 52);
 
