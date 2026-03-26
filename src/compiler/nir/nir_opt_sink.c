@@ -187,25 +187,32 @@ can_sink_instr(nir_instr *instr, nir_move_options options, bool *can_mov_out_of_
       case nir_intrinsic_image_sparse_load:
       case nir_intrinsic_image_deref_sparse_load:
       case nir_intrinsic_bindless_image_sparse_load:
+      case nir_intrinsic_image_heap_load:
+      case nir_intrinsic_image_heap_sparse_load:
          return options & nir_move_load_image;
 
       case nir_intrinsic_image_fragment_mask_load_amd:
       case nir_intrinsic_image_deref_fragment_mask_load_amd:
       case nir_intrinsic_bindless_image_fragment_mask_load_amd:
+      case nir_intrinsic_image_heap_fragment_mask_load_amd:
       case nir_intrinsic_image_samples_identical: /* this loads fragment mask too */
       case nir_intrinsic_image_deref_samples_identical:
       case nir_intrinsic_bindless_image_samples_identical:
+      case nir_intrinsic_image_heap_samples_identical:
          return options & nir_move_load_image_fragment_mask;
 
       case nir_intrinsic_image_size:
       case nir_intrinsic_image_deref_size:
       case nir_intrinsic_bindless_image_size:
+      case nir_intrinsic_image_heap_size:
       case nir_intrinsic_image_samples:
       case nir_intrinsic_image_deref_samples:
       case nir_intrinsic_bindless_image_samples:
+      case nir_intrinsic_image_heap_samples:
       case nir_intrinsic_image_levels:
       case nir_intrinsic_image_deref_levels:
       case nir_intrinsic_bindless_image_levels:
+      case nir_intrinsic_image_heap_levels:
          return options & nir_move_query_image;
 
       case nir_intrinsic_load_input:
