@@ -2086,10 +2086,14 @@ build_dcd_flags(struct panvk_cmd_buffer *cmdbuf,
                zs_read = PAN_EARLYZS_ZS_TILEBUF_READ_OPT;
          }
 
+         bool roa_color =
+            cmdbuf->vk.dynamic_graphics_state.rasterization_order_access &
+            VK_IMAGE_ASPECT_COLOR_BIT;
+
          cfg.allow_forward_pixel_to_kill =
             fs->info.fs.can_fpk && !(rt_mask & ~out->rt_written) &&
             !(out->rt_read & out->rt_written) && !alpha_to_coverage &&
-            !cmdbuf->state.gfx.cb.info.any_dest_read;
+            !cmdbuf->state.gfx.cb.info.any_dest_read && !roa_color;
 
          cfg.allow_forward_pixel_to_be_killed = !fs->info.writes_global;
 
@@ -2097,6 +2101,13 @@ build_dcd_flags(struct panvk_cmd_buffer *cmdbuf,
          bool zs_always_passes = ds_test_always_passes(cmdbuf);
          bool oq = cmdbuf->state.gfx.occlusion_query.mode !=
                    MALI_OCCLUSION_MODE_DISABLED;
+
+         bool roa_zs =
+            cmdbuf->vk.dynamic_graphics_state.rasterization_order_access &
+            (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+
+         if (roa_zs)
+            zs_read = PAN_EARLYZS_ZS_TILEBUF_READ_NO_OPT;
 
          out->earlyzs =
             pan_earlyzs_get(fs->fs.earlyzs_lut, writes_zs || oq,
