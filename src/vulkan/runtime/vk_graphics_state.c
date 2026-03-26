@@ -2134,6 +2134,8 @@ vk_dynamic_graphics_state_fill(struct vk_dynamic_graphics_state *dyn,
     */
    dyn->feedback_loops = 0;
 
+   dyn->rasterization_order_access = p->rasterization_order_access;
+
    get_dynamic_state_groups(dyn->set, groups);
 
    /* Vertex input state is always included in a complete pipeline. If p->vi
@@ -2391,6 +2393,11 @@ vk_dynamic_graphics_state_copy(struct vk_dynamic_graphics_state *dst,
    }
 
    COPY_IF_SET(ATTACHMENT_FEEDBACK_LOOP_ENABLE, feedback_loops);
+
+   /* rasterization_order_access is not dynamic state, so propagate it
+    * unconditionally when copying (e.g., secondary command buffer execution).
+    */
+   dst->rasterization_order_access |= src->rasterization_order_access;
 
 #undef IS_SET_IN_SRC
 #undef MARK_DIRTY

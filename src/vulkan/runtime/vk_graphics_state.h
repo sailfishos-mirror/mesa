@@ -973,6 +973,9 @@ struct vk_dynamic_graphics_state {
    /** MESA_VK_DYNAMIC_ATTACHMENT_FEEDBACK_LOOP_ENABLE */
    VkImageAspectFlags feedback_loops;
 
+   /** Rasterization order attachment access flags (from pipeline state) */
+   VkImageAspectFlags rasterization_order_access;
+
    /** MESA_VK_DYNAMIC_INPUT_ATTACHMENT_MAP */
    struct vk_input_attachment_location_state ial;
 
