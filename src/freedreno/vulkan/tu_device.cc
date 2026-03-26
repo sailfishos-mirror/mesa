@@ -3691,6 +3691,45 @@ tu_AllocateMemory(VkDevice _device,
       mem->image = NULL;
    }
 
+#ifdef VK_USE_PLATFORM_ANDROID_KHR
+   if (mem->vk.ahardware_buffer && mem->image &&
+       vk_image_is_android_hardware_buffer(&mem->image->vk)) {
+      VkImageDrmFormatModifierExplicitCreateInfoEXT eci;
+      VkSubresourceLayout a_plane_layouts[TU_MAX_PLANE_COUNT];
+      result = vk_android_get_ahb_layout(mem->vk.ahardware_buffer, &eci,
+                                         a_plane_layouts, TU_MAX_PLANE_COUNT);
+      if (result != VK_SUCCESS) {
+         vk_device_memory_destroy(&device->vk, pAllocator, &mem->vk);
+         return result;
+      }
+
+      assert(mem->image->vk.android_deferred_create_info);
+
+      __vk_append_struct(mem->image->vk.android_deferred_create_info, &eci);
+
+      VkExternalMemoryImageCreateInfo external_info = {
+         .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+         .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT,
+      };
+      __vk_append_struct(mem->image->vk.android_deferred_create_info,
+                         &external_info);
+
+      result = tu_image_init(device, mem->image,
+                             mem->image->vk.android_deferred_create_info);
+      if (result != VK_SUCCESS) {
+         vk_device_memory_destroy(&device->vk, pAllocator, &mem->vk);
+         return result;
+      }
+
+      result = TU_CALLX(device, tu_image_update_layout)(
+         device, mem->image, eci.drmFormatModifier, a_plane_layouts);
+      if (result != VK_SUCCESS) {
+         vk_device_memory_destroy(&device->vk, pAllocator, &mem->vk);
+         return result;
+      }
+   }
+#endif
+
    TU_RMV(heap_create, device, pAllocateInfo, mem);
 
    tu_memory_emit_report(device, mem, pAllocateInfo, VK_SUCCESS);
