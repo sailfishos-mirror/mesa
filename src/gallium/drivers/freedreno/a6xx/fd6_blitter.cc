@@ -89,8 +89,7 @@ fd6_ifmt(enum a6xx_format fmt)
       return R2D_FLOAT16;
 
    default:
-      UNREACHABLE("bad format");
-      return (enum a6xx_2d_ifmt)0;
+      return R2D_NONE;
    }
 }
 
@@ -111,7 +110,7 @@ ok_dims(const struct pipe_resource *r, const struct pipe_box *b, int lvl)
 }
 
 static bool
-ok_format(const struct fd_dev_info *info, enum pipe_format pfmt)
+ok_format(const struct fd_dev_info *info, enum pipe_format pfmt, bool check_a2d)
 {
    if (!fd6_color_format_supported(info, pfmt, TILE6_LINEAR))
       return false;
@@ -135,6 +134,9 @@ ok_format(const struct fd_dev_info *info, enum pipe_format pfmt)
    }
 
    if (fmt == FMT6_NONE)
+      return false;
+
+   if (check_a2d && (fd6_ifmt(fmt) == R2D_NONE))
       return false;
 
    return true;
@@ -184,8 +186,8 @@ can_do_blit(const struct fd_dev_info *dev_info, const struct pipe_blit_info *inf
    fail_if(info->dst.box.depth != info->src.box.depth);
 
    /* Fail if unsupported format: */
-   fail_if(!ok_format(dev_info, info->src.format));
-   fail_if(!ok_format(dev_info, info->dst.format));
+   fail_if(!ok_format(dev_info, info->src.format, true));
+   fail_if(!ok_format(dev_info, info->dst.format, true));
 
    /* using the 2d path seems to canonicalize NaNs when the source format
     * is a 16-bit floating point format, likely because it implicitly
@@ -253,7 +255,7 @@ can_do_clear(const struct pipe_resource *prsc, unsigned level,
 {
    struct fd_screen *screen = fd_screen(prsc->screen);
 
-   return ok_format(screen->info, prsc->format) &&
+   return ok_format(screen->info, prsc->format, true) &&
           ok_dims(prsc, box, level) &&
           (fd_resource_nr_samples(prsc) == 1);
 
@@ -1552,7 +1554,7 @@ fd6_tile_mode_for_format(const struct fd_dev_info *info, enum pipe_format pfmt)
    /* basically just has to be a format we can blit, so uploads/downloads
     * via linear staging buffer works:
     */
-   if (ok_format(info, pfmt))
+   if (ok_format(info, pfmt, false))
       return TILE6_3;
 
    return TILE6_LINEAR;
