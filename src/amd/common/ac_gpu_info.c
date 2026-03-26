@@ -424,6 +424,77 @@ ac_fill_tiling_info(struct radeon_info *info, const struct amdgpu_gpu_info *amdi
           sizeof(amdinfo->gb_macro_tile_mode));
 }
 
+static const uint32_t ac_ip_type_dw_padding_minus_1[AMD_NUM_IP_TYPES] = {
+    [AMD_IP_GFX]      = 0x7,
+    [AMD_IP_COMPUTE]  = 0x7,
+    [AMD_IP_SDMA]     = 0xf,
+    [AMD_IP_UVD]      = 0xf,
+    [AMD_IP_VCE]      = 0x3f,
+    [AMD_IP_UVD_ENC]  = 0x3f,
+    [AMD_IP_VCN_DEC]  = 0xf,
+    [AMD_IP_VCN_ENC]  = 0x3f,
+    [AMD_IP_VCN_JPEG] = 0xf,
+    [AMD_IP_VPE]      = 0xf,
+};
+
+bool
+ac_fill_hw_ip_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info,
+                   unsigned ip_type, const struct drm_amdgpu_info_hw_ip *ip_info)
+{
+   if (info->userq_ip_mask & BITFIELD_BIT(ip_type)) {
+      /* info[ip_type].num_queues variable is also used to describe if that ip_type is
+       * supported or not. Setting this variable to 1 for userqueues.
+       */
+      info->ip[ip_type].num_queues = 1;
+   } else if (ip_info->available_rings) {
+      /* GFX1013 is known to have broken compute queue */
+      if (ip_type == AMD_IP_COMPUTE && device_info->family == FAMILY_NV &&
+          ASICREV_IS(device_info->external_rev, GFX1013))
+         return false;
+
+      info->ip[ip_type].num_queues = util_bitcount(ip_info->available_rings);
+   } else {
+      return false;
+   }
+
+   /* Gfx6-8 don't set ip_discovery_version. */
+   if (ip_info->ip_discovery_version) {
+      info->ip[ip_type].ver_major = (ip_info->ip_discovery_version >> 16) & 0xff;
+      info->ip[ip_type].ver_minor = (ip_info->ip_discovery_version >> 8) & 0xff;
+      info->ip[ip_type].ver_rev = ip_info->ip_discovery_version & 0xff;
+   } else {
+      info->ip[ip_type].ver_major = ip_info->hw_ip_version_major;
+      info->ip[ip_type].ver_minor = ip_info->hw_ip_version_minor;
+
+      /* Fix incorrect IP versions reported by the kernel. */
+      if (device_info->family == FAMILY_NV &&
+            (ASICREV_IS(device_info->external_rev, NAVI10) ||
+            ASICREV_IS(device_info->external_rev, NAVI12) ||
+            ASICREV_IS(device_info->external_rev, NAVI14)))
+         info->ip[AMD_IP_GFX].ver_minor = info->ip[AMD_IP_COMPUTE].ver_minor = 1;
+      else if (device_info->family == FAMILY_NV ||
+               device_info->family == FAMILY_VGH ||
+               device_info->family == FAMILY_RMB ||
+               device_info->family == FAMILY_RPL ||
+               device_info->family == FAMILY_MDN)
+         info->ip[AMD_IP_GFX].ver_minor = info->ip[AMD_IP_COMPUTE].ver_minor = 3;
+   }
+
+   /* According to the kernel, only SDMA and VPE require 256B alignment, but use it
+    * for all queues because the kernel reports wrong limits for some of the queues.
+    * This is only space allocation alignment, so it's OK to keep it like this even
+    * when it's greater than what the queues require.
+    */
+   info->ip[ip_type].ib_alignment = MAX3(ip_info->ib_start_alignment,
+                                         ip_info->ib_size_alignment, 256);
+   info->ip[ip_type].ib_pad_dw_mask = ac_ip_type_dw_padding_minus_1[ip_type];
+
+   if (ip_type == AMD_IP_GFX && info->ip[AMD_IP_GFX].num_queues > 0)
+      info->has_graphics = true;
+
+   return true;
+}
+
 void
 ac_fill_memory_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info,
                     const struct drm_amdgpu_memory_info *meminfo)
@@ -520,70 +591,12 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
       if (r)
          continue;
 
-      if (info->userq_ip_mask & BITFIELD_BIT(ip_type)) {
-         /* info[ip_type].num_queues variable is also used to describe if that ip_type is
-          * supported or not. Setting this variable to 1 for userqueues.
-          */
-         info->ip[ip_type].num_queues = 1;
-      } else if (ip_info.available_rings) {
-         info->ip[ip_type].num_queues = util_bitcount(ip_info.available_rings);
-      } else {
-         continue;
+      if (ac_fill_hw_ip_info(info, &device_info, ip_type, &ip_info)) {
+         /* query ip count */
+         if (!ac_drm_query_hw_ip_count(dev, ip_type, &num_instances))
+            info->ip[ip_type].num_instances = num_instances;
       }
-
-      /* Gfx6-8 don't set ip_discovery_version. */
-      if (ip_info.ip_discovery_version) {
-         info->ip[ip_type].ver_major = (ip_info.ip_discovery_version >> 16) & 0xff;
-         info->ip[ip_type].ver_minor = (ip_info.ip_discovery_version >> 8) & 0xff;
-         info->ip[ip_type].ver_rev = ip_info.ip_discovery_version & 0xff;
-      } else {
-         info->ip[ip_type].ver_major = ip_info.hw_ip_version_major;
-         info->ip[ip_type].ver_minor = ip_info.hw_ip_version_minor;
-
-         /* Fix incorrect IP versions reported by the kernel. */
-         if (device_info.family == FAMILY_NV &&
-             (ASICREV_IS(device_info.external_rev, NAVI10) ||
-              ASICREV_IS(device_info.external_rev, NAVI12) ||
-              ASICREV_IS(device_info.external_rev, NAVI14)))
-            info->ip[AMD_IP_GFX].ver_minor = info->ip[AMD_IP_COMPUTE].ver_minor = 1;
-         else if (device_info.family == FAMILY_NV ||
-                  device_info.family == FAMILY_VGH ||
-                  device_info.family == FAMILY_RMB ||
-                  device_info.family == FAMILY_RPL ||
-                  device_info.family == FAMILY_MDN)
-            info->ip[AMD_IP_GFX].ver_minor = info->ip[AMD_IP_COMPUTE].ver_minor = 3;
-      }
-
-      /* query ip count */
-      r = ac_drm_query_hw_ip_count(dev, ip_type, &num_instances);
-      if (!r)
-         info->ip[ip_type].num_instances = num_instances;
-
-      /* According to the kernel, only SDMA and VPE require 256B alignment, but use it
-       * for all queues because the kernel reports wrong limits for some of the queues.
-       * This is only space allocation alignment, so it's OK to keep it like this even
-       * when it's greater than what the queues require.
-       */
-      info->ip[ip_type].ib_alignment = MAX3(ip_info.ib_start_alignment,
-                                            ip_info.ib_size_alignment, 256);
    }
-
-   /* GFX1013 is known to have broken compute queue */
-   if (device_info.family == FAMILY_NV && ASICREV_IS(device_info.external_rev, GFX1013)) {
-      info->ip[AMD_IP_COMPUTE].num_queues = 0;
-   }
-
-   /* Set dword padding minus 1. */
-   info->ip[AMD_IP_GFX].ib_pad_dw_mask = 0x7;
-   info->ip[AMD_IP_COMPUTE].ib_pad_dw_mask = 0x7;
-   info->ip[AMD_IP_SDMA].ib_pad_dw_mask = 0xf;
-   info->ip[AMD_IP_UVD].ib_pad_dw_mask = 0xf;
-   info->ip[AMD_IP_VCE].ib_pad_dw_mask = 0x3f;
-   info->ip[AMD_IP_UVD_ENC].ib_pad_dw_mask = 0x3f;
-   info->ip[AMD_IP_VCN_DEC].ib_pad_dw_mask = 0xf;
-   info->ip[AMD_IP_VCN_ENC].ib_pad_dw_mask = 0x3f;
-   info->ip[AMD_IP_VCN_JPEG].ib_pad_dw_mask = 0xf;
-   info->ip[AMD_IP_VPE].ib_pad_dw_mask = 0xf;
 
    /* Only require gfx or compute. */
    if (!info->ip[AMD_IP_GFX].num_queues && !info->ip[AMD_IP_COMPUTE].num_queues) {
