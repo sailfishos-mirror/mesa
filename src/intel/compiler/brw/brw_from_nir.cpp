@@ -4523,7 +4523,7 @@ emit_fence(const brw_builder &bld, enum opcode opcode,
 
 static uint32_t
 lsc_fence_descriptor_for_intrinsic(const struct intel_device_info *devinfo,
-                                   nir_intrinsic_instr *instr)
+                                   nir_intrinsic_instr *instr, bool is_tgm)
 {
    assert(devinfo->has_lsc);
 
@@ -4549,8 +4549,17 @@ lsc_fence_descriptor_for_intrinsic(const struct intel_device_info *devinfo,
             flush_type = LSC_FLUSH_TYPE_EVICT;
             break;
          case SCOPE_WORKGROUP:
-            scope = LSC_FENCE_THREADGROUP;
-            flush_type = LSC_FLUSH_TYPE_NONE;
+            /* On Xe2 and Xe3 we need the eviction due to aliasing of TGM data
+             * in L1 (HSD 14020414266). On Xe3p we need this due to how data
+             * post-format conversion happens (HSD 22020984324).
+             * Also, we have to upgrade the scope to TILE since flush_type is
+             * ignored for threadgroup fences, which means we'll use the
+             * values alaready initialized.
+             */
+            if (devinfo->ver < 20 || !is_tgm) {
+               scope = LSC_FENCE_THREADGROUP;
+               flush_type = LSC_FLUSH_TYPE_NONE;
+            }
             break;
          case SCOPE_SHADER_CALL:
          case SCOPE_INVOCATION:
@@ -4999,7 +5008,7 @@ brw_from_nir_emit_intrinsic(nir_to_brw_state &ntb,
       if (devinfo->has_lsc) {
          assert(devinfo->verx10 >= 125);
          uint32_t desc =
-            lsc_fence_descriptor_for_intrinsic(devinfo, instr);
+            lsc_fence_descriptor_for_intrinsic(devinfo, instr, tgm_fence);
          if (ugm_fence) {
             fence_regs[fence_regs_count++] =
                emit_fence(ubld1, opcode, BRW_SFID_UGM, desc,
