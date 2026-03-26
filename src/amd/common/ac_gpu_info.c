@@ -977,6 +977,138 @@ void ac_fill_bug_info(struct radeon_info *info)
    info->never_send_perfcounter_stop = info->gfx_level == GFX11;
 }
 
+void ac_fill_feature_info(struct radeon_info *info, const struct drm_amdgpu_info_device *device_info)
+{
+   info->r600_has_virtual_memory = true;
+
+   info->has_userptr = !info->is_virtio;
+   info->has_syncobj = true;
+   info->has_fence_to_handle = true;
+
+   info->has_eqaa_surface_allocator = info->gfx_level < GFX11;
+
+   info->cpdma_prefetch_writes_memory = info->gfx_level <= GFX8;
+
+   /* On GFX8-9, CP DMA doesn't support NULL PRT pages:
+    * it doesn't read 0 and doesn't discard writes, causing GPU hangs.
+    */
+   info->cp_dma_supports_sparse = info->gfx_level >= GFX10;
+
+   /* Disable sparse mappings on GFX6 due to VM faults in CP DMA. Enable them once
+    * these faults are mitigated in software.
+    * Disable sparse mappings on GFX7-8 due to GPU hangs in the VK CTS,
+    * except Polaris where it happens to work "well enough".
+    * Enable them when these are investigated and fixed in the driver.
+    */
+   info->has_sparse = info->family >= CHIP_POLARIS10;
+   info->has_sparse_image_3d = info->gfx_level >= GFX7;
+   info->has_sparse_image_standard_3d = info->gfx_level >= GFX9;
+   info->has_sparse_unaligned_mip_size = info->gfx_level >= GFX7;
+
+   info->has_gpuvm_fault_query = info->drm_minor >= 55;
+   info->has_tmz_support = device_info->ids_flags & AMDGPU_IDS_FLAGS_TMZ;
+   info->uses_kernel_cu_mask = false; /* Not implemented in the kernel. */
+
+   /* On GFX8, the TBA/TMA registers can be configured from the userspace.
+    * On GFX9+, they are privileged registers and they need to be configured
+    * from the kernel but it's not suppported yet.
+    */
+   info->has_trap_handler_support = info->gfx_level == GFX8;
+
+   /* The mere presence of CLEAR_STATE in the IB causes random GPU hangs on GFX6. CLEAR_STATE
+    * causes GPU hangs with the radeon kernel driver, so only enable GFX7 CLEAR_STATE on amdgpu.
+    * GFX11+ supports CLEAR_STATE, but we have decided not to use it.
+    */
+   info->has_clear_state = info->gfx_level >= GFX7 && info->gfx_level < GFX11;
+
+   info->has_distributed_tess =
+      info->gfx_level >= GFX10 || (info->gfx_level >= GFX8 && info->max_se >= 2);
+
+   info->has_dcc_constant_encode =
+      info->family == CHIP_RAVEN2 || info->family == CHIP_RENOIR || info->gfx_level >= GFX10;
+
+   /* TC-compat HTILE is only available on GFX8-GFX11.5.
+    *
+    * There are issues with TC-compatible HTILE on Tonga (and Iceland is the same design), and
+    * documented bug workarounds don't help. For example, this fails:
+    *   piglit/bin/tex-miplevel-selection 'texture()' 2DShadow -auto
+    */
+   info->has_tc_compatible_htile = info->gfx_level >= GFX8 && info->gfx_level < GFX12 &&
+                                   info->family != CHIP_TONGA && info->family != CHIP_ICELAND;
+
+   info->has_etc_support = info->family == CHIP_STONEY || info->family == CHIP_VEGA10 ||
+                           info->family == CHIP_RAVEN || info->family == CHIP_RAVEN2;
+
+   info->has_rbplus = info->family == CHIP_STONEY || info->gfx_level >= GFX9;
+
+   /* Some chips have RB+ registers, but don't support RB+. Those must
+    * always disable it.
+    */
+   info->rbplus_allowed =
+      info->has_rbplus &&
+      (info->family == CHIP_STONEY || info->family == CHIP_VEGA12 || info->family == CHIP_RAVEN ||
+       info->family == CHIP_RAVEN2 || info->family == CHIP_RENOIR || info->gfx_level >= GFX10_3);
+
+   info->has_out_of_order_rast =
+      info->gfx_level >= GFX8 && info->gfx_level <= GFX9 && info->max_se >= 2;
+
+   info->has_load_ctx_reg_pkt =
+      info->gfx_level >= GFX9 || (info->gfx_level >= GFX8 && info->me_fw_feature >= 41);
+
+   /* Support for GFX10.3 was added with F32_ME_FEATURE_VERSION_31 but the
+    * feature version wasn't bumped.
+    */
+   info->has_32bit_predication = info->gfx_level >= GFX11 ||
+                                 (info->gfx_level >= GFX10 &&
+                                  info->me_fw_feature >= 32) ||
+                                 (info->gfx_level == GFX9 &&
+                                  info->me_fw_feature >= 52);
+
+   /* SDMA v1.0-3.x (GFX6-8) can't ignore page faults on unmapped sparse resources. */
+   info->sdma_supports_sparse = info->sdma_ip_version >= SDMA_4_0;
+
+   /* SDMA v5.0+ (GFX10+) supports DCC and HTILE, but Navi 10 has issues with it according to PAL. */
+   info->sdma_supports_compression = info->sdma_ip_version >= SDMA_5_0 && info->family != CHIP_NAVI10 && info->family != CHIP_GFX1013;
+
+   /* GFX6 supports IB2, but not chaining inside IB2. See waCpIb2ChainingUnsupported in PAL */
+   info->can_chain_ib2 = info->gfx_level >= GFX7;
+
+   /* CDNA starting with GFX940 shouldn't use CP DMA. */
+   info->has_cp_dma = info->has_graphics || info->family < CHIP_GFX940;
+
+   /* The kernel code translating tiling flags into a modifier was wrong
+    * until .58.
+    */
+   info->gfx12_supports_display_dcc = info->gfx_level >= GFX12 && info->drm_minor >= 58;
+
+   /* AMDGPU always enables DCC compressed writes when a BO is moved back to
+    * VRAM until .60.
+    */
+   info->gfx12_supports_dcc_write_compress_disable = info->gfx_level >= GFX12 && info->drm_minor >= 60;
+
+   /* AMDGPU 3.59+ clears VRAM on allocations by default. */
+   info->has_default_zerovram_support = info->drm_minor >= 59;
+
+   info->has_image_opcodes = debug_get_bool_option("AMD_IMAGE_OPCODES",
+                                                   info->has_graphics || info->family < CHIP_GFX940);
+
+   info->mesh_fast_launch_2 = info->gfx_level >= GFX11;
+
+   /* WARNING: Register shadowing decreases performance by up to 50% on GFX11 with current FW. */
+   info->has_kernelq_reg_shadowing = device_info->ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION &&
+                                     info->gfx_level < GFX11 &&
+                                     !(info->userq_ip_mask & (1 << AMD_IP_GFX));
+
+   if (info->gfx_level >= GFX12) {
+      info->has_set_context_pairs = true;
+      info->has_set_sh_pairs = true;
+      info->has_set_uconfig_pairs = true;
+   } else if (info->gfx_level >= GFX11 && info->has_dedicated_vram) {
+      info->has_set_context_pairs_packed = true;
+      info->has_set_sh_pairs_packed = info->has_kernelq_reg_shadowing;
+   }
+}
+
 enum ac_query_gpu_info_result
 ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
                   bool require_pci_bus_info)
@@ -1151,35 +1283,8 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
    info->memory_freq_mhz_effective *= ac_memory_ops_per_clock(info->vram_type);
 
-   info->has_userptr = !info->is_virtio;
-   info->has_syncobj = true;
    info->has_timeline_syncobj = ac_drm_device_get_sync_provider(dev)->timeline_wait != NULL;
-   info->has_fence_to_handle = true;
    ac_drm_query_has_vm_always_valid(dev, info);
-   info->has_eqaa_surface_allocator = info->gfx_level < GFX11;
-
-   /* Disable sparse mappings on GFX6 due to VM faults in CP DMA. Enable them once
-    * these faults are mitigated in software.
-    * Disable sparse mappings on GFX7-8 due to GPU hangs in the VK CTS,
-    * except Polaris where it happens to work "well enough".
-    * Enable them when these are investigated and fixed in the driver.
-    */
-   info->has_sparse = info->family >= CHIP_POLARIS10;
-   info->has_sparse_image_3d = info->gfx_level >= GFX7;
-   info->has_sparse_image_standard_3d = info->gfx_level >= GFX9;
-   info->has_sparse_unaligned_mip_size = info->gfx_level >= GFX7;
-
-   info->has_gpuvm_fault_query = info->drm_minor >= 55;
-   info->has_tmz_support = device_info.ids_flags & AMDGPU_IDS_FLAGS_TMZ;
-   info->kernel_has_modifiers = has_modifiers(fd) || (info->is_virtio && fd < 0);
-   info->uses_kernel_cu_mask = false; /* Not implemented in the kernel. */
-   info->has_graphics = info->ip[AMD_IP_GFX].num_queues > 0;
-
-   /* On GFX8, the TBA/TMA registers can be configured from the userspace.
-    * On GFX9+, they are privileged registers and they need to be configured
-    * from the kernel but it's not suppported yet.
-    */
-   info->has_trap_handler_support = info->gfx_level == GFX8;
 
    info->pa_sc_tile_steering_override = device_info.pa_sc_tile_steering_override;
    info->max_render_backends = device_info.num_rb_pipes;
@@ -1204,7 +1309,10 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->num_sqc_per_wgp = device_info.num_sqc_per_wgp;
 
    ac_fill_tiling_info(info, &amdinfo);
-   info->r600_has_virtual_memory = true;
+
+   ac_fill_feature_info(info, &device_info);
+
+   info->kernel_has_modifiers = has_modifiers(fd) || (info->is_virtio && fd < 0);
 
    /* LDS is 64KB per CU (4 SIMDs on GFX6-9, which is 16KB per SIMD).
     *
@@ -1213,68 +1321,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
     * GFX6:   There is 64KB LDS per CU, but a workgroup can only use up to 32KB.
     */
    info->lds_size_per_workgroup = info->gfx_level >= GFX7 ? 64 * 1024 : 32 * 1024;
-
-   /* The mere presence of CLEAR_STATE in the IB causes random GPU hangs on GFX6. CLEAR_STATE
-    * causes GPU hangs with the radeon kernel driver, so only enable GFX7 CLEAR_STATE on amdgpu.
-    * GFX11+ supports CLEAR_STATE, but we have decided not to use it.
-    */
-   info->has_clear_state = info->gfx_level >= GFX7 && info->gfx_level < GFX11;
-
-   info->has_distributed_tess =
-      info->gfx_level >= GFX10 || (info->gfx_level >= GFX8 && info->max_se >= 2);
-
-   info->has_dcc_constant_encode =
-      info->family == CHIP_RAVEN2 || info->family == CHIP_RENOIR || info->gfx_level >= GFX10;
-
-   /* TC-compat HTILE is only available on GFX8-GFX11.5.
-    *
-    * There are issues with TC-compatible HTILE on Tonga (and Iceland is the same design), and
-    * documented bug workarounds don't help. For example, this fails:
-    *   piglit/bin/tex-miplevel-selection 'texture()' 2DShadow -auto
-    */
-   info->has_tc_compatible_htile = info->gfx_level >= GFX8 && info->gfx_level < GFX12 &&
-                                   info->family != CHIP_TONGA && info->family != CHIP_ICELAND;
-
-   info->has_etc_support = info->family == CHIP_STONEY || info->family == CHIP_VEGA10 ||
-                           info->family == CHIP_RAVEN || info->family == CHIP_RAVEN2;
-
-   info->has_rbplus = info->family == CHIP_STONEY || info->gfx_level >= GFX9;
-
-   /* Some chips have RB+ registers, but don't support RB+. Those must
-    * always disable it.
-    */
-   info->rbplus_allowed =
-      info->has_rbplus &&
-      (info->family == CHIP_STONEY || info->family == CHIP_VEGA12 || info->family == CHIP_RAVEN ||
-       info->family == CHIP_RAVEN2 || info->family == CHIP_RENOIR || info->gfx_level >= GFX10_3);
-
-   info->has_out_of_order_rast =
-      info->gfx_level >= GFX8 && info->gfx_level <= GFX9 && info->max_se >= 2;
-
-   info->has_load_ctx_reg_pkt =
-      info->gfx_level >= GFX9 || (info->gfx_level >= GFX8 && info->me_fw_feature >= 41);
-
-   info->cpdma_prefetch_writes_memory = info->gfx_level <= GFX8;
-
-   /* Support for GFX10.3 was added with F32_ME_FEATURE_VERSION_31 but the
-    * feature version wasn't bumped.
-    */
-   info->has_32bit_predication = info->gfx_level >= GFX11 ||
-                                 (info->gfx_level >= GFX10 &&
-                                  info->me_fw_feature >= 32) ||
-                                 (info->gfx_level == GFX9 &&
-                                  info->me_fw_feature >= 52);
-
-   /* On GFX8-9, CP DMA doesn't support NULL PRT pages:
-    * it doesn't read 0 and doesn't discard writes, causing GPU hangs.
-    */
-   info->cp_dma_supports_sparse = info->gfx_level >= GFX10;
-
-   /* SDMA v1.0-3.x (GFX6-8) can't ignore page faults on unmapped sparse resources. */
-   info->sdma_supports_sparse = info->sdma_ip_version >= SDMA_4_0;
-
-   /* SDMA v5.0+ (GFX10+) supports DCC and HTILE, but Navi 10 has issues with it according to PAL. */
-   info->sdma_supports_compression = info->sdma_ip_version >= SDMA_5_0 && info->family != CHIP_NAVI10 && info->family != CHIP_GFX1013;
 
    /* Get the number of good compute units. */
    info->num_cu = 0;
@@ -1350,12 +1396,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
    info->gfx_ib_pad_with_type2 = info->gfx_level == GFX6;
 
-   /* GFX6 supports IB2, but not chaining inside IB2. See waCpIb2ChainingUnsupported in PAL */
-   info->can_chain_ib2 = info->gfx_level >= GFX7;
-
-   /* CDNA starting with GFX940 shouldn't use CP DMA. */
-   info->has_cp_dma = info->has_graphics || info->family < CHIP_GFX940;
-
    if (info->gfx_level >= GFX11 && info->gfx_level < GFX12) {
       /* With num_cu = 4 in gfx11 measured power for idle, video playback and observed
        * power savings, hence enable dcc with retile for gfx11 with num_cu >= 4.
@@ -1375,19 +1415,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
          info->use_display_dcc_with_retile_blit = info->num_cu > 4;
       }
    }
-
-   /* The kernel code translating tiling flags into a modifier was wrong
-    * until .58.
-    */
-   info->gfx12_supports_display_dcc = info->gfx_level >= GFX12 && info->drm_minor >= 58;
-
-   /* AMDGPU always enables DCC compressed writes when a BO is moved back to
-    * VRAM until .60.
-    */
-   info->gfx12_supports_dcc_write_compress_disable = info->gfx_level >= GFX12 && info->drm_minor >= 60;
-
-   /* AMDGPU 3.59+ clears VRAM on allocations by default. */
-   info->has_default_zerovram_support = info->drm_minor >= 59;
 
    if (info->gfx_level >= GFX12) {
       /* Gfx12 doesn't use pc_lines and pbb_max_alloc_count. */
@@ -1435,11 +1462,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
          info->pbb_max_alloc_count = MIN2(128, pc_lines / (4 * info->max_se));
       }
    }
-
-   info->has_image_opcodes = debug_get_bool_option("AMD_IMAGE_OPCODES",
-                                                   info->has_graphics || info->family < CHIP_GFX940);
-
-   info->mesh_fast_launch_2 = info->gfx_level >= GFX11;
 
    /* This is the size of all TCS outputs in memory per workgroup.
     * Hawaii can't handle num_workgroups > 256 with 8K per workgroup, so use 4K.
@@ -1680,20 +1702,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
 
       info->fw_based_mcbp.sdma_csa_size = fw_info.sdma.csa_size;
       info->fw_based_mcbp.sdma_csa_alignment = fw_info.sdma.csa_alignment;
-   }
-
-   /* WARNING: Register shadowing decreases performance by up to 50% on GFX11 with current FW. */
-   info->has_kernelq_reg_shadowing = device_info.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION &&
-                                     info->gfx_level < GFX11 &&
-                                     !(info->userq_ip_mask & (1 << AMD_IP_GFX));
-
-   if (info->gfx_level >= GFX12) {
-      info->has_set_context_pairs = true;
-      info->has_set_sh_pairs = true;
-      info->has_set_uconfig_pairs = true;
-   } else if (info->gfx_level >= GFX11 && info->has_dedicated_vram) {
-      info->has_set_context_pairs_packed = true;
-      info->has_set_sh_pairs_packed = info->has_kernelq_reg_shadowing;
    }
 
    set_custom_cu_en_mask(info);
