@@ -1102,6 +1102,12 @@ anv_use_generated_draws(const struct anv_cmd_buffer *cmd_buffer, uint32_t count)
    return count >= instance->drirc.perf.generated_indirect_threshold;
 }
 
+#define gfx_source_hashes(gfx) \
+   (gfx->shaders[MESA_SHADER_VERTEX] != NULL ? \
+    gfx->shaders[MESA_SHADER_VERTEX]->prog_data->source_hash : 0ull), \
+   (gfx->shaders[MESA_SHADER_FRAGMENT] != NULL ? \
+    gfx->shaders[MESA_SHADER_FRAGMENT]->prog_data->source_hash : 0ull)
+
 #include "genX_cmd_draw_helpers.h"
 #include "genX_cmd_draw_generated_indirect.h"
 
@@ -1305,8 +1311,7 @@ void genX(CmdDraw)(
    cmd_buffer_post_draw_wa(cmd_buffer, vertexCount, SEQUENTIAL);
 
    trace_intel_end_draw(&cmd_buffer->trace, count,
-                        gfx->vs_source_hash,
-                        gfx->fs_source_hash);
+                        gfx_source_hashes(gfx));
 }
 
 void genX(CmdDrawMultiEXT)(
@@ -1360,8 +1365,7 @@ void genX(CmdDrawMultiEXT)(
                               SEQUENTIAL);
 
       trace_intel_end_draw_multi(&cmd_buffer->trace, count,
-                                 gfx->vs_source_hash,
-                                 gfx->fs_source_hash);
+                                 gfx_source_hashes(gfx));
    }
 #else
    vk_foreach_multi_draw(draw, i, pVertexInfo, drawCount, stride) {
@@ -1395,8 +1399,7 @@ void genX(CmdDrawMultiEXT)(
                               SEQUENTIAL);
 
       trace_intel_end_draw_multi(&cmd_buffer->trace, count,
-                                 gfx->vs_source_hash,
-                                 gfx->fs_source_hash);
+                                 gfx_source_hashes(gfx));
    }
 #endif
 }
@@ -1465,8 +1468,7 @@ void genX(CmdDrawIndexed)(
    cmd_buffer_post_draw_wa(cmd_buffer, indexCount, RANDOM);
 
    trace_intel_end_draw_indexed(&cmd_buffer->trace, count,
-                                gfx->vs_source_hash,
-                                gfx->fs_source_hash);
+                                gfx_source_hashes(gfx));
 }
 
 void genX(CmdDrawMultiIndexedEXT)(
@@ -1536,8 +1538,7 @@ void genX(CmdDrawMultiIndexedEXT)(
                                     RANDOM);
 
             trace_intel_end_draw_indexed_multi(&cmd_buffer->trace, count,
-                                               gfx->vs_source_hash,
-                                               gfx->fs_source_hash);
+                                               gfx_source_hashes(gfx));
             emitted = false;
          }
       } else {
@@ -1575,8 +1576,7 @@ void genX(CmdDrawMultiIndexedEXT)(
                                     RANDOM);
 
             trace_intel_end_draw_indexed_multi(&cmd_buffer->trace, count,
-                                               gfx->vs_source_hash,
-                                               gfx->fs_source_hash);
+                                               gfx_source_hashes(gfx));
          }
       }
    } else {
@@ -1610,8 +1610,7 @@ void genX(CmdDrawMultiIndexedEXT)(
                                  RANDOM);
 
          trace_intel_end_draw_indexed_multi(&cmd_buffer->trace, count,
-                                            gfx->vs_source_hash,
-                                            gfx->fs_source_hash);
+                                            gfx_source_hashes(gfx));
       }
    }
 #else
@@ -1648,8 +1647,7 @@ void genX(CmdDrawMultiIndexedEXT)(
                               RANDOM);
 
       trace_intel_end_draw_indexed_multi(&cmd_buffer->trace, count,
-                                         gfx->vs_source_hash,
-                                         gfx->fs_source_hash);
+                                         gfx_source_hashes(gfx));
    }
 #endif
 }
@@ -1768,8 +1766,7 @@ void genX(CmdDrawIndirectByteCount2EXT)(
 
    trace_intel_end_draw_indirect_byte_count(&cmd_buffer->trace,
                                             instanceCount * gfx->instance_multiplier,
-                                            gfx->vs_source_hash,
-                                            gfx->fs_source_hash);
+                                            gfx_source_hashes(gfx));
 }
 
 static void
@@ -2091,8 +2088,7 @@ void genX(CmdDrawIndirect2KHR)(
    }
 
    trace_intel_end_draw_indirect(&cmd_buffer->trace, pInfo->drawCount,
-                                 gfx->vs_source_hash,
-                                 gfx->fs_source_hash);
+                                 gfx_source_hashes(gfx));
 }
 
 void genX(CmdDrawIndexedIndirect2KHR)(
@@ -2132,8 +2128,7 @@ void genX(CmdDrawIndexedIndirect2KHR)(
    }
 
    trace_intel_end_draw_indexed_indirect(&cmd_buffer->trace, pInfo->drawCount,
-                                         gfx->vs_source_hash,
-                                         gfx->fs_source_hash);
+                                         gfx_source_hashes(gfx));
 }
 
 #define MI_PREDICATE_SRC0    0x2400
@@ -2323,8 +2318,7 @@ void genX(CmdDrawIndirectCount2KHR)(
 
    trace_intel_end_draw_indirect_count(&cmd_buffer->trace,
                                        anv_address_utrace(count_address),
-                                       gfx->vs_source_hash,
-                                       gfx->fs_source_hash);
+                                       gfx_source_hashes(gfx));
 }
 
 void genX(CmdDrawIndexedIndirectCount2KHR)(
@@ -2368,8 +2362,7 @@ void genX(CmdDrawIndexedIndirectCount2KHR)(
 
    trace_intel_end_draw_indexed_indirect_count(&cmd_buffer->trace,
                                                anv_address_utrace(count_address),
-                                               gfx->vs_source_hash,
-                                               gfx->fs_source_hash);
+                                               gfx_source_hashes(gfx));
 }
 
 void genX(CmdBeginTransformFeedback2EXT)(

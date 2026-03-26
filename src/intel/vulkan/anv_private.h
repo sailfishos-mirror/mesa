@@ -4454,9 +4454,6 @@ struct anv_cmd_graphics_state {
    /* Bitfield of valid entries in the shaders array */
    VkShaderStageFlags active_stages;
 
-   uint32_t vs_source_hash;
-   uint32_t fs_source_hash;
-
    /* Pipeline information */
    uint32_t instance_multiplier;
 
