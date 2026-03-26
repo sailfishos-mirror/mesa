@@ -3640,7 +3640,7 @@ cmd_buffer_gfx_state_emission(struct anv_cmd_buffer *cmd_buffer)
              ANV_DEBUG(SHADER_HASH) &&                                  \
              anv_gfx_has_stage(gfx, stage))) {                          \
          mi_store(&b,                                                   \
-                  mi_mem32(device->workaround_address),                 \
+                  mi_mem64(device->workaround_address),                 \
                   mi_imm(gfx->shaders[stage]->prog_data->source_hash)); \
       }                                                                 \
    } while (0)

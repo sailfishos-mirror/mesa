@@ -670,7 +670,7 @@ emit_cs_walker(struct anv_cmd_buffer *cmd_buffer,
    if (ANV_DEBUG(SHADER_HASH)) {
       mi_builder_init(&b, device->info, &cmd_buffer->batch);
       mi_builder_set_mocs(&b, isl_mocs(&device->isl_dev, 0, false));
-      mi_store(&b, mi_mem32(device->workaround_address),
+      mi_store(&b, mi_mem64(device->workaround_address),
                    mi_imm(prog_data->base.source_hash));
    }
 

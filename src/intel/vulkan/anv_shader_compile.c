@@ -1891,7 +1891,7 @@ anv_shader_compile(struct vk_device *vk_device,
       struct anv_shader_data *shader_data = &shaders_data[s];
       struct vk_shader_compile_info *info = shader_data->info;
 
-      shader_data->source_hash = ((uint32_t*)info->nir->info.source_blake3)[0];
+      shader_data->source_hash = ((uint64_t*)info->nir->info.source_blake3)[0];
 
       for (uint32_t i = 0; i < info->set_layout_count; i++) {
          shader_data->dynamic_descriptors[i] =

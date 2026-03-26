@@ -2177,14 +2177,14 @@ iris_compile_tcs(struct iris_screen *screen,
       options = screen->elk->nir_options[MESA_SHADER_TESS_CTRL];
    struct elk_tcs_prog_key elk_key = iris_to_elk_tcs_key(screen, key);
 #endif
-   uint32_t source_hash;
+   uint64_t source_hash;
 
    if (ish) {
       nir = nir_shader_clone(mem_ctx, ish->nir);
       source_hash = ish->source_hash;
    } else {
       nir = iris_create_passthrough_tcs(mem_ctx, options, key);
-      source_hash = *(uint32_t*)nir->info.source_blake3;
+      source_hash = *(uint64_t*)nir->info.source_blake3;
    }
 
    debug_archiver *debug_archiver =

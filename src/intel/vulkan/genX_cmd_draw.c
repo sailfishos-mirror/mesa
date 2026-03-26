@@ -1131,7 +1131,7 @@ cmd_buffer_pre_draw_wa(struct anv_cmd_buffer *cmd_buffer)
 #define DEBUG_SHADER_HASH(stage) do {                                   \
       if (ANV_DEBUG(SHADER_HASH)) {                                     \
          mi_store(&b,                                                   \
-                  mi_mem32(device->workaround_address),                 \
+                  mi_mem64(device->workaround_address),                 \
                   mi_imm(gfx->shaders[stage]->prog_data->source_hash)); \
       }                                                                 \
    } while (0)

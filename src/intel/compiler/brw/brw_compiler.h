@@ -496,7 +496,7 @@ struct brw_stage_prog_data {
    /** Number of GRF registers used. */
    unsigned grf_used;
 
-   uint32_t source_hash;
+   uint64_t source_hash;
 };
 
 /**
@@ -1319,7 +1319,7 @@ struct brw_compile_params {
 
    uint64_t debug_flag;
 
-   uint32_t source_hash;
+   uint64_t source_hash;
 
    debug_archiver *archiver;
 };
