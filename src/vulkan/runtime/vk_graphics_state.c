@@ -1875,6 +1875,26 @@ vk_graphics_pipeline_state_fill(const struct vk_device *device,
                                                   ms_info, sl_info);
    }
 
+   /* VK_EXT_rasterization_order_attachment_access */
+   if (needs & MESA_VK_GRAPHICS_STATE_COLOR_BLEND_BIT) {
+      if (cb_info && (cb_info->flags &
+          VK_PIPELINE_COLOR_BLEND_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_BIT_EXT)) {
+         state->rasterization_order_access |= VK_IMAGE_ASPECT_COLOR_BIT;
+      }
+   }
+   if (needs & MESA_VK_GRAPHICS_STATE_DEPTH_STENCIL_BIT) {
+      if (ds_info) {
+         if (ds_info->flags &
+             VK_PIPELINE_DEPTH_STENCIL_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_DEPTH_ACCESS_BIT_EXT) {
+            state->rasterization_order_access |= VK_IMAGE_ASPECT_DEPTH_BIT;
+         }
+         if (ds_info->flags &
+             VK_PIPELINE_DEPTH_STENCIL_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_STENCIL_ACCESS_BIT_EXT) {
+            state->rasterization_order_access |= VK_IMAGE_ASPECT_STENCIL_BIT;
+         }
+      }
+   }
+
    return VK_SUCCESS;
 }
 
@@ -1894,6 +1914,7 @@ vk_graphics_pipeline_state_merge(struct vk_graphics_pipeline_state *dst,
 
    dst->pipeline_flags |= src->pipeline_flags;
    dst->feedback_loop_not_input_only |= src->feedback_loop_not_input_only;
+   dst->rasterization_order_access |= src->rasterization_order_access;
 
    /* Render pass state needs special care because a render pass state may be
     * incomplete (view mask only).  See vk_render_pass_state_init().
@@ -1989,6 +2010,7 @@ vk_graphics_pipeline_state_copy(const struct vk_device *device,
    state->pipeline_flags = old_state->pipeline_flags;
    state->feedback_loop_not_input_only =
       old_state->feedback_loop_not_input_only;
+   state->rasterization_order_access = old_state->rasterization_order_access;
 
    vk_graphics_pipeline_state_validate(state);
    return VK_SUCCESS;

@@ -1029,6 +1029,14 @@ struct vk_graphics_pipeline_state {
     */
    bool feedback_loop_not_input_only;
 
+   /** Rasterization order attachment access flags.
+    *
+    * Tracks which attachment types require rasterization-order access,
+    * as declared by VK_EXT_rasterization_order_attachment_access pipeline
+    * create flags or subpass description flags.
+    */
+   VkImageAspectFlags rasterization_order_access;
+
    /** Vertex input state */
    const struct vk_vertex_input_state *vi;
 
