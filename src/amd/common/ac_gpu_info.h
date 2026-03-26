@@ -375,7 +375,6 @@ struct radeon_info {
    bool has_timeline_syncobj;
    bool has_fence_to_handle;
    bool has_vm_always_valid;
-   bool has_bo_metadata;
    bool has_eqaa_surface_allocator;
    /* Sparse bindings and basic sparse features (2D image, etc.) */
    bool has_sparse;

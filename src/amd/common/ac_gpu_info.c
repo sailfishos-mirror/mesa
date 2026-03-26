@@ -1019,7 +1019,6 @@ ac_query_gpu_info(int fd, void *dev_p, struct radeon_info *info,
    info->has_timeline_syncobj = ac_drm_device_get_sync_provider(dev)->timeline_wait != NULL;
    info->has_fence_to_handle = true;
    ac_drm_query_has_vm_always_valid(dev, info);
-   info->has_bo_metadata = true;
    info->has_eqaa_surface_allocator = info->gfx_level < GFX11;
 
    /* Disable sparse mappings on GFX6 due to VM faults in CP DMA. Enable them once
@@ -1983,7 +1982,6 @@ void ac_print_gpu_info(FILE *f, const struct radeon_info *info, int fd)
    fprintf(f, "    has_userptr = %i\n", info->has_userptr);
    fprintf(f, "    has_timeline_syncobj = %u\n", info->has_timeline_syncobj);
    fprintf(f, "    has_vm_always_valid = %u\n", info->has_vm_always_valid);
-   fprintf(f, "    has_bo_metadata = %u\n", info->has_bo_metadata);
    fprintf(f, "    has_eqaa_surface_allocator = %u\n", info->has_eqaa_surface_allocator);
    fprintf(f, "    has_sparse = %u\n", info->has_sparse);
    fprintf(f, "    has_gpuvm_fault_query = %u\n", info->has_gpuvm_fault_query);
