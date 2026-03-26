@@ -37,6 +37,12 @@ extern "C" {
 #define MAX_XFB_BUFFERS        4
 #define MAX_INLINABLE_UNIFORMS 4
 
+enum shader_info_hash_type {
+   SHADER_INFO_HASH_TYPE_RAW = 0,
+   SHADER_INFO_HASH_TYPE_DXIL,
+   SHADER_INFO_HASH_TYPE_DXBC,
+};
+
 typedef struct shader_info {
    const char *name;
 
@@ -375,6 +381,10 @@ typedef struct shader_info {
     * index and indices are assigned via atomicAdd() of a counter.
     */
    bool occupancy_bounded_workgroup_fairness:1;
+
+   /* Type of hash carried in source_blake3.
+    */
+   enum shader_info_hash_type hash_type:2;
 
    union {
       struct {

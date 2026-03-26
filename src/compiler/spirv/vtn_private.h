@@ -703,6 +703,10 @@ struct vtn_builder {
 
    /* memory model specified by OpMemoryModel */
    unsigned mem_model;
+
+   /* Shader hash stored by dxvk/vkd3d-proton in OpString */
+   enum shader_info_hash_type shader_hash_type;
+   uint64_t shader_hash;
 };
 
 const char *

@@ -5753,10 +5753,24 @@ vtn_handle_debug_text(struct vtn_builder *b, SpvOp opcode,
                       const uint32_t *w, unsigned count)
 {
    switch (opcode) {
-   case SpvOpString:
-      vtn_push_value(b, w[1], vtn_value_type_string)->str =
-         vtn_string_literal(b, &w[2], count - 2, NULL);
+   case SpvOpString: {
+      struct vtn_value *val =
+         vtn_push_value(b, w[1], vtn_value_type_string);
+      val->str = vtn_string_literal(b, &w[2], count - 2, NULL);
+      if (b->options->store_dxbc_dxil_hashes) {
+         const int len = strlen(val->str);
+         if (len == 21) {
+            if (strcmp(&val->str[16], ".dxil") == 0) {
+               b->shader_hash = strtoull(val->str, NULL, 16);
+               b->shader_hash_type = SHADER_INFO_HASH_TYPE_DXIL;
+            } else if (strcmp(&val->str[16], ".dxbc") == 0) {
+               b->shader_hash = strtoull(val->str, NULL, 16);
+               b->shader_hash_type = SHADER_INFO_HASH_TYPE_DXBC;
+            }
+         }
+      }
       break;
+   }
 
    case SpvOpSource: {
       const char *lang;
@@ -7732,6 +7746,7 @@ spirv_to_nir(const uint32_t *words, size_t word_count,
       b->shader->info.workgroup_size_variable = true;
    b->shader->info.cs.shader_index = options->shader_index;
    b->shader->has_debug_info = options->debug_info;
+
    _mesa_blake3_compute(words, word_count * sizeof(uint32_t), b->shader->info.source_blake3);
 
    const char *dump_path = os_get_option_secure("MESA_SPIRV_DUMP_PATH");
@@ -8042,6 +8057,18 @@ spirv_to_nir(const uint32_t *words, size_t word_count,
                b->shader->info.fs.uses_sample_shading = true;
          }
       }
+   }
+
+   /* If we gather a DXBC/DXIL hash, store that if requested by the driver. */
+   if (options->store_dxbc_dxil_hashes &&
+       b->shader_hash_type != SHADER_INFO_HASH_TYPE_RAW) {
+      assert(sizeof(b->shader->info.source_blake3) >=
+             sizeof(b->shader_hash));
+      memset(b->shader->info.source_blake3, 0,
+             sizeof(b->shader->info.source_blake3));
+      memcpy(b->shader->info.source_blake3, &b->shader_hash,
+             sizeof(b->shader_hash));
+      b->shader->info.hash_type = b->shader_hash_type;
    }
 
    /* Unparent the shader from the vtn_builder before we delete the builder */
