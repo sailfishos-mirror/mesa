@@ -57,7 +57,7 @@ bool pan_nir_lower_noperspective_fs(nir_shader *shader);
 
 bool pan_nir_lower_vs_outputs(nir_shader *shader, unsigned gpu_id,
                               const struct pan_varying_layout *varying_layout,
-                              bool has_idvs, bool has_extended_fifo);
+                              bool has_idvs, bool *needs_extended_fifo);
 
 bool pan_nir_lower_fs_inputs(nir_shader *shader, unsigned gpu_id,
                              const struct pan_varying_layout *varying_layout,

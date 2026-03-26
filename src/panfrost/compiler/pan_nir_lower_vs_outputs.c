@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include "bifrost_compile.h"
 #include "pan_nir.h"
 #include "nir_builder.h"
 
@@ -19,7 +20,32 @@ struct lower_vs_outputs_ctx {
    nir_variable *variables[PAN_MAX_VARYINGS];
    uint8_t per_view_written[PAN_MAX_VARYINGS];
    unsigned used_buckets;
+   bool uses_multiview;
 };
+
+static bool
+valhal_writes_extended_fifo(uint64_t outputs_written,
+                            bool no_psiz, bool multiview)
+{
+   uint64_t ex_fifo_written = outputs_written & VALHAL_EX_FIFO_VARYING_BITS;
+   if (ex_fifo_written == 0)
+      return false;
+
+   /* Multiview shaders depend on the FIFO format for indexing per-view
+    * output writes. We don't currently patch these offsets in the no_psiz
+    * variant, so we need the extended format, regardless of point size.
+    */
+   if (multiview)
+      return true;
+
+   /* If we're not rendering in points mode, the no_psiz variant has point
+    * size write patched out for us.
+    */
+   if (no_psiz)
+      ex_fifo_written &= ~VARYING_BIT_PSIZ;
+
+   return ex_fifo_written != 0;
+}
 
 static void
 build_attr_buf_write(struct nir_builder *b, nir_def *data, uint32_t idx,
@@ -196,6 +222,7 @@ gather_vs_outputs(struct nir_builder *b,
 
    ctx->per_view_written[slot_idx] |= BITFIELD_BIT(view_index);
    ctx->used_buckets |= BITFIELD_BIT(va_shader_output_from_loc(sem.location));
+   ctx->uses_multiview |= is_per_view;
 
    b->cursor = nir_instr_remove(&intr->instr);
    nir_variable *var = get_or_create_var(b, ctx, intr);
@@ -233,8 +260,7 @@ gather_vs_outputs(struct nir_builder *b,
 bool
 pan_nir_lower_vs_outputs(nir_shader *shader, unsigned gpu_id,
                          const struct pan_varying_layout *varying_layout,
-                         bool has_idvs,
-                         bool has_extended_fifo)
+                         bool has_idvs, bool *needs_extended_fifo)
 {
    assert(shader->info.stage == MESA_SHADER_VERTEX);
    nir_function_impl *impl = nir_shader_get_entrypoint(shader);
@@ -243,10 +269,11 @@ pan_nir_lower_vs_outputs(nir_shader *shader, unsigned gpu_id,
       .arch = pan_arch(gpu_id),
       .varying_layout = varying_layout,
       .has_idvs = has_idvs,
-      .has_extended_fifo = has_extended_fifo,
+      .has_extended_fifo = false, /* computed after gather_vs_outputs */
       .variables = {NULL, },
       .per_view_written = {0, },
       .used_buckets = 0,
+      .uses_multiview = false,
    };
    /* We use uint8 as a viewcount bitmask */
    assert(PAN_MAX_MULTIVIEW_VIEW_COUNT <= 8 * sizeof(ctx.per_view_written[0]));
@@ -255,6 +282,19 @@ pan_nir_lower_vs_outputs(nir_shader *shader, unsigned gpu_id,
                                               (void *)&ctx);
    if (!progress)
       return false;
+
+   /* Should we use extended FIFO? */
+   if (ctx.arch >= 9) {
+      assert(needs_extended_fifo);
+      const uint64_t outputs = shader->info.outputs_written;
+      ctx.has_extended_fifo =
+         valhal_writes_extended_fifo(outputs, false, ctx.uses_multiview);
+      /* Export if we need ex_fifo even without psiz.  The backend needs to
+       * know this because we can patch psiz out.
+       */
+      *needs_extended_fifo =
+         valhal_writes_extended_fifo(outputs, true, ctx.uses_multiview);
+   }
 
    nir_builder builder = nir_builder_at(nir_after_impl(impl));
    nir_builder *b = &builder;

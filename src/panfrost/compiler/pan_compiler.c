@@ -193,10 +193,6 @@ pan_shader_update_info(struct pan_shader_info *info, nir_shader *s,
 
       info->vs.writes_point_size =
          s->info.outputs_written & VARYING_BIT_PSIZ;
-
-      info->vs.needs_extended_fifo = arch >= 9 &&
-         valhal_writes_extended_fifo(s->info.outputs_written,
-                                     true, inputs->view_mask != 0);
       break;
    case MESA_SHADER_FRAGMENT:
       if (s->info.outputs_written & BITFIELD64_BIT(FRAG_RESULT_DEPTH))

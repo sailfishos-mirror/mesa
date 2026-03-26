@@ -6818,17 +6818,9 @@ bifrost_compile_shader_nir(nir_shader *nir,
       if (info->vs.idvs && nir->info.writes_memory)
          NIR_PASS(_, nir, bifrost_nir_lower_vs_atomics);
 
-      bool has_extended_fifo = false;
-      if (pan_arch(inputs->gpu_id) >= 9) {
-         const uint64_t outputs = nir->info.outputs_written;
-         has_extended_fifo = valhal_writes_extended_fifo(outputs, false, true);
-         /* Must be the same with and without no_psiz */
-         assert(valhal_writes_extended_fifo(outputs, true, true) ==
-                has_extended_fifo);
-      }
-
       NIR_PASS(_, nir, pan_nir_lower_vs_outputs, inputs->gpu_id,
-               inputs->varying_layout, info->vs.idvs, has_extended_fifo);
+               inputs->varying_layout, info->vs.idvs,
+               &info->vs.needs_extended_fifo);
    }
 
    if (nir->info.stage == MESA_SHADER_FRAGMENT) {
