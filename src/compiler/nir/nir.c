@@ -2767,7 +2767,7 @@ nir_system_value_from_intrinsic(nir_intrinsic_op intrin)
    case nir_intrinsic_load_resource_heap_ptr:
       return SYSTEM_VALUE_RESOURCE_HEAP_PTR;
    default:
-      UNREACHABLE("intrinsic doesn't produce a system value");
+      return SYSTEM_VALUE_MAX;
    }
 }
 
