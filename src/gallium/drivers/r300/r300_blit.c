@@ -109,6 +109,9 @@ static uint32_t r300_depth_clear_cb_value(enum pipe_format format,
                                           const float* rgba)
 {
     union util_color uc;
+
+    format = r300_unbyteswap_array_format(format);
+
     util_pack_color(rgba, format, &uc);
 
     if (util_format_get_blocksizebits(format) == 32) {
