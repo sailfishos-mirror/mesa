@@ -443,36 +443,6 @@ static int si_video_get_param(struct pipe_screen *screen, enum pipe_video_profil
       }
    case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
       return true;
-   case PIPE_VIDEO_CAP_MAX_LEVEL:
-      if ((profile == PIPE_VIDEO_PROFILE_MPEG2_SIMPLE ||
-           profile == PIPE_VIDEO_PROFILE_MPEG2_MAIN ||
-           profile == PIPE_VIDEO_PROFILE_VC1_ADVANCED) &&
-          sscreen->info.dec_caps.codec_info[codec - 1].valid) {
-         return sscreen->info.dec_caps.codec_info[codec - 1].max_level;
-      } else {
-         switch (profile) {
-         case PIPE_VIDEO_PROFILE_MPEG1:
-            return 0;
-         case PIPE_VIDEO_PROFILE_MPEG2_SIMPLE:
-         case PIPE_VIDEO_PROFILE_MPEG2_MAIN:
-            return 3;
-         case PIPE_VIDEO_PROFILE_VC1_SIMPLE:
-            return 1;
-         case PIPE_VIDEO_PROFILE_VC1_MAIN:
-            return 2;
-         case PIPE_VIDEO_PROFILE_VC1_ADVANCED:
-            return 4;
-         case PIPE_VIDEO_PROFILE_MPEG4_AVC_CONSTRAINED_BASELINE:
-         case PIPE_VIDEO_PROFILE_MPEG4_AVC_MAIN:
-         case PIPE_VIDEO_PROFILE_MPEG4_AVC_HIGH:
-            return (sscreen->info.family < CHIP_TONGA) ? 41 : 52;
-         case PIPE_VIDEO_PROFILE_HEVC_MAIN:
-         case PIPE_VIDEO_PROFILE_HEVC_MAIN_10:
-            return 186;
-         default:
-            return 0;
-         }
-      }
    case PIPE_VIDEO_CAP_SUPPORTS_CONTIGUOUS_PLANES_MAP:
       return true;
    case PIPE_VIDEO_CAP_ROI_CROP_DEC:

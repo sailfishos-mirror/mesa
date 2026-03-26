@@ -144,8 +144,6 @@ virgl_get_video_param(struct pipe_screen *screen,
          return vcaps ? vcaps->max_height : 0;
       case PIPE_VIDEO_CAP_SUPPORTS_PROGRESSIVE:
          return vcaps ? vcaps->supports_progressive : true;
-      case PIPE_VIDEO_CAP_MAX_LEVEL:
-         return vcaps ? vcaps->max_level : 0;
       case PIPE_VIDEO_CAP_STACKED_FRAMES:
          return vcaps ? vcaps->stacked_frames : 0;
       case PIPE_VIDEO_CAP_MAX_MACROBLOCKS:

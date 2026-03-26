@@ -2247,7 +2247,6 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *pscreen,
          return 0;
       case PIPE_VIDEO_CAP_MAX_WIDTH:
       case PIPE_VIDEO_CAP_MAX_HEIGHT:
-      case PIPE_VIDEO_CAP_MAX_LEVEL:
       case PIPE_VIDEO_CAP_MIN_WIDTH:
       case PIPE_VIDEO_CAP_MIN_HEIGHT:
       case PIPE_VIDEO_CAP_SUPPORTED:
@@ -2284,8 +2283,6 @@ d3d12_screen_get_video_param_decode(struct pipe_screen *pscreen,
                         return lowestSupportedConfig.resolution.Width;
                      } else if (param == PIPE_VIDEO_CAP_MIN_HEIGHT) {
                         return lowestSupportedConfig.resolution.Height;
-                     } else if (param == PIPE_VIDEO_CAP_MAX_LEVEL) {
-                        return bestSupportedConfig.level;
                      } else if (param == PIPE_VIDEO_CAP_SUPPORTED) {
                         return 1;
                      }
@@ -2487,7 +2484,6 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
       case PIPE_VIDEO_CAP_MAX_HEIGHT:
       case PIPE_VIDEO_CAP_MIN_WIDTH:
       case PIPE_VIDEO_CAP_MIN_HEIGHT:
-      case PIPE_VIDEO_CAP_MAX_LEVEL:
       case PIPE_VIDEO_CAP_SUPPORTED:
       case PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME:
       case PIPE_VIDEO_CAP_ENC_SLICES_STRUCTURE:
@@ -2572,8 +2568,6 @@ d3d12_screen_get_video_param_encode(struct pipe_screen *pscreen,
                   return minResEncode.Width;
                } else if (param == PIPE_VIDEO_CAP_MIN_HEIGHT) {
                   return minResEncode.Height;
-               } else if (param == PIPE_VIDEO_CAP_MAX_LEVEL) {
-                  return maxLvlEncode;
                } else if (param == PIPE_VIDEO_CAP_SUPPORTED) {
                   return 1;
                } else if (param == PIPE_VIDEO_CAP_ENC_MAX_SLICES_PER_FRAME) {
